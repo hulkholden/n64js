@@ -63,33 +63,13 @@ var N64 = {};
       return s;
     }
 
-    this.swap_dcba = function () {
+    this.swap = function (_a, _b, _c, _d) {
       for (var i = 0; i < bytes.length; i += 4) {
-        var a = bytes[i+0], b = bytes[i+1], c = bytes[i+2], d = bytes[i+3];
-        bytes[i+0] = d;
-        bytes[i+1] = c;
-        bytes[i+2] = b;
-        bytes[i+3] = a;
-      }
-    }
-
-    this.swap_cdab = function () {
-      for (var i = 0; i < bytes.length; i += 4) {
-        var a = bytes[i+0], b = bytes[i+1], c = bytes[i+2], d = bytes[i+3];
-        bytes[i+0] = c;
-        bytes[i+1] = d;
-        bytes[i+2] = a;
-        bytes[i+3] = b;
-      }
-    }
-
-    this.swap_badc = function () {
-      for (var i = 0; i < bytes.length; i += 4) {
-        var a = bytes[i+0], b = bytes[i+1], c = bytes[i+2], d = bytes[i+3];
-        bytes[i+0] = b;
-        bytes[i+1] = a;
-        bytes[i+2] = d;
-        bytes[i+3] = c;
+        var a = bytes[i+_a], b = bytes[i+_b], c = bytes[i+_c], d = bytes[i+_d];
+        bytes[i+0] = a;
+        bytes[i+1] = b;
+        bytes[i+2] = c;
+        bytes[i+3] = d;
       }     
     }
   }
@@ -102,13 +82,13 @@ var N64 = {};
         // ok
         break;
       case 0x40123780:
-        rom.swap_dcba();
+        rom.swap(3, 2, 1, 0);
         break;
       case 0x12408037:
-        rom.swap_cdab();
+        rom.swap(2, 3, 0, 1);
         break;
       case 0x37804012:
-        rom.swap_badc();
+        rom.swap(1, 0, 3, 2);
         break;        
       default:
         throw 'Unhandled byteswapping: ' + rom.read32(0).toString(16);
