@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+
+    <link rel="stylesheet" href="css/bootstrap.min.css">
+ <style type="text/css">
+   body { padding-top: 30px; }
+   .register-table th, .register-table td { text-align: right; padding: 2px 10px; }
+   .disasm-table th, .disasm-table td { text-align: right; padding: 2px 10px; }
+   .disasm-table th.op, .disasm-table td.op { text-align: left; }
+ </style>
+
+    <title>n64js - An N64 Emulator in Javascript</title>
+  </head>
+  <body>
+    <div class="container">
+      <div class="row">
+        <div class="span12">
+          <h1>n64js</a></h1>
+          <p>A work-in-progress n64 emulator. Very far from working. Code <a href="https://github.com/hulkholden/n64js">here</a>, by <a href="https://twitter.com/#!/hulkholden">@HulkHolden</a>.</p>
+          <div id="help" style="display:none"><p>To follow</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="span8">
+          <button class="btn" onclick="load()"><i class="icon-file"></i> Load</button>
+          <button class="btn" onclick="$('#help').toggle()"><i class="icon-info-sign"></i> Help</button>
+          <input style="visibility:hidden;" id="fileInput" name="fileInput" type="file" onchange="loadFile()" />
+        </div>
+        <div class="span4">
+          <div class="btn-group">
+            <button class="btn" onclick="step()"><i class="icon-step-forward"></i>Step</button>&nbsp;
+            <button class="btn" id="runbutton" onclick="toggleRun()"><i class="icon-play"></i> Run</button>&nbsp;
+          </div>
+        </div>
+      </div>      
+
+      <div class="row">
+        <div class="span8">
+
+          <div class="tabbable">
+            <ul class="nav nav-tabs">
+              <li class="active"><a href="#1" data-toggle="tab">File</a></li>
+              <li><a href="#2" data-toggle="tab">Debug</a></li>
+              <li><a href="#3" data-toggle="tab">Memory</a></li>
+            </ul>
+            <div class="tab-content">
+              <div class="tab-pane active" id="1">
+                <div id="rominfo"></div>
+              </div>
+              <div class="tab-pane" id="2">
+                <div id="registers"></div>
+                <div id="disasm"></div>
+              </div>
+              <div class="tab-pane" id="3">
+                <div id="memory"></div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+        <div class="span4">
+          <canvas id="display" width="320" height="240"></canvas>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="span12">
+          <div id="output"></div>
+        </div>
+      </div>
+
+    </div>
+    <script src="js/jquery.min.js"></script>
+    <script src="js/bootstrap.min.js"></script>
+    <script src="n64.js"></script>
+
+    <script>
+
+    $(document).ready(function(){
+      N64.reset();
+      N64.setRomInfoElement($('#rominfo'));
+      N64.setRegistersElement($('#registers'));
+
+      N64.refreshDisplay();          
+
+      // Load state from localStorage
+      //var prev_code = localStorage.getItem('code');
+      //if (prev_code) {
+      //  $('#codearea').val(prev_code);
+      //}
+
+      $('#output').html('');
+      updateLoop();
+    });
+
+    function load() {
+      $('#fileInput').click();
+    }
+
+    function loadFile() {
+      var f = document.getElementById("fileInput");
+      if (f && f.files.length > 0) {
+        var file = f.files[0];
+        var name = file.fileName;
+        var size = file.fileSize;
+
+        var reader = new FileReader();
+
+        reader.onerror = function(e) {
+          alert('error loading file');
+        }
+        reader.onload = function(e) {
+          var bytes = e.target.result;
+          N64.loadRom(bytes);
+        };
+
+        reader.readAsArrayBuffer(file);
+      }
+    }
+
+    function step() {
+      N64.step();
+      refreshDisplay();
+    }
+
+    function toggleRun() {
+      var running = N64.toggleRun();
+      $('#runbutton').html(running ? '<i class="icon-pause"></i> Pause' : '<i class="icon-play"></i> Run');
+    }
+
+    function updateLoop() {
+        if (N64.isRunning()) {
+          N64.run(5000);
+          refreshDisplay();          
+        }
+        setTimeout("updateLoop()", 16);
+    }
+
+    function refreshDisplay() {
+      N64.refreshDisplay();
+      //dcpu.displayDisassembly(puter.code, puter.PC);
+      //dcpu.displayState(puter);      
+    }
+
+    </script>
+
+  </body>
+</html>
