@@ -13,8 +13,8 @@
    pre .dis-label-target { font-weight: bold; }
    pre .dis-label { color: #999; }
    #output { background-color: #ccc; height: 180px; overflow: scroll;}
-  div #registers { display:inline-block; vertical-align:top;}
-   div #disasm { display:inline-block; vertical-align:top; width:600px;}
+   div #registers { display:inline-block; vertical-align:top;}
+   div #disasm    { display:inline-block; vertical-align:top; width:600px;}
  </style>
 
     <title>n64js - An N64 Emulator in Javascript</title>
@@ -49,19 +49,19 @@
 
           <div class="tabbable">
             <ul class="nav nav-tabs">
-              <li class="active"><a href="#1" data-toggle="tab">File</a></li>
-              <li><a href="#2" data-toggle="tab">Debug</a></li>
-              <li><a href="#3" data-toggle="tab">Memory</a></li>
+              <li class="active"><a href="#file-content" id="file-tab" data-toggle="tab">File</a></li>
+              <li><a href="#debug-content" id="debug-tab" data-toggle="tab">Debug</a></li>
+              <li><a href="#memory-content" id="memory-tab" data-toggle="tab">Memory</a></li>
             </ul>
             <div class="tab-content">
-              <div class="tab-pane active" id="1">
+              <div class="tab-pane active" id="file-content">
                 <div id="rominfo"></div>
               </div>
-              <div class="tab-pane" id="2">
+              <div class="tab-pane" id="debug-content">
                 <div id="registers"></div>
                 <div id="disasm" class="fixed"></div>
               </div>
-              <div class="tab-pane" id="3">
+              <div class="tab-pane" id="memory-content">
                 <div id="memory"></div>
               </div>
             </div>
@@ -116,6 +116,9 @@
       });
       $('body').keypress(function (event) {
         switch (event.which) {
+          case 'f'.charCodeAt(0): $(  '#file-tab').tab('show'); break;
+          case 'd'.charCodeAt(0): $( '#debug-tab').tab('show'); break;
+          case 'm'.charCodeAt(0): $('#memory-tab').tab('show'); break;
           case 'l'.charCodeAt(0): load(); break;
         }
       });
