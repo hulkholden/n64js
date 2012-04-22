@@ -52,7 +52,6 @@ if (typeof n64js === 'undefined') {
   }
 
   var running = false;
-  var pc      = 0;
   var rom     = null;   // Will be memory, mapped at 0xb0000000
   var ram     = new Memory(0x80000000, new ArrayBuffer(4*1024*1024));
   var spmem   = new Memory(0xa4000000, new ArrayBuffer(0x2000));
@@ -64,6 +63,8 @@ if (typeof n64js === 'undefined') {
     gprLo   : new Uint32Array(32),
     gprHi   : new Uint32Array(32),
     control : new Uint32Array(32),
+
+    pc      : 0,
 
     gprRegisterNames : [
             "r0", "at", "v0", "v1", "a0", "a1", "a2", "a3",
@@ -140,13 +141,16 @@ if (typeof n64js === 'undefined') {
   var $output      = null;
   var $disassembly = null;
 
+  var disasmAddress = 0;
+
   function setGPR(reg, hi, lo) {
     cpu0.gprHi[reg] = hi;
     cpu0.gprLo[reg] = lo;
   }
 
   function setPC(a) {
-    pc = a;
+    cpu0.pc = a;
+    disasmAddress = a;
   }
 
   n64js.isRunning = function () {
@@ -397,22 +401,22 @@ if (typeof n64js === 'undefined') {
   }
 
   n64js.down = function () {
-    pc += 4;
+    disasmAddress += 4;
     n64js.refreshDisplay();
   }
 
   n64js.up = function () {
-    pc -= 4;
+    disasmAddress -= 4;
     n64js.refreshDisplay();
   }
 
   n64js.pageDown = function () {
-    pc += 64;
+    disasmAddress += 64;
     n64js.refreshDisplay();
   }
 
   n64js.pageUp = function () {
-    pc -= 64;
+    disasmAddress -= 64;
     n64js.refreshDisplay();
   } 
 
@@ -421,7 +425,7 @@ if (typeof n64js === 'undefined') {
     var $table = $('<table class="register-table"><tbody></tbody></table>');
     var $tb = $table.find('tbody');
 
-    $tb.append('<tr><td>PC</td>' + pc + '</td><td class="fixed">' + toString32(pc) + '</td></tr>');
+    $tb.append('<tr><td>PC</td>' + cpu0.pc + '</td><td class="fixed">' + toString32(cpu0.pc) + '</td></tr>');
 
     if (0) {
       for (var i = 0; i < 32; i+=4) {
@@ -442,11 +446,15 @@ if (typeof n64js === 'undefined') {
      
     }
 
-    var disassembly = n64js.disassemble(pc - 16, pc + 96);
+    var disassembly = n64js.disassemble(disasmAddress - 64, disasmAddress + 64);
     var dis_body = disassembly.map(function (a) {
       var label_span = a.jumpTarget ? '<span class="dis-label-target" style="color: ' + a.jumpTarget + '">' : '<span class="dis-label">';
       var label = label_span + n64js.toHex(a.address, 32) + ':</span>';
-      return label + '   ' + n64js.toHex(a.instruction, 32) + '    ' + a.disassembly;
+      var t = label + '   ' + n64js.toHex(a.instruction, 32) + '    ' + a.disassembly;
+      if (a.address == cpu0.pc) {
+        t = '<span style="background-color: #ffa">' + t + '</span>';
+      }
+      return t;
     }).join('<br>');
     $disassembly.html('<pre>' + dis_body + '</pre>');
 
