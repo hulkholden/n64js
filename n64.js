@@ -413,10 +413,9 @@ if (typeof n64js === 'undefined') {
 
     var disassembly = n64js.disassemble(pc - 16, pc + 1024);
     var dis_body = disassembly.map(function (a) {
-      var label = n64js.toHex(a.address, 32);
-      if (a.jumpTarget) 
-        label = '<span style="color: red; font-weight: bold">' + label + '</span>';
-      return label + ':   ' + n64js.toHex(a.instruction, 32) + '    ' + a.disassembly;
+      var label_span = a.jumpTarget ? '<span class="dis-label-target" style="color: ' + a.jumpTarget + '">' : '<span class="dis-label">';
+      var label = label_span + n64js.toHex(a.address, 32) + ':</span>';
+      return label + '   ' + n64js.toHex(a.instruction, 32) + '    ' + a.disassembly;
     }).join('<br>');
     $disassembly.html('<pre>' + dis_body + '</pre>');
 

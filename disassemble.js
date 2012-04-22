@@ -24,8 +24,38 @@ if (typeof n64js === 'undefined') {
   function _branchAddress(a,i) { return (a+4) + (_imms(i)*4); }
   function _jumpAddress(a,i)   { return (a&0xf0000000) | (_target(i)*4); }
 
-  function branchAddress(a,i) { return n64js.toHex( _branchAddress(a,i), 32 ); }
-  function jumpAddress(a,i)   { return n64js.toHex( _jumpAddress(a,i), 32 ); }
+  function makeLabelColor(address) {
+    var i = (address>>>2);  // Lowest bits are always 0
+    var hash = (i>>>16) ^ ((i&0xffff) * 2803);
+    var r = (hash     )&0x1f;
+    var g = (hash>>> 5)&0x1f;
+    var b = (hash>>>10)&0x1f;
+    var h = (hash>>>15)&0x3;
+
+    r = (r*4);
+    g = (g*4);
+    b = (b*4);
+    if (h === 0) {
+      r*=2; g*=2;
+    } else if (h === 1) {
+      g*=2; b*=2;
+    } else if (h === 2) {
+      b*=2; r*=2
+    } else {
+      r*=2;g*=2;b*=2;
+    }
+
+    return '#' + n64js.toHex(r,8) + n64js.toHex(g,8) + n64js.toHex(b,8);
+  }
+
+  function makeLabelText(address) {
+    var text = n64js.toHex( address, 32 );
+    var col  = makeLabelColor(address);
+    return '<span class="dis-label-target" style="color:' + col + '">' + text + '</span>';
+  }
+
+  function branchAddress(a,i) { return makeLabelText( _branchAddress(a,i) ); }
+  function jumpAddress(a,i)   { return makeLabelText(   _jumpAddress(a,i) ); }
 
   var gprRegisterNames = [
     'r0', 'at', 'v0', 'v1', 'a0', 'a1', 'a2', 'a3',
@@ -366,7 +396,7 @@ if (typeof n64js === 'undefined') {
     // Flag any instructions that are jump targets
     for (var o = 0; o < r.length; ++o) {
       if (targets.hasOwnProperty(r[o].address)) 
-        r[o].jumpTarget = true;
+        r[o].jumpTarget = makeLabelColor(r[o].address);
     }
 
 
