@@ -411,9 +411,12 @@ if (typeof n64js === 'undefined') {
 
     $tb.append('<tr><td>PC</td>' + pc + '</td><td>0x' + toString32(pc) + '</td></tr>');
 
-    var disassembly = n64js.disassemble(pc - 16, pc + 128);
-    var dis_body = disassembly.map(function (a) { 
-      return n64js.toHex(a.address, 32) + ':   ' + n64js.toHex(a.instruction, 32) + '    ' + a.disassembly;
+    var disassembly = n64js.disassemble(pc - 16, pc + 1024);
+    var dis_body = disassembly.map(function (a) {
+      var label = n64js.toHex(a.address, 32);
+      if (a.jumpTarget) 
+        label = '<span style="color: red; font-weight: bold">' + label + '</span>';
+      return label + ':   ' + n64js.toHex(a.instruction, 32) + '    ' + a.disassembly;
     }).join('<br>');
     $disassembly.html('<pre>' + dis_body + '</pre>');
 
