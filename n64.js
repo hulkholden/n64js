@@ -136,6 +136,9 @@ if (typeof n64js === 'undefined') {
     kControlErrorEPC  : 30    
   };
 
+  // Expose the cpu state
+  n64js.cpu0 = cpu0;
+
   var $rominfo     = null;
   var $registers   = null;
   var $output      = null;

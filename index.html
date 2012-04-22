@@ -84,6 +84,7 @@
     <script src="js/bootstrap.min.js"></script>
     <script src="n64.js"></script>
     <script src="disassemble.js"></script>
+    <script src="r4300.js"></script>
 
     <script>
 
@@ -111,6 +112,8 @@
           case kUp:       n64js.up();       break;
           case kPageDown: n64js.pageDown(); break;
           case kPageUp:   n64js.pageUp();   break;
+          case kF8:       n64js.run();      break;
+          case kF10:      n64js.step();     break;
           //default: alert( 'code:' + event.which);
         }
       });

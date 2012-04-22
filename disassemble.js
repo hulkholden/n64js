@@ -353,18 +353,39 @@ if (typeof n64js === 'undefined') {
     throw "Oops, didn't build the simple table correctly";
   }
 
-  function disassembleOp(a,i) {
-    var opcode = (i >> 26) & 0x3f;
-
-    return simpleTable[opcode](a,i);
-  }
-
   var simpleOpBranchType = [
     0, 0, 1, 1, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   ];
+
+  n64js.disassembleOp = function (address, instruction) {
+    var opcode      = (instruction >> 26) & 0x3f;
+    var disassembly = simpleTable[opcode](address,instruction);
+
+    var op_type = simpleOpBranchType[(instruction>>26)&0x3f];
+    if (op_type == 1) {
+      targets[_jumpAddress(address, instruction)]   = 1;
+    } else if (op_type == 2) {
+      targets[_branchAddress(address, instruction)] = 1;
+    }
+
+    return {address:address, instruction:instruction, disassembly:disassembly, jumpTarget:false};
+
+  }
+
+  n64js.disassembleAddress = function (address) {
+    var r;
+    try {
+      var instruction = n64js.readMemoryInternal32(address);
+      r = n64js.disassembleOp(address, instruction);
+    } catch (e) {
+      r = {address:address, instruction:0xdddddddd, disassembly:'???', jumpTarget:false};
+    }
+
+    return r;
+  }
   
   n64js.disassemble = function (bpc, epc) {
 
@@ -373,21 +394,7 @@ if (typeof n64js === 'undefined') {
     var targets = {};
 
     for (var i = bpc; i < epc; i += 4) {
-        try {
-          var instruction = n64js.readMemoryInternal32(i);
-          var disassembly = disassembleOp(i, instruction);
-
-          var op_type = simpleOpBranchType[(instruction>>26)&0x3f];
-          if (op_type == 1) {
-            targets[_jumpAddress(i, instruction)]   = 1;
-          } else if (op_type == 2) {
-            targets[_branchAddress(i, instruction)] = 1;
-          }
-
-          r.push({address:i, instruction:instruction, disassembly:disassembly, jumpTarget:false});
-        } catch (e) {
-          r.push({address:i, instruction:0xdddddddd, disassembly:'???', jumpTarget:false});
-        }
+        r.push(n64js.disassembleAddress(i));
     }
 
     // Flag any instructions that are jump targets
@@ -395,8 +402,6 @@ if (typeof n64js === 'undefined') {
       if (targets.hasOwnProperty(r[o].address)) 
         r[o].jumpTarget = makeLabelColor(r[o].address);
     }
-
-
 
     return r;
   }
