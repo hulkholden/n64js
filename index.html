@@ -6,6 +6,7 @@
     <link rel="stylesheet" href="css/bootstrap.min.css">
  <style type="text/css">
    body { padding-top: 30px; }
+   .fixed { font-family: Menlo,Monaco,"Courier New",monospace; font-size: 12px; }
    .register-table th, .register-table td { text-align: right; padding: 2px 10px; }
    .disasm-table th, .disasm-table td { text-align: right; padding: 2px 10px; }
    .disasm-table th.op, .disasm-table td.op { text-align: left; }
@@ -52,8 +53,8 @@
                 <div id="rominfo"></div>
               </div>
               <div class="tab-pane" id="2">
-                <div id="registers"></div>
-                <div id="disasm"></div>
+                <div id="registers"></div><br>
+                <div id="disasm" class="fixed"></div>
               </div>
               <div class="tab-pane" id="3">
                 <div id="memory"></div>
@@ -69,7 +70,7 @@
 
       <div class="row">
         <div class="span12">
-          <div id="output"></div>
+          <div id="output" class="fixed"></div>
         </div>
       </div>
 
@@ -77,15 +78,18 @@
     <script src="js/jquery.min.js"></script>
     <script src="js/bootstrap.min.js"></script>
     <script src="n64.js"></script>
+    <script src="disassemble.js"></script>
 
     <script>
 
     $(document).ready(function(){
-      N64.reset();
-      N64.setRomInfoElement($('#rominfo'));
-      N64.setRegistersElement($('#registers'));
+      n64js.reset();
+      n64js.setRomInfoElement($('#rominfo'));
+      n64js.setRegistersElement($('#registers'));
+      n64js.setOutputElement($('#output'));
+      n64js.setDisassemblyElement($('#disasm'));
 
-      N64.refreshDisplay();          
+      n64js.refreshDisplay();          
 
       // Load state from localStorage
       //var prev_code = localStorage.getItem('code');
@@ -93,7 +97,6 @@
       //  $('#codearea').val(prev_code);
       //}
 
-      $('#output').html('');
       updateLoop();
     });
 
@@ -115,7 +118,9 @@
         }
         reader.onload = function(e) {
           var bytes = e.target.result;
-          N64.loadRom(bytes);
+          n64js.loadRom(bytes);
+          n64js.reset();
+          n64js.refreshDisplay();
         };
 
         reader.readAsArrayBuffer(file);
@@ -123,27 +128,26 @@
     }
 
     function step() {
-      N64.step();
+      refreshDisplay();
+      n64js.step();
       refreshDisplay();
     }
 
     function toggleRun() {
-      var running = N64.toggleRun();
+      var running = n64js.toggleRun();
       $('#runbutton').html(running ? '<i class="icon-pause"></i> Pause' : '<i class="icon-play"></i> Run');
     }
 
     function updateLoop() {
-        if (N64.isRunning()) {
-          N64.run(5000);
+        if (n64js.isRunning()) {
+          n64js.run(5000);
           refreshDisplay();          
         }
-        setTimeout("updateLoop()", 16);
+        setTimeout(updateLoop, 16);
     }
 
     function refreshDisplay() {
-      N64.refreshDisplay();
-      //dcpu.displayDisassembly(puter.code, puter.PC);
-      //dcpu.displayState(puter);      
+      n64js.refreshDisplay();
     }
 
     </script>
