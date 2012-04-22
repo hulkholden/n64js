@@ -373,24 +373,21 @@ if (typeof n64js === 'undefined') {
     var targets = {};
 
     for (var i = bpc; i < epc; i += 4) {
-      try {
-        var instruction = n64js.readMemoryInternal32(i);
+        try {
+          var instruction = n64js.readMemoryInternal32(i);
+          var disassembly = disassembleOp(i, instruction);
 
-        var disassembly = disassembleOp(i, instruction);
+          var op_type = simpleOpBranchType[(instruction>>26)&0x3f];
+          if (op_type == 1) {
+            targets[_jumpAddress(i, instruction)]   = 1;
+          } else if (op_type == 2) {
+            targets[_branchAddress(i, instruction)] = 1;
+          }
 
-        var op_type = simpleOpBranchType[(instruction>>26)&0x3f];
-        if (op_type == 1) {
-          targets[_jumpAddress(i, instruction)]   = 1;
-        } else if (op_type == 2) {
-          targets[_branchAddress(i, instruction)] = 1;
+          r.push({address:i, instruction:instruction, disassembly:disassembly, jumpTarget:false});
+        } catch (e) {
+          r.push({address:i, instruction:0xdddddddd, disassembly:'???', jumpTarget:false});
         }
-
-        r.push({address:i, instruction:instruction, disassembly:disassembly, jumpTarget:false});
-
-      } catch (e) {
-        throw e;
-        break;
-      }
     }
 
     // Flag any instructions that are jump targets

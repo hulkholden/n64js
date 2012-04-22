@@ -12,6 +12,7 @@
    .disasm-table th.op, .disasm-table td.op { text-align: left; }
    pre .dis-label-target { font-weight: bold; }
    pre .dis-label { color: #999; }
+   #output { background-color: #ccc; height: 180px; overflow: scroll;}
  </style>
 
     <title>n64js - An N64 Emulator in Javascript</title>
@@ -90,6 +91,32 @@
       n64js.setRegistersElement($('#registers'));
       n64js.setOutputElement($('#output'));
       n64js.setDisassemblyElement($('#disasm'));
+
+
+      var kEnter    = 13;
+      var kPageUp   = 33;
+      var kPageDown = 34;
+      var kLeft     = 37;
+      var kUp       = 38;
+      var kRight    = 39;
+      var kDown     = 40;
+      var kF10      = 121;
+      var kF8       = 119;
+
+      $('body').keydown(function (event) {
+        switch (event.which) {
+          case kDown:     n64js.down();     break;
+          case kUp:       n64js.up();       break;
+          case kPageDown: n64js.pageDown(); break;
+          case kPageUp:   n64js.pageUp();   break;
+          //default: alert( 'code:' + event.which);
+        }
+      });
+      $('body').keypress(function (event) {
+        switch (event.which) {
+          case 'l'.charCodeAt(0): load(); break;
+        }
+      });
 
       n64js.refreshDisplay();          
 

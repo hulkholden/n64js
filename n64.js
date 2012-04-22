@@ -396,6 +396,26 @@ if (typeof n64js === 'undefined') {
     $rominfo.append($table); 
   }
 
+  n64js.down = function () {
+    pc += 4;
+    n64js.refreshDisplay();
+  }
+
+  n64js.up = function () {
+    pc -= 4;
+    n64js.refreshDisplay();
+  }
+
+  n64js.pageDown = function () {
+    pc += 64;
+    n64js.refreshDisplay();
+  }
+
+  n64js.pageUp = function () {
+    pc -= 64;
+    n64js.refreshDisplay();
+  } 
+
   n64js.refreshDisplay = function () {
     $registers.html('');
     var $table = $('<table class="register-table"><tbody></tbody></table>');
@@ -411,7 +431,7 @@ if (typeof n64js === 'undefined') {
 
     $tb.append('<tr><td>PC</td>' + pc + '</td><td>0x' + toString32(pc) + '</td></tr>');
 
-    var disassembly = n64js.disassemble(pc - 16, pc + 1024);
+    var disassembly = n64js.disassemble(pc - 16, pc + 96);
     var dis_body = disassembly.map(function (a) {
       var label_span = a.jumpTarget ? '<span class="dis-label-target" style="color: ' + a.jumpTarget + '">' : '<span class="dis-label">';
       var label = label_span + n64js.toHex(a.address, 32) + ':</span>';
@@ -449,7 +469,7 @@ if (typeof n64js === 'undefined') {
   }
 
   n64js.log = function(s) {
-    $output.append('<p>' + s + '</p>');
+    $output.append(s + '<br>');
   }
 
   n64js.toHex = function(r, bits) {
