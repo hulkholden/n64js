@@ -420,16 +420,27 @@ if (typeof n64js === 'undefined') {
     $registers.html('');
     var $table = $('<table class="register-table"><tbody></tbody></table>');
     var $tb = $table.find('tbody');
-    for (var i = 0; i < 32; i+=4) {
-      $tb.append('<tr>' + 
-        '<td>' + cpu0.gprRegisterNames[i+0] + '</td><td class="fixed">' + toString64(cpu0.gprLo[i+0], cpu0.gprHi[i+0]) + '</td>' +
-        '<td>' + cpu0.gprRegisterNames[i+1] + '</td><td class="fixed">' + toString64(cpu0.gprLo[i+1], cpu0.gprHi[i+1]) + '</td>' +
-        '<td>' + cpu0.gprRegisterNames[i+2] + '</td><td class="fixed">' + toString64(cpu0.gprLo[i+2], cpu0.gprHi[i+2]) + '</td>' +
-        '<td>' + cpu0.gprRegisterNames[i+3] + '</td><td class="fixed">' + toString64(cpu0.gprLo[i+3], cpu0.gprHi[i+3]) + '</td>' +
-        '</tr>');
-    }
 
-    $tb.append('<tr><td>PC</td>' + pc + '</td><td>0x' + toString32(pc) + '</td></tr>');
+    $tb.append('<tr><td>PC</td>' + pc + '</td><td class="fixed">' + toString32(pc) + '</td></tr>');
+
+    if (0) {
+      for (var i = 0; i < 32; i+=4) {
+        $tb.append('<tr>' + 
+          '<td>' + cpu0.gprRegisterNames[i+0] + '</td><td class="fixed">' + toString64(cpu0.gprLo[i+0], cpu0.gprHi[i+0]) + '</td>' +
+          '<td>' + cpu0.gprRegisterNames[i+1] + '</td><td class="fixed">' + toString64(cpu0.gprLo[i+1], cpu0.gprHi[i+1]) + '</td>' +
+          '<td>' + cpu0.gprRegisterNames[i+2] + '</td><td class="fixed">' + toString64(cpu0.gprLo[i+2], cpu0.gprHi[i+2]) + '</td>' +
+          '<td>' + cpu0.gprRegisterNames[i+3] + '</td><td class="fixed">' + toString64(cpu0.gprLo[i+3], cpu0.gprHi[i+3]) + '</td>' +
+          '</tr>');
+      }      
+    } else {
+      for (var i = 0; i < 32; i+=2) {
+        $tb.append('<tr>' + 
+          '<td>' + cpu0.gprRegisterNames[i+0] + '</td><td class="fixed">' + toString64(cpu0.gprLo[i+0], cpu0.gprHi[i+0]) + '</td>' +
+          '<td>' + cpu0.gprRegisterNames[i+1] + '</td><td class="fixed">' + toString64(cpu0.gprLo[i+1], cpu0.gprHi[i+1]) + '</td>' +
+          '</tr>');
+      }
+     
+    }
 
     var disassembly = n64js.disassemble(pc - 16, pc + 96);
     var dis_body = disassembly.map(function (a) {

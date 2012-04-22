@@ -13,13 +13,15 @@
    pre .dis-label-target { font-weight: bold; }
    pre .dis-label { color: #999; }
    #output { background-color: #ccc; height: 180px; overflow: scroll;}
+  div #registers { display:inline-block; vertical-align:top;}
+   div #disasm { display:inline-block; vertical-align:top; width:600px;}
  </style>
 
     <title>n64js - An N64 Emulator in Javascript</title>
   </head>
   <body>
-    <div class="container">
-      <div class="row">
+    <div class="container-fluid">
+      <div class="row-fluid">
         <div class="span12">
           <h1>n64js</a></h1>
           <p>A work-in-progress n64 emulator. Very far from working. Code <a href="https://github.com/hulkholden/n64js">here</a>, by <a href="https://twitter.com/#!/hulkholden">@HulkHolden</a>.</p>
@@ -28,7 +30,7 @@
         </div>
       </div>
 
-      <div class="row">
+      <div class="row-fluid">
         <div class="span8">
           <button class="btn" onclick="load()"><i class="icon-file"></i> Load</button>
           <button class="btn" onclick="$('#help').toggle()"><i class="icon-info-sign"></i> Help</button>
@@ -42,7 +44,7 @@
         </div>
       </div>      
 
-      <div class="row">
+      <div class="row-fluid">
         <div class="span8">
 
           <div class="tabbable">
@@ -56,7 +58,7 @@
                 <div id="rominfo"></div>
               </div>
               <div class="tab-pane" id="2">
-                <div id="registers"></div><br>
+                <div id="registers"></div>
                 <div id="disasm" class="fixed"></div>
               </div>
               <div class="tab-pane" id="3">
@@ -71,7 +73,7 @@
         </div>
       </div>
 
-      <div class="row">
+      <div class="row-fluid">
         <div class="span12">
           <div id="output" class="fixed"></div>
         </div>
