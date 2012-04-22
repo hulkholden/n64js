@@ -360,31 +360,36 @@ if (typeof n64js === 'undefined') {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   ];
 
-  n64js.disassembleOp = function (address, instruction) {
+  n64js.disassembleOp = function (address, instruction, targets) {
     var opcode      = (instruction >> 26) & 0x3f;
     var disassembly = simpleTable[opcode](address,instruction);
 
-    var op_type = simpleOpBranchType[(instruction>>26)&0x3f];
-    if (op_type == 1) {
-      targets[_jumpAddress(address, instruction)]   = 1;
-    } else if (op_type == 2) {
-      targets[_branchAddress(address, instruction)] = 1;
+    if (typeof targets !== 'undefined') {
+      var op_type = simpleOpBranchType[(instruction>>26)&0x3f];
+      if (op_type == 1) {
+        targets[_jumpAddress(address, instruction)]   = 1;
+      } else if (op_type == 2) {
+        targets[_branchAddress(address, instruction)] = 1;
+      }      
     }
 
     return {address:address, instruction:instruction, disassembly:disassembly, jumpTarget:false};
 
   }
 
-  n64js.disassembleAddress = function (address) {
-    var r;
+  n64js.disassembleAddress = function (address, targets) {
+    var instruction;
+    var ok = true;
     try {
-      var instruction = n64js.readMemoryInternal32(address);
-      r = n64js.disassembleOp(address, instruction);
+      instruction = n64js.readMemoryInternal32(address);
     } catch (e) {
-      r = {address:address, instruction:0xdddddddd, disassembly:'???', jumpTarget:false};
+      ok = false;
     }
 
-    return r;
+    if (ok) {
+      return n64js.disassembleOp(address, instruction, targets);
+    }
+    return {address:address, instruction:0xdddddddd, disassembly:'???', jumpTarget:false};
   }
   
   n64js.disassemble = function (bpc, epc) {
@@ -394,7 +399,7 @@ if (typeof n64js === 'undefined') {
     var targets = {};
 
     for (var i = bpc; i < epc; i += 4) {
-        r.push(n64js.disassembleAddress(i));
+        r.push(n64js.disassembleAddress(i, targets));
     }
 
     // Flag any instructions that are jump targets
