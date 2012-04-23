@@ -378,18 +378,8 @@ if (typeof n64js === 'undefined') {
   }
 
   n64js.disassembleAddress = function (address, targets) {
-    var instruction;
-    var ok = true;
-    try {
-      instruction = n64js.readMemoryInternal32(address);
-    } catch (e) {
-      ok = false;
-    }
-
-    if (ok) {
-      return n64js.disassembleOp(address, instruction, targets);
-    }
-    return {address:address, instruction:0xdddddddd, disassembly:'???', jumpTarget:false};
+    var instruction = n64js.readMemoryInternal32(address);
+    return n64js.disassembleOp(address, instruction, targets);
   }
   
   n64js.disassemble = function (bpc, epc) {

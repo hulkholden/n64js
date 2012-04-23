@@ -103,7 +103,7 @@
       var kUp       = 38;
       var kRight    = 39;
       var kDown     = 40;
-      var kF10      = 121;
+      var kF10      = 121;  // Ugh - chrome only seems to send *alternate* keydown for this, and no keyup.
       var kF8       = 119;
 
       $('body').keydown(function (event) {
@@ -122,11 +122,12 @@
           case 'f'.charCodeAt(0): $(  '#file-tab').tab('show'); break;
           case 'd'.charCodeAt(0): $( '#debug-tab').tab('show'); break;
           case 'm'.charCodeAt(0): $('#memory-tab').tab('show'); break;
-          case 'l'.charCodeAt(0): load(); break;
+          case 'l'.charCodeAt(0): load();                       break;
+          case 's'.charCodeAt(0): n64js.step();                 break;
         }
       });
 
-      n64js.refreshDisplay();          
+      n64js.refreshDisplay();
 
       // Load state from localStorage
       //var prev_code = localStorage.getItem('code');
@@ -178,7 +179,7 @@
     function updateLoop() {
         if (n64js.isRunning()) {
           n64js.run(5000);
-          refreshDisplay();          
+          refreshDisplay();
         }
         setTimeout(updateLoop, 16);
     }

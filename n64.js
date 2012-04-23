@@ -3,12 +3,11 @@ if (typeof n64js === 'undefined') {
 }
 
 (function () {'use strict';
-  function Memory(base, arraybuffer) {
-    this.base   = base;
+  function Memory(arraybuffer) {
     this.bytes  = arraybuffer;      
-    this.length = arraybuffer.length;
+    this.length = arraybuffer.byteLength;
     this.u32    = new Uint32Array(this.bytes);
-    this.u8     = new Uint8Array(this.bytes);
+    this.u8     = new  Uint8Array(this.bytes);
 
     var that = this;
 
@@ -53,8 +52,9 @@ if (typeof n64js === 'undefined') {
 
   var running = false;
   var rom     = null;   // Will be memory, mapped at 0xb0000000
-  var ram     = new Memory(0x80000000, new ArrayBuffer(4*1024*1024));
-  var spmem   = new Memory(0xa4000000, new ArrayBuffer(0x2000));
+  var ram     = new Memory(new ArrayBuffer(4*1024*1024));
+  var sp_mem  = new Memory(new ArrayBuffer(0x2000));
+  var ri_reg  = new Memory(new ArrayBuffer(0x20));
 
   var kBootstrapOffset = 0x40;
   var kGameOffset      = 0x1000;
@@ -190,7 +190,7 @@ if (typeof n64js === 'undefined') {
     }
 
     if (rom) {
-      MemoryCopy( spmem, kBootstrapOffset, rom, kBootstrapOffset, kGameOffset - kBootstrapOffset );
+      MemoryCopy( sp_mem, kBootstrapOffset, rom, kBootstrapOffset, kGameOffset - kBootstrapOffset );
     }
 
     cpu0.control[cpu0.kControlSR]       = 0x34000000;
@@ -354,7 +354,7 @@ if (typeof n64js === 'undefined') {
   }
 
   n64js.loadRom = function (bytes) {
-    rom = new Memory(0xb0000000, bytes);
+    rom = new Memory(bytes);
 
     switch (rom.read32(0)) {
       case 0x80371240:
@@ -464,30 +464,88 @@ if (typeof n64js === 'undefined') {
     $registers.append($table);
   }
 
-  function getMemoryBase(address) {
+  //
+  // Memory handlers
+  //
+  var sp_mem_handler_uncached = {
+    rangeStart : 0xa4000000,
+    rangeEnd   : 0xa4002000,
 
-    var x = address >>> 24;
-    switch (x) {
-      case 0xa4:
-        return spmem;
+    readInternal32 : function (address) {
+      if (address+3 < this.rangeEnd)
+        return sp_mem.read32(address-this.rangeStart);
+      return 0xdddddddd;
+    },
 
+    read32 : function (address) {
+      if (address+3 < this.rangeEnd)
+        return sp_mem.read32(address-this.rangeStart);
+
+      throw 'Read is out of range';
     }
+  };
 
-    n64js.log('reading from unhandled location' + toString32(address));
-    return null;
+  var ri_reg_handler_uncached = {
+    rangeStart : 0xa4700000,
+    rangeEnd   : 0xa4700020,
+
+    readInternal32 : function (address) {
+      if (address+3 < this.rangeEnd)
+        return ri_reg.read32(address-this.rangeStart);
+      return 0xdddddddd;
+    },
+
+    read32 : function (address) {
+      n64js.log('Reading from RI registers: ' + toString32(address) );
+      if (address+3 < this.rangeEnd)
+        return ri_reg.read32(address-this.rangeStart);
+
+      throw 'Read is out of range';
+    }
+  };  
+
+  // We create a memory map of 1<<14 entries, corresponding to the top bits of the address range. 
+  var memMap = (function () {
+    var map = new Array(0x4000);
+    for (var i = 0; i < 0x4000; ++i)
+      map[i] = undefined;
+
+    [
+      sp_mem_handler_uncached,
+      ri_reg_handler_uncached
+    ].map(function (e){
+        var beg = (e.rangeStart)>>>18;
+        var end = (e.rangeEnd-1)>>>18;
+        for( var i = beg; i <= end; ++i ) {
+          map[i] = e;
+        }
+    });
+
+    if (map.length != 0x4000)
+      throw 'initialisation error';
+
+    return map;
+
+  })();
+
+  // Read memory internal is used for stuff like the debugger. It shouldn't ever throw or change the state of the emulated program.
+  n64js.readMemoryInternal32 = function (address) {
+    var handler  = memMap[address >>> 18];
+    if (!handler) {
+      n64js.log('internal read from unhandled location ' + toString32(address));
+      return 0xdddddddd;
+    }
+    return handler ? handler.readInternal32(address) : 0xdddddddd;
   }
 
-  n64js.readMemoryInternal32 = function (address) {
-    var mem = getMemoryBase(address);
-    if (!mem) {
-      throw 'unknown location ' + address;
+  // 'emulated' read. May cause exceptions to be thrown in the emulated process
+  n64js.readMemory32 = function (address) {
+    var handler  = memMap[address >>> 18];
+    if (!handler) {
+      n64js.log('read from unhandled location ' + toString32(address));
+      throw 'unmapped read need to set exception';
     }
-
-    if (address+3 >= mem.end) {
-      throw 'location out of mapped range ' + address; 
-    }
-
-    return mem.read32(address-mem.base);
+    return handler.read32(address);
   }
 
   n64js.log = function(s) {

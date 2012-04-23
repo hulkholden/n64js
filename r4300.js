@@ -24,9 +24,14 @@ if (typeof n64js === 'undefined') {
   function branchAddress(a,i) { return (a+4) + (_imms(i)*4); }
   function   jumpAddress(a,i) { return (a&0xf0000000) | (_target(i)*4); }
 
+  function setSignExtend(r,v) {
+    n64js.cpu0.gprLo[r] = v;
+    n64js.cpu0.gprHi[r] = (v & 0x80000000) ? 0xffffffff : 0x00000000;  // sign-extend
+  }
+
   function unimplemented(a,i) {
     var r = n64js.disassembleOp(a,i);
-    var e = 'Unimplemented op ' + i + ' : ' + r.disassembly;
+    var e = 'Unimplemented op ' + n64js.toHex(i,32) + ' : ' + r.disassembly + '<br>';
 
     $('#output').append(e);
     throw e;
@@ -95,7 +100,7 @@ if (typeof n64js === 'undefined') {
   function executeDSRL32(a,i)     { unimplemented(a,i); }
   function executeDSRA32(a,i)     { unimplemented(a,i); }
   function executeMFC0(a,i)       { unimplemented(a,i); }
-  function executeMTC0(a,i)       { unimplemented(a,i); }
+  function executeMTC0(a,i)       { /* FIXME */; }
   function executeTLB(a,i)        { unimplemented(a,i); }
   function executeBLTZ(a,i)       { unimplemented(a,i); }
   function executeBGEZ(a,i)       { unimplemented(a,i); }
@@ -117,14 +122,22 @@ if (typeof n64js === 'undefined') {
   function executeBNE(a,i)        { unimplemented(a,i); }
   function executeBLEZ(a,i)       { unimplemented(a,i); }
   function executeBGTZ(a,i)       { unimplemented(a,i); }
-  function executeADDI(a,i)       { unimplemented(a,i); }
-  function executeADDIU(a,i)      { unimplemented(a,i); }
+  function executeADDI(a,i)       {
+    var a = n64js.cpu0.gprLo[rs(i)];
+    var v = imms(i);
+    setSignExtend(rt(i), a + v);
+  }
+  function executeADDIU(a,i)      {
+    var a = n64js.cpu0.gprLo[rs(i)];
+    var v = imms(i);
+    setSignExtend(rt(i), a + v);
+  }
   function executeSLTI(a,i)       { unimplemented(a,i); }
   function executeSLTIU(a,i)      { unimplemented(a,i); }
   function executeANDI(a,i)       { unimplemented(a,i); }
   function executeORI(a,i)        { unimplemented(a,i); }
   function executeXORI(a,i)       { unimplemented(a,i); }
-  function executeLUI(a,i)        { unimplemented(a,i); }
+  function executeLUI(a,i)        { var v  = imms(i) << 16; setSignExtend(rt(i), v); }
   function executeCop0(a,i)       { unimplemented(a,i); }
   function executeCopro1(a,i)     { unimplemented(a,i); }
   function executeBEQL(a,i)       { unimplemented(a,i); }
@@ -138,7 +151,13 @@ if (typeof n64js === 'undefined') {
   function executeLB(a,i)         { unimplemented(a,i); }
   function executeLH(a,i)         { unimplemented(a,i); }
   function executeLWL(a,i)        { unimplemented(a,i); }
-  function executeLW(a,i)         { unimplemented(a,i); }
+  function executeLW(a,i)         {
+    // SF2049 requires this, apparently
+    if (rt(i) == 0)
+      return;
+    var ea = n64js.cpu0.gprLo[base(i)] + imms(i);
+    setSignExtend(rt(i), n64js.readMemory32(ea));
+  }
   function executeLBU(a,i)        { unimplemented(a,i); }
   function executeLHU(a,i)        { unimplemented(a,i); }
   function executeLWR(a,i)        { unimplemented(a,i); }
@@ -413,13 +432,20 @@ if (typeof n64js === 'undefined') {
 
     for (var i = 0; i < cycles; ++i) {
         try {
-          var instruction = n64js.readMemoryInternal32(cpu0.pc);
-          executeOp(cpu0.pc, instruction);
+          var pc = cpu0.pc;
+
+          var instruction = n64js.readMemory32(pc);
+
+          cpu0.pc += 4;   // Modify the pc before executing, so that instructions can override (e.g branches)
+          executeOp(pc, instruction);
 
         } catch (e) {
-          throw e;
+          n64js.log('Exception :' + e);
+          break;
         }
     }
+
+    n64js.refreshDisplay();
   }
 
 })();
