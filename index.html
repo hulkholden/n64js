@@ -39,7 +39,9 @@
         <div class="span4">
           <div class="btn-group">
             <button class="btn" onclick="step()"><i class="icon-step-forward"></i>Step</button>&nbsp;
-            <button class="btn" id="runbutton" onclick="toggleRun()"><i class="icon-play"></i> Run</button>&nbsp;
+            <button class="btn" onclick="stepN(100)"><i class="icon-forward"></i></button>&nbsp;
+            <button class="btn" onclick="stepN(1000)"><i class="icon-fast-forward"></i></button>&nbsp;
+            <button class="btn" onclick="toggleRun()" id="runbutton"><i class="icon-play"></i> Run</button>&nbsp;
           </div>
         </div>
       </div>      
@@ -166,9 +168,17 @@
     }
 
     function step() {
-      refreshDisplay();
-      n64js.step();
-      refreshDisplay();
+      if (!n64js.isRunning()) {
+        n64js.step();
+        refreshDisplay();
+      }
+    }
+    
+    function stepN(count) {
+      if (!n64js.isRunning()) {
+        n64js.run(count);
+        refreshDisplay();        
+      }
     }
 
     function toggleRun() {
