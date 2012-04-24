@@ -453,32 +453,6 @@ if (typeof n64js === 'undefined') {
 
   var last_pc = 0;
   n64js.refreshDisplay = function () {
-    $registers.html('');
-    var $table = $('<table class="register-table"><tbody></tbody></table>');
-    var $tb = $table.find('tbody');
-
-    var dpc = '<td>delayPC</td><td class="fixed">' + toString32(cpu0.delayPC) + '</td>';
-
-    $tb.append('<tr><td>PC</td><td class="fixed">' + toString32(cpu0.pc) + '</td>' + dpc + '</tr>');
-
-    if (0) {
-      for (var i = 0; i < 32; i+=4) {
-        $tb.append('<tr>' + 
-          '<td>' + cpu0.gprRegisterNames[i+0] + '</td><td class="fixed">' + toString64(cpu0.gprLo[i+0], cpu0.gprHi[i+0]) + '</td>' +
-          '<td>' + cpu0.gprRegisterNames[i+1] + '</td><td class="fixed">' + toString64(cpu0.gprLo[i+1], cpu0.gprHi[i+1]) + '</td>' +
-          '<td>' + cpu0.gprRegisterNames[i+2] + '</td><td class="fixed">' + toString64(cpu0.gprLo[i+2], cpu0.gprHi[i+2]) + '</td>' +
-          '<td>' + cpu0.gprRegisterNames[i+3] + '</td><td class="fixed">' + toString64(cpu0.gprLo[i+3], cpu0.gprHi[i+3]) + '</td>' +
-          '</tr>');
-      }      
-    } else {
-      for (var i = 0; i < 32; i+=2) {
-        $tb.append('<tr>' + 
-          '<td>' + cpu0.gprRegisterNames[i+0] + '</td><td class="fixed">' + toString64(cpu0.gprLo[i+0], cpu0.gprHi[i+0]) + '</td>' +
-          '<td>' + cpu0.gprRegisterNames[i+1] + '</td><td class="fixed">' + toString64(cpu0.gprLo[i+1], cpu0.gprHi[i+1]) + '</td>' +
-          '</tr>');
-      }
-     
-    }
 
     // If the pc has changed since the last update, recenter the display (e.g. when we take a branch)
     if (cpu0.pc != last_pc) {
@@ -486,19 +460,59 @@ if (typeof n64js === 'undefined') {
       last_pc = cpu0.pc;
     }
 
+    var cur_instr;
+
     var disassembly = n64js.disassemble(disasmAddress - 64, disasmAddress + 64);
     var dis_body = disassembly.map(function (a) {
-      var label_span = a.jumpTarget ? '<span class="dis-label-target" style="color: ' + a.jumpTarget + '">' : '<span class="dis-label">';
-      var label = label_span + n64js.toHex(a.address, 32) + ':</span>';
-      var t = label + '   ' + n64js.toHex(a.instruction, 32) + '    ' + a.disassembly;
-      if (a.address == cpu0.pc) {
+    
+      var label_span = a.isJumpTarget ? '<span class="dis-label-target" style="color: ' + a.isJumpTarget + '">' : '<span class="dis-label">';
+      var label      = label_span    + n64js.toHex(a.instruction.address, 32) + ':</span>';
+      var t          = label + '   ' + n64js.toHex(a.instruction.opcode, 32) + '    ' + a.disassembly;
+      if (a.instruction.address == cpu0.pc) {
+        cur_instr = a.instruction;
         t = '<span style="background-color: #ffa">' + t + '</span>';
       }
       return t;
     }).join('<br>');
     $disassembly.html('<pre>' + dis_body + '</pre>');
 
-    $registers.append($table);
+
+    var $table = $('<table class="register-table"><tbody></tbody></table>');
+    var $tb = $table.find('tbody');
+
+    var dpc = '<td>delayPC</td><td class="fixed">' + toString32(cpu0.delayPC) + '</td>';
+
+    $tb.append('<tr><td>PC</td><td class="fixed">' + toString32(cpu0.pc) + '</td>' + dpc + '</tr>');
+
+    var kRegistersPerRow = 2;
+    for (var i = 0; i < 32; i+=kRegistersPerRow) {
+      var $tr = $('<tr />');
+      for (var r = 0; r < kRegistersPerRow; ++r) {
+
+        var name = cpu0.gprRegisterNames[i+r];
+        var $td = $('<td>' + name + '</td><td class="fixed">' + toString64(cpu0.gprLo[i+r], cpu0.gprHi[i+r]) + '</td>');
+
+        if (cur_instr) {
+          var col = '';
+          if(cur_instr.srcRegs.hasOwnProperty(name) && cur_instr.dstRegs.hasOwnProperty(name)) {
+            col = '#F4EEAF'; // yellow
+          } else if (cur_instr.srcRegs.hasOwnProperty(name)) {
+            col = '#AFF4BB'; // green
+          } else if (cur_instr.dstRegs.hasOwnProperty(name)) {
+            col = '#F4AFBE'; // blue
+          }
+
+          if (col) {
+            $td.attr('bgcolor', col);
+          }
+        }
+
+        $tr.append($td);
+      }
+      $tb.append($tr);
+    }   
+
+    $registers.html($table);
   }
 
   //

@@ -14,7 +14,7 @@ if (typeof n64js === 'undefined') {
   function _rd(i)     { return (i>>>11)&0x1f; }
   function _rt(i)     { return (i>>>16)&0x1f; }
   function _rs(i)     { return (i>>>21)&0x1f; }
-  function _op(i)     { return (i>>>26)&0x1f; }
+  function _op(i)     { return (i>>>26)&0x3f; }
 
   function _target(i) { return (i     )&0x3ffffff; }
   function _imm(i)    { return (i     )&0xffff; }
@@ -54,9 +54,6 @@ if (typeof n64js === 'undefined') {
     return '<span class="dis-label-target" style="color:' + col + '">' + text + '</span>';
   }
 
-  function branchAddress(a,i) { return makeLabelText( _branchAddress(a,i) ); }
-  function jumpAddress(a,i)   { return makeLabelText(   _jumpAddress(a,i) ); }
-
   var gprRegisterNames = [
     'r0', 'at', 'v0', 'v1', 'a0', 'a1', 'a2', 'a3',
     't0', 't1', 't2', 't3', 't4', 't5', 't6', 't7',
@@ -85,301 +82,305 @@ if (typeof n64js === 'undefined') {
     'GR24', 'GR25', 'GR26', 'GR27', 'GR28', 'GR29', 'GR30', 'GR31'
   ];
 
-  // cop0 regs
-  function rd(i) { return gprRegisterNames[_rd(i)]; }
-  function rt(i) { return gprRegisterNames[_rt(i)]; }
-  function rs(i) { return gprRegisterNames[_rs(i)]; }
-
-  // cop1 regs
-  function fd(i) { return cop1RegisterNames[_rd(i)]; }
-  function ft(i) { return cop1RegisterNames[_rt(i)]; }
-  function fs(i) { return cop1RegisterNames[_rs(i)]; }
-
-  // cop2 regs
-  function gd(i) { return cop2RegisterNames[_rd(i)]; }
-  function gt(i) { return cop2RegisterNames[_rt(i)]; }
-  function gs(i) { return cop2RegisterNames[_rs(i)]; }
- 
-  function imm(i) { return '0x' + n64js.toHex( _imm(i), 16 ); }
-
-  function memaccess(r, off) {
-    return '[' + r + '+' + off + ']';
+  function Instruction(address, opcode) {
+    this.address = address;
+    this.opcode  = opcode;
+    this.srcRegs = {};
+    this.dstRegs = {};
+    this.target  = '';
   }
 
+  Instruction.prototype = {
+    
+    // cop0 regs
+    rt_d : function () { var reg = gprRegisterNames[_rt(this.opcode)]; this.dstRegs[reg] = 1; return reg; },
+    rd   : function () { var reg = gprRegisterNames[_rd(this.opcode)]; this.dstRegs[reg] = 1; return reg; },
+    rt   : function () { var reg = gprRegisterNames[_rt(this.opcode)]; this.srcRegs[reg] = 1; return reg; },
+    rs   : function () { var reg = gprRegisterNames[_rs(this.opcode)]; this.srcRegs[reg] = 1; return reg; },
+
+    // cop1 regs
+    ft_d : function () { var reg = cop1RegisterNames[_rt(this.opcode)]; this.dstRegs[reg] = 1; return reg; },
+    fd   : function () { var reg = cop1RegisterNames[_rd(this.opcode)]; this.dstRegs[reg] = 1; return reg; },
+    ft   : function () { var reg = cop1RegisterNames[_rt(this.opcode)]; this.srcRegs[reg] = 1; return reg; },
+    fs   : function () { var reg = cop1RegisterNames[_rs(this.opcode)]; this.srcRegs[reg] = 1; return reg; },
+
+    // cop2 regs
+    gt_d : function () { var reg = cop2RegisterNames[_rt(this.opcode)]; this.dstRegs[reg] = 1; return reg; },
+    gd   : function () { var reg = cop2RegisterNames[_rd(this.opcode)]; this.dstRegs[reg] = 1; return reg; },
+    gt   : function () { var reg = cop2RegisterNames[_rt(this.opcode)]; this.srcRegs[reg] = 1; return reg; },
+    gs   : function () { var reg = cop2RegisterNames[_rs(this.opcode)]; this.srcRegs[reg] = 1; return reg; },
+
+    imm : function () { return '0x' + n64js.toHex( _imm(this.opcode), 16 ); },
+
+    branchAddress : function () { this.target = _branchAddress(this.address,this.opcode); return makeLabelText( this.target ); },
+    jumpAddress : function ()   { this.target = _jumpAddress(this.address,this.opcode);   return makeLabelText( this.target ); },
+
+    memaccess : function () {
+      var r   = this.rs();
+      var off = this.imm();
+      return '[' + r + '+' + off + ']';
+    }
+
+  };
+
   var specialTable = [
-    function (a,i) { if (i == 0) {
+    function (i) { if (i.opcode == 0) {
                      return 'NOP';
                      }
-                     return 'SLL       ' + rd(i) + ' = ' + rs(i) + ' << '  + _sa(i); },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'SRL       ' + rd(i) + ' = ' + rs(i) + ' >>> ' + _sa(i); },
-    function (a,i) { return 'SRA       ' + rd(i) + ' = ' + rs(i) + ' >> '  + _sa(i); },
-    function (a,i) { return 'SLLV      ' + rd(i) + ' = ' + rs(i) + ' << '  + rt(i); },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'SRLV      ' + rd(i) + ' = ' + rs(i) + ' >>> ' + rt(i); },
-    function (a,i) { return 'SRAV      ' + rd(i) + ' = ' + rs(i) + ' >> '  + rt(i); },
-    function (a,i) { return 'JR        ' + rs(i); },
-    function (a,i) { return 'JALR      ' + rd(i) + ', ' + rs(i); },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'SYSCALL   ' + n64js.toHex( (i>>6)&0xfffff, 20 ); },
-    function (a,i) { return 'BREAK     ' + n64js.toHex( (i>>6)&0xfffff, 20 ); },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'SYNC'; },
-    function (a,i) { return 'MFHI      ' + rd(i) + ' = MultHi'; },
-    function (a,i) { return 'MTHI      MultHi = ' + rs(i); },
-    function (a,i) { return 'MFLO      ' + rd(i) + ' = MultLo'; },
-    function (a,i) { return 'MTLO      MultLo = ' + rs(i); },
-    function (a,i) { return 'DSLLV     ' + rd(i) + ' = '    + rs(i) + ' << '  + rt(i); },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'DSRLV     ' + rd(i) + ' = '    + rs(i) + ' >>> ' + rt(i); },
-    function (a,i) { return 'DSRAV     ' + rd(i) + ' = '    + rs(i) + ' >> '  + rt(i); },
-    function (a,i) { return 'MULT      ' + rs(i) + ' * ' + rt(i); },
-    function (a,i) { return 'MULTU     ' + rs(i) + ' * ' + rt(i); },
-    function (a,i) { return 'DIV       ' + rs(i) + ' / ' + rt(i); },
-    function (a,i) { return 'DIVU      ' + rs(i) + ' / ' + rt(i); },
-    function (a,i) { return 'DMULT     ' + rs(i) + ' * ' + rt(i); },
-    function (a,i) { return 'DMULTU    ' + rs(i) + ' * ' + rt(i); },
-    function (a,i) { return 'DDIV      ' + rs(i) + ' / ' + rt(i); },
-    function (a,i) { return 'DDIVU     ' + rs(i) + ' / ' + rt(i); },
-    function (a,i) { return 'ADD       ' + rd(i) + ' = '    + rs(i) + ' + ' + rt(i); },
-    function (a,i) { return 'ADDU      ' + rd(i) + ' = '    + rs(i) + ' + ' + rt(i); },
-    function (a,i) { return 'SUB       ' + rd(i) + ' = '    + rs(i) + ' - ' + rt(i); },
-    function (a,i) { return 'SUBU      ' + rd(i) + ' = '    + rs(i) + ' - ' + rt(i); },
-    function (a,i) { return 'AND       ' + rd(i) + ' = '    + rs(i) + ' & ' + rt(i); },
-    function (a,i) { if (_rt(i) == 0) {
-                      if (_rs(i) == 0) {
-                     return 'CLEAR     ' + rd(i) + ' = 0';
+                   return 'SLL       ' + i.rd() + ' = ' + i.rs() + ' << '  + _sa(i.opcode); },
+    function (i) { return 'Unk'; },
+    function (i) { return 'SRL       ' + i.rd() + ' = ' + i.rs() + ' >>> ' + _sa(i.opcode); },
+    function (i) { return 'SRA       ' + i.rd() + ' = ' + i.rs() + ' >> '  + _sa(i.opcode); },
+    function (i) { return 'SLLV      ' + i.rd() + ' = ' + i.rs() + ' << '  + i.rt(); },
+    function (i) { return 'Unk'; },
+    function (i) { return 'SRLV      ' + i.rd() + ' = ' + i.rs() + ' >>> ' + i.rt(); },
+    function (i) { return 'SRAV      ' + i.rd() + ' = ' + i.rs() + ' >> '  + i.rt(); },
+    function (i) { return 'JR        ' + i.rs(); },
+    function (i) { return 'JALR      ' + i.rd() + ', ' + i.rs(); },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'SYSCALL   ' + n64js.toHex( (i.opcode>>6)&0xfffff, 20 ); },
+    function (i) { return 'BREAK     ' + n64js.toHex( (i.opcode>>6)&0xfffff, 20 ); },
+    function (i) { return 'Unk'; },
+    function (i) { return 'SYNC'; },
+    function (i) { return 'MFHI      ' + i.rd() + ' = MultHi'; },
+    function (i) { return 'MTHI      MultHi = ' + i.rs(); },
+    function (i) { return 'MFLO      ' + i.rd() + ' = MultLo'; },
+    function (i) { return 'MTLO      MultLo = ' + i.rs(); },
+    function (i) { return 'DSLLV     ' + i.rd() + ' = ' + i.rs() + ' << '  + i.rt(); },
+    function (i) { return 'Unk'; },
+    function (i) { return 'DSRLV     ' + i.rd() + ' = ' + i.rs() + ' >>> ' + i.rt(); },
+    function (i) { return 'DSRAV     ' + i.rd() + ' = ' + i.rs() + ' >> '  + i.rt(); },
+    function (i) { return 'MULT      ' +                  i.rs() + ' * '   + i.rt(); },
+    function (i) { return 'MULTU     ' +                  i.rs() + ' * '   + i.rt(); },
+    function (i) { return 'DIV       ' +                  i.rs() + ' / '   + i.rt(); },
+    function (i) { return 'DIVU      ' +                  i.rs() + ' / '   + i.rt(); },
+    function (i) { return 'DMULT     ' +                  i.rs() + ' * '   + i.rt(); },
+    function (i) { return 'DMULTU    ' +                  i.rs() + ' * '   + i.rt(); },
+    function (i) { return 'DDIV      ' +                  i.rs() + ' / '   + i.rt(); },
+    function (i) { return 'DDIVU     ' +                  i.rs() + ' / '   + i.rt(); },
+    function (i) { return 'ADD       ' + i.rd() + ' = ' + i.rs() + ' + '   + i.rt(); },
+    function (i) { return 'ADDU      ' + i.rd() + ' = ' + i.rs() + ' + '   + i.rt(); },
+    function (i) { return 'SUB       ' + i.rd() + ' = ' + i.rs() + ' - '   + i.rt(); },
+    function (i) { return 'SUBU      ' + i.rd() + ' = ' + i.rs() + ' - '   + i.rt(); },
+    function (i) { return 'AND       ' + i.rd() + ' = ' + i.rs() + ' & '   + i.rt(); },
+    function (i) { if (_rt(i.opcode) == 0) {
+                      if (_rs(i.opcode) == 0) {
+                     return 'CLEAR     ' + i.rd() + ' = 0';
                       } else {
-                     return 'MOV       ' + rd(i) + ' = ' + rs(i);
+                     return 'MOV       ' + i.rd() + ' = ' + i.rs();
                       }
                      }
-                     return 'OR        ' + rd(i) + ' = '    + rs(i) + ' | ' + rt(i); },
-    function (a,i) { return 'XOR       ' + rd(i) + ' = '    + rs(i) + ' ^ ' + rt(i); },
-    function (a,i) { return 'NOR       ' + rd(i) + ' = ~( ' + rs(i) + ' | ' + rt(i) + ' )'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'SLT       ' + rd(i) + ' = ' + rs(i) + ' < ' + rt(i); },
-    function (a,i) { return 'SLTU      ' + rd(i) + ' = ' + rs(i) + ' < ' + rt(i); },
-    function (a,i) { return 'DADD      ' + rd(i) + ' = ' + rs(i) + ' + ' + rt(i); },
-    function (a,i) { return 'DADDU     ' + rd(i) + ' = ' + rs(i) + ' + ' + rt(i); },
-    function (a,i) { return 'DSUB      ' + rd(i) + ' = ' + rs(i) + ' - ' + rt(i); },
-    function (a,i) { return 'DSUBU     ' + rd(i) + ' = ' + rs(i) + ' - ' + rt(i); },
-    function (a,i) { return 'TGE       trap( ' + rs(i) + ' >= ' + rt(i) + ' )'; },
-    function (a,i) { return 'TGEU      trap( ' + rs(i) + ' >= ' + rt(i) + ' )'; },
-    function (a,i) { return 'TLT       trap( ' + rs(i) + ' < '  + rt(i) + ' )'; },
-    function (a,i) { return 'TLTU      trap( ' + rs(i) + ' < '  + rt(i) + ' )'; },
-    function (a,i) { return 'TEQ       trap( ' + rs(i) + ' == ' + rt(i) + ' )'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'TNE       trap( ' + rs(i) + ' != ' + rt(i) + ' )'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'DSLL      ' + rd(i) + ' = ' + rt(i) + ' << '  + _sa(i); },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'DSRL      ' + rd(i) + ' = ' + rt(i) + ' >>> ' + _sa(i); },
-    function (a,i) { return 'DSRA      ' + rd(i) + ' = ' + rt(i) + ' >> '  + _sa(i); },
-    function (a,i) { return 'DSLL32    ' + rd(i) + ' = ' + rt(i) + ' << '  + (_sa(i)+32); },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'DSRL32    ' + rd(i) + ' = ' + rt(i) + ' >>> ' + (_sa(i)+32); },
-    function (a,i) { return 'DSRA32    ' + rd(i) + ' = ' + rt(i) + ' >> '  + (_sa(i)+32); }
+                   return 'OR        ' + i.rd() + ' = '    + i.rs() + ' | ' + i.rt(); },
+    function (i) { return 'XOR       ' + i.rd() + ' = '    + i.rs() + ' ^ ' + i.rt(); },
+    function (i) { return 'NOR       ' + i.rd() + ' = ~( ' + i.rs() + ' | ' + i.rt() + ' )'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'SLT       ' + i.rd() + ' = ' + i.rs() + ' < ' + i.rt(); },
+    function (i) { return 'SLTU      ' + i.rd() + ' = ' + i.rs() + ' < ' + i.rt(); },
+    function (i) { return 'DADD      ' + i.rd() + ' = ' + i.rs() + ' + ' + i.rt(); },
+    function (i) { return 'DADDU     ' + i.rd() + ' = ' + i.rs() + ' + ' + i.rt(); },
+    function (i) { return 'DSUB      ' + i.rd() + ' = ' + i.rs() + ' - ' + i.rt(); },
+    function (i) { return 'DSUBU     ' + i.rd() + ' = ' + i.rs() + ' - ' + i.rt(); },
+    function (i) { return 'TGE       trap( ' + i.rs() + ' >= ' + i.rt() + ' )'; },
+    function (i) { return 'TGEU      trap( ' + i.rs() + ' >= ' + i.rt() + ' )'; },
+    function (i) { return 'TLT       trap( ' + i.rs() + ' < '  + i.rt() + ' )'; },
+    function (i) { return 'TLTU      trap( ' + i.rs() + ' < '  + i.rt() + ' )'; },
+    function (i) { return 'TEQ       trap( ' + i.rs() + ' == ' + i.rt() + ' )'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'TNE       trap( ' + i.rs() + ' != ' + i.rt() + ' )'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'DSLL      ' + i.rd() + ' = ' + i.rt() + ' << '  + _sa(i.opcode); },
+    function (i) { return 'Unk'; },
+    function (i) { return 'DSRL      ' + i.rd() + ' = ' + i.rt() + ' >>> ' + _sa(i.opcode); },
+    function (i) { return 'DSRA      ' + i.rd() + ' = ' + i.rt() + ' >> '  + _sa(i.opcode); },
+    function (i) { return 'DSLL32    ' + i.rd() + ' = ' + i.rt() + ' << '  + (_sa(i.opcode)+32); },
+    function (i) { return 'Unk'; },
+    function (i) { return 'DSRL32    ' + i.rd() + ' = ' + i.rt() + ' >>> ' + (_sa(i.opcode)+32); },
+    function (i) { return 'DSRA32    ' + i.rd() + ' = ' + i.rt() + ' >> '  + (_sa(i.opcode)+32); }
   ];
   if (specialTable.length != 64) {
     throw "Oops, didn't build the special table correctly";
   }
 
-  function disassembleSpecial(a,i) {
-    var fn = i & 0x3f;
-    return specialTable[fn](a,i);
+  function disassembleSpecial(i) {
+    var fn = i.opcode & 0x3f;
+    return specialTable[fn](i);
   }
 
   var cop0Table = [
-    function (a,i) { return 'MFC0'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'MTC0      ' + rt(i) + ' -> ' + cop0ControlRegisterNames[_fs(i)]; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
+    function (i) { return 'MFC0'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'MTC0      ' + i.rt() + ' -> ' + cop0ControlRegisterNames[_fs(i.opcode)]; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
     
-    function (a,i) { return 'TLB'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
+    function (i) { return 'TLB'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
   ];
   if (cop0Table.length != 32) {
     throw "Oops, didn't build the special table correctly";
   }
-  function disassembleCop0(a,i) {
-    var fmt = (i>>21) & 0x1f;
-    return cop0Table[fmt](a,i);
+  function disassembleCop0(i) {
+    var fmt = (i.opcode>>21) & 0x1f;
+    return cop0Table[fmt](i);
   }
 
   var regImmTable = [
-    function (a,i) { return 'BLTZ'; },
-    function (a,i) { return 'BGEZ'; },
-    function (a,i) { return 'BLTZL'; },
-    function (a,i) { return 'BGEZL'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
+    function (i) { return 'BLTZ'; },
+    function (i) { return 'BGEZ'; },
+    function (i) { return 'BLTZL'; },
+    function (i) { return 'BGEZL'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
 
-    function (a,i) { return 'TGEI'; },
-    function (a,i) { return 'TGEIU'; },
-    function (a,i) { return 'TLTI'; },
-    function (a,i) { return 'TLTIU'; },
-    function (a,i) { return 'TEQI'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'TNEI'; },
-    function (a,i) { return 'Unk'; },
+    function (i) { return 'TGEI'; },
+    function (i) { return 'TGEIU'; },
+    function (i) { return 'TLTI'; },
+    function (i) { return 'TLTIU'; },
+    function (i) { return 'TEQI'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'TNEI'; },
+    function (i) { return 'Unk'; },
     
-    function (a,i) { return 'BLTZAL'; },
-    function (a,i) { return 'BGEZAL'; },
-    function (a,i) { return 'BLTZALL'; },
-    function (a,i) { return 'BGEZALL'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
+    function (i) { return 'BLTZAL'; },
+    function (i) { return 'BGEZAL'; },
+    function (i) { return 'BLTZALL'; },
+    function (i) { return 'BGEZALL'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
   ];
   if (regImmTable.length != 32) {
     throw "Oops, didn't build the special table correctly";
   }  
 
-  function disassembleRegImm(a,i) {
-    var rt = (i >> 16) & 0x1f;
-    return regImmTable[rt](a,i);
+  function disassembleRegImm(i) {
+    var rt = (i.opcode >> 16) & 0x1f;
+    return regImmTable[rt](i);
   }
 
   var simpleTable = [
     disassembleSpecial,
     disassembleRegImm,
-    function (a,i) { return 'J         --> ' + jumpAddress(a,i); },
-    function (a,i) { return 'JAL       --> ' + jumpAddress(a,i); },
-    function (a,i) { 
-      if (_rs(i) == _rt(i)) {
-                     return 'B         --> ' + branchAddress(a,i);
+    function (i) { return 'J         --> ' + i.jumpAddress(); },
+    function (i) { return 'JAL       --> ' + i.jumpAddress(); },
+    function (i) { 
+      if (_rs(i.opcode) == _rt(i.opcode)) {
+                   return 'B         --> ' + i.branchAddress();
       }
-                     return 'BEQ       ' + rs(i) + ' == ' + rt(i) + ' --> ' + branchAddress(a,i); },
-    function (a,i) { return 'BNE       ' + rs(i) + ' != ' + rt(i) + ' --> ' + branchAddress(a,i); },
-    function (a,i) { return 'BLEZ      ' + rs(i) + ' <= 0 --> ' + branchAddress(a,i); },
-    function (a,i) { return 'BGTZ      ' + rs(i) + ' > 0 --> ' + branchAddress(a,i); },
-    function (a,i) { return 'ADDI      ' + rt(i) + ' = ' + rs(i) + ' + ' + imm(i); },
-    function (a,i) { return 'ADDIU     ' + rt(i) + ' = ' + rs(i) + ' + ' + imm(i); },
-    function (a,i) { return 'SLTI      ' + rt(i) + ' = (' + rs(i) + ' < ' + imm(i) + ')'; },
-    function (a,i) { return 'SLTIU     ' + rt(i) + ' = (' + rs(i) + ' < ' + imm(i) + ')'; },
-    function (a,i) { return 'ANDI      ' + rt(i) + ' = ' + rs(i) + ' & ' + imm(i); },
-    function (a,i) { return 'ORI       ' + rt(i) + ' = ' + rs(i) + ' | ' + imm(i); },
-    function (a,i) { return 'XORI      ' + rt(i) + ' = ' + rs(i) + ' ^ ' + imm(i); },
-    function (a,i) { return 'LUI       ' + rt(i) + ' = ' + imm(i); },
+                   return 'BEQ       ' +                     i.rs() + ' == ' + i.rt() + ' --> ' + i.branchAddress(); },
+    function (i) { return 'BNE       ' +                     i.rs() + ' != ' + i.rt() + ' --> ' + i.branchAddress(); },
+    function (i) { return 'BLEZ      ' +                     i.rs() + ' <= 0 --> ' + i.branchAddress(); },
+    function (i) { return 'BGTZ      ' +                     i.rs() + ' > 0 --> '  + i.branchAddress(); },
+    function (i) { return 'ADDI      ' + i.rt_d() + ' = '  + i.rs() + ' + ' + i.imm(); },
+    function (i) { return 'ADDIU     ' + i.rt_d() + ' = '  + i.rs() + ' + ' + i.imm(); },
+    function (i) { return 'SLTI      ' + i.rt_d() + ' = (' + i.rs() + ' < ' + i.imm() + ')'; },
+    function (i) { return 'SLTIU     ' + i.rt_d() + ' = (' + i.rs() + ' < ' + i.imm() + ')'; },
+    function (i) { return 'ANDI      ' + i.rt_d() + ' = '  + i.rs() + ' & ' + i.imm(); },
+    function (i) { return 'ORI       ' + i.rt_d() + ' = '  + i.rs() + ' | ' + i.imm(); },
+    function (i) { return 'XORI      ' + i.rt_d() + ' = '  + i.rs() + ' ^ ' + i.imm(); },
+    function (i) { return 'LUI       ' + i.rt_d() + ' = '  + i.imm(); },
     disassembleCop0,
-    function (a,i) { return 'Copro1    '; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'BEQL      ' + rs(i) + ' == ' + rt(i) + ' --> ' + branchAddress(a,i); },
-    function (a,i) { return 'BNEL      ' + rs(i) + ' != ' + rt(i) + ' --> ' + branchAddress(a,i); },
-    function (a,i) { return 'BLEZL     ' + rs(i) + ' <= 0 --> ' + branchAddress(a,i); },
-    function (a,i) { return 'BGTZL     ' + rs(i) + ' > 0 --> ' + branchAddress(a,i); },
-    function (a,i) { return 'DADDI     ' + rt(i) + ' = ' + rs(i) + ' + ' + imm(i); },
-    function (a,i) { return 'DADDIU    ' + rt(i) + ' = ' + rs(i) + ' + ' + imm(i); },
-    function (a,i) { return 'LDL       ' + rt(i) + ' <- ' + memaccess(rs(i), imm(i)); },
-    function (a,i) { return 'LDR       ' + rt(i) + ' <- ' + memaccess(rs(i), imm(i)); },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'LB        ' + rt(i) + ' <- ' + memaccess(rs(i), imm(i)); },
-    function (a,i) { return 'LH        ' + rt(i) + ' <- ' + memaccess(rs(i), imm(i)); },
-    function (a,i) { return 'LWL       ' + rt(i) + ' <- ' + memaccess(rs(i), imm(i)); },
-    function (a,i) { return 'LW        ' + rt(i) + ' <- ' + memaccess(rs(i), imm(i)); },
-    function (a,i) { return 'LBU       ' + rt(i) + ' <- ' + memaccess(rs(i), imm(i)); },
-    function (a,i) { return 'LHU       ' + rt(i) + ' <- ' + memaccess(rs(i), imm(i)); },
-    function (a,i) { return 'LWR       ' + rt(i) + ' <- ' + memaccess(rs(i), imm(i)); },
-    function (a,i) { return 'LWU       ' + rt(i) + ' <- ' + memaccess(rs(i), imm(i)); },
-    function (a,i) { return 'SB        ' + rt(i) + ' -> ' + memaccess(rs(i), imm(i)); },
-    function (a,i) { return 'SH        ' + rt(i) + ' -> ' + memaccess(rs(i), imm(i)); },
-    function (a,i) { return 'SWL       ' + rt(i) + ' -> ' + memaccess(rs(i), imm(i)); },
-    function (a,i) { return 'SW        ' + rt(i) + ' -> ' + memaccess(rs(i), imm(i)); },
-    function (a,i) { return 'SDL       ' + rt(i) + ' -> ' + memaccess(rs(i), imm(i)); },
-    function (a,i) { return 'SDR       ' + rt(i) + ' -> ' + memaccess(rs(i), imm(i)); },
-    function (a,i) { return 'SWR       ' + rt(i) + ' -> ' + memaccess(rs(i), imm(i)); },
-    function (a,i) { return 'CACHE     ' + n64js.toHex(_rt(i),8) + memaccess(rs(i), imm(i)); },
-    function (a,i) { return 'LL        ' + rt(i) + ' <- ' + memaccess(rs(i), imm(i)); },
-    function (a,i) { return 'LWC1      ' + ft(i) + ' <- ' + memaccess(rs(i), imm(i)); },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'LLD       ' + rt(i) + ' <- ' + memaccess(rs(i), imm(i)); },
-    function (a,i) { return 'LDC1      ' + ft(i) + ' <- ' + memaccess(rs(i), imm(i)); },
-    function (a,i) { return 'LDC2      ' + gt(i) + ' <- ' + memaccess(rs(i), imm(i)); },
-    function (a,i) { return 'LD        ' + rt(i) + ' <- ' + memaccess(rs(i), imm(i)); },
-    function (a,i) { return 'SC        ' + rt(i) + ' -> ' + memaccess(rs(i), imm(i)); },
-    function (a,i) { return 'SWC1      ' + ft(i) + ' -> ' + memaccess(rs(i), imm(i)); },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'Unk'; },
-    function (a,i) { return 'SCD       ' + rt(i) + ' -> ' + memaccess(rs(i), imm(i)); },
-    function (a,i) { return 'SDC1      ' + ft(i) + ' -> ' + memaccess(rs(i), imm(i)); },
-    function (a,i) { return 'SDC2      ' + gt(i) + ' -> ' + memaccess(rs(i), imm(i)); },
-    function (a,i) { return 'SD        ' + rt(i) + ' -> ' + memaccess(rs(i), imm(i)); }
+    function (i) { return 'Copro1    '; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'BEQL      ' +                    i.rs() + ' == ' + i.rt() + ' --> ' + i.branchAddress(); },
+    function (i) { return 'BNEL      ' +                    i.rs() + ' != ' + i.rt() + ' --> ' + i.branchAddress(); },
+    function (i) { return 'BLEZL     ' +                    i.rs() + ' <= 0 --> ' + i.branchAddress(); },
+    function (i) { return 'BGTZL     ' +                    i.rs() + ' > 0 --> ' + i.branchAddress(); },
+    function (i) { return 'DADDI     ' + i.rt_d() + ' = ' + i.rs() + ' + ' + i.imm(); },
+    function (i) { return 'DADDIU    ' + i.rt_d() + ' = ' + i.rs() + ' + ' + i.imm(); },
+    function (i) { return 'LDL       ' + i.rt_d() + ' <- ' + i.memaccess(); },
+    function (i) { return 'LDR       ' + i.rt_d() + ' <- ' + i.memaccess(); },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'LB        ' + i.rt_d() + ' <- ' + i.memaccess(); },
+    function (i) { return 'LH        ' + i.rt_d() + ' <- ' + i.memaccess(); },
+    function (i) { return 'LWL       ' + i.rt_d() + ' <- ' + i.memaccess(); },
+    function (i) { return 'LW        ' + i.rt_d() + ' <- ' + i.memaccess(); },
+    function (i) { return 'LBU       ' + i.rt_d() + ' <- ' + i.memaccess(); },
+    function (i) { return 'LHU       ' + i.rt_d() + ' <- ' + i.memaccess(); },
+    function (i) { return 'LWR       ' + i.rt_d() + ' <- ' + i.memaccess(); },
+    function (i) { return 'LWU       ' + i.rt_d() + ' <- ' + i.memaccess(); },
+    function (i) { return 'SB        ' + i.rt()   + ' -> ' + i.memaccess(); },
+    function (i) { return 'SH        ' + i.rt()   + ' -> ' + i.memaccess(); },
+    function (i) { return 'SWL       ' + i.rt()   + ' -> ' + i.memaccess(); },
+    function (i) { return 'SW        ' + i.rt()   + ' -> ' + i.memaccess(); },
+    function (i) { return 'SDL       ' + i.rt()   + ' -> ' + i.memaccess(); },
+    function (i) { return 'SDR       ' + i.rt()   + ' -> ' + i.memaccess(); },
+    function (i) { return 'SWR       ' + i.rt()   + ' -> ' + i.memaccess(); },
+    function (i) { return 'CACHE     ' + n64js.toHex(_rt(i.opcode),8) + i.memaccess(); },
+    function (i) { return 'LL        ' + i.rt_d() + ' <- ' + i.memaccess(); },
+    function (i) { return 'LWC1      ' + i.ft_d() + ' <- ' + i.memaccess(); },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'LLD       ' + i.rt_d() + ' <- ' + i.memaccess(); },
+    function (i) { return 'LDC1      ' + i.ft_d() + ' <- ' + i.memaccess(); },
+    function (i) { return 'LDC2      ' + i.gt_d() + ' <- ' + i.memaccess(); },
+    function (i) { return 'LD        ' + i.rt_d() + ' <- ' + i.memaccess(); },
+    function (i) { return 'SC        ' + i.rt()   + ' -> ' + i.memaccess(); },
+    function (i) { return 'SWC1      ' + i.ft()   + ' -> ' + i.memaccess(); },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'SCD       ' + i.rt()   + ' -> ' + i.memaccess(); },
+    function (i) { return 'SDC1      ' + i.ft()   + ' -> ' + i.memaccess(); },
+    function (i) { return 'SDC2      ' + i.gt()   + ' -> ' + i.memaccess(); },
+    function (i) { return 'SD        ' + i.rt()   + ' -> ' + i.memaccess(); }
   ];
   if (simpleTable.length != 64) {
     throw "Oops, didn't build the simple table correctly";
   }
 
-  var simpleOpBranchType = [
-    0, 0, 1, 1, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  ];
+  n64js.disassembleOp = function (address, opcode) {
+    var i           = new Instruction(address, opcode);
+    var o = _op(opcode);
+    var disassembly = simpleTable[_op(opcode)](i);
 
-  n64js.disassembleOp = function (address, instruction, targets) {
-    var opcode      = (instruction >> 26) & 0x3f;
-    var disassembly = simpleTable[opcode](address,instruction);
-
-    if (typeof targets !== 'undefined') {
-      var op_type = simpleOpBranchType[(instruction>>26)&0x3f];
-      if (op_type == 1) {
-        targets[_jumpAddress(address, instruction)]   = 1;
-      } else if (op_type == 2) {
-        targets[_branchAddress(address, instruction)] = 1;
-      }      
-    }
-
-    return {address:address, instruction:instruction, disassembly:disassembly, jumpTarget:false};
-
+    return {instruction:i, disassembly:disassembly, isJumpTarget:false};
   }
 
-  n64js.disassembleAddress = function (address, targets) {
+  n64js.disassembleAddress = function (address) {
     var instruction = n64js.readMemoryInternal32(address);
-    return n64js.disassembleOp(address, instruction, targets);
+    return n64js.disassembleOp(address, instruction);
   }
   
   n64js.disassemble = function (bpc, epc) {
@@ -389,13 +390,18 @@ if (typeof n64js === 'undefined') {
     var targets = {};
 
     for (var i = bpc; i < epc; i += 4) {
-        r.push(n64js.disassembleAddress(i, targets));
+        var d = n64js.disassembleAddress(i);
+        if (d.instruction.target) {
+          targets[d.instruction.target] = 1;
+        }
+
+        r.push(d);
     }
 
     // Flag any instructions that are jump targets
     for (var o = 0; o < r.length; ++o) {
-      if (targets.hasOwnProperty(r[o].address)) 
-        r[o].jumpTarget = makeLabelColor(r[o].address);
+      if (targets.hasOwnProperty(r[o].instruction.address)) 
+        r[o].isJumpTarget = makeLabelColor(r[o].instruction.address);
     }
 
     return r;
