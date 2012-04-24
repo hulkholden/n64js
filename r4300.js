@@ -9,7 +9,7 @@ if (typeof n64js === 'undefined') {
   function     ft(i) { return (i>>>16)&0x1f; }
   function  copop(i) { return (i>>>21)&0x1f; }
 
-  function offset(i) { return (i     )&0xffff; }
+  function offset(i) { return ((i&0xffff)<<16)>>16; }
   function     sa(i) { return (i>>> 6)&0x1f; }
   function     rd(i) { return (i>>>11)&0x1f; }
   function     rt(i) { return (i>>>16)&0x1f; }
@@ -77,9 +77,22 @@ if (typeof n64js === 'undefined') {
   function executeADDU(a,i)       { unimplemented(a,i); }
   function executeSUB(a,i)        { unimplemented(a,i); }
   function executeSUBU(a,i)       { unimplemented(a,i); }
-  function executeAND(a,i)        { unimplemented(a,i); }
-  function executeOR(a,i)         { unimplemented(a,i); }
-  function executeXOR(a,i)        { unimplemented(a,i); }
+
+  function executeAND(a,i) {
+    n64js.cpu0.gprHi[rd(i)] = n64js.cpu0.gprHi[rs(i)] & n64js.cpu0.gprHi[rt(i)];
+    n64js.cpu0.gprLo[rd(i)] = n64js.cpu0.gprLo[rs(i)] & n64js.cpu0.gprLo[rt(i)];    
+  }
+
+  function executeOR(a,i) {
+    n64js.cpu0.gprHi[rd(i)] = n64js.cpu0.gprHi[rs(i)] | n64js.cpu0.gprHi[rt(i)];
+    n64js.cpu0.gprLo[rd(i)] = n64js.cpu0.gprLo[rs(i)] | n64js.cpu0.gprLo[rt(i)];
+  }
+
+  function executeXOR(a,i) {
+    n64js.cpu0.gprHi[rd(i)] = n64js.cpu0.gprHi[rs(i)] ^ n64js.cpu0.gprHi[rt(i)];
+    n64js.cpu0.gprLo[rd(i)] = n64js.cpu0.gprLo[rs(i)] ^ n64js.cpu0.gprLo[rt(i)];
+  }
+
   function executeNOR(a,i)        { unimplemented(a,i); }
   function executeSLT(a,i)        { unimplemented(a,i); }
   function executeSLTU(a,i)       { unimplemented(a,i); }
@@ -119,7 +132,11 @@ if (typeof n64js === 'undefined') {
   function executeJ(a,i)          { unimplemented(a,i); }
   function executeJAL(a,i)        { unimplemented(a,i); }
   function executeBEQ(a,i)        { unimplemented(a,i); }
-  function executeBNE(a,i)        { unimplemented(a,i); }
+  function executeBNE(a,i)        {
+    if (n64js.cpu0.gprLo[rs(i)] !== n64js.cpu0.gprLo[rt(i)]) {
+      n64js.cpu0.branch(n64js.cpu0.pc + offset(i)*4 + 4 );
+    }
+  }
   function executeBLEZ(a,i)       { unimplemented(a,i); }
   function executeBGTZ(a,i)       { unimplemented(a,i); }
   function executeADDI(a,i)       {
@@ -134,10 +151,28 @@ if (typeof n64js === 'undefined') {
   }
   function executeSLTI(a,i)       { unimplemented(a,i); }
   function executeSLTIU(a,i)      { unimplemented(a,i); }
-  function executeANDI(a,i)       { unimplemented(a,i); }
-  function executeORI(a,i)        { unimplemented(a,i); }
-  function executeXORI(a,i)       { unimplemented(a,i); }
-  function executeLUI(a,i)        { var v  = imms(i) << 16; setSignExtend(rt(i), v); }
+  
+  function executeANDI(a,i) {
+    n64js.cpu0.gprHi[rt(i)] = 0;    // always 0, as sign extended immediate value is always 0
+    n64js.cpu0.gprLo[rt(i)] = n64js.cpu0.gprLo[rs(i)] & imm(i);    
+  }
+  
+  function executeORI(a,i) {
+    n64js.cpu0.gprHi[rt(i)] = n64js.cpu0.gprHi[rs(i)];
+    n64js.cpu0.gprLo[rt(i)] = n64js.cpu0.gprLo[rs(i)] | imm(i);
+  }
+  
+  function executeXORI(a,i) {
+    // High 32 bits are always unchanged, as sign extended immediate value is always 0
+    var lo = n64js.cpu0.gprLo[rs(i)] ^ imm(i);
+    n64js.cpu0.gprLo[rt(i)] = lo;    
+  }
+  
+  function executeLUI(a,i) {
+    var v  = imms(i) << 16;
+    setSignExtend(rt(i), v);
+  }
+  
   function executeCop0(a,i)       { unimplemented(a,i); }
   function executeCopro1(a,i)     { unimplemented(a,i); }
   function executeBEQL(a,i)       { unimplemented(a,i); }
@@ -165,7 +200,10 @@ if (typeof n64js === 'undefined') {
   function executeSB(a,i)         { unimplemented(a,i); }
   function executeSH(a,i)         { unimplemented(a,i); }
   function executeSWL(a,i)        { unimplemented(a,i); }
-  function executeSW(a,i)         { unimplemented(a,i); }
+  function executeSW(a,i)         {
+    var ea = n64js.cpu0.gprLo[base(i)] + imms(i);
+    n64js.writeMemory32(ea, n64js.cpu0.gprLo[rt(i)]);    
+  }
   function executeSDL(a,i)        { unimplemented(a,i); }
   function executeSDR(a,i)        { unimplemented(a,i); }
   function executeSWR(a,i)        { unimplemented(a,i); }
@@ -432,15 +470,22 @@ if (typeof n64js === 'undefined') {
 
     for (var i = 0; i < cycles; ++i) {
         try {
-          var pc = cpu0.pc;
+          var pc  = cpu0.pc;
+          var dpc = cpu0.delayPC;
 
           var instruction = n64js.readMemory32(pc);
-
-          cpu0.pc += 4;   // Modify the pc before executing, so that instructions can override (e.g branches)
           executeOp(pc, instruction);
 
+          if (dpc !== 0) {
+            cpu0.delayPC = 0;
+            cpu0.pc      = dpc;
+          } else {
+            cpu0.pc      += 4;
+          }
+
         } catch (e) {
-          n64js.log('Exception :' + e);
+          n64js.halt('Exception :' + e);
+
           break;
         }
     }

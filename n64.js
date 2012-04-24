@@ -21,6 +21,13 @@ if (typeof n64js === 'undefined') {
       return that.u8[offset];
     }
 
+    this.write32 = function(offset, value) {
+      that.u8[offset+0] = (value >>> 24);
+      that.u8[offset+1] = (value >>> 16);
+      that.u8[offset+2] = (value >>>  8);
+      that.u8[offset+3] = (value       );
+    }
+
     this.readString = function (offset, max_len) {
       var s = '';
       for (var i = 0; i < max_len; ++i) {
@@ -50,11 +57,17 @@ if (typeof n64js === 'undefined') {
     }
   }
 
-  var running = false;
-  var rom     = null;   // Will be memory, mapped at 0xb0000000
-  var ram     = new Memory(new ArrayBuffer(4*1024*1024));
-  var sp_mem  = new Memory(new ArrayBuffer(0x2000));
-  var ri_reg  = new Memory(new ArrayBuffer(0x20));
+  var running   = false;
+  var rom       = null;   // Will be memory, mapped at 0xb0000000
+  var ram       = new Memory(new ArrayBuffer(4*1024*1024));
+  var sp_mem    = new Memory(new ArrayBuffer(0x2000));
+  var rdram_reg = new Memory(new ArrayBuffer(0x30));
+  var mi_reg    = new Memory(new ArrayBuffer(0x10));
+  var vi_reg    = new Memory(new ArrayBuffer(0x38));
+  var ai_reg    = new Memory(new ArrayBuffer(0x18));
+  var pi_reg    = new Memory(new ArrayBuffer(0x34));
+  var ri_reg    = new Memory(new ArrayBuffer(0x20));
+  var si_reg    = new Memory(new ArrayBuffer(0x1c));
 
   var kBootstrapOffset = 0x40;
   var kGameOffset      = 0x1000;
@@ -65,6 +78,11 @@ if (typeof n64js === 'undefined') {
     control : new Uint32Array(32),
 
     pc      : 0,
+    delayPC : 0,
+
+    branch : function(new_pc) {
+      this.delayPC = new_pc;
+    },
 
     gprRegisterNames : [
             "r0", "at", "v0", "v1", "a0", "a1", "a2", "a3",
@@ -156,7 +174,17 @@ if (typeof n64js === 'undefined') {
     disasmAddress = a;
   }
 
+  n64js.halt = function (msg) {
+    running = false;
+    n64js.log(msg);
+  }
+
   n64js.isRunning = function () {
+    return running;
+  }
+
+  n64js.toggleRun = function () {
+    running = !running;
     return running;
   }
 
@@ -423,12 +451,15 @@ if (typeof n64js === 'undefined') {
     n64js.refreshDisplay();
   } 
 
+  var last_pc = 0;
   n64js.refreshDisplay = function () {
     $registers.html('');
     var $table = $('<table class="register-table"><tbody></tbody></table>');
     var $tb = $table.find('tbody');
 
-    $tb.append('<tr><td>PC</td>' + cpu0.pc + '</td><td class="fixed">' + toString32(cpu0.pc) + '</td></tr>');
+    var dpc = '<td>delayPC</td><td class="fixed">' + toString32(cpu0.delayPC) + '</td>';
+
+    $tb.append('<tr><td>PC</td><td class="fixed">' + toString32(cpu0.pc) + '</td>' + dpc + '</tr>');
 
     if (0) {
       for (var i = 0; i < 32; i+=4) {
@@ -447,6 +478,12 @@ if (typeof n64js === 'undefined') {
           '</tr>');
       }
      
+    }
+
+    // If the pc has changed since the last update, recenter the display (e.g. when we take a branch)
+    if (cpu0.pc != last_pc) {
+      disasmAddress = cpu0.pc;
+      last_pc = cpu0.pc;
     }
 
     var disassembly = n64js.disassemble(disasmAddress - 64, disasmAddress + 64);
@@ -482,7 +519,65 @@ if (typeof n64js === 'undefined') {
         return sp_mem.read32(address-this.rangeStart);
 
       throw 'Read is out of range';
-    }
+    },
+
+    write32 : function (address, value) {
+      if (address+3 < this.rangeEnd)
+        return sp_mem.write32(address-this.rangeStart, value);
+
+      throw 'Write is out of range';
+    }      
+  };
+
+  var rdram_reg_handler_uncached = {
+    rangeStart : 0xa3f00000,
+    rangeEnd   : 0xa4000000,
+
+    readInternal32 : function (address) {
+      var ea = (address&0xff);
+      return rdram_reg.read32(ea);
+    },
+
+    read32 : function (address) {
+      n64js.log('Reading from RD RAM registers: ' + toString32(address) );
+      var ea = (address&0xff);
+      return rdram_reg.read32(ea);
+    },
+
+    write32 : function (address, value) {
+      n64js.log('Writing to RD RAM registers: ' + toString32(address) + ' = ' + toString32(value) );
+      var ea = (address&0xff);
+      return rdram_reg.write32(ea, value);
+    }    
+  };
+
+
+  var mi_reg_handler_uncached = {
+    rangeStart : 0xa4300000,
+    rangeEnd   : 0xa4300010,
+
+    readInternal32 : function (address) {
+      if (address+3 < this.rangeEnd)
+        return mi_reg.read32(address-this.rangeStart);
+     
+      return 0xdddddddd;
+    },
+
+    read32 : function (address) {
+      n64js.log('Reading from MI registers: ' + toString32(address) );
+      if (address+3 < this.rangeEnd)
+        return mi_reg.read32(address-this.rangeStart);
+
+      throw 'Read is out of range';
+    },
+
+    write32 : function (address, value) {
+      n64js.log('Writing to MI registers: ' + toString32(address) + ' = ' + toString32(value) );
+      if (address+3 < this.rangeEnd)
+        return mi_reg.write32(address-this.rangeStart, value);
+
+      throw 'Write is out of range';
+    }    
   };
 
   var ri_reg_handler_uncached = {
@@ -492,6 +587,7 @@ if (typeof n64js === 'undefined') {
     readInternal32 : function (address) {
       if (address+3 < this.rangeEnd)
         return ri_reg.read32(address-this.rangeStart);
+     
       return 0xdddddddd;
     },
 
@@ -501,7 +597,15 @@ if (typeof n64js === 'undefined') {
         return ri_reg.read32(address-this.rangeStart);
 
       throw 'Read is out of range';
-    }
+    },
+
+    write32 : function (address, value) {
+      n64js.log('Writing to RI registers: ' + toString32(address) + ' = ' + toString32(value) );
+      if (address+3 < this.rangeEnd)
+        return ri_reg.write32(address-this.rangeStart, value);
+
+      throw 'Write is out of range';
+    }    
   };  
 
   // We create a memory map of 1<<14 entries, corresponding to the top bits of the address range. 
@@ -511,8 +615,10 @@ if (typeof n64js === 'undefined') {
       map[i] = undefined;
 
     [
-      sp_mem_handler_uncached,
-      ri_reg_handler_uncached
+         sp_mem_handler_uncached,
+      rdram_reg_handler_uncached,
+         mi_reg_handler_uncached,
+         ri_reg_handler_uncached
     ].map(function (e){
         var beg = (e.rangeStart)>>>18;
         var end = (e.rangeEnd-1)>>>18;
@@ -543,13 +649,23 @@ if (typeof n64js === 'undefined') {
     var handler  = memMap[address >>> 18];
     if (!handler) {
       n64js.log('read from unhandled location ' + toString32(address));
-      throw 'unmapped read need to set exception';
+      throw 'unmapped read - need to set exception';
     }
     return handler.read32(address);
   }
 
+  // 'emulated' write. May cause exceptions to be thrown in the emulated process
+  n64js.writeMemory32 = function (address, value) {
+    var handler  = memMap[address >>> 18];
+    if (!handler) {
+      n64js.log('write to unhandled location ' + toString32(address));
+      throw 'unmapped write - need to set exception';
+    }
+    return handler.write32(address, value);
+  }  
+
   n64js.log = function(s) {
-    $output.append(s + '<br>');
+    $output.append(toString32(cpu0.pc) + ': ' + s + '<br>');
   }
 
   n64js.toHex = function(r, bits) {
