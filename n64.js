@@ -84,6 +84,8 @@ if (typeof n64js === 'undefined') {
     pc      : 0,
     delayPC : 0,
 
+    halt : false,     // used to flag r4300 to cease execution
+
     multHi : new Uint32Array(2),
     multLo : new Uint32Array(2),
 
@@ -189,6 +191,7 @@ if (typeof n64js === 'undefined') {
 
   n64js.halt = function (msg) {
     running = false;
+    cpu0.halt = true;
     n64js.log(msg);
   }
 

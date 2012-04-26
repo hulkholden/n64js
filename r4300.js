@@ -612,7 +612,9 @@ if (typeof n64js === 'undefined') {
 
     var cpu0 = n64js.cpu0;
 
-    for (var i = 0; i < cycles; ++i) {
+    cpu0.halt = false;
+
+    for (var i = 0; i < cycles && !cpu0.halt; ++i) {
         try {
           var pc  = cpu0.pc;
           var dpc = cpu0.delayPC;
