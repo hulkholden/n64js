@@ -44,6 +44,13 @@ if (typeof n64js === 'undefined') {
       return s;
     }
 
+    this.clearBits32 = function(offset, bits) {
+      this.write32(offset, this.read32(offset) & ~bits);
+    },
+    this.setBits32 = function(offset, bits) {
+      this.write32(offset, this.read32(offset) | bits);
+    },
+
     this.swap = function (_a, _b, _c, _d) {
       for (var i = 0; i < that.u8.length; i += 4) {
         var a = that.u8[i+_a], b = that.u8[i+_b], c = that.u8[i+_c], d = that.u8[i+_d];
@@ -793,6 +800,20 @@ if (typeof n64js === 'undefined') {
     }
   };
 
+  var MI_MODE_REG       = 0x00;
+  var MI_VERSION_REG    = 0x04;
+  var MI_INTR_REG       = 0x08;
+  var MI_INTR_MASK_REG  = 0x0C;
+
+
+  var MI_INTR_SP        = 0x01;
+  var MI_INTR_SI        = 0x02;
+  var MI_INTR_AI        = 0x04;
+  var MI_INTR_VI        = 0x08;
+  var MI_INTR_PI        = 0x10;
+  var MI_INTR_DP        = 0x20;
+
+
   var mi_reg_handler_uncached = {
     rangeStart : 0xa4300000,
     rangeEnd   : 0xa4300010,
@@ -842,6 +863,89 @@ if (typeof n64js === 'undefined') {
   };
 
 
+
+  var PI_DRAM_ADDR_REG    = 0x00;
+  var PI_CART_ADDR_REG    = 0x04;
+  var PI_RD_LEN_REG       = 0x08;
+  var PI_WR_LEN_REG       = 0x0C;
+  var PI_STATUS_REG       = 0x10;
+  var PI_BSD_DOM1_LAT_REG = 0x14;
+  var PI_BSD_DOM1_PWD_REG = 0x18;
+  var PI_BSD_DOM1_PGS_REG = 0x1C;
+  var PI_BSD_DOM1_RLS_REG = 0x20;
+  var PI_BSD_DOM2_LAT_REG = 0x24;
+  var PI_BSD_DOM2_PWD_REG = 0x28;
+  var PI_BSD_DOM2_PGS_REG = 0x2C;
+  var PI_BSD_DOM2_RLS_REG = 0x30;
+
+  // Values read from status reg
+  var PI_STATUS_DMA_BUSY    = 0x01;
+  var PI_STATUS_IO_BUSY     = 0x02;
+  var PI_STATUS_DMA_IO_BUSY = 0x03;
+  var PI_STATUS_ERROR       = 0x04;
+
+  // Values written to status reg
+  var PI_STATUS_RESET     = 0x01;
+  var PI_STATUS_CLR_INTR  = 0x02;
+
+  var PI_DOM1_ADDR1   = 0x06000000;
+  var PI_DOM1_ADDR2   = 0x10000000;
+  var PI_DOM1_ADDR3   = 0x1FD00000;
+  var PI_DOM2_ADDR1   = 0x05000000;
+  var PI_DOM2_ADDR2   = 0x08000000;
+
+
+  function IsDom1Addr1( address )    { return address >= PI_DOM1_ADDR1 && address < PI_DOM2_ADDR2; }
+  function IsDom1Addr2( address )    { return address >= PI_DOM1_ADDR2 && address < 0x1FBFFFFF;    }
+  function IsDom1Addr3( address )    { return address >= PI_DOM1_ADDR3 && address < 0x7FFFFFFF;    }
+  function IsDom2Addr1( address )    { return address >= PI_DOM2_ADDR1 && address < PI_DOM1_ADDR1; }
+  function IsDom2Addr2( address )    { return address >= PI_DOM2_ADDR2 && address < PI_DOM1_ADDR2; }
+
+  function PICopyToRDRAM() {
+    var dram_address = pi_reg.read32(PI_DRAM_ADDR_REG) & 0x00ffffff;
+    var cart_address = pi_reg.read32(PI_CART_ADDR_REG);
+    var transfer_len = pi_reg.read32(PI_WR_LEN_REG) + 1;
+
+    n64js.log('PI: copying ' + transfer_len + ' bytes of data from ' + toString32(cart_address) + ' to ' + toString32(dram_address));
+
+    if (transfer_len&1) {
+      n64js.log('PI: Warning - odd address');
+      transfer_len++;
+    }
+
+    var copy_succeeded = false;
+
+    if (IsDom1Addr1(cart_address)) {
+      cart_address -= PI_DOM1_ADDR1;
+      MemoryCopy( ram, dram_address, rom, cart_address, transfer_len );
+      copy_succeeded = true;
+    } else if (IsDom1Addr2(cart_address)) {
+      cart_address -= PI_DOM1_ADDR2;
+      MemoryCopy( ram, dram_address, rom, cart_address, transfer_len );
+      copy_succeeded = true;
+    } else if (IsDom1Addr3(cart_address)) {
+      cart_address -= PI_DOM1_ADDR3;
+      MemoryCopy( ram, dram_address, rom, cart_address, transfer_len );
+      copy_succeeded = true;
+
+    } else if (IsDom2Addr1(cart_address)) {
+      cart_address -= PI_DOM2_ADDR1;
+      n64js.halt('PI: dom2addr1 transfer is unhandled (save)');
+
+    } else if (IsDom2Addr2(cart_address)) {
+      cart_address -= PI_DOM2_ADDR2;
+      n64js.halt('PI: dom2addr2 transfer is unhandled (save/flash)');
+
+    } else {
+      n64js.halt('PI: unknown cart address: ' + cart_address);
+    }
+
+    // If this is the first DMA write the ram size to 0x800003F0 (cic6105) or 0x80000318 (others)
+    pi_reg.clearBits32(PI_STATUS_REG, PI_STATUS_DMA_BUSY);
+    mi_reg.setBits32(MI_INTR_REG, MI_INTR_PI);
+    n64js.interruptUpdateCause3();
+  }
+
   var pi_reg_handler_uncached = {
     rangeStart : 0xa4600000,
     rangeEnd   : 0xa4600034,
@@ -856,7 +960,7 @@ if (typeof n64js === 'undefined') {
     },
 
     read32 : function (address) {
-      n64js.log('Reading from PI registers: ' + mem(address) );
+      n64js.log('Reading from PI registers: ' + toString32(address) );
       var ea = address - this.rangeStart;
       if (ea+3 < this.mem.length)
         return this.mem.read32(ea);
@@ -875,10 +979,38 @@ if (typeof n64js === 'undefined') {
     write32 : function (address, value) {
       n64js.log('Writing to PI registers: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
       var ea = address - this.rangeStart;
-      if (ea+3 < this.mem.length)
-        return this.mem.write32(ea, value);
+      if (ea+3 < this.mem.length) {
 
-      throw 'Write is out of range';
+        switch( ea ) {
+          case PI_DRAM_ADDR_REG:
+          case PI_CART_ADDR_REG:
+            this.mem.write32(ea, value);
+            break;
+          case PI_RD_LEN_REG:
+            n64js.halt('PI copy from rdram triggered!');
+            this.mem.write32(ea, value);
+            break;
+          case PI_WR_LEN_REG:
+            this.mem.write32(ea, value);
+            PICopyToRDRAM();
+            break;
+          case PI_STATUS_REG:
+            n64js.halt('PI_STATUS_REG written ' + toString32(value));
+
+            if (value & PI_STATUS_RESET) {
+              this.mem.write32(PI_STATUS_REG, 0);
+            }
+            if (value & PI_STATUS_CLR_INTR) {
+              n64js.halt('PI_STATUS_REG written - need to reset interrupt');
+            }
+
+            break;
+        }
+
+      } else {
+        throw 'Write is out of range';
+      }
+
     },
     write8 : function (address, value) {
       n64js.log('Writing to PI registers: ' + toString8(value) + ' -> [' + toString32(address) + ']' );
@@ -1033,12 +1165,16 @@ if (typeof n64js === 'undefined') {
     return handler.write8(address>>>0, value);
   }
 
-  n64js.log = function(s) {
+  n64js.interruptUpdateCause3 = function () {
+    n64js.log('Need to handle interrupts');
+  }
+
+  n64js.log = function (s) {
     $output.append(toString32(cpu0.pc) + ': ' + s + '<br>');
     $output.scrollTop($output[0].scrollHeight);
   }
 
-  n64js.toHex = function(r, bits) {
+  n64js.toHex = function (r, bits) {
     r = Number(r);
     if (r < 0) {
         r = 0xFFFFFFFF + r + 1;
