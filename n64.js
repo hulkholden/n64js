@@ -916,6 +916,7 @@ if (typeof n64js === 'undefined') {
 
   n64js.log = function(s) {
     $output.append(toString32(cpu0.pc) + ': ' + s + '<br>');
+    $output.scrollTop($output[0].scrollHeight);
   }
 
   n64js.toHex = function(r, bits) {
