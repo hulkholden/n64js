@@ -592,116 +592,169 @@ if (typeof n64js === 'undefined') {
   //
   // Memory handlers
   //
-  var rdram_handler_cached = {
-    rangeStart : 0x80000000,
-    rangeEnd   : 0x80800000,
+  var rom_handler_uncached = {
+    rangeStart : 0xb0000000,
+    rangeEnd   : 0xbfc00000,
+    //mem        : rom,
 
     readInternal32 : function (address) {
-      if (address+3 < this.rangeEnd)
-        return ram.read32(address-this.rangeStart);
+      var ea = address - this.rangeStart;
+      if (ea+3 < rom.length)
+        return rom.read32(ea);
       return 0xdddddddd;
     },
 
     read32 : function (address) {
-      if (address+3 < this.rangeEnd)
-        return ram.read32(address-this.rangeStart);
+      var ea = address - this.rangeStart;
+
+      n64js.halt('reading from rom');
+      if (ea+3 < rom.length)
+        return rom.read32(ea);
 
       throw 'Read is out of range';
     },
     read8 : function (address) {
-      if (address < this.rangeEnd)
-        return ram.read8(address-this.rangeStart);
+      var ea = address - this.rangeStart;
+      if (ea < rom.length)
+        return rom.read8(ea);
 
       throw 'Read is out of range';
     },
 
     write32 : function (address, value) {
-      if (address+3 < this.rangeEnd)
-        return ram.write32(address-this.rangeStart, value);
+      throw 'Writing to rom';
+    },
+    write8 : function (address, value) {
+      throw 'Writing to rom';
+    }
+  };
+
+
+  var rdram_handler_cached = {
+    rangeStart : 0x80000000,
+    rangeEnd   : 0x80800000,
+    mem        : ram,
+
+    readInternal32 : function (address) {
+      var ea = address - this.rangeStart;
+      if (ea+3 < this.mem.length)
+        return this.mem.read32(ea);
+      return 0xdddddddd;
+    },
+
+    read32 : function (address) {
+      var ea = address - this.rangeStart;
+      if (ea+3 < this.mem.length)
+        return this.mem.read32(ea);
+
+      throw 'Read is out of range';
+    },
+    read8 : function (address) {
+      var ea = address - this.rangeStart;
+      if (ea < this.mem.length)
+        return this.mem.read8(ea);
+
+      throw 'Read is out of range';
+    },
+
+    write32 : function (address, value) {
+      var ea = address - this.rangeStart;
+      if (ea+3 < this.mem.length)
+        return this.mem.write32(ea, value);
 
       throw 'Write is out of range';
     },
     write8 : function (address, value) {
-      if (address < this.rangeEnd)
-        return ram.write8(address-this.rangeStart, value);
+      var ea = address - this.rangeStart;
+      if (ea < this.mem.length)
+        return this.mem.write8(ea, value);
 
       throw 'Write is out of range';
     }
   };
-
 
   var rdram_handler_uncached = {
     rangeStart : 0xa0000000,
     rangeEnd   : 0xa0800000,
+    mem        : ram,
 
     readInternal32 : function (address) {
-      if (address+3 < this.rangeEnd)
-        return ram.read32(address-this.rangeStart);
+      var ea = address - this.rangeStart;
+      if (ea+3 < this.mem.length)
+        return this.mem.read32(ea);
       return 0xdddddddd;
     },
 
     read32 : function (address) {
-      if (address+3 < this.rangeEnd)
-        return ram.read32(address-this.rangeStart);
+      var ea = address - this.rangeStart;
+      if (ea+3 < this.mem.length)
+        return this.mem.read32(ea);
 
       throw 'Read is out of range';
     },
     read8 : function (address) {
-      if (address < this.rangeEnd)
-        return ram.read8(address-this.rangeStart);
+      var ea = address - this.rangeStart;
+      if (ea < this.mem.length)
+        return this.mem.read8(ea);
 
       throw 'Read is out of range';
     },
 
     write32 : function (address, value) {
-      if (address+3 < this.rangeEnd)
-        return ram.write32(address-this.rangeStart, value);
+      var ea = address - this.rangeStart;
+      if (ea+3 < this.mem.length)
+        return this.mem.write32(ea, value);
 
       throw 'Write is out of range';
     },
     write8 : function (address, value) {
-      if (address < this.rangeEnd)
-        return ram.write8(address-this.rangeStart, value);
+      var ea = address - this.rangeStart;
+      if (ea < this.mem.length)
+        return this.mem.write8(ea, value);
 
       throw 'Write is out of range';
     }
   };
 
-
-
   var sp_mem_handler_uncached = {
     rangeStart : 0xa4000000,
     rangeEnd   : 0xa4002000,
+    mem        : sp_mem,
 
     readInternal32 : function (address) {
-      if (address+3 < this.rangeEnd)
-        return sp_mem.read32(address-this.rangeStart);
+      var ea = address - this.rangeStart;
+      if (ea+3 < this.mem.length)
+        return this.mem.read32(ea);
       return 0xdddddddd;
     },
 
     read32 : function (address) {
-      if (address+3 < this.rangeEnd)
-        return sp_mem.read32(address-this.rangeStart);
+      var ea = address - this.rangeStart;
+      if (ea+3 < this.mem.length)
+        return this.mem.read32(ea);
 
       throw 'Read is out of range';
     },
     read8 : function (address) {
-      if (address < this.rangeEnd)
-        return sp_mem.read8(address-this.rangeStart);
+      var ea = address - this.rangeStart;
+      if (ea < this.mem.length)
+        return this.mem.read8(ea);
 
       throw 'Read is out of range';
     },
 
 
     write32 : function (address, value) {
-      if (address+3 < this.rangeEnd)
-        return sp_mem.write32(address-this.rangeStart, value);
+      var ea = address - this.rangeStart;
+      if (ea+3 < this.mem.length)
+        return this.mem.write32(ea, value);
 
       throw 'Write is out of range';
     },
     write8 : function (address, value) {
-      if (address < this.rangeEnd)
-        return sp_mem.write8(address-this.rangeStart, value);
+      var ea = address - this.rangeStart;
+      if (ea < this.mem.length)
+        return this.mem.write8(ea, value);
 
       throw 'Write is out of range';
     }
@@ -710,72 +763,128 @@ if (typeof n64js === 'undefined') {
   var rdram_reg_handler_uncached = {
     rangeStart : 0xa3f00000,
     rangeEnd   : 0xa4000000,
+    mem        : rdram_reg,
 
     readInternal32 : function (address) {
       var ea = (address&0xff);
-      return rdram_reg.read32(ea);
+      return this.mem.read32(ea);
     },
 
     read32 : function (address) {
       n64js.log('Reading from RD RAM registers: ' + toString32(address) );
       var ea = (address&0xff);
-      return rdram_reg.read32(ea);
+      return this.mem.read32(ea);
     },
     read8 : function (address) {
       n64js.log('Reading from RD RAM registers: ' + toString32(address) );
       var ea = (address&0xff);
-      return rdram_reg.read8(ea);
+      return this.mem.read8(ea);
     },
 
     write32 : function (address, value) {
-      n64js.log('Writing to RD RAM registers: ' + toString32(address) + ' = ' + toString32(value) );
+      n64js.log('Writing to RD RAM registers: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
       var ea = (address&0xff);
-      return rdram_reg.write32(ea, value);
+      return this.mem.write32(ea, value);
     },
     write8 : function (address, value) {
-      n64js.log('Writing to RD RAM registers: ' + toString32(address) + ' = ' + toString8(value) );
+      n64js.log('Writing to RD RAM registers: ' + toString8(value) + ' -> [' + toString32(address) + ']' );
       var ea = (address&0xff);
-      return rdram_reg.write8(ea, value);
+      return this.mem.write8(ea, value);
     }
   };
 
   var mi_reg_handler_uncached = {
     rangeStart : 0xa4300000,
     rangeEnd   : 0xa4300010,
+    mem        : mi_reg,
 
     readInternal32 : function (address) {
-      if (address+3 < this.rangeEnd)
-        return mi_reg.read32(address-this.rangeStart);
+      var ea = address - this.rangeStart;
+      if (ea+3 < this.mem.length)
+        return this.mem.read32(ea);
      
       return 0xdddddddd;
     },
 
     read32 : function (address) {
       n64js.log('Reading from MI registers: ' + toString32(address) );
-      if (address+3 < this.rangeEnd)
-        return mi_reg.read32(address-this.rangeStart);
+      var ea = address - this.rangeStart;
+      if (ea+3 < this.mem.length)
+        return this.mem.read32(ea);
 
       throw 'Read is out of range';
     },
     read8 : function (address) {
       n64js.log('Reading from MI registers: ' + toString32(address) );
-      if (address < this.rangeEnd)
-        return mi_reg.read8(address-this.rangeStart);
+      var ea = address - this.rangeStart;
+      if (ea < this.mem.length)
+        return this.mem.read8(ea);
 
       throw 'Read is out of range';
     },
 
     write32 : function (address, value) {
-      n64js.log('Writing to MI registers: ' + toString32(address) + ' = ' + toString32(value) );
-      if (address+3 < this.rangeEnd)
-        return mi_reg.write32(address-this.rangeStart, value);
+      n64js.log('Writing to MI registers: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
+      var ea = address - this.rangeStart;
+      if (ea+3 < this.mem.length)
+        return this.mem.write32(ea, value);
 
       throw 'Write is out of range';
     },
     write8 : function (address, value) {
-      n64js.log('Writing to MI registers: ' + toString32(address) + ' = ' + toString8(value) );
-      if (address < this.rangeEnd)
-        return mi_reg.write8(address-this.rangeStart, value);
+      n64js.log('Writing to MI registers: ' + toString8(value) + ' -> [' + toString32(address) + ']' );
+      var ea = address - this.rangeStart;
+      if (ea < this.mem.length)
+        return this.mem.write8(ea, value);
+
+      throw 'Write is out of range';
+    }
+  };
+
+
+  var pi_reg_handler_uncached = {
+    rangeStart : 0xa4600000,
+    rangeEnd   : 0xa4600034,
+    mem        : pi_reg,
+
+    readInternal32 : function (address) {
+      var ea = address - this.rangeStart;
+      if (ea+3 < this.mem.length)
+        return this.mem.read32(ea);
+
+      return 0xdddddddd;
+    },
+
+    read32 : function (address) {
+      n64js.log('Reading from PI registers: ' + mem(address) );
+      var ea = address - this.rangeStart;
+      if (ea+3 < this.mem.length)
+        return this.mem.read32(ea);
+
+      throw 'Read is out of range';
+    },
+    read8 : function (address) {
+      n64js.log('Reading from PI registers: ' + toString32(address) );
+      var ea = address - this.rangeStart;
+      if (ea < this.mem.length)
+        return this.mem.read8(ea);
+
+      throw 'Read is out of range';
+    },
+
+    write32 : function (address, value) {
+      n64js.log('Writing to PI registers: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
+      var ea = address - this.rangeStart;
+      if (ea+3 < this.mem.length)
+        return this.mem.write32(ea, value);
+
+      throw 'Write is out of range';
+    },
+    write8 : function (address, value) {
+      n64js.log('Writing to PI registers: ' + toString8(value) + ' -> [' + toString32(address) + ']' );
+      var ea = address - this.rangeStart;
+      if (ea < this.mem.length)
+        return this.mem.write8(ea, value);
 
       throw 'Write is out of range';
     }
@@ -784,40 +893,45 @@ if (typeof n64js === 'undefined') {
   var ri_reg_handler_uncached = {
     rangeStart : 0xa4700000,
     rangeEnd   : 0xa4700020,
+    mem        : ri_reg,
 
     readInternal32 : function (address) {
-      if (address+3 < this.rangeEnd)
-        return ri_reg.read32(address-this.rangeStart);
+      var ea = address - this.rangeStart;
+      if (ea+3 < this.mem.length)
+        return this.mem.read32(ea);
      
       return 0xdddddddd;
     },
 
     read32 : function (address) {
       n64js.log('Reading from RI registers: ' + toString32(address) );
-      if (address+3 < this.rangeEnd)
-        return ri_reg.read32(address-this.rangeStart);
+      var ea = address - this.rangeStart;
+      if (ea+3 < this.mem.length)
+        return this.mem.read32(ea);
 
       throw 'Read is out of range';
     },
     read8 : function (address) {
       n64js.log('Reading from RI registers: ' + toString32(address) );
-      if (address < this.rangeEnd)
-        return ri_reg.read8(address-this.rangeStart);
+      var ea = address - this.rangeStart;
+      if (ea < this.mem.length)
+        return this.mem.read8(ea);
 
       throw 'Read is out of range';
     },
 
     write32 : function (address, value) {
-      n64js.log('Writing to RI registers: ' + toString32(address) + ' = ' + toString32(value) );
-      if (address+3 < this.rangeEnd)
-        return ri_reg.write32(address-this.rangeStart, value);
+      n64js.log('Writing to RI registers: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
+      var ea = address - this.rangeStart;
+      if (ea+3 < this.mem.length)
+        return this.mem.write32(ea, value);
 
       throw 'Write is out of range';
     },
     write8 : function (address, value) {
-      n64js.log('Writing to RI registers: ' + toString32(address) + ' = ' + toString8(value) );
-      if (address < this.rangeEnd)
-        return ri_reg.write8(address-this.rangeStart, value);
+      n64js.log('Writing to RI registers: ' + toString8(value) + ' -> [' + toString32(address) + ']' );
+      if (ea < this.mem.length)
+        return this.mem.write8(ea, value);
 
       throw 'Write is out of range';
     }
@@ -835,7 +949,9 @@ if (typeof n64js === 'undefined') {
          sp_mem_handler_uncached,
       rdram_reg_handler_uncached,
          mi_reg_handler_uncached,
-         ri_reg_handler_uncached
+         ri_reg_handler_uncached,
+         pi_reg_handler_uncached,
+            rom_handler_uncached
     ].map(function (e){
         var beg = (e.rangeStart)>>>18;
         var end = (e.rangeEnd-1)>>>18;
