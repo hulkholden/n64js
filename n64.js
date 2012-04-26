@@ -451,6 +451,30 @@ if (typeof n64js === 'undefined') {
     n64js.refreshDisplay();
   } 
 
+  function makeLabelColor(address) {
+    var i = (address>>>2);  // Lowest bits are always 0
+    var hash = (i>>>16) ^ ((i&0xffff) * 2803);
+    var r = (hash     )&0x1f;
+    var g = (hash>>> 5)&0x1f;
+    var b = (hash>>>10)&0x1f;
+    var h = (hash>>>15)&0x3;
+
+    r = (r*4);
+    g = (g*4);
+    b = (b*4);
+    if (h === 0) {
+      r*=2; g*=2;
+    } else if (h === 1) {
+      g*=2; b*=2;
+    } else if (h === 2) {
+      b*=2; r*=2
+    } else {
+      r*=2;g*=2;b*=2;
+    }
+
+    return '#' + n64js.toHex(r,8) + n64js.toHex(g,8) + n64js.toHex(b,8);
+  }
+
   var last_pc = 0;
   n64js.refreshDisplay = function () {
 
@@ -465,7 +489,7 @@ if (typeof n64js === 'undefined') {
     var disassembly = n64js.disassemble(disasmAddress - 64, disasmAddress + 64);
     var dis_body = disassembly.map(function (a) {
     
-      var label_span = a.isJumpTarget ? '<span class="dis-label-target" style="color: ' + a.isJumpTarget + '">' : '<span class="dis-label">';
+      var label_span = a.isJumpTarget ? '<span class="dis-label-target">' : '<span class="dis-label">';
       var label      = label_span    + n64js.toHex(a.instruction.address, 32) + ':</span>';
       var t          = label + '   ' + n64js.toHex(a.instruction.opcode, 32) + '    ' + a.disassembly;
       if (a.instruction.address == cpu0.pc) {
@@ -474,7 +498,45 @@ if (typeof n64js === 'undefined') {
       }
       return t;
     }).join('<br>');
-    $disassembly.html('<pre>' + dis_body + '</pre>');
+
+    var regColours = {};
+
+    var availColours = [
+      '#F4EEAF', // yellow
+      '#AFF4BB', // green
+      '#F4AFBE'  // blue
+    ];
+
+    if (cur_instr) {
+      var nextColIdx = 0;
+      for (var i in cur_instr.srcRegs) {
+        if (!regColours.hasOwnProperty(i)) {
+          regColours[i] = availColours[nextColIdx++];
+        }
+      }
+      for (var i in cur_instr.dstRegs) {
+        if (!regColours.hasOwnProperty(i)) {
+          regColours[i] = availColours[nextColIdx++];
+        }
+      }
+    }
+
+
+    var $dis = $('<pre>' + dis_body + '</pre>');
+    $dis.find('.dis-label-target').each(function (){
+      var address = parseInt($(this).text(), 16);
+      $(this).css('color', makeLabelColor(address));
+      $(this).click(function () {
+        disasmAddress = address;
+        n64js.refreshDisplay();
+      });
+    });
+
+    $disassembly.html($dis);
+
+    for (var i in regColours) {
+      $dis.find('.dis-reg-' + i).css('background-color', regColours[i]);
+    }
 
 
     var $table = $('<table class="register-table"><tbody></tbody></table>');
@@ -493,17 +555,8 @@ if (typeof n64js === 'undefined') {
         var $td = $('<td>' + name + '</td><td class="fixed">' + toString64(cpu0.gprLo[i+r], cpu0.gprHi[i+r]) + '</td>');
 
         if (cur_instr) {
-          var col = '';
-          if(cur_instr.srcRegs.hasOwnProperty(name) && cur_instr.dstRegs.hasOwnProperty(name)) {
-            col = '#F4EEAF'; // yellow
-          } else if (cur_instr.srcRegs.hasOwnProperty(name)) {
-            col = '#AFF4BB'; // green
-          } else if (cur_instr.dstRegs.hasOwnProperty(name)) {
-            col = '#F4AFBE'; // blue
-          }
-
-          if (col) {
-            $td.attr('bgcolor', col);
+          if (regColours.hasOwnProperty(name)) {
+            $td.attr('bgcolor', regColours[name]);
           }
         }
 

@@ -24,34 +24,9 @@ if (typeof n64js === 'undefined') {
   function _branchAddress(a,i) { return (a+4) + (_imms(i)*4); }
   function _jumpAddress(a,i)   { return (a&0xf0000000) | (_target(i)*4); }
 
-  function makeLabelColor(address) {
-    var i = (address>>>2);  // Lowest bits are always 0
-    var hash = (i>>>16) ^ ((i&0xffff) * 2803);
-    var r = (hash     )&0x1f;
-    var g = (hash>>> 5)&0x1f;
-    var b = (hash>>>10)&0x1f;
-    var h = (hash>>>15)&0x3;
-
-    r = (r*4);
-    g = (g*4);
-    b = (b*4);
-    if (h === 0) {
-      r*=2; g*=2;
-    } else if (h === 1) {
-      g*=2; b*=2;
-    } else if (h === 2) {
-      b*=2; r*=2
-    } else {
-      r*=2;g*=2;b*=2;
-    }
-
-    return '#' + n64js.toHex(r,8) + n64js.toHex(g,8) + n64js.toHex(b,8);
-  }
-
   function makeLabelText(address) {
     var text = n64js.toHex( address, 32 );
-    var col  = makeLabelColor(address);
-    return '<span class="dis-label-target" style="color:' + col + '">' + text + '</span>';
+    return '<span class="dis-label-target">'+ text + '</span>';
   }
 
   var gprRegisterNames = [
@@ -90,25 +65,29 @@ if (typeof n64js === 'undefined') {
     this.target  = '';
   }
 
+  function makeRegSpan(t) {
+    return '<span class="dis-reg-' + t + '">' + t + '</span>';
+  }
+
   Instruction.prototype = {
-    
+
     // cop0 regs
-    rt_d : function () { var reg = gprRegisterNames[_rt(this.opcode)]; this.dstRegs[reg] = 1; return reg; },
-    rd   : function () { var reg = gprRegisterNames[_rd(this.opcode)]; this.dstRegs[reg] = 1; return reg; },
-    rt   : function () { var reg = gprRegisterNames[_rt(this.opcode)]; this.srcRegs[reg] = 1; return reg; },
-    rs   : function () { var reg = gprRegisterNames[_rs(this.opcode)]; this.srcRegs[reg] = 1; return reg; },
+    rt_d : function () { var reg = gprRegisterNames[_rt(this.opcode)]; this.dstRegs[reg] = 1; return makeRegSpan(reg); },
+    rd   : function () { var reg = gprRegisterNames[_rd(this.opcode)]; this.dstRegs[reg] = 1; return makeRegSpan(reg); },
+    rt   : function () { var reg = gprRegisterNames[_rt(this.opcode)]; this.srcRegs[reg] = 1; return makeRegSpan(reg); },
+    rs   : function () { var reg = gprRegisterNames[_rs(this.opcode)]; this.srcRegs[reg] = 1; return makeRegSpan(reg); },
 
     // cop1 regs
-    ft_d : function () { var reg = cop1RegisterNames[_rt(this.opcode)]; this.dstRegs[reg] = 1; return reg; },
-    fd   : function () { var reg = cop1RegisterNames[_rd(this.opcode)]; this.dstRegs[reg] = 1; return reg; },
-    ft   : function () { var reg = cop1RegisterNames[_rt(this.opcode)]; this.srcRegs[reg] = 1; return reg; },
-    fs   : function () { var reg = cop1RegisterNames[_rs(this.opcode)]; this.srcRegs[reg] = 1; return reg; },
+    ft_d : function () { var reg = cop1RegisterNames[_rt(this.opcode)]; this.dstRegs[reg] = 1; return makeRegSpan(reg); },
+    fd   : function () { var reg = cop1RegisterNames[_rd(this.opcode)]; this.dstRegs[reg] = 1; return makeRegSpan(reg); },
+    ft   : function () { var reg = cop1RegisterNames[_rt(this.opcode)]; this.srcRegs[reg] = 1; return makeRegSpan(reg); },
+    fs   : function () { var reg = cop1RegisterNames[_rs(this.opcode)]; this.srcRegs[reg] = 1; return makeRegSpan(reg); },
 
     // cop2 regs
-    gt_d : function () { var reg = cop2RegisterNames[_rt(this.opcode)]; this.dstRegs[reg] = 1; return reg; },
-    gd   : function () { var reg = cop2RegisterNames[_rd(this.opcode)]; this.dstRegs[reg] = 1; return reg; },
-    gt   : function () { var reg = cop2RegisterNames[_rt(this.opcode)]; this.srcRegs[reg] = 1; return reg; },
-    gs   : function () { var reg = cop2RegisterNames[_rs(this.opcode)]; this.srcRegs[reg] = 1; return reg; },
+    gt_d : function () { var reg = cop2RegisterNames[_rt(this.opcode)]; this.dstRegs[reg] = 1; return makeRegSpan(reg); },
+    gd   : function () { var reg = cop2RegisterNames[_rd(this.opcode)]; this.dstRegs[reg] = 1; return makeRegSpan(reg); },
+    gt   : function () { var reg = cop2RegisterNames[_rt(this.opcode)]; this.srcRegs[reg] = 1; return makeRegSpan(reg); },
+    gs   : function () { var reg = cop2RegisterNames[_rs(this.opcode)]; this.srcRegs[reg] = 1; return makeRegSpan(reg); },
 
     imm : function () { return '0x' + n64js.toHex( _imm(this.opcode), 16 ); },
 
@@ -401,7 +380,7 @@ if (typeof n64js === 'undefined') {
     // Flag any instructions that are jump targets
     for (var o = 0; o < r.length; ++o) {
       if (targets.hasOwnProperty(r[o].instruction.address)) 
-        r[o].isJumpTarget = makeLabelColor(r[o].instruction.address);
+        r[o].isJumpTarget = true;
     }
 
     return r;
