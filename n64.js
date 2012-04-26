@@ -127,7 +127,7 @@ if (typeof n64js === 'undefined') {
     kRegister_gp : 0x1c,
     kRegister_sp : 0x1d,
     kRegister_s8 : 0x1e,
-    kRegister_ra : 0x1f,    
+    kRegister_ra : 0x1f,
 
     // Control register constants
     kControlIndex     : 0,
@@ -705,34 +705,48 @@ if (typeof n64js === 'undefined') {
 
   })();
 
+  function AssertException(message) { this.message = message; }
+  AssertException.prototype.toString = function () {
+    return 'AssertException: ' + this.message;
+  }
+
+  function assert(e,m) {
+    if (!e) {
+      throw new AssertException(m);
+    }
+  }
+
   // Read memory internal is used for stuff like the debugger. It shouldn't ever throw or change the state of the emulated program.
   n64js.readMemoryInternal32 = function (address) {
-    var handler  = memMap[address >>> 18];
+    assert(address>=0, "Address is negative");
+    var handler = memMap[address >>> 18];
     if (!handler) {
       n64js.log('internal read from unhandled location ' + toString32(address));
       return 0xdddddddd;
     }
-    return handler ? handler.readInternal32(address) : 0xdddddddd;
+    return handler ? handler.readInternal32(address>>>0) : 0xdddddddd;
   }
 
   // 'emulated' read. May cause exceptions to be thrown in the emulated process
   n64js.readMemory32 = function (address) {
-    var handler  = memMap[address >>> 18];
+    assert(address>=0, "Address is negative");
+    var handler = memMap[address >>> 18];
     if (!handler) {
       n64js.log('read from unhandled location ' + toString32(address));
       throw 'unmapped read - need to set exception';
     }
-    return handler.read32(address);
+    return handler.read32(address>>>0);
   }
 
   // 'emulated' write. May cause exceptions to be thrown in the emulated process
   n64js.writeMemory32 = function (address, value) {
-    var handler  = memMap[address >>> 18];
+    assert(address>=0, "Address is negative");
+    var handler = memMap[address >>> 18];
     if (!handler) {
       n64js.log('write to unhandled location ' + toString32(address));
       throw 'unmapped write - need to set exception';
     }
-    return handler.write32(address, value);
+    return handler.write32(address>>>0, value);
   }  
 
   n64js.log = function(s) {

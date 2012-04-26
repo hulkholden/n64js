@@ -485,7 +485,6 @@ if (typeof n64js === 'undefined') {
 
         } catch (e) {
           n64js.halt('Exception :' + e);
-
           break;
         }
     }
