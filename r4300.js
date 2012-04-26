@@ -4,6 +4,8 @@ if (typeof n64js === 'undefined') {
 
 (function () {'use strict';
 
+  var kRegister_ra = 0x1f;
+
   function     fd(i) { return (i>>> 6)&0x1f; }
   function     fs(i) { return (i>>>11)&0x1f; }
   function     ft(i) { return (i>>>16)&0x1f; }
@@ -21,6 +23,10 @@ if (typeof n64js === 'undefined') {
   function   imms(i) { return ((i&0xffff)<<16)>>16; }   // treat immediate value as signed
   function   base(i) { return (i>>>21)&0x1f; }
 
+  function memaddr(i) {
+      return n64js.cpu0.gprLo[base(i)] + imms(i);
+  }
+
   function branchAddress(a,i) { return ((a+4) + (offset(i)*4))>>>0; }
   function   jumpAddress(a,i) { return ((a&0xf0000000) | (target(i)*4))>>>0; }
 
@@ -28,6 +34,17 @@ if (typeof n64js === 'undefined') {
     n64js.cpu0.gprLo[r] = v;
     n64js.cpu0.gprHi[r] = (v & 0x80000000) ? 0xffffffff : 0x00000000;  // sign-extend
   }
+
+  function setZeroExtend(r, v) {
+    n64js.cpu0.gprLo[r] = v;
+    n64js.cpu0.gprHi[r] = 0x00000000;
+  }
+
+  function setHiLoSignExtend(arr, v) {
+    arr[0] = (v&0xffffffff) >>> 0;
+    arr[1] = v>>>32;
+  }
+
 
   function unimplemented(a,i) {
     var r = n64js.disassembleOp(a,i);
@@ -43,40 +60,77 @@ if (typeof n64js === 'undefined') {
 
   function executeSLL(a,i) {
     // Special-case NOP
-    if (i == 0 || rd(i) == 0)
+    if (i == 0)
       return;
-    throw 'SLL unimplemented';
+
+    setSignExtend( rd(i), ((n64js.cpu0.gprLo[rt(i)] << sa(i)) & 0xffffffff)>>>0 );
   }
 
-  function executeSRL(a,i)        { unimplemented(a,i); }
-  function executeSRA(a,i)        { unimplemented(a,i); }
+  function executeSRL(a,i) {
+    setSignExtend( rd(i), n64js.cpu0.gprLo[rt(i)] >> sa(i) );
+  }
+  function executeSRA(a,i) {
+    setSignExtend( rd(i), n64js.cpu0.gprLo[rt(i)] >>> sa(i) );
+  }
   function executeSLLV(a,i)       { unimplemented(a,i); }
   function executeSRLV(a,i)       { unimplemented(a,i); }
   function executeSRAV(a,i)       { unimplemented(a,i); }
-  function executeJR(a,i)         { unimplemented(a,i); }
+  function executeJR(a,i) {
+    n64js.cpu0.branch( n64js.cpu0.gprLo[rs(i)] );
+  }
   function executeJALR(a,i)       { unimplemented(a,i); }
   function executeSYSCALL(a,i)    { unimplemented(a,i); }
   function executeBREAK(a,i)      { unimplemented(a,i); }
   function executeSYNC(a,i)       { unimplemented(a,i); }
-  function executeMFHI(a,i)       { unimplemented(a,i); }
-  function executeMTHI(a,i)       { unimplemented(a,i); }
-  function executeMFLO(a,i)       { unimplemented(a,i); }
+  function executeMFHI(a,i) {
+    n64js.cpu0.gprHi[rd(i)] = n64js.cpu0.multHi[1]; 
+    n64js.cpu0.gprLo[rd(i)] = n64js.cpu0.multHi[0]; 
+  }
+  function executeMTHI(a,i) {
+
+  }
+  function executeMFLO(a,i) {
+    n64js.cpu0.gprHi[rd(i)] = n64js.cpu0.multLo[1]; 
+    n64js.cpu0.gprLo[rd(i)] = n64js.cpu0.multLo[0]; 
+  }
   function executeMTLO(a,i)       { unimplemented(a,i); }
   function executeDSLLV(a,i)      { unimplemented(a,i); }
   function executeDSRLV(a,i)      { unimplemented(a,i); }
   function executeDSRAV(a,i)      { unimplemented(a,i); }
-  function executeMULT(a,i)       { unimplemented(a,i); }
-  function executeMULTU(a,i)      { unimplemented(a,i); }
+  function executeMULT(a,i) {
+    var result = n64js.cpu0.gprLo[rs(i)] * n64js.cpu0.gprLo[rt(i)];   // needs to be 64-bit *signed*!
+    var lo = (result&0xffffffff)>>>0;
+    var hi = (result>>>32);
+    setHiLoSignExtend( n64js.cpu0.multLo, lo );
+    setHiLoSignExtend( n64js.cpu0.multHi, hi );
+  }
+  function executeMULTU(a,i) {
+    var result = n64js.cpu0.gprLo[rs(i)] * n64js.cpu0.gprLo[rt(i)];   // needs to be 64-bit!
+    var lo = (result&0xffffffff)>>>0;
+    var hi = (result>>>32);
+    setHiLoSignExtend( n64js.cpu0.multLo, lo );
+    setHiLoSignExtend( n64js.cpu0.multHi, hi );
+  }
   function executeDIV(a,i)        { unimplemented(a,i); }
   function executeDIVU(a,i)       { unimplemented(a,i); }
   function executeDMULT(a,i)      { unimplemented(a,i); }
   function executeDMULTU(a,i)     { unimplemented(a,i); }
   function executeDDIV(a,i)       { unimplemented(a,i); }
   function executeDDIVU(a,i)      { unimplemented(a,i); }
-  function executeADD(a,i)        { unimplemented(a,i); }
-  function executeADDU(a,i)       { unimplemented(a,i); }
-  function executeSUB(a,i)        { unimplemented(a,i); }
-  function executeSUBU(a,i)       { unimplemented(a,i); }
+
+  function executeADD(a,i) {
+    setSignExtend( rd(i), n64js.cpu0.gprLo[rs(i)] + n64js.cpu0.gprLo[rt(i)] ); // s32 + s32    
+  }
+  function executeADDU(a,i) {
+    setSignExtend( rd(i), n64js.cpu0.gprLo[rs(i)] + n64js.cpu0.gprLo[rt(i)] ); // s32 + s32
+  }
+
+  function executeSUB(a,i) {
+    setSignExtend( rd(i), n64js.cpu0.gprLo[rs(i)] - n64js.cpu0.gprLo[rt(i)] ); // s32 - s32    
+  }
+  function executeSUBU(a,i) {
+    setSignExtend( rd(i), n64js.cpu0.gprLo[rs(i)] - n64js.cpu0.gprLo[rt(i)] ); // s32 - s32
+  }
 
   function executeAND(a,i) {
     n64js.cpu0.gprHi[rd(i)] = n64js.cpu0.gprHi[rs(i)] & n64js.cpu0.gprHi[rt(i)];
@@ -94,8 +148,23 @@ if (typeof n64js === 'undefined') {
   }
 
   function executeNOR(a,i)        { unimplemented(a,i); }
-  function executeSLT(a,i)        { unimplemented(a,i); }
-  function executeSLTU(a,i)       { unimplemented(a,i); }
+  function executeSLT(a,i) {
+    var r = 0;
+    // FIXME: this needs to do a signed compare. 
+    if (n64js.cpu0.gprHi[rs(i)] < n64js.cpu0.gprHi[rt(i)] ||
+        (n64js.cpu0.gprHi[rs(i)] === n64js.cpu0.gprHi[rt(i)] && n64js.cpu0.gprLo[rs(i)] < n64js.cpu0.gprLo[rt(i)])) {
+      r = 1;
+    }
+    setZeroExtend(rd(i), r);
+  }
+  function executeSLTU(a,i) {
+    var r = 0;
+    if (n64js.cpu0.gprHi[rs(i)] < n64js.cpu0.gprHi[rt(i)] ||
+        (n64js.cpu0.gprHi[rs(i)] === n64js.cpu0.gprHi[rt(i)] && n64js.cpu0.gprLo[rs(i)] < n64js.cpu0.gprLo[rt(i)])) {
+      r = 1;
+    }
+    setZeroExtend(rd(i), r);
+  }
   function executeDADD(a,i)       { unimplemented(a,i); }
   function executeDADDU(a,i)      { unimplemented(a,i); }
   function executeDSUB(a,i)       { unimplemented(a,i); }
@@ -115,10 +184,38 @@ if (typeof n64js === 'undefined') {
   function executeMFC0(a,i)       { unimplemented(a,i); }
   function executeMTC0(a,i)       { /* FIXME */; }
   function executeTLB(a,i)        { unimplemented(a,i); }
-  function executeBLTZ(a,i)       { unimplemented(a,i); }
-  function executeBGEZ(a,i)       { unimplemented(a,i); }
-  function executeBLTZL(a,i)      { unimplemented(a,i); }
-  function executeBGEZL(a,i)      { unimplemented(a,i); }
+  function executeBLTZ(a,i) {
+    if ((n64js.cpu0.gprHi[rs(i)] & 0x80000000) !== 0) {
+
+      // NB: if imms(i) == -1 then this is a branch to self/busywait
+      n64js.cpu0.branch( branchAddress(a,i) );
+    }
+  }
+  function executeBGEZ(a,i) {
+    if ((n64js.cpu0.gprHi[rs(i)] & 0x80000000) === 0) {
+
+      // NB: if imms(i) == -1 then this is a branch to self/busywait
+      n64js.cpu0.branch( branchAddress(a,i) );
+    }
+  }
+  function executeBLTZL(a,i) {
+    if ((n64js.cpu0.gprHi[rs(i)] & 0x80000000) !== 0) {
+
+      // NB: if imms(i) == -1 then this is a branch to self/busywait
+      n64js.cpu0.branch( branchAddress(a,i) );
+    } else {
+      n64js.cpu0.pc += 4;   // skip the next instruction
+    }
+  }
+  function executeBGEZL(a,i) {
+    if ((n64js.cpu0.gprHi[rs(i)] & 0x80000000) === 0) {
+
+      // NB: if imms(i) == -1 then this is a branch to self/busywait
+      n64js.cpu0.branch( branchAddress(a,i) );
+    } else {
+      n64js.cpu0.pc += 4;   // skip the next instruction
+    }
+  }
   function executeTGEI(a,i)       { unimplemented(a,i); }
   function executeTGEIU(a,i)      { unimplemented(a,i); }
   function executeTLTI(a,i)       { unimplemented(a,i); }
@@ -130,11 +227,20 @@ if (typeof n64js === 'undefined') {
   function executeBLTZALL(a,i)    { unimplemented(a,i); }
   function executeBGEZALL(a,i)    { unimplemented(a,i); }
   function executeJ(a,i)          { unimplemented(a,i); }
-  function executeJAL(a,i)        { unimplemented(a,i); }
-  function executeBEQ(a,i)        { unimplemented(a,i); }
+  function executeJAL(a,i) {
+    setSignExtend(kRegister_ra, n64js.cpu0.pc + 8);
+    n64js.cpu0.branch( jumpAddress(a,i) );
+  }
+  function executeBEQ(a,i) {
+    if (n64js.cpu0.gprLo[rs(i)] === n64js.cpu0.gprLo[rt(i)]) {
+      // NB: if imms(i) == -1 then this is a branch to self/busywait
+      n64js.cpu0.branch( branchAddress(a,i) );
+    }
+  }
   function executeBNE(a,i)        {
     if (n64js.cpu0.gprLo[rs(i)] !== n64js.cpu0.gprLo[rt(i)]) {
-      n64js.cpu0.branch(n64js.cpu0.pc + offset(i)*4 + 4 );
+      // NB: if imms(i) == -1 then this is a branch to self/busywait
+      n64js.cpu0.branch( branchAddress(a,i) );
     }
   }
   function executeBLEZ(a,i)       { unimplemented(a,i); }
@@ -149,7 +255,11 @@ if (typeof n64js === 'undefined') {
     var v = imms(i);
     setSignExtend(rt(i), a + v);
   }
-  function executeSLTI(a,i)       { unimplemented(a,i); }
+  function executeSLTI(a,i) {
+    // FIXME: this needs to do a full 64bit compare?
+    n64js.cpu0.gprHi[rt(i)] = 0;
+    n64js.cpu0.gprLo[rt(i)] = n64js.cpu0.gprLo[rs(i)] < imms(i) ? 1 : 0;
+  }
   function executeSLTIU(a,i)      { unimplemented(a,i); }
   
   function executeANDI(a,i) {
@@ -175,9 +285,39 @@ if (typeof n64js === 'undefined') {
   
   function executeCop0(a,i)       { unimplemented(a,i); }
   function executeCopro1(a,i)     { unimplemented(a,i); }
-  function executeBEQL(a,i)       { unimplemented(a,i); }
-  function executeBNEL(a,i)       { unimplemented(a,i); }
-  function executeBLEZL(a,i)      { unimplemented(a,i); }
+  function executeBEQL(a,i) {
+    if (n64js.cpu0.gprHi[rs(i)] === n64js.cpu0.gprHi[rt(i)] &&
+        n64js.cpu0.gprLo[rs(i)] === n64js.cpu0.gprLo[rt(i)] ) {
+
+      // NB: if imms(i) == -1 then this is a branch to self/busywait
+      n64js.cpu0.branch( branchAddress(a,i) );
+    } else {
+      n64js.cpu0.pc += 4;   // skip the next instruction
+    }
+  }
+  function executeBNEL(a,i) {
+    if (n64js.cpu0.gprHi[rs(i)] !== n64js.cpu0.gprHi[rt(i)] ||
+        n64js.cpu0.gprLo[rs(i)] !== n64js.cpu0.gprLo[rt(i)] ) {
+
+      // NB: if imms(i) == -1 then this is a branch to self/busywait
+      n64js.cpu0.branch( branchAddress(a,i) );
+    } else {
+      n64js.cpu0.pc += 4;   // skip the next instruction
+    }
+  }
+  function executeBLEZL(a,i) {
+    var hi = n64js.cpu0.gprHi[rs(i)];
+    var lo = n64js.cpu0.gprLo[rs(i)];
+    if ( (hi & 0x80000000) !== 0 || (hi === 0 && (lo & 0x80000000) !== 0) ) {
+
+      // NB: if rs == r0 then this branch is always taken
+      // NB: if imms(i) == -1 then this is a branch to self/busywait
+      n64js.cpu0.branch( branchAddress(a,i) );
+    } else {
+      n64js.cpu0.pc += 4;   // skip the next instruction
+    }
+  }
+
   function executeBGTZL(a,i)      { unimplemented(a,i); }
   function executeDADDI(a,i)      { unimplemented(a,i); }
   function executeDADDIU(a,i)     { unimplemented(a,i); }
@@ -190,24 +330,28 @@ if (typeof n64js === 'undefined') {
     // SF2049 requires this, apparently
     if (rt(i) == 0)
       return;
-    var ea = n64js.cpu0.gprLo[base(i)] + imms(i);
-    setSignExtend(rt(i), n64js.readMemory32(ea));
+    setSignExtend(rt(i), n64js.readMemory32( memaddr(i) ));
   }
-  function executeLBU(a,i)        { unimplemented(a,i); }
+  function executeLBU(a,i) {
+    setZeroExtend(rt(i), n64js.readMemory8( memaddr(i) ));
+  }
   function executeLHU(a,i)        { unimplemented(a,i); }
   function executeLWR(a,i)        { unimplemented(a,i); }
   function executeLWU(a,i)        { unimplemented(a,i); }
-  function executeSB(a,i)         { unimplemented(a,i); }
+  function executeSB(a,i) {
+    n64js.writeMemory8(memaddr(i), n64js.cpu0.gprLo[rt(i)] & 0xff );
+  }
   function executeSH(a,i)         { unimplemented(a,i); }
   function executeSWL(a,i)        { unimplemented(a,i); }
   function executeSW(a,i)         {
-    var ea = n64js.cpu0.gprLo[base(i)] + imms(i);
-    n64js.writeMemory32(ea, n64js.cpu0.gprLo[rt(i)]);    
+    n64js.writeMemory32(memaddr(i), n64js.cpu0.gprLo[rt(i)]);
   }
   function executeSDL(a,i)        { unimplemented(a,i); }
   function executeSDR(a,i)        { unimplemented(a,i); }
   function executeSWR(a,i)        { unimplemented(a,i); }
-  function executeCACHE(a,i)      { unimplemented(a,i); }
+  function executeCACHE(a,i) {
+    // ignore!
+  }
   function executeLL(a,i)         { unimplemented(a,i); }
   function executeLWC1(a,i)       { unimplemented(a,i); }
   function executeLLD(a,i)        { unimplemented(a,i); }
@@ -219,7 +363,7 @@ if (typeof n64js === 'undefined') {
   function executeSCD(a,i)        { unimplemented(a,i); }
   function executeSDC1(a,i)       { unimplemented(a,i); }
   function executeSDC2(a,i)       { unimplemented(a,i); }
-  function executeSD(a,i)         { unimplemented(a,i); }  
+  function executeSD(a,i)         { unimplemented(a,i); }
 
   var specialTable = [
     executeSLL,
@@ -482,6 +626,8 @@ if (typeof n64js === 'undefined') {
           } else {
             cpu0.pc      += 4;
           }
+
+          ++cpu0.opsExecuted;
 
         } catch (e) {
           n64js.halt('Exception :' + e);
