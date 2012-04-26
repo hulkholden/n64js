@@ -72,9 +72,15 @@ if (typeof n64js === 'undefined') {
   function executeSRA(a,i) {
     setSignExtend( rd(i), n64js.cpu0.gprLo[rt(i)] >>> sa(i) );
   }
-  function executeSLLV(a,i)       { unimplemented(a,i); }
-  function executeSRLV(a,i)       { unimplemented(a,i); }
-  function executeSRAV(a,i)       { unimplemented(a,i); }
+  function executeSLLV(a,i) {
+    setSignExtend( rd(i), (n64js.cpu0.gprLo[rt(i)] <<  (n64js.cpu0.gprLo[rs(i)] & 0x1f)) & 0xffffffff );
+  }
+  function executeSRLV(a,i) {
+    setSignExtend( rd(i),  n64js.cpu0.gprLo[rt(i)] >>> (n64js.cpu0.gprLo[rs(i)] & 0x1f) );
+  }
+  function executeSRAV(a,i) {
+    setSignExtend( rd(i),  n64js.cpu0.gprLo[rt(i)] >>  (n64js.cpu0.gprLo[rs(i)] & 0x1f) );
+  }
   function executeJR(a,i) {
     n64js.cpu0.branch( n64js.cpu0.gprLo[rs(i)] );
   }
@@ -222,8 +228,20 @@ if (typeof n64js === 'undefined') {
   function executeTLTIU(a,i)      { unimplemented(a,i); }
   function executeTEQI(a,i)       { unimplemented(a,i); }
   function executeTNEI(a,i)       { unimplemented(a,i); }
-  function executeBLTZAL(a,i)     { unimplemented(a,i); }
-  function executeBGEZAL(a,i)     { unimplemented(a,i); }
+
+  function executeBLTZAL(a,i) {
+    setSignExtend(kRegister_ra, n64js.cpu0.pc + 8);
+    if ((n64js.cpu0.gprHi[rs(i)] & 0x80000000) !== 0) {
+      n64js.cpu0.branch( branchAddress(a,i) );
+    }
+  }
+  function executeBGEZAL(a,i) {
+    setSignExtend(kRegister_ra, n64js.cpu0.pc + 8);
+    if ((n64js.cpu0.gprHi[rs(i)] & 0x80000000) === 0) {
+      n64js.cpu0.branch( branchAddress(a,i) );
+    }
+  }
+
   function executeBLTZALL(a,i)    { unimplemented(a,i); }
   function executeBGEZALL(a,i)    { unimplemented(a,i); }
   function executeJ(a,i)          { unimplemented(a,i); }
