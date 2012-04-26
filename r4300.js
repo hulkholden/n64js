@@ -18,11 +18,11 @@ if (typeof n64js === 'undefined') {
 
   function target(i) { return (i     )&0x3ffffff; }
   function    imm(i) { return (i     )&0xffff; }
-  function   imms(i) { return (imm(i)<<16)>>16; }   // treat immediate value as signed
+  function   imms(i) { return ((i&0xffff)<<16)>>16; }   // treat immediate value as signed
   function   base(i) { return (i>>>21)&0x1f; }
 
-  function branchAddress(a,i) { return (a+4) + (_imms(i)*4); }
-  function   jumpAddress(a,i) { return (a&0xf0000000) | (_target(i)*4); }
+  function branchAddress(a,i) { return ((a+4) + (offset(i)*4))>>>0; }
+  function   jumpAddress(a,i) { return ((a&0xf0000000) | (target(i)*4))>>>0; }
 
   function setSignExtend(r,v) {
     n64js.cpu0.gprLo[r] = v;

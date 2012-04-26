@@ -81,6 +81,10 @@ if (typeof n64js === 'undefined') {
     delayPC : 0,
 
     branch : function(new_pc) {
+      if (new_pc < 0) {
+        n64js.log('Oops, branching to negative address: ' + new_pc);
+        throw 'Oops, branching to negative address: ' + new_pc;
+      }
       this.delayPC = new_pc;
     },
 
