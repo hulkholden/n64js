@@ -614,7 +614,7 @@ if (typeof n64js === 'undefined') {
     read32 : function (address) {
       var ea = address - this.rangeStart;
 
-      n64js.halt('reading from rom');
+      //n64js.halt('reading from rom');
       if (ea+3 < rom.length)
         return rom.read32(ea);
 
