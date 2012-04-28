@@ -603,7 +603,6 @@ if (typeof n64js === 'undefined') {
   //
   // Memory handlers
   //
-
   var MI_MODE_REG       = 0x00;
   var MI_VERSION_REG    = 0x04;
   var MI_INTR_REG       = 0x08;
