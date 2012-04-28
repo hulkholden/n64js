@@ -68,17 +68,19 @@ if (typeof n64js === 'undefined') {
     }
   }
 
-  var running   = false;
-  var rom       = null;   // Will be memory, mapped at 0xb0000000
-  var ram       = new Memory(new ArrayBuffer(8*1024*1024));
-  var sp_mem    = new Memory(new ArrayBuffer(0x2000));
-  var rdram_reg = new Memory(new ArrayBuffer(0x30));
-  var mi_reg    = new Memory(new ArrayBuffer(0x10));
-  var vi_reg    = new Memory(new ArrayBuffer(0x38));
-  var ai_reg    = new Memory(new ArrayBuffer(0x18));
-  var pi_reg    = new Memory(new ArrayBuffer(0x34));
-  var ri_reg    = new Memory(new ArrayBuffer(0x20));
-  var si_reg    = new Memory(new ArrayBuffer(0x1c));
+  var running       = false;
+  var rom           = null;   // Will be memory, mapped at 0xb0000000
+  var ram           = new Memory(new ArrayBuffer(8*1024*1024));
+  var sp_mem        = new Memory(new ArrayBuffer(0x2000));
+  var sp_reg        = new Memory(new ArrayBuffer(0x20));
+  var sp_ibist_mem  = new Memory(new ArrayBuffer(0x8));
+  var rdram_reg     = new Memory(new ArrayBuffer(0x30));
+  var mi_reg        = new Memory(new ArrayBuffer(0x10));
+  var vi_reg        = new Memory(new ArrayBuffer(0x38));
+  var ai_reg        = new Memory(new ArrayBuffer(0x18));
+  var pi_reg        = new Memory(new ArrayBuffer(0x34));
+  var ri_reg        = new Memory(new ArrayBuffer(0x20));
+  var si_reg        = new Memory(new ArrayBuffer(0x1c));
 
   var kBootstrapOffset = 0x40;
   var kGameOffset      = 0x1000;
@@ -411,6 +413,8 @@ if (typeof n64js === 'undefined') {
   n64js.loadRom = function (bytes) {
     rom = new Memory(bytes);
 
+    rom_handler_uncached.mem = rom;
+
     switch (rom.read32(0)) {
       case 0x80371240:
         // ok
@@ -599,206 +603,6 @@ if (typeof n64js === 'undefined') {
   //
   // Memory handlers
   //
-  var rom_handler_uncached = {
-    rangeStart : 0xb0000000,
-    rangeEnd   : 0xbfc00000,
-    //mem        : rom,
-
-    readInternal32 : function (address) {
-      var ea = address - this.rangeStart;
-      if (ea+3 < rom.length)
-        return rom.read32(ea);
-      return 0xdddddddd;
-    },
-
-    read32 : function (address) {
-      var ea = address - this.rangeStart;
-
-      n64js.halt('reading from rom');
-      if (ea+3 < rom.length)
-        return rom.read32(ea);
-
-      throw 'Read is out of range';
-    },
-    read8 : function (address) {
-      var ea = address - this.rangeStart;
-      if (ea < rom.length)
-        return rom.read8(ea);
-
-      throw 'Read is out of range';
-    },
-
-    write32 : function (address, value) {
-      throw 'Writing to rom';
-    },
-    write8 : function (address, value) {
-      throw 'Writing to rom';
-    }
-  };
-
-
-  var rdram_handler_cached = {
-    rangeStart : 0x80000000,
-    rangeEnd   : 0x80800000,
-    mem        : ram,
-
-    readInternal32 : function (address) {
-      var ea = address - this.rangeStart;
-      if (ea+3 < this.mem.length)
-        return this.mem.read32(ea);
-      return 0xdddddddd;
-    },
-
-    read32 : function (address) {
-      var ea = address - this.rangeStart;
-      if (ea+3 < this.mem.length)
-        return this.mem.read32(ea);
-
-      throw 'Read is out of range';
-    },
-    read8 : function (address) {
-      var ea = address - this.rangeStart;
-      if (ea < this.mem.length)
-        return this.mem.read8(ea);
-
-      throw 'Read is out of range';
-    },
-
-    write32 : function (address, value) {
-      var ea = address - this.rangeStart;
-      if (ea+3 < this.mem.length)
-        return this.mem.write32(ea, value);
-
-      throw 'Write is out of range';
-    },
-    write8 : function (address, value) {
-      var ea = address - this.rangeStart;
-      if (ea < this.mem.length)
-        return this.mem.write8(ea, value);
-
-      throw 'Write is out of range';
-    }
-  };
-
-  var rdram_handler_uncached = {
-    rangeStart : 0xa0000000,
-    rangeEnd   : 0xa0800000,
-    mem        : ram,
-
-    readInternal32 : function (address) {
-      var ea = address - this.rangeStart;
-      if (ea+3 < this.mem.length)
-        return this.mem.read32(ea);
-      return 0xdddddddd;
-    },
-
-    read32 : function (address) {
-      var ea = address - this.rangeStart;
-      if (ea+3 < this.mem.length)
-        return this.mem.read32(ea);
-
-      throw 'Read is out of range';
-    },
-    read8 : function (address) {
-      var ea = address - this.rangeStart;
-      if (ea < this.mem.length)
-        return this.mem.read8(ea);
-
-      throw 'Read is out of range';
-    },
-
-    write32 : function (address, value) {
-      var ea = address - this.rangeStart;
-      if (ea+3 < this.mem.length)
-        return this.mem.write32(ea, value);
-
-      throw 'Write is out of range';
-    },
-    write8 : function (address, value) {
-      var ea = address - this.rangeStart;
-      if (ea < this.mem.length)
-        return this.mem.write8(ea, value);
-
-      throw 'Write is out of range';
-    }
-  };
-
-  var sp_mem_handler_uncached = {
-    rangeStart : 0xa4000000,
-    rangeEnd   : 0xa4002000,
-    mem        : sp_mem,
-
-    readInternal32 : function (address) {
-      var ea = address - this.rangeStart;
-      if (ea+3 < this.mem.length)
-        return this.mem.read32(ea);
-      return 0xdddddddd;
-    },
-
-    read32 : function (address) {
-      var ea = address - this.rangeStart;
-      if (ea+3 < this.mem.length)
-        return this.mem.read32(ea);
-
-      throw 'Read is out of range';
-    },
-    read8 : function (address) {
-      var ea = address - this.rangeStart;
-      if (ea < this.mem.length)
-        return this.mem.read8(ea);
-
-      throw 'Read is out of range';
-    },
-
-
-    write32 : function (address, value) {
-      var ea = address - this.rangeStart;
-      if (ea+3 < this.mem.length)
-        return this.mem.write32(ea, value);
-
-      throw 'Write is out of range';
-    },
-    write8 : function (address, value) {
-      var ea = address - this.rangeStart;
-      if (ea < this.mem.length)
-        return this.mem.write8(ea, value);
-
-      throw 'Write is out of range';
-    }
-  };
-
-  var rdram_reg_handler_uncached = {
-    rangeStart : 0xa3f00000,
-    rangeEnd   : 0xa4000000,
-    mem        : rdram_reg,
-
-    readInternal32 : function (address) {
-      var ea = (address&0xff);
-      return this.mem.read32(ea);
-    },
-
-    read32 : function (address) {
-      n64js.log('Reading from RD RAM registers: ' + toString32(address) );
-      var ea = (address&0xff);
-      return this.mem.read32(ea);
-    },
-    read8 : function (address) {
-      n64js.log('Reading from RD RAM registers: ' + toString32(address) );
-      var ea = (address&0xff);
-      return this.mem.read8(ea);
-    },
-
-    write32 : function (address, value) {
-      n64js.log('Writing to RD RAM registers: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
-      var ea = (address&0xff);
-      return this.mem.write32(ea, value);
-    },
-    write8 : function (address, value) {
-      n64js.log('Writing to RD RAM registers: ' + toString8(value) + ' -> [' + toString32(address) + ']' );
-      var ea = (address&0xff);
-      return this.mem.write8(ea, value);
-    }
-  };
 
   var MI_MODE_REG       = 0x00;
   var MI_VERSION_REG    = 0x04;
@@ -812,57 +616,6 @@ if (typeof n64js === 'undefined') {
   var MI_INTR_VI        = 0x08;
   var MI_INTR_PI        = 0x10;
   var MI_INTR_DP        = 0x20;
-
-
-  var mi_reg_handler_uncached = {
-    rangeStart : 0xa4300000,
-    rangeEnd   : 0xa4300010,
-    mem        : mi_reg,
-
-    readInternal32 : function (address) {
-      var ea = address - this.rangeStart;
-      if (ea+3 < this.mem.length)
-        return this.mem.read32(ea);
-     
-      return 0xdddddddd;
-    },
-
-    read32 : function (address) {
-      n64js.log('Reading from MI registers: ' + toString32(address) );
-      var ea = address - this.rangeStart;
-      if (ea+3 < this.mem.length)
-        return this.mem.read32(ea);
-
-      throw 'Read is out of range';
-    },
-    read8 : function (address) {
-      n64js.log('Reading from MI registers: ' + toString32(address) );
-      var ea = address - this.rangeStart;
-      if (ea < this.mem.length)
-        return this.mem.read8(ea);
-
-      throw 'Read is out of range';
-    },
-
-    write32 : function (address, value) {
-      n64js.log('Writing to MI registers: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
-      var ea = address - this.rangeStart;
-      if (ea+3 < this.mem.length)
-        return this.mem.write32(ea, value);
-
-      throw 'Write is out of range';
-    },
-    write8 : function (address, value) {
-      n64js.log('Writing to MI registers: ' + toString8(value) + ' -> [' + toString32(address) + ']' );
-      var ea = address - this.rangeStart;
-      if (ea < this.mem.length)
-        return this.mem.write8(ea, value);
-
-      throw 'Write is out of range';
-    }
-  };
-
-
 
   var PI_DRAM_ADDR_REG    = 0x00;
   var PI_CART_ADDR_REG    = 0x04;
@@ -946,128 +699,125 @@ if (typeof n64js === 'undefined') {
     n64js.interruptUpdateCause3();
   }
 
-  var pi_reg_handler_uncached = {
-    rangeStart : 0xa4600000,
-    rangeEnd   : 0xa4600034,
-    mem        : pi_reg,
+
+  function Device(name, mem, rangeStart, rangeEnd) {
+    this.name       = name;
+    this.mem        = mem;
+    this.rangeStart = rangeStart;
+    this.rangeEnd   = rangeEnd;
+    this.quiet      = false;
+  }
+
+  Device.prototype = {
+    calcEA : function (address) {
+      return address - this.rangeStart;
+    },
 
     readInternal32 : function (address) {
-      var ea = address - this.rangeStart;
+      var ea = this.calcEA(address);
       if (ea+3 < this.mem.length)
         return this.mem.read32(ea);
-
       return 0xdddddddd;
     },
 
     read32 : function (address) {
-      n64js.log('Reading from PI registers: ' + toString32(address) );
-      var ea = address - this.rangeStart;
+      if (!this.quiet) n64js.log('Reading from ' + this.name + ' registers: ' + toString32(address) );
+      var ea = this.calcEA(address);
       if (ea+3 < this.mem.length)
         return this.mem.read32(ea);
 
       throw 'Read is out of range';
     },
     read8 : function (address) {
-      n64js.log('Reading from PI registers: ' + toString32(address) );
-      var ea = address - this.rangeStart;
+      if (!this.quiet) n64js.log('Reading from ' + this.name + ' registers: ' + toString32(address) );
+      var ea = this.calcEA(address);
       if (ea < this.mem.length)
         return this.mem.read8(ea);
 
       throw 'Read is out of range';
     },
 
-    write32 : function (address, value) {
-      n64js.log('Writing to PI registers: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
-      var ea = address - this.rangeStart;
-      if (ea+3 < this.mem.length) {
-
-        switch( ea ) {
-          case PI_DRAM_ADDR_REG:
-          case PI_CART_ADDR_REG:
-            this.mem.write32(ea, value);
-            break;
-          case PI_RD_LEN_REG:
-            n64js.halt('PI copy from rdram triggered!');
-            this.mem.write32(ea, value);
-            break;
-          case PI_WR_LEN_REG:
-            this.mem.write32(ea, value);
-            PICopyToRDRAM();
-            break;
-          case PI_STATUS_REG:
-            n64js.halt('PI_STATUS_REG written ' + toString32(value));
-
-            if (value & PI_STATUS_RESET) {
-              this.mem.write32(PI_STATUS_REG, 0);
-            }
-            if (value & PI_STATUS_CLR_INTR) {
-              n64js.halt('PI_STATUS_REG written - need to reset interrupt');
-            }
-
-            break;
-        }
-
-      } else {
-        throw 'Write is out of range';
-      }
-
-    },
-    write8 : function (address, value) {
-      n64js.log('Writing to PI registers: ' + toString8(value) + ' -> [' + toString32(address) + ']' );
-      var ea = address - this.rangeStart;
-      if (ea < this.mem.length)
-        return this.mem.write8(ea, value);
-
-      throw 'Write is out of range';
-    }
-  };
-
-  var ri_reg_handler_uncached = {
-    rangeStart : 0xa4700000,
-    rangeEnd   : 0xa4700020,
-    mem        : ri_reg,
-
-    readInternal32 : function (address) {
-      var ea = address - this.rangeStart;
-      if (ea+3 < this.mem.length)
-        return this.mem.read32(ea);
-     
-      return 0xdddddddd;
-    },
-
-    read32 : function (address) {
-      n64js.log('Reading from RI registers: ' + toString32(address) );
-      var ea = address - this.rangeStart;
-      if (ea+3 < this.mem.length)
-        return this.mem.read32(ea);
-
-      throw 'Read is out of range';
-    },
-    read8 : function (address) {
-      n64js.log('Reading from RI registers: ' + toString32(address) );
-      var ea = address - this.rangeStart;
-      if (ea < this.mem.length)
-        return this.mem.read8(ea);
-
-      throw 'Read is out of range';
-    },
 
     write32 : function (address, value) {
-      n64js.log('Writing to RI registers: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
-      var ea = address - this.rangeStart;
+      if (!this.quiet) n64js.log('Writing to ' + this.name + ' registers: ' + toString8(value) + ' -> [' + toString32(address) + ']' );
+      var ea = this.calcEA(address);
       if (ea+3 < this.mem.length)
         return this.mem.write32(ea, value);
 
       throw 'Write is out of range';
     },
     write8 : function (address, value) {
-      n64js.log('Writing to RI registers: ' + toString8(value) + ' -> [' + toString32(address) + ']' );
+      if (!this.quiet) n64js.log('Writing to ' + this.name + ' registers: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
+      var ea = address - this.rangeStart;
       if (ea < this.mem.length)
         return this.mem.write8(ea, value);
 
       throw 'Write is out of range';
     }
   };
+
+  var rom_handler_uncached       = new Device("ROM",      rom,          0xb0000000, 0xbfc00000);
+  var rdram_handler_cached       = new Device("RAM",      ram,          0x80000000, 0x80800000);
+  var rdram_handler_uncached     = new Device("RAM",      ram,          0xa0000000, 0xa0800000);
+  var rdram_reg_handler_uncached = new Device("RDRAMReg", rdram_reg,    0xa3f00000, 0xa4000000);
+  var sp_mem_handler_uncached    = new Device("SPMem",    sp_mem,       0xa4000000, 0xa4002000);
+  var sp_reg_handler_uncached    = new Device("SPReg",    sp_reg,       0xa4040000, 0xa4040020);
+  var sp_ibist_handler_uncached  = new Device("SPIBIST",  sp_ibist_mem, 0xa4080000, 0xa4080008);
+  var mi_reg_handler_uncached    = new Device("MIReg",    mi_reg,       0xa4300000, 0xa4300010);
+  var pi_reg_handler_uncached    = new Device("PIReg",    pi_reg,       0xa4600000, 0xa4600034);
+  var ri_reg_handler_uncached    = new Device("RIReg",    ri_reg,       0xa4700000, 0xa4700020);
+
+  rdram_handler_cached.quiet    = true;
+  rdram_handler_uncached.quiet  = true;
+  sp_mem_handler_uncached.quiet = true;
+
+  rom_handler_uncached.write32 = function (address, value) {
+    throw 'Writing to rom';
+  };
+  rom_handler_uncached.write8 = function (address, value) {
+    throw 'Writing to rom';
+  };
+
+  rdram_reg_handler_uncached.calcEA  = function (address) {
+    return address&0xff;
+  };
+
+  pi_reg_handler_uncached.write32 = function (address, value) {
+    n64js.log('Writing to PI registers: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
+    var ea = address - this.rangeStart;
+    if (ea+3 < this.mem.length) {
+
+      switch( ea ) {
+        case PI_DRAM_ADDR_REG:
+        case PI_CART_ADDR_REG:
+          this.mem.write32(ea, value);
+          break;
+        case PI_RD_LEN_REG:
+          n64js.halt('PI copy from rdram triggered!');
+          this.mem.write32(ea, value);
+          break;
+        case PI_WR_LEN_REG:
+          this.mem.write32(ea, value);
+          PICopyToRDRAM();
+          break;
+        case PI_STATUS_REG:
+          n64js.halt('PI_STATUS_REG written ' + toString32(value));
+
+          if (value & PI_STATUS_RESET) {
+            this.mem.write32(PI_STATUS_REG, 0);
+          }
+          if (value & PI_STATUS_CLR_INTR) {
+            n64js.halt('PI_STATUS_REG written - need to reset interrupt');
+          }
+
+          break;
+      }
+
+    } else {
+      throw 'Write is out of range';
+    }
+  };
+
 
   // We create a memory map of 1<<14 entries, corresponding to the top bits of the address range. 
   var memMap = (function () {
@@ -1079,6 +829,8 @@ if (typeof n64js === 'undefined') {
           rdram_handler_cached,
           rdram_handler_uncached,
          sp_mem_handler_uncached,
+         sp_reg_handler_uncached,
+       sp_ibist_handler_uncached,
       rdram_reg_handler_uncached,
          mi_reg_handler_uncached,
          ri_reg_handler_uncached,
