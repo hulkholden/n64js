@@ -486,7 +486,7 @@ if (typeof n64js === 'undefined') {
       var $tr = $('<tr />');
       for (var r = 0; r < kRegistersPerRow; ++r) {
 
-        var name = cpu0.gprRegisterNames[i+r];
+        var name = n64js.cop0gprNames[i+r];
         var $td = $('<td>' + name + '</td><td class="fixed">' + toString64(cpu0.gprLo[i+r], cpu0.gprHi[i+r]) + '</td>');
 
         if (cur_instr) {

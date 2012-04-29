@@ -433,7 +433,6 @@ if (typeof n64js === 'undefined') {
     } else {
       cpu0.pc += 4;   // skip the next instruction
     }
-
   }
 
 

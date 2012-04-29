@@ -35,6 +35,7 @@ if (typeof n64js === 'undefined') {
     's0', 's1', 's2', 's3', 's4', 's5', 's6', 's7',
     't8', 't9', 'k0', 'k1', 'gp', 'sp', 's8', 'ra'
   ];
+  n64js.cop0gprNames = gprRegisterNames;
 
   var cop0ControlRegisterNames = [
     "Index",       "Rand", "EntryLo0", "EntryLo1", "Context", "PageMask",     "Wired",   "?7",
@@ -42,6 +43,7 @@ if (typeof n64js === 'undefined') {
     "?16",         "?17",   "WatchLo",  "WatchHi",     "?20",      "?21",       "?22",  "?23",
     "?24",         "?25",       "ECC", "CacheErr",   "TagLo",    "TagHi",  "ErrorEPC",  "?31"
   ];
+  n64js.cop0ControlRegisterNames = cop0ControlRegisterNames;
 
   var cop1RegisterNames = [
     'FP00', 'FP01', 'FP02', 'FP03', 'FP04', 'FP05', 'FP06', 'FP07',
