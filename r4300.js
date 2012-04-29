@@ -11,6 +11,8 @@ if (typeof n64js === 'undefined') {
 
     this.gprLo   = new Uint32Array(this.gprLoMem);
     this.gprHi   = new Uint32Array(this.gprHiMem);
+    this.gprLo_signed   = new Int32Array(this.gprLoMem);
+    this.gprHi_signed   = new Int32Array(this.gprHiMem);
 
     this.control = new Uint32Array(32);
 
@@ -199,10 +201,6 @@ if (typeof n64js === 'undefined') {
   function executeSRAV(a,i) {
     setSignExtend( rd(i),  cpu0.gprLo[rt(i)] >>  (cpu0.gprLo[rs(i)] & 0x1f) );
   }
-  function executeJR(a,i) {
-    performBranch( cpu0.gprLo[rs(i)] );
-  }
-  function executeJALR(a,i)       { unimplemented(a,i); }
   function executeSYSCALL(a,i)    { unimplemented(a,i); }
   function executeBREAK(a,i)      { unimplemented(a,i); }
   function executeSYNC(a,i)       { unimplemented(a,i); }
@@ -308,38 +306,6 @@ if (typeof n64js === 'undefined') {
   function executeMFC0(a,i)       { unimplemented(a,i); }
   function executeMTC0(a,i)       { /* FIXME */; }
   function executeTLB(a,i)        { unimplemented(a,i); }
-  function executeBLTZ(a,i) {
-    if ((cpu0.gprHi[rs(i)] & 0x80000000) !== 0) {
-
-      // NB: if imms(i) == -1 then this is a branch to self/busywait
-      performBranch( branchAddress(a,i) );
-    }
-  }
-  function executeBGEZ(a,i) {
-    if ((cpu0.gprHi[rs(i)] & 0x80000000) === 0) {
-
-      // NB: if imms(i) == -1 then this is a branch to self/busywait
-      performBranch( branchAddress(a,i) );
-    }
-  }
-  function executeBLTZL(a,i) {
-    if ((cpu0.gprHi[rs(i)] & 0x80000000) !== 0) {
-
-      // NB: if imms(i) == -1 then this is a branch to self/busywait
-      performBranch( branchAddress(a,i) );
-    } else {
-      cpu0.pc += 4;   // skip the next instruction
-    }
-  }
-  function executeBGEZL(a,i) {
-    if ((cpu0.gprHi[rs(i)] & 0x80000000) === 0) {
-
-      // NB: if imms(i) == -1 then this is a branch to self/busywait
-      performBranch( branchAddress(a,i) );
-    } else {
-      cpu0.pc += 4;   // skip the next instruction
-    }
-  }
   function executeTGEI(a,i)       { unimplemented(a,i); }
   function executeTGEIU(a,i)      { unimplemented(a,i); }
   function executeTLTI(a,i)       { unimplemented(a,i); }
@@ -347,42 +313,159 @@ if (typeof n64js === 'undefined') {
   function executeTEQI(a,i)       { unimplemented(a,i); }
   function executeTNEI(a,i)       { unimplemented(a,i); }
 
-  function executeBLTZAL(a,i) {
-    setSignExtend(cpu0.kRegister_ra, cpu0.pc + 8);
-    if ((cpu0.gprHi[rs(i)] & 0x80000000) !== 0) {
-      performBranch( branchAddress(a,i) );
-    }
+  // Jump
+  function executeJ(a,i) {
+    performBranch( jumpAddress(a,i) );
   }
-  function executeBGEZAL(a,i) {
-    setSignExtend(cpu0.kRegister_ra, cpu0.pc + 8);
-    if ((cpu0.gprHi[rs(i)] & 0x80000000) === 0) {
-      performBranch( branchAddress(a,i) );
-    }
-  }
-
-  function executeBLTZALL(a,i)    { unimplemented(a,i); }
-  function executeBGEZALL(a,i)    { unimplemented(a,i); }
-  function executeJ(a,i)          { unimplemented(a,i); }
   function executeJAL(a,i) {
     setSignExtend(cpu0.kRegister_ra, cpu0.pc + 8);
     performBranch( jumpAddress(a,i) );
   }
+  function executeJALR(a,i) {
+    var new_pc = cpu0.gprLo[rs(i)];
+    setSignExtend(rd(i), cpu0.pc + 8);
+    performBranch( new_pc );
+  }
+
+  function executeJR(a,i) {
+    performBranch( cpu0.gprLo[rs(i)] );
+  }
 
   function executeBEQ(a,i) {
-    if (cpu0.gprLo[rs(i)] === cpu0.gprLo[rt(i)]) {
-      // NB: if imms(i) == -1 then this is a branch to self/busywait
+    var s = rs(i);
+    var t = rt(i);
+    if (cpu0.gprHi[s] === cpu0.gprHi[t] &&
+        cpu0.gprLo[s] === cpu0.gprLo[t] ) {      // NB: if imms(i) == -1 then this is a branch to self/busywait
       performBranch( branchAddress(a,i) );
+    }
+  }
+  function executeBEQL(a,i) {
+    var s = rs(i);
+    var t = rt(i);
+    if (cpu0.gprHi[s] === cpu0.gprHi[t] &&
+        cpu0.gprLo[s] === cpu0.gprLo[t] ) {
+      performBranch( branchAddress(a,i) );
+    } else {
+      cpu0.pc += 4;   // skip the next instruction
     }
   }
 
-  function executeBNE(a,i)        {
-    if (cpu0.gprLo[rs(i)] !== cpu0.gprLo[rt(i)]) {
-      // NB: if imms(i) == -1 then this is a branch to self/busywait
+  function executeBNE(a,i) {
+    var s = rs(i);
+    var t = rt(i);
+    if (cpu0.gprHi[s] !== cpu0.gprHi[t] ||
+        cpu0.gprLo[s] !== cpu0.gprLo[t] ) {      // NB: if imms(i) == -1 then this is a branch to self/busywait
       performBranch( branchAddress(a,i) );
     }
   }
-  function executeBLEZ(a,i)       { unimplemented(a,i); }
-  function executeBGTZ(a,i)       { unimplemented(a,i); }
+  function executeBNEL(a,i) {
+    var s = rs(i);
+    var t = rt(i);
+    if (cpu0.gprHi[s] !== cpu0.gprHi[t] ||
+        cpu0.gprLo[s] !== cpu0.gprLo[t] ) {
+      performBranch( branchAddress(a,i) );
+    } else {
+      cpu0.pc += 4;   // skip the next instruction
+    }
+  }
+
+  // Branch Less Than or Equal To Zero
+  function executeBLEZ(a,i) {
+    // NB: 32 bit comparison for speed?
+    if ( cpu0.gprHi_signed[s] < 0 ||
+        (cpu0.gprHi[s] === 0 && cpu0.gprLo[s] === 0) ) {
+      performBranch( branchAddress(a,i) );
+    }
+  }
+  function executeBLEZL(a,i) {
+    var s = rs(i);
+    // NB: if rs == r0 then this branch is always taken
+    if ( cpu0.gprHi_signed[s] < 0 ||
+        (cpu0.gprHi[s] === 0 && cpu0.gprLo[s] === 0) ) {
+      performBranch( branchAddress(a,i) );
+    } else {
+      cpu0.pc += 4;   // skip the next instruction
+    }
+  }
+
+  // Branch Greater Than Zero
+  function executeBGTZ(a,i) {
+    var s = rs(i);
+    if ( cpu0.gprHi_signed[s] > 0 &&
+        (cpu0.gprHi[s] !== 0 || cpu0.gprLo[s] !== 0) ) {
+      performBranch( branchAddress(a,i) );
+    }
+  }
+  function executeBGTZL(a,i) {
+    var s = rs(i);
+    if ( cpu0.gprHi_signed[s] > 0 &&
+        (cpu0.gprHi[s] !== 0 || cpu0.gprLo[s] !== 0) ) {
+      performBranch( branchAddress(a,i) );
+    } else {
+      cpu0.pc += 4;   // skip the next instruction
+    }
+  }
+
+
+  // Branch Less Than Zero
+  function executeBLTZ(a,i) {
+    if (cpu0.gprHi_signed[rs(i)] < 0) {
+      performBranch( branchAddress(a,i) );
+    }
+  }
+  function executeBLTZL(a,i) {
+    if (cpu0.gprHi_signed[rs(i)] < 0) {
+      performBranch( branchAddress(a,i) );
+    } else {
+      cpu0.pc += 4;   // skip the next instruction
+    }
+  }
+  function executeBLTZAL(a,i) {
+    setSignExtend(cpu0.kRegister_ra, cpu0.pc + 8);
+    if (cpu0.gprHi_signed[rs(i)] < 0) {
+      performBranch( branchAddress(a,i) );
+    }
+  }
+  function executeBLTZALL(a,i) {
+    setSignExtend(cpu0.kRegister_ra, cpu0.pc + 8);
+    if (cpu0.gprHi_signed[rs(i)] < 0) {
+      performBranch( branchAddress(a,i) );
+    } else {
+      cpu0.pc += 4;   // skip the next instruction
+    }
+
+  }
+
+
+  // Branch Greater Than Zero
+  function executeBGEZ(a,i) {
+    if (cpu0.gprHi_signed[rs(i)] >= 0) {
+      performBranch( branchAddress(a,i) );
+    }
+  }
+  function executeBGEZL(a,i) {
+    if (cpu0.gprHi_signed[rs(i)] >= 0) {
+      performBranch( branchAddress(a,i) );
+    } else {
+      cpu0.pc += 4;   // skip the next instruction
+    }
+  }
+  function executeBGEZAL(a,i) {
+    setSignExtend(cpu0.kRegister_ra, cpu0.pc + 8);
+    if (cpu0.gprHi_signed[rs(i)] >= 0) {
+      performBranch( branchAddress(a,i) );
+    }
+  }
+  function executeBGEZALL(a,i) {
+    setSignExtend(cpu0.kRegister_ra, cpu0.pc + 8);
+    if (cpu0.gprHi_signed[rs(i)] >= 0) {
+      performBranch( branchAddress(a,i) );
+    } else {
+      cpu0.pc += 4;   // skip the next instruction
+    }
+  }
+
+
   function executeADDI(a,i) {
     var a = cpu0.gprLo[rs(i)];
     var v = imms(i);
@@ -423,40 +506,7 @@ if (typeof n64js === 'undefined') {
   
   function executeCop0(a,i)       { unimplemented(a,i); }
   function executeCopro1(a,i)     { unimplemented(a,i); }
-  function executeBEQL(a,i) {
-    if (cpu0.gprHi[rs(i)] === cpu0.gprHi[rt(i)] &&
-        cpu0.gprLo[rs(i)] === cpu0.gprLo[rt(i)] ) {
 
-      // NB: if imms(i) == -1 then this is a branch to self/busywait
-      performBranch( branchAddress(a,i) );
-    } else {
-      cpu0.pc += 4;   // skip the next instruction
-    }
-  }
-  function executeBNEL(a,i) {
-    if (cpu0.gprHi[rs(i)] !== cpu0.gprHi[rt(i)] ||
-        cpu0.gprLo[rs(i)] !== cpu0.gprLo[rt(i)] ) {
-
-      // NB: if imms(i) == -1 then this is a branch to self/busywait
-      performBranch( branchAddress(a,i) );
-    } else {
-      cpu0.pc += 4;   // skip the next instruction
-    }
-  }
-  function executeBLEZL(a,i) {
-    var hi = cpu0.gprHi[rs(i)];
-    var lo = cpu0.gprLo[rs(i)];
-    if ( (hi & 0x80000000) !== 0 || (hi === 0 && (lo & 0x80000000) !== 0) ) {
-
-      // NB: if rs == r0 then this branch is always taken
-      // NB: if imms(i) == -1 then this is a branch to self/busywait
-      performBranch( branchAddress(a,i) );
-    } else {
-      cpu0.pc += 4;   // skip the next instruction
-    }
-  }
-
-  function executeBGTZL(a,i)      { unimplemented(a,i); }
   function executeDADDI(a,i)      { unimplemented(a,i); }
   function executeDADDIU(a,i)     { unimplemented(a,i); }
   function executeLDL(a,i)        { unimplemented(a,i); }
