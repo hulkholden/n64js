@@ -162,6 +162,10 @@ if (typeof n64js === 'undefined') {
     }
 
     n64js.cpu0.reset();
+    n64js.cpu1.reset();
+
+    mi_reg.write32(MI_VERSION_REG, 0x02020102);
+    //ri_reg.write32(RI_CONFIG_REG, 1);           // This skips most of init
 
     // Simulate boot
 

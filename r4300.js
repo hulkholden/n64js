@@ -65,27 +65,53 @@ if (typeof n64js === 'undefined') {
 
   var CAUSE_IPMASK  = 0x0000FF00;
 
+  var FPCSR_RM_RN     = 0x00000000;
+  var FPCSR_RM_RZ     = 0x00000001;
+  var FPCSR_RM_RP     = 0x00000002;
+  var FPCSR_RM_RM     = 0x00000003;
+  var FPCSR_FI        = 0x00000004;
+  var FPCSR_FU        = 0x00000008;
+  var FPCSR_FO        = 0x00000010;
+  var FPCSR_FZ        = 0x00000020;
+  var FPCSR_FV        = 0x00000040;
+  var FPCSR_EI        = 0x00000080;
+  var FPCSR_EU        = 0x00000100;
+  var FPCSR_EO        = 0x00000200;
+  var FPCSR_EZ        = 0x00000400;
+  var FPCSR_EV        = 0x00000800;
+  var FPCSR_CI        = 0x00001000;
+  var FPCSR_CU        = 0x00002000;
+  var FPCSR_CO        = 0x00004000;
+  var FPCSR_CZ        = 0x00008000;
+  var FPCSR_CV        = 0x00010000;
+  var FPCSR_CE        = 0x00020000;
+  var FPCSR_C         = 0x00800000;
+  var FPCSR_FS        = 0x01000000;
+
+  var FPCSR_RM_MASK   = 0x00000003;
+
+
   function CPU0() {
 
-    this.gprLoMem = new ArrayBuffer(32*4);
-    this.gprHiMem = new ArrayBuffer(32*4);
+    this.gprLoMem       = new ArrayBuffer(32*4);
+    this.gprHiMem       = new ArrayBuffer(32*4);
 
-    this.gprLo   = new Uint32Array(this.gprLoMem);
-    this.gprHi   = new Uint32Array(this.gprHiMem);
+    this.gprLo          = new Uint32Array(this.gprLoMem);
+    this.gprHi          = new Uint32Array(this.gprHiMem);
     this.gprLo_signed   = new Int32Array(this.gprLoMem);
     this.gprHi_signed   = new Int32Array(this.gprHiMem);
 
-    this.control = new Uint32Array(32);
+    this.control        = new Uint32Array(32);
 
-    this.pc      = 0;
-    this.delayPC = 0;
+    this.pc             = 0;
+    this.delayPC        = 0;
 
-    this.halt = false;     // used to flag r4300 to cease execution
+    this.halt           = false;     // used to flag r4300 to cease execution
 
-    this.multHi = new Uint32Array(2);
-    this.multLo = new Uint32Array(2);
+    this.multHi         = new Uint32Array(2);
+    this.multLo         = new Uint32Array(2);
 
-    this.opsExecuted = 0;
+    this.opsExecuted    = 0;
 
     this.reset = function () {
 
@@ -102,6 +128,10 @@ if (typeof n64js === 'undefined') {
       this.multHi[0]   = this.multHi[1] = 0;
 
       this.opsExecuted = 0;
+
+      this.control[this.kControlRand]   = 32-1;
+      this.control[this.kControlSR]     = 0x70400004;
+      this.control[this.kControlConfig] = 0x0006e463;
     };
 
     this.setSR = function (value) {
@@ -205,9 +235,25 @@ if (typeof n64js === 'undefined') {
     this.kControlErrorEPC  = 30;
   };
 
+  function CPU1() {
+
+    this.control = new Uint32Array(32);
+
+    this.reset = function () {
+
+      for (var i = 0; i < 32; ++i) {
+        this.control[i] = 0;
+      }
+
+      this.control[0] = 0x00000511;
+    }
+  };
+
   // Expose the cpu state
   var cpu0 = new CPU0();
+  var cpu1 = new CPU1();
   n64js.cpu0 = cpu0;
+  n64js.cpu1 = cpu1;
 
 
   function     fd(i) { return (i>>> 6)&0x1f; }
@@ -267,7 +313,7 @@ if (typeof n64js === 'undefined') {
   }
 
   function executeUnknown(a,i) {
-    throw 'unimplemented op: ' + n64js.toHex(a,32) + ', ' + n64js.toHex(i, 32);
+    throw 'Unknown op: ' + n64js.toHex(a,32) + ', ' + n64js.toHex(i,32);
   }
 
   function executeSLL(a,i) {
@@ -412,7 +458,7 @@ if (typeof n64js === 'undefined') {
       setZeroExtend( rt(i), random );
     } else {
       setZeroExtend( rt(i), cpu0.control[control_reg] );
-      n64js.halt('mfc0');
+      //n64js.halt('mfc0');
     }
   }
   function executeMTC0(a,i) {
@@ -661,9 +707,6 @@ if (typeof n64js === 'undefined') {
     setSignExtend(rt(i), v);
   }
   
-  function executeCop0(a,i)       { unimplemented(a,i); }
-  function executeCopro1(a,i)     { unimplemented(a,i); }
-
   function executeDADDI(a,i)      { unimplemented(a,i); }
   function executeDADDIU(a,i)     { unimplemented(a,i); }
   function executeLDL(a,i)        { unimplemented(a,i); }
@@ -709,6 +752,45 @@ if (typeof n64js === 'undefined') {
   function executeSDC1(a,i)       { unimplemented(a,i); }
   function executeSDC2(a,i)       { unimplemented(a,i); }
   function executeSD(a,i)         { unimplemented(a,i); }
+
+  function executeMFC1(a,i)       { unimplemented(a,i); }
+  function executeDMFC1(a,i)      { unimplemented(a,i); }
+  function executeMTC1(a,i)       { unimplemented(a,i); }
+  function executeDMTC1(a,i)      { unimplemented(a,i); }
+
+  function executeCFC1(a,i) {
+    var r = fs(i);
+    switch(r) {
+      case 0:
+      case 31:
+        setSignExtend( rt(i), cpu1.control[r] );
+        break;
+    }
+  }
+  function executeCTC1(a,i) {
+    var r = fs(i);
+    if (r == 31) {
+      var v = cpu0.gprLo[rt(i)];
+
+      switch (v & FPCSR_RM_MASK) {
+      case FPCSR_RM_RN:     n64js.log('cop1 - setting round near');  break;
+      case FPCSR_RM_RZ:     n64js.log('cop1 - setting round zero');  break;
+      case FPCSR_RM_RP:     n64js.log('cop1 - setting round ceil');  break;
+      case FPCSR_RM_RM:     n64js.log('cop1 - setting round floor'); break;
+      }
+
+      cpu1.control[r] = v;
+
+    }
+
+    //n64js.halt('CTC1');
+  }
+
+  function executeBCInstr(a,i)    { unimplemented(a,i); }
+  function executeSInstr(a,i)     { unimplemented(a,i); }
+  function executeDInstr(a,i)     { unimplemented(a,i); }
+  function executeWInstr(a,i)     { unimplemented(a,i); }
+  function executeLInstr(a,i)     { unimplemented(a,i); }
 
   var specialTable = [
     executeSLL,
@@ -821,12 +903,56 @@ if (typeof n64js === 'undefined') {
     executeUnknown,
   ];
   if (cop0Table.length != 32) {
-    throw "Oops, didn't build the special table correctly";
+    throw "Oops, didn't build the cop0 table correctly";
   }
   function executeCop0(a,i) {
     var fmt = (i>>21) & 0x1f;
     return cop0Table[fmt](a,i);
   }
+
+  var cop1Table = [
+    executeMFC1,
+    executeDMFC1,
+    executeCFC1,
+    executeUnknown,
+    executeMTC1,
+    executeDMTC1,
+    executeCTC1,
+    executeUnknown,
+    executeBCInstr,
+    executeUnknown,
+    executeUnknown,
+    executeUnknown,
+    executeUnknown,
+    executeUnknown,
+    executeUnknown,
+    executeUnknown,
+
+    executeSInstr,
+    executeDInstr,
+    executeUnknown,
+    executeUnknown,
+    executeWInstr,
+    executeLInstr,
+    executeUnknown,
+    executeUnknown,
+    executeUnknown,
+    executeUnknown,
+    executeUnknown,
+    executeUnknown,
+    executeUnknown,
+    executeUnknown,
+    executeUnknown,
+    executeUnknown,
+  ];
+  if (cop1Table.length != 32) {
+    throw "Oops, didn't build the cop1 table correctly";
+  }
+  function executeCop1(a,i) {
+    var fmt = (i>>21) & 0x1f;
+    return cop1Table[fmt](a, i);
+  }
+
 
   var regImmTable = [
     executeBLTZ,
@@ -891,7 +1017,7 @@ if (typeof n64js === 'undefined') {
     executeXORI,
     executeLUI,
     executeCop0,
-    executeCopro1,
+    executeCop1,
     executeUnknown,
     executeUnknown,
     executeBEQL,

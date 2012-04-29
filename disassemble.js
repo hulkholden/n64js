@@ -225,12 +225,58 @@ if (typeof n64js === 'undefined') {
     function (i) { return 'Unk'; },
   ];
   if (cop0Table.length != 32) {
-    throw "Oops, didn't build the special table correctly";
+    throw "Oops, didn't build the cop0 table correctly";
   }
   function disassembleCop0(i) {
     var fmt = (i.opcode>>21) & 0x1f;
     return cop0Table[fmt](i);
   }
+
+
+
+  var cop1Table = [
+    function (i) { return 'MFC1      '; },
+    function (i) { return 'DMFC1     '; },
+    function (i) { return 'CFC1      ' + i.rt() + ' <-- CCR' + _rd(i.opcode); },
+    function (i) { return 'Unk'; },
+    function (i) { return 'MTC1      '; },
+    function (i) { return 'DMTC1     '; },
+    function (i) { return 'CTC1      ' + i.rt() + ' --> CCR' + _rd(i.opcode); },
+    function (i) { return 'Unk'; },
+    function (i) { return 'BCInstr'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+
+    function (i) { return 'SInstr'; },
+    function (i) { return 'DInstr'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'WInstr'; },
+    function (i) { return 'LInstr'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; },
+  ];
+  if (cop1Table.length != 32) {
+    throw "Oops, didn't build the cop1 table correctly";
+  }
+  function disassembleCop1(i) {
+    var fmt = (i.opcode>>21) & 0x1f;
+    return cop1Table[fmt](i);
+  }
+
 
   var regImmTable = [
     function (i) { return 'BLTZ     '  + i.rs() +  ' < 0 --> ' + i.branchAddress(); },
@@ -299,7 +345,7 @@ if (typeof n64js === 'undefined') {
     function (i) { return 'XORI      ' + i.rt_d() + ' = '  + i.rs() + ' ^ ' + i.imm(); },
     function (i) { return 'LUI       ' + i.rt_d() + ' = '  + i.imm(); },
     disassembleCop0,
-    function (i) { return 'Copro1    '; },
+    disassembleCop1,
     function (i) { return 'Unk'; },
     function (i) { return 'Unk'; },
     function (i) { return 'BEQL      ' +                    i.rs() + ' == ' + i.rt() + ' --> ' + i.branchAddress(); },
