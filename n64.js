@@ -415,13 +415,18 @@ if (typeof n64js === 'undefined') {
   function Memory(arraybuffer) {
     this.bytes  = arraybuffer;
     this.length = arraybuffer.byteLength;
-    this.u32    = new Uint32Array(this.bytes);
+    //this.u32    = new Uint32Array(this.bytes);
     this.u8     = new  Uint8Array(this.bytes);
 
     var that = this;
 
     this.read32 = function (offset) {
-      return (that.u8[offset+0]<<24) | (that.u8[offset+1]<<16) | (that.u8[offset+2]<<8) | that.u8[offset+3];
+      var a = that.u8[offset+0];
+      var b = that.u8[offset+1];
+      var c = that.u8[offset+2];
+      var d = that.u8[offset+3];
+
+      return (a<<24) | (b<<16) | (c<<8) | d;
     }
     this.read16 = function (offset) {
       return (that.u8[offset+0]<<8) | that.u8[offset+1];
@@ -434,10 +439,12 @@ if (typeof n64js === 'undefined') {
       that.u8[offset+0] = (value >>> 24);
       that.u8[offset+1] = (value >>> 16);
       that.u8[offset+2] = (value >>>  8);
-      that.u8[offset+3] = (value       );
+      // NB: Chrome seems to require this mask - without it, it seems to end up writing 0x00 for large values when jitted?
+      that.u8[offset+3] = (value       ) & 0xff;
     }
     this.write8 = function (offset, value) {
-      that.u8[offset+0] = (value >>> 0);
+      // NB: Chrome seems to require this mask - without it, it seems to end up writing 0x00 for large values when jitted?
+      that.u8[offset+0] = value&0xff;
     }
 
 
