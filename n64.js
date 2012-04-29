@@ -21,13 +21,13 @@ if (typeof n64js === 'undefined') {
       return that.u8[offset];
     }
 
-    this.write32 = function(offset, value) {
+    this.write32 = function (offset, value) {
       that.u8[offset+0] = (value >>> 24);
       that.u8[offset+1] = (value >>> 16);
       that.u8[offset+2] = (value >>>  8);
       that.u8[offset+3] = (value       );
     }
-    this.write8 = function(offset, value) {
+    this.write8 = function (offset, value) {
       that.u8[offset+0] = (value >>> 0);
     }
 
@@ -44,12 +44,15 @@ if (typeof n64js === 'undefined') {
       return s;
     }
 
-    this.clearBits32 = function(offset, bits) {
+    this.clearBits32 = function (offset, bits) {
       this.write32(offset, this.read32(offset) & ~bits);
     },
-    this.setBits32 = function(offset, bits) {
+    this.setBits32 = function (offset, bits) {
       this.write32(offset, this.read32(offset) | bits);
     },
+    this.getBits32 = function (offset, bits) {
+      return this.read32(offset) & bits;
+    }
 
     this.swap = function (_a, _b, _c, _d) {
       for (var i = 0; i < that.u8.length; i += 4) {
@@ -603,11 +606,42 @@ if (typeof n64js === 'undefined') {
   //
   // Memory handlers
   //
-  var MI_MODE_REG       = 0x00;
-  var MI_VERSION_REG    = 0x04;
-  var MI_INTR_REG       = 0x08;
-  var MI_INTR_MASK_REG  = 0x0C;
+  var MI_MODE_REG         = 0x00;
+  var MI_VERSION_REG      = 0x04;
+  var MI_INTR_REG         = 0x08;
+  var MI_INTR_MASK_REG    = 0x0C;
 
+  var MI_CLR_INIT         = 0x0080;
+  var MI_SET_INIT         = 0x0100;
+  var MI_CLR_EBUS         = 0x0200;
+  var MI_SET_EBUS         = 0x0400;
+  var MI_CLR_DP_INTR      = 0x0800;
+  var MI_CLR_RDRAM        = 0x1000;
+  var MI_SET_RDRAM        = 0x2000;
+
+  var MI_MODE_INIT        = 0x0080;
+  var MI_MODE_EBUS        = 0x0100;
+  var MI_MODE_RDRAM       = 0x0200;
+
+  var MI_INTR_MASK_CLR_SP = 0x0001;
+  var MI_INTR_MASK_SET_SP = 0x0002;
+  var MI_INTR_MASK_CLR_SI = 0x0004;
+  var MI_INTR_MASK_SET_SI = 0x0008;
+  var MI_INTR_MASK_CLR_AI = 0x0010;
+  var MI_INTR_MASK_SET_AI = 0x0020;
+  var MI_INTR_MASK_CLR_VI = 0x0040;
+  var MI_INTR_MASK_SET_VI = 0x0080;
+  var MI_INTR_MASK_CLR_PI = 0x0100;
+  var MI_INTR_MASK_SET_PI = 0x0200;
+  var MI_INTR_MASK_CLR_DP = 0x0400;
+  var MI_INTR_MASK_SET_DP = 0x0800;
+
+  var MI_INTR_MASK_SP   = 0x01;
+  var MI_INTR_MASK_SI   = 0x02;
+  var MI_INTR_MASK_AI   = 0x04;
+  var MI_INTR_MASK_VI   = 0x08;
+  var MI_INTR_MASK_PI   = 0x10;
+  var MI_INTR_MASK_DP   = 0x20;
 
   var MI_INTR_SP        = 0x01;
   var MI_INTR_SI        = 0x02;
@@ -615,6 +649,39 @@ if (typeof n64js === 'undefined') {
   var MI_INTR_VI        = 0x08;
   var MI_INTR_PI        = 0x10;
   var MI_INTR_DP        = 0x20;
+
+  var AI_DRAM_ADDR_REG  = 0x00;
+  var AI_LEN_REG        = 0x04;
+  var AI_CONTROL_REG    = 0x08;
+  var AI_STATUS_REG     = 0x0C;
+  var AI_DACRATE_REG    = 0x10;
+  var AI_BITRATE_REG    = 0x14;
+
+  var VI_STATUS_REG     = 0x00;
+  var VI_ORIGIN_REG     = 0x04;
+  var VI_WIDTH_REG      = 0x08;
+  var VI_INTR_REG       = 0x0C;
+  var VI_CURRENT_REG    = 0x10;
+  var VI_BURST_REG      = 0x14;
+  var VI_V_SYNC_REG     = 0x18;
+  var VI_H_SYNC_REG     = 0x1C;
+  var VI_LEAP_REG       = 0x20;
+  var VI_H_START_REG    = 0x24;
+  var VI_V_START_REG    = 0x28;
+  var VI_V_BURST_REG    = 0x2C;
+  var VI_X_SCALE_REG    = 0x30;
+  var VI_Y_SCALE_REG    = 0x34;
+
+  var VI_CONTROL_REG        = VI_STATUS_REG;
+  var VI_DRAM_ADDR_REG      = VI_ORIGIN_REG;
+  var VI_H_WIDTH_REG        = VI_WIDTH_REG;
+  var VI_V_INTR_REG         = VI_INTR_REG;
+  var VI_V_CURRENT_LINE_REG = VI_CURRENT_REG;
+  var VI_TIMING_REG         = VI_BURST_REG;
+  var VI_H_SYNC_LEAP_REG    = VI_LEAP_REG;
+  var VI_H_VIDEO_REG        = VI_H_START_REG;
+  var VI_V_VIDEO_REG        = VI_V_START_REG;
+
 
   var PI_DRAM_ADDR_REG    = 0x00;
   var PI_CART_ADDR_REG    = 0x04;
@@ -652,6 +719,16 @@ if (typeof n64js === 'undefined') {
   function IsDom1Addr3( address )    { return address >= PI_DOM1_ADDR3 && address < 0x7FFFFFFF;    }
   function IsDom2Addr1( address )    { return address >= PI_DOM2_ADDR1 && address < PI_DOM1_ADDR1; }
   function IsDom2Addr2( address )    { return address >= PI_DOM2_ADDR2 && address < PI_DOM1_ADDR2; }
+
+  var SI_DRAM_ADDR_REG      = 0x00;
+  var SI_PIF_ADDR_RD64B_REG = 0x04;
+  var SI_PIF_ADDR_WR64B_REG = 0x10;
+  var SI_STATUS_REG         = 0x18;
+
+  var SI_STATUS_DMA_BUSY    = 0x0001;
+  var SI_STATUS_RD_BUSY     = 0x0002;
+  var SI_STATUS_DMA_ERROR   = 0x0008;
+  var SI_STATUS_INTERRUPT   = 0x1000;
 
   function PICopyToRDRAM() {
     var dram_address = pi_reg.read32(PI_DRAM_ADDR_REG) & 0x00ffffff;
@@ -720,7 +797,7 @@ if (typeof n64js === 'undefined') {
     },
 
     read32 : function (address) {
-      if (!this.quiet) n64js.log('Reading from ' + this.name + ' registers: ' + toString32(address) );
+      if (!this.quiet) n64js.log('Reading from ' + this.name + ': ' + toString32(address) );
       var ea = this.calcEA(address);
       if (ea+3 < this.mem.length)
         return this.mem.read32(ea);
@@ -728,7 +805,7 @@ if (typeof n64js === 'undefined') {
       throw 'Read is out of range';
     },
     read8 : function (address) {
-      if (!this.quiet) n64js.log('Reading from ' + this.name + ' registers: ' + toString32(address) );
+      if (!this.quiet) n64js.log('Reading from ' + this.name + ': ' + toString32(address) );
       var ea = this.calcEA(address);
       if (ea < this.mem.length)
         return this.mem.read8(ea);
@@ -738,7 +815,7 @@ if (typeof n64js === 'undefined') {
 
 
     write32 : function (address, value) {
-      if (!this.quiet) n64js.log('Writing to ' + this.name + ' registers: ' + toString8(value) + ' -> [' + toString32(address) + ']' );
+      if (!this.quiet) n64js.log('Writing to ' + this.name + ': ' + toString8(value) + ' -> [' + toString32(address) + ']' );
       var ea = this.calcEA(address);
       if (ea+3 < this.mem.length)
         return this.mem.write32(ea, value);
@@ -746,7 +823,7 @@ if (typeof n64js === 'undefined') {
       throw 'Write is out of range';
     },
     write8 : function (address, value) {
-      if (!this.quiet) n64js.log('Writing to ' + this.name + ' registers: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
+      if (!this.quiet) n64js.log('Writing to ' + this.name + ': ' + toString32(value) + ' -> [' + toString32(address) + ']' );
       var ea = address - this.rangeStart;
       if (ea < this.mem.length)
         return this.mem.write8(ea, value);
@@ -763,8 +840,11 @@ if (typeof n64js === 'undefined') {
   var sp_reg_handler_uncached    = new Device("SPReg",    sp_reg,       0xa4040000, 0xa4040020);
   var sp_ibist_handler_uncached  = new Device("SPIBIST",  sp_ibist_mem, 0xa4080000, 0xa4080008);
   var mi_reg_handler_uncached    = new Device("MIReg",    mi_reg,       0xa4300000, 0xa4300010);
+  var vi_reg_handler_uncached    = new Device("VIReg",    vi_reg,       0xa4400000, 0xa4400038);
+  var ai_reg_handler_uncached    = new Device("AIReg",    ai_reg,       0xa4500000, 0xa4500018);
   var pi_reg_handler_uncached    = new Device("PIReg",    pi_reg,       0xa4600000, 0xa4600034);
   var ri_reg_handler_uncached    = new Device("RIReg",    ri_reg,       0xa4700000, 0xa4700020);
+  var si_reg_handler_uncached    = new Device("SIReg",    si_reg,       0xa4800000, 0xa480001c);
 
   rdram_handler_cached.quiet    = true;
   rdram_handler_uncached.quiet  = true;
@@ -781,34 +861,152 @@ if (typeof n64js === 'undefined') {
     return address&0xff;
   };
 
-  pi_reg_handler_uncached.write32 = function (address, value) {
-    n64js.log('Writing to PI registers: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
+
+  function MIWriteModeReg(value) {
+    var mi_mode_reg = mi_reg.read32(MI_MODE_REG);
+
+    if (value & MI_SET_RDRAM)   mi_mode_reg |=  MI_MODE_RDRAM;
+    if (value & MI_CLR_RDRAM)   mi_mode_reg &= ~MI_MODE_RDRAM;
+
+    if (value & MI_SET_INIT)    mi_mode_reg |=  MI_MODE_INIT;
+    if (value & MI_CLR_INIT)    mi_mode_reg &= ~MI_MODE_INIT;
+
+    if (value & MI_SET_EBUS)    mi_mode_reg |=  MI_MODE_EBUS;
+    if (value & MI_CLR_EBUS)    mi_mode_reg &= ~MI_MODE_EBUS;
+
+    mi_reg.write32(MI_MODE_REG, mi_mode_reg);
+
+    if (value & MI_CLR_DP_INTR) {
+      mi_reg.clearBits32(MI_INTR_REG, MI_INTR_DP);
+      n64js.interruptUpdateCause3();
+    }
+  }
+
+  function MIWriteIntrMaskReg(value) {
+    var mi_intr_mask_reg = mi_reg.read32(MI_INTR_MASK_REG);
+    var mi_intr_reg      = mi_reg.read32(MI_INTR_REG);
+
+    var clr = 0;
+    var set = 0;
+
+    // From Corn - nicer way to avoid branching
+    clr |= (value & MI_INTR_MASK_CLR_SP) >>> 0;
+    clr |= (value & MI_INTR_MASK_CLR_SI) >>> 1;
+    clr |= (value & MI_INTR_MASK_CLR_AI) >>> 2;
+    clr |= (value & MI_INTR_MASK_CLR_VI) >>> 3;
+    clr |= (value & MI_INTR_MASK_CLR_PI) >>> 4;
+    clr |= (value & MI_INTR_MASK_CLR_DP) >>> 5;
+
+    set |= (value & MI_INTR_MASK_SET_SP) >>> 1;
+    set |= (value & MI_INTR_MASK_SET_SI) >>> 2;
+    set |= (value & MI_INTR_MASK_SET_AI) >>> 3;
+    set |= (value & MI_INTR_MASK_SET_VI) >>> 4;
+    set |= (value & MI_INTR_MASK_SET_PI) >>> 5;
+    set |= (value & MI_INTR_MASK_SET_DP) >>> 6;
+
+    mi_intr_mask_reg &= ~clr;
+    mi_intr_mask_reg |=  set;
+
+    mi_reg.write32(MI_INTR_MASK_REG, mi_intr_mask_reg);
+
+    // Check if any interrupts are enabled now, and immediately trigger an interrupt
+    if (mi_intr_mask_reg & mi_intr_reg) {
+      n64js.interruptUpdateCause3();
+    }
+  }
+
+  mi_reg_handler_uncached.write32 = function (address, value) {
     var ea = address - this.rangeStart;
     if (ea+3 < this.mem.length) {
 
       switch( ea ) {
-        case PI_DRAM_ADDR_REG:
-        case PI_CART_ADDR_REG:
-          this.mem.write32(ea, value);
+        case MI_MODE_REG:
+          n64js.log('Wrote to MI mode register: ' + toString32(value) );
+          MIWriteModeReg(value);
           break;
-        case PI_RD_LEN_REG:
-          n64js.halt('PI copy from rdram triggered!');
-          this.mem.write32(ea, value);
+        case MI_INTR_MASK_REG:
+          n64js.log('Wrote to MI interrupt mask register: ' + toString32(value) );
+          MIWriteIntrMaskReg(value);
           break;
-        case PI_WR_LEN_REG:
-          this.mem.write32(ea, value);
-          PICopyToRDRAM();
-          break;
-        case PI_STATUS_REG:
-          n64js.halt('PI_STATUS_REG written ' + toString32(value));
 
-          if (value & PI_STATUS_RESET) {
-            this.mem.write32(PI_STATUS_REG, 0);
-          }
-          if (value & PI_STATUS_CLR_INTR) {
-            n64js.halt('PI_STATUS_REG written - need to reset interrupt');
-          }
+        case MI_VERSION_REG:
+        case MI_INTR_REG:
+          // Read only
+          break;
 
+        default:
+          n64js.log('Unhandled write to MIReg: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
+          this.mem.write32(ea, value);
+      }
+
+    } else {
+      throw 'Write is out of range';
+    }
+  };
+
+
+  ai_reg_handler_uncached.write32 = function (address, value) {
+    var ea = address - this.rangeStart;
+    if (ea+3 < this.mem.length) {
+
+      switch( ea ) {
+        case AI_DRAM_ADDR_REG:
+        case AI_CONTROL_REG:
+        case AI_BITRATE_REG:
+          n64js.log('Wrote to AIReg: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
+          this.mem.write32(ea, value);
+          break;
+
+        case AI_LEN_REG:
+          n64js.log('AI len changed to ' + value);
+          this.mem.write32(ea, value);
+          break;
+        case AI_DACRATE_REG:
+          n64js.log('AI dacrate changed to ' + value);
+          this.mem.write32(ea, value);
+          break;
+
+        case AI_STATUS_REG:
+          n64js.log('AI interrupt cleared');
+          ai_reg.clearBits32(MI_INTR_REG, MI_INTR_AI);
+          n64js.interruptUpdateCause3();
+          break;
+
+        default:
+          n64js.log('Unhandled write to AIReg: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
+          this.mem.write32(ea, value);
+      }
+
+    } else {
+      throw 'Write is out of range';
+    }
+  };
+
+
+  vi_reg_handler_uncached.write32 = function (address, value) {
+    var ea = address - this.rangeStart;
+    if (ea+3 < this.mem.length) {
+
+      switch( ea ) {
+        case VI_CONTROL_REG:
+          n64js.log('VI control set to: ' + toString32(value) );
+          this.mem.write32(ea, value);
+          break;
+        case VI_WIDTH_REG:
+            n64js.log('VI width set to: ' + value );
+            this.mem.write32(ea, value);
+            break;
+          case VI_CURRENT_REG:
+            n64js.log('VI current set to: ' + toString32(value) + '.' );
+            n64js.log('VI interrupt cleared');
+            this.mem.write32(ea, value);
+            mi_reg.clearBits32(MI_INTR_REG, MI_INTR_VI);
+            n64js.interruptUpdateCause3();
+            break;
+
+        default:
+          n64js.log('Unhandled write to VIReg: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
+          this.mem.write32(ea, value);
           break;
       }
 
@@ -817,6 +1015,100 @@ if (typeof n64js === 'undefined') {
     }
   };
 
+
+  pi_reg_handler_uncached.write32 = function (address, value) {
+    var ea = address - this.rangeStart;
+    if (ea+3 < this.mem.length) {
+
+      switch( ea ) {
+        case PI_DRAM_ADDR_REG:
+        case PI_CART_ADDR_REG:
+          n64js.log('Writing to PIReg: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
+          this.mem.write32(ea, value);
+          break;
+        case PI_RD_LEN_REG:
+          this.mem.write32(ea, value);
+          n64js.halt('PI copy from rdram triggered!');
+          break;
+        case PI_WR_LEN_REG:
+          this.mem.write32(ea, value);
+          PICopyToRDRAM();
+          break;
+        case PI_STATUS_REG:
+          if (value & PI_STATUS_RESET) {
+            n64js.log('PI_STATUS_REG reset');
+            this.mem.write32(PI_STATUS_REG, 0);
+          }
+          if (value & PI_STATUS_CLR_INTR) {
+            n64js.log('PI interrupt cleared');
+            mi_reg.clearBits32(MI_INTR_REG, MI_INTR_PI);
+            n64js.interruptUpdateCause3();
+          }
+
+          break;
+        default:
+          n64js.log('Unhandled write to PIReg: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
+          this.mem.write32(ea, value);
+          break;
+
+      }
+
+    } else {
+      throw 'Write is out of range';
+    }
+  };
+
+  si_reg_handler_uncached.read32 = function (address) {
+    if (!this.quiet) n64js.log('Reading from ' + this.name + ': ' + toString32(address) );
+    var ea = this.calcEA(address);
+
+    if (ea+3 < this.mem.length) {
+      if (ea == SI_STATUS_REG) {
+        var mi_si_int_set     = mi_reg.getBits32(MI_INTR_REG,   MI_INTR_SI)          !== 0;
+        var si_status_int_set = si_reg.getBits32(SI_STATUS_REG, SI_STATUS_INTERRUPT) !== 0;
+        if (mi_si_int_set != si_status_int_set) {
+          n64js.log("SI_STATUS registuer is in an inconsistent state");
+        }
+      }
+      return this.mem.read32(ea);
+    } else {
+      throw 'Read is out of range';
+    }
+  }
+
+  si_reg_handler_uncached.write32 = function (address, value) {
+    var ea = address - this.rangeStart;
+    if (ea+3 < this.mem.length) {
+
+      switch( ea ) {
+        case SI_DRAM_ADDR_REG:
+          n64js.log('Writing to SI dram address reigster: ' + toString32(value) );
+          this.mem.write32(ea, value);
+          break;
+        case SI_PIF_ADDR_RD64B_REG:
+          this.mem.write32(ea, value);
+          n64js.halt('SI copy to rdram triggered!');
+          break;
+        case SI_PIF_ADDR_WR64B_REG:
+          this.mem.write32(ea, value);
+          n64js.halt('SI copy from rdram triggered!');
+          break;
+        case SI_STATUS_REG:
+          n64js.log('SI interrupt cleared');
+          si_reg.clearBits32(SI_STATUS_REG, SI_STATUS_INTERRUPT);
+          mi_reg.clearBits32(MI_INTR_REG,   MI_INTR_SI);
+          n64js.interruptUpdateCause3();
+          break;
+        default:
+          n64js.log('Unhandled write to SIReg: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
+          this.mem.write32(ea, value);
+          break;
+      }
+
+    } else {
+      throw 'Write is out of range';
+    }
+  }
 
   // We create a memory map of 1<<14 entries, corresponding to the top bits of the address range. 
   var memMap = (function () {
@@ -832,8 +1124,11 @@ if (typeof n64js === 'undefined') {
        sp_ibist_handler_uncached,
       rdram_reg_handler_uncached,
          mi_reg_handler_uncached,
-         ri_reg_handler_uncached,
+         vi_reg_handler_uncached,
+         ai_reg_handler_uncached,
          pi_reg_handler_uncached,
+         ri_reg_handler_uncached,
+         si_reg_handler_uncached,
             rom_handler_uncached
     ].map(function (e){
         var beg = (e.rangeStart)>>>18;

@@ -188,7 +188,7 @@ if (typeof n64js === 'undefined') {
   }
 
   var cop0Table = [
-    function (i) { return 'MFC0'; },
+    function (i) { return 'MFC0      ' + i.rt() + ' <- ' + cop0ControlRegisterNames[_fs(i.opcode)]; },
     function (i) { return 'Unk'; },
     function (i) { return 'Unk'; },
     function (i) { return 'Unk'; },
