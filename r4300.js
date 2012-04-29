@@ -327,6 +327,13 @@ if (typeof n64js === 'undefined') {
     arr[1] = v>>>32;
   }
 
+  function getHi32(v) {
+    // >>32 just seems to no-op? Argh.
+    return (v>>>16)>>>16;
+  }
+  function getLo32(v) {
+    return (v&0xffffffff)>>>0;
+  }
 
   function unimplemented(a,i) {
     var r = n64js.disassembleOp(a,i);
@@ -370,9 +377,7 @@ if (typeof n64js === 'undefined') {
     cpu0.gprHi[rd(i)] = cpu0.multHi[1]; 
     cpu0.gprLo[rd(i)] = cpu0.multHi[0]; 
   }
-  function executeMTHI(a,i) {
-
-  }
+  function executeMTHI(a,i)       { unimplemented(a,i); }
   function executeMFLO(a,i) {
     cpu0.gprHi[rd(i)] = cpu0.multLo[1]; 
     cpu0.gprLo[rd(i)] = cpu0.multLo[0]; 
@@ -382,23 +387,32 @@ if (typeof n64js === 'undefined') {
   function executeDSRLV(a,i)      { unimplemented(a,i); }
   function executeDSRAV(a,i)      { unimplemented(a,i); }
   function executeMULT(a,i) {
-    var result = cpu0.gprLo[rs(i)] * cpu0.gprLo[rt(i)];   // needs to be 64-bit *signed*!
-    var lo = (result&0xffffffff)>>>0;
-    var hi = (result>>>32);
-    setHiLoSignExtend( cpu0.multLo, lo );
-    setHiLoSignExtend( cpu0.multHi, hi );
+    var result = cpu0.gprLo_signed[rs(i)] * cpu0.gprLo_signed[rt(i)];   // needs to be 64-bit!
+    setHiLoSignExtend( cpu0.multLo, getLo32(result) );
+    setHiLoSignExtend( cpu0.multHi, getHi32(result) );
   }
   function executeMULTU(a,i) {
     var result = cpu0.gprLo[rs(i)] * cpu0.gprLo[rt(i)];   // needs to be 64-bit!
-    var lo = (result&0xffffffff)>>>0;
-    var hi = (result>>>32);
-    setHiLoSignExtend( cpu0.multLo, lo );
-    setHiLoSignExtend( cpu0.multHi, hi );
+    setHiLoSignExtend( cpu0.multLo, getLo32(result) );
+    setHiLoSignExtend( cpu0.multHi, getHi32(result) );
   }
+  function executeDMULT(a,i) {
+    var result = cpu0.gprLo_signed[rs(i)] * cpu0.gprLo_signed[rt(i)];   // needs to be 64-bit!
+    cpu0.multLo[0] = getLo32(result);
+    cpu0.multLo[1] = getHi32(result);
+    cpu0.multHi[0] = 0;
+    cpu0.multHi[1] = 0;
+  }
+  function executeDMULTU(a,i) {
+    var result = cpu0.gprLo[rs(i)] * cpu0.gprLo[rt(i)];   // needs to be 64-bit!
+    cpu0.multLo[0] = getLo32(result);
+    cpu0.multLo[1] = getHi32(result);
+    cpu0.multHi[0] = 0;
+    cpu0.multHi[1] = 0;
+  }
+
   function executeDIV(a,i)        { unimplemented(a,i); }
   function executeDIVU(a,i)       { unimplemented(a,i); }
-  function executeDMULT(a,i)      { unimplemented(a,i); }
-  function executeDMULTU(a,i)     { unimplemented(a,i); }
   function executeDDIV(a,i)       { unimplemented(a,i); }
   function executeDDIVU(a,i)      { unimplemented(a,i); }
 
@@ -787,7 +801,10 @@ if (typeof n64js === 'undefined') {
   function executeLLD(a,i)        { unimplemented(a,i); }
   function executeLDC1(a,i)       { unimplemented(a,i); }
   function executeLDC2(a,i)       { unimplemented(a,i); }
-  function executeLD(a,i)         { unimplemented(a,i); }
+  function executeLD(a,i) {
+    cpu0.gprHi[rt(i)] = n64js.readMemory32( memaddr(i) + 0 );
+    cpu0.gprLo[rt(i)] = n64js.readMemory32( memaddr(i) + 4 );
+  }
   function executeSC(a,i)         { unimplemented(a,i); }
   function executeSWC1(a,i)       { unimplemented(a,i); }
   function executeSCD(a,i)        { unimplemented(a,i); }
@@ -824,8 +841,6 @@ if (typeof n64js === 'undefined') {
       cpu1.control[r] = v;
 
     }
-
-    //n64js.halt('CTC1');
   }
 
   function executeBCInstr(a,i)    { unimplemented(a,i); }
