@@ -180,10 +180,10 @@ if (typeof n64js === 'undefined') {
     function (i) { return 'Unk'; },
     function (i) { return 'DSRL      ' + i.rd() + ' = ' + i.rt() + ' >>> ' + _sa(i.opcode); },
     function (i) { return 'DSRA      ' + i.rd() + ' = ' + i.rt() + ' >> '  + _sa(i.opcode); },
-    function (i) { return 'DSLL32    ' + i.rd() + ' = ' + i.rt() + ' << '  + (_sa(i.opcode)+32); },
+    function (i) { return 'DSLL32    ' + i.rd() + ' = ' + i.rt() + ' << (32+'  + _sa(i.opcode) + ')'; },
     function (i) { return 'Unk'; },
-    function (i) { return 'DSRL32    ' + i.rd() + ' = ' + i.rt() + ' >>> ' + (_sa(i.opcode)+32); },
-    function (i) { return 'DSRA32    ' + i.rd() + ' = ' + i.rt() + ' >> '  + (_sa(i.opcode)+32); }
+    function (i) { return 'DSRL32    ' + i.rd() + ' = ' + i.rt() + ' >>> (32+' + _sa(i.opcode) + ')'; },
+    function (i) { return 'DSRA32    ' + i.rd() + ' = ' + i.rt() + ' >> (32+'  + _sa(i.opcode) + ')'; }
   ];
   if (specialTable.length != 64) {
     throw "Oops, didn't build the special table correctly";

@@ -191,7 +191,6 @@ if (typeof n64js === 'undefined') {
                 ', entrylo0=' + n64js.toString32(entrylo0) +
                 ', entrylo1=' + n64js.toString32(entrylo1)
               );
-      n64js.halt('TLB');
     }
 
     // General purpose register constants
@@ -326,6 +325,10 @@ if (typeof n64js === 'undefined') {
     arr[0] = (v&0xffffffff) >>> 0;
     arr[1] = v>>>32;
   }
+  function setHiLoZeroExtend(arr, v) {
+    arr[0] = (v&0xffffffff) >>> 0;
+    arr[1] = 0;
+  }
 
   function getHi32(v) {
     // >>32 just seems to no-op? Argh.
@@ -370,9 +373,33 @@ if (typeof n64js === 'undefined') {
   function executeSRAV(a,i) {
     setSignExtend( rd(i),  cpu0.gprLo[rt(i)] >>  (cpu0.gprLo[rs(i)] & 0x1f) );
   }
+
+  function executeDSLLV(a,i)      { unimplemented(a,i); }
+  function executeDSRLV(a,i)      { unimplemented(a,i); }
+  function executeDSRAV(a,i)      { unimplemented(a,i); }
+
+  function executeDSLL(a,i)       { unimplemented(a,i); }
+  function executeDSRL(a,i)       { unimplemented(a,i); }
+  function executeDSRA(a,i)       { unimplemented(a,i); }
+
+  function executeDSLL32(a,i) {
+    cpu0.gprLo[rd(i)] = 0;
+    cpu0.gprHi[rd(i)] = cpu0.gprLo[rt(i)] << sa(i);
+  }
+  function executeDSRL32(a,i) {
+    setZeroExtend( rd(i), cpu0.gprHi[rt(i)] >>> sa(i) );
+  }
+  function executeDSRA32(a,i) {
+    setSignExtend( rd(i), cpu0.gprHi[rt(i)] >> sa(i) );
+  }
+
+
   function executeSYSCALL(a,i)    { unimplemented(a,i); }
   function executeBREAK(a,i)      { unimplemented(a,i); }
   function executeSYNC(a,i)       { unimplemented(a,i); }
+
+
+
   function executeMFHI(a,i) {
     cpu0.gprHi[rd(i)] = cpu0.multHi[1]; 
     cpu0.gprLo[rd(i)] = cpu0.multHi[0]; 
@@ -383,9 +410,7 @@ if (typeof n64js === 'undefined') {
     cpu0.gprLo[rd(i)] = cpu0.multLo[0]; 
   }
   function executeMTLO(a,i)       { unimplemented(a,i); }
-  function executeDSLLV(a,i)      { unimplemented(a,i); }
-  function executeDSRLV(a,i)      { unimplemented(a,i); }
-  function executeDSRAV(a,i)      { unimplemented(a,i); }
+
   function executeMULT(a,i) {
     var result = cpu0.gprLo_signed[rs(i)] * cpu0.gprLo_signed[rt(i)];   // needs to be 64-bit!
     setHiLoSignExtend( cpu0.multLo, getLo32(result) );
@@ -413,8 +438,39 @@ if (typeof n64js === 'undefined') {
 
   function executeDIV(a,i)        { unimplemented(a,i); }
   function executeDIVU(a,i)       { unimplemented(a,i); }
-  function executeDDIV(a,i)       { unimplemented(a,i); }
-  function executeDDIVU(a,i)      { unimplemented(a,i); }
+  function executeDDIV(a,i) {
+
+    var s = rs(i);
+    var t = rt(i);
+
+    if ((cpu0.gprHi[s] + (cpu0.gprLo[s] >>> 31) +
+         cpu0.gprHi[t] + (cpu0.gprLo[t] >>> 31)) === 0) {
+      n64js.halt('Full 64 bit division not handled!');
+    } else {
+      var dividend = cpu0.gprLo_signed[s];
+      var divisor  = cpu0.gprLo_signed[t];
+      if (divisor) {
+        setHiLoSignExtend( cpu0.multLo, dividend / divisor );
+        setHiLoSignExtend( cpu0.multHi, dividend % divisor );
+      }
+    }
+  }
+  function executeDDIVU(a,i) {
+
+    var s = rs(i);
+    var t = rt(i);
+
+    if ((cpu0.gprHi[s] | cpu0.gprHi[t]) !== 0) {
+      n64js.halt('Full 64 bit division not handled!');
+    } else {
+      var dividend = cpu0.gprLo[s];
+      var divisor  = cpu0.gprLo[t];
+      if (divisor) {
+        setHiLoZeroExtend( cpu0.multLo, dividend / divisor );
+        setHiLoZeroExtend( cpu0.multHi, dividend % divisor );
+      }
+    }
+  }
 
   function executeADD(a,i) {
     setSignExtend( rd(i), cpu0.gprLo[rs(i)] + cpu0.gprLo[rt(i)] ); // s32 + s32
@@ -473,12 +529,7 @@ if (typeof n64js === 'undefined') {
   function executeTLTU(a,i)       { unimplemented(a,i); }
   function executeTEQ(a,i)        { unimplemented(a,i); }
   function executeTNE(a,i)        { unimplemented(a,i); }
-  function executeDSLL(a,i)       { unimplemented(a,i); }
-  function executeDSRL(a,i)       { unimplemented(a,i); }
-  function executeDSRA(a,i)       { unimplemented(a,i); }
-  function executeDSLL32(a,i)     { unimplemented(a,i); }
-  function executeDSRL32(a,i)     { unimplemented(a,i); }
-  function executeDSRA32(a,i)     { unimplemented(a,i); }
+
   function executeMFC0(a,i) {
     var control_reg = fs(i);
 
