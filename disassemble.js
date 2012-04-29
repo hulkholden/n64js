@@ -81,6 +81,9 @@ if (typeof n64js === 'undefined') {
     rt   : function () { var reg = gprRegisterNames[_rt(this.opcode)]; this.srcRegs[reg] = 1; return makeRegSpan(reg); },
     rs   : function () { var reg = gprRegisterNames[_rs(this.opcode)]; this.srcRegs[reg] = 1; return makeRegSpan(reg); },
 
+    // dummy operand - just marks ra as being a dest reg
+    writesRA  : function()  { this.dstRegs[n64js.cpu0.kRegister_ra] = 1; return ''; },
+
     // cop1 regs
     ft_d : function () { var reg = cop1RegisterNames[_rt(this.opcode)]; this.dstRegs[reg] = 1; return makeRegSpan(reg); },
     fd   : function () { var reg = cop1RegisterNames[_rd(this.opcode)]; this.dstRegs[reg] = 1; return makeRegSpan(reg); },
@@ -309,10 +312,10 @@ if (typeof n64js === 'undefined') {
     function (i) { return 'TNEI      ' + i.rs() + ' != ' + i.rt() + ' --> trap '; },
     function (i) { return 'Unk'; },
     
-    function (i) { return 'BLTZAL    ' + i.rs() +  ' < 0 --> ' + i.branchAddress(); },
-    function (i) { return 'BGEZAL    ' + i.rs() + ' >= 0 --> ' + i.branchAddress(); },
-    function (i) { return 'BLTZALL   ' + i.rs() +  ' < 0 --> ' + i.branchAddress(); },
-    function (i) { return 'BGEZALL   ' + i.rs() + ' >= 0 --> ' + i.branchAddress(); },
+    function (i) { return 'BLTZAL    ' + i.rs() +  ' < 0 --> ' + i.branchAddress() + i.writesRA(); },
+    function (i) { return 'BGEZAL    ' + i.rs() + ' >= 0 --> ' + i.branchAddress() + i.writesRA(); },
+    function (i) { return 'BLTZALL   ' + i.rs() +  ' < 0 --> ' + i.branchAddress() + i.writesRA(); },
+    function (i) { return 'BGEZALL   ' + i.rs() + ' >= 0 --> ' + i.branchAddress() + i.writesRA(); },
     function (i) { return 'Unk'; },
     function (i) { return 'Unk'; },
     function (i) { return 'Unk'; },
@@ -339,7 +342,7 @@ if (typeof n64js === 'undefined') {
     disassembleSpecial,
     disassembleRegImm,
     function (i) { return 'J         --> ' + i.jumpAddress(); },
-    function (i) { return 'JAL       --> ' + i.jumpAddress(); },
+    function (i) { return 'JAL       --> ' + i.jumpAddress() + i.writesRA(); },
     function (i) { 
       if (_rs(i.opcode) == _rt(i.opcode)) {
                    return 'B         --> ' + i.branchAddress();
