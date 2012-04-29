@@ -442,9 +442,14 @@ if (typeof n64js === 'undefined') {
       // NB: Chrome seems to require this mask - without it, it seems to end up writing 0x00 for large values when jitted?
       that.u8[offset+3] = (value       ) & 0xff;
     }
+    this.write16 = function (offset, value) {
+      // NB: Chrome seems to require this mask - without it, it seems to end up writing 0x00 for large values when jitted?
+      that.u8[offset+0] = (value>>8);
+      that.u8[offset+1] = (value   ) & 0xff;
+    }
     this.write8 = function (offset, value) {
       // NB: Chrome seems to require this mask - without it, it seems to end up writing 0x00 for large values when jitted?
-      that.u8[offset+0] = value&0xff;
+      that.u8[offset+0] = value & 0xff;
     }
 
 
@@ -516,6 +521,14 @@ if (typeof n64js === 'undefined') {
 
       throw 'Read is out of range';
     },
+    read16 : function (address) {
+      if (!this.quiet) n64js.log('Reading from ' + this.name + ': ' + toString32(address) );
+      var ea = this.calcEA(address);
+      if (ea+1 < this.mem.length)
+        return this.mem.read16(ea);
+
+      throw 'Read is out of range';
+    },
     read8 : function (address) {
       if (!this.quiet) n64js.log('Reading from ' + this.name + ': ' + toString32(address) );
       var ea = this.calcEA(address);
@@ -527,15 +540,23 @@ if (typeof n64js === 'undefined') {
 
 
     write32 : function (address, value) {
-      if (!this.quiet) n64js.log('Writing to ' + this.name + ': ' + toString8(value) + ' -> [' + toString32(address) + ']' );
+      if (!this.quiet) n64js.log('Writing to ' + this.name + ': ' + toString32(value) + ' -> [' + toString32(address) + ']' );
       var ea = this.calcEA(address);
       if (ea+3 < this.mem.length)
         return this.mem.write32(ea, value);
 
       throw 'Write is out of range';
     },
+    write16 : function (address, value) {
+      if (!this.quiet) n64js.log('Writing to ' + this.name + ': ' + toString16(value) + ' -> [' + toString32(address) + ']' );
+      var ea = this.calcEA(address);
+      if (ea+1 < this.mem.length)
+        return this.mem.write16(ea, value);
+
+      throw 'Write is out of range';
+    },
     write8 : function (address, value) {
-      if (!this.quiet) n64js.log('Writing to ' + this.name + ': ' + toString32(value) + ' -> [' + toString32(address) + ']' );
+      if (!this.quiet) n64js.log('Writing to ' + this.name + ': ' + toString8(value) + ' -> [' + toString32(address) + ']' );
       var ea = this.calcEA(address);
       if (ea < this.mem.length)
         return this.mem.write8(ea, value);
@@ -586,6 +607,9 @@ if (typeof n64js === 'undefined') {
   sp_mem_handler_uncached.quiet = true;
 
   rom_handler_uncached.write32 = function (address, value) {
+    throw 'Writing to rom';
+  };
+  rom_handler_uncached.write16 = function (address, value) {
     throw 'Writing to rom';
   };
   rom_handler_uncached.write8 = function (address, value) {
@@ -968,7 +992,16 @@ if (typeof n64js === 'undefined') {
     }
     return handler.read32(address>>>0);
   }
-
+  // 'emulated' read. May cause exceptions to be thrown in the emulated process
+  n64js.readMemory16 = function (address) {
+    assert(address>=0, "Address is negative");
+    var handler = memMap[address >>> 18];
+    if (!handler) {
+      n64js.log('read from unhandled location ' + toString32(address));
+      throw 'unmapped read - need to set exception';
+    }
+    return handler.read16(address>>>0);
+  }
   // 'emulated' read. May cause exceptions to be thrown in the emulated process
   n64js.readMemory8 = function (address) {
     assert(address>=0, "Address is negative");
@@ -992,6 +1025,16 @@ if (typeof n64js === 'undefined') {
   }
 
   // 'emulated' write. May cause exceptions to be thrown in the emulated process
+  n64js.writeMemory16 = function (address, value) {
+    assert(address>=0, "Address is negative");
+    var handler = memMap[address >>> 18];
+    if (!handler) {
+      n64js.log('write to unhandled location ' + toString32(address));
+      throw 'unmapped write - need to set exception';
+    }
+    return handler.write16(address>>>0, value);
+  }
+    // 'emulated' write. May cause exceptions to be thrown in the emulated process
   n64js.writeMemory8 = function (address, value) {
     assert(address>=0, "Address is negative");
     var handler = memMap[address >>> 18];
@@ -1270,7 +1313,9 @@ if (typeof n64js === 'undefined') {
   function toString8(v) {
     return '0x' + toHex((v&0xff)>>>0, 8);
   }
-
+  function toString16(v) {
+    return '0x' + toHex((v&0xffff)>>>0, 16);
+  }
   function toString32(v) {
     return '0x' + toHex(v, 32);
   }
@@ -1283,6 +1328,7 @@ if (typeof n64js === 'undefined') {
 
   n64js.toHex      = toHex;
   n64js.toString8  = toString8;
+  n64js.toString16 = toString16;
   n64js.toString32 = toString32;
   n64js.toString64 = toString64;
 

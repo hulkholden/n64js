@@ -816,37 +816,54 @@ if (typeof n64js === 'undefined') {
   
   function executeDADDI(a,i)      { unimplemented(a,i); }
   function executeDADDIU(a,i)     { unimplemented(a,i); }
-  function executeLDL(a,i)        { unimplemented(a,i); }
-  function executeLDR(a,i)        { unimplemented(a,i); }
-  function executeLB(a,i)         { unimplemented(a,i); }
-  function executeLH(a,i)         { unimplemented(a,i); }
-  function executeLWL(a,i)        { unimplemented(a,i); }
+
+  function executeLB(a,i) {
+    setSignExtend(rt(i), n64js.readMemory8( memaddr(i) ));
+  }
+  function executeLH(a,i) {
+    setSignExtend(rt(i), n64js.readMemory16( memaddr(i) ));
+  }
   function executeLW(a,i)         {
     // SF2049 requires this, apparently
     if (rt(i) == 0)
       return;
     setSignExtend(rt(i), n64js.readMemory32( memaddr(i) ));
   }
+
   function executeLBU(a,i) {
     setZeroExtend(rt(i), n64js.readMemory8( memaddr(i) ));
   }
-  function executeLHU(a,i)        { unimplemented(a,i); }
-  function executeLWR(a,i)        { unimplemented(a,i); }
-  function executeLWU(a,i)        { unimplemented(a,i); }
+  function executeLHU(a,i) {
+    setZeroExtend(rt(i), n64js.readMemory16( memaddr(i) ));
+  }
+  function executeLWU(a,i) {
+    setZeroExtend(rt(i), n64js.readMemory32( memaddr(i) ));
+  }
+
   function executeSB(a,i) {
     n64js.writeMemory8(memaddr(i), cpu0.gprLo[rt(i)] & 0xff );
   }
-  function executeSH(a,i)         { unimplemented(a,i); }
-  function executeSWL(a,i)        { unimplemented(a,i); }
+  function executeSH(a,i) {
+    n64js.writeMemory16(memaddr(i), cpu0.gprLo[rt(i)] & 0xffff );
+  }
   function executeSW(a,i)         {
     n64js.writeMemory32(memaddr(i), cpu0.gprLo[rt(i)]);
   }
+
+  function executeLWL(a,i)        { unimplemented(a,i); }
+  function executeLWR(a,i)        { unimplemented(a,i); }
+  function executeLDL(a,i)        { unimplemented(a,i); }
+  function executeLDR(a,i)        { unimplemented(a,i); }
+
+  function executeSWL(a,i)        { unimplemented(a,i); }
+  function executeSWR(a,i)        { unimplemented(a,i); }
   function executeSDL(a,i)        { unimplemented(a,i); }
   function executeSDR(a,i)        { unimplemented(a,i); }
-  function executeSWR(a,i)        { unimplemented(a,i); }
+
   function executeCACHE(a,i) {
     // ignore!
   }
+
   function executeLL(a,i)         { unimplemented(a,i); }
   function executeLWC1(a,i)       { unimplemented(a,i); }
   function executeLLD(a,i)        { unimplemented(a,i); }
