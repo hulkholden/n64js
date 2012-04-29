@@ -16,6 +16,8 @@ if (typeof n64js === 'undefined') {
   function _rs(i)     { return (i>>>21)&0x1f; }
   function _op(i)     { return (i>>>26)&0x3f; }
 
+  function _tlbop(i)  { return i&0x3f; }
+
   function _target(i) { return (i     )&0x3ffffff; }
   function _imm(i)    { return (i     )&0xffff; }
   function _imms(i)   { return (_imm(i)<<16)>>16; }   // treat immediate value as signed
@@ -207,7 +209,7 @@ if (typeof n64js === 'undefined') {
     function (i) { return 'Unk'; },
     function (i) { return 'Unk'; },
     
-    function (i) { return 'TLB'; },
+    disassembleTLB,
     function (i) { return 'Unk'; },
     function (i) { return 'Unk'; },
     function (i) { return 'Unk'; },
@@ -231,8 +233,6 @@ if (typeof n64js === 'undefined') {
     var fmt = (i.opcode>>21) & 0x1f;
     return cop0Table[fmt](i);
   }
-
-
 
   var cop1Table = [
     function (i) { return 'MFC1      '; },
@@ -277,6 +277,18 @@ if (typeof n64js === 'undefined') {
     return cop1Table[fmt](i);
   }
 
+
+  function disassembleTLB(i) {
+    switch(_tlbop(i.opcode)) {
+      case 0x01:    return 'TLBR';
+      case 0x02:    return 'TLBWI';
+      case 0x06:    return 'TLBWR';
+      case 0x08:    return 'TLBP';
+      case 0x18:    return 'ERET';
+    }
+
+    return 'Unk';
+  }
 
   var regImmTable = [
     function (i) { return 'BLTZ     '  + i.rs() +  ' < 0 --> ' + i.branchAddress(); },

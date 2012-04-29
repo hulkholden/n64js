@@ -165,12 +165,34 @@ if (typeof n64js === 'undefined') {
             var delta = value - count;
             n64js.halt('Need to add timer interrupt for ' + delta + ' cycles');
           } else {
-            n64js.warn('setCompare underflow - was' + n64js.toHex(count) + ', setting to ' + value);
+            n64js.warn('setCompare underflow - was' + n64js.toString32(count) + ', setting to ' + value);
           }
         }
       }
       this.control[this.kControlCompare] = value;
     };
+
+    this.getRandom = function () {
+      var wired = this.control[this.kControlWired] & 0x1f;
+      var random = Math.floor(Math.random() * (32-wired)) + wired;
+      n64js.assert(random >= wired && random <= 31, "Ooops - random should be in range " + wired + "..31, but got " + random);
+      return random;
+    }
+
+    this.setTLB = function (index) {
+      var pagemask = this.control[this.kControlPageMask];
+      var entryhi  = this.control[this.kControlEntryHi];
+      var entrylo1 = this.control[this.kControlEntryLo1];
+      var entrylo0 = this.control[this.kControlEntryLo0];
+
+      n64js.log('TLB update: index=' + index +
+                ', pagemask=' + n64js.toString32(pagemask) +
+                ', entryhi='  + n64js.toString32(entryhi) +
+                ', entrylo0=' + n64js.toString32(entrylo0) +
+                ', entrylo1=' + n64js.toString32(entrylo1)
+              );
+      n64js.halt('TLB');
+    }
 
     // General purpose register constants
     this.kRegister_r0 = 0x00;
@@ -267,6 +289,8 @@ if (typeof n64js === 'undefined') {
   function     rt(i) { return (i>>>16)&0x1f; }
   function     rs(i) { return (i>>>21)&0x1f; }
   function     op(i) { return (i>>>26)&0x1f; }
+
+  function tlbop(i)  { return i&0x3f; }
 
   function target(i) { return (i     )&0x3ffffff; }
   function    imm(i) { return (i     )&0xffff; }
@@ -452,10 +476,7 @@ if (typeof n64js === 'undefined') {
     }
 
     if (control_reg === cpu0.kControlRand) {
-      var wired = cpu0.control[cpu0.kControlWired] & 0x1f;
-      var random = Math.floor(Math.random() * (32-wired)) + wired;
-      n64js.assert(random >= wired && random <= 31, "Ooops - random should be in range " + wired + "..31, but got " + random);
-      setZeroExtend( rt(i), random );
+      setZeroExtend( rt(i), cpu0.getRandom() );
     } else {
       setZeroExtend( rt(i), cpu0.control[control_reg] );
       //n64js.halt('mfc0');
@@ -505,11 +526,32 @@ if (typeof n64js === 'undefined') {
 
       default:
         cpu0.control[control_reg] = new_value;
-        n64js.log('Unhandled write to cpu0 control register. ' + n64js.toHex(new_value) + ' --> ' + n64js.cop0ControlRegisterNames[control_reg] );
+        n64js.log('Write to cpu0 control register. ' + n64js.toString32(new_value) + ' --> ' + n64js.cop0ControlRegisterNames[control_reg] );
         break;
     }
   }
-  function executeTLB(a,i)        { unimplemented(a,i); }
+  function executeTLB(a,i) {
+     switch(tlbop(i)) {
+       case 0x01:    executeTLBR(a,i);  return;
+       case 0x02:    executeTLBWI(a,i); return;
+       case 0x06:    executeTLBWR(a,i); return;
+       case 0x08:    executeTLBP(a,i);  return;
+       case 0x18:    executeERET(a,i);  return;
+     }
+     executeUnknown(a,i);
+  }
+
+  function executeTLBR(a,i)       { unimplemented(a,i); }
+  function executeTLBWI(a,i) {
+    var index = cpu0.control[cpu0.kControlIndex] & 0x1f;
+    cpu0.setTLB(index);
+  }
+  function executeTLBWR(a,i) {
+    cpu0.setTLB(cpu0.getRandom());
+  }
+  function executeTLBP(a,i)       { unimplemented(a,i); }
+  function executeERET(a,i)       { unimplemented(a,i); }
+
   function executeTGEI(a,i)       { unimplemented(a,i); }
   function executeTGEIU(a,i)      { unimplemented(a,i); }
   function executeTLTI(a,i)       { unimplemented(a,i); }
