@@ -4,6 +4,67 @@ if (typeof n64js === 'undefined') {
 
 (function () {'use strict';
 
+
+  var SR_IE           = 0x00000001;
+  var SR_EXL          = 0x00000002;
+  var SR_ERL          = 0x00000004;
+  var SR_KSU_KER      = 0x00000000;
+  var SR_KSU_SUP      = 0x00000008;
+  var SR_KSU_USR      = 0x00000010;
+  var SR_KSU_MASK     = 0x00000018;
+  var SR_UX           = 0x00000020;
+  var SR_SX           = 0x00000040;
+  var SR_KX           = 0x00000080;
+
+  var SR_IBIT1        = 0x00000100;
+  var SR_IBIT2        = 0x00000200;
+  var SR_IBIT3        = 0x00000400;
+  var SR_IBIT4        = 0x00000800;
+  var SR_IBIT5        = 0x00001000;
+  var SR_IBIT6        = 0x00002000;
+  var SR_IBIT7        = 0x00004000;
+  var SR_IBIT8        = 0x00008000;
+
+  var SR_IMASK0       = 0x0000ff00;
+  var SR_IMASK1       = 0x0000fe00;
+  var SR_IMASK2       = 0x0000fc00;
+  var SR_IMASK3       = 0x0000f800;
+  var SR_IMASK4       = 0x0000f000;
+  var SR_IMASK5       = 0x0000e000;
+  var SR_IMASK6       = 0x0000c000;
+  var SR_IMASK7       = 0x00008000;
+  var SR_IMASK8       = 0x00000000;
+  var SR_IMASK        = 0x0000ff00;
+
+  var SR_DE           = 0x00010000;
+  var SR_CE           = 0x00020000;
+  var SR_CH           = 0x00040000;
+  var SR_SR           = 0x00100000;
+  var SR_TS           = 0x00200000;
+  var SR_BEV          = 0x00400000;
+  var SR_ITS          = 0x01000000;
+  var SR_RE           = 0x02000000;
+  var SR_FR           = 0x04000000;
+  var SR_RP           = 0x08000000;
+  var SR_CU0          = 0x10000000;
+  var SR_CU1          = 0x20000000;
+  var SR_CU2          = 0x40000000;
+  var SR_CU3          = 0x80000000;
+
+  var SR_CUMASK       = 0xf0000000;
+
+
+  var CAUSE_SW1     = 0x00000100;
+  var CAUSE_SW2     = 0x00000200;
+  var CAUSE_IP3     = 0x00000400;
+  var CAUSE_IP4     = 0x00000800;
+  var CAUSE_IP5     = 0x00001000;
+  var CAUSE_IP6     = 0x00002000;
+  var CAUSE_IP7     = 0x00004000;
+  var CAUSE_IP8     = 0x00008000;
+
+  var CAUSE_IPMASK  = 0x0000FF00;
+
   function CPU0() {
 
     this.gprLoMem = new ArrayBuffer(32*4);
@@ -43,12 +104,43 @@ if (typeof n64js === 'undefined') {
       this.opsExecuted = 0;
     };
 
-    this.gprRegisterNames = [
-            "r0", "at", "v0", "v1", "a0", "a1", "a2", "a3",
-            "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7",
-            "s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7",
-            "t8", "t9", "k0", "k1", "gp", "sp", "s8", "ra",
-    ];
+    this.setSR = function (value) {
+      var old_value = this.control[this.kControlSR];
+      if ((old_value & SR_FR) !== (value & SR_FR)) {
+        n64js.log('Changing FPU to ' + ((value & SR_FR) ? '64bit' : '32bit' ));
+      }
+
+      var interrupts_enabled_before = (old_value & SR_IE) != 0;
+
+      this.control[this.kControlSR] = value;
+
+      var interrupts_enabled_after  = (value & SR_IE) != 0;
+
+      if (!interrupts_enabled_before && interrupts_enabled_after) {
+        if ((value & this.control[this.kControlCause] & CAUSE_IPMASK) !== 0) {
+          n64js.halt('Need to add job to check interrupts here');
+        }
+      }
+
+    };
+
+    this.setCompare = function (value) {
+      this.control[this.kControlCause] &= ~CAUSE_IP8;
+      if (value === this.control[this.kControlCompare]) {
+        // just clear the IP8 flag
+      } else {
+        if (value != 0) {
+          var count = this.control[this.kControlCount];
+          if (value > count) {
+            var delta = value - count;
+            n64js.halt('Need to add timer interrupt for ' + delta + ' cycles');
+          } else {
+            n64js.warn('setCompare underflow - was' + n64js.toHex(count) + ', setting to ' + value);
+          }
+        }
+      }
+      this.control[this.kControlCompare] = value;
+    };
 
     // General purpose register constants
     this.kRegister_r0 = 0x00;
@@ -303,8 +395,74 @@ if (typeof n64js === 'undefined') {
   function executeDSLL32(a,i)     { unimplemented(a,i); }
   function executeDSRL32(a,i)     { unimplemented(a,i); }
   function executeDSRA32(a,i)     { unimplemented(a,i); }
-  function executeMFC0(a,i)       { unimplemented(a,i); }
-  function executeMTC0(a,i)       { /* FIXME */; }
+  function executeMFC0(a,i) {
+    var control_reg = fs(i);
+
+    // Check consistency
+    if (control_reg === cpu0.kControlCause) {
+      var mi_interrupt_set = (mi_reg.read32(MI_INTR_MASK_REG) & mi_reg.read32(MI_INTR_REG)) !== 0;
+      var cause_int_3_set  = (cpu0.control[cpu0.kControlCause] & CAUSE_IP3) !== 0;
+      n64js.assert(mi_interrupt_set === cause_int_3_set, "CAUSE_IP3 inconsistent with MI_INTR_REG");
+    }
+
+    if (control_reg === cpu0.kControlRand) {
+      var wired = cpu0.control[cpu0.kControlWired] & 0x1f;
+      var random = Math.floor(Math.random() * (32-wired)) + wired;
+      n64js.assert(random >= wired && random <= 31, "Ooops - random should be in range " + wired + "..31, but got " + random);
+      setZeroExtend( rt(i), random );
+    } else {
+      setZeroExtend( rt(i), cpu0.control[control_reg] );
+      n64js.halt('mfc0');
+    }
+  }
+  function executeMTC0(a,i) {
+    var control_reg = fs(i);
+    var new_value   = cpu0.gprLo[rt(i)];
+
+    switch (control_reg) {
+      case cpu0.kControlContext:
+        n64js.log('Setting Context register to ' + n64js.toHex(new_value) );
+        cpu0.control[cpu0.kControlContext] = new_value;
+        break;
+
+      case cpu0.kControlWired:
+        n64js.log('Setting Wired register to ' + n64js.toHex(new_value) );
+        // Set to top limit on write to wired
+        cpu0.control[cpu0.kControlRand]  = 31;
+        cpu0.control[cpu0.kControlWired] = new_value;
+        break;
+
+      case cpu0.kControlRand:
+      case cpu0.kControlBadVAddr:
+      case cpu0.kControlPRId:
+      case cpu0.kControlCacheErr:
+        // All these registers are read-only
+        n64js.log('Attempted write to read-only cpu0 control register. ' + n64js.toHex(new_value) + ' --> ' + n64js.cop0ControlRegisterNames[control_reg] );
+        break;
+
+      case cpu0.kControlCause:
+        n64js.log('Setting cause register to ' + n64js.toHex(new_value) );
+        n64js.check(new_value === 0, 'Should only write 0 to Cause register.');
+        cpu0.control[cpu0.kControlCause] &= ~0x300;
+        cpu0.control[cpu0.kControlCause] |= (new_value & 0x300);
+        break;
+
+      case cpu0.kControlSR:
+        cpu0.setSR(new_value);
+        break;
+      case cpu0.kControlCount:
+        cpu0.control[cpu0.kControlCount] = new_value;
+        break;
+      case cpu0.kControlCompare:
+        cpu0.setCompare(new_value);
+        break;
+
+      default:
+        cpu0.control[control_reg] = new_value;
+        n64js.log('Unhandled write to cpu0 control register. ' + n64js.toHex(new_value) + ' --> ' + n64js.cop0ControlRegisterNames[control_reg] );
+        break;
+    }
+  }
   function executeTLB(a,i)        { unimplemented(a,i); }
   function executeTGEI(a,i)       { unimplemented(a,i); }
   function executeTGEIU(a,i)      { unimplemented(a,i); }
