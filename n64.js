@@ -88,102 +88,6 @@ if (typeof n64js === 'undefined') {
   var kBootstrapOffset = 0x40;
   var kGameOffset      = 0x1000;
 
-  var cpu0 = {
-    gprLo   : new Uint32Array(32),
-    gprHi   : new Uint32Array(32),
-    control : new Uint32Array(32),
-
-    pc      : 0,
-    delayPC : 0,
-
-    halt : false,     // used to flag r4300 to cease execution
-
-    multHi : new Uint32Array(2),
-    multLo : new Uint32Array(2),
-
-    opsExecuted : 0,
-
-    branch : function(new_pc) {
-      if (new_pc < 0) {
-        n64js.log('Oops, branching to negative address: ' + new_pc);
-        throw 'Oops, branching to negative address: ' + new_pc;
-      }
-      this.delayPC = new_pc;
-    },
-
-    gprRegisterNames : [
-            "r0", "at", "v0", "v1", "a0", "a1", "a2", "a3",
-            "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7",
-            "s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7",
-            "t8", "t9", "k0", "k1", "gp", "sp", "s8", "ra",
-    ],
-
-    // General purpose register constants
-    kRegister_r0 : 0x00,
-    kRegister_at : 0x01,
-    kRegister_v0 : 0x02,
-    kRegister_v1 : 0x03,
-    kRegister_a0 : 0x04,
-    kRegister_a1 : 0x05,
-    kRegister_a2 : 0x06,
-    kRegister_a3 : 0x07,
-    kRegister_t0 : 0x08,
-    kRegister_t1 : 0x09,
-    kRegister_t2 : 0x0a,
-    kRegister_t3 : 0x0b,
-    kRegister_t4 : 0x0c,
-    kRegister_t5 : 0x0d,
-    kRegister_t6 : 0x0e,
-    kRegister_t7 : 0x0f,
-    kRegister_s0 : 0x10,
-    kRegister_s1 : 0x11,
-    kRegister_s2 : 0x12,
-    kRegister_s3 : 0x13,
-    kRegister_s4 : 0x14,
-    kRegister_s5 : 0x15,
-    kRegister_s6 : 0x16,
-    kRegister_s7 : 0x17,
-    kRegister_t8 : 0x18,
-    kRegister_t9 : 0x19,
-    kRegister_k0 : 0x1a,
-    kRegister_k1 : 0x1b,
-    kRegister_gp : 0x1c,
-    kRegister_sp : 0x1d,
-    kRegister_s8 : 0x1e,
-    kRegister_ra : 0x1f,
-
-    // Control register constants
-    kControlIndex     : 0,
-    kControlRand      : 1,
-    kControlEntryLo0  : 2,
-    kControlEntryLo1  : 3,
-    kControlContext   : 4,
-    kControlPageMask  : 5,
-    kControlWired     : 6,
-    //...
-    kControlBadVAddr  : 8,
-    kControlCount     : 9,
-    kControlEntryHi   : 10,
-    kControlCompare   : 11,
-    kControlSR        : 12,
-    kControlCause     : 13,
-    kControlEPC       : 14,
-    kControlPRId      : 15,
-    kControlConfig    : 16,
-    kControlLLAddr    : 17,
-    kControlWatchLo   : 18,
-    kControlWatchHi   : 19,
-    //...
-    kControlECC       : 26,
-    kControlCacheErr  : 27,
-    kControlTagLo     : 28,
-    kControlTagHi     : 29,
-    kControlErrorEPC  : 30    
-  };
-
-  // Expose the cpu state
-  n64js.cpu0 = cpu0;
-
   var $rominfo     = null;
   var $registers   = null;
   var $output      = null;
@@ -191,19 +95,9 @@ if (typeof n64js === 'undefined') {
 
   var disasmAddress = 0;
 
-  function setGPR(reg, hi, lo) {
-    cpu0.gprHi[reg] = hi;
-    cpu0.gprLo[reg] = lo;
-  }
-
-  function setPC(a) {
-    cpu0.pc = a;
-    disasmAddress = a;
-  }
-
   n64js.halt = function (msg) {
     running = false;
-    cpu0.halt = true;
+    n64js.cpu0.halt = true;
     n64js.log(msg);
   }
 
@@ -239,19 +133,23 @@ if (typeof n64js === 'undefined') {
     for (var i = 0; i < ram.length; ++i) {
       ram[i] = 0;
     }
-    for (var i = 0; i < 32; ++i) {
-      cpu0.gprLo[i]   = 0;
-      cpu0.gprHi[i]   = 0;
-      cpu0.control[i] = 0;
-    }
-    cpu0.multLo[0] = cpu0.multLo[1] = 0;
-    cpu0.multHi[0] = cpu0.multHi[1] = 0;
 
-    cpu0.opsExecuted = 0;
+    n64js.cpu0.reset();
+
+    // Simulate boot
 
     if (rom) {
       MemoryCopy( sp_mem, kBootstrapOffset, rom, kBootstrapOffset, kGameOffset - kBootstrapOffset );
     }
+
+    var cpu0 = n64js.cpu0;
+
+    function setGPR(reg, hi, lo) {
+      cpu0.gprHi[reg] = hi;
+      cpu0.gprLo[reg] = lo;
+    }
+
+
 
     cpu0.control[cpu0.kControlSR]       = 0x34000000;
     cpu0.control[cpu0.kControlConfig]   = 0x0006E463;
@@ -410,7 +308,7 @@ if (typeof n64js === 'undefined') {
         break;
     }
 
-    setPC(0xA4000040);
+    cpu0.pc = 0xA4000040;
   }
 
   n64js.loadRom = function (bytes) {
@@ -509,11 +407,13 @@ if (typeof n64js === 'undefined') {
     return '#' + n64js.toHex(r,8) + n64js.toHex(g,8) + n64js.toHex(b,8);
   }
 
-  var last_pc = 0;
+  var last_pc = -1;
   n64js.refreshDisplay = function () {
 
+    var cpu0 = n64js.cpu0;
+
     // If the pc has changed since the last update, recenter the display (e.g. when we take a branch)
-    if (cpu0.pc != last_pc) {
+    if (cpu0.pc !== last_pc) {
       disasmAddress = cpu0.pc;
       last_pc = cpu0.pc;
     }
@@ -1155,6 +1055,7 @@ if (typeof n64js === 'undefined') {
       throw new AssertException(m);
     }
   }
+  n64js.assert = assert;
 
   // Read memory internal is used for stuff like the debugger. It shouldn't ever throw or change the state of the emulated program.
   n64js.readMemoryInternal32 = function (address) {
@@ -1216,7 +1117,7 @@ if (typeof n64js === 'undefined') {
   }
 
   n64js.log = function (s) {
-    $output.append(toString32(cpu0.pc) + ': ' + s + '<br>');
+    $output.append(toString32(n64js.cpu0.pc) + ': ' + s + '<br>');
     $output.scrollTop($output[0].scrollHeight);
   }
 
