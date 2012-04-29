@@ -3,97 +3,130 @@ if (typeof n64js === 'undefined') {
 }
 
 (function () {'use strict';
-  function Memory(arraybuffer) {
-    this.bytes  = arraybuffer;      
-    this.length = arraybuffer.byteLength;
-    this.u32    = new Uint32Array(this.bytes);
-    this.u8     = new  Uint8Array(this.bytes);
 
-    var that = this;
+  var MI_MODE_REG         = 0x00;
+  var MI_VERSION_REG      = 0x04;
+  var MI_INTR_REG         = 0x08;
+  var MI_INTR_MASK_REG    = 0x0C;
 
-    this.read32 = function (offset) {
-      return (that.u8[offset+0]<<24) | (that.u8[offset+1]<<16) | (that.u8[offset+2]<<8) | that.u8[offset+3];
-    }
-    this.read16 = function (offset) {
-      return (that.u8[offset+0]<<8) | that.u8[offset+1];
-    }
-    this.read8 = function (offset) {
-      return that.u8[offset];
-    }
+  var MI_CLR_INIT         = 0x0080;
+  var MI_SET_INIT         = 0x0100;
+  var MI_CLR_EBUS         = 0x0200;
+  var MI_SET_EBUS         = 0x0400;
+  var MI_CLR_DP_INTR      = 0x0800;
+  var MI_CLR_RDRAM        = 0x1000;
+  var MI_SET_RDRAM        = 0x2000;
 
-    this.write32 = function (offset, value) {
-      that.u8[offset+0] = (value >>> 24);
-      that.u8[offset+1] = (value >>> 16);
-      that.u8[offset+2] = (value >>>  8);
-      that.u8[offset+3] = (value       );
-    }
-    this.write8 = function (offset, value) {
-      that.u8[offset+0] = (value >>> 0);
-    }
+  var MI_MODE_INIT        = 0x0080;
+  var MI_MODE_EBUS        = 0x0100;
+  var MI_MODE_RDRAM       = 0x0200;
+
+  var MI_INTR_MASK_CLR_SP = 0x0001;
+  var MI_INTR_MASK_SET_SP = 0x0002;
+  var MI_INTR_MASK_CLR_SI = 0x0004;
+  var MI_INTR_MASK_SET_SI = 0x0008;
+  var MI_INTR_MASK_CLR_AI = 0x0010;
+  var MI_INTR_MASK_SET_AI = 0x0020;
+  var MI_INTR_MASK_CLR_VI = 0x0040;
+  var MI_INTR_MASK_SET_VI = 0x0080;
+  var MI_INTR_MASK_CLR_PI = 0x0100;
+  var MI_INTR_MASK_SET_PI = 0x0200;
+  var MI_INTR_MASK_CLR_DP = 0x0400;
+  var MI_INTR_MASK_SET_DP = 0x0800;
+
+  var MI_INTR_MASK_SP   = 0x01;
+  var MI_INTR_MASK_SI   = 0x02;
+  var MI_INTR_MASK_AI   = 0x04;
+  var MI_INTR_MASK_VI   = 0x08;
+  var MI_INTR_MASK_PI   = 0x10;
+  var MI_INTR_MASK_DP   = 0x20;
+
+  var MI_INTR_SP        = 0x01;
+  var MI_INTR_SI        = 0x02;
+  var MI_INTR_AI        = 0x04;
+  var MI_INTR_VI        = 0x08;
+  var MI_INTR_PI        = 0x10;
+  var MI_INTR_DP        = 0x20;
+
+  var AI_DRAM_ADDR_REG  = 0x00;
+  var AI_LEN_REG        = 0x04;
+  var AI_CONTROL_REG    = 0x08;
+  var AI_STATUS_REG     = 0x0C;
+  var AI_DACRATE_REG    = 0x10;
+  var AI_BITRATE_REG    = 0x14;
+
+  var VI_STATUS_REG     = 0x00;
+  var VI_ORIGIN_REG     = 0x04;
+  var VI_WIDTH_REG      = 0x08;
+  var VI_INTR_REG       = 0x0C;
+  var VI_CURRENT_REG    = 0x10;
+  var VI_BURST_REG      = 0x14;
+  var VI_V_SYNC_REG     = 0x18;
+  var VI_H_SYNC_REG     = 0x1C;
+  var VI_LEAP_REG       = 0x20;
+  var VI_H_START_REG    = 0x24;
+  var VI_V_START_REG    = 0x28;
+  var VI_V_BURST_REG    = 0x2C;
+  var VI_X_SCALE_REG    = 0x30;
+  var VI_Y_SCALE_REG    = 0x34;
+
+  var VI_CONTROL_REG        = VI_STATUS_REG;
+  var VI_DRAM_ADDR_REG      = VI_ORIGIN_REG;
+  var VI_H_WIDTH_REG        = VI_WIDTH_REG;
+  var VI_V_INTR_REG         = VI_INTR_REG;
+  var VI_V_CURRENT_LINE_REG = VI_CURRENT_REG;
+  var VI_TIMING_REG         = VI_BURST_REG;
+  var VI_H_SYNC_LEAP_REG    = VI_LEAP_REG;
+  var VI_H_VIDEO_REG        = VI_H_START_REG;
+  var VI_V_VIDEO_REG        = VI_V_START_REG;
 
 
-    this.readString = function (offset, max_len) {
-      var s = '';
-      for (var i = 0; i < max_len; ++i) {
-        var c = that.u8[offset+i];
-        if (c == 0) {
-          break;
-        }
-        s += String.fromCharCode(c);
-      }
-      return s;
-    }
+  var PI_DRAM_ADDR_REG    = 0x00;
+  var PI_CART_ADDR_REG    = 0x04;
+  var PI_RD_LEN_REG       = 0x08;
+  var PI_WR_LEN_REG       = 0x0C;
+  var PI_STATUS_REG       = 0x10;
+  var PI_BSD_DOM1_LAT_REG = 0x14;
+  var PI_BSD_DOM1_PWD_REG = 0x18;
+  var PI_BSD_DOM1_PGS_REG = 0x1C;
+  var PI_BSD_DOM1_RLS_REG = 0x20;
+  var PI_BSD_DOM2_LAT_REG = 0x24;
+  var PI_BSD_DOM2_PWD_REG = 0x28;
+  var PI_BSD_DOM2_PGS_REG = 0x2C;
+  var PI_BSD_DOM2_RLS_REG = 0x30;
 
-    this.clearBits32 = function (offset, bits) {
-      this.write32(offset, this.read32(offset) & ~bits);
-    },
-    this.setBits32 = function (offset, bits) {
-      this.write32(offset, this.read32(offset) | bits);
-    },
-    this.getBits32 = function (offset, bits) {
-      return this.read32(offset) & bits;
-    }
+  // Values read from status reg
+  var PI_STATUS_DMA_BUSY    = 0x01;
+  var PI_STATUS_IO_BUSY     = 0x02;
+  var PI_STATUS_DMA_IO_BUSY = 0x03;
+  var PI_STATUS_ERROR       = 0x04;
 
-    this.swap = function (_a, _b, _c, _d) {
-      for (var i = 0; i < that.u8.length; i += 4) {
-        var a = that.u8[i+_a], b = that.u8[i+_b], c = that.u8[i+_c], d = that.u8[i+_d];
-        that.u8[i+0] = a;
-        that.u8[i+1] = b;
-        that.u8[i+2] = c;
-        that.u8[i+3] = d;
-      }     
-    }
-  }
+  // Values written to status reg
+  var PI_STATUS_RESET     = 0x01;
+  var PI_STATUS_CLR_INTR  = 0x02;
 
-  function MemoryCopy(dst, dstoff, src, srcoff, len) {
-    for (var i = 0; i < len; ++i) {
-      dst.u8[dstoff+i] = src.u8[srcoff+i];
-    }
-  }
+  var PI_DOM1_ADDR1   = 0x06000000;
+  var PI_DOM1_ADDR2   = 0x10000000;
+  var PI_DOM1_ADDR3   = 0x1FD00000;
+  var PI_DOM2_ADDR1   = 0x05000000;
+  var PI_DOM2_ADDR2   = 0x08000000;
 
-  var running       = false;
-  var rom           = null;   // Will be memory, mapped at 0xb0000000
-  var ram           = new Memory(new ArrayBuffer(8*1024*1024));
-  var sp_mem        = new Memory(new ArrayBuffer(0x2000));
-  var sp_reg        = new Memory(new ArrayBuffer(0x20));
-  var sp_ibist_mem  = new Memory(new ArrayBuffer(0x8));
-  var rdram_reg     = new Memory(new ArrayBuffer(0x30));
-  var mi_reg        = new Memory(new ArrayBuffer(0x10));
-  var vi_reg        = new Memory(new ArrayBuffer(0x38));
-  var ai_reg        = new Memory(new ArrayBuffer(0x18));
-  var pi_reg        = new Memory(new ArrayBuffer(0x34));
-  var ri_reg        = new Memory(new ArrayBuffer(0x20));
-  var si_reg        = new Memory(new ArrayBuffer(0x1c));
 
-  var kBootstrapOffset = 0x40;
-  var kGameOffset      = 0x1000;
+  function IsDom1Addr1( address )    { return address >= PI_DOM1_ADDR1 && address < PI_DOM2_ADDR2; }
+  function IsDom1Addr2( address )    { return address >= PI_DOM1_ADDR2 && address < 0x1FBFFFFF;    }
+  function IsDom1Addr3( address )    { return address >= PI_DOM1_ADDR3 && address < 0x7FFFFFFF;    }
+  function IsDom2Addr1( address )    { return address >= PI_DOM2_ADDR1 && address < PI_DOM1_ADDR1; }
+  function IsDom2Addr2( address )    { return address >= PI_DOM2_ADDR2 && address < PI_DOM1_ADDR2; }
 
-  var $rominfo     = null;
-  var $registers   = null;
-  var $output      = null;
-  var $disassembly = null;
+  var SI_DRAM_ADDR_REG      = 0x00;
+  var SI_PIF_ADDR_RD64B_REG = 0x04;
+  var SI_PIF_ADDR_WR64B_REG = 0x10;
+  var SI_STATUS_REG         = 0x18;
 
-  var disasmAddress = 0;
+  var SI_STATUS_DMA_BUSY    = 0x0001;
+  var SI_STATUS_RD_BUSY     = 0x0002;
+  var SI_STATUS_DMA_ERROR   = 0x0008;
+  var SI_STATUS_INTERRUPT   = 0x1000;
 
   function AssertException(message) { this.message = message; }
   AssertException.prototype.toString = function () {
@@ -151,247 +184,6 @@ if (typeof n64js === 'undefined') {
 
   n64js.setDisassemblyElement = function ($e) {
     $disassembly = $e;
-  }
-
-  n64js.reset = function () {
-    var country  = 0x45;  // USA  
-    var cic_chip = '6102';
-
-    for (var i = 0; i < ram.length; ++i) {
-      ram[i] = 0;
-    }
-
-    n64js.cpu0.reset();
-    n64js.cpu1.reset();
-
-    mi_reg.write32(MI_VERSION_REG, 0x02020102);
-    //ri_reg.write32(RI_CONFIG_REG, 1);           // This skips most of init
-
-    // Simulate boot
-
-    if (rom) {
-      MemoryCopy( sp_mem, kBootstrapOffset, rom, kBootstrapOffset, kGameOffset - kBootstrapOffset );
-    }
-
-    var cpu0 = n64js.cpu0;
-
-    function setGPR(reg, hi, lo) {
-      cpu0.gprHi[reg] = hi;
-      cpu0.gprLo[reg] = lo;
-    }
-
-
-
-    cpu0.control[cpu0.kControlSR]       = 0x34000000;
-    cpu0.control[cpu0.kControlConfig]   = 0x0006E463;
-    cpu0.control[cpu0.kControlCount]    = 0x5000;
-    cpu0.control[cpu0.kControlCause]    = 0x0000005c;
-    cpu0.control[cpu0.kControlContext]  = 0x007FFFF0;
-    cpu0.control[cpu0.kControlEPC]      = 0xFFFFFFFF;
-    cpu0.control[cpu0.kControlBadVAddr] = 0xFFFFFFFF;
-    cpu0.control[cpu0.kControlErrorEPC] = 0xFFFFFFFF;
-
-    setGPR(0, 0x00000000, 0x00000000);
-    setGPR(6, 0xFFFFFFFF, 0xA4001F0C);
-    setGPR(7, 0xFFFFFFFF, 0xA4001F08);
-    setGPR(8, 0x00000000, 0x000000C0);
-    setGPR(9, 0x00000000, 0x00000000);
-    setGPR(10, 0x00000000, 0x00000040);
-    setGPR(11, 0xFFFFFFFF, 0xA4000040);
-    setGPR(16, 0x00000000, 0x00000000);
-    setGPR(17, 0x00000000, 0x00000000);
-    setGPR(18, 0x00000000, 0x00000000);
-    setGPR(19, 0x00000000, 0x00000000);
-    setGPR(21, 0x00000000, 0x00000000); 
-    setGPR(26, 0x00000000, 0x00000000);
-    setGPR(27, 0x00000000, 0x00000000);
-    setGPR(28, 0x00000000, 0x00000000);
-    setGPR(29, 0xFFFFFFFF, 0xA4001FF0);
-    setGPR(30, 0x00000000, 0x00000000); 
-
-    switch (country) {
-      case 0x44: //Germany
-      case 0x46: //french
-      case 0x49: //Italian
-      case 0x50: //Europe
-      case 0x53: //Spanish
-      case 0x55: //Australia
-      case 0x58: // ????
-      case 0x59: // X (PAL)
-        switch (cic_chip) {
-          case '6102':
-            setGPR(5, 0xFFFFFFFF, 0xC0F1D859);
-            setGPR(14, 0x00000000, 0x2DE108EA);
-            setGPR(24, 0x00000000, 0x00000000);
-            break;
-          case '6103':
-            setGPR(5, 0xFFFFFFFF, 0xD4646273);
-            setGPR(14, 0x00000000, 0x1AF99984);
-            setGPR(24, 0x00000000, 0x00000000);
-            break;
-          case '6105':
-            //*(u32 *)&pIMemBase[0x04] = 0xBDA807FC;
-            setGPR(5, 0xFFFFFFFF, 0xDECAAAD1);
-            setGPR(14, 0x00000000, 0x0CF85C13);
-            setGPR(24, 0x00000000, 0x00000002);
-            break;
-          case '6106':
-            setGPR(5, 0xFFFFFFFF, 0xB04DC903);
-            setGPR(14, 0x00000000, 0x1AF99984);
-            setGPR(24, 0x00000000, 0x00000002);
-            break;
-          default:
-            break;
-        }
-
-        setGPR(20, 0x00000000, 0x00000000);
-        setGPR(23, 0x00000000, 0x00000006);
-        setGPR(31, 0xFFFFFFFF, 0xA4001554);
-        break;
-      case 0x37: // 7 (Beta)
-      case 0x41: // ????
-      case 0x45: //USA
-      case 0x4A: //Japan
-      default:
-        switch (cic_chip) {
-          case '6102':
-            setGPR(5, 0xFFFFFFFF, 0xC95973D5);
-            setGPR(14, 0x00000000, 0x2449A366);
-            break;
-          case '6103':
-            setGPR(5, 0xFFFFFFFF, 0x95315A28);
-            setGPR(14, 0x00000000, 0x5BACA1DF);
-            break;
-          case '6105':
-            //*(u32  *)&pIMemBase[0x04] = 0x8DA807FC;
-            setGPR(5, 0x00000000, 0x5493FB9A);
-            setGPR(14, 0xFFFFFFFF, 0xC2C20384);
-          case '6106':
-            setGPR(5, 0xFFFFFFFF, 0xE067221F);
-            setGPR(14, 0x00000000, 0x5CD2B70F);
-            break;
-          default:
-            break;
-        }
-        setGPR(20, 0x00000000, 0x00000001);
-        setGPR(23, 0x00000000, 0x00000000);
-        setGPR(24, 0x00000000, 0x00000003);
-        setGPR(31, 0xFFFFFFFF, 0xA4001550);
-    }
-
-
-    switch (cic_chip) {
-      case '6101': 
-        setGPR(22, 0x00000000, 0x0000003F); 
-        break;
-      case '6102': 
-        setGPR(1, 0x00000000, 0x00000001);
-        setGPR(2, 0x00000000, 0x0EBDA536);
-        setGPR(3, 0x00000000, 0x0EBDA536);
-        setGPR(4, 0x00000000, 0x0000A536);
-        setGPR(12, 0xFFFFFFFF, 0xED10D0B3);
-        setGPR(13, 0x00000000, 0x1402A4CC);
-        setGPR(15, 0x00000000, 0x3103E121);
-        setGPR(22, 0x00000000, 0x0000003F); 
-        setGPR(25, 0xFFFFFFFF, 0x9DEBB54F);
-        break;
-      case '6103': 
-        setGPR(1, 0x00000000, 0x00000001);
-        setGPR(2, 0x00000000, 0x49A5EE96);
-        setGPR(3, 0x00000000, 0x49A5EE96);
-        setGPR(4, 0x00000000, 0x0000EE96);
-        setGPR(12, 0xFFFFFFFF, 0xCE9DFBF7);
-        setGPR(13, 0xFFFFFFFF, 0xCE9DFBF7);
-        setGPR(15, 0x00000000, 0x18B63D28);
-        setGPR(22, 0x00000000, 0x00000078); 
-        setGPR(25, 0xFFFFFFFF, 0x825B21C9);
-        break;
-      case '6105': 
-        //*(u32  *)&pIMemBase[0x00] = 0x3C0DBFC0;
-        //*(u32  *)&pIMemBase[0x08] = 0x25AD07C0;
-        //*(u32  *)&pIMemBase[0x0C] = 0x31080080;
-        //*(u32  *)&pIMemBase[0x10] = 0x5500FFFC;
-        //*(u32  *)&pIMemBase[0x14] = 0x3C0DBFC0;
-        //*(u32  *)&pIMemBase[0x18] = 0x8DA80024;
-        //*(u32  *)&pIMemBase[0x1C] = 0x3C0BB000;
-        setGPR(1, 0x00000000, 0x00000000);
-        setGPR(2, 0xFFFFFFFF, 0xF58B0FBF);
-        setGPR(3, 0xFFFFFFFF, 0xF58B0FBF);
-        setGPR(4, 0x00000000, 0x00000FBF);
-        setGPR(12, 0xFFFFFFFF, 0x9651F81E);
-        setGPR(13, 0x00000000, 0x2D42AAC5);
-        setGPR(15, 0x00000000, 0x56584D60);
-        setGPR(22, 0x00000000, 0x00000091); 
-        setGPR(25, 0xFFFFFFFF, 0xCDCE565F);
-        break;
-      case '6106': 
-        setGPR(1, 0x00000000, 0x00000000);
-        setGPR(2, 0xFFFFFFFF, 0xA95930A4);
-        setGPR(3, 0xFFFFFFFF, 0xA95930A4);
-        setGPR(4, 0x00000000, 0x000030A4);
-        setGPR(12, 0xFFFFFFFF, 0xBCB59510);
-        setGPR(13, 0xFFFFFFFF, 0xBCB59510);
-        setGPR(15, 0x00000000, 0x7A3C07F4);
-        setGPR(22, 0x00000000, 0x00000085); 
-        setGPR(25, 0x00000000, 0x465E3F72);
-        break;
-      default:
-        break;
-    }
-
-    cpu0.pc = 0xA4000040;
-  }
-
-  n64js.loadRom = function (bytes) {
-    rom = new Memory(bytes);
-
-    rom_handler_uncached.mem = rom;
-
-    switch (rom.read32(0)) {
-      case 0x80371240:
-        // ok
-        break;
-      case 0x40123780:
-        rom.swap(3, 2, 1, 0);
-        break;
-      case 0x12408037:
-        rom.swap(2, 3, 0, 1);
-        break;
-      case 0x37804012:
-        rom.swap(1, 0, 3, 2);
-        break;        
-      default:
-        throw 'Unhandled byteswapping: ' + rom.read32(0).toString(16);
-        break;
-    }
-
-    var hdr = {};
-    hdr.header       = rom.read32(0);
-    hdr.clock        = rom.read32(4);
-    hdr.bootAddress  = rom.read32(8);
-    hdr.release      = rom.read32(12);
-    hdr.crclo        = rom.read32(16);   // or hi?
-    hdr.crchi        = rom.read32(20);   // or lo?
-    hdr.unk0         = rom.read32(24);
-    hdr.unk1         = rom.read32(28);
-    hdr.name         = rom.readString(32, 20);
-    hdr.unk2         = rom.read32(52);
-    hdr.unk3         = rom.read16(56);
-    hdr.unk4         = rom.read8 (58);
-    hdr.manufacturer = rom.read8 (59);
-    hdr.cartId       = rom.read16(60);
-    hdr.countryId    = rom.read8 (62);  // char
-    hdr.unk5         = rom.read8 (62);
-
-    $rominfo.html('');
-    var $table = $('<table class="register-table"><tbody></tbody></table>');
-    var $tb = $table.find('tbody');
-    for (var i in hdr) {
-      $tb.append('<tr>' + 
-        '<td>' + i + '</td><td>' + (typeof hdr[i] === 'string' ? hdr[i] : toString32(hdr[i])) + '</td>' +
-        '</tr>');
-    }
-    $rominfo.append($table); 
   }
 
   n64js.down = function () {
@@ -529,7 +321,7 @@ if (typeof n64js === 'undefined') {
         $tr.append($td);
       }
       $tb.append($tr);
-    }   
+    }
 
     $registers.html($table);
   }
@@ -537,130 +329,6 @@ if (typeof n64js === 'undefined') {
   //
   // Memory handlers
   //
-  var MI_MODE_REG         = 0x00;
-  var MI_VERSION_REG      = 0x04;
-  var MI_INTR_REG         = 0x08;
-  var MI_INTR_MASK_REG    = 0x0C;
-
-  var MI_CLR_INIT         = 0x0080;
-  var MI_SET_INIT         = 0x0100;
-  var MI_CLR_EBUS         = 0x0200;
-  var MI_SET_EBUS         = 0x0400;
-  var MI_CLR_DP_INTR      = 0x0800;
-  var MI_CLR_RDRAM        = 0x1000;
-  var MI_SET_RDRAM        = 0x2000;
-
-  var MI_MODE_INIT        = 0x0080;
-  var MI_MODE_EBUS        = 0x0100;
-  var MI_MODE_RDRAM       = 0x0200;
-
-  var MI_INTR_MASK_CLR_SP = 0x0001;
-  var MI_INTR_MASK_SET_SP = 0x0002;
-  var MI_INTR_MASK_CLR_SI = 0x0004;
-  var MI_INTR_MASK_SET_SI = 0x0008;
-  var MI_INTR_MASK_CLR_AI = 0x0010;
-  var MI_INTR_MASK_SET_AI = 0x0020;
-  var MI_INTR_MASK_CLR_VI = 0x0040;
-  var MI_INTR_MASK_SET_VI = 0x0080;
-  var MI_INTR_MASK_CLR_PI = 0x0100;
-  var MI_INTR_MASK_SET_PI = 0x0200;
-  var MI_INTR_MASK_CLR_DP = 0x0400;
-  var MI_INTR_MASK_SET_DP = 0x0800;
-
-  var MI_INTR_MASK_SP   = 0x01;
-  var MI_INTR_MASK_SI   = 0x02;
-  var MI_INTR_MASK_AI   = 0x04;
-  var MI_INTR_MASK_VI   = 0x08;
-  var MI_INTR_MASK_PI   = 0x10;
-  var MI_INTR_MASK_DP   = 0x20;
-
-  var MI_INTR_SP        = 0x01;
-  var MI_INTR_SI        = 0x02;
-  var MI_INTR_AI        = 0x04;
-  var MI_INTR_VI        = 0x08;
-  var MI_INTR_PI        = 0x10;
-  var MI_INTR_DP        = 0x20;
-
-  var AI_DRAM_ADDR_REG  = 0x00;
-  var AI_LEN_REG        = 0x04;
-  var AI_CONTROL_REG    = 0x08;
-  var AI_STATUS_REG     = 0x0C;
-  var AI_DACRATE_REG    = 0x10;
-  var AI_BITRATE_REG    = 0x14;
-
-  var VI_STATUS_REG     = 0x00;
-  var VI_ORIGIN_REG     = 0x04;
-  var VI_WIDTH_REG      = 0x08;
-  var VI_INTR_REG       = 0x0C;
-  var VI_CURRENT_REG    = 0x10;
-  var VI_BURST_REG      = 0x14;
-  var VI_V_SYNC_REG     = 0x18;
-  var VI_H_SYNC_REG     = 0x1C;
-  var VI_LEAP_REG       = 0x20;
-  var VI_H_START_REG    = 0x24;
-  var VI_V_START_REG    = 0x28;
-  var VI_V_BURST_REG    = 0x2C;
-  var VI_X_SCALE_REG    = 0x30;
-  var VI_Y_SCALE_REG    = 0x34;
-
-  var VI_CONTROL_REG        = VI_STATUS_REG;
-  var VI_DRAM_ADDR_REG      = VI_ORIGIN_REG;
-  var VI_H_WIDTH_REG        = VI_WIDTH_REG;
-  var VI_V_INTR_REG         = VI_INTR_REG;
-  var VI_V_CURRENT_LINE_REG = VI_CURRENT_REG;
-  var VI_TIMING_REG         = VI_BURST_REG;
-  var VI_H_SYNC_LEAP_REG    = VI_LEAP_REG;
-  var VI_H_VIDEO_REG        = VI_H_START_REG;
-  var VI_V_VIDEO_REG        = VI_V_START_REG;
-
-
-  var PI_DRAM_ADDR_REG    = 0x00;
-  var PI_CART_ADDR_REG    = 0x04;
-  var PI_RD_LEN_REG       = 0x08;
-  var PI_WR_LEN_REG       = 0x0C;
-  var PI_STATUS_REG       = 0x10;
-  var PI_BSD_DOM1_LAT_REG = 0x14;
-  var PI_BSD_DOM1_PWD_REG = 0x18;
-  var PI_BSD_DOM1_PGS_REG = 0x1C;
-  var PI_BSD_DOM1_RLS_REG = 0x20;
-  var PI_BSD_DOM2_LAT_REG = 0x24;
-  var PI_BSD_DOM2_PWD_REG = 0x28;
-  var PI_BSD_DOM2_PGS_REG = 0x2C;
-  var PI_BSD_DOM2_RLS_REG = 0x30;
-
-  // Values read from status reg
-  var PI_STATUS_DMA_BUSY    = 0x01;
-  var PI_STATUS_IO_BUSY     = 0x02;
-  var PI_STATUS_DMA_IO_BUSY = 0x03;
-  var PI_STATUS_ERROR       = 0x04;
-
-  // Values written to status reg
-  var PI_STATUS_RESET     = 0x01;
-  var PI_STATUS_CLR_INTR  = 0x02;
-
-  var PI_DOM1_ADDR1   = 0x06000000;
-  var PI_DOM1_ADDR2   = 0x10000000;
-  var PI_DOM1_ADDR3   = 0x1FD00000;
-  var PI_DOM2_ADDR1   = 0x05000000;
-  var PI_DOM2_ADDR2   = 0x08000000;
-
-
-  function IsDom1Addr1( address )    { return address >= PI_DOM1_ADDR1 && address < PI_DOM2_ADDR2; }
-  function IsDom1Addr2( address )    { return address >= PI_DOM1_ADDR2 && address < 0x1FBFFFFF;    }
-  function IsDom1Addr3( address )    { return address >= PI_DOM1_ADDR3 && address < 0x7FFFFFFF;    }
-  function IsDom2Addr1( address )    { return address >= PI_DOM2_ADDR1 && address < PI_DOM1_ADDR1; }
-  function IsDom2Addr2( address )    { return address >= PI_DOM2_ADDR2 && address < PI_DOM1_ADDR2; }
-
-  var SI_DRAM_ADDR_REG      = 0x00;
-  var SI_PIF_ADDR_RD64B_REG = 0x04;
-  var SI_PIF_ADDR_WR64B_REG = 0x10;
-  var SI_STATUS_REG         = 0x18;
-
-  var SI_STATUS_DMA_BUSY    = 0x0001;
-  var SI_STATUS_RD_BUSY     = 0x0002;
-  var SI_STATUS_DMA_ERROR   = 0x0008;
-  var SI_STATUS_INTERRUPT   = 0x1000;
-
   function PICopyToRDRAM() {
     var dram_address = pi_reg.read32(PI_DRAM_ADDR_REG) & 0x00ffffff;
     var cart_address = pi_reg.read32(PI_CART_ADDR_REG);
@@ -704,6 +372,74 @@ if (typeof n64js === 'undefined') {
     pi_reg.clearBits32(PI_STATUS_REG, PI_STATUS_DMA_BUSY);
     mi_reg.setBits32(MI_INTR_REG, MI_INTR_PI);
     n64js.interruptUpdateCause3();
+  }
+
+  function Memory(arraybuffer) {
+    this.bytes  = arraybuffer;
+    this.length = arraybuffer.byteLength;
+    this.u32    = new Uint32Array(this.bytes);
+    this.u8     = new  Uint8Array(this.bytes);
+
+    var that = this;
+
+    this.read32 = function (offset) {
+      return (that.u8[offset+0]<<24) | (that.u8[offset+1]<<16) | (that.u8[offset+2]<<8) | that.u8[offset+3];
+    }
+    this.read16 = function (offset) {
+      return (that.u8[offset+0]<<8) | that.u8[offset+1];
+    }
+    this.read8 = function (offset) {
+      return that.u8[offset];
+    }
+
+    this.write32 = function (offset, value) {
+      that.u8[offset+0] = (value >>> 24);
+      that.u8[offset+1] = (value >>> 16);
+      that.u8[offset+2] = (value >>>  8);
+      that.u8[offset+3] = (value       );
+    }
+    this.write8 = function (offset, value) {
+      that.u8[offset+0] = (value >>> 0);
+    }
+
+
+    this.readString = function (offset, max_len) {
+      var s = '';
+      for (var i = 0; i < max_len; ++i) {
+        var c = that.u8[offset+i];
+        if (c == 0) {
+          break;
+        }
+        s += String.fromCharCode(c);
+      }
+      return s;
+    }
+
+    this.clearBits32 = function (offset, bits) {
+      this.write32(offset, this.read32(offset) & ~bits);
+    },
+    this.setBits32 = function (offset, bits) {
+      this.write32(offset, this.read32(offset) | bits);
+    },
+    this.getBits32 = function (offset, bits) {
+      return this.read32(offset) & bits;
+    }
+
+    this.swap = function (_a, _b, _c, _d) {
+      for (var i = 0; i < that.u8.length; i += 4) {
+        var a = that.u8[i+_a], b = that.u8[i+_b], c = that.u8[i+_c], d = that.u8[i+_d];
+        that.u8[i+0] = a;
+        that.u8[i+1] = b;
+        that.u8[i+2] = c;
+        that.u8[i+3] = d;
+      }
+    }
+  }
+
+  function MemoryCopy(dst, dstoff, src, srcoff, len) {
+    for (var i = 0; i < len; ++i) {
+      dst.u8[dstoff+i] = src.u8[srcoff+i];
+    }
   }
 
 
@@ -762,6 +498,27 @@ if (typeof n64js === 'undefined') {
       throw 'Write is out of range';
     }
   };
+
+  var $rominfo     = null;
+  var $registers   = null;
+  var $output      = null;
+  var $disassembly = null;
+
+  var disasmAddress = 0;
+
+  var running       = false;
+  var rom           = null;   // Will be memory, mapped at 0xb0000000
+  var ram           = new Memory(new ArrayBuffer(8*1024*1024));
+  var sp_mem        = new Memory(new ArrayBuffer(0x2000));
+  var sp_reg        = new Memory(new ArrayBuffer(0x20));
+  var sp_ibist_mem  = new Memory(new ArrayBuffer(0x8));
+  var rdram_reg     = new Memory(new ArrayBuffer(0x30));
+  var mi_reg        = new Memory(new ArrayBuffer(0x10));
+  var vi_reg        = new Memory(new ArrayBuffer(0x38));
+  var ai_reg        = new Memory(new ArrayBuffer(0x18));
+  var pi_reg        = new Memory(new ArrayBuffer(0x34));
+  var ri_reg        = new Memory(new ArrayBuffer(0x20));
+  var si_reg        = new Memory(new ArrayBuffer(0x1c));
 
   var rom_handler_uncached       = new Device("ROM",      rom,          0xb0000000, 0xbfc00000);
   var rdram_handler_cached       = new Device("RAM",      ram,          0x80000000, 0x80800000);
@@ -1136,6 +893,248 @@ if (typeof n64js === 'undefined') {
     n64js.log('Need to handle interrupts');
   }
 
+
+  var kBootstrapOffset = 0x40;
+  var kGameOffset      = 0x1000;
+
+  n64js.reset = function () {
+    var country  = 0x45;  // USA
+    var cic_chip = '6102';
+
+    for (var i = 0; i < ram.length; ++i) {
+      ram[i] = 0;
+    }
+
+    n64js.cpu0.reset();
+    n64js.cpu1.reset();
+
+    mi_reg.write32(MI_VERSION_REG, 0x02020102);
+    //ri_reg.write32(RI_CONFIG_REG, 1);           // This skips most of init
+
+    // Simulate boot
+
+    if (rom) {
+      MemoryCopy( sp_mem, kBootstrapOffset, rom, kBootstrapOffset, kGameOffset - kBootstrapOffset );
+    }
+
+    var cpu0 = n64js.cpu0;
+
+    function setGPR(reg, hi, lo) {
+      cpu0.gprHi[reg] = hi;
+      cpu0.gprLo[reg] = lo;
+    }
+
+    cpu0.control[cpu0.kControlSR]       = 0x34000000;
+    cpu0.control[cpu0.kControlConfig]   = 0x0006E463;
+    cpu0.control[cpu0.kControlCount]    = 0x5000;
+    cpu0.control[cpu0.kControlCause]    = 0x0000005c;
+    cpu0.control[cpu0.kControlContext]  = 0x007FFFF0;
+    cpu0.control[cpu0.kControlEPC]      = 0xFFFFFFFF;
+    cpu0.control[cpu0.kControlBadVAddr] = 0xFFFFFFFF;
+    cpu0.control[cpu0.kControlErrorEPC] = 0xFFFFFFFF;
+
+    setGPR(0, 0x00000000, 0x00000000);
+    setGPR(6, 0xFFFFFFFF, 0xA4001F0C);
+    setGPR(7, 0xFFFFFFFF, 0xA4001F08);
+    setGPR(8, 0x00000000, 0x000000C0);
+    setGPR(9, 0x00000000, 0x00000000);
+    setGPR(10, 0x00000000, 0x00000040);
+    setGPR(11, 0xFFFFFFFF, 0xA4000040);
+    setGPR(16, 0x00000000, 0x00000000);
+    setGPR(17, 0x00000000, 0x00000000);
+    setGPR(18, 0x00000000, 0x00000000);
+    setGPR(19, 0x00000000, 0x00000000);
+    setGPR(21, 0x00000000, 0x00000000);
+    setGPR(26, 0x00000000, 0x00000000);
+    setGPR(27, 0x00000000, 0x00000000);
+    setGPR(28, 0x00000000, 0x00000000);
+    setGPR(29, 0xFFFFFFFF, 0xA4001FF0);
+    setGPR(30, 0x00000000, 0x00000000);
+
+    switch (country) {
+      case 0x44: //Germany
+      case 0x46: //french
+      case 0x49: //Italian
+      case 0x50: //Europe
+      case 0x53: //Spanish
+      case 0x55: //Australia
+      case 0x58: // ????
+      case 0x59: // X (PAL)
+        switch (cic_chip) {
+          case '6102':
+            setGPR(5, 0xFFFFFFFF, 0xC0F1D859);
+            setGPR(14, 0x00000000, 0x2DE108EA);
+            setGPR(24, 0x00000000, 0x00000000);
+            break;
+          case '6103':
+            setGPR(5, 0xFFFFFFFF, 0xD4646273);
+            setGPR(14, 0x00000000, 0x1AF99984);
+            setGPR(24, 0x00000000, 0x00000000);
+            break;
+          case '6105':
+            //*(u32 *)&pIMemBase[0x04] = 0xBDA807FC;
+            setGPR(5, 0xFFFFFFFF, 0xDECAAAD1);
+            setGPR(14, 0x00000000, 0x0CF85C13);
+            setGPR(24, 0x00000000, 0x00000002);
+            break;
+          case '6106':
+            setGPR(5, 0xFFFFFFFF, 0xB04DC903);
+            setGPR(14, 0x00000000, 0x1AF99984);
+            setGPR(24, 0x00000000, 0x00000002);
+            break;
+          default:
+            break;
+        }
+
+        setGPR(20, 0x00000000, 0x00000000);
+        setGPR(23, 0x00000000, 0x00000006);
+        setGPR(31, 0xFFFFFFFF, 0xA4001554);
+        break;
+      case 0x37: // 7 (Beta)
+      case 0x41: // ????
+      case 0x45: //USA
+      case 0x4A: //Japan
+      default:
+        switch (cic_chip) {
+          case '6102':
+            setGPR(5, 0xFFFFFFFF, 0xC95973D5);
+            setGPR(14, 0x00000000, 0x2449A366);
+            break;
+          case '6103':
+            setGPR(5, 0xFFFFFFFF, 0x95315A28);
+            setGPR(14, 0x00000000, 0x5BACA1DF);
+            break;
+          case '6105':
+            //*(u32  *)&pIMemBase[0x04] = 0x8DA807FC;
+            setGPR(5, 0x00000000, 0x5493FB9A);
+            setGPR(14, 0xFFFFFFFF, 0xC2C20384);
+          case '6106':
+            setGPR(5, 0xFFFFFFFF, 0xE067221F);
+            setGPR(14, 0x00000000, 0x5CD2B70F);
+            break;
+          default:
+            break;
+        }
+        setGPR(20, 0x00000000, 0x00000001);
+        setGPR(23, 0x00000000, 0x00000000);
+        setGPR(24, 0x00000000, 0x00000003);
+        setGPR(31, 0xFFFFFFFF, 0xA4001550);
+    }
+
+
+    switch (cic_chip) {
+      case '6101':
+        setGPR(22, 0x00000000, 0x0000003F);
+        break;
+      case '6102':
+        setGPR(1, 0x00000000, 0x00000001);
+        setGPR(2, 0x00000000, 0x0EBDA536);
+        setGPR(3, 0x00000000, 0x0EBDA536);
+        setGPR(4, 0x00000000, 0x0000A536);
+        setGPR(12, 0xFFFFFFFF, 0xED10D0B3);
+        setGPR(13, 0x00000000, 0x1402A4CC);
+        setGPR(15, 0x00000000, 0x3103E121);
+        setGPR(22, 0x00000000, 0x0000003F);
+        setGPR(25, 0xFFFFFFFF, 0x9DEBB54F);
+        break;
+      case '6103':
+        setGPR(1, 0x00000000, 0x00000001);
+        setGPR(2, 0x00000000, 0x49A5EE96);
+        setGPR(3, 0x00000000, 0x49A5EE96);
+        setGPR(4, 0x00000000, 0x0000EE96);
+        setGPR(12, 0xFFFFFFFF, 0xCE9DFBF7);
+        setGPR(13, 0xFFFFFFFF, 0xCE9DFBF7);
+        setGPR(15, 0x00000000, 0x18B63D28);
+        setGPR(22, 0x00000000, 0x00000078);
+        setGPR(25, 0xFFFFFFFF, 0x825B21C9);
+        break;
+      case '6105':
+        //*(u32  *)&pIMemBase[0x00] = 0x3C0DBFC0;
+        //*(u32  *)&pIMemBase[0x08] = 0x25AD07C0;
+        //*(u32  *)&pIMemBase[0x0C] = 0x31080080;
+        //*(u32  *)&pIMemBase[0x10] = 0x5500FFFC;
+        //*(u32  *)&pIMemBase[0x14] = 0x3C0DBFC0;
+        //*(u32  *)&pIMemBase[0x18] = 0x8DA80024;
+        //*(u32  *)&pIMemBase[0x1C] = 0x3C0BB000;
+        setGPR(1, 0x00000000, 0x00000000);
+        setGPR(2, 0xFFFFFFFF, 0xF58B0FBF);
+        setGPR(3, 0xFFFFFFFF, 0xF58B0FBF);
+        setGPR(4, 0x00000000, 0x00000FBF);
+        setGPR(12, 0xFFFFFFFF, 0x9651F81E);
+        setGPR(13, 0x00000000, 0x2D42AAC5);
+        setGPR(15, 0x00000000, 0x56584D60);
+        setGPR(22, 0x00000000, 0x00000091);
+        setGPR(25, 0xFFFFFFFF, 0xCDCE565F);
+        break;
+      case '6106':
+        setGPR(1, 0x00000000, 0x00000000);
+        setGPR(2, 0xFFFFFFFF, 0xA95930A4);
+        setGPR(3, 0xFFFFFFFF, 0xA95930A4);
+        setGPR(4, 0x00000000, 0x000030A4);
+        setGPR(12, 0xFFFFFFFF, 0xBCB59510);
+        setGPR(13, 0xFFFFFFFF, 0xBCB59510);
+        setGPR(15, 0x00000000, 0x7A3C07F4);
+        setGPR(22, 0x00000000, 0x00000085);
+        setGPR(25, 0x00000000, 0x465E3F72);
+        break;
+      default:
+        break;
+    }
+
+    cpu0.pc = 0xA4000040;
+  }
+
+  n64js.loadRom = function (bytes) {
+    rom = new Memory(bytes);
+
+    rom_handler_uncached.mem = rom;
+
+    switch (rom.read32(0)) {
+      case 0x80371240:
+        // ok
+        break;
+      case 0x40123780:
+        rom.swap(3, 2, 1, 0);
+        break;
+      case 0x12408037:
+        rom.swap(2, 3, 0, 1);
+        break;
+      case 0x37804012:
+        rom.swap(1, 0, 3, 2);
+        break;
+      default:
+        throw 'Unhandled byteswapping: ' + rom.read32(0).toString(16);
+        break;
+    }
+
+    var hdr = {};
+    hdr.header       = rom.read32(0);
+    hdr.clock        = rom.read32(4);
+    hdr.bootAddress  = rom.read32(8);
+    hdr.release      = rom.read32(12);
+    hdr.crclo        = rom.read32(16);   // or hi?
+    hdr.crchi        = rom.read32(20);   // or lo?
+    hdr.unk0         = rom.read32(24);
+    hdr.unk1         = rom.read32(28);
+    hdr.name         = rom.readString(32, 20);
+    hdr.unk2         = rom.read32(52);
+    hdr.unk3         = rom.read16(56);
+    hdr.unk4         = rom.read8 (58);
+    hdr.manufacturer = rom.read8 (59);
+    hdr.cartId       = rom.read16(60);
+    hdr.countryId    = rom.read8 (62);  // char
+    hdr.unk5         = rom.read8 (62);
+
+    $rominfo.html('');
+    var $table = $('<table class="register-table"><tbody></tbody></table>');
+    var $tb = $table.find('tbody');
+    for (var i in hdr) {
+      $tb.append('<tr>' +
+        '<td>' + i + '</td><td>' + (typeof hdr[i] === 'string' ? hdr[i] : toString32(hdr[i])) + '</td>' +
+        '</tr>');
+    }
+    $rominfo.append($table);
+  }
 
   n64js.toHex = function (r, bits) {
     r = Number(r);
