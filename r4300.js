@@ -330,14 +330,14 @@ if (typeof n64js === 'undefined') {
 
   function unimplemented(a,i) {
     var r = n64js.disassembleOp(a,i);
-    var e = 'Unimplemented op ' + n64js.toHex(i,32) + ' : ' + r.disassembly + '<br>';
+    var e = 'Unimplemented op ' + n64js.toString32(i) + ' : ' + r.disassembly + '<br>';
 
     $('#output').append(e);
     throw e;
   }
 
   function executeUnknown(a,i) {
-    throw 'Unknown op: ' + n64js.toHex(a,32) + ', ' + n64js.toHex(i,32);
+    throw 'Unknown op: ' + n64js.toString32(a) + ', ' + n64js.toString32(i);
   }
 
   function executeSLL(a,i) {
@@ -479,21 +479,21 @@ if (typeof n64js === 'undefined') {
       setZeroExtend( rt(i), cpu0.getRandom() );
     } else {
       setZeroExtend( rt(i), cpu0.control[control_reg] );
-      //n64js.halt('mfc0');
     }
   }
+
   function executeMTC0(a,i) {
     var control_reg = fs(i);
     var new_value   = cpu0.gprLo[rt(i)];
 
     switch (control_reg) {
       case cpu0.kControlContext:
-        n64js.log('Setting Context register to ' + n64js.toHex(new_value) );
+        n64js.log('Setting Context register to ' + n64js.toString32(new_value) );
         cpu0.control[cpu0.kControlContext] = new_value;
         break;
 
       case cpu0.kControlWired:
-        n64js.log('Setting Wired register to ' + n64js.toHex(new_value) );
+        n64js.log('Setting Wired register to ' + n64js.toString32(new_value) );
         // Set to top limit on write to wired
         cpu0.control[cpu0.kControlRand]  = 31;
         cpu0.control[cpu0.kControlWired] = new_value;
@@ -504,11 +504,11 @@ if (typeof n64js === 'undefined') {
       case cpu0.kControlPRId:
       case cpu0.kControlCacheErr:
         // All these registers are read-only
-        n64js.log('Attempted write to read-only cpu0 control register. ' + n64js.toHex(new_value) + ' --> ' + n64js.cop0ControlRegisterNames[control_reg] );
+        n64js.log('Attempted write to read-only cpu0 control register. ' + n64js.toString32(new_value) + ' --> ' + n64js.cop0ControlRegisterNames[control_reg] );
         break;
 
       case cpu0.kControlCause:
-        n64js.log('Setting cause register to ' + n64js.toHex(new_value) );
+        n64js.log('Setting cause register to ' + n64js.toString32(new_value) );
         n64js.check(new_value === 0, 'Should only write 0 to Cause register.');
         cpu0.control[cpu0.kControlCause] &= ~0x300;
         cpu0.control[cpu0.kControlCause] |= (new_value & 0x300);
