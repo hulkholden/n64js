@@ -374,6 +374,44 @@ if (typeof n64js === 'undefined') {
     n64js.interruptUpdateCause3();
   }
 
+  function PIUpdateControl() {
+    var pif_rom = new Uint8Array(pif_mem.bytes, 0x000, 0x7c0);
+    var pif_ram = new Uint8Array(pif_mem.bytes, 0x7c0, 0x040);
+    var command = pif_ram[0x3f];
+    switch (command) {
+      case 0x01:
+        n64js.log('PI: execute block\n');
+        break;
+      case 0x08:
+        n64js.log('PI: interrupt control\n');
+        pif_ram[0x3f] = 0x00;
+        si_reg.setBits32(SI_STATUS_REG, SI_STATUS_INTERRUPT);
+        si_reg.setBits32(MI_INTR_REG,   MI_INTR_SI);
+        n64js.interruptUpdateCause3();
+        break;
+      case 0x10:
+        n64js.log('PI: clear rom\n');
+        for(var i = 0; i < pif_rom.length; ++i) {
+          pif_rom[i] = 0;
+        }
+        break;
+      case 0x30:
+        n64js.log('PI: set 0x80 control \n');
+        pif_ram[0x3f] = 0x80;
+        break;
+      case 0xc0:
+        n64js.log('PI: clear ram\n');
+        for(var i = 0; i < pif_ram.length; ++i) {
+          pif_ram[i] = 0;
+        }
+        break;
+      default:
+        n64js.halt('Unkown PI control value: ' + toString8(command));
+        break;
+    }
+  }
+
+
   function Memory(arraybuffer) {
     this.bytes  = arraybuffer;
     this.length = arraybuffer.byteLength;
@@ -491,7 +529,7 @@ if (typeof n64js === 'undefined') {
     },
     write8 : function (address, value) {
       if (!this.quiet) n64js.log('Writing to ' + this.name + ': ' + toString32(value) + ' -> [' + toString32(address) + ']' );
-      var ea = address - this.rangeStart;
+      var ea = this.calcEA(address);
       if (ea < this.mem.length)
         return this.mem.write8(ea, value);
 
@@ -508,6 +546,7 @@ if (typeof n64js === 'undefined') {
 
   var running       = false;
   var rom           = null;   // Will be memory, mapped at 0xb0000000
+  var pif_mem       = new Memory(new ArrayBuffer(0x7c0 + 0x40));   // rom+ram
   var ram           = new Memory(new ArrayBuffer(8*1024*1024));
   var sp_mem        = new Memory(new ArrayBuffer(0x2000));
   var sp_reg        = new Memory(new ArrayBuffer(0x20));
@@ -520,7 +559,6 @@ if (typeof n64js === 'undefined') {
   var ri_reg        = new Memory(new ArrayBuffer(0x20));
   var si_reg        = new Memory(new ArrayBuffer(0x1c));
 
-  var rom_handler_uncached       = new Device("ROM",      rom,          0xb0000000, 0xbfc00000);
   var rdram_handler_cached       = new Device("RAM",      ram,          0x80000000, 0x80800000);
   var rdram_handler_uncached     = new Device("RAM",      ram,          0xa0000000, 0xa0800000);
   var rdram_reg_handler_uncached = new Device("RDRAMReg", rdram_reg,    0xa3f00000, 0xa4000000);
@@ -533,6 +571,8 @@ if (typeof n64js === 'undefined') {
   var pi_reg_handler_uncached    = new Device("PIReg",    pi_reg,       0xa4600000, 0xa4600034);
   var ri_reg_handler_uncached    = new Device("RIReg",    ri_reg,       0xa4700000, 0xa4700020);
   var si_reg_handler_uncached    = new Device("SIReg",    si_reg,       0xa4800000, 0xa480001c);
+  var rom_handler_uncached       = new Device("ROM",      rom,          0xb0000000, 0xbfc00000);
+  var pif_mem_handler_uncached   = new Device("PIFRAM",   pif_mem,      0xbfc00000, 0xbfc00800);
 
   rdram_handler_cached.quiet    = true;
   rdram_handler_uncached.quiet  = true;
@@ -604,7 +644,7 @@ if (typeof n64js === 'undefined') {
   }
 
   mi_reg_handler_uncached.write32 = function (address, value) {
-    var ea = address - this.rangeStart;
+    var ea = this.calcEA(address);
     if (ea+3 < this.mem.length) {
 
       switch( ea ) {
@@ -634,7 +674,7 @@ if (typeof n64js === 'undefined') {
 
 
   ai_reg_handler_uncached.write32 = function (address, value) {
-    var ea = address - this.rangeStart;
+    var ea = this.calcEA(address);
     if (ea+3 < this.mem.length) {
 
       switch( ea ) {
@@ -672,7 +712,7 @@ if (typeof n64js === 'undefined') {
 
 
   vi_reg_handler_uncached.write32 = function (address, value) {
-    var ea = address - this.rangeStart;
+    var ea = this.calcEA(address);
     if (ea+3 < this.mem.length) {
 
       switch( ea ) {
@@ -705,7 +745,7 @@ if (typeof n64js === 'undefined') {
 
 
   pi_reg_handler_uncached.write32 = function (address, value) {
-    var ea = address - this.rangeStart;
+    var ea = this.calcEA(address);
     if (ea+3 < this.mem.length) {
 
       switch( ea ) {
@@ -762,10 +802,10 @@ if (typeof n64js === 'undefined') {
     } else {
       throw 'Read is out of range';
     }
-  }
+  };
 
   si_reg_handler_uncached.write32 = function (address, value) {
-    var ea = address - this.rangeStart;
+    var ea = this.calcEA(address);
     if (ea+3 < this.mem.length) {
 
       switch( ea ) {
@@ -796,7 +836,72 @@ if (typeof n64js === 'undefined') {
     } else {
       throw 'Write is out of range';
     }
-  }
+  };
+
+  pif_mem_handler_uncached.read32 = function (address) {
+    var ea = this.calcEA(address);
+
+    if (ea+3 < this.mem.length) {
+      var v = pif_mem.read32(ea);
+
+      if (ea < 0x7c0) {
+        n64js.log('Reading from PIF rom (' + toString32(address) + '). Got ' + toString32(v));
+        return v;
+      } else {
+        var ram_offset = ea - 0x7c0;
+        switch(ram_offset) {
+          case 0x24:  n64js.log('Reading CIC values: '   + toString32(v)); break;
+          case 0x3c:  n64js.log('Reading Control byte: ' + toString32(v)); break;
+          default:    n64js.log('Reading from PI ram ['  + toString32(address) + ']. Got ' + toString32(v));
+        }
+      }
+      return v;
+    } else {
+      throw 'Read is out of range';
+    }
+  };
+  pif_mem_handler_uncached.read8 = function (address) {
+    var ea = this.calcEA(address);
+
+    if (ea < this.mem.length) {
+      var v = pif_mem.read8(ea);
+
+      if (ea < 0x7c0) {
+        n64js.log('Reading from PIF rom (' + toString32(address) + '). Got ' + toString8(v));
+        return v;
+      } else {
+        var ram_offset = ea - 0x7c0;
+        switch(ram_offset) {
+          case 0x24:  n64js.log('Reading CIC values: '   + toString8(v)); break;
+          case 0x3c:  n64js.log('Reading Control byte: ' + toString8(v)); break;
+          default:    n64js.log('Reading from PI ram ['  + toString32(address) + ']. Got ' + toString8(v));
+        }
+      }
+      return v;
+    } else {
+      throw 'Read is out of range';
+    }
+  };
+  pif_mem_handler_uncached.write32 = function (address, value) {
+    var ea = this.calcEA(address);
+    if (ea+3 < this.mem.length) {
+
+      if (ea < 0x7c0) {
+        n64js.log('Attempting to write to PIF ROM');
+      } else {
+        var ram_offset = ea - 0x7c0;
+        this.mem.write32(ea, value);
+        switch(ram_offset) {
+        case 0x24:  n64js.log('Writing CIC values: '   + toString32(value) ); break;
+        case 0x3c:  n64js.log('Writing Control byte: ' + toString32(value) ); PIUpdateControl(); break;
+        default:    n64js.log('Writing directly to PI ram [' + toString32(address) + '] <-- ' + toString32(value)); break;
+        }
+      }
+
+    } else {
+      throw 'Write is out of range';
+    }
+  };
 
   // We create a memory map of 1<<14 entries, corresponding to the top bits of the address range. 
   var memMap = (function () {
@@ -817,7 +922,8 @@ if (typeof n64js === 'undefined') {
          pi_reg_handler_uncached,
          ri_reg_handler_uncached,
          si_reg_handler_uncached,
-            rom_handler_uncached
+            rom_handler_uncached,
+        pif_mem_handler_uncached
     ].map(function (e){
         var beg = (e.rangeStart)>>>18;
         var end = (e.rangeEnd-1)>>>18;

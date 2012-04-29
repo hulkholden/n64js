@@ -575,7 +575,7 @@ if (typeof n64js === 'undefined') {
 
   // Branch Less Than or Equal To Zero
   function executeBLEZ(a,i) {
-    // NB: 32 bit comparison for speed?
+    var s = rs(i);
     if ( cpu0.gprHi_signed[s] < 0 ||
         (cpu0.gprHi[s] === 0 && cpu0.gprLo[s] === 0) ) {
       performBranch( branchAddress(a,i) );
