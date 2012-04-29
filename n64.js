@@ -95,6 +95,33 @@ if (typeof n64js === 'undefined') {
 
   var disasmAddress = 0;
 
+  function AssertException(message) { this.message = message; }
+  AssertException.prototype.toString = function () {
+    return 'AssertException: ' + this.message;
+  }
+
+  function assert(e,m) {
+    if (!e) {
+      throw new AssertException(m);
+    }
+  }
+  n64js.assert = assert;
+
+  n64js.log = function (s) {
+    $output.append(toString32(n64js.cpu0.pc) + ': ' + s + '<br>');
+    $output.scrollTop($output[0].scrollHeight);
+  }
+
+  n64js.check = function(e, m) {
+    if (!e) {
+      n64js.log(m);
+    }
+  }
+
+  n64js.warn = function(m) {
+    n64js.log(m);
+  }
+
   n64js.halt = function (msg) {
     running = false;
     n64js.cpu0.halt = true;
@@ -1045,17 +1072,6 @@ if (typeof n64js === 'undefined') {
 
   })();
 
-  function AssertException(message) { this.message = message; }
-  AssertException.prototype.toString = function () {
-    return 'AssertException: ' + this.message;
-  }
-
-  function assert(e,m) {
-    if (!e) {
-      throw new AssertException(m);
-    }
-  }
-  n64js.assert = assert;
 
   // Read memory internal is used for stuff like the debugger. It shouldn't ever throw or change the state of the emulated program.
   n64js.readMemoryInternal32 = function (address) {
@@ -1116,10 +1132,6 @@ if (typeof n64js === 'undefined') {
     n64js.log('Need to handle interrupts');
   }
 
-  n64js.log = function (s) {
-    $output.append(toString32(n64js.cpu0.pc) + ': ' + s + '<br>');
-    $output.scrollTop($output[0].scrollHeight);
-  }
 
   n64js.toHex = function (r, bits) {
     r = Number(r);
