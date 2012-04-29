@@ -1249,7 +1249,7 @@ if (typeof n64js === 'undefined') {
     $rominfo.append($table);
   }
 
-  n64js.toHex = function (r, bits) {
+  function toHex(r, bits) {
     r = Number(r);
     if (r < 0) {
         r = 0xFFFFFFFF + r + 1;
@@ -1268,16 +1268,22 @@ if (typeof n64js === 'undefined') {
   }
 
   function toString8(v) {
-    return '0x' + n64js.toHex((v&0xff)>>>0, 8);
+    return '0x' + toHex((v&0xff)>>>0, 8);
   }
 
   function toString32(v) {
-    return '0x' + n64js.toHex(v, 32);
+    return '0x' + toHex(v, 32);
   }
 
   function toString64(lo, hi) {
-    var t = n64js.toHex(lo, 32);
-    var u = n64js.toHex(hi, 32);
+    var t = toHex(lo, 32);
+    var u = toHex(hi, 32);
     return '0x' + u + t;
   }
+
+  n64js.toHex      = toHex;
+  n64js.toString8  = toString8;
+  n64js.toString32 = toString32;
+  n64js.toString64 = toString64;
+
 })();
