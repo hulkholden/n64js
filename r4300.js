@@ -4,22 +4,27 @@ if (typeof n64js === 'undefined') {
 
 (function () {'use strict';
 
-  var cpu0 = {
-    gprLo   : new Uint32Array(32),
-    gprHi   : new Uint32Array(32),
-    control : new Uint32Array(32),
+  function CPU0() {
 
-    pc      : 0,
-    delayPC : 0,
+    this.gprLoMem = new ArrayBuffer(32*4);
+    this.gprHiMem = new ArrayBuffer(32*4);
 
-    halt : false,     // used to flag r4300 to cease execution
+    this.gprLo   = new Uint32Array(this.gprLoMem);
+    this.gprHi   = new Uint32Array(this.gprHiMem);
 
-    multHi : new Uint32Array(2),
-    multLo : new Uint32Array(2),
+    this.control = new Uint32Array(32);
 
-    opsExecuted : 0,
+    this.pc      = 0;
+    this.delayPC = 0;
 
-    reset : function () {
+    this.halt = false;     // used to flag r4300 to cease execution
+
+    this.multHi = new Uint32Array(2);
+    this.multLo = new Uint32Array(2);
+
+    this.opsExecuted = 0;
+
+    this.reset = function () {
 
       for (var i = 0; i < 32; ++i) {
         this.gprLo[i]   = 0;
@@ -34,87 +39,80 @@ if (typeof n64js === 'undefined') {
       this.multHi[0]   = this.multHi[1] = 0;
 
       this.opsExecuted = 0;
-    },
+    };
 
-    branch : function(new_pc) {
-      if (new_pc < 0) {
-        n64js.log('Oops, branching to negative address: ' + new_pc);
-        throw 'Oops, branching to negative address: ' + new_pc;
-      }
-      this.delayPC = new_pc;
-    },
-
-    gprRegisterNames : [
+    this.gprRegisterNames = [
             "r0", "at", "v0", "v1", "a0", "a1", "a2", "a3",
             "t0", "t1", "t2", "t3", "t4", "t5", "t6", "t7",
             "s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7",
             "t8", "t9", "k0", "k1", "gp", "sp", "s8", "ra",
-    ],
+    ];
 
     // General purpose register constants
-    kRegister_r0 : 0x00,
-    kRegister_at : 0x01,
-    kRegister_v0 : 0x02,
-    kRegister_v1 : 0x03,
-    kRegister_a0 : 0x04,
-    kRegister_a1 : 0x05,
-    kRegister_a2 : 0x06,
-    kRegister_a3 : 0x07,
-    kRegister_t0 : 0x08,
-    kRegister_t1 : 0x09,
-    kRegister_t2 : 0x0a,
-    kRegister_t3 : 0x0b,
-    kRegister_t4 : 0x0c,
-    kRegister_t5 : 0x0d,
-    kRegister_t6 : 0x0e,
-    kRegister_t7 : 0x0f,
-    kRegister_s0 : 0x10,
-    kRegister_s1 : 0x11,
-    kRegister_s2 : 0x12,
-    kRegister_s3 : 0x13,
-    kRegister_s4 : 0x14,
-    kRegister_s5 : 0x15,
-    kRegister_s6 : 0x16,
-    kRegister_s7 : 0x17,
-    kRegister_t8 : 0x18,
-    kRegister_t9 : 0x19,
-    kRegister_k0 : 0x1a,
-    kRegister_k1 : 0x1b,
-    kRegister_gp : 0x1c,
-    kRegister_sp : 0x1d,
-    kRegister_s8 : 0x1e,
-    kRegister_ra : 0x1f,
+    this.kRegister_r0 = 0x00;
+    this.kRegister_at = 0x01;
+    this.kRegister_v0 = 0x02;
+    this.kRegister_v1 = 0x03;
+    this.kRegister_a0 = 0x04;
+    this.kRegister_a1 = 0x05;
+    this.kRegister_a2 = 0x06;
+    this.kRegister_a3 = 0x07;
+    this.kRegister_t0 = 0x08;
+    this.kRegister_t1 = 0x09;
+    this.kRegister_t2 = 0x0a;
+    this.kRegister_t3 = 0x0b;
+    this.kRegister_t4 = 0x0c;
+    this.kRegister_t5 = 0x0d;
+    this.kRegister_t6 = 0x0e;
+    this.kRegister_t7 = 0x0f;
+    this.kRegister_s0 = 0x10;
+    this.kRegister_s1 = 0x11;
+    this.kRegister_s2 = 0x12;
+    this.kRegister_s3 = 0x13;
+    this.kRegister_s4 = 0x14;
+    this.kRegister_s5 = 0x15;
+    this.kRegister_s6 = 0x16;
+    this.kRegister_s7 = 0x17;
+    this.kRegister_t8 = 0x18;
+    this.kRegister_t9 = 0x19;
+    this.kRegister_k0 = 0x1a;
+    this.kRegister_k1 = 0x1b;
+    this.kRegister_gp = 0x1c;
+    this.kRegister_sp = 0x1d;
+    this.kRegister_s8 = 0x1e;
+    this.kRegister_ra = 0x1f;
 
     // Control register constants
-    kControlIndex     : 0,
-    kControlRand      : 1,
-    kControlEntryLo0  : 2,
-    kControlEntryLo1  : 3,
-    kControlContext   : 4,
-    kControlPageMask  : 5,
-    kControlWired     : 6,
+    this.kControlIndex     = 0;
+    this.kControlRand      = 1;
+    this.kControlEntryLo0  = 2;
+    this.kControlEntryLo1  = 3;
+    this.kControlContext   = 4;
+    this.kControlPageMask  = 5;
+    this.kControlWired     = 6;
     //...
-    kControlBadVAddr  : 8,
-    kControlCount     : 9,
-    kControlEntryHi   : 10,
-    kControlCompare   : 11,
-    kControlSR        : 12,
-    kControlCause     : 13,
-    kControlEPC       : 14,
-    kControlPRId      : 15,
-    kControlConfig    : 16,
-    kControlLLAddr    : 17,
-    kControlWatchLo   : 18,
-    kControlWatchHi   : 19,
+    this.kControlBadVAddr  = 8;
+    this.kControlCount     = 9;
+    this.kControlEntryHi   = 10;
+    this.kControlCompare   = 11;
+    this.kControlSR        = 12;
+    this.kControlCause     = 13;
+    this.kControlEPC       = 14;
+    this.kControlPRId      = 15;
+    this.kControlConfig    = 16;
+    this.kControlLLAddr    = 17;
+    this.kControlWatchLo   = 18;
+    this.kControlWatchHi   = 19;
     //...
-    kControlECC       : 26,
-    kControlCacheErr  : 27,
-    kControlTagLo     : 28,
-    kControlTagHi     : 29,
-    kControlErrorEPC  : 30
+    this.kControlECC       = 26;
+    this.kControlCacheErr  = 27;
+    this.kControlTagLo     = 28;
+    this.kControlTagHi     = 29;
+    this.kControlErrorEPC  = 30;
   };
 
   // Expose the cpu state
+  var cpu0 = new CPU0();
   n64js.cpu0 = cpu0;
 
 
@@ -141,6 +139,14 @@ if (typeof n64js === 'undefined') {
 
   function branchAddress(a,i) { return ((a+4) + (offset(i)*4))>>>0; }
   function   jumpAddress(a,i) { return ((a&0xf0000000) | (target(i)*4))>>>0; }
+
+  function performBranch(new_pc) {
+    if (new_pc < 0) {
+      n64js.log('Oops, branching to negative address: ' + new_pc);
+      throw 'Oops, branching to negative address: ' + new_pc;
+    }
+    cpu0.delayPC = new_pc;
+  }
 
   function setSignExtend(r,v) {
     cpu0.gprLo[r] = v;
@@ -194,7 +200,7 @@ if (typeof n64js === 'undefined') {
     setSignExtend( rd(i),  cpu0.gprLo[rt(i)] >>  (cpu0.gprLo[rs(i)] & 0x1f) );
   }
   function executeJR(a,i) {
-    cpu0.branch( cpu0.gprLo[rs(i)] );
+    performBranch( cpu0.gprLo[rs(i)] );
   }
   function executeJALR(a,i)       { unimplemented(a,i); }
   function executeSYSCALL(a,i)    { unimplemented(a,i); }
@@ -306,21 +312,21 @@ if (typeof n64js === 'undefined') {
     if ((cpu0.gprHi[rs(i)] & 0x80000000) !== 0) {
 
       // NB: if imms(i) == -1 then this is a branch to self/busywait
-      cpu0.branch( branchAddress(a,i) );
+      performBranch( branchAddress(a,i) );
     }
   }
   function executeBGEZ(a,i) {
     if ((cpu0.gprHi[rs(i)] & 0x80000000) === 0) {
 
       // NB: if imms(i) == -1 then this is a branch to self/busywait
-      cpu0.branch( branchAddress(a,i) );
+      performBranch( branchAddress(a,i) );
     }
   }
   function executeBLTZL(a,i) {
     if ((cpu0.gprHi[rs(i)] & 0x80000000) !== 0) {
 
       // NB: if imms(i) == -1 then this is a branch to self/busywait
-      cpu0.branch( branchAddress(a,i) );
+      performBranch( branchAddress(a,i) );
     } else {
       cpu0.pc += 4;   // skip the next instruction
     }
@@ -329,7 +335,7 @@ if (typeof n64js === 'undefined') {
     if ((cpu0.gprHi[rs(i)] & 0x80000000) === 0) {
 
       // NB: if imms(i) == -1 then this is a branch to self/busywait
-      cpu0.branch( branchAddress(a,i) );
+      performBranch( branchAddress(a,i) );
     } else {
       cpu0.pc += 4;   // skip the next instruction
     }
@@ -344,13 +350,13 @@ if (typeof n64js === 'undefined') {
   function executeBLTZAL(a,i) {
     setSignExtend(cpu0.kRegister_ra, cpu0.pc + 8);
     if ((cpu0.gprHi[rs(i)] & 0x80000000) !== 0) {
-      cpu0.branch( branchAddress(a,i) );
+      performBranch( branchAddress(a,i) );
     }
   }
   function executeBGEZAL(a,i) {
     setSignExtend(cpu0.kRegister_ra, cpu0.pc + 8);
     if ((cpu0.gprHi[rs(i)] & 0x80000000) === 0) {
-      cpu0.branch( branchAddress(a,i) );
+      performBranch( branchAddress(a,i) );
     }
   }
 
@@ -359,18 +365,20 @@ if (typeof n64js === 'undefined') {
   function executeJ(a,i)          { unimplemented(a,i); }
   function executeJAL(a,i) {
     setSignExtend(cpu0.kRegister_ra, cpu0.pc + 8);
-    cpu0.branch( jumpAddress(a,i) );
+    performBranch( jumpAddress(a,i) );
   }
+
   function executeBEQ(a,i) {
     if (cpu0.gprLo[rs(i)] === cpu0.gprLo[rt(i)]) {
       // NB: if imms(i) == -1 then this is a branch to self/busywait
-      cpu0.branch( branchAddress(a,i) );
+      performBranch( branchAddress(a,i) );
     }
   }
+
   function executeBNE(a,i)        {
     if (cpu0.gprLo[rs(i)] !== cpu0.gprLo[rt(i)]) {
       // NB: if imms(i) == -1 then this is a branch to self/busywait
-      cpu0.branch( branchAddress(a,i) );
+      performBranch( branchAddress(a,i) );
     }
   }
   function executeBLEZ(a,i)       { unimplemented(a,i); }
@@ -420,7 +428,7 @@ if (typeof n64js === 'undefined') {
         cpu0.gprLo[rs(i)] === cpu0.gprLo[rt(i)] ) {
 
       // NB: if imms(i) == -1 then this is a branch to self/busywait
-      cpu0.branch( branchAddress(a,i) );
+      performBranch( branchAddress(a,i) );
     } else {
       cpu0.pc += 4;   // skip the next instruction
     }
@@ -430,7 +438,7 @@ if (typeof n64js === 'undefined') {
         cpu0.gprLo[rs(i)] !== cpu0.gprLo[rt(i)] ) {
 
       // NB: if imms(i) == -1 then this is a branch to self/busywait
-      cpu0.branch( branchAddress(a,i) );
+      performBranch( branchAddress(a,i) );
     } else {
       cpu0.pc += 4;   // skip the next instruction
     }
@@ -442,7 +450,7 @@ if (typeof n64js === 'undefined') {
 
       // NB: if rs == r0 then this branch is always taken
       // NB: if imms(i) == -1 then this is a branch to self/busywait
-      cpu0.branch( branchAddress(a,i) );
+      performBranch( branchAddress(a,i) );
     } else {
       cpu0.pc += 4;   // skip the next instruction
     }
