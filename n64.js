@@ -157,7 +157,7 @@ if (typeof n64js === 'undefined') {
 
   n64js.halt = function (msg) {
     running = false;
-    n64js.cpu0.halt = true;
+    n64js.cpu0.halt();
     n64js.log(msg);
   }
 
@@ -304,6 +304,10 @@ if (typeof n64js === 'undefined') {
     $tb.append('<tr><td>MultHi</td><td class="fixed">' + toString64(cpu0.multHi[0], cpu0.multHi[1]) +
               '</td><td>MultLo</td><td class="fixed">' + toString64(cpu0.multLo[0], cpu0.multLo[1]) + '</td></tr>');
 
+    addSR($tb);
+    addCause($tb);
+    addMipsInterrupts($tb);
+
     var kRegistersPerRow = 2;
     for (var i = 0; i < 32; i+=kRegistersPerRow) {
       var $tr = $('<tr />');
@@ -324,6 +328,80 @@ if (typeof n64js === 'undefined') {
     }
 
     $registers.html($table);
+  }
+
+  function addSR($tb) {
+    var $tr = $('<tr />');
+    $tr.append( '<td>SR</td>' );
+
+
+    var SR_IE           = 0x00000001;
+    var SR_EXL          = 0x00000002;
+    var SR_ERL          = 0x00000004;
+    var SR_KSU_SUP      = 0x00000008;
+    var SR_KSU_USR      = 0x00000010;
+    var SR_UX           = 0x00000020;
+    var SR_SX           = 0x00000040;
+    var SR_KX           = 0x00000080;
+
+    var flag_names = ['IE', 'EXL', 'ERL' ];//, '', '', 'UX', 'SX', 'KX' ];
+
+    var sr = n64js.cpu0.control[n64js.cpu0.kControlSR];
+
+    var $td = $('<td />');
+    $td.append( toString32(sr) );
+    $td.append('&nbsp;');
+
+    for (var i = flag_names.length-1; i >= 0; --i) {
+      if (flag_names[i]) {
+        var is_set = (sr & (1<<i)) !== 0;
+
+        var $b = $('<span>' + flag_names[i] + '</span>');
+        if (is_set) {
+          $b.css('font-weight', 'bold');
+        }
+
+        $td.append($b);
+        $td.append('&nbsp;');
+      }
+    }
+
+    $tr.append($td);
+    $tb.append($tr);
+  }
+  function addCause($tb) {
+    var $tr = $('<tr />');
+    $tr.append( '<td>Cause</td>' );
+    $tr.append( '<td>' + toString32(n64js.cpu0.control[n64js.cpu0.kControlCause]) + '</td>' );
+    $tb.append($tr);
+  }
+
+  function addMipsInterrupts($tb) {
+    var mi_intr_names = ['SP', 'SI', 'AI', 'VI', 'PI', 'DP'];
+
+    var mi_intr_live = mi_reg.read32(MI_INTR_REG);
+    var mi_intr_mask = mi_reg.read32(MI_INTR_MASK_REG);
+
+    var $tr = $('<tr />');
+    $tr.append( '<td>MI Intr</td>' );
+    var $td = $('<td />');
+    for (var i = 0; i < mi_intr_names.length; ++i) {
+      var is_set     = (mi_intr_live & (1<<i)) !== 0;
+      var is_enabled = (mi_intr_mask & (1<<i)) !== 0;
+
+      var $b = $('<span>' + mi_intr_names[i] + '</span>');
+      if (is_set) {
+        $b.css('font-weight', 'bold');
+      }
+      if (is_enabled) {
+        $b.css('background-color', '#AFF4BB');
+      }
+
+      $td.append($b);
+      $td.append('&nbsp;');
+    }
+    $tr.append($td);
+    $tb.append($tr);
   }
 
   //
@@ -371,7 +449,7 @@ if (typeof n64js === 'undefined') {
     // If this is the first DMA write the ram size to 0x800003F0 (cic6105) or 0x80000318 (others)
     pi_reg.clearBits32(PI_STATUS_REG, PI_STATUS_DMA_BUSY);
     mi_reg.setBits32(MI_INTR_REG, MI_INTR_PI);
-    n64js.interruptUpdateCause3();
+    n64js.cpu0.updateCause3();
   }
 
   function PIUpdateControl() {
@@ -387,7 +465,7 @@ if (typeof n64js === 'undefined') {
         pif_ram[0x3f] = 0x00;
         si_reg.setBits32(SI_STATUS_REG, SI_STATUS_INTERRUPT);
         si_reg.setBits32(MI_INTR_REG,   MI_INTR_SI);
-        n64js.interruptUpdateCause3();
+        n64js.cpu0.updateCause3();
         break;
       case 0x10:
         n64js.log('PI: clear rom\n');
@@ -668,7 +746,7 @@ if (typeof n64js === 'undefined') {
 
     if (value & MI_CLR_DP_INTR) {
       mi_reg.clearBits32(MI_INTR_REG, MI_INTR_DP);
-      n64js.interruptUpdateCause3();
+      n64js.cpu0.updateCause3();
     }
   }
 
@@ -701,7 +779,7 @@ if (typeof n64js === 'undefined') {
 
     // Check if any interrupts are enabled now, and immediately trigger an interrupt
     if (mi_intr_mask_reg & mi_intr_reg) {
-      n64js.interruptUpdateCause3();
+      n64js.cpu0.updateCause3();
     }
   }
 
@@ -759,7 +837,7 @@ if (typeof n64js === 'undefined') {
         case AI_STATUS_REG:
           n64js.log('AI interrupt cleared');
           ai_reg.clearBits32(MI_INTR_REG, MI_INTR_AI);
-          n64js.interruptUpdateCause3();
+          n64js.cpu0.updateCause3();
           break;
 
         default:
@@ -791,7 +869,7 @@ if (typeof n64js === 'undefined') {
             n64js.log('VI interrupt cleared');
             this.mem.write32(ea, value);
             mi_reg.clearBits32(MI_INTR_REG, MI_INTR_VI);
-            n64js.interruptUpdateCause3();
+            n64js.cpu0.updateCause3();
             break;
 
         default:
@@ -832,7 +910,7 @@ if (typeof n64js === 'undefined') {
           if (value & PI_STATUS_CLR_INTR) {
             n64js.log('PI interrupt cleared');
             mi_reg.clearBits32(MI_INTR_REG, MI_INTR_PI);
-            n64js.interruptUpdateCause3();
+            n64js.cpu0.updateCause3();
           }
 
           break;
@@ -887,7 +965,7 @@ if (typeof n64js === 'undefined') {
           n64js.log('SI interrupt cleared');
           si_reg.clearBits32(SI_STATUS_REG, SI_STATUS_INTERRUPT);
           mi_reg.clearBits32(MI_INTR_REG,   MI_INTR_SI);
-          n64js.interruptUpdateCause3();
+          n64js.cpu0.updateCause3();
           break;
         default:
           n64js.log('Unhandled write to SIReg: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
@@ -1076,11 +1154,6 @@ if (typeof n64js === 'undefined') {
     }
     return handler.write8(address>>>0, value);
   }
-
-  n64js.interruptUpdateCause3 = function () {
-    n64js.log('Need to handle interrupts');
-  }
-
 
   var kBootstrapOffset = 0x40;
   var kGameOffset      = 0x1000;
@@ -1363,5 +1436,7 @@ if (typeof n64js === 'undefined') {
   n64js.toString16 = toString16;
   n64js.toString32 = toString32;
   n64js.toString64 = toString64;
+
+  n64js.mi_reg     = mi_reg;
 
 })();

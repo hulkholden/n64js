@@ -53,17 +53,46 @@ if (typeof n64js === 'undefined') {
 
   var SR_CUMASK       = 0xf0000000;
 
+  var CAUSE_BD        = 0x80000000;
+  var CAUSE_CEMASK    = 0x30000000;
+  var CAUSE_CESHIFT   = 28;
 
-  var CAUSE_SW1     = 0x00000100;
-  var CAUSE_SW2     = 0x00000200;
-  var CAUSE_IP3     = 0x00000400;
-  var CAUSE_IP4     = 0x00000800;
-  var CAUSE_IP5     = 0x00001000;
-  var CAUSE_IP6     = 0x00002000;
-  var CAUSE_IP7     = 0x00004000;
-  var CAUSE_IP8     = 0x00008000;
+  var CAUSE_SW1       = 0x00000100;
+  var CAUSE_SW2       = 0x00000200;
+  var CAUSE_IP3       = 0x00000400;
+  var CAUSE_IP4       = 0x00000800;
+  var CAUSE_IP5       = 0x00001000;
+  var CAUSE_IP6       = 0x00002000;
+  var CAUSE_IP7       = 0x00004000;
+  var CAUSE_IP8       = 0x00008000;
 
-  var CAUSE_IPMASK  = 0x0000FF00;
+  var CAUSE_IPMASK    = 0x0000FF00;
+
+  var CAUSE_IPSHIFT   = 8;
+
+  var CAUSE_EXCMASK   = 0x0000007C;
+
+  var CAUSE_EXCSHIFT  = 2;
+
+  var EXC_INT         = 0;
+  var EXC_MOD         = 4;
+  var EXC_RMISS       = 8;
+  var EXC_WMISS       = 12;
+  var EXC_RADE        = 16;
+  var EXC_WADE        = 20;
+  var EXC_IBE         = 24;
+  var EXC_DBE         = 28;
+  var EXC_SYSCALL     = 32;
+  var EXC_BREAK       = 36;
+  var EXC_II          = 40;
+  var EXC_CPU         = 44;
+  var EXC_OV          = 48;
+  var EXC_TRAP        = 52;
+  var EXC_VCEI        = 56;
+  var EXC_FPE         = 60;
+  var EXC_WATCH       = 92;
+  var EXC_VCED        = 124;
+
 
   var FPCSR_RM_RN     = 0x00000000;
   var FPCSR_RM_RZ     = 0x00000001;
@@ -131,6 +160,10 @@ if (typeof n64js === 'undefined') {
   var TLBPGMASK_1M      = 0x001fe000;
   var TLBPGMASK_4M      = 0x007fe000;
   var TLBPGMASK_16M     = 0x01ffe000;
+
+
+  var kStuffToDoHalt            = 1<<0;
+  var kStuffToDoCheckInterrupts = 1<<1;
 
   function TLBEntry() {
     this.pagemask = 0;
@@ -219,7 +252,7 @@ if (typeof n64js === 'undefined') {
     this.pc             = 0;
     this.delayPC        = 0;
 
-    this.halt           = false;     // used to flag r4300 to cease execution
+    this.stuffToDo      = 0;     // used to flag r4300 to cease execution
 
     this.multHi         = new Uint32Array(2);
     this.multLo         = new Uint32Array(2);
@@ -252,25 +285,85 @@ if (typeof n64js === 'undefined') {
       this.control[this.kControlConfig] = 0x0006e463;
     };
 
+    this.halt = function () {
+      this.stuffToDo |= kStuffToDoHalt;
+    }
+
+    this.updateCause3 = function () {
+      var interrupts_masked = (n64js.mi_reg.read32(MI_INTR_MASK_REG) & n64js.mi_reg.read32(MI_INTR_REG)) === 0;
+      if (interrupts_masked) {
+        this.control[this.kControlCause] &= ~CAUSE_IP3;
+      } else {
+        this.control[this.kControlCause] |=  CAUSE_IP3;
+
+        if (this.checkForUnmaskedInterrupts()) {
+          this.stuffToDo |= kStuffToDoCheckInterrupts;
+        }
+      }
+
+      checkCauseIP3Consistent();
+    }
+
     this.setSR = function (value) {
       var old_value = this.control[this.kControlSR];
       if ((old_value & SR_FR) !== (value & SR_FR)) {
         n64js.log('Changing FPU to ' + ((value & SR_FR) ? '64bit' : '32bit' ));
       }
 
-      var interrupts_enabled_before = (old_value & SR_IE) != 0;
-
       this.control[this.kControlSR] = value;
 
-      var interrupts_enabled_after  = (value & SR_IE) != 0;
+      if (this.checkForUnmaskedInterrupts()) {
+        this.stuffToDo |= kStuffToDoCheckInterrupts;
+      }
+    };
 
-      if (!interrupts_enabled_before && interrupts_enabled_after) {
-        if ((value & this.control[this.kControlCause] & CAUSE_IPMASK) !== 0) {
-          n64js.halt('Need to add job to check interrupts here');
+    this.checkForUnmaskedInterrupts = function () {
+      var sr = this.control[this.kControlSR];
+
+      // Ensure ERL/EXL are clear and IE is set
+      if ((sr & (SR_EXL | SR_ERL | SR_IE)) === SR_IE) {
+
+        // Check if interrupts are actually pending, and wanted
+        var cause = this.control[this.kControlCause];
+
+        if ((sr & cause & CAUSE_IPMASK) !== 0) {
+          return true;
         }
       }
 
-    };
+      return false;
+    }
+
+    var E_VEC         = 0x80000180;
+
+
+    this.handleInterrupt = function () {
+      if (this.checkForUnmaskedInterrupts()) {
+          this.setException( CAUSE_EXCMASK, EXC_INT );
+          this.jumpToInterruptVector( E_VEC );
+      } else {
+        n64js.assert(false, "Was expecting an unmasked interrupt - something wrong with kStuffToDoCheckInterrupts?");
+      }
+    }
+
+    this.setException = function (mask, exception) {
+      this.control[this.kControlCause] &= ~mask;
+      this.control[this.kControlCause] |= exception
+    }
+
+    this.jumpToInterruptVector = function (vec) {
+      this.control[this.kControlSR]  |= SR_EXL;
+      this.control[this.kControlEPC]  = this.pc;
+      if (this.delayPC) {
+        this.control[this.kControlCause] |= CAUSE_BD;
+        this.control[this.kControlEPC]   -= 4;
+      } else {
+        this.control[this.kControlCause] &= ~CAUSE_BD;
+      }
+
+      this.pc      = vec;
+      this.delayPC = 0;
+    }
 
     this.setCompare = function (value) {
       this.control[this.kControlCause] &= ~CAUSE_IP8;
@@ -780,14 +873,15 @@ if (typeof n64js === 'undefined') {
   function executeTEQ(a,i)        { unimplemented(a,i); }
   function executeTNE(a,i)        { unimplemented(a,i); }
 
+  var MI_INTR_REG         = 0x08;
+  var MI_INTR_MASK_REG    = 0x0C;
+
   function executeMFC0(a,i) {
     var control_reg = fs(i);
 
     // Check consistency
     if (control_reg === cpu0.kControlCause) {
-      var mi_interrupt_set = (mi_reg.read32(MI_INTR_MASK_REG) & mi_reg.read32(MI_INTR_REG)) !== 0;
-      var cause_int_3_set  = (cpu0.control[cpu0.kControlCause] & CAUSE_IP3) !== 0;
-      n64js.assert(mi_interrupt_set === cause_int_3_set, "CAUSE_IP3 inconsistent with MI_INTR_REG");
+      checkCauseIP3Consistent();
     }
 
     if (control_reg === cpu0.kControlRand) {
@@ -1483,16 +1577,24 @@ if (typeof n64js === 'undefined') {
     return simpleTable[opcode](a,i);
   }
 
+  function checkCauseIP3Consistent() {
+    var mi_interrupt_set = (n64js.mi_reg.read32(MI_INTR_MASK_REG) & n64js.mi_reg.read32(MI_INTR_REG)) !== 0;
+    var cause_int_3_set  = (cpu0.control[cpu0.kControlCause] & CAUSE_IP3) !== 0;
+    n64js.assert(mi_interrupt_set === cause_int_3_set, 'CAUSE_IP3 inconsistent with MI_INTR_REG');
+  }
+
   n64js.step = function () {
     n64js.run(1);
   }
 
   n64js.run = function (cycles) {
 
-    cpu0.halt = false;
+    cpu0.stuffToDo &= ~kStuffToDoHalt;
 
-    for (var i = 0; i < cycles && !cpu0.halt; ++i) {
-        try {
+    checkCauseIP3Consistent();
+
+    try {
+      for (var i = 0; i < cycles && !cpu0.stuffToDo; ++i) {
           var pc  = cpu0.pc;
           var dpc = cpu0.delayPC;
 
@@ -1506,13 +1608,19 @@ if (typeof n64js === 'undefined') {
             cpu0.pc      += 4;
           }
 
-          ++cpu0.opsExecuted;
+          //checkCauseIP3Consistent();
 
-        } catch (e) {
-          n64js.halt('Exception :' + e);
-          break;
-        }
+          ++cpu0.opsExecuted;
+      }
+    } catch (e) {
+      n64js.halt('Exception :' + e);
     }
+
+    if (cpu0.stuffToDo & kStuffToDoCheckInterrupts) {
+      cpu0.stuffToDo &= ~kStuffToDoCheckInterrupts;
+      cpu0.handleInterrupt();
+    }
+
 
     n64js.refreshDisplay();
   }
