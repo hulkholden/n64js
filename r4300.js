@@ -91,6 +91,119 @@ if (typeof n64js === 'undefined') {
   var FPCSR_RM_MASK   = 0x00000003;
 
 
+  var TLBHI_VPN2MASK    = 0xffffe000;
+  var TLBHI_VPN2SHIFT   = 13;
+  var TLBHI_PIDMASK     = 0xff;
+  var TLBHI_PIDSHIFT    = 0;
+  var TLBHI_NPID        = 255;
+
+  var TLBLO_PFNMASK     = 0x3fffffc0;
+  var TLBLO_PFNSHIFT    = 6;
+  var TLBLO_CACHMASK    = 0x38;
+  var TLBLO_CACHSHIFT   = 3;
+  var TLBLO_UNCACHED    = 0x10;
+  var TLBLO_NONCOHRNT   = 0x18;
+  var TLBLO_EXLWR       = 0x28;
+  var TLBLO_D           = 0x4;
+  var TLBLO_V           = 0x2;
+  var TLBLO_G           = 0x1;
+
+  var TLBINX_PROBE      = 0x80000000;
+  var TLBINX_INXMASK    = 0x3f;
+  var TLBINX_INXSHIFT   = 0;
+
+  var TLBRAND_RANDMASK  = 0x3f;
+  var TLBRAND_RANDSHIFT = 0;
+
+  var TLBWIRED_WIREDMASK  = 0x3f;
+
+  var TLBCTXT_BASEMASK  = 0xff800000;
+  var TLBCTXT_BASESHIFT = 23;
+  var TLBCTXT_BASEBITS  = 9;
+
+  var TLBCTXT_VPNMASK   = 0x7ffff0;
+  var TLBCTXT_VPNSHIFT  = 4;
+
+  var TLBPGMASK_4K      = 0x0;
+  var TLBPGMASK_16K     = 0x6000;
+  var TLBPGMASK_64K     = 0x1e000;
+  var TLBPGMASK_256K    = 0x0007e000;
+  var TLBPGMASK_1M      = 0x001fe000;
+  var TLBPGMASK_4M      = 0x007fe000;
+  var TLBPGMASK_16M     = 0x01ffe000;
+
+  function TLBEntry() {
+    this.pagemask = 0;
+    this.hi       = 0;
+    this.pfne     = 0;
+    this.pfno     = 0;
+    this.mask     = 0;
+    this.global   = 0;
+  }
+
+  TLBEntry.prototype = {
+    update : function(index, pagemask, hi, entrylo0, entrylo1) {
+      n64js.log('TLB update: index=' + index +
+                ', pagemask=' + n64js.toString32(pagemask) +
+                ', entryhi='  + n64js.toString32(hi) +
+                ', entrylo0=' + n64js.toString32(entrylo0) +
+                ', entrylo1=' + n64js.toString32(entrylo1)
+              );
+
+      this.pagemask = pagemask;
+      this.hi       = hi;
+      this.pfne     = entrylo0;
+      this.pfno     = entrylo1;
+
+      this.global   = (entrylo0 & entrylo1 & TLBLO_G);
+
+      this.mask     = pagemask | (~TLBHI_VPN2MASK);
+      this.mask2    = this.mask>>>1;
+      this.vpnmask  = (~this.mask)>>>0;
+      this.vpn2mask = this.vpnmask>>>1;
+
+      this.addrcheck = (hi & this.vpnmask)>>>0;
+
+      this.pfnehi = (this.pfne << TLBLO_PFNSHIFT) & this.vpn2mask;
+      this.pfnohi = (this.pfno << TLBLO_PFNSHIFT) & this.vpn2mask;
+
+      switch (this.pagemask) {
+        case TLBPGMASK_4K:
+          n64js.log('       4k Pagesize');
+          this.checkbit = 0x00001000;   // bit 12
+          break;
+        case TLBPGMASK_16K:
+          n64js.log('       16k Pagesize');
+          this.checkbit = 0x00004000;   // bit 14
+          break;
+        case TLBPGMASK_64K:
+          n64js.log('       64k Pagesize');
+          this.checkbit = 0x00010000;   // bit 16
+          break;
+        case TLBPGMASK_256K:
+          n64js.log('       256k Pagesize');
+          this.checkbit = 0x00040000;   // bit 18
+          break;
+        case TLBPGMASK_1M:
+          n64js.log('       1M Pagesize');
+          this.checkbit = 0x00100000;   // bit 20
+          break;
+        case TLBPGMASK_4M:
+          n64js.log('       4M Pagesize');
+          this.checkbit = 0x00400000;   // bit 22
+          break;
+        case TLBPGMASK_16M:
+          n64js.log('       16M Pagesize');
+          this.checkbit = 0x01000000;   // bit 24
+          break;
+        default: // should not happen!
+          n64js.log('       Unknown Pagesize');
+          this.checkbit = 0;
+          break;
+        }
+    }
+  };
+
   function CPU0() {
 
     this.gprLoMem       = new ArrayBuffer(32*4);
@@ -112,6 +225,11 @@ if (typeof n64js === 'undefined') {
     this.multLo         = new Uint32Array(2);
 
     this.opsExecuted    = 0;
+
+    this.tlbEntries = [];
+    for (var i = 0; i < 32; ++i) {
+      this.tlbEntries.push(new TLBEntry());
+    }
 
     this.reset = function () {
 
@@ -185,12 +303,58 @@ if (typeof n64js === 'undefined') {
       var entrylo1 = this.control[this.kControlEntryLo1];
       var entrylo0 = this.control[this.kControlEntryLo0];
 
-      n64js.log('TLB update: index=' + index +
-                ', pagemask=' + n64js.toString32(pagemask) +
-                ', entryhi='  + n64js.toString32(entryhi) +
-                ', entrylo0=' + n64js.toString32(entrylo0) +
-                ', entrylo1=' + n64js.toString32(entrylo1)
-              );
+      this.tlbEntries[index].update(index, pagemask, entryhi, entrylo0, entrylo1);
+    }
+
+    this.tlbFindEntry = function (address) {
+      for(var count = 0; count < 32; ++count) {
+        // NB should put mru cache here
+        var i = count;
+
+        var tlb = this.tlbEntries[i];
+
+        if ((address & tlb.vpnmask) === tlb.addrcheck) {
+          if (!tlb.global) {
+            var ehi = this.control[this.kControlEntryHi];
+            if ((tlb.hi & TLBHI_PIDMASK) !== (ehi & TLBHI_PIDMASK) ) {
+              // Entries ASID must match
+              continue;
+            }
+          }
+
+          return tlb;
+        }
+      }
+
+      return null;
+    }
+
+    this.translate = function (address) {
+      var tlb = this.tlbFindEntry(address);
+      if (tlb) {
+          var valid;
+          var physical_addr;
+          if (address & tlb.checkbit) {
+            valid         = (tlb.pfno & TLBLO_V) !== 0;
+            physical_addr = tlb.pfnohi | (address & tlb.mask2);
+          } else {
+            valid         = (tlb.pfne & TLBLO_V) !== 0;
+            physical_addr = tlb.pfnehi | (address & tlb.mask2);
+          }
+
+          if (!valid) {
+            n64js.halt('Need to throw tlbinvalid for ' + n64js.toString32(address));
+          } else {
+            n64js.halt('Translated ' + n64js.toString32(address) + ' to ' + n64js.toString32(physical_addr));
+          }
+
+          return valid ? physical_addr : 0;
+
+      } else {
+        // throw TLBRefll
+        n64js.halt('Need to throw tlbrefill for ' + n64js.toString32(address));
+        return 0;
+      }
     }
 
     // General purpose register constants
@@ -404,12 +568,18 @@ if (typeof n64js === 'undefined') {
     cpu0.gprHi[rd(i)] = cpu0.multHi[1]; 
     cpu0.gprLo[rd(i)] = cpu0.multHi[0]; 
   }
-  function executeMTHI(a,i)       { unimplemented(a,i); }
   function executeMFLO(a,i) {
     cpu0.gprHi[rd(i)] = cpu0.multLo[1]; 
     cpu0.gprLo[rd(i)] = cpu0.multLo[0]; 
   }
-  function executeMTLO(a,i)       { unimplemented(a,i); }
+  function executeMTHI(a,i) {
+    cpu0.multHi[0] = cpu0.gprLo[rs(i)];
+    cpu0.multHi[1] = cpu0.gprHi[rs(i)];
+  }
+  function executeMTLO(a,i)  {
+    cpu0.multLo[0] = cpu0.gprLo[rs(i)];
+    cpu0.multLo[1] = cpu0.gprHi[rs(i)];
+  }
 
   function executeMULT(a,i) {
     var result = cpu0.gprLo_signed[rs(i)] * cpu0.gprLo_signed[rt(i)];   // needs to be 64-bit!
@@ -502,12 +672,26 @@ if (typeof n64js === 'undefined') {
   }
 
   function executeNOR(a,i)        { unimplemented(a,i); }
+
+
+  // ffffffff fffffff0    // -16          false
+  // ffffffff 00000001    // -4294967295
+
+  // 00000000 fffffff0    // 4294967280   false
+  // 00000000 00000001    // 1
+
+  // 00000000 fffffff0    // 4294967280
+  // ffffffff 00000001    // -4294967295  false
+
+  // ffffffff fffffff0    // -16  true
+  // 00000000 00000001    // 1
+
   function executeSLT(a,i) {
     var r = 0;
-    // FIXME: this needs to do a signed compare. 
-    if (cpu0.gprHi[rs(i)] < cpu0.gprHi[rt(i)] ||
-        (cpu0.gprHi[rs(i)] === cpu0.gprHi[rt(i)] && cpu0.gprLo[rs(i)] < cpu0.gprLo[rt(i)])) {
+    if (cpu0.gprHi_signed[rs(i)] < cpu0.gprHi_signed[rt(i)]) {
       r = 1;
+    } else if (cpu0.gprHi_signed[rs(i)] === cpu0.gprHi_signed[rt(i)]) {
+      r = cpu0.gprLo[rs(i)] < cpu0.gprLo[rt(i)];
     }
     setZeroExtend(rd(i), r);
   }
@@ -615,7 +799,19 @@ if (typeof n64js === 'undefined') {
     cpu0.setTLB(cpu0.getRandom());
   }
   function executeTLBP(a,i)       { unimplemented(a,i); }
-  function executeERET(a,i)       { unimplemented(a,i); }
+
+
+  function executeERET(a,i) {
+    if (cpu0.control[cpu0.kControlSR] & SR_ERL) {
+      cpu0.pc = cpu0.control[cpu0.kControlErrorEPC]-4;    // -4 is to compensate for post-inc in interpreter loop
+      cpu0.control[cpu0.kControlSR] &= ~SR_ERL;
+      n64js.halt('ERET from error trap - ' + cpu0.pc);
+    } else {
+      cpu0.pc = cpu0.control[cpu0.kControlEPC]-4;         // -4 is to compensate for post-inc in interpreter loop
+      cpu0.control[cpu0.kControlSR] &= ~SR_EXL;
+      n64js.halt('ERET from interrupt/exception ' + cpu0.pc);
+    }
+  }
 
   function executeTGEI(a,i)       { unimplemented(a,i); }
   function executeTGEIU(a,i)      { unimplemented(a,i); }
@@ -786,13 +982,42 @@ if (typeof n64js === 'undefined') {
     var v = imms(i);
     setSignExtend(rt(i), a + v);
   }
+
   function executeSLTI(a,i) {
-    // FIXME: this needs to do a full 64bit compare?
-    cpu0.gprHi[rt(i)] = 0;
-    cpu0.gprLo[rt(i)] = cpu0.gprLo[rs(i)] < imms(i) ? 1 : 0;
+    var s         = rs(i);
+    var t         = rt(i);
+
+    var immediate = imms(i);
+    var imm_hi    = immediate >> 31;
+    var s_hi      = cpu0.gprHi_signed[s];
+
+    if (s_hi === imm_hi) {
+      cpu0.gprLo[t] = cpu0.gprLo[s] < (immediate>>>0);    // NB signed compare
+    } else {
+      cpu0.gprLo[t] = s_hi < imm_hi;
+      n64js.halt('SLTI upper diff');
+    }
+    cpu0.gprHi[t] = 0;
   }
-  function executeSLTIU(a,i)      { unimplemented(a,i); }
-  
+  function executeSLTIU(a,i) {
+    var s         = rs(i);
+    var t         = rt(i);
+
+    // NB: immediate value is still sign-extended, but treated as unsigned
+    var immediate = imms(i);
+    var imm_hi    = immediate >> 31;
+    var s_hi      = cpu0.gprHi_signed[s];
+
+    if (s_hi === imm_hi) {
+      cpu0.gprLo[t] = cpu0.gprLo[s] < (immediate>>>0);
+      n64js.halt('SLTIU upper same');
+    } else {
+      cpu0.gprLo[t] = (s_hi>>>0) < (imm_hi>>>0);
+    }
+    cpu0.gprHi[t] = 0;
+
+  }
+
   function executeANDI(a,i) {
     cpu0.gprHi[rt(i)] = 0;    // always 0, as sign extended immediate value is always 0
     cpu0.gprLo[rt(i)] = cpu0.gprLo[rs(i)] & imm(i);    

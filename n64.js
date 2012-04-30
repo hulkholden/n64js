@@ -587,6 +587,7 @@ if (typeof n64js === 'undefined') {
   var ri_reg        = new Memory(new ArrayBuffer(0x20));
   var si_reg        = new Memory(new ArrayBuffer(0x1c));
 
+  var mapped_mem_handler         = new Device("VMEM",     null,         0x00000000, 0x80000000);
   var rdram_handler_cached       = new Device("RAM",      ram,          0x80000000, 0x80800000);
   var rdram_handler_uncached     = new Device("RAM",      ram,          0xa0000000, 0xa0800000);
   var rdram_reg_handler_uncached = new Device("RDRAMReg", rdram_reg,    0xa3f00000, 0xa4000000);
@@ -605,6 +606,36 @@ if (typeof n64js === 'undefined') {
   rdram_handler_cached.quiet    = true;
   rdram_handler_uncached.quiet  = true;
   sp_mem_handler_uncached.quiet = true;
+
+  mapped_mem_handler.readInternal32 = function(address) {
+    return 0xffffffff;
+  }
+  mapped_mem_handler.read32 = function(address) {
+    if (!this.quiet) n64js.log('Reading from ' + this.name + ': ' + toString32(address) );
+    var ea = this.calcEA(address);
+
+    var mapped = n64js.cpu0.translate(ea);
+
+    throw 'mapped read32 - ' + toString32(ea) + ' -> ' + toString32(mapped);
+  }
+  mapped_mem_handler.read16 = function(address) {
+    throw 'mapped read16 unhandled';
+  }
+  mapped_mem_handler.read8 = function(address) {
+    throw 'mapped read8 unhandled';
+  }
+
+  mapped_mem_handler.write32 = function (address, value) {
+    throw 'Writing to vram';
+  };
+  mapped_mem_handler.write16 = function (address, value) {
+    throw 'Writing to vram';
+  };
+  mapped_mem_handler.write8 = function (address, value) {
+    throw 'Writing to vram';
+  };
+
+
 
   rom_handler_uncached.write32 = function (address, value) {
     throw 'Writing to rom';
@@ -941,6 +972,7 @@ if (typeof n64js === 'undefined') {
       map[i] = undefined;
 
     [
+     mapped_mem_handler,
           rdram_handler_cached,
           rdram_handler_uncached,
          sp_mem_handler_uncached,
