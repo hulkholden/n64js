@@ -17,6 +17,7 @@ if (typeof n64js === 'undefined') {
   function _op(i)     { return (i>>>26)&0x3f; }
 
   function _tlbop(i)  { return i&0x3f; }
+  function _cop1_func(i) { return i&0x3f; }
 
   function _target(i) { return (i     )&0x3ffffff; }
   function _imm(i)    { return (i     )&0xffff; }
@@ -85,10 +86,11 @@ if (typeof n64js === 'undefined') {
     writesRA  : function()  { this.dstRegs[n64js.cpu0.kRegister_ra] = 1; return ''; },
 
     // cop1 regs
-    ft_d : function () { var reg = cop1RegisterNames[_rt(this.opcode)]; this.dstRegs[reg] = 1; return makeRegSpan(reg); },
-    fd   : function () { var reg = cop1RegisterNames[_rd(this.opcode)]; this.dstRegs[reg] = 1; return makeRegSpan(reg); },
-    ft   : function () { var reg = cop1RegisterNames[_rt(this.opcode)]; this.srcRegs[reg] = 1; return makeRegSpan(reg); },
-    fs   : function () { var reg = cop1RegisterNames[_rs(this.opcode)]; this.srcRegs[reg] = 1; return makeRegSpan(reg); },
+    ft_d : function () { var reg = cop1RegisterNames[_ft(this.opcode)]; this.dstRegs[reg] = 1; return makeRegSpan(reg); },
+    fs_d : function () { var reg = cop1RegisterNames[_fs(this.opcode)]; this.dstRegs[reg] = 1; return makeRegSpan(reg); },
+    fd   : function () { var reg = cop1RegisterNames[_fd(this.opcode)]; this.dstRegs[reg] = 1; return makeRegSpan(reg); },
+    ft   : function () { var reg = cop1RegisterNames[_ft(this.opcode)]; this.srcRegs[reg] = 1; return makeRegSpan(reg); },
+    fs   : function () { var reg = cop1RegisterNames[_fs(this.opcode)]; this.srcRegs[reg] = 1; return makeRegSpan(reg); },
 
     // cop2 regs
     gt_d : function () { var reg = cop2RegisterNames[_rt(this.opcode)]; this.dstRegs[reg] = 1; return makeRegSpan(reg); },
@@ -237,13 +239,71 @@ if (typeof n64js === 'undefined') {
     return cop0Table[fmt](i);
   }
 
+  function disassembleCop1Instr(i, fmt) {
+    switch(_cop1_func(i.opcode)) {
+      case 0x00:    return 'ADD.' + fmt + '     ' + i.fd() + ' = ' + i.fs() + ' + ' + i.ft();
+      case 0x01:    return 'SUB.' + fmt + '     ' + i.fd() + ' = ' + i.fs() + ' - ' + i.ft();
+      case 0x02:    return 'MUL.' + fmt + '     ' + i.fd() + ' = ' + i.fs() + ' * ' + i.ft();
+      case 0x03:    return 'DIV.' + fmt + '     ' + i.fd() + ' = ' + i.fs() + ' / ' + i.ft();
+      case 0x04:    return 'SQRT.' + fmt + '    ' + i.fd() + ' = sqrt(' + i.fs() + ')';
+      case 0x05:    return 'ABS.' + fmt + '     ' + i.fd() + ' = abs(' + i.fs() + ')';
+      case 0x06:    return 'MOV.' + fmt + '     ' + i.fd() + ' = ' + i.fs();
+      case 0x07:    return 'NEG.' + fmt + '     ' + i.fd() + ' = -' + i.fs();
+      case 0x08:    return 'ROUND.L.' + fmt + ' ' + i.fd() + ' = round.l(' + i.fs() + ')';
+      case 0x09:    return 'TRUNC.L.' + fmt + ' ' + i.fd() + ' = trunc.l(' + i.fs() + ')';
+      case 0x0a:    return 'CEIL.L.' + fmt + '  ' + i.fd() + ' = ceil.l(' + i.fs() + ')';
+      case 0x0b:    return 'FLOOR.L.' + fmt + ' ' + i.fd() + ' = floor.l(' + i.fs() + ')';
+      case 0x0c:    return 'ROUND.W.' + fmt + ' ' + i.fd() + ' = round.w(' + i.fs() + ')';
+      case 0x0d:    return 'TRUNC.W.' + fmt + ' ' + i.fd() + ' = trunc.w(' + i.fs() + ')';
+      case 0x0e:    return 'CEIL.W.' + fmt + '  ' + i.fd() + ' = ceil.w(' + i.fs() + ')';
+      case 0x0f:    return 'FLOOR.W.' + fmt + ' ' + i.fd() + ' = floor.w(' + i.fs() + ')';
+
+      case 0x20:    return 'CVT.S.' + fmt + '   ' + i.fd() + ' = (s)' + i.fs();
+      case 0x21:    return 'CVT.D.' + fmt + '   ' + i.fd() + ' = (d)' + i.fs();
+      case 0x24:    return 'CVT.W.' + fmt + '   ' + i.fd() + ' = (w)' + i.fs();
+      case 0x25:    return 'CVT.L.' + fmt + '   ' + i.fd() + ' = (l)' + i.fs();
+
+      case 0x30:    return 'C.F.' + fmt + '     c = ' + i.fs() + ' cmp ' + i.ft();
+      case 0x31:    return 'C.UN.' + fmt + '    c = ' + i.fs() + ' cmp ' + i.ft();
+      case 0x32:    return 'C.EQ.' + fmt + '    c = ' + i.fs() + ' cmp ' + i.ft();
+      case 0x33:    return 'C.UEQ.' + fmt + '   c = ' + i.fs() + ' cmp ' + i.ft();
+      case 0x34:    return 'C.OLT.' + fmt + '   c = ' + i.fs() + ' cmp ' + i.ft();
+      case 0x35:    return 'C.ULT.' + fmt + '   c = ' + i.fs() + ' cmp ' + i.ft();
+      case 0x36:    return 'C.OLE.' + fmt + '   c = ' + i.fs() + ' cmp ' + i.ft();
+      case 0x37:    return 'C.ULE.' + fmt + '   c = ' + i.fs() + ' cmp ' + i.ft();
+      case 0x38:    return 'C.SF.' + fmt + '    c = ' + i.fs() + ' cmp ' + i.ft();
+      case 0x39:    return 'C.NGLE.' + fmt + '  c = ' + i.fs() + ' cmp ' + i.ft();
+      case 0x3a:    return 'C.SEQ.' + fmt + '   c = ' + i.fs() + ' cmp ' + i.ft();
+      case 0x3b:    return 'C.NGL.' + fmt + '   c = ' + i.fs() + ' cmp ' + i.ft();
+      case 0x3c:    return 'C.LT.' + fmt + '    c = ' + i.fs() + ' cmp ' + i.ft();
+      case 0x3d:    return 'C.NGE.' + fmt + '   c = ' + i.fs() + ' cmp ' + i.ft();
+      case 0x3e:    return 'C.LE.' + fmt + '    c = ' + i.fs() + ' cmp ' + i.ft();
+      case 0x3f:    return 'C.NGT.' + fmt + '   c = ' + i.fs() + ' cmp ' + i.ft();
+    }
+
+    return 'Cop1.' + fmt + n64js.toHex(_cop1_func(i.opcode),8) + '?';
+  }
+  function disassembleCop1SInstr(i) {
+    return disassembleCop1Instr(i, 'S');
+  }
+  function disassembleCop1DInstr(i) {
+    return disassembleCop1Instr(i, 'D');
+  }
+  function disassembleCop1WInstr(i) {
+    return disassembleCop1Instr(i, 'W');
+  }
+  function disassembleCop1LInstr(i) {
+    return disassembleCop1Instr(i, 'D');
+  }
+
+
   var cop1Table = [
-    function (i) { return 'MFC1      '; },
-    function (i) { return 'DMFC1     '; },
-    function (i) { return 'CFC1      ' + i.rt() + ' <-- CCR' + _rd(i.opcode); },
+    function (i) { return 'MFC1      ' + i.rt_d() + ' <-- ' + i.fs(); },
+    function (i) { return 'DMFC1     ' + i.rt_d() + ' <-- ' + i.fs(); },
+    function (i) { return 'CFC1      ' + i.rt_d() + ' <-- CCR' + _rd(i.opcode); },
     function (i) { return 'Unk'; },
-    function (i) { return 'MTC1      '; },
-    function (i) { return 'DMTC1     '; },
+    function (i) { return 'MTC1      ' + i.rt() + ' --> ' + i.fs_d(); },
+    function (i) { return 'DMTC1     ' + i.rt() + ' --> ' + i.fs_d(); },
     function (i) { return 'CTC1      ' + i.rt() + ' --> CCR' + _rd(i.opcode); },
     function (i) { return 'Unk'; },
     function (i) { return 'BCInstr'; },
@@ -255,12 +315,12 @@ if (typeof n64js === 'undefined') {
     function (i) { return 'Unk'; },
     function (i) { return 'Unk'; },
 
-    function (i) { return 'SInstr'; },
-    function (i) { return 'DInstr'; },
+    disassembleCop1SInstr,
+    disassembleCop1DInstr,
     function (i) { return 'Unk'; },
     function (i) { return 'Unk'; },
-    function (i) { return 'WInstr'; },
-    function (i) { return 'LInstr'; },
+    disassembleCop1WInstr,
+    disassembleCop1LInstr,
     function (i) { return 'Unk'; },
     function (i) { return 'Unk'; },
     function (i) { return 'Unk'; },
@@ -294,8 +354,8 @@ if (typeof n64js === 'undefined') {
   }
 
   var regImmTable = [
-    function (i) { return 'BLTZ     '  + i.rs() +  ' < 0 --> ' + i.branchAddress(); },
-    function (i) { return 'BGEZ     '  + i.rs() + ' >= 0 --> ' + i.branchAddress(); },
+    function (i) { return 'BLTZ      ' + i.rs() +  ' < 0 --> ' + i.branchAddress(); },
+    function (i) { return 'BGEZ      ' + i.rs() + ' >= 0 --> ' + i.branchAddress(); },
     function (i) { return 'BLTZL     ' + i.rs() +  ' < 0 --> ' + i.branchAddress(); },
     function (i) { return 'BGEZL     ' + i.rs() + ' >= 0 --> ' + i.branchAddress(); },
     function (i) { return 'Unk'; },
