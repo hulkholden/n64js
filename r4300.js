@@ -124,9 +124,9 @@ if (typeof n64js === 'undefined') {
   var TLBCTXT_VPNMASK   = 0x7ffff0;
   var TLBCTXT_VPNSHIFT  = 4;
 
-  var TLBPGMASK_4K      = 0x0;
-  var TLBPGMASK_16K     = 0x6000;
-  var TLBPGMASK_64K     = 0x1e000;
+  var TLBPGMASK_4K      = 0x00000000;
+  var TLBPGMASK_16K     = 0x00006000;
+  var TLBPGMASK_64K     = 0x0001e000;
   var TLBPGMASK_256K    = 0x0007e000;
   var TLBPGMASK_1M      = 0x001fe000;
   var TLBPGMASK_4M      = 0x007fe000;
@@ -297,13 +297,58 @@ if (typeof n64js === 'undefined') {
       return random;
     }
 
-    this.setTLB = function (index) {
-      var pagemask = this.control[this.kControlPageMask];
-      var entryhi  = this.control[this.kControlEntryHi];
-      var entrylo1 = this.control[this.kControlEntryLo1];
-      var entrylo0 = this.control[this.kControlEntryLo0];
+    function setTLB(cpu, index) {
+      var pagemask = cpu.control[cpu.kControlPageMask];
+      var entryhi  = cpu.control[cpu.kControlEntryHi];
+      var entrylo1 = cpu.control[cpu.kControlEntryLo1];
+      var entrylo0 = cpu.control[cpu.kControlEntryLo0];
 
-      this.tlbEntries[index].update(index, pagemask, entryhi, entrylo0, entrylo1);
+      cpu.tlbEntries[index].update(index, pagemask, entryhi, entrylo0, entrylo1);
+    }
+
+    this.tlbWriteIndex = function () {
+      setTLB(this, this.control[this.kControlIndex] & 0x1f);
+    }
+
+    this.tlbWriteRandom = function () {
+      setTLB(this, this.getRandom());
+    }
+
+    this.tlbRead = function () {
+      var index = this.control[this.kControlIndex] & 0x1f;
+      var tlb   = this.tlbEntries[index];
+
+      this.control[this.kControlPageMask] = tlb.mask;
+      this.control[this.kControlEntryHi ] = tlb.hi;
+      this.control[this.kControlEntryLo0] = tlb.pfne | tlb.global;
+      this.control[this.kControlEntryLo1] = tlb.pfno | tlb.global;
+
+      n64js.log('TLB Read Index ' + n64js.toString8(index) + '.');
+      n64js.log('  PageMask: ' + n64js.toString32(this.control[this.kControlPageMask]));
+      n64js.log('  EntryHi:  ' + n64js.toString32(this.control[this.kControlEntryHi]));
+      n64js.log('  EntryLo0: ' + n64js.toString32(this.control[this.kControlEntryLo0]));
+      n64js.log('  EntryLo1: ' + n64js.toString32(this.control[this.kControlEntryLo1]));
+    }
+
+    this.tlbProbe = function () {
+      var entryhi      = this.control[this.kControlEntryHi];
+      var entryhi_vpn2 = entryhi & TLBHI_VPN2MASK;
+      var entryhi_pid  = entryhi & TLBHI_PIDMASK;
+
+      for (var i = 0; i < 32; ++i) {
+        var tlb = this.tlbEntries[i];
+        if (   (tlb.hi & TLBHI_VPN2MASK) === entryhi_vpn2) {
+          if (((tlb.hi & TLBHI_PIDMASK)  === entryhi_pid) ||
+               tlb.global) {
+            n64js.log('TLB Probe. EntryHi:' + n64js.toString32(entryhi) + '. Found matching TLB entry - ' + n64js.toString8(i));
+            this.control[this.kControlIndex] = i;
+            return;
+          }
+        }
+      }
+
+      n64js.log('TLB Probe. EntryHi:' + n64js.toString32(entryhi) + ". Didn't find matching entry");
+      this.control[this.kControlIndex] = TLBINX_PROBE;
     }
 
     this.tlbFindEntry = function (address) {
@@ -486,12 +531,12 @@ if (typeof n64js === 'undefined') {
   }
 
   function setHiLoSignExtend(arr, v) {
-    arr[0] = (v&0xffffffff) >>> 0;
-    arr[1] = v>>>32;
+    arr[0] = v; //(v&0xffffffff) >>> 0; -- is this necessary?
+    arr[1] = (v&0x80000000) ? 0xffffffff : 0x00000000;
   }
   function setHiLoZeroExtend(arr, v) {
-    arr[0] = (v&0xffffffff) >>> 0;
-    arr[1] = 0;
+    arr[0] = v; //(v&0xffffffff) >>> 0; -- is this necessary?
+    arr[1] = 0x00000000;
   }
 
   function getHi32(v) {
@@ -606,8 +651,29 @@ if (typeof n64js === 'undefined') {
     cpu0.multHi[1] = 0;
   }
 
-  function executeDIV(a,i)        { unimplemented(a,i); }
-  function executeDIVU(a,i)       { unimplemented(a,i); }
+  function executeDIV(a,i) {
+    var dividend = cpu0.gprLo_signed[rs(i)];
+    var divisor  = cpu0.gprLo_signed[rt(i)];
+    if (divisor) {
+      setHiLoSignExtend( cpu0.multLo, Math.floor(dividend / divisor) );
+      setHiLoSignExtend( cpu0.multHi, dividend % divisor );
+    }
+
+    if (dividend > 20)
+     n64js.halt('DIV ' + dividend + ' / ' + divisor + ' -> ' + cpu0.multLo[0] + ' and ' + cpu0.multHi[0]);
+  }
+  function executeDIVU(a,i) {
+    var dividend = cpu0.gprLo_signed[rs(i)];
+    var divisor  = cpu0.gprLo_signed[rt(i)];
+    if (divisor) {
+      setHiLoSignExtend( cpu0.multLo, Math.floor(dividend / divisor) );
+      setHiLoSignExtend( cpu0.multHi, dividend % divisor );
+    }
+
+    if (dividend)
+      n64js.halt('DIVU');
+  }
+
   function executeDDIV(a,i) {
 
     var s = rs(i);
@@ -620,7 +686,7 @@ if (typeof n64js === 'undefined') {
       var dividend = cpu0.gprLo_signed[s];
       var divisor  = cpu0.gprLo_signed[t];
       if (divisor) {
-        setHiLoSignExtend( cpu0.multLo, dividend / divisor );
+        setHiLoSignExtend( cpu0.multLo, Math.floor(dividend / divisor) );
         setHiLoSignExtend( cpu0.multHi, dividend % divisor );
       }
     }
@@ -636,7 +702,7 @@ if (typeof n64js === 'undefined') {
       var dividend = cpu0.gprLo[s];
       var divisor  = cpu0.gprLo[t];
       if (divisor) {
-        setHiLoZeroExtend( cpu0.multLo, dividend / divisor );
+        setHiLoZeroExtend( cpu0.multLo, Math.floor(dividend / divisor) );
         setHiLoZeroExtend( cpu0.multHi, dividend % divisor );
       }
     }
@@ -781,35 +847,25 @@ if (typeof n64js === 'undefined') {
   }
   function executeTLB(a,i) {
      switch(tlbop(i)) {
-       case 0x01:    executeTLBR(a,i);  return;
-       case 0x02:    executeTLBWI(a,i); return;
-       case 0x06:    executeTLBWR(a,i); return;
-       case 0x08:    executeTLBP(a,i);  return;
-       case 0x18:    executeERET(a,i);  return;
+       case 0x01:    cpu0.tlbRead();        return;
+       case 0x02:    cpu0.tlbWriteIndex();  return;
+       case 0x06:    cpu0.tlbWriteRandom(); return;
+       case 0x08:    cpu0.tlbProbe();       return;
+       case 0x18:    executeERET(a,i);      return;
      }
      executeUnknown(a,i);
   }
-
-  function executeTLBR(a,i)       { unimplemented(a,i); }
-  function executeTLBWI(a,i) {
-    var index = cpu0.control[cpu0.kControlIndex] & 0x1f;
-    cpu0.setTLB(index);
-  }
-  function executeTLBWR(a,i) {
-    cpu0.setTLB(cpu0.getRandom());
-  }
-  function executeTLBP(a,i)       { unimplemented(a,i); }
 
 
   function executeERET(a,i) {
     if (cpu0.control[cpu0.kControlSR] & SR_ERL) {
       cpu0.pc = cpu0.control[cpu0.kControlErrorEPC]-4;    // -4 is to compensate for post-inc in interpreter loop
       cpu0.control[cpu0.kControlSR] &= ~SR_ERL;
-      n64js.halt('ERET from error trap - ' + cpu0.pc);
+      n64js.log('ERET from error trap - ' + cpu0.pc);
     } else {
       cpu0.pc = cpu0.control[cpu0.kControlEPC]-4;         // -4 is to compensate for post-inc in interpreter loop
       cpu0.control[cpu0.kControlSR] &= ~SR_EXL;
-      n64js.halt('ERET from interrupt/exception ' + cpu0.pc);
+      n64js.log('ERET from interrupt/exception ' + cpu0.pc);
     }
   }
 
@@ -1010,7 +1066,6 @@ if (typeof n64js === 'undefined') {
 
     if (s_hi === imm_hi) {
       cpu0.gprLo[t] = cpu0.gprLo[s] < (immediate>>>0);
-      n64js.halt('SLTIU upper same');
     } else {
       cpu0.gprLo[t] = (s_hi>>>0) < (imm_hi>>>0);
     }
@@ -1064,6 +1119,10 @@ if (typeof n64js === 'undefined') {
   function executeLWU(a,i) {
     setZeroExtend(rt(i), n64js.readMemory32( memaddr(i) ));
   }
+  function executeLD(a,i) {
+    cpu0.gprHi[rt(i)] = n64js.readMemory32( memaddr(i) + 0 );
+    cpu0.gprLo[rt(i)] = n64js.readMemory32( memaddr(i) + 4 );
+  }
 
   function executeSB(a,i) {
     n64js.writeMemory8(memaddr(i), cpu0.gprLo[rt(i)] & 0xff );
@@ -1073,6 +1132,10 @@ if (typeof n64js === 'undefined') {
   }
   function executeSW(a,i)         {
     n64js.writeMemory32(memaddr(i), cpu0.gprLo[rt(i)]);
+  }
+  function executeSD(a,i) {
+    n64js.writeMemory32( memaddr(i) + 0, cpu0.gprHi[rt(i)] );
+    n64js.writeMemory32( memaddr(i) + 4, cpu0.gprLo[rt(i)] );
   }
 
   function executeLWL(a,i)        { unimplemented(a,i); }
@@ -1094,16 +1157,11 @@ if (typeof n64js === 'undefined') {
   function executeLLD(a,i)        { unimplemented(a,i); }
   function executeLDC1(a,i)       { unimplemented(a,i); }
   function executeLDC2(a,i)       { unimplemented(a,i); }
-  function executeLD(a,i) {
-    cpu0.gprHi[rt(i)] = n64js.readMemory32( memaddr(i) + 0 );
-    cpu0.gprLo[rt(i)] = n64js.readMemory32( memaddr(i) + 4 );
-  }
   function executeSC(a,i)         { unimplemented(a,i); }
   function executeSWC1(a,i)       { unimplemented(a,i); }
   function executeSCD(a,i)        { unimplemented(a,i); }
   function executeSDC1(a,i)       { unimplemented(a,i); }
   function executeSDC2(a,i)       { unimplemented(a,i); }
-  function executeSD(a,i)         { unimplemented(a,i); }
 
   function executeMFC1(a,i)       { unimplemented(a,i); }
   function executeDMFC1(a,i)      { unimplemented(a,i); }
