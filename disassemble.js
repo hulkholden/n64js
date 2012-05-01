@@ -54,6 +54,7 @@ if (typeof n64js === 'undefined') {
     'FP16', 'FP17', 'FP18', 'FP19', 'FP20', 'FP21', 'FP22', 'FP23',
     'FP24', 'FP25', 'FP26', 'FP27', 'FP28', 'FP29', 'FP30', 'FP31'
   ];
+  n64js.cop1RegisterNames = cop1RegisterNames;
 
   var copRegisterNames = [
     'GR00', 'GR01', 'GR02', 'GR03', 'GR04', 'GR05', 'GR06', 'GR07',

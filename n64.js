@@ -307,6 +307,7 @@ if (typeof n64js === 'undefined') {
     addSR($tb);
     addCause($tb);
     addMipsInterrupts($tb);
+    addCop1($tb, regColours);
 
     var kRegistersPerRow = 2;
     for (var i = 0; i < 32; i+=kRegistersPerRow) {
@@ -316,10 +317,8 @@ if (typeof n64js === 'undefined') {
         var name = n64js.cop0gprNames[i+r];
         var $td = $('<td>' + name + '</td><td class="fixed">' + toString64(cpu0.gprLo[i+r], cpu0.gprHi[i+r]) + '</td>');
 
-        if (cur_instr) {
-          if (regColours.hasOwnProperty(name)) {
-            $td.attr('bgcolor', regColours[name]);
-          }
+        if (regColours.hasOwnProperty(name)) {
+          $td.attr('bgcolor', regColours[name]);
         }
 
         $tr.append($td);
@@ -328,6 +327,29 @@ if (typeof n64js === 'undefined') {
     }
 
     $registers.html($table);
+  }
+
+  function addCop1($tb, regColours) {
+
+    var cpu1 = n64js.cpu1;
+
+    for (var i = 0; i < 32; ++i) {
+      var name = n64js.cop1RegisterNames[i];
+
+      var $td = $('<td>' + name +
+        '</td><td class="fixed">' + toString32(cpu1.uint32[i*2+0]) + ' ' + toString32(cpu1.uint32[i*2+1]) +
+        '</td><td class="fixed">' + cpu1.float32[i*2+0] + ' ' + cpu1.float32[i*2+1] +
+        '</td><td class="fixed">' + cpu1.float64[i] +
+        '</td>' );
+
+      if (regColours.hasOwnProperty(name)) {
+        $td.attr('bgcolor', regColours[name]);
+      }
+
+      var $tr = $('<tr />');
+      $tr.append($td);
+      $tb.append($tr);
+    }
   }
 
   function addSR($tb) {
