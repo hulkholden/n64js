@@ -256,6 +256,15 @@ if (typeof n64js === 'undefined') {
       return t;
     }).join('<br>');
 
+    var labelMap = {
+      0x80328730: 'setFP',
+      0x8032b030: 'siIsBusy',
+      0x80328740: 'siReadPIFControl',
+      0x80328790: 'siWritePIFControl',
+      0x80324258: 'mult64',
+      0x80324158: 'div64'
+    };
+
     var regColours = {};
 
     var availColours = [
@@ -279,9 +288,21 @@ if (typeof n64js === 'undefined') {
     }
 
 
+
     var $dis = $('<pre>' + dis_body + '</pre>');
+    $dis.find('.dis-label').each(function (){
+      var address = parseInt($(this).text(), 16);
+      if (labelMap.hasOwnProperty(address)) {
+        $(this).prepend(labelMap[address] + '\n');
+      }
+    });
     $dis.find('.dis-label-target').each(function (){
       var address = parseInt($(this).text(), 16);
+
+      if (labelMap.hasOwnProperty(address)) {
+        $(this).text(labelMap[address]);
+      }
+
       $(this).css('color', makeLabelColor(address));
       $(this).click(function () {
         disasmAddress = address;
