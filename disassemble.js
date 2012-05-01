@@ -49,10 +49,10 @@ if (typeof n64js === 'undefined') {
   n64js.cop0ControlRegisterNames = cop0ControlRegisterNames;
 
   var cop1RegisterNames = [
-    'FP00', 'FP01', 'FP02', 'FP03', 'FP04', 'FP05', 'FP06', 'FP07',
-    'FP08', 'FP09', 'FP10', 'FP11', 'FP12', 'FP13', 'FP14', 'FP15',
-    'FP16', 'FP17', 'FP18', 'FP19', 'FP20', 'FP21', 'FP22', 'FP23',
-    'FP24', 'FP25', 'FP26', 'FP27', 'FP28', 'FP29', 'FP30', 'FP31'
+    'f00', 'f01', 'f02', 'f03', 'f04', 'f05', 'f06', 'f07',
+    'f08', 'f09', 'f10', 'f11', 'f12', 'f13', 'f14', 'f15',
+    'f16', 'f17', 'f18', 'f19', 'f20', 'f21', 'f22', 'f23',
+    'f24', 'f25', 'f26', 'f27', 'f28', 'f29', 'f30', 'f31'
   ];
   n64js.cop1RegisterNames = cop1RegisterNames;
 
@@ -74,6 +74,16 @@ if (typeof n64js === 'undefined') {
   function makeRegSpan(t) {
     return '<span class="dis-reg-' + t + '">' + t + '</span>';
   }
+  function makeFPRegSpan(t) {
+    // We only use the '-' as a valic css identifier, but want to use '.' in the visible text
+    var text = t.replace('-', '.');
+    return '<span class="dis-reg-' + t + '">' + text + '</span>';
+  }
+
+  function getCop1RegisterName(r, fmt) {
+    var suffix = fmt ? '-' + fmt : '';
+    return cop1RegisterNames[r] + suffix;
+  }
 
   Instruction.prototype = {
 
@@ -87,11 +97,11 @@ if (typeof n64js === 'undefined') {
     writesRA  : function()  { this.dstRegs[n64js.cpu0.kRegister_ra] = 1; return ''; },
 
     // cop1 regs
-    ft_d : function () { var reg = cop1RegisterNames[_ft(this.opcode)]; this.dstRegs[reg] = 1; return makeRegSpan(reg); },
-    fs_d : function () { var reg = cop1RegisterNames[_fs(this.opcode)]; this.dstRegs[reg] = 1; return makeRegSpan(reg); },
-    fd   : function () { var reg = cop1RegisterNames[_fd(this.opcode)]; this.dstRegs[reg] = 1; return makeRegSpan(reg); },
-    ft   : function () { var reg = cop1RegisterNames[_ft(this.opcode)]; this.srcRegs[reg] = 1; return makeRegSpan(reg); },
-    fs   : function () { var reg = cop1RegisterNames[_fs(this.opcode)]; this.srcRegs[reg] = 1; return makeRegSpan(reg); },
+    ft_d : function (fmt) { var reg = getCop1RegisterName(_ft(this.opcode), fmt); this.dstRegs[reg] = 1; return makeFPRegSpan(reg); },
+    fs_d : function (fmt) { var reg = getCop1RegisterName(_fs(this.opcode), fmt); this.dstRegs[reg] = 1; return makeFPRegSpan(reg); },
+    fd   : function (fmt) { var reg = getCop1RegisterName(_fd(this.opcode), fmt); this.dstRegs[reg] = 1; return makeFPRegSpan(reg); },
+    ft   : function (fmt) { var reg = getCop1RegisterName(_ft(this.opcode), fmt); this.srcRegs[reg] = 1; return makeFPRegSpan(reg); },
+    fs   : function (fmt) { var reg = getCop1RegisterName(_fs(this.opcode), fmt); this.srcRegs[reg] = 1; return makeFPRegSpan(reg); },
 
     // cop2 regs
     gt_d : function () { var reg = cop2RegisterNames[_rt(this.opcode)]; this.dstRegs[reg] = 1; return makeRegSpan(reg); },
@@ -241,60 +251,62 @@ if (typeof n64js === 'undefined') {
   }
 
   function disassembleCop1Instr(i, fmt) {
+    var fmt_u = fmt.toUpperCase();
+
     switch(_cop1_func(i.opcode)) {
-      case 0x00:    return 'ADD.' + fmt + '     ' + i.fd() + ' = ' + i.fs() + ' + ' + i.ft();
-      case 0x01:    return 'SUB.' + fmt + '     ' + i.fd() + ' = ' + i.fs() + ' - ' + i.ft();
-      case 0x02:    return 'MUL.' + fmt + '     ' + i.fd() + ' = ' + i.fs() + ' * ' + i.ft();
-      case 0x03:    return 'DIV.' + fmt + '     ' + i.fd() + ' = ' + i.fs() + ' / ' + i.ft();
-      case 0x04:    return 'SQRT.' + fmt + '    ' + i.fd() + ' = sqrt(' + i.fs() + ')';
-      case 0x05:    return 'ABS.' + fmt + '     ' + i.fd() + ' = abs(' + i.fs() + ')';
-      case 0x06:    return 'MOV.' + fmt + '     ' + i.fd() + ' = ' + i.fs();
-      case 0x07:    return 'NEG.' + fmt + '     ' + i.fd() + ' = -' + i.fs();
-      case 0x08:    return 'ROUND.L.' + fmt + ' ' + i.fd() + ' = round.l(' + i.fs() + ')';
-      case 0x09:    return 'TRUNC.L.' + fmt + ' ' + i.fd() + ' = trunc.l(' + i.fs() + ')';
-      case 0x0a:    return 'CEIL.L.' + fmt + '  ' + i.fd() + ' = ceil.l(' + i.fs() + ')';
-      case 0x0b:    return 'FLOOR.L.' + fmt + ' ' + i.fd() + ' = floor.l(' + i.fs() + ')';
-      case 0x0c:    return 'ROUND.W.' + fmt + ' ' + i.fd() + ' = round.w(' + i.fs() + ')';
-      case 0x0d:    return 'TRUNC.W.' + fmt + ' ' + i.fd() + ' = trunc.w(' + i.fs() + ')';
-      case 0x0e:    return 'CEIL.W.' + fmt + '  ' + i.fd() + ' = ceil.w(' + i.fs() + ')';
-      case 0x0f:    return 'FLOOR.W.' + fmt + ' ' + i.fd() + ' = floor.w(' + i.fs() + ')';
+      case 0x00:    return 'ADD.' + fmt_u + '     ' + i.fd(fmt) + ' = ' + i.fs(fmt) + ' + ' + i.ft(fmt);
+      case 0x01:    return 'SUB.' + fmt_u + '     ' + i.fd(fmt) + ' = ' + i.fs(fmt) + ' - ' + i.ft(fmt);
+      case 0x02:    return 'MUL.' + fmt_u + '     ' + i.fd(fmt) + ' = ' + i.fs(fmt) + ' * ' + i.ft(fmt);
+      case 0x03:    return 'DIV.' + fmt_u + '     ' + i.fd(fmt) + ' = ' + i.fs(fmt) + ' / ' + i.ft(fmt);
+      case 0x04:    return 'SQRT.' + fmt_u + '    ' + i.fd(fmt) + ' = sqrt(' + i.fs(fmt) + ')';
+      case 0x05:    return 'ABS.' + fmt_u + '     ' + i.fd(fmt) + ' = abs(' + i.fs(fmt) + ')';
+      case 0x06:    return 'MOV.' + fmt_u + '     ' + i.fd(fmt) + ' = ' + i.fs(fmt);
+      case 0x07:    return 'NEG.' + fmt_u + '     ' + i.fd(fmt) + ' = -' + i.fs(fmt);
+      case 0x08:    return 'ROUND.L.' + fmt_u + ' ' + i.fd('l') + ' = round.l(' + i.fs(fmt) + ')';
+      case 0x09:    return 'TRUNC.L.' + fmt_u + ' ' + i.fd('l') + ' = trunc.l(' + i.fs(fmt) + ')';
+      case 0x0a:    return 'CEIL.L.' + fmt_u + '  ' + i.fd('l') + ' = ceil.l(' + i.fs(fmt) + ')';
+      case 0x0b:    return 'FLOOR.L.' + fmt_u + ' ' + i.fd('l') + ' = floor.l(' + i.fs(fmt) + ')';
+      case 0x0c:    return 'ROUND.W.' + fmt_u + ' ' + i.fd('w') + ' = round.w(' + i.fs(fmt) + ')';
+      case 0x0d:    return 'TRUNC.W.' + fmt_u + ' ' + i.fd('w') + ' = trunc.w(' + i.fs(fmt) + ')';
+      case 0x0e:    return 'CEIL.W.' + fmt_u + '  ' + i.fd('w') + ' = ceil.w(' + i.fs(fmt) + ')';
+      case 0x0f:    return 'FLOOR.W.' + fmt_u + ' ' + i.fd('w') + ' = floor.w(' + i.fs(fmt) + ')';
 
-      case 0x20:    return 'CVT.S.' + fmt + '   ' + i.fd() + ' = (s)' + i.fs();
-      case 0x21:    return 'CVT.D.' + fmt + '   ' + i.fd() + ' = (d)' + i.fs();
-      case 0x24:    return 'CVT.W.' + fmt + '   ' + i.fd() + ' = (w)' + i.fs();
-      case 0x25:    return 'CVT.L.' + fmt + '   ' + i.fd() + ' = (l)' + i.fs();
+      case 0x20:    return 'CVT.S.' + fmt_u + '   ' + i.fd('s') + ' = (s)' + i.fs(fmt);
+      case 0x21:    return 'CVT.D.' + fmt_u + '   ' + i.fd('d') + ' = (d)' + i.fs(fmt);
+      case 0x24:    return 'CVT.W.' + fmt_u + '   ' + i.fd('w') + ' = (w)' + i.fs(fmt);
+      case 0x25:    return 'CVT.L.' + fmt_u + '   ' + i.fd('l') + ' = (l)' + i.fs(fmt);
 
-      case 0x30:    return 'C.F.' + fmt + '     c = ' + i.fs() + ' cmp ' + i.ft();
-      case 0x31:    return 'C.UN.' + fmt + '    c = ' + i.fs() + ' cmp ' + i.ft();
-      case 0x32:    return 'C.EQ.' + fmt + '    c = ' + i.fs() + ' cmp ' + i.ft();
-      case 0x33:    return 'C.UEQ.' + fmt + '   c = ' + i.fs() + ' cmp ' + i.ft();
-      case 0x34:    return 'C.OLT.' + fmt + '   c = ' + i.fs() + ' cmp ' + i.ft();
-      case 0x35:    return 'C.ULT.' + fmt + '   c = ' + i.fs() + ' cmp ' + i.ft();
-      case 0x36:    return 'C.OLE.' + fmt + '   c = ' + i.fs() + ' cmp ' + i.ft();
-      case 0x37:    return 'C.ULE.' + fmt + '   c = ' + i.fs() + ' cmp ' + i.ft();
-      case 0x38:    return 'C.SF.' + fmt + '    c = ' + i.fs() + ' cmp ' + i.ft();
-      case 0x39:    return 'C.NGLE.' + fmt + '  c = ' + i.fs() + ' cmp ' + i.ft();
-      case 0x3a:    return 'C.SEQ.' + fmt + '   c = ' + i.fs() + ' cmp ' + i.ft();
-      case 0x3b:    return 'C.NGL.' + fmt + '   c = ' + i.fs() + ' cmp ' + i.ft();
-      case 0x3c:    return 'C.LT.' + fmt + '    c = ' + i.fs() + ' cmp ' + i.ft();
-      case 0x3d:    return 'C.NGE.' + fmt + '   c = ' + i.fs() + ' cmp ' + i.ft();
-      case 0x3e:    return 'C.LE.' + fmt + '    c = ' + i.fs() + ' cmp ' + i.ft();
-      case 0x3f:    return 'C.NGT.' + fmt + '   c = ' + i.fs() + ' cmp ' + i.ft();
+      case 0x30:    return 'C.F.' + fmt_u + '     c = ' + i.fs(fmt) + ' cmp ' + i.ft(fmt);
+      case 0x31:    return 'C.UN.' + fmt_u + '    c = ' + i.fs(fmt) + ' cmp ' + i.ft(fmt);
+      case 0x32:    return 'C.EQ.' + fmt_u + '    c = ' + i.fs(fmt) + ' cmp ' + i.ft(fmt);
+      case 0x33:    return 'C.UEQ.' + fmt_u + '   c = ' + i.fs(fmt) + ' cmp ' + i.ft(fmt);
+      case 0x34:    return 'C.OLT.' + fmt_u + '   c = ' + i.fs(fmt) + ' cmp ' + i.ft(fmt);
+      case 0x35:    return 'C.ULT.' + fmt_u + '   c = ' + i.fs(fmt) + ' cmp ' + i.ft(fmt);
+      case 0x36:    return 'C.OLE.' + fmt_u + '   c = ' + i.fs(fmt) + ' cmp ' + i.ft(fmt);
+      case 0x37:    return 'C.ULE.' + fmt_u + '   c = ' + i.fs(fmt) + ' cmp ' + i.ft(fmt);
+      case 0x38:    return 'C.SF.' + fmt_u + '    c = ' + i.fs(fmt) + ' cmp ' + i.ft(fmt);
+      case 0x39:    return 'C.NGLE.' + fmt_u + '  c = ' + i.fs(fmt) + ' cmp ' + i.ft(fmt);
+      case 0x3a:    return 'C.SEQ.' + fmt_u + '   c = ' + i.fs(fmt) + ' cmp ' + i.ft(fmt);
+      case 0x3b:    return 'C.NGL.' + fmt_u + '   c = ' + i.fs(fmt) + ' cmp ' + i.ft(fmt);
+      case 0x3c:    return 'C.LT.' + fmt_u + '    c = ' + i.fs(fmt) + ' cmp ' + i.ft(fmt);
+      case 0x3d:    return 'C.NGE.' + fmt_u + '   c = ' + i.fs(fmt) + ' cmp ' + i.ft(fmt);
+      case 0x3e:    return 'C.LE.' + fmt_u + '    c = ' + i.fs(fmt) + ' cmp ' + i.ft(fmt);
+      case 0x3f:    return 'C.NGT.' + fmt_u + '   c = ' + i.fs(fmt) + ' cmp ' + i.ft(fmt);
     }
 
     return 'Cop1.' + fmt + n64js.toHex(_cop1_func(i.opcode),8) + '?';
   }
   function disassembleCop1SInstr(i) {
-    return disassembleCop1Instr(i, 'S');
+    return disassembleCop1Instr(i, 's');
   }
   function disassembleCop1DInstr(i) {
-    return disassembleCop1Instr(i, 'D');
+    return disassembleCop1Instr(i, 'd');
   }
   function disassembleCop1WInstr(i) {
-    return disassembleCop1Instr(i, 'W');
+    return disassembleCop1Instr(i, 'w');
   }
   function disassembleCop1LInstr(i) {
-    return disassembleCop1Instr(i, 'D');
+    return disassembleCop1Instr(i, 'd');
   }
 
 

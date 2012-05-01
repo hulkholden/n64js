@@ -337,17 +337,24 @@ if (typeof n64js === 'undefined') {
       var name = n64js.cop1RegisterNames[i];
 
       var $td = $('<td>' + name +
-        '</td><td class="fixed">' + toString32(cpu1.uint32[i*2+0]) + ' ' + toString32(cpu1.uint32[i*2+1]) +
-        '</td><td class="fixed">' + cpu1.float32[i*2+0] + ' ' + cpu1.float32[i*2+1] +
-        '</td><td class="fixed">' + cpu1.float64[i] +
+        '</td><td class="fixed fp-w">' + toString32(cpu1.uint32[i*2+0]) + ' ' + toString32(cpu1.uint32[i*2+1]) +
+        '</td><td class="fixed fp-s">' + cpu1.float32[i*2+0] + ' ' + cpu1.float32[i*2+1] +
+        '</td><td class="fixed fp-d">' + cpu1.float64[i] +
         '</td>' );
-
-      if (regColours.hasOwnProperty(name)) {
-        $td.attr('bgcolor', regColours[name]);
-      }
 
       var $tr = $('<tr />');
       $tr.append($td);
+
+      if (regColours.hasOwnProperty(name)) {
+        $tr.attr('bgcolor', regColours[name]);
+      } else if (regColours.hasOwnProperty(name + '-w')) {
+        $tr.find('.fp-w').attr('bgcolor', regColours[name + '-w']);
+      } else if (regColours.hasOwnProperty(name + '-s')) {
+        $tr.find('.fp-s').attr('bgcolor', regColours[name + '-s']);
+      } else if (regColours.hasOwnProperty(name + '-d')) {
+        $tr.find('.fp-d').attr('bgcolor', regColours[name + '-d']);
+      }
+
       $tb.append($tr);
     }
   }
