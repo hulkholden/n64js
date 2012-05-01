@@ -13,8 +13,8 @@
    pre .dis-label-target { font-weight: bold; }
    pre .dis-label { color: #999; }
    #output { background-color: #ccc; height: 180px; overflow: scroll;}
-   div #registers { display:inline-block; vertical-align:top;}
-   div #disasm    { display:inline-block; vertical-align:top; width:600px;}
+   div #cpu    { display:inline-block; vertical-align:top;}
+   div #disasm { display:inline-block; vertical-align:top; width:600px;}
  </style>
 
     <title>n64js - An N64 Emulator in Javascript</title>
@@ -60,8 +60,23 @@
                 <div id="rominfo"></div>
               </div>
               <div class="tab-pane" id="debug-content">
-                <div id="registers"></div>
+
+                <div id="cpu">
+                  <div id="status" class="fixed"></div>
+                  <div class="tabbable tabs-left">
+                    <ul class="nav nav-tabs">
+                      <li class="active"><a href="#cpu0-content" id="cpu0-tab" data-toggle="tab">cpu0</a></li>
+                      <li><a href="#cpu1-content" id="cpu1-tab" data-toggle="tab">cpu1</a></li>
+                    </ul>
+                    <div class="tab-content">
+                      <div id="cpu0-content" class="tab-pane active"></div>
+                      <div id="cpu1-content" class="tab-pane"></div>
+                    </div>
+                  </div>
+                </div>
+
                 <div id="disasm" class="fixed"></div>
+
               </div>
               <div class="tab-pane" id="memory-content">
                 <div id="memory"></div>
@@ -93,9 +108,8 @@
     $(document).ready(function(){
       n64js.reset();
       n64js.setRomInfoElement($('#rominfo'));
-      n64js.setRegistersElement($('#registers'));
+      n64js.setDebugElements($('#status'), [$('#cpu0-content'), $('#cpu1-content')], $('#disasm'));
       n64js.setOutputElement($('#output'));
-      n64js.setDisassemblyElement($('#disasm'));
 
 
       var kEnter    = 13;

@@ -178,12 +178,10 @@ if (typeof n64js === 'undefined') {
     $rominfo = $e;
   }   
 
-  n64js.setRegistersElement = function ($e) {
-    $registers = $e;
-  }
-
-  n64js.setDisassemblyElement = function ($e) {
-    $disassembly = $e;
+  n64js.setDebugElements = function ($stat, $regs, $disasm) {
+    $status      = $stat;
+    $registers   = $regs;
+    $disassembly = $disasm;
   }
 
   n64js.down = function () {
@@ -317,18 +315,26 @@ if (typeof n64js === 'undefined') {
     }
 
 
-    var $table = $('<table class="register-table"><tbody></tbody></table>');
-    var $tb = $table.find('tbody');
 
-    $tb.append('<tr><td>Ops</td><td class="fixed">' + cpu0.opsExecuted + '</td></tr>');
-    $tb.append('<tr><td>PC</td><td class="fixed">' + toString32(cpu0.pc) + '</td><td>delayPC</td><td class="fixed">' + toString32(cpu0.delayPC) + '</td></tr>');
-    $tb.append('<tr><td>MultHi</td><td class="fixed">' + toString64(cpu0.multHi[0], cpu0.multHi[1]) +
+
+
+    var $status_table = $('<table class="register-table"><tbody></tbody></table>');
+    var $status_body = $status_table.find('tbody');
+    $status.html($status_table);
+
+    $status_body.append('<tr><td>Ops</td><td class="fixed">' + cpu0.opsExecuted + '</td></tr>');
+    $status_body.append('<tr><td>PC</td><td class="fixed">' + toString32(cpu0.pc) + '</td><td>delayPC</td><td class="fixed">' + toString32(cpu0.delayPC) + '</td></tr>');
+    $status_body.append('<tr><td>MultHi</td><td class="fixed">' + toString64(cpu0.multHi[0], cpu0.multHi[1]) +
               '</td><td>MultLo</td><td class="fixed">' + toString64(cpu0.multLo[0], cpu0.multLo[1]) + '</td></tr>');
 
-    addSR($tb);
-    addCause($tb);
-    addMipsInterrupts($tb);
-    addCop1($tb, regColours);
+    addSR($status_body);
+    addCause($status_body);
+    addMipsInterrupts($status_body);
+
+
+
+    var $table0 = $('<table class="register-table"><tbody></tbody></table>');
+    var $body0 = $table0.find('tbody');
 
     var kRegistersPerRow = 2;
     for (var i = 0; i < 32; i+=kRegistersPerRow) {
@@ -344,10 +350,15 @@ if (typeof n64js === 'undefined') {
 
         $tr.append($td);
       }
-      $tb.append($tr);
+      $body0.append($tr);
     }
 
-    $registers.html($table);
+    $registers[0].html($table0);
+
+
+    var $table1 = $('<table class="register-table"><tbody></tbody></table>');
+    addCop1($table1.find('tbody'), regColours);
+    $registers[1].html($table1);
   }
 
   function addCop1($tb, regColours) {
@@ -694,9 +705,10 @@ if (typeof n64js === 'undefined') {
   };
 
   var $rominfo     = null;
+  var $status      = null;
   var $registers   = null;
-  var $output      = null;
   var $disassembly = null;
+  var $output      = null;
 
   var disasmAddress = 0;
 
