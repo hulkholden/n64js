@@ -751,9 +751,6 @@ if (typeof n64js === 'undefined') {
       setHiLoSignExtend( cpu0.multLo, Math.floor(dividend / divisor) );
       setHiLoSignExtend( cpu0.multHi, dividend % divisor );
     }
-
-    if (dividend > 20)
-     n64js.halt('DIV ' + dividend + ' / ' + divisor + ' -> ' + cpu0.multLo[0] + ' and ' + cpu0.multHi[0]);
   }
   function executeDIVU(a,i) {
     var dividend = cpu0.gprLo_signed[rs(i)];
@@ -762,9 +759,6 @@ if (typeof n64js === 'undefined') {
       setHiLoSignExtend( cpu0.multLo, Math.floor(dividend / divisor) );
       setHiLoSignExtend( cpu0.multHi, dividend % divisor );
     }
-
-    if (dividend)
-      n64js.halt('DIVU');
   }
 
   function executeDDIV(a,i) {
