@@ -165,6 +165,9 @@ if (typeof n64js === 'undefined') {
   var kStuffToDoHalt            = 1<<0;
   var kStuffToDoCheckInterrupts = 1<<1;
 
+  var kEventCompare      = 0;
+  var kEventRunForCycles = 1;
+
   function TLBEntry() {
     this.pagemask = 0;
     this.hi       = 0;
@@ -252,7 +255,11 @@ if (typeof n64js === 'undefined') {
     this.pc             = 0;
     this.delayPC        = 0;
 
+    var E_VEC           = 0x80000180;
+
     this.stuffToDo      = 0;     // used to flag r4300 to cease execution
+
+    this.events         = [];
 
     this.multHi         = new Uint32Array(2);
     this.multLo         = new Uint32Array(2);
@@ -274,6 +281,10 @@ if (typeof n64js === 'undefined') {
 
       this.pc          = 0;
       this.delayPC     = 0;
+
+      this.stuffToDo   = 0;
+
+      this.events      = [];
 
       this.multLo[0]   = this.multLo[1] = 0;
       this.multHi[0]   = this.multHi[1] = 0;
@@ -334,9 +345,6 @@ if (typeof n64js === 'undefined') {
       return false;
     }
 
-    var E_VEC         = 0x80000180;
-
-
     this.handleInterrupt = function () {
       if (this.checkForUnmaskedInterrupts()) {
           this.setException( CAUSE_EXCMASK, EXC_INT );
@@ -374,7 +382,9 @@ if (typeof n64js === 'undefined') {
           var count = this.control[this.kControlCount];
           if (value > count) {
             var delta = value - count;
-            n64js.halt('Need to add timer interrupt for ' + delta + ' cycles');
+
+            this.removeEventsOfType(kEventCompare);
+            this.addEvent(kEventCompare, delta);
           } else {
             n64js.warn('setCompare underflow - was' + n64js.toString32(count) + ', setting to ' + value);
           }
@@ -382,6 +392,63 @@ if (typeof n64js === 'undefined') {
       }
       this.control[this.kControlCompare] = value;
     };
+
+
+    function Event(type, countdown) {
+      this.type = type;
+      this.countdown = countdown;
+    }
+
+    Event.prototype = {
+      getName : function () {
+        switch(this.type) {
+          case kEventCompare:       return 'Compare';
+          case kEventRunForCycles:  return 'Run';
+        }
+
+        return '?';
+      }
+    }
+
+    this.addEvent = function(type, countdown) {
+      n64js.assert( countdown >0, "Countdown is invalid" );
+      for (var i = 0; i < this.events.length; ++i) {
+        var event = this.events[i];
+        if (countdown <= event.countdown) {
+          event.countdown -= countdown;
+
+          this.events.splice(i, 0, new Event(type, countdown));
+          return;
+        }
+
+        countdown -= event.countdown;
+      }
+
+      this.events.push(new Event(type, countdown));
+    }
+
+
+    this.removeEventsOfType = function (type) {
+      for (var i = 0; i < this.events.length; ++i) {
+        if (this.events[i].type == type) {
+          // Add this countdown on to the subsequent event
+          if ((i+1) < this.events.length) {
+            this.events[i+1].countdown += this.events[i].countdown;
+          }
+          this.events.splice(i, 1);
+          return;
+        }
+      }
+    };
+
+    this.hasEvent = function(type) {
+      for (var i = 0; i < this.events.length; ++i) {
+        if (this.events[i].type == type) {
+          return true;
+        }
+      }
+      return false;
+    }
 
     this.getRandom = function () {
       var wired = this.control[this.kControlWired] & 0x1f;
@@ -1702,33 +1769,63 @@ if (typeof n64js === 'undefined') {
 
     checkCauseIP3Consistent();
 
+    var COUNTER_INCREMENT_PER_OP = 1;
+
+    cpu0.addEvent(kEventRunForCycles, cycles+1);
+
     try {
-      for (var i = 0; i < cycles && !cpu0.stuffToDo; ++i) {
-          var pc  = cpu0.pc;
-          var dpc = cpu0.delayPC;
+      while (cpu0.hasEvent(kEventRunForCycles)) {
+        while (!cpu0.stuffToDo) {
 
-          var instruction = n64js.readMemory32(pc);
-          executeOp(pc, instruction);
+            cpu0.control[cpu0.kControlCount] += COUNTER_INCREMENT_PER_OP;
 
-          if (dpc !== 0) {
-            cpu0.delayPC = 0;
-            cpu0.pc      = dpc;
-          } else {
-            cpu0.pc      += 4;
-          }
+            var evt = cpu0.events[0];
+            evt.countdown -= COUNTER_INCREMENT_PER_OP;
+            if (evt.countdown <= 0)
+            {
+              // if it's our cucles event then just bail
+              cpu0.events.splice(0, 1);
+              if( evt.type === kEventRunForCycles ) {
+                break;
+              } else if (evt.type === kEventCompare) {
+                n64js.halt('compare fired!');
+                break;
+              }
+            }
 
-          //checkCauseIP3Consistent();
+            var pc  = cpu0.pc;
+            var dpc = cpu0.delayPC;
 
-          ++cpu0.opsExecuted;
+            var instruction = n64js.readMemory32(pc);
+            executeOp(pc, instruction);
+
+            if (dpc !== 0) {
+              cpu0.delayPC = 0;
+              cpu0.pc      = dpc;
+            } else {
+              cpu0.pc      += 4;
+            }
+
+            //checkCauseIP3Consistent();
+
+            ++cpu0.opsExecuted;
+        }
+
+        if (cpu0.stuffToDo & kStuffToDoCheckInterrupts) {
+          cpu0.stuffToDo &= ~kStuffToDoCheckInterrupts;
+          cpu0.handleInterrupt();
+        } else if (cpu0.stuffToDo) {
+          n64js.warn("Don't know how to handle this event!");
+          break;
+        }
       }
+
     } catch (e) {
       n64js.halt('Exception :' + e);
     }
 
-    if (cpu0.stuffToDo & kStuffToDoCheckInterrupts) {
-      cpu0.stuffToDo &= ~kStuffToDoCheckInterrupts;
-      cpu0.handleInterrupt();
-    }
+    // Clean up any kEventRunForCycles events before we bail out
+    cpu0.removeEventsOfType(kEventRunForCycles);
 
 
     n64js.refreshDisplay();

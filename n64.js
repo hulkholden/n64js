@@ -314,23 +314,8 @@ if (typeof n64js === 'undefined') {
       $dis.find('.dis-reg-' + i).css('background-color', regColours[i]);
     }
 
-
-
-
-
-    var $status_table = $('<table class="register-table"><tbody></tbody></table>');
-    var $status_body = $status_table.find('tbody');
+    var $status_table = makeStatusTable();
     $status.html($status_table);
-
-    $status_body.append('<tr><td>Ops</td><td class="fixed">' + cpu0.opsExecuted + '</td></tr>');
-    $status_body.append('<tr><td>PC</td><td class="fixed">' + toString32(cpu0.pc) + '</td><td>delayPC</td><td class="fixed">' + toString32(cpu0.delayPC) + '</td></tr>');
-    $status_body.append('<tr><td>MultHi</td><td class="fixed">' + toString64(cpu0.multHi[0], cpu0.multHi[1]) +
-              '</td><td>MultLo</td><td class="fixed">' + toString64(cpu0.multLo[0], cpu0.multLo[1]) + '</td></tr>');
-
-    addSR($status_body);
-    addCause($status_body);
-    addMipsInterrupts($status_body);
-
 
 
     var $table0 = $('<table class="register-table"><tbody></tbody></table>');
@@ -359,6 +344,31 @@ if (typeof n64js === 'undefined') {
     var $table1 = $('<table class="register-table"><tbody></tbody></table>');
     addCop1($table1.find('tbody'), regColours);
     $registers[1].html($table1);
+  }
+
+  function makeStatusTable() {
+    var cpu0 = n64js.cpu0;
+
+    var $status_table = $('<table class="register-table"><tbody></tbody></table>');
+    var $status_body = $status_table.find('tbody');
+
+    $status_body.append('<tr><td>Ops</td><td class="fixed">' + cpu0.opsExecuted + '</td></tr>');
+    $status_body.append('<tr><td>PC</td><td class="fixed">' + toString32(cpu0.pc) + '</td><td>delayPC</td><td class="fixed">' + toString32(cpu0.delayPC) + '</td></tr>');
+    $status_body.append('<tr><td>MultHi</td><td class="fixed">' + toString64(cpu0.multHi[0], cpu0.multHi[1]) +
+              '</td><td>Cause</td><td class="fixed">' + toString32(n64js.cpu0.control[n64js.cpu0.kControlCause]) + '</td></tr>');
+    $status_body.append('<tr><td>MultLo</td><td class="fixed">' + toString64(cpu0.multLo[0], cpu0.multLo[1]) +
+              '</td><td>Count</td><td class="fixed">' + toString32(n64js.cpu0.control[n64js.cpu0.kControlCount]) + '</td></tr>');
+    $status_body.append('<tr><td></td><td class="fixed">' +
+              '</td><td>Compare</td><td class="fixed">' + toString32(n64js.cpu0.control[n64js.cpu0.kControlCompare]) + '</td></tr>');
+
+    for (var i = 0; i < cpu0.events.length; ++i) {
+      $status_body.append('<tr><td>Event' + i + '</td><td class="fixed">' + cpu0.events[i].countdown + ', ' + cpu0.events[i].getName() + '</td></tr>');
+    }
+
+    addSR($status_body);
+    addMipsInterrupts($status_body);
+
+    return $status_table;
   }
 
   function addCop1($tb, regColours) {
@@ -430,12 +440,7 @@ if (typeof n64js === 'undefined') {
     $tr.append($td);
     $tb.append($tr);
   }
-  function addCause($tb) {
-    var $tr = $('<tr />');
-    $tr.append( '<td>Cause</td>' );
-    $tr.append( '<td>' + toString32(n64js.cpu0.control[n64js.cpu0.kControlCause]) + '</td>' );
-    $tb.append($tr);
-  }
+
 
   function addMipsInterrupts($tb) {
     var mi_intr_names = ['SP', 'SI', 'AI', 'VI', 'PI', 'DP'];
