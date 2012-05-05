@@ -1814,6 +1814,8 @@ if (typeof n64js === 'undefined') {
         if (cpu0.stuffToDo & kStuffToDoCheckInterrupts) {
           cpu0.stuffToDo &= ~kStuffToDoCheckInterrupts;
           cpu0.handleInterrupt();
+        } else if (cpu0.stuffToDo & kStuffToDoHalt) {
+          break;
         } else if (cpu0.stuffToDo) {
           n64js.warn("Don't know how to handle this event!");
           break;

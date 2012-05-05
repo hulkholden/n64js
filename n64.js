@@ -158,7 +158,7 @@ if (typeof n64js === 'undefined') {
   n64js.halt = function (msg) {
     running = false;
     n64js.cpu0.halt();
-    n64js.log(msg);
+    n64js.log('<span style="color:red">' + msg + '</span>');
   }
 
   n64js.isRunning = function () {
@@ -1118,7 +1118,7 @@ if (typeof n64js === 'undefined') {
         var mi_si_int_set     = mi_reg.getBits32(MI_INTR_REG,   MI_INTR_SI)          !== 0;
         var si_status_int_set = si_reg.getBits32(SI_STATUS_REG, SI_STATUS_INTERRUPT) !== 0;
         if (mi_si_int_set != si_status_int_set) {
-          n64js.log("SI_STATUS registuer is in an inconsistent state");
+          n64js.log("SI_STATUS register is in an inconsistent state");
         }
       }
       return this.mem.read32(ea);
