@@ -4,6 +4,59 @@ if (typeof n64js === 'undefined') {
 
 (function () {'use strict';
 
+  var SP_MEM_ADDR_REG     = 0x00;
+  var SP_DRAM_ADDR_REG    = 0x04;
+  var SP_RD_LEN_REG       = 0x08;
+  var SP_WR_LEN_REG       = 0x0C;
+  var SP_STATUS_REG       = 0x10;
+  var SP_DMA_FULL_REG     = 0x14;
+  var SP_DMA_BUSY_REG     = 0x18;
+  var SP_SEMAPHORE_REG    = 0x1C;
+
+  var SP_CLR_HALT           = 0x0000001;
+  var SP_SET_HALT           = 0x0000002;
+  var SP_CLR_BROKE          = 0x0000004;
+  var SP_CLR_INTR           = 0x0000008;
+  var SP_SET_INTR           = 0x0000010;
+  var SP_CLR_SSTEP          = 0x0000020;
+  var SP_SET_SSTEP          = 0x0000040;
+  var SP_CLR_INTR_BREAK     = 0x0000080;
+  var SP_SET_INTR_BREAK     = 0x0000100;
+  var SP_CLR_SIG0           = 0x0000200;
+  var SP_SET_SIG0           = 0x0000400;
+  var SP_CLR_SIG1           = 0x0000800;
+  var SP_SET_SIG1           = 0x0001000;
+  var SP_CLR_SIG2           = 0x0002000;
+  var SP_SET_SIG2           = 0x0004000;
+  var SP_CLR_SIG3           = 0x0008000;
+  var SP_SET_SIG3           = 0x0010000;
+  var SP_CLR_SIG4           = 0x0020000;
+  var SP_SET_SIG4           = 0x0040000;
+  var SP_CLR_SIG5           = 0x0080000;
+  var SP_SET_SIG5           = 0x0100000;
+  var SP_CLR_SIG6           = 0x0200000;
+  var SP_SET_SIG6           = 0x0400000;
+  var SP_CLR_SIG7           = 0x0800000;
+  var SP_SET_SIG7           = 0x1000000;
+
+  var SP_STATUS_HALT        = 0x0001;
+  var SP_STATUS_BROKE       = 0x0002;
+  var SP_STATUS_DMA_BUSY    = 0x0004;
+  var SP_STATUS_DMA_FULL    = 0x0008;
+  var SP_STATUS_IO_FULL     = 0x0010;
+  var SP_STATUS_SSTEP       = 0x0020;
+  var SP_STATUS_INTR_BREAK  = 0x0040;
+  var SP_STATUS_SIG0        = 0x0080;
+  var SP_STATUS_SIG1        = 0x0100;
+  var SP_STATUS_SIG2        = 0x0200;
+  var SP_STATUS_SIG3        = 0x0400;
+  var SP_STATUS_SIG4        = 0x0800;
+  var SP_STATUS_SIG5        = 0x1000;
+  var SP_STATUS_SIG6        = 0x2000;
+  var SP_STATUS_SIG7        = 0x4000;
+
+
+
   var MI_MODE_REG         = 0x00;
   var MI_VERSION_REG      = 0x04;
   var MI_INTR_REG         = 0x08;
@@ -829,6 +882,148 @@ if (typeof n64js === 'undefined') {
   rdram_reg_handler_uncached.calcEA  = function (address) {
     return address&0xff;
   };
+
+  function SPUpdateStatus(flags) {
+
+    if (flags & SP_CLR_HALT)       n64js.log( 'SP: Clearing Halt' );
+    if (flags & SP_SET_HALT)       n64js.log( 'SP: Setting Halt' );
+    if (flags & SP_CLR_BROKE)      n64js.log( 'SP: Clearing Broke' );
+    // No SP_SET_BROKE
+    if (flags & SP_CLR_INTR)       n64js.log( 'SP: Clearing Interrupt' );
+    if (flags & SP_SET_INTR)       n64js.log( 'SP: Setting Interrupt' );
+    if (flags & SP_CLR_SSTEP)      n64js.log( 'SP: Clearing Single Step' );
+    if (flags & SP_SET_SSTEP)      n64js.log( 'SP: Setting Single Step' );
+    if (flags & SP_CLR_INTR_BREAK) n64js.log( 'SP: Clearing Interrupt on break' );
+    if (flags & SP_SET_INTR_BREAK) n64js.log( 'SP: Setting Interrupt on break' );
+    if (flags & SP_CLR_SIG0)       n64js.log( 'SP: Clearing Sig0 (Yield)' );
+    if (flags & SP_SET_SIG0)       n64js.log( 'SP: Setting Sig0 (Yield)' );
+    if (flags & SP_CLR_SIG1)       n64js.log( 'SP: Clearing Sig1 (Yielded)' );
+    if (flags & SP_SET_SIG1)       n64js.log( 'SP: Setting Sig1 (Yielded)' );
+    if (flags & SP_CLR_SIG2)       n64js.log( 'SP: Clearing Sig2 (TaskDone)' );
+    if (flags & SP_SET_SIG2)       n64js.log( 'SP: Setting Sig2 (TaskDone)' );
+    if (flags & SP_CLR_SIG3)       n64js.log( 'SP: Clearing Sig3' );
+    if (flags & SP_SET_SIG3)       n64js.log( 'SP: Setting Sig3' );
+    if (flags & SP_CLR_SIG4)       n64js.log( 'SP: Clearing Sig4' );
+    if (flags & SP_SET_SIG4)       n64js.log( 'SP: Setting Sig4' );
+    if (flags & SP_CLR_SIG5)       n64js.log( 'SP: Clearing Sig5' );
+    if (flags & SP_SET_SIG5)       n64js.log( 'SP: Setting Sig5' );
+    if (flags & SP_CLR_SIG6)       n64js.log( 'SP: Clearing Sig6' );
+    if (flags & SP_SET_SIG6)       n64js.log( 'SP: Setting Sig6' );
+    if (flags & SP_CLR_SIG7)       n64js.log( 'SP: Clearing Sig7' );
+    if (flags & SP_SET_SIG7)       n64js.log( 'SP: Setting Sig7' );
+
+    var clr_bits = 0;
+    var set_bits = 0;
+
+    var start_rsp = false;
+    var stop_rsp = false;
+
+    if (flags & SP_CLR_HALT)       { clr_bits |= SP_STATUS_HALT; start_rsp = true; }
+    if (flags & SP_SET_HALT)       { set_bits |= SP_STATUS_HALT; stop_rsp  = true; }
+
+    if (flags & SP_SET_INTR)        { mi_reg.setBits32  (MI_INTR_REG, MI_INTR_SP); n64js.cpu0.updateCause3(); }   // Shouldn't ever set this?
+    else if (flags & SP_CLR_INTR)   { mi_reg.clearBits32(MI_INTR_REG, MI_INTR_SP); n64js.cpu0.updateCause3(); }
+
+    clr_bits |= (flags & SP_CLR_BROKE) >> 1;
+    clr_bits |= (flags & SP_CLR_SSTEP);
+    clr_bits |= (flags & SP_CLR_INTR_BREAK) >> 1;
+    clr_bits |= (flags & SP_CLR_SIG0) >> 2;
+    clr_bits |= (flags & SP_CLR_SIG1) >> 3;
+    clr_bits |= (flags & SP_CLR_SIG2) >> 4;
+    clr_bits |= (flags & SP_CLR_SIG3) >> 5;
+    clr_bits |= (flags & SP_CLR_SIG4) >> 6;
+    clr_bits |= (flags & SP_CLR_SIG5) >> 7;
+    clr_bits |= (flags & SP_CLR_SIG6) >> 8;
+    clr_bits |= (flags & SP_CLR_SIG7) >> 9;
+
+    set_bits |= (flags & SP_SET_SSTEP) >> 1;
+    set_bits |= (flags & SP_SET_INTR_BREAK) >> 2;
+    set_bits |= (flags & SP_SET_SIG0) >> 3;
+    set_bits |= (flags & SP_SET_SIG1) >> 4;
+    set_bits |= (flags & SP_SET_SIG2) >> 5;
+    set_bits |= (flags & SP_SET_SIG3) >> 6;
+    set_bits |= (flags & SP_SET_SIG4) >> 7;
+    set_bits |= (flags & SP_SET_SIG5) >> 8;
+    set_bits |= (flags & SP_SET_SIG6) >> 9;
+    set_bits |= (flags & SP_SET_SIG7) >> 10;
+
+    var status_bits = sp_reg.read32(SP_STATUS_REG);
+    status_bits &= ~clr_bits;
+    status_bits |=  set_bits;
+    sp_reg.write32(SP_STATUS_REG, status_bits);
+
+    if (start_rsp) {
+      n64js.halt('should start rsp');
+    } else if (stop_rsp) {
+      // As we handle all RSP via HLE, nothing to do here.
+    }
+  }
+
+  function SPCopyFromRDRAM() {
+    var sp_mem_address = sp_reg.read32(SP_MEM_ADDR_REG);
+    var rd_ram_address = sp_reg.read32(SP_DRAM_ADDR_REG);
+    var rdlen_reg      = sp_reg.read32(SP_RD_LEN_REG);
+    var splen          = (rdlen_reg & 0xfff) + 1;
+
+    n64js.log('SP: copying from ram ' + toString32(rd_ram_address) + ' to sp ' + toString16(sp_mem_address) );
+
+    MemoryCopy( sp_mem, sp_mem_address & 0xfff, ram, rd_ram_address & 0xffffff, splen );
+
+    sp_reg.setBits32(SP_DMA_BUSY_REG, 0);
+    sp_reg.clearBits32(SP_STATUS_REG, SP_STATUS_DMA_BUSY);
+  }
+
+  function SPCopyToRDRAM() {
+    var sp_mem_address = sp_reg.read32(SP_MEM_ADDR_REG);
+    var rd_ram_address = sp_reg.read32(SP_DRAM_ADDR_REG);
+    var wrlen_reg      = sp_reg.read32(SP_WR_LEN_REG);
+    var splen          = (wrlen_reg & 0xfff) + 1;
+
+    n64js.log('SP: copying from sp ' + toString16(sp_mem_address) + ' to ram ' + toString32(rd_ram_address) );
+
+    MemoryCopy( ram, rd_ram_address & 0xffffff, sp_mem, sp_mem_address & 0xfff, splen );
+
+    sp_reg.setBits32(SP_DMA_BUSY_REG, 0);
+    sp_reg.clearBits32(SP_STATUS_REG, SP_STATUS_DMA_BUSY);
+  }
+  sp_reg_handler_uncached.write32 = function (address, value) {
+    var ea = this.calcEA(address);
+    if (ea+3 < this.mem.length) {
+
+      switch( ea ) {
+        case SP_MEM_ADDR_REG:
+        case SP_DRAM_ADDR_REG:
+        case SP_SEMAPHORE_REG:
+          this.mem.write32(ea, value);
+          break;
+        case SP_RD_LEN_REG:
+          this.mem.write32(ea, value);
+          SPCopyFromRDRAM();
+          break;
+
+        case SP_WR_LEN_REG:
+          this.mem.write32(ea, value);
+          SPCopyToRDRAM();
+          break;
+
+        case SP_STATUS_REG:
+          SPUpdateStatus( value );
+          break;
+
+        case SP_DMA_FULL_REG:
+        case SP_DMA_BUSY_REG:
+          // Prevent writing to read-only mem
+          break;
+
+        default:
+          n64js.log('Unhandled write to MIReg: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
+          this.mem.write32(ea, value);
+      }
+    } else {
+      throw 'Write is out of range';
+    }
+  };
+
 
 
   function MIWriteModeReg(value) {
