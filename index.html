@@ -51,14 +51,12 @@
 
           <div class="tabbable">
             <ul class="nav nav-tabs">
-              <li class="active"><a href="#file-content" id="file-tab" data-toggle="tab">File</a></li>
+              <li class="active"><a href="#rominfo-content" id="file-tab" data-toggle="tab">File</a></li>
               <li><a href="#debug-content" id="debug-tab" data-toggle="tab">Debug</a></li>
               <li><a href="#memory-content" id="memory-tab" data-toggle="tab">Memory</a></li>
             </ul>
             <div class="tab-content">
-              <div class="tab-pane active" id="file-content">
-                <div id="rominfo"></div>
-              </div>
+              <div class="tab-pane active" id="rominfo-content"></div>
               <div class="tab-pane" id="debug-content">
 
                 <div id="cpu">
@@ -78,9 +76,7 @@
                 <div id="disasm" class="fixed"></div>
 
               </div>
-              <div class="tab-pane" id="memory-content">
-                <div id="memory"></div>
-              </div>
+              <div class="tab-pane" id="memory-content"></div>
             </div>
           </div>
 
@@ -107,8 +103,9 @@
 
     $(document).ready(function(){
       n64js.reset();
-      n64js.setRomInfoElement($('#rominfo'));
+      n64js.setRomInfoElement($('#rominfo-content'));
       n64js.setDebugElements($('#status'), [$('#cpu0-content'), $('#cpu1-content')], $('#disasm'));
+      n64js.setMemoryElement($('#memory-content'));
       n64js.setOutputElement($('#output'));
 
 

@@ -184,6 +184,10 @@ if (typeof n64js === 'undefined') {
     $disassembly = $disasm;
   }
 
+  n64js.setMemoryElement = function ($e) {
+    $memory = $e;
+  }
+
   n64js.down = function () {
     disasmAddress += 4;
     n64js.refreshDisplay();
@@ -228,16 +232,40 @@ if (typeof n64js === 'undefined') {
     return '#' + n64js.toHex(r,8) + n64js.toHex(g,8) + n64js.toHex(b,8);
   }
 
-  var last_pc = -1;
+  var lastCycles;
+  var lastPC               = -1;
+  var recentMemoryAccesses = [];
+  var lastMemoryAccessAddress;
+  var lastStore;                  // When we execute a store instruction, keep track of some details so we can show the value that was written
+
+  // access is {reg,offset,mode}
+  function addRecentMemoryAccess(address, mode, cycle) {
+
+    var col = (mode === 'store') ? '#faa' : '#ffa';
+    if (mode == 'update') {
+      col = '#afa';
+    }
+
+    var highlights = {};
+    var aligned_addr = (address&~3)>>>0;
+    highlights[aligned_addr] = col;
+
+    return makeMemoryTable(address, 32, 32, highlights);
+  }
+
+
   n64js.refreshDisplay = function () {
 
     var cpu0 = n64js.cpu0;
 
     // If the pc has changed since the last update, recenter the display (e.g. when we take a branch)
-    if (cpu0.pc !== last_pc) {
+    if (cpu0.pc !== lastPC) {
       disasmAddress = cpu0.pc;
-      last_pc = cpu0.pc;
+      lastPC = cpu0.pc;
     }
+
+    var is_single_step = lastCycles === (cpu0.opsExecuted-1);
+    lastCycles = cpu0.opsExecuted;
 
     var cur_instr;
 
@@ -253,6 +281,42 @@ if (typeof n64js === 'undefined') {
       }
       return t;
     }).join('<br>');
+
+    // Keep a small queue showing recent memory accesses
+    if (is_single_step) {
+      // Check if we've just stepped over a previous write op, and update the result
+      if (lastStore) {
+        if (lastStore.cycle+1 === cpu0.opsExecuted) {
+          var updated_element = addRecentMemoryAccess(lastStore.address, 'update');
+          lastStore.element.append(updated_element);
+        }
+        lastStore = undefined;
+      }
+
+      if (cur_instr.memory) {
+        var access   = cur_instr.memory;
+        var new_addr = n64js.cpu0.gprLo[access.reg] + access.offset;
+        var element  = addRecentMemoryAccess(new_addr, access.mode);
+
+        if (access.mode === 'store') {
+          lastStore = {address:new_addr, cycle:cpu0.opsExecuted, element:element};
+        }
+
+        recentMemoryAccesses.push({element:element});
+
+        // Nuke anything that happened more than N cycles ago
+        //while (recentMemoryAccesses.length > 0 && recentMemoryAccesses[0].cycle+10 < cycle)
+        if (recentMemoryAccesses.length > 4)
+          recentMemoryAccesses.splice(0,1);
+
+        lastMemoryAccessAddress = new_addr;
+      }
+    } else {
+      // Clear the recent memory accesses when running.
+      recentMemoryAccesses = [];
+      lastStore = undefined;
+    }
+
 
     var labelMap = {
       0x80328730: 'setFP',
@@ -308,14 +372,26 @@ if (typeof n64js === 'undefined') {
       });
     });
 
-    $disassembly.html($dis);
+    $disassembly.html('');
+
+    if (recentMemoryAccesses.length > 0) {
+      var $recent = $('<pre />');
+      var fading_cols = ['#bbb', '#999', '#666', '#333'];
+      for (var i = 0; i < recentMemoryAccesses.length; ++i) {
+        var element = recentMemoryAccesses[i].element;
+        element.css('color', fading_cols[i]);
+        $recent.append(element);
+      }
+      $disassembly.append($recent);
+    }
+
+    $disassembly.append($dis);
 
     for (var i in regColours) {
       $dis.find('.dis-reg-' + i).css('background-color', regColours[i]);
     }
 
-    var $status_table = makeStatusTable();
-    $status.html($status_table);
+    $status.html(makeStatusTable());
 
 
     var $table0 = $('<table class="register-table"><tbody></tbody></table>');
@@ -344,6 +420,45 @@ if (typeof n64js === 'undefined') {
     var $table1 = $('<table class="register-table"><tbody></tbody></table>');
     addCop1($table1.find('tbody'), regColours);
     $registers[1].html($table1);
+
+    var $mem = $('<pre></pre>');
+    $mem.append( makeMemoryTable(lastMemoryAccessAddress || 0x80000000, 1024) );
+    $memory.html($mem);
+  }
+
+  // bytes_per_row should be power-of-two
+  function makeMemoryTable(focus_address, context_bytes, bytes_per_row, highlights) {
+    bytes_per_row = bytes_per_row || 64;
+    highlights = highlights || {};
+
+    function roundDown(x, a) {
+      return x & ~(a-1);
+    }
+
+    var s = roundDown(focus_address, bytes_per_row) - roundDown(context_bytes/2, bytes_per_row);
+    var e = s + context_bytes;
+
+    var t = '';
+
+    for (var a = s; a < e; a += bytes_per_row) {
+      var r = toHex(a, 32) + ':';
+
+      for (var o = 0; o < bytes_per_row; o += 4) {
+        var cur_address = a+o >>> 0;
+        var mem = n64js.readMemoryInternal32(cur_address);
+
+        var style = '';
+        if (highlights.hasOwnProperty(cur_address))
+          style = ' style="background-color: ' + highlights[cur_address] + '"'; 
+
+        r += ' <span id="mem-' + toHex(cur_address, 32) + '"' + style + '>' + toHex(mem, 32) + '</span>';
+      }
+
+      r += '\n';
+      t += r;
+    }
+
+    return $('<span>' + t + '</span>');
   }
 
   function makeStatusTable() {
@@ -713,6 +828,7 @@ if (typeof n64js === 'undefined') {
   var $status      = null;
   var $registers   = null;
   var $disassembly = null;
+  var $memory      = null;
   var $output      = null;
 
   var disasmAddress = 0;

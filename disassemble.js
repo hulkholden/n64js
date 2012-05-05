@@ -69,6 +69,7 @@ if (typeof n64js === 'undefined') {
     this.srcRegs = {};
     this.dstRegs = {};
     this.target  = '';
+    this.memory  = null;
   }
 
   function makeRegSpan(t) {
@@ -114,10 +115,17 @@ if (typeof n64js === 'undefined') {
     branchAddress : function () { this.target = _branchAddress(this.address,this.opcode); return makeLabelText( this.target ); },
     jumpAddress : function ()   { this.target = _jumpAddress(this.address,this.opcode);   return makeLabelText( this.target ); },
 
-    memaccess : function () {
+    memaccess : function (mode) {
       var r   = this.rs();
       var off = this.imm();
+      this.memory = {reg:_rs(this.opcode), offset:_imms(this.opcode), mode:mode};
       return '[' + r + '+' + off + ']';
+    },
+    memload : function () {
+      return this.memaccess('load');
+    },
+    memstore : function () {
+      return this.memaccess('store');
     }
 
   };
@@ -442,44 +450,44 @@ if (typeof n64js === 'undefined') {
     function (i) { return 'BGTZL     ' +                    i.rs() + ' > 0 --> ' + i.branchAddress(); },
     function (i) { return 'DADDI     ' + i.rt_d() + ' = ' + i.rs() + ' + ' + i.imm(); },
     function (i) { return 'DADDIU    ' + i.rt_d() + ' = ' + i.rs() + ' + ' + i.imm(); },
-    function (i) { return 'LDL       ' + i.rt_d() + ' <- ' + i.memaccess(); },
-    function (i) { return 'LDR       ' + i.rt_d() + ' <- ' + i.memaccess(); },
+    function (i) { return 'LDL       ' + i.rt_d() + ' <- ' + i.memload(); },
+    function (i) { return 'LDR       ' + i.rt_d() + ' <- ' + i.memload(); },
     function (i) { return 'Unk'; },
     function (i) { return 'Unk'; },
     function (i) { return 'Unk'; },
     function (i) { return 'Unk'; },
-    function (i) { return 'LB        ' + i.rt_d() + ' <- ' + i.memaccess(); },
-    function (i) { return 'LH        ' + i.rt_d() + ' <- ' + i.memaccess(); },
-    function (i) { return 'LWL       ' + i.rt_d() + ' <- ' + i.memaccess(); },
-    function (i) { return 'LW        ' + i.rt_d() + ' <- ' + i.memaccess(); },
-    function (i) { return 'LBU       ' + i.rt_d() + ' <- ' + i.memaccess(); },
-    function (i) { return 'LHU       ' + i.rt_d() + ' <- ' + i.memaccess(); },
-    function (i) { return 'LWR       ' + i.rt_d() + ' <- ' + i.memaccess(); },
-    function (i) { return 'LWU       ' + i.rt_d() + ' <- ' + i.memaccess(); },
-    function (i) { return 'SB        ' + i.rt()   + ' -> ' + i.memaccess(); },
-    function (i) { return 'SH        ' + i.rt()   + ' -> ' + i.memaccess(); },
-    function (i) { return 'SWL       ' + i.rt()   + ' -> ' + i.memaccess(); },
-    function (i) { return 'SW        ' + i.rt()   + ' -> ' + i.memaccess(); },
-    function (i) { return 'SDL       ' + i.rt()   + ' -> ' + i.memaccess(); },
-    function (i) { return 'SDR       ' + i.rt()   + ' -> ' + i.memaccess(); },
-    function (i) { return 'SWR       ' + i.rt()   + ' -> ' + i.memaccess(); },
+    function (i) { return 'LB        ' + i.rt_d() + ' <- ' + i.memload(); },
+    function (i) { return 'LH        ' + i.rt_d() + ' <- ' + i.memload(); },
+    function (i) { return 'LWL       ' + i.rt_d() + ' <- ' + i.memload(); },
+    function (i) { return 'LW        ' + i.rt_d() + ' <- ' + i.memload(); },
+    function (i) { return 'LBU       ' + i.rt_d() + ' <- ' + i.memload(); },
+    function (i) { return 'LHU       ' + i.rt_d() + ' <- ' + i.memload(); },
+    function (i) { return 'LWR       ' + i.rt_d() + ' <- ' + i.memload(); },
+    function (i) { return 'LWU       ' + i.rt_d() + ' <- ' + i.memload(); },
+    function (i) { return 'SB        ' + i.rt()   + ' -> ' + i.memstore(); },
+    function (i) { return 'SH        ' + i.rt()   + ' -> ' + i.memstore(); },
+    function (i) { return 'SWL       ' + i.rt()   + ' -> ' + i.memstore(); },
+    function (i) { return 'SW        ' + i.rt()   + ' -> ' + i.memstore(); },
+    function (i) { return 'SDL       ' + i.rt()   + ' -> ' + i.memstore(); },
+    function (i) { return 'SDR       ' + i.rt()   + ' -> ' + i.memstore(); },
+    function (i) { return 'SWR       ' + i.rt()   + ' -> ' + i.memstore(); },
     function (i) { return 'CACHE     ' + n64js.toHex(_rt(i.opcode),8) + i.memaccess(); },
-    function (i) { return 'LL        ' + i.rt_d() + ' <- ' + i.memaccess(); },
-    function (i) { return 'LWC1      ' + i.ft_d() + ' <- ' + i.memaccess(); },
+    function (i) { return 'LL        ' + i.rt_d() + ' <- ' + i.memload(); },
+    function (i) { return 'LWC1      ' + i.ft_d() + ' <- ' + i.memload(); },
     function (i) { return 'Unk'; },
     function (i) { return 'Unk'; },
-    function (i) { return 'LLD       ' + i.rt_d() + ' <- ' + i.memaccess(); },
-    function (i) { return 'LDC1      ' + i.ft_d() + ' <- ' + i.memaccess(); },
-    function (i) { return 'LDC2      ' + i.gt_d() + ' <- ' + i.memaccess(); },
-    function (i) { return 'LD        ' + i.rt_d() + ' <- ' + i.memaccess(); },
-    function (i) { return 'SC        ' + i.rt()   + ' -> ' + i.memaccess(); },
-    function (i) { return 'SWC1      ' + i.ft()   + ' -> ' + i.memaccess(); },
+    function (i) { return 'LLD       ' + i.rt_d() + ' <- ' + i.memload(); },
+    function (i) { return 'LDC1      ' + i.ft_d() + ' <- ' + i.memload(); },
+    function (i) { return 'LDC2      ' + i.gt_d() + ' <- ' + i.memload(); },
+    function (i) { return 'LD        ' + i.rt_d() + ' <- ' + i.memload(); },
+    function (i) { return 'SC        ' + i.rt()   + ' -> ' + i.memstore(); },
+    function (i) { return 'SWC1      ' + i.ft()   + ' -> ' + i.memstore(); },
     function (i) { return 'Unk'; },
     function (i) { return 'Unk'; },
-    function (i) { return 'SCD       ' + i.rt()   + ' -> ' + i.memaccess(); },
-    function (i) { return 'SDC1      ' + i.ft()   + ' -> ' + i.memaccess(); },
-    function (i) { return 'SDC2      ' + i.gt()   + ' -> ' + i.memaccess(); },
-    function (i) { return 'SD        ' + i.rt()   + ' -> ' + i.memaccess(); }
+    function (i) { return 'SCD       ' + i.rt()   + ' -> ' + i.memstore(); },
+    function (i) { return 'SDC1      ' + i.ft()   + ' -> ' + i.memstore(); },
+    function (i) { return 'SDC2      ' + i.gt()   + ' -> ' + i.memstore(); },
+    function (i) { return 'SD        ' + i.rt()   + ' -> ' + i.memstore(); }
   ];
   if (simpleTable.length != 64) {
     throw "Oops, didn't build the simple table correctly";
