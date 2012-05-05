@@ -784,6 +784,7 @@ if (typeof n64js === 'undefined') {
   rdram_handler_cached.quiet    = true;
   rdram_handler_uncached.quiet  = true;
   sp_mem_handler_uncached.quiet = true;
+  sp_reg_handler_uncached.quiet = true;
 
   mapped_mem_handler.readInternal32 = function(address) {
     return 0xffffffff;
@@ -905,6 +906,7 @@ if (typeof n64js === 'undefined') {
         default:
           n64js.log('Unhandled write to MIReg: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
           this.mem.write32(ea, value);
+          break;
       }
 
     } else {
@@ -943,13 +945,13 @@ if (typeof n64js === 'undefined') {
         default:
           n64js.log('Unhandled write to AIReg: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
           this.mem.write32(ea, value);
+          break;
       }
 
     } else {
       throw 'Write is out of range';
     }
   };
-
 
   vi_reg_handler_uncached.write32 = function (address, value) {
     var ea = this.calcEA(address);
@@ -961,19 +963,17 @@ if (typeof n64js === 'undefined') {
           this.mem.write32(ea, value);
           break;
         case VI_WIDTH_REG:
-            n64js.log('VI width set to: ' + value );
-            this.mem.write32(ea, value);
-            break;
-          case VI_CURRENT_REG:
-            n64js.log('VI current set to: ' + toString32(value) + '.' );
-            n64js.log('VI interrupt cleared');
-            this.mem.write32(ea, value);
-            mi_reg.clearBits32(MI_INTR_REG, MI_INTR_VI);
-            n64js.cpu0.updateCause3();
-            break;
+          n64js.log('VI width set to: ' + value );
+          this.mem.write32(ea, value);
+          break;
+        case VI_CURRENT_REG:
+          n64js.log('VI current set to: ' + toString32(value) + '.' );
+          n64js.log('VI interrupt cleared');
+          mi_reg.clearBits32(MI_INTR_REG, MI_INTR_VI);
+          n64js.cpu0.updateCause3();
+          break;
 
         default:
-          n64js.log('Unhandled write to VIReg: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
           this.mem.write32(ea, value);
           break;
       }
@@ -1038,7 +1038,7 @@ if (typeof n64js === 'undefined') {
 
     var control_byte = pi_ram[0x3f];
     if (control_byte > 0) {
-      n64js.halt('SI: wrote ' + control_byte + ' to the control byte');
+      n64js.log('SI: wrote ' + control_byte + ' to the control byte');
     }
 
     si_reg.setBits32(SI_STATUS_REG, SI_STATUS_INTERRUPT);
@@ -1730,6 +1730,13 @@ if (typeof n64js === 'undefined') {
         '</tr>');
     }
     $rominfo.append($table);
+  }
+
+  n64js.verticalBlank = function() {
+    // FIXME: framerate limit etc
+
+    mi_reg.setBits32(MI_INTR_REG, MI_INTR_VI);
+    n64js.cpu0.updateCause3();
   }
 
   function toHex(r, bits) {

@@ -165,8 +165,11 @@ if (typeof n64js === 'undefined') {
   var kStuffToDoHalt            = 1<<0;
   var kStuffToDoCheckInterrupts = 1<<1;
 
-  var kEventCompare      = 0;
-  var kEventRunForCycles = 1;
+  var kVIIntrCycles = 62500;
+
+  var kEventVbl          = 0;
+  var kEventCompare      = 1;
+  var kEventRunForCycles = 2;
 
   function TLBEntry() {
     this.pagemask = 0;
@@ -294,6 +297,8 @@ if (typeof n64js === 'undefined') {
       this.control[this.kControlRand]   = 32-1;
       this.control[this.kControlSR]     = 0x70400004;
       this.control[this.kControlConfig] = 0x0006e463;
+
+      this.addEvent(kEventVbl, kVIIntrCycles);
     };
 
     this.halt = function () {
@@ -402,6 +407,7 @@ if (typeof n64js === 'undefined') {
     Event.prototype = {
       getName : function () {
         switch(this.type) {
+          case kEventVbl:           return 'Vbl';
           case kEventCompare:       return 'Compare';
           case kEventRunForCycles:  return 'Run';
         }
@@ -1852,6 +1858,15 @@ if (typeof n64js === 'undefined') {
               } else if (evt.type === kEventCompare) {
                 n64js.halt('compare fired!');
                 break;
+              } else if (evt.type === kEventVbl) {
+                // FIXME: this should be based on VI_V_SYNC_REG
+                cpu0.addEvent(kEventVbl, kVIIntrCycles);
+
+                n64js.verticalBlank();
+
+                break;
+              } else {
+                n64js.halt('unhandled event!');
               }
             }
 
