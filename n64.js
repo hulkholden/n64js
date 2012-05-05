@@ -588,89 +588,6 @@ if (typeof n64js === 'undefined') {
   //
   // Memory handlers
   //
-  function PICopyToRDRAM() {
-    var dram_address = pi_reg.read32(PI_DRAM_ADDR_REG) & 0x00ffffff;
-    var cart_address = pi_reg.read32(PI_CART_ADDR_REG);
-    var transfer_len = pi_reg.read32(PI_WR_LEN_REG) + 1;
-
-    n64js.log('PI: copying ' + transfer_len + ' bytes of data from ' + toString32(cart_address) + ' to ' + toString32(dram_address));
-
-    if (transfer_len&1) {
-      n64js.log('PI: Warning - odd address');
-      transfer_len++;
-    }
-
-    var copy_succeeded = false;
-
-    if (IsDom1Addr1(cart_address)) {
-      cart_address -= PI_DOM1_ADDR1;
-      MemoryCopy( ram, dram_address, rom, cart_address, transfer_len );
-      copy_succeeded = true;
-    } else if (IsDom1Addr2(cart_address)) {
-      cart_address -= PI_DOM1_ADDR2;
-      MemoryCopy( ram, dram_address, rom, cart_address, transfer_len );
-      copy_succeeded = true;
-    } else if (IsDom1Addr3(cart_address)) {
-      cart_address -= PI_DOM1_ADDR3;
-      MemoryCopy( ram, dram_address, rom, cart_address, transfer_len );
-      copy_succeeded = true;
-
-    } else if (IsDom2Addr1(cart_address)) {
-      cart_address -= PI_DOM2_ADDR1;
-      n64js.halt('PI: dom2addr1 transfer is unhandled (save)');
-
-    } else if (IsDom2Addr2(cart_address)) {
-      cart_address -= PI_DOM2_ADDR2;
-      n64js.halt('PI: dom2addr2 transfer is unhandled (save/flash)');
-
-    } else {
-      n64js.halt('PI: unknown cart address: ' + cart_address);
-    }
-
-    // If this is the first DMA write the ram size to 0x800003F0 (cic6105) or 0x80000318 (others)
-    pi_reg.clearBits32(PI_STATUS_REG, PI_STATUS_DMA_BUSY);
-    mi_reg.setBits32(MI_INTR_REG, MI_INTR_PI);
-    n64js.cpu0.updateCause3();
-  }
-
-  function PIUpdateControl() {
-    var pif_rom = new Uint8Array(pif_mem.bytes, 0x000, 0x7c0);
-    var pif_ram = new Uint8Array(pif_mem.bytes, 0x7c0, 0x040);
-    var command = pif_ram[0x3f];
-    switch (command) {
-      case 0x01:
-        n64js.log('PI: execute block\n');
-        break;
-      case 0x08:
-        n64js.log('PI: interrupt control\n');
-        pif_ram[0x3f] = 0x00;
-        si_reg.setBits32(SI_STATUS_REG, SI_STATUS_INTERRUPT);
-        si_reg.setBits32(MI_INTR_REG,   MI_INTR_SI);
-        n64js.cpu0.updateCause3();
-        break;
-      case 0x10:
-        n64js.log('PI: clear rom\n');
-        for(var i = 0; i < pif_rom.length; ++i) {
-          pif_rom[i] = 0;
-        }
-        break;
-      case 0x30:
-        n64js.log('PI: set 0x80 control \n');
-        pif_ram[0x3f] = 0x80;
-        break;
-      case 0xc0:
-        n64js.log('PI: clear ram\n');
-        for(var i = 0; i < pif_ram.length; ++i) {
-          pif_ram[i] = 0;
-        }
-        break;
-      default:
-        n64js.halt('Unkown PI control value: ' + toString8(command));
-        break;
-    }
-  }
-
-
   function Memory(arraybuffer) {
     this.bytes  = arraybuffer;
     this.length = arraybuffer.byteLength;
@@ -835,7 +752,7 @@ if (typeof n64js === 'undefined') {
 
   var running       = false;
   var rom           = null;   // Will be memory, mapped at 0xb0000000
-  var pif_mem       = new Memory(new ArrayBuffer(0x7c0 + 0x40));   // rom+ram
+  var pi_mem        = new Memory(new ArrayBuffer(0x7c0 + 0x40));   // rom+ram
   var ram           = new Memory(new ArrayBuffer(8*1024*1024));
   var sp_mem        = new Memory(new ArrayBuffer(0x2000));
   var sp_reg        = new Memory(new ArrayBuffer(0x20));
@@ -862,7 +779,7 @@ if (typeof n64js === 'undefined') {
   var ri_reg_handler_uncached    = new Device("RIReg",    ri_reg,       0xa4700000, 0xa4700020);
   var si_reg_handler_uncached    = new Device("SIReg",    si_reg,       0xa4800000, 0xa480001c);
   var rom_handler_uncached       = new Device("ROM",      rom,          0xb0000000, 0xbfc00000);
-  var pif_mem_handler_uncached   = new Device("PIFRAM",   pif_mem,      0xbfc00000, 0xbfc00800);
+  var pi_mem_handler_uncached    = new Device("PIRAM",    pi_mem,       0xbfc00000, 0xbfc00800);
 
   rdram_handler_cached.quiet    = true;
   rdram_handler_uncached.quiet  = true;
@@ -1109,6 +1026,158 @@ if (typeof n64js === 'undefined') {
     }
   };
 
+  function SICopyFromRDRAM() {
+    var dram_address = si_reg.read32(SI_DRAM_ADDR_REG) & 0x1fffffff;
+    var pi_ram       = new Uint8Array(pi_mem.bytes, 0x7c0, 0x040);
+
+    n64js.log('SI: copying from ' + toString32(dram_address) + ' to PI RAM');
+
+    for (var i = 0; i < 64; ++i) {
+      pi_ram[i] = ram.u8[dram_address+i];
+    }
+
+    var control_byte = pi_ram[0x3f];
+    if (control_byte > 0) {
+      n64js.halt('SI: wrote ' + control_byte + ' to the control byte');
+    }
+
+    si_reg.setBits32(SI_STATUS_REG, SI_STATUS_INTERRUPT);
+    mi_reg.setBits32(MI_INTR_REG, MI_INTR_SI);
+    n64js.cpu0.updateCause3();
+  }
+
+  function SICopyToRDRAM() {
+
+    // Update controller state here
+    UpdateController();
+
+    var dram_address = si_reg.read32(SI_DRAM_ADDR_REG) & 0x1fffffff;
+    var pi_ram       = new Uint8Array(pi_mem.bytes, 0x7c0, 0x040);
+
+    n64js.log('SI: copying from PI RAM to ' + toString32(dram_address));
+
+    for (var i = 0; i < 64; ++i) {
+      ram.u8[dram_address+i] = pi_ram[i];
+    }
+
+    si_reg.setBits32(SI_STATUS_REG, SI_STATUS_INTERRUPT);
+    mi_reg.setBits32(MI_INTR_REG, MI_INTR_SI);
+    n64js.cpu0.updateCause3();
+  }
+
+
+  var PC_CONTROLLER_0      = 0;
+  var PC_CONTROLLER_1      = 1;
+  var PC_CONTROLLER_2      = 2;
+  var PC_CONTROLLER_3      = 3;
+  var PC_EEPROM            = 4;
+  var PC_UNKNOWN_1         = 5;
+  var NUM_CHANNELS         = 5;
+
+  var CONT_GET_STATUS      = 0x00;
+  var CONT_READ_CONTROLLER = 0x01;
+  var CONT_READ_MEMPACK    = 0x02;
+  var CONT_WRITE_MEMPACK   = 0x03;
+  var CONT_READ_EEPROM     = 0x04;
+  var CONT_WRITE_EEPROM    = 0x05;
+  var CONT_RTC_STATUS      = 0x06;
+  var CONT_RTC_READ        = 0x07;
+  var CONT_RTC_WRITE       = 0x08;
+  var CONT_RESET           = 0xff;
+
+  var CONT_TX_SIZE_CHANSKIP   = 0x00;         // Channel Skip
+  var CONT_TX_SIZE_DUMMYDATA  = 0xFF;         // Dummy Data
+  var CONT_TX_SIZE_FORMAT_END = 0xFE;         // Format End
+  var CONT_TX_SIZE_CHANRESET  = 0xFD;         // Channel Reset
+
+  function UpdateController() {
+
+    // read controllers
+
+    var pi_ram       = new Uint8Array(pi_mem.bytes, 0x7c0, 0x040);
+
+    var count   = 0;
+    var channel = 0;
+    while (count < 64) {
+      var cmd = pi_ram.subarray(count);
+
+      if (cmd[0] == CONT_TX_SIZE_FORMAT_END) {
+        count = 64;
+        break;
+      }
+
+      if ((cmd[0] == CONT_TX_SIZE_DUMMYDATA) || (cmd[0] == CONT_TX_SIZE_CHANRESET)) {
+        count++;
+        continue;
+      }
+
+      if (cmd[0] == CONT_TX_SIZE_CHANSKIP) {
+        count++;
+        channel++;
+      }
+
+      // 0-3: controller channels
+      if (channel < PC_EEPROM) {
+        // copy controller status
+        if (!ProcessController(cmd, channel)) {
+          count = 64;
+          break;
+        }
+      } else if (channel === PC_EEPROM) {
+        n64js.halt('eeprom is unhandled');
+        break;
+      } else {
+        n64js.halt('Trying to read from invalid controller channel ' + channel + '!');
+        return;
+      }
+
+      channel++;
+      count += cmd[0] + (cmd[1]&0x3f) + 2;
+    }
+
+    pi_ram[63] = 0;
+  }
+
+  var controllers = [{present:true}, {present:false}, {present:false}, {present:false}];
+  function ProcessController(cmd, channel) {
+    if (!controllers[channel].present)
+    {
+      cmd[1] |= 0x80;
+      cmd[3]  = 0xff;
+      cmd[4]  = 0xff;
+      cmd[5]  = 0xff;
+      return true;
+    }
+
+    switch (cmd[2]) {
+      case CONT_RESET:
+      case CONT_GET_STATUS:
+        cmd[3] = 0x05;
+        cmd[4] = 0x00;
+        cmd[5] = controllers[channel].mempack ? 0x01 : 0x00;
+        break;
+
+      case CONT_READ_CONTROLLER:
+        cmd[3] = controllers[channel].buttons >>> 8;
+        cmd[4] = controllers[channel].buttons & 0xff;
+        cmd[5] = controllers[channel].stick_x;
+        cmd[6] = controllers[channel].stick_y;
+        break;
+
+      case CONT_READ_MEMPACK:
+        n64js.halt('CONT_READ_MEMPACK not implemented');
+        return false;
+      case CONT_WRITE_MEMPACK:
+        n64js.halt('CONT_WRITE_MEMPACK not implemented');
+        return false;
+      default:
+        n64js.halt('Unknown controller command ' + cmd[2]);
+        break;
+    }
+
+    return true;
+  }
+
   si_reg_handler_uncached.read32 = function (address) {
     if (!this.quiet) n64js.log('Reading from ' + this.name + ': ' + toString32(address) );
     var ea = this.calcEA(address);
@@ -1138,11 +1207,11 @@ if (typeof n64js === 'undefined') {
           break;
         case SI_PIF_ADDR_RD64B_REG:
           this.mem.write32(ea, value);
-          n64js.halt('SI copy to rdram triggered!');
+          SICopyToRDRAM();
           break;
         case SI_PIF_ADDR_WR64B_REG:
           this.mem.write32(ea, value);
-          n64js.halt('SI copy from rdram triggered!');
+          SICopyFromRDRAM();
           break;
         case SI_STATUS_REG:
           n64js.log('SI interrupt cleared');
@@ -1161,11 +1230,94 @@ if (typeof n64js === 'undefined') {
     }
   };
 
-  pif_mem_handler_uncached.read32 = function (address) {
+
+  function PICopyToRDRAM() {
+    var dram_address = pi_reg.read32(PI_DRAM_ADDR_REG) & 0x00ffffff;
+    var cart_address = pi_reg.read32(PI_CART_ADDR_REG);
+    var transfer_len = pi_reg.read32(PI_WR_LEN_REG) + 1;
+
+    n64js.log('PI: copying ' + transfer_len + ' bytes of data from ' + toString32(cart_address) + ' to ' + toString32(dram_address));
+
+    if (transfer_len&1) {
+      n64js.log('PI: Warning - odd address');
+      transfer_len++;
+    }
+
+    var copy_succeeded = false;
+
+    if (IsDom1Addr1(cart_address)) {
+      cart_address -= PI_DOM1_ADDR1;
+      MemoryCopy( ram, dram_address, rom, cart_address, transfer_len );
+      copy_succeeded = true;
+    } else if (IsDom1Addr2(cart_address)) {
+      cart_address -= PI_DOM1_ADDR2;
+      MemoryCopy( ram, dram_address, rom, cart_address, transfer_len );
+      copy_succeeded = true;
+    } else if (IsDom1Addr3(cart_address)) {
+      cart_address -= PI_DOM1_ADDR3;
+      MemoryCopy( ram, dram_address, rom, cart_address, transfer_len );
+      copy_succeeded = true;
+
+    } else if (IsDom2Addr1(cart_address)) {
+      cart_address -= PI_DOM2_ADDR1;
+      n64js.halt('PI: dom2addr1 transfer is unhandled (save)');
+
+    } else if (IsDom2Addr2(cart_address)) {
+      cart_address -= PI_DOM2_ADDR2;
+      n64js.halt('PI: dom2addr2 transfer is unhandled (save/flash)');
+
+    } else {
+      n64js.halt('PI: unknown cart address: ' + cart_address);
+    }
+
+    // If this is the first DMA write the ram size to 0x800003F0 (cic6105) or 0x80000318 (others)
+    pi_reg.clearBits32(PI_STATUS_REG, PI_STATUS_DMA_BUSY);
+    mi_reg.setBits32(MI_INTR_REG, MI_INTR_PI);
+    n64js.cpu0.updateCause3();
+  }
+
+  function PIUpdateControl() {
+    var pi_rom = new Uint8Array(pi_mem.bytes, 0x000, 0x7c0);
+    var pi_ram = new Uint8Array(pi_mem.bytes, 0x7c0, 0x040);
+    var command = pi_ram[0x3f];
+    switch (command) {
+      case 0x01:
+        n64js.log('PI: execute block\n');
+        break;
+      case 0x08:
+        n64js.log('PI: interrupt control\n');
+        pi_ram[0x3f] = 0x00;
+        si_reg.setBits32(SI_STATUS_REG, SI_STATUS_INTERRUPT);
+        si_reg.setBits32(MI_INTR_REG,   MI_INTR_SI);
+        n64js.cpu0.updateCause3();
+        break;
+      case 0x10:
+        n64js.log('PI: clear rom\n');
+        for(var i = 0; i < pi_rom.length; ++i) {
+          pi_rom[i] = 0;
+        }
+        break;
+      case 0x30:
+        n64js.log('PI: set 0x80 control \n');
+        pi_ram[0x3f] = 0x80;
+        break;
+      case 0xc0:
+        n64js.log('PI: clear ram\n');
+        for(var i = 0; i < pi_ram.length; ++i) {
+          pi_ram[i] = 0;
+        }
+        break;
+      default:
+        n64js.halt('Unkown PI control value: ' + toString8(command));
+        break;
+    }
+  }
+
+  pi_mem_handler_uncached.read32 = function (address) {
     var ea = this.calcEA(address);
 
     if (ea+3 < this.mem.length) {
-      var v = pif_mem.read32(ea);
+      var v = pi_mem.read32(ea);
 
       if (ea < 0x7c0) {
         n64js.log('Reading from PIF rom (' + toString32(address) + '). Got ' + toString32(v));
@@ -1183,11 +1335,11 @@ if (typeof n64js === 'undefined') {
       throw 'Read is out of range';
     }
   };
-  pif_mem_handler_uncached.read8 = function (address) {
+  pi_mem_handler_uncached.read8 = function (address) {
     var ea = this.calcEA(address);
 
     if (ea < this.mem.length) {
-      var v = pif_mem.read8(ea);
+      var v = pi_mem.read8(ea);
 
       if (ea < 0x7c0) {
         n64js.log('Reading from PIF rom (' + toString32(address) + '). Got ' + toString8(v));
@@ -1205,7 +1357,7 @@ if (typeof n64js === 'undefined') {
       throw 'Read is out of range';
     }
   };
-  pif_mem_handler_uncached.write32 = function (address, value) {
+  pi_mem_handler_uncached.write32 = function (address, value) {
     var ea = this.calcEA(address);
     if (ea+3 < this.mem.length) {
 
@@ -1247,7 +1399,7 @@ if (typeof n64js === 'undefined') {
          ri_reg_handler_uncached,
          si_reg_handler_uncached,
             rom_handler_uncached,
-        pif_mem_handler_uncached
+         pi_mem_handler_uncached
     ].map(function (e){
         var beg = (e.rangeStart)>>>18;
         var end = (e.rangeEnd-1)>>>18;
