@@ -1330,6 +1330,42 @@ if (typeof n64js === 'undefined') {
   }
   function executeLDC2(a,i)       { unimplemented(a,i); }
 
+  function executeLWL(a,i) {
+    var address         = memaddr(i);
+    var address_aligned = (address & ~3)>>>0;
+    var memory          = n64js.readMemory32(address_aligned);
+    var reg             = cpu0.gprLo[rt(i)];
+
+    var value;
+    switch(address % 4) {
+      case 0:       value = memory;                              break;
+      case 1:       value = (reg & 0x000000ff) | (memory <<  8); break;
+      case 2:       value = (reg & 0x0000ffff) | (memory << 16); break;
+      default:      value = (reg & 0x00ffffff) | (memory << 24); break;
+    }
+
+    setSignExtend( rt(i), value );
+  }
+  function executeLWR(a,i) {
+    var address         = memaddr(i);
+    var address_aligned = (address & ~3)>>>0;
+    var memory          = n64js.readMemory32(address_aligned);
+    var reg             = cpu0.gprLo[rt(i)];
+
+    var value;
+    switch(address % 4) {
+      case 0:       value = (reg & 0xffffff00) | (memory >> 24); break;
+      case 1:       value = (reg & 0xffff0000) | (memory >> 16); break;
+      case 2:       value = (reg & 0xff000000) | (memory >>  8); break;
+      default:      value = memory;                              break;
+    }
+
+    setSignExtend( rt(i), value );
+  }
+  function executeLDL(a,i)        { unimplemented(a,i); }
+  function executeLDR(a,i)        { unimplemented(a,i); }
+
+
   function executeSB(a,i) {
     n64js.writeMemory8(memaddr(i), cpu0.gprLo[rt(i)] & 0xff );
   }
@@ -1353,11 +1389,6 @@ if (typeof n64js === 'undefined') {
   }
 
   function executeSDC2(a,i)       { unimplemented(a,i); }
-
-  function executeLWL(a,i)        { unimplemented(a,i); }
-  function executeLWR(a,i)        { unimplemented(a,i); }
-  function executeLDL(a,i)        { unimplemented(a,i); }
-  function executeLDR(a,i)        { unimplemented(a,i); }
 
   function executeSWL(a,i) {
     var address         = memaddr(i);
