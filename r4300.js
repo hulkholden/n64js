@@ -1359,8 +1359,39 @@ if (typeof n64js === 'undefined') {
   function executeLDL(a,i)        { unimplemented(a,i); }
   function executeLDR(a,i)        { unimplemented(a,i); }
 
-  function executeSWL(a,i)        { unimplemented(a,i); }
-  function executeSWR(a,i)        { unimplemented(a,i); }
+  function executeSWL(a,i) {
+    var address         = memaddr(i);
+    var address_aligned = (address & ~3)>>>0;
+    var memory          = n64js.readMemory32(address_aligned);
+    var reg             = cpu0.gprLo[rt(i)];
+
+    var value;
+    switch(address % 4) {
+      case 0:       value = reg;                                  break;
+      case 1:       value = (memory & 0xff000000) | (reg >>>  8); break;
+      case 2:       value = (memory & 0xffff0000) | (reg >>> 16); break;
+      default:      value = (memory & 0xffffff00) | (reg >>> 24); break;
+    }
+
+    n64js.writeMemory32( address_aligned, value );
+  }
+  function executeSWR(a,i) {
+    var address         = memaddr(i);
+    var address_aligned = (address & ~3)>>>0;
+    var memory          = n64js.readMemory32(address_aligned);
+    var reg             = cpu0.gprLo[rt(i)];
+
+    var value;
+    switch(address % 4) {
+      case 0:       value = (memory & 0x00ffffff) | (reg << 24); break;
+      case 1:       value = (memory & 0x0000ffff) | (reg << 16); break;
+      case 2:       value = (memory & 0x000000ff) | (reg <<  8); break;
+      default:      value = reg;                                 break;
+    }
+
+    n64js.writeMemory32( address_aligned, value );
+  }
+
   function executeSDL(a,i)        { unimplemented(a,i); }
   function executeSDR(a,i)        { unimplemented(a,i); }
 
