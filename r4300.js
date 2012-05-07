@@ -1896,7 +1896,10 @@ if (typeof n64js === 'undefined') {
               if( evt.type === kEventRunForCycles ) {
                 break;
               } else if (evt.type === kEventCompare) {
-                n64js.halt('compare fired!');
+                n64js.log('compare event fired');
+
+                cpu0.control[cpu0.kControlCause] |= CAUSE_IP8;
+                this.stuffToDo |= kStuffToDoCheckInterrupts;
                 break;
               } else if (evt.type === kEventVbl) {
                 // FIXME: this should be based on VI_V_SYNC_REG
