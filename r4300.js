@@ -948,7 +948,10 @@ if (typeof n64js === 'undefined') {
     cpu0.gprLo[rd(i)] = cpu0.gprLo[rs(i)] ^ cpu0.gprLo[rt(i)];
   }
 
-  function executeNOR(a,i)        { unimplemented(a,i); }
+  function executeNOR(a,i) {
+    cpu0.gprHi[rd(i)] = ~(cpu0.gprHi[rs(i)] | cpu0.gprHi[rt(i)]);
+    cpu0.gprLo[rd(i)] = ~(cpu0.gprLo[rs(i)] | cpu0.gprLo[rt(i)]);
+  }
 
 
   // ffffffff fffffff0    // -16          false
@@ -1171,14 +1174,14 @@ if (typeof n64js === 'undefined') {
   // Branch Greater Than Zero
   function executeBGTZ(a,i) {
     var s = rs(i);
-    if ( cpu0.gprHi_signed[s] > 0 &&
+    if ( cpu0.gprHi_signed[s] >= 0 &&
         (cpu0.gprHi[s] !== 0 || cpu0.gprLo[s] !== 0) ) {
       performBranch( branchAddress(a,i) );
     }
   }
   function executeBGTZL(a,i) {
     var s = rs(i);
-    if ( cpu0.gprHi_signed[s] > 0 &&
+    if ( cpu0.gprHi_signed[s] >= 0 &&
         (cpu0.gprHi[s] !== 0 || cpu0.gprLo[s] !== 0) ) {
       performBranch( branchAddress(a,i) );
     } else {
