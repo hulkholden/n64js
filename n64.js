@@ -987,7 +987,9 @@ if (typeof n64js === 'undefined') {
     var wrlen_reg      = sp_reg.read32(SP_WR_LEN_REG);
     var splen          = (wrlen_reg & 0xfff) + 1;
 
-    n64js.log('SP: copying from sp ' + toString16(sp_mem_address) + ' to ram ' + toString32(rd_ram_address) );
+    if (!sp_reg_handler_uncached.quiet) {
+      n64js.log('SP: copying from sp ' + toString16(sp_mem_address) + ' to ram ' + toString32(rd_ram_address) );
+    }
 
     MemoryCopy( ram, rd_ram_address & 0xffffff, sp_mem, sp_mem_address & 0xfff, splen );
 
@@ -1381,17 +1383,22 @@ if (typeof n64js === 'undefined') {
     return true;
   }
 
+  function checkSIStatusConsistent() {
+    var mi_si_int_set     = mi_reg.getBits32(MI_INTR_REG,   MI_INTR_SI)          !== 0;
+    var si_status_int_set = si_reg.getBits32(SI_STATUS_REG, SI_STATUS_INTERRUPT) !== 0;
+    if (mi_si_int_set != si_status_int_set) {
+      n64js.halt("SI_STATUS register is in an inconsistent state");
+    }
+  }
+  n64js.checkSIStatusConsistent = checkSIStatusConsistent;
+
   si_reg_handler_uncached.read32 = function (address) {
     if (!this.quiet) n64js.log('Reading from ' + this.name + ': ' + toString32(address) );
     var ea = this.calcEA(address);
 
     if (ea+3 < this.mem.length) {
-      if (ea == SI_STATUS_REG) {
-        var mi_si_int_set     = mi_reg.getBits32(MI_INTR_REG,   MI_INTR_SI)          !== 0;
-        var si_status_int_set = si_reg.getBits32(SI_STATUS_REG, SI_STATUS_INTERRUPT) !== 0;
-        if (mi_si_int_set != si_status_int_set) {
-          n64js.log("SI_STATUS register is in an inconsistent state");
-        }
+      if (ea === SI_STATUS_REG) {
+        checkSIStatusConsistent();
       }
       return this.mem.read32(ea);
     } else {
