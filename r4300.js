@@ -777,10 +777,10 @@ if (typeof n64js === 'undefined') {
   }
 
   function executeSRL(a,i) {
-    setSignExtend( rd(i), cpu0.gprLo[rt(i)] >> sa(i) );
+    setSignExtend( rd(i), cpu0.gprLo[rt(i)] >>> sa(i) );
   }
   function executeSRA(a,i) {
-    setSignExtend( rd(i), cpu0.gprLo[rt(i)] >>> sa(i) );
+    setSignExtend( rd(i), cpu0.gprLo[rt(i)] >> sa(i) );
   }
   function executeSLLV(a,i) {
     setSignExtend( rd(i), (cpu0.gprLo[rt(i)] <<  (cpu0.gprLo[rs(i)] & 0x1f)) & 0xffffffff );

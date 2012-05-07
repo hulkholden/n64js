@@ -134,14 +134,14 @@ if (typeof n64js === 'undefined') {
     function (i) { if (i.opcode == 0) {
                      return 'NOP';
                      }
-                   return 'SLL       ' + i.rd() + ' = ' + i.rs() + ' << '  + _sa(i.opcode); },
+                   return 'SLL       ' + i.rd() + ' = ' + i.rt() + ' << '  + _sa(i.opcode); },
     function (i) { return 'Unk'; },
-    function (i) { return 'SRL       ' + i.rd() + ' = ' + i.rs() + ' >>> ' + _sa(i.opcode); },
-    function (i) { return 'SRA       ' + i.rd() + ' = ' + i.rs() + ' >> '  + _sa(i.opcode); },
-    function (i) { return 'SLLV      ' + i.rd() + ' = ' + i.rs() + ' << '  + i.rt(); },
+    function (i) { return 'SRL       ' + i.rd() + ' = ' + i.rt() + ' >>> ' + _sa(i.opcode); },
+    function (i) { return 'SRA       ' + i.rd() + ' = ' + i.rt() + ' >> '  + _sa(i.opcode); },
+    function (i) { return 'SLLV      ' + i.rd() + ' = ' + i.rt() + ' << '  + i.rs(); },
     function (i) { return 'Unk'; },
-    function (i) { return 'SRLV      ' + i.rd() + ' = ' + i.rs() + ' >>> ' + i.rt(); },
-    function (i) { return 'SRAV      ' + i.rd() + ' = ' + i.rs() + ' >> '  + i.rt(); },
+    function (i) { return 'SRLV      ' + i.rd() + ' = ' + i.rt() + ' >>> ' + i.rs(); },
+    function (i) { return 'SRAV      ' + i.rd() + ' = ' + i.rt() + ' >> '  + i.rs(); },
     function (i) { return 'JR        ' + i.rs(); },
     function (i) { return 'JALR      ' + i.rd() + ', ' + i.rs(); },
     function (i) { return 'Unk'; },
