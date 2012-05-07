@@ -3,6 +3,7 @@ if (typeof n64js === 'undefined') {
 }
 
 (function () {'use strict';
+  var debugTLB = 0;
 
 
   var SR_IE           = 0x00000001;
@@ -182,12 +183,25 @@ if (typeof n64js === 'undefined') {
 
   TLBEntry.prototype = {
     update : function(index, pagemask, hi, entrylo0, entrylo1) {
-      n64js.log('TLB update: index=' + index +
-                ', pagemask=' + n64js.toString32(pagemask) +
-                ', entryhi='  + n64js.toString32(hi) +
-                ', entrylo0=' + n64js.toString32(entrylo0) +
-                ', entrylo1=' + n64js.toString32(entrylo1)
-              );
+      if (debugTLB) {
+        n64js.log('TLB update: index=' + index +
+            ', pagemask=' + n64js.toString32(pagemask) +
+            ', entryhi='  + n64js.toString32(hi) +
+            ', entrylo0=' + n64js.toString32(entrylo0) +
+            ', entrylo1=' + n64js.toString32(entrylo1)
+          );
+
+        switch (pagemask) {
+          case TLBPGMASK_4K:      n64js.log('       4k Pagesize');      break;
+          case TLBPGMASK_16K:     n64js.log('       16k Pagesize');     break;
+          case TLBPGMASK_64K:     n64js.log('       64k Pagesize');     break;
+          case TLBPGMASK_256K:    n64js.log('       256k Pagesize');    break;
+          case TLBPGMASK_1M:      n64js.log('       1M Pagesize');      break;
+          case TLBPGMASK_4M:      n64js.log('       4M Pagesize');      break;
+          case TLBPGMASK_16M:     n64js.log('       16M Pagesize');     break;
+          default:                n64js.log('       Unknown Pagesize'); break;
+        }
+      }
 
       this.pagemask = pagemask;
       this.hi       = hi;
@@ -207,38 +221,15 @@ if (typeof n64js === 'undefined') {
       this.pfnohi = (this.pfno << TLBLO_PFNSHIFT) & this.vpn2mask;
 
       switch (this.pagemask) {
-        case TLBPGMASK_4K:
-          n64js.log('       4k Pagesize');
-          this.checkbit = 0x00001000;   // bit 12
-          break;
-        case TLBPGMASK_16K:
-          n64js.log('       16k Pagesize');
-          this.checkbit = 0x00004000;   // bit 14
-          break;
-        case TLBPGMASK_64K:
-          n64js.log('       64k Pagesize');
-          this.checkbit = 0x00010000;   // bit 16
-          break;
-        case TLBPGMASK_256K:
-          n64js.log('       256k Pagesize');
-          this.checkbit = 0x00040000;   // bit 18
-          break;
-        case TLBPGMASK_1M:
-          n64js.log('       1M Pagesize');
-          this.checkbit = 0x00100000;   // bit 20
-          break;
-        case TLBPGMASK_4M:
-          n64js.log('       4M Pagesize');
-          this.checkbit = 0x00400000;   // bit 22
-          break;
-        case TLBPGMASK_16M:
-          n64js.log('       16M Pagesize');
-          this.checkbit = 0x01000000;   // bit 24
-          break;
-        default: // should not happen!
-          n64js.log('       Unknown Pagesize');
-          this.checkbit = 0;
-          break;
+        case TLBPGMASK_4K:      this.checkbit = 0x00001000; break;
+        case TLBPGMASK_16K:     this.checkbit = 0x00004000; break;
+        case TLBPGMASK_64K:     this.checkbit = 0x00010000; break;
+        case TLBPGMASK_256K:    this.checkbit = 0x00040000; break;
+        case TLBPGMASK_1M:      this.checkbit = 0x00100000; break;
+        case TLBPGMASK_4M:      this.checkbit = 0x00400000; break;
+        case TLBPGMASK_16M:     this.checkbit = 0x01000000; break;
+        default: // shouldn't happen!
+                                this.checkbit = 0;          break;
         }
     }
   };
@@ -280,6 +271,9 @@ if (typeof n64js === 'undefined') {
         this.gprLo[i]   = 0;
         this.gprHi[i]   = 0;
         this.control[i] = 0;
+      }
+      for (var i = 0; i < 32; ++i) {
+        this.tlbEntries[i].update(i, 0, 0x80000000, 0, 0);
       }
 
       this.pc          = 0;
@@ -489,11 +483,13 @@ if (typeof n64js === 'undefined') {
       this.control[this.kControlEntryLo0] = tlb.pfne | tlb.global;
       this.control[this.kControlEntryLo1] = tlb.pfno | tlb.global;
 
-      n64js.log('TLB Read Index ' + n64js.toString8(index) + '.');
-      n64js.log('  PageMask: ' + n64js.toString32(this.control[this.kControlPageMask]));
-      n64js.log('  EntryHi:  ' + n64js.toString32(this.control[this.kControlEntryHi]));
-      n64js.log('  EntryLo0: ' + n64js.toString32(this.control[this.kControlEntryLo0]));
-      n64js.log('  EntryLo1: ' + n64js.toString32(this.control[this.kControlEntryLo1]));
+      if (debugTLB) {
+        n64js.log('TLB Read Index ' + n64js.toString8(index) + '.');
+        n64js.log('  PageMask: ' + n64js.toString32(this.control[this.kControlPageMask]));
+        n64js.log('  EntryHi:  ' + n64js.toString32(this.control[this.kControlEntryHi]));
+        n64js.log('  EntryLo0: ' + n64js.toString32(this.control[this.kControlEntryLo0]));
+        n64js.log('  EntryLo1: ' + n64js.toString32(this.control[this.kControlEntryLo1]));
+      }
     }
 
     this.tlbProbe = function () {
@@ -506,14 +502,18 @@ if (typeof n64js === 'undefined') {
         if (   (tlb.hi & TLBHI_VPN2MASK) === entryhi_vpn2) {
           if (((tlb.hi & TLBHI_PIDMASK)  === entryhi_pid) ||
                tlb.global) {
-            n64js.log('TLB Probe. EntryHi:' + n64js.toString32(entryhi) + '. Found matching TLB entry - ' + n64js.toString8(i));
+            if (debugTLB) {
+              n64js.log('TLB Probe. EntryHi:' + n64js.toString32(entryhi) + '. Found matching TLB entry - ' + n64js.toString8(i));
+            }
             this.control[this.kControlIndex] = i;
             return;
           }
         }
       }
 
-      n64js.log('TLB Probe. EntryHi:' + n64js.toString32(entryhi) + ". Didn't find matching entry");
+      if (debugTLB) {
+        n64js.log('TLB Probe. EntryHi:' + n64js.toString32(entryhi) + ". Didn't find matching entry");
+      }
       this.control[this.kControlIndex] = TLBINX_PROBE;
     }
 
