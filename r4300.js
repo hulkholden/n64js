@@ -322,6 +322,8 @@ if (typeof n64js === 'undefined') {
 
       this.control[this.kControlSR] = value;
 
+      setCop1Enable( (value & SR_CU1) !== 0 );
+
       if (this.checkForUnmaskedInterrupts()) {
         this.stuffToDo |= kStuffToDoCheckInterrupts;
       }
@@ -344,10 +346,18 @@ if (typeof n64js === 'undefined') {
       return false;
     }
 
+    this.throwCop1Unusable = function () {
+      // XXXX check we're not inside exception handler before snuffing CAUSE reg?
+      this.setException( CAUSE_EXCMASK|CAUSE_CEMASK, EXC_CPU | 0x10000000 );
+      this.jumpToInterruptVector(E_VEC);
+      this.pc -= 4;   // compensate for increment that happens in the dispatch loop. Urgh.
+    }
+
     this.handleInterrupt = function () {
       if (this.checkForUnmaskedInterrupts()) {
           this.setException( CAUSE_EXCMASK, EXC_INT );
           this.jumpToInterruptVector( E_VEC );
+          // this is handled outside of the main dispatch loop, so no need to compensate pc here
       } else {
         n64js.assert(false, "Was expecting an unmasked interrupt - something wrong with kStuffToDoCheckInterrupts?");
       }
@@ -1627,7 +1637,7 @@ if (typeof n64js === 'undefined') {
 
   function executeSpecial(a,i) {
     var fn = i & 0x3f;
-    return specialTable[fn](a,i);
+    specialTable[fn](a,i);
   }
 
   var cop0Table = [
@@ -1670,7 +1680,7 @@ if (typeof n64js === 'undefined') {
   }
   function executeCop0(a,i) {
     var fmt = (i>>21) & 0x1f;
-    return cop0Table[fmt](a,i);
+    cop0Table[fmt](a,i);
   }
 
   var cop1Table = [
@@ -1712,8 +1722,21 @@ if (typeof n64js === 'undefined') {
     throw "Oops, didn't build the cop1 table correctly";
   }
   function executeCop1(a,i) {
+    n64js.assert( (cpu0.control[cpu0.kControlSR] & SR_CU1) !== 0, "SR_CU1 in inconsistent state" );
+
     var fmt = (i>>21) & 0x1f;
-    return cop1Table[fmt](a, i);
+    cop1Table[fmt](a, i);
+  }
+  function executeCop1_disabled(a,i) {
+    n64js.log('Thread accessing cop1 for first time, throwing cop1 unusable exception');
+
+    n64js.assert( (cpu0.control[cpu0.kControlSR] & SR_CU1) === 0, "SR_CU1 in inconsistent state" );
+
+    cpu0.throwCop1Unusable();
+  }
+
+  function setCop1Enable(enable) {
+    simpleTable[0x11] = enable ? executeCop1 : executeCop1_disabled;
   }
 
 
@@ -1780,7 +1803,7 @@ if (typeof n64js === 'undefined') {
     executeXORI,
     executeLUI,
     executeCop0,
-    executeCop1,
+    executeCop1_disabled,
     executeUnknown,
     executeUnknown,
     executeBEQL,
