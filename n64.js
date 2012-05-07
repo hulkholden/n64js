@@ -890,7 +890,16 @@ if (typeof n64js === 'undefined') {
   };
 
 
-
+  // TODO: need to handle different dom/addr regions
+  // rom_handler_uncached.read32 = function(address) {
+  //   throw 'Reading from rom';
+  // }
+  // rom_handler_uncached.read16 = function(address) {
+  //   throw 'Reading from rom';
+  // }
+  // rom_handler_uncached.read8 = function(address) {
+  //   throw 'Reading from rom';
+  // }
   rom_handler_uncached.write32 = function (address, value) {
     throw 'Writing to rom';
   };
@@ -1978,7 +1987,7 @@ if (typeof n64js === 'undefined') {
     }
 
     cpu0.pc = 0xA4000040;
-  }
+  };
 
   n64js.loadRom = function (bytes) {
     rom = new Memory(bytes);
