@@ -1514,7 +1514,7 @@ if (typeof n64js === 'undefined') {
         n64js.log('PI: interrupt control\n');
         pi_ram[0x3f] = 0x00;
         si_reg.setBits32(SI_STATUS_REG, SI_STATUS_INTERRUPT);
-        si_reg.setBits32(MI_INTR_REG,   MI_INTR_SI);
+        mi_reg.setBits32(MI_INTR_REG,   MI_INTR_SI);
         n64js.cpu0.updateCause3();
         break;
       case 0x10:
