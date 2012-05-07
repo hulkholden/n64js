@@ -748,9 +748,11 @@ if (typeof n64js === 'undefined') {
     arr[1] = 0x00000000;
   }
 
+  var k1Shift32 = 4294967296.0;
+
   function getHi32(v) {
     // >>32 just seems to no-op? Argh.
-    return (v>>>16)>>>16;
+    return Math.floor( v / k1Shift32 );
   }
   function getLo32(v) {
     return (v&0xffffffff)>>>0;
@@ -900,7 +902,13 @@ if (typeof n64js === 'undefined') {
     var t = rt(i);
 
     if ((cpu0.gprHi[s] | cpu0.gprHi[t]) !== 0) {
-      n64js.halt('Full 64 bit division not handled!');
+      // FIXME: seems ok if dividend/divisor fit in mantissa of double...
+      var dividend = (cpu0.gprHi[s] * k1Shift32) + cpu0.gprLo[s];
+      var divisor  = (cpu0.gprHi[t] * k1Shift32) + cpu0.gprLo[t];
+      if (divisor) {
+        setHiLoZeroExtend( cpu0.multLo, Math.floor(dividend / divisor) );
+        setHiLoZeroExtend( cpu0.multHi, dividend % divisor );
+      }
     } else {
       var dividend = cpu0.gprLo[s];
       var divisor  = cpu0.gprLo[t];
