@@ -1363,10 +1363,10 @@ if (typeof n64js === 'undefined') {
   function executeDADDIU(a,i)     { unimplemented(a,i); }
 
   function executeLB(a,i) {
-    setSignExtend(rt(i), n64js.readMemory8( memaddr(i) ));
+    setSignExtend(rt(i), (n64js.readMemory8( memaddr(i) )<<24)>>24);
   }
   function executeLH(a,i) {
-    setSignExtend(rt(i), n64js.readMemory16( memaddr(i) ));
+    setSignExtend(rt(i), (n64js.readMemory16( memaddr(i) )<<16)>>16);
   }
   function executeLW(a,i)         {
     // SF2049 requires this, apparently
