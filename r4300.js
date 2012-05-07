@@ -299,6 +299,37 @@ if (typeof n64js === 'undefined') {
       this.stuffToDo |= kStuffToDoHalt;
     }
 
+    this.speedHack = function () {
+      var next_instruction = n64js.readMemoryInternal32(this.pc + 4);
+      if (next_instruction === 0) {
+        if (this.events.length > 0) {
+
+          // Ignore the kEventRunForCycles event
+          var run_countdown = 0;
+          if (this.events[0].type === kEventRunForCycles && this.events.length > 1) {
+            run_countdown += this.events[0].countdown;
+            this.events.splice(0,1);
+          }
+
+          var to_skip = run_countdown + this.events[0].countdown - 1;
+
+          //n64js.log('speedhack: skipping ' + to_skip + ' cycles');
+
+          this.control[this.kControlCount] += to_skip;
+          this.events[0].countdown = 1;
+
+          // Re-add the kEventRunForCycles event
+          if (run_countdown) {
+            this.addEvent(kEventRunForCycles, run_countdown);
+          }
+        } else {
+          n64js.log('no events');
+        }
+      } else {
+        n64js.log('next instruction does something');
+      }
+    }
+
     this.updateCause3 = function () {
       var interrupts_masked = (n64js.mi_reg.read32(MI_INTR_MASK_REG) & n64js.mi_reg.read32(MI_INTR_REG)) === 0;
       if (interrupts_masked) {
@@ -1128,7 +1159,12 @@ if (typeof n64js === 'undefined') {
     var s = rs(i);
     var t = rt(i);
     if (cpu0.gprHi[s] === cpu0.gprHi[t] &&
-        cpu0.gprLo[s] === cpu0.gprLo[t] ) {      // NB: if imms(i) == -1 then this is a branch to self/busywait
+        cpu0.gprLo[s] === cpu0.gprLo[t] ) {
+
+        if (offset(i) === -1) {
+          cpu0.speedHack();
+        }
+
       performBranch( branchAddress(a,i) );
     }
   }
