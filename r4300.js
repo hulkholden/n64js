@@ -1043,6 +1043,11 @@ if (typeof n64js === 'undefined') {
         cpu0.setCompare(new_value);
         break;
 
+      case cpu0.kControlEPC:
+      case cpu0.kControlEntryHi:
+        cpu0.control[control_reg] = new_value;
+        break;
+
       default:
         cpu0.control[control_reg] = new_value;
         n64js.log('Write to cpu0 control register. ' + n64js.toString32(new_value) + ' --> ' + n64js.cop0ControlRegisterNames[control_reg] );
@@ -1069,7 +1074,7 @@ if (typeof n64js === 'undefined') {
     } else {
       cpu0.pc = cpu0.control[cpu0.kControlEPC]-4;         // -4 is to compensate for post-inc in interpreter loop
       cpu0.control[cpu0.kControlSR] &= ~SR_EXL;
-      n64js.log('ERET from interrupt/exception ' + cpu0.pc);
+      //n64js.log('ERET from interrupt/exception ' + cpu0.pc);
     }
   }
 
@@ -1255,7 +1260,6 @@ if (typeof n64js === 'undefined') {
       cpu0.gprLo[t] = cpu0.gprLo[s] < (immediate>>>0);    // NB signed compare
     } else {
       cpu0.gprLo[t] = s_hi < imm_hi;
-      n64js.halt('SLTI upper diff');
     }
     cpu0.gprHi[t] = 0;
   }
@@ -1471,12 +1475,14 @@ if (typeof n64js === 'undefined') {
     if (r == 31) {
       var v = cpu0.gprLo[rt(i)];
 
+      /*
       switch (v & FPCSR_RM_MASK) {
       case FPCSR_RM_RN:     n64js.log('cop1 - setting round near');  break;
       case FPCSR_RM_RZ:     n64js.log('cop1 - setting round zero');  break;
       case FPCSR_RM_RP:     n64js.log('cop1 - setting round ceil');  break;
       case FPCSR_RM_RM:     n64js.log('cop1 - setting round floor'); break;
       }
+      */
 
       cpu1.control[r] = v;
 
