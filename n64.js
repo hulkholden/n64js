@@ -1188,6 +1188,22 @@ if (typeof n64js === 'undefined') {
     }
   };
 
+  vi_reg_handler_uncached.read32 = function (address) {
+    if (!this.quiet) n64js.log('Reading from ' + this.name + ': ' + toString32(address) );
+    var ea = this.calcEA(address);
+
+    if (ea+3 < this.mem.length) {
+      var value = this.mem.read32(ea);
+      if (ea == VI_CURRENT_REG) {
+        value = (value + 2) % 512;
+        this.mem.write32(ea, value);
+      }
+      return value;
+    } else {
+      throw 'Read is out of range';
+    }
+  };
+
 
   pi_reg_handler_uncached.write32 = function (address, value) {
     var ea = this.calcEA(address);
