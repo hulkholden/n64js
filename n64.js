@@ -1359,7 +1359,7 @@ if (typeof n64js === 'undefined') {
     pi_ram[63] = 0;
   }
 
-  var controllers = [{present:true}, {present:false}, {present:false}, {present:false}];
+  var controllers = [{present:true, mempack:true}, {present:true, mempack:true}, {present:true, mempack:true}, {present:true, mempack:true}];
   function ProcessController(cmd, channel) {
     if (!controllers[channel].present)
     {
@@ -1502,7 +1502,7 @@ if (typeof n64js === 'undefined') {
     n64js.cpu0.updateCause3();
   }
 
-  function PIUpdateControl() {
+  function PIFUpdateControl() {
     var pi_rom = new Uint8Array(pi_mem.bytes, 0x000, 0x7c0);
     var pi_ram = new Uint8Array(pi_mem.bytes, 0x7c0, 0x040);
     var command = pi_ram[0x3f];
@@ -1594,7 +1594,7 @@ if (typeof n64js === 'undefined') {
         this.mem.write32(ea, value);
         switch(ram_offset) {
         case 0x24:  n64js.log('Writing CIC values: '   + toString32(value) ); break;
-        case 0x3c:  n64js.log('Writing Control byte: ' + toString32(value) ); PIUpdateControl(); break;
+        case 0x3c:  n64js.log('Writing Control byte: ' + toString32(value) ); PIFUpdateControl(); break;
         default:    n64js.log('Writing directly to PI ram [' + toString32(address) + '] <-- ' + toString32(value)); break;
         }
       }
