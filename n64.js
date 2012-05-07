@@ -55,6 +55,9 @@ if (typeof n64js === 'undefined') {
   var SP_STATUS_SIG6        = 0x2000;
   var SP_STATUS_SIG7        = 0x4000;
 
+  var SP_STATUS_YIELD       = SP_STATUS_SIG0;
+  var SP_STATUS_YIELDED     = SP_STATUS_SIG1;
+  var SP_STATUS_TASKDONE    = SP_STATUS_SIG2;
 
 
   var MI_MODE_REG         = 0x00;
@@ -170,6 +173,17 @@ if (typeof n64js === 'undefined') {
   function IsDom1Addr3( address )    { return address >= PI_DOM1_ADDR3 && address < 0x7FFFFFFF;    }
   function IsDom2Addr1( address )    { return address >= PI_DOM2_ADDR1 && address < PI_DOM1_ADDR1; }
   function IsDom2Addr2( address )    { return address >= PI_DOM2_ADDR2 && address < PI_DOM1_ADDR2; }
+
+  var RI_MODE_REG             = 0x00;
+  var RI_CONFIG_REG           = 0x04;
+  var RI_CURRENT_LOAD_REG     = 0x08;
+  var RI_SELECT_REG           = 0x0C;
+  var RI_REFRESH_REG          = 0x10;
+  var RI_COUNT_REG            = RI_REFRESH_REG;
+  var RI_LATENCY_REG          = 0x14;
+  var RI_RERROR_REG           = 0x18;
+  var RI_WERROR_REG           = 0x1C;
+  var RI_LAST_REG             = RI_WERROR_REG;
 
   var SI_DRAM_ADDR_REG      = 0x00;
   var SI_PIF_ADDR_RD64B_REG = 0x04;
@@ -695,10 +709,14 @@ if (typeof n64js === 'undefined') {
     }
 
     this.clearBits32 = function (offset, bits) {
-      this.write32(offset, this.read32(offset) & ~bits);
+      var value = this.read32(offset) & ~bits;
+      this.write32(offset, value);
+      return value;
     },
     this.setBits32 = function (offset, bits) {
-      this.write32(offset, this.read32(offset) | bits);
+      var value = this.read32(offset) | bits;
+      this.write32(offset, value);
+      return value;
     },
     this.getBits32 = function (offset, bits) {
       return this.read32(offset) & bits;
@@ -959,7 +977,7 @@ if (typeof n64js === 'undefined') {
     sp_reg.write32(SP_STATUS_REG, status_bits);
 
     if (start_rsp) {
-      n64js.halt('should start rsp');
+      RSPHLEProcessTask();
     } else if (stop_rsp) {
       // As we handle all RSP via HLE, nothing to do here.
     }
@@ -996,6 +1014,62 @@ if (typeof n64js === 'undefined') {
     sp_reg.setBits32(SP_DMA_BUSY_REG, 0);
     sp_reg.clearBits32(SP_STATUS_REG, SP_STATUS_DMA_BUSY);
   }
+
+
+  function RSPHLEProcessTask() {
+    var task_offset = 0x0fc0;
+
+    var kOffset_type                = 0x00;    // u32
+    var kOffset_flags               = 0x04;    // u32
+    var kOffset_ucode_boot          = 0x08;    // u64*
+    var kOffset_ucode_boot_size     = 0x0c;    // u32
+    var kOffset_ucode               = 0x10;    // u64*
+    var kOffset_ucode_size          = 0x14;    // u32
+    var kOffset_ucode_data          = 0x18;    // u64*
+    var kOffset_ucode_data_size     = 0x1c;    // u32
+    var kOffset_dram_stack          = 0x20;    // u64*
+    var kOffset_dram_stack_size     = 0x24;    // u32
+    var kOffset_output_buff         = 0x28;    // u64*
+    var kOffset_output_buff_size    = 0x2c;    // u64*
+    var kOffset_data_ptr            = 0x30;    // u64*
+    var kOffset_data_size           = 0x34;    // u32
+    var kOffset_yield_data_ptr      = 0x38;    // u64*
+    var kOffset_yield_data_size     = 0x3c;    // u32
+
+    var M_GFXTASK = 1;
+    var M_AUDTASK = 2;
+    var M_VIDTASK = 3;
+    var M_JPGTASK = 4;
+
+
+    var type = sp_mem.read32(task_offset + kOffset_type);
+    switch (type) {
+      case M_GFXTASK:
+        n64js.halt('graphics task');
+        break;
+      case M_AUDTASK:
+        //n64js.log('audio task');
+        break;
+      case M_VIDTASK:
+        n64js.log('video task');
+        break;
+      case M_JPGTASK:
+        n64js.log('jpg task');
+        break;
+
+      default:
+        n64js.log('unknown task');
+        break;
+    }
+
+    var status = sp_reg.setBits32(SP_STATUS_REG, SP_STATUS_TASKDONE|SP_STATUS_BROKE|SP_STATUS_HALT);
+
+    if (status & SP_STATUS_INTR_BREAK) {
+      mi_reg.setBits32(MI_INTR_REG, MI_INTR_SP);
+      n64js.cpu0.updateCause3();
+    }
+  }
+
   sp_reg_handler_uncached.write32 = function (address, value) {
     var ea = this.calcEA(address);
     if (ea+3 < this.mem.length) {
