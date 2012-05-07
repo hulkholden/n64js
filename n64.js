@@ -834,10 +834,14 @@ if (typeof n64js === 'undefined') {
   var rom_handler_uncached       = new Device("ROM",      rom,          0xb0000000, 0xbfc00000);
   var pi_mem_handler_uncached    = new Device("PIRAM",    pi_mem,       0xbfc00000, 0xbfc00800);
 
-  rdram_handler_cached.quiet    = true;
-  rdram_handler_uncached.quiet  = true;
-  sp_mem_handler_uncached.quiet = true;
-  sp_reg_handler_uncached.quiet = true;
+  rdram_handler_cached.quiet      = true;
+  rdram_handler_uncached.quiet    = true;
+  sp_mem_handler_uncached.quiet   = true;
+  sp_reg_handler_uncached.quiet   = true;
+  mi_reg_handler_uncached.quiet   = true;
+  ai_reg_handler_uncached.quiet   = true;
+  vi_reg_handler_uncached.quiet   = true;
+  sp_ibist_handler_uncached.quiet = true;
 
   mapped_mem_handler.readInternal32 = function(address) {
     return 0xffffffff;
@@ -885,32 +889,34 @@ if (typeof n64js === 'undefined') {
 
   function SPUpdateStatus(flags) {
 
-    if (flags & SP_CLR_HALT)       n64js.log( 'SP: Clearing Halt' );
-    if (flags & SP_SET_HALT)       n64js.log( 'SP: Setting Halt' );
-    if (flags & SP_CLR_BROKE)      n64js.log( 'SP: Clearing Broke' );
-    // No SP_SET_BROKE
-    if (flags & SP_CLR_INTR)       n64js.log( 'SP: Clearing Interrupt' );
-    if (flags & SP_SET_INTR)       n64js.log( 'SP: Setting Interrupt' );
-    if (flags & SP_CLR_SSTEP)      n64js.log( 'SP: Clearing Single Step' );
-    if (flags & SP_SET_SSTEP)      n64js.log( 'SP: Setting Single Step' );
-    if (flags & SP_CLR_INTR_BREAK) n64js.log( 'SP: Clearing Interrupt on break' );
-    if (flags & SP_SET_INTR_BREAK) n64js.log( 'SP: Setting Interrupt on break' );
-    if (flags & SP_CLR_SIG0)       n64js.log( 'SP: Clearing Sig0 (Yield)' );
-    if (flags & SP_SET_SIG0)       n64js.log( 'SP: Setting Sig0 (Yield)' );
-    if (flags & SP_CLR_SIG1)       n64js.log( 'SP: Clearing Sig1 (Yielded)' );
-    if (flags & SP_SET_SIG1)       n64js.log( 'SP: Setting Sig1 (Yielded)' );
-    if (flags & SP_CLR_SIG2)       n64js.log( 'SP: Clearing Sig2 (TaskDone)' );
-    if (flags & SP_SET_SIG2)       n64js.log( 'SP: Setting Sig2 (TaskDone)' );
-    if (flags & SP_CLR_SIG3)       n64js.log( 'SP: Clearing Sig3' );
-    if (flags & SP_SET_SIG3)       n64js.log( 'SP: Setting Sig3' );
-    if (flags & SP_CLR_SIG4)       n64js.log( 'SP: Clearing Sig4' );
-    if (flags & SP_SET_SIG4)       n64js.log( 'SP: Setting Sig4' );
-    if (flags & SP_CLR_SIG5)       n64js.log( 'SP: Clearing Sig5' );
-    if (flags & SP_SET_SIG5)       n64js.log( 'SP: Setting Sig5' );
-    if (flags & SP_CLR_SIG6)       n64js.log( 'SP: Clearing Sig6' );
-    if (flags & SP_SET_SIG6)       n64js.log( 'SP: Setting Sig6' );
-    if (flags & SP_CLR_SIG7)       n64js.log( 'SP: Clearing Sig7' );
-    if (flags & SP_SET_SIG7)       n64js.log( 'SP: Setting Sig7' );
+    if (!sp_reg_handler_uncached.quiet) {
+      if (flags & SP_CLR_HALT)       n64js.log( 'SP: Clearing Halt' );
+      if (flags & SP_SET_HALT)       n64js.log( 'SP: Setting Halt' );
+      if (flags & SP_CLR_BROKE)      n64js.log( 'SP: Clearing Broke' );
+      // No SP_SET_BROKE
+      if (flags & SP_CLR_INTR)       n64js.log( 'SP: Clearing Interrupt' );
+      if (flags & SP_SET_INTR)       n64js.log( 'SP: Setting Interrupt' );
+      if (flags & SP_CLR_SSTEP)      n64js.log( 'SP: Clearing Single Step' );
+      if (flags & SP_SET_SSTEP)      n64js.log( 'SP: Setting Single Step' );
+      if (flags & SP_CLR_INTR_BREAK) n64js.log( 'SP: Clearing Interrupt on break' );
+      if (flags & SP_SET_INTR_BREAK) n64js.log( 'SP: Setting Interrupt on break' );
+      if (flags & SP_CLR_SIG0)       n64js.log( 'SP: Clearing Sig0 (Yield)' );
+      if (flags & SP_SET_SIG0)       n64js.log( 'SP: Setting Sig0 (Yield)' );
+      if (flags & SP_CLR_SIG1)       n64js.log( 'SP: Clearing Sig1 (Yielded)' );
+      if (flags & SP_SET_SIG1)       n64js.log( 'SP: Setting Sig1 (Yielded)' );
+      if (flags & SP_CLR_SIG2)       n64js.log( 'SP: Clearing Sig2 (TaskDone)' );
+      if (flags & SP_SET_SIG2)       n64js.log( 'SP: Setting Sig2 (TaskDone)' );
+      if (flags & SP_CLR_SIG3)       n64js.log( 'SP: Clearing Sig3' );
+      if (flags & SP_SET_SIG3)       n64js.log( 'SP: Setting Sig3' );
+      if (flags & SP_CLR_SIG4)       n64js.log( 'SP: Clearing Sig4' );
+      if (flags & SP_SET_SIG4)       n64js.log( 'SP: Setting Sig4' );
+      if (flags & SP_CLR_SIG5)       n64js.log( 'SP: Clearing Sig5' );
+      if (flags & SP_SET_SIG5)       n64js.log( 'SP: Setting Sig5' );
+      if (flags & SP_CLR_SIG6)       n64js.log( 'SP: Clearing Sig6' );
+      if (flags & SP_SET_SIG6)       n64js.log( 'SP: Setting Sig6' );
+      if (flags & SP_CLR_SIG7)       n64js.log( 'SP: Clearing Sig7' );
+      if (flags & SP_SET_SIG7)       n64js.log( 'SP: Setting Sig7' );
+    }
 
     var clr_bits = 0;
     var set_bits = 0;
@@ -965,7 +971,9 @@ if (typeof n64js === 'undefined') {
     var rdlen_reg      = sp_reg.read32(SP_RD_LEN_REG);
     var splen          = (rdlen_reg & 0xfff) + 1;
 
-    n64js.log('SP: copying from ram ' + toString32(rd_ram_address) + ' to sp ' + toString16(sp_mem_address) );
+    if (!sp_reg_handler_uncached.quiet) {
+      n64js.log('SP: copying from ram ' + toString32(rd_ram_address) + ' to sp ' + toString16(sp_mem_address) );
+    }
 
     MemoryCopy( sp_mem, sp_mem_address & 0xfff, ram, rd_ram_address & 0xffffff, splen );
 
@@ -1016,7 +1024,7 @@ if (typeof n64js === 'undefined') {
           break;
 
         default:
-          n64js.log('Unhandled write to MIReg: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
+          n64js.log('Unhandled write to SPReg: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
           this.mem.write32(ea, value);
       }
     } else {
@@ -1085,11 +1093,11 @@ if (typeof n64js === 'undefined') {
 
       switch( ea ) {
         case MI_MODE_REG:
-          n64js.log('Wrote to MI mode register: ' + toString32(value) );
+          if (!this.quiet) n64js.log('Wrote to MI mode register: ' + toString32(value) );
           MIWriteModeReg(value);
           break;
         case MI_INTR_MASK_REG:
-          n64js.log('Wrote to MI interrupt mask register: ' + toString32(value) );
+          if (!this.quiet) n64js.log('Wrote to MI interrupt mask register: ' + toString32(value) );
           MIWriteIntrMaskReg(value);
           break;
 
@@ -1118,16 +1126,16 @@ if (typeof n64js === 'undefined') {
         case AI_DRAM_ADDR_REG:
         case AI_CONTROL_REG:
         case AI_BITRATE_REG:
-          n64js.log('Wrote to AIReg: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
+          if(!this.quiet) n64js.log('Wrote to AIReg: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
           this.mem.write32(ea, value);
           break;
 
         case AI_LEN_REG:
-          n64js.log('AI len changed to ' + value);
+          if(!this.quiet) n64js.log('AI len changed to ' + value);
           this.mem.write32(ea, value);
           break;
         case AI_DACRATE_REG:
-          n64js.log('AI dacrate changed to ' + value);
+          if(!this.quiet) n64js.log('AI dacrate changed to ' + value);
           this.mem.write32(ea, value);
           break;
 
@@ -1154,16 +1162,16 @@ if (typeof n64js === 'undefined') {
 
       switch( ea ) {
         case VI_CONTROL_REG:
-          n64js.log('VI control set to: ' + toString32(value) );
+          if (!this.quiet) n64js.log('VI control set to: ' + toString32(value) );
           this.mem.write32(ea, value);
           break;
         case VI_WIDTH_REG:
-          n64js.log('VI width set to: ' + value );
+          if (!this.quiet) n64js.log('VI width set to: ' + value );
           this.mem.write32(ea, value);
           break;
         case VI_CURRENT_REG:
-          n64js.log('VI current set to: ' + toString32(value) + '.' );
-          n64js.log('VI interrupt cleared');
+          if (!this.quiet) n64js.log('VI current set to: ' + toString32(value) + '.' );
+          if (!this.quiet) n64js.log('VI interrupt cleared');
           mi_reg.clearBits32(MI_INTR_REG, MI_INTR_VI);
           n64js.cpu0.updateCause3();
           break;
