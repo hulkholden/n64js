@@ -142,13 +142,6 @@
       });
 
       n64js.refreshDisplay();
-
-      // Load state from localStorage
-      //var prev_code = localStorage.getItem('code');
-      //if (prev_code) {
-      //  $('#codearea').val(prev_code);
-      //}
-
       updateLoop();
     });
 
@@ -199,9 +192,22 @@
     }
 
     function updateLoop() {
+
         if (n64js.isRunning()) {
-          n64js.run(100000);
-          refreshDisplay();
+          var sync = n64js.getSync();
+          if (sync) {
+            var count = sync.getAvailableOps();
+            if (count === 0) {
+              sync.refill();
+            } else {
+              n64js.run(count/4);
+              refreshDisplay();
+            }
+          } else {
+            n64js.run(100000);
+            refreshDisplay();
+          }
+
           setTimeout(updateLoop, 1);
           return;
         }

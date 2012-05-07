@@ -1907,6 +1907,88 @@ if (typeof n64js === 'undefined') {
     n64js.run(1);
   }
 
+  function mix(a,b,c)
+  {
+    a -= b; a -= c; a ^= (c>>>13);
+    b -= c; b -= a; b ^= (a<<8);
+    c -= a; c -= b; c ^= (b>>>13);
+    a -= b; a -= c; a ^= (c>>>12);
+    b -= c; b -= a; b ^= (a<<16);
+    c -= a; c -= b; c ^= (b>>>5);
+    a -= b; a -= c; a ^= (c>>>3);
+    b -= c; b -= a; b ^= (a<<10);
+    c -= a; c -= b; c ^= (b>>>15);
+
+    return a;
+  }
+
+  function checkSyncState(sync) {
+
+    if (checkOOS(cpu0.pc, sync.pop(), 'pc'))
+      return false;
+
+    var next_vbl = 0;
+    for( var i = 0; i < cpu0.events.length; ++i )
+    {
+      var event = cpu0.events[i];
+      next_vbl += event.countdown;
+      if (event.type === kEventVbl){
+        next_vbl = next_vbl*2+1;
+        break;
+      } else if (event.type == kEventCompare) {
+        next_vbl = next_vbl*2;
+        break;
+      }
+    }
+
+    if (checkOOS(next_vbl, sync.pop(), 'event'))
+      return false;
+
+    if (0) {
+      var a = 0;
+      var b = 0;
+      for (var i = 0; i < 16; ++i) {
+        a = mix(a,cpu0.gprLo[i], 0);
+        b = mix(b,cpu0.gprLo[i+16], 0);
+      }
+      a = (a&0xffffffff)>>>0;
+      b = (b&0xffffffff)>>>0;
+
+      if (checkOOS(a, sync.pop(), 'r0-r15'))
+        return false;
+      if (checkOOS(b, sync.pop(), 'r16-r31'))
+        return false;
+    }
+
+    if(1) {
+      if (checkOOS(cpu0.multLo[0], sync.pop(), 'multlo'))
+        return false;
+      if (checkOOS(cpu0.multHi[0], sync.pop(), 'multhi'))
+        return false;
+    }
+
+    if(0) {
+      if (checkOOS(cpu0.control[cpu0.kControlCount], sync.pop(), 'count'))
+        return false;
+      if (checkOOS(cpu0.control[cpu0.kControlCompare], sync.pop(), 'compare'))
+        return false;
+    }
+
+    return true;
+  }
+
+  function checkOOS(a, b, msg) {
+    if (a !== b) {
+      n64js.halt(msg + ' mismatch: local ' + n64js.toString32(a) + ' remote ' + n64js.toString32(b));
+      cpu0.removeEventsOfType(kEventRunForCycles);
+      n64js.nukeSync();
+      return true;
+    }
+
+    return false;
+  }
+
+
   n64js.run = function (cycles) {
 
     cpu0.stuffToDo &= ~kStuffToDoHalt;
@@ -1918,9 +2000,16 @@ if (typeof n64js === 'undefined') {
 
     cpu0.addEvent(kEventRunForCycles, cycles);
 
+    //var sync = n64js.getSync();
+
     try {
       while (cpu0.hasEvent(kEventRunForCycles)) {
         while (!cpu0.stuffToDo) {
+
+            //if (sync) {
+            //  if (!checkSyncState(sync))
+            //    break;
+            //}
 
             var pc  = cpu0.pc;
             var dpc = cpu0.delayPC;

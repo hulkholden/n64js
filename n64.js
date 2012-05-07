@@ -1802,6 +1802,114 @@ if (typeof n64js === 'undefined') {
   var kBootstrapOffset = 0x40;
   var kGameOffset      = 0x1000;
 
+
+  function BinaryRequest(url, args, cb) {
+
+    var alwaysCallbacks = [];
+
+    if (args) {
+      var arg_str = '';
+      for (var i in args) {
+        if (args.hasOwnProperty(i)) {
+          if (arg_str)
+            arg_str += '&';
+          arg_str += escape(i);
+          if (args[i] !== undefined)
+            arg_str += '=' + escape(args[i]);
+        }
+      }
+
+      url += '?' + arg_str;
+    }
+
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', url, true);
+    try {
+      xhr.responseType = "arraybuffer";
+    } catch (e){
+      alert('responseType arrayBuffer not supported!');
+    }
+    xhr.onreadystatechange = function onreadystatechange () {
+      if(xhr.readyState == 4) {
+        invokeAlways();
+      }
+    }
+    xhr.onload = function onload() {
+      if (ArrayBuffer.prototype.isPrototypeOf(this.response)) {
+        cb(this.response);
+      } else {
+        alert("wasn't arraybuffer, was " + typeof(this.response) + JSON.stringify(this.response));
+      }
+    }
+    xhr.send();
+
+
+    this.always = function(cb) {
+      // If the request has already completed then ensure the callback is called.
+      if(xhr.readyState == 4) {
+        cb();
+      }
+      alwaysCallbacks.push(cb);
+      return this;
+    }
+
+    function invokeAlways() {
+      for (var i = 0; i < alwaysCallbacks.length; ++i)
+        alwaysCallbacks[i]();
+    }
+  }
+
+  function SyncBuffer() {
+
+    var kBufferLength   = 1024*1024;
+
+    var sync_buffer     = null;
+    var sync_buffer_idx = 0;
+
+    var file_offset     = 0;
+
+    var cur_request     = null;
+
+    this.refill = function () {
+
+      if (!sync_buffer || sync_buffer_idx >= sync_buffer.length) {
+        if (cur_request)
+          return;
+        cur_request = new BinaryRequest("synclog", {o:file_offset,l:kBufferLength}, function (result){
+          sync_buffer = new Uint32Array(result);
+          sync_buffer_idx = 0;
+          file_offset += result.byteLength;
+        }).always(function () {
+          cur_request = null;
+        });
+      }
+    };
+
+    this.getAvailableOps = function () {
+      return sync_buffer ? (sync_buffer.length - sync_buffer_idx) : 0;
+    }
+
+    this.pop = function () {
+      if (sync_buffer && sync_buffer_idx < sync_buffer.length) {
+        var r = sync_buffer[sync_buffer_idx];
+        sync_buffer_idx++;
+        return r;
+      }
+
+      return -1;
+    }
+  }
+
+  var sync = null;//new SyncBuffer();
+
+  n64js.getSync = function () {
+    return sync;
+  };
+
+  n64js.nukeSync = function () {
+    sync = null;
+  }
+
   n64js.reset = function () {
     var country  = 0x45;  // USA
     var cic_chip = '6102';
