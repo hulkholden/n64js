@@ -887,19 +887,37 @@ if (typeof n64js === 'undefined') {
   mapped_mem_handler.readInternal32 = function(address) {
     return 0xffffffff;
   }
-  mapped_mem_handler.read32 = function(address) {
-    if (!this.quiet) n64js.log('Reading from ' + this.name + ': ' + toString32(address) );
+
+  mapped_mem_handler.translate = function(address) {
+    //if (!this.quiet) n64js.log('Reading from ' + this.name + ': ' + toString32(address) );
     var ea = this.calcEA(address);
 
-    var mapped = n64js.cpu0.translate(ea);
+    return n64js.cpu0.translate(ea) & 0x007fffff;
+  }
 
-    throw 'mapped read32 - ' + toString32(ea) + ' -> ' + toString32(mapped);
+  mapped_mem_handler.read32 = function(address) {
+    var mapped = this.translate(address);
+    if (mapped != 0) {
+      return ram.read32(mapped);
+    }
+    n64js.halt('virtual read32 failed - need to throw refill/invalid');
+    return 0xffffffff;
   }
   mapped_mem_handler.read16 = function(address) {
-    throw 'mapped read16 unhandled';
+    var mapped = this.translate(address);
+    if (mapped != 0) {
+      return ram.read16(mapped);
+    }
+    n64js.halt('virtual read16 failed - need to throw refill/invalid');
+    return 0xffff;
   }
   mapped_mem_handler.read8 = function(address) {
-    throw 'mapped read8 unhandled';
+    var mapped = this.translate(address);
+    if (mapped != 0) {
+      return ram.read8(mapped);
+    }
+    n64js.halt('virtual read8 failed - need to throw refill/invalid');
+    return 0xff;
   }
 
   mapped_mem_handler.write32 = function (address, value) {
