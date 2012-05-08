@@ -2016,7 +2016,12 @@ if (typeof n64js === 'undefined') {
 
   function checkSyncState(sync) {
 
-    if (checkOOS(cpu0.pc, sync.pop(), 'pc'))
+    var sync_a = sync.pop();
+    var sync_b = sync.pop();
+    var sync_c = sync.pop();
+    var sync_d = sync.pop();
+
+    if (checkOOS(cpu0.pc, sync_a, 'pc'))
       return false;
 
     var next_vbl = 0;
@@ -2033,7 +2038,7 @@ if (typeof n64js === 'undefined') {
       }
     }
 
-    if (checkOOS(next_vbl, sync.pop(), 'event'))
+    if (checkOOS(next_vbl, sync_b, 'event'))
       return false;
 
     if (0) {
@@ -2046,23 +2051,23 @@ if (typeof n64js === 'undefined') {
       a = (a&0xffffffff)>>>0;
       b = (b&0xffffffff)>>>0;
 
-      if (checkOOS(a, sync.pop(), 'r0-r15'))
+      if (checkOOS(a, sync_c, 't1'))
         return false;
-      if (checkOOS(b, sync.pop(), 'r16-r31'))
-        return false;
-    }
-
-    if(1) {
-      if (checkOOS(cpu0.multLo[0], sync.pop(), 'multlo'))
-        return false;
-      if (checkOOS(cpu0.multHi[0], sync.pop(), 'multhi'))
+      if (checkOOS(b, sync_d, 'r16-r31'))
         return false;
     }
 
     if(0) {
-      if (checkOOS(cpu0.control[cpu0.kControlCount], sync.pop(), 'count'))
+      if (checkOOS(cpu0.multLo[0], sync_c, 'multlo'))
         return false;
-      if (checkOOS(cpu0.control[cpu0.kControlCompare], sync.pop(), 'compare'))
+      if (checkOOS(cpu0.multHi[0], sync_d, 'multhi'))
+        return false;
+    }
+
+    if(0) {
+      if (checkOOS(cpu0.control[cpu0.kControlCount], sync_c, 'count'))
+        return false;
+      if (checkOOS(cpu0.control[cpu0.kControlCompare], sync_d, 'compare'))
         return false;
     }
 
@@ -2072,7 +2077,6 @@ if (typeof n64js === 'undefined') {
   function checkOOS(a, b, msg) {
     if (a !== b) {
       n64js.halt(msg + ' mismatch: local ' + n64js.toString32(a) + ' remote ' + n64js.toString32(b));
-      cpu0.removeEventsOfType(kEventRunForCycles);
       n64js.nukeSync();
       return true;
     }
@@ -2127,25 +2131,35 @@ if (typeof n64js === 'undefined') {
             if (evt.countdown <= 0)
             {
               // if it's our cucles event then just bail
-              cpu0.events.splice(0, 1);
-              if( evt.type === kEventRunForCycles ) {
-                break;
-              } else if (evt.type === kEventCompare) {
-                n64js.log('compare event fired');
 
-                cpu0.control[cpu0.kControlCause] |= CAUSE_IP8;
-                this.stuffToDo |= kStuffToDoCheckInterrupts;
-                break;
-              } else if (evt.type === kEventVbl) {
-                // FIXME: this should be based on VI_V_SYNC_REG
-                cpu0.addEvent(kEventVbl, kVIIntrCycles);
+              var breakout = false;
 
-                n64js.verticalBlank();
+              while (cpu0.events.length > 0 && cpu0.events[0].countdown <= 0) {
+                var evt = cpu0.events[0];
+                cpu0.events.splice(0, 1);
 
-                break;
-              } else {
-                n64js.halt('unhandled event!');
+                if (evt.type === kEventRunForCycles) {
+                  breakout = true;
+                } else if (evt.type === kEventCompare) {
+                  cpu0.control[cpu0.kControlCause] |= CAUSE_IP8;
+                  if (cpu0.checkForUnmaskedInterrupts()) {
+                    cpu0.stuffToDo |= kStuffToDoCheckInterrupts;
+                  }
+                  breakout = true;
+                } else if (evt.type === kEventVbl) {
+                  // FIXME: this should be based on VI_V_SYNC_REG
+                  cpu0.addEvent(kEventVbl, kVIIntrCycles);
+
+                  n64js.verticalBlank();
+
+                  breakout = true;
+                } else {
+                  n64js.halt('unhandled event!');
+                }
               }
+
+              if(breakout)
+                break;
             }
         }
 
