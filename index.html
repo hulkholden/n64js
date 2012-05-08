@@ -125,8 +125,8 @@
           case kUp:       n64js.up();       break;
           case kPageDown: n64js.pageDown(); break;
           case kPageUp:   n64js.pageUp();   break;
-          case kF8:       n64js.toggleRun();break;
-          case kF10:      n64js.step();     break;
+          case kF8:       toggleRun();      break;
+          case kF10:      step();           break;
           //default: alert( 'code:' + event.which);
         }
       });
@@ -136,8 +136,8 @@
           case 'd'.charCodeAt(0): $( '#debug-tab').tab('show'); break;
           case 'm'.charCodeAt(0): $('#memory-tab').tab('show'); break;
           case 'l'.charCodeAt(0): load();                       break;
-          case 'g'.charCodeAt(0): n64js.toggleRun();            break;
-          case 's'.charCodeAt(0): n64js.step();                 break;
+          case 'g'.charCodeAt(0): toggleRun();                  break;
+          case 's'.charCodeAt(0): step();                       break;
         }
       });
 
