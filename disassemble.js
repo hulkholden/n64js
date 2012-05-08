@@ -4,25 +4,26 @@ if (typeof n64js === 'undefined') {
 
 (function () {'use strict';
 
-  function _fd(i)     { return (i>>> 6)&0x1f; }
-  function _fs(i)     { return (i>>>11)&0x1f; }
-  function _ft(i)     { return (i>>>16)&0x1f; }
-  function _copop(i)  { return (i>>>21)&0x1f; }
+  function _fd(i)        { return (i>>> 6)&0x1f; }
+  function _fs(i)        { return (i>>>11)&0x1f; }
+  function _ft(i)        { return (i>>>16)&0x1f; }
+  function _copop(i)     { return (i>>>21)&0x1f; }
 
-  function _offset(i) { return (i     )&0xffff; }
-  function _sa(i)     { return (i>>> 6)&0x1f; }
-  function _rd(i)     { return (i>>>11)&0x1f; }
-  function _rt(i)     { return (i>>>16)&0x1f; }
-  function _rs(i)     { return (i>>>21)&0x1f; }
-  function _op(i)     { return (i>>>26)&0x3f; }
+  function _offset(i)    { return (i     )&0xffff; }
+  function _sa(i)        { return (i>>> 6)&0x1f; }
+  function _rd(i)        { return (i>>>11)&0x1f; }
+  function _rt(i)        { return (i>>>16)&0x1f; }
+  function _rs(i)        { return (i>>>21)&0x1f; }
+  function _op(i)        { return (i>>>26)&0x3f; }
 
-  function _tlbop(i)  { return i&0x3f; }
+  function _tlbop(i)     { return i&0x3f; }
   function _cop1_func(i) { return i&0x3f; }
+  function _cop1_bc(i)   { return (i>>>16)&0x3; }
 
-  function _target(i) { return (i     )&0x3ffffff; }
-  function _imm(i)    { return (i     )&0xffff; }
-  function _imms(i)   { return (_imm(i)<<16)>>16; }   // treat immediate value as signed
-  function _base(i)   { return (i>>>21)&0x1f; }
+  function _target(i)    { return (i     )&0x3ffffff; }
+  function _imm(i)       { return (i     )&0xffff; }
+  function _imms(i)      { return (_imm(i)<<16)>>16; }   // treat immediate value as signed
+  function _base(i)      { return (i>>>21)&0x1f; }
 
   function _branchAddress(a,i) { return (a+4) + (_imms(i)*4); }
   function _jumpAddress(a,i)   { return (a&0xf0000000) | (_target(i)*4); }
@@ -258,6 +259,20 @@ if (typeof n64js === 'undefined') {
     return cop0Table[fmt](i);
   }
 
+  function disassembleBCInstr(i) {
+
+    n64js.assert( ((i.opcode>>>18)&0x7) === 0, "cc bit is not 0" );
+
+    switch (_cop1_bc(i.opcode)) {
+      case 0:    return 'BC1F      !c ? --> ' + i.branchAddress();
+      case 1:    return 'BC1T      c ? --> '  + i.branchAddress();
+      case 2:    return 'BC1FL     !c ? --> ' + i.branchAddress();
+      case 3:    return 'BC1TL     c ? --> '  + i.branchAddress();
+    }
+
+    return '???';
+  }
+
   function disassembleCop1Instr(i, fmt) {
     var fmt_u = fmt.toUpperCase();
 
@@ -319,15 +334,15 @@ if (typeof n64js === 'undefined') {
 
 
   var cop1Table = [
-    function (i) { return 'MFC1      ' + i.rt_d() + ' <-- ' + i.fs(); },
-    function (i) { return 'DMFC1     ' + i.rt_d() + ' <-- ' + i.fs(); },
-    function (i) { return 'CFC1      ' + i.rt_d() + ' <-- CCR' + _rd(i.opcode); },
+    function (i) { return 'MFC1      ' + i.rt_d() + ' = ' + i.fs(); },
+    function (i) { return 'DMFC1     ' + i.rt_d() + ' = ' + i.fs(); },
+    function (i) { return 'CFC1      ' + i.rt_d() + ' = CCR' + _rd(i.opcode); },
     function (i) { return 'Unk'; },
-    function (i) { return 'MTC1      ' + i.rt() + ' --> ' + i.fs_d(); },
-    function (i) { return 'DMTC1     ' + i.rt() + ' --> ' + i.fs_d(); },
-    function (i) { return 'CTC1      ' + i.rt() + ' --> CCR' + _rd(i.opcode); },
+    function (i) { return 'MTC1      ' + i.fs_d() + ' = ' + i.rt(); },
+    function (i) { return 'DMTC1     ' + i.fs_d() + ' = ' + i.rt(); },
+    function (i) { return 'CTC1      CCR' + _rd(i.opcode) + ' = ' + i.rt(); },
     function (i) { return 'Unk'; },
-    function (i) { return 'BCInstr'; },
+    disassembleBCInstr,
     function (i) { return 'Unk'; },
     function (i) { return 'Unk'; },
     function (i) { return 'Unk'; },
