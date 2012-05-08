@@ -844,6 +844,8 @@ if (typeof n64js === 'undefined') {
   var ri_reg        = new Memory(new ArrayBuffer(0x20));
   var si_reg        = new Memory(new ArrayBuffer(0x1c));
 
+  var eeprom        = new Memory(new ArrayBuffer(4*1024));    // Or 16KB
+
   var mapped_mem_handler         = new Device("VMEM",     null,         0x00000000, 0x80000000);
   var rdram_handler_cached       = new Device("RAM",      ram,          0x80000000, 0x80800000);
   var rdram_handler_uncached     = new Device("RAM",      ram,          0xa0000000, 0xa0800000);
@@ -1429,6 +1431,7 @@ if (typeof n64js === 'undefined') {
       if (cmd[0] == CONT_TX_SIZE_CHANSKIP) {
         count++;
         channel++;
+        continue;
       }
 
       // 0-3: controller channels
@@ -1439,7 +1442,10 @@ if (typeof n64js === 'undefined') {
           break;
         }
       } else if (channel === PC_EEPROM) {
-        n64js.halt('eeprom is unhandled');
+        if (!ProcessEeprom(cmd)) {
+          count = 64;
+          break;
+        }
         break;
       } else {
         n64js.halt('Trying to read from invalid controller channel ' + channel + '!');
@@ -1453,7 +1459,10 @@ if (typeof n64js === 'undefined') {
     pi_ram[63] = 0;
   }
 
-  var controllers = [{present:true, mempack:true}, {present:true, mempack:true}, {present:true, mempack:true}, {present:true, mempack:true}];
+  var controllers = [{present:true, mempack:true},
+                     {present:true, mempack:false},
+                     {present:true, mempack:false},
+                     {present:true, mempack:false}];
   function ProcessController(cmd, channel) {
     if (!controllers[channel].present)
     {
@@ -1491,6 +1500,59 @@ if (typeof n64js === 'undefined') {
     }
 
     return true;
+  }
+
+  function ProcessEeprom(cmd) {
+
+    switch(cmd[2])
+    {
+    case CONT_RESET:
+    case CONT_GET_STATUS:
+      cmd[3] = 0x00;
+      cmd[4] = 0x80; /// FIXME GetEepromContType();
+      cmd[5] = 0x00;
+      break;
+
+    case CONT_READ_EEPROM:
+      var offset = cmd[3]*8;
+      n64js.log('Reading from eeprom+' + offset);
+      for (var i = 0; i < 8; ++i) {
+        cmd[4+i] = eeprom.u8[offset+i];
+      }
+      break;
+
+    case CONT_WRITE_EEPROM:
+      //FIXME: marksavedirty
+      var offset = cmd[3]*8;
+      n64js.log('Writing to eeprom+' + offset);
+      for (var i = 0; i < 8; ++i) {
+        eeprom.u8[offset+i] = cmd[4+i];
+      }
+      break;
+
+    // RTC credit: Mupen64 source
+    //
+    case CONT_RTC_STATUS: // RTC status query
+        cmd[3] = 0x00;
+        cmd[4] = 0x10;
+        cmd[5] = 0x00;
+      break;
+
+    case CONT_RTC_READ: // read RTC block
+      n64js.halt('rtc read unhandled');
+      //CommandReadRTC( cmd );
+      break;
+
+    case CONT_RTC_WRITE:  // write RTC block
+      n64js.halt('rtc write unhandled');
+      break;
+
+    default:
+      n64js.halt('unknown eeprom command: ' + toString8(cmd[2]));
+      break;
+    }
+
+    return false;
   }
 
   function checkSIStatusConsistent() {
