@@ -1295,7 +1295,7 @@ if (typeof n64js === 'undefined') {
       switch( ea ) {
         case PI_DRAM_ADDR_REG:
         case PI_CART_ADDR_REG:
-          n64js.log('Writing to PIReg: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
+          if (!this.quiet) n64js.log('Writing to PIReg: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
           this.mem.write32(ea, value);
           break;
         case PI_RD_LEN_REG:
@@ -1308,11 +1308,11 @@ if (typeof n64js === 'undefined') {
           break;
         case PI_STATUS_REG:
           if (value & PI_STATUS_RESET) {
-            n64js.log('PI_STATUS_REG reset');
+            if (!this.quiet) n64js.log('PI_STATUS_REG reset');
             this.mem.write32(PI_STATUS_REG, 0);
           }
           if (value & PI_STATUS_CLR_INTR) {
-            n64js.log('PI interrupt cleared');
+            if (!this.quiet) n64js.log('PI interrupt cleared');
             mi_reg.clearBits32(MI_INTR_REG, MI_INTR_PI);
             n64js.cpu0.updateCause3();
           }
@@ -1334,7 +1334,7 @@ if (typeof n64js === 'undefined') {
     var dram_address = si_reg.read32(SI_DRAM_ADDR_REG) & 0x1fffffff;
     var pi_ram       = new Uint8Array(pi_mem.bytes, 0x7c0, 0x040);
 
-    n64js.log('SI: copying from ' + toString32(dram_address) + ' to PI RAM');
+    if (!si_reg_handler_uncached.quiet) n64js.log('SI: copying from ' + toString32(dram_address) + ' to PI RAM');
 
     for (var i = 0; i < 64; ++i) {
       pi_ram[i] = ram.u8[dram_address+i];
@@ -1342,7 +1342,7 @@ if (typeof n64js === 'undefined') {
 
     var control_byte = pi_ram[0x3f];
     if (control_byte > 0) {
-      n64js.log('SI: wrote ' + control_byte + ' to the control byte');
+      if (!si_reg_handler_uncached.quiet) n64js.log('SI: wrote ' + control_byte + ' to the control byte');
     }
 
     si_reg.setBits32(SI_STATUS_REG, SI_STATUS_INTERRUPT);
@@ -1358,7 +1358,7 @@ if (typeof n64js === 'undefined') {
     var dram_address = si_reg.read32(SI_DRAM_ADDR_REG) & 0x1fffffff;
     var pi_ram       = new Uint8Array(pi_mem.bytes, 0x7c0, 0x040);
 
-    n64js.log('SI: copying from PI RAM to ' + toString32(dram_address));
+    if (!si_reg_handler_uncached.quiet) n64js.log('SI: copying from PI RAM to ' + toString32(dram_address));
 
     for (var i = 0; i < 64; ++i) {
       ram.u8[dram_address+i] = pi_ram[i];
@@ -1511,7 +1511,7 @@ if (typeof n64js === 'undefined') {
 
       switch( ea ) {
         case SI_DRAM_ADDR_REG:
-          n64js.log('Writing to SI dram address reigster: ' + toString32(value) );
+          if (!this.quiet) n64js.log('Writing to SI dram address reigster: ' + toString32(value) );
           this.mem.write32(ea, value);
           break;
         case SI_PIF_ADDR_RD64B_REG:
@@ -1523,7 +1523,7 @@ if (typeof n64js === 'undefined') {
           SICopyFromRDRAM();
           break;
         case SI_STATUS_REG:
-          n64js.log('SI interrupt cleared');
+          if (!this.quiet) n64js.log('SI interrupt cleared');
           si_reg.clearBits32(SI_STATUS_REG, SI_STATUS_INTERRUPT);
           mi_reg.clearBits32(MI_INTR_REG,   MI_INTR_SI);
           n64js.cpu0.updateCause3();
@@ -1545,7 +1545,7 @@ if (typeof n64js === 'undefined') {
     var cart_address = pi_reg.read32(PI_CART_ADDR_REG);
     var transfer_len = pi_reg.read32(PI_WR_LEN_REG) + 1;
 
-    n64js.log('PI: copying ' + transfer_len + ' bytes of data from ' + toString32(cart_address) + ' to ' + toString32(dram_address));
+    if (!pi_reg_handler_uncached.quiet) n64js.log('PI: copying ' + transfer_len + ' bytes of data from ' + toString32(cart_address) + ' to ' + toString32(dram_address));
 
     if (transfer_len&1) {
       n64js.log('PI: Warning - odd address');

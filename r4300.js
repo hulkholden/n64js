@@ -610,8 +610,6 @@ if (typeof n64js === 'undefined') {
 
           if (!valid) {
             n64js.halt('Need to throw tlbinvalid for ' + n64js.toString32(address));
-          } else {
-            n64js.halt('Translated ' + n64js.toString32(address) + ' to ' + n64js.toString32(physical_addr));
           }
 
           return valid ? physical_addr : 0;
@@ -1109,6 +1107,12 @@ if (typeof n64js === 'undefined') {
 
       case cpu0.kControlEPC:
       case cpu0.kControlEntryHi:
+      case cpu0.kControlEntryLo0:
+      case cpu0.kControlEntryLo1:
+      case cpu0.kControlIndex:
+      case cpu0.kControlPageMask:
+      case cpu0.kControlTagLo:
+      case cpu0.kControlTagHi:
         cpu0.control[control_reg] = new_value;
         break;
 
@@ -1774,7 +1778,7 @@ if (typeof n64js === 'undefined') {
     throw "Oops, didn't build the cop1 table correctly";
   }
   function executeCop1(a,i) {
-    n64js.assert( (cpu0.control[cpu0.kControlSR] & SR_CU1) !== 0, "SR_CU1 in inconsistent state" );
+    //n64js.assert( (cpu0.control[cpu0.kControlSR] & SR_CU1) !== 0, "SR_CU1 in inconsistent state" );
 
     var fmt = (i>>21) & 0x1f;
     cop1Table[fmt](a, i);
@@ -2090,9 +2094,6 @@ if (typeof n64js === 'undefined') {
 
     // Clean up any kEventRunForCycles events before we bail out
     cpu0.removeEventsOfType(kEventRunForCycles);
-
-
-    n64js.refreshDisplay();
   }
 
 })();
