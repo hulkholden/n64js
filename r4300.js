@@ -345,15 +345,14 @@ if (typeof n64js === 'undefined') {
     }
 
     this.updateCause3 = function () {
-      var interrupts_masked = (n64js.mi_reg.read32(MI_INTR_MASK_REG) & n64js.mi_reg.read32(MI_INTR_REG)) === 0;
-      if (interrupts_masked) {
-        this.control[this.kControlCause] &= ~CAUSE_IP3;
-      } else {
-        this.control[this.kControlCause] |=  CAUSE_IP3;
+      if (n64js.miInterruptsUnmasked()) {
+        this.control[this.kControlCause] |= CAUSE_IP3;
 
         if (this.checkForUnmaskedInterrupts()) {
           this.stuffToDo |= kStuffToDoCheckInterrupts;
         }
+      } else {
+        this.control[this.kControlCause] &= ~CAUSE_IP3;
       }
 
       checkCauseIP3Consistent();
@@ -1052,9 +1051,6 @@ if (typeof n64js === 'undefined') {
   function executeTLTU(a,i)       { unimplemented(a,i); }
   function executeTEQ(a,i)        { unimplemented(a,i); }
   function executeTNE(a,i)        { unimplemented(a,i); }
-
-  var MI_INTR_REG         = 0x08;
-  var MI_INTR_MASK_REG    = 0x0C;
 
   function executeMFC0(a,i) {
     var control_reg = fs(i);
@@ -1990,7 +1986,7 @@ if (typeof n64js === 'undefined') {
   }
 
   function checkCauseIP3Consistent() {
-    var mi_interrupt_set = (n64js.mi_reg.read32(MI_INTR_MASK_REG) & n64js.mi_reg.read32(MI_INTR_REG)) !== 0;
+    var mi_interrupt_set = n64js.miInterruptsUnmasked();
     var cause_int_3_set  = (cpu0.control[cpu0.kControlCause] & CAUSE_IP3) !== 0;
     n64js.assert(mi_interrupt_set === cause_int_3_set, 'CAUSE_IP3 inconsistent with MI_INTR_REG');
   }
