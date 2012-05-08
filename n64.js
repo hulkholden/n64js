@@ -669,15 +669,18 @@ if (typeof n64js === 'undefined') {
     //this.u32    = new Uint32Array(this.bytes);
     this.u8     = new  Uint8Array(this.bytes);
 
+    this.dataView = new DataView(this.bytes);
+
     var that = this;
 
     this.read32 = function (offset) {
-      var a = that.u8[offset+0];
-      var b = that.u8[offset+1];
-      var c = that.u8[offset+2];
-      var d = that.u8[offset+3];
+      //var a = that.u8[offset+0];
+      //var b = that.u8[offset+1];
+      //var c = that.u8[offset+2];
+      //var d = that.u8[offset+3];
 
-      return (a<<24) | (b<<16) | (c<<8) | d;
+      //return (a<<24) | (b<<16) | (c<<8) | d;
+      return that.dataView.getUint32(offset);
     }
     this.read16 = function (offset) {
       return (that.u8[offset+0]<<8) | that.u8[offset+1];
@@ -873,6 +876,13 @@ if (typeof n64js === 'undefined') {
   pi_reg_handler_uncached.quiet   = true;
   si_reg_handler_uncached.quiet   = true;
 
+  // This function gets hit A LOT, so eliminate as much fat as possible.
+  rdram_handler_cached.read32 = function (address) {
+    return this.mem.dataView.getUint32(address - 0x80000000);
+  }
+  rdram_handler_cached.write32 = function (address, value) {
+    return this.mem.dataView.setUint32(address - 0x80000000, value);
+  }
 
   mapped_mem_handler.readInternal32 = function(address) {
     return 0xffffffff;
@@ -1800,76 +1810,76 @@ if (typeof n64js === 'undefined') {
 
   // Read memory internal is used for stuff like the debugger. It shouldn't ever throw or change the state of the emulated program.
   n64js.readMemoryInternal32 = function (address) {
-    assert(address>=0, "Address is negative");
+    //assert(address>=0, "Address is negative");
     var handler = memMap[address >>> 18];
     if (!handler) {
       //n64js.log('internal read from unhandled location ' + toString32(address));
       return 0xdddddddd;
     }
-    return handler ? handler.readInternal32(address>>>0) : 0xdddddddd;
+    return handler ? handler.readInternal32(address) : 0xdddddddd;
   }
 
   // 'emulated' read. May cause exceptions to be thrown in the emulated process
   n64js.readMemory32 = function (address) {
-    assert(address>=0, "Address is negative");
+    //assert(address>=0, "Address is negative");
     var handler = memMap[address >>> 18];
     if (!handler) {
       n64js.log('read from unhandled location ' + toString32(address));
       throw 'unmapped read - need to set exception';
     }
-    return handler.read32(address>>>0);
+    return handler.read32(address);
   }
   // 'emulated' read. May cause exceptions to be thrown in the emulated process
   n64js.readMemory16 = function (address) {
-    assert(address>=0, "Address is negative");
+    //assert(address>=0, "Address is negative");
     var handler = memMap[address >>> 18];
     if (!handler) {
       n64js.log('read from unhandled location ' + toString32(address));
       throw 'unmapped read - need to set exception';
     }
-    return handler.read16(address>>>0);
+    return handler.read16(address);
   }
   // 'emulated' read. May cause exceptions to be thrown in the emulated process
   n64js.readMemory8 = function (address) {
-    assert(address>=0, "Address is negative");
+    //assert(address>=0, "Address is negative");
     var handler = memMap[address >>> 18];
     if (!handler) {
       n64js.log('read from unhandled location ' + toString32(address));
       throw 'unmapped read - need to set exception';
     }
-    return handler.read8(address>>>0);
+    return handler.read8(address);
   }
 
   // 'emulated' write. May cause exceptions to be thrown in the emulated process
   n64js.writeMemory32 = function (address, value) {
-    assert(address>=0, "Address is negative");
+    //assert(address>=0, "Address is negative");
     var handler = memMap[address >>> 18];
     if (!handler) {
       n64js.log('write to unhandled location ' + toString32(address));
       throw 'unmapped write - need to set exception';
     }
-    return handler.write32(address>>>0, value);
+    return handler.write32(address, value);
   }
 
   // 'emulated' write. May cause exceptions to be thrown in the emulated process
   n64js.writeMemory16 = function (address, value) {
-    assert(address>=0, "Address is negative");
+    //assert(address>=0, "Address is negative");
     var handler = memMap[address >>> 18];
     if (!handler) {
       n64js.log('write to unhandled location ' + toString32(address));
       throw 'unmapped write - need to set exception';
     }
-    return handler.write16(address>>>0, value);
+    return handler.write16(address, value);
   }
     // 'emulated' write. May cause exceptions to be thrown in the emulated process
   n64js.writeMemory8 = function (address, value) {
-    assert(address>=0, "Address is negative");
+    //assert(address>=0, "Address is negative");
     var handler = memMap[address >>> 18];
     if (!handler) {
       n64js.log('write to unhandled location ' + toString32(address));
       throw 'unmapped write - need to set exception';
     }
-    return handler.write8(address>>>0, value);
+    return handler.write8(address, value);
   }
 
   var kBootstrapOffset = 0x40;
