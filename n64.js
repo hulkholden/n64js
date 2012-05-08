@@ -864,10 +864,13 @@ if (typeof n64js === 'undefined') {
   rdram_handler_uncached.quiet    = true;
   sp_mem_handler_uncached.quiet   = true;
   sp_reg_handler_uncached.quiet   = true;
-  mi_reg_handler_uncached.quiet   = true;
-  ai_reg_handler_uncached.quiet   = true;
-  vi_reg_handler_uncached.quiet   = true;
   sp_ibist_handler_uncached.quiet = true;
+  mi_reg_handler_uncached.quiet   = true;
+  vi_reg_handler_uncached.quiet   = true;
+  ai_reg_handler_uncached.quiet   = true;
+  pi_reg_handler_uncached.quiet   = true;
+  si_reg_handler_uncached.quiet   = true;
+
 
   mapped_mem_handler.readInternal32 = function(address) {
     return 0xffffffff;
