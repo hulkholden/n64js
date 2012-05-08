@@ -1047,6 +1047,7 @@ if (typeof n64js === 'undefined') {
     sp_reg.clearBits32(SP_STATUS_REG, SP_STATUS_DMA_BUSY);
   }
 
+  var graphics_task_count = 0;
 
   function RSPHLEProcessTask() {
     var task_offset = 0x0fc0;
@@ -1077,7 +1078,10 @@ if (typeof n64js === 'undefined') {
     var type = sp_mem.read32(task_offset + kOffset_type);
     switch (type) {
       case M_GFXTASK:
-        n64js.halt('graphics task');
+        n64js.log('graphics task ' + graphics_task_count);
+        ++graphics_task_count;
+        mi_reg.setBits32(MI_INTR_REG, MI_INTR_DP);
+        n64js.cpu0.updateCause3();
         break;
       case M_AUDTASK:
         //n64js.log('audio task');
