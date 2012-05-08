@@ -560,11 +560,19 @@ if (typeof n64js === 'undefined') {
     for (var i = 0; i < 32; ++i) {
       var name = n64js.cop1RegisterNames[i];
 
-      var $td = $('<td>' + name +
-        '</td><td class="fixed fp-w">' + toString32(cpu1.uint32[i*2+0]) + ' ' + toString32(cpu1.uint32[i*2+1]) +
-        '</td><td class="fixed fp-s">' + cpu1.float32[i*2+0] + ' ' + cpu1.float32[i*2+1] +
-        '</td><td class="fixed fp-d">' + cpu1.float64[i] +
-        '</td>' );
+      if ((i&1) === 0) {
+        var $td = $('<td>' + name +
+          '</td><td class="fixed fp-w">' + toString32(cpu1.uint32[i]) +
+          '</td><td class="fixed fp-s">' + cpu1.float32[i] +
+          '</td><td class="fixed fp-d">' + cpu1.float64[i/2] +
+          '</td>' );
+      } else {
+        var $td = $('<td>' + name +
+          '</td><td class="fixed fp-w">' + toString32(cpu1.uint32[i]) +
+          '</td><td class="fixed fp-s">' + cpu1.float32[i] +
+          '</td><td>' +
+          '</td>' );
+      }
 
       var $tr = $('<tr />');
       $tr.append($td);
