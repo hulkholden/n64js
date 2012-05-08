@@ -5,6 +5,7 @@ if (typeof n64js === 'undefined') {
 (function () {'use strict';
   var debugTLB = 0;
 
+  var k1Shift32 = 4294967296.0;
 
   var SR_IE           = 0x00000001;
   var SR_EXL          = 0x00000002;
@@ -263,6 +264,19 @@ if (typeof n64js === 'undefined') {
     this.tlbEntries = [];
     for (var i = 0; i < 32; ++i) {
       this.tlbEntries.push(new TLBEntry());
+    }
+
+    this.getGPR_s64 = function (r) {
+      return (this.gprHi_signed[r] * k1Shift32) + this.gprLo[r];
+    }
+
+    this.getGPR_u64 = function (r) {
+      return (this.gprHi[r] * k1Shift32) + this.gprLo[r];
+    }
+
+    this.setGPR_s64 = function (r, v) {
+      this.gprHi[r] = Math.floor( v / k1Shift32 );
+      this.gprLo[r] = (v&0xffffffff)>>>0;
     }
 
     this.reset = function () {
@@ -789,8 +803,6 @@ if (typeof n64js === 'undefined') {
     arr[1] = 0x00000000;
   }
 
-  var k1Shift32 = 4294967296.0;
-
   function getHi32(v) {
     // >>32 just seems to no-op? Argh.
     return Math.floor( v / k1Shift32 );
@@ -926,7 +938,7 @@ if (typeof n64js === 'undefined') {
     var t = rt(i);
 
     if ((cpu0.gprHi[s] + (cpu0.gprLo[s] >>> 31) +
-         cpu0.gprHi[t] + (cpu0.gprLo[t] >>> 31)) === 0) {
+         cpu0.gprHi[t] + (cpu0.gprLo[t] >>> 31)) !== 0) {
       n64js.halt('Full 64 bit division not handled!');
     } else {
       var dividend = cpu0.gprLo_signed[s];
@@ -944,8 +956,8 @@ if (typeof n64js === 'undefined') {
 
     if ((cpu0.gprHi[s] | cpu0.gprHi[t]) !== 0) {
       // FIXME: seems ok if dividend/divisor fit in mantissa of double...
-      var dividend = (cpu0.gprHi[s] * k1Shift32) + cpu0.gprLo[s];
-      var divisor  = (cpu0.gprHi[t] * k1Shift32) + cpu0.gprLo[t];
+      var dividend = cpu0.getGPR_u64(s);
+      var divisor  = cpu0.getGPR_u64(t);
       if (divisor) {
         setHiLoZeroExtend( cpu0.multLo, Math.floor(dividend / divisor) );
         setHiLoZeroExtend( cpu0.multHi, dividend % divisor );
@@ -1305,6 +1317,13 @@ if (typeof n64js === 'undefined') {
     setSignExtend(rt(i), a + v);
   }
 
+  function executeDADDI(a,i) {
+    cpu0.setGPR_s64(rt(i), cpu0.getGPR_s64(rs(i)) + imms(i));
+  }
+  function executeDADDIU(a,i) {
+    cpu0.setGPR_s64(rt(i), cpu0.getGPR_s64(rs(i)) + imms(i));
+  }
+
   function executeSLTI(a,i) {
     var s         = rs(i);
     var t         = rt(i);
@@ -1350,8 +1369,8 @@ if (typeof n64js === 'undefined') {
   
   function executeXORI(a,i) {
     // High 32 bits are always unchanged, as sign extended immediate value is always 0
-    var lo = cpu0.gprLo[rs(i)] ^ imm(i);
-    cpu0.gprLo[rt(i)] = lo;    
+    cpu0.gprHi[rt(i)] = cpu0.gprHi[rs(i)];
+    cpu0.gprLo[rt(i)] = cpu0.gprLo[rs(i)] ^ imm(i);
   }
   
   function executeLUI(a,i) {
@@ -1359,9 +1378,6 @@ if (typeof n64js === 'undefined') {
     setSignExtend(rt(i), v);
   }
   
-  function executeDADDI(a,i)      { unimplemented(a,i); }
-  function executeDADDIU(a,i)     { unimplemented(a,i); }
-
   function executeLB(a,i) {
     setSignExtend(rt(i), (n64js.readMemory8( memaddr(i) )<<24)>>24);
   }
@@ -1398,7 +1414,7 @@ if (typeof n64js === 'undefined') {
   function executeLDC2(a,i)       { unimplemented(a,i); }
 
   function executeLWL(a,i) {
-    var address         = memaddr(i);
+    var address         = memaddr(i)>>>0;
     var address_aligned = (address & ~3)>>>0;
     var memory          = n64js.readMemory32(address_aligned);
     var reg             = cpu0.gprLo[rt(i)];
@@ -1414,17 +1430,17 @@ if (typeof n64js === 'undefined') {
     setSignExtend( rt(i), value );
   }
   function executeLWR(a,i) {
-    var address         = memaddr(i);
+    var address         = memaddr(i)>>>0;
     var address_aligned = (address & ~3)>>>0;
     var memory          = n64js.readMemory32(address_aligned);
     var reg             = cpu0.gprLo[rt(i)];
 
     var value;
     switch(address % 4) {
-      case 0:       value = (reg & 0xffffff00) | (memory >> 24); break;
-      case 1:       value = (reg & 0xffff0000) | (memory >> 16); break;
-      case 2:       value = (reg & 0xff000000) | (memory >>  8); break;
-      default:      value = memory;                              break;
+      case 0:       value = (reg & 0xffffff00) | (memory >>> 24); break;
+      case 1:       value = (reg & 0xffff0000) | (memory >>> 16); break;
+      case 2:       value = (reg & 0xff000000) | (memory >>>  8); break;
+      default:      value = memory;                               break;
     }
 
     setSignExtend( rt(i), value );
