@@ -1027,7 +1027,10 @@ if (typeof n64js === 'undefined') {
     sp_reg.write32(SP_STATUS_REG, status_bits);
 
     if (start_rsp) {
-      n64js.RSPHLEProcessTask();
+      var kTaskOffset = 0x0fc0;
+      var task_view = new DataView(sp_mem.bytes, kTaskOffset, 0x40);
+
+      n64js.RSPHLEProcessTask(task_view, ram.dataView);
     } else if (stop_rsp) {
       // As we handle all RSP via HLE, nothing to do here.
     }
@@ -2242,9 +2245,6 @@ if (typeof n64js === 'undefined') {
   n64js.toString16 = toString16;
   n64js.toString32 = toString32;
   n64js.toString64 = toString64;
-
-  n64js.mi_reg     = mi_reg;
-  n64js.sp_mem     = sp_mem;
 
   n64js.miInterruptsUnmasked = function () {
     return (mi_reg.read32(MI_INTR_MASK_REG) & mi_reg.read32(MI_INTR_REG)) !== 0;
