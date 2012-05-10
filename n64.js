@@ -663,11 +663,11 @@ if (typeof n64js === 'undefined') {
   //
   // Memory handlers
   //
-  function Memory(arraybuffer) {
-    this.bytes  = arraybuffer;
-    this.length = arraybuffer.byteLength;
-    this.u8     = new  Uint8Array(arraybuffer);
-    this.dataView = new DataView(arraybuffer);
+  function Memory(arrayBuffer) {
+    this.arrayBuffer  = arrayBuffer;
+    this.length = arrayBuffer.byteLength;
+    this.u8     = new  Uint8Array(arrayBuffer);
+    this.dataView = new DataView(arrayBuffer);
   }
 
   Memory.prototype = {
@@ -1256,7 +1256,7 @@ if (typeof n64js === 'undefined') {
 
   function SICopyFromRDRAM() {
     var dram_address = si_reg.read32(SI_DRAM_ADDR_REG) & 0x1fffffff;
-    var pi_ram       = new Uint8Array(pi_mem.bytes, 0x7c0, 0x040);
+    var pi_ram       = new Uint8Array(pi_mem.arrayBuffer, 0x7c0, 0x040);
 
     if (!si_reg_handler_uncached.quiet) n64js.log('SI: copying from ' + toString32(dram_address) + ' to PI RAM');
 
@@ -1280,7 +1280,7 @@ if (typeof n64js === 'undefined') {
     UpdateController();
 
     var dram_address = si_reg.read32(SI_DRAM_ADDR_REG) & 0x1fffffff;
-    var pi_ram       = new Uint8Array(pi_mem.bytes, 0x7c0, 0x040);
+    var pi_ram       = new Uint8Array(pi_mem.arrayBuffer, 0x7c0, 0x040);
 
     if (!si_reg_handler_uncached.quiet) n64js.log('SI: copying from PI RAM to ' + toString32(dram_address));
 
@@ -1322,7 +1322,7 @@ if (typeof n64js === 'undefined') {
 
     // read controllers
 
-    var pi_ram       = new Uint8Array(pi_mem.bytes, 0x7c0, 0x040);
+    var pi_ram       = new Uint8Array(pi_mem.arrayBuffer, 0x7c0, 0x040);
 
     var count   = 0;
     var channel = 0;
@@ -1570,8 +1570,8 @@ if (typeof n64js === 'undefined') {
   }
 
   function PIFUpdateControl() {
-    var pi_rom = new Uint8Array(pi_mem.bytes, 0x000, 0x7c0);
-    var pi_ram = new Uint8Array(pi_mem.bytes, 0x7c0, 0x040);
+    var pi_rom = new Uint8Array(pi_mem.arrayBuffer, 0x000, 0x7c0);
+    var pi_ram = new Uint8Array(pi_mem.arrayBuffer, 0x7c0, 0x040);
     var command = pi_ram[0x3f];
     switch (command) {
       case 0x01:
@@ -2073,8 +2073,8 @@ if (typeof n64js === 'undefined') {
   };
 
 
-  function fixEndian(bytes) {
-    var dataView = new DataView(bytes);
+  function fixEndian(arrayBuffer) {
+    var dataView = new DataView(arrayBuffer);
 
     function byteSwap(buffer, _a, _b, _c, _d) {
 
@@ -2094,13 +2094,13 @@ if (typeof n64js === 'undefined') {
         // ok
         break;
       case 0x40123780:
-        byteSwap(bytes, 3, 2, 1, 0);
+        byteSwap(arrayBuffer, 3, 2, 1, 0);
         break;
       case 0x12408037:
-        byteSwap(bytes, 2, 3, 0, 1);
+        byteSwap(arrayBuffer, 2, 3, 0, 1);
         break;
       case 0x37804012:
-        byteSwap(bytes, 1, 0, 3, 2);
+        byteSwap(arrayBuffer, 1, 0, 3, 2);
         break;
       default:
         throw 'Unhandled byteswapping: ' + dataView.getUint32(0).toString(16);
@@ -2120,10 +2120,10 @@ if (typeof n64js === 'undefined') {
     return s;
   }
 
-  n64js.loadRom = function (bytes) {
-    fixEndian(bytes);
+  n64js.loadRom = function (arrayBuffer) {
+    fixEndian(arrayBuffer);
 
-    rom = new Memory(bytes);
+    rom = new Memory(arrayBuffer);
     rom_handler_uncached.dataView = rom.dataView;
 
     var hdr = {};
