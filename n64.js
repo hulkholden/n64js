@@ -470,7 +470,7 @@ if (typeof n64js === 'undefined') {
       for (var r = 0; r < kRegistersPerRow; ++r) {
 
         var name = n64js.cop0gprNames[i+r];
-        var $td = $('<td>' + name + '</td><td class="fixed">' + toString64(cpu0.gprLo[i+r], cpu0.gprHi[i+r]) + '</td>');
+        var $td = $('<td>' + name + '</td><td class="fixed">' + toString64(cpu0.gprHi[i+r], cpu0.gprLo[i+r]) + '</td>');
 
         if (regColours.hasOwnProperty(name)) {
           $td.attr('bgcolor', regColours[name]);
@@ -536,9 +536,9 @@ if (typeof n64js === 'undefined') {
 
     $status_body.append('<tr><td>Ops</td><td class="fixed">' + cpu0.opsExecuted + '</td></tr>');
     $status_body.append('<tr><td>PC</td><td class="fixed">' + toString32(cpu0.pc) + '</td><td>delayPC</td><td class="fixed">' + toString32(cpu0.delayPC) + '</td></tr>');
-    $status_body.append('<tr><td>MultHi</td><td class="fixed">' + toString64(cpu0.multHi[0], cpu0.multHi[1]) +
+    $status_body.append('<tr><td>MultHi</td><td class="fixed">' + toString64(cpu0.multHi[1], cpu0.multHi[0]) +
               '</td><td>Cause</td><td class="fixed">' + toString32(n64js.cpu0.control[n64js.cpu0.kControlCause]) + '</td></tr>');
-    $status_body.append('<tr><td>MultLo</td><td class="fixed">' + toString64(cpu0.multLo[0], cpu0.multLo[1]) +
+    $status_body.append('<tr><td>MultLo</td><td class="fixed">' + toString64(cpu0.multLo[1], cpu0.multLo[0]) +
               '</td><td>Count</td><td class="fixed">' + toString32(n64js.cpu0.control[n64js.cpu0.kControlCount]) + '</td></tr>');
     $status_body.append('<tr><td></td><td class="fixed">' +
               '</td><td>Compare</td><td class="fixed">' + toString32(n64js.cpu0.control[n64js.cpu0.kControlCompare]) + '</td></tr>');
@@ -783,6 +783,10 @@ if (typeof n64js === 'undefined') {
 
   var eeprom        = new Memory(new ArrayBuffer(4*1024));    // Or 16KB
 
+  // Keep a DataView around as a view onto the RSP task
+  var kTaskOffset   = 0x0fc0;
+  var rsp_task_view = new DataView(sp_mem.arrayBuffer, kTaskOffset, 0x40);
+
   var mapped_mem_handler         = new Device("VMEM",     null,         0x00000000, 0x80000000);
   var rdram_handler_cached       = new Device("RAM",      ram,          0x80000000, 0x80800000);
   var rdram_handler_uncached     = new Device("RAM",      ram,          0xa0000000, 0xa0800000);
@@ -961,10 +965,7 @@ if (typeof n64js === 'undefined') {
     sp_reg.write32(SP_STATUS_REG, status_bits);
 
     if (start_rsp) {
-      var kTaskOffset = 0x0fc0;
-      var task_view = new DataView(sp_mem.bytes, kTaskOffset, 0x40);
-
-      n64js.RSPHLEProcessTask(task_view, ram.dataView);
+      n64js.RSPHLEProcessTask(rsp_task_view, ram.dataView);
     } else if (stop_rsp) {
       // As we handle all RSP via HLE, nothing to do here.
     }
@@ -2190,7 +2191,7 @@ if (typeof n64js === 'undefined') {
     return '0x' + toHex(v, 32);
   }
 
-  function toString64(lo, hi) {
+  function toString64(hi, lo) {
     var t = toHex(lo, 32);
     var u = toHex(hi, 32);
     return '0x' + u + t;
