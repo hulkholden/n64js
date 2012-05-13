@@ -689,10 +689,10 @@ if (typeof n64js === 'undefined') {
 
   function disassembleFillRect(cmd0,cmd1) {
     // NB: fraction is ignored
-    var x0 = ((cmd0>>>12)&0xfff)>>>2;
-    var y0 = ((cmd0>>> 0)&0xfff)>>>2;
-    var x1 = ((cmd1>>>12)&0xfff)>>>2;
-    var y1 = ((cmd1>>> 0)&0xfff)>>>2;
+    var x0 = ((cmd1>>>12)&0xfff)>>>2;
+    var y0 = ((cmd1>>> 0)&0xfff)>>>2;
+    var x1 = ((cmd0>>>12)&0xfff)>>>2;
+    var y1 = ((cmd0>>> 0)&0xfff)>>>2;
 
     return 'gsDPFillRectangle(' + x0 + ', ' + y0 + ', ' + x1 + ', ' + y1 + ');';
   }
