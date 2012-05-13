@@ -664,13 +664,20 @@ if (typeof n64js === 'undefined') {
   // Memory handlers
   //
   function Memory(arrayBuffer) {
-    this.arrayBuffer  = arrayBuffer;
-    this.length = arrayBuffer.byteLength;
-    this.u8     = new  Uint8Array(arrayBuffer);
-    this.dataView = new DataView(arrayBuffer);
+    this.arrayBuffer = arrayBuffer;
+    this.length      = arrayBuffer.byteLength;
+    this.u8          = new Uint8Array(arrayBuffer);
+    this.dataView    = new DataView(arrayBuffer);
   }
 
   Memory.prototype = {
+    clear : function () {
+      var u32s = new Uint32Array(this.arrayBuffer);
+      for (var i = 0; i < u32s.length; ++i) {
+        u32s[i] = 0;
+      }
+    },
+
     read32 : function (offset) {
       return this.dataView.getUint32(offset);
     },
@@ -1890,8 +1897,9 @@ if (typeof n64js === 'undefined') {
     var country  = 0x45;  // USA
     var cic_chip = '6102';
 
-    for (var i = 0; i < ram.length; ++i) {
-      ram[i] = 0;
+    var memory_regions = [ pi_mem, ram, sp_mem, sp_reg, sp_ibist_mem, rdram_reg, mi_reg, vi_reg, ai_reg, pi_reg, ri_reg, si_reg, eeprom ];
+    for ( var i = 0; i < memory_regions.length; ++i ) {
+      memory_regions[i].clear();
     }
 
     n64js.cpu0.reset();
