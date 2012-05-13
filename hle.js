@@ -7,7 +7,9 @@ if (typeof n64js === 'undefined') {
   var graphics_task_count = 0;
 
   var $dlistOutput = $('#dlist-content');
-  var $currentDis;
+
+  var viWidth      = 320;
+  var viHeight     = 240;
 
   var kOffset_type                = 0x00;    // u32
   var kOffset_flags               = 0x04;    // u32
@@ -52,16 +54,72 @@ if (typeof n64js === 'undefined') {
 
   // Configured:
   var config = {
-    vertexStride  : 10
+    vertexStride:  10,
   };
 
   var state = {
-    pc            : 0,
-    dlistStack    : [],
-    segments      : [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-    rdpOtherModeL : 0,
-    rdpOtherModeH : 0   
+    pc:             0,
+    dlistStack:     [],
+    segments:       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    geometryMode:   0,
+    rdpOtherModeL:  0,
+    rdpOtherModeH:  0,
+
+    scissor: {
+      mode:         0,
+      x0:           0,
+      y0:           0,
+      x1:           viWidth,
+      y1:           viHeight
+    },
+
+    texture: {
+      tile:         0,
+      level:        0,
+      enable:       0,
+      scaleS:       1.0,
+      scaleT:       1.0,
+    },
+
+    combine: {
+      lo: 0,
+      hi: 0
+    },
+
+    fillColor:      0,
+
+    colorImage: {
+      format:   0,
+      size:     0,
+      width:    0,
+      address:  0
+    },
+
+    depthImage: {
+      address:  0
+    },
+
+    screenContext2d: null   // canvas context
   };
+
+  function rdpSegmentAddress(addr) {
+    var segment = (addr>>>24)&0xf;
+    return (state.segments[segment]&0x00ffffff) + (addr & 0x00ffffff);
+  }
+
+  function makeRGBFromRGBA16(col) {
+    var r = ((col>>>11)&0x1f)<<3;
+    var g = ((col>>> 6)&0x1f)<<3;
+    var b = ((col>>> 1)&0x1f)<<3;
+    return 'rgb(' + r + ',' + g + ',' + b + ')';
+  }
+
+  function makeRGBFromRGBA32(col) {
+    var r = ((col>>>24)&0xff);
+    var g = ((col>>>16)&0xff);
+    var b = ((col>>> 8)&0xff);
+    return 'rgb(' + r + ',' + g + ',' + b + ')';
+  }
 
   // task, ram are both DataView objects
   n64js.RSPHLEProcessTask = function(task, ram) {
@@ -154,7 +212,7 @@ if (typeof n64js === 'undefined') {
 
     switch(type) {
       case G_MW_MATRIX:     unimplemented(cmd0,cmd1); break;
-      case G_MW_NUMLIGHT:   unimplemented(cmd0,cmd1); break;
+      case G_MW_NUMLIGHT:   state.numLights = ((value - 0x80000000)>>>5) - 1; break;
       case G_MW_CLIP:       unimplemented(cmd0,cmd1); break;
       case G_MW_SEGMENT:    state.segments[((offset >>> 2)&0xf)] = value; break;
       case G_MW_FOG:        unimplemented(cmd0,cmd1); break;
@@ -171,8 +229,12 @@ if (typeof n64js === 'undefined') {
   function executeRDPHalf_2(cmd0,cmd1)            { unimplemented(cmd0,cmd1); }
   function executeRDPHalf_1(cmd0,cmd1)            { unimplemented(cmd0,cmd1); }
   function executeLine3D(cmd0,cmd1)               { unimplemented(cmd0,cmd1); }
-  function executeClrGeometryMode(cmd0,cmd1)      { unimplemented(cmd0,cmd1); }
-  function executeSetGeometryMode(cmd0,cmd1)      { unimplemented(cmd0,cmd1); }
+  function executeClrGeometryMode(cmd0,cmd1) {
+    state.geometryMode &= ~cmd1;
+  }
+  function executeSetGeometryMode(cmd0,cmd1) {
+    state.geometryMode |= cmd1;
+  }
 
   function executeSetOtherModeL(cmd0,cmd1) {
     var shift = (cmd0>>> 8)&0xff;
@@ -189,7 +251,15 @@ if (typeof n64js === 'undefined') {
     state.rdpOtherModeH = (state.rdpOtherModeH & ~mask) | data;
   }  
 
-  function executeTexture(cmd0,cmd1)              { unimplemented(cmd0,cmd1); }
+  function executeTexture(cmd0,cmd1) {
+    //var xparam  =  (cmd0>>>16)&0xff;
+    state.level   =  (cmd0>>>11)&0x3;
+    state.tile    =  (cmd0>>> 8)&0x7;
+    state.enable  =  (cmd0>>> 0)&0xff;
+    state.scaleS  = ((cmd1>>>16)&0xffff) / (65535.0 * 32.0);
+    state.scaleT  = ((cmd1>>> 0)&0xffff) / (65535.0 * 32.0);
+  }
+
   function executePopMtx(cmd0,cmd1)               { unimplemented(cmd0,cmd1); }
   function executeCullDL(cmd0,cmd1)               { unimplemented(cmd0,cmd1); }
   function executeTri1(cmd0,cmd1)                 { unimplemented(cmd0,cmd1); }
@@ -199,7 +269,17 @@ if (typeof n64js === 'undefined') {
   function executeSetKeyGB(cmd0,cmd1)             { unimplemented(cmd0,cmd1); }
   function executeSetKeyR(cmd0,cmd1)              { unimplemented(cmd0,cmd1); }
   function executeSetConvert(cmd0,cmd1)           { unimplemented(cmd0,cmd1); }
-  function executeSetScissor(cmd0,cmd1)           { unimplemented(cmd0,cmd1); }
+
+  function executeSetScissor(cmd0,cmd1) {
+    state.scissor.x0   = ((cmd0>>>12)&0xfff)/4.0;
+    state.scissor.y0   = ((cmd0>>> 0)&0xfff)/4.0;
+    state.scissor.x1   = ((cmd1>>>12)&0xfff)/4.0;
+    state.scissor.y1   = ((cmd1>>> 0)&0xfff)/4.0;
+    state.scissor.mode = (cmd1>>>24)&0x2;
+
+    // TODO: actually set this
+  }
+
   function executeSetPrimDepth(cmd0,cmd1)         { unimplemented(cmd0,cmd1); }
   function executeSetRDPOtherMode(cmd0,cmd1)      { unimplemented(cmd0,cmd1); }
   function executeLoadTLut(cmd0,cmd1)             { unimplemented(cmd0,cmd1); }
@@ -207,18 +287,75 @@ if (typeof n64js === 'undefined') {
   function executeLoadBlock(cmd0,cmd1)            { unimplemented(cmd0,cmd1); }
   function executeLoadTile(cmd0,cmd1)             { unimplemented(cmd0,cmd1); }
   function executeSetTile(cmd0,cmd1)              { unimplemented(cmd0,cmd1); }
-  function executeFillRect(cmd0,cmd1)             { unimplemented(cmd0,cmd1); }
-  function executeSetFillColor(cmd0,cmd1)         { unimplemented(cmd0,cmd1); }
+  function executeFillRect(cmd0,cmd1) {
+
+    // NB: fraction is ignored
+    var x0 = ((cmd1>>>12)&0xfff)>>>2;
+    var y0 = ((cmd1>>> 0)&0xfff)>>>2;
+    var x1 = ((cmd0>>>12)&0xfff)>>>2;
+    var y1 = ((cmd0>>> 0)&0xfff)>>>2;
+
+    if (state.depthImage.address == state.colorImage.address) {
+      // FIXME clear the z buffer
+      return;
+    }
+
+    var color = 'rgb(0,0,0)';
+
+    var cycle_type = getCycleType();
+
+    if (cycle_type === cycleTypeValues.G_CYC_FILL) {
+      x1 += 1;
+      y1 += 1;
+
+      if (state.colorImage.size === imageSizeTypes.G_IM_SIZ_16b) {
+        color = makeRGBFromRGBA16(state.fillColor & 0xffff);
+      } else {
+        color = makeRGBFromRGBA32(state.fillColor);
+      }
+
+      // Clear whole screen in one?
+      if (viWidth === (x1-x0) && viHeight === (y1-y0)) {
+        state.screenContext2d.fillStyle = color;
+        state.screenContext2d.fillRect(x0, y0, x1-x0, y1-y0);
+        return;
+      }
+    } else if (cycle_type === cycleTypeValues.G_CYC_COPY) {
+      x1 += 1;
+      y1 += 1;
+    }
+
+    state.screenContext2d.fillStyle = color;
+    state.screenContext2d.fillRect(x0, y0, x1-x0, y1-y0);
+
+  }
+
+
+  function executeSetFillColor(cmd0,cmd1) {
+    state.fillColor = cmd1;
+  }
+
   function executeSetFogColor(cmd0,cmd1)          { unimplemented(cmd0,cmd1); }
   function executeSetBlendColor(cmd0,cmd1)        { unimplemented(cmd0,cmd1); }
   function executeSetPrimColor(cmd0,cmd1)         { unimplemented(cmd0,cmd1); }
   function executeSetEnvColor(cmd0,cmd1)          { unimplemented(cmd0,cmd1); }
-  function executeSetCombine(cmd0,cmd1)           { unimplemented(cmd0,cmd1); }
+  function executeSetCombine(cmd0,cmd1) {
+    state.combine.hi = cmd0 & 0x00ffffff;
+    state.combine.lo = cmd1;
+  }
   function executeSetTImg(cmd0,cmd1)              { unimplemented(cmd0,cmd1); }
-  function executeSetZImg(cmd0,cmd1)              { unimplemented(cmd0,cmd1); }
-  function executeSetCImg(cmd0,cmd1)              { unimplemented(cmd0,cmd1); }
+  function executeSetZImg(cmd0,cmd1) {
+    state.depthImage.address = rdpSegmentAddress(cmd1);
+  }
 
-
+  function executeSetCImg(cmd0,cmd1) {
+    state.colorImage = {
+      format:   (cmd0>>>21)&0x7,
+      size:     (cmd0>>>19)&0x3,
+      width:   ((cmd0>>> 0)&0xfff)+1,
+      address:   rdpSegmentAddress(cmd1)
+    };
+  }
 
 
 
@@ -403,6 +540,10 @@ if (typeof n64js === 'undefined') {
   var G_MDSFT_CYCLETYPE       = 20;
   var G_MDSFT_COLORDITHER     = 22;
   var G_MDSFT_PIPELINE        = 23;
+
+  function getCycleType() {
+    return state.rdpOtherModeH & (3<<G_MDSFT_CYCLETYPE);
+  }
 
   var pipelineModeValues = {
     G_PM_1PRIMITIVE:   1 << G_MDSFT_PIPELINE,
@@ -797,6 +938,11 @@ if (typeof n64js === 'undefined') {
     for (var i = 0; i < state.segments; ++i)
       state.segments[i] = 0;
 
+    var canvas = document.getElementById('display');
+    if (canvas.getContext) {
+        state.screenContext2d = canvas.getContext('2d');
+    }
+
     // begin scene
     var ops       = new Array(256);
     for (var i = 0; i < ops.length; ++i)
@@ -863,8 +1009,6 @@ if (typeof n64js === 'undefined') {
 
     disassembleDisplayList(data_ptr, ram, ucode);
 
-    $currentDis = $('<pre></pre>');
-
     while (state.pc !== 0) {
       var cmd0 = ram.getUint32( state.pc + 0 );
       var cmd1 = ram.getUint32( state.pc + 4 );
@@ -881,7 +1025,7 @@ if (typeof n64js === 'undefined') {
 
   function disassembleDisplayList(pc, ram, ucode) {
 
-    $currentDis = $('<pre></pre>');
+    var $currentDis = $('<pre></pre>');
 
     var kEndDL = 0xb8;
 
