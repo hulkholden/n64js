@@ -789,6 +789,7 @@ if (typeof n64js === 'undefined') {
   var si_reg        = new Memory(new ArrayBuffer(0x1c));
 
   var eeprom        = new Memory(new ArrayBuffer(4*1024));    // Or 16KB
+  var eepromDirty   = false;
 
   // Keep a DataView around as a view onto the RSP task
   var kTaskOffset   = 0x0fc0;
@@ -1446,6 +1447,7 @@ if (typeof n64js === 'undefined') {
       n64js.log('Writing to eeprom+' + offset);
       for (var i = 0; i < 8; ++i) {
         eeprom.u8[offset+i] = cmd[4+i];
+      eepromDirty = true;
       }
       break;
 
@@ -1893,6 +1895,78 @@ if (typeof n64js === 'undefined') {
     sync = null;
   }
 
+  var Base64 = {
+    _keyStr : "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=",
+    encodeArray : function (arr) {
+      var t = '';
+      for (var i = 0; i < arr.length; i += 3) {
+        var c0 = arr[i+0];
+        var c1 = arr[i+1];
+        var c2 = arr[i+2];
+
+        // aaaaaabb bbbbcccc ccdddddd
+        var a = c0>>>2;
+        var b = ((c0 & 3)<<4) | (c1>>>4);
+        var c = ((c1 & 15)<<2) | (c2>>>6);
+        var d = c2 & 63;
+
+        if (i+1 >= arr.length)
+          c = 64;
+        if (i+2 >= arr.length)
+          d = 64;
+
+        t += this._keyStr.charAt(a) + this._keyStr.charAt(b) + this._keyStr.charAt(c) + this._keyStr.charAt(d);
+      }
+      return t;
+    },
+
+    decodeArray : function (str, arr) {
+      var outi = 0;
+
+      for (var i = 0; i < str.length; i += 4) {
+        var a = this._keyStr.indexOf(str.charAt(i+0));
+        var b = this._keyStr.indexOf(str.charAt(i+1));
+        var c = this._keyStr.indexOf(str.charAt(i+2));
+        var d = this._keyStr.indexOf(str.charAt(i+3));
+
+        var c0 = (a << 2) | (b >>> 4);
+        var c1 = ((b & 15) << 4) | (c >>> 2);
+        var c2 = ((c & 3) << 6) | d;
+
+        arr[outi++] = c0;
+        if (c != 64)
+          arr[outi++] = c1;
+        if (d != 64)
+          arr[outi++] = c2;
+      }
+    }
+  }
+
+  function loadEeprom() {
+    var prev_eeprom = localStorage.getItem('eeprom');
+    if (prev_eeprom) {
+      var d = JSON.parse(prev_eeprom);
+      if (d.data) {
+        Base64.decodeArray(d.data, eeprom.u8);
+      }
+    }
+  }
+
+  function saveEeprom() {
+    if (eepromDirty) {
+
+      var encoded = Base64.encodeArray(eeprom.u8);
+
+      var d = {
+        data: encoded
+      };
+
+      var t = JSON.stringify(d);
+      localStorage.setItem('eeprom', t);
+      eepromDirty = false;
+    }
+  }
+
   n64js.reset = function () {
     var country  = 0x45;  // USA
     var cic_chip = '6102';
@@ -1901,6 +1975,8 @@ if (typeof n64js === 'undefined') {
     for ( var i = 0; i < memory_regions.length; ++i ) {
       memory_regions[i].clear();
     }
+
+    loadEeprom();
 
     n64js.cpu0.reset();
     n64js.cpu1.reset();
@@ -2166,6 +2242,8 @@ if (typeof n64js === 'undefined') {
 
   n64js.verticalBlank = function() {
     // FIXME: framerate limit etc
+
+    saveEeprom();
 
     mi_reg.setBits32(MI_INTR_REG, MI_INTR_VI);
     n64js.cpu0.updateCause3();
