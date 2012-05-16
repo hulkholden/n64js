@@ -8,8 +8,9 @@ if (typeof n64js === 'undefined') {
 
   var $dlistOutput = $('#dlist-content');
 
-  var viWidth      = 320;
-  var viHeight     = 240;
+  var gl       = null;
+  var viWidth  = 320;
+  var viHeight = 240;
 
   var kOffset_type                = 0x00;    // u32
   var kOffset_flags               = 0x04;    // u32
@@ -28,341 +29,45 @@ if (typeof n64js === 'undefined') {
   var kOffset_yield_data_ptr      = 0x38;    // u64*
   var kOffset_yield_data_size     = 0x3c;    // u32
 
-  var G_MW_MATRIX                 = 0x00;
-  var G_MW_NUMLIGHT               = 0x02;
-  var G_MW_CLIP                   = 0x04;
-  var G_MW_SEGMENT                = 0x06;
-  var G_MW_FOG                    = 0x08;
-  var G_MW_LIGHTCOL               = 0x0a;
-  var G_MW_POINTS                 = 0x0c;
-  var G_MW_PERSPNORM              = 0x0e;
+  var G_MTX_MODELVIEW             = 0x00;
+  var G_MTX_PROJECTION            = 0x01;
+  var G_MTX_MUL                   = 0x00;
+  var G_MTX_LOAD                  = 0x02;
+  var G_MTX_NOPUSH                = 0x00;
+  var G_MTX_PUSH                  = 0x04;
 
-  var kUcodeStrides = [
-    10,   // Super Mario 64, Tetrisphere, Demos
-    2,    // Mario Kart, Star Fox
-    2,    // Zelda, and newer games
-    2,    // Yoshi's Story, Pokemon Puzzle League
-    2,    // Neon Evangelion, Kirby
-    5,    // Wave Racer USA
-    10,   // Diddy Kong Racing, Gemini, and Mickey
-    2,    // Last Legion, Toukon, Toukon 2
-    5,    // Shadows of the Empire (SOTE)
-    10,   // Golden Eye
-    2,    // Conker BFD
-    10,   // Perfect Dark
-  ];
+  var G_DL_PUSH                   = 0x00;
+  var G_DL_NOPUSH                 = 0x01;
 
-  // Configured:
-  var config = {
-    vertexStride:  10,
+  var moveWordTypeValues = {
+    G_MW_MATRIX:             0x00,
+    G_MW_NUMLIGHT:           0x02,
+    G_MW_CLIP:               0x04,
+    G_MW_SEGMENT:            0x06,
+    G_MW_FOG:                0x08,
+    G_MW_LIGHTCOL:           0x0a,
+    G_MW_POINTS:             0x0c,
+    G_MW_PERSPNORM:          0x0e
   };
 
-  var state = {
-    pc:             0,
-    dlistStack:     [],
-    segments:       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-    geometryMode:   0,
-    rdpOtherModeL:  0,
-    rdpOtherModeH:  0,
-
-    scissor: {
-      mode:         0,
-      x0:           0,
-      y0:           0,
-      x1:           viWidth,
-      y1:           viHeight
-    },
-
-    texture: {
-      tile:         0,
-      level:        0,
-      enable:       0,
-      scaleS:       1.0,
-      scaleT:       1.0,
-    },
-
-    combine: {
-      lo: 0,
-      hi: 0
-    },
-
-    fillColor:      0,
-
-    colorImage: {
-      format:   0,
-      size:     0,
-      width:    0,
-      address:  0
-    },
-
-    depthImage: {
-      address:  0
-    },
-
-    screenContext2d: null   // canvas context
-  };
-
-  function rdpSegmentAddress(addr) {
-    var segment = (addr>>>24)&0xf;
-    return (state.segments[segment]&0x00ffffff) + (addr & 0x00ffffff);
+  var moveMemTypeValues = {
+    G_MV_VIEWPORT:           0x80,
+    G_MV_LOOKATY:            0x82,
+    G_MV_LOOKATX:            0x84,
+    G_MV_L0:                 0x86,
+    G_MV_L1:                 0x88,
+    G_MV_L2:                 0x8a,
+    G_MV_L3:                 0x8c,
+    G_MV_L4:                 0x8e,
+    G_MV_L5:                 0x90,
+    G_MV_L6:                 0x92,
+    G_MV_L7:                 0x94,
+    G_MV_TXTATT:             0x96,
+    G_MV_MATRIX_1:           0x9e,
+    G_MV_MATRIX_2:           0x98,
+    G_MV_MATRIX_3:           0x9a,
+    G_MV_MATRIX_4:           0x9c
   }
-
-  function makeRGBFromRGBA16(col) {
-    var r = ((col>>>11)&0x1f)<<3;
-    var g = ((col>>> 6)&0x1f)<<3;
-    var b = ((col>>> 1)&0x1f)<<3;
-    return 'rgb(' + r + ',' + g + ',' + b + ')';
-  }
-
-  function makeRGBFromRGBA32(col) {
-    var r = ((col>>>24)&0xff);
-    var g = ((col>>>16)&0xff);
-    var b = ((col>>> 8)&0xff);
-    return 'rgb(' + r + ',' + g + ',' + b + ')';
-  }
-
-  // task, ram are both DataView objects
-  n64js.RSPHLEProcessTask = function(task, ram) {
-    var M_GFXTASK = 1;
-    var M_AUDTASK = 2;
-    var M_VIDTASK = 3;
-    var M_JPGTASK = 4;
-
-    var type = task.getUint32(kOffset_type);
-    switch (type) {
-      case M_GFXTASK:
-        n64js.log('graphics task ' + graphics_task_count);
-        hleGraphics(task, ram);
-        ++graphics_task_count;
-        n64js.interruptDP();
-        break;
-      case M_AUDTASK:
-        //n64js.log('audio task');
-        break;
-      case M_VIDTASK:
-        n64js.log('video task');
-        break;
-      case M_JPGTASK:
-        n64js.log('jpg task');
-        break;
-
-      default:
-        n64js.log('unknown task');
-        break;
-    }
-
-    n64js.haltSP();
-  }
-
-  function detectVersionString(ram, data_base, data_size) {
-    var r = 'R'.charCodeAt(0);
-    var s = 'S'.charCodeAt(0);
-    var p = 'P'.charCodeAt(0);
-
-    for (var i = 0; i+2 < data_size; ++i) {
-      if (ram.getInt8(data_base+i+0) == r &&
-          ram.getInt8(data_base+i+1) == s &&
-          ram.getInt8(data_base+i+2) == p) {
-        var str = '';
-        for (var p = i; p < data_size; ++p) {
-          var c = ram.getInt8(data_base+p);
-          if (c == 0)
-            return str;
-
-          str += String.fromCharCode(c);
-        }
-      }
-    }
-    return '';
-  }
-
-
-  function unimplemented(cmd0,cmd1) {
-    n64js.halt('Unimplemented display list op ' + disassembleCommand(cmd0,cmd1));
-  }
-
-  function executeUnknown(cmd0,cmd1) {
-    n64js.halt('Unknown display list op ' + disassembleCommand(cmd0,cmd1));
-  }
-
-  function executeSpNoop(cmd0,cmd1)             {}
-  function executeNoop(cmd0,cmd1)               {}
-  function executeRDPLoadSync(cmd0,cmd1)        {}
-  function executeRDPPipeSync(cmd0,cmd1)        {}
-  function executeRDPTileSync(cmd0,cmd1)        {}
-  function executeRDPFullSync(cmd0,cmd1)        {}
-
-  function executeDL(cmd0,cmd1)                   { unimplemented(cmd0,cmd1); }
-  function executeEndDL(cmd0,cmd1) {
-    if (state.dlistStack.length > 0) {
-      state.pc = state.dlistStack.pop();
-    } else {
-      state.pc = 0;
-    }
-  }
-
-  function executeMtx(cmd0,cmd1)                  { unimplemented(cmd0,cmd1); }
-  function executeMoveMem(cmd0,cmd1)              { unimplemented(cmd0,cmd1); }
-
-
-  function executeMoveWord(cmd0,cmd1) {
-    var type   = (cmd0    )&0xff;
-    var offset = (cmd0>>>8)&0xffff;
-    var value  = cmd1;
-
-    switch(type) {
-      case G_MW_MATRIX:     unimplemented(cmd0,cmd1); break;
-      case G_MW_NUMLIGHT:   state.numLights = ((value - 0x80000000)>>>5) - 1; break;
-      case G_MW_CLIP:       unimplemented(cmd0,cmd1); break;
-      case G_MW_SEGMENT:    state.segments[((offset >>> 2)&0xf)] = value; break;
-      case G_MW_FOG:        unimplemented(cmd0,cmd1); break;
-      case G_MW_LIGHTCOL:   unimplemented(cmd0,cmd1); break;
-      case G_MW_POINTS:     unimplemented(cmd0,cmd1); break;
-      default:              unimplemented(cmd0,cmd1); break;
-    }
-   }
-
-  function executeVtx(cmd0,cmd1)                  { unimplemented(cmd0,cmd1); }
-  function executeSprite2DBase(cmd0,cmd1)         { unimplemented(cmd0,cmd1); }
-  function executeTri4(cmd0,cmd1)                 { unimplemented(cmd0,cmd1); }
-  function executeRDPHalf_Cont(cmd0,cmd1)         { unimplemented(cmd0,cmd1); }
-  function executeRDPHalf_2(cmd0,cmd1)            { unimplemented(cmd0,cmd1); }
-  function executeRDPHalf_1(cmd0,cmd1)            { unimplemented(cmd0,cmd1); }
-  function executeLine3D(cmd0,cmd1)               { unimplemented(cmd0,cmd1); }
-  function executeClrGeometryMode(cmd0,cmd1) {
-    state.geometryMode &= ~cmd1;
-  }
-  function executeSetGeometryMode(cmd0,cmd1) {
-    state.geometryMode |= cmd1;
-  }
-
-  function executeSetOtherModeL(cmd0,cmd1) {
-    var shift = (cmd0>>> 8)&0xff;
-    var len   = (cmd0>>> 0)&0xff;
-    var data  = cmd1;
-    var mask = ((1 << len) - 1) << shift;
-    state.rdpOtherModeL = (state.rdpOtherModeL & ~mask) | data;
-  }
-  function executeSetOtherModeH(cmd0,cmd1) {
-    var shift = (cmd0>>> 8)&0xff;
-    var len   = (cmd0>>> 0)&0xff;
-    var data  = cmd1;
-    var mask = ((1 << len) - 1) << shift;
-    state.rdpOtherModeH = (state.rdpOtherModeH & ~mask) | data;
-  }  
-
-  function executeTexture(cmd0,cmd1) {
-    //var xparam  =  (cmd0>>>16)&0xff;
-    state.level   =  (cmd0>>>11)&0x3;
-    state.tile    =  (cmd0>>> 8)&0x7;
-    state.enable  =  (cmd0>>> 0)&0xff;
-    state.scaleS  = ((cmd1>>>16)&0xffff) / (65535.0 * 32.0);
-    state.scaleT  = ((cmd1>>> 0)&0xffff) / (65535.0 * 32.0);
-  }
-
-  function executePopMtx(cmd0,cmd1)               { unimplemented(cmd0,cmd1); }
-  function executeCullDL(cmd0,cmd1)               { unimplemented(cmd0,cmd1); }
-  function executeTri1(cmd0,cmd1)                 { unimplemented(cmd0,cmd1); }
-  function executeTriRSP(cmd0,cmd1)               { unimplemented(cmd0,cmd1); }
-  function executeTexRect(cmd0,cmd1)              { unimplemented(cmd0,cmd1); }
-  function executeTexRectFlip(cmd0,cmd1)          { unimplemented(cmd0,cmd1); }
-  function executeSetKeyGB(cmd0,cmd1)             { unimplemented(cmd0,cmd1); }
-  function executeSetKeyR(cmd0,cmd1)              { unimplemented(cmd0,cmd1); }
-  function executeSetConvert(cmd0,cmd1)           { unimplemented(cmd0,cmd1); }
-
-  function executeSetScissor(cmd0,cmd1) {
-    state.scissor.x0   = ((cmd0>>>12)&0xfff)/4.0;
-    state.scissor.y0   = ((cmd0>>> 0)&0xfff)/4.0;
-    state.scissor.x1   = ((cmd1>>>12)&0xfff)/4.0;
-    state.scissor.y1   = ((cmd1>>> 0)&0xfff)/4.0;
-    state.scissor.mode = (cmd1>>>24)&0x2;
-
-    // TODO: actually set this
-  }
-
-  function executeSetPrimDepth(cmd0,cmd1)         { unimplemented(cmd0,cmd1); }
-  function executeSetRDPOtherMode(cmd0,cmd1)      { unimplemented(cmd0,cmd1); }
-  function executeLoadTLut(cmd0,cmd1)             { unimplemented(cmd0,cmd1); }
-  function executeSetTileSize(cmd0,cmd1)          { unimplemented(cmd0,cmd1); }
-  function executeLoadBlock(cmd0,cmd1)            { unimplemented(cmd0,cmd1); }
-  function executeLoadTile(cmd0,cmd1)             { unimplemented(cmd0,cmd1); }
-  function executeSetTile(cmd0,cmd1)              { unimplemented(cmd0,cmd1); }
-  function executeFillRect(cmd0,cmd1) {
-
-    // NB: fraction is ignored
-    var x0 = ((cmd1>>>12)&0xfff)>>>2;
-    var y0 = ((cmd1>>> 0)&0xfff)>>>2;
-    var x1 = ((cmd0>>>12)&0xfff)>>>2;
-    var y1 = ((cmd0>>> 0)&0xfff)>>>2;
-
-    if (state.depthImage.address == state.colorImage.address) {
-      // FIXME clear the z buffer
-      return;
-    }
-
-    var color = 'rgb(0,0,0)';
-
-    var cycle_type = getCycleType();
-
-    if (cycle_type === cycleTypeValues.G_CYC_FILL) {
-      x1 += 1;
-      y1 += 1;
-
-      if (state.colorImage.size === imageSizeTypes.G_IM_SIZ_16b) {
-        color = makeRGBFromRGBA16(state.fillColor & 0xffff);
-      } else {
-        color = makeRGBFromRGBA32(state.fillColor);
-      }
-
-      // Clear whole screen in one?
-      if (viWidth === (x1-x0) && viHeight === (y1-y0)) {
-        state.screenContext2d.fillStyle = color;
-        state.screenContext2d.fillRect(x0, y0, x1-x0, y1-y0);
-        return;
-      }
-    } else if (cycle_type === cycleTypeValues.G_CYC_COPY) {
-      x1 += 1;
-      y1 += 1;
-    }
-
-    state.screenContext2d.fillStyle = color;
-    state.screenContext2d.fillRect(x0, y0, x1-x0, y1-y0);
-
-  }
-
-
-  function executeSetFillColor(cmd0,cmd1) {
-    state.fillColor = cmd1;
-  }
-
-  function executeSetFogColor(cmd0,cmd1)          { unimplemented(cmd0,cmd1); }
-  function executeSetBlendColor(cmd0,cmd1)        { unimplemented(cmd0,cmd1); }
-  function executeSetPrimColor(cmd0,cmd1)         { unimplemented(cmd0,cmd1); }
-  function executeSetEnvColor(cmd0,cmd1)          { unimplemented(cmd0,cmd1); }
-  function executeSetCombine(cmd0,cmd1) {
-    state.combine.hi = cmd0 & 0x00ffffff;
-    state.combine.lo = cmd1;
-  }
-  function executeSetTImg(cmd0,cmd1)              { unimplemented(cmd0,cmd1); }
-  function executeSetZImg(cmd0,cmd1) {
-    state.depthImage.address = rdpSegmentAddress(cmd1);
-  }
-
-  function executeSetCImg(cmd0,cmd1) {
-    state.colorImage = {
-      format:   (cmd0>>>21)&0x7,
-      size:     (cmd0>>>19)&0x3,
-      width:   ((cmd0>>> 0)&0xfff)+1,
-      address:   rdpSegmentAddress(cmd1)
-    };
-  }
-
-
-
-  function  cmd_cmd(a,b) { return a>>>24; }
-  function  dlist_param(a,b) { return ((a>>>16)&0xff) === 0 ? 'call' : 'jump';}
-  function  dlist_address(a,b) { return n64js.toString32(b);}
-
 
   var G_MWO_NUMLIGHT          = 0x00;
   var G_MWO_CLIP_RNX          = 0x04;
@@ -434,20 +139,663 @@ if (typeof n64js === 'undefined') {
     NUMLIGHTS_7: 7,
   }
 
+  var kUcodeStrides = [
+    10,   // Super Mario 64, Tetrisphere, Demos
+    2,    // Mario Kart, Star Fox
+    2,    // Zelda, and newer games
+    2,    // Yoshi's Story, Pokemon Puzzle League
+    2,    // Neon Evangelion, Kirby
+    5,    // Wave Racer USA
+    10,   // Diddy Kong Racing, Gemini, and Mickey
+    2,    // Last Legion, Toukon, Toukon 2
+    5,    // Shadows of the Empire (SOTE)
+    10,   // Golden Eye
+    2,    // Conker BFD
+    10,   // Perfect Dark
+  ];
+
+  // Configured:
+  var config = {
+    vertexStride:  10,
+  };
+
+  var state = {
+    ram:            0,
+    pc:             0,
+    dlistStack:     [],
+    segments:       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    geometryMode:   0,
+    rdpOtherModeL:  0,
+    rdpOtherModeH:  0,
+
+    rdpHalf1:       0,
+    rdpHalf2:       0,
+
+    viewport: {
+      scale: [160.0, 120.0],
+      trans: [160.0, 120.0]
+    },
+
+    // matrix stacks
+    projection:     [],
+    modelview:      [],
+
+    projectedVertices: new Array(64),
+
+    scissor: {
+      mode:         0,
+      x0:           0,
+      y0:           0,
+      x1:           viWidth,
+      y1:           viHeight
+    },
+
+    texture: {
+      tile:         0,
+      level:        0,
+      enable:       0,
+      scaleS:       1.0,
+      scaleT:       1.0,
+    },
+
+    combine: {
+      lo: 0,
+      hi: 0
+    },
+
+    fillColor:      0,
+
+    colorImage: {
+      format:   0,
+      size:     0,
+      width:    0,
+      address:  0
+    },
+
+    depthImage: {
+      address:  0
+    },
+
+    screenContext2d: null   // canvas context
+  };
+
+  var n64ToCanvasScale     = [ 1.0, 1.0 ];
+  var n64ToCanvasTranslate = [ 0.0, 0.0 ];
+
+  var canvas2dMatrix = makeOrtho(0,320, 240,0, 0,1);
+
+  function convertN64ToCanvas( n64_coords ) {
+    return [
+      Math.round( Math.round( n64_coords[0] ) * n64ToCanvasScale[0] + n64ToCanvasTranslate[0] ),
+      Math.round( Math.round( n64_coords[1] ) * n64ToCanvasScale[1] + n64ToCanvasTranslate[1] )
+    ];
+  }
+
+  function setCanvasViewport(w,h) {
+
+    n64ToCanvasScale     = [ w / viWidth, h / viHeight ];
+    n64ToCanvasTranslate = [ 0, 0 ];
+
+    updateViewport();
+  }
+
+  function setN64Viewport(scale, trans) {
+    n64js.log('Viewport: scale=' + scale[0] + ',' + scale[1] + ' trans=' + trans[0] + ',' + trans[1] );
+
+    if (scale[0] === state.viewport.scale[0] &&
+        scale[1] === state.viewport.scale[1] &&
+        trans[0] === state.viewport.trans[0] &&
+        trans[1] === state.viewport.trans[1]) {
+      return;
+    }
+
+    state.viewport.scale = scale;
+    state.viewport.trans = trans;
+    updateViewport();
+  }
+
+  function updateViewport() {
+    var n64_min = [ state.viewport.trans[0] - state.viewport.scale[0], state.viewport.trans[1] - state.viewport.scale[1] ];
+    var n64_max = [ state.viewport.trans[0] + state.viewport.scale[0], state.viewport.trans[1] + state.viewport.scale[1] ];
+
+    var canvas_min = convertN64ToCanvas( n64_min );
+    var canvas_max = convertN64ToCanvas( n64_max );
+
+    var   vp_x      = canvas_min[0];
+    var   vp_y      = canvas_min[1];
+    var   vp_width  = canvas_max[0] - canvas_min[0];
+    var   vp_height = canvas_max[1] - canvas_min[1];
+
+    canvas2dMatrix = makeOrtho( canvas_min[0], canvas_max[0], canvas_max[1], canvas_min[1], 0, 1 );
+
+    gl.viewport(vp_x, vp_y, vp_width, vp_height);
+  }
+
+  function loadMatrix(address) {
+    var recip = 1.0 / 65536.0;
+
+    var dv = new DataView(state.ram.buffer, address);
+
+    var elements = [ [0,0,0,0], [0,0,0,0], [0,0,0,0], [0,0,0,0] ];
+
+    for (var i = 0; i < 4; ++i) {
+      elements[0][i] = (dv.getInt16(i*8 + 0)<<16 | dv.getUint16(i*8 + 0+32)) * recip;
+      elements[1][i] = (dv.getInt16(i*8 + 2)<<16 | dv.getUint16(i*8 + 2+32)) * recip;
+      elements[2][i] = (dv.getInt16(i*8 + 4)<<16 | dv.getUint16(i*8 + 4+32)) * recip;
+      elements[3][i] = (dv.getInt16(i*8 + 6)<<16 | dv.getUint16(i*8 + 6+32)) * recip;
+    }
+
+    return Matrix.create(elements);
+  }
+
+  function rdpSegmentAddress(addr) {
+    var segment = (addr>>>24)&0xf;
+    return (state.segments[segment]&0x00ffffff) + (addr & 0x00ffffff);
+  }
+
+  function makeRGBFromRGBA16(col) {
+    return {
+      r: ((col>>>11)&0x1f)/63.0,
+      g: ((col>>> 6)&0x1f)/63.0,
+      b: ((col>>> 1)&0x1f)/63.0
+    };
+  }
+
+  function makeRGBFromRGBA32(col) {
+    return {
+      r: ((col>>>24)&0xff)/255.0,
+      g: ((col>>>16)&0xff)/255.0,
+      b: ((col>>> 8)&0xff)/255.0
+    };
+  }
+
+  // task, ram are both DataView objects
+  n64js.RSPHLEProcessTask = function(task, ram) {
+    var M_GFXTASK = 1;
+    var M_AUDTASK = 2;
+    var M_VIDTASK = 3;
+    var M_JPGTASK = 4;
+
+    var type = task.getUint32(kOffset_type);
+    switch (type) {
+      case M_GFXTASK:
+        hleGraphics(task, ram);
+        n64js.interruptDP();
+        break;
+      case M_AUDTASK:
+        //n64js.log('audio task');
+        break;
+      case M_VIDTASK:
+        n64js.log('video task');
+        break;
+      case M_JPGTASK:
+        n64js.log('jpg task');
+        break;
+
+      default:
+        n64js.log('unknown task');
+        break;
+    }
+
+    n64js.haltSP();
+  }
+
+  function detectVersionString(ram, data_base, data_size) {
+    var r = 'R'.charCodeAt(0);
+    var s = 'S'.charCodeAt(0);
+    var p = 'P'.charCodeAt(0);
+
+    for (var i = 0; i+2 < data_size; ++i) {
+      if (ram.getInt8(data_base+i+0) == r &&
+          ram.getInt8(data_base+i+1) == s &&
+          ram.getInt8(data_base+i+2) == p) {
+        var str = '';
+        for (var p = i; p < data_size; ++p) {
+          var c = ram.getInt8(data_base+p);
+          if (c == 0)
+            return str;
+
+          str += String.fromCharCode(c);
+        }
+      }
+    }
+    return '';
+  }
+
+
+  function unimplemented(cmd0,cmd1) {
+    n64js.log('Unimplemented display list op ' + disassembleCommand(cmd0,cmd1));
+  }
+
+  function executeUnknown(cmd0,cmd1) {
+    n64js.halt('Unknown display list op ' + disassembleCommand(cmd0,cmd1));
+  }
+
+  function executeSpNoop(cmd0,cmd1)             {}
+  function executeNoop(cmd0,cmd1)               {}
+  function executeRDPLoadSync(cmd0,cmd1)        {}
+  function executeRDPPipeSync(cmd0,cmd1)        {}
+  function executeRDPTileSync(cmd0,cmd1)        {}
+  function executeRDPFullSync(cmd0,cmd1)        {}
+
+  function executeDL(cmd0,cmd1) {
+    var param = ((cmd0>>>16)&0xff);
+    var address = rdpSegmentAddress(cmd1);
+
+    if (param === G_DL_PUSH) {
+      state.dlistStack.push({pc: state.pc});
+    }
+    state.pc = address;
+  }
+
+  function executeEndDL(cmd0,cmd1) {
+    if (state.dlistStack.length > 0) {
+      state.pc = state.dlistStack.pop().pc;
+    } else {
+      state.pc = 0;
+    }
+  }
+
+  function executeMtx(cmd0,cmd1) {
+    var flags   = (cmd0>>>16)&0xff;
+    var length  = (cmd0>>> 0)&0xffff;
+    var address = rdpSegmentAddress(cmd1);
+
+    var push = flags & G_MTX_PUSH;
+    var replace = flags & G_MTX_LOAD;
+
+    var matrix = loadMatrix(address);
+
+    var stack = flags & G_MTX_PROJECTION ? state.projection : state.modelview;
+
+    if (!replace) {
+      matrix = matrix.multiply(stack[stack.length-1]);
+    }
+
+    if (push) {
+      stack.push(matrix);
+    } else {
+      stack[stack.length-1] = matrix;
+    }
+  }
+
+  function executePopMtx(cmd0,cmd1) {
+    if (state.modelview.length > 0) {
+      state.modelview.pop();
+    }
+  }
+
+  function executeMoveMem(cmd0,cmd1) {
+    var type    = (cmd0>>>16)&0xff;
+    var length  = (cmd0>>> 0)&0xffff;
+    var address = rdpSegmentAddress(cmd1);
+
+
+    switch (type) {
+      case moveMemTypeValues.G_MV_VIEWPORT:
+        var scale = new Array(2);
+        var trans = new Array(2);
+        scale[0] = state.ram.getInt16(address +  0) / 4.0;
+        scale[1] = state.ram.getInt16(address +  2) / 4.0;
+
+        trans[0] = state.ram.getInt16(address +  8) / 4.0;
+        trans[1] = state.ram.getInt16(address + 10) / 4.0;
+        setN64Viewport(scale, trans);
+        break;
+    }
+  }
+
+  function executeMoveWord(cmd0,cmd1) {
+    var type   = (cmd0    )&0xff;
+    var offset = (cmd0>>>8)&0xffff;
+    var value  = cmd1;
+
+    switch(type) {
+      case moveWordTypeValues.G_MW_MATRIX:     unimplemented(cmd0,cmd1); break;
+      case moveWordTypeValues.G_MW_NUMLIGHT:   state.numLights = ((value - 0x80000000)>>>5) - 1; break;
+      case moveWordTypeValues.G_MW_CLIP:       unimplemented(cmd0,cmd1); break;
+      case moveWordTypeValues.G_MW_SEGMENT:    state.segments[((offset >>> 2)&0xf)] = value; break;
+      case moveWordTypeValues.G_MW_FOG:        unimplemented(cmd0,cmd1); break;
+      case moveWordTypeValues.G_MW_LIGHTCOL:   unimplemented(cmd0,cmd1); break;
+      case moveWordTypeValues.G_MW_POINTS:     unimplemented(cmd0,cmd1); break;
+      default:                                 unimplemented(cmd0,cmd1); break;
+    }
+   }
+
+   var X_NEG  = 0x01;  //left
+   var Y_NEG  = 0x02;  //bottom
+   var Z_NEG  = 0x04;  //far
+   var X_POS  = 0x08;  //right
+   var Y_POS  = 0x10;  //top
+   var Z_POS  = 0x20;  //near
+
+  function executeVtx(cmd0,cmd1) {
+    var n       = ((cmd0>>>20)&0xf) + 1;
+    var v0      =  (cmd0>>>16)&0xf;
+    //var length  = (cmd0>>> 0)&0xffff;
+    var address = rdpSegmentAddress(cmd1);
+
+    var light = state.geometryMode & geometryModeFlags.G_LIGHTING;
+
+    if (v0+n >= 64) {
+      n64js.halt('Too many verts');
+      state.pc = 0;
+      return;
+    }
+
+    var dv = new DataView(state.ram.buffer, address);
+    var mvmtx = state.modelview[state.modelview.length-1];
+    var pmtx  = state.projection[state.projection.length-1];
+
+    var wvp = pmtx.multiply(mvmtx);
+
+    //var pUniform  = gl.getUniformLocation(n64ShaderProgram, "uPMatrix");
+    //gl.uniformMatrix4fv(pUniform,  false, new Float32Array(pmtx.flatten()));
+
+    for (var i = 0; i < n; ++i) {
+      var vtx_base = (v0+i)*16;
+      var x = dv.getInt16(vtx_base + 0);
+      var y = dv.getInt16(vtx_base + 2);
+      var z = dv.getInt16(vtx_base + 4);
+
+      var v = Vector.create([x,y,z,1]);
+
+      var projected = wvp.x(v);
+      state.projectedVertices[v0+i].pos = projected;
+
+      //n64js.halt( x + ',' + y + ',' + z + '-&gt;' + projected.elements[0] + ',' + projected.elements[1] + ',' + projected.elements[2] );
+
+      // var clip_flags = 0;
+      //      if (projected[0] < -projected[3]) clip_flags |= X_POS;
+      // else if (projected[0] >  projected[3]) clip_flags |= X_NEG;
+
+      //      if (projected[1] < -projected[3]) clip_flags |= Y_POS;
+      // else if (projected[1] >  projected[3]) clip_flags |= Y_NEG;
+
+      //      if (projected[2] < -projected[3]) clip_flags |= Z_POS;
+      // else if (projected[2] >  projected[3]) clip_flags |= Z_NEG;
+      // state.projectedVertices.clipFlags = clip_flags;
+
+      // if (light) {
+
+      // }
+
+      //var flag = dv.getUint16(vtx_base + 6);
+
+      //var tu = dv.getInt16(vtx_base + 8);
+      //var tv = dv.getInt16(vtx_base + 10);
+      //var rgba = dv.getInt16(vtx_base + 12);    // nx/ny/nz/a
+    }
+  }
+
+  function executeSprite2DBase(cmd0,cmd1)         { unimplemented(cmd0,cmd1); }
+  function executeTri4(cmd0,cmd1)                 { unimplemented(cmd0,cmd1); }
+  function executeRDPHalf_Cont(cmd0,cmd1)         { unimplemented(cmd0,cmd1); }
+
+  function executeRDPHalf_2(cmd0,cmd1) {
+    state.rdpHalf2 = cmd1;
+  }
+
+  function executeRDPHalf_1(cmd0,cmd1) {
+    state.rdpHalf1 = cmd1;
+  }
+
+  function executeLine3D(cmd0,cmd1)               { unimplemented(cmd0,cmd1); }
+
+  function executeClrGeometryMode(cmd0,cmd1) {
+    state.geometryMode &= ~cmd1;
+  }
+  function executeSetGeometryMode(cmd0,cmd1) {
+    state.geometryMode |= cmd1;
+  }
+
+  function executeSetOtherModeL(cmd0,cmd1) {
+    var shift = (cmd0>>> 8)&0xff;
+    var len   = (cmd0>>> 0)&0xff;
+    var data  = cmd1;
+    var mask = ((1 << len) - 1) << shift;
+    state.rdpOtherModeL = (state.rdpOtherModeL & ~mask) | data;
+  }
+  function executeSetOtherModeH(cmd0,cmd1) {
+    var shift = (cmd0>>> 8)&0xff;
+    var len   = (cmd0>>> 0)&0xff;
+    var data  = cmd1;
+    var mask = ((1 << len) - 1) << shift;
+    state.rdpOtherModeH = (state.rdpOtherModeH & ~mask) | data;
+  }  
+
+  function executeTexture(cmd0,cmd1) {
+    //var xparam  =  (cmd0>>>16)&0xff;
+    state.level   =  (cmd0>>>11)&0x3;
+    state.tile    =  (cmd0>>> 8)&0x7;
+    state.enable  =  (cmd0>>> 0)&0xff;
+    state.scaleS  = ((cmd1>>>16)&0xffff) / (65535.0 * 32.0);
+    state.scaleT  = ((cmd1>>> 0)&0xffff) / (65535.0 * 32.0);
+  }
+
+  function executeCullDL(cmd0,cmd1)               { unimplemented(cmd0,cmd1); }
+
+  function executeTri1(cmd0,cmd1) {
+
+    var kTri1 = 0xbf;
+
+    gl.useProgram(n64ShaderProgram);
+    var vertexPositionAttribute = gl.getAttribLocation(n64ShaderProgram, "aVertexPosition");
+    gl.enableVertexAttribArray(vertexPositionAttribute);
+
+    var kMaxVertBatch = 1024;
+    var vertices = new Float32Array(kMaxVertBatch);
+    var vtx_idx = 0;
+
+    var pc = state.pc;
+    do {
+      var flag   =  (cmd1>>>24)&0xff;
+      var v0_idx = ((cmd1>>>16)&0xff)/config.vertexStride;
+      var v1_idx = ((cmd1>>> 8)&0xff)/config.vertexStride;
+      var v2_idx = ((cmd1>>> 0)&0xff)/config.vertexStride;
+
+      var v0 = state.projectedVertices[v0_idx].pos;
+      var v1 = state.projectedVertices[v1_idx].pos;
+      var v2 = state.projectedVertices[v2_idx].pos;
+
+      vertices[vtx_idx+ 0] = v0.elements[0];
+      vertices[vtx_idx+ 1] = v0.elements[1];
+      vertices[vtx_idx+ 2] = v0.elements[2];
+      vertices[vtx_idx+ 3] = v0.elements[3];
+
+      vertices[vtx_idx+ 4] = v1.elements[0];
+      vertices[vtx_idx+ 5] = v1.elements[1];
+      vertices[vtx_idx+ 6] = v1.elements[2];
+      vertices[vtx_idx+ 7] = v1.elements[3];
+
+      vertices[vtx_idx+ 8] = v2.elements[0];
+      vertices[vtx_idx+ 9] = v2.elements[1];
+      vertices[vtx_idx+10] = v2.elements[2];
+      vertices[vtx_idx+11] = v2.elements[3];
+
+      vtx_idx += 12;
+
+      cmd0 = state.ram.getUint32( pc + 0 );
+      cmd1 = state.ram.getUint32( pc + 4 );
+      pc += 8;
+    } while ((cmd0>>>24) === kTri1 && vtx_idx+12 < kMaxVertBatch);
+
+    state.pc = pc-8;
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, n64VerticesBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+    gl.vertexAttribPointer(vertexPositionAttribute, 4, gl.FLOAT, false, 0, 0);
+
+    var fillColorUniform = gl.getUniformLocation(n64ShaderProgram, "uFillColor");
+    gl.uniform4f(fillColorUniform, 1.0, 0.0, 1.0, 1.0);
+
+    // Disable depth testing
+    gl.disable(gl.DEPTH_TEST);
+
+    //var pUniform = gl.getUniformLocation(n64ShaderProgram, "uPMatrix");
+    //gl.uniformMatrix4fv(pUniform, false, new Float32Array(Matrix.I(4).flatten()));
+
+    //gl.drawArrays(gl.TRIANGLES, 0, 3);
+    gl.drawArrays(gl.LINE_STRIP, 0, vtx_idx/4);
+  }
+
+  function executeTriRSP(cmd0,cmd1)               { unimplemented(cmd0,cmd1); }
+  function executeTexRect(cmd0,cmd1)              { unimplemented(cmd0,cmd1); }
+  function executeTexRectFlip(cmd0,cmd1)          { unimplemented(cmd0,cmd1); }
+  function executeSetKeyGB(cmd0,cmd1)             { unimplemented(cmd0,cmd1); }
+  function executeSetKeyR(cmd0,cmd1)              { unimplemented(cmd0,cmd1); }
+  function executeSetConvert(cmd0,cmd1)           { unimplemented(cmd0,cmd1); }
+
+  function executeSetScissor(cmd0,cmd1) {
+    state.scissor.x0   = ((cmd0>>>12)&0xfff)/4.0;
+    state.scissor.y0   = ((cmd0>>> 0)&0xfff)/4.0;
+    state.scissor.x1   = ((cmd1>>>12)&0xfff)/4.0;
+    state.scissor.y1   = ((cmd1>>> 0)&0xfff)/4.0;
+    state.scissor.mode = (cmd1>>>24)&0x2;
+
+    // TODO: actually set this
+  }
+
+  function executeSetPrimDepth(cmd0,cmd1)         { unimplemented(cmd0,cmd1); }
+  function executeSetRDPOtherMode(cmd0,cmd1)      { unimplemented(cmd0,cmd1); }
+  function executeLoadTLut(cmd0,cmd1)             { unimplemented(cmd0,cmd1); }
+  function executeSetTileSize(cmd0,cmd1)          { unimplemented(cmd0,cmd1); }
+  function executeLoadBlock(cmd0,cmd1)            { unimplemented(cmd0,cmd1); }
+  function executeLoadTile(cmd0,cmd1)             { unimplemented(cmd0,cmd1); }
+  function executeSetTile(cmd0,cmd1)              { unimplemented(cmd0,cmd1); }
+  function executeFillRect(cmd0,cmd1) {
+
+    // NB: fraction is ignored
+    var x0 = ((cmd1>>>12)&0xfff)>>>2;
+    var y0 = ((cmd1>>> 0)&0xfff)>>>2;
+    var x1 = ((cmd0>>>12)&0xfff)>>>2;
+    var y1 = ((cmd0>>> 0)&0xfff)>>>2;
+
+    if (state.depthImage.address == state.colorImage.address) {
+      gl.clear(gl.DEPTH_BUFFER_BIT);
+      return;
+    }
+
+    var cycle_type = getCycleType();
+
+    var color = {r:0, g:0, b:0};
+
+    if (cycle_type === cycleTypeValues.G_CYC_FILL) {
+      x1 += 1;
+      y1 += 1;
+
+      if (state.colorImage.size === imageSizeTypes.G_IM_SIZ_16b) {
+        color = makeRGBFromRGBA16(state.fillColor & 0xffff);
+      } else {
+        color = makeRGBFromRGBA32(state.fillColor);
+      }
+
+      // Clear whole screen in one?
+      if (viWidth === (x1-x0) && viHeight === (y1-y0)) {
+        gl.clearColor(color.r, color.g, color.b, 1.0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        return;
+      }
+    } else if (cycle_type === cycleTypeValues.G_CYC_COPY) {
+      x1 += 1;
+      y1 += 1;
+    }
+    //color.r = Math.random();
+    color.a = 1.0;
+    fillRect(x0, y0, x1, y1, color);
+  }
+
+
+  function executeSetFillColor(cmd0,cmd1) {
+    state.fillColor = cmd1;
+  }
+
+  function executeSetFogColor(cmd0,cmd1)          { unimplemented(cmd0,cmd1); }
+  function executeSetBlendColor(cmd0,cmd1)        { unimplemented(cmd0,cmd1); }
+  function executeSetPrimColor(cmd0,cmd1)         { unimplemented(cmd0,cmd1); }
+  function executeSetEnvColor(cmd0,cmd1)          { unimplemented(cmd0,cmd1); }
+  function executeSetCombine(cmd0,cmd1) {
+    state.combine.hi = cmd0 & 0x00ffffff;
+    state.combine.lo = cmd1;
+  }
+  function executeSetTImg(cmd0,cmd1)              { unimplemented(cmd0,cmd1); }
+  function executeSetZImg(cmd0,cmd1) {
+    state.depthImage.address = rdpSegmentAddress(cmd1);
+  }
+
+  function executeSetCImg(cmd0,cmd1) {
+    state.colorImage = {
+      format:   (cmd0>>>21)&0x7,
+      size:     (cmd0>>>19)&0x3,
+      width:   ((cmd0>>> 0)&0xfff)+1,
+      address:   rdpSegmentAddress(cmd1)
+    };
+  }
+
+
+  function disassembleDL(cmd0,cmd1) {
+    var param = ((cmd0>>>16)&0xff);
+    var address = n64js.toString32(cmd1);
+
+    if (param === G_DL_PUSH)
+      return 'gsSPDisplayList(<span class="dl-branch">' + address + '</span>);';
+    return 'gsSPBranchList(<span class="dl-branch">' + address + '</span>);';
+  }
+
+  function disassembleMatrix(cmd0,cmd1) {
+    var flags   = (cmd0>>>16)&0xff;
+    var length  = (cmd0>>> 0)&0xffff;
+    var address = n64js.toString32(cmd1);
+
+    var t = '';
+    t += (flags & G_MTX_PROJECTION) ? 'G_MTX_PROJECTION' : 'G_MTX_MODELVIEW';
+    t += (flags & G_MTX_LOAD) ?       '|G_MTX_LOAD'       : '|G_MTX_MUL';
+    t += (flags & G_MTX_PUSH) ?       '|G_MTX_PUSH'       : ''; //'|G_MTX_NOPUSH';
+
+    return 'gsSPMatrix(' + address + ', ' + t + ');';
+  }
+
+  function disassembleVtx(cmd0,cmd1) {
+    var n       = ((cmd0>>>20)&0xf) + 1;
+    var v0      =  (cmd0>>>16)&0xf;
+    //var length  = (cmd0>>> 0)&0xffff;
+    var address = n64js.toString32(cmd1);
+
+    return 'gsSPVertex(' + address + ', ' + n + ', ' + v0 + ');';
+  }
+
+  function disassembleMoveMem(cmd0,cmd1) {
+    var type    = (cmd0>>>16)&0xff;
+    var length  = (cmd0>>> 0)&0xffff;
+    var address = n64js.toString32(cmd1);
+
+    switch (type) {
+      case moveMemTypeValues.G_MV_VIEWPORT:
+        if (length === 16)
+          return 'gsSPViewport(' + address + ');';
+        break;
+    }
+
+    var type_str = getDefine(moveMemTypeValues, type);
+
+    return 'gsDma1p(G_MOVEMEM, ' + address + ', ' + length + ', ' + type_str + ');';
+  }
+
+
   function disassembleMoveWord(cmd0,cmd1) {
 
     var type   = (cmd0    )&0xff;
     var offset = (cmd0>>>8)&0xffff;
     var value  = cmd1;
 
-    switch(type) {
-      case G_MW_NUMLIGHT:
+    switch (type) {
+      case moveWordTypeValues.G_MW_NUMLIGHT:
         if (offset === G_MWO_NUMLIGHT) {
           var v = ((value - 0x80000000)>>>5) - 1;
           return 'gsSPNumLights(' + getDefine(numLightValues, v) + ');';
         }
         break;
-      case G_MW_SEGMENT:
+      case moveWordTypeValues.G_MW_SEGMENT:
         {
           var v = value === 0 ? '0' : n64js.toString32(value);
           return 'gsSPSegment(' + ((offset >>> 2)&0xf) + ', ' + v + ');';
@@ -456,20 +804,7 @@ if (typeof n64js === 'undefined') {
     }
 
 
-    var r = 'gMoveWd(';
-    switch(type) {
-      case G_MW_MATRIX:     r += 'G_MW_MATRIX';           break;
-      case G_MW_NUMLIGHT:   r += 'G_MW_NUMLIGHT';         break;
-      case G_MW_CLIP:       r += 'G_MW_CLIP';             break;
-      case G_MW_SEGMENT:    r += 'G_MW_SEGMENT';          break;
-      case G_MW_FOG:        r += 'G_MW_FOG';              break;
-      case G_MW_LIGHTCOL:   r += 'G_MW_LIGHTCOL';         break;
-      case G_MW_POINTS:     r += 'G_MW_POINTS';           break;
-      default:              r += n64js.toString8(type);   break;
-    }
-    r += n64js.toString16(offset) + ', ' + n64js.toString32(value) + ')';
-
-    return r;
+    return 'gMoveWd(' + getDefine(moveWordTypeValues, type) + ', ' + n64js.toString16(offset) + ', ' + n64js.toString32(value) + ');';
   }
 
   var geometryModeFlags = {
@@ -730,7 +1065,7 @@ if (typeof n64js === 'undefined') {
 
     var shift_str = getOtherModeLShiftCount(shift);
 
-    return 'gsSPSetOtherMode(G_SETOTHERMODE_L, ' + shift_str + ', ' + len + ', ' + data_str + ')';
+    return 'gsSPSetOtherMode(G_SETOTHERMODE_L, ' + shift_str + ', ' + len + ', ' + data_str + ');';
   }
 
   function disassembleSetOtherModeH(cmd0, cmd1) {
@@ -759,7 +1094,7 @@ if (typeof n64js === 'undefined') {
     var shift_str = getOtherModeHShiftCount(shift);
     var data_str  = n64js.toString32(data);
 
-    return 'gsSPSetOtherMode(G_SETOTHERMODE_H, ' + shift_str + ', ' + len + ', ' + data_str + ')';
+    return 'gsSPSetOtherMode(G_SETOTHERMODE_H, ' + shift_str + ', ' + len + ', ' + data_str + ');';
   }
 
   var scissorModeValues = {
@@ -775,7 +1110,7 @@ if (typeof n64js === 'undefined') {
     var y1   = ((cmd1>>> 0)&0xfff)/4.0;
     var mode = (cmd1>>>24)&0x2;
 
-    return 'gsDPSetScissor(' + getDefine(scissorModeValues, mode) + ', ' + x0 + ', ' + y0 + ', ' + x1 + ', ' + y1 + ')';
+    return 'gsDPSetScissor(' + getDefine(scissorModeValues, mode) + ', ' + x0 + ', ' + y0 + ', ' + x1 + ', ' + y1 + ');';
   }
 
   function disassembleTexture(cmd0, cmd1) {
@@ -817,7 +1152,7 @@ if (typeof n64js === 'undefined') {
   function disassembleSetDepthImage(cmd0,cmd1) {
     return 'gsDPSetDepthImage(' + n64js.toString32(cmd1) + ');';
   }
-  function disassembleSetTexureImage(cmd0,cmd1) {
+  function disassembleSetTextureImage(cmd0,cmd1) {
     var fmt   =  (cmd0>>>21)&0x7;
     var siz   =  (cmd0>>>19)&0x3;
     var width = ((cmd0>>> 0)&0xfff)+1;
@@ -838,17 +1173,26 @@ if (typeof n64js === 'undefined') {
     return 'gsDPFillRectangle(' + x0 + ', ' + y0 + ', ' + x1 + ', ' + y1 + ');';
   }
 
+  function disassembleTri1(cmd0,cmd1) {
+    var flag   =  (cmd1>>>24)&0xff;
+    var v0_idx = ((cmd1>>>16)&0xff)/config.vertexStride;
+    var v1_idx = ((cmd1>>> 8)&0xff)/config.vertexStride;
+    var v2_idx = ((cmd1>>> 0)&0xff)/config.vertexStride;
+
+    return 'gsSP1Triangle(' + v0_idx + ', ' + v1_idx + ', ' + v2_idx + ', ' + flag + ');';
+  }
+
   function disassembleCommand(a,b) {
     var cmd = a>>>24;
     switch(cmd) {
 
       case 0x00:      return 'SpNoop';
-      case 0x01:      return 'Mtx';
+      case 0x01:      return disassembleMatrix(a,b);
       //case 0x02:    return 'Reserved';
-      case 0x03:      return 'MoveMem';
-      case 0x04:      return 'Vtx';
+      case 0x03:      return disassembleMoveMem(a,b);
+      case 0x04:      return disassembleVtx(a,b);
       //case 0x05:    return 'Reserved';
-      case 0x06:      return 'DL           ' + dlist_param(a,b) + ' ' + dlist_address(a,b);
+      case 0x06:      return disassembleDL(a,b);
       //case 0x07:    return 'Reserved';
       //case 0x08:    return 'Reserved';
       case 0x09:      return 'Sprite2DBase';
@@ -856,8 +1200,8 @@ if (typeof n64js === 'undefined') {
       //case 0xb0:    return '';
       case 0xb1:      return 'Tri4';
       case 0xb2:      return 'RDPHalf_Cont';
-      case 0xb3:      return 'RDPHalf_2';
-      case 0xb4:      return 'RDPHalf_1';
+      case 0xb3:      return 'gsImmp1(G_RDPHALF_2, ' + n64js.toString32(b) + ');';
+      case 0xb4:      return 'gsImmp1(G_RDPHALF_1, ' + n64js.toString32(b) + ');';
       case 0xb5:      return 'Line3D';
       case 0xb6:      return disassembleClearGeometryMode(a,b);
       case 0xb7:      return disassembleSetGeometryMode(a,b);
@@ -868,7 +1212,7 @@ if (typeof n64js === 'undefined') {
       case 0xbc:      return disassembleMoveWord(a,b);
       case 0xbd:      return 'PopMtx';
       case 0xbe:      return 'CullDL';
-      case 0xbf:      return 'Tri1';
+      case 0xbf:      return disassembleTri1(a,b);
 
       case 0xc0:      return 'gsDPNoOp();';
       case 0xc8:      return 'TriRSP';
@@ -916,7 +1260,135 @@ if (typeof n64js === 'undefined') {
     }
   }
 
+  function logGLCall(functionName, args) {
+     console.log("gl." + functionName + "(" +
+        WebGLDebugUtils.glFunctionArgsToString(functionName, args) + ")");
+  }
+
+  function initWebGL(canvas) {
+    if (gl)
+      return;
+
+    try {
+      // Try to grab the standard context. If it fails, fallback to experimental.
+      gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+
+      //gl = WebGLDebugUtils.makeDebugContext(gl, undefined, logGLCall);
+    }
+    catch(e) {}
+
+    // If we don't have a GL context, give up now
+    if (!gl) {
+      alert("Unable to initialize WebGL. Your browser may not support it.");
+    }
+  }
+
+  function initShaders(vs_name, fs_name) {
+    var fragmentShader = getShader(gl, fs_name);
+    var vertexShader = getShader(gl, vs_name);
+
+    var program = gl.createProgram();
+    gl.attachShader(program, vertexShader);
+    gl.attachShader(program, fragmentShader);
+    gl.linkProgram(program);
+
+    // If creating the shader program failed, alert
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+      alert("Unable to initialize the shader program.");
+    }
+    return program;
+  }
+
+  function getShader(gl, id) {
+    var shaderScript, theSource, currentChild, shader;
+
+    shaderScript = document.getElementById(id);
+
+    if (!shaderScript) {
+        return null;
+    }
+
+    theSource = "";
+    currentChild = shaderScript.firstChild;
+
+    while(currentChild) {
+      if (currentChild.nodeType == currentChild.TEXT_NODE) {
+          theSource += currentChild.textContent;
+      }
+
+      currentChild = currentChild.nextSibling;
+    }
+
+    if (shaderScript.type == "x-shader/x-fragment") {
+      shader = gl.createShader(gl.FRAGMENT_SHADER);
+    } else if (shaderScript.type == "x-shader/x-vertex") {
+      shader = gl.createShader(gl.VERTEX_SHADER);
+    } else {
+       // Unknown shader type
+       return null;
+    }
+
+    gl.shaderSource(shader, theSource);
+
+    // Compile the shader program
+    gl.compileShader(shader);
+
+    // See if it compiled successfully
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        alert("An error occurred compiling the shaders: " + gl.getShaderInfoLog(shader));
+        return null;
+    }
+
+    return shader;
+  }
+
+
+  var fillShaderProgram;
+  var fillVerticesBuffer;
+  var n64ShaderProgram;
+  var n64VerticesBuffer;
+
+
+  function fillRect(x0,y0, x1,y1, color) {
+    gl.useProgram(fillShaderProgram);
+
+    var vertexPositionAttribute = gl.getAttribLocation(fillShaderProgram, "aVertexPosition");
+    gl.enableVertexAttribArray(vertexPositionAttribute);
+
+    // multiply by state.viewport.trans/scale
+    var screen0 = convertN64ToCanvas( [x0,y0] );
+    var screen1 = convertN64ToCanvas( [x1,y1] );
+
+    var vertices = [
+      screen1[0], screen1[1], 0.0,
+      screen0[0], screen1[1], 0.0,
+      screen1[0], screen0[1], 0.0,
+      screen0[0], screen0[1], 0.0
+    ];
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, fillVerticesBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+    gl.vertexAttribPointer(vertexPositionAttribute, 3, gl.FLOAT, false, 0, 0);
+
+    var fillColorUniform = gl.getUniformLocation(fillShaderProgram, "uFillColor");
+    gl.uniform4f(fillColorUniform, color.r, color.g, color.b, color.a);
+
+    // Disable depth testing
+    gl.disable(gl.DEPTH_TEST);
+
+    var pUniform = gl.getUniformLocation(fillShaderProgram, "uPMatrix");
+    gl.uniformMatrix4fv(pUniform, false, new Float32Array(canvas2dMatrix.flatten()));
+
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+
   function hleGraphics(task, ram) {
+    ++graphics_task_count;
+
+    if (!gl) {
+        return;
+    }
+
     var code_base = task.getUint32(kOffset_ucode) & 0x1fffffff;
     var code_size = task.getUint32(kOffset_ucode_size);
     var data_base = task.getUint32(kOffset_ucode_data) & 0x1fffffff;
@@ -924,26 +1396,40 @@ if (typeof n64js === 'undefined') {
     var data_ptr  = task.getUint32(kOffset_data_ptr);
 
     var str = detectVersionString(ram, data_base, data_size);
-    n64js.log('Found ' + str);
+
+    n64js.log('GFX: ' + graphics_task_count + ' - ' + str);
 
     var ucode = 0;  // FIXME
 
     config.vertexStride = kUcodeStrides[ucode];
 
+    state.ram           = ram;
     state.rdpOtherModeL = 0x00500001;
     state.rdpOtherModeH = 0x00000000;
 
+    state.projection    = [ Matrix.I(4) ];
+    state.modelview     = [ Matrix.I(4) ];
+
     state.pc = data_ptr;
     state.dlistStack = [];
-    for (var i = 0; i < state.segments; ++i)
+    for (var i = 0; i < state.segments; ++i) {
       state.segments[i] = 0;
-
-    var canvas = document.getElementById('display');
-    if (canvas.getContext) {
-        state.screenContext2d = canvas.getContext('2d');
     }
 
-    // begin scene
+    for (var i = 0; i < state.projectedVertices.length; ++i) {
+      state.projectedVertices[i] = {};
+    }
+
+    var canvas = document.getElementById('display');
+    //if (canvas.getContext) {
+    //    state.screenContext2d = canvas.getContext('2d');
+    //}
+
+    // set viWidth/viHeight from video registers
+
+    setCanvasViewport(canvas.clientWidth, canvas.clientHeight);
+
+
     var ops       = new Array(256);
     for (var i = 0; i < ops.length; ++i)
       ops[i] = executeUnknown;
@@ -1010,38 +1496,125 @@ if (typeof n64js === 'undefined') {
     disassembleDisplayList(data_ptr, ram, ucode);
 
     while (state.pc !== 0) {
-      var cmd0 = ram.getUint32( state.pc + 0 );
-      var cmd1 = ram.getUint32( state.pc + 4 );
-      //n64js.log('[' + n64js.toHex(state.pc,32) + '] ' + n64js.toHex(cmd0,32) + n64js.toHex(cmd1,32) + ' ' + disassembleCommand(cmd0,cmd1) );
+      var pc = state.pc;
+      var cmd0 = ram.getUint32( pc + 0 );
+      var cmd1 = ram.getUint32( pc + 4 );
       state.pc += 8;
 
-      ops[cmd0>>>24](cmd0,cmd1);
+      //try {
+        ops[cmd0>>>24](cmd0,cmd1);
+      //} catch(e) {
+      //  throw 'Exception ' + e.toString() + ' at ' + n64js.toString32(pc) + ' ' + disassembleCommand(cmd0,cmd1);
+      //}
     }
-
-    //n64js.halt('list');
-
-    // end scene
   }
 
   function disassembleDisplayList(pc, ram, ucode) {
 
+    var kDL       = 0x06;
+    var kEndDL    = 0xb8;
+    var kMoveWord = 0xbc;
+
+    var state = {
+      pc:             pc,
+      dlistStack:     [],
+      segments:       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    };
+
+    function rdpSegmentAddress(addr) {
+      var segment = (addr>>>24)&0xf;
+      return (state.segments[segment]&0x00ffffff) + (addr & 0x00ffffff);
+    }
+
+    var ops = [];
+
+    while (state.pc != 0) {
+      var cmd0 = ram.getUint32( state.pc + 0 );
+      var cmd1 = ram.getUint32( state.pc + 4 );
+
+      ops.push({pc:state.pc, cmd0:cmd0, cmd1:cmd1, depth:state.dlistStack.length});
+
+      state.pc += 8;
+
+      var cmd = cmd0>>>24;
+
+      switch (cmd) {
+        case kDL:
+          var param = ((cmd0>>>16)&0xff);
+          var address = rdpSegmentAddress(cmd1);
+
+          if (param === G_DL_PUSH) {
+            state.dlistStack.push({pc: state.pc});
+          }
+          state.pc = address;
+          break;
+        case kEndDL:
+          if (state.dlistStack.length > 0) {
+            state.pc = state.dlistStack.pop().pc;
+          } else {
+            state.pc = 0;
+          }
+          break;
+        case kMoveWord:
+          {
+            var type   = (cmd0    )&0xff;
+            var offset = (cmd0>>>8)&0xffff;
+            var value  = cmd1;
+
+            if (type === moveWordTypeValues.G_MW_SEGMENT) {
+              state.segments[((offset >>> 2)&0xf)] = value; break;
+            }
+          }
+          break;
+      }
+
+    }
+
     var $currentDis = $('<pre></pre>');
 
-    var kEndDL = 0xb8;
-
-    while (true) {
-      var cmd0 = ram.getUint32( pc + 0 );
-      var cmd1 = ram.getUint32( pc + 4 );
-      $currentDis.append('[' + n64js.toHex(pc,32) + '] ' + n64js.toHex(cmd0,32) + n64js.toHex(cmd1,32) + ' ' + disassembleCommand(cmd0,cmd1) + '<br>' );
-      pc += 8;
-
-      if (cmd0>>>24 === kEndDL) {
-        break;
-      }
+    for (var i = 0; i < ops.length; ++i) {
+      var op = ops[i];
+      var indent = Array(op.depth).join('    ');
+      $currentDis.append('[' + n64js.toHex(op.pc,32) + '] ' + n64js.toHex(op.cmd0,32) + n64js.toHex(op.cmd1,32) + ' ' + indent + disassembleCommand(op.cmd0,op.cmd1) + '<br>' );
     }
+
+
+    $currentDis.find('.dl-branch').click(function () {
+      //
+    });
 
     $dlistOutput.html($currentDis);
   }  
 
+
+  //
+  // start
+  //
+  // Called when the canvas is created to get the ball rolling.
+  // Figuratively, that is. There's nothing moving in this demo.
+  //
+  n64js.initialiseRenderer = function ($canvas) {
+    var canvas = $canvas[0];
+
+    initWebGL(canvas);      // Initialize the GL context
+
+    // Only continue if WebGL is available and working
+
+    if (gl) {
+      gl.clearColor(0.0, 0.0, 0.0, 1.0);  // Clear to black, fully opaque
+      gl.clearDepth(1.0);                 // Clear everything
+      gl.enable(gl.DEPTH_TEST);           // Enable depth testing
+      gl.depthFunc(gl.LEQUAL);            // Near things obscure far things
+
+      fillShaderProgram = initShaders("fill-shader-vs", "fill-shader-fs");
+      n64ShaderProgram  = initShaders( "n64-shader-vs",  "n64-shader-fs");
+
+      fillVerticesBuffer = gl.createBuffer();
+      n64VerticesBuffer  = gl.createBuffer();
+
+      setCanvasViewport(canvas.clientWidth, canvas.clientHeight);
+    }
+
+  }
 
 })();

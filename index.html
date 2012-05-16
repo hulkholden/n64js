@@ -97,10 +97,54 @@
     </div>
     <script src="js/jquery.min.js"></script>
     <script src="js/bootstrap.min.js"></script>
+    <script src="js/sylvester.js"></script>
+    <script src="js/glUtils.js"></script>
+    <script src="js/webgl-debug.js"></script>
     <script src="n64.js"></script>
     <script src="disassemble.js"></script>
     <script src="r4300.js"></script>
     <script src="hle.js"></script>
+
+    <script id="fill-shader-vs" type="x-shader/x-vertex">
+      attribute vec3 aVertexPosition;
+
+      uniform mat4 uPMatrix;
+
+      void main(void) {
+        gl_Position = uPMatrix * vec4(aVertexPosition, 1.0);
+      }
+    </script>
+    <script id="fill-shader-fs" type="x-shader/x-fragment">
+      precision mediump float;
+      uniform vec4 uFillColor;
+
+      void main(void) {
+        gl_FragColor = uFillColor;
+      }
+    </script>
+
+
+
+
+    <script id="n64-shader-vs" type="x-shader/x-vertex">
+      attribute vec4 aVertexPosition;
+
+      //uniform mat4 uPMatrix;
+
+      void main(void) {
+        gl_Position = /*uPMatrix **/ aVertexPosition;
+      }
+    </script>
+    <script id="n64-shader-fs" type="x-shader/x-fragment">
+      precision mediump float;
+      uniform vec4 uFillColor;
+
+      void main(void) {
+        gl_FragColor = uFillColor;
+      }
+    </script>
+
+
 
     <script>
 
@@ -111,6 +155,7 @@
       n64js.setMemoryElement($('#memory-content'));
       n64js.setOutputElement($('#output'));
 
+      n64js.initialiseRenderer($('#display'));
 
       var kEnter    = 13;
       var kPageUp   = 33;

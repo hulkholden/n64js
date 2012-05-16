@@ -2227,7 +2227,7 @@ if (typeof n64js === 'undefined') {
     hdr.manufacturer = rom.dataView.getUint8 (59);
     hdr.cartId       = rom.dataView.getUint16(60);
     hdr.countryId    = rom.dataView.getUint8 (62);  // char
-    hdr.unk5         = rom.dataView.getUint8 (62);
+    hdr.unk5         = rom.dataView.getUint8 (63);
 
     $rominfo.html('');
     var $table = $('<table class="register-table"><tbody></tbody></table>');
