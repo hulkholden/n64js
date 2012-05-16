@@ -1511,6 +1511,8 @@ if (typeof n64js === 'undefined') {
 
   function disassembleDisplayList(pc, ram, ucode) {
 
+    var kMatrix   = 0x01;
+    var kVertex   = 0x04;
     var kDL       = 0x06;
     var kEndDL    = 0xb8;
     var kMoveWord = 0xbc;
@@ -1532,7 +1534,9 @@ if (typeof n64js === 'undefined') {
       var cmd0 = ram.getUint32( state.pc + 0 );
       var cmd1 = ram.getUint32( state.pc + 4 );
 
-      ops.push({pc:state.pc, cmd0:cmd0, cmd1:cmd1, depth:state.dlistStack.length});
+      var op = {pc:state.pc, cmd0:cmd0, cmd1:cmd1, depth:state.dlistStack.length};
+
+      ops.push(op);
 
       state.pc += 8;
 
@@ -1566,6 +1570,46 @@ if (typeof n64js === 'undefined') {
             }
           }
           break;
+
+
+        case kMatrix:
+          {
+            var address = rdpSegmentAddress(cmd1);
+            var m = loadMatrix(address).elements;
+
+            op.tip = '<div><table class="matrix-table">' +
+            '<tr><td>' + m[0].join('</td><td>') + '</td></tr>' +
+            '<tr><td>' + m[1].join('</td><td>') + '</td></tr>' +
+            '<tr><td>' + m[2].join('</td><td>') + '</td></tr>' +
+            '<tr><td>' + m[3].join('</td><td>') + '</td></tr>' +
+            '</table></div>';
+          }
+          break;
+
+        case kVertex:
+          {
+            var n       = ((cmd0>>>20)&0xf) + 1;
+            var v0      =  (cmd0>>>16)&0xf;
+            var address = rdpSegmentAddress(cmd1);
+            var dv = new DataView(ram.buffer, address);
+
+            var tip = '';
+
+            tip += '<table class="vertex-table">';
+
+            for (var i = 0; i < n; ++i) {
+              var vtx_base = (v0+i)*16;
+              var v = [ v0+i,
+                        dv.getInt16(vtx_base + 0),
+                        dv.getInt16(vtx_base + 2),
+                        dv.getInt16(vtx_base + 4) ];
+
+              tip += '<tr><td>' + v.join('</td><td>') + '</td></tr>';
+            }
+            tip += '</table>';
+            op.tip = tip;
+          }
+          break;
       }
 
     }
@@ -1575,9 +1619,22 @@ if (typeof n64js === 'undefined') {
     for (var i = 0; i < ops.length; ++i) {
       var op = ops[i];
       var indent = Array(op.depth).join('    ');
-      $currentDis.append('[' + n64js.toHex(op.pc,32) + '] ' + n64js.toHex(op.cmd0,32) + n64js.toHex(op.cmd1,32) + ' ' + indent + disassembleCommand(op.cmd0,op.cmd1) + '<br>' );
-    }
 
+      var $span = $('<span />');
+
+      $span.append('[' + n64js.toHex(op.pc,32) + '] ' + n64js.toHex(op.cmd0,32) + n64js.toHex(op.cmd1,32) + ' ' + indent + disassembleCommand(op.cmd0,op.cmd1) + '<br>' );
+      if (op.tip) {
+        var $d = $(op.tip);
+        $d.hide();
+        $span.append($d);
+        $span.click(
+          (function (e) {
+            return function () { e.toggle() };
+          })($d)
+        );
+      }
+      $currentDis.append($span);
+    }
 
     $currentDis.find('.dl-branch').click(function () {
       //
