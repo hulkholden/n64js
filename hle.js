@@ -139,6 +139,13 @@ if (typeof n64js === 'undefined') {
     NUMLIGHTS_7: 7,
   }
 
+  var G_TX_LOADTILE   = 7;
+  var G_TX_RENDERTILE = 0;
+
+  var G_TX_WRAP       = 0x0;
+  var G_TX_MIRROR     = 0x1;
+  var G_TX_CLAMP      = 0x2;
+
   var kUcodeStrides = [
     10,   // Super Mario 64, Tetrisphere, Demos
     2,    // Mario Kart, Star Fox
@@ -1163,6 +1170,117 @@ if (typeof n64js === 'undefined') {
     return 'gsDPSetFillColor(' + n64js.toString32(cmd1) + ');';
   }
 
+  function disassembleSetEnvColor(cmd0,cmd1) {
+    var r = (cmd1>>>24)&0xff;
+    var g = (cmd1>>>16)&0xff;
+    var b = (cmd1>>> 8)&0xff;
+    var a = (cmd1>>> 0)&0xff;
+
+    return 'gsDPSetEnvColor(' + r + ', ' + g + ', ' + b + ', ' + a + ');';
+  }
+  function disassembleSetBlendColor(cmd0,cmd1) {
+    var r = (cmd1>>>24)&0xff;
+    var g = (cmd1>>>16)&0xff;
+    var b = (cmd1>>> 8)&0xff;
+    var a = (cmd1>>> 0)&0xff;
+
+    return 'gsDPSetBlendColor(' + r + ', ' + g + ', ' + b + ', ' + a + ');';
+  }
+  function disassembleSetFogColor(cmd0,cmd1) {
+    var r = (cmd1>>>24)&0xff;
+    var g = (cmd1>>>16)&0xff;
+    var b = (cmd1>>> 8)&0xff;
+    var a = (cmd1>>> 0)&0xff;
+
+    return 'gsDPSetFogColor(' + r + ', ' + g + ', ' + b + ', ' + a + ');';
+  }
+
+  function disassembleSetPrimColor(cmd0,cmd1) {
+    var m = (cmd0>>> 8)&0xff;
+    var l = (cmd0>>> 0)&0xff;
+    var r = (cmd1>>>24)&0xff;
+    var g = (cmd1>>>16)&0xff;
+    var b = (cmd1>>> 8)&0xff;
+    var a = (cmd1>>> 0)&0xff;
+
+    return 'gsDPSetPrimColor(' + m + ', ' + l + ', ' + r + ', ' + g + ', ' + b + ', ' + a + ');';
+
+  }
+
+  function getClampMirrorWrapText(flags) {
+    switch (flags) {
+      case G_TX_WRAP:              return 'G_TX_WRAP';
+      case G_TX_MIRROR:            return 'G_TX_MIRROR';
+      case G_TX_CLAMP:             return 'G_TX_CLAMP';
+      case G_TX_MIRROR|G_TX_CLAMP: return 'G_TX_MIRROR|G_TX_CLAMP';
+    }
+
+    return flags;
+  }
+
+
+  function disassembleSetTile(cmd0,cmd1) {
+    var fmt      = (cmd0>>>21)&0x7;
+    var siz      = (cmd0>>>19)&0x3;
+    //var pad0   = (cmd0>>>18)&0x1;
+    var line     = (cmd0>>> 9)&0x1ff;
+    var tmem     = (cmd0>>> 0)&0x1ff;
+
+    //var pad1   = (cmd1>>>27)&0x1f;
+    var tile_idx = (cmd1>>>24)&0x7;
+    var palette  = (cmd1>>>20)&0xf;
+
+    var cm_t     = (cmd1>>>18)&0x3;
+    var mask_t   = (cmd1>>>14)&0xf;
+    var shift_t  = (cmd1>>>10)&0xf;
+
+    var cm_s     = (cmd1>>> 8)&0x3;
+    var mask_s   = (cmd1>>> 4)&0xf;
+    var shift_s  = (cmd1>>> 0)&0xf;
+
+    var cm_s_text = getClampMirrorWrapText(cm_s);
+    var cm_t_text = getClampMirrorWrapText(cm_t);
+
+    var tile_text = tile_idx;
+    if (tile_idx === G_TX_LOADTILE)   tile_text = 'G_TX_LOADTILE';
+    if (tile_idx === G_TX_RENDERTILE) tile_text = 'G_TX_RENDERTILE';
+
+    return 'gsDPSetTile(' + getDefine(imageFormatTypes, fmt) + ', ' + getDefine(imageSizeTypes, siz) + ', ' +
+     line + ', ' + tmem + ', ' + tile_text + ', ' + palette + ', ' +
+     cm_t_text + ', ' + mask_t + ', ' + shift_t + ', ' +
+     cm_s_text + ', ' + mask_s + ', ' + shift_s + ');';
+  }
+
+  function disassembleSetTileSize(cmd0,cmd1) {
+    var uls      = (cmd0>>>12)&0xfff;
+    var ult      = (cmd0>>> 0)&0xfff;
+    var tile_idx = (cmd1>>>24)&0x7;
+    var lrs      = (cmd1>>>12)&0xfff;
+    var lrt      = (cmd1>>> 0)&0xfff;
+
+    return 'gsDPSetTileSize(' + tile_idx + ', ' + uls + ', ' + ult + ', ' + lrs + ', ' + lrt + ');';
+  }
+
+ function disassembleLoadTile(cmd0,cmd1) {
+   var uls      = (cmd0>>>12)&0xfff;
+   var ult      = (cmd0>>> 0)&0xfff;
+   var tile_idx = (cmd1>>>24)&0x7;
+   var lrs      = (cmd1>>>12)&0xfff;
+   var lrt      = (cmd1>>> 0)&0xfff;
+
+   return 'gsDPLoadTile(' + tile_idx + ', ' + uls + ', ' + ult + ', ' + lrs + ', ' + lrt + ');';
+ }
+
+  function disassembleLoadBlock(cmd0,cmd1) {
+    var uls      = (cmd0>>>12)&0xfff;
+    var ult      = (cmd0>>> 0)&0xfff;
+    var tile_idx = (cmd1>>>24)&0x7;
+    var lrs      = (cmd1>>>12)&0xfff;
+    var dxt      = (cmd1>>> 0)&0xfff;
+
+   return 'gsDPLoadBlock(' + tile_idx + ', ' + uls + ', ' + ult + ', ' + lrs + ', ' + dxt + ');';
+  }
+
   function disassembleFillRect(cmd0,cmd1) {
     // NB: fraction is ignored
     var x0 = ((cmd1>>>12)&0xfff)>>>2;
@@ -1239,16 +1357,16 @@ if (typeof n64js === 'undefined') {
 
       case 0xf0:      return 'LoadTLut';
       //case 0xf1:      return '';
-      case 0xf2:      return 'SetTileSize';
-      case 0xf3:      return 'LoadBlock';
-      case 0xf4:      return 'LoadTile';
-      case 0xf5:      return 'SetTile';
+      case 0xf2:      return disassembleSetTileSize(a,b);
+      case 0xf3:      return disassembleLoadBlock(a,b);
+      case 0xf4:      return disassembleLoadTile(a,b);
+      case 0xf5:      return disassembleSetTile(a,b);
       case 0xf6:      return disassembleFillRect(a,b);
       case 0xf7:      return disassembleSetFillColor(a,b);
-      case 0xf8:      return 'SetFogColor';
-      case 0xf9:      return 'SetBlendColor';
-      case 0xfa:      return 'SetPrimColor';
-      case 0xfb:      return 'SetEnvColor';
+      case 0xf8:      return disassembleSetFogColor(a,b);
+      case 0xf9:      return disassembleSetBlendColor(a,b);
+      case 0xfa:      return disassembleSetPrimColor(a,b);
+      case 0xfb:      return disassembleSetEnvColor(a,b);
       case 0xfc:      return 'SetCombine';
       case 0xfd:      return disassembleSetTextureImage(a,b);
       case 0xfe:      return disassembleSetDepthImage(a,b);
