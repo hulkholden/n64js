@@ -409,7 +409,7 @@ if (typeof n64js === 'undefined') {
     var stack = flags & G_MTX_PROJECTION ? state.projection : state.modelview;
 
     if (!replace) {
-      matrix = matrix.multiply(stack[stack.length-1]);
+      matrix = stack[stack.length-1].multiply(matrix);
     }
 
     if (push) {
@@ -1507,6 +1507,8 @@ if (typeof n64js === 'undefined') {
       //  throw 'Exception ' + e.toString() + ' at ' + n64js.toString32(pc) + ' ' + disassembleCommand(cmd0,cmd1);
       //}
     }
+
+    gl.finish();
   }
 
   function disassembleDisplayList(pc, ram, ucode) {
@@ -1566,7 +1568,7 @@ if (typeof n64js === 'undefined') {
             var value  = cmd1;
 
             if (type === moveWordTypeValues.G_MW_SEGMENT) {
-              state.segments[((offset >>> 2)&0xf)] = value; break;
+              state.segments[((offset >>> 2)&0xf)] = value;
             }
           }
           break;
