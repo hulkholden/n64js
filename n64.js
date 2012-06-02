@@ -224,8 +224,13 @@ if (typeof n64js === 'undefined') {
 
   n64js.halt = function (msg) {
     running = false;
-    n64js.cpu0.halt();
+    n64js.cpu0.breakExecution();
     n64js.log('<span style="color:red">' + msg + '</span>');
+  }
+
+  // Similar to halt, but just relinquishes control to the system
+  n64js.returnControlToSystem = function() {
+    n64js.cpu0.breakExecution();
   }
 
   n64js.isRunning = function () {

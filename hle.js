@@ -328,6 +328,7 @@ if (typeof n64js === 'undefined') {
       case M_GFXTASK:
         hleGraphics(task, ram);
         n64js.interruptDP();
+        n64js.returnControlToSystem();
         break;
       case M_AUDTASK:
         //n64js.log('audio task');

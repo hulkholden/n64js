@@ -309,7 +309,7 @@ if (typeof n64js === 'undefined') {
       this.addEvent(kEventVbl, kVIIntrCycles);
     };
 
-    this.halt = function () {
+    this.breakExecution = function () {
       this.stuffToDo |= kStuffToDoHalt;
     }
 
