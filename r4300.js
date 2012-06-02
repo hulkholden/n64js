@@ -2126,7 +2126,7 @@ if (typeof n64js === 'undefined') {
             evt.countdown -= COUNTER_INCREMENT_PER_OP;
             if (evt.countdown <= 0)
             {
-              // if it's our cucles event then just bail
+              // if it's our cycles event then just bail
 
               var breakout = false;
 
