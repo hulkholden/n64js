@@ -1427,6 +1427,7 @@ if (typeof n64js === 'undefined') {
 
     return 'gsDPSetEnvColor(' + r + ', ' + g + ', ' + b + ', ' + a + ');';
   }
+
   function disassembleSetBlendColor(cmd0,cmd1) {
     var r = (cmd1>>>24)&0xff;
     var g = (cmd1>>>16)&0xff;
@@ -1435,6 +1436,7 @@ if (typeof n64js === 'undefined') {
 
     return 'gsDPSetBlendColor(' + r + ', ' + g + ', ' + b + ', ' + a + ');';
   }
+
   function disassembleSetFogColor(cmd0,cmd1) {
     var r = (cmd1>>>24)&0xff;
     var g = (cmd1>>>16)&0xff;
@@ -1453,7 +1455,78 @@ if (typeof n64js === 'undefined') {
     var a = (cmd1>>> 0)&0xff;
 
     return 'gsDPSetPrimColor(' + m + ', ' + l + ', ' + r + ', ' + g + ', ' + b + ', ' + a + ');';
+  }
 
+  var colcombine32 = [
+    'Combined    ', 'Texel0      ',
+    'Texel1      ', 'Primitive   ',
+    'Shade       ', 'Env         ',
+    '1           ', 'CombAlp     ',
+    'Texel0_Alp  ', 'Texel1_Alp  ',
+    'Prim_Alpha  ', 'Shade_Alpha ',
+    'Env_Alpha   ', 'LOD_Frac    ',
+    'PrimLODFrac ', 'K5          ',
+    '?           ', '?           ',
+    '?           ', '?           ',
+    '?           ', '?           ',
+    '?           ', '?           ',
+    '?           ', '?           ',
+    '?           ', '?           ',
+    '?           ', '?           ',
+    '?           ', '0           '
+  ];
+  var colcombine16 = [
+    'Combined    ', 'Texel0      ',
+    'Texel1      ', 'Primitive   ',
+    'Shade       ', 'Env         ',
+    '1           ', 'CombAlp     ',
+    'Texel0_Alp  ', 'Texel1_Alp  ',
+    'Prim_Alp    ', 'Shade_Alpha ',
+    'Env_Alpha   ', 'LOD_Frac    ',
+    'PrimLOD_Frac', '0           '
+  ];
+  var colcombine8 = [
+    'Combined    ', 'Texel0      ',
+    'Texel1      ', 'Primitive   ',
+    'Shade       ', 'Env         ',
+    '1           ', '0           ',
+  ];
+
+
+  function disassembleSetCombine(cmd0,cmd1) {
+    var mux0 = cmd0&0x00ffffff;
+    var mux1 = cmd1;
+
+    //
+    var aRGB0  = (mux0>>>20)&0x0F; // c1 c1    // a0
+    var bRGB0  = (mux1>>>28)&0x0F; // c1 c2    // b0
+    var cRGB0  = (mux0>>>15)&0x1F; // c1 c3    // c0
+    var dRGB0  = (mux1>>>15)&0x07; // c1 c4    // d0
+
+    var aA0    = (mux0>>>12)&0x07; // c1 a1    // Aa0
+    var bA0    = (mux1>>>12)&0x07; // c1 a2    // Ab0
+    var cA0    = (mux0>>> 9)&0x07; // c1 a3    // Ac0
+    var dA0    = (mux1>>> 9)&0x07; // c1 a4    // Ad0
+
+    var aRGB1  = (mux0>>> 5)&0x0F; // c2 c1    // a1
+    var bRGB1  = (mux1>>>24)&0x0F; // c2 c2    // b1
+    var cRGB1  = (mux0>>> 0)&0x1F; // c2 c3    // c1
+    var dRGB1  = (mux1>>> 6)&0x07; // c2 c4    // d1
+
+    var aA1    = (mux1>>>21)&0x07; // c2 a1    // Aa1
+    var bA1    = (mux1>>> 3)&0x07; // c2 a2    // Ab1
+    var cA1    = (mux1>>>18)&0x07; // c2 a3    // Ac1
+    var dA1    = (mux1>>> 0)&0x07; // c2 a4    // Ad1
+
+    var decoded = '';
+
+    decoded += '\n';
+    decoded += '\tRGB0 = (' + colcombine16[aRGB0] + ' - ' + colcombine16[bRGB0] + ') * ' + colcombine32[cRGB0] + ' + ' + colcombine8[dRGB0] + '\n';
+    decoded += '\t  A0 = (' + colcombine8 [  aA0] + ' - ' + colcombine8 [  bA0] + ') * ' + colcombine8 [  cA0] + ' + ' + colcombine8[  dA0] + '\n';
+    decoded += '\tRGB1 = (' + colcombine16[aRGB1] + ' - ' + colcombine16[bRGB1] + ') * ' + colcombine32[cRGB1] + ' + ' + colcombine8[dRGB1] + '\n';
+    decoded += '\t  A1 = (' + colcombine8 [  aA1] + ' - ' + colcombine8 [  bA1] + ') * ' + colcombine8 [  cA1] + ' + ' + colcombine8[  dA1] + '\n';
+
+    return 'gsDPSetCombine(' + n64js.toString32(mux0) + ', ' + n64js.toString32(mux1) + ');' + decoded;
   }
 
   function getClampMirrorWrapText(flags) {
@@ -1616,7 +1689,7 @@ if (typeof n64js === 'undefined') {
       case 0xf9:      return disassembleSetBlendColor(a,b);
       case 0xfa:      return disassembleSetPrimColor(a,b);
       case 0xfb:      return disassembleSetEnvColor(a,b);
-      case 0xfc:      return 'SetCombine';
+      case 0xfc:      return disassembleSetCombine(a,b);
       case 0xfd:      return disassembleSetTextureImage(a,b);
       case 0xfe:      return disassembleSetDepthImage(a,b);
       case 0xff:      return disassembleSetColorImage(a,b);
