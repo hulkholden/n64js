@@ -540,9 +540,7 @@ if (typeof n64js === 'undefined') {
       //var - = dv.getInt16(vtx_base + 6);
       var u = dv.getInt16(vtx_base + 8);
       var v = dv.getInt16(vtx_base + 10);
-      //var rgba = dv.getUint32(vtx_base + 10);
-      //var norm = dv.getUint32(vtx_base + 10);
-
+      var rgba_or_norm = dv.getUint32(vtx_base + 12);
 
       var xyz       = Vector.create([x,y,z,1]);
       var projected = wvp.multiply(xyz);
@@ -562,6 +560,13 @@ if (typeof n64js === 'undefined') {
       // state.projectedVertices.clipFlags = clip_flags;
 
       if (light) {
+
+        // calculate transformed normal
+
+        // light vertex
+
+        vertex.color = 0xff00ff00;    // ABGR
+
         if (texgen) {
           if (texgenlin) {
 
@@ -573,6 +578,13 @@ if (typeof n64js === 'undefined') {
         }
       } else {
         vertex.uv = Vector.create([u * scale_s, v * scale_t]);
+
+        var r = (rgba_or_norm>>>24)&0xff;
+        var g = (rgba_or_norm>>>16)&0xff;
+        var b = (rgba_or_norm>>> 8)&0xff;
+        var a = (rgba_or_norm>>> 0)&0xff;
+
+        vertex.color = (a<<24) | (b<<16) | (g<<8) | r;
       }
 
       //var flag = dv.getUint16(vtx_base + 6);
@@ -639,11 +651,14 @@ if (typeof n64js === 'undefined') {
 
     var kTri1 = 0xbf;
 
-    var kMaxVertBatch = 1024;
-    var vertex_positions = new Float32Array(kMaxVertBatch*4);
-    var vertex_coords    = new Float32Array(kMaxVertBatch*2);
+    var kMaxTris = 1024;
+    var vertex_positions = new Float32Array(kMaxTris*3*4);
+    var vertex_colours   = new  Uint32Array(kMaxTris*3*1);
+    var vertex_coords    = new Float32Array(kMaxTris*3*2);
+    var tri_idx     = 0;
     var vtx_pos_idx = 0;
-    var vtx_uv_idx = 0;
+    var vtx_col_idx = 0;
+    var vtx_uv_idx  = 0;
 
     var pc = state.pc;
     do {
@@ -656,55 +671,83 @@ if (typeof n64js === 'undefined') {
       var v1 = state.projectedVertices[v1_idx];
       var v2 = state.projectedVertices[v2_idx];
 
-      var vp0 = v0.pos;
-      var vp1 = v1.pos;
-      var vp2 = v2.pos;
+      var vp0 = v0.pos.elements;
+      var vp1 = v1.pos.elements;
+      var vp2 = v2.pos.elements;
 
-      vertex_positions[vtx_pos_idx+ 0] = vp0.elements[0];
-      vertex_positions[vtx_pos_idx+ 1] = vp0.elements[1];
-      vertex_positions[vtx_pos_idx+ 2] = vp0.elements[2];
-      vertex_positions[vtx_pos_idx+ 3] = vp0.elements[3];
+      vertex_positions[vtx_pos_idx+ 0] = vp0[0];
+      vertex_positions[vtx_pos_idx+ 1] = vp0[1];
+      vertex_positions[vtx_pos_idx+ 2] = vp0[2];
+      vertex_positions[vtx_pos_idx+ 3] = vp0[3];
 
-      vertex_positions[vtx_pos_idx+ 4] = vp1.elements[0];
-      vertex_positions[vtx_pos_idx+ 5] = vp1.elements[1];
-      vertex_positions[vtx_pos_idx+ 6] = vp1.elements[2];
-      vertex_positions[vtx_pos_idx+ 7] = vp1.elements[3];
+      vertex_positions[vtx_pos_idx+ 4] = vp1[0];
+      vertex_positions[vtx_pos_idx+ 5] = vp1[1];
+      vertex_positions[vtx_pos_idx+ 6] = vp1[2];
+      vertex_positions[vtx_pos_idx+ 7] = vp1[3];
 
-      vertex_positions[vtx_pos_idx+ 8] = vp2.elements[0];
-      vertex_positions[vtx_pos_idx+ 9] = vp2.elements[1];
-      vertex_positions[vtx_pos_idx+10] = vp2.elements[2];
-      vertex_positions[vtx_pos_idx+11] = vp2.elements[3];
-      vtx_pos_idx += 12;
+      vertex_positions[vtx_pos_idx+ 8] = vp2[0];
+      vertex_positions[vtx_pos_idx+ 9] = vp2[1];
+      vertex_positions[vtx_pos_idx+10] = vp2[2];
+      vertex_positions[vtx_pos_idx+11] = vp2[3];
+      vtx_pos_idx += 3*4;
 
-      var vt0 = v0.uv;
-      var vt1 = v1.uv;
-      var vt2 = v2.uv;
+      vertex_colours[vtx_col_idx + 0] = v0.color;
+      vertex_colours[vtx_col_idx + 1] = v1.color;
+      vertex_colours[vtx_col_idx + 2] = v2.color;
+      vtx_col_idx += 3*1;
 
-      vertex_coords[vtx_uv_idx+ 0] = vt0.elements[0];
-      vertex_coords[vtx_uv_idx+ 1] = vt0.elements[1];
+      var vt0 = v0.uv.elements;
+      var vt1 = v1.uv.elements;
+      var vt2 = v2.uv.elements;
 
-      vertex_coords[vtx_uv_idx+ 2] = vt1.elements[0];
-      vertex_coords[vtx_uv_idx+ 3] = vt1.elements[1];
+      vertex_coords[vtx_uv_idx+ 0] = vt0[0];
+      vertex_coords[vtx_uv_idx+ 1] = vt0[1];
 
-      vertex_coords[vtx_uv_idx+ 4] = vt2.elements[0];
-      vertex_coords[vtx_uv_idx+ 5] = vt2.elements[1];
-      vtx_uv_idx += 6;
+      vertex_coords[vtx_uv_idx+ 2] = vt1[0];
+      vertex_coords[vtx_uv_idx+ 3] = vt1[1];
 
+      vertex_coords[vtx_uv_idx+ 4] = vt2[0];
+      vertex_coords[vtx_uv_idx+ 5] = vt2[1];
+      vtx_uv_idx += 3*2;
+
+      tri_idx++;
       cmd0 = state.ram.getUint32( pc + 0 );
       cmd1 = state.ram.getUint32( pc + 4 );
       pc += 8;
-    } while ((cmd0>>>24) === kTri1 && vtx_pos_idx+12 < (kMaxVertBatch*4));
+    } while ((cmd0>>>24) === kTri1 && tri_idx < kMaxTris);
 
     state.pc = pc-8;
 
-    var program = (state.geometryMode & geometryModeFlags.G_TEXTURE_ENABLE) ? n64ShaderProgramTexture : n64ShaderProgramFill;
+    var program = getCurrentShaderProgram();
     gl.useProgram(program);
 
-    var vertexPositionAttribute = gl.getAttribLocation(program, "aVertexPosition");
+    var vertexPositionAttribute = gl.getAttribLocation(program,  "aVertexPosition");
+    var vertexColorAttribute    = gl.getAttribLocation(program,  "aVertexColor");
+    var texCoordAttribute       = gl.getAttribLocation(program,  "aTextureCoord");
+    var uSamplerUniform         = gl.getUniformLocation(program, "uSampler");
+    var uPrimColorUniform       = gl.getUniformLocation(program, "uPrimColor");
+    var uEnvColorUniform        = gl.getUniformLocation(program, "uEnvColor");
+    var uTexScaleUniform        = gl.getUniformLocation(program, "uTexScale");
+    var uTexOffsetUniform       = gl.getUniformLocation(program, "uTexOffset");
+
     gl.enableVertexAttribArray(vertexPositionAttribute);
     gl.bindBuffer(gl.ARRAY_BUFFER, n64PositionsBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, vertex_positions, gl.STATIC_DRAW);
     gl.vertexAttribPointer(vertexPositionAttribute, 4, gl.FLOAT, false, 0, 0);
+
+    gl.enableVertexAttribArray(vertexColorAttribute);
+    gl.bindBuffer(gl.ARRAY_BUFFER, n64ColorsBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, vertex_colours, gl.STATIC_DRAW);
+    gl.vertexAttribPointer(vertexColorAttribute, 4, gl.UNSIGNED_BYTE, true, 0, 0);
+
+    gl.enableVertexAttribArray(texCoordAttribute);
+    gl.bindBuffer(gl.ARRAY_BUFFER, n64UVBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, vertex_coords, gl.STATIC_DRAW);
+    gl.vertexAttribPointer(texCoordAttribute, 2, gl.FLOAT, false, 0, 0);
+
+    gl.uniform4f(uPrimColorUniform, ((state.primColor>>>24)&0xff)/255.0,  ((state.primColor>>>16)&0xff)/255.0, ((state.primColor>>> 8)&0xff)/255.0, ((state.primColor>>> 0)&0xff)/255.0 );
+    gl.uniform4f(uEnvColorUniform,  ((state.envColor >>>24)&0xff)/255.0,  ((state.envColor >>>16)&0xff)/255.0, ((state.envColor >>> 8)&0xff)/255.0, ((state.envColor >>> 0)&0xff)/255.0 );
+
 
     if (state.geometryMode & geometryModeFlags.G_TEXTURE_ENABLE) {
       var tile_idx     = state.texture.tile;
@@ -755,30 +798,14 @@ if (typeof n64js === 'undefined') {
           // uv_offset_v = mTileTop.y;
         }
 
-        var texCoordAttribute = gl.getAttribLocation(program,  "aTextureCoord");
-        var uSamplerUniform   = gl.getUniformLocation(program, "uSampler");
-        var uTexScaleUniform  = gl.getUniformLocation(program, "uTexScale");
-        var uTexOffsetUniform = gl.getUniformLocation(program, "uTexOffset");
-
-        gl.enableVertexAttribArray(texCoordAttribute);
-        gl.bindBuffer(gl.ARRAY_BUFFER, n64UVBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, vertex_coords, gl.STATIC_DRAW);
-        gl.vertexAttribPointer(texCoordAttribute, 2, gl.FLOAT, false, 0, 0);
 
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, textureinfo.texture);
-
         gl.uniform1i(uSamplerUniform, 0);
+
         gl.uniform2f(uTexScaleUniform,  uv_scale_u,  uv_scale_v );
         gl.uniform2f(uTexOffsetUniform, uv_offset_u, uv_offset_u );
       }
-    } else {
-      var texCoordAttribute = gl.getAttribLocation(program, "aTextureCoord");
-      var fillColorUniform  = gl.getUniformLocation(program, "uFillColor");
-
-      gl.disableVertexAttribArray(texCoordAttribute);
-
-      gl.uniform4f(fillColorUniform, 1.0, 0.0, Math.random(), 1.0);
     }
 
     // Disable depth testing
@@ -793,6 +820,9 @@ if (typeof n64js === 'undefined') {
     }
 
     gl.depthMask( zupd_rendermode );
+
+    // FIXME
+    gl.disable(gl.BLEND);
 
     if (state.geometryMode & geometryModeFlags.G_CULL_BOTH) {
       gl.enable(gl.CULL_FACE);
@@ -961,11 +991,11 @@ if (typeof n64js === 'undefined') {
     state.envColor = cmd1;
   }
 
-
   function executeSetCombine(cmd0,cmd1) {
     state.combine.hi = cmd0 & 0x00ffffff;
     state.combine.lo = cmd1;
   }
+
   function executeSetTImg(cmd0,cmd1) {
     state.textureImage = {
       format:   (cmd0>>>21)&0x7,
@@ -1725,7 +1755,7 @@ if (typeof n64js === 'undefined') {
 
   function initShaders(vs_name, fs_name) {
     var fragmentShader = getShader(gl, fs_name);
-    var vertexShader = getShader(gl, vs_name);
+    var vertexShader   = getShader(gl, vs_name);
 
     var program = gl.createProgram();
     gl.attachShader(program, vertexShader);
@@ -1740,13 +1770,30 @@ if (typeof n64js === 'undefined') {
   }
 
   function getShader(gl, id) {
-    var shaderScript, theSource, currentChild, shader;
+    var shaderScript, theSource, shader_type;
 
     shaderScript = document.getElementById(id);
 
     if (!shaderScript) {
         return null;
     }
+
+    theSource = getScriptNodeSource(shaderScript);
+
+    if (shaderScript.type === "x-shader/x-fragment") {
+      shader_type = gl.FRAGMENT_SHADER;
+    } else if (shaderScript.type === "x-shader/x-vertex") {
+      shader_type = gl.VERTEX_SHADER;
+    } else {
+       // Unknown shader type
+       return null;
+    }
+
+    return createShader(theSource, shader_type);
+  }
+
+  function getScriptNodeSource(shaderScript) {
+    var theSource, currentChild;
 
     theSource = "";
     currentChild = shaderScript.firstChild;
@@ -1759,18 +1806,15 @@ if (typeof n64js === 'undefined') {
       currentChild = currentChild.nextSibling;
     }
 
-    if (shaderScript.type == "x-shader/x-fragment") {
-      shader = gl.createShader(gl.FRAGMENT_SHADER);
-    } else if (shaderScript.type == "x-shader/x-vertex") {
-      shader = gl.createShader(gl.VERTEX_SHADER);
-    } else {
-       // Unknown shader type
-       return null;
-    }
+    return theSource;
+  }
+
+  // shader_type is 'gl.FRAGMENT_SHADER' or 'gl.VERTEX_SHADER'
+  function createShader(theSource, shader_type) {
+    var shader = gl.createShader(shader_type);
 
     gl.shaderSource(shader, theSource);
 
-    // Compile the shader program
     gl.compileShader(shader);
 
     // See if it compiled successfully
@@ -1786,8 +1830,8 @@ if (typeof n64js === 'undefined') {
   var fillShaderProgram;
   var fillVerticesBuffer;
   var n64ShaderProgramFill;
-  var n64ShaderProgramTexture;
   var n64PositionsBuffer;
+  var n64ColorsBuffer;
   var n64UVBuffer;
 
   function fillRect(x0,y0, x1,y1, color) {
@@ -2109,19 +2153,159 @@ if (typeof n64js === 'undefined') {
     if (gl) {
       gl.clearColor(0.0, 0.0, 0.0, 1.0);  // Clear to black, fully opaque
       gl.clearDepth(1.0);                 // Clear everything
-      gl.disable(gl.DEPTH_TEST);           // Enable depth testing
-      gl.depthFunc(gl.LINEAREQUAL);            // Near things obscure far things
+      gl.disable(gl.DEPTH_TEST);          // Enable depth testing
+      gl.disable(gl.BLEND);
+      gl.depthFunc(gl.LEQUAL);            // Near things obscure far things
 
       fillShaderProgram       = initShaders("fill-shader-vs", "fill-shader-fs");
       n64ShaderProgramFill    = initShaders( "n64-shader-fill-vs",  "n64-shader-fill-fs");
-      n64ShaderProgramTexture = initShaders( "n64-shader-tex-vs",   "n64-shader-tex-fs");
 
       fillVerticesBuffer = gl.createBuffer();
       n64PositionsBuffer = gl.createBuffer();
+      n64ColorsBuffer    = gl.createBuffer();
       n64UVBuffer        = gl.createBuffer();
 
       setCanvasViewport(canvas.clientWidth, canvas.clientHeight);
     }
+  }
+
+  var programs = {};
+
+  var fragmentSource = null;    // We patch in our shader instructions into this source.
+  var genericVertexShader = null;
+  function getCurrentShaderProgram() {
+
+    var mux0   = state.combine.hi;
+    var mux1   = state.combine.lo;
+    var cycles = getCycleType();
+
+    // Check if this shader already exists
+    var state_text = mux0.toString(16) + mux1.toString(16) + cycles;
+    var program = programs[state_text];
+    if (program) {
+      return program;
+    }
+
+    if (!genericVertexShader) {
+      genericVertexShader = getShader(gl, 'n64-shader-vs');
+    }
+
+    if (!fragmentSource) {
+      var fragmentScript = document.getElementById('n64-shader-fs');
+      if (fragmentScript) {
+        fragmentSource = getScriptNodeSource(fragmentScript);
+      }
+    }
+
+
+    var fragmentShader;
+    var theSource = fragmentSource;
+
+    //
+    var aRGB0  = (mux0>>>20)&0x0F; // c1 c1    // a0
+    var bRGB0  = (mux1>>>28)&0x0F; // c1 c2    // b0
+    var cRGB0  = (mux0>>>15)&0x1F; // c1 c3    // c0
+    var dRGB0  = (mux1>>>15)&0x07; // c1 c4    // d0
+
+    var aA0    = (mux0>>>12)&0x07; // c1 a1    // Aa0
+    var bA0    = (mux1>>>12)&0x07; // c1 a2    // Ab0
+    var cA0    = (mux0>>> 9)&0x07; // c1 a3    // Ac0
+    var dA0    = (mux1>>> 9)&0x07; // c1 a4    // Ad0
+
+    var aRGB1  = (mux0>>> 5)&0x0F; // c2 c1    // a1
+    var bRGB1  = (mux1>>>24)&0x0F; // c2 c2    // b1
+    var cRGB1  = (mux0>>> 0)&0x1F; // c2 c3    // c1
+    var dRGB1  = (mux1>>> 6)&0x07; // c2 c4    // d1
+
+    var aA1    = (mux1>>>21)&0x07; // c2 a1    // Aa1
+    var bA1    = (mux1>>> 3)&0x07; // c2 a2    // Ab1
+    var cA1    = (mux1>>>18)&0x07; // c2 a3    // Ac1
+    var dA1    = (mux1>>> 0)&0x07; // c2 a4    // Ad1
+
+ var rgbParams32 = [
+   'combined.rgb', 'tex0.rgb',
+   'tex1.rgb',     'prim.rgb',
+   'shade.rgb',    'env.rgb',
+   'one.rgb',  'combined.a',
+   'tex0.a',       'tex1.a',
+   'prim.a',       'shade.a',
+   'env.a',        'LOD_Frac',
+   'PrimLODFrac ', 'K5          ',
+   '?           ', '?           ',
+   '?           ', '?           ',
+   '?           ', '?           ',
+   '?           ', '?           ',
+   '?           ', '?           ',
+   '?           ', '?           ',
+   '?           ', '?           ',
+   '?           ', 'zero.rgb'
+ ];
+ var rgbParams16 = [
+   'combined.rgb', 'tex0.rgb',
+   'tex1.rgb',     'prim.rgb',
+   'shade.rgb',    'env.rgb',
+   'one.rgb',      'combined.a',
+   'tex0.a',       'tex1.a',
+   'prim.a',       'shade.a',
+   'env.a',        'LOD_Frac',
+   'PrimLOD_Frac', 'zero.rgb'
+ ];
+ var rgbParams8 = [
+   'combined.rgb', 'tex0.rgb',
+   'tex1.rgb',     'prim.rgb',
+   'shade.rgb',    'env.rgb',
+   'one.rgb',      'zero.rgb',
+ ];
+
+ var alphaParams8 = [
+   'combined.a', 'tex0.a',
+   'tex1.a',     'prim.a',
+   'shade.a',    'env.a',
+   'one.a',      'zero.a',
+ ];
+
+    // patch in instructions for this mux
+    if (cycles === cycleTypeValues.G_CYC_1CYCLE) {
+
+      //var foo = 'col.rgb = tex0.rgb;';
+      var foo = '';
+      foo += 'col.rgb = (' + rgbParams16 [aRGB0] + ' - ' + rgbParams16 [bRGB0] + ') * ' + rgbParams32 [cRGB0] + ' + ' + rgbParams8  [dRGB0] + ';\n';
+      foo += 'col.a = ('   + alphaParams8[  aA0] + ' - ' + alphaParams8[  bA0] + ') * ' + alphaParams8[  cA0] + ' + ' + alphaParams8[  dA0] + ';\n';
+      foo += 'vec4 combined = vec4(col.rgb, col.a);\n';
+
+      theSource = theSource.replace('{{body}}', foo);
+
+      if (0) {
+        var decoded = '';
+
+        decoded += '\n';
+        decoded += '\tRGB0 = (' + colcombine16[aRGB0] + ' - ' + colcombine16[bRGB0] + ') * ' + colcombine32[cRGB0] + ' + ' + colcombine8[dRGB0] + '\n';
+        decoded += '\t  A0 = (' + colcombine8 [  aA0] + ' - ' + colcombine8 [  bA0] + ') * ' + colcombine8 [  cA0] + ' + ' + colcombine8[  dA0] + '\n';
+
+        var m = theSource.split('\n').join('<br>');
+
+        n64js.halt('Compiled ' + decoded + '\nto\n' + m);
+      }
+
+    } else {
+      n64js.halt(getDefine(cycleTypeValues, cycles) + ' is not a supported cycle type');
+    }
+
+    fragmentShader = createShader(theSource, gl.FRAGMENT_SHADER);
+
+    var program = gl.createProgram();
+    gl.attachShader(program, genericVertexShader);
+    gl.attachShader(program, fragmentShader);
+    gl.linkProgram(program);
+
+    // If creating the shader program failed, alert
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+      alert("Unable to initialize the shader program.");
+    }
+
+    programs[state_text] = program;
+
+    return program;
   }
 
   var textures = {};

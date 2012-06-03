@@ -152,27 +152,44 @@
 
 
 
-    <script id="n64-shader-tex-vs" type="x-shader/x-vertex">
+    <script id="n64-shader-vs" type="x-shader/x-vertex">
       attribute vec4 aVertexPosition;
+      attribute vec4 aVertexColor;
       attribute vec2 aTextureCoord;
       //uniform mat4 uPMatrix;
       uniform vec2 uTexOffset;
       uniform vec2 uTexScale;
 
+      varying       vec4 vColor;
       varying highp vec2 vTextureCoord;
 
       void main(void) {
-        gl_Position = /*uPMatrix **/ aVertexPosition;
+        gl_Position   = /*uPMatrix **/ aVertexPosition;
+        vColor        = aVertexColor;
         vTextureCoord = (aTextureCoord - uTexOffset) * uTexScale;
       }
     </script>
-    <script id="n64-shader-tex-fs" type="x-shader/x-fragment">
+    <script id="n64-shader-fs" type="x-shader/x-fragment">
       precision mediump float;
+      varying       vec4 vColor;
       varying highp vec2 vTextureCoord;
       uniform sampler2D uSampler;
 
+      uniform       vec4 uPrimColor;
+      uniform       vec4 uEnvColor;
+
       void main(void) {
-        gl_FragColor = texture2D(uSampler, vec2(vTextureCoord.s, vTextureCoord.t));
+        vec4 shade = vColor;
+        vec4 prim  = uPrimColor;
+        vec4 env   = uEnvColor;
+        vec4 one   = vec4(1,1,1,1);
+        vec4 zero  = vec4(0,0,0,0);
+        vec4 tex0  = texture2D(uSampler, vec2(vTextureCoord.s, vTextureCoord.t));
+        vec4 tex1  = tex0;  // FIXME
+        vec4 col;
+        {{body}}
+        col.a = 1.0;  //FIXME
+        gl_FragColor = col;
       }
     </script>
 
