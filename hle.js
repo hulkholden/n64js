@@ -212,6 +212,10 @@ if (typeof n64js === 'undefined') {
     },
 
     fillColor:      0,
+    envColor:       0,
+    primColor:      0,
+    blendColor:     0,
+    fogColor:       0,
 
     colorImage: {
       format:   0,
@@ -941,10 +945,23 @@ if (typeof n64js === 'undefined') {
     state.fillColor = cmd1;
   }
 
-  function executeSetFogColor(cmd0,cmd1)          { unimplemented(cmd0,cmd1); }
-  function executeSetBlendColor(cmd0,cmd1)        { unimplemented(cmd0,cmd1); }
-  function executeSetPrimColor(cmd0,cmd1)         { unimplemented(cmd0,cmd1); }
-  function executeSetEnvColor(cmd0,cmd1)          { unimplemented(cmd0,cmd1); }
+  function executeSetFogColor(cmd0,cmd1) {
+    state.fogColor = cmd1;
+  }
+  function executeSetBlendColor(cmd0,cmd1) {
+    state.blendColor = cmd1;
+  }
+
+  function executeSetPrimColor(cmd0,cmd1) {
+    // minlevel, primlevel ignored!
+    state.primColor = cmd1;
+  }
+
+  function executeSetEnvColor(cmd0,cmd1) {
+    state.envColor = cmd1;
+  }
+
+
   function executeSetCombine(cmd0,cmd1) {
     state.combine.hi = cmd0 & 0x00ffffff;
     state.combine.lo = cmd1;
@@ -1399,7 +1416,7 @@ if (typeof n64js === 'undefined') {
   }
 
   function disassembleSetFillColor(cmd0,cmd1) {
-    return 'gsDPSetFillColor(' + n64js.toString32(cmd1) + ');';
+    return 'gsDPSetFillColor(' + n64js.toString32(cmd1) + ');';   // Can be 16 or 32 bit
   }
 
   function disassembleSetEnvColor(cmd0,cmd1) {
