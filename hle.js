@@ -727,7 +727,48 @@ if (typeof n64js === 'undefined') {
 
     state.pc = pc-8;
 
-    var program = getCurrentShaderProgram();
+    var cycle_type = getCycleType();
+    if (cycle_type < cycleTypeValues.G_CYC_COPY) {
+      var blend_mode = state.rdpOtherModeL >> G_MDSFT_BLENDER;
+      switch(blend_mode) {
+        //case 0x0044:        // ?
+        //case 0x0055:        // ?
+        case 0x0c08:          // In * 0 + In * 1 || :In * AIn + In * 1-A        Tarzan - Medalion in bottom part of the screen
+        //case 0x0c19:        // ?
+        case 0x0f0a:          // In * 0 + In * 1 || :In * 0 + In * 1            SSV - ??? and MM - Walls, Wipeout - Mountains
+        case 0x0fa5:          // In * 0 + Bl * AMem || :In * 0 + Bl * AMem      OOT Menu
+        //case 0x5f50:        // ?
+        case 0x8410:          // Bl * AFog + In * 1-A || :In * AIn + Mem * 1-A  Paper Mario Menu  
+        case 0xc302:          // Fog * AIn + In * 1-A || :In * 0 + In * 1       ISS64 - Ground
+        case 0xc702:          // Fog * AFog + In * 1-A || :In * 0 + In * 1      Donald Duck - Sky
+        //case 0xc811:        // ?
+        case 0xfa00:          // Fog * AShade + In * 1-A || :Fog * AShade + In * 1-A  F-Zero - Power Roads
+        //case 0x07c2:        // In * AFog + Fog * 1-A || In * 0 + In * 1       Conker - ??
+          gl.disable(gl.BLEND);
+          break;
+
+        //case 0x55f0:        // Mem * AFog + Fog * 1-A || :Mem * AFog + Fog * 1-A  Bust a Move 3 - ???
+        case 0x0150:          // In * AIn + Mem * 1-A || :In * AFog + Mem * 1-A   Spiderman - Waterfall Intro
+        case 0x0f5a:          // In * 0 + Mem * 1 || :In * 0 + Mem * 1            Starwars Racer
+        case 0x0010:          // In * AIn + In * 1-A || :In * AIn + Mem * 1-A     Hey You Pikachu - Shadow
+        case 0x0040:          // In * AIn + Mem * 1-A || :In * AIn + In * 1-A     Mario - Princess peach text
+        //case 0x0050:        // In * AIn + Mem * 1-A || :In * AIn + Mem * 1-A:   SSV - TV Screen and SM64 text
+        case 0x04d0:          // In * AFog + Fog * 1-A || In * AIn + Mem * 1-A    Conker's Eyes
+        case 0x0c18:          // In * 0 + In * 1 || :In * AIn + Mem * 1-A:        SSV - WaterFall and dust
+        case 0xc410:          // Fog * AFog + In * 1-A || :In * AIn + Mem * 1-A   Donald Duck - Stars
+        case 0xc810:          // Fog * AShade + In * 1-A || :In * AIn + Mem * 1-A SSV - Fog? and MM - Shadows
+        case 0xcb02:          // Fog * AShade + In * 1-A || :In * 0 + In * 1      Doom 64 - Weapons
+        default:
+          gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+          gl.blendEquation(gl.FUNC_ADD);
+          gl.enable(gl.BLEND);
+          break;
+      }
+    } else {
+      gl.disable(gl.BLEND);
+    }
+
+    var program = getCurrentShaderProgram(cycle_type);
     gl.useProgram(program);
 
     var vertexPositionAttribute = gl.getAttribLocation(program,  "aVertexPosition");
@@ -830,12 +871,11 @@ if (typeof n64js === 'undefined') {
 
     gl.depthMask( zupd_rendermode );
 
-    // FIXME
-    gl.disable(gl.BLEND);
+    //texture filter
 
     if (state.geometryMode & geometryModeFlags.G_CULL_BOTH) {
       gl.enable(gl.CULL_FACE);
-      var mode = (state.geometryMode & geometryModeFlags.G_CULL_FRONT) ? gl.GL_FRONT : gl.GL_BACK;
+      var mode = (state.geometryMode & geometryModeFlags.G_CULL_FRONT) ? gl.FRONT : gl.BACK;
       gl.cullFace(mode);
     } else {
       gl.disable(gl.CULL_FACE);
@@ -1871,6 +1911,7 @@ if (typeof n64js === 'undefined') {
     gl.disable(gl.DEPTH_TEST);
     gl.depthMask(false);
 
+    gl.disable(gl.BLEND);
 
     var pUniform = gl.getUniformLocation(fillShaderProgram, "uPMatrix");
     gl.uniformMatrix4fv(pUniform, false, new Float32Array(canvas2dMatrix.flatten()));
@@ -2182,14 +2223,13 @@ if (typeof n64js === 'undefined') {
 
   var fragmentSource = null;    // We patch in our shader instructions into this source.
   var genericVertexShader = null;
-  function getCurrentShaderProgram() {
+  function getCurrentShaderProgram(cycle_type) {
 
     var mux0   = state.combine.hi;
     var mux1   = state.combine.lo;
-    var cycles = getCycleType();
 
     // Check if this shader already exists
-    var state_text = mux0.toString(16) + mux1.toString(16) + cycles;
+    var state_text = mux0.toString(16) + mux1.toString(16) + cycle_type;
     var program = programs[state_text];
     if (program) {
       return program;
@@ -2274,7 +2314,7 @@ if (typeof n64js === 'undefined') {
  ];
 
     // patch in instructions for this mux
-    if (cycles === cycleTypeValues.G_CYC_1CYCLE) {
+    if (cycle_type === cycleTypeValues.G_CYC_1CYCLE) {
 
       //var foo = 'col.rgb = tex0.rgb;';
       var foo = '';
@@ -2297,7 +2337,7 @@ if (typeof n64js === 'undefined') {
       }
 
     } else {
-      n64js.halt(getDefine(cycleTypeValues, cycles) + ' is not a supported cycle type');
+      n64js.halt(getDefine(cycleTypeValues, cycle_type) + ' is not a supported cycle type');
     }
 
     fragmentShader = createShader(theSource, gl.FRAGMENT_SHADER);
