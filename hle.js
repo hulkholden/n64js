@@ -325,9 +325,9 @@ if (typeof n64js === 'undefined') {
 
   function makeRGBFromRGBA16(col) {
     return {
-      r: ((col>>>11)&0x1f)/63.0,
-      g: ((col>>> 6)&0x1f)/63.0,
-      b: ((col>>> 1)&0x1f)/63.0
+      r: ((col>>>11)&0x1f)/31.0,
+      g: ((col>>> 6)&0x1f)/31.0,
+      b: ((col>>> 1)&0x1f)/31.0
     };
   }
 
