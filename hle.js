@@ -10,8 +10,14 @@ if (typeof n64js === 'undefined') {
   var $textureOutput = $('#texture-content');
 
   var gl       = null;
+
+  // n64's display resolution
   var viWidth  = 320;
   var viHeight = 240;
+
+  // canvas dimension
+  var canvasWidth  = 640;
+  var canvasHeight = 480;
 
   var kOffset_type                = 0x00;    // u32
   var kOffset_flags               = 0x04;    // u32
@@ -243,7 +249,7 @@ if (typeof n64js === 'undefined') {
   var n64ToCanvasScale     = [ 1.0, 1.0 ];
   var n64ToCanvasTranslate = [ 0.0, 0.0 ];
 
-  var canvas2dMatrix = makeOrtho(0,320, 240,0, 0,1);
+  var canvas2dMatrix = makeOrtho(0,canvasWidth, canvasHeight,0, 0,1);
 
   function convertN64ToCanvas( n64_coords ) {
     return [
@@ -253,6 +259,9 @@ if (typeof n64js === 'undefined') {
   }
 
   function setCanvasViewport(w,h) {
+
+    canvasWidth  = w;
+    canvasHeight = h;
 
     n64ToCanvasScale     = [ w / viWidth, h / viHeight ];
     n64ToCanvasTranslate = [ 0, 0 ];
