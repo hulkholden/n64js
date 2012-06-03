@@ -59,6 +59,7 @@
               <li><a href="#debug-content" id="debug-tab" data-toggle="tab">Debug</a></li>
               <li><a href="#memory-content" id="memory-tab" data-toggle="tab">Memory</a></li>
               <li><a href="#dlist-content" id="dlist-tab" data-toggle="tab">DisplayList</a></li>
+              <li><a href="#texture-content" id="texture-tab" data-toggle="tab">Textures</a></li>
             </ul>
             <div class="tab-content">
               <div class="tab-pane active" id="rominfo-content"></div>
@@ -83,6 +84,7 @@
               </div>
               <div class="tab-pane" id="memory-content"></div>
               <div class="tab-pane" id="dlist-content"></div>
+              <div class="tab-pane" id="texture-content"></div>
             </div>
           </div>
 
@@ -130,7 +132,7 @@
 
 
 
-    <script id="n64-shader-vs" type="x-shader/x-vertex">
+    <script id="n64-shader-fill-vs" type="x-shader/x-vertex">
       attribute vec4 aVertexPosition;
 
       //uniform mat4 uPMatrix;
@@ -139,12 +141,38 @@
         gl_Position = /*uPMatrix **/ aVertexPosition;
       }
     </script>
-    <script id="n64-shader-fs" type="x-shader/x-fragment">
+    <script id="n64-shader-fill-fs" type="x-shader/x-fragment">
       precision mediump float;
       uniform vec4 uFillColor;
 
       void main(void) {
         gl_FragColor = uFillColor;
+      }
+    </script>
+
+
+
+    <script id="n64-shader-tex-vs" type="x-shader/x-vertex">
+      attribute vec4 aVertexPosition;
+      attribute vec2 aTextureCoord;
+      //uniform mat4 uPMatrix;
+      uniform vec2 uTexOffset;
+      uniform vec2 uTexScale;
+
+      varying highp vec2 vTextureCoord;
+
+      void main(void) {
+        gl_Position = /*uPMatrix **/ aVertexPosition;
+        vTextureCoord = (aTextureCoord - uTexOffset) * uTexScale;
+      }
+    </script>
+    <script id="n64-shader-tex-fs" type="x-shader/x-fragment">
+      precision mediump float;
+      varying highp vec2 vTextureCoord;
+      uniform sampler2D uSampler;
+
+      void main(void) {
+        gl_FragColor = texture2D(uSampler, vec2(vTextureCoord.s, vTextureCoord.t));
       }
     </script>
 

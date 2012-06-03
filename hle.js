@@ -7,6 +7,7 @@ if (typeof n64js === 'undefined') {
   var graphics_task_count = 0;
 
   var $dlistOutput = $('#dlist-content');
+  var $textureOutput = $('#texture-content');
 
   var gl       = null;
   var viWidth  = 320;
@@ -171,6 +172,7 @@ if (typeof n64js === 'undefined') {
     pc:             0,
     dlistStack:     [],
     segments:       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    tiles:          new Array(8),
     geometryMode:   0,
     rdpOtherModeL:  0,
     rdpOtherModeH:  0,
@@ -200,7 +202,6 @@ if (typeof n64js === 'undefined') {
     texture: {
       tile:         0,
       level:        0,
-      enable:       0,
       scaleS:       1.0,
       scaleT:       1.0,
     },
@@ -219,9 +220,18 @@ if (typeof n64js === 'undefined') {
       address:  0
     },
 
+    textureImage: {
+      format:   0,
+      size:     0,
+      width:    0,
+      address:  0
+    },
+
     depthImage: {
       address:  0
     },
+
+    tmemLoadMap: new Array(4096),   // Map keeping track of what's been loaded to each tmem address
 
     screenContext2d: null   // canvas context
   };
@@ -293,6 +303,19 @@ if (typeof n64js === 'undefined') {
     }
 
     return Matrix.create(elements);
+  }
+
+  function getTextureDimension(ul, lr, mask) {
+    var dim = ((lr - ul) / 4) + 1;
+    return mask ? Math.min( 1 << mask, dim ) : dim;
+  }
+
+  function nextPow2(x) {
+    var y = 1;
+    while(y < x)
+      y *= 2;
+
+    return y;
   }
 
   function rdpSegmentAddress(addr) {
@@ -483,7 +506,10 @@ if (typeof n64js === 'undefined') {
     //var length  = (cmd0>>> 0)&0xffff;
     var address = rdpSegmentAddress(cmd1);
 
-    var light = state.geometryMode & geometryModeFlags.G_LIGHTING;
+    var light     = state.geometryMode & geometryModeFlags.G_LIGHTING;
+    var texgen    = state.geometryMode & geometryModeFlags.G_TEXTURE_GEN;
+    var texgenlin = state.geometryMode & geometryModeFlags.G_TEXTURE_GEN_LINEAR;
+
 
     if (v0+n >= 64) {
       n64js.halt('Too many verts');
@@ -497,19 +523,26 @@ if (typeof n64js === 'undefined') {
 
     var wvp = pmtx.multiply(mvmtx);
 
-    //var pUniform  = gl.getUniformLocation(n64ShaderProgram, "uPMatrix");
-    //gl.uniformMatrix4fv(pUniform,  false, new Float32Array(pmtx.flatten()));
+    var scale_s = state.texture.scaleS;
+    var scale_t = state.texture.scaleT;
 
     for (var i = 0; i < n; ++i) {
       var vtx_base = (v0+i)*16;
+      var vertex = state.projectedVertices[v0+i];
+
       var x = dv.getInt16(vtx_base + 0);
       var y = dv.getInt16(vtx_base + 2);
       var z = dv.getInt16(vtx_base + 4);
+      //var - = dv.getInt16(vtx_base + 6);
+      var u = dv.getInt16(vtx_base + 8);
+      var v = dv.getInt16(vtx_base + 10);
+      //var rgba = dv.getUint32(vtx_base + 10);
+      //var norm = dv.getUint32(vtx_base + 10);
 
-      var v = Vector.create([x,y,z,1]);
 
-      var projected = wvp.x(v);
-      state.projectedVertices[v0+i].pos = projected;
+      var xyz       = Vector.create([x,y,z,1]);
+      var projected = wvp.multiply(xyz);
+      vertex.pos    = projected;
 
       //n64js.halt( x + ',' + y + ',' + z + '-&gt;' + projected.elements[0] + ',' + projected.elements[1] + ',' + projected.elements[2] );
 
@@ -524,9 +557,19 @@ if (typeof n64js === 'undefined') {
       // else if (projected[2] >  projected[3]) clip_flags |= Z_NEG;
       // state.projectedVertices.clipFlags = clip_flags;
 
-      // if (light) {
+      if (light) {
+        if (texgen) {
+          if (texgenlin) {
 
-      // }
+          } else {
+
+          }
+        } else {
+          vertex.uv = Vector.create([u * scale_s, v * scale_t]);
+        }
+      } else {
+        vertex.uv = Vector.create([u * scale_s, v * scale_t]);
+      }
 
       //var flag = dv.getUint16(vtx_base + 6);
 
@@ -574,11 +617,16 @@ if (typeof n64js === 'undefined') {
 
   function executeTexture(cmd0,cmd1) {
     //var xparam  =  (cmd0>>>16)&0xff;
-    state.level   =  (cmd0>>>11)&0x3;
-    state.tile    =  (cmd0>>> 8)&0x7;
-    state.enable  =  (cmd0>>> 0)&0xff;
-    state.scaleS  = ((cmd1>>>16)&0xffff) / (65535.0 * 32.0);
-    state.scaleT  = ((cmd1>>> 0)&0xffff) / (65535.0 * 32.0);
+    state.texture.level  =  (cmd0>>>11)&0x3;
+    state.texture.tile   =  (cmd0>>> 8)&0x7;
+    var enable           =  (cmd0>>> 0)&0xff;
+    state.texture.scaleS = ((cmd1>>>16)&0xffff) / (65535.0 * 32.0);
+    state.texture.scaleT = ((cmd1>>> 0)&0xffff) / (65535.0 * 32.0);
+
+    if (enable)
+      state.geometryMode |=  geometryModeFlags.G_TEXTURE_ENABLE;
+    else
+      state.geometryMode &= ~geometryModeFlags.G_TEXTURE_ENABLE;
   }
 
   function executeCullDL(cmd0,cmd1)               { unimplemented(cmd0,cmd1); }
@@ -587,13 +635,11 @@ if (typeof n64js === 'undefined') {
 
     var kTri1 = 0xbf;
 
-    gl.useProgram(n64ShaderProgram);
-    var vertexPositionAttribute = gl.getAttribLocation(n64ShaderProgram, "aVertexPosition");
-    gl.enableVertexAttribArray(vertexPositionAttribute);
-
     var kMaxVertBatch = 1024;
-    var vertices = new Float32Array(kMaxVertBatch);
-    var vtx_idx = 0;
+    var vertex_positions = new Float32Array(kMaxVertBatch*4);
+    var vertex_coords    = new Float32Array(kMaxVertBatch*2);
+    var vtx_pos_idx = 0;
+    var vtx_uv_idx = 0;
 
     var pc = state.pc;
     do {
@@ -602,49 +648,158 @@ if (typeof n64js === 'undefined') {
       var v1_idx = ((cmd1>>> 8)&0xff)/config.vertexStride;
       var v2_idx = ((cmd1>>> 0)&0xff)/config.vertexStride;
 
-      var v0 = state.projectedVertices[v0_idx].pos;
-      var v1 = state.projectedVertices[v1_idx].pos;
-      var v2 = state.projectedVertices[v2_idx].pos;
+      var v0 = state.projectedVertices[v0_idx];
+      var v1 = state.projectedVertices[v1_idx];
+      var v2 = state.projectedVertices[v2_idx];
 
-      vertices[vtx_idx+ 0] = v0.elements[0];
-      vertices[vtx_idx+ 1] = v0.elements[1];
-      vertices[vtx_idx+ 2] = v0.elements[2];
-      vertices[vtx_idx+ 3] = v0.elements[3];
+      var vp0 = v0.pos;
+      var vp1 = v1.pos;
+      var vp2 = v2.pos;
 
-      vertices[vtx_idx+ 4] = v1.elements[0];
-      vertices[vtx_idx+ 5] = v1.elements[1];
-      vertices[vtx_idx+ 6] = v1.elements[2];
-      vertices[vtx_idx+ 7] = v1.elements[3];
+      vertex_positions[vtx_pos_idx+ 0] = vp0.elements[0];
+      vertex_positions[vtx_pos_idx+ 1] = vp0.elements[1];
+      vertex_positions[vtx_pos_idx+ 2] = vp0.elements[2];
+      vertex_positions[vtx_pos_idx+ 3] = vp0.elements[3];
 
-      vertices[vtx_idx+ 8] = v2.elements[0];
-      vertices[vtx_idx+ 9] = v2.elements[1];
-      vertices[vtx_idx+10] = v2.elements[2];
-      vertices[vtx_idx+11] = v2.elements[3];
+      vertex_positions[vtx_pos_idx+ 4] = vp1.elements[0];
+      vertex_positions[vtx_pos_idx+ 5] = vp1.elements[1];
+      vertex_positions[vtx_pos_idx+ 6] = vp1.elements[2];
+      vertex_positions[vtx_pos_idx+ 7] = vp1.elements[3];
 
-      vtx_idx += 12;
+      vertex_positions[vtx_pos_idx+ 8] = vp2.elements[0];
+      vertex_positions[vtx_pos_idx+ 9] = vp2.elements[1];
+      vertex_positions[vtx_pos_idx+10] = vp2.elements[2];
+      vertex_positions[vtx_pos_idx+11] = vp2.elements[3];
+      vtx_pos_idx += 12;
+
+      var vt0 = v0.uv;
+      var vt1 = v1.uv;
+      var vt2 = v2.uv;
+
+      vertex_coords[vtx_uv_idx+ 0] = vt0.elements[0];
+      vertex_coords[vtx_uv_idx+ 1] = vt0.elements[1];
+
+      vertex_coords[vtx_uv_idx+ 2] = vt1.elements[0];
+      vertex_coords[vtx_uv_idx+ 3] = vt1.elements[1];
+
+      vertex_coords[vtx_uv_idx+ 4] = vt2.elements[0];
+      vertex_coords[vtx_uv_idx+ 5] = vt2.elements[1];
+      vtx_uv_idx += 6;
 
       cmd0 = state.ram.getUint32( pc + 0 );
       cmd1 = state.ram.getUint32( pc + 4 );
       pc += 8;
-    } while ((cmd0>>>24) === kTri1 && vtx_idx+12 < kMaxVertBatch);
+    } while ((cmd0>>>24) === kTri1 && vtx_pos_idx+12 < (kMaxVertBatch*4));
 
     state.pc = pc-8;
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, n64VerticesBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+    var program = (state.geometryMode & geometryModeFlags.G_TEXTURE_ENABLE) ? n64ShaderProgramTexture : n64ShaderProgramFill;
+    gl.useProgram(program);
+
+    var vertexPositionAttribute = gl.getAttribLocation(program, "aVertexPosition");
+    gl.enableVertexAttribArray(vertexPositionAttribute);
+    gl.bindBuffer(gl.ARRAY_BUFFER, n64PositionsBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, vertex_positions, gl.STATIC_DRAW);
     gl.vertexAttribPointer(vertexPositionAttribute, 4, gl.FLOAT, false, 0, 0);
 
-    var fillColorUniform = gl.getUniformLocation(n64ShaderProgram, "uFillColor");
-    gl.uniform4f(fillColorUniform, 1.0, 0.0, 1.0, 1.0);
+    if (state.geometryMode & geometryModeFlags.G_TEXTURE_ENABLE) {
+      var tile_idx     = state.texture.tile;
+      var tile         = state.tiles[tile_idx];
+      var tmem_address = tile.tmem;
+
+      if (state.tmemLoadMap.hasOwnProperty(tmem_address)) {
+        var load_details = state.tmemLoadMap[tmem_address];
+        var pitch = load_details.pitch;
+
+        // If loaded via LoadBlock, the pitch isn't set and is deterined via tile.line
+        if (pitch == 0xffffffff) {
+          if (tile.size === imageSizeTypes.G_IM_SIZ_32b)
+            pitch = tile.line << 4;
+          else
+            pitch = tile.line << 3;
+        }
+
+        var width  = getTextureDimension( tile.uls, tile.lrs, tile.mask_s );
+        var height = getTextureDimension( tile.ult, tile.lrt, tile.mask_t );
+
+        var textureinfo = loadTexture({
+          'tmem':    tile.tmem,
+          'palette': tile.palette,
+          'address': load_details.address,
+          'format':  tile.format,
+          'size':    tile.size,
+          'width':   width,
+          'height':  height,
+          'pitch':   pitch,
+          //'tlutfmt': ?
+          'swapped': load_details.swapped,
+          'cm_s':    tile.cm_s,
+          'cm_t':    tile.cm_t,
+          'mask_s':  tile.mask_s,
+          'mask_t':  tile.mask_t,
+        });
+
+        var uv_offset_u = 0;
+        var uv_offset_v = 0;
+        var uv_scale_u = 1;
+        var uv_scale_v = 1;
+
+        if ((state.geometryMode & (geometryModeFlags.G_LIGHTING|geometryModeFlags.G_TEXTURE_GEN)) !== (geometryModeFlags.G_LIGHTING|geometryModeFlags.G_TEXTURE_GEN)) {
+          uv_scale_u = 1.0 / nextPow2(width);
+          uv_scale_v = 1.0 / nextPow2(height);
+          // uv_offset_u = mTileTop.x;  // FIXME
+          // uv_offset_v = mTileTop.y;
+        }
+
+        var texCoordAttribute = gl.getAttribLocation(program,  "aTextureCoord");
+        var uSamplerUniform   = gl.getUniformLocation(program, "uSampler");
+        var uTexScaleUniform  = gl.getUniformLocation(program, "uTexScale");
+        var uTexOffsetUniform = gl.getUniformLocation(program, "uTexOffset");
+
+        gl.enableVertexAttribArray(texCoordAttribute);
+        gl.bindBuffer(gl.ARRAY_BUFFER, n64UVBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, vertex_coords, gl.STATIC_DRAW);
+        gl.vertexAttribPointer(texCoordAttribute, 2, gl.FLOAT, false, 0, 0);
+
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, textureinfo.texture);
+
+        gl.uniform1i(uSamplerUniform, 0);
+        gl.uniform2f(uTexScaleUniform,  uv_scale_u,  uv_scale_v );
+        gl.uniform2f(uTexOffsetUniform, uv_offset_u, uv_offset_u );
+      }
+    } else {
+      var texCoordAttribute = gl.getAttribLocation(program, "aTextureCoord");
+      var fillColorUniform  = gl.getUniformLocation(program, "uFillColor");
+
+      gl.disableVertexAttribArray(texCoordAttribute);
+
+      gl.uniform4f(fillColorUniform, 1.0, 0.0, Math.random(), 1.0);
+    }
 
     // Disable depth testing
-    gl.disable(gl.DEPTH_TEST);
+    var zgeom_mode      = (state.geometryMode  & geometryModeFlags.G_ZBUFFER) !== 0;
+    var zcmp_rendermode = (state.rdpOtherModeL & renderModeFlags.Z_CMP) !== 0;
+    var zupd_rendermode = (state.rdpOtherModeL & renderModeFlags.Z_UPD) !== 0;
 
-    //var pUniform = gl.getUniformLocation(n64ShaderProgram, "uPMatrix");
-    //gl.uniformMatrix4fv(pUniform, false, new Float32Array(Matrix.I(4).flatten()));
+    if ((zgeom_mode && zcmp_rendermode) || zupd_rendermode) {
+      gl.enable(gl.DEPTH_TEST);
+    } else {
+      gl.disable(gl.DEPTH_TEST);
+    }
 
-    //gl.drawArrays(gl.TRIANGLES, 0, 3);
-    gl.drawArrays(gl.LINE_STRIP, 0, vtx_idx/4);
+    gl.depthMask( zupd_rendermode );
+
+    if (state.geometryMode & geometryModeFlags.G_CULL_BOTH) {
+      gl.enable(gl.CULL_FACE);
+      var mode = (state.geometryMode & geometryModeFlags.G_CULL_FRONT) ? gl.GL_FRONT : gl.GL_BACK;
+      gl.cullFace(mode);
+    } else {
+      gl.disable(gl.CULL_FACE);
+    }
+
+    gl.drawArrays(gl.TRIANGLES, 0, vtx_pos_idx/4);
+    //gl.drawArrays(gl.LINE_STRIP, 0, vtx_pos_idx/4);
   }
 
   function executeTriRSP(cmd0,cmd1)               { unimplemented(cmd0,cmd1); }
@@ -667,10 +822,78 @@ if (typeof n64js === 'undefined') {
   function executeSetPrimDepth(cmd0,cmd1)         { unimplemented(cmd0,cmd1); }
   function executeSetRDPOtherMode(cmd0,cmd1)      { unimplemented(cmd0,cmd1); }
   function executeLoadTLut(cmd0,cmd1)             { unimplemented(cmd0,cmd1); }
-  function executeSetTileSize(cmd0,cmd1)          { unimplemented(cmd0,cmd1); }
-  function executeLoadBlock(cmd0,cmd1)            { unimplemented(cmd0,cmd1); }
-  function executeLoadTile(cmd0,cmd1)             { unimplemented(cmd0,cmd1); }
-  function executeSetTile(cmd0,cmd1)              { unimplemented(cmd0,cmd1); }
+
+  function calcTextureAddress(uls, ult) {
+    return state.textureImage.address + ult * (state.textureImage.width << state.textureImage.size >>> 1) + (uls << state.textureImage.size >>> 1);
+  }
+
+  function executeLoadBlock(cmd0,cmd1) {
+    var uls      = (cmd0>>>12)&0xfff;
+    var ult      = (cmd0>>> 0)&0xfff;
+    var tile_idx = (cmd1>>>24)&0x7;
+    //var lrs    = (cmd1>>>12)&0xfff;
+    var dxt      = (cmd1>>> 0)&0xfff;
+
+    var tile         = state.tiles[tile_idx];
+    var tmem_address = tile.tmem || 0;
+
+    state.tmemLoadMap[tmem_address] = {
+      address:    calcTextureAddress(uls, ult),
+      pitch:      0xffffffff,
+      swapped:    (dxt == 0)
+    };
+
+    // invalidate all textures
+  }
+
+  function executeLoadTile(cmd0,cmd1) {
+    var uls      = (cmd0>>>12)&0xfff;
+    var ult      = (cmd0>>> 0)&0xfff;
+    var tile_idx = (cmd1>>>24)&0x7;
+    //var lrs    = (cmd1>>>12)&0xfff;
+    //var lrt    = (cmd1>>> 0)&0xfff;
+
+    var tile         = state.tiles[tile_idx];
+    var tmem_address = tile.tmem || 0;
+
+    state.tmemLoadMap[tmem_address] = {
+      address:    calcTextureAddress(uls >>> 2, ult >>> 2),
+      pitch:      state.textureImage.pitch,
+      swapped:    false
+    };
+
+    // invalidate all textures
+  }
+
+  function executeSetTile(cmd0,cmd1) {
+    var tile_idx = (cmd1>>>24)&0x7;
+
+    var tile = state.tiles[tile_idx];
+
+    tile.format   = (cmd0>>>21)&0x7;
+    tile.size     = (cmd0>>>19)&0x3;
+    tile.line     = (cmd0>>> 9)&0x1ff;
+    tile.tmem     = (cmd0>>> 0)&0x1ff;
+    tile.palette  = (cmd1>>>20)&0xf;
+    tile.cm_t     = (cmd1>>>18)&0x3;
+    tile.mask_t   = (cmd1>>>14)&0xf;
+    tile.shift_t  = (cmd1>>>10)&0xf;
+    tile.cm_s     = (cmd1>>> 8)&0x3;
+    tile.mask_s   = (cmd1>>> 4)&0xf;
+    tile.shift_s  = (cmd1>>> 0)&0xf;
+  }
+
+  function executeSetTileSize(cmd0,cmd1) {
+    var tile_idx = (cmd1>>>24)&0x7;
+
+    var tile = state.tiles[tile_idx];
+
+    tile.uls = (cmd0>>>12)&0xfff;
+    tile.ult = (cmd0>>> 0)&0xfff;
+    tile.lrs = (cmd1>>>12)&0xfff;
+    tile.lrt = (cmd1>>> 0)&0xfff;
+  }
+
   function executeFillRect(cmd0,cmd1) {
 
     // NB: fraction is ignored
@@ -726,7 +949,15 @@ if (typeof n64js === 'undefined') {
     state.combine.hi = cmd0 & 0x00ffffff;
     state.combine.lo = cmd1;
   }
-  function executeSetTImg(cmd0,cmd1)              { unimplemented(cmd0,cmd1); }
+  function executeSetTImg(cmd0,cmd1) {
+    state.textureImage = {
+      format:   (cmd0>>>21)&0x7,
+      size:     (cmd0>>>19)&0x3,
+      width:   ((cmd0>>> 0)&0xfff)+1,
+      address:   rdpSegmentAddress(cmd1)
+    };
+  }
+
   function executeSetZImg(cmd0,cmd1) {
     state.depthImage.address = rdpSegmentAddress(cmd1);
   }
@@ -1152,19 +1383,19 @@ if (typeof n64js === 'undefined') {
   };
 
   function disassembleSetColorImage(cmd0,cmd1) {
-    var fmt   =  (cmd0>>>21)&0x7;
-    var siz   =  (cmd0>>>19)&0x3;
-    var width = ((cmd0>>> 0)&0xfff)+1;
-    return 'gsDPSetColorImage(' + getDefine(imageFormatTypes, fmt) + ', ' + getDefine(imageSizeTypes, siz) + ', ' + width + ', ' + n64js.toString32(cmd1) + ');';
+    var format =  (cmd0>>>21)&0x7;
+    var size   =  (cmd0>>>19)&0x3;
+    var width  = ((cmd0>>> 0)&0xfff)+1;
+    return 'gsDPSetColorImage(' + getDefine(imageFormatTypes, format) + ', ' + getDefine(imageSizeTypes, size) + ', ' + width + ', ' + n64js.toString32(cmd1) + ');';
   }
   function disassembleSetDepthImage(cmd0,cmd1) {
     return 'gsDPSetDepthImage(' + n64js.toString32(cmd1) + ');';
   }
   function disassembleSetTextureImage(cmd0,cmd1) {
-    var fmt   =  (cmd0>>>21)&0x7;
-    var siz   =  (cmd0>>>19)&0x3;
-    var width = ((cmd0>>> 0)&0xfff)+1;
-    return 'gsDPSetTextureImage(' + getDefine(imageFormatTypes, fmt) + ', ' + getDefine(imageSizeTypes, siz) + ', ' + width + ', ' + n64js.toString32(cmd1) + ');';
+    var format =  (cmd0>>>21)&0x7;
+    var size   =  (cmd0>>>19)&0x3;
+    var width  = ((cmd0>>> 0)&0xfff)+1;
+    return 'gsDPSetTextureImage(' + getDefine(imageFormatTypes, format) + ', ' + getDefine(imageSizeTypes, size) + ', ' + width + ', ' + n64js.toString32(cmd1) + ');';
   }
 
   function disassembleSetFillColor(cmd0,cmd1) {
@@ -1221,8 +1452,8 @@ if (typeof n64js === 'undefined') {
 
 
   function disassembleSetTile(cmd0,cmd1) {
-    var fmt      = (cmd0>>>21)&0x7;
-    var siz      = (cmd0>>>19)&0x3;
+    var format   = (cmd0>>>21)&0x7;
+    var size     = (cmd0>>>19)&0x3;
     //var pad0   = (cmd0>>>18)&0x1;
     var line     = (cmd0>>> 9)&0x1ff;
     var tmem     = (cmd0>>> 0)&0x1ff;
@@ -1246,7 +1477,7 @@ if (typeof n64js === 'undefined') {
     if (tile_idx === G_TX_LOADTILE)   tile_text = 'G_TX_LOADTILE';
     if (tile_idx === G_TX_RENDERTILE) tile_text = 'G_TX_RENDERTILE';
 
-    return 'gsDPSetTile(' + getDefine(imageFormatTypes, fmt) + ', ' + getDefine(imageSizeTypes, siz) + ', ' +
+    return 'gsDPSetTile(' + getDefine(imageFormatTypes, format) + ', ' + getDefine(imageSizeTypes, size) + ', ' +
      line + ', ' + tmem + ', ' + tile_text + ', ' + palette + ', ' +
      cm_t_text + ', ' + mask_t + ', ' + shift_t + ', ' +
      cm_s_text + ', ' + mask_s + ', ' + shift_s + ');';
@@ -1464,9 +1695,10 @@ if (typeof n64js === 'undefined') {
 
   var fillShaderProgram;
   var fillVerticesBuffer;
-  var n64ShaderProgram;
-  var n64VerticesBuffer;
-
+  var n64ShaderProgramFill;
+  var n64ShaderProgramTexture;
+  var n64PositionsBuffer;
+  var n64UVBuffer;
 
   function fillRect(x0,y0, x1,y1, color) {
     gl.useProgram(fillShaderProgram);
@@ -1494,6 +1726,8 @@ if (typeof n64js === 'undefined') {
 
     // Disable depth testing
     gl.disable(gl.DEPTH_TEST);
+    gl.depthMask(false);
+
 
     var pUniform = gl.getUniformLocation(fillShaderProgram, "uPMatrix");
     gl.uniformMatrix4fv(pUniform, false, new Float32Array(canvas2dMatrix.flatten()));
@@ -1531,8 +1765,12 @@ if (typeof n64js === 'undefined') {
 
     state.pc = data_ptr;
     state.dlistStack = [];
-    for (var i = 0; i < state.segments; ++i) {
+    for (var i = 0; i < state.segments.length; ++i) {
       state.segments[i] = 0;
+    }
+
+    for (var i = 0; i < state.tiles.length; ++i) {
+      state.tiles[i] = {};
     }
 
     for (var i = 0; i < state.projectedVertices.length; ++i) {
@@ -1781,18 +2019,217 @@ if (typeof n64js === 'undefined') {
     if (gl) {
       gl.clearColor(0.0, 0.0, 0.0, 1.0);  // Clear to black, fully opaque
       gl.clearDepth(1.0);                 // Clear everything
-      gl.enable(gl.DEPTH_TEST);           // Enable depth testing
-      gl.depthFunc(gl.LEQUAL);            // Near things obscure far things
+      gl.disable(gl.DEPTH_TEST);           // Enable depth testing
+      gl.depthFunc(gl.LINEAREQUAL);            // Near things obscure far things
 
-      fillShaderProgram = initShaders("fill-shader-vs", "fill-shader-fs");
-      n64ShaderProgram  = initShaders( "n64-shader-vs",  "n64-shader-fs");
+      fillShaderProgram       = initShaders("fill-shader-vs", "fill-shader-fs");
+      n64ShaderProgramFill    = initShaders( "n64-shader-fill-vs",  "n64-shader-fill-fs");
+      n64ShaderProgramTexture = initShaders( "n64-shader-tex-vs",   "n64-shader-tex-fs");
 
       fillVerticesBuffer = gl.createBuffer();
-      n64VerticesBuffer  = gl.createBuffer();
+      n64PositionsBuffer = gl.createBuffer();
+      n64UVBuffer        = gl.createBuffer();
 
       setCanvasViewport(canvas.clientWidth, canvas.clientHeight);
     }
+  }
 
+  var textures = {};
+  function loadTexture(info) {
+    // FIXME: need to check other properties, and recreate every frame (or when underlying data changes)
+    if (textures.hasOwnProperty(info.address))
+      return textures[info.address];
+
+    var width   = info.width;
+    var height  = info.height;
+    var address = info.address;
+    var pitch   = info.pitch;
+
+    var fixed_w = nextPow2(width);
+    var fixed_h = nextPow2(height);
+
+    var $canvas = $( '<canvas width="' + fixed_w + '" height="' + fixed_h + '" />', {'width':fixed_w, 'height':fixed_h} );
+    if (!$canvas[0].getContext)
+      return null;
+
+    var texture = gl.createTexture();
+
+    var textureinfo = {
+      'canvas':   $canvas,
+      'texture':  texture
+    };
+
+    textures[info.address] = textureinfo;
+
+    $textureOutput.append(n64js.toString32(info.address) + ', ' +
+      getDefine(imageFormatTypes, info.format) + ', ' +
+      getDefine(imageSizeTypes, info.size) + ',' +
+      info.width + 'x' + info.height + ', ' +
+      'pitch=' + info.pitch + '<br>');
+
+    //var mode_s = (info.cm_s === G_TX_CLAMP || (info.mask_s === 0)) ? GU_CLAMP : GU_REPEAT;
+    //var mode_t = (info.cm_t === G_TX_CLAMP || (info.mask_t === 0)) ? GU_CLAMP : GU_REPEAT;
+
+    var handled = false;
+
+    var ctx      = $canvas[0].getContext('2d');
+    var img_data = ctx.createImageData(fixed_w, fixed_h);
+
+    switch (info.format) {
+      case imageFormatTypes.G_IM_FMT_RGBA:
+        switch (info.size) {
+          case imageSizeTypes.G_IM_SIZ_32b:
+            break;
+          case imageSizeTypes.G_IM_SIZ_16b:
+            convertRGBA16(img_data, address, width, height, pitch);
+            handled = true;
+            break;
+        }
+        break;
+
+      case imageFormatTypes.G_IM_FMT_IA:
+        switch (info.size) {
+        case imageSizeTypes.G_IM_SIZ_8b:
+          convertIA8(img_data, address, width, height, pitch);
+          handled = true;
+          break;
+        }
+        break;
+
+      default:
+        break;
+    }
+
+    if (handled) {
+      ctx.putImageData(img_data, 0, 0);
+
+     $textureOutput.append($canvas);
+     $textureOutput.append('<br>');
+    } else {
+      $textureOutput.append(getDefine(imageFormatTypes, info.format) + '/' + getDefine(imageSizeTypes, info.size) + ' is unhandled');
+      // FIXME: fill with placeholder texture
+      n64js.halt('texture');
+    }
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, $canvas[0]);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
+    gl.generateMipmap(gl.TEXTURE_2D);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+
+    return textureinfo;
+  }
+
+  var FourToEight =
+  [
+    0x00, 0x11, 0x22, 0x33,
+    0x44, 0x55, 0x66, 0x77,
+    0x88, 0x99, 0xaa, 0xbb,
+    0xcc, 0xdd, 0xee, 0xff
+  ];
+
+
+  var FiveToEight =
+  [
+    0x00, // 00000 -> 00000000
+    0x08, // 00001 -> 00001000
+    0x10, // 00010 -> 00010000
+    0x18, // 00011 -> 00011000
+    0x21, // 00100 -> 00100001
+    0x29, // 00101 -> 00101001
+    0x31, // 00110 -> 00110001
+    0x39, // 00111 -> 00111001
+    0x42, // 01000 -> 01000010
+    0x4a, // 01001 -> 01001010
+    0x52, // 01010 -> 01010010
+    0x5a, // 01011 -> 01011010
+    0x63, // 01100 -> 01100011
+    0x6b, // 01101 -> 01101011
+    0x73, // 01110 -> 01110011
+    0x7b, // 01111 -> 01111011
+
+    0x84, // 10000 -> 10000100
+    0x8c, // 10001 -> 10001100
+    0x94, // 10010 -> 10010100
+    0x9c, // 10011 -> 10011100
+    0xa5, // 10100 -> 10100101
+    0xad, // 10101 -> 10101101
+    0xb5, // 10110 -> 10110101
+    0xbd, // 10111 -> 10111101
+    0xc6, // 11000 -> 11000110
+    0xce, // 11001 -> 11001110
+    0xd6, // 11010 -> 11010110
+    0xde, // 11011 -> 11011110
+    0xe7, // 11100 -> 11100111
+    0xef, // 11101 -> 11101111
+    0xf7, // 11110 -> 11110111
+    0xff  // 11111 -> 11111111
+  ];
+
+
+  function convertRGBA16(img_data, address, width, height, pitch) {
+    var dst            = img_data.data;
+    var src            = new DataView(state.ram.buffer, 0);
+
+    var dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
+    var src_row_stride = pitch;
+
+    var dst_row_offset = 0;
+    var src_row_offset = address;
+    for (var y = 0; y < height; ++y) {
+
+      var src_offset = src_row_offset;
+      var dst_offset = dst_row_offset;
+      for (var x = 0; x < width; ++x) {
+
+        var src_pixel = src.getUint16(src_offset);
+
+        dst[dst_offset+0] = FiveToEight[(src_pixel>>>11)&0x1f];
+        dst[dst_offset+1] = FiveToEight[(src_pixel>>> 6)&0x1f];
+        dst[dst_offset+2] = FiveToEight[(src_pixel>>> 1)&0x1f];
+        dst[dst_offset+3] = ((src_pixel     )&0x01)? 255 : 0;
+
+        src_offset += 2;
+        dst_offset += 4;
+      }
+      src_row_offset += src_row_stride;
+      dst_row_offset += dst_row_stride;
+    }
+  }
+
+  function convertIA8(img_data, address, width, height, pitch) {
+    var dst            = img_data.data;
+    var src            = new DataView(state.ram.buffer, 0);
+
+    var dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
+    var src_row_stride = pitch;
+
+    var dst_row_offset = 0;
+    var src_row_offset = address;
+    for (var y = 0; y < height; ++y) {
+
+      var src_offset = src_row_offset;
+      var dst_offset = dst_row_offset;
+      for (var x = 0; x < width; ++x) {
+
+        var src_pixel = src.getUint8(src_offset);
+
+        var i = FourToEight[(src_pixel>>>4)&0xf];
+        var a = FourToEight[(src_pixel    )&0xf];
+
+        dst[dst_offset+0] = i;
+        dst[dst_offset+1] = i;
+        dst[dst_offset+2] = i;
+        dst[dst_offset+3] = a;
+
+        src_offset += 1;
+        dst_offset += 4;
+      }
+      src_row_offset += src_row_stride;
+      dst_row_offset += dst_row_stride;
+    }
   }
 
 })();
