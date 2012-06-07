@@ -682,8 +682,6 @@ if (typeof n64js === 'undefined') {
     state.rdpHalf1 = cmd1;
   }
 
-  function executeLine3D(cmd0,cmd1)               { unimplemented(cmd0,cmd1); }
-
   function executeClrGeometryMode(cmd0,cmd1) {
     state.geometryMode &= ~cmd1;
   }
@@ -742,48 +740,7 @@ if (typeof n64js === 'undefined') {
       var v1_idx = ((cmd1>>> 8)&0xff)/config.vertexStride;
       var v2_idx = ((cmd1>>> 0)&0xff)/config.vertexStride;
 
-      var v0 = state.projectedVertices[v0_idx];
-      var v1 = state.projectedVertices[v1_idx];
-      var v2 = state.projectedVertices[v2_idx];
-
-      var vp0 = v0.pos.elements;
-      var vp1 = v1.pos.elements;
-      var vp2 = v2.pos.elements;
-
-      vertex_positions[vtx_pos_idx+ 0] = vp0[0];
-      vertex_positions[vtx_pos_idx+ 1] = vp0[1];
-      vertex_positions[vtx_pos_idx+ 2] = vp0[2];
-      vertex_positions[vtx_pos_idx+ 3] = vp0[3];
-
-      vertex_positions[vtx_pos_idx+ 4] = vp1[0];
-      vertex_positions[vtx_pos_idx+ 5] = vp1[1];
-      vertex_positions[vtx_pos_idx+ 6] = vp1[2];
-      vertex_positions[vtx_pos_idx+ 7] = vp1[3];
-
-      vertex_positions[vtx_pos_idx+ 8] = vp2[0];
-      vertex_positions[vtx_pos_idx+ 9] = vp2[1];
-      vertex_positions[vtx_pos_idx+10] = vp2[2];
-      vertex_positions[vtx_pos_idx+11] = vp2[3];
-      vtx_pos_idx += 3*4;
-
-      vertex_colours[vtx_col_idx + 0] = v0.color;
-      vertex_colours[vtx_col_idx + 1] = v1.color;
-      vertex_colours[vtx_col_idx + 2] = v2.color;
-      vtx_col_idx += 3*1;
-
-      var vt0 = v0.uv.elements;
-      var vt1 = v1.uv.elements;
-      var vt2 = v2.uv.elements;
-
-      vertex_coords[vtx_uv_idx+ 0] = vt0[0];
-      vertex_coords[vtx_uv_idx+ 1] = vt0[1];
-
-      vertex_coords[vtx_uv_idx+ 2] = vt1[0];
-      vertex_coords[vtx_uv_idx+ 3] = vt1[1];
-
-      vertex_coords[vtx_uv_idx+ 4] = vt2[0];
-      vertex_coords[vtx_uv_idx+ 5] = vt2[1];
-      vtx_uv_idx += 3*2;
+      pushTri(v0_idx, v1_idx, v2_idx, vertex_positions, vertex_colours, vertex_coords, tri_idx);
 
       tri_idx++;
       cmd0 = state.ram.getUint32( pc + 0 );
@@ -792,6 +749,92 @@ if (typeof n64js === 'undefined') {
     } while ((cmd0>>>24) === kTri1 && tri_idx < kMaxTris);
 
     state.pc = pc-8;
+
+    flushTris(tri_idx*3, vertex_positions, vertex_colours, vertex_coords);
+  }
+
+  function executeLine3D(cmd0,cmd1) {
+    var kLine3D = 0xb5;
+
+    var kMaxTris = 1024;
+    var vertex_positions = new Float32Array(kMaxTris*3*4);
+    var vertex_colours   = new  Uint32Array(kMaxTris*3*1);
+    var vertex_coords    = new Float32Array(kMaxTris*3*2);
+    var tri_idx     = 0;
+    var vtx_pos_idx = 0;
+    var vtx_col_idx = 0;
+    var vtx_uv_idx  = 0;
+
+    var pc = state.pc;
+    do {
+      var v3_idx = ((cmd1>>>24)&0xff)/config.vertexStride;
+      var v0_idx = ((cmd1>>>16)&0xff)/config.vertexStride;
+      var v1_idx = ((cmd1>>> 8)&0xff)/config.vertexStride;
+      var v2_idx = ((cmd1>>> 0)&0xff)/config.vertexStride;
+
+      pushTri(v0_idx, v1_idx, v2_idx, vertex_positions, vertex_colours, vertex_coords, tri_idx);
+      tri_idx++;
+      pushTri(v2_idx, v3_idx, v0_idx, vertex_positions, vertex_colours, vertex_coords, tri_idx);
+      tri_idx++;
+
+      cmd0 = state.ram.getUint32( pc + 0 );
+      cmd1 = state.ram.getUint32( pc + 4 );
+      pc += 8;
+    } while ((cmd0>>>24) === kLine3D && tri_idx+1 < kMaxTris);
+
+    state.pc = pc-8;
+
+    flushTris(tri_idx*3, vertex_positions, vertex_colours, vertex_coords);
+  }
+
+  function pushTri(v0_idx, v1_idx, v2_idx, vertex_positions, vertex_colours, vertex_coords, tri_idx) {
+
+    var vtx_pos_idx = tri_idx * 3*4;
+    var vtx_col_idx = tri_idx * 3*1;
+    var vtx_uv_idx  = tri_idx * 3*2;
+
+    var v0 = state.projectedVertices[v0_idx];
+    var v1 = state.projectedVertices[v1_idx];
+    var v2 = state.projectedVertices[v2_idx];
+
+    var vp0 = v0.pos.elements;
+    var vp1 = v1.pos.elements;
+    var vp2 = v2.pos.elements;
+
+    vertex_positions[vtx_pos_idx+ 0] = vp0[0];
+    vertex_positions[vtx_pos_idx+ 1] = vp0[1];
+    vertex_positions[vtx_pos_idx+ 2] = vp0[2];
+    vertex_positions[vtx_pos_idx+ 3] = vp0[3];
+
+    vertex_positions[vtx_pos_idx+ 4] = vp1[0];
+    vertex_positions[vtx_pos_idx+ 5] = vp1[1];
+    vertex_positions[vtx_pos_idx+ 6] = vp1[2];
+    vertex_positions[vtx_pos_idx+ 7] = vp1[3];
+
+    vertex_positions[vtx_pos_idx+ 8] = vp2[0];
+    vertex_positions[vtx_pos_idx+ 9] = vp2[1];
+    vertex_positions[vtx_pos_idx+10] = vp2[2];
+    vertex_positions[vtx_pos_idx+11] = vp2[3];
+
+    vertex_colours[vtx_col_idx + 0] = v0.color;
+    vertex_colours[vtx_col_idx + 1] = v1.color;
+    vertex_colours[vtx_col_idx + 2] = v2.color;
+
+    var vt0 = v0.uv.elements;
+    var vt1 = v1.uv.elements;
+    var vt2 = v2.uv.elements;
+
+    vertex_coords[vtx_uv_idx+ 0] = vt0[0];
+    vertex_coords[vtx_uv_idx+ 1] = vt0[1];
+
+    vertex_coords[vtx_uv_idx+ 2] = vt1[0];
+    vertex_coords[vtx_uv_idx+ 3] = vt1[1];
+
+    vertex_coords[vtx_uv_idx+ 4] = vt2[0];
+    vertex_coords[vtx_uv_idx+ 5] = vt2[1];
+  }
+
+  function flushTris(num_tris, vertex_positions, vertex_colours, vertex_coords) {
 
     var cycle_type = getCycleType();
     if (cycle_type < cycleTypeValues.G_CYC_COPY) {
@@ -947,9 +990,10 @@ if (typeof n64js === 'undefined') {
       gl.disable(gl.CULL_FACE);
     }
 
-    gl.drawArrays(gl.TRIANGLES, 0, vtx_pos_idx/4);
-    //gl.drawArrays(gl.LINE_STRIP, 0, vtx_pos_idx/4);
+    gl.drawArrays(gl.TRIANGLES, 0, num_tris);
+    //gl.drawArrays(gl.LINE_STRIP, 0, num_tris);
   }
+
 
   function executeTriRSP(cmd0,cmd1)               { unimplemented(cmd0,cmd1); }
   function executeTexRect(cmd0,cmd1)              { unimplemented(cmd0,cmd1); }
