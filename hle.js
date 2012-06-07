@@ -179,6 +179,8 @@ if (typeof n64js === 'undefined') {
     dlistStack:     [],
     segments:       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
     tiles:          new Array(8),
+    lights:         new Array(8),
+    numLights:      0,
     geometryMode:   0,
     rdpOtherModeL:  0,
     rdpOtherModeH:  0,
@@ -352,6 +354,15 @@ if (typeof n64js === 'undefined') {
     };
   }
 
+  function unpackRGBAToVector(col) {
+    return Vector.create([
+        ((col>>>24)&0xff)/255.0,
+        ((col>>>16)&0xff)/255.0,
+        ((col>>> 8)&0xff)/255.0,
+        ((col>>> 0)&0xff)/255.0
+      ]);
+  }
+
   // task, ram are both DataView objects
   n64js.RSPHLEProcessTask = function(task, ram) {
     var M_GFXTASK = 1;
@@ -486,6 +497,21 @@ if (typeof n64js === 'undefined') {
         trans[1] = state.ram.getInt16(address + 10) / 4.0;
         setN64Viewport(scale, trans);
         break;
+
+      case moveMemTypeValues.G_MV_L0:
+      case moveMemTypeValues.G_MV_L1:
+      case moveMemTypeValues.G_MV_L2:
+      case moveMemTypeValues.G_MV_L3:
+      case moveMemTypeValues.G_MV_L4:
+      case moveMemTypeValues.G_MV_L5:
+      case moveMemTypeValues.G_MV_L6:
+      case moveMemTypeValues.G_MV_L7:
+        var light_idx = (type - moveMemTypeValues.G_MV_L0) / 2;
+        state.lights[light_idx].color = unpackRGBAToVector(state.ram.getUint32(address + 0));
+        state.lights[light_idx].dir   = Vector.create([state.ram.getUint8(address +  8),
+                                                       state.ram.getUint8(address +  9),
+                                                       state.ram.getUint8(address + 10)]).toUnitVector();
+        break;
     }
   }
 
@@ -504,14 +530,29 @@ if (typeof n64js === 'undefined') {
       case moveWordTypeValues.G_MW_POINTS:     unimplemented(cmd0,cmd1); break;
       default:                                 unimplemented(cmd0,cmd1); break;
     }
-   }
+  }
 
-   var X_NEG  = 0x01;  //left
-   var Y_NEG  = 0x02;  //bottom
-   var Z_NEG  = 0x04;  //far
-   var X_POS  = 0x08;  //right
-   var Y_POS  = 0x10;  //top
-   var Z_POS  = 0x20;  //near
+  var X_NEG  = 0x01;  //left
+  var Y_NEG  = 0x02;  //bottom
+  var Z_NEG  = 0x04;  //far
+  var X_POS  = 0x08;  //right
+  var Y_POS  = 0x10;  //top
+  var Z_POS  = 0x20;  //near
+
+  function calculateLighting(normal) {
+
+    var num_lights = state.numLights;
+    var result     = state.lights[num_lights].color;
+
+    for (var l = 0; l < num_lights; ++l) {
+      var d = normal.dot( state.lights[l].dir );
+      if (d > 0.0) {
+        result = result.add( state.lights[l].color.multiply( d ) );
+      }
+    }
+
+    return result.elements;
+  }
 
   function executeVtx(cmd0,cmd1) {
     var n       = ((cmd0>>>20)&0xf) + 1;
@@ -549,7 +590,6 @@ if (typeof n64js === 'undefined') {
       //var - = dv.getInt16(vtx_base + 6);
       var u = dv.getInt16(vtx_base + 8);
       var v = dv.getInt16(vtx_base + 10);
-      var rgba_or_norm = dv.getUint32(vtx_base + 12);
 
       var xyz       = Vector.create([x,y,z,1]);
       var projected = wvp.multiply(xyz);
@@ -569,18 +609,44 @@ if (typeof n64js === 'undefined') {
       // state.projectedVertices.clipFlags = clip_flags;
 
       if (light) {
+        var nx = dv.getInt8(vtx_base + 12);
+        var ny = dv.getInt8(vtx_base + 13);
+        var nz = dv.getInt8(vtx_base + 14);
+        var a  = dv.getUint8(vtx_base + 15);
 
         // calculate transformed normal
 
-        // light vertex
+        var normal = Vector.create([nx, ny, nz, 0]);
+        var transformedNormal = mvmtx.multiply(normal);
 
-        vertex.color = 0xff00ff00;    // ABGR
+        // argh, chuck away w
+        transformedNormal = Vector.create([transformedNormal.elements[0], transformedNormal.elements[1], transformedNormal.elements[2]]).toUnitVector();
+
+        var color_rgb = calculateLighting(transformedNormal);
+        var r = Math.min(color_rgb[0], 1.0) * 255.0;
+        var g = Math.min(color_rgb[1], 1.0) * 255.0;
+        var b = Math.min(color_rgb[2], 1.0) * 255.0;
+
+        vertex.color = (a<<24) | (b<<16) | (g<<8) | r;
 
         if (texgen) {
+
+          // retransform using wvp
+          transformedNormal = wvp.multiply(normal);
+          transformedNormal = Vector.create([transformedNormal.elements[0], transformedNormal.elements[1], transformedNormal.elements[2]]).toUnitVector();
+
           if (texgenlin) {
-
+            vertex.uv = Vector.create([
+              0.5 * (1.0 + transformedNormal.elements[0]),
+              0.5 * (1.0 + transformedNormal.elements[1])
+            ]);
           } else {
-
+            var normX = Math.abs( transformedNormal.elements[0] );
+            var normY = Math.abs( transformedNormal.elements[1] );
+            vertex.uv = Vector.create([
+              0.5 - 0.25 * normX - 0.25 * normX * normX * normX,
+              0.5 - 0.25 * normY - 0.25 * normY * normY * normY
+            ]);
           }
         } else {
           vertex.uv = Vector.create([u * scale_s, v * scale_t]);
@@ -588,10 +654,10 @@ if (typeof n64js === 'undefined') {
       } else {
         vertex.uv = Vector.create([u * scale_s, v * scale_t]);
 
-        var r = (rgba_or_norm>>>24)&0xff;
-        var g = (rgba_or_norm>>>16)&0xff;
-        var b = (rgba_or_norm>>> 8)&0xff;
-        var a = (rgba_or_norm>>> 0)&0xff;
+        var r = dv.getUint8(vtx_base + 12);
+        var g = dv.getUint8(vtx_base + 13);
+        var b = dv.getUint8(vtx_base + 14);
+        var a = dv.getUint8(vtx_base + 15);
 
         vertex.color = (a<<24) | (b<<16) | (g<<8) | r;
       }
@@ -1957,6 +2023,11 @@ if (typeof n64js === 'undefined') {
       state.tiles[i] = {};
     }
 
+    state.numLights = 0;
+    for (var i = 0; i < state.lights.length; ++i) {
+      state.lights[i] = {color: Vector.create([0,0,0,0]), dir: Vector.create([1,0,0])};
+    }
+
     for (var i = 0; i < state.projectedVertices.length; ++i) {
       state.projectedVertices[i] = {};
     }
@@ -2333,7 +2404,7 @@ if (typeof n64js === 'undefined') {
 
         var m = theSource.split('\n').join('<br>');
 
-        n64js.halt('Compiled ' + decoded + '\nto\n' + m);
+        n64js.log('Compiled ' + decoded + '\nto\n' + m);
       }
 
     } else {
