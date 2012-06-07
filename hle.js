@@ -451,7 +451,7 @@ if (typeof n64js === 'undefined') {
     }
   }
 
-  function executeMtx(cmd0,cmd1) {
+  function executeMatrix(cmd0,cmd1) {
     var flags   = (cmd0>>>16)&0xff;
     var length  = (cmd0>>> 0)&0xffff;
     var address = rdpSegmentAddress(cmd1);
@@ -474,7 +474,7 @@ if (typeof n64js === 'undefined') {
     }
   }
 
-  function executePopMtx(cmd0,cmd1) {
+  function executePopMatrix(cmd0,cmd1) {
     if (state.modelview.length > 0) {
       state.modelview.pop();
     }
@@ -554,7 +554,7 @@ if (typeof n64js === 'undefined') {
     return result.elements;
   }
 
-  function executeVtx(cmd0,cmd1) {
+  function executeVertex(cmd0,cmd1) {
     var n       = ((cmd0>>>20)&0xf) + 1;
     var v0      =  (cmd0>>>16)&0xf;
     //var length  = (cmd0>>> 0)&0xffff;
@@ -1156,7 +1156,16 @@ if (typeof n64js === 'undefined') {
     return 'gsSPMatrix(' + address + ', ' + t + ');';
   }
 
-  function disassembleVtx(cmd0,cmd1) {
+  function disassemblePopMatrix(cmd0,cmd1) {
+    var flags = (cmd1>>>0)&0xff;
+
+    var t = '';
+    t += (flags & G_MTX_PROJECTION) ? 'G_MTX_PROJECTION' : 'G_MTX_MODELVIEW';
+
+    return 'gsSPPopMatrix(' + t + ');';
+  }
+
+  function disassembleVertex(cmd0,cmd1) {
     var n       = ((cmd0>>>20)&0xf) + 1;
     var v0      =  (cmd0>>>16)&0xf;
     //var length  = (cmd0>>> 0)&0xffff;
@@ -1767,6 +1776,15 @@ if (typeof n64js === 'undefined') {
     return 'gsSP1Triangle(' + v0_idx + ', ' + v1_idx + ', ' + v2_idx + ', ' + flag + ');';
   }
 
+  function disassembleLine3D(cmd0,cmd1) {
+    var v3_idx = ((cmd1>>>24)&0xff)/config.vertexStride;
+    var v0_idx = ((cmd1>>>16)&0xff)/config.vertexStride;
+    var v1_idx = ((cmd1>>> 8)&0xff)/config.vertexStride;
+    var v2_idx = ((cmd1>>> 0)&0xff)/config.vertexStride;
+
+    return 'gsSPLine3D(' + v0_idx + ', ' + v1_idx + ', ' + v2_idx + ', ' + v3_idx + ');';
+  }
+
   function disassembleCommand(a,b) {
     var cmd = a>>>24;
     switch(cmd) {
@@ -1775,7 +1793,7 @@ if (typeof n64js === 'undefined') {
       case 0x01:      return disassembleMatrix(a,b);
       //case 0x02:    return 'Reserved';
       case 0x03:      return disassembleMoveMem(a,b);
-      case 0x04:      return disassembleVtx(a,b);
+      case 0x04:      return disassembleVertex(a,b);
       //case 0x05:    return 'Reserved';
       case 0x06:      return disassembleDL(a,b);
       //case 0x07:    return 'Reserved';
@@ -1787,7 +1805,7 @@ if (typeof n64js === 'undefined') {
       case 0xb2:      return 'RDPHalf_Cont';
       case 0xb3:      return 'gsImmp1(G_RDPHALF_2, ' + n64js.toString32(b) + ');';
       case 0xb4:      return 'gsImmp1(G_RDPHALF_1, ' + n64js.toString32(b) + ');';
-      case 0xb5:      return 'Line3D';
+      case 0xb5:      return disassembleLine3D(a,b);
       case 0xb6:      return disassembleClearGeometryMode(a,b);
       case 0xb7:      return disassembleSetGeometryMode(a,b);
       case 0xb8:      return 'gsSPEndDisplayList();';
@@ -1795,7 +1813,7 @@ if (typeof n64js === 'undefined') {
       case 0xba:      return disassembleSetOtherModeH(a,b);
       case 0xbb:      return disassembleTexture(a,b);
       case 0xbc:      return disassembleMoveWord(a,b);
-      case 0xbd:      return 'PopMtx';
+      case 0xbd:      return disassemblePopMatrix(a,b);
       case 0xbe:      return 'CullDL';
       case 0xbf:      return disassembleTri1(a,b);
 
@@ -2048,9 +2066,9 @@ if (typeof n64js === 'undefined') {
 
 
     ops[0x00] = executeSpNoop;
-    ops[0x01] = executeMtx;
+    ops[0x01] = executeMatrix;
     ops[0x03] = executeMoveMem;
-    ops[0x04] = executeVtx;
+    ops[0x04] = executeVertex;
     ops[0x06] = executeDL;
     ops[0x09] = executeSprite2DBase;
     ops[0xb1] = executeTri4;
@@ -2065,7 +2083,7 @@ if (typeof n64js === 'undefined') {
     ops[0xba] = executeSetOtherModeH;
     ops[0xbb] = executeTexture;
     ops[0xbc] = executeMoveWord;
-    ops[0xbd] = executePopMtx;
+    ops[0xbd] = executePopMatrix;
     ops[0xbe] = executeCullDL;
     ops[0xbf] = executeTri1;
     ops[0xc0] = executeNoop;
