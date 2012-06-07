@@ -153,6 +153,11 @@ if (typeof n64js === 'undefined') {
   var G_TX_MIRROR     = 0x1;
   var G_TX_CLAMP      = 0x2;
 
+  //
+  var kUCode_GBI0 = 0;
+  var kUCode_GBI1 = 1;
+  var kUCode_GBI2 = 2;
+
   var kUcodeStrides = [
     10,   // Super Mario 64, Tetrisphere, Demos
     2,    // Mario Kart, Star Fox
@@ -170,7 +175,7 @@ if (typeof n64js === 'undefined') {
 
   // Configured:
   var config = {
-    vertexStride:  10,
+    vertexStride:  10
   };
 
   var state = {
@@ -554,12 +559,7 @@ if (typeof n64js === 'undefined') {
     return result.elements;
   }
 
-  function executeVertex(cmd0,cmd1) {
-    var n       = ((cmd0>>>20)&0xf) + 1;
-    var v0      =  (cmd0>>>16)&0xf;
-    //var length  = (cmd0>>> 0)&0xffff;
-    var address = rdpSegmentAddress(cmd1);
-
+  function executeVertexImpl(v0, n, address) {
     var light     = state.geometryMode & geometryModeFlags.G_LIGHTING;
     var texgen    = state.geometryMode & geometryModeFlags.G_TEXTURE_GEN;
     var texgenlin = state.geometryMode & geometryModeFlags.G_TEXTURE_GEN_LINEAR;
@@ -1165,7 +1165,7 @@ if (typeof n64js === 'undefined') {
     return 'gsSPPopMatrix(' + t + ');';
   }
 
-  function disassembleVertex(cmd0,cmd1) {
+  function disassembleVertex_GBI0(cmd0,cmd1) {
     var n       = ((cmd0>>>20)&0xf) + 1;
     var v0      =  (cmd0>>>16)&0xf;
     //var length  = (cmd0>>> 0)&0xffff;
@@ -1173,6 +1173,72 @@ if (typeof n64js === 'undefined') {
 
     return 'gsSPVertex(' + address + ', ' + n + ', ' + v0 + ');';
   }
+
+  function previewVertex_GBI0(cmd0,cmd1, ram, rdpSegmentAddress) {
+    var n       = ((cmd0>>>20)&0xf) + 1;
+    var v0      =  (cmd0>>>16)&0xf;
+    var address = rdpSegmentAddress(cmd1);
+
+    return previewVertexImpl(v0, n, address, ram);
+  }
+
+  function executeVertex_GBI0(cmd0,cmd1) {
+    var n       = ((cmd0>>>20)&0xf) + 1;
+    var v0      =  (cmd0>>>16)&0xf;
+    //var length  = (cmd0>>> 0)&0xffff;
+    var address = rdpSegmentAddress(cmd1);
+
+    executeVertexImpl(v0, n, address);
+  }
+
+
+
+  function disassembleVertex_GBI1(cmd0,cmd1) {
+    var v0      = ((cmd0>>>16)&0xff) / config.vertexStride;
+    var n       = ((cmd0>>>10)&0x3f);
+    //var length  = (cmd0>>> 0)&0x3ff;
+    var address = n64js.toString32(cmd1);
+
+    return 'gsSPVertex(' + address + ', ' + n + ', ' + v0 + ');';
+  }
+
+  function previewVertex_GBI1(cmd0,cmd1, ram, rdpSegmentAddress) {
+    var v0      = ((cmd0>>>16)&0xff) / config.vertexStride;
+    var n       = ((cmd0>>>10)&0x3f);
+    //var length  = (cmd0>>> 0)&0x3ff;
+    var address = rdpSegmentAddress(cmd1);
+
+    return previewVertexImpl(v0, n, address, ram);
+  }
+
+  function executeVertex_GBI1(cmd0,cmd1) {
+    var v0      = ((cmd0>>>16)&0xff) / config.vertexStride;
+    var n       = ((cmd0>>>10)&0x3f);
+    //var length  = (cmd0>>> 0)&0x3ff;
+    var address = rdpSegmentAddress(cmd1);
+
+    executeVertexImpl(v0, n, address);
+  }
+
+  function previewVertexImpl(v0, n, address, ram) {
+    var dv      = new DataView(ram.buffer, address);
+    var tip = '';
+
+    tip += '<table class="vertex-table">';
+
+    for (var i = 0; i < n; ++i) {
+      var vtx_base = (v0+i)*16;
+      var v = [ v0+i,
+                dv.getInt16(vtx_base + 0),
+                dv.getInt16(vtx_base + 2),
+                dv.getInt16(vtx_base + 4) ];
+
+      tip += '<tr><td>' + v.join('</td><td>') + '</td></tr>';
+    }
+    tip += '</table>';
+    return tip;
+  }
+
 
   function disassembleMoveMem(cmd0,cmd1) {
     var type    = (cmd0>>>16)&0xff;
@@ -2003,6 +2069,26 @@ if (typeof n64js === 'undefined') {
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
 
+  // The implementation for these ops is ucode dependent
+  var disassembleVertex = disassembleVertex_GBI0;
+  var previewVertex     = previewVertex_GBI0;
+  var executeVertex     = executeVertex_GBI0;
+
+  function buildUCodeTables(ucode) {
+    switch (ucode) {
+      case kUCode_GBI0:
+        disassembleVertex = disassembleVertex_GBI0;
+        previewVertex     = previewVertex_GBI0;
+        executeVertex     = executeVertex_GBI0;
+        break;
+      case kUCode_GBI1:
+        disassembleVertex = disassembleVertex_GBI1;
+        previewVertex     = previewVertex_GBI1;
+        executeVertex     = executeVertex_GBI1;
+        break;
+    }
+  }
+
   function hleGraphics(task, ram) {
     ++graphics_task_count;
 
@@ -2020,7 +2106,12 @@ if (typeof n64js === 'undefined') {
 
     n64js.log('GFX: ' + graphics_task_count + ' - ' + str);
 
-    var ucode = 0;  // FIXME
+    var ucode = kUCode_GBI0;
+
+    // FIXME: lots of work here
+    if (str.indexOf('F3DEX') >= 0 && str.indexOf('0.95') >= 0) ucode = kUCode_GBI1;
+
+    buildUCodeTables(ucode);
 
     config.vertexStride = kUcodeStrides[ucode];
 
@@ -2142,6 +2233,7 @@ if (typeof n64js === 'undefined') {
   }
 
   function disassembleDisplayList(pc, ram, ucode) {
+    buildUCodeTables(ucode);
 
     var kMatrix   = 0x01;
     var kVertex   = 0x04;
@@ -2203,7 +2295,6 @@ if (typeof n64js === 'undefined') {
           }
           break;
 
-
         case kMatrix:
           {
             var address = rdpSegmentAddress(cmd1);
@@ -2219,28 +2310,7 @@ if (typeof n64js === 'undefined') {
           break;
 
         case kVertex:
-          {
-            var n       = ((cmd0>>>20)&0xf) + 1;
-            var v0      =  (cmd0>>>16)&0xf;
-            var address = rdpSegmentAddress(cmd1);
-            var dv = new DataView(ram.buffer, address);
-
-            var tip = '';
-
-            tip += '<table class="vertex-table">';
-
-            for (var i = 0; i < n; ++i) {
-              var vtx_base = (v0+i)*16;
-              var v = [ v0+i,
-                        dv.getInt16(vtx_base + 0),
-                        dv.getInt16(vtx_base + 2),
-                        dv.getInt16(vtx_base + 4) ];
-
-              tip += '<tr><td>' + v.join('</td><td>') + '</td></tr>';
-            }
-            tip += '</table>';
-            op.tip = tip;
-          }
+          op.tip = previewVertex(cmd0,cmd, ram, rdpSegmentAddress);
           break;
       }
 
