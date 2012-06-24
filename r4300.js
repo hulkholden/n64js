@@ -2108,6 +2108,7 @@ if (typeof n64js === 'undefined') {
     }
 
     return false;
+  }
 
   n64js.run = function (cycles) {
 
