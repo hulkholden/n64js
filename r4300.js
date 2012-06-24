@@ -2082,32 +2082,34 @@ if (typeof n64js === 'undefined') {
 
   function handleCounter() {
 
+    var breakout = false;
+
     while (cpu0.events.length > 0 && cpu0.events[0].countdown <= 0) {
       var evt = cpu0.events[0];
       cpu0.events.splice(0, 1);
 
       // if it's our cycles event then just bail
       if (evt.type === kEventRunForCycles) {
-        return true;
+        breakout = true;
       } else if (evt.type === kEventCompare) {
         cpu0.control[cpu0.kControlCause] |= CAUSE_IP8;
         if (cpu0.checkForUnmaskedInterrupts()) {
           cpu0.stuffToDo |= kStuffToDoCheckInterrupts;
         }
-        return true;
+        breakout = true;
       } else if (evt.type === kEventVbl) {
         // FIXME: this should be based on VI_V_SYNC_REG
         cpu0.addEvent(kEventVbl, kVIIntrCycles);
 
         n64js.verticalBlank();
 
-        return true;
+        breakout = true;
       } else {
         n64js.halt('unhandled event!');
       }
     }
 
-    return false;
+    return breakout;
   }
 
   n64js.run = function (cycles) {
