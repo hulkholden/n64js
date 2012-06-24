@@ -2080,6 +2080,34 @@ if (typeof n64js === 'undefined') {
     return false;
   }
 
+  function handleCounter() {
+
+    while (cpu0.events.length > 0 && cpu0.events[0].countdown <= 0) {
+      var evt = cpu0.events[0];
+      cpu0.events.splice(0, 1);
+
+      // if it's our cycles event then just bail
+      if (evt.type === kEventRunForCycles) {
+        return true;
+      } else if (evt.type === kEventCompare) {
+        cpu0.control[cpu0.kControlCause] |= CAUSE_IP8;
+        if (cpu0.checkForUnmaskedInterrupts()) {
+          cpu0.stuffToDo |= kStuffToDoCheckInterrupts;
+        }
+        return true;
+      } else if (evt.type === kEventVbl) {
+        // FIXME: this should be based on VI_V_SYNC_REG
+        cpu0.addEvent(kEventVbl, kVIIntrCycles);
+
+        n64js.verticalBlank();
+
+        return true;
+      } else {
+        n64js.halt('unhandled event!');
+      }
+    }
+
+    return false;
 
   n64js.run = function (cycles) {
 
@@ -2126,35 +2154,7 @@ if (typeof n64js === 'undefined') {
             evt.countdown -= COUNTER_INCREMENT_PER_OP;
             if (evt.countdown <= 0)
             {
-              // if it's our cycles event then just bail
-
-              var breakout = false;
-
-              while (cpu0.events.length > 0 && cpu0.events[0].countdown <= 0) {
-                var evt = cpu0.events[0];
-                cpu0.events.splice(0, 1);
-
-                if (evt.type === kEventRunForCycles) {
-                  breakout = true;
-                } else if (evt.type === kEventCompare) {
-                  cpu0.control[cpu0.kControlCause] |= CAUSE_IP8;
-                  if (cpu0.checkForUnmaskedInterrupts()) {
-                    cpu0.stuffToDo |= kStuffToDoCheckInterrupts;
-                  }
-                  breakout = true;
-                } else if (evt.type === kEventVbl) {
-                  // FIXME: this should be based on VI_V_SYNC_REG
-                  cpu0.addEvent(kEventVbl, kVIIntrCycles);
-
-                  n64js.verticalBlank();
-
-                  breakout = true;
-                } else {
-                  n64js.halt('unhandled event!');
-                }
-              }
-
-              if(breakout)
+              if (handleCounter())
                 break;
             }
         }
