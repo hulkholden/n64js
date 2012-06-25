@@ -1162,12 +1162,12 @@ if (typeof n64js === 'undefined') {
     performBranch( jumpAddress(a,i) );
   }
   function executeJAL(a,i) {
-    setSignExtend(cpu0.kRegister_ra, cpu0.pc + 8);
+    setSignExtend(cpu0.kRegister_ra, a + 8);
     performBranch( jumpAddress(a,i) );
   }
   function executeJALR(a,i) {
     var new_pc = cpu0.gprLo[rs(i)];
-    setSignExtend(rd(i), cpu0.pc + 8);
+    setSignExtend(rd(i), a + 8);
     performBranch( new_pc );
   }
 
@@ -1270,13 +1270,13 @@ if (typeof n64js === 'undefined') {
     }
   }
   function executeBLTZAL(a,i) {
-    setSignExtend(cpu0.kRegister_ra, cpu0.pc + 8);
+    setSignExtend(cpu0.kRegister_ra, a + 8);
     if (cpu0.gprHi_signed[rs(i)] < 0) {
       performBranch( branchAddress(a,i) );
     }
   }
   function executeBLTZALL(a,i) {
-    setSignExtend(cpu0.kRegister_ra, cpu0.pc + 8);
+    setSignExtend(cpu0.kRegister_ra, a + 8);
     if (cpu0.gprHi_signed[rs(i)] < 0) {
       performBranch( branchAddress(a,i) );
     } else {
@@ -1299,13 +1299,13 @@ if (typeof n64js === 'undefined') {
     }
   }
   function executeBGEZAL(a,i) {
-    setSignExtend(cpu0.kRegister_ra, cpu0.pc + 8);
+    setSignExtend(cpu0.kRegister_ra, a + 8);
     if (cpu0.gprHi_signed[rs(i)] >= 0) {
       performBranch( branchAddress(a,i) );
     }
   }
   function executeBGEZALL(a,i) {
-    setSignExtend(cpu0.kRegister_ra, cpu0.pc + 8);
+    setSignExtend(cpu0.kRegister_ra, a + 8);
     if (cpu0.gprHi_signed[rs(i)] >= 0) {
       performBranch( branchAddress(a,i) );
     } else {
