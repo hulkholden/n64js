@@ -1957,37 +1957,37 @@ if (typeof n64js === 'undefined') {
       while (cpu0.hasEvent(kEventRunForCycles)) {
         while (!cpu0.stuffToDo) {
 
-            //if (sync) {
-            //  if (!checkSyncState(sync))
-            //    break;
-            //}
+          //if (sync) {
+          //  if (!checkSyncState(sync))
+          //    break;
+          //}
 
-            var pc  = cpu0.pc;
-            var dpc = cpu0.delayPC;
+          var pc  = cpu0.pc;
+          var dpc = cpu0.delayPC;
 
-            var instruction = n64js.readMemory32(pc);
-            executeOp(pc, instruction);
+          var instruction = n64js.readMemory32(pc);
+          executeOp(pc, instruction);
 
-            cpu0.control[cpu0.kControlCount] += COUNTER_INCREMENT_PER_OP;
+          cpu0.control[cpu0.kControlCount] += COUNTER_INCREMENT_PER_OP;
 
-            if (dpc !== 0) {
-              cpu0.delayPC = 0;
-              cpu0.pc      = dpc;
-            } else {
-              cpu0.pc      += 4;
-            }
+          if (dpc !== 0) {
+            cpu0.delayPC = 0;
+            cpu0.pc      = dpc;
+          } else {
+            cpu0.pc      += 4;
+          }
 
-            //checkCauseIP3Consistent();
-            //n64js.checkSIStatusConsistent();
-            ++cpu0.opsExecuted;
+          //checkCauseIP3Consistent();
+          //n64js.checkSIStatusConsistent();
+          ++cpu0.opsExecuted;
 
-            var evt = cpu0.events[0];
-            evt.countdown -= COUNTER_INCREMENT_PER_OP;
-            if (evt.countdown <= 0)
-            {
-              if (handleCounter())
-                break;
-            }
+          var evt = cpu0.events[0];
+          evt.countdown -= COUNTER_INCREMENT_PER_OP;
+          if (evt.countdown <= 0)
+          {
+            if (handleCounter())
+              break;
+          }
         }
 
         if (cpu0.stuffToDo & kStuffToDoCheckInterrupts) {
