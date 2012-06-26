@@ -778,8 +778,8 @@ if (typeof n64js === 'undefined') {
       return cpu0.gprLo[base(i)] + imms(i);
   }
 
-  function branchAddress(a,i) { return ((a+4) + (offset(i)*4))>>>0; }
-  function   jumpAddress(a,i) { return ((a&0xf0000000) | (target(i)*4))>>>0; }
+  function branchAddress(pc,i) { return ((pc+4) + (offset(i)*4))>>>0; }
+  function   jumpAddress(pc,i) { return ((pc&0xf0000000) | (target(i)*4))>>>0; }
 
   function performBranch(new_pc) {
     if (new_pc < 0) {
@@ -816,19 +816,19 @@ if (typeof n64js === 'undefined') {
     return (v&0xffffffff)>>>0;
   }
 
-  function unimplemented(a,i) {
-    var r = n64js.disassembleOp(a,i);
+  function unimplemented(pc,i) {
+    var r = n64js.disassembleOp(pc,i);
     var e = 'Unimplemented op ' + n64js.toString32(i) + ' : ' + r.disassembly + '<br>';
 
     $('#output').append(e);
     throw e;
   }
 
-  function executeUnknown(a,i) {
-    throw 'Unknown op: ' + n64js.toString32(a) + ', ' + n64js.toString32(i);
+  function executeUnknown(i) {
+    throw 'Unknown op: ' + n64js.toString32(cpu0.pc) + ', ' + n64js.toString32(i);
   }
 
-  function executeSLL(a,i) {
+  function executeSLL(i) {
     // Special-case NOP
     if (i == 0)
       return;
@@ -836,83 +836,83 @@ if (typeof n64js === 'undefined') {
     setSignExtend( rd(i), ((cpu0.gprLo[rt(i)] << sa(i)) & 0xffffffff)>>>0 );
   }
 
-  function executeSRL(a,i) {
+  function executeSRL(i) {
     setSignExtend( rd(i), cpu0.gprLo[rt(i)] >>> sa(i) );
   }
-  function executeSRA(a,i) {
+  function executeSRA(i) {
     setSignExtend( rd(i), cpu0.gprLo[rt(i)] >> sa(i) );
   }
-  function executeSLLV(a,i) {
+  function executeSLLV(i) {
     setSignExtend( rd(i), (cpu0.gprLo[rt(i)] <<  (cpu0.gprLo[rs(i)] & 0x1f)) & 0xffffffff );
   }
-  function executeSRLV(a,i) {
+  function executeSRLV(i) {
     setSignExtend( rd(i),  cpu0.gprLo[rt(i)] >>> (cpu0.gprLo[rs(i)] & 0x1f) );
   }
-  function executeSRAV(a,i) {
+  function executeSRAV(i) {
     setSignExtend( rd(i),  cpu0.gprLo[rt(i)] >>  (cpu0.gprLo[rs(i)] & 0x1f) );
   }
 
-  function executeDSLLV(a,i)      { unimplemented(a,i); }
-  function executeDSRLV(a,i)      { unimplemented(a,i); }
-  function executeDSRAV(a,i)      { unimplemented(a,i); }
+  function executeDSLLV(i)      { unimplemented(cpu0.pc,i); }
+  function executeDSRLV(i)      { unimplemented(cpu0.pc,i); }
+  function executeDSRAV(i)      { unimplemented(cpu0.pc,i); }
 
-  function executeDSLL(a,i)       { unimplemented(a,i); }
-  function executeDSRL(a,i)       { unimplemented(a,i); }
-  function executeDSRA(a,i)       { unimplemented(a,i); }
+  function executeDSLL(i)       { unimplemented(cpu0.pc,i); }
+  function executeDSRL(i)       { unimplemented(cpu0.pc,i); }
+  function executeDSRA(i)       { unimplemented(cpu0.pc,i); }
 
-  function executeDSLL32(a,i) {
+  function executeDSLL32(i) {
     cpu0.gprLo[rd(i)] = 0;
     cpu0.gprHi[rd(i)] = cpu0.gprLo[rt(i)] << sa(i);
   }
-  function executeDSRL32(a,i) {
+  function executeDSRL32(i) {
     setZeroExtend( rd(i), cpu0.gprHi[rt(i)] >>> sa(i) );
   }
-  function executeDSRA32(a,i) {
+  function executeDSRA32(i) {
     setSignExtend( rd(i), cpu0.gprHi[rt(i)] >> sa(i) );
   }
 
 
-  function executeSYSCALL(a,i)    { unimplemented(a,i); }
-  function executeBREAK(a,i)      { unimplemented(a,i); }
-  function executeSYNC(a,i)       { unimplemented(a,i); }
+  function executeSYSCALL(i)    { unimplemented(cpu0.pc,i); }
+  function executeBREAK(i)      { unimplemented(cpu0.pc,i); }
+  function executeSYNC(i)       { unimplemented(cpu0.pc,i); }
 
 
 
-  function executeMFHI(a,i) {
+  function executeMFHI(i) {
     cpu0.gprHi[rd(i)] = cpu0.multHi[1]; 
     cpu0.gprLo[rd(i)] = cpu0.multHi[0]; 
   }
-  function executeMFLO(a,i) {
+  function executeMFLO(i) {
     cpu0.gprHi[rd(i)] = cpu0.multLo[1]; 
     cpu0.gprLo[rd(i)] = cpu0.multLo[0]; 
   }
-  function executeMTHI(a,i) {
+  function executeMTHI(i) {
     cpu0.multHi[0] = cpu0.gprLo[rs(i)];
     cpu0.multHi[1] = cpu0.gprHi[rs(i)];
   }
-  function executeMTLO(a,i)  {
+  function executeMTLO(i)  {
     cpu0.multLo[0] = cpu0.gprLo[rs(i)];
     cpu0.multLo[1] = cpu0.gprHi[rs(i)];
   }
 
-  function executeMULT(a,i) {
+  function executeMULT(i) {
     var result = cpu0.gprLo_signed[rs(i)] * cpu0.gprLo_signed[rt(i)];   // needs to be 64-bit!
     setHiLoSignExtend( cpu0.multLo, getLo32(result) );
     setHiLoSignExtend( cpu0.multHi, getHi32(result) );
   }
-  function executeMULTU(a,i) {
+  function executeMULTU(i) {
     var result = cpu0.gprLo[rs(i)] * cpu0.gprLo[rt(i)];   // needs to be 64-bit!
     setHiLoSignExtend( cpu0.multLo, getLo32(result) );
     setHiLoSignExtend( cpu0.multHi, getHi32(result) );
   }
-  function executeDMULT(a,i) {
+  function executeDMULT(i) {
     var result = cpu0.gprLo_signed[rs(i)] * cpu0.gprLo_signed[rt(i)];   // needs to be 64-bit!
     cpu0.multLo[0] = getLo32(result);
     cpu0.multLo[1] = getHi32(result);
     cpu0.multHi[0] = 0;
     cpu0.multHi[1] = 0;
   }
-  function executeDMULTU(a,i) {
+  function executeDMULTU(i) {
     var result = cpu0.gprLo[rs(i)] * cpu0.gprLo[rt(i)];   // needs to be 64-bit!
     cpu0.multLo[0] = getLo32(result);
     cpu0.multLo[1] = getHi32(result);
@@ -920,7 +920,7 @@ if (typeof n64js === 'undefined') {
     cpu0.multHi[1] = 0;
   }
 
-  function executeDIV(a,i) {
+  function executeDIV(i) {
     var dividend = cpu0.gprLo_signed[rs(i)];
     var divisor  = cpu0.gprLo_signed[rt(i)];
     if (divisor) {
@@ -928,7 +928,7 @@ if (typeof n64js === 'undefined') {
       setHiLoSignExtend( cpu0.multHi, dividend % divisor );
     }
   }
-  function executeDIVU(a,i) {
+  function executeDIVU(i) {
     var dividend = cpu0.gprLo_signed[rs(i)];
     var divisor  = cpu0.gprLo_signed[rt(i)];
     if (divisor) {
@@ -937,7 +937,7 @@ if (typeof n64js === 'undefined') {
     }
   }
 
-  function executeDDIV(a,i) {
+  function executeDDIV(i) {
 
     var s = rs(i);
     var t = rt(i);
@@ -954,7 +954,7 @@ if (typeof n64js === 'undefined') {
       }
     }
   }
-  function executeDDIVU(a,i) {
+  function executeDDIVU(i) {
 
     var s = rs(i);
     var t = rt(i);
@@ -977,36 +977,36 @@ if (typeof n64js === 'undefined') {
     }
   }
 
-  function executeADD(a,i) {
+  function executeADD(i) {
     setSignExtend( rd(i), cpu0.gprLo[rs(i)] + cpu0.gprLo[rt(i)] ); // s32 + s32
   }
-  function executeADDU(a,i) {
+  function executeADDU(i) {
     setSignExtend( rd(i), cpu0.gprLo[rs(i)] + cpu0.gprLo[rt(i)] ); // s32 + s32
   }
 
-  function executeSUB(a,i) {
+  function executeSUB(i) {
     setSignExtend( rd(i), cpu0.gprLo[rs(i)] - cpu0.gprLo[rt(i)] ); // s32 - s32
   }
-  function executeSUBU(a,i) {
+  function executeSUBU(i) {
     setSignExtend( rd(i), cpu0.gprLo[rs(i)] - cpu0.gprLo[rt(i)] ); // s32 - s32
   }
 
-  function executeAND(a,i) {
+  function executeAND(i) {
     cpu0.gprHi[rd(i)] = cpu0.gprHi[rs(i)] & cpu0.gprHi[rt(i)];
     cpu0.gprLo[rd(i)] = cpu0.gprLo[rs(i)] & cpu0.gprLo[rt(i)];
   }
 
-  function executeOR(a,i) {
+  function executeOR(i) {
     cpu0.gprHi[rd(i)] = cpu0.gprHi[rs(i)] | cpu0.gprHi[rt(i)];
     cpu0.gprLo[rd(i)] = cpu0.gprLo[rs(i)] | cpu0.gprLo[rt(i)];
   }
 
-  function executeXOR(a,i) {
+  function executeXOR(i) {
     cpu0.gprHi[rd(i)] = cpu0.gprHi[rs(i)] ^ cpu0.gprHi[rt(i)];
     cpu0.gprLo[rd(i)] = cpu0.gprLo[rs(i)] ^ cpu0.gprLo[rt(i)];
   }
 
-  function executeNOR(a,i) {
+  function executeNOR(i) {
     cpu0.gprHi[rd(i)] = ~(cpu0.gprHi[rs(i)] | cpu0.gprHi[rt(i)]);
     cpu0.gprLo[rd(i)] = ~(cpu0.gprLo[rs(i)] | cpu0.gprLo[rt(i)]);
   }
@@ -1024,7 +1024,7 @@ if (typeof n64js === 'undefined') {
   // ffffffff fffffff0    // -16  true
   // 00000000 00000001    // 1
 
-  function executeSLT(a,i) {
+  function executeSLT(i) {
     var r = 0;
     if (cpu0.gprHi_signed[rs(i)] < cpu0.gprHi_signed[rt(i)]) {
       r = 1;
@@ -1033,7 +1033,7 @@ if (typeof n64js === 'undefined') {
     }
     setZeroExtend(rd(i), r);
   }
-  function executeSLTU(a,i) {
+  function executeSLTU(i) {
     var r = 0;
     if (cpu0.gprHi[rs(i)] < cpu0.gprHi[rt(i)] ||
         (cpu0.gprHi[rs(i)] === cpu0.gprHi[rt(i)] && cpu0.gprLo[rs(i)] < cpu0.gprLo[rt(i)])) {
@@ -1041,18 +1041,18 @@ if (typeof n64js === 'undefined') {
     }
     setZeroExtend(rd(i), r);
   }
-  function executeDADD(a,i)       { unimplemented(a,i); }
-  function executeDADDU(a,i)      { unimplemented(a,i); }
-  function executeDSUB(a,i)       { unimplemented(a,i); }
-  function executeDSUBU(a,i)      { unimplemented(a,i); }
-  function executeTGE(a,i)        { unimplemented(a,i); }
-  function executeTGEU(a,i)       { unimplemented(a,i); }
-  function executeTLT(a,i)        { unimplemented(a,i); }
-  function executeTLTU(a,i)       { unimplemented(a,i); }
-  function executeTEQ(a,i)        { unimplemented(a,i); }
-  function executeTNE(a,i)        { unimplemented(a,i); }
+  function executeDADD(i)       { unimplemented(cpu0.pc,i); }
+  function executeDADDU(i)      { unimplemented(cpu0.pc,i); }
+  function executeDSUB(i)       { unimplemented(cpu0.pc,i); }
+  function executeDSUBU(i)      { unimplemented(cpu0.pc,i); }
+  function executeTGE(i)        { unimplemented(cpu0.pc,i); }
+  function executeTGEU(i)       { unimplemented(cpu0.pc,i); }
+  function executeTLT(i)        { unimplemented(cpu0.pc,i); }
+  function executeTLTU(i)       { unimplemented(cpu0.pc,i); }
+  function executeTEQ(i)        { unimplemented(cpu0.pc,i); }
+  function executeTNE(i)        { unimplemented(cpu0.pc,i); }
 
-  function executeMFC0(a,i) {
+  function executeMFC0(i) {
     var control_reg = fs(i);
 
     // Check consistency
@@ -1067,7 +1067,7 @@ if (typeof n64js === 'undefined') {
     }
   }
 
-  function executeMTC0(a,i) {
+  function executeMTC0(i) {
     var control_reg = fs(i);
     var new_value   = cpu0.gprLo[rt(i)];
 
@@ -1126,19 +1126,19 @@ if (typeof n64js === 'undefined') {
         break;
     }
   }
-  function executeTLB(a,i) {
+  function executeTLB(i) {
      switch(tlbop(i)) {
        case 0x01:    cpu0.tlbRead();        return;
        case 0x02:    cpu0.tlbWriteIndex();  return;
        case 0x06:    cpu0.tlbWriteRandom(); return;
        case 0x08:    cpu0.tlbProbe();       return;
-       case 0x18:    executeERET(a,i);      return;
+       case 0x18:    executeERET(i);        return;
      }
-     executeUnknown(a,i);
+     executeUnknown(i);
   }
 
 
-  function executeERET(a,i) {
+  function executeERET(i) {
     if (cpu0.control[cpu0.kControlSR] & SR_ERL) {
       cpu0.pc = cpu0.control[cpu0.kControlErrorEPC]-4;    // -4 is to compensate for post-inc in interpreter loop
       cpu0.control[cpu0.kControlSR] &= ~SR_ERL;
@@ -1150,32 +1150,32 @@ if (typeof n64js === 'undefined') {
     }
   }
 
-  function executeTGEI(a,i)       { unimplemented(a,i); }
-  function executeTGEIU(a,i)      { unimplemented(a,i); }
-  function executeTLTI(a,i)       { unimplemented(a,i); }
-  function executeTLTIU(a,i)      { unimplemented(a,i); }
-  function executeTEQI(a,i)       { unimplemented(a,i); }
-  function executeTNEI(a,i)       { unimplemented(a,i); }
+  function executeTGEI(i)       { unimplemented(cpu0.pc,i); }
+  function executeTGEIU(i)      { unimplemented(cpu0.pc,i); }
+  function executeTLTI(i)       { unimplemented(cpu0.pc,i); }
+  function executeTLTIU(i)      { unimplemented(cpu0.pc,i); }
+  function executeTEQI(i)       { unimplemented(cpu0.pc,i); }
+  function executeTNEI(i)       { unimplemented(cpu0.pc,i); }
 
   // Jump
-  function executeJ(a,i) {
-    performBranch( jumpAddress(a,i) );
+  function executeJ(i) {
+    performBranch( jumpAddress(cpu0.pc,i) );
   }
-  function executeJAL(a,i) {
-    setSignExtend(cpu0.kRegister_ra, a + 8);
-    performBranch( jumpAddress(a,i) );
+  function executeJAL(i) {
+    setSignExtend(cpu0.kRegister_ra, cpu0.pc + 8);
+    performBranch( jumpAddress(cpu0.pc,i) );
   }
-  function executeJALR(a,i) {
+  function executeJALR(i) {
     var new_pc = cpu0.gprLo[rs(i)];
-    setSignExtend(rd(i), a + 8);
+    setSignExtend(rd(i), cpu0.pc + 8);
     performBranch( new_pc );
   }
 
-  function executeJR(a,i) {
+  function executeJR(i) {
     performBranch( cpu0.gprLo[rs(i)] );
   }
 
-  function executeBEQ(a,i) {
+  function executeBEQ(i) {
     var s = rs(i);
     var t = rt(i);
     if (cpu0.gprHi[s] === cpu0.gprHi[t] &&
@@ -1185,71 +1185,71 @@ if (typeof n64js === 'undefined') {
           cpu0.speedHack();
         }
 
-      performBranch( branchAddress(a,i) );
+      performBranch( branchAddress(cpu0.pc,i) );
     }
   }
-  function executeBEQL(a,i) {
+  function executeBEQL(i) {
     var s = rs(i);
     var t = rt(i);
     if (cpu0.gprHi[s] === cpu0.gprHi[t] &&
         cpu0.gprLo[s] === cpu0.gprLo[t] ) {
-      performBranch( branchAddress(a,i) );
+      performBranch( branchAddress(cpu0.pc,i) );
     } else {
       cpu0.pc += 4;   // skip the next instruction
     }
   }
 
-  function executeBNE(a,i) {
+  function executeBNE(i) {
     var s = rs(i);
     var t = rt(i);
     if (cpu0.gprHi[s] !== cpu0.gprHi[t] ||
         cpu0.gprLo[s] !== cpu0.gprLo[t] ) {      // NB: if imms(i) == -1 then this is a branch to self/busywait
-      performBranch( branchAddress(a,i) );
+      performBranch( branchAddress(cpu0.pc,i) );
     }
   }
-  function executeBNEL(a,i) {
+  function executeBNEL(i) {
     var s = rs(i);
     var t = rt(i);
     if (cpu0.gprHi[s] !== cpu0.gprHi[t] ||
         cpu0.gprLo[s] !== cpu0.gprLo[t] ) {
-      performBranch( branchAddress(a,i) );
+      performBranch( branchAddress(cpu0.pc,i) );
     } else {
       cpu0.pc += 4;   // skip the next instruction
     }
   }
 
   // Branch Less Than or Equal To Zero
-  function executeBLEZ(a,i) {
+  function executeBLEZ(i) {
     var s = rs(i);
     if ( cpu0.gprHi_signed[s] < 0 ||
         (cpu0.gprHi[s] === 0 && cpu0.gprLo[s] === 0) ) {
-      performBranch( branchAddress(a,i) );
+      performBranch( branchAddress(cpu0.pc,i) );
     }
   }
-  function executeBLEZL(a,i) {
+  function executeBLEZL(i) {
     var s = rs(i);
     // NB: if rs == r0 then this branch is always taken
     if ( cpu0.gprHi_signed[s] < 0 ||
         (cpu0.gprHi[s] === 0 && cpu0.gprLo[s] === 0) ) {
-      performBranch( branchAddress(a,i) );
+      performBranch( branchAddress(cpu0.pc,i) );
     } else {
       cpu0.pc += 4;   // skip the next instruction
     }
   }
 
   // Branch Greater Than Zero
-  function executeBGTZ(a,i) {
+  function executeBGTZ(i) {
     var s = rs(i);
     if ( cpu0.gprHi_signed[s] >= 0 &&
         (cpu0.gprHi[s] !== 0 || cpu0.gprLo[s] !== 0) ) {
-      performBranch( branchAddress(a,i) );
+      performBranch( branchAddress(cpu0.pc,i) );
     }
   }
-  function executeBGTZL(a,i) {
+  function executeBGTZL(i) {
     var s = rs(i);
     if ( cpu0.gprHi_signed[s] >= 0 &&
         (cpu0.gprHi[s] !== 0 || cpu0.gprLo[s] !== 0) ) {
-      performBranch( branchAddress(a,i) );
+      performBranch( branchAddress(cpu0.pc,i) );
     } else {
       cpu0.pc += 4;   // skip the next instruction
     }
@@ -1257,28 +1257,28 @@ if (typeof n64js === 'undefined') {
 
 
   // Branch Less Than Zero
-  function executeBLTZ(a,i) {
+  function executeBLTZ(i) {
     if (cpu0.gprHi_signed[rs(i)] < 0) {
-      performBranch( branchAddress(a,i) );
+      performBranch( branchAddress(cpu0.pc,i) );
     }
   }
-  function executeBLTZL(a,i) {
+  function executeBLTZL(i) {
     if (cpu0.gprHi_signed[rs(i)] < 0) {
-      performBranch( branchAddress(a,i) );
+      performBranch( branchAddress(cpu0.pc,i) );
     } else {
       cpu0.pc += 4;   // skip the next instruction
     }
   }
-  function executeBLTZAL(a,i) {
-    setSignExtend(cpu0.kRegister_ra, a + 8);
+  function executeBLTZAL(i) {
+    setSignExtend(cpu0.kRegister_ra, cpu0.pc + 8);
     if (cpu0.gprHi_signed[rs(i)] < 0) {
-      performBranch( branchAddress(a,i) );
+      performBranch( branchAddress(cpu0.pc,i) );
     }
   }
-  function executeBLTZALL(a,i) {
-    setSignExtend(cpu0.kRegister_ra, a + 8);
+  function executeBLTZALL(i) {
+    setSignExtend(cpu0.kRegister_ra, cpu0.pc + 8);
     if (cpu0.gprHi_signed[rs(i)] < 0) {
-      performBranch( branchAddress(a,i) );
+      performBranch( branchAddress(cpu0.pc,i) );
     } else {
       cpu0.pc += 4;   // skip the next instruction
     }
@@ -1286,53 +1286,53 @@ if (typeof n64js === 'undefined') {
 
 
   // Branch Greater Than Zero
-  function executeBGEZ(a,i) {
+  function executeBGEZ(i) {
     if (cpu0.gprHi_signed[rs(i)] >= 0) {
-      performBranch( branchAddress(a,i) );
+      performBranch( branchAddress(cpu0.pc,i) );
     }
   }
-  function executeBGEZL(a,i) {
+  function executeBGEZL(i) {
     if (cpu0.gprHi_signed[rs(i)] >= 0) {
-      performBranch( branchAddress(a,i) );
+      performBranch( branchAddress(cpu0.pc,i) );
     } else {
       cpu0.pc += 4;   // skip the next instruction
     }
   }
-  function executeBGEZAL(a,i) {
-    setSignExtend(cpu0.kRegister_ra, a + 8);
+  function executeBGEZAL(i) {
+    setSignExtend(cpu0.kRegister_ra, cpu0.pc + 8);
     if (cpu0.gprHi_signed[rs(i)] >= 0) {
-      performBranch( branchAddress(a,i) );
+      performBranch( branchAddress(cpu0.pc,i) );
     }
   }
-  function executeBGEZALL(a,i) {
-    setSignExtend(cpu0.kRegister_ra, a + 8);
+  function executeBGEZALL(i) {
+    setSignExtend(cpu0.kRegister_ra, cpu0.pc + 8);
     if (cpu0.gprHi_signed[rs(i)] >= 0) {
-      performBranch( branchAddress(a,i) );
+      performBranch( branchAddress(cpu0.pc,i) );
     } else {
       cpu0.pc += 4;   // skip the next instruction
     }
   }
 
 
-  function executeADDI(a,i) {
+  function executeADDI(i) {
     var a = cpu0.gprLo[rs(i)];
     var v = imms(i);
     setSignExtend(rt(i), a + v);
   }
-  function executeADDIU(a,i) {
+  function executeADDIU(i) {
     var a = cpu0.gprLo[rs(i)];
     var v = imms(i);
     setSignExtend(rt(i), a + v);
   }
 
-  function executeDADDI(a,i) {
+  function executeDADDI(i) {
     cpu0.setGPR_s64(rt(i), cpu0.getGPR_s64(rs(i)) + imms(i));
   }
-  function executeDADDIU(a,i) {
+  function executeDADDIU(i) {
     cpu0.setGPR_s64(rt(i), cpu0.getGPR_s64(rs(i)) + imms(i));
   }
 
-  function executeSLTI(a,i) {
+  function executeSLTI(i) {
     var s         = rs(i);
     var t         = rt(i);
 
@@ -1347,7 +1347,7 @@ if (typeof n64js === 'undefined') {
     }
     cpu0.gprHi[t] = 0;
   }
-  function executeSLTIU(a,i) {
+  function executeSLTIU(i) {
     var s         = rs(i);
     var t         = rt(i);
 
@@ -1365,63 +1365,63 @@ if (typeof n64js === 'undefined') {
 
   }
 
-  function executeANDI(a,i) {
+  function executeANDI(i) {
     cpu0.gprHi[rt(i)] = 0;    // always 0, as sign extended immediate value is always 0
     cpu0.gprLo[rt(i)] = cpu0.gprLo[rs(i)] & imm(i);    
   }
   
-  function executeORI(a,i) {
+  function executeORI(i) {
     cpu0.gprHi[rt(i)] = cpu0.gprHi[rs(i)];
     cpu0.gprLo[rt(i)] = cpu0.gprLo[rs(i)] | imm(i);
   }
   
-  function executeXORI(a,i) {
+  function executeXORI(i) {
     // High 32 bits are always unchanged, as sign extended immediate value is always 0
     cpu0.gprHi[rt(i)] = cpu0.gprHi[rs(i)];
     cpu0.gprLo[rt(i)] = cpu0.gprLo[rs(i)] ^ imm(i);
   }
   
-  function executeLUI(a,i) {
+  function executeLUI(i) {
     var v  = imms(i) << 16;
     setSignExtend(rt(i), v);
   }
   
-  function executeLB(a,i) {
+  function executeLB(i) {
     setSignExtend(rt(i), (n64js.readMemory8( memaddr(i) )<<24)>>24);
   }
-  function executeLH(a,i) {
+  function executeLH(i) {
     setSignExtend(rt(i), (n64js.readMemory16( memaddr(i) )<<16)>>16);
   }
-  function executeLW(a,i)         {
+  function executeLW(i) {
     // SF2049 requires this, apparently
     if (rt(i) == 0)
       return;
     setSignExtend(rt(i), n64js.readMemory32( memaddr(i) ));
   }
 
-  function executeLBU(a,i) {
+  function executeLBU(i) {
     setZeroExtend(rt(i), n64js.readMemory8( memaddr(i) ));
   }
-  function executeLHU(a,i) {
+  function executeLHU(i) {
     setZeroExtend(rt(i), n64js.readMemory16( memaddr(i) ));
   }
-  function executeLWU(a,i) {
+  function executeLWU(i) {
     setZeroExtend(rt(i), n64js.readMemory32( memaddr(i) ));
   }
-  function executeLD(a,i) {
+  function executeLD(i) {
     cpu0.gprHi[rt(i)] = n64js.readMemory32( memaddr(i) + 0 );
     cpu0.gprLo[rt(i)] = n64js.readMemory32( memaddr(i) + 4 );
   }
 
-  function executeLWC1(a,i) {
+  function executeLWC1(i) {
     cpu1.store_u32( ft(i), n64js.readMemory32( memaddr(i)) );
   }
-  function executeLDC1(a,i){
+  function executeLDC1(i){
     cpu1.store_u64( ft(i), n64js.readMemory32( memaddr(i)+4 ), n64js.readMemory32( memaddr(i)+0 ) );
   }
-  function executeLDC2(a,i)       { unimplemented(a,i); }
+  function executeLDC2(i)       { unimplemented(cpu0.pc,i); }
 
-  function executeLWL(a,i) {
+  function executeLWL(i) {
     var address         = memaddr(i)>>>0;
     var address_aligned = (address & ~3)>>>0;
     var memory          = n64js.readMemory32(address_aligned);
@@ -1437,7 +1437,7 @@ if (typeof n64js === 'undefined') {
 
     setSignExtend( rt(i), value );
   }
-  function executeLWR(a,i) {
+  function executeLWR(i) {
     var address         = memaddr(i)>>>0;
     var address_aligned = (address & ~3)>>>0;
     var memory          = n64js.readMemory32(address_aligned);
@@ -1453,35 +1453,35 @@ if (typeof n64js === 'undefined') {
 
     setSignExtend( rt(i), value );
   }
-  function executeLDL(a,i)        { unimplemented(a,i); }
-  function executeLDR(a,i)        { unimplemented(a,i); }
+  function executeLDL(i)        { unimplemented(cpu0.pc,i); }
+  function executeLDR(i)        { unimplemented(cpu0.pc,i); }
 
 
-  function executeSB(a,i) {
+  function executeSB(i) {
     n64js.writeMemory8(memaddr(i), cpu0.gprLo[rt(i)] & 0xff );
   }
-  function executeSH(a,i) {
+  function executeSH(i) {
     n64js.writeMemory16(memaddr(i), cpu0.gprLo[rt(i)] & 0xffff );
   }
-  function executeSW(a,i)         {
+  function executeSW(i) {
     n64js.writeMemory32(memaddr(i), cpu0.gprLo[rt(i)]);
   }
-  function executeSD(a,i) {
+  function executeSD(i) {
     n64js.writeMemory32( memaddr(i) + 0, cpu0.gprHi[rt(i)] );
     n64js.writeMemory32( memaddr(i) + 4, cpu0.gprLo[rt(i)] );
   }
 
-  function executeSWC1(a,i) {
+  function executeSWC1(i) {
     n64js.writeMemory32( memaddr(i), cpu1.load_u32( ft(i) ) );
   }
-  function executeSDC1(a,i) {
+  function executeSDC1(i) {
     n64js.writeMemory32( memaddr(i) + 0, cpu1.load_u32hi( ft(i) ) );
     n64js.writeMemory32( memaddr(i) + 4, cpu1.load_u32(   ft(i) ) );
   }
 
-  function executeSDC2(a,i)       { unimplemented(a,i); }
+  function executeSDC2(i)       { unimplemented(cpu0.pc,i); }
 
-  function executeSWL(a,i) {
+  function executeSWL(i) {
     var address         = memaddr(i);
     var address_aligned = (address & ~3)>>>0;
     var memory          = n64js.readMemory32(address_aligned);
@@ -1497,7 +1497,7 @@ if (typeof n64js === 'undefined') {
 
     n64js.writeMemory32( address_aligned, value );
   }
-  function executeSWR(a,i) {
+  function executeSWR(i) {
     var address         = memaddr(i);
     var address_aligned = (address & ~3)>>>0;
     var memory          = n64js.readMemory32(address_aligned);
@@ -1514,35 +1514,35 @@ if (typeof n64js === 'undefined') {
     n64js.writeMemory32( address_aligned, value );
   }
 
-  function executeSDL(a,i)        { unimplemented(a,i); }
-  function executeSDR(a,i)        { unimplemented(a,i); }
+  function executeSDL(i)        { unimplemented(cpu0.pc,i); }
+  function executeSDR(i)        { unimplemented(cpu0.pc,i); }
 
-  function executeCACHE(a,i) {
+  function executeCACHE(i) {
     // ignore!
   }
 
-  function executeLL(a,i)         { unimplemented(a,i); }
-  function executeLLD(a,i)        { unimplemented(a,i); }
-  function executeSC(a,i)         { unimplemented(a,i); }
-  function executeSCD(a,i)        { unimplemented(a,i); }
+  function executeLL(i)         { unimplemented(cpu0.pc,i); }
+  function executeLLD(i)        { unimplemented(cpu0.pc,i); }
+  function executeSC(i)         { unimplemented(cpu0.pc,i); }
+  function executeSCD(i)        { unimplemented(cpu0.pc,i); }
 
-  function executeMFC1(a,i) {
+  function executeMFC1(i) {
     setSignExtend( rt(i), cpu1.load_u32( fs(i) ) );
   }
-  function executeDMFC1(a,i) {
+  function executeDMFC1(i) {
     cpu0.gprLo[rt(i)] = cpu1.load_u32( fs(i) );
     cpu0.gprHi[rt(i)] = cpu1.load_u32hi( fs(i) );
     n64js.halt('DMFC1');
   }
-  function executeMTC1(a,i) {
+  function executeMTC1(i) {
     cpu1.store_u32( fs(i), cpu0.gprLo[rt(i)] );
   }
-  function executeDMTC1(a,i) {
+  function executeDMTC1(i) {
     cpu1.store_u64( fs(i), cpu0.gprLo[rt(i)], cpu0.gprHi[rt(i)] );
     n64js.halt('DMTC1');
   }
 
-  function executeCFC1(a,i) {
+  function executeCFC1(i) {
     var r = fs(i);
     switch(r) {
       case 0:
@@ -1551,7 +1551,7 @@ if (typeof n64js === 'undefined') {
         break;
     }
   }
-  function executeCTC1(a,i) {
+  function executeCTC1(i) {
     var r = fs(i);
     if (r == 31) {
       var v = cpu0.gprLo[rt(i)];
@@ -1570,7 +1570,7 @@ if (typeof n64js === 'undefined') {
     }
   }
 
-  function executeBCInstr(a,i) {
+  function executeBCInstr(i) {
     n64js.assert( ((i>>>18)&0x7) === 0, "cc bit is not 0" );
 
     var condition = (i&0x10000) !== 0;
@@ -1578,7 +1578,7 @@ if (typeof n64js === 'undefined') {
     var cc        = (cpu1.control[31] & FPCSR_C) !== 0;
 
     if (cc === condition) {
-      performBranch( branchAddress(a, i) );
+      performBranch( branchAddress(cpu0.pc, i) );
     } else {
       if (likely) {
         cpu0.pc += 4;   // skip the next instruction
@@ -1590,7 +1590,7 @@ if (typeof n64js === 'undefined') {
     return x < 0 ? Math.ceil(x) : Math.floor(x);
   }
 
-  function executeSInstr(a,i) {
+  function executeSInstr(i) {
 
     switch(cop1_func(i)) {
       case 0x00:    cpu1.store_f32( fd(i), cpu1.load_f32( fs(i) ) + cpu1.load_f32( ft(i) ) ); return;
@@ -1601,41 +1601,41 @@ if (typeof n64js === 'undefined') {
       case 0x05:    cpu1.store_f32( fd(i), Math.abs(  cpu1.load_f32( fs(i) ) ) ); return;
       case 0x06:    cpu1.store_f32( fd(i),  cpu1.load_f32( fs(i) ) ); return;
       case 0x07:    cpu1.store_f32( fd(i), -cpu1.load_f32( fs(i) )  ); return;
-      case 0x08:    /* 'ROUND.L.'*/     unimplemented(a,i); return;
-      case 0x09:    /* 'TRUNC.L.'*/     unimplemented(a,i); return;
-      case 0x0a:    /* 'CEIL.L.'*/      unimplemented(a,i); return;
-      case 0x0b:    /* 'FLOOR.L.'*/     unimplemented(a,i); return;
+      case 0x08:    /* 'ROUND.L.'*/     unimplemented(cpu0.pc,i); return;
+      case 0x09:    /* 'TRUNC.L.'*/     unimplemented(cpu0.pc,i); return;
+      case 0x0a:    /* 'CEIL.L.'*/      unimplemented(cpu0.pc,i); return;
+      case 0x0b:    /* 'FLOOR.L.'*/     unimplemented(cpu0.pc,i); return;
       case 0x0c:    /* 'ROUND.W.'*/     cpu1.store_s32( fd(i), Math.round( cpu1.load_f32( fs(i) ) ) ); return;  // TODO: check this
       case 0x0d:    /* 'TRUNC.W.'*/     cpu1.store_s32( fd(i),      trunc( cpu1.load_f32( fs(i) ) ) ); return;
       case 0x0e:    /* 'CEIL.W.'*/      cpu1.store_s32( fd(i), Math.ceil(  cpu1.load_f32( fs(i) ) ) ); return;
       case 0x0f:    /* 'FLOOR.W.'*/     cpu1.store_s32( fd(i), Math.floor( cpu1.load_f32( fs(i) ) ) ); return;
 
-      case 0x20:    /* 'CVT.S' */       unimplemented(a,i); return;
+      case 0x20:    /* 'CVT.S' */       unimplemented(cpu0.pc,i); return;
       case 0x21:    /* 'CVT.D' */       cpu1.store_f64( fd(i), cpu1.load_f32( fs(i) ) ); return;
       case 0x24:    /* 'CVT.W' */       cpu1.store_s32( fd(i), Math.floor( cpu1.load_f32( fs(i) ) ) ); return;  // FIXME: apply correct conversion mode
-      case 0x25:    /* 'CVT.L' */       unimplemented(a,i); return;
+      case 0x25:    /* 'CVT.L' */       unimplemented(cpu0.pc,i); return;
       case 0x30:    /* 'C.F' */         cpu1.setCondition( false );; return;
-      case 0x31:    /* 'C.UN' */        unimplemented(a,i); return;
+      case 0x31:    /* 'C.UN' */        unimplemented(cpu0.pc,i); return;
       case 0x32:    /* 'C.EQ' */        cpu1.setCondition( cpu1.load_f32( fs(i) ) == cpu1.load_f32( ft(i) ) ); return;
-      case 0x33:    /* 'C.UEQ' */       unimplemented(a,i); return;
-      case 0x34:    /* 'C.OLT' */       unimplemented(a,i); return;
-      case 0x35:    /* 'C.ULT' */       unimplemented(a,i); return;
-      case 0x36:    /* 'C.OLE' */       unimplemented(a,i); return;
-      case 0x37:    /* 'C.ULE' */       unimplemented(a,i); return;
+      case 0x33:    /* 'C.UEQ' */       unimplemented(cpu0.pc,i); return;
+      case 0x34:    /* 'C.OLT' */       unimplemented(cpu0.pc,i); return;
+      case 0x35:    /* 'C.ULT' */       unimplemented(cpu0.pc,i); return;
+      case 0x36:    /* 'C.OLE' */       unimplemented(cpu0.pc,i); return;
+      case 0x37:    /* 'C.ULE' */       unimplemented(cpu0.pc,i); return;
       case 0x38:    /* 'C.SF' */        cpu1.setCondition( false );; return;
-      case 0x39:    /* 'C.NGLE' */      unimplemented(a,i); return;
-      case 0x3a:    /* 'C.SEQ' */       unimplemented(a,i); return;
+      case 0x39:    /* 'C.NGLE' */      unimplemented(cpu0.pc,i); return;
+      case 0x3a:    /* 'C.SEQ' */       unimplemented(cpu0.pc,i); return;
       case 0x3b:    /* 'C.NGL' */       cpu1.setCondition( cpu1.load_f32( fs(i) ) == cpu1.load_f32( ft(i) ) ); return;
       case 0x3c:    /* 'C.LT' */        cpu1.setCondition( cpu1.load_f32( fs(i) ) < cpu1.load_f32( ft(i) ) ); return;
-      case 0x3d:    /* 'C.NGE' */       unimplemented(a,i); return;
+      case 0x3d:    /* 'C.NGE' */       unimplemented(cpu0.pc,i); return;
       case 0x3e:    /* 'C.LE' */        cpu1.setCondition( cpu1.load_f32( fs(i) ) <= cpu1.load_f32( ft(i) ) ); return;
       case 0x3f:    /* 'C.NGT' */       cpu1.setCondition( cpu1.load_f32( fs(i) ) <= cpu1.load_f32( ft(i) ) ); return;
     }
 
-    unimplemented(a,i);
+    unimplemented(cpu0.pc,i);
   }
 
-  function executeDInstr(a,i) {
+  function executeDInstr(i) {
 
     switch(cop1_func(i)) {
       case 0x00:    cpu1.store_f64( fd(i), cpu1.load_f64( fs(i) ) + cpu1.load_f64( ft(i) ) ); return;
@@ -1646,48 +1646,48 @@ if (typeof n64js === 'undefined') {
       case 0x05:    cpu1.store_f64( fd(i), Math.abs(  cpu1.load_f64( fs(i) ) ) ); return;
       case 0x06:    cpu1.store_f64( fd(i),  cpu1.load_f64( fs(i) ) ); return;
       case 0x07:    cpu1.store_f64( fd(i), -cpu1.load_f64( fs(i) )  ); return;
-      case 0x08:    /* 'ROUND.L.'*/     unimplemented(a,i); return;
-      case 0x09:    /* 'TRUNC.L.'*/     unimplemented(a,i); return;
-      case 0x0a:    /* 'CEIL.L.'*/      unimplemented(a,i); return;
-      case 0x0b:    /* 'FLOOR.L.'*/     unimplemented(a,i); return;
+      case 0x08:    /* 'ROUND.L.'*/     unimplemented(cpu0.pc,i); return;
+      case 0x09:    /* 'TRUNC.L.'*/     unimplemented(cpu0.pc,i); return;
+      case 0x0a:    /* 'CEIL.L.'*/      unimplemented(cpu0.pc,i); return;
+      case 0x0b:    /* 'FLOOR.L.'*/     unimplemented(cpu0.pc,i); return;
       case 0x0c:    /* 'ROUND.W.'*/     cpu1.store_s32( fd(i), Math.round( cpu1.load_f64( fs(i) ) ) ); return;  // TODO: check this
       case 0x0d:    /* 'TRUNC.W.'*/     cpu1.store_s32( fd(i),      trunc( cpu1.load_f64( fs(i) ) ) ); return;
       case 0x0e:    /* 'CEIL.W.'*/      cpu1.store_s32( fd(i), Math.ceil(  cpu1.load_f64( fs(i) ) ) ); return;
       case 0x0f:    /* 'FLOOR.W.'*/     cpu1.store_s32( fd(i), Math.floor( cpu1.load_f64( fs(i) ) ) ); return;
 
       case 0x20:    /* 'CVT.S' */       cpu1.store_f32( fd(i), cpu1.load_f64( fs(i) ) ); return;
-      case 0x21:    /* 'CVT.D' */       unimplemented(a,i); return;
+      case 0x21:    /* 'CVT.D' */       unimplemented(cpu0.pc,i); return;
       case 0x24:    /* 'CVT.W' */       cpu1.store_s32( fd(i), Math.floor( cpu1.load_f64( fs(i) ) ) ); return;  // FIXME: apply correct conversion mode
-      case 0x25:    /* 'CVT.L' */       unimplemented(a,i); return;
+      case 0x25:    /* 'CVT.L' */       unimplemented(cpu0.pc,i); return;
       case 0x30:    /* 'C.F' */         cpu1.setCondition( false );; return;
-      case 0x31:    /* 'C.UN' */        unimplemented(a,i); return;
+      case 0x31:    /* 'C.UN' */        unimplemented(cpu0.pc,i); return;
       case 0x32:    /* 'C.EQ' */        cpu1.setCondition( cpu1.load_f64( fs(i) ) == cpu1.load_f64( ft(i) ) ); return;
-      case 0x33:    /* 'C.UEQ' */       unimplemented(a,i); return;
-      case 0x34:    /* 'C.OLT' */       unimplemented(a,i); return;
-      case 0x35:    /* 'C.ULT' */       unimplemented(a,i); return;
-      case 0x36:    /* 'C.OLE' */       unimplemented(a,i); return;
-      case 0x37:    /* 'C.ULE' */       unimplemented(a,i); return;
+      case 0x33:    /* 'C.UEQ' */       unimplemented(cpu0.pc,i); return;
+      case 0x34:    /* 'C.OLT' */       unimplemented(cpu0.pc,i); return;
+      case 0x35:    /* 'C.ULT' */       unimplemented(cpu0.pc,i); return;
+      case 0x36:    /* 'C.OLE' */       unimplemented(cpu0.pc,i); return;
+      case 0x37:    /* 'C.ULE' */       unimplemented(cpu0.pc,i); return;
       case 0x38:    /* 'C.SF' */        cpu1.setCondition( false );; return;
-      case 0x39:    /* 'C.NGLE' */      unimplemented(a,i); return;
-      case 0x3a:    /* 'C.SEQ' */       unimplemented(a,i); return;
+      case 0x39:    /* 'C.NGLE' */      unimplemented(cpu0.pc,i); return;
+      case 0x3a:    /* 'C.SEQ' */       unimplemented(cpu0.pc,i); return;
       case 0x3b:    /* 'C.NGL' */       cpu1.setCondition( cpu1.load_f64( fs(i) ) == cpu1.load_f64( ft(i) ) ); return;
       case 0x3c:    /* 'C.LT' */        cpu1.setCondition( cpu1.load_f64( fs(i) ) < cpu1.load_f64( ft(i) ) ); return;
-      case 0x3d:    /* 'C.NGE' */       unimplemented(a,i); return;
+      case 0x3d:    /* 'C.NGE' */       unimplemented(cpu0.pc,i); return;
       case 0x3e:    /* 'C.LE' */        cpu1.setCondition( cpu1.load_f64( fs(i) ) <= cpu1.load_f64( ft(i) ) ); return;
       case 0x3f:    /* 'C.NGT' */       cpu1.setCondition( cpu1.load_f64( fs(i) ) <= cpu1.load_f64( ft(i) ) ); return;
     }
 
-    unimplemented(a,i);
+    unimplemented(cpu0.pc,i);
   }
 
-  function executeWInstr(a,i) {
+  function executeWInstr(i) {
     switch(cop1_func(i)) {
       case 0x20:    cpu1.store_f32( fd(i), cpu1.load_s32( fs(i) ) ); return;
       case 0x21:    cpu1.store_f64( fd(i), cpu1.load_s32( fs(i) ) ); return;
     }
-    unimplemented(a,i);
+    unimplemented(cpu0.pc,i);
   }
-  function executeLInstr(a,i)     { unimplemented(a,i); }
+  function executeLInstr(i)     { unimplemented(cpu0.pc,i); }
 
   var specialTable = [
     executeSLL,           executeUnknown,       executeSRL,         executeSRA,
@@ -1711,9 +1711,9 @@ if (typeof n64js === 'undefined') {
     throw "Oops, didn't build the special table correctly";
   }
 
-  function executeSpecial(a,i) {
+  function executeSpecial(i) {
     var fn = i & 0x3f;
-    specialTable[fn](a,i);
+    specialTable[fn](i);
   }
 
   var cop0Table = [
@@ -1729,9 +1729,9 @@ if (typeof n64js === 'undefined') {
   if (cop0Table.length != 32) {
     throw "Oops, didn't build the cop0 table correctly";
   }
-  function executeCop0(a,i) {
+  function executeCop0(i) {
     var fmt = (i>>21) & 0x1f;
-    cop0Table[fmt](a,i);
+    cop0Table[fmt](i);
   }
 
   var cop1Table = [
@@ -1747,13 +1747,13 @@ if (typeof n64js === 'undefined') {
   if (cop1Table.length != 32) {
     throw "Oops, didn't build the cop1 table correctly";
   }
-  function executeCop1(a,i) {
+  function executeCop1(i) {
     //n64js.assert( (cpu0.control[cpu0.kControlSR] & SR_CU1) !== 0, "SR_CU1 in inconsistent state" );
 
     var fmt = (i>>21) & 0x1f;
-    cop1Table[fmt](a, i);
+    cop1Table[fmt](i);
   }
-  function executeCop1_disabled(a,i) {
+  function executeCop1_disabled(i) {
     n64js.log('Thread accessing cop1 for first time, throwing cop1 unusable exception');
 
     n64js.assert( (cpu0.control[cpu0.kControlSR] & SR_CU1) === 0, "SR_CU1 in inconsistent state" );
@@ -1780,9 +1780,9 @@ if (typeof n64js === 'undefined') {
     throw "Oops, didn't build the special table correctly";
   }  
 
-  function executeRegImm(a,i) {
+  function executeRegImm(i) {
     var rt = (i >> 16) & 0x1f;
-    return regImmTable[rt](a,i);
+    return regImmTable[rt](i);
   }
 
   var simpleTable = [
@@ -1807,10 +1807,10 @@ if (typeof n64js === 'undefined') {
     throw "Oops, didn't build the simple table correctly";
   }
 
-  function executeOp(a,i) {
+  function executeOp(i) {
     var opcode = (i >> 26) & 0x3f;
 
-    return simpleTable[opcode](a,i);
+    return simpleTable[opcode](i);
   }
 
   function checkCauseIP3Consistent() {
@@ -1966,7 +1966,7 @@ if (typeof n64js === 'undefined') {
           var dpc = cpu0.delayPC;
 
           var instruction = n64js.readMemory32(pc);
-          executeOp(pc, instruction);
+          executeOp(instruction);
 
           cpu0.control[cpu0.kControlCount] += COUNTER_INCREMENT_PER_OP;
 
