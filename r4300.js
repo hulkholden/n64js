@@ -249,7 +249,8 @@ if (typeof n64js === 'undefined') {
 
     this.pc             = 0;
     this.delayPC        = 0;
-    this.branchTarget   = 0;
+    this.nextPC         = 0;      // Set to the next expected PC before an op executes. Ops can update this to change control flow without branch delay (e.g. likely branches, ERET)
+    this.branchTarget   = 0;      // Set to indicate a branch has been taken. Sets the delayPC for the subsequent op.
 
     var E_VEC           = 0x80000180;
 
@@ -293,6 +294,7 @@ if (typeof n64js === 'undefined') {
 
       this.pc           = 0;
       this.delayPC      = 0;
+      this.nextPC       = 0;
       this.branchTarget = 0;
 
       this.stuffToDo    = 0;
@@ -395,15 +397,16 @@ if (typeof n64js === 'undefined') {
     this.throwCop1Unusable = function () {
       // XXXX check we're not inside exception handler before snuffing CAUSE reg?
       this.setException( CAUSE_EXCMASK|CAUSE_CEMASK, EXC_CPU | 0x10000000 );
-      this.jumpToInterruptVector(E_VEC);
-      this.pc -= 4;   // compensate for increment that happens in the dispatch loop. Urgh.
+      this.nextPC = E_VEC;
     }
 
     this.handleInterrupt = function () {
       if (this.checkForUnmaskedInterrupts()) {
           this.setException( CAUSE_EXCMASK, EXC_INT );
-          this.jumpToInterruptVector( E_VEC );
-          // this is handled outside of the main dispatch loop, so no need to compensate pc here
+          // this is handled outside of the main dispatch loop, so need to update pc directly
+          this.pc      = E_VEC;
+          this.delayPC = 0;
+
       } else {
         n64js.assert(false, "Was expecting an unmasked interrupt - something wrong with kStuffToDoCheckInterrupts?");
       }
@@ -412,9 +415,6 @@ if (typeof n64js === 'undefined') {
     this.setException = function (mask, exception) {
       this.control[this.kControlCause] &= ~mask;
       this.control[this.kControlCause] |= exception
-    }
-
-    this.jumpToInterruptVector = function (vec) {
       this.control[this.kControlSR]  |= SR_EXL;
       this.control[this.kControlEPC]  = this.pc;
       if (this.delayPC) {
@@ -423,9 +423,6 @@ if (typeof n64js === 'undefined') {
       } else {
         this.control[this.kControlCause] &= ~CAUSE_BD;
       }
-
-      this.pc      = vec;
-      this.delayPC = 0;
     }
 
     this.setCompare = function (value) {
@@ -1142,13 +1139,13 @@ if (typeof n64js === 'undefined') {
 
   function executeERET(i) {
     if (cpu0.control[cpu0.kControlSR] & SR_ERL) {
-      cpu0.pc = cpu0.control[cpu0.kControlErrorEPC]-4;    // -4 is to compensate for post-inc in interpreter loop
+      cpu0.nextPC = cpu0.control[cpu0.kControlErrorEPC];
       cpu0.control[cpu0.kControlSR] &= ~SR_ERL;
-      n64js.log('ERET from error trap - ' + cpu0.pc);
+      n64js.log('ERET from error trap - ' + cpu0.nextPC);
     } else {
-      cpu0.pc = cpu0.control[cpu0.kControlEPC]-4;         // -4 is to compensate for post-inc in interpreter loop
+      cpu0.nextPC = cpu0.control[cpu0.kControlEPC];
       cpu0.control[cpu0.kControlSR] &= ~SR_EXL;
-      //n64js.log('ERET from interrupt/exception ' + cpu0.pc);
+      //n64js.log('ERET from interrupt/exception ' + cpu0.nextPC);
     }
   }
 
@@ -1197,7 +1194,7 @@ if (typeof n64js === 'undefined') {
         cpu0.gprLo[s] === cpu0.gprLo[t] ) {
       performBranch( branchAddress(cpu0.pc,i) );
     } else {
-      cpu0.pc += 4;   // skip the next instruction
+      cpu0.nextPC += 4;   // skip the next instruction
     }
   }
 
@@ -1216,7 +1213,7 @@ if (typeof n64js === 'undefined') {
         cpu0.gprLo[s] !== cpu0.gprLo[t] ) {
       performBranch( branchAddress(cpu0.pc,i) );
     } else {
-      cpu0.pc += 4;   // skip the next instruction
+      cpu0.nextPC += 4;   // skip the next instruction
     }
   }
 
@@ -1235,7 +1232,7 @@ if (typeof n64js === 'undefined') {
         (cpu0.gprHi[s] === 0 && cpu0.gprLo[s] === 0) ) {
       performBranch( branchAddress(cpu0.pc,i) );
     } else {
-      cpu0.pc += 4;   // skip the next instruction
+      cpu0.nextPC += 4;   // skip the next instruction
     }
   }
 
@@ -1253,7 +1250,7 @@ if (typeof n64js === 'undefined') {
         (cpu0.gprHi[s] !== 0 || cpu0.gprLo[s] !== 0) ) {
       performBranch( branchAddress(cpu0.pc,i) );
     } else {
-      cpu0.pc += 4;   // skip the next instruction
+      cpu0.nextPC += 4;   // skip the next instruction
     }
   }
 
@@ -1268,7 +1265,7 @@ if (typeof n64js === 'undefined') {
     if (cpu0.gprHi_signed[rs(i)] < 0) {
       performBranch( branchAddress(cpu0.pc,i) );
     } else {
-      cpu0.pc += 4;   // skip the next instruction
+      cpu0.nextPC += 4;   // skip the next instruction
     }
   }
   function executeBLTZAL(i) {
@@ -1282,7 +1279,7 @@ if (typeof n64js === 'undefined') {
     if (cpu0.gprHi_signed[rs(i)] < 0) {
       performBranch( branchAddress(cpu0.pc,i) );
     } else {
-      cpu0.pc += 4;   // skip the next instruction
+      cpu0.nextPC += 4;   // skip the next instruction
     }
   }
 
@@ -1297,7 +1294,7 @@ if (typeof n64js === 'undefined') {
     if (cpu0.gprHi_signed[rs(i)] >= 0) {
       performBranch( branchAddress(cpu0.pc,i) );
     } else {
-      cpu0.pc += 4;   // skip the next instruction
+      cpu0.nextPC += 4;   // skip the next instruction
     }
   }
   function executeBGEZAL(i) {
@@ -1311,7 +1308,7 @@ if (typeof n64js === 'undefined') {
     if (cpu0.gprHi_signed[rs(i)] >= 0) {
       performBranch( branchAddress(cpu0.pc,i) );
     } else {
-      cpu0.pc += 4;   // skip the next instruction
+      cpu0.nextPC += 4;   // skip the next instruction
     }
   }
 
@@ -1583,7 +1580,7 @@ if (typeof n64js === 'undefined') {
       performBranch( branchAddress(cpu0.pc, i) );
     } else {
       if (likely) {
-        cpu0.pc += 4;   // skip the next instruction
+        cpu0.nextPC += 4;   // skip the next instruction
       }
     }
   }
@@ -1964,25 +1961,18 @@ if (typeof n64js === 'undefined') {
           //    break;
           //}
 
-          var pc            = cpu0.pc;
-          var dpc           = cpu0.delayPC;
+          cpu0.nextPC       = cpu0.delayPC ? cpu0.delayPC : cpu0.pc + 4;
           cpu0.branchTarget = 0;
 
-          var instruction = n64js.readMemory32(pc);
+          var instruction = n64js.readMemory32(cpu0.pc);
           executeOp(instruction);
 
-          cpu0.control[cpu0.kControlCount] += COUNTER_INCREMENT_PER_OP;
-
-          cpu0.delayPC      = cpu0.branchTarget;
-
-          if (dpc !== 0) {
-            cpu0.pc = dpc;
-          } else {
-            cpu0.pc += 4;
-          }
+          cpu0.pc      = cpu0.nextPC;
+          cpu0.delayPC = cpu0.branchTarget;
 
           //checkCauseIP3Consistent();
           //n64js.checkSIStatusConsistent();
+          cpu0.control[cpu0.kControlCount] += COUNTER_INCREMENT_PER_OP;
           ++cpu0.opsExecuted;
 
           var evt = cpu0.events[0];
