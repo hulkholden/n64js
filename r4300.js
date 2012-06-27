@@ -781,10 +781,10 @@ if (typeof n64js === 'undefined') {
   function   jumpAddress(pc,i) { return ((pc&0xf0000000) | (target(i)*4))>>>0; }
 
   function performBranch(new_pc) {
-    if (new_pc < 0) {
-      n64js.log('Oops, branching to negative address: ' + new_pc);
-      throw 'Oops, branching to negative address: ' + new_pc;
-    }
+    //if (new_pc < 0) {
+    //  n64js.log('Oops, branching to negative address: ' + new_pc);
+    //  throw 'Oops, branching to negative address: ' + new_pc;
+    //}
     cpu0.branchTarget = new_pc;
   }
 
