@@ -249,6 +249,7 @@ if (typeof n64js === 'undefined') {
 
     this.pc             = 0;
     this.delayPC        = 0;
+    this.branchTarget   = 0;
 
     var E_VEC           = 0x80000180;
 
@@ -290,17 +291,18 @@ if (typeof n64js === 'undefined') {
         this.tlbEntries[i].update(i, 0, 0x80000000, 0, 0);
       }
 
-      this.pc          = 0;
-      this.delayPC     = 0;
+      this.pc           = 0;
+      this.delayPC      = 0;
+      this.branchTarget = 0;
 
-      this.stuffToDo   = 0;
+      this.stuffToDo    = 0;
 
-      this.events      = [];
+      this.events       = [];
 
-      this.multLo[0]   = this.multLo[1] = 0;
-      this.multHi[0]   = this.multHi[1] = 0;
+      this.multLo[0]    = this.multLo[1] = 0;
+      this.multHi[0]    = this.multHi[1] = 0;
 
-      this.opsExecuted = 0;
+      this.opsExecuted  = 0;
 
       this.control[this.kControlRand]   = 32-1;
       this.control[this.kControlSR]     = 0x70400004;
@@ -786,7 +788,7 @@ if (typeof n64js === 'undefined') {
       n64js.log('Oops, branching to negative address: ' + new_pc);
       throw 'Oops, branching to negative address: ' + new_pc;
     }
-    cpu0.delayPC = new_pc;
+    cpu0.branchTarget = new_pc;
   }
 
   function setSignExtend(r,v) {
@@ -1962,19 +1964,21 @@ if (typeof n64js === 'undefined') {
           //    break;
           //}
 
-          var pc  = cpu0.pc;
-          var dpc = cpu0.delayPC;
+          var pc            = cpu0.pc;
+          var dpc           = cpu0.delayPC;
+          cpu0.branchTarget = 0;
 
           var instruction = n64js.readMemory32(pc);
           executeOp(instruction);
 
           cpu0.control[cpu0.kControlCount] += COUNTER_INCREMENT_PER_OP;
 
+          cpu0.delayPC      = cpu0.branchTarget;
+
           if (dpc !== 0) {
-            cpu0.delayPC = 0;
-            cpu0.pc      = dpc;
+            cpu0.pc = dpc;
           } else {
-            cpu0.pc      += 4;
+            cpu0.pc += 4;
           }
 
           //checkCauseIP3Consistent();
