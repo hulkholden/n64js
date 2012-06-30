@@ -1805,7 +1805,7 @@ if (typeof n64js === 'undefined') {
     executeUnknown,       executeUnknown,       executeUnknown,     executeUnknown,
   ];
   if (regImmTable.length != 32) {
-    throw "Oops, didn't build the special table correctly";
+    throw "Oops, didn't build the regimm table correctly";
   }  
 
   function executeRegImm(i) {
@@ -1841,9 +1841,44 @@ if (typeof n64js === 'undefined') {
     return simpleTable[opcode](i);
   }
 
+  var specialTableGen = [
+    'executeSLL',           'executeUnknown',       'executeSRL',         'executeSRA',
+    'executeSLLV',          'executeUnknown',       'executeSRLV',        'executeSRAV',
+    'executeJR',            'executeJALR',          'executeUnknown',     'executeUnknown',
+    'executeSYSCALL',       'executeBREAK',         'executeUnknown',     'executeSYNC',
+    'executeMFHI',          'executeMTHI',          'executeMFLO',        'executeMTLO',
+    'executeDSLLV',         'executeUnknown',       'executeDSRLV',       'executeDSRAV',
+    'executeMULT',          'executeMULTU',         'executeDIV',         'executeDIVU',
+    'executeDMULT',         'executeDMULTU',        'executeDDIV',        'executeDDIVU',
+    'executeADD',           'executeADDU',          'executeSUB',         'executeSUBU',
+    'executeAND',           'executeOR',            'executeXOR',         'executeNOR',
+    'executeUnknown',       'executeUnknown',       'executeSLT',         'executeSLTU',
+    'executeDADD',          'executeDADDU',         'executeDSUB',        'executeDSUBU',
+    'executeTGE',           'executeTGEU',          'executeTLT',         'executeTLTU',
+    'executeTEQ',           'executeUnknown',       'executeTNE',         'executeUnknown',
+    'executeDSLL',          'executeUnknown',       'executeDSRL',        'executeDSRA',
+    'executeDSLL32',        'executeUnknown',       'executeDSRL32',      'executeDSRA32'
+  ];
+  if (specialTableGen.length != 64) {
+    throw "Oops, didn't build the special gen table correctly";
+  }
 
-  var simpleTableText = [
-    'executeSpecial',       'executeRegImm',        'executeJ',           'executeJAL',
+  var regImmTableGen = [
+    'executeBLTZ',          'executeBGEZ',          'executeBLTZL',       'executeBGEZL',
+    'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
+    'executeTGEI',          'executeTGEIU',         'executeTLTI',        'executeTLTIU',
+    'executeTEQI',          'executeUnknown',       'executeTNEI',        'executeUnknown',
+    'executeBLTZAL',        'executeBGEZAL',        'executeBLTZALL',     'executeBGEZALL',
+    'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
+    'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
+    'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
+  ];
+  if (regImmTableGen.length != 32) {
+    throw "Oops, didn't build the regimm gen table correctly";
+  }
+
+  var simpleTableGen = [
+    generateSpecial,        generateRegImm,         'executeJ',           'executeJAL',
     generateBEQ,            'executeBNE',           'executeBLEZ',        'executeBGTZ',
     'executeADDI',          'executeADDIU',         'executeSLTI',        'executeSLTIU',
     'executeANDI',          'executeORI',           'executeXORI',        'executeLUI',
@@ -1860,8 +1895,8 @@ if (typeof n64js === 'undefined') {
     'executeSC',            'executeSWC1',          'executeUnknown',     'executeUnknown',
     'executeSCD',           'executeSDC1',          'executeSDC2',        'executeSD',
   ];
-  if (simpleTableText.length != 64) {
-    throw "Oops, didn't build the simple table correctly";
+  if (simpleTableGen.length != 64) {
+    throw "Oops, didn't build the simple gen table correctly";
   }
 
 
@@ -2256,7 +2291,7 @@ if (typeof n64js === 'undefined') {
   function generateOp(entry_pc,post_pc,i) {
     var opcode = (i >>> 26) & 0x3f;
 
-    var fn = simpleTableText[opcode];
+    var fn = simpleTableGen[opcode];
     if (typeof fn === 'string') {
       fn += '(' + n64js.toString32(i) + ');';
     } else {
@@ -2277,6 +2312,31 @@ if (typeof n64js === 'undefined') {
     code += 'var leave_fragment = postOp(' + n64js.toString32(post_pc)  + '); if (leave_fragment) return leave_fragment;\n\n';
 
     return code;
+  }
+
+
+  function generateSpecial(pc,i) {
+    var fn = i & 0x3f;
+    var fn = specialTableGen[fn];
+    if (typeof fn === 'string') {
+      fn += '(' + n64js.toString32(i) + ');';
+    } else {
+      fn = fn(pc, i);
+    }
+
+    return fn;
+  }
+
+  function generateRegImm(pc,i) {
+    var rt = (i >>> 16) & 0x1f;
+    var fn = regImmTableGen[rt];
+    if (typeof fn === 'string') {
+      fn += '(' + n64js.toString32(i) + ');';
+    } else {
+      fn = fn(pc, i);
+    }
+
+    return fn;
   }
 
 })();
