@@ -2107,7 +2107,7 @@ if (typeof n64js === 'undefined') {
               fragment.opsExecuted++;
               fragment.code += generateOp(pc, cpu0.pc, instruction); // NB: using pc on entry to dispatch, and then the updated pc
 
-              if (fragment.opsExecuted >= 200 || fragment.pcs[cpu0.pc] !== undefined) {
+              if (fragment.opsExecuted >= 500 || fragment.pcs[cpu0.pc] !== undefined) {
                 updateFragment(fragment, pc);
 
                 //n64js.log(n64js.toString32(fragment.entryPC) + ' - ' + fragment.opsExecuted);
