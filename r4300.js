@@ -2028,6 +2028,7 @@ if (typeof n64js === 'undefined') {
       while (cpu0.hasEvent(kEventRunForCycles)) {
 
         fragment = lookupFragment(cpu0.pc);
+        //fragment = null;
 
         while (!cpu0.stuffToDo) {
 
@@ -2071,7 +2072,7 @@ if (typeof n64js === 'undefined') {
               fragment.opsExecuted++;
               fragment.code += generateOp(pc, cpu0.pc, instruction); // NB: using pc on entry to dispatch, and then the updated pc
 
-              if (fragment.opsExecuted >= 50 || fragment.pcs[cpu0.pc] !== undefined) {
+              if (fragment.opsExecuted >= 200 || fragment.pcs[cpu0.pc] !== undefined) {
                 updateFragment(fragment, pc);
 
                 //n64js.log(n64js.toString32(fragment.entryPC) + ' - ' + fragment.opsExecuted);
@@ -2090,6 +2091,11 @@ if (typeof n64js === 'undefined') {
                 fragment = lookupFragment(cpu0.pc);
               } else {
                 updateFragment(fragment, pc);
+              }
+            } else {
+              // If there's no current fragment and we branch backwards, this is possibly a new loop
+              if (cpu0.pc < pc) {
+                fragment = lookupFragment(cpu0.pc);
               }
             }
 
@@ -2116,6 +2122,7 @@ if (typeof n64js === 'undefined') {
   }
 
 
+  var hitCounts = {};
   var fragmentMap = {};
   var fragmentInvalidationEvents = [];
 
@@ -2130,8 +2137,22 @@ if (typeof n64js === 'undefined') {
   }
 
   function lookupFragment(pc) {
+
+    // Check if we already have a fragment
     var fragment = fragmentMap[pc];
     if (fragment === undefined) {
+
+      // Check if this pc is hot enough yet
+      var hc = hitCounts[pc];
+      if (hc === undefined) {
+        hc = 0;
+      }
+      hc++;
+      hitCounts[pc] = hc;
+
+      if (hc < 10)
+        return null;
+
       fragment = {
         'entryPC': pc,
         'minPC': pc,
@@ -2145,6 +2166,7 @@ if (typeof n64js === 'undefined') {
       fragmentMap[pc] = fragment;
     }
 
+    // If we failed to complete the fragment for any reason, reset it
     if (!fragment.func) {
       // Reset!
       fragment.opsExecuted = 0;
@@ -2218,6 +2240,10 @@ if (typeof n64js === 'undefined') {
     {
       if (handleCounter())
         return -1; // Bail out of trace
+    }
+
+    if (cpu0.stuffToDo) {
+      return -1;
     }
 
     if (cpu0.pc !== expected_pc) {
