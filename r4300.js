@@ -1174,19 +1174,34 @@ if (typeof n64js === 'undefined') {
     performBranch( cpu0.gprLo[rs(i)] );
   }
 
-  function executeBEQ(i) {
-    var s = rs(i);
-    var t = rt(i);
+  function implB(addr) {
+    performBranch( addr );
+  }
+
+  function implBEQ(s,t,addr) {
     if (cpu0.gprHi[s] === cpu0.gprHi[t] &&
         cpu0.gprLo[s] === cpu0.gprLo[t] ) {
-
-        if (offset(i) === -1) {
-          cpu0.speedHack();
-        }
-
-      performBranch( branchAddress(cpu0.pc,i) );
+      performBranch( addr );
     }
   }
+
+  // call if branch offset is -1
+  function implBEQ_speedhack(s,t,addr) {
+    if (cpu0.gprHi[s] === cpu0.gprHi[t] &&
+        cpu0.gprLo[s] === cpu0.gprLo[t] ) {
+      cpu0.speedHack();
+      performBranch( addr );
+    }
+  }
+
+  function executeBEQ(i) {
+    if (offset(i) === -1) {
+      implBEQ_speedhack(rs(i), rt(i), branchAddress(cpu0.pc,i));
+    } else {
+      implBEQ(rs(i), rt(i), branchAddress(cpu0.pc,i));
+    }
+  }
+
   function executeBEQL(i) {
     var s = rs(i);
     var t = rt(i);
@@ -1517,7 +1532,14 @@ if (typeof n64js === 'undefined') {
   function executeSDR(i)        { unimplemented(cpu0.pc,i); }
 
   function executeCACHE(i) {
-    // ignore!
+    var address  = memaddr(i);
+    var cache_op = rt(i);
+    var cache    = (cache_op      ) & 0x3;
+    var action   = (cache_op >>> 2) & 0x7;
+
+    if(cache == 0 && (action == 0 || action == 4)) {
+      n64js.invalidateICache(address, 0x20, 'CACHE');
+    }
   }
 
   function executeLL(i)         { unimplemented(cpu0.pc,i); }
@@ -1729,7 +1751,7 @@ if (typeof n64js === 'undefined') {
     throw "Oops, didn't build the cop0 table correctly";
   }
   function executeCop0(i) {
-    var fmt = (i>>21) & 0x1f;
+    var fmt = (i >>> 21) & 0x1f;
     cop0Table[fmt](i);
   }
 
@@ -1749,7 +1771,7 @@ if (typeof n64js === 'undefined') {
   function executeCop1(i) {
     //n64js.assert( (cpu0.control[cpu0.kControlSR] & SR_CU1) !== 0, "SR_CU1 in inconsistent state" );
 
-    var fmt = (i>>21) & 0x1f;
+    var fmt = (i >>> 21) & 0x1f;
     cop1Table[fmt](i);
   }
   function executeCop1_disabled(i) {
@@ -1758,6 +1780,13 @@ if (typeof n64js === 'undefined') {
     n64js.assert( (cpu0.control[cpu0.kControlSR] & SR_CU1) === 0, "SR_CU1 in inconsistent state" );
 
     cpu0.throwCop1Unusable();
+  }
+
+  function executeCop1_check(i) {
+    if( (cpu0.control[cpu0.kControlSR] & SR_CU1) === 0 )
+      executeCop1_disabled(i);
+    else
+      executeCop1(i);
   }
 
   function setCop1Enable(enable) {
@@ -1780,7 +1809,7 @@ if (typeof n64js === 'undefined') {
   }  
 
   function executeRegImm(i) {
-    var rt = (i >> 16) & 0x1f;
+    var rt = (i >>> 16) & 0x1f;
     return regImmTable[rt](i);
   }
 
@@ -1807,9 +1836,50 @@ if (typeof n64js === 'undefined') {
   }
 
   function executeOp(i) {
-    var opcode = (i >> 26) & 0x3f;
+    var opcode = (i >>> 26) & 0x3f;
 
     return simpleTable[opcode](i);
+  }
+
+
+  var simpleTableText = [
+    'executeSpecial',       'executeRegImm',        'executeJ',           'executeJAL',
+    generateBEQ,            'executeBNE',           'executeBLEZ',        'executeBGTZ',
+    'executeADDI',          'executeADDIU',         'executeSLTI',        'executeSLTIU',
+    'executeANDI',          'executeORI',           'executeXORI',        'executeLUI',
+    'executeCop0',          'executeCop1_check',    'executeUnknown',     'executeUnknown',
+    'executeBEQL',          'executeBNEL',          'executeBLEZL',       'executeBGTZL',
+    'executeDADDI',         'executeDADDIU',        'executeLDL',         'executeLDR',
+    'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
+    'executeLB',            'executeLH',            'executeLWL',         'executeLW',
+    'executeLBU',           'executeLHU',           'executeLWR',         'executeLWU',
+    'executeSB',            'executeSH',            'executeSWL',         'executeSW',
+    'executeSDL',           'executeSDR',           'executeSWR',         'executeCACHE',
+    'executeLL',            'executeLWC1',          'executeUnknown',     'executeUnknown',
+    'executeLLD',           'executeLDC1',          'executeLDC2',        'executeLD',
+    'executeSC',            'executeSWC1',          'executeUnknown',     'executeUnknown',
+    'executeSCD',           'executeSDC1',          'executeSDC2',        'executeSD',
+  ];
+  if (simpleTableText.length != 64) {
+    throw "Oops, didn't build the simple table correctly";
+  }
+
+
+  function generateBEQ(pc,i) {
+    var s = rs(i);
+    var t = rt(i);
+    var off = offset(i);
+    var addr = branchAddress(pc,i);
+
+    var x;
+    if (s === t) {
+      x = 'implB('+ n64js.toString32(addr) + ')';
+    } else {
+      var fn = off === -1 ? 'implBEQ_speedhack' : 'implBEQ';
+      x = fn + '(' + s + ',' + t+ ',' + n64js.toString32(addr) + ')';
+    }
+//    n64js.log(x);
+    return x;
   }
 
   function checkCauseIP3Consistent() {
@@ -1939,6 +2009,8 @@ if (typeof n64js === 'undefined') {
     return breakout;
   }
 
+  var COUNTER_INCREMENT_PER_OP = 1;
+
   n64js.run = function (cycles) {
 
     cpu0.stuffToDo &= ~kStuffToDoHalt;
@@ -1946,14 +2018,17 @@ if (typeof n64js === 'undefined') {
     checkCauseIP3Consistent();
     n64js.checkSIStatusConsistent();
 
-    var COUNTER_INCREMENT_PER_OP = 1;
-
     cpu0.addEvent(kEventRunForCycles, cycles);
 
     //var sync = n64js.getSync();
 
+    var fragment;
+
     try {
       while (cpu0.hasEvent(kEventRunForCycles)) {
+
+        fragment = lookupFragment(cpu0.pc);
+
         while (!cpu0.stuffToDo) {
 
           //if (sync) {
@@ -1961,26 +2036,63 @@ if (typeof n64js === 'undefined') {
           //    break;
           //}
 
-          cpu0.nextPC       = cpu0.delayPC ? cpu0.delayPC : cpu0.pc + 4;
-          cpu0.branchTarget = 0;
+          if (fragment && fragment.func) {
 
-          var instruction = n64js.readMemory32(cpu0.pc);
-          executeOp(instruction);
-
-          cpu0.pc      = cpu0.nextPC;
-          cpu0.delayPC = cpu0.branchTarget;
-
-          //checkCauseIP3Consistent();
-          //n64js.checkSIStatusConsistent();
-          cpu0.control[cpu0.kControlCount] += COUNTER_INCREMENT_PER_OP;
-          ++cpu0.opsExecuted;
-
-          var evt = cpu0.events[0];
-          evt.countdown -= COUNTER_INCREMENT_PER_OP;
-          if (evt.countdown <= 0)
-          {
-            if (handleCounter())
+            fragment.executionCount++;
+            if (fragment.func() < 0)
               break;
+            fragment = lookupFragment(cpu0.pc);
+
+          } else {
+
+            var pc = cpu0.pc;   // take a copy of this, so we can refer to it later
+
+            var instruction = n64js.readMemory32(cpu0.pc);
+
+            cpu0.nextPC       = cpu0.delayPC ? cpu0.delayPC : (cpu0.pc + 4);
+            cpu0.branchTarget = 0;
+            executeOp(instruction);
+            cpu0.pc      = cpu0.nextPC;
+            cpu0.delayPC = cpu0.branchTarget;
+            cpu0.control[cpu0.kControlCount] += COUNTER_INCREMENT_PER_OP;
+            //checkCauseIP3Consistent();
+            //n64js.checkSIStatusConsistent();
+            ++cpu0.opsExecuted;
+
+            var evt = cpu0.events[0];
+            evt.countdown -= COUNTER_INCREMENT_PER_OP;
+            if (evt.countdown <= 0)
+            {
+              if (handleCounter())
+                break;
+            }
+
+            if (fragment) {
+              fragment.opsExecuted++;
+              fragment.code += generateOp(pc, cpu0.pc, instruction); // NB: using pc on entry to dispatch, and then the updated pc
+
+              if (fragment.opsExecuted >= 50 || fragment.pcs[cpu0.pc] !== undefined) {
+                updateFragment(fragment, pc);
+
+                //n64js.log(n64js.toString32(fragment.entryPC) + ' - ' + fragment.opsExecuted);
+
+                // FIXME: follow direct, forward branches
+                var code = '(function fragment_' + n64js.toString32(fragment.entryPC) + '_' + fragment.opsExecuted + '() {\n';
+
+                code += fragment.code;
+
+                code += '// EPILOGUE\n';
+                code += 'return 1;\n';    // Return a positive value to keep going
+                code += '});\n';   // End the enclosing function
+
+                fragment.code ='';
+                fragment.func = eval(code);
+                fragment = lookupFragment(cpu0.pc);
+              } else {
+                updateFragment(fragment, pc);
+              }
+            }
+
           }
         }
 
@@ -2001,6 +2113,144 @@ if (typeof n64js === 'undefined') {
 
     // Clean up any kEventRunForCycles events before we bail out
     cpu0.removeEventsOfType(kEventRunForCycles);
+  }
+
+
+  var fragmentMap = {};
+  var fragmentInvalidationEvents = [];
+
+  n64js.getFragmentMap = function () {
+    return fragmentMap;
+  }
+
+  n64js.getFragmentInvalidationEvents = function() {
+    var t = fragmentInvalidationEvents;
+    fragmentInvalidationEvents = [];
+    return t;
+  }
+
+  function lookupFragment(pc) {
+    var fragment = fragmentMap[pc];
+    if (fragment === undefined) {
+      fragment = {
+        'entryPC': pc,
+        'minPC': pc,
+        'maxPC': pc,
+        'code': '',
+        'func': undefined,
+        'opsExecuted': 0,
+        'executionCount': 0,
+        'pcs': {}
+      };
+      fragmentMap[pc] = fragment;
+    }
+
+    if (!fragment.func) {
+      // Reset!
+      fragment.opsExecuted = 0;
+      fragment.code = '';
+      fragment.pcs = {};
+      fragment.minPC = pc;
+      fragment.maxPC = pc;
+      //fragment.code += 'console.log("entering fragment ' + n64js.toString32(pc) + '");\n';
+    }
+
+    return fragment;
+  }
+
+  n64js.invalidateICache = function(address, length, system) {
+      //n64js.log('cache flush ' + n64js.toString32(address) + ' ' + n64js.toString32(length));
+      // FIXME: check for overlapping ranges
+     // fragmentMap = {};
+
+     if (system==='PI') {
+      return;
+     }
+
+      var minaddr = address;
+      var maxaddr = address + length;
+
+      var fragmentsRemoved = 0;
+
+      var newfrags = {};
+
+      for (var pc in fragmentMap) {
+        var fragment = fragmentMap[pc];
+        if (fragment.minPC >= maxaddr || (fragment.maxPC+4) <= minaddr) {
+          newfrags[pc] = fragment;
+        } else {
+          fragmentsRemoved++;
+        }
+      }
+
+      fragmentMap = newfrags;
+
+      fragmentInvalidationEvents.push({'address': address, 'length': length, 'system': system, 'fragmentsRemoved': fragmentsRemoved});
+
+  }
+
+  function updateFragment(fragment, pc) {
+    fragment.pcs[pc] = 1;
+    fragment.minPC = Math.min(fragment.minPC, pc);
+    fragment.maxPC = Math.max(fragment.maxPC, pc);
+  }
+
+  function checkEqual(a,b,m) {
+    if (a !== b) {
+      var msg = n64js.toString32(a) + ' !== ' + n64js.toString32(b) + ' : ' + m;
+      console.assert(false, msg);
+      n64js.halt(msg);
+      return false;
+    }
+    return true;
+  }
+
+  // Helper function: we can call this from generated code and avoid a lot of work for the parser
+  // Returns: negative value if we should totally bail out of the trace, 0 to keep going on trace, 1 to keep going, different trace.
+  function postOp(expected_pc) {
+    cpu0.pc = cpu0.nextPC; // FIXME: we could optimise away variable access for the on-trace case
+    cpu0.delayPC = cpu0.branchTarget;
+    cpu0.control[cpu0.kControlCount] += 1; // COUNTER_INCREMENT_PER_OP
+    ++cpu0.opsExecuted;
+    var evt = cpu0.events[0];
+    evt.countdown -= 1; // COUNTER_INCREMENT_PER_OP
+    if (evt.countdown <= 0)
+    {
+      if (handleCounter())
+        return -1; // Bail out of trace
+    }
+
+    if (cpu0.pc !== expected_pc) {
+      return 1; // Keep going - off trace
+    }
+
+    return 0;    // Keep going - on trace
+  }
+
+  function generateOp(entry_pc,post_pc,i) {
+    var opcode = (i >>> 26) & 0x3f;
+
+    var fn = simpleTableText[opcode];
+    if (typeof fn === 'string') {
+      fn += '(' + n64js.toString32(i) + ');';
+    } else {
+      fn = fn(entry_pc, i);
+    }
+
+    var code = '';
+    //code += '\n';
+    //code += '//' + n64js.toString32(cpu0.pc) + '\n';
+    //code += 'if (!checkEqual( cpu0.pc, '      + n64js.toString32(cpu0.pc)  + ', "unexpected pc")) { var fragment = lookupFragment(' + n64js.toString32(fragment.entryPC) + '); console.log(fragment.code ); return false; }\n';
+    //code += 'if (!checkEqual( n64js.readMemory32(cpu0.pc), ' + n64js.toString32(instruction) + ', "unexpected instruction (need to flush icache?)")) { return false; }\n';
+    code += 'cpu0.nextPC = cpu0.delayPC ? cpu0.delayPC : (cpu0.pc + 4);\n';
+    code += 'cpu0.branchTarget = 0;\n';
+
+    code += fn + '\n';   // NB: using pc on entry to dispatch
+
+    // check if we've branched a different way to the trace. NB: checks UPDATED pc
+    code += 'var leave_fragment = postOp(' + n64js.toString32(post_pc)  + '); if (leave_fragment) return leave_fragment;\n\n';
+
+    return code;
   }
 
 })();

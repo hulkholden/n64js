@@ -256,6 +256,10 @@ if (typeof n64js === 'undefined') {
     $disassembly = $disasm;
   }
 
+  n64js.setDynarecElements = function ($dr) {
+    $dynarec = $dr;
+  }
+
   n64js.setMemoryElement = function ($e) {
     $memory = $e;
   }
@@ -327,6 +331,8 @@ if (typeof n64js === 'undefined') {
 
 
   n64js.refreshDisplay = function () {
+
+    updateDynarec();
 
     var cpu0 = n64js.cpu0;
 
@@ -665,6 +671,41 @@ if (typeof n64js === 'undefined') {
     $tb.append($tr);
   }
 
+  function updateDynarec() {
+
+    var fragmentMap = n64js.getFragmentMap();
+    var invals = n64js.getFragmentInvalidationEvents();
+    var histo = {};
+    for(var i in fragmentMap) {
+      var v = fragmentMap[i].executionCount;
+      if (histo[v] === undefined)
+        histo[v] = 0;
+      histo[v] ++;
+    }
+
+    var t = '';
+    t += '<table class="tbl"><tr><th>Address</th><th>Length</th><th>System</th><th>Fragments Removed</th></tr>';
+    for (var i = 0; i < invals.length; ++i) {
+
+      var vals = [
+        n64js.toString32(invals[i].address),
+        invals[i].length,
+        invals[i].system,
+        invals[i].fragmentsRemoved
+      ];
+
+      t += '<tr><td>' + vals.join('</td><td>') + '</td></tr>';
+    }
+    t += '</table>';
+
+    t += '<table class="tbl"><tr><th>Execution Count</th><th>Frequency</th></tr>';
+    for(var i in histo) {
+      t += '<tr><td>' + i + '</td><td>' + histo[i] + '</td></tr>';
+    }
+    t += '</table>';
+    $dynarec.html(t);
+  }
+
   //
   // Memory handlers
   //
@@ -773,6 +814,7 @@ if (typeof n64js === 'undefined') {
   var $status      = null;
   var $registers   = null;
   var $disassembly = null;
+  var $dynarec     = null;
   var $memory      = null;
   var $output      = null;
 
@@ -1574,14 +1616,17 @@ if (typeof n64js === 'undefined') {
     if (IsDom1Addr1(cart_address)) {
       cart_address -= PI_DOM1_ADDR1;
       MemoryCopy( ram, dram_address, rom, cart_address, transfer_len );
+      n64js.invalidateICache( 0x80000000 | dram_address, transfer_len, 'PI' );
       copy_succeeded = true;
     } else if (IsDom1Addr2(cart_address)) {
       cart_address -= PI_DOM1_ADDR2;
       MemoryCopy( ram, dram_address, rom, cart_address, transfer_len );
+      n64js.invalidateICache( 0x80000000 | dram_address, transfer_len, 'PI' );
       copy_succeeded = true;
     } else if (IsDom1Addr3(cart_address)) {
       cart_address -= PI_DOM1_ADDR3;
       MemoryCopy( ram, dram_address, rom, cart_address, transfer_len );
+      n64js.invalidateICache( 0x80000000 | dram_address, transfer_len, 'PI' );
       copy_succeeded = true;
 
     } else if (IsDom2Addr1(cart_address)) {
