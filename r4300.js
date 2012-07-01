@@ -976,52 +976,49 @@ if (typeof n64js === 'undefined') {
     }
   }
 
-  function executeADD(i) {
-    setSignExtend( rd(i), cpu0.gprLo[rs(i)] + cpu0.gprLo[rt(i)] ); // s32 + s32
+  function implADD(d,s,t) {
+    setSignExtend( d, cpu0.gprLo[s] + cpu0.gprLo[t] ); // s32 + s32
   }
-  function executeADDU(i) {
-    setSignExtend( rd(i), cpu0.gprLo[rs(i)] + cpu0.gprLo[rt(i)] ); // s32 + s32
-  }
-
-  function executeSUB(i) {
-    setSignExtend( rd(i), cpu0.gprLo[rs(i)] - cpu0.gprLo[rt(i)] ); // s32 - s32
-  }
-  function executeSUBU(i) {
-    setSignExtend( rd(i), cpu0.gprLo[rs(i)] - cpu0.gprLo[rt(i)] ); // s32 - s32
+  function implADDU(d,s,t) {
+    setSignExtend( d, cpu0.gprLo[s] + cpu0.gprLo[t] ); // s32 + s32
   }
 
-  function executeAND(i) {
-    cpu0.gprHi[rd(i)] = cpu0.gprHi[rs(i)] & cpu0.gprHi[rt(i)];
-    cpu0.gprLo[rd(i)] = cpu0.gprLo[rs(i)] & cpu0.gprLo[rt(i)];
+  function implSUB(d,s,t) {
+    setSignExtend( d, cpu0.gprLo[s] - cpu0.gprLo[t] ); // s32 - s32
+  }
+  function implSUBU(d,s,t) {
+    setSignExtend( d, cpu0.gprLo[s] - cpu0.gprLo[t] ); // s32 - s32
   }
 
-  function executeOR(i) {
-    cpu0.gprHi[rd(i)] = cpu0.gprHi[rs(i)] | cpu0.gprHi[rt(i)];
-    cpu0.gprLo[rd(i)] = cpu0.gprLo[rs(i)] | cpu0.gprLo[rt(i)];
+  function implAND(d,s,t) {
+    cpu0.gprHi[d] = cpu0.gprHi[s] & cpu0.gprHi[t];
+    cpu0.gprLo[d] = cpu0.gprLo[s] & cpu0.gprLo[t];
   }
 
-  function executeXOR(i) {
-    cpu0.gprHi[rd(i)] = cpu0.gprHi[rs(i)] ^ cpu0.gprHi[rt(i)];
-    cpu0.gprLo[rd(i)] = cpu0.gprLo[rs(i)] ^ cpu0.gprLo[rt(i)];
+  function implOR(d,s,t) {
+    cpu0.gprHi[d] = cpu0.gprHi[s] | cpu0.gprHi[t];
+    cpu0.gprLo[d] = cpu0.gprLo[s] | cpu0.gprLo[t];
   }
 
-  function executeNOR(i) {
-    cpu0.gprHi[rd(i)] = ~(cpu0.gprHi[rs(i)] | cpu0.gprHi[rt(i)]);
-    cpu0.gprLo[rd(i)] = ~(cpu0.gprLo[rs(i)] | cpu0.gprLo[rt(i)]);
+  function implXOR(d,s,t) {
+    cpu0.gprHi[d] = cpu0.gprHi[s] ^ cpu0.gprHi[t];
+    cpu0.gprLo[d] = cpu0.gprLo[s] ^ cpu0.gprLo[t];
   }
 
+  function implNOR(d,s,t) {
+    cpu0.gprHi[d] = ~(cpu0.gprHi[s] | cpu0.gprHi[t]);
+    cpu0.gprLo[d] = ~(cpu0.gprLo[s] | cpu0.gprLo[t]);
+  }
 
-  // ffffffff fffffff0    // -16          false
-  // ffffffff 00000001    // -4294967295
+  function executeADD(i)      {  implADD(rd(i), rs(i), rt(i)); }
+  function executeADDU(i)     { implADDU(rd(i), rs(i), rt(i)); }
+  function executeSUB(i)      {  implSUB(rd(i), rs(i), rt(i)); }
+  function executeSUBU(i)     { implSUBU(rd(i), rs(i), rt(i)); }
+  function  executeAND(i)     {  implAND(rd(i), rs(i), rt(i)); }
+  function   executeOR(i)     {   implOR(rd(i), rs(i), rt(i)); }
+  function  executeXOR(i)     {  implXOR(rd(i), rs(i), rt(i)); }
+  function  executeNOR(i)     {  implNOR(rd(i), rs(i), rt(i)); }
 
-  // 00000000 fffffff0    // 4294967280   false
-  // 00000000 00000001    // 1
-
-  // 00000000 fffffff0    // 4294967280
-  // ffffffff 00000001    // -4294967295  false
-
-  // ffffffff fffffff0    // -16  true
-  // 00000000 00000001    // 1
 
   function executeSLT(i) {
     var r = 0;
@@ -1850,8 +1847,8 @@ if (typeof n64js === 'undefined') {
     'executeDSLLV',         'executeUnknown',       'executeDSRLV',       'executeDSRAV',
     'executeMULT',          'executeMULTU',         'executeDIV',         'executeDIVU',
     'executeDMULT',         'executeDMULTU',        'executeDDIV',        'executeDDIVU',
-    'executeADD',           'executeADDU',          'executeSUB',         'executeSUBU',
-    'executeAND',           'executeOR',            'executeXOR',         'executeNOR',
+    generateADD,            generateADDU,           generateSUB,          generateSUBU,
+    generateAND,            generateOR,             generateXOR,          generateNOR,
     'executeUnknown',       'executeUnknown',       'executeSLT',         'executeSLTU',
     'executeDADD',          'executeDADDU',         'executeDSUB',        'executeDSUBU',
     'executeTGE',           'executeTGEU',          'executeTLT',         'executeTLTU',
@@ -1916,6 +1913,20 @@ if (typeof n64js === 'undefined') {
 //    n64js.log(x);
     return x;
   }
+
+  function generateSpecial3Register(impl, i) {
+    return impl + '(' + rd(i) + ',' + rs(i) + ',' + rt(i) + ')';
+  }
+
+  function  generateADD(pc,i) { return generateSpecial3Register('implADD',  i); }
+  function generateADDU(pc,i) { return generateSpecial3Register('implADDU', i); }
+  function  generateSUB(pc,i) { return generateSpecial3Register('implSUB',  i); }
+  function generateSUBU(pc,i) { return generateSpecial3Register('implSUBU', i); }
+  function  generateAND(pc,i) { return generateSpecial3Register('implAND',  i); }
+  function   generateOR(pc,i) { return generateSpecial3Register('implOR',   i); }
+  function  generateXOR(pc,i) { return generateSpecial3Register('implXOR',  i); }
+  function  generateNOR(pc,i) { return generateSpecial3Register('implNOR',  i); }
+
 
   function checkCauseIP3Consistent() {
     var mi_interrupt_set = n64js.miInterruptsUnmasked();
@@ -2303,7 +2314,8 @@ if (typeof n64js === 'undefined') {
     //code += '//' + n64js.toString32(cpu0.pc) + '\n';
     //code += 'if (!checkEqual( cpu0.pc, '      + n64js.toString32(cpu0.pc)  + ', "unexpected pc")) { var fragment = lookupFragment(' + n64js.toString32(fragment.entryPC) + '); console.log(fragment.code ); return false; }\n';
     //code += 'if (!checkEqual( n64js.readMemory32(cpu0.pc), ' + n64js.toString32(instruction) + ', "unexpected instruction (need to flush icache?)")) { return false; }\n';
-    code += 'cpu0.nextPC = cpu0.delayPC ? cpu0.delayPC : (cpu0.pc + 4);\n';
+    var next_pc = entry_pc+4;
+    code += 'cpu0.nextPC = cpu0.delayPC ? cpu0.delayPC : ' + n64js.toString32(next_pc) + ';\n';
     code += 'cpu0.branchTarget = 0;\n';
 
     code += fn + '\n';   // NB: using pc on entry to dispatch
