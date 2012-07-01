@@ -2109,16 +2109,16 @@ if (typeof n64js === 'undefined') {
             }
 
             if (fragment) {
-              fragment.opsExecuted++;
+              fragment.opsCompiled++;
               fragment.code += generateOp(pc, cpu0.pc, instruction); // NB: using pc on entry to dispatch, and then the updated pc
 
-              if (fragment.opsExecuted >= 500 || fragment.pcs[cpu0.pc] !== undefined) {
+              if (fragment.opsCompiled >= 500 || fragment.pcs[cpu0.pc] !== undefined) {
                 updateFragment(fragment, pc);
 
-                //n64js.log(n64js.toString32(fragment.entryPC) + ' - ' + fragment.opsExecuted);
+                //n64js.log(n64js.toString32(fragment.entryPC) + ' - ' + fragment.opsCompiled);
 
                 // FIXME: follow direct, forward branches
-                var code = '(function fragment_' + n64js.toString32(fragment.entryPC) + '_' + fragment.opsExecuted + '() {\n';
+                var code = '(function fragment_' + n64js.toString32(fragment.entryPC) + '_' + fragment.opsCompiled + '() {\n';
 
                 code += fragment.code;
 
@@ -2201,7 +2201,7 @@ if (typeof n64js === 'undefined') {
         'maxPC': pc,
         'code': '',
         'func': undefined,
-        'opsExecuted': 0,
+        'opsCompiled': 0,
         'executionCount': 0,
         'pcs': {}
       };
@@ -2211,7 +2211,7 @@ if (typeof n64js === 'undefined') {
     // If we failed to complete the fragment for any reason, reset it
     if (!fragment.func) {
       // Reset!
-      fragment.opsExecuted = 0;
+      fragment.opsCompiled = 0;
       fragment.code = '';
       fragment.pcs = {};
       fragment.minPC = pc;
