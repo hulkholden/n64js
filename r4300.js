@@ -986,6 +986,16 @@ if (typeof n64js === 'undefined') {
     }
   }
 
+  function implCLEAR(d) {
+    cpu0.gprHi[d] = 0;
+    cpu0.gprLo[d] = 0;
+  }
+  function implMOV(d,s) {
+    cpu0.gprHi[d] = cpu0.gprHi[s];
+    cpu0.gprLo[d] = cpu0.gprLo[s];
+  }
+
+
   function implADD(d,s,t) {
     setSignExtend( d, cpu0.gprLo[s] + cpu0.gprLo[t] ); // s32 + s32
   }
@@ -1936,7 +1946,19 @@ if (typeof n64js === 'undefined') {
   function  generateSUB(pc,i) { return generateSpecial3Register('implSUB',  i); }
   function generateSUBU(pc,i) { return generateSpecial3Register('implSUBU', i); }
   function  generateAND(pc,i) { return generateSpecial3Register('implAND',  i); }
-  function   generateOR(pc,i) { return generateSpecial3Register('implOR',   i); }
+  function   generateOR(pc,i) {
+
+    // OR is used to implement CLEAR and MOV
+    if (rt(i) == 0) {
+      if (rs(i) == 0) {
+        return 'implCLEAR(' + rd(i) + ')';
+      } else {
+        return 'implMOV(' + rd(i) + ',' + rs(i) + ')';
+      }
+    }
+
+    return generateSpecial3Register('implOR',   i);
+  }
   function  generateXOR(pc,i) { return generateSpecial3Register('implXOR',  i); }
   function  generateNOR(pc,i) { return generateSpecial3Register('implNOR',  i); }
 
