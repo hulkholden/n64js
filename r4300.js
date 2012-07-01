@@ -166,6 +166,7 @@ if (typeof n64js === 'undefined') {
 
   var kStuffToDoHalt            = 1<<0;
   var kStuffToDoCheckInterrupts = 1<<1;
+  var kStuffToDoBreakout        = 1<<2;
 
   var kVIIntrCycles = 62500;
 
@@ -2025,34 +2026,28 @@ if (typeof n64js === 'undefined') {
 
   function handleCounter() {
 
-    var breakout = false;
-
     while (cpu0.events.length > 0 && cpu0.events[0].countdown <= 0) {
       var evt = cpu0.events[0];
       cpu0.events.splice(0, 1);
 
       // if it's our cycles event then just bail
       if (evt.type === kEventRunForCycles) {
-        breakout = true;
+        cpu0.stuffToDo |= kStuffToDoBreakout;
       } else if (evt.type === kEventCompare) {
         cpu0.control[cpu0.kControlCause] |= CAUSE_IP8;
         if (cpu0.checkForUnmaskedInterrupts()) {
           cpu0.stuffToDo |= kStuffToDoCheckInterrupts;
         }
-        breakout = true;
       } else if (evt.type === kEventVbl) {
         // FIXME: this should be based on VI_V_SYNC_REG
         cpu0.addEvent(kEventVbl, kVIIntrCycles);
 
         n64js.verticalBlank();
-
-        breakout = true;
+        cpu0.stuffToDo |= kStuffToDoBreakout;
       } else {
         n64js.halt('unhandled event!');
       }
     }
-
-    return breakout;
   }
 
   var COUNTER_INCREMENT_PER_OP = 1;
@@ -2110,8 +2105,7 @@ if (typeof n64js === 'undefined') {
             evt.countdown -= COUNTER_INCREMENT_PER_OP;
             if (evt.countdown <= 0)
             {
-              if (handleCounter())
-                break;
+              handleCounter();
             }
 
             if (fragment) {
@@ -2147,6 +2141,8 @@ if (typeof n64js === 'undefined') {
 
           }
         }
+
+        cpu0.stuffToDo &= ~kStuffToDoBreakout;
 
         if (cpu0.stuffToDo & kStuffToDoCheckInterrupts) {
           cpu0.stuffToDo &= ~kStuffToDoCheckInterrupts;
@@ -2284,12 +2280,11 @@ if (typeof n64js === 'undefined') {
     evt.countdown -= 1; // COUNTER_INCREMENT_PER_OP
     if (evt.countdown <= 0)
     {
-      if (handleCounter())
-        return -1; // Bail out of trace
+      handleCounter();
     }
 
     if (cpu0.stuffToDo) {
-      return -1;
+      return -1; // Bail out of trace
     }
 
     if (cpu0.pc !== expected_pc) {
