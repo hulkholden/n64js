@@ -611,7 +611,10 @@ if (typeof n64js === 'undefined') {
             n64js.halt('Need to throw tlbinvalid for ' + n64js.toString32(address));
           }
 
-          return valid ? physical_addr : 0;
+          if (valid)
+            return physical_addr;
+          else
+            return 0;
 
       } else {
         // throw TLBRefll
@@ -791,7 +794,10 @@ if (typeof n64js === 'undefined') {
 
   function setSignExtend(r,v) {
     cpu0.gprLo[r] = v;
-    cpu0.gprHi[r] = (v & 0x80000000) ? 0xffffffff : 0x00000000;  // sign-extend
+    if (v & 0x80000000)
+      cpu0.gprHi[r] = 0xffffffff;
+    else
+      cpu0.gprHi[r] = 0x00000000;
   }
 
   function setZeroExtend(r, v) {
@@ -801,7 +807,10 @@ if (typeof n64js === 'undefined') {
 
   function setHiLoSignExtend(arr, v) {
     arr[0] = v; //(v&0xffffffff) >>> 0; -- is this necessary?
-    arr[1] = (v&0x80000000) ? 0xffffffff : 0x00000000;
+    if (v & 0x80000000)
+      arr[1] = 0xffffffff;
+    else
+      arr[1] = 0x00000000;
   }
   function setHiLoZeroExtend(arr, v) {
     arr[0] = v; //(v&0xffffffff) >>> 0; -- is this necessary?
@@ -1606,7 +1615,10 @@ if (typeof n64js === 'undefined') {
   }
 
   function trunc(x) {
-    return x < 0 ? Math.ceil(x) : Math.floor(x);
+    if (x < 0)
+      return Math.ceil(x);
+    else
+      return Math.floor(x);
   }
 
   function executeSInstr(i) {
@@ -2091,7 +2103,7 @@ if (typeof n64js === 'undefined') {
 
             var instruction = n64js.readMemory32(cpu0.pc);
 
-            cpu0.nextPC       = cpu0.delayPC ? cpu0.delayPC : (cpu0.pc + 4);
+            if (cpu0.delayPC) { cpu0.nextPC = cpu0.delayPC; } else { cpu0.nextPC = cpu0.pc + 4; }
             cpu0.branchTarget = 0;
             executeOp(instruction);
             cpu0.pc      = cpu0.nextPC;
@@ -2310,10 +2322,10 @@ if (typeof n64js === 'undefined') {
     //code += 'if (!checkEqual( cpu0.pc, '      + n64js.toString32(cpu0.pc)  + ', "unexpected pc")) { var fragment = lookupFragment(' + n64js.toString32(fragment.entryPC) + '); console.log(fragment.code ); return false; }\n';
     //code += 'if (!checkEqual( n64js.readMemory32(cpu0.pc), ' + n64js.toString32(instruction) + ', "unexpected instruction (need to flush icache?)")) { return false; }\n';
     var next_pc = entry_pc+4;
-    code += 'cpu0.nextPC = cpu0.delayPC ? cpu0.delayPC : ' + n64js.toString32(next_pc) + ';\n';
+    code += 'if (cpu0.delayPC) { cpu0.nextPC = cpu0.delayPC; } else { cpu0.nextPC = ' + n64js.toString32(next_pc) + '; }\n';
     code += 'cpu0.branchTarget = 0;\n';
 
-    code += fn + '\n';   // NB: using pc on entry to dispatch
+    code += fn + '\n';
 
     // check if we've branched a different way to the trace. NB: checks UPDATED pc
     code += 'var leave_fragment = postOp(' + n64js.toString32(post_pc)  + '); if (leave_fragment) return leave_fragment;\n\n';
