@@ -1045,7 +1045,7 @@ if (typeof n64js === 'undefined') {
     if (cpu0.gprHi_signed[rs(i)] < cpu0.gprHi_signed[rt(i)]) {
       r = 1;
     } else if (cpu0.gprHi_signed[rs(i)] === cpu0.gprHi_signed[rt(i)]) {
-      r = cpu0.gprLo[rs(i)] < cpu0.gprLo[rt(i)];
+      r = (cpu0.gprLo[rs(i)] < cpu0.gprLo[rt(i)]) ? 1 : 0;
     }
     setZeroExtend(rd(i), r);
   }
@@ -1372,9 +1372,9 @@ if (typeof n64js === 'undefined') {
     var s_hi      = cpu0.gprHi_signed[s];
 
     if (s_hi === imm_hi) {
-      cpu0.gprLo[t] = cpu0.gprLo[s] < (immediate>>>0);    // NB signed compare
+      cpu0.gprLo[t] = (cpu0.gprLo[s] < (immediate>>>0)) ? 1 : 0;    // NB signed compare
     } else {
-      cpu0.gprLo[t] = s_hi < imm_hi;
+      cpu0.gprLo[t] = (s_hi < imm_hi) ? 1 : 0;
     }
     cpu0.gprHi[t] = 0;
   }
@@ -1388,9 +1388,9 @@ if (typeof n64js === 'undefined') {
     var s_hi      = cpu0.gprHi_signed[s];
 
     if (s_hi === imm_hi) {
-      cpu0.gprLo[t] = cpu0.gprLo[s] < (immediate>>>0);
+      cpu0.gprLo[t] = (cpu0.gprLo[s] < (immediate>>>0)) ? 1 : 0;
     } else {
-      cpu0.gprLo[t] = (s_hi>>>0) < (imm_hi>>>0);
+      cpu0.gprLo[t] = ((s_hi>>>0) < (imm_hi>>>0)) ? 1 : 0;
     }
     cpu0.gprHi[t] = 0;
 
