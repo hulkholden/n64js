@@ -781,7 +781,8 @@ if (typeof n64js === 'undefined') {
       return cpu0.gprLo[base(i)] + imms(i);
   }
 
-  function branchAddress(pc,i) { return ((pc+4) + (offset(i)*4))>>>0; }
+//  function branchAddress(pc,i) { return ((pc+4) + (offset(i)*4))>>>0; }
+  function branchAddress(pc,i) { return (((pc>>>2)+1) + offset(i))<<2; }  // NB: convoluted calculation to avoid >>>0 (deopt)
   function   jumpAddress(pc,i) { return ((pc&0xf0000000) | (target(i)*4))>>>0; }
 
   function performBranch(new_pc) {
@@ -991,43 +992,42 @@ if (typeof n64js === 'undefined') {
     cpu0.gprLo[d] = 0;
   }
   function implMOV(d,s) {
-    cpu0.gprHi[d] = cpu0.gprHi[s];
-    cpu0.gprLo[d] = cpu0.gprLo[s];
+    cpu0.gprHi_signed[d] = cpu0.gprHi_signed[s];  // NB: use of _signed regs is intentional - avoids load-keyed-specialized-array-element deopt.
+    cpu0.gprLo_signed[d] = cpu0.gprLo_signed[s];
   }
-
 
   function implADD(d,s,t) {
-    setSignExtend( d, cpu0.gprLo[s] + cpu0.gprLo[t] ); // s32 + s32
+    setSignExtend( d, cpu0.gprLo_signed[s] + cpu0.gprLo_signed[t] );
   }
   function implADDU(d,s,t) {
-    setSignExtend( d, cpu0.gprLo[s] + cpu0.gprLo[t] ); // s32 + s32
+    setSignExtend( d, cpu0.gprLo_signed[s] + cpu0.gprLo_signed[t] );
   }
 
   function implSUB(d,s,t) {
-    setSignExtend( d, cpu0.gprLo[s] - cpu0.gprLo[t] ); // s32 - s32
+    setSignExtend( d, cpu0.gprLo_signed[s] - cpu0.gprLo_signed[t] );
   }
   function implSUBU(d,s,t) {
-    setSignExtend( d, cpu0.gprLo[s] - cpu0.gprLo[t] ); // s32 - s32
+    setSignExtend( d, cpu0.gprLo_signed[s] - cpu0.gprLo_signed[t] );
   }
 
   function implAND(d,s,t) {
-    cpu0.gprHi[d] = cpu0.gprHi[s] & cpu0.gprHi[t];
-    cpu0.gprLo[d] = cpu0.gprLo[s] & cpu0.gprLo[t];
+    cpu0.gprHi_signed[d] = cpu0.gprHi_signed[s] & cpu0.gprHi_signed[t];
+    cpu0.gprLo_signed[d] = cpu0.gprLo_signed[s] & cpu0.gprLo_signed[t];
   }
 
   function implOR(d,s,t) {
-    cpu0.gprHi[d] = cpu0.gprHi[s] | cpu0.gprHi[t];
-    cpu0.gprLo[d] = cpu0.gprLo[s] | cpu0.gprLo[t];
+    cpu0.gprHi_signed[d] = cpu0.gprHi_signed[s] | cpu0.gprHi_signed[t];
+    cpu0.gprLo_signed[d] = cpu0.gprLo_signed[s] | cpu0.gprLo_signed[t];
   }
 
   function implXOR(d,s,t) {
-    cpu0.gprHi[d] = cpu0.gprHi[s] ^ cpu0.gprHi[t];
-    cpu0.gprLo[d] = cpu0.gprLo[s] ^ cpu0.gprLo[t];
+    cpu0.gprHi_signed[d] = cpu0.gprHi_signed[s] ^ cpu0.gprHi_signed[t];
+    cpu0.gprLo_signed[d] = cpu0.gprLo_signed[s] ^ cpu0.gprLo_signed[t];
   }
 
   function implNOR(d,s,t) {
-    cpu0.gprHi[d] = ~(cpu0.gprHi[s] | cpu0.gprHi[t]);
-    cpu0.gprLo[d] = ~(cpu0.gprLo[s] | cpu0.gprLo[t]);
+    cpu0.gprHi_signed[d] = ~(cpu0.gprHi_signed[s] | cpu0.gprHi_signed[t]);
+    cpu0.gprLo_signed[d] = ~(cpu0.gprLo_signed[s] | cpu0.gprLo_signed[t]);
   }
 
   function executeADD(i)      {  implADD(rd(i), rs(i), rt(i)); }
@@ -1052,7 +1052,7 @@ if (typeof n64js === 'undefined') {
   function executeSLTU(i) {
     var r = 0;
     if (cpu0.gprHi[rs(i)] < cpu0.gprHi[rt(i)] ||
-        (cpu0.gprHi[rs(i)] === cpu0.gprHi[rt(i)] && cpu0.gprLo[rs(i)] < cpu0.gprLo[rt(i)])) {
+        (cpu0.gprHi_signed[rs(i)] === cpu0.gprHi_signed[rt(i)] && cpu0.gprLo[rs(i)] < cpu0.gprLo[rt(i)])) { // NB signed cmps avoid deopts
       r = 1;
     }
     setZeroExtend(rd(i), r);
@@ -1196,16 +1196,16 @@ if (typeof n64js === 'undefined') {
   }
 
   function implBEQ(s,t,addr) {
-    if (cpu0.gprHi[s] === cpu0.gprHi[t] &&
-        cpu0.gprLo[s] === cpu0.gprLo[t] ) {
+    if (cpu0.gprHi_signed[s] === cpu0.gprHi_signed[t] &&
+        cpu0.gprLo_signed[s] === cpu0.gprLo_signed[t] ) {
       performBranch( addr );
     }
   }
 
   // call if branch offset is -1
   function implBEQ_speedhack(s,t,addr) {
-    if (cpu0.gprHi[s] === cpu0.gprHi[t] &&
-        cpu0.gprLo[s] === cpu0.gprLo[t] ) {
+    if (cpu0.gprHi_signed[s] === cpu0.gprHi_signed[t] &&
+        cpu0.gprLo_signed[s] === cpu0.gprLo_signed[t] ) {
       cpu0.speedHack();
       performBranch( addr );
     }
@@ -1222,8 +1222,8 @@ if (typeof n64js === 'undefined') {
   function executeBEQL(i) {
     var s = rs(i);
     var t = rt(i);
-    if (cpu0.gprHi[s] === cpu0.gprHi[t] &&
-        cpu0.gprLo[s] === cpu0.gprLo[t] ) {
+    if (cpu0.gprHi_signed[s] === cpu0.gprHi_signed[t] &&
+        cpu0.gprLo_signed[s] === cpu0.gprLo_signed[t] ) {
       performBranch( branchAddress(cpu0.pc,i) );
     } else {
       cpu0.nextPC += 4;   // skip the next instruction
@@ -1233,16 +1233,16 @@ if (typeof n64js === 'undefined') {
   function executeBNE(i) {
     var s = rs(i);
     var t = rt(i);
-    if (cpu0.gprHi[s] !== cpu0.gprHi[t] ||
-        cpu0.gprLo[s] !== cpu0.gprLo[t] ) {      // NB: if imms(i) == -1 then this is a branch to self/busywait
+    if (cpu0.gprHi_signed[s] !== cpu0.gprHi_signed[t] ||
+        cpu0.gprLo_signed[s] !== cpu0.gprLo_signed[t] ) {      // NB: if imms(i) == -1 then this is a branch to self/busywait
       performBranch( branchAddress(cpu0.pc,i) );
     }
   }
   function executeBNEL(i) {
     var s = rs(i);
     var t = rt(i);
-    if (cpu0.gprHi[s] !== cpu0.gprHi[t] ||
-        cpu0.gprLo[s] !== cpu0.gprLo[t] ) {
+    if (cpu0.gprHi_signed[s] !== cpu0.gprHi_signed[t] ||
+        cpu0.gprLo_signed[s] !== cpu0.gprLo_signed[t] ) {
       performBranch( branchAddress(cpu0.pc,i) );
     } else {
       cpu0.nextPC += 4;   // skip the next instruction
@@ -1253,7 +1253,7 @@ if (typeof n64js === 'undefined') {
   function executeBLEZ(i) {
     var s = rs(i);
     if ( cpu0.gprHi_signed[s] < 0 ||
-        (cpu0.gprHi[s] === 0 && cpu0.gprLo[s] === 0) ) {
+        (cpu0.gprHi_signed[s] === 0 && cpu0.gprLo_signed[s] === 0) ) {
       performBranch( branchAddress(cpu0.pc,i) );
     }
   }
@@ -1261,7 +1261,7 @@ if (typeof n64js === 'undefined') {
     var s = rs(i);
     // NB: if rs == r0 then this branch is always taken
     if ( cpu0.gprHi_signed[s] < 0 ||
-        (cpu0.gprHi[s] === 0 && cpu0.gprLo[s] === 0) ) {
+        (cpu0.gprHi_signed[s] === 0 && cpu0.gprLo_signed[s] === 0) ) {
       performBranch( branchAddress(cpu0.pc,i) );
     } else {
       cpu0.nextPC += 4;   // skip the next instruction
@@ -1272,14 +1272,14 @@ if (typeof n64js === 'undefined') {
   function executeBGTZ(i) {
     var s = rs(i);
     if ( cpu0.gprHi_signed[s] >= 0 &&
-        (cpu0.gprHi[s] !== 0 || cpu0.gprLo[s] !== 0) ) {
+        (cpu0.gprHi_signed[s] !== 0 || cpu0.gprLo_signed[s] !== 0) ) {
       performBranch( branchAddress(cpu0.pc,i) );
     }
   }
   function executeBGTZL(i) {
     var s = rs(i);
     if ( cpu0.gprHi_signed[s] >= 0 &&
-        (cpu0.gprHi[s] !== 0 || cpu0.gprLo[s] !== 0) ) {
+        (cpu0.gprHi_signed[s] !== 0 || cpu0.gprLo_signed[s] !== 0) ) {
       performBranch( branchAddress(cpu0.pc,i) );
     } else {
       cpu0.nextPC += 4;   // skip the next instruction
@@ -1346,14 +1346,12 @@ if (typeof n64js === 'undefined') {
 
 
   function executeADDI(i) {
-    var a = cpu0.gprLo[rs(i)];
-    var v = imms(i);
-    setSignExtend(rt(i), a + v);
+    var r = cpu0.gprLo_signed[rs(i)] + imms(i);
+    setSignExtend(rt(i), r);
   }
   function executeADDIU(i) {
-    var a = cpu0.gprLo[rs(i)];
-    var v = imms(i);
-    setSignExtend(rt(i), a + v);
+    var r = cpu0.gprLo_signed[rs(i)] + imms(i);
+    setSignExtend(rt(i), r);
   }
 
   function executeDADDI(i) {
@@ -1425,7 +1423,7 @@ if (typeof n64js === 'undefined') {
   }
   function executeLW(i) {
     // SF2049 requires this, apparently
-    if (rt(i) == 0)
+    if (rt(i) === 0)
       return;
     setSignExtend(rt(i), n64js.readMemory32( memaddr(i) ));
   }
@@ -1489,25 +1487,27 @@ if (typeof n64js === 'undefined') {
 
 
   function executeSB(i) {
-    n64js.writeMemory8(memaddr(i), cpu0.gprLo[rt(i)] & 0xff );
+    n64js.writeMemory8( memaddr(i), cpu0.gprLo_signed[rt(i)] & 0xff );
   }
   function executeSH(i) {
-    n64js.writeMemory16(memaddr(i), cpu0.gprLo[rt(i)] & 0xffff );
+    n64js.writeMemory16( memaddr(i), cpu0.gprLo_signed[rt(i)] & 0xffff );
   }
   function executeSW(i) {
-    n64js.writeMemory32(memaddr(i), cpu0.gprLo[rt(i)]);
+    n64js.writeMemory32( memaddr(i), cpu0.gprLo_signed[rt(i)]);
   }
   function executeSD(i) {
-    n64js.writeMemory32( memaddr(i) + 0, cpu0.gprHi[rt(i)] );
-    n64js.writeMemory32( memaddr(i) + 4, cpu0.gprLo[rt(i)] );
+    var addr = memaddr(i);
+    n64js.writeMemory32( addr + 0, cpu0.gprHi_signed[rt(i)] );
+    n64js.writeMemory32( addr + 4, cpu0.gprLo_signed[rt(i)] );
   }
 
   function executeSWC1(i) {
     n64js.writeMemory32( memaddr(i), cpu1.load_u32( ft(i) ) );
   }
   function executeSDC1(i) {
-    n64js.writeMemory32( memaddr(i) + 0, cpu1.load_u32hi( ft(i) ) );
-    n64js.writeMemory32( memaddr(i) + 4, cpu1.load_u32(   ft(i) ) );
+    var addr = memaddr(i);
+    n64js.writeMemory32( addr + 0, cpu1.load_u32hi( ft(i) ) );
+    n64js.writeMemory32( addr + 4, cpu1.load_u32(   ft(i) ) );
   }
 
   function executeSDC2(i)       { unimplemented(cpu0.pc,i); }
@@ -2137,8 +2137,7 @@ if (typeof n64js === 'undefined') {
 
             var evt = cpu0.events[0];
             evt.countdown -= COUNTER_INCREMENT_PER_OP;
-            if (evt.countdown <= 0)
-            {
+            if (evt.countdown <= 0) {
               handleCounter();
             }
 
