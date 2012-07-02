@@ -2153,6 +2153,10 @@ if (typeof n64js === 'undefined') {
                 // FIXME: follow direct, forward branches
                 var code = '(function fragment_' + n64js.toString32(fragment.entryPC) + '_' + fragment.opsCompiled + '() {\n';
 
+                var next_pc = fragment.entryPC+4;
+                code += 'if (cpu0.delayPC) { cpu0.nextPC = cpu0.delayPC; } else { cpu0.nextPC = ' + n64js.toString32(next_pc) + '; }\n';
+                code += 'cpu0.branchTarget = 0;\n';
+
                 code += fragment.code;
 
                 code += '// EPILOGUE\n';
@@ -2304,28 +2308,37 @@ if (typeof n64js === 'undefined') {
 
   // Helper function: we can call this from generated code and avoid a lot of work for the parser
   // Returns: negative value if we should totally bail out of the trace, 0 to keep going on trace, 1 to keep going, different trace.
-  function postOp(expected_pc) {
-    cpu0.pc = cpu0.nextPC; // FIXME: we could optimise away variable access for the on-trace case
-    cpu0.delayPC = cpu0.branchTarget;
-    cpu0.control[cpu0.kControlCount] += 1; // COUNTER_INCREMENT_PER_OP
-    ++cpu0.opsExecuted;
-    var evt = cpu0.events[0];
+  function postOp(npc) {
+    var c = cpu0;
+    c.pc = c.nextPC;
+    c.delayPC = c.branchTarget;
+    c.control[9] += 1; // COUNTER_INCREMENT_PER_OP
+    ++c.opsExecuted;
+    var evt = c.events[0];
     evt.countdown -= 1; // COUNTER_INCREMENT_PER_OP
-    if (evt.countdown <= 0)
-    {
+    if (evt.countdown <= 0) {
       handleCounter();
     }
 
-    if (cpu0.stuffToDo) {
+    if (c.stuffToDo) {
       return -1; // Bail out of trace
     }
 
-    if (cpu0.pc !== expected_pc) {
+    if (c.pc !== npc) {
       return 1; // Keep going - off trace
     }
 
+    c.nextPC = c.delayPC;
+    if (!c.nextPC) {
+      c.nextPC = npc+4;
+    }
+    c.branchTarget = 0;
+
     return 0;    // Keep going - on trace
   }
+
+
+
 
   function generateOp(entry_pc,post_pc,i) {
     var opcode = (i >>> 26) & 0x3f;
@@ -2342,14 +2355,11 @@ if (typeof n64js === 'undefined') {
     //code += '//' + n64js.toString32(cpu0.pc) + '\n';
     //code += 'if (!checkEqual( cpu0.pc, '      + n64js.toString32(cpu0.pc)  + ', "unexpected pc")) { var fragment = lookupFragment(' + n64js.toString32(fragment.entryPC) + '); console.log(fragment.code ); return false; }\n';
     //code += 'if (!checkEqual( n64js.readMemory32(cpu0.pc), ' + n64js.toString32(instruction) + ', "unexpected instruction (need to flush icache?)")) { return false; }\n';
-    var next_pc = entry_pc+4;
-    code += 'if (cpu0.delayPC) { cpu0.nextPC = cpu0.delayPC; } else { cpu0.nextPC = ' + n64js.toString32(next_pc) + '; }\n';
-    code += 'cpu0.branchTarget = 0;\n';
 
     code += fn + '\n';
 
     // check if we've branched a different way to the trace. NB: checks UPDATED pc
-    code += 'var leave_fragment = postOp(' + n64js.toString32(post_pc)  + '); if (leave_fragment) return leave_fragment;\n\n';
+    code += 'var ret = postOp(' + n64js.toString32(post_pc)  + '); if (ret) return ret;\n\n';
 
     return code;
   }
