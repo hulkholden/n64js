@@ -277,7 +277,7 @@ if (typeof n64js === 'undefined') {
   }
 
   function setN64Viewport(scale, trans) {
-    n64js.log('Viewport: scale=' + scale[0] + ',' + scale[1] + ' trans=' + trans[0] + ',' + trans[1] );
+    //n64js.log('Viewport: scale=' + scale[0] + ',' + scale[1] + ' trans=' + trans[0] + ',' + trans[1] );
 
     if (scale[0] === state.viewport.scale[0] &&
         scale[1] === state.viewport.scale[1] &&

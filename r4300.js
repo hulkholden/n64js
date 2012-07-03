@@ -2287,8 +2287,7 @@ if (typeof n64js === 'undefined') {
       var minaddr = address;
       var maxaddr = address + length;
 
-      var fragmentsRemoved = 0;
-
+      var fragments_removed = 0;
       var newfrags = {};
 
       for (var pc in fragmentMap) {
@@ -2296,13 +2295,13 @@ if (typeof n64js === 'undefined') {
         if (fragment.minPC >= maxaddr || (fragment.maxPC+4) <= minaddr) {
           newfrags[pc] = fragment;
         } else {
-          fragmentsRemoved++;
+          fragments_removed++;
         }
       }
 
       fragmentMap = newfrags;
 
-      fragmentInvalidationEvents.push({'address': address, 'length': length, 'system': system, 'fragmentsRemoved': fragmentsRemoved});
+      fragmentInvalidationEvents.push({'address': address, 'length': length, 'system': system, 'fragmentsRemoved': fragments_removed});
 
   }
 
