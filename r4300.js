@@ -796,14 +796,14 @@ if (typeof n64js === 'undefined') {
   function setSignExtend(r,v) {
     cpu0.gprLo[r] = v;
     if (v & 0x80000000)
-      cpu0.gprHi[r] = 0xffffffff;
+      cpu0.gprHi_signed[r] = -1;
     else
-      cpu0.gprHi[r] = 0x00000000;
+      cpu0.gprHi_signed[r] = 0;
   }
 
   function setZeroExtend(r, v) {
     cpu0.gprLo[r] = v;
-    cpu0.gprHi[r] = 0x00000000;
+    cpu0.gprHi_signed[r] = 0;
   }
 
   function setHiLoSignExtend(arr, v) {
@@ -811,11 +811,11 @@ if (typeof n64js === 'undefined') {
     if (v & 0x80000000)
       arr[1] = 0xffffffff;
     else
-      arr[1] = 0x00000000;
+      arr[1] = 0;
   }
   function setHiLoZeroExtend(arr, v) {
     arr[0] = v; //(v&0xffffffff) >>> 0; -- is this necessary?
-    arr[1] = 0x00000000;
+    arr[1] = 0;
   }
 
   function getHi32(v) {
@@ -988,8 +988,8 @@ if (typeof n64js === 'undefined') {
   }
 
   function implCLEAR(d) {
-    cpu0.gprHi[d] = 0;
-    cpu0.gprLo[d] = 0;
+    cpu0.gprHi_signed[d] = 0;
+    cpu0.gprLo_signed[d] = 0;
   }
   function implMOV(d,s) {
     cpu0.gprHi_signed[d] = cpu0.gprHi_signed[s];  // NB: use of _signed regs is intentional - avoids load-keyed-specialized-array-element deopt.
@@ -1041,18 +1041,24 @@ if (typeof n64js === 'undefined') {
 
 
   function executeSLT(i) {
+    var s = rs(i);
+    var t = rt(i);
+
     var r = 0;
-    if (cpu0.gprHi_signed[rs(i)] < cpu0.gprHi_signed[rt(i)]) {
+    if (cpu0.gprHi_signed[s] < cpu0.gprHi_signed[t]) {
       r = 1;
-    } else if (cpu0.gprHi_signed[rs(i)] === cpu0.gprHi_signed[rt(i)]) {
-      r = (cpu0.gprLo[rs(i)] < cpu0.gprLo[rt(i)]) ? 1 : 0;
+    } else if (cpu0.gprHi_signed[s] === cpu0.gprHi_signed[t]) {
+      r = (cpu0.gprLo[s] < cpu0.gprLo[t]) ? 1 : 0;
     }
     setZeroExtend(rd(i), r);
   }
   function executeSLTU(i) {
+    var s = rs(i);
+    var t = rt(i);
+
     var r = 0;
-    if (cpu0.gprHi[rs(i)] < cpu0.gprHi[rt(i)] ||
-        (cpu0.gprHi_signed[rs(i)] === cpu0.gprHi_signed[rt(i)] && cpu0.gprLo[rs(i)] < cpu0.gprLo[rt(i)])) { // NB signed cmps avoid deopts
+    if (cpu0.gprHi[s] < cpu0.gprHi[t] ||
+        (cpu0.gprHi_signed[s] === cpu0.gprHi_signed[t] && cpu0.gprLo[s] < cpu0.gprLo[t])) { // NB signed cmps avoid deopts
       r = 1;
     }
     setZeroExtend(rd(i), r);
