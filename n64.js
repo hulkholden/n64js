@@ -354,8 +354,9 @@ if (typeof n64js === 'undefined') {
       lastPC = cpu0.pc;
     }
 
-    var is_single_step = lastCycles === (cpu0.opsExecuted-1);
-    lastCycles = cpu0.opsExecuted;
+    var cpu_count = cpu0.getCount();
+    var is_single_step = lastCycles === (cpu_count-1);
+    lastCycles = cpu_count;
 
     var cur_instr;
 

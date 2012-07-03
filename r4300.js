@@ -266,7 +266,9 @@ if (typeof n64js === 'undefined') {
     this.multHi_signed  = new Int32Array(this.multHiMem);
     this.multLo_signed  = new Int32Array(this.multLoMem);
 
-    this.opsExecuted    = 0;
+    this.getCount = function() {
+      return this.control[this.kControlCount];
+    }
 
     this.tlbEntries = [];
     for (var i = 0; i < 32; ++i) {
@@ -308,8 +310,6 @@ if (typeof n64js === 'undefined') {
 
       this.multLo[0]    = this.multLo[1] = 0;
       this.multHi[0]    = this.multHi[1] = 0;
-
-      this.opsExecuted  = 0;
 
       this.control[this.kControlRand]   = 32-1;
       this.control[this.kControlSR]     = 0x70400004;
@@ -2149,7 +2149,6 @@ if (typeof n64js === 'undefined') {
             cpu0.control[cpu0.kControlCount] += COUNTER_INCREMENT_PER_OP;
             //checkCauseIP3Consistent();
             //n64js.checkSIStatusConsistent();
-            ++cpu0.opsExecuted;
 
             var evt = cpu0.events[0];
             evt.countdown -= COUNTER_INCREMENT_PER_OP;
@@ -2325,7 +2324,6 @@ if (typeof n64js === 'undefined') {
     c.pc = c.nextPC;
     c.delayPC = c.branchTarget;
     c.control[9] += 1; // COUNTER_INCREMENT_PER_OP
-    ++c.opsExecuted;
     var evt = c.events[0];
     evt.countdown -= 1; // COUNTER_INCREMENT_PER_OP
     if (evt.countdown <= 0) {
