@@ -259,8 +259,12 @@ if (typeof n64js === 'undefined') {
 
     this.events         = [];
 
-    this.multHi         = new Uint32Array(2);
-    this.multLo         = new Uint32Array(2);
+    this.multHiMem      = new ArrayBuffer(2*4);
+    this.multLoMem      = new ArrayBuffer(2*4);
+    this.multHi         = new Uint32Array(this.multHiMem);
+    this.multLo         = new Uint32Array(this.multLoMem);
+    this.multHi_signed  = new Int32Array(this.multHiMem);
+    this.multLo_signed  = new Int32Array(this.multLoMem);
 
     this.opsExecuted    = 0;
 
@@ -871,8 +875,9 @@ if (typeof n64js === 'undefined') {
   function executeDSRA(i)       { unimplemented(cpu0.pc,i); }
 
   function executeDSLL32(i) {
-    cpu0.gprLo[rd(i)] = 0;
-    cpu0.gprHi[rd(i)] = cpu0.gprLo[rt(i)] << sa(i);
+    var d = rd(i);
+    cpu0.gprLo_signed[d] = 0;
+    cpu0.gprHi[d] = cpu0.gprLo[rt(i)] << sa(i);
   }
   function executeDSRL32(i) {
     setZeroExtend( rd(i), cpu0.gprHi[rt(i)] >>> sa(i) );
@@ -889,20 +894,25 @@ if (typeof n64js === 'undefined') {
 
 
   function executeMFHI(i) {
-    cpu0.gprHi[rd(i)] = cpu0.multHi[1]; 
-    cpu0.gprLo[rd(i)] = cpu0.multHi[0]; 
+    var d = rd(i);
+
+    cpu0.gprHi_signed[d] = cpu0.multHi_signed[1];
+    cpu0.gprLo_signed[d] = cpu0.multHi_signed[0];
   }
   function executeMFLO(i) {
-    cpu0.gprHi[rd(i)] = cpu0.multLo[1]; 
-    cpu0.gprLo[rd(i)] = cpu0.multLo[0]; 
+    var d = rd(i);
+    cpu0.gprHi_signed[d] = cpu0.multLo_signed[1];
+    cpu0.gprLo_signed[d] = cpu0.multLo_signed[0];
   }
   function executeMTHI(i) {
-    cpu0.multHi[0] = cpu0.gprLo[rs(i)];
-    cpu0.multHi[1] = cpu0.gprHi[rs(i)];
+    var s = rs(i);
+    cpu0.multHi_signed[0] = cpu0.gprLo_signed[s];
+    cpu0.multHi_signed[1] = cpu0.gprHi_signed[s];
   }
   function executeMTLO(i)  {
-    cpu0.multLo[0] = cpu0.gprLo[rs(i)];
-    cpu0.multLo[1] = cpu0.gprHi[rs(i)];
+    var s = rs(i);
+    cpu0.multLo_signed[0] = cpu0.gprLo_signed[s];
+    cpu0.multLo_signed[1] = cpu0.gprHi_signed[s];
   }
 
   function executeMULT(i) {
@@ -919,15 +929,15 @@ if (typeof n64js === 'undefined') {
     var result = cpu0.gprLo_signed[rs(i)] * cpu0.gprLo_signed[rt(i)];   // needs to be 64-bit!
     cpu0.multLo[0] = getLo32(result);
     cpu0.multLo[1] = getHi32(result);
-    cpu0.multHi[0] = 0;
-    cpu0.multHi[1] = 0;
+    cpu0.multHi_signed[0] = 0;
+    cpu0.multHi_signed[1] = 0;
   }
   function executeDMULTU(i) {
     var result = cpu0.gprLo[rs(i)] * cpu0.gprLo[rt(i)];   // needs to be 64-bit!
     cpu0.multLo[0] = getLo32(result);
     cpu0.multLo[1] = getHi32(result);
-    cpu0.multHi[0] = 0;
-    cpu0.multHi[1] = 0;
+    cpu0.multHi_signed[0] = 0;
+    cpu0.multHi_signed[1] = 0;
   }
 
   function executeDIV(i) {
