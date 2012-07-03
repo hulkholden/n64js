@@ -2277,6 +2277,11 @@ if (typeof n64js === 'undefined') {
   }
 
   function disassembleDisplayList(pc, ram, ucode) {
+
+    if (!$dlistOutput.hasClass('active')) {
+      return;
+    }
+
     buildUCodeTables(ucode);
 
     var kMatrix   = 0x01;

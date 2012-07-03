@@ -247,21 +247,22 @@ if (typeof n64js === 'undefined') {
   }
 
   n64js.setRomInfoElement = function ($e) {
-    $rominfo = $e;
+    $rominfoContent = $e;
   }   
 
-  n64js.setDebugElements = function ($stat, $regs, $disasm) {
-    $status      = $stat;
-    $registers   = $regs;
-    $disassembly = $disasm;
+  n64js.setDebugElements = function ($debug, $stat, $regs, $disasm) {
+    $debugContent = $debug;
+    $status       = $stat;
+    $registers    = $regs;
+    $disassembly  = $disasm;
   }
 
   n64js.setDynarecElements = function ($dr) {
-    $dynarec = $dr;
+    $dynarecContent = $dr;
   }
 
   n64js.setMemoryElement = function ($e) {
-    $memory = $e;
+    $memoryContent = $e;
   }
 
   n64js.down = function () {
@@ -332,7 +333,22 @@ if (typeof n64js === 'undefined') {
 
   n64js.refreshDisplay = function () {
 
-    updateDynarec();
+    if ($dynarecContent.hasClass('active')) {
+      updateDynarec();
+    }
+
+    if ($debugContent.hasClass('active')) {
+      updateDebug();
+    }
+
+    if ($memoryContent.hasClass('active')) {
+      var $mem = $('<pre></pre>');
+      $mem.append( makeMemoryTable(lastMemoryAccessAddress || 0x80000000, 1024) );
+      $memoryContent.html($mem);
+    }
+  }
+
+  function updateDebug() {
 
     var cpu0 = n64js.cpu0;
 
@@ -498,10 +514,6 @@ if (typeof n64js === 'undefined') {
     var $table1 = $('<table class="register-table"><tbody></tbody></table>');
     addCop1($table1.find('tbody'), regColours);
     $registers[1].html($table1);
-
-    var $mem = $('<pre></pre>');
-    $mem.append( makeMemoryTable(lastMemoryAccessAddress || 0x80000000, 1024) );
-    $memory.html($mem);
   }
 
   // bytes_per_row should be power-of-two
@@ -703,7 +715,7 @@ if (typeof n64js === 'undefined') {
       t += '<tr><td>' + i + '</td><td>' + histo[i] + '</td></tr>';
     }
     t += '</table>';
-    $dynarec.html(t);
+    $dynarecContent.html(t);
   }
 
   //
@@ -810,13 +822,14 @@ if (typeof n64js === 'undefined') {
     }
   };
 
-  var $rominfo     = null;
-  var $status      = null;
-  var $registers   = null;
-  var $disassembly = null;
-  var $dynarec     = null;
-  var $memory      = null;
-  var $output      = null;
+  var $rominfoContent = null;
+  var $debugContent   = null;
+  var $status         = null;
+  var $registers      = null;
+  var $disassembly    = null;
+  var $dynarecContent = null;
+  var $memoryContent  = null;
+  var $output         = null;
 
   var disasmAddress = 0;
 
@@ -2303,7 +2316,7 @@ if (typeof n64js === 'undefined') {
     hdr.countryId    = rom.dataView.getUint8 (62);  // char
     hdr.unk5         = rom.dataView.getUint8 (63);
 
-    $rominfo.html('');
+    $rominfoContent.html('');
     var $table = $('<table class="register-table"><tbody></tbody></table>');
     var $tb = $table.find('tbody');
     for (var i in hdr) {
@@ -2311,7 +2324,7 @@ if (typeof n64js === 'undefined') {
         '<td>' + i + '</td><td>' + (typeof hdr[i] === 'string' ? hdr[i] : toString32(hdr[i])) + '</td>' +
         '</tr>');
     }
-    $rominfo.append($table);
+    $rominfoContent.append($table);
   }
 
   n64js.verticalBlank = function() {

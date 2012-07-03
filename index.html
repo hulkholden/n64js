@@ -206,7 +206,7 @@
     $(document).ready(function(){
       n64js.reset();
       n64js.setRomInfoElement($('#rominfo-content'));
-      n64js.setDebugElements($('#status'), [$('#cpu0-content'), $('#cpu1-content')], $('#disasm'));
+      n64js.setDebugElements($('#debug-content'), $('#status'), [$('#cpu0-content'), $('#cpu1-content')], $('#disasm'));
       n64js.setDynarecElements($('#dynarec-content'));
       n64js.setMemoryElement($('#memory-content'));
       n64js.setOutputElement($('#output'));
