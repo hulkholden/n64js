@@ -12,7 +12,7 @@
    .disasm-table th.op, .disasm-table td.op { text-align: left; }
    pre .dis-label-target { font-weight: bold; }
    pre .dis-label { color: #999; }
-   #output { background-color: #ccc; height: 180px; overflow: scroll;}
+   #output { background-color: #444; height: 360px; color: #fff;  overflow: scroll;}
    div #cpu    { display:inline-block; vertical-align:top;}
    div #disasm { display:inline-block; vertical-align:top; width:600px;}
    .popover-inner { width: auto; }
@@ -63,7 +63,7 @@
 
           <div class="tabbable">
             <ul class="nav nav-tabs">
-              <li class="active"><a href="#rominfo-content" id="file-tab" data-toggle="tab">File</a></li>
+              <li class="active"><a href="#output-content" id="output-tab" data-toggle="tab">Output</a></li>
               <li><a href="#debug-content" id="debug-tab" data-toggle="tab">Debug</a></li>
               <li><a href="#memory-content" id="memory-tab" data-toggle="tab">Memory</a></li>
               <li><a href="#dynarec-content" id="dynarec-tab" data-toggle="tab">Dynarec</a></li>
@@ -71,7 +71,7 @@
               <li><a href="#texture-content" id="texture-tab" data-toggle="tab">Textures</a></li>
             </ul>
             <div class="tab-content">
-              <div class="tab-pane active" id="rominfo-content"></div>
+              <div class="tab-pane active" id="output-content"></div>
               <div class="tab-pane" id="debug-content">
 
                 <div id="cpu">
@@ -205,7 +205,6 @@
 
     $(document).ready(function(){
       n64js.reset();
-      n64js.setRomInfoElement($('#rominfo-content'));
       n64js.setDebugElements($('#debug-content'), $('#status'), [$('#cpu0-content'), $('#cpu1-content')], $('#disasm'));
       n64js.setDynarecElements($('#dynarec-content'));
       n64js.setMemoryElement($('#memory-content'));
@@ -236,7 +235,7 @@
       });
       $('body').keypress(function (event) {
         switch (event.which) {
-          case 'f'.charCodeAt(0): $(  '#file-tab').tab('show'); break;
+          case 'o'.charCodeAt(0): $('#output-tab').tab('show'); break;
           case 'd'.charCodeAt(0): $( '#debug-tab').tab('show'); break;
           case 'm'.charCodeAt(0): $('#memory-tab').tab('show'); break;
           case 'l'.charCodeAt(0): load();                       break;

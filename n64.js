@@ -246,10 +246,6 @@ if (typeof n64js === 'undefined') {
     $output = $e;
   }
 
-  n64js.setRomInfoElement = function ($e) {
-    $rominfoContent = $e;
-  }   
-
   n64js.setDebugElements = function ($debug, $stat, $regs, $disasm) {
     $debugContent = $debug;
     $status       = $stat;
@@ -822,7 +818,6 @@ if (typeof n64js === 'undefined') {
     }
   };
 
-  var $rominfoContent = null;
   var $debugContent   = null;
   var $status         = null;
   var $registers      = null;
@@ -2316,7 +2311,6 @@ if (typeof n64js === 'undefined') {
     hdr.countryId    = rom.dataView.getUint8 (62);  // char
     hdr.unk5         = rom.dataView.getUint8 (63);
 
-    $rominfoContent.html('');
     var $table = $('<table class="register-table"><tbody></tbody></table>');
     var $tb = $table.find('tbody');
     for (var i in hdr) {
@@ -2324,7 +2318,7 @@ if (typeof n64js === 'undefined') {
         '<td>' + i + '</td><td>' + (typeof hdr[i] === 'string' ? hdr[i] : toString32(hdr[i])) + '</td>' +
         '</tr>');
     }
-    $rominfoContent.append($table);
+    $output.append($table);
   }
 
   n64js.verticalBlank = function() {
