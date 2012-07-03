@@ -2164,9 +2164,6 @@ if (typeof n64js === 'undefined') {
               if (fragment.opsCompiled >= 500 || fragment.pcs[cpu0.pc] !== undefined) {
                 updateFragment(fragment, pc);
 
-                //n64js.log(n64js.toString32(fragment.entryPC) + ' - ' + fragment.opsCompiled);
-
-                // FIXME: follow direct, forward branches
                 var code = '(function fragment_' + n64js.toString32(fragment.entryPC) + '_' + fragment.opsCompiled + '() {\n';
 
                 var next_pc = fragment.entryPC+4;
