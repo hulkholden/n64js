@@ -785,8 +785,8 @@ if (typeof n64js === 'undefined') {
       return cpu0.gprLo[base(i)] + imms(i);
   }
 
-//  function branchAddress(pc,i) { return ((pc+4) + (offset(i)*4))>>>0; }
-  function branchAddress(pc,i) { return (((pc>>>2)+1) + offset(i))<<2; }  // NB: convoluted calculation to avoid >>>0 (deopt)
+  function branchAddress(pc,i) { return ((pc+4) + (offset(i)*4))>>>0; }
+  //function branchAddress(pc,i) { return (((pc>>>2)+1) + offset(i))<<2; }  // NB: convoluted calculation to avoid >>>0 (deopt)
   function   jumpAddress(pc,i) { return ((pc&0xf0000000) | (target(i)*4))>>>0; }
 
   function performBranch(new_pc) {
