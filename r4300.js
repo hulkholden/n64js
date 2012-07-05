@@ -842,28 +842,35 @@ if (typeof n64js === 'undefined') {
     throw 'Unknown op: ' + n64js.toString32(cpu0.pc) + ', ' + n64js.toString32(i);
   }
 
-  function executeSLL(i) {
-    // Special-case NOP
-    if (i == 0)
-      return;
+  function executeSLL(i)        { if (i !== 0) implSLL(rd(i), rt(i), sa(i) ); }
+  function executeSRL(i)        { implSRL(rd(i), rt(i), sa(i) ); }
+  function executeSRA(i)        { implSRA(rd(i), rt(i), sa(i) ); }
 
-    setSignExtend( rd(i), ((cpu0.gprLo[rt(i)] << sa(i)) & 0xffffffff)>>>0 );
+  function implSLL(d,t,shift) {
+    setSignExtend( d, ((cpu0.gprLo[t] << shift) & 0xffffffff)>>>0 );
   }
 
-  function executeSRL(i) {
-    setSignExtend( rd(i), cpu0.gprLo[rt(i)] >>> sa(i) );
+  function implSRL(d,t,shift) {
+    setSignExtend( d, cpu0.gprLo[t] >>> shift );
   }
-  function executeSRA(i) {
-    setSignExtend( rd(i), cpu0.gprLo[rt(i)] >> sa(i) );
+
+  function implSRA(d,t,shift) {
+    setSignExtend( d, cpu0.gprLo[t] >> shift );
   }
+
+  function generateSLL(ctx)     { if (ctx.instruction ===0) return generateNOPBoilerplate(ctx);
+                                  return generateTrivialOpBoilerplate('implSLL(' + ctx.instr_rd() + ',' + ctx.instr_rt() + ',' + ctx.instr_sa() + ')',  ctx); }
+  function generateSRL(ctx)     { return generateTrivialOpBoilerplate('implSRL(' + ctx.instr_rd() + ',' + ctx.instr_rt() + ',' + ctx.instr_sa() + ')',  ctx); }
+  function generateSRA(ctx)     { return generateTrivialOpBoilerplate('implSRA(' + ctx.instr_rd() + ',' + ctx.instr_rt() + ',' + ctx.instr_sa() + ')',  ctx); }
+
   function executeSLLV(i) {
-    setSignExtend( rd(i), (cpu0.gprLo[rt(i)] <<  (cpu0.gprLo[rs(i)] & 0x1f)) & 0xffffffff );
+    setSignExtend( rd(i), (cpu0.gprLo_signed[rt(i)] <<  (cpu0.gprLo_signed[rs(i)] & 0x1f)) & 0xffffffff );
   }
   function executeSRLV(i) {
-    setSignExtend( rd(i),  cpu0.gprLo[rt(i)] >>> (cpu0.gprLo[rs(i)] & 0x1f) );
+    setSignExtend( rd(i),  cpu0.gprLo_signed[rt(i)] >>> (cpu0.gprLo_signed[rs(i)] & 0x1f) );
   }
   function executeSRAV(i) {
-    setSignExtend( rd(i),  cpu0.gprLo[rt(i)] >>  (cpu0.gprLo[rs(i)] & 0x1f) );
+    setSignExtend( rd(i),  cpu0.gprLo_signed[rt(i)] >>  (cpu0.gprLo_signed[rs(i)] & 0x1f) );
   }
 
   function executeDSLLV(i)      { unimplemented(cpu0.pc,i); }
@@ -1049,30 +1056,32 @@ if (typeof n64js === 'undefined') {
   function  executeXOR(i)     {  implXOR(rd(i), rs(i), rt(i)); }
   function  executeNOR(i)     {  implNOR(rd(i), rs(i), rt(i)); }
 
+  function executeSLT(i)        { implSLT (rd(i), rs(i), rt(i)); }
+  function executeSLTU(i)       { implSLTU(rd(i), rs(i), rt(i)); }
 
-  function executeSLT(i) {
-    var s = rs(i);
-    var t = rt(i);
-
+  function implSLT(d,s,t) {
     var r = 0;
     if (cpu0.gprHi_signed[s] < cpu0.gprHi_signed[t]) {
       r = 1;
     } else if (cpu0.gprHi_signed[s] === cpu0.gprHi_signed[t]) {
       r = (cpu0.gprLo[s] < cpu0.gprLo[t]) ? 1 : 0;
     }
-    setZeroExtend(rd(i), r);
-  }
-  function executeSLTU(i) {
-    var s = rs(i);
-    var t = rt(i);
 
+    cpu0.gprLo_signed[d] = r;
+    cpu0.gprHi_signed[d] = 0;
+  }
+
+  function implSLTU(d,s,t) {
     var r = 0;
     if (cpu0.gprHi[s] < cpu0.gprHi[t] ||
         (cpu0.gprHi_signed[s] === cpu0.gprHi_signed[t] && cpu0.gprLo[s] < cpu0.gprLo[t])) { // NB signed cmps avoid deopts
       r = 1;
     }
-    setZeroExtend(rd(i), r);
+    cpu0.gprLo_signed[d] = r;
+    cpu0.gprHi_signed[d] = 0;
   }
+
+
   function executeDADD(i)       { unimplemented(cpu0.pc,i); }
   function executeDADDU(i)      { unimplemented(cpu0.pc,i); }
   function executeDSUB(i)       { unimplemented(cpu0.pc,i); }
@@ -1227,6 +1236,14 @@ if (typeof n64js === 'undefined') {
     }
   }
 
+  function implBNE(s,t,addr) {
+    if (cpu0.gprHi_signed[s] !== cpu0.gprHi_signed[t] ||
+        cpu0.gprLo_signed[s] !== cpu0.gprLo_signed[t] ) {      // NB: if imms(i) == -1 then this is a branch to self/busywait
+      performBranch( addr );
+    }
+  }
+
+
   function executeBEQ(i) {
     if (offset(i) === -1) {
       implBEQ_speedhack(rs(i), rt(i), branchAddress(cpu0.pc,i));
@@ -1246,14 +1263,8 @@ if (typeof n64js === 'undefined') {
     }
   }
 
-  function executeBNE(i) {
-    var s = rs(i);
-    var t = rt(i);
-    if (cpu0.gprHi_signed[s] !== cpu0.gprHi_signed[t] ||
-        cpu0.gprLo_signed[s] !== cpu0.gprLo_signed[t] ) {      // NB: if imms(i) == -1 then this is a branch to self/busywait
-      performBranch( branchAddress(cpu0.pc,i) );
-    }
-  }
+  function executeBNE(i)      { implBNE(rs(i), rt(i), branchAddress(cpu0.pc,i) ); }
+
   function executeBNEL(i) {
     var s = rs(i);
     var t = rt(i);
@@ -1362,13 +1373,32 @@ if (typeof n64js === 'undefined') {
 
 
   function executeADDI(i) {
-    var r = cpu0.gprLo_signed[rs(i)] + imms(i);
-    setSignExtend(rt(i), r);
+    var s         = rs(i);
+    var t         = rt(i);
+    var result    = cpu0.gprLo_signed[s] + imms(i);
+    cpu0.gprLo_signed[t] = result;
+    cpu0.gprHi_signed[t] = result >> 31;
   }
+
+  function generateADDIU(ctx) {
+    var impl = '';
+    impl += 'var s = ' + ctx.instr_rs() + ';\n';
+    impl += 'var t = ' + ctx.instr_rt() + ';\n';
+    impl += 'var result = cpu0.gprLo_signed[s] + ' + imms(ctx.instruction) + ';\n';
+    impl += 'cpu0.gprLo_signed[t] = result;\n';
+    impl += 'cpu0.gprHi_signed[t] = result >> 31;\n';
+    return generateTrivialOpBoilerplate(impl, ctx);
+  }
+
   function executeADDIU(i) {
-    var r = cpu0.gprLo_signed[rs(i)] + imms(i);
-    setSignExtend(rt(i), r);
+    var s         = rs(i);
+    var t         = rt(i);
+    var result    = cpu0.gprLo_signed[s] + imms(i);
+    cpu0.gprLo_signed[t] = result;
+    cpu0.gprHi_signed[t] = result >> 31;
   }
+
+
 
   function executeDADDI(i) {
     cpu0.setGPR_s64(rt(i), cpu0.getGPR_s64(rs(i)) + imms(i));
@@ -1411,26 +1441,26 @@ if (typeof n64js === 'undefined') {
   }
 
   function executeANDI(i) {
-    cpu0.gprHi[rt(i)] = 0;    // always 0, as sign extended immediate value is always 0
-    cpu0.gprLo[rt(i)] = cpu0.gprLo[rs(i)] & imm(i);    
+    cpu0.gprHi_signed[rt(i)] = 0;    // always 0, as sign extended immediate value is always 0
+    cpu0.gprLo_signed[rt(i)] = cpu0.gprLo_signed[rs(i)] & imm(i);
   }
-  
+
   function executeORI(i) {
-    cpu0.gprHi[rt(i)] = cpu0.gprHi[rs(i)];
-    cpu0.gprLo[rt(i)] = cpu0.gprLo[rs(i)] | imm(i);
+    cpu0.gprHi_signed[rt(i)] = cpu0.gprHi_signed[rs(i)];
+    cpu0.gprLo_signed[rt(i)] = cpu0.gprLo_signed[rs(i)] | imm(i);
   }
-  
+
   function executeXORI(i) {
     // High 32 bits are always unchanged, as sign extended immediate value is always 0
-    cpu0.gprHi[rt(i)] = cpu0.gprHi[rs(i)];
-    cpu0.gprLo[rt(i)] = cpu0.gprLo[rs(i)] ^ imm(i);
+    cpu0.gprHi_signed[rt(i)] = cpu0.gprHi_signed[rs(i)];
+    cpu0.gprLo_signed[rt(i)] = cpu0.gprLo_signed[rs(i)] ^ imm(i);
   }
-  
+
   function executeLUI(i) {
     var v  = imms(i) << 16;
     setSignExtend(rt(i), v);
   }
-  
+
   function executeLB(i) {
     setSignExtend(rt(i), (n64js.readMemory8( memaddr(i) )<<24)>>24);
   }
@@ -1842,7 +1872,7 @@ if (typeof n64js === 'undefined') {
   ];
   if (regImmTable.length != 32) {
     throw "Oops, didn't build the regimm table correctly";
-  }  
+  }
 
   function executeRegImm(i) {
     var rt = (i >>> 16) & 0x1f;
@@ -1878,7 +1908,7 @@ if (typeof n64js === 'undefined') {
   }
 
   var specialTableGen = [
-    'executeSLL',           'executeUnknown',       'executeSRL',         'executeSRA',
+    generateSLL,            'executeUnknown',       generateSRL,          generateSRA,
     'executeSLLV',          'executeUnknown',       'executeSRLV',        'executeSRAV',
     'executeJR',            'executeJALR',          'executeUnknown',     'executeUnknown',
     'executeSYSCALL',       'executeBREAK',         'executeUnknown',     'executeSYNC',
@@ -1888,7 +1918,7 @@ if (typeof n64js === 'undefined') {
     'executeDMULT',         'executeDMULTU',        'executeDDIV',        'executeDDIVU',
     generateADD,            generateADDU,           generateSUB,          generateSUBU,
     generateAND,            generateOR,             generateXOR,          generateNOR,
-    'executeUnknown',       'executeUnknown',       'executeSLT',         'executeSLTU',
+    'executeUnknown',       'executeUnknown',       generateSLT,          generateSLTU,
     'executeDADD',          'executeDADDU',         'executeDSUB',        'executeDSUBU',
     'executeTGE',           'executeTGEU',          'executeTLT',         'executeTLTU',
     'executeTEQ',           'executeUnknown',       'executeTNE',         'executeUnknown',
@@ -1915,19 +1945,19 @@ if (typeof n64js === 'undefined') {
 
   var simpleTableGen = [
     generateSpecial,        generateRegImm,         'executeJ',           'executeJAL',
-    generateBEQ,            'executeBNE',           'executeBLEZ',        'executeBGTZ',
-    'executeADDI',          'executeADDIU',         'executeSLTI',        'executeSLTIU',
+    generateBEQ,            generateBNE,            'executeBLEZ',        'executeBGTZ',
+    'executeADDI',          generateADDIU,          'executeSLTI',        'executeSLTIU',
     'executeANDI',          'executeORI',           'executeXORI',        'executeLUI',
     'executeCop0',          'executeCop1_check',    'executeUnknown',     'executeUnknown',
     'executeBEQL',          'executeBNEL',          'executeBLEZL',       'executeBGTZL',
     'executeDADDI',         'executeDADDIU',        'executeLDL',         'executeLDR',
     'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
-    'executeLB',            'executeLH',            'executeLWL',         'executeLW',
+    'executeLB',            'executeLH',            'executeLWL',         generateLW,
     'executeLBU',           'executeLHU',           'executeLWR',         'executeLWU',
-    'executeSB',            'executeSH',            'executeSWL',         'executeSW',
+    generateSB,             generateSH,             'executeSWL',         generateSW,
     'executeSDL',           'executeSDR',           'executeSWR',         'executeCACHE',
     'executeLL',            'executeLWC1',          'executeUnknown',     'executeUnknown',
-    'executeLLD',           'executeLDC1',          'executeLDC2',        'executeLD',
+    'executeLLD',           'executeLDC1',          'executeLDC2',        generateLD,
     'executeSC',            'executeSWC1',          'executeUnknown',     'executeUnknown',
     'executeSCD',           'executeSDC1',          'executeSDC2',        'executeSD',
   ];
@@ -1936,47 +1966,163 @@ if (typeof n64js === 'undefined') {
   }
 
 
-  function generateBEQ(pc,i) {
-    var s = rs(i);
-    var t = rt(i);
-    var off = offset(i);
-    var addr = branchAddress(pc,i);
+  function FragmentContext() {
+    this.fragment    = undefined;
+    this.pc          = 0;
+    this.instruction = 0;
+    this.post_pc     = 0;
+    this.bailOut     = false;       // Set this if the op does something to manipulate event timers
 
-    var x;
-    if (s === t) {
-      x = 'implB('+ n64js.toString32(addr) + ')';
-    } else {
-      var fn = off === -1 ? 'implBEQ_speedhack' : 'implBEQ';
-      x = fn + '(' + s + ',' + t+ ',' + n64js.toString32(addr) + ')';
+    this.set = function (fragment_, pc_, instruction_, post_pc_) {
+      this.fragment    = fragment_;
+      this.pc          = pc_;
+      this.instruction = instruction_;
+      this.post_pc     = post_pc_;
+      this.bailOut     = false;       // Set this if the op does something to manipulate event timers
     }
-//    n64js.log(x);
-    return x;
+
+    this.instr_rs = function () { return rs(this.instruction); }
+    this.instr_rt = function () { return rt(this.instruction); }
+    this.instr_rd = function () { return rd(this.instruction); }
+
+    this.instr_sa = function () { return sa(this.instruction); }
+
+    this.instr_base   = function() { return base(this.instruction); }
+    this.instr_offset = function() { return offset(this.instruction); }
+    this.instr_imms   = function() { return imms(this.instruction); }
   }
 
-  function generateSpecial3Register(impl, i) {
-    return impl + '(' + rd(i) + ',' + rs(i) + ',' + rt(i) + ')';
+  function generateBEQ(ctx) {
+    var s    = ctx.instr_rs();
+    var t    = ctx.instr_rt();
+    var off  = ctx.instr_offset();
+    var addr = branchAddress(ctx.pc, ctx.instruction);
+
+    var impl;
+    if (off == -1) {
+      ctx.bailOut = true;
+      impl = 'implBEQ_speedhack(' + s + ',' + t + ',' + n64js.toString32(addr) + ')';
+    } else if (s === t) {
+      impl = 'implB('+ n64js.toString32(addr) + ')';
+    } else {
+      impl = 'implBEQ(' + s + ',' + t + ',' + n64js.toString32(addr) + ')';
+    }
+    return generateGenericOpBoilerplate(impl, ctx);
+  }
+  function generateBNE(ctx) {
+    var s    = ctx.instr_rs();
+    var t    = ctx.instr_rt();
+    var addr = branchAddress(ctx.pc, ctx.instruction);
+    return generateGenericOpBoilerplate('implBNE(' + s + ',' + t + ',' + n64js.toString32(addr) + ')', ctx);
   }
 
-  function  generateADD(pc,i) { return generateSpecial3Register('implADD',  i); }
-  function generateADDU(pc,i) { return generateSpecial3Register('implADDU', i); }
-  function  generateSUB(pc,i) { return generateSpecial3Register('implSUB',  i); }
-  function generateSUBU(pc,i) { return generateSpecial3Register('implSUBU', i); }
-  function  generateAND(pc,i) { return generateSpecial3Register('implAND',  i); }
-  function   generateOR(pc,i) {
+  // Calls to DataView seem to deopt.
+  function lw(dv,a) { return dv.getInt32(a); }
+
+  function sw(dv,a,v) { dv.setInt32(a,v); }
+  function sh(dv,a,v) { dv.setInt16(a,v); }
+  function sb(dv,a,v) { dv.setInt8(a,v); }
+
+  function generateLW(ctx) {
+    var t = ctx.instr_rt();
+    var b = ctx.instr_base();
+    var o = ctx.instr_imms();
+    // SF2049 requires this, apparently
+    if (t === 0)
+      return generateNOPBoilerplate(ctx);
+
+
+    var impl = '';
+
+    impl += 'var addr = cpu0.gprLo[' + b + '] + ' + o + ';\n';
+    impl += 'var value;\n';
+    impl += 'var ram_relative = addr - 0x80000000;\n'
+    impl += 'if (ram_relative >= 0 && ram_relative < 0x00800000) {\n';
+    impl += '  value = lw(ram, ram_relative);\n';
+    impl += '  cpu0.gprLo_signed[' + t + '] = value;\n';
+    impl += '  cpu0.gprHi_signed[' + t + '] = value >> 31;\n';
+    impl += '} else {\n';
+    impl += '  value = n64js.readMemory32(addr);\n';
+    impl += '  setSignExtend(' + t + ', value);';
+    impl += '}\n';
+
+    return generateGenericOpBoilerplate(impl, ctx);
+  }
+
+  function generateLD(ctx) {
+    var t = ctx.instr_rt();
+    var b = ctx.instr_base();
+    var o = ctx.instr_imms();
+
+    var impl = '';
+    impl += 'var addr = cpu0.gprLo[' + b + '] + ' + o + ';\n';
+    impl += 'var ram_relative = addr - 0x80000000;\n'
+    impl += 'if (ram_relative >= 0 && ram_relative < 0x00800000) {\n';
+    impl += '  cpu0.gprLo_signed[' + t + '] = lw(ram, ram_relative + 4);\n';
+    impl += '  cpu0.gprHi_signed[' + t + '] = lw(ram, ram_relative);\n';
+    impl += '} else {\n';
+    impl += '  cpu0.gprLo_signed[' + t + '] = n64js.readMemory32(addr + 4);\n';
+    impl += '  cpu0.gprHi_signed[' + t + '] = n64js.readMemory32(addr);\n';
+    impl += '}\n';
+
+    return generateGenericOpBoilerplate(impl, ctx);
+  }
+
+  function generateStore(ctx, fast_handler, slow_handler) {
+    var t = ctx.instr_rt();
+    var b = ctx.instr_base();
+    var o = ctx.instr_imms();
+    //var impl = 'n64js.writeMemory32(cpu0.gprLo[' + b + '] + ' + o + ', cpu0.gprLo_signed[' + t + '])';
+
+    var impl = '';
+
+    impl += 'var addr = cpu0.gprLo[' + b + '] + ' + o + ';\n';    // FIXME: would be nice to switch this to read from _signed reg
+    impl += 'var value = cpu0.gprLo_signed[' + t + '];\n';
+    impl += 'var ram_relative = addr - 0x80000000;\n'
+    impl += 'if (ram_relative >= 0 && ram_relative < 0x00800000) {\n';
+    impl += '  ' + fast_handler + '(ram, ram_relative, value);\n';  // FIXME: can avoid cpuStuffToDo here
+    impl += '} else {\n';
+    impl += '  ' + slow_handler + '(addr, value);\n';
+    impl += '}\n';
+
+    return generateGenericOpBoilerplate(impl, ctx);
+  }
+
+  function generateSW(ctx) { return generateStore(ctx, 'sw', 'n64js.writeMemory32'); }
+  function generateSH(ctx) { return generateStore(ctx, 'sh', 'n64js.writeMemory16'); }
+  function generateSB(ctx) { return generateStore(ctx, 'sb', 'n64js.writeMemory8'); }
+
+
+  function generateTrivial3Register(impl, ctx) {
+    return generateTrivialOpBoilerplate(impl + '(' + ctx.instr_rd() + ',' + ctx.instr_rs() + ',' + ctx.instr_rt() + ')', ctx);
+  }
+
+  function  generateADD(ctx) { return generateTrivial3Register('implADD',  ctx); }
+  function generateADDU(ctx) { return generateTrivial3Register('implADDU', ctx); }
+  function  generateSUB(ctx) { return generateTrivial3Register('implSUB',  ctx); }
+  function generateSUBU(ctx) { return generateTrivial3Register('implSUBU', ctx); }
+  function  generateAND(ctx) { return generateTrivial3Register('implAND',  ctx); }
+  function   generateOR(ctx) {
+
+    var s = ctx.instr_rs();
+    var t = ctx.instr_rt();
+    var d = ctx.instr_rd();
 
     // OR is used to implement CLEAR and MOV
-    if (rt(i) == 0) {
-      if (rs(i) == 0) {
-        return 'implCLEAR(' + rd(i) + ')';
+    if (t == 0) {
+      if (s == 0) {
+        return generateGenericOpBoilerplate( 'implCLEAR(' + d + ')', ctx );
       } else {
-        return 'implMOV(' + rd(i) + ',' + rs(i) + ')';
+        return generateGenericOpBoilerplate( 'implMOV(' + d + ',' + s + ')', ctx );
       }
     }
 
-    return generateSpecial3Register('implOR',   i);
+    return generateTrivial3Register('implOR', ctx);
   }
-  function  generateXOR(pc,i) { return generateSpecial3Register('implXOR',  i); }
-  function  generateNOR(pc,i) { return generateSpecial3Register('implNOR',  i); }
+  function  generateXOR(ctx)  { return generateTrivial3Register('implXOR',  ctx); }
+  function  generateNOR(ctx)  { return generateTrivial3Register('implNOR',  ctx); }
+  function  generateSLT(ctx)  { return generateTrivial3Register('implSLT',  ctx); }
+  function  generateSLTU(ctx) { return generateTrivial3Register('implSLTU', ctx); }
 
 
   function checkCauseIP3Consistent() {
@@ -2102,6 +2248,10 @@ if (typeof n64js === 'undefined') {
 
   var COUNTER_INCREMENT_PER_OP = 1;
 
+  // We need just one of these - declare at global scope to avoid generating garbage
+  var fragmentContext = new FragmentContext(); // NB: first pc is entry_pc, cpu0.pc is post_pc by this point
+
+
   n64js.run = function (cycles) {
 
     cpu0.stuffToDo &= ~kStuffToDoHalt;
@@ -2114,6 +2264,7 @@ if (typeof n64js === 'undefined') {
     //var sync = n64js.getSync();
 
     var fragment;
+    var evt;
 
     try {
       while (cpu0.hasEvent(kEventRunForCycles)) {
@@ -2130,10 +2281,38 @@ if (typeof n64js === 'undefined') {
 
           if (fragment && fragment.func) {
 
-            fragment.executionCount++;
-            if (fragment.func() < 0)
-              break;
-            fragment = lookupFragment(cpu0.pc);
+            evt = cpu0.events[0];
+            if (evt.countdown >= fragment.opsCompiled*COUNTER_INCREMENT_PER_OP) {
+              fragment.executionCount++;
+              var ops_executed = fragment.func();   // Absolute value is number of ops executed.
+
+              // refresh latest event - may have changed
+              evt = cpu0.events[0];
+              evt.countdown -= ops_executed * COUNTER_INCREMENT_PER_OP;
+
+              n64js.assert(fragment.bailedOut || evt.countdown >= 0, "Executed too many ops. Possibly didn't bail out of trace when new event was set up?");
+              if (evt.countdown <= 0) {
+                handleCounter();
+              }
+
+              // If stuffToDo is set, we'll break on the next loop
+
+              // Find the next fragment, link
+              if (fragment.nextFragment && fragment.nextFragment.entryPC === cpu0.pc) {
+                fragment = fragment.nextFragment;
+              } else {
+                var cur_frag = fragment;
+                // If not jump to self, look up
+                if (cpu0.pc !== fragment.entryPC) {
+                  fragment = lookupFragment(cpu0.pc);
+                }
+                // And cache for next time around
+                cur_frag.nextFragment = fragment;
+              }
+            } else {
+              // We're close to another event: drop to the interpreter
+              fragment = null;
+            }
 
           } else {
 
@@ -2150,7 +2329,7 @@ if (typeof n64js === 'undefined') {
             //checkCauseIP3Consistent();
             //n64js.checkSIStatusConsistent();
 
-            var evt = cpu0.events[0];
+            evt = cpu0.events[0];
             evt.countdown -= COUNTER_INCREMENT_PER_OP;
             if (evt.countdown <= 0) {
               handleCounter();
@@ -2158,28 +2337,33 @@ if (typeof n64js === 'undefined') {
 
             if (fragment) {
               fragment.opsCompiled++;
-              fragment.code += generateOp(pc, cpu0.pc, instruction); // NB: using pc on entry to dispatch, and then the updated pc
 
-              if (fragment.opsCompiled >= 500 || fragment.pcs[cpu0.pc] !== undefined) {
-                updateFragment(fragment, pc);
+              fragmentContext.set(fragment, pc, instruction, cpu0.pc); // NB: first pc is entry_pc, cpu0.pc is post_pc by this point
 
-                var code = '(function fragment_' + n64js.toString32(fragment.entryPC) + '_' + fragment.opsCompiled + '() {\n';
+              generateCodeForOp(fragmentContext);
 
-                var next_pc = fragment.entryPC+4;
-                code += 'if (cpu0.delayPC) { cpu0.nextPC = cpu0.delayPC; } else { cpu0.nextPC = ' + n64js.toString32(next_pc) + '; }\n';
-                code += 'cpu0.branchTarget = 0;\n';
+              updateFragment(fragment, pc);
 
-                code += fragment.code;
+              // Break out of the trace as soon as we branch, or  too many ops, or last op generated an interrupt (stuffToDo set)
+              if (cpu0.pc !== pc+4 || fragment.opsCompiled >= 250 || cpu0.stuffToDo) {
 
-                code += '// EPILOGUE\n';
-                code += 'return 1;\n';    // Return a positive value to keep going
+                var code = '';
+
+                code += '(function fragment_' + n64js.toString32(fragment.entryPC) + '_' + fragment.opsCompiled + '() {\n';
+                //code += 'if (cpu0.pc>>>0 != ' + n64js.toString32(fragment.entryPC) + ') n64js.halt("entrypc mismatch - " + cpu0.pc + " !== ' + n64js.toString32(fragment.entryPC) + '");\n';
+
+                code += fragment.global_code;
+
+                code += 'var c = cpu0;\n';
+                code += 'var ram = n64js.getRamDV();\n';
+                code += fragment.body_code;
+                code += 'return ' + fragment.opsCompiled + ';\n';    // Return the number of ops exected
                 code += '});\n';   // End the enclosing function
 
-                fragment.code ='';
+                fragment.global_code = '';
+                fragment.body_code ='';
                 fragment.func = eval(code);
                 fragment = lookupFragment(cpu0.pc);
-              } else {
-                updateFragment(fragment, pc);
               }
             } else {
               // If there's no current fragment and we branch backwards, this is possibly a new loop
@@ -2187,7 +2371,6 @@ if (typeof n64js === 'undefined') {
                 fragment = lookupFragment(cpu0.pc);
               }
             }
-
           }
         }
 
@@ -2227,6 +2410,32 @@ if (typeof n64js === 'undefined') {
     return t;
   }
 
+  function Fragment(pc) {
+    this.entryPC          = pc;
+    this.minPC            = pc;
+    this.maxPC            = pc;
+    this.global_code      = '';
+    this.body_code        = '';
+    this.func             = undefined;
+    this.opsCompiled      = 0;
+    this.executionCount   = 0;
+    this.bailedOut        = false;    // Set if a fragment bailed out.
+    this.nextFragment     = null;
+
+    this.invalidate = function () {
+      // reset all but entryPC
+      this.minPC          = this.entryPC;
+      this.maxPC          = this.entryPC;
+      this.global_code    = '';
+      this.body_code      = '';
+      this.func           = undefined;
+      this.opsCompiled    = 0;
+      this.bailedOut      = false;
+      this.executionCount = 0;
+      this.nextFragment   = null;
+    }
+  }
+
   function lookupFragment(pc) {
 
     // Check if we already have a fragment
@@ -2244,16 +2453,7 @@ if (typeof n64js === 'undefined') {
       if (hc < 10)
         return null;
 
-      fragment = {
-        'entryPC': pc,
-        'minPC': pc,
-        'maxPC': pc,
-        'code': '',
-        'func': undefined,
-        'opsCompiled': 0,
-        'executionCount': 0,
-        'pcs': {}
-      };
+      fragment = new Fragment(pc);
       fragmentMap[pc] = fragment;
     }
 
@@ -2261,8 +2461,8 @@ if (typeof n64js === 'undefined') {
     if (!fragment.func) {
       // Reset!
       fragment.opsCompiled = 0;
-      fragment.code = '';
-      fragment.pcs = {};
+      fragment.global_code = '';
+      fragment.body_code = '';
       fragment.minPC = pc;
       fragment.maxPC = pc;
       //fragment.code += 'console.log("entering fragment ' + n64js.toString32(pc) + '");\n';
@@ -2276,6 +2476,7 @@ if (typeof n64js === 'undefined') {
       // FIXME: check for overlapping ranges
      // fragmentMap = {};
 
+     // NB: not sure PI events are useful right now.
      if (system==='PI') {
       return;
      }
@@ -2284,25 +2485,27 @@ if (typeof n64js === 'undefined') {
       var maxaddr = address + length;
 
       var fragments_removed = 0;
-      var newfrags = {};
+      var fragments_preserved = 0;
 
       for (var pc in fragmentMap) {
         var fragment = fragmentMap[pc];
         if (fragment.minPC >= maxaddr || (fragment.maxPC+4) <= minaddr) {
-          newfrags[pc] = fragment;
+          fragments_preserved++;
         } else {
+          fragment.invalidate();
           fragments_removed++;
         }
       }
 
-      fragmentMap = newfrags;
+      if (fragments_removed) {
+        n64js.log('Fragment cache removed ' + fragments_removed + ' entries (' + fragments_preserved + ' remain)');
+      }
 
       fragmentInvalidationEvents.push({'address': address, 'length': length, 'system': system, 'fragmentsRemoved': fragments_removed});
 
   }
 
   function updateFragment(fragment, pc) {
-    fragment.pcs[pc] = 1;
     fragment.minPC = Math.min(fragment.minPC, pc);
     fragment.maxPC = Math.max(fragment.maxPC, pc);
   }
@@ -2317,48 +2520,10 @@ if (typeof n64js === 'undefined') {
     return true;
   }
 
-  // Helper function: we can call this from generated code and avoid a lot of work for the parser
-  // Returns: negative value if we should totally bail out of the trace, 0 to keep going on trace, 1 to keep going, different trace.
-  function postOp(npc) {
-    var c = cpu0;
-    c.pc = c.nextPC;
-    c.delayPC = c.branchTarget;
-    c.control[9] += 1; // COUNTER_INCREMENT_PER_OP
-    var evt = c.events[0];
-    evt.countdown -= 1; // COUNTER_INCREMENT_PER_OP
-    if (evt.countdown <= 0) {
-      handleCounter();
-    }
+  function generateCodeForOp(ctx) {
+    var fn_code = generateOp(ctx);
 
-    if (c.stuffToDo) {
-      return -1; // Bail out of trace
-    }
-
-    if (c.pc !== npc) {
-      return 1; // Keep going - off trace
-    }
-
-    c.nextPC = c.delayPC;
-    if (!c.nextPC) {
-      c.nextPC = npc+4;
-    }
-    c.branchTarget = 0;
-
-    return 0;    // Keep going - on trace
-  }
-
-
-
-
-  function generateOp(entry_pc,post_pc,i) {
-    var opcode = (i >>> 26) & 0x3f;
-
-    var fn = simpleTableGen[opcode];
-    if (typeof fn === 'string') {
-      fn += '(' + n64js.toString32(i) + ');';
-    } else {
-      fn = fn(entry_pc, i);
-    }
+    //n64js.assert(fn_code.indexOf(';') >= 0, 'Invalid fn - ' + fn_code );
 
     var code = '';
     //code += '\n';
@@ -2366,37 +2531,102 @@ if (typeof n64js === 'undefined') {
     //code += 'if (!checkEqual( cpu0.pc, '      + n64js.toString32(cpu0.pc)  + ', "unexpected pc")) { var fragment = lookupFragment(' + n64js.toString32(fragment.entryPC) + '); console.log(fragment.code ); return false; }\n';
     //code += 'if (!checkEqual( n64js.readMemory32(cpu0.pc), ' + n64js.toString32(instruction) + ', "unexpected instruction (need to flush icache?)")) { return false; }\n';
 
-    code += fn + '\n';
+    var op_fn_name = 'op_' + n64js.toString32(ctx.pc) + '_' + n64js.toString32(ctx.instruction);
 
-    // check if we've branched a different way to the trace. NB: checks UPDATED pc
-    code += 'var ret = postOp(' + n64js.toString32(post_pc)  + '); if (ret) return ret;\n\n';
+    var code = 'function ' + op_fn_name + '(c,ram) {\n';
+    //code += 'if (c.pc !== ' + n64js.toString32(entry_pc) + ') n64js.halt("pc mismatch - " + n64js.toString32(c.pc) + " !== ' + n64js.toString32(entry_pc) + '");\n';
+    code += fn_code;
+    code += 'return 0;\n';
+    code += '};\n\n';   // End the enclosing function
 
+    ctx.fragment.bailedOut |= ctx.bailOut;
+
+    ctx.fragment.global_code += code;
+    ctx.fragment.body_code += 'if (' + op_fn_name + '(c,ram)) return ' + ctx.fragment.opsCompiled + ';\n';
+  }
+
+  function generateOp(ctx) {
+    var opcode = (ctx.instruction >>> 26) & 0x3f;
+    var fn = simpleTableGen[opcode];
+    return generateOpHelper(fn, ctx);
+  }
+
+  function generateSpecial(ctx) {
+    var special_fn = ctx.instruction & 0x3f;
+    var fn = specialTableGen[special_fn];
+    return generateOpHelper(fn, ctx);
+  }
+
+  function generateRegImm(ctx) {
+    var rt = (ctx.instruction >>> 16) & 0x1f;
+    var fn = regImmTableGen[rt];
+    return generateOpHelper(fn, ctx);
+  }
+
+  // This takes a fn - either a string (in which case we generate some unoptimised boilerplate) or a function (which we call recursively)
+  function generateOpHelper(fn,ctx) {
+    // fn can be a handler function, in which case defer to that.
+    if (typeof fn === 'string') {
+      return generateGenericOpBoilerplate(fn + '(' + n64js.toString32(ctx.instruction) + ')', ctx);
+    } else {
+      return fn(ctx);
+    }
+  }
+
+  function generateGenericOpBoilerplate(fn,ctx) {
+
+    var code = '';
+    //code += 'if (c.pc !== ' + n64js.toString32(ctx.pc) + ') throw("pc mismatch - " + n64js.toString32(c.pc) + " !== ' + n64js.toString32(ctx.pc) + '");\n';
+    code += 'c.nextPC = c.delayPC;\n';
+    code += 'if (!c.nextPC) { c.nextPC = ' + n64js.toString32(ctx.pc+4) +'; }\n';
+    code += 'c.branchTarget = 0;\n';
+
+    code += fn + ';\n';
+
+    code += 'c.pc = c.nextPC;\n';
+    code += 'c.delayPC = c.branchTarget;\n';
+
+    code += 'c.control[9] += 1;\n';
+
+    // If bailOut is set, always return immediately
+    if (ctx.bailOut) {
+      code += 'return 1;\n';
+    } else {
+      code += 'if (c.stuffToDo) { return 1; }\n';
+      code += 'if (c.pc !== ' + n64js.toString32(ctx.post_pc) + ') { return 1; }\n';
+    }
     return code;
   }
 
+  // Trivial ops can use this specialised handler which eliminates a lot of overhead.
+  // Trivial ops are defined as those which:
+  // Don't require cpu0.pc to be set correctly (required by branches, stuff that can throw exceptions for instance)
+  // Don't set cpu0.stuffToDo
+  // Don't set branchTarget
+  // Don't manipulate nextPC (e.g. ERET, cop1 unusable, likely instructions)
 
-  function generateSpecial(pc,i) {
-    var fn = i & 0x3f;
-    var fn = specialTableGen[fn];
-    if (typeof fn === 'string') {
-      fn += '(' + n64js.toString32(i) + ');';
-    } else {
-      fn = fn(pc, i);
-    }
+  function generateTrivialOpBoilerplate(fn,ctx) {
 
-    return fn;
+    var code = '';
+    //code += 'if (c.pc !== ' + n64js.toString32(ctx.pc) + ') throw("pc mismatch - " + n64js.toString32(c.pc) + " !== ' + n64js.toString32(ctx.pc) + '");\n';
+
+    code += fn + ';\n';
+
+    code += 'if (c.delayPC) { c.pc = c.delayPC; c.delayPC = 0; } else { c.pc = ' + n64js.toString32(ctx.pc+4) + '; }\n';
+
+    code += 'c.control[9] += 1;\n';
+
+    // Cannot be set: otherwise would have fired with previous instruction. TODO: add debug code to check this.
+    //code += 'if (c.stuffToDo) { return 1; }\n';
+
+    // Might happen: delay op from previous instruction takes effect
+    code += 'if (c.pc !== ' + n64js.toString32(ctx.post_pc) + ') { return 1; }\n';
+    return code;
   }
 
-  function generateRegImm(pc,i) {
-    var rt = (i >>> 16) & 0x1f;
-    var fn = regImmTableGen[rt];
-    if (typeof fn === 'string') {
-      fn += '(' + n64js.toString32(i) + ');';
-    } else {
-      fn = fn(pc, i);
-    }
-
-    return fn;
+  function generateNOPBoilerplate(ctx) {
+    return generateTrivialOpBoilerplate('/*nop*/',ctx);
   }
+
 
 })();

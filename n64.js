@@ -844,6 +844,10 @@ if (typeof n64js === 'undefined') {
   var ri_reg        = new Memory(new ArrayBuffer(0x20));
   var si_reg        = new Memory(new ArrayBuffer(0x1c));
 
+  n64js.getRamDV = function () {
+    return rdram_handler_cached.dataView;
+  }
+
   var eeprom        = new Memory(new ArrayBuffer(4*1024));    // Or 16KB
   var eepromDirty   = false;
 
