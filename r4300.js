@@ -1972,25 +1972,25 @@ if (typeof n64js === 'undefined') {
     this.instruction = 0;
     this.post_pc     = 0;
     this.bailOut     = false;       // Set this if the op does something to manipulate event timers
-
-    this.set = function (fragment_, pc_, instruction_, post_pc_) {
-      this.fragment    = fragment_;
-      this.pc          = pc_;
-      this.instruction = instruction_;
-      this.post_pc     = post_pc_;
-      this.bailOut     = false;       // Set this if the op does something to manipulate event timers
-    }
-
-    this.instr_rs = function () { return rs(this.instruction); }
-    this.instr_rt = function () { return rt(this.instruction); }
-    this.instr_rd = function () { return rd(this.instruction); }
-
-    this.instr_sa = function () { return sa(this.instruction); }
-
-    this.instr_base   = function() { return base(this.instruction); }
-    this.instr_offset = function() { return offset(this.instruction); }
-    this.instr_imms   = function() { return imms(this.instruction); }
   }
+
+  FragmentContext.prototype.set = function (fragment, pc, instruction, post_pc) {
+    this.fragment    = fragment;
+    this.pc          = pc;
+    this.instruction = instruction;
+    this.post_pc     = post_pc;
+    this.bailOut     = false;       // Set this if the op does something to manipulate event timers
+  }
+
+  FragmentContext.prototype.instr_rs     = function () { return rs(this.instruction); }
+  FragmentContext.prototype.instr_rt     = function () { return rt(this.instruction); }
+  FragmentContext.prototype.instr_rd     = function () { return rd(this.instruction); }
+  FragmentContext.prototype.instr_sa     = function () { return sa(this.instruction); }
+
+  FragmentContext.prototype.instr_base   = function () { return base(this.instruction); }
+  FragmentContext.prototype.instr_offset = function () { return offset(this.instruction); }
+  FragmentContext.prototype.instr_imms   = function () { return imms(this.instruction); }
+
 
   function generateBEQ(ctx) {
     var s    = ctx.instr_rs();
@@ -2421,19 +2421,19 @@ if (typeof n64js === 'undefined') {
     this.executionCount   = 0;
     this.bailedOut        = false;    // Set if a fragment bailed out.
     this.nextFragment     = null;
+  }
 
-    this.invalidate = function () {
-      // reset all but entryPC
-      this.minPC          = this.entryPC;
-      this.maxPC          = this.entryPC;
-      this.global_code    = '';
-      this.body_code      = '';
-      this.func           = undefined;
-      this.opsCompiled    = 0;
-      this.bailedOut      = false;
-      this.executionCount = 0;
-      this.nextFragment   = null;
-    }
+  Fragment.prototype.invalidate = function () {
+    // reset all but entryPC
+    this.minPC          = this.entryPC;
+    this.maxPC          = this.entryPC;
+    this.global_code    = '';
+    this.body_code      = '';
+    this.func           = undefined;
+    this.opsCompiled    = 0;
+    this.bailedOut      = false;
+    this.executionCount = 0;
+    this.nextFragment   = null;
   }
 
   function lookupFragment(pc) {
@@ -2459,13 +2459,7 @@ if (typeof n64js === 'undefined') {
 
     // If we failed to complete the fragment for any reason, reset it
     if (!fragment.func) {
-      // Reset!
-      fragment.opsCompiled = 0;
-      fragment.global_code = '';
-      fragment.body_code = '';
-      fragment.minPC = pc;
-      fragment.maxPC = pc;
-      //fragment.code += 'console.log("entering fragment ' + n64js.toString32(pc) + '");\n';
+      fragment.invalidate();
     }
 
     return fragment;
