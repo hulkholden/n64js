@@ -2311,7 +2311,7 @@ if (typeof n64js === 'undefined') {
                 if (cpu0.pc !== fragment.entryPC) {
                   fragment = lookupFragment(cpu0.pc);
                 }
-                // And cache for next time around
+                // And cache for next time around. TODO: we could have an array of cached fragments, one per instruction in the fragment.
                 cur_frag.nextFragment = fragment;
               }
             } else {
