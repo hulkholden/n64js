@@ -1441,24 +1441,70 @@ if (typeof n64js === 'undefined') {
   }
 
   function executeANDI(i) {
-    cpu0.gprHi_signed[rt(i)] = 0;    // always 0, as sign extended immediate value is always 0
-    cpu0.gprLo_signed[rt(i)] = cpu0.gprLo_signed[rs(i)] & imm(i);
+    var s = rs(i);
+    var t = rt(i);
+    cpu0.gprLo_signed[t] = cpu0.gprLo_signed[s] & imm(i);
+    cpu0.gprHi_signed[t] = 0;    // always 0, as sign extended immediate value is always 0
   }
 
   function executeORI(i) {
-    cpu0.gprHi_signed[rt(i)] = cpu0.gprHi_signed[rs(i)];
-    cpu0.gprLo_signed[rt(i)] = cpu0.gprLo_signed[rs(i)] | imm(i);
+    var s = rs(i);
+    var t = rt(i);
+    cpu0.gprLo_signed[t] = cpu0.gprLo_signed[s] | imm(i);
+    cpu0.gprHi_signed[t] = cpu0.gprHi_signed[s];
   }
 
   function executeXORI(i) {
     // High 32 bits are always unchanged, as sign extended immediate value is always 0
-    cpu0.gprHi_signed[rt(i)] = cpu0.gprHi_signed[rs(i)];
-    cpu0.gprLo_signed[rt(i)] = cpu0.gprLo_signed[rs(i)] ^ imm(i);
+    var s = rs(i);
+    var t = rt(i);
+    cpu0.gprLo_signed[t] = cpu0.gprLo_signed[s] ^ imm(i);
+    cpu0.gprHi_signed[t] = cpu0.gprHi_signed[s];
+  }
+
+
+
+  function generateANDI(ctx) {
+    var impl = '';
+    impl += 'var s = ' + ctx.instr_rs() + ';\n';
+    impl += 'var t = ' + ctx.instr_rt() + ';\n';
+    impl += 'cpu0.gprLo_signed[t] = cpu0.gprLo_signed[s] & ' + imm(ctx.instruction) + ';\n';
+    impl += 'cpu0.gprHi_signed[t] = 0;\n';
+    return generateTrivialOpBoilerplate(impl, ctx);
+  }
+
+  function generateORI(ctx) {
+    var impl = '';
+    impl += 'var s = ' + ctx.instr_rs() + ';\n';
+    impl += 'var t = ' + ctx.instr_rt() + ';\n';
+    impl += 'cpu0.gprLo_signed[t] = cpu0.gprLo_signed[s] | ' + imm(ctx.instruction) + ';\n';
+    impl += 'cpu0.gprHi_signed[t] = cpu0.gprHi_signed[s];\n';
+    return generateTrivialOpBoilerplate(impl, ctx);
+  }
+
+  function generateXORI(ctx) {
+    var impl = '';
+    impl += 'var s = ' + ctx.instr_rs() + ';\n';
+    impl += 'var t = ' + ctx.instr_rt() + ';\n';
+    impl += 'cpu0.gprLo_signed[t] = cpu0.gprLo_signed[s] ^ ' + imm(ctx.instruction) + ';\n';
+    impl += 'cpu0.gprHi_signed[t] = cpu0.gprHi_signed[s];\n';
+    return generateTrivialOpBoilerplate(impl, ctx);
+  }
+
+  function generateLUI(ctx) {
+    var impl = '';
+    impl += 'var t = ' + ctx.instr_rt() + ';\n';
+    impl += 'var result = ' + (imms(ctx.instruction) << 16) + ';\n';
+    impl += 'cpu0.gprLo_signed[t] = result;\n';
+    impl += 'cpu0.gprHi_signed[t] = result >> 31;\n';
+    return generateTrivialOpBoilerplate(impl, ctx);
   }
 
   function executeLUI(i) {
-    var v  = imms(i) << 16;
-    setSignExtend(rt(i), v);
+    var t = rt(i);
+    var result = imms(i) << 16;
+    cpu0.gprLo_signed[t] = result;
+    cpu0.gprHi_signed[t] = result >> 31;
   }
 
   function executeLB(i) {
@@ -1947,7 +1993,7 @@ if (typeof n64js === 'undefined') {
     generateSpecial,        generateRegImm,         'executeJ',           'executeJAL',
     generateBEQ,            generateBNE,            'executeBLEZ',        'executeBGTZ',
     'executeADDI',          generateADDIU,          'executeSLTI',        'executeSLTIU',
-    'executeANDI',          'executeORI',           'executeXORI',        'executeLUI',
+    generateANDI,           generateORI,            generateXORI,         generateLUI,
     'executeCop0',          'executeCop1_check',    'executeUnknown',     'executeUnknown',
     'executeBEQL',          'executeBNEL',          'executeBLEZL',       'executeBGTZL',
     'executeDADDI',         'executeDADDIU',        'executeLDL',         'executeLDR',
