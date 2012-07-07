@@ -2711,24 +2711,27 @@ if (typeof n64js === 'undefined') {
 
     //n64js.assert(fn_code.indexOf(';') >= 0, 'Invalid fn - ' + fn_code );
 
-    var code = '';
     //code += '\n';
     //code += '//' + n64js.toString32(cpu0.pc) + '\n';
     //code += 'if (!checkEqual( cpu0.pc, '      + n64js.toString32(cpu0.pc)  + ', "unexpected pc")) { var fragment = lookupFragment(' + n64js.toString32(fragment.entryPC) + '); console.log(fragment.code ); return false; }\n';
     //code += 'if (!checkEqual( n64js.readMemory32(cpu0.pc), ' + n64js.toString32(instruction) + ', "unexpected instruction (need to flush icache?)")) { return false; }\n';
 
-    var op_fn_name = 'op_' + n64js.toString32(ctx.pc) + '_' + n64js.toString32(ctx.instruction);
-
-    var code = 'function ' + op_fn_name + '(c,ram) {\n';
-    //code += 'if (c.pc !== ' + n64js.toString32(entry_pc) + ') n64js.halt("pc mismatch - " + n64js.toString32(c.pc) + " !== ' + n64js.toString32(entry_pc) + '");\n';
-    code += fn_code;
-    code += 'return 0;\n';
-    code += '};\n\n';   // End the enclosing function
-
     ctx.fragment.bailedOut |= ctx.bailOut;
 
-    ctx.fragment.global_code += code;
-    ctx.fragment.body_code += 'if (' + op_fn_name + '(c,ram)) return ' + ctx.fragment.opsCompiled + ';\n';
+    if (ctx.isTrivial) {
+      ctx.fragment.body_code += fn_code;
+    } else {
+      var op_fn_name = 'op_' + n64js.toString32(ctx.pc) + '_' + n64js.toString32(ctx.instruction);
+
+      var code = 'function ' + op_fn_name + '(c,ram) {\n';
+      //code += 'if (c.pc !== ' + n64js.toString32(entry_pc) + ') n64js.halt("pc mismatch - " + n64js.toString32(c.pc) + " !== ' + n64js.toString32(entry_pc) + '");\n';
+      code += fn_code;
+      code += 'return 0;\n';
+      code += '};\n\n';   // End the enclosing function
+
+      ctx.fragment.global_code += code;
+      ctx.fragment.body_code += 'if (' + op_fn_name + '(c,ram)) return ' + ctx.fragment.opsCompiled + ';\n';
+    }
   }
 
   function generateOp(ctx) {
@@ -2782,10 +2785,10 @@ if (typeof n64js === 'undefined') {
 
     // If bailOut is set, always return immediately
     if (ctx.bailOut) {
-      code += 'return 1;\n';
+      code += 'return ' + ctx.fragment.opsCompiled + ';\n';
     } else {
-      code += 'if (c.stuffToDo) { return 1; }\n';
-      code += 'if (c.pc !== ' + n64js.toString32(ctx.post_pc) + ') { return 1; }\n';
+      code += 'if (c.stuffToDo) { return ' + ctx.fragment.opsCompiled + '; }\n';
+      code += 'if (c.pc !== ' + n64js.toString32(ctx.post_pc) + ') { return ' + ctx.fragment.opsCompiled + '; }\n';
     }
     return code;
   }
@@ -2802,7 +2805,7 @@ if (typeof n64js === 'undefined') {
     var code = '';
     //code += 'if (c.pc !== ' + n64js.toString32(ctx.pc) + ') throw("pc mismatch - " + n64js.toString32(c.pc) + " !== ' + n64js.toString32(ctx.pc) + '");\n';
 
-    code += fn + '\n';
+    code += fn;
 
     // ASSERT: !c.stuffToDo
 
@@ -2815,19 +2818,21 @@ if (typeof n64js === 'undefined') {
     if (ctx.needsDelayCheck) {
       code += 'if (c.delayPC) { c.pc = c.delayPC; c.delayPC = 0; } else { c.pc = ' + n64js.toString32(ctx.pc+4) + '; }\n';
       // Might happen: delay op from previous instruction takes effect
-      code += 'if (c.pc !== ' + n64js.toString32(ctx.post_pc) + ') { return 1; }\n';
+      code += 'if (c.pc !== ' + n64js.toString32(ctx.post_pc) + ') { return ' + ctx.fragment.opsCompiled + '; }\n';
     } else {
       // ASSERT: !c.delayPC
 
       code += 'c.pc = ' + n64js.toString32(ctx.pc+4) + ';\n';
       // We can avoid off-branch checks in this case.
       if (ctx.post_pc !== ctx.pc+4) {
-        code += 'if (c.pc !== ' + n64js.toString32(ctx.post_pc) + ') { return 1; }\n';
+        code += 'if (c.pc !== ' + n64js.toString32(ctx.post_pc) + ') { return ' + ctx.fragment.opsCompiled + '; }\n';
       }
     }
 
+    code += '\n';
+
     // Cannot be set: otherwise would have fired with previous instruction. TODO: add debug code to check this.
-    //code += 'if (c.stuffToDo) { return 1; }\n';
+    //code += 'if (c.stuffToDo) { return ' + ctx.fragment.opsCompiled + '; }\n';
 
     return code;
   }
