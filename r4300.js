@@ -2303,17 +2303,8 @@ if (typeof n64js === 'undefined') {
               // If stuffToDo is set, we'll break on the next loop
 
               // Find the next fragment, link
-              if (fragment.nextFragment && fragment.nextFragment.entryPC === cpu0.pc) {
-                fragment = fragment.nextFragment;
-              } else {
-                var cur_frag = fragment;
-                // If not jump to self, look up
-                if (cpu0.pc !== fragment.entryPC) {
-                  fragment = lookupFragment(cpu0.pc);
-                }
-                // And cache for next time around. TODO: we could have an array of cached fragments, one per instruction in the fragment.
-                cur_frag.nextFragment = fragment;
-              }
+              fragment = fragment.getNextFragment(cpu0.pc, ops_executed);
+
             } else {
               // We're close to another event: drop to the interpreter
               fragment = null;
@@ -2368,6 +2359,10 @@ if (typeof n64js === 'undefined') {
                 fragment.global_code = '';
                 fragment.body_code ='';
                 fragment.func = eval(code);
+                fragment.nextFragments = [];
+                for (var i = 0; i < fragment.opsCompiled; i++) {
+                  fragment.nextFragments.push(undefined);
+                }
                 fragment = lookupFragment(cpu0.pc);
               }
             } else {
@@ -2427,7 +2422,7 @@ if (typeof n64js === 'undefined') {
     this.opsCompiled      = 0;
     this.executionCount   = 0;
     this.bailedOut        = false;    // Set if a fragment bailed out.
-    this.nextFragment     = null;
+    this.nextFragments    = [];       // One slot per op
   }
 
   Fragment.prototype.invalidate = function () {
@@ -2440,7 +2435,24 @@ if (typeof n64js === 'undefined') {
     this.opsCompiled    = 0;
     this.bailedOut      = false;
     this.executionCount = 0;
-    this.nextFragment   = null;
+    this.nextFragments  = [];
+  }
+
+  Fragment.prototype.getNextFragment = function (pc, ops_executed) {
+    var next_fragment = this.nextFragments[ops_executed];
+    if (!next_fragment || next_fragment.entryPC !== pc) {
+
+      // If not jump to self, look up
+      if (pc === this.entryPC) {
+        next_fragment = this;
+      } else {
+        next_fragment = lookupFragment(pc);
+      }
+
+      // And cache for next time around.
+      this.nextFragments[ops_executed] = next_fragment;
+    }
+    return next_fragment;
   }
 
   function lookupFragment(pc) {
