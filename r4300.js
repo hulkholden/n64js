@@ -2661,6 +2661,7 @@ if (typeof n64js === 'undefined') {
       // ASSERT: !c.delayPC
 
       code += 'c.pc = ' + n64js.toString32(ctx.pc+4) + ';\n';
+      // We can avoid off-branch checks in this case.
       if (ctx.post_pc !== ctx.pc+4) {
         code += 'if (c.pc !== ' + n64js.toString32(ctx.post_pc) + ') { return 1; }\n';
       }
