@@ -1004,74 +1004,195 @@ if (typeof n64js === 'undefined') {
     }
   }
 
-  function implCLEAR(d) {
-    cpu0.gprHi_signed[d] = 0;
-    cpu0.gprLo_signed[d] = 0;
-  }
-  function implMOV(d,s) {
-    cpu0.gprHi_signed[d] = cpu0.gprHi_signed[s];  // NB: use of _signed regs is intentional - avoids load-keyed-specialized-array-element deopt.
-    cpu0.gprLo_signed[d] = cpu0.gprLo_signed[s];
-  }
-
-  function implADD(d,s,t) {
-    setSignExtend( d, cpu0.gprLo_signed[s] + cpu0.gprLo_signed[t] );
-  }
-  function implADDU(d,s,t) {
-    setSignExtend( d, cpu0.gprLo_signed[s] + cpu0.gprLo_signed[t] );
+  function  generateTrivialArithmetic(ctx, op) {
+    var d = ctx.instr_rd();
+    var s = ctx.instr_rs();
+    var t = ctx.instr_rt();
+    var impl = '';
+    impl += 'var result = cpu0.gprLo_signed[' + s + '] ' + op + ' cpu0.gprLo_signed[' + t + '];\n';
+    impl += 'cpu0.gprLo_signed[' + d + '] = result;\n';
+    impl += 'cpu0.gprHi_signed[' + d + '] = result >> 31;\n';
+    return generateTrivialOpBoilerplate(impl,  ctx);
   }
 
-  function implSUB(d,s,t) {
-    setSignExtend( d, cpu0.gprLo_signed[s] - cpu0.gprLo_signed[t] );
-  }
-  function implSUBU(d,s,t) {
-    setSignExtend( d, cpu0.gprLo_signed[s] - cpu0.gprLo_signed[t] );
+  function  generateTrivialLogical(ctx, op) {
+    var d = ctx.instr_rd();
+    var s = ctx.instr_rs();
+    var t = ctx.instr_rt();
+    var impl = '';
+    impl += 'cpu0.gprLo_signed[' + d + '] = cpu0.gprLo_signed[' + s + '] ' + op + ' cpu0.gprLo_signed[' + t + '];\n';
+    impl += 'cpu0.gprHi_signed[' + d + '] = cpu0.gprHi_signed[' + s + '] ' + op + ' cpu0.gprHi_signed[' + t + '];\n';
+    return generateTrivialOpBoilerplate(impl,  ctx);
   }
 
-  function implAND(d,s,t) {
+
+
+
+  function generateADD(ctx) { return generateTrivialArithmetic(ctx, '+'); }
+  function executeADD(i) {
+    var d = rd(i);
+    var s = rs(i);
+    var t = rt(i);
+    var result = cpu0.gprLo_signed[s] + cpu0.gprLo_signed[t];
+    cpu0.gprLo_signed[d] = result;
+    cpu0.gprHi_signed[d] = result >> 31;
+  }
+
+
+  function generateADDU(ctx) { return generateTrivialArithmetic(ctx, '+'); }
+  function executeADDU(i) {
+    var d = rd(i);
+    var s = rs(i);
+    var t = rt(i);
+    var result = cpu0.gprLo_signed[s] + cpu0.gprLo_signed[t];
+    cpu0.gprLo_signed[d] = result;
+    cpu0.gprHi_signed[d] = result >> 31;
+  }
+
+  function generateSUB(ctx) { return generateTrivialArithmetic(ctx, '-'); }
+  function executeSUB(i) {
+    var d = rd(i);
+    var s = rs(i);
+    var t = rt(i);
+    var result = cpu0.gprLo_signed[s] - cpu0.gprLo_signed[t];
+    cpu0.gprLo_signed[d] = result;
+    cpu0.gprHi_signed[d] = result >> 31;
+  }
+
+
+  function generateSUBU(ctx) { return generateTrivialArithmetic(ctx, '-'); }
+  function executeSUBU(i) {
+    var d = rd(i);
+    var s = rs(i);
+    var t = rt(i);
+    var result = cpu0.gprLo_signed[s] - cpu0.gprLo_signed[t];
+    cpu0.gprLo_signed[d] = result;
+    cpu0.gprHi_signed[d] = result >> 31;
+  }
+
+  function generateAND(ctx) { return generateTrivialLogical(ctx, '&'); }
+  function executeAND(i) {
+    var d = rd(i);
+    var s = rs(i);
+    var t = rt(i);
     cpu0.gprHi_signed[d] = cpu0.gprHi_signed[s] & cpu0.gprHi_signed[t];
     cpu0.gprLo_signed[d] = cpu0.gprLo_signed[s] & cpu0.gprLo_signed[t];
   }
 
-  function implOR(d,s,t) {
+
+  function generateOR(ctx) {
+    var d = ctx.instr_rd();
+    var s = ctx.instr_rs();
+    var t = ctx.instr_rt();
+
+    // OR is used to implement CLEAR and MOV
+    if (t == 0) {
+      var impl = '';
+      if (s == 0) {
+        impl += 'cpu0.gprLo_signed[' + d + '] = 0;\n';
+        impl += 'cpu0.gprHi_signed[' + d + '] = 0;\n';
+      } else {
+        impl += 'cpu0.gprLo_signed[' + d + '] = cpu0.gprLo_signed[' + s + '];\n';
+        impl += 'cpu0.gprHi_signed[' + d + '] = cpu0.gprHi_signed[' + s + '];\n';
+      }
+
+      return generateTrivialOpBoilerplate(impl,  ctx);
+    }
+
+    return generateTrivialLogical(ctx, '|');
+  }
+
+  function executeOR(i) {
+    var d = rd(i);
+    var s = rs(i);
+    var t = rt(i);
     cpu0.gprHi_signed[d] = cpu0.gprHi_signed[s] | cpu0.gprHi_signed[t];
     cpu0.gprLo_signed[d] = cpu0.gprLo_signed[s] | cpu0.gprLo_signed[t];
   }
 
-  function implXOR(d,s,t) {
+
+  function generateXOR(ctx) { return generateTrivialLogical(ctx, '^'); }
+  function executeXOR(i) {
+    var d = rd(i);
+    var s = rs(i);
+    var t = rt(i);
     cpu0.gprHi_signed[d] = cpu0.gprHi_signed[s] ^ cpu0.gprHi_signed[t];
     cpu0.gprLo_signed[d] = cpu0.gprLo_signed[s] ^ cpu0.gprLo_signed[t];
   }
 
-  function implNOR(d,s,t) {
+
+  function  generateNOR(ctx) {
+    var d = ctx.instr_rd();
+    var s = ctx.instr_rs();
+    var t = ctx.instr_rt();
+    var impl = '';
+    impl += 'cpu0.gprHi_signed[' + d + '] = ~(cpu0.gprHi_signed[' + s + '] | cpu0.gprHi_signed[' + t +']);\n';
+    impl += 'cpu0.gprLo_signed[' + d + '] = ~(cpu0.gprLo_signed[' + s + '] | cpu0.gprLo_signed[' + t +']);\n';
+    return generateTrivialOpBoilerplate(impl, ctx);
+  }
+
+  function  executeNOR(i) {
+    var d = rd(i);
+    var s = rs(i);
+    var t = rt(i);
     cpu0.gprHi_signed[d] = ~(cpu0.gprHi_signed[s] | cpu0.gprHi_signed[t]);
     cpu0.gprLo_signed[d] = ~(cpu0.gprLo_signed[s] | cpu0.gprLo_signed[t]);
   }
 
-  function executeADD(i)      {  implADD(rd(i), rs(i), rt(i)); }
-  function executeADDU(i)     { implADDU(rd(i), rs(i), rt(i)); }
-  function executeSUB(i)      {  implSUB(rd(i), rs(i), rt(i)); }
-  function executeSUBU(i)     { implSUBU(rd(i), rs(i), rt(i)); }
-  function  executeAND(i)     {  implAND(rd(i), rs(i), rt(i)); }
-  function   executeOR(i)     {   implOR(rd(i), rs(i), rt(i)); }
-  function  executeXOR(i)     {  implXOR(rd(i), rs(i), rt(i)); }
-  function  executeNOR(i)     {  implNOR(rd(i), rs(i), rt(i)); }
 
-  function executeSLT(i)        { implSLT (rd(i), rs(i), rt(i)); }
-  function executeSLTU(i)       { implSLTU(rd(i), rs(i), rt(i)); }
 
-  function implSLT(d,s,t) {
+  function generateSLT(ctx) {
+    var d = ctx.instr_rd();
+    var s = ctx.instr_rs();
+    var t = ctx.instr_rt();
+    var impl = '';
+
+    impl += 'var r = 0;\n';
+    impl += 'if (cpu0.gprHi_signed[' + s + '] < cpu0.gprHi_signed[' + t + ']) {\n';
+    impl += '  r = 1;\n';
+    impl += '} else if (cpu0.gprHi_signed[' + s + '] === cpu0.gprHi_signed[' + t + ']) {\n';
+    impl += '  r = (cpu0.gprLo[' + s + '] < cpu0.gprLo[' + t + ']) ? 1 : 0;\n';
+    impl += '}\n';
+    impl += 'cpu0.gprLo_signed[' + d + '] = r;\n';
+    impl += 'cpu0.gprHi_signed[' + d + '] = 0;\n';
+
+    return generateTrivialOpBoilerplate(impl, ctx);
+  }
+  function executeSLT(i) {
+    var d = rd(i);
+    var s = rs(i);
+    var t = rt(i);
     var r = 0;
     if (cpu0.gprHi_signed[s] < cpu0.gprHi_signed[t]) {
       r = 1;
     } else if (cpu0.gprHi_signed[s] === cpu0.gprHi_signed[t]) {
       r = (cpu0.gprLo[s] < cpu0.gprLo[t]) ? 1 : 0;
     }
-
     cpu0.gprLo_signed[d] = r;
     cpu0.gprHi_signed[d] = 0;
   }
 
-  function implSLTU(d,s,t) {
+
+  function generateSLTU(ctx) {
+    var d = ctx.instr_rd();
+    var s = ctx.instr_rs();
+    var t = ctx.instr_rt();
+    var impl = '';
+
+    impl += 'var r = 0;\n';
+    impl += 'if (cpu0.gprHi[' + s + '] < cpu0.gprHi[' + t + '] ||\n';
+    impl += '    (cpu0.gprHi_signed[' + s + '] === cpu0.gprHi_signed[' + t + '] && cpu0.gprLo[' + s + '] < cpu0.gprLo[' + t + '])) {\n';
+    impl += '  r = 1;\n';
+    impl += '}\n';
+    impl += 'cpu0.gprLo_signed[' + d + '] = r;\n';
+    impl += 'cpu0.gprHi_signed[' + d + '] = 0;\n';
+
+    return generateTrivialOpBoilerplate(impl, ctx);
+  }
+  function executeSLTU(i) {
+    var d = rd(i);
+    var s = rs(i);
+    var t = rt(i);
     var r = 0;
     if (cpu0.gprHi[s] < cpu0.gprHi[t] ||
         (cpu0.gprHi_signed[s] === cpu0.gprHi_signed[t] && cpu0.gprLo[s] < cpu0.gprLo[t])) { // NB signed cmps avoid deopts
@@ -2154,39 +2275,6 @@ if (typeof n64js === 'undefined') {
   function generateSW(ctx) { return generateStore(ctx, 'sw', 'n64js.writeMemory32'); }
   function generateSH(ctx) { return generateStore(ctx, 'sh', 'n64js.writeMemory16'); }
   function generateSB(ctx) { return generateStore(ctx, 'sb', 'n64js.writeMemory8'); }
-
-
-  function generateTrivial3Register(impl, ctx) {
-    return generateTrivialOpBoilerplate(impl + '(' + ctx.instr_rd() + ',' + ctx.instr_rs() + ',' + ctx.instr_rt() + ');', ctx);
-  }
-
-  function  generateADD(ctx) { return generateTrivial3Register('implADD',  ctx); }
-  function generateADDU(ctx) { return generateTrivial3Register('implADDU', ctx); }
-  function  generateSUB(ctx) { return generateTrivial3Register('implSUB',  ctx); }
-  function generateSUBU(ctx) { return generateTrivial3Register('implSUBU', ctx); }
-  function  generateAND(ctx) { return generateTrivial3Register('implAND',  ctx); }
-  function   generateOR(ctx) {
-
-    var s = ctx.instr_rs();
-    var t = ctx.instr_rt();
-    var d = ctx.instr_rd();
-
-    // OR is used to implement CLEAR and MOV
-    if (t == 0) {
-      if (s == 0) {
-        return generateTrivialOpBoilerplate( 'implCLEAR(' + d + ');', ctx );
-      } else {
-        return generateTrivialOpBoilerplate( 'implMOV(' + d + ',' + s + ');', ctx );
-      }
-    }
-
-    return generateTrivial3Register('implOR', ctx);
-  }
-  function  generateXOR(ctx)  { return generateTrivial3Register('implXOR',  ctx); }
-  function  generateNOR(ctx)  { return generateTrivial3Register('implNOR',  ctx); }
-  function  generateSLT(ctx)  { return generateTrivial3Register('implSLT',  ctx); }
-  function  generateSLTU(ctx) { return generateTrivial3Register('implSLTU', ctx); }
-
 
   function checkCauseIP3Consistent() {
     var mi_interrupt_set = n64js.miInterruptsUnmasked();
