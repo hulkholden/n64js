@@ -1972,6 +1972,9 @@ if (typeof n64js === 'undefined') {
     this.instruction = 0;
     this.post_pc     = 0;
     this.bailOut     = false;       // Set this if the op does something to manipulate event timers
+
+    this.needsDelayCheck = true;    // Set on entry to generate handler. If set, much check for delayPC when updating the pc
+    this.isTrivial       = false;   // Set by the generate handler if the op is considered trivial
   }
 
   FragmentContext.prototype.set = function (fragment, pc, instruction, post_pc) {
@@ -1980,6 +1983,9 @@ if (typeof n64js === 'undefined') {
     this.instruction = instruction;
     this.post_pc     = post_pc;
     this.bailOut     = false;       // Set this if the op does something to manipulate event timers
+
+    this.needsDelayCheck = true;    // Set on entry to generate handler. If set, much check for delayPC when updating the pc
+    this.isTrivial       = false;   // Set by the generate handler if the op is considered trivial
   }
 
   FragmentContext.prototype.instr_rs     = function () { return rs(this.instruction); }
@@ -2416,26 +2422,31 @@ if (typeof n64js === 'undefined') {
     this.entryPC          = pc;
     this.minPC            = pc;
     this.maxPC            = pc;
-    this.global_code      = '';
-    this.body_code        = '';
     this.func             = undefined;
     this.opsCompiled      = 0;
     this.executionCount   = 0;
     this.bailedOut        = false;    // Set if a fragment bailed out.
     this.nextFragments    = [];       // One slot per op
+
+    // State used when compiling
+    this.global_code      = '';
+    this.body_code        = '';
+    this.needsDelayCheck  = true;
   }
 
   Fragment.prototype.invalidate = function () {
     // reset all but entryPC
-    this.minPC          = this.entryPC;
-    this.maxPC          = this.entryPC;
-    this.global_code    = '';
-    this.body_code      = '';
-    this.func           = undefined;
-    this.opsCompiled    = 0;
-    this.bailedOut      = false;
-    this.executionCount = 0;
-    this.nextFragments  = [];
+    this.minPC            = this.entryPC;
+    this.maxPC            = this.entryPC;
+    this.func             = undefined;
+    this.opsCompiled      = 0;
+    this.bailedOut        = false;
+    this.executionCount   = 0;
+    this.nextFragments    = [];
+
+    this.global_code      = '';
+    this.body_code        = '';
+    this.needsDelayCheck  = true;
   }
 
   Fragment.prototype.getNextFragment = function (pc, ops_executed) {
@@ -2531,7 +2542,13 @@ if (typeof n64js === 'undefined') {
   }
 
   function generateCodeForOp(ctx) {
+
+    ctx.needsDelayCheck = ctx.fragment.needsDelayCheck;
+    ctx.isTrivial       = false;
+
     var fn_code = generateOp(ctx);
+
+    ctx.fragment.needsDelayCheck = !ctx.isTrivial;
 
     //n64js.assert(fn_code.indexOf(';') >= 0, 'Invalid fn - ' + fn_code );
 
@@ -2587,8 +2604,12 @@ if (typeof n64js === 'undefined') {
 
     var code = '';
     //code += 'if (c.pc !== ' + n64js.toString32(ctx.pc) + ') throw("pc mismatch - " + n64js.toString32(c.pc) + " !== ' + n64js.toString32(ctx.pc) + '");\n';
-    code += 'c.nextPC = c.delayPC;\n';
-    code += 'if (!c.nextPC) { c.nextPC = ' + n64js.toString32(ctx.pc+4) +'; }\n';
+    if (ctx.needsDelayCheck) {
+      code += 'c.nextPC = c.delayPC;\n';
+      code += 'if (!c.nextPC) { c.nextPC = ' + n64js.toString32(ctx.pc+4) +'; }\n';
+    } else {
+      code += 'c.nextPC = ' + n64js.toString32(ctx.pc+4) + ';\n';
+    }
     code += 'c.branchTarget = 0;\n';
 
     code += fn + ';\n';
@@ -2624,17 +2645,30 @@ if (typeof n64js === 'undefined') {
 
     code += fn + ';\n';
 
-    code += 'if (c.delayPC) { c.pc = c.delayPC; c.delayPC = 0; } else { c.pc = ' + n64js.toString32(ctx.pc+4) + '; }\n';
+    // ASSERT: !c.stuffToDo
+
+    ctx.isTrivial = true;
 
     if (accurateCountUpdating) {
       code += 'c.control[9] += 1;\n';
     }
 
+    if (ctx.needsDelayCheck) {
+      code += 'if (c.delayPC) { c.pc = c.delayPC; c.delayPC = 0; } else { c.pc = ' + n64js.toString32(ctx.pc+4) + '; }\n';
+      // Might happen: delay op from previous instruction takes effect
+      code += 'if (c.pc !== ' + n64js.toString32(ctx.post_pc) + ') { return 1; }\n';
+    } else {
+      // ASSERT: !c.delayPC
+
+      code += 'c.pc = ' + n64js.toString32(ctx.pc+4) + ';\n';
+      if (ctx.post_pc !== ctx.pc+4) {
+        code += 'if (c.pc !== ' + n64js.toString32(ctx.post_pc) + ') { return 1; }\n';
+      }
+    }
+
     // Cannot be set: otherwise would have fired with previous instruction. TODO: add debug code to check this.
     //code += 'if (c.stuffToDo) { return 1; }\n';
 
-    // Might happen: delay op from previous instruction takes effect
-    code += 'if (c.pc !== ' + n64js.toString32(ctx.post_pc) + ') { return 1; }\n';
     return code;
   }
 
