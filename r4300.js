@@ -1337,41 +1337,54 @@ if (typeof n64js === 'undefined') {
     performBranch( cpu0.gprLo[rs(i)] );
   }
 
-  function implB(addr) {
-    performBranch( addr );
-  }
+  function generateBEQ(ctx) {
+    var s    = ctx.instr_rs();
+    var t    = ctx.instr_rt();
+    var off  = ctx.instr_offset();
+    var addr = branchAddress(ctx.pc, ctx.instruction);
 
-  function implBEQ(s,t,addr) {
-    if (cpu0.gprHi_signed[s] === cpu0.gprHi_signed[t] &&
-        cpu0.gprLo_signed[s] === cpu0.gprLo_signed[t] ) {
-      performBranch( addr );
+    var impl = '';
+
+    if (s === t) {
+      if (off === -1) {
+        impl += 'c.speedHack();\n';
+        ctx.bailOut = true;
+      }
+      impl += 'c.delayPC = ' + n64js.toString32(addr) + ';\n';
+   } else {
+      if (t === 0) {
+        impl += 'if (c.gprHi_signed[' + s + '] === 0 &&\n';
+        impl += '    c.gprLo_signed[' + s + '] === 0 ) {\n';
+      } else if (s === 0) {
+        impl += 'if (0 === c.gprHi_signed[' + t + '] &&\n';
+        impl += '    0 === c.gprLo_signed[' + t + '] ) {\n';
+      } else {
+        impl += 'if (c.gprHi_signed[' + s + '] === c.gprHi_signed[' + t + '] &&\n';
+        impl += '    c.gprLo_signed[' + s + '] === c.gprLo_signed[' + t + '] ) {\n';
+      }
+      if (off === -1) {
+        impl += '  c.speedHack();\n';
+        ctx.bailOut = true;
+      }
+      impl += '  c.delayPC = ' + n64js.toString32(addr) + ';\n';
+      impl += '}\n';
     }
-  }
 
-  // call if branch offset is -1
-  function implBEQ_speedhack(s,t,addr) {
-    if (cpu0.gprHi_signed[s] === cpu0.gprHi_signed[t] &&
-        cpu0.gprLo_signed[s] === cpu0.gprLo_signed[t] ) {
-      cpu0.speedHack();
-      performBranch( addr );
-    }
+    return generateBranchOpBoilerplate(impl, ctx);
   }
-
-  function implBNE(s,t,addr) {
-    if (cpu0.gprHi_signed[s] !== cpu0.gprHi_signed[t] ||
-        cpu0.gprLo_signed[s] !== cpu0.gprLo_signed[t] ) {      // NB: if imms(i) == -1 then this is a branch to self/busywait
-      performBranch( addr );
-    }
-  }
-
 
   function executeBEQ(i) {
-    if (offset(i) === -1) {
-      implBEQ_speedhack(rs(i), rt(i), branchAddress(cpu0.pc,i));
-    } else {
-      implBEQ(rs(i), rt(i), branchAddress(cpu0.pc,i));
+    var s = rs(i);
+    var t = rt(i);
+    if (cpu0.gprHi_signed[s] === cpu0.gprHi_signed[t] &&
+        cpu0.gprLo_signed[s] === cpu0.gprLo_signed[t] ) {
+      if (offset(i) === -1 )
+        cpu0.speedHack();
+      performBranch( branchAddress(cpu0.pc,i) );
     }
   }
+
+
 
   function executeBEQL(i) {
     var s = rs(i);
@@ -1384,7 +1397,43 @@ if (typeof n64js === 'undefined') {
     }
   }
 
-  function executeBNE(i)      { implBNE(rs(i), rt(i), branchAddress(cpu0.pc,i) ); }
+
+  function generateBNE(ctx) {
+    var s    = ctx.instr_rs();
+    var t    = ctx.instr_rt();
+    var off  = ctx.instr_offset();
+    var addr = branchAddress(ctx.pc, ctx.instruction);
+
+    var impl = '';
+
+    if (t === 0) {
+      impl += 'if (c.gprHi_signed[' + s + '] !== 0 ||\n';
+      impl += '    c.gprLo_signed[' + s + '] !== 0 ) {\n';
+    } else if (s === 0) {
+      impl += 'if (0 !== c.gprHi_signed[' + t + '] ||\n';
+      impl += '    0 !== c.gprLo_signed[' + t + '] ) {\n';
+    } else {
+      impl += 'if (c.gprHi_signed[' + s + '] !== c.gprHi_signed[' + t + '] ||\n';
+      impl += '    c.gprLo_signed[' + s + '] !== c.gprLo_signed[' + t + '] ) {\n';
+    }
+    if (off === -1) {
+      impl += '  c.speedHack();\n';
+      ctx.bailOut = true;
+    }
+    impl += '  c.delayPC = ' + n64js.toString32(addr) + ';\n';
+    impl += '}\n';
+
+    return generateBranchOpBoilerplate(impl, ctx);
+  }
+
+  function executeBNE(i) {
+    var s = rs(i);
+    var t = rt(i);
+    if (cpu0.gprHi_signed[s] !== cpu0.gprHi_signed[t] ||
+        cpu0.gprLo_signed[s] !== cpu0.gprLo_signed[t] ) {      // NB: if imms(i) == -1 then this is a branch to self/busywait
+      performBranch( branchAddress(cpu0.pc,i) );
+    }
+  }
 
   function executeBNEL(i) {
     var s = rs(i);
@@ -2189,31 +2238,6 @@ if (typeof n64js === 'undefined') {
   FragmentContext.prototype.instr_offset = function () { return offset(this.instruction); }
   FragmentContext.prototype.instr_imms   = function () { return imms(this.instruction); }
 
-
-  function generateBEQ(ctx) {
-    var s    = ctx.instr_rs();
-    var t    = ctx.instr_rt();
-    var off  = ctx.instr_offset();
-    var addr = branchAddress(ctx.pc, ctx.instruction);
-
-    var impl;
-    if (off == -1) {
-      ctx.bailOut = true;
-      impl = 'implBEQ_speedhack(' + s + ',' + t + ',' + n64js.toString32(addr) + ');';
-    } else if (s === t) {
-      impl = 'implB('+ n64js.toString32(addr) + ');';
-    } else {
-      impl = 'implBEQ(' + s + ',' + t + ',' + n64js.toString32(addr) + ');';
-    }
-    return generateGenericOpBoilerplate(impl, ctx);
-  }
-  function generateBNE(ctx) {
-    var s    = ctx.instr_rs();
-    var t    = ctx.instr_rt();
-    var addr = branchAddress(ctx.pc, ctx.instruction);
-    return generateGenericOpBoilerplate('implBNE(' + s + ',' + t + ',' + n64js.toString32(addr) + ');', ctx);
-  }
-
   // Calls to DataView seem to deopt.
   function lw(dv,a) { return dv.getInt32(a); }
 
@@ -2778,6 +2802,38 @@ if (typeof n64js === 'undefined') {
 
     code += 'c.pc = c.nextPC;\n';
     code += 'c.delayPC = c.branchTarget;\n';
+
+    if (accurateCountUpdating) {
+      code += 'c.control[9] += 1;\n';
+    }
+
+    // If bailOut is set, always return immediately
+    if (ctx.bailOut) {
+      code += 'return ' + ctx.fragment.opsCompiled + ';\n';
+    } else {
+      code += 'if (c.stuffToDo) { return ' + ctx.fragment.opsCompiled + '; }\n';
+      code += 'if (c.pc !== ' + n64js.toString32(ctx.post_pc) + ') { return ' + ctx.fragment.opsCompiled + '; }\n';
+    }
+    return code;
+  }
+
+  // Branch ops explicitly manipulate nextPC rather than branchTarget
+  function generateBranchOpBoilerplate(fn,ctx) {
+
+    var code = '';
+    //code += 'if (c.pc !== ' + n64js.toString32(ctx.pc) + ') throw("pc mismatch - " + n64js.toString32(c.pc) + " !== ' + n64js.toString32(ctx.pc) + '");\n';
+    if (ctx.needsDelayCheck) {
+      code += 'c.nextPC = c.delayPC;\n';
+      code += 'if (!c.nextPC) { c.nextPC = ' + n64js.toString32(ctx.pc+4) +'; }\n';
+    } else {
+      code += 'c.nextPC = ' + n64js.toString32(ctx.pc+4) + ';\n';
+    }
+    //code += 'c.branchTarget = 0;\n';
+
+    code += fn + '\n';
+
+    code += 'c.pc = c.nextPC;\n';
+    //code += 'c.delayPC = c.branchTarget;\n';
 
     if (accurateCountUpdating) {
       code += 'c.control[9] += 1;\n';
