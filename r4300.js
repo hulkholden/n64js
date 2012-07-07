@@ -2405,6 +2405,8 @@ if (typeof n64js === 'undefined') {
   var fragmentMap = {};
   var fragmentInvalidationEvents = [];
 
+  var kHotFragmentThreshold = 500;
+
   n64js.getFragmentMap = function () {
     return fragmentMap;
   }
@@ -2448,14 +2450,11 @@ if (typeof n64js === 'undefined') {
     if (fragment === undefined) {
 
       // Check if this pc is hot enough yet
-      var hc = hitCounts[pc];
-      if (hc === undefined) {
-        hc = 0;
-      }
+      var hc = hitCounts[pc] || 0;
       hc++;
       hitCounts[pc] = hc;
 
-      if (hc < 10)
+      if (hc < kHotFragmentThreshold)
         return null;
 
       fragment = new Fragment(pc);
