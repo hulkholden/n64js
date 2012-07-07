@@ -2117,9 +2117,9 @@ if (typeof n64js === 'undefined') {
     // OR is used to implement CLEAR and MOV
     if (t == 0) {
       if (s == 0) {
-        return generateGenericOpBoilerplate( 'implCLEAR(' + d + ')', ctx );
+        return generateTrivialOpBoilerplate( 'implCLEAR(' + d + ')', ctx );
       } else {
-        return generateGenericOpBoilerplate( 'implMOV(' + d + ',' + s + ')', ctx );
+        return generateTrivialOpBoilerplate( 'implMOV(' + d + ',' + s + ')', ctx );
       }
     }
 
