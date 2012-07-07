@@ -1492,6 +1492,20 @@ if (typeof n64js === 'undefined') {
     }
   }
 
+  function generateADDI(ctx) {
+    var s = ctx.instr_rs();
+    var t = ctx.instr_rt();
+    var impl = '';
+    if (s === t) {
+      impl += 'cpu0.gprLo_signed[' + t + '] += ' + imms(ctx.instruction) + ';\n';
+      impl += 'cpu0.gprHi_signed[' + t + '] = cpu0.gprLo_signed[' + t + '] >> 31;\n';
+    } else {
+      impl += 'var result = cpu0.gprLo_signed[' + s + '] + ' + imms(ctx.instruction) + ';\n';
+      impl += 'cpu0.gprLo_signed[' + t + '] = result;\n';
+      impl += 'cpu0.gprHi_signed[' + t + '] = result >> 31;\n';
+    }
+    return generateTrivialOpBoilerplate(impl, ctx);
+  }
 
   function executeADDI(i) {
     var s         = rs(i);
@@ -2124,7 +2138,7 @@ if (typeof n64js === 'undefined') {
   var simpleTableGen = [
     generateSpecial,        generateRegImm,         'executeJ',           'executeJAL',
     generateBEQ,            generateBNE,            'executeBLEZ',        'executeBGTZ',
-    'executeADDI',          generateADDIU,          'executeSLTI',        'executeSLTIU',
+    generateADDI,           generateADDIU,          'executeSLTI',        'executeSLTIU',
     generateANDI,           generateORI,            generateXORI,         generateLUI,
     'executeCop0',          'executeCop1_check',    'executeUnknown',     'executeUnknown',
     'executeBEQL',          'executeBNEL',          'executeBLEZL',       'executeBGTZL',
