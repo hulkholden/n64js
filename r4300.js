@@ -2246,6 +2246,7 @@ if (typeof n64js === 'undefined') {
     }
   }
 
+  var accurateCountUpdating = false;
   var COUNTER_INCREMENT_PER_OP = 1;
 
   // We need just one of these - declare at global scope to avoid generating garbage
@@ -2289,6 +2290,10 @@ if (typeof n64js === 'undefined') {
               // refresh latest event - may have changed
               evt = cpu0.events[0];
               evt.countdown -= ops_executed * COUNTER_INCREMENT_PER_OP;
+
+              if (!accurateCountUpdating) {
+                cpu0.control[cpu0.kControlCount] += ops_executed * COUNTER_INCREMENT_PER_OP;
+              }
 
               n64js.assert(fragment.bailedOut || evt.countdown >= 0, "Executed too many ops. Possibly didn't bail out of trace when new event was set up?");
               if (evt.countdown <= 0) {
@@ -2580,7 +2585,9 @@ if (typeof n64js === 'undefined') {
     code += 'c.pc = c.nextPC;\n';
     code += 'c.delayPC = c.branchTarget;\n';
 
-    code += 'c.control[9] += 1;\n';
+    if (accurateCountUpdating) {
+      code += 'c.control[9] += 1;\n';
+    }
 
     // If bailOut is set, always return immediately
     if (ctx.bailOut) {
@@ -2608,7 +2615,9 @@ if (typeof n64js === 'undefined') {
 
     code += 'if (c.delayPC) { c.pc = c.delayPC; c.delayPC = 0; } else { c.pc = ' + n64js.toString32(ctx.pc+4) + '; }\n';
 
-    code += 'c.control[9] += 1;\n';
+    if (accurateCountUpdating) {
+      code += 'c.control[9] += 1;\n';
+    }
 
     // Cannot be set: otherwise would have fired with previous instruction. TODO: add debug code to check this.
     //code += 'if (c.stuffToDo) { return 1; }\n';
