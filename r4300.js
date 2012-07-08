@@ -2215,7 +2215,7 @@ if (typeof n64js === 'undefined') {
     'executeLL',            'executeLWC1',          'executeUnknown',     'executeUnknown',
     'executeLLD',           'executeLDC1',          'executeLDC2',        generateLD,
     'executeSC',            'executeSWC1',          'executeUnknown',     'executeUnknown',
-    'executeSCD',           'executeSDC1',          'executeSDC2',        'executeSD',
+    'executeSCD',           'executeSDC1',          'executeSDC2',        generateSD,
   ];
   if (simpleTableGen.length != 64) {
     throw "Oops, didn't build the simple gen table correctly";
@@ -2362,6 +2362,27 @@ if (typeof n64js === 'undefined') {
   function generateSW(ctx) { return generateStore(ctx, 'sw', 'n64js.writeMemory32'); }
   function generateSH(ctx) { return generateStore(ctx, 'sh', 'n64js.writeMemory16'); }
   function generateSB(ctx) { return generateStore(ctx, 'sb', 'n64js.writeMemory8'); }
+
+  function generateSD(ctx) {
+    var t = ctx.instr_rt();
+    var b = ctx.instr_base();
+    var o = ctx.instr_imms();
+
+    var impl = '';
+    impl += 'var addr = c.gprLo[' + b + '] + ' + o + ';\n';
+    impl += 'var ram_relative = addr - 0x80000000;\n'
+    impl += 'if (ram_relative >= 0 && ram_relative < 0x00800000) {\n';
+    impl += '  sw(ram, ram_relative + 4, c.gprLo_signed[' + t + ']);\n';
+    impl += '  sw(ram, ram_relative,     c.gprHi_signed[' + t + ']);\n';
+    impl += '} else {\n';
+    impl += '  n64js.writeMemory32(addr + 4, c.gprLo_signed[' + t + ']);\n';
+    impl += '  n64js.writeMemory32(addr,     c.gprHi_signed[' + t + ']);\n';
+    impl += '}\n';
+
+    return generateGenericOpBoilerplate(impl, ctx);
+  }
+
+
 
   function checkCauseIP3Consistent() {
     var mi_interrupt_set = n64js.miInterruptsUnmasked();
