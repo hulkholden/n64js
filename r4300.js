@@ -836,26 +836,77 @@ if (typeof n64js === 'undefined') {
     throw 'Unknown op: ' + n64js.toString32(cpu0.pc) + ', ' + n64js.toString32(i);
   }
 
-  function executeSLL(i)        { if (i !== 0) implSLL(rd(i), rt(i), sa(i) ); }
-  function executeSRL(i)        { implSRL(rd(i), rt(i), sa(i) ); }
-  function executeSRA(i)        { implSRA(rd(i), rt(i), sa(i) ); }
 
-  function implSLL(d,t,shift) {
-    setSignExtend( d, ((cpu0.gprLo[t] << shift) & 0xffffffff)>>>0 );
+
+  function generateSLL(ctx) {
+    if (ctx.instruction === 0)
+      return generateNOPBoilerplate(ctx);
+
+    var d     = ctx.instr_rd();
+    var t     = ctx.instr_rt();
+    var shift = ctx.instr_sa();
+
+    var impl = '';
+    impl += 'cpu0.gprLo_signed[' + d + '] = cpu0.gprLo_signed[' + t + '] << ' + shift + ';\n';
+    impl += 'cpu0.gprHi_signed[' + d + '] = cpu0.gprLo_signed[' + d + '] >> 31;\n';
+    return generateTrivialOpBoilerplate(impl, ctx);
+  }
+  function executeSLL(i) {
+    // NOP
+    if (i === 0)
+      return;
+
+    var d     = rd(i);
+    var t     = rt(i);
+    var shift = sa(i);
+
+    cpu0.gprLo_signed[d] = cpu0.gprLo_signed[t] << shift;
+    cpu0.gprHi_signed[d] = cpu0.gprLo_signed[d] >> 31;    // sign extend
   }
 
-  function implSRL(d,t,shift) {
-    setSignExtend( d, cpu0.gprLo[t] >>> shift );
+
+  function generateSRL(ctx) {
+    var d     = ctx.instr_rd();
+    var t     = ctx.instr_rt();
+    var shift = ctx.instr_sa();
+
+    var impl = '';
+    impl += 'cpu0.gprLo_signed[' + d + '] = cpu0.gprLo_signed[' + t + '] >>> ' + shift + ';\n';
+    impl += 'cpu0.gprHi_signed[' + d + '] = cpu0.gprLo_signed[' + d + '] >> 31;\n';
+    return generateTrivialOpBoilerplate(impl, ctx);
+  }
+  function executeSRL(i) {
+    var d     = rd(i);
+    var t     = rt(i);
+    var shift = sa(i);
+
+    cpu0.gprLo_signed[d] = cpu0.gprLo_signed[t] >>> shift;
+    cpu0.gprHi_signed[d] = cpu0.gprLo_signed[d] >> 31;    // sign extend
   }
 
-  function implSRA(d,t,shift) {
-    setSignExtend( d, cpu0.gprLo[t] >> shift );
+
+
+  function generateSRA(ctx) {
+    var d     = ctx.instr_rd();
+    var t     = ctx.instr_rt();
+    var shift = ctx.instr_sa();
+
+    var impl = '';
+    impl += 'cpu0.gprLo_signed[' + d + '] = cpu0.gprLo_signed[' + t + '] >> ' + shift + ';\n';
+    impl += 'cpu0.gprHi_signed[' + d + '] = cpu0.gprLo_signed[' + d + '] >> 31;\n';
+    return generateTrivialOpBoilerplate(impl, ctx);
+  }
+  function executeSRA(i) {
+    var d     = rd(i);
+    var t     = rt(i);
+    var shift = sa(i);
+
+    cpu0.gprLo_signed[d] = cpu0.gprLo_signed[t] >> shift;
+    cpu0.gprHi_signed[d] = cpu0.gprLo_signed[d] >> 31;    // sign extend
   }
 
-  function generateSLL(ctx)     { if (ctx.instruction ===0) return generateNOPBoilerplate(ctx);
-                                  return generateTrivialOpBoilerplate('implSLL(' + ctx.instr_rd() + ',' + ctx.instr_rt() + ',' + ctx.instr_sa() + ');',  ctx); }
-  function generateSRL(ctx)     { return generateTrivialOpBoilerplate('implSRL(' + ctx.instr_rd() + ',' + ctx.instr_rt() + ',' + ctx.instr_sa() + ');',  ctx); }
-  function generateSRA(ctx)     { return generateTrivialOpBoilerplate('implSRA(' + ctx.instr_rd() + ',' + ctx.instr_rt() + ',' + ctx.instr_sa() + ');',  ctx); }
+
+
 
   function executeSLLV(i) {
     setSignExtend( rd(i), (cpu0.gprLo_signed[rt(i)] <<  (cpu0.gprLo_signed[rs(i)] & 0x1f)) & 0xffffffff );
