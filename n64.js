@@ -655,8 +655,8 @@ if (typeof n64js === 'undefined') {
   function addMipsInterrupts($tb) {
     var mi_intr_names = ['SP', 'SI', 'AI', 'VI', 'PI', 'DP'];
 
-    var mi_intr_live = mi_reg.read32(MI_INTR_REG);
-    var mi_intr_mask = mi_reg.read32(MI_INTR_MASK_REG);
+    var mi_intr_live = mi_reg.readU32(MI_INTR_REG);
+    var mi_intr_mask = mi_reg.readU32(MI_INTR_MASK_REG);
 
     var $tr = $('<tr />');
     $tr.append( '<td>MI Intr</td>' );
@@ -733,8 +733,11 @@ if (typeof n64js === 'undefined') {
       }
     },
 
-    read32 : function (offset) {
+    readU32 : function (offset) {
       return this.dataView.getUint32(offset);
+    },
+    readS32 : function (offset) {
+      return this.dataView.getInt32(offset);
     },
 
     write32 : function (offset, value) {
@@ -785,20 +788,36 @@ if (typeof n64js === 'undefined') {
       return 0xdddddddd;
     },
 
-    read32 : function (address) {
+    readU32 : function (address) {
       if (!this.quiet) n64js.log('Reading from ' + this.name + ': ' + toString32(address) );
       var ea = this.calcEA(address);
       return this.dataView.getUint32(ea);
     },
-    read16 : function (address) {
+    readU16 : function (address) {
       if (!this.quiet) n64js.log('Reading from ' + this.name + ': ' + toString32(address) );
       var ea = this.calcEA(address);
       return this.dataView.getUint16(ea);
     },
-    read8 : function (address) {
+    readU8 : function (address) {
       if (!this.quiet) n64js.log('Reading from ' + this.name + ': ' + toString32(address) );
       var ea = this.calcEA(address);
       return this.dataView.getUint8(ea);
+    },
+
+    readS32 : function (address) {
+      if (!this.quiet) n64js.log('Reading from ' + this.name + ': ' + toString32(address) );
+      var ea = this.calcEA(address);
+      return this.dataView.getInt32(ea);
+    },
+    readS16 : function (address) {
+      if (!this.quiet) n64js.log('Reading from ' + this.name + ': ' + toString32(address) );
+      var ea = this.calcEA(address);
+      return this.dataView.getInt16(ea);
+    },
+    readS8 : function (address) {
+      if (!this.quiet) n64js.log('Reading from ' + this.name + ': ' + toString32(address) );
+      var ea = this.calcEA(address);
+      return this.dataView.getInt8(ea);
     },
 
 
@@ -886,11 +905,14 @@ if (typeof n64js === 'undefined') {
   si_reg_handler_uncached.quiet   = true;
 
   // This function gets hit A LOT, so eliminate as much fat as possible.
-  rdram_handler_cached.read32 = function (address) {
+  rdram_handler_cached.readU32 = function (address) {
     return this.dataView.getUint32(address - 0x80000000);
   }
+  rdram_handler_cached.readS32 = function (address) {
+    return this.dataView.getInt32(address - 0x80000000);
+  }
   rdram_handler_cached.write32 = function (address, value) {
-    return this.dataView.setUint32(address - 0x80000000, value);
+    return this.dataView.setInt32(address - 0x80000000, value);
   }
 
   mapped_mem_handler.readInternal32 = function(address) {
@@ -904,28 +926,53 @@ if (typeof n64js === 'undefined') {
     return n64js.cpu0.translate(ea) & 0x007fffff;
   }
 
-  mapped_mem_handler.read32 = function(address) {
+  mapped_mem_handler.readU32 = function(address) {
     var mapped = this.translate(address);
     if (mapped != 0) {
       return ram.dataView.getUint32(mapped);
     }
-    n64js.halt('virtual read32 failed - need to throw refill/invalid');
+    n64js.halt('virtual readU32 failed - need to throw refill/invalid');
     return 0xffffffff;
   }
-  mapped_mem_handler.read16 = function(address) {
+  mapped_mem_handler.readU16 = function(address) {
     var mapped = this.translate(address);
     if (mapped != 0) {
       return ram.dataView.getUint16(mapped);
     }
-    n64js.halt('virtual read16 failed - need to throw refill/invalid');
+    n64js.halt('virtual readU16 failed - need to throw refill/invalid');
     return 0xffff;
   }
-  mapped_mem_handler.read8 = function(address) {
+  mapped_mem_handler.readU8 = function(address) {
     var mapped = this.translate(address);
     if (mapped != 0) {
       return ram.dataView.getUint8(mapped);
     }
-    n64js.halt('virtual read8 failed - need to throw refill/invalid');
+    n64js.halt('virtual readU8 failed - need to throw refill/invalid');
+    return 0xff;
+  }
+
+  mapped_mem_handler.readS32 = function(address) {
+    var mapped = this.translate(address);
+    if (mapped != 0) {
+      return ram.dataView.getInt32(mapped);
+    }
+    n64js.halt('virtual readS32 failed - need to throw refill/invalid');
+    return 0xffffffff;
+  }
+  mapped_mem_handler.readS16 = function(address) {
+    var mapped = this.translate(address);
+    if (mapped != 0) {
+      return ram.dataView.getInt16(mapped);
+    }
+    n64js.halt('virtual readS16 failed - need to throw refill/invalid');
+    return 0xffff;
+  }
+  mapped_mem_handler.readS8 = function(address) {
+    var mapped = this.translate(address);
+    if (mapped != 0) {
+      return ram.dataView.getInt8(mapped);
+    }
+    n64js.halt('virtual readS8 failed - need to throw refill/invalid');
     return 0xff;
   }
 
@@ -939,19 +986,25 @@ if (typeof n64js === 'undefined') {
     throw 'Writing to vram';
   };
 
-  rom_d1a1_handler_uncached.read32  = function(address)         { throw 'Reading from rom d1a1'; }
-  rom_d1a1_handler_uncached.read16  = function(address)         { throw 'Reading from rom d1a1'; }
-  rom_d1a1_handler_uncached.read8   = function(address)         { throw 'Reading from rom d1a1'; }
+  rom_d1a1_handler_uncached.readU32 = function(address)         { throw 'Reading from rom d1a1'; }
+  rom_d1a1_handler_uncached.readU16 = function(address)         { throw 'Reading from rom d1a1'; }
+  rom_d1a1_handler_uncached.readU8  = function(address)         { throw 'Reading from rom d1a1'; }
+  rom_d1a1_handler_uncached.readS32 = function(address)         { throw 'Reading from rom d1a1'; }
+  rom_d1a1_handler_uncached.readS16 = function(address)         { throw 'Reading from rom d1a1'; }
+  rom_d1a1_handler_uncached.readS8  = function(address)         { throw 'Reading from rom d1a1'; }
   rom_d1a1_handler_uncached.write32 = function (address, value) { throw 'Writing to rom'; };
   rom_d1a1_handler_uncached.write16 = function (address, value) { throw 'Writing to rom'; };
   rom_d1a1_handler_uncached.write8  = function (address, value) { throw 'Writing to rom'; };
 
-  //rom_d1a2_handler_uncached.read32 = function(address)         { throw 'Reading from rom'; }
-  //rom_d1a2_handler_uncached.read16 = function(address)         { throw 'Reading from rom'; }
-  //rom_d1a2_handler_uncached.read8  = function(address)         { throw 'Reading from rom'; }
-  rom_d1a2_handler_uncached.write32  = function (address, value) { throw 'Writing to rom'; };
-  rom_d1a2_handler_uncached.write16  = function (address, value) { throw 'Writing to rom'; };
-  rom_d1a2_handler_uncached.write8   = function (address, value) { throw 'Writing to rom'; };
+  //rom_d1a2_handler_uncached.readU32 = function(address)         { throw 'Reading from rom'; }
+  //rom_d1a2_handler_uncached.readU16 = function(address)         { throw 'Reading from rom'; }
+  //rom_d1a2_handler_uncached.readU8  = function(address)         { throw 'Reading from rom'; }
+  //rom_d1a2_handler_uncached.readS32 = function(address)         { throw 'Reading from rom'; }
+  //rom_d1a2_handler_uncached.readS16 = function(address)         { throw 'Reading from rom'; }
+  //rom_d1a2_handler_uncached.readS8  = function(address)         { throw 'Reading from rom'; }
+  rom_d1a2_handler_uncached.write32   = function (address, value) { throw 'Writing to rom'; };
+  rom_d1a2_handler_uncached.write16   = function (address, value) { throw 'Writing to rom'; };
+  rom_d1a2_handler_uncached.write8    = function (address, value) { throw 'Writing to rom'; };
 
   // Should read noise?
   function getRandomU8() {
@@ -961,19 +1014,25 @@ if (typeof n64js === 'undefined') {
     return (getRandomU8()<<24) | (getRandomU8()<<16) | (getRandomU8()<<8) | getRandomU8();
   }
 
-  rom_d2a1_handler_uncached.read32  = function(address)         { n64js.log('reading noise'); return getRandomU32(); }
-  rom_d2a1_handler_uncached.read16  = function(address)         { n64js.log('reading noise'); return (getRandomU8()<<8) | getRandomU8(); }
-  rom_d2a1_handler_uncached.read8   = function(address)         { n64js.log('reading noise'); return getRandomU8(); }
-  rom_d2a1_handler_uncached.write32 = function (address, value) { throw 'Writing to rom'; };
-  rom_d2a1_handler_uncached.write16 = function (address, value) { throw 'Writing to rom'; };
-  rom_d2a1_handler_uncached.write8  = function (address, value) { throw 'Writing to rom'; };
+  rom_d2a1_handler_uncached.readU32  = function(address)         { n64js.log('reading noise'); return getRandomU32(); }
+  rom_d2a1_handler_uncached.readU16  = function(address)         { n64js.log('reading noise'); return (getRandomU8()<<8) | getRandomU8(); }
+  rom_d2a1_handler_uncached.readU8   = function(address)         { n64js.log('reading noise'); return getRandomU8(); }
+  rom_d2a1_handler_uncached.readS32  = function(address)         { n64js.log('reading noise'); return getRandomU32(); }
+  rom_d2a1_handler_uncached.readS16  = function(address)         { n64js.log('reading noise'); return (getRandomU8()<<8) | getRandomU8(); }
+  rom_d2a1_handler_uncached.readS8   = function(address)         { n64js.log('reading noise'); return getRandomU8(); }
+  rom_d2a1_handler_uncached.write32  = function (address, value) { throw 'Writing to rom'; };
+  rom_d2a1_handler_uncached.write16  = function (address, value) { throw 'Writing to rom'; };
+  rom_d2a1_handler_uncached.write8   = function (address, value) { throw 'Writing to rom'; };
 
-  rom_d2a2_handler_uncached.read32  = function(address)         { throw 'Reading from rom d2a2'; }
-  rom_d2a2_handler_uncached.read16  = function(address)         { throw 'Reading from rom d2a2'; }
-  rom_d2a2_handler_uncached.read8   = function(address)         { throw 'Reading from rom d2a2'; }
-  rom_d2a2_handler_uncached.write32 = function (address, value) { throw 'Writing to rom'; };
-  rom_d2a2_handler_uncached.write16 = function (address, value) { throw 'Writing to rom'; };
-  rom_d2a2_handler_uncached.write8  = function (address, value) { throw 'Writing to rom'; };
+  rom_d2a2_handler_uncached.readU32  = function(address)         { throw 'Reading from rom d2a2'; }
+  rom_d2a2_handler_uncached.readU16  = function(address)         { throw 'Reading from rom d2a2'; }
+  rom_d2a2_handler_uncached.readU8   = function(address)         { throw 'Reading from rom d2a2'; }
+  rom_d2a2_handler_uncached.readS32  = function(address)         { throw 'Reading from rom d2a2'; }
+  rom_d2a2_handler_uncached.readS16  = function(address)         { throw 'Reading from rom d2a2'; }
+  rom_d2a2_handler_uncached.readS8   = function(address)         { throw 'Reading from rom d2a2'; }
+  rom_d2a2_handler_uncached.write32  = function (address, value) { throw 'Writing to rom'; };
+  rom_d2a2_handler_uncached.write16  = function (address, value) { throw 'Writing to rom'; };
+  rom_d2a2_handler_uncached.write8   = function (address, value) { throw 'Writing to rom'; };
 
   rdram_reg_handler_uncached.calcEA  = function (address) {
     return address&0xff;
@@ -1045,7 +1104,7 @@ if (typeof n64js === 'undefined') {
     set_bits |= (flags & SP_SET_SIG6) >> 9;
     set_bits |= (flags & SP_SET_SIG7) >> 10;
 
-    var status_bits = sp_reg.read32(SP_STATUS_REG);
+    var status_bits = sp_reg.readU32(SP_STATUS_REG);
     status_bits &= ~clr_bits;
     status_bits |=  set_bits;
     sp_reg.write32(SP_STATUS_REG, status_bits);
@@ -1058,9 +1117,9 @@ if (typeof n64js === 'undefined') {
   }
 
   function SPCopyFromRDRAM() {
-    var sp_mem_address = sp_reg.read32(SP_MEM_ADDR_REG);
-    var rd_ram_address = sp_reg.read32(SP_DRAM_ADDR_REG);
-    var rdlen_reg      = sp_reg.read32(SP_RD_LEN_REG);
+    var sp_mem_address = sp_reg.readU32(SP_MEM_ADDR_REG);
+    var rd_ram_address = sp_reg.readU32(SP_DRAM_ADDR_REG);
+    var rdlen_reg      = sp_reg.readU32(SP_RD_LEN_REG);
     var splen          = (rdlen_reg & 0xfff) + 1;
 
     if (!sp_reg_handler_uncached.quiet) {
@@ -1074,9 +1133,9 @@ if (typeof n64js === 'undefined') {
   }
 
   function SPCopyToRDRAM() {
-    var sp_mem_address = sp_reg.read32(SP_MEM_ADDR_REG);
-    var rd_ram_address = sp_reg.read32(SP_DRAM_ADDR_REG);
-    var wrlen_reg      = sp_reg.read32(SP_WR_LEN_REG);
+    var sp_mem_address = sp_reg.readU32(SP_MEM_ADDR_REG);
+    var rd_ram_address = sp_reg.readU32(SP_DRAM_ADDR_REG);
+    var wrlen_reg      = sp_reg.readU32(SP_WR_LEN_REG);
     var splen          = (wrlen_reg & 0xfff) + 1;
 
     if (!sp_reg_handler_uncached.quiet) {
@@ -1131,7 +1190,7 @@ if (typeof n64js === 'undefined') {
 
 
   function MIWriteModeReg(value) {
-    var mi_mode_reg = mi_reg.read32(MI_MODE_REG);
+    var mi_mode_reg = mi_reg.readU32(MI_MODE_REG);
 
     if (value & MI_SET_RDRAM)   mi_mode_reg |=  MI_MODE_RDRAM;
     if (value & MI_CLR_RDRAM)   mi_mode_reg &= ~MI_MODE_RDRAM;
@@ -1151,8 +1210,8 @@ if (typeof n64js === 'undefined') {
   }
 
   function MIWriteIntrMaskReg(value) {
-    var mi_intr_mask_reg = mi_reg.read32(MI_INTR_MASK_REG);
-    var mi_intr_reg      = mi_reg.read32(MI_INTR_REG);
+    var mi_intr_mask_reg = mi_reg.readU32(MI_INTR_MASK_REG);
+    var mi_intr_reg      = mi_reg.readU32(MI_INTR_REG);
 
     var clr = 0;
     var set = 0;
@@ -1282,21 +1341,25 @@ if (typeof n64js === 'undefined') {
     }
   };
 
-  vi_reg_handler_uncached.read32 = function (address) {
+  vi_reg_handler_uncached.readS32 = function (address) {
     if (!this.quiet) n64js.log('Reading from ' + this.name + ': ' + toString32(address) );
     var ea = this.calcEA(address);
 
     if (ea+3 < this.dataView.byteLength) {
-      var value = this.dataView.getUint32(ea);
+      var value = this.dataView.getInt32(ea);
       if (ea == VI_CURRENT_REG) {
         value = (value + 2) % 512;
-        this.dataView.setUint32(ea, value);
+        this.dataView.setInt32(ea, value);
       }
       return value;
     } else {
       throw 'Read is out of range';
     }
   };
+
+  vi_reg_handler_uncached.readU32 = function (address) {
+    return this.readS32(address)>>>0;
+  }
 
 
   pi_reg_handler_uncached.write32 = function (address, value) {
@@ -1342,7 +1405,7 @@ if (typeof n64js === 'undefined') {
   };
 
   function SICopyFromRDRAM() {
-    var dram_address = si_reg.read32(SI_DRAM_ADDR_REG) & 0x1fffffff;
+    var dram_address = si_reg.readU32(SI_DRAM_ADDR_REG) & 0x1fffffff;
     var pi_ram       = new Uint8Array(pi_mem.arrayBuffer, 0x7c0, 0x040);
 
     if (!si_reg_handler_uncached.quiet) n64js.log('SI: copying from ' + toString32(dram_address) + ' to PI RAM');
@@ -1366,7 +1429,7 @@ if (typeof n64js === 'undefined') {
     // Update controller state here
     UpdateController();
 
-    var dram_address = si_reg.read32(SI_DRAM_ADDR_REG) & 0x1fffffff;
+    var dram_address = si_reg.readU32(SI_DRAM_ADDR_REG) & 0x1fffffff;
     var pi_ram       = new Uint8Array(pi_mem.arrayBuffer, 0x7c0, 0x040);
 
     if (!si_reg_handler_uncached.quiet) n64js.log('SI: copying from PI RAM to ' + toString32(dram_address));
@@ -1563,7 +1626,7 @@ if (typeof n64js === 'undefined') {
   }
   n64js.checkSIStatusConsistent = checkSIStatusConsistent;
 
-  si_reg_handler_uncached.read32 = function (address) {
+  si_reg_handler_uncached.readS32 = function (address) {
     if (!this.quiet) n64js.log('Reading from ' + this.name + ': ' + toString32(address) );
     var ea = this.calcEA(address);
 
@@ -1571,11 +1634,15 @@ if (typeof n64js === 'undefined') {
       if (ea === SI_STATUS_REG) {
         checkSIStatusConsistent();
       }
-      return this.dataView.getUint32(ea);
+      return this.dataView.getInt32(ea);
     } else {
       throw 'Read is out of range';
     }
   };
+
+  si_reg_handler_uncached.readU32 = function (address) {
+    return this.readS32(address)>>>0;
+  }
 
   si_reg_handler_uncached.write32 = function (address, value) {
     var ea = this.calcEA(address);
@@ -1613,9 +1680,9 @@ if (typeof n64js === 'undefined') {
 
 
   function PICopyToRDRAM() {
-    var dram_address = pi_reg.read32(PI_DRAM_ADDR_REG) & 0x00ffffff;
-    var cart_address = pi_reg.read32(PI_CART_ADDR_REG);
-    var transfer_len = pi_reg.read32(PI_WR_LEN_REG) + 1;
+    var dram_address = pi_reg.readU32(PI_DRAM_ADDR_REG) & 0x00ffffff;
+    var cart_address = pi_reg.readU32(PI_CART_ADDR_REG);
+    var transfer_len = pi_reg.readU32(PI_WR_LEN_REG) + 1;
 
     if (!pi_reg_handler_uncached.quiet) n64js.log('PI: copying ' + transfer_len + ' bytes of data from ' + toString32(cart_address) + ' to ' + toString32(dram_address));
 
@@ -1697,11 +1764,11 @@ if (typeof n64js === 'undefined') {
     }
   }
 
-  pi_mem_handler_uncached.read32 = function (address) {
+  pi_mem_handler_uncached.readS32 = function (address) {
     var ea = this.calcEA(address);
 
     if (ea+3 < this.dataView.byteLength) {
-      var v = this.dataView.getUint32(ea);
+      var v = this.dataView.getInt32(ea);
 
       if (ea < 0x7c0) {
         n64js.log('Reading from PIF rom (' + toString32(address) + '). Got ' + toString32(v));
@@ -1719,7 +1786,12 @@ if (typeof n64js === 'undefined') {
       throw 'Read is out of range';
     }
   };
-  pi_mem_handler_uncached.read8 = function (address) {
+
+  pi_mem_handler_uncached.readU32 = function (address) {
+    return this.readS32(address)>>>0;
+  }
+
+  pi_mem_handler_uncached.readS8 = function (address) {
     var ea = this.calcEA(address);
 
     var v = pi_mem.dataView.getUint8(ea);
@@ -1737,6 +1809,10 @@ if (typeof n64js === 'undefined') {
     }
     return v;
   };
+
+  pi_mem_handler_uncached.readU8 = function (address) {
+    return this.readS8(address)>>>0;
+  }
   pi_mem_handler_uncached.write32 = function (address, value) {
     var ea = this.calcEA(address);
 
@@ -1755,9 +1831,9 @@ if (typeof n64js === 'undefined') {
 
   // We create a memory map of 1<<14 entries, corresponding to the top bits of the address range. 
   var memMap = (function () {
-    var map = new Array(0x4000);
+    var map = [];
     for (var i = 0; i < 0x4000; ++i)
-      map[i] = undefined;
+      map.push(undefined);
 
     [
      mapped_mem_handler,
@@ -1793,6 +1869,16 @@ if (typeof n64js === 'undefined') {
 
   })();
 
+  function getMemoryHandler(address) {
+    //assert(address>=0, "Address is negative");
+    var handler = memMap[address >>> 18];
+    if (!handler) {
+      n64js.log('read from unhandled location ' + toString32(address));
+      throw 'unmapped read - need to set exception';
+    }
+
+    return handler;
+  }
 
   // Read memory internal is used for stuff like the debugger. It shouldn't ever throw or change the state of the emulated program.
   n64js.readMemoryInternal32 = function (address) {
@@ -1806,67 +1892,18 @@ if (typeof n64js === 'undefined') {
   }
 
   // 'emulated' read. May cause exceptions to be thrown in the emulated process
-  n64js.readMemory32 = function (address) {
-    //assert(address>=0, "Address is negative");
-    var handler = memMap[address >>> 18];
-    if (!handler) {
-      n64js.log('read from unhandled location ' + toString32(address));
-      throw 'unmapped read - need to set exception';
-    }
-    return handler.read32(address);
-  }
-  // 'emulated' read. May cause exceptions to be thrown in the emulated process
-  n64js.readMemory16 = function (address) {
-    //assert(address>=0, "Address is negative");
-    var handler = memMap[address >>> 18];
-    if (!handler) {
-      n64js.log('read from unhandled location ' + toString32(address));
-      throw 'unmapped read - need to set exception';
-    }
-    return handler.read16(address);
-  }
-  // 'emulated' read. May cause exceptions to be thrown in the emulated process
-  n64js.readMemory8 = function (address) {
-    //assert(address>=0, "Address is negative");
-    var handler = memMap[address >>> 18];
-    if (!handler) {
-      n64js.log('read from unhandled location ' + toString32(address));
-      throw 'unmapped read - need to set exception';
-    }
-    return handler.read8(address);
-  }
+  n64js.readMemoryU32 = function (address) { return getMemoryHandler(address).readU32(address); }
+  n64js.readMemoryU16 = function (address) { return getMemoryHandler(address).readU16(address); }
+  n64js.readMemoryU8  = function (address) { return getMemoryHandler(address).readU8(address);  }
+
+  n64js.readMemoryS32 = function (address) { return getMemoryHandler(address).readS32(address); }
+  n64js.readMemoryS16 = function (address) { return getMemoryHandler(address).readS16(address); }
+  n64js.readMemoryS8  = function (address) { return getMemoryHandler(address).readS8(address);  }
 
   // 'emulated' write. May cause exceptions to be thrown in the emulated process
-  n64js.writeMemory32 = function (address, value) {
-    //assert(address>=0, "Address is negative");
-    var handler = memMap[address >>> 18];
-    if (!handler) {
-      n64js.log('write to unhandled location ' + toString32(address));
-      throw 'unmapped write - need to set exception';
-    }
-    return handler.write32(address, value);
-  }
-
-  // 'emulated' write. May cause exceptions to be thrown in the emulated process
-  n64js.writeMemory16 = function (address, value) {
-    //assert(address>=0, "Address is negative");
-    var handler = memMap[address >>> 18];
-    if (!handler) {
-      n64js.log('write to unhandled location ' + toString32(address));
-      throw 'unmapped write - need to set exception';
-    }
-    return handler.write16(address, value);
-  }
-    // 'emulated' write. May cause exceptions to be thrown in the emulated process
-  n64js.writeMemory8 = function (address, value) {
-    //assert(address>=0, "Address is negative");
-    var handler = memMap[address >>> 18];
-    if (!handler) {
-      n64js.log('write to unhandled location ' + toString32(address));
-      throw 'unmapped write - need to set exception';
-    }
-    return handler.write8(address, value);
-  }
+  n64js.writeMemory32 = function (address, value) { return getMemoryHandler(address).write32(address, value); }
+  n64js.writeMemory16 = function (address, value) { return getMemoryHandler(address).write16(address, value); }
+  n64js.writeMemory8  = function (address, value) { return getMemoryHandler(address).write8(address, value); }
 
   var kBootstrapOffset = 0x40;
   var kGameOffset      = 0x1000;
@@ -2376,7 +2413,7 @@ if (typeof n64js === 'undefined') {
   n64js.toString64 = toString64;
 
   n64js.miInterruptsUnmasked = function () {
-    return (mi_reg.read32(MI_INTR_MASK_REG) & mi_reg.read32(MI_INTR_REG)) !== 0;
+    return (mi_reg.readU32(MI_INTR_MASK_REG) & mi_reg.readU32(MI_INTR_REG)) !== 0;
   }
 
   n64js.haltSP = function () {
