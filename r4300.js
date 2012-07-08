@@ -1314,12 +1314,43 @@ if (typeof n64js === 'undefined') {
   function executeTNEI(i)       { unimplemented(cpu0.pc,i); }
 
   // Jump
+  function generateJ(ctx) {
+    var addr = jumpAddress(ctx.pc, ctx.instruction);
+    var impl = 'c.delayPC = ' + n64js.toString32(addr) + ';\n';
+    return generateBranchOpBoilerplate(impl, ctx);
+  }
   function executeJ(i) {
     performBranch( jumpAddress(cpu0.pc,i) );
+  }
+
+
+  function generateJAL(ctx) {
+    var addr  = jumpAddress(ctx.pc, ctx.instruction);
+    var ra    = ctx.pc + 8;
+    var ra_hi = (ra & 0x80000000) ? -1 : 0;
+    var impl  = '';
+    impl += 'c.delayPC = ' + n64js.toString32(addr) + ';\n';
+    impl += 'c.gprLo_signed[' + cpu0.kRegister_ra + '] = ' + n64js.toString32(ra) + ';\n';
+    impl += 'c.gprHi_signed[' + cpu0.kRegister_ra + '] = ' + ra_hi + ';\n';
+    return generateBranchOpBoilerplate(impl, ctx);
   }
   function executeJAL(i) {
     setSignExtend(cpu0.kRegister_ra, cpu0.pc + 8);
     performBranch( jumpAddress(cpu0.pc,i) );
+  }
+
+
+  function generateJALR(ctx) {
+    var s    = ctx.instr_rs();
+    var d    = ctx.instr_rd();
+
+    var ra    = ctx.pc + 8;
+    var ra_hi = (ra & 0x80000000) ? -1 : 0;
+    var impl  = '';
+    impl += 'c.delayPC = c.gprLo[' + s + '];\n';  // NB needs to be unsigned
+    impl += 'c.gprLo_signed[' + d + '] = ' + n64js.toString32(ra) + ';\n';
+    impl += 'c.gprHi_signed[' + d + '] = ' + ra_hi + ';\n';
+    return generateBranchOpBoilerplate(impl, ctx);
   }
   function executeJALR(i) {
     var new_pc = cpu0.gprLo[rs(i)];
@@ -1327,7 +1358,12 @@ if (typeof n64js === 'undefined') {
     performBranch( new_pc );
   }
 
-  function executeJR(i) {
+
+  function generateJR(ctx) {
+    var impl = 'c.delayPC = c.gprLo[' + ctx.instr_rs() + '];\n'; // NB needs to be unsigned
+    return generateBranchOpBoilerplate(impl, ctx);
+   }
+   function executeJR(i) {
     performBranch( cpu0.gprLo[rs(i)] );
   }
 
@@ -2167,7 +2203,7 @@ if (typeof n64js === 'undefined') {
   var specialTableGen = [
     generateSLL,            'executeUnknown',       generateSRL,          generateSRA,
     'executeSLLV',          'executeUnknown',       'executeSRLV',        'executeSRAV',
-    'executeJR',            'executeJALR',          'executeUnknown',     'executeUnknown',
+    generateJR,             generateJALR,           'executeUnknown',     'executeUnknown',
     'executeSYSCALL',       'executeBREAK',         'executeUnknown',     'executeSYNC',
     'executeMFHI',          'executeMTHI',          'executeMFLO',        'executeMTLO',
     'executeDSLLV',         'executeUnknown',       'executeDSRLV',       'executeDSRAV',
@@ -2201,7 +2237,7 @@ if (typeof n64js === 'undefined') {
   }
 
   var simpleTableGen = [
-    generateSpecial,        generateRegImm,         'executeJ',           'executeJAL',
+    generateSpecial,        generateRegImm,         generateJ,            generateJAL,
     generateBEQ,            generateBNE,            'executeBLEZ',        'executeBGTZ',
     generateADDI,           generateADDIU,          'executeSLTI',        'executeSLTIU',
     generateANDI,           generateORI,            generateXORI,         generateLUI,
