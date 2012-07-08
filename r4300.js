@@ -836,9 +836,8 @@ if (typeof n64js === 'undefined') {
     throw 'Unknown op: ' + n64js.toString32(cpu0.pc) + ', ' + n64js.toString32(i);
   }
 
-
-
-  function generateSLL(ctx) {
+  function GenerateShiftImmediate(ctx, op) {
+    // Handle NOP for SLL
     if (ctx.instruction === 0)
       return generateNOPBoilerplate(ctx);
 
@@ -847,10 +846,12 @@ if (typeof n64js === 'undefined') {
     var shift = ctx.instr_sa();
 
     var impl = '';
-    impl += 'cpu0.gprLo_signed[' + d + '] = cpu0.gprLo_signed[' + t + '] << ' + shift + ';\n';
+    impl += 'cpu0.gprLo_signed[' + d + '] = cpu0.gprLo_signed[' + t + '] ' + op + ' ' + shift + ';\n';
     impl += 'cpu0.gprHi_signed[' + d + '] = cpu0.gprLo_signed[' + d + '] >> 31;\n';
     return generateTrivialOpBoilerplate(impl, ctx);
   }
+
+  function generateSLL(ctx) { return GenerateShiftImmediate(ctx, '<<'); }
   function executeSLL(i) {
     // NOP
     if (i === 0)
@@ -865,16 +866,7 @@ if (typeof n64js === 'undefined') {
   }
 
 
-  function generateSRL(ctx) {
-    var d     = ctx.instr_rd();
-    var t     = ctx.instr_rt();
-    var shift = ctx.instr_sa();
-
-    var impl = '';
-    impl += 'cpu0.gprLo_signed[' + d + '] = cpu0.gprLo_signed[' + t + '] >>> ' + shift + ';\n';
-    impl += 'cpu0.gprHi_signed[' + d + '] = cpu0.gprLo_signed[' + d + '] >> 31;\n';
-    return generateTrivialOpBoilerplate(impl, ctx);
-  }
+  function generateSRL(ctx) { return GenerateShiftImmediate(ctx, '>>>'); }
   function executeSRL(i) {
     var d     = rd(i);
     var t     = rt(i);
@@ -885,17 +877,7 @@ if (typeof n64js === 'undefined') {
   }
 
 
-
-  function generateSRA(ctx) {
-    var d     = ctx.instr_rd();
-    var t     = ctx.instr_rt();
-    var shift = ctx.instr_sa();
-
-    var impl = '';
-    impl += 'cpu0.gprLo_signed[' + d + '] = cpu0.gprLo_signed[' + t + '] >> ' + shift + ';\n';
-    impl += 'cpu0.gprHi_signed[' + d + '] = cpu0.gprLo_signed[' + d + '] >> 31;\n';
-    return generateTrivialOpBoilerplate(impl, ctx);
-  }
+  function generateSRA(ctx) { return GenerateShiftImmediate(ctx, '>>'); }
   function executeSRA(i) {
     var d     = rd(i);
     var t     = rt(i);
@@ -906,16 +888,47 @@ if (typeof n64js === 'undefined') {
   }
 
 
+  function generateShiftVariable(ctx, op) {
+    var d = ctx.instr_rd();
+    var s = ctx.instr_rs();
+    var t = ctx.instr_rt();
 
+    var impl = '';
+    impl += 'cpu0.gprLo_signed[' + d + '] = cpu0.gprLo_signed[' + t + '] ' + op + ' (cpu0.gprLo_signed[' + s + '] & 0x1f);\n';
+    impl += 'cpu0.gprHi_signed[' + d + '] = cpu0.gprLo_signed[' + d + '] >> 31;\n';
+    return generateTrivialOpBoilerplate(impl, ctx);
+  }
 
+  function generateSLLV(ctx) { return generateShiftVariable(ctx, '<<'); }
   function executeSLLV(i) {
-    setSignExtend( rd(i), (cpu0.gprLo_signed[rt(i)] <<  (cpu0.gprLo_signed[rs(i)] & 0x1f)) & 0xffffffff );
+    var d = rd(i);
+    var s = rs(i);
+    var t = rt(i);
+
+    cpu0.gprLo_signed[d] = cpu0.gprLo_signed[t] << (cpu0.gprLo_signed[s] & 0x1f);
+    cpu0.gprHi_signed[d] = cpu0.gprLo_signed[d] >> 31;    // sign extend
   }
+
+
+  function generateSRLV(ctx) { return generateShiftVariable(ctx, '>>>'); }
   function executeSRLV(i) {
-    setSignExtend( rd(i),  cpu0.gprLo_signed[rt(i)] >>> (cpu0.gprLo_signed[rs(i)] & 0x1f) );
+    var d = rd(i);
+    var s = rs(i);
+    var t = rt(i);
+
+    cpu0.gprLo_signed[d] = cpu0.gprLo_signed[t] >>> (cpu0.gprLo_signed[s] & 0x1f);
+    cpu0.gprHi_signed[d] = cpu0.gprLo_signed[d] >> 31;    // sign extend
   }
+
+
+  function generateSRAV(ctx) { return generateShiftVariable(ctx, '<<'); }
   function executeSRAV(i) {
-    setSignExtend( rd(i),  cpu0.gprLo_signed[rt(i)] >>  (cpu0.gprLo_signed[rs(i)] & 0x1f) );
+    var d = rd(i);
+    var s = rs(i);
+    var t = rt(i);
+
+    cpu0.gprLo_signed[d] = cpu0.gprLo_signed[t] >> (cpu0.gprLo_signed[s] & 0x1f);
+    cpu0.gprHi_signed[d] = cpu0.gprLo_signed[d] >> 31;    // sign extend
   }
 
   function executeDSLLV(i)      { unimplemented(cpu0.pc,i); }
@@ -2253,7 +2266,7 @@ if (typeof n64js === 'undefined') {
 
   var specialTableGen = [
     generateSLL,            'executeUnknown',       generateSRL,          generateSRA,
-    'executeSLLV',          'executeUnknown',       'executeSRLV',        'executeSRAV',
+    generateSLLV,           'executeUnknown',       generateSRLV,         generateSRAV,
     generateJR,             generateJALR,           'executeUnknown',     'executeUnknown',
     'executeSYSCALL',       'executeBREAK',         'executeUnknown',     'executeSYNC',
     'executeMFHI',          'executeMTHI',          'executeMFLO',        'executeMTLO',
