@@ -717,38 +717,32 @@ if (typeof n64js === 'undefined') {
         this.control[31] &= ~FPCSR_C;
     }
 
-    this.store_u32 = function (i, v) {
-      this.uint32[i+0] = v;
-    }
-    this.store_u64 = function (i, lo, hi) {
-      this.uint32[i+0] = lo;
-      this.uint32[i+1] = hi;
+    this.store_64 = function (i, lo, hi) {
+      this.int32[i+0] = lo;
+      this.int32[i+1] = hi;
     }
 
-    this.load_u32 = function (i) {
-      return this.uint32[i+0];
-    }
-    this.load_u32hi = function (i) {
-      return this.uint32[i+1];
-    }
     this.load_s32 = function (i) {
-      return this.int32[i+0];
+      return this.int32[i];
+    }
+    this.load_s32hi = function (i) {
+      return this.int32[i+1];
     }
     this.load_f32 = function (i) {
-      return this.float32[i+0];
+      return this.float32[i];
     }
     this.load_f64 = function (i) {
-      return this.float64[i/2];
+      return this.float64[i>>1];
     }
 
     this.store_s32 = function(i, v) {
-      this.int32[i+0] = v;
+      this.int32[i] = v;
     }
     this.store_f32 = function(i, v) {
-      this.float32[i+0] = v;
+      this.float32[i] = v;
     }
     this.store_f64 = function(i, v) {
-      this.float64[i/2] = v;
+      this.float64[i>>1] = v;
     }
 
   };
@@ -1745,10 +1739,10 @@ if (typeof n64js === 'undefined') {
   }
 
   function executeLWC1(i) {
-    cpu1.store_u32( ft(i), n64js.readMemoryU32( memaddr(i)) );
+    cpu1.store_s32( ft(i), n64js.readMemoryS32( memaddr(i)) );
   }
   function executeLDC1(i){
-    cpu1.store_u64( ft(i), n64js.readMemoryU32( memaddr(i)+4 ), n64js.readMemoryU32( memaddr(i)+0 ) );
+    cpu1.store_64( ft(i), n64js.readMemoryS32( memaddr(i)+4 ), n64js.readMemoryS32( memaddr(i)+0 ) );
   }
   function executeLDC2(i)       { unimplemented(cpu0.pc,i); }
 
@@ -1804,12 +1798,12 @@ if (typeof n64js === 'undefined') {
   }
 
   function executeSWC1(i) {
-    n64js.writeMemory32( memaddr(i), cpu1.load_u32( ft(i) ) );
+    n64js.writeMemory32( memaddr(i), cpu1.load_s32( ft(i) ) );
   }
   function executeSDC1(i) {
     var addr = memaddr(i);
-    n64js.writeMemory32( addr + 0, cpu1.load_u32hi( ft(i) ) );
-    n64js.writeMemory32( addr + 4, cpu1.load_u32(   ft(i) ) );
+    n64js.writeMemory32( addr + 0, cpu1.load_s32hi( ft(i) ) );
+    n64js.writeMemory32( addr + 4, cpu1.load_s32(   ft(i) ) );
   }
 
   function executeSDC2(i)       { unimplemented(cpu0.pc,i); }
@@ -1867,18 +1861,25 @@ if (typeof n64js === 'undefined') {
   function executeSCD(i)        { unimplemented(cpu0.pc,i); }
 
   function executeMFC1(i) {
-    setSignExtend( rt(i), cpu1.load_u32( fs(i) ) );
+    var t = rt(i);
+    var s = fs(i);
+    var result = cpu1.load_s32( s );
+    cpu0.gprLo_signed[t] = result;
+    cpu0.gprHi_signed[t] = result >> 31;
   }
   function executeDMFC1(i) {
-    cpu0.gprLo[rt(i)] = cpu1.load_u32( fs(i) );
-    cpu0.gprHi[rt(i)] = cpu1.load_u32hi( fs(i) );
+    var t = rt(i);
+    var s = fs(i);
+    cpu0.gprLo_signed[t] = cpu1.load_s32( s );
+    cpu0.gprHi_signed[t] = cpu1.load_s32hi( s );
     n64js.halt('DMFC1');
   }
   function executeMTC1(i) {
-    cpu1.store_u32( fs(i), cpu0.gprLo[rt(i)] );
+    cpu1.store_s32( fs(i), cpu0.gprLo_signed[rt(i)] );
   }
   function executeDMTC1(i) {
-    cpu1.store_u64( fs(i), cpu0.gprLo[rt(i)], cpu0.gprHi[rt(i)] );
+    var t = rt(i);
+    cpu1.store_64( fs(i), cpu0.gprLo_signed[t], cpu0.gprHi_signed[t] );
     n64js.halt('DMTC1');
   }
 
@@ -2212,7 +2213,7 @@ if (typeof n64js === 'undefined') {
     generateLBU,            generateLHU,            'executeLWR',         generateLWU,
     generateSB,             generateSH,             'executeSWL',         generateSW,
     'executeSDL',           'executeSDR',           'executeSWR',         'executeCACHE',
-    'executeLL',            'executeLWC1',          'executeUnknown',     'executeUnknown',
+    'executeLL',            generateLWC1,           'executeUnknown',     'executeUnknown',
     'executeLLD',           'executeLDC1',          'executeLDC2',        generateLD,
     'executeSC',            'executeSWC1',          'executeUnknown',     'executeUnknown',
     'executeSCD',           'executeSDC1',          'executeSDC2',        generateSD,
@@ -2248,6 +2249,10 @@ if (typeof n64js === 'undefined') {
   FragmentContext.prototype.instr_rt     = function () { return rt(this.instruction); }
   FragmentContext.prototype.instr_rd     = function () { return rd(this.instruction); }
   FragmentContext.prototype.instr_sa     = function () { return sa(this.instruction); }
+
+  FragmentContext.prototype.instr_fs     = function () { return fs(this.instruction); }
+  FragmentContext.prototype.instr_ft     = function () { return ft(this.instruction); }
+  FragmentContext.prototype.instr_fd     = function () { return fd(this.instruction); }
 
   FragmentContext.prototype.instr_base   = function () { return base(this.instruction); }
   FragmentContext.prototype.instr_offset = function () { return offset(this.instruction); }
@@ -2319,6 +2324,26 @@ if (typeof n64js === 'undefined') {
   function generateLB(ctx) { return generateLoadSigned(ctx, 'lb', 'n64js.readMemoryS8'); }
   function generateLH(ctx) { return generateLoadSigned(ctx, 'lh', 'n64js.readMemoryS16'); }
   function generateLW(ctx) { return generateLoadSigned(ctx, 'lw', 'n64js.readMemoryS32'); }
+
+  function generateLWC1(ctx) {
+    var t = ctx.instr_ft();
+    var b = ctx.instr_base();
+    var o = ctx.instr_imms();
+
+    var impl = '';
+
+    impl += 'var addr = c.gprLo[' + b + '] + ' + o + ';\n';
+    impl += 'var value;\n';
+    impl += 'var ram_relative = addr - 0x80000000;\n'
+    impl += 'if (ram_relative >= 0 && ram_relative < 0x00800000) {\n';
+    impl += '  value = lw(ram, ram_relative);\n';
+    impl += '} else {\n';
+    impl += '  value = n64js.readMemoryS32(addr);\n';
+    impl += '}\n';
+    impl += 'cpu1.store_s32(' + t + ', value);\n';
+
+    return generateGenericOpBoilerplate(impl, ctx);
+  }
 
   function generateLD(ctx) {
     var t = ctx.instr_rt();
