@@ -702,7 +702,7 @@ if (typeof n64js === 'undefined') {
     var data  = cmd1;
     var mask = ((1 << len) - 1) << shift;
     state.rdpOtherModeH = (state.rdpOtherModeH & ~mask) | data;
-  }  
+  }
 
   function executeTexture(cmd0,cmd1) {
     //var xparam  =  (cmd0>>>16)&0xff;
@@ -847,7 +847,7 @@ if (typeof n64js === 'undefined') {
         case 0x0f0a:          // In * 0 + In * 1 || :In * 0 + In * 1            SSV - ??? and MM - Walls, Wipeout - Mountains
         case 0x0fa5:          // In * 0 + Bl * AMem || :In * 0 + Bl * AMem      OOT Menu
         //case 0x5f50:        // ?
-        case 0x8410:          // Bl * AFog + In * 1-A || :In * AIn + Mem * 1-A  Paper Mario Menu  
+        case 0x8410:          // Bl * AFog + In * 1-A || :In * AIn + Mem * 1-A  Paper Mario Menu
         case 0xc302:          // Fog * AIn + In * 1-A || :In * 0 + In * 1       ISS64 - Ground
         case 0xc702:          // Fog * AFog + In * 1-A || :In * 0 + In * 1      Donald Duck - Sky
         //case 0xc811:        // ?
@@ -951,8 +951,8 @@ if (typeof n64js === 'undefined') {
         var uv_scale_v = 1;
 
         if ((state.geometryMode & (geometryModeFlags.G_LIGHTING|geometryModeFlags.G_TEXTURE_GEN)) !== (geometryModeFlags.G_LIGHTING|geometryModeFlags.G_TEXTURE_GEN)) {
-          uv_scale_u = 1.0 / nextPow2(width);
-          uv_scale_v = 1.0 / nextPow2(height);
+          uv_scale_u = 1.0 / textureinfo.nativeWidth;
+          uv_scale_v = 1.0 / textureinfo.nativeHeight;
           // uv_offset_u = mTileTop.x;  // FIXME
           // uv_offset_v = mTileTop.y;
         }
@@ -2579,6 +2579,14 @@ if (typeof n64js === 'undefined') {
     var fixed_w = nextPow2(width);
     var fixed_h = nextPow2(height);
 
+    var mirror_s = info.cm_s & G_TX_MIRROR;
+    var mirror_t = info.cm_t & G_TX_MIRROR;
+
+    if (mirror_s)
+      fixed_w *= 2;
+    if (mirror_t)
+      fixed_h *= 2;
+
     var $canvas = $( '<canvas width="' + fixed_w + '" height="' + fixed_h + '" />', {'width':fixed_w, 'height':fixed_h} );
     if (!$canvas[0].getContext)
       return null;
@@ -2587,7 +2595,9 @@ if (typeof n64js === 'undefined') {
 
     var textureinfo = {
       'canvas':   $canvas,
-      'texture':  texture
+      'texture':  texture,
+      'nativeWidth': fixed_w,
+      'nativeHeight': fixed_h
     };
 
     textures[info.address] = textureinfo;
@@ -2629,6 +2639,10 @@ if (typeof n64js === 'undefined') {
 
       default:
         break;
+    }
+
+    if (mirror_s || mirror_t) {
+      mirror(img_data, width, height, mirror_s, mirror_t);
     }
 
     if (handled) {
@@ -2699,6 +2713,46 @@ if (typeof n64js === 'undefined') {
     0xff  // 11111 -> 11111111
   ];
 
+  function mirror(img_data, width, height, mirror_s, mirror_t) {
+    var data   = img_data.data;
+    var stride = img_data.width*4;  // Might not be the same as width, due to power of 2
+
+    if (mirror_s) {
+      var end = ((width*2)-1) * 4;
+      var row_offset = 0;
+      for (var y = 0; y < height; ++y) {
+
+        var src_idx = row_offset;
+        var dst_idx = row_offset + end;
+
+        for (var x = 0; x < width; ++x) {
+
+          data[dst_idx + 0] = data[src_idx + 0];
+          data[dst_idx + 1] = data[src_idx + 1];
+          data[dst_idx + 2] = data[src_idx + 2];
+          data[dst_idx + 3] = data[src_idx + 3];
+
+          src_idx += 4;
+          dst_idx -= 4;
+        }
+        row_offset += stride;
+      }
+    }
+
+    if (mirror_t) {
+      var src_offset = 0;
+      var dst_offset = ((height*2)-1)*stride;
+
+      for (var y = 0; y < height; ++y) {
+        for (var x = 0; x < width*2*4; ++x) {
+          data[dst_offset+x] = data[src_offset+x];
+        }
+        src_offset += stride;
+        dst_offset -= stride;
+      }
+    }
+
+  }
 
   function convertRGBA16(img_data, address, width, height, pitch) {
     var dst            = img_data.data;
