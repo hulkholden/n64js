@@ -2479,47 +2479,47 @@ if (typeof n64js === 'undefined') {
     var cA1    = (mux1>>>18)&0x07; // c2 a3    // Ac1
     var dA1    = (mux1>>> 0)&0x07; // c2 a4    // Ad1
 
- var rgbParams32 = [
-   'combined.rgb', 'tex0.rgb',
-   'tex1.rgb',     'prim.rgb',
-   'shade.rgb',    'env.rgb',
-   'one.rgb',  'combined.a',
-   'tex0.a',       'tex1.a',
-   'prim.a',       'shade.a',
-   'env.a',        'LOD_Frac',
-   'PrimLODFrac ', 'K5          ',
-   '?           ', '?           ',
-   '?           ', '?           ',
-   '?           ', '?           ',
-   '?           ', '?           ',
-   '?           ', '?           ',
-   '?           ', '?           ',
-   '?           ', '?           ',
-   '?           ', 'zero.rgb'
- ];
- var rgbParams16 = [
-   'combined.rgb', 'tex0.rgb',
-   'tex1.rgb',     'prim.rgb',
-   'shade.rgb',    'env.rgb',
-   'one.rgb',      'combined.a',
-   'tex0.a',       'tex1.a',
-   'prim.a',       'shade.a',
-   'env.a',        'LOD_Frac',
-   'PrimLOD_Frac', 'zero.rgb'
- ];
- var rgbParams8 = [
-   'combined.rgb', 'tex0.rgb',
-   'tex1.rgb',     'prim.rgb',
-   'shade.rgb',    'env.rgb',
-   'one.rgb',      'zero.rgb',
- ];
+    var rgbParams32 = [
+      'combined.rgb', 'tex0.rgb',
+      'tex1.rgb',     'prim.rgb',
+      'shade.rgb',    'env.rgb',
+      'one.rgb',  'combined.a',
+      'tex0.a',       'tex1.a',
+      'prim.a',       'shade.a',
+      'env.a',        'LOD_Frac',
+      'PrimLODFrac ', 'K5          ',
+      '?           ', '?           ',
+      '?           ', '?           ',
+      '?           ', '?           ',
+      '?           ', '?           ',
+      '?           ', '?           ',
+      '?           ', '?           ',
+      '?           ', '?           ',
+      '?           ', 'zero.rgb'
+    ];
+    var rgbParams16 = [
+      'combined.rgb', 'tex0.rgb',
+      'tex1.rgb',     'prim.rgb',
+      'shade.rgb',    'env.rgb',
+      'one.rgb',      'combined.a',
+      'tex0.a',       'tex1.a',
+      'prim.a',       'shade.a',
+      'env.a',        'LOD_Frac',
+      'PrimLOD_Frac', 'zero.rgb'
+    ];
+    var rgbParams8 = [
+      'combined.rgb', 'tex0.rgb',
+      'tex1.rgb',     'prim.rgb',
+      'shade.rgb',    'env.rgb',
+      'one.rgb',      'zero.rgb',
+    ];
 
- var alphaParams8 = [
-   'combined.a', 'tex0.a',
-   'tex1.a',     'prim.a',
-   'shade.a',    'env.a',
-   'one.a',      'zero.a',
- ];
+    var alphaParams8 = [
+      'combined.a', 'tex0.a',
+      'tex1.a',     'prim.a',
+      'shade.a',    'env.a',
+      'one.a',      'zero.a',
+    ];
 
     // patch in instructions for this mux
     if (cycle_type === cycleTypeValues.G_CYC_1CYCLE) {
