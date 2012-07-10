@@ -2856,8 +2856,16 @@ if (typeof n64js === 'undefined') {
 
       case imageFormatTypes.G_IM_FMT_IA:
         switch (info.size) {
+        case imageSizeTypes.G_IM_SIZ_16b:
+          convertIA16(img_data, address, width, height, pitch);
+          handled = true;
+          break;
         case imageSizeTypes.G_IM_SIZ_8b:
           convertIA8(img_data, address, width, height, pitch);
+          handled = true;
+          break;
+        case imageSizeTypes.G_IM_SIZ_4b:
+          convertIA4(img_data, address, width, height, pitch);
           handled = true;
           break;
         }
@@ -2893,6 +2901,24 @@ if (typeof n64js === 'undefined') {
     return textureinfo;
   }
 
+  var OneToEight =
+  [
+    0x00,   // 0 -> 00 00 00 00
+    0xff    // 1 -> 11 11 11 11
+  ];
+
+  var ThreeToEight =
+  [
+    0x00,   // 000 -> 00 00 00 00
+    0x24,   // 001 -> 00 10 01 00
+    0x49,   // 010 -> 01 00 10 01
+    0x6d,   // 011 -> 01 10 11 01
+    0x92,   // 100 -> 10 01 00 10
+    0xb6,   // 101 -> 10 11 01 10
+    0xdb,   // 110 -> 11 01 10 11
+    0xff    // 111 -> 11 11 11 11
+  ];
+
   var FourToEight =
   [
     0x00, 0x11, 0x22, 0x33,
@@ -2900,7 +2926,6 @@ if (typeof n64js === 'undefined') {
     0x88, 0x99, 0xaa, 0xbb,
     0xcc, 0xdd, 0xee, 0xff
   ];
-
 
   var FiveToEight =
   [
@@ -3040,6 +3065,39 @@ if (typeof n64js === 'undefined') {
     }
   }
 
+  function convertIA16(img_data, address, width, height, pitch) {
+    var dst            = img_data.data;
+    var src            = new DataView(state.ram.buffer, 0);
+
+    var dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
+    var src_row_stride = pitch;
+
+    var dst_row_offset = 0;
+    var src_row_offset = address;
+    for (var y = 0; y < height; ++y) {
+
+      var src_offset = src_row_offset;
+      var dst_offset = dst_row_offset;
+      for (var x = 0; x < width; ++x) {
+
+        var src_pixel = src.getUint16(src_offset);
+
+        var i = (src_pixel>>>8)&0xff;
+        var a = (src_pixel    )&0xff;
+
+        dst[dst_offset+0] = i;
+        dst[dst_offset+1] = i;
+        dst[dst_offset+2] = i;
+        dst[dst_offset+3] = a;
+
+        src_offset += 2;
+        dst_offset += 4;
+      }
+      src_row_offset += src_row_stride;
+      dst_row_offset += dst_row_stride;
+    }
+  }
+
   function convertIA8(img_data, address, width, height, pitch) {
     var dst            = img_data.data;
     var src            = new DataView(state.ram.buffer, 0);
@@ -3068,6 +3126,66 @@ if (typeof n64js === 'undefined') {
         src_offset += 1;
         dst_offset += 4;
       }
+      src_row_offset += src_row_stride;
+      dst_row_offset += dst_row_stride;
+    }
+  }
+
+  function convertIA4(img_data, address, width, height, pitch) {
+    var dst            = img_data.data;
+    var src            = new DataView(state.ram.buffer, 0);
+
+    var dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
+    var src_row_stride = pitch;
+
+    var dst_row_offset = 0;
+    var src_row_offset = address;
+    for (var y = 0; y < height; ++y) {
+
+      var src_offset = src_row_offset;
+      var dst_offset = dst_row_offset;
+
+      // Process 2 pixels at a time
+      for (var x = 0; x+1 < width; x+=2) {
+
+        var src_pixel = src.getUint8(src_offset);
+
+        var i0 = ThreeToEight[(src_pixel&0xe0)>>>5];
+        var a0 =   OneToEight[(src_pixel&0x10)>>>4];
+
+        var i1 = ThreeToEight[(src_pixel&0x0e)>>>1];
+        var a1 =   OneToEight[(src_pixel&0x01)>>>0];
+
+        dst[dst_offset+0] = i0;
+        dst[dst_offset+1] = i0;
+        dst[dst_offset+2] = i0;
+        dst[dst_offset+3] = a0;
+
+        dst[dst_offset+4] = i1;
+        dst[dst_offset+5] = i1;
+        dst[dst_offset+6] = i1;
+        dst[dst_offset+7] = a1;
+
+        src_offset += 1;
+        dst_offset += 8;
+      }
+
+      // Handle trailing pixel, if odd width
+      if (width&1) {
+        var src_pixel = src.getUint8(src_offset);
+
+        var i0 = ThreeToEight[(src_pixel&0xe0)>>>5];
+        var a0 =   OneToEight[(src_pixel&0x10)>>>4];
+
+        dst[dst_offset+0] = i0;
+        dst[dst_offset+1] = i0;
+        dst[dst_offset+2] = i0;
+        dst[dst_offset+3] = a0;
+
+        src_offset += 1;
+        dst_offset += 4;
+      }
+
       src_row_offset += src_row_stride;
       dst_row_offset += dst_row_stride;
     }
