@@ -1468,6 +1468,9 @@ if (typeof n64js === 'undefined') {
   var CONT_TX_SIZE_FORMAT_END = 0xFE;         // Format End
   var CONT_TX_SIZE_CHANRESET  = 0xFD;         // Channel Reset
 
+  var gRumblePakActive = false;
+  var gEnableRumble = false
+
   function UpdateController() {
 
     // read controllers
@@ -1524,6 +1527,14 @@ if (typeof n64js === 'undefined') {
                      {present:true, mempack:false},
                      {present:true, mempack:false},
                      {present:true, mempack:false}];
+
+  var mempack_memory = [
+    new Uint8Array(0x400 * 32),
+    new Uint8Array(0x400 * 32),
+    new Uint8Array(0x400 * 32),
+    new Uint8Array(0x400 * 32)
+  ];
+
   function ProcessController(cmd, channel) {
     if (!controllers[channel].present)
     {
@@ -1550,10 +1561,16 @@ if (typeof n64js === 'undefined') {
         break;
 
       case CONT_READ_MEMPACK:
-        n64js.halt('CONT_READ_MEMPACK not implemented');
+        if (gEnableRumble)
+          CommandReadRumblePack(cmd);
+        else
+          CommandReadMemPack(cmd, channel);
         return false;
       case CONT_WRITE_MEMPACK:
-        n64js.halt('CONT_WRITE_MEMPACK not implemented');
+        if (gEnableRumble)
+          CommandWriteRumblePack(cmd);
+        else
+          CommandWriteMemPack(cmd, channel);
         return false;
       default:
         n64js.halt('Unknown controller command ' + cmd[2]);
@@ -1615,6 +1632,99 @@ if (typeof n64js === 'undefined') {
     }
 
     return false;
+  }
+
+  function CalculateDataCrc(buf, offset)
+  {
+    var c = 0;
+    for (var i = 0; i < 32; i++)
+    {
+      var s = buf[offset+i];
+
+      c = (((c << 1) | ((s >> 7) & 1))) ^ ((c & 0x80) ? 0x85 : 0);
+      c = (((c << 1) | ((s >> 6) & 1))) ^ ((c & 0x80) ? 0x85 : 0);
+      c = (((c << 1) | ((s >> 5) & 1))) ^ ((c & 0x80) ? 0x85 : 0);
+      c = (((c << 1) | ((s >> 4) & 1))) ^ ((c & 0x80) ? 0x85 : 0);
+      c = (((c << 1) | ((s >> 3) & 1))) ^ ((c & 0x80) ? 0x85 : 0);
+      c = (((c << 1) | ((s >> 2) & 1))) ^ ((c & 0x80) ? 0x85 : 0);
+      c = (((c << 1) | ((s >> 1) & 1))) ^ ((c & 0x80) ? 0x85 : 0);
+      c = (((c << 1) | ((s >> 0) & 1))) ^ ((c & 0x80) ? 0x85 : 0);
+    }
+
+    for (var i = 8; i !== 0; i--) {
+      c = (c << 1) ^ ((c & 0x80) ? 0x85 : 0);
+    }
+
+    return c;
+  }
+
+  function CommandReadMemPack(cmd, channel) {
+    var addr = ((cmd[3] << 8) | cmd[4]);
+
+    n64js.log('Reading from mempack+' + addr);
+
+    if (addr == 0x8001) {
+      for (var i = 0; i < 32; ++i) {
+        cmd[5+i] = 0;
+      }
+    } else {
+      addr &= 0xFFE0;
+
+      if (addr <= 0x7FE0) {
+        for (var i = 0; i < 32; ++i) {
+          cmd[5+i] = mempack_memory[channel][addr+i];
+        }
+      } else {
+        // RumblePak
+        for (var i = 0; i < 32; ++i) {
+          cmd[5+i] = 0;
+        }
+      }
+    }
+
+    cmd[37] = CalculateDataCrc(cmd, 5);
+  }
+
+  function CommandWriteMemPack(cmd, channel) {
+    var addr = ((cmd[3] << 8) | cmd[4]);
+
+    n64js.log('Writing to mempack+' + addr);
+
+    if (addr != 0x8001) {
+      addr &= 0xFFE0;
+
+      if (addr <= 0x7FE0) {
+        for (var i = 0; i < 32; ++i) {
+          mempack_memory[channel][addr+i] = cmd[5+i];
+        }
+      } else {
+        // Do nothing, eventually enable rumblepak
+      }
+
+    }
+
+    cmd[37] = CalculateDataCrc(cmd, 5);
+  }
+
+  function CommandReadRumblePack(cmd) {
+    var addr = ((cmd[3] << 8) | cmd[4]) & 0xFFE0;
+
+    var val = (addr == 0x8000) ? 0x80 : 0x00;
+    for (var i = 0; i < 32; ++i) {
+      cmd[5+i] = val;
+    }
+
+    cmd[37] = CalculateDataCrc(cmd, 5);
+  }
+
+  function CommandWriteRumblePack(cmd) {
+    var addr = ((cmd[3] << 8) | cmd[4]) & 0xFFE0;
+
+    if (addr == 0xC000) {
+      gRumblePakActive = cmd[5];
+    }
+
+    cmd[37] = CalculateDataCrc(cmd, 5);
   }
 
   function checkSIStatusConsistent() {
