@@ -2392,7 +2392,7 @@ if (typeof n64js === 'undefined') {
     });
 
     $dlistOutput.html($currentDis);
-  }  
+  }
 
 
   //
@@ -2620,6 +2620,8 @@ if (typeof n64js === 'undefined') {
       case imageFormatTypes.G_IM_FMT_RGBA:
         switch (info.size) {
           case imageSizeTypes.G_IM_SIZ_32b:
+            convertRGBA32(img_data, address, width, height, pitch);
+            handled = true;
             break;
           case imageSizeTypes.G_IM_SIZ_16b:
             convertRGBA16(img_data, address, width, height, pitch);
@@ -2648,12 +2650,12 @@ if (typeof n64js === 'undefined') {
     if (handled) {
       ctx.putImageData(img_data, 0, 0);
 
-     $textureOutput.append($canvas);
-     $textureOutput.append('<br>');
+      $textureOutput.append($canvas);
+      $textureOutput.append('<br>');
     } else {
       $textureOutput.append(getDefine(imageFormatTypes, info.format) + '/' + getDefine(imageSizeTypes, info.size) + ' is unhandled');
       // FIXME: fill with placeholder texture
-      n64js.halt('texture');
+      n64js.halt('texture format unhandled!');
     }
 
     gl.activeTexture(gl.TEXTURE0);
@@ -2752,6 +2754,36 @@ if (typeof n64js === 'undefined') {
       }
     }
 
+  }
+
+  function convertRGBA32(img_data, address, width, height, pitch) {
+    var dst            = img_data.data;
+    var src            = new DataView(state.ram.buffer, 0);
+
+    var dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
+    var src_row_stride = pitch;
+
+    var dst_row_offset = 0;
+    var src_row_offset = address;
+    for (var y = 0; y < height; ++y) {
+
+      var src_offset = src_row_offset;
+      var dst_offset = dst_row_offset;
+      for (var x = 0; x < width; ++x) {
+
+        var src_pixel = src.getUint32(src_offset);
+
+        dst[dst_offset+0] = (src_pixel>>>24)&0xff;
+        dst[dst_offset+1] = (src_pixel>>>16)&0xff;
+        dst[dst_offset+2] = (src_pixel>>> 8)&0xff;
+        dst[dst_offset+3] = (src_pixel     )&0xff;
+
+        src_offset += 4;
+        dst_offset += 4;
+      }
+      src_row_offset += src_row_stride;
+      dst_row_offset += dst_row_stride;
+    }
   }
 
   function convertRGBA16(img_data, address, width, height, pitch) {
