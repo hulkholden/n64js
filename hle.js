@@ -1049,9 +1049,11 @@ if (typeof n64js === 'undefined') {
     var tile         = state.tiles[tile_idx];
     var tmem_address = tile.tmem || 0;
 
+    var pitch = (state.textureImage.width << state.textureImage.size >>> 1);
+
     state.tmemLoadMap[tmem_address] = {
       address:    calcTextureAddress(uls >>> 2, ult >>> 2),
-      pitch:      state.textureImage.pitch,
+      pitch:      pitch,
       swapped:    false
     };
 
