@@ -284,8 +284,8 @@ if (typeof n64js === 'undefined') {
     }
 
     this.setGPR_s64 = function (r, v) {
-      this.gprHi[r] = Math.floor( v / k1Shift32 );
-      this.gprLo[r] = (v&0xffffffff)>>>0;
+      this.gprHi_signed[r] = Math.floor( v / k1Shift32 );
+      this.gprLo_signed[r] = v;
     }
 
     this.reset = function () {
