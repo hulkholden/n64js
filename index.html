@@ -228,7 +228,12 @@
       var kF10      = 121;  // Ugh - chrome only seems to send *alternate* keydown for this, and no keyup.
       var kF8       = 119;
 
+      $('body').keyup(function (event) {
+        n64js.handleKey(event.which, false);
+      });
       $('body').keydown(function (event) {
+        n64js.handleKey(event.which, true);
+
         switch (event.which) {
           case kDown:     n64js.down();     break;
           case kUp:       n64js.up();       break;

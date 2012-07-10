@@ -1535,6 +1535,44 @@ if (typeof n64js === 'undefined') {
     new Uint8Array(0x400 * 32)
   ];
 
+  var kButtonA      = 0x8000;
+  var kButtonB      = 0x4000;
+  var kButtonZ      = 0x2000;
+  var kButtonStart  = 0x1000;
+  var kButtonJUp    = 0x0800;
+  var kButtonJDown  = 0x0400;
+  var kButtonJLeft  = 0x0200;
+  var kButtonJRight = 0x0100;
+
+  var kButtonL      = 0x0020;
+  var kButtonR      = 0x0010;
+  var kButtonCUp    = 0x0008;
+  var kButtonCDown  = 0x0004;
+  var kButtonCLeft  = 0x0002;
+  var kButtonCRight = 0x0001;
+
+  n64js.handleKey = function (key, down) {
+    var button = 0;
+    switch (event.which) {
+      case 'A'.charCodeAt(0): button = kButtonStart; break;
+      case 'S'.charCodeAt(0): button = kButtonA; break;
+      case 'X'.charCodeAt(0): button = kButtonB; break;
+      case 'Z'.charCodeAt(0): button = kButtonZ; break;
+      //default: n64js.log( 'up code:' + event.which);
+    }
+
+    if (button) {
+      var buttons = controllers[0].buttons;
+
+      if (down) {
+        buttons |= button;
+      } else {
+        buttons &= ~button;
+      }
+      controllers[0].buttons = buttons;
+    }
+  }
+
   function ProcessController(cmd, channel) {
     if (!controllers[channel].present)
     {
