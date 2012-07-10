@@ -638,23 +638,21 @@ if (typeof n64js === 'undefined') {
           transformedNormal = Vector.create([transformedNormal.elements[0], transformedNormal.elements[1], transformedNormal.elements[2]]).toUnitVector();
 
           if (texgenlin) {
-            vertex.uv = Vector.create([
-              0.5 * (1.0 + transformedNormal.elements[0]),
-              0.5 * (1.0 + transformedNormal.elements[1])
-            ]);
+            vertex.u = 0.5 * (1.0 + transformedNormal.elements[0]);
+            vertex.v = 0.5 * (1.0 + transformedNormal.elements[1]);
           } else {
             var normX = Math.abs( transformedNormal.elements[0] );
             var normY = Math.abs( transformedNormal.elements[1] );
-            vertex.uv = Vector.create([
-              0.5 - 0.25 * normX - 0.25 * normX * normX * normX,
-              0.5 - 0.25 * normY - 0.25 * normY * normY * normY
-            ]);
+            vertex.u = 0.5 - 0.25 * normX - 0.25 * normX * normX * normX;
+            vertex.v = 0.5 - 0.25 * normY - 0.25 * normY * normY * normY;
           }
         } else {
-          vertex.uv = Vector.create([u * scale_s, v * scale_t]);
+          vertex.u = u * scale_s;
+          vertex.v = v * scale_t;
         }
       } else {
-        vertex.uv = Vector.create([u * scale_s, v * scale_t]);
+        vertex.u = u * scale_s;
+        vertex.v = v * scale_t;
 
         var r = dv.getUint8(vtx_base + 12);
         var g = dv.getUint8(vtx_base + 13);
@@ -822,18 +820,15 @@ if (typeof n64js === 'undefined') {
     vertex_colours[vtx_col_idx + 1] = v1.color;
     vertex_colours[vtx_col_idx + 2] = v2.color;
 
-    var vt0 = v0.uv.elements;
-    var vt1 = v1.uv.elements;
-    var vt2 = v2.uv.elements;
 
-    vertex_coords[vtx_uv_idx+ 0] = vt0[0];
-    vertex_coords[vtx_uv_idx+ 1] = vt0[1];
+    vertex_coords[vtx_uv_idx+ 0] = v0.u;
+    vertex_coords[vtx_uv_idx+ 1] = v0.v;
 
-    vertex_coords[vtx_uv_idx+ 2] = vt1[0];
-    vertex_coords[vtx_uv_idx+ 3] = vt1[1];
+    vertex_coords[vtx_uv_idx+ 2] = v1.u;
+    vertex_coords[vtx_uv_idx+ 3] = v1.v;
 
-    vertex_coords[vtx_uv_idx+ 4] = vt2[0];
-    vertex_coords[vtx_uv_idx+ 5] = vt2[1];
+    vertex_coords[vtx_uv_idx+ 4] = v2.u;
+    vertex_coords[vtx_uv_idx+ 5] = v2.v;
   }
 
   function flushTris(num_tris, vertex_positions, vertex_colours, vertex_coords) {
