@@ -2806,10 +2806,10 @@ if (typeof n64js === 'undefined') {
     var mirror_s = info.cm_s & G_TX_MIRROR;
     var mirror_t = info.cm_t & G_TX_MIRROR;
 
-    if (mirror_s)
-      fixed_w *= 2;
-    if (mirror_t)
-      fixed_h *= 2;
+    // if (mirror_s)
+    //   fixed_w *= 2;
+    // if (mirror_t)
+    //   fixed_h *= 2;
 
     var $canvas = $( '<canvas width="' + fixed_w + '" height="' + fixed_h + '" />', {'width':fixed_w, 'height':fixed_h} );
     if (!$canvas[0].getContext)
@@ -2831,9 +2831,6 @@ if (typeof n64js === 'undefined') {
       getDefine(imageSizeTypes, info.size) + ',' +
       info.width + 'x' + info.height + ', ' +
       'pitch=' + info.pitch + '<br>');
-
-    //var mode_s = (info.cm_s === G_TX_CLAMP || (info.mask_s === 0)) ? GU_CLAMP : GU_REPEAT;
-    //var mode_t = (info.cm_t === G_TX_CLAMP || (info.mask_t === 0)) ? GU_CLAMP : GU_REPEAT;
 
     var handled = false;
 
@@ -2875,9 +2872,9 @@ if (typeof n64js === 'undefined') {
         break;
     }
 
-    if (mirror_s || mirror_t) {
-      mirror(img_data, width, height, mirror_s, mirror_t);
-    }
+    // if (mirror_s || mirror_t) {
+    //   mirror(img_data, width, height, mirror_s, mirror_t);
+    // }
 
     if (handled) {
       ctx.putImageData(img_data, 0, 0);
@@ -2895,6 +2892,13 @@ if (typeof n64js === 'undefined') {
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, $canvas[0]);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
+
+    var mode_s = (info.cm_s === G_TX_CLAMP || (info.mask_s === 0)) ? gl.CLAMP_TO_EDGE : (info.cm_s === G_TX_MIRROR ? gl.MIRRORED_REPEAT : gl.REPEAT);
+    var mode_t = (info.cm_t === G_TX_CLAMP || (info.mask_t === 0)) ? gl.CLAMP_TO_EDGE : (info.cm_t === G_TX_MIRROR ? gl.MIRRORED_REPEAT : gl.REPEAT);
+
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, mode_s);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, mode_t);
+
     gl.generateMipmap(gl.TEXTURE_2D);
     gl.bindTexture(gl.TEXTURE_2D, null);
 
