@@ -230,6 +230,8 @@ if (typeof n64js === 'undefined') {
     blendColor:     0,
     fogColor:       0,
 
+    primDepth:      0.0,
+
     colorImage: {
       format:   0,
       size:     0,
@@ -838,41 +840,7 @@ if (typeof n64js === 'undefined') {
 
     var cycle_type = getCycleType();
     if (cycle_type < cycleTypeValues.G_CYC_COPY) {
-      var blend_mode = state.rdpOtherModeL >> G_MDSFT_BLENDER;
-      switch(blend_mode) {
-        //case 0x0044:        // ?
-        //case 0x0055:        // ?
-        case 0x0c08:          // In * 0 + In * 1 || :In * AIn + In * 1-A        Tarzan - Medalion in bottom part of the screen
-        //case 0x0c19:        // ?
-        case 0x0f0a:          // In * 0 + In * 1 || :In * 0 + In * 1            SSV - ??? and MM - Walls, Wipeout - Mountains
-        case 0x0fa5:          // In * 0 + Bl * AMem || :In * 0 + Bl * AMem      OOT Menu
-        //case 0x5f50:        // ?
-        case 0x8410:          // Bl * AFog + In * 1-A || :In * AIn + Mem * 1-A  Paper Mario Menu
-        case 0xc302:          // Fog * AIn + In * 1-A || :In * 0 + In * 1       ISS64 - Ground
-        case 0xc702:          // Fog * AFog + In * 1-A || :In * 0 + In * 1      Donald Duck - Sky
-        //case 0xc811:        // ?
-        case 0xfa00:          // Fog * AShade + In * 1-A || :Fog * AShade + In * 1-A  F-Zero - Power Roads
-        //case 0x07c2:        // In * AFog + Fog * 1-A || In * 0 + In * 1       Conker - ??
-          gl.disable(gl.BLEND);
-          break;
-
-        //case 0x55f0:        // Mem * AFog + Fog * 1-A || :Mem * AFog + Fog * 1-A  Bust a Move 3 - ???
-        case 0x0150:          // In * AIn + Mem * 1-A || :In * AFog + Mem * 1-A   Spiderman - Waterfall Intro
-        case 0x0f5a:          // In * 0 + Mem * 1 || :In * 0 + Mem * 1            Starwars Racer
-        case 0x0010:          // In * AIn + In * 1-A || :In * AIn + Mem * 1-A     Hey You Pikachu - Shadow
-        case 0x0040:          // In * AIn + Mem * 1-A || :In * AIn + In * 1-A     Mario - Princess peach text
-        //case 0x0050:        // In * AIn + Mem * 1-A || :In * AIn + Mem * 1-A:   SSV - TV Screen and SM64 text
-        case 0x04d0:          // In * AFog + Fog * 1-A || In * AIn + Mem * 1-A    Conker's Eyes
-        case 0x0c18:          // In * 0 + In * 1 || :In * AIn + Mem * 1-A:        SSV - WaterFall and dust
-        case 0xc410:          // Fog * AFog + In * 1-A || :In * AIn + Mem * 1-A   Donald Duck - Stars
-        case 0xc810:          // Fog * AShade + In * 1-A || :In * AIn + Mem * 1-A SSV - Fog? and MM - Shadows
-        case 0xcb02:          // Fog * AShade + In * 1-A || :In * 0 + In * 1      Doom 64 - Weapons
-        default:
-          gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-          gl.blendEquation(gl.FUNC_ADD);
-          gl.enable(gl.BLEND);
-          break;
-      }
+      initBlend();
     } else {
       gl.disable(gl.BLEND);
     }
@@ -931,18 +899,7 @@ if (typeof n64js === 'undefined') {
       gl.uniform2f(uTexOffsetUniform, uv_offset_u, uv_offset_u );
     }
 
-    // Disable depth testing
-    var zgeom_mode      = (state.geometryMode  & geometryModeFlags.G_ZBUFFER) !== 0;
-    var zcmp_rendermode = (state.rdpOtherModeL & renderModeFlags.Z_CMP) !== 0;
-    var zupd_rendermode = (state.rdpOtherModeL & renderModeFlags.Z_UPD) !== 0;
-
-    if ((zgeom_mode && zcmp_rendermode) || zupd_rendermode) {
-      gl.enable(gl.DEPTH_TEST);
-    } else {
-      gl.disable(gl.DEPTH_TEST);
-    }
-
-    gl.depthMask( zupd_rendermode );
+    initDepth();
 
     //texture filter
 
@@ -956,6 +913,64 @@ if (typeof n64js === 'undefined') {
 
     gl.drawArrays(gl.TRIANGLES, 0, num_tris);
     //gl.drawArrays(gl.LINE_STRIP, 0, num_tris);
+  }
+
+  function initDepth() {
+
+    // Fixes Zfighting issues we have on the PSP.
+    //if( gRDPOtherMode.zmode == 3 ) ...
+
+    // Disable depth testing
+    var zgeom_mode      = (state.geometryMode  & geometryModeFlags.G_ZBUFFER) !== 0;
+    var zcmp_rendermode = (state.rdpOtherModeL & renderModeFlags.Z_CMP) !== 0;
+    var zupd_rendermode = (state.rdpOtherModeL & renderModeFlags.Z_UPD) !== 0;
+
+    if ((zgeom_mode && zcmp_rendermode) || zupd_rendermode) {
+      gl.enable(gl.DEPTH_TEST);
+    } else {
+      gl.disable(gl.DEPTH_TEST);
+    }
+
+    gl.depthMask( zupd_rendermode );
+  }
+
+
+  function initBlend() {
+    var blend_mode = state.rdpOtherModeL >> G_MDSFT_BLENDER;
+    switch(blend_mode) {
+      //case 0x0044:        // ?
+      //case 0x0055:        // ?
+      case 0x0c08:          // In * 0 + In * 1 || :In * AIn + In * 1-A        Tarzan - Medalion in bottom part of the screen
+      //case 0x0c19:        // ?
+      case 0x0f0a:          // In * 0 + In * 1 || :In * 0 + In * 1            SSV - ??? and MM - Walls, Wipeout - Mountains
+      case 0x0fa5:          // In * 0 + Bl * AMem || :In * 0 + Bl * AMem      OOT Menu
+      //case 0x5f50:        // ?
+      case 0x8410:          // Bl * AFog + In * 1-A || :In * AIn + Mem * 1-A  Paper Mario Menu
+      case 0xc302:          // Fog * AIn + In * 1-A || :In * 0 + In * 1       ISS64 - Ground
+      case 0xc702:          // Fog * AFog + In * 1-A || :In * 0 + In * 1      Donald Duck - Sky
+      //case 0xc811:        // ?
+      case 0xfa00:          // Fog * AShade + In * 1-A || :Fog * AShade + In * 1-A  F-Zero - Power Roads
+      //case 0x07c2:        // In * AFog + Fog * 1-A || In * 0 + In * 1       Conker - ??
+        gl.disable(gl.BLEND);
+        break;
+
+      //case 0x55f0:        // Mem * AFog + Fog * 1-A || :Mem * AFog + Fog * 1-A  Bust a Move 3 - ???
+      case 0x0150:          // In * AIn + Mem * 1-A || :In * AFog + Mem * 1-A   Spiderman - Waterfall Intro
+      case 0x0f5a:          // In * 0 + Mem * 1 || :In * 0 + Mem * 1            Starwars Racer
+      case 0x0010:          // In * AIn + In * 1-A || :In * AIn + Mem * 1-A     Hey You Pikachu - Shadow
+      case 0x0040:          // In * AIn + Mem * 1-A || :In * AIn + In * 1-A     Mario - Princess peach text
+      //case 0x0050:        // In * AIn + Mem * 1-A || :In * AIn + Mem * 1-A:   SSV - TV Screen and SM64 text
+      case 0x04d0:          // In * AFog + Fog * 1-A || In * AIn + Mem * 1-A    Conker's Eyes
+      case 0x0c18:          // In * 0 + In * 1 || :In * AIn + Mem * 1-A:        SSV - WaterFall and dust
+      case 0xc410:          // Fog * AFog + In * 1-A || :In * AIn + Mem * 1-A   Donald Duck - Stars
+      case 0xc810:          // Fog * AShade + In * 1-A || :In * AIn + Mem * 1-A SSV - Fog? and MM - Shadows
+      case 0xcb02:          // Fog * AShade + In * 1-A || :In * 0 + In * 1      Doom 64 - Weapons
+      default:
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        gl.blendEquation(gl.FUNC_ADD);
+        gl.enable(gl.BLEND);
+        break;
+    }
   }
 
   function installTexture(tile_idx) {
@@ -1565,7 +1580,7 @@ if (typeof n64js === 'undefined') {
     return n64js.toString8(sft);
   }
 
-  var renderModeFlags = { 
+  var renderModeFlags = {
     AA_EN:               0x0008,
     Z_CMP:               0x0010,
     Z_UPD:               0x0020,
@@ -1605,7 +1620,7 @@ if (typeof n64js === 'undefined') {
     else if (zmode === renderModeFlags.ZMODE_INTER) t += '|ZMODE_INTER';
     else if (zmode === renderModeFlags.ZMODE_XLU)   t += '|ZMODE_XLU';
     else if (zmode === renderModeFlags.ZMODE_DEC)   t += '|ZMODE_DEC';
-  
+
     if (data & renderModeFlags.CVG_X_ALPHA)         t += '|CVG_X_ALPHA';
     if (data & renderModeFlags.ALPHA_CVG_SEL)       t += '|ALPHA_CVG_SEL';
     if (data & renderModeFlags.FORCE_BL)            t += '|FORCE_BL';
@@ -2202,13 +2217,15 @@ if (typeof n64js === 'undefined') {
   // tex_uv1.x = uv1.x - mTileTopLeft[ 0 ].x;
   // tex_uv1.y = uv1.y - mTileTopLeft[ 0 ].y;
 
-    //var depth = gRDPOtherMode.depth_source ? mPrimDepth : 0.0f;
+    var depth_source_prim = (state.rdpOtherModeL & depthSourceValues.G_ZS_PRIM) !== 0;
+
+    var depth = depth_source_prim ? state.primDepth : 0.0;
 
     var vertices = [
-      screen1[0], screen1[1], 0.0,
-      screen0[0], screen1[1], 0.0,
-      screen1[0], screen0[1], 0.0,
-      screen0[0], screen0[1], 0.0
+      screen1[0], screen1[1], depth,
+      screen0[0], screen1[1], depth,
+      screen1[0], screen0[1], depth,
+      screen0[0], screen0[1], depth
     ];
 
     var uvs = [
@@ -2254,11 +2271,26 @@ if (typeof n64js === 'undefined') {
     gl.uniform2f(uTexOffsetUniform, textureinfo.left, textureinfo.top );
 
 
-    // Disable depth testing
     gl.disable(gl.CULL_FACE);
-    gl.disable(gl.DEPTH_TEST);
-    gl.disable(gl.BLEND);
-    gl.depthMask(false);
+
+    var depth_enabled = depth_source_prim ? true : false;
+    if (depth_enabled) {
+      initDepth();
+    } else {
+      gl.disable(gl.DEPTH_TEST);
+      gl.depthMask(false);
+    }
+
+    var cycle_type = getCycleType();
+    if (cycle_type < cycleTypeValues.G_CYC_COPY) {
+
+      if ((state.rdpOtherModeL & renderModeFlags.FORCE_BL) !== 0) {
+        initBlend();
+      } else {
+        gl.disable(gl.BLEND);
+      }
+    }
+
 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
