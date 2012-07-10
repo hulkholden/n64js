@@ -1986,18 +1986,18 @@ if (typeof n64js === 'undefined') {
   }
 
   function disassembleTexRect(cmd0,cmd1) {
-    var xh   = ((cmd0>>>12)&0xfff)  / 4.0;
-    var yh   = ((cmd0>>> 0)&0xfff)  / 4.0;
-    var tile =  (cmd1>>>24)&0x7;
-    var xl   = ((cmd1>>>12)&0xfff)  / 4.0;
-    var yl   = ((cmd1>>> 0)&0xfff)  / 4.0;
+    var xh       = ((cmd0>>>12)&0xfff)  / 4.0;
+    var yh       = ((cmd0>>> 0)&0xfff)  / 4.0;
+    var tile_idx =  (cmd1>>>24)&0x7;
+    var xl       = ((cmd1>>>12)&0xfff)  / 4.0;
+    var yl       = ((cmd1>>> 0)&0xfff)  / 4.0;
     // TODO from subsequent commands:
     // var s    = ((cmd2>>>16)&0xffff) / 32.0;
     // var t    = ((cmd2>>> 0)&0xffff) / 32.0;
     // var dsdx = ((cmd3>>>16)&0xffff) / 1024.0;
     // var dtdy = ((cmd3>>> 0)&0xffff) / 1024.0;
 
-    var tile_text = tile;
+    var tile_text = tile_idx;
     if (tile_idx === G_TX_LOADTILE)   tile_text = 'G_TX_LOADTILE';
     if (tile_idx === G_TX_RENDERTILE) tile_text = 'G_TX_RENDERTILE';
 
