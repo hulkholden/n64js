@@ -2324,9 +2324,9 @@ if (typeof n64js === 'undefined') {
     generateSB,             generateSH,             'executeSWL',         generateSW,
     'executeSDL',           'executeSDR',           'executeSWR',         'executeCACHE',
     'executeLL',            generateLWC1,           'executeUnknown',     'executeUnknown',
-    'executeLLD',           'executeLDC1',          'executeLDC2',        generateLD,
-    'executeSC',            'executeSWC1',          'executeUnknown',     'executeUnknown',
-    'executeSCD',           'executeSDC1',          'executeSDC2',        generateSD,
+    'executeLLD',           generateLDC1,          'executeLDC2',        generateLD,
+    'executeSC',            generateSWC1,           'executeUnknown',     'executeUnknown',
+    'executeSCD',           generateSDC1,           'executeSDC2',        generateSD,
   ];
   if (simpleTableGen.length != 64) {
     throw "Oops, didn't build the simple gen table correctly";
@@ -2377,6 +2377,7 @@ if (typeof n64js === 'undefined') {
   function lh(dv,a)  { return dv.getInt16(a); }
   function lb(dv,a)  { return dv.getInt8(a); }
 
+  function sd(dv,a,vlo,vhi) { dv.setInt32(a+0,vhi); dv.setInt32(a+4,vlo); }
   function sw(dv,a,v) { dv.setInt32(a,v); }
   function sh(dv,a,v) { dv.setInt16(a,v); }
   function sb(dv,a,v) { dv.setInt8(a,v); }
@@ -2455,6 +2456,69 @@ if (typeof n64js === 'undefined') {
     return generateGenericOpBoilerplate(impl, ctx);
   }
 
+  function generateLDC1(ctx){
+    var t = ctx.instr_ft();
+    var b = ctx.instr_base();
+    var o = ctx.instr_imms();
+
+    var impl = '';
+
+    impl += 'var addr = c.gprLo[' + b + '] + ' + o + ';\n';
+    impl += 'var value_lo;\n';
+    impl += 'var value_hi;\n';
+    impl += 'var ram_relative = addr - 0x80000000;\n'
+    impl += 'if (ram_relative >= 0 && ram_relative < 0x00800000) {\n';
+    impl += '  value_lo = lw(ram, ram_relative+4);\n';
+    impl += '  value_hi = lw(ram, ram_relative);\n';
+    impl += '} else {\n';
+    impl += '  value_lo = n64js.readMemoryS32(addr+4);\n';
+    impl += '  value_hi = n64js.readMemoryS32(addr);\n';
+    impl += '}\n';
+    impl += 'cpu1.store_64(' + t + ', value_lo, value_hi);\n';
+
+    return generateGenericOpBoilerplate(impl, ctx);
+  }
+
+
+  function generateSWC1(ctx) {
+    var t = ctx.instr_ft();
+    var b = ctx.instr_base();
+    var o = ctx.instr_imms();
+
+    var impl = '';
+
+    impl += 'var addr = c.gprLo[' + b + '] + ' + o + ';\n';    // FIXME: would be nice to switch this to read from _signed reg
+    impl += 'var value = cpu1.load_s32(' + t + ');\n';
+    impl += 'var ram_relative = addr - 0x80000000;\n'
+    impl += 'if (ram_relative >= 0 && ram_relative < 0x00800000) {\n';
+    impl += '  sw(ram, ram_relative, value);\n';  // FIXME: can avoid cpuStuffToDo here
+    impl += '} else {\n';
+    impl += '  n64js.writeMemory32(addr, value);\n';
+    impl += '}\n';
+
+    return generateGenericOpBoilerplate(impl, ctx);
+  }
+  function generateSDC1(ctx) {
+    var t = ctx.instr_ft();
+    var b = ctx.instr_base();
+    var o = ctx.instr_imms();
+
+    var impl = '';
+
+    impl += 'var addr = c.gprLo[' + b + '] + ' + o + ';\n';    // FIXME: would be nice to switch this to read from _signed reg
+    impl += 'var value_lo = cpu1.load_s32(' + t + ');\n';
+    impl += 'var value_hi = cpu1.load_s32hi(' + t + ');\n';
+    impl += 'var ram_relative = addr - 0x80000000;\n'
+    impl += 'if (ram_relative >= 0 && ram_relative < 0x00800000) {\n';
+    impl += '  sd(ram, ram_relative, value_lo, value_hi);\n';  // FIXME: can avoid cpuStuffToDo here
+    impl += '} else {\n';
+    impl += '  n64js.writeMemory32(addr    , value_hi);\n';
+    impl += '  n64js.writeMemory32(addr + 4, value_lo);\n';
+    impl += '}\n';
+
+    return generateGenericOpBoilerplate(impl, ctx);
+  }
+
   function generateLD(ctx) {
     var t = ctx.instr_rt();
     var b = ctx.instr_base();
@@ -2507,8 +2571,7 @@ if (typeof n64js === 'undefined') {
     impl += 'var addr = c.gprLo[' + b + '] + ' + o + ';\n';
     impl += 'var ram_relative = addr - 0x80000000;\n'
     impl += 'if (ram_relative >= 0 && ram_relative < 0x00800000) {\n';
-    impl += '  sw(ram, ram_relative + 4, c.gprLo_signed[' + t + ']);\n';
-    impl += '  sw(ram, ram_relative,     c.gprHi_signed[' + t + ']);\n';
+    impl += '  sd(ram, ram_relative, c.gprLo_signed[' + t + '], c.gprHi_signed[' + t + ']);\n';
     impl += '} else {\n';
     impl += '  n64js.writeMemory32(addr + 4, c.gprLo_signed[' + t + ']);\n';
     impl += '  n64js.writeMemory32(addr,     c.gprHi_signed[' + t + ']);\n';
