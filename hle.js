@@ -1151,8 +1151,6 @@ if (typeof n64js === 'undefined') {
     fillRect(x0, y0, x1, y1, color);
   }
 
-  function executeTexRectFlip(cmd0,cmd1)          { unimplemented(cmd0,cmd1); }
-
   function executeTexRect(cmd0,cmd1) {
 
     // The following 2 commands contain additional info
@@ -1169,8 +1167,8 @@ if (typeof n64js === 'undefined') {
     var yl   = ((cmd1>>> 0)&0xfff)  / 4.0;
     var s0   = ((cmd2>>>16)&0xffff) / 32.0;
     var t0   = ((cmd2>>> 0)&0xffff) / 32.0;
-    var dsdx = ((cmd3>>>16)&0xffff) / 1024.0;
-    var dtdy = ((cmd3>>> 0)&0xffff) / 1024.0;
+    var dsdx = ((cmd3|0  )>>16) / 1024.0;   // NB - signed value
+    var dtdy = ((cmd3<<16)>>16) / 1024.0;
 
     var cycle_type = getCycleType();
 
@@ -1189,8 +1187,47 @@ if (typeof n64js === 'undefined') {
     var s1 = s0 + dsdx * (xh - xl);
     var t1 = t0 + dtdy * (yh - yl);
 
-    texRect(tile, xl,yl, xh,yh, s0,t0, s1,t1);
+    texRect(tile, xl,yl, xh,yh, s0,t0, s1,t1, false);
   }
+
+  function executeTexRectFlip(cmd0,cmd1) {
+    // The following 2 commands contain additional info
+    // TODO: check op code matches what we expect?
+    var pc = state.pc;
+    var cmd2 = state.ram.getUint32( state.pc + 4 );
+    var cmd3 = state.ram.getUint32( state.pc + 12 );
+    state.pc += 16;
+
+    var xh   = ((cmd0>>>12)&0xfff)  / 4.0;
+    var yh   = ((cmd0>>> 0)&0xfff)  / 4.0;
+    var tile =  (cmd1>>>24)&0x7;
+    var xl   = ((cmd1>>>12)&0xfff)  / 4.0;
+    var yl   = ((cmd1>>> 0)&0xfff)  / 4.0;
+    var s0   = ((cmd2>>>16)&0xffff) / 32.0;
+    var t0   = ((cmd2>>> 0)&0xffff) / 32.0;
+    var dsdx = ((cmd3|0  )>>16) / 1024.0;   // NB - signed value
+    var dtdy = ((cmd3<<16)>>16) / 1024.0;
+
+    var cycle_type = getCycleType();
+
+    // In copy mode 4 pixels are copied at once.
+    if (cycle_type === cycleTypeValues.G_CYC_COPY) {
+      dsdx *= 0.25;
+    }
+
+    // In Fill/Copy mode the coordinates are inclusive (i.e. add 1.0f to the w/h)
+    if (cycle_type === cycleTypeValues.G_CYC_COPY ||
+        cycle_type === cycleTypeValues.G_CYC_FILL) {
+      xh += 1.0;
+      yh += 1.0;
+    }
+
+    var s1 = s0 + dsdx * (yh - yl); // NB x/y flipped
+    var t1 = t0 + dtdy * (xh - xl); // NB x/y flipped
+
+    texRect(tile, xl,yl, xh,yh, s0,t0, s1,t1, true);
+  }
+
 
   function executeSetFillColor(cmd0,cmd1) {
     state.fillColor = cmd1;
@@ -2199,7 +2236,7 @@ if (typeof n64js === 'undefined') {
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
 
-  function texRect(tile_idx, x0,y0, x1,y1, s0,t0, s1,t1) {
+  function texRect(tile_idx, x0,y0, x1,y1, s0,t0, s1,t1, flip) {
 
     // TODO: check scissor
 
@@ -2209,31 +2246,34 @@ if (typeof n64js === 'undefined') {
     var screen0 = convertN64ToCanvas( [x0,y0] );
     var screen1 = convertN64ToCanvas( [x1,y1] );
 
-  // v2 tex_uv0;
-  // tex_uv0.x = uv0.x - mTileTopLeft[ 0 ].x;
-  // tex_uv0.y = uv0.y - mTileTopLeft[ 0 ].y;
-
-  // v2 tex_uv1;
-  // tex_uv1.x = uv1.x - mTileTopLeft[ 0 ].x;
-  // tex_uv1.y = uv1.y - mTileTopLeft[ 0 ].y;
-
     var depth_source_prim = (state.rdpOtherModeL & depthSourceValues.G_ZS_PRIM) !== 0;
 
     var depth = depth_source_prim ? state.primDepth : 0.0;
 
     var vertices = [
-      screen1[0], screen1[1], depth,
-      screen0[0], screen1[1], depth,
+      screen0[0], screen0[1], depth,
       screen1[0], screen0[1], depth,
-      screen0[0], screen0[1], depth
+      screen0[0], screen1[1], depth,
+      screen1[0], screen1[1], depth
     ];
 
-    var uvs = [
-      s1, t1,
-      s0, t1,
-      s1, t0,
-      s0, t0
-    ];
+    var uvs;
+
+    if (flip) {
+      uvs = [
+        s0, t0,
+        s0, t1,
+        s1, t0,
+        s1, t1
+      ];
+    } else {
+      uvs = [
+        s0, t0,
+        s1, t0,
+        s0, t1,
+        s1, t1
+      ];
+    }
 
     var program = texShaderProgram;
     gl.useProgram(program);
