@@ -246,7 +246,9 @@ if (typeof n64js === 'undefined') {
     this.gprLo_signed   = new Int32Array(this.gprLoMem);
     this.gprHi_signed   = new Int32Array(this.gprHiMem);
 
-    this.control        = new Uint32Array(32);
+    this.controlMem     = new ArrayBuffer(32*4);
+    this.control        = new Uint32Array(this.controlMem);
+    this.control_signed = new Int32Array(this.controlMem);
 
     this.pc             = 0;
     this.delayPC        = 0;
@@ -2684,7 +2686,7 @@ if (typeof n64js === 'undefined') {
               evt.countdown -= ops_executed * COUNTER_INCREMENT_PER_OP;
 
               if (!accurateCountUpdating) {
-                cpu0.control[cpu0.kControlCount] += ops_executed * COUNTER_INCREMENT_PER_OP;
+                cpu0.control_signed[cpu0.kControlCount] += ops_executed * COUNTER_INCREMENT_PER_OP;
               }
 
               n64js.assert(fragment.bailedOut || evt.countdown >= 0, "Executed too many ops. Possibly didn't bail out of trace when new event was set up?");
@@ -2713,7 +2715,7 @@ if (typeof n64js === 'undefined') {
             executeOp(instruction);
             cpu0.pc      = cpu0.nextPC;
             cpu0.delayPC = cpu0.branchTarget;
-            cpu0.control[cpu0.kControlCount] += COUNTER_INCREMENT_PER_OP;
+            cpu0.control_signed[cpu0.kControlCount] += COUNTER_INCREMENT_PER_OP;
             //checkCauseIP3Consistent();
             //n64js.checkSIStatusConsistent();
 
@@ -3007,7 +3009,7 @@ if (typeof n64js === 'undefined') {
     code += 'c.delayPC = c.branchTarget;\n';
 
     if (accurateCountUpdating) {
-      code += 'c.control[9] += 1;\n';
+      code += 'c.control_signed[9] += 1;\n';
     }
 
     // If bailOut is set, always return immediately
@@ -3039,7 +3041,7 @@ if (typeof n64js === 'undefined') {
     //code += 'c.delayPC = c.branchTarget;\n';
 
     if (accurateCountUpdating) {
-      code += 'c.control[9] += 1;\n';
+      code += 'c.control_signed[9] += 1;\n';
     }
 
     // If bailOut is set, always return immediately
@@ -3071,7 +3073,7 @@ if (typeof n64js === 'undefined') {
     ctx.isTrivial = true;
 
     if (accurateCountUpdating) {
-      code += 'c.control[9] += 1;\n';
+      code += 'c.control_signed[9] += 1;\n';
     }
 
     if (ctx.needsDelayCheck) {
