@@ -2708,7 +2708,7 @@ if (typeof n64js === 'undefined') {
 
             var pc = cpu0.pc;   // take a copy of this, so we can refer to it later
 
-            var instruction = n64js.readMemoryU32(cpu0.pc);
+            var instruction = n64js.readMemoryS32(cpu0.pc);
 
             if (cpu0.delayPC) { cpu0.nextPC = cpu0.delayPC; } else { cpu0.nextPC = cpu0.pc + 4; }
             cpu0.branchTarget = 0;
