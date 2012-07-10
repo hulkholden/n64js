@@ -138,22 +138,28 @@
 
 
 
+    <script id="tex-shader-vs" type="x-shader/x-vertex">
+      attribute vec3 aVertexPosition;
+      attribute vec2 aTextureCoord;
 
-    <script id="n64-shader-fill-vs" type="x-shader/x-vertex">
-      attribute vec4 aVertexPosition;
+      varying highp vec2 vTextureCoord;
 
-      //uniform mat4 uPMatrix;
+      uniform mat4 uPMatrix;
+      uniform vec2 uTexOffset;
+      uniform vec2 uTexScale;
 
       void main(void) {
-        gl_Position = /*uPMatrix **/ aVertexPosition;
+        gl_Position = uPMatrix * vec4(aVertexPosition, 1.0);
+        vTextureCoord = (aTextureCoord - uTexOffset) * uTexScale;
       }
     </script>
-    <script id="n64-shader-fill-fs" type="x-shader/x-fragment">
+    <script id="tex-shader-fs" type="x-shader/x-fragment">
       precision mediump float;
-      uniform vec4 uFillColor;
+      varying highp vec2 vTextureCoord;
+      uniform sampler2D uSampler;
 
       void main(void) {
-        gl_FragColor = uFillColor;
+        gl_FragColor = texture2D(uSampler, vTextureCoord);
       }
     </script>
 
@@ -180,8 +186,8 @@
       precision mediump float;
       varying       vec4 vColor;
       varying highp vec2 vTextureCoord;
-      uniform sampler2D uSampler;
 
+      uniform sampler2D uSampler;
       uniform       vec4 uPrimColor;
       uniform       vec4 uEnvColor;
 
@@ -191,7 +197,7 @@
         vec4 env   = uEnvColor;
         vec4 one   = vec4(1,1,1,1);
         vec4 zero  = vec4(0,0,0,0);
-        vec4 tex0  = texture2D(uSampler, vec2(vTextureCoord.s, vTextureCoord.t));
+        vec4 tex0  = texture2D(uSampler, vTextureCoord);
         vec4 tex1  = tex0;  // FIXME
         vec4 col;
         {{body}}
