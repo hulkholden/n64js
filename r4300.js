@@ -2366,19 +2366,31 @@ if (typeof n64js === 'undefined') {
   FragmentContext.prototype.instr_offset = function () { return offset(this.instruction); }
   FragmentContext.prototype.instr_imms   = function () { return imms(this.instruction); }
 
-  // Calls to DataView seem to deopt.
-  function lwu(dv,a) { return dv.getUint32(a); }
-  function lhu(dv,a) { return dv.getUint16(a); }
-  function lbu(dv,a) { return dv.getUint8(a); }
+  function lwu(ram,a) { return  ((ram[a] << 24) | (ram[a+1] << 16) | (ram[a+2] << 8) | ram[a+3])>>>0; }
+  function lhu(ram,a) { return   (ram[a] <<  8) | (ram[a+1]      ); }
+  function lbu(ram,a) { return    ram[a]; }
 
-  function lw(dv,a)  { return dv.getInt32(a); }
-  function lh(dv,a)  { return dv.getInt16(a); }
-  function lb(dv,a)  { return dv.getInt8(a); }
+  function lw(ram,a)  { return  ((ram[a] << 24) | (ram[a+1] << 16) | (ram[a+2] << 8) | ram[a+3]) | 0; }
+  function lh(ram,a)  { return  ((ram[a] << 24) | (ram[a+1] << 16)                             ) >> 16; }
+  function lb(ram,a)  { return  ((ram[a] << 24)                                                ) >> 24; }
 
-  function sd(dv,a,vlo,vhi) { dv.setInt32(a+0,vhi); dv.setInt32(a+4,vlo); }
-  function sw(dv,a,v) { dv.setInt32(a,v); }
-  function sh(dv,a,v) { dv.setInt16(a,v); }
-  function sb(dv,a,v) { dv.setInt8(a,v); }
+  function sd(ram,a,vlo,vhi) {
+    sw(ram, a  , vhi);
+    sw(ram, a+4, vlo);
+ }
+  function sw(ram,a,v) {
+    ram[a+0] = v >> 24;
+    ram[a+1] = v >> 16;
+    ram[a+2] = v >>  8;
+    ram[a+3] = v;
+  }
+  function sh(ram,a,v) {
+    ram[a  ] = v >> 8;
+    ram[a+1] = v;
+ }
+  function sb(ram,a,v) {
+    ram[a] = v;
+  }
 
   function generateLoadUnsigned(ctx, fast_handler, slow_handler) {
     var t = ctx.instr_rt();
@@ -2806,7 +2818,7 @@ if (typeof n64js === 'undefined') {
                 code += fragment.global_code;
 
                 code += 'var c = cpu0;\n';
-                code += 'var ram = n64js.getRamDV();\n';
+                code += 'var ram = n64js.getRamU8Array();\n';
                 code += fragment.body_code;
                 code += 'return ' + fragment.opsCompiled + ';\n';    // Return the number of ops exected
                 code += '});\n';   // End the enclosing function

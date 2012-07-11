@@ -722,7 +722,6 @@ if (typeof n64js === 'undefined') {
     this.arrayBuffer = arrayBuffer;
     this.length      = arrayBuffer.byteLength;
     this.u8          = new Uint8Array(arrayBuffer);
-    this.dataView    = new DataView(arrayBuffer);
   }
 
   Memory.prototype = {
@@ -734,28 +733,53 @@ if (typeof n64js === 'undefined') {
     },
 
     readU32 : function (offset) {
-      return this.dataView.getUint32(offset);
+      return ((this.u8[offset] << 24) | (this.u8[offset+1] << 16) | (this.u8[offset+2] << 8) | this.u8[offset+3])>>>0;
     },
+    readU16 : function (offset) {
+      return (this.u8[offset] <<  8) | (this.u8[offset+1]      );
+    },
+    readU8  : function (offset) {
+      return this.u8[offset];
+    },
+
     readS32 : function (offset) {
-      return this.dataView.getInt32(offset);
+      return ((this.u8[offset] << 24) | (this.u8[offset+1] << 16) | (this.u8[offset+2] << 8) | this.u8[offset+3]) | 0;
+    },
+    readS16 : function(offset) {
+      return  ((this.u8[offset] << 24) | (this.u8[offset+1] << 16) ) >> 16;
+    },
+    readS8  : function(offset) {
+      return  ((this.u8[offset] << 24) ) >> 24;
     },
 
     write32 : function (offset, value) {
-      this.dataView.setUint32(offset, value);
+      this.u8[offset+0] = value >> 24;
+      this.u8[offset+1] = value >> 16;
+      this.u8[offset+2] = value >>  8;
+      this.u8[offset+3] = value;
+    },
+
+    write16 : function (offset,value) {
+      this.u8[offset  ] = value >> 8;
+      this.u8[offset+1] = value;
+    },
+
+    write8 : function (offset,value) {
+      this.u8[offset] = value;
     },
 
     clearBits32 : function (offset, bits) {
-      var value = this.dataView.getUint32(offset) & ~bits;
-      this.dataView.setUint32(offset, value);
+      var value = this.readU32(offset) & ~bits;
+      this.write32(offset, value);
       return value;
     },
     setBits32 : function (offset, bits) {
-      var value = this.dataView.getUint32(offset) | bits;
-      this.dataView.setUint32(offset, value);
+      var value = this.readU32(offset) | bits;
+      this.write32(offset, value);
       return value;
     },
     getBits32 : function (offset, bits) {
-      return this.dataView.getUint32(offset) & bits;
+      return this.readU32(offset) & bits;
     }
   };
 
@@ -768,13 +792,20 @@ if (typeof n64js === 'undefined') {
 
   function Device(name, mem, rangeStart, rangeEnd) {
     this.name       = name;
-    this.dataView   = mem ? mem.dataView : null;
+    this.mem        = mem;
+    this.u8         = mem ? mem.u8 : null;
     this.rangeStart = rangeStart;
     this.rangeEnd   = rangeEnd;
     this.quiet      = false;
   }
 
   Device.prototype = {
+
+    setMem : function(mem) {
+      this.mem = mem;
+      this.u8  = mem.u8;
+    },
+
     calcEA : function (address) {
       return address - this.rangeStart;
     },
@@ -783,58 +814,58 @@ if (typeof n64js === 'undefined') {
       var ea = this.calcEA(address);
 
       // We need to make sure this doesn't throw, so do a bounds check
-      if (ea+3 < this.dataView.byteLength)
-        return this.dataView.getUint32(ea);
+      if (ea+3 < this.mem.u8.length)
+        return this.mem.readU32(ea);
       return 0xdddddddd;
     },
 
     readU32 : function (address) {
       if (!this.quiet) n64js.log('Reading from ' + this.name + ': ' + toString32(address) );
       var ea = this.calcEA(address);
-      return this.dataView.getUint32(ea);
+      return this.mem.readU32(ea);
     },
     readU16 : function (address) {
       if (!this.quiet) n64js.log('Reading from ' + this.name + ': ' + toString32(address) );
       var ea = this.calcEA(address);
-      return this.dataView.getUint16(ea);
+      return this.mem.readU16(ea);
     },
     readU8 : function (address) {
       if (!this.quiet) n64js.log('Reading from ' + this.name + ': ' + toString32(address) );
       var ea = this.calcEA(address);
-      return this.dataView.getUint8(ea);
+      return this.mem.readU8(ea);
     },
 
     readS32 : function (address) {
       if (!this.quiet) n64js.log('Reading from ' + this.name + ': ' + toString32(address) );
       var ea = this.calcEA(address);
-      return this.dataView.getInt32(ea);
+      return this.mem.readS32(ea);
     },
     readS16 : function (address) {
       if (!this.quiet) n64js.log('Reading from ' + this.name + ': ' + toString32(address) );
       var ea = this.calcEA(address);
-      return this.dataView.getInt16(ea);
+      return this.mem.readS16(ea);
     },
     readS8 : function (address) {
       if (!this.quiet) n64js.log('Reading from ' + this.name + ': ' + toString32(address) );
       var ea = this.calcEA(address);
-      return this.dataView.getInt8(ea);
+      return this.mem.readS8(ea);
     },
 
 
     write32 : function (address, value) {
       if (!this.quiet) n64js.log('Writing to ' + this.name + ': ' + toString32(value) + ' -> [' + toString32(address) + ']' );
       var ea = this.calcEA(address);
-      this.dataView.setUint32(ea, value);
+      this.mem.write32(ea, value);
     },
     write16 : function (address, value) {
       if (!this.quiet) n64js.log('Writing to ' + this.name + ': ' + toString16(value) + ' -> [' + toString32(address) + ']' );
       var ea = this.calcEA(address);
-      this.dataView.setUint16(ea, value);
+      this.mem.write16(ea, value);
     },
     write8 : function (address, value) {
       if (!this.quiet) n64js.log('Writing to ' + this.name + ': ' + toString8(value) + ' -> [' + toString32(address) + ']' );
       var ea = this.calcEA(address);
-      this.dataView.setUint8(ea, value);
+      this.mem.write8(ea, value);
     }
   };
 
@@ -863,8 +894,8 @@ if (typeof n64js === 'undefined') {
   var ri_reg        = new Memory(new ArrayBuffer(0x20));
   var si_reg        = new Memory(new ArrayBuffer(0x1c));
 
-  n64js.getRamDV = function () {
-    return rdram_handler_cached.dataView;
+  n64js.getRamU8Array = function () {
+    return rdram_handler_cached.u8;
   }
 
   var eeprom        = new Memory(new ArrayBuffer(4*1024));    // Or 16KB
@@ -906,13 +937,19 @@ if (typeof n64js === 'undefined') {
 
   // This function gets hit A LOT, so eliminate as much fat as possible.
   rdram_handler_cached.readU32 = function (address) {
-    return this.dataView.getUint32(address - 0x80000000);
+    var off = address - 0x80000000;
+    return ((this.u8[off+0] << 24) | (this.u8[off+1] << 16) | (this.u8[off+2] << 8) | (this.u8[off+3]))>>>0;
   }
   rdram_handler_cached.readS32 = function (address) {
-    return this.dataView.getInt32(address - 0x80000000);
+    var off = address - 0x80000000;
+    return (this.u8[off+0] << 24) | (this.u8[off+1] << 16) | (this.u8[off+2] << 8) | (this.u8[off+3]);
   }
   rdram_handler_cached.write32 = function (address, value) {
-    return this.dataView.setInt32(address - 0x80000000, value);
+    var off = address - 0x80000000;
+    this.u8[off+0] = value >> 24;
+    this.u8[off+1] = value >> 16;
+    this.u8[off+2] = value >>  8;
+    this.u8[off+3] = value;
   }
 
   mapped_mem_handler.readInternal32 = function(address) {
@@ -929,7 +966,7 @@ if (typeof n64js === 'undefined') {
   mapped_mem_handler.readU32 = function(address) {
     var mapped = this.translate(address);
     if (mapped != 0) {
-      return ram.dataView.getUint32(mapped);
+      return ram.readU32(mapped);
     }
     n64js.halt('virtual readU32 failed - need to throw refill/invalid');
     return 0xffffffff;
@@ -937,7 +974,7 @@ if (typeof n64js === 'undefined') {
   mapped_mem_handler.readU16 = function(address) {
     var mapped = this.translate(address);
     if (mapped != 0) {
-      return ram.dataView.getUint16(mapped);
+      return ram.readU16(mapped);
     }
     n64js.halt('virtual readU16 failed - need to throw refill/invalid');
     return 0xffff;
@@ -945,7 +982,7 @@ if (typeof n64js === 'undefined') {
   mapped_mem_handler.readU8 = function(address) {
     var mapped = this.translate(address);
     if (mapped != 0) {
-      return ram.dataView.getUint8(mapped);
+      return ram.readU8(mapped);
     }
     n64js.halt('virtual readU8 failed - need to throw refill/invalid');
     return 0xff;
@@ -954,7 +991,7 @@ if (typeof n64js === 'undefined') {
   mapped_mem_handler.readS32 = function(address) {
     var mapped = this.translate(address);
     if (mapped != 0) {
-      return ram.dataView.getInt32(mapped);
+      return ram.readS32(mapped);
     }
     n64js.halt('virtual readS32 failed - need to throw refill/invalid');
     return 0xffffffff;
@@ -962,7 +999,7 @@ if (typeof n64js === 'undefined') {
   mapped_mem_handler.readS16 = function(address) {
     var mapped = this.translate(address);
     if (mapped != 0) {
-      return ram.dataView.getInt16(mapped);
+      return ram.readS16(mapped);
     }
     n64js.halt('virtual readS16 failed - need to throw refill/invalid');
     return 0xffff;
@@ -970,7 +1007,7 @@ if (typeof n64js === 'undefined') {
   mapped_mem_handler.readS8 = function(address) {
     var mapped = this.translate(address);
     if (mapped != 0) {
-      return ram.dataView.getInt8(mapped);
+      return ram.readS8(mapped);
     }
     n64js.halt('virtual readS8 failed - need to throw refill/invalid');
     return 0xff;
@@ -1110,7 +1147,7 @@ if (typeof n64js === 'undefined') {
     sp_reg.write32(SP_STATUS_REG, status_bits);
 
     if (start_rsp) {
-      n64js.RSPHLEProcessTask(rsp_task_view, ram.dataView);
+      n64js.RSPHLEProcessTask(rsp_task_view, new DataView(ram.arrayBuffer));
     } else if (stop_rsp) {
       // As we handle all RSP via HLE, nothing to do here.
     }
@@ -1151,21 +1188,21 @@ if (typeof n64js === 'undefined') {
 
   sp_reg_handler_uncached.write32 = function (address, value) {
     var ea = this.calcEA(address);
-    if (ea+3 < this.dataView.byteLength) {
+    if (ea+3 < this.u8.length) {
 
       switch( ea ) {
         case SP_MEM_ADDR_REG:
         case SP_DRAM_ADDR_REG:
         case SP_SEMAPHORE_REG:
-          this.dataView.setUint32(ea, value);
+          this.mem.write32(ea, value);
           break;
         case SP_RD_LEN_REG:
-          this.dataView.setUint32(ea, value);
+          this.mem.write32(ea, value);
           SPCopyFromRDRAM();
           break;
 
         case SP_WR_LEN_REG:
-          this.dataView.setUint32(ea, value);
+          this.mem.write32(ea, value);
           SPCopyToRDRAM();
           break;
 
@@ -1180,7 +1217,7 @@ if (typeof n64js === 'undefined') {
 
         default:
           n64js.log('Unhandled write to SPReg: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
-          this.dataView.setUint32(ea, value);
+          this.mem.write32(ea, value);
       }
     } else {
       throw 'Write is out of range';
@@ -1244,7 +1281,7 @@ if (typeof n64js === 'undefined') {
 
   mi_reg_handler_uncached.write32 = function (address, value) {
     var ea = this.calcEA(address);
-    if (ea+3 < this.dataView.byteLength) {
+    if (ea+3 < this.u8.length) {
 
       switch( ea ) {
         case MI_MODE_REG:
@@ -1263,7 +1300,7 @@ if (typeof n64js === 'undefined') {
 
         default:
           n64js.log('Unhandled write to MIReg: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
-          this.dataView.setUint32(ea, value);
+          this.mem.write32(ea, value);
           break;
       }
 
@@ -1275,23 +1312,23 @@ if (typeof n64js === 'undefined') {
 
   ai_reg_handler_uncached.write32 = function (address, value) {
     var ea = this.calcEA(address);
-    if (ea+3 < this.dataView.byteLength) {
+    if (ea+3 < this.u8.length) {
 
       switch( ea ) {
         case AI_DRAM_ADDR_REG:
         case AI_CONTROL_REG:
         case AI_BITRATE_REG:
           if(!this.quiet) n64js.log('Wrote to AIReg: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
-          this.dataView.setUint32(ea, value);
+          this.mem.write32(ea, value);
           break;
 
         case AI_LEN_REG:
           if(!this.quiet) n64js.log('AI len changed to ' + value);
-          this.dataView.setUint32(ea, value);
+          this.mem.write32(ea, value);
           break;
         case AI_DACRATE_REG:
           if(!this.quiet) n64js.log('AI dacrate changed to ' + value);
-          this.dataView.setUint32(ea, value);
+          this.mem.write32(ea, value);
           break;
 
         case AI_STATUS_REG:
@@ -1302,7 +1339,7 @@ if (typeof n64js === 'undefined') {
 
         default:
           n64js.log('Unhandled write to AIReg: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
-          this.dataView.setUint32(ea, value);
+          this.mem.write32(ea, value);
           break;
       }
 
@@ -1313,16 +1350,16 @@ if (typeof n64js === 'undefined') {
 
   vi_reg_handler_uncached.write32 = function (address, value) {
     var ea = this.calcEA(address);
-    if (ea+3 < this.dataView.byteLength) {
+    if (ea+3 < this.u8.length) {
 
       switch( ea ) {
         case VI_CONTROL_REG:
           if (!this.quiet) n64js.log('VI control set to: ' + toString32(value) );
-          this.dataView.setUint32(ea, value);
+          this.mem.write32(ea, value);
           break;
         case VI_WIDTH_REG:
           if (!this.quiet) n64js.log('VI width set to: ' + value );
-          this.dataView.setUint32(ea, value);
+          this.mem.write32(ea, value);
           break;
         case VI_CURRENT_REG:
           if (!this.quiet) n64js.log('VI current set to: ' + toString32(value) + '.' );
@@ -1332,7 +1369,7 @@ if (typeof n64js === 'undefined') {
           break;
 
         default:
-          this.dataView.setUint32(ea, value);
+          this.mem.write32(ea, value);
           break;
       }
 
@@ -1345,11 +1382,11 @@ if (typeof n64js === 'undefined') {
     if (!this.quiet) n64js.log('Reading from ' + this.name + ': ' + toString32(address) );
     var ea = this.calcEA(address);
 
-    if (ea+3 < this.dataView.byteLength) {
-      var value = this.dataView.getInt32(ea);
+    if (ea+3 < this.u8.length) {
+      var value = this.mem.readS32(ea);
       if (ea == VI_CURRENT_REG) {
         value = (value + 2) % 512;
-        this.dataView.setInt32(ea, value);
+        this.mem.write32(ea, value);
       }
       return value;
     } else {
@@ -1364,26 +1401,26 @@ if (typeof n64js === 'undefined') {
 
   pi_reg_handler_uncached.write32 = function (address, value) {
     var ea = this.calcEA(address);
-    if (ea+3 < this.dataView.byteLength) {
+    if (ea+3 < this.u8.length) {
 
       switch( ea ) {
         case PI_DRAM_ADDR_REG:
         case PI_CART_ADDR_REG:
           if (!this.quiet) n64js.log('Writing to PIReg: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
-          this.dataView.setUint32(ea, value);
+          this.mem.write32(ea, value);
           break;
         case PI_RD_LEN_REG:
-          this.dataView.setUint32(ea, value);
+          this.mem.write32(ea, value);
           n64js.halt('PI copy from rdram triggered!');
           break;
         case PI_WR_LEN_REG:
-          this.dataView.setUint32(ea, value);
+          this.mem.write32(ea, value);
           PICopyToRDRAM();
           break;
         case PI_STATUS_REG:
           if (value & PI_STATUS_RESET) {
             if (!this.quiet) n64js.log('PI_STATUS_REG reset');
-            this.dataView.setUint32(PI_STATUS_REG, 0);
+            this.mem.write32(PI_STATUS_REG, 0);
           }
           if (value & PI_STATUS_CLR_INTR) {
             if (!this.quiet) n64js.log('PI interrupt cleared');
@@ -1394,7 +1431,7 @@ if (typeof n64js === 'undefined') {
           break;
         default:
           n64js.log('Unhandled write to PIReg: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
-          this.dataView.setUint32(ea, value);
+          this.mem.write32(ea, value);
           break;
 
       }
@@ -1778,11 +1815,11 @@ if (typeof n64js === 'undefined') {
     if (!this.quiet) n64js.log('Reading from ' + this.name + ': ' + toString32(address) );
     var ea = this.calcEA(address);
 
-    if (ea+3 < this.dataView.byteLength) {
+    if (ea+3 < this.u8.length) {
       if (ea === SI_STATUS_REG) {
         checkSIStatusConsistent();
       }
-      return this.dataView.getInt32(ea);
+      return this.mem.readS32(ea);
     } else {
       throw 'Read is out of range';
     }
@@ -1794,19 +1831,19 @@ if (typeof n64js === 'undefined') {
 
   si_reg_handler_uncached.write32 = function (address, value) {
     var ea = this.calcEA(address);
-    if (ea+3 < this.dataView.byteLength) {
+    if (ea+3 < this.u8.length) {
 
       switch( ea ) {
         case SI_DRAM_ADDR_REG:
           if (!this.quiet) n64js.log('Writing to SI dram address reigster: ' + toString32(value) );
-          this.dataView.setUint32(ea, value);
+          this.mem.write32(ea, value);
           break;
         case SI_PIF_ADDR_RD64B_REG:
-          this.dataView.setUint32(ea, value);
+          this.mem.write32(ea, value);
           SICopyToRDRAM();
           break;
         case SI_PIF_ADDR_WR64B_REG:
-          this.dataView.setUint32(ea, value);
+          this.mem.write32(ea, value);
           SICopyFromRDRAM();
           break;
         case SI_STATUS_REG:
@@ -1817,7 +1854,7 @@ if (typeof n64js === 'undefined') {
           break;
         default:
           n64js.log('Unhandled write to SIReg: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
-          this.dataView.setUint32(ea, value);
+          this.mem.write32(ea, value);
           break;
       }
 
@@ -1915,8 +1952,8 @@ if (typeof n64js === 'undefined') {
   pi_mem_handler_uncached.readS32 = function (address) {
     var ea = this.calcEA(address);
 
-    if (ea+3 < this.dataView.byteLength) {
-      var v = this.dataView.getInt32(ea);
+    if (ea+3 < this.u8.length) {
+      var v = this.mem.readS32(ea);
 
       if (ea < 0x7c0) {
         n64js.log('Reading from PIF rom (' + toString32(address) + '). Got ' + toString32(v));
@@ -1942,7 +1979,7 @@ if (typeof n64js === 'undefined') {
   pi_mem_handler_uncached.readS8 = function (address) {
     var ea = this.calcEA(address);
 
-    var v = pi_mem.dataView.getUint8(ea);
+    var v = pi_mem.readU8(ea);
 
     if (ea < 0x7c0) {
       n64js.log('Reading from PIF rom (' + toString32(address) + '). Got ' + toString8(v));
@@ -1959,7 +1996,7 @@ if (typeof n64js === 'undefined') {
   };
 
   pi_mem_handler_uncached.readU8 = function (address) {
-    return this.readS8(address)>>>0;
+    return this.mem.readS8(address)>>>0;
   }
   pi_mem_handler_uncached.write32 = function (address, value) {
     var ea = this.calcEA(address);
@@ -1968,7 +2005,7 @@ if (typeof n64js === 'undefined') {
       n64js.log('Attempting to write to PIF ROM');
     } else {
       var ram_offset = ea - 0x7c0;
-      this.dataView.setUint32(ea, value);
+      this.mem.write32(ea, value);
       switch(ram_offset) {
       case 0x24:  n64js.log('Writing CIC values: '   + toString32(value) ); break;
       case 0x3c:  n64js.log('Writing Control byte: ' + toString32(value) ); PIFUpdateControl(); break;
@@ -2462,10 +2499,10 @@ if (typeof n64js === 'undefined') {
     }
   }
 
-  function dataViewReadString(dataView, offset, max_len) {
+  function uint8ArrayReadString(u8, offset, max_len) {
     var s = '';
     for (var i = 0; i < max_len; ++i) {
-      var c = dataView.getUint8(offset+i);
+      var c = u8[offset+i];
       if (c == 0) {
         break;
       }
@@ -2478,28 +2515,28 @@ if (typeof n64js === 'undefined') {
     fixEndian(arrayBuffer);
 
     rom = new Memory(arrayBuffer);
-    rom_d1a1_handler_uncached.dataView = rom.dataView;
-    rom_d1a2_handler_uncached.dataView = rom.dataView;
-    rom_d2a1_handler_uncached.dataView = rom.dataView;
-    rom_d2a2_handler_uncached.dataView = rom.dataView;
+    rom_d1a1_handler_uncached.setMem(rom);
+    rom_d1a2_handler_uncached.setMem(rom);
+    rom_d2a1_handler_uncached.setMem(rom);
+    rom_d2a2_handler_uncached.setMem(rom);
 
     var hdr = {};
-    hdr.header       = rom.dataView.getUint32(0);
-    hdr.clock        = rom.dataView.getUint32(4);
-    hdr.bootAddress  = rom.dataView.getUint32(8);
-    hdr.release      = rom.dataView.getUint32(12);
-    hdr.crclo        = rom.dataView.getUint32(16);   // or hi?
-    hdr.crchi        = rom.dataView.getUint32(20);   // or lo?
-    hdr.unk0         = rom.dataView.getUint32(24);
-    hdr.unk1         = rom.dataView.getUint32(28);
-    hdr.name         = dataViewReadString(rom.dataView, 32, 20);
-    hdr.unk2         = rom.dataView.getUint32(52);
-    hdr.unk3         = rom.dataView.getUint16(56);
-    hdr.unk4         = rom.dataView.getUint8 (58);
-    hdr.manufacturer = rom.dataView.getUint8 (59);
-    hdr.cartId       = rom.dataView.getUint16(60);
-    hdr.countryId    = rom.dataView.getUint8 (62);  // char
-    hdr.unk5         = rom.dataView.getUint8 (63);
+    hdr.header       = rom.readU32(0);
+    hdr.clock        = rom.readU32(4);
+    hdr.bootAddress  = rom.readU32(8);
+    hdr.release      = rom.readU32(12);
+    hdr.crclo        = rom.readU32(16);   // or hi?
+    hdr.crchi        = rom.readU32(20);   // or lo?
+    hdr.unk0         = rom.readU32(24);
+    hdr.unk1         = rom.readU32(28);
+    hdr.name         = uint8ArrayReadString(rom.u8, 32, 20);
+    hdr.unk2         = rom.readU32(52);
+    hdr.unk3         = rom.readU16(56);
+    hdr.unk4         = rom.readU8 (58);
+    hdr.manufacturer = rom.readU8 (59);
+    hdr.cartId       = rom.readU16(60);
+    hdr.countryId    = rom.readU8 (62);  // char
+    hdr.unk5         = rom.readU8 (63);
 
     var $table = $('<table class="register-table"><tbody></tbody></table>');
     var $tb = $table.find('tbody');
