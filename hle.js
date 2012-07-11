@@ -892,6 +892,14 @@ if (typeof n64js === 'undefined') {
 
       gl.uniform2f(uTexScaleUniform,  uv_scale_u,  uv_scale_v );
       gl.uniform2f(uTexOffsetUniform, uv_offset_u, uv_offset_u );
+
+      if (getTextureFilterTyoe() == textureFilterValues.G_TF_POINT) {
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST_MIPMAP_NEAREST);
+      } else {
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
+      }
     }
 
     initDepth();
@@ -1492,6 +1500,10 @@ if (typeof n64js === 'undefined') {
 
   function getCycleType() {
     return state.rdpOtherModeH & (3<<G_MDSFT_CYCLETYPE);
+  }
+
+  function getTextureFilterTyoe() {
+    return state.rdpOtherModeH & (3<<G_MDSFT_TEXTFILT);
   }
 
   var pipelineModeValues = {
