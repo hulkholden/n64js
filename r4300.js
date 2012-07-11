@@ -1391,7 +1391,7 @@ if (typeof n64js === 'undefined') {
   function generateJ(ctx) {
     var addr = jumpAddress(ctx.pc, ctx.instruction);
     var impl = 'c.delayPC = ' + n64js.toString32(addr) + ';\n';
-    return generateBranchOpBoilerplate(impl, ctx);
+    return generateBranchOpBoilerplate(impl, ctx, false);
   }
   function executeJ(i) {
     performBranch( jumpAddress(cpu0.pc,i) );
@@ -1406,7 +1406,7 @@ if (typeof n64js === 'undefined') {
     impl += 'c.delayPC = ' + n64js.toString32(addr) + ';\n';
     impl += 'c.gprLo_signed[' + cpu0.kRegister_ra + '] = ' + n64js.toString32(ra) + ';\n';
     impl += 'c.gprHi_signed[' + cpu0.kRegister_ra + '] = ' + ra_hi + ';\n';
-    return generateBranchOpBoilerplate(impl, ctx);
+    return generateBranchOpBoilerplate(impl, ctx, false);
   }
   function executeJAL(i) {
     setSignExtend(cpu0.kRegister_ra, cpu0.pc + 8);
@@ -1424,7 +1424,7 @@ if (typeof n64js === 'undefined') {
     impl += 'c.delayPC = c.gprLo[' + s + '];\n';  // NB needs to be unsigned
     impl += 'c.gprLo_signed[' + d + '] = ' + n64js.toString32(ra) + ';\n';
     impl += 'c.gprHi_signed[' + d + '] = ' + ra_hi + ';\n';
-    return generateBranchOpBoilerplate(impl, ctx);
+    return generateBranchOpBoilerplate(impl, ctx, false);
   }
   function executeJALR(i) {
     var new_pc = cpu0.gprLo[rs(i)];
@@ -1435,7 +1435,7 @@ if (typeof n64js === 'undefined') {
 
   function generateJR(ctx) {
     var impl = 'c.delayPC = c.gprLo[' + ctx.instr_rs() + '];\n'; // NB needs to be unsigned
-    return generateBranchOpBoilerplate(impl, ctx);
+    return generateBranchOpBoilerplate(impl, ctx, false);
    }
    function executeJR(i) {
     performBranch( cpu0.gprLo[rs(i)] );
@@ -1474,7 +1474,7 @@ if (typeof n64js === 'undefined') {
       impl += '}\n';
     }
 
-    return generateBranchOpBoilerplate(impl, ctx);
+    return generateBranchOpBoilerplate(impl, ctx, false);
   }
 
   function executeBEQ(i) {
@@ -1527,7 +1527,7 @@ if (typeof n64js === 'undefined') {
     impl += '  c.delayPC = ' + n64js.toString32(addr) + ';\n';
     impl += '}\n';
 
-    return generateBranchOpBoilerplate(impl, ctx);
+    return generateBranchOpBoilerplate(impl, ctx, false);
   }
 
   function executeBNE(i) {
@@ -2339,7 +2339,8 @@ if (typeof n64js === 'undefined') {
     this.bailOut     = false;       // Set this if the op does something to manipulate event timers
 
     this.needsDelayCheck = true;    // Set on entry to generate handler. If set, much check for delayPC when updating the pc
-    this.isTrivial       = false;   // Set by the generate handler if the op is considered trivial
+    this.isTrivial       = false;   // Set by the code generation handler if the op is considered trivial
+    this.inlineCandidate = false;   // Set by the code generation handler if the op should be considered for inlining
   }
 
   FragmentContext.prototype.set = function (fragment, pc, instruction, post_pc) {
@@ -2351,6 +2352,7 @@ if (typeof n64js === 'undefined') {
 
     this.needsDelayCheck = true;    // Set on entry to generate handler. If set, much check for delayPC when updating the pc
     this.isTrivial       = false;   // Set by the generate handler if the op is considered trivial
+    this.inlineCandidate = false;   // Set by the code generation handler if the op should be considered for inlining
   }
 
   FragmentContext.prototype.instr_rs     = function () { return rs(this.instruction); }
@@ -3006,6 +3008,7 @@ if (typeof n64js === 'undefined') {
 
     ctx.needsDelayCheck = ctx.fragment.needsDelayCheck;
     ctx.isTrivial       = false;
+    ctx.inlineCandidate = false;
 
     var fn_code = generateOp(ctx);
 
@@ -3020,7 +3023,7 @@ if (typeof n64js === 'undefined') {
 
     ctx.fragment.bailedOut |= ctx.bailOut;
 
-    if (ctx.isTrivial) {
+    if (ctx.isTrivial || ctx.inlineCandidate) {
       ctx.fragment.body_code += fn_code;
     } else {
       var op_fn_name = 'op_' + n64js.toString32(ctx.pc) + '_' + n64js.toString32(ctx.instruction);
@@ -3095,34 +3098,45 @@ if (typeof n64js === 'undefined') {
     return code;
   }
 
-  // Branch ops explicitly manipulate nextPC rather than branchTarget
-  function generateBranchOpBoilerplate(fn,ctx) {
+  // Branch ops explicitly manipulate nextPC rather than branchTarget. They also guarnatee that stuffToDo is not set.
+  // might_adjust_next_pc is typically used by branch likely instructions.
+  function generateBranchOpBoilerplate(fn,ctx, might_adjust_next_pc) {
+
+    ctx.inlineCandidate = true;
 
     var code = '';
-    //code += 'if (c.pc !== ' + n64js.toString32(ctx.pc) + ') throw("pc mismatch - " + n64js.toString32(c.pc) + " !== ' + n64js.toString32(ctx.pc) + '");\n';
-    if (ctx.needsDelayCheck) {
-      code += 'c.nextPC = c.delayPC;\n';
-      code += 'if (!c.nextPC) { c.nextPC = ' + n64js.toString32(ctx.pc+4) +'; }\n';
+
+    var need_pc_test = true;
+
+    if (might_adjust_next_pc||ctx.needsDelayCheck) {
+      if (ctx.needsDelayCheck) {
+        code += 'if (c.delayPC) { c.nextPC = c.delayPC; c.delayPC = 0; } else { c.nextPC = ' + n64js.toString32(ctx.pc+4) +'; }\n';
+      } else {
+        code += 'c.nextPC = ' + n64js.toString32(ctx.pc+4) + ';\n';
+      }
+      code += fn + '\n';
+      code += 'c.pc = c.nextPC;\n';
     } else {
-      code += 'c.nextPC = ' + n64js.toString32(ctx.pc+4) + ';\n';
+      code += fn + '\n';
+      // ASSERT: delayPC === 0
+      code += 'c.pc = ' + n64js.toString32(ctx.pc+4) + ';\n';
+      need_pc_test = ctx.post_pc !== ctx.pc+4;
     }
-    //code += 'c.branchTarget = 0;\n';
-
-    code += fn + '\n';
-
-    code += 'c.pc = c.nextPC;\n';
-    //code += 'c.delayPC = c.branchTarget;\n';
 
     if (accurateCountUpdating) {
       code += 'c.control_signed[9] += 1;\n';
     }
 
+    // ASSERT: !c.stuffToDo
+
     // If bailOut is set, always return immediately
     if (ctx.bailOut) {
       code += 'return ' + ctx.fragment.opsCompiled + ';\n';
     } else {
-      code += 'if (c.stuffToDo) { return ' + ctx.fragment.opsCompiled + '; }\n';
-      code += 'if (c.pc !== ' + n64js.toString32(ctx.post_pc) + ') { return ' + ctx.fragment.opsCompiled + '; }\n';
+
+      if (need_pc_test) {
+        code += 'if (c.pc !== ' + n64js.toString32(ctx.post_pc) + ') { return ' + ctx.fragment.opsCompiled + '; }\n';
+      }
     }
     return code;
   }
@@ -3144,6 +3158,7 @@ if (typeof n64js === 'undefined') {
     // ASSERT: !c.stuffToDo
 
     ctx.isTrivial = true;
+    ctx.inlineCandidate = true;
 
     if (accurateCountUpdating) {
       code += 'c.control_signed[9] += 1;\n';
