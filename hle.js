@@ -315,16 +315,16 @@ if (typeof n64js === 'undefined') {
 
     var dv = new DataView(state.ram.buffer, address);
 
-    var elements = [ [0,0,0,0], [0,0,0,0], [0,0,0,0], [0,0,0,0] ];
+    var elements = new Float32Array(16);
 
     for (var i = 0; i < 4; ++i) {
-      elements[0][i] = (dv.getInt16(i*8 + 0)<<16 | dv.getUint16(i*8 + 0+32)) * recip;
-      elements[1][i] = (dv.getInt16(i*8 + 2)<<16 | dv.getUint16(i*8 + 2+32)) * recip;
-      elements[2][i] = (dv.getInt16(i*8 + 4)<<16 | dv.getUint16(i*8 + 4+32)) * recip;
-      elements[3][i] = (dv.getInt16(i*8 + 6)<<16 | dv.getUint16(i*8 + 6+32)) * recip;
+      elements[4*0 + i] = (dv.getInt16(i*8 + 0)<<16 | dv.getUint16(i*8 + 0+32)) * recip;
+      elements[4*1 + i] = (dv.getInt16(i*8 + 2)<<16 | dv.getUint16(i*8 + 2+32)) * recip;
+      elements[4*2 + i] = (dv.getInt16(i*8 + 4)<<16 | dv.getUint16(i*8 + 4+32)) * recip;
+      elements[4*3 + i] = (dv.getInt16(i*8 + 6)<<16 | dv.getUint16(i*8 + 6+32)) * recip;
     }
 
-    return Matrix.create(elements);
+    return new Matrix(elements);
   }
 
   function getTextureDimension(ul, lr, mask) {
@@ -361,13 +361,13 @@ if (typeof n64js === 'undefined') {
     };
   }
 
-  function unpackRGBAToVector(col) {
-    return Vector.create([
-        ((col>>>24)&0xff)/255.0,
-        ((col>>>16)&0xff)/255.0,
-        ((col>>> 8)&0xff)/255.0,
-        ((col>>> 0)&0xff)/255.0
-      ]);
+  function unpackRGBAToColor(col) {
+    return {
+        r: ((col>>>24)&0xff)/255.0,
+        g: ((col>>>16)&0xff)/255.0,
+        b: ((col>>> 8)&0xff)/255.0,
+        a: ((col>>> 0)&0xff)/255.0
+      };
   }
 
   // task, ram are both DataView objects
@@ -514,10 +514,10 @@ if (typeof n64js === 'undefined') {
       case moveMemTypeValues.G_MV_L6:
       case moveMemTypeValues.G_MV_L7:
         var light_idx = (type - moveMemTypeValues.G_MV_L0) / 2;
-        state.lights[light_idx].color = unpackRGBAToVector(state.ram.getUint32(address + 0));
-        state.lights[light_idx].dir   = Vector.create([state.ram.getUint8(address +  8),
-                                                       state.ram.getUint8(address +  9),
-                                                       state.ram.getUint8(address + 10)]).toUnitVector();
+        state.lights[light_idx].color = unpackRGBAToColor(state.ram.getUint32(address + 0));
+        state.lights[light_idx].dir   = Vector3.create([state.ram.getUint8(address +  8),
+                                                        state.ram.getUint8(address +  9),
+                                                        state.ram.getUint8(address + 10)]).normaliseInPlace();
         break;
     }
   }
@@ -549,16 +549,35 @@ if (typeof n64js === 'undefined') {
   function calculateLighting(normal) {
 
     var num_lights = state.numLights;
-    var result     = state.lights[num_lights].color;
+    var r = state.lights[num_lights].color.r;
+    var g = state.lights[num_lights].color.g;
+    var b = state.lights[num_lights].color.b;
+    var a;
 
     for (var l = 0; l < num_lights; ++l) {
-      var d = normal.dot( state.lights[l].dir );
+      var light = state.lights[l];
+      var d = normal.dot( light.dir );
       if (d > 0.0) {
-        result = result.add( state.lights[l].color.multiply( d ) );
+        r += light.color.r * d;
+        g += light.color.g * d;
+        b += light.color.b * d;
       }
     }
 
-    return result.elements;
+    r = Math.min(r, 1.0) * 255.0;
+    g = Math.min(g, 1.0) * 255.0;
+    b = Math.min(b, 1.0) * 255.0;
+    a = 255;
+
+    return (a<<24) | (b<<16) | (g<<8) | r;
+  }
+
+  function ProjectedVertex()
+  {
+    this.pos    = new Vector4();
+    this.colour = 0;
+    this.u      = 0;
+    this.v      = 0;
   }
 
   function executeVertexImpl(v0, n, address) {
@@ -582,22 +601,26 @@ if (typeof n64js === 'undefined') {
     var scale_s = state.texture.scaleS;
     var scale_t = state.texture.scaleT;
 
+    var xyz    = new Vector3();
+    var normal = new Vector3();
+    var transformedNormal = new Vector3();
+
     for (var i = 0; i < n; ++i) {
       var vtx_base = (v0+i)*16;
       var vertex = state.projectedVertices[v0+i];
 
-      var x = dv.getInt16(vtx_base + 0);
-      var y = dv.getInt16(vtx_base + 2);
-      var z = dv.getInt16(vtx_base + 4);
-      //var - = dv.getInt16(vtx_base + 6);
+      xyz.elems[0] = dv.getInt16(vtx_base + 0);
+      xyz.elems[1] = dv.getInt16(vtx_base + 2);
+      xyz.elems[2] = dv.getInt16(vtx_base + 4);
+      //var w = dv.getInt16(vtx_base + 6);
       var u = dv.getInt16(vtx_base + 8);
       var v = dv.getInt16(vtx_base + 10);
 
-      var xyz       = Vector.create([x,y,z,1]);
-      var projected = wvp.multiply(xyz);
-      vertex.pos    = projected;
+      var projected = vertex.pos;
+      wvp.transformPoint(xyz, projected);
 
-      //n64js.halt( x + ',' + y + ',' + z + '-&gt;' + projected.elements[0] + ',' + projected.elements[1] + ',' + projected.elements[2] );
+
+      //n64js.halt( x + ',' + y + ',' + z + '-&gt;' + projected.elems[0] + ',' + projected.elems[1] + ',' + projected.elems[2] );
 
       // var clip_flags = 0;
       //      if (projected[0] < -projected[3]) clip_flags |= X_POS;
@@ -611,38 +634,29 @@ if (typeof n64js === 'undefined') {
       // state.projectedVertices.clipFlags = clip_flags;
 
       if (light) {
-        var nx = dv.getInt8(vtx_base + 12);
-        var ny = dv.getInt8(vtx_base + 13);
-        var nz = dv.getInt8(vtx_base + 14);
+        normal.elems[0] = dv.getInt8(vtx_base + 12);
+        normal.elems[1] = dv.getInt8(vtx_base + 13);
+        normal.elems[2] = dv.getInt8(vtx_base + 14);
         var a  = dv.getUint8(vtx_base + 15);
 
         // calculate transformed normal
+        mvmtx.transformNormal(normal, transformedNormal);
+        transformedNormal.normaliseInPlace();
 
-        var normal = Vector.create([nx, ny, nz, 0]);
-        var transformedNormal = mvmtx.multiply(normal);
-
-        // argh, chuck away w
-        transformedNormal = Vector.create([transformedNormal.elements[0], transformedNormal.elements[1], transformedNormal.elements[2]]).toUnitVector();
-
-        var color_rgb = calculateLighting(transformedNormal);
-        var r = Math.min(color_rgb[0], 1.0) * 255.0;
-        var g = Math.min(color_rgb[1], 1.0) * 255.0;
-        var b = Math.min(color_rgb[2], 1.0) * 255.0;
-
-        vertex.color = (a<<24) | (b<<16) | (g<<8) | r;
+        vertex.color = calculateLighting(transformedNormal);
 
         if (texgen) {
 
           // retransform using wvp
-          transformedNormal = wvp.multiply(normal);
-          transformedNormal = Vector.create([transformedNormal.elements[0], transformedNormal.elements[1], transformedNormal.elements[2]]).toUnitVector();
+          wvp.transformNormal(normal, transformedNormal);
+          transformedNormal.normaliseInPlace();
 
           if (texgenlin) {
-            vertex.u = 0.5 * (1.0 + transformedNormal.elements[0]);
-            vertex.v = 0.5 * (1.0 + transformedNormal.elements[1]);
+            vertex.u = 0.5 * (1.0 + transformedNormal.elems[0]);
+            vertex.v = 0.5 * (1.0 + transformedNormal.elems[1]);
           } else {
-            var normX = Math.abs( transformedNormal.elements[0] );
-            var normY = Math.abs( transformedNormal.elements[1] );
+            var normX = Math.abs( transformedNormal.elems[0] );
+            var normY = Math.abs( transformedNormal.elems[1] );
             vertex.u = 0.5 - 0.25 * normX - 0.25 * normX * normX * normX;
             vertex.v = 0.5 - 0.25 * normY - 0.25 * normY * normY * normY;
           }
@@ -797,9 +811,9 @@ if (typeof n64js === 'undefined') {
     var v1 = state.projectedVertices[v1_idx];
     var v2 = state.projectedVertices[v2_idx];
 
-    var vp0 = v0.pos.elements;
-    var vp1 = v1.pos.elements;
-    var vp2 = v2.pos.elements;
+    var vp0 = v0.pos.elems;
+    var vp1 = v1.pos.elems;
+    var vp2 = v2.pos.elems;
 
     vertex_positions[vtx_pos_idx+ 0] = vp0[0];
     vertex_positions[vtx_pos_idx+ 1] = vp0[1];
@@ -1127,7 +1141,7 @@ if (typeof n64js === 'undefined') {
 
     var cycle_type = getCycleType();
 
-    var color = {r:0, g:0, b:0};
+    var color = {r:0, g:0, b:0, a:0};
 
     if (cycle_type === cycleTypeValues.G_CYC_FILL) {
       x1 += 1;
@@ -2229,7 +2243,7 @@ if (typeof n64js === 'undefined') {
     gl.vertexAttribPointer(vertexPositionAttribute, 3, gl.FLOAT, false, 0, 0);
 
     // uPMatrix
-    gl.uniformMatrix4fv(uPMatrixUniform, false, new Float32Array(canvas2dMatrix.flatten()));
+    gl.uniformMatrix4fv(uPMatrixUniform, false, canvas2dMatrix.elems);
 
     // uFillColor
     gl.uniform4f(fillColorUniform, color.r, color.g, color.b, color.a);
@@ -2306,7 +2320,7 @@ if (typeof n64js === 'undefined') {
     gl.vertexAttribPointer(texCoordAttribute, 2, gl.FLOAT, false, 0, 0);
 
     // uPMatrix
-    gl.uniformMatrix4fv(uPMatrixUniform, false, new Float32Array(canvas2dMatrix.flatten()));
+    gl.uniformMatrix4fv(uPMatrixUniform, false, canvas2dMatrix.elems);
 
     // uSampler
     gl.activeTexture(gl.TEXTURE0);
@@ -2392,8 +2406,8 @@ if (typeof n64js === 'undefined') {
     state.rdpOtherModeL = 0x00500001;
     state.rdpOtherModeH = 0x00000000;
 
-    state.projection    = [ Matrix.I(4) ];
-    state.modelview     = [ Matrix.I(4) ];
+    state.projection    = [ Matrix.identity() ];
+    state.modelview     = [ Matrix.identity() ];
 
     state.pc = data_ptr;
     state.dlistStack = [];
@@ -2407,11 +2421,11 @@ if (typeof n64js === 'undefined') {
 
     state.numLights = 0;
     for (var i = 0; i < state.lights.length; ++i) {
-      state.lights[i] = {color: Vector.create([0,0,0,0]), dir: Vector.create([1,0,0])};
+      state.lights[i] = {color: {r:0,g:0,b:0,a:0}, dir: Vector3.create([1,0,0])};
     }
 
     for (var i = 0; i < state.projectedVertices.length; ++i) {
-      state.projectedVertices[i] = {};
+      state.projectedVertices[i] = new ProjectedVertex();
     }
 
     var canvas = document.getElementById('display');
@@ -2576,13 +2590,18 @@ if (typeof n64js === 'undefined') {
         case kMatrix:
           {
             var address = rdpSegmentAddress(cmd1);
-            var m = loadMatrix(address).elements;
+            var m = loadMatrix(address).elems;
+
+            var a = [m[ 0], m[ 1], m[ 2], m[ 3]];
+            var b = [m[ 4], m[ 5], m[ 6], m[ 7]];
+            var c = [m[ 8], m[ 9], m[10], m[11]];
+            var d = [m[12], m[13], m[14], m[15]];
 
             op.tip = '<div><table class="matrix-table">' +
-            '<tr><td>' + m[0].join('</td><td>') + '</td></tr>' +
-            '<tr><td>' + m[1].join('</td><td>') + '</td></tr>' +
-            '<tr><td>' + m[2].join('</td><td>') + '</td></tr>' +
-            '<tr><td>' + m[3].join('</td><td>') + '</td></tr>' +
+            '<tr><td>' + a.join('</td><td>') + '</td></tr>' +
+            '<tr><td>' + b.join('</td><td>') + '</td></tr>' +
+            '<tr><td>' + c.join('</td><td>') + '</td></tr>' +
+            '<tr><td>' + d.join('</td><td>') + '</td></tr>' +
             '</table></div>';
           }
           break;
