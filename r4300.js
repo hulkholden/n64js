@@ -1551,6 +1551,19 @@ if (typeof n64js === 'undefined') {
   }
 
   // Branch Less Than or Equal To Zero
+  function generateBLEZ(ctx) {
+    var s    = ctx.instr_rs();
+    var addr = branchAddress(ctx.pc, ctx.instruction);
+
+    var impl = '';
+    impl += 'if ( c.gprHi_signed[' + s + '] < 0 ||\n';
+    impl += '    (c.gprHi_signed[' + s + '] === 0 && c.gprLo_signed[' + s + '] === 0) ) {\n';
+    impl += '  c.delayPC = ' + n64js.toString32(addr) + ';\n';
+    impl += '}\n';
+
+    return generateBranchOpBoilerplate(impl, ctx, false);
+  }
+
   function executeBLEZ(i) {
     var s = rs(i);
     if ( cpu0.gprHi_signed[s] < 0 ||
@@ -1570,6 +1583,19 @@ if (typeof n64js === 'undefined') {
   }
 
   // Branch Greater Than Zero
+  function generateBGTZ(ctx) {
+    var s    = ctx.instr_rs();
+    var addr = branchAddress(ctx.pc, ctx.instruction);
+
+    var impl = '';
+    impl += 'if ( c.gprHi_signed[' + s + '] >= 0 &&\n';
+    impl += '    (c.gprHi_signed[' + s + '] !== 0 || c.gprLo_signed[' + s + '] !== 0) ) {\n';
+    impl += '  c.delayPC = ' + n64js.toString32(addr) + ';\n';
+    impl += '}\n';
+
+    return generateBranchOpBoilerplate(impl, ctx, false);
+  }
+
   function executeBGTZ(i) {
     var s = rs(i);
     if ( cpu0.gprHi_signed[s] >= 0 &&
@@ -1589,6 +1615,18 @@ if (typeof n64js === 'undefined') {
 
 
   // Branch Less Than Zero
+  function generateBLTZ(ctx) {
+    var s    = ctx.instr_rs();
+    var addr = branchAddress(ctx.pc, ctx.instruction);
+
+    var impl = '';
+    impl += 'if ( c.gprHi_signed[' + s + '] < 0 ) {\n';
+    impl += '  c.delayPC = ' + n64js.toString32(addr) + ';\n';
+    impl += '}\n';
+
+    return generateBranchOpBoilerplate(impl, ctx, false);
+  }
+
   function executeBLTZ(i) {
     if (cpu0.gprHi_signed[rs(i)] < 0) {
       performBranch( branchAddress(cpu0.pc,i) );
@@ -1618,6 +1656,17 @@ if (typeof n64js === 'undefined') {
 
 
   // Branch Greater Than Zero
+  function generateBGEZ(ctx) {
+    var s    = ctx.instr_rs();
+    var addr = branchAddress(ctx.pc, ctx.instruction);
+
+    var impl = '';
+    impl += 'if ( c.gprHi_signed[' + s + '] >= 0 ) {\n';
+    impl += '  c.delayPC = ' + n64js.toString32(addr) + ';\n';
+    impl += '}\n';
+
+    return generateBranchOpBoilerplate(impl, ctx, false);
+  }
   function executeBGEZ(i) {
     if (cpu0.gprHi_signed[rs(i)] >= 0) {
       performBranch( branchAddress(cpu0.pc,i) );
@@ -2295,7 +2344,7 @@ if (typeof n64js === 'undefined') {
   }
 
   var regImmTableGen = [
-    'executeBLTZ',          'executeBGEZ',          'executeBLTZL',       'executeBGEZL',
+    generateBLTZ,           generateBGEZ,           'executeBLTZL',       'executeBGEZL',
     'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
     'executeTGEI',          'executeTGEIU',         'executeTLTI',        'executeTLTIU',
     'executeTEQI',          'executeUnknown',       'executeTNEI',        'executeUnknown',
@@ -2310,7 +2359,7 @@ if (typeof n64js === 'undefined') {
 
   var simpleTableGen = [
     generateSpecial,        generateRegImm,         generateJ,            generateJAL,
-    generateBEQ,            generateBNE,            'executeBLEZ',        'executeBGTZ',
+    generateBEQ,            generateBNE,            generateBLEZ,         generateBGTZ,
     generateADDI,           generateADDIU,          'executeSLTI',        'executeSLTIU',
     generateANDI,           generateORI,            generateXORI,         generateLUI,
     'executeCop0',          'executeCop1_check',    'executeUnknown',     'executeUnknown',
