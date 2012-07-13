@@ -2735,6 +2735,7 @@ if (typeof n64js === 'undefined') {
 
     var fragment;
     var evt;
+    var ram = n64js.getRamU8Array();
 
     try {
       while (cpu0.hasEvent(kEventRunForCycles)) {
@@ -2754,7 +2755,7 @@ if (typeof n64js === 'undefined') {
             evt = cpu0.events[0];
             if (evt.countdown >= fragment.opsCompiled*COUNTER_INCREMENT_PER_OP) {
               fragment.executionCount++;
-              var ops_executed = fragment.func();   // Absolute value is number of ops executed.
+              var ops_executed = fragment.func(cpu0, ram);   // Absolute value is number of ops executed.
 
               // refresh latest event - may have changed
               evt = cpu0.events[0];
@@ -2814,13 +2815,10 @@ if (typeof n64js === 'undefined') {
 
                 var code = '';
 
-                code += '(function fragment_' + n64js.toString32(fragment.entryPC) + '_' + fragment.opsCompiled + '() {\n';
+                code += '(function fragment_' + n64js.toString32(fragment.entryPC) + '_' + fragment.opsCompiled + '(c, ram) {\n';
                 //code += 'if (cpu0.pc>>>0 != ' + n64js.toString32(fragment.entryPC) + ') n64js.halt("entrypc mismatch - " + cpu0.pc + " !== ' + n64js.toString32(fragment.entryPC) + '");\n';
 
                 code += fragment.global_code;
-
-                code += 'var c = cpu0;\n';
-                code += 'var ram = n64js.getRamU8Array();\n';
                 code += fragment.body_code;
                 code += 'return ' + fragment.opsCompiled + ';\n';    // Return the number of ops exected
                 code += '});\n';   // End the enclosing function
