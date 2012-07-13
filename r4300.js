@@ -1739,6 +1739,27 @@ if (typeof n64js === 'undefined') {
     cpu0.setGPR_s64(rt(i), cpu0.getGPR_s64(rs(i)) + imms(i));
   }
 
+
+
+  function generateSLTI(ctx) {
+    var s = ctx.instr_rs();
+    var t = ctx.instr_rt();
+
+    var immediate    = imms(ctx.instruction);
+    var imm_hi       = immediate >> 31;
+    var imm_unsigned = immediate >>> 0;
+
+    var impl = '';
+    impl += 'if (cpu0.gprHi_signed[' + s + '] === ' + imm_hi + ') {\n';
+    impl += '  cpu0.gprLo[' + t + '] = (cpu0.gprLo[' + s  +'] < ' + imm_unsigned + ') ? 1 : 0;\n';
+    impl += '} else {\n';
+    impl += '  cpu0.gprLo[' + t + '] = (cpu0.gprHi_signed[' + s + '] < ' + imm_hi + ') ? 1 : 0;\n';
+    impl += '}\n';
+    impl += 'cpu0.gprHi[' + t + '] = 0;\n';
+
+    return generateTrivialOpBoilerplate(impl, ctx);
+  }
+
   function executeSLTI(i) {
     var s         = rs(i);
     var t         = rt(i);
@@ -1753,6 +1774,26 @@ if (typeof n64js === 'undefined') {
       cpu0.gprLo[t] = (s_hi < imm_hi) ? 1 : 0;
     }
     cpu0.gprHi[t] = 0;
+  }
+
+
+  function generateSLTIU(ctx) {
+    var s = ctx.instr_rs();
+    var t = ctx.instr_rt();
+
+    var immediate    = imms(ctx.instruction);
+    var imm_hi       = immediate >> 31;
+    var imm_unsigned = immediate >>> 0;
+
+    var impl = '';
+    impl += 'if (cpu0.gprHi_signed[' + s + '] === ' + imm_hi + ') {\n';
+    impl += '  cpu0.gprLo[' + t + '] = (cpu0.gprLo[' + s  +'] < ' + imm_unsigned + ') ? 1 : 0;\n';
+    impl += '} else {\n';
+    impl += '  cpu0.gprLo[' + t + '] = ((cpu0.gprHi_signed[' + s + ']>>>0) < (' + (imm_hi>>>0) + ')) ? 1 : 0;\n';
+    impl += '}\n';
+    impl += 'cpu0.gprHi[' + t + '] = 0;\n';
+
+    return generateTrivialOpBoilerplate(impl, ctx);
   }
 
   function executeSLTIU(i) {
@@ -2360,7 +2401,7 @@ if (typeof n64js === 'undefined') {
   var simpleTableGen = [
     generateSpecial,        generateRegImm,         generateJ,            generateJAL,
     generateBEQ,            generateBNE,            generateBLEZ,         generateBGTZ,
-    generateADDI,           generateADDIU,          'executeSLTI',        'executeSLTIU',
+    generateADDI,           generateADDIU,          generateSLTI,         generateSLTIU,
     generateANDI,           generateORI,            generateXORI,         generateLUI,
     'executeCop0',          'executeCop1_check',    'executeUnknown',     'executeUnknown',
     'executeBEQL',          'executeBNEL',          'executeBLEZL',       'executeBGTZL',
