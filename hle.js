@@ -2376,6 +2376,8 @@ if (typeof n64js === 'undefined') {
     }
   }
 
+  var last_ucode_str = '';
+
   function hleGraphics(task, ram) {
     ++graphics_task_count;
 
@@ -2391,7 +2393,10 @@ if (typeof n64js === 'undefined') {
 
     var str = detectVersionString(ram, data_base, data_size);
 
-    n64js.log('GFX: ' + graphics_task_count + ' - ' + str);
+    if (str !== last_ucode_str) {
+      n64js.log('GFX: ' + graphics_task_count + ' - ' + str);
+    }
+    last_ucode_str = str;
 
     var ucode = kUCode_GBI0;
 
