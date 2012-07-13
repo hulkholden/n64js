@@ -2765,15 +2765,18 @@ if (typeof n64js === 'undefined') {
                 cpu0.control_signed[cpu0.kControlCount] += ops_executed * COUNTER_INCREMENT_PER_OP;
               }
 
-              n64js.assert(fragment.bailedOut || evt.countdown >= 0, "Executed too many ops. Possibly didn't bail out of trace when new event was set up?");
+              //n64js.assert(fragment.bailedOut || evt.countdown >= 0, "Executed too many ops. Possibly didn't bail out of trace when new event was set up?");
               if (evt.countdown <= 0) {
                 handleCounter();
               }
 
               // If stuffToDo is set, we'll break on the next loop
 
-              // Find the next fragment, link
-              fragment = fragment.getNextFragment(cpu0.pc, ops_executed);
+              var next_fragment = fragment.nextFragments[ops_executed];
+              if (!next_fragment || next_fragment.entryPC !== cpu0.pc) {
+                next_fragment = fragment.getNextFragment(cpu0.pc, ops_executed);
+              }
+              fragment = next_fragment;
 
             } else {
               // We're close to another event: drop to the interpreter
