@@ -2463,9 +2463,9 @@ if (typeof n64js === 'undefined') {
       return generateGenericOpBoilerplate(impl, ctx);   // Ensure we generate full boilerplate here, even for trivial ops
     }
 
-   if (ctx.isTrivial) {
-    return generateTrivialOpBoilerplate(impl, ctx);
-   }
+    if (ctx.isTrivial) {
+     return generateTrivialOpBoilerplate(impl, ctx);
+    }
     return generateGenericOpBoilerplate(impl, ctx);
   }
 
