@@ -1297,6 +1297,17 @@ if (typeof n64js === 'undefined') {
     }
   }
 
+  function generateMTC0(ctx) {
+    var s = ctx.instr_fs();
+    if (s === cpu0.kControlSR) {
+      ctx.fragment.cop1statusKnown = false;
+    }
+
+    var impl = '';
+    impl += 'executeMTC0(' + n64js.toString32(ctx.instruction) + ');\n';
+    return generateGenericOpBoilerplate(impl, ctx);
+  }
+
   function executeMTC0(i) {
     var control_reg = fs(i);
     var new_value   = cpu0.gprLo[rt(i)];
@@ -2124,6 +2135,57 @@ if (typeof n64js === 'undefined') {
       return Math.floor(x);
   }
 
+
+  function generateSInstrHelper(ctx) {
+
+    var s = ctx.instr_fs();
+    var t = ctx.instr_ft();
+    var d = ctx.instr_fd();
+
+    ctx.isTrivial = true;
+
+    switch(cop1_func(ctx.instruction)) {
+      case 0x00:    return 'cpu1.float32[' + d + '] = cpu1.float32[' + s + '] + cpu1.float32[' + t + '];\n';
+      case 0x01:    return 'cpu1.float32[' + d + '] = cpu1.float32[' + s + '] - cpu1.float32[' + t + '];\n';
+      case 0x02:    return 'cpu1.float32[' + d + '] = cpu1.float32[' + s + '] * cpu1.float32[' + t + '];\n';
+      case 0x03:    return 'cpu1.float32[' + d + '] = cpu1.float32[' + s + '] / cpu1.float32[' + t + '];\n';
+      case 0x04:    return 'cpu1.float32[' + d + '] = Math.sqrt( cpu1.float32[' + s + '] );\n';
+      case 0x05:    return 'cpu1.float32[' + d + '] = Math.abs(  cpu1.float32[' + s + '] );\n';
+      case 0x06:    return 'cpu1.float32[' + d + '] =  cpu1.float32[' + s + '];\n';
+      case 0x07:    return 'cpu1.float32[' + d + '] = -cpu1.float32[' + s + '];\n';
+      case 0x08:    /* 'ROUND.L.'*/     break;
+      case 0x09:    /* 'TRUNC.L.'*/     break;
+      case 0x0a:    /* 'CEIL.L.'*/      break;
+      case 0x0b:    /* 'FLOOR.L.'*/     break;
+      case 0x0c:    /* 'ROUND.W.'*/     return 'cpu1.int32[' + d + '] = Math.round( cpu1.float32[' + s + '] );\n';  // TODO: check this
+      case 0x0d:    /* 'TRUNC.W.'*/     return 'cpu1.int32[' + d + '] =      trunc( cpu1.float32[' + s + '] );\n';
+      case 0x0e:    /* 'CEIL.W.'*/      return 'cpu1.int32[' + d + '] = Math.ceil(  cpu1.float32[' + s + '] );\n';
+      case 0x0f:    /* 'FLOOR.W.'*/     return 'cpu1.int32[' + d + '] = Math.floor( cpu1.float32[' + s + '] );\n';
+      case 0x20:    /* 'CVT.S' */       break;
+      case 0x21:    /* 'CVT.D' */       return 'cpu1.store_f64( ' + d + ', cpu1.float32[' + s + '] );\n';
+      case 0x24:    /* 'CVT.W' */       return 'cpu1.int32[' + d + '] = Math.floor( cpu1.float32[' + s + '] );\n';   // FIXME: apply correct conversion mode
+      case 0x25:    /* 'CVT.L' */       break;
+      case 0x30:    /* 'C.F' */         return 'cpu1.control[31] &= ~FPCSR_C;\n';
+      case 0x31:    /* 'C.UN' */        break;
+      case 0x32:    /* 'C.EQ' */        return 'if( cpu1.float32[' + s + '] == cpu1.float32[' + t + '] ) cpu1.control[31] |= FPCSR_C; else cpu1.control[31] &= ~FPCSR_C;\n';
+      case 0x33:    /* 'C.UEQ' */       break;
+      case 0x34:    /* 'C.OLT' */       break;
+      case 0x35:    /* 'C.ULT' */       break;
+      case 0x36:    /* 'C.OLE' */       break;
+      case 0x37:    /* 'C.ULE' */       break;
+      case 0x38:    /* 'C.SF' */        return 'cpu1.control[31] &= ~FPCSR_C;\n';
+      case 0x39:    /* 'C.NGLE' */      break;
+      case 0x3a:    /* 'C.SEQ' */       break;
+      case 0x3b:    /* 'C.NGL' */       return 'if( cpu1.float32[' + s + '] == cpu1.float32[' + t + '] ) cpu1.control[31] |= FPCSR_C; else cpu1.control[31] &= ~FPCSR_C;\n';
+      case 0x3c:    /* 'C.LT' */        return 'if( cpu1.float32[' + s + '] <  cpu1.float32[' + t + '] ) cpu1.control[31] |= FPCSR_C; else cpu1.control[31] &= ~FPCSR_C;\n';
+      case 0x3d:    /* 'C.NGE' */       break;
+      case 0x3e:    /* 'C.LE' */        return 'if( cpu1.float32[' + s + '] <= cpu1.float32[' + t + '] ) cpu1.control[31] |= FPCSR_C; else cpu1.control[31] &= ~FPCSR_C;\n';
+      case 0x3f:    /* 'C.NGT' */       return 'if( cpu1.float32[' + s + '] <= cpu1.float32[' + t + '] ) cpu1.control[31] |= FPCSR_C; else cpu1.control[31] &= ~FPCSR_C;\n';
+    }
+
+    return 'unimplemented(' + n64js.toString32(ctx.pc) + ',' + n64js.toString32(ctx.instruction) + ');\n';
+  }
+
   function executeSInstr(i) {
 
     var s = fs(i);
@@ -2152,7 +2214,7 @@ if (typeof n64js === 'undefined') {
       case 0x21:    /* 'CVT.D' */       cpu1.store_f64( d, cpu1.load_f32( s ) ); return;
       case 0x24:    /* 'CVT.W' */       cpu1.store_s32( d, Math.floor( cpu1.load_f32( s ) ) ); return;  // FIXME: apply correct conversion mode
       case 0x25:    /* 'CVT.L' */       unimplemented(cpu0.pc,i); return;
-      case 0x30:    /* 'C.F' */         cpu1.setCondition( false );; return;
+      case 0x30:    /* 'C.F' */         cpu1.setCondition( false ); return;
       case 0x31:    /* 'C.UN' */        unimplemented(cpu0.pc,i); return;
       case 0x32:    /* 'C.EQ' */        cpu1.setCondition( cpu1.load_f32( s ) == cpu1.load_f32( t ) ); return;
       case 0x33:    /* 'C.UEQ' */       unimplemented(cpu0.pc,i); return;
@@ -2160,7 +2222,7 @@ if (typeof n64js === 'undefined') {
       case 0x35:    /* 'C.ULT' */       unimplemented(cpu0.pc,i); return;
       case 0x36:    /* 'C.OLE' */       unimplemented(cpu0.pc,i); return;
       case 0x37:    /* 'C.ULE' */       unimplemented(cpu0.pc,i); return;
-      case 0x38:    /* 'C.SF' */        cpu1.setCondition( false );; return;
+      case 0x38:    /* 'C.SF' */        cpu1.setCondition( false ); return;
       case 0x39:    /* 'C.NGLE' */      unimplemented(cpu0.pc,i); return;
       case 0x3a:    /* 'C.SEQ' */       unimplemented(cpu0.pc,i); return;
       case 0x3b:    /* 'C.NGL' */       cpu1.setCondition( cpu1.load_f32( s ) == cpu1.load_f32( t ) ); return;
@@ -2171,6 +2233,56 @@ if (typeof n64js === 'undefined') {
     }
 
     unimplemented(cpu0.pc,i);
+  }
+
+  function generateDInstrHelper(ctx) {
+
+    var s = ctx.instr_fs();
+    var t = ctx.instr_ft();
+    var d = ctx.instr_fd();
+
+    ctx.isTrivial = true;
+
+    switch(cop1_func(ctx.instruction)) {
+      case 0x00:    return 'cpu1.store_f64( ' + d + ', cpu1.load_f64( ' + s + ' ) + cpu1.load_f64( ' + t + ' ) );\n';
+      case 0x01:    return 'cpu1.store_f64( ' + d + ', cpu1.load_f64( ' + s + ' ) - cpu1.load_f64( ' + t + ' ) );\n';
+      case 0x02:    return 'cpu1.store_f64( ' + d + ', cpu1.load_f64( ' + s + ' ) * cpu1.load_f64( ' + t + ' ) );\n';
+      case 0x03:    return 'cpu1.store_f64( ' + d + ', cpu1.load_f64( ' + s + ' ) / cpu1.load_f64( ' + t + ' ) );\n';
+      case 0x04:    return 'cpu1.store_f64( ' + d + ', Math.sqrt( cpu1.load_f64( ' + s + ' ) ) );\n';
+      case 0x05:    return 'cpu1.store_f64( ' + d + ', Math.abs(  cpu1.load_f64( ' + s + ' ) ) );\n';
+      case 0x06:    return 'cpu1.store_f64( ' + d + ',  cpu1.load_f64( ' + s + ' ) );\n';
+      case 0x07:    return 'cpu1.store_f64( ' + d + ', -cpu1.load_f64( ' + s + ' )  );\n';
+      case 0x08:    /* 'ROUND.L.'*/     break;
+      case 0x09:    /* 'TRUNC.L.'*/     break;
+      case 0x0a:    /* 'CEIL.L.'*/      break;
+      case 0x0b:    /* 'FLOOR.L.'*/     break;
+      case 0x0c:    /* 'ROUND.W.'*/     return 'cpu1.store_s32( ' + d + ', Math.round( cpu1.load_f64( ' + s + ' ) ) );\n';  // TODO: check this
+      case 0x0d:    /* 'TRUNC.W.'*/     return 'cpu1.store_s32( ' + d + ',      trunc( cpu1.load_f64( ' + s + ' ) ) );\n';
+      case 0x0e:    /* 'CEIL.W.'*/      return 'cpu1.store_s32( ' + d + ', Math.ceil(  cpu1.load_f64( ' + s + ' ) ) );\n';
+      case 0x0f:    /* 'FLOOR.W.'*/     return 'cpu1.store_s32( ' + d + ', Math.floor( cpu1.load_f64( ' + s + ' ) ) );\n';
+      case 0x20:    /* 'CVT.S' */       return 'cpu1.store_f32( ' + d + ', cpu1.load_f64( ' + s + ' ) );\n';
+      case 0x21:    /* 'CVT.D' */       break;
+      case 0x24:    /* 'CVT.W' */       return 'cpu1.store_s32( ' + d + ', Math.floor( cpu1.load_f64( ' + s + ' ) ) );\n';  // FIXME: apply correct conversion mode
+      case 0x25:    /* 'CVT.L' */       break;
+      case 0x30:    /* 'C.F' */         return 'cpu1.control[31] &= ~FPCSR_C;\n';
+      case 0x31:    /* 'C.UN' */        break;
+      case 0x32:    /* 'C.EQ' */        return 'if( cpu1.load_f64( ' + s + ' ) == cpu1.load_f64( ' + t + ' ) );\n';
+      case 0x33:    /* 'C.UEQ' */       break;
+      case 0x34:    /* 'C.OLT' */       break;
+      case 0x35:    /* 'C.ULT' */       break;
+      case 0x36:    /* 'C.OLE' */       break;
+      case 0x37:    /* 'C.ULE' */       break;
+      case 0x38:    /* 'C.SF' */        return 'cpu1.control[31] &= ~FPCSR_C\n';
+      case 0x39:    /* 'C.NGLE' */      break;
+      case 0x3a:    /* 'C.SEQ' */       break;
+      case 0x3b:    /* 'C.NGL' */       return 'if( cpu1.load_f64( ' + s + ' ) == cpu1.load_f64( ' + t + ' ) ) cpu1.control[31] |= FPCSR_C; else cpu1.control[31] &= ~FPCSR_C;\n';
+      case 0x3c:    /* 'C.LT' */        return 'if( cpu1.load_f64( ' + s + ' ) <  cpu1.load_f64( ' + t + ' ) ) cpu1.control[31] |= FPCSR_C; else cpu1.control[31] &= ~FPCSR_C;\n';
+      case 0x3d:    /* 'C.NGE' */       break;
+      case 0x3e:    /* 'C.LE' */        return 'if( cpu1.load_f64( ' + s + ' ) <= cpu1.load_f64( ' + t + ' ) ) cpu1.control[31] |= FPCSR_C; else cpu1.control[31] &= ~FPCSR_C;\n';
+      case 0x3f:    /* 'C.NGT' */       return 'if( cpu1.load_f64( ' + s + ' ) <= cpu1.load_f64( ' + t + ' ) ) cpu1.control[31] |= FPCSR_C; else cpu1.control[31] &= ~FPCSR_C;\n';
+    }
+
+    return 'unimplemented(' + n64js.toString32(ctx.pc) + ',' + n64js.toString32(ctx.instruction) + ');\n';
   }
 
   function executeDInstr(i) {
@@ -2201,7 +2313,7 @@ if (typeof n64js === 'undefined') {
       case 0x21:    /* 'CVT.D' */       unimplemented(cpu0.pc,i); return;
       case 0x24:    /* 'CVT.W' */       cpu1.store_s32( d, Math.floor( cpu1.load_f64( s ) ) ); return;  // FIXME: apply correct conversion mode
       case 0x25:    /* 'CVT.L' */       unimplemented(cpu0.pc,i); return;
-      case 0x30:    /* 'C.F' */         cpu1.setCondition( false );; return;
+      case 0x30:    /* 'C.F' */         cpu1.setCondition( false ); return;
       case 0x31:    /* 'C.UN' */        unimplemented(cpu0.pc,i); return;
       case 0x32:    /* 'C.EQ' */        cpu1.setCondition( cpu1.load_f64( s ) == cpu1.load_f64( t ) ); return;
       case 0x33:    /* 'C.UEQ' */       unimplemented(cpu0.pc,i); return;
@@ -2209,7 +2321,7 @@ if (typeof n64js === 'undefined') {
       case 0x35:    /* 'C.ULT' */       unimplemented(cpu0.pc,i); return;
       case 0x36:    /* 'C.OLE' */       unimplemented(cpu0.pc,i); return;
       case 0x37:    /* 'C.ULE' */       unimplemented(cpu0.pc,i); return;
-      case 0x38:    /* 'C.SF' */        cpu1.setCondition( false );; return;
+      case 0x38:    /* 'C.SF' */        cpu1.setCondition( false ); return;
       case 0x39:    /* 'C.NGLE' */      unimplemented(cpu0.pc,i); return;
       case 0x3a:    /* 'C.SEQ' */       unimplemented(cpu0.pc,i); return;
       case 0x3b:    /* 'C.NGL' */       cpu1.setCondition( cpu1.load_f64( s ) == cpu1.load_f64( t ) ); return;
@@ -2271,6 +2383,23 @@ if (typeof n64js === 'undefined') {
   if (cop0Table.length != 32) {
     throw "Oops, didn't build the cop0 table correctly";
   }
+
+
+  var cop0TableGen = [
+    'executeMFC0',          'executeUnknown',       'executeUnknown',     'executeUnknown',
+    generateMTC0,           'executeUnknown',       'executeUnknown',     'executeUnknown',
+    'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
+    'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
+    'executeTLB',           'executeUnknown',       'executeUnknown',     'executeUnknown',
+    'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
+    'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
+    'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
+  ];
+  if (cop0TableGen.length != 32) {
+    throw "Oops, didn't build the cop0 table correctly";
+  }
+
+
   function executeCop0(i) {
     var fmt = (i >>> 21) & 0x1f;
     cop0Table[fmt](i);
@@ -2289,6 +2418,57 @@ if (typeof n64js === 'undefined') {
   if (cop1Table.length != 32) {
     throw "Oops, didn't build the cop1 table correctly";
   }
+
+  var cop1TableGen = [
+    'executeMFC1',          'executeDMFC1',         'executeCFC1',        'executeUnknown',
+    'executeMTC1',          'executeDMTC1',         'executeCTC1',        'executeUnknown',
+    'executeBCInstr',       'executeUnknown',       'executeUnknown',     'executeUnknown',
+    'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
+    generateSInstrHelper,   generateDInstrHelper,   'executeUnknown',     'executeUnknown',
+    'executeWInstr',        'executeLInstr',        'executeUnknown',     'executeUnknown',
+    'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
+    'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
+  ];
+  if (cop1TableGen.length != 32) {
+    throw "Oops, didn't build the cop1 gen table correctly";
+  }
+
+  function generateCop1(ctx) {
+    var fmt = (ctx.instruction >>> 21) & 0x1f;
+    var fn = cop1TableGen[fmt];
+
+    var impl = '';
+
+    if (ctx.fragment.cop1statusKnown) {
+      // ASSERT cop1 enabled
+      if (typeof fn === 'string') {
+        impl += fn + '(' + n64js.toString32(ctx.instruction) + ');\n';
+      } else {
+        impl += fn(ctx);
+      }
+
+    } else {
+      impl += 'if( (c.control[12] & SR_CU1) === 0 ) {\n';
+      impl += '  executeCop1_disabled(' + n64js.toString32(ctx.instruction) + ');\n';
+      impl += '} else {\n';
+
+      if (typeof fn === 'string') {
+        impl += fn + '(' + n64js.toString32(ctx.instruction) + ');\n';
+      } else {
+        impl += fn(ctx);
+      }
+      impl += '}\n';
+
+      ctx.fragment.cop1statusKnown = true;
+      return generateGenericOpBoilerplate(impl, ctx);   // Ensure we generate full boilerplate here, even for trivial ops
+    }
+
+   if (ctx.isTrivial) {
+    return generateTrivialOpBoilerplate(impl, ctx);
+   }
+    return generateGenericOpBoilerplate(impl, ctx);
+  }
+
   function executeCop1(i) {
     //n64js.assert( (cpu0.control[cpu0.kControlSR] & SR_CU1) !== 0, "SR_CU1 in inconsistent state" );
 
@@ -2301,13 +2481,6 @@ if (typeof n64js === 'undefined') {
     n64js.assert( (cpu0.control[cpu0.kControlSR] & SR_CU1) === 0, "SR_CU1 in inconsistent state" );
 
     cpu0.throwCop1Unusable();
-  }
-
-  function executeCop1_check(i) {
-    if( (cpu0.control[cpu0.kControlSR] & SR_CU1) === 0 )
-      executeCop1_disabled(i);
-    else
-      executeCop1(i);
   }
 
   function setCop1Enable(enable) {
@@ -2403,7 +2576,7 @@ if (typeof n64js === 'undefined') {
     generateBEQ,            generateBNE,            generateBLEZ,         generateBGTZ,
     generateADDI,           generateADDIU,          generateSLTI,         generateSLTIU,
     generateANDI,           generateORI,            generateXORI,         generateLUI,
-    'executeCop0',          'executeCop1_check',    'executeUnknown',     'executeUnknown',
+    generateCop0,           generateCop1,           'executeUnknown',     'executeUnknown',
     'executeBEQL',          'executeBNEL',          'executeBLEZL',       'executeBGTZL',
     'executeDADDI',         'executeDADDIU',        'executeLDL',         'executeLDR',
     'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
@@ -2986,6 +3159,8 @@ if (typeof n64js === 'undefined') {
     this.global_code      = '';
     this.body_code        = '';
     this.needsDelayCheck  = true;
+
+    this.cop1statusKnown = false;
   }
 
   Fragment.prototype.invalidate = function () {
@@ -3001,6 +3176,8 @@ if (typeof n64js === 'undefined') {
     this.global_code      = '';
     this.body_code        = '';
     this.needsDelayCheck  = true;
+
+    this.cop1statusKnown = false;
   }
 
   Fragment.prototype.getNextFragment = function (pc, ops_executed) {
@@ -3146,6 +3323,12 @@ if (typeof n64js === 'undefined') {
     var rt = (ctx.instruction >>> 16) & 0x1f;
     var fn = regImmTableGen[rt];
     return generateOpHelper(fn, ctx);
+  }
+
+  function generateCop0(ctx) {
+    var fmt = (ctx.instruction >>> 21) & 0x1f;
+    var fn = cop0TableGen[fmt];
+    return generateOpHelper(fn,ctx);
   }
 
   // This takes a fn - either a string (in which case we generate some unoptimised boilerplate) or a function (which we call recursively)
