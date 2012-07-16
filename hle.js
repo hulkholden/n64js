@@ -807,238 +807,6 @@ if (typeof n64js === 'undefined') {
     flushTris(tri_idx*3, vertex_positions, vertex_colours, vertex_coords);
   }
 
-  function pushTri(v0_idx, v1_idx, v2_idx, vertex_positions, vertex_colours, vertex_coords, tri_idx) {
-
-    var vtx_pos_idx = tri_idx * 3*4;
-    var vtx_col_idx = tri_idx * 3*1;
-    var vtx_uv_idx  = tri_idx * 3*2;
-
-    var v0 = state.projectedVertices[v0_idx];
-    var v1 = state.projectedVertices[v1_idx];
-    var v2 = state.projectedVertices[v2_idx];
-
-    var vp0 = v0.pos.elems;
-    var vp1 = v1.pos.elems;
-    var vp2 = v2.pos.elems;
-
-    vertex_positions[vtx_pos_idx+ 0] = vp0[0];
-    vertex_positions[vtx_pos_idx+ 1] = vp0[1];
-    vertex_positions[vtx_pos_idx+ 2] = vp0[2];
-    vertex_positions[vtx_pos_idx+ 3] = vp0[3];
-
-    vertex_positions[vtx_pos_idx+ 4] = vp1[0];
-    vertex_positions[vtx_pos_idx+ 5] = vp1[1];
-    vertex_positions[vtx_pos_idx+ 6] = vp1[2];
-    vertex_positions[vtx_pos_idx+ 7] = vp1[3];
-
-    vertex_positions[vtx_pos_idx+ 8] = vp2[0];
-    vertex_positions[vtx_pos_idx+ 9] = vp2[1];
-    vertex_positions[vtx_pos_idx+10] = vp2[2];
-    vertex_positions[vtx_pos_idx+11] = vp2[3];
-
-    vertex_colours[vtx_col_idx + 0] = v0.color;
-    vertex_colours[vtx_col_idx + 1] = v1.color;
-    vertex_colours[vtx_col_idx + 2] = v2.color;
-
-
-    vertex_coords[vtx_uv_idx+ 0] = v0.u;
-    vertex_coords[vtx_uv_idx+ 1] = v0.v;
-
-    vertex_coords[vtx_uv_idx+ 2] = v1.u;
-    vertex_coords[vtx_uv_idx+ 3] = v1.v;
-
-    vertex_coords[vtx_uv_idx+ 4] = v2.u;
-    vertex_coords[vtx_uv_idx+ 5] = v2.v;
-  }
-
-  function flushTris(num_tris, vertex_positions, vertex_colours, vertex_coords) {
-
-    var cycle_type = getCycleType();
-    if (cycle_type < cycleTypeValues.G_CYC_COPY) {
-      initBlend();
-    } else {
-      gl.disable(gl.BLEND);
-    }
-
-    var program = getCurrentShaderProgram(cycle_type);
-    gl.useProgram(program);
-
-    var vertexPositionAttribute = gl.getAttribLocation(program,  "aVertexPosition");
-    var vertexColorAttribute    = gl.getAttribLocation(program,  "aVertexColor");
-    var texCoordAttribute       = gl.getAttribLocation(program,  "aTextureCoord");
-    var uSamplerUniform         = gl.getUniformLocation(program, "uSampler");
-    var uPrimColorUniform       = gl.getUniformLocation(program, "uPrimColor");
-    var uEnvColorUniform        = gl.getUniformLocation(program, "uEnvColor");
-    var uTexScaleUniform        = gl.getUniformLocation(program, "uTexScale");
-    var uTexOffsetUniform       = gl.getUniformLocation(program, "uTexOffset");
-
-    gl.enableVertexAttribArray(vertexPositionAttribute);
-    gl.bindBuffer(gl.ARRAY_BUFFER, n64PositionsBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, vertex_positions, gl.STATIC_DRAW);
-    gl.vertexAttribPointer(vertexPositionAttribute, 4, gl.FLOAT, false, 0, 0);
-
-    gl.enableVertexAttribArray(vertexColorAttribute);
-    gl.bindBuffer(gl.ARRAY_BUFFER, n64ColorsBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, vertex_colours, gl.STATIC_DRAW);
-    gl.vertexAttribPointer(vertexColorAttribute, 4, gl.UNSIGNED_BYTE, true, 0, 0);
-
-    gl.enableVertexAttribArray(texCoordAttribute);
-    gl.bindBuffer(gl.ARRAY_BUFFER, n64UVBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, vertex_coords, gl.STATIC_DRAW);
-    gl.vertexAttribPointer(texCoordAttribute, 2, gl.FLOAT, false, 0, 0);
-
-    gl.uniform4f(uPrimColorUniform, ((state.primColor>>>24)&0xff)/255.0,  ((state.primColor>>>16)&0xff)/255.0, ((state.primColor>>> 8)&0xff)/255.0, ((state.primColor>>> 0)&0xff)/255.0 );
-    gl.uniform4f(uEnvColorUniform,  ((state.envColor >>>24)&0xff)/255.0,  ((state.envColor >>>16)&0xff)/255.0, ((state.envColor >>> 8)&0xff)/255.0, ((state.envColor >>> 0)&0xff)/255.0 );
-
-
-    if (state.geometryMode & geometryModeFlags.G_TEXTURE_ENABLE) {
-      var textureinfo = installTexture(state.texture.tile);
-
-      var uv_offset_u = 0;
-      var uv_offset_v = 0;
-      var uv_scale_u = 1;
-      var uv_scale_v = 1;
-
-      if ((state.geometryMode & (geometryModeFlags.G_LIGHTING|geometryModeFlags.G_TEXTURE_GEN)) !== (geometryModeFlags.G_LIGHTING|geometryModeFlags.G_TEXTURE_GEN)) {
-        uv_scale_u = 1.0 / textureinfo.nativeWidth;
-        uv_scale_v = 1.0 / textureinfo.nativeHeight;
-        // uv_offset_u = mTileTop.x;  // FIXME
-        // uv_offset_v = mTileTop.y;
-      }
-
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, textureinfo.texture);
-      gl.uniform1i(uSamplerUniform, 0);
-
-      gl.uniform2f(uTexScaleUniform,  uv_scale_u,  uv_scale_v );
-      gl.uniform2f(uTexOffsetUniform, uv_offset_u, uv_offset_u );
-
-      if (getTextureFilterTyoe() == textureFilterValues.G_TF_POINT) {
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST_MIPMAP_NEAREST);
-      } else {
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
-      }
-    }
-
-    initDepth();
-
-    //texture filter
-
-    if (state.geometryMode & geometryModeFlags.G_CULL_BOTH) {
-      gl.enable(gl.CULL_FACE);
-      var mode = (state.geometryMode & geometryModeFlags.G_CULL_FRONT) ? gl.FRONT : gl.BACK;
-      gl.cullFace(mode);
-    } else {
-      gl.disable(gl.CULL_FACE);
-    }
-
-    gl.drawArrays(gl.TRIANGLES, 0, num_tris);
-    //gl.drawArrays(gl.LINE_STRIP, 0, num_tris);
-  }
-
-  function initDepth() {
-
-    // Fixes Zfighting issues we have on the PSP.
-    //if( gRDPOtherMode.zmode == 3 ) ...
-
-    // Disable depth testing
-    var zgeom_mode      = (state.geometryMode  & geometryModeFlags.G_ZBUFFER) !== 0;
-    var zcmp_rendermode = (state.rdpOtherModeL & renderModeFlags.Z_CMP) !== 0;
-    var zupd_rendermode = (state.rdpOtherModeL & renderModeFlags.Z_UPD) !== 0;
-
-    if ((zgeom_mode && zcmp_rendermode) || zupd_rendermode) {
-      gl.enable(gl.DEPTH_TEST);
-    } else {
-      gl.disable(gl.DEPTH_TEST);
-    }
-
-    gl.depthMask( zupd_rendermode );
-  }
-
-
-  function initBlend() {
-    var blend_mode = state.rdpOtherModeL >> G_MDSFT_BLENDER;
-    switch(blend_mode) {
-      //case 0x0044:        // ?
-      //case 0x0055:        // ?
-      case 0x0c08:          // In * 0 + In * 1 || :In * AIn + In * 1-A        Tarzan - Medalion in bottom part of the screen
-      //case 0x0c19:        // ?
-      case 0x0f0a:          // In * 0 + In * 1 || :In * 0 + In * 1            SSV - ??? and MM - Walls, Wipeout - Mountains
-      case 0x0fa5:          // In * 0 + Bl * AMem || :In * 0 + Bl * AMem      OOT Menu
-      //case 0x5f50:        // ?
-      case 0x8410:          // Bl * AFog + In * 1-A || :In * AIn + Mem * 1-A  Paper Mario Menu
-      case 0xc302:          // Fog * AIn + In * 1-A || :In * 0 + In * 1       ISS64 - Ground
-      case 0xc702:          // Fog * AFog + In * 1-A || :In * 0 + In * 1      Donald Duck - Sky
-      //case 0xc811:        // ?
-      case 0xfa00:          // Fog * AShade + In * 1-A || :Fog * AShade + In * 1-A  F-Zero - Power Roads
-      //case 0x07c2:        // In * AFog + Fog * 1-A || In * 0 + In * 1       Conker - ??
-        gl.disable(gl.BLEND);
-        break;
-
-      //case 0x55f0:        // Mem * AFog + Fog * 1-A || :Mem * AFog + Fog * 1-A  Bust a Move 3 - ???
-      case 0x0150:          // In * AIn + Mem * 1-A || :In * AFog + Mem * 1-A   Spiderman - Waterfall Intro
-      case 0x0f5a:          // In * 0 + Mem * 1 || :In * 0 + Mem * 1            Starwars Racer
-      case 0x0010:          // In * AIn + In * 1-A || :In * AIn + Mem * 1-A     Hey You Pikachu - Shadow
-      case 0x0040:          // In * AIn + Mem * 1-A || :In * AIn + In * 1-A     Mario - Princess peach text
-      //case 0x0050:        // In * AIn + Mem * 1-A || :In * AIn + Mem * 1-A:   SSV - TV Screen and SM64 text
-      case 0x04d0:          // In * AFog + Fog * 1-A || In * AIn + Mem * 1-A    Conker's Eyes
-      case 0x0c18:          // In * 0 + In * 1 || :In * AIn + Mem * 1-A:        SSV - WaterFall and dust
-      case 0xc410:          // Fog * AFog + In * 1-A || :In * AIn + Mem * 1-A   Donald Duck - Stars
-      case 0xc810:          // Fog * AShade + In * 1-A || :In * AIn + Mem * 1-A SSV - Fog? and MM - Shadows
-      case 0xcb02:          // Fog * AShade + In * 1-A || :In * 0 + In * 1      Doom 64 - Weapons
-      default:
-        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-        gl.blendEquation(gl.FUNC_ADD);
-        gl.enable(gl.BLEND);
-        break;
-    }
-  }
-
-  function installTexture(tile_idx) {
-    var tile         = state.tiles[tile_idx];
-    var tmem_address = tile.tmem;
-
-    if (state.tmemLoadMap.hasOwnProperty(tmem_address)) {
-      var load_details = state.tmemLoadMap[tmem_address];
-      var pitch = load_details.pitch;
-
-      // If loaded via LoadBlock, the pitch isn't set and is deterined via tile.line
-      if (pitch == 0xffffffff) {
-        if (tile.size === imageSizeTypes.G_IM_SIZ_32b)
-          pitch = tile.line << 4;
-        else
-          pitch = tile.line << 3;
-      }
-
-      var width  = getTextureDimension( tile.uls, tile.lrs, tile.mask_s );
-      var height = getTextureDimension( tile.ult, tile.lrt, tile.mask_t );
-
-      var textureinfo = loadTexture({
-        'tmem':    tile.tmem,
-        'palette': tile.palette,
-        'address': load_details.address,
-        'format':  tile.format,
-        'size':    tile.size,
-        'width':   width,
-        'height':  height,
-        'pitch':   pitch,
-        //'tlutfmt': ?
-        'swapped': load_details.swapped,
-        'cm_s':    tile.cm_s,
-        'cm_t':    tile.cm_t,
-        'mask_s':  tile.mask_s,
-        'mask_t':  tile.mask_t,
-      });
-
-      textureinfo.left = tile.uls;
-      textureinfo.top  = tile.ult;
-
-      return textureinfo;
-    }
-  }
-
   function executeTriRSP(cmd0,cmd1)               { unimplemented(cmd0,cmd1); }
 
   function executeSetKeyGB(cmd0,cmd1)             { unimplemented(cmd0,cmd1); }
@@ -2222,6 +1990,138 @@ if (typeof n64js === 'undefined') {
   var n64ColorsBuffer;
   var n64UVBuffer;
 
+
+  function pushTri(v0_idx, v1_idx, v2_idx, vertex_positions, vertex_colours, vertex_coords, tri_idx) {
+
+    var vtx_pos_idx = tri_idx * 3*4;
+    var vtx_col_idx = tri_idx * 3*1;
+    var vtx_uv_idx  = tri_idx * 3*2;
+
+    var v0 = state.projectedVertices[v0_idx];
+    var v1 = state.projectedVertices[v1_idx];
+    var v2 = state.projectedVertices[v2_idx];
+
+    var vp0 = v0.pos.elems;
+    var vp1 = v1.pos.elems;
+    var vp2 = v2.pos.elems;
+
+    vertex_positions[vtx_pos_idx+ 0] = vp0[0];
+    vertex_positions[vtx_pos_idx+ 1] = vp0[1];
+    vertex_positions[vtx_pos_idx+ 2] = vp0[2];
+    vertex_positions[vtx_pos_idx+ 3] = vp0[3];
+
+    vertex_positions[vtx_pos_idx+ 4] = vp1[0];
+    vertex_positions[vtx_pos_idx+ 5] = vp1[1];
+    vertex_positions[vtx_pos_idx+ 6] = vp1[2];
+    vertex_positions[vtx_pos_idx+ 7] = vp1[3];
+
+    vertex_positions[vtx_pos_idx+ 8] = vp2[0];
+    vertex_positions[vtx_pos_idx+ 9] = vp2[1];
+    vertex_positions[vtx_pos_idx+10] = vp2[2];
+    vertex_positions[vtx_pos_idx+11] = vp2[3];
+
+    vertex_colours[vtx_col_idx + 0] = v0.color;
+    vertex_colours[vtx_col_idx + 1] = v1.color;
+    vertex_colours[vtx_col_idx + 2] = v2.color;
+
+
+    vertex_coords[vtx_uv_idx+ 0] = v0.u;
+    vertex_coords[vtx_uv_idx+ 1] = v0.v;
+
+    vertex_coords[vtx_uv_idx+ 2] = v1.u;
+    vertex_coords[vtx_uv_idx+ 3] = v1.v;
+
+    vertex_coords[vtx_uv_idx+ 4] = v2.u;
+    vertex_coords[vtx_uv_idx+ 5] = v2.v;
+  }
+
+  function flushTris(num_tris, vertex_positions, vertex_colours, vertex_coords) {
+
+    var cycle_type = getCycleType();
+    if (cycle_type < cycleTypeValues.G_CYC_COPY) {
+      initBlend();
+    } else {
+      gl.disable(gl.BLEND);
+    }
+
+    var program = getCurrentShaderProgram(cycle_type);
+    gl.useProgram(program);
+
+    var vertexPositionAttribute = gl.getAttribLocation(program,  "aVertexPosition");
+    var vertexColorAttribute    = gl.getAttribLocation(program,  "aVertexColor");
+    var texCoordAttribute       = gl.getAttribLocation(program,  "aTextureCoord");
+    var uSamplerUniform         = gl.getUniformLocation(program, "uSampler");
+    var uPrimColorUniform       = gl.getUniformLocation(program, "uPrimColor");
+    var uEnvColorUniform        = gl.getUniformLocation(program, "uEnvColor");
+    var uTexScaleUniform        = gl.getUniformLocation(program, "uTexScale");
+    var uTexOffsetUniform       = gl.getUniformLocation(program, "uTexOffset");
+
+    gl.enableVertexAttribArray(vertexPositionAttribute);
+    gl.bindBuffer(gl.ARRAY_BUFFER, n64PositionsBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, vertex_positions, gl.STATIC_DRAW);
+    gl.vertexAttribPointer(vertexPositionAttribute, 4, gl.FLOAT, false, 0, 0);
+
+    gl.enableVertexAttribArray(vertexColorAttribute);
+    gl.bindBuffer(gl.ARRAY_BUFFER, n64ColorsBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, vertex_colours, gl.STATIC_DRAW);
+    gl.vertexAttribPointer(vertexColorAttribute, 4, gl.UNSIGNED_BYTE, true, 0, 0);
+
+    gl.enableVertexAttribArray(texCoordAttribute);
+    gl.bindBuffer(gl.ARRAY_BUFFER, n64UVBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, vertex_coords, gl.STATIC_DRAW);
+    gl.vertexAttribPointer(texCoordAttribute, 2, gl.FLOAT, false, 0, 0);
+
+    gl.uniform4f(uPrimColorUniform, ((state.primColor>>>24)&0xff)/255.0,  ((state.primColor>>>16)&0xff)/255.0, ((state.primColor>>> 8)&0xff)/255.0, ((state.primColor>>> 0)&0xff)/255.0 );
+    gl.uniform4f(uEnvColorUniform,  ((state.envColor >>>24)&0xff)/255.0,  ((state.envColor >>>16)&0xff)/255.0, ((state.envColor >>> 8)&0xff)/255.0, ((state.envColor >>> 0)&0xff)/255.0 );
+
+
+    if (state.geometryMode & geometryModeFlags.G_TEXTURE_ENABLE) {
+      var textureinfo = installTexture(state.texture.tile);
+
+      var uv_offset_u = 0;
+      var uv_offset_v = 0;
+      var uv_scale_u = 1;
+      var uv_scale_v = 1;
+
+      if ((state.geometryMode & (geometryModeFlags.G_LIGHTING|geometryModeFlags.G_TEXTURE_GEN)) !== (geometryModeFlags.G_LIGHTING|geometryModeFlags.G_TEXTURE_GEN)) {
+        uv_scale_u = 1.0 / textureinfo.nativeWidth;
+        uv_scale_v = 1.0 / textureinfo.nativeHeight;
+        // uv_offset_u = mTileTop.x;  // FIXME
+        // uv_offset_v = mTileTop.y;
+      }
+
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, textureinfo.texture);
+      gl.uniform1i(uSamplerUniform, 0);
+
+      gl.uniform2f(uTexScaleUniform,  uv_scale_u,  uv_scale_v );
+      gl.uniform2f(uTexOffsetUniform, uv_offset_u, uv_offset_u );
+
+      if (getTextureFilterTyoe() == textureFilterValues.G_TF_POINT) {
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST_MIPMAP_NEAREST);
+      } else {
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
+      }
+    }
+
+    initDepth();
+
+    //texture filter
+
+    if (state.geometryMode & geometryModeFlags.G_CULL_BOTH) {
+      gl.enable(gl.CULL_FACE);
+      var mode = (state.geometryMode & geometryModeFlags.G_CULL_FRONT) ? gl.FRONT : gl.BACK;
+      gl.cullFace(mode);
+    } else {
+      gl.disable(gl.CULL_FACE);
+    }
+
+    gl.drawArrays(gl.TRIANGLES, 0, num_tris);
+    //gl.drawArrays(gl.LINE_STRIP, 0, num_tris);
+  }
+
   function fillRect(x0,y0, x1,y1, color) {
     // multiply by state.viewport.trans/scale
     var screen0 = convertN64ToCanvas( [x0,y0] );
@@ -2377,6 +2277,108 @@ if (typeof n64js === 'undefined') {
 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
+
+  function initDepth() {
+
+    // Fixes Zfighting issues we have on the PSP.
+    //if( gRDPOtherMode.zmode == 3 ) ...
+
+    // Disable depth testing
+    var zgeom_mode      = (state.geometryMode  & geometryModeFlags.G_ZBUFFER) !== 0;
+    var zcmp_rendermode = (state.rdpOtherModeL & renderModeFlags.Z_CMP) !== 0;
+    var zupd_rendermode = (state.rdpOtherModeL & renderModeFlags.Z_UPD) !== 0;
+
+    if ((zgeom_mode && zcmp_rendermode) || zupd_rendermode) {
+      gl.enable(gl.DEPTH_TEST);
+    } else {
+      gl.disable(gl.DEPTH_TEST);
+    }
+
+    gl.depthMask( zupd_rendermode );
+  }
+
+
+  function initBlend() {
+    var blend_mode = state.rdpOtherModeL >> G_MDSFT_BLENDER;
+    switch(blend_mode) {
+      //case 0x0044:        // ?
+      //case 0x0055:        // ?
+      case 0x0c08:          // In * 0 + In * 1 || :In * AIn + In * 1-A        Tarzan - Medalion in bottom part of the screen
+      //case 0x0c19:        // ?
+      case 0x0f0a:          // In * 0 + In * 1 || :In * 0 + In * 1            SSV - ??? and MM - Walls, Wipeout - Mountains
+      case 0x0fa5:          // In * 0 + Bl * AMem || :In * 0 + Bl * AMem      OOT Menu
+      //case 0x5f50:        // ?
+      case 0x8410:          // Bl * AFog + In * 1-A || :In * AIn + Mem * 1-A  Paper Mario Menu
+      case 0xc302:          // Fog * AIn + In * 1-A || :In * 0 + In * 1       ISS64 - Ground
+      case 0xc702:          // Fog * AFog + In * 1-A || :In * 0 + In * 1      Donald Duck - Sky
+      //case 0xc811:        // ?
+      case 0xfa00:          // Fog * AShade + In * 1-A || :Fog * AShade + In * 1-A  F-Zero - Power Roads
+      //case 0x07c2:        // In * AFog + Fog * 1-A || In * 0 + In * 1       Conker - ??
+        gl.disable(gl.BLEND);
+        break;
+
+      //case 0x55f0:        // Mem * AFog + Fog * 1-A || :Mem * AFog + Fog * 1-A  Bust a Move 3 - ???
+      case 0x0150:          // In * AIn + Mem * 1-A || :In * AFog + Mem * 1-A   Spiderman - Waterfall Intro
+      case 0x0f5a:          // In * 0 + Mem * 1 || :In * 0 + Mem * 1            Starwars Racer
+      case 0x0010:          // In * AIn + In * 1-A || :In * AIn + Mem * 1-A     Hey You Pikachu - Shadow
+      case 0x0040:          // In * AIn + Mem * 1-A || :In * AIn + In * 1-A     Mario - Princess peach text
+      //case 0x0050:        // In * AIn + Mem * 1-A || :In * AIn + Mem * 1-A:   SSV - TV Screen and SM64 text
+      case 0x04d0:          // In * AFog + Fog * 1-A || In * AIn + Mem * 1-A    Conker's Eyes
+      case 0x0c18:          // In * 0 + In * 1 || :In * AIn + Mem * 1-A:        SSV - WaterFall and dust
+      case 0xc410:          // Fog * AFog + In * 1-A || :In * AIn + Mem * 1-A   Donald Duck - Stars
+      case 0xc810:          // Fog * AShade + In * 1-A || :In * AIn + Mem * 1-A SSV - Fog? and MM - Shadows
+      case 0xcb02:          // Fog * AShade + In * 1-A || :In * 0 + In * 1      Doom 64 - Weapons
+      default:
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        gl.blendEquation(gl.FUNC_ADD);
+        gl.enable(gl.BLEND);
+        break;
+    }
+  }
+
+  function installTexture(tile_idx) {
+    var tile         = state.tiles[tile_idx];
+    var tmem_address = tile.tmem;
+
+    if (state.tmemLoadMap.hasOwnProperty(tmem_address)) {
+      var load_details = state.tmemLoadMap[tmem_address];
+      var pitch = load_details.pitch;
+
+      // If loaded via LoadBlock, the pitch isn't set and is deterined via tile.line
+      if (pitch == 0xffffffff) {
+        if (tile.size === imageSizeTypes.G_IM_SIZ_32b)
+          pitch = tile.line << 4;
+        else
+          pitch = tile.line << 3;
+      }
+
+      var width  = getTextureDimension( tile.uls, tile.lrs, tile.mask_s );
+      var height = getTextureDimension( tile.ult, tile.lrt, tile.mask_t );
+
+      var textureinfo = loadTexture({
+        'tmem':    tile.tmem,
+        'palette': tile.palette,
+        'address': load_details.address,
+        'format':  tile.format,
+        'size':    tile.size,
+        'width':   width,
+        'height':  height,
+        'pitch':   pitch,
+        //'tlutfmt': ?
+        'swapped': load_details.swapped,
+        'cm_s':    tile.cm_s,
+        'cm_t':    tile.cm_t,
+        'mask_s':  tile.mask_s,
+        'mask_t':  tile.mask_t,
+      });
+
+      textureinfo.left = tile.uls;
+      textureinfo.top  = tile.ult;
+
+      return textureinfo;
+    }
+  }
+
 
   // The implementation for these ops is ucode dependent
   var disassembleVertex = disassembleVertex_GBI0;
