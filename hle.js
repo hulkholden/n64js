@@ -1290,7 +1290,7 @@ if (typeof n64js === 'undefined') {
     return state.rdpOtherModeH & (3<<G_MDSFT_CYCLETYPE);
   }
 
-  function getTextureFilterTyoe() {
+  function getTextureFilterType() {
     return state.rdpOtherModeH & (3<<G_MDSFT_TEXTFILT);
   }
 
@@ -1985,7 +1985,6 @@ if (typeof n64js === 'undefined') {
 
   var fillShaderProgram;
   var rectVerticesBuffer;
-  var rectUVBuffer;
   var n64PositionsBuffer;
   var n64ColorsBuffer;
   var n64UVBuffer;
@@ -2035,7 +2034,7 @@ if (typeof n64js === 'undefined') {
     vertex_coords[vtx_uv_idx+ 5] = v2.v;
   }
 
-  function flushTris(num_tris, vertex_positions, vertex_colours, vertex_coords) {
+  function setProgramState(vertex_positions, vertex_colours, vertex_coords, textureinfo, tex_gen_enabled) {
 
     var cycle_type = getCycleType();
     if (cycle_type < cycleTypeValues.G_CYC_COPY) {
@@ -2056,38 +2055,41 @@ if (typeof n64js === 'undefined') {
     var uTexScaleUniform        = gl.getUniformLocation(program, "uTexScale");
     var uTexOffsetUniform       = gl.getUniformLocation(program, "uTexOffset");
 
+    // aVertexPosition
     gl.enableVertexAttribArray(vertexPositionAttribute);
     gl.bindBuffer(gl.ARRAY_BUFFER, n64PositionsBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, vertex_positions, gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertex_positions), gl.STATIC_DRAW);
     gl.vertexAttribPointer(vertexPositionAttribute, 4, gl.FLOAT, false, 0, 0);
 
+    // aVertexColor
     gl.enableVertexAttribArray(vertexColorAttribute);
     gl.bindBuffer(gl.ARRAY_BUFFER, n64ColorsBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, vertex_colours, gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, new Uint32Array(vertex_colours), gl.STATIC_DRAW);
     gl.vertexAttribPointer(vertexColorAttribute, 4, gl.UNSIGNED_BYTE, true, 0, 0);
 
+    // aTextureCoord
     gl.enableVertexAttribArray(texCoordAttribute);
     gl.bindBuffer(gl.ARRAY_BUFFER, n64UVBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, vertex_coords, gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertex_coords), gl.STATIC_DRAW);
     gl.vertexAttribPointer(texCoordAttribute, 2, gl.FLOAT, false, 0, 0);
 
-    gl.uniform4f(uPrimColorUniform, ((state.primColor>>>24)&0xff)/255.0,  ((state.primColor>>>16)&0xff)/255.0, ((state.primColor>>> 8)&0xff)/255.0, ((state.primColor>>> 0)&0xff)/255.0 );
-    gl.uniform4f(uEnvColorUniform,  ((state.envColor >>>24)&0xff)/255.0,  ((state.envColor >>>16)&0xff)/255.0, ((state.envColor >>> 8)&0xff)/255.0, ((state.envColor >>> 0)&0xff)/255.0 );
+    // uSampler
+    if (textureinfo) {
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, textureinfo.texture);
+      gl.uniform1i(uSamplerUniform, 0);
 
+      var uv_offset_u = textureinfo.left;
+      var uv_offset_v = textureinfo.top;
+      var uv_scale_u = 1.0 / textureinfo.nativeWidth;
+      var uv_scale_v = 1.0 / textureinfo.nativeHeight;
 
-    if (state.geometryMode & geometryModeFlags.G_TEXTURE_ENABLE) {
-      var textureinfo = installTexture(state.texture.tile);
-
-      var uv_offset_u = 0;
-      var uv_offset_v = 0;
-      var uv_scale_u = 1;
-      var uv_scale_v = 1;
-
-      if ((state.geometryMode & (geometryModeFlags.G_LIGHTING|geometryModeFlags.G_TEXTURE_GEN)) !== (geometryModeFlags.G_LIGHTING|geometryModeFlags.G_TEXTURE_GEN)) {
-        uv_scale_u = 1.0 / textureinfo.nativeWidth;
-        uv_scale_v = 1.0 / textureinfo.nativeHeight;
-        // uv_offset_u = mTileTop.x;  // FIXME
-        // uv_offset_v = mTileTop.y;
+      // When texture coordinates are generated, they're already correctly scaled. Maybe they should be generated in this coord space?
+      if (tex_gen_enabled) {
+        uv_scale_u  = 1;
+        uv_scale_v  = 1;
+        uv_offset_u = 0;
+        uv_offset_v = 0;
       }
 
       gl.activeTexture(gl.TEXTURE0);
@@ -2097,7 +2099,7 @@ if (typeof n64js === 'undefined') {
       gl.uniform2f(uTexScaleUniform,  uv_scale_u,  uv_scale_v );
       gl.uniform2f(uTexOffsetUniform, uv_offset_u, uv_offset_u );
 
-      if (getTextureFilterTyoe() == textureFilterValues.G_TF_POINT) {
+      if (getTextureFilterType() == textureFilterValues.G_TF_POINT) {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST_MIPMAP_NEAREST);
       } else {
@@ -2105,6 +2107,24 @@ if (typeof n64js === 'undefined') {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
       }
     }
+
+    gl.uniform4f(uPrimColorUniform, ((state.primColor>>>24)&0xff)/255.0,  ((state.primColor>>>16)&0xff)/255.0, ((state.primColor>>> 8)&0xff)/255.0, ((state.primColor>>> 0)&0xff)/255.0 );
+    gl.uniform4f(uEnvColorUniform,  ((state.envColor >>>24)&0xff)/255.0,  ((state.envColor >>>16)&0xff)/255.0, ((state.envColor >>> 8)&0xff)/255.0, ((state.envColor >>> 0)&0xff)/255.0 );
+
+  }
+
+  function flushTris(num_tris, vertex_positions, vertex_colours, vertex_coords) {
+
+    var cycle_type = getCycleType();
+    var textureinfo;
+    var tex_gen_enabled = false;
+
+    if (state.geometryMode & geometryModeFlags.G_TEXTURE_ENABLE) {
+      textureinfo     = installTexture(state.texture.tile);
+      tex_gen_enabled = (state.geometryMode & (geometryModeFlags.G_LIGHTING|geometryModeFlags.G_TEXTURE_GEN)) === (geometryModeFlags.G_LIGHTING|geometryModeFlags.G_TEXTURE_GEN);
+    }
+
+    setProgramState(vertex_positions, vertex_colours, vertex_coords, textureinfo, tex_gen_enabled);
 
     initDepth();
 
@@ -2177,10 +2197,10 @@ if (typeof n64js === 'undefined') {
     var depth = depth_source_prim ? state.primDepth : 0.0;
 
     var vertices = [
-      screen0[0], screen0[1], depth,
-      screen1[0], screen0[1], depth,
-      screen0[0], screen1[1], depth,
-      screen1[0], screen1[1], depth
+      screen0[0], screen0[1], depth, 1.0,
+      screen1[0], screen0[1], depth, 1.0,
+      screen0[0], screen1[1], depth, 1.0,
+      screen1[0], screen1[1], depth, 1.0
     ];
 
     var uvs;
@@ -2203,56 +2223,9 @@ if (typeof n64js === 'undefined') {
 
     var colours = [ 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff ];
 
-
-    var cycle_type = getCycleType();
-    if (cycle_type < cycleTypeValues.G_CYC_COPY) {
-      initBlend();
-    } else {
-      gl.disable(gl.BLEND);
-    }
-
-    var program = getCurrentShaderProgram(cycle_type);
-    gl.useProgram(program);
-
-    var vertexPositionAttribute = gl.getAttribLocation(program,  "aVertexPosition");
-    var vertexColorAttribute    = gl.getAttribLocation(program,  "aVertexColor");
-    var texCoordAttribute       = gl.getAttribLocation(program,  "aTextureCoord");
-    var uSamplerUniform         = gl.getUniformLocation(program, "uSampler");
-    var uPrimColorUniform       = gl.getUniformLocation(program, "uPrimColor");
-    var uEnvColorUniform        = gl.getUniformLocation(program, "uEnvColor");
-    var uTexScaleUniform        = gl.getUniformLocation(program, "uTexScale");
-    var uTexOffsetUniform       = gl.getUniformLocation(program, "uTexOffset");
-
-    // aVertexPosition
-    gl.enableVertexAttribArray(vertexPositionAttribute);
-    gl.bindBuffer(gl.ARRAY_BUFFER, rectVerticesBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-    gl.vertexAttribPointer(vertexPositionAttribute, 3, gl.FLOAT, false, 0, 0);
-
-    // aVertexColor
-    gl.enableVertexAttribArray(vertexColorAttribute);
-    gl.bindBuffer(gl.ARRAY_BUFFER, n64ColorsBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Uint32Array(colours), gl.STATIC_DRAW);             // FIXME: cache this?
-    gl.vertexAttribPointer(vertexColorAttribute, 4, gl.UNSIGNED_BYTE, true, 0, 0);
-
-    // aTextureCoord
-    gl.enableVertexAttribArray(texCoordAttribute);
-    gl.bindBuffer(gl.ARRAY_BUFFER, rectUVBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uvs), gl.STATIC_DRAW);
-    gl.vertexAttribPointer(texCoordAttribute, 2, gl.FLOAT, false, 0, 0);
-
-    // uSampler
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, textureinfo.texture);
-    gl.uniform1i(uSamplerUniform, 0);
-
-    gl.uniform4f(uPrimColorUniform, ((state.primColor>>>24)&0xff)/255.0,  ((state.primColor>>>16)&0xff)/255.0, ((state.primColor>>> 8)&0xff)/255.0, ((state.primColor>>> 0)&0xff)/255.0 );
-    gl.uniform4f(uEnvColorUniform,  ((state.envColor >>>24)&0xff)/255.0,  ((state.envColor >>>16)&0xff)/255.0, ((state.envColor >>> 8)&0xff)/255.0, ((state.envColor >>> 0)&0xff)/255.0 );
+    setProgramState(vertices, colours, uvs, textureinfo, false /*tex_gen_enabled*/);
 
     // uTexScale/uTexOffset
-    gl.uniform2f(uTexScaleUniform,  1.0 / textureinfo.nativeWidth,  1.0 / textureinfo.nativeHeight );
-    gl.uniform2f(uTexOffsetUniform, textureinfo.left, textureinfo.top );
-
 
     gl.disable(gl.CULL_FACE);
 
@@ -2294,7 +2267,7 @@ if (typeof n64js === 'undefined') {
       gl.disable(gl.DEPTH_TEST);
     }
 
-    gl.depthMask( zupd_rendermode );
+    gl.depthMask(zupd_rendermode);
   }
 
 
@@ -2696,7 +2669,6 @@ if (typeof n64js === 'undefined') {
       fillShaderProgram    = initShaders("fill-shader-vs", "fill-shader-fs");
 
       rectVerticesBuffer = gl.createBuffer();
-      rectUVBuffer       = gl.createBuffer();
 
       n64PositionsBuffer = gl.createBuffer();
       n64ColorsBuffer    = gl.createBuffer();
@@ -2775,7 +2747,6 @@ if (typeof n64js === 'undefined') {
         fragmentSource = getScriptNodeSource(fragmentScript);
       }
     }
-
 
     var fragmentShader;
     var theSource = fragmentSource;
