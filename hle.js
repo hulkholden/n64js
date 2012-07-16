@@ -267,6 +267,12 @@ if (typeof n64js === 'undefined') {
     ];
   }
 
+  function convertN64ToDisplay( n64_coords ) {
+    var canvas = convertN64ToCanvas( n64_coords );
+    return [ canvas[0] * canvas2dMatrix.elems[0] + canvas2dMatrix.elems[12],
+             canvas[1] * canvas2dMatrix.elems[5] + canvas2dMatrix.elems[13] ];
+  }
+
   function setCanvasViewport(w,h) {
 
     canvasWidth  = w;
@@ -2210,7 +2216,6 @@ if (typeof n64js === 'undefined') {
 
 
   var fillShaderProgram;
-  var texShaderProgram;
   var rectVerticesBuffer;
   var rectUVBuffer;
   var n64PositionsBuffer;
@@ -2264,8 +2269,8 @@ if (typeof n64js === 'undefined') {
     var textureinfo = installTexture(tile_idx);
 
     // multiply by state.viewport.trans/scale
-    var screen0 = convertN64ToCanvas( [x0,y0] );
-    var screen1 = convertN64ToCanvas( [x1,y1] );
+    var screen0 = convertN64ToDisplay( [x0,y0] );
+    var screen1 = convertN64ToDisplay( [x1,y1] );
 
     var depth_source_prim = (state.rdpOtherModeL & depthSourceValues.G_ZS_PRIM) !== 0;
 
@@ -2296,14 +2301,25 @@ if (typeof n64js === 'undefined') {
       ];
     }
 
-    var program = texShaderProgram;
+    var colours = [ 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff ];
+
+
+    var cycle_type = getCycleType();
+    if (cycle_type < cycleTypeValues.G_CYC_COPY) {
+      initBlend();
+    } else {
+      gl.disable(gl.BLEND);
+    }
+
+    var program = getCurrentShaderProgram(cycle_type);
     gl.useProgram(program);
 
-    var vertexPositionAttribute = gl.getAttribLocation(program, "aVertexPosition");
+    var vertexPositionAttribute = gl.getAttribLocation(program,  "aVertexPosition");
+    var vertexColorAttribute    = gl.getAttribLocation(program,  "aVertexColor");
     var texCoordAttribute       = gl.getAttribLocation(program,  "aTextureCoord");
-
-    var uPMatrixUniform         = gl.getUniformLocation(program, "uPMatrix");
     var uSamplerUniform         = gl.getUniformLocation(program, "uSampler");
+    var uPrimColorUniform       = gl.getUniformLocation(program, "uPrimColor");
+    var uEnvColorUniform        = gl.getUniformLocation(program, "uEnvColor");
     var uTexScaleUniform        = gl.getUniformLocation(program, "uTexScale");
     var uTexOffsetUniform       = gl.getUniformLocation(program, "uTexOffset");
 
@@ -2313,19 +2329,25 @@ if (typeof n64js === 'undefined') {
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
     gl.vertexAttribPointer(vertexPositionAttribute, 3, gl.FLOAT, false, 0, 0);
 
+    // aVertexColor
+    gl.enableVertexAttribArray(vertexColorAttribute);
+    gl.bindBuffer(gl.ARRAY_BUFFER, n64ColorsBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Uint32Array(colours), gl.STATIC_DRAW);             // FIXME: cache this?
+    gl.vertexAttribPointer(vertexColorAttribute, 4, gl.UNSIGNED_BYTE, true, 0, 0);
+
     // aTextureCoord
     gl.enableVertexAttribArray(texCoordAttribute);
     gl.bindBuffer(gl.ARRAY_BUFFER, rectUVBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uvs), gl.STATIC_DRAW);
     gl.vertexAttribPointer(texCoordAttribute, 2, gl.FLOAT, false, 0, 0);
 
-    // uPMatrix
-    gl.uniformMatrix4fv(uPMatrixUniform, false, canvas2dMatrix.elems);
-
     // uSampler
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, textureinfo.texture);
     gl.uniform1i(uSamplerUniform, 0);
+
+    gl.uniform4f(uPrimColorUniform, ((state.primColor>>>24)&0xff)/255.0,  ((state.primColor>>>16)&0xff)/255.0, ((state.primColor>>> 8)&0xff)/255.0, ((state.primColor>>> 0)&0xff)/255.0 );
+    gl.uniform4f(uEnvColorUniform,  ((state.envColor >>>24)&0xff)/255.0,  ((state.envColor >>>16)&0xff)/255.0, ((state.envColor >>> 8)&0xff)/255.0, ((state.envColor >>> 0)&0xff)/255.0 );
 
     // uTexScale/uTexOffset
     gl.uniform2f(uTexScaleUniform,  1.0 / textureinfo.nativeWidth,  1.0 / textureinfo.nativeHeight );
@@ -2669,7 +2691,6 @@ if (typeof n64js === 'undefined') {
       gl.depthFunc(gl.LEQUAL);            // Near things obscure far things
 
       fillShaderProgram    = initShaders("fill-shader-vs", "fill-shader-fs");
-      texShaderProgram     = initShaders("tex-shader-vs", "tex-shader-fs");
 
       rectVerticesBuffer = gl.createBuffer();
       rectUVBuffer       = gl.createBuffer();
@@ -2686,13 +2707,56 @@ if (typeof n64js === 'undefined') {
 
   var fragmentSource = null;    // We patch in our shader instructions into this source.
   var genericVertexShader = null;
+
+  var rgbParams32 = [
+    'combined.rgb', 'tex0.rgb',
+    'tex1.rgb',     'prim.rgb',
+    'shade.rgb',    'env.rgb',
+    'one.rgb',  'combined.a',
+    'tex0.a',       'tex1.a',
+    'prim.a',       'shade.a',
+    'env.a',        'LOD_Frac',
+    'PrimLODFrac ', 'K5          ',
+    '?           ', '?           ',
+    '?           ', '?           ',
+    '?           ', '?           ',
+    '?           ', '?           ',
+    '?           ', '?           ',
+    '?           ', '?           ',
+    '?           ', '?           ',
+    '?           ', 'zero.rgb'
+  ];
+  var rgbParams16 = [
+    'combined.rgb', 'tex0.rgb',
+    'tex1.rgb',     'prim.rgb',
+    'shade.rgb',    'env.rgb',
+    'one.rgb',      'combined.a',
+    'tex0.a',       'tex1.a',
+    'prim.a',       'shade.a',
+    'env.a',        'LOD_Frac',
+    'PrimLOD_Frac', 'zero.rgb'
+  ];
+  var rgbParams8 = [
+    'combined.rgb', 'tex0.rgb',
+    'tex1.rgb',     'prim.rgb',
+    'shade.rgb',    'env.rgb',
+    'one.rgb',      'zero.rgb',
+  ];
+
+  var alphaParams8 = [
+    'combined.a', 'tex0.a',
+    'tex1.a',     'prim.a',
+    'shade.a',    'env.a',
+    'one.a',      'zero.a',
+  ];
+
   function getCurrentShaderProgram(cycle_type) {
 
     var mux0   = state.combine.hi;
     var mux1   = state.combine.lo;
 
-    // Check if this shader already exists
-    var state_text = mux0.toString(16) + mux1.toString(16) + cycle_type;
+    // Check if this shader already exists. Copy/Fill are fixed-function so ignore mux for these.
+    var state_text = (cycle_type === cycleTypeValues.G_CYC_1CYCLE) ? (mux0.toString(16) + mux1.toString(16)) : cycle_type;
     var program = programs[state_text];
     if (program) {
       return program;
@@ -2734,50 +2798,12 @@ if (typeof n64js === 'undefined') {
     var cA1    = (mux1>>>18)&0x07; // c2 a3    // Ac1
     var dA1    = (mux1>>> 0)&0x07; // c2 a4    // Ad1
 
-    var rgbParams32 = [
-      'combined.rgb', 'tex0.rgb',
-      'tex1.rgb',     'prim.rgb',
-      'shade.rgb',    'env.rgb',
-      'one.rgb',  'combined.a',
-      'tex0.a',       'tex1.a',
-      'prim.a',       'shade.a',
-      'env.a',        'LOD_Frac',
-      'PrimLODFrac ', 'K5          ',
-      '?           ', '?           ',
-      '?           ', '?           ',
-      '?           ', '?           ',
-      '?           ', '?           ',
-      '?           ', '?           ',
-      '?           ', '?           ',
-      '?           ', '?           ',
-      '?           ', 'zero.rgb'
-    ];
-    var rgbParams16 = [
-      'combined.rgb', 'tex0.rgb',
-      'tex1.rgb',     'prim.rgb',
-      'shade.rgb',    'env.rgb',
-      'one.rgb',      'combined.a',
-      'tex0.a',       'tex1.a',
-      'prim.a',       'shade.a',
-      'env.a',        'LOD_Frac',
-      'PrimLOD_Frac', 'zero.rgb'
-    ];
-    var rgbParams8 = [
-      'combined.rgb', 'tex0.rgb',
-      'tex1.rgb',     'prim.rgb',
-      'shade.rgb',    'env.rgb',
-      'one.rgb',      'zero.rgb',
-    ];
-
-    var alphaParams8 = [
-      'combined.a', 'tex0.a',
-      'tex1.a',     'prim.a',
-      'shade.a',    'env.a',
-      'one.a',      'zero.a',
-    ];
-
     // patch in instructions for this mux
-    if (cycle_type === cycleTypeValues.G_CYC_1CYCLE) {
+    if (cycle_type === cycleTypeValues.G_CYC_FILL) {
+      theSource = theSource.replace('{{body}}', 'col = shade;');
+    } else if (cycle_type === cycleTypeValues.G_CYC_COPY) {
+      theSource = theSource.replace('{{body}}', 'col = tex0;');
+    } else if (cycle_type === cycleTypeValues.G_CYC_1CYCLE) {
 
       //var foo = 'col.rgb = tex0.rgb;';
       var foo = '';

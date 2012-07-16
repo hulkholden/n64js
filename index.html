@@ -136,34 +136,6 @@
     </script>
 
 
-
-    <script id="tex-shader-vs" type="x-shader/x-vertex">
-      attribute vec3 aVertexPosition;
-      attribute vec2 aTextureCoord;
-
-      varying highp vec2 vTextureCoord;
-
-      uniform mat4 uPMatrix;
-      uniform vec2 uTexOffset;
-      uniform vec2 uTexScale;
-
-      void main(void) {
-        gl_Position = uPMatrix * vec4(aVertexPosition, 1.0);
-        vTextureCoord = (aTextureCoord - uTexOffset) * uTexScale;
-      }
-    </script>
-    <script id="tex-shader-fs" type="x-shader/x-fragment">
-      precision mediump float;
-      varying highp vec2 vTextureCoord;
-      uniform sampler2D uSampler;
-
-      void main(void) {
-        gl_FragColor = texture2D(uSampler, vTextureCoord);
-      }
-    </script>
-
-
-
     <script id="n64-shader-vs" type="x-shader/x-vertex">
       attribute vec4 aVertexPosition;
       attribute vec4 aVertexColor;
