@@ -1160,14 +1160,24 @@ if (typeof n64js === 'undefined') {
 
     tip += '<table class="vertex-table">';
 
+    var cols = ['#', 'x', 'y', 'z', '?', 'u', 'v', 'norm', 'rgba'];
+
+    tip += '<tr><th>' + cols.join('</th><th>') + '</th></tr>\n';
+
     for (var i = 0; i < n; ++i) {
       var vtx_base = (v0+i)*16;
       var v = [ v0+i,
-                dv.getInt16(vtx_base + 0),
-                dv.getInt16(vtx_base + 2),
-                dv.getInt16(vtx_base + 4) ];
+                dv.getInt16(vtx_base + 0),  // x
+                dv.getInt16(vtx_base + 2),  // y
+                dv.getInt16(vtx_base + 4),  // z
+                dv.getInt16(vtx_base + 6),  // ?
+                dv.getInt16(vtx_base + 8),  // u
+                dv.getInt16(vtx_base + 10), // v
+                dv.getInt8(vtx_base  + 12) + ',' + dv.getInt8(vtx_base  + 13) + ',' + dv.getInt8(vtx_base  + 14),  // norm
+                n64js.toString32( dv.getUint32(vtx_base + 12) ) // rgba
+      ];
 
-      tip += '<tr><td>' + v.join('</td><td>') + '</td></tr>';
+      tip += '<tr><td>' + v.join('</td><td>') + '</td></tr>\n';
     }
     tip += '</table>';
     return tip;
@@ -2616,7 +2626,7 @@ if (typeof n64js === 'undefined') {
           break;
 
         case kVertex:
-          op.tip = previewVertex(cmd0,cmd, ram, rdpSegmentAddress);
+          op.tip = previewVertex(cmd0,cmd1, ram, rdpSegmentAddress);
           break;
       }
 
