@@ -691,7 +691,7 @@ if (typeof n64js === 'undefined') {
   }
 
   function executeSprite2DBase(cmd0,cmd1)         { unimplemented(cmd0,cmd1); }
-  function executeTri4(cmd0,cmd1)                 { unimplemented(cmd0,cmd1); }
+
   function executeRDPHalf_Cont(cmd0,cmd1)         { unimplemented(cmd0,cmd1); }
 
   function executeRDPHalf_2(cmd0,cmd1) {
@@ -767,6 +767,40 @@ if (typeof n64js === 'undefined') {
       cmd1 = state.ram.getUint32( pc + 4 );
       pc += 8;
     } while ((cmd0>>>24) === kTri1 && tri_idx < kMaxTris);
+
+    state.pc = pc-8;
+
+    flushTris(tri_idx*3, vertex_positions, vertex_colours, vertex_coords);
+  }
+
+  function executeTri2(cmd0,cmd1) {
+    var kTri2 = 0Xb1;
+
+    var kMaxTris = 64;
+    var vertex_positions = new Float32Array(kMaxTris*3*4);
+    var vertex_colours   = new  Uint32Array(kMaxTris*3*1);
+    var vertex_coords    = new Float32Array(kMaxTris*3*2);
+    var tri_idx     = 0;
+    var vtx_pos_idx = 0;
+    var vtx_col_idx = 0;
+    var vtx_uv_idx  = 0;
+
+    var pc = state.pc;
+    do {
+      var v0_idx = ((cmd0>>>16)&0xff)/config.vertexStride;
+      var v1_idx = ((cmd0>>> 8)&0xff)/config.vertexStride;
+      var v2_idx = ((cmd0>>> 0)&0xff)/config.vertexStride;
+      var v3_idx = ((cmd1>>>16)&0xff)/config.vertexStride;
+      var v4_idx = ((cmd1>>> 8)&0xff)/config.vertexStride;
+      var v5_idx = ((cmd1>>> 0)&0xff)/config.vertexStride;
+
+      pushTri(v0_idx,  v1_idx,  v2_idx, vertex_positions, vertex_colours, vertex_coords, tri_idx); tri_idx++;
+      pushTri(v3_idx,  v4_idx,  v5_idx, vertex_positions, vertex_colours, vertex_coords, tri_idx); tri_idx++;
+
+      cmd0 = state.ram.getUint32( pc + 0 );
+      cmd1 = state.ram.getUint32( pc + 4 );
+      pc += 8;
+    } while ((cmd0>>>24) === kTri2 && tri_idx < kMaxTris);
 
     state.pc = pc-8;
 
@@ -1796,6 +1830,21 @@ if (typeof n64js === 'undefined') {
     return 'gsSP1Triangle(' + v0_idx + ', ' + v1_idx + ', ' + v2_idx + ', ' + flag + ');';
   }
 
+  function disassembleTri2(cmd0,cmd1) {
+    var v0_idx = ((cmd0>>>16)&0xff)/config.vertexStride;
+    var v1_idx = ((cmd0>>> 8)&0xff)/config.vertexStride;
+    var v2_idx = ((cmd0>>> 0)&0xff)/config.vertexStride;
+    var v3_idx = ((cmd1>>>16)&0xff)/config.vertexStride;
+    var v4_idx = ((cmd1>>> 8)&0xff)/config.vertexStride;
+    var v5_idx = ((cmd1>>> 0)&0xff)/config.vertexStride;
+
+    return 'gsSP1Triangle2(' + v0_idx + ',' + v1_idx + ',' + v2_idx + ', ' +
+                               v3_idx + ',' + v4_idx + ',' + v5_idx + ');';
+  }
+
+
+
+
   function disassembleTexRect(cmd0,cmd1) {
     var xh       = ((cmd0>>>12)&0xfff)  / 4.0;
     var yh       = ((cmd0>>> 0)&0xfff)  / 4.0;
@@ -1840,7 +1889,7 @@ if (typeof n64js === 'undefined') {
       case 0x09:      return 'Sprite2DBase';
 
       //case 0xb0:    return '';
-      case 0xb1:      return 'Tri4';
+      case 0xb1:      return disassembleTri2(a,b);
       case 0xb2:      return 'RDPHalf_Cont';
       case 0xb3:      return 'gsImmp1(G_RDPHALF_2, ' + n64js.toString32(b) + ');';
       case 0xb4:      return 'gsImmp1(G_RDPHALF_1, ' + n64js.toString32(b) + ');';
@@ -2468,7 +2517,7 @@ if (typeof n64js === 'undefined') {
     ops[0x04] = executeVertex;
     ops[0x06] = executeDL;
     ops[0x09] = executeSprite2DBase;
-    ops[0xb1] = executeTri4;
+    ops[0xb1] = executeTri2;
     ops[0xb2] = executeRDPHalf_Cont;
     ops[0xb3] = executeRDPHalf_2;
     ops[0xb4] = executeRDPHalf_1;
