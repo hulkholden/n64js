@@ -859,10 +859,10 @@ if (typeof n64js === 'undefined') {
 
   function executeSetPrimDepth(cmd0,cmd1)         { unimplemented(cmd0,cmd1); }
   function executeSetRDPOtherMode(cmd0,cmd1)      { unimplemented(cmd0,cmd1); }
-  function executeLoadTLut(cmd0,cmd1)             { unimplemented(cmd0,cmd1); }
 
-  function calcTextureAddress(uls, ult) {
-    return state.textureImage.address + ult * (state.textureImage.width << state.textureImage.size >>> 1) + (uls << state.textureImage.size >>> 1);
+  function calcTextureAddress(uls, ult,  address, width, size) {
+    return state.textureImage.address + ult * ((state.textureImage.width << size) >>> 1) +
+                                                                   ((uls << size) >>> 1);
   }
 
   function executeLoadBlock(cmd0,cmd1) {
@@ -876,7 +876,7 @@ if (typeof n64js === 'undefined') {
     var tmem_address = tile.tmem || 0;
 
     state.tmemLoadMap[tmem_address] = {
-      address:    calcTextureAddress(uls, ult),
+      address:    calcTextureAddress(uls, ult, state.textureImage.address, state.textureImage.width, state.textureImage.size),
       pitch:      0xffffffff,
       swapped:    (dxt == 0)
     };
@@ -894,15 +894,43 @@ if (typeof n64js === 'undefined') {
     var tile         = state.tiles[tile_idx];
     var tmem_address = tile.tmem || 0;
 
-    var pitch = (state.textureImage.width << state.textureImage.size >>> 1);
+    var address      = calcTextureAddress(uls >>> 2, ult >>> 2, state.textureImage.address, state.textureImage.width, state.textureImage.size);
+    var pitch        = (state.textureImage.width << state.textureImage.size) >>> 1;
 
     state.tmemLoadMap[tmem_address] = {
-      address:    calcTextureAddress(uls >>> 2, ult >>> 2),
+      address:    address,
       pitch:      pitch,
       swapped:    false
     };
 
     // invalidate all textures
+  }
+
+  function executeLoadTLut(cmd0,cmd1) {
+    var tile_idx = (cmd1>>>24)&0x7;
+    //var count    = (cmd1>>>14)&0x3ff;
+
+    // NB, in Daedalus, we interpret this similarly to a loadtile command, but in other places it's defined as a simple count parameter
+    var uls      = (cmd0>>>12)&0xfff;
+    var ult      = (cmd0>>> 0)&0xfff;
+    var lrs      = (cmd1>>>12)&0xfff;
+    var lrt      = (cmd1>>> 0)&0xfff;
+
+    // Tlut fmt is sometimes wrong (in 007) and is set after tlut load, but before tile load
+    // Format is always 16bpp - RGBA16 or IA16:
+    //var address    = calcTextureAddress(uls >>> 2, ult >>> 2, state.textureImage.address, state.textureImage.width, state.textureImage.size);
+    var address      = calcTextureAddress(uls >>> 2, ult >>> 2, state.textureImage.address, state.textureImage.width, imageSizeTypes.G_IM_SIZ_16b);
+    var pitch        = (state.textureImage.width << imageSizeTypes.G_IM_SIZ_16b) >>> 1;
+
+    var count        = ((lrs - uls)>>>2)+1;
+    var tile         = state.tiles[tile_idx];
+    var tmem_address = tile.tmem || 0;
+
+    state.tmemLoadMap[tmem_address] = {
+      address:     address,
+      pitch:       pitch,
+      swapped:     false,
+    };
   }
 
   function executeSetTile(cmd0,cmd1) {
@@ -1336,6 +1364,10 @@ if (typeof n64js === 'undefined') {
 
   function getTextureFilterType() {
     return state.rdpOtherModeH & (3<<G_MDSFT_TEXTFILT);
+  }
+
+  function getTextureLUTType() {
+    return state.rdpOtherModeH & (3<<G_MDSFT_TEXTLUT);
   }
 
   var pipelineModeValues = {
@@ -1788,18 +1820,23 @@ if (typeof n64js === 'undefined') {
     var lrs      = (cmd1>>>12)&0xfff;
     var lrt      = (cmd1>>> 0)&0xfff;
 
-    return 'gsDPSetTileSize(' + tile_idx + ', ' + uls + ', ' + ult + ', ' + lrs + ', ' + lrt + ');';
+    return 'gsDPSetTileSize(' + tile_idx + ', ' + uls + ', ' + ult + ', ' + lrs + ', ' + lrt + '); // (' + (uls/4) + ',' + ((ult/4)+1) + '), (' + (lrs/4) + ',' + ((lrt/4)+1) + ')';
   }
 
- function disassembleLoadTile(cmd0,cmd1) {
-   var uls      = (cmd0>>>12)&0xfff;
-   var ult      = (cmd0>>> 0)&0xfff;
-   var tile_idx = (cmd1>>>24)&0x7;
-   var lrs      = (cmd1>>>12)&0xfff;
-   var lrt      = (cmd1>>> 0)&0xfff;
+  function disassembleLoadTile(cmd0,cmd1) {
+    var uls      = (cmd0>>>12)&0xfff;
+    var ult      = (cmd0>>> 0)&0xfff;
+    var tile_idx = (cmd1>>>24)&0x7;
+    var lrs      = (cmd1>>>12)&0xfff;
+    var lrt      = (cmd1>>> 0)&0xfff;
 
-   return 'gsDPLoadTile(' + tile_idx + ', ' + uls + ', ' + ult + ', ' + lrs + ', ' + lrt + ');';
- }
+    uls /= 4.0;
+    ult /= 4.0;
+    lrs /= 4.0;
+    lrt /= 4.0;
+
+  return 'gsDPLoadTile(' + tile_idx + ', ' + uls + ', ' + ult + ', ' + lrs + ', ' + lrt + '); // (' + (uls/4) + ',' + ((ult/4)+1) + '), (' + (lrs/4) + ',' + ((lrt/4)+1) + ')';
+  }
 
   function disassembleLoadBlock(cmd0,cmd1) {
     var uls      = (cmd0>>>12)&0xfff;
@@ -1809,6 +1846,19 @@ if (typeof n64js === 'undefined') {
     var dxt      = (cmd1>>> 0)&0xfff;
 
    return 'gsDPLoadBlock(' + tile_idx + ', ' + uls + ', ' + ult + ', ' + lrs + ', ' + dxt + ');';
+  }
+
+  function disassembleLoadTLut(cmd0,cmd1) {
+    var tile_idx = (cmd1>>>24)&0x7;
+    var count    = (cmd1>>>14)&0x3ff;
+
+    // NB, in Daedalus, we interpret this similarly to a loadtile command.
+    var uls      = (cmd0>>>12)&0xfff;
+    var ult      = (cmd0>>> 0)&0xfff;
+    var lrs      = (cmd1>>>12)&0xfff;
+    var lrt      = (cmd1>>> 0)&0xfff;
+
+    return 'gsDPLoadTLUTCmd(' + tile_idx + ', ' + count + '); //' + uls + ', ' + ult + ', ' + lrs + ', ' + lrt;
   }
 
   function disassembleFillRect(cmd0,cmd1) {
@@ -1928,7 +1978,7 @@ if (typeof n64js === 'undefined') {
       case 0xee:      return 'SetPrimDepth';
       case 0xef:      return 'SetRDPOtherMode';
 
-      case 0xf0:      return 'LoadTLut';
+      case 0xf0:      return disassembleLoadTLut(a,b);
       //case 0xf1:      return '';
       case 0xf2:      return disassembleSetTileSize(a,b);
       case 0xf3:      return disassembleLoadBlock(a,b);
@@ -2402,7 +2452,7 @@ if (typeof n64js === 'undefined') {
         'width':   width,
         'height':  height,
         'pitch':   pitch,
-        //'tlutfmt': ?
+        'tlutformat': getTextureLUTType(),
         'swapped': load_details.swapped,
         'cm_s':    tile.cm_s,
         'cm_t':    tile.cm_t,
@@ -2899,14 +2949,6 @@ if (typeof n64js === 'undefined') {
     var fixed_w = nextPow2(width);
     var fixed_h = nextPow2(height);
 
-    var mirror_s = info.cm_s & G_TX_MIRROR;
-    var mirror_t = info.cm_t & G_TX_MIRROR;
-
-    // if (mirror_s)
-    //   fixed_w *= 2;
-    // if (mirror_t)
-    //   fixed_h *= 2;
-
     var $canvas = $( '<canvas width="' + fixed_w + '" height="' + fixed_h + '" />', {'width':fixed_w, 'height':fixed_h} );
     if (!$canvas[0].getContext)
       return null;
@@ -2949,30 +2991,60 @@ if (typeof n64js === 'undefined') {
 
       case imageFormatTypes.G_IM_FMT_IA:
         switch (info.size) {
-        case imageSizeTypes.G_IM_SIZ_16b:
-          convertIA16(img_data, address, width, height, pitch);
-          handled = true;
-          break;
-        case imageSizeTypes.G_IM_SIZ_8b:
-          convertIA8(img_data, address, width, height, pitch);
-          handled = true;
-          break;
-        case imageSizeTypes.G_IM_SIZ_4b:
-          convertIA4(img_data, address, width, height, pitch);
-          handled = true;
-          break;
+          case imageSizeTypes.G_IM_SIZ_16b:
+            convertIA16(img_data, address, width, height, pitch);
+            handled = true;
+            break;
+          case imageSizeTypes.G_IM_SIZ_8b:
+            convertIA8(img_data, address, width, height, pitch);
+            handled = true;
+            break;
+          case imageSizeTypes.G_IM_SIZ_4b:
+            convertIA4(img_data, address, width, height, pitch);
+            handled = true;
+            break;
         }
         break;
+
+      case imageFormatTypes.G_IM_FMT_I:
+        switch (info.size) {
+          case imageSizeTypes.G_IM_SIZ_8b:
+            convertI8(img_data, address, width, height, pitch);
+            handled = true;
+            break;
+          case imageSizeTypes.G_IM_SIZ_4b:
+            convertI4(img_data, address, width, height, pitch);
+            handled = true;
+            break;
+        }
+        break;
+
+      case imageFormatTypes.G_IM_FMT_CI:
+        var conv_fn = (info.tlutformat === textureLUTValues.G_TT_IA16) ? convertIA16Pixel : convertRGBA16Pixel;  // NB: assume RGBA16 for G_TT_NONE
+
+        // FIXME: not all titles assume the same memory layout for palettes.
+        var pal_address = state.tmemLoadMap[0x100 + (info.palette<<5)];
+        if (pal_address) {
+          switch (info.size) {
+            case imageSizeTypes.G_IM_SIZ_8b:
+              convertCI8(img_data, address, width, height, pitch, pal_address.address, conv_fn);
+              handled = true;
+              break;
+            case imageSizeTypes.G_IM_SIZ_4b:
+              convertCI4(img_data, address, width, height, pitch, pal_address.address, conv_fn);
+              handled = true;
+              break;
+          }
+        }
+          break;
 
       default:
         break;
     }
 
-    // if (mirror_s || mirror_t) {
-    //   mirror(img_data, width, height, mirror_s, mirror_t);
-    // }
-
     if (handled) {
+      clampTexture(img_data, width, height);
+
       ctx.putImageData(img_data, 0, 0);
 
       $textureOutput.append($canvas);
@@ -2980,7 +3052,7 @@ if (typeof n64js === 'undefined') {
     } else {
       $textureOutput.append(getDefine(imageFormatTypes, info.format) + '/' + getDefine(imageSizeTypes, info.size) + ' is unhandled');
       // FIXME: fill with placeholder texture
-      n64js.halt('texture format unhandled!');
+      n64js.halt('texture format unhandled - ' + getDefine(imageFormatTypes, info.format) + '/' + getDefine(imageSizeTypes, info.size));
     }
 
     gl.activeTexture(gl.TEXTURE0);
@@ -3064,46 +3136,68 @@ if (typeof n64js === 'undefined') {
     0xff  // 11111 -> 11111111
   ];
 
-  function mirror(img_data, width, height, mirror_s, mirror_t) {
-    var data   = img_data.data;
-    var stride = img_data.width*4;  // Might not be the same as width, due to power of 2
+  function convertIA16Pixel(v) {
+    var i = (v>>>8)&0xff;
+    var a = (v    )&0xff;
 
-    if (mirror_s) {
-      var end = ((width*2)-1) * 4;
-      var row_offset = 0;
-      for (var y = 0; y < height; ++y) {
-
-        var src_idx = row_offset;
-        var dst_idx = row_offset + end;
-
-        for (var x = 0; x < width; ++x) {
-
-          data[dst_idx + 0] = data[src_idx + 0];
-          data[dst_idx + 1] = data[src_idx + 1];
-          data[dst_idx + 2] = data[src_idx + 2];
-          data[dst_idx + 3] = data[src_idx + 3];
-
-          src_idx += 4;
-          dst_idx -= 4;
-        }
-        row_offset += stride;
-      }
-    }
-
-    if (mirror_t) {
-      var src_offset = 0;
-      var dst_offset = ((height*2)-1)*stride;
-
-      for (var y = 0; y < height; ++y) {
-        for (var x = 0; x < width*2*4; ++x) {
-          data[dst_offset+x] = data[src_offset+x];
-        }
-        src_offset += stride;
-        dst_offset -= stride;
-      }
-    }
-
+    return (i<<24) | (i<<16) | (i<<8) | a;
   }
+
+  function convertRGBA16Pixel(v) {
+    var r = FiveToEight[(v>>>11)&0x1f];
+    var g = FiveToEight[(v>>> 6)&0x1f];
+    var b = FiveToEight[(v>>> 1)&0x1f];
+    var a = ((v     )&0x01)? 255 : 0;
+
+    return (r<<24) | (g<<16) | (b<<8) | a;
+  }
+
+
+  function clampTexture(img_data, width, height) {
+    var dst            = img_data.data;
+
+    var dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
+
+    var dst_row_offset = 0;
+
+    // Repeat last pixel across all lines
+    var y = 0;
+    if (width < img_data.width) {
+      for (; y < height; ++y) {
+
+        var dst_offset = dst_row_offset + ((width-1)*4);
+
+        var r = dst[dst_offset+0];
+        var g = dst[dst_offset+1];
+        var b = dst[dst_offset+2];
+        var a = dst[dst_offset+3];
+
+        dst_offset += 4;
+
+        for (var x = width; x < img_data.width; ++x) {
+          dst[dst_offset+0] = r;
+          dst[dst_offset+1] = g;
+          dst[dst_offset+2] = b;
+          dst[dst_offset+3] = a;
+          dst_offset += 4;
+        }
+        dst_row_offset += dst_row_stride;
+      }
+    }
+
+    if (height < img_data.height) {
+      // Repeat the final line
+      var last_row_offset = dst_row_offset - dst_row_stride;
+
+      for (; y < img_data.height; ++y) {
+        for (var i = 0; i < dst_row_stride; ++i) {
+          dst[dst_row_offset+i] = dst[last_row_offset+i];
+        }
+        dst_row_offset += dst_row_stride;
+      }
+    }
+  }
+
 
   function convertRGBA32(img_data, address, width, height, pitch) {
     var dst            = img_data.data;
@@ -3286,6 +3380,135 @@ if (typeof n64js === 'undefined') {
         dst_offset += 4;
       }
 
+      src_row_offset += src_row_stride;
+      dst_row_offset += dst_row_stride;
+    }
+  }
+
+  function convertI8(img_data, address, width, height, pitch) {
+    var dst            = img_data.data;
+    var src            = new DataView(state.ram.buffer, 0);
+
+    var dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
+    var src_row_stride = pitch;
+
+    var dst_row_offset = 0;
+    var src_row_offset = address;
+    for (var y = 0; y < height; ++y) {
+
+      var src_offset = src_row_offset;
+      var dst_offset = dst_row_offset;
+      for (var x = 0; x < width; ++x) {
+
+        var i = src.getUint8(src_offset);
+
+        dst[dst_offset+0] = i;
+        dst[dst_offset+1] = i;
+        dst[dst_offset+2] = i;
+        dst[dst_offset+3] = i;
+
+        src_offset += 1;
+        dst_offset += 4;
+      }
+      src_row_offset += src_row_stride;
+      dst_row_offset += dst_row_stride;
+    }
+  }
+
+  function convertI4(img_data, address, width, height, pitch) {
+    var dst            = img_data.data;
+    var src            = new DataView(state.ram.buffer, 0);
+
+    var dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
+    var src_row_stride = pitch;
+
+    var dst_row_offset = 0;
+    var src_row_offset = address;
+    for (var y = 0; y < height; ++y) {
+
+      var src_offset = src_row_offset;
+      var dst_offset = dst_row_offset;
+
+      // Process 2 pixels at a time
+      for (var x = 0; x+1 < width; x+=2) {
+
+        var src_pixel = src.getUint8(src_offset);
+
+        var i0 = FourToEight[(src_pixel&0xf0)>>>4];
+        var i1 = FourToEight[(src_pixel&0x0f)>>>0];
+
+        dst[dst_offset+0] = i0;
+        dst[dst_offset+1] = i0;
+        dst[dst_offset+2] = i0;
+        dst[dst_offset+3] = i0;
+
+        dst[dst_offset+4] = i1;
+        dst[dst_offset+5] = i1;
+        dst[dst_offset+6] = i1;
+        dst[dst_offset+7] = i1;
+
+        src_offset += 1;
+        dst_offset += 8;
+      }
+
+      // Handle trailing pixel, if odd width
+      if (width&1) {
+        var src_pixel = src.getUint8(src_offset);
+
+        var i0 = FourToEight[(src_pixel&0xf0)>>>4];
+
+        dst[dst_offset+0] = i0;
+        dst[dst_offset+1] = i0;
+        dst[dst_offset+2] = i0;
+        dst[dst_offset+3] = i0;
+
+        src_offset += 1;
+        dst_offset += 4;
+      }
+
+      src_row_offset += src_row_stride;
+      dst_row_offset += dst_row_stride;
+    }
+  }
+
+  function convertCI8(img_data, address, width, height, pitch, pal_address, pal_conv) {
+    var dst            = img_data.data;
+    var src            = new DataView(state.ram.buffer, 0);
+
+    var pal = new Uint32Array(256);
+    for (var i = 0; i < 256; ++i) {
+      var src_pixel = src.getUint16(pal_address + i*2);
+      pal[i] = pal_conv( src_pixel );
+    }
+
+    var dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
+    var src_row_stride = pitch;
+
+    var dst_row_offset = 0;
+    var src_row_offset = address;
+    for (var y = 0; y < height; ++y) {
+
+      var src_offset = src_row_offset;
+      var dst_offset = dst_row_offset;
+      for (var x = 0; x < width; ++x) {
+
+        var src_pixel = pal[src.getUint8(src_offset)];
+        //var src_pixel = src.getUint8(src_offset);
+
+        dst[dst_offset+0] = (src_pixel>>24)&0xff;
+        dst[dst_offset+1] = (src_pixel>>16)&0xff;
+        dst[dst_offset+2] = (src_pixel>> 8)&0xff;
+        dst[dst_offset+3] = (src_pixel)&0xff;
+
+        // dst[dst_offset+0] = src_pixel;
+        // dst[dst_offset+1] = src_pixel;
+        // dst[dst_offset+2] = src_pixel;
+        // dst[dst_offset+3] = 0xff;
+
+
+        src_offset += 1;
+        dst_offset += 4;
+      }
       src_row_offset += src_row_stride;
       dst_row_offset += dst_row_stride;
     }
