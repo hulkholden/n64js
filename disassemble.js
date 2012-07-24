@@ -329,7 +329,7 @@ if (typeof n64js === 'undefined') {
     return disassembleCop1Instr(i, 'w');
   }
   function disassembleCop1LInstr(i) {
-    return disassembleCop1Instr(i, 'd');
+    return disassembleCop1Instr(i, 'l');
   }
 
 
