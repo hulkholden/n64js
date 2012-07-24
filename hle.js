@@ -605,8 +605,8 @@ if (typeof n64js === 'undefined') {
 
     var wvp = pmtx.multiply(mvmtx);
 
-    var scale_s = state.texture.scaleS;
-    var scale_t = state.texture.scaleT;
+    var scale_s = state.texture.scaleS / 32.0;
+    var scale_t = state.texture.scaleT / 32.0;
 
     var xyz    = new Vector3();
     var normal = new Vector3();
@@ -725,13 +725,21 @@ if (typeof n64js === 'undefined') {
     state.rdpOtherModeH = (state.rdpOtherModeH & ~mask) | data;
   }
 
+  function calcTextureScale(v) {
+    if (v === 0 || v === 0xffff) {
+      return 1.0;
+    }
+
+    return v / 65536.0;
+  }
+
   function executeTexture(cmd0,cmd1) {
     //var xparam  =  (cmd0>>>16)&0xff;
     state.texture.level  =  (cmd0>>>11)&0x3;
     state.texture.tile   =  (cmd0>>> 8)&0x7;
     var enable           =  (cmd0>>> 0)&0xff;
-    state.texture.scaleS = ((cmd1>>>16)&0xffff) / (65536.0 * 32.0);
-    state.texture.scaleT = ((cmd1>>> 0)&0xffff) / (65536.0 * 32.0);
+    state.texture.scaleS = calcTextureScale( ((cmd1>>>16)&0xffff) );
+    state.texture.scaleT = calcTextureScale( ((cmd1>>> 0)&0xffff) );
 
     if (enable)
       state.geometryMode |=  geometryModeFlags.G_TEXTURE_ENABLE;
@@ -1610,14 +1618,11 @@ if (typeof n64js === 'undefined') {
     var level   =  (cmd0>>>11)&0x3;
     var tile    =  (cmd0>>> 8)&0x7;
     var on      =  (cmd0>>> 0)&0xff;
-    var s       = ((cmd1>>>16)&0xffff) / (65536.0 * 32.0);
-    var t       = ((cmd1>>> 0)&0xffff) / (65536.0 * 32.0);
+    var s       = calcTextureScale(((cmd1>>>16)&0xffff));
+    var t       = calcTextureScale(((cmd1>>> 0)&0xffff));
 
     var s_text = s.toString();
     var t_text = t.toString();
-
-    if (s > 0.0 && s < 1.0) s_text = '1/' + (1.0/s).toString();
-    if (t > 0.0 && t < 1.0) t_text = '1/' + (1.0/t).toString();
 
     if (xparam !== 0) {
       return 'gsSPTextureL(' + s_text + ', ' + t_text + ', ' + level + ', ' + xparam + ', ' + tile + ', ' + on + ');';
@@ -1781,6 +1786,13 @@ if (typeof n64js === 'undefined') {
     return flags;
   }
 
+  function getTileText(tile_idx) {
+    var tile_text = tile_idx;
+    if (tile_idx === G_TX_LOADTILE)   tile_text = 'G_TX_LOADTILE';
+    if (tile_idx === G_TX_RENDERTILE) tile_text = 'G_TX_RENDERTILE';
+    return tile_text;
+  }
+
 
   function disassembleSetTile(cmd0,cmd1) {
     var format   = (cmd0>>>21)&0x7;
@@ -1804,12 +1816,9 @@ if (typeof n64js === 'undefined') {
     var cm_s_text = getClampMirrorWrapText(cm_s);
     var cm_t_text = getClampMirrorWrapText(cm_t);
 
-    var tile_text = tile_idx;
-    if (tile_idx === G_TX_LOADTILE)   tile_text = 'G_TX_LOADTILE';
-    if (tile_idx === G_TX_RENDERTILE) tile_text = 'G_TX_RENDERTILE';
 
     return 'gsDPSetTile(' + getDefine(imageFormatTypes, format) + ', ' + getDefine(imageSizeTypes, size) + ', ' +
-     line + ', ' + tmem + ', ' + tile_text + ', ' + palette + ', ' +
+     line + ', ' + tmem + ', ' + getTileText(tile_idx) + ', ' + palette + ', ' +
      cm_t_text + ', ' + mask_t + ', ' + shift_t + ', ' +
      cm_s_text + ', ' + mask_s + ', ' + shift_s + ');';
   }
@@ -1821,7 +1830,7 @@ if (typeof n64js === 'undefined') {
     var lrs      = (cmd1>>>12)&0xfff;
     var lrt      = (cmd1>>> 0)&0xfff;
 
-    return 'gsDPSetTileSize(' + tile_idx + ', ' + uls + ', ' + ult + ', ' + lrs + ', ' + lrt + '); // (' + (uls/4) + ',' + ((ult/4)+1) + '), (' + (lrs/4) + ',' + ((lrt/4)+1) + ')';
+    return 'gsDPSetTileSize(' + getTileText(tile_idx) + ', ' + uls + ', ' + ult + ', ' + lrs + ', ' + lrt + '); // (' + (uls/4) + ',' + (ult/4) + '), (' + ((lrs/4)+1) + ',' + ((lrt/4)+1) + ')';
   }
 
   function disassembleLoadTile(cmd0,cmd1) {
@@ -1836,7 +1845,7 @@ if (typeof n64js === 'undefined') {
     lrs /= 4.0;
     lrt /= 4.0;
 
-  return 'gsDPLoadTile(' + tile_idx + ', ' + uls + ', ' + ult + ', ' + lrs + ', ' + lrt + '); // (' + (uls/4) + ',' + ((ult/4)+1) + '), (' + (lrs/4) + ',' + ((lrt/4)+1) + ')';
+  return 'gsDPLoadTile(' + getTileText(tile_idx) + ', ' + uls + ', ' + ult + ', ' + lrs + ', ' + lrt + '); // (' + (uls/4) + ',' + (ult/4) + '), (' + ((lrs/4)+1) + ',' + ((lrt/4)+1) + ')';
   }
 
   function disassembleLoadBlock(cmd0,cmd1) {
@@ -1846,7 +1855,7 @@ if (typeof n64js === 'undefined') {
     var lrs      = (cmd1>>>12)&0xfff;
     var dxt      = (cmd1>>> 0)&0xfff;
 
-   return 'gsDPLoadBlock(' + tile_idx + ', ' + uls + ', ' + ult + ', ' + lrs + ', ' + dxt + ');';
+   return 'gsDPLoadBlock(' + getTileText(tile_idx) + ', ' + uls + ', ' + ult + ', ' + lrs + ', ' + dxt + ');';
   }
 
   function disassembleLoadTLut(cmd0,cmd1) {
@@ -1859,7 +1868,7 @@ if (typeof n64js === 'undefined') {
     var lrs      = (cmd1>>>12)&0xfff;
     var lrt      = (cmd1>>> 0)&0xfff;
 
-    return 'gsDPLoadTLUTCmd(' + tile_idx + ', ' + count + '); //' + uls + ', ' + ult + ', ' + lrs + ', ' + lrt;
+    return 'gsDPLoadTLUTCmd(' + getTileText(tile_idx) + ', ' + count + '); //' + uls + ', ' + ult + ', ' + lrs + ', ' + lrt;
   }
 
   function disassembleFillRect(cmd0,cmd1) {
@@ -1893,9 +1902,6 @@ if (typeof n64js === 'undefined') {
                                v3_idx + ',' + v4_idx + ',' + v5_idx + ');';
   }
 
-
-
-
   function disassembleTexRect(cmd0,cmd1) {
     var xh       = ((cmd0>>>12)&0xfff)  / 4.0;
     var yh       = ((cmd0>>> 0)&0xfff)  / 4.0;
@@ -1908,11 +1914,7 @@ if (typeof n64js === 'undefined') {
     // var dsdx = ((cmd3>>>16)&0xffff) / 1024.0;
     // var dtdy = ((cmd3>>> 0)&0xffff) / 1024.0;
 
-    var tile_text = tile_idx;
-    if (tile_idx === G_TX_LOADTILE)   tile_text = 'G_TX_LOADTILE';
-    if (tile_idx === G_TX_RENDERTILE) tile_text = 'G_TX_RENDERTILE';
-
-    return 'gsSPTextureRectangle(' + xl + ',' + yl + ',' + xh + ',' + yh + ',' + tile_text + ', ???);';
+    return 'gsSPTextureRectangle(' + xl + ',' + yl + ',' + xh + ',' + yh + ',' + getTileText(tile_idx) + ', ???);';
   }
 
   function disassembleLine3D(cmd0,cmd1) {
@@ -2200,6 +2202,12 @@ if (typeof n64js === 'undefined') {
       var uv_scale_u = 1.0 / textureinfo.nativeWidth;
       var uv_scale_v = 1.0 / textureinfo.nativeHeight;
 
+      // Horrible hack for wetrix. For some reason uvs come out 2x what they should be. Current guess is that it's getting G_TX_CLAMP with a shift of 0 which is causing this
+      if (textureinfo.width === 56 && textureinfo.height === 29) {
+        uv_scale_u *= 0.5;
+        uv_scale_v *= 0.5;
+      }
+
       // When texture coordinates are generated, they're already correctly scaled. Maybe they should be generated in this coord space?
       if (tex_gen_enabled) {
         uv_scale_u  = 1;
@@ -2341,8 +2349,6 @@ if (typeof n64js === 'undefined') {
 
     setProgramState(vertices, colours, uvs, textureinfo, false /*tex_gen_enabled*/);
 
-    // uTexScale/uTexOffset
-
     gl.disable(gl.CULL_FACE);
 
     var depth_enabled = depth_source_prim ? true : false;
@@ -2461,8 +2467,10 @@ if (typeof n64js === 'undefined') {
         'mask_t':  tile.mask_t,
       });
 
-      textureinfo.left = tile.uls;
-      textureinfo.top  = tile.ult;
+      textureinfo.left   = tile.uls;
+      textureinfo.top    = tile.ult;
+      textureinfo.width  = width;
+      textureinfo.height = height;
 
       return textureinfo;
     }
