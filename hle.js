@@ -3554,22 +3554,77 @@ if (typeof n64js === 'undefined') {
       for (var x = 0; x < width; ++x) {
 
         var src_pixel = pal[src.getUint8(src_offset)];
-        //var src_pixel = src.getUint8(src_offset);
 
         dst[dst_offset+0] = (src_pixel>>24)&0xff;
         dst[dst_offset+1] = (src_pixel>>16)&0xff;
         dst[dst_offset+2] = (src_pixel>> 8)&0xff;
         dst[dst_offset+3] = (src_pixel)&0xff;
 
-        // dst[dst_offset+0] = src_pixel;
-        // dst[dst_offset+1] = src_pixel;
-        // dst[dst_offset+2] = src_pixel;
-        // dst[dst_offset+3] = 0xff;
+        src_offset += 1;
+        dst_offset += 4;
+      }
+      src_row_offset += src_row_stride;
+      dst_row_offset += dst_row_stride;
+    }
+  }
 
+  function convertCI4(img_data, address, width, height, pitch, pal_address, pal_conv) {
+    var dst            = img_data.data;
+    var src            = new DataView(state.ram.buffer, 0);
+
+    var pal = new Uint32Array(16);
+    for (var i = 0; i < 16; ++i) {
+      var src_pixel = src.getUint16(pal_address + i*2);
+      pal[i] = pal_conv( src_pixel );
+    }
+
+    var dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
+    var src_row_stride = pitch;
+
+    var dst_row_offset = 0;
+    var src_row_offset = address;
+    for (var y = 0; y < height; ++y) {
+
+      var src_offset = src_row_offset;
+      var dst_offset = dst_row_offset;
+
+      // Process 2 pixels at a time
+      for (var x = 0; x+1 < width; x+=2) {
+
+        var src_pixel = src.getUint8(src_offset);
+
+        var c0 = pal[(src_pixel&0xf0)>>>4];
+        var c1 = pal[(src_pixel&0x0f)>>>0];
+
+        dst[dst_offset+0] = (c0>>24)&0xff;
+        dst[dst_offset+1] = (c0>>16)&0xff;
+        dst[dst_offset+2] = (c0>> 8)&0xff;
+        dst[dst_offset+3] = (c0    )&0xff;
+
+        dst[dst_offset+4] = (c1>>24)&0xff;
+        dst[dst_offset+5] = (c1>>16)&0xff;
+        dst[dst_offset+6] = (c1>> 8)&0xff;
+        dst[dst_offset+7] = (c1    )&0xff;
+
+        src_offset += 1;
+        dst_offset += 8;
+      }
+
+      // Handle trailing pixel, if odd width
+      if (width&1) {
+        var src_pixel = src.getUint8(src_offset);
+
+        var c0 = pal[(src_pixel&0xf0)>>>4];
+
+        dst[dst_offset+0] = (c0>>24)&0xff;
+        dst[dst_offset+1] = (c0>>16)&0xff;
+        dst[dst_offset+2] = (c0>> 8)&0xff;
+        dst[dst_offset+3] = (c0    )&0xff;
 
         src_offset += 1;
         dst_offset += 4;
       }
+
       src_row_offset += src_row_stride;
       dst_row_offset += dst_row_stride;
     }
