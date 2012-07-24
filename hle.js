@@ -536,11 +536,12 @@ if (typeof n64js === 'undefined') {
     switch(type) {
       case moveWordTypeValues.G_MW_MATRIX:     unimplemented(cmd0,cmd1); break;
       case moveWordTypeValues.G_MW_NUMLIGHT:   state.numLights = ((value - 0x80000000)>>>5) - 1; break;
-      case moveWordTypeValues.G_MW_CLIP:       unimplemented(cmd0,cmd1); break;
+      case moveWordTypeValues.G_MW_CLIP:       /*unimplemented(cmd0,cmd1)*/; break;
       case moveWordTypeValues.G_MW_SEGMENT:    state.segments[((offset >>> 2)&0xf)] = value; break;
       case moveWordTypeValues.G_MW_FOG:        unimplemented(cmd0,cmd1); break;
       case moveWordTypeValues.G_MW_LIGHTCOL:   unimplemented(cmd0,cmd1); break;
       case moveWordTypeValues.G_MW_POINTS:     unimplemented(cmd0,cmd1); break;
+      case moveWordTypeValues.G_MW_PERSPNORM:  /*unimplemented(cmd0,cmd1)*/; break;
       default:                                 unimplemented(cmd0,cmd1); break;
     }
   }
