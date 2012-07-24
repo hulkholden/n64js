@@ -3219,11 +3219,10 @@ if (typeof n64js === 'undefined') {
 
     var dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
 
-    var dst_row_offset = 0;
-
     // Repeat last pixel across all lines
     var y = 0;
     if (width < img_data.width) {
+      var dst_row_offset = 0;
       for (; y < height; ++y) {
 
         var dst_offset = dst_row_offset + ((width-1)*4);
@@ -3248,6 +3247,7 @@ if (typeof n64js === 'undefined') {
 
     if (height < img_data.height) {
       // Repeat the final line
+      var dst_row_offset  = dst_row_stride * height;;
       var last_row_offset = dst_row_offset - dst_row_stride;
 
       for (; y < img_data.height; ++y) {
