@@ -1920,13 +1920,12 @@ if (typeof n64js === 'undefined') {
   function CommandReadMemPack(cmd, channel) {
     var addr = ((cmd[3] << 8) | cmd[4]);
 
-    n64js.log('Reading from mempack+' + addr);
-
     if (addr == 0x8001) {
       for (var i = 0; i < 32; ++i) {
         cmd[5+i] = 0;
       }
     } else {
+      n64js.log('Reading from mempack+' + addr);
       addr &= 0xFFE0;
 
       if (addr <= 0x7FE0) {
@@ -1947,9 +1946,8 @@ if (typeof n64js === 'undefined') {
   function CommandWriteMemPack(cmd, channel) {
     var addr = ((cmd[3] << 8) | cmd[4]);
 
-    n64js.log('Writing to mempack+' + addr);
-
     if (addr != 0x8001) {
+      n64js.log('Writing to mempack+' + addr);
       addr &= 0xFFE0;
 
       if (addr <= 0x7FE0) {
