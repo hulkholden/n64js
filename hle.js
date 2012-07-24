@@ -1350,6 +1350,17 @@ if (typeof n64js === 'undefined') {
   var G_MDSFT_RENDERMODE      = 3;
   var G_MDSFT_BLENDER         = 16;
 
+  function getAlphaCompareType() {
+    return state.rdpOtherModeL & (3<<G_MDSFT_ALPHACOMPARE);
+  }
+
+  function getCoverageTimesAlpha() {
+     return (state.rdpOtherModeL & renderModeFlags.CVG_X_ALPHA) !== 0;  // fragment coverage (0) or alpha (1)?
+  }
+
+  function getAlphaCoverageSelect() {
+    return (state.rdpOtherModeL & renderModeFlags.ALPHA_CVG_SEL) !== 0;  // use fragment coverage * fragment alpha
+  }
 
   //G_SETOTHERMODE_H shift count
   var G_MDSFT_BLENDMASK       = 0;
@@ -1437,7 +1448,7 @@ if (typeof n64js === 'undefined') {
     G_CD_DISABLE:     3 << G_MDSFT_RGBDITHER
   };
 
-  var alphaDitherValus = {
+  var alphaDitherValues = {
     G_AD_PATTERN:     0 << G_MDSFT_ALPHADITHER,
     G_AD_NOTPATTERN:  1 << G_MDSFT_ALPHADITHER,
     G_AD_NOISE:       2 << G_MDSFT_ALPHADITHER,
@@ -1517,6 +1528,36 @@ if (typeof n64js === 'undefined') {
     TEX_EDGE:            0x0000 /* used to be 0x8000 */
   };
 
+  var blendColourSources = [
+    'G_BL_CLR_IN',
+    'G_BL_CLR_MEM',
+    'G_BL_CLR_BL',
+    'G_BL_CLR_FOG',
+  ];
+
+  var blendSourceFactors = [
+    'G_BL_A_IN',
+    'G_BL_A_FOG',
+    'G_BL_A_SHADE',
+    'G_BL_0',
+  ];
+
+  var blendDestFactors = [
+    'G_BL_1MA',
+    'G_BL_A_MEM',
+    'G_BL_1',
+    'G_BL_0',
+  ];
+
+  function blendOpText(v) {
+    var m1a = (v>>>12)&0x3;
+    var m1b = (v>>> 8)&0x3;
+    var m2a = (v>>> 4)&0x3;
+    var m2b = (v>>> 0)&0x3;
+
+    return blendColourSources[m1a] + ',' + blendSourceFactors[m1b] + ',' + blendColourSources[m2a] + ',' + blendDestFactors[m2b];
+  }
+
   function getRenderMode(data) {
     var t = '';
 
@@ -1542,7 +1583,13 @@ if (typeof n64js === 'undefined') {
     if (data & renderModeFlags.ALPHA_CVG_SEL)       t += '|ALPHA_CVG_SEL';
     if (data & renderModeFlags.FORCE_BL)            t += '|FORCE_BL';
 
-    return t.length > 0 ? t.substr(1) : '0';
+    var c0 = t.length > 0 ? t.substr(1) : '0';
+
+    var blend = data >>> G_MDSFT_BLENDER;
+
+    var c1 = 'GBL_c1(' + blendOpText(blend>>>2) + ') | GBL_c2(' + blendOpText(blend) + ') /*' + n64js.toString16(blend) + '*/';
+
+    return c0 + ', ' + c1;
   }
 
 
@@ -1558,7 +1605,7 @@ if (typeof n64js === 'undefined') {
       case G_MDSFT_ALPHACOMPARE:  if (len === 2)  return 'gsDPSetAlphaCompare(' + getDefine(alphaCompareValues, data) + ');'; break;
       case G_MDSFT_ZSRCSEL:       if (len === 1)  return 'gsDPSetDepthSource('  + getDefine(depthSourceValues, data)  + ');'; break;
       case G_MDSFT_RENDERMODE:    if (len === 29) return 'gsDPSetRenderMode('   + getRenderMode(data) + ');'; break;
-      //case G_MDSFT_BLENDER:     break;
+      //case G_MDSFT_BLENDER:     break; // set with G_MDSFT_RENDERMODE
     }
 
 
@@ -2153,15 +2200,58 @@ if (typeof n64js === 'undefined') {
   }
 
   function setProgramState(vertex_positions, vertex_colours, vertex_coords, textureinfo, tex_gen_enabled) {
+    var cvg_x_alpha   = getCoverageTimesAlpha();   // fragment coverage (0) or alpha (1)?
+    var alpha_cvg_sel = getAlphaCoverageSelect();  // use fragment coverage * fragment alpha
 
     var cycle_type = getCycleType();
     if (cycle_type < cycleTypeValues.G_CYC_COPY) {
-      initBlend();
+      var blend_mode          = state.rdpOtherModeL >> G_MDSFT_BLENDER;
+      var active_blend_mode   = (cycle_type === cycleTypeValues.G_CYC_2CYCLE ? blend_mode : (blend_mode>>>2)) & 0x3333;
+      var have_fragment_alpha = false;
+
+      switch(active_blend_mode) {
+        case 0x0010: //G_BL_CLR_IN,G_BL_A_IN,G_BL_CLR_MEM,G_BL_1MA
+        case 0x0011: //G_BL_CLR_IN,G_BL_A_IN,G_BL_CLR_MEM,G_BL_A_MEM
+          // These modes either do a weighted sum of coverage (or coverage and alpha) or a plain alpha blend
+          have_fragment_alpha = !alpha_cvg_sel || cvg_x_alpha;   // If alpha_cvg_sel is 0, or if we're multiplying by fragment alpha, then we have alpha to blend with
+          break;
+        case 0x0302 : //G_BL_CLR_IN,G_BL_0,G_BL_CLR_IN,G_BL_1
+          // This blend mode doesn't use the alpha value
+          have_fragment_alpha = false;
+          break;
+        default:
+          n64js.log(n64js.toString16(active_blend_mode) + ' : ' + blendOpText(active_blend_mode) + ', alpha_cvg_sel:' + alpha_cvg_sel + ' cvg_x_alpha:' + cvg_x_alpha);
+          have_fragment_alpha = false;
+        break;
+      }
+
+      if (have_fragment_alpha) {
+          gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+          gl.blendEquation(gl.FUNC_ADD);
+          gl.enable(gl.BLEND);
+      } else {
+        gl.disable(gl.BLEND);
+      }
     } else {
+      // No blending in copy/fill modes, although we do alpha thresholding below
       gl.disable(gl.BLEND);
     }
 
-    var program = getCurrentShaderProgram(cycle_type);
+    var alpha_threshold = -1.0;
+
+    if( (getAlphaCompareType() === alphaCompareValues.G_AC_THRESHOLD) ) {
+      // If using cvg, then there's no alpha value to work with
+      if (!alpha_cvg_sel) {
+        alpha_threshold = ((state.blendColor>>> 0)&0xff)/255.0;
+      }
+      // } else if (cvg_x_alpha) {
+    //   // Going over 0x70 brakes OOT, but going lesser than that makes lines on games visible...ex: Paper Mario.
+    //   // ALso going over 0x30 breaks the birds in Tarzan :(. Need to find a better way to leverage this.
+    //   sceGuAlphaFunc(GU_GREATER, 0x70, 0xff);
+    //   sceGuEnable(GU_ALPHA_TEST);
+    }
+
+    var program = getCurrentShaderProgram(cycle_type, alpha_threshold);
     gl.useProgram(program);
 
     var vertexPositionAttribute = gl.getAttribLocation(program,  "aVertexPosition");
@@ -2359,17 +2449,6 @@ if (typeof n64js === 'undefined') {
       gl.depthMask(false);
     }
 
-    var cycle_type = getCycleType();
-    if (cycle_type < cycleTypeValues.G_CYC_COPY) {
-
-      if ((state.rdpOtherModeL & renderModeFlags.FORCE_BL) !== 0) {
-        initBlend();
-      } else {
-        gl.disable(gl.BLEND);
-      }
-    }
-
-
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
 
@@ -2390,45 +2469,6 @@ if (typeof n64js === 'undefined') {
     }
 
     gl.depthMask(zupd_rendermode);
-  }
-
-
-  function initBlend() {
-    var blend_mode = state.rdpOtherModeL >> G_MDSFT_BLENDER;
-    switch(blend_mode) {
-      //case 0x0044:        // ?
-      //case 0x0055:        // ?
-      case 0x0c08:          // In * 0 + In * 1 || :In * AIn + In * 1-A        Tarzan - Medalion in bottom part of the screen
-      //case 0x0c19:        // ?
-      case 0x0f0a:          // In * 0 + In * 1 || :In * 0 + In * 1            SSV - ??? and MM - Walls, Wipeout - Mountains
-      case 0x0fa5:          // In * 0 + Bl * AMem || :In * 0 + Bl * AMem      OOT Menu
-      //case 0x5f50:        // ?
-      case 0x8410:          // Bl * AFog + In * 1-A || :In * AIn + Mem * 1-A  Paper Mario Menu
-      case 0xc302:          // Fog * AIn + In * 1-A || :In * 0 + In * 1       ISS64 - Ground
-      case 0xc702:          // Fog * AFog + In * 1-A || :In * 0 + In * 1      Donald Duck - Sky
-      //case 0xc811:        // ?
-      case 0xfa00:          // Fog * AShade + In * 1-A || :Fog * AShade + In * 1-A  F-Zero - Power Roads
-      //case 0x07c2:        // In * AFog + Fog * 1-A || In * 0 + In * 1       Conker - ??
-        gl.disable(gl.BLEND);
-        break;
-
-      //case 0x55f0:        // Mem * AFog + Fog * 1-A || :Mem * AFog + Fog * 1-A  Bust a Move 3 - ???
-      case 0x0150:          // In * AIn + Mem * 1-A || :In * AFog + Mem * 1-A   Spiderman - Waterfall Intro
-      case 0x0f5a:          // In * 0 + Mem * 1 || :In * 0 + Mem * 1            Starwars Racer
-      case 0x0010:          // In * AIn + In * 1-A || :In * AIn + Mem * 1-A     Hey You Pikachu - Shadow
-      case 0x0040:          // In * AIn + Mem * 1-A || :In * AIn + In * 1-A     Mario - Princess peach text
-      //case 0x0050:        // In * AIn + Mem * 1-A || :In * AIn + Mem * 1-A:   SSV - TV Screen and SM64 text
-      case 0x04d0:          // In * AFog + Fog * 1-A || In * AIn + Mem * 1-A    Conker's Eyes
-      case 0x0c18:          // In * 0 + In * 1 || :In * AIn + Mem * 1-A:        SSV - WaterFall and dust
-      case 0xc410:          // Fog * AFog + In * 1-A || :In * AIn + Mem * 1-A   Donald Duck - Stars
-      case 0xc810:          // Fog * AShade + In * 1-A || :In * AIn + Mem * 1-A SSV - Fog? and MM - Shadows
-      case 0xcb02:          // Fog * AShade + In * 1-A || :In * 0 + In * 1      Doom 64 - Weapons
-      default:
-        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-        gl.blendEquation(gl.FUNC_ADD);
-        gl.enable(gl.BLEND);
-        break;
-    }
   }
 
   function installTexture(tile_idx) {
@@ -2849,13 +2889,17 @@ if (typeof n64js === 'undefined') {
     'one.a',      'zero.a',
   ];
 
-  function getCurrentShaderProgram(cycle_type) {
+  function getCurrentShaderProgram(cycle_type, alpha_threshold) {
 
     var mux0   = state.combine.hi;
     var mux1   = state.combine.lo;
 
     // Check if this shader already exists. Copy/Fill are fixed-function so ignore mux for these.
     var state_text = (cycle_type === cycleTypeValues.G_CYC_1CYCLE) ? (mux0.toString(16) + mux1.toString(16)) : cycle_type;
+    if (alpha_threshold >= 0.0) {
+      state_text += alpha_threshold;
+    }
+
     var program = programs[state_text];
     if (program) {
       return program;
@@ -2897,34 +2941,42 @@ if (typeof n64js === 'undefined') {
     var dA1    = (mux1>>> 0)&0x07; // c2 a4    // Ad1
 
     // patch in instructions for this mux
+
+    var body;
+
     if (cycle_type === cycleTypeValues.G_CYC_FILL) {
-      theSource = theSource.replace('{{body}}', 'col = shade;');
+      body = 'col = shade;\n';
     } else if (cycle_type === cycleTypeValues.G_CYC_COPY) {
-      theSource = theSource.replace('{{body}}', 'col = tex0;');
+      body = 'col = tex0;\n';
     } else if (cycle_type === cycleTypeValues.G_CYC_1CYCLE) {
 
       //var foo = 'col.rgb = tex0.rgb;';
-      var foo = '';
-      foo += 'col.rgb = (' + rgbParams16 [aRGB0] + ' - ' + rgbParams16 [bRGB0] + ') * ' + rgbParams32 [cRGB0] + ' + ' + rgbParams8  [dRGB0] + ';\n';
-      foo += 'col.a = ('   + alphaParams8[  aA0] + ' - ' + alphaParams8[  bA0] + ') * ' + alphaParams8[  cA0] + ' + ' + alphaParams8[  dA0] + ';\n';
-      foo += 'vec4 combined = vec4(col.rgb, col.a);\n';
-
-      theSource = theSource.replace('{{body}}', foo);
-
-      if (0) {
-        var decoded = '';
-
-        decoded += '\n';
-        decoded += '\tRGB0 = (' + colcombine16[aRGB0] + ' - ' + colcombine16[bRGB0] + ') * ' + colcombine32[cRGB0] + ' + ' + colcombine8[dRGB0] + '\n';
-        decoded += '\t  A0 = (' + colcombine8 [  aA0] + ' - ' + colcombine8 [  bA0] + ') * ' + colcombine8 [  cA0] + ' + ' + colcombine8[  dA0] + '\n';
-
-        var m = theSource.split('\n').join('<br>');
-
-        n64js.log('Compiled ' + decoded + '\nto\n' + m);
-      }
+      body= '';
+      body += 'col.rgb = (' + rgbParams16 [aRGB0] + ' - ' + rgbParams16 [bRGB0] + ') * ' + rgbParams32 [cRGB0] + ' + ' + rgbParams8  [dRGB0] + ';\n';
+      body += 'col.a = ('   + alphaParams8[  aA0] + ' - ' + alphaParams8[  bA0] + ') * ' + alphaParams8[  cA0] + ' + ' + alphaParams8[  dA0] + ';\n';
+      body += 'vec4 combined = vec4(col.rgb, col.a);\n';
 
     } else {
       n64js.halt(getDefine(cycleTypeValues, cycle_type) + ' is not a supported cycle type');
+      body = 'col = vec4(1,0,1,1);\n';
+    }
+
+    if (alpha_threshold >= 0.0) {
+      body += 'if(col.a < ' + alpha_threshold.toFixed(3) + ') discard;\n';
+    }
+
+    theSource = theSource.replace('{{body}}', body);
+
+    if (0) {
+      var decoded = '';
+
+      decoded += '\n';
+      decoded += '\tRGB0 = (' + colcombine16[aRGB0] + ' - ' + colcombine16[bRGB0] + ') * ' + colcombine32[cRGB0] + ' + ' + colcombine8[dRGB0] + '\n';
+      decoded += '\t  A0 = (' + colcombine8 [  aA0] + ' - ' + colcombine8 [  bA0] + ') * ' + colcombine8 [  cA0] + ' + ' + colcombine8[  dA0] + '\n';
+
+      var m = theSource.split('\n').join('<br>');
+
+      n64js.log('Compiled ' + decoded + '\nto\n' + m);
     }
 
     fragmentShader = createShader(theSource, gl.FRAGMENT_SHADER);
