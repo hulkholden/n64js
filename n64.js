@@ -59,7 +59,54 @@ if (typeof n64js === 'undefined') {
   var SP_STATUS_YIELDED     = SP_STATUS_SIG1;
   var SP_STATUS_TASKDONE    = SP_STATUS_SIG2;
 
+  // DP Command
+  var DPC_START_REG         = 0x00;
+  var DPC_END_REG           = 0x04;
+  var DPC_CURRENT_REG       = 0x08;
+  var DPC_STATUS_REG        = 0x0C;
+  var DPC_CLOCK_REG         = 0x10;
+  var DPC_BUFBUSY_REG       = 0x14;
+  var DPC_PIPEBUSY_REG      = 0x18;
+  var DPC_TMEM_REG          = 0x1C;
 
+  var DPC_CLR_XBUS_DMEM_DMA = 0x0001;
+  var DPC_SET_XBUS_DMEM_DMA = 0x0002;
+  var DPC_CLR_FREEZE        = 0x0004;
+  var DPC_SET_FREEZE        = 0x0008;
+  var DPC_CLR_FLUSH         = 0x0010;
+  var DPC_SET_FLUSH         = 0x0020;
+  var DPC_CLR_TMEM_CTR      = 0x0040;
+  var DPC_CLR_PIPE_CTR      = 0x0080;
+  var DPC_CLR_CMD_CTR       = 0x0100;
+  var DPC_CLR_CLOCK_CTR     = 0x0200;
+
+  var DPC_STATUS_XBUS_DMEM_DMA = 0x001;
+  var DPC_STATUS_FREEZE        = 0x002;
+  var DPC_STATUS_FLUSH         = 0x004;
+  var DPC_STATUS_START_GCLK    = 0x008;
+  var DPC_STATUS_TMEM_BUSY     = 0x010;
+  var DPC_STATUS_PIPE_BUSY     = 0x020;
+  var DPC_STATUS_CMD_BUSY      = 0x040;
+  var DPC_STATUS_CBUF_READY    = 0x080;
+  var DPC_STATUS_DMA_BUSY      = 0x100;
+  var DPC_STATUS_END_VALID     = 0x200;
+  var DPC_STATUS_START_VALID   = 0x400;
+
+
+  // DP Span
+  var DPS_TBIST_REG        = 0x00;
+  var DPS_TEST_MODE_REG    = 0x04;
+  var DPS_BUFTEST_ADDR_REG = 0x08;
+  var DPS_BUFTEST_DATA_REG = 0x0C;
+
+  var DPS_TBIST_CHECK      = 0x01;
+  var DPS_TBIST_GO         = 0x02;
+  var DPS_TBIST_CLEAR      = 0x04;
+
+  var DPS_TBIST_DONE      = 0x004;
+  var DPS_TBIST_FAILED    = 0x7F8;
+
+  // MIPS Interface
   var MI_MODE_REG         = 0x00;
   var MI_VERSION_REG      = 0x04;
   var MI_INTR_REG         = 0x08;
@@ -104,13 +151,7 @@ if (typeof n64js === 'undefined') {
   var MI_INTR_PI        = 0x10;
   var MI_INTR_DP        = 0x20;
 
-  var AI_DRAM_ADDR_REG  = 0x00;
-  var AI_LEN_REG        = 0x04;
-  var AI_CONTROL_REG    = 0x08;
-  var AI_STATUS_REG     = 0x0C;
-  var AI_DACRATE_REG    = 0x10;
-  var AI_BITRATE_REG    = 0x14;
-
+  // Video Interface
   var VI_STATUS_REG     = 0x00;
   var VI_ORIGIN_REG     = 0x04;
   var VI_WIDTH_REG      = 0x08;
@@ -136,7 +177,15 @@ if (typeof n64js === 'undefined') {
   var VI_H_VIDEO_REG        = VI_H_START_REG;
   var VI_V_VIDEO_REG        = VI_V_START_REG;
 
+  // Audio Interface
+  var AI_DRAM_ADDR_REG  = 0x00;
+  var AI_LEN_REG        = 0x04;
+  var AI_CONTROL_REG    = 0x08;
+  var AI_STATUS_REG     = 0x0C;
+  var AI_DACRATE_REG    = 0x10;
+  var AI_BITRATE_REG    = 0x14;
 
+  // Peripheral Interface
   var PI_DRAM_ADDR_REG    = 0x00;
   var PI_CART_ADDR_REG    = 0x04;
   var PI_RD_LEN_REG       = 0x08;
@@ -174,6 +223,7 @@ if (typeof n64js === 'undefined') {
   function IsDom2Addr1( address )    { return address >= PI_DOM2_ADDR1 && address < PI_DOM1_ADDR1; }
   function IsDom2Addr2( address )    { return address >= PI_DOM2_ADDR2 && address < PI_DOM1_ADDR2; }
 
+  // RDRAM Interface
   var RI_MODE_REG             = 0x00;
   var RI_CONFIG_REG           = 0x04;
   var RI_CURRENT_LOAD_REG     = 0x08;
@@ -185,6 +235,7 @@ if (typeof n64js === 'undefined') {
   var RI_WERROR_REG           = 0x1C;
   var RI_LAST_REG             = RI_WERROR_REG;
 
+  // Serial Interface
   var SI_DRAM_ADDR_REG      = 0x00;
   var SI_PIF_ADDR_RD64B_REG = 0x04;
   var SI_PIF_ADDR_WR64B_REG = 0x10;
@@ -886,6 +937,8 @@ if (typeof n64js === 'undefined') {
   var sp_mem        = new Memory(new ArrayBuffer(0x2000));
   var sp_reg        = new Memory(new ArrayBuffer(0x20));
   var sp_ibist_mem  = new Memory(new ArrayBuffer(0x8));
+  var dpc_mem       = new Memory(new ArrayBuffer(0x20));
+  var dps_mem       = new Memory(new ArrayBuffer(0x16));
   var rdram_reg     = new Memory(new ArrayBuffer(0x30));
   var mi_reg        = new Memory(new ArrayBuffer(0x10));
   var vi_reg        = new Memory(new ArrayBuffer(0x38));
@@ -912,6 +965,8 @@ if (typeof n64js === 'undefined') {
   var sp_mem_handler_uncached    = new Device("SPMem",    sp_mem,       0xa4000000, 0xa4002000);
   var sp_reg_handler_uncached    = new Device("SPReg",    sp_reg,       0xa4040000, 0xa4040020);
   var sp_ibist_handler_uncached  = new Device("SPIBIST",  sp_ibist_mem, 0xa4080000, 0xa4080008);
+  var dpc_handler_uncached       = new Device("DPC",      dpc_mem,      0xa4100000, 0xa4100020);
+  var dps_handler_uncached       = new Device("DPS",      dps_mem,      0xa4200000, 0xa4200004);
   var mi_reg_handler_uncached    = new Device("MIReg",    mi_reg,       0xa4300000, 0xa4300010);
   var vi_reg_handler_uncached    = new Device("VIReg",    vi_reg,       0xa4400000, 0xa4400038);
   var ai_reg_handler_uncached    = new Device("AIReg",    ai_reg,       0xa4500000, 0xa4500018);
@@ -1223,6 +1278,124 @@ if (typeof n64js === 'undefined') {
       throw 'Write is out of range';
     }
   };
+
+  function DPCUpdateStatus(value)
+  {
+    var dpc_status  =  dpc_mem.readU32(DPC_STATUS_REG);
+
+    if (value & DPC_CLR_XBUS_DMEM_DMA)      dpc_status &= ~DPC_STATUS_XBUS_DMEM_DMA;
+    if (value & DPC_SET_XBUS_DMEM_DMA)      dpc_status |=  DPC_STATUS_XBUS_DMEM_DMA;
+    if (value & DPC_CLR_FREEZE)             dpc_status &= ~DPC_STATUS_FREEZE;
+    //if (value & DPC_SET_FREEZE)           dpc_status |=  DPC_STATUS_FREEZE;  // Thanks Lemmy! <= what's wrong with this? ~ Salvy
+    if (value & DPC_CLR_FLUSH)              dpc_status &= ~DPC_STATUS_FLUSH;
+    if (value & DPC_SET_FLUSH)              dpc_status |=  DPC_STATUS_FLUSH;
+
+    // These should be ignored ! - Salvy
+    /*
+    if (value & DPC_CLR_TMEM_CTR)          dpc_mem.write32(DPC_TMEM_REG, 0);
+    if (value & DPC_CLR_PIPE_CTR)          dpc_mem.write32(DPC_PIPEBUSY_REG, 0);
+    if (value & DPC_CLR_CMD_CTR)           dpc_mem.write32(DPC_BUFBUSY_REG, 0);
+    if (value & DPC_CLR_CLOCK_CTR)         dpc_mem.write32(DPC_CLOCK_REG, 0);
+    */
+
+    // if (value & DPC_CLR_XBUS_DMEM_DMA)  n64js.log('DPC_CLR_XBUS_DMEM_DMA');
+    // if (value & DPC_SET_XBUS_DMEM_DMA)  n64js.log('DPC_SET_XBUS_DMEM_DMA');
+    // if (value & DPC_CLR_FREEZE)         n64js.log('DPC_CLR_FREEZE');
+    // if (value & DPC_SET_FREEZE)         n64js.log('DPC_SET_FREEZE');
+    // if (value & DPC_CLR_FLUSH)          n64js.log('DPC_CLR_FLUSH');
+    // if (value & DPC_SET_FLUSH)          n64js.log('DPC_SET_FLUSH');
+    // if (value & DPC_CLR_TMEM_CTR)       n64js.log('DPC_CLR_TMEM_CTR');
+    // if (value & DPC_CLR_PIPE_CTR)       n64js.log('DPC_CLR_PIPE_CTR');
+    // if (value & DPC_CLR_CMD_CTR)        n64js.log('DPC_CLR_CMD_CTR');
+    // if (value & DPC_CLR_CLOCK_CTR)      n64js.log('DPC_CLR_CLOCK_CTR');
+
+    n64js.log( 'Modified DPC_STATUS_REG - now ' + toString32(dpc_status) );
+
+    dpc_mem.write32(DPC_STATUS_REG, dpc_status);
+  }
+
+  dpc_handler_uncached.write32 = function (address, value) {
+    var ea = this.calcEA(address);
+    if (ea+3 < this.u8.length) {
+
+      switch( ea ) {
+        case DPC_START_REG:
+          if (!this.quiet) n64js.log('DPC start set to: ' + toString32(value) );
+          this.mem.write32(ea, value);
+          this.mem.write32(DPC_CURRENT_REG, value);
+          break;
+        case DPC_END_REG:
+          if (!this.quiet) n64js.log('DPC end set to: ' + toString32(value) );
+          this.mem.write32(ea, value);
+          //mi_reg.setBits32(MI_INTR_REG, MI_INTR_DP);
+          //n64js.cpu0.updateCause3();
+          break;
+        case DPC_STATUS_REG:
+          if (!this.quiet) n64js.log('DPC status set to: ' + toString32(value) );
+          DPCUpdateStatus(value);
+          break;
+
+        // Read only
+        case DPC_CURRENT_REG:
+        case DPC_CLOCK_REG:
+        case DPC_BUFBUSY_REG:
+        case DPC_PIPEBUSY_REG:
+        case DPC_TMEM_REG:
+          n64js.log('Wrote to read only DPC reg');
+          break;
+
+        default:
+          this.mem.write32(ea, value);
+          break;
+      }
+
+    } else {
+      throw 'Write is out of range';
+    }
+  };
+
+  dpc_handler_uncached.readS32 = function (address) {
+    if (!this.quiet) n64js.log('Reading from ' + this.name + ': ' + toString32(address) );
+    var ea = this.calcEA(address);
+
+    if (ea+3 < this.u8.length) {
+      return this.mem.readS32(ea);
+    } else {
+      throw 'Read is out of range';
+    }
+  };
+
+  dpc_handler_uncached.readU32 = function (address) {
+    return this.readS32(address)>>>0;
+  }
+
+
+
+  dps_handler_uncached.write32 = function (address, value) {
+    var ea = this.calcEA(address);
+    if (ea+3 < this.u8.length) {
+      throw 'DPS writes are unhandled';
+      this.mem.write32(ea, value);
+    } else {
+      throw 'Write is out of range';
+    }
+  };
+
+  dps_handler_uncached.readS32 = function (address) {
+    if (!this.quiet) n64js.log('Reading from ' + this.name + ': ' + toString32(address) );
+    var ea = this.calcEA(address);
+
+    if (ea+3 < this.u8.length) {
+      throw 'DPS reads are unhandled';
+      return this.mem.readS32(ea);
+    } else {
+      throw 'Read is out of range';
+    }
+  };
+
+  dps_handler_uncached.readU32 = function (address) {
+    return this.readS32(address)>>>0;
+  }
 
 
 
@@ -2025,7 +2198,7 @@ if (typeof n64js === 'undefined') {
     }
   };
 
-  // We create a memory map of 1<<14 entries, corresponding to the top bits of the address range. 
+  // We create a memory map of 1<<14 entries, corresponding to the top bits of the address range.
   var memMap = (function () {
     var map = [];
     for (var i = 0; i < 0x4000; ++i)
@@ -2038,6 +2211,8 @@ if (typeof n64js === 'undefined') {
          sp_mem_handler_uncached,
          sp_reg_handler_uncached,
        sp_ibist_handler_uncached,
+            dpc_handler_uncached,
+            dps_handler_uncached,
       rdram_reg_handler_uncached,
          mi_reg_handler_uncached,
          vi_reg_handler_uncached,
