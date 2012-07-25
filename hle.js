@@ -1988,9 +1988,10 @@ if (typeof n64js === 'undefined') {
       //case 0x08:    return 'Reserved';
       case 0x09:      return 'Sprite2DBase';
 
-      //case 0xb0:    return '';
+      case 0xaf:      return 'loadUCode';
+      case 0xb0:      return 'branchZ';
       case 0xb1:      return disassembleTri2(a,b);
-      case 0xb2:      return 'RDPHalf_Cont';
+      case 0xb2:      return 'RDPHalf_Cont';  // modifyVtx
       case 0xb3:      return 'gsImmp1(G_RDPHALF_2, ' + n64js.toString32(b) + ');';
       case 0xb4:      return 'gsImmp1(G_RDPHALF_1, ' + n64js.toString32(b) + ');';
       case 0xb5:      return disassembleLine3D(a,b);
