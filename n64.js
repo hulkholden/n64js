@@ -931,6 +931,15 @@ if (typeof n64js === 'undefined') {
   var disasmAddress = 0;
 
   var running       = false;
+
+  var rominfo = {
+    id:             '',
+    name:           '',
+    cic:            '6101',
+    country:        0x45,
+    save:           'Eeprom4k',
+  };
+
   var rom           = null;   // Will be memory, mapped at 0xb0000000
   var pi_mem        = new Memory(new ArrayBuffer(0x7c0 + 0x40));   // rom+ram
   var ram           = new Memory(new ArrayBuffer(8*1024*1024));
@@ -2459,8 +2468,8 @@ if (typeof n64js === 'undefined') {
   }
 
   n64js.reset = function () {
-    var country  = 0x45;  // USA
-    var cic_chip = '6102';
+    var country  = rominfo.country;
+    var cic_chip = rominfo.cic;
 
     var memory_regions = [ pi_mem, ram, sp_mem, sp_reg, sp_ibist_mem, rdram_reg, mi_reg, vi_reg, ai_reg, pi_reg, ri_reg, si_reg, eeprom ];
     for ( var i = 0; i < memory_regions.length; ++i ) {
@@ -2684,16 +2693,48 @@ if (typeof n64js === 'undefined') {
     }
   }
 
-  function uint8ArrayReadString(u8, offset, max_len) {
+  function uint8ArrayReadString(u8array, offset, max_len) {
     var s = '';
     for (var i = 0; i < max_len; ++i) {
-      var c = u8[offset+i];
+      var c = u8array[offset+i];
       if (c == 0) {
         break;
       }
       s += String.fromCharCode(c);
     }
     return s;
+  }
+
+  function byteswap(a) {
+    return ((a>>24)&0x000000ff) |
+           ((a>> 8)&0x0000ff00) |
+           ((a<< 8)&0x00ff0000) |
+           ((a<<24)&0xff000000);
+  }
+
+  function generateRomId(crclo, crchi) {
+    return toHex(byteswap(crclo),32) + toHex(byteswap(crchi),32);
+  }
+
+  function generateCICType(u8array)
+  {
+    var cic = 0;
+    for (var i = 0; i < 0xFC0; i++) {
+      cic = cic + u8array[0x40 + i];
+    }
+
+    switch (cic) {
+      case 0x33a27: return '6101';
+      case 0x3421e: return '6101';
+      case 0x34044: return '6102';
+      case 0x357d0: return '6103';
+      case 0x47a81: return '6105';
+      case 0x371cc: return '6106';
+      case 0x343c9: return '6106';
+      default:
+        n64js.log('Unknown CIC Code ' + toString32(cic) );
+        return '6102';
+    }
   }
 
   n64js.loadRom = function (arrayBuffer) {
@@ -2731,6 +2772,26 @@ if (typeof n64js === 'undefined') {
         '</tr>');
     }
     $output.append($table);
+
+    // Set up rominfo
+    rominfo.cic     = generateCICType(rom.u8);
+    rominfo.id      = generateRomId(hdr.crclo, hdr.crchi);
+    rominfo.country = hdr.countryId;
+
+    var info = n64js.romdb[rominfo.id];
+    if (info) {
+      n64js.log('Loaded info for ' + rominfo.id + ' from db');
+      rominfo.name = info.name;
+      rominfo.save = info.save;
+    } else {
+      n64js.log('No info for ' + rominfo.id + ' in db');
+      rominfo.name = hdr.name;
+      rominfo.save = 'Eeprom4k';
+    }
+
+    n64js.log('rominfo is ' + JSON.stringify(rominfo));
+
+    $('#title').text('n64js - ' + rominfo.name);
   }
 
   n64js.verticalBlank = function() {
