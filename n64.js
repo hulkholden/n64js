@@ -989,6 +989,7 @@ if (typeof n64js === 'undefined') {
   ai_reg_handler_uncached.quiet   = true;
   pi_reg_handler_uncached.quiet   = true;
   si_reg_handler_uncached.quiet   = true;
+  rom_d1a2_handler_uncached.quiet = true;
 
   // This function gets hit A LOT, so eliminate as much fat as possible.
   rdram_handler_cached.readU32 = function (address) {
