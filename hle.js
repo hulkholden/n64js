@@ -2853,7 +2853,7 @@ if (typeof n64js === 'undefined') {
     'combined.rgb', 'tex0.rgb',
     'tex1.rgb',     'prim.rgb',
     'shade.rgb',    'env.rgb',
-    'one.rgb',  'combined.a',
+    'one.rgb',      'combined.a',
     'tex0.a',       'tex1.a',
     'prim.a',       'shade.a',
     'env.a',        'LOD_Frac',
@@ -2951,16 +2951,18 @@ if (typeof n64js === 'undefined') {
     } else if (cycle_type === cycleTypeValues.G_CYC_COPY) {
       body = 'col = tex0;\n';
     } else if (cycle_type === cycleTypeValues.G_CYC_1CYCLE) {
-
-      //var foo = 'col.rgb = tex0.rgb;';
+      body= '';
+      body += 'col.rgb = (' + rgbParams16 [aRGB0] + ' - ' + rgbParams16 [bRGB0] + ') * ' + rgbParams32 [cRGB0] + ' + ' + rgbParams8  [dRGB0] + ';\n';
+      body += 'col.a = ('   + alphaParams8[  aA0] + ' - ' + alphaParams8[  bA0] + ') * ' + alphaParams8[  cA0] + ' + ' + alphaParams8[  dA0] + ';\n';
+    } else {
       body= '';
       body += 'col.rgb = (' + rgbParams16 [aRGB0] + ' - ' + rgbParams16 [bRGB0] + ') * ' + rgbParams32 [cRGB0] + ' + ' + rgbParams8  [dRGB0] + ';\n';
       body += 'col.a = ('   + alphaParams8[  aA0] + ' - ' + alphaParams8[  bA0] + ') * ' + alphaParams8[  cA0] + ' + ' + alphaParams8[  dA0] + ';\n';
       body += 'vec4 combined = vec4(col.rgb, col.a);\n';
 
-    } else {
-      n64js.halt(getDefine(cycleTypeValues, cycle_type) + ' is not a supported cycle type');
-      body = 'col = vec4(1,0,1,1);\n';
+      body += 'col.rgb = (' + rgbParams16 [aRGB1] + ' - ' + rgbParams16 [bRGB1] + ') * ' + rgbParams32 [cRGB1] + ' + ' + rgbParams8  [dRGB1] + ';\n';
+      body += 'col.a = ('   + alphaParams8[  aA1] + ' - ' + alphaParams8[  bA1] + ') * ' + alphaParams8[  cA1] + ' + ' + alphaParams8[  dA1] + ';\n';
+
     }
 
     if (alpha_threshold >= 0.0) {
@@ -2975,6 +2977,9 @@ if (typeof n64js === 'undefined') {
       decoded += '\n';
       decoded += '\tRGB0 = (' + colcombine16[aRGB0] + ' - ' + colcombine16[bRGB0] + ') * ' + colcombine32[cRGB0] + ' + ' + colcombine8[dRGB0] + '\n';
       decoded += '\t  A0 = (' + colcombine8 [  aA0] + ' - ' + colcombine8 [  bA0] + ') * ' + colcombine8 [  cA0] + ' + ' + colcombine8[  dA0] + '\n';
+
+      decoded += '\tRGB1 = (' + colcombine16[aRGB1] + ' - ' + colcombine16[bRGB1] + ') * ' + colcombine32[cRGB1] + ' + ' + colcombine8[dRGB1] + '\n';
+      decoded += '\t  A1 = (' + colcombine8 [  aA1] + ' - ' + colcombine8 [  bA1] + ') * ' + colcombine8 [  cA1] + ' + ' + colcombine8[  dA1] + '\n';
 
       var m = theSource.split('\n').join('<br>');
 
