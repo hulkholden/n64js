@@ -2563,7 +2563,8 @@ if (typeof n64js === 'undefined') {
     var ucode = kUCode_GBI0;
 
     // FIXME: lots of work here
-    if (str.indexOf('F3DEX') >= 0) {
+    if (str.indexOf('F3DEX') >= 0 ||
+        str.indexOf('F3DLX') >= 0) {
       ucode = kUCode_GBI1;
     }
 
