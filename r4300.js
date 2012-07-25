@@ -736,17 +736,19 @@ if (typeof n64js === 'undefined') {
     this.load_f64 = function (i) {
       return this.float64[i>>1];
     }
+    this.load_s64_as_double = function (i) {
+        return (this.int32[i+1] * k1Shift32) + this.int32[i];
+    }
 
-    this.store_s32 = function(i, v) {
+    this.store_s32 = function (i, v) {
       this.int32[i] = v;
     }
-    this.store_f32 = function(i, v) {
+    this.store_f32 = function (i, v) {
       this.float32[i] = v;
     }
-    this.store_f64 = function(i, v) {
+    this.store_f64 = function (i, v) {
       this.float64[i>>1] = v;
     }
-
   };
 
   // Expose the cpu state
@@ -2081,7 +2083,6 @@ if (typeof n64js === 'undefined') {
   function executeDMTC1(i) {
     var t = rt(i);
     cpu1.store_64( fs(i), cpu0.gprLo_signed[t], cpu0.gprHi_signed[t] );
-    n64js.halt('DMTC1');
   }
 
   function executeCFC1(i) {
@@ -2341,7 +2342,13 @@ if (typeof n64js === 'undefined') {
     }
     unimplemented(cpu0.pc,i);
   }
-  function executeLInstr(i)     { unimplemented(cpu0.pc,i); }
+  function executeLInstr(i) {
+    switch(cop1_func(i)) {
+      //case 0x20:    cpu1.store_f32( fd(i), cpu1.load_s64( fs(i) ) ); return;
+      case 0x21:     /* 'CVT.D' */ cpu1.store_f64( fd(i), cpu1.load_s64_as_double( fs(i) ) ); return;
+    }
+    unimplemented(cpu0.pc,i);
+  }
 
   var specialTable = [
     executeSLL,           executeUnknown,       executeSRL,         executeSRA,
