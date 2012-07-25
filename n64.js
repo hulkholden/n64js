@@ -932,6 +932,8 @@ if (typeof n64js === 'undefined') {
 
   var running       = false;
 
+  var setMemorySize = false;
+
   var rominfo = {
     id:             '',
     name:           '',
@@ -2098,6 +2100,13 @@ if (typeof n64js === 'undefined') {
       n64js.halt('PI: unknown cart address: ' + cart_address);
     }
 
+    if (!setMemorySize) {
+      var addr = (rominfo.cic === '6105') ? 0x800003F0 : 0x80000318;
+      ram.write32(addr - 0x80000000, 8*1024*1024);
+      n64js.log('Setting memory size');
+      setMemorySize = true;
+    }
+
     // If this is the first DMA write the ram size to 0x800003F0 (cic6105) or 0x80000318 (others)
     pi_reg.clearBits32(PI_STATUS_REG, PI_STATUS_DMA_BUSY);
     mi_reg.setBits32(MI_INTR_REG, MI_INTR_PI);
@@ -2470,6 +2479,8 @@ if (typeof n64js === 'undefined') {
   n64js.reset = function () {
     var country  = rominfo.country;
     var cic_chip = rominfo.cic;
+
+    setMemorySize = false;
 
     var memory_regions = [ pi_mem, ram, sp_mem, sp_reg, sp_ibist_mem, rdram_reg, mi_reg, vi_reg, ai_reg, pi_reg, ri_reg, si_reg, eeprom ];
     for ( var i = 0; i < memory_regions.length; ++i ) {
