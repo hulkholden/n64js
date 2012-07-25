@@ -2312,7 +2312,7 @@ if (typeof n64js === 'undefined') {
       gl.uniform1i(uSamplerUniform, 0);
 
       gl.uniform2f(uTexScaleUniform,  uv_scale_u,  uv_scale_v );
-      gl.uniform2f(uTexOffsetUniform, uv_offset_u, uv_offset_u );
+      gl.uniform2f(uTexOffsetUniform, uv_offset_u, uv_offset_v );
 
       if (getTextureFilterType() == textureFilterValues.G_TF_POINT) {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
@@ -2508,8 +2508,8 @@ if (typeof n64js === 'undefined') {
         'mask_t':  tile.mask_t,
       });
 
-      textureinfo.left   = tile.uls;
-      textureinfo.top    = tile.ult;
+      textureinfo.left   = tile.uls / 4;
+      textureinfo.top    = tile.ult / 4;
       textureinfo.width  = width;
       textureinfo.height = height;
 
