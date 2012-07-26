@@ -1900,14 +1900,16 @@ if (typeof n64js === 'undefined') {
   }
 
   function executeLB(i) {
+    var addr = memaddr(i);
     var t = rt(i);
-    var result = n64js.readMemoryS8( memaddr(i) );
+    var result = n64js.readMemoryS8(addr);
     cpu0.gprLo_signed[t] = result;
     cpu0.gprHi_signed[t] = result >> 31;
   }
   function executeLH(i) {
+    var addr = memaddr(i);
     var t = rt(i);
-    var result = n64js.readMemoryS16( memaddr(i) );
+    var result = n64js.readMemoryS16(addr);
     cpu0.gprLo_signed[t] = result;
     cpu0.gprHi_signed[t] = result >> 31;
   }
@@ -1915,37 +1917,45 @@ if (typeof n64js === 'undefined') {
     // SF2049 requires this, apparently
     if (rt(i) === 0)
       return;
+    var addr = memaddr(i);
     var t = rt(i);
-    var result = n64js.readMemoryS32( memaddr(i) );
+    var result = n64js.readMemoryS32(addr);
     cpu0.gprLo_signed[t] = result;
     cpu0.gprHi_signed[t] = result >> 31;
   }
 
   function executeLBU(i) {
+    var addr = memaddr(i);
     var t = rt(i);
-    cpu0.gprLo_signed[t] = n64js.readMemoryU8( memaddr(i) );
+    cpu0.gprLo_signed[t] = n64js.readMemoryU8(addr);
     cpu0.gprHi_signed[t] = 0;
   }
   function executeLHU(i) {
+    var addr = memaddr(i);
     var t = rt(i);
-    cpu0.gprLo_signed[t] = n64js.readMemoryU16( memaddr(i) );
+    cpu0.gprLo_signed[t] = n64js.readMemoryU16(addr);
     cpu0.gprHi_signed[t] = 0;
   }
   function executeLWU(i) {
+    var addr = memaddr(i);
     var t = rt(i);
-    cpu0.gprLo_signed[t] = n64js.readMemoryU32( memaddr(i) );
+    cpu0.gprLo_signed[t] = n64js.readMemoryU32(addr);
     cpu0.gprHi_signed[t] = 0;
   }
   function executeLD(i) {
-    cpu0.gprLo_signed[rt(i)] = n64js.readMemoryS32( memaddr(i) + 4 );
-    cpu0.gprHi_signed[rt(i)] = n64js.readMemoryS32( memaddr(i) + 0 );
+    var addr = memaddr(i);
+    var t = rt(i);
+    cpu0.gprLo_signed[t] = n64js.readMemoryS32(addr + 4);
+    cpu0.gprHi_signed[t] = n64js.readMemoryS32(addr + 0);
   }
 
   function executeLWC1(i) {
-    cpu1.store_s32( ft(i), n64js.readMemoryS32( memaddr(i)) );
+    var addr = memaddr(i);
+    cpu1.store_s32( ft(i), n64js.readMemoryS32(addr) );
   }
-  function executeLDC1(i){
-    cpu1.store_64( ft(i), n64js.readMemoryS32( memaddr(i)+4 ), n64js.readMemoryS32( memaddr(i)+0 ) );
+  function executeLDC1(i) {
+    var addr = memaddr(i);
+    cpu1.store_64( ft(i), n64js.readMemoryS32(addr+4), n64js.readMemoryS32(addr+0) );
   }
   function executeLDC2(i)       { unimplemented(cpu0.pc,i); }
 
