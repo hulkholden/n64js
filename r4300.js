@@ -255,6 +255,9 @@ if (typeof n64js === 'undefined') {
     this.nextPC         = 0;      // Set to the next expected PC before an op executes. Ops can update this to change control flow without branch delay (e.g. likely branches, ERET)
     this.branchTarget   = 0;      // Set to indicate a branch has been taken. Sets the delayPC for the subsequent op.
 
+    var UT_VEC          = 0x80000000;
+    var XUT_VEC         = 0x80000080;
+    var ECC_VEC         = 0x80000100;
     var E_VEC           = 0x80000180;
 
     this.stuffToDo      = 0;     // used to flag r4300 to cease execution
@@ -400,6 +403,26 @@ if (typeof n64js === 'undefined') {
 
       return false;
     }
+
+    this.throwTLBException = function (address, exc_code, vec) {
+      this.control[this.kControlBadVAddr] = address;
+
+      this.control[this.kControlContext] &= 0xff800000;
+      this.control[this.kControlContext] |= ((address >>> 13) << 4);
+
+      this.control[this.kControlEntryHi] &= 0x00001fff;
+      this.control[this.kControlEntryHi] |= (address & 0xfffffe000);
+
+      // XXXX check we're not inside exception handler before snuffing CAUSE reg?
+      this.setException( CAUSE_EXCMASK, exc_code );
+      this.nextPC = vec;
+    }
+
+    this.throwTLBReadMiss  = function (address) { this.throwTLBException(address, EXC_RMISS, UT_VEC); }
+    this.throwTLBWriteMiss = function (address) { this.throwTLBException(address, EXC_WMISS, UT_VEC); }
+
+    this.throwTLBReadInvalid  = function (address) { this.throwTLBException(address, EXC_RMISS, E_VEC); }
+    this.throwTLBWriteInvalid = function (address) { this.throwTLBException(address, EXC_WMISS, E_VEC); }
 
     this.throwCop1Unusable = function () {
       // XXXX check we're not inside exception handler before snuffing CAUSE reg?
@@ -600,7 +623,7 @@ if (typeof n64js === 'undefined') {
       return null;
     }
 
-    this.translate = function (address) {
+    this.translateReadInternal = function (address) {
       var tlb = this.tlbFindEntry(address);
       if (tlb) {
           var valid;
@@ -613,21 +636,61 @@ if (typeof n64js === 'undefined') {
             physical_addr = tlb.pfnehi | (address & tlb.mask2);
           }
 
-          if (!valid) {
-            n64js.halt('Need to throw tlbinvalid for ' + n64js.toString32(address));
+          if (valid)
+            return physical_addr;
+          return 0;
+      }
+      return 0;
+    }
+    this.translateRead = function (address) {
+      var tlb = this.tlbFindEntry(address);
+      if (tlb) {
+          var valid;
+          var physical_addr;
+          if (address & tlb.checkbit) {
+            valid         = (tlb.pfno & TLBLO_V) !== 0;
+            physical_addr = tlb.pfnohi | (address & tlb.mask2);
+          } else {
+            valid         = (tlb.pfne & TLBLO_V) !== 0;
+            physical_addr = tlb.pfnehi | (address & tlb.mask2);
           }
 
           if (valid)
             return physical_addr;
-          else
-            return 0;
 
-      } else {
-        // throw TLBRefll
-        n64js.halt('Need to throw tlbrefill for ' + n64js.toString32(address));
-        return 0;
+          this.throwTLBReadInvalid(address);
+          return 0;
       }
+
+      this.throwTLBReadMiss(address);
+      return 0;
     }
+    this.translateWrite = function (address) {
+      var tlb = this.tlbFindEntry(address);
+      if (tlb) {
+          var valid;
+          var physical_addr;
+          if (address & tlb.checkbit) {
+            valid         = (tlb.pfno & TLBLO_V) !== 0;
+            physical_addr = tlb.pfnohi | (address & tlb.mask2);
+          } else {
+            valid         = (tlb.pfne & TLBLO_V) !== 0;
+            physical_addr = tlb.pfnehi | (address & tlb.mask2);
+          }
+
+          if (valid)
+            return physical_addr;
+
+          this.throwTLBWriteInvalid(address);
+          return 0;
+
+      }
+
+      this.throwTLBWriteMiss(address);
+      return 0;
+    }
+
+
 
     // General purpose register constants
     this.kRegister_r0 = 0x00;

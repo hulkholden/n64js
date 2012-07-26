@@ -1020,18 +1020,16 @@ if (typeof n64js === 'undefined') {
   }
 
   mapped_mem_handler.readInternal32 = function(address) {
-    return 0xffffffff;
-  }
-
-  mapped_mem_handler.translate = function(address) {
-    //if (!this.quiet) n64js.log('Reading from ' + this.name + ': ' + toString32(address) );
-    var ea = this.calcEA(address);
-
-    return n64js.cpu0.translate(ea) & 0x007fffff;
+    var mapped = n64js.cpu0.translateReadInternal(address) & 0x007fffff;
+    if (mapped != 0) {
+      if (mapped+3 < ram.u8.length)
+        return ram.readU32(mapped);
+    }
+    return 0x00000000;
   }
 
   mapped_mem_handler.readU32 = function(address) {
-    var mapped = this.translate(address);
+    var mapped = n64js.cpu0.translateRead(address) & 0x007fffff;
     if (mapped != 0) {
       return ram.readU32(mapped);
     }
@@ -1039,7 +1037,7 @@ if (typeof n64js === 'undefined') {
     return 0xffffffff;
   }
   mapped_mem_handler.readU16 = function(address) {
-    var mapped = this.translate(address);
+    var mapped = n64js.cpu0.translateRead(address) & 0x007fffff;
     if (mapped != 0) {
       return ram.readU16(mapped);
     }
@@ -1047,7 +1045,7 @@ if (typeof n64js === 'undefined') {
     return 0xffff;
   }
   mapped_mem_handler.readU8 = function(address) {
-    var mapped = this.translate(address);
+    var mapped = n64js.cpu0.translateRead(address) & 0x007fffff;
     if (mapped != 0) {
       return ram.readU8(mapped);
     }
@@ -1056,7 +1054,7 @@ if (typeof n64js === 'undefined') {
   }
 
   mapped_mem_handler.readS32 = function(address) {
-    var mapped = this.translate(address);
+    var mapped = n64js.cpu0.translateRead(address) & 0x007fffff;
     if (mapped != 0) {
       return ram.readS32(mapped);
     }
@@ -1064,7 +1062,7 @@ if (typeof n64js === 'undefined') {
     return 0xffffffff;
   }
   mapped_mem_handler.readS16 = function(address) {
-    var mapped = this.translate(address);
+    var mapped = n64js.cpu0.translateRead(address) & 0x007fffff;
     if (mapped != 0) {
       return ram.readS16(mapped);
     }
@@ -1072,7 +1070,7 @@ if (typeof n64js === 'undefined') {
     return 0xffff;
   }
   mapped_mem_handler.readS8 = function(address) {
-    var mapped = this.translate(address);
+    var mapped = n64js.cpu0.translateRead(address);
     if (mapped != 0) {
       return ram.readS8(mapped);
     }
@@ -1081,13 +1079,28 @@ if (typeof n64js === 'undefined') {
   }
 
   mapped_mem_handler.write32 = function (address, value) {
-    throw 'Writing to vram';
+    var mapped = n64js.cpu0.translateWrite(address) & 0x007fffff;
+    if (mapped != 0) {
+      ram.write32(mapped, value);
+      return;
+    }
+    n64js.halt('virtual write32 failed - need to throw refill/invalid');
   };
   mapped_mem_handler.write16 = function (address, value) {
-    throw 'Writing to vram';
+    var mapped = n64js.cpu0.translateWrite(address) & 0x007fffff;
+    if (mapped != 0) {
+      ram.write16(mapped, value);
+      return;
+    }
+    n64js.halt('virtual write16 failed - need to throw refill/invalid');
   };
   mapped_mem_handler.write8 = function (address, value) {
-    throw 'Writing to vram';
+    var mapped = n64js.cpu0.translateWrite(address) & 0x007fffff;
+    if (mapped != 0) {
+      ram.write8(mapped, value);
+      return;
+    }
+    n64js.halt('virtual write8 failed - need to throw refill/invalid');
   };
 
   rom_d1a1_handler_uncached.readU32 = function(address)         { throw 'Reading from rom d1a1'; }
