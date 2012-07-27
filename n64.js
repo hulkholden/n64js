@@ -1334,7 +1334,7 @@ if (typeof n64js === 'undefined') {
     // if (value & DPC_CLR_CMD_CTR)        n64js.log('DPC_CLR_CMD_CTR');
     // if (value & DPC_CLR_CLOCK_CTR)      n64js.log('DPC_CLR_CLOCK_CTR');
 
-    n64js.log( 'Modified DPC_STATUS_REG - now ' + toString32(dpc_status) );
+    //n64js.log( 'Modified DPC_STATUS_REG - now ' + toString32(dpc_status) );
 
     dpc_mem.write32(DPC_STATUS_REG, dpc_status);
   }
@@ -1356,7 +1356,7 @@ if (typeof n64js === 'undefined') {
           //n64js.cpu0.updateCause3();
           break;
         case DPC_STATUS_REG:
-          if (!this.quiet) n64js.log('DPC status set to: ' + toString32(value) );
+          //if (!this.quiet) n64js.log('DPC status set to: ' + toString32(value) );
           DPCUpdateStatus(value);
           break;
 
