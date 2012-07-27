@@ -1016,14 +1016,21 @@ if (typeof n64js === 'undefined') {
 
   function executeDSLL32(i) {
     var d = rd(i);
+    var ohi = cpu0.gprLo[rt(i)] << sa(i);
     cpu0.gprLo_signed[d] = 0;
-    cpu0.gprHi[d] = cpu0.gprLo[rt(i)] << sa(i);
+    cpu0.gprHi_signed[d] = ohi;
   }
   function executeDSRL32(i) {
-    setZeroExtend( rd(i), cpu0.gprHi[rt(i)] >>> sa(i) );
+    var d   = rd(i);
+    var olo = cpu0.gprHi[rt(i)] >>> sa(i);
+    cpu0.gprLo[d] = olo;
+    cpu0.gprHi_signed[d] = 0;
   }
   function executeDSRA32(i) {
-    setSignExtend( rd(i), cpu0.gprHi[rt(i)] >> sa(i) );
+    var d   = rd(i);
+    var olo = cpu0.gprHi_signed[rt(i)] >> sa(i);
+    cpu0.gprLo_signed[d] = olo;
+    cpu0.gprHi_signed[d] = olo >> 31;
   }
 
 
