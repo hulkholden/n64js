@@ -2200,6 +2200,10 @@ if (typeof n64js === 'undefined') {
     vertex_coords[vtx_uv_idx+ 5] = v2.v;
   }
 
+  var kBlendModeOpaque     = 0;
+  var kBlendModeAlphaTrans = 1;
+  var kBlendModeFade       = 2;
+
   function setProgramState(vertex_positions, vertex_colours, vertex_coords, textureinfo, tex_gen_enabled) {
     var cvg_x_alpha   = getCoverageTimesAlpha();   // fragment coverage (0) or alpha (1)?
     var alpha_cvg_sel = getAlphaCoverageSelect();  // use fragment coverage * fragment alpha
@@ -2208,26 +2212,34 @@ if (typeof n64js === 'undefined') {
     if (cycle_type < cycleTypeValues.G_CYC_COPY) {
       var blend_mode          = state.rdpOtherModeL >> G_MDSFT_BLENDER;
       var active_blend_mode   = (cycle_type === cycleTypeValues.G_CYC_2CYCLE ? blend_mode : (blend_mode>>>2)) & 0x3333;
-      var have_fragment_alpha = false;
+      var mode = kBlendModeOpaque;
 
       switch(active_blend_mode) {
         case 0x0010: //G_BL_CLR_IN,G_BL_A_IN,G_BL_CLR_MEM,G_BL_1MA
         case 0x0011: //G_BL_CLR_IN,G_BL_A_IN,G_BL_CLR_MEM,G_BL_A_MEM
           // These modes either do a weighted sum of coverage (or coverage and alpha) or a plain alpha blend
-          have_fragment_alpha = !alpha_cvg_sel || cvg_x_alpha;   // If alpha_cvg_sel is 0, or if we're multiplying by fragment alpha, then we have alpha to blend with
+          if (!alpha_cvg_sel || cvg_x_alpha)   // If alpha_cvg_sel is 0, or if we're multiplying by fragment alpha, then we have alpha to blend with
+            mode = kBlendModeAlphaTrans;
           break;
-        case 0x0302 : //G_BL_CLR_IN,G_BL_0,G_BL_CLR_IN,G_BL_1
+        case 0x0302: //G_BL_CLR_IN,G_BL_0,G_BL_CLR_IN,G_BL_1
           // This blend mode doesn't use the alpha value
-          have_fragment_alpha = false;
           break;
+        case 0x0310: //G_BL_CLR_IN,G_BL_0,G_BL_CLR_MEM,G_BL_1MA, alpha_cvg_sel:false cvg_x_alpha:false
+          mode = kBlendModeFade;
+          break;
+
         default:
           n64js.log(n64js.toString16(active_blend_mode) + ' : ' + blendOpText(active_blend_mode) + ', alpha_cvg_sel:' + alpha_cvg_sel + ' cvg_x_alpha:' + cvg_x_alpha);
-          have_fragment_alpha = false;
+          mode = kBlendModeOpaque;
         break;
       }
 
-      if (have_fragment_alpha) {
+      if (mode == kBlendModeAlphaTrans) {
           gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+          gl.blendEquation(gl.FUNC_ADD);
+          gl.enable(gl.BLEND);
+      } else if (mode == kBlendModeFade) {
+          gl.blendFunc(gl.ZERO, gl.ONE_MINUS_SRC_ALPHA);
           gl.blendEquation(gl.FUNC_ADD);
           gl.enable(gl.BLEND);
       } else {
