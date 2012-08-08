@@ -3020,6 +3020,23 @@ if (typeof n64js === 'undefined') {
     return program;
   }
 
+  // FIXME: not all titles assume the same memory layout for palettes?
+  function getPaletteRDRAMAddress(palette_idx) {
+    // If we've loaded directlh into a palette slot, use that
+    var pal_load = state.tmemLoadMap[0x100 + (palette_idx<<5)];
+    if (pal_load) {
+      return pal_load.address;
+    }
+
+    // Othereise check if we've loaded to the base address, and add offset
+    pal_load = state.tmemLoadMap[0x100];
+    if (pal_load) {
+      return pal_load.address + (palette_idx<<5);
+    }
+
+    return 0;
+  }
+
   var textures = {};
   function loadTexture(info) {
     // FIXME: need to check other properties, and recreate every frame (or when underlying data changes)
@@ -3107,21 +3124,22 @@ if (typeof n64js === 'undefined') {
       case imageFormatTypes.G_IM_FMT_CI:
         var conv_fn = (info.tlutformat === textureLUTValues.G_TT_IA16) ? convertIA16Pixel : convertRGBA16Pixel;  // NB: assume RGBA16 for G_TT_NONE
 
-        // FIXME: not all titles assume the same memory layout for palettes.
-        var pal_address = state.tmemLoadMap[0x100 + (info.palette<<5)];
+        var pal_address = getPaletteRDRAMAddress(info.palette);
         if (pal_address) {
           switch (info.size) {
             case imageSizeTypes.G_IM_SIZ_8b:
-              convertCI8(img_data, address, width, height, pitch, pal_address.address, conv_fn);
+              convertCI8(img_data, address, width, height, pitch, pal_address, conv_fn);
               handled = true;
               break;
             case imageSizeTypes.G_IM_SIZ_4b:
-              convertCI4(img_data, address, width, height, pitch, pal_address.address, conv_fn);
+              convertCI4(img_data, address, width, height, pitch, pal_address, conv_fn);
               handled = true;
               break;
           }
+        } else {
+          n64js.log('couldnt find palette for texture ' + info.palette);
         }
-          break;
+        break;
 
       default:
         break;
