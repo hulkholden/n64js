@@ -2491,11 +2491,15 @@ if (typeof n64js === 'undefined') {
       var width  = getTextureDimension( tile.uls, tile.lrs, tile.mask_s );
       var height = getTextureDimension( tile.ult, tile.lrt, tile.mask_t );
 
+      // Hack - Extreme-G specifies RGBA/8 textures, but they're really CI8
+      var format = tile.format;
+      if (format === imageFormatTypes.G_IM_FMT_RGBA && tile.size <= imageSizeTypes.G_IM_SIZ_8b ) format = imageFormatTypes.G_IM_FMT_CI;
+
       var textureinfo = loadTexture({
         'tmem':    tile.tmem,
         'palette': tile.palette,
         'address': load_details.address,
-        'format':  tile.format,
+        'format':  format,
         'size':    tile.size,
         'width':   width,
         'height':  height,
