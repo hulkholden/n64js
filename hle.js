@@ -521,9 +521,9 @@ if (typeof n64js === 'undefined') {
       case moveMemTypeValues.G_MV_L7:
         var light_idx = (type - moveMemTypeValues.G_MV_L0) / 2;
         state.lights[light_idx].color = unpackRGBAToColor(state.ram.getUint32(address + 0));
-        state.lights[light_idx].dir   = Vector3.create([state.ram.getUint8(address +  8),
-                                                        state.ram.getUint8(address +  9),
-                                                        state.ram.getUint8(address + 10)]).normaliseInPlace();
+        state.lights[light_idx].dir   = Vector3.create([state.ram.getInt8(address +  8),
+                                                        state.ram.getInt8(address +  9),
+                                                        state.ram.getInt8(address + 10)]).normaliseInPlace();
         break;
     }
   }
@@ -1270,6 +1270,44 @@ if (typeof n64js === 'undefined') {
     var type_str = getDefine(moveMemTypeValues, type);
 
     return 'gsDma1p(G_MOVEMEM, ' + address + ', ' + length + ', ' + type_str + ');';
+  }
+
+  function previewMoveMem(cmd0,cmd1, ram, rdpSegmentAddress) {
+    var type    = (cmd0>>>16)&0xff;
+    var length  = (cmd0>>> 0)&0xffff;
+    var address = rdpSegmentAddress(cmd1);
+
+    //var dv      = new DataView(ram.buffer, address);
+    var tip = '';
+
+    for (var i = 0; i < length; ++i) {
+      tip += n64js.toHex(ram.getUint8(address + i), 8) + ' ';
+    }
+    tip += '<br>';
+
+    switch (type) {
+      case moveMemTypeValues.G_MV_VIEWPORT:
+        tip += 'scale = (' + ram.getInt16(address +  0) / 4.0 + ', ' + ram.getInt16(address +  2) / 4.0 + ') ';
+        tip += 'trans = (' + ram.getInt16(address +  8) / 4.0 + ', ' + ram.getInt16(address + 10) / 4.0 + ') ';
+        break;
+
+      case moveMemTypeValues.G_MV_L0:
+      case moveMemTypeValues.G_MV_L1:
+      case moveMemTypeValues.G_MV_L2:
+      case moveMemTypeValues.G_MV_L3:
+      case moveMemTypeValues.G_MV_L4:
+      case moveMemTypeValues.G_MV_L5:
+      case moveMemTypeValues.G_MV_L6:
+      case moveMemTypeValues.G_MV_L7:
+        tip += 'color = ' + n64js.toHex(ram.getUint32(address + 0), 32) + ' ';
+        var dir = Vector3.create([ram.getInt8(address +  8),
+                                  ram.getInt8(address +  9),
+                                  ram.getInt8(address + 10)]).normaliseInPlace();
+        tip += 'norm = (' + dir.elems[0] + ', ' + dir.elems[1] + ', ' + dir.elems[2] + ')';
+        break;
+    }
+
+    return tip;
   }
 
 
@@ -2714,6 +2752,7 @@ if (typeof n64js === 'undefined') {
     buildUCodeTables(ucode);
 
     var kMatrix   = 0x01;
+    var kMoveMem  = 0x03;
     var kVertex   = 0x04;
     var kDL       = 0x06;
     var kEndDL    = 0xb8;
@@ -2773,6 +2812,10 @@ if (typeof n64js === 'undefined') {
           }
           break;
 
+        case kMoveMem:
+          op.tip = previewMoveMem(cmd0,cmd1, ram, rdpSegmentAddress);
+          break;
+
         case kMatrix:
           {
             var address = rdpSegmentAddress(cmd1);
@@ -2809,7 +2852,7 @@ if (typeof n64js === 'undefined') {
 
       $span.append('[' + n64js.toHex(op.pc,32) + '] ' + n64js.toHex(op.cmd0,32) + n64js.toHex(op.cmd1,32) + ' ' + indent + disassembleCommand(op.cmd0,op.cmd1) + '<br>' );
       if (op.tip) {
-        var $d = $(op.tip);
+        var $d = $('<div>' + op.tip + '</div>');
         $d.hide();
         $span.append($d);
         $span.click(
