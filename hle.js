@@ -605,6 +605,7 @@ if (typeof n64js === 'undefined') {
 
     var wvp = pmtx.multiply(mvmtx);
 
+    // Texture coords are provided in 11.5 fixed point format, so divide by 32 here to normalise
     var scale_s = state.texture.scaleS / 32.0;
     var scale_t = state.texture.scaleT / 32.0;
 
