@@ -656,18 +656,17 @@ if (typeof n64js === 'undefined') {
         if (texgen) {
 
           // retransform using wvp
-          wvp.transformNormal(normal, transformedNormal);
-          transformedNormal.normaliseInPlace();
+          // wvp.transformNormal(normal, transformedNormal);
+          // transformedNormal.normaliseInPlace();
 
           if (texgenlin) {
             vertex.u = 0.5 * (1.0 + transformedNormal.elems[0]);
-            vertex.v = 0.5 * (1.0 + transformedNormal.elems[1]);
+            vertex.v = 0.5 * (1.0 + transformedNormal.elems[1]);  // 1-y?
           } else {
-            var normX = Math.abs( transformedNormal.elems[0] );
-            var normY = Math.abs( transformedNormal.elems[1] );
-            vertex.u = 0.5 - 0.25 * normX - 0.25 * normX * normX * normX;
-            vertex.v = 0.5 - 0.25 * normY - 0.25 * normY * normY * normY;
+            vertex.u = Math.acos(transformedNormal.elems[0]) / 3.141;
+            vertex.v = Math.acos(transformedNormal.elems[1]) / 3.141;
           }
+
         } else {
           vertex.u = u * scale_s;
           vertex.v = v * scale_t;
