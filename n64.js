@@ -413,7 +413,7 @@ if (typeof n64js === 'undefined') {
 
     var disassembly = n64js.disassemble(disasmAddress - 64, disasmAddress + 64);
     var dis_body = disassembly.map(function (a) {
-    
+
       var label_span = a.isJumpTarget ? '<span class="dis-label-target">' : '<span class="dis-label">';
       var label      = label_span    + n64js.toHex(a.instruction.address, 32) + ':</span>';
       var t          = label + '   ' + n64js.toHex(a.instruction.opcode, 32) + '    ' + a.disassembly;
