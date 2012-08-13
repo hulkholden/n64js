@@ -1006,9 +1006,69 @@ if (typeof n64js === 'undefined') {
     cpu0.gprHi_signed[d] = result >> 31;    // sign extend
   }
 
-  function executeDSLLV(i)      { unimplemented(cpu0.pc,i); }
-  function executeDSRLV(i)      { unimplemented(cpu0.pc,i); }
-  function executeDSRAV(i)      { unimplemented(cpu0.pc,i); }
+  function executeDSLLV(i) {
+    var d = rd(i);
+    var t = rt(i);
+    var s = rs(i);
+
+    var shift = cpu0.gprLo[s] & 0x3f;
+
+    var lo = cpu0.gprLo[t];
+    var hi = cpu0.gprHi[t];
+
+    if (shift < 32) {
+      var nshift = 32-shift;
+
+      cpu0.gprLo[d] = (lo<<shift);
+      cpu0.gprHi[d] = (hi<<shift) | (lo>>>nshift);
+    } else {
+      cpu0.gprLo_signed[d] = 0;
+      cpu0.gprHi_signed[d] = lo << (shift - 32);
+    }
+  }
+
+  function executeDSRLV(i) {
+    var d = rd(i);
+    var t = rt(i);
+    var s = rs(i);
+
+    var shift = cpu0.gprLo[s] & 0x3f;
+
+    var lo = cpu0.gprLo[t];
+    var hi = cpu0.gprHi[t];
+
+    if (shift < 32) {
+      var nshift = 32-shift;
+
+      cpu0.gprLo[d] = (lo>>>shift) | (hi<<nshift);
+      cpu0.gprHi[d] = (hi>>>shift);
+    } else {
+      cpu0.gprLo[d] = hi >>> (shift - 32);
+      cpu0.gprHi_signed[d] = 0;
+    }
+  }
+
+  function executeDSRAV(i) {
+    var d = rd(i);
+    var t = rt(i);
+    var s = rs(i);
+
+    var shift = cpu0.gprLo[s] & 0x3f;
+
+    var lo = cpu0.gprLo[t];
+    var hi = cpu0.gprHi_signed[t];
+
+    if (shift < 32) {
+      var nshift = 32-shift;
+
+      cpu0.gprLo[d] = (lo>>>shift) | (hi<<nshift);
+      cpu0.gprHi[d] = (hi>>shift);
+    } else {
+      var olo = hi >> (shift - 32);
+      cpu0.gprLo_signed[d] = olo;
+      cpu0.gprHi_signed[d] = olo >> 31;
+    }
+  }
 
   function executeDSLL(i) {
     var d     = rd(i);
