@@ -1795,10 +1795,22 @@ if (typeof n64js === 'undefined') {
   n64js.handleKey = function (key, down) {
     var button = 0;
     switch (event.which) {
-      case 'A'.charCodeAt(0): button = kButtonStart; break;
-      case 'S'.charCodeAt(0): button = kButtonA; break;
-      case 'X'.charCodeAt(0): button = kButtonB; break;
-      case 'Z'.charCodeAt(0): button = kButtonZ; break;
+      case 'A'.charCodeAt(0): button = kButtonStart;  break;
+      case 'S'.charCodeAt(0): button = kButtonA;      break;
+      case 'X'.charCodeAt(0): button = kButtonB;      break;
+      case 'Z'.charCodeAt(0): button = kButtonZ;      break;
+      case 'C'.charCodeAt(0): button = kButtonL;      break;
+      case 'V'.charCodeAt(0): button = kButtonR;      break;
+
+      case 'T'.charCodeAt(0): button = kButtonJUp;    break;
+      case 'G'.charCodeAt(0): button = kButtonJDown;  break;
+      case 'F'.charCodeAt(0): button = kButtonJLeft;  break;
+      case 'H'.charCodeAt(0): button = kButtonJRight; break;
+
+      case 'I'.charCodeAt(0): button = kButtonCUp;    break;
+      case 'K'.charCodeAt(0): button = kButtonCDown;  break;
+      case 'J'.charCodeAt(0): button = kButtonCLeft;  break;
+      case 'L'.charCodeAt(0): button = kButtonCRight; break;
 
       case kKeyLeft:  controllers[0].stick_x = down ? -128 : 0; break;
       case kKeyRight: controllers[0].stick_x = down ? +127 : 0; break;
