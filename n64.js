@@ -1794,7 +1794,7 @@ if (typeof n64js === 'undefined') {
 
   n64js.handleKey = function (key, down) {
     var button = 0;
-    switch (event.which) {
+    switch (key) {
       case 'A'.charCodeAt(0): button = kButtonStart;  break;
       case 'S'.charCodeAt(0): button = kButtonA;      break;
       case 'X'.charCodeAt(0): button = kButtonB;      break;
