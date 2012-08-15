@@ -93,8 +93,6 @@
           </div>
           <div class="btn-group" style="display:inline-block">
             <button class="btn" onclick="step()"><i class="icon-step-forward"></i>Step</button>
-            <button class="btn" onclick="stepN(100)"><i class="icon-forward"></i></button>
-            <button class="btn" onclick="stepN(1000)"><i class="icon-fast-forward"></i></button>
             <button class="btn" onclick="toggleRun()" id="runbutton"><i class="icon-play"></i> Run</button>
           </div>
           <input style="visibility:hidden; display:inline-block;" id="fileInput" name="fileInput" type="file" onchange="loadFile()" />
@@ -310,13 +308,6 @@
     function step() {
       if (!n64js.isRunning()) {
         n64js.step();
-        refreshDisplay();
-      }
-    }
-
-    function stepN(count) {
-      if (!n64js.isRunning()) {
-        n64js.run(count);
         refreshDisplay();
       }
     }
