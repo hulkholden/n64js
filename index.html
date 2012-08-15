@@ -54,13 +54,15 @@
         </div>
       </div>
 
-      <div class="row-fluid">
-        <div class="span5">
+      <div class="row">
+        <div class="span8">
           <canvas id="display" width="640" height="480" style="background-color:#000"></canvas>
         </div>
-        <div class="span4" id="info" style="display:none">
+      </div>
+      <div class="row">
+        <div class="span8" id="info" style="display:none">
           <h2>Status</h2>
-          Some early N64 games are running now, albeit at a relatively low framerate. Here's a rough feature matirx showing what's been implemented:
+          <p>Some early N64 games are running now, albeit at a relatively low framerate. Here's a rough feature matirx showing what's been implemented:</p>
 
           <table class="table table-condensed">
             <tr><td>CPU</td><td class="impl80">Mostly implemented</td></tr>
@@ -77,7 +79,27 @@
             <tr><td>Save - Mempack</td><td class="impl0">Not implemented</td></tr>
           </table>
 
-          There's lots of work to do!
+          <h2>Supported Browsers</h2>
+
+          <p>I did some quick testing on OSX 10.8:</p>
+
+          <table class="table table-condensed">
+            <tr><td>Chrome</td><td>21.0.1180.79 or later should be ok - I've been doing most of my development in Chrome.</td></tr>
+            <tr><td>Firefox</td><td>The release channel (14.0.1 at the time of writing) doesn't work right now (DataView), but the latest Nightlies (17.01a) seem to work</td></tr>
+            <tr><td>Safari</td><td>6.0 doesn't seem to work. I haven't tried with the latest nightlies</td></tr>
+          </table>
+
+          <p><a href="https://twitter.com/#!/hulkholden">Tweet me</a> if you have any additional info.</p>
+
+          <h2>Known Issues</h2>
+
+          <p>
+            <ul>
+              <li>You need to reload the page inbetween loading roms - there's some state that I'm not resetting correctly</li>
+              <li>Save games are currently wiped out when switching between roms.</li>
+              <li>It's a bit slow :)</li>
+            </ul>
+          </p>
 
           <h2>Controls</h2>
           <table class="table table-condensed">
