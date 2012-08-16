@@ -1440,10 +1440,22 @@ if (typeof n64js === 'undefined') {
   }
 
 
-  function executeDADD(i)       { unimplemented(cpu0.pc,i); }
-  function executeDADDU(i)      { unimplemented(cpu0.pc,i); }
-  function executeDSUB(i)       { unimplemented(cpu0.pc,i); }
-  function executeDSUBU(i)      { unimplemented(cpu0.pc,i); }
+  function executeDADD(i) {
+    cpu0.setGPR_s64(rd(i), cpu0.getGPR_s64(rs(i)) + cpu0.getGPR_s64(rt(i)));
+    // NB: identical to DADDU, but should throw exception on overflow
+  }
+  function executeDADDU(i) {
+    cpu0.setGPR_s64(rd(i), cpu0.getGPR_s64(rs(i)) + cpu0.getGPR_s64(rt(i)));
+  }
+
+  function executeDSUB(i) {
+    cpu0.setGPR_s64(rd(i), cpu0.getGPR_s64(rs(i)) - cpu0.getGPR_s64(rt(i)));
+    // NB: identical to DSUBU, but should throw exception on overflow
+  }
+  function executeDSUBU(i) {
+    cpu0.setGPR_s64(rd(i), cpu0.getGPR_s64(rs(i)) - cpu0.getGPR_s64(rt(i)));
+  }
+
   function executeTGE(i)        { unimplemented(cpu0.pc,i); }
   function executeTGEU(i)       { unimplemented(cpu0.pc,i); }
   function executeTLT(i)        { unimplemented(cpu0.pc,i); }
