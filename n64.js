@@ -989,6 +989,7 @@ if (typeof n64js === 'undefined') {
   var rom_d2a2_handler_uncached  = new Device("ROMd2a2",  rom,          0xa8000000, 0xb0000000);
   var rom_d1a2_handler_uncached  = new Device("ROMd1a2",  rom,          0xb0000000, 0xbfc00000);
   var pi_mem_handler_uncached    = new Device("PIRAM",    pi_mem,       0xbfc00000, 0xbfc00800);
+  var rom_d1a3_handler_uncached  = new Device("ROMd1a3",  rom,          0xbfd00000, 0xc0000000);
 
   rdram_handler_cached.quiet      = true;
   rdram_handler_uncached.quiet    = true;
@@ -1103,25 +1104,17 @@ if (typeof n64js === 'undefined') {
     n64js.halt('virtual write8 failed - need to throw refill/invalid');
   };
 
-  rom_d1a1_handler_uncached.readU32 = function(address)         { throw 'Reading from rom d1a1'; }
-  rom_d1a1_handler_uncached.readU16 = function(address)         { throw 'Reading from rom d1a1'; }
-  rom_d1a1_handler_uncached.readU8  = function(address)         { throw 'Reading from rom d1a1'; }
-  rom_d1a1_handler_uncached.readS32 = function(address)         { throw 'Reading from rom d1a1'; }
-  rom_d1a1_handler_uncached.readS16 = function(address)         { throw 'Reading from rom d1a1'; }
-  rom_d1a1_handler_uncached.readS8  = function(address)         { throw 'Reading from rom d1a1'; }
-  rom_d1a1_handler_uncached.write32 = function (address, value) { throw 'Writing to rom'; };
-  rom_d1a1_handler_uncached.write16 = function (address, value) { throw 'Writing to rom'; };
-  rom_d1a1_handler_uncached.write8  = function (address, value) { throw 'Writing to rom'; };
+  rom_d1a1_handler_uncached.write32 = function (address, value) { throw 'Writing to rom d1a1'; };
+  rom_d1a1_handler_uncached.write16 = function (address, value) { throw 'Writing to rom d1a1'; };
+  rom_d1a1_handler_uncached.write8  = function (address, value) { throw 'Writing to rom d1a1'; };
 
-  //rom_d1a2_handler_uncached.readU32 = function(address)         { throw 'Reading from rom'; }
-  //rom_d1a2_handler_uncached.readU16 = function(address)         { throw 'Reading from rom'; }
-  //rom_d1a2_handler_uncached.readU8  = function(address)         { throw 'Reading from rom'; }
-  //rom_d1a2_handler_uncached.readS32 = function(address)         { throw 'Reading from rom'; }
-  //rom_d1a2_handler_uncached.readS16 = function(address)         { throw 'Reading from rom'; }
-  //rom_d1a2_handler_uncached.readS8  = function(address)         { throw 'Reading from rom'; }
-  rom_d1a2_handler_uncached.write32   = function (address, value) { throw 'Writing to rom'; };
-  rom_d1a2_handler_uncached.write16   = function (address, value) { throw 'Writing to rom'; };
-  rom_d1a2_handler_uncached.write8    = function (address, value) { throw 'Writing to rom'; };
+  rom_d1a2_handler_uncached.write32 = function (address, value) { throw 'Writing to rom d1a2'; };
+  rom_d1a2_handler_uncached.write16 = function (address, value) { throw 'Writing to rom d1a2'; };
+  rom_d1a2_handler_uncached.write8  = function (address, value) { throw 'Writing to rom d1a2'; };
+
+  rom_d1a3_handler_uncached.write32 = function (address, value) { throw 'Writing to rom d1a3'; };
+  rom_d1a3_handler_uncached.write16 = function (address, value) { throw 'Writing to rom d1a3'; };
+  rom_d1a3_handler_uncached.write8  = function (address, value) { throw 'Writing to rom d1a3'; };
 
   // Should read noise?
   function getRandomU8() {
@@ -2266,6 +2259,7 @@ if (typeof n64js === 'undefined') {
        rom_d2a2_handler_uncached,
        rom_d1a1_handler_uncached,
        rom_d1a2_handler_uncached,
+       rom_d1a3_handler_uncached,
          pi_mem_handler_uncached
     ].map(function (e){
         var beg = (e.rangeStart)>>>18;
@@ -2779,6 +2773,7 @@ if (typeof n64js === 'undefined') {
     rom = new Memory(arrayBuffer);
     rom_d1a1_handler_uncached.setMem(rom);
     rom_d1a2_handler_uncached.setMem(rom);
+    rom_d1a3_handler_uncached.setMem(rom);
     rom_d2a1_handler_uncached.setMem(rom);
     rom_d2a2_handler_uncached.setMem(rom);
 
