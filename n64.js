@@ -277,6 +277,9 @@ if (typeof n64js === 'undefined') {
     running = false;
     n64js.cpu0.breakExecution();
     n64js.log('<span style="color:red">' + msg + '</span>');
+
+    var $alert = $('<div class="alert alert-error"><button class="close" data-dismiss="alert">×</button><strong>Error!</strong> ' + msg + '</div>');
+    $('#alerts').append($alert);
   }
 
   // Similar to halt, but just relinquishes control to the system
