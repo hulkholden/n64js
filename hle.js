@@ -158,6 +158,8 @@ if (typeof n64js === 'undefined') {
   var kUCode_GBI1 = 1;
   var kUCode_GBI2 = 2;
 
+  var kUCode_GBI0_WR = 5;
+
   var kUcodeStrides = [
     10,   // Super Mario 64, Tetrisphere, Demos
     2,    // Mario Kart, Star Fox
@@ -428,6 +430,14 @@ if (typeof n64js === 'undefined') {
       }
     }
     return '';
+  }
+
+  function computeMicrocodeHash(ram, code_base, code_size) {
+    var c = 0;
+    for (var i = 0; i < code_size; ++i) {
+      c = ((c*17) + ram.getUint8(code_base+i))>>>0;   // Best hash ever!
+    }
+    return c;
   }
 
 
@@ -2584,6 +2594,7 @@ if (typeof n64js === 'undefined') {
   function buildUCodeTables(ucode) {
     switch (ucode) {
       case kUCode_GBI0:
+      case kUCode_GBI0_WR:
         disassembleVertex = disassembleVertex_GBI0;
         previewVertex     = previewVertex_GBI0;
         executeVertex     = executeVertex_GBI0;
@@ -2612,19 +2623,28 @@ if (typeof n64js === 'undefined') {
     var data_ptr  = task.getUint32(kOffset_data_ptr);
 
     var str = detectVersionString(ram, data_base, data_size);
-
-    if (str !== last_ucode_str) {
-      n64js.log('GFX: ' + graphics_task_count + ' - ' + str);
-    }
-    last_ucode_str = str;
-
     var ucode = kUCode_GBI0;
 
     // FIXME: lots of work here
     if (str.indexOf('F3DEX') >= 0 ||
         str.indexOf('F3DLX') >= 0) {
       ucode = kUCode_GBI1;
+    } else {
+      var val = computeMicrocodeHash(ram, code_base, code_size);
+      switch (val) {
+        case 0xf4c3491b: ucode = kUCode_GBI0;     break;  // Super Mario 64
+        case 0x313f038b: ucode = kUCode_GBI0;     break;  // PilotWings
+        case 0x64cc729d: ucode = kUCode_GBI0_WR;  break;
+        default:
+          n64js.halt('Unknown GBI hash ' + n64js.toString32(val));
+          break;
+      }
     }
+
+    if (str !== last_ucode_str) {
+      n64js.log('GFX: ' + graphics_task_count + ' - ' + str + ' = ucode ' + ucode);
+    }
+    last_ucode_str = str;
 
     buildUCodeTables(ucode);
 
