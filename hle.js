@@ -474,6 +474,14 @@ if (typeof n64js === 'undefined') {
     }
   }
 
+  function executeBranchZ(cmd0,cmd1) {
+    var address = rdpSegmentAddress(state.rdpHalf1);
+    // FIXME
+    // Just branch all the time for now
+    //if (vtxDepth(cmd.vtx) <= cmd.branchzvalue)
+      state.pc = address;
+  }
+
   function executeMatrix(cmd0,cmd1) {
     var flags   = (cmd0>>>16)&0xff;
     var length  = (cmd0>>> 0)&0xffff;
@@ -2697,6 +2705,7 @@ if (typeof n64js === 'undefined') {
     ops[0x04] = executeVertex;
     ops[0x06] = executeDL;
     ops[0x09] = executeSprite2DBase;
+    ops[0xb0] = executeBranchZ;
     ops[0xb1] = executeTri2;
     ops[0xb2] = executeRDPHalf_Cont;
     ops[0xb3] = executeRDPHalf_2;
