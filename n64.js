@@ -743,6 +743,10 @@ if (typeof n64js === 'undefined') {
     var fragmentMap = n64js.getFragmentMap();
     var invals = n64js.getFragmentInvalidationEvents();
     var histo = {};
+
+    var hottest;
+    var hottest_count = 0;
+
     for(var i in fragmentMap) {
       var v = fragmentMap[i].executionCount;
       var logv = v > 0 ? Math.floor(log10(v)) : 0;
@@ -750,10 +754,16 @@ if (typeof n64js === 'undefined') {
       if (histo[logv] === undefined)
         histo[logv] = 0;
       histo[logv]++;
+
+      if (v > hottest_count) {
+        hottest = fragmentMap[i];
+        hottest_count = v;
+      }
     }
 
     var t = '';
-    t += '<table class="table table-condensed"><tr><th>Address</th><th>Length</th><th>System</th><th>Fragments Removed</th></tr>';
+    t += '<div class="row-fluid">';
+    t += '<div class="span6"><table class="table table-condensed"><tr><th>Address</th><th>Length</th><th>System</th><th>Fragments Removed</th></tr>';
     for (var i = 0; i < invals.length; ++i) {
 
       var vals = [
@@ -765,15 +775,25 @@ if (typeof n64js === 'undefined') {
 
       t += '<tr><td>' + vals.join('</td><td>') + '</td></tr>';
     }
-    t += '</table>';
+    t += '</table></div>';
+    t += '</div>';
 
-    t += '<table class="table table-condensed span4"><tr><th>Execution Count</th><th>Frequency</th></tr>';
+    t += '<div class="row-fluid">';
+    t += '<div class="span4"><table class="table table-condensed"><tr><th>Execution Count</th><th>Frequency</th></tr>';
     for(var i in histo) {
       var v = Number(i);
       var range = Math.pow(10, v) + '..' + Math.pow(10, v+1);
       t += '<tr><td>' + range + '</td><td>' + histo[i] + '</td></tr>';
     }
-    t += '</table>';
+    t += '</table></div>';
+    t += '</div>';
+
+    t += '<div class="row-fluid">';
+    t += '<div class="span6">';
+    t += '<pre>' + hottest.func.toString() + '</pre>';
+    t += '</div>';
+    t += '</div>';
+
     $dynarecContent.html(t);
   }
 
