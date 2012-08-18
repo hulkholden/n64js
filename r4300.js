@@ -3018,7 +3018,11 @@ if (typeof n64js === 'undefined') {
     var impl = '';
 
     impl += 'var addr = c.gprLo[' + b + '] + ' + o + ';\n';    // FIXME: would be nice to switch this to read from _signed reg
-    impl += 'var value = c.gprLo_signed[' + t + '];\n';
+    if (t !== 0) {
+      impl += 'var value = c.gprLo_signed[' + t + '];\n';
+    } else {
+      impl += 'var value = 0;\n';
+    }
     impl += 'var ram_relative = addr - 0x80000000;\n'
     impl += 'if (ram_relative >= 0 && ram_relative < 0x00800000) {\n';
     impl += '  ' + fast_handler + '(ram, ram_relative, value);\n';  // FIXME: can avoid cpuStuffToDo here
