@@ -734,6 +734,10 @@ if (typeof n64js === 'undefined') {
     $tb.append($tr);
   }
 
+  function log10(x) {
+    return Math.log(x) / Math.log(10);
+  }
+
   function updateDynarec() {
 
     var fragmentMap = n64js.getFragmentMap();
@@ -741,13 +745,15 @@ if (typeof n64js === 'undefined') {
     var histo = {};
     for(var i in fragmentMap) {
       var v = fragmentMap[i].executionCount;
-      if (histo[v] === undefined)
-        histo[v] = 0;
-      histo[v] ++;
+      var logv = v > 0 ? Math.floor(log10(v)) : 0;
+
+      if (histo[logv] === undefined)
+        histo[logv] = 0;
+      histo[logv]++;
     }
 
     var t = '';
-    t += '<table class="tbl"><tr><th>Address</th><th>Length</th><th>System</th><th>Fragments Removed</th></tr>';
+    t += '<table class="table table-condensed"><tr><th>Address</th><th>Length</th><th>System</th><th>Fragments Removed</th></tr>';
     for (var i = 0; i < invals.length; ++i) {
 
       var vals = [
@@ -761,9 +767,11 @@ if (typeof n64js === 'undefined') {
     }
     t += '</table>';
 
-    t += '<table class="tbl"><tr><th>Execution Count</th><th>Frequency</th></tr>';
+    t += '<table class="table table-condensed span4"><tr><th>Execution Count</th><th>Frequency</th></tr>';
     for(var i in histo) {
-      t += '<tr><td>' + i + '</td><td>' + histo[i] + '</td></tr>';
+      var v = Number(i);
+      var range = Math.pow(10, v) + '..' + Math.pow(10, v+1);
+      t += '<tr><td>' + range + '</td><td>' + histo[i] + '</td></tr>';
     }
     t += '</table>';
     $dynarecContent.html(t);
