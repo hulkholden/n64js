@@ -5,6 +5,12 @@ if (typeof n64js === 'undefined') {
 (function () {'use strict';
   var debugTLB = 0;
 
+  var hitCounts = {};
+  var fragmentMap = {};
+  var fragmentInvalidationEvents = [];
+
+  var kHotFragmentThreshold = 500;
+
   var k1Shift32 = 4294967296.0;
 
   var SR_IE           = 0x00000001;
@@ -294,6 +300,10 @@ if (typeof n64js === 'undefined') {
     }
 
     this.reset = function () {
+
+      hitCounts = {};
+      fragmentMap = {};
+      fragmentInvalidationEvents = [];
 
       for (var i = 0; i < 32; ++i) {
         this.gprLo[i]   = 0;
@@ -3327,13 +3337,6 @@ if (typeof n64js === 'undefined') {
     // Clean up any kEventRunForCycles events before we bail out
     cpu0.removeEventsOfType(kEventRunForCycles);
   }
-
-
-  var hitCounts = {};
-  var fragmentMap = {};
-  var fragmentInvalidationEvents = [];
-
-  var kHotFragmentThreshold = 500;
 
   n64js.getFragmentMap = function () {
     return fragmentMap;
