@@ -291,6 +291,10 @@ if (typeof n64js === 'undefined') {
     return running;
   }
 
+  n64js.startRunning = function () {
+    running = true;
+  }
+
   n64js.toggleRun = function () {
     running = !running;
     return running;

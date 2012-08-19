@@ -320,7 +320,11 @@
     });
 
     function load() {
-      $('#fileInput').click();
+      var $fileinput = $('#fileInput');
+
+      // Reset fileInput value, otherwise onchange doesn't recognise when we select the same rome back-to-back
+      $fileinput.val('');
+      $fileinput.click();
     }
 
     function loadFile() {
@@ -340,7 +344,8 @@
           n64js.loadRom(bytes);
           n64js.reset();
           n64js.refreshDisplay();
-          toggleRun();
+          n64js.startRunning();
+          $('#runbutton').html('<i class="icon-pause"></i> Pause');
         };
 
         reader.readAsArrayBuffer(file);
