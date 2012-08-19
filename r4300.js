@@ -916,7 +916,7 @@ if (typeof n64js === 'undefined') {
   function GenerateShiftImmediate(ctx, op) {
     // Handle NOP for SLL
     if (ctx.instruction === 0)
-      return generateNOPBoilerplate(ctx);
+      return generateNOPBoilerplate('/*NOP*/', ctx);
 
     var d     = ctx.instr_rd();
     var t     = ctx.instr_rt();
@@ -2246,6 +2246,22 @@ if (typeof n64js === 'undefined') {
   function executeSDL(i)        { unimplemented(cpu0.pc,i); }
   function executeSDR(i)        { unimplemented(cpu0.pc,i); }
 
+  function generateCACHE(ctx, op) {
+    var b        = ctx.instr_base();
+    var o        = ctx.instr_imms();
+    var cache_op = ctx.instr_rt();
+    var cache    = (cache_op      ) & 0x3;
+    var action   = (cache_op >>> 2) & 0x7;
+
+    if(cache == 0 && (action == 0 || action == 4)) {
+      var impl = '';
+      impl += 'var addr = c.gprLo[' + b + '] + ' + o + ';\n';
+      impl += "n64js.invalidateICache(addr, 0x20, 'CACHE');\n";
+      return generateTrivialOpBoilerplate(impl, ctx);
+    } else {
+      return generateNOPBoilerplate('/*ignored CACHE*/', ctx);
+    }
+  }
   function executeCACHE(i) {
     var address  = memaddr(i);
     var cache_op = rt(i);
@@ -2789,9 +2805,9 @@ if (typeof n64js === 'undefined') {
     generateLB,             generateLH,             'executeLWL',         generateLW,
     generateLBU,            generateLHU,            'executeLWR',         generateLWU,
     generateSB,             generateSH,             'executeSWL',         generateSW,
-    'executeSDL',           'executeSDR',           'executeSWR',         'executeCACHE',
+    'executeSDL',           'executeSDR',           'executeSWR',         generateCACHE,
     'executeLL',            generateLWC1,           'executeUnknown',     'executeUnknown',
-    'executeLLD',           generateLDC1,          'executeLDC2',        generateLD,
+    'executeLLD',           generateLDC1,           'executeLDC2',        generateLD,
     'executeSC',            generateSWC1,           'executeUnknown',     'executeUnknown',
     'executeSCD',           generateSDC1,           'executeSDC2',        generateSD,
   ];
@@ -2870,7 +2886,7 @@ if (typeof n64js === 'undefined') {
 
     // SF2049 requires this, apparently
     if (t === 0)
-      return generateNOPBoilerplate(ctx);
+      return generateNOPBoilerplate('/*load to r0!*/', ctx);
 
     var impl = '';
 
@@ -2892,7 +2908,7 @@ if (typeof n64js === 'undefined') {
     var o = ctx.instr_imms();
     // SF2049 requires this, apparently
     if (t === 0)
-      return generateNOPBoilerplate(ctx);
+      return generateNOPBoilerplate('/*load to r0!*/', ctx);
 
     var impl = '';
 
@@ -3572,6 +3588,9 @@ if (typeof n64js === 'undefined') {
       code += 'if (c.stuffToDo) { return ' + ctx.fragment.opsCompiled + '; }\n';
       code += 'if (c.pc !== ' + n64js.toString32(ctx.post_pc) + ') { return ' + ctx.fragment.opsCompiled + '; }\n';
     }
+
+    code += '\n';
+
     return code;
   }
 
@@ -3615,6 +3634,9 @@ if (typeof n64js === 'undefined') {
         code += 'if (c.pc !== ' + n64js.toString32(ctx.post_pc) + ') { return ' + ctx.fragment.opsCompiled + '; }\n';
       }
     }
+
+    code += '\n';
+
     return code;
   }
 
@@ -3663,8 +3685,8 @@ if (typeof n64js === 'undefined') {
     return code;
   }
 
-  function generateNOPBoilerplate(ctx) {
-    return generateTrivialOpBoilerplate('/*nop*/',ctx);
+  function generateNOPBoilerplate(comment, ctx) {
+    return generateTrivialOpBoilerplate(comment,ctx);
   }
 
 
