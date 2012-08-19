@@ -748,40 +748,31 @@ if (typeof n64js === 'undefined') {
     var invals = n64js.getFragmentInvalidationEvents();
     var histo = {};
 
-    var hottest;
-    var hottest_count = 0;
+    // Build a flattened list of all fragments
+    var fragments_list = [];
 
     for(var i in fragmentMap) {
-      var v = fragmentMap[i].executionCount;
-      var logv = v > 0 ? Math.floor(log10(v)) : 0;
+      var fragment = fragmentMap[i];
+      var v        = fragment.executionCount;
+      var logv     = v > 0 ? Math.floor(log10(v)) : 0;
 
       if (histo[logv] === undefined)
         histo[logv] = 0;
       histo[logv]++;
 
-      if (v > hottest_count) {
-        hottest = fragmentMap[i];
-        hottest_count = v;
-      }
+      fragments_list.push(fragment);
     }
 
-    var t = '';
-    t += '<div class="row-fluid">';
-    t += '<div class="span6"><table class="table table-condensed"><tr><th>Address</th><th>Length</th><th>System</th><th>Fragments Removed</th></tr>';
-    for (var i = 0; i < invals.length; ++i) {
+    fragments_list.sort(function (a,b) {
+      return b.executionCount - a.executionCount;
+    });
 
-      var vals = [
-        n64js.toString32(invals[i].address),
-        invals[i].length,
-        invals[i].system,
-        invals[i].fragmentsRemoved
-      ];
+    var $t = $('<div />');
 
-      t += '<tr><td>' + vals.join('</td><td>') + '</td></tr>';
-    }
-    t += '</table></div>';
-    t += '</div>';
+    var t;
 
+    // Histogram showing execution counts
+    t = '';
     t += '<div class="row-fluid">';
     t += '<div class="span4"><table class="table table-condensed"><tr><th>Execution Count</th><th>Frequency</th></tr>';
     for(var i in histo) {
@@ -791,14 +782,79 @@ if (typeof n64js === 'undefined') {
     }
     t += '</table></div>';
     t += '</div>';
+    $t.append(t);
 
+    // Table of hot fragments, and the corresponding js
+    t = '';
     t += '<div class="row-fluid">';
-    t += '<div class="span6">';
-    t += '<pre>' + hottest.func.toString() + '</pre>';
+    t += '  <div class="span6" id="fragments" />';
+    t += '  <div class="span6" id="fragment_code" />';
     t += '</div>';
-    t += '</div>';
+    var $fragment_div = $(t);
 
-    $dynarecContent.html(t);
+    createHotFragmentsTable($fragment_div, fragments_list);
+
+    $t.append($fragment_div);
+
+    // Evictions
+    if (invals.length > 0) {
+      t = '';
+      t += '<div class="row-fluid">';
+      t += '<div class="span6"><table class="table table-condensed"><tr><th>Address</th><th>Length</th><th>System</th><th>Fragments Removed</th></tr>';
+      for (var i = 0; i < invals.length; ++i) {
+
+        var vals = [
+          n64js.toString32(invals[i].address),
+          invals[i].length,
+          invals[i].system,
+          invals[i].fragmentsRemoved
+        ];
+
+        t += '<tr><td>' + vals.join('</td><td>') + '</td></tr>';
+      }
+      t += '</table></div>';
+      t += '</div>';
+
+      $t.append(t);
+    }
+
+    $dynarecContent.html($t);
+  }
+
+  function createHotFragmentsTable($fragment_div, fragments_list) {
+    var $code = $fragment_div.find('#fragment_code');
+
+    var $table = $('<table class="table table-condensed" />');
+
+    var columns = ['Address', 'Execution Count', 'Length', 'ExecCount * Length'];
+
+    $table.append('<tr><th>' + columns.join('</th><th>') + '</th></tr>');
+    for (var i = 0; i < fragments_list.length && i < 20; ++i) {
+      var fragment = fragments_list[i];
+
+      var vals = [
+        n64js.toString32(fragment.entryPC),
+        fragment.executionCount,
+        fragment.opsCompiled,
+        fragment.executionCount * fragment.opsCompiled
+      ];
+
+      var $tr = $('<tr><<td>' + vals.join('</td><td>') + '</td></tr>');
+      $tr.click(
+        (function (f) {
+          return function() {
+            $code.html('<pre>' + f.func.toString() + '</pre>');
+          };
+        })(fragment)
+      );
+      $table.append($tr);
+    }
+
+    $fragment_div.find('#fragments').append($table);
+
+    if (fragments_list.length > 0) {
+      $code.append('<pre>' + fragments_list[0].func.toString() + '</pre>');
+    }
   }
 
   //
