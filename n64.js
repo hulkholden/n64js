@@ -278,7 +278,15 @@ if (typeof n64js === 'undefined') {
     n64js.cpu0.breakExecution();
     n64js.log('<span style="color:red">' + msg + '</span>');
 
-    var $alert = $('<div class="alert alert-error"><button class="close" data-dismiss="alert">×</button><strong>Error!</strong> ' + msg + '</div>');
+    n64js.displayError(msg);
+  }
+
+  n64js.displayWarning = function (message) {
+    var $alert = $('<div class="alert"><button class="close" data-dismiss="alert">×</button><strong>Warning!</strong> ' + message + '</div>');
+    $('#alerts').append($alert);
+  }
+  n64js.displayError = function (message) {
+    var $alert = $('<div class="alert alert-error"><button class="close" data-dismiss="alert">×</button><strong>Error!</strong> ' + message + '</div>');
     $('#alerts').append($alert);
   }
 
@@ -2561,13 +2569,19 @@ if (typeof n64js === 'undefined') {
     }
   }
 
-  function loadEeprom() {
-    var prev_eeprom = localStorage.getItem('eeprom-' + rominfo.id);
-    if (prev_eeprom) {
-      var d = JSON.parse(prev_eeprom);
-      if (d.data) {
-        Base64.decodeArray(d.data, eeprom.u8);
-      }
+  function loadEeprom(save_type) {
+    switch (save_type) {
+      case 'Eeprom4k':
+        var prev_eeprom = localStorage.getItem('eeprom-' + rominfo.id);
+        if (prev_eeprom) {
+          var d = JSON.parse(prev_eeprom);
+          if (d.data) {
+            Base64.decodeArray(d.data, eeprom.u8);
+          }
+        }
+        break;
+      default:
+        n64js.displayWarning('Unhandled savegame type: ' + save_type + '.');
     }
   }
 
@@ -2600,7 +2614,7 @@ if (typeof n64js === 'undefined') {
       memory_regions[i].clear();
     }
 
-    loadEeprom();
+    loadEeprom(rominfo.save);
 
     n64js.cpu0.reset();
     n64js.cpu1.reset();
