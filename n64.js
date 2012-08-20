@@ -1061,7 +1061,7 @@ if (typeof n64js === 'undefined') {
     return rdram_handler_cached.u8;
   }
 
-  var eeprom        = new Memory(new ArrayBuffer(4*1024));    // Or 16KB
+  var eeprom        = null;   // Initialised during reset, using correct size for this rom (may be null if eeprom isn't used)
   var eepromDirty   = false;
 
   // Keep a DataView around as a view onto the RSP task
@@ -2569,24 +2569,37 @@ if (typeof n64js === 'undefined') {
     }
   }
 
-  function loadEeprom(save_type) {
+  function initEeprom(size, name) {
+    var data = new Memory(new ArrayBuffer(4*1024));    // Or 16KB
+    var saved_data = localStorage.getItem('eeprom-' + rominfo.id);
+    if (saved_data) {
+      var d = JSON.parse(saved_data);
+      if (d.data) {
+        Base64.decodeArray(d.data, data.u8);
+      }
+    }
+    return data;
+  }
+
+  function initSaveGame(save_type) {
+    eeprom      = null;
+    eepromDirty = false;
+
     switch (save_type) {
       case 'Eeprom4k':
-        var prev_eeprom = localStorage.getItem('eeprom-' + rominfo.id);
-        if (prev_eeprom) {
-          var d = JSON.parse(prev_eeprom);
-          if (d.data) {
-            Base64.decodeArray(d.data, eeprom.u8);
-          }
-        }
+        eeprom = initEeprom(4*1024, 'eeprom-' + rominfo.id);
         break;
+      case 'Eeprom16k':
+        eeprom = initEeprom(16*1024, 'eeprom-' + rominfo.id);
+        break;
+
       default:
         n64js.displayWarning('Unhandled savegame type: ' + save_type + '.');
     }
   }
 
   function saveEeprom() {
-    if (eepromDirty) {
+    if (eeprom && eepromDirty) {
 
       var encoded = Base64.encodeArray(eeprom.u8);
 
@@ -2609,12 +2622,13 @@ if (typeof n64js === 'undefined') {
 
     setMemorySize = false;
 
-    var memory_regions = [ pi_mem, ram, sp_mem, sp_reg, sp_ibist_mem, rdram_reg, mi_reg, vi_reg, ai_reg, pi_reg, ri_reg, si_reg, eeprom ];
+    initSaveGame(rominfo.save);
+
+    // NB: don't set eeprom to 0 - we handle this in initSaveGame
+    var memory_regions = [ pi_mem, ram, sp_mem, sp_reg, sp_ibist_mem, rdram_reg, mi_reg, vi_reg, ai_reg, pi_reg, ri_reg, si_reg ];
     for ( var i = 0; i < memory_regions.length; ++i ) {
       memory_regions[i].clear();
     }
-
-    loadEeprom(rominfo.save);
 
     n64js.cpu0.reset();
     n64js.cpu1.reset();
