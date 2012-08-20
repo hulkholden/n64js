@@ -2562,7 +2562,7 @@ if (typeof n64js === 'undefined') {
   }
 
   function loadEeprom() {
-    var prev_eeprom = localStorage.getItem('eeprom' + rominfo.id);
+    var prev_eeprom = localStorage.getItem('eeprom-' + rominfo.id);
     if (prev_eeprom) {
       var d = JSON.parse(prev_eeprom);
       if (d.data) {
