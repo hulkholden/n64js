@@ -2562,7 +2562,7 @@ if (typeof n64js === 'undefined') {
   }
 
   function loadEeprom() {
-    var prev_eeprom = localStorage.getItem('eeprom');
+    var prev_eeprom = localStorage.getItem('eeprom' + rominfo.id);
     if (prev_eeprom) {
       var d = JSON.parse(prev_eeprom);
       if (d.data) {
@@ -2576,12 +2576,15 @@ if (typeof n64js === 'undefined') {
 
       var encoded = Base64.encodeArray(eeprom.u8);
 
+      // Store the name and id so that we can provide some kind of save management in the future
       var d = {
+        name: rominfo.name,
+        id:   rominfo.id,
         data: encoded
       };
 
       var t = JSON.stringify(d);
-      localStorage.setItem('eeprom', t);
+      localStorage.setItem('eeprom-' + rominfo.id, t);
       eepromDirty = false;
     }
   }
