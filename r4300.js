@@ -2885,13 +2885,14 @@ if (typeof n64js === 'undefined') {
 
     var impl = '';
 
-    impl += 'var addr = c.gprLo[' + b + '] + ' + o + ';\n';
-    impl += 'var ram_relative = addr - 0x80000000;\n'
-    impl += 'if (ram_relative >= 0 && ram_relative < 0x00800000) {\n';
-    impl += '  c.gprLo_signed[' + t + '] = ' + fast_handler + '(ram, ram_relative);\n';  //NB store to _sign, avoid deopt (?)
+    impl += 'var addr = c.gprLo_signed[' + b + '] + ' + o + ';\n';
+    impl += 'var value;\n';
+    impl += 'if (addr >= -2147483648 && addr < -2139095040) {\n';
+    impl += '  value = ' + fast_handler + '(ram, addr + 0x80000000);\n';
     impl += '} else {\n';
-    impl += '  c.gprLo_signed[' + t + '] = ' + slow_handler + '(addr);\n';
+    impl += '  value = ' + slow_handler + '(addr>>>0);\n';
     impl += '}\n';
+    impl += 'c.gprLo_signed[' + t + '] = value;\n';
     impl += 'c.gprHi_signed[' + t + '] = 0;\n';
 
     return generateGenericOpBoilerplate(impl, ctx);
@@ -2906,15 +2907,15 @@ if (typeof n64js === 'undefined') {
       return generateNOPBoilerplate('/*load to r0!*/', ctx);
 
     var impl = '';
-
-    impl += 'var addr = c.gprLo[' + b + '] + ' + o + ';\n';
-    impl += 'var ram_relative = addr - 0x80000000;\n'
-    impl += 'if (ram_relative >= 0 && ram_relative < 0x00800000) {\n';
-    impl += '  c.gprLo_signed[' + t + '] = ' + fast_handler + '(ram, ram_relative);\n';
+    impl += 'var addr = c.gprLo_signed[' + b + '] + ' + o + ';\n';
+    impl += 'var value;\n';
+    impl += 'if (addr >= -2147483648 && addr < -2139095040) {\n';
+    impl += '  value = ' + fast_handler + '(ram, addr + 0x80000000);\n';
     impl += '} else {\n';
-    impl += '  c.gprLo_signed[' + t + '] = ' + slow_handler + '(addr);\n';
+    impl += '  value = ' + slow_handler + '(addr>>>0);\n';
     impl += '}\n';
-    impl += 'c.gprHi_signed[' + t + '] = c.gprLo_signed[' + t + '] >> 31;\n';
+    impl += 'c.gprLo_signed[' + t + '] = value;\n';
+    impl += 'c.gprHi_signed[' + t + '] = value >> 31;\n';
 
     return generateGenericOpBoilerplate(impl, ctx);
   }
@@ -2934,14 +2935,12 @@ if (typeof n64js === 'undefined') {
     var o = ctx.instr_imms();
 
     var impl = '';
-
-    impl += 'var addr = c.gprLo[' + b + '] + ' + o + ';\n';
+    impl += 'var addr = c.gprLo_signed[' + b + '] + ' + o + ';\n';
     impl += 'var value;\n';
-    impl += 'var ram_relative = addr - 0x80000000;\n'
-    impl += 'if (ram_relative >= 0 && ram_relative < 0x00800000) {\n';
-    impl += '  value = lw(ram, ram_relative);\n';
+    impl += 'if (addr >= -2147483648 && addr < -2139095040) {\n';
+    impl += '  value = lw(ram, addr + 0x80000000);\n';
     impl += '} else {\n';
-    impl += '  value = n64js.readMemoryS32(addr);\n';
+    impl += '  value = n64js.readMemoryS32(addr>>>0);\n';
     impl += '}\n';
     impl += 'cpu1.store_s32(' + t + ', value);\n';
 
@@ -2954,15 +2953,15 @@ if (typeof n64js === 'undefined') {
     var o = ctx.instr_imms();
 
     var impl = '';
-
-    impl += 'var addr = c.gprLo[' + b + '] + ' + o + ';\n';
+    impl += 'var addr = c.gprLo_signed[' + b + '] + ' + o + ';\n';
     impl += 'var value_lo;\n';
     impl += 'var value_hi;\n';
-    impl += 'var ram_relative = addr - 0x80000000;\n'
-    impl += 'if (ram_relative >= 0 && ram_relative < 0x00800000) {\n';
-    impl += '  value_lo = lw(ram, ram_relative+4);\n';
-    impl += '  value_hi = lw(ram, ram_relative);\n';
+    impl += 'if (addr >= -2147483648 && addr < -2139095040) {\n';
+    impl += '  addr += 0x80000000;\n';
+    impl += '  value_lo = lw(ram, addr+4);\n';
+    impl += '  value_hi = lw(ram, addr);\n';
     impl += '} else {\n';
+    impl += '  addr = (addr>>>0);\n';
     impl += '  value_lo = n64js.readMemoryS32(addr+4);\n';
     impl += '  value_hi = n64js.readMemoryS32(addr);\n';
     impl += '}\n';
@@ -2978,16 +2977,13 @@ if (typeof n64js === 'undefined') {
     var o = ctx.instr_imms();
 
     var impl = '';
-
-    impl += 'var addr = c.gprLo[' + b + '] + ' + o + ';\n';    // FIXME: would be nice to switch this to read from _signed reg
+    impl += 'var addr = c.gprLo_signed[' + b + '] + ' + o + ';\n';
     impl += 'var value = cpu1.load_s32(' + t + ');\n';
-    impl += 'var ram_relative = addr - 0x80000000;\n'
-    impl += 'if (ram_relative >= 0 && ram_relative < 0x00800000) {\n';
-    impl += '  sw(ram, ram_relative, value);\n';  // FIXME: can avoid cpuStuffToDo here
+    impl += 'if (addr >= -2147483648 && addr < -2139095040) {\n';
+    impl += '  sw(ram, addr+0x80000000, value);\n';  // FIXME: can avoid cpuStuffToDo here
     impl += '} else {\n';
-    impl += '  n64js.writeMemory32(addr, value);\n';
+    impl += '  n64js.writeMemory32(addr>>>0, value);\n';
     impl += '}\n';
-
     return generateGenericOpBoilerplate(impl, ctx);
   }
   function generateSDC1(ctx) {
@@ -2996,18 +2992,16 @@ if (typeof n64js === 'undefined') {
     var o = ctx.instr_imms();
 
     var impl = '';
-
-    impl += 'var addr = c.gprLo[' + b + '] + ' + o + ';\n';    // FIXME: would be nice to switch this to read from _signed reg
+    impl += 'var addr = c.gprLo_signed[' + b + '] + ' + o + ';\n';
     impl += 'var value_lo = cpu1.load_s32(' + t + ');\n';
     impl += 'var value_hi = cpu1.load_s32hi(' + t + ');\n';
-    impl += 'var ram_relative = addr - 0x80000000;\n'
-    impl += 'if (ram_relative >= 0 && ram_relative < 0x00800000) {\n';
-    impl += '  sd(ram, ram_relative, value_lo, value_hi);\n';  // FIXME: can avoid cpuStuffToDo here
+    impl += 'if (addr >= -2147483648 && addr < -2139095040) {\n';
+    impl += '  sd(ram, addr+0x80000000, value_lo, value_hi);\n';  // FIXME: can avoid cpuStuffToDo here
     impl += '} else {\n';
+    impl += '  addr = (addr>>>0);\n';
     impl += '  n64js.writeMemory32(addr    , value_hi);\n';
     impl += '  n64js.writeMemory32(addr + 4, value_lo);\n';
     impl += '}\n';
-
     return generateGenericOpBoilerplate(impl, ctx);
   }
 
@@ -3017,16 +3011,16 @@ if (typeof n64js === 'undefined') {
     var o = ctx.instr_imms();
 
     var impl = '';
-    impl += 'var addr = c.gprLo[' + b + '] + ' + o + ';\n';
-    impl += 'var ram_relative = addr - 0x80000000;\n'
-    impl += 'if (ram_relative >= 0 && ram_relative < 0x00800000) {\n';
-    impl += '  c.gprLo_signed[' + t + '] = lw(ram, ram_relative + 4);\n';
-    impl += '  c.gprHi_signed[' + t + '] = lw(ram, ram_relative);\n';
+    impl += 'var addr = c.gprLo_signed[' + b + '] + ' + o + ';\n';
+    impl += 'if (addr >= -2147483648 && addr < -2139095040) {\n';
+    impl += '  addr += 0x80000000;\n';
+    impl += '  c.gprLo_signed[' + t + '] = lw(ram, addr + 4);\n';
+    impl += '  c.gprHi_signed[' + t + '] = lw(ram, addr);\n';
     impl += '} else {\n';
+    impl += '  addr = (addr>>>0);\n';
     impl += '  c.gprLo_signed[' + t + '] = n64js.readMemoryS32(addr + 4);\n';
     impl += '  c.gprHi_signed[' + t + '] = n64js.readMemoryS32(addr);\n';
     impl += '}\n';
-
     return generateGenericOpBoilerplate(impl, ctx);
   }
 
@@ -3037,20 +3031,17 @@ if (typeof n64js === 'undefined') {
     //var impl = 'n64js.writeMemory32(cpu0.gprLo[' + b + '] + ' + o + ', cpu0.gprLo_signed[' + t + ']);';
 
     var impl = '';
-
-    impl += 'var addr = c.gprLo[' + b + '] + ' + o + ';\n';    // FIXME: would be nice to switch this to read from _signed reg
+    impl += 'var addr = c.gprLo_signed[' + b + '] + ' + o + ';\n';
     if (t !== 0) {
       impl += 'var value = c.gprLo_signed[' + t + '];\n';
     } else {
       impl += 'var value = 0;\n';
     }
-    impl += 'var ram_relative = addr - 0x80000000;\n'
-    impl += 'if (ram_relative >= 0 && ram_relative < 0x00800000) {\n';
-    impl += '  ' + fast_handler + '(ram, ram_relative, value);\n';  // FIXME: can avoid cpuStuffToDo here
+    impl += 'if (addr >= -2147483648 && addr < -2139095040) {\n';
+    impl += '  ' + fast_handler + '(ram, addr+0x80000000, value);\n';  // FIXME: can avoid cpuStuffToDo here
     impl += '} else {\n';
-    impl += '  ' + slow_handler + '(addr, value);\n';
+    impl += '  ' + slow_handler + '(addr>>>0, value);\n';
     impl += '}\n';
-
     return generateGenericOpBoilerplate(impl, ctx);
   }
 
@@ -3064,11 +3055,11 @@ if (typeof n64js === 'undefined') {
     var o = ctx.instr_imms();
 
     var impl = '';
-    impl += 'var addr = c.gprLo[' + b + '] + ' + o + ';\n';
-    impl += 'var ram_relative = addr - 0x80000000;\n'
-    impl += 'if (ram_relative >= 0 && ram_relative < 0x00800000) {\n';
-    impl += '  sd(ram, ram_relative, c.gprLo_signed[' + t + '], c.gprHi_signed[' + t + ']);\n';
+    impl += 'var addr = c.gprLo_signed[' + b + '] + ' + o + ';\n';
+    impl += 'if (addr >= -2147483648 && addr < -2139095040) {\n';
+    impl += '  sd(ram, addr+0x80000000, c.gprLo_signed[' + t + '], c.gprHi_signed[' + t + ']);\n';
     impl += '} else {\n';
+    impl += '  addr = (addr>>>0);\n';
     impl += '  n64js.writeMemory32(addr + 4, c.gprLo_signed[' + t + ']);\n';
     impl += '  n64js.writeMemory32(addr,     c.gprHi_signed[' + t + ']);\n';
     impl += '}\n';
