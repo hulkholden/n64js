@@ -1084,11 +1084,10 @@ if (typeof n64js === 'undefined') {
     var d     = rd(i);
     var t     = rt(i);
     var shift = sa(i);
+    var nshift = 32-shift;
 
     var lo = cpu0.gprLo[t];
     var hi = cpu0.gprHi[t];
-
-    var nshift = 32-shift;
 
     cpu0.gprLo[d] = (lo<<shift);
     cpu0.gprHi[d] = (hi<<shift) | (lo>>>nshift);
@@ -1103,15 +1102,13 @@ if (typeof n64js === 'undefined') {
     var d     = rd(i);
     var t     = rt(i);
     var shift = sa(i);
+    var nshift = 32-shift;
 
     var lo = cpu0.gprLo[t];
     var hi = cpu0.gprHi[t];
 
-    var nshift = 32-shift;
-
     cpu0.gprLo[d] = (lo>>>shift) | (hi<<nshift);
     cpu0.gprHi[d] = (hi>>>shift);
-    n64js.halt('dsrl needs testing');
   }
   function executeDSRL32(i) {
     var d = rd(i);
@@ -1123,15 +1120,13 @@ if (typeof n64js === 'undefined') {
     var d     = rd(i);
     var t     = rt(i);
     var shift = sa(i);
+    var nshift = 32-shift;
 
     var lo = cpu0.gprLo[t];
     var hi = cpu0.gprHi_signed[t];
 
-    var nshift = 32-shift;
-
     cpu0.gprLo[d] = (lo>>>shift) | (hi<<nshift);
     cpu0.gprHi[d] = (hi>>shift);
-    n64js.halt('dsra needs testing');
   }
   function executeDSRA32(i) {
     var d   = rd(i);
