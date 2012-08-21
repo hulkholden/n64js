@@ -2585,16 +2585,18 @@ if (typeof n64js === 'undefined') {
     eeprom      = null;
     eepromDirty = false;
 
-    switch (save_type) {
-      case 'Eeprom4k':
-        eeprom = initEeprom(4*1024, 'eeprom-' + rominfo.id);
-        break;
-      case 'Eeprom16k':
-        eeprom = initEeprom(16*1024, 'eeprom-' + rominfo.id);
-        break;
+    if (save_type) {
+      switch (save_type) {
+        case 'Eeprom4k':
+          eeprom = initEeprom(4*1024, 'eeprom-' + rominfo.id);
+          break;
+        case 'Eeprom16k':
+          eeprom = initEeprom(16*1024, 'eeprom-' + rominfo.id);
+          break;
 
-      default:
-        n64js.displayWarning('Unhandled savegame type: ' + save_type + '.');
+        default:
+          n64js.displayWarning('Unhandled savegame type: ' + save_type + '.');
+      }
     }
   }
 
