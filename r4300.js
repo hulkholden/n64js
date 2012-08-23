@@ -2403,47 +2403,52 @@ if (typeof n64js === 'undefined') {
     var t = ft(i);
     var d = fd(i);
 
-    switch(cop1_func(i)) {
-      case 0x00:    cpu1.store_f32( d, cpu1.load_f32( s ) + cpu1.load_f32( t ) ); return;
-      case 0x01:    cpu1.store_f32( d, cpu1.load_f32( s ) - cpu1.load_f32( t ) ); return;
-      case 0x02:    cpu1.store_f32( d, cpu1.load_f32( s ) * cpu1.load_f32( t ) ); return;
-      case 0x03:    cpu1.store_f32( d, cpu1.load_f32( s ) / cpu1.load_f32( t ) ); return;
-      case 0x04:    cpu1.store_f32( d, Math.sqrt( cpu1.load_f32( s ) ) ); return;
-      case 0x05:    cpu1.store_f32( d, Math.abs(  cpu1.load_f32( s ) ) ); return;
-      case 0x06:    cpu1.store_f32( d,  cpu1.load_f32( s ) ); return;
-      case 0x07:    cpu1.store_f32( d, -cpu1.load_f32( s )  ); return;
-      case 0x08:    /* 'ROUND.L.'*/     unimplemented(cpu0.pc,i); return;
-      case 0x09:    /* 'TRUNC.L.'*/     unimplemented(cpu0.pc,i); return;
-      case 0x0a:    /* 'CEIL.L.'*/      unimplemented(cpu0.pc,i); return;
-      case 0x0b:    /* 'FLOOR.L.'*/     unimplemented(cpu0.pc,i); return;
-      case 0x0c:    /* 'ROUND.W.'*/     cpu1.store_s32( d, Math.round( cpu1.load_f32( s ) ) ); return;  // TODO: check this
-      case 0x0d:    /* 'TRUNC.W.'*/     cpu1.store_s32( d,      trunc( cpu1.load_f32( s ) ) ); return;
-      case 0x0e:    /* 'CEIL.W.'*/      cpu1.store_s32( d, Math.ceil(  cpu1.load_f32( s ) ) ); return;
-      case 0x0f:    /* 'FLOOR.W.'*/     cpu1.store_s32( d, Math.floor( cpu1.load_f32( s ) ) ); return;
+    var _s, _t;
 
-      case 0x20:    /* 'CVT.S' */       unimplemented(cpu0.pc,i); return;
-      case 0x21:    /* 'CVT.D' */       cpu1.store_f64( d, cpu1.load_f32( s ) ); return;
-      case 0x24:    /* 'CVT.W' */       cpu1.store_s32( d, Math.floor( cpu1.load_f32( s ) ) ); return;  // FIXME: apply correct conversion mode
-      case 0x25:    /* 'CVT.L' */       unimplemented(cpu0.pc,i); return;
-      case 0x30:    /* 'C.F' */         cpu1.setCondition( false ); return;
-      case 0x31:    /* 'C.UN' */        unimplemented(cpu0.pc,i); return;
-      case 0x32:    /* 'C.EQ' */        cpu1.setCondition( cpu1.load_f32( s ) == cpu1.load_f32( t ) ); return;
-      case 0x33:    /* 'C.UEQ' */       unimplemented(cpu0.pc,i); return;
-      case 0x34:    /* 'C.OLT' */       unimplemented(cpu0.pc,i); return;
-      case 0x35:    /* 'C.ULT' */       unimplemented(cpu0.pc,i); return;
-      case 0x36:    /* 'C.OLE' */       unimplemented(cpu0.pc,i); return;
-      case 0x37:    /* 'C.ULE' */       unimplemented(cpu0.pc,i); return;
-      case 0x38:    /* 'C.SF' */        cpu1.setCondition( false ); return;
-      case 0x39:    /* 'C.NGLE' */      unimplemented(cpu0.pc,i); return;
-      case 0x3a:    /* 'C.SEQ' */       unimplemented(cpu0.pc,i); return;
-      case 0x3b:    /* 'C.NGL' */       cpu1.setCondition( cpu1.load_f32( s ) == cpu1.load_f32( t ) ); return;
-      case 0x3c:    /* 'C.LT' */        cpu1.setCondition( cpu1.load_f32( s ) < cpu1.load_f32( t ) ); return;
-      case 0x3d:    /* 'C.NGE' */       unimplemented(cpu0.pc,i); return;
-      case 0x3e:    /* 'C.LE' */        cpu1.setCondition( cpu1.load_f32( s ) <= cpu1.load_f32( t ) ); return;
-      case 0x3f:    /* 'C.NGT' */       cpu1.setCondition( cpu1.load_f32( s ) <= cpu1.load_f32( t ) ); return;
+    var op = cop1_func(i);
+
+    if (op < 0x30) {
+      switch(cop1_func(i)) {
+        case 0x00:    cpu1.store_f32( d, cpu1.load_f32( s ) + cpu1.load_f32( t ) ); return;
+        case 0x01:    cpu1.store_f32( d, cpu1.load_f32( s ) - cpu1.load_f32( t ) ); return;
+        case 0x02:    cpu1.store_f32( d, cpu1.load_f32( s ) * cpu1.load_f32( t ) ); return;
+        case 0x03:    cpu1.store_f32( d, cpu1.load_f32( s ) / cpu1.load_f32( t ) ); return;
+        case 0x04:    cpu1.store_f32( d, Math.sqrt( cpu1.load_f32( s ) ) ); return;
+        case 0x05:    cpu1.store_f32( d, Math.abs(  cpu1.load_f32( s ) ) ); return;
+        case 0x06:    cpu1.store_f32( d,  cpu1.load_f32( s ) ); return;
+        case 0x07:    cpu1.store_f32( d, -cpu1.load_f32( s )  ); return;
+        case 0x08:    /* 'ROUND.L.'*/     unimplemented(cpu0.pc,i); return;
+        case 0x09:    /* 'TRUNC.L.'*/     unimplemented(cpu0.pc,i); return;
+        case 0x0a:    /* 'CEIL.L.'*/      unimplemented(cpu0.pc,i); return;
+        case 0x0b:    /* 'FLOOR.L.'*/     unimplemented(cpu0.pc,i); return;
+        case 0x0c:    /* 'ROUND.W.'*/     cpu1.store_s32( d, Math.round( cpu1.load_f32( s ) ) ); return;  // TODO: check this
+        case 0x0d:    /* 'TRUNC.W.'*/     cpu1.store_s32( d,      trunc( cpu1.load_f32( s ) ) ); return;
+        case 0x0e:    /* 'CEIL.W.'*/      cpu1.store_s32( d, Math.ceil(  cpu1.load_f32( s ) ) ); return;
+        case 0x0f:    /* 'FLOOR.W.'*/     cpu1.store_s32( d, Math.floor( cpu1.load_f32( s ) ) ); return;
+
+        case 0x20:    /* 'CVT.S' */       unimplemented(cpu0.pc,i); return;
+        case 0x21:    /* 'CVT.D' */       cpu1.store_f64( d, cpu1.load_f32( s ) ); return;
+        case 0x24:    /* 'CVT.W' */       cpu1.store_s32( d, Math.floor( cpu1.load_f32( s ) ) ); return;  // FIXME: apply correct conversion mode
+        case 0x25:    /* 'CVT.L' */       unimplemented(cpu0.pc,i); return;
+      }
+      unimplemented(cpu0.pc,i);
+    } else {
+      var _s = cpu1.load_f32( s );
+      var _t = cpu1.load_f32( t );
+
+      var c = false;
+      if (isNaN(_s+_t)) {
+        if (op&0x8) {
+          n64js.warn('Should raise Invalid Operation here.');
+        }
+        if (op&0x1) c = true;
+      } else {
+        if (op&0x4) c |= _s <  _t;
+        if (op&0x2) c |= _s == _t;
+        // unordered is false here
+      }
+      cpu1.setCondition(c);
     }
-
-    unimplemented(cpu0.pc,i);
   }
 
   function generateDInstrHelper(ctx) {
@@ -2502,47 +2507,51 @@ if (typeof n64js === 'undefined') {
     var t = ft(i);
     var d = fd(i);
 
-    switch(cop1_func(i)) {
-      case 0x00:    cpu1.store_f64( d, cpu1.load_f64( s ) + cpu1.load_f64( t ) ); return;
-      case 0x01:    cpu1.store_f64( d, cpu1.load_f64( s ) - cpu1.load_f64( t ) ); return;
-      case 0x02:    cpu1.store_f64( d, cpu1.load_f64( s ) * cpu1.load_f64( t ) ); return;
-      case 0x03:    cpu1.store_f64( d, cpu1.load_f64( s ) / cpu1.load_f64( t ) ); return;
-      case 0x04:    cpu1.store_f64( d, Math.sqrt( cpu1.load_f64( s ) ) ); return;
-      case 0x05:    cpu1.store_f64( d, Math.abs(  cpu1.load_f64( s ) ) ); return;
-      case 0x06:    cpu1.store_f64( d,  cpu1.load_f64( s ) ); return;
-      case 0x07:    cpu1.store_f64( d, -cpu1.load_f64( s )  ); return;
-      case 0x08:    /* 'ROUND.L.'*/     unimplemented(cpu0.pc,i); return;
-      case 0x09:    /* 'TRUNC.L.'*/     unimplemented(cpu0.pc,i); return;
-      case 0x0a:    /* 'CEIL.L.'*/      unimplemented(cpu0.pc,i); return;
-      case 0x0b:    /* 'FLOOR.L.'*/     unimplemented(cpu0.pc,i); return;
-      case 0x0c:    /* 'ROUND.W.'*/     cpu1.store_s32( d, Math.round( cpu1.load_f64( s ) ) ); return;  // TODO: check this
-      case 0x0d:    /* 'TRUNC.W.'*/     cpu1.store_s32( d,      trunc( cpu1.load_f64( s ) ) ); return;
-      case 0x0e:    /* 'CEIL.W.'*/      cpu1.store_s32( d, Math.ceil(  cpu1.load_f64( s ) ) ); return;
-      case 0x0f:    /* 'FLOOR.W.'*/     cpu1.store_s32( d, Math.floor( cpu1.load_f64( s ) ) ); return;
+    var op = cop1_func(i);
 
-      case 0x20:    /* 'CVT.S' */       cpu1.store_f32( d, cpu1.load_f64( s ) ); return;
-      case 0x21:    /* 'CVT.D' */       unimplemented(cpu0.pc,i); return;
-      case 0x24:    /* 'CVT.W' */       cpu1.store_s32( d, Math.floor( cpu1.load_f64( s ) ) ); return;  // FIXME: apply correct conversion mode
-      case 0x25:    /* 'CVT.L' */       unimplemented(cpu0.pc,i); return;
-      case 0x30:    /* 'C.F' */         cpu1.setCondition( false ); return;
-      case 0x31:    /* 'C.UN' */        unimplemented(cpu0.pc,i); return;
-      case 0x32:    /* 'C.EQ' */        cpu1.setCondition( cpu1.load_f64( s ) == cpu1.load_f64( t ) ); return;
-      case 0x33:    /* 'C.UEQ' */       unimplemented(cpu0.pc,i); return;
-      case 0x34:    /* 'C.OLT' */       unimplemented(cpu0.pc,i); return;
-      case 0x35:    /* 'C.ULT' */       unimplemented(cpu0.pc,i); return;
-      case 0x36:    /* 'C.OLE' */       unimplemented(cpu0.pc,i); return;
-      case 0x37:    /* 'C.ULE' */       unimplemented(cpu0.pc,i); return;
-      case 0x38:    /* 'C.SF' */        cpu1.setCondition( false ); return;
-      case 0x39:    /* 'C.NGLE' */      unimplemented(cpu0.pc,i); return;
-      case 0x3a:    /* 'C.SEQ' */       unimplemented(cpu0.pc,i); return;
-      case 0x3b:    /* 'C.NGL' */       cpu1.setCondition( cpu1.load_f64( s ) == cpu1.load_f64( t ) ); return;
-      case 0x3c:    /* 'C.LT' */        cpu1.setCondition( cpu1.load_f64( s ) < cpu1.load_f64( t ) ); return;
-      case 0x3d:    /* 'C.NGE' */       unimplemented(cpu0.pc,i); return;
-      case 0x3e:    /* 'C.LE' */        cpu1.setCondition( cpu1.load_f64( s ) <= cpu1.load_f64( t ) ); return;
-      case 0x3f:    /* 'C.NGT' */       cpu1.setCondition( cpu1.load_f64( s ) <= cpu1.load_f64( t ) ); return;
+    if (op < 0x30) {
+      switch(op) {
+        case 0x00:    cpu1.store_f64( d, cpu1.load_f64( s ) + cpu1.load_f64( t ) ); return;
+        case 0x01:    cpu1.store_f64( d, cpu1.load_f64( s ) - cpu1.load_f64( t ) ); return;
+        case 0x02:    cpu1.store_f64( d, cpu1.load_f64( s ) * cpu1.load_f64( t ) ); return;
+        case 0x03:    cpu1.store_f64( d, cpu1.load_f64( s ) / cpu1.load_f64( t ) ); return;
+        case 0x04:    cpu1.store_f64( d, Math.sqrt( cpu1.load_f64( s ) ) ); return;
+        case 0x05:    cpu1.store_f64( d, Math.abs(  cpu1.load_f64( s ) ) ); return;
+        case 0x06:    cpu1.store_f64( d,  cpu1.load_f64( s ) ); return;
+        case 0x07:    cpu1.store_f64( d, -cpu1.load_f64( s )  ); return;
+        case 0x08:    /* 'ROUND.L.'*/     unimplemented(cpu0.pc,i); return;
+        case 0x09:    /* 'TRUNC.L.'*/     unimplemented(cpu0.pc,i); return;
+        case 0x0a:    /* 'CEIL.L.'*/      unimplemented(cpu0.pc,i); return;
+        case 0x0b:    /* 'FLOOR.L.'*/     unimplemented(cpu0.pc,i); return;
+        case 0x0c:    /* 'ROUND.W.'*/     cpu1.store_s32( d, Math.round( cpu1.load_f64( s ) ) ); return;  // TODO: check this
+        case 0x0d:    /* 'TRUNC.W.'*/     cpu1.store_s32( d,      trunc( cpu1.load_f64( s ) ) ); return;
+        case 0x0e:    /* 'CEIL.W.'*/      cpu1.store_s32( d, Math.ceil(  cpu1.load_f64( s ) ) ); return;
+        case 0x0f:    /* 'FLOOR.W.'*/     cpu1.store_s32( d, Math.floor( cpu1.load_f64( s ) ) ); return;
+
+        case 0x20:    /* 'CVT.S' */       cpu1.store_f32( d, cpu1.load_f64( s ) ); return;
+        case 0x21:    /* 'CVT.D' */       unimplemented(cpu0.pc,i); return;
+        case 0x24:    /* 'CVT.W' */       cpu1.store_s32( d, Math.floor( cpu1.load_f64( s ) ) ); return;  // FIXME: apply correct conversion mode
+
+        case 0x25:    /* 'CVT.L' */       unimplemented(cpu0.pc,i); return;
+      }
+      unimplemented(cpu0.pc,i);
+    } else {
+      var _s = cpu1.load_f64( s );
+      var _t = cpu1.load_f64( t );
+
+      var c = false;
+      if (isNaN(_s+_t)) {
+        if (op&0x8) {
+          n64js.warn('Should raise Invalid Operation here.');
+        }
+        if (op&0x1) c = true;
+      } else {
+        if (op&0x4) c |= _s <  _t;
+        if (op&0x2) c |= _s == _t;
+        // unordered=false
+      }
+      cpu1.setCondition(c);
     }
-
-    unimplemented(cpu0.pc,i);
   }
 
   function executeWInstr(i) {
