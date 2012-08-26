@@ -3168,7 +3168,7 @@ if (typeof n64js === 'undefined') {
             handled = true;
             break;
           case imageSizeTypes.G_IM_SIZ_16b:
-            convertRGBA16(img_data, address, width, height, pitch);
+            convertRGBA16(img_data, address, width, height, pitch, swapped);
             handled = true;
             break;
         }
@@ -3415,9 +3415,11 @@ if (typeof n64js === 'undefined') {
     }
   }
 
-  function convertRGBA16(img_data, address, width, height, pitch) {
+  function convertRGBA16(img_data, address, width, height, pitch, swapped) {
     var dst            = img_data.data;
     var src            = new DataView(state.ram.buffer, 0);
+
+    var odd_row_swizzle = swapped ? 0x4 : 0x0;
 
     var dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
     var src_row_stride = pitch;
@@ -3426,11 +3428,13 @@ if (typeof n64js === 'undefined') {
     var src_row_offset = address;
     for (var y = 0; y < height; ++y) {
 
+      var row_swizzle = (y&1) ? odd_row_swizzle : 0x0;
+
       var src_offset = src_row_offset;
       var dst_offset = dst_row_offset;
       for (var x = 0; x < width; ++x) {
 
-        var src_pixel = src.getUint16(src_offset);
+        var src_pixel = src.getUint16(src_offset ^ row_swizzle);
 
         dst[dst_offset+0] = FiveToEight[(src_pixel>>>11)&0x1f];
         dst[dst_offset+1] = FiveToEight[(src_pixel>>> 6)&0x1f];
@@ -3661,6 +3665,8 @@ if (typeof n64js === 'undefined') {
     var dst            = img_data.data;
     var src            = new DataView(state.ram.buffer, 0);
 
+    var odd_row_swizzle = swapped ? 0x4 : 0x0;
+
     var pal = new Uint32Array(256);
     for (var i = 0; i < 256; ++i) {
       var src_pixel = src.getUint16(pal_address + i*2);
@@ -3669,8 +3675,6 @@ if (typeof n64js === 'undefined') {
 
     var dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
     var src_row_stride = pitch;
-
-    var odd_row_swizzle = swapped ? 0x4 : 0x0;
 
     var dst_row_offset = 0;
     var src_row_offset = address;
