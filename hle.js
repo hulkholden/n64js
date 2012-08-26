@@ -3129,6 +3129,8 @@ if (typeof n64js === 'undefined') {
     var fixed_w = nextPow2(width);
     var fixed_h = nextPow2(height);
 
+    var swapped = info.swapped;
+
     var $canvas = $( '<canvas width="' + fixed_w + '" height="' + fixed_h + '" />', {'width':fixed_w, 'height':fixed_h} );
     if (!$canvas[0].getContext)
       return null;
@@ -3148,7 +3150,9 @@ if (typeof n64js === 'undefined') {
       getDefine(imageFormatTypes, info.format) + ', ' +
       getDefine(imageSizeTypes, info.size) + ',' +
       info.width + 'x' + info.height + ', ' +
-      'pitch=' + info.pitch + '<br>');
+      'pitch=' + info.pitch + ', ' +
+      'swapped=' + (info.swapped ? 'true' : 'false') +
+      '<br>');
 
     var handled = false;
 
@@ -3206,7 +3210,7 @@ if (typeof n64js === 'undefined') {
         if (pal_address) {
           switch (info.size) {
             case imageSizeTypes.G_IM_SIZ_8b:
-              convertCI8(img_data, address, width, height, pitch, pal_address, conv_fn);
+              convertCI8(img_data, address, width, height, pitch, swapped, pal_address, conv_fn);
               handled = true;
               break;
             case imageSizeTypes.G_IM_SIZ_4b:
@@ -3652,7 +3656,7 @@ if (typeof n64js === 'undefined') {
     }
   }
 
-  function convertCI8(img_data, address, width, height, pitch, pal_address, pal_conv) {
+  function convertCI8(img_data, address, width, height, pitch, swapped, pal_address, pal_conv) {
     var dst            = img_data.data;
     var src            = new DataView(state.ram.buffer, 0);
 
@@ -3665,15 +3669,19 @@ if (typeof n64js === 'undefined') {
     var dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
     var src_row_stride = pitch;
 
+    var odd_row_swizzle = swapped ? 0x4 : 0x0;
+
     var dst_row_offset = 0;
     var src_row_offset = address;
     for (var y = 0; y < height; ++y) {
+
+      var row_swizzle = (y&1) ? odd_row_swizzle : 0x0;
 
       var src_offset = src_row_offset;
       var dst_offset = dst_row_offset;
       for (var x = 0; x < width; ++x) {
 
-        var src_pixel = pal[src.getUint8(src_offset)];
+        var src_pixel = pal[src.getUint8(src_offset ^ row_swizzle)];
 
         dst[dst_offset+0] = (src_pixel>>24)&0xff;
         dst[dst_offset+1] = (src_pixel>>16)&0xff;
