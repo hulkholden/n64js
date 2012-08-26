@@ -2883,6 +2883,20 @@ if (typeof n64js === 'undefined') {
     ram[a] = v;
   }
 
+  function generateMemoryAccess(b, o, fast, slow) {
+    var impl = '';
+    impl += 'var addr = c.gprLo_signed[' + b + '] + ' + o + ';\n';
+    impl += 'if (addr >= -2147483648 && addr < -2139095040) {\n';
+    //impl += 'if (addr < -2139095040) {\n'; // FIXME: this allows a faster check, but might break if roms ever index like '0x80000000 + -16' (e.g. accessing vmem). Probably fine though.
+    impl += '  addr += 0x80000000;\n';
+    impl += '  ' + fast + '\n';
+    impl += '} else {\n';
+    impl += '  addr = addr>>>0;\n';
+    impl += '  ' + slow + '\n';
+    impl += '}\n';
+    return impl;
+  }
+
   function generateLoadUnsigned(ctx, fast_handler, slow_handler) {
     var t = ctx.instr_rt();
     var b = ctx.instr_base();
@@ -2893,14 +2907,8 @@ if (typeof n64js === 'undefined') {
       return generateNOPBoilerplate('/*load to r0!*/', ctx);
 
     var impl = '';
-
-    impl += 'var addr = c.gprLo_signed[' + b + '] + ' + o + ';\n';
     impl += 'var value;\n';
-    impl += 'if (addr >= -2147483648 && addr < -2139095040) {\n';
-    impl += '  value = ' + fast_handler + '(ram, addr + 0x80000000);\n';
-    impl += '} else {\n';
-    impl += '  value = ' + slow_handler + '(addr>>>0);\n';
-    impl += '}\n';
+    impl += generateMemoryAccess(b, o, 'value = ' + fast_handler + '(ram, addr);', 'value = ' + slow_handler + '(addr>>>0);');
     impl += 'c.gprLo_signed[' + t + '] = value;\n';
     impl += 'c.gprHi_signed[' + t + '] = 0;\n';
 
@@ -2916,13 +2924,8 @@ if (typeof n64js === 'undefined') {
       return generateNOPBoilerplate('/*load to r0!*/', ctx);
 
     var impl = '';
-    impl += 'var addr = c.gprLo_signed[' + b + '] + ' + o + ';\n';
     impl += 'var value;\n';
-    impl += 'if (addr >= -2147483648 && addr < -2139095040) {\n';
-    impl += '  value = ' + fast_handler + '(ram, addr + 0x80000000);\n';
-    impl += '} else {\n';
-    impl += '  value = ' + slow_handler + '(addr>>>0);\n';
-    impl += '}\n';
+    impl += generateMemoryAccess(b, o, 'value = ' + fast_handler + '(ram, addr);', 'value = ' + slow_handler + '(addr>>>0);');
     impl += 'c.gprLo_signed[' + t + '] = value;\n';
     impl += 'c.gprHi_signed[' + t + '] = value >> 31;\n';
 
@@ -2938,19 +2941,32 @@ if (typeof n64js === 'undefined') {
   function generateLH(ctx) { return generateLoadSigned(ctx, 'lh', 'n64js.readMemoryS16'); }
   function generateLW(ctx) { return generateLoadSigned(ctx, 'lw', 'n64js.readMemoryS32'); }
 
+  function generateLD(ctx) {
+    var t = ctx.instr_rt();
+    var b = ctx.instr_base();
+    var o = ctx.instr_imms();
+
+    var impl = '';
+    impl += generateMemoryAccess(b, o,
+      // fast
+      'c.gprLo_signed[' + t + '] = lw(ram, addr + 4);' +
+      'c.gprHi_signed[' + t + '] = lw(ram, addr);',
+
+      // slow
+      'c.gprLo_signed[' + t + '] = n64js.readMemoryS32(addr + 4);' +
+      'c.gprHi_signed[' + t + '] = n64js.readMemoryS32(addr);'
+    );
+    return generateGenericOpBoilerplate(impl, ctx);
+  }
+
   function generateLWC1(ctx) {
     var t = ctx.instr_ft();
     var b = ctx.instr_base();
     var o = ctx.instr_imms();
 
     var impl = '';
-    impl += 'var addr = c.gprLo_signed[' + b + '] + ' + o + ';\n';
     impl += 'var value;\n';
-    impl += 'if (addr >= -2147483648 && addr < -2139095040) {\n';
-    impl += '  value = lw(ram, addr + 0x80000000);\n';
-    impl += '} else {\n';
-    impl += '  value = n64js.readMemoryS32(addr>>>0);\n';
-    impl += '}\n';
+    impl += generateMemoryAccess(b, o, 'value = lw(ram, addr);', 'value = n64js.readMemoryS32(addr);');
     impl += 'cpu1.store_s32(' + t + ', value);\n';
 
     return generateGenericOpBoilerplate(impl, ctx);
@@ -2962,18 +2978,12 @@ if (typeof n64js === 'undefined') {
     var o = ctx.instr_imms();
 
     var impl = '';
-    impl += 'var addr = c.gprLo_signed[' + b + '] + ' + o + ';\n';
     impl += 'var value_lo;\n';
     impl += 'var value_hi;\n';
-    impl += 'if (addr >= -2147483648 && addr < -2139095040) {\n';
-    impl += '  addr += 0x80000000;\n';
-    impl += '  value_lo = lw(ram, addr+4);\n';
-    impl += '  value_hi = lw(ram, addr);\n';
-    impl += '} else {\n';
-    impl += '  addr = (addr>>>0);\n';
-    impl += '  value_lo = n64js.readMemoryS32(addr+4);\n';
-    impl += '  value_hi = n64js.readMemoryS32(addr);\n';
-    impl += '}\n';
+    impl += generateMemoryAccess(b, o,
+      'value_lo = lw(ram, addr+4); value_hi = lw(ram, addr);',
+      'value_lo = n64js.readMemoryS32(addr+4); value_hi = n64js.readMemoryS32(addr);'
+    );
     impl += 'cpu1.store_64(' + t + ', value_lo, value_hi);\n';
 
     return generateGenericOpBoilerplate(impl, ctx);
@@ -2985,14 +2995,11 @@ if (typeof n64js === 'undefined') {
     var b = ctx.instr_base();
     var o = ctx.instr_imms();
 
+    // FIXME: can avoid cpuStuffToDo if we're writing to ram
     var impl = '';
     impl += 'var addr = c.gprLo_signed[' + b + '] + ' + o + ';\n';
     impl += 'var value = cpu1.load_s32(' + t + ');\n';
-    impl += 'if (addr >= -2147483648 && addr < -2139095040) {\n';
-    impl += '  sw(ram, addr+0x80000000, value);\n';  // FIXME: can avoid cpuStuffToDo here
-    impl += '} else {\n';
-    impl += '  n64js.writeMemory32(addr>>>0, value);\n';
-    impl += '}\n';
+    impl += generateMemoryAccess(b, o, 'sw(ram, addr, value);', 'n64js.writeMemory32(addr, value);');
     return generateGenericOpBoilerplate(impl, ctx);
   }
   function generateSDC1(ctx) {
@@ -3000,36 +3007,14 @@ if (typeof n64js === 'undefined') {
     var b = ctx.instr_base();
     var o = ctx.instr_imms();
 
+    // FIXME: can avoid cpuStuffToDo if we're writing to ram
     var impl = '';
-    impl += 'var addr = c.gprLo_signed[' + b + '] + ' + o + ';\n';
     impl += 'var value_lo = cpu1.load_s32(' + t + ');\n';
     impl += 'var value_hi = cpu1.load_s32hi(' + t + ');\n';
-    impl += 'if (addr >= -2147483648 && addr < -2139095040) {\n';
-    impl += '  sd(ram, addr+0x80000000, value_lo, value_hi);\n';  // FIXME: can avoid cpuStuffToDo here
-    impl += '} else {\n';
-    impl += '  addr = (addr>>>0);\n';
-    impl += '  n64js.writeMemory32(addr    , value_hi);\n';
-    impl += '  n64js.writeMemory32(addr + 4, value_lo);\n';
-    impl += '}\n';
-    return generateGenericOpBoilerplate(impl, ctx);
-  }
-
-  function generateLD(ctx) {
-    var t = ctx.instr_rt();
-    var b = ctx.instr_base();
-    var o = ctx.instr_imms();
-
-    var impl = '';
-    impl += 'var addr = c.gprLo_signed[' + b + '] + ' + o + ';\n';
-    impl += 'if (addr >= -2147483648 && addr < -2139095040) {\n';
-    impl += '  addr += 0x80000000;\n';
-    impl += '  c.gprLo_signed[' + t + '] = lw(ram, addr + 4);\n';
-    impl += '  c.gprHi_signed[' + t + '] = lw(ram, addr);\n';
-    impl += '} else {\n';
-    impl += '  addr = (addr>>>0);\n';
-    impl += '  c.gprLo_signed[' + t + '] = n64js.readMemoryS32(addr + 4);\n';
-    impl += '  c.gprHi_signed[' + t + '] = n64js.readMemoryS32(addr);\n';
-    impl += '}\n';
+    impl += generateMemoryAccess(b, o,
+      'sd(ram, addr, value_lo, value_hi);',
+      'n64js.writeMemory32(addr, value_hi); n64js.writeMemory32(addr + 4, value_lo);'
+    );
     return generateGenericOpBoilerplate(impl, ctx);
   }
 
@@ -3046,11 +3031,8 @@ if (typeof n64js === 'undefined') {
     } else {
       impl += 'var value = 0;\n';
     }
-    impl += 'if (addr >= -2147483648 && addr < -2139095040) {\n';
-    impl += '  ' + fast_handler + '(ram, addr+0x80000000, value);\n';  // FIXME: can avoid cpuStuffToDo here
-    impl += '} else {\n';
-    impl += '  ' + slow_handler + '(addr>>>0, value);\n';
-    impl += '}\n';
+    // FIXME: can avoid cpuStuffToDo if we're writing to ram
+    impl += generateMemoryAccess(b, o, fast_handler + '(ram, addr, value);', slow_handler + '(addr, value);');
     return generateGenericOpBoilerplate(impl, ctx);
   }
 
@@ -3064,14 +3046,12 @@ if (typeof n64js === 'undefined') {
     var o = ctx.instr_imms();
 
     var impl = '';
-    impl += 'var addr = c.gprLo_signed[' + b + '] + ' + o + ';\n';
-    impl += 'if (addr >= -2147483648 && addr < -2139095040) {\n';
-    impl += '  sd(ram, addr+0x80000000, c.gprLo_signed[' + t + '], c.gprHi_signed[' + t + ']);\n';
-    impl += '} else {\n';
-    impl += '  addr = (addr>>>0);\n';
-    impl += '  n64js.writeMemory32(addr + 4, c.gprLo_signed[' + t + ']);\n';
-    impl += '  n64js.writeMemory32(addr,     c.gprHi_signed[' + t + ']);\n';
-    impl += '}\n';
+    impl += 'var value_lo = c.gprLo_signed[' + t + '];\n';
+    impl += 'var value_hi = c.gprHi_signed[' + t + '];\n';
+    impl += generateMemoryAccess(b, o,
+      'sd(ram, addr, value_lo, value_hi);',
+      'n64js.writeMemory32(addr, value_hi); n64js.writeMemory32(addr + 4, value_lo);'
+    );
 
     return generateGenericOpBoilerplate(impl, ctx);
   }
