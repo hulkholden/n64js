@@ -1000,6 +1000,8 @@ if (typeof n64js === 'undefined') {
     var y1 = ((cmd0>>> 0)&0xfff)>>>2;
 
     if (state.depthImage.address == state.colorImage.address) {
+      gl.clearDepth(1.0);
+      gl.depthMask(true);
       gl.clear(gl.DEPTH_BUFFER_BIT);
       return;
     }
