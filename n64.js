@@ -345,7 +345,7 @@ if (typeof n64js === 'undefined') {
   n64js.pageUp = function () {
     disasmAddress -= 64;
     n64js.refreshDisplay();
-  } 
+  }
 
   function makeLabelColor(address) {
     var i = (address>>>2);  // Lowest bits are always 0
@@ -1643,6 +1643,15 @@ if (typeof n64js === 'undefined') {
     if (ea+3 < this.u8.length) {
 
       switch( ea ) {
+        case VI_ORIGIN_REG:
+          var last_origin = this.mem.readU32(ea);
+          var new_origin = value>>>0;
+          if (new_origin !== last_origin) {
+            n64js.presentBackBuffer(new_origin);
+            n64js.returnControlToSystem();
+          }
+          this.mem.write32(ea, value);
+          break;
         case VI_CONTROL_REG:
           if (!this.quiet) n64js.log('VI control set to: ' + toString32(value) );
           this.mem.write32(ea, value);

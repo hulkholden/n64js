@@ -390,7 +390,6 @@ if (typeof n64js === 'undefined') {
       case M_GFXTASK:
         hleGraphics(task, ram);
         n64js.interruptDP();
-        n64js.returnControlToSystem();
         break;
       case M_AUDTASK:
         //n64js.log('audio task');
@@ -2210,6 +2209,7 @@ if (typeof n64js === 'undefined') {
 
 
   var fillShaderProgram;
+  var blitShaderProgram;
   var rectVerticesBuffer;
   var n64PositionsBuffer;
   var n64ColorsBuffer;
@@ -2525,6 +2525,56 @@ if (typeof n64js === 'undefined') {
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
 
+  function copyBackBufferToFrontBuffer() {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+    var vertices = [
+      -1.0, -1.0, 0.0, 1.0,
+       1.0, -1.0, 0.0, 1.0,
+      -1.0,  1.0, 0.0, 1.0,
+       1.0,  1.0, 0.0, 1.0
+    ];
+
+    var uvs = [
+      0.0, 0.0,
+      1.0, 0.0,
+      0.0, 1.0,
+      1.0, 1.0
+    ];
+
+    var program = blitShaderProgram;
+
+    gl.useProgram(program);
+
+    var vertexPositionAttribute = gl.getAttribLocation(program,  "aVertexPosition");
+    var texCoordAttribute       = gl.getAttribLocation(program,  "aTextureCoord");
+    var uSamplerUniform         = gl.getUniformLocation(program, "uSampler");
+
+    // aVertexPosition
+    gl.enableVertexAttribArray(vertexPositionAttribute);
+    gl.bindBuffer(gl.ARRAY_BUFFER, n64PositionsBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+    gl.vertexAttribPointer(vertexPositionAttribute, 4, gl.FLOAT, false, 0, 0);
+
+    // aTextureCoord
+    gl.enableVertexAttribArray(texCoordAttribute);
+    gl.bindBuffer(gl.ARRAY_BUFFER, n64UVBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uvs), gl.STATIC_DRAW);
+    gl.vertexAttribPointer(texCoordAttribute, 2, gl.FLOAT, false, 0, 0);
+
+    // uSampler
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, frameBufferTexture);
+    gl.uniform1i(uSamplerUniform, 0);
+
+    gl.disable(gl.CULL_FACE);
+    gl.disable(gl.BLEND);
+    gl.disable(gl.DEPTH_TEST);
+    gl.depthMask(false);
+
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+
   function initDepth() {
 
     // Fixes Zfighting issues we have on the PSP.
@@ -2616,9 +2666,26 @@ if (typeof n64js === 'undefined') {
   }
 
   var last_ucode_str = '';
+  var num_display_lists_since_present = 0;
+
+  n64js.presentBackBuffer = function (origin) {
+
+    // NB: if no display lists executed, interpret framebuffer as bytes?
+    if (num_display_lists_since_present > 0) {
+      gl.flush();
+      gl.finish();
+      //n64js.log('new origin: ' + n64js.toString32(origin));
+      copyBackBufferToFrontBuffer();
+    } else {
+      n64js.log('new origin: ' + n64js.toString32(origin) + ' but no display lists rendered to skipping');
+    }
+
+    num_display_lists_since_present = 0;
+  }
 
   function hleGraphics(task, ram) {
     ++graphics_task_count;
+    ++num_display_lists_since_present;
 
     if (!gl) {
         return;
@@ -2654,6 +2721,9 @@ if (typeof n64js === 'undefined') {
       n64js.log('GFX: ' + graphics_task_count + ' - ' + str + ' = ucode ' + ucode);
     }
     last_ucode_str = str;
+
+    // Render everything to the back buffer. This prevents horrible flickering if due to webgl clearing our context between updates.
+    gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
 
     buildUCodeTables(ucode);
 
@@ -2774,7 +2844,7 @@ if (typeof n64js === 'undefined') {
       //}
     }
 
-    gl.finish();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   }
 
   function disassembleDisplayList(pc, ram, ucode) {
@@ -2905,9 +2975,9 @@ if (typeof n64js === 'undefined') {
     $dlistOutput.html($currentDis);
   }
 
+  var frameBuffer;
+  var frameBufferTexture;
 
-  //
-  // start
   //
   // Called when the canvas is created to get the ball rolling.
   // Figuratively, that is. There's nothing moving in this demo.
@@ -2920,6 +2990,37 @@ if (typeof n64js === 'undefined') {
     // Only continue if WebGL is available and working
 
     if (gl) {
+      frameBuffer = gl.createFramebuffer();
+      gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
+      frameBuffer.width = 640;
+      frameBuffer.height = 480;
+
+      frameBufferTexture = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, frameBufferTexture);
+      // gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      // gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+      //gl.generateMipmap(gl.TEXTURE_2D);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, frameBuffer.width, frameBuffer.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+
+      var renderbuffer = gl.createRenderbuffer();
+      gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer);
+      gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, frameBuffer.width, frameBuffer.height);
+
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, frameBufferTexture, 0);
+      gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, renderbuffer);
+
+      gl.clearColor(0.0, 0.0, 0.0, 1.0);  // Clear to black, fully opaque
+      gl.clearDepth(1.0);                 // Clear everything
+
+      gl.bindTexture(gl.TEXTURE_2D, null);
+      gl.bindRenderbuffer(gl.RENDERBUFFER, null);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
       gl.clearColor(0.0, 0.0, 0.0, 1.0);  // Clear to black, fully opaque
       gl.clearDepth(1.0);                 // Clear everything
       gl.disable(gl.DEPTH_TEST);          // Enable depth testing
@@ -2927,6 +3028,7 @@ if (typeof n64js === 'undefined') {
       gl.depthFunc(gl.LEQUAL);            // Near things obscure far things
 
       fillShaderProgram    = initShaders("fill-shader-vs", "fill-shader-fs");
+      blitShaderProgram    = initShaders("blit-shader-vs", "blit-shader-fs");
 
       rectVerticesBuffer = gl.createBuffer();
 
