@@ -255,6 +255,7 @@
         vec4 tex0  = texture2D(uSampler, vTextureCoord);
         vec4 tex1  = tex0;  // FIXME
         vec4 col;
+        vec4 combined = vec4(0,0,0,1);
         {{body}}
         gl_FragColor = col;
       }
