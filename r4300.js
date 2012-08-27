@@ -1688,6 +1688,31 @@ if (typeof n64js === 'undefined') {
   }
 
 
+  function generateBEQL(ctx) {
+    var s    = ctx.instr_rs();
+    var t    = ctx.instr_rt();
+    var off  = ctx.instr_offset();
+    var addr = branchAddress(ctx.pc, ctx.instruction);
+
+    var impl = '';
+
+    if (t === 0) {
+      impl += 'if (c.gprHi_signed[' + s + '] === 0 &&\n';
+      impl += '    c.gprLo_signed[' + s + '] === 0 ) {\n';
+    } else if (s === 0) {
+      impl += 'if (0 === c.gprHi_signed[' + t + '] &&\n';
+      impl += '    0 === c.gprLo_signed[' + t + '] ) {\n';
+    } else {
+      impl += 'if (c.gprHi_signed[' + s + '] === c.gprHi_signed[' + t + '] &&\n';
+      impl += '    c.gprLo_signed[' + s + '] === c.gprLo_signed[' + t + '] ) {\n';
+    }
+    impl += '  c.delayPC = ' + n64js.toString32(addr) + ';\n';
+    impl += '} else {\n';
+    impl += '  c.nextPC += 4;\n';
+    impl += '}\n';
+
+    return generateBranchOpBoilerplate(impl, ctx, true /* might_adjust_next_pc*/);
+  }
 
   function executeBEQL(i) {
     var s = rs(i);
@@ -1736,6 +1761,33 @@ if (typeof n64js === 'undefined') {
         cpu0.gprLo_signed[s] !== cpu0.gprLo_signed[t] ) {      // NB: if imms(i) == -1 then this is a branch to self/busywait
       performBranch( branchAddress(cpu0.pc,i) );
     }
+  }
+
+
+  function generateBNEL(ctx) {
+    var s    = ctx.instr_rs();
+    var t    = ctx.instr_rt();
+    var off  = ctx.instr_offset();
+    var addr = branchAddress(ctx.pc, ctx.instruction);
+
+    var impl = '';
+
+    if (t === 0) {
+      impl += 'if (c.gprHi_signed[' + s + '] !== 0 ||\n';
+      impl += '    c.gprLo_signed[' + s + '] !== 0 ) {\n';
+    } else if (s === 0) {
+      impl += 'if (0 !== c.gprHi_signed[' + t + '] ||\n';
+      impl += '    0 !== c.gprLo_signed[' + t + '] ) {\n';
+    } else {
+      impl += 'if (c.gprHi_signed[' + s + '] !== c.gprHi_signed[' + t + '] ||\n';
+      impl += '    c.gprLo_signed[' + s + '] !== c.gprLo_signed[' + t + '] ) {\n';
+    }
+    impl += '  c.delayPC = ' + n64js.toString32(addr) + ';\n';
+    impl += '} else {\n';
+    impl += '  c.nextPC += 4;\n';
+    impl += '}\n';
+
+    return generateBranchOpBoilerplate(impl, ctx, true /* might_adjust_next_pc*/);
   }
 
   function executeBNEL(i) {
@@ -2805,7 +2857,7 @@ if (typeof n64js === 'undefined') {
     generateADDI,           generateADDIU,          generateSLTI,         generateSLTIU,
     generateANDI,           generateORI,            generateXORI,         generateLUI,
     generateCop0,           generateCop1,           'executeUnknown',     'executeUnknown',
-    'executeBEQL',          'executeBNEL',          'executeBLEZL',       'executeBGTZL',
+    generateBEQL,           generateBNEL,           'executeBLEZL',       'executeBGTZL',
     'executeDADDI',         'executeDADDIU',        'executeLDL',         'executeLDR',
     'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
     generateLB,             generateLH,             'executeLWL',         generateLW,
