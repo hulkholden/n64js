@@ -3072,7 +3072,6 @@ if (typeof n64js === 'undefined') {
 
     // FIXME: can avoid cpuStuffToDo if we're writing to ram
     var impl = '';
-    impl += 'var addr = c.gprLo_signed[' + b + '] + ' + o + ';\n';
     impl += 'var value = cpu1.load_s32(' + t + ');\n';
     impl += generateMemoryAccess(b, o, 'sw(ram, addr, value);', 'n64js.writeMemory32(addr, value);');
     return generateGenericOpBoilerplate(impl, ctx);
