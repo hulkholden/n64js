@@ -2672,8 +2672,6 @@ if (typeof n64js === 'undefined') {
 
     // NB: if no display lists executed, interpret framebuffer as bytes?
     if (num_display_lists_since_present > 0) {
-      gl.flush();
-      gl.finish();
       //n64js.log('new origin: ' + n64js.toString32(origin));
       copyBackBufferToFrontBuffer();
     } else {
