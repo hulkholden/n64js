@@ -3100,7 +3100,6 @@ if (typeof n64js === 'undefined') {
     //var impl = 'n64js.writeMemory32(cpu0.gprLo[' + b + '] + ' + o + ', cpu0.gprLo_signed[' + t + ']);';
 
     var impl = '';
-    impl += 'var addr = c.gprLo_signed[' + b + '] + ' + o + ';\n';
     if (t !== 0) {
       impl += 'var value = c.gprLo_signed[' + t + '];\n';
     } else {
