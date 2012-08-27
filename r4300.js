@@ -2888,7 +2888,7 @@ if (typeof n64js === 'undefined') {
     impl += 'var addr = c.gprLo_signed[' + b + '] + ' + o + ';\n';
     impl += 'if (addr >= -2147483648 && addr < -2139095040) {\n';
     //impl += 'if (addr < -2139095040) {\n'; // FIXME: this allows a faster check, but might break if roms ever index like '0x80000000 + -16' (e.g. accessing vmem). Probably fine though.
-    impl += '  addr += 0x80000000;\n';
+    impl += '  addr = (addr + 0x80000000) | 0;\n';    // NB: oring with 0 converts HeapNumber to SMI, which avoids lwu/lhu etc repeatedly deopting.
     impl += '  ' + fast + '\n';
     impl += '} else {\n';
     impl += '  addr = addr>>>0;\n';
@@ -2908,7 +2908,7 @@ if (typeof n64js === 'undefined') {
 
     var impl = '';
     impl += 'var value;\n';
-    impl += generateMemoryAccess(b, o, 'value = ' + fast_handler + '(ram, addr);', 'value = ' + slow_handler + '(addr>>>0);');
+    impl += generateMemoryAccess(b, o, 'value = ' + fast_handler + '(ram, addr);', 'value = ' + slow_handler + '(addr);');
     impl += 'c.gprLo_signed[' + t + '] = value;\n';
     impl += 'c.gprHi_signed[' + t + '] = 0;\n';
 
@@ -2925,7 +2925,7 @@ if (typeof n64js === 'undefined') {
 
     var impl = '';
     impl += 'var value;\n';
-    impl += generateMemoryAccess(b, o, 'value = ' + fast_handler + '(ram, addr);', 'value = ' + slow_handler + '(addr>>>0);');
+    impl += generateMemoryAccess(b, o, 'value = ' + fast_handler + '(ram, addr);', 'value = ' + slow_handler + '(addr);');
     impl += 'c.gprLo_signed[' + t + '] = value;\n';
     impl += 'c.gprHi_signed[' + t + '] = value >> 31;\n';
 
