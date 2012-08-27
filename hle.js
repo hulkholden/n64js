@@ -2360,10 +2360,6 @@ if (typeof n64js === 'undefined') {
 
     // uSampler
     if (textureinfo) {
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, textureinfo.texture);
-      gl.uniform1i(uSamplerUniform, 0);
-
       var uv_offset_u = textureinfo.left;
       var uv_offset_v = textureinfo.top;
       var uv_scale_u = 1.0 / textureinfo.nativeWidth;
@@ -2448,9 +2444,9 @@ if (typeof n64js === 'undefined') {
     var program = fillShaderProgram;
     gl.useProgram(program);
 
-    var vertexPositionAttribute = gl.getAttribLocation(fillShaderProgram, "aVertexPosition");
-    var uPMatrixUniform         = gl.getUniformLocation(fillShaderProgram, "uPMatrix");
-    var fillColorUniform        = gl.getUniformLocation(fillShaderProgram, "uFillColor");
+    var vertexPositionAttribute = gl.getAttribLocation(program, "aVertexPosition");
+    var uPMatrixUniform         = gl.getUniformLocation(program, "uPMatrix");
+    var fillColorUniform        = gl.getUniformLocation(program, "uFillColor");
 
     // aVertexPosition
     gl.enableVertexAttribArray(vertexPositionAttribute);
