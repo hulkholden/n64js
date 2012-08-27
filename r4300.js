@@ -247,6 +247,8 @@ if (typeof n64js === 'undefined') {
     this.gprLoMem       = new ArrayBuffer(32*4);
     this.gprHiMem       = new ArrayBuffer(32*4);
 
+    this.gprLoBytes     = new Uint8Array(this.gprLoMem);    // Used to help form addresses without causing deopts or generating HeapNumbers.
+
     this.gprLo          = new Uint32Array(this.gprLoMem);
     this.gprHi          = new Uint32Array(this.gprHiMem);
     this.gprLo_signed   = new Int32Array(this.gprLoMem);
@@ -2883,15 +2885,36 @@ if (typeof n64js === 'undefined') {
     ram[a] = v;
   }
 
+  // Construct an address in ram, avoiding deopts and HeapNumbers by interpreting the register file as an array of bytes.
+  // If the top byte is 0x80, we know the address is in the range 0x80000000..0x80ffffff, so we use three other bytes
+  // to compose an offset relative to 0x80000000, and check that it's in bounds.
+  // If the address is out of bounds, we return -1, which simplifes the test needed by the caller.
+  function calcRAMAddress(c, b, o) {
+    var reg_idx = b*4;
+    var x3 = c.gprLoBytes[reg_idx + 3];
+
+    if (x3 != 0x80)
+      return -1;
+
+    var x2 = c.gprLoBytes[reg_idx + 2];
+    var x1 = c.gprLoBytes[reg_idx + 1];
+    var x0 = c.gprLoBytes[reg_idx + 0];
+
+    var addr = ((x2<<16) | (x1<<8) | x0) + o;
+
+    if (addr >= 0x00800000)
+      return -1;
+
+    return addr;
+  }
+
   function generateMemoryAccess(b, o, fast, slow) {
     var impl = '';
-    impl += 'var addr = c.gprLo_signed[' + b + '] + ' + o + ';\n';
-    impl += 'if (addr >= -2147483648 && addr < -2139095040) {\n';
-    //impl += 'if (addr < -2139095040) {\n'; // FIXME: this allows a faster check, but might break if roms ever index like '0x80000000 + -16' (e.g. accessing vmem). Probably fine though.
-    impl += '  addr = (addr + 0x80000000) | 0;\n';    // NB: oring with 0 converts HeapNumber to SMI, which avoids lwu/lhu etc repeatedly deopting.
+    impl += 'var addr = calcRAMAddress(c, ' + b + ',' + o + ')\n;'
+    impl += 'if (addr >= 0) {\n';   // NB: just check for positive result - handles the upper bound
     impl += '  ' + fast + '\n';
     impl += '} else {\n';
-    impl += '  addr = addr>>>0;\n';
+    impl += '  addr = c.gprLo[' + b + '] + ' + o + ';\n';
     impl += '  ' + slow + '\n';
     impl += '}\n';
     return impl;
