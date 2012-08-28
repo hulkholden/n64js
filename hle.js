@@ -2217,15 +2217,11 @@ if (typeof n64js === 'undefined') {
   var n64UVBuffer;
 
 
-  function pushTri(v0_idx, v1_idx, v2_idx, vertex_positions, vertex_colours, vertex_coords, tri_idx) {
+  function pushTri(v0, v1, v2, tri_idx) {
 
     var vtx_pos_idx = tri_idx * 3*4;
     var vtx_col_idx = tri_idx * 3*1;
     var vtx_uv_idx  = tri_idx * 3*2;
-
-    var v0 = state.projectedVertices[v0_idx];
-    var v1 = state.projectedVertices[v1_idx];
-    var v2 = state.projectedVertices[v2_idx];
 
     var vp0 = v0.pos.elems;
     var vp1 = v1.pos.elems;
@@ -2336,19 +2332,19 @@ if (typeof n64js === 'undefined') {
     // aVertexPosition
     gl.enableVertexAttribArray(shader.vertexPositionAttribute);
     gl.bindBuffer(gl.ARRAY_BUFFER, n64PositionsBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertex_positions), gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, vertex_positions, gl.STATIC_DRAW);
     gl.vertexAttribPointer(shader.vertexPositionAttribute, 4, gl.FLOAT, false, 0, 0);
 
     // aVertexColor
     gl.enableVertexAttribArray(shader.vertexColorAttribute);
     gl.bindBuffer(gl.ARRAY_BUFFER, n64ColorsBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Uint32Array(vertex_colours), gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, vertex_colours, gl.STATIC_DRAW);
     gl.vertexAttribPointer(shader.vertexColorAttribute, 4, gl.UNSIGNED_BYTE, true, 0, 0);
 
     // aTextureCoord
     gl.enableVertexAttribArray(shader.texCoordAttribute);
     gl.bindBuffer(gl.ARRAY_BUFFER, n64UVBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertex_coords), gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, vertex_coords, gl.STATIC_DRAW);
     gl.vertexAttribPointer(shader.texCoordAttribute, 2, gl.FLOAT, false, 0, 0);
 
     // uSampler
@@ -2393,7 +2389,7 @@ if (typeof n64js === 'undefined') {
 
   }
 
-  function flushTris(num_tris, vertex_positions, vertex_colours, vertex_coords) {
+  function flushTris(num_tris) {
 
     var cycle_type = getCycleType();
     var textureinfo;
@@ -2498,7 +2494,7 @@ if (typeof n64js === 'undefined') {
 
     var colours = [ 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff ];
 
-    setProgramState(vertices, colours, uvs, textureinfo, false /*tex_gen_enabled*/);
+    setProgramState(new Float32Array(vertices), new Uint32Array(colours), new Float32Array(uvs), textureinfo, false /*tex_gen_enabled*/);
 
     gl.disable(gl.CULL_FACE);
 
