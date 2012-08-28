@@ -777,10 +777,6 @@ if (typeof n64js === 'undefined') {
 
     var kTri1 = 0xbf;
 
-    var kMaxTris = 64;
-    var vertex_positions = new Float32Array(kMaxTris*3*4);
-    var vertex_colours   = new  Uint32Array(kMaxTris*3*1);
-    var vertex_coords    = new Float32Array(kMaxTris*3*2);
     var tri_idx     = 0;
     var vtx_pos_idx = 0;
     var vtx_col_idx = 0;
@@ -793,7 +789,7 @@ if (typeof n64js === 'undefined') {
       var v1_idx = ((cmd1>>> 8)&0xff)/config.vertexStride;
       var v2_idx = ((cmd1>>> 0)&0xff)/config.vertexStride;
 
-      pushTri(v0_idx, v1_idx, v2_idx, vertex_positions, vertex_colours, vertex_coords, tri_idx);
+      pushTri(state.projectedVertices[v0_idx], state.projectedVertices[v1_idx], state.projectedVertices[v2_idx], tri_idx);
 
       tri_idx++;
       cmd0 = state.ram.getUint32( pc + 0 );
@@ -803,16 +799,12 @@ if (typeof n64js === 'undefined') {
 
     state.pc = pc-8;
 
-    flushTris(tri_idx*3, vertex_positions, vertex_colours, vertex_coords);
+    flushTris(tri_idx*3);
   }
 
   function executeTri2(cmd0,cmd1) {
     var kTri2 = 0Xb1;
 
-    var kMaxTris = 64;
-    var vertex_positions = new Float32Array(kMaxTris*3*4);
-    var vertex_colours   = new  Uint32Array(kMaxTris*3*1);
-    var vertex_coords    = new Float32Array(kMaxTris*3*2);
     var tri_idx     = 0;
     var vtx_pos_idx = 0;
     var vtx_col_idx = 0;
@@ -827,8 +819,8 @@ if (typeof n64js === 'undefined') {
       var v4_idx = ((cmd1>>> 8)&0xff)/config.vertexStride;
       var v5_idx = ((cmd1>>> 0)&0xff)/config.vertexStride;
 
-      pushTri(v0_idx,  v1_idx,  v2_idx, vertex_positions, vertex_colours, vertex_coords, tri_idx); tri_idx++;
-      pushTri(v3_idx,  v4_idx,  v5_idx, vertex_positions, vertex_colours, vertex_coords, tri_idx); tri_idx++;
+      pushTri(state.projectedVertices[v0_idx], state.projectedVertices[v1_idx], state.projectedVertices[v2_idx], tri_idx); tri_idx++;
+      pushTri(state.projectedVertices[v3_idx], state.projectedVertices[v4_idx], state.projectedVertices[v5_idx], tri_idx); tri_idx++;
 
       cmd0 = state.ram.getUint32( pc + 0 );
       cmd1 = state.ram.getUint32( pc + 4 );
@@ -837,16 +829,12 @@ if (typeof n64js === 'undefined') {
 
     state.pc = pc-8;
 
-    flushTris(tri_idx*3, vertex_positions, vertex_colours, vertex_coords);
+    flushTris(tri_idx*3);
   }
 
   function executeLine3D(cmd0,cmd1) {
     var kLine3D = 0xb5;
 
-    var kMaxTris = 64;
-    var vertex_positions = new Float32Array(kMaxTris*3*4);
-    var vertex_colours   = new  Uint32Array(kMaxTris*3*1);
-    var vertex_coords    = new Float32Array(kMaxTris*3*2);
     var tri_idx     = 0;
     var vtx_pos_idx = 0;
     var vtx_col_idx = 0;
@@ -859,9 +847,9 @@ if (typeof n64js === 'undefined') {
       var v1_idx = ((cmd1>>> 8)&0xff)/config.vertexStride;
       var v2_idx = ((cmd1>>> 0)&0xff)/config.vertexStride;
 
-      pushTri(v0_idx, v1_idx, v2_idx, vertex_positions, vertex_colours, vertex_coords, tri_idx);
+      pushTri(state.projectedVertices[v0_idx], state.projectedVertices[v1_idx], state.projectedVertices[v2_idx], tri_idx);
       tri_idx++;
-      pushTri(v2_idx, v3_idx, v0_idx, vertex_positions, vertex_colours, vertex_coords, tri_idx);
+      pushTri(state.projectedVertices[v2_idx], state.projectedVertices[v3_idx], state.projectedVertices[v0_idx], tri_idx);
       tri_idx++;
 
       cmd0 = state.ram.getUint32( pc + 0 );
@@ -871,7 +859,7 @@ if (typeof n64js === 'undefined') {
 
     state.pc = pc-8;
 
-    flushTris(tri_idx*3, vertex_positions, vertex_colours, vertex_coords);
+    flushTris(tri_idx*3);
   }
 
   function executeTriRSP(cmd0,cmd1)               { unimplemented(cmd0,cmd1); }
