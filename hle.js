@@ -19,6 +19,11 @@ if (typeof n64js === 'undefined') {
   var canvasWidth  = 640;
   var canvasHeight = 480;
 
+  var kMaxTris = 64;
+  var vertex_positions = new Float32Array(kMaxTris*3*4);
+  var vertex_colours   = new  Uint32Array(kMaxTris*3*1);
+  var vertex_coords    = new Float32Array(kMaxTris*3*2);
+
   var kOffset_type                = 0x00;    // u32
   var kOffset_flags               = 0x04;    // u32
   var kOffset_ucode_boot          = 0x08;    // u64*
