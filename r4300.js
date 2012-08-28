@@ -244,6 +244,8 @@ if (typeof n64js === 'undefined') {
 
   function CPU0() {
 
+    this.ram            = undefined;    // bound to in reset n64js.getRamU8Array();
+
     this.gprLoMem       = new ArrayBuffer(32*4);
     this.gprHiMem       = new ArrayBuffer(32*4);
 
@@ -306,6 +308,8 @@ if (typeof n64js === 'undefined') {
       hitCounts = {};
       fragmentMap = {};
       fragmentInvalidationEvents = [];
+
+      this.ram = n64js.getRamU8Array();
 
       for (var i = 0; i < 32; ++i) {
         this.gprLo[i]   = 0;
@@ -902,6 +906,47 @@ if (typeof n64js === 'undefined') {
   function getLo32(v) {
     return (v&0xffffffff)>>>0;
   }
+
+  // Memory access routines.
+  function lwu_ram(ram,a) { return  ((ram[a+0] << 24) | (ram[a+1] << 16) | (ram[a+2] << 8) | ram[a+3])>>>0; }
+  function lhu_ram(ram,a) { return   (ram[a+0] <<  8) | (ram[a+1]      ); }
+  function lbu_ram(ram,a) { return    ram[a+0]; }
+
+  function lw_ram(ram,a)  { return  ((ram[a+0] << 24) | (ram[a+1] << 16) | (ram[a+2] << 8) | ram[a+3]) | 0; }
+  function lh_ram(ram,a)  { return  ((ram[a+0] << 24) | (ram[a+1] << 16)                             ) >> 16; }
+  function lb_ram(ram,a)  { return  ((ram[a+0] << 24)                                                ) >> 24; }
+
+  function sd_ram(ram,a,vlo,vhi) {
+    sw_ram(ram, a  , vhi);
+    sw_ram(ram, a+4, vlo);
+ }
+  function sw_ram(ram,a,v) {
+    ram[a+0] = v >> 24;
+    ram[a+1] = v >> 16;
+    ram[a+2] = v >>  8;
+    ram[a+3] = v;
+  }
+  function sh_ram(ram,a,v) {
+    ram[a  ] = v >> 8;
+    ram[a+1] = v;
+ }
+  function sb_ram(ram,a,v) {
+    ram[a] = v;
+  }
+
+  // These are out of line so that the >>>0 doesn't cause a shift-i deopt in the body of the calling function
+  function lwu_slow(addr)       { return n64js.readMemoryU32(addr>>>0); }
+  function lhu_slow(addr)       { return n64js.readMemoryU16(addr>>>0); }
+  function lbu_slow(addr)       { return n64js.readMemoryU8( addr>>>0); }
+
+  function lw_slow(addr)        { return n64js.readMemoryS32(addr>>>0); }
+  function lh_slow(addr)        { return n64js.readMemoryS16(addr>>>0); }
+  function lb_slow(addr)        { return n64js.readMemoryS8( addr>>>0); }
+
+  function sw_slow(addr, value) { n64js.writeMemory32(addr>>>0, value); }
+  function sh_slow(addr, value) { n64js.writeMemory16(addr>>>0, value); }
+  function sb_slow(addr, value) { n64js.writeMemory8( addr>>>0, value); }
+
 
   function unimplemented(pc,i) {
     var r = n64js.disassembleOp(pc,i);
@@ -2137,64 +2182,189 @@ if (typeof n64js === 'undefined') {
     cpu0.gprHi_signed[t] = result >> 31;
   }
 
+
+
+
+
   function executeLB(i) {
-    var addr = memaddr(i);
     var t = rt(i);
-    var result = n64js.readMemoryS8(addr);
-    cpu0.gprLo_signed[t] = result;
-    cpu0.gprHi_signed[t] = result >> 31;
-  }
-  function executeLH(i) {
-    var addr = memaddr(i);
-    var t = rt(i);
-    var result = n64js.readMemoryS16(addr);
-    cpu0.gprLo_signed[t] = result;
-    cpu0.gprHi_signed[t] = result >> 31;
-  }
-  function executeLW(i) {
-    // SF2049 requires this, apparently
-    if (rt(i) === 0)
-      return;
-    var addr = memaddr(i);
-    var t = rt(i);
-    var result = n64js.readMemoryS32(addr);
+    var b = base(i);
+    var o = imms(i);
+
+    var addr         = cpu0.gprLo_signed[b] + o;
+    var ram_relative = (addr < -2139095040) ? ((addr + 0x80000000) | 0) : -1;
+
+    var result;
+    if (ram_relative >= 0) {
+      result = lb_ram(cpu0.ram, ram_relative);
+    } else {
+      result = lb_slow(addr);
+    }
+
     cpu0.gprLo_signed[t] = result;
     cpu0.gprHi_signed[t] = result >> 31;
   }
 
   function executeLBU(i) {
-    var addr = memaddr(i);
     var t = rt(i);
-    cpu0.gprLo_signed[t] = n64js.readMemoryU8(addr);
+    var b = base(i);
+    var o = imms(i);
+
+    var addr         = cpu0.gprLo_signed[b] + o;
+    var ram_relative = (addr < -2139095040) ? ((addr + 0x80000000) | 0) : -1;
+
+    var result;
+    if (ram_relative >= 0) {
+      result = lbu_ram(cpu0.ram, ram_relative);
+    } else {
+      result = lbu_slow(addr);
+    }
+
+    cpu0.gprLo_signed[t] = result;
     cpu0.gprHi_signed[t] = 0;
-  }
-  function executeLHU(i) {
-    var addr = memaddr(i);
-    var t = rt(i);
-    cpu0.gprLo_signed[t] = n64js.readMemoryU16(addr);
-    cpu0.gprHi_signed[t] = 0;
-  }
-  function executeLWU(i) {
-    var addr = memaddr(i);
-    var t = rt(i);
-    cpu0.gprLo_signed[t] = n64js.readMemoryU32(addr);
-    cpu0.gprHi_signed[t] = 0;
-  }
-  function executeLD(i) {
-    var addr = memaddr(i);
-    var t = rt(i);
-    cpu0.gprLo_signed[t] = n64js.readMemoryS32(addr + 4);
-    cpu0.gprHi_signed[t] = n64js.readMemoryS32(addr + 0);
   }
 
+  function executeLH(i) {
+    var t = rt(i);
+    var b = base(i);
+    var o = imms(i);
+
+    var addr         = cpu0.gprLo_signed[b] + o;
+    var ram_relative = (addr < -2139095040) ? ((addr + 0x80000000) | 0) : -1;
+
+    var result;
+    if (ram_relative >= 0) {
+      result = lh_ram(cpu0.ram, ram_relative);
+    } else {
+      result = lh_slow(addr);
+    }
+
+    cpu0.gprLo_signed[t] = result;
+    cpu0.gprHi_signed[t] = result >> 31;
+  }
+
+  function executeLHU(i) {
+    var t = rt(i);
+    var b = base(i);
+    var o = imms(i);
+
+    var addr         = cpu0.gprLo_signed[b] + o;
+    var ram_relative = (addr < -2139095040) ? ((addr + 0x80000000) | 0) : -1;
+
+    var result;
+    if (ram_relative >= 0) {
+      result = lhu_ram(cpu0.ram, ram_relative);
+    } else {
+      result = lhu_slow(addr);
+    }
+
+    cpu0.gprLo_signed[t] = result;
+    cpu0.gprHi_signed[t] = 0;
+  }
+
+
+  function executeLW(i) {
+    var t = rt(i);
+    var b = base(i);
+    var o = imms(i);
+
+    // SF2049 requires this, apparently
+    if (t === 0)
+      return;
+
+    var addr         = cpu0.gprLo_signed[b] + o;
+    var ram_relative = (addr < -2139095040) ? ((addr + 0x80000000) | 0) : -1;
+
+    var result;
+    if (ram_relative >= 0) {
+      result = lw_ram(cpu0.ram, ram_relative);
+    } else {
+      result = lw_slow(addr);
+    }
+
+    cpu0.gprLo_signed[t] = result;
+    cpu0.gprHi_signed[t] = result >> 31;
+  }
+
+  function executeLWU(i) {
+    var t = rt(i);
+    var b = base(i);
+    var o = imms(i);
+
+    var addr         = cpu0.gprLo_signed[b] + o;
+    var ram_relative = (addr < -2139095040) ? ((addr + 0x80000000) | 0) : -1;
+
+    var result;
+    if (ram_relative >= 0) {
+      result = lwu_ram(cpu0.ram, ram_relative);
+    } else {
+      result = lwu_slow(addr);
+    }
+
+    cpu0.gprLo_signed[t] = result;
+    cpu0.gprHi_signed[t] = 0;
+  }
+
+  function executeLD(i) {
+    var t = rt(i);
+    var b = base(i);
+    var o = imms(i);
+
+    var addr         = cpu0.gprLo_signed[b] + o;
+    var ram_relative = (addr < -2139095040) ? ((addr + 0x80000000) | 0) : -1;
+
+    var result;
+    if (ram_relative >= 0) {
+      cpu0.gprLo_signed[t] = lwu_ram(cpu0.ram, ram_relative + 4);
+      cpu0.gprHi_signed[t] = lwu_ram(cpu0.ram, ram_relative + 0);
+    } else {
+      cpu0.gprLo_signed[t] = lwu_slow(addr + 4);
+      cpu0.gprHi_signed[t] = lwu_slow(addr + 0);
+    }
+  }
+
+  // FIXME: needs to check Cop1Enabled - thanks Salvy!
   function executeLWC1(i) {
-    var addr = memaddr(i);
-    cpu1.store_s32( ft(i), n64js.readMemoryS32(addr) );
+    var t = ft(i);
+    var b = base(i);
+    var o = imms(i);
+
+    var addr         = cpu0.gprLo_signed[b] + o;
+    var ram_relative = (addr < -2139095040) ? ((addr + 0x80000000) | 0) : -1;
+
+    var result;
+    if (ram_relative >= 0) {
+      result = lw_ram(cpu0.ram, ram_relative);
+    } else {
+      result = lw_slow(addr);
+    }
+
+    cpu1.store_s32( t, result );
   }
+
+  // FIXME: needs to check Cop1Enabled - thanks Salvy!
   function executeLDC1(i) {
-    var addr = memaddr(i);
-    cpu1.store_64( ft(i), n64js.readMemoryS32(addr+4), n64js.readMemoryS32(addr+0) );
+    var t = ft(i);
+    var b = base(i);
+    var o = imms(i);
+
+    var addr         = cpu0.gprLo_signed[b] + o;
+    var ram_relative = (addr < -2139095040) ? ((addr + 0x80000000) | 0) : -1;
+
+    var result_lo;
+    var result_hi;
+
+    if (ram_relative >= 0) {
+      result_lo = lw_ram(cpu0.ram, ram_relative + 4);
+      result_hi = lw_ram(cpu0.ram, ram_relative + 0);
+    } else {
+      result_lo = lw_slow(addr + 4);
+      result_hi = lw_slow(addr + 0);
+    }
+
+    cpu1.store_64( t, result_lo, result_hi );
   }
+
   function executeLDC2(i)       { unimplemented(cpu0.pc,i); }
 
   function executeLWL(i) {
@@ -2234,27 +2404,105 @@ if (typeof n64js === 'undefined') {
 
 
   function executeSB(i) {
-    n64js.writeMemory8( memaddr(i), cpu0.gprLo_signed[rt(i)] & 0xff );
+    var t = rt(i);
+    var b = base(i);
+    var o = imms(i);
+
+    var value = cpu0.gprLo_signed[t] & 0xff;
+
+    var addr = cpu0.gprLo_signed[b] + o;
+    var ram_relative = (addr < -2139095040) ? ((addr + 0x80000000) | 0) : -1;
+    if (ram_relative >= 0) {
+      sb_ram(cpu0.ram, ram_relative, value);
+    } else {
+      sb_slow(addr, value);
+    }
   }
   function executeSH(i) {
-    n64js.writeMemory16( memaddr(i), cpu0.gprLo_signed[rt(i)] & 0xffff );
-  }
-  function executeSW(i) {
-    n64js.writeMemory32( memaddr(i), cpu0.gprLo_signed[rt(i)]);
-  }
-  function executeSD(i) {
-    var addr = memaddr(i);
-    n64js.writeMemory32( addr + 0, cpu0.gprHi_signed[rt(i)] );
-    n64js.writeMemory32( addr + 4, cpu0.gprLo_signed[rt(i)] );
+    var t = rt(i);
+    var b = base(i);
+    var o = imms(i);
+
+    var value = cpu0.gprLo_signed[t] & 0xffff;
+
+    var addr = cpu0.gprLo_signed[b] + o;
+    var ram_relative = (addr < -2139095040) ? ((addr + 0x80000000) | 0) : -1;
+    if (ram_relative >= 0) {
+      sh_ram(cpu0.ram, ram_relative, value);
+    } else {
+      sh_slow(addr, value);
+    }
   }
 
-  function executeSWC1(i) {
-    n64js.writeMemory32( memaddr(i), cpu1.load_s32( ft(i) ) );
+  function executeSW(i) {
+    var t = rt(i);
+    var b = base(i);
+    var o = imms(i);
+
+    var value = cpu0.gprLo_signed[t];
+
+    var addr = cpu0.gprLo_signed[b] + o;
+    var ram_relative = (addr < -2139095040) ? ((addr + 0x80000000) | 0) : -1;
+    if (ram_relative >= 0) {
+      sw_ram(cpu0.ram, ram_relative, value);
+    } else {
+      sw_slow(addr, value);
+    }
   }
+  function executeSD(i) {
+    var t = rt(i);
+    var b = base(i);
+    var o = imms(i);
+
+    var value_lo = cpu0.gprLo_signed[t];
+    var value_hi = cpu0.gprHi_signed[t];
+
+    var addr = cpu0.gprLo_signed[b] + o;
+    var ram_relative = (addr < -2139095040) ? ((addr + 0x80000000) | 0) : -1;
+    if (ram_relative >= 0) {
+      sw_ram(cpu0.ram, ram_relative + 4, value_lo);
+      sw_ram(cpu0.ram, ram_relative + 0, value_hi);
+    } else {
+      sw_slow(addr + 4, value_lo);
+      sw_slow(addr + 0, value_hi);
+    }
+  }
+
+  // FIXME: needs to check Cop1Enabled - thanks Salvy!
+  function executeSWC1(i) {
+    var t = ft(i);
+    var b = base(i);
+    var o = imms(i);
+
+    var value = cpu1.load_s32( t );
+
+    var addr = cpu0.gprLo_signed[b] + o;
+    var ram_relative = (addr < -2139095040) ? ((addr + 0x80000000) | 0) : -1;
+    if (ram_relative >= 0) {
+      sw_ram(cpu0.ram, ram_relative, value);
+    } else {
+      sw_slow(addr, value);
+    }
+  }
+
+  // FIXME: needs to check Cop1Enabled - thanks Salvy!
   function executeSDC1(i) {
-    var addr = memaddr(i);
-    n64js.writeMemory32( addr + 0, cpu1.load_s32hi( ft(i) ) );
-    n64js.writeMemory32( addr + 4, cpu1.load_s32(   ft(i) ) );
+    var t = ft(i);
+    var b = base(i);
+    var o = imms(i);
+
+    var value_lo = cpu1.load_s32( t );
+    var value_hi = cpu1.load_s32hi( t );
+
+    var addr = cpu0.gprLo_signed[b] + o;
+    var ram_relative = (addr < -2139095040) ? ((addr + 0x80000000) | 0) : -1;
+    if (ram_relative >= 0) {
+      sw_ram(cpu0.ram, ram_relative + 4, value_lo);
+      sw_ram(cpu0.ram, ram_relative + 0, value_hi);
+    } else {
+      sw_slow(addr + 4, value_lo);
+      sw_slow(addr + 0, value_hi);
+    }
   }
 
   function executeSDC2(i)       { unimplemented(cpu0.pc,i); }
@@ -2312,12 +2560,13 @@ if (typeof n64js === 'undefined') {
     }
   }
   function executeCACHE(i) {
-    var address  = memaddr(i);
     var cache_op = rt(i);
     var cache    = (cache_op      ) & 0x3;
     var action   = (cache_op >>> 2) & 0x7;
 
     if(cache == 0 && (action == 0 || action == 4)) {
+      // NB: only bother generating address if we handle the instruction - memaddr deopts like crazy
+      var address  = memaddr(i);
       n64js.invalidateICache(address, 0x20, 'CACHE');
     }
   }
@@ -2911,58 +3160,18 @@ if (typeof n64js === 'undefined') {
   FragmentContext.prototype.instr_offset = function () { return offset(this.instruction); }
   FragmentContext.prototype.instr_imms   = function () { return imms(this.instruction); }
 
-  function lwu(ram,a) { return  ((ram[a] << 24) | (ram[a+1] << 16) | (ram[a+2] << 8) | ram[a+3])>>>0; }
-  function lhu(ram,a) { return   (ram[a] <<  8) | (ram[a+1]      ); }
-  function lbu(ram,a) { return    ram[a]; }
 
-  function lw(ram,a)  { return  ((ram[a] << 24) | (ram[a+1] << 16) | (ram[a+2] << 8) | ram[a+3]) | 0; }
-  function lh(ram,a)  { return  ((ram[a] << 24) | (ram[a+1] << 16)                             ) >> 16; }
-  function lb(ram,a)  { return  ((ram[a] << 24)                                                ) >> 24; }
-
-  function sd(ram,a,vlo,vhi) {
-    sw(ram, a  , vhi);
-    sw(ram, a+4, vlo);
- }
-  function sw(ram,a,v) {
-    ram[a+0] = v >> 24;
-    ram[a+1] = v >> 16;
-    ram[a+2] = v >>  8;
-    ram[a+3] = v;
-  }
-  function sh(ram,a,v) {
-    ram[a  ] = v >> 8;
-    ram[a+1] = v;
- }
-  function sb(ram,a,v) {
-    ram[a] = v;
-  }
-
-  // Construct an address in ram, avoiding deopts and HeapNumbers by interpreting the register file as an array of bytes.
-  // If the top byte is 0x80, we know the address is in the range 0x80000000..0x80ffffff, so we use three other bytes
-  // to compose an offset relative to 0x80000000, and check that it's in bounds.
-  // If the address is out of bounds, we return -1, which simplifes the test needed by the caller.
   function calcRAMAddress(c, b, o) {
-    var reg_idx = b*4;
-    var x3 = c.gprLoBytes[reg_idx + 3];
-
-    if (x3 != 0x80)
-      return -1;
-
-    var x2 = c.gprLoBytes[reg_idx + 2];
-    var x1 = c.gprLoBytes[reg_idx + 1];
-    var x0 = c.gprLoBytes[reg_idx + 0];
-
-    var addr = ((x2<<16) | (x1<<8) | x0) + o;
-
-    if (addr >= 0x00800000)
-      return -1;
-
-    return addr;
+    var addr = c.gprLo_signed[b] + o;
+    //if (addr >= -2147483648 && addr < -2139095040)
+    if (addr < -2139095040)
+      return (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
+    return -1;
   }
 
   function generateMemoryAccess(b, o, fast, slow) {
     var impl = '';
-    impl += 'var addr = calcRAMAddress(c, ' + b + ',' + o + ')\n;'
+    impl += 'var addr = calcRAMAddress(c, ' + b + ',' + o + ');\n';
     impl += 'if (addr >= 0) {\n';   // NB: just check for positive result - handles the upper bound
     impl += '  ' + fast + '\n';
     impl += '} else {\n';
@@ -3008,13 +3217,13 @@ if (typeof n64js === 'undefined') {
   }
 
 
-  function generateLBU(ctx) { return generateLoadUnsigned(ctx, 'lbu', 'n64js.readMemoryU8'); }
-  function generateLHU(ctx) { return generateLoadUnsigned(ctx, 'lhu', 'n64js.readMemoryU16'); }
-  function generateLWU(ctx) { return generateLoadUnsigned(ctx, 'lwu', 'n64js.readMemoryU32'); }
+  function generateLBU(ctx) { return generateLoadUnsigned(ctx, 'lbu_ram', 'n64js.readMemoryU8'); }
+  function generateLHU(ctx) { return generateLoadUnsigned(ctx, 'lhu_ram', 'n64js.readMemoryU16'); }
+  function generateLWU(ctx) { return generateLoadUnsigned(ctx, 'lwu_ram', 'n64js.readMemoryU32'); }
 
-  function generateLB(ctx) { return generateLoadSigned(ctx, 'lb', 'n64js.readMemoryS8'); }
-  function generateLH(ctx) { return generateLoadSigned(ctx, 'lh', 'n64js.readMemoryS16'); }
-  function generateLW(ctx) { return generateLoadSigned(ctx, 'lw', 'n64js.readMemoryS32'); }
+  function generateLB(ctx) { return generateLoadSigned(ctx, 'lb_ram', 'n64js.readMemoryS8'); }
+  function generateLH(ctx) { return generateLoadSigned(ctx, 'lh_ram', 'n64js.readMemoryS16'); }
+  function generateLW(ctx) { return generateLoadSigned(ctx, 'lw_ram', 'n64js.readMemoryS32'); }
 
   function generateLD(ctx) {
     var t = ctx.instr_rt();
@@ -3024,8 +3233,8 @@ if (typeof n64js === 'undefined') {
     var impl = '';
     impl += generateMemoryAccess(b, o,
       // fast
-      'c.gprLo_signed[' + t + '] = lw(ram, addr + 4);' +
-      'c.gprHi_signed[' + t + '] = lw(ram, addr);',
+      'c.gprLo_signed[' + t + '] = lw_ram(ram, addr + 4);' +
+      'c.gprHi_signed[' + t + '] = lw_ram(ram, addr);',
 
       // slow
       'c.gprLo_signed[' + t + '] = n64js.readMemoryS32(addr + 4);' +
@@ -3041,7 +3250,7 @@ if (typeof n64js === 'undefined') {
 
     var impl = '';
     impl += 'var value;\n';
-    impl += generateMemoryAccess(b, o, 'value = lw(ram, addr);', 'value = n64js.readMemoryS32(addr);');
+    impl += generateMemoryAccess(b, o, 'value = lw_ram(ram, addr);', 'value = n64js.readMemoryS32(addr);');
     impl += 'cpu1.store_s32(' + t + ', value);\n';
 
     return generateGenericOpBoilerplate(impl, ctx);
@@ -3056,7 +3265,7 @@ if (typeof n64js === 'undefined') {
     impl += 'var value_lo;\n';
     impl += 'var value_hi;\n';
     impl += generateMemoryAccess(b, o,
-      'value_lo = lw(ram, addr+4); value_hi = lw(ram, addr);',
+      'value_lo = lw_ram(ram, addr+4); value_hi = lw_ram(ram, addr);',
       'value_lo = n64js.readMemoryS32(addr+4); value_hi = n64js.readMemoryS32(addr);'
     );
     impl += 'cpu1.store_64(' + t + ', value_lo, value_hi);\n';
@@ -3073,7 +3282,7 @@ if (typeof n64js === 'undefined') {
     // FIXME: can avoid cpuStuffToDo if we're writing to ram
     var impl = '';
     impl += 'var value = cpu1.load_s32(' + t + ');\n';
-    impl += generateMemoryAccess(b, o, 'sw(ram, addr, value);', 'n64js.writeMemory32(addr, value);');
+    impl += generateMemoryAccess(b, o, 'sw_ram(ram, addr, value);', 'n64js.writeMemory32(addr, value);');
     return generateGenericOpBoilerplate(impl, ctx);
   }
   function generateSDC1(ctx) {
@@ -3086,7 +3295,7 @@ if (typeof n64js === 'undefined') {
     impl += 'var value_lo = cpu1.load_s32(' + t + ');\n';
     impl += 'var value_hi = cpu1.load_s32hi(' + t + ');\n';
     impl += generateMemoryAccess(b, o,
-      'sd(ram, addr, value_lo, value_hi);',
+      'sd_ram(ram, addr, value_lo, value_hi);',
       'n64js.writeMemory32(addr, value_hi); n64js.writeMemory32(addr + 4, value_lo);'
     );
     return generateGenericOpBoilerplate(impl, ctx);
@@ -3109,9 +3318,9 @@ if (typeof n64js === 'undefined') {
     return generateGenericOpBoilerplate(impl, ctx);
   }
 
-  function generateSW(ctx) { return generateStore(ctx, 'sw', 'n64js.writeMemory32'); }
-  function generateSH(ctx) { return generateStore(ctx, 'sh', 'n64js.writeMemory16'); }
-  function generateSB(ctx) { return generateStore(ctx, 'sb', 'n64js.writeMemory8'); }
+  function generateSW(ctx) { return generateStore(ctx, 'sw_ram', 'n64js.writeMemory32'); }
+  function generateSH(ctx) { return generateStore(ctx, 'sh_ram', 'n64js.writeMemory16'); }
+  function generateSB(ctx) { return generateStore(ctx, 'sb_ram', 'n64js.writeMemory8'); }
 
   function generateSD(ctx) {
     var t = ctx.instr_rt();
@@ -3122,7 +3331,7 @@ if (typeof n64js === 'undefined') {
     impl += 'var value_lo = c.gprLo_signed[' + t + '];\n';
     impl += 'var value_hi = c.gprHi_signed[' + t + '];\n';
     impl += generateMemoryAccess(b, o,
-      'sd(ram, addr, value_lo, value_hi);',
+      'sd_ram(ram, addr, value_lo, value_hi);',
       'n64js.writeMemory32(addr, value_hi); n64js.writeMemory32(addr + 4, value_lo);'
     );
 
@@ -3269,10 +3478,10 @@ if (typeof n64js === 'undefined') {
     cpu0.addEvent(kEventRunForCycles, cycles);
 
     //var sync = n64js.getSync();
+    var ram = cpu0.ram;
 
     var fragment;
     var evt;
-    var ram = n64js.getRamU8Array();
 
     try {
       while (cpu0.hasEvent(kEventRunForCycles)) {
@@ -3324,8 +3533,18 @@ if (typeof n64js === 'undefined') {
 
             var pc = cpu0.pc;   // take a copy of this, so we can refer to it later
 
+            // NB: set nextPC before the call to readMemoryS32. If this throws an exception, we need nextPC to be set up correctly.
             if (cpu0.delayPC) { cpu0.nextPC = cpu0.delayPC; } else { cpu0.nextPC = cpu0.pc + 4; }
-            var instruction = n64js.readMemoryS32(cpu0.pc);
+
+            // NB: load instruction using normal memory access routines - this means that we throw a tlb miss/refill approptiately
+            var instruction;
+            var addr = pc|0;
+            var ram_relative = (addr < -2139095040) ? ((addr + 0x80000000) | 0) : -1;
+            if (ram_relative >= 0) {
+              instruction = lw_ram(ram, ram_relative);
+            } else {
+              instruction = lw_slow(pc);
+            }
 
             cpu0.branchTarget = 0;
             executeOp(instruction);
