@@ -2209,7 +2209,15 @@ if (typeof n64js === 'undefined') {
 
 
   var fillShaderProgram;
+  var fill_vertexPositionAttribute;
+  var fill_uPMatrix;
+  var fill_uFillColor;
+
   var blitShaderProgram;
+  var blit_vertexPositionAttribute;
+  var blit_texCoordAttribute;
+  var blit_uSampler;
+
   var rectVerticesBuffer;
   var n64PositionsBuffer;
   var n64ColorsBuffer;
@@ -2328,35 +2336,27 @@ if (typeof n64js === 'undefined') {
     //   sceGuEnable(GU_ALPHA_TEST);
     }
 
-    var program = getCurrentShaderProgram(cycle_type, alpha_threshold);
-    gl.useProgram(program);
+    var shader = getCurrentN64Shader(cycle_type, alpha_threshold);
+    gl.useProgram(shader.program);
 
-    var vertexPositionAttribute = gl.getAttribLocation(program,  "aVertexPosition");
-    var vertexColorAttribute    = gl.getAttribLocation(program,  "aVertexColor");
-    var texCoordAttribute       = gl.getAttribLocation(program,  "aTextureCoord");
-    var uSamplerUniform         = gl.getUniformLocation(program, "uSampler");
-    var uPrimColorUniform       = gl.getUniformLocation(program, "uPrimColor");
-    var uEnvColorUniform        = gl.getUniformLocation(program, "uEnvColor");
-    var uTexScaleUniform        = gl.getUniformLocation(program, "uTexScale");
-    var uTexOffsetUniform       = gl.getUniformLocation(program, "uTexOffset");
 
     // aVertexPosition
-    gl.enableVertexAttribArray(vertexPositionAttribute);
+    gl.enableVertexAttribArray(shader.vertexPositionAttribute);
     gl.bindBuffer(gl.ARRAY_BUFFER, n64PositionsBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertex_positions), gl.STATIC_DRAW);
-    gl.vertexAttribPointer(vertexPositionAttribute, 4, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribPointer(shader.vertexPositionAttribute, 4, gl.FLOAT, false, 0, 0);
 
     // aVertexColor
-    gl.enableVertexAttribArray(vertexColorAttribute);
+    gl.enableVertexAttribArray(shader.vertexColorAttribute);
     gl.bindBuffer(gl.ARRAY_BUFFER, n64ColorsBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, new Uint32Array(vertex_colours), gl.STATIC_DRAW);
-    gl.vertexAttribPointer(vertexColorAttribute, 4, gl.UNSIGNED_BYTE, true, 0, 0);
+    gl.vertexAttribPointer(shader.vertexColorAttribute, 4, gl.UNSIGNED_BYTE, true, 0, 0);
 
     // aTextureCoord
-    gl.enableVertexAttribArray(texCoordAttribute);
+    gl.enableVertexAttribArray(shader.texCoordAttribute);
     gl.bindBuffer(gl.ARRAY_BUFFER, n64UVBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertex_coords), gl.STATIC_DRAW);
-    gl.vertexAttribPointer(texCoordAttribute, 2, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribPointer(shader.texCoordAttribute, 2, gl.FLOAT, false, 0, 0);
 
     // uSampler
     if (textureinfo) {
@@ -2381,10 +2381,10 @@ if (typeof n64js === 'undefined') {
 
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, textureinfo.texture);
-      gl.uniform1i(uSamplerUniform, 0);
+      gl.uniform1i(shader.uSamplerUniform, 0);
 
-      gl.uniform2f(uTexScaleUniform,  uv_scale_u,  uv_scale_v );
-      gl.uniform2f(uTexOffsetUniform, uv_offset_u, uv_offset_v );
+      gl.uniform2f(shader.uTexScaleUniform,  uv_scale_u,  uv_scale_v );
+      gl.uniform2f(shader.uTexOffsetUniform, uv_offset_u, uv_offset_v );
 
       if (getTextureFilterType() == textureFilterValues.G_TF_POINT) {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
@@ -2395,8 +2395,8 @@ if (typeof n64js === 'undefined') {
       }
     }
 
-    gl.uniform4f(uPrimColorUniform, ((state.primColor>>>24)&0xff)/255.0,  ((state.primColor>>>16)&0xff)/255.0, ((state.primColor>>> 8)&0xff)/255.0, ((state.primColor>>> 0)&0xff)/255.0 );
-    gl.uniform4f(uEnvColorUniform,  ((state.envColor >>>24)&0xff)/255.0,  ((state.envColor >>>16)&0xff)/255.0, ((state.envColor >>> 8)&0xff)/255.0, ((state.envColor >>> 0)&0xff)/255.0 );
+    gl.uniform4f(shader.uPrimColorUniform, ((state.primColor>>>24)&0xff)/255.0,  ((state.primColor>>>16)&0xff)/255.0, ((state.primColor>>> 8)&0xff)/255.0, ((state.primColor>>> 0)&0xff)/255.0 );
+    gl.uniform4f(shader.uEnvColorUniform,  ((state.envColor >>>24)&0xff)/255.0,  ((state.envColor >>>16)&0xff)/255.0, ((state.envColor >>> 8)&0xff)/255.0, ((state.envColor >>> 0)&0xff)/255.0 );
 
   }
 
@@ -2441,24 +2441,19 @@ if (typeof n64js === 'undefined') {
       screen0[0], screen0[1], 0.0
     ];
 
-    var program = fillShaderProgram;
-    gl.useProgram(program);
-
-    var vertexPositionAttribute = gl.getAttribLocation(program, "aVertexPosition");
-    var uPMatrixUniform         = gl.getUniformLocation(program, "uPMatrix");
-    var fillColorUniform        = gl.getUniformLocation(program, "uFillColor");
+    gl.useProgram(fillShaderProgram);
 
     // aVertexPosition
-    gl.enableVertexAttribArray(vertexPositionAttribute);
+    gl.enableVertexAttribArray(fill_vertexPositionAttribute);
     gl.bindBuffer(gl.ARRAY_BUFFER, rectVerticesBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-    gl.vertexAttribPointer(vertexPositionAttribute, 3, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribPointer(fill_vertexPositionAttribute, 3, gl.FLOAT, false, 0, 0);
 
     // uPMatrix
-    gl.uniformMatrix4fv(uPMatrixUniform, false, canvas2dMatrix.elems);
+    gl.uniformMatrix4fv(fill_uPMatrix, false, canvas2dMatrix.elems);
 
     // uFillColor
-    gl.uniform4f(fillColorUniform, color.r, color.g, color.b, color.a);
+    gl.uniform4f(fill_uFillColor, color.r, color.g, color.b, color.a);
 
     // Disable depth testing
     gl.disable(gl.DEPTH_TEST);
@@ -2542,30 +2537,24 @@ if (typeof n64js === 'undefined') {
       1.0, 1.0
     ];
 
-    var program = blitShaderProgram;
-
-    gl.useProgram(program);
-
-    var vertexPositionAttribute = gl.getAttribLocation(program,  "aVertexPosition");
-    var texCoordAttribute       = gl.getAttribLocation(program,  "aTextureCoord");
-    var uSamplerUniform         = gl.getUniformLocation(program, "uSampler");
+    gl.useProgram(blitShaderProgram);
 
     // aVertexPosition
-    gl.enableVertexAttribArray(vertexPositionAttribute);
+    gl.enableVertexAttribArray(blit_vertexPositionAttribute);
     gl.bindBuffer(gl.ARRAY_BUFFER, n64PositionsBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-    gl.vertexAttribPointer(vertexPositionAttribute, 4, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribPointer(blit_vertexPositionAttribute, 4, gl.FLOAT, false, 0, 0);
 
     // aTextureCoord
-    gl.enableVertexAttribArray(texCoordAttribute);
+    gl.enableVertexAttribArray(blit_texCoordAttribute);
     gl.bindBuffer(gl.ARRAY_BUFFER, n64UVBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uvs), gl.STATIC_DRAW);
-    gl.vertexAttribPointer(texCoordAttribute, 2, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribPointer(blit_texCoordAttribute, 2, gl.FLOAT, false, 0, 0);
 
     // uSampler
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, frameBufferTexture);
-    gl.uniform1i(uSamplerUniform, 0);
+    gl.uniform1i(blit_uSampler, 0);
 
     gl.disable(gl.CULL_FACE);
     gl.disable(gl.BLEND);
@@ -3025,11 +3014,17 @@ if (typeof n64js === 'undefined') {
       gl.disable(gl.BLEND);
       gl.depthFunc(gl.LEQUAL);            // Near things obscure far things
 
-      fillShaderProgram    = initShaders("fill-shader-vs", "fill-shader-fs");
-      blitShaderProgram    = initShaders("blit-shader-vs", "blit-shader-fs");
+      fillShaderProgram             = initShaders("fill-shader-vs", "fill-shader-fs");
+      fill_vertexPositionAttribute  = gl.getAttribLocation(fillShaderProgram, "aVertexPosition");
+      fill_uPMatrix                 = gl.getUniformLocation(fillShaderProgram, "uPMatrix");
+      fill_uFillColor               = gl.getUniformLocation(fillShaderProgram, "uFillColor");
+
+      blitShaderProgram            = initShaders("blit-shader-vs", "blit-shader-fs");
+      blit_vertexPositionAttribute = gl.getAttribLocation(blitShaderProgram,  "aVertexPosition");
+      blit_texCoordAttribute       = gl.getAttribLocation(blitShaderProgram,  "aTextureCoord");
+      blit_uSampler                = gl.getUniformLocation(blitShaderProgram, "uSampler");
 
       rectVerticesBuffer = gl.createBuffer();
-
       n64PositionsBuffer = gl.createBuffer();
       n64ColorsBuffer    = gl.createBuffer();
       n64UVBuffer        = gl.createBuffer();
@@ -3085,7 +3080,21 @@ if (typeof n64js === 'undefined') {
     'one.a',      'zero.a',
   ];
 
-  function getCurrentShaderProgram(cycle_type, alpha_threshold) {
+  function N64Shader(program) {
+    this.program = program;
+
+    this.vertexPositionAttribute = gl.getAttribLocation(program,  "aVertexPosition");
+    this.vertexColorAttribute    = gl.getAttribLocation(program,  "aVertexColor");
+    this.texCoordAttribute       = gl.getAttribLocation(program,  "aTextureCoord");
+
+    this.uSamplerUniform         = gl.getUniformLocation(program, "uSampler");
+    this.uPrimColorUniform       = gl.getUniformLocation(program, "uPrimColor");
+    this.uEnvColorUniform        = gl.getUniformLocation(program, "uEnvColor");
+    this.uTexScaleUniform        = gl.getUniformLocation(program, "uTexScale");
+    this.uTexOffsetUniform       = gl.getUniformLocation(program, "uTexOffset");
+  }
+
+  function getCurrentN64Shader(cycle_type, alpha_threshold) {
 
     var mux0   = state.combine.hi;
     var mux1   = state.combine.lo;
@@ -3192,9 +3201,11 @@ if (typeof n64js === 'undefined') {
       alert("Unable to initialize the shader program.");
     }
 
-    programs[state_text] = program;
+    var shader = new N64Shader(program);
 
-    return program;
+    programs[state_text] = shader;
+
+    return shader;
   }
 
   // FIXME: not all titles assume the same memory layout for palettes?
