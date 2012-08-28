@@ -214,7 +214,7 @@
       precision mediump float;
       uniform vec4 uFillColor;
 
-      varying highp vec2 vTextureCoord;
+      varying mediump vec2 vTextureCoord;
 
       void main(void) {
         gl_FragColor = uFillColor;
@@ -227,7 +227,7 @@
       attribute vec4 aVertexPosition;
       attribute vec2 aTextureCoord;
 
-      varying highp vec2 vTextureCoord;
+      varying mediump vec2 vTextureCoord;
 
       void main(void) {
         gl_Position   = aVertexPosition;
@@ -236,7 +236,7 @@
     </script>
     <script id="blit-shader-fs" type="x-shader/x-fragment">
       precision mediump float;
-      varying highp vec2 vTextureCoord;
+      varying mediump vec2 vTextureCoord;
 
       uniform sampler2D uSampler;
 
@@ -255,7 +255,7 @@
       uniform vec2 uTexScale;
 
       varying       vec4 vColor;
-      varying highp vec2 vTextureCoord;
+      varying mediump vec2 vTextureCoord;
 
       void main(void) {
         gl_Position   = /*uPMatrix **/ aVertexPosition;
@@ -266,7 +266,7 @@
     <script id="n64-shader-fs" type="x-shader/x-fragment">
       precision mediump float;
       varying       vec4 vColor;
-      varying highp vec2 vTextureCoord;
+      varying mediump vec2 vTextureCoord;
 
       uniform sampler2D uSampler;
       uniform       vec4 uPrimColor;
