@@ -19,11 +19,6 @@ if (typeof n64js === 'undefined') {
   var canvasWidth  = 640;
   var canvasHeight = 480;
 
-  var kMaxTris = 64;
-  var vertex_positions = new Float32Array(kMaxTris*3*4);
-  var vertex_colours   = new  Uint32Array(kMaxTris*3*1);
-  var vertex_coords    = new Float32Array(kMaxTris*3*2);
-
   var kOffset_type                = 0x00;    // u32
   var kOffset_flags               = 0x04;    // u32
   var kOffset_ucode_boot          = 0x08;    // u64*
@@ -266,6 +261,56 @@ if (typeof n64js === 'undefined') {
   var n64ToCanvasTranslate = [ 0.0, 0.0 ];
 
   var canvas2dMatrix = makeOrtho(0,canvasWidth, canvasHeight,0, 0,1);
+
+  function TriangleBuffer(num_tris) {
+    this.vertex_positions = new Float32Array(num_tris*3*4);
+    this.vertex_colours   = new  Uint32Array(num_tris*3*1);
+    this.vertex_coords    = new Float32Array(num_tris*3*2);
+  }
+
+  TriangleBuffer.prototype.pushTri = function (v0, v1, v2, tri_idx) {
+    var vtx_pos_idx = tri_idx * 3*4;
+    var vtx_col_idx = tri_idx * 3*1;
+    var vtx_uv_idx  = tri_idx * 3*2;
+
+    var vp0 = v0.pos.elems;
+    var vp1 = v1.pos.elems;
+    var vp2 = v2.pos.elems;
+
+    this.vertex_positions[vtx_pos_idx+ 0] = vp0[0];
+    this.vertex_positions[vtx_pos_idx+ 1] = vp0[1];
+    this.vertex_positions[vtx_pos_idx+ 2] = vp0[2];
+    this.vertex_positions[vtx_pos_idx+ 3] = vp0[3];
+
+    this.vertex_positions[vtx_pos_idx+ 4] = vp1[0];
+    this.vertex_positions[vtx_pos_idx+ 5] = vp1[1];
+    this.vertex_positions[vtx_pos_idx+ 6] = vp1[2];
+    this.vertex_positions[vtx_pos_idx+ 7] = vp1[3];
+
+    this.vertex_positions[vtx_pos_idx+ 8] = vp2[0];
+    this.vertex_positions[vtx_pos_idx+ 9] = vp2[1];
+    this.vertex_positions[vtx_pos_idx+10] = vp2[2];
+    this.vertex_positions[vtx_pos_idx+11] = vp2[3];
+
+
+    this.vertex_colours[vtx_col_idx + 0] = v0.color;
+    this.vertex_colours[vtx_col_idx + 1] = v1.color;
+    this.vertex_colours[vtx_col_idx + 2] = v2.color;
+
+
+    this.vertex_coords[vtx_uv_idx+ 0] = v0.u;
+    this.vertex_coords[vtx_uv_idx+ 1] = v0.v;
+
+    this.vertex_coords[vtx_uv_idx+ 2] = v1.u;
+    this.vertex_coords[vtx_uv_idx+ 3] = v1.v;
+
+    this.vertex_coords[vtx_uv_idx+ 4] = v2.u;
+    this.vertex_coords[vtx_uv_idx+ 5] = v2.v;
+  };
+
+  var kMaxTris = 64;
+  var triangleBuffer = new TriangleBuffer(kMaxTris);
+
 
   function convertN64ToCanvas( n64_coords ) {
     return [
@@ -774,24 +819,21 @@ if (typeof n64js === 'undefined') {
   }
 
   function executeTri1(cmd0,cmd1) {
+    var kTri1  = 0xbf;
+    var stride = config.vertexStride;
+    var verts  = state.projectedVertices;
 
-    var kTri1 = 0xbf;
-
-    var tri_idx     = 0;
-    var vtx_pos_idx = 0;
-    var vtx_col_idx = 0;
-    var vtx_uv_idx  = 0;
+    var tri_idx = 0;
 
     var pc = state.pc;
     do {
       var flag   =  (cmd1>>>24)&0xff;
-      var v0_idx = ((cmd1>>>16)&0xff)/config.vertexStride;
-      var v1_idx = ((cmd1>>> 8)&0xff)/config.vertexStride;
-      var v2_idx = ((cmd1>>> 0)&0xff)/config.vertexStride;
+      var v0_idx = ((cmd1>>>16)&0xff)/stride
+      var v1_idx = ((cmd1>>> 8)&0xff)/stride
+      var v2_idx = ((cmd1>>> 0)&0xff)/stride
 
-      pushTri(state.projectedVertices[v0_idx], state.projectedVertices[v1_idx], state.projectedVertices[v2_idx], tri_idx);
+      triangleBuffer.pushTri(verts[v0_idx], verts[v1_idx], verts[v2_idx], tri_idx); tri_idx++;
 
-      tri_idx++;
       cmd0 = state.ram.getUint32( pc + 0 );
       cmd1 = state.ram.getUint32( pc + 4 );
       pc += 8;
@@ -803,24 +845,23 @@ if (typeof n64js === 'undefined') {
   }
 
   function executeTri2(cmd0,cmd1) {
-    var kTri2 = 0Xb1;
+    var kTri2  = 0Xb1;
+    var stride = config.vertexStride;
+    var verts  = state.projectedVertices;
 
-    var tri_idx     = 0;
-    var vtx_pos_idx = 0;
-    var vtx_col_idx = 0;
-    var vtx_uv_idx  = 0;
+    var tri_idx = 0;
 
     var pc = state.pc;
     do {
-      var v0_idx = ((cmd0>>>16)&0xff)/config.vertexStride;
-      var v1_idx = ((cmd0>>> 8)&0xff)/config.vertexStride;
-      var v2_idx = ((cmd0>>> 0)&0xff)/config.vertexStride;
-      var v3_idx = ((cmd1>>>16)&0xff)/config.vertexStride;
-      var v4_idx = ((cmd1>>> 8)&0xff)/config.vertexStride;
-      var v5_idx = ((cmd1>>> 0)&0xff)/config.vertexStride;
+      var v0_idx = ((cmd0>>>16)&0xff)/stride
+      var v1_idx = ((cmd0>>> 8)&0xff)/stride
+      var v2_idx = ((cmd0>>> 0)&0xff)/stride
+      var v3_idx = ((cmd1>>>16)&0xff)/stride
+      var v4_idx = ((cmd1>>> 8)&0xff)/stride
+      var v5_idx = ((cmd1>>> 0)&0xff)/stride
 
-      pushTri(state.projectedVertices[v0_idx], state.projectedVertices[v1_idx], state.projectedVertices[v2_idx], tri_idx); tri_idx++;
-      pushTri(state.projectedVertices[v3_idx], state.projectedVertices[v4_idx], state.projectedVertices[v5_idx], tri_idx); tri_idx++;
+      triangleBuffer.pushTri(verts[v0_idx], verts[v1_idx], verts[v2_idx], tri_idx); tri_idx++;
+      triangleBuffer.pushTri(verts[v3_idx], verts[v4_idx], verts[v5_idx], tri_idx); tri_idx++;
 
       cmd0 = state.ram.getUint32( pc + 0 );
       cmd1 = state.ram.getUint32( pc + 4 );
@@ -834,23 +875,20 @@ if (typeof n64js === 'undefined') {
 
   function executeLine3D(cmd0,cmd1) {
     var kLine3D = 0xb5;
+    var stride  = config.vertexStride;
+    var verts   = state.projectedVertices;
 
-    var tri_idx     = 0;
-    var vtx_pos_idx = 0;
-    var vtx_col_idx = 0;
-    var vtx_uv_idx  = 0;
+    var tri_idx = 0;
 
     var pc = state.pc;
     do {
-      var v3_idx = ((cmd1>>>24)&0xff)/config.vertexStride;
-      var v0_idx = ((cmd1>>>16)&0xff)/config.vertexStride;
-      var v1_idx = ((cmd1>>> 8)&0xff)/config.vertexStride;
-      var v2_idx = ((cmd1>>> 0)&0xff)/config.vertexStride;
+      var v3_idx = ((cmd1>>>24)&0xff)/stride
+      var v0_idx = ((cmd1>>>16)&0xff)/stride
+      var v1_idx = ((cmd1>>> 8)&0xff)/stride
+      var v2_idx = ((cmd1>>> 0)&0xff)/stride
 
-      pushTri(state.projectedVertices[v0_idx], state.projectedVertices[v1_idx], state.projectedVertices[v2_idx], tri_idx);
-      tri_idx++;
-      pushTri(state.projectedVertices[v2_idx], state.projectedVertices[v3_idx], state.projectedVertices[v0_idx], tri_idx);
-      tri_idx++;
+      triangleBuffer.pushTri(verts[v0_idx], verts[v1_idx], verts[v2_idx], tri_idx); tri_idx++;
+      triangleBuffer.pushTri(verts[v2_idx], verts[v3_idx], verts[v0_idx], tri_idx); tri_idx++;
 
       cmd0 = state.ram.getUint32( pc + 0 );
       cmd1 = state.ram.getUint32( pc + 4 );
@@ -2216,47 +2254,6 @@ if (typeof n64js === 'undefined') {
   var n64ColorsBuffer;
   var n64UVBuffer;
 
-
-  function pushTri(v0, v1, v2, tri_idx) {
-
-    var vtx_pos_idx = tri_idx * 3*4;
-    var vtx_col_idx = tri_idx * 3*1;
-    var vtx_uv_idx  = tri_idx * 3*2;
-
-    var vp0 = v0.pos.elems;
-    var vp1 = v1.pos.elems;
-    var vp2 = v2.pos.elems;
-
-    vertex_positions[vtx_pos_idx+ 0] = vp0[0];
-    vertex_positions[vtx_pos_idx+ 1] = vp0[1];
-    vertex_positions[vtx_pos_idx+ 2] = vp0[2];
-    vertex_positions[vtx_pos_idx+ 3] = vp0[3];
-
-    vertex_positions[vtx_pos_idx+ 4] = vp1[0];
-    vertex_positions[vtx_pos_idx+ 5] = vp1[1];
-    vertex_positions[vtx_pos_idx+ 6] = vp1[2];
-    vertex_positions[vtx_pos_idx+ 7] = vp1[3];
-
-    vertex_positions[vtx_pos_idx+ 8] = vp2[0];
-    vertex_positions[vtx_pos_idx+ 9] = vp2[1];
-    vertex_positions[vtx_pos_idx+10] = vp2[2];
-    vertex_positions[vtx_pos_idx+11] = vp2[3];
-
-    vertex_colours[vtx_col_idx + 0] = v0.color;
-    vertex_colours[vtx_col_idx + 1] = v1.color;
-    vertex_colours[vtx_col_idx + 2] = v2.color;
-
-
-    vertex_coords[vtx_uv_idx+ 0] = v0.u;
-    vertex_coords[vtx_uv_idx+ 1] = v0.v;
-
-    vertex_coords[vtx_uv_idx+ 2] = v1.u;
-    vertex_coords[vtx_uv_idx+ 3] = v1.v;
-
-    vertex_coords[vtx_uv_idx+ 4] = v2.u;
-    vertex_coords[vtx_uv_idx+ 5] = v2.v;
-  }
-
   var kBlendModeOpaque     = 0;
   var kBlendModeAlphaTrans = 1;
   var kBlendModeFade       = 2;
@@ -2400,7 +2397,11 @@ if (typeof n64js === 'undefined') {
       tex_gen_enabled = (state.geometryMode & (geometryModeFlags.G_LIGHTING|geometryModeFlags.G_TEXTURE_GEN)) === (geometryModeFlags.G_LIGHTING|geometryModeFlags.G_TEXTURE_GEN);
     }
 
-    setProgramState(vertex_positions, vertex_colours, vertex_coords, textureinfo, tex_gen_enabled);
+    setProgramState(triangleBuffer.vertex_positions,
+                    triangleBuffer.vertex_colours,
+                    triangleBuffer.vertex_coords,
+                    textureinfo,
+                    tex_gen_enabled);
 
     initDepth();
 
