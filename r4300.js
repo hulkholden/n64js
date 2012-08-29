@@ -1027,9 +1027,9 @@ if (typeof n64js === 'undefined') {
     var shift = ctx.instr_sa();
 
     var impl = '';
-    impl += 'var result = cpu0.gprLo_signed[' + t + '] ' + op + ' ' + shift + ';\n';
-    impl += 'cpu0.gprLo_signed[' + d + '] = result;\n';
-    impl += 'cpu0.gprHi_signed[' + d + '] = result >> 31;\n';
+    impl += 'var result = rlo[' + t + '] ' + op + ' ' + shift + ';\n';
+    impl += 'rlo[' + d + '] = result;\n';
+    impl += 'rhi[' + d + '] = result >> 31;\n';
     return generateTrivialOpBoilerplate(impl, ctx);
   }
 
@@ -1079,9 +1079,9 @@ if (typeof n64js === 'undefined') {
     var t = ctx.instr_rt();
 
     var impl = '';
-    impl += 'var result = cpu0.gprLo_signed[' + t + '] ' + op + ' (cpu0.gprLo_signed[' + s + '] & 0x1f);\n';
-    impl += 'cpu0.gprLo_signed[' + d + '] = result;\n';
-    impl += 'cpu0.gprHi_signed[' + d + '] = result >> 31;\n';
+    impl += 'var result = rlo[' + t + '] ' + op + ' (rlo[' + s + '] & 0x1f);\n';
+    impl += 'rlo[' + d + '] = result;\n';
+    impl += 'rhi[' + d + '] = result >> 31;\n';
     return generateTrivialOpBoilerplate(impl, ctx);
   }
 
@@ -1435,11 +1435,11 @@ if (typeof n64js === 'undefined') {
     if (t == 0) {
       var impl = '';
       if (s == 0) {
-        impl += 'cpu0.gprLo_signed[' + d + '] = 0;\n';
-        impl += 'cpu0.gprHi_signed[' + d + '] = 0;\n';
+        impl += 'rlo[' + d + '] = 0;\n';
+        impl += 'rhi[' + d + '] = 0;\n';
       } else {
-        impl += 'cpu0.gprLo_signed[' + d + '] = cpu0.gprLo_signed[' + s + '];\n';
-        impl += 'cpu0.gprHi_signed[' + d + '] = cpu0.gprHi_signed[' + s + '];\n';
+        impl += 'rlo[' + d + '] = rlo[' + s + '];\n';
+        impl += 'rhi[' + d + '] = rhi[' + s + '];\n';
       }
 
       return generateTrivialOpBoilerplate(impl,  ctx);
@@ -1472,8 +1472,8 @@ if (typeof n64js === 'undefined') {
     var s = ctx.instr_rs();
     var t = ctx.instr_rt();
     var impl = '';
-    impl += 'cpu0.gprHi_signed[' + d + '] = ~(cpu0.gprHi_signed[' + s + '] | cpu0.gprHi_signed[' + t +']);\n';
-    impl += 'cpu0.gprLo_signed[' + d + '] = ~(cpu0.gprLo_signed[' + s + '] | cpu0.gprLo_signed[' + t +']);\n';
+    impl += 'rhi[' + d + '] = ~(rhi[' + s + '] | rhi[' + t +']);\n';
+    impl += 'rlo[' + d + '] = ~(rlo[' + s + '] | rlo[' + t +']);\n';
     return generateTrivialOpBoilerplate(impl, ctx);
   }
 
@@ -1494,13 +1494,13 @@ if (typeof n64js === 'undefined') {
     var impl = '';
 
     impl += 'var r = 0;\n';
-    impl += 'if (cpu0.gprHi_signed[' + s + '] < cpu0.gprHi_signed[' + t + ']) {\n';
+    impl += 'if (rhi[' + s + '] < rhi[' + t + ']) {\n';
     impl += '  r = 1;\n';
-    impl += '} else if (cpu0.gprHi_signed[' + s + '] === cpu0.gprHi_signed[' + t + ']) {\n';
-    impl += '  r = (cpu0.gprLo[' + s + '] < cpu0.gprLo[' + t + ']) ? 1 : 0;\n';
+    impl += '} else if (rhi[' + s + '] === rhi[' + t + ']) {\n';
+    impl += '  r = (c.gprLo[' + s + '] < c.gprLo[' + t + ']) ? 1 : 0;\n';
     impl += '}\n';
-    impl += 'cpu0.gprLo_signed[' + d + '] = r;\n';
-    impl += 'cpu0.gprHi_signed[' + d + '] = 0;\n';
+    impl += 'rlo[' + d + '] = r;\n';
+    impl += 'rhi[' + d + '] = 0;\n';
 
     return generateTrivialOpBoilerplate(impl, ctx);
   }
@@ -1526,12 +1526,12 @@ if (typeof n64js === 'undefined') {
     var impl = '';
 
     impl += 'var r = 0;\n';
-    impl += 'if (cpu0.gprHi[' + s + '] < cpu0.gprHi[' + t + '] ||\n';
-    impl += '    (cpu0.gprHi_signed[' + s + '] === cpu0.gprHi_signed[' + t + '] && cpu0.gprLo[' + s + '] < cpu0.gprLo[' + t + '])) {\n';
+    impl += 'if (c.gprHi[' + s + '] < c.gprHi[' + t + '] ||\n';
+    impl += '    (rhi[' + s + '] === rhi[' + t + '] && c.gprLo[' + s + '] < c.gprLo[' + t + '])) {\n';
     impl += '  r = 1;\n';
     impl += '}\n';
-    impl += 'cpu0.gprLo_signed[' + d + '] = r;\n';
-    impl += 'cpu0.gprHi_signed[' + d + '] = 0;\n';
+    impl += 'rlo[' + d + '] = r;\n';
+    impl += 'rhi[' + d + '] = 0;\n';
 
     return generateTrivialOpBoilerplate(impl, ctx);
   }
