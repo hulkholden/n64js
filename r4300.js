@@ -3132,7 +3132,6 @@ if (typeof n64js === 'undefined') {
 
     this.needsDelayCheck = true;    // Set on entry to generate handler. If set, much check for delayPC when updating the pc
     this.isTrivial       = false;   // Set by the code generation handler if the op is considered trivial
-    this.inlineCandidate = false;   // Set by the code generation handler if the op should be considered for inlining
   }
 
   FragmentContext.prototype.set = function (fragment, pc, instruction, post_pc) {
@@ -3144,7 +3143,6 @@ if (typeof n64js === 'undefined') {
 
     this.needsDelayCheck = true;    // Set on entry to generate handler. If set, much check for delayPC when updating the pc
     this.isTrivial       = false;   // Set by the generate handler if the op is considered trivial
-    this.inlineCandidate = false;   // Set by the code generation handler if the op should be considered for inlining
   }
 
   FragmentContext.prototype.instr_rs     = function () { return rs(this.instruction); }
@@ -3762,7 +3760,6 @@ if (typeof n64js === 'undefined') {
 
     ctx.needsDelayCheck = ctx.fragment.needsDelayCheck;
     ctx.isTrivial       = false;
-    ctx.inlineCandidate = false;
 
     var fn_code = generateOp(ctx);
 
@@ -3776,21 +3773,7 @@ if (typeof n64js === 'undefined') {
     //code += 'if (!checkEqual( n64js.readMemoryU32(cpu0.pc), ' + n64js.toString32(instruction) + ', "unexpected instruction (need to flush icache?)")) { return false; }\n';
 
     ctx.fragment.bailedOut |= ctx.bailOut;
-
-    if (ctx.isTrivial || ctx.inlineCandidate) {
-      ctx.fragment.body_code += fn_code;
-    } else {
-      var op_fn_name = 'op_' + n64js.toString32(ctx.pc) + '_' + n64js.toString32(ctx.instruction);
-
-      var code = 'function ' + op_fn_name + '(c,rlo,rhi,ram) {\n';
-      //code += 'if (c.pc !== ' + n64js.toString32(entry_pc) + ') n64js.halt("pc mismatch - " + n64js.toString32(c.pc) + " !== ' + n64js.toString32(entry_pc) + '");\n';
-      code += fn_code;
-      code += 'return 0;\n';
-      code += '};\n\n';   // End the enclosing function
-
-      ctx.fragment.global_code += code;
-      ctx.fragment.body_code += 'if (' + op_fn_name + '(c,rlo,rhi,ram)) return ' + ctx.fragment.opsCompiled + ';\n';
-    }
+    ctx.fragment.body_code += fn_code;
   }
 
   function generateOp(ctx) {
@@ -3828,7 +3811,6 @@ if (typeof n64js === 'undefined') {
   }
 
   function generateGenericOpBoilerplate(fn,ctx) {
-
     var code = '';
     //code += 'if (c.pc !== ' + n64js.toString32(ctx.pc) + ') throw("pc mismatch - " + n64js.toString32(c.pc) + " !== ' + n64js.toString32(ctx.pc) + '");\n';
     if (ctx.needsDelayCheck) {
@@ -3864,9 +3846,6 @@ if (typeof n64js === 'undefined') {
   // Branch ops explicitly manipulate nextPC rather than branchTarget. They also guarnatee that stuffToDo is not set.
   // might_adjust_next_pc is typically used by branch likely instructions.
   function generateBranchOpBoilerplate(fn,ctx, might_adjust_next_pc) {
-
-    ctx.inlineCandidate = true;
-
     var code = '';
 
     var need_pc_test = true;
@@ -3924,7 +3903,6 @@ if (typeof n64js === 'undefined') {
     // ASSERT: !c.stuffToDo
 
     ctx.isTrivial = true;
-    ctx.inlineCandidate = true;
 
     if (accurateCountUpdating) {
       code += 'c.control_signed[9] += 1;\n';
