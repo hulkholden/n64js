@@ -2222,13 +2222,14 @@ if (typeof n64js === 'undefined') {
   }
 
 
-
   function generateLUI(ctx) {
+    var t = ctx.instr_rt();
+    var value_lo = imms(ctx.instruction) << 16;
+    var value_hi = (value_lo < 0) ? -1 : 0
+
     var impl = '';
-    impl += 'var t = ' + ctx.instr_rt() + ';\n';
-    impl += 'var result = ' + (imms(ctx.instruction) << 16) + ';\n';
-    impl += 'rlo[t] = result;\n';
-    impl += 'rhi[t] = result >> 31;\n';
+    impl += 'rlo[' + t +'] = ' + value_lo + ';\n';
+    impl += 'rhi[' + t +'] = ' + value_hi + ';\n';
     return generateTrivialOpBoilerplate(impl, ctx);
   }
 
