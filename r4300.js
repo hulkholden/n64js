@@ -1298,9 +1298,9 @@ if (typeof n64js === 'undefined') {
     var s = ctx.instr_rs();
     var t = ctx.instr_rt();
     var impl = '';
-    impl += 'var result = c.gprLo_signed[' + s + '] ' + op + ' c.gprLo_signed[' + t + '];\n';
-    impl += 'c.gprLo_signed[' + d + '] = result;\n';
-    impl += 'c.gprHi_signed[' + d + '] = result >> 31;\n';
+    impl += 'var result = rlo[' + s + '] ' + op + ' rlo[' + t + '];\n';
+    impl += 'rlo[' + d + '] = result;\n';
+    impl += 'rhi[' + d + '] = result >> 31;\n';
     return generateTrivialOpBoilerplate(impl,  ctx);
   }
 
@@ -1309,8 +1309,8 @@ if (typeof n64js === 'undefined') {
     var s = ctx.instr_rs();
     var t = ctx.instr_rt();
     var impl = '';
-    impl += 'c.gprLo_signed[' + d + '] = c.gprLo_signed[' + s + '] ' + op + ' c.gprLo_signed[' + t + '];\n';
-    impl += 'c.gprHi_signed[' + d + '] = c.gprHi_signed[' + s + '] ' + op + ' c.gprHi_signed[' + t + '];\n';
+    impl += 'rlo[' + d + '] = rlo[' + s + '] ' + op + ' rlo[' + t + '];\n';
+    impl += 'rhi[' + d + '] = rhi[' + s + '] ' + op + ' rhi[' + t + '];\n';
     return generateTrivialOpBoilerplate(impl,  ctx);
   }
 
@@ -1648,8 +1648,8 @@ if (typeof n64js === 'undefined') {
     var ra_hi = (ra & 0x80000000) ? -1 : 0;
     var impl  = '';
     impl += 'c.delayPC = ' + n64js.toString32(addr) + ';\n';
-    impl += 'c.gprLo_signed[' + cpu0.kRegister_ra + '] = ' + n64js.toString32(ra) + ';\n';
-    impl += 'c.gprHi_signed[' + cpu0.kRegister_ra + '] = ' + ra_hi + ';\n';
+    impl += 'rlo[' + cpu0.kRegister_ra + '] = ' + n64js.toString32(ra) + ';\n';
+    impl += 'rhi[' + cpu0.kRegister_ra + '] = ' + ra_hi + ';\n';
     return generateBranchOpBoilerplate(impl, ctx, false);
   }
   function executeJAL(i) {
@@ -1666,8 +1666,8 @@ if (typeof n64js === 'undefined') {
     var ra_hi = (ra & 0x80000000) ? -1 : 0;
     var impl  = '';
     impl += 'c.delayPC = c.gprLo[' + s + '];\n';  // NB needs to be unsigned
-    impl += 'c.gprLo_signed[' + d + '] = ' + n64js.toString32(ra) + ';\n';
-    impl += 'c.gprHi_signed[' + d + '] = ' + ra_hi + ';\n';
+    impl += 'rlo[' + d + '] = ' + n64js.toString32(ra) + ';\n';
+    impl += 'rhi[' + d + '] = ' + ra_hi + ';\n';
     return generateBranchOpBoilerplate(impl, ctx, false);
   }
   function executeJALR(i) {
@@ -1701,14 +1701,14 @@ if (typeof n64js === 'undefined') {
       impl += 'c.delayPC = ' + n64js.toString32(addr) + ';\n';
    } else {
       if (t === 0) {
-        impl += 'if (c.gprHi_signed[' + s + '] === 0 &&\n';
-        impl += '    c.gprLo_signed[' + s + '] === 0 ) {\n';
+        impl += 'if (rhi[' + s + '] === 0 &&\n';
+        impl += '    rlo[' + s + '] === 0 ) {\n';
       } else if (s === 0) {
-        impl += 'if (0 === c.gprHi_signed[' + t + '] &&\n';
-        impl += '    0 === c.gprLo_signed[' + t + '] ) {\n';
+        impl += 'if (0 === rhi[' + t + '] &&\n';
+        impl += '    0 === rlo[' + t + '] ) {\n';
       } else {
-        impl += 'if (c.gprHi_signed[' + s + '] === c.gprHi_signed[' + t + '] &&\n';
-        impl += '    c.gprLo_signed[' + s + '] === c.gprLo_signed[' + t + '] ) {\n';
+        impl += 'if (rhi[' + s + '] === rhi[' + t + '] &&\n';
+        impl += '    rlo[' + s + '] === rlo[' + t + '] ) {\n';
       }
       if (off === -1) {
         impl += '  c.speedHack();\n';
@@ -1742,14 +1742,14 @@ if (typeof n64js === 'undefined') {
     var impl = '';
 
     if (t === 0) {
-      impl += 'if (c.gprHi_signed[' + s + '] === 0 &&\n';
-      impl += '    c.gprLo_signed[' + s + '] === 0 ) {\n';
+      impl += 'if (rhi[' + s + '] === 0 &&\n';
+      impl += '    rlo[' + s + '] === 0 ) {\n';
     } else if (s === 0) {
-      impl += 'if (0 === c.gprHi_signed[' + t + '] &&\n';
-      impl += '    0 === c.gprLo_signed[' + t + '] ) {\n';
+      impl += 'if (0 === rhi[' + t + '] &&\n';
+      impl += '    0 === rlo[' + t + '] ) {\n';
     } else {
-      impl += 'if (c.gprHi_signed[' + s + '] === c.gprHi_signed[' + t + '] &&\n';
-      impl += '    c.gprLo_signed[' + s + '] === c.gprLo_signed[' + t + '] ) {\n';
+      impl += 'if (rhi[' + s + '] === rhi[' + t + '] &&\n';
+      impl += '    rlo[' + s + '] === rlo[' + t + '] ) {\n';
     }
     impl += '  c.delayPC = ' + n64js.toString32(addr) + ';\n';
     impl += '} else {\n';
@@ -1780,14 +1780,14 @@ if (typeof n64js === 'undefined') {
     var impl = '';
 
     if (t === 0) {
-      impl += 'if (c.gprHi_signed[' + s + '] !== 0 ||\n';
-      impl += '    c.gprLo_signed[' + s + '] !== 0 ) {\n';
+      impl += 'if (rhi[' + s + '] !== 0 ||\n';
+      impl += '    rlo[' + s + '] !== 0 ) {\n';
     } else if (s === 0) {
-      impl += 'if (0 !== c.gprHi_signed[' + t + '] ||\n';
-      impl += '    0 !== c.gprLo_signed[' + t + '] ) {\n';
+      impl += 'if (0 !== rhi[' + t + '] ||\n';
+      impl += '    0 !== rlo[' + t + '] ) {\n';
     } else {
-      impl += 'if (c.gprHi_signed[' + s + '] !== c.gprHi_signed[' + t + '] ||\n';
-      impl += '    c.gprLo_signed[' + s + '] !== c.gprLo_signed[' + t + '] ) {\n';
+      impl += 'if (rhi[' + s + '] !== rhi[' + t + '] ||\n';
+      impl += '    rlo[' + s + '] !== rlo[' + t + '] ) {\n';
     }
     if (off === -1) {
       impl += '  c.speedHack();\n';
@@ -1818,14 +1818,14 @@ if (typeof n64js === 'undefined') {
     var impl = '';
 
     if (t === 0) {
-      impl += 'if (c.gprHi_signed[' + s + '] !== 0 ||\n';
-      impl += '    c.gprLo_signed[' + s + '] !== 0 ) {\n';
+      impl += 'if (rhi[' + s + '] !== 0 ||\n';
+      impl += '    rlo[' + s + '] !== 0 ) {\n';
     } else if (s === 0) {
-      impl += 'if (0 !== c.gprHi_signed[' + t + '] ||\n';
-      impl += '    0 !== c.gprLo_signed[' + t + '] ) {\n';
+      impl += 'if (0 !== rhi[' + t + '] ||\n';
+      impl += '    0 !== rlo[' + t + '] ) {\n';
     } else {
-      impl += 'if (c.gprHi_signed[' + s + '] !== c.gprHi_signed[' + t + '] ||\n';
-      impl += '    c.gprLo_signed[' + s + '] !== c.gprLo_signed[' + t + '] ) {\n';
+      impl += 'if (rhi[' + s + '] !== rhi[' + t + '] ||\n';
+      impl += '    rlo[' + s + '] !== rlo[' + t + '] ) {\n';
     }
     impl += '  c.delayPC = ' + n64js.toString32(addr) + ';\n';
     impl += '} else {\n';
@@ -1852,8 +1852,8 @@ if (typeof n64js === 'undefined') {
     var addr = branchAddress(ctx.pc, ctx.instruction);
 
     var impl = '';
-    impl += 'if ( c.gprHi_signed[' + s + '] < 0 ||\n';
-    impl += '    (c.gprHi_signed[' + s + '] === 0 && c.gprLo_signed[' + s + '] === 0) ) {\n';
+    impl += 'if ( rhi[' + s + '] < 0 ||\n';
+    impl += '    (rhi[' + s + '] === 0 && rlo[' + s + '] === 0) ) {\n';
     impl += '  c.delayPC = ' + n64js.toString32(addr) + ';\n';
     impl += '}\n';
 
@@ -1884,8 +1884,8 @@ if (typeof n64js === 'undefined') {
     var addr = branchAddress(ctx.pc, ctx.instruction);
 
     var impl = '';
-    impl += 'if ( c.gprHi_signed[' + s + '] >= 0 &&\n';
-    impl += '    (c.gprHi_signed[' + s + '] !== 0 || c.gprLo_signed[' + s + '] !== 0) ) {\n';
+    impl += 'if ( rhi[' + s + '] >= 0 &&\n';
+    impl += '    (rhi[' + s + '] !== 0 || rlo[' + s + '] !== 0) ) {\n';
     impl += '  c.delayPC = ' + n64js.toString32(addr) + ';\n';
     impl += '}\n';
 
@@ -1916,7 +1916,7 @@ if (typeof n64js === 'undefined') {
     var addr = branchAddress(ctx.pc, ctx.instruction);
 
     var impl = '';
-    impl += 'if ( c.gprHi_signed[' + s + '] < 0 ) {\n';
+    impl += 'if ( rhi[' + s + '] < 0 ) {\n';
     impl += '  c.delayPC = ' + n64js.toString32(addr) + ';\n';
     impl += '}\n';
 
@@ -1957,7 +1957,7 @@ if (typeof n64js === 'undefined') {
     var addr = branchAddress(ctx.pc, ctx.instruction);
 
     var impl = '';
-    impl += 'if ( c.gprHi_signed[' + s + '] >= 0 ) {\n';
+    impl += 'if ( rhi[' + s + '] >= 0 ) {\n';
     impl += '  c.delayPC = ' + n64js.toString32(addr) + ';\n';
     impl += '}\n';
 
@@ -1994,9 +1994,9 @@ if (typeof n64js === 'undefined') {
     var s = ctx.instr_rs();
     var t = ctx.instr_rt();
     var impl = '';
-    impl += 'var result = c.gprLo_signed[' + s + '] + ' + imms(ctx.instruction) + ';\n';
-    impl += 'c.gprLo_signed[' + t + '] = result;\n';
-    impl += 'c.gprHi_signed[' + t + '] = result >> 31;\n';
+    impl += 'var result = rlo[' + s + '] + ' + imms(ctx.instruction) + ';\n';
+    impl += 'rlo[' + t + '] = result;\n';
+    impl += 'rhi[' + t + '] = result >> 31;\n';
     return generateTrivialOpBoilerplate(impl, ctx);
   }
 
@@ -2012,9 +2012,9 @@ if (typeof n64js === 'undefined') {
     var s = ctx.instr_rs();
     var t = ctx.instr_rt();
     var impl = '';
-    impl += 'var result = c.gprLo_signed[' + s + '] + ' + imms(ctx.instruction) + ';\n';
-    impl += 'c.gprLo_signed[' + t + '] = result;\n';
-    impl += 'c.gprHi_signed[' + t + '] = result >> 31;\n';
+    impl += 'var result = rlo[' + s + '] + ' + imms(ctx.instruction) + ';\n';
+    impl += 'rlo[' + t + '] = result;\n';
+    impl += 'rhi[' + t + '] = result >> 31;\n';
     return generateTrivialOpBoilerplate(impl, ctx);
   }
 
@@ -2046,12 +2046,12 @@ if (typeof n64js === 'undefined') {
     var imm_unsigned = immediate >>> 0;
 
     var impl = '';
-    impl += 'if (cpu0.gprHi_signed[' + s + '] === ' + imm_hi + ') {\n';
-    impl += '  cpu0.gprLo[' + t + '] = (cpu0.gprLo[' + s  +'] < ' + imm_unsigned + ') ? 1 : 0;\n';
+    impl += 'if (rhi[' + s + '] === ' + imm_hi + ') {\n';
+    impl += '  c.gprLo[' + t + '] = (c.gprLo[' + s  +'] < ' + imm_unsigned + ') ? 1 : 0;\n';
     impl += '} else {\n';
-    impl += '  cpu0.gprLo[' + t + '] = (cpu0.gprHi_signed[' + s + '] < ' + imm_hi + ') ? 1 : 0;\n';
+    impl += '  c.gprLo[' + t + '] = (rhi[' + s + '] < ' + imm_hi + ') ? 1 : 0;\n';
     impl += '}\n';
-    impl += 'cpu0.gprHi[' + t + '] = 0;\n';
+    impl += 'c.gprHi[' + t + '] = 0;\n';
 
     return generateTrivialOpBoilerplate(impl, ctx);
   }
@@ -2082,12 +2082,12 @@ if (typeof n64js === 'undefined') {
     var imm_unsigned = immediate >>> 0;
 
     var impl = '';
-    impl += 'if (cpu0.gprHi_signed[' + s + '] === ' + imm_hi + ') {\n';
-    impl += '  cpu0.gprLo[' + t + '] = (cpu0.gprLo[' + s  +'] < ' + imm_unsigned + ') ? 1 : 0;\n';
+    impl += 'if (rhi[' + s + '] === ' + imm_hi + ') {\n';
+    impl += '  c.gprLo[' + t + '] = (c.gprLo[' + s  +'] < ' + imm_unsigned + ') ? 1 : 0;\n';
     impl += '} else {\n';
-    impl += '  cpu0.gprLo[' + t + '] = ((cpu0.gprHi_signed[' + s + ']>>>0) < (' + (imm_hi>>>0) + ')) ? 1 : 0;\n';
+    impl += '  c.gprLo[' + t + '] = ((rhi[' + s + ']>>>0) < (' + (imm_hi>>>0) + ')) ? 1 : 0;\n';
     impl += '}\n';
-    impl += 'cpu0.gprHi[' + t + '] = 0;\n';
+    impl += 'c.gprHi[' + t + '] = 0;\n';
 
     return generateTrivialOpBoilerplate(impl, ctx);
   }
@@ -2114,8 +2114,8 @@ if (typeof n64js === 'undefined') {
     var s = ctx.instr_rs();
     var t = ctx.instr_rt();
     var impl = '';
-    impl += 'c.gprLo_signed[' + t + '] = c.gprLo_signed[' + s + '] & ' + imm(ctx.instruction) + ';\n';
-    impl += 'c.gprHi_signed[' + t + '] = 0;\n';
+    impl += 'rlo[' + t + '] = rlo[' + s + '] & ' + imm(ctx.instruction) + ';\n';
+    impl += 'rhi[' + t + '] = 0;\n';
     return generateTrivialOpBoilerplate(impl, ctx);
   }
 
@@ -2132,9 +2132,9 @@ if (typeof n64js === 'undefined') {
     var s = ctx.instr_rs();
     var t = ctx.instr_rt();
     var impl = '';
-    impl += 'c.gprLo_signed[' + t + '] = c.gprLo_signed[' + s + '] | ' + imm(ctx.instruction) + ';\n';
+    impl += 'rlo[' + t + '] = rlo[' + s + '] | ' + imm(ctx.instruction) + ';\n';
     if (s !== t)
-      impl += 'c.gprHi_signed[' + t + '] = c.gprHi_signed[' + s + '];\n';
+      impl += 'rhi[' + t + '] = rhi[' + s + '];\n';
     return generateTrivialOpBoilerplate(impl, ctx);
   }
 
@@ -2150,9 +2150,9 @@ if (typeof n64js === 'undefined') {
     var s = ctx.instr_rs();
     var t = ctx.instr_rt();
     var impl = '';
-    impl += 'c.gprLo_signed[' + t + '] = c.gprLo_signed[' + s + '] ^ ' + imm(ctx.instruction) + ';\n';
+    impl += 'rlo[' + t + '] = rlo[' + s + '] ^ ' + imm(ctx.instruction) + ';\n';
     if (s !== t)
-      impl += 'c.gprHi_signed[' + t + '] = c.gprHi_signed[' + s + '];\n';
+      impl += 'rhi[' + t + '] = rhi[' + s + '];\n';
     return generateTrivialOpBoilerplate(impl, ctx);
   }
 
@@ -2170,8 +2170,8 @@ if (typeof n64js === 'undefined') {
     var impl = '';
     impl += 'var t = ' + ctx.instr_rt() + ';\n';
     impl += 'var result = ' + (imms(ctx.instruction) << 16) + ';\n';
-    impl += 'c.gprLo_signed[t] = result;\n';
-    impl += 'c.gprHi_signed[t] = result >> 31;\n';
+    impl += 'rlo[t] = result;\n';
+    impl += 'rhi[t] = result >> 31;\n';
     return generateTrivialOpBoilerplate(impl, ctx);
   }
 
@@ -3193,8 +3193,8 @@ if (typeof n64js === 'undefined') {
     var impl = '';
     impl += 'var value;\n';
     impl += generateMemoryAccess(b, o, 'value = ' + fast_handler + '(ram, addr);', 'value = ' + slow_handler + '(addr);');
-    impl += 'c.gprLo_signed[' + t + '] = value;\n';
-    impl += 'c.gprHi_signed[' + t + '] = 0;\n';
+    impl += 'rlo[' + t + '] = value;\n';
+    impl += 'rhi[' + t + '] = 0;\n';
 
     return generateGenericOpBoilerplate(impl, ctx);
   }
@@ -3210,8 +3210,8 @@ if (typeof n64js === 'undefined') {
     var impl = '';
     impl += 'var value;\n';
     impl += generateMemoryAccess(b, o, 'value = ' + fast_handler + '(ram, addr);', 'value = ' + slow_handler + '(addr);');
-    impl += 'c.gprLo_signed[' + t + '] = value;\n';
-    impl += 'c.gprHi_signed[' + t + '] = value >> 31;\n';
+    impl += 'rlo[' + t + '] = value;\n';
+    impl += 'rhi[' + t + '] = value >> 31;\n';
 
     return generateGenericOpBoilerplate(impl, ctx);
   }
@@ -3233,12 +3233,12 @@ if (typeof n64js === 'undefined') {
     var impl = '';
     impl += generateMemoryAccess(b, o,
       // fast
-      'c.gprLo_signed[' + t + '] = lw_ram(ram, addr + 4);' +
-      'c.gprHi_signed[' + t + '] = lw_ram(ram, addr);',
+      'rlo[' + t + '] = lw_ram(ram, addr + 4);' +
+      'rhi[' + t + '] = lw_ram(ram, addr);',
 
       // slow
-      'c.gprLo_signed[' + t + '] = n64js.readMemoryS32(addr + 4);' +
-      'c.gprHi_signed[' + t + '] = n64js.readMemoryS32(addr);'
+      'rlo[' + t + '] = n64js.readMemoryS32(addr + 4);' +
+      'rhi[' + t + '] = n64js.readMemoryS32(addr);'
     );
     return generateGenericOpBoilerplate(impl, ctx);
   }
@@ -3309,7 +3309,7 @@ if (typeof n64js === 'undefined') {
 
     var impl = '';
     if (t !== 0) {
-      impl += 'var value = c.gprLo_signed[' + t + '];\n';
+      impl += 'var value = rlo[' + t + '];\n';
     } else {
       impl += 'var value = 0;\n';
     }
@@ -3328,8 +3328,8 @@ if (typeof n64js === 'undefined') {
     var o = ctx.instr_imms();
 
     var impl = '';
-    impl += 'var value_lo = c.gprLo_signed[' + t + '];\n';
-    impl += 'var value_hi = c.gprHi_signed[' + t + '];\n';
+    impl += 'var value_lo = rlo[' + t + '];\n';
+    impl += 'var value_hi = rhi[' + t + '];\n';
     impl += generateMemoryAccess(b, o,
       'sd_ram(ram, addr, value_lo, value_hi);',
       'n64js.writeMemory32(addr, value_hi); n64js.writeMemory32(addr + 4, value_lo);'
@@ -3501,7 +3501,7 @@ if (typeof n64js === 'undefined') {
             evt = cpu0.events[0];
             if (evt.countdown >= fragment.opsCompiled*COUNTER_INCREMENT_PER_OP) {
               fragment.executionCount++;
-              var ops_executed = fragment.func(cpu0, ram);   // Absolute value is number of ops executed.
+              var ops_executed = fragment.func(cpu0, cpu0.gprLo_signed, cpu0.gprHi_signed, ram);   // Absolute value is number of ops executed.
 
               // refresh latest event - may have changed
               evt = cpu0.events[0];
@@ -3574,7 +3574,7 @@ if (typeof n64js === 'undefined') {
 
                 var code = '';
 
-                code += '(function fragment_' + n64js.toString32(fragment.entryPC) + '_' + fragment.opsCompiled + '(c, ram) {\n';
+                code += '(function fragment_' + n64js.toString32(fragment.entryPC) + '_' + fragment.opsCompiled + '(c, rlo, rhi, ram) {\n';
                 //code += 'if (cpu0.pc>>>0 != ' + n64js.toString32(fragment.entryPC) + ') n64js.halt("entrypc mismatch - " + cpu0.pc + " !== ' + n64js.toString32(fragment.entryPC) + '");\n';
 
                 code += fragment.global_code;
@@ -3782,14 +3782,14 @@ if (typeof n64js === 'undefined') {
     } else {
       var op_fn_name = 'op_' + n64js.toString32(ctx.pc) + '_' + n64js.toString32(ctx.instruction);
 
-      var code = 'function ' + op_fn_name + '(c,ram) {\n';
+      var code = 'function ' + op_fn_name + '(c,rlo,rhi,ram) {\n';
       //code += 'if (c.pc !== ' + n64js.toString32(entry_pc) + ') n64js.halt("pc mismatch - " + n64js.toString32(c.pc) + " !== ' + n64js.toString32(entry_pc) + '");\n';
       code += fn_code;
       code += 'return 0;\n';
       code += '};\n\n';   // End the enclosing function
 
       ctx.fragment.global_code += code;
-      ctx.fragment.body_code += 'if (' + op_fn_name + '(c,ram)) return ' + ctx.fragment.opsCompiled + ';\n';
+      ctx.fragment.body_code += 'if (' + op_fn_name + '(c,rlo,rhi,ram)) return ' + ctx.fragment.opsCompiled + ';\n';
     }
   }
 
