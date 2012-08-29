@@ -907,32 +907,9 @@ if (typeof n64js === 'undefined') {
     return (v&0xffffffff)>>>0;
   }
 
+  //
   // Memory access routines.
-  function lwu_ram(ram,a) { return  ((ram[a+0] << 24) | (ram[a+1] << 16) | (ram[a+2] << 8) | ram[a+3])>>>0; }
-  function lhu_ram(ram,a) { return   (ram[a+0] <<  8) | (ram[a+1]      ); }
-  function lbu_ram(ram,a) { return    ram[a+0]; }
-
-  function lw_ram(ram,a)  { return  ((ram[a+0] << 24) | (ram[a+1] << 16) | (ram[a+2] << 8) | ram[a+3]) | 0; }
-  function lh_ram(ram,a)  { return  ((ram[a+0] << 24) | (ram[a+1] << 16)                             ) >> 16; }
-  function lb_ram(ram,a)  { return  ((ram[a+0] << 24)                                                ) >> 24; }
-
-  function sd_ram(ram,a,vlo,vhi) {
-    sw_ram(ram, a  , vhi);
-    sw_ram(ram, a+4, vlo);
- }
-  function sw_ram(ram,a,v) {
-    ram[a+0] = v >> 24;
-    ram[a+1] = v >> 16;
-    ram[a+2] = v >>  8;
-    ram[a+3] = v;
-  }
-  function sh_ram(ram,a,v) {
-    ram[a  ] = v >> 8;
-    ram[a+1] = v;
- }
-  function sb_ram(ram,a,v) {
-    ram[a] = v;
-  }
+  //
 
   // These are out of line so that the >>>0 doesn't cause a shift-i deopt in the body of the calling function
   function lwu_slow(addr)       { return n64js.readMemoryU32(addr>>>0); }
@@ -946,6 +923,86 @@ if (typeof n64js === 'undefined') {
   function sw_slow(addr, value) { n64js.writeMemory32(addr>>>0, value); }
   function sh_slow(addr, value) { n64js.writeMemory16(addr>>>0, value); }
   function sb_slow(addr, value) { n64js.writeMemory8( addr>>>0, value); }
+
+
+  function load_u8(ram, addr) {
+    if (addr < -2139095040) {
+      var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
+      return ram[phys];
+    }
+    return lbu_slow(addr);
+  }
+
+  function load_s8(ram, addr) {
+    if (addr < -2139095040) {
+      var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
+      return (ram[phys] << 24) >> 24;
+    }
+    return lb_slow(addr);
+  }
+
+  function load_u16(ram, addr) {
+    if (addr < -2139095040) {
+      var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
+      return (ram[phys] << 8) | ram[phys+1];
+    }
+    return lhu_slow(addr);
+  }
+
+  function load_s16(ram, addr) {
+    if (addr < -2139095040) {
+      var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
+      return ((ram[phys] << 24) | (ram[phys+1] << 16)) >> 16;
+    }
+    return lh_slow(addr);
+  }
+
+  function load_u32(ram, addr) {
+    if (addr < -2139095040) {
+      var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
+      return ((ram[phys] << 24) | (ram[phys+1] << 16) | (ram[phys+2] << 8) | ram[phys+3]) >>> 0;
+    }
+    return lw_slow(addr);
+  }
+
+  function load_s32(ram, addr) {
+    if (addr < -2139095040) {
+      var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
+      return ((ram[phys] << 24) | (ram[phys+1] << 16) | (ram[phys+2] << 8) | ram[phys+3]) | 0;
+    }
+    return lw_slow(addr);
+  }
+
+  function store_8(ram, addr, value) {
+    if (addr < -2139095040) {
+      var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
+      ram[phys] = value;
+    } else {
+      sb_slow(addr, value);
+    }
+  }
+
+  function store_16(ram, addr, value) {
+    if (addr < -2139095040) {
+      var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
+      ram[phys  ] = value >> 8;
+      ram[phys+1] = value;
+    } else {
+      sh_slow(addr, value);
+    }
+  }
+
+  function store_32(ram, addr, value) {
+    if (addr < -2139095040) {
+      var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
+      ram[phys+0] = value >> 24;
+      ram[phys+1] = value >> 16;
+      ram[phys+2] = value >>  8;
+      ram[phys+3] = value;
+    } else {
+      sw_slow(addr, value);
+    }
+  }
 
 
   function unimplemented(pc,i) {
@@ -2177,92 +2234,113 @@ if (typeof n64js === 'undefined') {
 
   function executeLUI(i) {
     var t = rt(i);
-    var result = imms(i) << 16;
-    cpu0.gprLo_signed[t] = result;
-    cpu0.gprHi_signed[t] = result >> 31;
+    var value = imms(i) << 16;
+    cpu0.gprLo_signed[t] = value;
+    cpu0.gprHi_signed[t] = value >> 31;
   }
 
 
 
+  function generateLB(ctx) {
+    var t = ctx.instr_rt();
+    var b = ctx.instr_base();
+    var o = ctx.instr_imms();
 
+    var impl = '';
+    impl += 'var value = load_s8(ram, rlo[' + b + '] + ' + o + ');\n';
+    impl += 'rlo[' + t + '] = value;\n';
+    impl += 'rhi[' + t + '] = value >> 31;\n';
 
+    return generateGenericOpBoilerplate(impl, ctx);
+  }
   function executeLB(i) {
     var t = rt(i);
     var b = base(i);
     var o = imms(i);
 
-    var addr         = cpu0.gprLo_signed[b] + o;
-    var ram_relative = (addr < -2139095040) ? ((addr + 0x80000000) | 0) : -1;
-
-    var result;
-    if (ram_relative >= 0) {
-      result = lb_ram(cpu0.ram, ram_relative);
-    } else {
-      result = lb_slow(addr);
-    }
-
-    cpu0.gprLo_signed[t] = result;
-    cpu0.gprHi_signed[t] = result >> 31;
+    var value = load_s8(cpu0.ram, cpu0.gprLo_signed[b] + o);
+    cpu0.gprLo_signed[t] = value;
+    cpu0.gprHi_signed[t] = value >> 31;
   }
 
+  function generateLBU(ctx) {
+    var t = ctx.instr_rt();
+    var b = ctx.instr_base();
+    var o = ctx.instr_imms();
+
+    var impl = '';
+    impl += 'rlo[' + t + '] = load_u8(ram, rlo[' + b + '] + ' + o + ');\n';
+    impl += 'rhi[' + t + '] = 0;\n';
+
+    return generateGenericOpBoilerplate(impl, ctx);
+  }
   function executeLBU(i) {
     var t = rt(i);
     var b = base(i);
     var o = imms(i);
 
-    var addr         = cpu0.gprLo_signed[b] + o;
-    var ram_relative = (addr < -2139095040) ? ((addr + 0x80000000) | 0) : -1;
-
-    var result;
-    if (ram_relative >= 0) {
-      result = lbu_ram(cpu0.ram, ram_relative);
-    } else {
-      result = lbu_slow(addr);
-    }
-
-    cpu0.gprLo_signed[t] = result;
+    cpu0.gprLo_signed[t] = load_u8(cpu0.ram, cpu0.gprLo_signed[b] + o);
     cpu0.gprHi_signed[t] = 0;
   }
 
+  function generateLH(ctx) {
+    var t = ctx.instr_rt();
+    var b = ctx.instr_base();
+    var o = ctx.instr_imms();
+
+    var impl = '';
+    impl += 'var value = load_s16(ram, rlo[' + b + '] + ' + o + ');\n';
+    impl += 'rlo[' + t + '] = value;\n';
+    impl += 'rhi[' + t + '] = value >> 31;\n';
+
+    return generateGenericOpBoilerplate(impl, ctx);
+  }
   function executeLH(i) {
     var t = rt(i);
     var b = base(i);
     var o = imms(i);
 
-    var addr         = cpu0.gprLo_signed[b] + o;
-    var ram_relative = (addr < -2139095040) ? ((addr + 0x80000000) | 0) : -1;
-
-    var result;
-    if (ram_relative >= 0) {
-      result = lh_ram(cpu0.ram, ram_relative);
-    } else {
-      result = lh_slow(addr);
-    }
-
-    cpu0.gprLo_signed[t] = result;
-    cpu0.gprHi_signed[t] = result >> 31;
+    var value = load_s16(cpu0.ram, cpu0.gprLo_signed[b] + o);
+    cpu0.gprLo_signed[t] = value;
+    cpu0.gprHi_signed[t] = value >> 31;
   }
 
+  function generateLHU(ctx) {
+    var t = ctx.instr_rt();
+    var b = ctx.instr_base();
+    var o = ctx.instr_imms();
+
+    var impl = '';
+    impl += 'rlo[' + t + '] = load_u16(ram, rlo[' + b + '] + ' + o + ');\n';
+    impl += 'rhi[' + t + '] = 0;\n';
+
+    return generateGenericOpBoilerplate(impl, ctx);
+  }
   function executeLHU(i) {
     var t = rt(i);
     var b = base(i);
     var o = imms(i);
 
-    var addr         = cpu0.gprLo_signed[b] + o;
-    var ram_relative = (addr < -2139095040) ? ((addr + 0x80000000) | 0) : -1;
-
-    var result;
-    if (ram_relative >= 0) {
-      result = lhu_ram(cpu0.ram, ram_relative);
-    } else {
-      result = lhu_slow(addr);
-    }
-
-    cpu0.gprLo_signed[t] = result;
+    cpu0.gprLo_signed[t] = load_u16(cpu0.ram, cpu0.gprLo_signed[b] + o);
     cpu0.gprHi_signed[t] = 0;
   }
 
 
+  function generateLW(ctx) {
+    var t = ctx.instr_rt();
+    var b = ctx.instr_base();
+    var o = ctx.instr_imms();
+    // SF2049 requires this, apparently
+    if (t === 0)
+      return generateNOPBoilerplate('/*load to r0!*/', ctx);
+
+    var impl = '';
+    impl += 'var value = load_s32(ram, rlo[' + b + '] + ' + o + ');\n';
+    impl += 'rlo[' + t + '] = value;\n';
+    impl += 'rhi[' + t + '] = value >> 31;\n';
+
+    return generateGenericOpBoilerplate(impl, ctx);
+  }
   function executeLW(i) {
     var t = rt(i);
     var b = base(i);
@@ -2272,37 +2350,48 @@ if (typeof n64js === 'undefined') {
     if (t === 0)
       return;
 
-    var addr         = cpu0.gprLo_signed[b] + o;
-    var ram_relative = (addr < -2139095040) ? ((addr + 0x80000000) | 0) : -1;
-
-    var result;
-    if (ram_relative >= 0) {
-      result = lw_ram(cpu0.ram, ram_relative);
-    } else {
-      result = lw_slow(addr);
-    }
-
-    cpu0.gprLo_signed[t] = result;
-    cpu0.gprHi_signed[t] = result >> 31;
+    var value = load_s32(cpu0.ram, cpu0.gprLo_signed[b] + o);
+    cpu0.gprLo_signed[t] = value;
+    cpu0.gprHi_signed[t] = value >> 31;
   }
 
+  function generateLWU(ctx) {
+    var t = ctx.instr_rt();
+    var b = ctx.instr_base();
+    var o = ctx.instr_imms();
+
+    var impl = '';
+    impl += 'rlo[' + t + '] = load_u32(ram, rlo[' + b + '] + ' + o + ');\n';
+    impl += 'rhi[' + t + '] = 0;\n';
+
+    return generateGenericOpBoilerplate(impl, ctx);
+  }
   function executeLWU(i) {
     var t = rt(i);
     var b = base(i);
     var o = imms(i);
 
-    var addr         = cpu0.gprLo_signed[b] + o;
-    var ram_relative = (addr < -2139095040) ? ((addr + 0x80000000) | 0) : -1;
-
-    var result;
-    if (ram_relative >= 0) {
-      result = lwu_ram(cpu0.ram, ram_relative);
-    } else {
-      result = lwu_slow(addr);
-    }
-
-    cpu0.gprLo_signed[t] = result;
+    cpu0.gprLo_signed[t] = load_u32(cpu0.ram, cpu0.gprLo_signed[b] + o);
     cpu0.gprHi_signed[t] = 0;
+  }
+
+
+  function generateLD(ctx) {
+    var t = ctx.instr_rt();
+    var b = ctx.instr_base();
+    var o = ctx.instr_imms();
+
+    var impl = '';
+    impl += 'var addr = c.gprLo[' + b + '] + ' + o + ';\n';
+    impl += 'if (addr < -2139095040) {\n';
+    impl += '  var phys = (addr + 0x80000000) | 0;\n';
+    impl += '  rhi[' + t + '] = ((ram[phys  ] << 24) | (ram[phys+1] << 16) | (ram[phys+2] << 8) | ram[phys+3]);\n';
+    impl += '  rlo[' + t + '] = ((ram[phys+4] << 24) | (ram[phys+5] << 16) | (ram[phys+6] << 8) | ram[phys+7]);\n';
+    impl += '} else {\n';
+    impl += '  rhi[' + t + '] = lw_slow(addr);\n';
+    impl += '  rlo[' + t + '] = lw_slow(addr + 4);\n';
+    impl += '}\n';
+    return generateGenericOpBoilerplate(impl, ctx);
   }
 
   function executeLD(i) {
@@ -2310,17 +2399,28 @@ if (typeof n64js === 'undefined') {
     var b = base(i);
     var o = imms(i);
 
-    var addr         = cpu0.gprLo_signed[b] + o;
-    var ram_relative = (addr < -2139095040) ? ((addr + 0x80000000) | 0) : -1;
-
-    var result;
-    if (ram_relative >= 0) {
-      cpu0.gprLo_signed[t] = lwu_ram(cpu0.ram, ram_relative + 4);
-      cpu0.gprHi_signed[t] = lwu_ram(cpu0.ram, ram_relative + 0);
+    var addr = cpu0.gprLo_signed[b] + o;
+    if (addr < -2139095040) {
+      var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
+      var ram = cpu0.ram;
+      cpu0.gprHi_signed[t] = ((ram[phys  ] << 24) | (ram[phys+1] << 16) | (ram[phys+2] << 8) | ram[phys+3]) | 0;
+      cpu0.gprLo_signed[t] = ((ram[phys+4] << 24) | (ram[phys+5] << 16) | (ram[phys+6] << 8) | ram[phys+7]) | 0;
     } else {
-      cpu0.gprLo_signed[t] = lwu_slow(addr + 4);
-      cpu0.gprHi_signed[t] = lwu_slow(addr + 0);
+      cpu0.gprHi_signed[t] = lw_slow(addr);
+      cpu0.gprLo_signed[t] = lw_slow(addr + 4);
     }
+  }
+
+  function generateLWC1(ctx) {
+    var t = ctx.instr_ft();
+    var b = ctx.instr_base();
+    var o = ctx.instr_imms();
+
+    var impl = '';
+    impl += 'var value = load_s32(ram, rlo[' + b + '] + ' + o + ');\n';
+    impl += 'cpu1.store_s32(' + t + ', value);\n';
+
+    return generateGenericOpBoilerplate(impl, ctx);
   }
 
   // FIXME: needs to check Cop1Enabled - thanks Salvy!
@@ -2329,17 +2429,30 @@ if (typeof n64js === 'undefined') {
     var b = base(i);
     var o = imms(i);
 
-    var addr         = cpu0.gprLo_signed[b] + o;
-    var ram_relative = (addr < -2139095040) ? ((addr + 0x80000000) | 0) : -1;
+    var value = load_s32(cpu0.ram, cpu0.gprLo_signed[b] + o);
+    cpu1.store_s32( t, value );
+  }
 
-    var result;
-    if (ram_relative >= 0) {
-      result = lw_ram(cpu0.ram, ram_relative);
-    } else {
-      result = lw_slow(addr);
-    }
+  function generateLDC1(ctx){
+    var t = ctx.instr_ft();
+    var b = ctx.instr_base();
+    var o = ctx.instr_imms();
 
-    cpu1.store_s32( t, result );
+    var impl = '';
+    impl += 'var value_lo;\n';
+    impl += 'var value_hi;\n';
+    impl += 'var addr = c.gprLo[' + b + '] + ' + o + ';\n';
+    impl += 'if (addr < -2139095040) {\n';
+    impl += '  var phys = (addr + 0x80000000) | 0;\n';
+    impl += '  value_hi = ((ram[phys  ] << 24) | (ram[phys+1] << 16) | (ram[phys+2] << 8) | ram[phys+3]) | 0;\n'; // FIXME: |0 needed?
+    impl += '  value_lo = ((ram[phys+4] << 24) | (ram[phys+5] << 16) | (ram[phys+6] << 8) | ram[phys+7]) | 0;\n';
+    impl += '} else {\n';
+    impl += '  value_hi = lw_slow(addr);\n';
+    impl += '  value_lo = lw_slow(addr + 4);\n';
+    impl += '}\n';
+    impl += 'cpu1.store_64(' + t + ', value_lo, value_hi);\n';
+
+    return generateGenericOpBoilerplate(impl, ctx);
   }
 
   // FIXME: needs to check Cop1Enabled - thanks Salvy!
@@ -2348,21 +2461,20 @@ if (typeof n64js === 'undefined') {
     var b = base(i);
     var o = imms(i);
 
-    var addr         = cpu0.gprLo_signed[b] + o;
-    var ram_relative = (addr < -2139095040) ? ((addr + 0x80000000) | 0) : -1;
-
-    var result_lo;
-    var result_hi;
-
-    if (ram_relative >= 0) {
-      result_lo = lw_ram(cpu0.ram, ram_relative + 4);
-      result_hi = lw_ram(cpu0.ram, ram_relative + 0);
+    var addr = cpu0.gprLo_signed[b] + o;
+    var value_lo;
+    var value_hi;
+    if (addr < -2139095040) {
+      var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
+      var ram = cpu0.ram;
+      value_hi = ((ram[phys  ] << 24) | (ram[phys+1] << 16) | (ram[phys+2] << 8) | ram[phys+3]) | 0;
+      value_lo = ((ram[phys+4] << 24) | (ram[phys+5] << 16) | (ram[phys+6] << 8) | ram[phys+7]) | 0;
     } else {
-      result_lo = lw_slow(addr + 4);
-      result_hi = lw_slow(addr + 0);
+      value_hi = lw_slow(addr);
+      value_lo = lw_slow(addr + 4);
     }
 
-    cpu1.store_64( t, result_lo, result_hi );
+    cpu1.store_64( t, value_lo, value_hi );
   }
 
   function executeLDC2(i)       { unimplemented(cpu0.pc,i); }
@@ -2403,69 +2515,104 @@ if (typeof n64js === 'undefined') {
   function executeLDR(i)        { unimplemented(cpu0.pc,i); }
 
 
+
+
+  function generateSB(ctx) {
+    var t = ctx.instr_rt();
+    var b = ctx.instr_base();
+    var o = ctx.instr_imms();
+
+    var impl = '';
+    if (t !== 0) {
+      impl += 'store_8(ram, rlo[' + b + '] + ' + o + ', rlo[' + t + ']);\n';
+    } else {
+      impl += 'store_8(ram, rlo[' + b + '] + ' + o + ', 0);\n';
+    }
+    return generateGenericOpBoilerplate(impl, ctx);
+  }
   function executeSB(i) {
     var t = rt(i);
     var b = base(i);
     var o = imms(i);
 
-    var value = cpu0.gprLo_signed[t] & 0xff;
+    store_8(cpu0.ram, cpu0.gprLo_signed[b] + o, cpu0.gprLo_signed[t] /*& 0xff*/);
+  }
 
-    var addr = cpu0.gprLo_signed[b] + o;
-    var ram_relative = (addr < -2139095040) ? ((addr + 0x80000000) | 0) : -1;
-    if (ram_relative >= 0) {
-      sb_ram(cpu0.ram, ram_relative, value);
+  function generateSH(ctx) {
+    var t = ctx.instr_rt();
+    var b = ctx.instr_base();
+    var o = ctx.instr_imms();
+
+    var impl = '';
+    if (t !== 0) {
+      impl += 'store_16(ram, rlo[' + b + '] + ' + o + ', rlo[' + t + ']);\n';
     } else {
-      sb_slow(addr, value);
+      impl += 'store_16(ram, rlo[' + b + '] + ' + o + ', 0);\n';
     }
+    return generateGenericOpBoilerplate(impl, ctx);
   }
   function executeSH(i) {
     var t = rt(i);
     var b = base(i);
     var o = imms(i);
 
-    var value = cpu0.gprLo_signed[t] & 0xffff;
-
-    var addr = cpu0.gprLo_signed[b] + o;
-    var ram_relative = (addr < -2139095040) ? ((addr + 0x80000000) | 0) : -1;
-    if (ram_relative >= 0) {
-      sh_ram(cpu0.ram, ram_relative, value);
-    } else {
-      sh_slow(addr, value);
-    }
+    store_16(cpu0.ram, cpu0.gprLo_signed[b] + o, cpu0.gprLo_signed[t] /*& 0xffff*/);
   }
 
+  function generateSW(ctx) {
+    var t = ctx.instr_rt();
+    var b = ctx.instr_base();
+    var o = ctx.instr_imms();
+
+    var impl = '';
+    if (t !== 0) {
+      impl += 'store_32(ram, rlo[' + b + '] + ' + o + ', rlo[' + t + ']);\n';
+    } else {
+      impl += 'store_32(ram, rlo[' + b + '] + ' + o + ', 0);\n';
+    }
+    return generateGenericOpBoilerplate(impl, ctx);
+  }
   function executeSW(i) {
     var t = rt(i);
     var b = base(i);
     var o = imms(i);
 
-    var value = cpu0.gprLo_signed[t];
+    store_32(cpu0.ram, cpu0.gprLo_signed[b] + o, cpu0.gprLo_signed[t]);
+  }
 
-    var addr = cpu0.gprLo_signed[b] + o;
-    var ram_relative = (addr < -2139095040) ? ((addr + 0x80000000) | 0) : -1;
-    if (ram_relative >= 0) {
-      sw_ram(cpu0.ram, ram_relative, value);
-    } else {
-      sw_slow(addr, value);
-    }
+
+  function generateSD(ctx) {
+    var t = ctx.instr_rt();
+    var b = ctx.instr_base();
+    var o = ctx.instr_imms();
+
+    var impl = '';
+    impl += 'var addr = rlo[' + b + '] + ' + o + ';\n';
+    impl += 'store_32(ram, addr,     rhi[' + t + ']);\n';
+    impl += 'store_32(ram, addr + 4, rlo[' + t + ']);\n';
+
+    return generateGenericOpBoilerplate(impl, ctx);
   }
   function executeSD(i) {
     var t = rt(i);
     var b = base(i);
     var o = imms(i);
 
-    var value_lo = cpu0.gprLo_signed[t];
-    var value_hi = cpu0.gprHi_signed[t];
-
     var addr = cpu0.gprLo_signed[b] + o;
-    var ram_relative = (addr < -2139095040) ? ((addr + 0x80000000) | 0) : -1;
-    if (ram_relative >= 0) {
-      sw_ram(cpu0.ram, ram_relative + 4, value_lo);
-      sw_ram(cpu0.ram, ram_relative + 0, value_hi);
-    } else {
-      sw_slow(addr + 4, value_lo);
-      sw_slow(addr + 0, value_hi);
-    }
+    store_32(cpu0.ram, addr,     cpu0.gprHi_signed[t]);
+    store_32(cpu0.ram, addr + 4, cpu0.gprLo_signed[t]);
+  }
+
+
+  function generateSWC1(ctx) {
+    var t = ctx.instr_ft();
+    var b = ctx.instr_base();
+    var o = ctx.instr_imms();
+
+    // FIXME: can avoid cpuStuffToDo if we're writing to ram
+    var impl = '';
+    impl += 'store_32(ram, rlo[' + b + '] + ' + o + ', cpu1.load_s32(' + t + '));\n';
+    return generateGenericOpBoilerplate(impl, ctx);
   }
 
   // FIXME: needs to check Cop1Enabled - thanks Salvy!
@@ -2474,15 +2621,21 @@ if (typeof n64js === 'undefined') {
     var b = base(i);
     var o = imms(i);
 
-    var value = cpu1.load_s32( t );
+    store_32(cpu0.ram, cpu0.gprLo_signed[b] + o, cpu1.load_s32( t ));
+  }
 
-    var addr = cpu0.gprLo_signed[b] + o;
-    var ram_relative = (addr < -2139095040) ? ((addr + 0x80000000) | 0) : -1;
-    if (ram_relative >= 0) {
-      sw_ram(cpu0.ram, ram_relative, value);
-    } else {
-      sw_slow(addr, value);
-    }
+
+  function generateSDC1(ctx) {
+    var t = ctx.instr_ft();
+    var b = ctx.instr_base();
+    var o = ctx.instr_imms();
+
+    // FIXME: can avoid cpuStuffToDo if we're writing to ram
+    var impl = '';
+    impl += 'var addr = rlo[' + b + '] + ' + o + ';\n';
+    impl += 'store_32(ram, addr,     cpu1.load_s32hi(' + t + '));\n';
+    impl += 'store_32(ram, addr + 4, cpu1.load_s32(' + t + '));\n';
+    return generateGenericOpBoilerplate(impl, ctx);
   }
 
   // FIXME: needs to check Cop1Enabled - thanks Salvy!
@@ -2491,18 +2644,10 @@ if (typeof n64js === 'undefined') {
     var b = base(i);
     var o = imms(i);
 
-    var value_lo = cpu1.load_s32( t );
-    var value_hi = cpu1.load_s32hi( t );
-
+    // FIXME: this can do a single check that the address is in ram
     var addr = cpu0.gprLo_signed[b] + o;
-    var ram_relative = (addr < -2139095040) ? ((addr + 0x80000000) | 0) : -1;
-    if (ram_relative >= 0) {
-      sw_ram(cpu0.ram, ram_relative + 4, value_lo);
-      sw_ram(cpu0.ram, ram_relative + 0, value_hi);
-    } else {
-      sw_slow(addr + 4, value_lo);
-      sw_slow(addr + 0, value_hi);
-    }
+    store_32(cpu0.ram, addr,     cpu1.load_s32hi( t ));
+    store_32(cpu0.ram, addr + 4, cpu1.load_s32( t ));
   }
 
   function executeSDC2(i)       { unimplemented(cpu0.pc,i); }
@@ -3159,184 +3304,6 @@ if (typeof n64js === 'undefined') {
   FragmentContext.prototype.instr_imms   = function () { return imms(this.instruction); }
 
 
-  function calcRAMAddress(c, b, o) {
-    var addr = c.gprLo_signed[b] + o;
-    //if (addr >= -2147483648 && addr < -2139095040)
-    if (addr < -2139095040)
-      return (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
-    return -1;
-  }
-
-  function generateMemoryAccess(b, o, fast, slow) {
-    var impl = '';
-    impl += 'var addr = calcRAMAddress(c, ' + b + ',' + o + ');\n';
-    impl += 'if (addr >= 0) {\n';   // NB: just check for positive result - handles the upper bound
-    impl += '  ' + fast + '\n';
-    impl += '} else {\n';
-    impl += '  addr = c.gprLo[' + b + '] + ' + o + ';\n';
-    impl += '  ' + slow + '\n';
-    impl += '}\n';
-    return impl;
-  }
-
-  function generateLoadUnsigned(ctx, fast_handler, slow_handler) {
-    var t = ctx.instr_rt();
-    var b = ctx.instr_base();
-    var o = ctx.instr_imms();
-
-    // SF2049 requires this, apparently
-    if (t === 0)
-      return generateNOPBoilerplate('/*load to r0!*/', ctx);
-
-    var impl = '';
-    impl += 'var value;\n';
-    impl += generateMemoryAccess(b, o, 'value = ' + fast_handler + '(ram, addr);', 'value = ' + slow_handler + '(addr);');
-    impl += 'rlo[' + t + '] = value;\n';
-    impl += 'rhi[' + t + '] = 0;\n';
-
-    return generateGenericOpBoilerplate(impl, ctx);
-  }
-
-  function generateLoadSigned(ctx, fast_handler, slow_handler) {
-    var t = ctx.instr_rt();
-    var b = ctx.instr_base();
-    var o = ctx.instr_imms();
-    // SF2049 requires this, apparently
-    if (t === 0)
-      return generateNOPBoilerplate('/*load to r0!*/', ctx);
-
-    var impl = '';
-    impl += 'var value;\n';
-    impl += generateMemoryAccess(b, o, 'value = ' + fast_handler + '(ram, addr);', 'value = ' + slow_handler + '(addr);');
-    impl += 'rlo[' + t + '] = value;\n';
-    impl += 'rhi[' + t + '] = value >> 31;\n';
-
-    return generateGenericOpBoilerplate(impl, ctx);
-  }
-
-
-  function generateLBU(ctx) { return generateLoadUnsigned(ctx, 'lbu_ram', 'n64js.readMemoryU8'); }
-  function generateLHU(ctx) { return generateLoadUnsigned(ctx, 'lhu_ram', 'n64js.readMemoryU16'); }
-  function generateLWU(ctx) { return generateLoadUnsigned(ctx, 'lwu_ram', 'n64js.readMemoryU32'); }
-
-  function generateLB(ctx) { return generateLoadSigned(ctx, 'lb_ram', 'n64js.readMemoryS8'); }
-  function generateLH(ctx) { return generateLoadSigned(ctx, 'lh_ram', 'n64js.readMemoryS16'); }
-  function generateLW(ctx) { return generateLoadSigned(ctx, 'lw_ram', 'n64js.readMemoryS32'); }
-
-  function generateLD(ctx) {
-    var t = ctx.instr_rt();
-    var b = ctx.instr_base();
-    var o = ctx.instr_imms();
-
-    var impl = '';
-    impl += generateMemoryAccess(b, o,
-      // fast
-      'rlo[' + t + '] = lw_ram(ram, addr + 4);' +
-      'rhi[' + t + '] = lw_ram(ram, addr);',
-
-      // slow
-      'rlo[' + t + '] = n64js.readMemoryS32(addr + 4);' +
-      'rhi[' + t + '] = n64js.readMemoryS32(addr);'
-    );
-    return generateGenericOpBoilerplate(impl, ctx);
-  }
-
-  function generateLWC1(ctx) {
-    var t = ctx.instr_ft();
-    var b = ctx.instr_base();
-    var o = ctx.instr_imms();
-
-    var impl = '';
-    impl += 'var value;\n';
-    impl += generateMemoryAccess(b, o, 'value = lw_ram(ram, addr);', 'value = n64js.readMemoryS32(addr);');
-    impl += 'cpu1.store_s32(' + t + ', value);\n';
-
-    return generateGenericOpBoilerplate(impl, ctx);
-  }
-
-  function generateLDC1(ctx){
-    var t = ctx.instr_ft();
-    var b = ctx.instr_base();
-    var o = ctx.instr_imms();
-
-    var impl = '';
-    impl += 'var value_lo;\n';
-    impl += 'var value_hi;\n';
-    impl += generateMemoryAccess(b, o,
-      'value_lo = lw_ram(ram, addr+4); value_hi = lw_ram(ram, addr);',
-      'value_lo = n64js.readMemoryS32(addr+4); value_hi = n64js.readMemoryS32(addr);'
-    );
-    impl += 'cpu1.store_64(' + t + ', value_lo, value_hi);\n';
-
-    return generateGenericOpBoilerplate(impl, ctx);
-  }
-
-
-  function generateSWC1(ctx) {
-    var t = ctx.instr_ft();
-    var b = ctx.instr_base();
-    var o = ctx.instr_imms();
-
-    // FIXME: can avoid cpuStuffToDo if we're writing to ram
-    var impl = '';
-    impl += 'var value = cpu1.load_s32(' + t + ');\n';
-    impl += generateMemoryAccess(b, o, 'sw_ram(ram, addr, value);', 'n64js.writeMemory32(addr, value);');
-    return generateGenericOpBoilerplate(impl, ctx);
-  }
-  function generateSDC1(ctx) {
-    var t = ctx.instr_ft();
-    var b = ctx.instr_base();
-    var o = ctx.instr_imms();
-
-    // FIXME: can avoid cpuStuffToDo if we're writing to ram
-    var impl = '';
-    impl += 'var value_lo = cpu1.load_s32(' + t + ');\n';
-    impl += 'var value_hi = cpu1.load_s32hi(' + t + ');\n';
-    impl += generateMemoryAccess(b, o,
-      'sd_ram(ram, addr, value_lo, value_hi);',
-      'n64js.writeMemory32(addr, value_hi); n64js.writeMemory32(addr + 4, value_lo);'
-    );
-    return generateGenericOpBoilerplate(impl, ctx);
-  }
-
-  function generateStore(ctx, fast_handler, slow_handler) {
-    var t = ctx.instr_rt();
-    var b = ctx.instr_base();
-    var o = ctx.instr_imms();
-    //var impl = 'n64js.writeMemory32(cpu0.gprLo[' + b + '] + ' + o + ', cpu0.gprLo_signed[' + t + ']);';
-
-    var impl = '';
-    if (t !== 0) {
-      impl += 'var value = rlo[' + t + '];\n';
-    } else {
-      impl += 'var value = 0;\n';
-    }
-    // FIXME: can avoid cpuStuffToDo if we're writing to ram
-    impl += generateMemoryAccess(b, o, fast_handler + '(ram, addr, value);', slow_handler + '(addr, value);');
-    return generateGenericOpBoilerplate(impl, ctx);
-  }
-
-  function generateSW(ctx) { return generateStore(ctx, 'sw_ram', 'n64js.writeMemory32'); }
-  function generateSH(ctx) { return generateStore(ctx, 'sh_ram', 'n64js.writeMemory16'); }
-  function generateSB(ctx) { return generateStore(ctx, 'sb_ram', 'n64js.writeMemory8'); }
-
-  function generateSD(ctx) {
-    var t = ctx.instr_rt();
-    var b = ctx.instr_base();
-    var o = ctx.instr_imms();
-
-    var impl = '';
-    impl += 'var value_lo = rlo[' + t + '];\n';
-    impl += 'var value_hi = rhi[' + t + '];\n';
-    impl += generateMemoryAccess(b, o,
-      'sd_ram(ram, addr, value_lo, value_hi);',
-      'n64js.writeMemory32(addr, value_hi); n64js.writeMemory32(addr + 4, value_lo);'
-    );
-
-    return generateGenericOpBoilerplate(impl, ctx);
-  }
-
-
 
   function checkCauseIP3Consistent() {
     var mi_interrupt_set = n64js.miInterruptsUnmasked();
@@ -3535,11 +3502,11 @@ if (typeof n64js === 'undefined') {
             if (cpu0.delayPC) { cpu0.nextPC = cpu0.delayPC; } else { cpu0.nextPC = cpu0.pc + 4; }
 
             // NB: load instruction using normal memory access routines - this means that we throw a tlb miss/refill approptiately
+            //var instruction = load_s32(ram, pc);
             var instruction;
-            var addr = pc|0;
-            var ram_relative = (addr < -2139095040) ? ((addr + 0x80000000) | 0) : -1;
-            if (ram_relative >= 0) {
-              instruction = lw_ram(ram, ram_relative);
+            if (pc < -2139095040) {
+              var phys = (pc + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
+              instruction = ((ram[phys] << 24) | (ram[phys+1] << 16) | (ram[phys+2] << 8) | ram[phys+3]) | 0;
             } else {
               instruction = lw_slow(pc);
             }
