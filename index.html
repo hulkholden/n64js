@@ -282,6 +282,9 @@
         vec4 tex1  = tex0;  // FIXME
         vec4 col;
         vec4 combined = vec4(0,0,0,1);
+        float lod_frac      = 0.0;    // FIXME
+        float prim_lod_frac = 0.0;    // FIXME
+        float k5            = 0.0;    // FIXME
         {{body}}
         gl_FragColor = col;
       }

@@ -2710,6 +2710,7 @@ if (typeof n64js === 'undefined') {
     } else {
       var val = computeMicrocodeHash(ram, code_base, code_size);
       switch (val) {
+        case 0xd73a12c4: ucode = kUCode_GBI0;     break;  // Fish demo
         case 0xf4c3491b: ucode = kUCode_GBI0;     break;  // Super Mario 64
         case 0x313f038b: ucode = kUCode_GBI0;     break;  // PilotWings
         case 0x64cc729d: ucode = kUCode_GBI0_WR;  break;
@@ -3066,8 +3067,8 @@ if (typeof n64js === 'undefined') {
     'one.rgb',      'combined.a',
     'tex0.a',       'tex1.a',
     'prim.a',       'shade.a',
-    'env.a',        'LOD_Frac',
-    'PrimLODFrac ', 'K5          ',
+    'env.a',        'lod_frac',
+    'prim_lod_frac','k5',
     '?           ', '?           ',
     '?           ', '?           ',
     '?           ', '?           ',
@@ -3084,8 +3085,8 @@ if (typeof n64js === 'undefined') {
     'one.rgb',      'combined.a',
     'tex0.a',       'tex1.a',
     'prim.a',       'shade.a',
-    'env.a',        'LOD_Frac',
-    'PrimLOD_Frac', 'zero.rgb'
+    'env.a',        'lod_frac',
+    'prim_lod_frac', 'zero.rgb'
   ];
   var rgbParams8 = [
     'combined.rgb', 'tex0.rgb',
