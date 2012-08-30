@@ -3217,9 +3217,13 @@ if (typeof n64js === 'undefined') {
 
   var textures = {};
   function loadTexture(info) {
+    var cache_id = info.address.toString();
+    if (info.format === imageFormatTypes.G_IM_FMT_CI)
+      cache_id += ' ' + info.palette;
+
     // FIXME: need to check other properties, and recreate every frame (or when underlying data changes)
-    if (textures.hasOwnProperty(info.address))
-      return textures[info.address];
+    if (textures.hasOwnProperty(cache_id))
+      return textures[cache_id];
 
     var width   = info.width;
     var height  = info.height;
@@ -3244,7 +3248,7 @@ if (typeof n64js === 'undefined') {
       'nativeHeight': fixed_h
     };
 
-    textures[info.address] = textureinfo;
+    textures[cache_id] = textureinfo;
 
     $textureOutput.append(n64js.toString32(info.address) + ', ' +
       getDefine(imageFormatTypes, info.format) + ', ' +
