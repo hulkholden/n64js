@@ -3878,7 +3878,7 @@ if (typeof n64js === 'undefined') {
   }
 
   function generateNOPBoilerplate(comment, ctx) {
-    return generateTrivialOpBoilerplate(comment,ctx);
+    return generateTrivialOpBoilerplate(comment + '\n',ctx);
   }
 
 
