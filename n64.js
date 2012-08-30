@@ -772,7 +772,7 @@ if (typeof n64js === 'undefined') {
     }
 
     fragments_list.sort(function (a,b) {
-      return b.executionCount - a.executionCount;
+      return b.opsCompiled*b.executionCount - a.opsCompiled*a.executionCount;
     });
 
     var $t = $('<div />');
