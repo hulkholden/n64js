@@ -2510,7 +2510,7 @@ if (typeof n64js === 'undefined') {
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
 
-  function copyBackBufferToFrontBuffer() {
+  function copyBackBufferToFrontBuffer(texture) {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
     var vertices = [
@@ -2543,7 +2543,7 @@ if (typeof n64js === 'undefined') {
 
     // uSampler
     gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, frameBufferTexture);
+    gl.bindTexture(gl.TEXTURE_2D, texture);
     gl.uniform1i(blit_uSampler, 0);
 
     gl.disable(gl.CULL_FACE);
@@ -2647,16 +2647,41 @@ if (typeof n64js === 'undefined') {
   var last_ucode_str = '';
   var num_display_lists_since_present = 0;
 
-  n64js.presentBackBuffer = function (origin) {
+  n64js.presentBackBuffer = function (ram, origin) {
+    var texture;
 
-    // NB: if no display lists executed, interpret framebuffer as bytes?
-    if (num_display_lists_since_present > 0) {
-      //n64js.log('new origin: ' + n64js.toString32(origin));
-      copyBackBufferToFrontBuffer();
+    // NB: if no display lists executed, interpret framebuffer as bytes
+    if (num_display_lists_since_present == 0) {
+      //n64js.log('new origin: ' + n64js.toString32(origin) + ' but no display lists rendered to skipping');
+
+      origin = (origin & ~0x80000001) | 0;  // NB: clear top bit (make address physical). Clear bottom bit (sometimes odd valued addresses are passed through)
+
+      var width = 320;
+      var height = 240;
+      var pixels = new Uint16Array(width*height);   // TODO: should cache this, but at some point we'll need to deal with variable framebuffer size, so do this later.
+
+      var src_offset = 0;
+
+      for (var y = 0; y < height; ++y) {
+        var dst_row_offset = (height-1-y) * width;
+        var dst_offset     = dst_row_offset;
+
+        for (var x = 0; x < width; ++x) {
+          pixels[dst_offset] = (ram[origin + src_offset]<<8) | ram[origin + src_offset+  1] | 1;  // NB: or 1 to ensure we have alpha
+          dst_offset += 1;
+          src_offset += 2;
+        }
+      }
+
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, frameBufferTexture2D);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_SHORT_5_5_5_1, pixels);
+      texture = frameBufferTexture2D;
     } else {
-      n64js.log('new origin: ' + n64js.toString32(origin) + ' but no display lists rendered to skipping');
+      texture = frameBufferTexture3D;
     }
 
+    copyBackBufferToFrontBuffer(texture);
     num_display_lists_since_present = 0;
   }
 
@@ -2953,7 +2978,8 @@ if (typeof n64js === 'undefined') {
   }
 
   var frameBuffer;
-  var frameBufferTexture;
+  var frameBufferTexture3D;   // For roms using display lists
+  var frameBufferTexture2D;   // For roms writing directly to the frame buffer
 
   //
   // Called when the canvas is created to get the ball rolling.
@@ -2967,28 +2993,33 @@ if (typeof n64js === 'undefined') {
     // Only continue if WebGL is available and working
 
     if (gl) {
+      frameBufferTexture2D = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, frameBufferTexture2D);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      // We call texImage2D to initialise frameBufferTexture2D when it's used
+
       frameBuffer = gl.createFramebuffer();
       gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
       frameBuffer.width = 640;
       frameBuffer.height = 480;
 
-      frameBufferTexture = gl.createTexture();
-      gl.bindTexture(gl.TEXTURE_2D, frameBufferTexture);
-      // gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-      // gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
+      frameBufferTexture3D = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, frameBufferTexture3D);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-
-      //gl.generateMipmap(gl.TEXTURE_2D);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, frameBuffer.width, frameBuffer.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+
 
       var renderbuffer = gl.createRenderbuffer();
       gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer);
       gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, frameBuffer.width, frameBuffer.height);
 
-      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, frameBufferTexture, 0);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, frameBufferTexture3D, 0);
       gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, renderbuffer);
 
       gl.clearColor(0.0, 0.0, 0.0, 1.0);  // Clear to black, fully opaque

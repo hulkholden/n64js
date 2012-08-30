@@ -1647,7 +1647,7 @@ if (typeof n64js === 'undefined') {
           var last_origin = this.mem.readU32(ea);
           var new_origin = value>>>0;
           if (new_origin !== last_origin) {
-            n64js.presentBackBuffer(new_origin);
+            n64js.presentBackBuffer(n64js.getRamU8Array(), new_origin);
             n64js.returnControlToSystem();
           }
           this.mem.write32(ea, value);
