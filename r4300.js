@@ -861,10 +861,7 @@ if (typeof n64js === 'undefined') {
 
   function setSignExtend(r,v) {
     cpu0.gprLo[r] = v;
-    if (v & 0x80000000)
-      cpu0.gprHi_signed[r] = -1;
-    else
-      cpu0.gprHi_signed[r] = 0;
+    cpu0.gprHi_signed[r] = v >> 31;
   }
 
   function setZeroExtend(r, v) {
@@ -873,14 +870,11 @@ if (typeof n64js === 'undefined') {
   }
 
   function setHiLoSignExtend(arr, v) {
-    arr[0] = v; //(v&0xffffffff) >>> 0; -- is this necessary?
-    if (v & 0x80000000)
-      arr[1] = 0xffffffff;
-    else
-      arr[1] = 0;
+    arr[0] = v;
+    arr[1] = v >> 31;
   }
   function setHiLoZeroExtend(arr, v) {
-    arr[0] = v; //(v&0xffffffff) >>> 0; -- is this necessary?
+    arr[0] = v;
     arr[1] = 0;
   }
 
