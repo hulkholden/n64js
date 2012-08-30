@@ -803,15 +803,6 @@ if (typeof n64js === 'undefined') {
       this.int32[i+1] = hi;
     }
 
-    this.load_s32 = function (i) {
-      return this.int32[i];
-    }
-    this.load_s32hi = function (i) {
-      return this.int32[i+1];
-    }
-    this.load_f32 = function (i) {
-      return this.float32[i];
-    }
     this.load_f64 = function (i) {
       return this.float64[i>>1];
     }
@@ -819,12 +810,6 @@ if (typeof n64js === 'undefined') {
         return (this.int32[i+1] * k1Shift32) + this.int32[i];
     }
 
-    this.store_s32 = function (i, v) {
-      this.int32[i] = v;
-    }
-    this.store_f32 = function (i, v) {
-      this.float32[i] = v;
-    }
     this.store_f64 = function (i, v) {
       this.float64[i>>1] = v;
     }
@@ -2417,10 +2402,7 @@ if (typeof n64js === 'undefined') {
     var b = ctx.instr_base();
     var o = ctx.instr_imms();
 
-    var impl = '';
-    impl += 'var value = load_s32(ram, rlo[' + b + '] + ' + o + ');\n';
-    impl += 'cpu1.store_s32(' + t + ', value);\n';
-
+    var impl = 'cpu1.int32[' + t + '] = load_s32(ram, rlo[' + b + '] + ' + o + ');\n';
     return generateGenericOpBoilerplate(impl, ctx);
   }
 
@@ -2430,8 +2412,7 @@ if (typeof n64js === 'undefined') {
     var b = base(i);
     var o = imms(i);
 
-    var value = load_s32(cpu0.ram, cpu0.gprLo_signed[b] + o);
-    cpu1.store_s32( t, value );
+    cpu1.int32[t] = load_s32(cpu0.ram, cpu0.gprLo_signed[b] + o);
   }
 
   function generateLDC1(ctx){
@@ -2612,7 +2593,7 @@ if (typeof n64js === 'undefined') {
 
     // FIXME: can avoid cpuStuffToDo if we're writing to ram
     var impl = '';
-    impl += 'store_32(ram, rlo[' + b + '] + ' + o + ', cpu1.load_s32(' + t + '));\n';
+    impl += 'store_32(ram, rlo[' + b + '] + ' + o + ', cpu1.int32[' + t + ']);\n';
     return generateGenericOpBoilerplate(impl, ctx);
   }
 
@@ -2622,7 +2603,7 @@ if (typeof n64js === 'undefined') {
     var b = base(i);
     var o = imms(i);
 
-    store_32(cpu0.ram, cpu0.gprLo_signed[b] + o, cpu1.load_s32( t ));
+    store_32(cpu0.ram, cpu0.gprLo_signed[b] + o, cpu1.int32[t]);
   }
 
 
@@ -2631,11 +2612,13 @@ if (typeof n64js === 'undefined') {
     var b = ctx.instr_base();
     var o = ctx.instr_imms();
 
+    var hi = t+1;
+
     // FIXME: can avoid cpuStuffToDo if we're writing to ram
     var impl = '';
     impl += 'var addr = rlo[' + b + '] + ' + o + ';\n';
-    impl += 'store_32(ram, addr,     cpu1.load_s32hi(' + t + '));\n';
-    impl += 'store_32(ram, addr + 4, cpu1.load_s32(' + t + '));\n';
+    impl += 'store_32(ram, addr,     cpu1.int32[' + hi + ']);\n';
+    impl += 'store_32(ram, addr + 4, cpu1.int32[' + t + ']);\n';
     return generateGenericOpBoilerplate(impl, ctx);
   }
 
@@ -2647,8 +2630,8 @@ if (typeof n64js === 'undefined') {
 
     // FIXME: this can do a single check that the address is in ram
     var addr = cpu0.gprLo_signed[b] + o;
-    store_32(cpu0.ram, addr,     cpu1.load_s32hi( t ));
-    store_32(cpu0.ram, addr + 4, cpu1.load_s32( t ));
+    store_32(cpu0.ram, addr,     cpu1.int32[t+1]);
+    store_32(cpu0.ram, addr + 4, cpu1.int32[t  ]);
   }
 
   function executeSDC2(i)       { unimplemented(cpu0.pc,i); }
@@ -2725,19 +2708,19 @@ if (typeof n64js === 'undefined') {
   function executeMFC1(i) {
     var t = rt(i);
     var s = fs(i);
-    var result = cpu1.load_s32( s );
+    var result = cpu1.int32[s];
     cpu0.gprLo_signed[t] = result;
     cpu0.gprHi_signed[t] = result >> 31;
   }
   function executeDMFC1(i) {
     var t = rt(i);
     var s = fs(i);
-    cpu0.gprLo_signed[t] = cpu1.load_s32( s );
-    cpu0.gprHi_signed[t] = cpu1.load_s32hi( s );
+    cpu0.gprLo_signed[t] = cpu1.int32[s];
+    cpu0.gprHi_signed[t] = cpu1.int32[s+1];
     n64js.halt('DMFC1');
   }
   function executeMTC1(i) {
-    cpu1.store_s32( fs(i), cpu0.gprLo_signed[rt(i)] );
+    cpu1.int32[fs(i)] = cpu0.gprLo_signed[rt(i)];
   }
   function executeDMTC1(i) {
     var t = rt(i);
@@ -2858,32 +2841,32 @@ if (typeof n64js === 'undefined') {
 
     if (op < 0x30) {
       switch(cop1_func(i)) {
-        case 0x00:    cpu1.store_f32( d, cpu1.load_f32( s ) + cpu1.load_f32( t ) ); return;
-        case 0x01:    cpu1.store_f32( d, cpu1.load_f32( s ) - cpu1.load_f32( t ) ); return;
-        case 0x02:    cpu1.store_f32( d, cpu1.load_f32( s ) * cpu1.load_f32( t ) ); return;
-        case 0x03:    cpu1.store_f32( d, cpu1.load_f32( s ) / cpu1.load_f32( t ) ); return;
-        case 0x04:    cpu1.store_f32( d, Math.sqrt( cpu1.load_f32( s ) ) ); return;
-        case 0x05:    cpu1.store_f32( d, Math.abs(  cpu1.load_f32( s ) ) ); return;
-        case 0x06:    cpu1.store_f32( d,  cpu1.load_f32( s ) ); return;
-        case 0x07:    cpu1.store_f32( d, -cpu1.load_f32( s )  ); return;
+        case 0x00:    cpu1.float32[d] = cpu1.float32[s] + cpu1.float32[t]; return;
+        case 0x01:    cpu1.float32[d] = cpu1.float32[s] - cpu1.float32[t]; return;
+        case 0x02:    cpu1.float32[d] = cpu1.float32[s] * cpu1.float32[t]; return;
+        case 0x03:    cpu1.float32[d] = cpu1.float32[s] / cpu1.float32[t]; return;
+        case 0x04:    cpu1.float32[d] = Math.sqrt( cpu1.float32[s] ); return;
+        case 0x05:    cpu1.float32[d] = Math.abs(  cpu1.float32[s] ); return;
+        case 0x06:    cpu1.float32[d] =  cpu1.float32[s]; return;
+        case 0x07:    cpu1.float32[d] = -cpu1.float32[s]; return;
         case 0x08:    /* 'ROUND.L.'*/     unimplemented(cpu0.pc,i); return;
         case 0x09:    /* 'TRUNC.L.'*/     unimplemented(cpu0.pc,i); return;
         case 0x0a:    /* 'CEIL.L.'*/      unimplemented(cpu0.pc,i); return;
         case 0x0b:    /* 'FLOOR.L.'*/     unimplemented(cpu0.pc,i); return;
-        case 0x0c:    /* 'ROUND.W.'*/     cpu1.store_s32( d, Math.round( cpu1.load_f32( s ) ) ); return;  // TODO: check this
-        case 0x0d:    /* 'TRUNC.W.'*/     cpu1.store_s32( d,      trunc( cpu1.load_f32( s ) ) ); return;
-        case 0x0e:    /* 'CEIL.W.'*/      cpu1.store_s32( d, Math.ceil(  cpu1.load_f32( s ) ) ); return;
-        case 0x0f:    /* 'FLOOR.W.'*/     cpu1.store_s32( d, Math.floor( cpu1.load_f32( s ) ) ); return;
+        case 0x0c:    /* 'ROUND.W.'*/     cpu1.int32[d] = Math.round( cpu1.float32[s] )|0; return;  // TODO: check this
+        case 0x0d:    /* 'TRUNC.W.'*/     cpu1.int32[d] =      trunc( cpu1.float32[s] )|0; return;
+        case 0x0e:    /* 'CEIL.W.'*/      cpu1.int32[d] = Math.ceil(  cpu1.float32[s] )|0; return;
+        case 0x0f:    /* 'FLOOR.W.'*/     cpu1.int32[d] = Math.floor( cpu1.float32[s] )|0; return;
 
         case 0x20:    /* 'CVT.S' */       unimplemented(cpu0.pc,i); return;
-        case 0x21:    /* 'CVT.D' */       cpu1.store_f64( d, cpu1.load_f32( s ) ); return;
-        case 0x24:    /* 'CVT.W' */       cpu1.store_s32( d, Math.floor( cpu1.load_f32( s ) ) ); return;  // FIXME: apply correct conversion mode
+        case 0x21:    /* 'CVT.D' */       cpu1.store_f64( d, cpu1.float32[s] ); return;
+        case 0x24:    /* 'CVT.W' */       cpu1.int32[d] = Math.floor( cpu1.float32[s] )|0; return;  // FIXME: apply correct conversion mode
         case 0x25:    /* 'CVT.L' */       unimplemented(cpu0.pc,i); return;
       }
       unimplemented(cpu0.pc,i);
     } else {
-      var _s = cpu1.load_f32( s );
-      var _t = cpu1.load_f32( t );
+      var _s = cpu1.float32[s];
+      var _t = cpu1.float32[t];
 
       var c = false;
       if (isNaN(_s+_t)) {
@@ -2921,13 +2904,13 @@ if (typeof n64js === 'undefined') {
       case 0x09:    /* 'TRUNC.L.'*/     break;
       case 0x0a:    /* 'CEIL.L.'*/      break;
       case 0x0b:    /* 'FLOOR.L.'*/     break;
-      case 0x0c:    /* 'ROUND.W.'*/     return 'cpu1.store_s32( ' + d + ', Math.round( cpu1.load_f64( ' + s + ' ) ) );\n';  // TODO: check this
-      case 0x0d:    /* 'TRUNC.W.'*/     return 'cpu1.store_s32( ' + d + ',      trunc( cpu1.load_f64( ' + s + ' ) ) );\n';
-      case 0x0e:    /* 'CEIL.W.'*/      return 'cpu1.store_s32( ' + d + ', Math.ceil(  cpu1.load_f64( ' + s + ' ) ) );\n';
-      case 0x0f:    /* 'FLOOR.W.'*/     return 'cpu1.store_s32( ' + d + ', Math.floor( cpu1.load_f64( ' + s + ' ) ) );\n';
-      case 0x20:    /* 'CVT.S' */       return 'cpu1.store_f32( ' + d + ', cpu1.load_f64( ' + s + ' ) );\n';
+      case 0x0c:    /* 'ROUND.W.'*/     return 'cpu1.int32[' + d + '] = Math.round( cpu1.load_f64( ' + s + ' ) ) | 0;\n';  // TODO: check this
+      case 0x0d:    /* 'TRUNC.W.'*/     return 'cpu1.int32[' + d + '] =      trunc( cpu1.load_f64( ' + s + ' ) ) | 0;\n';
+      case 0x0e:    /* 'CEIL.W.'*/      return 'cpu1.int32[' + d + '] = Math.ceil(  cpu1.load_f64( ' + s + ' ) ) | 0;\n';
+      case 0x0f:    /* 'FLOOR.W.'*/     return 'cpu1.int32[' + d + '] = Math.floor( cpu1.load_f64( ' + s + ' ) ) | 0;\n';
+      case 0x20:    /* 'CVT.S' */       return 'cpu1.float32[' + d + '] = cpu1.load_f64( ' + s + ' );\n';
       case 0x21:    /* 'CVT.D' */       break;
-      case 0x24:    /* 'CVT.W' */       return 'cpu1.store_s32( ' + d + ', Math.floor( cpu1.load_f64( ' + s + ' ) ) );\n';  // FIXME: apply correct conversion mode
+      case 0x24:    /* 'CVT.W' */       return 'cpu1.int32[' + d + '] = Math.floor( cpu1.load_f64( ' + s + ' ) ) | 0;\n';  // FIXME: apply correct conversion mode
       case 0x25:    /* 'CVT.L' */       break;
       case 0x30:    /* 'C.F' */         return 'cpu1.control[31] &= ~FPCSR_C;\n';
       case 0x31:    /* 'C.UN' */        break;
@@ -2972,14 +2955,14 @@ if (typeof n64js === 'undefined') {
         case 0x09:    /* 'TRUNC.L.'*/     unimplemented(cpu0.pc,i); return;
         case 0x0a:    /* 'CEIL.L.'*/      unimplemented(cpu0.pc,i); return;
         case 0x0b:    /* 'FLOOR.L.'*/     unimplemented(cpu0.pc,i); return;
-        case 0x0c:    /* 'ROUND.W.'*/     cpu1.store_s32( d, Math.round( cpu1.load_f64( s ) ) ); return;  // TODO: check this
-        case 0x0d:    /* 'TRUNC.W.'*/     cpu1.store_s32( d,      trunc( cpu1.load_f64( s ) ) ); return;
-        case 0x0e:    /* 'CEIL.W.'*/      cpu1.store_s32( d, Math.ceil(  cpu1.load_f64( s ) ) ); return;
-        case 0x0f:    /* 'FLOOR.W.'*/     cpu1.store_s32( d, Math.floor( cpu1.load_f64( s ) ) ); return;
+        case 0x0c:    /* 'ROUND.W.'*/     cpu1.int32[d] = Math.round( cpu1.load_f64( s ) ) | 0; return;  // TODO: check this
+        case 0x0d:    /* 'TRUNC.W.'*/     cpu1.int32[d] =      trunc( cpu1.load_f64( s ) ) | 0; return;
+        case 0x0e:    /* 'CEIL.W.'*/      cpu1.int32[d] = Math.ceil(  cpu1.load_f64( s ) ) | 0; return;
+        case 0x0f:    /* 'FLOOR.W.'*/     cpu1.int32[d] = Math.floor( cpu1.load_f64( s ) ) | 0; return;
 
-        case 0x20:    /* 'CVT.S' */       cpu1.store_f32( d, cpu1.load_f64( s ) ); return;
+        case 0x20:    /* 'CVT.S' */       cpu1.float32[d] = cpu1.load_f64( s ); return;
         case 0x21:    /* 'CVT.D' */       unimplemented(cpu0.pc,i); return;
-        case 0x24:    /* 'CVT.W' */       cpu1.store_s32( d, Math.floor( cpu1.load_f64( s ) ) ); return;  // FIXME: apply correct conversion mode
+        case 0x24:    /* 'CVT.W' */       cpu1.int32[d] = Math.floor( cpu1.load_f64( s ) ) | 0; return;  // FIXME: apply correct conversion mode
 
         case 0x25:    /* 'CVT.L' */       unimplemented(cpu0.pc,i); return;
       }
@@ -3005,14 +2988,14 @@ if (typeof n64js === 'undefined') {
 
   function executeWInstr(i) {
     switch(cop1_func(i)) {
-      case 0x20:    cpu1.store_f32( fd(i), cpu1.load_s32( fs(i) ) ); return;
-      case 0x21:    cpu1.store_f64( fd(i), cpu1.load_s32( fs(i) ) ); return;
+      case 0x20:    cpu1.float32[fd(i)] = cpu1.int32[fs(i)]; return;
+      case 0x21:    cpu1.store_f64( fd(i), cpu1.int32[fs(i)] ); return;
     }
     unimplemented(cpu0.pc,i);
   }
   function executeLInstr(i) {
     switch(cop1_func(i)) {
-      //case 0x20:    cpu1.store_f32( fd(i), cpu1.load_s64( fs(i) ) ); return;
+      //case 0x20:    cpu1.float32[fd(i)] = cpu1.load_s64( fs(i) ); return;
       case 0x21:     /* 'CVT.D' */ cpu1.store_f64( fd(i), cpu1.load_s64_as_double( fs(i) ) ); return;
     }
     unimplemented(cpu0.pc,i);
