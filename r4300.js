@@ -2241,7 +2241,7 @@ if (typeof n64js === 'undefined') {
     var o = ctx.instr_imms();
 
     var impl = '';
-    impl += 'var value = load_s8(ram, rlo[' + b + '] + ' + o + ');\n';
+    impl += 'var value = load_s8(ram, ' + genSrcRegLo(b) + ' + ' + o + ');\n';
     impl += 'rlo[' + t + '] = value;\n';
     impl += 'rhi[' + t + '] = value >> 31;\n';
 
@@ -2263,7 +2263,7 @@ if (typeof n64js === 'undefined') {
     var o = ctx.instr_imms();
 
     var impl = '';
-    impl += 'rlo[' + t + '] = load_u8(ram, rlo[' + b + '] + ' + o + ');\n';
+    impl += 'rlo[' + t + '] = load_u8(ram, ' + genSrcRegLo(b) + ' + ' + o + ');\n';
     impl += 'rhi[' + t + '] = 0;\n';
 
     return generateGenericOpBoilerplate(impl, ctx);
@@ -2283,7 +2283,7 @@ if (typeof n64js === 'undefined') {
     var o = ctx.instr_imms();
 
     var impl = '';
-    impl += 'var value = load_s16(ram, rlo[' + b + '] + ' + o + ');\n';
+    impl += 'var value = load_s16(ram, ' + genSrcRegLo(b) + ' + ' + o + ');\n';
     impl += 'rlo[' + t + '] = value;\n';
     impl += 'rhi[' + t + '] = value >> 31;\n';
 
@@ -2305,7 +2305,7 @@ if (typeof n64js === 'undefined') {
     var o = ctx.instr_imms();
 
     var impl = '';
-    impl += 'rlo[' + t + '] = load_u16(ram, rlo[' + b + '] + ' + o + ');\n';
+    impl += 'rlo[' + t + '] = load_u16(ram, ' + genSrcRegLo(b) + ' + ' + o + ');\n';
     impl += 'rhi[' + t + '] = 0;\n';
 
     return generateGenericOpBoilerplate(impl, ctx);
@@ -2329,7 +2329,7 @@ if (typeof n64js === 'undefined') {
       return generateNOPBoilerplate('/*load to r0!*/', ctx);
 
     var impl = '';
-    impl += 'var value = load_s32(ram, rlo[' + b + '] + ' + o + ');\n';
+    impl += 'var value = load_s32(ram, ' + genSrcRegLo(b) + ' + ' + o + ');\n';
     impl += 'rlo[' + t + '] = value;\n';
     impl += 'rhi[' + t + '] = value >> 31;\n';
 
@@ -2355,7 +2355,7 @@ if (typeof n64js === 'undefined') {
     var o = ctx.instr_imms();
 
     var impl = '';
-    impl += 'rlo[' + t + '] = load_u32(ram, rlo[' + b + '] + ' + o + ');\n';
+    impl += 'rlo[' + t + '] = load_u32(ram, ' + genSrcRegLo(b) + ' + ' + o + ');\n';
     impl += 'rhi[' + t + '] = 0;\n';
 
     return generateGenericOpBoilerplate(impl, ctx);
@@ -2376,7 +2376,7 @@ if (typeof n64js === 'undefined') {
     var o = ctx.instr_imms();
 
     var impl = '';
-    impl += 'var addr = rlo[' + b + '] + ' + o + ';\n';
+    impl += 'var addr = ' + genSrcRegLo(b) + ' + ' + o + ';\n';
     impl += 'if (addr < -2139095040) {\n';
     impl += '  var phys = (addr + 0x80000000) | 0;\n';
     impl += '  rhi[' + t + '] = ((ram[phys  ] << 24) | (ram[phys+1] << 16) | (ram[phys+2] << 8) | ram[phys+3]);\n';
@@ -2410,7 +2410,7 @@ if (typeof n64js === 'undefined') {
     var b = ctx.instr_base();
     var o = ctx.instr_imms();
 
-    var impl = 'cpu1.int32[' + t + '] = load_s32(ram, rlo[' + b + '] + ' + o + ');\n';
+    var impl = 'cpu1.int32[' + t + '] = load_s32(ram, ' + genSrcRegLo(b) + ' + ' + o + ');\n';
     return generateGenericOpBoilerplate(impl, ctx);
   }
 
@@ -2431,7 +2431,7 @@ if (typeof n64js === 'undefined') {
     var impl = '';
     impl += 'var value_lo;\n';
     impl += 'var value_hi;\n';
-    impl += 'var addr = rlo[' + b + '] + ' + o + ';\n';
+    impl += 'var addr = ' + genSrcRegLo(b) + ' + ' + o + ';\n';
     impl += 'if (addr < -2139095040) {\n';
     impl += '  var phys = (addr + 0x80000000) | 0;\n';
     impl += '  value_hi = ((ram[phys  ] << 24) | (ram[phys+1] << 16) | (ram[phys+2] << 8) | ram[phys+3]) | 0;\n'; // FIXME: |0 needed?
@@ -2513,7 +2513,7 @@ if (typeof n64js === 'undefined') {
     var o = ctx.instr_imms();
 
     var impl = '';
-    impl += 'store_8(ram, rlo[' + b + '] + ' + o + ', ' + genSrcRegLo(t) + ');\n';
+    impl += 'store_8(ram, ' + genSrcRegLo(b) + ' + ' + o + ', ' + genSrcRegLo(t) + ');\n';
     return generateGenericOpBoilerplate(impl, ctx);
   }
   function executeSB(i) {
@@ -2530,7 +2530,7 @@ if (typeof n64js === 'undefined') {
     var o = ctx.instr_imms();
 
     var impl = '';
-    impl += 'store_16(ram, rlo[' + b + '] + ' + o + ', ' + genSrcRegLo(t) + ');\n';
+    impl += 'store_16(ram, ' + genSrcRegLo(b) + ' + ' + o + ', ' + genSrcRegLo(t) + ');\n';
     return generateGenericOpBoilerplate(impl, ctx);
   }
   function executeSH(i) {
@@ -2547,7 +2547,7 @@ if (typeof n64js === 'undefined') {
     var o = ctx.instr_imms();
 
     var impl = '';
-    impl += 'store_32(ram, rlo[' + b + '] + ' + o + ', ' + genSrcRegLo(t) + ');\n';
+    impl += 'store_32(ram, ' + genSrcRegLo(b) + ' + ' + o + ', ' + genSrcRegLo(t) + ');\n';
     return generateGenericOpBoilerplate(impl, ctx);
   }
   function executeSW(i) {
@@ -2565,7 +2565,7 @@ if (typeof n64js === 'undefined') {
     var o = ctx.instr_imms();
 
     var impl = '';
-    impl += 'var addr = rlo[' + b + '] + ' + o + ';\n';
+    impl += 'var addr = ' + genSrcRegLo(b) + ' + ' + o + ';\n';
     impl += 'store_32(ram, addr,     ' + genSrcRegHi(t) + ');\n';
     impl += 'store_32(ram, addr + 4, ' + genSrcRegLo(t) + ');\n';
 
@@ -2589,7 +2589,7 @@ if (typeof n64js === 'undefined') {
 
     // FIXME: can avoid cpuStuffToDo if we're writing to ram
     var impl = '';
-    impl += 'store_32(ram, rlo[' + b + '] + ' + o + ', cpu1.int32[' + t + ']);\n';
+    impl += 'store_32(ram, ' + genSrcRegLo(b) + ' + ' + o + ', cpu1.int32[' + t + ']);\n';
     return generateGenericOpBoilerplate(impl, ctx);
   }
 
@@ -2612,7 +2612,7 @@ if (typeof n64js === 'undefined') {
 
     // FIXME: can avoid cpuStuffToDo if we're writing to ram
     var impl = '';
-    impl += 'var addr = rlo[' + b + '] + ' + o + ';\n';
+    impl += 'var addr = ' + genSrcRegLo(b) + ' + ' + o + ';\n';
     impl += 'store_32(ram, addr,     cpu1.int32[' + hi + ']);\n';
     impl += 'store_32(ram, addr + 4, cpu1.int32[' + t + ']);\n';
     return generateGenericOpBoilerplate(impl, ctx);
@@ -2677,7 +2677,7 @@ if (typeof n64js === 'undefined') {
 
     if(cache == 0 && (action == 0 || action == 4)) {
       var impl = '';
-      impl += 'var addr = rlo[' + b + '] + ' + o + ';\n';
+      impl += 'var addr = ' + genSrcRegLo(b) + ' + ' + o + ';\n';
       impl += "n64js.invalidateICache(addr, 0x20, 'CACHE');\n";
       return generateTrivialOpBoilerplate(impl, ctx);
     } else {
