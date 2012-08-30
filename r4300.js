@@ -3768,7 +3768,7 @@ if (typeof n64js === 'undefined') {
     }
     code += 'c.branchTarget = 0;\n';
 
-    code += fn + '\n';
+    code += fn;
 
     code += 'c.pc = c.nextPC;\n';
     code += 'c.delayPC = c.branchTarget;\n';
@@ -3803,10 +3803,10 @@ if (typeof n64js === 'undefined') {
       } else {
         code += 'c.nextPC = ' + n64js.toString32(ctx.pc+4) + ';\n';
       }
-      code += fn + '\n';
+      code += fn;
       code += 'c.pc = c.nextPC;\n';
     } else {
-      code += fn + '\n';
+      code += fn;
       // ASSERT: delayPC === 0
       code += 'c.pc = ' + n64js.toString32(ctx.pc+4) + ';\n';
       need_pc_test = ctx.post_pc !== ctx.pc+4;
