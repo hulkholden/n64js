@@ -878,13 +878,6 @@ if (typeof n64js === 'undefined') {
     arr[1] = 0;
   }
 
-  function getHi32(v) {
-    // >>32 just seems to no-op? Argh.
-    return Math.floor( v / k1Shift32 );
-  }
-  function getLo32(v) {
-    return (v&0xffffffff)>>>0;
-  }
 
   //
   // Memory access routines.
@@ -1247,26 +1240,77 @@ if (typeof n64js === 'undefined') {
     cpu0.multLo_signed[1] = cpu0.gprHi_signed[s];
   }
 
+
+  function getHi32(v) {
+    // >>32 just seems to no-op? Argh.
+    return Math.floor( v / k1Shift32 );
+  }
+
+  function generateMULT(ctx) {
+    var d = ctx.instr_rd();
+    var s = ctx.instr_rs();
+    var t = ctx.instr_rt();
+
+    var impl = '';
+    impl += 'var result = rlo[' + s + '] * rlo[' + t + '];\n';
+    impl += 'var result_lo = result & 0xffffffff;\n';
+    impl += 'var result_hi = getHi32(result);\n';
+    impl += 'c.multLo[0] = result_lo;\n';
+    impl += 'c.multLo[1] = result_lo >> 31;\n';
+    impl += 'c.multHi[0] = result_hi;\n';
+    impl += 'c.multHi[1] = result_hi >> 31;\n';
+    return generateTrivialOpBoilerplate(impl,  ctx);
+  }
   function executeMULT(i) {
     var result = cpu0.gprLo_signed[rs(i)] * cpu0.gprLo_signed[rt(i)];
-    setHiLoSignExtend( cpu0.multLo, getLo32(result) );
-    setHiLoSignExtend( cpu0.multHi, getHi32(result) );
+
+    var lo = result & 0xffffffff;
+    var hi = getHi32(result);
+
+    cpu0.multLo[0] = lo;
+    cpu0.multLo[1] = lo >> 31;
+    cpu0.multHi[0] = hi;
+    cpu0.multHi[1] = hi >> 31;
+  }
+
+  function generateMULTU(ctx) {
+    var d = ctx.instr_rd();
+    var s = ctx.instr_rs();
+    var t = ctx.instr_rt();
+
+    var impl = '';
+    impl += 'var result = c.gprLo[' + s + '] * c.gprLo[' + t + '];\n';
+    impl += 'var result_lo = result & 0xffffffff;\n';
+    impl += 'var result_hi = getHi32(result);\n';
+    impl += 'c.multLo[0] = result_lo;\n';
+    impl += 'c.multLo[1] = result_lo >> 31;\n';
+    impl += 'c.multHi[0] = result_hi;\n';
+    impl += 'c.multHi[1] = result_hi >> 31;\n';
+    return generateTrivialOpBoilerplate(impl,  ctx);
   }
   function executeMULTU(i) {
     var result = cpu0.gprLo[rs(i)] * cpu0.gprLo[rt(i)];
-    setHiLoSignExtend( cpu0.multLo, getLo32(result) );
-    setHiLoSignExtend( cpu0.multHi, getHi32(result) );
+
+    var lo = result & 0xffffffff;
+    var hi = getHi32(result);
+
+    cpu0.multLo[0] = lo;
+    cpu0.multLo[1] = lo >> 31;
+    cpu0.multHi[0] = hi;
+    cpu0.multHi[1] = hi >> 31;
   }
+
   function executeDMULT(i) {
     var result = cpu0.getGPR_s64(rs(i)) * cpu0.getGPR_s64(rt(i));
-    cpu0.multLo[0] = getLo32(result);
+    cpu0.multLo[0] = result & 0xffffffff;
     cpu0.multLo[1] = getHi32(result);
     cpu0.multHi_signed[0] = 0;
     cpu0.multHi_signed[1] = 0;
   }
+
   function executeDMULTU(i) {
     var result = cpu0.getGPR_u64(rs(i)) * cpu0.getGPR_u64(rt(i));
-    cpu0.multLo[0] = getLo32(result);
+    cpu0.multLo[0] = result & 0xffffffff;
     cpu0.multLo[1] = getHi32(result);
     cpu0.multHi_signed[0] = 0;
     cpu0.multHi_signed[1] = 0;
@@ -1290,7 +1334,6 @@ if (typeof n64js === 'undefined') {
   }
 
   function executeDDIV(i) {
-
     var s = rs(i);
     var t = rt(i);
 
@@ -3194,7 +3237,7 @@ if (typeof n64js === 'undefined') {
     'executeSYSCALL',       'executeBREAK',         'executeUnknown',     'executeSYNC',
     'executeMFHI',          'executeMTHI',          'executeMFLO',        'executeMTLO',
     'executeDSLLV',         'executeUnknown',       'executeDSRLV',       'executeDSRAV',
-    'executeMULT',          'executeMULTU',         'executeDIV',         'executeDIVU',
+    generateMULT,           generateMULTU,          'executeDIV',         'executeDIVU',
     'executeDMULT',         'executeDMULTU',        'executeDDIV',        'executeDDIVU',
     generateADD,            generateADDU,           generateSUB,          generateSUBU,
     generateAND,            generateOR,             generateXOR,          generateNOR,
