@@ -2376,7 +2376,7 @@ if (typeof n64js === 'undefined') {
     var o = ctx.instr_imms();
 
     var impl = '';
-    impl += 'var addr = c.gprLo[' + b + '] + ' + o + ';\n';
+    impl += 'var addr = rlo[' + b + '] + ' + o + ';\n';
     impl += 'if (addr < -2139095040) {\n';
     impl += '  var phys = (addr + 0x80000000) | 0;\n';
     impl += '  rhi[' + t + '] = ((ram[phys  ] << 24) | (ram[phys+1] << 16) | (ram[phys+2] << 8) | ram[phys+3]);\n';
@@ -2431,7 +2431,7 @@ if (typeof n64js === 'undefined') {
     var impl = '';
     impl += 'var value_lo;\n';
     impl += 'var value_hi;\n';
-    impl += 'var addr = c.gprLo[' + b + '] + ' + o + ';\n';
+    impl += 'var addr = rlo[' + b + '] + ' + o + ';\n';
     impl += 'if (addr < -2139095040) {\n';
     impl += '  var phys = (addr + 0x80000000) | 0;\n';
     impl += '  value_hi = ((ram[phys  ] << 24) | (ram[phys+1] << 16) | (ram[phys+2] << 8) | ram[phys+3]) | 0;\n'; // FIXME: |0 needed?
@@ -2677,7 +2677,7 @@ if (typeof n64js === 'undefined') {
 
     if(cache == 0 && (action == 0 || action == 4)) {
       var impl = '';
-      impl += 'var addr = c.gprLo[' + b + '] + ' + o + ';\n';
+      impl += 'var addr = rlo[' + b + '] + ' + o + ';\n';
       impl += "n64js.invalidateICache(addr, 0x20, 'CACHE');\n";
       return generateTrivialOpBoilerplate(impl, ctx);
     } else {
