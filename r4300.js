@@ -2826,17 +2826,14 @@ if (typeof n64js === 'undefined') {
     if (r == 31) {
       var v = cpu0.gprLo[rt(i)];
 
-      /*
-      switch (v & FPCSR_RM_MASK) {
-      case FPCSR_RM_RN:     n64js.log('cop1 - setting round near');  break;
-      case FPCSR_RM_RZ:     n64js.log('cop1 - setting round zero');  break;
-      case FPCSR_RM_RP:     n64js.log('cop1 - setting round ceil');  break;
-      case FPCSR_RM_RM:     n64js.log('cop1 - setting round floor'); break;
-      }
-      */
+      // switch (v & FPCSR_RM_MASK) {
+      // case FPCSR_RM_RN:     n64js.log('cop1 - setting round near');  break;
+      // case FPCSR_RM_RZ:     n64js.log('cop1 - setting round zero');  break;
+      // case FPCSR_RM_RP:     n64js.log('cop1 - setting round ceil');  break;
+      // case FPCSR_RM_RM:     n64js.log('cop1 - setting round floor'); break;
+      // }
 
       cpu1.control[r] = v;
-
     }
   }
 
@@ -2854,6 +2851,17 @@ if (typeof n64js === 'undefined') {
         cpu0.nextPC += 4;   // skip the next instruction
       }
     }
+  }
+
+  function convert(x) {
+    switch(cpu1.control[31] & FPCSR_RM_MASK) {
+      case FPCSR_RM_RN:     return Math.round(x);  break;
+      case FPCSR_RM_RZ:     return trunc(x);  break;
+      case FPCSR_RM_RP:     return Math.ceil(x);  break;
+      case FPCSR_RM_RM:     return Math.floor(x); break;
+    }
+
+    n64js.assert('unknown rounding mode')
   }
 
   function trunc(x) {
@@ -2891,7 +2899,7 @@ if (typeof n64js === 'undefined') {
       case 0x0f:    /* 'FLOOR.W.'*/     return 'cpu1.int32[' + d + '] = Math.floor( cpu1.float32[' + s + '] );\n';
       case 0x20:    /* 'CVT.S' */       break;
       case 0x21:    /* 'CVT.D' */       return 'cpu1.store_f64( ' + d + ', cpu1.float32[' + s + '] );\n';
-      case 0x24:    /* 'CVT.W' */       return 'cpu1.int32[' + d + '] = Math.floor( cpu1.float32[' + s + '] );\n';   // FIXME: apply correct conversion mode
+      case 0x24:    /* 'CVT.W' */       return 'cpu1.int32[' + d + '] = convert( cpu1.float32[' + s + '] );\n';
       case 0x25:    /* 'CVT.L' */       break;
       case 0x30:    /* 'C.F' */         return 'cpu1.control[31] &= ~FPCSR_C;\n';
       case 0x31:    /* 'C.UN' */        break;
@@ -2945,7 +2953,7 @@ if (typeof n64js === 'undefined') {
 
         case 0x20:    /* 'CVT.S' */       unimplemented(cpu0.pc,i); return;
         case 0x21:    /* 'CVT.D' */       cpu1.store_f64( d, cpu1.float32[s] ); return;
-        case 0x24:    /* 'CVT.W' */       cpu1.int32[d] = Math.floor( cpu1.float32[s] )|0; return;  // FIXME: apply correct conversion mode
+        case 0x24:    /* 'CVT.W' */       cpu1.int32[d] = convert( cpu1.float32[s] )|0; return;
         case 0x25:    /* 'CVT.L' */       unimplemented(cpu0.pc,i); return;
       }
       unimplemented(cpu0.pc,i);
@@ -2995,7 +3003,7 @@ if (typeof n64js === 'undefined') {
       case 0x0f:    /* 'FLOOR.W.'*/     return 'cpu1.int32[' + d + '] = Math.floor( cpu1.load_f64( ' + s + ' ) ) | 0;\n';
       case 0x20:    /* 'CVT.S' */       return 'cpu1.float32[' + d + '] = cpu1.load_f64( ' + s + ' );\n';
       case 0x21:    /* 'CVT.D' */       break;
-      case 0x24:    /* 'CVT.W' */       return 'cpu1.int32[' + d + '] = Math.floor( cpu1.load_f64( ' + s + ' ) ) | 0;\n';  // FIXME: apply correct conversion mode
+      case 0x24:    /* 'CVT.W' */       return 'cpu1.int32[' + d + '] = convert( cpu1.load_f64( ' + s + ' ) ) | 0;\n';
       case 0x25:    /* 'CVT.L' */       break;
       case 0x30:    /* 'C.F' */         return 'cpu1.control[31] &= ~FPCSR_C;\n';
       case 0x31:    /* 'C.UN' */        break;
@@ -3047,8 +3055,7 @@ if (typeof n64js === 'undefined') {
 
         case 0x20:    /* 'CVT.S' */       cpu1.float32[d] = cpu1.load_f64( s ); return;
         case 0x21:    /* 'CVT.D' */       unimplemented(cpu0.pc,i); return;
-        case 0x24:    /* 'CVT.W' */       cpu1.int32[d] = Math.floor( cpu1.load_f64( s ) ) | 0; return;  // FIXME: apply correct conversion mode
-
+        case 0x24:    /* 'CVT.W' */       cpu1.int32[d] = convert( cpu1.load_f64( s ) ) | 0; return;
         case 0x25:    /* 'CVT.L' */       unimplemented(cpu0.pc,i); return;
       }
       unimplemented(cpu0.pc,i);
