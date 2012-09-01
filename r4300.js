@@ -3,7 +3,8 @@ if (typeof n64js === 'undefined') {
 }
 
 (function () {'use strict';
-  var debugTLB = 0;
+  var kDebugTLB = 0;
+  var kDebugDynarec = 0;
 
   var hitCounts = {};
   var fragmentMap = {};
@@ -191,7 +192,7 @@ if (typeof n64js === 'undefined') {
 
   TLBEntry.prototype = {
     update : function(index, pagemask, hi, entrylo0, entrylo1) {
-      if (debugTLB) {
+      if (kDebugTLB) {
         n64js.log('TLB update: index=' + index +
             ', pagemask=' + n64js.toString32(pagemask) +
             ', entryhi='  + n64js.toString32(hi) +
@@ -582,7 +583,7 @@ if (typeof n64js === 'undefined') {
       this.control[this.kControlEntryLo0] = tlb.pfne | tlb.global;
       this.control[this.kControlEntryLo1] = tlb.pfno | tlb.global;
 
-      if (debugTLB) {
+      if (kDebugTLB) {
         n64js.log('TLB Read Index ' + n64js.toString8(index) + '.');
         n64js.log('  PageMask: ' + n64js.toString32(this.control[this.kControlPageMask]));
         n64js.log('  EntryHi:  ' + n64js.toString32(this.control[this.kControlEntryHi]));
@@ -601,7 +602,7 @@ if (typeof n64js === 'undefined') {
         if (   (tlb.hi & TLBHI_VPN2MASK) === entryhi_vpn2) {
           if (((tlb.hi & TLBHI_PIDMASK)  === entryhi_pid) ||
                tlb.global) {
-            if (debugTLB) {
+            if (kDebugTLB) {
               n64js.log('TLB Probe. EntryHi:' + n64js.toString32(entryhi) + '. Found matching TLB entry - ' + n64js.toString8(i));
             }
             this.control[this.kControlIndex] = i;
@@ -610,7 +611,7 @@ if (typeof n64js === 'undefined') {
         }
       }
 
-      if (debugTLB) {
+      if (kDebugTLB) {
         n64js.log('TLB Probe. EntryHi:' + n64js.toString32(entryhi) + ". Didn't find matching entry");
       }
       this.control[this.kControlIndex] = TLBINX_PROBE;
@@ -2245,7 +2246,7 @@ if (typeof n64js === 'undefined') {
     impl += 'rlo[' + t + '] = value;\n';
     impl += 'rhi[' + t + '] = value >> 31;\n';
 
-    return generateGenericOpBoilerplate(impl, ctx);
+    return generateMemoryAccessBoilerplate(impl, ctx);
   }
   function executeLB(i) {
     var t = rt(i);
@@ -2266,7 +2267,7 @@ if (typeof n64js === 'undefined') {
     impl += 'rlo[' + t + '] = load_u8(ram, ' + genSrcRegLo(b) + ' + ' + o + ');\n';
     impl += 'rhi[' + t + '] = 0;\n';
 
-    return generateGenericOpBoilerplate(impl, ctx);
+    return generateMemoryAccessBoilerplate(impl, ctx);
   }
   function executeLBU(i) {
     var t = rt(i);
@@ -2287,7 +2288,7 @@ if (typeof n64js === 'undefined') {
     impl += 'rlo[' + t + '] = value;\n';
     impl += 'rhi[' + t + '] = value >> 31;\n';
 
-    return generateGenericOpBoilerplate(impl, ctx);
+    return generateMemoryAccessBoilerplate(impl, ctx);
   }
   function executeLH(i) {
     var t = rt(i);
@@ -2308,7 +2309,7 @@ if (typeof n64js === 'undefined') {
     impl += 'rlo[' + t + '] = load_u16(ram, ' + genSrcRegLo(b) + ' + ' + o + ');\n';
     impl += 'rhi[' + t + '] = 0;\n';
 
-    return generateGenericOpBoilerplate(impl, ctx);
+    return generateMemoryAccessBoilerplate(impl, ctx);
   }
   function executeLHU(i) {
     var t = rt(i);
@@ -2333,7 +2334,7 @@ if (typeof n64js === 'undefined') {
     impl += 'rlo[' + t + '] = value;\n';
     impl += 'rhi[' + t + '] = value >> 31;\n';
 
-    return generateGenericOpBoilerplate(impl, ctx);
+    return generateMemoryAccessBoilerplate(impl, ctx);
   }
   function executeLW(i) {
     var t = rt(i);
@@ -2358,7 +2359,7 @@ if (typeof n64js === 'undefined') {
     impl += 'rlo[' + t + '] = load_u32(ram, ' + genSrcRegLo(b) + ' + ' + o + ');\n';
     impl += 'rhi[' + t + '] = 0;\n';
 
-    return generateGenericOpBoilerplate(impl, ctx);
+    return generateMemoryAccessBoilerplate(impl, ctx);
   }
   function executeLWU(i) {
     var t = rt(i);
@@ -2385,7 +2386,7 @@ if (typeof n64js === 'undefined') {
     impl += '  rhi[' + t + '] = lw_slow(addr);\n';
     impl += '  rlo[' + t + '] = lw_slow(addr + 4);\n';
     impl += '}\n';
-    return generateGenericOpBoilerplate(impl, ctx);
+    return generateMemoryAccessBoilerplate(impl, ctx);
   }
 
   function executeLD(i) {
@@ -2411,7 +2412,7 @@ if (typeof n64js === 'undefined') {
     var o = ctx.instr_imms();
 
     var impl = 'cpu1.int32[' + t + '] = load_s32(ram, ' + genSrcRegLo(b) + ' + ' + o + ');\n';
-    return generateGenericOpBoilerplate(impl, ctx);
+    return generateMemoryAccessBoilerplate(impl, ctx);
   }
 
   // FIXME: needs to check Cop1Enabled - thanks Salvy!
@@ -2442,7 +2443,7 @@ if (typeof n64js === 'undefined') {
     impl += '}\n';
     impl += 'cpu1.store_64(' + t + ', value_lo, value_hi);\n';
 
-    return generateGenericOpBoilerplate(impl, ctx);
+    return generateMemoryAccessBoilerplate(impl, ctx);
   }
 
   // FIXME: needs to check Cop1Enabled - thanks Salvy!
@@ -2514,7 +2515,7 @@ if (typeof n64js === 'undefined') {
 
     var impl = '';
     impl += 'store_8(ram, ' + genSrcRegLo(b) + ' + ' + o + ', ' + genSrcRegLo(t) + ');\n';
-    return generateGenericOpBoilerplate(impl, ctx);
+    return generateMemoryAccessBoilerplate(impl, ctx);
   }
   function executeSB(i) {
     var t = rt(i);
@@ -2531,7 +2532,7 @@ if (typeof n64js === 'undefined') {
 
     var impl = '';
     impl += 'store_16(ram, ' + genSrcRegLo(b) + ' + ' + o + ', ' + genSrcRegLo(t) + ');\n';
-    return generateGenericOpBoilerplate(impl, ctx);
+    return generateMemoryAccessBoilerplate(impl, ctx);
   }
   function executeSH(i) {
     var t = rt(i);
@@ -2548,7 +2549,7 @@ if (typeof n64js === 'undefined') {
 
     var impl = '';
     impl += 'store_32(ram, ' + genSrcRegLo(b) + ' + ' + o + ', ' + genSrcRegLo(t) + ');\n';
-    return generateGenericOpBoilerplate(impl, ctx);
+    return generateMemoryAccessBoilerplate(impl, ctx);
   }
   function executeSW(i) {
     var t = rt(i);
@@ -2569,7 +2570,7 @@ if (typeof n64js === 'undefined') {
     impl += 'store_32(ram, addr,     ' + genSrcRegHi(t) + ');\n';
     impl += 'store_32(ram, addr + 4, ' + genSrcRegLo(t) + ');\n';
 
-    return generateGenericOpBoilerplate(impl, ctx);
+    return generateMemoryAccessBoilerplate(impl, ctx);
   }
   function executeSD(i) {
     var t = rt(i);
@@ -2590,7 +2591,7 @@ if (typeof n64js === 'undefined') {
     // FIXME: can avoid cpuStuffToDo if we're writing to ram
     var impl = '';
     impl += 'store_32(ram, ' + genSrcRegLo(b) + ' + ' + o + ', cpu1.int32[' + t + ']);\n';
-    return generateGenericOpBoilerplate(impl, ctx);
+    return generateMemoryAccessBoilerplate(impl, ctx);
   }
 
   // FIXME: needs to check Cop1Enabled - thanks Salvy!
@@ -2615,7 +2616,7 @@ if (typeof n64js === 'undefined') {
     impl += 'var addr = ' + genSrcRegLo(b) + ' + ' + o + ';\n';
     impl += 'store_32(ram, addr,     cpu1.int32[' + hi + ']);\n';
     impl += 'store_32(ram, addr + 4, cpu1.int32[' + t + ']);\n';
-    return generateGenericOpBoilerplate(impl, ctx);
+    return generateMemoryAccessBoilerplate(impl, ctx);
   }
 
   // FIXME: needs to check Cop1Enabled - thanks Salvy!
@@ -3094,7 +3095,9 @@ if (typeof n64js === 'undefined') {
     var impl = '';
 
     if (ctx.fragment.cop1statusKnown) {
-      // ASSERT cop1 enabled
+      // Assert that cop1 is enabled
+      impl += ctx.genAssert('(c.control[12] & SR_CU1) !== 0', 'cop1 should be enabled');
+
       if (typeof fn === 'string') {
         impl += fn + '(' + n64js.toString32(ctx.instruction) + ');\n';
       } else {
@@ -3113,6 +3116,7 @@ if (typeof n64js === 'undefined') {
       }
       impl += '}\n';
 
+      ctx.isTrivial = false;    // Not trivial!
       ctx.fragment.cop1statusKnown = true;
       return generateGenericOpBoilerplate(impl, ctx);   // Ensure we generate full boilerplate here, even for trivial ops
     }
@@ -3255,20 +3259,35 @@ if (typeof n64js === 'undefined') {
     this.post_pc     = 0;
     this.bailOut     = false;       // Set this if the op does something to manipulate event timers
 
-    this.needsDelayCheck = true;    // Set on entry to generate handler. If set, much check for delayPC when updating the pc
+    this.needsDelayCheck = true;    // Set on entry to generate handler. If set, must check for delayPC when updating the pc
     this.isTrivial       = false;   // Set by the code generation handler if the op is considered trivial
+    this.delayedPCUpdate = 0;       // Trivial ops can try to delay setting the pc so that back-to-back trivial ops can emit them entirely.
   }
+
+  FragmentContext.prototype.genAssert = function (test, msg) {
+    if (kDebugDynarec) {
+      return 'n64js.assert(' + test + ', "' + msg + '");\n';
+    }
+    return '';
+  }
+
+  FragmentContext.prototype.newFragment = function () {
+    this.delayedPCUpdate = 0;
+  };
 
   FragmentContext.prototype.set = function (fragment, pc, instruction, post_pc) {
     this.fragment    = fragment;
     this.pc          = pc;
     this.instruction = instruction;
     this.post_pc     = post_pc;
-    this.bailOut     = false;       // Set this if the op does something to manipulate event timers
+    this.bailOut     = false;
 
-    this.needsDelayCheck = true;    // Set on entry to generate handler. If set, much check for delayPC when updating the pc
-    this.isTrivial       = false;   // Set by the generate handler if the op is considered trivial
-  }
+    this.needsDelayCheck = true;
+    this.isTrivial       = false;
+
+    // Persist this between ops
+    //this.delayedPCUpdate = 0;
+  };
 
   FragmentContext.prototype.instr_rs     = function () { return rs(this.instruction); }
   FragmentContext.prototype.instr_rt     = function () { return rt(this.instruction); }
@@ -3505,30 +3524,37 @@ if (typeof n64js === 'undefined') {
               handleCounter();
             }
 
+            // If we have a fragment, we're assembling code as we go
             if (fragment) {
+              if (fragment.opsCompiled === 0)
+                fragmentContext.newFragment();
               fragment.opsCompiled++;
+              updateFragment(fragment, pc);
 
               fragmentContext.set(fragment, pc, instruction, cpu0.pc); // NB: first pc is entry_pc, cpu0.pc is post_pc by this point
-
               generateCodeForOp(fragmentContext);
-
-              updateFragment(fragment, pc);
 
               // Break out of the trace as soon as we branch, or  too many ops, or last op generated an interrupt (stuffToDo set)
               if (cpu0.pc !== pc+4 || fragment.opsCompiled >= 250 || cpu0.stuffToDo) {
+                // Check if the last op has a delayed pc update, and do it now.
+                if (fragmentContext.delayedPCUpdate !== 0) {
+                    fragment.body_code += 'c.pc = ' + n64js.toString32(fragmentContext.delayedPCUpdate) + ';\n';
+                    fragmentContext.delayedPCUpdate = 0;
+                }
 
                 var code = '';
 
                 code += '(function fragment_' + n64js.toString32(fragment.entryPC) + '_' + fragment.opsCompiled + '(c, rlo, rhi, ram) {\n';
                 //code += 'if (cpu0.pc>>>0 != ' + n64js.toString32(fragment.entryPC) + ') n64js.halt("entrypc mismatch - " + cpu0.pc + " !== ' + n64js.toString32(fragment.entryPC) + '");\n';
 
-                code += fragment.global_code;
                 code += fragment.body_code;
+
                 code += 'return ' + fragment.opsCompiled + ';\n';    // Return the number of ops exected
                 code += '});\n';   // End the enclosing function
 
-                fragment.global_code = '';
+                // Clear these strings to reduce garbage
                 fragment.body_code ='';
+
                 fragment.func = eval(code);
                 fragment.nextFragments = [];
                 for (var i = 0; i < fragment.opsCompiled; i++) {
@@ -3587,7 +3613,6 @@ if (typeof n64js === 'undefined') {
     this.nextFragments    = [];       // One slot per op
 
     // State used when compiling
-    this.global_code      = '';
     this.body_code        = '';
     this.needsDelayCheck  = true;
 
@@ -3604,7 +3629,6 @@ if (typeof n64js === 'undefined') {
     this.executionCount   = 0;
     this.nextFragments    = [];
 
-    this.global_code      = '';
     this.body_code        = '';
     this.needsDelayCheck  = true;
 
@@ -3710,17 +3734,18 @@ if (typeof n64js === 'undefined') {
 
     var fn_code = generateOp(ctx);
 
-    ctx.fragment.needsDelayCheck = !ctx.isTrivial;
+    // If the last op tried to delay updating the pc, see if it needs updating now.
+    if (!ctx.isTrivial && ctx.delayedPCUpdate !== 0) {
+        ctx.fragment.body_code += '/*applying delayed pc*/\nc.pc = ' + n64js.toString32(ctx.delayedPCUpdate) + ';\n';
+        ctx.delayedPCUpdate = 0;
+    }
 
-    //n64js.assert(fn_code.indexOf(';') >= 0, 'Invalid fn - ' + fn_code );
+    ctx.fragment.needsDelayCheck = ctx.needsDelayCheck;
 
-    //code += '\n';
-    //code += '//' + n64js.toString32(cpu0.pc) + '\n';
-    //code += 'if (!checkEqual( cpu0.pc, '      + n64js.toString32(cpu0.pc)  + ', "unexpected pc")) { var fragment = lookupFragment(' + n64js.toString32(fragment.entryPC) + '); console.log(fragment.code ); return false; }\n';
     //code += 'if (!checkEqual( n64js.readMemoryU32(cpu0.pc), ' + n64js.toString32(instruction) + ', "unexpected instruction (need to flush icache?)")) { return false; }\n';
 
     ctx.fragment.bailedOut |= ctx.bailOut;
-    ctx.fragment.body_code += fn_code;
+    ctx.fragment.body_code += fn_code + '\n';
   }
 
   function generateOp(ctx) {
@@ -3759,11 +3784,13 @@ if (typeof n64js === 'undefined') {
 
   function generateGenericOpBoilerplate(fn,ctx) {
     var code = '';
-    //code += 'if (c.pc !== ' + n64js.toString32(ctx.pc) + ') throw("pc mismatch - " + n64js.toString32(c.pc) + " !== ' + n64js.toString32(ctx.pc) + '");\n';
+    code += ctx.genAssert('c.pc === ' + n64js.toString32(ctx.pc), 'pc mismatch');
+
     if (ctx.needsDelayCheck) {
-      code += 'c.nextPC = c.delayPC;\n';
-      code += 'if (!c.nextPC) { c.nextPC = ' + n64js.toString32(ctx.pc+4) +'; }\n';
+      // NB: delayPC not cleared here - it's always overwritten with branchTarget below.
+      code += 'if (c.delayPC) { c.nextPC = c.delayPC; } else { c.nextPC = ' + n64js.toString32(ctx.pc+4) +'; }\n';
     } else {
+      code += ctx.genAssert('c.delayPC === 0', 'delay pc should be zero');
       code += 'c.nextPC = ' + n64js.toString32(ctx.pc+4) + ';\n';
     }
     code += 'c.branchTarget = 0;\n';
@@ -3772,6 +3799,9 @@ if (typeof n64js === 'undefined') {
 
     code += 'c.pc = c.nextPC;\n';
     code += 'c.delayPC = c.branchTarget;\n';
+
+    // We don't know if the generic op set delayPC, so assume the worst
+    ctx.needsDelayCheck = true;
 
     if (accurateCountUpdating) {
       code += 'c.control_signed[9] += 1;\n';
@@ -3785,8 +3815,53 @@ if (typeof n64js === 'undefined') {
       code += 'if (c.pc !== ' + n64js.toString32(ctx.post_pc) + ') { return ' + ctx.fragment.opsCompiled + '; }\n';
     }
 
-    code += '\n';
+    return code;
+  }
 
+  // Standard code for manipulating the pc
+  function generateStandardPCUpdate(fn, ctx, might_adjust_next_pc) {
+    var code = '';
+    code += ctx.genAssert('c.pc === ' + n64js.toString32(ctx.pc), 'pc mismatch');
+
+    if (ctx.needsDelayCheck) {
+      // We should probably assert on this - two branch instructions back-to-back is weird, but the flag could just be set because of a generic op
+      code += 'if (c.delayPC) { c.nextPC = c.delayPC; c.delayPC = 0; } else { c.nextPC = ' + n64js.toString32(ctx.pc+4) +'; }\n';
+      code += fn;
+      code += 'c.pc = c.nextPC;\n';
+    } else if (might_adjust_next_pc) {
+      // If the branch op might manipulate nextPC, we need to ensure that it's set to the correct value
+      code += ctx.genAssert('c.delayPC === 0', 'delay pc should be zero');
+      code += 'c.nextPC = ' + n64js.toString32(ctx.pc+4) + ';\n';
+      code += fn;
+      code += 'c.pc = c.nextPC;\n';
+    } else {
+      code += ctx.genAssert('c.delayPC === 0', 'delay pc should be zero');
+      code += fn;
+      code += 'c.pc = ' + n64js.toString32(ctx.pc+4) + ';\n';
+    }
+
+    return code;
+  }
+
+  // Memory access does not adjust branchTarget, but nextPC may be adjusted if they cause an exception.
+  function generateMemoryAccessBoilerplate(fn,ctx) {
+    var code = '';
+
+    var might_adjust_next_pc = true;
+    code += generateStandardPCUpdate(fn, ctx, might_adjust_next_pc);
+
+    // Memory instructions never cause a branch delay
+    code += ctx.genAssert('c.delayPC === 0', 'delay pc should be zero');
+    ctx.needsDelayCheck = false;
+
+    if (accurateCountUpdating) {
+      code += 'c.control_signed[9] += 1;\n';
+    }
+
+    // If bailOut is set, always return immediately
+    n64js.assert(!ctx.bailOut, "Not expecting bailOut to be set for memory access");
+    code += 'if (c.stuffToDo) { return ' + ctx.fragment.opsCompiled + '; }\n';
+    code += 'if (c.pc !== ' + n64js.toString32(ctx.post_pc) + ') { return ' + ctx.fragment.opsCompiled + '; }\n';
     return code;
   }
 
@@ -3795,40 +3870,32 @@ if (typeof n64js === 'undefined') {
   function generateBranchOpBoilerplate(fn,ctx, might_adjust_next_pc) {
     var code = '';
 
-    var need_pc_test = true;
+    // We only need to check for off-trace branches
+    var need_pc_test = ctx.needsDelayCheck || might_adjust_next_pc || ctx.post_pc !== ctx.pc+4 != ctx.post_pc;
 
-    if (might_adjust_next_pc||ctx.needsDelayCheck) {
-      if (ctx.needsDelayCheck) {
-        code += 'if (c.delayPC) { c.nextPC = c.delayPC; c.delayPC = 0; } else { c.nextPC = ' + n64js.toString32(ctx.pc+4) +'; }\n';
-      } else {
-        code += 'c.nextPC = ' + n64js.toString32(ctx.pc+4) + ';\n';
-      }
-      code += fn;
-      code += 'c.pc = c.nextPC;\n';
-    } else {
-      code += fn;
-      // ASSERT: delayPC === 0
-      code += 'c.pc = ' + n64js.toString32(ctx.pc+4) + ';\n';
-      need_pc_test = ctx.post_pc !== ctx.pc+4;
-    }
+    code += generateStandardPCUpdate(fn, ctx, might_adjust_next_pc);
+
+    // Branch instructions can always set a branch delay
+    ctx.needsDelayCheck = true;
 
     if (accurateCountUpdating) {
       code += 'c.control_signed[9] += 1;\n';
     }
 
-    // ASSERT: !c.stuffToDo
+    code += ctx.genAssert('c.stuffToDo === 0', 'stuffToDo should be zero');
 
     // If bailOut is set, always return immediately
     if (ctx.bailOut) {
       code += 'return ' + ctx.fragment.opsCompiled + ';\n';
     } else {
-
       if (need_pc_test) {
         code += 'if (c.pc !== ' + n64js.toString32(ctx.post_pc) + ') { return ' + ctx.fragment.opsCompiled + '; }\n';
       }
+      else
+      {
+        code += '/* skipping pc test */\n';
+      }
     }
-
-    code += '\n';
 
     return code;
   }
@@ -3843,11 +3910,9 @@ if (typeof n64js === 'undefined') {
   function generateTrivialOpBoilerplate(fn,ctx) {
 
     var code = '';
-    //code += 'if (c.pc !== ' + n64js.toString32(ctx.pc) + ') throw("pc mismatch - " + n64js.toString32(c.pc) + " !== ' + n64js.toString32(ctx.pc) + '");\n';
 
+    // NB: trivial functions don't rely on pc being set up, so we perform the op before updating the pc.
     code += fn;
-
-    // ASSERT: !c.stuffToDo
 
     ctx.isTrivial = true;
 
@@ -3855,24 +3920,33 @@ if (typeof n64js === 'undefined') {
       code += 'c.control_signed[9] += 1;\n';
     }
 
+    // NB: do delay handler after executing op, so we can set pc directly
     if (ctx.needsDelayCheck) {
       code += 'if (c.delayPC) { c.pc = c.delayPC; c.delayPC = 0; } else { c.pc = ' + n64js.toString32(ctx.pc+4) + '; }\n';
       // Might happen: delay op from previous instruction takes effect
       code += 'if (c.pc !== ' + n64js.toString32(ctx.post_pc) + ') { return ' + ctx.fragment.opsCompiled + '; }\n';
     } else {
-      // ASSERT: !c.delayPC
+      code += ctx.genAssert('c.delayPC === 0', 'delay pc should be zero');
 
-      code += 'c.pc = ' + n64js.toString32(ctx.pc+4) + ';\n';
       // We can avoid off-branch checks in this case.
       if (ctx.post_pc !== ctx.pc+4) {
+        n64js.halt('isnt this always true?');
+        code += 'c.pc = ' + n64js.toString32(ctx.pc+4) + ';\n';
         code += 'if (c.pc !== ' + n64js.toString32(ctx.post_pc) + ') { return ' + ctx.fragment.opsCompiled + '; }\n';
+      } else {
+        //code += 'c.pc = ' + n64js.toString32(ctx.pc+4) + ';\n';
+        code += '/* delaying pc update */\n';
+        ctx.delayedPCUpdate = ctx.pc+4;
       }
     }
 
-    code += '\n';
 
-    // Cannot be set: otherwise would have fired with previous instruction. TODO: add debug code to check this.
-    //code += 'if (c.stuffToDo) { return ' + ctx.fragment.opsCompiled + '; }\n';
+    // Trivial instructions never cause a branch delay
+    code += ctx.genAssert('c.delayPC === 0', 'delay pc should be zero');
+    ctx.needsDelayCheck = false;
+
+    // Trivial instructions never cause stuffToDo to be set
+    code += ctx.genAssert('c.stuffToDo === 0', 'stuffToDo should be zero');
 
     return code;
   }
