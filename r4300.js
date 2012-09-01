@@ -3071,17 +3071,47 @@ if (typeof n64js === 'undefined') {
     }
   }
 
+  function generateWInstrHelper(ctx) {
+    var s = ctx.instr_fs();
+    var d = ctx.instr_fd();
+
+    ctx.isTrivial = true;
+    switch(cop1_func(ctx.instruction)) {
+      case 0x20:    /* 'CVT.S' */       return 'cpu1.float32[' + d + '] = cpu1.int32[' + s + '];\n';
+      case 0x21:    /* 'CVT.D' */       return 'cpu1.store_f64(' + d + ', cpu1.int32[' + s + ']);\n';
+    }
+    return 'unimplemented(' + n64js.toString32(ctx.pc) + ',' + n64js.toString32(ctx.instruction) + ');\n';
+  }
   function executeWInstr(i) {
+    var s = fs(i);
+    var d = fd(i);
+
     switch(cop1_func(i)) {
-      case 0x20:    cpu1.float32[fd(i)] = cpu1.int32[fs(i)]; return;
-      case 0x21:    cpu1.store_f64( fd(i), cpu1.int32[fs(i)] ); return;
+      case 0x20:    cpu1.float32[d] = cpu1.int32[s];  return;
+      case 0x21:    cpu1.store_f64(d, cpu1.int32[s]); return;
     }
     unimplemented(cpu0.pc,i);
   }
+
+
+  function generateLInstrHelper(ctx) {
+    var s = ctx.instr_fs();
+    var d = ctx.instr_fd();
+
+    ctx.isTrivial = true;
+    switch(cop1_func(ctx.instruction)) {
+      //case 0x20:    /* 'CVT.S' */       return 'cpu1.float32[' + d + '] = cpu1.int32[' + s + '];\n';
+      case 0x21:    /* 'CVT.D' */       return 'cpu1.store_f64(' + d + ', cpu1.load_s64_as_double(' + s + ');\n';
+    }
+    return 'unimplemented(' + n64js.toString32(ctx.pc) + ',' + n64js.toString32(ctx.instruction) + ');\n';
+  }
   function executeLInstr(i) {
+    var s = fs(i);
+    var d = fd(i);
+
     switch(cop1_func(i)) {
-      //case 0x20:    cpu1.float32[fd(i)] = cpu1.load_s64( fs(i) ); return;
-      case 0x21:     /* 'CVT.D' */ cpu1.store_f64( fd(i), cpu1.load_s64_as_double( fs(i) ) ); return;
+      //case 0x20:    cpu1.float32[d] = cpu1.load_s64(s); return;
+      case 0x21:     /* 'CVT.D' */ cpu1.store_f64(d, cpu1.load_s64_as_double(s)); return;
     }
     unimplemented(cpu0.pc,i);
   }
@@ -3168,7 +3198,7 @@ if (typeof n64js === 'undefined') {
     'executeBCInstr',       'executeUnknown',       'executeUnknown',     'executeUnknown',
     'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
     generateSInstrHelper,   generateDInstrHelper,   'executeUnknown',     'executeUnknown',
-    'executeWInstr',        'executeLInstr',        'executeUnknown',     'executeUnknown',
+    generateWInstrHelper,   generateLInstrHelper,   'executeUnknown',     'executeUnknown',
     'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
     'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
   ];
