@@ -3140,9 +3140,9 @@ if (typeof n64js === 'undefined') {
       impl += '} else {\n';
 
       if (typeof fn === 'string') {
-        impl += fn + '(' + n64js.toString32(ctx.instruction) + ');\n';
+        impl += '  ' + fn + '(' + n64js.toString32(ctx.instruction) + ');\n';
       } else {
-        impl += fn(ctx);
+        impl += '  ' + fn(ctx);
       }
       impl += '}\n';
 
@@ -3806,7 +3806,7 @@ if (typeof n64js === 'undefined') {
   function generateOpHelper(fn,ctx) {
     // fn can be a handler function, in which case defer to that.
     if (typeof fn === 'string') {
-      return generateGenericOpBoilerplate(fn + '(' + n64js.toString32(ctx.instruction) + ');', ctx);
+      return generateGenericOpBoilerplate(fn + '(' + n64js.toString32(ctx.instruction) + ');\n', ctx);
     } else {
       return fn(ctx);
     }
