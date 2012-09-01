@@ -2732,6 +2732,18 @@ if (typeof n64js === 'undefined') {
   function executeSC(i)         { unimplemented(cpu0.pc,i); }
   function executeSCD(i)        { unimplemented(cpu0.pc,i); }
 
+  function generateMFC1(ctx) {
+    var t = ctx.instr_rt();
+    var s = ctx.instr_fs();
+
+    ctx.isTrivial = true;
+
+    var impl = '';
+    impl += 'var result = cpu1.int32[' + s + '];\n';
+    impl += 'rlo[' + t + '] = result;\n';
+    impl += 'rhi[' + t + '] = result >> 31;\n';
+    return impl;
+  }
   function executeMFC1(i) {
     var t = rt(i);
     var s = fs(i);
@@ -2739,6 +2751,7 @@ if (typeof n64js === 'undefined') {
     cpu0.gprLo_signed[t] = result;
     cpu0.gprHi_signed[t] = result >> 31;
   }
+
   function executeDMFC1(i) {
     var t = rt(i);
     var s = fs(i);
@@ -2746,9 +2759,20 @@ if (typeof n64js === 'undefined') {
     cpu0.gprHi_signed[t] = cpu1.int32[s+1];
     n64js.halt('DMFC1');
   }
+
+
+  function generateMTC1(ctx) {
+    var s = ctx.instr_fs();
+    var t = ctx.instr_rt();
+
+    ctx.isTrivial = true;
+
+    return 'cpu1.int32[' + s + '] = rlo[' + t + '];\n';
+  }
   function executeMTC1(i) {
     cpu1.int32[fs(i)] = cpu0.gprLo_signed[rt(i)];
   }
+
   function executeDMTC1(i) {
     var t = rt(i);
     cpu1.store_64( fs(i), cpu0.gprLo_signed[t], cpu0.gprHi_signed[t] );
@@ -3105,8 +3129,8 @@ if (typeof n64js === 'undefined') {
   }
 
   var cop1TableGen = [
-    'executeMFC1',          'executeDMFC1',         'executeCFC1',        'executeUnknown',
-    'executeMTC1',          'executeDMTC1',         'executeCTC1',        'executeUnknown',
+    generateMFC1,           'executeDMFC1',         'executeCFC1',        'executeUnknown',
+    generateMTC1,           'executeDMTC1',         'executeCTC1',        'executeUnknown',
     'executeBCInstr',       'executeUnknown',       'executeUnknown',     'executeUnknown',
     'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
     generateSInstrHelper,   generateDInstrHelper,   'executeUnknown',     'executeUnknown',
@@ -3287,11 +3311,12 @@ if (typeof n64js === 'undefined') {
     this.pc          = 0;
     this.instruction = 0;
     this.post_pc     = 0;
-    this.bailOut     = false;       // Set this if the op does something to manipulate event timers
+    this.bailOut     = false;       // Set this if the op does something to manipulate event timers.
 
-    this.needsDelayCheck = true;    // Set on entry to generate handler. If set, must check for delayPC when updating the pc
-    this.isTrivial       = false;   // Set by the code generation handler if the op is considered trivial
+    this.needsDelayCheck = true;    // Set on entry to generate handler. If set, must check for delayPC when updating the pc.
+    this.isTrivial       = false;   // Set by the code generation handler if the op is considered trivial.
     this.delayedPCUpdate = 0;       // Trivial ops can try to delay setting the pc so that back-to-back trivial ops can emit them entirely.
+    this.dump            = false;   // Display this op when finished.
   }
 
   FragmentContext.prototype.genAssert = function (test, msg) {
@@ -3314,6 +3339,8 @@ if (typeof n64js === 'undefined') {
 
     this.needsDelayCheck = true;
     this.isTrivial       = false;
+
+    this.dump        = false;
 
     // Persist this between ops
     //this.delayedPCUpdate = 0;
@@ -3763,6 +3790,14 @@ if (typeof n64js === 'undefined') {
     ctx.isTrivial       = false;
 
     var fn_code = generateOp(ctx);
+
+    if (ctx.dump) {
+      console.log(fn_code);
+    }
+
+    // if (fn_code.indexOf('execute') >= 0 && fn_code.indexOf('executeCop1_disabled') < 0 ) {
+    //   console.log('slow' + fn_code);
+    // }
 
     // If the last op tried to delay updating the pc, see if it needs updating now.
     if (!ctx.isTrivial && ctx.delayedPCUpdate !== 0) {
