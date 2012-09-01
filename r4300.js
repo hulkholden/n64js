@@ -1997,7 +1997,7 @@ if (typeof n64js === 'undefined') {
     var addr = branchAddress(ctx.pc, ctx.instruction);
 
     var impl = '';
-    impl += 'if ( ' + genSrcRegHi(s) + ' < 0 ) {\n';
+    impl += 'if (' + genSrcRegHi(s) + ' < 0) {\n';
     impl += '  c.delayPC = ' + n64js.toString32(addr) + ';\n';
     impl += '}\n';
 
@@ -2009,6 +2009,21 @@ if (typeof n64js === 'undefined') {
       performBranch( branchAddress(cpu0.pc,i) );
     }
   }
+
+
+  function generateBLTZL(ctx) {
+    var s    = ctx.instr_rs();
+    var addr = branchAddress(ctx.pc, ctx.instruction);
+
+    var impl = '';
+    impl += 'if (' + genSrcRegHi(s) + ' < 0) {\n';
+    impl += '  c.delayPC = ' + n64js.toString32(addr) + ';\n';
+    impl += '} else {\n';
+    impl += '  c.nextPC += 4;\n';
+    impl += '}\n';
+
+    return generateBranchOpBoilerplate(impl, ctx, true /* might_adjust_next_pc*/);
+  }
   function executeBLTZL(i) {
     if (cpu0.gprHi_signed[rs(i)] < 0) {
       performBranch( branchAddress(cpu0.pc,i) );
@@ -2016,6 +2031,9 @@ if (typeof n64js === 'undefined') {
       cpu0.nextPC += 4;   // skip the next instruction
     }
   }
+
+
+
   function executeBLTZAL(i) {
     setSignExtend(cpu0.kRegister_ra, cpu0.pc + 8);
     if (cpu0.gprHi_signed[rs(i)] < 0) {
@@ -2038,7 +2056,7 @@ if (typeof n64js === 'undefined') {
     var addr = branchAddress(ctx.pc, ctx.instruction);
 
     var impl = '';
-    impl += 'if ( ' + genSrcRegHi(s) + ' >= 0 ) {\n';
+    impl += 'if (' + genSrcRegHi(s) + ' >= 0) {\n';
     impl += '  c.delayPC = ' + n64js.toString32(addr) + ';\n';
     impl += '}\n';
 
@@ -2049,6 +2067,20 @@ if (typeof n64js === 'undefined') {
       performBranch( branchAddress(cpu0.pc,i) );
     }
   }
+
+  function generateBGEZL(ctx) {
+    var s    = ctx.instr_rs();
+    var addr = branchAddress(ctx.pc, ctx.instruction);
+
+    var impl = '';
+    impl += 'if (' + genSrcRegHi(s) + ' >= 0) {\n';
+    impl += '  c.delayPC = ' + n64js.toString32(addr) + ';\n';
+    impl += '} else {\n';
+    impl += '  c.nextPC += 4;\n';
+    impl += '}\n';
+
+    return generateBranchOpBoilerplate(impl, ctx, true /* might_adjust_next_pc*/);
+  }
   function executeBGEZL(i) {
     if (cpu0.gprHi_signed[rs(i)] >= 0) {
       performBranch( branchAddress(cpu0.pc,i) );
@@ -2056,6 +2088,8 @@ if (typeof n64js === 'undefined') {
       cpu0.nextPC += 4;   // skip the next instruction
     }
   }
+
+
   function executeBGEZAL(i) {
     setSignExtend(cpu0.kRegister_ra, cpu0.pc + 8);
     if (cpu0.gprHi_signed[rs(i)] >= 0) {
@@ -3270,7 +3304,7 @@ if (typeof n64js === 'undefined') {
   }
 
   var regImmTableGen = [
-    generateBLTZ,           generateBGEZ,           'executeBLTZL',       'executeBGEZL',
+    generateBLTZ,           generateBGEZ,           generateBLTZL,        generateBGEZL,
     'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
     'executeTGEI',          'executeTGEIU',         'executeTLTI',        'executeTLTIU',
     'executeTEQI',          'executeUnknown',       'executeTNEI',        'executeUnknown',
