@@ -1228,22 +1228,52 @@ if (typeof n64js === 'undefined') {
   function executeSYNC(i)       { unimplemented(cpu0.pc,i); }
 
 
-
+  function generateMFHI(ctx) {
+    var d = ctx.instr_rd();
+    var impl = '';
+    impl += 'rlo[' + d + '] = c.multHi_signed[0];\n';
+    impl += 'rhi[' + d + '] = c.multHi_signed[1];\n';
+    return generateTrivialOpBoilerplate(impl, ctx);
+  }
   function executeMFHI(i) {
     var d = rd(i);
 
-    cpu0.gprHi_signed[d] = cpu0.multHi_signed[1];
     cpu0.gprLo_signed[d] = cpu0.multHi_signed[0];
+    cpu0.gprHi_signed[d] = cpu0.multHi_signed[1];
+  }
+
+  function generateMFLO(ctx) {
+    var d = ctx.instr_rd();
+    var impl = '';
+    impl += 'rlo[' + d + '] = c.multLo_signed[0];\n';
+    impl += 'rhi[' + d + '] = c.multLo_signed[1];\n';
+    return generateTrivialOpBoilerplate(impl, ctx);
   }
   function executeMFLO(i) {
     var d = rd(i);
-    cpu0.gprHi_signed[d] = cpu0.multLo_signed[1];
     cpu0.gprLo_signed[d] = cpu0.multLo_signed[0];
+    cpu0.gprHi_signed[d] = cpu0.multLo_signed[1];
+  }
+
+  function generateMTHI(ctx) {
+    var s = ctx.instr_rs();
+    var impl = '';
+    impl += 'c.multHi_signed[0] = rlo[' + s + '];\n';
+    impl += 'c.multHi_signed[1] = rhi[' + s + '];\n';
+    return generateTrivialOpBoilerplate(impl, ctx);
   }
   function executeMTHI(i) {
     var s = rs(i);
     cpu0.multHi_signed[0] = cpu0.gprLo_signed[s];
     cpu0.multHi_signed[1] = cpu0.gprHi_signed[s];
+  }
+
+  function generateMTLO(ctx) {
+    var s = ctx.instr_rs();
+    var impl = '';
+    impl += 'c.multLo_signed[0] = rlo[' + s + '];\n';
+    impl += 'c.multLo_signed[1] = rhi[' + s + '];\n';
+    return generateTrivialOpBoilerplate(impl, ctx);
   }
   function executeMTLO(i)  {
     var s = rs(i);
@@ -1270,7 +1300,7 @@ if (typeof n64js === 'undefined') {
     impl += 'c.multLo[1] = result_lo >> 31;\n';
     impl += 'c.multHi[0] = result_hi;\n';
     impl += 'c.multHi[1] = result_hi >> 31;\n';
-    return generateTrivialOpBoilerplate(impl,  ctx);
+    return generateTrivialOpBoilerplate(impl, ctx);
   }
   function executeMULT(i) {
     var result = cpu0.gprLo_signed[rs(i)] * cpu0.gprLo_signed[rt(i)];
@@ -3198,7 +3228,7 @@ if (typeof n64js === 'undefined') {
     generateSLLV,           'executeUnknown',       generateSRLV,         generateSRAV,
     generateJR,             generateJALR,           'executeUnknown',     'executeUnknown',
     'executeSYSCALL',       'executeBREAK',         'executeUnknown',     'executeSYNC',
-    'executeMFHI',          'executeMTHI',          'executeMFLO',        'executeMTLO',
+    generateMFHI,           generateMTHI,           generateMFLO,         generateMTLO,
     'executeDSLLV',         'executeUnknown',       'executeDSRLV',       'executeDSRAV',
     generateMULT,           generateMULTU,          'executeDIV',         'executeDIVU',
     'executeDMULT',         'executeDMULTU',        'executeDDIV',        'executeDDIVU',
