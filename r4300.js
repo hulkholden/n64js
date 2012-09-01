@@ -3930,7 +3930,7 @@ if (typeof n64js === 'undefined') {
 
       // We can avoid off-branch checks in this case.
       if (ctx.post_pc !== ctx.pc+4) {
-        n64js.halt('isnt this always true?');
+        n64js.assert("post_pc should always be pc+4 for trival ops?");
         code += 'c.pc = ' + n64js.toString32(ctx.pc+4) + ';\n';
         code += 'if (c.pc !== ' + n64js.toString32(ctx.post_pc) + ') { return ' + ctx.fragment.opsCompiled + '; }\n';
       } else {
