@@ -24,11 +24,14 @@
    table td.impl40  { background-color: #cc4; }
    table td.impl80  { background-color: #8c4; }
    table td.impl100 { background-color: #4f4; }
+   .perf-chart { display:none; position:absolute; top:30px; right:5px;}
  </style>
 
     <title>n64js - An N64 Emulator in Javascript</title>
   </head>
   <body>
+    <div class="perf-chart" id="performance"></div>
+
     <div class="container-fluid">
       <div class="row-fluid">
         <div class="span12">
@@ -48,6 +51,7 @@
             </div>
             <div class="btn-group">
               <button class="btn" onclick="$('#debug').toggle()"><i class="icon-fire"></i> Debug</button>
+              <button class="btn" onclick="$('#performance').toggle()"><i class="icon-signal"></i> Perf</button>
             </div>
             <input style="visibility:hidden; display:inline-block;" id="fileInput" name="fileInput" type="file" onchange="loadFile()" />
           </div>
@@ -193,6 +197,7 @@
     </div>
     <script src="js/jquery.min.js"></script>
     <script src="js/bootstrap.min.js"></script>
+    <script src="js/highcharts.js"></script>
     <script src="js/glUtils.js"></script>
     <script src="js/webgl-debug.js"></script>
     <script src="n64.js"></script>

@@ -2818,8 +2818,67 @@ if (typeof n64js === 'undefined') {
     }
 
     cpu0.pc = 0xA4000040;
+
+    startTime = new Date();
+    lastPresentTime = undefined;
   };
 
+  //
+  // Performance
+  //
+  var startTime;
+  var lastPresentTime;
+  var frameTimeSeries;
+
+  n64js.emitRunningTime  = function (msg) {
+    var cur_time = new Date();
+    n64js.displayWarning('Time to ' + msg + ' ' + (cur_time.getTime() - startTime.getTime()).toString());
+  }
+
+  function createFrameTimeSeries() {
+      var chart = new Highcharts.Chart({
+          chart: {
+              renderTo: 'performance',
+              type: 'line',
+              animation: false
+          },
+          plotOptions: {
+            line: {
+              marker: { enabled: false, }
+            }
+          },
+          title: { text: 'Performance' },
+          yAxis: {
+              title: { text: 'Time (ms)' },
+              min: 0
+              //max: 100,
+          }
+      });
+
+      frameTimeSeries = chart.addSeries({
+        name: 'Frame Time',
+        data: []
+      });
+  }
+
+  function setFrameTime(t) {
+    if (!frameTimeSeries)
+      createFrameTimeSeries();
+
+    if (t>1000)
+      return;
+    frameTimeSeries.addPoint(t, true, frameTimeSeries.data.length > 100, false);
+  }
+
+  n64js.onPresent = function () {
+    var cur_time = new Date();
+    if (lastPresentTime) {
+      var t = cur_time.getTime() - lastPresentTime.getTime();
+      setFrameTime(t);
+    }
+
+    lastPresentTime = cur_time;
+  }
 
   function fixEndian(arrayBuffer) {
     var dataView = new DataView(arrayBuffer);

@@ -2650,6 +2650,8 @@ if (typeof n64js === 'undefined') {
   n64js.presentBackBuffer = function (ram, origin) {
     var texture;
 
+    n64js.onPresent();
+
     // NB: if no display lists executed, interpret framebuffer as bytes
     if (num_display_lists_since_present == 0) {
       //n64js.log('new origin: ' + n64js.toString32(origin) + ' but no display lists rendered to skipping');
