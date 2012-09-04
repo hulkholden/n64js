@@ -945,7 +945,7 @@ if (typeof n64js === 'undefined') {
       var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
       return ((ram[phys] << 24) | (ram[phys+1] << 16) | (ram[phys+2] << 8) | ram[phys+3]) >>> 0;
     }
-    return lw_slow(addr);
+    return lwu_slow(addr);
   };
 
   n64js.load_s32 = function (ram, addr) {
