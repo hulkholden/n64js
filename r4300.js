@@ -987,6 +987,23 @@ if (typeof n64js === 'undefined') {
     }
   }
 
+  function store_64(ram, addr, value_lo, value_hi) {
+    if (addr < -2139095040) {
+      var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
+      ram[phys+0] = value_hi >> 24;
+      ram[phys+1] = value_hi >> 16;
+      ram[phys+2] = value_hi >>  8;
+      ram[phys+3] = value_hi;
+      ram[phys+4] = value_lo >> 24;
+      ram[phys+5] = value_lo >> 16;
+      ram[phys+6] = value_lo >>  8;
+      ram[phys+7] = value_lo;
+    } else {
+      sw_slow(addr,     value_hi);
+      sw_slow(addr + 4, value_lo);
+    }
+  }
+
 
   function unimplemented(pc,i) {
     var r = n64js.disassembleOp(pc,i);
@@ -2631,8 +2648,7 @@ if (typeof n64js === 'undefined') {
 
     var impl = '';
     impl += 'var addr = ' + genSrcRegLo(b) + ' + ' + o + ';\n';
-    impl += 'store_32(ram, addr,     ' + genSrcRegHi(t) + ');\n';
-    impl += 'store_32(ram, addr + 4, ' + genSrcRegLo(t) + ');\n';
+    impl += 'store_64(ram, addr,     ' + genSrcRegLo(t) + ',' + genSrcRegHi(t) + ');\n';
 
     return generateMemoryAccessBoilerplate(impl, ctx);
   }
@@ -2642,8 +2658,7 @@ if (typeof n64js === 'undefined') {
     var o = imms(i);
 
     var addr = cpu0.gprLo_signed[b] + o;
-    store_32(cpu0.ram, addr,     cpu0.gprHi_signed[t]);
-    store_32(cpu0.ram, addr + 4, cpu0.gprLo_signed[t]);
+    store_64(cpu0.ram, addr, cpu0.gprLo_signed[t], cpu0.gprHi_signed[t]);
   }
 
 
@@ -2678,8 +2693,7 @@ if (typeof n64js === 'undefined') {
     // FIXME: can avoid cpuStuffToDo if we're writing to ram
     var impl = '';
     impl += 'var addr = ' + genSrcRegLo(b) + ' + ' + o + ';\n';
-    impl += 'store_32(ram, addr,     cpu1.int32[' + hi + ']);\n';
-    impl += 'store_32(ram, addr + 4, cpu1.int32[' + t + ']);\n';
+    impl += 'store_64(ram, addr, cpu1.int32[' + t + '], cpu1.int32[' + hi + ']);\n';
     return generateMemoryAccessBoilerplate(impl, ctx);
   }
 
@@ -2691,8 +2705,7 @@ if (typeof n64js === 'undefined') {
 
     // FIXME: this can do a single check that the address is in ram
     var addr = cpu0.gprLo_signed[b] + o;
-    store_32(cpu0.ram, addr,     cpu1.int32[t+1]);
-    store_32(cpu0.ram, addr + 4, cpu1.int32[t  ]);
+    store_64(cpu0.ram, addr, cpu1.int32[t], cpu1.int32[t+1]);
   }
 
   function executeSDC2(i)       { unimplemented(cpu0.pc,i); }
