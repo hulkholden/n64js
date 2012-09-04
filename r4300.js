@@ -2865,24 +2865,23 @@ if (typeof n64js === 'undefined') {
     }
   }
 
-  function convert(x) {
-    switch(cpu1.control[31] & FPCSR_RM_MASK) {
-      case FPCSR_RM_RN:     return Math.round(x);  break;
-      case FPCSR_RM_RZ:     return trunc(x);  break;
-      case FPCSR_RM_RP:     return Math.ceil(x);  break;
-      case FPCSR_RM_RM:     return Math.floor(x); break;
-    }
-
-    n64js.assert('unknown rounding mode')
-  }
-
-  function trunc(x) {
+  n64js.trunc = function (x) {
     if (x < 0)
       return Math.ceil(x);
     else
       return Math.floor(x);
   }
 
+  n64js.convert = function (x) {
+    switch(cpu1.control[31] & FPCSR_RM_MASK) {
+      case FPCSR_RM_RN:     return  Math.round(x);  break;
+      case FPCSR_RM_RZ:     return n64js.trunc(x);  break;
+      case FPCSR_RM_RP:     return  Math.ceil(x);  break;
+      case FPCSR_RM_RM:     return  Math.floor(x); break;
+    }
+
+    n64js.assert('unknown rounding mode')
+  }
 
   function generateSInstrHelper(ctx) {
 
@@ -2905,13 +2904,13 @@ if (typeof n64js === 'undefined') {
       case 0x09:    /* 'TRUNC.L.'*/     break;
       case 0x0a:    /* 'CEIL.L.'*/      break;
       case 0x0b:    /* 'FLOOR.L.'*/     break;
-      case 0x0c:    /* 'ROUND.W.'*/     return 'cpu1.int32[' + d + '] = Math.round( cpu1.float32[' + s + '] );\n';  // TODO: check this
-      case 0x0d:    /* 'TRUNC.W.'*/     return 'cpu1.int32[' + d + '] =      trunc( cpu1.float32[' + s + '] );\n';
-      case 0x0e:    /* 'CEIL.W.'*/      return 'cpu1.int32[' + d + '] = Math.ceil(  cpu1.float32[' + s + '] );\n';
-      case 0x0f:    /* 'FLOOR.W.'*/     return 'cpu1.int32[' + d + '] = Math.floor( cpu1.float32[' + s + '] );\n';
+      case 0x0c:    /* 'ROUND.W.'*/     return 'cpu1.int32[' + d + '] =  Math.round( cpu1.float32[' + s + '] );\n';  // TODO: check this
+      case 0x0d:    /* 'TRUNC.W.'*/     return 'cpu1.int32[' + d + '] = n64js.trunc( cpu1.float32[' + s + '] );\n';
+      case 0x0e:    /* 'CEIL.W.'*/      return 'cpu1.int32[' + d + '] =  Math.ceil(  cpu1.float32[' + s + '] );\n';
+      case 0x0f:    /* 'FLOOR.W.'*/     return 'cpu1.int32[' + d + '] =  Math.floor( cpu1.float32[' + s + '] );\n';
       case 0x20:    /* 'CVT.S' */       break;
       case 0x21:    /* 'CVT.D' */       return 'cpu1.store_f64( ' + d + ', cpu1.float32[' + s + '] );\n';
-      case 0x24:    /* 'CVT.W' */       return 'cpu1.int32[' + d + '] = convert( cpu1.float32[' + s + '] );\n';
+      case 0x24:    /* 'CVT.W' */       return 'cpu1.int32[' + d + '] = n64js.convert( cpu1.float32[' + s + '] );\n';
       case 0x25:    /* 'CVT.L' */       break;
       case 0x30:    /* 'C.F' */         return 'cpu1.control[31] &= ~FPCSR_C;\n';
       case 0x31:    /* 'C.UN' */        break;
@@ -2958,14 +2957,14 @@ if (typeof n64js === 'undefined') {
         case 0x09:    /* 'TRUNC.L.'*/     unimplemented(cpu0.pc,i); return;
         case 0x0a:    /* 'CEIL.L.'*/      unimplemented(cpu0.pc,i); return;
         case 0x0b:    /* 'FLOOR.L.'*/     unimplemented(cpu0.pc,i); return;
-        case 0x0c:    /* 'ROUND.W.'*/     cpu1.int32[d] = Math.round( cpu1.float32[s] )|0; return;  // TODO: check this
-        case 0x0d:    /* 'TRUNC.W.'*/     cpu1.int32[d] =      trunc( cpu1.float32[s] )|0; return;
-        case 0x0e:    /* 'CEIL.W.'*/      cpu1.int32[d] = Math.ceil(  cpu1.float32[s] )|0; return;
-        case 0x0f:    /* 'FLOOR.W.'*/     cpu1.int32[d] = Math.floor( cpu1.float32[s] )|0; return;
+        case 0x0c:    /* 'ROUND.W.'*/     cpu1.int32[d] =  Math.round( cpu1.float32[s] )|0; return;  // TODO: check this
+        case 0x0d:    /* 'TRUNC.W.'*/     cpu1.int32[d] = n64js.trunc( cpu1.float32[s] )|0; return;
+        case 0x0e:    /* 'CEIL.W.'*/      cpu1.int32[d] =  Math.ceil(  cpu1.float32[s] )|0; return;
+        case 0x0f:    /* 'FLOOR.W.'*/     cpu1.int32[d] =  Math.floor( cpu1.float32[s] )|0; return;
 
         case 0x20:    /* 'CVT.S' */       unimplemented(cpu0.pc,i); return;
         case 0x21:    /* 'CVT.D' */       cpu1.store_f64( d, cpu1.float32[s] ); return;
-        case 0x24:    /* 'CVT.W' */       cpu1.int32[d] = convert( cpu1.float32[s] )|0; return;
+        case 0x24:    /* 'CVT.W' */       cpu1.int32[d] = n64js.convert( cpu1.float32[s] )|0; return;
         case 0x25:    /* 'CVT.L' */       unimplemented(cpu0.pc,i); return;
       }
       unimplemented(cpu0.pc,i);
@@ -3009,13 +3008,13 @@ if (typeof n64js === 'undefined') {
       case 0x09:    /* 'TRUNC.L.'*/     break;
       case 0x0a:    /* 'CEIL.L.'*/      break;
       case 0x0b:    /* 'FLOOR.L.'*/     break;
-      case 0x0c:    /* 'ROUND.W.'*/     return 'cpu1.int32[' + d + '] = Math.round( cpu1.load_f64( ' + s + ' ) ) | 0;\n';  // TODO: check this
-      case 0x0d:    /* 'TRUNC.W.'*/     return 'cpu1.int32[' + d + '] =      trunc( cpu1.load_f64( ' + s + ' ) ) | 0;\n';
-      case 0x0e:    /* 'CEIL.W.'*/      return 'cpu1.int32[' + d + '] = Math.ceil(  cpu1.load_f64( ' + s + ' ) ) | 0;\n';
-      case 0x0f:    /* 'FLOOR.W.'*/     return 'cpu1.int32[' + d + '] = Math.floor( cpu1.load_f64( ' + s + ' ) ) | 0;\n';
+      case 0x0c:    /* 'ROUND.W.'*/     return 'cpu1.int32[' + d + '] =  Math.round( cpu1.load_f64( ' + s + ' ) ) | 0;\n';  // TODO: check this
+      case 0x0d:    /* 'TRUNC.W.'*/     return 'cpu1.int32[' + d + '] = n64js.trunc( cpu1.load_f64( ' + s + ' ) ) | 0;\n';
+      case 0x0e:    /* 'CEIL.W.'*/      return 'cpu1.int32[' + d + '] =  Math.ceil(  cpu1.load_f64( ' + s + ' ) ) | 0;\n';
+      case 0x0f:    /* 'FLOOR.W.'*/     return 'cpu1.int32[' + d + '] =  Math.floor( cpu1.load_f64( ' + s + ' ) ) | 0;\n';
       case 0x20:    /* 'CVT.S' */       return 'cpu1.float32[' + d + '] = cpu1.load_f64( ' + s + ' );\n';
       case 0x21:    /* 'CVT.D' */       break;
-      case 0x24:    /* 'CVT.W' */       return 'cpu1.int32[' + d + '] = convert( cpu1.load_f64( ' + s + ' ) ) | 0;\n';
+      case 0x24:    /* 'CVT.W' */       return 'cpu1.int32[' + d + '] = n64js.convert( cpu1.load_f64( ' + s + ' ) ) | 0;\n';
       case 0x25:    /* 'CVT.L' */       break;
       case 0x30:    /* 'C.F' */         return 'cpu1.control[31] &= ~FPCSR_C;\n';
       case 0x31:    /* 'C.UN' */        break;
@@ -3060,14 +3059,14 @@ if (typeof n64js === 'undefined') {
         case 0x09:    /* 'TRUNC.L.'*/     unimplemented(cpu0.pc,i); return;
         case 0x0a:    /* 'CEIL.L.'*/      unimplemented(cpu0.pc,i); return;
         case 0x0b:    /* 'FLOOR.L.'*/     unimplemented(cpu0.pc,i); return;
-        case 0x0c:    /* 'ROUND.W.'*/     cpu1.int32[d] = Math.round( cpu1.load_f64( s ) ) | 0; return;  // TODO: check this
-        case 0x0d:    /* 'TRUNC.W.'*/     cpu1.int32[d] =      trunc( cpu1.load_f64( s ) ) | 0; return;
-        case 0x0e:    /* 'CEIL.W.'*/      cpu1.int32[d] = Math.ceil(  cpu1.load_f64( s ) ) | 0; return;
-        case 0x0f:    /* 'FLOOR.W.'*/     cpu1.int32[d] = Math.floor( cpu1.load_f64( s ) ) | 0; return;
+        case 0x0c:    /* 'ROUND.W.'*/     cpu1.int32[d] =  Math.round( cpu1.load_f64( s ) ) | 0; return;  // TODO: check this
+        case 0x0d:    /* 'TRUNC.W.'*/     cpu1.int32[d] = n64js.trunc( cpu1.load_f64( s ) ) | 0; return;
+        case 0x0e:    /* 'CEIL.W.'*/      cpu1.int32[d] =  Math.ceil(  cpu1.load_f64( s ) ) | 0; return;
+        case 0x0f:    /* 'FLOOR.W.'*/     cpu1.int32[d] =  Math.floor( cpu1.load_f64( s ) ) | 0; return;
 
         case 0x20:    /* 'CVT.S' */       cpu1.float32[d] = cpu1.load_f64( s ); return;
         case 0x21:    /* 'CVT.D' */       unimplemented(cpu0.pc,i); return;
-        case 0x24:    /* 'CVT.W' */       cpu1.int32[d] = convert( cpu1.load_f64( s ) ) | 0; return;
+        case 0x24:    /* 'CVT.W' */       cpu1.int32[d] = n64js.convert( cpu1.load_f64( s ) ) | 0; return;
         case 0x25:    /* 'CVT.L' */       unimplemented(cpu0.pc,i); return;
       }
       unimplemented(cpu0.pc,i);
