@@ -3244,6 +3244,8 @@ if (typeof n64js === 'undefined') {
 
     var impl = '';
 
+    ctx.fragment.usesCop1 = true;
+
     if (ctx.fragment.cop1statusKnown) {
       // Assert that cop1 is enabled
       impl += ctx.genAssert('(c.control[12] & SR_CU1) !== 0', 'cop1 should be enabled');
@@ -3753,20 +3755,22 @@ if (typeof n64js === 'undefined') {
                     fragmentContext.delayedPCUpdate = 0;
                 }
 
-                var code = '';
+                fragment.body_code += 'return ' + fragment.opsCompiled + ';\n';    // Return the number of ops exected
 
-                code += '(function fragment_' + n64js.toString32(fragment.entryPC) + '_' + fragment.opsCompiled + '(c, rlo, rhi, ram) {\n';
-                //code += 'if (cpu0.pc>>>0 != ' + n64js.toString32(fragment.entryPC) + ') n64js.halt("entrypc mismatch - " + cpu0.pc + " !== ' + n64js.toString32(fragment.entryPC) + '");\n';
+                if (fragment.usesCop1) {
+                  var cpu1_shizzle = '';
+                  cpu1_shizzle += 'var cpu1 = n64js.cpu1;\n';
+                  cpu1_shizzle += 'var SR_CU1 = ' + SR_CU1 + ';\n';
+                  cpu1_shizzle += 'var FPCSR_C = ' + FPCSR_C + ';\n';
+                  fragment.body_code = cpu1_shizzle + '\n\n' + fragment.body_code;
+                }
 
-                code += fragment.body_code;
-
-                code += 'return ' + fragment.opsCompiled + ';\n';    // Return the number of ops exected
-                code += '});\n';   // End the enclosing function
+                var code = 'return function fragment_' + n64js.toString32(fragment.entryPC) + '_' + fragment.opsCompiled + '(c, rlo, rhi, ram) {\n' + fragment.body_code + '}\n';
 
                 // Clear these strings to reduce garbage
                 fragment.body_code ='';
 
-                fragment.func = eval(code);
+                fragment.func = new Function(code)();
                 fragment.nextFragments = [];
                 for (var i = 0; i < fragment.opsCompiled; i++) {
                   fragment.nextFragments.push(undefined);
@@ -3828,6 +3832,7 @@ if (typeof n64js === 'undefined') {
     this.needsDelayCheck  = true;
 
     this.cop1statusKnown = false;
+    this.usesCop1        = false;
   }
 
   Fragment.prototype.invalidate = function () {
@@ -3843,7 +3848,8 @@ if (typeof n64js === 'undefined') {
     this.body_code        = '';
     this.needsDelayCheck  = true;
 
-    this.cop1statusKnown = false;
+    this.cop1statusKnown  = false;
+    this.usesCop1         = true;
   }
 
   Fragment.prototype.getNextFragment = function (pc, ops_executed) {
