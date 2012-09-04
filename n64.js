@@ -2865,39 +2865,14 @@ if (typeof n64js === 'undefined') {
     n64js.displayWarning('Time to ' + msg + ' ' + (cur_time.getTime() - startTime.getTime()).toString());
   }
 
-  function createFrameTimeSeries() {
-      var chart = new Highcharts.Chart({
-          chart: {
-              renderTo: 'performance',
-              type: 'line',
-              animation: false
-          },
-          plotOptions: {
-            line: {
-              marker: { enabled: false, }
-            }
-          },
-          title: { text: 'Performance' },
-          yAxis: {
-              title: { text: 'Time (ms)' },
-              min: 0
-              //max: 100,
-          }
-      });
-
-      frameTimeSeries = chart.addSeries({
-        name: 'Frame Time',
-        data: []
-      });
-  }
-
   function setFrameTime(t) {
-    if (!frameTimeSeries)
-      createFrameTimeSeries();
+    var title_text ;
+    if (rominfo.name)
+      title_text = 'n64js - ' + rominfo.name + ' - ' + t + 'mspf';
+    else
+      title_text = 'n64js - ' + t + 'mspf';
 
-    if (t>1000)
-      return;
-    frameTimeSeries.addPoint(t, true, frameTimeSeries.data.length > 100, false);
+    $('#title').text(title_text);
   }
 
   n64js.onPresent = function () {
