@@ -351,7 +351,6 @@
       });
 
       n64js.refreshDisplay();
-      updateLoop();
     });
 
     function load() {
@@ -380,6 +379,7 @@
           n64js.reset();
           n64js.refreshDisplay();
           n64js.startRunning();
+          updateLoopAnimframe();
           $('#runbutton').html('<i class="icon-pause"></i> Pause');
         };
 
@@ -397,11 +397,14 @@
     function toggleRun() {
       var running = n64js.toggleRun();
       $('#runbutton').html(running ? '<i class="icon-pause"></i> Pause' : '<i class="icon-play"></i> Run');
+      if (running)
+        updateLoopAnimframe();
     }
 
-    function updateLoop() {
-
+    function updateLoopAnimframe() {
         if (n64js.isRunning()) {
+          requestAnimationFrame(updateLoopAnimframe);
+
           var sync = n64js.getSync();
           if (sync) {
             var count = sync.getAvailableOps();
@@ -419,12 +422,7 @@
           if (!n64js.isRunning()) {
             $('#runbutton').html('<i class="icon-play"></i> Run');
           }
-
-          setTimeout(updateLoop, 1);
-        } else {
-          setTimeout(updateLoop, 16);
         }
-
     }
 
     </script>
