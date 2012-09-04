@@ -2491,6 +2491,8 @@ if (typeof n64js === 'undefined') {
     var b = ctx.instr_base();
     var o = ctx.instr_imms();
 
+    ctx.fragment.usesCop1 = true;
+
     var impl = 'cpu1.int32[' + t + '] = n64js.load_s32(ram, ' + genSrcRegLo(b) + ' + ' + o + ');\n';
     return generateMemoryAccessBoilerplate(impl, ctx);
   }
@@ -2508,6 +2510,8 @@ if (typeof n64js === 'undefined') {
     var t = ctx.instr_ft();
     var b = ctx.instr_base();
     var o = ctx.instr_imms();
+
+    ctx.fragment.usesCop1 = true;
 
     var impl = '';
     impl += 'var value_lo;\n';
@@ -2666,6 +2670,8 @@ if (typeof n64js === 'undefined') {
     var b = ctx.instr_base();
     var o = ctx.instr_imms();
 
+    ctx.fragment.usesCop1 = true;
+
     // FIXME: can avoid cpuStuffToDo if we're writing to ram
     var impl = '';
     impl += 'n64js.store_32(ram, ' + genSrcRegLo(b) + ' + ' + o + ', cpu1.int32[' + t + ']);\n';
@@ -2688,6 +2694,8 @@ if (typeof n64js === 'undefined') {
     var o = ctx.instr_imms();
 
     var hi = t+1;
+
+    ctx.fragment.usesCop1 = true;
 
     // FIXME: can avoid cpuStuffToDo if we're writing to ram
     var impl = '';
@@ -2782,7 +2790,8 @@ if (typeof n64js === 'undefined') {
     var t = ctx.instr_rt();
     var s = ctx.instr_fs();
 
-    ctx.isTrivial = true;
+    ctx.fragment.usesCop1 = true;
+    ctx.isTrivial         = true;
 
     var impl = '';
     impl += 'var result = cpu1.int32[' + s + '];\n';
@@ -2811,7 +2820,8 @@ if (typeof n64js === 'undefined') {
     var s = ctx.instr_fs();
     var t = ctx.instr_rt();
 
-    ctx.isTrivial = true;
+    ctx.fragment.usesCop1 = true;
+    ctx.isTrivial         = true;
 
     return 'cpu1.int32[' + s + '] = rlo[' + t + '];\n';
   }
@@ -2889,7 +2899,8 @@ if (typeof n64js === 'undefined') {
     var t = ctx.instr_ft();
     var d = ctx.instr_fd();
 
-    ctx.isTrivial = true;
+    ctx.fragment.usesCop1 = true;
+    ctx.isTrivial         = true;
 
     switch(cop1_func(ctx.instruction)) {
       case 0x00:    return 'cpu1.float32[' + d + '] = cpu1.float32[' + s + '] + cpu1.float32[' + t + '];\n';
@@ -2993,7 +3004,8 @@ if (typeof n64js === 'undefined') {
     var t = ctx.instr_ft();
     var d = ctx.instr_fd();
 
-    ctx.isTrivial = true;
+    ctx.fragment.usesCop1 = true;
+    ctx.isTrivial         = true;
 
     switch(cop1_func(ctx.instruction)) {
       case 0x00:    return 'cpu1.store_f64( ' + d + ', cpu1.load_f64( ' + s + ' ) + cpu1.load_f64( ' + t + ' ) );\n';
@@ -3093,7 +3105,8 @@ if (typeof n64js === 'undefined') {
     var s = ctx.instr_fs();
     var d = ctx.instr_fd();
 
-    ctx.isTrivial = true;
+    ctx.fragment.usesCop1 = true;
+    ctx.isTrivial         = true;
     switch(cop1_func(ctx.instruction)) {
       case 0x20:    /* 'CVT.S' */       return 'cpu1.float32[' + d + '] = cpu1.int32[' + s + '];\n';
       case 0x21:    /* 'CVT.D' */       return 'cpu1.store_f64(' + d + ', cpu1.int32[' + s + ']);\n';
@@ -3116,7 +3129,8 @@ if (typeof n64js === 'undefined') {
     var s = ctx.instr_fs();
     var d = ctx.instr_fd();
 
-    ctx.isTrivial = true;
+    ctx.fragment.usesCop1 = true;
+    ctx.isTrivial         = true;
     switch(cop1_func(ctx.instruction)) {
       //case 0x20:    /* 'CVT.S' */       return 'cpu1.float32[' + d + '] = cpu1.int32[' + s + '];\n';
       case 0x21:    /* 'CVT.D' */       return 'cpu1.store_f64(' + d + ', cpu1.load_s64_as_double(' + s + ');\n';
@@ -3849,7 +3863,7 @@ if (typeof n64js === 'undefined') {
     this.needsDelayCheck  = true;
 
     this.cop1statusKnown  = false;
-    this.usesCop1         = true;
+    this.usesCop1         = false;
   }
 
   Fragment.prototype.getNextFragment = function (pc, ops_executed) {
