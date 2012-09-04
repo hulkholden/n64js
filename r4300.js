@@ -1666,7 +1666,7 @@ if (typeof n64js === 'undefined') {
     }
 
     var impl = '';
-    impl += 'executeMTC0(' + n64js.toString32(ctx.instruction) + ');\n';
+    impl += 'n64js.executeMTC0(' + n64js.toString32(ctx.instruction) + ');\n';
     return generateGenericOpBoilerplate(impl, ctx);
   }
 
@@ -3156,6 +3156,7 @@ if (typeof n64js === 'undefined') {
   if (specialTable.length != 64) {
     throw "Oops, didn't build the special table correctly";
   }
+  n64js.executeUnknown = executeUnknown;
 
   function executeSpecial(i) {
     var fn = i & 0x3f;
@@ -3191,6 +3192,11 @@ if (typeof n64js === 'undefined') {
     throw "Oops, didn't build the cop0 table correctly";
   }
 
+  // Expose all the functions that we don't yet generate
+  n64js.executeMFC0 = executeMFC0;
+  n64js.executeMTC0 = executeMTC0;  // There's a generateMTC0, but it calls through to the interpreter
+  n64js.executeTLB  = executeTLB;
+
 
   function executeCop0(i) {
     var fmt = (i >>> 21) & 0x1f;
@@ -3225,6 +3231,14 @@ if (typeof n64js === 'undefined') {
     throw "Oops, didn't build the cop1 gen table correctly";
   }
 
+  // Expose all the functions that we don't yet generate
+  n64js.executeDMFC1   = executeDMFC1;
+  n64js.executeCFC1    = executeCFC1;
+  n64js.executeDMTC1   = executeDMTC1;
+  n64js.executeCTC1    = executeCTC1;
+  n64js.executeBCInstr = executeBCInstr;
+
+
   function generateCop1(ctx) {
     var fmt = (ctx.instruction >>> 21) & 0x1f;
     var fn = cop1TableGen[fmt];
@@ -3236,7 +3250,7 @@ if (typeof n64js === 'undefined') {
       impl += ctx.genAssert('(c.control[12] & SR_CU1) !== 0', 'cop1 should be enabled');
 
       if (typeof fn === 'string') {
-        impl += fn + '(' + n64js.toString32(ctx.instruction) + ');\n';
+        impl += 'n64js.' + fn + '(' + n64js.toString32(ctx.instruction) + ');\n';
       } else {
         impl += fn(ctx);
       }
@@ -3247,7 +3261,7 @@ if (typeof n64js === 'undefined') {
       impl += '} else {\n';
 
       if (typeof fn === 'string') {
-        impl += '  ' + fn + '(' + n64js.toString32(ctx.instruction) + ');\n';
+        impl += '  n64js.' + fn + '(' + n64js.toString32(ctx.instruction) + ');\n';
       } else {
         impl += '  ' + fn(ctx);
       }
@@ -3281,7 +3295,6 @@ if (typeof n64js === 'undefined') {
   function setCop1Enable(enable) {
     simpleTable[0x11] = enable ? executeCop1 : executeCop1_disabled;
   }
-
 
   var regImmTable = [
     executeBLTZ,          executeBGEZ,          executeBLTZL,       executeBGEZL,
@@ -3326,7 +3339,6 @@ if (typeof n64js === 'undefined') {
 
   function executeOp(i) {
     var opcode = (i >>> 26) & 0x3f;
-
     return simpleTable[opcode](i);
   }
 
@@ -3352,6 +3364,36 @@ if (typeof n64js === 'undefined') {
     throw "Oops, didn't build the special gen table correctly";
   }
 
+  // Expose all the functions that we don't yet generate
+  n64js.executeSYSCALL = executeSYSCALL;
+  n64js.executeBREAK   = executeBREAK;
+  n64js.executeSYNC    = executeSYNC;
+  n64js.executeDSLLV   = executeDSLLV;
+  n64js.executeDSRLV   = executeDSRLV;
+  n64js.executeDSRAV   = executeDSRAV;
+  n64js.executeDIV     = executeDIV;
+  n64js.executeDIVU    = executeDIVU;
+  n64js.executeDMULT   = executeDMULT;
+  n64js.executeDMULTU  = executeDMULTU;
+  n64js.executeDDIV    = executeDDIV;
+  n64js.executeDDIVU   = executeDDIVU;
+  n64js.executeDADD    = executeDADD;
+  n64js.executeDADDU   = executeDADDU;
+  n64js.executeDSUB    = executeDSUB;
+  n64js.executeDSUBU   = executeDSUBU;
+  n64js.executeTGE     = executeTGE;
+  n64js.executeTGEU    = executeTGEU;
+  n64js.executeTLT     = executeTLT;
+  n64js.executeTLTU    = executeTLTU;
+  n64js.executeTEQ     = executeTEQ;
+  n64js.executeTNE     = executeTNE;
+  n64js.executeDSLL    = executeDSLL;
+  n64js.executeDSRL    = executeDSRL;
+  n64js.executeDSRA    = executeDSRA;
+  n64js.executeDSLL32  = executeDSLL32;
+  n64js.executeDSRL32  = executeDSRL32;
+  n64js.executeDSRA32  = executeDSRA32;
+
   var regImmTableGen = [
     generateBLTZ,           generateBGEZ,           generateBLTZL,        generateBGEZL,
     'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
@@ -3365,6 +3407,18 @@ if (typeof n64js === 'undefined') {
   if (regImmTableGen.length != 32) {
     throw "Oops, didn't build the regimm gen table correctly";
   }
+
+  // Expose all the functions that we don't yet generate
+  n64js.executeTGEI    = executeTGEI;
+  n64js.executeTGEIU   = executeTGEIU;
+  n64js.executeTLTI    = executeTLTI;
+  n64js.executeTLTIU   = executeTLTIU;
+  n64js.executeTEQI    = executeTEQI;
+  n64js.executeTNEI    = executeTNEI;
+  n64js.executeBLTZAL  = executeBLTZAL;
+  n64js.executeBGEZAL  = executeBGEZAL;
+  n64js.executeBLTZALL = executeBLTZALL;
+  n64js.executeBGEZALL = executeBGEZALL;
 
   var simpleTableGen = [
     generateSpecial,        generateRegImm,         generateJ,            generateJAL,
@@ -3387,6 +3441,25 @@ if (typeof n64js === 'undefined') {
   if (simpleTableGen.length != 64) {
     throw "Oops, didn't build the simple gen table correctly";
   }
+  // Expose all the functions that we don't yet generate
+  n64js.executeBLEZL   = executeBLEZL;
+  n64js.executeBGTZL   = executeBGTZL;
+  n64js.executeDADDI   = executeDADDI;
+  n64js.executeDADDIU  = executeDADDIU;
+  n64js.executeLDL     = executeLDL;
+  n64js.executeLDR     = executeLDR;
+  n64js.executeLWL     = executeLWL;
+  n64js.executeLWR     = executeLWR;
+  n64js.executeSWL     = executeSWL;
+  n64js.executeSDL     = executeSDL;
+  n64js.executeSDR     = executeSDR;
+  n64js.executeSWR     = executeSWR;
+  n64js.executeLL      = executeLL;
+  n64js.executeLLD     = executeLLD;
+  n64js.executeLDC2    = executeLDC2;
+  n64js.executeSC      = executeSC;
+  n64js.executeSCD     = executeSCD;
+  n64js.executeSDC2    = executeSDC2;
 
 
   function FragmentContext() {
@@ -3570,7 +3643,6 @@ if (typeof n64js === 'undefined') {
 
   // We need just one of these - declare at global scope to avoid generating garbage
   var fragmentContext = new FragmentContext(); // NB: first pc is entry_pc, cpu0.pc is post_pc by this point
-
 
   n64js.run = function (cycles) {
 
@@ -3924,7 +3996,7 @@ if (typeof n64js === 'undefined') {
   function generateOpHelper(fn,ctx) {
     // fn can be a handler function, in which case defer to that.
     if (typeof fn === 'string') {
-      return generateGenericOpBoilerplate(fn + '(' + n64js.toString32(ctx.instruction) + ');\n', ctx);
+      return generateGenericOpBoilerplate('n64js.' + fn + '(' + n64js.toString32(ctx.instruction) + ');\n', ctx);
     } else {
       return fn(ctx);
     }
