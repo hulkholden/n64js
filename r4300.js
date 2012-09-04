@@ -3762,7 +3762,9 @@ if (typeof n64js === 'undefined') {
               generateCodeForOp(fragmentContext);
 
               // Break out of the trace as soon as we branch, or  too many ops, or last op generated an interrupt (stuffToDo set)
-              if (cpu0.pc !== pc+4 || fragment.opsCompiled >= 250 || cpu0.stuffToDo) {
+              var long_fragment = fragment.opsCompiled > 8;
+              if ((long_fragment && cpu0.pc !== pc+4) || fragment.opsCompiled >= 250 || cpu0.stuffToDo) {
+
                 // Check if the last op has a delayed pc update, and do it now.
                 if (fragmentContext.delayedPCUpdate !== 0) {
                     fragment.body_code += 'c.pc = ' + n64js.toString32(fragmentContext.delayedPCUpdate) + ';\n';
