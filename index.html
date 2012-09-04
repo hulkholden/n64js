@@ -345,8 +345,8 @@
         }
       });
 
-      // Make sure that the debug tab refreshes when clicked
-      $('#debug-tab').on('shown', function (e) {
+      // Make sure that the tabs refresh when clicked
+      $('.tabbable a').on('shown', function (e) {
         n64js.refreshDisplay();
       });
 
