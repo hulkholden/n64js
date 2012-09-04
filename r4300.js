@@ -908,7 +908,7 @@ if (typeof n64js === 'undefined') {
   function sb_slow(addr, value) { n64js.writeMemory8( addr>>>0, value); }
 
 
-  function load_u8(ram, addr) {
+  n64js.load_u8 = function (ram, addr) {
     if (addr < -2139095040) {
       var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
       return ram[phys];
@@ -916,56 +916,56 @@ if (typeof n64js === 'undefined') {
     return lbu_slow(addr);
   }
 
-  function load_s8(ram, addr) {
+  n64js.load_s8 = function (ram, addr) {
     if (addr < -2139095040) {
       var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
       return (ram[phys] << 24) >> 24;
     }
     return lb_slow(addr);
-  }
+  };
 
-  function load_u16(ram, addr) {
+  n64js.load_u16 = function (ram, addr) {
     if (addr < -2139095040) {
       var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
       return (ram[phys] << 8) | ram[phys+1];
     }
     return lhu_slow(addr);
-  }
+  };
 
-  function load_s16(ram, addr) {
+  n64js.load_s16 = function (ram, addr) {
     if (addr < -2139095040) {
       var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
       return ((ram[phys] << 24) | (ram[phys+1] << 16)) >> 16;
     }
     return lh_slow(addr);
-  }
+  };
 
-  function load_u32(ram, addr) {
+  n64js.load_u32 = function (ram, addr) {
     if (addr < -2139095040) {
       var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
       return ((ram[phys] << 24) | (ram[phys+1] << 16) | (ram[phys+2] << 8) | ram[phys+3]) >>> 0;
     }
     return lw_slow(addr);
-  }
+  };
 
-  function load_s32(ram, addr) {
+  n64js.load_s32 = function (ram, addr) {
     if (addr < -2139095040) {
       var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
       return ((ram[phys] << 24) | (ram[phys+1] << 16) | (ram[phys+2] << 8) | ram[phys+3]) | 0;
     }
     return lw_slow(addr);
-  }
+  };
 
-  function store_8(ram, addr, value) {
+  n64js.store_8 = function (ram, addr, value) {
     if (addr < -2139095040) {
       var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
       ram[phys] = value;
     } else {
       sb_slow(addr, value);
     }
-  }
+  };
 
-  function store_16(ram, addr, value) {
+  n64js.store_16 = function (ram, addr, value) {
     if (addr < -2139095040) {
       var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
       ram[phys  ] = value >> 8;
@@ -973,9 +973,9 @@ if (typeof n64js === 'undefined') {
     } else {
       sh_slow(addr, value);
     }
-  }
+  };
 
-  function store_32(ram, addr, value) {
+  n64js.store_32 = function (ram, addr, value) {
     if (addr < -2139095040) {
       var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
       ram[phys+0] = value >> 24;
@@ -985,9 +985,9 @@ if (typeof n64js === 'undefined') {
     } else {
       sw_slow(addr, value);
     }
-  }
+  };
 
-  function store_64(ram, addr, value_lo, value_hi) {
+  n64js.store_64 = function (ram, addr, value_lo, value_hi) {
     if (addr < -2139095040) {
       var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
       ram[phys+0] = value_hi >> 24;
@@ -1002,7 +1002,7 @@ if (typeof n64js === 'undefined') {
       sw_slow(addr,     value_hi);
       sw_slow(addr + 4, value_lo);
     }
-  }
+  };
 
 
   function unimplemented(pc,i) {
@@ -2323,7 +2323,7 @@ if (typeof n64js === 'undefined') {
     var o = ctx.instr_imms();
 
     var impl = '';
-    impl += 'var value = load_s8(ram, ' + genSrcRegLo(b) + ' + ' + o + ');\n';
+    impl += 'var value = n64js.load_s8(ram, ' + genSrcRegLo(b) + ' + ' + o + ');\n';
     impl += 'rlo[' + t + '] = value;\n';
     impl += 'rhi[' + t + '] = value >> 31;\n';
 
@@ -2334,7 +2334,7 @@ if (typeof n64js === 'undefined') {
     var b = base(i);
     var o = imms(i);
 
-    var value = load_s8(cpu0.ram, cpu0.gprLo_signed[b] + o);
+    var value = n64js.load_s8(cpu0.ram, cpu0.gprLo_signed[b] + o);
     cpu0.gprLo_signed[t] = value;
     cpu0.gprHi_signed[t] = value >> 31;
   }
@@ -2345,7 +2345,7 @@ if (typeof n64js === 'undefined') {
     var o = ctx.instr_imms();
 
     var impl = '';
-    impl += 'rlo[' + t + '] = load_u8(ram, ' + genSrcRegLo(b) + ' + ' + o + ');\n';
+    impl += 'rlo[' + t + '] = n64js.load_u8(ram, ' + genSrcRegLo(b) + ' + ' + o + ');\n';
     impl += 'rhi[' + t + '] = 0;\n';
 
     return generateMemoryAccessBoilerplate(impl, ctx);
@@ -2355,7 +2355,7 @@ if (typeof n64js === 'undefined') {
     var b = base(i);
     var o = imms(i);
 
-    cpu0.gprLo_signed[t] = load_u8(cpu0.ram, cpu0.gprLo_signed[b] + o);
+    cpu0.gprLo_signed[t] = n64js.load_u8(cpu0.ram, cpu0.gprLo_signed[b] + o);
     cpu0.gprHi_signed[t] = 0;
   }
 
@@ -2365,7 +2365,7 @@ if (typeof n64js === 'undefined') {
     var o = ctx.instr_imms();
 
     var impl = '';
-    impl += 'var value = load_s16(ram, ' + genSrcRegLo(b) + ' + ' + o + ');\n';
+    impl += 'var value = n64js.load_s16(ram, ' + genSrcRegLo(b) + ' + ' + o + ');\n';
     impl += 'rlo[' + t + '] = value;\n';
     impl += 'rhi[' + t + '] = value >> 31;\n';
 
@@ -2376,7 +2376,7 @@ if (typeof n64js === 'undefined') {
     var b = base(i);
     var o = imms(i);
 
-    var value = load_s16(cpu0.ram, cpu0.gprLo_signed[b] + o);
+    var value = n64js.load_s16(cpu0.ram, cpu0.gprLo_signed[b] + o);
     cpu0.gprLo_signed[t] = value;
     cpu0.gprHi_signed[t] = value >> 31;
   }
@@ -2387,7 +2387,7 @@ if (typeof n64js === 'undefined') {
     var o = ctx.instr_imms();
 
     var impl = '';
-    impl += 'rlo[' + t + '] = load_u16(ram, ' + genSrcRegLo(b) + ' + ' + o + ');\n';
+    impl += 'rlo[' + t + '] = n64js.load_u16(ram, ' + genSrcRegLo(b) + ' + ' + o + ');\n';
     impl += 'rhi[' + t + '] = 0;\n';
 
     return generateMemoryAccessBoilerplate(impl, ctx);
@@ -2397,7 +2397,7 @@ if (typeof n64js === 'undefined') {
     var b = base(i);
     var o = imms(i);
 
-    cpu0.gprLo_signed[t] = load_u16(cpu0.ram, cpu0.gprLo_signed[b] + o);
+    cpu0.gprLo_signed[t] = n64js.load_u16(cpu0.ram, cpu0.gprLo_signed[b] + o);
     cpu0.gprHi_signed[t] = 0;
   }
 
@@ -2411,7 +2411,7 @@ if (typeof n64js === 'undefined') {
       return generateNOPBoilerplate('/*load to r0!*/', ctx);
 
     var impl = '';
-    impl += 'var value = load_s32(ram, ' + genSrcRegLo(b) + ' + ' + o + ');\n';
+    impl += 'var value = n64js.load_s32(ram, ' + genSrcRegLo(b) + ' + ' + o + ');\n';
     impl += 'rlo[' + t + '] = value;\n';
     impl += 'rhi[' + t + '] = value >> 31;\n';
 
@@ -2426,7 +2426,7 @@ if (typeof n64js === 'undefined') {
     if (t === 0)
       return;
 
-    var value = load_s32(cpu0.ram, cpu0.gprLo_signed[b] + o);
+    var value = n64js.load_s32(cpu0.ram, cpu0.gprLo_signed[b] + o);
     cpu0.gprLo_signed[t] = value;
     cpu0.gprHi_signed[t] = value >> 31;
   }
@@ -2437,7 +2437,7 @@ if (typeof n64js === 'undefined') {
     var o = ctx.instr_imms();
 
     var impl = '';
-    impl += 'rlo[' + t + '] = load_u32(ram, ' + genSrcRegLo(b) + ' + ' + o + ');\n';
+    impl += 'rlo[' + t + '] = n64js.load_u32(ram, ' + genSrcRegLo(b) + ' + ' + o + ');\n';
     impl += 'rhi[' + t + '] = 0;\n';
 
     return generateMemoryAccessBoilerplate(impl, ctx);
@@ -2447,7 +2447,7 @@ if (typeof n64js === 'undefined') {
     var b = base(i);
     var o = imms(i);
 
-    cpu0.gprLo_signed[t] = load_u32(cpu0.ram, cpu0.gprLo_signed[b] + o);
+    cpu0.gprLo_signed[t] = n64js.load_u32(cpu0.ram, cpu0.gprLo_signed[b] + o);
     cpu0.gprHi_signed[t] = 0;
   }
 
@@ -2492,7 +2492,7 @@ if (typeof n64js === 'undefined') {
     var b = ctx.instr_base();
     var o = ctx.instr_imms();
 
-    var impl = 'cpu1.int32[' + t + '] = load_s32(ram, ' + genSrcRegLo(b) + ' + ' + o + ');\n';
+    var impl = 'cpu1.int32[' + t + '] = n64js.load_s32(ram, ' + genSrcRegLo(b) + ' + ' + o + ');\n';
     return generateMemoryAccessBoilerplate(impl, ctx);
   }
 
@@ -2502,7 +2502,7 @@ if (typeof n64js === 'undefined') {
     var b = base(i);
     var o = imms(i);
 
-    cpu1.int32[t] = load_s32(cpu0.ram, cpu0.gprLo_signed[b] + o);
+    cpu1.int32[t] = n64js.load_s32(cpu0.ram, cpu0.gprLo_signed[b] + o);
   }
 
   function generateLDC1(ctx){
@@ -2595,7 +2595,7 @@ if (typeof n64js === 'undefined') {
     var o = ctx.instr_imms();
 
     var impl = '';
-    impl += 'store_8(ram, ' + genSrcRegLo(b) + ' + ' + o + ', ' + genSrcRegLo(t) + ');\n';
+    impl += 'n64js.store_8(ram, ' + genSrcRegLo(b) + ' + ' + o + ', ' + genSrcRegLo(t) + ');\n';
     return generateMemoryAccessBoilerplate(impl, ctx);
   }
   function executeSB(i) {
@@ -2603,7 +2603,7 @@ if (typeof n64js === 'undefined') {
     var b = base(i);
     var o = imms(i);
 
-    store_8(cpu0.ram, cpu0.gprLo_signed[b] + o, cpu0.gprLo_signed[t] /*& 0xff*/);
+    n64js.store_8(cpu0.ram, cpu0.gprLo_signed[b] + o, cpu0.gprLo_signed[t] /*& 0xff*/);
   }
 
   function generateSH(ctx) {
@@ -2612,7 +2612,7 @@ if (typeof n64js === 'undefined') {
     var o = ctx.instr_imms();
 
     var impl = '';
-    impl += 'store_16(ram, ' + genSrcRegLo(b) + ' + ' + o + ', ' + genSrcRegLo(t) + ');\n';
+    impl += 'n64js.store_16(ram, ' + genSrcRegLo(b) + ' + ' + o + ', ' + genSrcRegLo(t) + ');\n';
     return generateMemoryAccessBoilerplate(impl, ctx);
   }
   function executeSH(i) {
@@ -2620,7 +2620,7 @@ if (typeof n64js === 'undefined') {
     var b = base(i);
     var o = imms(i);
 
-    store_16(cpu0.ram, cpu0.gprLo_signed[b] + o, cpu0.gprLo_signed[t] /*& 0xffff*/);
+    n64js.store_16(cpu0.ram, cpu0.gprLo_signed[b] + o, cpu0.gprLo_signed[t] /*& 0xffff*/);
   }
 
   function generateSW(ctx) {
@@ -2629,7 +2629,7 @@ if (typeof n64js === 'undefined') {
     var o = ctx.instr_imms();
 
     var impl = '';
-    impl += 'store_32(ram, ' + genSrcRegLo(b) + ' + ' + o + ', ' + genSrcRegLo(t) + ');\n';
+    impl += 'n64js.store_32(ram, ' + genSrcRegLo(b) + ' + ' + o + ', ' + genSrcRegLo(t) + ');\n';
     return generateMemoryAccessBoilerplate(impl, ctx);
   }
   function executeSW(i) {
@@ -2637,7 +2637,7 @@ if (typeof n64js === 'undefined') {
     var b = base(i);
     var o = imms(i);
 
-    store_32(cpu0.ram, cpu0.gprLo_signed[b] + o, cpu0.gprLo_signed[t]);
+    n64js.store_32(cpu0.ram, cpu0.gprLo_signed[b] + o, cpu0.gprLo_signed[t]);
   }
 
 
@@ -2648,7 +2648,7 @@ if (typeof n64js === 'undefined') {
 
     var impl = '';
     impl += 'var addr = ' + genSrcRegLo(b) + ' + ' + o + ';\n';
-    impl += 'store_64(ram, addr,     ' + genSrcRegLo(t) + ',' + genSrcRegHi(t) + ');\n';
+    impl += 'n64js.store_64(ram, addr,     ' + genSrcRegLo(t) + ',' + genSrcRegHi(t) + ');\n';
 
     return generateMemoryAccessBoilerplate(impl, ctx);
   }
@@ -2658,7 +2658,7 @@ if (typeof n64js === 'undefined') {
     var o = imms(i);
 
     var addr = cpu0.gprLo_signed[b] + o;
-    store_64(cpu0.ram, addr, cpu0.gprLo_signed[t], cpu0.gprHi_signed[t]);
+    n64js.store_64(cpu0.ram, addr, cpu0.gprLo_signed[t], cpu0.gprHi_signed[t]);
   }
 
 
@@ -2669,7 +2669,7 @@ if (typeof n64js === 'undefined') {
 
     // FIXME: can avoid cpuStuffToDo if we're writing to ram
     var impl = '';
-    impl += 'store_32(ram, ' + genSrcRegLo(b) + ' + ' + o + ', cpu1.int32[' + t + ']);\n';
+    impl += 'n64js.store_32(ram, ' + genSrcRegLo(b) + ' + ' + o + ', cpu1.int32[' + t + ']);\n';
     return generateMemoryAccessBoilerplate(impl, ctx);
   }
 
@@ -2679,7 +2679,7 @@ if (typeof n64js === 'undefined') {
     var b = base(i);
     var o = imms(i);
 
-    store_32(cpu0.ram, cpu0.gprLo_signed[b] + o, cpu1.int32[t]);
+    n64js.store_32(cpu0.ram, cpu0.gprLo_signed[b] + o, cpu1.int32[t]);
   }
 
 
@@ -2693,7 +2693,7 @@ if (typeof n64js === 'undefined') {
     // FIXME: can avoid cpuStuffToDo if we're writing to ram
     var impl = '';
     impl += 'var addr = ' + genSrcRegLo(b) + ' + ' + o + ';\n';
-    impl += 'store_64(ram, addr, cpu1.int32[' + t + '], cpu1.int32[' + hi + ']);\n';
+    impl += 'n64js.store_64(ram, addr, cpu1.int32[' + t + '], cpu1.int32[' + hi + ']);\n';
     return generateMemoryAccessBoilerplate(impl, ctx);
   }
 
@@ -2705,7 +2705,7 @@ if (typeof n64js === 'undefined') {
 
     // FIXME: this can do a single check that the address is in ram
     var addr = cpu0.gprLo_signed[b] + o;
-    store_64(cpu0.ram, addr, cpu1.int32[t], cpu1.int32[t+1]);
+    n64js.store_64(cpu0.ram, addr, cpu1.int32[t], cpu1.int32[t+1]);
   }
 
   function executeSDC2(i)       { unimplemented(cpu0.pc,i); }
@@ -3642,7 +3642,7 @@ if (typeof n64js === 'undefined') {
             if (cpu0.delayPC) { cpu0.nextPC = cpu0.delayPC; } else { cpu0.nextPC = cpu0.pc + 4; }
 
             // NB: load instruction using normal memory access routines - this means that we throw a tlb miss/refill approptiately
-            //var instruction = load_s32(ram, pc);
+            //var instruction = n64js.load_s32(ram, pc);
             var instruction;
             if (pc < -2139095040) {
               var phys = (pc + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
