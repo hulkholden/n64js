@@ -914,7 +914,7 @@ if (typeof n64js === 'undefined') {
       return ram[phys];
     }
     return lbu_slow(addr);
-  }
+  };
 
   n64js.load_s8 = function (ram, addr) {
     if (addr < -2139095040) {
@@ -2746,7 +2746,7 @@ if (typeof n64js === 'undefined') {
   function executeSDL(i)        { unimplemented(cpu0.pc,i); }
   function executeSDR(i)        { unimplemented(cpu0.pc,i); }
 
-  function generateCACHE(ctx, op) {
+  function generateCACHE(ctx) {
     var b        = ctx.instr_base();
     var o        = ctx.instr_imms();
     var cache_op = ctx.instr_rt();
