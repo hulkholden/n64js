@@ -4112,7 +4112,7 @@ if (typeof n64js === 'undefined') {
     var code = '';
 
     // We only need to check for off-trace branches
-    var need_pc_test = ctx.needsDelayCheck || might_adjust_next_pc || ctx.post_pc !== ctx.pc+4 != ctx.post_pc;
+    var need_pc_test = ctx.needsDelayCheck || might_adjust_next_pc || ctx.post_pc !== ctx.pc+4;
 
     code += generateStandardPCUpdate(fn, ctx, might_adjust_next_pc);
 
