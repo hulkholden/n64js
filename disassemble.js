@@ -486,7 +486,7 @@ if (typeof n64js === 'undefined') {
     function (i) { return 'SDL       ' + i.rt()   + ' -> ' + i.memstore(); },
     function (i) { return 'SDR       ' + i.rt()   + ' -> ' + i.memstore(); },
     function (i) { return 'SWR       ' + i.rt()   + ' -> ' + i.memstore(); },
-    function (i) { return 'CACHE     ' + n64js.toHex(_rt(i.opcode),8) + i.memaccess(); },
+    function (i) { return 'CACHE     ' + n64js.toHex(_rt(i.opcode),8) + ', ' + i.memaccess(); },
     function (i) { return 'LL        ' + i.rt_d() + ' <- ' + i.memload(); },
     function (i) { return 'LWC1      ' + i.ft_d() + ' <- ' + i.memload(); },
     function (i) { return 'Unk'; },
