@@ -365,16 +365,16 @@ if (typeof n64js === 'undefined') {
         //default: alert( 'code:' + event.which);
       }
     });
-    $('body').keypress(function (event) {
-      switch (event.which) {
-        //case 'o'.charCodeAt(0): $('#output-tab').tab('show'); break;
-        //case 'd'.charCodeAt(0): $( '#debug-tab').tab('show'); break;
-        //case 'm'.charCodeAt(0): $('#memory-tab').tab('show'); break;
-        //case 'l'.charCodeAt(0): n64js.triggerLoad();          break;
-        //case 'g'.charCodeAt(0): n64js.toggleRun();            break;
-        //case 's'.charCodeAt(0): n64js.step();                 break;
-      }
-    });
+    // $('body').keypress(function (event) {
+    //   switch (event.which) {
+    //     case 'o'.charCodeAt(0): $('#output-tab').tab('show'); break;
+    //     case 'd'.charCodeAt(0): $( '#debug-tab').tab('show'); break;
+    //     case 'm'.charCodeAt(0): $('#memory-tab').tab('show'); break;
+    //     case 'l'.charCodeAt(0): n64js.triggerLoad();          break;
+    //     case 'g'.charCodeAt(0): n64js.toggleRun();            break;
+    //     case 's'.charCodeAt(0): n64js.step();                 break;
+    //   }
+    // });
 
     // Make sure that the tabs refresh when clicked
     $('.tabbable a').on('shown', function (e) {
@@ -1167,7 +1167,7 @@ if (typeof n64js === 'undefined') {
     name:           '',
     cic:            '6101',
     country:        0x45,
-    save:           'Eeprom4k',
+    save:           'Eeprom4k'
   };
 
   var rom           = null;   // Will be memory, mapped at 0xb0000000
@@ -1449,9 +1449,9 @@ if (typeof n64js === 'undefined') {
 
     if (start_rsp) {
       n64js.RSPHLEProcessTask(rsp_task_view, new DataView(ram.arrayBuffer));
-    } else if (stop_rsp) {
+    } //else if (stop_rsp) {
       // As we handle all RSP via HLE, nothing to do here.
-    }
+    //}
   }
 
   function SPCopyFromRDRAM() {
@@ -1621,7 +1621,7 @@ if (typeof n64js === 'undefined') {
     var ea = this.calcEA(address);
     if (ea+3 < this.u8.length) {
       throw 'DPS writes are unhandled';
-      this.mem.write32(ea, value);
+      //this.mem.write32(ea, value);
     } else {
       throw 'Write is out of range';
     }
@@ -1633,7 +1633,7 @@ if (typeof n64js === 'undefined') {
 
     if (ea+3 < this.u8.length) {
       throw 'DPS reads are unhandled';
-      return this.mem.readS32(ea);
+      //return this.mem.readS32(ea);
     } else {
       throw 'Read is out of range';
     }
