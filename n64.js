@@ -254,7 +254,10 @@
   };
 
 
-  function AssertException(message) { this.message = message; }
+  function AssertException(message) {
+    this.message = message;
+  }
+
   AssertException.prototype.toString = function () {
     return 'AssertException: ' + this.message;
   };
@@ -492,7 +495,7 @@
     }
   };
 
-  function MemoryCopy(dst, dstoff, src, srcoff, len) {
+  function memoryCopy(dst, dstoff, src, srcoff, len) {
     var i;
     for (i = 0; i < len; ++i) {
       dst.u8[dstoff+i] = src.u8[srcoff+i];
@@ -786,7 +789,7 @@
     return address&0xff;
   };
 
-  function SPUpdateStatus(flags) {
+  function spUpdateStatus(flags) {
 
     if (!sp_reg_handler_uncached.quiet) {
       if (flags & SP_CLR_HALT)       n64js.log( 'SP: Clearing Halt' );
@@ -864,7 +867,7 @@
     //}
   }
 
-  function SPCopyFromRDRAM() {
+  function spCopyFromRDRAM() {
     var sp_mem_address = sp_reg.readU32(SP_MEM_ADDR_REG);
     var rd_ram_address = sp_reg.readU32(SP_DRAM_ADDR_REG);
     var rdlen_reg      = sp_reg.readU32(SP_RD_LEN_REG);
@@ -874,13 +877,13 @@
       n64js.log('SP: copying from ram ' + toString32(rd_ram_address) + ' to sp ' + toString16(sp_mem_address) );
     }
 
-    MemoryCopy( sp_mem, sp_mem_address & 0xfff, ram, rd_ram_address & 0xffffff, splen );
+    memoryCopy( sp_mem, sp_mem_address & 0xfff, ram, rd_ram_address & 0xffffff, splen );
 
     sp_reg.setBits32(SP_DMA_BUSY_REG, 0);
     sp_reg.clearBits32(SP_STATUS_REG, SP_STATUS_DMA_BUSY);
   }
 
-  function SPCopyToRDRAM() {
+  function spCopyToRDRAM() {
     var sp_mem_address = sp_reg.readU32(SP_MEM_ADDR_REG);
     var rd_ram_address = sp_reg.readU32(SP_DRAM_ADDR_REG);
     var wrlen_reg      = sp_reg.readU32(SP_WR_LEN_REG);
@@ -890,7 +893,7 @@
       n64js.log('SP: copying from sp ' + toString16(sp_mem_address) + ' to ram ' + toString32(rd_ram_address) );
     }
 
-    MemoryCopy( ram, rd_ram_address & 0xffffff, sp_mem, sp_mem_address & 0xfff, splen );
+    memoryCopy( ram, rd_ram_address & 0xffffff, sp_mem, sp_mem_address & 0xfff, splen );
 
     sp_reg.setBits32(SP_DMA_BUSY_REG, 0);
     sp_reg.clearBits32(SP_STATUS_REG, SP_STATUS_DMA_BUSY);
@@ -909,16 +912,16 @@
           break;
         case SP_RD_LEN_REG:
           this.mem.write32(ea, value);
-          SPCopyFromRDRAM();
+          spCopyFromRDRAM();
           break;
 
         case SP_WR_LEN_REG:
           this.mem.write32(ea, value);
-          SPCopyToRDRAM();
+          spCopyToRDRAM();
           break;
 
         case SP_STATUS_REG:
-          SPUpdateStatus( value );
+          spUpdateStatus( value );
           break;
 
         case SP_DMA_FULL_REG:
@@ -935,7 +938,7 @@
     }
   };
 
-  function DPCUpdateStatus(value)
+  function dpcUpdateStatus(value)
   {
     var dpc_status  =  dpc_mem.readU32(DPC_STATUS_REG);
 
@@ -988,7 +991,7 @@
           break;
         case DPC_STATUS_REG:
           //if (!this.quiet) n64js.log('DPC status set to: ' + toString32(value) );
-          DPCUpdateStatus(value);
+          dpcUpdateStatus(value);
           break;
 
         // Read only
@@ -1055,7 +1058,7 @@
 
 
 
-  function MIWriteModeReg(value) {
+  function miWriteModeReg(value) {
     var mi_mode_reg = mi_reg.readU32(MI_MODE_REG);
 
     if (value & MI_SET_RDRAM)   mi_mode_reg |=  MI_MODE_RDRAM;
@@ -1075,7 +1078,7 @@
     }
   }
 
-  function MIWriteIntrMaskReg(value) {
+  function miWriteIntrMaskReg(value) {
     var mi_intr_mask_reg = mi_reg.readU32(MI_INTR_MASK_REG);
     var mi_intr_reg      = mi_reg.readU32(MI_INTR_REG);
 
@@ -1115,11 +1118,11 @@
       switch( ea ) {
         case MI_MODE_REG:
           if (!this.quiet) n64js.log('Wrote to MI mode register: ' + toString32(value) );
-          MIWriteModeReg(value);
+          miWriteModeReg(value);
           break;
         case MI_INTR_MASK_REG:
           if (!this.quiet) n64js.log('Wrote to MI interrupt mask register: ' + toString32(value) );
-          MIWriteIntrMaskReg(value);
+          miWriteIntrMaskReg(value);
           break;
 
         case MI_VERSION_REG:
@@ -1253,7 +1256,7 @@
           break;
         case PI_WR_LEN_REG:
           this.mem.write32(ea, value);
-          PICopyToRDRAM();
+          piCopyToRDRAM();
           break;
         case PI_STATUS_REG:
           if (value & PI_STATUS_RESET) {
@@ -1279,7 +1282,7 @@
     }
   };
 
-  function SICopyFromRDRAM() {
+  function siCopyFromRDRAM() {
     var dram_address = si_reg.readU32(SI_DRAM_ADDR_REG) & 0x1fffffff;
     var pi_ram       = new Uint8Array(pi_mem.arrayBuffer, 0x7c0, 0x040);
 
@@ -1300,10 +1303,10 @@
     n64js.cpu0.updateCause3();
   }
 
-  function SICopyToRDRAM() {
+  function siCopyToRDRAM() {
 
     // Update controller state here
-    UpdateController();
+    updateController();
 
     var dram_address = si_reg.readU32(SI_DRAM_ADDR_REG) & 0x1fffffff;
     var pi_ram       = new Uint8Array(pi_mem.arrayBuffer, 0x7c0, 0x040);
@@ -1348,7 +1351,7 @@
   var gRumblePakActive = false;
   var gEnableRumble = false
 
-  function UpdateController() {
+  function updateController() {
 
     // read controllers
 
@@ -1378,12 +1381,12 @@
       // 0-3: controller channels
       if (channel < PC_EEPROM) {
         // copy controller status
-        if (!ProcessController(cmd, channel)) {
+        if (!processController(cmd, channel)) {
           count = 64;
           break;
         }
       } else if (channel === PC_EEPROM) {
-        if (!ProcessEeprom(cmd)) {
+        if (!processEeprom(cmd)) {
           count = 64;
           break;
         }
@@ -1473,7 +1476,7 @@
     }
   };
 
-  function ProcessController(cmd, channel) {
+  function processController(cmd, channel) {
     if (!controllers[channel].present)
     {
       cmd[1] |= 0x80;
@@ -1500,15 +1503,15 @@
 
       case CONT_READ_MEMPACK:
         if (gEnableRumble)
-          CommandReadRumblePack(cmd);
+          commandReadRumblePack(cmd);
         else
-          CommandReadMemPack(cmd, channel);
+          commandReadMemPack(cmd, channel);
         return false;
       case CONT_WRITE_MEMPACK:
         if (gEnableRumble)
-          CommandWriteRumblePack(cmd);
+          commandWriteRumblePack(cmd);
         else
-          CommandWriteMemPack(cmd, channel);
+          commandWriteMemPack(cmd, channel);
         return false;
       default:
         n64js.halt('Unknown controller command ' + cmd[2]);
@@ -1518,7 +1521,7 @@
     return true;
   }
 
-  function ProcessEeprom(cmd) {
+  function processEeprom(cmd) {
     var i;
 
     switch(cmd[2])
@@ -1573,7 +1576,7 @@
     return false;
   }
 
-  function CalculateDataCrc(buf, offset)
+  function calculateDataCrc(buf, offset)
   {
     var c = 0, i;
     for (i = 0; i < 32; i++) {
@@ -1596,7 +1599,7 @@
     return c;
   }
 
-  function CommandReadMemPack(cmd, channel) {
+  function commandReadMemPack(cmd, channel) {
     var addr = ((cmd[3] << 8) | cmd[4]);
     var i;
 
@@ -1620,10 +1623,10 @@
       }
     }
 
-    cmd[37] = CalculateDataCrc(cmd, 5);
+    cmd[37] = calculateDataCrc(cmd, 5);
   }
 
-  function CommandWriteMemPack(cmd, channel) {
+  function commandWriteMemPack(cmd, channel) {
     var addr = ((cmd[3] << 8) | cmd[4]);
     var i;
 
@@ -1641,10 +1644,10 @@
 
     }
 
-    cmd[37] = CalculateDataCrc(cmd, 5);
+    cmd[37] = calculateDataCrc(cmd, 5);
   }
 
-  function CommandReadRumblePack(cmd) {
+  function commandReadRumblePack(cmd) {
     var addr = ((cmd[3] << 8) | cmd[4]) & 0xFFE0;
     var val = (addr == 0x8000) ? 0x80 : 0x00;
     var i;
@@ -1652,17 +1655,17 @@
       cmd[5+i] = val;
     }
 
-    cmd[37] = CalculateDataCrc(cmd, 5);
+    cmd[37] = calculateDataCrc(cmd, 5);
   }
 
-  function CommandWriteRumblePack(cmd) {
+  function commandWriteRumblePack(cmd) {
     var addr = ((cmd[3] << 8) | cmd[4]) & 0xFFE0;
 
     if (addr == 0xC000) {
       gRumblePakActive = cmd[5];
     }
 
-    cmd[37] = CalculateDataCrc(cmd, 5);
+    cmd[37] = calculateDataCrc(cmd, 5);
   }
 
   function checkSIStatusConsistent() {
@@ -1703,11 +1706,11 @@
           break;
         case SI_PIF_ADDR_RD64B_REG:
           this.mem.write32(ea, value);
-          SICopyToRDRAM();
+          siCopyToRDRAM();
           break;
         case SI_PIF_ADDR_WR64B_REG:
           this.mem.write32(ea, value);
-          SICopyFromRDRAM();
+          siCopyFromRDRAM();
           break;
         case SI_STATUS_REG:
           if (!this.quiet) n64js.log('SI interrupt cleared');
@@ -1727,7 +1730,7 @@
   };
 
 
-  function PICopyToRDRAM() {
+  function piCopyToRDRAM() {
     var dram_address = pi_reg.readU32(PI_DRAM_ADDR_REG) & 0x00ffffff;
     var cart_address = pi_reg.readU32(PI_CART_ADDR_REG);
     var transfer_len = pi_reg.readU32(PI_WR_LEN_REG) + 1;
@@ -1743,17 +1746,17 @@
 
     if (IsDom1Addr1(cart_address)) {
       cart_address -= PI_DOM1_ADDR1;
-      MemoryCopy( ram, dram_address, rom, cart_address, transfer_len );
+      memoryCopy( ram, dram_address, rom, cart_address, transfer_len );
       n64js.invalidateICache( 0x80000000 | dram_address, transfer_len, 'PI' );
       copy_succeeded = true;
     } else if (IsDom1Addr2(cart_address)) {
       cart_address -= PI_DOM1_ADDR2;
-      MemoryCopy( ram, dram_address, rom, cart_address, transfer_len );
+      memoryCopy( ram, dram_address, rom, cart_address, transfer_len );
       n64js.invalidateICache( 0x80000000 | dram_address, transfer_len, 'PI' );
       copy_succeeded = true;
     } else if (IsDom1Addr3(cart_address)) {
       cart_address -= PI_DOM1_ADDR3;
-      MemoryCopy( ram, dram_address, rom, cart_address, transfer_len );
+      memoryCopy( ram, dram_address, rom, cart_address, transfer_len );
       n64js.invalidateICache( 0x80000000 | dram_address, transfer_len, 'PI' );
       copy_succeeded = true;
 
@@ -1782,7 +1785,7 @@
     n64js.cpu0.updateCause3();
   }
 
-  function PIFUpdateControl() {
+  function pifUpdateControl() {
     var pi_rom = new Uint8Array(pi_mem.arrayBuffer, 0x000, 0x7c0);
     var pi_ram = new Uint8Array(pi_mem.arrayBuffer, 0x7c0, 0x040);
     var command = pi_ram[0x3f];
@@ -1880,7 +1883,7 @@
       this.mem.write32(ea, value);
       switch(ram_offset) {
       case 0x24:  n64js.log('Writing CIC values: '   + toString32(value) ); break;
-      case 0x3c:  n64js.log('Writing Control byte: ' + toString32(value) ); PIFUpdateControl(); break;
+      case 0x3c:  n64js.log('Writing Control byte: ' + toString32(value) ); pifUpdateControl(); break;
       default:    n64js.log('Writing directly to PI ram [' + toString32(address) + '] <-- ' + toString32(value)); break;
       }
     }
@@ -2200,7 +2203,7 @@
     // Simulate boot
 
     if (rom) {
-      MemoryCopy( sp_mem, kBootstrapOffset, rom, kBootstrapOffset, kGameOffset - kBootstrapOffset );
+      memoryCopy( sp_mem, kBootstrapOffset, rom, kBootstrapOffset, kGameOffset - kBootstrapOffset );
     }
 
     var cpu0 = n64js.cpu0;
