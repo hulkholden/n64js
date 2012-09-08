@@ -1,5 +1,7 @@
 (function (n64js) {'use strict';
 
+  var stats = null;
+
   var kBootstrapOffset = 0x40;
   var kGameOffset      = 0x1000;
 
@@ -716,6 +718,10 @@
   };
 
   function updateLoopAnimframe() {
+    if (stats) {
+      stats.begin();
+    }
+
     if (running) {
       requestAnimationFrame(updateLoopAnimframe);
 
@@ -736,6 +742,9 @@
       if (!running) {
         $('#runbutton').html('<i class="icon-play"></i> Run');
       }
+    }
+    if (stats) {
+      stats.end();
     }
   }
 
@@ -2637,6 +2646,24 @@
     });
 
     n64js.refreshDebugger();
+  };
+
+  n64js.togglePerformance = function () {
+    if (stats) {
+      $('#performance').html('');
+      stats = null;
+    } else {
+      stats = new Stats()
+      stats.setMode(1); // 0: fps, 1: ms
+
+      // Align top-left
+      stats.domElement.style.position = 'relative';
+      stats.domElement.style.left = '8px';
+      stats.domElement.style.top = '0px';
+
+      //document.body.appendChild( stats.domElement );
+      $('#performance').append(stats.domElement);
+    }
   };
 
 }(window.n64js = window.n64js || {}));

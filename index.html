@@ -48,6 +48,7 @@
             </div>
             <div class="btn-group">
               <button class="btn" onclick="$('#debug').toggle()"><i class="icon-fire"></i> Debug</button>
+              <button class="btn" onclick="n64js.togglePerformance()"><i class="icon-signal"></i> Perf</button>
             </div>
             <input style="visibility:hidden; display:inline-block;" id="fileInput" name="fileInput" type="file" onchange="n64js.loadFile()" />
           </div>
@@ -62,6 +63,7 @@
         <div class="span8">
           <canvas id="display" width="640" height="480" style="background-color:#000"></canvas>
         </div>
+        <div class="span2" id="performance"></div>
       </div>
       <div class="row">
         <div class="span8" id="info" style="display:none">
@@ -193,6 +195,7 @@
     </div>
     <script src="js/jquery.min.js"></script>
     <script src="js/bootstrap.min.js"></script>
+    <script src="js/stats.js"></script>
     <script src="js/glUtils.js"></script>
     <script src="js/webgl-debug.js"></script>
     <script src="n64.js"></script>
