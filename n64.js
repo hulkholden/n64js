@@ -1,5 +1,9 @@
 (function (n64js) {'use strict';
 
+  var kBootstrapOffset = 0x40;
+  var kGameOffset      = 0x1000;
+
+
   var SP_MEM_ADDR_REG     = 0x00;
   var SP_DRAM_ADDR_REG    = 0x04;
   var SP_RD_LEN_REG       = 0x08;
@@ -249,7 +253,7 @@
   var last_vbl      = 0;
 
   var gRumblePakActive = false;
-  var gEnableRumble = false
+  var gEnableRumble = false;
 
   var rominfo = {
     id:             '',
@@ -307,167 +311,9 @@
       throw new AssertException(m);
     }
   }
-  n64js.assert = assert;
-
-  n64js.check = function (e, m) {
-    if (!e) {
-      n64js.log(m);
-    }
-  };
-
-  n64js.warn = function (m) {
-    n64js.log(m);
-  };
-
-  n64js.halt = function (msg) {
-    running = false;
-    n64js.cpu0.breakExecution();
-    n64js.log('<span style="color:red">' + msg + '</span>');
-
-    n64js.displayError(msg);
-  };
-
-  n64js.displayWarning = function (message) {
-    var $alert = $('<div class="alert"><button class="close" data-dismiss="alert">×</button><strong>Warning!</strong> ' + message + '</div>');
-    $('#alerts').append($alert);
-  };
-  n64js.displayError = function (message) {
-    var $alert = $('<div class="alert alert-error"><button class="close" data-dismiss="alert">×</button><strong>Error!</strong> ' + message + '</div>');
-    $('#alerts').append($alert);
-  };
-
-  // Similar to halt, but just relinquishes control to the system
-  n64js.returnControlToSystem = function () {
-    n64js.cpu0.breakExecution();
-  };
-
-  n64js.init = function () {
-    n64js.reset();
-
-    n64js.initialiseDebugger();
-
-    n64js.initialiseRenderer($('#display'));
-
-    var kEnter    = 13;
-    var kPageUp   = 33;
-    var kPageDown = 34;
-    var kLeft     = 37;
-    var kUp       = 38;
-    var kRight    = 39;
-    var kDown     = 40;
-    var kF10      = 121;  // Ugh - chrome only seems to send *alternate* keydown for this, and no keyup.
-    var kF8       = 119;
-
-    $('body').keyup(function (event) {
-      n64js.handleKey(event.which, false);
-    });
-    $('body').keydown(function (event) {
-      n64js.handleKey(event.which, true);
-
-      switch (event.which) {
-        case kDown:     n64js.down();      break;
-        case kUp:       n64js.up();        break;
-        case kPageDown: n64js.pageDown();  break;
-        case kPageUp:   n64js.pageUp();    break;
-        case kF8:       n64js.toggleRun(); break;
-        case kF10:      n64js.step();      break;
-        //default: alert( 'code:' + event.which);
-      }
-    });
-    // $('body').keypress(function (event) {
-    //   switch (event.which) {
-    //     case 'o'.charCodeAt(0): $('#output-tab').tab('show'); break;
-    //     case 'd'.charCodeAt(0): $( '#debug-tab').tab('show'); break;
-    //     case 'm'.charCodeAt(0): $('#memory-tab').tab('show'); break;
-    //     case 'l'.charCodeAt(0): n64js.triggerLoad();          break;
-    //     case 'g'.charCodeAt(0): n64js.toggleRun();            break;
-    //     case 's'.charCodeAt(0): n64js.step();                 break;
-    //   }
-    // });
-
-    // Make sure that the tabs refresh when clicked
-    $('.tabbable a').on('shown', function (e) {
-      n64js.refreshDebugger();
-    });
-
-    n64js.refreshDebugger();
-  };
-
-  n64js.toggleRun = function () {
-    running = !running;
-    $('#runbutton').html(running ? '<i class="icon-pause"></i> Pause' : '<i class="icon-play"></i> Run');
-    if (running) {
-      updateLoopAnimframe();
-    }
-  };
-
-  n64js.triggerLoad = function () {
-    var $fileinput = $('#fileInput');
-
-    // Reset fileInput value, otherwise onchange doesn't recognise when we select the same rome back-to-back
-    $fileinput.val('');
-    $fileinput.click();
-  };
-
-  n64js.loadFile = function () {
-    var f = document.getElementById("fileInput");
-    if (f && f.files.length > 0) {
-      var file = f.files[0];
-      var name = file.fileName;
-      var size = file.fileSize;
-
-      var reader = new FileReader();
-
-      reader.onerror = function (e) {
-        n64js.displayWarning('error loading file');
-      };
-      reader.onload = function (e) {
-        var bytes = e.target.result;
-        n64js.loadRom(bytes);
-        n64js.reset();
-        n64js.refreshDebugger();
-        running = true;
-        updateLoopAnimframe();
-        $('#runbutton').html('<i class="icon-pause"></i> Pause');
-      };
-
-      reader.readAsArrayBuffer(file);
-    }
-  };
-
-  n64js.step = function () {
-    if (!running) {
-      n64js.run(1);
-      n64js.refreshDebugger();
-    }
-  };
-
-  function updateLoopAnimframe() {
-    if (running) {
-      requestAnimationFrame(updateLoopAnimframe);
-
-      var sync = n64js.getSync();
-      if (sync) {
-        var count = sync.getAvailableOps();
-        if (count === 0) {
-          sync.refill();
-        } else {
-          n64js.run(count / 4);
-          n64js.refreshDebugger();
-        }
-      } else {
-        n64js.run(100000000);
-        n64js.refreshDebugger();
-      }
-
-      if (!running) {
-        $('#runbutton').html('<i class="icon-play"></i> Run');
-      }
-    }
-  }
 
   //
-  // Memory handlers
+  // Memory just wraps an ArrayBuffer and provides some useful accessors
   //
   function Memory(arrayBuffer) {
     this.arrayBuffer = arrayBuffer;
@@ -477,10 +323,9 @@
 
   Memory.prototype = {
     clear : function () {
-      var u32s = new Uint32Array(this.arrayBuffer);
       var i;
-      for (i = 0; i < u32s.length; ++i) {
-        u32s[i] = 0;
+      for (i = 0; i < this.u8.length; ++i) {
+        this.u8[i] = 0;
       }
     },
 
@@ -505,7 +350,7 @@
     },
 
     write32 : function (offset, value) {
-      this.u8[offset+0] = value >> 24;
+      this.u8[offset  ] = value >> 24;
       this.u8[offset+1] = value >> 16;
       this.u8[offset+2] = value >>  8;
       this.u8[offset+3] = value;
@@ -542,11 +387,13 @@
     }
   }
 
-
+  //
+  // A device represents a region of memory mapped at a certain address
+  //
   function Device(name, mem, rangeStart, rangeEnd) {
     this.name       = name;
     this.mem        = mem;
-    this.u8         = mem ? mem.u8 : null;
+    this.u8         = mem ? mem.u8 : null;  // Cache the underlying Uint8Array.
     this.rangeStart = rangeStart;
     this.rangeEnd   = rangeEnd;
     this.quiet      = false;
@@ -680,17 +527,217 @@
   var pi_mem_handler_uncached    = new Device("PIRAM",    pi_mem,       0xbfc00000, 0xbfc00800);
   var rom_d1a3_handler_uncached  = new Device("ROMd1a3",  rom,          0xbfd00000, 0xc0000000);
 
-  rdram_handler_cached.quiet      = true;
-  rdram_handler_uncached.quiet    = true;
-  sp_mem_handler_uncached.quiet   = true;
-  sp_reg_handler_uncached.quiet   = true;
-  sp_ibist_handler_uncached.quiet = true;
-  mi_reg_handler_uncached.quiet   = true;
-  vi_reg_handler_uncached.quiet   = true;
-  ai_reg_handler_uncached.quiet   = true;
-  pi_reg_handler_uncached.quiet   = true;
-  si_reg_handler_uncached.quiet   = true;
-  rom_d1a2_handler_uncached.quiet = true;
+
+  function fixEndian(arrayBuffer) {
+    var dataView = new DataView(arrayBuffer);
+
+    function byteSwap(buffer, i0, i1, i2, i3) {
+
+      var u8 = new Uint8Array(buffer);
+      var i;
+      for (i = 0; i < u8.length; i += 4) {
+        var a = u8[i+i0], b = u8[i+i1], c = u8[i+i2], d = u8[i+i3];
+        u8[i  ] = a;
+        u8[i+1] = b;
+        u8[i+2] = c;
+        u8[i+3] = d;
+      }
+    }
+
+    switch (dataView.getUint32(0)) {
+      case 0x80371240:
+        // ok
+        break;
+      case 0x40123780:
+        byteSwap(arrayBuffer, 3, 2, 1, 0);
+        break;
+      case 0x12408037:
+        byteSwap(arrayBuffer, 2, 3, 0, 1);
+        break;
+      case 0x37804012:
+        byteSwap(arrayBuffer, 1, 0, 3, 2);
+        break;
+      default:
+        throw 'Unhandled byteswapping: ' + dataView.getUint32(0).toString(16);
+    }
+  }
+
+  function uint8ArrayReadString(u8array, offset, max_len) {
+    var s = '';
+    var i;
+    for (i = 0; i < max_len; ++i) {
+      var c = u8array[offset+i];
+      if (c === 0) {
+        break;
+      }
+      s += String.fromCharCode(c);
+    }
+    return s;
+  }
+
+  function byteswap(a) {
+    return ((a>>24)&0x000000ff) |
+           ((a>> 8)&0x0000ff00) |
+           ((a<< 8)&0x00ff0000) |
+           ((a<<24)&0xff000000);
+  }
+
+  function generateRomId(crclo, crchi) {
+    return toHex(byteswap(crclo),32) + toHex(byteswap(crchi),32);
+  }
+
+  function generateCICType(u8array)
+  {
+    var cic = 0;
+    var i;
+    for (i = 0; i < 0xFC0; i++) {
+      cic = cic + u8array[0x40 + i];
+    }
+
+    switch (cic) {
+      case 0x33a27: return '6101';
+      case 0x3421e: return '6101';
+      case 0x34044: return '6102';
+      case 0x357d0: return '6103';
+      case 0x47a81: return '6105';
+      case 0x371cc: return '6106';
+      case 0x343c9: return '6106';
+      default:
+        n64js.log('Unknown CIC Code ' + toString32(cic) );
+        return '6102';
+    }
+  }
+
+  function loadRom(arrayBuffer) {
+    fixEndian(arrayBuffer);
+
+    rom = new Memory(arrayBuffer);
+    rom_d1a1_handler_uncached.setMem(rom);
+    rom_d1a2_handler_uncached.setMem(rom);
+    rom_d1a3_handler_uncached.setMem(rom);
+    rom_d2a1_handler_uncached.setMem(rom);
+    rom_d2a2_handler_uncached.setMem(rom);
+
+    var hdr = {};
+    hdr.header       = rom.readU32(0);
+    hdr.clock        = rom.readU32(4);
+    hdr.bootAddress  = rom.readU32(8);
+    hdr.release      = rom.readU32(12);
+    hdr.crclo        = rom.readU32(16);   // or hi?
+    hdr.crchi        = rom.readU32(20);   // or lo?
+    hdr.unk0         = rom.readU32(24);
+    hdr.unk1         = rom.readU32(28);
+    hdr.name         = uint8ArrayReadString(rom.u8, 32, 20);
+    hdr.unk2         = rom.readU32(52);
+    hdr.unk3         = rom.readU16(56);
+    hdr.unk4         = rom.readU8 (58);
+    hdr.manufacturer = rom.readU8 (59);
+    hdr.cartId       = rom.readU16(60);
+    hdr.countryId    = rom.readU8 (62);  // char
+    hdr.unk5         = rom.readU8 (63);
+
+    var $table = $('<table class="register-table"><tbody></tbody></table>');
+    var $tb = $table.find('tbody');
+    var i;
+    for (i in hdr) {
+      $tb.append('<tr>' +
+        '<td>' + i + '</td><td>' + (typeof hdr[i] === 'string' ? hdr[i] : toString32(hdr[i])) + '</td>' +
+        '</tr>');
+    }
+    n64js.outputAppendHTML($table);
+
+    // Set up rominfo
+    rominfo.cic     = generateCICType(rom.u8);
+    rominfo.id      = generateRomId(hdr.crclo, hdr.crchi);
+    rominfo.country = hdr.countryId;
+
+    var info = n64js.romdb[rominfo.id];
+    if (info) {
+      n64js.log('Loaded info for ' + rominfo.id + ' from db');
+      rominfo.name = info.name;
+      rominfo.save = info.save;
+    } else {
+      n64js.log('No info for ' + rominfo.id + ' in db');
+      rominfo.name = hdr.name;
+      rominfo.save = 'Eeprom4k';
+    }
+
+    n64js.log('rominfo is ' + JSON.stringify(rominfo));
+
+    $('#title').text('n64js - ' + rominfo.name);
+  }
+
+  n64js.toggleRun = function () {
+    running = !running;
+    $('#runbutton').html(running ? '<i class="icon-pause"></i> Pause' : '<i class="icon-play"></i> Run');
+    if (running) {
+      updateLoopAnimframe();
+    }
+  };
+
+  n64js.triggerLoad = function () {
+    var $fileinput = $('#fileInput');
+
+    // Reset fileInput value, otherwise onchange doesn't recognise when we select the same rome back-to-back
+    $fileinput.val('');
+    $fileinput.click();
+  };
+
+  n64js.loadFile = function () {
+    var f = document.getElementById("fileInput");
+    if (f && f.files.length > 0) {
+      var file = f.files[0];
+      var name = file.fileName;
+      var size = file.fileSize;
+
+      var reader = new FileReader();
+
+      reader.onerror = function (e) {
+        n64js.displayWarning('error loading file');
+      };
+      reader.onload = function (e) {
+        loadRom(e.target.result);
+        n64js.reset();
+        n64js.refreshDebugger();
+        running = true;
+        updateLoopAnimframe();
+        $('#runbutton').html('<i class="icon-pause"></i> Pause');
+      };
+
+      reader.readAsArrayBuffer(file);
+    }
+  };
+
+  n64js.step = function () {
+    if (!running) {
+      n64js.run(1);
+      n64js.refreshDebugger();
+    }
+  };
+
+  function updateLoopAnimframe() {
+    if (running) {
+      requestAnimationFrame(updateLoopAnimframe);
+
+      var sync = n64js.getSync();
+      if (sync) {
+        var count = sync.getAvailableOps();
+        if (count === 0) {
+          sync.refill();
+        } else {
+          n64js.run(count / 4);
+          n64js.refreshDebugger();
+        }
+      } else {
+        n64js.run(100000000);
+        n64js.refreshDebugger();
+      }
+
+      if (!running) {
+        $('#runbutton').html('<i class="icon-play"></i> Run');
+      }
+    }
+  }
 
   n64js.getRamU8Array = function () {
     return rdram_handler_cached.u8;
@@ -2002,10 +2049,6 @@
   n64js.writeMemory16 = function (address, value) { return getMemoryHandler(address).write16(address, value); };
   n64js.writeMemory8  = function (address, value) { return getMemoryHandler(address).write8(address, value); };
 
-  var kBootstrapOffset = 0x40;
-  var kGameOffset      = 0x1000;
-
-
   function BinaryRequest(url, args, cb) {
 
     var alwaysCallbacks = [];
@@ -2221,6 +2264,40 @@
     }
   }
 
+  //
+  // Performance
+  //
+  var startTime;
+  var lastPresentTime;
+  var frameTimeSeries;
+
+  n64js.emitRunningTime  = function (msg) {
+    var cur_time = new Date();
+    n64js.displayWarning('Time to ' + msg + ' ' + (cur_time.getTime() - startTime.getTime()).toString());
+  };
+
+  function setFrameTime(t) {
+    var title_text ;
+    if (rominfo.name)
+      title_text = 'n64js - ' + rominfo.name + ' - ' + t + 'mspf';
+    else
+      title_text = 'n64js - ' + t + 'mspf';
+
+    $('#title').text(title_text);
+  }
+
+  n64js.onPresent = function () {
+    var cur_time = new Date();
+    if (lastPresentTime) {
+      var t = cur_time.getTime() - lastPresentTime.getTime();
+      setFrameTime(t);
+    }
+
+    lastPresentTime = cur_time;
+  };
+
+
+
   n64js.reset = function () {
     var country  = rominfo.country;
     var cic_chip = rominfo.cic;
@@ -2419,176 +2496,6 @@
     lastPresentTime = undefined;
   };
 
-  //
-  // Performance
-  //
-  var startTime;
-  var lastPresentTime;
-  var frameTimeSeries;
-
-  n64js.emitRunningTime  = function (msg) {
-    var cur_time = new Date();
-    n64js.displayWarning('Time to ' + msg + ' ' + (cur_time.getTime() - startTime.getTime()).toString());
-  };
-
-  function setFrameTime(t) {
-    var title_text ;
-    if (rominfo.name)
-      title_text = 'n64js - ' + rominfo.name + ' - ' + t + 'mspf';
-    else
-      title_text = 'n64js - ' + t + 'mspf';
-
-    $('#title').text(title_text);
-  };
-
-  n64js.onPresent = function () {
-    var cur_time = new Date();
-    if (lastPresentTime) {
-      var t = cur_time.getTime() - lastPresentTime.getTime();
-      setFrameTime(t);
-    }
-
-    lastPresentTime = cur_time;
-  };
-
-  function fixEndian(arrayBuffer) {
-    var dataView = new DataView(arrayBuffer);
-
-    function byteSwap(buffer, _a, _b, _c, _d) {
-
-      var u8 = new Uint8Array(buffer);
-      var i;
-      for (i = 0; i < u8.length; i += 4) {
-        var a = u8[i+_a], b = u8[i+_b], c = u8[i+_c], d = u8[i+_d];
-        u8[i+0] = a;
-        u8[i+1] = b;
-        u8[i+2] = c;
-        u8[i+3] = d;
-      }
-    }
-
-    switch (dataView.getUint32(0)) {
-      case 0x80371240:
-        // ok
-        break;
-      case 0x40123780:
-        byteSwap(arrayBuffer, 3, 2, 1, 0);
-        break;
-      case 0x12408037:
-        byteSwap(arrayBuffer, 2, 3, 0, 1);
-        break;
-      case 0x37804012:
-        byteSwap(arrayBuffer, 1, 0, 3, 2);
-        break;
-      default:
-        throw 'Unhandled byteswapping: ' + dataView.getUint32(0).toString(16);
-    }
-  }
-
-  function uint8ArrayReadString(u8array, offset, max_len) {
-    var s = '';
-    var i;
-    for (i = 0; i < max_len; ++i) {
-      var c = u8array[offset+i];
-      if (c === 0) {
-        break;
-      }
-      s += String.fromCharCode(c);
-    }
-    return s;
-  }
-
-  function byteswap(a) {
-    return ((a>>24)&0x000000ff) |
-           ((a>> 8)&0x0000ff00) |
-           ((a<< 8)&0x00ff0000) |
-           ((a<<24)&0xff000000);
-  }
-
-  function generateRomId(crclo, crchi) {
-    return toHex(byteswap(crclo),32) + toHex(byteswap(crchi),32);
-  }
-
-  function generateCICType(u8array)
-  {
-    var cic = 0;
-    var i;
-    for (i = 0; i < 0xFC0; i++) {
-      cic = cic + u8array[0x40 + i];
-    }
-
-    switch (cic) {
-      case 0x33a27: return '6101';
-      case 0x3421e: return '6101';
-      case 0x34044: return '6102';
-      case 0x357d0: return '6103';
-      case 0x47a81: return '6105';
-      case 0x371cc: return '6106';
-      case 0x343c9: return '6106';
-      default:
-        n64js.log('Unknown CIC Code ' + toString32(cic) );
-        return '6102';
-    }
-  }
-
-  n64js.loadRom = function (arrayBuffer) {
-    fixEndian(arrayBuffer);
-
-    rom = new Memory(arrayBuffer);
-    rom_d1a1_handler_uncached.setMem(rom);
-    rom_d1a2_handler_uncached.setMem(rom);
-    rom_d1a3_handler_uncached.setMem(rom);
-    rom_d2a1_handler_uncached.setMem(rom);
-    rom_d2a2_handler_uncached.setMem(rom);
-
-    var hdr = {};
-    hdr.header       = rom.readU32(0);
-    hdr.clock        = rom.readU32(4);
-    hdr.bootAddress  = rom.readU32(8);
-    hdr.release      = rom.readU32(12);
-    hdr.crclo        = rom.readU32(16);   // or hi?
-    hdr.crchi        = rom.readU32(20);   // or lo?
-    hdr.unk0         = rom.readU32(24);
-    hdr.unk1         = rom.readU32(28);
-    hdr.name         = uint8ArrayReadString(rom.u8, 32, 20);
-    hdr.unk2         = rom.readU32(52);
-    hdr.unk3         = rom.readU16(56);
-    hdr.unk4         = rom.readU8 (58);
-    hdr.manufacturer = rom.readU8 (59);
-    hdr.cartId       = rom.readU16(60);
-    hdr.countryId    = rom.readU8 (62);  // char
-    hdr.unk5         = rom.readU8 (63);
-
-    var $table = $('<table class="register-table"><tbody></tbody></table>');
-    var $tb = $table.find('tbody');
-    var i;
-    for (i in hdr) {
-      $tb.append('<tr>' +
-        '<td>' + i + '</td><td>' + (typeof hdr[i] === 'string' ? hdr[i] : toString32(hdr[i])) + '</td>' +
-        '</tr>');
-    }
-    n64js.outputAppendHTML($table);
-
-    // Set up rominfo
-    rominfo.cic     = generateCICType(rom.u8);
-    rominfo.id      = generateRomId(hdr.crclo, hdr.crchi);
-    rominfo.country = hdr.countryId;
-
-    var info = n64js.romdb[rominfo.id];
-    if (info) {
-      n64js.log('Loaded info for ' + rominfo.id + ' from db');
-      rominfo.name = info.name;
-      rominfo.save = info.save;
-    } else {
-      n64js.log('No info for ' + rominfo.id + ' in db');
-      rominfo.name = hdr.name;
-      rominfo.save = 'Eeprom4k';
-    }
-
-    n64js.log('rominfo is ' + JSON.stringify(rominfo));
-
-    $('#title').text('n64js - ' + rominfo.name);
-  };
 
   n64js.verticalBlank = function () {
     // FIXME: framerate limit etc
@@ -2632,6 +2539,106 @@
     mi_reg.setBits32(MI_INTR_REG, MI_INTR_DP);
     n64js.cpu0.updateCause3();
   };
+
+  n64js.assert = assert;
+
+  n64js.check = function (e, m) {
+    if (!e) {
+      n64js.log(m);
+    }
+  };
+
+  n64js.warn = function (m) {
+    n64js.log(m);
+  };
+
+  n64js.halt = function (msg) {
+    running = false;
+    n64js.cpu0.breakExecution();
+    n64js.log('<span style="color:red">' + msg + '</span>');
+
+    n64js.displayError(msg);
+  };
+
+  n64js.displayWarning = function (message) {
+    var $alert = $('<div class="alert"><button class="close" data-dismiss="alert">×</button><strong>Warning!</strong> ' + message + '</div>');
+    $('#alerts').append($alert);
+  };
+  n64js.displayError = function (message) {
+    var $alert = $('<div class="alert alert-error"><button class="close" data-dismiss="alert">×</button><strong>Error!</strong> ' + message + '</div>');
+    $('#alerts').append($alert);
+  };
+
+  // Similar to halt, but just relinquishes control to the system
+  n64js.returnControlToSystem = function () {
+    n64js.cpu0.breakExecution();
+  };
+
+  n64js.init = function () {
+
+    rdram_handler_cached.quiet      = true;
+    rdram_handler_uncached.quiet    = true;
+    sp_mem_handler_uncached.quiet   = true;
+    sp_reg_handler_uncached.quiet   = true;
+    sp_ibist_handler_uncached.quiet = true;
+    mi_reg_handler_uncached.quiet   = true;
+    vi_reg_handler_uncached.quiet   = true;
+    ai_reg_handler_uncached.quiet   = true;
+    pi_reg_handler_uncached.quiet   = true;
+    si_reg_handler_uncached.quiet   = true;
+    rom_d1a2_handler_uncached.quiet = true;
+
+    n64js.reset();
+
+    n64js.initialiseDebugger();
+
+    n64js.initialiseRenderer($('#display'));
+
+    var kEnter    = 13;
+    var kPageUp   = 33;
+    var kPageDown = 34;
+    var kLeft     = 37;
+    var kUp       = 38;
+    var kRight    = 39;
+    var kDown     = 40;
+    var kF10      = 121;  // Ugh - chrome only seems to send *alternate* keydown for this, and no keyup.
+    var kF8       = 119;
+
+    $('body').keyup(function (event) {
+      n64js.handleKey(event.which, false);
+    });
+    $('body').keydown(function (event) {
+      n64js.handleKey(event.which, true);
+
+      switch (event.which) {
+        case kDown:     n64js.down();      break;
+        case kUp:       n64js.up();        break;
+        case kPageDown: n64js.pageDown();  break;
+        case kPageUp:   n64js.pageUp();    break;
+        case kF8:       n64js.toggleRun(); break;
+        case kF10:      n64js.step();      break;
+        //default: alert( 'code:' + event.which);
+      }
+    });
+    // $('body').keypress(function (event) {
+    //   switch (event.which) {
+    //     case 'o'.charCodeAt(0): $('#output-tab').tab('show'); break;
+    //     case 'd'.charCodeAt(0): $( '#debug-tab').tab('show'); break;
+    //     case 'm'.charCodeAt(0): $('#memory-tab').tab('show'); break;
+    //     case 'l'.charCodeAt(0): n64js.triggerLoad();          break;
+    //     case 'g'.charCodeAt(0): n64js.toggleRun();            break;
+    //     case 's'.charCodeAt(0): n64js.step();                 break;
+    //   }
+    // });
+
+    // Make sure that the tabs refresh when clicked
+    $('.tabbable a').on('shown', function (e) {
+      n64js.refreshDebugger();
+    });
+
+    n64js.refreshDebugger();
+  };
+
 }(window.n64js = window.n64js || {}));
 
 
