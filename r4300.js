@@ -2782,7 +2782,7 @@
   function executeSC(i)         { unimplemented(cpu0.pc,i); }
   function executeSCD(i)        { unimplemented(cpu0.pc,i); }
 
-  function generateMFC1(ctx) {
+  function generateMFC1Stub(ctx) {
     var t = ctx.instr_rt();
     var s = ctx.instr_fs();
 
@@ -2812,7 +2812,7 @@
   }
 
 
-  function generateMTC1(ctx) {
+  function generateMTC1Stub(ctx) {
     var s = ctx.instr_fs();
     var t = ctx.instr_rt();
 
@@ -2830,19 +2830,61 @@
     cpu1.store_64( fs(i), cpu0.gprLo_signed[t], cpu0.gprHi_signed[t] );
   }
 
-  function executeCFC1(i) {
-    var r = fs(i);
-    switch(r) {
+  function generateCFC1Stub(ctx) {
+    var s = ctx.instr_fs();
+    var t = ctx.instr_rt();
+
+    ctx.fragment.usesCop1 = true;
+    ctx.isTrivial         = true;
+
+    var impl = '';
+
+    switch(s) {
       case 0:
       case 31:
-        setSignExtend( rt(i), cpu1.control[r] );
+        impl += 'var value = cpu1.control[' + s + '];\n';
+        impl += 'rlo[' + t + '] = value;\n';
+        impl += 'rhi[' + t + '] = value >> 31;\n';
+        return impl;
+    }
+
+    return '/*CFC1 invalid reg*/\n';
+  }
+
+  function executeCFC1(i) {
+    var s = fs(i);
+    var t = rt(i);
+
+    switch(s) {
+      case 0:
+      case 31:
+        var value = cpu1.control[s];
+        cpu0.gprLo_signed[t] = value;
+        cpu0.gprHi_signed[t] = value >> 31;
         break;
     }
   }
+
+  function generateCTC1Stub(ctx) {
+    var s = ctx.instr_fs();
+    var t = ctx.instr_rt();
+
+    ctx.fragment.usesCop1 = true;
+    ctx.isTrivial         = true;
+
+    if (s === 31) {
+      return 'cpu1.control[' + s + '] = rlo[' + t + '];\n';
+    }
+
+    return '/*CTC1 invalid reg*/\n';
+  }
+
   function executeCTC1(i) {
-    var r = fs(i);
-    if (r == 31) {
-      var v = cpu0.gprLo[rt(i)];
+    var s = fs(i);
+    var t = rt(i);
+
+    if (s === 31) {
+      var v = cpu0.gprLo[t];
 
       // switch (v & FPCSR_RM_MASK) {
       // case FPCSR_RM_RN:     n64js.log('cop1 - setting round near');  break;
@@ -2851,7 +2893,7 @@
       // case FPCSR_RM_RM:     n64js.log('cop1 - setting round floor'); break;
       // }
 
-      cpu1.control[r] = v;
+      cpu1.control[s] = v;
     }
   }
 
@@ -2889,7 +2931,7 @@
     n64js.assert('unknown rounding mode')
   }
 
-  function generateSInstrHelper(ctx) {
+  function generateSInstrStub(ctx) {
 
     var s = ctx.instr_fs();
     var t = ctx.instr_ft();
@@ -2994,7 +3036,7 @@
     }
   }
 
-  function generateDInstrHelper(ctx) {
+  function generateDInstrStub(ctx) {
 
     var s = ctx.instr_fs();
     var t = ctx.instr_ft();
@@ -3097,7 +3139,7 @@
     }
   }
 
-  function generateWInstrHelper(ctx) {
+  function generateWInstrStub(ctx) {
     var s = ctx.instr_fs();
     var d = ctx.instr_fd();
 
@@ -3121,7 +3163,7 @@
   }
 
 
-  function generateLInstrHelper(ctx) {
+  function generateLInstrStub(ctx) {
     var s = ctx.instr_fs();
     var d = ctx.instr_fd();
 
@@ -3227,12 +3269,12 @@
   }
 
   var cop1TableGen = [
-    generateMFC1,           'executeDMFC1',         'executeCFC1',        'executeUnknown',
-    generateMTC1,           'executeDMTC1',         'executeCTC1',        'executeUnknown',
+    generateMFC1Stub,       'executeDMFC1',         generateCFC1Stub,     'executeUnknown',
+    generateMTC1Stub,       'executeDMTC1',         generateCTC1Stub,     'executeUnknown',
     'executeBCInstr',       'executeUnknown',       'executeUnknown',     'executeUnknown',
     'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
-    generateSInstrHelper,   generateDInstrHelper,   'executeUnknown',     'executeUnknown',
-    generateWInstrHelper,   generateLInstrHelper,   'executeUnknown',     'executeUnknown',
+    generateSInstrStub,     generateDInstrStub,     'executeUnknown',     'executeUnknown',
+    generateWInstrStub,     generateLInstrStub,     'executeUnknown',     'executeUnknown',
     'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
     'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
   ];
@@ -3242,9 +3284,7 @@
 
   // Expose all the functions that we don't yet generate
   n64js.executeDMFC1   = executeDMFC1;
-  n64js.executeCFC1    = executeCFC1;
   n64js.executeDMTC1   = executeDMTC1;
-  n64js.executeCTC1    = executeCTC1;
   n64js.executeBCInstr = executeBCInstr;
 
 
