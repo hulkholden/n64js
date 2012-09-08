@@ -2172,7 +2172,7 @@
   };
 
   var Base64 = {
-    _keyStr : "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=",
+    lookup : "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=",
     encodeArray : function (arr) {
       var t = '';
       var i;
@@ -2194,7 +2194,7 @@
           d = 64;
         }
 
-        t += this._keyStr.charAt(a) + this._keyStr.charAt(b) + this._keyStr.charAt(c) + this._keyStr.charAt(d);
+        t += this.lookup.charAt(a) + this.lookup.charAt(b) + this.lookup.charAt(c) + this.lookup.charAt(d);
       }
       return t;
     },
@@ -2204,10 +2204,10 @@
 
       var i;
       for (i = 0; i < str.length; i += 4) {
-        var a = this._keyStr.indexOf(str.charAt(i+0));
-        var b = this._keyStr.indexOf(str.charAt(i+1));
-        var c = this._keyStr.indexOf(str.charAt(i+2));
-        var d = this._keyStr.indexOf(str.charAt(i+3));
+        var a = this.lookup.indexOf(str.charAt(i+0));
+        var b = this.lookup.indexOf(str.charAt(i+1));
+        var c = this.lookup.indexOf(str.charAt(i+2));
+        var d = this.lookup.indexOf(str.charAt(i+3));
 
         var c0 = (a << 2) | (b >>> 4);
         var c1 = ((b & 15) << 4) | (c >>> 2);
