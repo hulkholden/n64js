@@ -1245,6 +1245,32 @@
   }
 
 
+  function disassembleVertex_GBI0_WR(cmd0,cmd1) {
+    var n       = ((cmd0>>> 9)&0x7f);
+    var v0      = ((cmd0>>>16)&0xff) / 5;
+    //var length  = (cmd0>>> 0)&0x1ff;
+    var address = n64js.toString32(cmd1);
+
+    return 'gsSPVertex(' + address + ', ' + n + ', ' + v0 + ');';
+  }
+
+  function previewVertex_GBI0_WR(cmd0,cmd1, ram, rdpSegmentAddress) {
+    var n       = ((cmd0>>> 9)&0x7f);
+    var v0      = ((cmd0>>>16)&0xff) / 5;
+    var address = rdpSegmentAddress(cmd1);
+
+    return previewVertexImpl(v0, n, address, ram);
+  }
+
+  function executeVertex_GBI0_WR(cmd0,cmd1) {
+    var n       = ((cmd0>>> 9)&0x7f);
+    var v0      = ((cmd0>>>16)&0xff) / 5;
+    //var length  = (cmd0>>> 0)&0x1ff;
+    var address = rdpSegmentAddress(cmd1);
+
+    executeVertexImpl(v0, n, address);
+  }
+
 
   function disassembleVertex_GBI1(cmd0,cmd1) {
     var v0      = ((cmd0>>>16)&0xff) / config.vertexStride;
@@ -2627,10 +2653,14 @@
   function buildUCodeTables(ucode) {
     switch (ucode) {
       case kUCode_GBI0:
-      case kUCode_GBI0_WR:
         disassembleVertex = disassembleVertex_GBI0;
         previewVertex     = previewVertex_GBI0;
         executeVertex     = executeVertex_GBI0;
+        break;
+      case kUCode_GBI0_WR:
+        disassembleVertex = disassembleVertex_GBI0_WR;
+        previewVertex     = previewVertex_GBI0_WR;
+        executeVertex     = executeVertex_GBI0_WR;
         break;
       case kUCode_GBI1:
         disassembleVertex = disassembleVertex_GBI1;
