@@ -2897,6 +2897,30 @@
     }
   }
 
+  function generateBCInstrStub(ctx) {
+    var i = ctx.instruction;
+    n64js.assert( ((i>>>18)&0x7) === 0, "cc bit is not 0" );
+
+    var condition = (i&0x10000) !== 0;
+    var likely    = (i&0x20000) !== 0;
+    var target    = branchAddress(ctx.pc, i);
+
+    ctx.fragment.usesCop1 = true;
+    ctx.isTrivial         = false; // NB: not trivial - branches!
+
+    var impl = '';
+    var test = condition ? '!==' : '===';
+    impl += 'if ((cpu1.control[31] & FPCSR_C) ' + test + ' 0) {\n';
+    impl += '  c.branchTarget = ' + n64js.toString32(target) + ';\n';
+    if (likely) {
+      impl += '} else {\n';
+      impl += '  c.nextPC += 4;\n';
+    }
+    impl += '}\n';
+
+    return impl;
+  }
+
   function executeBCInstr(i) {
     n64js.assert( ((i>>>18)&0x7) === 0, "cc bit is not 0" );
 
@@ -3271,7 +3295,7 @@
   var cop1TableGen = [
     generateMFC1Stub,       'executeDMFC1',         generateCFC1Stub,     'executeUnknown',
     generateMTC1Stub,       'executeDMTC1',         generateCTC1Stub,     'executeUnknown',
-    'executeBCInstr',       'executeUnknown',       'executeUnknown',     'executeUnknown',
+    generateBCInstrStub,    'executeUnknown',       'executeUnknown',     'executeUnknown',
     'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
     generateSInstrStub,     generateDInstrStub,     'executeUnknown',     'executeUnknown',
     generateWInstrStub,     generateLInstrStub,     'executeUnknown',     'executeUnknown',
@@ -3285,12 +3309,18 @@
   // Expose all the functions that we don't yet generate
   n64js.executeDMFC1   = executeDMFC1;
   n64js.executeDMTC1   = executeDMTC1;
-  n64js.executeBCInstr = executeBCInstr;
-
 
   function generateCop1(ctx) {
     var fmt = (ctx.instruction >>> 21) & 0x1f;
     var fn = cop1TableGen[fmt];
+
+    var op_impl;
+    if (typeof fn === 'string') {
+      //n64js.log(fn);
+      op_impl = 'n64js.' + fn + '(' + n64js.toString32(ctx.instruction) + ');\n';
+    } else {
+      op_impl = fn(ctx);
+    }
 
     var impl = '';
 
@@ -3299,23 +3329,13 @@
     if (ctx.fragment.cop1statusKnown) {
       // Assert that cop1 is enabled
       impl += ctx.genAssert('(c.control[12] & SR_CU1) !== 0', 'cop1 should be enabled');
-
-      if (typeof fn === 'string') {
-        impl += 'n64js.' + fn + '(' + n64js.toString32(ctx.instruction) + ');\n';
-      } else {
-        impl += fn(ctx);
-      }
+      impl += op_impl;
 
     } else {
       impl += 'if( (c.control[12] & SR_CU1) === 0 ) {\n';
       impl += '  executeCop1_disabled(' + n64js.toString32(ctx.instruction) + ');\n';
       impl += '} else {\n';
-
-      if (typeof fn === 'string') {
-        impl += '  n64js.' + fn + '(' + n64js.toString32(ctx.instruction) + ');\n';
-      } else {
-        impl += '  ' + fn(ctx);
-      }
+      impl += '  ' + op_impl;
       impl += '}\n';
 
       ctx.isTrivial = false;    // Not trivial!
@@ -3808,8 +3828,8 @@
                 if (fragment.usesCop1) {
                   var cpu1_shizzle = '';
                   cpu1_shizzle += 'var cpu1 = n64js.cpu1;\n';
-                  cpu1_shizzle += 'var SR_CU1 = ' + SR_CU1 + ';\n';
-                  cpu1_shizzle += 'var FPCSR_C = ' + FPCSR_C + ';\n';
+                  cpu1_shizzle += 'var SR_CU1 = ' + n64js.toString32(SR_CU1) + ';\n';
+                  cpu1_shizzle += 'var FPCSR_C = ' + n64js.toString32(FPCSR_C) + ';\n';
                   fragment.body_code = cpu1_shizzle + '\n\n' + fragment.body_code;
                 }
 
@@ -4049,6 +4069,7 @@
   function generateOpHelper(fn,ctx) {
     // fn can be a handler function, in which case defer to that.
     if (typeof fn === 'string') {
+      //n64js.log(fn);
       return generateGenericOpBoilerplate('n64js.' + fn + '(' + n64js.toString32(ctx.instruction) + ');\n', ctx);
     } else {
       return fn(ctx);
