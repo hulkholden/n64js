@@ -3538,10 +3538,6 @@ if (typeof n64js === 'undefined') {
     n64js.assert(mi_interrupt_set === cause_int_3_set, 'CAUSE_IP3 inconsistent with MI_INTR_REG');
   }
 
-  n64js.step = function () {
-    n64js.run(1);
-  }
-
   function mix(a,b,c)
   {
     a -= b; a -= c; a ^= (c>>>13);

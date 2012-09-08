@@ -325,56 +325,155 @@ if (typeof n64js === 'undefined') {
     n64js.cpu0.breakExecution();
   }
 
-  n64js.isRunning = function () {
-    return running;
-  }
 
-  n64js.startRunning = function () {
-    running = true;
+  n64js.init = function () {
+    n64js.reset();
+
+    $debugContent   = $('#debug-content');
+    $status         = $('#status');
+    $registers      = [$('#cpu0-content'), $('#cpu1-content')];
+    $disassembly    = $('#disasm');
+    $output         = $('#output');
+    $dynarecContent = $('#dynarec-content');
+    $memoryContent  = $('#memory-content');
+
+    n64js.initialiseRenderer($('#display'));
+
+    var kEnter    = 13;
+    var kPageUp   = 33;
+    var kPageDown = 34;
+    var kLeft     = 37;
+    var kUp       = 38;
+    var kRight    = 39;
+    var kDown     = 40;
+    var kF10      = 121;  // Ugh - chrome only seems to send *alternate* keydown for this, and no keyup.
+    var kF8       = 119;
+
+    $('body').keyup(function (event) {
+      n64js.handleKey(event.which, false);
+    });
+    $('body').keydown(function (event) {
+      n64js.handleKey(event.which, true);
+
+      switch (event.which) {
+        case kDown:     n64js.down();      break;
+        case kUp:       n64js.up();        break;
+        case kPageDown: n64js.pageDown();  break;
+        case kPageUp:   n64js.pageUp();    break;
+        case kF8:       n64js.toggleRun(); break;
+        case kF10:      n64js.step();      break;
+        //default: alert( 'code:' + event.which);
+      }
+    });
+    $('body').keypress(function (event) {
+      switch (event.which) {
+        //case 'o'.charCodeAt(0): $('#output-tab').tab('show'); break;
+        //case 'd'.charCodeAt(0): $( '#debug-tab').tab('show'); break;
+        //case 'm'.charCodeAt(0): $('#memory-tab').tab('show'); break;
+        //case 'l'.charCodeAt(0): n64js.triggerLoad();          break;
+        //case 'g'.charCodeAt(0): n64js.toggleRun();            break;
+        //case 's'.charCodeAt(0): n64js.step();                 break;
+      }
+    });
+
+    // Make sure that the tabs refresh when clicked
+    $('.tabbable a').on('shown', function (e) {
+      refreshDisplay();
+    });
+
+    refreshDisplay();
   }
 
   n64js.toggleRun = function () {
     running = !running;
-    return running;
+    $('#runbutton').html(running ? '<i class="icon-pause"></i> Pause' : '<i class="icon-play"></i> Run');
+    if (running)
+      updateLoopAnimframe();
   }
 
-  n64js.setOutputElement = function ($e) {
-    $output = $e;
+  n64js.triggerLoad = function() {
+    var $fileinput = $('#fileInput');
+
+    // Reset fileInput value, otherwise onchange doesn't recognise when we select the same rome back-to-back
+    $fileinput.val('');
+    $fileinput.click();
+  };
+
+  n64js.loadFile = function () {
+    var f = document.getElementById("fileInput");
+    if (f && f.files.length > 0) {
+      var file = f.files[0];
+      var name = file.fileName;
+      var size = file.fileSize;
+
+      var reader = new FileReader();
+
+      reader.onerror = function(e) {
+        n64js.displayWarning('error loading file');
+      }
+      reader.onload = function(e) {
+        var bytes = e.target.result;
+        n64js.loadRom(bytes);
+        n64js.reset();
+        refreshDisplay();
+        running = true;
+        updateLoopAnimframe();
+        $('#runbutton').html('<i class="icon-pause"></i> Pause');
+      };
+
+      reader.readAsArrayBuffer(file);
+    }
+  };
+
+  n64js.step = function () {
+    if (!running) {
+      n64js.run(1);
+      refreshDisplay();
+    }
   }
 
-  n64js.setDebugElements = function ($debug, $stat, $regs, $disasm) {
-    $debugContent = $debug;
-    $status       = $stat;
-    $registers    = $regs;
-    $disassembly  = $disasm;
-  }
+  function updateLoopAnimframe() {
+      if (running) {
+        requestAnimationFrame(updateLoopAnimframe);
 
-  n64js.setDynarecElements = function ($dr) {
-    $dynarecContent = $dr;
-  }
+        var sync = n64js.getSync();
+        if (sync) {
+          var count = sync.getAvailableOps();
+          if (count === 0) {
+            sync.refill();
+          } else {
+            n64js.run(count/4);
+            refreshDisplay();
+          }
+        } else {
+          n64js.run(100000000);
+          refreshDisplay();
+        }
 
-  n64js.setMemoryElement = function ($e) {
-    $memoryContent = $e;
+        if (!running) {
+          $('#runbutton').html('<i class="icon-play"></i> Run');
+        }
+      }
   }
 
   n64js.down = function () {
     disasmAddress += 4;
-    n64js.refreshDisplay();
+    refreshDisplay();
   }
 
   n64js.up = function () {
     disasmAddress -= 4;
-    n64js.refreshDisplay();
+    refreshDisplay();
   }
 
   n64js.pageDown = function () {
     disasmAddress += 64;
-    n64js.refreshDisplay();
+    refreshDisplay();
   }
 
   n64js.pageUp = function () {
     disasmAddress -= 64;
-    n64js.refreshDisplay();
+    refreshDisplay();
   }
 
   function makeLabelColor(address) {
@@ -423,7 +522,7 @@ if (typeof n64js === 'undefined') {
   }
 
 
-  n64js.refreshDisplay = function () {
+  function refreshDisplay () {
 
     if ($dynarecContent.hasClass('active')) {
       updateDynarec();
@@ -555,7 +654,7 @@ if (typeof n64js === 'undefined') {
       $(this).css('color', makeLabelColor(address));
       $(this).click(function () {
         disasmAddress = address;
-        n64js.refreshDisplay();
+        refreshDisplay();
       });
     });
 

@@ -41,15 +41,15 @@
         <div class="span12">
           <div class="btn-toolbar">
             <div class="btn-group">
-              <button class="btn" onclick="load()"><i class="icon-file"></i> Load</button>
+              <button class="btn" onclick="n64js.triggerLoad()"><i class="icon-file"></i> Load</button>
             </div>
             <div class="btn-group">
-              <button class="btn" onclick="toggleRun()" id="runbutton"><i class="icon-play"></i> Run</button>
+              <button class="btn" onclick="n64js.toggleRun()" id="runbutton"><i class="icon-play"></i> Run</button>
             </div>
             <div class="btn-group">
               <button class="btn" onclick="$('#debug').toggle()"><i class="icon-fire"></i> Debug</button>
             </div>
-            <input style="visibility:hidden; display:inline-block;" id="fileInput" name="fileInput" type="file" onchange="loadFile()" />
+            <input style="visibility:hidden; display:inline-block;" id="fileInput" name="fileInput" type="file" onchange="n64js.loadFile()" />
           </div>
         </div>
       </div>
@@ -151,7 +151,7 @@
                 <div id="cpu">
                   <div class="btn-toolbar">
                     <div class="btn-group">
-                      <button class="btn" onclick="step()" id="stepbutton"><i class="icon-step-forward"></i> Step</button>
+                      <button class="btn" onclick="n64js.step()" id="stepbutton"><i class="icon-step-forward"></i> Step</button>
                     </div>
                   </div>
 
@@ -295,130 +295,8 @@
     <script>
 
     $(document).ready(function(){
-      n64js.reset();
-      n64js.setDebugElements($('#debug-content'), $('#status'), [$('#cpu0-content'), $('#cpu1-content')], $('#disasm'));
-      n64js.setDynarecElements($('#dynarec-content'));
-      n64js.setMemoryElement($('#memory-content'));
-      n64js.setOutputElement($('#output'));
-
-      n64js.initialiseRenderer($('#display'));
-
-      var kEnter    = 13;
-      var kPageUp   = 33;
-      var kPageDown = 34;
-      var kLeft     = 37;
-      var kUp       = 38;
-      var kRight    = 39;
-      var kDown     = 40;
-      var kF10      = 121;  // Ugh - chrome only seems to send *alternate* keydown for this, and no keyup.
-      var kF8       = 119;
-
-      $('body').keyup(function (event) {
-        n64js.handleKey(event.which, false);
-      });
-      $('body').keydown(function (event) {
-        n64js.handleKey(event.which, true);
-
-        switch (event.which) {
-          case kDown:     n64js.down();     break;
-          case kUp:       n64js.up();       break;
-          case kPageDown: n64js.pageDown(); break;
-          case kPageUp:   n64js.pageUp();   break;
-          case kF8:       toggleRun();      break;
-          case kF10:      step();           break;
-          //default: alert( 'code:' + event.which);
-        }
-      });
-      $('body').keypress(function (event) {
-        switch (event.which) {
-          //case 'o'.charCodeAt(0): $('#output-tab').tab('show'); break;
-          //case 'd'.charCodeAt(0): $( '#debug-tab').tab('show'); break;
-          //case 'm'.charCodeAt(0): $('#memory-tab').tab('show'); break;
-          //case 'l'.charCodeAt(0): load();                       break;
-          //case 'g'.charCodeAt(0): toggleRun();                  break;
-          //case 's'.charCodeAt(0): step();                       break;
-        }
-      });
-
-      // Make sure that the tabs refresh when clicked
-      $('.tabbable a').on('shown', function (e) {
-        n64js.refreshDisplay();
-      });
-
-      n64js.refreshDisplay();
+      n64js.init();
     });
-
-    function load() {
-      var $fileinput = $('#fileInput');
-
-      // Reset fileInput value, otherwise onchange doesn't recognise when we select the same rome back-to-back
-      $fileinput.val('');
-      $fileinput.click();
-    }
-
-    function loadFile() {
-      var f = document.getElementById("fileInput");
-      if (f && f.files.length > 0) {
-        var file = f.files[0];
-        var name = file.fileName;
-        var size = file.fileSize;
-
-        var reader = new FileReader();
-
-        reader.onerror = function(e) {
-          alert('error loading file');
-        }
-        reader.onload = function(e) {
-          var bytes = e.target.result;
-          n64js.loadRom(bytes);
-          n64js.reset();
-          n64js.refreshDisplay();
-          n64js.startRunning();
-          updateLoopAnimframe();
-          $('#runbutton').html('<i class="icon-pause"></i> Pause');
-        };
-
-        reader.readAsArrayBuffer(file);
-      }
-    }
-
-    function step() {
-      if (!n64js.isRunning()) {
-        n64js.step();
-        n64js.refreshDisplay();
-      }
-    }
-
-    function toggleRun() {
-      var running = n64js.toggleRun();
-      $('#runbutton').html(running ? '<i class="icon-pause"></i> Pause' : '<i class="icon-play"></i> Run');
-      if (running)
-        updateLoopAnimframe();
-    }
-
-    function updateLoopAnimframe() {
-        if (n64js.isRunning()) {
-          requestAnimationFrame(updateLoopAnimframe);
-
-          var sync = n64js.getSync();
-          if (sync) {
-            var count = sync.getAvailableOps();
-            if (count === 0) {
-              sync.refill();
-            } else {
-              n64js.run(count/4);
-              n64js.refreshDisplay();
-            }
-          } else {
-            n64js.run(100000000);
-            n64js.refreshDisplay();
-          }
-
-          if (!n64js.isRunning()) {
-            $('#runbutton').html('<i class="icon-play"></i> Run');
-          }
-        }
-    }
 
     </script>
 
