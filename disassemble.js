@@ -1,8 +1,4 @@
-if (typeof n64js === 'undefined') {
-  var n64js = {};
-}
-
-(function () {'use strict';
+(function (n64js) {'use strict';
 
   function _fd(i)        { return (i>>> 6)&0x1f; }
   function _fs(i)        { return (i>>>11)&0x1f; }
@@ -233,7 +229,7 @@ if (typeof n64js === 'undefined') {
     function (i) { return 'Unk'; },
     function (i) { return 'Unk'; },
     function (i) { return 'Unk'; },
-    
+
     disassembleTLB,
     function (i) { return 'Unk'; },
     function (i) { return 'Unk'; },
@@ -407,7 +403,7 @@ if (typeof n64js === 'undefined') {
     function (i) { return 'Unk'; },
     function (i) { return 'TNEI      ' + i.rs() + ' != ' + i.rt() + ' --> trap '; },
     function (i) { return 'Unk'; },
-    
+
     function (i) { return 'BLTZAL    ' + i.rs() +  ' < 0 --> ' + i.branchAddress() + i.writesRA(); },
     function (i) { return 'BGEZAL    ' + i.rs() + ' >= 0 --> ' + i.branchAddress() + i.writesRA(); },
     function (i) { return 'BLTZALL   ' + i.rs() +  ' < 0 --> ' + i.branchAddress() + i.writesRA(); },
@@ -427,7 +423,7 @@ if (typeof n64js === 'undefined') {
   ];
   if (regImmTable.length != 32) {
     throw "Oops, didn't build the special table correctly";
-  }  
+  }
 
   function disassembleRegImm(i) {
     var rt = (i.opcode >> 16) & 0x1f;
@@ -520,7 +516,7 @@ if (typeof n64js === 'undefined') {
     var instruction = n64js.readMemoryInternal32(address);
     return n64js.disassembleOp(address, instruction);
   }
-  
+
   n64js.disassemble = function (bpc, epc) {
 
     var r = [];
@@ -544,5 +540,4 @@ if (typeof n64js === 'undefined') {
 
     return r;
   }
-
-})();
+}(window.n64js = window.n64js || {}));

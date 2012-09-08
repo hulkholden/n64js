@@ -1,8 +1,4 @@
-if (typeof n64js === 'undefined') {
-  var n64js = {};
-}
-
-(function () {'use strict';
+(function (n64js) {'use strict';
   var kDebugTLB = 0;
   var kDebugDynarec = 0;
 
@@ -4192,5 +4188,4 @@ if (typeof n64js === 'undefined') {
     return generateTrivialOpBoilerplate(comment + '\n',ctx);
   }
 
-
-})();
+}(window.n64js = window.n64js || {}));

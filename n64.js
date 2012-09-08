@@ -1,8 +1,4 @@
-if (typeof n64js === 'undefined') {
-  var n64js = {};
-}
-
-(function () {'use strict';
+(function (n64js) {'use strict';
 
   var SP_MEM_ADDR_REG     = 0x00;
   var SP_DRAM_ADDR_REG    = 0x04;
@@ -3180,8 +3176,7 @@ if (typeof n64js === 'undefined') {
     mi_reg.setBits32(MI_INTR_REG, MI_INTR_DP);
     n64js.cpu0.updateCause3();
   };
-
-})();
+}(window.n64js = window.n64js || {}));
 
 
 // http://paulirish.com/2011/requestanimationframe-for-smart-animating/
