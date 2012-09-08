@@ -701,9 +701,8 @@
         loadRom(e.target.result);
         n64js.reset();
         n64js.refreshDebugger();
-        running = true;
-        updateLoopAnimframe();
-        $('#runbutton').html('<i class="icon-pause"></i> Pause');
+        running = false;
+        n64js.toggleRun();
       };
 
       reader.readAsArrayBuffer(file);
