@@ -2,36 +2,6 @@ if (typeof n64js === 'undefined') {
   var n64js = {};
 }
 
-// http://paulirish.com/2011/requestanimationframe-for-smart-animating/
-// http://my.opera.com/emoller/blog/2011/12/20/requestanimationframe-for-smart-er-animating
-
-// requestAnimationFrame polyfill by Erik Möller
-// fixes from Paul Irish and Tino Zijdel
-(function() {
-    var lastTime = 0;
-    var vendors = ['ms', 'moz', 'webkit', 'o'];
-    for(var x = 0; x < vendors.length && !window.requestAnimationFrame; ++x) {
-        window.requestAnimationFrame = window[vendors[x]+'RequestAnimationFrame'];
-        window.cancelAnimationFrame = window[vendors[x]+'CancelAnimationFrame']
-                                   || window[vendors[x]+'CancelRequestAnimationFrame'];
-    }
-
-    if (!window.requestAnimationFrame)
-        window.requestAnimationFrame = function(callback, element) {
-            var currTime = new Date().getTime();
-            var timeToCall = Math.max(0, 16 - (currTime - lastTime));
-            var id = window.setTimeout(function() { callback(currTime + timeToCall); },
-              timeToCall);
-            lastTime = currTime + timeToCall;
-            return id;
-        };
-
-    if (!window.cancelAnimationFrame)
-        window.cancelAnimationFrame = function(id) {
-            clearTimeout(id);
-        };
-}());
-
 (function () {'use strict';
 
   var SP_MEM_ADDR_REG     = 0x00;
@@ -246,12 +216,11 @@ if (typeof n64js === 'undefined') {
   var PI_DOM2_ADDR1   = 0x05000000;
   var PI_DOM2_ADDR2   = 0x08000000;
 
-
-  function IsDom1Addr1( address )    { return address >= PI_DOM1_ADDR1 && address < PI_DOM2_ADDR2; }
-  function IsDom1Addr2( address )    { return address >= PI_DOM1_ADDR2 && address < 0x1FBFFFFF;    }
-  function IsDom1Addr3( address )    { return address >= PI_DOM1_ADDR3 && address < 0x7FFFFFFF;    }
-  function IsDom2Addr1( address )    { return address >= PI_DOM2_ADDR1 && address < PI_DOM1_ADDR1; }
-  function IsDom2Addr2( address )    { return address >= PI_DOM2_ADDR2 && address < PI_DOM1_ADDR2; }
+  function IsDom1Addr1(address) { return address >= PI_DOM1_ADDR1 && address < PI_DOM2_ADDR2; }
+  function IsDom1Addr2(address) { return address >= PI_DOM1_ADDR2 && address < 0x1FBFFFFF;    }
+  function IsDom1Addr3(address) { return address >= PI_DOM1_ADDR3 && address < 0x7FFFFFFF;    }
+  function IsDom2Addr1(address) { return address >= PI_DOM2_ADDR1 && address < PI_DOM1_ADDR1; }
+  function IsDom2Addr2(address) { return address >= PI_DOM2_ADDR2 && address < PI_DOM1_ADDR2; }
 
   // RDRAM Interface
   var RI_MODE_REG             = 0x00;
@@ -276,12 +245,35 @@ if (typeof n64js === 'undefined') {
   var SI_STATUS_DMA_ERROR   = 0x0008;
   var SI_STATUS_INTERRUPT   = 0x1000;
 
+  var $debugContent   = null;
+  var $status         = null;
+  var $registers      = null;
+  var $disassembly    = null;
+  var $dynarecContent = null;
+  var $memoryContent  = null;
+  var $output         = null;
+
+  var disasmAddress = 0;
+
+  var running       = false;
+
+  var setMemorySize = false;
+
+  var rominfo = {
+    id:             '',
+    name:           '',
+    cic:            '6101',
+    country:        0x45,
+    save:           'Eeprom4k'
+  };
+
+
   function AssertException(message) { this.message = message; }
   AssertException.prototype.toString = function () {
     return 'AssertException: ' + this.message;
-  }
+  };
 
-  function assert(e,m) {
+  function assert(e, m) {
     if (!e) {
       throw new AssertException(m);
     }
@@ -291,17 +283,17 @@ if (typeof n64js === 'undefined') {
   n64js.log = function (s) {
     $output.append(toString32(n64js.cpu0.pc) + ': ' + s + '<br>');
     $output.scrollTop($output[0].scrollHeight);
-  }
+  };
 
-  n64js.check = function(e, m) {
+  n64js.check = function (e, m) {
     if (!e) {
       n64js.log(m);
     }
-  }
+  };
 
-  n64js.warn = function(m) {
+  n64js.warn = function (m) {
     n64js.log(m);
-  }
+  };
 
   n64js.halt = function (msg) {
     running = false;
@@ -309,22 +301,21 @@ if (typeof n64js === 'undefined') {
     n64js.log('<span style="color:red">' + msg + '</span>');
 
     n64js.displayError(msg);
-  }
+  };
 
   n64js.displayWarning = function (message) {
     var $alert = $('<div class="alert"><button class="close" data-dismiss="alert">×</button><strong>Warning!</strong> ' + message + '</div>');
     $('#alerts').append($alert);
-  }
+  };
   n64js.displayError = function (message) {
     var $alert = $('<div class="alert alert-error"><button class="close" data-dismiss="alert">×</button><strong>Error!</strong> ' + message + '</div>');
     $('#alerts').append($alert);
-  }
+  };
 
   // Similar to halt, but just relinquishes control to the system
-  n64js.returnControlToSystem = function() {
+  n64js.returnControlToSystem = function () {
     n64js.cpu0.breakExecution();
-  }
-
+  };
 
   n64js.init = function () {
     n64js.reset();
@@ -382,16 +373,17 @@ if (typeof n64js === 'undefined') {
     });
 
     refreshDisplay();
-  }
+  };
 
   n64js.toggleRun = function () {
     running = !running;
     $('#runbutton').html(running ? '<i class="icon-pause"></i> Pause' : '<i class="icon-play"></i> Run');
-    if (running)
+    if (running) {
       updateLoopAnimframe();
-  }
+    }
+  };
 
-  n64js.triggerLoad = function() {
+  n64js.triggerLoad = function () {
     var $fileinput = $('#fileInput');
 
     // Reset fileInput value, otherwise onchange doesn't recognise when we select the same rome back-to-back
@@ -408,10 +400,10 @@ if (typeof n64js === 'undefined') {
 
       var reader = new FileReader();
 
-      reader.onerror = function(e) {
+      reader.onerror = function (e) {
         n64js.displayWarning('error loading file');
-      }
-      reader.onload = function(e) {
+      };
+      reader.onload = function (e) {
         var bytes = e.target.result;
         n64js.loadRom(bytes);
         n64js.reset();
@@ -430,51 +422,51 @@ if (typeof n64js === 'undefined') {
       n64js.run(1);
       refreshDisplay();
     }
-  }
+  };
 
   function updateLoopAnimframe() {
-      if (running) {
-        requestAnimationFrame(updateLoopAnimframe);
+    if (running) {
+      requestAnimationFrame(updateLoopAnimframe);
 
-        var sync = n64js.getSync();
-        if (sync) {
-          var count = sync.getAvailableOps();
-          if (count === 0) {
-            sync.refill();
-          } else {
-            n64js.run(count/4);
-            refreshDisplay();
-          }
+      var sync = n64js.getSync();
+      if (sync) {
+        var count = sync.getAvailableOps();
+        if (count === 0) {
+          sync.refill();
         } else {
-          n64js.run(100000000);
+          n64js.run(count / 4);
           refreshDisplay();
         }
-
-        if (!running) {
-          $('#runbutton').html('<i class="icon-play"></i> Run');
-        }
+      } else {
+        n64js.run(100000000);
+        refreshDisplay();
       }
+
+      if (!running) {
+        $('#runbutton').html('<i class="icon-play"></i> Run');
+      }
+    }
   }
 
   n64js.down = function () {
     disasmAddress += 4;
     refreshDisplay();
-  }
+  };
 
   n64js.up = function () {
     disasmAddress -= 4;
     refreshDisplay();
-  }
+  };
 
   n64js.pageDown = function () {
     disasmAddress += 64;
     refreshDisplay();
-  }
+  };
 
   n64js.pageUp = function () {
     disasmAddress -= 64;
     refreshDisplay();
-  }
+  };
 
   function makeLabelColor(address) {
     var i = (address>>>2);  // Lowest bits are always 0
@@ -492,7 +484,7 @@ if (typeof n64js === 'undefined') {
     } else if (h === 1) {
       g*=2; b*=2;
     } else if (h === 2) {
-      b*=2; r*=2
+      b*=2; r*=2;
     } else {
       r*=2;g*=2;b*=2;
     }
@@ -510,7 +502,7 @@ if (typeof n64js === 'undefined') {
   function addRecentMemoryAccess(address, mode, cycle) {
 
     var col = (mode === 'store') ? '#faa' : '#ffa';
-    if (mode == 'update') {
+    if (mode === 'update') {
       col = '#afa';
     }
 
@@ -540,7 +532,7 @@ if (typeof n64js === 'undefined') {
   }
 
   function updateDebug() {
-
+    var i, element;
     var cpu0 = n64js.cpu0;
 
     // If the pc has changed since the last update, recenter the display (e.g. when we take a branch)
@@ -561,7 +553,7 @@ if (typeof n64js === 'undefined') {
       var label_span = a.isJumpTarget ? '<span class="dis-label-target">' : '<span class="dis-label">';
       var label      = label_span    + n64js.toHex(a.instruction.address, 32) + ':</span>';
       var t          = label + '   ' + n64js.toHex(a.instruction.opcode, 32) + '    ' + a.disassembly;
-      if (a.instruction.address == cpu0.pc) {
+      if (a.instruction.address === cpu0.pc) {
         cur_instr = a.instruction;
         t = '<span style="background-color: #ffa">' + t + '</span>';
       }
@@ -582,7 +574,7 @@ if (typeof n64js === 'undefined') {
       if (cur_instr.memory) {
         var access   = cur_instr.memory;
         var new_addr = n64js.cpu0.gprLo[access.reg] + access.offset;
-        var element  = addRecentMemoryAccess(new_addr, access.mode);
+        element      = addRecentMemoryAccess(new_addr, access.mode);
 
         if (access.mode === 'store') {
           lastStore = {address:new_addr, cycle:cpu0.opsExecuted, element:element};
@@ -592,8 +584,9 @@ if (typeof n64js === 'undefined') {
 
         // Nuke anything that happened more than N cycles ago
         //while (recentMemoryAccesses.length > 0 && recentMemoryAccesses[0].cycle+10 < cycle)
-        if (recentMemoryAccesses.length > 4)
+        if (recentMemoryAccesses.length > 4) {
           recentMemoryAccesses.splice(0,1);
+        }
 
         lastMemoryAccessAddress = new_addr;
       }
@@ -623,12 +616,12 @@ if (typeof n64js === 'undefined') {
 
     if (cur_instr) {
       var nextColIdx = 0;
-      for (var i in cur_instr.srcRegs) {
+      for (i in cur_instr.srcRegs) {
         if (!regColours.hasOwnProperty(i)) {
           regColours[i] = availColours[nextColIdx++];
         }
       }
-      for (var i in cur_instr.dstRegs) {
+      for (i in cur_instr.dstRegs) {
         if (!regColours.hasOwnProperty(i)) {
           regColours[i] = availColours[nextColIdx++];
         }
@@ -663,8 +656,8 @@ if (typeof n64js === 'undefined') {
     if (recentMemoryAccesses.length > 0) {
       var $recent = $('<pre />');
       var fading_cols = ['#bbb', '#999', '#666', '#333'];
-      for (var i = 0; i < recentMemoryAccesses.length; ++i) {
-        var element = recentMemoryAccesses[i].element;
+      for (i = 0; i < recentMemoryAccesses.length; ++i) {
+        element = recentMemoryAccesses[i].element;
         element.css('color', fading_cols[i]);
         $recent.append(element);
       }
@@ -673,7 +666,7 @@ if (typeof n64js === 'undefined') {
 
     $disassembly.append($dis);
 
-    for (var i in regColours) {
+    for (i in regColours) {
       $dis.find('.dis-reg-' + i).css('background-color', regColours[i]);
     }
 
@@ -684,9 +677,10 @@ if (typeof n64js === 'undefined') {
     var $body0 = $table0.find('tbody');
 
     var kRegistersPerRow = 2;
-    for (var i = 0; i < 32; i+=kRegistersPerRow) {
+    for (i = 0; i < 32; i+=kRegistersPerRow) {
       var $tr = $('<tr />');
-      for (var r = 0; r < kRegistersPerRow; ++r) {
+      var r;
+      for (r = 0; r < kRegistersPerRow; ++r) {
 
         var name = n64js.cop0gprNames[i+r];
         var $td = $('<td>' + name + '</td><td class="fixed">' + toString64(cpu0.gprHi[i+r], cpu0.gprLo[i+r]) + '</td>');
@@ -722,16 +716,19 @@ if (typeof n64js === 'undefined') {
 
     var t = '';
 
-    for (var a = s; a < e; a += bytes_per_row) {
+    var a, o;
+
+    for (a = s; a < e; a += bytes_per_row) {
       var r = toHex(a, 32) + ':';
 
-      for (var o = 0; o < bytes_per_row; o += 4) {
+      for (o = 0; o < bytes_per_row; o += 4) {
         var cur_address = a+o >>> 0;
         var mem = n64js.readMemoryInternal32(cur_address);
 
         var style = '';
-        if (highlights.hasOwnProperty(cur_address))
-          style = ' style="background-color: ' + highlights[cur_address] + '"'; 
+        if (highlights.hasOwnProperty(cur_address)) {
+          style = ' style="background-color: ' + highlights[cur_address] + '"';
+        }
 
         r += ' <span id="mem-' + toHex(cur_address, 32) + '"' + style + '>' + toHex(mem, 32) + '</span>';
       }
@@ -758,7 +755,8 @@ if (typeof n64js === 'undefined') {
     $status_body.append('<tr><td></td><td class="fixed">' +
               '</td><td>Compare</td><td class="fixed">' + toString32(n64js.cpu0.control[n64js.cpu0.kControlCompare]) + '</td></tr>');
 
-    for (var i = 0; i < cpu0.events.length; ++i) {
+    var i;
+    for (i = 0; i < cpu0.events.length; ++i) {
       $status_body.append('<tr><td>Event' + i + '</td><td class="fixed">' + cpu0.events[i].countdown + ', ' + cpu0.events[i].getName() + '</td></tr>');
     }
 
@@ -772,24 +770,25 @@ if (typeof n64js === 'undefined') {
 
     var cpu1 = n64js.cpu1;
 
-    for (var i = 0; i < 32; ++i) {
+    var i, $tr, $td;
+    for (i = 0; i < 32; ++i) {
       var name = n64js.cop1RegisterNames[i];
 
       if ((i&1) === 0) {
-        var $td = $('<td>' + name +
+        $td = $('<td>' + name +
           '</td><td class="fixed fp-w">' + toString32(cpu1.uint32[i]) +
           '</td><td class="fixed fp-s">' + cpu1.float32[i] +
           '</td><td class="fixed fp-d">' + cpu1.float64[i/2] +
           '</td>' );
       } else {
-        var $td = $('<td>' + name +
+        $td = $('<td>' + name +
           '</td><td class="fixed fp-w">' + toString32(cpu1.uint32[i]) +
           '</td><td class="fixed fp-s">' + cpu1.float32[i] +
           '</td><td>' +
           '</td>' );
       }
 
-      var $tr = $('<tr />');
+      $tr = $('<tr />');
       $tr.append($td);
 
       if (regColours.hasOwnProperty(name)) {
@@ -810,7 +809,6 @@ if (typeof n64js === 'undefined') {
     var $tr = $('<tr />');
     $tr.append( '<td>SR</td>' );
 
-
     var SR_IE           = 0x00000001;
     var SR_EXL          = 0x00000002;
     var SR_ERL          = 0x00000004;
@@ -828,7 +826,8 @@ if (typeof n64js === 'undefined') {
     $td.append( toString32(sr) );
     $td.append('&nbsp;');
 
-    for (var i = flag_names.length-1; i >= 0; --i) {
+    var i;
+    for (i = flag_names.length-1; i >= 0; --i) {
       if (flag_names[i]) {
         var is_set = (sr & (1<<i)) !== 0;
 
@@ -856,7 +855,8 @@ if (typeof n64js === 'undefined') {
     var $tr = $('<tr />');
     $tr.append( '<td>MI Intr</td>' );
     var $td = $('<td />');
-    for (var i = 0; i < mi_intr_names.length; ++i) {
+    var i;
+    for (i = 0; i < mi_intr_names.length; ++i) {
       var is_set     = (mi_intr_live & (1<<i)) !== 0;
       var is_enabled = (mi_intr_mask & (1<<i)) !== 0;
 
@@ -888,16 +888,16 @@ if (typeof n64js === 'undefined') {
     // Build a flattened list of all fragments
     var fragments_list = [];
 
-    for(var i in fragmentMap) {
-      var fragment = fragmentMap[i];
-      var v        = fragment.executionCount;
-      var logv     = v > 0 ? Math.floor(log10(v)) : 0;
+    var i;
+    for(i in fragmentMap) {
+      if (fragmentMap.hasOwnProperty(i)) {
+        var fragment = fragmentMap[i];
+        var logv     = fragment.executionCount > 0 ? Math.floor(log10(fragment.executionCount)) : 0;
 
-      if (histo[logv] === undefined)
-        histo[logv] = 0;
-      histo[logv]++;
+        histo[logv] = (histo[logv] || 0) + 1;
 
-      fragments_list.push(fragment);
+        fragments_list.push(fragment);
+      }
     }
 
     fragments_list.sort(function (a,b) {
@@ -906,13 +906,11 @@ if (typeof n64js === 'undefined') {
 
     var $t = $('<div />');
 
-    var t;
-
     // Histogram showing execution counts
-    t = '';
+    var t = '';
     t += '<div class="row-fluid">';
     t += '<div class="span4"><table class="table table-condensed"><tr><th>Execution Count</th><th>Frequency</th></tr>';
-    for(var i in histo) {
+    for(i in histo) {
       var v = Number(i);
       var range = Math.pow(10, v) + '..' + Math.pow(10, v+1);
       t += '<tr><td>' + range + '</td><td>' + histo[i] + '</td></tr>';
@@ -938,7 +936,7 @@ if (typeof n64js === 'undefined') {
       t = '';
       t += '<div class="row-fluid">';
       t += '<div class="span6"><table class="table table-condensed"><tr><th>Address</th><th>Length</th><th>System</th><th>Fragments Removed</th></tr>';
-      for (var i = 0; i < invals.length; ++i) {
+      for (i = 0; i < invals.length; ++i) {
 
         var vals = [
           n64js.toString32(invals[i].address),
@@ -966,7 +964,8 @@ if (typeof n64js === 'undefined') {
     var columns = ['Address', 'Execution Count', 'Length', 'ExecCount * Length'];
 
     $table.append('<tr><th>' + columns.join('</th><th>') + '</th></tr>');
-    for (var i = 0; i < fragments_list.length && i < 20; ++i) {
+    var i;
+    for (i = 0; i < fragments_list.length && i < 20; ++i) {
       var fragment = fragments_list[i];
 
       var vals = [
@@ -976,10 +975,10 @@ if (typeof n64js === 'undefined') {
         fragment.executionCount * fragment.opsCompiled
       ];
 
-      var $tr = $('<tr><<td>' + vals.join('</td><td>') + '</td></tr>');
+      var $tr = $('<tr><td>' + vals.join('</td><td>') + '</td></tr>');
       $tr.click(
         (function (f) {
-          return function() {
+          return function () {
             $code.html('<pre>' + f.func.toString() + '</pre>');
           };
         })(fragment)
@@ -1006,7 +1005,8 @@ if (typeof n64js === 'undefined') {
   Memory.prototype = {
     clear : function () {
       var u32s = new Uint32Array(this.arrayBuffer);
-      for (var i = 0; i < u32s.length; ++i) {
+      var i;
+      for (i = 0; i < u32s.length; ++i) {
         u32s[i] = 0;
       }
     },
@@ -1024,10 +1024,10 @@ if (typeof n64js === 'undefined') {
     readS32 : function (offset) {
       return ((this.u8[offset] << 24) | (this.u8[offset+1] << 16) | (this.u8[offset+2] << 8) | this.u8[offset+3]) | 0;
     },
-    readS16 : function(offset) {
+    readS16 : function (offset) {
       return  ((this.u8[offset] << 24) | (this.u8[offset+1] << 16) ) >> 16;
     },
-    readS8  : function(offset) {
+    readS8  : function (offset) {
       return  ((this.u8[offset] << 24) ) >> 24;
     },
 
@@ -1063,7 +1063,8 @@ if (typeof n64js === 'undefined') {
   };
 
   function MemoryCopy(dst, dstoff, src, srcoff, len) {
-    for (var i = 0; i < len; ++i) {
+    var i;
+    for (i = 0; i < len; ++i) {
       dst.u8[dstoff+i] = src.u8[srcoff+i];
     }
   }
@@ -1080,7 +1081,7 @@ if (typeof n64js === 'undefined') {
 
   Device.prototype = {
 
-    setMem : function(mem) {
+    setMem : function (mem) {
       this.mem = mem;
       this.u8  = mem.u8;
     },
@@ -1093,8 +1094,9 @@ if (typeof n64js === 'undefined') {
       var ea = this.calcEA(address);
 
       // We need to make sure this doesn't throw, so do a bounds check
-      if (ea+3 < this.mem.u8.length)
+      if (ea+3 < this.mem.u8.length) {
         return this.mem.readU32(ea);
+      }
       return 0xdddddddd;
     },
 
@@ -1148,28 +1150,6 @@ if (typeof n64js === 'undefined') {
     }
   };
 
-  var $debugContent   = null;
-  var $status         = null;
-  var $registers      = null;
-  var $disassembly    = null;
-  var $dynarecContent = null;
-  var $memoryContent  = null;
-  var $output         = null;
-
-  var disasmAddress = 0;
-
-  var running       = false;
-
-  var setMemorySize = false;
-
-  var rominfo = {
-    id:             '',
-    name:           '',
-    cic:            '6101',
-    country:        0x45,
-    save:           'Eeprom4k'
-  };
-
   var rom           = null;   // Will be memory, mapped at 0xb0000000
   var pi_mem        = new Memory(new ArrayBuffer(0x7c0 + 0x40));   // rom+ram
   var ram           = new Memory(new ArrayBuffer(8*1024*1024));
@@ -1185,10 +1165,6 @@ if (typeof n64js === 'undefined') {
   var pi_reg        = new Memory(new ArrayBuffer(0x34));
   var ri_reg        = new Memory(new ArrayBuffer(0x20));
   var si_reg        = new Memory(new ArrayBuffer(0x1c));
-
-  n64js.getRamU8Array = function () {
-    return rdram_handler_cached.u8;
-  }
 
   var eeprom        = null;   // Initialised during reset, using correct size for this rom (may be null if eeprom isn't used)
   var eepromDirty   = false;
@@ -1231,81 +1207,85 @@ if (typeof n64js === 'undefined') {
   si_reg_handler_uncached.quiet   = true;
   rom_d1a2_handler_uncached.quiet = true;
 
+  n64js.getRamU8Array = function () {
+    return rdram_handler_cached.u8;
+  };
+
   // This function gets hit A LOT, so eliminate as much fat as possible.
   rdram_handler_cached.readU32 = function (address) {
     var off = address - 0x80000000;
     return ((this.u8[off+0] << 24) | (this.u8[off+1] << 16) | (this.u8[off+2] << 8) | (this.u8[off+3]))>>>0;
-  }
+  };
   rdram_handler_cached.readS32 = function (address) {
     var off = address - 0x80000000;
     return (this.u8[off+0] << 24) | (this.u8[off+1] << 16) | (this.u8[off+2] << 8) | (this.u8[off+3]);
-  }
+  };
   rdram_handler_cached.write32 = function (address, value) {
     var off = address - 0x80000000;
     this.u8[off+0] = value >> 24;
     this.u8[off+1] = value >> 16;
     this.u8[off+2] = value >>  8;
     this.u8[off+3] = value;
-  }
+  };
 
-  mapped_mem_handler.readInternal32 = function(address) {
+  mapped_mem_handler.readInternal32 = function (address) {
     var mapped = n64js.cpu0.translateReadInternal(address) & 0x007fffff;
     if (mapped != 0) {
       if (mapped+3 < ram.u8.length)
         return ram.readU32(mapped);
     }
     return 0x00000000;
-  }
+  };
 
-  mapped_mem_handler.readU32 = function(address) {
+  mapped_mem_handler.readU32 = function (address) {
     var mapped = n64js.cpu0.translateRead(address) & 0x007fffff;
     if (mapped != 0) {
       return ram.readU32(mapped);
     }
     n64js.halt('virtual readU32 failed - need to throw refill/invalid');
     return 0xffffffff;
-  }
-  mapped_mem_handler.readU16 = function(address) {
+  };
+  mapped_mem_handler.readU16 = function (address) {
     var mapped = n64js.cpu0.translateRead(address) & 0x007fffff;
     if (mapped != 0) {
       return ram.readU16(mapped);
     }
     n64js.halt('virtual readU16 failed - need to throw refill/invalid');
     return 0xffff;
-  }
-  mapped_mem_handler.readU8 = function(address) {
+  };
+  mapped_mem_handler.readU8 = function (address) {
     var mapped = n64js.cpu0.translateRead(address) & 0x007fffff;
     if (mapped != 0) {
       return ram.readU8(mapped);
     }
     n64js.halt('virtual readU8 failed - need to throw refill/invalid');
     return 0xff;
-  }
+  };
 
-  mapped_mem_handler.readS32 = function(address) {
+  mapped_mem_handler.readS32 = function (address) {
     var mapped = n64js.cpu0.translateRead(address) & 0x007fffff;
     if (mapped != 0) {
       return ram.readS32(mapped);
     }
     n64js.halt('virtual readS32 failed - need to throw refill/invalid');
     return 0xffffffff;
-  }
-  mapped_mem_handler.readS16 = function(address) {
+  };
+  mapped_mem_handler.readS16 = function (address) {
     var mapped = n64js.cpu0.translateRead(address) & 0x007fffff;
     if (mapped != 0) {
       return ram.readS16(mapped);
     }
     n64js.halt('virtual readS16 failed - need to throw refill/invalid');
     return 0xffff;
-  }
-  mapped_mem_handler.readS8 = function(address) {
+  };
+  mapped_mem_handler.readS8 = function (address) {
     var mapped = n64js.cpu0.translateRead(address);
     if (mapped != 0) {
       return ram.readS8(mapped);
     }
     n64js.halt('virtual readS8 failed - need to throw refill/invalid');
     return 0xff;
-  }
+  };
 
   mapped_mem_handler.write32 = function (address, value) {
     var mapped = n64js.cpu0.translateWrite(address) & 0x007fffff;
@@ -1352,22 +1332,22 @@ if (typeof n64js === 'undefined') {
     return (getRandomU8()<<24) | (getRandomU8()<<16) | (getRandomU8()<<8) | getRandomU8();
   }
 
-  rom_d2a1_handler_uncached.readU32  = function(address)         { n64js.log('reading noise'); return getRandomU32(); }
-  rom_d2a1_handler_uncached.readU16  = function(address)         { n64js.log('reading noise'); return (getRandomU8()<<8) | getRandomU8(); }
-  rom_d2a1_handler_uncached.readU8   = function(address)         { n64js.log('reading noise'); return getRandomU8(); }
-  rom_d2a1_handler_uncached.readS32  = function(address)         { n64js.log('reading noise'); return getRandomU32(); }
-  rom_d2a1_handler_uncached.readS16  = function(address)         { n64js.log('reading noise'); return (getRandomU8()<<8) | getRandomU8(); }
-  rom_d2a1_handler_uncached.readS8   = function(address)         { n64js.log('reading noise'); return getRandomU8(); }
+  rom_d2a1_handler_uncached.readU32  = function (address)        { n64js.log('reading noise'); return getRandomU32(); };
+  rom_d2a1_handler_uncached.readU16  = function (address)        { n64js.log('reading noise'); return (getRandomU8()<<8) | getRandomU8(); };
+  rom_d2a1_handler_uncached.readU8   = function (address)        { n64js.log('reading noise'); return getRandomU8(); };
+  rom_d2a1_handler_uncached.readS32  = function (address)        { n64js.log('reading noise'); return getRandomU32(); };
+  rom_d2a1_handler_uncached.readS16  = function (address)        { n64js.log('reading noise'); return (getRandomU8()<<8) | getRandomU8(); };
+  rom_d2a1_handler_uncached.readS8   = function (address)        { n64js.log('reading noise'); return getRandomU8(); };
   rom_d2a1_handler_uncached.write32  = function (address, value) { throw 'Writing to rom'; };
   rom_d2a1_handler_uncached.write16  = function (address, value) { throw 'Writing to rom'; };
   rom_d2a1_handler_uncached.write8   = function (address, value) { throw 'Writing to rom'; };
 
-  rom_d2a2_handler_uncached.readU32  = function(address)         { throw 'Reading from rom d2a2'; }
-  rom_d2a2_handler_uncached.readU16  = function(address)         { throw 'Reading from rom d2a2'; }
-  rom_d2a2_handler_uncached.readU8   = function(address)         { throw 'Reading from rom d2a2'; }
-  rom_d2a2_handler_uncached.readS32  = function(address)         { throw 'Reading from rom d2a2'; }
-  rom_d2a2_handler_uncached.readS16  = function(address)         { throw 'Reading from rom d2a2'; }
-  rom_d2a2_handler_uncached.readS8   = function(address)         { throw 'Reading from rom d2a2'; }
+  rom_d2a2_handler_uncached.readU32  = function (address)        { throw 'Reading from rom d2a2'; };
+  rom_d2a2_handler_uncached.readU16  = function (address)        { throw 'Reading from rom d2a2'; };
+  rom_d2a2_handler_uncached.readU8   = function (address)        { throw 'Reading from rom d2a2'; };
+  rom_d2a2_handler_uncached.readS32  = function (address)        { throw 'Reading from rom d2a2'; };
+  rom_d2a2_handler_uncached.readS16  = function (address)        { throw 'Reading from rom d2a2'; };
+  rom_d2a2_handler_uncached.readS8   = function (address)        { throw 'Reading from rom d2a2'; };
   rom_d2a2_handler_uncached.write32  = function (address, value) { throw 'Writing to rom'; };
   rom_d2a2_handler_uncached.write16  = function (address, value) { throw 'Writing to rom'; };
   rom_d2a2_handler_uncached.write8   = function (address, value) { throw 'Writing to rom'; };
@@ -1613,7 +1593,7 @@ if (typeof n64js === 'undefined') {
 
   dpc_handler_uncached.readU32 = function (address) {
     return this.readS32(address)>>>0;
-  }
+  };
 
 
 
@@ -1641,7 +1621,7 @@ if (typeof n64js === 'undefined') {
 
   dps_handler_uncached.readU32 = function (address) {
     return this.readS32(address)>>>0;
-  }
+  };
 
 
 
@@ -1824,7 +1804,7 @@ if (typeof n64js === 'undefined') {
 
   vi_reg_handler_uncached.readU32 = function (address) {
     return this.readS32(address)>>>0;
-  }
+  };
 
 
   pi_reg_handler_uncached.write32 = function (address, value) {
@@ -1875,7 +1855,8 @@ if (typeof n64js === 'undefined') {
 
     if (!si_reg_handler_uncached.quiet) n64js.log('SI: copying from ' + toString32(dram_address) + ' to PI RAM');
 
-    for (var i = 0; i < 64; ++i) {
+    var i;
+    for (i = 0; i < 64; ++i) {
       pi_ram[i] = ram.u8[dram_address+i];
     }
 
@@ -1899,7 +1880,8 @@ if (typeof n64js === 'undefined') {
 
     if (!si_reg_handler_uncached.quiet) n64js.log('SI: copying from PI RAM to ' + toString32(dram_address));
 
-    for (var i = 0; i < 64; ++i) {
+    var i;
+    for (i = 0; i < 64; ++i) {
       ram.u8[dram_address+i] = pi_ram[i];
     }
 
@@ -2059,7 +2041,7 @@ if (typeof n64js === 'undefined') {
       }
       controllers[0].buttons = buttons;
     }
-  }
+  };
 
   function ProcessController(cmd, channel) {
     if (!controllers[channel].present)
@@ -2107,6 +2089,7 @@ if (typeof n64js === 'undefined') {
   }
 
   function ProcessEeprom(cmd) {
+    var i;
 
     switch(cmd[2])
     {
@@ -2120,7 +2103,7 @@ if (typeof n64js === 'undefined') {
     case CONT_READ_EEPROM:
       var offset = cmd[3]*8;
       n64js.log('Reading from eeprom+' + offset);
-      for (var i = 0; i < 8; ++i) {
+      for (i = 0; i < 8; ++i) {
         cmd[4+i] = eeprom.u8[offset+i];
       }
       break;
@@ -2129,7 +2112,7 @@ if (typeof n64js === 'undefined') {
       //FIXME: marksavedirty
       var offset = cmd[3]*8;
       n64js.log('Writing to eeprom+' + offset);
-      for (var i = 0; i < 8; ++i) {
+      for (i = 0; i < 8; ++i) {
         eeprom.u8[offset+i] = cmd[4+i];
       eepromDirty = true;
       }
@@ -2162,9 +2145,8 @@ if (typeof n64js === 'undefined') {
 
   function CalculateDataCrc(buf, offset)
   {
-    var c = 0;
-    for (var i = 0; i < 32; i++)
-    {
+    var c = 0, i;
+    for (i = 0; i < 32; i++) {
       var s = buf[offset+i];
 
       c = (((c << 1) | ((s >> 7) & 1))) ^ ((c & 0x80) ? 0x85 : 0);
@@ -2177,7 +2159,7 @@ if (typeof n64js === 'undefined') {
       c = (((c << 1) | ((s >> 0) & 1))) ^ ((c & 0x80) ? 0x85 : 0);
     }
 
-    for (var i = 8; i !== 0; i--) {
+    for (i = 8; i !== 0; i--) {
       c = (c << 1) ^ ((c & 0x80) ? 0x85 : 0);
     }
 
@@ -2186,9 +2168,10 @@ if (typeof n64js === 'undefined') {
 
   function CommandReadMemPack(cmd, channel) {
     var addr = ((cmd[3] << 8) | cmd[4]);
+    var i;
 
     if (addr == 0x8001) {
-      for (var i = 0; i < 32; ++i) {
+      for (i = 0; i < 32; ++i) {
         cmd[5+i] = 0;
       }
     } else {
@@ -2196,12 +2179,12 @@ if (typeof n64js === 'undefined') {
       addr &= 0xFFE0;
 
       if (addr <= 0x7FE0) {
-        for (var i = 0; i < 32; ++i) {
+        for (i = 0; i < 32; ++i) {
           cmd[5+i] = mempack_memory[channel][addr+i];
         }
       } else {
         // RumblePak
-        for (var i = 0; i < 32; ++i) {
+        for (i = 0; i < 32; ++i) {
           cmd[5+i] = 0;
         }
       }
@@ -2212,13 +2195,14 @@ if (typeof n64js === 'undefined') {
 
   function CommandWriteMemPack(cmd, channel) {
     var addr = ((cmd[3] << 8) | cmd[4]);
+    var i;
 
     if (addr != 0x8001) {
       n64js.log('Writing to mempack+' + addr);
       addr &= 0xFFE0;
 
       if (addr <= 0x7FE0) {
-        for (var i = 0; i < 32; ++i) {
+        for (i = 0; i < 32; ++i) {
           mempack_memory[channel][addr+i] = cmd[5+i];
         }
       } else {
@@ -2232,9 +2216,9 @@ if (typeof n64js === 'undefined') {
 
   function CommandReadRumblePack(cmd) {
     var addr = ((cmd[3] << 8) | cmd[4]) & 0xFFE0;
-
     var val = (addr == 0x8000) ? 0x80 : 0x00;
-    for (var i = 0; i < 32; ++i) {
+    var i;
+    for (i = 0; i < 32; ++i) {
       cmd[5+i] = val;
     }
 
@@ -2276,7 +2260,7 @@ if (typeof n64js === 'undefined') {
 
   si_reg_handler_uncached.readU32 = function (address) {
     return this.readS32(address)>>>0;
-  }
+  };
 
   si_reg_handler_uncached.write32 = function (address, value) {
     var ea = this.calcEA(address);
@@ -2372,6 +2356,8 @@ if (typeof n64js === 'undefined') {
     var pi_rom = new Uint8Array(pi_mem.arrayBuffer, 0x000, 0x7c0);
     var pi_ram = new Uint8Array(pi_mem.arrayBuffer, 0x7c0, 0x040);
     var command = pi_ram[0x3f];
+    var i;
+
     switch (command) {
       case 0x01:
         n64js.log('PI: execute block\n');
@@ -2385,7 +2371,7 @@ if (typeof n64js === 'undefined') {
         break;
       case 0x10:
         n64js.log('PI: clear rom\n');
-        for(var i = 0; i < pi_rom.length; ++i) {
+        for(i = 0; i < pi_rom.length; ++i) {
           pi_rom[i] = 0;
         }
         break;
@@ -2395,7 +2381,7 @@ if (typeof n64js === 'undefined') {
         break;
       case 0xc0:
         n64js.log('PI: clear ram\n');
-        for(var i = 0; i < pi_ram.length; ++i) {
+        for(i = 0; i < pi_ram.length; ++i) {
           pi_ram[i] = 0;
         }
         break;
@@ -2430,7 +2416,7 @@ if (typeof n64js === 'undefined') {
 
   pi_mem_handler_uncached.readU32 = function (address) {
     return this.readS32(address)>>>0;
-  }
+  };
 
   pi_mem_handler_uncached.readS8 = function (address) {
     var ea = this.calcEA(address);
@@ -2473,7 +2459,8 @@ if (typeof n64js === 'undefined') {
   // We create a memory map of 1<<14 entries, corresponding to the top bits of the address range.
   var memMap = (function () {
     var map = [];
-    for (var i = 0; i < 0x4000; ++i)
+    var i;
+    for (i = 0; i < 0x4000; ++i)
       map.push(undefined);
 
     [
@@ -2536,18 +2523,18 @@ if (typeof n64js === 'undefined') {
   }
 
   // 'emulated' read. May cause exceptions to be thrown in the emulated process
-  n64js.readMemoryU32 = function (address) { return getMemoryHandler(address).readU32(address); }
-  n64js.readMemoryU16 = function (address) { return getMemoryHandler(address).readU16(address); }
-  n64js.readMemoryU8  = function (address) { return getMemoryHandler(address).readU8(address);  }
+  n64js.readMemoryU32 = function (address) { return getMemoryHandler(address).readU32(address); };
+  n64js.readMemoryU16 = function (address) { return getMemoryHandler(address).readU16(address); };
+  n64js.readMemoryU8  = function (address) { return getMemoryHandler(address).readU8(address);  };
 
-  n64js.readMemoryS32 = function (address) { return getMemoryHandler(address).readS32(address); }
-  n64js.readMemoryS16 = function (address) { return getMemoryHandler(address).readS16(address); }
-  n64js.readMemoryS8  = function (address) { return getMemoryHandler(address).readS8(address);  }
+  n64js.readMemoryS32 = function (address) { return getMemoryHandler(address).readS32(address); };
+  n64js.readMemoryS16 = function (address) { return getMemoryHandler(address).readS16(address); };
+  n64js.readMemoryS8  = function (address) { return getMemoryHandler(address).readS8(address);  };
 
   // 'emulated' write. May cause exceptions to be thrown in the emulated process
-  n64js.writeMemory32 = function (address, value) { return getMemoryHandler(address).write32(address, value); }
-  n64js.writeMemory16 = function (address, value) { return getMemoryHandler(address).write16(address, value); }
-  n64js.writeMemory8  = function (address, value) { return getMemoryHandler(address).write8(address, value); }
+  n64js.writeMemory32 = function (address, value) { return getMemoryHandler(address).write32(address, value); };
+  n64js.writeMemory16 = function (address, value) { return getMemoryHandler(address).write16(address, value); };
+  n64js.writeMemory8  = function (address, value) { return getMemoryHandler(address).write8(address, value); };
 
   var kBootstrapOffset = 0x40;
   var kGameOffset      = 0x1000;
@@ -2559,7 +2546,8 @@ if (typeof n64js === 'undefined') {
 
     if (args) {
       var arg_str = '';
-      for (var i in args) {
+      var i;
+      for (i in args) {
         if (args.hasOwnProperty(i)) {
           if (arg_str)
             arg_str += '&';
@@ -2594,7 +2582,7 @@ if (typeof n64js === 'undefined') {
     xhr.send();
 
 
-    this.always = function(cb) {
+    this.always = function (cb) {
       // If the request has already completed then ensure the callback is called.
       if(xhr.readyState == 4) {
         cb();
@@ -2604,7 +2592,8 @@ if (typeof n64js === 'undefined') {
     }
 
     function invokeAlways() {
-      for (var i = 0; i < alwaysCallbacks.length; ++i)
+      var i;
+      for (i = 0; i < alwaysCallbacks.length; ++i)
         alwaysCallbacks[i]();
     }
   }
@@ -2658,13 +2647,14 @@ if (typeof n64js === 'undefined') {
 
   n64js.nukeSync = function () {
     sync = null;
-  }
+  };
 
   var Base64 = {
     _keyStr : "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=",
     encodeArray : function (arr) {
       var t = '';
-      for (var i = 0; i < arr.length; i += 3) {
+      var i;
+      for (i = 0; i < arr.length; i += 3) {
         var c0 = arr[i+0];
         var c1 = arr[i+1];
         var c2 = arr[i+2];
@@ -2688,7 +2678,8 @@ if (typeof n64js === 'undefined') {
     decodeArray : function (str, arr) {
       var outi = 0;
 
-      for (var i = 0; i < str.length; i += 4) {
+      var i;
+      for (i = 0; i < str.length; i += 4) {
         var a = this._keyStr.indexOf(str.charAt(i+0));
         var b = this._keyStr.indexOf(str.charAt(i+1));
         var c = this._keyStr.indexOf(str.charAt(i+2));
@@ -2962,7 +2953,7 @@ if (typeof n64js === 'undefined') {
   n64js.emitRunningTime  = function (msg) {
     var cur_time = new Date();
     n64js.displayWarning('Time to ' + msg + ' ' + (cur_time.getTime() - startTime.getTime()).toString());
-  }
+  };
 
   function setFrameTime(t) {
     var title_text ;
@@ -2972,7 +2963,7 @@ if (typeof n64js === 'undefined') {
       title_text = 'n64js - ' + t + 'mspf';
 
     $('#title').text(title_text);
-  }
+  };
 
   n64js.onPresent = function () {
     var cur_time = new Date();
@@ -2982,7 +2973,7 @@ if (typeof n64js === 'undefined') {
     }
 
     lastPresentTime = cur_time;
-  }
+  };
 
   function fixEndian(arrayBuffer) {
     var dataView = new DataView(arrayBuffer);
@@ -2990,8 +2981,8 @@ if (typeof n64js === 'undefined') {
     function byteSwap(buffer, _a, _b, _c, _d) {
 
       var u8 = new Uint8Array(buffer);
-
-      for (var i = 0; i < u8.length; i += 4) {
+      var i;
+      for (i = 0; i < u8.length; i += 4) {
         var a = u8[i+_a], b = u8[i+_b], c = u8[i+_c], d = u8[i+_d];
         u8[i+0] = a;
         u8[i+1] = b;
@@ -3021,7 +3012,8 @@ if (typeof n64js === 'undefined') {
 
   function uint8ArrayReadString(u8array, offset, max_len) {
     var s = '';
-    for (var i = 0; i < max_len; ++i) {
+    var i;
+    for (i = 0; i < max_len; ++i) {
       var c = u8array[offset+i];
       if (c == 0) {
         break;
@@ -3045,7 +3037,8 @@ if (typeof n64js === 'undefined') {
   function generateCICType(u8array)
   {
     var cic = 0;
-    for (var i = 0; i < 0xFC0; i++) {
+    var i;
+    for (i = 0; i < 0xFC0; i++) {
       cic = cic + u8array[0x40 + i];
     }
 
@@ -3093,7 +3086,8 @@ if (typeof n64js === 'undefined') {
 
     var $table = $('<table class="register-table"><tbody></tbody></table>');
     var $tb = $table.find('tbody');
-    for (var i in hdr) {
+    var i;
+    for (i in hdr) {
       $tb.append('<tr>' +
         '<td>' + i + '</td><td>' + (typeof hdr[i] === 'string' ? hdr[i] : toString32(hdr[i])) + '</td>' +
         '</tr>');
@@ -3121,14 +3115,14 @@ if (typeof n64js === 'undefined') {
     $('#title').text('n64js - ' + rominfo.name);
   }
 
-  n64js.verticalBlank = function() {
+  n64js.verticalBlank = function () {
     // FIXME: framerate limit etc
 
     saveEeprom();
 
     mi_reg.setBits32(MI_INTR_REG, MI_INTR_VI);
     n64js.cpu0.updateCause3();
-  }
+  };
 
   function toHex(r, bits) {
     r = Number(r);
@@ -3172,7 +3166,7 @@ if (typeof n64js === 'undefined') {
 
   n64js.miInterruptsUnmasked = function () {
     return (mi_reg.readU32(MI_INTR_MASK_REG) & mi_reg.readU32(MI_INTR_REG)) !== 0;
-  }
+  };
 
   n64js.haltSP = function () {
     var status = sp_reg.setBits32(SP_STATUS_REG, SP_STATUS_TASKDONE|SP_STATUS_BROKE|SP_STATUS_HALT);
@@ -3180,11 +3174,45 @@ if (typeof n64js === 'undefined') {
       mi_reg.setBits32(MI_INTR_REG, MI_INTR_SP);
       n64js.cpu0.updateCause3();
     }
-  }
+  };
 
   n64js.interruptDP = function () {
     mi_reg.setBits32(MI_INTR_REG, MI_INTR_DP);
     n64js.cpu0.updateCause3();
-  }
+  };
 
 })();
+
+
+// http://paulirish.com/2011/requestanimationframe-for-smart-animating/
+// http://my.opera.com/emoller/blog/2011/12/20/requestanimationframe-for-smart-er-animating
+
+// requestAnimationFrame polyfill by Erik Möller
+// fixes from Paul Irish and Tino Zijdel
+(function () {
+  var lastTime = 0;
+  var vendors = ['ms', 'moz', 'webkit', 'o'];
+  var x;
+  for (x = 0; x < vendors.length && !window.requestAnimationFrame; ++x) {
+    window.requestAnimationFrame = window[vendors[x]+'RequestAnimationFrame'];
+     window.cancelAnimationFrame = window[vendors[x]+'CancelAnimationFrame']
+                                 || window[vendors[x]+'CancelRequestAnimationFrame'];
+  }
+
+  if (!window.requestAnimationFrame) {
+    window.requestAnimationFrame = function (callback, element) {
+        var currTime = new Date().getTime();
+        var timeToCall = Math.max(0, 16 - (currTime - lastTime));
+        var id = window.setTimeout(function () { callback(currTime + timeToCall); },
+          timeToCall);
+        lastTime = currTime + timeToCall;
+        return id;
+    };
+  }
+
+  if (!window.cancelAnimationFrame) {
+    window.cancelAnimationFrame = function (id) {
+         clearTimeout(id);
+    };
+  }
+}());
