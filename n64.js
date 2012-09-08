@@ -2297,6 +2297,7 @@
             //*(u32  *)&pIMemBase[0x04] = 0x8DA807FC;
             setGPR(5, 0x00000000, 0x5493FB9A);
             setGPR(14, 0xFFFFFFFF, 0xC2C20384);
+            break;
           case '6106':
             setGPR(5, 0xFFFFFFFF, 0xE067221F);
             setGPR(14, 0x00000000, 0x5CD2B70F);
