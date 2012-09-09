@@ -1392,7 +1392,13 @@
 
     if ((cpu0.gprHi[s] + (cpu0.gprLo[s] >>> 31) +
          cpu0.gprHi[t] + (cpu0.gprLo[t] >>> 31)) !== 0) {
-      n64js.halt('Full 64 bit division not handled!');
+      // FIXME: seems ok if dividend/divisor fit in mantissa of double...
+      var dividend = cpu0.getGPR_s64(s);
+      var divisor  = cpu0.getGPR_s64(t);
+      if (divisor) {
+        setHiLoZeroExtend( cpu0.multLo, Math.floor(dividend / divisor) );
+        setHiLoZeroExtend( cpu0.multHi, dividend % divisor );
+      }
     } else {
       var dividend = cpu0.gprLo_signed[s];
       var divisor  = cpu0.gprLo_signed[t];
