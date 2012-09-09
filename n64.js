@@ -2535,6 +2535,12 @@
     return mi_reg.readU32(MI_INTR_MASK_REG);
   };
 
+  n64js.viWidth  = function () { return vi_reg.readU32(VI_WIDTH_REG); }
+  n64js.viXScale = function () { return vi_reg.readU32(VI_X_SCALE_REG); }
+  n64js.viYScale = function () { return vi_reg.readU32(VI_Y_SCALE_REG); }
+  n64js.viHStart = function () { return vi_reg.readU32(VI_H_START_REG); }
+  n64js.viVStart = function () { return vi_reg.readU32(VI_V_START_REG); }
+
   n64js.haltSP = function () {
     var status = sp_reg.setBits32(SP_STATUS_REG, SP_STATUS_TASKDONE|SP_STATUS_BROKE|SP_STATUS_HALT);
     if (status & SP_STATUS_INTR_BREAK) {

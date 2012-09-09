@@ -2763,6 +2763,37 @@
     num_display_lists_since_present = 0;
   }
 
+  function setViScales() {
+    var width       = n64js.viWidth();
+
+    var scale_x     = (n64js.viXScale() & 0xFFF) / 1024.0;
+    var scale_y     = (n64js.viYScale() & 0xFFF) / 2048.0;
+
+    var h_start_reg = n64js.viHStart();
+    var hstart      = h_start_reg >> 16;
+    var hend        = h_start_reg & 0xffff;
+
+    var v_start_reg = n64js.viVStart();
+    var vstart      = v_start_reg >> 16;
+    var vend        = v_start_reg & 0xffff;
+
+    // Sometimes h_start_reg can be zero.. ex PD, Lode Runner, Cyber Tiger
+    if (hend === hstart) {
+      hend = (width / scale_x) | 0;
+    }
+
+    viWidth  = (hend-hstart) * scale_x;
+    viHeight = (vend-vstart) * scale_y * 1.0126582;
+
+    // XXX Need to check PAL games.
+    //if(g_ROM.TvType != OS_TV_NTSC) sRatio = 9/11.0f;
+
+    //This corrects height in various games ex : Megaman 64, CyberTiger
+    if( width > 0x300 ) {
+      viHeight *= 2.0;
+    }
+  }
+
   function hleGraphics(task, ram) {
     ++graphics_task_count;
     ++num_display_lists_since_present;
@@ -2803,6 +2834,8 @@
       n64js.log('GFX: ' + graphics_task_count + ' - ' + str + ' = ucode ' + ucode);
     }
     last_ucode_str = str;
+
+    setViScales();
 
     // Render everything to the back buffer. This prevents horrible flickering if due to webgl clearing our context between updates.
     gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
