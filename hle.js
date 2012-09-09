@@ -155,6 +155,7 @@
   var kUCode_GBI2 = 2;
 
   var kUCode_GBI0_WR = 5;
+  var kUCode_GBI0_GE = 9;
 
   var kUcodeStrides = [
     10,   // Super Mario 64, Tetrisphere, Demos
@@ -840,7 +841,44 @@
     flushTris(tri_idx*3);
   }
 
-  function executeTri2(cmd0,cmd1) {
+  function executeTri4_GBI0(cmd0,cmd1) {
+    var kTri4  = 0Xb1;
+    var stride = config.vertexStride;
+    var verts  = state.projectedVertices;
+
+    var tri_idx = 0;
+
+    var pc = state.pc;
+    do {
+      var v09_idx = ((cmd0>>>12)&0xf);
+      var v06_idx = ((cmd0>>> 8)&0xf);
+      var v03_idx = ((cmd0>>> 4)&0xf);
+      var v00_idx = ((cmd0>>> 0)&0xf);
+      var v11_idx = ((cmd1>>>28)&0xf);
+      var v10_idx = ((cmd1>>>24)&0xf);
+      var v08_idx = ((cmd1>>>20)&0xf);
+      var v07_idx = ((cmd1>>>16)&0xf);
+      var v05_idx = ((cmd1>>>12)&0xf);
+      var v04_idx = ((cmd1>>> 8)&0xf);
+      var v02_idx = ((cmd1>>> 4)&0xf);
+      var v01_idx = ((cmd1>>> 0)&0xf);
+
+      if (v00_idx !== v01_idx) { triangleBuffer.pushTri(verts[v00_idx], verts[v01_idx], verts[v02_idx], tri_idx); tri_idx++; }
+      if (v03_idx !== v04_idx) { triangleBuffer.pushTri(verts[v03_idx], verts[v04_idx], verts[v05_idx], tri_idx); tri_idx++; }
+      if (v06_idx !== v07_idx) { triangleBuffer.pushTri(verts[v06_idx], verts[v07_idx], verts[v08_idx], tri_idx); tri_idx++; }
+      if (v09_idx !== v10_idx) { triangleBuffer.pushTri(verts[v09_idx], verts[v10_idx], verts[v11_idx], tri_idx); tri_idx++; }
+
+      cmd0 = state.ram.getUint32( pc + 0 );
+      cmd1 = state.ram.getUint32( pc + 4 );
+      pc += 8;
+    } while ((cmd0>>>24) === kTri4 && tri_idx < kMaxTris);
+
+    state.pc = pc-8;
+
+    flushTris(tri_idx*3);
+  }
+
+  function executeTri2_GBI1(cmd0,cmd1) {
     var kTri2  = 0Xb1;
     var stride = config.vertexStride;
     var verts  = state.projectedVertices;
@@ -2650,6 +2688,8 @@
   var previewVertex     = previewVertex_GBI0;
   var executeVertex     = executeVertex_GBI0;
 
+  var executeTri2       = executeTri4_GBI0;
+
   function buildUCodeTables(ucode) {
     switch (ucode) {
       case kUCode_GBI0:
@@ -2662,10 +2702,20 @@
         previewVertex     = previewVertex_GBI0_WR;
         executeVertex     = executeVertex_GBI0_WR;
         break;
+      case kUCode_GBI0_GE:
+        //SetCommand( 0xb4, DLParser_RDPHalf1_GoldenEye, "G_RDPHalf1_GoldenEye" );
+        disassembleVertex = disassembleVertex_GBI0;
+        previewVertex     = previewVertex_GBI0;
+        executeVertex     = executeVertex_GBI0;
+
+        executeTri2       = executeTri4_GBI0;
+        break;
       case kUCode_GBI1:
         disassembleVertex = disassembleVertex_GBI1;
         previewVertex     = previewVertex_GBI1;
         executeVertex     = executeVertex_GBI1;
+
+        executeTri2       = executeTri2_GBI1;
         break;
     }
   }
@@ -2741,7 +2791,8 @@
         case 0xd73a12c4: ucode = kUCode_GBI0;     break;  // Fish demo
         case 0xf4c3491b: ucode = kUCode_GBI0;     break;  // Super Mario 64
         case 0x313f038b: ucode = kUCode_GBI0;     break;  // PilotWings
-        case 0x64cc729d: ucode = kUCode_GBI0_WR;  break;
+        case 0x64cc729d: ucode = kUCode_GBI0_WR;  break;  // Wave Race
+        case 0x23f92542: ucode = kUCode_GBI0_GE;  break;  // Goldeneye
         default:
           n64js.halt('Unknown GBI hash ' + n64js.toString32(val));
           break;
