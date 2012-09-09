@@ -245,7 +245,7 @@
     function (i) { return 'Unk'; },
     function (i) { return 'Unk'; },
     function (i) { return 'Unk'; },
-    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; }
   ];
   if (cop0Table.length != 32) {
     throw "Oops, didn't build the cop0 table correctly";
@@ -362,7 +362,7 @@
     function (i) { return 'Unk'; },
     function (i) { return 'Unk'; },
     function (i) { return 'Unk'; },
-    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; }
   ];
   if (cop1Table.length != 32) {
     throw "Oops, didn't build the cop1 table correctly";
@@ -419,7 +419,7 @@
     function (i) { return 'Unk'; },
     function (i) { return 'Unk'; },
     function (i) { return 'Unk'; },
-    function (i) { return 'Unk'; },
+    function (i) { return 'Unk'; }
   ];
   if (regImmTable.length != 32) {
     throw "Oops, didn't build the special table correctly";

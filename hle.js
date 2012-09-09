@@ -139,8 +139,8 @@
     NUMLIGHTS_4: 4,
     NUMLIGHTS_5: 5,
     NUMLIGHTS_6: 6,
-    NUMLIGHTS_7: 7,
-  }
+    NUMLIGHTS_7: 7
+  };
 
   var G_TX_LOADTILE   = 7;
   var G_TX_RENDERTILE = 0;
@@ -168,7 +168,7 @@
     5,    // Shadows of the Empire (SOTE)
     10,   // Golden Eye
     2,    // Conker BFD
-    10,   // Perfect Dark
+    10   // Perfect Dark
   ];
 
   // Configured:
@@ -214,7 +214,7 @@
       tile:         0,
       level:        0,
       scaleS:       1.0,
-      scaleT:       1.0,
+      scaleT:       1.0
     },
 
     combine: {
@@ -984,7 +984,7 @@
     state.tmemLoadMap[tmem_address] = {
       address:     address,
       pitch:       pitch,
-      swapped:     false,
+      swapped:     false
     };
   }
 
@@ -1644,21 +1644,21 @@
     'G_BL_CLR_IN',
     'G_BL_CLR_MEM',
     'G_BL_CLR_BL',
-    'G_BL_CLR_FOG',
+    'G_BL_CLR_FOG'
   ];
 
   var blendSourceFactors = [
     'G_BL_A_IN',
     'G_BL_A_FOG',
     'G_BL_A_SHADE',
-    'G_BL_0',
+    'G_BL_0'
   ];
 
   var blendDestFactors = [
     'G_BL_1MA',
     'G_BL_A_MEM',
     'G_BL_1',
-    'G_BL_0',
+    'G_BL_0'
   ];
 
   function blendOpText(v) {
@@ -1894,7 +1894,7 @@
     'Combined    ', 'Texel0      ',
     'Texel1      ', 'Primitive   ',
     'Shade       ', 'Env         ',
-    '1           ', '0           ',
+    '1           ', '0           '
   ];
 
 
@@ -2632,7 +2632,7 @@
         'cm_s':    tile.cm_s,
         'cm_t':    tile.cm_t,
         'mask_s':  tile.mask_s,
-        'mask_t':  tile.mask_t,
+        'mask_t':  tile.mask_t
       });
 
       textureinfo.left   = tile.uls / 4;
@@ -2896,7 +2896,7 @@
     var state = {
       pc:             pc,
       dlistStack:     [],
-      segments:       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+      segments:       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
     };
 
     function rdpSegmentAddress(addr) {
@@ -3120,14 +3120,14 @@
     'combined.rgb', 'tex0.rgb',
     'tex1.rgb',     'prim.rgb',
     'shade.rgb',    'env.rgb',
-    'one.rgb',      'zero.rgb',
+    'one.rgb',      'zero.rgb'
   ];
 
   var alphaParams8 = [
     'combined.a', 'tex0.a',
     'tex1.a',     'prim.a',
     'shade.a',    'env.a',
-    'one.a',      'zero.a',
+    'one.a',      'zero.a'
   ];
 
   function N64Shader(program) {

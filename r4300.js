@@ -3246,7 +3246,7 @@
     executeTLB,           executeUnknown,       executeUnknown,     executeUnknown,
     executeUnknown,       executeUnknown,       executeUnknown,     executeUnknown,
     executeUnknown,       executeUnknown,       executeUnknown,     executeUnknown,
-    executeUnknown,       executeUnknown,       executeUnknown,     executeUnknown,
+    executeUnknown,       executeUnknown,       executeUnknown,     executeUnknown
   ];
   if (cop0Table.length != 32) {
     throw "Oops, didn't build the cop0 table correctly";
@@ -3261,7 +3261,7 @@
     'executeTLB',           'executeUnknown',       'executeUnknown',     'executeUnknown',
     'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
     'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
-    'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
+    'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown'
   ];
   if (cop0TableGen.length != 32) {
     throw "Oops, didn't build the cop0 table correctly";
@@ -3286,7 +3286,7 @@
     executeSInstr,        executeDInstr,        executeUnknown,     executeUnknown,
     executeWInstr,        executeLInstr,        executeUnknown,     executeUnknown,
     executeUnknown,       executeUnknown,       executeUnknown,     executeUnknown,
-    executeUnknown,       executeUnknown,       executeUnknown,     executeUnknown,
+    executeUnknown,       executeUnknown,       executeUnknown,     executeUnknown
   ];
   if (cop1Table.length != 32) {
     throw "Oops, didn't build the cop1 table correctly";
@@ -3300,7 +3300,7 @@
     generateSInstrStub,     generateDInstrStub,     'executeUnknown',     'executeUnknown',
     generateWInstrStub,     generateLInstrStub,     'executeUnknown',     'executeUnknown',
     'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
-    'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
+    'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown'
   ];
   if (cop1TableGen.length != 32) {
     throw "Oops, didn't build the cop1 gen table correctly";
@@ -3375,7 +3375,7 @@
     executeBLTZAL,        executeBGEZAL,        executeBLTZALL,     executeBGEZALL,
     executeUnknown,       executeUnknown,       executeUnknown,     executeUnknown,
     executeUnknown,       executeUnknown,       executeUnknown,     executeUnknown,
-    executeUnknown,       executeUnknown,       executeUnknown,     executeUnknown,
+    executeUnknown,       executeUnknown,       executeUnknown,     executeUnknown
   ];
   if (regImmTable.length != 32) {
     throw "Oops, didn't build the regimm table correctly";
@@ -3402,7 +3402,7 @@
     executeLL,            executeLWC1,          executeUnknown,     executeUnknown,
     executeLLD,           executeLDC1,          executeLDC2,        executeLD,
     executeSC,            executeSWC1,          executeUnknown,     executeUnknown,
-    executeSCD,           executeSDC1,          executeSDC2,        executeSD,
+    executeSCD,           executeSDC1,          executeSDC2,        executeSD
   ];
   if (simpleTable.length != 64) {
     throw "Oops, didn't build the simple table correctly";
@@ -3473,7 +3473,7 @@
     'executeBLTZAL',        'executeBGEZAL',        'executeBLTZALL',     'executeBGEZALL',
     'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
     'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
-    'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
+    'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown'
   ];
   if (regImmTableGen.length != 32) {
     throw "Oops, didn't build the regimm gen table correctly";
@@ -3507,7 +3507,7 @@
     'executeLL',            generateLWC1,           'executeUnknown',     'executeUnknown',
     'executeLLD',           generateLDC1,           'executeLDC2',        generateLD,
     'executeSC',            generateSWC1,           'executeUnknown',     'executeUnknown',
-    'executeSCD',           generateSDC1,           'executeSDC2',        generateSD,
+    'executeSCD',           generateSDC1,           'executeSDC2',        generateSD
   ];
   if (simpleTableGen.length != 64) {
     throw "Oops, didn't build the simple gen table correctly";
