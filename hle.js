@@ -878,7 +878,7 @@
     flushTris(tri_idx*3);
   }
 
-  function executeTri2_GBI1(cmd0,cmd1) {
+  function executeTri2(cmd0,cmd1) {
     var kTri2  = 0Xb1;
     var stride = config.vertexStride;
     var verts  = state.projectedVertices;
@@ -2682,42 +2682,133 @@
     }
   }
 
+  // A lot of functions are common between all ucodes
+  var ucode_common = {
+    0x00: executeSpNoop,
+    0x01: executeMatrix,
+    0x03: executeMoveMem,
+    0x04: executeVertex_GBI0,
+    0x06: executeDL,
+    0x09: executeSprite2DBase,
+    0xb0: executeBranchZ,
+    0xb1: executeTri2,
+    0xb2: executeRDPHalf_Cont,
+    0xb3: executeRDPHalf_2,
+    0xb4: executeRDPHalf_1,
+    0xb5: executeLine3D,
+    0xb6: executeClrGeometryMode,
+    0xb7: executeSetGeometryMode,
+    0xb8: executeEndDL,
+    0xb9: executeSetOtherModeL,
+    0xba: executeSetOtherModeH,
+    0xbb: executeTexture,
+    0xbc: executeMoveWord,
+    0xbd: executePopMatrix,
+    0xbe: executeCullDL,
+    0xbf: executeTri1,
+    0xc0: executeNoop,
+    0xc8: executeTriRSP,
+    0xc9: executeTriRSP,
+    0xca: executeTriRSP,
+    0xcb: executeTriRSP,
+    0xcc: executeTriRSP,
+    0xcd: executeTriRSP,
+    0xce: executeTriRSP,
+    0xcf: executeTriRSP,
+    0xe4: executeTexRect,
+    0xe5: executeTexRectFlip,
+    0xe6: executeRDPLoadSync,
+    0xe7: executeRDPPipeSync,
+    0xe8: executeRDPTileSync,
+    0xe9: executeRDPFullSync,
+    0xea: executeSetKeyGB,
+    0xeb: executeSetKeyR,
+    0xec: executeSetConvert,
+    0xed: executeSetScissor,
+    0xee: executeSetPrimDepth,
+    0xef: executeSetRDPOtherMode,
+    0xf0: executeLoadTLut,
+    0xf2: executeSetTileSize,
+    0xf3: executeLoadBlock,
+    0xf4: executeLoadTile,
+    0xf5: executeSetTile,
+    0xf6: executeFillRect,
+    0xf7: executeSetFillColor,
+    0xf8: executeSetFogColor,
+    0xf9: executeSetBlendColor,
+    0xfa: executeSetPrimColor,
+    0xfb: executeSetEnvColor,
+    0xfc: executeSetCombine,
+    0xfd: executeSetTImg,
+    0xfe: executeSetZImg,
+    0xff: executeSetCImg
+  };
 
-  // The implementation for these ops is ucode dependent
+
+  var ucode_gbi0 = {
+    0x04: executeVertex_GBI0,
+  };
+
+  var ucode_gbi1 = {
+    0x04: executeVertex_GBI1,
+  };
+
+
+    // The implementation for these ops is ucode dependent
   var disassembleVertex = disassembleVertex_GBI0;
   var previewVertex     = previewVertex_GBI0;
-  var executeVertex     = executeVertex_GBI0;
 
-  var executeTri2       = executeTri4_GBI0;
 
   function buildUCodeTables(ucode) {
+
+    var ucode_table = ucode_gbi0;
+
+    switch (ucode) {
+      case kUCode_GBI0:
+      case kUCode_GBI0_WR:
+      case kUCode_GBI0_GE:
+        ucode_table = ucode_gbi0;
+        break;
+      case kUCode_GBI1:
+        ucode_table = ucode_gbi1;
+        break;
+    }
+
+    // Build a copy of the table as an array
+    var table = new Array();
+    for (var i = 0; i < 256; ++i) {
+      var fn = executeUnknown;
+      if (ucode_table.hasOwnProperty(i)) {
+        fn = ucode_table[i];
+      } else if (ucode_common.hasOwnProperty(i)) {
+        fn = ucode_common[i];
+      }
+      table.push(fn);
+    }
+
+    // Patch in specific overrides
     switch (ucode) {
       case kUCode_GBI0:
         disassembleVertex = disassembleVertex_GBI0;
         previewVertex     = previewVertex_GBI0;
-        executeVertex     = executeVertex_GBI0;
         break;
       case kUCode_GBI0_WR:
         disassembleVertex = disassembleVertex_GBI0_WR;
         previewVertex     = previewVertex_GBI0_WR;
-        executeVertex     = executeVertex_GBI0_WR;
+        table[0x04]         = executeVertex_GBI0_WR;
         break;
       case kUCode_GBI0_GE:
-        //SetCommand( 0xb4, DLParser_RDPHalf1_GoldenEye, "G_RDPHalf1_GoldenEye" );
-        disassembleVertex = disassembleVertex_GBI0;
-        previewVertex     = previewVertex_GBI0;
-        executeVertex     = executeVertex_GBI0;
-
-        executeTri2       = executeTri4_GBI0;
+        table[0xb1]         = executeTri4_GBI0;
+        //table[0xb4]       = DLParser_RDPHalf1_GoldenEye;
         break;
       case kUCode_GBI1:
         disassembleVertex = disassembleVertex_GBI1;
         previewVertex     = previewVertex_GBI1;
-        executeVertex     = executeVertex_GBI1;
-
-        executeTri2       = executeTri2_GBI1;
+        table[0x04]         = executeVertex_GBI1;
         break;
     }
+
+    return table;
   }
 
   var last_ucode_str = '';
@@ -2794,67 +2885,6 @@
     }
   }
 
-  var ucode_gbi0 = {
-    0x00: executeSpNoop,
-    0x01: executeMatrix,
-    0x03: executeMoveMem,
-    0x04: executeVertex,
-    0x06: executeDL,
-    0x09: executeSprite2DBase,
-    0xb0: executeBranchZ,
-    0xb1: executeTri2,
-    0xb2: executeRDPHalf_Cont,
-    0xb3: executeRDPHalf_2,
-    0xb4: executeRDPHalf_1,
-    0xb5: executeLine3D,
-    0xb6: executeClrGeometryMode,
-    0xb7: executeSetGeometryMode,
-    0xb8: executeEndDL,
-    0xb9: executeSetOtherModeL,
-    0xba: executeSetOtherModeH,
-    0xbb: executeTexture,
-    0xbc: executeMoveWord,
-    0xbd: executePopMatrix,
-    0xbe: executeCullDL,
-    0xbf: executeTri1,
-    0xc0: executeNoop,
-    0xc8: executeTriRSP,
-    0xc9: executeTriRSP,
-    0xca: executeTriRSP,
-    0xcb: executeTriRSP,
-    0xcc: executeTriRSP,
-    0xcd: executeTriRSP,
-    0xce: executeTriRSP,
-    0xcf: executeTriRSP,
-    0xe4: executeTexRect,
-    0xe5: executeTexRectFlip,
-    0xe6: executeRDPLoadSync,
-    0xe7: executeRDPPipeSync,
-    0xe8: executeRDPTileSync,
-    0xe9: executeRDPFullSync,
-    0xea: executeSetKeyGB,
-    0xeb: executeSetKeyR,
-    0xec: executeSetConvert,
-    0xed: executeSetScissor,
-    0xee: executeSetPrimDepth,
-    0xef: executeSetRDPOtherMode,
-    0xf0: executeLoadTLut,
-    0xf2: executeSetTileSize,
-    0xf3: executeLoadBlock,
-    0xf4: executeLoadTile,
-    0xf5: executeSetTile,
-    0xf6: executeFillRect,
-    0xf7: executeSetFillColor,
-    0xf8: executeSetFogColor,
-    0xf9: executeSetBlendColor,
-    0xfa: executeSetPrimColor,
-    0xfb: executeSetEnvColor,
-    0xfc: executeSetCombine,
-    0xfd: executeSetTImg,
-    0xfe: executeSetZImg,
-    0xff: executeSetCImg
-  };
-
   function hleGraphics(task, ram) {
     ++graphics_task_count;
     ++num_display_lists_since_present;
@@ -2901,7 +2931,7 @@
     // Render everything to the back buffer. This prevents horrible flickering if due to webgl clearing our context between updates.
     gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
 
-    buildUCodeTables(ucode);
+    var ucode_table = buildUCodeTables(ucode);
 
     config.vertexStride = kUcodeStrides[ucode];
 
@@ -2940,18 +2970,6 @@
 
     setCanvasViewport(canvas.clientWidth, canvas.clientHeight);
 
-    var ucode_table = ucode_gbi0;
-
-
-    var ops       = new Array(256);
-    for (var i = 0; i < ops.length; ++i) {
-      if (ucode_table.hasOwnProperty(i)) {
-        ops[i] = ucode_table[i];
-      } else {
-        ops[i] = executeUnknown;
-      }
-    }
-
     disassembleDisplayList(data_ptr, ram, ucode);
 
     while (state.pc !== 0) {
@@ -2961,7 +2979,7 @@
       state.pc += 8;
 
       //try {
-        ops[cmd0>>>24](cmd0,cmd1);
+        ucode_table[cmd0>>>24](cmd0,cmd1);
       //} catch(e) {
       //  throw 'Exception ' + e.toString() + ' at ' + n64js.toString32(pc) + ' ' + disassembleCommand(cmd0,cmd1);
       //}
@@ -2976,7 +2994,7 @@
       return;
     }
 
-    buildUCodeTables(ucode);
+    var ucode_table = buildUCodeTables(ucode);
 
     var kMatrix   = 0x01;
     var kMoveMem  = 0x03;
