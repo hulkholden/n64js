@@ -2,6 +2,8 @@
 
   var stats = null;
 
+  var kCyclesPerUpdate = 100000000;
+
   var kBootstrapOffset = 0x40;
   var kGameOffset      = 0x1000;
 
@@ -734,7 +736,7 @@
           n64js.refreshDebugger();
         }
       } else {
-        n64js.run(100000000);
+        n64js.run(kCyclesPerUpdate);
         n64js.refreshDebugger();
       }
 
