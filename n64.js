@@ -784,7 +784,7 @@
       return ram.readU32(mapped);
     }
     n64js.halt('virtual readU32 failed - need to throw refill/invalid');
-    return 0xffffffff;
+    return 0x00000000;
   };
   mapped_mem_handler.readU16 = function (address) {
     var mapped = n64js.cpu0.translateRead(address) & 0x007fffff;
@@ -792,7 +792,7 @@
       return ram.readU16(mapped);
     }
     n64js.halt('virtual readU16 failed - need to throw refill/invalid');
-    return 0xffff;
+    return 0x0000;
   };
   mapped_mem_handler.readU8 = function (address) {
     var mapped = n64js.cpu0.translateRead(address) & 0x007fffff;
@@ -800,7 +800,7 @@
       return ram.readU8(mapped);
     }
     n64js.halt('virtual readU8 failed - need to throw refill/invalid');
-    return 0xff;
+    return 0x00;
   };
 
   mapped_mem_handler.readS32 = function (address) {
@@ -808,8 +808,10 @@
     if (mapped !== 0) {
       return ram.readS32(mapped);
     }
-    n64js.halt('virtual readS32 failed - need to throw refill/invalid');
-    return 0xffffffff;
+// FIXME: need to somehow interrupt the current instruction from executing, before it has chance to modify state.
+// For now, goldeneye hits this initially when reading the current instruction. I laemly return 0 so that I execute a NOP and then jump to the exception handler.
+//    n64js.halt('virtual readS32 failed - need to throw refill/invalid');
+    return 0x00000000;
   };
   mapped_mem_handler.readS16 = function (address) {
     var mapped = n64js.cpu0.translateRead(address) & 0x007fffff;
@@ -817,7 +819,7 @@
       return ram.readS16(mapped);
     }
     n64js.halt('virtual readS16 failed - need to throw refill/invalid');
-    return 0xffff;
+    return 0x0000;
   };
   mapped_mem_handler.readS8 = function (address) {
     var mapped = n64js.cpu0.translateRead(address);
@@ -825,7 +827,7 @@
       return ram.readS8(mapped);
     }
     n64js.halt('virtual readS8 failed - need to throw refill/invalid');
-    return 0xff;
+    return 0x00;
   };
 
   mapped_mem_handler.write32 = function (address, value) {
