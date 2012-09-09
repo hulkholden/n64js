@@ -2794,6 +2794,67 @@
     }
   }
 
+  var ucode_gbi0 = {
+    0x00: executeSpNoop,
+    0x01: executeMatrix,
+    0x03: executeMoveMem,
+    0x04: executeVertex,
+    0x06: executeDL,
+    0x09: executeSprite2DBase,
+    0xb0: executeBranchZ,
+    0xb1: executeTri2,
+    0xb2: executeRDPHalf_Cont,
+    0xb3: executeRDPHalf_2,
+    0xb4: executeRDPHalf_1,
+    0xb5: executeLine3D,
+    0xb6: executeClrGeometryMode,
+    0xb7: executeSetGeometryMode,
+    0xb8: executeEndDL,
+    0xb9: executeSetOtherModeL,
+    0xba: executeSetOtherModeH,
+    0xbb: executeTexture,
+    0xbc: executeMoveWord,
+    0xbd: executePopMatrix,
+    0xbe: executeCullDL,
+    0xbf: executeTri1,
+    0xc0: executeNoop,
+    0xc8: executeTriRSP,
+    0xc9: executeTriRSP,
+    0xca: executeTriRSP,
+    0xcb: executeTriRSP,
+    0xcc: executeTriRSP,
+    0xcd: executeTriRSP,
+    0xce: executeTriRSP,
+    0xcf: executeTriRSP,
+    0xe4: executeTexRect,
+    0xe5: executeTexRectFlip,
+    0xe6: executeRDPLoadSync,
+    0xe7: executeRDPPipeSync,
+    0xe8: executeRDPTileSync,
+    0xe9: executeRDPFullSync,
+    0xea: executeSetKeyGB,
+    0xeb: executeSetKeyR,
+    0xec: executeSetConvert,
+    0xed: executeSetScissor,
+    0xee: executeSetPrimDepth,
+    0xef: executeSetRDPOtherMode,
+    0xf0: executeLoadTLut,
+    0xf2: executeSetTileSize,
+    0xf3: executeLoadBlock,
+    0xf4: executeLoadTile,
+    0xf5: executeSetTile,
+    0xf6: executeFillRect,
+    0xf7: executeSetFillColor,
+    0xf8: executeSetFogColor,
+    0xf9: executeSetBlendColor,
+    0xfa: executeSetPrimColor,
+    0xfb: executeSetEnvColor,
+    0xfc: executeSetCombine,
+    0xfd: executeSetTImg,
+    0xfe: executeSetZImg,
+    0xff: executeSetCImg
+  };
+
   function hleGraphics(task, ram) {
     ++graphics_task_count;
     ++num_display_lists_since_present;
@@ -2879,70 +2940,17 @@
 
     setCanvasViewport(canvas.clientWidth, canvas.clientHeight);
 
+    var ucode_table = ucode_gbi0;
+
 
     var ops       = new Array(256);
-    for (var i = 0; i < ops.length; ++i)
-      ops[i] = executeUnknown;
-
-
-    ops[0x00] = executeSpNoop;
-    ops[0x01] = executeMatrix;
-    ops[0x03] = executeMoveMem;
-    ops[0x04] = executeVertex;
-    ops[0x06] = executeDL;
-    ops[0x09] = executeSprite2DBase;
-    ops[0xb0] = executeBranchZ;
-    ops[0xb1] = executeTri2;
-    ops[0xb2] = executeRDPHalf_Cont;
-    ops[0xb3] = executeRDPHalf_2;
-    ops[0xb4] = executeRDPHalf_1;
-    ops[0xb5] = executeLine3D;
-    ops[0xb6] = executeClrGeometryMode;
-    ops[0xb7] = executeSetGeometryMode;
-    ops[0xb8] = executeEndDL;
-    ops[0xb9] = executeSetOtherModeL;
-    ops[0xba] = executeSetOtherModeH;
-    ops[0xbb] = executeTexture;
-    ops[0xbc] = executeMoveWord;
-    ops[0xbd] = executePopMatrix;
-    ops[0xbe] = executeCullDL;
-    ops[0xbf] = executeTri1;
-    ops[0xc0] = executeNoop;
-    ops[0xc8] = executeTriRSP;
-    ops[0xc9] = executeTriRSP;
-    ops[0xca] = executeTriRSP;
-    ops[0xcb] = executeTriRSP;
-    ops[0xcc] = executeTriRSP;
-    ops[0xcd] = executeTriRSP;
-    ops[0xce] = executeTriRSP;
-    ops[0xcf] = executeTriRSP;
-    ops[0xe4] = executeTexRect;
-    ops[0xe5] = executeTexRectFlip;
-    ops[0xe6] = executeRDPLoadSync;
-    ops[0xe7] = executeRDPPipeSync;
-    ops[0xe8] = executeRDPTileSync;
-    ops[0xe9] = executeRDPFullSync;
-    ops[0xea] = executeSetKeyGB;
-    ops[0xeb] = executeSetKeyR;
-    ops[0xec] = executeSetConvert;
-    ops[0xed] = executeSetScissor;
-    ops[0xee] = executeSetPrimDepth;
-    ops[0xef] = executeSetRDPOtherMode;
-    ops[0xf0] = executeLoadTLut;
-    ops[0xf2] = executeSetTileSize;
-    ops[0xf3] = executeLoadBlock;
-    ops[0xf4] = executeLoadTile;
-    ops[0xf5] = executeSetTile;
-    ops[0xf6] = executeFillRect;
-    ops[0xf7] = executeSetFillColor;
-    ops[0xf8] = executeSetFogColor;
-    ops[0xf9] = executeSetBlendColor;
-    ops[0xfa] = executeSetPrimColor;
-    ops[0xfb] = executeSetEnvColor;
-    ops[0xfc] = executeSetCombine;
-    ops[0xfd] = executeSetTImg;
-    ops[0xfe] = executeSetZImg;
-    ops[0xff] = executeSetCImg;
+    for (var i = 0; i < ops.length; ++i) {
+      if (ucode_table.hasOwnProperty(i)) {
+        ops[i] = ucode_table[i];
+      } else {
+        ops[i] = executeUnknown;
+      }
+    }
 
     disassembleDisplayList(data_ptr, ram, ucode);
 
