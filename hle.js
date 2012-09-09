@@ -824,9 +824,9 @@
     var pc = state.pc;
     do {
       var flag   =  (cmd1>>>24)&0xff;
-      var v0_idx = ((cmd1>>>16)&0xff)/stride
-      var v1_idx = ((cmd1>>> 8)&0xff)/stride
-      var v2_idx = ((cmd1>>> 0)&0xff)/stride
+      var v0_idx = ((cmd1>>>16)&0xff)/stride;
+      var v1_idx = ((cmd1>>> 8)&0xff)/stride;
+      var v2_idx = ((cmd1>>> 0)&0xff)/stride;
 
       triangleBuffer.pushTri(verts[v0_idx], verts[v1_idx], verts[v2_idx], tri_idx); tri_idx++;
 
@@ -849,12 +849,12 @@
 
     var pc = state.pc;
     do {
-      var v0_idx = ((cmd0>>>16)&0xff)/stride
-      var v1_idx = ((cmd0>>> 8)&0xff)/stride
-      var v2_idx = ((cmd0>>> 0)&0xff)/stride
-      var v3_idx = ((cmd1>>>16)&0xff)/stride
-      var v4_idx = ((cmd1>>> 8)&0xff)/stride
-      var v5_idx = ((cmd1>>> 0)&0xff)/stride
+      var v0_idx = ((cmd0>>>16)&0xff)/stride;
+      var v1_idx = ((cmd0>>> 8)&0xff)/stride;
+      var v2_idx = ((cmd0>>> 0)&0xff)/stride;
+      var v3_idx = ((cmd1>>>16)&0xff)/stride;
+      var v4_idx = ((cmd1>>> 8)&0xff)/stride;
+      var v5_idx = ((cmd1>>> 0)&0xff)/stride;
 
       triangleBuffer.pushTri(verts[v0_idx], verts[v1_idx], verts[v2_idx], tri_idx); tri_idx++;
       triangleBuffer.pushTri(verts[v3_idx], verts[v4_idx], verts[v5_idx], tri_idx); tri_idx++;
@@ -878,10 +878,10 @@
 
     var pc = state.pc;
     do {
-      var v3_idx = ((cmd1>>>24)&0xff)/stride
-      var v0_idx = ((cmd1>>>16)&0xff)/stride
-      var v1_idx = ((cmd1>>> 8)&0xff)/stride
-      var v2_idx = ((cmd1>>> 0)&0xff)/stride
+      var v3_idx = ((cmd1>>>24)&0xff)/stride;
+      var v0_idx = ((cmd1>>>16)&0xff)/stride;
+      var v1_idx = ((cmd1>>> 8)&0xff)/stride;
+      var v2_idx = ((cmd1>>> 0)&0xff)/stride;
 
       triangleBuffer.pushTri(verts[v0_idx], verts[v1_idx], verts[v2_idx], tri_idx); tri_idx++;
       triangleBuffer.pushTri(verts[v2_idx], verts[v3_idx], verts[v0_idx], tri_idx); tri_idx++;
