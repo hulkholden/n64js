@@ -1,6 +1,7 @@
 (function (n64js) {'use strict';
 
   var graphics_task_count = 0;
+  var texrected = 0;
 
   var $dlistOutput = $('#dlist-content');
   var $textureOutput = $('#texture-content');
@@ -488,23 +489,57 @@
 
 
   function unimplemented(cmd0,cmd1) {
-    n64js.log('Unimplemented display list op ' + disassembleCommand(cmd0,cmd1));
+    n64js.log('Unimplemented display list op ' + n64js.toString8(cmd0>>>24));
   }
 
   function executeUnknown(cmd0,cmd1) {
-    n64js.halt('Unknown display list op ' + disassembleCommand(cmd0,cmd1));
+    n64js.halt('Unknown display list op ' + n64js.toString8(cmd0>>>24));
   }
 
-  function executeSpNoop(cmd0,cmd1)             {}
-  function executeNoop(cmd0,cmd1)               {}
-  function executeRDPLoadSync(cmd0,cmd1)        {}
-  function executeRDPPipeSync(cmd0,cmd1)        {}
-  function executeRDPTileSync(cmd0,cmd1)        {}
-  function executeRDPFullSync(cmd0,cmd1)        {}
+  function executeSpNoop(cmd0,cmd1,dis) {
+    if (dis) {
+      dis.text('gsSPNoOp();');
+    }
+  }
 
-  function executeDL(cmd0,cmd1) {
+  function executeNoop(cmd0,cmd1,dis) {
+    if (dis) {
+      dis.text('gsDPNoOp();');
+    }
+  }
+
+  function executeRDPLoadSync(cmd0,cmd1,dis) {
+    if (dis) {
+      dis.text('gsDPLoadSync();');
+    }
+  }
+
+  function executeRDPPipeSync(cmd0,cmd1,dis) {
+    if (dis) {
+      dis.text('gsDPPipeSync();');
+    }
+  }
+
+  function executeRDPTileSync(cmd0,cmd1,dis) {
+    if (dis) {
+      dis.text('gsDPTileSync();');
+    }
+  }
+
+  function executeRDPFullSync(cmd0,cmd1,dis) {
+    if (dis) {
+      dis.text('gsDPFullSync();');
+    }
+  }
+
+  function executeDL(cmd0,cmd1,dis) {
     var param = ((cmd0>>>16)&0xff);
     var address = rdpSegmentAddress(cmd1);
+
+    if (dis) {
+      var fn = (param === G_DL_PUSH) ? 'gsSPDisplayList' : 'gsSPBranchList';
+      dis.text(fn + '(<span class="dl-branch">' + n64js.toString32(address) + '</span>);');
+    }
 
     if (param === G_DL_PUSH) {
       state.dlistStack.push({pc: state.pc});
@@ -512,7 +547,12 @@
     state.pc = address;
   }
 
-  function executeEndDL(cmd0,cmd1) {
+  function executeEndDL(cmd0,cmd1,dis) {
+
+    if (dis) {
+      dis.text('gsSPEndDisplayList();');
+    }
+
     if (state.dlistStack.length > 0) {
       state.pc = state.dlistStack.pop().pc;
     } else {
@@ -528,15 +568,24 @@
       state.pc = address;
   }
 
-  function executeMatrix(cmd0,cmd1) {
+  function executeMatrix(cmd0,cmd1,dis) {
     var flags   = (cmd0>>>16)&0xff;
     var length  = (cmd0>>> 0)&0xffff;
     var address = rdpSegmentAddress(cmd1);
 
-    var push = flags & G_MTX_PUSH;
+    var push    = flags & G_MTX_PUSH;
     var replace = flags & G_MTX_LOAD;
 
     var matrix = loadMatrix(address);
+
+    if (dis) {
+      var t = '';
+      t += (flags & G_MTX_PROJECTION) ? 'G_MTX_PROJECTION' : 'G_MTX_MODELVIEW';
+      t += (flags & G_MTX_LOAD) ?       '|G_MTX_LOAD'       : '|G_MTX_MUL';
+      t += (flags & G_MTX_PUSH) ?       '|G_MTX_PUSH'       : ''; //'|G_MTX_NOPUSH';
+
+      dis.text('gsSPMatrix(' + n64js.toString32(address) + ', ' + t + ');');
+    }
 
     var stack = flags & G_MTX_PROJECTION ? state.projection : state.modelview;
 
@@ -551,17 +600,41 @@
     }
   }
 
-  function executePopMatrix(cmd0,cmd1) {
+  function executePopMatrix(cmd0,cmd1,dis) {
+    var flags = (cmd1>>>0)&0xff;
+
+    if (dis) {
+      var t = '';
+      t += (flags & G_MTX_PROJECTION) ? 'G_MTX_PROJECTION' : 'G_MTX_MODELVIEW';
+      dis.text('gsSPPopMatrix(' + t + ');');
+    }
+
+    // FIXME: pop is always modelview?
     if (state.modelview.length > 0) {
       state.modelview.pop();
     }
   }
 
-  function executeMoveMem(cmd0,cmd1) {
+  function executeMoveMem(cmd0,cmd1,dis) {
     var type    = (cmd0>>>16)&0xff;
     var length  = (cmd0>>> 0)&0xffff;
     var address = rdpSegmentAddress(cmd1);
 
+    if (dis) {
+      var address_str = n64js.toString32(address);
+
+      var type_str = getDefine(moveMemTypeValues, type);
+      var text = 'gsDma1p(G_MOVEMEM, ' + address_str + ', ' + length + ', ' + type_str + ');';
+
+      switch (type) {
+        case moveMemTypeValues.G_MV_VIEWPORT:
+          if (length === 16)
+            text = 'gsSPViewport(' + address_str + ');';
+          break;
+      }
+
+      dis.text(text);
+    }
 
     switch (type) {
       case moveMemTypeValues.G_MV_VIEWPORT:
@@ -592,10 +665,30 @@
     }
   }
 
-  function executeMoveWord(cmd0,cmd1) {
+  function executeMoveWord(cmd0,cmd1,dis) {
     var type   = (cmd0    )&0xff;
     var offset = (cmd0>>>8)&0xffff;
     var value  = cmd1;
+
+    if (dis) {
+      var text = 'gMoveWd(' + getDefine(moveWordTypeValues, type) + ', ' + n64js.toString16(offset) + ', ' + n64js.toString32(value) + ');';
+
+      switch (type) {
+        case moveWordTypeValues.G_MW_NUMLIGHT:
+          if (offset === G_MWO_NUMLIGHT) {
+            var v = ((value - 0x80000000)>>>5) - 1;
+            text = 'gsSPNumLights(' + getDefine(numLightValues, v) + ');';
+          }
+          break;
+        case moveWordTypeValues.G_MW_SEGMENT:
+          {
+            var v = value === 0 ? '0' : n64js.toString32(value);
+            text = 'gsSPSegment(' + ((offset >>> 2)&0xf) + ', ' + v + ');';
+          }
+          break;
+      }
+      dis.text(text);
+    }
 
     switch(type) {
       case moveWordTypeValues.G_MW_MATRIX:     unimplemented(cmd0,cmd1); break;
@@ -651,11 +744,44 @@
     this.v      = 0;
   }
 
-  function executeVertexImpl(v0, n, address) {
+  function previewVertexImpl(v0, n, dv, dis) {
+    var tip = '';
+
+    tip += '<table class="vertex-table">';
+
+    var cols = ['#', 'x', 'y', 'z', '?', 'u', 'v', 'norm', 'rgba'];
+
+    tip += '<tr><th>' + cols.join('</th><th>') + '</th></tr>\n';
+
+    for (var i = 0; i < n; ++i) {
+      var vtx_base = (v0+i)*16;
+      var v = [ v0+i,
+                dv.getInt16(vtx_base + 0),  // x
+                dv.getInt16(vtx_base + 2),  // y
+                dv.getInt16(vtx_base + 4),  // z
+                dv.getInt16(vtx_base + 6),  // ?
+                dv.getInt16(vtx_base + 8),  // u
+                dv.getInt16(vtx_base + 10), // v
+                dv.getInt8(vtx_base  + 12) + ',' + dv.getInt8(vtx_base  + 13) + ',' + dv.getInt8(vtx_base  + 14),  // norm
+                n64js.toString32( dv.getUint32(vtx_base + 12) ) // rgba
+      ];
+
+      tip += '<tr><td>' + v.join('</td><td>') + '</td></tr>\n';
+    }
+    tip += '</table>';
+    dis.tip(tip);
+  }
+
+  function executeVertexImpl(v0, n, address, dis) {
     var light     = state.geometryMode & geometryModeFlags.G_LIGHTING;
     var texgen    = state.geometryMode & geometryModeFlags.G_TEXTURE_GEN;
     var texgenlin = state.geometryMode & geometryModeFlags.G_TEXTURE_GEN_LINEAR;
 
+    var dv = new DataView(state.ram.buffer, address);
+
+    if (dis) {
+      previewVertexImpl(v0, n, dv, dis);
+    }
 
     if (v0+n >= 64) {
       n64js.halt('Too many verts');
@@ -663,7 +789,6 @@
       return;
     }
 
-    var dv = new DataView(state.ram.buffer, address);
     var mvmtx = state.modelview[state.modelview.length-1];
     var pmtx  = state.projection[state.projection.length-1];
 
@@ -759,33 +884,243 @@
 
   function executeRDPHalf_Cont(cmd0,cmd1)         { unimplemented(cmd0,cmd1); }
 
-  function executeRDPHalf_2(cmd0,cmd1) {
+  function executeRDPHalf_2(cmd0,cmd1,dis) {
+    if (dis) {
+      dis.text('gsImmp1(G_RDPHALF_2, ' + n64js.toString32(cmd1) + ');');
+    }
     state.rdpHalf2 = cmd1;
   }
 
-  function executeRDPHalf_1(cmd0,cmd1) {
+  function executeRDPHalf_1(cmd0,cmd1,dis) {
+    if (dis) {
+      dis.text('gsImmp1(G_RDPHALF_1, ' + n64js.toString32(cmd1) + ');');
+    }
     state.rdpHalf1 = cmd1;
   }
 
-  function executeClrGeometryMode(cmd0,cmd1) {
+  var geometryModeFlags = {
+    G_ZBUFFER:            0x00000001,
+    G_TEXTURE_ENABLE:     0x00000002,  /* Microcode use only */
+    G_SHADE:              0x00000004,  /* enable Gouraud interp */
+    G_SHADING_SMOOTH:     0x00000200,  /* flat or smooth shaded */
+    G_CULL_FRONT:         0x00001000,
+    G_CULL_BACK:          0x00002000,
+    G_CULL_BOTH:          0x00003000,  /* To make code cleaner */
+    G_FOG:                0x00010000,
+    G_LIGHTING:           0x00020000,
+    G_TEXTURE_GEN:        0x00040000,
+    G_TEXTURE_GEN_LINEAR: 0x00080000,
+    G_LOD:                0x00100000  /* NOT IMPLEMENTED */
+
+  };
+
+  function getGeometryModeFlagsText(data) {
+    var t = '';
+
+    if (data & geometryModeFlags.G_ZBUFFER)               t += '|G_ZBUFFER';
+    if (data & geometryModeFlags.G_TEXTURE_ENABLE)        t += '|G_TEXTURE_ENABLE';
+    if (data & geometryModeFlags.G_SHADE)                 t += '|G_SHADE';
+    if (data & geometryModeFlags.G_SHADING_SMOOTH)        t += '|G_SHADING_SMOOTH';
+
+    var cull = data & 0x00003000;
+         if (cull === geometryModeFlags.G_CULL_FRONT)     t += '|G_CULL_FRONT';
+    else if (cull === geometryModeFlags.G_CULL_BACK)      t += '|G_CULL_BACK';
+    else if (cull === geometryModeFlags.G_CULL_BOTH)      t += '|G_CULL_BOTH';
+
+    if (data & geometryModeFlags.G_FOG)                   t += '|G_FOG';
+    if (data & geometryModeFlags.G_LIGHTING)              t += '|G_LIGHTING';
+    if (data & geometryModeFlags.G_TEXTURE_GEN)           t += '|G_TEXTURE_GEN';
+    if (data & geometryModeFlags.G_TEXTURE_GEN_LINEAR)    t += '|G_TEXTURE_GEN_LINEAR';
+    if (data & geometryModeFlags.G_LOD)                   t += '|G_LOD';
+
+    return t.length > 0 ? t.substr(1) : '0';
+  }
+
+  function executeClrGeometryMode(cmd0,cmd1,dis) {
+    if (dis) {
+      dis.text('gsSPClearGeometryMode(' + getGeometryModeFlagsText(cmd1) + ');');
+    }
     state.geometryMode &= ~cmd1;
   }
-  function executeSetGeometryMode(cmd0,cmd1) {
+  function executeSetGeometryMode(cmd0,cmd1,dis) {
+    if (dis) {
+     dis.text('gsSPSetGeometryMode(' + getGeometryModeFlagsText(cmd1) + ');');
+    }
     state.geometryMode |= cmd1;
   }
 
-  function executeSetOtherModeL(cmd0,cmd1) {
+ var renderModeFlags = {
+    AA_EN:               0x0008,
+    Z_CMP:               0x0010,
+    Z_UPD:               0x0020,
+    IM_RD:               0x0040,
+    CLR_ON_CVG:          0x0080,
+    CVG_DST_CLAMP:       0,
+    CVG_DST_WRAP:        0x0100,
+    CVG_DST_FULL:        0x0200,
+    CVG_DST_SAVE:        0x0300,
+    ZMODE_OPA:           0,
+    ZMODE_INTER:         0x0400,
+    ZMODE_XLU:           0x0800,
+    ZMODE_DEC:           0x0c00,
+    CVG_X_ALPHA:         0x1000,
+    ALPHA_CVG_SEL:       0x2000,
+    FORCE_BL:            0x4000,
+    TEX_EDGE:            0x0000 /* used to be 0x8000 */
+  };
+
+  var blendColourSources = [
+    'G_BL_CLR_IN',
+    'G_BL_CLR_MEM',
+    'G_BL_CLR_BL',
+    'G_BL_CLR_FOG'
+  ];
+
+  var blendSourceFactors = [
+    'G_BL_A_IN',
+    'G_BL_A_FOG',
+    'G_BL_A_SHADE',
+    'G_BL_0'
+  ];
+
+  var blendDestFactors = [
+    'G_BL_1MA',
+    'G_BL_A_MEM',
+    'G_BL_1',
+    'G_BL_0'
+  ];
+
+  function blendOpText(v) {
+    var m1a = (v>>>12)&0x3;
+    var m1b = (v>>> 8)&0x3;
+    var m2a = (v>>> 4)&0x3;
+    var m2b = (v>>> 0)&0x3;
+
+    return blendColourSources[m1a] + ',' + blendSourceFactors[m1b] + ',' + blendColourSources[m2a] + ',' + blendDestFactors[m2b];
+  }
+
+  function getRenderModeFlagsText(data) {
+    var t = '';
+
+    if (data & renderModeFlags.AA_EN)               t += '|AA_EN';
+    if (data & renderModeFlags.Z_CMP)               t += '|Z_CMP';
+    if (data & renderModeFlags.Z_UPD)               t += '|Z_UPD';
+    if (data & renderModeFlags.IM_RD)               t += '|IM_RD';
+    if (data & renderModeFlags.CLR_ON_CVG)          t += '|CLR_ON_CVG';
+
+    var cvg = data & 0x0300;
+         if (cvg === renderModeFlags.CVG_DST_CLAMP) t += '|CVG_DST_CLAMP';
+    else if (cvg === renderModeFlags.CVG_DST_WRAP)  t += '|CVG_DST_WRAP';
+    else if (cvg === renderModeFlags.CVG_DST_FULL)  t += '|CVG_DST_FULL';
+    else if (cvg === renderModeFlags.CVG_DST_SAVE)  t += '|CVG_DST_SAVE';
+
+    var zmode = data & 0x0c00;
+         if (zmode === renderModeFlags.ZMODE_OPA)   t += '|ZMODE_OPA';
+    else if (zmode === renderModeFlags.ZMODE_INTER) t += '|ZMODE_INTER';
+    else if (zmode === renderModeFlags.ZMODE_XLU)   t += '|ZMODE_XLU';
+    else if (zmode === renderModeFlags.ZMODE_DEC)   t += '|ZMODE_DEC';
+
+    if (data & renderModeFlags.CVG_X_ALPHA)         t += '|CVG_X_ALPHA';
+    if (data & renderModeFlags.ALPHA_CVG_SEL)       t += '|ALPHA_CVG_SEL';
+    if (data & renderModeFlags.FORCE_BL)            t += '|FORCE_BL';
+
+    var c0 = t.length > 0 ? t.substr(1) : '0';
+
+    var blend = data >>> G_MDSFT_BLENDER;
+
+    var c1 = 'GBL_c1(' + blendOpText(blend>>>2) + ') | GBL_c2(' + blendOpText(blend) + ') /*' + n64js.toString16(blend) + '*/';
+
+    return c0 + ', ' + c1;
+  }
+
+  function getOtherModeLShiftCount(sft) {
+    switch (sft) {
+
+      case G_MDSFT_ALPHACOMPARE:  return 'G_MDSFT_ALPHACOMPARE';
+      case G_MDSFT_ZSRCSEL:       return 'G_MDSFT_ZSRCSEL';
+      case G_MDSFT_RENDERMODE:    return 'G_MDSFT_RENDERMODE';
+      case G_MDSFT_BLENDER:       return 'G_MDSFT_BLENDER';
+    }
+
+    return n64js.toString8(sft);
+  }
+
+  function executeSetOtherModeL(cmd0,cmd1,dis) {
     var shift = (cmd0>>> 8)&0xff;
     var len   = (cmd0>>> 0)&0xff;
     var data  = cmd1;
     var mask = ((1 << len) - 1) << shift;
+
+    if (dis) {
+      var data_str  = n64js.toString32(data);
+      var shift_str = getOtherModeLShiftCount(shift);
+      var text      = 'gsSPSetOtherMode(G_SETOTHERMODE_L, ' + shift_str + ', ' + len + ', ' + data_str + ');';
+
+      // Override generic text with specific functions if known
+      switch (shift) {
+        case G_MDSFT_ALPHACOMPARE:  if (len === 2)  text = 'gsDPSetAlphaCompare(' + getDefine(alphaCompareValues, data) + ');'; break;
+        case G_MDSFT_ZSRCSEL:       if (len === 1)  text = 'gsDPSetDepthSource('  + getDefine(depthSourceValues, data)  + ');'; break;
+        case G_MDSFT_RENDERMODE:    if (len === 29) text = 'gsDPSetRenderMode('   + getRenderModeFlagsText(data) + ');'; break;
+        //case G_MDSFT_BLENDER:     break; // set with G_MDSFT_RENDERMODE
+      }
+      dis.text(text);
+    }
+
     state.rdpOtherModeL = (state.rdpOtherModeL & ~mask) | data;
   }
-  function executeSetOtherModeH(cmd0,cmd1) {
+
+  function getOtherModeHShiftCount(sft) {
+    switch (sft) {
+
+      case G_MDSFT_BLENDMASK:   return 'G_MDSFT_BLENDMASK';
+      case G_MDSFT_ALPHADITHER: return 'G_MDSFT_ALPHADITHER';
+      case G_MDSFT_RGBDITHER:   return 'G_MDSFT_RGBDITHER';
+      case G_MDSFT_COMBKEY:     return 'G_MDSFT_COMBKEY';
+      case G_MDSFT_TEXTCONV:    return 'G_MDSFT_TEXTCONV';
+      case G_MDSFT_TEXTFILT:    return 'G_MDSFT_TEXTFILT';
+      case G_MDSFT_TEXTLUT:     return 'G_MDSFT_TEXTLUT';
+      case G_MDSFT_TEXTLOD:     return 'G_MDSFT_TEXTLOD';
+      case G_MDSFT_TEXTDETAIL:  return 'G_MDSFT_TEXTDETAIL';
+      case G_MDSFT_TEXTPERSP:   return 'G_MDSFT_TEXTPERSP';
+      case G_MDSFT_CYCLETYPE:   return 'G_MDSFT_CYCLETYPE';
+      case G_MDSFT_COLORDITHER: return 'G_MDSFT_COLORDITHER';
+      case G_MDSFT_PIPELINE:    return 'G_MDSFT_PIPELINE';
+    }
+
+    return n64js.toString8(sft);
+  }
+
+  function executeSetOtherModeH(cmd0,cmd1,dis) {
     var shift = (cmd0>>> 8)&0xff;
     var len   = (cmd0>>> 0)&0xff;
     var data  = cmd1;
     var mask = ((1 << len) - 1) << shift;
+
+    if (dis) {
+      var shift_str = getOtherModeHShiftCount(shift);
+      var data_str  = n64js.toString32(data);
+
+      var text = 'gsSPSetOtherMode(G_SETOTHERMODE_H, ' + shift_str + ', ' + len + ', ' + data_str + ');';
+
+      // Override generic text with specific functions if known
+      switch (shift) {
+        case G_MDSFT_BLENDMASK:   break;
+        case G_MDSFT_ALPHADITHER: if (len === 2) text = 'gsDPSetAlphaDither('   + getDefine(alphaDitherValues, data)    + ');'; break;
+        case G_MDSFT_RGBDITHER:   if (len === 2) text = 'gsDPSetColorDither('   + getDefine(colorDitherValues, data)    + ');'; break;  // NB HW2?
+        case G_MDSFT_COMBKEY:     if (len === 1) text = 'gsDPSetCombineKey('    + getDefine(combineKeyValues,  data)    + ');'; break;
+        case G_MDSFT_TEXTCONV:    if (len === 3) text = 'gsDPSetTextureConvert('+ getDefine(textureConvertValues, data) + ');'; break;
+        case G_MDSFT_TEXTFILT:    if (len === 2) text = 'gsDPSetTextureFilter(' + getDefine(textureFilterValues, data)  + ');'; break;
+        case G_MDSFT_TEXTLOD:     if (len === 1) text = 'gsDPSetTextureLOD('    + getDefine(textureLODValues, data)     + ');'; break;
+        case G_MDSFT_TEXTLUT:     if (len === 2) text = 'gsDPSetTextureLUT('    + getDefine(textureLUTValues, data)     + ');'; break;
+        case G_MDSFT_TEXTDETAIL:  if (len === 2) text = 'gsDPSetTextureDetail(' + getDefine(textureDetailValues, data)  + ');'; break;
+        case G_MDSFT_TEXTPERSP:   if (len === 1) text = 'gsDPSetTexturePersp('  + getDefine(texturePerspValues, data)   + ');'; break;
+        case G_MDSFT_CYCLETYPE:   if (len === 2) text = 'gsDPSetCycleType('     + getDefine(cycleTypeValues, data)      + ');'; break;
+        //case G_MDSFT_COLORDITHER: if (len === 1) text = 'gsDPSetColorDither('   + data_str + ');'; break;  // NB HW1?
+        case G_MDSFT_PIPELINE:    if (len === 1) text = 'gsDPPipelineMode('     + getDefine(pipelineModeValues, data)   + ');'; break;
+      }
+      dis.text(text);
+    }
+
     state.rdpOtherModeH = (state.rdpOtherModeH & ~mask) | data;
   }
 
@@ -797,15 +1132,32 @@
     return v / 65536.0;
   }
 
-  function executeTexture(cmd0,cmd1) {
-    //var xparam  =  (cmd0>>>16)&0xff;
-    state.texture.level  =  (cmd0>>>11)&0x3;
-    state.texture.tile   =  (cmd0>>> 8)&0x7;
-    var enable           =  (cmd0>>> 0)&0xff;
-    state.texture.scaleS = calcTextureScale( ((cmd1>>>16)&0xffff) );
-    state.texture.scaleT = calcTextureScale( ((cmd1>>> 0)&0xffff) );
+  function executeTexture(cmd0,cmd1,dis) {
+    var xparam  =  (cmd0>>>16)&0xff;
+    var level   =  (cmd0>>>11)&0x3;
+    var tile    =  (cmd0>>> 8)&0x7;
+    var on      =  (cmd0>>> 0)&0xff;
+    var s       = calcTextureScale(((cmd1>>>16)&0xffff));
+    var t       = calcTextureScale(((cmd1>>> 0)&0xffff));
 
-    if (enable)
+
+    if (dis) {
+      var s_text = s.toString();
+      var t_text = t.toString();
+
+      if (xparam !== 0) {
+        dis.text('gsSPTextureL(' + s_text + ', ' + t_text + ', ' + level + ', ' + xparam + ', ' + tile + ', ' + on + ');');
+      } else {
+        dis.text('gsSPTexture(' + s_text + ', ' + t_text + ', ' + level + ', ' + tile + ', ' + on + ');');
+      }
+    }
+
+    state.texture.level  = level;
+    state.texture.tile   = tile;
+    state.texture.scaleS = s;
+    state.texture.scaleT = t;
+
+    if (on)
       state.geometryMode |=  geometryModeFlags.G_TEXTURE_ENABLE;
     else
       state.geometryMode &= ~geometryModeFlags.G_TEXTURE_ENABLE;
@@ -815,8 +1167,8 @@
     // FIXME: culldl
   }
 
-  function executeTri1(cmd0,cmd1) {
-    var kTri1  = 0xbf;
+  function executeTri1(cmd0,cmd1,dis) {
+    var kTri1  = cmd0>>>24;
     var stride = config.vertexStride;
     var verts  = state.projectedVertices;
 
@@ -829,20 +1181,25 @@
       var v1_idx = ((cmd1>>> 8)&0xff)/stride;
       var v2_idx = ((cmd1>>> 0)&0xff)/stride;
 
+      if (dis) {
+        dis.text('gsSP1Triangle(' + v0_idx + ', ' + v1_idx + ', ' + v2_idx + ', ' + flag + ');');
+      }
+
       triangleBuffer.pushTri(verts[v0_idx], verts[v1_idx], verts[v2_idx], tri_idx); tri_idx++;
 
       cmd0 = state.ram.getUint32( pc + 0 );
       cmd1 = state.ram.getUint32( pc + 4 );
       pc += 8;
-    } while ((cmd0>>>24) === kTri1 && tri_idx < kMaxTris);
+
+    } while ((cmd0>>>24) === kTri1 && tri_idx < kMaxTris && !dis); // NB: process triangles individsually when disassembling
 
     state.pc = pc-8;
 
     flushTris(tri_idx*3);
   }
 
-  function executeTri4_GBI0(cmd0,cmd1) {
-    var kTri4  = 0Xb1;
+  function executeTri4_GBI0(cmd0,cmd1,dis) {
+    var kTri4  = cmd0>>>24;
     var stride = config.vertexStride;
     var verts  = state.projectedVertices;
 
@@ -863,6 +1220,13 @@
       var v02_idx = ((cmd1>>> 4)&0xf);
       var v01_idx = ((cmd1>>> 0)&0xf);
 
+      if (dis) {
+        dis.text('gsSP1Triangle4(' + v00_idx + ',' + v01_idx + ',' + v02_idx + ', ' +
+                                     v03_idx + ',' + v04_idx + ',' + v05_idx + ', ' +
+                                     v06_idx + ',' + v07_idx + ',' + v08_idx + ', ' +
+                                     v09_idx + ',' + v10_idx + ',' + v11_idx + ');');
+      }
+
       if (v00_idx !== v01_idx) { triangleBuffer.pushTri(verts[v00_idx], verts[v01_idx], verts[v02_idx], tri_idx); tri_idx++; }
       if (v03_idx !== v04_idx) { triangleBuffer.pushTri(verts[v03_idx], verts[v04_idx], verts[v05_idx], tri_idx); tri_idx++; }
       if (v06_idx !== v07_idx) { triangleBuffer.pushTri(verts[v06_idx], verts[v07_idx], verts[v08_idx], tri_idx); tri_idx++; }
@@ -871,15 +1235,15 @@
       cmd0 = state.ram.getUint32( pc + 0 );
       cmd1 = state.ram.getUint32( pc + 4 );
       pc += 8;
-    } while ((cmd0>>>24) === kTri4 && tri_idx < kMaxTris);
+    } while ((cmd0>>>24) === kTri4 && tri_idx < kMaxTris && !dis); // NB: process triangles individsually when disassembling
 
     state.pc = pc-8;
 
     flushTris(tri_idx*3);
   }
 
-  function executeTri2(cmd0,cmd1) {
-    var kTri2  = 0Xb1;
+  function executeTri2(cmd0,cmd1,dis) {
+    var kTri2  = cmd0>>>24;
     var stride = config.vertexStride;
     var verts  = state.projectedVertices;
 
@@ -894,21 +1258,26 @@
       var v4_idx = ((cmd1>>> 8)&0xff)/stride;
       var v5_idx = ((cmd1>>> 0)&0xff)/stride;
 
+      if (dis) {
+        dis.text('gsSP1Triangle2(' + v0_idx + ',' + v1_idx + ',' + v2_idx + ', ' +
+                                     v3_idx + ',' + v4_idx + ',' + v5_idx + ');' );
+      }
+
       triangleBuffer.pushTri(verts[v0_idx], verts[v1_idx], verts[v2_idx], tri_idx); tri_idx++;
       triangleBuffer.pushTri(verts[v3_idx], verts[v4_idx], verts[v5_idx], tri_idx); tri_idx++;
 
       cmd0 = state.ram.getUint32( pc + 0 );
       cmd1 = state.ram.getUint32( pc + 4 );
       pc += 8;
-    } while ((cmd0>>>24) === kTri2 && tri_idx < kMaxTris);
+    } while ((cmd0>>>24) === kTri2 && tri_idx < kMaxTris && !dis); // NB: process triangles individsually when disassembling
 
     state.pc = pc-8;
 
     flushTris(tri_idx*3);
   }
 
-  function executeLine3D(cmd0,cmd1) {
-    var kLine3D = 0xb5;
+  function executeLine3D(cmd0,cmd1,dis) {
+    var kLine3D = cmd0>>>24;
     var stride  = config.vertexStride;
     var verts   = state.projectedVertices;
 
@@ -921,13 +1290,17 @@
       var v1_idx = ((cmd1>>> 8)&0xff)/stride;
       var v2_idx = ((cmd1>>> 0)&0xff)/stride;
 
+      if (dis) {
+        dis.text('gsSPLine3D(' + v0_idx + ', ' + v1_idx + ', ' + v2_idx + ', ' + v3_idx + ');');
+      }
+
       triangleBuffer.pushTri(verts[v0_idx], verts[v1_idx], verts[v2_idx], tri_idx); tri_idx++;
       triangleBuffer.pushTri(verts[v2_idx], verts[v3_idx], verts[v0_idx], tri_idx); tri_idx++;
 
       cmd0 = state.ram.getUint32( pc + 0 );
       cmd1 = state.ram.getUint32( pc + 4 );
       pc += 8;
-    } while ((cmd0>>>24) === kLine3D && tri_idx+1 < kMaxTris);
+    } while ((cmd0>>>24) === kLine3D && tri_idx+1 < kMaxTris && !dis); // NB: process triangles individsually when disassembling
 
     state.pc = pc-8;
 
@@ -940,14 +1313,30 @@
   function executeSetKeyR(cmd0,cmd1)              { unimplemented(cmd0,cmd1); }
   function executeSetConvert(cmd0,cmd1)           { unimplemented(cmd0,cmd1); }
 
-  function executeSetScissor(cmd0,cmd1) {
-    state.scissor.x0   = ((cmd0>>>12)&0xfff)/4.0;
-    state.scissor.y0   = ((cmd0>>> 0)&0xfff)/4.0;
-    state.scissor.x1   = ((cmd1>>>12)&0xfff)/4.0;
-    state.scissor.y1   = ((cmd1>>> 0)&0xfff)/4.0;
-    state.scissor.mode = (cmd1>>>24)&0x2;
+  var scissorModeValues = {
+    G_SC_NON_INTERLACE:     0,
+    G_SC_ODD_INTERLACE:     3,
+    G_SC_EVEN_INTERLACE:    2
+  };
 
-    // TODO: actually set this
+  function executeSetScissor(cmd0,cmd1,dis) {
+    var x0   = ((cmd0>>>12)&0xfff)/4.0;
+    var y0   = ((cmd0>>> 0)&0xfff)/4.0;
+    var x1   = ((cmd1>>>12)&0xfff)/4.0;
+    var y1   = ((cmd1>>> 0)&0xfff)/4.0;
+    var mode = (cmd1>>>24)&0x2;
+
+    if (dis) {
+      dis.text('gsDPSetScissor(' + getDefine(scissorModeValues, mode) + ', ' + x0 + ', ' + y0 + ', ' + x1 + ', ' + y1 + ');');
+    }
+
+    state.scissor.x0   = x0;
+    state.scissor.y0   = y0;
+    state.scissor.x1   = x1;
+    state.scissor.y1   = y1;
+    state.scissor.mode = mode;
+
+    // FIXME: actually set this
   }
 
   function executeSetPrimDepth(cmd0,cmd1)         { unimplemented(cmd0,cmd1); }
@@ -958,12 +1347,18 @@
                                                                    ((uls << size) >>> 1);
   }
 
-  function executeLoadBlock(cmd0,cmd1) {
+
+
+  function executeLoadBlock(cmd0,cmd1,dis) {
     var uls      = (cmd0>>>12)&0xfff;
     var ult      = (cmd0>>> 0)&0xfff;
     var tile_idx = (cmd1>>>24)&0x7;
-    //var lrs    = (cmd1>>>12)&0xfff;
+    var lrs      = (cmd1>>>12)&0xfff;
     var dxt      = (cmd1>>> 0)&0xfff;
+
+    if (dis) {
+      dis.text('gsDPLoadBlock(' + getTileText(tile_idx) + ', ' + uls + ', ' + ult + ', ' + lrs + ', ' + dxt + ');');
+    }
 
     var tile         = state.tiles[tile_idx];
     var tmem_address = tile.tmem || 0;
@@ -977,12 +1372,16 @@
     // invalidate all textures
   }
 
-  function executeLoadTile(cmd0,cmd1) {
+  function executeLoadTile(cmd0,cmd1,dis) {
     var uls      = (cmd0>>>12)&0xfff;
     var ult      = (cmd0>>> 0)&0xfff;
     var tile_idx = (cmd1>>>24)&0x7;
-    //var lrs    = (cmd1>>>12)&0xfff;
-    //var lrt    = (cmd1>>> 0)&0xfff;
+    var lrs      = (cmd1>>>12)&0xfff;
+    var lrt      = (cmd1>>> 0)&0xfff;
+
+    if (dis) {
+      dis.text('gsDPLoadTile(' + getTileText(tile_idx) + ', ' + (uls/4) + ', ' + (ult/4) + ', ' + (lrs/4) + ', ' + (lrt/4) + '); // (' + (uls/4) + ',' + (ult/4) + '), (' + ((lrs/4)+1) + ',' + ((lrt/4)+1) + ')');
+    }
 
     var tile         = state.tiles[tile_idx];
     var tmem_address = tile.tmem || 0;
@@ -999,15 +1398,19 @@
     // invalidate all textures
   }
 
-  function executeLoadTLut(cmd0,cmd1) {
+  function executeLoadTLut(cmd0,cmd1,dis) {
     var tile_idx = (cmd1>>>24)&0x7;
-    //var count    = (cmd1>>>14)&0x3ff;
+    var count    = (cmd1>>>14)&0x3ff;
 
     // NB, in Daedalus, we interpret this similarly to a loadtile command, but in other places it's defined as a simple count parameter
     var uls      = (cmd0>>>12)&0xfff;
     var ult      = (cmd0>>> 0)&0xfff;
     var lrs      = (cmd1>>>12)&0xfff;
     var lrt      = (cmd1>>> 0)&0xfff;
+
+    if (dis) {
+      dis.text('gsDPLoadTLUTCmd(' + getTileText(tile_idx) + ', ' + count + '); //' + uls + ', ' + ult + ', ' + lrs + ', ' + lrt);
+    }
 
     // Tlut fmt is sometimes wrong (in 007) and is set after tlut load, but before tile load
     // Format is always 16bpp - RGBA16 or IA16:
@@ -1026,42 +1429,96 @@
     };
   }
 
-  function executeSetTile(cmd0,cmd1) {
-    var tile_idx = (cmd1>>>24)&0x7;
+  function getClampMirrorWrapText(flags) {
+    switch (flags) {
+      case G_TX_WRAP:              return 'G_TX_WRAP';
+      case G_TX_MIRROR:            return 'G_TX_MIRROR';
+      case G_TX_CLAMP:             return 'G_TX_CLAMP';
+      case G_TX_MIRROR|G_TX_CLAMP: return 'G_TX_MIRROR|G_TX_CLAMP';
+    }
 
-    var tile = state.tiles[tile_idx];
-
-    tile.format   = (cmd0>>>21)&0x7;
-    tile.size     = (cmd0>>>19)&0x3;
-    tile.line     = (cmd0>>> 9)&0x1ff;
-    tile.tmem     = (cmd0>>> 0)&0x1ff;
-    tile.palette  = (cmd1>>>20)&0xf;
-    tile.cm_t     = (cmd1>>>18)&0x3;
-    tile.mask_t   = (cmd1>>>14)&0xf;
-    tile.shift_t  = (cmd1>>>10)&0xf;
-    tile.cm_s     = (cmd1>>> 8)&0x3;
-    tile.mask_s   = (cmd1>>> 4)&0xf;
-    tile.shift_s  = (cmd1>>> 0)&0xf;
+    return flags;
   }
 
-  function executeSetTileSize(cmd0,cmd1) {
-    var tile_idx = (cmd1>>>24)&0x7;
-
-    var tile = state.tiles[tile_idx];
-
-    tile.uls = (cmd0>>>12)&0xfff;
-    tile.ult = (cmd0>>> 0)&0xfff;
-    tile.lrs = (cmd1>>>12)&0xfff;
-    tile.lrt = (cmd1>>> 0)&0xfff;
+  function getTileText(tile_idx) {
+    var tile_text = tile_idx;
+    if (tile_idx === G_TX_LOADTILE)   tile_text = 'G_TX_LOADTILE';
+    if (tile_idx === G_TX_RENDERTILE) tile_text = 'G_TX_RENDERTILE';
+    return tile_text;
   }
 
-  function executeFillRect(cmd0,cmd1) {
+  function executeSetTile(cmd0,cmd1,dis) {
+    var format   = (cmd0>>>21)&0x7;
+    var size     = (cmd0>>>19)&0x3;
+    //var pad0   = (cmd0>>>18)&0x1;
+    var line     = (cmd0>>> 9)&0x1ff;
+    var tmem     = (cmd0>>> 0)&0x1ff;
+
+    //var pad1   = (cmd1>>>27)&0x1f;
+    var tile_idx = (cmd1>>>24)&0x7;
+    var palette  = (cmd1>>>20)&0xf;
+
+    var cm_t     = (cmd1>>>18)&0x3;
+    var mask_t   = (cmd1>>>14)&0xf;
+    var shift_t  = (cmd1>>>10)&0xf;
+
+    var cm_s     = (cmd1>>> 8)&0x3;
+    var mask_s   = (cmd1>>> 4)&0xf;
+    var shift_s  = (cmd1>>> 0)&0xf;
+
+    if (dis) {
+      var cm_s_text = getClampMirrorWrapText(cm_s);
+      var cm_t_text = getClampMirrorWrapText(cm_t);
+
+      dis.text('gsDPSetTile(' + getDefine(imageFormatTypes, format) + ', ' + getDefine(imageSizeTypes, size) + ', ' +
+       line + ', ' + tmem + ', ' + getTileText(tile_idx) + ', ' + palette + ', ' +
+       cm_t_text + ', ' + mask_t + ', ' + shift_t + ', ' +
+       cm_s_text + ', ' + mask_s + ', ' + shift_s + ');');
+    }
+
+    var tile = state.tiles[tile_idx];
+    tile.format   = format;
+    tile.size     = size;
+    tile.line     = line;
+    tile.tmem     = tmem;
+    tile.palette  = palette;
+    tile.cm_t     = cm_t;
+    tile.mask_t   = mask_t;
+    tile.shift_t  = shift_t;
+    tile.cm_s     = cm_s;
+    tile.mask_s   = mask_s;
+    tile.shift_s  = shift_s;
+  }
+
+  function executeSetTileSize(cmd0,cmd1,dis) {
+    var uls      = (cmd0>>>12)&0xfff;
+    var ult      = (cmd0>>> 0)&0xfff;
+    var tile_idx = (cmd1>>>24)&0x7;
+    var lrs      = (cmd1>>>12)&0xfff;
+    var lrt      = (cmd1>>> 0)&0xfff;
+
+    if (dis) {
+      dis.text('gsDPSetTileSize(' + getTileText(tile_idx) + ', ' + uls + ', ' + ult + ', ' + lrs + ', ' + lrt + '); // (' + (uls/4) + ',' + (ult/4) + '), (' + ((lrs/4)+1) + ',' + ((lrt/4)+1) + ')');
+    }
+
+    var tile = state.tiles[tile_idx];
+    tile.uls = uls;
+    tile.ult = ult;
+    tile.lrs = lrs;
+    tile.lrt = lrt;
+  }
+
+  function executeFillRect(cmd0,cmd1,dis) {
 
     // NB: fraction is ignored
     var x0 = ((cmd1>>>12)&0xfff)>>>2;
     var y0 = ((cmd1>>> 0)&0xfff)>>>2;
     var x1 = ((cmd0>>>12)&0xfff)>>>2;
     var y1 = ((cmd0>>> 0)&0xfff)>>>2;
+
+    if (dis) {
+      dis.text('gsDPFillRectangle(' + x0 + ', ' + y0 + ', ' + x1 + ', ' + y1 + ');');
+    }
 
     if (state.depthImage.address == state.colorImage.address) {
       gl.clearDepth(1.0);
@@ -1099,7 +1556,12 @@
     fillRect(x0, y0, x1, y1, color);
   }
 
-  function executeTexRect(cmd0,cmd1) {
+  function executeTexRect(cmd0,cmd1,dis) {
+
+    if (!texrected) {
+      n64js.emitRunningTime('texrect');
+      texrected = true;
+    }
 
     // The following 2 commands contain additional info
     // TODO: check op code matches what we expect?
@@ -1110,13 +1572,17 @@
 
     var xh   = ((cmd0>>>12)&0xfff)  / 4.0;
     var yh   = ((cmd0>>> 0)&0xfff)  / 4.0;
-    var tile =  (cmd1>>>24)&0x7;
+    var tile_idx =  (cmd1>>>24)&0x7;
     var xl   = ((cmd1>>>12)&0xfff)  / 4.0;
     var yl   = ((cmd1>>> 0)&0xfff)  / 4.0;
     var s0   = ((cmd2>>>16)&0xffff) / 32.0;
     var t0   = ((cmd2>>> 0)&0xffff) / 32.0;
     var dsdx = ((cmd3|0  )>>16) / 1024.0;   // NB - signed value
     var dtdy = ((cmd3<<16)>>16) / 1024.0;
+
+    if (dis) {
+      dis.text('gsSPTextureRectangle(' + xl + ',' + yl + ',' + xh + ',' + yh + ',' + getTileText(tile_idx) + ',' + s0 + ',' + t0 + ',' + dsdx + ',' + dtdy + ');');
+    }
 
     var cycle_type = getCycleType();
 
@@ -1135,7 +1601,7 @@
     var s1 = s0 + dsdx * (xh - xl);
     var t1 = t0 + dtdy * (yh - yl);
 
-    texRect(tile, xl,yl, xh,yh, s0,t0, s1,t1, false);
+    texRect(tile_idx, xl,yl, xh,yh, s0,t0, s1,t1, false);
   }
 
   function executeTexRectFlip(cmd0,cmd1) {
@@ -1148,7 +1614,7 @@
 
     var xh   = ((cmd0>>>12)&0xfff)  / 4.0;
     var yh   = ((cmd0>>> 0)&0xfff)  / 4.0;
-    var tile =  (cmd1>>>24)&0x7;
+    var tile_idx =  (cmd1>>>24)&0x7;
     var xl   = ((cmd1>>>12)&0xfff)  / 4.0;
     var yl   = ((cmd1>>> 0)&0xfff)  / 4.0;
     var s0   = ((cmd2>>>16)&0xffff) / 32.0;
@@ -1173,215 +1639,246 @@
     var s1 = s0 + dsdx * (yh - yl); // NB x/y flipped
     var t1 = t0 + dtdy * (xh - xl); // NB x/y flipped
 
-    texRect(tile, xl,yl, xh,yh, s0,t0, s1,t1, true);
+    texRect(tile_idx, xl,yl, xh,yh, s0,t0, s1,t1, true);
   }
 
 
-  function executeSetFillColor(cmd0,cmd1) {
+  function executeSetFillColor(cmd0,cmd1,dis) {
+    if (dis) {
+      dis.text('gsDPSetFillColor(' + n64js.toString32(cmd1) + ');');   // Can be 16 or 32 bit
+    }
     state.fillColor = cmd1;
   }
 
-  function executeSetFogColor(cmd0,cmd1) {
+  function executeSetFogColor(cmd0,cmd1,dis) {
+    if (dis) {
+      var r = (cmd1>>>24)&0xff;
+      var g = (cmd1>>>16)&0xff;
+      var b = (cmd1>>> 8)&0xff;
+      var a = (cmd1>>> 0)&0xff;
+
+      dis.text('gsDPSetFogColor(' + r + ', ' + g + ', ' + b + ', ' + a + ');');
+    }
     state.fogColor = cmd1;
   }
-  function executeSetBlendColor(cmd0,cmd1) {
+  function executeSetBlendColor(cmd0,cmd1,dis) {
+    if (dis) {
+      var r = (cmd1>>>24)&0xff;
+      var g = (cmd1>>>16)&0xff;
+      var b = (cmd1>>> 8)&0xff;
+      var a = (cmd1>>> 0)&0xff;
+
+      dis.text('gsDPSetBlendColor(' + r + ', ' + g + ', ' + b + ', ' + a + ');');
+    }
     state.blendColor = cmd1;
   }
 
-  function executeSetPrimColor(cmd0,cmd1) {
+  function executeSetPrimColor(cmd0,cmd1,dis) {
+    if (dis) {
+      var m = (cmd0>>> 8)&0xff;
+      var l = (cmd0>>> 0)&0xff;
+      var r = (cmd1>>>24)&0xff;
+      var g = (cmd1>>>16)&0xff;
+      var b = (cmd1>>> 8)&0xff;
+      var a = (cmd1>>> 0)&0xff;
+
+      dis.text('gsDPSetPrimColor(' + m + ', ' + l + ', ' + r + ', ' + g + ', ' + b + ', ' + a + ');');
+    }
     // minlevel, primlevel ignored!
     state.primColor = cmd1;
   }
 
-  function executeSetEnvColor(cmd0,cmd1) {
+  function executeSetEnvColor(cmd0,cmd1,dis) {
+    if (dis) {
+      var r = (cmd1>>>24)&0xff;
+      var g = (cmd1>>>16)&0xff;
+      var b = (cmd1>>> 8)&0xff;
+      var a = (cmd1>>> 0)&0xff;
+
+      dis.text('gsDPSetEnvColor(' + r + ', ' + g + ', ' + b + ', ' + a + ');');
+    }
     state.envColor = cmd1;
   }
 
-  function executeSetCombine(cmd0,cmd1) {
+
+
+  var colcombine32 = [
+    'Combined    ', 'Texel0      ',
+    'Texel1      ', 'Primitive   ',
+    'Shade       ', 'Env         ',
+    '1           ', 'CombAlp     ',
+    'Texel0_Alp  ', 'Texel1_Alp  ',
+    'Prim_Alpha  ', 'Shade_Alpha ',
+    'Env_Alpha   ', 'LOD_Frac    ',
+    'PrimLODFrac ', 'K5          ',
+    '?           ', '?           ',
+    '?           ', '?           ',
+    '?           ', '?           ',
+    '?           ', '?           ',
+    '?           ', '?           ',
+    '?           ', '?           ',
+    '?           ', '?           ',
+    '?           ', '0           '
+  ];
+  var colcombine16 = [
+    'Combined    ', 'Texel0      ',
+    'Texel1      ', 'Primitive   ',
+    'Shade       ', 'Env         ',
+    '1           ', 'CombAlp     ',
+    'Texel0_Alp  ', 'Texel1_Alp  ',
+    'Prim_Alp    ', 'Shade_Alpha ',
+    'Env_Alpha   ', 'LOD_Frac    ',
+    'PrimLOD_Frac', '0           '
+  ];
+  var colcombine8 = [
+    'Combined    ', 'Texel0      ',
+    'Texel1      ', 'Primitive   ',
+    'Shade       ', 'Env         ',
+    '1           ', '0           '
+  ];
+
+
+  function executeSetCombine(cmd0,cmd1,dis) {
+
+    if (dis) {
+      var mux0 = cmd0&0x00ffffff;
+      var mux1 = cmd1;
+
+      //
+      var aRGB0  = (mux0>>>20)&0x0F; // c1 c1    // a0
+      var bRGB0  = (mux1>>>28)&0x0F; // c1 c2    // b0
+      var cRGB0  = (mux0>>>15)&0x1F; // c1 c3    // c0
+      var dRGB0  = (mux1>>>15)&0x07; // c1 c4    // d0
+
+      var aA0    = (mux0>>>12)&0x07; // c1 a1    // Aa0
+      var bA0    = (mux1>>>12)&0x07; // c1 a2    // Ab0
+      var cA0    = (mux0>>> 9)&0x07; // c1 a3    // Ac0
+      var dA0    = (mux1>>> 9)&0x07; // c1 a4    // Ad0
+
+      var aRGB1  = (mux0>>> 5)&0x0F; // c2 c1    // a1
+      var bRGB1  = (mux1>>>24)&0x0F; // c2 c2    // b1
+      var cRGB1  = (mux0>>> 0)&0x1F; // c2 c3    // c1
+      var dRGB1  = (mux1>>> 6)&0x07; // c2 c4    // d1
+
+      var aA1    = (mux1>>>21)&0x07; // c2 a1    // Aa1
+      var bA1    = (mux1>>> 3)&0x07; // c2 a2    // Ab1
+      var cA1    = (mux1>>>18)&0x07; // c2 a3    // Ac1
+      var dA1    = (mux1>>> 0)&0x07; // c2 a4    // Ad1
+
+      var decoded = '';
+
+      decoded += '\n';
+      decoded += '\tRGB0 = (' + colcombine16[aRGB0] + ' - ' + colcombine16[bRGB0] + ') * ' + colcombine32[cRGB0] + ' + ' + colcombine8[dRGB0] + '\n';
+      decoded += '\t  A0 = (' + colcombine8 [  aA0] + ' - ' + colcombine8 [  bA0] + ') * ' + colcombine8 [  cA0] + ' + ' + colcombine8[  dA0] + '\n';
+      decoded += '\tRGB1 = (' + colcombine16[aRGB1] + ' - ' + colcombine16[bRGB1] + ') * ' + colcombine32[cRGB1] + ' + ' + colcombine8[dRGB1] + '\n';
+      decoded += '\t  A1 = (' + colcombine8 [  aA1] + ' - ' + colcombine8 [  bA1] + ') * ' + colcombine8 [  cA1] + ' + ' + colcombine8[  dA1] + '\n';
+
+      dis.text('gsDPSetCombine(' + n64js.toString32(mux0) + ', ' + n64js.toString32(mux1) + ');' + decoded);
+    }
+
     state.combine.hi = cmd0 & 0x00ffffff;
     state.combine.lo = cmd1;
   }
 
-  function executeSetTImg(cmd0,cmd1) {
+  var imageFormatTypes = {
+    G_IM_FMT_RGBA:    0,
+    G_IM_FMT_YUV:     1,
+    G_IM_FMT_CI:      2,
+    G_IM_FMT_IA:      3,
+    G_IM_FMT_I:       4
+  };
+
+  var imageSizeTypes = {
+    G_IM_SIZ_4b:      0,
+    G_IM_SIZ_8b:      1,
+    G_IM_SIZ_16b:     2,
+    G_IM_SIZ_32b:     3
+  };
+
+  function executeSetTImg(cmd0,cmd1,dis) {
+    var format  =  (cmd0>>>21)&0x7;
+    var size    =  (cmd0>>>19)&0x3;
+    var width   = ((cmd0>>> 0)&0xfff)+1;
+    var address =  rdpSegmentAddress(cmd1);
+
+    if (dis) {
+      dis.text('gsDPSetTextureImage(' + getDefine(imageFormatTypes, format) + ', ' + getDefine(imageSizeTypes, size) + ', ' + width + ', ' + n64js.toString32(address) + ');');
+    }
+
     state.textureImage = {
-      format:   (cmd0>>>21)&0x7,
-      size:     (cmd0>>>19)&0x3,
-      width:   ((cmd0>>> 0)&0xfff)+1,
-      address:   rdpSegmentAddress(cmd1)
+      format:   format,
+      size:     size,
+      width:    width,
+      address:  address
     };
   }
 
-  function executeSetZImg(cmd0,cmd1) {
-    state.depthImage.address = rdpSegmentAddress(cmd1);
+  function executeSetZImg(cmd0,cmd1,dis) {
+    var address = rdpSegmentAddress(cmd1);
+
+    if (dis) {
+      dis.text('gsDPSetDepthImage(' + n64js.toString32(address) + ');');
+    }
+
+    state.depthImage.address = address;
   }
 
-  function executeSetCImg(cmd0,cmd1) {
+  function executeSetCImg(cmd0,cmd1,dis) {
+    var format  =  (cmd0>>>21)&0x7;
+    var size    =  (cmd0>>>19)&0x3;
+    var width   = ((cmd0>>> 0)&0xfff)+1;
+    var address =  rdpSegmentAddress(cmd1);
+
+    if (dis) {
+      dis.text('gsDPSetColorImage(' + getDefine(imageFormatTypes, format) + ', ' + getDefine(imageSizeTypes, size) + ', ' + width + ', ' + n64js.toString32(address) + ');');
+    }
+
     state.colorImage = {
-      format:   (cmd0>>>21)&0x7,
-      size:     (cmd0>>>19)&0x3,
-      width:   ((cmd0>>> 0)&0xfff)+1,
-      address:   rdpSegmentAddress(cmd1)
+      format:   format,
+      size:     size,
+      width:    width,
+      address:  address
     };
   }
 
 
-  function disassembleDL(cmd0,cmd1) {
-    var param = ((cmd0>>>16)&0xff);
-    var address = n64js.toString32(cmd1);
-
-    if (param === G_DL_PUSH)
-      return 'gsSPDisplayList(<span class="dl-branch">' + address + '</span>);';
-    return 'gsSPBranchList(<span class="dl-branch">' + address + '</span>);';
-  }
-
-  function disassembleMatrix(cmd0,cmd1) {
-    var flags   = (cmd0>>>16)&0xff;
-    var length  = (cmd0>>> 0)&0xffff;
-    var address = n64js.toString32(cmd1);
-
-    var t = '';
-    t += (flags & G_MTX_PROJECTION) ? 'G_MTX_PROJECTION' : 'G_MTX_MODELVIEW';
-    t += (flags & G_MTX_LOAD) ?       '|G_MTX_LOAD'       : '|G_MTX_MUL';
-    t += (flags & G_MTX_PUSH) ?       '|G_MTX_PUSH'       : ''; //'|G_MTX_NOPUSH';
-
-    return 'gsSPMatrix(' + address + ', ' + t + ');';
-  }
-
-  function disassemblePopMatrix(cmd0,cmd1) {
-    var flags = (cmd1>>>0)&0xff;
-
-    var t = '';
-    t += (flags & G_MTX_PROJECTION) ? 'G_MTX_PROJECTION' : 'G_MTX_MODELVIEW';
-
-    return 'gsSPPopMatrix(' + t + ');';
-  }
-
-  function disassembleVertex_GBI0(cmd0,cmd1) {
-    var n       = ((cmd0>>>20)&0xf) + 1;
-    var v0      =  (cmd0>>>16)&0xf;
-    //var length  = (cmd0>>> 0)&0xffff;
-    var address = n64js.toString32(cmd1);
-
-    return 'gsSPVertex(' + address + ', ' + n + ', ' + v0 + ');';
-  }
-
-  function previewVertex_GBI0(cmd0,cmd1, ram, rdpSegmentAddress) {
-    var n       = ((cmd0>>>20)&0xf) + 1;
-    var v0      =  (cmd0>>>16)&0xf;
-    var address = rdpSegmentAddress(cmd1);
-
-    return previewVertexImpl(v0, n, address, ram);
-  }
-
-  function executeVertex_GBI0(cmd0,cmd1) {
+  function executeVertex_GBI0(cmd0,cmd1,dis) {
     var n       = ((cmd0>>>20)&0xf) + 1;
     var v0      =  (cmd0>>>16)&0xf;
     //var length  = (cmd0>>> 0)&0xffff;
     var address = rdpSegmentAddress(cmd1);
 
-    executeVertexImpl(v0, n, address);
+    if (dis) {
+      dis.text('gsSPVertex(' + n64js.toString32(address) + ', ' + n + ', ' + v0 + ');');
+    }
+
+    executeVertexImpl(v0, n, address, dis);
   }
 
-
-  function disassembleVertex_GBI0_WR(cmd0,cmd1) {
-    var n       = ((cmd0>>> 9)&0x7f);
-    var v0      = ((cmd0>>>16)&0xff) / 5;
-    //var length  = (cmd0>>> 0)&0x1ff;
-    var address = n64js.toString32(cmd1);
-
-    return 'gsSPVertex(' + address + ', ' + n + ', ' + v0 + ');';
-  }
-
-  function previewVertex_GBI0_WR(cmd0,cmd1, ram, rdpSegmentAddress) {
-    var n       = ((cmd0>>> 9)&0x7f);
-    var v0      = ((cmd0>>>16)&0xff) / 5;
-    var address = rdpSegmentAddress(cmd1);
-
-    return previewVertexImpl(v0, n, address, ram);
-  }
-
-  function executeVertex_GBI0_WR(cmd0,cmd1) {
+  function executeVertex_GBI0_WR(cmd0,cmd1,dis) {
     var n       = ((cmd0>>> 9)&0x7f);
     var v0      = ((cmd0>>>16)&0xff) / 5;
     //var length  = (cmd0>>> 0)&0x1ff;
     var address = rdpSegmentAddress(cmd1);
 
-    executeVertexImpl(v0, n, address);
+    if (dis) {
+      dis.text('gsSPVertex(' + n64js.toString32(address) + ', ' + n + ', ' + v0 + ');');
+    }
+
+    executeVertexImpl(v0, n, address, dis);
   }
 
-
-  function disassembleVertex_GBI1(cmd0,cmd1) {
-    var v0      = ((cmd0>>>16)&0xff) / config.vertexStride;
-    var n       = ((cmd0>>>10)&0x3f);
-    //var length  = (cmd0>>> 0)&0x3ff;
-    var address = n64js.toString32(cmd1);
-
-    return 'gsSPVertex(' + address + ', ' + n + ', ' + v0 + ');';
-  }
-
-  function previewVertex_GBI1(cmd0,cmd1, ram, rdpSegmentAddress) {
+  function executeVertex_GBI1(cmd0,cmd1,dis) {
     var v0      = ((cmd0>>>16)&0xff) / config.vertexStride;
     var n       = ((cmd0>>>10)&0x3f);
     //var length  = (cmd0>>> 0)&0x3ff;
     var address = rdpSegmentAddress(cmd1);
 
-    return previewVertexImpl(v0, n, address, ram);
-  }
-
-  function executeVertex_GBI1(cmd0,cmd1) {
-    var v0      = ((cmd0>>>16)&0xff) / config.vertexStride;
-    var n       = ((cmd0>>>10)&0x3f);
-    //var length  = (cmd0>>> 0)&0x3ff;
-    var address = rdpSegmentAddress(cmd1);
-
-    executeVertexImpl(v0, n, address);
-  }
-
-  function previewVertexImpl(v0, n, address, ram) {
-    var dv      = new DataView(ram.buffer, address);
-    var tip = '';
-
-    tip += '<table class="vertex-table">';
-
-    var cols = ['#', 'x', 'y', 'z', '?', 'u', 'v', 'norm', 'rgba'];
-
-    tip += '<tr><th>' + cols.join('</th><th>') + '</th></tr>\n';
-
-    for (var i = 0; i < n; ++i) {
-      var vtx_base = (v0+i)*16;
-      var v = [ v0+i,
-                dv.getInt16(vtx_base + 0),  // x
-                dv.getInt16(vtx_base + 2),  // y
-                dv.getInt16(vtx_base + 4),  // z
-                dv.getInt16(vtx_base + 6),  // ?
-                dv.getInt16(vtx_base + 8),  // u
-                dv.getInt16(vtx_base + 10), // v
-                dv.getInt8(vtx_base  + 12) + ',' + dv.getInt8(vtx_base  + 13) + ',' + dv.getInt8(vtx_base  + 14),  // norm
-                n64js.toString32( dv.getUint32(vtx_base + 12) ) // rgba
-      ];
-
-      tip += '<tr><td>' + v.join('</td><td>') + '</td></tr>\n';
-    }
-    tip += '</table>';
-    return tip;
-  }
-
-
-  function disassembleMoveMem(cmd0,cmd1) {
-    var type    = (cmd0>>>16)&0xff;
-    var length  = (cmd0>>> 0)&0xffff;
-    var address = n64js.toString32(cmd1);
-
-    switch (type) {
-      case moveMemTypeValues.G_MV_VIEWPORT:
-        if (length === 16)
-          return 'gsSPViewport(' + address + ');';
-        break;
+    if (dis) {
+      dis.text('gsSPVertex(' + n64js.toString32(address) + ', ' + n + ', ' + v0 + ');');
     }
 
-    var type_str = getDefine(moveMemTypeValues, type);
-
-    return 'gsDma1p(G_MOVEMEM, ' + address + ', ' + length + ', ' + type_str + ');';
+    executeVertexImpl(v0, n, address, dis);
   }
 
   function previewMoveMem(cmd0,cmd1, ram, rdpSegmentAddress) {
@@ -1422,77 +1919,6 @@
     return tip;
   }
 
-
-  function disassembleMoveWord(cmd0,cmd1) {
-
-    var type   = (cmd0    )&0xff;
-    var offset = (cmd0>>>8)&0xffff;
-    var value  = cmd1;
-
-    switch (type) {
-      case moveWordTypeValues.G_MW_NUMLIGHT:
-        if (offset === G_MWO_NUMLIGHT) {
-          var v = ((value - 0x80000000)>>>5) - 1;
-          return 'gsSPNumLights(' + getDefine(numLightValues, v) + ');';
-        }
-        break;
-      case moveWordTypeValues.G_MW_SEGMENT:
-        {
-          var v = value === 0 ? '0' : n64js.toString32(value);
-          return 'gsSPSegment(' + ((offset >>> 2)&0xf) + ', ' + v + ');';
-        }
-        break;
-    }
-
-
-    return 'gMoveWd(' + getDefine(moveWordTypeValues, type) + ', ' + n64js.toString16(offset) + ', ' + n64js.toString32(value) + ');';
-  }
-
-  var geometryModeFlags = {
-    G_ZBUFFER:            0x00000001,
-    G_TEXTURE_ENABLE:     0x00000002,  /* Microcode use only */
-    G_SHADE:              0x00000004,  /* enable Gouraud interp */
-    G_SHADING_SMOOTH:     0x00000200,  /* flat or smooth shaded */
-    G_CULL_FRONT:         0x00001000,
-    G_CULL_BACK:          0x00002000,
-    G_CULL_BOTH:          0x00003000,  /* To make code cleaner */
-    G_FOG:                0x00010000,
-    G_LIGHTING:           0x00020000,
-    G_TEXTURE_GEN:        0x00040000,
-    G_TEXTURE_GEN_LINEAR: 0x00080000,
-    G_LOD:                0x00100000  /* NOT IMPLEMENTED */
-
-  };
-
-  function getGeometryMode(data) {
-    var t = '';
-
-    if (data & geometryModeFlags.G_ZBUFFER)               t += '|G_ZBUFFER';
-    if (data & geometryModeFlags.G_TEXTURE_ENABLE)        t += '|G_TEXTURE_ENABLE';
-    if (data & geometryModeFlags.G_SHADE)                 t += '|G_SHADE';
-    if (data & geometryModeFlags.G_SHADING_SMOOTH)        t += '|G_SHADING_SMOOTH';
-
-    var cull = data & 0x00003000;
-         if (cull === geometryModeFlags.G_CULL_FRONT)     t += '|G_CULL_FRONT';
-    else if (cull === geometryModeFlags.G_CULL_BACK)      t += '|G_CULL_BACK';
-    else if (cull === geometryModeFlags.G_CULL_BOTH)      t += '|G_CULL_BOTH';
-
-    if (data & geometryModeFlags.G_FOG)                   t += '|G_FOG';
-    if (data & geometryModeFlags.G_LIGHTING)              t += '|G_LIGHTING';
-    if (data & geometryModeFlags.G_TEXTURE_GEN)           t += '|G_TEXTURE_GEN';
-    if (data & geometryModeFlags.G_TEXTURE_GEN_LINEAR)    t += '|G_TEXTURE_GEN_LINEAR';
-    if (data & geometryModeFlags.G_LOD)                   t += '|G_LOD';
-
-    return t.length > 0 ? t.substr(1) : '0';
-  }
-
-  function disassembleSetGeometryMode(a,b) {
-    return 'gsSPSetGeometryMode(' + getGeometryMode(b) + ');'
-  }
-
-  function disassembleClearGeometryMode(a,b) {
-    return 'gsSPClearGeometryMode(' + getGeometryMode(b) + ');'
-  }
 
   // G_SETOTHERMODE_L sft: shift count
   var G_MDSFT_ALPHACOMPARE    = 0;
@@ -1623,583 +2049,6 @@
         return d;
     }
     return n64js.toString32(v);
-  }
-
-  function getOtherModeLShiftCount(sft) {
-    switch (sft) {
-
-      case G_MDSFT_ALPHACOMPARE:  return 'G_MDSFT_ALPHACOMPARE';
-      case G_MDSFT_ZSRCSEL:       return 'G_MDSFT_ZSRCSEL';
-      case G_MDSFT_RENDERMODE:    return 'G_MDSFT_RENDERMODE';
-      case G_MDSFT_BLENDER:       return 'G_MDSFT_BLENDER';
-    }
-
-    return n64js.toString8(sft);
-  }
-
-  function getOtherModeHShiftCount(sft) {
-    switch (sft) {
-
-      case G_MDSFT_BLENDMASK:   return 'G_MDSFT_BLENDMASK';
-      case G_MDSFT_ALPHADITHER: return 'G_MDSFT_ALPHADITHER';
-      case G_MDSFT_RGBDITHER:   return 'G_MDSFT_RGBDITHER';
-      case G_MDSFT_COMBKEY:     return 'G_MDSFT_COMBKEY';
-      case G_MDSFT_TEXTCONV:    return 'G_MDSFT_TEXTCONV';
-      case G_MDSFT_TEXTFILT:    return 'G_MDSFT_TEXTFILT';
-      case G_MDSFT_TEXTLUT:     return 'G_MDSFT_TEXTLUT';
-      case G_MDSFT_TEXTLOD:     return 'G_MDSFT_TEXTLOD';
-      case G_MDSFT_TEXTDETAIL:  return 'G_MDSFT_TEXTDETAIL';
-      case G_MDSFT_TEXTPERSP:   return 'G_MDSFT_TEXTPERSP';
-      case G_MDSFT_CYCLETYPE:   return 'G_MDSFT_CYCLETYPE';
-      case G_MDSFT_COLORDITHER: return 'G_MDSFT_COLORDITHER';
-      case G_MDSFT_PIPELINE:    return 'G_MDSFT_PIPELINE';
-    }
-
-    return n64js.toString8(sft);
-  }
-
-  var renderModeFlags = {
-    AA_EN:               0x0008,
-    Z_CMP:               0x0010,
-    Z_UPD:               0x0020,
-    IM_RD:               0x0040,
-    CLR_ON_CVG:          0x0080,
-    CVG_DST_CLAMP:       0,
-    CVG_DST_WRAP:        0x0100,
-    CVG_DST_FULL:        0x0200,
-    CVG_DST_SAVE:        0x0300,
-    ZMODE_OPA:           0,
-    ZMODE_INTER:         0x0400,
-    ZMODE_XLU:           0x0800,
-    ZMODE_DEC:           0x0c00,
-    CVG_X_ALPHA:         0x1000,
-    ALPHA_CVG_SEL:       0x2000,
-    FORCE_BL:            0x4000,
-    TEX_EDGE:            0x0000 /* used to be 0x8000 */
-  };
-
-  var blendColourSources = [
-    'G_BL_CLR_IN',
-    'G_BL_CLR_MEM',
-    'G_BL_CLR_BL',
-    'G_BL_CLR_FOG'
-  ];
-
-  var blendSourceFactors = [
-    'G_BL_A_IN',
-    'G_BL_A_FOG',
-    'G_BL_A_SHADE',
-    'G_BL_0'
-  ];
-
-  var blendDestFactors = [
-    'G_BL_1MA',
-    'G_BL_A_MEM',
-    'G_BL_1',
-    'G_BL_0'
-  ];
-
-  function blendOpText(v) {
-    var m1a = (v>>>12)&0x3;
-    var m1b = (v>>> 8)&0x3;
-    var m2a = (v>>> 4)&0x3;
-    var m2b = (v>>> 0)&0x3;
-
-    return blendColourSources[m1a] + ',' + blendSourceFactors[m1b] + ',' + blendColourSources[m2a] + ',' + blendDestFactors[m2b];
-  }
-
-  function getRenderMode(data) {
-    var t = '';
-
-    if (data & renderModeFlags.AA_EN)               t += '|AA_EN';
-    if (data & renderModeFlags.Z_CMP)               t += '|Z_CMP';
-    if (data & renderModeFlags.Z_UPD)               t += '|Z_UPD';
-    if (data & renderModeFlags.IM_RD)               t += '|IM_RD';
-    if (data & renderModeFlags.CLR_ON_CVG)          t += '|CLR_ON_CVG';
-
-    var cvg = data & 0x0300;
-         if (cvg === renderModeFlags.CVG_DST_CLAMP) t += '|CVG_DST_CLAMP';
-    else if (cvg === renderModeFlags.CVG_DST_WRAP)  t += '|CVG_DST_WRAP';
-    else if (cvg === renderModeFlags.CVG_DST_FULL)  t += '|CVG_DST_FULL';
-    else if (cvg === renderModeFlags.CVG_DST_SAVE)  t += '|CVG_DST_SAVE';
-
-    var zmode = data & 0x0c00;
-         if (zmode === renderModeFlags.ZMODE_OPA)   t += '|ZMODE_OPA';
-    else if (zmode === renderModeFlags.ZMODE_INTER) t += '|ZMODE_INTER';
-    else if (zmode === renderModeFlags.ZMODE_XLU)   t += '|ZMODE_XLU';
-    else if (zmode === renderModeFlags.ZMODE_DEC)   t += '|ZMODE_DEC';
-
-    if (data & renderModeFlags.CVG_X_ALPHA)         t += '|CVG_X_ALPHA';
-    if (data & renderModeFlags.ALPHA_CVG_SEL)       t += '|ALPHA_CVG_SEL';
-    if (data & renderModeFlags.FORCE_BL)            t += '|FORCE_BL';
-
-    var c0 = t.length > 0 ? t.substr(1) : '0';
-
-    var blend = data >>> G_MDSFT_BLENDER;
-
-    var c1 = 'GBL_c1(' + blendOpText(blend>>>2) + ') | GBL_c2(' + blendOpText(blend) + ') /*' + n64js.toString16(blend) + '*/';
-
-    return c0 + ', ' + c1;
-  }
-
-
-  function disassembleSetOtherModeL(cmd0, cmd1) {
-    var cmd   = (cmd0>>>24)&0xff;
-    var shift = (cmd0>>> 8)&0xff;
-    var len   = (cmd0>>> 0)&0xff;
-    var data  = cmd1;
-
-    var data_str  = n64js.toString32(data);
-
-    switch (shift) {
-      case G_MDSFT_ALPHACOMPARE:  if (len === 2)  return 'gsDPSetAlphaCompare(' + getDefine(alphaCompareValues, data) + ');'; break;
-      case G_MDSFT_ZSRCSEL:       if (len === 1)  return 'gsDPSetDepthSource('  + getDefine(depthSourceValues, data)  + ');'; break;
-      case G_MDSFT_RENDERMODE:    if (len === 29) return 'gsDPSetRenderMode('   + getRenderMode(data) + ');'; break;
-      //case G_MDSFT_BLENDER:     break; // set with G_MDSFT_RENDERMODE
-    }
-
-
-    var shift_str = getOtherModeLShiftCount(shift);
-
-    return 'gsSPSetOtherMode(G_SETOTHERMODE_L, ' + shift_str + ', ' + len + ', ' + data_str + ');';
-  }
-
-  function disassembleSetOtherModeH(cmd0, cmd1) {
-    var cmd   = (cmd0>>>24)&0xff;
-    var shift = (cmd0>>> 8)&0xff;
-    var len   = (cmd0>>> 0)&0xff;
-    var data  = cmd1;
-
-    switch (shift) {
-
-      case G_MDSFT_BLENDMASK:   break; 
-      case G_MDSFT_ALPHADITHER: if (len === 2) return 'gsDPSetAlphaDither('   + getDefine(alphaDitherValues, data)    + ');'; break;
-      case G_MDSFT_RGBDITHER:   if (len === 2) return 'gsDPSetColorDither('   + getDefine(colorDitherValues, data)    + ');'; break;  // NB HW2?
-      case G_MDSFT_COMBKEY:     if (len === 1) return 'gsDPSetCombineKey('    + getDefine(combineKeyValues,  data)    + ');'; break;
-      case G_MDSFT_TEXTCONV:    if (len === 3) return 'gsDPSetTextureConvert('+ getDefine(textureConvertValues, data) + ');'; break;
-      case G_MDSFT_TEXTFILT:    if (len === 2) return 'gsDPSetTextureFilter(' + getDefine(textureFilterValues, data)  + ');'; break;
-      case G_MDSFT_TEXTLOD:     if (len === 1) return 'gsDPSetTextureLOD('    + getDefine(textureLODValues, data)     + ');'; break;
-      case G_MDSFT_TEXTLUT:     if (len === 2) return 'gsDPSetTextureLUT('    + getDefine(textureLUTValues, data)     + ');'; break;
-      case G_MDSFT_TEXTDETAIL:  if (len === 2) return 'gsDPSetTextureDetail(' + getDefine(textureDetailValues, data)  + ');'; break;
-      case G_MDSFT_TEXTPERSP:   if (len === 1) return 'gsDPSetTexturePersp('  + getDefine(texturePerspValues, data)   + ');'; break;
-      case G_MDSFT_CYCLETYPE:   if (len === 2) return 'gsDPSetCycleType('     + getDefine(cycleTypeValues, data)      + ');'; break;
-      //case G_MDSFT_COLORDITHER: if (len === 1) return 'gsDPSetColorDither('   + data_str + ');'; break;  // NB HW1?
-      case G_MDSFT_PIPELINE:    if (len === 1) return 'gsDPPipelineMode('     + getDefine(pipelineModeValues, data)   + ');'; break;
-    }
-
-    var shift_str = getOtherModeHShiftCount(shift);
-    var data_str  = n64js.toString32(data);
-
-    return 'gsSPSetOtherMode(G_SETOTHERMODE_H, ' + shift_str + ', ' + len + ', ' + data_str + ');';
-  }
-
-  var scissorModeValues = {
-    G_SC_NON_INTERLACE:     0,
-    G_SC_ODD_INTERLACE:     3,
-    G_SC_EVEN_INTERLACE:    2
-  };
-
-  function disassembleSetScissor(cmd0, cmd1) {
-    var x0   = ((cmd0>>>12)&0xfff)/4.0;
-    var y0   = ((cmd0>>> 0)&0xfff)/4.0;
-    var x1   = ((cmd1>>>12)&0xfff)/4.0;
-    var y1   = ((cmd1>>> 0)&0xfff)/4.0;
-    var mode = (cmd1>>>24)&0x2;
-
-    return 'gsDPSetScissor(' + getDefine(scissorModeValues, mode) + ', ' + x0 + ', ' + y0 + ', ' + x1 + ', ' + y1 + ');';
-  }
-
-  function disassembleTexture(cmd0, cmd1) {
-
-    var xparam  =  (cmd0>>>16)&0xff;
-    var level   =  (cmd0>>>11)&0x3;
-    var tile    =  (cmd0>>> 8)&0x7;
-    var on      =  (cmd0>>> 0)&0xff;
-    var s       = calcTextureScale(((cmd1>>>16)&0xffff));
-    var t       = calcTextureScale(((cmd1>>> 0)&0xffff));
-
-    var s_text = s.toString();
-    var t_text = t.toString();
-
-    if (xparam !== 0) {
-      return 'gsSPTextureL(' + s_text + ', ' + t_text + ', ' + level + ', ' + xparam + ', ' + tile + ', ' + on + ');';
-    }
-    return 'gsSPTexture(' + s_text + ', ' + t_text + ', ' + level + ', ' + tile + ', ' + on + ');';
-  }
-
-  var imageFormatTypes = {
-    G_IM_FMT_RGBA:    0,
-    G_IM_FMT_YUV:     1,
-    G_IM_FMT_CI:      2,
-    G_IM_FMT_IA:      3,
-    G_IM_FMT_I:       4
-  };
-
-  var imageSizeTypes = {
-    G_IM_SIZ_4b:      0,
-    G_IM_SIZ_8b:      1,
-    G_IM_SIZ_16b:     2,
-    G_IM_SIZ_32b:     3
-  };
-
-  function disassembleSetColorImage(cmd0,cmd1) {
-    var format =  (cmd0>>>21)&0x7;
-    var size   =  (cmd0>>>19)&0x3;
-    var width  = ((cmd0>>> 0)&0xfff)+1;
-    return 'gsDPSetColorImage(' + getDefine(imageFormatTypes, format) + ', ' + getDefine(imageSizeTypes, size) + ', ' + width + ', ' + n64js.toString32(cmd1) + ');';
-  }
-  function disassembleSetDepthImage(cmd0,cmd1) {
-    return 'gsDPSetDepthImage(' + n64js.toString32(cmd1) + ');';
-  }
-  function disassembleSetTextureImage(cmd0,cmd1) {
-    var format =  (cmd0>>>21)&0x7;
-    var size   =  (cmd0>>>19)&0x3;
-    var width  = ((cmd0>>> 0)&0xfff)+1;
-    return 'gsDPSetTextureImage(' + getDefine(imageFormatTypes, format) + ', ' + getDefine(imageSizeTypes, size) + ', ' + width + ', ' + n64js.toString32(cmd1) + ');';
-  }
-
-  function disassembleSetFillColor(cmd0,cmd1) {
-    return 'gsDPSetFillColor(' + n64js.toString32(cmd1) + ');';   // Can be 16 or 32 bit
-  }
-
-  function disassembleSetEnvColor(cmd0,cmd1) {
-    var r = (cmd1>>>24)&0xff;
-    var g = (cmd1>>>16)&0xff;
-    var b = (cmd1>>> 8)&0xff;
-    var a = (cmd1>>> 0)&0xff;
-
-    return 'gsDPSetEnvColor(' + r + ', ' + g + ', ' + b + ', ' + a + ');';
-  }
-
-  function disassembleSetBlendColor(cmd0,cmd1) {
-    var r = (cmd1>>>24)&0xff;
-    var g = (cmd1>>>16)&0xff;
-    var b = (cmd1>>> 8)&0xff;
-    var a = (cmd1>>> 0)&0xff;
-
-    return 'gsDPSetBlendColor(' + r + ', ' + g + ', ' + b + ', ' + a + ');';
-  }
-
-  function disassembleSetFogColor(cmd0,cmd1) {
-    var r = (cmd1>>>24)&0xff;
-    var g = (cmd1>>>16)&0xff;
-    var b = (cmd1>>> 8)&0xff;
-    var a = (cmd1>>> 0)&0xff;
-
-    return 'gsDPSetFogColor(' + r + ', ' + g + ', ' + b + ', ' + a + ');';
-  }
-
-  function disassembleSetPrimColor(cmd0,cmd1) {
-    var m = (cmd0>>> 8)&0xff;
-    var l = (cmd0>>> 0)&0xff;
-    var r = (cmd1>>>24)&0xff;
-    var g = (cmd1>>>16)&0xff;
-    var b = (cmd1>>> 8)&0xff;
-    var a = (cmd1>>> 0)&0xff;
-
-    return 'gsDPSetPrimColor(' + m + ', ' + l + ', ' + r + ', ' + g + ', ' + b + ', ' + a + ');';
-  }
-
-  var colcombine32 = [
-    'Combined    ', 'Texel0      ',
-    'Texel1      ', 'Primitive   ',
-    'Shade       ', 'Env         ',
-    '1           ', 'CombAlp     ',
-    'Texel0_Alp  ', 'Texel1_Alp  ',
-    'Prim_Alpha  ', 'Shade_Alpha ',
-    'Env_Alpha   ', 'LOD_Frac    ',
-    'PrimLODFrac ', 'K5          ',
-    '?           ', '?           ',
-    '?           ', '?           ',
-    '?           ', '?           ',
-    '?           ', '?           ',
-    '?           ', '?           ',
-    '?           ', '?           ',
-    '?           ', '?           ',
-    '?           ', '0           '
-  ];
-  var colcombine16 = [
-    'Combined    ', 'Texel0      ',
-    'Texel1      ', 'Primitive   ',
-    'Shade       ', 'Env         ',
-    '1           ', 'CombAlp     ',
-    'Texel0_Alp  ', 'Texel1_Alp  ',
-    'Prim_Alp    ', 'Shade_Alpha ',
-    'Env_Alpha   ', 'LOD_Frac    ',
-    'PrimLOD_Frac', '0           '
-  ];
-  var colcombine8 = [
-    'Combined    ', 'Texel0      ',
-    'Texel1      ', 'Primitive   ',
-    'Shade       ', 'Env         ',
-    '1           ', '0           '
-  ];
-
-
-  function disassembleSetCombine(cmd0,cmd1) {
-    var mux0 = cmd0&0x00ffffff;
-    var mux1 = cmd1;
-
-    //
-    var aRGB0  = (mux0>>>20)&0x0F; // c1 c1    // a0
-    var bRGB0  = (mux1>>>28)&0x0F; // c1 c2    // b0
-    var cRGB0  = (mux0>>>15)&0x1F; // c1 c3    // c0
-    var dRGB0  = (mux1>>>15)&0x07; // c1 c4    // d0
-
-    var aA0    = (mux0>>>12)&0x07; // c1 a1    // Aa0
-    var bA0    = (mux1>>>12)&0x07; // c1 a2    // Ab0
-    var cA0    = (mux0>>> 9)&0x07; // c1 a3    // Ac0
-    var dA0    = (mux1>>> 9)&0x07; // c1 a4    // Ad0
-
-    var aRGB1  = (mux0>>> 5)&0x0F; // c2 c1    // a1
-    var bRGB1  = (mux1>>>24)&0x0F; // c2 c2    // b1
-    var cRGB1  = (mux0>>> 0)&0x1F; // c2 c3    // c1
-    var dRGB1  = (mux1>>> 6)&0x07; // c2 c4    // d1
-
-    var aA1    = (mux1>>>21)&0x07; // c2 a1    // Aa1
-    var bA1    = (mux1>>> 3)&0x07; // c2 a2    // Ab1
-    var cA1    = (mux1>>>18)&0x07; // c2 a3    // Ac1
-    var dA1    = (mux1>>> 0)&0x07; // c2 a4    // Ad1
-
-    var decoded = '';
-
-    decoded += '\n';
-    decoded += '\tRGB0 = (' + colcombine16[aRGB0] + ' - ' + colcombine16[bRGB0] + ') * ' + colcombine32[cRGB0] + ' + ' + colcombine8[dRGB0] + '\n';
-    decoded += '\t  A0 = (' + colcombine8 [  aA0] + ' - ' + colcombine8 [  bA0] + ') * ' + colcombine8 [  cA0] + ' + ' + colcombine8[  dA0] + '\n';
-    decoded += '\tRGB1 = (' + colcombine16[aRGB1] + ' - ' + colcombine16[bRGB1] + ') * ' + colcombine32[cRGB1] + ' + ' + colcombine8[dRGB1] + '\n';
-    decoded += '\t  A1 = (' + colcombine8 [  aA1] + ' - ' + colcombine8 [  bA1] + ') * ' + colcombine8 [  cA1] + ' + ' + colcombine8[  dA1] + '\n';
-
-    return 'gsDPSetCombine(' + n64js.toString32(mux0) + ', ' + n64js.toString32(mux1) + ');' + decoded;
-  }
-
-  function getClampMirrorWrapText(flags) {
-    switch (flags) {
-      case G_TX_WRAP:              return 'G_TX_WRAP';
-      case G_TX_MIRROR:            return 'G_TX_MIRROR';
-      case G_TX_CLAMP:             return 'G_TX_CLAMP';
-      case G_TX_MIRROR|G_TX_CLAMP: return 'G_TX_MIRROR|G_TX_CLAMP';
-    }
-
-    return flags;
-  }
-
-  function getTileText(tile_idx) {
-    var tile_text = tile_idx;
-    if (tile_idx === G_TX_LOADTILE)   tile_text = 'G_TX_LOADTILE';
-    if (tile_idx === G_TX_RENDERTILE) tile_text = 'G_TX_RENDERTILE';
-    return tile_text;
-  }
-
-
-  function disassembleSetTile(cmd0,cmd1) {
-    var format   = (cmd0>>>21)&0x7;
-    var size     = (cmd0>>>19)&0x3;
-    //var pad0   = (cmd0>>>18)&0x1;
-    var line     = (cmd0>>> 9)&0x1ff;
-    var tmem     = (cmd0>>> 0)&0x1ff;
-
-    //var pad1   = (cmd1>>>27)&0x1f;
-    var tile_idx = (cmd1>>>24)&0x7;
-    var palette  = (cmd1>>>20)&0xf;
-
-    var cm_t     = (cmd1>>>18)&0x3;
-    var mask_t   = (cmd1>>>14)&0xf;
-    var shift_t  = (cmd1>>>10)&0xf;
-
-    var cm_s     = (cmd1>>> 8)&0x3;
-    var mask_s   = (cmd1>>> 4)&0xf;
-    var shift_s  = (cmd1>>> 0)&0xf;
-
-    var cm_s_text = getClampMirrorWrapText(cm_s);
-    var cm_t_text = getClampMirrorWrapText(cm_t);
-
-
-    return 'gsDPSetTile(' + getDefine(imageFormatTypes, format) + ', ' + getDefine(imageSizeTypes, size) + ', ' +
-     line + ', ' + tmem + ', ' + getTileText(tile_idx) + ', ' + palette + ', ' +
-     cm_t_text + ', ' + mask_t + ', ' + shift_t + ', ' +
-     cm_s_text + ', ' + mask_s + ', ' + shift_s + ');';
-  }
-
-  function disassembleSetTileSize(cmd0,cmd1) {
-    var uls      = (cmd0>>>12)&0xfff;
-    var ult      = (cmd0>>> 0)&0xfff;
-    var tile_idx = (cmd1>>>24)&0x7;
-    var lrs      = (cmd1>>>12)&0xfff;
-    var lrt      = (cmd1>>> 0)&0xfff;
-
-    return 'gsDPSetTileSize(' + getTileText(tile_idx) + ', ' + uls + ', ' + ult + ', ' + lrs + ', ' + lrt + '); // (' + (uls/4) + ',' + (ult/4) + '), (' + ((lrs/4)+1) + ',' + ((lrt/4)+1) + ')';
-  }
-
-  function disassembleLoadTile(cmd0,cmd1) {
-    var uls      = (cmd0>>>12)&0xfff;
-    var ult      = (cmd0>>> 0)&0xfff;
-    var tile_idx = (cmd1>>>24)&0x7;
-    var lrs      = (cmd1>>>12)&0xfff;
-    var lrt      = (cmd1>>> 0)&0xfff;
-
-    uls /= 4.0;
-    ult /= 4.0;
-    lrs /= 4.0;
-    lrt /= 4.0;
-
-  return 'gsDPLoadTile(' + getTileText(tile_idx) + ', ' + uls + ', ' + ult + ', ' + lrs + ', ' + lrt + '); // (' + (uls/4) + ',' + (ult/4) + '), (' + ((lrs/4)+1) + ',' + ((lrt/4)+1) + ')';
-  }
-
-  function disassembleLoadBlock(cmd0,cmd1) {
-    var uls      = (cmd0>>>12)&0xfff;
-    var ult      = (cmd0>>> 0)&0xfff;
-    var tile_idx = (cmd1>>>24)&0x7;
-    var lrs      = (cmd1>>>12)&0xfff;
-    var dxt      = (cmd1>>> 0)&0xfff;
-
-   return 'gsDPLoadBlock(' + getTileText(tile_idx) + ', ' + uls + ', ' + ult + ', ' + lrs + ', ' + dxt + ');';
-  }
-
-  function disassembleLoadTLut(cmd0,cmd1) {
-    var tile_idx = (cmd1>>>24)&0x7;
-    var count    = (cmd1>>>14)&0x3ff;
-
-    // NB, in Daedalus, we interpret this similarly to a loadtile command.
-    var uls      = (cmd0>>>12)&0xfff;
-    var ult      = (cmd0>>> 0)&0xfff;
-    var lrs      = (cmd1>>>12)&0xfff;
-    var lrt      = (cmd1>>> 0)&0xfff;
-
-    return 'gsDPLoadTLUTCmd(' + getTileText(tile_idx) + ', ' + count + '); //' + uls + ', ' + ult + ', ' + lrs + ', ' + lrt;
-  }
-
-  function disassembleFillRect(cmd0,cmd1) {
-    // NB: fraction is ignored
-    var x0 = ((cmd1>>>12)&0xfff)>>>2;
-    var y0 = ((cmd1>>> 0)&0xfff)>>>2;
-    var x1 = ((cmd0>>>12)&0xfff)>>>2;
-    var y1 = ((cmd0>>> 0)&0xfff)>>>2;
-
-    return 'gsDPFillRectangle(' + x0 + ', ' + y0 + ', ' + x1 + ', ' + y1 + ');';
-  }
-
-  function disassembleTri1(cmd0,cmd1) {
-    var flag   =  (cmd1>>>24)&0xff;
-    var v0_idx = ((cmd1>>>16)&0xff)/config.vertexStride;
-    var v1_idx = ((cmd1>>> 8)&0xff)/config.vertexStride;
-    var v2_idx = ((cmd1>>> 0)&0xff)/config.vertexStride;
-
-    return 'gsSP1Triangle(' + v0_idx + ', ' + v1_idx + ', ' + v2_idx + ', ' + flag + ');';
-  }
-
-  function disassembleTri2(cmd0,cmd1) {
-    var v0_idx = ((cmd0>>>16)&0xff)/config.vertexStride;
-    var v1_idx = ((cmd0>>> 8)&0xff)/config.vertexStride;
-    var v2_idx = ((cmd0>>> 0)&0xff)/config.vertexStride;
-    var v3_idx = ((cmd1>>>16)&0xff)/config.vertexStride;
-    var v4_idx = ((cmd1>>> 8)&0xff)/config.vertexStride;
-    var v5_idx = ((cmd1>>> 0)&0xff)/config.vertexStride;
-
-    return 'gsSP1Triangle2(' + v0_idx + ',' + v1_idx + ',' + v2_idx + ', ' +
-                               v3_idx + ',' + v4_idx + ',' + v5_idx + ');';
-  }
-
-  function disassembleTexRect(cmd0,cmd1) {
-    var xh       = ((cmd0>>>12)&0xfff)  / 4.0;
-    var yh       = ((cmd0>>> 0)&0xfff)  / 4.0;
-    var tile_idx =  (cmd1>>>24)&0x7;
-    var xl       = ((cmd1>>>12)&0xfff)  / 4.0;
-    var yl       = ((cmd1>>> 0)&0xfff)  / 4.0;
-    // TODO from subsequent commands:
-    // var s    = ((cmd2>>>16)&0xffff) / 32.0;
-    // var t    = ((cmd2>>> 0)&0xffff) / 32.0;
-    // var dsdx = ((cmd3>>>16)&0xffff) / 1024.0;
-    // var dtdy = ((cmd3>>> 0)&0xffff) / 1024.0;
-
-    return 'gsSPTextureRectangle(' + xl + ',' + yl + ',' + xh + ',' + yh + ',' + getTileText(tile_idx) + ', ???);';
-  }
-
-  function disassembleLine3D(cmd0,cmd1) {
-    var v3_idx = ((cmd1>>>24)&0xff)/config.vertexStride;
-    var v0_idx = ((cmd1>>>16)&0xff)/config.vertexStride;
-    var v1_idx = ((cmd1>>> 8)&0xff)/config.vertexStride;
-    var v2_idx = ((cmd1>>> 0)&0xff)/config.vertexStride;
-
-    return 'gsSPLine3D(' + v0_idx + ', ' + v1_idx + ', ' + v2_idx + ', ' + v3_idx + ');';
-  }
-
-  function disassembleCommand(a,b) {
-    var cmd = a>>>24;
-    switch(cmd) {
-
-      case 0x00:      return 'SpNoop';
-      case 0x01:      return disassembleMatrix(a,b);
-      //case 0x02:    return 'Reserved';
-      case 0x03:      return disassembleMoveMem(a,b);
-      case 0x04:      return disassembleVertex(a,b);
-      //case 0x05:    return 'Reserved';
-      case 0x06:      return disassembleDL(a,b);
-      //case 0x07:    return 'Reserved';
-      //case 0x08:    return 'Reserved';
-      case 0x09:      return 'Sprite2DBase';
-
-      case 0xaf:      return 'loadUCode';
-      case 0xb0:      return 'branchZ';
-      case 0xb1:      return disassembleTri2(a,b);
-      case 0xb2:      return 'RDPHalf_Cont';  // modifyVtx
-      case 0xb3:      return 'gsImmp1(G_RDPHALF_2, ' + n64js.toString32(b) + ');';
-      case 0xb4:      return 'gsImmp1(G_RDPHALF_1, ' + n64js.toString32(b) + ');';
-      case 0xb5:      return disassembleLine3D(a,b);
-      case 0xb6:      return disassembleClearGeometryMode(a,b);
-      case 0xb7:      return disassembleSetGeometryMode(a,b);
-      case 0xb8:      return 'gsSPEndDisplayList();';
-      case 0xb9:      return disassembleSetOtherModeL(a,b);
-      case 0xba:      return disassembleSetOtherModeH(a,b);
-      case 0xbb:      return disassembleTexture(a,b);
-      case 0xbc:      return disassembleMoveWord(a,b);
-      case 0xbd:      return disassemblePopMatrix(a,b);
-      case 0xbe:      return 'CullDL';
-      case 0xbf:      return disassembleTri1(a,b);
-
-      case 0xc0:      return 'gsDPNoOp();';
-      case 0xc8:      return 'TriRSP';
-      case 0xc9:      return 'TriRSP';
-      case 0xca:      return 'TriRSP';
-      case 0xcb:      return 'TriRSP';
-      case 0xcc:      return 'TriRSP';
-      case 0xcd:      return 'TriRSP';
-      case 0xce:      return 'TriRSP';
-      case 0xcf:      return 'TriRSP';
-
-      case 0xe4:      return disassembleTexRect(a,b);
-      case 0xe5:      return 'TexRectFlip';
-      case 0xe6:      return 'gsDPLoadSync();';
-      case 0xe7:      return 'gsDPPipeSync();';
-      case 0xe8:      return 'gsDPTileSync();';
-      case 0xe9:      return 'gsDPFullSync();';
-      case 0xea:      return 'SetKeyGB';
-      case 0xeb:      return 'SetKeyR';
-      case 0xec:      return 'SetConvert';
-      case 0xed:      return disassembleSetScissor(a,b);
-      case 0xee:      return 'SetPrimDepth';
-      case 0xef:      return 'SetRDPOtherMode';
-
-      case 0xf0:      return disassembleLoadTLut(a,b);
-      //case 0xf1:      return '';
-      case 0xf2:      return disassembleSetTileSize(a,b);
-      case 0xf3:      return disassembleLoadBlock(a,b);
-      case 0xf4:      return disassembleLoadTile(a,b);
-      case 0xf5:      return disassembleSetTile(a,b);
-      case 0xf6:      return disassembleFillRect(a,b);
-      case 0xf7:      return disassembleSetFillColor(a,b);
-      case 0xf8:      return disassembleSetFogColor(a,b);
-      case 0xf9:      return disassembleSetBlendColor(a,b);
-      case 0xfa:      return disassembleSetPrimColor(a,b);
-      case 0xfb:      return disassembleSetEnvColor(a,b);
-      case 0xfc:      return disassembleSetCombine(a,b);
-      case 0xfd:      return disassembleSetTextureImage(a,b);
-      case 0xfe:      return disassembleSetDepthImage(a,b);
-      case 0xff:      return disassembleSetColorImage(a,b);
-
-      default:
-        return 'Unk' + n64js.toString8(cmd);
-        break;
-    }
   }
 
   function logGLCall(functionName, args) {
@@ -2754,11 +2603,6 @@
   };
 
 
-    // The implementation for these ops is ucode dependent
-  var disassembleVertex = disassembleVertex_GBI0;
-  var previewVertex     = previewVertex_GBI0;
-
-
   function buildUCodeTables(ucode) {
 
     var ucode_table = ucode_gbi0;
@@ -2788,23 +2632,12 @@
 
     // Patch in specific overrides
     switch (ucode) {
-      case kUCode_GBI0:
-        disassembleVertex = disassembleVertex_GBI0;
-        previewVertex     = previewVertex_GBI0;
-        break;
       case kUCode_GBI0_WR:
-        disassembleVertex = disassembleVertex_GBI0_WR;
-        previewVertex     = previewVertex_GBI0_WR;
         table[0x04]         = executeVertex_GBI0_WR;
         break;
       case kUCode_GBI0_GE:
         table[0xb1]         = executeTri4_GBI0;
         //table[0xb4]       = DLParser_RDPHalf1_GoldenEye;
-        break;
-      case kUCode_GBI1:
-        disassembleVertex = disassembleVertex_GBI1;
-        previewVertex     = previewVertex_GBI1;
-        table[0x04]         = executeVertex_GBI1;
         break;
     }
 
@@ -2854,6 +2687,7 @@
     num_display_lists_since_present = 0;
   }
 
+
   function setViScales() {
     var width       = n64js.viWidth();
 
@@ -2885,12 +2719,53 @@
     }
   }
 
+  function Disassembler() {
+    this.$currentDis = $('<pre></pre>');
+    this.$span = undefined;
+  }
+
+  Disassembler.prototype.begin = function(pc, cmd0, cmd1, depth) {
+    var indent = Array(depth).join('    ');
+    this.$span = $('<span />');
+    this.$span.append('[' + n64js.toHex(pc,32) + '] ' + n64js.toHex(cmd0,32) + n64js.toHex(cmd1,32) + ' ' + indent );
+    this.$currentDis.append(this.$span);
+  }
+
+  Disassembler.prototype.text = function (t) {
+    this.$span.append(t);
+  }
+
+  Disassembler.prototype.end = function () {
+    this.$span.append('<br>');
+  }
+
+  Disassembler.prototype.tip = function (t) {
+    var $d = $('<div>' + t + '</div>');
+    $d.hide();
+    this.$span.append($d);
+    this.$span.click(function () {
+      $d.toggle();
+    });
+  }
+
+  Disassembler.prototype.finalise = function () {
+    this.$currentDis.find('.dl-branch').click(function () {
+      //
+    });
+    $dlistOutput.html(this.$currentDis);
+  }
+
   function hleGraphics(task, ram) {
     ++graphics_task_count;
     ++num_display_lists_since_present;
 
     if (!gl) {
         return;
+    }
+
+    var disassembler;
+    if ($dlistOutput.hasClass('active')) {
+      disassembler = new Disassembler();
     }
 
     var code_base = task.getUint32(kOffset_ucode) & 0x1fffffff;
@@ -2970,151 +2845,64 @@
 
     setCanvasViewport(canvas.clientWidth, canvas.clientHeight);
 
-    disassembleDisplayList(data_ptr, ram, ucode);
+    if (disassembler) {
+      while (state.pc !== 0) {
+          var pc = state.pc;
+          var cmd0 = ram.getUint32( pc + 0 );
+          var cmd1 = ram.getUint32( pc + 4 );
+          state.pc += 8;
 
-    while (state.pc !== 0) {
-      var pc = state.pc;
-      var cmd0 = ram.getUint32( pc + 0 );
-      var cmd1 = ram.getUint32( pc + 4 );
-      state.pc += 8;
+          disassembler.begin(pc, cmd0, cmd1, state.dlistStack.length);
 
-      //try {
-        ucode_table[cmd0>>>24](cmd0,cmd1);
-      //} catch(e) {
-      //  throw 'Exception ' + e.toString() + ' at ' + n64js.toString32(pc) + ' ' + disassembleCommand(cmd0,cmd1);
-      //}
+          ucode_table[cmd0>>>24](cmd0,cmd1,disassembler);
+
+          disassembler.end();
+        }
+
+        disassembler.finalise();
+    } else {
+      // Vanilla loop, no disassemble to worry about
+      while (state.pc !== 0) {
+          var pc = state.pc;
+          var cmd0 = ram.getUint32( pc + 0 );
+          var cmd1 = ram.getUint32( pc + 4 );
+          state.pc += 8;
+
+          ucode_table[cmd0>>>24](cmd0,cmd1);
+        }
     }
+
+
+        //       case kMoveMem:
+        //   op.tip = previewMoveMem(cmd0,cmd1, ram, rdpSegmentAddress);
+
+        // case kMatrix:
+        //   {
+        //     var address = rdpSegmentAddress(cmd1);
+        //     var m = loadMatrix(address).elems;
+
+        //     var a = [m[ 0], m[ 1], m[ 2], m[ 3]];
+        //     var b = [m[ 4], m[ 5], m[ 6], m[ 7]];
+        //     var c = [m[ 8], m[ 9], m[10], m[11]];
+        //     var d = [m[12], m[13], m[14], m[15]];
+
+        //     op.tip = '<div><table class="matrix-table">' +
+        //     '<tr><td>' + a.join('</td><td>') + '</td></tr>' +
+        //     '<tr><td>' + b.join('</td><td>') + '</td></tr>' +
+        //     '<tr><td>' + c.join('</td><td>') + '</td></tr>' +
+        //     '<tr><td>' + d.join('</td><td>') + '</td></tr>' +
+        //     '</table></div>';
+        //   }
+        //   break;
+        //   // kVertex
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+    if (disassembler) {
+      disassembler.finalise();
+    }
   }
 
-  function disassembleDisplayList(pc, ram, ucode) {
-
-    if (!$dlistOutput.hasClass('active')) {
-      return;
-    }
-
-    var ucode_table = buildUCodeTables(ucode);
-
-    var kMatrix   = 0x01;
-    var kMoveMem  = 0x03;
-    var kVertex   = 0x04;
-    var kDL       = 0x06;
-    var kEndDL    = 0xb8;
-    var kMoveWord = 0xbc;
-
-    var state = {
-      pc:             pc,
-      dlistStack:     [],
-      segments:       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
-    };
-
-    function rdpSegmentAddress(addr) {
-      var segment = (addr>>>24)&0xf;
-      return (state.segments[segment]&0x00ffffff) + (addr & 0x00ffffff);
-    }
-
-    var ops = [];
-
-    while (state.pc != 0) {
-      var cmd0 = ram.getUint32( state.pc + 0 );
-      var cmd1 = ram.getUint32( state.pc + 4 );
-
-      var op = {pc:state.pc, cmd0:cmd0, cmd1:cmd1, depth:state.dlistStack.length};
-
-      ops.push(op);
-
-      state.pc += 8;
-
-      var cmd = cmd0>>>24;
-
-      switch (cmd) {
-        case kDL:
-          var param = ((cmd0>>>16)&0xff);
-          var address = rdpSegmentAddress(cmd1);
-
-          if (param === G_DL_PUSH) {
-            state.dlistStack.push({pc: state.pc});
-          }
-          state.pc = address;
-          break;
-        case kEndDL:
-          if (state.dlistStack.length > 0) {
-            state.pc = state.dlistStack.pop().pc;
-          } else {
-            state.pc = 0;
-          }
-          break;
-        case kMoveWord:
-          {
-            var type   = (cmd0    )&0xff;
-            var offset = (cmd0>>>8)&0xffff;
-            var value  = cmd1;
-
-            if (type === moveWordTypeValues.G_MW_SEGMENT) {
-              state.segments[((offset >>> 2)&0xf)] = value;
-            }
-          }
-          break;
-
-        case kMoveMem:
-          op.tip = previewMoveMem(cmd0,cmd1, ram, rdpSegmentAddress);
-          break;
-
-        case kMatrix:
-          {
-            var address = rdpSegmentAddress(cmd1);
-            var m = loadMatrix(address).elems;
-
-            var a = [m[ 0], m[ 1], m[ 2], m[ 3]];
-            var b = [m[ 4], m[ 5], m[ 6], m[ 7]];
-            var c = [m[ 8], m[ 9], m[10], m[11]];
-            var d = [m[12], m[13], m[14], m[15]];
-
-            op.tip = '<div><table class="matrix-table">' +
-            '<tr><td>' + a.join('</td><td>') + '</td></tr>' +
-            '<tr><td>' + b.join('</td><td>') + '</td></tr>' +
-            '<tr><td>' + c.join('</td><td>') + '</td></tr>' +
-            '<tr><td>' + d.join('</td><td>') + '</td></tr>' +
-            '</table></div>';
-          }
-          break;
-
-        case kVertex:
-          op.tip = previewVertex(cmd0,cmd1, ram, rdpSegmentAddress);
-          break;
-      }
-
-    }
-
-    var $currentDis = $('<pre></pre>');
-
-    for (var i = 0; i < ops.length; ++i) {
-      var op = ops[i];
-      var indent = Array(op.depth).join('    ');
-
-      var $span = $('<span />');
-
-      $span.append('[' + n64js.toHex(op.pc,32) + '] ' + n64js.toHex(op.cmd0,32) + n64js.toHex(op.cmd1,32) + ' ' + indent + disassembleCommand(op.cmd0,op.cmd1) + '<br>' );
-      if (op.tip) {
-        var $d = $('<div>' + op.tip + '</div>');
-        $d.hide();
-        $span.append($d);
-        $span.click(
-          (function (e) {
-            return function () { e.toggle() };
-          })($d)
-        );
-      }
-      $currentDis.append($span);
-    }
-
-    $currentDis.find('.dl-branch').click(function () {
-      //
-    });
-
-    $dlistOutput.html($currentDis);
-  }
 
   var frameBuffer;
   var frameBufferTexture3D;   // For roms using display lists
