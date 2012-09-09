@@ -2603,6 +2603,7 @@
     pi_reg_handler_uncached.quiet   = true;
     si_reg_handler_uncached.quiet   = true;
     rom_d1a2_handler_uncached.quiet = true;
+    dpc_handler_uncached.quiet      = true;
 
     n64js.reset();
 
