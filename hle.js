@@ -427,7 +427,7 @@
   }
 
   // task, ram are both DataView objects
-  n64js.RSPHLEProcessTask = function(task, ram) {
+  n64js.rspProcessTask = function(task, ram) {
     var M_GFXTASK = 1;
     var M_AUDTASK = 2;
     var M_VIDTASK = 3;

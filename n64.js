@@ -973,7 +973,7 @@
     sp_reg.write32(SP_STATUS_REG, status_bits);
 
     if (start_rsp) {
-      n64js.RSPHLEProcessTask(rsp_task_view, new DataView(ram.arrayBuffer));
+      n64js.rspProcessTask(rsp_task_view, new DataView(ram.arrayBuffer));
     } //else if (stop_rsp) {
       // As we handle all RSP via HLE, nothing to do here.
     //}
