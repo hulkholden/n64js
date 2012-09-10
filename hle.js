@@ -2847,12 +2847,6 @@
     setViScales();
 
     var canvas = document.getElementById('display');
-    //if (canvas.getContext) {
-    //    state.screenContext2d = canvas.getContext('2d');
-    //}
-
-    // set viWidth/viHeight from video registers
-
     setCanvasViewport(canvas.clientWidth, canvas.clientHeight);
 
     if (disassembler) {
