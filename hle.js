@@ -585,6 +585,20 @@
       t += (flags & G_MTX_PUSH) ?       '|G_MTX_PUSH'       : ''; //'|G_MTX_NOPUSH';
 
       dis.text('gsSPMatrix(' + n64js.toString32(address) + ', ' + t + ');');
+
+      var m = matrix.elems;
+
+      var a = [m[ 0], m[ 1], m[ 2], m[ 3]];
+      var b = [m[ 4], m[ 5], m[ 6], m[ 7]];
+      var c = [m[ 8], m[ 9], m[10], m[11]];
+      var d = [m[12], m[13], m[14], m[15]];
+
+      dis.tip('<div><table class="matrix-table">' +
+      '<tr><td>' + a.join('</td><td>') + '</td></tr>' +
+      '<tr><td>' + b.join('</td><td>') + '</td></tr>' +
+      '<tr><td>' + c.join('</td><td>') + '</td></tr>' +
+      '<tr><td>' + d.join('</td><td>') + '</td></tr>' +
+      '</table></div>');
     }
 
     var stack = flags & G_MTX_PROJECTION ? state.projection : state.modelview;
@@ -615,6 +629,39 @@
     }
   }
 
+  function previewMoveMem(type, length, address, dis) {
+    var tip = '';
+
+    for (var i = 0; i < length; ++i) {
+      tip += n64js.toHex(state.ram.getUint8(address + i), 8) + ' ';
+    }
+    tip += '<br>';
+
+    switch (type) {
+      case moveMemTypeValues.G_MV_VIEWPORT:
+        tip += 'scale = (' + state.ram.getInt16(address +  0) / 4.0 + ', ' + state.ram.getInt16(address +  2) / 4.0 + ') ';
+        tip += 'trans = (' + state.ram.getInt16(address +  8) / 4.0 + ', ' + state.ram.getInt16(address + 10) / 4.0 + ') ';
+        break;
+
+      case moveMemTypeValues.G_MV_L0:
+      case moveMemTypeValues.G_MV_L1:
+      case moveMemTypeValues.G_MV_L2:
+      case moveMemTypeValues.G_MV_L3:
+      case moveMemTypeValues.G_MV_L4:
+      case moveMemTypeValues.G_MV_L5:
+      case moveMemTypeValues.G_MV_L6:
+      case moveMemTypeValues.G_MV_L7:
+        tip += 'color = ' + n64js.toHex(state.ram.getUint32(address + 0), 32) + ' ';
+        var dir = Vector3.create([state.ram.getInt8(address +  8),
+                                  state.ram.getInt8(address +  9),
+                                  state.ram.getInt8(address + 10)]).normaliseInPlace();
+        tip += 'norm = (' + dir.elems[0] + ', ' + dir.elems[1] + ', ' + dir.elems[2] + ')';
+        break;
+    }
+
+    dis.tip(tip);
+  }
+
   function executeMoveMem(cmd0,cmd1,dis) {
     var type    = (cmd0>>>16)&0xff;
     var length  = (cmd0>>> 0)&0xffff;
@@ -634,6 +681,7 @@
       }
 
       dis.text(text);
+      previewMoveMem(type, length, address, dis);
     }
 
     switch (type) {
@@ -1881,44 +1929,6 @@
     executeVertexImpl(v0, n, address, dis);
   }
 
-  function previewMoveMem(cmd0,cmd1, ram, rdpSegmentAddress) {
-    var type    = (cmd0>>>16)&0xff;
-    var length  = (cmd0>>> 0)&0xffff;
-    var address = rdpSegmentAddress(cmd1);
-
-    //var dv      = new DataView(ram.buffer, address);
-    var tip = '';
-
-    for (var i = 0; i < length; ++i) {
-      tip += n64js.toHex(ram.getUint8(address + i), 8) + ' ';
-    }
-    tip += '<br>';
-
-    switch (type) {
-      case moveMemTypeValues.G_MV_VIEWPORT:
-        tip += 'scale = (' + ram.getInt16(address +  0) / 4.0 + ', ' + ram.getInt16(address +  2) / 4.0 + ') ';
-        tip += 'trans = (' + ram.getInt16(address +  8) / 4.0 + ', ' + ram.getInt16(address + 10) / 4.0 + ') ';
-        break;
-
-      case moveMemTypeValues.G_MV_L0:
-      case moveMemTypeValues.G_MV_L1:
-      case moveMemTypeValues.G_MV_L2:
-      case moveMemTypeValues.G_MV_L3:
-      case moveMemTypeValues.G_MV_L4:
-      case moveMemTypeValues.G_MV_L5:
-      case moveMemTypeValues.G_MV_L6:
-      case moveMemTypeValues.G_MV_L7:
-        tip += 'color = ' + n64js.toHex(ram.getUint32(address + 0), 32) + ' ';
-        var dir = Vector3.create([ram.getInt8(address +  8),
-                                  ram.getInt8(address +  9),
-                                  ram.getInt8(address + 10)]).normaliseInPlace();
-        tip += 'norm = (' + dir.elems[0] + ', ' + dir.elems[1] + ', ' + dir.elems[2] + ')';
-        break;
-    }
-
-    return tip;
-  }
-
 
   // G_SETOTHERMODE_L sft: shift count
   var G_MDSFT_ALPHACOMPARE    = 0;
@@ -2740,19 +2750,18 @@
   }
 
   Disassembler.prototype.tip = function (t) {
-    var $d = $('<div>' + t + '</div>');
+    var $d = $('<div class="dl-tip">' + t + '</div>');
     $d.hide();
     this.$span.append($d);
-    this.$span.click(function () {
-      $d.toggle();
-    });
   }
 
   Disassembler.prototype.finalise = function () {
-    this.$currentDis.find('.dl-branch').click(function () {
-      //
-    });
     $dlistOutput.html(this.$currentDis);
+    this.$currentDis.find('.dl-tip').parent().click(function () {
+      $(this).find('.dl-tip').toggle();
+    });
+    // this.$currentDis.find('.dl-branch').click(function () {
+    // });
   }
 
   function hleGraphics(task, ram) {
@@ -2871,30 +2880,6 @@
           ucode_table[cmd0>>>24](cmd0,cmd1);
         }
     }
-
-
-        //       case kMoveMem:
-        //   op.tip = previewMoveMem(cmd0,cmd1, ram, rdpSegmentAddress);
-
-        // case kMatrix:
-        //   {
-        //     var address = rdpSegmentAddress(cmd1);
-        //     var m = loadMatrix(address).elems;
-
-        //     var a = [m[ 0], m[ 1], m[ 2], m[ 3]];
-        //     var b = [m[ 4], m[ 5], m[ 6], m[ 7]];
-        //     var c = [m[ 8], m[ 9], m[10], m[11]];
-        //     var d = [m[12], m[13], m[14], m[15]];
-
-        //     op.tip = '<div><table class="matrix-table">' +
-        //     '<tr><td>' + a.join('</td><td>') + '</td></tr>' +
-        //     '<tr><td>' + b.join('</td><td>') + '</td></tr>' +
-        //     '<tr><td>' + c.join('</td><td>') + '</td></tr>' +
-        //     '<tr><td>' + d.join('</td><td>') + '</td></tr>' +
-        //     '</table></div>';
-        //   }
-        //   break;
-        //   // kVertex
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
