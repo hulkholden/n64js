@@ -1181,27 +1181,28 @@
   }
 
   function executeTexture(cmd0,cmd1,dis) {
-    var xparam  =  (cmd0>>>16)&0xff;
-    var level   =  (cmd0>>>11)&0x3;
-    var tile    =  (cmd0>>> 8)&0x7;
-    var on      =  (cmd0>>> 0)&0xff;
-    var s       = calcTextureScale(((cmd1>>>16)&0xffff));
-    var t       = calcTextureScale(((cmd1>>> 0)&0xffff));
+    var xparam   =  (cmd0>>>16)&0xff;
+    var level    =  (cmd0>>>11)&0x3;
+    var tile_idx =  (cmd0>>> 8)&0x7;
+    var on       =  (cmd0>>> 0)&0xff;
+    var s        = calcTextureScale(((cmd1>>>16)&0xffff));
+    var t        = calcTextureScale(((cmd1>>> 0)&0xffff));
 
 
     if (dis) {
       var s_text = s.toString();
       var t_text = t.toString();
+      var tile_text = getTileText(tile_idx);
 
       if (xparam !== 0) {
-        dis.text('gsSPTextureL(' + s_text + ', ' + t_text + ', ' + level + ', ' + xparam + ', ' + tile + ', ' + on + ');');
+        dis.text('gsSPTextureL(' + s_text + ', ' + t_text + ', ' + level + ', ' + xparam + ', ' + tile_text + ', ' + on + ');');
       } else {
-        dis.text('gsSPTexture(' + s_text + ', ' + t_text + ', ' + level + ', ' + tile + ', ' + on + ');');
+        dis.text('gsSPTexture(' + s_text + ', ' + t_text + ', ' + level + ', ' + tile_text + ', ' + on + ');');
       }
     }
 
     state.texture.level  = level;
-    state.texture.tile   = tile;
+    state.texture.tile   = tile_idx;
     state.texture.scaleS = s;
     state.texture.scaleT = t;
 
