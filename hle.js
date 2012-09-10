@@ -2809,12 +2809,6 @@
     if (str !== last_ucode_str) {
       n64js.log('GFX: ' + graphics_task_count + ' - ' + str + ' = ucode ' + ucode);
     }
-    last_ucode_str = str;
-
-    setViScales();
-
-    // Render everything to the back buffer. This prevents horrible flickering if due to webgl clearing our context between updates.
-    gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
 
     var ucode_table = buildUCodeTables(ucode);
 
@@ -2845,6 +2839,12 @@
     for (var i = 0; i < state.projectedVertices.length; ++i) {
       state.projectedVertices[i] = new ProjectedVertex();
     }
+
+
+    // Render everything to the back buffer. This prevents horrible flickering if due to webgl clearing our context between updates.
+    gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
+
+    setViScales();
 
     var canvas = document.getElementById('display');
     //if (canvas.getContext) {
