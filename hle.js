@@ -2877,10 +2877,6 @@
     }
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-
-    if (disassembler) {
-      disassembler.finalise();
-    }
   }
 
 
