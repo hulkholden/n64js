@@ -2546,6 +2546,7 @@
     return mi_reg.readU32(MI_INTR_MASK_REG);
   };
 
+  n64js.viOrigin = function () { return vi_reg.readU32(VI_ORIGIN_REG); }
   n64js.viWidth  = function () { return vi_reg.readU32(VI_WIDTH_REG); }
   n64js.viXScale = function () { return vi_reg.readU32(VI_X_SCALE_REG); }
   n64js.viYScale = function () { return vi_reg.readU32(VI_Y_SCALE_REG); }
