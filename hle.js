@@ -3019,6 +3019,7 @@
       if (runningDisplayListDebug) {
         debugBailAfter = -1;
         runningDisplayListDebug = false;
+        n64js.toggleRun();
       } else {
         requestDisplayListDebug = true;
       }
