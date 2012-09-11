@@ -435,6 +435,22 @@
       };
   }
 
+  function makeColourText(t, r,g,b) {
+    // Allow calls of 'makeColorText(t, rgba)'
+    if (typeof g == 'undefined') {
+      var col = r;
+      r = (col >>> 24) & 0xff;
+      g = (col >>> 16) & 0xff;
+      b = (col >>>  8) & 0xff;
+    }
+
+    if (r<128 && g<128 && b<128) {
+      return '<span style="color: white; background-color: rgb(' + r + ',' + g + ',' + b + ')">' + t + '</span>';
+    }
+    return '<span style="background-color: rgb(' + r + ',' + g + ',' + b + ')">' + t + '</span>';
+  }
+
+
   var M_GFXTASK = 1;
   var M_AUDTASK = 2;
   var M_VIDTASK = 3;
@@ -1720,7 +1736,7 @@
 
   function executeSetFillColor(cmd0,cmd1,dis) {
     if (dis) {
-      dis.text('gsDPSetFillColor(' + n64js.toString32(cmd1) + ');');   // Can be 16 or 32 bit
+      dis.text('gsDPSetFillColor(' + makeColourText( n64js.toString32(cmd1), cmd1 ) + ');');   // Can be 16 or 32 bit
     }
     state.fillColor = cmd1;
   }
@@ -1732,7 +1748,7 @@
       var b = (cmd1>>> 8)&0xff;
       var a = (cmd1>>> 0)&0xff;
 
-      dis.text('gsDPSetFogColor(' + r + ', ' + g + ', ' + b + ', ' + a + ');');
+      dis.text('gsDPSetFogColor(' + makeColourText( r + ', ' + g + ', ' + b + ', ' + a, r,g,b ) + ');');
     }
     state.fogColor = cmd1;
   }
@@ -1743,7 +1759,7 @@
       var b = (cmd1>>> 8)&0xff;
       var a = (cmd1>>> 0)&0xff;
 
-      dis.text('gsDPSetBlendColor(' + r + ', ' + g + ', ' + b + ', ' + a + ');');
+      dis.text('gsDPSetBlendColor(' + makeColourText( r + ', ' + g + ', ' + b + ', ' + a, r,g,b ) + ');');
     }
     state.blendColor = cmd1;
   }
@@ -1757,7 +1773,7 @@
       var b = (cmd1>>> 8)&0xff;
       var a = (cmd1>>> 0)&0xff;
 
-      dis.text('gsDPSetPrimColor(' + m + ', ' + l + ', ' + r + ', ' + g + ', ' + b + ', ' + a + ');');
+      dis.text('gsDPSetPrimColor(' + m + ', ' + l + ', ' + makeColourText( r + ', ' + g + ', ' + b + ', ' + a, r,g,b ) + ');');
     }
     // minlevel, primlevel ignored!
     state.primColor = cmd1;
@@ -1770,7 +1786,7 @@
       var b = (cmd1>>> 8)&0xff;
       var a = (cmd1>>> 0)&0xff;
 
-      dis.text('gsDPSetEnvColor(' + r + ', ' + g + ', ' + b + ', ' + a + ');');
+      dis.text('gsDPSetEnvColor(' + makeColourText( r + ', ' + g + ', ' + b + ', ' + a, r,g,b ) + ');' );
     }
     state.envColor = cmd1;
   }
@@ -2766,7 +2782,7 @@
     var indent = Array(depth).join('    ');
     var pc_str = ' '; //' [' + n64js.toHex(pc,32) + '] '
 
-    this.$span = $('<span id="I' + this.numOps + '" />');
+    this.$span = $('<span class="hle-instr" id="I' + this.numOps + '" />');
     this.$span.append(n64js.padString(this.numOps, 5) + pc_str + n64js.toHex(cmd0,32) + n64js.toHex(cmd1,32) + ' ' + indent );
     this.$currentDis.append(this.$span);
   }
@@ -2965,7 +2981,7 @@
       $dlistOutput.scrollTop($dlistOutput.scrollTop() + $instr.position().top
                            - $dlistOutput.height()/2 + $instr.height()/2);
 
-      $dlistOutput.find('span').removeAttr('style');
+      $dlistOutput.find('.hle-instr').removeAttr('style');
       $instr.css('background-color', 'rgb(255,255,204)');
   }
 
