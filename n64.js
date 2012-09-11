@@ -267,6 +267,13 @@
     save:           'Eeprom4k'
   };
 
+  function padString(v,len) {
+    var t = v.toString();
+    while (t.length < len) {
+      t = '0' + t;
+    }
+    return t;
+  }
 
   function toHex(r, bits) {
     r = Number(r);
@@ -2520,7 +2527,7 @@
     ++cur_vbl;
   };
 
-
+  n64js.padString  = padString;
   n64js.toHex      = toHex;
   n64js.toString8  = toString8;
   n64js.toString16 = toString16;
