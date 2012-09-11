@@ -2764,8 +2764,10 @@
 
   Disassembler.prototype.begin = function(pc, cmd0, cmd1, depth) {
     var indent = Array(depth).join('    ');
+    var pc_str = ' '; //' [' + n64js.toHex(pc,32) + '] '
+
     this.$span = $('<span id="I' + this.numOps + '" />');
-    this.$span.append(n64js.padString(this.numOps, 5) + ' [' + n64js.toHex(pc,32) + '] ' + n64js.toHex(cmd0,32) + n64js.toHex(cmd1,32) + ' ' + indent );
+    this.$span.append(n64js.padString(this.numOps, 5) + pc_str + n64js.toHex(cmd0,32) + n64js.toHex(cmd1,32) + ' ' + indent );
     this.$currentDis.append(this.$span);
   }
 
@@ -2816,9 +2818,9 @@
       disassembler.finalise();
 
       // Update the scrubber based on the new length of disassembly
-      var max = disassembler.numOps > 0 ? (disassembler.numOps-1) : 0
-      setScrubRange(max);
-      setScrubTime(max);
+      debugNumOps = disassembler.numOps > 0 ? (disassembler.numOps-1) : 0;
+      setScrubRange(debugNumOps);
+      setScrubTime(debugNumOps);
 
       // Finally, break execution so we can keep replaying the display list before any other state changes.
       n64js.breakEmulationForDisplayListDebug();
@@ -2987,6 +2989,16 @@
     debugBailAfter = -1;
     debugNumOps    = 0;
 
+    $dlistControls.find('#rwd').click(function () {
+      if (runningDisplayListDebug && debugBailAfter > 0) {
+        setScrubTime(debugBailAfter-1);
+      }
+    });
+    $dlistControls.find('#fwd').click(function () {
+      if (runningDisplayListDebug && debugBailAfter < debugNumOps) {
+        setScrubTime(debugBailAfter+1);
+      }
+    });
     $dlistControls.find('#stop').click(function () {
       if (runningDisplayListDebug) {
         debugBailAfter = -1;
