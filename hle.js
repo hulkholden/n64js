@@ -3,11 +3,15 @@
   var graphics_task_count = 0;
   var texrected = 0;
 
-  var $dlistContent  = $('#dlist-content');
-  var $dlistControls;// Initialised in initialiseRenderer
-  var $scrub;
-  var $dlistOutput;  // Initialised in initialiseRenderer
   var $textureOutput = $('#texture-content');
+
+  var $dlistContent  = $('#dlist-content');
+
+  // Initialised in initialiseRenderer
+  var $dlistControls;
+  var $dlistOutput;
+  var $dlistState;
+  var $dlistScrub;
 
   var requestDisplayListDebug = false;
   var runningDisplayListDebug = false;
@@ -435,7 +439,7 @@
       };
   }
 
-  function makeColourText(t, r,g,b) {
+  function makeColorText(t, r,g,b) {
     // Allow calls of 'makeColorText(t, rgba)'
     if (typeof g == 'undefined') {
       var col = r;
@@ -1736,7 +1740,7 @@
 
   function executeSetFillColor(cmd0,cmd1,dis) {
     if (dis) {
-      dis.text('gsDPSetFillColor(' + makeColourText( n64js.toString32(cmd1), cmd1 ) + ');');   // Can be 16 or 32 bit
+      dis.text('gsDPSetFillColor(' + makeColorText( n64js.toString32(cmd1), cmd1 ) + ');');   // Can be 16 or 32 bit
     }
     state.fillColor = cmd1;
   }
@@ -1748,7 +1752,7 @@
       var b = (cmd1>>> 8)&0xff;
       var a = (cmd1>>> 0)&0xff;
 
-      dis.text('gsDPSetFogColor(' + makeColourText( r + ', ' + g + ', ' + b + ', ' + a, r,g,b ) + ');');
+      dis.text('gsDPSetFogColor(' + makeColorText( r + ', ' + g + ', ' + b + ', ' + a, r,g,b ) + ');');
     }
     state.fogColor = cmd1;
   }
@@ -1759,7 +1763,7 @@
       var b = (cmd1>>> 8)&0xff;
       var a = (cmd1>>> 0)&0xff;
 
-      dis.text('gsDPSetBlendColor(' + makeColourText( r + ', ' + g + ', ' + b + ', ' + a, r,g,b ) + ');');
+      dis.text('gsDPSetBlendColor(' + makeColorText( r + ', ' + g + ', ' + b + ', ' + a, r,g,b ) + ');');
     }
     state.blendColor = cmd1;
   }
@@ -1773,7 +1777,7 @@
       var b = (cmd1>>> 8)&0xff;
       var a = (cmd1>>> 0)&0xff;
 
-      dis.text('gsDPSetPrimColor(' + m + ', ' + l + ', ' + makeColourText( r + ', ' + g + ', ' + b + ', ' + a, r,g,b ) + ');');
+      dis.text('gsDPSetPrimColor(' + m + ', ' + l + ', ' + makeColorText( r + ', ' + g + ', ' + b + ', ' + a, r,g,b ) + ');');
     }
     // minlevel, primlevel ignored!
     state.primColor = cmd1;
@@ -1786,7 +1790,7 @@
       var b = (cmd1>>> 8)&0xff;
       var a = (cmd1>>> 0)&0xff;
 
-      dis.text('gsDPSetEnvColor(' + makeColourText( r + ', ' + g + ', ' + b + ', ' + a, r,g,b ) + ');' );
+      dis.text('gsDPSetEnvColor(' + makeColorText( r + ', ' + g + ', ' + b + ', ' + a, r,g,b ) + ');' );
     }
     state.envColor = cmd1;
   }
@@ -2818,8 +2822,35 @@
   n64js.debugDisplayList = function () {
     // Replay the last display list using the captured task/ram
     processDList(debugLastTask, null, debugBailAfter);
-  };
 
+    var  $table = $('<table></table>');
+
+    var colors =[
+      'fillColor',
+      'envColor',
+      'primColor',
+      'blendColor',
+      'fogColor'
+    ];
+    var i;
+    for (i = 0; i < colors.length; ++i) {
+      var col = state[colors[i]];
+      var r = (col>>>24)&0xff;
+      var g = (col>>>16)&0xff;
+      var b = (col>>> 8)&0xff;
+      var a = (col>>> 0)&0xff;
+
+      var col_str = makeColorText(r + ',' + g + ',' + b + ',' + a, r,g,b);
+
+      var $tr = $('<tr><td>' + colors[i] + '</td><td>' + col_str + '</td></tr>');
+      $table.append($tr);
+    }
+
+    var $d = $('<div></div>');
+    $d.append($table);
+
+    $dlistState.html($d);
+  }
   function hleGraphics(task) {
     // Bodgily track these parameters so that we can call again with the same params.
     debugLastTask = task;
@@ -2960,11 +2991,11 @@
   }
 
   function setScrubText(x, max) {
-    $scrub.find('#content').html('uCode op ' + x + '/' + max + '.');
+    $dlistScrub.find('#content').html('uCode op ' + x + '/' + max + '.');
   }
 
   function setScrubRange(max) {
-    $scrub.find('input').attr({
+    $dlistScrub.find('input').attr({
       min:   0,
       max:   max,
       value: max
@@ -2988,7 +3019,7 @@
   function initDebugUI() {
     // Set up debugger
     $dlistControls = $(
-      '<div class="span6">' +
+      '<div>' +
       '  <div class="btn-toolbar">' +
       '    <div class="btn-group">' +
       '      <button class="btn" id="rwd"><i class="icon-step-backward"></i></button>' +
@@ -3025,17 +3056,20 @@
       }
     });
 
-    $scrub = $dlistControls.find('#scrub');
-    $scrub.css('width', '100%');
-    $scrub.find('input').css('width', '100%').change(function () {
+    $dlistScrub = $dlistControls.find('#scrub');
+    $dlistScrub.css('width', '640px');
+    $dlistScrub.find('input').css('width', '100%').change(function () {
       setScrubTime($(this).val() | 0);
     });
     setScrubRange(0);
 
     $dlistContent.append($dlistControls);
+    $dlistContent.append('<br>');
+
+    $dlistState = $('<div class="hle-state"></div>');
+    $dlistContent.append($dlistState);
 
     $dlistOutput = $('<div class="hle-disasm"></div>');
-    //$dlistControls.append($dlistOutput);
     $('#adjacent-debug').html($dlistOutput);
   }
 
