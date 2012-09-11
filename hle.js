@@ -3,8 +3,17 @@
   var graphics_task_count = 0;
   var texrected = 0;
 
-  var $dlistOutput = $('#dlist-content');
+  var $dlistContent  = $('#dlist-content');
+  var $dlistControls;// Initialised in initialiseRenderer
+  var $scrub;
+  var $dlistOutput;  // Initialised in initialiseRenderer
   var $textureOutput = $('#texture-content');
+
+  var requestDisplayListDebug = false;
+  var runningDisplayListDebug = false;
+  var debugNumOps             = 0;
+  var debugBailAfter          = -1;
+  var debugLastTask;          // The last task that we executed.
 
   var gl       = null;
 
@@ -426,17 +435,65 @@
       };
   }
 
-  // task, ram are both DataView objects
-  n64js.rspProcessTask = function(task, ram) {
-    var M_GFXTASK = 1;
-    var M_AUDTASK = 2;
-    var M_VIDTASK = 3;
-    var M_JPGTASK = 4;
+  var M_GFXTASK = 1;
+  var M_AUDTASK = 2;
+  var M_VIDTASK = 3;
+  var M_JPGTASK = 4;
 
-    var type = task.getUint32(kOffset_type);
-    switch (type) {
+  function RSPTask(task_dv) {
+    this.type      = task_dv.getUint32(kOffset_type);
+    this.code_base = task_dv.getUint32(kOffset_ucode) & 0x1fffffff;
+    this.code_size = task_dv.getUint32(kOffset_ucode_size);
+    this.data_base = task_dv.getUint32(kOffset_ucode_data) & 0x1fffffff;
+    this.data_size = task_dv.getUint32(kOffset_ucode_data_size);
+    this.data_ptr  = task_dv.getUint32(kOffset_data_ptr);
+  }
+
+
+  RSPTask.prototype.detectVersionString = function () {
+    var r = 'R'.charCodeAt(0);
+    var s = 'S'.charCodeAt(0);
+    var p = 'P'.charCodeAt(0);
+
+    var ram = n64js.getRamU8Array();
+
+    for (var i = 0; i+2 < this.data_size; ++i) {
+      if (ram[this.data_base+i+0] === r &&
+          ram[this.data_base+i+1] === s &&
+          ram[this.data_base+i+2] === p) {
+        var str = '';
+        for (var p = i; p < this.data_size; ++p) {
+          var c = ram[this.data_base+p];
+          if (c === 0)
+            return str;
+
+          str += String.fromCharCode(c);
+        }
+      }
+    }
+    return '';
+  }
+
+  RSPTask.prototype.computeMicrocodeHash = function () {
+    var ram = n64js.getRamU8Array();
+
+    var c = 0;
+    for (var i = 0; i < this.code_size; ++i) {
+      c = ((c*17) + ram[this.code_base+i])>>>0;   // Best hash ever!
+    }
+    return c;
+  }
+
+
+
+  // task_dv is a DataView object
+  n64js.rspProcessTask = function(task_dv) {
+    var task = new RSPTask(task_dv);
+
+    switch (task.type) {
       case M_GFXTASK:
-        hleGraphics(task, ram);
+        ++graphics_task_count;
+        hleGraphics(task);
         n64js.interruptDP();
         break;
       case M_AUDTASK:
@@ -456,37 +513,6 @@
 
     n64js.haltSP();
   }
-
-  function detectVersionString(ram, data_base, data_size) {
-    var r = 'R'.charCodeAt(0);
-    var s = 'S'.charCodeAt(0);
-    var p = 'P'.charCodeAt(0);
-
-    for (var i = 0; i+2 < data_size; ++i) {
-      if (ram.getInt8(data_base+i+0) == r &&
-          ram.getInt8(data_base+i+1) == s &&
-          ram.getInt8(data_base+i+2) == p) {
-        var str = '';
-        for (var p = i; p < data_size; ++p) {
-          var c = ram.getInt8(data_base+p);
-          if (c == 0)
-            return str;
-
-          str += String.fromCharCode(c);
-        }
-      }
-    }
-    return '';
-  }
-
-  function computeMicrocodeHash(ram, code_base, code_size) {
-    var c = 0;
-    for (var i = 0; i < code_size; ++i) {
-      c = ((c*17) + ram.getUint8(code_base+i))>>>0;   // Best hash ever!
-    }
-    return c;
-  }
-
 
   function unimplemented(cmd0,cmd1) {
     n64js.log('Unimplemented display list op ' + n64js.toString8(cmd0>>>24));
@@ -2732,13 +2758,14 @@
 
   function Disassembler() {
     this.$currentDis = $('<pre></pre>');
-    this.$span = undefined;
+    this.$span       = undefined;
+    this.numOps      = 0;
   }
 
   Disassembler.prototype.begin = function(pc, cmd0, cmd1, depth) {
     var indent = Array(depth).join('    ');
-    this.$span = $('<span />');
-    this.$span.append('[' + n64js.toHex(pc,32) + '] ' + n64js.toHex(cmd0,32) + n64js.toHex(cmd1,32) + ' ' + indent );
+    this.$span = $('<span id="I' + this.numOps + '" />');
+    this.$span.append(n64js.padString(this.numOps, 5) + ' [' + n64js.toHex(pc,32) + '] ' + n64js.toHex(cmd0,32) + n64js.toHex(cmd1,32) + ' ' + indent );
     this.$currentDis.append(this.$span);
   }
 
@@ -2746,14 +2773,15 @@
     this.$span.append(t);
   }
 
-  Disassembler.prototype.end = function () {
-    this.$span.append('<br>');
-  }
-
   Disassembler.prototype.tip = function (t) {
     var $d = $('<div class="dl-tip">' + t + '</div>');
     $d.hide();
     this.$span.append($d);
+  }
+
+  Disassembler.prototype.end = function () {
+    this.$span.append('<br>');
+    this.numOps++;
   }
 
   Disassembler.prototype.finalise = function () {
@@ -2765,26 +2793,49 @@
     // });
   }
 
-  function hleGraphics(task, ram) {
-    ++graphics_task_count;
-    ++num_display_lists_since_present;
+  n64js.runningDisplayListDebug = function () {
+    return runningDisplayListDebug;
+  };
 
+  n64js.debugDisplayList = function () {
+    // Replay the last display list using the captured task/ram
+    processDList(debugLastTask, null, debugBailAfter);
+  };
+
+  function hleGraphics(task) {
+    // Bodgily track these parameters so that we can call again with the same params.
+    debugLastTask = task;
+
+    // Force the cpu to stop at the point that we render the display list.
+    if (requestDisplayListDebug) {
+      requestDisplayListDebug = false;
+
+      // Build some disassembly for this display list
+      var disassembler = new Disassembler();
+      processDList(debugLastTask, disassembler);
+      disassembler.finalise();
+
+      // Update the scrubber based on the new length of disassembly
+      var max = disassembler.numOps > 0 ? (disassembler.numOps-1) : 0
+      setScrubRange(max);
+      setScrubTime(max);
+
+      // Finally, break execution so we can keep replaying the display list before any other state changes.
+      n64js.breakEmulationForDisplayListDebug();
+
+      runningDisplayListDebug = true;
+    }
+
+    processDList(task, null, -1);
+  }
+
+  function processDList(task, disassembler, bail_after) {
+    ++num_display_lists_since_present;      // Update a counter to tell the video code that we've rendered something since the last vbl.
     if (!gl) {
         return;
     }
 
-    var disassembler;
-    if ($dlistOutput.hasClass('active')) {
-      disassembler = new Disassembler();
-    }
-
-    var code_base = task.getUint32(kOffset_ucode) & 0x1fffffff;
-    var code_size = task.getUint32(kOffset_ucode_size);
-    var data_base = task.getUint32(kOffset_ucode_data) & 0x1fffffff;
-    var data_size = task.getUint32(kOffset_ucode_data_size);
-    var data_ptr  = task.getUint32(kOffset_data_ptr);
-
-    var str = detectVersionString(ram, data_base, data_size);
+    var str   = task.detectVersionString();
     var ucode = kUCode_GBI0;
 
     // FIXME: lots of work here
@@ -2793,7 +2844,7 @@
         str.indexOf('F3DLX') >= 0) {
       ucode = kUCode_GBI1;
     } else {
-      var val = computeMicrocodeHash(ram, code_base, code_size);
+      var val = task.computeMicrocodeHash();
       switch (val) {
         case 0xd73a12c4: ucode = kUCode_GBI0;     break;  // Fish demo
         case 0xf4c3491b: ucode = kUCode_GBI0;     break;  // Super Mario 64
@@ -2809,37 +2860,12 @@
     if (str !== last_ucode_str) {
       n64js.log('GFX: ' + graphics_task_count + ' - ' + str + ' = ucode ' + ucode);
     }
+    last_ucode_str = str;
 
+    var ram  = n64js.getRamDataView();
+
+    resetState(ucode, ram, task.data_ptr);
     var ucode_table = buildUCodeTables(ucode);
-
-    config.vertexStride = kUcodeStrides[ucode];
-
-    state.ram           = ram;
-    state.rdpOtherModeL = 0x00500001;
-    state.rdpOtherModeH = 0x00000000;
-
-    state.projection    = [ Matrix.identity() ];
-    state.modelview     = [ Matrix.identity() ];
-
-    state.pc = data_ptr;
-    state.dlistStack = [];
-    for (var i = 0; i < state.segments.length; ++i) {
-      state.segments[i] = 0;
-    }
-
-    for (var i = 0; i < state.tiles.length; ++i) {
-      state.tiles[i] = {};
-    }
-
-    state.numLights = 0;
-    for (var i = 0; i < state.lights.length; ++i) {
-      state.lights[i] = {color: {r:0,g:0,b:0,a:0}, dir: Vector3.create([1,0,0])};
-    }
-
-    for (var i = 0; i < state.projectedVertices.length; ++i) {
-      state.projectedVertices[i] = new ProjectedVertex();
-    }
-
 
     // Render everything to the back buffer. This prevents horrible flickering if due to webgl clearing our context between updates.
     gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
@@ -2862,10 +2888,9 @@
 
           disassembler.end();
         }
-
-        disassembler.finalise();
     } else {
-      // Vanilla loop, no disassemble to worry about
+      // Vanilla loop, no disassembler to worry about
+      var count = 0;
       while (state.pc !== 0) {
           var pc = state.pc;
           var cmd0 = ram.getUint32( pc + 0 );
@@ -2873,12 +2898,117 @@
           state.pc += 8;
 
           ucode_table[cmd0>>>24](cmd0,cmd1);
+
+          if (bail_after > -1 && count >= bail_after) {
+            break;
+          }
+          ++count;
         }
     }
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   }
 
+  function resetState(ucode, ram, pc) {
+    var i;
+
+    config.vertexStride = kUcodeStrides[ucode];
+
+    state.ram           = ram;
+    state.rdpOtherModeL = 0x00500001;
+    state.rdpOtherModeH = 0x00000000;
+
+    state.projection    = [ Matrix.identity() ];
+    state.modelview     = [ Matrix.identity() ];
+
+    state.pc = pc;
+    state.dlistStack = [];
+    for (i = 0; i < state.segments.length; ++i) {
+      state.segments[i] = 0;
+    }
+
+    for (i = 0; i < state.tiles.length; ++i) {
+      state.tiles[i] = {};
+    }
+
+    state.numLights = 0;
+    for (i = 0; i < state.lights.length; ++i) {
+      state.lights[i] = {color: {r:0,g:0,b:0,a:0}, dir: Vector3.create([1,0,0])};
+    }
+
+    for (i = 0; i < state.projectedVertices.length; ++i) {
+      state.projectedVertices[i] = new ProjectedVertex();
+    }
+  }
+
+  function setScrubText(x, max) {
+    $scrub.find('#content').html('uCode op ' + x + '/' + max + '.');
+  }
+
+  function setScrubRange(max) {
+    $scrub.find('input').attr({
+      min:   0,
+      max:   max,
+      value: max
+    });
+    setScrubText(max, max);
+  }
+
+  function setScrubTime(t) {
+      debugBailAfter = t;
+      setScrubText(debugBailAfter, debugNumOps);
+
+      var $instr = $dlistOutput.find('#I' + debugBailAfter );
+
+      $dlistOutput.scrollTop($dlistOutput.scrollTop() + $instr.position().top
+                           - $dlistOutput.height()/2 + $instr.height()/2);
+
+      $dlistOutput.find('span').removeAttr('style');
+      $instr.css('background-color', 'rgb(255,255,204)');
+  }
+
+  function initDebugUI() {
+    // Set up debugger
+    $dlistControls = $(
+      '<div class="span6">' +
+      '  <div class="btn-toolbar">' +
+      '    <div class="btn-group">' +
+      '      <button class="btn" id="rwd"><i class="icon-step-backward"></i></button>' +
+      '      <button class="btn" id="stop"><i class="icon-pause"></i></button>' +
+      '      <button class="btn" id="fwd"><i class="icon-step-forward"></i></button>' +
+      '    </div>' +
+      '  </div>' +
+      '  <div id="scrub">' +
+      '    <div id="content"></div>' +
+      '    <div><input type="range" min="0" max="0" value="0" /></div>' +
+      '  </div>' +
+      '</div>');
+
+    debugBailAfter = -1;
+    debugNumOps    = 0;
+
+    $dlistControls.find('#stop').click(function () {
+      if (runningDisplayListDebug) {
+        debugBailAfter = -1;
+        runningDisplayListDebug = false;
+      } else {
+        requestDisplayListDebug = true;
+      }
+    });
+
+    $scrub = $dlistControls.find('#scrub');
+    $scrub.css('width', '100%');
+    $scrub.find('input').css('width', '100%').change(function () {
+      setScrubTime($(this).val() | 0);
+    });
+    setScrubRange(0);
+
+    $dlistContent.append($dlistControls);
+
+    $dlistOutput = $('<div class="hle-disasm"></div>');
+    //$dlistControls.append($dlistOutput);
+    $('#adjacent-debug').html($dlistOutput);
+  }
 
   var frameBuffer;
   var frameBufferTexture3D;   // For roms using display lists
@@ -2889,8 +3019,10 @@
   // Figuratively, that is. There's nothing moving in this demo.
   //
   n64js.initialiseRenderer = function ($canvas) {
-    var canvas = $canvas[0];
 
+    initDebugUI();
+
+    var canvas = $canvas[0];
     initWebGL(canvas);      // Initialize the GL context
 
     // Only continue if WebGL is available and working

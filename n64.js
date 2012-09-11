@@ -686,6 +686,14 @@
     }
   };
 
+  n64js.breakEmulationForDisplayListDebug = function () {
+    if (running) {
+      n64js.toggleRun();
+      n64js.cpu0.breakExecution();
+      //updateLoopAnimframe();
+    }
+  };
+
   n64js.triggerLoad = function () {
     var $fileinput = $('#fileInput');
 
@@ -750,7 +758,12 @@
       if (!running) {
         $('#runbutton').html('<i class="icon-play"></i> Run');
       }
+    } else if (n64js.runningDisplayListDebug()) {
+      requestAnimationFrame(updateLoopAnimframe);
+      n64js.debugDisplayList();
+        n64js.presentBackBuffer(n64js.getRamU8Array(), n64js.viOrigin());
     }
+
     if (stats) {
       stats.end();
     }
@@ -759,6 +772,11 @@
   n64js.getRamU8Array = function () {
     return rdram_handler_cached.u8;
   };
+
+  n64js.getRamDataView = function () {
+    // FIXME: should cache this object, or try to get rid of DataView entirely (Uint8Array + manual shuffling is faster)
+    return new DataView(ram.arrayBuffer);
+  }
 
   // This function gets hit A LOT, so eliminate as much fat as possible.
   rdram_handler_cached.readU32 = function (address) {
@@ -980,7 +998,7 @@
     sp_reg.write32(SP_STATUS_REG, status_bits);
 
     if (start_rsp) {
-      n64js.rspProcessTask(rsp_task_view, new DataView(ram.arrayBuffer));
+      n64js.rspProcessTask(rsp_task_view);
     } //else if (stop_rsp) {
       // As we handle all RSP via HLE, nothing to do here.
     //}
