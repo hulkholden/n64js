@@ -1,7 +1,7 @@
 (function (n64js) {'use strict';
 
   var graphics_task_count = 0;
-  var texrected = 0;
+  var texrected = 1;
 
   var $textureOutput = $('#texture-content');
 
