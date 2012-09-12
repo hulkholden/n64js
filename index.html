@@ -75,7 +75,7 @@
         <div class="span8" id="info" style="display:none">
 
           <h2>Status</h2>
-          <p>Some early N64 games are running now, albeit at a relatively low framerate. Here's a rough feature matirx showing what's been implemented:</p>
+          <p>Some early N64 games are running now, and the framerate is improving steadily. Here's a rough feature matirx showing what's been implemented:</p>
 
           <table class="table table-condensed">
             <tr><td>CPU</td><td class="impl80">Mostly implemented</td></tr>
@@ -86,7 +86,7 @@
             <tr><td>Graphics - GBI2</td><td class="impl0">Not implemented</td></tr>
             <tr><td>Audio</td><td class="impl0">Not implemented</td></tr>
             <tr><td>Save - Eeprom4k</td><td class="impl100">Implemented</td></tr>
-            <tr><td>Save - Eeprom4k</td><td class="impl0">Not implemented</td></tr>
+            <tr><td>Save - Eeprom4k</td><td class="impl100">Implemented</td></tr>
             <tr><td>Save - SRAM</td><td class="impl0">Not implemented</td></tr>
             <tr><td>Save - FlashRAM</td><td class="impl0">Not implemented</td></tr>
             <tr><td>Save - Mempack</td><td class="impl0">Not implemented</td></tr>
@@ -98,20 +98,18 @@
 
           <table class="table table-condensed">
             <tr><td>Chrome</td><td>21.0.1180.79 or later should be ok - I've been doing most of my development in Chrome.</td></tr>
-            <tr><td>Firefox</td><td>The release channel (14.0.1 at the time of writing) doesn't work right now (DataView), but the latest Nightlies (17.01a) seem to work</td></tr>
-            <tr><td>Safari</td><td>6.0 doesn't seem to work. I haven't tried with the latest nightlies</td></tr>
+            <tr><td>Firefox</td><td>15.0.1 or later seems to work now, but is slower than Chrome.</td></tr>
+            <tr><td>Safari</td><td>6.0 doesn't seem to work. I haven't tried with the latest nightlies.</td></tr>
+            <tr><td>Opera</td><td>Untested.</td></tr>
           </table>
+
+          <p>WebGL is required, which places certain restrictions on which GPUs the emulator will work with.</p>
 
           <p><a href="https://twitter.com/#!/hulkholden">Tweet me</a> if you have any additional info.</p>
 
           <h2>Known Issues</h2>
 
-          <p>
-            <ul>
-              <li><del>You need to reload the page inbetween loading roms - there's some state that I'm not resetting correctly.</del> This is fixed now.</li>
-              <li>Save games are currently wiped out when switching between roms.</li>
-              <li>It's a bit slow :)</li>
-            </ul>
+          <p>There's lots of issues right now with slow performance, graphics glitches, unsupported opcodes, emulation bugs. It's probably easier just to list stuff that actually works right now :)
           </p>
 
           <h2>Controls</h2>
@@ -137,7 +135,7 @@
           <p>n64js is based on Daedalus, an emulator I started writing while I was at university under a pseudonym of <a href="http://strmnnrmn.blogspot.co.uk/">StrmnNrmn</a>.
           I've worked on Daedalus intermittantly ever since, but life and work have limited the time I've been able to spend on the project in the past few years. The project
           lives on due to the excellent work of everyone at <a href="http://forums.daedalusx64.com/">DaedalusX</a>. In particular, Kreationz, Wally, Corn, Salvy all deserve
-          great credit for keeping the project going.</p>
+          great credit for keeping the project going. Also, hello to Schibo, who's been working on porting 1964 to JavaScript too: <a href="http://1964js.com/">1964js</a>.</p>
         </div>
       </div>
 
