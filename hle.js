@@ -2958,6 +2958,7 @@
     } else {
       var val = task.computeMicrocodeHash();
       switch (val) {
+        case 0x00000000: ucode = kUCode_GBI0;     n64js.log('ucode is empty?'); break;
         case 0xd73a12c4: ucode = kUCode_GBI0;     break;  // Fish demo
         case 0xf4c3491b: ucode = kUCode_GBI0;     break;  // Super Mario 64
         case 0x313f038b: ucode = kUCode_GBI0;     break;  // PilotWings
