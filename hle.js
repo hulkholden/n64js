@@ -2649,6 +2649,8 @@
 
       return texture;
     }
+
+    return undefined;
   }
 
   // A lot of functions are common between all ucodes
@@ -2917,6 +2919,50 @@
     return $p;
   }
 
+  function buildTexture() {
+    var texture = lookupTexture(G_TX_RENDERTILE);
+    if (texture) {
+
+      // Copy + scale texture data.
+      var scale = 8;
+      var w = texture.width * scale;
+      var h = texture.height * scale;
+      var $canvas = $( '<canvas width="' + w + '" height="' + h + '" />', {'width':w, 'height':h} );
+      var src_ctx = texture.$canvas[0].getContext('2d');
+      var dst_ctx = $canvas[0].getContext('2d');
+
+      var src_img_data = src_ctx.getImageData(0,0, texture.width, texture.height);
+      var dst_img_data = dst_ctx.createImageData(w, h);
+
+      var src            = src_img_data.data;
+      var dst            = dst_img_data.data;
+      var src_row_stride = src_img_data.width*4;
+      var dst_row_stride = dst_img_data.width*4;
+
+      // Repeat last pixel across all lines
+      var x;
+      var y;
+      for (y = 0; y < h; ++y) {
+
+        var src_offset = src_row_stride * Math.floor(y/scale);
+        var dst_offset = dst_row_stride * y;
+
+        for (x = 0; x < w; ++x) {
+          var o = src_offset + Math.floor(x/scale)*4;
+          dst[dst_offset+0] = src[o+0];
+          dst[dst_offset+1] = src[o+1];
+          dst[dst_offset+2] = src[o+2];
+          dst[dst_offset+3] = src[o+3];
+          dst_offset += 4;
+        }
+      }
+
+      dst_ctx.putImageData(dst_img_data, 0, 0);
+
+      return $canvas;
+    }
+  }
+
   function buildTilesTable() {
     var $table = $('<table class="table table-condensed" style="width: auto"></table>');
     var tile_fields = [
@@ -2969,6 +3015,7 @@
 
     var $d = $('<div></div>');
 
+    $d.append(buildTexture());
     $d.append(buildColorsTable());
     $d.append(buildColorCombiner());
     $d.append(buildTilesTable());
