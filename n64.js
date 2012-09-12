@@ -2619,6 +2619,16 @@
     n64js.cpu0.breakExecution();
   };
 
+  function debugDisplayList() {
+    if (running) {
+      $('.debug').show();
+      $('#dlist-tab').tab('show');
+    } else {
+      $('.debug').hide();
+    }
+    n64js.toggleDebugDisplayList();
+  }
+
   n64js.init = function () {
 
     rdram_handler_cached.quiet      = true;
@@ -2648,6 +2658,7 @@
     var kRight    = 39;
     var kDown     = 40;
     var kF10      = 121;  // Ugh - chrome only seems to send *alternate* keydown for this, and no keyup.
+    var kF9       = 120;
     var kF8       = 119;
 
     $('body').keyup(function (event) {
@@ -2662,6 +2673,7 @@
         case kPageDown: n64js.pageDown();  break;
         case kPageUp:   n64js.pageUp();    break;
         case kF8:       n64js.toggleRun(); break;
+        case kF9:       debugDisplayList(); break;
         case kF10:      n64js.step();      break;
         //default: alert( 'code:' + event.which);
       }

@@ -2919,6 +2919,16 @@
     $dlistState.html($d);
   }
 
+  n64js.toggleDebugDisplayList = function () {
+    if (debugDisplayListRunning) {
+      debugBailAfter = -1;
+      debugDisplayListRunning = false;
+      n64js.toggleRun();
+    } else {
+      debugDisplayListRequested = true;
+    }
+  }
+
   // This is acalled repeatedly so that we can update the ui.
   // We can return false if we don't render anything, but it's useful to keep re-rendering so that we can plot a framerate graph
   n64js.debugDisplayList = function () {
@@ -3133,13 +3143,7 @@
       }
     });
     $dlistControls.find('#stop').click(function () {
-      if (debugDisplayListRunning) {
-        debugBailAfter = -1;
-        debugDisplayListRunning = false;
-        n64js.toggleRun();
-      } else {
-        debugDisplayListRequested = true;
-      }
+      n64js.toggleDebugDisplayList();
     });
 
     $dlistScrub = $dlistControls.find('#scrub');
