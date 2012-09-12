@@ -20,7 +20,18 @@
   var debugLastTask             = undefined;  // The last task that we executed.
   var debugStateTimeShown       = -1;
 
+  var textureCache;
+
   var gl       = null;
+
+  var frameBuffer;
+  var frameBufferTexture3D;   // For roms using display lists
+  var frameBufferTexture2D;   // For roms writing directly to the frame buffer
+
+  var programs = {};
+
+  var fragmentSource = null;    // We patch in our shader instructions into this source.
+  var genericVertexShader = null;
 
   // n64's display resolution
   var viWidth  = 320;
@@ -2383,7 +2394,7 @@
     var tex_gen_enabled = false;
 
     if (state.geometryMode & geometryModeFlags.G_TEXTURE_ENABLE) {
-      textureinfo     = installTexture(state.texture.tile);
+      textureinfo     = lookupTexture(state.texture.tile);
       tex_gen_enabled = (state.geometryMode & (geometryModeFlags.G_LIGHTING|geometryModeFlags.G_TEXTURE_GEN)) === (geometryModeFlags.G_LIGHTING|geometryModeFlags.G_TEXTURE_GEN);
     }
 
@@ -2448,7 +2459,7 @@
 
     // TODO: check scissor
 
-    var textureinfo = installTexture(tile_idx);
+    var textureinfo = lookupTexture(tile_idx);
 
     // multiply by state.viewport.trans/scale
     var screen0 = convertN64ToDisplay( [x0,y0] );
@@ -2563,7 +2574,7 @@
     gl.depthMask(zupd_rendermode);
   }
 
-  function installTexture(tile_idx) {
+  function lookupTexture(tile_idx) {
     var tile         = state.tiles[tile_idx];
     var tmem_address = tile.tmem || 0;
 
@@ -3181,10 +3192,6 @@
     $('#adjacent-debug').html($dlistOutput);
   }
 
-  var frameBuffer;
-  var frameBufferTexture3D;   // For roms using display lists
-  var frameBufferTexture2D;   // For roms writing directly to the frame buffer
-
   //
   // Called when the canvas is created to get the ball rolling.
   // Figuratively, that is. There's nothing moving in this demo.
@@ -3260,10 +3267,10 @@
     }
   }
 
-  var programs = {};
-
-  var fragmentSource = null;    // We patch in our shader instructions into this source.
-  var genericVertexShader = null;
+  n64js.resetRenderer = function () {
+    textureCache = {};
+    $textureOutput.html('');
+  };
 
   var rgbParams32 = [
     'combined.rgb', 'tex0.rgb',
@@ -3452,15 +3459,14 @@
     return 0;
   }
 
-  var textures = {};
   function loadTexture(info) {
     var cache_id = info.address.toString();
     if (info.format === imageFormatTypes.G_IM_FMT_CI)
       cache_id += ' ' + info.palette;
 
     // FIXME: need to check other properties, and recreate every frame (or when underlying data changes)
-    if (textures.hasOwnProperty(cache_id))
-      return textures[cache_id];
+    if (textureCache.hasOwnProperty(cache_id))
+      return textureCache[cache_id];
 
     var width   = info.width;
     var height  = info.height;
@@ -3485,7 +3491,7 @@
       'nativeHeight': fixed_h
     };
 
-    textures[cache_id] = textureinfo;
+    textureCache[cache_id] = textureinfo;
 
     $textureOutput.append(n64js.toString32(info.address) + ', ' +
       getDefine(imageFormatTypes, info.format) + ', ' +

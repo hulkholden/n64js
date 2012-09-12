@@ -2354,6 +2354,8 @@
     n64js.cpu0.reset();
     n64js.cpu1.reset();
 
+    n64js.resetRenderer();
+
     mi_reg.write32(MI_VERSION_REG, 0x02020102);
     ri_reg.write32(RI_SELECT_REG, 1);           // This skips most of init
 
