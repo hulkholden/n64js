@@ -2820,10 +2820,7 @@
     return debugDisplayListRunning;
   };
 
-  function updateStateUI() {
-
-    var $d = $('<div></div>');
-
+  function buildColorsTable() {
     var $table = $('<table class="table table-condensed" style="width: auto;"></table>');
 
     var colors =[
@@ -2833,7 +2830,7 @@
       'blendColor',
       'fogColor'
     ];
-    var i, j;
+    var i;
     for (i = 0; i < colors.length; ++i) {
       var col = state[colors[i]];
       var r = (col>>>24)&0xff;
@@ -2846,11 +2843,11 @@
       var $tr = $('<tr><td>' + colors[i] + '</td><td>' + col_str + '</td></tr>');
       $table.append($tr);
     }
+    return $table;
+  }
 
-    $d.append($table);
-
-    $table = $('<table class="table table-condensed" style="width: auto"></table>');
-
+  function buildTilesTable() {
+    var $table = $('<table class="table table-condensed" style="width: auto"></table>');
     var tile_fields = [
       'format',
       'size',
@@ -2872,9 +2869,11 @@
     var $tr = $('<tr><th>tile #</th><th>' + tile_fields.join('</th><th>') + '</th></tr>');
     $table.append($tr);
 
+    var i, j;
     for (i = 0; i < state.tiles.length; ++i) {
       var tile = state.tiles[i];
 
+      // Ignore any tiles that haven't been set up.
       if (typeof tile.format === 'undefined') {
         continue;
       }
@@ -2892,7 +2891,15 @@
       $table.append($tr);
     }
 
-    $d.append($table);
+    return $table;
+  }
+
+  function updateStateUI() {
+
+    var $d = $('<div></div>');
+
+    $d.append(buildColorsTable());
+    $d.append(buildTilesTable());
 
     $dlistState.html($d);
   }
