@@ -164,6 +164,24 @@
   var G_TX_MIRROR     = 0x1;
   var G_TX_CLAMP      = 0x2;
 
+  function Tile() {
+    this.format     = -1;
+    this.size       = 0;
+    this.line       = 0;
+    this.tmem       = 0;
+    this.palette    = 0;
+    this.cm_t       = 0;
+    this.mask_t     = 0;
+    this.shift_t    = 0;
+    this.cm_s       = 0;
+    this.mask_s     = 0;
+    this.shift_s    = 0;
+    this.uls        = 0;
+    this.ult        = 0;
+    this.lrs        = 0;
+    this.lrt        = 0;
+  }
+
   //
   var kUCode_GBI0 = 0;
   var kUCode_GBI1 = 1;
@@ -2547,7 +2565,7 @@
 
   function installTexture(tile_idx) {
     var tile         = state.tiles[tile_idx];
-    var tmem_address = tile.tmem;
+    var tmem_address = tile.tmem || 0;
 
     if (state.tmemLoadMap.hasOwnProperty(tmem_address)) {
       var load_details = state.tmemLoadMap[tmem_address];
@@ -2888,7 +2906,7 @@
       var tile = state.tiles[i];
 
       // Ignore any tiles that haven't been set up.
-      if (typeof tile.format === 'undefined') {
+      if (tile.format === -1) {
         continue;
       }
 
@@ -3073,7 +3091,7 @@
     }
 
     for (i = 0; i < state.tiles.length; ++i) {
-      state.tiles[i] = {};
+      state.tiles[i] = new Tile();
     }
 
     state.numLights = 0;
