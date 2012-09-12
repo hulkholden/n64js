@@ -1833,13 +1833,7 @@
     '1           ', '0           '
   ];
 
-
-  function executeSetCombine(cmd0,cmd1,dis) {
-
-    if (dis) {
-      var mux0 = cmd0&0x00ffffff;
-      var mux1 = cmd1;
-
+  function decodeSetCombine(mux0, mux1) {
       //
       var aRGB0  = (mux0>>>20)&0x0F; // c1 c1    // a0
       var bRGB0  = (mux1>>>28)&0x0F; // c1 c2    // b0
@@ -1863,13 +1857,24 @@
 
       var decoded = '';
 
-      decoded += '\n';
-      decoded += '\tRGB0 = (' + colcombine16[aRGB0] + ' - ' + colcombine16[bRGB0] + ') * ' + colcombine32[cRGB0] + ' + ' + colcombine8[dRGB0] + '\n';
-      decoded += '\t  A0 = (' + colcombine8 [  aA0] + ' - ' + colcombine8 [  bA0] + ') * ' + colcombine8 [  cA0] + ' + ' + colcombine8[  dA0] + '\n';
-      decoded += '\tRGB1 = (' + colcombine16[aRGB1] + ' - ' + colcombine16[bRGB1] + ') * ' + colcombine32[cRGB1] + ' + ' + colcombine8[dRGB1] + '\n';
-      decoded += '\t  A1 = (' + colcombine8 [  aA1] + ' - ' + colcombine8 [  bA1] + ') * ' + colcombine8 [  cA1] + ' + ' + colcombine8[  dA1] + '\n';
+      decoded += 'RGB0 = (' + colcombine16[aRGB0] + ' - ' + colcombine16[bRGB0] + ') * ' + colcombine32[cRGB0] + ' + ' + colcombine8[dRGB0] + '\n';
+      decoded += '  A0 = (' + colcombine8 [  aA0] + ' - ' + colcombine8 [  bA0] + ') * ' + colcombine8 [  cA0] + ' + ' + colcombine8[  dA0] + '\n';
+      decoded += 'RGB1 = (' + colcombine16[aRGB1] + ' - ' + colcombine16[bRGB1] + ') * ' + colcombine32[cRGB1] + ' + ' + colcombine8[dRGB1] + '\n';
+      decoded += '  A1 = (' + colcombine8 [  aA1] + ' - ' + colcombine8 [  bA1] + ') * ' + colcombine8 [  cA1] + ' + ' + colcombine8[  dA1] + '\n';
 
-      dis.text('gsDPSetCombine(' + n64js.toString32(mux0) + ', ' + n64js.toString32(mux1) + ');' + decoded);
+      return decoded;
+  }
+
+
+  function executeSetCombine(cmd0,cmd1,dis) {
+
+    if (dis) {
+      var mux0 = cmd0&0x00ffffff;
+      var mux1 = cmd1;
+
+      var decoded = decodeSetCombine(mux0, mux1);
+
+      dis.text('gsDPSetCombine(' + n64js.toString32(mux0) + ', ' + n64js.toString32(mux1) + ');' + '\n' + decoded);
     }
 
     state.combine.hi = cmd0 & 0x00ffffff;
@@ -2846,6 +2851,15 @@
     return $table;
   }
 
+  function buildColorCombiner() {
+
+    var $p = $('<pre class="combine"></pre>');
+
+    $p.append(decodeSetCombine(state.combine.hi, state.combine.lo));
+
+    return $p;
+  }
+
   function buildTilesTable() {
     var $table = $('<table class="table table-condensed" style="width: auto"></table>');
     var tile_fields = [
@@ -2899,6 +2913,7 @@
     var $d = $('<div></div>');
 
     $d.append(buildColorsTable());
+    $d.append(buildColorCombiner());
     $d.append(buildTilesTable());
 
     $dlistState.html($d);
