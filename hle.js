@@ -2597,22 +2597,34 @@
       var format = tile.format;
       if (format === imageFormatTypes.G_IM_FMT_RGBA && tile.size <= imageSizeTypes.G_IM_SIZ_8b ) format = imageFormatTypes.G_IM_FMT_CI;
 
-      var textureinfo = loadTexture({
-        'tmem':    tile.tmem,
-        'palette': tile.palette,
-        'address': load_details.address,
-        'format':  format,
-        'size':    tile.size,
-        'width':   width,
-        'height':  height,
-        'pitch':   pitch,
-        'tlutformat': getTextureLUTType(),
-        'swapped': load_details.swapped,
-        'cm_s':    tile.cm_s,
-        'cm_t':    tile.cm_t,
-        'mask_s':  tile.mask_s,
-        'mask_t':  tile.mask_t
-      });
+      // Check if the texture is already cached.
+      // FIXME: need to check other properties, and recreate every frame (or when underlying data changes)
+      var cache_id = load_details.address.toString();
+      if (format === imageFormatTypes.G_IM_FMT_CI)
+        cache_id += ' ' + tile.palette;
+
+      var textureinfo;
+      if (textureCache.hasOwnProperty(cache_id)) {
+        textureinfo = textureCache[cache_id];
+      } else {
+        textureinfo = loadTexture({
+          'tmem':    tile.tmem,
+          'palette': tile.palette,
+          'address': load_details.address,
+          'format':  format,
+          'size':    tile.size,
+          'width':   width,
+          'height':  height,
+          'pitch':   pitch,
+          'tlutformat': getTextureLUTType(),
+          'swapped': load_details.swapped,
+          'cm_s':    tile.cm_s,
+          'cm_t':    tile.cm_t,
+          'mask_s':  tile.mask_s,
+          'mask_t':  tile.mask_t
+        });
+        textureCache[cache_id] = textureinfo;
+      }
 
       textureinfo.left   = tile.uls / 4;
       textureinfo.top    = tile.ult / 4;
@@ -3460,14 +3472,6 @@
   }
 
   function loadTexture(info) {
-    var cache_id = info.address.toString();
-    if (info.format === imageFormatTypes.G_IM_FMT_CI)
-      cache_id += ' ' + info.palette;
-
-    // FIXME: need to check other properties, and recreate every frame (or when underlying data changes)
-    if (textureCache.hasOwnProperty(cache_id))
-      return textureCache[cache_id];
-
     var width   = info.width;
     var height  = info.height;
     var address = info.address;
@@ -3491,7 +3495,6 @@
       'nativeHeight': fixed_h
     };
 
-    textureCache[cache_id] = textureinfo;
 
     $textureOutput.append(n64js.toString32(info.address) + ', ' +
       getDefine(imageFormatTypes, info.format) + ', ' +
