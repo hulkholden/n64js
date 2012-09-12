@@ -758,10 +758,11 @@
       if (!running) {
         $('#runbutton').html('<i class="icon-play"></i> Run');
       }
-    } else if (n64js.runningDisplayListDebug()) {
+    } else if (n64js.debugDisplayListRunning()) {
       requestAnimationFrame(updateLoopAnimframe);
-      n64js.debugDisplayList();
+      if (n64js.debugDisplayList()) {
         n64js.presentBackBuffer(n64js.getRamU8Array(), n64js.viOrigin());
+      }
     }
 
     if (stats) {

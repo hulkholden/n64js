@@ -13,11 +13,12 @@
   var $dlistState;
   var $dlistScrub;
 
-  var requestDisplayListDebug = false;
-  var runningDisplayListDebug = false;
-  var debugNumOps             = 0;
-  var debugBailAfter          = -1;
-  var debugLastTask;          // The last task that we executed.
+  var debugDisplayListRequested = false;
+  var debugDisplayListRunning   = false;
+  var debugNumOps               = 0;
+  var debugBailAfter            = -1;
+  var debugLastTask             = undefined;  // The last task that we executed.
+  var debugStateTimeShown       = -1;
 
   var gl       = null;
 
@@ -2815,15 +2816,15 @@
     // });
   }
 
-  n64js.runningDisplayListDebug = function () {
-    return runningDisplayListDebug;
+  n64js.debugDisplayListRunning = function () {
+    return debugDisplayListRunning;
   };
 
-  n64js.debugDisplayList = function () {
-    // Replay the last display list using the captured task/ram
-    processDList(debugLastTask, null, debugBailAfter);
+  function updateStateUI() {
 
-    var  $table = $('<table></table>');
+    var $d = $('<div></div>');
+
+    var $table = $('<table class="table table-condensed" style="width: auto;"></table>');
 
     var colors =[
       'fillColor',
@@ -2832,7 +2833,7 @@
       'blendColor',
       'fogColor'
     ];
-    var i;
+    var i, j;
     for (i = 0; i < colors.length; ++i) {
       var col = state[colors[i]];
       var r = (col>>>24)&0xff;
@@ -2846,18 +2847,79 @@
       $table.append($tr);
     }
 
-    var $d = $('<div></div>');
+    $d.append($table);
+
+    $table = $('<table class="table table-condensed" style="width: auto"></table>');
+
+    var tile_fields = [
+      'format',
+      'size',
+      'line',
+      'tmem',
+      'palette',
+      'cm_t',
+      'mask_t',
+      'shift_t',
+      'cm_s',
+      'mask_s',
+      'shift_s',
+      'uls',
+      'ult',
+      'lrs',
+      'lrt'
+    ];
+
+    var $tr = $('<tr><th>tile #</th><th>' + tile_fields.join('</th><th>') + '</th></tr>');
+    $table.append($tr);
+
+    for (i = 0; i < state.tiles.length; ++i) {
+      var tile = state.tiles[i];
+
+      if (typeof tile.format === 'undefined') {
+        continue;
+      }
+
+      var vals = [];
+      for (j = 0; j < tile_fields.length; ++j) {
+        var value = tile[tile_fields[j]];
+        if (typeof value === 'undefined') {
+          value = '';
+        }
+        vals.push(value);
+      }
+
+      $tr = $('<tr><td>' + i + '</td><td>' + vals.join('</td><td>') + '</td></tr>');
+      $table.append($tr);
+    }
+
     $d.append($table);
 
     $dlistState.html($d);
   }
+
+  // This is acalled repeatedly so that we can update the ui.
+  // We can return false if we don't render anything, but it's useful to keep re-rendering so that we can plot a framerate graph
+  n64js.debugDisplayList = function () {
+
+    // Replay the last display list using the captured task/ram
+    processDList(debugLastTask, null, debugBailAfter);
+
+    // Only update the state display when needed, otherwise it's impossible to debug the dom in Chrome
+    if (debugStateTimeShown !== debugBailAfter) {
+      updateStateUI();
+      debugStateTimeShown = debugBailAfter;
+    }
+
+    return true;
+  }
+
   function hleGraphics(task) {
     // Bodgily track these parameters so that we can call again with the same params.
     debugLastTask = task;
 
     // Force the cpu to stop at the point that we render the display list.
-    if (requestDisplayListDebug) {
-      requestDisplayListDebug = false;
+    if (debugDisplayListRequested) {
+      debugDisplayListRequested = false;
 
       // Build some disassembly for this display list
       var disassembler = new Disassembler();
@@ -2872,7 +2934,8 @@
       // Finally, break execution so we can keep replaying the display list before any other state changes.
       n64js.breakEmulationForDisplayListDebug();
 
-      runningDisplayListDebug = true;
+      debugStateTimeShown = -1;
+      debugDisplayListRunning = true;
     }
 
     processDList(task, null, -1);
@@ -3037,22 +3100,22 @@
     debugNumOps    = 0;
 
     $dlistControls.find('#rwd').click(function () {
-      if (runningDisplayListDebug && debugBailAfter > 0) {
+      if (debugDisplayListRunning && debugBailAfter > 0) {
         setScrubTime(debugBailAfter-1);
       }
     });
     $dlistControls.find('#fwd').click(function () {
-      if (runningDisplayListDebug && debugBailAfter < debugNumOps) {
+      if (debugDisplayListRunning && debugBailAfter < debugNumOps) {
         setScrubTime(debugBailAfter+1);
       }
     });
     $dlistControls.find('#stop').click(function () {
-      if (runningDisplayListDebug) {
+      if (debugDisplayListRunning) {
         debugBailAfter = -1;
-        runningDisplayListDebug = false;
+        debugDisplayListRunning = false;
         n64js.toggleRun();
       } else {
-        requestDisplayListDebug = true;
+        debugDisplayListRequested = true;
       }
     });
 
