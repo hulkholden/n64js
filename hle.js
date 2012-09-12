@@ -193,6 +193,31 @@
     this.lrt        = 0;
   }
 
+  function nextPow2(x) {
+    var y = 1;
+    while(y < x)
+      y *= 2;
+
+    return y;
+  }
+
+  function Texture(left, top, width, height) {
+    this.left    = left;
+    this.top     = top;
+    this.width   = width;
+    this.height  = height;
+
+    var native_width  = nextPow2(width);
+    var native_height = nextPow2(height);
+
+    this.nativeWidth  = native_width;
+    this.nativeHeight = native_height;
+
+    // Create a canvas element to poke data into.
+    this.$canvas = $( '<canvas width="' + native_width + '" height="' + native_height + '" />', {'width':native_width, 'height':native_height} );
+    this.texture = gl.createTexture();
+  }
+
   //
   var kUCode_GBI0 = 0;
   var kUCode_GBI1 = 1;
@@ -429,14 +454,6 @@
   function getTextureDimension(ul, lr, mask) {
     var dim = ((lr - ul) / 4) + 1;
     return mask ? Math.min( 1 << mask, dim ) : dim;
-  }
-
-  function nextPow2(x) {
-    var y = 1;
-    while(y < x)
-      y *= 2;
-
-    return y;
   }
 
   function rdpSegmentAddress(addr) {
@@ -2259,7 +2276,7 @@
   var kBlendModeAlphaTrans = 1;
   var kBlendModeFade       = 2;
 
-  function setProgramState(vertex_positions, vertex_colours, vertex_coords, textureinfo, tex_gen_enabled) {
+  function setProgramState(vertex_positions, vertex_colours, vertex_coords, texture, tex_gen_enabled) {
     var cvg_x_alpha   = getCoverageTimesAlpha();   // fragment coverage (0) or alpha (1)?
     var alpha_cvg_sel = getAlphaCoverageSelect();  // use fragment coverage * fragment alpha
 
@@ -2346,14 +2363,14 @@
     gl.vertexAttribPointer(shader.texCoordAttribute, 2, gl.FLOAT, false, 0, 0);
 
     // uSampler
-    if (textureinfo) {
-      var uv_offset_u = textureinfo.left;
-      var uv_offset_v = textureinfo.top;
-      var uv_scale_u = 1.0 / textureinfo.nativeWidth;
-      var uv_scale_v = 1.0 / textureinfo.nativeHeight;
+    if (texture) {
+      var uv_offset_u = texture.left;
+      var uv_offset_v = texture.top;
+      var uv_scale_u = 1.0 / texture.nativeWidth;
+      var uv_scale_v = 1.0 / texture.nativeHeight;
 
       // Horrible hack for wetrix. For some reason uvs come out 2x what they should be. Current guess is that it's getting G_TX_CLAMP with a shift of 0 which is causing this
-      if (textureinfo.width === 56 && textureinfo.height === 29) {
+      if (texture.width === 56 && texture.height === 29) {
         uv_scale_u *= 0.5;
         uv_scale_v *= 0.5;
       }
@@ -2367,7 +2384,7 @@
       }
 
       gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, textureinfo.texture);
+      gl.bindTexture(gl.TEXTURE_2D, texture.texture);
       gl.uniform1i(shader.uSamplerUniform, 0);
 
       gl.uniform2f(shader.uTexScaleUniform,  uv_scale_u,  uv_scale_v );
@@ -2390,18 +2407,18 @@
   function flushTris(num_tris) {
 
     var cycle_type = getCycleType();
-    var textureinfo;
+    var texture;
     var tex_gen_enabled = false;
 
     if (state.geometryMode & geometryModeFlags.G_TEXTURE_ENABLE) {
-      textureinfo     = lookupTexture(state.texture.tile);
+      texture     = lookupTexture(state.texture.tile);
       tex_gen_enabled = (state.geometryMode & (geometryModeFlags.G_LIGHTING|geometryModeFlags.G_TEXTURE_GEN)) === (geometryModeFlags.G_LIGHTING|geometryModeFlags.G_TEXTURE_GEN);
     }
 
     setProgramState(triangleBuffer.vertex_positions,
                     triangleBuffer.vertex_colours,
                     triangleBuffer.vertex_coords,
-                    textureinfo,
+                    texture,
                     tex_gen_enabled);
 
     initDepth();
@@ -2459,7 +2476,7 @@
 
     // TODO: check scissor
 
-    var textureinfo = lookupTexture(tile_idx);
+    var texture = lookupTexture(tile_idx);
 
     // multiply by state.viewport.trans/scale
     var screen0 = convertN64ToDisplay( [x0,y0] );
@@ -2496,7 +2513,7 @@
 
     var colours = [ 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff ];
 
-    setProgramState(new Float32Array(vertices), new Uint32Array(colours), new Float32Array(uvs), textureinfo, false /*tex_gen_enabled*/);
+    setProgramState(new Float32Array(vertices), new Uint32Array(colours), new Float32Array(uvs), texture, false /*tex_gen_enabled*/);
 
     gl.disable(gl.CULL_FACE);
 
@@ -2595,7 +2612,9 @@
 
       // Hack - Extreme-G specifies RGBA/8 textures, but they're really CI8
       var format = tile.format;
-      if (format === imageFormatTypes.G_IM_FMT_RGBA && tile.size <= imageSizeTypes.G_IM_SIZ_8b ) format = imageFormatTypes.G_IM_FMT_CI;
+      if (format === imageFormatTypes.G_IM_FMT_RGBA && tile.size <= imageSizeTypes.G_IM_SIZ_8b ) {
+        format = imageFormatTypes.G_IM_FMT_CI;
+      }
 
       // Check if the texture is already cached.
       // FIXME: need to check other properties, and recreate every frame (or when underlying data changes)
@@ -2603,16 +2622,18 @@
       if (format === imageFormatTypes.G_IM_FMT_CI)
         cache_id += ' ' + tile.palette;
 
-      var textureinfo;
+      var texture;
       if (textureCache.hasOwnProperty(cache_id)) {
-        textureinfo = textureCache[cache_id];
+        texture = textureCache[cache_id];
       } else {
-        textureinfo = loadTexture({
+        texture = decodeTexture({
           'tmem':    tile.tmem,
           'palette': tile.palette,
           'address': load_details.address,
           'format':  format,
           'size':    tile.size,
+          'left':    tile.uls / 4,
+          'top':     tile.ult / 4,
           'width':   width,
           'height':  height,
           'pitch':   pitch,
@@ -2623,15 +2644,10 @@
           'mask_s':  tile.mask_s,
           'mask_t':  tile.mask_t
         });
-        textureCache[cache_id] = textureinfo;
+        textureCache[cache_id] = texture;
       }
 
-      textureinfo.left   = tile.uls / 4;
-      textureinfo.top    = tile.ult / 4;
-      textureinfo.width  = width;
-      textureinfo.height = height;
-
-      return textureinfo;
+      return texture;
     }
   }
 
@@ -3471,30 +3487,16 @@
     return 0;
   }
 
-  function loadTexture(info) {
+  function decodeTexture(info) {
     var width   = info.width;
     var height  = info.height;
     var address = info.address;
     var pitch   = info.pitch;
-
-    var fixed_w = nextPow2(width);
-    var fixed_h = nextPow2(height);
-
     var swapped = info.swapped;
 
-    var $canvas = $( '<canvas width="' + fixed_w + '" height="' + fixed_h + '" />', {'width':fixed_w, 'height':fixed_h} );
-    if (!$canvas[0].getContext)
+    var texture = new Texture(info.left, info.top, width, height);
+    if (!texture.$canvas[0].getContext)
       return null;
-
-    var texture = gl.createTexture();
-
-    var textureinfo = {
-      'canvas':   $canvas,
-      'texture':  texture,
-      'nativeWidth': fixed_w,
-      'nativeHeight': fixed_h
-    };
-
 
     $textureOutput.append(n64js.toString32(info.address) + ', ' +
       getDefine(imageFormatTypes, info.format) + ', ' +
@@ -3506,8 +3508,8 @@
 
     var handled = false;
 
-    var ctx      = $canvas[0].getContext('2d');
-    var img_data = ctx.createImageData(fixed_w, fixed_h);
+    var ctx      = texture.$canvas[0].getContext('2d');
+    var img_data = ctx.createImageData(texture.nativeWidth, texture.nativeHeight);
 
     switch (info.format) {
       case imageFormatTypes.G_IM_FMT_RGBA:
@@ -3582,7 +3584,7 @@
 
       ctx.putImageData(img_data, 0, 0);
 
-      $textureOutput.append($canvas);
+      $textureOutput.append(texture.$canvas);
       $textureOutput.append('<br>');
     } else {
       $textureOutput.append(getDefine(imageFormatTypes, info.format) + '/' + getDefine(imageSizeTypes, info.size) + ' is unhandled');
@@ -3591,8 +3593,8 @@
     }
 
     gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, $canvas[0]);
+    gl.bindTexture(gl.TEXTURE_2D, texture.texture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texture.$canvas[0]);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
 
@@ -3605,7 +3607,7 @@
     gl.generateMipmap(gl.TEXTURE_2D);
     gl.bindTexture(gl.TEXTURE_2D, null);
 
-    return textureinfo;
+    return texture;
   }
 
   var OneToEight =
