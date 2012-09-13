@@ -21,8 +21,10 @@ Vector3.prototype = {
 
   normaliseInPlace : function () {
     var len = this.length();
-    for (var i = 0; i < this.elems.length; ++i)
-      this.elems[i] /= len;
+    if (len > 0.0) {
+      for (var i = 0; i < this.elems.length; ++i)
+        this.elems[i] /= len;
+    }
     return this;
   },
 }
@@ -58,8 +60,10 @@ Vector4.prototype = {
 
   normaliseInPlace : function () {
     var len = this.length();
-    for (var i = 0; i < this.elems.length; ++i)
-      this.elems[i] /= len;
+    if (len > 0.0) {
+      for (var i = 0; i < this.elems.length; ++i)
+        this.elems[i] /= len;
+    }
     return this;
   },
 
