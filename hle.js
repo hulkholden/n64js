@@ -888,10 +888,11 @@
 
   function ProjectedVertex()
   {
-    this.pos    = new Vector4();
-    this.colour = 0;
-    this.u      = 0;
-    this.v      = 0;
+    this.pos   = new Vector4();
+    this.color = 0;
+    this.u     = 0;
+    this.v     = 0;
+    this.set   = false;
   }
 
   function previewVertexImpl(v0, n, dv, dis) {
@@ -955,6 +956,8 @@
     for (var i = 0; i < n; ++i) {
       var vtx_base = (v0+i)*16;
       var vertex = state.projectedVertices[v0+i];
+
+      vertex.set = true;
 
       xyz.elems[0] = dv.getInt16(vtx_base + 0);
       xyz.elems[1] = dv.getInt16(vtx_base + 2);
@@ -2992,8 +2995,8 @@
   }
 
   function buildTilesTable() {
-    var $table = $('<table class="table table-condensed" style="width: auto"></table>');
     var tile_fields = [
+      'tile #',
       'format',
       'size',
       'line',
@@ -3011,7 +3014,8 @@
       'bottom'
     ];
 
-    var $tr = $('<tr><th>tile #</th><th>' + tile_fields.join('</th><th>') + '</th></tr>');
+    var $table = $('<table class="table table-condensed" style="width: auto"></table>');
+    var $tr = $('<tr><th>' + tile_fields.join('</th><th>') + '</th></tr>');
     $table.append($tr);
 
     var i;
@@ -3024,6 +3028,7 @@
       }
 
       var vals = [];
+      vals.push(i);
       vals.push(getDefine(imageFormatTypes, tile.format));
       vals.push(getDefine(imageSizeTypes, tile.size));
       vals.push(tile.line);
@@ -3040,7 +3045,48 @@
       vals.push(tile.lrs / 4.0);
       vals.push(tile.lrt / 4.0);
 
-      $tr = $('<tr><td>' + i + '</td><td>' + vals.join('</td><td>') + '</td></tr>');
+      $tr = $('<tr><td>' + vals.join('</td><td>') + '</td></tr>');
+      $table.append($tr);
+    }
+
+    return $table;
+  }
+
+  function buildVerticesTable() {
+    var vtx_fields = [
+      'vtx #',
+      'x',
+      'y',
+      'z',
+      'w',
+      'color',
+      'u',
+      'v'
+    ];
+
+    var $table = $('<table class="table table-condensed" style="width: auto"></table>');
+    var $tr = $('<tr><th>' + vtx_fields.join('</th><th>') + '</th></tr>');
+    $table.append($tr);
+
+    var i;
+    for (i = 0; i < state.projectedVertices.length; ++i) {
+      var vtx = state.projectedVertices[i];
+
+      if (!vtx.set) {
+        continue;
+      }
+
+      var vals = [];
+      vals.push(i);
+      vals.push(vtx.pos.elems[0]);
+      vals.push(vtx.pos.elems[1]);
+      vals.push(vtx.pos.elems[2]);
+      vals.push(vtx.pos.elems[3]);
+      vals.push(makeColorText(n64js.toString32(vtx.color), vtx.color));
+      vals.push(vtx.u);
+      vals.push(vtx.v);
+
+      $tr = $('<tr><td>' + vals.join('</td><td>') + '</td></tr>');
       $table.append($tr);
     }
 
@@ -3052,6 +3098,7 @@
     var $d = $('<div></div>');
 
     $d.append(buildTextures());
+    $d.append(buildVerticesTable());
     $d.append(buildColorsTable());
     $d.append(buildColorCombiner());
     $d.append(buildTilesTable());
