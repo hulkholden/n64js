@@ -3058,7 +3058,10 @@
       'x',
       'y',
       'z',
-      'w',
+      'px',
+      'py',
+      'pz',
+      'pw',
       'color',
       'u',
       'v'
@@ -3076,15 +3079,22 @@
         continue;
       }
 
+      var x = vtx.pos.elems[0] / vtx.pos.elems[3];
+      var y = vtx.pos.elems[1] / vtx.pos.elems[3];
+      var z = vtx.pos.elems[1] / vtx.pos.elems[3];
+
       var vals = [];
       vals.push(i);
-      vals.push(vtx.pos.elems[0]);
-      vals.push(vtx.pos.elems[1]);
-      vals.push(vtx.pos.elems[2]);
-      vals.push(vtx.pos.elems[3]);
+      vals.push(x.toFixed(3));
+      vals.push(y.toFixed(3));
+      vals.push(z.toFixed(3));
+      vals.push(vtx.pos.elems[0].toFixed(3));
+      vals.push(vtx.pos.elems[1].toFixed(3));
+      vals.push(vtx.pos.elems[2].toFixed(3));
+      vals.push(vtx.pos.elems[3].toFixed(3));
       vals.push(makeColorText(n64js.toString32(vtx.color), vtx.color));
-      vals.push(vtx.u);
-      vals.push(vtx.v);
+      vals.push(vtx.u.toFixed(3));
+      vals.push(vtx.v.toFixed(3));
 
       $tr = $('<tr><td>' + vals.join('</td><td>') + '</td></tr>');
       $table.append($tr);
