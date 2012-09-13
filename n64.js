@@ -2621,16 +2621,6 @@
     n64js.cpu0.breakExecution();
   };
 
-  function debugDisplayList() {
-    if (running) {
-      $('.debug').show();
-      $('#dlist-tab').tab('show');
-    } else {
-      $('.debug').hide();
-    }
-    n64js.toggleDebugDisplayList();
-  }
-
   n64js.init = function () {
 
     rdram_handler_cached.quiet      = true;
@@ -2670,13 +2660,13 @@
       n64js.handleKey(event.which, true);
 
       switch (event.which) {
-        case kDown:     n64js.down();      break;
-        case kUp:       n64js.up();        break;
-        case kPageDown: n64js.pageDown();  break;
-        case kPageUp:   n64js.pageUp();    break;
-        case kF8:       n64js.toggleRun(); break;
-        case kF9:       debugDisplayList(); break;
-        case kF10:      n64js.step();      break;
+        case kDown:     n64js.down();                   break;
+        case kUp:       n64js.up();                     break;
+        case kPageDown: n64js.pageDown();               break;
+        case kPageUp:   n64js.pageUp();                 break;
+        case kF8:       n64js.toggleRun();              break;
+        case kF9:       n64js.toggleDebugDisplayList(); break;
+        case kF10:      n64js.step();                   break;
         //default: alert( 'code:' + event.which);
       }
     });

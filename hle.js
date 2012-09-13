@@ -20,6 +20,8 @@
   var debugLastTask             = undefined;  // The last task that we executed.
   var debugStateTimeShown       = -1;
 
+  var debugCurrentOp            = 0; // This is updated as we're executing, so that we know which instruction to halt on.
+
   var textureCache;
 
   var gl       = null;
@@ -328,6 +330,13 @@
 
   var canvas2dMatrix = makeOrtho(0,canvasWidth, canvasHeight,0, 0,1);
 
+  function hleHalt(msg) {
+    if (!debugDisplayListRequested) {
+      n64js.toggleDebugDisplayList();
+      debugBailAfter = debugCurrentOp;
+    }
+  }
+
   function TriangleBuffer(num_tris) {
     this.vertex_positions = new Float32Array(num_tris*3*4);
     this.vertex_colours   = new  Uint32Array(num_tris*3*1);
@@ -586,7 +595,7 @@
   }
 
   function executeUnknown(cmd0,cmd1) {
-    n64js.halt('Unknown display list op ' + n64js.toString8(cmd0>>>24));
+    hleHalt('Unknown display list op ' + n64js.toString8(cmd0>>>24));
   }
 
   function executeSpNoop(cmd0,cmd1,dis) {
@@ -925,7 +934,7 @@
     }
 
     if (v0+n >= 64) {
-      n64js.halt('Too many verts');
+      hleHalt('Too many verts');
       state.pc = 0;
       return;
     }
@@ -958,7 +967,7 @@
       wvp.transformPoint(xyz, projected);
 
 
-      //n64js.halt( x + ',' + y + ',' + z + '-&gt;' + projected.elems[0] + ',' + projected.elems[1] + ',' + projected.elems[2] );
+      //hleHalt( x + ',' + y + ',' + z + '-&gt;' + projected.elems[0] + ',' + projected.elems[1] + ',' + projected.elems[2] );
 
       // var clip_flags = 0;
       //      if (projected[0] < -projected[3]) clip_flags |= X_POS;
@@ -3024,11 +3033,17 @@
   }
 
   n64js.toggleDebugDisplayList = function () {
+
     if (debugDisplayListRunning) {
-      debugBailAfter = -1;
+      $('.debug').hide();
+
+      debugBailAfter          = -1;
       debugDisplayListRunning = false;
       n64js.toggleRun();
     } else {
+      $('.debug').show();
+      $('#dlist-tab').tab('show');
+
       debugDisplayListRequested = true;
     }
   }
@@ -3065,7 +3080,10 @@
       // Update the scrubber based on the new length of disassembly
       debugNumOps = disassembler.numOps > 0 ? (disassembler.numOps-1) : 0;
       setScrubRange(debugNumOps);
-      setScrubTime(debugNumOps);
+
+      // If debugBailAfter hasn't been set (e.g. by hleHalt), stop at the end of the list
+      var time_to_show = (debugBailAfter == -1) ? debugNumOps : debugBailAfter;
+      setScrubTime(time_to_show);
 
       // Finally, break execution so we can keep replaying the display list before any other state changes.
       n64js.breakEmulationForDisplayListDebug();
@@ -3101,7 +3119,7 @@
         case 0x64cc729d: ucode = kUCode_GBI0_WR;  break;  // Wave Race
         case 0x23f92542: ucode = kUCode_GBI0_GE;  break;  // Goldeneye
         default:
-          n64js.halt('Unknown GBI hash ' + n64js.toString32(val));
+          hleHalt('Unknown GBI hash ' + n64js.toString32(val));
           break;
       }
     }
@@ -3125,6 +3143,8 @@
     setCanvasViewport(canvas.clientWidth, canvas.clientHeight);
 
     if (disassembler) {
+      debugCurrentOp = 0;
+
       while (state.pc !== 0) {
           var pc = state.pc;
           var cmd0 = ram.getUint32( pc + 0 );
@@ -3136,10 +3156,12 @@
           ucode_table[cmd0>>>24](cmd0,cmd1,disassembler);
 
           disassembler.end();
+
+          debugCurrentOp++;
         }
     } else {
       // Vanilla loop, no disassembler to worry about
-      var count = 0;
+      debugCurrentOp = 0;
       while (state.pc !== 0) {
           var pc = state.pc;
           var cmd0 = ram.getUint32( pc + 0 );
@@ -3148,10 +3170,10 @@
 
           ucode_table[cmd0>>>24](cmd0,cmd1);
 
-          if (bail_after > -1 && count >= bail_after) {
+          if (bail_after > -1 && debugCurrentOp >= bail_after) {
             break;
           }
-          ++count;
+          debugCurrentOp++;
         }
     }
 
@@ -3636,7 +3658,7 @@
     } else {
       $textureOutput.append(getDefine(imageFormatTypes, info.format) + '/' + getDefine(imageSizeTypes, info.size) + ' is unhandled');
       // FIXME: fill with placeholder texture
-      n64js.halt('texture format unhandled - ' + getDefine(imageFormatTypes, info.format) + '/' + getDefine(imageSizeTypes, info.size));
+      hleHalt('texture format unhandled - ' + getDefine(imageFormatTypes, info.format) + '/' + getDefine(imageSizeTypes, info.size));
     }
 
     gl.activeTexture(gl.TEXTURE0);
