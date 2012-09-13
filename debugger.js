@@ -32,7 +32,22 @@
     $output         = $('#output');
     $dynarecContent = $('#dynarec-content');
     $memoryContent  = $('#memory-content');
+
+    var addr = 0x80000000;
+    $memoryContent.append('<input type="text" placeholder="address" value="' + n64js.toString32(addr) + '" />');
+    $memoryContent.append('<pre />');
+
+    $memoryContent.find('input').change(function () {
+      lastMemoryAccessAddress = parseInt($(this).val());
+      updateMemoryView();
+    });
+    updateMemoryView();
   };
+
+  function updateMemoryView() {
+    var addr = lastMemoryAccessAddress || 0x80000000;
+    $memoryContent.find('pre').html( makeMemoryTable(addr, 1024) );
+  }
 
   // bytes_per_row should be power-of-two
   function makeMemoryTable(focus_address, context_bytes, bytes_per_row, highlights) {
@@ -513,7 +528,6 @@
     $dynarecContent.html($t);
   }
 
-
   n64js.down = function () {
     disasmAddress += 4;
     n64js.refreshDebugger();
@@ -545,9 +559,7 @@
     }
 
     if ($memoryContent.hasClass('active')) {
-      var $mem = $('<pre></pre>');
-      $mem.append( makeMemoryTable(lastMemoryAccessAddress || 0x80000000, 1024) );
-      $memoryContent.html($mem);
+      updateMemoryView();
     }
   };
 
