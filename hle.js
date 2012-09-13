@@ -928,6 +928,12 @@
     var texgen    = state.geometryMode & geometryModeFlags.G_TEXTURE_GEN;
     var texgenlin = state.geometryMode & geometryModeFlags.G_TEXTURE_GEN_LINEAR;
 
+    if (address + n*16 > 0x00800000) {
+ // Wetrix causes this. Not sure if it's a cpu emulation bug which is generating bad display lists?
+ //     hleHalt('Invalid address');
+      return;
+    }
+
     var dv = new DataView(state.ram.buffer, address);
 
     if (dis) {
