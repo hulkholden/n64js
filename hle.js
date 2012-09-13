@@ -2604,6 +2604,12 @@
     var tile         = state.tiles[tile_idx];
     var tmem_address = tile.tmem || 0;
 
+    // Skip empty tiles.
+    if (tile.lrs <= tile.uls &&
+        tile.lrt <= tile.ult) {
+      return undefined;
+    }
+
     if (state.tmemLoadMap.hasOwnProperty(tmem_address)) {
       var load_details = state.tmemLoadMap[tmem_address];
       var pitch = load_details.pitch;
@@ -2928,8 +2934,8 @@
     return $p;
   }
 
-  function buildTexture() {
-    var texture = lookupTexture(G_TX_RENDERTILE);
+  function buildTexture(tile_idx) {
+    var texture = lookupTexture(tile_idx);
     if (texture) {
 
       // Copy + scale texture data.
@@ -2972,6 +2978,19 @@
     }
   }
 
+  function buildTextures() {
+    var $d = $('<div />');
+    var i, $t;
+    for (i = 0; i < 8; ++i) {
+      $t = buildTexture(i);
+      if ($t) {
+        $d.append($t);
+      }
+    }
+
+    return $d;
+  }
+
   function buildTilesTable() {
     var $table = $('<table class="table table-condensed" style="width: auto"></table>');
     var tile_fields = [
@@ -2980,22 +2999,22 @@
       'line',
       'tmem',
       'palette',
-      'cm_t',
-      'mask_t',
-      'shift_t',
       'cm_s',
       'mask_s',
       'shift_s',
-      'uls',
-      'ult',
-      'lrs',
-      'lrt'
+      'cm_t',
+      'mask_t',
+      'shift_t',
+      'left',
+      'top',
+      'right',
+      'bottom'
     ];
 
     var $tr = $('<tr><th>tile #</th><th>' + tile_fields.join('</th><th>') + '</th></tr>');
     $table.append($tr);
 
-    var i, j;
+    var i;
     for (i = 0; i < state.tiles.length; ++i) {
       var tile = state.tiles[i];
 
@@ -3005,13 +3024,21 @@
       }
 
       var vals = [];
-      for (j = 0; j < tile_fields.length; ++j) {
-        var value = tile[tile_fields[j]];
-        if (typeof value === 'undefined') {
-          value = '';
-        }
-        vals.push(value);
-      }
+      vals.push(getDefine(imageFormatTypes, tile.format));
+      vals.push(getDefine(imageSizeTypes, tile.size));
+      vals.push(tile.line);
+      vals.push(tile.tmem);
+      vals.push(tile.palette);
+      vals.push(getClampMirrorWrapText(tile.cm_s));
+      vals.push(tile.mask_s);
+      vals.push(tile.shift_s);
+      vals.push(getClampMirrorWrapText(tile.cm_t));
+      vals.push(tile.mask_t);
+      vals.push(tile.shift_t);
+      vals.push(tile.uls / 4.0);
+      vals.push(tile.ult / 4.0);
+      vals.push(tile.lrs / 4.0);
+      vals.push(tile.lrt / 4.0);
 
       $tr = $('<tr><td>' + i + '</td><td>' + vals.join('</td><td>') + '</td></tr>');
       $table.append($tr);
@@ -3024,7 +3051,7 @@
 
     var $d = $('<div></div>');
 
-    $d.append(buildTexture());
+    $d.append(buildTextures());
     $d.append(buildColorsTable());
     $d.append(buildColorCombiner());
     $d.append(buildTilesTable());
