@@ -905,7 +905,7 @@
     tip += '<tr><th>' + cols.join('</th><th>') + '</th></tr>\n';
 
     for (var i = 0; i < n; ++i) {
-      var vtx_base = (v0+i)*16;
+      var vtx_base = i*16;
       var v = [ v0+i,
                 dv.getInt16(vtx_base + 0),  // x
                 dv.getInt16(vtx_base + 2),  // y
@@ -954,7 +954,7 @@
     var transformedNormal = new Vector3();
 
     for (var i = 0; i < n; ++i) {
-      var vtx_base = (v0+i)*16;
+      var vtx_base = i*16;
       var vertex = state.projectedVertices[v0+i];
 
       vertex.set = true;
