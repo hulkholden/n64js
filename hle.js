@@ -3087,7 +3087,7 @@
 
       var x = vtx.pos.elems[0] / vtx.pos.elems[3];
       var y = vtx.pos.elems[1] / vtx.pos.elems[3];
-      var z = vtx.pos.elems[1] / vtx.pos.elems[3];
+      var z = vtx.pos.elems[2] / vtx.pos.elems[3];
 
       var vals = [];
       vals.push(i);
