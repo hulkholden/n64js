@@ -3529,7 +3529,7 @@
     var mux1   = state.combine.lo;
 
     // Check if this shader already exists. Copy/Fill are fixed-function so ignore mux for these.
-    var state_text = (cycle_type === cycleTypeValues.G_CYC_1CYCLE) ? (mux0.toString(16) + mux1.toString(16)) : cycle_type;
+    var state_text = (cycle_type < cycleTypeValues.G_CYC_COPY) ? (mux0.toString(16) + mux1.toString(16) + '_' + cycle_type) : cycle_type;
     if (alpha_threshold >= 0.0) {
       state_text += alpha_threshold;
     }
