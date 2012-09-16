@@ -460,6 +460,41 @@
     return new Matrix(elements);
   }
 
+  function previewViewport(address) {
+    var tip = '';
+    tip += 'scale = (' + state.ram.getInt16(address +  0) / 4.0 + ', ' + state.ram.getInt16(address +  2) / 4.0 + ') ';
+    tip += 'trans = (' + state.ram.getInt16(address +  8) / 4.0 + ', ' + state.ram.getInt16(address + 10) / 4.0 + ') ';
+    return tip;
+  }
+
+  function moveMemViewport(address) {
+    var scale = new Array(2);
+    var trans = new Array(2);
+    scale[0] = state.ram.getInt16(address +  0) / 4.0;
+    scale[1] = state.ram.getInt16(address +  2) / 4.0;
+
+    trans[0] = state.ram.getInt16(address +  8) / 4.0;
+    trans[1] = state.ram.getInt16(address + 10) / 4.0;
+    setN64Viewport(scale, trans);
+  }
+
+  function previewLight(address) {
+    var tip = '';
+    tip += 'color = ' + n64js.toHex(state.ram.getUint32(address + 0), 32) + ' ';
+    var dir = Vector3.create([state.ram.getInt8(address +  8),
+                              state.ram.getInt8(address +  9),
+                              state.ram.getInt8(address + 10)]).normaliseInPlace();
+    tip += 'norm = (' + dir.elems[0] + ', ' + dir.elems[1] + ', ' + dir.elems[2] + ')';
+    return tip;
+  }
+
+  function moveMemLight(light_idx, address) {
+    state.lights[light_idx].color = unpackRGBAToColor(state.ram.getUint32(address + 0));
+    state.lights[light_idx].dir   = Vector3.create([state.ram.getInt8(address +  8),
+                                                    state.ram.getInt8(address +  9),
+                                                    state.ram.getInt8(address + 10)]).normaliseInPlace();
+  }
+
   function getTextureDimension(ul, lr, mask) {
     var dim = ((lr - ul) / 4) + 1;
     return mask ? Math.min( 1 << mask, dim ) : dim;
@@ -746,7 +781,7 @@
     }
   }
 
-  function previewMoveMem(type, length, address, dis) {
+  function previewGBI1_MoveMem(type, length, address, dis) {
     var tip = '';
 
     for (var i = 0; i < length; ++i) {
@@ -756,8 +791,7 @@
 
     switch (type) {
       case moveMemTypeValues.G_MV_VIEWPORT:
-        tip += 'scale = (' + state.ram.getInt16(address +  0) / 4.0 + ', ' + state.ram.getInt16(address +  2) / 4.0 + ') ';
-        tip += 'trans = (' + state.ram.getInt16(address +  8) / 4.0 + ', ' + state.ram.getInt16(address + 10) / 4.0 + ') ';
+        tip += previewViewport(address);
         break;
 
       case moveMemTypeValues.G_MV_L0:
@@ -768,11 +802,7 @@
       case moveMemTypeValues.G_MV_L5:
       case moveMemTypeValues.G_MV_L6:
       case moveMemTypeValues.G_MV_L7:
-        tip += 'color = ' + n64js.toHex(state.ram.getUint32(address + 0), 32) + ' ';
-        var dir = Vector3.create([state.ram.getInt8(address +  8),
-                                  state.ram.getInt8(address +  9),
-                                  state.ram.getInt8(address + 10)]).normaliseInPlace();
-        tip += 'norm = (' + dir.elems[0] + ', ' + dir.elems[1] + ', ' + dir.elems[2] + ')';
+        tip += previewLight(address);
         break;
     }
 
@@ -798,19 +828,12 @@
       }
 
       dis.text(text);
-      previewMoveMem(type, length, address, dis);
+      previewGBI1_MoveMem(type, length, address, dis);
     }
 
     switch (type) {
       case moveMemTypeValues.G_MV_VIEWPORT:
-        var scale = new Array(2);
-        var trans = new Array(2);
-        scale[0] = state.ram.getInt16(address +  0) / 4.0;
-        scale[1] = state.ram.getInt16(address +  2) / 4.0;
-
-        trans[0] = state.ram.getInt16(address +  8) / 4.0;
-        trans[1] = state.ram.getInt16(address + 10) / 4.0;
-        setN64Viewport(scale, trans);
+        moveMemViewport(address);
         break;
 
       case moveMemTypeValues.G_MV_L0:
@@ -822,10 +845,7 @@
       case moveMemTypeValues.G_MV_L6:
       case moveMemTypeValues.G_MV_L7:
         var light_idx = (type - moveMemTypeValues.G_MV_L0) / 2;
-        state.lights[light_idx].color = unpackRGBAToColor(state.ram.getUint32(address + 0));
-        state.lights[light_idx].dir   = Vector3.create([state.ram.getInt8(address +  8),
-                                                        state.ram.getInt8(address +  9),
-                                                        state.ram.getInt8(address + 10)]).normaliseInPlace();
+        moveMemLight(light_idx, address);
         break;
     }
   }
@@ -1219,30 +1239,6 @@
     return n64js.toString8(sft);
   }
 
-  function executeGBI1_SetOtherModeL(cmd0,cmd1,dis) {
-    var shift = (cmd0>>> 8)&0xff;
-    var len   = (cmd0>>> 0)&0xff;
-    var data  = cmd1;
-    var mask = ((1 << len) - 1) << shift;
-
-    if (dis) {
-      var data_str  = n64js.toString32(data);
-      var shift_str = getOtherModeLShiftCount(shift);
-      var text      = 'gsSPSetOtherMode(G_SETOTHERMODE_L, ' + shift_str + ', ' + len + ', ' + data_str + ');';
-
-      // Override generic text with specific functions if known
-      switch (shift) {
-        case G_MDSFT_ALPHACOMPARE:  if (len === 2)  text = 'gsDPSetAlphaCompare(' + getDefine(alphaCompareValues, data) + ');'; break;
-        case G_MDSFT_ZSRCSEL:       if (len === 1)  text = 'gsDPSetDepthSource('  + getDefine(depthSourceValues, data)  + ');'; break;
-        case G_MDSFT_RENDERMODE:    if (len === 29) text = 'gsDPSetRenderMode('   + getRenderModeFlagsText(data) + ');'; break;
-        //case G_MDSFT_BLENDER:     break; // set with G_MDSFT_RENDERMODE
-      }
-      dis.text(text);
-    }
-
-    state.rdpOtherModeL = (state.rdpOtherModeL & ~mask) | data;
-  }
-
   function getOtherModeHShiftCount(sft) {
     switch (sft) {
 
@@ -1264,6 +1260,60 @@
     return n64js.toString8(sft);
   }
 
+  function disassembleSetOtherModeL(dis, len, shift, data) {
+    var data_str  = n64js.toString32(data);
+    var shift_str = getOtherModeLShiftCount(shift);
+    var text      = 'gsSPSetOtherMode(G_SETOTHERMODE_L, ' + shift_str + ', ' + len + ', ' + data_str + ');';
+
+    // Override generic text with specific functions if known
+    switch (shift) {
+      case G_MDSFT_ALPHACOMPARE:  if (len === 2)  text = 'gsDPSetAlphaCompare(' + getDefine(alphaCompareValues, data) + ');'; break;
+      case G_MDSFT_ZSRCSEL:       if (len === 1)  text = 'gsDPSetDepthSource('  + getDefine(depthSourceValues, data)  + ');'; break;
+      case G_MDSFT_RENDERMODE:    if (len === 29) text = 'gsDPSetRenderMode('   + getRenderModeFlagsText(data) + ');'; break;
+      //case G_MDSFT_BLENDER:     break; // set with G_MDSFT_RENDERMODE
+    }
+    dis.text(text);
+  }
+
+  function disassembleSetOtherModeH(dis, len, shift, data) {
+    var shift_str = getOtherModeHShiftCount(shift);
+    var data_str  = n64js.toString32(data);
+
+    var text = 'gsSPSetOtherMode(G_SETOTHERMODE_H, ' + shift_str + ', ' + len + ', ' + data_str + ');';
+
+    // Override generic text with specific functions if known
+    switch (shift) {
+      case G_MDSFT_BLENDMASK:   break;
+      case G_MDSFT_ALPHADITHER: if (len === 2) text = 'gsDPSetAlphaDither('   + getDefine(alphaDitherValues, data)    + ');'; break;
+      case G_MDSFT_RGBDITHER:   if (len === 2) text = 'gsDPSetColorDither('   + getDefine(colorDitherValues, data)    + ');'; break;  // NB HW2?
+      case G_MDSFT_COMBKEY:     if (len === 1) text = 'gsDPSetCombineKey('    + getDefine(combineKeyValues,  data)    + ');'; break;
+      case G_MDSFT_TEXTCONV:    if (len === 3) text = 'gsDPSetTextureConvert('+ getDefine(textureConvertValues, data) + ');'; break;
+      case G_MDSFT_TEXTFILT:    if (len === 2) text = 'gsDPSetTextureFilter(' + getDefine(textureFilterValues, data)  + ');'; break;
+      case G_MDSFT_TEXTLOD:     if (len === 1) text = 'gsDPSetTextureLOD('    + getDefine(textureLODValues, data)     + ');'; break;
+      case G_MDSFT_TEXTLUT:     if (len === 2) text = 'gsDPSetTextureLUT('    + getDefine(textureLUTValues, data)     + ');'; break;
+      case G_MDSFT_TEXTDETAIL:  if (len === 2) text = 'gsDPSetTextureDetail(' + getDefine(textureDetailValues, data)  + ');'; break;
+      case G_MDSFT_TEXTPERSP:   if (len === 1) text = 'gsDPSetTexturePersp('  + getDefine(texturePerspValues, data)   + ');'; break;
+      case G_MDSFT_CYCLETYPE:   if (len === 2) text = 'gsDPSetCycleType('     + getDefine(cycleTypeValues, data)      + ');'; break;
+      //case G_MDSFT_COLORDITHER: if (len === 1) text = 'gsDPSetColorDither('   + data_str + ');'; break;  // NB HW1?
+      case G_MDSFT_PIPELINE:    if (len === 1) text = 'gsDPPipelineMode('     + getDefine(pipelineModeValues, data)   + ');'; break;
+    }
+    dis.text(text);
+  }
+
+
+  function executeGBI1_SetOtherModeL(cmd0,cmd1,dis) {
+    var shift = (cmd0>>> 8)&0xff;
+    var len   = (cmd0>>> 0)&0xff;
+    var data  = cmd1;
+    var mask = ((1 << len) - 1) << shift;
+
+    if (dis) {
+      disassembleSetOtherModeL(dis, len, shift, data);
+    }
+
+    state.rdpOtherModeL = (state.rdpOtherModeL & ~mask) | data;
+  }
+
   function executeGBI1_SetOtherModeH(cmd0,cmd1,dis) {
     var shift = (cmd0>>> 8)&0xff;
     var len   = (cmd0>>> 0)&0xff;
@@ -1271,28 +1321,7 @@
     var mask = ((1 << len) - 1) << shift;
 
     if (dis) {
-      var shift_str = getOtherModeHShiftCount(shift);
-      var data_str  = n64js.toString32(data);
-
-      var text = 'gsSPSetOtherMode(G_SETOTHERMODE_H, ' + shift_str + ', ' + len + ', ' + data_str + ');';
-
-      // Override generic text with specific functions if known
-      switch (shift) {
-        case G_MDSFT_BLENDMASK:   break;
-        case G_MDSFT_ALPHADITHER: if (len === 2) text = 'gsDPSetAlphaDither('   + getDefine(alphaDitherValues, data)    + ');'; break;
-        case G_MDSFT_RGBDITHER:   if (len === 2) text = 'gsDPSetColorDither('   + getDefine(colorDitherValues, data)    + ');'; break;  // NB HW2?
-        case G_MDSFT_COMBKEY:     if (len === 1) text = 'gsDPSetCombineKey('    + getDefine(combineKeyValues,  data)    + ');'; break;
-        case G_MDSFT_TEXTCONV:    if (len === 3) text = 'gsDPSetTextureConvert('+ getDefine(textureConvertValues, data) + ');'; break;
-        case G_MDSFT_TEXTFILT:    if (len === 2) text = 'gsDPSetTextureFilter(' + getDefine(textureFilterValues, data)  + ');'; break;
-        case G_MDSFT_TEXTLOD:     if (len === 1) text = 'gsDPSetTextureLOD('    + getDefine(textureLODValues, data)     + ');'; break;
-        case G_MDSFT_TEXTLUT:     if (len === 2) text = 'gsDPSetTextureLUT('    + getDefine(textureLUTValues, data)     + ');'; break;
-        case G_MDSFT_TEXTDETAIL:  if (len === 2) text = 'gsDPSetTextureDetail(' + getDefine(textureDetailValues, data)  + ');'; break;
-        case G_MDSFT_TEXTPERSP:   if (len === 1) text = 'gsDPSetTexturePersp('  + getDefine(texturePerspValues, data)   + ');'; break;
-        case G_MDSFT_CYCLETYPE:   if (len === 2) text = 'gsDPSetCycleType('     + getDefine(cycleTypeValues, data)      + ');'; break;
-        //case G_MDSFT_COLORDITHER: if (len === 1) text = 'gsDPSetColorDither('   + data_str + ');'; break;  // NB HW1?
-        case G_MDSFT_PIPELINE:    if (len === 1) text = 'gsDPPipelineMode('     + getDefine(pipelineModeValues, data)   + ');'; break;
-      }
-      dis.text(text);
+      disassembleSetOtherModeH(dis, len, shift, data);
     }
 
     state.rdpOtherModeH = (state.rdpOtherModeH & ~mask) | data;
@@ -1492,7 +1521,11 @@
 
   function executeSetKeyGB(cmd0,cmd1)             { unimplemented(cmd0,cmd1); }
   function executeSetKeyR(cmd0,cmd1)              { unimplemented(cmd0,cmd1); }
-  function executeSetConvert(cmd0,cmd1)           { unimplemented(cmd0,cmd1); }
+  function executeSetConvert(cmd0,cmd1,dis) {
+    if (dis) {
+      dis.text('gsDPSetConvert(???);');
+    }
+  }
 
   var scissorModeValues = {
     G_SC_NON_INTERLACE:     0,
@@ -2818,7 +2851,11 @@
     0xf1: executeGBI2_RDPHalf_2
   };
 
-  function executeGBI2_Noop(cmd0,cmd1,dis) {}
+  function executeGBI2_Noop(cmd0,cmd1,dis) {
+    if (dis) {
+      dis.text('gsDPNoOp();');
+    }
+  }
   function executeGBI2_Vertex(cmd0,cmd1,dis) {}
   function executeGBI2_ModifyVtx(cmd0,cmd1,dis) {}
   function executeGBI2_CullDL(cmd0,cmd1,dis) {}
@@ -2829,14 +2866,213 @@
   function executeGBI2_Line3D(cmd0,cmd1,dis) {}
 
   function executeGBI2_DmaIo(cmd0,cmd1,dis) {}
-  function executeGBI2_Texture(cmd0,cmd1,dis) {}
-  function executeGBI2_PopMatrix(cmd0,cmd1,dis) {}
-  function executeGBI2_GeometryMode(cmd0,cmd1,dis) {}
+
+  function executeGBI2_Texture(cmd0,cmd1,dis) {
+    var xparam   =  (cmd0>>>16)&0xff;
+    var level    =  (cmd0>>>11)&0x3;
+    var tile_idx =  (cmd0>>> 8)&0x7;
+    var on       =  (cmd0>>> 1)&0x01;   // NB: uses bit 1
+    var s        = calcTextureScale(((cmd1>>>16)&0xffff));
+    var t        = calcTextureScale(((cmd1>>> 0)&0xffff));
+
+    if (dis) {
+      var s_text = s.toString();
+      var t_text = t.toString();
+      var tile_text = getTileText(tile_idx);
+
+      if (xparam !== 0) {
+        dis.text('gsSPTextureL(' + s_text + ', ' + t_text + ', ' + level + ', ' + xparam + ', ' + tile_text + ', ' + on + ');');
+      } else {
+        dis.text('gsSPTexture(' + s_text + ', ' + t_text + ', ' + level + ', ' + tile_text + ', ' + on + ');');
+      }
+    }
+
+    state.texture.level  = level;
+    state.texture.tile   = tile_idx;
+    state.texture.scaleS = s;
+    state.texture.scaleT = t;
+
+    if (on)
+      state.geometryMode |=  geometryModeFlags.G_TEXTURE_ENABLE;
+    else
+      state.geometryMode &= ~geometryModeFlags.G_TEXTURE_ENABLE;
+  }
+
+  function executeGBI2_GeometryMode(cmd0,cmd1,dis) {
+    var arg0 = cmd0 & 0x00ffffff;
+    var arg1 = cmd1;
+
+    if (dis) {
+      dis.text('gsSPGeometryMode(~(' + getGeometryModeFlagsText(arg0) + '),' + getGeometryModeFlagsText(arg1) + ');');
+    }
+
+    state.geometryMode &= ~arg0;
+    state.geometryMode |=  arg1;
+  }
+
   function executeGBI2_Matrix(cmd0,cmd1,dis) {}
-  function executeGBI2_MoveWord(cmd0,cmd1,dis) {}
-  function executeGBI2_MoveMem(cmd0,cmd1,dis) {}
+
+  function executeGBI2_PopMatrix(cmd0,cmd1,dis) {}
+
+  function executeGBI2_MoveWord(cmd0,cmd1,dis) {
+    var type   = (cmd0>>>16)&0xff;
+    var offset = (cmd0     )&0xffff;
+    var value  = cmd1;
+
+    if (dis) {
+      var text = 'gMoveWd(' + getDefine(moveWordTypeValues, type) + ', ' + n64js.toString16(offset) + ', ' + n64js.toString32(value) + ');';
+
+      switch (type) {
+        case moveWordTypeValues.G_MW_NUMLIGHT:
+            var v = Math.floor(value / 24);
+            text = 'gsSPNumLights(' + getDefine(numLightValues, v) + ');';
+          break;
+        case moveWordTypeValues.G_MW_SEGMENT:
+          {
+            var v = value === 0 ? '0' : n64js.toString32(value);
+            text = 'gsSPSegment(' + ((offset >>> 2)&0xf) + ', ' + v + ');';
+          }
+          break;
+      }
+      dis.text(text);
+    }
+
+    switch(type) {
+      // case moveWordTypeValues.G_MW_MATRIX:     unimplemented(cmd0,cmd1); break;
+      case moveWordTypeValues.G_MW_NUMLIGHT:   state.numLights = Math.floor(value/24); break;
+      // case moveWordTypeValues.G_MW_CLIP:       /*unimplemented(cmd0,cmd1)*/; break;
+      case moveWordTypeValues.G_MW_SEGMENT:    state.segments[((offset >>> 2)&0xf)] = value; break;
+      // case moveWordTypeValues.G_MW_FOG:        /*unimplemented(cmd0,cmd1);*/ break;
+      // case moveWordTypeValues.G_MW_LIGHTCOL:   unimplemented(cmd0,cmd1); break;
+      // case moveWordTypeValues.G_MW_POINTS:     unimplemented(cmd0,cmd1); break;
+      case moveWordTypeValues.G_MW_PERSPNORM:  /*unimplemented(cmd0,cmd1)*/; break;
+      default:                                 unimplemented(cmd0,cmd1); break;
+    }
+  }
+
+  var moveMemTypeValuesGBI2 = {
+    G_GBI2_MV_VIEWPORT: 8,
+    G_GBI2_MV_LIGHT:    10,
+    G_GBI2_MV_POINT:    12,
+    G_GBI2_MV_MATRIX:   14,    // NOTE: this is in moveword table
+    G_GBI2_MVO_LOOKATX: (0*24),
+    G_GBI2_MVO_LOOKATY: (1*24),
+    G_GBI2_MVO_L0:      (2*24),
+    G_GBI2_MVO_L1:      (3*24),
+    G_GBI2_MVO_L2:      (4*24),
+    G_GBI2_MVO_L3:      (5*24),
+    G_GBI2_MVO_L4:      (6*24),
+    G_GBI2_MVO_L5:      (7*24),
+    G_GBI2_MVO_L6:      (8*24),
+    G_GBI2_MVO_L7:      (9*24)
+  };
+
+  function previewGBI2_MoveMem(type, length, address, dis) {
+    var tip = '';
+
+    for (var i = 0; i < length; ++i) {
+      tip += n64js.toHex(state.ram.getUint8(address + i), 8) + ' ';
+    }
+    tip += '<br>';
+
+    switch (type) {
+      case moveMemTypeValues.G_MV_VIEWPORT:
+        tip += previewViewport(address);
+        break;
+
+      case moveMemTypeValues.G_MV_L0:
+      case moveMemTypeValues.G_MV_L1:
+      case moveMemTypeValues.G_MV_L2:
+      case moveMemTypeValues.G_MV_L3:
+      case moveMemTypeValues.G_MV_L4:
+      case moveMemTypeValues.G_MV_L5:
+      case moveMemTypeValues.G_MV_L6:
+      case moveMemTypeValues.G_MV_L7:
+        tip += previewLight(address);
+        break;
+    }
+
+    dis.tip(tip);
+  }
+
+  function executeGBI2_MoveMem(cmd0,cmd1,dis) {
+
+    var type    = (cmd0    )&0xfe;
+    //var length  = (cmd0>>> 8)&0xffff;
+    var address = rdpSegmentAddress(cmd1);
+
+    if (dis) {
+      var address_str = n64js.toString32(address);
+
+      var type_str = getDefine(moveMemTypeValues, type);
+      var text = 'gsDma1p(G_MOVEMEM, ' + address_str + ', ' + length + ', ' + type_str + ');';
+
+      switch (type) {
+        case moveMemTypeValuesGBI2.G_GBI2_MV_VIEWPORT:
+          text = 'gsSPViewport(' + address_str + ');';
+          break
+        case moveMemTypeValuesGBI2.G_GBI2_MV_LIGHT:
+          var offset2 = (cmd0 >>> 5) & 0x3fff;
+          switch (offset2) {
+            case 0x00:
+            case 0x18:
+              // lookat?
+              break;
+            default:
+              //
+              var light_idx = Math.floor((offset2 - 0x30)/0x18);
+              text += ' // (light ' + light_idx + ')';
+              break;
+          }
+          break;
+      }
+
+      dis.text(text);
+      var length = 32;
+      previewGBI2_MoveMem(type, length, address, dis);
+    }
+
+    switch (type) {
+      case moveMemTypeValuesGBI2.G_GBI2_MV_VIEWPORT:
+        moveMemViewport(address);
+        break;
+      case moveMemTypeValuesGBI2.G_GBI2_MV_LIGHT:
+        var offset2 = (cmd0 >>> 5) & 0x3fff;
+        switch (offset2) {
+          case 0x00:
+          case 0x18:
+            // lookat?
+            break;
+          default:
+            var light_idx = Math.floor((offset2 - 0x30)/0x18);
+            moveMemLight(light_idx, address);
+            break;
+        }
+        break;
+
+      default: hleHalt('unknown movemen: ' + type.toString(16));
+    }
+
+
+
+  }
+
   function executeGBI2_LoadUcode(cmd0,cmd1,dis) {}
-  function executeGBI2_DL(cmd0,cmd1,dis) {}
+
+  function executeGBI2_DL(cmd0,cmd1,dis) {
+    var param = ((cmd0>>>16)&0xff);
+    var address = rdpSegmentAddress(cmd1);
+
+    if (dis) {
+      var fn = (param === G_DL_PUSH) ? 'gsSPDisplayList' : 'gsSPBranchList';
+      dis.text(fn + '(<span class="dl-branch">' + n64js.toString32(address) + '</span>);');
+    }
+
+    if (param === G_DL_PUSH) {
+      state.dlistStack.push({pc: state.pc});
+    }
+    state.pc = address;
+  }
 
   function executeGBI2_EndDL(cmd0,cmd1,dis) {
     if (dis) {
@@ -2850,8 +3086,32 @@
     }
   }
 
-  function executeGBI2_SetOtherModeL(cmd0,cmd1,dis) {}
-  function executeGBI2_SetOtherModeH(cmd0,cmd1,dis) {}
+  function executeGBI2_SetOtherModeL(cmd0,cmd1,dis) {
+
+    var shift = (cmd0>>> 8)&0xff;
+    var len   = (cmd0>>> 0)&0xff;
+    var data  = cmd1;
+    var mask = (0x80000000 >> len) >>> shift;   // NB: only difference to GBI1 is how the mask is constructed
+
+    if (dis) {
+      disassembleSetOtherModeL(dis, len, shift, data);
+    }
+
+    state.rdpOtherModeL = (state.rdpOtherModeL & ~mask) | data;
+  }
+
+  function executeGBI2_SetOtherModeH(cmd0,cmd1,dis) {
+    var shift = (cmd0>>> 8)&0xff;
+    var len   = (cmd0>>> 0)&0xff;
+    var data  = cmd1;
+    var mask = (0x80000000 >> len) >>> shift;   // NB: only difference to GBI1 is how the mask is constructed
+
+    if (dis) {
+      disassembleSetOtherModeH(dis, len, shift, data);
+    }
+
+    state.rdpOtherModeH = (state.rdpOtherModeH & ~mask) | data;
+  }
 
   function executeGBI2_SpNoop(cmd0,cmd1,dis) {}
   function executeGBI2_RDPHalf_1(cmd0,cmd1,dis) {}
