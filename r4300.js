@@ -3236,7 +3236,7 @@
     ctx.isTrivial         = true;
     switch(cop1_func(ctx.instruction)) {
       case 0x20:    /* 'CVT.S' */       return 'cpu1.float32[' + d + '] = cpu1.load_s64_as_double(' + s + ');\n';
-      case 0x21:    /* 'CVT.D' */       return 'cpu1.store_f64(' + d + ', cpu1.load_s64_as_double(' + s + ');\n';
+      case 0x21:    /* 'CVT.D' */       return 'cpu1.store_f64(' + d + ', cpu1.load_s64_as_double(' + s + ') );\n';
     }
     return 'unimplemented(' + n64js.toString32(ctx.pc) + ',' + n64js.toString32(ctx.instruction) + ');\n';
   }
