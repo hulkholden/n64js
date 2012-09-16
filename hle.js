@@ -495,8 +495,15 @@
       };
   }
 
-  function makeColorText(t, r,g,b) {
-    // Allow calls of 'makeColorText(t, rgba)'
+  function makeColourText(t, r,g,b) {
+    if (r<128 && g<128 && b<128) {
+      return '<span style="color: white; background-color: rgb(' + r + ',' + g + ',' + b + ')">' + t + '</span>';
+    }
+    return '<span style="background-color: rgb(' + r + ',' + g + ',' + b + ')">' + t + '</span>';
+  }
+
+  function makeColorTextRGBA(t, r,g,b) {
+    // Allow calls of 'makeColorTextRGBA(t, rgba)'
     if (typeof g == 'undefined') {
       var col = r;
       r = (col >>> 24) & 0xff;
@@ -504,12 +511,20 @@
       b = (col >>>  8) & 0xff;
     }
 
-    if (r<128 && g<128 && b<128) {
-      return '<span style="color: white; background-color: rgb(' + r + ',' + g + ',' + b + ')">' + t + '</span>';
-    }
-    return '<span style="background-color: rgb(' + r + ',' + g + ',' + b + ')">' + t + '</span>';
+    return makeColourText(t, r,g,b);
   }
 
+  function makeColorTextABGR(t, r,g,b) {
+    // Allow calls of 'makeColorTextRGBA(t, rgba)'
+    if (typeof g == 'undefined') {
+      var col = r;
+      r = (col >>>  0) & 0xff;
+      g = (col >>>  8) & 0xff;
+      b = (col >>> 16) & 0xff;
+    }
+
+    return makeColourText(t, r,g,b);
+  }
 
   var M_GFXTASK = 1;
   var M_AUDTASK = 2;
@@ -1813,7 +1828,7 @@
 
   function executeSetFillColor(cmd0,cmd1,dis) {
     if (dis) {
-      dis.text('gsDPSetFillColor(' + makeColorText( n64js.toString32(cmd1), cmd1 ) + ');');   // Can be 16 or 32 bit
+      dis.text('gsDPSetFillColor(' + makeColorTextRGBA( n64js.toString32(cmd1), cmd1 ) + ');');   // Can be 16 or 32 bit
     }
     state.fillColor = cmd1;
   }
@@ -1825,7 +1840,7 @@
       var b = (cmd1>>> 8)&0xff;
       var a = (cmd1>>> 0)&0xff;
 
-      dis.text('gsDPSetFogColor(' + makeColorText( r + ', ' + g + ', ' + b + ', ' + a, r,g,b ) + ');');
+      dis.text('gsDPSetFogColor(' + makeColorTextRGBA( r + ', ' + g + ', ' + b + ', ' + a, r,g,b ) + ');');
     }
     state.fogColor = cmd1;
   }
@@ -1836,7 +1851,7 @@
       var b = (cmd1>>> 8)&0xff;
       var a = (cmd1>>> 0)&0xff;
 
-      dis.text('gsDPSetBlendColor(' + makeColorText( r + ', ' + g + ', ' + b + ', ' + a, r,g,b ) + ');');
+      dis.text('gsDPSetBlendColor(' + makeColorTextRGBA( r + ', ' + g + ', ' + b + ', ' + a, r,g,b ) + ');');
     }
     state.blendColor = cmd1;
   }
@@ -1850,7 +1865,7 @@
       var b = (cmd1>>> 8)&0xff;
       var a = (cmd1>>> 0)&0xff;
 
-      dis.text('gsDPSetPrimColor(' + m + ', ' + l + ', ' + makeColorText( r + ', ' + g + ', ' + b + ', ' + a, r,g,b ) + ');');
+      dis.text('gsDPSetPrimColor(' + m + ', ' + l + ', ' + makeColorTextRGBA( r + ', ' + g + ', ' + b + ', ' + a, r,g,b ) + ');');
     }
     // minlevel, primlevel ignored!
     state.primColor = cmd1;
@@ -1863,7 +1878,7 @@
       var b = (cmd1>>> 8)&0xff;
       var a = (cmd1>>> 0)&0xff;
 
-      dis.text('gsDPSetEnvColor(' + makeColorText( r + ', ' + g + ', ' + b + ', ' + a, r,g,b ) + ');' );
+      dis.text('gsDPSetEnvColor(' + makeColorTextRGBA( r + ', ' + g + ', ' + b + ', ' + a, r,g,b ) + ');' );
     }
     state.envColor = cmd1;
   }
@@ -2934,7 +2949,7 @@
       var b = (col>>> 8)&0xff;
       var a = (col>>> 0)&0xff;
 
-      var col_str = makeColorText(r + ',' + g + ',' + b + ',' + a, r,g,b);
+      var col_str = makeColorTextRGBA(r + ',' + g + ',' + b + ',' + a, r,g,b);
 
       var $tr = $('<tr><td>' + colors[i] + '</td><td>' + col_str + '</td></tr>');
       $table.append($tr);
@@ -3106,7 +3121,7 @@
       vals.push(vtx.pos.elems[1].toFixed(3));
       vals.push(vtx.pos.elems[2].toFixed(3));
       vals.push(vtx.pos.elems[3].toFixed(3));
-      vals.push(makeColorText(n64js.toString32(vtx.color), vtx.color));
+      vals.push(makeColorTextABGR(n64js.toString32(vtx.color), vtx.color));
       vals.push(vtx.u.toFixed(3));
       vals.push(vtx.v.toFixed(3));
 
