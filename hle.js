@@ -613,13 +613,13 @@
     hleHalt('Unknown display list op ' + n64js.toString8(cmd0>>>24));
   }
 
-  function executeSpNoop(cmd0,cmd1,dis) {
+  function executeGBI1_SpNoop(cmd0,cmd1,dis) {
     if (dis) {
       dis.text('gsSPNoOp();');
     }
   }
 
-  function executeNoop(cmd0,cmd1,dis) {
+  function executeGBI1_Noop(cmd0,cmd1,dis) {
     if (dis) {
       dis.text('gsDPNoOp();');
     }
@@ -649,7 +649,7 @@
     }
   }
 
-  function executeDL(cmd0,cmd1,dis) {
+  function executeGBI1_DL(cmd0,cmd1,dis) {
     var param = ((cmd0>>>16)&0xff);
     var address = rdpSegmentAddress(cmd1);
 
@@ -664,7 +664,7 @@
     state.pc = address;
   }
 
-  function executeEndDL(cmd0,cmd1,dis) {
+  function executeGBI1_EndDL(cmd0,cmd1,dis) {
 
     if (dis) {
       dis.text('gsSPEndDisplayList();');
@@ -677,7 +677,7 @@
     }
   }
 
-  function executeBranchZ(cmd0,cmd1) {
+  function executeGBI1_BranchZ(cmd0,cmd1) {
     var address = rdpSegmentAddress(state.rdpHalf1);
     // FIXME
     // Just branch all the time for now
@@ -685,7 +685,7 @@
       state.pc = address;
   }
 
-  function executeMatrix(cmd0,cmd1,dis) {
+  function executeGBI1_Matrix(cmd0,cmd1,dis) {
     var flags   = (cmd0>>>16)&0xff;
     var length  = (cmd0>>> 0)&0xffff;
     var address = rdpSegmentAddress(cmd1);
@@ -731,7 +731,7 @@
     }
   }
 
-  function executePopMatrix(cmd0,cmd1,dis) {
+  function executeGBI1_PopMatrix(cmd0,cmd1,dis) {
     var flags = (cmd1>>>0)&0xff;
 
     if (dis) {
@@ -779,7 +779,7 @@
     dis.tip(tip);
   }
 
-  function executeMoveMem(cmd0,cmd1,dis) {
+  function executeGBI1_MoveMem(cmd0,cmd1,dis) {
     var type    = (cmd0>>>16)&0xff;
     var length  = (cmd0>>> 0)&0xffff;
     var address = rdpSegmentAddress(cmd1);
@@ -830,7 +830,7 @@
     }
   }
 
-  function executeMoveWord(cmd0,cmd1,dis) {
+  function executeGBI1_MoveWord(cmd0,cmd1,dis) {
     var type   = (cmd0    )&0xff;
     var offset = (cmd0>>>8)&0xffff;
     var value  = cmd1;
@@ -1054,18 +1054,18 @@
     }
   }
 
-  function executeSprite2DBase(cmd0,cmd1)         { unimplemented(cmd0,cmd1); }
+  function executeGBI1_Sprite2DBase(cmd0,cmd1)         { unimplemented(cmd0,cmd1); }
 
-  function executeRDPHalf_Cont(cmd0,cmd1)         { unimplemented(cmd0,cmd1); }
+  function executeGBI1_RDPHalf_Cont(cmd0,cmd1)         { unimplemented(cmd0,cmd1); }
 
-  function executeRDPHalf_2(cmd0,cmd1,dis) {
+  function executeGBI1_RDPHalf_2(cmd0,cmd1,dis) {
     if (dis) {
       dis.text('gsImmp1(G_RDPHALF_2, ' + n64js.toString32(cmd1) + ');');
     }
     state.rdpHalf2 = cmd1;
   }
 
-  function executeRDPHalf_1(cmd0,cmd1,dis) {
+  function executeGBI1_RDPHalf_1(cmd0,cmd1,dis) {
     if (dis) {
       dis.text('gsImmp1(G_RDPHALF_1, ' + n64js.toString32(cmd1) + ');');
     }
@@ -1110,13 +1110,13 @@
     return t.length > 0 ? t.substr(1) : '0';
   }
 
-  function executeClrGeometryMode(cmd0,cmd1,dis) {
+  function executeGBI1_ClrGeometryMode(cmd0,cmd1,dis) {
     if (dis) {
       dis.text('gsSPClearGeometryMode(' + getGeometryModeFlagsText(cmd1) + ');');
     }
     state.geometryMode &= ~cmd1;
   }
-  function executeSetGeometryMode(cmd0,cmd1,dis) {
+  function executeGBI1_SetGeometryMode(cmd0,cmd1,dis) {
     if (dis) {
      dis.text('gsSPSetGeometryMode(' + getGeometryModeFlagsText(cmd1) + ');');
     }
@@ -1219,7 +1219,7 @@
     return n64js.toString8(sft);
   }
 
-  function executeSetOtherModeL(cmd0,cmd1,dis) {
+  function executeGBI1_SetOtherModeL(cmd0,cmd1,dis) {
     var shift = (cmd0>>> 8)&0xff;
     var len   = (cmd0>>> 0)&0xff;
     var data  = cmd1;
@@ -1264,7 +1264,7 @@
     return n64js.toString8(sft);
   }
 
-  function executeSetOtherModeH(cmd0,cmd1,dis) {
+  function executeGBI1_SetOtherModeH(cmd0,cmd1,dis) {
     var shift = (cmd0>>> 8)&0xff;
     var len   = (cmd0>>> 0)&0xff;
     var data  = cmd1;
@@ -1306,7 +1306,7 @@
     return v / 65536.0;
   }
 
-  function executeTexture(cmd0,cmd1,dis) {
+  function executeGBI1_Texture(cmd0,cmd1,dis) {
     var xparam   =  (cmd0>>>16)&0xff;
     var level    =  (cmd0>>>11)&0x3;
     var tile_idx =  (cmd0>>> 8)&0x7;
@@ -1338,11 +1338,11 @@
       state.geometryMode &= ~geometryModeFlags.G_TEXTURE_ENABLE;
   }
 
-  function executeCullDL(cmd0,cmd1) {
+  function executeGBI1_CullDL(cmd0,cmd1) {
     // FIXME: culldl
   }
 
-  function executeTri1(cmd0,cmd1,dis) {
+  function executeGBI1_Tri1(cmd0,cmd1,dis) {
     var kTri1  = cmd0>>>24;
     var stride = config.vertexStride;
     var verts  = state.projectedVertices;
@@ -1421,7 +1421,7 @@
     flushTris(tri_idx*3);
   }
 
-  function executeTri2(cmd0,cmd1,dis) {
+  function executeGBI1_Tri2(cmd0,cmd1,dis) {
     var kTri2  = cmd0>>>24;
     var stride = config.vertexStride;
     var verts  = state.projectedVertices;
@@ -1457,7 +1457,7 @@
     flushTris(tri_idx*3);
   }
 
-  function executeLine3D(cmd0,cmd1,dis) {
+  function executeGBI1_Line3D(cmd0,cmd1,dis) {
     var kLine3D = cmd0>>>24;
     var stride  = config.vertexStride;
     var verts   = state.projectedVertices;
@@ -1489,8 +1489,6 @@
 
     flushTris(tri_idx*3);
   }
-
-  function executeTriRSP(cmd0,cmd1)               { unimplemented(cmd0,cmd1); }
 
   function executeSetKeyGB(cmd0,cmd1)             { unimplemented(cmd0,cmd1); }
   function executeSetKeyR(cmd0,cmd1)              { unimplemented(cmd0,cmd1); }
@@ -2030,7 +2028,7 @@
   }
 
 
-  function executeVertex_GBI0(cmd0,cmd1,dis) {
+  function executeGBI0_Vertex(cmd0,cmd1,dis) {
     var n       = ((cmd0>>>20)&0xf) + 1;
     var v0      =  (cmd0>>>16)&0xf;
     //var length  = (cmd0>>> 0)&0xffff;
@@ -2056,7 +2054,7 @@
     executeVertexImpl(v0, n, address, dis);
   }
 
-  function executeVertex_GBI1(cmd0,cmd1,dis) {
+  function executeGBI1_Vertex(cmd0,cmd1,dis) {
     var v0      = ((cmd0>>>16)&0xff) / config.vertexStride;
     var n       = ((cmd0>>>10)&0x3f);
     //var length  = (cmd0>>> 0)&0x3ff;
@@ -2700,39 +2698,9 @@
     return undefined;
   }
 
+
   // A lot of functions are common between all ucodes
   var ucode_common = {
-    0x00: executeSpNoop,
-    0x01: executeMatrix,
-    0x03: executeMoveMem,
-    0x04: executeVertex_GBI0,
-    0x06: executeDL,
-    0x09: executeSprite2DBase,
-    0xb0: executeBranchZ,
-    0xb1: executeTri2,
-    0xb2: executeRDPHalf_Cont,
-    0xb3: executeRDPHalf_2,
-    0xb4: executeRDPHalf_1,
-    0xb5: executeLine3D,
-    0xb6: executeClrGeometryMode,
-    0xb7: executeSetGeometryMode,
-    0xb8: executeEndDL,
-    0xb9: executeSetOtherModeL,
-    0xba: executeSetOtherModeH,
-    0xbb: executeTexture,
-    0xbc: executeMoveWord,
-    0xbd: executePopMatrix,
-    0xbe: executeCullDL,
-    0xbf: executeTri1,
-    0xc0: executeNoop,
-    0xc8: executeTriRSP,
-    0xc9: executeTriRSP,
-    0xca: executeTriRSP,
-    0xcb: executeTriRSP,
-    0xcc: executeTriRSP,
-    0xcd: executeTriRSP,
-    0xce: executeTriRSP,
-    0xcf: executeTriRSP,
     0xe4: executeTexRect,
     0xe5: executeTexRectFlip,
     0xe6: executeRDPLoadSync,
@@ -2762,15 +2730,142 @@
     0xff: executeSetCImg
   };
 
-
   var ucode_gbi0 = {
-    0x04: executeVertex_GBI0,
+    0x00: executeGBI1_SpNoop,
+    0x01: executeGBI1_Matrix,
+    0x03: executeGBI1_MoveMem,
+    0x04: executeGBI0_Vertex,
+    0x06: executeGBI1_DL,
+    0x09: executeGBI1_Sprite2DBase,
+
+    0xb0: executeGBI1_BranchZ,       // GBI1 only?
+    0xb1: executeGBI1_Tri2,     // GBI1 only?
+    0xb2: executeGBI1_RDPHalf_Cont,
+    0xb3: executeGBI1_RDPHalf_2,
+    0xb4: executeGBI1_RDPHalf_1,
+    0xb5: executeGBI1_Line3D,
+    0xb6: executeGBI1_ClrGeometryMode,
+    0xb7: executeGBI1_SetGeometryMode,
+    0xb8: executeGBI1_EndDL,
+    0xb9: executeGBI1_SetOtherModeL,
+    0xba: executeGBI1_SetOtherModeH,
+    0xbb: executeGBI1_Texture,
+    0xbc: executeGBI1_MoveWord,
+    0xbd: executeGBI1_PopMatrix,
+    0xbe: executeGBI1_CullDL,
+    0xbf: executeGBI1_Tri1,
+    0xc0: executeGBI1_Noop
   };
 
   var ucode_gbi1 = {
-    0x04: executeVertex_GBI1,
+
+    0x00: executeGBI1_SpNoop,
+    0x01: executeGBI1_Matrix,
+    0x03: executeGBI1_MoveMem,
+    0x04: executeGBI1_Vertex,
+    0x06: executeGBI1_DL,
+    0x09: executeGBI1_Sprite2DBase,
+
+    0xb0: executeGBI1_BranchZ,
+    0xb1: executeGBI1_Tri2,
+    0xb2: executeGBI1_RDPHalf_Cont,  // GBI1 ModifyVtx!
+    0xb3: executeGBI1_RDPHalf_2,
+    0xb4: executeGBI1_RDPHalf_1,
+    0xb5: executeGBI1_Line3D,
+    0xb6: executeGBI1_ClrGeometryMode,
+    0xb7: executeGBI1_SetGeometryMode,
+    0xb8: executeGBI1_EndDL,
+    0xb9: executeGBI1_SetOtherModeL,
+    0xba: executeGBI1_SetOtherModeH,
+    0xbb: executeGBI1_Texture,
+    0xbc: executeGBI1_MoveWord,
+    0xbd: executeGBI1_PopMatrix,
+    0xbe: executeGBI1_CullDL,
+    0xbf: executeGBI1_Tri1,
+    0xc0: executeGBI1_Noop
   };
 
+  var ucode_gbi2 = {
+    0x00: executeGBI2_Noop,
+    0x01: executeGBI2_Vertex,
+    0x02: executeGBI2_ModifyVtx,
+    0x03: executeGBI2_CullDL,
+    0x04: executeGBI2_BranchZ,
+    0x05: executeGBI2_Tri1,
+    0x06: executeGBI2_Tri2,
+    0x07: executeGBI2_Quad,
+    0x08: executeGBI2_Line3D,
+
+    // 0xd3: executeGBI2_Special1,
+    // 0xd4: executeGBI2_Special2,
+    // 0xd5: executeGBI2_Special3,
+    0xd6: executeGBI2_DmaIo,
+    0xd7: executeGBI2_Texture,
+    0xd8: executeGBI2_PopMatrix,
+    0xd9: executeGBI2_GeometryMode,
+    0xda: executeGBI2_Matrix,
+    0xdb: executeGBI2_MoveWord,
+    0xdc: executeGBI2_MoveMem,
+    0xdd: executeGBI2_LoadUcode,
+    0xde: executeGBI2_DL,
+    0xdf: executeGBI2_EndDL,
+
+    0xe0: executeGBI2_SpNoop,
+    0xe1: executeGBI2_RDPHalf_1,
+    0xe2: executeGBI2_SetOtherModeL,
+    0xe3: executeGBI2_SetOtherModeH,
+
+    0xf1: executeGBI2_RDPHalf_2
+  };
+
+  function executeGBI2_Noop(cmd0,cmd1,dis) {}
+  function executeGBI2_Vertex(cmd0,cmd1,dis) {}
+  function executeGBI2_ModifyVtx(cmd0,cmd1,dis) {}
+  function executeGBI2_CullDL(cmd0,cmd1,dis) {}
+  function executeGBI2_BranchZ(cmd0,cmd1,dis) {}
+  function executeGBI2_Tri1(cmd0,cmd1,dis) {}
+  function executeGBI2_Tri2(cmd0,cmd1,dis) {}
+  function executeGBI2_Quad(cmd0,cmd1,dis) {}
+  function executeGBI2_Line3D(cmd0,cmd1,dis) {}
+
+  function executeGBI2_DmaIo(cmd0,cmd1,dis) {}
+  function executeGBI2_Texture(cmd0,cmd1,dis) {}
+  function executeGBI2_PopMatrix(cmd0,cmd1,dis) {}
+  function executeGBI2_GeometryMode(cmd0,cmd1,dis) {}
+  function executeGBI2_Matrix(cmd0,cmd1,dis) {}
+  function executeGBI2_MoveWord(cmd0,cmd1,dis) {}
+  function executeGBI2_MoveMem(cmd0,cmd1,dis) {}
+  function executeGBI2_LoadUcode(cmd0,cmd1,dis) {}
+  function executeGBI2_DL(cmd0,cmd1,dis) {}
+
+  function executeGBI2_EndDL(cmd0,cmd1,dis) {
+    if (dis) {
+      dis.text('gsSPEndDisplayList();');
+    }
+
+    if (state.dlistStack.length > 0) {
+      state.pc = state.dlistStack.pop().pc;
+    } else {
+      state.pc = 0;
+    }
+  }
+
+  function executeGBI2_SetOtherModeL(cmd0,cmd1,dis) {}
+  function executeGBI2_SetOtherModeH(cmd0,cmd1,dis) {}
+
+  function executeGBI2_SpNoop(cmd0,cmd1,dis) {}
+  function executeGBI2_RDPHalf_1(cmd0,cmd1,dis) {}
+  function executeGBI2_RDPHalf_2(cmd0,cmd1,dis) {}
+
+  // var ucode_sprite2d = {
+  //   0xbe: executeSprite2dScaleFlip,
+  //   0xbd: executeSprite2dDraw
+  // };
+
+  // var ucode_dkr = {
+  //   0x05:  executeDMATri,
+  //   0x07:  executeGBI1_DLInMem,
+  // };
 
   function buildUCodeTables(ucode) {
 
@@ -2785,6 +2880,8 @@
       case kUCode_GBI1:
         ucode_table = ucode_gbi1;
         break;
+      case kUCode_GBI2:
+        ucode_table = ucode_gbi2;
     }
 
     // Build a copy of the table as an array
@@ -3217,11 +3314,18 @@
     var str   = task.detectVersionString();
     var ucode = kUCode_GBI0;
 
+    //RSP Gfx ucode F3DEX.NoN fifo 2.08 Yoshitaka Yasumoto 1999 Nintendo
+
     // FIXME: lots of work here
     if (str.indexOf('F3DEX') >= 0 ||
         str.indexOf('F3DLP') >= 0 ||
         str.indexOf('F3DLX') >= 0) {
       ucode = kUCode_GBI1;
+
+      if (str.indexOf('2.') >= 0) {
+        ucode = kUCode_GBI2;
+      }
+
     } else {
       var val = task.computeMicrocodeHash();
       switch (val) {
