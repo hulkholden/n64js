@@ -2858,7 +2858,7 @@
 
     var impl = '';
     impl += 'cpu1.int32[' + s  + '] = rlo[' + t + '];\n';
-    impl += 'cpu1.int32[' + hi + '] = rlo[' + t + '];\n';
+    impl += 'cpu1.int32[' + hi + '] = rhi[' + t + '];\n';
     return impl;
   }
   function executeDMTC1(i) {
