@@ -1349,11 +1349,13 @@
 
       cmd0 = state.ram.getUint32( pc + 0 );
       cmd1 = state.ram.getUint32( pc + 4 );
+      ++debugCurrentOp;
       pc += 8;
 
     } while ((cmd0>>>24) === kTri1 && tri_idx < kMaxTris && !dis); // NB: process triangles individsually when disassembling
 
     state.pc = pc-8;
+    --debugCurrentOp;
 
     flushTris(tri_idx*3);
   }
@@ -1394,10 +1396,12 @@
 
       cmd0 = state.ram.getUint32( pc + 0 );
       cmd1 = state.ram.getUint32( pc + 4 );
+      ++debugCurrentOp;
       pc += 8;
     } while ((cmd0>>>24) === kTri4 && tri_idx < kMaxTris && !dis); // NB: process triangles individsually when disassembling
 
     state.pc = pc-8;
+    --debugCurrentOp;
 
     flushTris(tri_idx*3);
   }
@@ -1428,10 +1432,12 @@
 
       cmd0 = state.ram.getUint32( pc + 0 );
       cmd1 = state.ram.getUint32( pc + 4 );
+      ++debugCurrentOp;
       pc += 8;
     } while ((cmd0>>>24) === kTri2 && tri_idx < kMaxTris && !dis); // NB: process triangles individsually when disassembling
 
     state.pc = pc-8;
+    --debugCurrentOp;
 
     flushTris(tri_idx*3);
   }
@@ -1459,10 +1465,12 @@
 
       cmd0 = state.ram.getUint32( pc + 0 );
       cmd1 = state.ram.getUint32( pc + 4 );
+      ++debugCurrentOp;
       pc += 8;
     } while ((cmd0>>>24) === kLine3D && tri_idx+1 < kMaxTris && !dis); // NB: process triangles individsually when disassembling
 
     state.pc = pc-8;
+    --debugCurrentOp;
 
     flushTris(tri_idx*3);
   }
