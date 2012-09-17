@@ -332,6 +332,7 @@
 
   function hleHalt(msg) {
     if (!debugDisplayListRequested) {
+      n64js.displayWarning(msg);
       n64js.toggleDebugDisplayList();
       debugBailAfter = debugCurrentOp;
     }
@@ -641,11 +642,12 @@
   }
 
   function unimplemented(cmd0,cmd1) {
-    n64js.log('Unimplemented display list op ' + n64js.toString8(cmd0>>>24));
+    hleHalt('Unimplemented display list op ' + n64js.toString8(cmd0>>>24));
   }
 
   function executeUnknown(cmd0,cmd1) {
     hleHalt('Unknown display list op ' + n64js.toString8(cmd0>>>24));
+    state.pc = 0;
   }
 
   function executeGBI1_SpNoop(cmd0,cmd1,dis) {
