@@ -3342,7 +3342,7 @@
       var scale = 8;
       var w = texture.width * scale;
       var h = texture.height * scale;
-      var $canvas = $( '<canvas width="' + w + '" height="' + h + '" />', {'width':w, 'height':h} );
+      var $canvas = $( '<canvas width="' + w + '" height="' + h + '" style="background-color: black" />', {'width':w, 'height':h} );
       var src_ctx = texture.$canvas[0].getContext('2d');
       var dst_ctx = $canvas[0].getContext('2d');
 
