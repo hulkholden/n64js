@@ -1555,7 +1555,16 @@
     // FIXME: actually set this
   }
 
-  function executeSetPrimDepth(cmd0,cmd1)         { unimplemented(cmd0,cmd1); }
+  function executeSetPrimDepth(cmd0,cmd1,dis) {
+    var  z = (cmd1>>>16) & 0xffff;
+    var dz = (cmd1     ) & 0xffff;
+    if (dis) {
+      dis.text('gsDPSetPrimDepth(' + z + ',' + dz + ');');
+    }
+
+    // FIXME
+  }
+
   function executeSetRDPOtherMode(cmd0,cmd1)      { unimplemented(cmd0,cmd1); }
 
   function calcTextureAddress(uls, ult,  address, width, size) {
