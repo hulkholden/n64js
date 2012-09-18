@@ -2131,6 +2131,14 @@
     executeVertexImpl(v0, n, address, dis);
   }
 
+  function executeGBI1_ModifyVtx(cmd0,cmd1,dis) {
+    if (dis) {
+      dis.text('gsSPModifyVertex(???);');
+    }
+
+    // FIXME!
+  }
+
 
   // G_SETOTHERMODE_L sft: shift count
   var G_MDSFT_ALPHACOMPARE    = 0;
@@ -2803,7 +2811,7 @@
     0x09: executeGBI1_Sprite2DBase,
 
     0xb0: executeGBI1_BranchZ,       // GBI1 only?
-    0xb1: executeGBI1_Tri2,     // GBI1 only?
+    0xb1: executeGBI1_Tri2,          // GBI1 only?
     0xb2: executeGBI1_RDPHalf_Cont,
     0xb3: executeGBI1_RDPHalf_2,
     0xb4: executeGBI1_RDPHalf_1,
@@ -2832,7 +2840,7 @@
 
     0xb0: executeGBI1_BranchZ,
     0xb1: executeGBI1_Tri2,
-    0xb2: executeGBI1_RDPHalf_Cont,  // GBI1 ModifyVtx!
+    0xb2: executeGBI1_ModifyVtx,
     0xb3: executeGBI1_RDPHalf_2,
     0xb4: executeGBI1_RDPHalf_1,
     0xb5: executeGBI1_Line3D,
