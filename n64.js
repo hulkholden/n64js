@@ -500,7 +500,7 @@
   var sp_reg        = new Memory(new ArrayBuffer(0x20));
   var sp_ibist_mem  = new Memory(new ArrayBuffer(0x8));
   var dpc_mem       = new Memory(new ArrayBuffer(0x20));
-  var dps_mem       = new Memory(new ArrayBuffer(0x16));
+  var dps_mem       = new Memory(new ArrayBuffer(0x10));
   var rdram_reg     = new Memory(new ArrayBuffer(0x30));
   var mi_reg        = new Memory(new ArrayBuffer(0x10));
   var vi_reg        = new Memory(new ArrayBuffer(0x38));
@@ -524,7 +524,7 @@
   var sp_reg_handler_uncached    = new Device("SPReg",    sp_reg,       0xa4040000, 0xa4040020);
   var sp_ibist_handler_uncached  = new Device("SPIBIST",  sp_ibist_mem, 0xa4080000, 0xa4080008);
   var dpc_handler_uncached       = new Device("DPC",      dpc_mem,      0xa4100000, 0xa4100020);
-  var dps_handler_uncached       = new Device("DPS",      dps_mem,      0xa4200000, 0xa4200004);
+  var dps_handler_uncached       = new Device("DPS",      dps_mem,      0xa4200000, 0xa4200010);
   var mi_reg_handler_uncached    = new Device("MIReg",    mi_reg,       0xa4300000, 0xa4300010);
   var vi_reg_handler_uncached    = new Device("VIReg",    vi_reg,       0xa4400000, 0xa4400038);
   var ai_reg_handler_uncached    = new Device("AIReg",    ai_reg,       0xa4500000, 0xa4500018);
