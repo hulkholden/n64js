@@ -193,6 +193,8 @@
     this.ult        = 0;
     this.lrs        = 0;
     this.lrt        = 0;
+
+    this.hash       = 0;  // Last computed hash for this Tile. 0 if invalid/not calculated. Invalidated on any load, settile, settilesize.
   }
 
   function nextPow2(x) {
@@ -248,8 +250,12 @@
     vertexStride:  10
   };
 
+  var tmemBuffer = new ArrayBuffer(4096);
+
   var state = {
-    ram:            0,
+    ram_u8:         n64js.getRamU8Array(),
+    ram_s32:        n64js.getRamS32Array(),
+    ram:            undefined,
     pc:             0,
     dlistStack:     [],
     segments:       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
@@ -320,7 +326,8 @@
       address:  0
     },
 
-    tmemLoadMap: new Array(4096),   // Map keeping track of what's been loaded to each tmem address
+    tmemData32:        new Int32Array(tmemBuffer),
+    tmemData:          new Uint8Array(tmemBuffer),
 
     screenContext2d: null   // canvas context
   };
@@ -594,7 +601,7 @@
     var s = 'S'.charCodeAt(0);
     var p = 'P'.charCodeAt(0);
 
-    var ram = n64js.getRamU8Array();
+    var ram = state.ram_u8;
 
     for (var i = 0; i+2 < this.data_size; ++i) {
       if (ram[this.data_base+i+0] === r &&
@@ -614,7 +621,7 @@
   }
 
   RSPTask.prototype.computeMicrocodeHash = function () {
-    var ram = n64js.getRamU8Array();
+    var ram = state.ram_u8;
 
     var c = 0;
     for (var i = 0; i < this.code_size; ++i) {
@@ -622,7 +629,6 @@
     }
     return c;
   }
-
 
 
   // task_dv is a DataView object
@@ -1592,7 +1598,36 @@
                                                                    ((uls << size) >>> 1);
   }
 
+  // tmem/ram should be Int32Array
+  function copyLineQwords(tmem, tmem_offset, ram, ram_offset, qwords) {
+    var i;
+    for (i = 0; i < qwords; ++i) {
+      tmem[tmem_offset+0] = ram[ram_offset+0];
+      tmem[tmem_offset+1] = ram[ram_offset+1];
+      tmem_offset += 2;
+       ram_offset += 2;
+    }
+  }
+  // tmem/ram should be Int32Array
+  function copyLineQwordsSwap(tmem, tmem_offset, ram, ram_offset, qwords) {
 
+    if (tmem_offset&1) { hleHalt("oops, tmem isn't qword aligned"); }
+
+    var i;
+    for (i = 0; i < qwords; ++i) {
+      tmem[(tmem_offset+0)^0x1] = ram[ram_offset+0];
+      tmem[(tmem_offset+1)^0x1] = ram[ram_offset+1];
+      tmem_offset += 2;
+       ram_offset += 2;
+    }
+  }
+
+  function invalidateTileHashes() {
+    var i;
+    for (i = 0; i < 8; ++i) {
+      state.tiles[i].hash = 0;
+    }
+  }
 
   function executeLoadBlock(cmd0,cmd1,dis) {
     var uls      = (cmd0>>>12)&0xfff;
@@ -1605,16 +1640,63 @@
       dis.text('gsDPLoadBlock(' + getTileText(tile_idx) + ', ' + uls + ', ' + ult + ', ' + lrs + ', ' + dxt + ');');
     }
 
-    var tile         = state.tiles[tile_idx];
-    var tmem_address = tile.tmem || 0;
+    // Docs reckon these are ignored for all loadBlocks
+    if (uls !== 0) { hleHalt('Unexpected non-zero uls in load block'); }
+    if (ult !== 0) { hleHalt('Unexpected non-zero ult in load block'); }
 
-    state.tmemLoadMap[tmem_address] = {
-      address:    calcTextureAddress(uls, ult, state.textureImage.address, state.textureImage.width, state.textureImage.size),
-      pitch:      0xffffffff,
-      swapped:    (dxt == 0)
-    };
+    var tile        = state.tiles[tile_idx];
+    var ram_address = calcTextureAddress(uls, ult, state.textureImage.address, state.textureImage.width, state.textureImage.size);
 
-    // invalidate all textures
+    var bytes  = ((lrs+1) << state.textureImage.size) >>> 1;
+    var qwords = (bytes+7) >>> 3;
+
+    var tmem_data    = state.tmemData32;
+    var ram          = state.ram_s32;
+
+    var  ram_offset = ram_address      >>> 2; // Offset in 32 bit words.
+    var tmem_offset = (tile.tmem << 3) >>> 2; // Offset in 32 bit words.
+
+    // Slight fast path for dxt == 0
+    if (dxt === 0) {
+      copyLineQwords(tmem_data, tmem_offset, ram, ram_offset, qwords);
+    } else {
+
+      var qwords_per_line = Math.ceil(2048 / dxt);
+      var row_swizzle     = 0;
+
+      var i;
+      for (i = 0; i < qwords; ) {
+
+        var qwords_to_copy = Math.min(qwords-i, qwords_per_line);
+
+        if (row_swizzle) {
+          copyLineQwordsSwap(tmem_data, tmem_offset, ram, ram_offset, qwords_to_copy);
+        } else {
+          copyLineQwords(tmem_data, tmem_offset, ram, ram_offset, qwords_to_copy);
+        }
+
+                  i += qwords_to_copy;
+        tmem_offset += qwords_to_copy*2;  // 2 words per quadword copied
+         ram_offset += qwords_to_copy*2;
+        row_swizzle ^= 0x1;               // All odd lines are swapped
+      }
+    }
+
+    invalidateTileHashes();
+  }
+
+  function copyLine(tmem, tmem_offset, ram, ram_offset, bytes) {
+    var x;
+    for (x = 0; x < bytes; ++x) {
+      tmem[tmem_offset+x] = ram[ram_offset+x];
+    }
+  }
+
+  function copyLineSwap(tmem, tmem_offset, ram, ram_offset, bytes) {
+    var x;
+    for (x = 0; x < bytes; ++x) {
+      tmem[(tmem_offset+x)^0x4] = ram[(ram_offset+x)];
+    }
   }
 
   function executeLoadTile(cmd0,cmd1,dis) {
@@ -1629,18 +1711,51 @@
     }
 
     var tile         = state.tiles[tile_idx];
-    var tmem_address = tile.tmem || 0;
-
-    var address      = calcTextureAddress(uls >>> 2, ult >>> 2, state.textureImage.address, state.textureImage.width, state.textureImage.size);
+    var ram_address  = calcTextureAddress(uls >>> 2, ult >>> 2, state.textureImage.address, state.textureImage.width, state.textureImage.size);
     var pitch        = (state.textureImage.width << state.textureImage.size) >>> 1;
 
-    state.tmemLoadMap[tmem_address] = {
-      address:    address,
-      pitch:      pitch,
-      swapped:    false
-    };
+    var h = ((lrt-ult)>>>2) + 1;
+    var w = ((lrs-uls)>>>2) + 1;
+    var bytes = ((h * w) << state.textureImage.size) >>> 1;
+    var qwords = (bytes+7) >>> 3;
 
-    // invalidate all textures
+    if (qwords > 512)
+      qwords = 512;
+
+    // loadTile pads rows to 8 bytes.
+    var tmem_data   = state.tmemData;
+    var tmem_offset = tile.tmem << 3;
+
+    var ram         = state.ram_u8;
+    var ram_offset  = ram_address;
+
+    var bytes_per_line      = (w << state.textureImage.size) >>> 1;
+    var bytes_per_tmem_line = tile.line << 3;
+
+    if (state.textureImage.size == imageSizeTypes.G_IM_SIZ_32b) {
+      bytes_per_tmem_line = bytes_per_tmem_line * 2;
+    }
+//    if (bytes_per_tmem_line < roundUpMultiple8(bytes_per_line)) { hleHalt('line is shorter than texel count'); }
+
+    var x, y;
+    for (y = 0; y < h; ++y) {
+
+      if (y&1) {
+        copyLineSwap(tmem_data, tmem_offset, ram, ram_offset, bytes_per_tmem_line);
+      } else {
+        copyLine(tmem_data, tmem_offset, ram, ram_offset, bytes_per_tmem_line);
+      }
+
+      // Pad lines to a quadword
+      for (x = bytes_per_line ; x < bytes_per_tmem_line; ++x) {
+        tmem_data[tmem_offset+x] = 0;
+      }
+
+      tmem_offset += bytes_per_tmem_line;
+      ram_offset  += pitch;
+    }
+
+    invalidateTileHashes();
   }
 
   function executeLoadTLut(cmd0,cmd1,dis) {
@@ -1660,18 +1775,18 @@
     // Tlut fmt is sometimes wrong (in 007) and is set after tlut load, but before tile load
     // Format is always 16bpp - RGBA16 or IA16:
     //var address    = calcTextureAddress(uls >>> 2, ult >>> 2, state.textureImage.address, state.textureImage.width, state.textureImage.size);
-    var address      = calcTextureAddress(uls >>> 2, ult >>> 2, state.textureImage.address, state.textureImage.width, imageSizeTypes.G_IM_SIZ_16b);
+    var ram_address  = calcTextureAddress(uls >>> 2, ult >>> 2, state.textureImage.address, state.textureImage.width, imageSizeTypes.G_IM_SIZ_16b);
     var pitch        = (state.textureImage.width << imageSizeTypes.G_IM_SIZ_16b) >>> 1;
 
-    var count        = ((lrs - uls)>>>2)+1;
     var tile         = state.tiles[tile_idx];
-    var tmem_address = tile.tmem || 0;
+    var count        = ((lrs - uls)>>>2)+1;
+    var bytes        = count*2;
 
-    state.tmemLoadMap[tmem_address] = {
-      address:     address,
-      pitch:       pitch,
-      swapped:     false
-    };
+    var tmem_offset  = tile.tmem << 3;
+
+    copyLine(state.tmemData, tmem_offset, state.ram_u8, ram_address, bytes);
+
+    invalidateTileHashes();
   }
 
   function getClampMirrorWrapText(flags) {
@@ -1733,6 +1848,7 @@
     tile.cm_s     = cm_s;
     tile.mask_s   = mask_s;
     tile.shift_s  = shift_s;
+    tile.hash     = 0;
   }
 
   function executeSetTileSize(cmd0,cmd1,dis) {
@@ -1746,11 +1862,12 @@
       dis.text('gsDPSetTileSize(' + getTileText(tile_idx) + ', ' + uls + ', ' + ult + ', ' + lrs + ', ' + lrt + '); // (' + (uls/4) + ',' + (ult/4) + '), (' + ((lrs/4)+1) + ',' + ((lrt/4)+1) + ')');
     }
 
-    var tile = state.tiles[tile_idx];
-    tile.uls = uls;
-    tile.ult = ult;
-    tile.lrs = lrs;
-    tile.lrt = lrt;
+    var tile  = state.tiles[tile_idx];
+    tile.uls  = uls;
+    tile.ult  = ult;
+    tile.lrs  = lrs;
+    tile.lrt  = lrt;
+    this.hash = 0;
   }
 
   function executeFillRect(cmd0,cmd1,dis) {
@@ -2702,75 +2819,6 @@
     gl.depthMask(zupd_rendermode);
   }
 
-  function lookupTexture(tile_idx) {
-    var tile         = state.tiles[tile_idx];
-    var tmem_address = tile.tmem || 0;
-
-    // Skip empty tiles.
-    if (tile.lrs <= tile.uls &&
-        tile.lrt <= tile.ult) {
-      return undefined;
-    }
-
-    if (state.tmemLoadMap.hasOwnProperty(tmem_address)) {
-      var load_details = state.tmemLoadMap[tmem_address];
-      var pitch = load_details.pitch;
-
-      // If loaded via LoadBlock, the pitch isn't set and is deterined via tile.line
-      if (pitch == 0xffffffff) {
-        if (tile.size === imageSizeTypes.G_IM_SIZ_32b)
-          pitch = tile.line << 4;
-        else
-          pitch = tile.line << 3;
-      }
-
-      var width  = getTextureDimension( tile.uls, tile.lrs, tile.mask_s );
-      var height = getTextureDimension( tile.ult, tile.lrt, tile.mask_t );
-
-      // Hack - Extreme-G specifies RGBA/8 textures, but they're really CI8
-      var format = tile.format;
-      if (format === imageFormatTypes.G_IM_FMT_RGBA && tile.size <= imageSizeTypes.G_IM_SIZ_8b ) {
-        format = imageFormatTypes.G_IM_FMT_CI;
-      }
-
-      // Check if the texture is already cached.
-      // FIXME: need to check other properties, and recreate every frame (or when underlying data changes)
-      var cache_id = load_details.address.toString();
-      if (format === imageFormatTypes.G_IM_FMT_CI)
-        cache_id += ' ' + tile.palette;
-
-      var texture;
-      if (textureCache.hasOwnProperty(cache_id)) {
-        texture = textureCache[cache_id];
-      } else {
-        texture = decodeTexture({
-          'tmem':    tile.tmem,
-          'palette': tile.palette,
-          'address': load_details.address,
-          'format':  format,
-          'size':    tile.size,
-          'left':    tile.uls / 4,
-          'top':     tile.ult / 4,
-          'width':   width,
-          'height':  height,
-          'pitch':   pitch,
-          'tlutformat': getTextureLUTType(),
-          'swapped': load_details.swapped,
-          'cm_s':    tile.cm_s,
-          'cm_t':    tile.cm_t,
-          'mask_s':  tile.mask_s,
-          'mask_t':  tile.mask_t
-        });
-        textureCache[cache_id] = texture;
-      }
-
-      return texture;
-    }
-
-    return undefined;
-  }
-
-
   // A lot of functions are common between all ucodes
   var ucode_common = {
     0xe4: executeTexRect,
@@ -3710,7 +3758,9 @@
 
     config.vertexStride = kUcodeStrides[ucode];
 
-    state.ram           = ram;
+    state.ram_u8        = n64js.getRamU8Array();
+    state.ram_s32       = n64js.getRamS32Array();
+    state.ram           = ram;        // FIXME: remove DataView
     state.rdpOtherModeL = 0x00500001;
     state.rdpOtherModeH = 0x00000000;
 
@@ -4064,40 +4114,97 @@
     return shader;
   }
 
-  // FIXME: not all titles assume the same memory layout for palettes?
-  function getPaletteRDRAMAddress(palette_idx) {
-    // If we've loaded directlh into a palette slot, use that
-    var pal_load = state.tmemLoadMap[0x100 + (palette_idx<<5)];
-    if (pal_load) {
-      return pal_load.address;
-    }
+  function hashTmem(tmem32, offset, len, hash) {
+    var i = offset       >> 2,
+        e = (offset+len) >> 2;
 
-    // Othereise check if we've loaded to the base address, and add offset
-    pal_load = state.tmemLoadMap[0x100];
-    if (pal_load) {
-      return pal_load.address + (palette_idx<<5);
+    while (i < e) {
+      hash = ((hash*17)+tmem32[i])>>>0;
+      ++i;
     }
-
-    return 0;
+    return hash;
   }
 
-  function decodeTexture(info) {
-    var width   = info.width;
-    var height  = info.height;
-    var address = info.address;
-    var pitch   = info.pitch;
-    var swapped = info.swapped;
+  function calculateTmemCrc(tile) {
+    if (tile.hash) {
+      return tile.hash;
+    }
 
-    var texture = new Texture(info.left, info.top, width, height);
+    //var width  = getTextureDimension( tile.uls, tile.lrs, tile.mask_s );
+    var height = getTextureDimension( tile.ult, tile.lrt, tile.mask_t );
+
+    var src            = state.tmemData32;
+    var tmem_offset    = tile.tmem<<3;
+    var bytes_per_line = tile.line<<3;
+
+    // NB! RGBA/32 line needs to be doubled.
+    if (tile.format == imageFormatTypes.G_IM_FMT_RGBA && tile.size == imageSizeTypes.G_IM_SIZ_32b) {
+      bytes_per_line *= 2;
+    }
+
+    // TODO: not sure what happens when width != tile.line. Maybe we should hash rows separately?
+
+    var len = height * bytes_per_line;
+
+    var hash = hashTmem(src, tmem_offset, len, 0);
+
+    // For palettised textures, check the palette entries too
+    if (tile.format === imageFormatTypes.G_IM_FMT_CI ||
+        tile.format === imageFormatTypes.G_IM_FMT_RGBA) {   // NB RGBA check is for extreme-g, which specifies RGBA/4 and RGBA/8 instead of CI/4 and CI/8
+
+      if (tile.size === imageSizeTypes.G_IM_SIZ_8b) {
+        hash = hashTmem(src, 0x100<<3, 256*2, hash);
+      } else if (tile.size === imageSizeTypes.G_IM_SIZ_4b) {
+        hash = hashTmem(src, (0x100<<3) + (tile.palette*16*2), 16*2, hash);
+      }
+    }
+
+    tile.hash = hash;
+    return hash;
+  }
+
+
+  function lookupTexture(tile_idx) {
+    var tile         = state.tiles[tile_idx];
+    var tmem_address = tile.tmem;
+
+    // Skip empty tiles - this is primarily for the debug ui.
+    if (tile.line === 0) {
+      return undefined;
+    }
+
+    // FIXME: we can cache this if tile/tmem state hasn't changed since the last draw call.
+    var hash = calculateTmemCrc(tile);
+
+    // Check if the texture is already cached.
+    // FIXME: we also need to check other properties (mirror, clamp etc), and recreate every frame (or when underlying data changes)
+    var cache_id = n64js.toString32(hash);
+
+    var texture;
+    if (textureCache.hasOwnProperty(cache_id)) {
+      texture = textureCache[cache_id];
+    } else {
+      texture = decodeTexture(tile, getTextureLUTType());
+      textureCache[cache_id] = texture;
+    }
+
+    return texture;
+  }
+
+  function decodeTexture(tile, tlutformat) {
+    var width  = getTextureDimension( tile.uls, tile.lrs, tile.mask_s );
+    var height = getTextureDimension( tile.ult, tile.lrt, tile.mask_t );
+    var left   = tile.uls / 4;
+    var top    = tile.ult / 4;
+
+    var texture = new Texture(left, top, width, height);
     if (!texture.$canvas[0].getContext)
       return null;
 
-    $textureOutput.append(n64js.toString32(info.address) + ', ' +
-      getDefine(imageFormatTypes, info.format) + ', ' +
-      getDefine(imageSizeTypes, info.size) + ',' +
-      info.width + 'x' + info.height + ', ' +
-      'pitch=' + info.pitch + ', ' +
-      'swapped=' + (info.swapped ? 'true' : 'false') +
+    $textureOutput.append(
+      getDefine(imageFormatTypes, tile.format) + ', ' +
+      getDefine(imageSizeTypes, tile.size) + ',' +
+      width + 'x' + height + ', ' +
       '<br>');
 
     var handled = false;
@@ -4105,67 +4212,72 @@
     var ctx      = texture.$canvas[0].getContext('2d');
     var img_data = ctx.createImageData(texture.nativeWidth, texture.nativeHeight);
 
-    switch (info.format) {
+    var conv_fn = (tlutformat === textureLUTValues.G_TT_IA16) ? convertIA16Pixel : convertRGBA16Pixel;  // NB: assume RGBA16 for G_TT_NONE
+
+    switch (tile.format) {
       case imageFormatTypes.G_IM_FMT_RGBA:
-        switch (info.size) {
+        switch (tile.size) {
           case imageSizeTypes.G_IM_SIZ_32b:
-            convertRGBA32(img_data, address, width, height, pitch);
+            convertRGBA32(img_data, tile.tmem, tile.line, width, height);
             handled = true;
             break;
           case imageSizeTypes.G_IM_SIZ_16b:
-            convertRGBA16(img_data, address, width, height, pitch, swapped);
+            convertRGBA16(img_data, tile.tmem, tile.line, width, height);
+            handled = true;
+            break;
+
+          // Hack - Extreme-G specifies RGBA/8 RGBA/4 textures, but they're really CI
+          case imageSizeTypes.G_IM_SIZ_8b:
+            convertCI8(img_data, tile.tmem, tile.line, width, height, 0x100, conv_fn);
+            handled = true;
+            break;
+          case imageSizeTypes.G_IM_SIZ_4b:
+            convertCI4(img_data, tile.tmem, tile.line, width, height, 0x100 + ((tile.palette * 16 * 2)>>>3), conv_fn);
             handled = true;
             break;
         }
         break;
 
       case imageFormatTypes.G_IM_FMT_IA:
-        switch (info.size) {
+        switch (tile.size) {
           case imageSizeTypes.G_IM_SIZ_16b:
-            convertIA16(img_data, address, width, height, pitch);
+            convertIA16(img_data, tile.tmem, tile.line, width, height);
             handled = true;
             break;
           case imageSizeTypes.G_IM_SIZ_8b:
-            convertIA8(img_data, address, width, height, pitch);
+            convertIA8(img_data, tile.tmem, tile.line, width, height);
             handled = true;
             break;
           case imageSizeTypes.G_IM_SIZ_4b:
-            convertIA4(img_data, address, width, height, pitch);
+            convertIA4(img_data, tile.tmem, tile.line, width, height);
             handled = true;
             break;
         }
         break;
 
       case imageFormatTypes.G_IM_FMT_I:
-        switch (info.size) {
+        switch (tile.size) {
           case imageSizeTypes.G_IM_SIZ_8b:
-            convertI8(img_data, address, width, height, pitch);
+            convertI8(img_data, tile.tmem, tile.line, width, height);
             handled = true;
             break;
           case imageSizeTypes.G_IM_SIZ_4b:
-            convertI4(img_data, address, width, height, pitch);
+            convertI4(img_data, tile.tmem, tile.line, width, height);
             handled = true;
             break;
         }
         break;
 
       case imageFormatTypes.G_IM_FMT_CI:
-        var conv_fn = (info.tlutformat === textureLUTValues.G_TT_IA16) ? convertIA16Pixel : convertRGBA16Pixel;  // NB: assume RGBA16 for G_TT_NONE
-
-        var pal_address = getPaletteRDRAMAddress(info.palette);
-        if (pal_address) {
-          switch (info.size) {
-            case imageSizeTypes.G_IM_SIZ_8b:
-              convertCI8(img_data, address, width, height, pitch, swapped, pal_address, conv_fn);
-              handled = true;
-              break;
-            case imageSizeTypes.G_IM_SIZ_4b:
-              convertCI4(img_data, address, width, height, pitch, pal_address, conv_fn);
-              handled = true;
-              break;
-          }
-        } else {
-          n64js.log('couldnt find palette for texture ' + info.palette);
+        switch (tile.size) {
+          case imageSizeTypes.G_IM_SIZ_8b:
+            convertCI8(img_data, tile.tmem, tile.line, width, height, 0x100, conv_fn);
+            handled = true;
+            break;
+          case imageSizeTypes.G_IM_SIZ_4b:
+            convertCI4(img_data, tile.tmem, tile.line, width, height, 0x100 + ((tile.palette * 16 * 2)>>>3), conv_fn);
+            handled = true;
+            break;
         }
         break;
 
@@ -4181,9 +4293,9 @@
       $textureOutput.append(texture.$canvas);
       $textureOutput.append('<br>');
     } else {
-      $textureOutput.append(getDefine(imageFormatTypes, info.format) + '/' + getDefine(imageSizeTypes, info.size) + ' is unhandled');
+      $textureOutput.append(getDefine(imageFormatTypes, tile.format) + '/' + getDefine(imageSizeTypes, tile.size) + ' is unhandled');
       // FIXME: fill with placeholder texture
-      hleHalt('texture format unhandled - ' + getDefine(imageFormatTypes, info.format) + '/' + getDefine(imageSizeTypes, info.size));
+      hleHalt('texture format unhandled - ' + getDefine(imageFormatTypes, tile.format) + '/' + getDefine(imageSizeTypes, tile.size));
     }
 
     gl.activeTexture(gl.TEXTURE0);
@@ -4192,8 +4304,8 @@
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
 
-    var mode_s = (info.cm_s === G_TX_CLAMP || (info.mask_s === 0)) ? gl.CLAMP_TO_EDGE : (info.cm_s === G_TX_MIRROR ? gl.MIRRORED_REPEAT : gl.REPEAT);
-    var mode_t = (info.cm_t === G_TX_CLAMP || (info.mask_t === 0)) ? gl.CLAMP_TO_EDGE : (info.cm_t === G_TX_MIRROR ? gl.MIRRORED_REPEAT : gl.REPEAT);
+    var mode_s = (tile.cm_s === G_TX_CLAMP || (tile.mask_s === 0)) ? gl.CLAMP_TO_EDGE : (tile.cm_s === G_TX_MIRROR ? gl.MIRRORED_REPEAT : gl.REPEAT);
+    var mode_t = (tile.cm_t === G_TX_CLAMP || (tile.mask_t === 0)) ? gl.CLAMP_TO_EDGE : (tile.cm_t === G_TX_MIRROR ? gl.MIRRORED_REPEAT : gl.REPEAT);
 
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, mode_s);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, mode_t);
@@ -4329,57 +4441,60 @@
     }
   }
 
-
-  function convertRGBA32(img_data, address, width, height, pitch) {
+  function convertRGBA32(img_data, tmem, line, width, height) {
     var dst            = img_data.data;
-    var src            = new DataView(state.ram.buffer, 0);
-
     var dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
-    var src_row_stride = pitch;
-
     var dst_row_offset = 0;
-    var src_row_offset = address;
+
+    var src            = state.tmemData;
+    var src_row_stride = line<<3;
+    var src_row_offset = tmem<<3;
+
+    // NB! RGBA/32 line needs to be doubled.
+    src_row_stride *= 2;
+
+    var row_swizzle = 0;
     for (var y = 0; y < height; ++y) {
 
       var src_offset = src_row_offset;
       var dst_offset = dst_row_offset;
       for (var x = 0; x < width; ++x) {
 
-        var src_pixel = src.getUint32(src_offset);
+        var o = src_offset^row_swizzle;
 
-        dst[dst_offset+0] = (src_pixel>>>24)&0xff;
-        dst[dst_offset+1] = (src_pixel>>>16)&0xff;
-        dst[dst_offset+2] = (src_pixel>>> 8)&0xff;
-        dst[dst_offset+3] = (src_pixel     )&0xff;
+        dst[dst_offset+0] = src[o];
+        dst[dst_offset+1] = src[o+1]
+        dst[dst_offset+2] = src[o+2];
+        dst[dst_offset+3] = src[o+3];
 
         src_offset += 4;
         dst_offset += 4;
       }
       src_row_offset += src_row_stride;
       dst_row_offset += dst_row_stride;
+
+      row_swizzle ^= 0x4;   // Alternate lines are word-swapped
     }
   }
 
-  function convertRGBA16(img_data, address, width, height, pitch, swapped) {
+  function convertRGBA16(img_data, tmem, line, width, height) {
     var dst            = img_data.data;
-    var src            = new DataView(state.ram.buffer, 0);
-
-    var odd_row_swizzle = swapped ? 0x4 : 0x0;
-
     var dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
-    var src_row_stride = pitch;
-
     var dst_row_offset = 0;
-    var src_row_offset = address;
-    for (var y = 0; y < height; ++y) {
 
-      var row_swizzle = (y&1) ? odd_row_swizzle : 0x0;
+    var src            = state.tmemData;
+    var src_row_stride = line<<3;
+    var src_row_offset = tmem<<3;
+
+    var row_swizzle = 0;
+    for (var y = 0; y < height; ++y) {
 
       var src_offset = src_row_offset;
       var dst_offset = dst_row_offset;
       for (var x = 0; x < width; ++x) {
 
-        var src_pixel = src.getUint16(src_offset ^ row_swizzle);
+        var o         = src_offset^row_swizzle;
+        var src_pixel = (src[o]<<8) | src[o+1];
 
         dst[dst_offset+0] = FiveToEight[(src_pixel>>>11)&0x1f];
         dst[dst_offset+1] = FiveToEight[(src_pixel>>> 6)&0x1f];
@@ -4391,25 +4506,30 @@
       }
       src_row_offset += src_row_stride;
       dst_row_offset += dst_row_stride;
+
+      row_swizzle ^= 0x4;   // Alternate lines are word-swapped
     }
   }
 
-  function convertIA16(img_data, address, width, height, pitch) {
+
+  function convertIA16(img_data, tmem, line, width, height) {
     var dst            = img_data.data;
-    var src            = new DataView(state.ram.buffer, 0);
-
     var dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
-    var src_row_stride = pitch;
-
     var dst_row_offset = 0;
-    var src_row_offset = address;
+
+    var src            = state.tmemData;
+    var src_row_stride = line<<3;
+    var src_row_offset = tmem<<3;
+
+    var row_swizzle = 0;
     for (var y = 0; y < height; ++y) {
 
       var src_offset = src_row_offset;
       var dst_offset = dst_row_offset;
       for (var x = 0; x < width; ++x) {
 
-        var src_pixel = src.getUint16(src_offset);
+        var o         = src_offset^row_swizzle;
+        var src_pixel = (src[o]<<8) | src[o+1];
 
         var i = (src_pixel>>>8)&0xff;
         var a = (src_pixel    )&0xff;
@@ -4424,25 +4544,29 @@
       }
       src_row_offset += src_row_stride;
       dst_row_offset += dst_row_stride;
+
+      row_swizzle ^= 0x4;   // Alternate lines are word-swapped
     }
   }
 
-  function convertIA8(img_data, address, width, height, pitch) {
+  function convertIA8(img_data, tmem, line, width, height) {
     var dst            = img_data.data;
-    var src            = new DataView(state.ram.buffer, 0);
-
     var dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
-    var src_row_stride = pitch;
-
     var dst_row_offset = 0;
-    var src_row_offset = address;
+
+    var src            = state.tmemData;
+    var src_row_stride = line<<3;
+    var src_row_offset = tmem<<3;
+
+    var row_swizzle = 0;
     for (var y = 0; y < height; ++y) {
 
       var src_offset = src_row_offset;
       var dst_offset = dst_row_offset;
       for (var x = 0; x < width; ++x) {
 
-        var src_pixel = src.getUint8(src_offset);
+        var o         = src_offset^row_swizzle;
+        var src_pixel = src[o];
 
         var i = FourToEight[(src_pixel>>>4)&0xf];
         var a = FourToEight[(src_pixel    )&0xf];
@@ -4457,18 +4581,21 @@
       }
       src_row_offset += src_row_stride;
       dst_row_offset += dst_row_stride;
+
+      row_swizzle ^= 0x4;   // Alternate lines are word-swapped
     }
   }
 
-  function convertIA4(img_data, address, width, height, pitch) {
+  function convertIA4(img_data, tmem, line, width, height) {
     var dst            = img_data.data;
-    var src            = new DataView(state.ram.buffer, 0);
-
     var dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
-    var src_row_stride = pitch;
-
     var dst_row_offset = 0;
-    var src_row_offset = address;
+
+    var src            = state.tmemData;
+    var src_row_stride = line<<3;
+    var src_row_offset = tmem<<3;
+
+    var row_swizzle = 0;
     for (var y = 0; y < height; ++y) {
 
       var src_offset = src_row_offset;
@@ -4477,7 +4604,8 @@
       // Process 2 pixels at a time
       for (var x = 0; x+1 < width; x+=2) {
 
-        var src_pixel = src.getUint8(src_offset);
+        var o         = src_offset^row_swizzle;
+        var src_pixel = src[o];
 
         var i0 = ThreeToEight[(src_pixel&0xe0)>>>5];
         var a0 =   OneToEight[(src_pixel&0x10)>>>4];
@@ -4501,7 +4629,8 @@
 
       // Handle trailing pixel, if odd width
       if (width&1) {
-        var src_pixel = src.getUint8(src_offset);
+        var o         = src_offset^row_swizzle;
+        var src_pixel = src[o];
 
         var i0 = ThreeToEight[(src_pixel&0xe0)>>>5];
         var a0 =   OneToEight[(src_pixel&0x10)>>>4];
@@ -4517,25 +4646,28 @@
 
       src_row_offset += src_row_stride;
       dst_row_offset += dst_row_stride;
+
+      row_swizzle ^= 0x4;   // Alternate lines are word-swapped
     }
   }
 
-  function convertI8(img_data, address, width, height, pitch) {
+  function convertI8(img_data, tmem, line, width, height) {
     var dst            = img_data.data;
-    var src            = new DataView(state.ram.buffer, 0);
-
     var dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
-    var src_row_stride = pitch;
-
     var dst_row_offset = 0;
-    var src_row_offset = address;
+
+    var src            = state.tmemData;
+    var src_row_stride = line<<3;
+    var src_row_offset = tmem<<3;
+
+    var row_swizzle = 0;
     for (var y = 0; y < height; ++y) {
 
       var src_offset = src_row_offset;
       var dst_offset = dst_row_offset;
       for (var x = 0; x < width; ++x) {
 
-        var i = src.getUint8(src_offset);
+        var i = src[src_offset^row_swizzle];
 
         dst[dst_offset+0] = i;
         dst[dst_offset+1] = i;
@@ -4547,18 +4679,21 @@
       }
       src_row_offset += src_row_stride;
       dst_row_offset += dst_row_stride;
+
+      row_swizzle ^= 0x4;   // Alternate lines are word-swapped
     }
   }
 
-  function convertI4(img_data, address, width, height, pitch) {
+  function convertI4(img_data, tmem, line, width, height) {
     var dst            = img_data.data;
-    var src            = new DataView(state.ram.buffer, 0);
-
     var dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
-    var src_row_stride = pitch;
-
     var dst_row_offset = 0;
-    var src_row_offset = address;
+
+    var src            = state.tmemData;
+    var src_row_stride = line<<3;
+    var src_row_offset = tmem<<3;
+
+    var row_swizzle = 0;
     for (var y = 0; y < height; ++y) {
 
       var src_offset = src_row_offset;
@@ -4567,7 +4702,7 @@
       // Process 2 pixels at a time
       for (var x = 0; x+1 < width; x+=2) {
 
-        var src_pixel = src.getUint8(src_offset);
+        var src_pixel = src[src_offset^row_swizzle];
 
         var i0 = FourToEight[(src_pixel&0xf0)>>>4];
         var i1 = FourToEight[(src_pixel&0x0f)>>>0];
@@ -4588,7 +4723,7 @@
 
       // Handle trailing pixel, if odd width
       if (width&1) {
-        var src_pixel = src.getUint8(src_offset);
+        var src_pixel = src[src_offset^row_swizzle];
 
         var i0 = FourToEight[(src_pixel&0xf0)>>>4];
 
@@ -4603,35 +4738,35 @@
 
       src_row_offset += src_row_stride;
       dst_row_offset += dst_row_stride;
+
+      row_swizzle ^= 0x4;   // Alternate lines are word-swapped
     }
   }
 
-  function convertCI8(img_data, address, width, height, pitch, swapped, pal_address, pal_conv) {
+  function convertCI8(img_data, tmem, line, width, height, pal_address, pal_conv) {
     var dst            = img_data.data;
-    var src            = new DataView(state.ram.buffer, 0);
+    var dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
+    var dst_row_offset = 0;
 
-    var odd_row_swizzle = swapped ? 0x4 : 0x0;
+    var src            = state.tmemData;
+    var src_row_stride = line<<3;
+    var src_row_offset = tmem<<3;
 
-    var pal = new Uint32Array(256);
+    var pal_offset     = pal_address<<3;
+    var pal            = new Uint32Array(256);
     for (var i = 0; i < 256; ++i) {
-      var src_pixel = src.getUint16(pal_address + i*2);
+      var src_pixel = (src[pal_offset + i*2 + 0]<<8) | src[pal_offset + i*2 + 1];
       pal[i] = pal_conv( src_pixel );
     }
 
-    var dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
-    var src_row_stride = pitch;
-
-    var dst_row_offset = 0;
-    var src_row_offset = address;
+    var row_swizzle = 0;
     for (var y = 0; y < height; ++y) {
-
-      var row_swizzle = (y&1) ? odd_row_swizzle : 0x0;
 
       var src_offset = src_row_offset;
       var dst_offset = dst_row_offset;
       for (var x = 0; x < width; ++x) {
 
-        var src_pixel = pal[src.getUint8(src_offset ^ row_swizzle)];
+        var src_pixel = pal[src[src_offset ^ row_swizzle]];
 
         dst[dst_offset+0] = (src_pixel>>24)&0xff;
         dst[dst_offset+1] = (src_pixel>>16)&0xff;
@@ -4643,24 +4778,28 @@
       }
       src_row_offset += src_row_stride;
       dst_row_offset += dst_row_stride;
+
+      row_swizzle ^= 0x4;   // Alternate lines are word-swapped
     }
   }
 
-  function convertCI4(img_data, address, width, height, pitch, pal_address, pal_conv) {
+  function convertCI4(img_data, tmem, line, width, height, pal_address, pal_conv) {
     var dst            = img_data.data;
-    var src            = new DataView(state.ram.buffer, 0);
+    var dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
+    var dst_row_offset = 0;
 
-    var pal = new Uint32Array(16);
+    var src            = state.tmemData;
+    var src_row_stride = line<<3;
+    var src_row_offset = tmem<<3;
+
+    var pal_offset     = pal_address<<3;
+    var pal            = new Uint32Array(16);
     for (var i = 0; i < 16; ++i) {
-      var src_pixel = src.getUint16(pal_address + i*2);
+      var src_pixel = (src[pal_offset + i*2 + 0]<<8) | src[pal_offset + i*2 + 1];
       pal[i] = pal_conv( src_pixel );
     }
 
-    var dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
-    var src_row_stride = pitch;
-
-    var dst_row_offset = 0;
-    var src_row_offset = address;
+    var row_swizzle = 0;
     for (var y = 0; y < height; ++y) {
 
       var src_offset = src_row_offset;
@@ -4669,7 +4808,7 @@
       // Process 2 pixels at a time
       for (var x = 0; x+1 < width; x+=2) {
 
-        var src_pixel = src.getUint8(src_offset);
+        var src_pixel = src[src_offset ^ row_swizzle];
 
         var c0 = pal[(src_pixel&0xf0)>>>4];
         var c1 = pal[(src_pixel&0x0f)>>>0];
@@ -4690,7 +4829,7 @@
 
       // Handle trailing pixel, if odd width
       if (width&1) {
-        var src_pixel = src.getUint8(src_offset);
+        var src_pixel = src[src_offset ^ row_swizzle];
 
         var c0 = pal[(src_pixel&0xf0)>>>4];
 
@@ -4705,6 +4844,8 @@
 
       src_row_offset += src_row_stride;
       dst_row_offset += dst_row_stride;
+
+      row_swizzle ^= 0x4;   // Alternate lines are word-swapped
     }
   }
 }(window.n64js = window.n64js || {}));

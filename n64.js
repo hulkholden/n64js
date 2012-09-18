@@ -330,6 +330,7 @@
     this.arrayBuffer = arrayBuffer;
     this.length      = arrayBuffer.byteLength;
     this.u8          = new Uint8Array(arrayBuffer);
+    this.s32         = new Int32Array(arrayBuffer);
   }
 
   Memory.prototype = {
@@ -772,6 +773,10 @@
 
   n64js.getRamU8Array = function () {
     return rdram_handler_cached.u8;
+  };
+
+  n64js.getRamS32Array = function () {
+    return rdram_handler_cached.mem.s32;
   };
 
   n64js.getRamDataView = function () {
