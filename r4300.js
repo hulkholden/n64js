@@ -372,7 +372,7 @@
           n64js.log('no events');
         }
       } else {
-        n64js.log('next instruction does something');
+        //n64js.log('next instruction does something');
       }
     }
 
