@@ -331,10 +331,22 @@
   var canvas2dMatrix = makeOrtho(0,canvasWidth, canvasHeight,0, 0,1);
 
   function hleHalt(msg) {
-    if (!debugDisplayListRequested) {
+    if (!debugDisplayListRunning) {
       n64js.displayWarning(msg);
-      n64js.toggleDebugDisplayList();
-      debugBailAfter = debugCurrentOp;
+
+      // Ensure the CPU emulation stops immediately
+      n64js.breakEmulationForDisplayListDebug();
+
+      // Ensure the ui is visible
+      showDebugDisplayListUI();
+
+      // We're already executing a display list, so clear the Requested flag, set Running
+      debugDisplayListRequested = false;
+      debugDisplayListRunning   = true;
+
+      // End set up the context
+      debugBailAfter            = debugCurrentOp;
+      debugStateTimeShown       = -1;
     }
   }
 
@@ -3513,18 +3525,25 @@
     $dlistState.html($d);
   }
 
+  function showDebugDisplayListUI() {
+    $('.debug').show();
+    $('#dlist-tab').tab('show');
+  }
+
+  function hideDebugDisplayListUI() {
+    $('.debug').hide();
+  }
+
   n64js.toggleDebugDisplayList = function () {
 
     if (debugDisplayListRunning) {
-      $('.debug').hide();
-
+      hideDebugDisplayListUI();
       debugBailAfter          = -1;
       debugDisplayListRunning = false;
       n64js.toggleRun();
-    } else {
-      $('.debug').show();
-      $('#dlist-tab').tab('show');
 
+    } else {
+      showDebugDisplayListUI();
       debugDisplayListRequested = true;
     }
   }
@@ -3532,6 +3551,21 @@
   // This is acalled repeatedly so that we can update the ui.
   // We can return false if we don't render anything, but it's useful to keep re-rendering so that we can plot a framerate graph
   n64js.debugDisplayList = function () {
+
+    if (debugStateTimeShown == -1) {
+       // Build some disassembly for this display list
+        var disassembler = new Disassembler();
+        processDList(debugLastTask, disassembler);
+        disassembler.finalise();
+
+        // Update the scrubber based on the new length of disassembly
+        debugNumOps = disassembler.numOps > 0 ? (disassembler.numOps-1) : 0;
+        setScrubRange(debugNumOps);
+
+        // If debugBailAfter hasn't been set (e.g. by hleHalt), stop at the end of the list
+        var time_to_show = (debugBailAfter == -1) ? debugNumOps : debugBailAfter;
+        setScrubTime(time_to_show);
+    }
 
     // Replay the last display list using the captured task/ram
     processDList(debugLastTask, null, debugBailAfter);
@@ -3552,19 +3586,6 @@
     // Force the cpu to stop at the point that we render the display list.
     if (debugDisplayListRequested) {
       debugDisplayListRequested = false;
-
-      // Build some disassembly for this display list
-      var disassembler = new Disassembler();
-      processDList(debugLastTask, disassembler);
-      disassembler.finalise();
-
-      // Update the scrubber based on the new length of disassembly
-      debugNumOps = disassembler.numOps > 0 ? (disassembler.numOps-1) : 0;
-      setScrubRange(debugNumOps);
-
-      // If debugBailAfter hasn't been set (e.g. by hleHalt), stop at the end of the list
-      var time_to_show = (debugBailAfter == -1) ? debugNumOps : debugBailAfter;
-      setScrubTime(time_to_show);
 
       // Finally, break execution so we can keep replaying the display list before any other state changes.
       n64js.breakEmulationForDisplayListDebug();
