@@ -1533,8 +1533,16 @@
     flushTris(tri_idx*3);
   }
 
-  function executeSetKeyGB(cmd0,cmd1)             { unimplemented(cmd0,cmd1); }
-  function executeSetKeyR(cmd0,cmd1)              { unimplemented(cmd0,cmd1); }
+  function executeSetKeyGB(cmd0,cmd1,dis) {
+    if (dis) {
+      dis.text('gsDPSetKeyGB(???);');
+    }
+  }
+  function executeSetKeyR(cmd0,cmd1,dis) {
+    if (dis) {
+      dis.text('gsDPSetKeyR(???);');
+    }
+  }
   function executeSetConvert(cmd0,cmd1,dis) {
     if (dis) {
       dis.text('gsDPSetConvert(???);');
