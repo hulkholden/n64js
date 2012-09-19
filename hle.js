@@ -154,10 +154,13 @@
   var G_MWO_MATRIX_ZZ_ZW_F    = 0x34;
   var G_MWO_MATRIX_WX_WY_F    = 0x38;
   var G_MWO_MATRIX_WZ_WW_F    = 0x3c;
-  var G_MWO_POINT_RGBA        = 0x10;
-  var G_MWO_POINT_ST          = 0x14;
-  var G_MWO_POINT_XYSCREEN    = 0x18;
-  var G_MWO_POINT_ZSCREEN     = 0x1c;
+
+  var modifyVtxValues = {
+    G_MWO_POINT_RGBA:        0x10,
+    G_MWO_POINT_ST:          0x14,
+    G_MWO_POINT_XYSCREEN:    0x18,
+    G_MWO_POINT_ZSCREEN:     0x1c
+  };
 
   var numLightValues = {
     //NUMLIGHTS_0: 1,
@@ -176,6 +179,77 @@
   var G_TX_WRAP       = 0x0;
   var G_TX_MIRROR     = 0x1;
   var G_TX_CLAMP      = 0x2;
+
+
+  var geometryModeFlagsGBI1 = {
+    G_ZBUFFER:            0x00000001,
+    G_TEXTURE_ENABLE:     0x00000002,  /* Microcode use only */
+    G_SHADE:              0x00000004,  /* enable Gouraud interp */
+    G_SHADING_SMOOTH:     0x00000200,  /* flat or smooth shaded */
+    G_CULL_FRONT:         0x00001000,
+    G_CULL_BACK:          0x00002000,
+    G_CULL_BOTH:          0x00003000,  /* To make code cleaner */
+    G_FOG:                0x00010000,
+    G_LIGHTING:           0x00020000,
+    G_TEXTURE_GEN:        0x00040000,
+    G_TEXTURE_GEN_LINEAR: 0x00080000,
+    G_LOD:                0x00100000  /* NOT IMPLEMENTED */
+  };
+
+  var geometryModeFlagsGBI2 = {
+    G_TEXTURE_ENABLE:     0x2,        /* NB - not implemented as geometry mode flag in GBI2 */
+    G_SHADE:              0,
+
+    G_ZBUFFER:            0x00000001,
+    G_CULL_BACK:          0x00000200,
+    G_CULL_FRONT:         0x00000400,
+    G_CULL_BOTH:          0x00000600,  /* To make code cleaner */
+    G_FOG:                0x00010000,
+    G_LIGHTING:           0x00020000,
+    G_TEXTURE_GEN:        0x00040000,
+    G_TEXTURE_GEN_LINEAR: 0x00080000,
+    G_LOD:                0x00100000,  /* NOT IMPLEMENTED */
+    G_SHADING_SMOOTH:     0x00200000   /* flat or smooth shaded */
+  };
+
+  function getGeometryModeFlagsText(flags, data) {
+    var t = '';
+
+    if (data & flags.G_ZBUFFER)               t += '|G_ZBUFFER';
+    if (data & flags.G_TEXTURE_ENABLE)        t += '|G_TEXTURE_ENABLE';
+    if (data & flags.G_SHADE)                 t += '|G_SHADE';
+    if (data & flags.G_SHADING_SMOOTH)        t += '|G_SHADING_SMOOTH';
+
+    var cull = data & flags.G_CULL_BOTH;
+         if (cull === flags.G_CULL_FRONT)     t += '|G_CULL_FRONT';
+    else if (cull === flags.G_CULL_BACK)      t += '|G_CULL_BACK';
+    else if (cull === flags.G_CULL_BOTH)      t += '|G_CULL_BOTH';
+
+    if (data & flags.G_FOG)                   t += '|G_FOG';
+    if (data & flags.G_LIGHTING)              t += '|G_LIGHTING';
+    if (data & flags.G_TEXTURE_GEN)           t += '|G_TEXTURE_GEN';
+    if (data & flags.G_TEXTURE_GEN_LINEAR)    t += '|G_TEXTURE_GEN_LINEAR';
+    if (data & flags.G_LOD)                   t += '|G_LOD';
+
+    return t.length > 0 ? t.substr(1) : '0';
+  }
+
+  function updateGeometryModeFromBits(flags) {
+    var gm   = state.geometryMode;
+    var bits = state.geometryModeBits;
+
+    gm.zbuffer          = (bits & flags.G_ZBUFFER)            ? 1 : 0;
+    gm.texture          = (bits & flags.G_TEXTURE_ENABLE)     ? 1 : 0;
+    gm.shade            = (bits & flags.G_SHADE)              ? 1 : 0;
+    gm.shadeSmooth      = (bits & flags.G_SHADING_SMOOTH)     ? 1 : 0;
+    gm.cullFront        = (bits & flags.G_CULL_FRONT)         ? 1 : 0;
+    gm.cullBack         = (bits & flags.G_CULL_BACK)          ? 1 : 0;
+    gm.fog              = (bits & flags.G_FOG)                ? 1 : 0;
+    gm.lighting         = (bits & flags.G_LIGHTING)           ? 1 : 0;
+    gm.textureGen       = (bits & flags.G_TEXTURE_GEN)        ? 1 : 0;
+    gm.textureGenLinear = (bits & flags.G_TEXTURE_GEN_LINEAR) ? 1 : 0;
+    gm.lod              = (bits & flags.G_LOD)                ? 1 : 0;
+  }
 
   function Tile() {
     this.format     = -1;
@@ -262,7 +336,20 @@
     tiles:          new Array(8),
     lights:         new Array(8),
     numLights:      0,
-    geometryMode:   0,
+    geometryModeBits:   0,      // raw geometry mode, GBI specific
+    geometryMode : {            // unpacked geometry mode
+      zbuffer:     0,
+      texture:     0,
+      shade:       0,
+      shadeSmooth: 0,
+      cullFront:   0,
+      cullBack:    0,
+      fog:         0,
+      lighting:    0,
+      textureGen:  0,
+      textureGenLinear: 0,
+      lod:         0,
+    },
     rdpOtherModeL:  0,
     rdpOtherModeH:  0,
 
@@ -740,6 +827,22 @@
       state.pc = address;
   }
 
+  function previewMatrix(matrix) {
+    var m = matrix.elems;
+
+    var a = [m[ 0], m[ 1], m[ 2], m[ 3]];
+    var b = [m[ 4], m[ 5], m[ 6], m[ 7]];
+    var c = [m[ 8], m[ 9], m[10], m[11]];
+    var d = [m[12], m[13], m[14], m[15]];
+
+    return '<div><table class="matrix-table">' +
+    '<tr><td>' + a.join('</td><td>') + '</td></tr>' +
+    '<tr><td>' + b.join('</td><td>') + '</td></tr>' +
+    '<tr><td>' + c.join('</td><td>') + '</td></tr>' +
+    '<tr><td>' + d.join('</td><td>') + '</td></tr>' +
+    '</table></div>';
+  }
+
   function executeGBI1_Matrix(cmd0,cmd1,dis) {
     var flags   = (cmd0>>>16)&0xff;
     var length  = (cmd0>>> 0)&0xffff;
@@ -757,20 +860,7 @@
       t += (flags & G_MTX_PUSH) ?       '|G_MTX_PUSH'       : ''; //'|G_MTX_NOPUSH';
 
       dis.text('gsSPMatrix(' + n64js.toString32(address) + ', ' + t + ');');
-
-      var m = matrix.elems;
-
-      var a = [m[ 0], m[ 1], m[ 2], m[ 3]];
-      var b = [m[ 4], m[ 5], m[ 6], m[ 7]];
-      var c = [m[ 8], m[ 9], m[10], m[11]];
-      var d = [m[12], m[13], m[14], m[15]];
-
-      dis.tip('<div><table class="matrix-table">' +
-      '<tr><td>' + a.join('</td><td>') + '</td></tr>' +
-      '<tr><td>' + b.join('</td><td>') + '</td></tr>' +
-      '<tr><td>' + c.join('</td><td>') + '</td></tr>' +
-      '<tr><td>' + d.join('</td><td>') + '</td></tr>' +
-      '</table></div>');
+      dis.tip(previewMatrix(matrix));
     }
 
     var stack = flags & G_MTX_PROJECTION ? state.projection : state.modelview;
@@ -979,9 +1069,9 @@
   }
 
   function executeVertexImpl(v0, n, address, dis) {
-    var light     = state.geometryMode & geometryModeFlags.G_LIGHTING;
-    var texgen    = state.geometryMode & geometryModeFlags.G_TEXTURE_GEN;
-    var texgenlin = state.geometryMode & geometryModeFlags.G_TEXTURE_GEN_LINEAR;
+    var light     = state.geometryMode.lighting;
+    var texgen    = state.geometryMode.textureGen;
+    var texgenlin = state.geometryMode.textureGenLinear;
 
     if (address + n*16 > 0x00800000) {
  // Wetrix causes this. Not sure if it's a cpu emulation bug which is generating bad display lists?
@@ -995,7 +1085,7 @@
       previewVertexImpl(v0, n, dv, dis);
     }
 
-    if (v0+n >= 64) {
+    if (v0+n >= 64) { // FIXME or 80 for later GBI
       hleHalt('Too many verts');
       state.pc = 0;
       return;
@@ -1112,55 +1202,19 @@
     state.rdpHalf1 = cmd1;
   }
 
-  var geometryModeFlags = {
-    G_ZBUFFER:            0x00000001,
-    G_TEXTURE_ENABLE:     0x00000002,  /* Microcode use only */
-    G_SHADE:              0x00000004,  /* enable Gouraud interp */
-    G_SHADING_SMOOTH:     0x00000200,  /* flat or smooth shaded */
-    G_CULL_FRONT:         0x00001000,
-    G_CULL_BACK:          0x00002000,
-    G_CULL_BOTH:          0x00003000,  /* To make code cleaner */
-    G_FOG:                0x00010000,
-    G_LIGHTING:           0x00020000,
-    G_TEXTURE_GEN:        0x00040000,
-    G_TEXTURE_GEN_LINEAR: 0x00080000,
-    G_LOD:                0x00100000  /* NOT IMPLEMENTED */
-
-  };
-
-  function getGeometryModeFlagsText(data) {
-    var t = '';
-
-    if (data & geometryModeFlags.G_ZBUFFER)               t += '|G_ZBUFFER';
-    if (data & geometryModeFlags.G_TEXTURE_ENABLE)        t += '|G_TEXTURE_ENABLE';
-    if (data & geometryModeFlags.G_SHADE)                 t += '|G_SHADE';
-    if (data & geometryModeFlags.G_SHADING_SMOOTH)        t += '|G_SHADING_SMOOTH';
-
-    var cull = data & 0x00003000;
-         if (cull === geometryModeFlags.G_CULL_FRONT)     t += '|G_CULL_FRONT';
-    else if (cull === geometryModeFlags.G_CULL_BACK)      t += '|G_CULL_BACK';
-    else if (cull === geometryModeFlags.G_CULL_BOTH)      t += '|G_CULL_BOTH';
-
-    if (data & geometryModeFlags.G_FOG)                   t += '|G_FOG';
-    if (data & geometryModeFlags.G_LIGHTING)              t += '|G_LIGHTING';
-    if (data & geometryModeFlags.G_TEXTURE_GEN)           t += '|G_TEXTURE_GEN';
-    if (data & geometryModeFlags.G_TEXTURE_GEN_LINEAR)    t += '|G_TEXTURE_GEN_LINEAR';
-    if (data & geometryModeFlags.G_LOD)                   t += '|G_LOD';
-
-    return t.length > 0 ? t.substr(1) : '0';
-  }
-
   function executeGBI1_ClrGeometryMode(cmd0,cmd1,dis) {
     if (dis) {
-      dis.text('gsSPClearGeometryMode(' + getGeometryModeFlagsText(cmd1) + ');');
+      dis.text('gsSPClearGeometryMode(' + getGeometryModeFlagsText(geometryModeFlagsGBI1, cmd1) + ');');
     }
-    state.geometryMode &= ~cmd1;
+    state.geometryModeBits &= ~cmd1;
+    updateGeometryModeFromBits(geometryModeFlagsGBI1);
   }
   function executeGBI1_SetGeometryMode(cmd0,cmd1,dis) {
     if (dis) {
-     dis.text('gsSPSetGeometryMode(' + getGeometryModeFlagsText(cmd1) + ');');
+     dis.text('gsSPSetGeometryMode(' + getGeometryModeFlagsText(geometryModeFlagsGBI1, cmd1) + ');');
     }
-    state.geometryMode |= cmd1;
+    state.geometryModeBits |= cmd1;
+    updateGeometryModeFromBits(geometryModeFlagsGBI1);
   }
 
  var renderModeFlags = {
@@ -1382,9 +1436,10 @@
     state.texture.scaleT = t;
 
     if (on)
-      state.geometryMode |=  geometryModeFlags.G_TEXTURE_ENABLE;
+      state.geometryModeBits |=  geometryModeFlagsGBI1.G_TEXTURE_ENABLE;
     else
-      state.geometryMode &= ~geometryModeFlags.G_TEXTURE_ENABLE;
+      state.geometryModeBits &= ~geometryModeFlagsGBI1.G_TEXTURE_ENABLE;
+    updateGeometryModeFromBits(geometryModeFlagsGBI1);
   }
 
   function executeGBI1_CullDL(cmd0,cmd1) {
@@ -2524,6 +2579,12 @@
           if (!alpha_cvg_sel || cvg_x_alpha)   // If alpha_cvg_sel is 0, or if we're multiplying by fragment alpha, then we have alpha to blend with
             mode = kBlendModeAlphaTrans;
           break;
+
+        case 0x0110 : //G_BL_CLR_IN,G_BL_A_FOG,G_BL_CLR_MEM,G_BL_1MA, alpha_cvg_sel:false cvg_x_alpha:false
+          // FIXME: this needs to blend the input colour with the fog alpha, but we don't compute this yet.
+          mode = kBlendModeOpaque;
+          break;
+
         case 0x0302: //G_BL_CLR_IN,G_BL_0,G_BL_CLR_IN,G_BL_1
           // This blend mode doesn't use the alpha value
           mode = kBlendModeOpaque;
@@ -2638,9 +2699,9 @@
     var texture;
     var tex_gen_enabled = false;
 
-    if (state.geometryMode & geometryModeFlags.G_TEXTURE_ENABLE) {
-      texture     = lookupTexture(state.texture.tile);
-      tex_gen_enabled = (state.geometryMode & (geometryModeFlags.G_LIGHTING|geometryModeFlags.G_TEXTURE_GEN)) === (geometryModeFlags.G_LIGHTING|geometryModeFlags.G_TEXTURE_GEN);
+    if (state.geometryMode.texture) {
+      texture         = lookupTexture(state.texture.tile);
+      tex_gen_enabled = state.geometryMode.lighting && state.geometryMode.textureGen;
     }
 
     setProgramState(triangleBuffer.vertex_positions,
@@ -2653,9 +2714,9 @@
 
     //texture filter
 
-    if (state.geometryMode & geometryModeFlags.G_CULL_BOTH) {
+    if (state.geometryMode.cullFront || state.geometryMode.cullBack) {
       gl.enable(gl.CULL_FACE);
-      var mode = (state.geometryMode & geometryModeFlags.G_CULL_FRONT) ? gl.FRONT : gl.BACK;
+      var mode = (state.geometryMode.cullFront) ? gl.FRONT : gl.BACK;
       gl.cullFace(mode);
     } else {
       gl.disable(gl.CULL_FACE);
@@ -2806,7 +2867,7 @@
     //if( gRDPOtherMode.zmode == 3 ) ...
 
     // Disable depth testing
-    var zgeom_mode      = (state.geometryMode  & geometryModeFlags.G_ZBUFFER) !== 0;
+    var zgeom_mode      = (state.geometryMode.zbuffer) !== 0;
     var zcmp_rendermode = (state.rdpOtherModeL & renderModeFlags.Z_CMP) !== 0;
     var zupd_rendermode = (state.rdpOtherModeL & renderModeFlags.Z_UPD) !== 0;
 
@@ -2943,12 +3004,139 @@
       dis.text('gsDPNoOp();');
     }
   }
-  function executeGBI2_Vertex(cmd0,cmd1,dis) {}
-  function executeGBI2_ModifyVtx(cmd0,cmd1,dis) {}
+
+
+  function executeGBI2_Vertex(cmd0,cmd1,dis) {
+    var vend = ((cmd0     )&0xff) >> 1;
+    var n    =  (cmd0>>>12)&0xff;
+    var v0   = vend - n;
+
+    var address = rdpSegmentAddress(cmd1);
+
+    if (dis) {
+      dis.text('gsSPVertex(' + n64js.toString32(address) + ', ' + n + ', ' + v0 + ');');
+    }
+
+    executeVertexImpl(v0, n, address, dis);
+  }
+
+  function executeGBI2_ModifyVtx(cmd0,cmd1,dis) {
+
+    var vtx    = (cmd0>>> 1)&0x7fff;
+    var offset = (cmd0>>>16)&0xff;
+    var value  = cmd1;
+
+    if (dis) {
+      dis.text('gsSPModifyVertex(' + vtx + ',' + getDefine(modifyVtxValues, offset) + ',' + n64js.toString32(value) + ');');
+    }
+
+    // Cures crash after swinging in Mario Golf
+    if (vtx >= state.projectedVertices.length) {
+      hleHalt('crazy vertex index');
+      return;
+    }
+
+    var vertex = state.projectedVertices[vtx];
+
+    switch (offset) {
+      case modifyVtxValues.G_MWO_POINT_RGBA:
+        hleHalt('unhandled modifyVtx');
+        break;
+
+      case modifyVtxValues.G_MWO_POINT_ST:
+        var u =  (value >> 16);                 // Signed
+        var v = ((value&0xffff) << 16) >> 16;   // Signed
+        vertex.set = true;
+        vertex.u = u * state.texture.scaleS / 32.0;
+        vertex.v = v * state.texture.scaleT / 32.0;
+        break;
+
+      case modifyVtxValues.G_MWO_POINT_XYSCREEN:
+        hleHalt('unhandled modifyVtx');
+        break;
+
+      case modifyVtxValues.G_MWO_POINT_ZSCREEN:
+        hleHalt('unhandled modifyVtx');
+        break;
+
+      default:
+        hleHalt('unhandled modifyVtx');
+        break;
+    }
+  }
+
   function executeGBI2_CullDL(cmd0,cmd1,dis) {}
   function executeGBI2_BranchZ(cmd0,cmd1,dis) {}
-  function executeGBI2_Tri1(cmd0,cmd1,dis) {}
-  function executeGBI2_Tri2(cmd0,cmd1,dis) {}
+
+
+  function executeGBI2_Tri1(cmd0,cmd1,dis) {
+    var kTri1  = cmd0>>>24;
+    var stride = config.vertexStride;
+    var verts  = state.projectedVertices;
+
+    var tri_idx = 0;
+
+    var pc = state.pc;
+    do {
+      var flag   = (cmd1>>>24)&0xff;
+      var v0_idx = (cmd0>>>17)&0x7f;
+      var v1_idx = (cmd0>>> 9)&0x7f;
+      var v2_idx = (cmd0>>> 1)&0x7f;
+
+      if (dis) {
+        dis.text('gsSP1Triangle(' + v0_idx + ', ' + v1_idx + ', ' + v2_idx + ', ' + flag + ');');
+      }
+
+      triangleBuffer.pushTri(verts[v0_idx], verts[v1_idx], verts[v2_idx], tri_idx); tri_idx++;
+
+      cmd0 = state.ram.getUint32( pc + 0 );
+      cmd1 = state.ram.getUint32( pc + 4 );
+      ++debugCurrentOp;
+      pc += 8;
+
+    } while ((cmd0>>>24) === kTri1 && tri_idx < kMaxTris && !dis); // NB: process triangles individsually when disassembling
+
+    state.pc = pc-8;
+    --debugCurrentOp;
+
+    flushTris(tri_idx*3);
+  }
+
+  function executeGBI2_Tri2(cmd0,cmd1,dis) {
+    var kTri2  = cmd0>>>24;
+    var stride = config.vertexStride;
+    var verts  = state.projectedVertices;
+
+    var tri_idx = 0;
+
+    var pc = state.pc;
+    do {
+      var v0_idx = (cmd1>>> 1)&0x7f;
+      var v1_idx = (cmd1>>> 9)&0x7f;
+      var v2_idx = (cmd1>>>17)&0x7f;
+      var v3_idx = (cmd0>>> 1)&0x7f;
+      var v4_idx = (cmd0>>> 9)&0x7f;
+      var v5_idx = (cmd0>>>17)&0x7f;
+
+      if (dis) {
+        dis.text('gsSP1Triangle2(' + v0_idx + ',' + v1_idx + ',' + v2_idx + ', ' +
+                                     v3_idx + ',' + v4_idx + ',' + v5_idx + ');' );
+      }
+
+      triangleBuffer.pushTri(verts[v0_idx], verts[v1_idx], verts[v2_idx], tri_idx); tri_idx++;
+      triangleBuffer.pushTri(verts[v3_idx], verts[v4_idx], verts[v5_idx], tri_idx); tri_idx++;
+
+      cmd0 = state.ram.getUint32( pc + 0 );
+      cmd1 = state.ram.getUint32( pc + 4 );
+      ++debugCurrentOp;
+      pc += 8;
+    } while ((cmd0>>>24) === kTri2 && tri_idx < kMaxTris && !dis); // NB: process triangles individsually when disassembling
+
+    state.pc = pc-8;
+    --debugCurrentOp;
+
+    flushTris(tri_idx*3);
+  }
   function executeGBI2_Quad(cmd0,cmd1,dis) {}
   function executeGBI2_Line3D(cmd0,cmd1,dis) {}
 
@@ -2980,9 +3168,11 @@
     state.texture.scaleT = t;
 
     if (on)
-      state.geometryMode |=  geometryModeFlags.G_TEXTURE_ENABLE;
+      state.geometryModeBits |=  geometryModeFlagsGBI2.G_TEXTURE_ENABLE;
     else
-      state.geometryMode &= ~geometryModeFlags.G_TEXTURE_ENABLE;
+      state.geometryModeBits &= ~geometryModeFlagsGBI2.G_TEXTURE_ENABLE;
+
+    updateGeometryModeFromBits(geometryModeFlagsGBI2);
   }
 
   function executeGBI2_GeometryMode(cmd0,cmd1,dis) {
@@ -2990,16 +3180,61 @@
     var arg1 = cmd1;
 
     if (dis) {
-      dis.text('gsSPGeometryMode(~(' + getGeometryModeFlagsText(arg0) + '),' + getGeometryModeFlagsText(arg1) + ');');
+      dis.text('gsSPGeometryMode(~(' + getGeometryModeFlagsText(geometryModeFlagsGBI2, ~arg0) + '),' + getGeometryModeFlagsText(geometryModeFlagsGBI2, arg1) + ');');
     }
 
-    state.geometryMode &= ~arg0;
-    state.geometryMode |=  arg1;
+    state.geometryModeBits &= arg0;
+    state.geometryModeBits |= arg1;
+    updateGeometryModeFromBits(geometryModeFlagsGBI2);
   }
 
-  function executeGBI2_Matrix(cmd0,cmd1,dis) {}
+  function executeGBI2_Matrix(cmd0,cmd1,dis) {
+    var address    = rdpSegmentAddress(cmd1);
+    var push       = ((cmd0    )&0x1) === 0;
+    var replace    =  (cmd0>>>1)&0x1;
+    var projection =  (cmd0>>>2)&0x1;
 
-  function executeGBI2_PopMatrix(cmd0,cmd1,dis) {}
+    var matrix = loadMatrix(address);
+
+    if (dis) {
+      var t = '';
+      t += projection ? 'G_MTX_PROJECTION' : 'G_MTX_MODELVIEW';
+      t += replace    ? '|G_MTX_LOAD'      : '|G_MTX_MUL';
+      t += push       ? '|G_MTX_PUSH'      : ''; //'|G_MTX_NOPUSH';
+
+      dis.text('gsSPMatrix(' + n64js.toString32(address) + ', ' + t + ');');
+      dis.tip(previewMatrix(matrix));
+    }
+
+    var stack = projection ? state.projection : state.modelview;
+
+    if (!replace) {
+      matrix = stack[stack.length-1].multiply(matrix);
+    }
+
+    if (push) {
+      stack.push(matrix);
+    } else {
+      stack[stack.length-1] = matrix;
+    }
+  }
+
+  function executeGBI2_PopMatrix(cmd0,cmd1,dis) {
+    // FIXME: not sure what bit this is
+    //var projection =  ??;
+    var projection = 0;
+
+    if (dis) {
+      var t = '';
+      t += projection ? 'G_MTX_PROJECTION' : 'G_MTX_MODELVIEW';
+      dis.text('gsSPPopMatrix(' + t + ');');
+    }
+
+    var stack = projection ? state.projection : state.modelview;
+    if (stack.length > 0) {
+      stack.pop();
+    }
+  }
 
   function executeGBI2_MoveWord(cmd0,cmd1,dis) {
     var type   = (cmd0>>>16)&0xff;
@@ -3027,10 +3262,10 @@
     switch(type) {
       // case moveWordTypeValues.G_MW_MATRIX:     unimplemented(cmd0,cmd1); break;
       case moveWordTypeValues.G_MW_NUMLIGHT:   state.numLights = Math.floor(value/24); break;
-      // case moveWordTypeValues.G_MW_CLIP:       /*unimplemented(cmd0,cmd1)*/; break;
+      case moveWordTypeValues.G_MW_CLIP:       /*unimplemented(cmd0,cmd1)*/; break;
       case moveWordTypeValues.G_MW_SEGMENT:    state.segments[((offset >>> 2)&0xf)] = value; break;
-      // case moveWordTypeValues.G_MW_FOG:        /*unimplemented(cmd0,cmd1);*/ break;
-      // case moveWordTypeValues.G_MW_LIGHTCOL:   unimplemented(cmd0,cmd1); break;
+      case moveWordTypeValues.G_MW_FOG:        /*unimplemented(cmd0,cmd1);*/ break;
+      case moveWordTypeValues.G_MW_LIGHTCOL:   /*unimplemented(cmd0,cmd1)*/; break;
       // case moveWordTypeValues.G_MW_POINTS:     unimplemented(cmd0,cmd1); break;
       case moveWordTypeValues.G_MW_PERSPNORM:  /*unimplemented(cmd0,cmd1)*/; break;
       default:                                 unimplemented(cmd0,cmd1); break;
@@ -3766,6 +4001,19 @@
 
     state.projection    = [ Matrix.identity() ];
     state.modelview     = [ Matrix.identity() ];
+
+    state.geometryModeBits  = 0;
+    state.geometryMode.zbuffer           = 0;
+    state.geometryMode.texture           = 0;
+    state.geometryMode.shade             = 0;
+    state.geometryMode.shadeSmooth       = 0;
+    state.geometryMode.cullFront         = 0;
+    state.geometryMode.cullBack          = 0;
+    state.geometryMode.fog               = 0;
+    state.geometryMode.lighting          = 0;
+    state.geometryMode.textureGen        = 0;
+    state.geometryMode.textureGenLinear  = 0;
+    state.geometryMode.lod               = 0;
 
     state.pc = pc;
     state.dlistStack = [];
