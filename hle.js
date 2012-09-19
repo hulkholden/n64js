@@ -4431,6 +4431,8 @@
     // FIXME: we also need to check other properties (mirror, clamp etc), and recreate every frame (or when underlying data changes)
     var cache_id = n64js.toString32(hash);
 
+    cache_id += tile.lrs + '-' + tile.lrt;
+
     var texture;
     if (textureCache.hasOwnProperty(cache_id)) {
       texture = textureCache[cache_id];
