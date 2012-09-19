@@ -3325,6 +3325,7 @@
 
     if (dis) {
       var address_str = n64js.toString32(address);
+      var length = 0; // FIXME
 
       var type_str = getDefine(moveMemTypeValues, type);
       var text = 'gsDma1p(G_MOVEMEM, ' + address_str + ', ' + length + ', ' + type_str + ');';
