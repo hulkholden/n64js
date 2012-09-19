@@ -1,3 +1,5 @@
+/*jshint jquery:true browser:true */
+
 (function (n64js) {'use strict';
 
   var graphics_task_count = 0;
@@ -17,7 +19,7 @@
   var debugDisplayListRunning   = false;
   var debugNumOps               = 0;
   var debugBailAfter            = -1;
-  var debugLastTask             = undefined;  // The last task that we executed.
+  var debugLastTask;            // The last task that we executed.
   var debugStateTimeShown       = -1;
 
   var debugCurrentOp            = 0; // This is updated as we're executing, so that we know which instruction to halt on.
@@ -98,7 +100,7 @@
     G_MV_MATRIX_2:           0x98,
     G_MV_MATRIX_3:           0x9a,
     G_MV_MATRIX_4:           0x9c
-  }
+  };
 
   var G_MWO_NUMLIGHT          = 0x00;
   var G_MWO_CLIP_RNX          = 0x04;
@@ -348,7 +350,7 @@
       lighting:    0,
       textureGen:  0,
       textureGenLinear: 0,
-      lod:         0,
+      lod:         0
     },
     rdpOtherModeL:  0,
     rdpOtherModeH:  0,
@@ -695,8 +697,8 @@
           ram[this.data_base+i+1] === s &&
           ram[this.data_base+i+2] === p) {
         var str = '';
-        for (var p = i; p < this.data_size; ++p) {
-          var c = ram[this.data_base+p];
+        for (var j = i; j < this.data_size; ++j) {
+          var c = ram[this.data_base+j];
           if (c === 0)
             return str;
 
@@ -705,7 +707,7 @@
       }
     }
     return '';
-  }
+  };
 
   RSPTask.prototype.computeMicrocodeHash = function () {
     var ram = state.ram_u8;
@@ -715,7 +717,7 @@
       c = ((c*17) + ram[this.code_base+i])>>>0;   // Best hash ever!
     }
     return c;
-  }
+  };
 
 
   // task_dv is a DataView object
@@ -744,7 +746,7 @@
     }
 
     n64js.haltSP();
-  }
+  };
 
   function unimplemented(cmd0,cmd1) {
     hleHalt('Unimplemented display list op ' + n64js.toString8(cmd0>>>24));
@@ -988,12 +990,12 @@
     switch(type) {
       case moveWordTypeValues.G_MW_MATRIX:     unimplemented(cmd0,cmd1); break;
       case moveWordTypeValues.G_MW_NUMLIGHT:   state.numLights = ((value - 0x80000000)>>>5) - 1; break;
-      case moveWordTypeValues.G_MW_CLIP:       /*unimplemented(cmd0,cmd1)*/; break;
+      case moveWordTypeValues.G_MW_CLIP:       /*unimplemented(cmd0,cmd1);*/ break;
       case moveWordTypeValues.G_MW_SEGMENT:    state.segments[((offset >>> 2)&0xf)] = value; break;
       case moveWordTypeValues.G_MW_FOG:        /*unimplemented(cmd0,cmd1);*/ break;
       case moveWordTypeValues.G_MW_LIGHTCOL:   unimplemented(cmd0,cmd1); break;
       case moveWordTypeValues.G_MW_POINTS:     unimplemented(cmd0,cmd1); break;
-      case moveWordTypeValues.G_MW_PERSPNORM:  /*unimplemented(cmd0,cmd1)*/; break;
+      case moveWordTypeValues.G_MW_PERSPNORM:  /*unimplemented(cmd0,cmd1);*/ break;
       default:                                 unimplemented(cmd0,cmd1); break;
     }
   }
@@ -1138,7 +1140,6 @@
         normal.elems[0] = dv.getInt8(vtx_base + 12);
         normal.elems[1] = dv.getInt8(vtx_base + 13);
         normal.elems[2] = dv.getInt8(vtx_base + 14);
-        var a  = dv.getUint8(vtx_base + 15);
 
         // calculate transformed normal
         mvmtx.transformNormal(normal, transformedNormal);
@@ -1834,8 +1835,8 @@
     var pitch        = (state.textureImage.width << imageSizeTypes.G_IM_SIZ_16b) >>> 1;
 
     var tile         = state.tiles[tile_idx];
-    var count        = ((lrs - uls)>>>2)+1;
-    var bytes        = count*2;
+    var texels       = ((lrs - uls)>>>2)+1;
+    var bytes        = texels*2;
 
     var tmem_offset  = tile.tmem << 3;
 
@@ -1922,7 +1923,7 @@
     tile.ult  = ult;
     tile.lrs  = lrs;
     tile.lrt  = lrt;
-    this.hash = 0;
+    tile.hash = 0;
   }
 
   function executeFillRect(cmd0,cmd1,dis) {
@@ -3262,12 +3263,12 @@
     switch(type) {
       // case moveWordTypeValues.G_MW_MATRIX:     unimplemented(cmd0,cmd1); break;
       case moveWordTypeValues.G_MW_NUMLIGHT:   state.numLights = Math.floor(value/24); break;
-      case moveWordTypeValues.G_MW_CLIP:       /*unimplemented(cmd0,cmd1)*/; break;
+      case moveWordTypeValues.G_MW_CLIP:       /*unimplemented(cmd0,cmd1);*/ break;
       case moveWordTypeValues.G_MW_SEGMENT:    state.segments[((offset >>> 2)&0xf)] = value; break;
       case moveWordTypeValues.G_MW_FOG:        /*unimplemented(cmd0,cmd1);*/ break;
-      case moveWordTypeValues.G_MW_LIGHTCOL:   /*unimplemented(cmd0,cmd1)*/; break;
+      case moveWordTypeValues.G_MW_LIGHTCOL:   /*unimplemented(cmd0,cmd1);*/ break;
       // case moveWordTypeValues.G_MW_POINTS:     unimplemented(cmd0,cmd1); break;
-      case moveWordTypeValues.G_MW_PERSPNORM:  /*unimplemented(cmd0,cmd1)*/; break;
+      case moveWordTypeValues.G_MW_PERSPNORM:  /*unimplemented(cmd0,cmd1);*/ break;
       default:                                 unimplemented(cmd0,cmd1); break;
     }
   }
@@ -3322,10 +3323,10 @@
     var type    = (cmd0    )&0xfe;
     //var length  = (cmd0>>> 8)&0xffff;
     var address = rdpSegmentAddress(cmd1);
+    var length = 0; // FIXME
 
     if (dis) {
       var address_str = n64js.toString32(address);
-      var length = 0; // FIXME
 
       var type_str = getDefine(moveMemTypeValues, type);
       var text = 'gsDma1p(G_MOVEMEM, ' + address_str + ', ' + length + ', ' + type_str + ');';
@@ -3333,7 +3334,7 @@
       switch (type) {
         case moveMemTypeValuesGBI2.G_GBI2_MV_VIEWPORT:
           text = 'gsSPViewport(' + address_str + ');';
-          break
+          break;
         case moveMemTypeValuesGBI2.G_GBI2_MV_LIGHT:
           var offset2 = (cmd0 >>> 5) & 0x3fff;
           switch (offset2) {
@@ -3351,7 +3352,7 @@
       }
 
       dis.text(text);
-      var length = 32;
+      length = 32;    // FIXME: Just show some data
       previewGBI2_MoveMem(type, length, address, dis);
     }
 
@@ -3468,7 +3469,7 @@
     }
 
     // Build a copy of the table as an array
-    var table = new Array();
+    var table = [];
     for (var i = 0; i < 256; ++i) {
       var fn = executeUnknown;
       if (ucode_table.hasOwnProperty(i)) {
@@ -3502,7 +3503,7 @@
     n64js.onPresent();
 
     // NB: if no display lists executed, interpret framebuffer as bytes
-    if (num_display_lists_since_present == 0) {
+    if (num_display_lists_since_present === 0) {
       //n64js.log('new origin: ' + n64js.toString32(origin) + ' but no display lists rendered to skipping');
 
       origin = (origin & ~0x80000001) | 0;  // NB: clear top bit (make address physical). Clear bottom bit (sometimes odd valued addresses are passed through)
@@ -3534,7 +3535,7 @@
 
     copyBackBufferToFrontBuffer(texture);
     num_display_lists_since_present = 0;
-  }
+  };
 
 
   function setViScales() {
@@ -3575,28 +3576,28 @@
   }
 
   Disassembler.prototype.begin = function(pc, cmd0, cmd1, depth) {
-    var indent = Array(depth).join('    ');
+    var indent = (new Array(depth)).join('    ');
     var pc_str = ' '; //' [' + n64js.toHex(pc,32) + '] '
 
     this.$span = $('<span class="hle-instr" id="I' + this.numOps + '" />');
     this.$span.append(n64js.padString(this.numOps, 5) + pc_str + n64js.toHex(cmd0,32) + n64js.toHex(cmd1,32) + ' ' + indent );
     this.$currentDis.append(this.$span);
-  }
+  };
 
   Disassembler.prototype.text = function (t) {
     this.$span.append(t);
-  }
+  };
 
   Disassembler.prototype.tip = function (t) {
     var $d = $('<div class="dl-tip">' + t + '</div>');
     $d.hide();
     this.$span.append($d);
-  }
+  };
 
   Disassembler.prototype.end = function () {
     this.$span.append('<br>');
     this.numOps++;
-  }
+  };
 
   Disassembler.prototype.finalise = function () {
     $dlistOutput.html(this.$currentDis);
@@ -3605,7 +3606,7 @@
     });
     // this.$currentDis.find('.dl-branch').click(function () {
     // });
-  }
+  };
 
   n64js.debugDisplayListRunning = function () {
     return debugDisplayListRunning;
@@ -3848,7 +3849,7 @@
       showDebugDisplayListUI();
       debugDisplayListRequested = true;
     }
-  }
+  };
 
   // This is acalled repeatedly so that we can update the ui.
   // We can return false if we don't render anything, but it's useful to keep re-rendering so that we can plot a framerate graph
@@ -3879,7 +3880,7 @@
     }
 
     return true;
-  }
+  };
 
   function hleGraphics(task) {
     // Bodgily track these parameters so that we can call again with the same params.
@@ -3953,13 +3954,15 @@
     var canvas = document.getElementById('display');
     setCanvasViewport(canvas.clientWidth, canvas.clientHeight);
 
+    var pc, cmd0, cmd1;
+
     if (disassembler) {
       debugCurrentOp = 0;
 
       while (state.pc !== 0) {
-          var pc = state.pc;
-          var cmd0 = ram.getUint32( pc + 0 );
-          var cmd1 = ram.getUint32( pc + 4 );
+          pc = state.pc;
+          cmd0 = ram.getUint32( pc + 0 );
+          cmd1 = ram.getUint32( pc + 4 );
           state.pc += 8;
 
           disassembler.begin(pc, cmd0, cmd1, state.dlistStack.length);
@@ -3974,9 +3977,9 @@
       // Vanilla loop, no disassembler to worry about
       debugCurrentOp = 0;
       while (state.pc !== 0) {
-          var pc = state.pc;
-          var cmd0 = ram.getUint32( pc + 0 );
-          var cmd1 = ram.getUint32( pc + 4 );
+          pc = state.pc;
+          cmd0 = ram.getUint32( pc + 0 );
+          cmd1 = ram.getUint32( pc + 4 );
           state.pc += 8;
 
           ucode_table[cmd0>>>24](cmd0,cmd1);
@@ -4057,8 +4060,8 @@
 
       var $instr = $dlistOutput.find('#I' + debugBailAfter );
 
-      $dlistOutput.scrollTop($dlistOutput.scrollTop() + $instr.position().top
-                           - $dlistOutput.height()/2 + $instr.height()/2);
+      $dlistOutput.scrollTop($dlistOutput.scrollTop() + $instr.position().top -
+                             $dlistOutput.height()/2 + $instr.height()/2);
 
       $dlistOutput.find('.hle-instr').removeAttr('style');
       $instr.css('background-color', 'rgb(255,255,204)');
@@ -4188,7 +4191,7 @@
 
       setCanvasViewport(canvas.clientWidth, canvas.clientHeight);
     }
-  }
+  };
 
   n64js.resetRenderer = function () {
     textureCache = {};
@@ -4262,9 +4265,9 @@
       state_text += alpha_threshold;
     }
 
-    var program = programs[state_text];
-    if (program) {
-      return program;
+    var shader = programs[state_text];
+    if (shader) {
+      return shader;
     }
 
     if (!genericVertexShader) {
@@ -4348,20 +4351,18 @@
 
     fragmentShader = createShader(theSource, gl.FRAGMENT_SHADER);
 
-    var program = gl.createProgram();
-    gl.attachShader(program, genericVertexShader);
-    gl.attachShader(program, fragmentShader);
-    gl.linkProgram(program);
+    var gl_program = gl.createProgram();
+    gl.attachShader(gl_program, genericVertexShader);
+    gl.attachShader(gl_program, fragmentShader);
+    gl.linkProgram(gl_program);
 
     // If creating the shader program failed, alert
-    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+    if (!gl.getProgramParameter(gl_program, gl.LINK_STATUS)) {
       alert("Unable to initialize the shader program.");
     }
 
-    var shader = new N64Shader(program);
-
+    shader = new N64Shader(gl_program);
     programs[state_text] = shader;
-
     return shader;
   }
 
@@ -4656,8 +4657,10 @@
 
     // Repeat last pixel across all lines
     var y = 0;
+    var dst_row_offset;
+
     if (width < img_data.width) {
-      var dst_row_offset = 0;
+      dst_row_offset = 0;
       for (; y < height; ++y) {
 
         var dst_offset = dst_row_offset + ((width-1)*4);
@@ -4682,7 +4685,7 @@
 
     if (height < img_data.height) {
       // Repeat the final line
-      var dst_row_offset  = dst_row_stride * height;;
+      dst_row_offset  = dst_row_stride * height;
       var last_row_offset = dst_row_offset - dst_row_stride;
 
       for (; y < img_data.height; ++y) {
@@ -4716,7 +4719,7 @@
         var o = src_offset^row_swizzle;
 
         dst[dst_offset+0] = src[o];
-        dst[dst_offset+1] = src[o+1]
+        dst[dst_offset+1] = src[o+1];
         dst[dst_offset+2] = src[o+2];
         dst[dst_offset+3] = src[o+3];
 
@@ -4849,6 +4852,9 @@
     var src_row_offset = tmem<<3;
 
     var row_swizzle = 0;
+
+    var o, src_pixel, i0, i1, a0, a1;
+
     for (var y = 0; y < height; ++y) {
 
       var src_offset = src_row_offset;
@@ -4857,14 +4863,14 @@
       // Process 2 pixels at a time
       for (var x = 0; x+1 < width; x+=2) {
 
-        var o         = src_offset^row_swizzle;
-        var src_pixel = src[o];
+        o         = src_offset^row_swizzle;
+        src_pixel = src[o];
 
-        var i0 = ThreeToEight[(src_pixel&0xe0)>>>5];
-        var a0 =   OneToEight[(src_pixel&0x10)>>>4];
+        i0 = ThreeToEight[(src_pixel&0xe0)>>>5];
+        a0 =   OneToEight[(src_pixel&0x10)>>>4];
 
-        var i1 = ThreeToEight[(src_pixel&0x0e)>>>1];
-        var a1 =   OneToEight[(src_pixel&0x01)>>>0];
+        i1 = ThreeToEight[(src_pixel&0x0e)>>>1];
+        a1 =   OneToEight[(src_pixel&0x01)>>>0];
 
         dst[dst_offset+0] = i0;
         dst[dst_offset+1] = i0;
@@ -4882,11 +4888,11 @@
 
       // Handle trailing pixel, if odd width
       if (width&1) {
-        var o         = src_offset^row_swizzle;
-        var src_pixel = src[o];
+        o         = src_offset^row_swizzle;
+        src_pixel = src[o];
 
-        var i0 = ThreeToEight[(src_pixel&0xe0)>>>5];
-        var a0 =   OneToEight[(src_pixel&0x10)>>>4];
+        i0 = ThreeToEight[(src_pixel&0xe0)>>>5];
+        a0 =   OneToEight[(src_pixel&0x10)>>>4];
 
         dst[dst_offset+0] = i0;
         dst[dst_offset+1] = i0;
@@ -4947,6 +4953,9 @@
     var src_row_offset = tmem<<3;
 
     var row_swizzle = 0;
+
+    var src_pixel, i0, i1;
+
     for (var y = 0; y < height; ++y) {
 
       var src_offset = src_row_offset;
@@ -4955,10 +4964,10 @@
       // Process 2 pixels at a time
       for (var x = 0; x+1 < width; x+=2) {
 
-        var src_pixel = src[src_offset^row_swizzle];
+        src_pixel = src[src_offset^row_swizzle];
 
-        var i0 = FourToEight[(src_pixel&0xf0)>>>4];
-        var i1 = FourToEight[(src_pixel&0x0f)>>>0];
+        i0 = FourToEight[(src_pixel&0xf0)>>>4];
+        i1 = FourToEight[(src_pixel&0x0f)>>>0];
 
         dst[dst_offset+0] = i0;
         dst[dst_offset+1] = i0;
@@ -4976,9 +4985,9 @@
 
       // Handle trailing pixel, if odd width
       if (width&1) {
-        var src_pixel = src[src_offset^row_swizzle];
+        src_pixel = src[src_offset^row_swizzle];
 
-        var i0 = FourToEight[(src_pixel&0xf0)>>>4];
+        i0 = FourToEight[(src_pixel&0xf0)>>>4];
 
         dst[dst_offset+0] = i0;
         dst[dst_offset+1] = i0;
@@ -5007,8 +5016,11 @@
 
     var pal_offset     = pal_address<<3;
     var pal            = new Uint32Array(256);
+
+    var src_pixel;
+
     for (var i = 0; i < 256; ++i) {
-      var src_pixel = (src[pal_offset + i*2 + 0]<<8) | src[pal_offset + i*2 + 1];
+      src_pixel = (src[pal_offset + i*2 + 0]<<8) | src[pal_offset + i*2 + 1];
       pal[i] = pal_conv( src_pixel );
     }
 
@@ -5019,7 +5031,7 @@
       var dst_offset = dst_row_offset;
       for (var x = 0; x < width; ++x) {
 
-        var src_pixel = pal[src[src_offset ^ row_swizzle]];
+        src_pixel = pal[src[src_offset ^ row_swizzle]];
 
         dst[dst_offset+0] = (src_pixel>>24)&0xff;
         dst[dst_offset+1] = (src_pixel>>16)&0xff;
@@ -5047,12 +5059,18 @@
 
     var pal_offset     = pal_address<<3;
     var pal            = new Uint32Array(16);
+
+    var src_pixel;
+
     for (var i = 0; i < 16; ++i) {
-      var src_pixel = (src[pal_offset + i*2 + 0]<<8) | src[pal_offset + i*2 + 1];
+      src_pixel = (src[pal_offset + i*2 + 0]<<8) | src[pal_offset + i*2 + 1];
       pal[i] = pal_conv( src_pixel );
     }
 
     var row_swizzle = 0;
+
+    var c0, c1;
+
     for (var y = 0; y < height; ++y) {
 
       var src_offset = src_row_offset;
@@ -5061,10 +5079,10 @@
       // Process 2 pixels at a time
       for (var x = 0; x+1 < width; x+=2) {
 
-        var src_pixel = src[src_offset ^ row_swizzle];
+        src_pixel = src[src_offset ^ row_swizzle];
 
-        var c0 = pal[(src_pixel&0xf0)>>>4];
-        var c1 = pal[(src_pixel&0x0f)>>>0];
+        c0 = pal[(src_pixel&0xf0)>>>4];
+        c1 = pal[(src_pixel&0x0f)>>>0];
 
         dst[dst_offset+0] = (c0>>24)&0xff;
         dst[dst_offset+1] = (c0>>16)&0xff;
@@ -5082,9 +5100,9 @@
 
       // Handle trailing pixel, if odd width
       if (width&1) {
-        var src_pixel = src[src_offset ^ row_swizzle];
+        src_pixel = src[src_offset ^ row_swizzle];
 
-        var c0 = pal[(src_pixel&0xf0)>>>4];
+        c0 = pal[(src_pixel&0xf0)>>>4];
 
         dst[dst_offset+0] = (c0>>24)&0xff;
         dst[dst_offset+1] = (c0>>16)&0xff;
