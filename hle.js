@@ -3641,6 +3641,8 @@
 
     var $p = $('<pre class="combine"></pre>');
 
+    $p.append(getDefine(cycleTypeValues, getCycleType()) + '\n');
+
     $p.append(decodeSetCombine(state.combine.hi, state.combine.lo));
 
     return $p;
