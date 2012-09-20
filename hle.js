@@ -639,35 +639,33 @@
       };
   }
 
-  function makeColourText(t, r,g,b) {
-    if (r<128 && g<128 && b<128) {
+  function makeColourText(r,g,b,a) {
+    var t = r + ', ' + g + ', ' + b + ', ' + a;
+
+    if ((r<128 && g<128) ||
+        (g<128 && b<128) ||
+        (b<128 && r<128)) {
       return '<span style="color: white; background-color: rgb(' + r + ',' + g + ',' + b + ')">' + t + '</span>';
     }
     return '<span style="background-color: rgb(' + r + ',' + g + ',' + b + ')">' + t + '</span>';
   }
 
-  function makeColorTextRGBA(t, r,g,b) {
-    // Allow calls of 'makeColorTextRGBA(t, rgba)'
-    if (typeof g == 'undefined') {
-      var col = r;
-      r = (col >>> 24) & 0xff;
-      g = (col >>> 16) & 0xff;
-      b = (col >>>  8) & 0xff;
-    }
+  function makeColorTextRGBA(col) {
+    var r = (col >>> 24) & 0xff;
+    var g = (col >>> 16) & 0xff;
+    var b = (col >>>  8) & 0xff;
+    var a = (col       ) & 0xff;
 
-    return makeColourText(t, r,g,b);
+    return makeColourText(r,g,b,a);
   }
 
-  function makeColorTextABGR(t, r,g,b) {
-    // Allow calls of 'makeColorTextRGBA(t, rgba)'
-    if (typeof g == 'undefined') {
-      var col = r;
-      r = (col >>>  0) & 0xff;
-      g = (col >>>  8) & 0xff;
-      b = (col >>> 16) & 0xff;
-    }
+  function makeColorTextABGR(col) {
+    var r = (col       ) & 0xff;
+    var g = (col >>>  8) & 0xff;
+    var b = (col >>> 16) & 0xff;
+    var a = (col >>> 24) & 0xff;
 
-    return makeColourText(t, r,g,b);
+    return makeColourText(r,g,b,a);
   }
 
   var M_GFXTASK = 1;
@@ -2063,7 +2061,7 @@
 
   function executeSetFillColor(cmd0,cmd1,dis) {
     if (dis) {
-      dis.text('gsDPSetFillColor(' + makeColorTextRGBA( n64js.toString32(cmd1), cmd1 ) + ');');   // Can be 16 or 32 bit
+      dis.text('gsDPSetFillColor(' + makeColorTextRGBA( cmd1 ) + ');');   // Can be 16 or 32 bit
     }
     state.fillColor = cmd1;
   }
@@ -2075,7 +2073,7 @@
       var b = (cmd1>>> 8)&0xff;
       var a = (cmd1>>> 0)&0xff;
 
-      dis.text('gsDPSetFogColor(' + makeColorTextRGBA( r + ', ' + g + ', ' + b + ', ' + a, r,g,b ) + ');');
+      dis.text('gsDPSetFogColor(' + makeColorTextRGBA( cmd1 ) + ');');
     }
     state.fogColor = cmd1;
   }
@@ -2086,7 +2084,7 @@
       var b = (cmd1>>> 8)&0xff;
       var a = (cmd1>>> 0)&0xff;
 
-      dis.text('gsDPSetBlendColor(' + makeColorTextRGBA( r + ', ' + g + ', ' + b + ', ' + a, r,g,b ) + ');');
+      dis.text('gsDPSetBlendColor(' + makeColorTextRGBA( cmd1 ) + ');');
     }
     state.blendColor = cmd1;
   }
@@ -2100,7 +2098,7 @@
       var b = (cmd1>>> 8)&0xff;
       var a = (cmd1>>> 0)&0xff;
 
-      dis.text('gsDPSetPrimColor(' + m + ', ' + l + ', ' + makeColorTextRGBA( r + ', ' + g + ', ' + b + ', ' + a, r,g,b ) + ');');
+      dis.text('gsDPSetPrimColor(' + m + ', ' + l + ', ' + makeColorTextRGBA( cmd1 ) + ');');
     }
     // minlevel, primlevel ignored!
     state.primColor = cmd1;
@@ -2113,7 +2111,7 @@
       var b = (cmd1>>> 8)&0xff;
       var a = (cmd1>>> 0)&0xff;
 
-      dis.text('gsDPSetEnvColor(' + makeColorTextRGBA( r + ', ' + g + ', ' + b + ', ' + a, r,g,b ) + ');' );
+      dis.text('gsDPSetEnvColor(' + makeColorTextRGBA( cmd1 ) + ');' );
     }
     state.envColor = cmd1;
   }
@@ -3622,17 +3620,12 @@
       'blendColor',
       'fogColor'
     ];
+
     var i;
     for (i = 0; i < colors.length; ++i) {
       var col = state[colors[i]];
-      var r = (col>>>24)&0xff;
-      var g = (col>>>16)&0xff;
-      var b = (col>>> 8)&0xff;
-      var a = (col>>> 0)&0xff;
 
-      var col_str = makeColorTextRGBA(r + ',' + g + ',' + b + ',' + a, r,g,b);
-
-      var $tr = $('<tr><td>' + colors[i] + '</td><td>' + col_str + '</td></tr>');
+      var $tr = $('<tr><td>' + colors[i] + '</td><td>' + makeColorTextRGBA( col ) + '</td></tr>');
       $table.append($tr);
     }
     return $table;
@@ -3804,7 +3797,7 @@
       vals.push(vtx.pos.elems[1].toFixed(3));
       vals.push(vtx.pos.elems[2].toFixed(3));
       vals.push(vtx.pos.elems[3].toFixed(3));
-      vals.push(makeColorTextABGR(n64js.toString32(vtx.color), vtx.color));
+      vals.push(makeColorTextABGR(vtx.color));
       vals.push(vtx.u.toFixed(3));
       vals.push(vtx.v.toFixed(3));
 
