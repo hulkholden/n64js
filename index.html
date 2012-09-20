@@ -4,31 +4,7 @@
     <meta charset="utf-8">
 
     <link rel="stylesheet" href="css/bootstrap.min.css">
- <style type="text/css">
-   body { padding-top: 20px; }
-   .fixed { font-family: Menlo,Monaco,"Courier New",monospace; font-size: 12px; }
-   .register-table th, .register-table td { text-align: right; padding: 2px 10px; }
-   .disasm-table th, .disasm-table td { text-align: right; padding: 2px 10px; }
-   .disasm-table th.op, .disasm-table td.op { text-align: left; }
-   pre .dis-label-target { font-weight: bold; }
-   pre .dis-label { color: #999; }
-   #output { background-color: #444; height: 360px; color: #fff;  overflow: scroll;}
-   div #cpu    { display:inline-block; vertical-align:top;}
-   div #disasm { display:inline-block; vertical-align:top; width:600px;}
-   .popover-inner { width: auto; }
-
-   .matrix-table th, .matrix-table td { padding: 2px 10px; }
-   .vertex-table th, .vertex-table td { text-align: right; padding: 2px 10px; }
-
-   table td.impl0   { background-color: #c44; }
-   table td.impl40  { background-color: #cc4; }
-   table td.impl80  { background-color: #8c4; }
-   table td.impl100 { background-color: #4f4; }
-
-   .hle-disasm { background-color: whiteSmoke; height: 480px; color: #fff;  overflow: scroll; position: relative; }
-
-   pre.combine { display: inline-block; }
- </style>
+    <link rel="stylesheet" href="n64js.css">
 
     <title>n64js - An N64 Emulator in Javascript</title>
   </head>
@@ -179,7 +155,42 @@
 
                 </div>
                 <div class="tab-pane" id="memory-content"></div>
-                <div class="tab-pane" id="dlist-content"></div>
+                <div class="tab-pane" id="dlist-content">
+                  <div id="controls">
+                    <div class="btn-toolbar">
+                      <div class="btn-group">
+                        <button class="btn" id="rwd"><i class="icon-step-backward"></i></button>
+                        <button class="btn" id="stop"><i class="icon-pause"></i></button>
+                        <button class="btn" id="fwd"><i class="icon-step-forward"></i></button>
+                      </div>
+                    </div>
+                    <div class="scrub">
+                      <div class="scrub-text"></div>
+                      <div><input type="range" min="0" max="0" value="0" /></div>
+                    </div>
+                    <br>
+                    <div class="hle-state">
+
+                      <div class="tabbable">
+                        <ul class="nav nav-tabs">
+                          <li><a href="#dl-geometrymode-content" id="dl-geometrymode-tab" data-toggle="tab">Geometry Mode</a></li>
+                          <li><a href="#dl-vertices-content" id="dl-vertices-tab" data-toggle="tab">Vertices</a></li>
+                          <li class="active"><a href="#dl-textures-content" id="dl-textures-tab" data-toggle="tab">Textures</a></li>
+                          <li><a href="#dl-combiner-content" id="dl-combiner-tab" data-toggle="tab">Combiner</a></li>
+                          <li><a href="#dl-rdp-content" id="dl-rdp-tab" data-toggle="tab">RDP</a></li>
+                        </ul>
+                        <div class="tab-content">
+                          <div class="tab-pane" id="dl-geometrymode-content"></div>
+                          <div class="tab-pane" id="dl-vertices-content"></div>
+                          <div class="tab-pane active" id="dl-textures-content"></div>
+                          <div class="tab-pane" id="dl-rdp-content"></div>
+                          <div class="tab-pane" id="dl-combiner-content"></div>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
                 <div class="tab-pane" id="dynarec-content"></div>
                 <div class="tab-pane" id="texture-content"></div>
               </div>

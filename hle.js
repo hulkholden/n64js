@@ -10,7 +10,6 @@
   var $dlistContent  = $('#dlist-content');
 
   // Initialised in initialiseRenderer
-  var $dlistControls;
   var $dlistOutput;
   var $dlistState;
   var $dlistScrub;
@@ -3623,7 +3622,7 @@
     return debugDisplayListRunning;
   };
 
-  function buildStateTable() {
+  function buildStateTab() {
     var $table = $('<table class="table table-condensed" style="width: auto;"></table>');
 
     var $tr = $('<tr />');
@@ -3645,7 +3644,7 @@
     return $table;
   }
 
-  function buildOthermodeTable() {
+  function buildRDPTab() {
 
     var l = state.rdpOtherModeL;
     var h = state.rdpOtherModeH;
@@ -3700,11 +3699,13 @@
     return $table;
   }
 
-  function buildColorCombiner() {
+  function buildCombinerTab() {
 
     var $p = $('<pre class="combine"></pre>');
 
     $p.append(getDefine(cycleTypeValues, getCycleType()) + '\n');
+
+    $p.append(buildColorsTable());
 
     $p.append(decodeSetCombine(state.combine.hi, state.combine.lo));
 
@@ -3755,8 +3756,11 @@
     }
   }
 
-  function buildTextures() {
+  function buildTexturesTab() {
     var $d = $('<div />');
+
+    $d.append(buildTilesTable());
+
     var i, $t;
     for (i = 0; i < 8; ++i) {
       $t = buildTexture(i);
@@ -3826,7 +3830,7 @@
     return $table;
   }
 
-  function buildVerticesTable() {
+  function buildVerticesTab() {
     var vtx_fields = [
       'vtx #',
       'x',
@@ -3879,17 +3883,11 @@
 
   function updateStateUI() {
 
-    var $d = $('<div></div>');
-
-    $d.append(buildStateTable());
-    $d.append(buildOthermodeTable());
-    $d.append(buildTextures());
-    $d.append(buildVerticesTable());
-    $d.append(buildColorsTable());
-    $d.append(buildColorCombiner());
-    $d.append(buildTilesTable());
-
-    $dlistState.html($d);
+    $dlistState.find('#dl-geometrymode-content').html(buildStateTab());
+    $dlistState.find('#dl-vertices-content').html(buildVerticesTab());
+    $dlistState.find('#dl-textures-content').html(buildTexturesTab());
+    $dlistState.find('#dl-combiner-content').html(buildCombinerTab());
+    $dlistState.find('#dl-rdp-content').html(buildRDPTab());
   }
 
   function showDebugDisplayListUI() {
@@ -4106,7 +4104,7 @@
   }
 
   function setScrubText(x, max) {
-    $dlistScrub.find('#content').html('uCode op ' + x + '/' + max + '.');
+    $dlistScrub.find('.scrub-text').html('uCode op ' + x + '/' + max + '.');
   }
 
   function setScrubRange(max) {
@@ -4132,21 +4130,7 @@
   }
 
   function initDebugUI() {
-    // Set up debugger
-    $dlistControls = $(
-      '<div>' +
-      '  <div class="btn-toolbar">' +
-      '    <div class="btn-group">' +
-      '      <button class="btn" id="rwd"><i class="icon-step-backward"></i></button>' +
-      '      <button class="btn" id="stop"><i class="icon-pause"></i></button>' +
-      '      <button class="btn" id="fwd"><i class="icon-step-forward"></i></button>' +
-      '    </div>' +
-      '  </div>' +
-      '  <div id="scrub">' +
-      '    <div id="content"></div>' +
-      '    <div><input type="range" min="0" max="0" value="0" /></div>' +
-      '  </div>' +
-      '</div>');
+    var $dlistControls = $dlistContent.find('#controls');
 
     debugBailAfter = -1;
     debugNumOps    = 0;
@@ -4165,18 +4149,13 @@
       n64js.toggleDebugDisplayList();
     });
 
-    $dlistScrub = $dlistControls.find('#scrub');
-    $dlistScrub.css('width', '640px');
-    $dlistScrub.find('input').css('width', '100%').change(function () {
+    $dlistScrub = $dlistControls.find('.scrub');
+    $dlistScrub.find('input').change(function () {
       setScrubTime($(this).val() | 0);
     });
     setScrubRange(0);
 
-    $dlistContent.append($dlistControls);
-    $dlistContent.append('<br>');
-
-    $dlistState = $('<div class="hle-state"></div>');
-    $dlistContent.append($dlistState);
+    $dlistState = $dlistContent.find('.hle-state');
 
     $dlistOutput = $('<div class="hle-disasm"></div>');
     $('#adjacent-debug').html($dlistOutput);
