@@ -3610,6 +3610,28 @@
     return debugDisplayListRunning;
   };
 
+  function buildStateTable() {
+    var $table = $('<table class="table table-condensed" style="width: auto;"></table>');
+
+    var $tr = $('<tr />');
+
+    var i;
+    for (i in state.geometryMode) {
+      if (state.geometryMode.hasOwnProperty(i)) {
+        var $td = $('<td>' + i + '</td>');
+        if (state.geometryMode[i]) {
+          $td.css('background-color', '#AFF4BB');
+        }
+
+        $tr.append($td);
+      }
+    }
+
+    $table.append($tr);
+
+    return $table;
+  }
+
   function buildColorsTable() {
     var $table = $('<table class="table table-condensed" style="width: auto;"></table>');
 
@@ -3624,10 +3646,9 @@
     var i;
     for (i = 0; i < colors.length; ++i) {
       var col = state[colors[i]];
-
-      var $tr = $('<tr><td>' + colors[i] + '</td><td>' + makeColorTextRGBA( col ) + '</td></tr>');
-      $table.append($tr);
+      $('<tr><td>' + colors[i] + '</td><td>' + makeColorTextRGBA( col ) + '</td></tr>').appendTo($table);
     }
+
     return $table;
   }
 
@@ -3812,6 +3833,7 @@
 
     var $d = $('<div></div>');
 
+    $d.append(buildStateTable());
     $d.append(buildTextures());
     $d.append(buildVerticesTable());
     $d.append(buildColorsTable());
