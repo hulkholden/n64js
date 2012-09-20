@@ -1373,7 +1373,6 @@
     dis.text(text);
   }
 
-
   function executeGBI1_SetOtherModeL(cmd0,cmd1,dis) {
     var shift = (cmd0>>> 8)&0xff;
     var len   = (cmd0>>> 0)&0xff;
@@ -2317,8 +2316,11 @@
   var G_MDSFT_RENDERMODE      = 3;
   var G_MDSFT_BLENDER         = 16;
 
+  var G_AC_MASK     = 3 << G_MDSFT_ALPHACOMPARE;
+  var G_ZS_MASK     = 1 << G_MDSFT_ZSRCSEL;
+
   function getAlphaCompareType() {
-    return state.rdpOtherModeL & (3<<G_MDSFT_ALPHACOMPARE);
+    return state.rdpOtherModeL & G_AC_MASK;
   }
 
   function getCoverageTimesAlpha() {
@@ -2333,7 +2335,6 @@
   var G_MDSFT_BLENDMASK       = 0;
   var G_MDSFT_ALPHADITHER     = 4;
   var G_MDSFT_RGBDITHER       = 6;
-
   var G_MDSFT_COMBKEY         = 8;
   var G_MDSFT_TEXTCONV        = 9;
   var G_MDSFT_TEXTFILT        = 12;
@@ -2345,16 +2346,28 @@
   var G_MDSFT_COLORDITHER     = 22;
   var G_MDSFT_PIPELINE        = 23;
 
+  var G_PM_MASK     = 1 << G_MDSFT_PIPELINE;
+  var G_CYC_MASK    = 3 << G_MDSFT_CYCLETYPE;
+  var G_TP_MASK     = 1 << G_MDSFT_TEXTPERSP;
+  var G_TD_MASK     = 3 << G_MDSFT_TEXTDETAIL;
+  var G_TL_MASK     = 1 << G_MDSFT_TEXTLOD;
+  var G_TT_MASK     = 3 << G_MDSFT_TEXTLUT;
+  var G_TF_MASK     = 3 << G_MDSFT_TEXTFILT;
+  var G_TC_MASK     = 7 << G_MDSFT_TEXTCONV;
+  var G_CK_MASK     = 1 << G_MDSFT_COMBKEY;
+  var G_CD_MASK     = 3 << G_MDSFT_RGBDITHER;
+  var G_AD_MASK     = 3 << G_MDSFT_ALPHADITHER;
+
   function getCycleType() {
-    return state.rdpOtherModeH & (3<<G_MDSFT_CYCLETYPE);
+    return state.rdpOtherModeH & G_CYC_MASK;
   }
 
   function getTextureFilterType() {
-    return state.rdpOtherModeH & (3<<G_MDSFT_TEXTFILT);
+    return state.rdpOtherModeH & G_TF_MASK;
   }
 
   function getTextureLUTType() {
-    return state.rdpOtherModeH & (3<<G_MDSFT_TEXTLUT);
+    return state.rdpOtherModeH & G_TT_MASK;
   }
 
   var pipelineModeValues = {
@@ -3632,6 +3645,41 @@
     return $table;
   }
 
+  function buildOthermodeTable() {
+
+    var l = state.rdpOtherModeL;
+    var h = state.rdpOtherModeH;
+    var vals = {
+      alphaCompare: getDefine(alphaCompareValues,   l & G_AC_MASK),
+      depthSource:  getDefine(depthSourceValues,    l & G_ZS_MASK),
+      renderMode:   getRenderModeFlagsText(l),
+
+    //var G_MDSFT_BLENDMASK       = 0;
+      alphaDither:    getDefine(alphaDitherValues,    h & G_AD_MASK),
+      colorDither:    getDefine(colorDitherValues,    h & G_CD_MASK),
+      combineKey:     getDefine(combineKeyValues,     h & G_CK_MASK),
+      textureConvert: getDefine(textureConvertValues, h & G_TC_MASK),
+      textureFilter:  getDefine(textureFilterValues,  h & G_TF_MASK),
+      textureLUT:     getDefine(textureLUTValues,     h & G_TT_MASK),
+      textureLOD:     getDefine(textureLODValues,     h & G_TL_MASK),
+      texturePersp:   getDefine(texturePerspValues,   h & G_TP_MASK),
+      textureDetail:  getDefine(textureDetailValues,  h & G_TD_MASK),
+      cycleType:      getDefine(cycleTypeValues,      h & G_CYC_MASK),
+      pipelineMode:   getDefine(pipelineModeValues,   h & G_PM_MASK)
+    };
+
+    var $table = $('<table class="table table-condensed" style="width: auto;"></table>');
+
+    var $tr, i;
+    for (i in vals) {
+      if (vals.hasOwnProperty(i)) {
+        $tr = $('<tr><td>' + i + '</td><td>' + vals[i] + '</td></tr>');
+        $table.append($tr);
+      }
+    }
+    return $table;
+  }
+
   function buildColorsTable() {
     var $table = $('<table class="table table-condensed" style="width: auto;"></table>');
 
@@ -3834,6 +3882,7 @@
     var $d = $('<div></div>');
 
     $d.append(buildStateTable());
+    $d.append(buildOthermodeTable());
     $d.append(buildTextures());
     $d.append(buildVerticesTable());
     $d.append(buildColorsTable());
