@@ -1115,7 +1115,7 @@
   }
 
 
-  function generateSRAV(ctx) { return generateShiftVariable(ctx, '<<'); }
+  function generateSRAV(ctx) { return generateShiftVariable(ctx, '>>'); }
   function executeSRAV(i) {
     var d = rd(i);
     var s = rs(i);
