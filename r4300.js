@@ -458,11 +458,11 @@
       } else {
         n64js.assert(false, "Was expecting an unmasked interrupt - something wrong with kStuffToDoCheckInterrupts?");
       }
-    }
+    };
 
     this.setException = function (mask, exception) {
       this.control[this.kControlCause] &= ~mask;
-      this.control[this.kControlCause] |= exception
+      this.control[this.kControlCause] |= exception;
       this.control[this.kControlSR]  |= SR_EXL;
       this.control[this.kControlEPC]  = this.pc;
       if (this.delayPC) {
@@ -471,14 +471,14 @@
       } else {
         this.control[this.kControlCause] &= ~CAUSE_BD;
       }
-    }
+    };
 
     this.setCompare = function (value) {
       this.control[this.kControlCause] &= ~CAUSE_IP8;
       if (value === this.control[this.kControlCompare]) {
         // just clear the IP8 flag
       } else {
-        if (value != 0) {
+        if (value !== 0) {
           var count = this.control[this.kControlCount];
           if (value > count) {
             var delta = value - count;
