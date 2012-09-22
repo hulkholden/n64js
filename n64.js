@@ -1,3 +1,5 @@
+/*jshint jquery:true, browser:true, devel:true */
+
 (function (n64js) {'use strict';
 
   var stats = null;
@@ -2572,12 +2574,12 @@
     return mi_reg.readU32(MI_INTR_MASK_REG);
   };
 
-  n64js.viOrigin = function () { return vi_reg.readU32(VI_ORIGIN_REG); }
-  n64js.viWidth  = function () { return vi_reg.readU32(VI_WIDTH_REG); }
-  n64js.viXScale = function () { return vi_reg.readU32(VI_X_SCALE_REG); }
-  n64js.viYScale = function () { return vi_reg.readU32(VI_Y_SCALE_REG); }
-  n64js.viHStart = function () { return vi_reg.readU32(VI_H_START_REG); }
-  n64js.viVStart = function () { return vi_reg.readU32(VI_V_START_REG); }
+  n64js.viOrigin = function () { return vi_reg.readU32(VI_ORIGIN_REG); };
+  n64js.viWidth  = function () { return vi_reg.readU32(VI_WIDTH_REG); };
+  n64js.viXScale = function () { return vi_reg.readU32(VI_X_SCALE_REG); };
+  n64js.viYScale = function () { return vi_reg.readU32(VI_Y_SCALE_REG); };
+  n64js.viHStart = function () { return vi_reg.readU32(VI_H_START_REG); };
+  n64js.viVStart = function () { return vi_reg.readU32(VI_V_START_REG); };
 
   n64js.haltSP = function () {
     var status = sp_reg.setBits32(SP_STATUS_REG, SP_STATUS_TASKDONE|SP_STATUS_BROKE|SP_STATUS_HALT);
@@ -2699,7 +2701,7 @@
       $('#performance').html('');
       stats = null;
     } else {
-      stats = new Stats()
+      stats = new Stats();
       stats.setMode(1); // 0: fps, 1: ms
 
       // Align top-left
@@ -2726,8 +2728,8 @@
   var x;
   for (x = 0; x < vendors.length && !window.requestAnimationFrame; ++x) {
     window.requestAnimationFrame = window[vendors[x]+'RequestAnimationFrame'];
-     window.cancelAnimationFrame = window[vendors[x]+'CancelAnimationFrame']
-                                 || window[vendors[x]+'CancelRequestAnimationFrame'];
+     window.cancelAnimationFrame = window[vendors[x]+'CancelAnimationFrame'] ||
+                                   window[vendors[x]+'CancelRequestAnimationFrame'];
   }
 
   if (!window.requestAnimationFrame) {
