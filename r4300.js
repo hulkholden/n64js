@@ -1,3 +1,5 @@
+/*jshint jquery:true, devel:true */
+
 (function (n64js) {'use strict';
   var kDebugTLB = 0;
   var kDebugDynarec = 0;
@@ -180,7 +182,7 @@
   n64js.getHi32 = function (v) {
     // >>32 just seems to no-op? Argh.
     return Math.floor( v / k1Shift32 );
-  }
+  };
 
   function TLBEntry() {
     this.pagemask = 0;
@@ -285,7 +287,7 @@
 
     this.getCount = function() {
       return this.control[this.kControlCount];
-    }
+    };
 
     this.tlbEntries = [];
     for (var i = 0; i < 32; ++i) {
@@ -294,18 +296,19 @@
 
     this.getGPR_s64 = function (r) {
       return (this.gprHi_signed[r] * k1Shift32) + this.gprLo[r];
-    }
+    };
 
     this.getGPR_u64 = function (r) {
       return (this.gprHi[r] * k1Shift32) + this.gprLo[r];
-    }
+    };
 
     this.setGPR_s64 = function (r, v) {
       this.gprHi_signed[r] = Math.floor( v / k1Shift32 );
       this.gprLo_signed[r] = v;
-    }
+    };
 
     this.reset = function () {
+      var i;
 
       hitCounts = {};
       fragmentMap = {};
@@ -313,12 +316,12 @@
 
       this.ram = n64js.getRamU8Array();
 
-      for (var i = 0; i < 32; ++i) {
+      for (i = 0; i < 32; ++i) {
         this.gprLo[i]   = 0;
         this.gprHi[i]   = 0;
         this.control[i] = 0;
       }
-      for (var i = 0; i < 32; ++i) {
+      for (i = 0; i < 32; ++i) {
         this.tlbEntries[i].update(i, 0, 0x80000000, 0, 0);
       }
 
@@ -343,7 +346,7 @@
 
     this.breakExecution = function () {
       this.stuffToDo |= kStuffToDoHalt;
-    }
+    };
 
     this.speedHack = function () {
       var next_instruction = n64js.readMemoryInternal32(this.pc + 4);
@@ -374,7 +377,7 @@
       } else {
         //n64js.log('next instruction does something');
       }
-    }
+    };
 
     this.updateCause3 = function () {
       if (n64js.miInterruptsUnmasked()) {
@@ -388,7 +391,7 @@
       }
 
       checkCauseIP3Consistent();
-    }
+    };
 
     this.setSR = function (value) {
       var old_value = this.control[this.kControlSR];
@@ -420,7 +423,7 @@
       }
 
       return false;
-    }
+    };
 
     this.throwTLBException = function (address, exc_code, vec) {
       this.control[this.kControlBadVAddr] = address;
@@ -434,19 +437,19 @@
       // XXXX check we're not inside exception handler before snuffing CAUSE reg?
       this.setException( CAUSE_EXCMASK, exc_code );
       this.nextPC = vec;
-    }
+    };
 
-    this.throwTLBReadMiss  = function (address) { this.throwTLBException(address, EXC_RMISS, UT_VEC); }
-    this.throwTLBWriteMiss = function (address) { this.throwTLBException(address, EXC_WMISS, UT_VEC); }
+    this.throwTLBReadMiss  = function (address) { this.throwTLBException(address, EXC_RMISS, UT_VEC); };
+    this.throwTLBWriteMiss = function (address) { this.throwTLBException(address, EXC_WMISS, UT_VEC); };
 
-    this.throwTLBReadInvalid  = function (address) { this.throwTLBException(address, EXC_RMISS, E_VEC); }
-    this.throwTLBWriteInvalid = function (address) { this.throwTLBException(address, EXC_WMISS, E_VEC); }
+    this.throwTLBReadInvalid  = function (address) { this.throwTLBException(address, EXC_RMISS, E_VEC); };
+    this.throwTLBWriteInvalid = function (address) { this.throwTLBException(address, EXC_WMISS, E_VEC); };
 
     this.throwCop1Unusable = function () {
       // XXXX check we're not inside exception handler before snuffing CAUSE reg?
       this.setException( CAUSE_EXCMASK|CAUSE_CEMASK, EXC_CPU | 0x10000000 );
       this.nextPC = E_VEC;
-    }
+    };
 
     this.handleInterrupt = function () {
       if (this.checkForUnmaskedInterrupts()) {
@@ -509,7 +512,7 @@
 
         return '?';
       }
-    }
+    };
 
     this.addEvent = function(type, countdown) {
       n64js.assert( countdown >0, "Countdown is invalid" );
@@ -526,7 +529,7 @@
       }
 
       this.events.push(new Event(type, countdown));
-    }
+    };
 
 
     this.removeEventsOfType = function (type) {
@@ -549,14 +552,14 @@
         }
       }
       return false;
-    }
+    };
 
     this.getRandom = function () {
       var wired = this.control[this.kControlWired] & 0x1f;
       var random = Math.floor(Math.random() * (32-wired)) + wired;
       n64js.assert(random >= wired && random <= 31, "Ooops - random should be in range " + wired + "..31, but got " + random);
       return random;
-    }
+    };
 
     function setTLB(cpu, index) {
       var pagemask = cpu.control[cpu.kControlPageMask];
@@ -569,11 +572,11 @@
 
     this.tlbWriteIndex = function () {
       setTLB(this, this.control[this.kControlIndex] & 0x1f);
-    }
+    };
 
     this.tlbWriteRandom = function () {
       setTLB(this, this.getRandom());
-    }
+    };
 
     this.tlbRead = function () {
       var index = this.control[this.kControlIndex] & 0x1f;
@@ -591,7 +594,7 @@
         n64js.log('  EntryLo0: ' + n64js.toString32(this.control[this.kControlEntryLo0]));
         n64js.log('  EntryLo1: ' + n64js.toString32(this.control[this.kControlEntryLo1]));
       }
-    }
+    };
 
     this.tlbProbe = function () {
       var entryhi      = this.control[this.kControlEntryHi];
@@ -616,7 +619,7 @@
         n64js.log('TLB Probe. EntryHi:' + n64js.toString32(entryhi) + ". Didn't find matching entry");
       }
       this.control[this.kControlIndex] = TLBINX_PROBE;
-    }
+    };
 
     this.tlbFindEntry = function (address) {
       for(var count = 0; count < 32; ++count) {
@@ -639,7 +642,7 @@
       }
 
       return null;
-    }
+    };
 
     this.translateReadInternal = function (address) {
       var tlb = this.tlbFindEntry(address);
@@ -659,7 +662,8 @@
           return 0;
       }
       return 0;
-    }
+    };
+
     this.translateRead = function (address) {
       var tlb = this.tlbFindEntry(address);
       if (tlb) {
@@ -682,7 +686,8 @@
 
       this.throwTLBReadMiss(address);
       return 0;
-    }
+    };
+
     this.translateWrite = function (address) {
       var tlb = this.tlbFindEntry(address);
       if (tlb) {
@@ -701,12 +706,11 @@
 
           this.throwTLBWriteInvalid(address);
           return 0;
-
       }
 
       this.throwTLBWriteMiss(address);
       return 0;
-    }
+    };
 
 
 
@@ -771,7 +775,7 @@
     this.kControlTagLo     = 28;
     this.kControlTagHi     = 29;
     this.kControlErrorEPC  = 30;
-  };
+  }
 
   function CPU1() {
 
@@ -791,36 +795,36 @@
       }
 
       this.control[0] = 0x00000511;
-    }
+    };
 
     this.setCondition = function (v) {
       if (v)
         this.control[31] |=  FPCSR_C;
       else
         this.control[31] &= ~FPCSR_C;
-    }
+    };
 
     this.store_64 = function (i, lo, hi) {
       this.int32[i+0] = lo;
       this.int32[i+1] = hi;
-    }
+    };
 
     this.load_f64 = function (i) {
       return this.float64[i>>1];
-    }
+    };
     this.load_s64_as_double = function (i) {
         return (this.int32[i+1] * k1Shift32) + this.int32[i];
-    }
+    };
 
     this.store_float_as_long = function (i, v) {
       this.int32[i  ] = v & 0xffffffff;
       this.int32[i+1] = Math.floor( v / k1Shift32 );
-    }
+    };
 
     this.store_f64 = function (i, v) {
       this.float64[i>>1] = v;
-    }
-  };
+    };
+  }
 
   // Expose the cpu state
   var cpu0 = new CPU0();
@@ -1023,7 +1027,7 @@
     throw 'Unknown op: ' + n64js.toString32(cpu0.pc) + ', ' + n64js.toString32(i);
   }
 
-  function GenerateShiftImmediate(ctx, op) {
+  function generateShiftImmediate(ctx, op) {
     // Handle NOP for SLL
     if (ctx.instruction === 0)
       return generateNOPBoilerplate('/*NOP*/', ctx);
@@ -1039,7 +1043,7 @@
     return generateTrivialOpBoilerplate(impl, ctx);
   }
 
-  function generateSLL(ctx) { return GenerateShiftImmediate(ctx, '<<'); }
+  function generateSLL(ctx) { return generateShiftImmediate(ctx, '<<'); }
   function executeSLL(i) {
     // NOP
     if (i === 0)
@@ -1055,7 +1059,7 @@
   }
 
 
-  function generateSRL(ctx) { return GenerateShiftImmediate(ctx, '>>>'); }
+  function generateSRL(ctx) { return generateShiftImmediate(ctx, '>>>'); }
   function executeSRL(i) {
     var d     = rd(i);
     var t     = rt(i);
@@ -1067,7 +1071,7 @@
   }
 
 
-  function generateSRA(ctx) { return GenerateShiftImmediate(ctx, '>>'); }
+  function generateSRA(ctx) { return generateShiftImmediate(ctx, '>>'); }
   function executeSRA(i) {
     var d     = rd(i);
     var t     = rt(i);
@@ -1518,7 +1522,7 @@
     var t = ctx.instr_rt();
 
     // OR is used to implement CLEAR and MOV
-    if (t == 0) {
+    if (t === 0) {
       var impl = '';
       impl += 'rlo[' + d + '] = ' + genSrcRegLo(s) + ';\n';
       impl += 'rhi[' + d + '] = ' + genSrcRegHi(s) + ';\n';
@@ -2306,7 +2310,7 @@
   function generateLUI(ctx) {
     var t = ctx.instr_rt();
     var value_lo = imms(ctx.instruction) << 16;
-    var value_hi = (value_lo < 0) ? -1 : 0
+    var value_hi = (value_lo < 0) ? -1 : 0;
 
     var impl = '';
     impl += 'rlo[' + t +'] = ' + value_lo + ';\n';
@@ -2981,18 +2985,18 @@
       return Math.ceil(x);
     else
       return Math.floor(x);
-  }
+  };
 
   n64js.convert = function (x) {
     switch(cpu1.control[31] & FPCSR_RM_MASK) {
-      case FPCSR_RM_RN:     return  Math.round(x);  break;
-      case FPCSR_RM_RZ:     return n64js.trunc(x);  break;
-      case FPCSR_RM_RP:     return  Math.ceil(x);  break;
-      case FPCSR_RM_RM:     return  Math.floor(x); break;
+      case FPCSR_RM_RN:     return  Math.round(x);
+      case FPCSR_RM_RZ:     return n64js.trunc(x);
+      case FPCSR_RM_RP:     return  Math.ceil(x);
+      case FPCSR_RM_RM:     return  Math.floor(x);
     }
 
-    n64js.assert('unknown rounding mode')
-  }
+    n64js.assert('unknown rounding mode');
+  };
 
   function generateFloatCompare(op) {
     var impl = '';
@@ -3082,8 +3086,6 @@
     var s = fs(i);
     var t = ft(i);
     var d = fd(i);
-
-    var _s, _t;
 
     var op = cop1_func(i);
 
@@ -3588,7 +3590,7 @@
       return 'n64js.assert(' + test + ', "' + msg + '");\n';
     }
     return '';
-  }
+  };
 
   FragmentContext.prototype.newFragment = function () {
     this.delayedPCUpdate = 0;
@@ -3610,18 +3612,18 @@
     //this.delayedPCUpdate = 0;
   };
 
-  FragmentContext.prototype.instr_rs     = function () { return rs(this.instruction); }
-  FragmentContext.prototype.instr_rt     = function () { return rt(this.instruction); }
-  FragmentContext.prototype.instr_rd     = function () { return rd(this.instruction); }
-  FragmentContext.prototype.instr_sa     = function () { return sa(this.instruction); }
+  FragmentContext.prototype.instr_rs     = function () { return rs(this.instruction); };
+  FragmentContext.prototype.instr_rt     = function () { return rt(this.instruction); };
+  FragmentContext.prototype.instr_rd     = function () { return rd(this.instruction); };
+  FragmentContext.prototype.instr_sa     = function () { return sa(this.instruction); };
 
-  FragmentContext.prototype.instr_fs     = function () { return fs(this.instruction); }
-  FragmentContext.prototype.instr_ft     = function () { return ft(this.instruction); }
-  FragmentContext.prototype.instr_fd     = function () { return fd(this.instruction); }
+  FragmentContext.prototype.instr_fs     = function () { return fs(this.instruction); };
+  FragmentContext.prototype.instr_ft     = function () { return ft(this.instruction); };
+  FragmentContext.prototype.instr_fd     = function () { return fd(this.instruction); };
 
-  FragmentContext.prototype.instr_base   = function () { return base(this.instruction); }
-  FragmentContext.prototype.instr_offset = function () { return offset(this.instruction); }
-  FragmentContext.prototype.instr_imms   = function () { return imms(this.instruction); }
+  FragmentContext.prototype.instr_base   = function () { return base(this.instruction); };
+  FragmentContext.prototype.instr_offset = function () { return offset(this.instruction); };
+  FragmentContext.prototype.instr_imms   = function () { return imms(this.instruction); };
 
 
 
@@ -3647,6 +3649,7 @@
   }
 
   function checkSyncState(sync) {
+    var i;
 
     var sync_a = sync.pop();
     var sync_b = sync.pop();
@@ -3657,11 +3660,10 @@
       return false;
 
     var next_vbl = 0;
-    for( var i = 0; i < cpu0.events.length; ++i )
-    {
+    for (i = 0; i < cpu0.events.length; ++i) {
       var event = cpu0.events[i];
       next_vbl += event.countdown;
-      if (event.type === kEventVbl){
+      if (event.type === kEventVbl) {
         next_vbl = next_vbl*2+1;
         break;
       } else if (event.type == kEventCompare) {
@@ -3676,7 +3678,7 @@
     if (0) {
       var a = 0;
       var b = 0;
-      for (var i = 0; i < 16; ++i) {
+      for (i = 0; i < 16; ++i) {
         a = mix(a,cpu0.gprLo[i], 0);
         b = mix(b,cpu0.gprLo[i+16], 0);
       }
@@ -3932,13 +3934,13 @@
 
   n64js.getFragmentMap = function () {
     return fragmentMap;
-  }
+  };
 
   n64js.getFragmentInvalidationEvents = function() {
     var t = fragmentInvalidationEvents;
     fragmentInvalidationEvents = [];
     return t;
-  }
+  };
 
   function Fragment(pc) {
     this.entryPC          = pc;
@@ -3973,7 +3975,7 @@
 
     this.cop1statusKnown  = false;
     this.usesCop1         = false;
-  }
+  };
 
   Fragment.prototype.getNextFragment = function (pc, ops_executed) {
     var next_fragment = this.nextFragments[ops_executed];
@@ -3990,7 +3992,7 @@
       this.nextFragments[ops_executed] = next_fragment;
     }
     return next_fragment;
-  }
+  };
 
   function lookupFragment(pc) {
 
