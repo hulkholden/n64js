@@ -12,6 +12,11 @@
 
   var k1Shift32 = 4294967296.0;
 
+  var UT_VEC          = 0x80000000;
+  var XUT_VEC         = 0x80000080;
+  var ECC_VEC         = 0x80000100;
+  var E_VEC           = 0x80000180;
+
   var SR_IE           = 0x00000001;
   var SR_EXL          = 0x00000002;
   var SR_ERL          = 0x00000004;
@@ -193,57 +198,55 @@
     this.global   = 0;
   }
 
-  TLBEntry.prototype = {
-    update : function(index, pagemask, hi, entrylo0, entrylo1) {
-      if (kDebugTLB) {
-        n64js.log('TLB update: index=' + index +
-            ', pagemask=' + n64js.toString32(pagemask) +
-            ', entryhi='  + n64js.toString32(hi) +
-            ', entrylo0=' + n64js.toString32(entrylo0) +
-            ', entrylo1=' + n64js.toString32(entrylo1)
-          );
+  TLBEntry.prototype.update = function(index, pagemask, hi, entrylo0, entrylo1) {
+    if (kDebugTLB) {
+      n64js.log('TLB update: index=' + index +
+          ', pagemask=' + n64js.toString32(pagemask) +
+          ', entryhi='  + n64js.toString32(hi) +
+          ', entrylo0=' + n64js.toString32(entrylo0) +
+          ', entrylo1=' + n64js.toString32(entrylo1)
+        );
 
-        switch (pagemask) {
-          case TLBPGMASK_4K:      n64js.log('       4k Pagesize');      break;
-          case TLBPGMASK_16K:     n64js.log('       16k Pagesize');     break;
-          case TLBPGMASK_64K:     n64js.log('       64k Pagesize');     break;
-          case TLBPGMASK_256K:    n64js.log('       256k Pagesize');    break;
-          case TLBPGMASK_1M:      n64js.log('       1M Pagesize');      break;
-          case TLBPGMASK_4M:      n64js.log('       4M Pagesize');      break;
-          case TLBPGMASK_16M:     n64js.log('       16M Pagesize');     break;
-          default:                n64js.log('       Unknown Pagesize'); break;
-        }
+      switch (pagemask) {
+        case TLBPGMASK_4K:      n64js.log('       4k Pagesize');      break;
+        case TLBPGMASK_16K:     n64js.log('       16k Pagesize');     break;
+        case TLBPGMASK_64K:     n64js.log('       64k Pagesize');     break;
+        case TLBPGMASK_256K:    n64js.log('       256k Pagesize');    break;
+        case TLBPGMASK_1M:      n64js.log('       1M Pagesize');      break;
+        case TLBPGMASK_4M:      n64js.log('       4M Pagesize');      break;
+        case TLBPGMASK_16M:     n64js.log('       16M Pagesize');     break;
+        default:                n64js.log('       Unknown Pagesize'); break;
       }
-
-      this.pagemask = pagemask;
-      this.hi       = hi;
-      this.pfne     = entrylo0;
-      this.pfno     = entrylo1;
-
-      this.global   = (entrylo0 & entrylo1 & TLBLO_G);
-
-      this.mask     = pagemask | (~TLBHI_VPN2MASK);
-      this.mask2    = this.mask>>>1;
-      this.vpnmask  = (~this.mask)>>>0;
-      this.vpn2mask = this.vpnmask>>>1;
-
-      this.addrcheck = (hi & this.vpnmask)>>>0;
-
-      this.pfnehi = (this.pfne << TLBLO_PFNSHIFT) & this.vpn2mask;
-      this.pfnohi = (this.pfno << TLBLO_PFNSHIFT) & this.vpn2mask;
-
-      switch (this.pagemask) {
-        case TLBPGMASK_4K:      this.checkbit = 0x00001000; break;
-        case TLBPGMASK_16K:     this.checkbit = 0x00004000; break;
-        case TLBPGMASK_64K:     this.checkbit = 0x00010000; break;
-        case TLBPGMASK_256K:    this.checkbit = 0x00040000; break;
-        case TLBPGMASK_1M:      this.checkbit = 0x00100000; break;
-        case TLBPGMASK_4M:      this.checkbit = 0x00400000; break;
-        case TLBPGMASK_16M:     this.checkbit = 0x01000000; break;
-        default: // shouldn't happen!
-                                this.checkbit = 0;          break;
-        }
     }
+
+    this.pagemask = pagemask;
+    this.hi       = hi;
+    this.pfne     = entrylo0;
+    this.pfno     = entrylo1;
+
+    this.global   = (entrylo0 & entrylo1 & TLBLO_G);
+
+    this.mask     = pagemask | (~TLBHI_VPN2MASK);
+    this.mask2    = this.mask>>>1;
+    this.vpnmask  = (~this.mask)>>>0;
+    this.vpn2mask = this.vpnmask>>>1;
+
+    this.addrcheck = (hi & this.vpnmask)>>>0;
+
+    this.pfnehi = (this.pfne << TLBLO_PFNSHIFT) & this.vpn2mask;
+    this.pfnohi = (this.pfno << TLBLO_PFNSHIFT) & this.vpn2mask;
+
+    switch (this.pagemask) {
+      case TLBPGMASK_4K:      this.checkbit = 0x00001000; break;
+      case TLBPGMASK_16K:     this.checkbit = 0x00004000; break;
+      case TLBPGMASK_64K:     this.checkbit = 0x00010000; break;
+      case TLBPGMASK_256K:    this.checkbit = 0x00040000; break;
+      case TLBPGMASK_1M:      this.checkbit = 0x00100000; break;
+      case TLBPGMASK_4M:      this.checkbit = 0x00400000; break;
+      case TLBPGMASK_16M:     this.checkbit = 0x01000000; break;
+      default: // shouldn't happen!
+                              this.checkbit = 0;          break;
+      }
   };
 
   function CPU0() {
@@ -269,11 +272,6 @@
     this.nextPC         = 0;      // Set to the next expected PC before an op executes. Ops can update this to change control flow without branch delay (e.g. likely branches, ERET)
     this.branchTarget   = 0;      // Set to indicate a branch has been taken. Sets the delayPC for the subsequent op.
 
-    var UT_VEC          = 0x80000000;
-    var XUT_VEC         = 0x80000080;
-    var ECC_VEC         = 0x80000100;
-    var E_VEC           = 0x80000180;
-
     this.stuffToDo      = 0;     // used to flag r4300 to cease execution
 
     this.events         = [];
@@ -285,434 +283,10 @@
     this.multHi_signed  = new Int32Array(this.multHiMem);
     this.multLo_signed  = new Int32Array(this.multLoMem);
 
-    this.getCount = function() {
-      return this.control[this.kControlCount];
-    };
-
     this.tlbEntries = [];
     for (var i = 0; i < 32; ++i) {
       this.tlbEntries.push(new TLBEntry());
     }
-
-    this.getGPR_s64 = function (r) {
-      return (this.gprHi_signed[r] * k1Shift32) + this.gprLo[r];
-    };
-
-    this.getGPR_u64 = function (r) {
-      return (this.gprHi[r] * k1Shift32) + this.gprLo[r];
-    };
-
-    this.setGPR_s64 = function (r, v) {
-      this.gprHi_signed[r] = Math.floor( v / k1Shift32 );
-      this.gprLo_signed[r] = v;
-    };
-
-    this.reset = function () {
-      var i;
-
-      hitCounts = {};
-      fragmentMap = {};
-      fragmentInvalidationEvents = [];
-
-      this.ram = n64js.getRamU8Array();
-
-      for (i = 0; i < 32; ++i) {
-        this.gprLo[i]   = 0;
-        this.gprHi[i]   = 0;
-        this.control[i] = 0;
-      }
-      for (i = 0; i < 32; ++i) {
-        this.tlbEntries[i].update(i, 0, 0x80000000, 0, 0);
-      }
-
-      this.pc           = 0;
-      this.delayPC      = 0;
-      this.nextPC       = 0;
-      this.branchTarget = 0;
-
-      this.stuffToDo    = 0;
-
-      this.events       = [];
-
-      this.multLo[0]    = this.multLo[1] = 0;
-      this.multHi[0]    = this.multHi[1] = 0;
-
-      this.control[this.kControlRand]   = 32-1;
-      this.control[this.kControlSR]     = 0x70400004;
-      this.control[this.kControlConfig] = 0x0006e463;
-
-      this.addEvent(kEventVbl, kVIIntrCycles);
-    };
-
-    this.breakExecution = function () {
-      this.stuffToDo |= kStuffToDoHalt;
-    };
-
-    this.speedHack = function () {
-      var next_instruction = n64js.readMemoryInternal32(this.pc + 4);
-      if (next_instruction === 0) {
-        if (this.events.length > 0) {
-
-          // Ignore the kEventRunForCycles event
-          var run_countdown = 0;
-          if (this.events[0].type === kEventRunForCycles && this.events.length > 1) {
-            run_countdown += this.events[0].countdown;
-            this.events.splice(0,1);
-          }
-
-          var to_skip = run_countdown + this.events[0].countdown - 1;
-
-          //n64js.log('speedhack: skipping ' + to_skip + ' cycles');
-
-          this.control[this.kControlCount] += to_skip;
-          this.events[0].countdown = 1;
-
-          // Re-add the kEventRunForCycles event
-          if (run_countdown) {
-            this.addEvent(kEventRunForCycles, run_countdown);
-          }
-        } else {
-          n64js.log('no events');
-        }
-      } else {
-        //n64js.log('next instruction does something');
-      }
-    };
-
-    this.updateCause3 = function () {
-      if (n64js.miInterruptsUnmasked()) {
-        this.control[this.kControlCause] |= CAUSE_IP3;
-
-        if (this.checkForUnmaskedInterrupts()) {
-          this.stuffToDo |= kStuffToDoCheckInterrupts;
-        }
-      } else {
-        this.control[this.kControlCause] &= ~CAUSE_IP3;
-      }
-
-      checkCauseIP3Consistent();
-    };
-
-    this.setSR = function (value) {
-      var old_value = this.control[this.kControlSR];
-      if ((old_value & SR_FR) !== (value & SR_FR)) {
-        n64js.log('Changing FPU to ' + ((value & SR_FR) ? '64bit' : '32bit' ));
-      }
-
-      this.control[this.kControlSR] = value;
-
-      setCop1Enable( (value & SR_CU1) !== 0 );
-
-      if (this.checkForUnmaskedInterrupts()) {
-        this.stuffToDo |= kStuffToDoCheckInterrupts;
-      }
-    };
-
-    this.checkForUnmaskedInterrupts = function () {
-      var sr = this.control[this.kControlSR];
-
-      // Ensure ERL/EXL are clear and IE is set
-      if ((sr & (SR_EXL | SR_ERL | SR_IE)) === SR_IE) {
-
-        // Check if interrupts are actually pending, and wanted
-        var cause = this.control[this.kControlCause];
-
-        if ((sr & cause & CAUSE_IPMASK) !== 0) {
-          return true;
-        }
-      }
-
-      return false;
-    };
-
-    this.throwTLBException = function (address, exc_code, vec) {
-      this.control[this.kControlBadVAddr] = address;
-
-      this.control[this.kControlContext] &= 0xff800000;
-      this.control[this.kControlContext] |= ((address >>> 13) << 4);
-
-      this.control[this.kControlEntryHi] &= 0x00001fff;
-      this.control[this.kControlEntryHi] |= (address & 0xfffffe000);
-
-      // XXXX check we're not inside exception handler before snuffing CAUSE reg?
-      this.setException( CAUSE_EXCMASK, exc_code );
-      this.nextPC = vec;
-    };
-
-    this.throwTLBReadMiss  = function (address) { this.throwTLBException(address, EXC_RMISS, UT_VEC); };
-    this.throwTLBWriteMiss = function (address) { this.throwTLBException(address, EXC_WMISS, UT_VEC); };
-
-    this.throwTLBReadInvalid  = function (address) { this.throwTLBException(address, EXC_RMISS, E_VEC); };
-    this.throwTLBWriteInvalid = function (address) { this.throwTLBException(address, EXC_WMISS, E_VEC); };
-
-    this.throwCop1Unusable = function () {
-      // XXXX check we're not inside exception handler before snuffing CAUSE reg?
-      this.setException( CAUSE_EXCMASK|CAUSE_CEMASK, EXC_CPU | 0x10000000 );
-      this.nextPC = E_VEC;
-    };
-
-    this.handleInterrupt = function () {
-      if (this.checkForUnmaskedInterrupts()) {
-          this.setException( CAUSE_EXCMASK, EXC_INT );
-          // this is handled outside of the main dispatch loop, so need to update pc directly
-          this.pc      = E_VEC;
-          this.delayPC = 0;
-
-      } else {
-        n64js.assert(false, "Was expecting an unmasked interrupt - something wrong with kStuffToDoCheckInterrupts?");
-      }
-    };
-
-    this.setException = function (mask, exception) {
-      this.control[this.kControlCause] &= ~mask;
-      this.control[this.kControlCause] |= exception;
-      this.control[this.kControlSR]  |= SR_EXL;
-      this.control[this.kControlEPC]  = this.pc;
-      if (this.delayPC) {
-        this.control[this.kControlCause] |= CAUSE_BD;
-        this.control[this.kControlEPC]   -= 4;
-      } else {
-        this.control[this.kControlCause] &= ~CAUSE_BD;
-      }
-    };
-
-    this.setCompare = function (value) {
-      this.control[this.kControlCause] &= ~CAUSE_IP8;
-      if (value === this.control[this.kControlCompare]) {
-        // just clear the IP8 flag
-      } else {
-        if (value !== 0) {
-          var count = this.control[this.kControlCount];
-          if (value > count) {
-            var delta = value - count;
-
-            this.removeEventsOfType(kEventCompare);
-            this.addEvent(kEventCompare, delta);
-          } else {
-            n64js.warn('setCompare underflow - was' + n64js.toString32(count) + ', setting to ' + value);
-          }
-        }
-      }
-      this.control[this.kControlCompare] = value;
-    };
-
-
-    function Event(type, countdown) {
-      this.type = type;
-      this.countdown = countdown;
-    }
-
-    Event.prototype = {
-      getName : function () {
-        switch(this.type) {
-          case kEventVbl:           return 'Vbl';
-          case kEventCompare:       return 'Compare';
-          case kEventRunForCycles:  return 'Run';
-        }
-
-        return '?';
-      }
-    };
-
-    this.addEvent = function(type, countdown) {
-      n64js.assert( countdown >0, "Countdown is invalid" );
-      for (var i = 0; i < this.events.length; ++i) {
-        var event = this.events[i];
-        if (countdown <= event.countdown) {
-          event.countdown -= countdown;
-
-          this.events.splice(i, 0, new Event(type, countdown));
-          return;
-        }
-
-        countdown -= event.countdown;
-      }
-
-      this.events.push(new Event(type, countdown));
-    };
-
-
-    this.removeEventsOfType = function (type) {
-      for (var i = 0; i < this.events.length; ++i) {
-        if (this.events[i].type == type) {
-          // Add this countdown on to the subsequent event
-          if ((i+1) < this.events.length) {
-            this.events[i+1].countdown += this.events[i].countdown;
-          }
-          this.events.splice(i, 1);
-          return;
-        }
-      }
-    };
-
-    this.hasEvent = function(type) {
-      for (var i = 0; i < this.events.length; ++i) {
-        if (this.events[i].type == type) {
-          return true;
-        }
-      }
-      return false;
-    };
-
-    this.getRandom = function () {
-      var wired = this.control[this.kControlWired] & 0x1f;
-      var random = Math.floor(Math.random() * (32-wired)) + wired;
-      n64js.assert(random >= wired && random <= 31, "Ooops - random should be in range " + wired + "..31, but got " + random);
-      return random;
-    };
-
-    function setTLB(cpu, index) {
-      var pagemask = cpu.control[cpu.kControlPageMask];
-      var entryhi  = cpu.control[cpu.kControlEntryHi];
-      var entrylo1 = cpu.control[cpu.kControlEntryLo1];
-      var entrylo0 = cpu.control[cpu.kControlEntryLo0];
-
-      cpu.tlbEntries[index].update(index, pagemask, entryhi, entrylo0, entrylo1);
-    }
-
-    this.tlbWriteIndex = function () {
-      setTLB(this, this.control[this.kControlIndex] & 0x1f);
-    };
-
-    this.tlbWriteRandom = function () {
-      setTLB(this, this.getRandom());
-    };
-
-    this.tlbRead = function () {
-      var index = this.control[this.kControlIndex] & 0x1f;
-      var tlb   = this.tlbEntries[index];
-
-      this.control[this.kControlPageMask] = tlb.mask;
-      this.control[this.kControlEntryHi ] = tlb.hi;
-      this.control[this.kControlEntryLo0] = tlb.pfne | tlb.global;
-      this.control[this.kControlEntryLo1] = tlb.pfno | tlb.global;
-
-      if (kDebugTLB) {
-        n64js.log('TLB Read Index ' + n64js.toString8(index) + '.');
-        n64js.log('  PageMask: ' + n64js.toString32(this.control[this.kControlPageMask]));
-        n64js.log('  EntryHi:  ' + n64js.toString32(this.control[this.kControlEntryHi]));
-        n64js.log('  EntryLo0: ' + n64js.toString32(this.control[this.kControlEntryLo0]));
-        n64js.log('  EntryLo1: ' + n64js.toString32(this.control[this.kControlEntryLo1]));
-      }
-    };
-
-    this.tlbProbe = function () {
-      var entryhi      = this.control[this.kControlEntryHi];
-      var entryhi_vpn2 = entryhi & TLBHI_VPN2MASK;
-      var entryhi_pid  = entryhi & TLBHI_PIDMASK;
-
-      for (var i = 0; i < 32; ++i) {
-        var tlb = this.tlbEntries[i];
-        if (   (tlb.hi & TLBHI_VPN2MASK) === entryhi_vpn2) {
-          if (((tlb.hi & TLBHI_PIDMASK)  === entryhi_pid) ||
-               tlb.global) {
-            if (kDebugTLB) {
-              n64js.log('TLB Probe. EntryHi:' + n64js.toString32(entryhi) + '. Found matching TLB entry - ' + n64js.toString8(i));
-            }
-            this.control[this.kControlIndex] = i;
-            return;
-          }
-        }
-      }
-
-      if (kDebugTLB) {
-        n64js.log('TLB Probe. EntryHi:' + n64js.toString32(entryhi) + ". Didn't find matching entry");
-      }
-      this.control[this.kControlIndex] = TLBINX_PROBE;
-    };
-
-    this.tlbFindEntry = function (address) {
-      for(var count = 0; count < 32; ++count) {
-        // NB should put mru cache here
-        var i = count;
-
-        var tlb = this.tlbEntries[i];
-
-        if ((address & tlb.vpnmask) === tlb.addrcheck) {
-          if (!tlb.global) {
-            var ehi = this.control[this.kControlEntryHi];
-            if ((tlb.hi & TLBHI_PIDMASK) !== (ehi & TLBHI_PIDMASK) ) {
-              // Entries ASID must match
-              continue;
-            }
-          }
-
-          return tlb;
-        }
-      }
-
-      return null;
-    };
-
-    this.translateReadInternal = function (address) {
-      var tlb = this.tlbFindEntry(address);
-      if (tlb) {
-          var valid;
-          var physical_addr;
-          if (address & tlb.checkbit) {
-            valid         = (tlb.pfno & TLBLO_V) !== 0;
-            physical_addr = tlb.pfnohi | (address & tlb.mask2);
-          } else {
-            valid         = (tlb.pfne & TLBLO_V) !== 0;
-            physical_addr = tlb.pfnehi | (address & tlb.mask2);
-          }
-
-          if (valid)
-            return physical_addr;
-          return 0;
-      }
-      return 0;
-    };
-
-    this.translateRead = function (address) {
-      var tlb = this.tlbFindEntry(address);
-      if (tlb) {
-          var valid;
-          var physical_addr;
-          if (address & tlb.checkbit) {
-            valid         = (tlb.pfno & TLBLO_V) !== 0;
-            physical_addr = tlb.pfnohi | (address & tlb.mask2);
-          } else {
-            valid         = (tlb.pfne & TLBLO_V) !== 0;
-            physical_addr = tlb.pfnehi | (address & tlb.mask2);
-          }
-
-          if (valid)
-            return physical_addr;
-
-          this.throwTLBReadInvalid(address);
-          return 0;
-      }
-
-      this.throwTLBReadMiss(address);
-      return 0;
-    };
-
-    this.translateWrite = function (address) {
-      var tlb = this.tlbFindEntry(address);
-      if (tlb) {
-          var valid;
-          var physical_addr;
-          if (address & tlb.checkbit) {
-            valid         = (tlb.pfno & TLBLO_V) !== 0;
-            physical_addr = tlb.pfnohi | (address & tlb.mask2);
-          } else {
-            valid         = (tlb.pfne & TLBLO_V) !== 0;
-            physical_addr = tlb.pfnehi | (address & tlb.mask2);
-          }
-
-          if (valid)
-            return physical_addr;
-
-          this.throwTLBWriteInvalid(address);
-          return 0;
-      }
-
-      this.throwTLBWriteMiss(address);
-      return 0;
-    };
-
-
 
     // General purpose register constants
     this.kRegister_r0 = 0x00;
@@ -776,6 +350,430 @@
     this.kControlTagHi     = 29;
     this.kControlErrorEPC  = 30;
   }
+
+  CPU0.prototype.getCount = function() {
+    return this.control[this.kControlCount];
+  };
+
+  CPU0.prototype.getGPR_s64 = function (r) {
+    return (this.gprHi_signed[r] * k1Shift32) + this.gprLo[r];
+  };
+
+  CPU0.prototype.getGPR_u64 = function (r) {
+    return (this.gprHi[r] * k1Shift32) + this.gprLo[r];
+  };
+
+  CPU0.prototype.setGPR_s64 = function (r, v) {
+    this.gprHi_signed[r] = Math.floor( v / k1Shift32 );
+    this.gprLo_signed[r] = v;
+  };
+
+  CPU0.prototype.reset = function () {
+    var i;
+
+    hitCounts = {};
+    fragmentMap = {};
+    fragmentInvalidationEvents = [];
+
+    this.ram = n64js.getRamU8Array();
+
+    for (i = 0; i < 32; ++i) {
+      this.gprLo[i]   = 0;
+      this.gprHi[i]   = 0;
+      this.control[i] = 0;
+    }
+    for (i = 0; i < 32; ++i) {
+      this.tlbEntries[i].update(i, 0, 0x80000000, 0, 0);
+    }
+
+    this.pc           = 0;
+    this.delayPC      = 0;
+    this.nextPC       = 0;
+    this.branchTarget = 0;
+
+    this.stuffToDo    = 0;
+
+    this.events       = [];
+
+    this.multLo[0]    = this.multLo[1] = 0;
+    this.multHi[0]    = this.multHi[1] = 0;
+
+    this.control[this.kControlRand]   = 32-1;
+    this.control[this.kControlSR]     = 0x70400004;
+    this.control[this.kControlConfig] = 0x0006e463;
+
+    this.addEvent(kEventVbl, kVIIntrCycles);
+  };
+
+  CPU0.prototype.breakExecution = function () {
+    this.stuffToDo |= kStuffToDoHalt;
+  };
+
+  CPU0.prototype.speedHack = function () {
+    var next_instruction = n64js.readMemoryInternal32(this.pc + 4);
+    if (next_instruction === 0) {
+      if (this.events.length > 0) {
+
+        // Ignore the kEventRunForCycles event
+        var run_countdown = 0;
+        if (this.events[0].type === kEventRunForCycles && this.events.length > 1) {
+          run_countdown += this.events[0].countdown;
+          this.events.splice(0,1);
+        }
+
+        var to_skip = run_countdown + this.events[0].countdown - 1;
+
+        //n64js.log('speedhack: skipping ' + to_skip + ' cycles');
+
+        this.control[this.kControlCount] += to_skip;
+        this.events[0].countdown = 1;
+
+        // Re-add the kEventRunForCycles event
+        if (run_countdown) {
+          this.addEvent(kEventRunForCycles, run_countdown);
+        }
+      } else {
+        n64js.log('no events');
+      }
+    } else {
+      //n64js.log('next instruction does something');
+    }
+  };
+
+  CPU0.prototype.updateCause3 = function () {
+    if (n64js.miInterruptsUnmasked()) {
+      this.control[this.kControlCause] |= CAUSE_IP3;
+
+      if (this.checkForUnmaskedInterrupts()) {
+        this.stuffToDo |= kStuffToDoCheckInterrupts;
+      }
+    } else {
+      this.control[this.kControlCause] &= ~CAUSE_IP3;
+    }
+
+    checkCauseIP3Consistent();
+  };
+
+  CPU0.prototype.setSR = function (value) {
+    var old_value = this.control[this.kControlSR];
+    if ((old_value & SR_FR) !== (value & SR_FR)) {
+      n64js.log('Changing FPU to ' + ((value & SR_FR) ? '64bit' : '32bit' ));
+    }
+
+    this.control[this.kControlSR] = value;
+
+    setCop1Enable( (value & SR_CU1) !== 0 );
+
+    if (this.checkForUnmaskedInterrupts()) {
+      this.stuffToDo |= kStuffToDoCheckInterrupts;
+    }
+  };
+
+  CPU0.prototype.checkForUnmaskedInterrupts = function () {
+    var sr = this.control[this.kControlSR];
+
+    // Ensure ERL/EXL are clear and IE is set
+    if ((sr & (SR_EXL | SR_ERL | SR_IE)) === SR_IE) {
+
+      // Check if interrupts are actually pending, and wanted
+      var cause = this.control[this.kControlCause];
+
+      if ((sr & cause & CAUSE_IPMASK) !== 0) {
+        return true;
+      }
+    }
+
+    return false;
+  };
+
+  CPU0.prototype.throwTLBException = function (address, exc_code, vec) {
+    this.control[this.kControlBadVAddr] = address;
+
+    this.control[this.kControlContext] &= 0xff800000;
+    this.control[this.kControlContext] |= ((address >>> 13) << 4);
+
+    this.control[this.kControlEntryHi] &= 0x00001fff;
+    this.control[this.kControlEntryHi] |= (address & 0xfffffe000);
+
+    // XXXX check we're not inside exception handler before snuffing CAUSE reg?
+    this.setException( CAUSE_EXCMASK, exc_code );
+    this.nextPC = vec;
+  };
+
+  CPU0.prototype.throwTLBReadMiss  = function (address) { this.throwTLBException(address, EXC_RMISS, UT_VEC); };
+  CPU0.prototype.throwTLBWriteMiss = function (address) { this.throwTLBException(address, EXC_WMISS, UT_VEC); };
+
+  CPU0.prototype.throwTLBReadInvalid  = function (address) { this.throwTLBException(address, EXC_RMISS, E_VEC); };
+  CPU0.prototype.throwTLBWriteInvalid = function (address) { this.throwTLBException(address, EXC_WMISS, E_VEC); };
+
+  CPU0.prototype.throwCop1Unusable = function () {
+    // XXXX check we're not inside exception handler before snuffing CAUSE reg?
+    this.setException( CAUSE_EXCMASK|CAUSE_CEMASK, EXC_CPU | 0x10000000 );
+    this.nextPC = E_VEC;
+  };
+
+  CPU0.prototype.handleInterrupt = function () {
+    if (this.checkForUnmaskedInterrupts()) {
+        this.setException( CAUSE_EXCMASK, EXC_INT );
+        // this is handled outside of the main dispatch loop, so need to update pc directly
+        this.pc      = E_VEC;
+        this.delayPC = 0;
+
+    } else {
+      n64js.assert(false, "Was expecting an unmasked interrupt - something wrong with kStuffToDoCheckInterrupts?");
+    }
+  };
+
+  CPU0.prototype.setException = function (mask, exception) {
+    this.control[this.kControlCause] &= ~mask;
+    this.control[this.kControlCause] |= exception;
+    this.control[this.kControlSR]  |= SR_EXL;
+    this.control[this.kControlEPC]  = this.pc;
+    if (this.delayPC) {
+      this.control[this.kControlCause] |= CAUSE_BD;
+      this.control[this.kControlEPC]   -= 4;
+    } else {
+      this.control[this.kControlCause] &= ~CAUSE_BD;
+    }
+  };
+
+  CPU0.prototype.setCompare = function (value) {
+    this.control[this.kControlCause] &= ~CAUSE_IP8;
+    if (value === this.control[this.kControlCompare]) {
+      // just clear the IP8 flag
+    } else {
+      if (value !== 0) {
+        var count = this.control[this.kControlCount];
+        if (value > count) {
+          var delta = value - count;
+
+          this.removeEventsOfType(kEventCompare);
+          this.addEvent(kEventCompare, delta);
+        } else {
+          n64js.warn('setCompare underflow - was' + n64js.toString32(count) + ', setting to ' + value);
+        }
+      }
+    }
+    this.control[this.kControlCompare] = value;
+  };
+
+
+  function Event(type, countdown) {
+    this.type = type;
+    this.countdown = countdown;
+  }
+
+  Event.prototype.getName = function () {
+    switch(this.type) {
+      case kEventVbl:           return 'Vbl';
+      case kEventCompare:       return 'Compare';
+      case kEventRunForCycles:  return 'Run';
+    }
+
+    return '?';
+  };
+
+  CPU0.prototype.addEvent = function(type, countdown) {
+    n64js.assert( countdown >0, "Countdown is invalid" );
+    for (var i = 0; i < this.events.length; ++i) {
+      var event = this.events[i];
+      if (countdown <= event.countdown) {
+        event.countdown -= countdown;
+
+        this.events.splice(i, 0, new Event(type, countdown));
+        return;
+      }
+
+      countdown -= event.countdown;
+    }
+
+    this.events.push(new Event(type, countdown));
+  };
+
+
+  CPU0.prototype.removeEventsOfType = function (type) {
+    for (var i = 0; i < this.events.length; ++i) {
+      if (this.events[i].type == type) {
+        // Add this countdown on to the subsequent event
+        if ((i+1) < this.events.length) {
+          this.events[i+1].countdown += this.events[i].countdown;
+        }
+        this.events.splice(i, 1);
+        return;
+      }
+    }
+  };
+
+  CPU0.prototype.hasEvent = function(type) {
+    for (var i = 0; i < this.events.length; ++i) {
+      if (this.events[i].type == type) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  CPU0.prototype.getRandom = function () {
+    var wired = this.control[this.kControlWired] & 0x1f;
+    var random = Math.floor(Math.random() * (32-wired)) + wired;
+    n64js.assert(random >= wired && random <= 31, "Ooops - random should be in range " + wired + "..31, but got " + random);
+    return random;
+  };
+
+  CPU0.prototype.setTLB = function (cpu, index) {
+    var pagemask = cpu.control[cpu.kControlPageMask];
+    var entryhi  = cpu.control[cpu.kControlEntryHi];
+    var entrylo1 = cpu.control[cpu.kControlEntryLo1];
+    var entrylo0 = cpu.control[cpu.kControlEntryLo0];
+
+    cpu.tlbEntries[index].update(index, pagemask, entryhi, entrylo0, entrylo1);
+  }
+
+  CPU0.prototype.tlbWriteIndex = function () {
+    this.setTLB(this, this.control[this.kControlIndex] & 0x1f);
+  };
+
+  CPU0.prototype.tlbWriteRandom = function () {
+    this.setTLB(this, this.getRandom());
+  };
+
+  CPU0.prototype.tlbRead = function () {
+    var index = this.control[this.kControlIndex] & 0x1f;
+    var tlb   = this.tlbEntries[index];
+
+    this.control[this.kControlPageMask] = tlb.mask;
+    this.control[this.kControlEntryHi ] = tlb.hi;
+    this.control[this.kControlEntryLo0] = tlb.pfne | tlb.global;
+    this.control[this.kControlEntryLo1] = tlb.pfno | tlb.global;
+
+    if (kDebugTLB) {
+      n64js.log('TLB Read Index ' + n64js.toString8(index) + '.');
+      n64js.log('  PageMask: ' + n64js.toString32(this.control[this.kControlPageMask]));
+      n64js.log('  EntryHi:  ' + n64js.toString32(this.control[this.kControlEntryHi]));
+      n64js.log('  EntryLo0: ' + n64js.toString32(this.control[this.kControlEntryLo0]));
+      n64js.log('  EntryLo1: ' + n64js.toString32(this.control[this.kControlEntryLo1]));
+    }
+  };
+
+
+  CPU0.prototype.tlbProbe = function () {
+    var entryhi      = this.control[this.kControlEntryHi];
+    var entryhi_vpn2 = entryhi & TLBHI_VPN2MASK;
+    var entryhi_pid  = entryhi & TLBHI_PIDMASK;
+
+    for (var i = 0; i < 32; ++i) {
+      var tlb = this.tlbEntries[i];
+      if (   (tlb.hi & TLBHI_VPN2MASK) === entryhi_vpn2) {
+        if (((tlb.hi & TLBHI_PIDMASK)  === entryhi_pid) ||
+             tlb.global) {
+          if (kDebugTLB) {
+            n64js.log('TLB Probe. EntryHi:' + n64js.toString32(entryhi) + '. Found matching TLB entry - ' + n64js.toString8(i));
+          }
+          this.control[this.kControlIndex] = i;
+          return;
+        }
+      }
+    }
+
+    if (kDebugTLB) {
+      n64js.log('TLB Probe. EntryHi:' + n64js.toString32(entryhi) + ". Didn't find matching entry");
+    }
+    this.control[this.kControlIndex] = TLBINX_PROBE;
+  };
+
+  CPU0.prototype.tlbFindEntry = function (address) {
+    for(var count = 0; count < 32; ++count) {
+      // NB should put mru cache here
+      var i = count;
+
+      var tlb = this.tlbEntries[i];
+
+      if ((address & tlb.vpnmask) === tlb.addrcheck) {
+        if (!tlb.global) {
+          var ehi = this.control[this.kControlEntryHi];
+          if ((tlb.hi & TLBHI_PIDMASK) !== (ehi & TLBHI_PIDMASK) ) {
+            // Entries ASID must match
+            continue;
+          }
+        }
+
+        return tlb;
+      }
+    }
+
+    return null;
+  };
+
+
+  CPU0.prototype.translateReadInternal = function (address) {
+    var tlb = this.tlbFindEntry(address);
+    if (tlb) {
+        var valid;
+        var physical_addr;
+        if (address & tlb.checkbit) {
+          valid         = (tlb.pfno & TLBLO_V) !== 0;
+          physical_addr = tlb.pfnohi | (address & tlb.mask2);
+        } else {
+          valid         = (tlb.pfne & TLBLO_V) !== 0;
+          physical_addr = tlb.pfnehi | (address & tlb.mask2);
+        }
+
+        if (valid)
+          return physical_addr;
+        return 0;
+    }
+    return 0;
+  };
+
+  CPU0.prototype.translateRead = function (address) {
+    var tlb = this.tlbFindEntry(address);
+    if (tlb) {
+        var valid;
+        var physical_addr;
+        if (address & tlb.checkbit) {
+          valid         = (tlb.pfno & TLBLO_V) !== 0;
+          physical_addr = tlb.pfnohi | (address & tlb.mask2);
+        } else {
+          valid         = (tlb.pfne & TLBLO_V) !== 0;
+          physical_addr = tlb.pfnehi | (address & tlb.mask2);
+        }
+
+        if (valid)
+          return physical_addr;
+
+        this.throwTLBReadInvalid(address);
+        return 0;
+    }
+
+    this.throwTLBReadMiss(address);
+    return 0;
+  };
+
+  CPU0.prototype.translateWrite = function (address) {
+    var tlb = this.tlbFindEntry(address);
+    if (tlb) {
+        var valid;
+        var physical_addr;
+        if (address & tlb.checkbit) {
+          valid         = (tlb.pfno & TLBLO_V) !== 0;
+          physical_addr = tlb.pfnohi | (address & tlb.mask2);
+        } else {
+          valid         = (tlb.pfne & TLBLO_V) !== 0;
+          physical_addr = tlb.pfnehi | (address & tlb.mask2);
+        }
+
+        if (valid)
+          return physical_addr;
+
+        this.throwTLBWriteInvalid(address);
+        return 0;
+    }
+
+    this.throwTLBWriteMiss(address);
+    return 0;
+  };
+
+
 
   function CPU1() {
 
