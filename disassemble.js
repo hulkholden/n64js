@@ -450,7 +450,7 @@
     function (i) { return 'ANDI      ' + i.rt_d() + ' = '  + i.rs() + ' & ' + i.imm(); },
     function (i) { return 'ORI       ' + i.rt_d() + ' = '  + i.rs() + ' | ' + i.imm(); },
     function (i) { return 'XORI      ' + i.rt_d() + ' = '  + i.rs() + ' ^ ' + i.imm(); },
-    function (i) { return 'LUI       ' + i.rt_d() + ' = '  + i.imm(); },
+    function (i) { return 'LUI       ' + i.rt_d() + ' = '  + i.imm() + ' << 16'; },
     disassembleCop0,
     disassembleCop1,
     function (i) { return 'Unk'; },
