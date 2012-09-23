@@ -3757,159 +3757,164 @@
 
     cpu0.addEvent(kEventRunForCycles, cycles);
 
-    //var sync = n64js.getSync();
-    var ram = cpu0.ram;
-
-    var fragment;
-    var evt;
-
     try {
-      while (cpu0.hasEvent(kEventRunForCycles)) {
-
-        fragment = lookupFragment(cpu0.pc);
-        //fragment = null;
-
-        while (!cpu0.stuffToDo) {
-
-          //if (sync) {
-          //  if (!checkSyncState(sync))
-          //    break;
-          //}
-
-          if (fragment && fragment.func) {
-
-            evt = cpu0.events[0];
-            if (evt.countdown >= fragment.opsCompiled*COUNTER_INCREMENT_PER_OP) {
-              fragment.executionCount++;
-              var ops_executed = fragment.func(cpu0, cpu0.gprLo_signed, cpu0.gprHi_signed, ram);   // Absolute value is number of ops executed.
-
-              // refresh latest event - may have changed
-              evt = cpu0.events[0];
-              evt.countdown -= ops_executed * COUNTER_INCREMENT_PER_OP;
-
-              if (!accurateCountUpdating) {
-                cpu0.control_signed[cpu0.kControlCount] += ops_executed * COUNTER_INCREMENT_PER_OP;
-              }
-
-              //n64js.assert(fragment.bailedOut || evt.countdown >= 0, "Executed too many ops. Possibly didn't bail out of trace when new event was set up?");
-              if (evt.countdown <= 0) {
-                handleCounter();
-              }
-
-              // If stuffToDo is set, we'll break on the next loop
-
-              var next_fragment = fragment.nextFragments[ops_executed];
-              if (!next_fragment || next_fragment.entryPC !== cpu0.pc) {
-                next_fragment = fragment.getNextFragment(cpu0.pc, ops_executed);
-              }
-              fragment = next_fragment;
-
-            } else {
-              // We're close to another event: drop to the interpreter
-              fragment = null;
-            }
-
-          } else {
-
-            var pc = cpu0.pc;   // take a copy of this, so we can refer to it later
-
-            // NB: set nextPC before the call to readMemoryS32. If this throws an exception, we need nextPC to be set up correctly.
-            if (cpu0.delayPC) { cpu0.nextPC = cpu0.delayPC; } else { cpu0.nextPC = cpu0.pc + 4; }
-
-            // NB: load instruction using normal memory access routines - this means that we throw a tlb miss/refill approptiately
-            //var instruction = n64js.load_s32(ram, pc);
-            var instruction;
-            if (pc < -2139095040) {
-              var phys = (pc + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
-              instruction = ((ram[phys] << 24) | (ram[phys+1] << 16) | (ram[phys+2] << 8) | ram[phys+3]) | 0;
-            } else {
-              instruction = lw_slow(pc);
-            }
-
-            cpu0.branchTarget = 0;
-            executeOp(instruction);
-            cpu0.pc      = cpu0.nextPC;
-            cpu0.delayPC = cpu0.branchTarget;
-            cpu0.control_signed[cpu0.kControlCount] += COUNTER_INCREMENT_PER_OP;
-            //checkCauseIP3Consistent();
-            //n64js.checkSIStatusConsistent();
-
-            evt = cpu0.events[0];
-            evt.countdown -= COUNTER_INCREMENT_PER_OP;
-            if (evt.countdown <= 0) {
-              handleCounter();
-            }
-
-            // If we have a fragment, we're assembling code as we go
-            if (fragment) {
-              if (fragment.opsCompiled === 0)
-                fragmentContext.newFragment();
-              fragment.opsCompiled++;
-              updateFragment(fragment, pc);
-
-              fragmentContext.set(fragment, pc, instruction, cpu0.pc); // NB: first pc is entry_pc, cpu0.pc is post_pc by this point
-              generateCodeForOp(fragmentContext);
-
-              // Break out of the trace as soon as we branch, or  too many ops, or last op generated an interrupt (stuffToDo set)
-              var long_fragment = fragment.opsCompiled > 8;
-              if ((long_fragment && cpu0.pc !== pc+4) || fragment.opsCompiled >= 250 || cpu0.stuffToDo) {
-
-                // Check if the last op has a delayed pc update, and do it now.
-                if (fragmentContext.delayedPCUpdate !== 0) {
-                    fragment.body_code += 'c.pc = ' + n64js.toString32(fragmentContext.delayedPCUpdate) + ';\n';
-                    fragmentContext.delayedPCUpdate = 0;
-                }
-
-                fragment.body_code += 'return ' + fragment.opsCompiled + ';\n';    // Return the number of ops exected
-
-                if (fragment.usesCop1) {
-                  var cpu1_shizzle = '';
-                  cpu1_shizzle += 'var cpu1 = n64js.cpu1;\n';
-                  cpu1_shizzle += 'var SR_CU1 = ' + n64js.toString32(SR_CU1) + ';\n';
-                  cpu1_shizzle += 'var FPCSR_C = ' + n64js.toString32(FPCSR_C) + ';\n';
-                  fragment.body_code = cpu1_shizzle + '\n\n' + fragment.body_code;
-                }
-
-                var code = 'return function fragment_' + n64js.toString32(fragment.entryPC) + '_' + fragment.opsCompiled + '(c, rlo, rhi, ram) {\n' + fragment.body_code + '}\n';
-
-                // Clear these strings to reduce garbage
-                fragment.body_code ='';
-
-                fragment.func = new Function(code)();
-                fragment.nextFragments = [];
-                for (var i = 0; i < fragment.opsCompiled; i++) {
-                  fragment.nextFragments.push(undefined);
-                }
-                fragment = lookupFragment(cpu0.pc);
-              }
-            } else {
-              // If there's no current fragment and we branch backwards, this is possibly a new loop
-              if (cpu0.pc < pc) {
-                fragment = lookupFragment(cpu0.pc);
-              }
-            }
-          }
-        }
-
-        cpu0.stuffToDo &= ~kStuffToDoBreakout;
-
-        if (cpu0.stuffToDo & kStuffToDoCheckInterrupts) {
-          cpu0.stuffToDo &= ~kStuffToDoCheckInterrupts;
-          cpu0.handleInterrupt();
-        } else if (cpu0.stuffToDo & kStuffToDoHalt) {
-          break;
-        } else if (cpu0.stuffToDo) {
-          n64js.warn("Don't know how to handle this event!");
-          break;
-        }
-      }
-
+      // NB: the bulk of run() is implemented as a separate function.
+      // v8 won't optimise code with try/catch blocks, so structuring the code in this way allows runImpl to be optimised.
+      runImpl();
     } catch (e) {
       n64js.halt('Exception :' + e);
     }
 
     // Clean up any kEventRunForCycles events before we bail out
     cpu0.removeEventsOfType(kEventRunForCycles);
+  };
+
+  function runImpl() {
+    //var sync = n64js.getSync();
+    var ram = cpu0.ram;
+
+    var fragment;
+    var evt;
+
+    while (cpu0.hasEvent(kEventRunForCycles)) {
+
+      fragment = lookupFragment(cpu0.pc);
+      //fragment = null;
+
+      while (!cpu0.stuffToDo) {
+
+        //if (sync) {
+        //  if (!checkSyncState(sync))
+        //    break;
+        //}
+
+        if (fragment && fragment.func) {
+
+          evt = cpu0.events[0];
+          if (evt.countdown >= fragment.opsCompiled*COUNTER_INCREMENT_PER_OP) {
+            fragment.executionCount++;
+            var ops_executed = fragment.func(cpu0, cpu0.gprLo_signed, cpu0.gprHi_signed, ram);   // Absolute value is number of ops executed.
+
+            // refresh latest event - may have changed
+            evt = cpu0.events[0];
+            evt.countdown -= ops_executed * COUNTER_INCREMENT_PER_OP;
+
+            if (!accurateCountUpdating) {
+              cpu0.control_signed[cpu0.kControlCount] += ops_executed * COUNTER_INCREMENT_PER_OP;
+            }
+
+            //n64js.assert(fragment.bailedOut || evt.countdown >= 0, "Executed too many ops. Possibly didn't bail out of trace when new event was set up?");
+            if (evt.countdown <= 0) {
+              handleCounter();
+            }
+
+            // If stuffToDo is set, we'll break on the next loop
+
+            var next_fragment = fragment.nextFragments[ops_executed];
+            if (!next_fragment || next_fragment.entryPC !== cpu0.pc) {
+              next_fragment = fragment.getNextFragment(cpu0.pc, ops_executed);
+            }
+            fragment = next_fragment;
+
+          } else {
+            // We're close to another event: drop to the interpreter
+            fragment = null;
+          }
+
+        } else {
+
+          var pc = cpu0.pc;   // take a copy of this, so we can refer to it later
+
+          // NB: set nextPC before the call to readMemoryS32. If this throws an exception, we need nextPC to be set up correctly.
+          if (cpu0.delayPC) { cpu0.nextPC = cpu0.delayPC; } else { cpu0.nextPC = cpu0.pc + 4; }
+
+          // NB: load instruction using normal memory access routines - this means that we throw a tlb miss/refill approptiately
+          //var instruction = n64js.load_s32(ram, pc);
+          var instruction;
+          if (pc < -2139095040) {
+            var phys = (pc + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
+            instruction = ((ram[phys] << 24) | (ram[phys+1] << 16) | (ram[phys+2] << 8) | ram[phys+3]) | 0;
+          } else {
+            instruction = lw_slow(pc);
+          }
+
+          cpu0.branchTarget = 0;
+          executeOp(instruction);
+          cpu0.pc      = cpu0.nextPC;
+          cpu0.delayPC = cpu0.branchTarget;
+          cpu0.control_signed[cpu0.kControlCount] += COUNTER_INCREMENT_PER_OP;
+          //checkCauseIP3Consistent();
+          //n64js.checkSIStatusConsistent();
+
+          evt = cpu0.events[0];
+          evt.countdown -= COUNTER_INCREMENT_PER_OP;
+          if (evt.countdown <= 0) {
+            handleCounter();
+          }
+
+          // If we have a fragment, we're assembling code as we go
+          if (fragment) {
+            if (fragment.opsCompiled === 0)
+              fragmentContext.newFragment();
+            fragment.opsCompiled++;
+            updateFragment(fragment, pc);
+
+            fragmentContext.set(fragment, pc, instruction, cpu0.pc); // NB: first pc is entry_pc, cpu0.pc is post_pc by this point
+            generateCodeForOp(fragmentContext);
+
+            // Break out of the trace as soon as we branch, or  too many ops, or last op generated an interrupt (stuffToDo set)
+            var long_fragment = fragment.opsCompiled > 8;
+            if ((long_fragment && cpu0.pc !== pc+4) || fragment.opsCompiled >= 250 || cpu0.stuffToDo) {
+
+              // Check if the last op has a delayed pc update, and do it now.
+              if (fragmentContext.delayedPCUpdate !== 0) {
+                  fragment.body_code += 'c.pc = ' + n64js.toString32(fragmentContext.delayedPCUpdate) + ';\n';
+                  fragmentContext.delayedPCUpdate = 0;
+              }
+
+              fragment.body_code += 'return ' + fragment.opsCompiled + ';\n';    // Return the number of ops exected
+
+              if (fragment.usesCop1) {
+                var cpu1_shizzle = '';
+                cpu1_shizzle += 'var cpu1 = n64js.cpu1;\n';
+                cpu1_shizzle += 'var SR_CU1 = ' + n64js.toString32(SR_CU1) + ';\n';
+                cpu1_shizzle += 'var FPCSR_C = ' + n64js.toString32(FPCSR_C) + ';\n';
+                fragment.body_code = cpu1_shizzle + '\n\n' + fragment.body_code;
+              }
+
+              var code = 'return function fragment_' + n64js.toString32(fragment.entryPC) + '_' + fragment.opsCompiled + '(c, rlo, rhi, ram) {\n' + fragment.body_code + '}\n';
+
+              // Clear these strings to reduce garbage
+              fragment.body_code ='';
+
+              fragment.func = new Function(code)();
+              fragment.nextFragments = [];
+              for (var i = 0; i < fragment.opsCompiled; i++) {
+                fragment.nextFragments.push(undefined);
+              }
+              fragment = lookupFragment(cpu0.pc);
+            }
+          } else {
+            // If there's no current fragment and we branch backwards, this is possibly a new loop
+            if (cpu0.pc < pc) {
+              fragment = lookupFragment(cpu0.pc);
+            }
+          }
+        }
+      }
+
+      cpu0.stuffToDo &= ~kStuffToDoBreakout;
+
+      if (cpu0.stuffToDo & kStuffToDoCheckInterrupts) {
+        cpu0.stuffToDo &= ~kStuffToDoCheckInterrupts;
+        cpu0.handleInterrupt();
+      } else if (cpu0.stuffToDo & kStuffToDoHalt) {
+        break;
+      } else if (cpu0.stuffToDo) {
+        n64js.warn("Don't know how to handle this event!");
+        break;
+      }
+    }
   }
 
   n64js.getFragmentMap = function () {
