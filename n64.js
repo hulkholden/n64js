@@ -1,4 +1,5 @@
 /*jshint jquery:true, browser:true, devel:true */
+/*global: Stats:false */
 
 (function (n64js) {'use strict';
 
