@@ -2064,7 +2064,7 @@
     var handler = memMap[address >>> 18];
     if (!handler) {
       n64js.log('read from unhandled location ' + toString32(address));
-      throw 'unmapped read - need to set exception';
+      throw 'unmapped read ' + toString32(address) + ' - need to set exception';
     }
 
     return handler;
