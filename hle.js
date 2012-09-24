@@ -3497,7 +3497,8 @@
         break;
       case kUCode_GBI0_GE:
         table[0xb1]         = executeTri4_GBI0;
-        //table[0xb4]       = DLParser_RDPHalf1_GoldenEye;
+        table[0xb2]         = executeGBI1_SpNoop; // FIXME
+        table[0xb4]         = executeGBI1_SpNoop; // FIXME - DLParser_RDPHalf1_GoldenEye;
         break;
     }
 
