@@ -235,6 +235,7 @@
 
     $status_body.append('<tr><td>Ops</td><td class="fixed">' + cpu0.opsExecuted + '</td></tr>');
     $status_body.append('<tr><td>PC</td><td class="fixed">' + n64js.toString32(cpu0.pc) + '</td><td>delayPC</td><td class="fixed">' + n64js.toString32(cpu0.delayPC) + '</td></tr>');
+    $status_body.append('<tr><td>EPC</td><td class="fixed">' + n64js.toString32(cpu0.control[cpu0.kControlEPC]) + '</td></tr>');
     $status_body.append('<tr><td>MultHi</td><td class="fixed">' + n64js.toString64(cpu0.multHi[1], cpu0.multHi[0]) +
                         '</td><td>Cause</td><td class="fixed">' + n64js.toString32(n64js.cpu0.control[n64js.cpu0.kControlCause]) + '</td></tr>');
     $status_body.append('<tr><td>MultLo</td><td class="fixed">' + n64js.toString64(cpu0.multLo[1], cpu0.multLo[0]) +
