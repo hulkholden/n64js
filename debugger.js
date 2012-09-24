@@ -33,10 +33,12 @@
     $dynarecContent = $('#dynarec-content');
     $memoryContent  = $('#memory-content');
 
-    var addr = 0x80000000;
-    $memoryContent.append('<input type="text" placeholder="address" value="' + n64js.toString32(addr) + '" />');
-    $memoryContent.append('<pre />');
+    $('#cpu').find('input').change(function () {
+      disasmAddress = parseInt($(this).val());
+      updateDebug();
+    });
 
+    var addr = 0x80000000;
     $memoryContent.find('input').change(function () {
       lastMemoryAccessAddress = parseInt($(this).val());
       updateMemoryView();

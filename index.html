@@ -135,6 +135,7 @@
                     <div class="btn-toolbar">
                       <div class="btn-group">
                         <button class="btn" onclick="n64js.step()"><i class="icon-step-forward"></i> Step</button>
+                        <input type="text" placeholder="address" />
                       </div>
                     </div>
 
@@ -154,7 +155,10 @@
                   <div id="disasm" class="fixed"></div>
 
                 </div>
-                <div class="tab-pane" id="memory-content"></div>
+                <div class="tab-pane" id="memory-content">
+                  <input type="text" placeholder="address" />
+                  <pre />
+                </div>
                 <div class="tab-pane" id="dlist-content">
                   <div id="controls">
                     <div class="btn-toolbar">
