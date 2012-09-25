@@ -616,6 +616,12 @@
   CPU0.prototype.getRandom = function () {
     var wired = this.control[this.kControlWired] & 0x1f;
     var random = Math.floor(Math.random() * (32-wired)) + wired;
+
+    var sync = n64js.getSyncFlow();
+    if (sync) {
+      random = sync.reflect32(random);
+    }
+
     n64js.assert(random >= wired && random <= 31, "Ooops - random should be in range " + wired + "..31, but got " + random);
     return random;
   };
@@ -3646,74 +3652,54 @@
     return a;
   }
 
-  function checkSyncState(sync) {
+  function checkSyncState(sync, pc) {
     var i;
 
-    var sync_a = sync.pop();
-    var sync_b = sync.pop();
-    var sync_c = sync.pop();
-    var sync_d = sync.pop();
-
-    if (checkOOS(cpu0.pc, sync_a, 'pc'))
+    if (!sync.sync32(pc, 'pc'))
       return false;
 
-    var next_vbl = 0;
-    for (i = 0; i < cpu0.events.length; ++i) {
-      var event = cpu0.events[i];
-      next_vbl += event.countdown;
-      if (event.type === kEventVbl) {
-        next_vbl = next_vbl*2+1;
-        break;
-      } else if (event.type == kEventCompare) {
-        next_vbl = next_vbl*2;
-        break;
-      }
-    }
+    // var next_vbl = 0;
+    // for (i = 0; i < cpu0.events.length; ++i) {
+    //   var event = cpu0.events[i];
+    //   next_vbl += event.countdown;
+    //   if (event.type === kEventVbl) {
+    //     next_vbl = next_vbl*2+1;
+    //     break;
+    //   } else if (event.type == kEventCompare) {
+    //     next_vbl = next_vbl*2;
+    //     break;
+    //   }
+    // }
 
-    if (checkOOS(next_vbl, sync_b, 'event'))
-      return false;
+    // if (!sync.sync32(next_vbl, 'event'))
+    //   return false;
 
-    if (0) {
+    if (1) {
       var a = 0;
-      var b = 0;
-      for (i = 0; i < 16; ++i) {
+      for (i = 0; i < 32; ++i) {
         a = mix(a,cpu0.gprLo[i], 0);
-        b = mix(b,cpu0.gprLo[i+16], 0);
       }
-      a = (a&0xffffffff)>>>0;
-      b = (b&0xffffffff)>>>0;
+      a = a>>>0;
 
-      if (checkOOS(a, sync_c, 't1'))
-        return false;
-      if (checkOOS(b, sync_d, 'r16-r31'))
+      if (!sync.sync32(a, 'regs'))
         return false;
     }
 
-    if(0) {
-      if (checkOOS(cpu0.multLo[0], sync_c, 'multlo'))
-        return false;
-      if (checkOOS(cpu0.multHi[0], sync_d, 'multhi'))
-        return false;
-    }
+    // if(0) {
+    //   if (!sync.sync32(cpu0.multLo[0], 'multlo'))
+    //     return false;
+    //   if (!sync.sync32(cpu0.multHi[0], 'multhi'))
+    //     return false;
+    // }
 
-    if(0) {
-      if (checkOOS(cpu0.control[cpu0.kControlCount], sync_c, 'count'))
-        return false;
-      if (checkOOS(cpu0.control[cpu0.kControlCompare], sync_d, 'compare'))
-        return false;
-    }
+    // if(0) {
+    //   if (!sync.sync32(cpu0.control[cpu0.kControlCount], 'count'))
+    //     return false;
+    //   if (!sync.sync32(cpu0.control[cpu0.kControlCompare], 'compare'))
+    //     return false;
+    // }
 
     return true;
-  }
-
-  function checkOOS(a, b, msg) {
-    if (a !== b) {
-      n64js.halt(msg + ' mismatch: local ' + n64js.toString32(a) + ' remote ' + n64js.toString32(b));
-      n64js.nukeSync();
-      return true;
-    }
-
-    return false;
   }
 
   function handleCounter() {
@@ -3826,6 +3812,11 @@
 
       fragment.body_code += 'return ' + fragment.opsCompiled + ';\n';    // Return the number of ops exected
 
+      var sync = n64js.getSyncFlow();
+      if (sync) {
+        fragment.body_code = 'var sync = n64js.getSyncFlow();\n' + fragment.body_code;
+      }
+
       if (fragment.usesCop1) {
         var cpu1_shizzle = '';
         cpu1_shizzle += 'var cpu1 = n64js.cpu1;\n';
@@ -3851,7 +3842,7 @@
   }
 
   function runImpl() {
-    //var sync = n64js.getSync();
+    //var sync = n64js.getSyncFlow();
     var c      = cpu0;
     var events = c.events;
     var ram    = c.ram;
@@ -3866,14 +3857,14 @@
 
       while (!c.stuffToDo) {
 
-        //if (sync) {
-        //  if (!checkSyncState(sync))
-        //    break;
-        //}
-
         if (fragment && fragment.func) {
           fragment = executeFragment(fragment, c, ram, events);
         } else {
+
+          // if (sync) {
+          //  if (!checkSyncState(sync, cpu0.pc))
+          //    break;
+          // }
 
           var pc = c.pc;   // take a copy of this, so we can refer to it later
 
@@ -4067,6 +4058,8 @@
     return true;
   }
 
+  n64js.checkSyncState = checkSyncState;    // Needs to be callable from dynarec
+
   function generateCodeForOp(ctx) {
 
     ctx.needsDelayCheck = ctx.fragment.needsDelayCheck;
@@ -4093,6 +4086,12 @@
     //code += 'if (!checkEqual( n64js.readMemoryU32(cpu0.pc), ' + n64js.toString32(instruction) + ', "unexpected instruction (need to flush icache?)")) { return false; }\n';
 
     ctx.fragment.bailedOut |= ctx.bailOut;
+
+    var sync = n64js.getSyncFlow();
+    if (sync) {
+      fn_code = 'if (!n64js.checkSyncState(sync, ' + n64js.toString32(ctx.pc) + ')) { return ' + ctx.fragment.opsCompiled + '; }\n' + fn_code;
+    }
+
     ctx.fragment.body_code += fn_code + '\n';
   }
 

@@ -7,6 +7,16 @@
 
   var kCyclesPerUpdate = 100000000;
 
+  var syncFlow;
+  var syncInput;
+  function initSync() {
+    syncFlow  = undefined;//n64js.createSyncConsumer();
+    syncInput = undefined;//n64js.createSyncConsumer();
+  }
+  n64js.getSyncFlow = function () {
+    return syncFlow;
+  };
+
   var kBootstrapOffset = 0x40;
   var kGameOffset      = 0x1000;
 
@@ -737,6 +747,37 @@
     }
   };
 
+  function syncActive() {
+    return (syncFlow || syncInput) ? true : false;
+  }
+
+  function syncTick(max_count) {
+    var kEstimatedBytePerCycle = 8;
+    var sync_objects   = [syncFlow, syncInput],
+        max_safe_count = max_count,
+        count,
+        i;
+
+    for (i = 0; i < sync_objects.length; ++i) {
+      var s = sync_objects[i];
+      if (s) {
+        if (!s.tick()) {
+          max_safe_count = 0;
+        }
+
+        // Guesstimate num bytes used per cycle
+        count = Math.floor(s.getAvailableBytes() / kEstimatedBytePerCycle);
+
+        // Ugh - bodgy hacky hacky for input sync
+        count = Math.max(0, count - 100);
+
+        max_safe_count = Math.min(max_safe_count, count);
+      }
+    }
+
+    return max_safe_count;
+  }
+
   function updateLoopAnimframe() {
     if (stats) {
       stats.begin();
@@ -745,13 +786,11 @@
     if (running) {
       requestAnimationFrame(updateLoopAnimframe);
 
-      var sync = n64js.getSync();
-      if (sync) {
-        var count = sync.getAvailableOps();
-        if (count === 0) {
-          sync.refill();
-        } else {
-          n64js.run(count / 4);
+      if (syncActive()) {
+        // Check how many cycles we can safely execute
+        var sync_count = syncTick(kCyclesPerUpdate);
+        if (sync_count > 0) {
+          n64js.run(sync_count);
           n64js.refreshDebugger();
         }
       } else {
@@ -904,19 +943,25 @@
   rom_d1a3_handler_uncached.write8  = function (address, value) { throw 'Writing to rom d1a3'; };
 
   // Should read noise?
-  function getRandomU8() {
-    return Math.floor( Math.random() * 255.0 ) & 0xff;
-  }
   function getRandomU32() {
-    return (getRandomU8()<<24) | (getRandomU8()<<16) | (getRandomU8()<<8) | getRandomU8();
+    var hi = Math.floor( Math.random() * 0xffff ) & 0xffff;
+    var lo = Math.floor( Math.random() * 0xffff ) & 0xffff;
+
+    var v = (hi<<16) | lo;
+
+    if (syncInput) {
+      v = syncInput.reflect32(v);
+    }
+
+    return v;
   }
 
   rom_d2a1_handler_uncached.readU32  = function (address)        { n64js.log('reading noise'); return getRandomU32(); };
-  rom_d2a1_handler_uncached.readU16  = function (address)        { n64js.log('reading noise'); return (getRandomU8()<<8) | getRandomU8(); };
-  rom_d2a1_handler_uncached.readU8   = function (address)        { n64js.log('reading noise'); return getRandomU8(); };
+  rom_d2a1_handler_uncached.readU16  = function (address)        { n64js.log('reading noise'); return getRandomU32() & 0xffff; };
+  rom_d2a1_handler_uncached.readU8   = function (address)        { n64js.log('reading noise'); return getRandomU32() & 0xff; };
   rom_d2a1_handler_uncached.readS32  = function (address)        { n64js.log('reading noise'); return getRandomU32(); };
-  rom_d2a1_handler_uncached.readS16  = function (address)        { n64js.log('reading noise'); return (getRandomU8()<<8) | getRandomU8(); };
-  rom_d2a1_handler_uncached.readS8   = function (address)        { n64js.log('reading noise'); return getRandomU8(); };
+  rom_d2a1_handler_uncached.readS16  = function (address)        { n64js.log('reading noise'); return getRandomU32() & 0xffff; };
+  rom_d2a1_handler_uncached.readS8   = function (address)        { n64js.log('reading noise'); return getRandomU32() & 0xff; };
   rom_d2a1_handler_uncached.write32  = function (address, value) { throw 'Writing to rom'; };
   rom_d2a1_handler_uncached.write16  = function (address, value) { throw 'Writing to rom'; };
   rom_d2a1_handler_uncached.write8   = function (address, value) { throw 'Writing to rom'; };
@@ -1614,6 +1659,8 @@
       return true;
     }
 
+    var buttons, stick_x, stick_y;
+
     switch (cmd[2]) {
       case CONT_RESET:
       case CONT_GET_STATUS:
@@ -1623,10 +1670,22 @@
         break;
 
       case CONT_READ_CONTROLLER:
-        cmd[3] = controllers[channel].buttons >>> 8;
-        cmd[4] = controllers[channel].buttons & 0xff;
-        cmd[5] = controllers[channel].stick_x;
-        cmd[6] = controllers[channel].stick_y;
+
+        buttons = controllers[channel].buttons;
+        stick_x = controllers[channel].stick_x;
+        stick_y = controllers[channel].stick_y;
+
+        if (syncInput) {
+          syncInput.sync32(0xbeeff00d, 'input');
+          buttons = syncInput.reflect32(buttons); // FIXME reflect16
+          stick_x = syncInput.reflect32(stick_x); // FIXME reflect8
+          stick_y = syncInput.reflect32(stick_y); // FIXME reflect8
+        }
+
+        cmd[3] = buttons >>> 8;
+        cmd[4] = buttons & 0xff;
+        cmd[5] = stick_x;
+        cmd[6] = stick_y;
         break;
 
       case CONT_READ_MEMPACK:
@@ -2095,119 +2154,6 @@
   n64js.writeMemory16 = function (address, value) { return getMemoryHandler(address).write16(address, value); };
   n64js.writeMemory8  = function (address, value) { return getMemoryHandler(address).write8(address, value); };
 
-  function BinaryRequest(url, args, cb) {
-
-    var alwaysCallbacks = [];
-
-    if (args) {
-      var arg_str = '';
-      var i;
-      for (i in args) {
-        if (args.hasOwnProperty(i)) {
-          if (arg_str) {
-            arg_str += '&';
-          }
-          arg_str += escape(i);
-          if (args[i] !== undefined) {
-            arg_str += '=' + escape(args[i]);
-          }
-        }
-      }
-
-      url += '?' + arg_str;
-    }
-
-    function invokeAlways() {
-      var i;
-      for (i = 0; i < alwaysCallbacks.length; ++i) {
-        alwaysCallbacks[i]();
-      }
-    }
-
-    var xhr = new XMLHttpRequest();
-    xhr.open('GET', url, true);
-    try {
-      xhr.responseType = "arraybuffer";
-    } catch (e){
-      alert('responseType arrayBuffer not supported!');
-    }
-    xhr.onreadystatechange = function onreadystatechange () {
-      if(xhr.readyState === 4) {
-        invokeAlways();
-      }
-    };
-    xhr.onload = function onload() {
-      if (ArrayBuffer.prototype.isPrototypeOf(this.response)) {
-        cb(this.response);
-      } else {
-        alert("wasn't arraybuffer, was " + typeof(this.response) + JSON.stringify(this.response));
-      }
-    };
-    xhr.send();
-
-
-    this.always = function (cb) {
-      // If the request has already completed then ensure the callback is called.
-      if(xhr.readyState === 4) {
-        cb();
-      }
-      alwaysCallbacks.push(cb);
-      return this;
-    };
-  }
-
-  function SyncBuffer() {
-
-    var kBufferLength   = 1024*1024;
-
-    var sync_buffer     = null;
-    var sync_buffer_idx = 0;
-
-    var file_offset     = 0;
-
-    var cur_request     = null;
-
-    this.refill = function () {
-
-      if (!sync_buffer || sync_buffer_idx >= sync_buffer.length) {
-        if (cur_request) {
-          return;
-        }
-        cur_request = new BinaryRequest("synclog", {o:file_offset,l:kBufferLength}, function (result){
-          sync_buffer = new Uint32Array(result);
-          sync_buffer_idx = 0;
-          file_offset += result.byteLength;
-        }).always(function () {
-          cur_request = null;
-        });
-      }
-    };
-
-    this.getAvailableOps = function () {
-      return sync_buffer ? (sync_buffer.length - sync_buffer_idx) : 0;
-    };
-
-    this.pop = function () {
-      if (sync_buffer && sync_buffer_idx < sync_buffer.length) {
-        var r = sync_buffer[sync_buffer_idx];
-        sync_buffer_idx++;
-        return r;
-      }
-
-      return -1;
-    };
-  }
-
-  var sync = null;//new SyncBuffer();
-
-  n64js.getSync = function () {
-    return sync;
-  };
-
-  n64js.nukeSync = function () {
-    sync = null;
-  };
-
   var Base64 = {
     lookup : "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=",
     encodeArray : function (arr) {
@@ -2347,6 +2293,8 @@
   n64js.reset = function () {
     var country  = rominfo.country;
     var cic_chip = rominfo.cic;
+
+    initSync();
 
     setMemorySize = false;
 
