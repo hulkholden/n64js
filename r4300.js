@@ -10,6 +10,9 @@
 
   var kHotFragmentThreshold = 500;
 
+  var accurateCountUpdating = false;
+  var COUNTER_INCREMENT_PER_OP = 1;
+
   var k1Shift32 = 4294967296.0;
 
   var UT_VEC          = 0x80000000;
@@ -3728,8 +3731,6 @@
     }
   }
 
-  var accurateCountUpdating = false;
-  var COUNTER_INCREMENT_PER_OP = 1;
 
   // We need just one of these - declare at global scope to avoid generating garbage
   var fragmentContext = new FragmentContext(); // NB: first pc is entry_pc, cpu0.pc is post_pc by this point
