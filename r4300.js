@@ -3,6 +3,7 @@
 (function (n64js) {'use strict';
   var kDebugTLB = 0;
   var kDebugDynarec = 0;
+  var kEnableDynarec = true;
 
   var hitCounts = {};
   var fragmentMap = {};
@@ -3985,18 +3986,22 @@
   };
 
   function lookupFragment(pc) {
-
     // Check if we already have a fragment
     var fragment = fragmentMap[pc];
-    if (fragment === undefined) {
+    if (!fragment) {
+
+      if (!kEnableDynarec) {
+        return null;
+      }
 
       // Check if this pc is hot enough yet
       var hc = hitCounts[pc] || 0;
       hc++;
       hitCounts[pc] = hc;
 
-      if (hc < kHotFragmentThreshold)
+      if (hc < kHotFragmentThreshold) {
         return null;
+      }
 
       fragment = new Fragment(pc);
       fragmentMap[pc] = fragment;
