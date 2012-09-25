@@ -1,5 +1,5 @@
 /*jshint jquery:true, browser:true, devel:true */
-/*global: Stats:false */
+/*global Stats:false */
 
 (function (n64js) {'use strict';
 
@@ -824,7 +824,7 @@
   n64js.getRamDataView = function () {
     // FIXME: should cache this object, or try to get rid of DataView entirely (Uint8Array + manual shuffling is faster)
     return new DataView(ram.arrayBuffer);
-  }
+  };
 
   // This function gets hit A LOT, so eliminate as much fat as possible.
   rdram_handler_cached.readU32 = function (address) {

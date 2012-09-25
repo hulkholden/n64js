@@ -633,7 +633,7 @@
     var entrylo0 = cpu.control[cpu.kControlEntryLo0];
 
     cpu.tlbEntries[index].update(index, pagemask, entryhi, entrylo0, entrylo1);
-  }
+  };
 
   CPU0.prototype.tlbWriteIndex = function () {
     this.setTLB(this, this.control[this.kControlIndex] & 0x1f);
