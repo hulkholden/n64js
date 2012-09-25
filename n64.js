@@ -1585,10 +1585,10 @@
       case 'J'.charCodeAt(0): button = kButtonCLeft;  break;
       case 'L'.charCodeAt(0): button = kButtonCRight; break;
 
-      case kKeyLeft:  controllers[0].stick_x = down ? -128 : 0; break;
-      case kKeyRight: controllers[0].stick_x = down ? +127 : 0; break;
-      case kKeyDown:  controllers[0].stick_y = down ? -128 : 0; break;
-      case kKeyUp:    controllers[0].stick_y = down ? +127 : 0; break;
+      case kKeyLeft:  controllers[0].stick_x = down ? -80 : 0; break;
+      case kKeyRight: controllers[0].stick_x = down ? +80 : 0; break;
+      case kKeyDown:  controllers[0].stick_y = down ? -80 : 0; break;
+      case kKeyUp:    controllers[0].stick_y = down ? +80 : 0; break;
       //default: n64js.log( 'up code:' + event.which);
     }
 
