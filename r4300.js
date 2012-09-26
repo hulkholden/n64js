@@ -735,6 +735,10 @@
     return 0;
   };
 
+  function TLBException(address) {
+    this.address = address;
+  }
+
   CPU0.prototype.translateRead = function (address) {
     var tlb = this.tlbFindEntry(address);
     if (tlb) {
@@ -752,11 +756,11 @@
           return physical_addr;
 
         this.throwTLBReadInvalid(address);
-        return 0;
+        throw new TLBException(address);
     }
 
     this.throwTLBReadMiss(address);
-    return 0;
+    throw new TLBException(address);
   };
 
   CPU0.prototype.translateWrite = function (address) {
@@ -776,11 +780,11 @@
           return physical_addr;
 
         this.throwTLBWriteInvalid(address);
-        return 0;
+        throw new TLBException(address);
     }
 
     this.throwTLBWriteMiss(address);
-    return 0;
+    throw new TLBException(address);
   };
 
 
@@ -3706,6 +3710,18 @@
     return true;
   }
 
+  function handleTLBException() {
+    cpu0.pc      = cpu0.nextPC;
+    cpu0.delayPC = cpu0.branchTarget;
+    cpu0.control_signed[cpu0.kControlCount] += COUNTER_INCREMENT_PER_OP;
+
+    var evt = cpu0.events[0];
+    evt.countdown -= COUNTER_INCREMENT_PER_OP;
+    if (evt.countdown <= 0) {
+      handleCounter();
+    }
+  }
+
   function handleCounter() {
 
     while (cpu0.events.length > 0 && cpu0.events[0].countdown <= 0) {
@@ -3741,12 +3757,26 @@
 
     cpu0.addEvent(kEventRunForCycles, cycles);
 
-    try {
-      // NB: the bulk of run() is implemented as a separate function.
-      // v8 won't optimise code with try/catch blocks, so structuring the code in this way allows runImpl to be optimised.
-      runImpl();
-    } catch (e) {
-      n64js.halt('Exception :' + e);
+    while (cpu0.hasEvent(kEventRunForCycles)) {
+
+      try {
+
+        // NB: the bulk of run() is implemented as a separate function.
+        // v8 won't optimise code with try/catch blocks, so structuring the code in this way allows runImpl to be optimised.
+        runImpl();
+        break;
+
+      } catch (e) {
+
+        if (e instanceof TLBException) {
+          // If we hit a TLB exception we apply the nextPC (which should have been set to an exception vector) and continue looping.
+          handleTLBException();
+        } else {
+          // Other exceptions are bad news, so display an error and bail out.
+          n64js.halt('Exception :' + e);
+          break;
+        }
+      }
     }
 
     // Clean up any kEventRunForCycles events before we bail out
