@@ -3732,10 +3732,6 @@
     }
   }
 
-
-  // We need just one of these - declare at global scope to avoid generating garbage
-  var fragmentContext = new FragmentContext(); // NB: first pc is entry_pc, cpu0.pc is post_pc by this point
-
   n64js.run = function (cycles) {
 
     cpu0.stuffToDo &= ~kStuffToDoHalt;
@@ -3791,6 +3787,9 @@
 
     return fragment;
   }
+
+  // We need just one of these - declare at global scope to avoid generating garbage
+  var fragmentContext = new FragmentContext(); // NB: first pc is entry_pc, cpu0.pc is post_pc by this point
 
   function addOpToFragment(fragment, entry_pc, instruction, c) {
     if (fragment.opsCompiled === 0) {
@@ -4015,43 +4014,93 @@
     return fragment;
   }
 
-  n64js.invalidateICache = function(address, length, system) {
+  var invals = 0;
+
+  function FragmentMapWho() {
+    var i;
+
+    this.entries = [];
+    for (i = 0; i < 4096; ++i) {
+      this.entries.push({});
+    }
+  }
+
+  FragmentMapWho.prototype.addressToPage = function (address) {
+    return Math.floor(address >>> 7);
+  };
+
+  FragmentMapWho.prototype.addressToPageRoundUp = function (address) {
+    return Math.floor((address+127) >>> 7);
+  };
+
+  FragmentMapWho.prototype.add = function (pc, fragment) {
+    var page  = this.addressToPage(pc);
+    var idx   = page % this.entries.length;
+    var entry = this.entries[idx];
+    entry[fragment.entryPC] = fragment;
+  };
+
+  FragmentMapWho.prototype.invalidate = function (address, length) {
+    var minaddr = address,
+        maxaddr = address + length,
+        minpage = this.addressToPage(minaddr),
+        maxpage = this.addressToPageRoundUp(maxaddr),
+        entries = this.entries;
+
+    var page, idx, entry, i, fragment;
+
+    var fragments_removed = 0;
+    var fragments_preserved = 0;
+
+    for (page = minpage; page <= maxpage; ++page) {
+      idx   = page % entries.length;
+      entry = entries[idx];
+
+      for (i in entry) {
+        if (entry.hasOwnProperty(i)) {
+          fragment = entry[i];
+
+          if (fragment.minPC >= maxaddr || (fragment.maxPC+4) <= minaddr) {
+            fragments_preserved++;
+          } else {
+            fragment.invalidate();
+            fragments_removed++;
+          }
+        }
+      }
+    }
+
+    if (fragments_removed) {
+      n64js.log('Fragment cache removed ' + fragments_removed + ' entries (' + fragments_preserved + ' remain)');
+    }
+
+     //fragmentInvalidationEvents.push({'address': address, 'length': length, 'system': system, 'fragmentsRemoved': fragments_removed});
+  };
+
+  n64js.invalidateICache = function (address, length, system) {
       //n64js.log('cache flush ' + n64js.toString32(address) + ' ' + n64js.toString32(length));
       // FIXME: check for overlapping ranges
-     // fragmentMap = {};
 
      // NB: not sure PI events are useful right now.
      if (system==='PI') {
       return;
      }
 
-      var minaddr = address;
-      var maxaddr = address + length;
+     ++invals;
+     if ((invals%10000) === 0) {
+      n64js.log(invals + ' invals');
+     }
 
-      var fragments_removed = 0;
-      var fragments_preserved = 0;
+     fragmentMapWho.invalidate(address, length);
+  };
 
-      for (var pc in fragmentMap) {
-        var fragment = fragmentMap[pc];
-        if (fragment.minPC >= maxaddr || (fragment.maxPC+4) <= minaddr) {
-          fragments_preserved++;
-        } else {
-          fragment.invalidate();
-          fragments_removed++;
-        }
-      }
-
-      if (fragments_removed) {
-        n64js.log('Fragment cache removed ' + fragments_removed + ' entries (' + fragments_preserved + ' remain)');
-      }
-
-      fragmentInvalidationEvents.push({'address': address, 'length': length, 'system': system, 'fragmentsRemoved': fragments_removed});
-
-  }
+  var fragmentMapWho = new FragmentMapWho();
 
   function updateFragment(fragment, pc) {
     fragment.minPC = Math.min(fragment.minPC, pc);
     fragment.maxPC = Math.max(fragment.maxPC, pc);
+
+    fragmentMapWho.add(pc, fragment);
   }
 
   function checkEqual(a,b,m) {
