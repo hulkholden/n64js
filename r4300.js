@@ -2783,10 +2783,10 @@
     var cache    = (cache_op      ) & 0x3;
     var action   = (cache_op >>> 2) & 0x7;
 
-    if(cache == 0 && (action == 0 || action == 4)) {
+    if(cache === 0 && (action === 0 || action === 4)) {
       var impl = '';
       impl += 'var addr = ' + genSrcRegLo(b) + ' + ' + o + ';\n';
-      impl += "n64js.invalidateICache(addr, 0x20, 'CACHE');\n";
+      impl += "n64js.invalidateICacheEntry(addr);\n";
       return generateTrivialOpBoilerplate(impl, ctx);
     } else {
       return generateNOPBoilerplate('/*ignored CACHE*/', ctx);
@@ -2797,10 +2797,10 @@
     var cache    = (cache_op      ) & 0x3;
     var action   = (cache_op >>> 2) & 0x7;
 
-    if(cache == 0 && (action == 0 || action == 4)) {
+    if(cache === 0 && (action === 0 || action === 4)) {
       // NB: only bother generating address if we handle the instruction - memaddr deopts like crazy
       var address  = memaddr(i);
-      n64js.invalidateICache(address, 0x20, 'CACHE');
+      n64js.invalidateICacheEntry(address);
     }
   }
 
@@ -3965,7 +3965,7 @@
   function Fragment(pc) {
     this.entryPC          = pc;
     this.minPC            = pc;
-    this.maxPC            = pc;
+    this.maxPC            = pc+4;
     this.func             = undefined;
     this.opsCompiled      = 0;
     this.executionCount   = 0;
@@ -3983,7 +3983,7 @@
   Fragment.prototype.invalidate = function () {
     // reset all but entryPC
     this.minPC            = this.entryPC;
-    this.maxPC            = this.entryPC;
+    this.maxPC            = this.entryPC+4;
     this.func             = undefined;
     this.opsCompiled      = 0;
     this.bailedOut        = false;
@@ -4049,65 +4049,105 @@
   function FragmentMapWho() {
     var i;
 
+    this.kNumEntries = 16*1024;
+
     this.entries = [];
-    for (i = 0; i < 4096; ++i) {
+    for (i = 0; i < this.kNumEntries; ++i) {
       this.entries.push({});
     }
   }
 
-  FragmentMapWho.prototype.addressToPage = function (address) {
-    return Math.floor(address >>> 7);
+  FragmentMapWho.prototype.addressToCacheLine = function (address) {
+    return Math.floor(address >>> 5);
   };
 
-  FragmentMapWho.prototype.addressToPageRoundUp = function (address) {
-    return Math.floor((address+127) >>> 7);
+  FragmentMapWho.prototype.addressToCacheLineRoundUp = function (address) {
+    return Math.floor((address+31) >>> 5);
   };
 
   FragmentMapWho.prototype.add = function (pc, fragment) {
-    var page  = this.addressToPage(pc);
-    var idx   = page % this.entries.length;
-    var entry = this.entries[idx];
+    var cache_line_idx = this.addressToCacheLine(pc);
+    var entry_idx      = cache_line_idx % this.entries.length;
+    var entry          = this.entries[entry_idx];
     entry[fragment.entryPC] = fragment;
   };
 
-  FragmentMapWho.prototype.invalidate = function (address, length) {
-    var minaddr = address,
-        maxaddr = address + length,
-        minpage = this.addressToPage(minaddr),
-        maxpage = this.addressToPageRoundUp(maxaddr),
-        entries = this.entries;
+  FragmentMapWho.prototype.invalidateEntry = function (address) {
+    var cache_line_idx = this.addressToCacheLine(address),
+        entry_idx      = cache_line_idx % this.entries.length,
+        entry          = this.entries[entry_idx],
+        removed        = 0;
 
-    var page, idx, entry, i, fragment;
+    var i, fragment;
 
-    var fragments_removed = 0;
-    var fragments_preserved = 0;
 
-    for (page = minpage; page <= maxpage; ++page) {
-      idx   = page % entries.length;
-      entry = entries[idx];
+    for (i in entry) {
+      if (entry.hasOwnProperty(i)) {
+        fragment = entry[i];
+
+        if (fragment.minPC <= address && fragment.maxPC > address) {
+          fragment.invalidate();
+          delete entry[i];
+          removed++;
+        }
+      }
+    }
+
+    if (removed) {
+      n64js.log('Fragment cache removed ' + removed + ' entries.');
+    }
+
+     //fragmentInvalidationEvents.push({'address': address, 'length': 0x20, 'system': 'CACHE', 'fragmentsRemoved': removed});
+  };
+
+  FragmentMapWho.prototype.invalidateRange = function (address, length) {
+    var minaddr   = address,
+        maxaddr   = address + length,
+        minpage   = this.addressToCacheLine(minaddr),
+        maxpage   = this.addressToCacheLineRoundUp(maxaddr),
+        entries   = this.entries,
+        removed   = 0;
+
+    var cache_line_idx, entry_idx, entry, i, fragment;
+
+    for (cache_line_idx = minpage; cache_line_idx <= maxpage; ++cache_line_idx) {
+      entry_idx = cache_line_idx % entries.length;
+      entry     = entries[entry_idx];
 
       for (i in entry) {
         if (entry.hasOwnProperty(i)) {
           fragment = entry[i];
 
-          if (fragment.minPC >= maxaddr || (fragment.maxPC+4) <= minaddr) {
-            fragments_preserved++;
-          } else {
+          if (fragment.minPC <= maxaddr && fragment.maxPC > minaddr) {
             fragment.invalidate();
-            fragments_removed++;
+            delete entry[i];
+            removed++;
           }
         }
       }
     }
 
-    if (fragments_removed) {
-      n64js.log('Fragment cache removed ' + fragments_removed + ' entries (' + fragments_preserved + ' remain)');
+    if (removed) {
+      n64js.log('Fragment cache removed ' + removed + ' entries.');
     }
 
-     //fragmentInvalidationEvents.push({'address': address, 'length': length, 'system': system, 'fragmentsRemoved': fragments_removed});
+     //fragmentInvalidationEvents.push({'address': address, 'length': length, 'system': system, 'fragmentsRemoved': removed});
   };
 
-  n64js.invalidateICache = function (address, length, system) {
+  // Invalidate a single cache line
+  n64js.invalidateICacheEntry = function (address) {
+      //n64js.log('cache flush ' + n64js.toString32(address));
+
+     ++invals;
+     if ((invals%10000) === 0) {
+      n64js.log(invals + ' invals');
+     }
+
+     fragmentMapWho.invalidateEntry(address);
+  };
+
+  // This isn't called right now. We
+  n64js.invalidateICacheRange = function (address, length, system) {
       //n64js.log('cache flush ' + n64js.toString32(address) + ' ' + n64js.toString32(length));
       // FIXME: check for overlapping ranges
 
@@ -4116,19 +4156,14 @@
       return;
      }
 
-     ++invals;
-     if ((invals%10000) === 0) {
-      n64js.log(invals + ' invals');
-     }
-
-     fragmentMapWho.invalidate(address, length);
+     fragmentMapWho.invalidateRange(address, length);
   };
 
   var fragmentMapWho = new FragmentMapWho();
 
   function updateFragment(fragment, pc) {
     fragment.minPC = Math.min(fragment.minPC, pc);
-    fragment.maxPC = Math.max(fragment.maxPC, pc);
+    fragment.maxPC = Math.max(fragment.maxPC, pc+4);
 
     fragmentMapWho.add(pc, fragment);
   }

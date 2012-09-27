@@ -1932,17 +1932,17 @@
     if (isDom1Addr1(cart_address)) {
       cart_address -= PI_DOM1_ADDR1;
       memoryCopy( ram, dram_address, rom, cart_address, transfer_len );
-      n64js.invalidateICache( 0x80000000 | dram_address, transfer_len, 'PI' );
+      n64js.invalidateICacheRange( 0x80000000 | dram_address, transfer_len, 'PI' );
       copy_succeeded = true;
     } else if (isDom1Addr2(cart_address)) {
       cart_address -= PI_DOM1_ADDR2;
       memoryCopy( ram, dram_address, rom, cart_address, transfer_len );
-      n64js.invalidateICache( 0x80000000 | dram_address, transfer_len, 'PI' );
+      n64js.invalidateICacheRange( 0x80000000 | dram_address, transfer_len, 'PI' );
       copy_succeeded = true;
     } else if (isDom1Addr3(cart_address)) {
       cart_address -= PI_DOM1_ADDR3;
       memoryCopy( ram, dram_address, rom, cart_address, transfer_len );
-      n64js.invalidateICache( 0x80000000 | dram_address, transfer_len, 'PI' );
+      n64js.invalidateICacheRange( 0x80000000 | dram_address, transfer_len, 'PI' );
       copy_succeeded = true;
 
     } else if (isDom2Addr1(cart_address)) {
