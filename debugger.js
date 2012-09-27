@@ -576,7 +576,7 @@
     n64js.refreshDebugger();
   }
 
-  function disassemberPageUp() {
+  function disassemblerPageUp() {
     disasmAddress -= 64;
     n64js.refreshDebugger();
   }
