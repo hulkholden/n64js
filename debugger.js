@@ -44,6 +44,36 @@
       updateMemoryView();
     });
     updateMemoryView();
+
+
+    var kEnter    = 13;
+    var kPageUp   = 33;
+    var kPageDown = 34;
+    var kLeft     = 37;
+    var kUp       = 38;
+    var kRight    = 39;
+    var kDown     = 40;
+    var kF10      = 121;
+    var kF9       = 120;
+    var kF8       = 119;
+
+    $('body').keydown(function (event) {
+      var consumed = false;
+      switch (event.which) {
+        case kDown:     consumed = true; disassemblerDown();             break;
+        case kUp:       consumed = true; disassemblerUp();               break;
+        case kPageDown: consumed = true; disassemblerPageDown();         break;
+        case kPageUp:   consumed = true; disassemblerPageUp();           break;
+        case kF8:       consumed = true; n64js.toggleRun();              break;
+        case kF9:       consumed = true; n64js.toggleDebugDisplayList(); break;
+        case kF10:      consumed = true; n64js.step();                   break;
+        //default: alert( 'code:' + event.which);
+      }
+      if (consumed) {
+        event.preventDefault();
+      }
+    });
+
   };
 
   function updateMemoryView() {
@@ -531,25 +561,25 @@
     $dynarecContent.html($t);
   }
 
-  n64js.down = function () {
+  function disassemblerDown() {
     disasmAddress += 4;
     n64js.refreshDebugger();
-  };
+  }
 
-  n64js.up = function () {
+  function disassemblerUp() {
     disasmAddress -= 4;
     n64js.refreshDebugger();
-  };
+  }
 
-  n64js.pageDown = function () {
+  function disassemblerPageDown() {
     disasmAddress += 64;
     n64js.refreshDebugger();
-  };
+  }
 
-  n64js.pageUp = function () {
+  function disassemberPageUp() {
     disasmAddress -= 64;
     n64js.refreshDebugger();
-  };
+  }
 
   n64js.refreshDebugger = function () {
 

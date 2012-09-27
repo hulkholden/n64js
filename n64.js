@@ -2598,33 +2598,11 @@
 
     n64js.initialiseRenderer($('#display'));
 
-    var kEnter    = 13;
-    var kPageUp   = 33;
-    var kPageDown = 34;
-    var kLeft     = 37;
-    var kUp       = 38;
-    var kRight    = 39;
-    var kDown     = 40;
-    var kF10      = 121;  // Ugh - chrome only seems to send *alternate* keydown for this, and no keyup.
-    var kF9       = 120;
-    var kF8       = 119;
-
     $('body').keyup(function (event) {
       n64js.handleKey(event.which, false);
     });
     $('body').keydown(function (event) {
       n64js.handleKey(event.which, true);
-
-      switch (event.which) {
-        case kDown:     n64js.down();                   break;
-        case kUp:       n64js.up();                     break;
-        case kPageDown: n64js.pageDown();               break;
-        case kPageUp:   n64js.pageUp();                 break;
-        case kF8:       n64js.toggleRun();              break;
-        case kF9:       n64js.toggleDebugDisplayList(); break;
-        case kF10:      n64js.step();                   break;
-        //default: alert( 'code:' + event.which);
-      }
     });
     // $('body').keypress(function (event) {
     //   switch (event.which) {
