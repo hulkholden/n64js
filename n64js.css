@@ -5,7 +5,8 @@ body { padding-top: 20px; }
 .disasm-table th.op, .disasm-table td.op { text-align: left; }
 pre .dis-label-target { font-weight: bold; }
 pre .dis-label { color: #999; }
-#output { background-color: #444; height: 360px; color: #fff;  overflow: scroll;}
+
+.output { background-color: #444; height: 360px; color: #fff;  overflow: scroll;}
 div #cpu    { display:inline-block; vertical-align:top;}
 div #disasm { display:inline-block; vertical-align:top; width:600px;}
 .popover-inner { width: auto; }

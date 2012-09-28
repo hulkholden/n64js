@@ -29,9 +29,13 @@
     $status         = $('#status');
     $registers      = [$('#cpu0-content'), $('#cpu1-content')];
     $disassembly    = $('#disasm');
-    $output         = $('#output');
+    $output         = $('.output');
     $dynarecContent = $('#dynarec-content');
     $memoryContent  = $('#memory-content');
+
+    $('#output').find('#clear').click(function () {
+      n64js.clearLog();
+    });
 
     $('#cpu').find('input').change(function () {
       disasmAddress = parseInt($(this).val());
@@ -594,6 +598,10 @@
     if ($memoryContent.hasClass('active')) {
       updateMemoryView();
     }
+  };
+
+  n64js.clearLog = function () {
+    $output.html('');
   };
 
   n64js.log = function (s) {

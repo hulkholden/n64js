@@ -1029,9 +1029,8 @@
 
   function unimplemented(pc,i) {
     var r = n64js.disassembleOp(pc,i);
-    var e = 'Unimplemented op ' + n64js.toString32(i) + ' : ' + r.disassembly + '<br>';
-
-    $('#output').append(e);
+    var e = 'Unimplemented op ' + n64js.toString32(i) + ' : ' + r.disassembly;
+    n64js.log(e);
     throw e;
   }
 
