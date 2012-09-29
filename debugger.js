@@ -315,18 +315,36 @@
 
     var cur_instr;
 
-    var disassembly = n64js.disassemble(disasmAddress - 64, disasmAddress + 64);
-    var dis_body = disassembly.map(function (a) {
+    var fragmentMap = n64js.getFragmentMap();
 
+    var disassembly = n64js.disassemble(disasmAddress - 64, disasmAddress + 64);
+
+    var $dis = $('<pre/>');
+
+    for (i = 0; i < disassembly.length; ++i) {
+      var a          = disassembly[i];
       var label_span = a.isJumpTarget ? '<span class="dis-label-target">' : '<span class="dis-label">';
       var label      = label_span    + n64js.toHex(a.instruction.address, 32) + ':</span>';
       var t          = label + '   ' + n64js.toHex(a.instruction.opcode, 32) + '    ' + a.disassembly;
+
+      var fragment = fragmentMap[a.instruction.address];
+      if (fragment) {
+        t = '<span class="dis-fragment-link">*</span>' + t;
+        t = t + '     frag - ops=' + fragment.opsCompiled + ' hit=' + fragment.executionCount;
+      } else {
+        t = ' ' + t;
+      }
+
+      // Keep track of the current instruction (for register formatting) and highlight.
       if (a.instruction.address === cpu0.pc) {
         cur_instr = a.instruction;
         t = '<span style="background-color: #ffa">' + t + '</span>';
       }
-      return t;
-    }).join('<br>');
+      var $line = $('<span>' + t + '</span>');
+      $line.find('.dis-fragment-link').data('fragment', fragment);
+      $dis.append($line);
+      $dis.append('<br>');
+    }
 
     // Keep a small queue showing recent memory accesses
     if (is_single_step) {
@@ -386,7 +404,6 @@
       }
     }
 
-    var $dis = $('<pre>' + dis_body + '</pre>');
     $dis.find('.dis-label').each(function (){
       var address = parseInt($(this).text(), 16);
       if (labelMap.hasOwnProperty(address)) {
@@ -404,6 +421,12 @@
       $(this).click(function () {
         disasmAddress = address;
         n64js.refreshDebugger();
+      });
+    });
+    $dis.find('.dis-fragment-link').each(function (){
+      var frag = $(this).data('fragment');
+      $(this).click(function (){
+        n64js.log('<pre>' + frag.func.toString() + '</pre>');
       });
     });
 
