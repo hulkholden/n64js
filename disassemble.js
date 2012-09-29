@@ -39,7 +39,7 @@
 
   var cop0ControlRegisterNames = [
     "Index",       "Rand", "EntryLo0", "EntryLo1", "Context", "PageMask",     "Wired",   "?7",
-    "BadVAddr",   "Count",  "EntryHi",  "Compare",      "SR",    "Cause",       "EPC", "PrID", 
+    "BadVAddr",   "Count",  "EntryHi",  "Compare",      "SR",    "Cause",       "EPC", "PrID",
     "?16",         "?17",   "WatchLo",  "WatchHi",     "?20",      "?21",       "?22",  "?23",
     "?24",         "?25",       "ECC", "CacheErr",   "TagLo",    "TagHi",  "ErrorEPC",  "?31"
   ];
@@ -128,7 +128,7 @@
   };
 
   var specialTable = [
-    function (i) { if (i.opcode == 0) {
+    function (i) { if (i.opcode === 0) {
                      return 'NOP';
                      }
                    return 'SLL       ' + i.rd() + ' = ' + i.rt() + ' << '  + _sa(i.opcode); },
@@ -168,8 +168,8 @@
     function (i) { return 'SUB       ' + i.rd() + ' = ' + i.rs() + ' - '   + i.rt(); },
     function (i) { return 'SUBU      ' + i.rd() + ' = ' + i.rs() + ' - '   + i.rt(); },
     function (i) { return 'AND       ' + i.rd() + ' = ' + i.rs() + ' & '   + i.rt(); },
-    function (i) { if (_rt(i.opcode) == 0) {
-                      if (_rs(i.opcode) == 0) {
+    function (i) { if (_rt(i.opcode) === 0) {
+                      if (_rs(i.opcode) === 0) {
                      return 'CLEAR     ' + i.rd() + ' = 0';
                       } else {
                      return 'MOV       ' + i.rd() + ' = ' + i.rs();
@@ -435,7 +435,7 @@
     disassembleRegImm,
     function (i) { return 'J         --> ' + i.jumpAddress(); },
     function (i) { return 'JAL       --> ' + i.jumpAddress() + i.writesRA(); },
-    function (i) { 
+    function (i) {
       if (_rs(i.opcode) == _rt(i.opcode)) {
                    return 'B         --> ' + i.branchAddress();
       }
@@ -510,12 +510,12 @@
     var disassembly = simpleTable[_op(opcode)](i);
 
     return {instruction:i, disassembly:disassembly, isJumpTarget:false};
-  }
+  };
 
   n64js.disassembleAddress = function (address) {
     var instruction = n64js.readMemoryInternal32(address);
     return n64js.disassembleOp(address, instruction);
-  }
+  };
 
   n64js.disassemble = function (bpc, epc) {
 
@@ -534,10 +534,11 @@
 
     // Flag any instructions that are jump targets
     for (var o = 0; o < r.length; ++o) {
-      if (targets.hasOwnProperty(r[o].instruction.address)) 
+      if (targets.hasOwnProperty(r[o].instruction.address)) {
         r[o].isJumpTarget = true;
+      }
     }
 
     return r;
-  }
+  };
 }(window.n64js = window.n64js || {}));

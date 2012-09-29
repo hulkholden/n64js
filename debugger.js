@@ -1,3 +1,5 @@
+/*jshint jquery:true */
+
 (function (n64js) {'use strict';
 
   var $debugContent   = null;
@@ -77,7 +79,6 @@
         event.preventDefault();
       }
     });
-
   };
 
   function updateMemoryView() {
