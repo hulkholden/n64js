@@ -3021,7 +3021,7 @@
     impl += 'var cc = false;\n';
     impl += 'if (isNaN(fs+ft)) {\n';
     if (op&0x8) {
-      impl += '  n64js.warn("should raise Invalid Operation here.");\n';
+      impl += '  n64js.halt("should raise Invalid Operation here.");\n';
     }
     if (op&0x1) {
       impl += '  cc = true;\n';
@@ -3042,7 +3042,7 @@
       var c = false;
       if (isNaN(fs+ft)) {
         if (op&0x8) {
-          n64js.warn('Should raise Invalid Operation here.');
+          n64js.halt('Should raise Invalid Operation here.');
         }
         if (op&0x1) c = true;
       } else {
