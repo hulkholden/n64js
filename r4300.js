@@ -254,6 +254,7 @@
   };
 
   function CPU0() {
+    this.opsExecuted    = 0;            // Approximate...
 
     this.ram            = undefined;    // bound to in reset n64js.getRamU8Array();
 
@@ -596,16 +597,22 @@
 
 
   CPU0.prototype.removeEventsOfType = function (type) {
+    var count = 0;
     for (var i = 0; i < this.events.length; ++i) {
+      count += this.events[i].countdown;
+
       if (this.events[i].type == type) {
         // Add this countdown on to the subsequent event
         if ((i+1) < this.events.length) {
           this.events[i+1].countdown += this.events[i].countdown;
         }
         this.events.splice(i, 1);
-        return;
+        return count;
       }
     }
+
+    // Not found.
+    return -1;
   };
 
   CPU0.prototype.hasEvent = function(type) {
@@ -3779,7 +3786,15 @@
     }
 
     // Clean up any kEventRunForCycles events before we bail out
-    cpu0.removeEventsOfType(kEventRunForCycles);
+    var cycles_remaining = cpu0.removeEventsOfType(kEventRunForCycles);
+
+    // If the event no longer exists, assume we've executed all the cycles
+    if (cycles_remaining < 0) {
+      cycles_remaining = 0;
+    }
+    if (cycles_remaining < cycles) {
+      cpu0.opsExecuted += cycles - cycles_remaining;
+    }
   };
 
   function executeFragment(fragment, c, ram, events) {
