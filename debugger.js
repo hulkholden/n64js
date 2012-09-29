@@ -26,6 +26,11 @@
     0x80324158: 'div64'
   };
 
+  var debugCycles = Math.pow(10,0);
+  n64js.getDebugCycles = function () {
+    return debugCycles;
+  };
+
   n64js.initialiseDebugger = function () {
     $debugContent   = $('#debug-content');
     $status         = $('#status');
@@ -39,7 +44,12 @@
       n64js.clearLog();
     });
 
-    $('#cpu').find('input').change(function () {
+    $('#cpu').find('#speed').val(0).change(function () {
+      debugCycles = Math.pow(10, $(this).val() | 0);
+      n64js.log('Speed is now ' + debugCycles);
+    });
+
+    $('#cpu').find('#address').change(function () {
       disasmAddress = parseInt($(this).val());
       updateDebug();
     });

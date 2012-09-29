@@ -40,11 +40,10 @@
       </div>
 
       <div class="row">
-        <div class="span8">
-          <canvas id="display" width="640" height="480" style="background-color:#000"></canvas>
+        <div style="white-space:nowrap;" class="span8">
+          <canvas id="display" width="640" height="480" style="display:inline-block; background-color:#000;"></canvas>
+          <div id="adjacent-debug" class="span10 debug" style="display:inline-block; float:none;"></div>
         </div>
-        <div id="adjacent-debug" class="span10 debug" style="display:none"></div>
-
         <div class="span2" id="performance"></div>
       </div>
       <div class="row">
@@ -55,11 +54,11 @@
 
           <table class="table table-condensed">
             <tr><td>CPU</td><td class="impl80">Mostly implemented</td></tr>
-            <tr><td>TLB</td><td class="impl80">Mostly implemented</td></tr>
+            <tr><td>TLB</td><td class="impl100">Implemented</td></tr>
             <tr><td>Controller</td><td class="impl80">Mostly implemented</td></tr>
             <tr><td>Graphics - GBI0</td><td class="impl80">Mostly implemented</td></tr>
             <tr><td>Graphics - GBI1</td><td class="impl40">Partially implemented</td></tr>
-            <tr><td>Graphics - GBI2</td><td class="impl0">Not implemented</td></tr>
+            <tr><td>Graphics - GBI2</td><td class="impl40">Partially implemented</td></tr>
             <tr><td>Audio</td><td class="impl0">Not implemented</td></tr>
             <tr><td>Save - Eeprom4k</td><td class="impl100">Implemented</td></tr>
             <tr><td>Save - Eeprom4k</td><td class="impl100">Implemented</td></tr>
@@ -132,27 +131,42 @@
                 <div class="tab-pane" id="debug-content">
 
                   <div id="cpu">
-                    <div class="btn-toolbar">
-                      <div class="btn-group">
+
+                    <div class="cpu-controls">
+                      <div class="control-group">
                         <button class="btn" onclick="n64js.step()"><i class="icon-step-forward"></i> Step</button>
-                        <input type="text" placeholder="address" />
+                      </div>
+                      <div class="control-group">
+                        <label class="control-label" for="speed">Speed</label>
+                        <div class="controls">
+                          <input id="speed" type="range" min="0" max="8" value="0" />
+                        </div>
+                      </div>
+                      <div class="control-group">
+                        <label class="control-label" for="speed">Address</label>
+                        <div class="controls">
+                          <input id="address" type="text" placeholder="address" />
+                        </div>
                       </div>
                     </div>
 
-                    <div id="status" class="fixed"></div>
-                    <div class="tabbable tabs-left">
-                      <ul class="nav nav-tabs">
-                        <li class="active"><a href="#cpu0-content" id="cpu0-tab" data-toggle="tab">cpu0</a></li>
-                        <li><a href="#cpu1-content" id="cpu1-tab" data-toggle="tab">cpu1</a></li>
-                      </ul>
-                      <div class="tab-content">
-                        <div id="cpu0-content" class="tab-pane active"></div>
-                        <div id="cpu1-content" class="tab-pane"></div>
+                    <div class="cpu-display">
+                      <div class="cpu-details">
+                        <div id="status" class="fixed"></div>
+                        <div class="tabbable tabs-left">
+                          <ul class="nav nav-tabs">
+                            <li class="active"><a href="#cpu0-content" id="cpu0-tab" data-toggle="tab">cpu0</a></li>
+                            <li><a href="#cpu1-content" id="cpu1-tab" data-toggle="tab">cpu1</a></li>
+                          </ul>
+                          <div class="tab-content">
+                            <div id="cpu0-content" class="tab-pane active"></div>
+                            <div id="cpu1-content" class="tab-pane"></div>
+                          </div>
+                        </div>
                       </div>
+                      <div id="disasm" class="cpu-details fixed"></div>
                     </div>
                   </div>
-
-                  <div id="disasm" class="fixed"></div>
 
                 </div>
                 <div class="tab-pane" id="memory-content">

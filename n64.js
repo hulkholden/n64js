@@ -786,15 +786,23 @@
     if (running) {
       requestAnimationFrame(updateLoopAnimframe);
 
+      var max_cycles = kCyclesPerUpdate;
+
+      // NB: don't slow down debugger when we're waiting for a display list to be debugged.
+      var debugging = $('.debug').is(':visible');
+      if (debugging && !n64js.debugDisplayListRequested()) {
+        max_cycles = n64js.getDebugCycles();
+      }
+
       if (syncActive()) {
         // Check how many cycles we can safely execute
-        var sync_count = syncTick(kCyclesPerUpdate);
+        var sync_count = syncTick(max_cycles);
         if (sync_count > 0) {
           n64js.run(sync_count);
           n64js.refreshDebugger();
         }
       } else {
-        n64js.run(kCyclesPerUpdate);
+        n64js.run(max_cycles);
         n64js.refreshDebugger();
       }
 
@@ -2593,6 +2601,8 @@
     dpc_handler_uncached.quiet      = true;
 
     n64js.reset();
+
+    $('.debug').hide();
 
     n64js.initialiseDebugger();
 

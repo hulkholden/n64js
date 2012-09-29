@@ -14,12 +14,16 @@ div #disasm { display:inline-block; vertical-align:top; width:600px;}
 .matrix-table th, .matrix-table td { padding: 2px 10px; }
 .vertex-table th, .vertex-table td { text-align: right; padding: 2px 10px; }
 
-table td.impl0   { background-color: #c44; }
-table td.impl40  { background-color: #cc4; }
-table td.impl80  { background-color: #8c4; }
-table td.impl100 { background-color: #4f4; }
+table .impl0   { background-color: #c44; }
+table .impl40  { background-color: #cc4; }
+table .impl80  { background-color: #8c4; }
+table .impl100 { background-color: #4f4; }
 
 .scrub { width: 640px; }
 .scrub input { width: 100%; }
 .hle-disasm { background-color: whiteSmoke; height: 480px; color: #fff;  overflow: scroll; position: relative; }
-pre.combine { display: inline-block; }
+.combine { display: inline-block; }
+
+.cpu-display { white-space: nowrap; }
+.cpu-details { display: inline-block; }
+.speed-slider { white-space: nowrap; }

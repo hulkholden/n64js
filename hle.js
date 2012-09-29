@@ -3619,6 +3619,9 @@
     // });
   };
 
+  n64js.debugDisplayListRequested = function () {
+    return debugDisplayListRequested;
+  };
   n64js.debugDisplayListRunning = function () {
     return debugDisplayListRunning;
   };
