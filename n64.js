@@ -1625,6 +1625,7 @@
       case 'S'.charCodeAt(0): button = kButtonA;      break;
       case 'X'.charCodeAt(0): button = kButtonB;      break;
       case 'Z'.charCodeAt(0): button = kButtonZ;      break;
+      case 'Y'.charCodeAt(0): button = kButtonZ;      break;
       case 'C'.charCodeAt(0): button = kButtonL;      break;
       case 'V'.charCodeAt(0): button = kButtonR;      break;
 
