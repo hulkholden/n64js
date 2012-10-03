@@ -1,0 +1,20 @@
+{
+	"folders":
+	[
+		{
+			"path": "."
+		}
+	],
+    "settings":
+    {
+        "tab_size": 2,
+        "translate_tabs_to_spaces": true
+    },
+    "build_systems":
+    [
+        {
+            "name": "n64js",
+            "cmd": ["bash", "$project_path/tools/build.sh"]
+        }
+    ]
+}
