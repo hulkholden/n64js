@@ -545,9 +545,9 @@
   var pi_reg_handler_uncached    = new Device("PIReg",    pi_reg,       0xa4600000, 0xa4600034);
   var ri_reg_handler_uncached    = new Device("RIReg",    ri_reg,       0xa4700000, 0xa4700020);
   var si_reg_handler_uncached    = new Device("SIReg",    si_reg,       0xa4800000, 0xa480001c);
-  var rom_d2a1_handler_uncached  = new Device("ROMd2a1",  rom,          0xa5000000, 0xa6000000);
+  var rom_d2a1_handler_uncached  = new Device("ROMd2a1",  null,         0xa5000000, 0xa6000000);
   var rom_d1a1_handler_uncached  = new Device("ROMd1a1",  rom,          0xa6000000, 0xa8000000);
-  var rom_d2a2_handler_uncached  = new Device("ROMd2a2",  rom,          0xa8000000, 0xb0000000);
+  var rom_d2a2_handler_uncached  = new Device("ROMd2a2",  null,         0xa8000000, 0xb0000000);
   var rom_d1a2_handler_uncached  = new Device("ROMd1a2",  rom,          0xb0000000, 0xbfc00000);
   var pi_mem_handler_uncached    = new Device("PIRAM",    pi_mem,       0xbfc00000, 0xbfc00800);
   var rom_d1a3_handler_uncached  = new Device("ROMd1a3",  rom,          0xbfd00000, 0xc0000000);
@@ -640,8 +640,6 @@
     rom_d1a1_handler_uncached.setMem(rom);
     rom_d1a2_handler_uncached.setMem(rom);
     rom_d1a3_handler_uncached.setMem(rom);
-    rom_d2a1_handler_uncached.setMem(rom);
-    rom_d2a2_handler_uncached.setMem(rom);
 
     var hdr = {};
     hdr.header       = rom.readU32(0);
