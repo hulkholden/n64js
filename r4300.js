@@ -69,6 +69,7 @@
 
   var SR_CUMASK       = 0xf0000000;
 
+  var CAUSE_BD_BIT    = 31;           // NB: Closure Compiler doesn't like 32 bit constants.
   var CAUSE_BD        = 0x80000000;
   var CAUSE_CEMASK    = 0x30000000;
   var CAUSE_CESHIFT   = 28;
@@ -137,6 +138,7 @@
 
 
   var TLBHI_VPN2MASK    = 0xffffe000;
+  var TLBHI_VPN2MASK_NEG= 0x00001fff;
   var TLBHI_VPN2SHIFT   = 13;
   var TLBHI_PIDMASK     = 0xff;
   var TLBHI_PIDSHIFT    = 0;
@@ -230,7 +232,7 @@
 
     this.global   = (entrylo0 & entrylo1 & TLBLO_G);
 
-    this.mask     = pagemask | (~TLBHI_VPN2MASK);
+    this.mask     = pagemask | TLBHI_VPN2MASK_NEG;
     this.mask2    = this.mask>>>1;
     this.vpnmask  = (~this.mask)>>>0;
     this.vpn2mask = this.vpnmask>>>1;
@@ -534,11 +536,13 @@
     this.control[this.kControlCause] |= exception;
     this.control[this.kControlSR]  |= SR_EXL;
     this.control[this.kControlEPC]  = this.pc;
+
+    var bd_mask = (1<<CAUSE_BD_BIT);
     if (this.delayPC) {
-      this.control[this.kControlCause] |= CAUSE_BD;
+      this.control[this.kControlCause] |= bd_mask;
       this.control[this.kControlEPC]   -= 4;
     } else {
-      this.control[this.kControlCause] &= ~CAUSE_BD;
+      this.control[this.kControlCause] &= ~bd_mask;
     }
   };
 

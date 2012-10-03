@@ -3518,7 +3518,7 @@
     if (num_display_lists_since_present === 0) {
       //n64js.log('new origin: ' + n64js.toString32(origin) + ' but no display lists rendered to skipping');
 
-      origin = (origin & ~0x80000001) | 0;  // NB: clear top bit (make address physical). Clear bottom bit (sometimes odd valued addresses are passed through)
+      origin = (origin & 0x7ffffffe) | 0;  // NB: clear top bit (make address physical). Clear bottom bit (sometimes odd valued addresses are passed through)
 
       var width = 320;
       var height = 240;
