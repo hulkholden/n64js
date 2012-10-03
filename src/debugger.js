@@ -299,6 +299,53 @@
     return $status_table;
   }
 
+  function setLabelText($elem, address) {
+    if (labelMap.hasOwnProperty(address)) {
+      $elem.append(' (' + labelMap[address] + ')');
+    }
+  }
+  function setLabelColor($elem, address) {
+    $elem.css('color', makeLabelColor(address));
+  }
+
+  function makeLabelText(address) {
+    var t = '';
+    if (labelMap.hasOwnProperty(address)) {
+      t = labelMap[address];
+    }
+    while (t.length < 10) {
+      t += ' ';
+    }
+    if (t.length > 10) {
+      t += '\n           ';
+    }
+    return t;
+  }
+
+  function onLabelClicked(e) {
+      var $label = $(e.delegateTarget);
+      var address = $label.data('address')>>>0;
+      var existing = labelMap[address] || '';
+      var $input = $('<input class="input-mini" value="' + existing + '" />');
+
+      $input.keypress(function (event) {
+        if (event.which == 13) {
+          var new_val = $input.val();
+          if (new_val) {
+            labelMap[address] = new_val;
+          } else {
+            delete labelMap[address];
+          }
+          n64js.refreshDebugger();
+        }
+      });
+      $input.blur(function () {
+        $label.html(makeLabelText(address));
+      });
+      $label.html($input);
+      $input.focus();
+  }
+
   function updateDebug() {
     var i, element;
     var cpu0 = n64js.cpu0;
@@ -323,24 +370,28 @@
 
     for (i = 0; i < disassembly.length; ++i) {
       var a          = disassembly[i];
-      var label_span = a.isJumpTarget ? '<span class="dis-label-target">' : '<span class="dis-label">';
-      var label      = label_span    + n64js.toHex(a.instruction.address, 32) + ':</span>';
-      var t          = label + '   ' + n64js.toHex(a.instruction.opcode, 32) + '    ' + a.disassembly;
+      var address    = a.instruction.address;
+      var label_span = a.isJumpTarget ? '<span class="dis-address-target">' : '<span class="dis-address">';
+      var label      = label_span    + n64js.toHex(address, 32) + ':</span>';
+      var pad        = makeLabelText(address);
+      var t          = '<span class="dis-label">' + pad + '</span>' + label + '   ' + n64js.toHex(a.instruction.opcode, 32) + '    ' + a.disassembly;
 
-      var fragment = fragmentMap[a.instruction.address];
+      var fragment = fragmentMap[address];
       if (fragment) {
-        t = '<span class="dis-fragment-link">*</span>' + t;
-        t = t + '     frag - ops=' + fragment.opsCompiled + ' hit=' + fragment.executionCount;
-      } else {
-        t = ' ' + t;
+        t += '<span class="dis-fragment-link"> frag - ops=' + fragment.opsCompiled + ' hit=' + fragment.executionCount + '</span>';
       }
+
+      var $line = $('<span class="dis-line">' + t + '</span>');
+
+      $line.find('.dis-label').
+        data('address', address).
+        click(onLabelClicked);
 
       // Keep track of the current instruction (for register formatting) and highlight.
-      if (a.instruction.address === cpu0.pc) {
+      if (address === cpu0.pc) {
         cur_instr = a.instruction;
-        t = '<span style="background-color: #ffa">' + t + '</span>';
+        $line.addClass('dis-line-cur');
       }
-      var $line = $('<span>' + t + '</span>');
       $line.find('.dis-fragment-link').data('fragment', fragment);
       $dis.append($line);
       $dis.append('<br>');
@@ -404,26 +455,25 @@
       }
     }
 
-    $dis.find('.dis-label').each(function (){
+    $dis.find('.dis-address-target').each(function () {
       var address = parseInt($(this).text(), 16);
-      if (labelMap.hasOwnProperty(address)) {
-        $(this).prepend(labelMap[address] + '\n');
-      }
+      setLabelColor($(this), address);
     });
-    $dis.find('.dis-label-target').each(function (){
+
+    // Links for braches, jumps etc should jump to the target address.
+    $dis.find('.dis-address-jump').each(function () {
       var address = parseInt($(this).text(), 16);
 
-      if (labelMap.hasOwnProperty(address)) {
-        $(this).text(labelMap[address]);
-      }
+      setLabelText($(this), address);
+      setLabelColor($(this), address);
 
-      $(this).css('color', makeLabelColor(address));
       $(this).click(function () {
         disasmAddress = address;
         n64js.refreshDebugger();
       });
     });
-    $dis.find('.dis-fragment-link').each(function (){
+
+    $dis.find('.dis-fragment-link').each(function () {
       var frag = $(this).data('fragment');
       $(this).click(function (){
         n64js.log('<pre>' + frag.func.toString() + '</pre>');

@@ -26,7 +26,7 @@
 
   function makeLabelText(address) {
     var text = n64js.toHex( address, 32 );
-    return '<span class="dis-label-target">'+ text + '</span>';
+    return '<span class="dis-address-jump">'+ text + '</span>';
   }
 
   var gprRegisterNames = [
