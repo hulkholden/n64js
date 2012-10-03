@@ -12,7 +12,6 @@ OPT="--compilation_level SIMPLE_OPTIMIZATIONS"
 
 java -jar "$PROJECT_DIR/../closure-compiler/compiler.jar" \
 	$OPT \
-  --externs "$PROJECT_DIR/tools/externs.js" \
 	--js "$PROJECT_DIR/src/n64.js" \
 	--js "$PROJECT_DIR/src/r4300.js" \
 	--js "$PROJECT_DIR/src/debugger.js" \
