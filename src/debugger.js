@@ -31,6 +31,34 @@
     return debugCycles;
   };
 
+  function refreshLabelSelect() {
+    var i, address, label, $option,
+        arr = [],
+        $select = $('#cpu').find('#labels');
+
+    for (i in labelMap) {
+      if (labelMap.hasOwnProperty(i)) {
+        arr.push(i);
+      }
+    }
+    arr.sort(function (a,b) { return labelMap[a].localeCompare(labelMap[b]); });
+
+    $select.html('');
+
+    for (i = 0; i < arr.length; ++i) {
+      address = arr[i];
+      label   = labelMap[address];
+      $option = $('<option value="' + label + '">' + label + '</option>');
+      $option.data('address', address);
+      $select.append($option);
+    }
+
+    $select.change(function () {
+      disasmAddress = $select.find('option:selected').data('address')>>>0;
+      updateDebug();
+    });
+  }
+
   n64js.initialiseDebugger = function () {
     $debugContent   = $('#debug-content');
     $status         = $('#status');
@@ -52,6 +80,10 @@
     $('#cpu').find('#address').change(function () {
       disasmAddress = parseInt($(this).val());
       updateDebug();
+    });
+    refreshLabelSelect();
+    $('#cpu').find('#labels').change(function () {
+      alert($this.val());
     });
 
     var addr = 0x80000000;
@@ -336,7 +368,8 @@
           } else {
             delete labelMap[address];
           }
-          n64js.refreshDebugger();
+          refreshLabelSelect();
+          updateDebug();
         }
       });
       $input.blur(function () {

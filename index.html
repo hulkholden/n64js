@@ -149,27 +149,23 @@
 
                   <div id="cpu">
 
-                    <div class="cpu-controls">
-                      <div class="control-group">
-                        <button class="btn" onclick="n64js.step()"><i class="icon-step-forward"></i> Step</button>
-                      </div>
-                      <div class="control-group">
-                        <label class="control-label" for="speed">Speed</label>
-                        <div class="controls">
-                          <input id="speed" type="range" min="0" max="8" value="0" />
-                        </div>
-                      </div>
-                      <div class="control-group">
-                        <label class="control-label" for="speed">Address</label>
-                        <div class="controls">
-                          <input id="address" type="text" placeholder="address" />
-                        </div>
-                      </div>
-                    </div>
-
                     <div class="cpu-display">
                       <div class="cpu-details">
+
+                        <div class="cpu-controls">
+                          <div class="control-group">
+                            <button class="btn" onclick="n64js.step()"><i class="icon-step-forward"></i> Step</button>
+                          </div>
+                          <div class="control-group">
+                            <label class="control-label" for="speed">Speed</label>
+                            <div class="controls">
+                              <input id="speed" type="range" min="0" max="8" value="0" />
+                            </div>
+                          </div>
+                        </div>
+
                         <div id="status" class="fixed"></div>
+
                         <div class="tabbable tabs-left">
                           <ul class="nav nav-tabs">
                             <li class="active"><a href="#cpu0-content" id="cpu0-tab" data-toggle="tab">cpu0</a></li>
@@ -181,7 +177,17 @@
                           </div>
                         </div>
                       </div>
-                      <div id="disasm" class="cpu-details fixed"></div>
+                      <div class="cpu-details">
+                        <div class="control-group">
+                          <label class="control-label" for="address">Address</label>
+                          <div class="controls">
+                            <input class="input-small" id="address" type="text" placeholder="address" />
+                            <select id="labels">
+                            </select>
+                          </div>
+                        </div>
+                        <div id="disasm" class="fixed"></div>
+                      </div>
                     </div>
                   </div>
 

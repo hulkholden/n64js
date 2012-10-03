@@ -12,7 +12,7 @@ pre .dis-line-cur { background-color: #ffa; }
 
 .output { background-color: #444; height: 360px; color: #fff;  overflow: scroll;}
 div #cpu    { display:inline-block; vertical-align:top;}
-div #disasm { display:inline-block; vertical-align:top; width:600px;}
+div #disasm { display:inline-block; vertical-align:top; width:700px;}
 .popover-inner { width: auto; }
 
 .matrix-table th, .matrix-table td { padding: 2px 10px; }
@@ -29,5 +29,5 @@ table .impl100 { background-color: #4f4; }
 .combine { display: inline-block; }
 
 .cpu-display { white-space: nowrap; }
-.cpu-details { display: inline-block; }
+.cpu-details { display: inline-block; vertical-align: top; }
 .speed-slider { white-space: nowrap; }
