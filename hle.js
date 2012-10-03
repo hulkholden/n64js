@@ -1,6 +1,7 @@
 /*jshint jquery:true browser:true */
 
 (function (n64js) {'use strict';
+  var kDumpShaders = 0;
 
   var graphics_task_count = 0;
   var texrected = 1;
@@ -4381,7 +4382,7 @@
 
     theSource = theSource.replace('{{body}}', body);
 
-    if (0) {
+    if (kDumpShaders) {
       var decoded = '';
 
       decoded += '\n';
