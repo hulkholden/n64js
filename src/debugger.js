@@ -82,9 +82,6 @@
       updateDebug();
     });
     refreshLabelSelect();
-    $('#cpu').find('#labels').change(function () {
-      alert($this.val());
-    });
 
     var addr = 0x80000000;
     $memoryContent.find('input').change(function () {
@@ -345,11 +342,8 @@
     if (labelMap.hasOwnProperty(address)) {
       t = labelMap[address];
     }
-    while (t.length < 10) {
+    while (t.length < 20) {
       t += ' ';
-    }
-    if (t.length > 10) {
-      t += '\n           ';
     }
     return t;
   }
@@ -379,6 +373,12 @@
       $input.focus();
   }
 
+  function onFragmentClicked(e) {
+      var $elem = $(e.delegateTarget);
+      var frag = $elem.data('fragment')>>>0;
+      n64js.log('<pre>' + frag.func.toString() + '</pre>');
+  }
+
   function updateDebug() {
     var i, element;
     var cpu0 = n64js.cpu0;
@@ -399,15 +399,16 @@
 
     var disassembly = n64js.disassemble(disasmAddress - 64, disasmAddress + 64);
 
+    var $dis_gutter = $('<pre/>');
     var $dis = $('<pre/>');
 
     for (i = 0; i < disassembly.length; ++i) {
-      var a          = disassembly[i];
-      var address    = a.instruction.address;
-      var label_span = a.isJumpTarget ? '<span class="dis-address-target">' : '<span class="dis-address">';
-      var label      = label_span    + n64js.toHex(address, 32) + ':</span>';
-      var pad        = makeLabelText(address);
-      var t          = '<span class="dis-label">' + pad + '</span>' + label + '   ' + n64js.toHex(a.instruction.opcode, 32) + '    ' + a.disassembly;
+      var a           = disassembly[i];
+      var address     = a.instruction.address;
+      var is_target   = a.isJumpTarget || labelMap.hasOwnProperty(address);
+      var address_str = (is_target ? '<span class="dis-address-target">' : '<span class="dis-address">') + n64js.toHex(address, 32) + ':</span>';
+      var label       = '<span class="dis-label">' + makeLabelText(address) + '</span>';
+      var t           = address_str + '  ' + n64js.toHex(a.instruction.opcode, 32) + '  ' + label + a.disassembly;
 
       var fragment = fragmentMap[address];
       if (fragment) {
@@ -418,17 +419,44 @@
 
       $line.find('.dis-label').
         data('address', address).
+        css('color', makeLabelColor(address)).
         click(onLabelClicked);
+
+      if (fragment) {
+        $line.find('.dis-fragment-link').
+          data('fragment', fragment).
+          click(onFragmentClicked);
+      }
 
       // Keep track of the current instruction (for register formatting) and highlight.
       if (address === cpu0.pc) {
         cur_instr = a.instruction;
         $line.addClass('dis-line-cur');
       }
-      $line.find('.dis-fragment-link').data('fragment', fragment);
+      if (is_target) {
+        $line.addClass('dis-line-target');
+
+        setLabelColor($line.find('.dis-address-target'), address);
+      }
+
       $dis.append($line);
       $dis.append('<br>');
+
+      $dis_gutter.append('<br>');
     }
+
+    // Links for braches, jumps etc should jump to the target address.
+    $dis.find('.dis-address-jump').each(function () {
+      var address = parseInt($(this).text(), 16);
+
+      setLabelText($(this), address);
+      setLabelColor($(this), address);
+
+      $(this).click(function () {
+        disasmAddress = address;
+        n64js.refreshDebugger();
+      });
+    });
 
     // Keep a small queue showing recent memory accesses
     if (is_single_step) {
@@ -488,33 +516,6 @@
       }
     }
 
-    $dis.find('.dis-address-target').each(function () {
-      var address = parseInt($(this).text(), 16);
-      setLabelColor($(this), address);
-    });
-
-    // Links for braches, jumps etc should jump to the target address.
-    $dis.find('.dis-address-jump').each(function () {
-      var address = parseInt($(this).text(), 16);
-
-      setLabelText($(this), address);
-      setLabelColor($(this), address);
-
-      $(this).click(function () {
-        disasmAddress = address;
-        n64js.refreshDebugger();
-      });
-    });
-
-    $dis.find('.dis-fragment-link').each(function () {
-      var frag = $(this).data('fragment');
-      $(this).click(function (){
-        n64js.log('<pre>' + frag.func.toString() + '</pre>');
-      });
-    });
-
-    $disassembly.html('');
-
     if (recentMemoryAccesses.length > 0) {
       var $recent = $('<pre />');
       var fading_cols = ['#bbb', '#999', '#666', '#333'];
@@ -523,10 +524,11 @@
         element.css('color', fading_cols[i]);
         $recent.append(element);
       }
-      $disassembly.append($recent);
+      $disassembly.find('.dis-recent-memory').html($recent);
     }
 
-    $disassembly.append($dis);
+    $disassembly.find('.dis-gutter').html($dis_gutter);
+    $disassembly.find('.dis-view').html($dis);
 
     for (i in regColours) {
       $dis.find('.dis-reg-' + i).css('background-color', regColours[i]);
