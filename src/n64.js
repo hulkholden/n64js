@@ -20,6 +20,9 @@
   var kBootstrapOffset = 0x40;
   var kGameOffset      = 0x1000;
 
+  var kOpBreakpoint = 58;
+
+  var breakpoints = {};     // address -> original op
 
   var SP_MEM_ADDR_REG     = 0x00;
   var SP_DRAM_ADDR_REG    = 0x04;
@@ -2168,6 +2171,36 @@
     }
   };
 
+  n64js.getInstruction = function (address) {
+    var instruction = n64js.readMemoryInternal32(address);
+    if (((instruction>>26)&0x3f) === kOpBreakpoint) {
+      instruction = breakpoints[address] || 0;
+    }
+
+    return instruction;
+  };
+
+  n64js.isBreakpoint = function (address) {
+    var orig_op = n64js.readMemoryInternal32(address);
+    return ((orig_op>>26)&0x3f) === kOpBreakpoint;
+  };
+
+  n64js.toggleBreakpoint = function (address) {
+    var orig_op = n64js.readMemoryInternal32(address);
+    var new_op;
+
+    if (((orig_op>>26)&0x3f) === kOpBreakpoint) {
+      // breakpoint is already set
+      new_op = breakpoints[address] || 0;
+      delete breakpoints[address];
+    } else {
+      new_op = (kOpBreakpoint<<26);
+      breakpoints[address] = orig_op;
+    }
+
+    n64js.writeMemoryInternal32(address, new_op);
+  };
+
   // 'emulated' read. May cause exceptions to be thrown in the emulated process
   n64js.readMemoryU32 = function (address) { return getMemoryHandler(address).readU32(address); };
   n64js.readMemoryU16 = function (address) { return getMemoryHandler(address).readU16(address); };
@@ -2321,6 +2354,8 @@
   n64js.reset = function () {
     var country  = rominfo.country;
     var cic_chip = rominfo.cic;
+
+    breakpoints = {};
 
     initSync();
 

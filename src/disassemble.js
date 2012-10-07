@@ -513,7 +513,7 @@
   };
 
   n64js.disassembleAddress = function (address) {
-    var instruction = n64js.readMemoryInternal32(address);
+    var instruction = n64js.getInstruction(address);
     return n64js.disassembleOp(address, instruction);
   };
 

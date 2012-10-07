@@ -9,8 +9,6 @@
   var fragmentMap = {};
   var fragmentInvalidationEvents = [];
 
-  var breakpoints = {};     // address -> original op
-
   var kHotFragmentThreshold = 500;
 
   var accurateCountUpdating = false;
@@ -191,8 +189,6 @@
   var kEventVbl          = 0;
   var kEventCompare      = 1;
   var kEventRunForCycles = 2;
-
-  var kOpBreakpoint = 58;
 
   n64js.getHi32 = function (v) {
     // >>32 just seems to no-op? Argh.
@@ -381,8 +377,6 @@
 
   CPU0.prototype.reset = function () {
     var i;
-
-    breakpoints = {};
 
     hitCounts = {};
     fragmentMap = {};
@@ -3975,27 +3969,6 @@
       }
     }
   }
-
-  n64js.isBreakpoint = function (address) {
-    var orig_op = n64js.readMemoryInternal32(address);
-    return ((orig_op>>26)&0x3f) === kOpBreakpoint;
-  };
-
-  n64js.toggleBreakpoint = function (address) {
-    var orig_op = n64js.readMemoryInternal32(address);
-    var new_op;
-
-    if (((orig_op>>26)&0x3f) === kOpBreakpoint) {
-      // breakpoint is already set
-      new_op = breakpoints[address] || 0;
-      delete breakpoints[address];
-    } else {
-      new_op = (kOpBreakpoint<<26);
-      breakpoints[address] = orig_op;
-    }
-
-    n64js.writeMemoryInternal32(address, new_op);
-  };
 
   n64js.getFragmentMap = function () {
     return fragmentMap;
