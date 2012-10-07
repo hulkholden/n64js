@@ -375,7 +375,7 @@
 
   function onFragmentClicked(e) {
       var $elem = $(e.delegateTarget);
-      var frag = $elem.data('fragment')>>>0;
+      var frag = $elem.data('fragment');
       n64js.log('<pre>' + frag.func.toString() + '</pre>');
   }
 
