@@ -493,7 +493,7 @@
     function (i) { return 'LD        ' + i.rt_d() + ' <- ' + i.memload(); },
     function (i) { return 'SC        ' + i.rt()   + ' -> ' + i.memstore(); },
     function (i) { return 'SWC1      ' + i.ft()   + ' -> ' + i.memstore(); },
-    function (i) { return 'Unk'; },
+    function (i) { return 'BREAKPOINT'; },
     function (i) { return 'Unk'; },
     function (i) { return 'SCD       ' + i.rt()   + ' -> ' + i.memstore(); },
     function (i) { return 'SDC1      ' + i.ft()   + ' -> ' + i.memstore(); },

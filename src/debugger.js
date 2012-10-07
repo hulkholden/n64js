@@ -379,16 +379,10 @@
       n64js.log('<pre>' + frag.func.toString() + '</pre>');
   }
 
-  var breakpoints = {};
-
   function onClickBreakpoint(e) {
     var $elem = $(e.delegateTarget);
     var address = $elem.data('address')>>>0;
-    if (breakpoints.hasOwnProperty(address)) {
-      delete breakpoints[address];
-    } else {
-      breakpoints[address] = address;
-    }
+    n64js.toggleBreakpoint(address);
     updateDebug();
   }
 
@@ -456,7 +450,7 @@
       $dis.append('<br>');
 
       var bp_text = '&nbsp;';
-      if (breakpoints.hasOwnProperty(address)) {
+      if (n64js.isBreakpoint(address)) {
         bp_text = '&bull;';
       }
       var $bp = $('<span>' + bp_text + '</span>').data('address', address).click(onClickBreakpoint);

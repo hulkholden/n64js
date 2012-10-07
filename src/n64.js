@@ -439,10 +439,18 @@
       var ea = this.calcEA(address);
 
       // We need to make sure this doesn't throw, so do a bounds check
-      if (ea+4 > this.mem.u8.length) {
-        return 0xdddddddd;
+      if (ea+4 <= this.u8.length) {
+        return this.mem.readU32(ea);
       }
-      return this.mem.readU32(ea);
+      return 0xdddddddd;
+    },
+    writeInternal32 : function (address, value) {
+      var ea = this.calcEA(address);
+
+      // We need to make sure this doesn't throw, so do a bounds check
+      if (ea+4 <= this.u8.length) {
+        this.mem.write32(ea, value);
+      }
     },
 
     logRead : function (address) {
@@ -852,11 +860,19 @@
   mapped_mem_handler.readInternal32 = function (address) {
     var mapped = n64js.cpu0.translateReadInternal(address) & 0x007fffff;
     if (mapped !== 0) {
-      if (mapped+3 < ram.u8.length) {
+      if (mapped+4 <= ram.u8.length) {
         return ram.readU32(mapped);
       }
     }
     return 0x00000000;
+  };
+  mapped_mem_handler.writeInternal32 = function (address, value) {
+    var mapped = n64js.cpu0.translateReadInternal(address) & 0x007fffff;
+    if (mapped !== 0) {
+      if (mapped+4 <= ram.u8.length) {
+        ram.write32(mapped);
+      }
+    }
   };
 
   mapped_mem_handler.readU32 = function (address) {
@@ -2128,23 +2144,28 @@
   function getMemoryHandler(address) {
     //assert(address>=0, "Address is negative");
     var handler = memMap[address >>> 18];
-    if (!handler) {
-      n64js.log('read from unhandled location ' + toString32(address));
-      throw 'unmapped read ' + toString32(address) + ' - need to set exception';
+    if (handler) {
+      return handler;
     }
 
-    return handler;
+    n64js.log('read from unhandled location ' + toString32(address));
+    throw 'unmapped read ' + toString32(address) + ' - need to set exception';
   }
 
-  // Read memory internal is used for stuff like the debugger. It shouldn't ever throw or change the state of the emulated program.
+  // Read/Write memory internal is used for stuff like the debugger. It shouldn't ever throw or change the state of the emulated program.
   n64js.readMemoryInternal32 = function (address) {
-    //assert(address>=0, "Address is negative");
     var handler = memMap[address >>> 18];
-    if (!handler) {
-      //n64js.log('internal read from unhandled location ' + toString32(address));
-      return 0xdddddddd;
+    if (handler) {
+      return handler.readInternal32(address);
     }
-    return handler ? handler.readInternal32(address) : 0xdddddddd;
+    return 0xdddddddd;
+  };
+
+  n64js.writeMemoryInternal32 = function (address, value) {
+    var handler = memMap[address >>> 18];
+    if (handler) {
+      handler.writeInternal32(address, value);
+    }
   };
 
   // 'emulated' read. May cause exceptions to be thrown in the emulated process
