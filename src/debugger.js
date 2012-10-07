@@ -379,6 +379,19 @@
       n64js.log('<pre>' + frag.func.toString() + '</pre>');
   }
 
+  var breakpoints = {};
+
+  function onClickBreakpoint(e) {
+    var $elem = $(e.delegateTarget);
+    var address = $elem.data('address')>>>0;
+    if (breakpoints.hasOwnProperty(address)) {
+      delete breakpoints[address];
+    } else {
+      breakpoints[address] = address;
+    }
+    updateDebug();
+  }
+
   function updateDebug() {
     var i, element;
     var cpu0 = n64js.cpu0;
@@ -442,6 +455,13 @@
       $dis.append($line);
       $dis.append('<br>');
 
+      var bp_text = '&nbsp;';
+      if (breakpoints.hasOwnProperty(address)) {
+        bp_text = '&bull;';
+      }
+      var $bp = $('<span>' + bp_text + '</span>').data('address', address).click(onClickBreakpoint);
+
+      $dis_gutter.append($bp);
       $dis_gutter.append('<br>');
     }
 

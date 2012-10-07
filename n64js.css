@@ -8,7 +8,7 @@ body { padding-top: 20px; }
 .dis-gutter { width: 30px; float:left; }
 .dis-view { width: 700px; }
 
-.dis-gutter pre { background-color: #ccc; border: 0px; border-radius: 0px; }
+.dis-gutter pre { background-color: #ccc; border: 0px; border-radius: 0px; color: red; font-size: 18px; }
 .dis-view pre { background-color: whiteSmoke; border: 0px; border-radius: 0px; }
 
 pre .dis-address-jump { font-weight: bold; }
