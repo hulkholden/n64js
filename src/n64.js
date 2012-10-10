@@ -652,23 +652,25 @@
     rom_d1a2_handler_uncached.setMem(rom);
     rom_d1a3_handler_uncached.setMem(rom);
 
-    var hdr = {};
-    hdr.header       = rom.readU32(0);
-    hdr.clock        = rom.readU32(4);
-    hdr.bootAddress  = rom.readU32(8);
-    hdr.release      = rom.readU32(12);
-    hdr.crclo        = rom.readU32(16);   // or hi?
-    hdr.crchi        = rom.readU32(20);   // or lo?
-    hdr.unk0         = rom.readU32(24);
-    hdr.unk1         = rom.readU32(28);
-    hdr.name         = uint8ArrayReadString(rom.u8, 32, 20);
-    hdr.unk2         = rom.readU32(52);
-    hdr.unk3         = rom.readU16(56);
-    hdr.unk4         = rom.readU8 (58);
-    hdr.manufacturer = rom.readU8 (59);
-    hdr.cartId       = rom.readU16(60);
-    hdr.countryId    = rom.readU8 (62);  // char
-    hdr.unk5         = rom.readU8 (63);
+    var hdr = {
+      header:       rom.readU32(0),
+      clock:        rom.readU32(4),
+      bootAddress:  rom.readU32(8),
+      release:      rom.readU32(12),
+      crclo:        rom.readU32(16),   // or hi?
+      crchi:        rom.readU32(20),   // or lo?
+      unk0:         rom.readU32(24),
+      unk1:         rom.readU32(28),
+      name:         uint8ArrayReadString(rom.u8, 32, 20),
+      unk2:         rom.readU32(52),
+      unk3:         rom.readU16(56),
+      unk4:         rom.readU8 (58),
+      manufacturer: rom.readU8 (59),
+      cartId:       rom.readU16(60),
+      countryId:    rom.readU8 (62),  // char
+      unk5:         rom.readU8 (63)
+    };
+
 
     var $table = $('<table class="register-table"><tbody></tbody></table>');
     var $tb = $table.find('tbody');
@@ -1601,10 +1603,10 @@
     pi_ram[63] = 0;
   }
 
-  var controllers = [{present:true, mempack:true},
-                     {present:true, mempack:false},
-                     {present:true, mempack:false},
-                     {present:true, mempack:false}];
+  var controllers = [{buttons: 0, stick_x: 0, stick_y: 0, present:true, mempack:true},
+                     {buttons: 0, stick_x: 0, stick_y: 0, present:true, mempack:false},
+                     {buttons: 0, stick_x: 0, stick_y: 0, present:true, mempack:false},
+                     {buttons: 0, stick_x: 0, stick_y: 0, present:true, mempack:false}];
 
   var mempack_memory = [
     new Uint8Array(0x400 * 32),
