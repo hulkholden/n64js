@@ -2,7 +2,8 @@
 	"folders":
 	[
 		{
-			"path": "."
+			"path": ".",
+			"file_exclude_patterns": ["*.min.js", "*.min.js.map"]
 		}
 	],
     "settings":
@@ -14,7 +15,14 @@
     [
         {
             "name": "n64js",
-            "cmd": ["bash", "$project_path/tools/build.sh"]
+            "cmd": ["bash", "$project_path/tools/build.sh"],
+            "selector": "source.js"
+        },
+        {
+          "name": "typescript",
+          "cmd": ["tsc", "--comments", "--target", "ES5", "$file"],
+          "file_regex": "^(.+?)\\((\\d+),(\\d+)\\): (.+)$",
+          "selector": "source.ts"
         }
     ]
 }
