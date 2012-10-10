@@ -1049,6 +1049,14 @@
     throw 'Unknown op: ' + n64js.toString32(cpu0.pc) + ', ' + n64js.toString32(i);
   }
 
+  function BreakpointException() {
+  }
+
+  function executeBreakpoint(i) {
+    // NB: throw here so that we don't execute the op.
+    throw new BreakpointException();
+  }
+
   function generateShiftImmediate(ctx, op) {
     // Handle NOP for SLL
     if (ctx.instruction === 0)
@@ -3462,7 +3470,7 @@
     executeSDL,           executeSDR,           executeSWR,         executeCACHE,
     executeLL,            executeLWC1,          executeUnknown,     executeUnknown,
     executeLLD,           executeLDC1,          executeLDC2,        executeLD,
-    executeSC,            executeSWC1,          executeUnknown,     executeUnknown,
+    executeSC,            executeSWC1,          executeBreakpoint,  executeUnknown,
     executeSCD,           executeSDC1,          executeSDC2,        executeSD
   ];
   if (simpleTable.length != 64) {
@@ -3758,6 +3766,20 @@
     }
   }
 
+  n64js.singleStep = function () {
+    var restore_breakpoint_address = 0;
+    if (n64js.isBreakpoint(cpu0.pc)) {
+      restore_breakpoint_address = cpu0.pc;
+      n64js.toggleBreakpoint(restore_breakpoint_address);
+    }
+
+    n64js.run(1);
+
+    if (restore_breakpoint_address) {
+      n64js.toggleBreakpoint(restore_breakpoint_address);
+    }
+  };
+
   n64js.run = function (cycles) {
 
     cpu0.stuffToDo &= ~kStuffToDoHalt;
@@ -3781,6 +3803,8 @@
         if (e instanceof TLBException) {
           // If we hit a TLB exception we apply the nextPC (which should have been set to an exception vector) and continue looping.
           handleTLBException();
+        } if (e instanceof BreakpointException) {
+          n64js.stopForBreakpoint();
         } else {
           // Other exceptions are bad news, so display an error and bail out.
           n64js.halt('Exception :' + e);

@@ -753,7 +753,7 @@
 
   n64js.step = function () {
     if (!running) {
-      n64js.run(1);
+      n64js.singleStep();
       n64js.refreshDebugger();
     }
   };
@@ -2618,6 +2618,12 @@
 
   n64js.warn = function (m) {
     n64js.log(m);
+  };
+
+  n64js.stopForBreakpoint = function () {
+    running = false;
+    n64js.cpu0.breakExecution();
+    n64js.log('<span style="color:red">Breakpoint</span>');
   };
 
   n64js.halt = function (msg) {
