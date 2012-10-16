@@ -387,7 +387,7 @@
   }
 
   function updateDebug() {
-    var i, element;
+    var i;
     var cpu0 = n64js.cpu0;
 
     // If the pc has changed since the last update, recenter the display (e.g. when we take a branch)
@@ -472,41 +472,11 @@
       });
     });
 
-    // Keep a small queue showing recent memory accesses
-    if (is_single_step) {
-      // Check if we've just stepped over a previous write op, and update the result
-      if (lastStore) {
-        if (lastStore.cycle+1 === cpu0.opsExecuted) {
-          var updated_element = addRecentMemoryAccess(lastStore.address, 'update');
-          lastStore.element.append(updated_element);
-        }
-        lastStore = undefined;
-      }
+    updateRecentMemoryAccesses(is_single_step, cur_instr);
 
-      if (cur_instr.memory) {
-        var access   = cur_instr.memory;
-        var new_addr = n64js.cpu0.gprLo[access.reg] + access.offset;
-        element      = addRecentMemoryAccess(new_addr, access.mode);
+    $disassembly.find('.dis-gutter').html($dis_gutter);
+    $disassembly.find('.dis-view').html($dis);
 
-        if (access.mode === 'store') {
-          lastStore = {address:new_addr, cycle:cpu0.opsExecuted, element:element};
-        }
-
-        recentMemoryAccesses.push({element:element});
-
-        // Nuke anything that happened more than N cycles ago
-        //while (recentMemoryAccesses.length > 0 && recentMemoryAccesses[0].cycle+10 < cycle)
-        if (recentMemoryAccesses.length > 4) {
-          recentMemoryAccesses.splice(0,1);
-        }
-
-        lastMemoryAccessAddress = new_addr;
-      }
-    } else {
-      // Clear the recent memory accesses when running.
-      recentMemoryAccesses = [];
-      lastStore = undefined;
-    }
 
     var regColours = {};
 
@@ -529,20 +499,6 @@
         }
       }
     }
-
-    if (recentMemoryAccesses.length > 0) {
-      var $recent = $('<pre />');
-      var fading_cols = ['#bbb', '#999', '#666', '#333'];
-      for (i = 0; i < recentMemoryAccesses.length; ++i) {
-        element = recentMemoryAccesses[i].element;
-        element.css('color', fading_cols[i]);
-        $recent.append(element);
-      }
-      $disassembly.find('.dis-recent-memory').html($recent);
-    }
-
-    $disassembly.find('.dis-gutter').html($dis_gutter);
-    $disassembly.find('.dis-view').html($dis);
 
     for (i in regColours) {
       $dis.find('.dis-reg-' + i).css('background-color', regColours[i]);
@@ -578,6 +534,59 @@
     var $table1 = $('<table class="register-table"><tbody></tbody></table>');
     addCop1($table1.find('tbody'), regColours);
     $registers[1].html($table1);
+  }
+
+
+  function updateRecentMemoryAccesses(is_single_step, cur_instr) {
+    var cpu0 = n64js.cpu0,
+        element, updated_element, i;
+
+    // Keep a small queue showing recent memory accesses
+    if (is_single_step) {
+      // Check if we've just stepped over a previous write op, and update the result
+      if (lastStore) {
+        if (lastStore.cycle+1 === cpu0.opsExecuted) {
+          updated_element = addRecentMemoryAccess(lastStore.address, 'update');
+          lastStore.element.append(updated_element);
+        }
+        lastStore = undefined;
+      }
+
+      if (cur_instr.memory) {
+        var access   = cur_instr.memory;
+        var new_addr = n64js.cpu0.gprLo[access.reg] + access.offset;
+        element      = addRecentMemoryAccess(new_addr, access.mode);
+
+        if (access.mode === 'store') {
+          lastStore = {address:new_addr, cycle:cpu0.opsExecuted, element:element};
+        }
+
+        recentMemoryAccesses.push({element:element});
+
+        // Nuke anything that happened more than N cycles ago
+        //while (recentMemoryAccesses.length > 0 && recentMemoryAccesses[0].cycle+10 < cycle)
+        if (recentMemoryAccesses.length > 4) {
+          recentMemoryAccesses.splice(0,1);
+        }
+
+        lastMemoryAccessAddress = new_addr;
+      }
+    } else {
+      // Clear the recent memory accesses when running.
+      recentMemoryAccesses = [];
+      lastStore = undefined;
+    }
+
+    if (recentMemoryAccesses.length > 0) {
+      var $recent = $('<pre />');
+      var fading_cols = ['#bbb', '#999', '#666', '#333'];
+      for (i = 0; i < recentMemoryAccesses.length; ++i) {
+        element = recentMemoryAccesses[i].element;
+        element.css('color', fading_cols[i]);
+        $recent.append(element);
+      }
+      $disassembly.find('.dis-recent-memory').html($recent);
+    }
   }
 
   function initFragmentRow($tr, fragment, $code) {
