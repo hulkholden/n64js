@@ -407,7 +407,7 @@
     var disassembly = n64js.disassemble(disasmAddress - 64, disasmAddress + 64);
 
     var $dis_gutter = $('<pre/>');
-    var $dis = $('<pre/>');
+    var $dis_text   = $('<pre/>');
 
     for (i = 0; i < disassembly.length; ++i) {
       var a           = disassembly[i];
@@ -446,8 +446,8 @@
         setLabelColor($line.find('.dis-address-target'), address);
       }
 
-      $dis.append($line);
-      $dis.append('<br>');
+      $dis_text.append($line);
+      $dis_text.append('<br>');
 
       var bp_text = '&nbsp;';
       if (n64js.isBreakpoint(address)) {
@@ -460,7 +460,7 @@
     }
 
     // Links for braches, jumps etc should jump to the target address.
-    $dis.find('.dis-address-jump').each(function () {
+    $dis_text.find('.dis-address-jump').each(function () {
       var address = parseInt($(this).text(), 16);
 
       setLabelText($(this), address);
@@ -472,10 +472,6 @@
       });
     });
 
-    updateRecentMemoryAccesses(is_single_step, cur_instr);
-
-    $disassembly.find('.dis-gutter').html($dis_gutter);
-    $disassembly.find('.dis-view').html($dis);
 
 
     var regColours = {};
@@ -501,8 +497,13 @@
     }
 
     for (i in regColours) {
-      $dis.find('.dis-reg-' + i).css('background-color', regColours[i]);
+      $dis_text.find('.dis-reg-' + i).css('background-color', regColours[i]);
     }
+
+    $disassembly.find('.dis-recent-memory').html(makeRecentMemoryAccesses(is_single_step, cur_instr));
+
+    $disassembly.find('.dis-gutter').html($dis_gutter);
+    $disassembly.find('.dis-view').html($dis_text);
 
     $status.html(makeStatusTable());
 
@@ -537,7 +538,7 @@
   }
 
 
-  function updateRecentMemoryAccesses(is_single_step, cur_instr) {
+  function makeRecentMemoryAccesses(is_single_step, cur_instr) {
     var cpu0 = n64js.cpu0,
         element, updated_element, i;
 
@@ -577,16 +578,18 @@
       lastStore = undefined;
     }
 
+    var $recent = $('<pre />');
+
     if (recentMemoryAccesses.length > 0) {
-      var $recent = $('<pre />');
       var fading_cols = ['#bbb', '#999', '#666', '#333'];
       for (i = 0; i < recentMemoryAccesses.length; ++i) {
         element = recentMemoryAccesses[i].element;
         element.css('color', fading_cols[i]);
         $recent.append(element);
       }
-      $disassembly.find('.dis-recent-memory').html($recent);
     }
+
+    return $recent;
   }
 
   function initFragmentRow($tr, fragment, $code) {
