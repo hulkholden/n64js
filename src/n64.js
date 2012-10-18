@@ -275,6 +275,8 @@
   var gRumblePakActive = false;
   var gEnableRumble = false;
 
+  var resetCallbacks = [];
+
   var rominfo = {
     id:             '',
     name:           '',
@@ -2270,16 +2272,29 @@
     }
   };
 
-  function initEeprom(size, name) {
-    var data = new Memory(new ArrayBuffer(4*1024));    // Or 16KB
-    var saved_data = localStorage.getItem('eeprom-' + rominfo.id);
-    if (saved_data) {
-      var d = JSON.parse(saved_data);
-      if (d.data) {
-        Base64.decodeArray(d.data, data.u8);
-      }
-    }
+  function getLocalStorageName(item) {
+    return item + '-' + rominfo.id;
+  }
+
+  n64js.getLocalStorageItem = function(name) {
+    var ls_name  = getLocalStorageName(name);
+    var data_str = localStorage.getItem(ls_name);
+    var data     = data_str ? JSON.parse(data_str) : undefined;
     return data;
+  };
+
+  n64js.setLocalStorageItem = function(name, data) {
+    var ls_name = getLocalStorageName(name);
+    var data_str = JSON.stringify(data);
+    localStorage.setItem(ls_name, data_str);
+  };
+
+  function initEeprom(size, eeprom_data) {
+    var memory = new Memory(new ArrayBuffer(4*1024));    // Or 16KB
+    if (eeprom_data && eeprom_data.data) {
+      Base64.decodeArray(eeprom_data.data, memory.u8);
+    }
+    return memory;
   }
 
   function initSaveGame(save_type) {
@@ -2289,10 +2304,10 @@
     if (save_type) {
       switch (save_type) {
         case 'Eeprom4k':
-          eeprom = initEeprom(4*1024, 'eeprom-' + rominfo.id);
+          eeprom = initEeprom(4*1024, n64js.getLocalStorageItem('eeprom'));
           break;
         case 'Eeprom16k':
-          eeprom = initEeprom(16*1024, 'eeprom-' + rominfo.id);
+          eeprom = initEeprom(16*1024, n64js.getLocalStorageItem('eeprom'));
           break;
 
         default:
@@ -2313,8 +2328,7 @@
         data: encoded
       };
 
-      var t = JSON.stringify(d);
-      localStorage.setItem('eeprom-' + rominfo.id, t);
+      n64js.setLocalStorageItem('eeprom', d);
       eepromDirty = false;
     }
   }
@@ -2351,7 +2365,9 @@
     lastPresentTime = cur_time;
   };
 
-
+  n64js.addResetCallback = function (fn) {
+    resetCallbacks.push(fn);
+  };
 
   n64js.reset = function () {
     var country  = rominfo.country;
@@ -2555,6 +2571,10 @@
 
     startTime = new Date();
     lastPresentTime = undefined;
+
+    for (i = 0; i < resetCallbacks.length; ++i) {
+      resetCallbacks[i]();
+    }
   };
 
 

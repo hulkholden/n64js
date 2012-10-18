@@ -17,14 +17,7 @@
   var lastMemoryAccessAddress;
   var lastStore;                  // When we execute a store instruction, keep track of some details so we can show the value that was written
 
-  var labelMap = {
-    0x80328730: 'setFP',
-    0x8032b030: 'siIsBusy',
-    0x80328740: 'siReadPIFControl',
-    0x80328790: 'siWritePIFControl',
-    0x80324258: 'mult64',
-    0x80324158: 'div64'
-  };
+  var labelMap = {};
 
   var debugCycles = Math.pow(10,0);
   n64js.getDebugCycles = function () {
@@ -59,6 +52,20 @@
     });
   }
 
+  function onReset() {
+    restoreLabelMap();
+  }
+
+  function restoreLabelMap() {
+    labelMap = n64js.getLocalStorageItem('debugLabels') || {};
+    refreshLabelSelect();
+    updateDebug();
+  }
+
+  function storeLabelMap() {
+    n64js.setLocalStorageItem('debugLabels', labelMap);
+  }
+
   n64js.initialiseDebugger = function () {
     $debugContent   = $('#debug-content');
     $status         = $('#status');
@@ -67,6 +74,8 @@
     $output         = $('.output');
     $dynarecContent = $('#dynarec-content');
     $memoryContent  = $('#memory-content');
+
+    n64js.addResetCallback(onReset);
 
     $('#output').find('#clear').click(function () {
       n64js.clearLog();
@@ -393,6 +402,7 @@
           } else {
             delete labelMap[address];
           }
+          storeLabelMap();
           refreshLabelSelect();
           updateDebug();
         }
