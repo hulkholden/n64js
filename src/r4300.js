@@ -3803,7 +3803,7 @@
         if (e instanceof TLBException) {
           // If we hit a TLB exception we apply the nextPC (which should have been set to an exception vector) and continue looping.
           handleTLBException();
-        } if (e instanceof BreakpointException) {
+        } else if (e instanceof BreakpointException) {
           n64js.stopForBreakpoint();
         } else {
           // Other exceptions are bad news, so display an error and bail out.
