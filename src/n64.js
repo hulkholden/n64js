@@ -2290,7 +2290,7 @@
   };
 
   function initEeprom(size, eeprom_data) {
-    var memory = new Memory(new ArrayBuffer(4*1024));    // Or 16KB
+    var memory = new Memory(new ArrayBuffer(size));
     if (eeprom_data && eeprom_data.data) {
       Base64.decodeArray(eeprom_data.data, memory.u8);
     }
