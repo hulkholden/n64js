@@ -202,13 +202,42 @@
     return '#' + n64js.toHex(r,8) + n64js.toHex(g,8) + n64js.toHex(b,8);
   }
 
-  function addCop1($tb, regColours) {
 
-    var cpu1 = n64js.cpu1;
+  function makeCop0RegistersTable(reg_colors) {
+    var cpu0 = n64js.cpu0,
+        $table = $('<table class="register-table"><tbody></tbody></table>'),
+        $body = $table.find('tbody'),
+        i, r, $tr, $td, name;
 
-    var i, $tr, $td;
+    var kRegistersPerRow = 2;
+
+    for (i = 0; i < 32; i+=kRegistersPerRow) {
+      $tr = $('<tr />');
+      for (r = 0; r < kRegistersPerRow; ++r) {
+
+        name = n64js.cop0gprNames[i+r];
+        $td = $('<td>' + name + '</td><td class="fixed">' + n64js.toString64(cpu0.gprHi[i+r], cpu0.gprLo[i+r]) + '</td>');
+
+        if (reg_colors.hasOwnProperty(name)) {
+          $td.attr('bgcolor', reg_colors[name]);
+        }
+
+        $tr.append($td);
+      }
+      $body.append($tr);
+    }
+
+    return $table;
+  }
+
+  function makeCop1RegistersTable(reg_colors) {
+    var $table = $('<table class="register-table"><tbody></tbody></table>'),
+        $body = $table.find('tbody'),
+        cpu1 = n64js.cpu1,
+        i, $tr, $td, name;
+
     for (i = 0; i < 32; ++i) {
-      var name = n64js.cop1RegisterNames[i];
+      name = n64js.cop1RegisterNames[i];
 
       if ((i&1) === 0) {
         $td = $('<td>' + name +
@@ -227,18 +256,20 @@
       $tr = $('<tr />');
       $tr.append($td);
 
-      if (regColours.hasOwnProperty(name)) {
-        $tr.attr('bgcolor', regColours[name]);
-      } else if (regColours.hasOwnProperty(name + '-w')) {
-        $tr.find('.fp-w').attr('bgcolor', regColours[name + '-w']);
-      } else if (regColours.hasOwnProperty(name + '-s')) {
-        $tr.find('.fp-s').attr('bgcolor', regColours[name + '-s']);
-      } else if (regColours.hasOwnProperty(name + '-d')) {
-        $tr.find('.fp-d').attr('bgcolor', regColours[name + '-d']);
+      if (reg_colors.hasOwnProperty(name)) {
+        $tr.attr('bgcolor', reg_colors[name]);
+      } else if (reg_colors.hasOwnProperty(name + '-w')) {
+        $tr.find('.fp-w').attr('bgcolor', reg_colors[name + '-w']);
+      } else if (reg_colors.hasOwnProperty(name + '-s')) {
+        $tr.find('.fp-s').attr('bgcolor', reg_colors[name + '-s']);
+      } else if (reg_colors.hasOwnProperty(name + '-d')) {
+        $tr.find('.fp-d').attr('bgcolor', reg_colors[name + '-d']);
       }
 
-      $tb.append($tr);
+      $body.append($tr);
     }
+
+    return $table;
   }
 
   function addSR($tb) {
@@ -387,8 +418,12 @@
   }
 
   function updateDebug() {
-    var i;
-    var cpu0 = n64js.cpu0;
+    var cpu0, fragmentMap, disassembly,
+        cpu_count, is_single_step, bp_text,
+        cur_instr, a, i, address, is_target, address_str, label, t, fragment,
+        $dis_gutter, $dis_text, $bp, $line;
+
+    cpu0 = n64js.cpu0;
 
     // If the pc has changed since the last update, recenter the display (e.g. when we take a branch)
     if (cpu0.pc !== lastPC) {
@@ -396,33 +431,30 @@
       lastPC = cpu0.pc;
     }
 
-    var cpu_count = cpu0.getCount();
-    var is_single_step = lastCycles === (cpu_count-1);
-    lastCycles = cpu_count;
+    // Figure out if we've just stepped by a single instruction. Ergh.
+    cpu_count      = cpu0.getCount();
+    is_single_step = lastCycles === (cpu_count-1);
+    lastCycles     = cpu_count;
 
-    var cur_instr;
+    fragmentMap = n64js.getFragmentMap();
+    disassembly = n64js.disassemble(disasmAddress - 64, disasmAddress + 64);
 
-    var fragmentMap = n64js.getFragmentMap();
-
-    var disassembly = n64js.disassemble(disasmAddress - 64, disasmAddress + 64);
-
-    var $dis_gutter = $('<pre/>');
-    var $dis_text   = $('<pre/>');
-
+    $dis_gutter = $('<pre/>');
+    $dis_text   = $('<pre/>');
     for (i = 0; i < disassembly.length; ++i) {
-      var a           = disassembly[i];
-      var address     = a.instruction.address;
-      var is_target   = a.isJumpTarget || labelMap.hasOwnProperty(address);
-      var address_str = (is_target ? '<span class="dis-address-target">' : '<span class="dis-address">') + n64js.toHex(address, 32) + ':</span>';
-      var label       = '<span class="dis-label">' + makeLabelText(address) + '</span>';
-      var t           = address_str + '  ' + n64js.toHex(a.instruction.opcode, 32) + '  ' + label + a.disassembly;
+      a           = disassembly[i];
+      address     = a.instruction.address;
+      is_target   = a.isJumpTarget || labelMap.hasOwnProperty(address);
+      address_str = (is_target ? '<span class="dis-address-target">' : '<span class="dis-address">') + n64js.toHex(address, 32) + ':</span>';
+      label       = '<span class="dis-label">' + makeLabelText(address) + '</span>';
+      t           = address_str + '  ' + n64js.toHex(a.instruction.opcode, 32) + '  ' + label + a.disassembly;
 
-      var fragment = fragmentMap[address];
+      fragment = fragmentMap[address];
       if (fragment) {
         t += '<span class="dis-fragment-link"> frag - ops=' + fragment.opsCompiled + ' hit=' + fragment.executionCount + '</span>';
       }
 
-      var $line = $('<span class="dis-line">' + t + '</span>');
+      $line = $('<span class="dis-line">' + t + '</span>');
 
       $line.find('.dis-label').
         data('address', address).
@@ -449,11 +481,11 @@
       $dis_text.append($line);
       $dis_text.append('<br>');
 
-      var bp_text = '&nbsp;';
+      bp_text = '&nbsp;';
       if (n64js.isBreakpoint(address)) {
         bp_text = '&bull;';
       }
-      var $bp = $('<span>' + bp_text + '</span>').data('address', address).click(onClickBreakpoint);
+      $bp = $('<span>' + bp_text + '</span>').data('address', address).click(onClickBreakpoint);
 
       $dis_gutter.append($bp);
       $dis_gutter.append('<br>');
@@ -472,32 +504,10 @@
       });
     });
 
+    var reg_colors = makeRegisterColours(cur_instr);
 
-
-    var regColours = {};
-
-    var availColours = [
-      '#F4EEAF', // yellow
-      '#AFF4BB', // green
-      '#F4AFBE'  // blue
-    ];
-
-    if (cur_instr) {
-      var nextColIdx = 0;
-      for (i in cur_instr.srcRegs) {
-        if (!regColours.hasOwnProperty(i)) {
-          regColours[i] = availColours[nextColIdx++];
-        }
-      }
-      for (i in cur_instr.dstRegs) {
-        if (!regColours.hasOwnProperty(i)) {
-          regColours[i] = availColours[nextColIdx++];
-        }
-      }
-    }
-
-    for (i in regColours) {
-      $dis_text.find('.dis-reg-' + i).css('background-color', regColours[i]);
+    for (i in reg_colors) {
+      $dis_text.find('.dis-reg-' + i).css('background-color', reg_colors[i]);
     }
 
     $disassembly.find('.dis-recent-memory').html(makeRecentMemoryAccesses(is_single_step, cur_instr));
@@ -507,36 +517,36 @@
 
     $status.html(makeStatusTable());
 
-
-    var $table0 = $('<table class="register-table"><tbody></tbody></table>');
-    var $body0 = $table0.find('tbody');
-
-    var kRegistersPerRow = 2;
-    for (i = 0; i < 32; i+=kRegistersPerRow) {
-      var $tr = $('<tr />');
-      var r;
-      for (r = 0; r < kRegistersPerRow; ++r) {
-
-        var name = n64js.cop0gprNames[i+r];
-        var $td = $('<td>' + name + '</td><td class="fixed">' + n64js.toString64(cpu0.gprHi[i+r], cpu0.gprLo[i+r]) + '</td>');
-
-        if (regColours.hasOwnProperty(name)) {
-          $td.attr('bgcolor', regColours[name]);
-        }
-
-        $tr.append($td);
-      }
-      $body0.append($tr);
-    }
-
-    $registers[0].html($table0);
-
-
-    var $table1 = $('<table class="register-table"><tbody></tbody></table>');
-    addCop1($table1.find('tbody'), regColours);
-    $registers[1].html($table1);
+    $registers[0].html(makeCop0RegistersTable(reg_colors));
+    $registers[1].html(makeCop1RegistersTable(reg_colors));
   }
 
+  function makeRegisterColours(cur_instr) {
+    var availColours = [
+      '#F4EEAF', // yellow
+      '#AFF4BB', // green
+      '#F4AFBE'  // blue
+    ];
+
+    var reg_colors = {},
+        i, nextColIdx;
+
+    if (cur_instr) {
+      nextColIdx = 0;
+      for (i in cur_instr.srcRegs) {
+        if (!reg_colors.hasOwnProperty(i)) {
+          reg_colors[i] = availColours[nextColIdx++];
+        }
+      }
+      for (i in cur_instr.dstRegs) {
+        if (!reg_colors.hasOwnProperty(i)) {
+          reg_colors[i] = availColours[nextColIdx++];
+        }
+      }
+    }
+
+    return reg_colors;
+  }
 
   function makeRecentMemoryAccesses(is_single_step, cur_instr) {
     var cpu0 = n64js.cpu0,
