@@ -78,14 +78,14 @@
     });
 
     $('#cpu').find('#address').change(function () {
-      disasmAddress = parseInt($(this).val());
+      disasmAddress = parseInt($(this).val(), 16);
       updateDebug();
     });
     refreshLabelSelect();
 
     var addr = 0x80000000;
     $memoryContent.find('input').change(function () {
-      lastMemoryAccessAddress = parseInt($(this).val());
+      lastMemoryAccessAddress = parseInt($(this).val(), 16);
       updateMemoryView();
     });
     updateMemoryView();
