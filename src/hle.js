@@ -1828,16 +1828,16 @@
     // Tlut fmt is sometimes wrong (in 007) and is set after tlut load, but before tile load
     // Format is always 16bpp - RGBA16 or IA16:
     //var address    = calcTextureAddress(uls >>> 2, ult >>> 2, state.textureImage.address, state.textureImage.width, state.textureImage.size);
-    var ram_address  = calcTextureAddress(uls >>> 2, ult >>> 2, state.textureImage.address, state.textureImage.width, imageSizeTypes.G_IM_SIZ_16b);
-    var pitch        = (state.textureImage.width << imageSizeTypes.G_IM_SIZ_16b) >>> 1;
+    var ram_offset  = calcTextureAddress(uls >>> 2, ult >>> 2, state.textureImage.address, state.textureImage.width, imageSizeTypes.G_IM_SIZ_16b);
+    var pitch       = (state.textureImage.width << imageSizeTypes.G_IM_SIZ_16b) >>> 1;
 
-    var tile         = state.tiles[tile_idx];
-    var texels       = ((lrs - uls)>>>2)+1;
-    var bytes        = texels*2;
+    var tile        = state.tiles[tile_idx];
+    var texels      = ((lrs - uls)>>>2)+1;
+    var bytes       = texels*2;
 
-    var tmem_offset  = tile.tmem << 3;
+    var tmem_offset = tile.tmem << 3;
 
-    copyLine(state.tmemData, tmem_offset, state.ram_u8, ram_address, bytes);
+    copyLine(state.tmemData, tmem_offset, state.ram_u8, ram_offset, bytes);
 
     invalidateTileHashes();
   }
