@@ -4861,11 +4861,10 @@
       var dst_offset = dst_row_offset;
       for (var x = 0; x < width; ++x) {
 
-        var o         = src_offset^row_swizzle;
-        var src_pixel = (src[o]<<8) | src[o+1];
+        var o = src_offset^row_swizzle;
 
-        var i = (src_pixel>>>8)&0xff;
-        var a = (src_pixel    )&0xff;
+        var i = src[o];
+        var a = src[o+1];
 
         dst[dst_offset+0] = i;
         dst[dst_offset+1] = i;
