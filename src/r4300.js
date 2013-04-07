@@ -3935,8 +3935,10 @@
         } else {
 
           // if (sync) {
-          //  if (!checkSyncState(sync, cpu0.pc))
-          //    break;
+          //   if (!checkSyncState(sync, cpu0.pc)) {
+          //     n64js.halt('sync error');
+          //     break;
+          //   }
           // }
 
           var pc = c.pc;   // take a copy of this, so we can refer to it later
