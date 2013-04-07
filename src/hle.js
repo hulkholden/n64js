@@ -2116,36 +2116,65 @@
   }
 
 
-
-  var colcombine32 = [
+  var kMulInputRGB = [
     'Combined    ', 'Texel0      ',
     'Texel1      ', 'Primitive   ',
     'Shade       ', 'Env         ',
-    '1           ', 'CombAlp     ',
-    'Texel0_Alp  ', 'Texel1_Alp  ',
+    'KeyScale    ', 'CombinedAlph',
+    'Texel0_Alpha', 'Texel1_Alpha',
     'Prim_Alpha  ', 'Shade_Alpha ',
     'Env_Alpha   ', 'LOD_Frac    ',
     'PrimLODFrac ', 'K5          ',
-    '?           ', '?           ',
-    '?           ', '?           ',
-    '?           ', '?           ',
-    '?           ', '?           ',
-    '?           ', '?           ',
-    '?           ', '?           ',
-    '?           ', '?           ',
-    '?           ', '0           '
+    '0           ', '0           ',
+    '0           ', '0           ',
+    '0           ', '0           ',
+    '0           ', '0           ',
+    '0           ', '0           ',
+    '0           ', '0           ',
+    '0           ', '0           ',
+    '0           ', '0           '
   ];
-  var colcombine16 = [
+  var kSubAInputRGB = [
     'Combined    ', 'Texel0      ',
     'Texel1      ', 'Primitive   ',
     'Shade       ', 'Env         ',
-    '1           ', 'CombAlp     ',
-    'Texel0_Alp  ', 'Texel1_Alp  ',
-    'Prim_Alp    ', 'Shade_Alpha ',
-    'Env_Alpha   ', 'LOD_Frac    ',
-    'PrimLOD_Frac', '0           '
+    '1           ', 'Noise       ',
+    '0           ', '0           ',
+    '0           ', '0           ',
+    '0           ', '0           ',
+    '0           ', '0           '
   ];
-  var colcombine8 = [
+  var kSubBInputRGB = [
+    'Combined    ', 'Texel0      ',
+    'Texel1      ', 'Primitive   ',
+    'Shade       ', 'Env         ',
+    'KeyCenter   ', 'K4          ',
+    '0           ', '0           ',
+    '0           ', '0           ',
+    '0           ', '0           ',
+    '0           ', '0           '
+  ];
+  var kAddInputRGB = [
+    'Combined    ', 'Texel0      ',
+    'Texel1      ', 'Primitive   ',
+    'Shade       ', 'Env         ',
+    '1           ', '0           '
+  ];
+
+
+  var kSubInputA = [
+    'Combined    ', 'Texel0      ',
+    'Texel1      ', 'Primitive   ',
+    'Shade       ', 'Env         ',
+    'PrimLODFrac ', '0           '
+  ];
+  var kMulInputA = [
+    'Combined    ', 'Texel0      ',
+    'Texel1      ', 'Primitive   ',
+    'Shade       ', 'Env         ',
+    '1           ', '0           '
+  ];
+  var kAddInputA = [
     'Combined    ', 'Texel0      ',
     'Texel1      ', 'Primitive   ',
     'Shade       ', 'Env         ',
@@ -2176,10 +2205,10 @@
 
       var decoded = '';
 
-      decoded += 'RGB0 = (' + colcombine16[aRGB0] + ' - ' + colcombine16[bRGB0] + ') * ' + colcombine32[cRGB0] + ' + ' + colcombine8[dRGB0] + '\n';
-      decoded += '  A0 = (' + colcombine8 [  aA0] + ' - ' + colcombine8 [  bA0] + ') * ' + colcombine8 [  cA0] + ' + ' + colcombine8[  dA0] + '\n';
-      decoded += 'RGB1 = (' + colcombine16[aRGB1] + ' - ' + colcombine16[bRGB1] + ') * ' + colcombine32[cRGB1] + ' + ' + colcombine8[dRGB1] + '\n';
-      decoded += '  A1 = (' + colcombine8 [  aA1] + ' - ' + colcombine8 [  bA1] + ') * ' + colcombine8 [  cA1] + ' + ' + colcombine8[  dA1] + '\n';
+      decoded += 'RGB0 = (' + kSubAInputRGB[aRGB0] + ' - ' + kSubBInputRGB[bRGB0] + ') * ' + kMulInputRGB[cRGB0] + ' + ' + kAddInputRGB[dRGB0] + '\n';
+      decoded += '  A0 = (' + kSubInputA   [  aA0] + ' - ' + kSubInputA   [  bA0] + ') * ' + kMulInputA  [  cA0] + ' + ' + kAddInputA  [  dA0] + '\n';
+      decoded += 'RGB1 = (' + kSubAInputRGB[aRGB1] + ' - ' + kSubBInputRGB[bRGB1] + ') * ' + kMulInputRGB[cRGB1] + ' + ' + kAddInputRGB[dRGB1] + '\n';
+      decoded += '  A1 = (' + kSubInputA   [  aA1] + ' - ' + kSubInputA   [  bA1] + ') * ' + kMulInputA  [  cA1] + ' + ' + kAddInputA  [  dA1] + '\n';
 
       return decoded;
   }
