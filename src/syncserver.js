@@ -42,11 +42,11 @@ console.log('Server running at http://127.0.0.1:8124/');
 process.on( 'SIGINT', function() {
   console.log("Got ctrl-c - exiting");
   process.exit();
-})
+});
 
 function readSyncLog(offset, length, request, response) {
-  offset = parseInt(offset) || 0;
-  length = parseInt(length) || 1024;
+  offset = parseInt(offset, 10) || 0;
+  length = parseInt(length, 10) || 1024;
 
   var buffer = new Buffer(length);
 
@@ -56,8 +56,8 @@ function readSyncLog(offset, length, request, response) {
 }
 
 function writeSyncLog(offset, length, request, response) {
-  offset = parseInt(offset) || 0;
-  length = parseInt(length) || 1024;
+  offset = parseInt(offset, 10) || 0;
+  length = parseInt(length, 10) || 1024;
 
   var data = [], dataLen = 0;
 
@@ -97,6 +97,9 @@ function serveFile(request, response) {
       break;
     case '.png':
       contentType = 'image/png';
+      break;
+    case '.map':
+      contentType = 'text/plain';
       break;
   }
 
