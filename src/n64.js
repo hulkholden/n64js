@@ -707,7 +707,7 @@
 
   n64js.toggleRun = function () {
     running = !running;
-    $('#runbutton').html(running ? '<i class="icon-pause"></i> Pause' : '<i class="icon-play"></i> Run');
+    $('#runbutton').html(running ? '<i class="glyphicon glyphicon-pause"></i> Pause' : '<i class="glyphicon glyphicon-play"></i> Run');
     if (running) {
       updateLoopAnimframe();
     }
@@ -820,7 +820,7 @@
       }
 
       if (!running) {
-        $('#runbutton').html('<i class="icon-play"></i> Run');
+        $('#runbutton').html('<i class="glyphicon glyphicon-play"></i> Run');
       }
     } else if (n64js.debugDisplayListRunning()) {
       requestAnimationFrame(updateLoopAnimframe);

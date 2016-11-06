@@ -1,4 +1,4 @@
-body { padding-top: 20px; }
+.toolbar { margin-bottom: 15px; }
 .fixed { font-family: Menlo,Monaco,"Courier New",monospace; font-size: 12px; }
 .register-table th, .register-table td { text-align: right; padding: 2px 10px; }
 .disasm-table th, .disasm-table td { text-align: right; padding: 2px 10px; }
