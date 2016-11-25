@@ -1,0 +1,26 @@
+{
+  "name": "n64js",
+  "version": "1.0.0",
+  "description": "An JavaScript N64 emulator.",
+  "main": "n64.min.js",
+  "scripts": {
+    "test": "mocha"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hulkholden/n64js"
+  },
+  "keywords": [
+    "n64",
+    "emulator"
+  ],
+  "author": "Paul Holden",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/hulkholden/n64js/issues"
+  },
+  "homepage": "https://github.com/hulkholden/n64js",
+  "devDependencies": {
+    "mocha": "^3.2.0"
+  }
+}
