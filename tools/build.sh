@@ -9,7 +9,7 @@ fi
 
 PROJECT_DIR="$SCRIPT_DIR/.."
 
-java -jar "$PROJECT_DIR/../closure-compiler/compiler.jar" \
+java -jar "$PROJECT_DIR/node_modules/google-closure-compiler/compiler.jar" \
   --compilation_level SIMPLE_OPTIMIZATIONS \
 	--js "$PROJECT_DIR/src/n64.js" \
 	--js "$PROJECT_DIR/src/r4300.js" \

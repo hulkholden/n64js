@@ -22,5 +22,8 @@
   "homepage": "https://github.com/hulkholden/n64js",
   "devDependencies": {
     "mocha": "^3.2.0"
+  },
+  "dependencies": {
+    "google-closure-compiler": "^20161024.3.0"
   }
 }
