@@ -826,7 +826,7 @@ import * as format from './format.js';
     this.int32   = new Int32Array(this.mem);
     this.uint32  = new Uint32Array(this.mem);
 
-    this.reset = function () {
+    this.reset = () => {
 
       for (var i = 0; i < 32; ++i) {
         this.control[i] = 0;
@@ -836,31 +836,31 @@ import * as format from './format.js';
       this.control[0] = 0x00000511;
     };
 
-    this.setCondition = function (v) {
+    this.setCondition = (v) => {
       if (v)
         this.control[31] |=  FPCSR_C;
       else
         this.control[31] &= ~FPCSR_C;
     };
 
-    this.store_64 = function (i, lo, hi) {
+    this.store_64 = (i, lo, hi) => {
       this.int32[i+0] = lo;
       this.int32[i+1] = hi;
     };
 
-    this.load_f64 = function (i) {
+    this.load_f64 = (i) => {
       return this.float64[i>>1];
     };
-    this.load_s64_as_double = function (i) {
+    this.load_s64_as_double = (i) => {
         return (this.int32[i+1] * k1Shift32) + this.int32[i];
     };
 
-    this.store_float_as_long = function (i, v) {
+    this.store_float_as_long = (i, v) => {
       this.int32[i  ] = v & 0xffffffff;
       this.int32[i+1] = Math.floor( v / k1Shift32 );
     };
 
-    this.store_f64 = function (i, v) {
+    this.store_f64 = (i, v) => {
       this.float64[i>>1] = v;
     };
   }
@@ -957,7 +957,7 @@ import * as format from './format.js';
   function sb_slow(addr, value) { n64js.writeMemory8( addr>>>0, value); }
 
 
-  n64js.load_u8 = function (ram, addr) {
+  n64js.load_u8 = (ram, addr) => {
     if (addr < -2139095040) {
       var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
       return ram[phys];
@@ -965,7 +965,7 @@ import * as format from './format.js';
     return lbu_slow(addr);
   };
 
-  n64js.load_s8 = function (ram, addr) {
+  n64js.load_s8 = (ram, addr) => {
     if (addr < -2139095040) {
       var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
       return (ram[phys] << 24) >> 24;
@@ -973,7 +973,7 @@ import * as format from './format.js';
     return lb_slow(addr);
   };
 
-  n64js.load_u16 = function (ram, addr) {
+  n64js.load_u16 = (ram, addr) => {
     if (addr < -2139095040) {
       var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
       return (ram[phys] << 8) | ram[phys+1];
@@ -981,7 +981,7 @@ import * as format from './format.js';
     return lhu_slow(addr);
   };
 
-  n64js.load_s16 = function (ram, addr) {
+  n64js.load_s16 = (ram, addr) => {
     if (addr < -2139095040) {
       var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
       return ((ram[phys] << 24) | (ram[phys+1] << 16)) >> 16;
@@ -989,7 +989,7 @@ import * as format from './format.js';
     return lh_slow(addr);
   };
 
-  n64js.load_u32 = function (ram, addr) {
+  n64js.load_u32 = (ram, addr) => {
     if (addr < -2139095040) {
       var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
       return ((ram[phys] << 24) | (ram[phys+1] << 16) | (ram[phys+2] << 8) | ram[phys+3]) >>> 0;
@@ -997,7 +997,7 @@ import * as format from './format.js';
     return lwu_slow(addr);
   };
 
-  n64js.load_s32 = function (ram, addr) {
+  n64js.load_s32 = (ram, addr) => {
     if (addr < -2139095040) {
       var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
       return ((ram[phys] << 24) | (ram[phys+1] << 16) | (ram[phys+2] << 8) | ram[phys+3]) | 0;
@@ -1005,7 +1005,7 @@ import * as format from './format.js';
     return lw_slow(addr);
   };
 
-  n64js.store_8 = function (ram, addr, value) {
+  n64js.store_8 = (ram, addr, value) => {
     if (addr < -2139095040) {
       var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
       ram[phys] = value;
@@ -1014,7 +1014,7 @@ import * as format from './format.js';
     }
   };
 
-  n64js.store_16 = function (ram, addr, value) {
+  n64js.store_16 = (ram, addr, value) => {
     if (addr < -2139095040) {
       var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
       ram[phys  ] = value >> 8;
@@ -1024,7 +1024,7 @@ import * as format from './format.js';
     }
   };
 
-  n64js.store_32 = function (ram, addr, value) {
+  n64js.store_32 = (ram, addr, value) => {
     if (addr < -2139095040) {
       var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
       ram[phys+0] = value >> 24;
@@ -1036,7 +1036,7 @@ import * as format from './format.js';
     }
   };
 
-  n64js.store_64 = function (ram, addr, value_lo, value_hi) {
+  n64js.store_64 = (ram, addr, value_lo, value_hi) => {
     if (addr < -2139095040) {
       var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
       ram[phys+0] = value_hi >> 24;

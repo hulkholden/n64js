@@ -9,23 +9,22 @@ export function Vector3(opt_elems) {
 }
 
 Vector3.prototype = {
-
-  dot : function (b) {
+  dot(b) {
     var t = 0;
     for (var i = 0; i < this.elems.length; ++i)
       t += this.elems[i]*b.elems[i];
     return t;
   },
 
-  lengthSqr : function () {
+  lengthSqr() {
     return this.dot(this);
   },
 
-  length : function () {
+  length() {
     return Math.sqrt(this.lengthSqr());
   },
 
-  normaliseInPlace : function () {
+  normaliseInPlace() {
     var len = this.length();
     if (len > 0.0) {
       for (var i = 0; i < this.elems.length; ++i)
@@ -35,7 +34,7 @@ Vector3.prototype = {
   },
 }
 
-Vector3.create = function (e) {
+Vector3.create = e => {
   var v = new Vector3();
   v.elems[0] = e[0];
   v.elems[1] = e[1];
@@ -53,23 +52,22 @@ export function Vector4(opt_elems) {
 }
 
 Vector4.prototype = {
-
-  dot : function (b) {
+  dot(b) {
     var t = 0;
     for (var i = 0; i < this.elems.length; ++i)
       t += this.elems[i]*b.elems[i];
     return t;
   },
 
-  lengthSqr : function () {
+  lengthSqr() {
     return this.dot(this);
   },
 
-  length : function () {
+  length() {
     return Math.sqrt(this.lengthSqr());
   },
 
-  normaliseInPlace : function () {
+  normaliseInPlace() {
     var len = this.length();
     if (len > 0.0) {
       for (var i = 0; i < this.elems.length; ++i)
@@ -77,10 +75,9 @@ Vector4.prototype = {
     }
     return this;
   },
-
 }
 
-Vector4.create = function (e) {
+Vector4.create = e => {
   var v = new Vector3();
   v.elems[0] = e[0];
   v.elems[1] = e[1];
@@ -99,7 +96,7 @@ export function Matrix(elems) {
 
 Matrix.prototype = {
 
-  multiply: function (matrix) {
+  multiply(matrix) {
     var a = this.elems;
     var b = matrix.elems;
 
@@ -116,7 +113,7 @@ Matrix.prototype = {
     return new Matrix(out);
   },
 
-  transformNormal : function (v3_in, v3_out) {
+  transformNormal(v3_in, v3_out) {
     var a = this.elems;
     var v = v3_in.elems;
 
@@ -129,7 +126,7 @@ Matrix.prototype = {
     v3_out.elems[2] = (a[8] * x) + (a[9] * y) + (a[10] * z);
   },
 
-  transformPoint : function (v3_in, v4_out) {
+  transformPoint(v3_in, v4_out) {
 
     var a = this.elems;
     var v = v3_in.elems;
@@ -145,7 +142,7 @@ Matrix.prototype = {
   }
 }
 
-Matrix.identity = function() {
+Matrix.identity = () => {
   var elems = new Float32Array(16);
   elems[0]  = 1;
   elems[5]  = 1;

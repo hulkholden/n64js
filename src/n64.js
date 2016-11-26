@@ -324,60 +324,60 @@ import * as sync from './sync.js';
   }
 
   Memory.prototype = {
-    clear : function () {
+    clear() {
       var i;
       for (i = 0; i < this.u8.length; ++i) {
         this.u8[i] = 0;
       }
     },
 
-    readU32 : function (offset) {
+    readU32(offset) {
       return ((this.u8[offset] << 24) | (this.u8[offset+1] << 16) | (this.u8[offset+2] << 8) | this.u8[offset+3])>>>0;
     },
-    readU16 : function (offset) {
+    readU16(offset) {
       return (this.u8[offset] <<  8) | (this.u8[offset+1]      );
     },
-    readU8  : function (offset) {
+    readU8(offset) {
       return this.u8[offset];
     },
 
-    readS32 : function (offset) {
+    readS32(offset) {
       return ((this.u8[offset] << 24) | (this.u8[offset+1] << 16) | (this.u8[offset+2] << 8) | this.u8[offset+3]) | 0;
     },
-    readS16 : function (offset) {
+    readS16(offset) {
       return  ((this.u8[offset] << 24) | (this.u8[offset+1] << 16) ) >> 16;
     },
-    readS8  : function (offset) {
+    readS8(offset) {
       return  ((this.u8[offset] << 24) ) >> 24;
     },
 
-    write32 : function (offset, value) {
+    write32(offset, value) {
       this.u8[offset  ] = value >> 24;
       this.u8[offset+1] = value >> 16;
       this.u8[offset+2] = value >>  8;
       this.u8[offset+3] = value;
     },
 
-    write16 : function (offset,value) {
+    write16(offset,value) {
       this.u8[offset  ] = value >> 8;
       this.u8[offset+1] = value;
     },
 
-    write8 : function (offset,value) {
+    write8(offset,value) {
       this.u8[offset] = value;
     },
 
-    clearBits32 : function (offset, bits) {
+    clearBits32(offset, bits) {
       var value = this.readU32(offset) & ~bits;
       this.write32(offset, value);
       return value;
     },
-    setBits32 : function (offset, bits) {
+    setBits32(offset, bits) {
       var value = this.readU32(offset) | bits;
       this.write32(offset, value);
       return value;
     },
-    getBits32 : function (offset, bits) {
+    getBits32(offset, bits) {
       return this.readU32(offset) & bits;
     }
   };
@@ -404,16 +404,16 @@ import * as sync from './sync.js';
 
   Device.prototype = {
 
-    setMem : function (mem) {
+    setMem(mem) {
       this.mem = mem;
       this.u8  = mem.u8;
     },
 
-    calcEA : function (address) {
+    calcEA(address) {
       return address - this.rangeStart;
     },
 
-    readInternal32 : function (address) {
+    readInternal32(address) {
       var ea = this.calcEA(address);
 
       // We need to make sure this doesn't throw, so do a bounds check
@@ -422,7 +422,7 @@ import * as sync from './sync.js';
       }
       return 0xdddddddd;
     },
-    writeInternal32 : function (address, value) {
+    writeInternal32(address, value) {
       var ea = this.calcEA(address);
 
       // We need to make sure this doesn't throw, so do a bounds check
@@ -431,62 +431,62 @@ import * as sync from './sync.js';
       }
     },
 
-    logRead : function (address) {
+    logRead(address) {
       if (!this.quiet) {
         n64js.log('Reading from ' + this.name + ': ' + toString32(address) );
       }
     },
 
-    logWrite : function (address, value_str) {
+    logWrite(address, value_str) {
       if (!this.quiet) {
         n64js.log('Writing to ' + this.name + ': ' + value_str + ' -> [' + toString32(address) + ']' );
       }
     },
 
-    readU32 : function (address) {
+    readU32(address) {
       this.logRead(address);
       var ea = this.calcEA(address);
       return this.mem.readU32(ea);
     },
-    readU16 : function (address) {
+    readU16(address) {
       this.logRead(address);
       var ea = this.calcEA(address);
       return this.mem.readU16(ea);
     },
-    readU8 : function (address) {
+    readU8(address) {
       this.logRead(address);
       var ea = this.calcEA(address);
       return this.mem.readU8(ea);
     },
 
-    readS32 : function (address) {
+    readS32(address) {
       this.logRead(address);
       var ea = this.calcEA(address);
       return this.mem.readS32(ea);
     },
-    readS16 : function (address) {
+    readS16(address) {
       this.logRead(address);
       var ea = this.calcEA(address);
       return this.mem.readS16(ea);
     },
-    readS8 : function (address) {
+    readS8(address) {
       this.logRead(address);
       var ea = this.calcEA(address);
       return this.mem.readS8(ea);
     },
 
 
-    write32 : function (address, value) {
+    write32(address, value) {
       this.logWrite(address, toString32(value));
       var ea = this.calcEA(address);
       this.mem.write32(ea, value);
     },
-    write16 : function (address, value) {
+    write16(address, value) {
       this.logWrite(address, format.toString16(value));
       var ea = this.calcEA(address);
       this.mem.write16(ea, value);
     },
-    write8 : function (address, value) {
+    write8(address, value) {
       this.logWrite(address, format.toString8(value));
       var ea = this.calcEA(address);
       this.mem.write8(ea, value);
@@ -2133,7 +2133,7 @@ import * as sync from './sync.js';
   }
 
   // Read/Write memory internal is used for stuff like the debugger. It shouldn't ever throw or change the state of the emulated program.
-  n64js.readMemoryInternal32 = function (address) {
+  n64js.readMemoryInternal32 = address => {
     var handler = memMap[address >>> 18];
     if (handler) {
       return handler.readInternal32(address);
@@ -2141,14 +2141,14 @@ import * as sync from './sync.js';
     return 0xdddddddd;
   };
 
-  n64js.writeMemoryInternal32 = function (address, value) {
+  n64js.writeMemoryInternal32 = (address, value) => {
     var handler = memMap[address >>> 18];
     if (handler) {
       handler.writeInternal32(address, value);
     }
   };
 
-  n64js.getInstruction = function (address) {
+  n64js.getInstruction = address => {
     var instruction = n64js.readMemoryInternal32(address);
     if (((instruction>>26)&0x3f) === kOpBreakpoint) {
       instruction = breakpoints[address] || 0;
@@ -2157,12 +2157,12 @@ import * as sync from './sync.js';
     return instruction;
   };
 
-  n64js.isBreakpoint = function (address) {
+  n64js.isBreakpoint = address => {
     var orig_op = n64js.readMemoryInternal32(address);
     return ((orig_op>>26)&0x3f) === kOpBreakpoint;
   };
 
-  n64js.toggleBreakpoint = function (address) {
+  n64js.toggleBreakpoint = address => {
     var orig_op = n64js.readMemoryInternal32(address);
     var new_op;
 
@@ -2179,22 +2179,22 @@ import * as sync from './sync.js';
   };
 
   // 'emulated' read. May cause exceptions to be thrown in the emulated process
-  n64js.readMemoryU32 = function (address) { return getMemoryHandler(address).readU32(address); };
-  n64js.readMemoryU16 = function (address) { return getMemoryHandler(address).readU16(address); };
-  n64js.readMemoryU8  = function (address) { return getMemoryHandler(address).readU8(address);  };
+  n64js.readMemoryU32 = address => { return getMemoryHandler(address).readU32(address); };
+  n64js.readMemoryU16 = address => { return getMemoryHandler(address).readU16(address); };
+  n64js.readMemoryU8  = address => { return getMemoryHandler(address).readU8(address);  };
 
-  n64js.readMemoryS32 = function (address) { return getMemoryHandler(address).readS32(address); };
-  n64js.readMemoryS16 = function (address) { return getMemoryHandler(address).readS16(address); };
-  n64js.readMemoryS8  = function (address) { return getMemoryHandler(address).readS8(address);  };
+  n64js.readMemoryS32 = address => { return getMemoryHandler(address).readS32(address); };
+  n64js.readMemoryS16 = address => { return getMemoryHandler(address).readS16(address); };
+  n64js.readMemoryS8  = address => { return getMemoryHandler(address).readS8(address);  };
 
   // 'emulated' write. May cause exceptions to be thrown in the emulated process
-  n64js.writeMemory32 = function (address, value) { return getMemoryHandler(address).write32(address, value); };
-  n64js.writeMemory16 = function (address, value) { return getMemoryHandler(address).write16(address, value); };
-  n64js.writeMemory8  = function (address, value) { return getMemoryHandler(address).write8(address, value); };
+  n64js.writeMemory32 = (address, value) => { return getMemoryHandler(address).write32(address, value); };
+  n64js.writeMemory16 = (address, value) => { return getMemoryHandler(address).write16(address, value); };
+  n64js.writeMemory8  = (address, value) => { return getMemoryHandler(address).write8(address, value); };
 
   var Base64 = {
     lookup : "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=",
-    encodeArray : function (arr) {
+    encodeArray(arr) {
       var t = '';
       var i;
       for (i = 0; i < arr.length; i += 3) {
@@ -2220,7 +2220,7 @@ import * as sync from './sync.js';
       return t;
     },
 
-    decodeArray : function (str, arr) {
+    decodeArray(str, arr) {
       var outi = 0;
 
       var i;
