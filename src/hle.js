@@ -4,6 +4,7 @@ import { padString, toHex, toString8, toString16, toString32 } from './format.js
 import { Matrix } from './Matrix.js';
 import { Vector3 } from './Vector3.js';
 import { Vector4 } from './Vector4.js';
+import * as logger from './logger.js';
 
 (function (n64js) {'use strict';
   var kDumpShaders = 0;
@@ -536,7 +537,7 @@ import { Vector4 } from './Vector4.js';
   }
 
   function setN64Viewport(scale, trans) {
-    //n64js.log('Viewport: scale=' + scale[0] + ',' + scale[1] + ' trans=' + trans[0] + ',' + trans[1] );
+    //logger.log('Viewport: scale=' + scale[0] + ',' + scale[1] + ' trans=' + trans[0] + ',' + trans[1] );
 
     if (scale[0] === state.viewport.scale[0] &&
         scale[1] === state.viewport.scale[1] &&
@@ -743,17 +744,17 @@ import { Vector4 } from './Vector4.js';
         n64js.interruptDP();
         break;
       case M_AUDTASK:
-        //n64js.log('audio task');
+        //logger.log('audio task');
         break;
       case M_VIDTASK:
-        n64js.log('video task');
+        logger.log('video task');
         break;
       case M_JPGTASK:
-        n64js.log('jpg task');
+        logger.log('jpg task');
         break;
 
       default:
-        n64js.log('unknown task');
+        logger.log('unknown task');
         break;
     }
 
@@ -2647,7 +2648,7 @@ import { Vector4 } from './Vector4.js';
           break;
 
         default:
-          n64js.log(toString16(active_blend_mode) + ' : ' + blendOpText(active_blend_mode) + ', alpha_cvg_sel:' + alpha_cvg_sel + ' cvg_x_alpha:' + cvg_x_alpha);
+          logger.log(toString16(active_blend_mode) + ' : ' + blendOpText(active_blend_mode) + ', alpha_cvg_sel:' + alpha_cvg_sel + ' cvg_x_alpha:' + cvg_x_alpha);
           mode = kBlendModeOpaque;
         break;
       }
@@ -3557,7 +3558,7 @@ import { Vector4 } from './Vector4.js';
 
     // NB: if no display lists executed, interpret framebuffer as bytes
     if (num_display_lists_since_present === 0) {
-      //n64js.log('new origin: ' + toString32(origin) + ' but no display lists rendered to skipping');
+      //logger.log('new origin: ' + toString32(origin) + ' but no display lists rendered to skipping');
 
       origin = (origin & 0x7ffffffe) | 0;  // NB: clear top bit (make address physical). Clear bottom bit (sometimes odd valued addresses are passed through)
 
@@ -4035,7 +4036,7 @@ import { Vector4 } from './Vector4.js';
     } else {
       var val = task.computeMicrocodeHash();
       switch (val) {
-        case 0x00000000: ucode = kUCode_GBI0;     n64js.log('ucode is empty?'); break;
+        case 0x00000000: ucode = kUCode_GBI0;     logger.log('ucode is empty?'); break;
         case 0xd73a12c4: ucode = kUCode_GBI0;     break;  // Fish demo
         case 0xf4c3491b: ucode = kUCode_GBI0;     break;  // Super Mario 64
         case 0x313f038b: ucode = kUCode_GBI0;     break;  // PilotWings
@@ -4048,7 +4049,7 @@ import { Vector4 } from './Vector4.js';
     }
 
     if (str !== last_ucode_str) {
-      n64js.log('GFX: ' + graphics_task_count + ' - ' + str + ' = ucode ' + ucode);
+      logger.log('GFX: ' + graphics_task_count + ' - ' + str + ' = ucode ' + ucode);
     }
     last_ucode_str = str;
 
@@ -4444,7 +4445,7 @@ import { Vector4 } from './Vector4.js';
 
       var m = theSource.split('\n').join('<br>');
 
-      n64js.log('Compiled ' + decoded + '\nto\n' + m);
+      logger.log('Compiled ' + decoded + '\nto\n' + m);
     }
 
     fragmentShader = createShader(theSource, gl.FRAGMENT_SHADER);

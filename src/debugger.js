@@ -1,6 +1,7 @@
 /*jshint jquery:true */
 
 import * as format from './format.js';
+import * as logger from './logger.js';
 
 (function (n64js) {'use strict';
   var $debugContent   = null;
@@ -9,7 +10,6 @@ import * as format from './format.js';
   var $disassembly    = null;
   var $dynarecContent = null;
   var $memoryContent  = null;
-  var $output         = null;
 
   var disasmAddress = 0;
   var lastCycles;
@@ -72,19 +72,22 @@ import * as format from './format.js';
     $status         = $('#status');
     $registers      = [$('#cpu0-content'), $('#cpu1-content')];
     $disassembly    = $('#disasm');
-    $output         = $('.output');
     $dynarecContent = $('#dynarec-content');
     $memoryContent  = $('#memory-content');
+
+    logger.initialise($('.output'), () => {
+      return format.toString32(n64js.cpu0.pc);
+    });
 
     n64js.addResetCallback(onReset);
 
     $('#output').find('#clear').click(function () {
-      n64js.clearLog();
+      logger.clear();
     });
 
     $('#cpu').find('#speed').val(0).change(function () {
       debugCycles = Math.pow(10, $(this).val() | 0);
-      n64js.log('Speed is now ' + debugCycles);
+      logger.log('Speed is now ' + debugCycles);
     });
 
     $('#cpu').find('#address').change(function () {
@@ -425,7 +428,7 @@ import * as format from './format.js';
   function onFragmentClicked(e) {
       var $elem = $(e.delegateTarget);
       var frag = $elem.data('fragment');
-      n64js.log('<pre>' + frag.func.toString() + '</pre>');
+      logger.log('<pre>' + frag.func.toString() + '</pre>');
   }
 
   function onClickBreakpoint(e) {
@@ -771,19 +774,6 @@ import * as format from './format.js';
     if ($memoryContent.hasClass('active')) {
       updateMemoryView();
     }
-  };
-
-  n64js.clearLog = function () {
-    $output.html('');
-  };
-
-  n64js.log = function (s) {
-    $output.append(format.toString32(n64js.cpu0.pc) + ': ' + s + '<br>');
-    $output.scrollTop($output[0].scrollHeight);
-  };
-
-  n64js.outputAppendHTML = function (s) {
-    $output.append(s);
   };
 
 }(window.n64js = window.n64js || {}));

@@ -1,6 +1,7 @@
 /*jshint jquery:true, devel:true */
 
 import * as format from './format.js';
+import * as logger from './logger.js';
 
 (function (n64js) {'use strict';
   const toString32 = format.toString32;
@@ -213,7 +214,7 @@ import * as format from './format.js';
 
   TLBEntry.prototype.update = function(index, pagemask, hi, entrylo0, entrylo1) {
     if (kDebugTLB) {
-      n64js.log('TLB update: index=' + index +
+      logger.log('TLB update: index=' + index +
           ', pagemask=' + format.toString32(pagemask) +
           ', entryhi='  + format.toString32(hi) +
           ', entrylo0=' + format.toString32(entrylo0) +
@@ -221,14 +222,14 @@ import * as format from './format.js';
         );
 
       switch (pagemask) {
-        case TLBPGMASK_4K:      n64js.log('       4k Pagesize');      break;
-        case TLBPGMASK_16K:     n64js.log('       16k Pagesize');     break;
-        case TLBPGMASK_64K:     n64js.log('       64k Pagesize');     break;
-        case TLBPGMASK_256K:    n64js.log('       256k Pagesize');    break;
-        case TLBPGMASK_1M:      n64js.log('       1M Pagesize');      break;
-        case TLBPGMASK_4M:      n64js.log('       4M Pagesize');      break;
-        case TLBPGMASK_16M:     n64js.log('       16M Pagesize');     break;
-        default:                n64js.log('       Unknown Pagesize'); break;
+        case TLBPGMASK_4K:      logger.log('       4k Pagesize');      break;
+        case TLBPGMASK_16K:     logger.log('       16k Pagesize');     break;
+        case TLBPGMASK_64K:     logger.log('       64k Pagesize');     break;
+        case TLBPGMASK_256K:    logger.log('       256k Pagesize');    break;
+        case TLBPGMASK_1M:      logger.log('       1M Pagesize');      break;
+        case TLBPGMASK_4M:      logger.log('       4M Pagesize');      break;
+        case TLBPGMASK_16M:     logger.log('       16M Pagesize');     break;
+        default:                logger.log('       Unknown Pagesize'); break;
       }
     }
 
@@ -440,7 +441,7 @@ import * as format from './format.js';
 
         var to_skip = run_countdown + this.events[0].countdown - 1;
 
-        //n64js.log('speedhack: skipping ' + to_skip + ' cycles');
+        //logger.log('speedhack: skipping ' + to_skip + ' cycles');
 
         this.control[this.kControlCount] += to_skip;
         this.events[0].countdown = 1;
@@ -450,10 +451,10 @@ import * as format from './format.js';
           this.addEvent(kEventRunForCycles, run_countdown);
         }
       } else {
-        n64js.log('no events');
+        logger.log('no events');
       }
     } else {
-      //n64js.log('next instruction does something');
+      //logger.log('next instruction does something');
     }
   };
 
@@ -474,7 +475,7 @@ import * as format from './format.js';
   CPU0.prototype.setSR = function (value) {
     var old_value = this.control[this.kControlSR];
     if ((old_value & SR_FR) !== (value & SR_FR)) {
-      n64js.log('Changing FPU to ' + ((value & SR_FR) ? '64bit' : '32bit' ));
+      logger.log('Changing FPU to ' + ((value & SR_FR) ? '64bit' : '32bit' ));
     }
 
     this.control[this.kControlSR] = value;
@@ -680,11 +681,11 @@ import * as format from './format.js';
     this.control[this.kControlEntryLo1] = tlb.pfno | tlb.global;
 
     if (kDebugTLB) {
-      n64js.log('TLB Read Index ' + format.toString8(index) + '.');
-      n64js.log('  PageMask: ' + format.toString32(this.control[this.kControlPageMask]));
-      n64js.log('  EntryHi:  ' + format.toString32(this.control[this.kControlEntryHi]));
-      n64js.log('  EntryLo0: ' + format.toString32(this.control[this.kControlEntryLo0]));
-      n64js.log('  EntryLo1: ' + format.toString32(this.control[this.kControlEntryLo1]));
+      logger.log('TLB Read Index ' + format.toString8(index) + '.');
+      logger.log('  PageMask: ' + format.toString32(this.control[this.kControlPageMask]));
+      logger.log('  EntryHi:  ' + format.toString32(this.control[this.kControlEntryHi]));
+      logger.log('  EntryLo0: ' + format.toString32(this.control[this.kControlEntryLo0]));
+      logger.log('  EntryLo1: ' + format.toString32(this.control[this.kControlEntryLo1]));
     }
   };
 
@@ -700,7 +701,7 @@ import * as format from './format.js';
         if (((tlb.hi & TLBHI_PIDMASK)  === entryhi_pid) ||
              tlb.global) {
           if (kDebugTLB) {
-            n64js.log('TLB Probe. EntryHi:' + format.toString32(entryhi) + '. Found matching TLB entry - ' + format.toString8(i));
+            logger.log('TLB Probe. EntryHi:' + format.toString32(entryhi) + '. Found matching TLB entry - ' + format.toString8(i));
           }
           this.control[this.kControlIndex] = i;
           return;
@@ -709,7 +710,7 @@ import * as format from './format.js';
     }
 
     if (kDebugTLB) {
-      n64js.log('TLB Probe. EntryHi:' + format.toString32(entryhi) + ". Didn't find matching entry");
+      logger.log('TLB Probe. EntryHi:' + format.toString32(entryhi) + ". Didn't find matching entry");
     }
     this.control[this.kControlIndex] = TLBINX_PROBE;
   };
@@ -903,7 +904,7 @@ import * as format from './format.js';
 
   function performBranch(new_pc) {
     //if (new_pc < 0) {
-    //  n64js.log('Oops, branching to negative address: ' + new_pc);
+    //  logger.log('Oops, branching to negative address: ' + new_pc);
     //  throw 'Oops, branching to negative address: ' + new_pc;
     //}
     cpu0.branchTarget = new_pc;
@@ -1057,7 +1058,7 @@ import * as format from './format.js';
   function unimplemented(pc,i) {
     var r = n64js.disassembleOp(pc,i);
     var e = 'Unimplemented op ' + format.toString32(i) + ' : ' + r.disassembly;
-    n64js.log(e);
+    logger.log(e);
     throw e;
   }
 
@@ -1736,12 +1737,12 @@ import * as format from './format.js';
 
     switch (control_reg) {
       case cpu0.kControlContext:
-        n64js.log('Setting Context register to ' + format.toString32(new_value) );
+        logger.log('Setting Context register to ' + format.toString32(new_value) );
         cpu0.control[cpu0.kControlContext] = new_value;
         break;
 
       case cpu0.kControlWired:
-        n64js.log('Setting Wired register to ' + format.toString32(new_value) );
+        logger.log('Setting Wired register to ' + format.toString32(new_value) );
         // Set to top limit on write to wired
         cpu0.control[cpu0.kControlRand]  = 31;
         cpu0.control[cpu0.kControlWired] = new_value;
@@ -1752,11 +1753,11 @@ import * as format from './format.js';
       case cpu0.kControlPRId:
       case cpu0.kControlCacheErr:
         // All these registers are read-only
-        n64js.log('Attempted write to read-only cpu0 control register. ' + format.toString32(new_value) + ' --> ' + n64js.cop0ControlRegisterNames[control_reg] );
+        logger.log('Attempted write to read-only cpu0 control register. ' + format.toString32(new_value) + ' --> ' + n64js.cop0ControlRegisterNames[control_reg] );
         break;
 
       case cpu0.kControlCause:
-        n64js.log('Setting cause register to ' + format.toString32(new_value) );
+        logger.log('Setting cause register to ' + format.toString32(new_value) );
         n64js.check(new_value === 0, 'Should only write 0 to Cause register.');
         cpu0.control[cpu0.kControlCause] &= ~0x300;
         cpu0.control[cpu0.kControlCause] |= (new_value & 0x300);
@@ -1785,7 +1786,7 @@ import * as format from './format.js';
 
       default:
         cpu0.control[control_reg] = new_value;
-        n64js.log('Write to cpu0 control register. ' + format.toString32(new_value) + ' --> ' + n64js.cop0ControlRegisterNames[control_reg] );
+        logger.log('Write to cpu0 control register. ' + format.toString32(new_value) + ' --> ' + n64js.cop0ControlRegisterNames[control_reg] );
         break;
     }
   }
@@ -1805,11 +1806,11 @@ import * as format from './format.js';
     if (cpu0.control[cpu0.kControlSR] & SR_ERL) {
       cpu0.nextPC = cpu0.control[cpu0.kControlErrorEPC];
       cpu0.control[cpu0.kControlSR] &= ~SR_ERL;
-      n64js.log('ERET from error trap - ' + cpu0.nextPC);
+      logger.log('ERET from error trap - ' + cpu0.nextPC);
     } else {
       cpu0.nextPC = cpu0.control[cpu0.kControlEPC];
       cpu0.control[cpu0.kControlSR] &= ~SR_EXL;
-      //n64js.log('ERET from interrupt/exception ' + cpu0.nextPC);
+      //logger.log('ERET from interrupt/exception ' + cpu0.nextPC);
     }
   }
 
@@ -2979,10 +2980,10 @@ import * as format from './format.js';
       var v = cpu0.gprLo[t];
 
       // switch (v & FPCSR_RM_MASK) {
-      // case FPCSR_RM_RN:     n64js.log('cop1 - setting round near');  break;
-      // case FPCSR_RM_RZ:     n64js.log('cop1 - setting round zero');  break;
-      // case FPCSR_RM_RP:     n64js.log('cop1 - setting round ceil');  break;
-      // case FPCSR_RM_RM:     n64js.log('cop1 - setting round floor'); break;
+      // case FPCSR_RM_RN:     logger.log('cop1 - setting round near');  break;
+      // case FPCSR_RM_RZ:     logger.log('cop1 - setting round zero');  break;
+      // case FPCSR_RM_RP:     logger.log('cop1 - setting round ceil');  break;
+      // case FPCSR_RM_RM:     logger.log('cop1 - setting round floor'); break;
       // }
 
       cpu1.control[s] = v;
@@ -3404,7 +3405,7 @@ import * as format from './format.js';
 
     var op_impl;
     if (typeof fn === 'string') {
-      //n64js.log(fn);
+      //logger.log(fn);
       op_impl = 'n64js.' + fn + '(' + format.toString32(ctx.instruction) + ');\n';
     } else {
       op_impl = fn(ctx);
@@ -3444,7 +3445,7 @@ import * as format from './format.js';
     cop1Table[fmt](i);
   }
   function executeCop1_disabled(i) {
-    n64js.log('Thread accessing cop1 for first time, throwing cop1 unusable exception');
+    logger.log('Thread accessing cop1 for first time, throwing cop1 unusable exception');
 
     n64js.assert( (cpu0.control[cpu0.kControlSR] & SR_CU1) === 0, "SR_CU1 in inconsistent state" );
 
@@ -4166,7 +4167,7 @@ import * as format from './format.js';
     }
 
     if (removed) {
-      n64js.log('Fragment cache removed ' + removed + ' entries.');
+      logger.log('Fragment cache removed ' + removed + ' entries.');
     }
 
      //fragmentInvalidationEvents.push({'address': address, 'length': 0x20, 'system': 'CACHE', 'fragmentsRemoved': removed});
@@ -4200,7 +4201,7 @@ import * as format from './format.js';
     }
 
     if (removed) {
-      n64js.log('Fragment cache removed ' + removed + ' entries.');
+      logger.log('Fragment cache removed ' + removed + ' entries.');
     }
 
      //fragmentInvalidationEvents.push({'address': address, 'length': length, 'system': system, 'fragmentsRemoved': removed});
@@ -4208,11 +4209,11 @@ import * as format from './format.js';
 
   // Invalidate a single cache line
   n64js.invalidateICacheEntry = function (address) {
-      //n64js.log('cache flush ' + format.toString32(address));
+      //logger.log('cache flush ' + format.toString32(address));
 
      ++invals;
      if ((invals%10000) === 0) {
-      n64js.log(invals + ' invals');
+      logger.log(invals + ' invals');
      }
 
      fragmentMapWho.invalidateEntry(address);
@@ -4220,7 +4221,7 @@ import * as format from './format.js';
 
   // This isn't called right now. We
   n64js.invalidateICacheRange = function (address, length, system) {
-      //n64js.log('cache flush ' + format.toString32(address) + ' ' + format.toString32(length));
+      //logger.log('cache flush ' + format.toString32(address) + ' ' + format.toString32(length));
       // FIXME: check for overlapping ranges
 
      // NB: not sure PI events are useful right now.
@@ -4315,7 +4316,7 @@ import * as format from './format.js';
   function generateOpHelper(fn,ctx) {
     // fn can be a handler function, in which case defer to that.
     if (typeof fn === 'string') {
-      //n64js.log(fn);
+      //logger.log(fn);
       return generateGenericOpBoilerplate('n64js.' + fn + '(' + format.toString32(ctx.instruction) + ');\n', ctx);
     } else {
       return fn(ctx);

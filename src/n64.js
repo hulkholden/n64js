@@ -1,11 +1,13 @@
 /*jshint jquery:true, browser:true, devel:true */
 /*global Stats:false */
 
+import { Device } from './Device.js';
 import { MemoryRegion } from './MemoryRegion.js';
 import * as _debugger from './debugger.js';
 import * as disassemble from './disassemble.js';
 import * as format from './format.js';
 import * as hle from './hle.js';
+import * as logger from './logger.js';
 import * as r4300 from './r4300.js';
 import { romdb } from './romdb.js';
 import * as sync from './sync.js';
@@ -320,110 +322,6 @@ import * as sync from './sync.js';
     }
   }
 
-  /**
-   * A device represents a region of memory mapped at a certain address.
-   * @constructor
-   */
-  function Device(name, mem, rangeStart, rangeEnd) {
-    this.name       = name;
-    this.mem        = mem;
-    this.u8         = mem ? mem.u8 : null;  // Cache the underlying Uint8Array.
-    this.rangeStart = rangeStart;
-    this.rangeEnd   = rangeEnd;
-    this.quiet      = false;
-  }
-
-  Device.prototype = {
-
-    setMem(mem) {
-      this.mem = mem;
-      this.u8  = mem.u8;
-    },
-
-    calcEA(address) {
-      return address - this.rangeStart;
-    },
-
-    readInternal32(address) {
-      var ea = this.calcEA(address);
-
-      // We need to make sure this doesn't throw, so do a bounds check
-      if (ea+4 <= this.u8.length) {
-        return this.mem.readU32(ea);
-      }
-      return 0xdddddddd;
-    },
-    writeInternal32(address, value) {
-      var ea = this.calcEA(address);
-
-      // We need to make sure this doesn't throw, so do a bounds check
-      if (ea+4 <= this.u8.length) {
-        this.mem.write32(ea, value);
-      }
-    },
-
-    logRead(address) {
-      if (!this.quiet) {
-        n64js.log('Reading from ' + this.name + ': ' + toString32(address) );
-      }
-    },
-
-    logWrite(address, value_str) {
-      if (!this.quiet) {
-        n64js.log('Writing to ' + this.name + ': ' + value_str + ' -> [' + toString32(address) + ']' );
-      }
-    },
-
-    readU32(address) {
-      this.logRead(address);
-      var ea = this.calcEA(address);
-      return this.mem.readU32(ea);
-    },
-    readU16(address) {
-      this.logRead(address);
-      var ea = this.calcEA(address);
-      return this.mem.readU16(ea);
-    },
-    readU8(address) {
-      this.logRead(address);
-      var ea = this.calcEA(address);
-      return this.mem.readU8(ea);
-    },
-
-    readS32(address) {
-      this.logRead(address);
-      var ea = this.calcEA(address);
-      return this.mem.readS32(ea);
-    },
-    readS16(address) {
-      this.logRead(address);
-      var ea = this.calcEA(address);
-      return this.mem.readS16(ea);
-    },
-    readS8(address) {
-      this.logRead(address);
-      var ea = this.calcEA(address);
-      return this.mem.readS8(ea);
-    },
-
-
-    write32(address, value) {
-      this.logWrite(address, toString32(value));
-      var ea = this.calcEA(address);
-      this.mem.write32(ea, value);
-    },
-    write16(address, value) {
-      this.logWrite(address, format.toString16(value));
-      var ea = this.calcEA(address);
-      this.mem.write16(ea, value);
-    },
-    write8(address, value) {
-      this.logWrite(address, format.toString8(value));
-      var ea = this.calcEA(address);
-      this.mem.write8(ea, value);
-    }
-  };
-
   var rom           = null;   // Will be memory, mapped at 0xb0000000
   var pi_mem        = new MemoryRegion(new ArrayBuffer(0x7c0 + 0x40));   // rom+ram
   var ram           = new MemoryRegion(new ArrayBuffer(8*1024*1024));
@@ -545,7 +443,7 @@ import * as sync from './sync.js';
       case 0x371cc: return '6106';
       case 0x343c9: return '6106';
       default:
-        n64js.log('Unknown CIC Code ' + toString32(cic) );
+        logger.log('Unknown CIC Code ' + toString32(cic) );
         return '6102';
     }
   }
@@ -586,7 +484,7 @@ import * as sync from './sync.js';
         '<td>' + i + '</td><td>' + (typeof hdr[i] === 'string' ? hdr[i] : toString32(hdr[i])) + '</td>' +
         '</tr>');
     }
-    n64js.outputAppendHTML($table);
+    logger.logHTML($table);
 
     // Set up rominfo
     rominfo.cic     = generateCICType(rom.u8);
@@ -595,16 +493,16 @@ import * as sync from './sync.js';
 
     var info = romdb[rominfo.id];
     if (info) {
-      n64js.log('Loaded info for ' + rominfo.id + ' from db');
+      logger.log('Loaded info for ' + rominfo.id + ' from db');
       rominfo.name = info.name;
       rominfo.save = info.save;
     } else {
-      n64js.log('No info for ' + rominfo.id + ' in db');
+      logger.log('No info for ' + rominfo.id + ' in db');
       rominfo.name = hdr.name;
       rominfo.save = 'Eeprom4k';
     }
 
-    n64js.log('rominfo is ' + JSON.stringify(rominfo));
+    logger.log('rominfo is ' + JSON.stringify(rominfo));
 
     $('#title').text('n64js - ' + rominfo.name);
   }
@@ -889,12 +787,12 @@ import * as sync from './sync.js';
     return v;
   }
 
-  rom_d2a1_handler_uncached.readU32  = function (address)        { n64js.log('reading noise'); return getRandomU32(); };
-  rom_d2a1_handler_uncached.readU16  = function (address)        { n64js.log('reading noise'); return getRandomU32() & 0xffff; };
-  rom_d2a1_handler_uncached.readU8   = function (address)        { n64js.log('reading noise'); return getRandomU32() & 0xff; };
-  rom_d2a1_handler_uncached.readS32  = function (address)        { n64js.log('reading noise'); return getRandomU32(); };
-  rom_d2a1_handler_uncached.readS16  = function (address)        { n64js.log('reading noise'); return getRandomU32() & 0xffff; };
-  rom_d2a1_handler_uncached.readS8   = function (address)        { n64js.log('reading noise'); return getRandomU32() & 0xff; };
+  rom_d2a1_handler_uncached.readU32  = function (address)        { logger.log('reading noise'); return getRandomU32(); };
+  rom_d2a1_handler_uncached.readU16  = function (address)        { logger.log('reading noise'); return getRandomU32() & 0xffff; };
+  rom_d2a1_handler_uncached.readU8   = function (address)        { logger.log('reading noise'); return getRandomU32() & 0xff; };
+  rom_d2a1_handler_uncached.readS32  = function (address)        { logger.log('reading noise'); return getRandomU32(); };
+  rom_d2a1_handler_uncached.readS16  = function (address)        { logger.log('reading noise'); return getRandomU32() & 0xffff; };
+  rom_d2a1_handler_uncached.readS8   = function (address)        { logger.log('reading noise'); return getRandomU32() & 0xff; };
   rom_d2a1_handler_uncached.write32  = function (address, value) { throw 'Writing to rom'; };
   rom_d2a1_handler_uncached.write16  = function (address, value) { throw 'Writing to rom'; };
   rom_d2a1_handler_uncached.write8   = function (address, value) { throw 'Writing to rom'; };
@@ -916,32 +814,32 @@ import * as sync from './sync.js';
   function spUpdateStatus(flags) {
 
     if (!sp_reg_handler_uncached.quiet) {
-      if (flags & SP_CLR_HALT)       { n64js.log( 'SP: Clearing Halt' ); }
-      if (flags & SP_SET_HALT)       { n64js.log( 'SP: Setting Halt' ); }
-      if (flags & SP_CLR_BROKE)      { n64js.log( 'SP: Clearing Broke' ); }
+      if (flags & SP_CLR_HALT)       { logger.log( 'SP: Clearing Halt' ); }
+      if (flags & SP_SET_HALT)       { logger.log( 'SP: Setting Halt' ); }
+      if (flags & SP_CLR_BROKE)      { logger.log( 'SP: Clearing Broke' ); }
       // No SP_SET_BROKE
-      if (flags & SP_CLR_INTR)       { n64js.log( 'SP: Clearing Interrupt' ); }
-      if (flags & SP_SET_INTR)       { n64js.log( 'SP: Setting Interrupt' ); }
-      if (flags & SP_CLR_SSTEP)      { n64js.log( 'SP: Clearing Single Step' ); }
-      if (flags & SP_SET_SSTEP)      { n64js.log( 'SP: Setting Single Step' ); }
-      if (flags & SP_CLR_INTR_BREAK) { n64js.log( 'SP: Clearing Interrupt on break' ); }
-      if (flags & SP_SET_INTR_BREAK) { n64js.log( 'SP: Setting Interrupt on break' ); }
-      if (flags & SP_CLR_SIG0)       { n64js.log( 'SP: Clearing Sig0 (Yield)' ); }
-      if (flags & SP_SET_SIG0)       { n64js.log( 'SP: Setting Sig0 (Yield)' ); }
-      if (flags & SP_CLR_SIG1)       { n64js.log( 'SP: Clearing Sig1 (Yielded)' ); }
-      if (flags & SP_SET_SIG1)       { n64js.log( 'SP: Setting Sig1 (Yielded)' ); }
-      if (flags & SP_CLR_SIG2)       { n64js.log( 'SP: Clearing Sig2 (TaskDone)' ); }
-      if (flags & SP_SET_SIG2)       { n64js.log( 'SP: Setting Sig2 (TaskDone)' ); }
-      if (flags & SP_CLR_SIG3)       { n64js.log( 'SP: Clearing Sig3' ); }
-      if (flags & SP_SET_SIG3)       { n64js.log( 'SP: Setting Sig3' ); }
-      if (flags & SP_CLR_SIG4)       { n64js.log( 'SP: Clearing Sig4' ); }
-      if (flags & SP_SET_SIG4)       { n64js.log( 'SP: Setting Sig4' ); }
-      if (flags & SP_CLR_SIG5)       { n64js.log( 'SP: Clearing Sig5' ); }
-      if (flags & SP_SET_SIG5)       { n64js.log( 'SP: Setting Sig5' ); }
-      if (flags & SP_CLR_SIG6)       { n64js.log( 'SP: Clearing Sig6' ); }
-      if (flags & SP_SET_SIG6)       { n64js.log( 'SP: Setting Sig6' ); }
-      if (flags & SP_CLR_SIG7)       { n64js.log( 'SP: Clearing Sig7' ); }
-      if (flags & SP_SET_SIG7)       { n64js.log( 'SP: Setting Sig7' ); }
+      if (flags & SP_CLR_INTR)       { logger.log( 'SP: Clearing Interrupt' ); }
+      if (flags & SP_SET_INTR)       { logger.log( 'SP: Setting Interrupt' ); }
+      if (flags & SP_CLR_SSTEP)      { logger.log( 'SP: Clearing Single Step' ); }
+      if (flags & SP_SET_SSTEP)      { logger.log( 'SP: Setting Single Step' ); }
+      if (flags & SP_CLR_INTR_BREAK) { logger.log( 'SP: Clearing Interrupt on break' ); }
+      if (flags & SP_SET_INTR_BREAK) { logger.log( 'SP: Setting Interrupt on break' ); }
+      if (flags & SP_CLR_SIG0)       { logger.log( 'SP: Clearing Sig0 (Yield)' ); }
+      if (flags & SP_SET_SIG0)       { logger.log( 'SP: Setting Sig0 (Yield)' ); }
+      if (flags & SP_CLR_SIG1)       { logger.log( 'SP: Clearing Sig1 (Yielded)' ); }
+      if (flags & SP_SET_SIG1)       { logger.log( 'SP: Setting Sig1 (Yielded)' ); }
+      if (flags & SP_CLR_SIG2)       { logger.log( 'SP: Clearing Sig2 (TaskDone)' ); }
+      if (flags & SP_SET_SIG2)       { logger.log( 'SP: Setting Sig2 (TaskDone)' ); }
+      if (flags & SP_CLR_SIG3)       { logger.log( 'SP: Clearing Sig3' ); }
+      if (flags & SP_SET_SIG3)       { logger.log( 'SP: Setting Sig3' ); }
+      if (flags & SP_CLR_SIG4)       { logger.log( 'SP: Clearing Sig4' ); }
+      if (flags & SP_SET_SIG4)       { logger.log( 'SP: Setting Sig4' ); }
+      if (flags & SP_CLR_SIG5)       { logger.log( 'SP: Clearing Sig5' ); }
+      if (flags & SP_SET_SIG5)       { logger.log( 'SP: Setting Sig5' ); }
+      if (flags & SP_CLR_SIG6)       { logger.log( 'SP: Clearing Sig6' ); }
+      if (flags & SP_SET_SIG6)       { logger.log( 'SP: Setting Sig6' ); }
+      if (flags & SP_CLR_SIG7)       { logger.log( 'SP: Clearing Sig7' ); }
+      if (flags & SP_SET_SIG7)       { logger.log( 'SP: Setting Sig7' ); }
     }
 
     var clr_bits = 0;
@@ -998,7 +896,7 @@ import * as sync from './sync.js';
     var splen          = (rdlen_reg & 0xfff) + 1;
 
     if (!sp_reg_handler_uncached.quiet) {
-      n64js.log('SP: copying from ram ' + toString32(rd_ram_address) + ' to sp ' + format.toString16(sp_mem_address) );
+      logger.log('SP: copying from ram ' + toString32(rd_ram_address) + ' to sp ' + format.toString16(sp_mem_address) );
     }
 
     memoryCopy( sp_mem, sp_mem_address & 0xfff, ram, rd_ram_address & 0xffffff, splen );
@@ -1014,7 +912,7 @@ import * as sync from './sync.js';
     var splen          = (wrlen_reg & 0xfff) + 1;
 
     if (!sp_reg_handler_uncached.quiet) {
-      n64js.log('SP: copying from sp ' + format.toString16(sp_mem_address) + ' to ram ' + toString32(rd_ram_address) );
+      logger.log('SP: copying from sp ' + format.toString16(sp_mem_address) + ' to ram ' + toString32(rd_ram_address) );
     }
 
     memoryCopy( ram, rd_ram_address & 0xffffff, sp_mem, sp_mem_address & 0xfff, splen );
@@ -1056,7 +954,7 @@ import * as sync from './sync.js';
         break;
 
       default:
-        n64js.log('Unhandled write to SPReg: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
+        logger.log('Unhandled write to SPReg: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
         this.mem.write32(ea, value);
     }
   };
@@ -1080,18 +978,18 @@ import * as sync from './sync.js';
     if (value & DPC_CLR_CLOCK_CTR)         { dpc_mem.write32(DPC_CLOCK_REG, 0); }
     */
 
-    // if (value & DPC_CLR_XBUS_DMEM_DMA)  { n64js.log('DPC_CLR_XBUS_DMEM_DMA'); }
-    // if (value & DPC_SET_XBUS_DMEM_DMA)  { n64js.log('DPC_SET_XBUS_DMEM_DMA'); }
-    // if (value & DPC_CLR_FREEZE)         { n64js.log('DPC_CLR_FREEZE'); }
-    // if (value & DPC_SET_FREEZE)         { n64js.log('DPC_SET_FREEZE'); }
-    // if (value & DPC_CLR_FLUSH)          { n64js.log('DPC_CLR_FLUSH'); }
-    // if (value & DPC_SET_FLUSH)          { n64js.log('DPC_SET_FLUSH'); }
-    // if (value & DPC_CLR_TMEM_CTR)       { n64js.log('DPC_CLR_TMEM_CTR'); }
-    // if (value & DPC_CLR_PIPE_CTR)       { n64js.log('DPC_CLR_PIPE_CTR'); }
-    // if (value & DPC_CLR_CMD_CTR)        { n64js.log('DPC_CLR_CMD_CTR'); }
-    // if (value & DPC_CLR_CLOCK_CTR)      { n64js.log('DPC_CLR_CLOCK_CTR'); }
+    // if (value & DPC_CLR_XBUS_DMEM_DMA)  { logger.log('DPC_CLR_XBUS_DMEM_DMA'); }
+    // if (value & DPC_SET_XBUS_DMEM_DMA)  { logger.log('DPC_SET_XBUS_DMEM_DMA'); }
+    // if (value & DPC_CLR_FREEZE)         { logger.log('DPC_CLR_FREEZE'); }
+    // if (value & DPC_SET_FREEZE)         { logger.log('DPC_SET_FREEZE'); }
+    // if (value & DPC_CLR_FLUSH)          { logger.log('DPC_CLR_FLUSH'); }
+    // if (value & DPC_SET_FLUSH)          { logger.log('DPC_SET_FLUSH'); }
+    // if (value & DPC_CLR_TMEM_CTR)       { logger.log('DPC_CLR_TMEM_CTR'); }
+    // if (value & DPC_CLR_PIPE_CTR)       { logger.log('DPC_CLR_PIPE_CTR'); }
+    // if (value & DPC_CLR_CMD_CTR)        { logger.log('DPC_CLR_CMD_CTR'); }
+    // if (value & DPC_CLR_CLOCK_CTR)      { logger.log('DPC_CLR_CLOCK_CTR'); }
 
-    //n64js.log( 'Modified DPC_STATUS_REG - now ' + toString32(dpc_status) );
+    //logger.log( 'Modified DPC_STATUS_REG - now ' + toString32(dpc_status) );
 
     dpc_mem.write32(DPC_STATUS_REG, dpc_status);
   }
@@ -1104,18 +1002,18 @@ import * as sync from './sync.js';
 
     switch( ea ) {
       case DPC_START_REG:
-        if (!this.quiet) { n64js.log('DPC start set to: ' + toString32(value) ); }
+        if (!this.quiet) { logger.log('DPC start set to: ' + toString32(value) ); }
         this.mem.write32(ea, value);
         this.mem.write32(DPC_CURRENT_REG, value);
         break;
       case DPC_END_REG:
-        if (!this.quiet) { n64js.log('DPC end set to: ' + toString32(value) ); }
+        if (!this.quiet) { logger.log('DPC end set to: ' + toString32(value) ); }
         this.mem.write32(ea, value);
         //mi_reg.setBits32(MI_INTR_REG, MI_INTR_DP);
         //n64js.cpu0.updateCause3();
         break;
       case DPC_STATUS_REG:
-        //if (!this.quiet) { n64js.log('DPC status set to: ' + toString32(value) ); }
+        //if (!this.quiet) { logger.log('DPC status set to: ' + toString32(value) ); }
         dpcUpdateStatus(value);
         break;
 
@@ -1125,7 +1023,7 @@ import * as sync from './sync.js';
       case DPC_BUFBUSY_REG:
       case DPC_PIPEBUSY_REG:
       case DPC_TMEM_REG:
-        n64js.log('Wrote to read only DPC reg');
+        logger.log('Wrote to read only DPC reg');
         break;
 
       default:
@@ -1237,11 +1135,11 @@ import * as sync from './sync.js';
 
     switch( ea ) {
       case MI_MODE_REG:
-        if (!this.quiet) { n64js.log('Wrote to MI mode register: ' + toString32(value) ); }
+        if (!this.quiet) { logger.log('Wrote to MI mode register: ' + toString32(value) ); }
         miWriteModeReg(value);
         break;
       case MI_INTR_MASK_REG:
-        if (!this.quiet) { n64js.log('Wrote to MI interrupt mask register: ' + toString32(value) ); }
+        if (!this.quiet) { logger.log('Wrote to MI interrupt mask register: ' + toString32(value) ); }
         miWriteIntrMaskReg(value);
         break;
 
@@ -1251,7 +1149,7 @@ import * as sync from './sync.js';
         break;
 
       default:
-        n64js.log('Unhandled write to MIReg: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
+        logger.log('Unhandled write to MIReg: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
         this.mem.write32(ea, value);
         break;
     }
@@ -1268,27 +1166,27 @@ import * as sync from './sync.js';
       case AI_DRAM_ADDR_REG:
       case AI_CONTROL_REG:
       case AI_BITRATE_REG:
-        if(!this.quiet) { n64js.log('Wrote to AIReg: ' + toString32(value) + ' -> [' + toString32(address) + ']' ); }
+        if(!this.quiet) { logger.log('Wrote to AIReg: ' + toString32(value) + ' -> [' + toString32(address) + ']' ); }
         this.mem.write32(ea, value);
         break;
 
       case AI_LEN_REG:
-        if(!this.quiet) { n64js.log('AI len changed to ' + value); }
+        if(!this.quiet) { logger.log('AI len changed to ' + value); }
         this.mem.write32(ea, value);
         break;
       case AI_DACRATE_REG:
-        if(!this.quiet) { n64js.log('AI dacrate changed to ' + value); }
+        if(!this.quiet) { logger.log('AI dacrate changed to ' + value); }
         this.mem.write32(ea, value);
         break;
 
       case AI_STATUS_REG:
-        n64js.log('AI interrupt cleared');
+        logger.log('AI interrupt cleared');
         ai_reg.clearBits32(MI_INTR_REG, MI_INTR_AI);
         n64js.cpu0.updateCause3();
         break;
 
       default:
-        n64js.log('Unhandled write to AIReg: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
+        logger.log('Unhandled write to AIReg: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
         this.mem.write32(ea, value);
         break;
     }
@@ -1312,16 +1210,16 @@ import * as sync from './sync.js';
         this.mem.write32(ea, value);
         break;
       case VI_CONTROL_REG:
-        if (!this.quiet) { n64js.log('VI control set to: ' + toString32(value) ); }
+        if (!this.quiet) { logger.log('VI control set to: ' + toString32(value) ); }
         this.mem.write32(ea, value);
         break;
       case VI_WIDTH_REG:
-        if (!this.quiet) { n64js.log('VI width set to: ' + value ); }
+        if (!this.quiet) { logger.log('VI width set to: ' + value ); }
         this.mem.write32(ea, value);
         break;
       case VI_CURRENT_REG:
-        if (!this.quiet) { n64js.log('VI current set to: ' + toString32(value) + '.' ); }
-        if (!this.quiet) { n64js.log('VI interrupt cleared'); }
+        if (!this.quiet) { logger.log('VI current set to: ' + toString32(value) + '.' ); }
+        if (!this.quiet) { logger.log('VI interrupt cleared'); }
         mi_reg.clearBits32(MI_INTR_REG, MI_INTR_VI);
         n64js.cpu0.updateCause3();
         break;
@@ -1360,7 +1258,7 @@ import * as sync from './sync.js';
     switch( ea ) {
       case PI_DRAM_ADDR_REG:
       case PI_CART_ADDR_REG:
-        if (!this.quiet) { n64js.log('Writing to PIReg: ' + toString32(value) + ' -> [' + toString32(address) + ']' ); }
+        if (!this.quiet) { logger.log('Writing to PIReg: ' + toString32(value) + ' -> [' + toString32(address) + ']' ); }
         this.mem.write32(ea, value);
         break;
       case PI_RD_LEN_REG:
@@ -1373,18 +1271,18 @@ import * as sync from './sync.js';
         break;
       case PI_STATUS_REG:
         if (value & PI_STATUS_RESET) {
-          if (!this.quiet) { n64js.log('PI_STATUS_REG reset'); }
+          if (!this.quiet) { logger.log('PI_STATUS_REG reset'); }
           this.mem.write32(PI_STATUS_REG, 0);
         }
         if (value & PI_STATUS_CLR_INTR) {
-          if (!this.quiet) { n64js.log('PI interrupt cleared'); }
+          if (!this.quiet) { logger.log('PI interrupt cleared'); }
           mi_reg.clearBits32(MI_INTR_REG, MI_INTR_PI);
           n64js.cpu0.updateCause3();
         }
 
         break;
       default:
-        n64js.log('Unhandled write to PIReg: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
+        logger.log('Unhandled write to PIReg: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
         this.mem.write32(ea, value);
         break;
     }
@@ -1395,7 +1293,7 @@ import * as sync from './sync.js';
     var dram_address = si_reg.readU32(SI_DRAM_ADDR_REG) & 0x1fffffff;
     var pi_ram       = new Uint8Array(pi_mem.arrayBuffer, 0x7c0, 0x040);
 
-    if (!si_reg_handler_uncached.quiet) { n64js.log('SI: copying from ' + toString32(dram_address) + ' to PI RAM'); }
+    if (!si_reg_handler_uncached.quiet) { logger.log('SI: copying from ' + toString32(dram_address) + ' to PI RAM'); }
 
     var i;
     for (i = 0; i < 64; ++i) {
@@ -1404,7 +1302,7 @@ import * as sync from './sync.js';
 
     var control_byte = pi_ram[0x3f];
     if (control_byte > 0) {
-      if (!si_reg_handler_uncached.quiet) { n64js.log('SI: wrote ' + control_byte + ' to the control byte'); }
+      if (!si_reg_handler_uncached.quiet) { logger.log('SI: wrote ' + control_byte + ' to the control byte'); }
     }
 
     si_reg.setBits32(SI_STATUS_REG, SI_STATUS_INTERRUPT);
@@ -1420,7 +1318,7 @@ import * as sync from './sync.js';
     var dram_address = si_reg.readU32(SI_DRAM_ADDR_REG) & 0x1fffffff;
     var pi_ram       = new Uint8Array(pi_mem.arrayBuffer, 0x7c0, 0x040);
 
-    if (!si_reg_handler_uncached.quiet) { n64js.log('SI: copying from PI RAM to ' + toString32(dram_address)); }
+    if (!si_reg_handler_uncached.quiet) { logger.log('SI: copying from PI RAM to ' + toString32(dram_address)); }
 
     var i;
     for (i = 0; i < 64; ++i) {
@@ -1568,7 +1466,7 @@ import * as sync from './sync.js';
       case kKeyRight: controllers[0].stick_x = down ? +80 : 0; break;
       case kKeyDown:  controllers[0].stick_y = down ? -80 : 0; break;
       case kKeyUp:    controllers[0].stick_y = down ? +80 : 0; break;
-      //default: n64js.log( 'up code:' + event.which);
+      //default: logger.log( 'up code:' + event.which);
     }
 
     if (button) {
@@ -1658,7 +1556,7 @@ import * as sync from './sync.js';
 
     case CONT_READ_EEPROM:
       offset = cmd[3]*8;
-      n64js.log('Reading from eeprom+' + offset);
+      logger.log('Reading from eeprom+' + offset);
       for (i = 0; i < 8; ++i) {
         cmd[4+i] = eeprom.u8[offset+i];
       }
@@ -1666,7 +1564,7 @@ import * as sync from './sync.js';
 
     case CONT_WRITE_EEPROM:
       offset = cmd[3]*8;
-      n64js.log('Writing to eeprom+' + offset);
+      logger.log('Writing to eeprom+' + offset);
       for (i = 0; i < 8; ++i) {
         eeprom.u8[offset+i] = cmd[4+i];
       }
@@ -1730,7 +1628,7 @@ import * as sync from './sync.js';
         cmd[5+i] = 0;
       }
     } else {
-      n64js.log('Reading from mempack+' + addr);
+      logger.log('Reading from mempack+' + addr);
       addr &= 0xFFE0;
 
       if (addr <= 0x7FE0) {
@@ -1753,7 +1651,7 @@ import * as sync from './sync.js';
     var i;
 
     if (addr !== 0x8001) {
-      n64js.log('Writing to mempack+' + addr);
+      logger.log('Writing to mempack+' + addr);
       addr &= 0xFFE0;
 
       if (addr <= 0x7FE0) {
@@ -1824,7 +1722,7 @@ import * as sync from './sync.js';
 
     switch( ea ) {
       case SI_DRAM_ADDR_REG:
-        if (!this.quiet) { n64js.log('Writing to SI dram address reigster: ' + toString32(value) ); }
+        if (!this.quiet) { logger.log('Writing to SI dram address reigster: ' + toString32(value) ); }
         this.mem.write32(ea, value);
         break;
       case SI_PIF_ADDR_RD64B_REG:
@@ -1836,13 +1734,13 @@ import * as sync from './sync.js';
         siCopyFromRDRAM();
         break;
       case SI_STATUS_REG:
-        if (!this.quiet) { n64js.log('SI interrupt cleared'); }
+        if (!this.quiet) { logger.log('SI interrupt cleared'); }
         si_reg.clearBits32(SI_STATUS_REG, SI_STATUS_INTERRUPT);
         mi_reg.clearBits32(MI_INTR_REG,   MI_INTR_SI);
         n64js.cpu0.updateCause3();
         break;
       default:
-        n64js.log('Unhandled write to SIReg: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
+        logger.log('Unhandled write to SIReg: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
         this.mem.write32(ea, value);
         break;
     }
@@ -1854,10 +1752,10 @@ import * as sync from './sync.js';
     var cart_address = pi_reg.readU32(PI_CART_ADDR_REG);
     var transfer_len = pi_reg.readU32(PI_WR_LEN_REG) + 1;
 
-    if (!pi_reg_handler_uncached.quiet) { n64js.log('PI: copying ' + transfer_len + ' bytes of data from ' + toString32(cart_address) + ' to ' + toString32(dram_address)); }
+    if (!pi_reg_handler_uncached.quiet) { logger.log('PI: copying ' + transfer_len + ' bytes of data from ' + toString32(cart_address) + ' to ' + toString32(dram_address)); }
 
     if (transfer_len&1) {
-      n64js.log('PI: Warning - odd address');
+      logger.log('PI: Warning - odd address');
       transfer_len++;
     }
 
@@ -1894,7 +1792,7 @@ import * as sync from './sync.js';
     if (!setMemorySize) {
       var addr = (rominfo.cic === '6105') ? 0x800003F0 : 0x80000318;
       ram.write32(addr - 0x80000000, 8*1024*1024);
-      n64js.log('Setting memory size');
+      logger.log('Setting memory size');
       setMemorySize = true;
     }
 
@@ -1912,27 +1810,27 @@ import * as sync from './sync.js';
 
     switch (command) {
       case 0x01:
-        n64js.log('PI: execute block\n');
+        logger.log('PI: execute block\n');
         break;
       case 0x08:
-        n64js.log('PI: interrupt control\n');
+        logger.log('PI: interrupt control\n');
         pi_ram[0x3f] = 0x00;
         si_reg.setBits32(SI_STATUS_REG, SI_STATUS_INTERRUPT);
         mi_reg.setBits32(MI_INTR_REG,   MI_INTR_SI);
         n64js.cpu0.updateCause3();
         break;
       case 0x10:
-        n64js.log('PI: clear rom\n');
+        logger.log('PI: clear rom\n');
         for(i = 0; i < pi_rom.length; ++i) {
           pi_rom[i] = 0;
         }
         break;
       case 0x30:
-        n64js.log('PI: set 0x80 control \n');
+        logger.log('PI: set 0x80 control \n');
         pi_ram[0x3f] = 0x80;
         break;
       case 0xc0:
-        n64js.log('PI: clear ram\n');
+        logger.log('PI: clear ram\n');
         for(i = 0; i < pi_ram.length; ++i) {
           pi_ram[i] = 0;
         }
@@ -1952,13 +1850,13 @@ import * as sync from './sync.js';
     var v = this.mem.readS32(ea);
 
     if (ea < 0x7c0) {
-      n64js.log('Reading from PIF rom (' + toString32(address) + '). Got ' + toString32(v));
+      logger.log('Reading from PIF rom (' + toString32(address) + '). Got ' + toString32(v));
     } else {
       var ram_offset = ea - 0x7c0;
       switch(ram_offset) {
-        case 0x24:  n64js.log('Reading CIC values: '   + toString32(v)); break;
-        case 0x3c:  n64js.log('Reading Control byte: ' + toString32(v)); break;
-        default:    n64js.log('Reading from PI ram ['  + toString32(address) + ']. Got ' + toString32(v));
+        case 0x24:  logger.log('Reading CIC values: '   + toString32(v)); break;
+        case 0x3c:  logger.log('Reading Control byte: ' + toString32(v)); break;
+        default:    logger.log('Reading from PI ram ['  + toString32(address) + ']. Got ' + toString32(v));
       }
     }
     return v;
@@ -1974,13 +1872,13 @@ import * as sync from './sync.js';
     var v = pi_mem.readU8(ea);
 
     if (ea < 0x7c0) {
-      n64js.log('Reading from PIF rom (' + toString32(address) + '). Got ' + format.toString8(v));
+      logger.log('Reading from PIF rom (' + toString32(address) + '). Got ' + format.toString8(v));
     } else {
       var ram_offset = ea - 0x7c0;
       switch(ram_offset) {
-        case 0x24:  n64js.log('Reading CIC values: '   + format.toString8(v)); break;
-        case 0x3c:  n64js.log('Reading Control byte: ' + format.toString8(v)); break;
-        default:    n64js.log('Reading from PI ram ['  + toString32(address) + ']. Got ' + format.toString8(v));
+        case 0x24:  logger.log('Reading CIC values: '   + format.toString8(v)); break;
+        case 0x3c:  logger.log('Reading Control byte: ' + format.toString8(v)); break;
+        default:    logger.log('Reading from PI ram ['  + toString32(address) + ']. Got ' + format.toString8(v));
       }
     }
     return v;
@@ -1993,14 +1891,14 @@ import * as sync from './sync.js';
     var ea = this.calcEA(address);
 
     if (ea < 0x7c0) {
-      n64js.log('Attempting to write to PIF ROM');
+      logger.log('Attempting to write to PIF ROM');
     } else {
       var ram_offset = ea - 0x7c0;
       this.mem.write32(ea, value);
       switch(ram_offset) {
-      case 0x24:  n64js.log('Writing CIC values: '   + toString32(value) ); break;
-      case 0x3c:  n64js.log('Writing Control byte: ' + toString32(value) ); pifUpdateControl(); break;
-      default:    n64js.log('Writing directly to PI ram [' + toString32(address) + '] <-- ' + toString32(value)); break;
+      case 0x24:  logger.log('Writing CIC values: '   + toString32(value) ); break;
+      case 0x3c:  logger.log('Writing Control byte: ' + toString32(value) ); pifUpdateControl(); break;
+      default:    logger.log('Writing directly to PI ram [' + toString32(address) + '] <-- ' + toString32(value)); break;
       }
     }
   };
@@ -2059,7 +1957,7 @@ import * as sync from './sync.js';
       return handler;
     }
 
-    n64js.log('read from unhandled location ' + toString32(address));
+    logger.log('read from unhandled location ' + toString32(address));
     throw 'unmapped read ' + toString32(address) + ' - need to set exception';
   }
 
@@ -2529,24 +2427,24 @@ import * as sync from './sync.js';
 
   n64js.check = function (e, m) {
     if (!e) {
-      n64js.log(m);
+      logger.log(m);
     }
   };
 
   n64js.warn = function (m) {
-    n64js.log(m);
+    logger.log(m);
   };
 
   n64js.stopForBreakpoint = function () {
     running = false;
     n64js.cpu0.breakExecution();
-    n64js.log('<span style="color:red">Breakpoint</span>');
+    logger.log('<span style="color:red">Breakpoint</span>');
   };
 
   n64js.halt = function (msg) {
     running = false;
     n64js.cpu0.breakExecution();
-    n64js.log('<span style="color:red">' + msg + '</span>');
+    logger.log('<span style="color:red">' + msg + '</span>');
 
     n64js.displayError(msg);
   };
