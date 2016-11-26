@@ -469,4 +469,3 @@ export function convertCI4(dstData, srcData, tmem, line, width, height, palAddre
     rowSwizzle ^= 0x4; // Alternate lines are word-swapped
   }
 }
-
