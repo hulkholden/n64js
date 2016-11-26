@@ -86,7 +86,7 @@ import * as logger from './logger.js';
       logger.clear();
     });
 
-    $('#cpu').find('#speed').val(0).change(function () {
+    $('#cpu').find('#speed').change(function () {
       debugCycles = Math.pow(10, $(this).val() | 0);
       logger.log('Speed is now ' + debugCycles);
     });
