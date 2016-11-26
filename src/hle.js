@@ -2,6 +2,7 @@
 
 import { padString, toHex, toString8, toString16, toString32 } from './format.js';
 import { Matrix } from './Matrix.js';
+import { ProjectedVertex, TriangleBuffer } from './TriangleBuffer.js';
 import { Vector3 } from './Vector3.js';
 import { Vector4 } from './Vector4.js';
 import * as logger from './logger.js';
@@ -380,6 +381,9 @@ import * as logger from './logger.js';
     projection:     [],
     modelview:      [],
 
+    /**
+     * @type {!Array<!ProjectedVertex>}
+     */
     projectedVertices: new Array(64),
 
     scissor: {
@@ -459,58 +463,8 @@ import * as logger from './logger.js';
     }
   }
 
-  /**
-   * @constructor
-   */
-  function TriangleBuffer(num_tris) {
-    this.vertex_positions = new Float32Array(num_tris*3*4);
-    this.vertex_colours   = new  Uint32Array(num_tris*3*1);
-    this.vertex_coords    = new Float32Array(num_tris*3*2);
-  }
-
-  TriangleBuffer.prototype.pushTri = function (v0, v1, v2, tri_idx) {
-    var vtx_pos_idx = tri_idx * 3*4;
-    var vtx_col_idx = tri_idx * 3*1;
-    var vtx_uv_idx  = tri_idx * 3*2;
-
-    var vp0 = v0.pos.elems;
-    var vp1 = v1.pos.elems;
-    var vp2 = v2.pos.elems;
-
-    this.vertex_positions[vtx_pos_idx+ 0] = vp0[0];
-    this.vertex_positions[vtx_pos_idx+ 1] = vp0[1];
-    this.vertex_positions[vtx_pos_idx+ 2] = vp0[2];
-    this.vertex_positions[vtx_pos_idx+ 3] = vp0[3];
-
-    this.vertex_positions[vtx_pos_idx+ 4] = vp1[0];
-    this.vertex_positions[vtx_pos_idx+ 5] = vp1[1];
-    this.vertex_positions[vtx_pos_idx+ 6] = vp1[2];
-    this.vertex_positions[vtx_pos_idx+ 7] = vp1[3];
-
-    this.vertex_positions[vtx_pos_idx+ 8] = vp2[0];
-    this.vertex_positions[vtx_pos_idx+ 9] = vp2[1];
-    this.vertex_positions[vtx_pos_idx+10] = vp2[2];
-    this.vertex_positions[vtx_pos_idx+11] = vp2[3];
-
-
-    this.vertex_colours[vtx_col_idx + 0] = v0.color;
-    this.vertex_colours[vtx_col_idx + 1] = v1.color;
-    this.vertex_colours[vtx_col_idx + 2] = v2.color;
-
-
-    this.vertex_coords[vtx_uv_idx+ 0] = v0.u;
-    this.vertex_coords[vtx_uv_idx+ 1] = v0.v;
-
-    this.vertex_coords[vtx_uv_idx+ 2] = v1.u;
-    this.vertex_coords[vtx_uv_idx+ 3] = v1.v;
-
-    this.vertex_coords[vtx_uv_idx+ 4] = v2.u;
-    this.vertex_coords[vtx_uv_idx+ 5] = v2.v;
-  };
-
   const kMaxTris = 64;
   var triangleBuffer = new TriangleBuffer(kMaxTris);
-
 
   function convertN64ToCanvas( n64_coords ) {
     return [
@@ -1044,17 +998,6 @@ import * as logger from './logger.js';
     a = 255;
 
     return (a<<24) | (b<<16) | (g<<8) | r;
-  }
-
-  /**
-   * @constructor
-   */
-  function ProjectedVertex() {
-    this.pos   = new Vector4();
-    this.color = 0;
-    this.u     = 0;
-    this.v     = 0;
-    this.set   = false;
   }
 
   function previewVertexImpl(v0, n, dv, dis) {
@@ -2593,7 +2536,6 @@ import * as logger from './logger.js';
     return shader;
   }
 
-
   var fillShaderProgram;
   var fill_vertexPositionAttribute;
   var fill_uPMatrix;
@@ -2613,7 +2555,7 @@ import * as logger from './logger.js';
   const kBlendModeAlphaTrans = 1;
   const kBlendModeFade       = 2;
 
-  function setProgramState(vertex_positions, vertex_colours, vertex_coords, texture, tex_gen_enabled) {
+  function setProgramState(positions, colours, coords, texture, tex_gen_enabled) {
     var cvg_x_alpha   = getCoverageTimesAlpha();   // fragment coverage (0) or alpha (1)?
     var alpha_cvg_sel = getAlphaCoverageSelect();  // use fragment coverage * fragment alpha
 
@@ -2677,32 +2619,31 @@ import * as logger from './logger.js';
         alpha_threshold = ((state.blendColor>>> 0)&0xff)/255.0;
       }
       // } else if (cvg_x_alpha) {
-    //   // Going over 0x70 brakes OOT, but going lesser than that makes lines on games visible...ex: Paper Mario.
-    //   // ALso going over 0x30 breaks the birds in Tarzan :(. Need to find a better way to leverage this.
-    //   sceGuAlphaFunc(GU_GREATER, 0x70, 0xff);
-    //   sceGuEnable(GU_ALPHA_TEST);
+      // Going over 0x70 brakes OOT, but going lesser than that makes lines on games visible...ex: Paper Mario.
+      // Also going over 0x30 breaks the birds in Tarzan :(. Need to find a better way to leverage this.
+      // sceGuAlphaFunc(GU_GREATER, 0x70, 0xff);
+      // sceGuEnable(GU_ALPHA_TEST);
     }
 
     var shader = getCurrentN64Shader(cycle_type, alpha_threshold);
     gl.useProgram(shader.program);
 
-
     // aVertexPosition
     gl.enableVertexAttribArray(shader.vertexPositionAttribute);
     gl.bindBuffer(gl.ARRAY_BUFFER, n64PositionsBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, vertex_positions, gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
     gl.vertexAttribPointer(shader.vertexPositionAttribute, 4, gl.FLOAT, false, 0, 0);
 
     // aVertexColor
     gl.enableVertexAttribArray(shader.vertexColorAttribute);
     gl.bindBuffer(gl.ARRAY_BUFFER, n64ColorsBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, vertex_colours, gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, colours, gl.STATIC_DRAW);
     gl.vertexAttribPointer(shader.vertexColorAttribute, 4, gl.UNSIGNED_BYTE, true, 0, 0);
 
     // aTextureCoord
     gl.enableVertexAttribArray(shader.texCoordAttribute);
     gl.bindBuffer(gl.ARRAY_BUFFER, n64UVBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, vertex_coords, gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, coords, gl.STATIC_DRAW);
     gl.vertexAttribPointer(shader.texCoordAttribute, 2, gl.FLOAT, false, 0, 0);
 
     // uSampler
@@ -2758,9 +2699,9 @@ import * as logger from './logger.js';
       tex_gen_enabled = state.geometryMode.lighting && state.geometryMode.textureGen;
     }
 
-    setProgramState(triangleBuffer.vertex_positions,
-                    triangleBuffer.vertex_colours,
-                    triangleBuffer.vertex_coords,
+    setProgramState(triangleBuffer.positions,
+                    triangleBuffer.colours,
+                    triangleBuffer.coords,
                     texture,
                     tex_gen_enabled);
 
