@@ -30,7 +30,7 @@ import * as format from './format.js';
     return '<span class="dis-address-jump">'+ text + '</span>';
   }
 
-  var gprRegisterNames = [
+  const gprRegisterNames = [
     'r0', 'at', 'v0', 'v1', 'a0', 'a1', 'a2', 'a3',
     't0', 't1', 't2', 't3', 't4', 't5', 't6', 't7',
     's0', 's1', 's2', 's3', 's4', 's5', 's6', 's7',
@@ -38,7 +38,7 @@ import * as format from './format.js';
   ];
   n64js.cop0gprNames = gprRegisterNames;
 
-  var cop0ControlRegisterNames = [
+  const cop0ControlRegisterNames = [
     "Index",       "Rand", "EntryLo0", "EntryLo1", "Context", "PageMask",     "Wired",   "?7",
     "BadVAddr",   "Count",  "EntryHi",  "Compare",      "SR",    "Cause",       "EPC", "PrID",
     "?16",         "?17",   "WatchLo",  "WatchHi",     "?20",      "?21",       "?22",  "?23",
@@ -46,7 +46,7 @@ import * as format from './format.js';
   ];
   n64js.cop0ControlRegisterNames = cop0ControlRegisterNames;
 
-  var cop1RegisterNames = [
+  const cop1RegisterNames = [
     'f00', 'f01', 'f02', 'f03', 'f04', 'f05', 'f06', 'f07',
     'f08', 'f09', 'f10', 'f11', 'f12', 'f13', 'f14', 'f15',
     'f16', 'f17', 'f18', 'f19', 'f20', 'f21', 'f22', 'f23',
@@ -54,7 +54,7 @@ import * as format from './format.js';
   ];
   n64js.cop1RegisterNames = cop1RegisterNames;
 
-  var cop2RegisterNames = [
+  const cop2RegisterNames = [
     'GR00', 'GR01', 'GR02', 'GR03', 'GR04', 'GR05', 'GR06', 'GR07',
     'GR08', 'GR09', 'GR10', 'GR11', 'GR12', 'GR13', 'GR14', 'GR15',
     'GR16', 'GR17', 'GR18', 'GR19', 'GR20', 'GR21', 'GR22', 'GR23',
@@ -131,7 +131,7 @@ import * as format from './format.js';
 
   };
 
-  var specialTable = [
+  const specialTable = [
     function (i) { if (i.opcode === 0) {
                      return 'NOP';
                      }
@@ -216,7 +216,7 @@ import * as format from './format.js';
     return specialTable[fn](i);
   }
 
-  var cop0Table = [
+  const cop0Table = [
     function (i) { return 'MFC0      ' + i.rt() + ' <- ' + cop0ControlRegisterNames[_fs(i.opcode)]; },
     function (i) { return 'Unk'; },
     function (i) { return 'Unk'; },
@@ -333,7 +333,7 @@ import * as format from './format.js';
   }
 
 
-  var cop1Table = [
+  const cop1Table = [
     function (i) { return 'MFC1      ' + i.rt_d() + ' = ' + i.fs(); },
     function (i) { return 'DMFC1     ' + i.rt_d() + ' = ' + i.fs(); },
     function (i) { return 'CFC1      ' + i.rt_d() + ' = CCR' + _rd(i.opcode); },
@@ -389,7 +389,7 @@ import * as format from './format.js';
     return 'Unk';
   }
 
-  var regImmTable = [
+  const regImmTable = [
     function (i) { return 'BLTZ      ' + i.rs() +  ' < 0 --> ' + i.branchAddress(); },
     function (i) { return 'BGEZ      ' + i.rs() + ' >= 0 --> ' + i.branchAddress(); },
     function (i) { return 'BLTZL     ' + i.rs() +  ' < 0 --> ' + i.branchAddress(); },
@@ -434,7 +434,7 @@ import * as format from './format.js';
     return regImmTable[rt](i);
   }
 
-  var simpleTable = [
+  const simpleTable = [
     disassembleSpecial,
     disassembleRegImm,
     function (i) { return 'J         --> ' + i.jumpAddress(); },
@@ -522,7 +522,6 @@ import * as format from './format.js';
   };
 
   n64js.disassemble = function (bpc, epc) {
-
     var r = [];
 
     var targets = {};

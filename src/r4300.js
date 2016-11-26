@@ -5,194 +5,194 @@ import * as format from './format.js';
 (function (n64js) {'use strict';
   const toString32 = format.toString32;
 
-  var kDebugTLB = 0;
-  var kDebugDynarec = 0;
-  var kEnableDynarec = true;
+  const kDebugTLB = 0;
+  const kDebugDynarec = 0;
+  const kEnableDynarec = true;
 
   var hitCounts = {};
   var fragmentMap = {};
   var fragmentInvalidationEvents = [];
 
-  var kHotFragmentThreshold = 500;
+  const kHotFragmentThreshold = 500;
 
   var accurateCountUpdating = false;
-  var COUNTER_INCREMENT_PER_OP = 1;
+  const COUNTER_INCREMENT_PER_OP = 1;
 
-  var k1Shift32 = 4294967296.0;
+  const k1Shift32 = 4294967296.0;
 
-  var UT_VEC          = 0x80000000;
-  var XUT_VEC         = 0x80000080;
-  var ECC_VEC         = 0x80000100;
-  var E_VEC           = 0x80000180;
+  const UT_VEC          = 0x80000000;
+  const XUT_VEC         = 0x80000080;
+  const ECC_VEC         = 0x80000100;
+  const E_VEC           = 0x80000180;
 
-  var SR_IE           = 0x00000001;
-  var SR_EXL          = 0x00000002;
-  var SR_ERL          = 0x00000004;
-  var SR_KSU_KER      = 0x00000000;
-  var SR_KSU_SUP      = 0x00000008;
-  var SR_KSU_USR      = 0x00000010;
-  var SR_KSU_MASK     = 0x00000018;
-  var SR_UX           = 0x00000020;
-  var SR_SX           = 0x00000040;
-  var SR_KX           = 0x00000080;
+  const SR_IE           = 0x00000001;
+  const SR_EXL          = 0x00000002;
+  const SR_ERL          = 0x00000004;
+  const SR_KSU_KER      = 0x00000000;
+  const SR_KSU_SUP      = 0x00000008;
+  const SR_KSU_USR      = 0x00000010;
+  const SR_KSU_MASK     = 0x00000018;
+  const SR_UX           = 0x00000020;
+  const SR_SX           = 0x00000040;
+  const SR_KX           = 0x00000080;
 
-  var SR_IBIT1        = 0x00000100;
-  var SR_IBIT2        = 0x00000200;
-  var SR_IBIT3        = 0x00000400;
-  var SR_IBIT4        = 0x00000800;
-  var SR_IBIT5        = 0x00001000;
-  var SR_IBIT6        = 0x00002000;
-  var SR_IBIT7        = 0x00004000;
-  var SR_IBIT8        = 0x00008000;
+  const SR_IBIT1        = 0x00000100;
+  const SR_IBIT2        = 0x00000200;
+  const SR_IBIT3        = 0x00000400;
+  const SR_IBIT4        = 0x00000800;
+  const SR_IBIT5        = 0x00001000;
+  const SR_IBIT6        = 0x00002000;
+  const SR_IBIT7        = 0x00004000;
+  const SR_IBIT8        = 0x00008000;
 
-  var SR_IMASK0       = 0x0000ff00;
-  var SR_IMASK1       = 0x0000fe00;
-  var SR_IMASK2       = 0x0000fc00;
-  var SR_IMASK3       = 0x0000f800;
-  var SR_IMASK4       = 0x0000f000;
-  var SR_IMASK5       = 0x0000e000;
-  var SR_IMASK6       = 0x0000c000;
-  var SR_IMASK7       = 0x00008000;
-  var SR_IMASK8       = 0x00000000;
-  var SR_IMASK        = 0x0000ff00;
+  const SR_IMASK0       = 0x0000ff00;
+  const SR_IMASK1       = 0x0000fe00;
+  const SR_IMASK2       = 0x0000fc00;
+  const SR_IMASK3       = 0x0000f800;
+  const SR_IMASK4       = 0x0000f000;
+  const SR_IMASK5       = 0x0000e000;
+  const SR_IMASK6       = 0x0000c000;
+  const SR_IMASK7       = 0x00008000;
+  const SR_IMASK8       = 0x00000000;
+  const SR_IMASK        = 0x0000ff00;
 
-  var SR_DE           = 0x00010000;
-  var SR_CE           = 0x00020000;
-  var SR_CH           = 0x00040000;
-  var SR_SR           = 0x00100000;
-  var SR_TS           = 0x00200000;
-  var SR_BEV          = 0x00400000;
-  var SR_ITS          = 0x01000000;
-  var SR_RE           = 0x02000000;
-  var SR_FR           = 0x04000000;
-  var SR_RP           = 0x08000000;
-  var SR_CU0          = 0x10000000;
-  var SR_CU1          = 0x20000000;
-  var SR_CU2          = 0x40000000;
-  var SR_CU3          = 0x80000000;
+  const SR_DE           = 0x00010000;
+  const SR_CE           = 0x00020000;
+  const SR_CH           = 0x00040000;
+  const SR_SR           = 0x00100000;
+  const SR_TS           = 0x00200000;
+  const SR_BEV          = 0x00400000;
+  const SR_ITS          = 0x01000000;
+  const SR_RE           = 0x02000000;
+  const SR_FR           = 0x04000000;
+  const SR_RP           = 0x08000000;
+  const SR_CU0          = 0x10000000;
+  const SR_CU1          = 0x20000000;
+  const SR_CU2          = 0x40000000;
+  const SR_CU3          = 0x80000000;
 
-  var SR_CUMASK       = 0xf0000000;
+  const SR_CUMASK       = 0xf0000000;
 
-  var CAUSE_BD_BIT    = 31;           // NB: Closure Compiler doesn't like 32 bit constants.
-  var CAUSE_BD        = 0x80000000;
-  var CAUSE_CEMASK    = 0x30000000;
-  var CAUSE_CESHIFT   = 28;
+  const CAUSE_BD_BIT    = 31;           // NB: Closure Compiler doesn't like 32 bit constants.
+  const CAUSE_BD        = 0x80000000;
+  const CAUSE_CEMASK    = 0x30000000;
+  const CAUSE_CESHIFT   = 28;
 
-  var CAUSE_SW1       = 0x00000100;
-  var CAUSE_SW2       = 0x00000200;
-  var CAUSE_IP3       = 0x00000400;
-  var CAUSE_IP4       = 0x00000800;
-  var CAUSE_IP5       = 0x00001000;
-  var CAUSE_IP6       = 0x00002000;
-  var CAUSE_IP7       = 0x00004000;
-  var CAUSE_IP8       = 0x00008000;
+  const CAUSE_SW1       = 0x00000100;
+  const CAUSE_SW2       = 0x00000200;
+  const CAUSE_IP3       = 0x00000400;
+  const CAUSE_IP4       = 0x00000800;
+  const CAUSE_IP5       = 0x00001000;
+  const CAUSE_IP6       = 0x00002000;
+  const CAUSE_IP7       = 0x00004000;
+  const CAUSE_IP8       = 0x00008000;
 
-  var CAUSE_IPMASK    = 0x0000FF00;
+  const CAUSE_IPMASK    = 0x0000FF00;
 
-  var CAUSE_IPSHIFT   = 8;
+  const CAUSE_IPSHIFT   = 8;
 
-  var CAUSE_EXCMASK   = 0x0000007C;
+  const CAUSE_EXCMASK   = 0x0000007C;
 
-  var CAUSE_EXCSHIFT  = 2;
+  const CAUSE_EXCSHIFT  = 2;
 
-  var EXC_INT         = 0;
-  var EXC_MOD         = 4;
-  var EXC_RMISS       = 8;
-  var EXC_WMISS       = 12;
-  var EXC_RADE        = 16;
-  var EXC_WADE        = 20;
-  var EXC_IBE         = 24;
-  var EXC_DBE         = 28;
-  var EXC_SYSCALL     = 32;
-  var EXC_BREAK       = 36;
-  var EXC_II          = 40;
-  var EXC_CPU         = 44;
-  var EXC_OV          = 48;
-  var EXC_TRAP        = 52;
-  var EXC_VCEI        = 56;
-  var EXC_FPE         = 60;
-  var EXC_WATCH       = 92;
-  var EXC_VCED        = 124;
-
-
-  var FPCSR_RM_RN     = 0x00000000;
-  var FPCSR_RM_RZ     = 0x00000001;
-  var FPCSR_RM_RP     = 0x00000002;
-  var FPCSR_RM_RM     = 0x00000003;
-  var FPCSR_FI        = 0x00000004;
-  var FPCSR_FU        = 0x00000008;
-  var FPCSR_FO        = 0x00000010;
-  var FPCSR_FZ        = 0x00000020;
-  var FPCSR_FV        = 0x00000040;
-  var FPCSR_EI        = 0x00000080;
-  var FPCSR_EU        = 0x00000100;
-  var FPCSR_EO        = 0x00000200;
-  var FPCSR_EZ        = 0x00000400;
-  var FPCSR_EV        = 0x00000800;
-  var FPCSR_CI        = 0x00001000;
-  var FPCSR_CU        = 0x00002000;
-  var FPCSR_CO        = 0x00004000;
-  var FPCSR_CZ        = 0x00008000;
-  var FPCSR_CV        = 0x00010000;
-  var FPCSR_CE        = 0x00020000;
-  var FPCSR_C         = 0x00800000;
-  var FPCSR_FS        = 0x01000000;
-
-  var FPCSR_RM_MASK   = 0x00000003;
+  const EXC_INT         = 0;
+  const EXC_MOD         = 4;
+  const EXC_RMISS       = 8;
+  const EXC_WMISS       = 12;
+  const EXC_RADE        = 16;
+  const EXC_WADE        = 20;
+  const EXC_IBE         = 24;
+  const EXC_DBE         = 28;
+  const EXC_SYSCALL     = 32;
+  const EXC_BREAK       = 36;
+  const EXC_II          = 40;
+  const EXC_CPU         = 44;
+  const EXC_OV          = 48;
+  const EXC_TRAP        = 52;
+  const EXC_VCEI        = 56;
+  const EXC_FPE         = 60;
+  const EXC_WATCH       = 92;
+  const EXC_VCED        = 124;
 
 
-  var TLBHI_VPN2MASK    = 0xffffe000;
-  var TLBHI_VPN2MASK_NEG= 0x00001fff;
-  var TLBHI_VPN2SHIFT   = 13;
-  var TLBHI_PIDMASK     = 0xff;
-  var TLBHI_PIDSHIFT    = 0;
-  var TLBHI_NPID        = 255;
+  const FPCSR_RM_RN     = 0x00000000;
+  const FPCSR_RM_RZ     = 0x00000001;
+  const FPCSR_RM_RP     = 0x00000002;
+  const FPCSR_RM_RM     = 0x00000003;
+  const FPCSR_FI        = 0x00000004;
+  const FPCSR_FU        = 0x00000008;
+  const FPCSR_FO        = 0x00000010;
+  const FPCSR_FZ        = 0x00000020;
+  const FPCSR_FV        = 0x00000040;
+  const FPCSR_EI        = 0x00000080;
+  const FPCSR_EU        = 0x00000100;
+  const FPCSR_EO        = 0x00000200;
+  const FPCSR_EZ        = 0x00000400;
+  const FPCSR_EV        = 0x00000800;
+  const FPCSR_CI        = 0x00001000;
+  const FPCSR_CU        = 0x00002000;
+  const FPCSR_CO        = 0x00004000;
+  const FPCSR_CZ        = 0x00008000;
+  const FPCSR_CV        = 0x00010000;
+  const FPCSR_CE        = 0x00020000;
+  const FPCSR_C         = 0x00800000;
+  const FPCSR_FS        = 0x01000000;
 
-  var TLBLO_PFNMASK     = 0x3fffffc0;
-  var TLBLO_PFNSHIFT    = 6;
-  var TLBLO_CACHMASK    = 0x38;
-  var TLBLO_CACHSHIFT   = 3;
-  var TLBLO_UNCACHED    = 0x10;
-  var TLBLO_NONCOHRNT   = 0x18;
-  var TLBLO_EXLWR       = 0x28;
-  var TLBLO_D           = 0x4;
-  var TLBLO_V           = 0x2;
-  var TLBLO_G           = 0x1;
-
-  var TLBINX_PROBE      = 0x80000000;
-  var TLBINX_INXMASK    = 0x3f;
-  var TLBINX_INXSHIFT   = 0;
-
-  var TLBRAND_RANDMASK  = 0x3f;
-  var TLBRAND_RANDSHIFT = 0;
-
-  var TLBWIRED_WIREDMASK  = 0x3f;
-
-  var TLBCTXT_BASEMASK  = 0xff800000;
-  var TLBCTXT_BASESHIFT = 23;
-  var TLBCTXT_BASEBITS  = 9;
-
-  var TLBCTXT_VPNMASK   = 0x7ffff0;
-  var TLBCTXT_VPNSHIFT  = 4;
-
-  var TLBPGMASK_4K      = 0x00000000;
-  var TLBPGMASK_16K     = 0x00006000;
-  var TLBPGMASK_64K     = 0x0001e000;
-  var TLBPGMASK_256K    = 0x0007e000;
-  var TLBPGMASK_1M      = 0x001fe000;
-  var TLBPGMASK_4M      = 0x007fe000;
-  var TLBPGMASK_16M     = 0x01ffe000;
+  const FPCSR_RM_MASK   = 0x00000003;
 
 
-  var kStuffToDoHalt            = 1<<0;
-  var kStuffToDoCheckInterrupts = 1<<1;
-  var kStuffToDoBreakout        = 1<<2;
+  const TLBHI_VPN2MASK    = 0xffffe000;
+  const TLBHI_VPN2MASK_NEG= 0x00001fff;
+  const TLBHI_VPN2SHIFT   = 13;
+  const TLBHI_PIDMASK     = 0xff;
+  const TLBHI_PIDSHIFT    = 0;
+  const TLBHI_NPID        = 255;
 
-  var kVIIntrCycles = 62500;
+  const TLBLO_PFNMASK     = 0x3fffffc0;
+  const TLBLO_PFNSHIFT    = 6;
+  const TLBLO_CACHMASK    = 0x38;
+  const TLBLO_CACHSHIFT   = 3;
+  const TLBLO_UNCACHED    = 0x10;
+  const TLBLO_NONCOHRNT   = 0x18;
+  const TLBLO_EXLWR       = 0x28;
+  const TLBLO_D           = 0x4;
+  const TLBLO_V           = 0x2;
+  const TLBLO_G           = 0x1;
 
-  var kEventVbl          = 0;
-  var kEventCompare      = 1;
-  var kEventRunForCycles = 2;
+  const TLBINX_PROBE      = 0x80000000;
+  const TLBINX_INXMASK    = 0x3f;
+  const TLBINX_INXSHIFT   = 0;
+
+  const TLBRAND_RANDMASK  = 0x3f;
+  const TLBRAND_RANDSHIFT = 0;
+
+  const TLBWIRED_WIREDMASK  = 0x3f;
+
+  const TLBCTXT_BASEMASK  = 0xff800000;
+  const TLBCTXT_BASESHIFT = 23;
+  const TLBCTXT_BASEBITS  = 9;
+
+  const TLBCTXT_VPNMASK   = 0x7ffff0;
+  const TLBCTXT_VPNSHIFT  = 4;
+
+  const TLBPGMASK_4K      = 0x00000000;
+  const TLBPGMASK_16K     = 0x00006000;
+  const TLBPGMASK_64K     = 0x0001e000;
+  const TLBPGMASK_256K    = 0x0007e000;
+  const TLBPGMASK_1M      = 0x001fe000;
+  const TLBPGMASK_4M      = 0x007fe000;
+  const TLBPGMASK_16M     = 0x01ffe000;
+
+
+  const kStuffToDoHalt            = 1<<0;
+  const kStuffToDoCheckInterrupts = 1<<1;
+  const kStuffToDoBreakout        = 1<<2;
+
+  const kVIIntrCycles = 62500;
+
+  const kEventVbl          = 0;
+  const kEventCompare      = 1;
+  const kEventRunForCycles = 2;
 
   n64js.getHi32 = function (v) {
     // >>32 just seems to no-op? Argh.

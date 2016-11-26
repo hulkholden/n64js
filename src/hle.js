@@ -48,34 +48,34 @@ import { Vector3, Vector4, Matrix, makeOrtho } from './glutils.js';
   var canvasWidth  = 640;
   var canvasHeight = 480;
 
-  var kOffset_type                = 0x00;    // u32
-  var kOffset_flags               = 0x04;    // u32
-  var kOffset_ucode_boot          = 0x08;    // u64*
-  var kOffset_ucode_boot_size     = 0x0c;    // u32
-  var kOffset_ucode               = 0x10;    // u64*
-  var kOffset_ucode_size          = 0x14;    // u32
-  var kOffset_ucode_data          = 0x18;    // u64*
-  var kOffset_ucode_data_size     = 0x1c;    // u32
-  var kOffset_dram_stack          = 0x20;    // u64*
-  var kOffset_dram_stack_size     = 0x24;    // u32
-  var kOffset_output_buff         = 0x28;    // u64*
-  var kOffset_output_buff_size    = 0x2c;    // u64*
-  var kOffset_data_ptr            = 0x30;    // u64*
-  var kOffset_data_size           = 0x34;    // u32
-  var kOffset_yield_data_ptr      = 0x38;    // u64*
-  var kOffset_yield_data_size     = 0x3c;    // u32
+  const kOffset_type                = 0x00;    // u32
+  const kOffset_flags               = 0x04;    // u32
+  const kOffset_ucode_boot          = 0x08;    // u64*
+  const kOffset_ucode_boot_size     = 0x0c;    // u32
+  const kOffset_ucode               = 0x10;    // u64*
+  const kOffset_ucode_size          = 0x14;    // u32
+  const kOffset_ucode_data          = 0x18;    // u64*
+  const kOffset_ucode_data_size     = 0x1c;    // u32
+  const kOffset_dram_stack          = 0x20;    // u64*
+  const kOffset_dram_stack_size     = 0x24;    // u32
+  const kOffset_output_buff         = 0x28;    // u64*
+  const kOffset_output_buff_size    = 0x2c;    // u64*
+  const kOffset_data_ptr            = 0x30;    // u64*
+  const kOffset_data_size           = 0x34;    // u32
+  const kOffset_yield_data_ptr      = 0x38;    // u64*
+  const kOffset_yield_data_size     = 0x3c;    // u32
 
-  var G_MTX_MODELVIEW             = 0x00;
-  var G_MTX_PROJECTION            = 0x01;
-  var G_MTX_MUL                   = 0x00;
-  var G_MTX_LOAD                  = 0x02;
-  var G_MTX_NOPUSH                = 0x00;
-  var G_MTX_PUSH                  = 0x04;
+  const G_MTX_MODELVIEW             = 0x00;
+  const G_MTX_PROJECTION            = 0x01;
+  const G_MTX_MUL                   = 0x00;
+  const G_MTX_LOAD                  = 0x02;
+  const G_MTX_NOPUSH                = 0x00;
+  const G_MTX_PUSH                  = 0x04;
 
-  var G_DL_PUSH                   = 0x00;
-  var G_DL_NOPUSH                 = 0x01;
+  const G_DL_PUSH                   = 0x00;
+  const G_DL_NOPUSH                 = 0x01;
 
-  var moveWordTypeValues = {
+  const moveWordTypeValues = {
     G_MW_MATRIX:             0x00,
     G_MW_NUMLIGHT:           0x02,
     G_MW_CLIP:               0x04,
@@ -86,7 +86,7 @@ import { Vector3, Vector4, Matrix, makeOrtho } from './glutils.js';
     G_MW_PERSPNORM:          0x0e
   };
 
-  var moveMemTypeValues = {
+  const moveMemTypeValues = {
     G_MV_VIEWPORT:           0x80,
     G_MV_LOOKATY:            0x82,
     G_MV_LOOKATX:            0x84,
@@ -105,69 +105,69 @@ import { Vector3, Vector4, Matrix, makeOrtho } from './glutils.js';
     G_MV_MATRIX_4:           0x9c
   };
 
-  var G_MWO_NUMLIGHT          = 0x00;
-  var G_MWO_CLIP_RNX          = 0x04;
-  var G_MWO_CLIP_RNY          = 0x0c;
-  var G_MWO_CLIP_RPX          = 0x14;
-  var G_MWO_CLIP_RPY          = 0x1c;
-  var G_MWO_SEGMENT_0         = 0x00;
-  var G_MWO_SEGMENT_1         = 0x01;
-  var G_MWO_SEGMENT_2         = 0x02;
-  var G_MWO_SEGMENT_3         = 0x03;
-  var G_MWO_SEGMENT_4         = 0x04;
-  var G_MWO_SEGMENT_5         = 0x05;
-  var G_MWO_SEGMENT_6         = 0x06;
-  var G_MWO_SEGMENT_7         = 0x07;
-  var G_MWO_SEGMENT_8         = 0x08;
-  var G_MWO_SEGMENT_9         = 0x09;
-  var G_MWO_SEGMENT_A         = 0x0a;
-  var G_MWO_SEGMENT_B         = 0x0b;
-  var G_MWO_SEGMENT_C         = 0x0c;
-  var G_MWO_SEGMENT_D         = 0x0d;
-  var G_MWO_SEGMENT_E         = 0x0e;
-  var G_MWO_SEGMENT_F         = 0x0f;
-  var G_MWO_FOG               = 0x00;
-  var G_MWO_aLIGHT_1          = 0x00;
-  var G_MWO_bLIGHT_1          = 0x04;
-  var G_MWO_aLIGHT_2          = 0x20;
-  var G_MWO_bLIGHT_2          = 0x24;
-  var G_MWO_aLIGHT_3          = 0x40;
-  var G_MWO_bLIGHT_3          = 0x44;
-  var G_MWO_aLIGHT_4          = 0x60;
-  var G_MWO_bLIGHT_4          = 0x64;
-  var G_MWO_aLIGHT_5          = 0x80;
-  var G_MWO_bLIGHT_5          = 0x84;
-  var G_MWO_aLIGHT_6          = 0xa0;
-  var G_MWO_bLIGHT_6          = 0xa4;
-  var G_MWO_aLIGHT_7          = 0xc0;
-  var G_MWO_bLIGHT_7          = 0xc4;
-  var G_MWO_aLIGHT_8          = 0xe0;
-  var G_MWO_bLIGHT_8          = 0xe4;
-  var G_MWO_MATRIX_XX_XY_I    = 0x00;
-  var G_MWO_MATRIX_XZ_XW_I    = 0x04;
-  var G_MWO_MATRIX_YX_YY_I    = 0x08;
-  var G_MWO_MATRIX_YZ_YW_I    = 0x0c;
-  var G_MWO_MATRIX_ZX_ZY_I    = 0x10;
-  var G_MWO_MATRIX_ZZ_ZW_I    = 0x14;
-  var G_MWO_MATRIX_WX_WY_I    = 0x18;
-  var G_MWO_MATRIX_WZ_WW_I    = 0x1c;
-  var G_MWO_MATRIX_XX_XY_F    = 0x20;
-  var G_MWO_MATRIX_XZ_XW_F    = 0x24;
-  var G_MWO_MATRIX_YX_YY_F    = 0x28;
-  var G_MWO_MATRIX_YZ_YW_F    = 0x2c;
-  var G_MWO_MATRIX_ZX_ZY_F    = 0x30;
-  var G_MWO_MATRIX_ZZ_ZW_F    = 0x34;
-  var G_MWO_MATRIX_WX_WY_F    = 0x38;
-  var G_MWO_MATRIX_WZ_WW_F    = 0x3c;
+  const G_MWO_NUMLIGHT          = 0x00;
+  const G_MWO_CLIP_RNX          = 0x04;
+  const G_MWO_CLIP_RNY          = 0x0c;
+  const G_MWO_CLIP_RPX          = 0x14;
+  const G_MWO_CLIP_RPY          = 0x1c;
+  const G_MWO_SEGMENT_0         = 0x00;
+  const G_MWO_SEGMENT_1         = 0x01;
+  const G_MWO_SEGMENT_2         = 0x02;
+  const G_MWO_SEGMENT_3         = 0x03;
+  const G_MWO_SEGMENT_4         = 0x04;
+  const G_MWO_SEGMENT_5         = 0x05;
+  const G_MWO_SEGMENT_6         = 0x06;
+  const G_MWO_SEGMENT_7         = 0x07;
+  const G_MWO_SEGMENT_8         = 0x08;
+  const G_MWO_SEGMENT_9         = 0x09;
+  const G_MWO_SEGMENT_A         = 0x0a;
+  const G_MWO_SEGMENT_B         = 0x0b;
+  const G_MWO_SEGMENT_C         = 0x0c;
+  const G_MWO_SEGMENT_D         = 0x0d;
+  const G_MWO_SEGMENT_E         = 0x0e;
+  const G_MWO_SEGMENT_F         = 0x0f;
+  const G_MWO_FOG               = 0x00;
+  const G_MWO_aLIGHT_1          = 0x00;
+  const G_MWO_bLIGHT_1          = 0x04;
+  const G_MWO_aLIGHT_2          = 0x20;
+  const G_MWO_bLIGHT_2          = 0x24;
+  const G_MWO_aLIGHT_3          = 0x40;
+  const G_MWO_bLIGHT_3          = 0x44;
+  const G_MWO_aLIGHT_4          = 0x60;
+  const G_MWO_bLIGHT_4          = 0x64;
+  const G_MWO_aLIGHT_5          = 0x80;
+  const G_MWO_bLIGHT_5          = 0x84;
+  const G_MWO_aLIGHT_6          = 0xa0;
+  const G_MWO_bLIGHT_6          = 0xa4;
+  const G_MWO_aLIGHT_7          = 0xc0;
+  const G_MWO_bLIGHT_7          = 0xc4;
+  const G_MWO_aLIGHT_8          = 0xe0;
+  const G_MWO_bLIGHT_8          = 0xe4;
+  const G_MWO_MATRIX_XX_XY_I    = 0x00;
+  const G_MWO_MATRIX_XZ_XW_I    = 0x04;
+  const G_MWO_MATRIX_YX_YY_I    = 0x08;
+  const G_MWO_MATRIX_YZ_YW_I    = 0x0c;
+  const G_MWO_MATRIX_ZX_ZY_I    = 0x10;
+  const G_MWO_MATRIX_ZZ_ZW_I    = 0x14;
+  const G_MWO_MATRIX_WX_WY_I    = 0x18;
+  const G_MWO_MATRIX_WZ_WW_I    = 0x1c;
+  const G_MWO_MATRIX_XX_XY_F    = 0x20;
+  const G_MWO_MATRIX_XZ_XW_F    = 0x24;
+  const G_MWO_MATRIX_YX_YY_F    = 0x28;
+  const G_MWO_MATRIX_YZ_YW_F    = 0x2c;
+  const G_MWO_MATRIX_ZX_ZY_F    = 0x30;
+  const G_MWO_MATRIX_ZZ_ZW_F    = 0x34;
+  const G_MWO_MATRIX_WX_WY_F    = 0x38;
+  const G_MWO_MATRIX_WZ_WW_F    = 0x3c;
 
-  var modifyVtxValues = {
+  const modifyVtxValues = {
     G_MWO_POINT_RGBA:        0x10,
     G_MWO_POINT_ST:          0x14,
     G_MWO_POINT_XYSCREEN:    0x18,
     G_MWO_POINT_ZSCREEN:     0x1c
   };
 
-  var numLightValues = {
+  const numLightValues = {
     //NUMLIGHTS_0: 1,
     NUMLIGHTS_1: 1,
     NUMLIGHTS_2: 2,
@@ -178,15 +178,15 @@ import { Vector3, Vector4, Matrix, makeOrtho } from './glutils.js';
     NUMLIGHTS_7: 7
   };
 
-  var G_TX_LOADTILE   = 7;
-  var G_TX_RENDERTILE = 0;
+  const G_TX_LOADTILE   = 7;
+  const G_TX_RENDERTILE = 0;
 
-  var G_TX_WRAP       = 0x0;
-  var G_TX_MIRROR     = 0x1;
-  var G_TX_CLAMP      = 0x2;
+  const G_TX_WRAP       = 0x0;
+  const G_TX_MIRROR     = 0x1;
+  const G_TX_CLAMP      = 0x2;
 
 
-  var geometryModeFlagsGBI1 = {
+  const geometryModeFlagsGBI1 = {
     G_ZBUFFER:            0x00000001,
     G_TEXTURE_ENABLE:     0x00000002,  /* Microcode use only */
     G_SHADE:              0x00000004,  /* enable Gouraud interp */
@@ -201,7 +201,7 @@ import { Vector3, Vector4, Matrix, makeOrtho } from './glutils.js';
     G_LOD:                0x00100000  /* NOT IMPLEMENTED */
   };
 
-  var geometryModeFlagsGBI2 = {
+  const geometryModeFlagsGBI2 = {
     G_TEXTURE_ENABLE:     0x2,        /* NB - not implemented as geometry mode flag in GBI2 */
     G_SHADE:              0,
 
@@ -308,14 +308,14 @@ import { Vector3, Vector4, Matrix, makeOrtho } from './glutils.js';
   }
 
   //
-  var kUCode_GBI0 = 0;
-  var kUCode_GBI1 = 1;
-  var kUCode_GBI2 = 2;
+  const kUCode_GBI0 = 0;
+  const kUCode_GBI1 = 1;
+  const kUCode_GBI2 = 2;
 
-  var kUCode_GBI0_WR = 5;
-  var kUCode_GBI0_GE = 9;
+  const kUCode_GBI0_WR = 5;
+  const kUCode_GBI0_GE = 9;
 
-  var kUcodeStrides = [
+  const kUcodeStrides = [
     10,   // Super Mario 64, Tetrisphere, Demos
     2,    // Mario Kart, Star Fox
     2,    // Zelda, and newer games
@@ -505,7 +505,7 @@ import { Vector3, Vector4, Matrix, makeOrtho } from './glutils.js';
     this.vertex_coords[vtx_uv_idx+ 5] = v2.v;
   };
 
-  var kMaxTris = 64;
+  const kMaxTris = 64;
   var triangleBuffer = new TriangleBuffer(kMaxTris);
 
 
@@ -1230,7 +1230,7 @@ import { Vector3, Vector4, Matrix, makeOrtho } from './glutils.js';
     updateGeometryModeFromBits(geometryModeFlagsGBI1);
   }
 
- var renderModeFlags = {
+ const renderModeFlags = {
     AA_EN:               0x0008,
     Z_CMP:               0x0010,
     Z_UPD:               0x0020,
@@ -1250,21 +1250,21 @@ import { Vector3, Vector4, Matrix, makeOrtho } from './glutils.js';
     TEX_EDGE:            0x0000 /* used to be 0x8000 */
   };
 
-  var blendColourSources = [
+  const blendColourSources = [
     'G_BL_CLR_IN',
     'G_BL_CLR_MEM',
     'G_BL_CLR_BL',
     'G_BL_CLR_FOG'
   ];
 
-  var blendSourceFactors = [
+  const blendSourceFactors = [
     'G_BL_A_IN',
     'G_BL_A_FOG',
     'G_BL_A_SHADE',
     'G_BL_0'
   ];
 
-  var blendDestFactors = [
+  const blendDestFactors = [
     'G_BL_1MA',
     'G_BL_A_MEM',
     'G_BL_1',
@@ -2127,7 +2127,6 @@ import { Vector3, Vector4, Matrix, makeOrtho } from './glutils.js';
     state.envColor = cmd1;
   }
 
-
   const kMulInputRGB = [
     'Combined    ', 'Texel0      ',
     'Texel1      ', 'Primitive   ',
@@ -2241,7 +2240,7 @@ import { Vector3, Vector4, Matrix, makeOrtho } from './glutils.js';
     state.combine.lo = cmd1;
   }
 
-  var imageFormatTypes = {
+  const imageFormatTypes = {
     G_IM_FMT_RGBA:    0,
     G_IM_FMT_YUV:     1,
     G_IM_FMT_CI:      2,
@@ -2249,7 +2248,7 @@ import { Vector3, Vector4, Matrix, makeOrtho } from './glutils.js';
     G_IM_FMT_I:       4
   };
 
-  var imageSizeTypes = {
+  const imageSizeTypes = {
     G_IM_SIZ_4b:      0,
     G_IM_SIZ_8b:      1,
     G_IM_SIZ_16b:     2,
@@ -2302,7 +2301,6 @@ import { Vector3, Vector4, Matrix, makeOrtho } from './glutils.js';
     };
   }
 
-
   function executeGBI0_Vertex(cmd0,cmd1,dis) {
     var n       = ((cmd0>>>20)&0xf) + 1;
     var v0      =  (cmd0>>>16)&0xf;
@@ -2352,13 +2350,13 @@ import { Vector3, Vector4, Matrix, makeOrtho } from './glutils.js';
 
 
   // G_SETOTHERMODE_L sft: shift count
-  var G_MDSFT_ALPHACOMPARE    = 0;
-  var G_MDSFT_ZSRCSEL         = 2;
-  var G_MDSFT_RENDERMODE      = 3;
-  var G_MDSFT_BLENDER         = 16;
+  const G_MDSFT_ALPHACOMPARE    = 0;
+  const G_MDSFT_ZSRCSEL         = 2;
+  const G_MDSFT_RENDERMODE      = 3;
+  const G_MDSFT_BLENDER         = 16;
 
-  var G_AC_MASK     = 3 << G_MDSFT_ALPHACOMPARE;
-  var G_ZS_MASK     = 1 << G_MDSFT_ZSRCSEL;
+  const G_AC_MASK     = 3 << G_MDSFT_ALPHACOMPARE;
+  const G_ZS_MASK     = 1 << G_MDSFT_ZSRCSEL;
 
   function getAlphaCompareType() {
     return state.rdpOtherModeL & G_AC_MASK;
@@ -2373,31 +2371,31 @@ import { Vector3, Vector4, Matrix, makeOrtho } from './glutils.js';
   }
 
   //G_SETOTHERMODE_H shift count
-  var G_MDSFT_BLENDMASK       = 0;
-  var G_MDSFT_ALPHADITHER     = 4;
-  var G_MDSFT_RGBDITHER       = 6;
-  var G_MDSFT_COMBKEY         = 8;
-  var G_MDSFT_TEXTCONV        = 9;
-  var G_MDSFT_TEXTFILT        = 12;
-  var G_MDSFT_TEXTLUT         = 14;
-  var G_MDSFT_TEXTLOD         = 16;
-  var G_MDSFT_TEXTDETAIL      = 17;
-  var G_MDSFT_TEXTPERSP       = 19;
-  var G_MDSFT_CYCLETYPE       = 20;
-  var G_MDSFT_COLORDITHER     = 22;
-  var G_MDSFT_PIPELINE        = 23;
+  const G_MDSFT_BLENDMASK       = 0;
+  const G_MDSFT_ALPHADITHER     = 4;
+  const G_MDSFT_RGBDITHER       = 6;
+  const G_MDSFT_COMBKEY         = 8;
+  const G_MDSFT_TEXTCONV        = 9;
+  const G_MDSFT_TEXTFILT        = 12;
+  const G_MDSFT_TEXTLUT         = 14;
+  const G_MDSFT_TEXTLOD         = 16;
+  const G_MDSFT_TEXTDETAIL      = 17;
+  const G_MDSFT_TEXTPERSP       = 19;
+  const G_MDSFT_CYCLETYPE       = 20;
+  const G_MDSFT_COLORDITHER     = 22;
+  const G_MDSFT_PIPELINE        = 23;
 
-  var G_PM_MASK     = 1 << G_MDSFT_PIPELINE;
-  var G_CYC_MASK    = 3 << G_MDSFT_CYCLETYPE;
-  var G_TP_MASK     = 1 << G_MDSFT_TEXTPERSP;
-  var G_TD_MASK     = 3 << G_MDSFT_TEXTDETAIL;
-  var G_TL_MASK     = 1 << G_MDSFT_TEXTLOD;
-  var G_TT_MASK     = 3 << G_MDSFT_TEXTLUT;
-  var G_TF_MASK     = 3 << G_MDSFT_TEXTFILT;
-  var G_TC_MASK     = 7 << G_MDSFT_TEXTCONV;
-  var G_CK_MASK     = 1 << G_MDSFT_COMBKEY;
-  var G_CD_MASK     = 3 << G_MDSFT_RGBDITHER;
-  var G_AD_MASK     = 3 << G_MDSFT_ALPHADITHER;
+  const G_PM_MASK     = 1 << G_MDSFT_PIPELINE;
+  const G_CYC_MASK    = 3 << G_MDSFT_CYCLETYPE;
+  const G_TP_MASK     = 1 << G_MDSFT_TEXTPERSP;
+  const G_TD_MASK     = 3 << G_MDSFT_TEXTDETAIL;
+  const G_TL_MASK     = 1 << G_MDSFT_TEXTLOD;
+  const G_TT_MASK     = 3 << G_MDSFT_TEXTLUT;
+  const G_TF_MASK     = 3 << G_MDSFT_TEXTFILT;
+  const G_TC_MASK     = 7 << G_MDSFT_TEXTCONV;
+  const G_CK_MASK     = 1 << G_MDSFT_COMBKEY;
+  const G_CD_MASK     = 3 << G_MDSFT_RGBDITHER;
+  const G_AD_MASK     = 3 << G_MDSFT_ALPHADITHER;
 
   function getCycleType() {
     return state.rdpOtherModeH & G_CYC_MASK;
@@ -2411,78 +2409,78 @@ import { Vector3, Vector4, Matrix, makeOrtho } from './glutils.js';
     return state.rdpOtherModeH & G_TT_MASK;
   }
 
-  var pipelineModeValues = {
+  const pipelineModeValues = {
     G_PM_1PRIMITIVE:   1 << G_MDSFT_PIPELINE,
     G_PM_NPRIMITIVE:   0 << G_MDSFT_PIPELINE
   };
 
-  var cycleTypeValues = {
+  const cycleTypeValues = {
     G_CYC_1CYCLE:     0 << G_MDSFT_CYCLETYPE,
     G_CYC_2CYCLE:     1 << G_MDSFT_CYCLETYPE,
     G_CYC_COPY:       2 << G_MDSFT_CYCLETYPE,
     G_CYC_FILL:       3 << G_MDSFT_CYCLETYPE
   };
 
-  var texturePerspValues = {
+  const texturePerspValues = {
     G_TP_NONE:        0 << G_MDSFT_TEXTPERSP,
     G_TP_PERSP:       1 << G_MDSFT_TEXTPERSP
   };
 
-  var textureDetailValues = {
+  const textureDetailValues = {
     G_TD_CLAMP:       0 << G_MDSFT_TEXTDETAIL,
     G_TD_SHARPEN:     1 << G_MDSFT_TEXTDETAIL,
     G_TD_DETAIL:      2 << G_MDSFT_TEXTDETAIL
   };
 
-  var textureLODValues = {
+  const textureLODValues = {
     G_TL_TILE:        0 << G_MDSFT_TEXTLOD,
     G_TL_LOD:         1 << G_MDSFT_TEXTLOD
   };
 
-  var textureLUTValues = {
+  const textureLUTValues = {
     G_TT_NONE:        0 << G_MDSFT_TEXTLUT,
     G_TT_RGBA16:      2 << G_MDSFT_TEXTLUT,
     G_TT_IA16:        3 << G_MDSFT_TEXTLUT
   };
 
-  var textureFilterValues = {
+  const textureFilterValues = {
     G_TF_POINT:       0 << G_MDSFT_TEXTFILT,
     G_TF_AVERAGE:     3 << G_MDSFT_TEXTFILT,
     G_TF_BILERP:      2 << G_MDSFT_TEXTFILT
   };
 
-  var textureConvertValues = {
+  const textureConvertValues = {
     G_TC_CONV:       0 << G_MDSFT_TEXTCONV,
     G_TC_FILTCONV:   5 << G_MDSFT_TEXTCONV,
     G_TC_FILT:       6 << G_MDSFT_TEXTCONV
   };
 
-  var combineKeyValues = {
+  const combineKeyValues = {
     G_CK_NONE:        0 << G_MDSFT_COMBKEY,
     G_CK_KEY:         1 << G_MDSFT_COMBKEY
   };
 
-  var colorDitherValues = {
+  const colorDitherValues = {
     G_CD_MAGICSQ:     0 << G_MDSFT_RGBDITHER,
     G_CD_BAYER:       1 << G_MDSFT_RGBDITHER,
     G_CD_NOISE:       2 << G_MDSFT_RGBDITHER,
     G_CD_DISABLE:     3 << G_MDSFT_RGBDITHER
   };
 
-  var alphaDitherValues = {
+  const alphaDitherValues = {
     G_AD_PATTERN:     0 << G_MDSFT_ALPHADITHER,
     G_AD_NOTPATTERN:  1 << G_MDSFT_ALPHADITHER,
     G_AD_NOISE:       2 << G_MDSFT_ALPHADITHER,
     G_AD_DISABLE:     3 << G_MDSFT_ALPHADITHER
   };
 
-  var alphaCompareValues = {
+  const alphaCompareValues = {
     G_AC_NONE:          0 << G_MDSFT_ALPHACOMPARE,
     G_AC_THRESHOLD:     1 << G_MDSFT_ALPHACOMPARE,
     G_AC_DITHER:        3 << G_MDSFT_ALPHACOMPARE
   };
 
-  var depthSourceValues = {
+  const depthSourceValues = {
     G_ZS_PIXEL:         0 << G_MDSFT_ZSRCSEL,
     G_ZS_PRIM:          1 << G_MDSFT_ZSRCSEL
   };
@@ -2608,9 +2606,9 @@ import { Vector3, Vector4, Matrix, makeOrtho } from './glutils.js';
   var n64ColorsBuffer;
   var n64UVBuffer;
 
-  var kBlendModeOpaque     = 0;
-  var kBlendModeAlphaTrans = 1;
-  var kBlendModeFade       = 2;
+  const kBlendModeOpaque     = 0;
+  const kBlendModeAlphaTrans = 1;
+  const kBlendModeFade       = 2;
 
   function setProgramState(vertex_positions, vertex_colours, vertex_coords, texture, tex_gen_enabled) {
     var cvg_x_alpha   = getCoverageTimesAlpha();   // fragment coverage (0) or alpha (1)?
@@ -2934,7 +2932,7 @@ import { Vector3, Vector4, Matrix, makeOrtho } from './glutils.js';
   }
 
   // A lot of functions are common between all ucodes
-  var ucode_common = {
+  const ucode_common = {
     0xe4: executeTexRect,
     0xe5: executeTexRectFlip,
     0xe6: executeRDPLoadSync,
@@ -2964,7 +2962,7 @@ import { Vector3, Vector4, Matrix, makeOrtho } from './glutils.js';
     0xff: executeSetCImg
   };
 
-  var ucode_gbi0 = {
+  const ucode_gbi0 = {
     0x00: executeGBI1_SpNoop,
     0x01: executeGBI1_Matrix,
     0x03: executeGBI1_MoveMem,
@@ -2991,7 +2989,7 @@ import { Vector3, Vector4, Matrix, makeOrtho } from './glutils.js';
     0xc0: executeGBI1_Noop
   };
 
-  var ucode_gbi1 = {
+  const ucode_gbi1 = {
 
     0x00: executeGBI1_SpNoop,
     0x01: executeGBI1_Matrix,
@@ -3019,7 +3017,7 @@ import { Vector3, Vector4, Matrix, makeOrtho } from './glutils.js';
     0xc0: executeGBI1_Noop
   };
 
-  var ucode_gbi2 = {
+  const ucode_gbi2 = {
     0x00: executeGBI2_Noop,
     0x01: executeGBI2_Vertex,
     0x02: executeGBI2_ModifyVtx,
@@ -3822,7 +3820,7 @@ import { Vector3, Vector4, Matrix, makeOrtho } from './glutils.js';
   }
 
   function buildTilesTable() {
-    var tile_fields = [
+    const tile_fields = [
       'tile #',
       'format',
       'size',
@@ -4293,7 +4291,7 @@ import { Vector3, Vector4, Matrix, makeOrtho } from './glutils.js';
     ram_dv = n64js.getRamDataView();
   };
 
-  var rgbParams32 = [
+  const rgbParams32 = [
     'combined.rgb', 'tex0.rgb',
     'tex1.rgb',     'prim.rgb',
     'shade.rgb',    'env.rgb',
@@ -4311,7 +4309,7 @@ import { Vector3, Vector4, Matrix, makeOrtho } from './glutils.js';
     '?           ', '?           ',
     '?           ', 'zero.rgb'
   ];
-  var rgbParams16 = [
+  const rgbParams16 = [
     'combined.rgb', 'tex0.rgb',
     'tex1.rgb',     'prim.rgb',
     'shade.rgb',    'env.rgb',
@@ -4321,14 +4319,14 @@ import { Vector3, Vector4, Matrix, makeOrtho } from './glutils.js';
     'env.a',        'lod_frac',
     'prim_lod_frac', 'zero.rgb'
   ];
-  var rgbParams8 = [
+  const rgbParams8 = [
     'combined.rgb', 'tex0.rgb',
     'tex1.rgb',     'prim.rgb',
     'shade.rgb',    'env.rgb',
     'one.rgb',      'zero.rgb'
   ];
 
-  var alphaParams8 = [
+  const alphaParams8 = [
     'combined.a', 'tex0.a',
     'tex1.a',     'prim.a',
     'shade.a',    'env.a',
@@ -4668,13 +4666,13 @@ import { Vector3, Vector4, Matrix, makeOrtho } from './glutils.js';
     return texture;
   }
 
-  var OneToEight =
+  const OneToEight =
   [
     0x00,   // 0 -> 00 00 00 00
     0xff    // 1 -> 11 11 11 11
   ];
 
-  var ThreeToEight =
+  const ThreeToEight =
   [
     0x00,   // 000 -> 00 00 00 00
     0x24,   // 001 -> 00 10 01 00
@@ -4686,7 +4684,7 @@ import { Vector3, Vector4, Matrix, makeOrtho } from './glutils.js';
     0xff    // 111 -> 11 11 11 11
   ];
 
-  var FourToEight =
+  const FourToEight =
   [
     0x00, 0x11, 0x22, 0x33,
     0x44, 0x55, 0x66, 0x77,
@@ -4694,7 +4692,7 @@ import { Vector3, Vector4, Matrix, makeOrtho } from './glutils.js';
     0xcc, 0xdd, 0xee, 0xff
   ];
 
-  var FiveToEight =
+  const FiveToEight =
   [
     0x00, // 00000 -> 00000000
     0x08, // 00001 -> 00001000

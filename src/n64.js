@@ -14,7 +14,7 @@ import * as sync from './sync.js';
 
   var stats = null;
 
-  var kCyclesPerUpdate = 100000000;
+  const kCyclesPerUpdate = 100000000;
 
   var syncFlow;
   var syncInput;
@@ -26,224 +26,224 @@ import * as sync from './sync.js';
     return syncFlow;
   };
 
-  var kBootstrapOffset = 0x40;
-  var kGameOffset      = 0x1000;
+  const kBootstrapOffset = 0x40;
+  const kGameOffset      = 0x1000;
 
-  var kOpBreakpoint = 58;
+  const kOpBreakpoint = 58;
 
   var breakpoints = {};     // address -> original op
 
-  var SP_MEM_ADDR_REG     = 0x00;
-  var SP_DRAM_ADDR_REG    = 0x04;
-  var SP_RD_LEN_REG       = 0x08;
-  var SP_WR_LEN_REG       = 0x0C;
-  var SP_STATUS_REG       = 0x10;
-  var SP_DMA_FULL_REG     = 0x14;
-  var SP_DMA_BUSY_REG     = 0x18;
-  var SP_SEMAPHORE_REG    = 0x1C;
+  const SP_MEM_ADDR_REG     = 0x00;
+  const SP_DRAM_ADDR_REG    = 0x04;
+  const SP_RD_LEN_REG       = 0x08;
+  const SP_WR_LEN_REG       = 0x0C;
+  const SP_STATUS_REG       = 0x10;
+  const SP_DMA_FULL_REG     = 0x14;
+  const SP_DMA_BUSY_REG     = 0x18;
+  const SP_SEMAPHORE_REG    = 0x1C;
 
-  var SP_CLR_HALT           = 0x0000001;
-  var SP_SET_HALT           = 0x0000002;
-  var SP_CLR_BROKE          = 0x0000004;
-  var SP_CLR_INTR           = 0x0000008;
-  var SP_SET_INTR           = 0x0000010;
-  var SP_CLR_SSTEP          = 0x0000020;
-  var SP_SET_SSTEP          = 0x0000040;
-  var SP_CLR_INTR_BREAK     = 0x0000080;
-  var SP_SET_INTR_BREAK     = 0x0000100;
-  var SP_CLR_SIG0           = 0x0000200;
-  var SP_SET_SIG0           = 0x0000400;
-  var SP_CLR_SIG1           = 0x0000800;
-  var SP_SET_SIG1           = 0x0001000;
-  var SP_CLR_SIG2           = 0x0002000;
-  var SP_SET_SIG2           = 0x0004000;
-  var SP_CLR_SIG3           = 0x0008000;
-  var SP_SET_SIG3           = 0x0010000;
-  var SP_CLR_SIG4           = 0x0020000;
-  var SP_SET_SIG4           = 0x0040000;
-  var SP_CLR_SIG5           = 0x0080000;
-  var SP_SET_SIG5           = 0x0100000;
-  var SP_CLR_SIG6           = 0x0200000;
-  var SP_SET_SIG6           = 0x0400000;
-  var SP_CLR_SIG7           = 0x0800000;
-  var SP_SET_SIG7           = 0x1000000;
+  const SP_CLR_HALT           = 0x0000001;
+  const SP_SET_HALT           = 0x0000002;
+  const SP_CLR_BROKE          = 0x0000004;
+  const SP_CLR_INTR           = 0x0000008;
+  const SP_SET_INTR           = 0x0000010;
+  const SP_CLR_SSTEP          = 0x0000020;
+  const SP_SET_SSTEP          = 0x0000040;
+  const SP_CLR_INTR_BREAK     = 0x0000080;
+  const SP_SET_INTR_BREAK     = 0x0000100;
+  const SP_CLR_SIG0           = 0x0000200;
+  const SP_SET_SIG0           = 0x0000400;
+  const SP_CLR_SIG1           = 0x0000800;
+  const SP_SET_SIG1           = 0x0001000;
+  const SP_CLR_SIG2           = 0x0002000;
+  const SP_SET_SIG2           = 0x0004000;
+  const SP_CLR_SIG3           = 0x0008000;
+  const SP_SET_SIG3           = 0x0010000;
+  const SP_CLR_SIG4           = 0x0020000;
+  const SP_SET_SIG4           = 0x0040000;
+  const SP_CLR_SIG5           = 0x0080000;
+  const SP_SET_SIG5           = 0x0100000;
+  const SP_CLR_SIG6           = 0x0200000;
+  const SP_SET_SIG6           = 0x0400000;
+  const SP_CLR_SIG7           = 0x0800000;
+  const SP_SET_SIG7           = 0x1000000;
 
-  var SP_STATUS_HALT        = 0x0001;
-  var SP_STATUS_BROKE       = 0x0002;
-  var SP_STATUS_DMA_BUSY    = 0x0004;
-  var SP_STATUS_DMA_FULL    = 0x0008;
-  var SP_STATUS_IO_FULL     = 0x0010;
-  var SP_STATUS_SSTEP       = 0x0020;
-  var SP_STATUS_INTR_BREAK  = 0x0040;
-  var SP_STATUS_SIG0        = 0x0080;
-  var SP_STATUS_SIG1        = 0x0100;
-  var SP_STATUS_SIG2        = 0x0200;
-  var SP_STATUS_SIG3        = 0x0400;
-  var SP_STATUS_SIG4        = 0x0800;
-  var SP_STATUS_SIG5        = 0x1000;
-  var SP_STATUS_SIG6        = 0x2000;
-  var SP_STATUS_SIG7        = 0x4000;
+  const SP_STATUS_HALT        = 0x0001;
+  const SP_STATUS_BROKE       = 0x0002;
+  const SP_STATUS_DMA_BUSY    = 0x0004;
+  const SP_STATUS_DMA_FULL    = 0x0008;
+  const SP_STATUS_IO_FULL     = 0x0010;
+  const SP_STATUS_SSTEP       = 0x0020;
+  const SP_STATUS_INTR_BREAK  = 0x0040;
+  const SP_STATUS_SIG0        = 0x0080;
+  const SP_STATUS_SIG1        = 0x0100;
+  const SP_STATUS_SIG2        = 0x0200;
+  const SP_STATUS_SIG3        = 0x0400;
+  const SP_STATUS_SIG4        = 0x0800;
+  const SP_STATUS_SIG5        = 0x1000;
+  const SP_STATUS_SIG6        = 0x2000;
+  const SP_STATUS_SIG7        = 0x4000;
 
-  var SP_STATUS_YIELD       = SP_STATUS_SIG0;
-  var SP_STATUS_YIELDED     = SP_STATUS_SIG1;
-  var SP_STATUS_TASKDONE    = SP_STATUS_SIG2;
+  const SP_STATUS_YIELD       = SP_STATUS_SIG0;
+  const SP_STATUS_YIELDED     = SP_STATUS_SIG1;
+  const SP_STATUS_TASKDONE    = SP_STATUS_SIG2;
 
   // DP Command
-  var DPC_START_REG         = 0x00;
-  var DPC_END_REG           = 0x04;
-  var DPC_CURRENT_REG       = 0x08;
-  var DPC_STATUS_REG        = 0x0C;
-  var DPC_CLOCK_REG         = 0x10;
-  var DPC_BUFBUSY_REG       = 0x14;
-  var DPC_PIPEBUSY_REG      = 0x18;
-  var DPC_TMEM_REG          = 0x1C;
+  const DPC_START_REG         = 0x00;
+  const DPC_END_REG           = 0x04;
+  const DPC_CURRENT_REG       = 0x08;
+  const DPC_STATUS_REG        = 0x0C;
+  const DPC_CLOCK_REG         = 0x10;
+  const DPC_BUFBUSY_REG       = 0x14;
+  const DPC_PIPEBUSY_REG      = 0x18;
+  const DPC_TMEM_REG          = 0x1C;
 
-  var DPC_CLR_XBUS_DMEM_DMA = 0x0001;
-  var DPC_SET_XBUS_DMEM_DMA = 0x0002;
-  var DPC_CLR_FREEZE        = 0x0004;
-  var DPC_SET_FREEZE        = 0x0008;
-  var DPC_CLR_FLUSH         = 0x0010;
-  var DPC_SET_FLUSH         = 0x0020;
-  var DPC_CLR_TMEM_CTR      = 0x0040;
-  var DPC_CLR_PIPE_CTR      = 0x0080;
-  var DPC_CLR_CMD_CTR       = 0x0100;
-  var DPC_CLR_CLOCK_CTR     = 0x0200;
+  const DPC_CLR_XBUS_DMEM_DMA = 0x0001;
+  const DPC_SET_XBUS_DMEM_DMA = 0x0002;
+  const DPC_CLR_FREEZE        = 0x0004;
+  const DPC_SET_FREEZE        = 0x0008;
+  const DPC_CLR_FLUSH         = 0x0010;
+  const DPC_SET_FLUSH         = 0x0020;
+  const DPC_CLR_TMEM_CTR      = 0x0040;
+  const DPC_CLR_PIPE_CTR      = 0x0080;
+  const DPC_CLR_CMD_CTR       = 0x0100;
+  const DPC_CLR_CLOCK_CTR     = 0x0200;
 
-  var DPC_STATUS_XBUS_DMEM_DMA = 0x001;
-  var DPC_STATUS_FREEZE        = 0x002;
-  var DPC_STATUS_FLUSH         = 0x004;
-  var DPC_STATUS_START_GCLK    = 0x008;
-  var DPC_STATUS_TMEM_BUSY     = 0x010;
-  var DPC_STATUS_PIPE_BUSY     = 0x020;
-  var DPC_STATUS_CMD_BUSY      = 0x040;
-  var DPC_STATUS_CBUF_READY    = 0x080;
-  var DPC_STATUS_DMA_BUSY      = 0x100;
-  var DPC_STATUS_END_VALID     = 0x200;
-  var DPC_STATUS_START_VALID   = 0x400;
+  const DPC_STATUS_XBUS_DMEM_DMA = 0x001;
+  const DPC_STATUS_FREEZE        = 0x002;
+  const DPC_STATUS_FLUSH         = 0x004;
+  const DPC_STATUS_START_GCLK    = 0x008;
+  const DPC_STATUS_TMEM_BUSY     = 0x010;
+  const DPC_STATUS_PIPE_BUSY     = 0x020;
+  const DPC_STATUS_CMD_BUSY      = 0x040;
+  const DPC_STATUS_CBUF_READY    = 0x080;
+  const DPC_STATUS_DMA_BUSY      = 0x100;
+  const DPC_STATUS_END_VALID     = 0x200;
+  const DPC_STATUS_START_VALID   = 0x400;
 
 
   // DP Span
-  var DPS_TBIST_REG        = 0x00;
-  var DPS_TEST_MODE_REG    = 0x04;
-  var DPS_BUFTEST_ADDR_REG = 0x08;
-  var DPS_BUFTEST_DATA_REG = 0x0C;
+  const DPS_TBIST_REG        = 0x00;
+  const DPS_TEST_MODE_REG    = 0x04;
+  const DPS_BUFTEST_ADDR_REG = 0x08;
+  const DPS_BUFTEST_DATA_REG = 0x0C;
 
-  var DPS_TBIST_CHECK      = 0x01;
-  var DPS_TBIST_GO         = 0x02;
-  var DPS_TBIST_CLEAR      = 0x04;
+  const DPS_TBIST_CHECK      = 0x01;
+  const DPS_TBIST_GO         = 0x02;
+  const DPS_TBIST_CLEAR      = 0x04;
 
-  var DPS_TBIST_DONE      = 0x004;
-  var DPS_TBIST_FAILED    = 0x7F8;
+  const DPS_TBIST_DONE      = 0x004;
+  const DPS_TBIST_FAILED    = 0x7F8;
 
   // MIPS Interface
-  var MI_MODE_REG         = 0x00;
-  var MI_VERSION_REG      = 0x04;
-  var MI_INTR_REG         = 0x08;
-  var MI_INTR_MASK_REG    = 0x0C;
+  const MI_MODE_REG         = 0x00;
+  const MI_VERSION_REG      = 0x04;
+  const MI_INTR_REG         = 0x08;
+  const MI_INTR_MASK_REG    = 0x0C;
 
-  var MI_CLR_INIT         = 0x0080;
-  var MI_SET_INIT         = 0x0100;
-  var MI_CLR_EBUS         = 0x0200;
-  var MI_SET_EBUS         = 0x0400;
-  var MI_CLR_DP_INTR      = 0x0800;
-  var MI_CLR_RDRAM        = 0x1000;
-  var MI_SET_RDRAM        = 0x2000;
+  const MI_CLR_INIT         = 0x0080;
+  const MI_SET_INIT         = 0x0100;
+  const MI_CLR_EBUS         = 0x0200;
+  const MI_SET_EBUS         = 0x0400;
+  const MI_CLR_DP_INTR      = 0x0800;
+  const MI_CLR_RDRAM        = 0x1000;
+  const MI_SET_RDRAM        = 0x2000;
 
-  var MI_MODE_INIT        = 0x0080;
-  var MI_MODE_EBUS        = 0x0100;
-  var MI_MODE_RDRAM       = 0x0200;
+  const MI_MODE_INIT        = 0x0080;
+  const MI_MODE_EBUS        = 0x0100;
+  const MI_MODE_RDRAM       = 0x0200;
 
-  var MI_INTR_MASK_CLR_SP = 0x0001;
-  var MI_INTR_MASK_SET_SP = 0x0002;
-  var MI_INTR_MASK_CLR_SI = 0x0004;
-  var MI_INTR_MASK_SET_SI = 0x0008;
-  var MI_INTR_MASK_CLR_AI = 0x0010;
-  var MI_INTR_MASK_SET_AI = 0x0020;
-  var MI_INTR_MASK_CLR_VI = 0x0040;
-  var MI_INTR_MASK_SET_VI = 0x0080;
-  var MI_INTR_MASK_CLR_PI = 0x0100;
-  var MI_INTR_MASK_SET_PI = 0x0200;
-  var MI_INTR_MASK_CLR_DP = 0x0400;
-  var MI_INTR_MASK_SET_DP = 0x0800;
+  const MI_INTR_MASK_CLR_SP = 0x0001;
+  const MI_INTR_MASK_SET_SP = 0x0002;
+  const MI_INTR_MASK_CLR_SI = 0x0004;
+  const MI_INTR_MASK_SET_SI = 0x0008;
+  const MI_INTR_MASK_CLR_AI = 0x0010;
+  const MI_INTR_MASK_SET_AI = 0x0020;
+  const MI_INTR_MASK_CLR_VI = 0x0040;
+  const MI_INTR_MASK_SET_VI = 0x0080;
+  const MI_INTR_MASK_CLR_PI = 0x0100;
+  const MI_INTR_MASK_SET_PI = 0x0200;
+  const MI_INTR_MASK_CLR_DP = 0x0400;
+  const MI_INTR_MASK_SET_DP = 0x0800;
 
-  var MI_INTR_MASK_SP   = 0x01;
-  var MI_INTR_MASK_SI   = 0x02;
-  var MI_INTR_MASK_AI   = 0x04;
-  var MI_INTR_MASK_VI   = 0x08;
-  var MI_INTR_MASK_PI   = 0x10;
-  var MI_INTR_MASK_DP   = 0x20;
+  const MI_INTR_MASK_SP   = 0x01;
+  const MI_INTR_MASK_SI   = 0x02;
+  const MI_INTR_MASK_AI   = 0x04;
+  const MI_INTR_MASK_VI   = 0x08;
+  const MI_INTR_MASK_PI   = 0x10;
+  const MI_INTR_MASK_DP   = 0x20;
 
-  var MI_INTR_SP        = 0x01;
-  var MI_INTR_SI        = 0x02;
-  var MI_INTR_AI        = 0x04;
-  var MI_INTR_VI        = 0x08;
-  var MI_INTR_PI        = 0x10;
-  var MI_INTR_DP        = 0x20;
+  const MI_INTR_SP        = 0x01;
+  const MI_INTR_SI        = 0x02;
+  const MI_INTR_AI        = 0x04;
+  const MI_INTR_VI        = 0x08;
+  const MI_INTR_PI        = 0x10;
+  const MI_INTR_DP        = 0x20;
 
   // Video Interface
-  var VI_STATUS_REG     = 0x00;
-  var VI_ORIGIN_REG     = 0x04;
-  var VI_WIDTH_REG      = 0x08;
-  var VI_INTR_REG       = 0x0C;
-  var VI_CURRENT_REG    = 0x10;
-  var VI_BURST_REG      = 0x14;
-  var VI_V_SYNC_REG     = 0x18;
-  var VI_H_SYNC_REG     = 0x1C;
-  var VI_LEAP_REG       = 0x20;
-  var VI_H_START_REG    = 0x24;
-  var VI_V_START_REG    = 0x28;
-  var VI_V_BURST_REG    = 0x2C;
-  var VI_X_SCALE_REG    = 0x30;
-  var VI_Y_SCALE_REG    = 0x34;
+  const VI_STATUS_REG     = 0x00;
+  const VI_ORIGIN_REG     = 0x04;
+  const VI_WIDTH_REG      = 0x08;
+  const VI_INTR_REG       = 0x0C;
+  const VI_CURRENT_REG    = 0x10;
+  const VI_BURST_REG      = 0x14;
+  const VI_V_SYNC_REG     = 0x18;
+  const VI_H_SYNC_REG     = 0x1C;
+  const VI_LEAP_REG       = 0x20;
+  const VI_H_START_REG    = 0x24;
+  const VI_V_START_REG    = 0x28;
+  const VI_V_BURST_REG    = 0x2C;
+  const VI_X_SCALE_REG    = 0x30;
+  const VI_Y_SCALE_REG    = 0x34;
 
-  var VI_CONTROL_REG        = VI_STATUS_REG;
-  var VI_DRAM_ADDR_REG      = VI_ORIGIN_REG;
-  var VI_H_WIDTH_REG        = VI_WIDTH_REG;
-  var VI_V_INTR_REG         = VI_INTR_REG;
-  var VI_V_CURRENT_LINE_REG = VI_CURRENT_REG;
-  var VI_TIMING_REG         = VI_BURST_REG;
-  var VI_H_SYNC_LEAP_REG    = VI_LEAP_REG;
-  var VI_H_VIDEO_REG        = VI_H_START_REG;
-  var VI_V_VIDEO_REG        = VI_V_START_REG;
+  const VI_CONTROL_REG        = VI_STATUS_REG;
+  const VI_DRAM_ADDR_REG      = VI_ORIGIN_REG;
+  const VI_H_WIDTH_REG        = VI_WIDTH_REG;
+  const VI_V_INTR_REG         = VI_INTR_REG;
+  const VI_V_CURRENT_LINE_REG = VI_CURRENT_REG;
+  const VI_TIMING_REG         = VI_BURST_REG;
+  const VI_H_SYNC_LEAP_REG    = VI_LEAP_REG;
+  const VI_H_VIDEO_REG        = VI_H_START_REG;
+  const VI_V_VIDEO_REG        = VI_V_START_REG;
 
   // Audio Interface
-  var AI_DRAM_ADDR_REG  = 0x00;
-  var AI_LEN_REG        = 0x04;
-  var AI_CONTROL_REG    = 0x08;
-  var AI_STATUS_REG     = 0x0C;
-  var AI_DACRATE_REG    = 0x10;
-  var AI_BITRATE_REG    = 0x14;
+  const AI_DRAM_ADDR_REG  = 0x00;
+  const AI_LEN_REG        = 0x04;
+  const AI_CONTROL_REG    = 0x08;
+  const AI_STATUS_REG     = 0x0C;
+  const AI_DACRATE_REG    = 0x10;
+  const AI_BITRATE_REG    = 0x14;
 
   // Peripheral Interface
-  var PI_DRAM_ADDR_REG    = 0x00;
-  var PI_CART_ADDR_REG    = 0x04;
-  var PI_RD_LEN_REG       = 0x08;
-  var PI_WR_LEN_REG       = 0x0C;
-  var PI_STATUS_REG       = 0x10;
-  var PI_BSD_DOM1_LAT_REG = 0x14;
-  var PI_BSD_DOM1_PWD_REG = 0x18;
-  var PI_BSD_DOM1_PGS_REG = 0x1C;
-  var PI_BSD_DOM1_RLS_REG = 0x20;
-  var PI_BSD_DOM2_LAT_REG = 0x24;
-  var PI_BSD_DOM2_PWD_REG = 0x28;
-  var PI_BSD_DOM2_PGS_REG = 0x2C;
-  var PI_BSD_DOM2_RLS_REG = 0x30;
+  const PI_DRAM_ADDR_REG    = 0x00;
+  const PI_CART_ADDR_REG    = 0x04;
+  const PI_RD_LEN_REG       = 0x08;
+  const PI_WR_LEN_REG       = 0x0C;
+  const PI_STATUS_REG       = 0x10;
+  const PI_BSD_DOM1_LAT_REG = 0x14;
+  const PI_BSD_DOM1_PWD_REG = 0x18;
+  const PI_BSD_DOM1_PGS_REG = 0x1C;
+  const PI_BSD_DOM1_RLS_REG = 0x20;
+  const PI_BSD_DOM2_LAT_REG = 0x24;
+  const PI_BSD_DOM2_PWD_REG = 0x28;
+  const PI_BSD_DOM2_PGS_REG = 0x2C;
+  const PI_BSD_DOM2_RLS_REG = 0x30;
 
   // Values read from status reg
-  var PI_STATUS_DMA_BUSY    = 0x01;
-  var PI_STATUS_IO_BUSY     = 0x02;
-  var PI_STATUS_DMA_IO_BUSY = 0x03;
-  var PI_STATUS_ERROR       = 0x04;
+  const PI_STATUS_DMA_BUSY    = 0x01;
+  const PI_STATUS_IO_BUSY     = 0x02;
+  const PI_STATUS_DMA_IO_BUSY = 0x03;
+  const PI_STATUS_ERROR       = 0x04;
 
   // Values written to status reg
-  var PI_STATUS_RESET     = 0x01;
-  var PI_STATUS_CLR_INTR  = 0x02;
+  const PI_STATUS_RESET     = 0x01;
+  const PI_STATUS_CLR_INTR  = 0x02;
 
-  var PI_DOM1_ADDR1   = 0x06000000;
-  var PI_DOM1_ADDR2   = 0x10000000;
-  var PI_DOM1_ADDR3   = 0x1FD00000;
-  var PI_DOM2_ADDR1   = 0x05000000;
-  var PI_DOM2_ADDR2   = 0x08000000;
+  const PI_DOM1_ADDR1   = 0x06000000;
+  const PI_DOM1_ADDR2   = 0x10000000;
+  const PI_DOM1_ADDR3   = 0x1FD00000;
+  const PI_DOM2_ADDR1   = 0x05000000;
+  const PI_DOM2_ADDR2   = 0x08000000;
 
   function isDom1Addr1(address) { return address >= PI_DOM1_ADDR1 && address < PI_DOM2_ADDR2; }
   function isDom1Addr2(address) { return address >= PI_DOM1_ADDR2 && address < 0x1FBFFFFF;    }
@@ -252,27 +252,27 @@ import * as sync from './sync.js';
   function isDom2Addr2(address) { return address >= PI_DOM2_ADDR2 && address < PI_DOM1_ADDR2; }
 
   // RDRAM Interface
-  var RI_MODE_REG             = 0x00;
-  var RI_CONFIG_REG           = 0x04;
-  var RI_CURRENT_LOAD_REG     = 0x08;
-  var RI_SELECT_REG           = 0x0C;
-  var RI_REFRESH_REG          = 0x10;
-  var RI_COUNT_REG            = RI_REFRESH_REG;
-  var RI_LATENCY_REG          = 0x14;
-  var RI_RERROR_REG           = 0x18;
-  var RI_WERROR_REG           = 0x1C;
-  var RI_LAST_REG             = RI_WERROR_REG;
+  const RI_MODE_REG             = 0x00;
+  const RI_CONFIG_REG           = 0x04;
+  const RI_CURRENT_LOAD_REG     = 0x08;
+  const RI_SELECT_REG           = 0x0C;
+  const RI_REFRESH_REG          = 0x10;
+  const RI_COUNT_REG            = RI_REFRESH_REG;
+  const RI_LATENCY_REG          = 0x14;
+  const RI_RERROR_REG           = 0x18;
+  const RI_WERROR_REG           = 0x1C;
+  const RI_LAST_REG             = RI_WERROR_REG;
 
   // Serial Interface
-  var SI_DRAM_ADDR_REG      = 0x00;
-  var SI_PIF_ADDR_RD64B_REG = 0x04;
-  var SI_PIF_ADDR_WR64B_REG = 0x10;
-  var SI_STATUS_REG         = 0x18;
+  const SI_DRAM_ADDR_REG      = 0x00;
+  const SI_PIF_ADDR_RD64B_REG = 0x04;
+  const SI_PIF_ADDR_WR64B_REG = 0x10;
+  const SI_STATUS_REG         = 0x18;
 
-  var SI_STATUS_DMA_BUSY    = 0x0001;
-  var SI_STATUS_RD_BUSY     = 0x0002;
-  var SI_STATUS_DMA_ERROR   = 0x0008;
-  var SI_STATUS_INTERRUPT   = 0x1000;
+  const SI_STATUS_DMA_BUSY    = 0x0001;
+  const SI_STATUS_RD_BUSY     = 0x0002;
+  const SI_STATUS_DMA_ERROR   = 0x0008;
+  const SI_STATUS_INTERRUPT   = 0x1000;
 
   var running       = false;
 
