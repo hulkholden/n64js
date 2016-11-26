@@ -877,7 +877,7 @@
     var mapped = n64js.cpu0.translateReadInternal(address) & 0x007fffff;
     if (mapped !== 0) {
       if (mapped+4 <= ram.u8.length) {
-        ram.write32(mapped);
+        ram.write32(mapped, value);
       }
     }
   };
