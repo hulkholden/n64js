@@ -714,9 +714,9 @@ import * as sync from './sync.js';
     if (mapped !== 0) {
       return ram.readS32(mapped);
     }
-// FIXME: need to somehow interrupt the current instruction from executing, before it has chance to modify state.
-// For now, goldeneye hits this initially when reading the current instruction. I laemly return 0 so that I execute a NOP and then jump to the exception handler.
-//    n64js.halt('virtual readS32 failed - need to throw refill/invalid');
+    // FIXME: need to somehow interrupt the current instruction from executing, before it has chance to modify state.
+    // For now, goldeneye hits this initially when reading the current instruction. I laemly return 0 so that I execute a NOP and then jump to the exception handler.
+    //    n64js.halt('virtual readS32 failed - need to throw refill/invalid');
     return 0x00000000;
   };
   mapped_mem_handler.readS16 = function (address) {
@@ -1331,34 +1331,32 @@ import * as sync from './sync.js';
   }
 
 
-  var PC_CONTROLLER_0      = 0;
-  var PC_CONTROLLER_1      = 1;
-  var PC_CONTROLLER_2      = 2;
-  var PC_CONTROLLER_3      = 3;
-  var PC_EEPROM            = 4;
-  var PC_UNKNOWN_1         = 5;
-  var NUM_CHANNELS         = 5;
+  const PC_CONTROLLER_0      = 0;
+  const PC_CONTROLLER_1      = 1;
+  const PC_CONTROLLER_2      = 2;
+  const PC_CONTROLLER_3      = 3;
+  const PC_EEPROM            = 4;
+  const PC_UNKNOWN_1         = 5;
+  const NUM_CHANNELS         = 5;
 
-  var CONT_GET_STATUS      = 0x00;
-  var CONT_READ_CONTROLLER = 0x01;
-  var CONT_READ_MEMPACK    = 0x02;
-  var CONT_WRITE_MEMPACK   = 0x03;
-  var CONT_READ_EEPROM     = 0x04;
-  var CONT_WRITE_EEPROM    = 0x05;
-  var CONT_RTC_STATUS      = 0x06;
-  var CONT_RTC_READ        = 0x07;
-  var CONT_RTC_WRITE       = 0x08;
-  var CONT_RESET           = 0xff;
+  const CONT_GET_STATUS      = 0x00;
+  const CONT_READ_CONTROLLER = 0x01;
+  const CONT_READ_MEMPACK    = 0x02;
+  const CONT_WRITE_MEMPACK   = 0x03;
+  const CONT_READ_EEPROM     = 0x04;
+  const CONT_WRITE_EEPROM    = 0x05;
+  const CONT_RTC_STATUS      = 0x06;
+  const CONT_RTC_READ        = 0x07;
+  const CONT_RTC_WRITE       = 0x08;
+  const CONT_RESET           = 0xff;
 
-  var CONT_TX_SIZE_CHANSKIP   = 0x00;         // Channel Skip
-  var CONT_TX_SIZE_DUMMYDATA  = 0xFF;         // Dummy Data
-  var CONT_TX_SIZE_FORMAT_END = 0xFE;         // Format End
-  var CONT_TX_SIZE_CHANRESET  = 0xFD;         // Channel Reset
+  const CONT_TX_SIZE_CHANSKIP   = 0x00;         // Channel Skip
+  const CONT_TX_SIZE_DUMMYDATA  = 0xFF;         // Dummy Data
+  const CONT_TX_SIZE_FORMAT_END = 0xFE;         // Format End
+  const CONT_TX_SIZE_CHANRESET  = 0xFD;         // Channel Reset
 
   function updateController() {
-
     // read controllers
-
     var pi_ram = new Uint8Array(pi_mem.arrayBuffer, 0x7c0, 0x040);
 
     var count   = 0;
@@ -1419,26 +1417,26 @@ import * as sync from './sync.js';
     new Uint8Array(0x400 * 32)
   ];
 
-  var kButtonA      = 0x8000;
-  var kButtonB      = 0x4000;
-  var kButtonZ      = 0x2000;
-  var kButtonStart  = 0x1000;
-  var kButtonJUp    = 0x0800;
-  var kButtonJDown  = 0x0400;
-  var kButtonJLeft  = 0x0200;
-  var kButtonJRight = 0x0100;
+  const kButtonA      = 0x8000;
+  const kButtonB      = 0x4000;
+  const kButtonZ      = 0x2000;
+  const kButtonStart  = 0x1000;
+  const kButtonJUp    = 0x0800;
+  const kButtonJDown  = 0x0400;
+  const kButtonJLeft  = 0x0200;
+  const kButtonJRight = 0x0100;
 
-  var kButtonL      = 0x0020;
-  var kButtonR      = 0x0010;
-  var kButtonCUp    = 0x0008;
-  var kButtonCDown  = 0x0004;
-  var kButtonCLeft  = 0x0002;
-  var kButtonCRight = 0x0001;
+  const kButtonL      = 0x0020;
+  const kButtonR      = 0x0010;
+  const kButtonCUp    = 0x0008;
+  const kButtonCDown  = 0x0004;
+  const kButtonCLeft  = 0x0002;
+  const kButtonCRight = 0x0001;
 
-  var kKeyLeft      = 37;
-  var kKeyUp        = 38;
-  var kKeyRight     = 39;
-  var kKeyDown      = 40;
+  const kKeyLeft      = 37;
+  const kKeyUp        = 38;
+  const kKeyRight     = 39;
+  const kKeyDown      = 40;
 
 
   n64js.handleKey = function (key, down) {
@@ -1482,8 +1480,7 @@ import * as sync from './sync.js';
   };
 
   function processController(cmd, channel) {
-    if (!controllers[channel].present)
-    {
+    if (!controllers[channel].present) {
       cmd[1] |= 0x80;
       cmd[3]  = 0xff;
       cmd[4]  = 0xff;
@@ -1545,8 +1542,7 @@ import * as sync from './sync.js';
   function processEeprom(cmd) {
     var i, offset;
 
-    switch(cmd[2])
-    {
+    switch(cmd[2]) {
     case CONT_RESET:
     case CONT_GET_STATUS:
       cmd[3] = 0x00;
@@ -1596,8 +1592,7 @@ import * as sync from './sync.js';
     return false;
   }
 
-  function calculateDataCrc(buf, offset)
-  {
+  function calculateDataCrc(buf, offset) {
     var c = 0, i;
     for (i = 0; i < 32; i++) {
       var s = buf[offset+i];
