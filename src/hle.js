@@ -1,8 +1,9 @@
 /*jshint jquery:true browser:true */
 
 import { padString, toHex, toString8, toString16, toString32 } from './format.js';
-import { Vector3, Vector4 } from './glutils.js';
 import { Matrix } from './Matrix.js';
+import { Vector3 } from './Vector3.js';
+import { Vector4 } from './Vector4.js';
 
 (function (n64js) {'use strict';
   var kDumpShaders = 0;
