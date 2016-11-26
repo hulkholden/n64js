@@ -3636,70 +3636,57 @@ import * as logger from './logger.js';
   }
 
   function buildRDPTab() {
-
     var l = state.rdpOtherModeL;
     var h = state.rdpOtherModeH;
-    var vals = {
-      alphaCompare: getDefine(alphaCompareValues,   l & G_AC_MASK),
-      depthSource:  getDefine(depthSourceValues,    l & G_ZS_MASK),
-      renderMode:   getRenderModeFlagsText(l),
+    const vals = new Map([
+      ['alphaCompare', getDefine(alphaCompareValues,   l & G_AC_MASK)],
+      ['depthSource',  getDefine(depthSourceValues,    l & G_ZS_MASK)],
+      ['renderMode',   getRenderModeFlagsText(l)],
 
-    //var G_MDSFT_BLENDMASK       = 0;
-      alphaDither:    getDefine(alphaDitherValues,    h & G_AD_MASK),
-      colorDither:    getDefine(colorDitherValues,    h & G_CD_MASK),
-      combineKey:     getDefine(combineKeyValues,     h & G_CK_MASK),
-      textureConvert: getDefine(textureConvertValues, h & G_TC_MASK),
-      textureFilter:  getDefine(textureFilterValues,  h & G_TF_MASK),
-      textureLUT:     getDefine(textureLUTValues,     h & G_TT_MASK),
-      textureLOD:     getDefine(textureLODValues,     h & G_TL_MASK),
-      texturePersp:   getDefine(texturePerspValues,   h & G_TP_MASK),
-      textureDetail:  getDefine(textureDetailValues,  h & G_TD_MASK),
-      cycleType:      getDefine(cycleTypeValues,      h & G_CYC_MASK),
-      pipelineMode:   getDefine(pipelineModeValues,   h & G_PM_MASK)
-    };
+      //var G_MDSFT_BLENDMASK       = 0;
+      ['alphaDither',    getDefine(alphaDitherValues,    h & G_AD_MASK)],
+      ['colorDither',    getDefine(colorDitherValues,    h & G_CD_MASK)],
+      ['combineKey',     getDefine(combineKeyValues,     h & G_CK_MASK)],
+      ['textureConvert', getDefine(textureConvertValues, h & G_TC_MASK)],
+      ['textureFilter',  getDefine(textureFilterValues,  h & G_TF_MASK)],
+      ['textureLUT',     getDefine(textureLUTValues,     h & G_TT_MASK)],
+      ['textureLOD',     getDefine(textureLODValues,     h & G_TL_MASK)],
+      ['texturePersp',   getDefine(texturePerspValues,   h & G_TP_MASK)],
+      ['textureDetail',  getDefine(textureDetailValues,  h & G_TD_MASK)],
+      ['cycleType',      getDefine(cycleTypeValues,      h & G_CYC_MASK)],
+      ['pipelineMode',   getDefine(pipelineModeValues,   h & G_PM_MASK)],
+    ]);
 
     var $table = $('<table class="table table-condensed" style="width: auto;"></table>');
-
-    var $tr, i;
-    for (i in vals) {
-      if (vals.hasOwnProperty(i)) {
-        $tr = $('<tr><td>' + i + '</td><td>' + vals[i] + '</td></tr>');
-        $table.append($tr);
-      }
+    for (let [name, value] of vals) {
+      let $tr = $('<tr><td>' + name + '</td><td>' + value + '</td></tr>');
+      $table.append($tr);
     }
     return $table;
   }
 
   function buildColorsTable() {
-    var $table = $('<table class="table table-condensed" style="width: auto;"></table>');
-
-    var colors =[
+    const colors = [
       'fillColor',
       'envColor',
       'primColor',
       'blendColor',
-      'fogColor'
+      'fogColor',
     ];
 
-    var i;
-    for (i = 0; i < colors.length; ++i) {
-      var col = state[colors[i]];
-      $('<tr><td>' + colors[i] + '</td><td>' + makeColorTextRGBA( col ) + '</td></tr>').appendTo($table);
+    var $table = $('<table class="table table-condensed" style="width: auto;"></table>');
+    for (let color of colors) {
+      let row = $('<tr><td>' + color + '</td><td>' + makeColorTextRGBA(state[color]) + '</td></tr>');
+      $table.append(row);
     }
-
     return $table;
   }
 
   function buildCombinerTab() {
-
     var $p = $('<pre class="combine"></pre>');
-
     $p.append(getDefine(cycleTypeValues, getCycleType()) + '\n');
-
     $p.append(buildColorsTable());
-
     $p.append(decodeSetCombine(state.combine.hi, state.combine.lo));
-
     return $p;
   }
 
@@ -3724,14 +3711,11 @@ import * as logger from './logger.js';
       var dst_row_stride = dst_img_data.width*4;
 
       // Repeat last pixel across all lines
-      var x;
-      var y;
-      for (y = 0; y < h; ++y) {
-
+      for (let y = 0; y < h; ++y) {
         var src_offset = src_row_stride * Math.floor(y/scale);
         var dst_offset = dst_row_stride * y;
 
-        for (x = 0; x < w; ++x) {
+        for (let x = 0; x < w; ++x) {
           var o = src_offset + Math.floor(x/scale)*4;
           dst[dst_offset+0] = src[o+0];
           dst[dst_offset+1] = src[o+1];
@@ -3742,24 +3726,19 @@ import * as logger from './logger.js';
       }
 
       dst_ctx.putImageData(dst_img_data, 0, 0);
-
       return $canvas;
     }
   }
 
   function buildTexturesTab() {
     var $d = $('<div />');
-
     $d.append(buildTilesTable());
-
-    var i, $t;
-    for (i = 0; i < 8; ++i) {
-      $t = buildTexture(i);
+    for (let i = 0; i < 8; ++i) {
+      let $t = buildTexture(i);
       if ($t) {
         $d.append($t);
       }
     }
-
     return $d;
   }
 
@@ -3787,8 +3766,7 @@ import * as logger from './logger.js';
     var $tr = $('<tr><th>' + tile_fields.join('</th><th>') + '</th></tr>');
     $table.append($tr);
 
-    var i;
-    for (i = 0; i < state.tiles.length; ++i) {
+    for (let i = 0; i < state.tiles.length; ++i) {
       var tile = state.tiles[i];
 
       // Ignore any tiles that haven't been set up.
@@ -3822,7 +3800,7 @@ import * as logger from './logger.js';
   }
 
   function buildVerticesTab() {
-    var vtx_fields = [
+    const vtx_fields = [
       'vtx #',
       'x',
       'y',
@@ -3840,10 +3818,8 @@ import * as logger from './logger.js';
     var $tr = $('<tr><th>' + vtx_fields.join('</th><th>') + '</th></tr>');
     $table.append($tr);
 
-    var i;
-    for (i = 0; i < state.projectedVertices.length; ++i) {
+    for (let i = 0; i < state.projectedVertices.length; ++i) {
       var vtx = state.projectedVertices[i];
-
       if (!vtx.set) {
         continue;
       }
@@ -3873,7 +3849,6 @@ import * as logger from './logger.js';
   }
 
   function updateStateUI() {
-
     $dlistState.find('#dl-geometrymode-content').html(buildStateTab());
     $dlistState.find('#dl-vertices-content').html(buildVerticesTab());
     $dlistState.find('#dl-textures-content').html(buildTexturesTab());
@@ -3891,13 +3866,11 @@ import * as logger from './logger.js';
   }
 
   n64js.toggleDebugDisplayList = function () {
-
     if (debugDisplayListRunning) {
       hideDebugDisplayListUI();
       debugBailAfter          = -1;
       debugDisplayListRunning = false;
       n64js.toggleRun();
-
     } else {
       showDebugDisplayListUI();
       debugDisplayListRequested = true;
@@ -3907,20 +3880,19 @@ import * as logger from './logger.js';
   // This is acalled repeatedly so that we can update the ui.
   // We can return false if we don't render anything, but it's useful to keep re-rendering so that we can plot a framerate graph
   n64js.debugDisplayList = function () {
-
     if (debugStateTimeShown == -1) {
-       // Build some disassembly for this display list
-        var disassembler = new Disassembler();
-        processDList(debugLastTask, disassembler, -1);
-        disassembler.finalise();
+      // Build some disassembly for this display list
+      var disassembler = new Disassembler();
+      processDList(debugLastTask, disassembler, -1);
+      disassembler.finalise();
 
-        // Update the scrubber based on the new length of disassembly
-        debugNumOps = disassembler.numOps > 0 ? (disassembler.numOps-1) : 0;
-        setScrubRange(debugNumOps);
+      // Update the scrubber based on the new length of disassembly
+      debugNumOps = disassembler.numOps > 0 ? (disassembler.numOps-1) : 0;
+      setScrubRange(debugNumOps);
 
-        // If debugBailAfter hasn't been set (e.g. by hleHalt), stop at the end of the list
-        var time_to_show = (debugBailAfter == -1) ? debugNumOps : debugBailAfter;
-        setScrubTime(time_to_show);
+      // If debugBailAfter hasn't been set (e.g. by hleHalt), stop at the end of the list
+      var time_to_show = (debugBailAfter == -1) ? debugNumOps : debugBailAfter;
+      setScrubTime(time_to_show);
     }
 
     // Replay the last display list using the captured task/ram
@@ -4013,43 +3985,38 @@ import * as logger from './logger.js';
       debugCurrentOp = 0;
 
       while (state.pc !== 0) {
-          pc = state.pc;
-          cmd0 = ram.getUint32( pc + 0 );
-          cmd1 = ram.getUint32( pc + 4 );
-          state.pc += 8;
+        pc = state.pc;
+        cmd0 = ram.getUint32( pc + 0 );
+        cmd1 = ram.getUint32( pc + 4 );
+        state.pc += 8;
 
-          disassembler.begin(pc, cmd0, cmd1, state.dlistStack.length);
-
-          ucode_table[cmd0>>>24](cmd0,cmd1,disassembler);
-
-          disassembler.end();
-
-          debugCurrentOp++;
-        }
+        disassembler.begin(pc, cmd0, cmd1, state.dlistStack.length);
+        ucode_table[cmd0>>>24](cmd0,cmd1,disassembler);
+        disassembler.end();
+        debugCurrentOp++;
+      }
     } else {
       // Vanilla loop, no disassembler to worry about
       debugCurrentOp = 0;
       while (state.pc !== 0) {
-          pc = state.pc;
-          cmd0 = ram.getUint32( pc + 0 );
-          cmd1 = ram.getUint32( pc + 4 );
-          state.pc += 8;
+        pc = state.pc;
+        cmd0 = ram.getUint32( pc + 0 );
+        cmd1 = ram.getUint32( pc + 4 );
+        state.pc += 8;
 
-          ucode_table[cmd0>>>24](cmd0,cmd1);
+        ucode_table[cmd0>>>24](cmd0,cmd1);
 
-          if (bail_after > -1 && debugCurrentOp >= bail_after) {
-            break;
-          }
-          debugCurrentOp++;
+        if (bail_after > -1 && debugCurrentOp >= bail_after) {
+          break;
         }
+        debugCurrentOp++;
+      }
     }
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   }
 
   function resetState(ucode, ram, pc) {
-    var i;
-
     config.vertexStride = kUcodeStrides[ucode];
 
     ram_u8        = n64js.getRamU8Array();
@@ -4076,20 +4043,20 @@ import * as logger from './logger.js';
 
     state.pc = pc;
     state.dlistStack = [];
-    for (i = 0; i < state.segments.length; ++i) {
+    for (let i = 0; i < state.segments.length; ++i) {
       state.segments[i] = 0;
     }
 
-    for (i = 0; i < state.tiles.length; ++i) {
+    for (let i = 0; i < state.tiles.length; ++i) {
       state.tiles[i] = new Tile();
     }
 
     state.numLights = 0;
-    for (i = 0; i < state.lights.length; ++i) {
+    for (let i = 0; i < state.lights.length; ++i) {
       state.lights[i] = {color: {r:0,g:0,b:0,a:0}, dir: Vector3.create([1,0,0])};
     }
 
-    for (i = 0; i < state.projectedVertices.length; ++i) {
+    for (let i = 0; i < state.projectedVertices.length; ++i) {
       state.projectedVertices[i] = new ProjectedVertex();
     }
   }
@@ -4108,16 +4075,16 @@ import * as logger from './logger.js';
   }
 
   function setScrubTime(t) {
-      debugBailAfter = t;
-      setScrubText(debugBailAfter, debugNumOps);
+    debugBailAfter = t;
+    setScrubText(debugBailAfter, debugNumOps);
 
-      var $instr = $dlistOutput.find('#I' + debugBailAfter );
+    var $instr = $dlistOutput.find('#I' + debugBailAfter );
 
-      $dlistOutput.scrollTop($dlistOutput.scrollTop() + $instr.position().top -
-                             $dlistOutput.height()/2 + $instr.height()/2);
+    $dlistOutput.scrollTop($dlistOutput.scrollTop() + $instr.position().top -
+                           $dlistOutput.height()/2 + $instr.height()/2);
 
-      $dlistOutput.find('.hle-instr').removeAttr('style');
-      $instr.css('background-color', 'rgb(255,255,204)');
+    $dlistOutput.find('.hle-instr').removeAttr('style');
+    $instr.css('background-color', 'rgb(255,255,204)');
   }
 
   function initDebugUI() {
@@ -4126,17 +4093,17 @@ import * as logger from './logger.js';
     debugBailAfter = -1;
     debugNumOps    = 0;
 
-    $dlistControls.find('#rwd').click(function () {
+    $dlistControls.find('#rwd').click(function() {
       if (debugDisplayListRunning && debugBailAfter > 0) {
         setScrubTime(debugBailAfter-1);
       }
     });
-    $dlistControls.find('#fwd').click(function () {
+    $dlistControls.find('#fwd').click(function() {
       if (debugDisplayListRunning && debugBailAfter < debugNumOps) {
         setScrubTime(debugBailAfter+1);
       }
     });
-    $dlistControls.find('#stop').click(function () {
+    $dlistControls.find('#stop').click(function() {
       n64js.toggleDebugDisplayList();
     });
 
@@ -4156,15 +4123,13 @@ import * as logger from './logger.js';
   // Called when the canvas is created to get the ball rolling.
   // Figuratively, that is. There's nothing moving in this demo.
   //
-  n64js.initialiseRenderer = function ($canvas) {
-
+  n64js.initialiseRenderer = function($canvas) {
     initDebugUI();
 
     var canvas = $canvas[0];
     initWebGL(canvas);      // Initialize the GL context
 
     // Only continue if WebGL is available and working
-
     if (gl) {
       frameBufferTexture2D = gl.createTexture();
       gl.bindTexture(gl.TEXTURE_2D, frameBufferTexture2D);
@@ -4186,7 +4151,6 @@ import * as logger from './logger.js';
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, frameBuffer.width, frameBuffer.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-
 
       var renderbuffer = gl.createRenderbuffer();
       gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer);
@@ -4295,9 +4259,8 @@ import * as logger from './logger.js';
   }
 
   function getCurrentN64Shader(cycle_type, alpha_threshold) {
-
-    var mux0   = state.combine.hi;
-    var mux1   = state.combine.lo;
+    var mux0 = state.combine.hi;
+    var mux1 = state.combine.lo;
 
     // Check if this shader already exists. Copy/Fill are fixed-function so ignore mux for these.
     var state_text = (cycle_type < cycleTypeValues.G_CYC_COPY) ? (mux0.toString(16) + mux1.toString(16) + '_' + cycle_type) : cycle_type;
@@ -4324,7 +4287,6 @@ import * as logger from './logger.js';
     var fragmentShader;
     var theSource = fragmentSource;
 
-    //
     var aRGB0  = (mux0>>>20)&0x0F; // c1 c1    // a0
     var bRGB0  = (mux1>>>28)&0x0F; // c1 c2    // b0
     var cRGB0  = (mux0>>>15)&0x1F; // c1 c3    // c0
@@ -4348,7 +4310,6 @@ import * as logger from './logger.js';
     // patch in instructions for this mux
 
     var body;
-
     if (cycle_type === cycleTypeValues.G_CYC_FILL) {
       body = 'col = shade;\n';
     } else if (cycle_type === cycleTypeValues.G_CYC_COPY) {
@@ -4407,9 +4368,8 @@ import * as logger from './logger.js';
   }
 
   function hashTmem(tmem32, offset, len, hash) {
-    var i = offset       >> 2,
-        e = (offset+len) >> 2;
-
+    let i = offset       >> 2;
+    let e = (offset+len) >> 2;
     while (i < e) {
       hash = ((hash*17)+tmem32[i])>>>0;
       ++i;
@@ -4610,14 +4570,12 @@ import * as logger from './logger.js';
     return texture;
   }
 
-  const OneToEight =
-  [
+  const OneToEight = [
     0x00,   // 0 -> 00 00 00 00
-    0xff    // 1 -> 11 11 11 11
+    0xff,   // 1 -> 11 11 11 11
   ];
 
-  const ThreeToEight =
-  [
+  const ThreeToEight = [
     0x00,   // 000 -> 00 00 00 00
     0x24,   // 001 -> 00 10 01 00
     0x49,   // 010 -> 01 00 10 01
@@ -4625,19 +4583,17 @@ import * as logger from './logger.js';
     0x92,   // 100 -> 10 01 00 10
     0xb6,   // 101 -> 10 11 01 10
     0xdb,   // 110 -> 11 01 10 11
-    0xff    // 111 -> 11 11 11 11
+    0xff,   // 111 -> 11 11 11 11
   ];
 
-  const FourToEight =
-  [
+  const FourToEight = [
     0x00, 0x11, 0x22, 0x33,
     0x44, 0x55, 0x66, 0x77,
     0x88, 0x99, 0xaa, 0xbb,
-    0xcc, 0xdd, 0xee, 0xff
+    0xcc, 0xdd, 0xee, 0xff,
   ];
 
-  const FiveToEight =
-  [
+  const FiveToEight = [
     0x00, // 00000 -> 00000000
     0x08, // 00001 -> 00001000
     0x10, // 00010 -> 00010000
@@ -4670,49 +4626,48 @@ import * as logger from './logger.js';
     0xe7, // 11100 -> 11100111
     0xef, // 11101 -> 11101111
     0xf7, // 11110 -> 11110111
-    0xff  // 11111 -> 11111111
+    0xff, // 11111 -> 11111111
   ];
 
   function convertIA16Pixel(v) {
     var i = (v>>>8)&0xff;
-    var a = (v    )&0xff;
+    let a = (v    )&0xff;
 
     return (i<<24) | (i<<16) | (i<<8) | a;
   }
 
   function convertRGBA16Pixel(v) {
-    var r = FiveToEight[(v>>>11)&0x1f];
-    var g = FiveToEight[(v>>> 6)&0x1f];
-    var b = FiveToEight[(v>>> 1)&0x1f];
-    var a = ((v     )&0x01)? 255 : 0;
+    let r = FiveToEight[(v>>>11)&0x1f];
+    let g = FiveToEight[(v>>> 6)&0x1f];
+    let b = FiveToEight[(v>>> 1)&0x1f];
+    let a = ((v     )&0x01)? 255 : 0;
 
     return (r<<24) | (g<<16) | (b<<8) | a;
   }
 
 
   function clampTexture(img_data, width, height) {
-    var dst            = img_data.data;
-
-    var dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
+    let dst            = img_data.data;
+    let dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
 
     // Repeat last pixel across all lines
-    var y = 0;
-    var dst_row_offset;
+    let y = 0;
+    let dst_row_offset;
 
     if (width < img_data.width) {
       dst_row_offset = 0;
       for (; y < height; ++y) {
 
-        var dst_offset = dst_row_offset + ((width-1)*4);
+        let dst_offset = dst_row_offset + ((width-1)*4);
 
-        var r = dst[dst_offset+0];
-        var g = dst[dst_offset+1];
-        var b = dst[dst_offset+2];
-        var a = dst[dst_offset+3];
+        let r = dst[dst_offset+0];
+        let g = dst[dst_offset+1];
+        let b = dst[dst_offset+2];
+        let a = dst[dst_offset+3];
 
         dst_offset += 4;
 
-        for (var x = width; x < img_data.width; ++x) {
+        for (let x = width; x < img_data.width; ++x) {
           dst[dst_offset+0] = r;
           dst[dst_offset+1] = g;
           dst[dst_offset+2] = b;
@@ -4726,10 +4681,10 @@ import * as logger from './logger.js';
     if (height < img_data.height) {
       // Repeat the final line
       dst_row_offset  = dst_row_stride * height;
-      var last_row_offset = dst_row_offset - dst_row_stride;
+      let last_row_offset = dst_row_offset - dst_row_stride;
 
       for (; y < img_data.height; ++y) {
-        for (var i = 0; i < dst_row_stride; ++i) {
+        for (let i = 0; i < dst_row_stride; ++i) {
           dst[dst_row_offset+i] = dst[last_row_offset+i];
         }
         dst_row_offset += dst_row_stride;
@@ -4738,25 +4693,24 @@ import * as logger from './logger.js';
   }
 
   function convertRGBA32(img_data, tmem, line, width, height) {
-    var dst            = img_data.data;
-    var dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
-    var dst_row_offset = 0;
+    let dst            = img_data.data;
+    let dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
+    let dst_row_offset = 0;
 
-    var src            = state.tmemData;
-    var src_row_stride = line<<3;
-    var src_row_offset = tmem<<3;
+    let src            = state.tmemData;
+    let src_row_stride = line<<3;
+    let src_row_offset = tmem<<3;
 
     // NB! RGBA/32 line needs to be doubled.
     src_row_stride *= 2;
 
-    var row_swizzle = 0;
-    for (var y = 0; y < height; ++y) {
+    let row_swizzle = 0;
+    for (let y = 0; y < height; ++y) {
+      let src_offset = src_row_offset;
+      let dst_offset = dst_row_offset;
 
-      var src_offset = src_row_offset;
-      var dst_offset = dst_row_offset;
-      for (var x = 0; x < width; ++x) {
-
-        var o = src_offset^row_swizzle;
+      for (let x = 0; x < width; ++x) {
+        let o = src_offset^row_swizzle;
 
         dst[dst_offset+0] = src[o];
         dst[dst_offset+1] = src[o+1];
@@ -4774,23 +4728,22 @@ import * as logger from './logger.js';
   }
 
   function convertRGBA16(img_data, tmem, line, width, height) {
-    var dst            = img_data.data;
-    var dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
-    var dst_row_offset = 0;
+    let dst            = img_data.data;
+    let dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
+    let dst_row_offset = 0;
 
-    var src            = state.tmemData;
-    var src_row_stride = line<<3;
-    var src_row_offset = tmem<<3;
+    let src            = state.tmemData;
+    let src_row_stride = line<<3;
+    let src_row_offset = tmem<<3;
 
-    var row_swizzle = 0;
-    for (var y = 0; y < height; ++y) {
+    let row_swizzle = 0;
+    for (let y = 0; y < height; ++y) {
+      let src_offset = src_row_offset;
+      let dst_offset = dst_row_offset;
 
-      var src_offset = src_row_offset;
-      var dst_offset = dst_row_offset;
-      for (var x = 0; x < width; ++x) {
-
-        var o         = src_offset^row_swizzle;
-        var src_pixel = (src[o]<<8) | src[o+1];
+      for (let x = 0; x < width; ++x) {
+        let o         = src_offset^row_swizzle;
+        let src_pixel = (src[o]<<8) | src[o+1];
 
         dst[dst_offset+0] = FiveToEight[(src_pixel>>>11)&0x1f];
         dst[dst_offset+1] = FiveToEight[(src_pixel>>> 6)&0x1f];
@@ -4809,25 +4762,23 @@ import * as logger from './logger.js';
 
 
   function convertIA16(img_data, tmem, line, width, height) {
-    var dst            = img_data.data;
-    var dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
-    var dst_row_offset = 0;
+    let dst            = img_data.data;
+    let dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
+    let dst_row_offset = 0;
 
-    var src            = state.tmemData;
-    var src_row_stride = line<<3;
-    var src_row_offset = tmem<<3;
+    let src            = state.tmemData;
+    let src_row_stride = line<<3;
+    let src_row_offset = tmem<<3;
 
-    var row_swizzle = 0;
-    for (var y = 0; y < height; ++y) {
+    let row_swizzle = 0;
+    for (let y = 0; y < height; ++y) {
+      let src_offset = src_row_offset;
+      let dst_offset = dst_row_offset;
 
-      var src_offset = src_row_offset;
-      var dst_offset = dst_row_offset;
-      for (var x = 0; x < width; ++x) {
-
-        var o = src_offset^row_swizzle;
-
-        var i = src[o];
-        var a = src[o+1];
+      for (let x = 0; x < width; ++x) {
+        let o = src_offset^row_swizzle;
+        let i = src[o];
+        let a = src[o+1];
 
         dst[dst_offset+0] = i;
         dst[dst_offset+1] = i;
@@ -4845,26 +4796,25 @@ import * as logger from './logger.js';
   }
 
   function convertIA8(img_data, tmem, line, width, height) {
-    var dst            = img_data.data;
-    var dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
-    var dst_row_offset = 0;
+    let dst            = img_data.data;
+    let dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
+    let dst_row_offset = 0;
 
-    var src            = state.tmemData;
-    var src_row_stride = line<<3;
-    var src_row_offset = tmem<<3;
+    let src            = state.tmemData;
+    let src_row_stride = line<<3;
+    let src_row_offset = tmem<<3;
 
-    var row_swizzle = 0;
-    for (var y = 0; y < height; ++y) {
+    let row_swizzle = 0;
+    for (let y = 0; y < height; ++y) {
+      let src_offset = src_row_offset;
+      let dst_offset = dst_row_offset;
 
-      var src_offset = src_row_offset;
-      var dst_offset = dst_row_offset;
-      for (var x = 0; x < width; ++x) {
+      for (let x = 0; x < width; ++x) {
+        let o         = src_offset^row_swizzle;
+        let src_pixel = src[o];
 
-        var o         = src_offset^row_swizzle;
-        var src_pixel = src[o];
-
-        var i = FourToEight[(src_pixel>>>4)&0xf];
-        var a = FourToEight[(src_pixel    )&0xf];
+        let i = FourToEight[(src_pixel>>>4)&0xf];
+        let a = FourToEight[(src_pixel    )&0xf];
 
         dst[dst_offset+0] = i;
         dst[dst_offset+1] = i;
@@ -4882,34 +4832,31 @@ import * as logger from './logger.js';
   }
 
   function convertIA4(img_data, tmem, line, width, height) {
-    var dst            = img_data.data;
-    var dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
-    var dst_row_offset = 0;
+    let dst            = img_data.data;
+    let dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
+    let dst_row_offset = 0;
 
-    var src            = state.tmemData;
-    var src_row_stride = line<<3;
-    var src_row_offset = tmem<<3;
+    let src            = state.tmemData;
+    let src_row_stride = line<<3;
+    let src_row_offset = tmem<<3;
 
-    var row_swizzle = 0;
+    let row_swizzle = 0;
 
-    var o, src_pixel, i0, i1, a0, a1;
-
-    for (var y = 0; y < height; ++y) {
-
-      var src_offset = src_row_offset;
-      var dst_offset = dst_row_offset;
+    for (let y = 0; y < height; ++y) {
+      let src_offset = src_row_offset;
+      let dst_offset = dst_row_offset;
 
       // Process 2 pixels at a time
-      for (var x = 0; x+1 < width; x+=2) {
+      for (let x = 0; x+1 < width; x+=2) {
 
-        o         = src_offset^row_swizzle;
-        src_pixel = src[o];
+        let o         = src_offset^row_swizzle;
+        let src_pixel = src[o];
 
-        i0 = ThreeToEight[(src_pixel&0xe0)>>>5];
-        a0 =   OneToEight[(src_pixel&0x10)>>>4];
+        let i0 = ThreeToEight[(src_pixel&0xe0)>>>5];
+        let a0 =   OneToEight[(src_pixel&0x10)>>>4];
 
-        i1 = ThreeToEight[(src_pixel&0x0e)>>>1];
-        a1 =   OneToEight[(src_pixel&0x01)>>>0];
+        let i1 = ThreeToEight[(src_pixel&0x0e)>>>1];
+        let a1 =   OneToEight[(src_pixel&0x01)>>>0];
 
         dst[dst_offset+0] = i0;
         dst[dst_offset+1] = i0;
@@ -4927,11 +4874,11 @@ import * as logger from './logger.js';
 
       // Handle trailing pixel, if odd width
       if (width&1) {
-        o         = src_offset^row_swizzle;
-        src_pixel = src[o];
+        let o         = src_offset^row_swizzle;
+        let src_pixel = src[o];
 
-        i0 = ThreeToEight[(src_pixel&0xe0)>>>5];
-        a0 =   OneToEight[(src_pixel&0x10)>>>4];
+        let i0 = ThreeToEight[(src_pixel&0xe0)>>>5];
+        let a0 =   OneToEight[(src_pixel&0x10)>>>4];
 
         dst[dst_offset+0] = i0;
         dst[dst_offset+1] = i0;
@@ -4950,22 +4897,21 @@ import * as logger from './logger.js';
   }
 
   function convertI8(img_data, tmem, line, width, height) {
-    var dst            = img_data.data;
-    var dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
-    var dst_row_offset = 0;
+    let dst            = img_data.data;
+    let dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
+    let dst_row_offset = 0;
 
-    var src            = state.tmemData;
-    var src_row_stride = line<<3;
-    var src_row_offset = tmem<<3;
+    let src            = state.tmemData;
+    let src_row_stride = line<<3;
+    let src_row_offset = tmem<<3;
 
-    var row_swizzle = 0;
-    for (var y = 0; y < height; ++y) {
+    let row_swizzle = 0;
+    for (let y = 0; y < height; ++y) {
+      let src_offset = src_row_offset;
+      let dst_offset = dst_row_offset;
 
-      var src_offset = src_row_offset;
-      var dst_offset = dst_row_offset;
-      for (var x = 0; x < width; ++x) {
-
-        var i = src[src_offset^row_swizzle];
+      for (let x = 0; x < width; ++x) {
+        let i = src[src_offset^row_swizzle];
 
         dst[dst_offset+0] = i;
         dst[dst_offset+1] = i;
@@ -4983,30 +4929,25 @@ import * as logger from './logger.js';
   }
 
   function convertI4(img_data, tmem, line, width, height) {
-    var dst            = img_data.data;
-    var dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
-    var dst_row_offset = 0;
+    let dst            = img_data.data;
+    let dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
+    let dst_row_offset = 0;
 
-    var src            = state.tmemData;
-    var src_row_stride = line<<3;
-    var src_row_offset = tmem<<3;
+    let src            = state.tmemData;
+    let src_row_stride = line<<3;
+    let src_row_offset = tmem<<3;
 
-    var row_swizzle = 0;
+    let row_swizzle = 0;
 
-    var src_pixel, i0, i1;
-
-    for (var y = 0; y < height; ++y) {
-
-      var src_offset = src_row_offset;
-      var dst_offset = dst_row_offset;
+    for (let y = 0; y < height; ++y) {
+      let src_offset = src_row_offset;
+      let dst_offset = dst_row_offset;
 
       // Process 2 pixels at a time
-      for (var x = 0; x+1 < width; x+=2) {
-
-        src_pixel = src[src_offset^row_swizzle];
-
-        i0 = FourToEight[(src_pixel&0xf0)>>>4];
-        i1 = FourToEight[(src_pixel&0x0f)>>>0];
+      for (let x = 0; x+1 < width; x+=2) {
+        let src_pixel = src[src_offset^row_swizzle];
+        let i0 = FourToEight[(src_pixel&0xf0)>>>4];
+        let i1 = FourToEight[(src_pixel&0x0f)>>>0];
 
         dst[dst_offset+0] = i0;
         dst[dst_offset+1] = i0;
@@ -5024,9 +4965,8 @@ import * as logger from './logger.js';
 
       // Handle trailing pixel, if odd width
       if (width&1) {
-        src_pixel = src[src_offset^row_swizzle];
-
-        i0 = FourToEight[(src_pixel&0xf0)>>>4];
+        let src_pixel = src[src_offset^row_swizzle];
+        let i0 = FourToEight[(src_pixel&0xf0)>>>4];
 
         dst[dst_offset+0] = i0;
         dst[dst_offset+1] = i0;
@@ -5045,32 +4985,29 @@ import * as logger from './logger.js';
   }
 
   function convertCI8(img_data, tmem, line, width, height, pal_address, pal_conv) {
-    var dst            = img_data.data;
-    var dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
-    var dst_row_offset = 0;
+    let dst            = img_data.data;
+    let dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
+    let dst_row_offset = 0;
 
-    var src            = state.tmemData;
-    var src_row_stride = line<<3;
-    var src_row_offset = tmem<<3;
+    let src            = state.tmemData;
+    let src_row_stride = line<<3;
+    let src_row_offset = tmem<<3;
 
-    var pal_offset     = pal_address<<3;
-    var pal            = new Uint32Array(256);
+    let pal_offset     = pal_address<<3;
+    let pal            = new Uint32Array(256);
 
-    var src_pixel;
-
-    for (var i = 0; i < 256; ++i) {
-      src_pixel = (src[pal_offset + i*2 + 0]<<8) | src[pal_offset + i*2 + 1];
+    for (let i = 0; i < 256; ++i) {
+      let src_pixel = (src[pal_offset + i*2 + 0]<<8) | src[pal_offset + i*2 + 1];
       pal[i] = pal_conv( src_pixel );
     }
 
-    var row_swizzle = 0;
-    for (var y = 0; y < height; ++y) {
+    let row_swizzle = 0;
+    for (let y = 0; y < height; ++y) {
+      let src_offset = src_row_offset;
+      let dst_offset = dst_row_offset;
 
-      var src_offset = src_row_offset;
-      var dst_offset = dst_row_offset;
-      for (var x = 0; x < width; ++x) {
-
-        src_pixel = pal[src[src_offset ^ row_swizzle]];
+      for (let x = 0; x < width; ++x) {
+        let src_pixel = pal[src[src_offset ^ row_swizzle]];
 
         dst[dst_offset+0] = (src_pixel>>24)&0xff;
         dst[dst_offset+1] = (src_pixel>>16)&0xff;
@@ -5088,40 +5025,33 @@ import * as logger from './logger.js';
   }
 
   function convertCI4(img_data, tmem, line, width, height, pal_address, pal_conv) {
-    var dst            = img_data.data;
-    var dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
-    var dst_row_offset = 0;
+    let dst            = img_data.data;
+    let dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
+    let dst_row_offset = 0;
 
-    var src            = state.tmemData;
-    var src_row_stride = line<<3;
-    var src_row_offset = tmem<<3;
+    let src            = state.tmemData;
+    let src_row_stride = line<<3;
+    let src_row_offset = tmem<<3;
 
-    var pal_offset     = pal_address<<3;
-    var pal            = new Uint32Array(16);
+    let pal_offset     = pal_address<<3;
+    let pal            = new Uint32Array(16);
 
-    var src_pixel;
-
-    for (var i = 0; i < 16; ++i) {
-      src_pixel = (src[pal_offset + i*2 + 0]<<8) | src[pal_offset + i*2 + 1];
+    for (let i = 0; i < 16; ++i) {
+      let src_pixel = (src[pal_offset + i*2 + 0]<<8) | src[pal_offset + i*2 + 1];
       pal[i] = pal_conv( src_pixel );
     }
 
-    var row_swizzle = 0;
+    let row_swizzle = 0;
 
-    var c0, c1;
-
-    for (var y = 0; y < height; ++y) {
-
-      var src_offset = src_row_offset;
-      var dst_offset = dst_row_offset;
+    for (let y = 0; y < height; ++y) {
+      let src_offset = src_row_offset;
+      let dst_offset = dst_row_offset;
 
       // Process 2 pixels at a time
-      for (var x = 0; x+1 < width; x+=2) {
-
-        src_pixel = src[src_offset ^ row_swizzle];
-
-        c0 = pal[(src_pixel&0xf0)>>>4];
-        c1 = pal[(src_pixel&0x0f)>>>0];
+      for (let x = 0; x+1 < width; x+=2) {
+        let src_pixel = src[src_offset ^ row_swizzle];
+        let c0 = pal[(src_pixel&0xf0)>>>4];
+        let c1 = pal[(src_pixel&0x0f)>>>0];
 
         dst[dst_offset+0] = (c0>>24)&0xff;
         dst[dst_offset+1] = (c0>>16)&0xff;
@@ -5139,9 +5069,8 @@ import * as logger from './logger.js';
 
       // Handle trailing pixel, if odd width
       if (width&1) {
-        src_pixel = src[src_offset ^ row_swizzle];
-
-        c0 = pal[(src_pixel&0xf0)>>>4];
+        let src_pixel = src[src_offset ^ row_swizzle];
+        let c0 = pal[(src_pixel&0xf0)>>>4];
 
         dst[dst_offset+0] = (c0>>24)&0xff;
         dst[dst_offset+1] = (c0>>16)&0xff;
