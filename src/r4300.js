@@ -1425,7 +1425,6 @@ import * as logger from './logger.js';
     }
   }
   function executeDDIVU(i) {
-
     var s = rs(i);
     var t = rt(i);
 
@@ -1468,9 +1467,6 @@ import * as logger from './logger.js';
     return generateTrivialOpBoilerplate(impl,  ctx);
   }
 
-
-
-
   function generateADD(ctx) { return generateTrivialArithmetic(ctx, '+'); }
   function executeADD(i) {
     var d = rd(i);
@@ -1480,7 +1476,6 @@ import * as logger from './logger.js';
     cpu0.gprLo_signed[d] = result;
     cpu0.gprHi_signed[d] = result >> 31;
   }
-
 
   function generateADDU(ctx) { return generateTrivialArithmetic(ctx, '+'); }
   function executeADDU(i) {
@@ -1502,7 +1497,6 @@ import * as logger from './logger.js';
     cpu0.gprHi_signed[d] = result >> 31;
   }
 
-
   function generateSUBU(ctx) { return generateTrivialArithmetic(ctx, '-'); }
   function executeSUBU(i) {
     var d = rd(i);
@@ -1522,7 +1516,6 @@ import * as logger from './logger.js';
     cpu0.gprLo_signed[d] = cpu0.gprLo_signed[s] & cpu0.gprLo_signed[t];
   }
 
-
   function generateOR(ctx) {
     var d = ctx.instr_rd();
     var s = ctx.instr_rs();
@@ -1536,7 +1529,6 @@ import * as logger from './logger.js';
 
       return generateTrivialOpBoilerplate(impl,  ctx);
     }
-
     return generateTrivialLogical(ctx, '|');
   }
 
@@ -1547,7 +1539,6 @@ import * as logger from './logger.js';
     cpu0.gprHi_signed[d] = cpu0.gprHi_signed[s] | cpu0.gprHi_signed[t];
     cpu0.gprLo_signed[d] = cpu0.gprLo_signed[s] | cpu0.gprLo_signed[t];
   }
-
 
   function generateXOR(ctx) { return generateTrivialLogical(ctx, '^'); }
   function executeXOR(i) {
@@ -1576,7 +1567,6 @@ import * as logger from './logger.js';
     cpu0.gprLo_signed[d] = ~(cpu0.gprLo_signed[s] | cpu0.gprLo_signed[t]);
   }
 
-
   function generateSLT(ctx) {
     var d = ctx.instr_rd();
     var s = ctx.instr_rs();
@@ -1594,6 +1584,7 @@ import * as logger from './logger.js';
 
     return generateTrivialOpBoilerplate(impl, ctx);
   }
+
   function executeSLT(i) {
     var d = rd(i);
     var s = rs(i);
@@ -1607,7 +1598,6 @@ import * as logger from './logger.js';
     cpu0.gprLo_signed[d] = r;
     cpu0.gprHi_signed[d] = 0;
   }
-
 
   function generateSLTU(ctx) {
     var d = ctx.instr_rd();
@@ -1625,6 +1615,7 @@ import * as logger from './logger.js';
 
     return generateTrivialOpBoilerplate(impl, ctx);
   }
+
   function executeSLTU(i) {
     var d = rd(i);
     var s = rs(i);
@@ -1637,7 +1628,6 @@ import * as logger from './logger.js';
     cpu0.gprLo_signed[d] = r;
     cpu0.gprHi_signed[d] = 0;
   }
-
 
   function executeDADD(i) {
     cpu0.setGPR_s64(rd(i), cpu0.getGPR_s64(rs(i)) + cpu0.getGPR_s64(rt(i)));
@@ -1747,6 +1737,7 @@ import * as logger from './logger.js';
         break;
     }
   }
+
   function executeTLB(i) {
      switch(tlbop(i)) {
        case 0x01:    cpu0.tlbRead();        return;
@@ -1757,7 +1748,6 @@ import * as logger from './logger.js';
      }
      executeUnknown(i);
   }
-
 
   function executeERET(i) {
     if (cpu0.control[cpu0.kControlSR] & SR_ERL) {
@@ -1871,7 +1861,6 @@ import * as logger from './logger.js';
     }
   }
 
-
   function generateBEQL(ctx) {
     var s    = ctx.instr_rs();
     var t    = ctx.instr_rt();
@@ -1900,7 +1889,6 @@ import * as logger from './logger.js';
       cpu0.nextPC += 4;   // skip the next instruction
     }
   }
-
 
   function generateBNE(ctx) {
     var s    = ctx.instr_rs();
@@ -1982,6 +1970,7 @@ import * as logger from './logger.js';
       performBranch( branchAddress(cpu0.pc,i) );
     }
   }
+
   function executeBLEZL(i) {
     var s = rs(i);
     // NB: if rs == r0 then this branch is always taken
@@ -2014,6 +2003,7 @@ import * as logger from './logger.js';
       performBranch( branchAddress(cpu0.pc,i) );
     }
   }
+
   function executeBGTZL(i) {
     var s = rs(i);
     if ( cpu0.gprHi_signed[s] >= 0 &&
@@ -2023,7 +2013,6 @@ import * as logger from './logger.js';
       cpu0.nextPC += 4;   // skip the next instruction
     }
   }
-
 
   // Branch Less Than Zero
   function generateBLTZ(ctx) {
@@ -2044,7 +2033,6 @@ import * as logger from './logger.js';
     }
   }
 
-
   function generateBLTZL(ctx) {
     var s    = ctx.instr_rs();
     var addr = branchAddress(ctx.pc, ctx.instruction);
@@ -2058,6 +2046,7 @@ import * as logger from './logger.js';
 
     return generateBranchOpBoilerplate(impl, ctx, true /* might_adjust_next_pc*/);
   }
+
   function executeBLTZL(i) {
     if (cpu0.gprHi_signed[rs(i)] < 0) {
       performBranch( branchAddress(cpu0.pc,i) );
@@ -2066,14 +2055,13 @@ import * as logger from './logger.js';
     }
   }
 
-
-
   function executeBLTZAL(i) {
     setSignExtend(cpu0.kRegister_ra, cpu0.pc + 8);
     if (cpu0.gprHi_signed[rs(i)] < 0) {
       performBranch( branchAddress(cpu0.pc,i) );
     }
   }
+
   function executeBLTZALL(i) {
     setSignExtend(cpu0.kRegister_ra, cpu0.pc + 8);
     if (cpu0.gprHi_signed[rs(i)] < 0) {
@@ -2082,7 +2070,6 @@ import * as logger from './logger.js';
       cpu0.nextPC += 4;   // skip the next instruction
     }
   }
-
 
   // Branch Greater Than Zero
   function generateBGEZ(ctx) {
@@ -2096,6 +2083,7 @@ import * as logger from './logger.js';
 
     return generateBranchOpBoilerplate(impl, ctx, false);
   }
+
   function executeBGEZ(i) {
     if (cpu0.gprHi_signed[rs(i)] >= 0) {
       performBranch( branchAddress(cpu0.pc,i) );
@@ -2115,6 +2103,7 @@ import * as logger from './logger.js';
 
     return generateBranchOpBoilerplate(impl, ctx, true /* might_adjust_next_pc*/);
   }
+
   function executeBGEZL(i) {
     if (cpu0.gprHi_signed[rs(i)] >= 0) {
       performBranch( branchAddress(cpu0.pc,i) );
@@ -2123,13 +2112,13 @@ import * as logger from './logger.js';
     }
   }
 
-
   function executeBGEZAL(i) {
     setSignExtend(cpu0.kRegister_ra, cpu0.pc + 8);
     if (cpu0.gprHi_signed[rs(i)] >= 0) {
       performBranch( branchAddress(cpu0.pc,i) );
     }
   }
+
   function executeBGEZALL(i) {
     setSignExtend(cpu0.kRegister_ra, cpu0.pc + 8);
     if (cpu0.gprHi_signed[rs(i)] >= 0) {
@@ -2175,16 +2164,13 @@ import * as logger from './logger.js';
     cpu0.gprHi_signed[t] = result >> 31;
   }
 
-
-
   function executeDADDI(i) {
     cpu0.setGPR_s64(rt(i), cpu0.getGPR_s64(rs(i)) + imms(i));
   }
+
   function executeDADDIU(i) {
     cpu0.setGPR_s64(rt(i), cpu0.getGPR_s64(rs(i)) + imms(i));
   }
-
-
 
   function generateSLTI(ctx) {
     var s = ctx.instr_rs();
@@ -2220,7 +2206,6 @@ import * as logger from './logger.js';
     }
     cpu0.gprHi_signed[t] = 0;
   }
-
 
   function generateSLTIU(ctx) {
     var s = ctx.instr_rs();
@@ -2275,8 +2260,6 @@ import * as logger from './logger.js';
     cpu0.gprHi_signed[t] = 0;    // always 0, as sign extended immediate value is always 0
   }
 
-
-
   function generateORI(ctx) {
     var s = ctx.instr_rs();
     var t = ctx.instr_rt();
@@ -2293,7 +2276,6 @@ import * as logger from './logger.js';
     cpu0.gprLo_signed[t] = cpu0.gprLo_signed[s] | imm(i);
     cpu0.gprHi_signed[t] = cpu0.gprHi_signed[s];
   }
-
 
   function generateXORI(ctx) {
     var s = ctx.instr_rs();
@@ -2313,7 +2295,6 @@ import * as logger from './logger.js';
     cpu0.gprHi_signed[t] = cpu0.gprHi_signed[s];
   }
 
-
   function generateLUI(ctx) {
     var t = ctx.instr_rt();
     var value_lo = imms(ctx.instruction) << 16;
@@ -2332,8 +2313,6 @@ import * as logger from './logger.js';
     cpu0.gprHi_signed[t] = value >> 31;
   }
 
-
-
   function generateLB(ctx) {
     var t = ctx.instr_rt();
     var b = ctx.instr_base();
@@ -2346,6 +2325,7 @@ import * as logger from './logger.js';
 
     return generateMemoryAccessBoilerplate(impl, ctx);
   }
+
   function executeLB(i) {
     var t = rt(i);
     var b = base(i);
@@ -2367,6 +2347,7 @@ import * as logger from './logger.js';
 
     return generateMemoryAccessBoilerplate(impl, ctx);
   }
+
   function executeLBU(i) {
     var t = rt(i);
     var b = base(i);
@@ -2388,6 +2369,7 @@ import * as logger from './logger.js';
 
     return generateMemoryAccessBoilerplate(impl, ctx);
   }
+
   function executeLH(i) {
     var t = rt(i);
     var b = base(i);
@@ -2409,6 +2391,7 @@ import * as logger from './logger.js';
 
     return generateMemoryAccessBoilerplate(impl, ctx);
   }
+
   function executeLHU(i) {
     var t = rt(i);
     var b = base(i);
@@ -2417,7 +2400,6 @@ import * as logger from './logger.js';
     cpu0.gprLo_signed[t] = n64js.load_u16(cpu0.ram, cpu0.gprLo_signed[b] + o);
     cpu0.gprHi_signed[t] = 0;
   }
-
 
   function generateLW(ctx) {
     var t = ctx.instr_rt();
@@ -2434,6 +2416,7 @@ import * as logger from './logger.js';
 
     return generateMemoryAccessBoilerplate(impl, ctx);
   }
+
   function executeLW(i) {
     var t = rt(i);
     var b = base(i);
@@ -2459,6 +2442,7 @@ import * as logger from './logger.js';
 
     return generateMemoryAccessBoilerplate(impl, ctx);
   }
+
   function executeLWU(i) {
     var t = rt(i);
     var b = base(i);
@@ -2467,7 +2451,6 @@ import * as logger from './logger.js';
     cpu0.gprLo_signed[t] = n64js.load_u32(cpu0.ram, cpu0.gprLo_signed[b] + o);
     cpu0.gprHi_signed[t] = 0;
   }
-
 
   function generateLD(ctx) {
     var t = ctx.instr_rt();
@@ -2588,6 +2571,7 @@ import * as logger from './logger.js';
 
     setSignExtend( rt(i), value );
   }
+
   function executeLWR(i) {
     var address         = memaddr(i)>>>0;
     var address_aligned = (address & ~3)>>>0;
@@ -2604,11 +2588,9 @@ import * as logger from './logger.js';
 
     setSignExtend( rt(i), value );
   }
+
   function executeLDL(i)        { unimplemented(cpu0.pc,i); }
   function executeLDR(i)        { unimplemented(cpu0.pc,i); }
-
-
-
 
   function generateSB(ctx) {
     var t = ctx.instr_rt();
@@ -2619,6 +2601,7 @@ import * as logger from './logger.js';
     impl += 'n64js.store_8(ram, ' + genSrcRegLo(b) + ' + ' + o + ', ' + genSrcRegLo(t) + ');\n';
     return generateMemoryAccessBoilerplate(impl, ctx);
   }
+
   function executeSB(i) {
     var t = rt(i);
     var b = base(i);
@@ -2636,6 +2619,7 @@ import * as logger from './logger.js';
     impl += 'n64js.store_16(ram, ' + genSrcRegLo(b) + ' + ' + o + ', ' + genSrcRegLo(t) + ');\n';
     return generateMemoryAccessBoilerplate(impl, ctx);
   }
+
   function executeSH(i) {
     var t = rt(i);
     var b = base(i);
@@ -2653,6 +2637,7 @@ import * as logger from './logger.js';
     impl += 'n64js.store_32(ram, ' + genSrcRegLo(b) + ' + ' + o + ', ' + genSrcRegLo(t) + ');\n';
     return generateMemoryAccessBoilerplate(impl, ctx);
   }
+
   function executeSW(i) {
     var t = rt(i);
     var b = base(i);
@@ -2660,7 +2645,6 @@ import * as logger from './logger.js';
 
     n64js.store_32(cpu0.ram, cpu0.gprLo_signed[b] + o, cpu0.gprLo_signed[t]);
   }
-
 
   function generateSD(ctx) {
     var t = ctx.instr_rt();
@@ -2673,6 +2657,7 @@ import * as logger from './logger.js';
 
     return generateMemoryAccessBoilerplate(impl, ctx);
   }
+
   function executeSD(i) {
     var t = rt(i);
     var b = base(i);
@@ -2681,7 +2666,6 @@ import * as logger from './logger.js';
     var addr = cpu0.gprLo_signed[b] + o;
     n64js.store_64(cpu0.ram, addr, cpu0.gprLo_signed[t], cpu0.gprHi_signed[t]);
   }
-
 
   function generateSWC1(ctx) {
     var t = ctx.instr_ft();
@@ -2704,7 +2688,6 @@ import * as logger from './logger.js';
 
     n64js.store_32(cpu0.ram, cpu0.gprLo_signed[b] + o, cpu1.int32[t]);
   }
-
 
   function generateSDC1(ctx) {
     var t = ctx.instr_ft();
@@ -2751,6 +2734,7 @@ import * as logger from './logger.js';
 
     n64js.writeMemory32( address_aligned, value );
   }
+
   function executeSWR(i) {
     var address         = memaddr(i);
     var address_aligned = (address & ~3)>>>0;
@@ -2787,6 +2771,7 @@ import * as logger from './logger.js';
       return generateNOPBoilerplate('/*ignored CACHE*/', ctx);
     }
   }
+
   function executeCACHE(i) {
     var cache_op = rt(i);
     var cache    = (cache_op      ) & 0x3;
@@ -2817,6 +2802,7 @@ import * as logger from './logger.js';
     impl += 'rhi[' + t + '] = result >> 31;\n';
     return impl;
   }
+
   function executeMFC1(i) {
     var t = rt(i);
     var s = fs(i);
@@ -2838,13 +2824,13 @@ import * as logger from './logger.js';
     impl += 'rhi[' + t + '] = cpu1.int32[' + hi + '];\n';
     return impl;
   }
+
   function executeDMFC1(i) {
     var t = rt(i);
     var s = fs(i);
     cpu0.gprLo_signed[t] = cpu1.int32[s];
     cpu0.gprHi_signed[t] = cpu1.int32[s+1];
   }
-
 
   function generateMTC1Stub(ctx) {
     var s = ctx.instr_fs();
@@ -2855,6 +2841,7 @@ import * as logger from './logger.js';
 
     return 'cpu1.int32[' + s + '] = rlo[' + t + '];\n';
   }
+
   function executeMTC1(i) {
     cpu1.int32[fs(i)] = cpu0.gprLo_signed[rt(i)];
   }
@@ -2872,6 +2859,7 @@ import * as logger from './logger.js';
     impl += 'cpu1.int32[' + hi + '] = rhi[' + t + '];\n';
     return impl;
   }
+
   function executeDMTC1(i) {
     var s = fs(i);
     var t = rt(i);
@@ -3043,7 +3031,6 @@ import * as logger from './logger.js';
   }
 
   function generateSInstrStub(ctx) {
-
     var s = ctx.instr_fs();
     var t = ctx.instr_ft();
     var d = ctx.instr_fd();
@@ -3089,7 +3076,6 @@ import * as logger from './logger.js';
   }
 
   function executeSInstr(i) {
-
     var s = fs(i);
     var t = ft(i);
     var d = fd(i);
@@ -3129,7 +3115,6 @@ import * as logger from './logger.js';
   }
 
   function generateDInstrStub(ctx) {
-
     var s = ctx.instr_fs();
     var t = ctx.instr_ft();
     var d = ctx.instr_fd();
@@ -3174,7 +3159,6 @@ import * as logger from './logger.js';
   }
 
   function executeDInstr(i) {
-
     var s = fs(i);
     var t = ft(i);
     var d = fd(i);
@@ -3225,6 +3209,7 @@ import * as logger from './logger.js';
     }
     return 'unimplemented(' + format.toString32(ctx.pc) + ',' + format.toString32(ctx.instruction) + ');\n';
   }
+
   function executeWInstr(i) {
     var s = fs(i);
     var d = fd(i);
@@ -3235,7 +3220,6 @@ import * as logger from './logger.js';
     }
     unimplemented(cpu0.pc,i);
   }
-
 
   function generateLInstrStub(ctx) {
     var s = ctx.instr_fs();
@@ -3249,6 +3233,7 @@ import * as logger from './logger.js';
     }
     return 'unimplemented(' + format.toString32(ctx.pc) + ',' + format.toString32(ctx.instruction) + ');\n';
   }
+
   function executeLInstr(i) {
     var s = fs(i);
     var d = fd(i);
@@ -3634,8 +3619,6 @@ import * as logger from './logger.js';
   FragmentContext.prototype.instr_base   = function () { return base(this.instruction); };
   FragmentContext.prototype.instr_offset = function () { return offset(this.instruction); };
   FragmentContext.prototype.instr_imms   = function () { return imms(this.instruction); };
-
-
 
   function checkCauseIP3Consistent() {
     var mi_interrupt_set = n64js.miInterruptsUnmasked();

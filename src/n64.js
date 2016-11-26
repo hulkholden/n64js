@@ -2459,7 +2459,6 @@ import * as sync from './sync.js';
   };
 
   n64js.init = function () {
-
     rdram_handler_cached.quiet      = true;
     rdram_handler_uncached.quiet    = true;
     sp_mem_handler_uncached.quiet   = true;
