@@ -48,7 +48,8 @@ import * as logger from './logger.js';
     }
 
     $select.change(function () {
-      disasmAddress = $select.find('option:selected').data('address')>>>0;
+      let contents = $select.find('option:selected').data('address');
+      disasmAddress = /** @type {number} */(contents) >>> 0;
       updateDebug();
     });
   }
@@ -401,7 +402,7 @@ import * as logger from './logger.js';
 
   function onLabelClicked(e) {
       var $label = $(e.delegateTarget);
-      var address = $label.data('address')>>>0;
+      var address = /** @type {number} */($label.data('address')) >>> 0;
       var existing = labelMap[address] || '';
       var $input = $('<input class="input-mini" value="' + existing + '" />');
 
@@ -433,7 +434,7 @@ import * as logger from './logger.js';
 
   function onClickBreakpoint(e) {
     var $elem = $(e.delegateTarget);
-    var address = $elem.data('address')>>>0;
+    var address = /** @type {number} */($elem.data('address')) >>> 0;
     n64js.toggleBreakpoint(address);
     updateDebug();
   }
