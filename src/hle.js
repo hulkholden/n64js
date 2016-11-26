@@ -4208,7 +4208,7 @@ import * as logger from './logger.js';
     $dlistState = $dlistContent.find('.hle-state');
 
     $dlistOutput = $('<div class="hle-disasm"></div>');
-    $('#adjacent-debug').html($dlistOutput);
+    $('#adjacent-debug').empty().append($dlistOutput);
   }
 
   //

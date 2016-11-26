@@ -421,7 +421,7 @@ import * as logger from './logger.js';
       $input.blur(function () {
         $label.html(makeLabelText(address));
       });
-      $label.html($input);
+      $label.empty().append($input);
       $input.focus();
   }
 
