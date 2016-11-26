@@ -2116,7 +2116,7 @@
   }
 
 
-  var kMulInputRGB = [
+  const kMulInputRGB = [
     'Combined    ', 'Texel0      ',
     'Texel1      ', 'Primitive   ',
     'Shade       ', 'Env         ',
@@ -2134,7 +2134,7 @@
     '0           ', '0           ',
     '0           ', '0           '
   ];
-  var kSubAInputRGB = [
+  const kSubAInputRGB = [
     'Combined    ', 'Texel0      ',
     'Texel1      ', 'Primitive   ',
     'Shade       ', 'Env         ',
@@ -2144,7 +2144,7 @@
     '0           ', '0           ',
     '0           ', '0           '
   ];
-  var kSubBInputRGB = [
+  const kSubBInputRGB = [
     'Combined    ', 'Texel0      ',
     'Texel1      ', 'Primitive   ',
     'Shade       ', 'Env         ',
@@ -2154,7 +2154,7 @@
     '0           ', '0           ',
     '0           ', '0           '
   ];
-  var kAddInputRGB = [
+  const kAddInputRGB = [
     'Combined    ', 'Texel0      ',
     'Texel1      ', 'Primitive   ',
     'Shade       ', 'Env         ',
@@ -2162,19 +2162,19 @@
   ];
 
 
-  var kSubInputA = [
+  const kSubInputA = [
     'Combined    ', 'Texel0      ',
     'Texel1      ', 'Primitive   ',
     'Shade       ', 'Env         ',
     'PrimLODFrac ', '0           '
   ];
-  var kMulInputA = [
+  const kMulInputA = [
     'Combined    ', 'Texel0      ',
     'Texel1      ', 'Primitive   ',
     'Shade       ', 'Env         ',
     '1           ', '0           '
   ];
-  var kAddInputA = [
+  const kAddInputA = [
     'Combined    ', 'Texel0      ',
     'Texel1      ', 'Primitive   ',
     'Shade       ', 'Env         ',
@@ -4415,11 +4415,11 @@
       var decoded = '';
 
       decoded += '\n';
-      decoded += '\tRGB0 = (' + colcombine16[aRGB0] + ' - ' + colcombine16[bRGB0] + ') * ' + colcombine32[cRGB0] + ' + ' + colcombine8[dRGB0] + '\n';
-      decoded += '\t  A0 = (' + colcombine8 [  aA0] + ' - ' + colcombine8 [  bA0] + ') * ' + colcombine8 [  cA0] + ' + ' + colcombine8[  dA0] + '\n';
+      decoded += '\tRGB0 = (' + kSubAInputRGB[aRGB0] + ' - ' + kSubBInputRGB[bRGB0] + ') * ' + kMulInputRGB[cRGB0] + ' + ' + kAddInputRGB[dRGB0] + '\n';
+      decoded += '\t  A0 = (' + kSubInputA   [  aA0] + ' - ' + kSubInputA   [  bA0] + ') * ' + kMulInputA  [  cA0] + ' + ' + kAddInputA  [  dA0] + '\n';
 
-      decoded += '\tRGB1 = (' + colcombine16[aRGB1] + ' - ' + colcombine16[bRGB1] + ') * ' + colcombine32[cRGB1] + ' + ' + colcombine8[dRGB1] + '\n';
-      decoded += '\t  A1 = (' + colcombine8 [  aA1] + ' - ' + colcombine8 [  bA1] + ') * ' + colcombine8 [  cA1] + ' + ' + colcombine8[  dA1] + '\n';
+      decoded += '\tRGB1 = (' + kSubAInputRGB[aRGB1] + ' - ' + kSubBInputRGB[bRGB1] + ') * ' + kMulInputRGB[cRGB1] + ' + ' + kAddInputRGB[dRGB1] + '\n';
+      decoded += '\t  A1 = (' + kSubInputA   [  aA1] + ' - ' + kSubInputA   [  bA1] + ') * ' + kMulInputA  [  cA1] + ' + ' + kAddInputA  [  dA1] + '\n';
 
       var m = theSource.split('\n').join('<br>');
 

@@ -53,7 +53,7 @@
   ];
   n64js.cop1RegisterNames = cop1RegisterNames;
 
-  var copRegisterNames = [
+  var cop2RegisterNames = [
     'GR00', 'GR01', 'GR02', 'GR03', 'GR04', 'GR05', 'GR06', 'GR07',
     'GR08', 'GR09', 'GR10', 'GR11', 'GR12', 'GR13', 'GR14', 'GR15',
     'GR16', 'GR17', 'GR18', 'GR19', 'GR20', 'GR21', 'GR22', 'GR23',
