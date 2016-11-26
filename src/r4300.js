@@ -1,5 +1,6 @@
 /*jshint jquery:true, devel:true */
 
+import { CPU1 } from './CPU1.js';
 import * as format from './format.js';
 import * as logger from './logger.js';
 
@@ -821,58 +822,6 @@ import * as logger from './logger.js';
     this.throwTLBWriteMiss(address);
     throw new TLBException(address);
   };
-
-  /**
-   * @constructor
-   */
-  function CPU1() {
-
-    this.control = new Uint32Array(32);
-
-    this.mem     = new ArrayBuffer(32 * 4);   // 32 32-bit regs
-    this.float32 = new Float32Array(this.mem);
-    this.float64 = new Float64Array(this.mem);
-    this.int32   = new Int32Array(this.mem);
-    this.uint32  = new Uint32Array(this.mem);
-
-    this.reset = () => {
-
-      for (var i = 0; i < 32; ++i) {
-        this.control[i] = 0;
-        this.int32[i]   = 0;
-      }
-
-      this.control[0] = 0x00000511;
-    };
-
-    this.setCondition = (v) => {
-      if (v)
-        this.control[31] |=  FPCSR_C;
-      else
-        this.control[31] &= ~FPCSR_C;
-    };
-
-    this.store_64 = (i, lo, hi) => {
-      this.int32[i+0] = lo;
-      this.int32[i+1] = hi;
-    };
-
-    this.load_f64 = (i) => {
-      return this.float64[i>>1];
-    };
-    this.load_s64_as_double = (i) => {
-        return (this.int32[i+1] * k1Shift32) + this.int32[i];
-    };
-
-    this.store_float_as_long = (i, v) => {
-      this.int32[i  ] = v & 0xffffffff;
-      this.int32[i+1] = Math.floor( v / k1Shift32 );
-    };
-
-    this.store_f64 = (i, v) => {
-      this.float64[i>>1] = v;
-    };
-  }
 
   // Expose the cpu state
   var cpu0 = new CPU0();
