@@ -1614,8 +1614,7 @@ import * as logger from './logger.js';
 
   // tmem/ram should be Int32Array
   function copyLineQwords(tmem, tmem_offset, ram, ram_offset, qwords) {
-    var i;
-    for (i = 0; i < qwords; ++i) {
+    for (let i = 0; i < qwords; ++i) {
       tmem[tmem_offset+0] = ram[ram_offset+0];
       tmem[tmem_offset+1] = ram[ram_offset+1];
       tmem_offset += 2;
@@ -1624,21 +1623,18 @@ import * as logger from './logger.js';
   }
   // tmem/ram should be Int32Array
   function copyLineQwordsSwap(tmem, tmem_offset, ram, ram_offset, qwords) {
-
     if (tmem_offset&1) { hleHalt("oops, tmem isn't qword aligned"); }
 
-    var i;
-    for (i = 0; i < qwords; ++i) {
+    for (let i = 0; i < qwords; ++i) {
       tmem[(tmem_offset+0)^0x1] = ram[ram_offset+0];
       tmem[(tmem_offset+1)^0x1] = ram[ram_offset+1];
       tmem_offset += 2;
-       ram_offset += 2;
+      ram_offset += 2;
     }
   }
 
   function invalidateTileHashes() {
-    var i;
-    for (i = 0; i < 8; ++i) {
+    for (let i = 0; i < 8; ++i) {
       state.tiles[i].hash = 0;
     }
   }
@@ -1673,13 +1669,9 @@ import * as logger from './logger.js';
     if (dxt === 0) {
       copyLineQwords(tmem_data, tmem_offset, ram_s32, ram_offset, qwords);
     } else {
-
       var qwords_per_line = Math.ceil(2048 / dxt);
       var row_swizzle     = 0;
-
-      var i;
-      for (i = 0; i < qwords; ) {
-
+      for (let i = 0; i < qwords; ) {
         var qwords_to_copy = Math.min(qwords-i, qwords_per_line);
 
         if (row_swizzle) {
@@ -1688,9 +1680,9 @@ import * as logger from './logger.js';
           copyLineQwords(tmem_data, tmem_offset, ram_s32, ram_offset, qwords_to_copy);
         }
 
-                  i += qwords_to_copy;
-        tmem_offset += qwords_to_copy*2;  // 2 words per quadword copied
-         ram_offset += qwords_to_copy*2;
+        i += qwords_to_copy;
+        tmem_offset += qwords_to_copy * 2;  // 2 words per quadword copied
+        ram_offset += qwords_to_copy * 2;
         row_swizzle ^= 0x1;               // All odd lines are swapped
       }
     }
@@ -1699,15 +1691,13 @@ import * as logger from './logger.js';
   }
 
   function copyLine(tmem, tmem_offset, ram, ram_offset, bytes) {
-    var x;
-    for (x = 0; x < bytes; ++x) {
+    for (let x = 0; x < bytes; ++x) {
       tmem[tmem_offset+x] = ram[ram_offset+x];
     }
   }
 
   function copyLineSwap(tmem, tmem_offset, ram, ram_offset, bytes) {
-    var x;
-    for (x = 0; x < bytes; ++x) {
+    for (let x = 0; x < bytes; ++x) {
       tmem[(tmem_offset+x)^0x4] = ram[(ram_offset+x)];
     }
   }
@@ -1747,7 +1737,7 @@ import * as logger from './logger.js';
     if (state.textureImage.size == imageSizeTypes.G_IM_SIZ_32b) {
       bytes_per_tmem_line = bytes_per_tmem_line * 2;
     }
-//    if (bytes_per_tmem_line < roundUpMultiple8(bytes_per_line)) { hleHalt('line is shorter than texel count'); }
+    // if (bytes_per_tmem_line < roundUpMultiple8(bytes_per_line)) { hleHalt('line is shorter than texel count'); }
 
     var x, y;
     for (y = 0; y < h; ++y) {
@@ -1883,7 +1873,6 @@ import * as logger from './logger.js';
   }
 
   function executeFillRect(cmd0,cmd1,dis) {
-
     // NB: fraction is ignored
     var x0 = ((cmd1>>>12)&0xfff)>>>2;
     var y0 = ((cmd1>>> 0)&0xfff)>>>2;
@@ -1931,7 +1920,6 @@ import * as logger from './logger.js';
   }
 
   function executeTexRect(cmd0,cmd1,dis) {
-
     if (!texrected) {
       n64js.emitRunningTime('texrect');
       texrected = true;
@@ -2092,6 +2080,7 @@ import * as logger from './logger.js';
     '0           ', '0           ',
     '0           ', '0           '
   ];
+
   const kSubAInputRGB = [
     'Combined    ', 'Texel0      ',
     'Texel1      ', 'Primitive   ',
@@ -2102,6 +2091,7 @@ import * as logger from './logger.js';
     '0           ', '0           ',
     '0           ', '0           '
   ];
+
   const kSubBInputRGB = [
     'Combined    ', 'Texel0      ',
     'Texel1      ', 'Primitive   ',
@@ -2112,13 +2102,13 @@ import * as logger from './logger.js';
     '0           ', '0           ',
     '0           ', '0           '
   ];
+
   const kAddInputRGB = [
     'Combined    ', 'Texel0      ',
     'Texel1      ', 'Primitive   ',
     'Shade       ', 'Env         ',
     '1           ', '0           '
   ];
-
 
   const kSubInputA = [
     'Combined    ', 'Texel0      ',
@@ -2295,7 +2285,6 @@ import * as logger from './logger.js';
     // FIXME!
   }
 
-
   // G_SETOTHERMODE_L sft: shift count
   const G_MDSFT_ALPHACOMPARE    = 0;
   const G_MDSFT_ZSRCSEL         = 2;
@@ -2435,8 +2424,9 @@ import * as logger from './logger.js';
 
   function getDefine(m, v) {
     for (var d in m) {
-      if (m[d] === v)
+      if (m[d] === v) {
         return d;
+      }
     }
     return toString32(v);
   }
@@ -2447,8 +2437,9 @@ import * as logger from './logger.js';
   }
 
   function initWebGL(canvas) {
-    if (gl)
+    if (gl) {
       return;
+    }
 
     try {
       // Try to grab the standard context. If it fails, fallback to experimental.
@@ -2481,51 +2472,44 @@ import * as logger from './logger.js';
   }
 
   function getShader(gl, id) {
-    var shaderScript, theSource, shader_type;
-
-    shaderScript = document.getElementById(id);
-
-    if (!shaderScript) {
+    let script = document.getElementById(id);
+    if (!script) {
         return null;
     }
+    let source = getScriptNodeSource(script);
 
-    theSource = getScriptNodeSource(shaderScript);
-
-    if (shaderScript.type === "x-shader/x-fragment") {
-      shader_type = gl.FRAGMENT_SHADER;
-    } else if (shaderScript.type === "x-shader/x-vertex") {
-      shader_type = gl.VERTEX_SHADER;
+    let type;
+    if (script.type === 'x-shader/x-fragment') {
+      type = gl.FRAGMENT_SHADER;
+    } else if (script.type === 'x-shader/x-vertex') {
+      type = gl.VERTEX_SHADER;
     } else {
        // Unknown shader type
        return null;
     }
 
-    return createShader(theSource, shader_type);
+    return createShader(source, type);
   }
 
   function getScriptNodeSource(shaderScript) {
-    var theSource, currentChild;
+    let source = '';
 
-    theSource = "";
-    currentChild = shaderScript.firstChild;
-
+    let currentChild = shaderScript.firstChild;
     while(currentChild) {
       if (currentChild.nodeType == currentChild.TEXT_NODE) {
-          theSource += currentChild.textContent;
+        source += currentChild.textContent;
       }
 
       currentChild = currentChild.nextSibling;
     }
 
-    return theSource;
+    return source;
   }
 
-  // shader_type is 'gl.FRAGMENT_SHADER' or 'gl.VERTEX_SHADER'
-  function createShader(theSource, shader_type) {
-    var shader = gl.createShader(shader_type);
-
-    gl.shaderSource(shader, theSource);
-
+  // type is gl.FRAGMENT_SHADER or gl.VERTEX_SHADER
+  function createShader(source, type) {
+    var shader = gl.createShader(type);
+    gl.shaderSource(shader, source);
     gl.compileShader(shader);
 
     // See if it compiled successfully
@@ -2533,7 +2517,6 @@ import * as logger from './logger.js';
         alert("An error occurred compiling the shaders: " + gl.getShaderInfoLog(shader));
         return null;
     }
-
     return shader;
   }
 
@@ -2614,7 +2597,7 @@ import * as logger from './logger.js';
 
     var alpha_threshold = -1.0;
 
-    if( (getAlphaCompareType() === alphaCompareValues.G_AC_THRESHOLD) ) {
+    if ((getAlphaCompareType() === alphaCompareValues.G_AC_THRESHOLD)) {
       // If using cvg, then there's no alpha value to work with
       if (!alpha_cvg_sel) {
         alpha_threshold = ((state.blendColor>>> 0)&0xff)/255.0;
@@ -2785,14 +2768,14 @@ import * as logger from './logger.js';
         s0, t0,
         s0, t1,
         s1, t0,
-        s1, t1
+        s1, t1,
       ];
     } else {
       uvs = [
         s0, t0,
         s1, t0,
         s0, t1,
-        s1, t1
+        s1, t1,
       ];
     }
 
@@ -2860,7 +2843,7 @@ import * as logger from './logger.js';
   function initDepth() {
 
     // Fixes Zfighting issues we have on the PSP.
-    //if( gRDPOtherMode.zmode == 3 ) ...
+    //if (gRDPOtherMode.zmode == 3) ...
 
     // Disable depth testing
     var zgeom_mode      = (state.geometryMode.zbuffer) !== 0;
@@ -3163,10 +3146,11 @@ import * as logger from './logger.js';
     state.texture.scaleS = s;
     state.texture.scaleT = t;
 
-    if (on)
+    if (on){
       state.geometryModeBits |=  geometryModeFlagsGBI2.G_TEXTURE_ENABLE;
-    else
+    } else {
       state.geometryModeBits &= ~geometryModeFlagsGBI2.G_TEXTURE_ENABLE;
+    }
 
     updateGeometryModeFromBits(geometryModeFlagsGBI2);
   }
@@ -3268,7 +3252,7 @@ import * as logger from './logger.js';
     }
   }
 
-  var moveMemTypeValuesGBI2 = {
+  const moveMemTypeValuesGBI2 = {
     G_GBI2_MV_VIEWPORT: 8,
     G_GBI2_MV_LIGHT:    10,
     G_GBI2_MV_POINT:    12,
@@ -3287,13 +3271,13 @@ import * as logger from './logger.js';
 
   function previewGBI2_MoveMem(type, length, address, dis) {
     var tip = '';
-
     for (var i = 0; i < length; ++i) {
       tip += toHex(ram_dv.getUint8(address + i), 8) + ' ';
     }
     tip += '<br>';
 
     switch (type) {
+      // TODO(hulkholden): moveMemTypeValuesGBI2?
       case moveMemTypeValues.G_MV_VIEWPORT:
         tip += previewViewport(address);
         break;
@@ -3314,7 +3298,6 @@ import * as logger from './logger.js';
   }
 
   function executeGBI2_MoveMem(cmd0,cmd1,dis) {
-
     var type    = (cmd0    )&0xfe;
     //var length  = (cmd0>>> 8)&0xffff;
     var address = rdpSegmentAddress(cmd1);
@@ -3371,9 +3354,6 @@ import * as logger from './logger.js';
 
       default: hleHalt('unknown movemen: ' + type.toString(16));
     }
-
-
-
   }
 
   function executeGBI2_LoadUcode(cmd0,cmd1,dis) {}
@@ -3406,7 +3386,6 @@ import * as logger from './logger.js';
   }
 
   function executeGBI2_SetOtherModeL(cmd0,cmd1,dis) {
-
     var shift = (cmd0>>> 8)&0xff;
     var len   = (cmd0>>> 0)&0xff;
     var data  = cmd1;
@@ -3557,10 +3536,10 @@ import * as logger from './logger.js';
     viHeight = (vend-vstart) * scale_y * 1.0126582;
 
     // XXX Need to check PAL games.
-    //if(g_ROM.TvType != OS_TV_NTSC) sRatio = 9/11.0f;
+    //if (g_ROM.TvType != OS_TV_NTSC) sRatio = 9/11.0f;
 
     //This corrects height in various games ex : Megaman 64, CyberTiger
-    if( width > 0x300 ) {
+    if (width > 0x300) {
       viHeight *= 2.0;
     }
   }
@@ -3616,23 +3595,19 @@ import * as logger from './logger.js';
 
   function buildStateTab() {
     var $table = $('<table class="table table-condensed" style="width: auto;"></table>');
-
     var $tr = $('<tr />');
 
-    var i;
-    for (i in state.geometryMode) {
+    for (let i in state.geometryMode) {
       if (state.geometryMode.hasOwnProperty(i)) {
         var $td = $('<td>' + i + '</td>');
         if (state.geometryMode[i]) {
           $td.css('background-color', '#AFF4BB');
         }
-
         $tr.append($td);
       }
     }
 
     $table.append($tr);
-
     return $table;
   }
 
@@ -4286,7 +4261,7 @@ import * as logger from './logger.js';
     }
 
     var fragmentShader;
-    var theSource = fragmentSource;
+    var shaderSource = fragmentSource;
 
     var aRGB0  = (mux0>>>20)&0x0F; // c1 c1    // a0
     var bRGB0  = (mux1>>>28)&0x0F; // c1 c2    // b0
@@ -4324,34 +4299,28 @@ import * as logger from './logger.js';
       body += 'col.rgb = (' + rgbParams16 [aRGB0] + ' - ' + rgbParams16 [bRGB0] + ') * ' + rgbParams32 [cRGB0] + ' + ' + rgbParams8  [dRGB0] + ';\n';
       body += 'col.a = ('   + alphaParams8[  aA0] + ' - ' + alphaParams8[  bA0] + ') * ' + alphaParams8[  cA0] + ' + ' + alphaParams8[  dA0] + ';\n';
       body += 'combined = vec4(col.rgb, col.a);\n';
-
       body += 'col.rgb = (' + rgbParams16 [aRGB1] + ' - ' + rgbParams16 [bRGB1] + ') * ' + rgbParams32 [cRGB1] + ' + ' + rgbParams8  [dRGB1] + ';\n';
       body += 'col.a = ('   + alphaParams8[  aA1] + ' - ' + alphaParams8[  bA1] + ') * ' + alphaParams8[  cA1] + ' + ' + alphaParams8[  dA1] + ';\n';
-
     }
 
     if (alpha_threshold >= 0.0) {
       body += 'if(col.a < ' + alpha_threshold.toFixed(3) + ') discard;\n';
     }
 
-    theSource = theSource.replace('{{body}}', body);
+    shaderSource = shaderSource.replace('{{body}}', body);
 
     if (kDumpShaders) {
-      var decoded = '';
-
-      decoded += '\n';
+      var decoded = '\n';
       decoded += '\tRGB0 = (' + kSubAInputRGB[aRGB0] + ' - ' + kSubBInputRGB[bRGB0] + ') * ' + kMulInputRGB[cRGB0] + ' + ' + kAddInputRGB[dRGB0] + '\n';
       decoded += '\t  A0 = (' + kSubInputA   [  aA0] + ' - ' + kSubInputA   [  bA0] + ') * ' + kMulInputA  [  cA0] + ' + ' + kAddInputA  [  dA0] + '\n';
-
       decoded += '\tRGB1 = (' + kSubAInputRGB[aRGB1] + ' - ' + kSubBInputRGB[bRGB1] + ') * ' + kMulInputRGB[cRGB1] + ' + ' + kAddInputRGB[dRGB1] + '\n';
       decoded += '\t  A1 = (' + kSubInputA   [  aA1] + ' - ' + kSubInputA   [  bA1] + ') * ' + kMulInputA  [  cA1] + ' + ' + kAddInputA  [  dA1] + '\n';
 
-      var m = theSource.split('\n').join('<br>');
-
+      var m = shaderSource.split('\n').join('<br>');
       logger.log('Compiled ' + decoded + '\nto\n' + m);
     }
 
-    fragmentShader = createShader(theSource, gl.FRAGMENT_SHADER);
+    fragmentShader = createShader(shaderSource, gl.FRAGMENT_SHADER);
 
     var gl_program = gl.createProgram();
     gl.attachShader(gl_program, genericVertexShader);
