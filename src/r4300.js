@@ -12,6 +12,14 @@ import * as logger from './logger.js';
 
   var hitCounts = {};
   var fragmentMap = {};
+
+  /**
+   * An array of invalidation events.
+   * @type {!Array<{address: number,
+   *                length: number,
+   *                system: string,
+   *                fragmentsRemoved: boolean}>}
+   */
   var fragmentInvalidationEvents = [];
 
   const kHotFragmentThreshold = 500;

@@ -727,7 +727,7 @@ import * as logger from './logger.js';
           format.toString32(invals[i].address),
           invals[i].length,
           invals[i].system,
-          invals[i].fragmentsRemoved
+          invals[i].fragmentsRemoved,
         ];
 
         t += '<tr><td>' + vals.join('</td><td>') + '</td></tr>';
