@@ -1,4 +1,5 @@
 .DS_Store
+build/
 n64js.sublime-workspace
 node_modules/
 rom.z64

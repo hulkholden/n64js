@@ -1,5 +1,11 @@
-function Vector3(elems) {
-  this.elems = elems || new Float32Array(3);
+
+/**
+ * A 3 element vector.
+ * @param {Float32Array=} opt_elems
+ * @constructor
+ */
+export function Vector3(opt_elems) {
+  this.elems = opt_elems || new Float32Array(3);
 }
 
 Vector3.prototype = {
@@ -37,8 +43,13 @@ Vector3.create = function (e) {
   return v;
 }
 
-function Vector4(elems) {
-  this.elems = elems || new Float32Array(4);
+/**
+ * A 4 element vector.
+ * @param {Float32Array=} opt_elems
+ * @constructor
+ */
+export function Vector4(opt_elems) {
+  this.elems = opt_elems || new Float32Array(4);
 }
 
 Vector4.prototype = {
@@ -78,7 +89,11 @@ Vector4.create = function (e) {
   return v;
 }
 
-function Matrix(elems) {
+/**
+ * A 4x4 matrix.
+ * @constructor
+ */
+export function Matrix(elems) {
   this.elems = elems || new Float32Array(16);
 }
 
@@ -139,36 +154,23 @@ Matrix.identity = function() {
   return new Matrix(elems);
 }
 
-//
-// glOrtho
-//
-function makeOrtho(left, right, bottom, top, znear, zfar)
-{
+/**
+ * Make an orthographic projection matrix.
+ * @param {number} left
+ * @param {number} right
+ * @param {number} bottom
+ * @param {number} top
+ * @param {number} znear
+ * @param {number} zfar
+ * @return {!Matrix}
+ */
+export function makeOrtho(left, right, bottom, top, znear, zfar) {
     var tx = - (right + left) / (right - left);
     var ty = - (top + bottom) / (top - bottom);
     var tz = - (zfar + znear) / (zfar - znear);
 
     var elems = new Float32Array(16);
-/*    elems[0]  = 2 / (right - left);
-    elems[1]  = 0;
-    elems[2]  = 0;
-    elems[3]  = tx;
 
-    elems[4]  = 0;
-    elems[5]  = 2 / (top - bottom);
-    elems[6]  = 0;
-    elems[7]  = ty,
-
-    elems[8]  = 0;
-    elems[9]  = 0;
-    elems[10] = -2 / (zfar - znear);
-    elems[11] = tz;
-
-    elems[12] = 0;
-    elems[13] = 0;
-    elems[14] = 0;
-    elems[15] = 1;
-*/
     elems[0]  = 2 / (right - left);
     elems[1]  = 0;
     elems[2]  = 0;

@@ -1,7 +1,11 @@
 /*jshint browser:true, devel:true */
 
-(function (n64js) {'use strict';
+import * as format from './format.js';
 
+(function (n64js) {'use strict';
+  /**
+   * @constructor
+   */
   function BinaryRequest(get_or_post, url, args, data, cb) {
     get_or_post = get_or_post || 'GET';
 
@@ -64,7 +68,9 @@
     };
   }
 
-
+  /**
+   * @constructor
+   */
   function SyncReader() {
     this.kBufferLength = 1024*1024;
     this.syncBuffer    = null;
@@ -137,7 +143,7 @@
 
     var other = this.pop();
     if (val !== other) {
-      n64js.warn(name + ' mismatch: local ' + n64js.toString32(val) + ' remote ' + n64js.toString32(other));
+      n64js.warn(name + ' mismatch: local ' + format.toString32(val) + ' remote ' + format.toString32(other));
       // Flag that we're out of sync so that we don't keep spamming errors.
       this.oos = true;
       return false;
@@ -155,7 +161,9 @@
   };
 
 
-
+  /**
+   * @constructor
+   */
   function SyncWriter() {
     this.kBufferLength  = 1024*1024/4;
     this.syncBuffer    = new Uint32Array(this.kBufferLength);

@@ -1,0 +1,4 @@
+/**
+ * @type {Object}
+ */
+function WebGLDebugUtils() {}

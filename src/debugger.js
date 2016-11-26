@@ -1,7 +1,8 @@
 /*jshint jquery:true */
 
-(function (n64js) {'use strict';
+import * as format from './format.js';
 
+(function (n64js) {'use strict';
   var $debugContent   = null;
   var $status         = null;
   var $registers      = null;
@@ -134,10 +135,17 @@
     $memoryContent.find('pre').html( makeMemoryTable(addr, 1024) );
   }
 
-  // bytes_per_row should be power-of-two
-  function makeMemoryTable(focus_address, context_bytes, bytes_per_row, highlights) {
-    bytes_per_row = bytes_per_row || 64;
-    highlights = highlights || {};
+  /**
+   * Constructs HTML for a table of memory values.
+   * @param {number} focus_address The address to focus on.
+   * @param {number} context_bytes The number of bytes of context.
+   * @param {number=} opt_bytes_per_row The number of bytes per row. Should be a power of two.
+   * @param {Object<number,string>=} opt_highlights Colours to highlight addresses with.
+   * @return {*}
+   */
+  function makeMemoryTable(focus_address, context_bytes, opt_bytes_per_row, opt_highlights) {
+    var bytes_per_row = opt_bytes_per_row || 64;
+    var highlights = opt_highlights || {};
 
     function roundDown(x, a) {
       return x & ~(a-1);
@@ -151,7 +159,7 @@
     var a, o;
 
     for (a = s; a < e; a += bytes_per_row) {
-      var r = n64js.toHex(a, 32) + ':';
+      var r = format.toHex(a, 32) + ':';
 
       for (o = 0; o < bytes_per_row; o += 4) {
         var cur_address = a+o >>> 0;
@@ -162,7 +170,7 @@
           style = ' style="background-color: ' + highlights[cur_address] + '"';
         }
 
-        r += ' <span id="mem-' + n64js.toHex(cur_address, 32) + '"' + style + '>' + n64js.toHex(mem, 32) + '</span>';
+        r += ' <span id="mem-' + format.toHex(cur_address, 32) + '"' + style + '>' + format.toHex(mem, 32) + '</span>';
       }
 
       r += '\n';
@@ -208,7 +216,7 @@
       r*=2;g*=2;b*=2;
     }
 
-    return '#' + n64js.toHex(r,8) + n64js.toHex(g,8) + n64js.toHex(b,8);
+    return '#' + format.toHex(r,8) + format.toHex(g,8) + format.toHex(b,8);
   }
 
 
@@ -225,7 +233,7 @@
       for (r = 0; r < kRegistersPerRow; ++r) {
 
         name = n64js.cop0gprNames[i+r];
-        $td = $('<td>' + name + '</td><td class="fixed">' + n64js.toString64(cpu0.gprHi[i+r], cpu0.gprLo[i+r]) + '</td>');
+        $td = $('<td>' + name + '</td><td class="fixed">' + format.toString64(cpu0.gprHi[i+r], cpu0.gprLo[i+r]) + '</td>');
 
         if (reg_colors.hasOwnProperty(name)) {
           $td.attr('bgcolor', reg_colors[name]);
@@ -250,13 +258,13 @@
 
       if ((i&1) === 0) {
         $td = $('<td>' + name +
-          '</td><td class="fixed fp-w">' + n64js.toString32(cpu1.uint32[i]) +
+          '</td><td class="fixed fp-w">' + format.toString32(cpu1.uint32[i]) +
           '</td><td class="fixed fp-s">' + cpu1.float32[i] +
           '</td><td class="fixed fp-d">' + cpu1.float64[i/2] +
           '</td>' );
       } else {
         $td = $('<td>' + name +
-          '</td><td class="fixed fp-w">' + n64js.toString32(cpu1.uint32[i]) +
+          '</td><td class="fixed fp-w">' + format.toString32(cpu1.uint32[i]) +
           '</td><td class="fixed fp-s">' + cpu1.float32[i] +
           '</td><td>' +
           '</td>' );
@@ -290,7 +298,7 @@
     var sr = n64js.cpu0.control[n64js.cpu0.kControlSR];
 
     var $td = $('<td />');
-    $td.append( n64js.toString32(sr) );
+    $td.append( format.toString32(sr) );
     $td.append('&nbsp;');
 
     var i;
@@ -348,14 +356,14 @@
     var $status_body = $status_table.find('tbody');
 
     $status_body.append('<tr><td>Ops</td><td class="fixed">' + cpu0.opsExecuted + '</td></tr>');
-    $status_body.append('<tr><td>PC</td><td class="fixed">' + n64js.toString32(cpu0.pc) + '</td><td>delayPC</td><td class="fixed">' + n64js.toString32(cpu0.delayPC) + '</td></tr>');
-    $status_body.append('<tr><td>EPC</td><td class="fixed">' + n64js.toString32(cpu0.control[cpu0.kControlEPC]) + '</td></tr>');
-    $status_body.append('<tr><td>MultHi</td><td class="fixed">' + n64js.toString64(cpu0.multHi[1], cpu0.multHi[0]) +
-                        '</td><td>Cause</td><td class="fixed">' + n64js.toString32(n64js.cpu0.control[n64js.cpu0.kControlCause]) + '</td></tr>');
-    $status_body.append('<tr><td>MultLo</td><td class="fixed">' + n64js.toString64(cpu0.multLo[1], cpu0.multLo[0]) +
-                        '</td><td>Count</td><td class="fixed">' + n64js.toString32(n64js.cpu0.control[n64js.cpu0.kControlCount]) + '</td></tr>');
+    $status_body.append('<tr><td>PC</td><td class="fixed">' + format.toString32(cpu0.pc) + '</td><td>delayPC</td><td class="fixed">' + format.toString32(cpu0.delayPC) + '</td></tr>');
+    $status_body.append('<tr><td>EPC</td><td class="fixed">' + format.toString32(cpu0.control[cpu0.kControlEPC]) + '</td></tr>');
+    $status_body.append('<tr><td>MultHi</td><td class="fixed">' + format.toString64(cpu0.multHi[1], cpu0.multHi[0]) +
+                        '</td><td>Cause</td><td class="fixed">' + format.toString32(n64js.cpu0.control[n64js.cpu0.kControlCause]) + '</td></tr>');
+    $status_body.append('<tr><td>MultLo</td><td class="fixed">' + format.toString64(cpu0.multLo[1], cpu0.multLo[0]) +
+                        '</td><td>Count</td><td class="fixed">' + format.toString32(n64js.cpu0.control[n64js.cpu0.kControlCount]) + '</td></tr>');
     $status_body.append('<tr><td></td><td class="fixed">' +
-                      '</td><td>Compare</td><td class="fixed">' + n64js.toString32(n64js.cpu0.control[n64js.cpu0.kControlCompare]) + '</td></tr>');
+                      '</td><td>Compare</td><td class="fixed">' + format.toString32(n64js.cpu0.control[n64js.cpu0.kControlCompare]) + '</td></tr>');
 
     var i;
     for (i = 0; i < cpu0.events.length; ++i) {
@@ -455,9 +463,9 @@
       a           = disassembly[i];
       address     = a.instruction.address;
       is_target   = a.isJumpTarget || labelMap.hasOwnProperty(address);
-      address_str = (is_target ? '<span class="dis-address-target">' : '<span class="dis-address">') + n64js.toHex(address, 32) + ':</span>';
+      address_str = (is_target ? '<span class="dis-address-target">' : '<span class="dis-address">') + format.toHex(address, 32) + ':</span>';
       label       = '<span class="dis-label">' + makeLabelText(address) + '</span>';
-      t           = address_str + '  ' + n64js.toHex(a.instruction.opcode, 32) + '  ' + label + a.disassembly;
+      t           = address_str + '  ' + format.toHex(a.instruction.opcode, 32) + '  ' + label + a.disassembly;
 
       fragment = fragmentMap[address];
       if (fragment) {
@@ -631,7 +639,7 @@
       var fragment = fragments_list[i];
 
       var vals = [
-        n64js.toString32(fragment.entryPC),
+        format.toString32(fragment.entryPC),
         fragment.executionCount,
         fragment.opsCompiled,
         fragment.executionCount * fragment.opsCompiled
@@ -713,7 +721,7 @@
       for (i = 0; i < invals.length; ++i) {
 
         var vals = [
-          n64js.toString32(invals[i].address),
+          format.toString32(invals[i].address),
           invals[i].length,
           invals[i].system,
           invals[i].fragmentsRemoved
@@ -770,7 +778,7 @@
   };
 
   n64js.log = function (s) {
-    $output.append(n64js.toString32(n64js.cpu0.pc) + ': ' + s + '<br>');
+    $output.append(format.toString32(n64js.cpu0.pc) + ': ' + s + '<br>');
     $output.scrollTop($output[0].scrollHeight);
   };
 

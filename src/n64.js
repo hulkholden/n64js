@@ -1,7 +1,16 @@
 /*jshint jquery:true, browser:true, devel:true */
 /*global Stats:false */
 
+import * as _debugger from './debugger.js';
+import * as disassemble from './disassemble.js';
+import * as format from './format.js';
+import * as hle from './hle.js';
+import * as r4300 from './r4300.js';
+import * as romdb from './romdb.js';
+import * as sync from './sync.js';
+
 (function (n64js) {'use strict';
+  const toString32 = format.toString32;
 
   var stats = null;
 
@@ -285,48 +294,10 @@
     save:           'Eeprom4k'
   };
 
-  function padString(v,len) {
-    var t = v.toString();
-    while (t.length < len) {
-      t = '0' + t;
-    }
-    return t;
-  }
-
-  function toHex(r, bits) {
-    r = Number(r);
-    if (r < 0) {
-        r = 0xFFFFFFFF + r + 1;
-    }
-
-    var t = r.toString(16);
-
-    if (bits) {
-      var len = Math.floor(bits / 4); // 4 bits per hex char
-      while (t.length < len) {
-        t = '0' + t;
-      }
-    }
-
-    return t;
-  }
-
-  function toString8(v) {
-    return '0x' + toHex((v&0xff)>>>0, 8);
-  }
-  function toString16(v) {
-    return '0x' + toHex((v&0xffff)>>>0, 16);
-  }
-  function toString32(v) {
-    return '0x' + toHex(v, 32);
-  }
-
-  function toString64(hi, lo) {
-    var t = toHex(lo, 32);
-    var u = toHex(hi, 32);
-    return '0x' + u + t;
-  }
-
+  /**
+   * An exception thrown when an assert fails.
+   * @constructor
+   */
   function AssertException(message) {
     this.message = message;
   }
@@ -341,9 +312,10 @@
     }
   }
 
-  //
-  // Memory just wraps an ArrayBuffer and provides some useful accessors
-  //
+  /**
+   * Memory just wraps an ArrayBuffer and provides some useful accessors.
+   * @constructor
+   */
   function Memory(arrayBuffer) {
     this.arrayBuffer = arrayBuffer;
     this.length      = arrayBuffer.byteLength;
@@ -417,9 +389,10 @@
     }
   }
 
-  //
-  // A device represents a region of memory mapped at a certain address
-  //
+  /**
+   * A device represents a region of memory mapped at a certain address.
+   * @constructor
+   */
   function Device(name, mem, rangeStart, rangeEnd) {
     this.name       = name;
     this.mem        = mem;
@@ -509,12 +482,12 @@
       this.mem.write32(ea, value);
     },
     write16 : function (address, value) {
-      this.logWrite(address, toString16(value));
+      this.logWrite(address, format.toString16(value));
       var ea = this.calcEA(address);
       this.mem.write16(ea, value);
     },
     write8 : function (address, value) {
-      this.logWrite(address, toString8(value));
+      this.logWrite(address, format.toString8(value));
       var ea = this.calcEA(address);
       this.mem.write8(ea, value);
     }
@@ -621,7 +594,7 @@
   }
 
   function generateRomId(crclo, crchi) {
-    return toHex(byteswap(crclo),32) + toHex(byteswap(crchi),32);
+    return format.toHex(byteswap(crclo),32) + format.toHex(byteswap(crchi),32);
   }
 
   function generateCICType(u8array)
@@ -1094,7 +1067,7 @@
     var splen          = (rdlen_reg & 0xfff) + 1;
 
     if (!sp_reg_handler_uncached.quiet) {
-      n64js.log('SP: copying from ram ' + toString32(rd_ram_address) + ' to sp ' + toString16(sp_mem_address) );
+      n64js.log('SP: copying from ram ' + toString32(rd_ram_address) + ' to sp ' + format.toString16(sp_mem_address) );
     }
 
     memoryCopy( sp_mem, sp_mem_address & 0xfff, ram, rd_ram_address & 0xffffff, splen );
@@ -1110,7 +1083,7 @@
     var splen          = (wrlen_reg & 0xfff) + 1;
 
     if (!sp_reg_handler_uncached.quiet) {
-      n64js.log('SP: copying from sp ' + toString16(sp_mem_address) + ' to ram ' + toString32(rd_ram_address) );
+      n64js.log('SP: copying from sp ' + format.toString16(sp_mem_address) + ' to ram ' + toString32(rd_ram_address) );
     }
 
     memoryCopy( ram, rd_ram_address & 0xffffff, sp_mem, sp_mem_address & 0xfff, splen );
@@ -1787,7 +1760,7 @@
       break;
 
     default:
-      n64js.halt('unknown eeprom command: ' + toString8(cmd[2]));
+      n64js.halt('unknown eeprom command: ' + format.toString8(cmd[2]));
       break;
     }
 
@@ -2034,7 +2007,7 @@
         }
         break;
       default:
-        n64js.halt('Unkown PI control value: ' + toString8(command));
+        n64js.halt('Unkown PI control value: ' + format.toString8(command));
         break;
     }
   }
@@ -2070,13 +2043,13 @@
     var v = pi_mem.readU8(ea);
 
     if (ea < 0x7c0) {
-      n64js.log('Reading from PIF rom (' + toString32(address) + '). Got ' + toString8(v));
+      n64js.log('Reading from PIF rom (' + toString32(address) + '). Got ' + format.toString8(v));
     } else {
       var ram_offset = ea - 0x7c0;
       switch(ram_offset) {
-        case 0x24:  n64js.log('Reading CIC values: '   + toString8(v)); break;
-        case 0x3c:  n64js.log('Reading Control byte: ' + toString8(v)); break;
-        default:    n64js.log('Reading from PI ram ['  + toString32(address) + ']. Got ' + toString8(v));
+        case 0x24:  n64js.log('Reading CIC values: '   + format.toString8(v)); break;
+        case 0x3c:  n64js.log('Reading Control byte: ' + format.toString8(v)); break;
+        default:    n64js.log('Reading from PI ram ['  + toString32(address) + ']. Got ' + format.toString8(v));
       }
     }
     return v;
@@ -2588,13 +2561,6 @@
 
     ++cur_vbl;
   };
-
-  n64js.padString  = padString;
-  n64js.toHex      = toHex;
-  n64js.toString8  = toString8;
-  n64js.toString16 = toString16;
-  n64js.toString32 = toString32;
-  n64js.toString64 = toString64;
 
   n64js.miInterruptsUnmasked = function () {
     return (mi_reg.readU32(MI_INTR_MASK_REG) & mi_reg.readU32(MI_INTR_REG)) !== 0;

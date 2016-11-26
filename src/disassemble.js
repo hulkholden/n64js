@@ -1,5 +1,6 @@
-(function (n64js) {'use strict';
+import * as format from './format.js';
 
+(function (n64js) {'use strict';
   function _fd(i)        { return (i>>> 6)&0x1f; }
   function _fs(i)        { return (i>>>11)&0x1f; }
   function _ft(i)        { return (i>>>16)&0x1f; }
@@ -25,7 +26,7 @@
   function _jumpAddress(a,i)   { return (a&0xf0000000) | (_target(i)*4); }
 
   function makeLabelText(address) {
-    var text = n64js.toHex( address, 32 );
+    var text = format.toHex( address, 32 );
     return '<span class="dis-address-jump">'+ text + '</span>';
   }
 
@@ -60,6 +61,9 @@
     'GR24', 'GR25', 'GR26', 'GR27', 'GR28', 'GR29', 'GR30', 'GR31'
   ];
 
+  /**
+   * @constructor
+   */
   function Instruction(address, opcode) {
     this.address = address;
     this.opcode  = opcode;
@@ -107,7 +111,7 @@
     gt   : function () { var reg = cop2RegisterNames[_rt(this.opcode)]; this.srcRegs[reg] = 1; return makeRegSpan(reg); },
     gs   : function () { var reg = cop2RegisterNames[_rs(this.opcode)]; this.srcRegs[reg] = 1; return makeRegSpan(reg); },
 
-    imm : function () { return '0x' + n64js.toHex( _imm(this.opcode), 16 ); },
+    imm : function () { return '0x' + format.toHex( _imm(this.opcode), 16 ); },
 
     branchAddress : function () { this.target = _branchAddress(this.address,this.opcode); return makeLabelText( this.target ); },
     jumpAddress : function ()   { this.target = _jumpAddress(this.address,this.opcode);   return makeLabelText( this.target ); },
@@ -143,8 +147,8 @@
     function (i) { return 'JALR      ' + i.rd() + ', ' + i.rs(); },
     function (i) { return 'Unk'; },
     function (i) { return 'Unk'; },
-    function (i) { return 'SYSCALL   ' + n64js.toHex( (i.opcode>>6)&0xfffff, 20 ); },
-    function (i) { return 'BREAK     ' + n64js.toHex( (i.opcode>>6)&0xfffff, 20 ); },
+    function (i) { return 'SYSCALL   ' + format.toHex( (i.opcode>>6)&0xfffff, 20 ); },
+    function (i) { return 'BREAK     ' + format.toHex( (i.opcode>>6)&0xfffff, 20 ); },
     function (i) { return 'Unk'; },
     function (i) { return 'SYNC'; },
     function (i) { return 'MFHI      ' + i.rd() + ' = MultHi'; },
@@ -313,7 +317,7 @@
       case 0x3f:    return 'C.NGT.' + fmt_u + '   c = ' + i.fs(fmt) + ' cmp ' + i.ft(fmt);
     }
 
-    return 'Cop1.' + fmt + n64js.toHex(_cop1_func(i.opcode),8) + '?';
+    return 'Cop1.' + fmt + format.toHex(_cop1_func(i.opcode),8) + '?';
   }
   function disassembleCop1SInstr(i) {
     return disassembleCop1Instr(i, 's');
@@ -482,7 +486,7 @@
     function (i) { return 'SDL       ' + i.rt()   + ' -> ' + i.memstore(); },
     function (i) { return 'SDR       ' + i.rt()   + ' -> ' + i.memstore(); },
     function (i) { return 'SWR       ' + i.rt()   + ' -> ' + i.memstore(); },
-    function (i) { return 'CACHE     ' + n64js.toHex(_rt(i.opcode),8) + ', ' + i.memaccess(); },
+    function (i) { return 'CACHE     ' + format.toHex(_rt(i.opcode),8) + ', ' + i.memaccess(); },
     function (i) { return 'LL        ' + i.rt_d() + ' <- ' + i.memload(); },
     function (i) { return 'LWC1      ' + i.ft_d() + ' <- ' + i.memload(); },
     function (i) { return 'Unk'; },

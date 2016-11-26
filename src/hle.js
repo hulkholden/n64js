@@ -1,5 +1,8 @@
 /*jshint jquery:true browser:true */
 
+import { padString, toHex, toString8, toString16, toString32 } from './format.js';
+import { Vector3, Vector4, Matrix, makeOrtho } from './glutils.js';
+
 (function (n64js) {'use strict';
   var kDumpShaders = 0;
 
@@ -253,6 +256,9 @@
     gm.lod              = (bits & flags.G_LOD)                ? 1 : 0;
   }
 
+  /**
+   * @constructor
+   */
   function Tile() {
     this.format     = -1;
     this.size       = 0;
@@ -281,6 +287,9 @@
     return y;
   }
 
+  /**
+   * @constructor
+   */
   function Texture(left, top, width, height) {
     this.left    = left;
     this.top     = top;
@@ -328,10 +337,11 @@
 
   var tmemBuffer = new ArrayBuffer(4096);
 
+  var ram_u8;
+  var ram_s32;
+  var ram_dv;
+
   var state = {
-    ram_u8:         n64js.getRamU8Array(),
-    ram_s32:        n64js.getRamS32Array(),
-    ram:            undefined,
     pc:             0,
     dlistStack:     [],
     segments:       [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
@@ -446,6 +456,9 @@
     }
   }
 
+  /**
+   * @constructor
+   */
   function TriangleBuffer(num_tris) {
     this.vertex_positions = new Float32Array(num_tris*3*4);
     this.vertex_colours   = new  Uint32Array(num_tris*3*1);
@@ -555,7 +568,7 @@
   function loadMatrix(address) {
     var recip = 1.0 / 65536.0;
 
-    var dv = new DataView(state.ram.buffer, address);
+    var dv = new DataView(ram_dv.buffer, address);
 
     var elements = new Float32Array(16);
 
@@ -571,37 +584,37 @@
 
   function previewViewport(address) {
     var tip = '';
-    tip += 'scale = (' + state.ram.getInt16(address +  0) / 4.0 + ', ' + state.ram.getInt16(address +  2) / 4.0 + ') ';
-    tip += 'trans = (' + state.ram.getInt16(address +  8) / 4.0 + ', ' + state.ram.getInt16(address + 10) / 4.0 + ') ';
+    tip += 'scale = (' + ram_dv.getInt16(address +  0) / 4.0 + ', ' + ram_dv.getInt16(address +  2) / 4.0 + ') ';
+    tip += 'trans = (' + ram_dv.getInt16(address +  8) / 4.0 + ', ' + ram_dv.getInt16(address + 10) / 4.0 + ') ';
     return tip;
   }
 
   function moveMemViewport(address) {
     var scale = new Array(2);
     var trans = new Array(2);
-    scale[0] = state.ram.getInt16(address +  0) / 4.0;
-    scale[1] = state.ram.getInt16(address +  2) / 4.0;
+    scale[0] = ram_dv.getInt16(address +  0) / 4.0;
+    scale[1] = ram_dv.getInt16(address +  2) / 4.0;
 
-    trans[0] = state.ram.getInt16(address +  8) / 4.0;
-    trans[1] = state.ram.getInt16(address + 10) / 4.0;
+    trans[0] = ram_dv.getInt16(address +  8) / 4.0;
+    trans[1] = ram_dv.getInt16(address + 10) / 4.0;
     setN64Viewport(scale, trans);
   }
 
   function previewLight(address) {
     var tip = '';
-    tip += 'color = ' + n64js.toHex(state.ram.getUint32(address + 0), 32) + ' ';
-    var dir = Vector3.create([state.ram.getInt8(address +  8),
-                              state.ram.getInt8(address +  9),
-                              state.ram.getInt8(address + 10)]).normaliseInPlace();
+    tip += 'color = ' + toHex(ram_dv.getUint32(address + 0), 32) + ' ';
+    var dir = Vector3.create([ram_dv.getInt8(address +  8),
+                              ram_dv.getInt8(address +  9),
+                              ram_dv.getInt8(address + 10)]).normaliseInPlace();
     tip += 'norm = (' + dir.elems[0] + ', ' + dir.elems[1] + ', ' + dir.elems[2] + ')';
     return tip;
   }
 
   function moveMemLight(light_idx, address) {
-    state.lights[light_idx].color = unpackRGBAToColor(state.ram.getUint32(address + 0));
-    state.lights[light_idx].dir   = Vector3.create([state.ram.getInt8(address +  8),
-                                                    state.ram.getInt8(address +  9),
-                                                    state.ram.getInt8(address + 10)]).normaliseInPlace();
+    state.lights[light_idx].color = unpackRGBAToColor(ram_dv.getUint32(address + 0));
+    state.lights[light_idx].dir   = Vector3.create([ram_dv.getInt8(address +  8),
+                                                    ram_dv.getInt8(address +  9),
+                                                    ram_dv.getInt8(address + 10)]).normaliseInPlace();
   }
 
   function getTextureDimension(ul, lr, mask) {
@@ -673,6 +686,9 @@
   var M_VIDTASK = 3;
   var M_JPGTASK = 4;
 
+  /**
+   * @constructor
+   */
   function RSPTask(task_dv) {
     this.type      = task_dv.getUint32(kOffset_type);
     this.code_base = task_dv.getUint32(kOffset_ucode) & 0x1fffffff;
@@ -688,15 +704,13 @@
     var s = 'S'.charCodeAt(0);
     var p = 'P'.charCodeAt(0);
 
-    var ram = state.ram_u8;
-
     for (var i = 0; i+2 < this.data_size; ++i) {
-      if (ram[this.data_base+i+0] === r &&
-          ram[this.data_base+i+1] === s &&
-          ram[this.data_base+i+2] === p) {
+      if (ram_u8[this.data_base+i+0] === r &&
+          ram_u8[this.data_base+i+1] === s &&
+          ram_u8[this.data_base+i+2] === p) {
         var str = '';
         for (var j = i; j < this.data_size; ++j) {
-          var c = ram[this.data_base+j];
+          var c = ram_u8[this.data_base+j];
           if (c === 0)
             return str;
 
@@ -708,11 +722,9 @@
   };
 
   RSPTask.prototype.computeMicrocodeHash = function () {
-    var ram = state.ram_u8;
-
     var c = 0;
     for (var i = 0; i < this.code_size; ++i) {
-      c = ((c*17) + ram[this.code_base+i])>>>0;   // Best hash ever!
+      c = ((c*17) + ram_u8[this.code_base+i])>>>0;   // Best hash ever!
     }
     return c;
   };
@@ -747,11 +759,11 @@
   };
 
   function unimplemented(cmd0,cmd1) {
-    hleHalt('Unimplemented display list op ' + n64js.toString8(cmd0>>>24));
+    hleHalt('Unimplemented display list op ' + toString8(cmd0>>>24));
   }
 
   function executeUnknown(cmd0,cmd1) {
-    hleHalt('Unknown display list op ' + n64js.toString8(cmd0>>>24));
+    hleHalt('Unknown display list op ' + toString8(cmd0>>>24));
     state.pc = 0;
   }
 
@@ -797,7 +809,7 @@
 
     if (dis) {
       var fn = (param === G_DL_PUSH) ? 'gsSPDisplayList' : 'gsSPBranchList';
-      dis.text(fn + '(<span class="dl-branch">' + n64js.toString32(address) + '</span>);');
+      dis.text(fn + '(<span class="dl-branch">' + toString32(address) + '</span>);');
     }
 
     if (param === G_DL_PUSH) {
@@ -859,7 +871,7 @@
       t += (flags & G_MTX_LOAD) ?       '|G_MTX_LOAD'       : '|G_MTX_MUL';
       t += (flags & G_MTX_PUSH) ?       '|G_MTX_PUSH'       : ''; //'|G_MTX_NOPUSH';
 
-      dis.text('gsSPMatrix(' + n64js.toString32(address) + ', ' + t + ');');
+      dis.text('gsSPMatrix(' + toString32(address) + ', ' + t + ');');
       dis.tip(previewMatrix(matrix));
     }
 
@@ -895,7 +907,7 @@
     var tip = '';
 
     for (var i = 0; i < length; ++i) {
-      tip += n64js.toHex(state.ram.getUint8(address + i), 8) + ' ';
+      tip += toHex(ram_dv.getUint8(address + i), 8) + ' ';
     }
     tip += '<br>';
 
@@ -925,7 +937,7 @@
     var address = rdpSegmentAddress(cmd1);
 
     if (dis) {
-      var address_str = n64js.toString32(address);
+      var address_str = toString32(address);
 
       var type_str = getDefine(moveMemTypeValues, type);
       var text = 'gsDma1p(G_MOVEMEM, ' + address_str + ', ' + length + ', ' + type_str + ');';
@@ -966,7 +978,7 @@
     var value  = cmd1;
 
     if (dis) {
-      var text = 'gMoveWd(' + getDefine(moveWordTypeValues, type) + ', ' + n64js.toString16(offset) + ', ' + n64js.toString32(value) + ');';
+      var text = 'gMoveWd(' + getDefine(moveWordTypeValues, type) + ', ' + toString16(offset) + ', ' + toString32(value) + ');';
 
       switch (type) {
         case moveWordTypeValues.G_MW_NUMLIGHT:
@@ -977,7 +989,7 @@
           break;
         case moveWordTypeValues.G_MW_SEGMENT:
           {
-            var v = value === 0 ? '0' : n64js.toString32(value);
+            var v = value === 0 ? '0' : toString32(value);
             text = 'gsSPSegment(' + ((offset >>> 2)&0xf) + ', ' + v + ');';
           }
           break;
@@ -1031,8 +1043,10 @@
     return (a<<24) | (b<<16) | (g<<8) | r;
   }
 
-  function ProjectedVertex()
-  {
+  /**
+   * @constructor
+   */
+  function ProjectedVertex() {
     this.pos   = new Vector4();
     this.color = 0;
     this.u     = 0;
@@ -1059,7 +1073,7 @@
                 dv.getInt16(vtx_base + 8),  // u
                 dv.getInt16(vtx_base + 10), // v
                 dv.getInt8(vtx_base  + 12) + ',' + dv.getInt8(vtx_base  + 13) + ',' + dv.getInt8(vtx_base  + 14),  // norm
-                n64js.toString32( dv.getUint32(vtx_base + 12) ) // rgba
+                toString32( dv.getUint32(vtx_base + 12) ) // rgba
       ];
 
       tip += '<tr><td>' + v.join('</td><td>') + '</td></tr>\n';
@@ -1079,7 +1093,7 @@
       return;
     }
 
-    var dv = new DataView(state.ram.buffer, address);
+    var dv = new DataView(ram_dv.buffer, address);
 
     if (dis) {
       previewVertexImpl(v0, n, dv, dis);
@@ -1189,14 +1203,14 @@
 
   function executeGBI1_RDPHalf_2(cmd0,cmd1,dis) {
     if (dis) {
-      dis.text('gsImmp1(G_RDPHALF_2, ' + n64js.toString32(cmd1) + ');');
+      dis.text('gsImmp1(G_RDPHALF_2, ' + toString32(cmd1) + ');');
     }
     state.rdpHalf2 = cmd1;
   }
 
   function executeGBI1_RDPHalf_1(cmd0,cmd1,dis) {
     if (dis) {
-      dis.text('gsImmp1(G_RDPHALF_1, ' + n64js.toString32(cmd1) + ');');
+      dis.text('gsImmp1(G_RDPHALF_1, ' + toString32(cmd1) + ');');
     }
     state.rdpHalf1 = cmd1;
   }
@@ -1295,7 +1309,7 @@
 
     var blend = data >>> G_MDSFT_BLENDER;
 
-    var c1 = 'GBL_c1(' + blendOpText(blend>>>2) + ') | GBL_c2(' + blendOpText(blend) + ') /*' + n64js.toString16(blend) + '*/';
+    var c1 = 'GBL_c1(' + blendOpText(blend>>>2) + ') | GBL_c2(' + blendOpText(blend) + ') /*' + toString16(blend) + '*/';
 
     return c0 + ', ' + c1;
   }
@@ -1309,7 +1323,7 @@
       case G_MDSFT_BLENDER:       return 'G_MDSFT_BLENDER';
     }
 
-    return n64js.toString8(sft);
+    return toString8(sft);
   }
 
   function getOtherModeHShiftCount(sft) {
@@ -1330,11 +1344,11 @@
       case G_MDSFT_PIPELINE:    return 'G_MDSFT_PIPELINE';
     }
 
-    return n64js.toString8(sft);
+    return toString8(sft);
   }
 
   function disassembleSetOtherModeL(dis, len, shift, data) {
-    var data_str  = n64js.toString32(data);
+    var data_str  = toString32(data);
     var shift_str = getOtherModeLShiftCount(shift);
     var text      = 'gsSPSetOtherMode(G_SETOTHERMODE_L, ' + shift_str + ', ' + len + ', ' + data_str + ');';
 
@@ -1350,7 +1364,7 @@
 
   function disassembleSetOtherModeH(dis, len, shift, data) {
     var shift_str = getOtherModeHShiftCount(shift);
-    var data_str  = n64js.toString32(data);
+    var data_str  = toString32(data);
 
     var text = 'gsSPSetOtherMode(G_SETOTHERMODE_H, ' + shift_str + ', ' + len + ', ' + data_str + ');';
 
@@ -1464,8 +1478,8 @@
 
       triangleBuffer.pushTri(verts[v0_idx], verts[v1_idx], verts[v2_idx], tri_idx); tri_idx++;
 
-      cmd0 = state.ram.getUint32( pc + 0 );
-      cmd1 = state.ram.getUint32( pc + 4 );
+      cmd0 = ram_dv.getUint32( pc + 0 );
+      cmd1 = ram_dv.getUint32( pc + 4 );
       ++debugCurrentOp;
       pc += 8;
 
@@ -1511,8 +1525,8 @@
       if (v06_idx !== v07_idx) { triangleBuffer.pushTri(verts[v06_idx], verts[v07_idx], verts[v08_idx], tri_idx); tri_idx++; }
       if (v09_idx !== v10_idx) { triangleBuffer.pushTri(verts[v09_idx], verts[v10_idx], verts[v11_idx], tri_idx); tri_idx++; }
 
-      cmd0 = state.ram.getUint32( pc + 0 );
-      cmd1 = state.ram.getUint32( pc + 4 );
+      cmd0 = ram_dv.getUint32( pc + 0 );
+      cmd1 = ram_dv.getUint32( pc + 4 );
       ++debugCurrentOp;
       pc += 8;
     } while ((cmd0>>>24) === kTri4 && tri_idx < kMaxTris && !dis); // NB: process triangles individsually when disassembling
@@ -1547,8 +1561,8 @@
       triangleBuffer.pushTri(verts[v0_idx], verts[v1_idx], verts[v2_idx], tri_idx); tri_idx++;
       triangleBuffer.pushTri(verts[v3_idx], verts[v4_idx], verts[v5_idx], tri_idx); tri_idx++;
 
-      cmd0 = state.ram.getUint32( pc + 0 );
-      cmd1 = state.ram.getUint32( pc + 4 );
+      cmd0 = ram_dv.getUint32( pc + 0 );
+      cmd1 = ram_dv.getUint32( pc + 4 );
       ++debugCurrentOp;
       pc += 8;
     } while ((cmd0>>>24) === kTri2 && tri_idx < kMaxTris && !dis); // NB: process triangles individsually when disassembling
@@ -1580,8 +1594,8 @@
       triangleBuffer.pushTri(verts[v0_idx], verts[v1_idx], verts[v2_idx], tri_idx); tri_idx++;
       triangleBuffer.pushTri(verts[v2_idx], verts[v3_idx], verts[v0_idx], tri_idx); tri_idx++;
 
-      cmd0 = state.ram.getUint32( pc + 0 );
-      cmd1 = state.ram.getUint32( pc + 4 );
+      cmd0 = ram_dv.getUint32( pc + 0 );
+      cmd1 = ram_dv.getUint32( pc + 4 );
       ++debugCurrentOp;
       pc += 8;
     } while ((cmd0>>>24) === kLine3D && tri_idx+1 < kMaxTris && !dis); // NB: process triangles individsually when disassembling
@@ -1704,14 +1718,13 @@
     var qwords = (bytes+7) >>> 3;
 
     var tmem_data    = state.tmemData32;
-    var ram          = state.ram_s32;
 
     var  ram_offset = ram_address      >>> 2; // Offset in 32 bit words.
     var tmem_offset = (tile.tmem << 3) >>> 2; // Offset in 32 bit words.
 
     // Slight fast path for dxt == 0
     if (dxt === 0) {
-      copyLineQwords(tmem_data, tmem_offset, ram, ram_offset, qwords);
+      copyLineQwords(tmem_data, tmem_offset, ram_s32, ram_offset, qwords);
     } else {
 
       var qwords_per_line = Math.ceil(2048 / dxt);
@@ -1723,9 +1736,9 @@
         var qwords_to_copy = Math.min(qwords-i, qwords_per_line);
 
         if (row_swizzle) {
-          copyLineQwordsSwap(tmem_data, tmem_offset, ram, ram_offset, qwords_to_copy);
+          copyLineQwordsSwap(tmem_data, tmem_offset, ram_s32, ram_offset, qwords_to_copy);
         } else {
-          copyLineQwords(tmem_data, tmem_offset, ram, ram_offset, qwords_to_copy);
+          copyLineQwords(tmem_data, tmem_offset, ram_s32, ram_offset, qwords_to_copy);
         }
 
                   i += qwords_to_copy;
@@ -1779,7 +1792,6 @@
     var tmem_data   = state.tmemData;
     var tmem_offset = tile.tmem << 3;
 
-    var ram         = state.ram_u8;
     var ram_offset  = ram_address;
 
     var bytes_per_line      = (w << state.textureImage.size) >>> 1;
@@ -1794,9 +1806,9 @@
     for (y = 0; y < h; ++y) {
 
       if (y&1) {
-        copyLineSwap(tmem_data, tmem_offset, ram, ram_offset, bytes_per_tmem_line);
+        copyLineSwap(tmem_data, tmem_offset, ram_u8, ram_offset, bytes_per_tmem_line);
       } else {
-        copyLine(tmem_data, tmem_offset, ram, ram_offset, bytes_per_tmem_line);
+        copyLine(tmem_data, tmem_offset, ram_u8, ram_offset, bytes_per_tmem_line);
       }
 
       // Pad lines to a quadword
@@ -1837,7 +1849,7 @@
 
     var tmem_offset = tile.tmem << 3;
 
-    copyLine(state.tmemData, tmem_offset, state.ram_u8, ram_offset, bytes);
+    copyLine(state.tmemData, tmem_offset, ram_u8, ram_offset, bytes);
 
     invalidateTileHashes();
   }
@@ -1981,8 +1993,8 @@
     // The following 2 commands contain additional info
     // TODO: check op code matches what we expect?
     var pc = state.pc;
-    var cmd2 = state.ram.getUint32( state.pc + 4 );
-    var cmd3 = state.ram.getUint32( state.pc + 12 );
+    var cmd2 = ram_dv.getUint32( state.pc + 4 );
+    var cmd3 = ram_dv.getUint32( state.pc + 12 );
     state.pc += 16;
 
     var xh   = ((cmd0>>>12)&0xfff)  / 4.0;
@@ -2023,8 +2035,8 @@
     // The following 2 commands contain additional info
     // TODO: check op code matches what we expect?
     var pc = state.pc;
-    var cmd2 = state.ram.getUint32( state.pc + 4 );
-    var cmd3 = state.ram.getUint32( state.pc + 12 );
+    var cmd2 = ram_dv.getUint32( state.pc + 4 );
+    var cmd3 = ram_dv.getUint32( state.pc + 12 );
     state.pc += 16;
 
     var xh   = ((cmd0>>>12)&0xfff)  / 4.0;
@@ -2222,7 +2234,7 @@
 
       var decoded = decodeSetCombine(mux0, mux1);
 
-      dis.text('gsDPSetCombine(' + n64js.toString32(mux0) + ', ' + n64js.toString32(mux1) + ');' + '\n' + decoded);
+      dis.text('gsDPSetCombine(' + toString32(mux0) + ', ' + toString32(mux1) + ');' + '\n' + decoded);
     }
 
     state.combine.hi = cmd0 & 0x00ffffff;
@@ -2251,7 +2263,7 @@
     var address =  rdpSegmentAddress(cmd1);
 
     if (dis) {
-      dis.text('gsDPSetTextureImage(' + getDefine(imageFormatTypes, format) + ', ' + getDefine(imageSizeTypes, size) + ', ' + width + ', ' + n64js.toString32(address) + ');');
+      dis.text('gsDPSetTextureImage(' + getDefine(imageFormatTypes, format) + ', ' + getDefine(imageSizeTypes, size) + ', ' + width + ', ' + toString32(address) + ');');
     }
 
     state.textureImage = {
@@ -2266,7 +2278,7 @@
     var address = rdpSegmentAddress(cmd1);
 
     if (dis) {
-      dis.text('gsDPSetDepthImage(' + n64js.toString32(address) + ');');
+      dis.text('gsDPSetDepthImage(' + toString32(address) + ');');
     }
 
     state.depthImage.address = address;
@@ -2279,7 +2291,7 @@
     var address =  rdpSegmentAddress(cmd1);
 
     if (dis) {
-      dis.text('gsDPSetColorImage(' + getDefine(imageFormatTypes, format) + ', ' + getDefine(imageSizeTypes, size) + ', ' + width + ', ' + n64js.toString32(address) + ');');
+      dis.text('gsDPSetColorImage(' + getDefine(imageFormatTypes, format) + ', ' + getDefine(imageSizeTypes, size) + ', ' + width + ', ' + toString32(address) + ');');
     }
 
     state.colorImage = {
@@ -2298,7 +2310,7 @@
     var address = rdpSegmentAddress(cmd1);
 
     if (dis) {
-      dis.text('gsSPVertex(' + n64js.toString32(address) + ', ' + n + ', ' + v0 + ');');
+      dis.text('gsSPVertex(' + toString32(address) + ', ' + n + ', ' + v0 + ');');
     }
 
     executeVertexImpl(v0, n, address, dis);
@@ -2311,7 +2323,7 @@
     var address = rdpSegmentAddress(cmd1);
 
     if (dis) {
-      dis.text('gsSPVertex(' + n64js.toString32(address) + ', ' + n + ', ' + v0 + ');');
+      dis.text('gsSPVertex(' + toString32(address) + ', ' + n + ', ' + v0 + ');');
     }
 
     executeVertexImpl(v0, n, address, dis);
@@ -2324,7 +2336,7 @@
     var address = rdpSegmentAddress(cmd1);
 
     if (dis) {
-      dis.text('gsSPVertex(' + n64js.toString32(address) + ', ' + n + ', ' + v0 + ');');
+      dis.text('gsSPVertex(' + toString32(address) + ', ' + n + ', ' + v0 + ');');
     }
 
     executeVertexImpl(v0, n, address, dis);
@@ -2481,7 +2493,7 @@
       if (m[d] === v)
         return d;
     }
-    return n64js.toString32(v);
+    return toString32(v);
   }
 
   function logGLCall(functionName, args) {
@@ -2635,7 +2647,7 @@
           break;
 
         default:
-          n64js.log(n64js.toString16(active_blend_mode) + ' : ' + blendOpText(active_blend_mode) + ', alpha_cvg_sel:' + alpha_cvg_sel + ' cvg_x_alpha:' + cvg_x_alpha);
+          n64js.log(toString16(active_blend_mode) + ' : ' + blendOpText(active_blend_mode) + ', alpha_cvg_sel:' + alpha_cvg_sel + ' cvg_x_alpha:' + cvg_x_alpha);
           mode = kBlendModeOpaque;
         break;
       }
@@ -3055,7 +3067,7 @@
     var address = rdpSegmentAddress(cmd1);
 
     if (dis) {
-      dis.text('gsSPVertex(' + n64js.toString32(address) + ', ' + n + ', ' + v0 + ');');
+      dis.text('gsSPVertex(' + toString32(address) + ', ' + n + ', ' + v0 + ');');
     }
 
     executeVertexImpl(v0, n, address, dis);
@@ -3068,7 +3080,7 @@
     var value  = cmd1;
 
     if (dis) {
-      dis.text('gsSPModifyVertex(' + vtx + ',' + getDefine(modifyVtxValues, offset) + ',' + n64js.toString32(value) + ');');
+      dis.text('gsSPModifyVertex(' + vtx + ',' + getDefine(modifyVtxValues, offset) + ',' + toString32(value) + ');');
     }
 
     // Cures crash after swinging in Mario Golf
@@ -3130,8 +3142,8 @@
 
       triangleBuffer.pushTri(verts[v0_idx], verts[v1_idx], verts[v2_idx], tri_idx); tri_idx++;
 
-      cmd0 = state.ram.getUint32( pc + 0 );
-      cmd1 = state.ram.getUint32( pc + 4 );
+      cmd0 = ram_dv.getUint32( pc + 0 );
+      cmd1 = ram_dv.getUint32( pc + 4 );
       ++debugCurrentOp;
       pc += 8;
 
@@ -3167,8 +3179,8 @@
       triangleBuffer.pushTri(verts[v0_idx], verts[v1_idx], verts[v2_idx], tri_idx); tri_idx++;
       triangleBuffer.pushTri(verts[v3_idx], verts[v4_idx], verts[v5_idx], tri_idx); tri_idx++;
 
-      cmd0 = state.ram.getUint32( pc + 0 );
-      cmd1 = state.ram.getUint32( pc + 4 );
+      cmd0 = ram_dv.getUint32( pc + 0 );
+      cmd1 = ram_dv.getUint32( pc + 4 );
       ++debugCurrentOp;
       pc += 8;
     } while ((cmd0>>>24) === kTri2 && tri_idx < kMaxTris && !dis); // NB: process triangles individsually when disassembling
@@ -3243,7 +3255,7 @@
       t += replace    ? '|G_MTX_LOAD'      : '|G_MTX_MUL';
       t += push       ? '|G_MTX_PUSH'      : ''; //'|G_MTX_NOPUSH';
 
-      dis.text('gsSPMatrix(' + n64js.toString32(address) + ', ' + t + ');');
+      dis.text('gsSPMatrix(' + toString32(address) + ', ' + t + ');');
       dis.tip(previewMatrix(matrix));
     }
 
@@ -3283,7 +3295,7 @@
     var value  = cmd1;
 
     if (dis) {
-      var text = 'gMoveWd(' + getDefine(moveWordTypeValues, type) + ', ' + n64js.toString16(offset) + ', ' + n64js.toString32(value) + ');';
+      var text = 'gMoveWd(' + getDefine(moveWordTypeValues, type) + ', ' + toString16(offset) + ', ' + toString32(value) + ');';
 
       switch (type) {
         case moveWordTypeValues.G_MW_NUMLIGHT:
@@ -3292,7 +3304,7 @@
           break;
         case moveWordTypeValues.G_MW_SEGMENT:
           {
-            var v = value === 0 ? '0' : n64js.toString32(value);
+            var v = value === 0 ? '0' : toString32(value);
             text = 'gsSPSegment(' + ((offset >>> 2)&0xf) + ', ' + v + ');';
           }
           break;
@@ -3334,7 +3346,7 @@
     var tip = '';
 
     for (var i = 0; i < length; ++i) {
-      tip += n64js.toHex(state.ram.getUint8(address + i), 8) + ' ';
+      tip += toHex(ram_dv.getUint8(address + i), 8) + ' ';
     }
     tip += '<br>';
 
@@ -3366,7 +3378,7 @@
     var length = 0; // FIXME
 
     if (dis) {
-      var address_str = n64js.toString32(address);
+      var address_str = toString32(address);
 
       var type_str = getDefine(moveMemTypeValues, type);
       var text = 'gsDma1p(G_MOVEMEM, ' + address_str + ', ' + length + ', ' + type_str + ');';
@@ -3429,7 +3441,7 @@
 
     if (dis) {
       var fn = (param === G_DL_PUSH) ? 'gsSPDisplayList' : 'gsSPBranchList';
-      dis.text(fn + '(<span class="dl-branch">' + n64js.toString32(address) + '</span>);');
+      dis.text(fn + '(<span class="dl-branch">' + toString32(address) + '</span>);');
     }
 
     if (param === G_DL_PUSH) {
@@ -3545,7 +3557,7 @@
 
     // NB: if no display lists executed, interpret framebuffer as bytes
     if (num_display_lists_since_present === 0) {
-      //n64js.log('new origin: ' + n64js.toString32(origin) + ' but no display lists rendered to skipping');
+      //n64js.log('new origin: ' + toString32(origin) + ' but no display lists rendered to skipping');
 
       origin = (origin & 0x7ffffffe) | 0;  // NB: clear top bit (make address physical). Clear bottom bit (sometimes odd valued addresses are passed through)
 
@@ -3610,6 +3622,9 @@
     }
   }
 
+  /**
+   * @constructor
+   */
   function Disassembler() {
     this.$currentDis = $('<pre></pre>');
     this.$span       = undefined;
@@ -3618,10 +3633,10 @@
 
   Disassembler.prototype.begin = function(pc, cmd0, cmd1, depth) {
     var indent = (new Array(depth)).join('    ');
-    var pc_str = ' '; //' [' + n64js.toHex(pc,32) + '] '
+    var pc_str = ' '; //' [' + toHex(pc,32) + '] '
 
     this.$span = $('<span class="hle-instr" id="I' + this.numOps + '" />');
-    this.$span.append(n64js.padString(this.numOps, 5) + pc_str + n64js.toHex(cmd0,32) + n64js.toHex(cmd1,32) + ' ' + indent );
+    this.$span.append(padString(this.numOps, 5) + pc_str + toHex(cmd0,32) + toHex(cmd1,32) + ' ' + indent );
     this.$currentDis.append(this.$span);
   };
 
@@ -3954,7 +3969,7 @@
     if (debugStateTimeShown == -1) {
        // Build some disassembly for this display list
         var disassembler = new Disassembler();
-        processDList(debugLastTask, disassembler);
+        processDList(debugLastTask, disassembler, -1);
         disassembler.finalise();
 
         // Update the scrubber based on the new length of disassembly
@@ -4027,7 +4042,7 @@
         case 0x64cc729d: ucode = kUCode_GBI0_WR;  break;  // Wave Race
         case 0x23f92542: ucode = kUCode_GBI0_GE;  break;  // Goldeneye
         default:
-          hleHalt('Unknown GBI hash ' + n64js.toString32(val));
+          hleHalt('Unknown GBI hash ' + toString32(val));
           break;
       }
     }
@@ -4095,9 +4110,9 @@
 
     config.vertexStride = kUcodeStrides[ucode];
 
-    state.ram_u8        = n64js.getRamU8Array();
-    state.ram_s32       = n64js.getRamS32Array();
-    state.ram           = ram;        // FIXME: remove DataView
+    ram_u8        = n64js.getRamU8Array();
+    ram_s32       = n64js.getRamS32Array();
+    ram_dv        = ram;        // FIXME: remove DataView
     state.rdpOtherModeL = 0x00500001;
     state.rdpOtherModeH = 0x00000000;
 
@@ -4273,6 +4288,9 @@
   n64js.resetRenderer = function () {
     textureCache = {};
     $textureOutput.html('');
+    ram_u8 = n64js.getRamU8Array();
+    ram_s32 = n64js.getRamS32Array();
+    ram_dv = n64js.getRamDataView();
   };
 
   var rgbParams32 = [
@@ -4317,6 +4335,9 @@
     'one.a',      'zero.a'
   ];
 
+  /**
+   * @constructor
+   */
   function N64Shader(program) {
     this.program = program;
 
@@ -4507,7 +4528,7 @@
 
     // Check if the texture is already cached.
     // FIXME: we also need to check other properties (mirror, clamp etc), and recreate every frame (or when underlying data changes)
-    var cache_id = n64js.toString32(hash);
+    var cache_id = toString32(hash);
 
     cache_id += tile.lrs + '-' + tile.lrt;
 
