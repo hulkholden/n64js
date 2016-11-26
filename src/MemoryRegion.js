@@ -1,5 +1,5 @@
 /**
- * Memory just wraps an ArrayBuffer and provides some useful accessors.
+ * MemoryRegion just wraps an ArrayBuffer and provides some useful accessors.
  */
 export class MemoryRegion {
   /**
