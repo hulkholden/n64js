@@ -2,6 +2,8 @@
 
 import * as format from './format.js';
 import * as logger from './logger.js';
+import { getFragmentMap, consumeFragmentInvalidationEvents } from './fragments.js';
+
 
 (function (n64js) {'use strict';
   var $debugContent   = null;
@@ -440,7 +442,7 @@ import * as logger from './logger.js';
   }
 
   function updateDebug() {
-    var cpu0, fragmentMap, disassembly,
+    var cpu0, disassembly,
         cpu_count, is_single_step, bp_text,
         cur_instr, a, i, address, is_target, address_str, label, t, fragment,
         $dis_gutter, $dis_text, $bp, $line;
@@ -458,7 +460,7 @@ import * as logger from './logger.js';
     is_single_step = lastCycles === (cpu_count-1);
     lastCycles     = cpu_count;
 
-    fragmentMap = n64js.getFragmentMap();
+    let fragmentMap = getFragmentMap();
     disassembly = n64js.disassemble(disasmAddress - 64, disasmAddress + 64);
 
     $dis_gutter = $('<pre/>');
@@ -471,7 +473,7 @@ import * as logger from './logger.js';
       label       = '<span class="dis-label">' + makeLabelText(address) + '</span>';
       t           = address_str + '  ' + format.toHex(a.instruction.opcode, 32) + '  ' + label + a.disassembly;
 
-      fragment = fragmentMap[address];
+      fragment = fragmentMap.get(address);
       if (fragment) {
         t += '<span class="dis-fragment-link"> frag - ops=' + fragment.opsCompiled + ' hit=' + fragment.executionCount + '</span>';
       }
@@ -630,7 +632,7 @@ import * as logger from './logger.js';
     });
   }
 
-  function createHotFragmentsTable($fragment_div, fragments_list) {
+  function createHotFragmentsTable($fragment_div, fragmentsList) {
     var $code = $fragment_div.find('#fragment_code');
 
     var $table = $('<table class="table table-condensed" />');
@@ -639,8 +641,8 @@ import * as logger from './logger.js';
 
     $table.append('<tr><th>' + columns.join('</th><th>') + '</th></tr>');
     var i;
-    for (i = 0; i < fragments_list.length && i < 20; ++i) {
-      var fragment = fragments_list[i];
+    for (i = 0; i < fragmentsList.length && i < 20; ++i) {
+      var fragment = fragmentsList[i];
 
       var vals = [
         format.toString32(fragment.entryPC),
@@ -656,8 +658,8 @@ import * as logger from './logger.js';
 
     $fragment_div.find('#fragments').append($table);
 
-    if (fragments_list.length > 0) {
-      $code.append('<pre>' + fragments_list[0].func.toString() + '</pre>');
+    if (fragmentsList.length > 0) {
+      $code.append('<pre>' + fragmentsList[0].func.toString() + '</pre>');
     }
   }
 
@@ -666,27 +668,18 @@ import * as logger from './logger.js';
   }
 
   function updateDynarec() {
-
-    var fragmentMap = n64js.getFragmentMap();
-    var invals = n64js.getFragmentInvalidationEvents();
+    var invals = consumeFragmentInvalidationEvents();
     var histo = {};
 
     // Build a flattened list of all fragments
-    var fragments_list = [];
-
-    var i;
-    for(i in fragmentMap) {
-      if (fragmentMap.hasOwnProperty(i)) {
-        var fragment = fragmentMap[i];
-        var logv     = fragment.executionCount > 0 ? Math.floor(log10(fragment.executionCount)) : 0;
-
-        histo[logv] = (histo[logv] || 0) + 1;
-
-        fragments_list.push(fragment);
-      }
+    var fragmentsList = [];
+    for (let [pc, fragment] of getFragmentMap()) {
+      var logv = fragment.executionCount > 0 ? Math.floor(log10(fragment.executionCount)) : 0;
+      histo[logv] = (histo[logv] || 0) + 1;
+      fragmentsList.push(fragment);
     }
 
-    fragments_list.sort(function (a,b) {
+    fragmentsList.sort(function (a,b) {
       return b.opsCompiled*b.executionCount - a.opsCompiled*a.executionCount;
     });
 
@@ -696,7 +689,7 @@ import * as logger from './logger.js';
     var t = '';
     t += '<div class="row-fluid">';
     t += '<div class="span4"><table class="table table-condensed"><tr><th>Execution Count</th><th>Frequency</th></tr>';
-    for(i in histo) {
+    for (var i in histo) {
       var v = Number(i);
       var range = Math.pow(10, v) + '..' + Math.pow(10, v+1);
       t += '<tr><td>' + range + '</td><td>' + histo[i] + '</td></tr>';
@@ -713,7 +706,7 @@ import * as logger from './logger.js';
     t += '</div>';
     var $fragment_div = $(t);
 
-    createHotFragmentsTable($fragment_div, fragments_list);
+    createHotFragmentsTable($fragment_div, fragmentsList);
 
     $t.append($fragment_div);
 

@@ -2,6 +2,7 @@
 
 import { CPU1 } from './CPU1.js';
 import * as format from './format.js';
+import { Fragment, lookupFragment, resetFragments } from './fragments.js';
 import * as logger from './logger.js';
 
 (function (n64js) {'use strict';
@@ -9,21 +10,6 @@ import * as logger from './logger.js';
 
   const kDebugTLB = 0;
   const kDebugDynarec = 0;
-  const kEnableDynarec = true;
-
-  var hitCounts = {};
-  var fragmentMap = {};
-
-  /**
-   * An array of invalidation events.
-   * @type {!Array<{address: number,
-   *                length: number,
-   *                system: string,
-   *                fragmentsRemoved: boolean}>}
-   */
-  var fragmentInvalidationEvents = [];
-
-  const kHotFragmentThreshold = 500;
 
   var accurateCountUpdating = false;
   const COUNTER_INCREMENT_PER_OP = 1;
@@ -398,9 +384,7 @@ import * as logger from './logger.js';
   CPU0.prototype.reset = function () {
     var i;
 
-    hitCounts = {};
-    fragmentMap = {};
-    fragmentInvalidationEvents = [];
+    resetFragments();
 
     this.ram = n64js.getRamU8Array();
 
@@ -3959,103 +3943,6 @@ import * as logger from './logger.js';
     }
   }
 
-  n64js.getFragmentMap = function () {
-    return fragmentMap;
-  };
-
-  n64js.getFragmentInvalidationEvents = function() {
-    var t = fragmentInvalidationEvents;
-    fragmentInvalidationEvents = [];
-    return t;
-  };
-
-  /**
-   * @constructor
-   */
-  function Fragment(pc) {
-    this.entryPC          = pc;
-    this.minPC            = pc;
-    this.maxPC            = pc+4;
-    this.func             = undefined;
-    this.opsCompiled      = 0;
-    this.executionCount   = 0;
-    this.bailedOut        = false;    // Set if a fragment bailed out.
-    this.nextFragments    = [];       // One slot per op
-
-    // State used when compiling
-    this.body_code        = '';
-    this.needsDelayCheck  = true;
-
-    this.cop1statusKnown = false;
-    this.usesCop1        = false;
-  }
-
-  Fragment.prototype.invalidate = function () {
-    // reset all but entryPC
-    this.minPC            = this.entryPC;
-    this.maxPC            = this.entryPC+4;
-    this.func             = undefined;
-    this.opsCompiled      = 0;
-    this.bailedOut        = false;
-    this.executionCount   = 0;
-    this.nextFragments    = [];
-
-    this.body_code        = '';
-    this.needsDelayCheck  = true;
-
-    this.cop1statusKnown  = false;
-    this.usesCop1         = false;
-  };
-
-  Fragment.prototype.getNextFragment = function (pc, ops_executed) {
-    var next_fragment = this.nextFragments[ops_executed];
-    if (!next_fragment || next_fragment.entryPC !== pc) {
-
-      // If not jump to self, look up
-      if (pc === this.entryPC) {
-        next_fragment = this;
-      } else {
-        next_fragment = lookupFragment(pc);
-      }
-
-      // And cache for next time around.
-      this.nextFragments[ops_executed] = next_fragment;
-    }
-    return next_fragment;
-  };
-
-  function lookupFragment(pc) {
-    // Check if we already have a fragment
-    var fragment = fragmentMap[pc];
-    if (!fragment) {
-
-      if (!kEnableDynarec) {
-        return null;
-      }
-
-      // Check if this pc is hot enough yet
-      var hc = hitCounts[pc] || 0;
-      hc++;
-      hitCounts[pc] = hc;
-
-      if (hc < kHotFragmentThreshold) {
-        return null;
-      }
-
-      fragment = new Fragment(pc);
-      fragmentMap[pc] = fragment;
-    }
-
-    // If we failed to complete the fragment for any reason, reset it
-    if (!fragment.func) {
-      fragment.invalidate();
-    }
-
-    return fragment;
-  }
-
-  var invals = 0;
-
   /**
    * @constructor
    */
@@ -4146,6 +4033,8 @@ import * as logger from './logger.js';
 
      //fragmentInvalidationEvents.push({'address': address, 'length': length, 'system': system, 'fragmentsRemoved': removed});
   };
+
+  var invals = 0;
 
   // Invalidate a single cache line
   n64js.invalidateICacheEntry = function (address) {
