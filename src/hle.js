@@ -7,7 +7,7 @@ import { Vector4 } from './Vector4.js';
 import * as logger from './logger.js';
 
 (function (n64js) {'use strict';
-  var kDumpShaders = 0;
+  const kDumpShaders = 0;
 
   var graphics_task_count = 0;
   var texrected = 1;

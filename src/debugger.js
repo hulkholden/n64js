@@ -21,6 +21,7 @@ import * as logger from './logger.js';
   var labelMap = {};
 
   var debugCycles = Math.pow(10,0);
+
   n64js.getDebugCycles = function () {
     return debugCycles;
   };
@@ -105,16 +106,16 @@ import * as logger from './logger.js';
     updateMemoryView();
 
 
-    var kEnter    = 13;
-    var kPageUp   = 33;
-    var kPageDown = 34;
-    var kLeft     = 37;
-    var kUp       = 38;
-    var kRight    = 39;
-    var kDown     = 40;
-    var kF10      = 121;
-    var kF9       = 120;
-    var kF8       = 119;
+    const kEnter    = 13;
+    const kPageUp   = 33;
+    const kPageDown = 34;
+    const kLeft     = 37;
+    const kUp       = 38;
+    const kRight    = 39;
+    const kDown     = 40;
+    const kF10      = 121;
+    const kF9       = 120;
+    const kF8       = 119;
 
     $('body').keydown(function (event) {
       var consumed = false;
@@ -223,14 +224,13 @@ import * as logger from './logger.js';
     return '#' + format.toHex(r,8) + format.toHex(g,8) + format.toHex(b,8);
   }
 
-
   function makeCop0RegistersTable(reg_colors) {
     var cpu0 = n64js.cpu0,
         $table = $('<table class="register-table"><tbody></tbody></table>'),
         $body = $table.find('tbody'),
         i, r, $tr, $td, name;
 
-    var kRegistersPerRow = 2;
+    const kRegistersPerRow = 2;
 
     for (i = 0; i < 32; i+=kRegistersPerRow) {
       $tr = $('<tr />');
@@ -763,7 +763,6 @@ import * as logger from './logger.js';
   }
 
   n64js.refreshDebugger = function () {
-
     if ($dynarecContent.hasClass('active')) {
       updateDynarec();
     }
