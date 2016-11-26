@@ -1,6 +1,7 @@
 /*jshint jquery:true, browser:true, devel:true */
 /*global Stats:false */
 
+import { MemoryRegion } from './MemoryRegion.js';
 import * as _debugger from './debugger.js';
 import * as disassemble from './disassemble.js';
 import * as format from './format.js';
@@ -312,76 +313,6 @@ import * as sync from './sync.js';
     }
   }
 
-  /**
-   * Memory just wraps an ArrayBuffer and provides some useful accessors.
-   * @constructor
-   */
-  function Memory(arrayBuffer) {
-    this.arrayBuffer = arrayBuffer;
-    this.length      = arrayBuffer.byteLength;
-    this.u8          = new Uint8Array(arrayBuffer);
-    this.s32         = new Int32Array(arrayBuffer);
-  }
-
-  Memory.prototype = {
-    clear() {
-      var i;
-      for (i = 0; i < this.u8.length; ++i) {
-        this.u8[i] = 0;
-      }
-    },
-
-    readU32(offset) {
-      return ((this.u8[offset] << 24) | (this.u8[offset+1] << 16) | (this.u8[offset+2] << 8) | this.u8[offset+3])>>>0;
-    },
-    readU16(offset) {
-      return (this.u8[offset] <<  8) | (this.u8[offset+1]      );
-    },
-    readU8(offset) {
-      return this.u8[offset];
-    },
-
-    readS32(offset) {
-      return ((this.u8[offset] << 24) | (this.u8[offset+1] << 16) | (this.u8[offset+2] << 8) | this.u8[offset+3]) | 0;
-    },
-    readS16(offset) {
-      return  ((this.u8[offset] << 24) | (this.u8[offset+1] << 16) ) >> 16;
-    },
-    readS8(offset) {
-      return  ((this.u8[offset] << 24) ) >> 24;
-    },
-
-    write32(offset, value) {
-      this.u8[offset  ] = value >> 24;
-      this.u8[offset+1] = value >> 16;
-      this.u8[offset+2] = value >>  8;
-      this.u8[offset+3] = value;
-    },
-
-    write16(offset,value) {
-      this.u8[offset  ] = value >> 8;
-      this.u8[offset+1] = value;
-    },
-
-    write8(offset,value) {
-      this.u8[offset] = value;
-    },
-
-    clearBits32(offset, bits) {
-      var value = this.readU32(offset) & ~bits;
-      this.write32(offset, value);
-      return value;
-    },
-    setBits32(offset, bits) {
-      var value = this.readU32(offset) | bits;
-      this.write32(offset, value);
-      return value;
-    },
-    getBits32(offset, bits) {
-      return this.readU32(offset) & bits;
-    }
-  };
-
   function memoryCopy(dst, dstoff, src, srcoff, len) {
     var i;
     for (i = 0; i < len; ++i) {
@@ -494,20 +425,20 @@ import * as sync from './sync.js';
   };
 
   var rom           = null;   // Will be memory, mapped at 0xb0000000
-  var pi_mem        = new Memory(new ArrayBuffer(0x7c0 + 0x40));   // rom+ram
-  var ram           = new Memory(new ArrayBuffer(8*1024*1024));
-  var sp_mem        = new Memory(new ArrayBuffer(0x2000));
-  var sp_reg        = new Memory(new ArrayBuffer(0x20));
-  var sp_ibist_mem  = new Memory(new ArrayBuffer(0x8));
-  var dpc_mem       = new Memory(new ArrayBuffer(0x20));
-  var dps_mem       = new Memory(new ArrayBuffer(0x10));
-  var rdram_reg     = new Memory(new ArrayBuffer(0x30));
-  var mi_reg        = new Memory(new ArrayBuffer(0x10));
-  var vi_reg        = new Memory(new ArrayBuffer(0x38));
-  var ai_reg        = new Memory(new ArrayBuffer(0x18));
-  var pi_reg        = new Memory(new ArrayBuffer(0x34));
-  var ri_reg        = new Memory(new ArrayBuffer(0x20));
-  var si_reg        = new Memory(new ArrayBuffer(0x1c));
+  var pi_mem        = new MemoryRegion(new ArrayBuffer(0x7c0 + 0x40));   // rom+ram
+  var ram           = new MemoryRegion(new ArrayBuffer(8*1024*1024));
+  var sp_mem        = new MemoryRegion(new ArrayBuffer(0x2000));
+  var sp_reg        = new MemoryRegion(new ArrayBuffer(0x20));
+  var sp_ibist_mem  = new MemoryRegion(new ArrayBuffer(0x8));
+  var dpc_mem       = new MemoryRegion(new ArrayBuffer(0x20));
+  var dps_mem       = new MemoryRegion(new ArrayBuffer(0x10));
+  var rdram_reg     = new MemoryRegion(new ArrayBuffer(0x30));
+  var mi_reg        = new MemoryRegion(new ArrayBuffer(0x10));
+  var vi_reg        = new MemoryRegion(new ArrayBuffer(0x38));
+  var ai_reg        = new MemoryRegion(new ArrayBuffer(0x18));
+  var pi_reg        = new MemoryRegion(new ArrayBuffer(0x34));
+  var ri_reg        = new MemoryRegion(new ArrayBuffer(0x20));
+  var si_reg        = new MemoryRegion(new ArrayBuffer(0x1c));
 
   var eeprom        = null;   // Initialised during reset, using correct size for this rom (may be null if eeprom isn't used)
   var eepromDirty   = false;
@@ -622,7 +553,7 @@ import * as sync from './sync.js';
   function loadRom(arrayBuffer) {
     fixEndian(arrayBuffer);
 
-    rom = new Memory(arrayBuffer);
+    rom = new MemoryRegion(arrayBuffer);
     rom_d1a1_handler_uncached.setMem(rom);
     rom_d1a2_handler_uncached.setMem(rom);
     rom_d1a3_handler_uncached.setMem(rom);
@@ -2263,7 +2194,7 @@ import * as sync from './sync.js';
   };
 
   function initEeprom(size, eeprom_data) {
-    var memory = new Memory(new ArrayBuffer(size));
+    var memory = new MemoryRegion(new ArrayBuffer(size));
     if (eeprom_data && eeprom_data.data) {
       Base64.decodeArray(eeprom_data.data, memory.u8);
     }
