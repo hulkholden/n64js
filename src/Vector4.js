@@ -13,10 +13,10 @@ export class Vector4 {
    * @param {!Vector4} other
    * @return {number}
    */
-  dot(b) {
+  dot(other) {
     var t = 0;
     for (var i = 0; i < this.elems.length; ++i)
-      t += this.elems[i]*b.elems[i];
+      t += this.elems[i]*other.elems[i];
     return t;
   }
 
@@ -53,7 +53,7 @@ export class Vector4 {
   /**
    * Create a vector using the provided array of elements.
    * @param {!Array<number>} elems
-   * @return {!Vector4}
+   * @return {!Vector3}
    */
   static create(elems) {
     var v = new Vector3();

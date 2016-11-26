@@ -47,7 +47,7 @@ export class Matrix {
 
   /**
    * Transforms a point vector.
-   * @param {!Vector3} other The vector to transform.
+   * @param {!Vector3} v3in The vector to transform.
    * @param {!Vector4} v4out The output vector.
    */
   transformPoint(v3in, v4out) {
