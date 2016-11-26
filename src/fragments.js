@@ -8,7 +8,11 @@ const kHotFragmentThreshold = 500;
  */
 let fragmentMap = new Map();
 
-let hitCounts = {};
+/**
+ * Hit counts keyed by PC.
+ * @type {!Map<number, number>}
+ */
+let hitCounts = new Map();
 
 /**
  * An array of invalidation events.
@@ -80,7 +84,7 @@ export class Fragment {
 }
 
 export function resetFragments() {
-  hitCounts = {};
+  hitCounts = new Map();
   fragmentMap = new Map();
   fragmentInvalidationEvents = [];
 }
@@ -106,9 +110,9 @@ export function lookupFragment(pc) {
     }
 
     // Check if this pc is hot enough yet
-    let hc = hitCounts[pc] || 0;
+    let hc = hitCounts.get(pc) || 0;
     hc++;
-    hitCounts[pc] = hc;
+    hitCounts.set(pc, hc);
 
     if (hc < kHotFragmentThreshold) {
       return null;
