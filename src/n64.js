@@ -6,7 +6,7 @@ import * as disassemble from './disassemble.js';
 import * as format from './format.js';
 import * as hle from './hle.js';
 import * as r4300 from './r4300.js';
-import * as romdb from './romdb.js';
+import { romdb } from './romdb.js';
 import * as sync from './sync.js';
 
 (function (n64js) {'use strict';
@@ -662,7 +662,7 @@ import * as sync from './sync.js';
     rominfo.id      = generateRomId(hdr.crclo, hdr.crchi);
     rominfo.country = hdr.countryId;
 
-    var info = n64js.romdb[rominfo.id];
+    var info = romdb[rominfo.id];
     if (info) {
       n64js.log('Loaded info for ' + rominfo.id + ' from db');
       rominfo.name = info.name;
