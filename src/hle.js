@@ -5,6 +5,7 @@ import { Matrix } from './Matrix.js';
 import { ProjectedVertex, TriangleBuffer } from './TriangleBuffer.js';
 import { Vector3 } from './Vector3.js';
 import { Vector4 } from './Vector4.js';
+import * as convert from './convert.js';
 import * as logger from './logger.js';
 
 (function (n64js) {'use strict';
@@ -4466,27 +4467,27 @@ import * as logger from './logger.js';
     var ctx      = texture.$canvas[0].getContext('2d');
     var img_data = ctx.createImageData(texture.nativeWidth, texture.nativeHeight);
 
-    var conv_fn = (tlutformat === textureLUTValues.G_TT_IA16) ? convertIA16Pixel : convertRGBA16Pixel;  // NB: assume RGBA16 for G_TT_NONE
+    var conv_fn = (tlutformat === textureLUTValues.G_TT_IA16) ? convert.convertIA16Pixel : convert.convertRGBA16Pixel;  // NB: assume RGBA16 for G_TT_NONE
 
     switch (tile.format) {
       case imageFormatTypes.G_IM_FMT_RGBA:
         switch (tile.size) {
           case imageSizeTypes.G_IM_SIZ_32b:
-            convertRGBA32(img_data, tile.tmem, tile.line, width, height);
+            convert.convertRGBA32(img_data, state.tmemData, tile.tmem, tile.line, width, height);
             handled = true;
             break;
           case imageSizeTypes.G_IM_SIZ_16b:
-            convertRGBA16(img_data, tile.tmem, tile.line, width, height);
+            convert.convertRGBA16(img_data, state.tmemData, tile.tmem, tile.line, width, height);
             handled = true;
             break;
 
           // Hack - Extreme-G specifies RGBA/8 RGBA/4 textures, but they're really CI
           case imageSizeTypes.G_IM_SIZ_8b:
-            convertCI8(img_data, tile.tmem, tile.line, width, height, 0x100, conv_fn);
+            convert.convertCI8(img_data, state.tmemData, tile.tmem, tile.line, width, height, 0x100, conv_fn);
             handled = true;
             break;
           case imageSizeTypes.G_IM_SIZ_4b:
-            convertCI4(img_data, tile.tmem, tile.line, width, height, 0x100 + ((tile.palette * 16 * 2)>>>3), conv_fn);
+            convert.convertCI4(img_data, state.tmemData, tile.tmem, tile.line, width, height, 0x100 + ((tile.palette * 16 * 2)>>>3), conv_fn);
             handled = true;
             break;
         }
@@ -4495,15 +4496,15 @@ import * as logger from './logger.js';
       case imageFormatTypes.G_IM_FMT_IA:
         switch (tile.size) {
           case imageSizeTypes.G_IM_SIZ_16b:
-            convertIA16(img_data, tile.tmem, tile.line, width, height);
+            convert.convertIA16(img_data, state.tmemData, tile.tmem, tile.line, width, height);
             handled = true;
             break;
           case imageSizeTypes.G_IM_SIZ_8b:
-            convertIA8(img_data, tile.tmem, tile.line, width, height);
+            convert.convertIA8(img_data, state.tmemData, tile.tmem, tile.line, width, height);
             handled = true;
             break;
           case imageSizeTypes.G_IM_SIZ_4b:
-            convertIA4(img_data, tile.tmem, tile.line, width, height);
+            convert.convertIA4(img_data, state.tmemData, tile.tmem, tile.line, width, height);
             handled = true;
             break;
         }
@@ -4512,11 +4513,11 @@ import * as logger from './logger.js';
       case imageFormatTypes.G_IM_FMT_I:
         switch (tile.size) {
           case imageSizeTypes.G_IM_SIZ_8b:
-            convertI8(img_data, tile.tmem, tile.line, width, height);
+            convert.convertI8(img_data, state.tmemData, tile.tmem, tile.line, width, height);
             handled = true;
             break;
           case imageSizeTypes.G_IM_SIZ_4b:
-            convertI4(img_data, tile.tmem, tile.line, width, height);
+            convert.convertI4(img_data, state.tmemData, tile.tmem, tile.line, width, height);
             handled = true;
             break;
         }
@@ -4525,11 +4526,11 @@ import * as logger from './logger.js';
       case imageFormatTypes.G_IM_FMT_CI:
         switch (tile.size) {
           case imageSizeTypes.G_IM_SIZ_8b:
-            convertCI8(img_data, tile.tmem, tile.line, width, height, 0x100, conv_fn);
+            convert.convertCI8(img_data, state.tmemData, tile.tmem, tile.line, width, height, 0x100, conv_fn);
             handled = true;
             break;
           case imageSizeTypes.G_IM_SIZ_4b:
-            convertCI4(img_data, tile.tmem, tile.line, width, height, 0x100 + ((tile.palette * 16 * 2)>>>3), conv_fn);
+            convert.convertCI4(img_data, state.tmemData, tile.tmem, tile.line, width, height, 0x100 + ((tile.palette * 16 * 2)>>>3), conv_fn);
             handled = true;
             break;
         }
@@ -4569,82 +4570,6 @@ import * as logger from './logger.js';
 
     return texture;
   }
-
-  const OneToEight = [
-    0x00,   // 0 -> 00 00 00 00
-    0xff,   // 1 -> 11 11 11 11
-  ];
-
-  const ThreeToEight = [
-    0x00,   // 000 -> 00 00 00 00
-    0x24,   // 001 -> 00 10 01 00
-    0x49,   // 010 -> 01 00 10 01
-    0x6d,   // 011 -> 01 10 11 01
-    0x92,   // 100 -> 10 01 00 10
-    0xb6,   // 101 -> 10 11 01 10
-    0xdb,   // 110 -> 11 01 10 11
-    0xff,   // 111 -> 11 11 11 11
-  ];
-
-  const FourToEight = [
-    0x00, 0x11, 0x22, 0x33,
-    0x44, 0x55, 0x66, 0x77,
-    0x88, 0x99, 0xaa, 0xbb,
-    0xcc, 0xdd, 0xee, 0xff,
-  ];
-
-  const FiveToEight = [
-    0x00, // 00000 -> 00000000
-    0x08, // 00001 -> 00001000
-    0x10, // 00010 -> 00010000
-    0x18, // 00011 -> 00011000
-    0x21, // 00100 -> 00100001
-    0x29, // 00101 -> 00101001
-    0x31, // 00110 -> 00110001
-    0x39, // 00111 -> 00111001
-    0x42, // 01000 -> 01000010
-    0x4a, // 01001 -> 01001010
-    0x52, // 01010 -> 01010010
-    0x5a, // 01011 -> 01011010
-    0x63, // 01100 -> 01100011
-    0x6b, // 01101 -> 01101011
-    0x73, // 01110 -> 01110011
-    0x7b, // 01111 -> 01111011
-
-    0x84, // 10000 -> 10000100
-    0x8c, // 10001 -> 10001100
-    0x94, // 10010 -> 10010100
-    0x9c, // 10011 -> 10011100
-    0xa5, // 10100 -> 10100101
-    0xad, // 10101 -> 10101101
-    0xb5, // 10110 -> 10110101
-    0xbd, // 10111 -> 10111101
-    0xc6, // 11000 -> 11000110
-    0xce, // 11001 -> 11001110
-    0xd6, // 11010 -> 11010110
-    0xde, // 11011 -> 11011110
-    0xe7, // 11100 -> 11100111
-    0xef, // 11101 -> 11101111
-    0xf7, // 11110 -> 11110111
-    0xff, // 11111 -> 11111111
-  ];
-
-  function convertIA16Pixel(v) {
-    var i = (v>>>8)&0xff;
-    let a = (v    )&0xff;
-
-    return (i<<24) | (i<<16) | (i<<8) | a;
-  }
-
-  function convertRGBA16Pixel(v) {
-    let r = FiveToEight[(v>>>11)&0x1f];
-    let g = FiveToEight[(v>>> 6)&0x1f];
-    let b = FiveToEight[(v>>> 1)&0x1f];
-    let a = ((v     )&0x01)? 255 : 0;
-
-    return (r<<24) | (g<<16) | (b<<8) | a;
-  }
-
 
   function clampTexture(img_data, width, height) {
     let dst            = img_data.data;
@@ -4689,402 +4614,6 @@ import * as logger from './logger.js';
         }
         dst_row_offset += dst_row_stride;
       }
-    }
-  }
-
-  function convertRGBA32(img_data, tmem, line, width, height) {
-    let dst            = img_data.data;
-    let dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
-    let dst_row_offset = 0;
-
-    let src            = state.tmemData;
-    let src_row_stride = line<<3;
-    let src_row_offset = tmem<<3;
-
-    // NB! RGBA/32 line needs to be doubled.
-    src_row_stride *= 2;
-
-    let row_swizzle = 0;
-    for (let y = 0; y < height; ++y) {
-      let src_offset = src_row_offset;
-      let dst_offset = dst_row_offset;
-
-      for (let x = 0; x < width; ++x) {
-        let o = src_offset^row_swizzle;
-
-        dst[dst_offset+0] = src[o];
-        dst[dst_offset+1] = src[o+1];
-        dst[dst_offset+2] = src[o+2];
-        dst[dst_offset+3] = src[o+3];
-
-        src_offset += 4;
-        dst_offset += 4;
-      }
-      src_row_offset += src_row_stride;
-      dst_row_offset += dst_row_stride;
-
-      row_swizzle ^= 0x4;   // Alternate lines are word-swapped
-    }
-  }
-
-  function convertRGBA16(img_data, tmem, line, width, height) {
-    let dst            = img_data.data;
-    let dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
-    let dst_row_offset = 0;
-
-    let src            = state.tmemData;
-    let src_row_stride = line<<3;
-    let src_row_offset = tmem<<3;
-
-    let row_swizzle = 0;
-    for (let y = 0; y < height; ++y) {
-      let src_offset = src_row_offset;
-      let dst_offset = dst_row_offset;
-
-      for (let x = 0; x < width; ++x) {
-        let o         = src_offset^row_swizzle;
-        let src_pixel = (src[o]<<8) | src[o+1];
-
-        dst[dst_offset+0] = FiveToEight[(src_pixel>>>11)&0x1f];
-        dst[dst_offset+1] = FiveToEight[(src_pixel>>> 6)&0x1f];
-        dst[dst_offset+2] = FiveToEight[(src_pixel>>> 1)&0x1f];
-        dst[dst_offset+3] = ((src_pixel     )&0x01)? 255 : 0;
-
-        src_offset += 2;
-        dst_offset += 4;
-      }
-      src_row_offset += src_row_stride;
-      dst_row_offset += dst_row_stride;
-
-      row_swizzle ^= 0x4;   // Alternate lines are word-swapped
-    }
-  }
-
-
-  function convertIA16(img_data, tmem, line, width, height) {
-    let dst            = img_data.data;
-    let dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
-    let dst_row_offset = 0;
-
-    let src            = state.tmemData;
-    let src_row_stride = line<<3;
-    let src_row_offset = tmem<<3;
-
-    let row_swizzle = 0;
-    for (let y = 0; y < height; ++y) {
-      let src_offset = src_row_offset;
-      let dst_offset = dst_row_offset;
-
-      for (let x = 0; x < width; ++x) {
-        let o = src_offset^row_swizzle;
-        let i = src[o];
-        let a = src[o+1];
-
-        dst[dst_offset+0] = i;
-        dst[dst_offset+1] = i;
-        dst[dst_offset+2] = i;
-        dst[dst_offset+3] = a;
-
-        src_offset += 2;
-        dst_offset += 4;
-      }
-      src_row_offset += src_row_stride;
-      dst_row_offset += dst_row_stride;
-
-      row_swizzle ^= 0x4;   // Alternate lines are word-swapped
-    }
-  }
-
-  function convertIA8(img_data, tmem, line, width, height) {
-    let dst            = img_data.data;
-    let dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
-    let dst_row_offset = 0;
-
-    let src            = state.tmemData;
-    let src_row_stride = line<<3;
-    let src_row_offset = tmem<<3;
-
-    let row_swizzle = 0;
-    for (let y = 0; y < height; ++y) {
-      let src_offset = src_row_offset;
-      let dst_offset = dst_row_offset;
-
-      for (let x = 0; x < width; ++x) {
-        let o         = src_offset^row_swizzle;
-        let src_pixel = src[o];
-
-        let i = FourToEight[(src_pixel>>>4)&0xf];
-        let a = FourToEight[(src_pixel    )&0xf];
-
-        dst[dst_offset+0] = i;
-        dst[dst_offset+1] = i;
-        dst[dst_offset+2] = i;
-        dst[dst_offset+3] = a;
-
-        src_offset += 1;
-        dst_offset += 4;
-      }
-      src_row_offset += src_row_stride;
-      dst_row_offset += dst_row_stride;
-
-      row_swizzle ^= 0x4;   // Alternate lines are word-swapped
-    }
-  }
-
-  function convertIA4(img_data, tmem, line, width, height) {
-    let dst            = img_data.data;
-    let dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
-    let dst_row_offset = 0;
-
-    let src            = state.tmemData;
-    let src_row_stride = line<<3;
-    let src_row_offset = tmem<<3;
-
-    let row_swizzle = 0;
-
-    for (let y = 0; y < height; ++y) {
-      let src_offset = src_row_offset;
-      let dst_offset = dst_row_offset;
-
-      // Process 2 pixels at a time
-      for (let x = 0; x+1 < width; x+=2) {
-
-        let o         = src_offset^row_swizzle;
-        let src_pixel = src[o];
-
-        let i0 = ThreeToEight[(src_pixel&0xe0)>>>5];
-        let a0 =   OneToEight[(src_pixel&0x10)>>>4];
-
-        let i1 = ThreeToEight[(src_pixel&0x0e)>>>1];
-        let a1 =   OneToEight[(src_pixel&0x01)>>>0];
-
-        dst[dst_offset+0] = i0;
-        dst[dst_offset+1] = i0;
-        dst[dst_offset+2] = i0;
-        dst[dst_offset+3] = a0;
-
-        dst[dst_offset+4] = i1;
-        dst[dst_offset+5] = i1;
-        dst[dst_offset+6] = i1;
-        dst[dst_offset+7] = a1;
-
-        src_offset += 1;
-        dst_offset += 8;
-      }
-
-      // Handle trailing pixel, if odd width
-      if (width&1) {
-        let o         = src_offset^row_swizzle;
-        let src_pixel = src[o];
-
-        let i0 = ThreeToEight[(src_pixel&0xe0)>>>5];
-        let a0 =   OneToEight[(src_pixel&0x10)>>>4];
-
-        dst[dst_offset+0] = i0;
-        dst[dst_offset+1] = i0;
-        dst[dst_offset+2] = i0;
-        dst[dst_offset+3] = a0;
-
-        src_offset += 1;
-        dst_offset += 4;
-      }
-
-      src_row_offset += src_row_stride;
-      dst_row_offset += dst_row_stride;
-
-      row_swizzle ^= 0x4;   // Alternate lines are word-swapped
-    }
-  }
-
-  function convertI8(img_data, tmem, line, width, height) {
-    let dst            = img_data.data;
-    let dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
-    let dst_row_offset = 0;
-
-    let src            = state.tmemData;
-    let src_row_stride = line<<3;
-    let src_row_offset = tmem<<3;
-
-    let row_swizzle = 0;
-    for (let y = 0; y < height; ++y) {
-      let src_offset = src_row_offset;
-      let dst_offset = dst_row_offset;
-
-      for (let x = 0; x < width; ++x) {
-        let i = src[src_offset^row_swizzle];
-
-        dst[dst_offset+0] = i;
-        dst[dst_offset+1] = i;
-        dst[dst_offset+2] = i;
-        dst[dst_offset+3] = i;
-
-        src_offset += 1;
-        dst_offset += 4;
-      }
-      src_row_offset += src_row_stride;
-      dst_row_offset += dst_row_stride;
-
-      row_swizzle ^= 0x4;   // Alternate lines are word-swapped
-    }
-  }
-
-  function convertI4(img_data, tmem, line, width, height) {
-    let dst            = img_data.data;
-    let dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
-    let dst_row_offset = 0;
-
-    let src            = state.tmemData;
-    let src_row_stride = line<<3;
-    let src_row_offset = tmem<<3;
-
-    let row_swizzle = 0;
-
-    for (let y = 0; y < height; ++y) {
-      let src_offset = src_row_offset;
-      let dst_offset = dst_row_offset;
-
-      // Process 2 pixels at a time
-      for (let x = 0; x+1 < width; x+=2) {
-        let src_pixel = src[src_offset^row_swizzle];
-        let i0 = FourToEight[(src_pixel&0xf0)>>>4];
-        let i1 = FourToEight[(src_pixel&0x0f)>>>0];
-
-        dst[dst_offset+0] = i0;
-        dst[dst_offset+1] = i0;
-        dst[dst_offset+2] = i0;
-        dst[dst_offset+3] = i0;
-
-        dst[dst_offset+4] = i1;
-        dst[dst_offset+5] = i1;
-        dst[dst_offset+6] = i1;
-        dst[dst_offset+7] = i1;
-
-        src_offset += 1;
-        dst_offset += 8;
-      }
-
-      // Handle trailing pixel, if odd width
-      if (width&1) {
-        let src_pixel = src[src_offset^row_swizzle];
-        let i0 = FourToEight[(src_pixel&0xf0)>>>4];
-
-        dst[dst_offset+0] = i0;
-        dst[dst_offset+1] = i0;
-        dst[dst_offset+2] = i0;
-        dst[dst_offset+3] = i0;
-
-        src_offset += 1;
-        dst_offset += 4;
-      }
-
-      src_row_offset += src_row_stride;
-      dst_row_offset += dst_row_stride;
-
-      row_swizzle ^= 0x4;   // Alternate lines are word-swapped
-    }
-  }
-
-  function convertCI8(img_data, tmem, line, width, height, pal_address, pal_conv) {
-    let dst            = img_data.data;
-    let dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
-    let dst_row_offset = 0;
-
-    let src            = state.tmemData;
-    let src_row_stride = line<<3;
-    let src_row_offset = tmem<<3;
-
-    let pal_offset     = pal_address<<3;
-    let pal            = new Uint32Array(256);
-
-    for (let i = 0; i < 256; ++i) {
-      let src_pixel = (src[pal_offset + i*2 + 0]<<8) | src[pal_offset + i*2 + 1];
-      pal[i] = pal_conv( src_pixel );
-    }
-
-    let row_swizzle = 0;
-    for (let y = 0; y < height; ++y) {
-      let src_offset = src_row_offset;
-      let dst_offset = dst_row_offset;
-
-      for (let x = 0; x < width; ++x) {
-        let src_pixel = pal[src[src_offset ^ row_swizzle]];
-
-        dst[dst_offset+0] = (src_pixel>>24)&0xff;
-        dst[dst_offset+1] = (src_pixel>>16)&0xff;
-        dst[dst_offset+2] = (src_pixel>> 8)&0xff;
-        dst[dst_offset+3] = (src_pixel)&0xff;
-
-        src_offset += 1;
-        dst_offset += 4;
-      }
-      src_row_offset += src_row_stride;
-      dst_row_offset += dst_row_stride;
-
-      row_swizzle ^= 0x4;   // Alternate lines are word-swapped
-    }
-  }
-
-  function convertCI4(img_data, tmem, line, width, height, pal_address, pal_conv) {
-    let dst            = img_data.data;
-    let dst_row_stride = img_data.width*4;  // Might not be the same as width, due to power of 2
-    let dst_row_offset = 0;
-
-    let src            = state.tmemData;
-    let src_row_stride = line<<3;
-    let src_row_offset = tmem<<3;
-
-    let pal_offset     = pal_address<<3;
-    let pal            = new Uint32Array(16);
-
-    for (let i = 0; i < 16; ++i) {
-      let src_pixel = (src[pal_offset + i*2 + 0]<<8) | src[pal_offset + i*2 + 1];
-      pal[i] = pal_conv( src_pixel );
-    }
-
-    let row_swizzle = 0;
-
-    for (let y = 0; y < height; ++y) {
-      let src_offset = src_row_offset;
-      let dst_offset = dst_row_offset;
-
-      // Process 2 pixels at a time
-      for (let x = 0; x+1 < width; x+=2) {
-        let src_pixel = src[src_offset ^ row_swizzle];
-        let c0 = pal[(src_pixel&0xf0)>>>4];
-        let c1 = pal[(src_pixel&0x0f)>>>0];
-
-        dst[dst_offset+0] = (c0>>24)&0xff;
-        dst[dst_offset+1] = (c0>>16)&0xff;
-        dst[dst_offset+2] = (c0>> 8)&0xff;
-        dst[dst_offset+3] = (c0    )&0xff;
-
-        dst[dst_offset+4] = (c1>>24)&0xff;
-        dst[dst_offset+5] = (c1>>16)&0xff;
-        dst[dst_offset+6] = (c1>> 8)&0xff;
-        dst[dst_offset+7] = (c1    )&0xff;
-
-        src_offset += 1;
-        dst_offset += 8;
-      }
-
-      // Handle trailing pixel, if odd width
-      if (width&1) {
-        let src_pixel = src[src_offset ^ row_swizzle];
-        let c0 = pal[(src_pixel&0xf0)>>>4];
-
-        dst[dst_offset+0] = (c0>>24)&0xff;
-        dst[dst_offset+1] = (c0>>16)&0xff;
-        dst[dst_offset+2] = (c0>> 8)&0xff;
-        dst[dst_offset+3] = (c0    )&0xff;
-
-        src_offset += 1;
-        dst_offset += 4;
-      }
-
-      src_row_offset += src_row_stride;
-      dst_row_offset += dst_row_stride;
-
-      row_swizzle ^= 0x4;   // Alternate lines are word-swapped
     }
   }
 }(window.n64js = window.n64js || {}));
