@@ -1,7 +1,8 @@
 /*jshint jquery:true browser:true */
 
 import { padString, toHex, toString8, toString16, toString32 } from './format.js';
-import { Vector3, Vector4, Matrix, makeOrtho } from './glutils.js';
+import { Vector3, Vector4 } from './glutils.js';
+import { Matrix } from './Matrix.js';
 
 (function (n64js) {'use strict';
   var kDumpShaders = 0;
@@ -434,7 +435,7 @@ import { Vector3, Vector4, Matrix, makeOrtho } from './glutils.js';
   var n64ToCanvasScale     = [ 1.0, 1.0 ];
   var n64ToCanvasTranslate = [ 0.0, 0.0 ];
 
-  var canvas2dMatrix = makeOrtho(0,canvasWidth, canvasHeight,0, 0,1);
+  var canvas2dMatrix = Matrix.makeOrtho(0,canvasWidth, canvasHeight,0, 0,1);
 
   function hleHalt(msg) {
     if (!debugDisplayListRunning) {
@@ -560,7 +561,7 @@ import { Vector3, Vector4, Matrix, makeOrtho } from './glutils.js';
     var   vp_width  = canvas_max[0] - canvas_min[0];
     var   vp_height = canvas_max[1] - canvas_min[1];
 
-    canvas2dMatrix = makeOrtho( canvas_min[0], canvas_max[0], canvas_max[1], canvas_min[1], 0, 1 );
+    canvas2dMatrix = Matrix.makeOrtho( canvas_min[0], canvas_max[0], canvas_max[1], canvas_min[1], 0, 1 );
 
     gl.viewport(vp_x, vp_y, vp_width, vp_height);
   }
