@@ -127,7 +127,6 @@ export const moveMemTypeValuesGBI2 = {
   G_GBI2_MVO_L7:      9 * 24,
 };
 
-
 export const G_PM_MASK  = 1 << G_MDSFT_PIPELINE;
 export const G_CYC_MASK = 3 << G_MDSFT_CYCLETYPE;
 export const G_TP_MASK  = 1 << G_MDSFT_TEXTPERSP;
@@ -330,6 +329,21 @@ export function getGeometryModeFlagsText(flags, data) {
 
   return t.length > 0 ? t.substr(1) : '0';
 }
+
+export const imageFormatTypes = {
+  G_IM_FMT_RGBA:    0,
+  G_IM_FMT_YUV:     1,
+  G_IM_FMT_CI:      2,
+  G_IM_FMT_IA:      3,
+  G_IM_FMT_I:       4
+};
+
+export const imageSizeTypes = {
+  G_IM_SIZ_4b:      0,
+  G_IM_SIZ_8b:      1,
+  G_IM_SIZ_16b:     2,
+  G_IM_SIZ_32b:     3
+};
 
 export const pipelineModeValues = {
   G_PM_1PRIMITIVE:   1 << G_MDSFT_PIPELINE,
