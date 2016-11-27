@@ -1,6 +1,6 @@
 import * as format from './format.js';
 
-export const renderModeFlags = {
+export const RenderMode = {
   AA_EN:               0x0008,
   Z_CMP:               0x0010,
   Z_UPD:               0x0020,
@@ -20,30 +20,30 @@ export const renderModeFlags = {
   TEX_EDGE:            0x0000 /* used to be 0x8000 */
 };
 
-export function getRenderModeFlagsText(data) {
+export function getRenderModeText(data) {
   var t = '';
 
-  if (data & renderModeFlags.AA_EN)               t += '|AA_EN';
-  if (data & renderModeFlags.Z_CMP)               t += '|Z_CMP';
-  if (data & renderModeFlags.Z_UPD)               t += '|Z_UPD';
-  if (data & renderModeFlags.IM_RD)               t += '|IM_RD';
-  if (data & renderModeFlags.CLR_ON_CVG)          t += '|CLR_ON_CVG';
+  if (data & RenderMode.AA_EN)               t += '|AA_EN';
+  if (data & RenderMode.Z_CMP)               t += '|Z_CMP';
+  if (data & RenderMode.Z_UPD)               t += '|Z_UPD';
+  if (data & RenderMode.IM_RD)               t += '|IM_RD';
+  if (data & RenderMode.CLR_ON_CVG)          t += '|CLR_ON_CVG';
 
   var cvg = data & 0x0300;
-       if (cvg === renderModeFlags.CVG_DST_CLAMP) t += '|CVG_DST_CLAMP';
-  else if (cvg === renderModeFlags.CVG_DST_WRAP)  t += '|CVG_DST_WRAP';
-  else if (cvg === renderModeFlags.CVG_DST_FULL)  t += '|CVG_DST_FULL';
-  else if (cvg === renderModeFlags.CVG_DST_SAVE)  t += '|CVG_DST_SAVE';
+       if (cvg === RenderMode.CVG_DST_CLAMP) t += '|CVG_DST_CLAMP';
+  else if (cvg === RenderMode.CVG_DST_WRAP)  t += '|CVG_DST_WRAP';
+  else if (cvg === RenderMode.CVG_DST_FULL)  t += '|CVG_DST_FULL';
+  else if (cvg === RenderMode.CVG_DST_SAVE)  t += '|CVG_DST_SAVE';
 
   var zmode = data & 0x0c00;
-       if (zmode === renderModeFlags.ZMODE_OPA)   t += '|ZMODE_OPA';
-  else if (zmode === renderModeFlags.ZMODE_INTER) t += '|ZMODE_INTER';
-  else if (zmode === renderModeFlags.ZMODE_XLU)   t += '|ZMODE_XLU';
-  else if (zmode === renderModeFlags.ZMODE_DEC)   t += '|ZMODE_DEC';
+       if (zmode === RenderMode.ZMODE_OPA)   t += '|ZMODE_OPA';
+  else if (zmode === RenderMode.ZMODE_INTER) t += '|ZMODE_INTER';
+  else if (zmode === RenderMode.ZMODE_XLU)   t += '|ZMODE_XLU';
+  else if (zmode === RenderMode.ZMODE_DEC)   t += '|ZMODE_DEC';
 
-  if (data & renderModeFlags.CVG_X_ALPHA)         t += '|CVG_X_ALPHA';
-  if (data & renderModeFlags.ALPHA_CVG_SEL)       t += '|ALPHA_CVG_SEL';
-  if (data & renderModeFlags.FORCE_BL)            t += '|FORCE_BL';
+  if (data & RenderMode.CVG_X_ALPHA)         t += '|CVG_X_ALPHA';
+  if (data & RenderMode.ALPHA_CVG_SEL)       t += '|ALPHA_CVG_SEL';
+  if (data & RenderMode.FORCE_BL)            t += '|FORCE_BL';
 
   var c0 = t.length > 0 ? t.substr(1) : '0';
 
@@ -89,9 +89,8 @@ export const G_MDSFT_CYCLETYPE   = 20;
 export const G_MDSFT_COLORDITHER = 22;
 export const G_MDSFT_PIPELINE    = 23;
 
-export function getOtherModeHShiftCountName(sft) {
-  switch (sft) {
-
+export function getOtherModeHShiftCountName(value) {
+  switch (value) {
     case G_MDSFT_BLENDMASK:   return 'G_MDSFT_BLENDMASK';
     case G_MDSFT_ALPHADITHER: return 'G_MDSFT_ALPHADITHER';
     case G_MDSFT_RGBDITHER:   return 'G_MDSFT_RGBDITHER';
@@ -107,10 +106,10 @@ export function getOtherModeHShiftCountName(sft) {
     case G_MDSFT_PIPELINE:    return 'G_MDSFT_PIPELINE';
   }
 
-  return format.toString8(sft);
+  return format.toString8(value);
 }
 
-export const moveMemTypeValuesGBI2 = {
+export const MoveMemGBI2 = {
   G_GBI2_MV_VIEWPORT: 8,
   G_GBI2_MV_LIGHT:    10,
   G_GBI2_MV_POINT:    12,
@@ -149,7 +148,7 @@ export const G_MTX_PUSH       = 0x04;
 export const G_DL_PUSH   = 0x00;
 export const G_DL_NOPUSH = 0x01;
 
-export const moveWordTypeValues = {
+export const MoveWord = {
   G_MW_MATRIX:    0x00,
   G_MW_NUMLIGHT:  0x02,
   G_MW_CLIP:      0x04,
@@ -160,7 +159,7 @@ export const moveWordTypeValues = {
   G_MW_PERSPNORM: 0x0e,
 };
 
-export const moveMemTypeValues = {
+export const MoveMemGBI1 = {
   G_MV_VIEWPORT: 0x80,
   G_MV_LOOKATY:  0x82,
   G_MV_LOOKATX:  0x84,
@@ -234,14 +233,14 @@ export const G_MWO_MATRIX_ZZ_ZW_F = 0x34;
 export const G_MWO_MATRIX_WX_WY_F = 0x38;
 export const G_MWO_MATRIX_WZ_WW_F = 0x3c;
 
-export const modifyVtxValues = {
+export const ModifyVtx = {
   G_MWO_POINT_RGBA:        0x10,
   G_MWO_POINT_ST:          0x14,
   G_MWO_POINT_XYSCREEN:    0x18,
   G_MWO_POINT_ZSCREEN:     0x1c,
 };
 
-export const numLightValues = {
+export const NumLights = {
   //NUMLIGHTS_0: 1,
   NUMLIGHTS_1: 1,
   NUMLIGHTS_2: 2,
@@ -277,7 +276,7 @@ export function getClampMirrorWrapText(flags) {
   return flags;
 }
 
-export const geometryModeFlagsGBI1 = {
+export const GeometryModeGBI1 = {
   G_ZBUFFER:            0x00000001,
   G_TEXTURE_ENABLE:     0x00000002,  /* Microcode use only */
   G_SHADE:              0x00000004,  /* enable Gouraud interp */
@@ -292,7 +291,7 @@ export const geometryModeFlagsGBI1 = {
   G_LOD:                0x00100000, /* NOT IMPLEMENTED */
 };
 
-export const geometryModeFlagsGBI2 = {
+export const GeometryModeGBI2 = {
   G_TEXTURE_ENABLE:     0x2,        /* NB - not implemented as geometry mode flag in GBI2 */
   G_SHADE:              0,
 
@@ -330,7 +329,7 @@ export function getGeometryModeFlagsText(flags, data) {
   return t.length > 0 ? t.substr(1) : '0';
 }
 
-export const imageFormatTypes = {
+export const ImageFormat = {
   G_IM_FMT_RGBA:    0,
   G_IM_FMT_YUV:     1,
   G_IM_FMT_CI:      2,
@@ -338,85 +337,85 @@ export const imageFormatTypes = {
   G_IM_FMT_I:       4
 };
 
-export const imageSizeTypes = {
+export const ImageSize = {
   G_IM_SIZ_4b:      0,
   G_IM_SIZ_8b:      1,
   G_IM_SIZ_16b:     2,
   G_IM_SIZ_32b:     3
 };
 
-export const pipelineModeValues = {
+export const PipelineMode = {
   G_PM_1PRIMITIVE:   1 << G_MDSFT_PIPELINE,
   G_PM_NPRIMITIVE:   0 << G_MDSFT_PIPELINE
 };
 
-export const cycleTypeValues = {
+export const CycleType = {
   G_CYC_1CYCLE:     0 << G_MDSFT_CYCLETYPE,
   G_CYC_2CYCLE:     1 << G_MDSFT_CYCLETYPE,
   G_CYC_COPY:       2 << G_MDSFT_CYCLETYPE,
   G_CYC_FILL:       3 << G_MDSFT_CYCLETYPE
 };
 
-export const texturePerspValues = {
+export const TexturePerspective = {
   G_TP_NONE:        0 << G_MDSFT_TEXTPERSP,
   G_TP_PERSP:       1 << G_MDSFT_TEXTPERSP
 };
 
-export const textureDetailValues = {
+export const TextureDetail = {
   G_TD_CLAMP:       0 << G_MDSFT_TEXTDETAIL,
   G_TD_SHARPEN:     1 << G_MDSFT_TEXTDETAIL,
   G_TD_DETAIL:      2 << G_MDSFT_TEXTDETAIL
 };
 
-export const textureLODValues = {
+export const TextureLOD = {
   G_TL_TILE:        0 << G_MDSFT_TEXTLOD,
   G_TL_LOD:         1 << G_MDSFT_TEXTLOD
 };
 
-export const textureLUTValues = {
+export const TextureLUT = {
   G_TT_NONE:        0 << G_MDSFT_TEXTLUT,
   G_TT_RGBA16:      2 << G_MDSFT_TEXTLUT,
   G_TT_IA16:        3 << G_MDSFT_TEXTLUT
 };
 
-export const textureFilterValues = {
+export const TextureFilter = {
   G_TF_POINT:       0 << G_MDSFT_TEXTFILT,
   G_TF_AVERAGE:     3 << G_MDSFT_TEXTFILT,
   G_TF_BILERP:      2 << G_MDSFT_TEXTFILT
 };
 
-export const textureConvertValues = {
+export const TextureConvert = {
   G_TC_CONV:       0 << G_MDSFT_TEXTCONV,
   G_TC_FILTCONV:   5 << G_MDSFT_TEXTCONV,
   G_TC_FILT:       6 << G_MDSFT_TEXTCONV
 };
 
-export const combineKeyValues = {
+export const CombineKey = {
   G_CK_NONE:        0 << G_MDSFT_COMBKEY,
   G_CK_KEY:         1 << G_MDSFT_COMBKEY
 };
 
-export const colorDitherValues = {
+export const ColorDither = {
   G_CD_MAGICSQ:     0 << G_MDSFT_RGBDITHER,
   G_CD_BAYER:       1 << G_MDSFT_RGBDITHER,
   G_CD_NOISE:       2 << G_MDSFT_RGBDITHER,
   G_CD_DISABLE:     3 << G_MDSFT_RGBDITHER
 };
 
-export const alphaDitherValues = {
+export const AlphaDither = {
   G_AD_PATTERN:     0 << G_MDSFT_ALPHADITHER,
   G_AD_NOTPATTERN:  1 << G_MDSFT_ALPHADITHER,
   G_AD_NOISE:       2 << G_MDSFT_ALPHADITHER,
   G_AD_DISABLE:     3 << G_MDSFT_ALPHADITHER
 };
 
-export const alphaCompareValues = {
+export const AlphaCompare = {
   G_AC_NONE:          0 << G_MDSFT_ALPHACOMPARE,
   G_AC_THRESHOLD:     1 << G_MDSFT_ALPHACOMPARE,
   G_AC_DITHER:        3 << G_MDSFT_ALPHACOMPARE
 };
 
-export const depthSourceValues = {
+export const DepthSource = {
   G_ZS_PIXEL:         0 << G_MDSFT_ZSRCSEL,
   G_ZS_PRIM:          1 << G_MDSFT_ZSRCSEL
 };

@@ -251,13 +251,13 @@ class N64Shader {
  * @param {!WebGLRenderingContext} gl The webgl context.
  * @param {number} mux0
  * @param {number} mux1
- * @param {number} cycleType A cycleTypeValues value.
+ * @param {number} cycleType A CycleType value.
  * @param {number} alphaThreshold The current alpha threshold.
  * @return {!N64Shader}
  */
 export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, alphaThreshold) {
   // Check if this shader already exists. Copy/Fill are fixed-function so ignore mux for these.
-  let stateText = (cycleType < gbi.cycleTypeValues.G_CYC_COPY) ? (mux0.toString(16) + mux1.toString(16) + '_' + cycleType) : cycleType.toString();
+  let stateText = (cycleType < gbi.CycleType.G_CYC_COPY) ? (mux0.toString(16) + mux1.toString(16) + '_' + cycleType) : cycleType.toString();
   if (alphaThreshold >= 0.0) {
     stateText += alphaThreshold;
   }
@@ -300,11 +300,11 @@ export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, alphaThreshold) 
 
   // Generate the instructions for this mode.
   let body;
-  if (cycleType === gbi.cycleTypeValues.G_CYC_FILL) {
+  if (cycleType === gbi.CycleType.G_CYC_FILL) {
     body = 'col = shade;\n';
-  } else if (cycleType === gbi.cycleTypeValues.G_CYC_COPY) {
+  } else if (cycleType === gbi.CycleType.G_CYC_COPY) {
     body = 'col = tex0;\n';
-  } else if (cycleType === gbi.cycleTypeValues.G_CYC_1CYCLE) {
+  } else if (cycleType === gbi.CycleType.G_CYC_1CYCLE) {
     body= '';
     body += 'col.rgb = (' + rgbParams16 [aRGB0] + ' - ' + rgbParams16 [bRGB0] + ') * ' + rgbParams32 [cRGB0] + ' + ' + rgbParams8  [dRGB0] + ';\n';
     body += 'col.a = ('   + alphaParams8[  aA0] + ' - ' + alphaParams8[  bA0] + ') * ' + alphaParams8[  cA0] + ' + ' + alphaParams8[  dA0] + ';\n';

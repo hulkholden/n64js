@@ -711,18 +711,18 @@ import * as logger from './logger.js';
     tip += '<br>';
 
     switch (type) {
-      case gbi.moveMemTypeValues.G_MV_VIEWPORT:
+      case gbi.MoveMemGBI1.G_MV_VIEWPORT:
         tip += previewViewport(address);
         break;
 
-      case gbi.moveMemTypeValues.G_MV_L0:
-      case gbi.moveMemTypeValues.G_MV_L1:
-      case gbi.moveMemTypeValues.G_MV_L2:
-      case gbi.moveMemTypeValues.G_MV_L3:
-      case gbi.moveMemTypeValues.G_MV_L4:
-      case gbi.moveMemTypeValues.G_MV_L5:
-      case gbi.moveMemTypeValues.G_MV_L6:
-      case gbi.moveMemTypeValues.G_MV_L7:
+      case gbi.MoveMemGBI1.G_MV_L0:
+      case gbi.MoveMemGBI1.G_MV_L1:
+      case gbi.MoveMemGBI1.G_MV_L2:
+      case gbi.MoveMemGBI1.G_MV_L3:
+      case gbi.MoveMemGBI1.G_MV_L4:
+      case gbi.MoveMemGBI1.G_MV_L5:
+      case gbi.MoveMemGBI1.G_MV_L6:
+      case gbi.MoveMemGBI1.G_MV_L7:
         tip += previewLight(address);
         break;
     }
@@ -738,11 +738,11 @@ import * as logger from './logger.js';
     if (dis) {
       var address_str = toString32(address);
 
-      var type_str = getDefine(gbi.moveMemTypeValues, type);
+      var type_str = getDefine(gbi.MoveMemGBI1, type);
       var text = 'gsDma1p(G_MOVEMEM, ' + address_str + ', ' + length + ', ' + type_str + ');';
 
       switch (type) {
-        case gbi.moveMemTypeValues.G_MV_VIEWPORT:
+        case gbi.MoveMemGBI1.G_MV_VIEWPORT:
           if (length === 16)
             text = 'gsSPViewport(' + address_str + ');';
           break;
@@ -753,19 +753,19 @@ import * as logger from './logger.js';
     }
 
     switch (type) {
-      case gbi.moveMemTypeValues.G_MV_VIEWPORT:
+      case gbi.MoveMemGBI1.G_MV_VIEWPORT:
         moveMemViewport(address);
         break;
 
-      case gbi.moveMemTypeValues.G_MV_L0:
-      case gbi.moveMemTypeValues.G_MV_L1:
-      case gbi.moveMemTypeValues.G_MV_L2:
-      case gbi.moveMemTypeValues.G_MV_L3:
-      case gbi.moveMemTypeValues.G_MV_L4:
-      case gbi.moveMemTypeValues.G_MV_L5:
-      case gbi.moveMemTypeValues.G_MV_L6:
-      case gbi.moveMemTypeValues.G_MV_L7:
-        var light_idx = (type - gbi.moveMemTypeValues.G_MV_L0) / 2;
+      case gbi.MoveMemGBI1.G_MV_L0:
+      case gbi.MoveMemGBI1.G_MV_L1:
+      case gbi.MoveMemGBI1.G_MV_L2:
+      case gbi.MoveMemGBI1.G_MV_L3:
+      case gbi.MoveMemGBI1.G_MV_L4:
+      case gbi.MoveMemGBI1.G_MV_L5:
+      case gbi.MoveMemGBI1.G_MV_L6:
+      case gbi.MoveMemGBI1.G_MV_L7:
+        var light_idx = (type - gbi.MoveMemGBI1.G_MV_L0) / 2;
         moveMemLight(light_idx, address);
         break;
     }
@@ -777,16 +777,16 @@ import * as logger from './logger.js';
     var value = cmd1;
 
     if (dis) {
-      var text = 'gMoveWd(' + getDefine(gbi.moveWordTypeValues, type) + ', ' + toString16(offset) + ', ' + toString32(value) + ');';
+      var text = 'gMoveWd(' + getDefine(gbi.MoveWord, type) + ', ' + toString16(offset) + ', ' + toString32(value) + ');';
 
       switch (type) {
-        case gbi.moveWordTypeValues.G_MW_NUMLIGHT:
+        case gbi.MoveWord.G_MW_NUMLIGHT:
           if (offset === gbi.G_MWO_NUMLIGHT) {
             var v = ((value - 0x80000000) >>> 5) - 1;
-            text = 'gsSPNumLights(' + getDefine(gbi.numLightValues, v) + ');';
+            text = 'gsSPNumLights(' + getDefine(gbi.NumLights, v) + ');';
           }
           break;
-        case gbi.moveWordTypeValues.G_MW_SEGMENT:
+        case gbi.MoveWord.G_MW_SEGMENT:
           {
             var v = value === 0 ? '0' : toString32(value);
             text = 'gsSPSegment(' + ((offset >>> 2) & 0xf) + ', ' + v + ');';
@@ -797,26 +797,26 @@ import * as logger from './logger.js';
     }
 
     switch (type) {
-      case gbi.moveWordTypeValues.G_MW_MATRIX:
+      case gbi.MoveWord.G_MW_MATRIX:
         unimplemented(cmd0, cmd1);
         break;
-      case gbi.moveWordTypeValues.G_MW_NUMLIGHT:
+      case gbi.MoveWord.G_MW_NUMLIGHT:
         state.numLights = ((value - 0x80000000) >>> 5) - 1;
         break;
-      case gbi.moveWordTypeValues.G_MW_CLIP:
+      case gbi.MoveWord.G_MW_CLIP:
         /*unimplemented(cmd0,cmd1);*/ break;
-      case gbi.moveWordTypeValues.G_MW_SEGMENT:
+      case gbi.MoveWord.G_MW_SEGMENT:
         state.segments[((offset >>> 2) & 0xf)] = value;
         break;
-      case gbi.moveWordTypeValues.G_MW_FOG:
+      case gbi.MoveWord.G_MW_FOG:
         /*unimplemented(cmd0,cmd1);*/ break;
-      case gbi.moveWordTypeValues.G_MW_LIGHTCOL:
+      case gbi.MoveWord.G_MW_LIGHTCOL:
         unimplemented(cmd0, cmd1);
         break;
-      case gbi.moveWordTypeValues.G_MW_POINTS:
+      case gbi.MoveWord.G_MW_POINTS:
         unimplemented(cmd0, cmd1);
         break;
-      case gbi.moveWordTypeValues.G_MW_PERSPNORM:
+      case gbi.MoveWord.G_MW_PERSPNORM:
         /*unimplemented(cmd0,cmd1);*/ break;
       default:
         unimplemented(cmd0, cmd1);
@@ -1013,20 +1013,20 @@ import * as logger from './logger.js';
 
   function executeGBI1_ClrGeometryMode(cmd0, cmd1, dis) {
     if (dis) {
-      dis.text('gsSPClearGeometryMode(' + gbi.getGeometryModeFlagsText(gbi.geometryModeFlagsGBI1,
-        cmd1) + ');');
+      dis.text('gsSPClearGeometryMode(' +
+        gbi.getGeometryModeFlagsText(gbi.GeometryModeGBI1, cmd1) + ');');
     }
     state.geometryModeBits &= ~cmd1;
-    updateGeometryModeFromBits(gbi.geometryModeFlagsGBI1);
+    updateGeometryModeFromBits(gbi.GeometryModeGBI1);
   }
 
   function executeGBI1_SetGeometryMode(cmd0, cmd1, dis) {
     if (dis) {
-      dis.text('gsSPSetGeometryMode(' + gbi.getGeometryModeFlagsText(gbi.geometryModeFlagsGBI1,
-        cmd1) + ');');
+      dis.text('gsSPSetGeometryMode(' +
+        gbi.getGeometryModeFlagsText(gbi.GeometryModeGBI1, cmd1) + ');');
     }
     state.geometryModeBits |= cmd1;
-    updateGeometryModeFromBits(gbi.geometryModeFlagsGBI1);
+    updateGeometryModeFromBits(gbi.GeometryModeGBI1);
   }
 
   function disassembleSetOtherModeL(dis, len, shift, data) {
@@ -1039,17 +1039,17 @@ import * as logger from './logger.js';
     switch (shift) {
       case gbi.G_MDSFT_ALPHACOMPARE:
         if (len === 2) {
-          text = 'gsDPSetAlphaCompare(' + getDefine(gbi.alphaCompareValues, data) + ');';
+          text = 'gsDPSetAlphaCompare(' + getDefine(gbi.AlphaCompare, data) + ');';
         }
         break;
       case gbi.G_MDSFT_ZSRCSEL:
         if (len === 1) {
-          text = 'gsDPSetDepthSource(' + getDefine(gbi.depthSourceValues, data) + ');';
+          text = 'gsDPSetDepthSource(' + getDefine(gbi.DepthSource, data) + ');';
         }
         break;
       case gbi.G_MDSFT_RENDERMODE:
         if (len === 29) {
-          text = 'gsDPSetRenderMode(' + gbi.getRenderModeFlagsText(data) + ');';
+          text = 'gsDPSetRenderMode(' + gbi.getRenderModeText(data) + ');';
         }
         break;
         //case gbi.G_MDSFT_BLENDER:     break; // set with G_MDSFT_RENDERMODE
@@ -1068,58 +1068,58 @@ import * as logger from './logger.js';
         break;
       case gbi.G_MDSFT_ALPHADITHER:
         if (len === 2) {
-          text = 'gsDPSetAlphaDither(' + getDefine(gbi.alphaDitherValues, data) + ');';
+          text = 'gsDPSetAlphaDither(' + getDefine(gbi.AlphaDither, data) + ');';
         }
         break;
       case gbi.G_MDSFT_RGBDITHER:
         if (len === 2) {
-          text = 'gsDPSetColorDither(' + getDefine(gbi.colorDitherValues, data) + ');';
+          text = 'gsDPSetColorDither(' + getDefine(gbi.ColorDither, data) + ');';
         }
         break; // NB HW2?
       case gbi.G_MDSFT_COMBKEY:
         if (len === 1) {
-          text = 'gsDPSetCombineKey(' + getDefine(gbi.combineKeyValues, data) + ');';
+          text = 'gsDPSetCombineKey(' + getDefine(gbi.CombineKey, data) + ');';
         }
         break;
       case gbi.G_MDSFT_TEXTCONV:
         if (len === 3) {
-          text = 'gsDPSetTextureConvert(' + getDefine(gbi.textureConvertValues, data) + ');';
+          text = 'gsDPSetTextureConvert(' + getDefine(gbi.TextureConvert, data) + ');';
         }
         break;
       case gbi.G_MDSFT_TEXTFILT:
         if (len === 2) {
-          text = 'gsDPSetTextureFilter(' + getDefine(gbi.textureFilterValues, data) + ');';
+          text = 'gsDPSetTextureFilter(' + getDefine(gbi.TextureFilter, data) + ');';
         }
         break;
       case gbi.G_MDSFT_TEXTLOD:
         if (len === 1) {
-          text = 'gsDPSetTextureLOD(' + getDefine(gbi.textureLODValues, data) + ');';
+          text = 'gsDPSetTextureLOD(' + getDefine(gbi.TextureLOD, data) + ');';
         }
         break;
       case gbi.G_MDSFT_TEXTLUT:
         if (len === 2) {
-          text = 'gsDPSetTextureLUT(' + getDefine(gbi.textureLUTValues, data) + ');';
+          text = 'gsDPSetTextureLUT(' + getDefine(gbi.TextureLUT, data) + ');';
         }
         break;
       case gbi.G_MDSFT_TEXTDETAIL:
         if (len === 2) {
-          text = 'gsDPSetTextureDetail(' + getDefine(gbi.textureDetailValues, data) + ');';
+          text = 'gsDPSetTextureDetail(' + getDefine(gbi.TextureDetail, data) + ');';
         }
         break;
       case gbi.G_MDSFT_TEXTPERSP:
         if (len === 1) {
-          text = 'gsDPSetTexturePersp(' + getDefine(gbi.texturePerspValues, data) + ');';
+          text = 'gsDPSetTexturePersp(' + getDefine(gbi.TexturePerspective, data) + ');';
         }
         break;
       case gbi.G_MDSFT_CYCLETYPE:
         if (len === 2) {
-          text = 'gsDPSetCycleType(' + getDefine(gbi.cycleTypeValues, data) + ');';
+          text = 'gsDPSetCycleType(' + getDefine(gbi.CycleType, data) + ');';
         }
         break;
         //case gbi.G_MDSFT_COLORDITHER: if (len === 1) text = 'gsDPSetColorDither(' + dataStr + ');'; break;  // NB HW1?
       case gbi.G_MDSFT_PIPELINE:
         if (len === 1) {
-          text = 'gsDPPipelineMode(' + getDefine(gbi.pipelineModeValues, data) + ');';
+          text = 'gsDPPipelineMode(' + getDefine(gbi.PipelineMode, data) + ');';
         }
         break;
     }
@@ -1187,11 +1187,11 @@ import * as logger from './logger.js';
     state.texture.scaleT = t;
 
     if (on) {
-      state.geometryModeBits |= gbi.geometryModeFlagsGBI1.G_TEXTURE_ENABLE;
+      state.geometryModeBits |= gbi.GeometryModeGBI1.G_TEXTURE_ENABLE;
     } else {
-      state.geometryModeBits &= ~gbi.geometryModeFlagsGBI1.G_TEXTURE_ENABLE;
+      state.geometryModeBits &= ~gbi.GeometryModeGBI1.G_TEXTURE_ENABLE;
     }
-    updateGeometryModeFromBits(gbi.geometryModeFlagsGBI1);
+    updateGeometryModeFromBits(gbi.GeometryModeGBI1);
   }
 
   function executeGBI1_CullDL(cmd0, cmd1) {
@@ -1570,7 +1570,7 @@ import * as logger from './logger.js';
     var bytes_per_line = (w << state.textureImage.size) >>> 1;
     var bytes_per_tmem_line = tile.line << 3;
 
-    if (state.textureImage.size == gbi.imageSizeTypes.G_IM_SIZ_32b) {
+    if (state.textureImage.size == gbi.ImageSize.G_IM_SIZ_32b) {
       bytes_per_tmem_line = bytes_per_tmem_line * 2;
     }
     // if (bytes_per_tmem_line < roundUpMultiple8(bytes_per_line)) {
@@ -1623,8 +1623,8 @@ import * as logger from './logger.js';
     var ram_offset = calcTextureAddress(uls >>> 2, ult >>> 2,
                                         state.textureImage.address,
                                         state.textureImage.width,
-                                        gbi.imageSizeTypes.G_IM_SIZ_16b);
-    var pitch = (state.textureImage.width << gbi.imageSizeTypes.G_IM_SIZ_16b) >>> 1;
+                                        gbi.ImageSize.G_IM_SIZ_16b);
+    var pitch = (state.textureImage.width << gbi.ImageSize.G_IM_SIZ_16b) >>> 1;
 
     var tile = state.tiles[tile_idx];
     var texels = ((lrs - uls) >>> 2) + 1;
@@ -1661,8 +1661,8 @@ import * as logger from './logger.js';
       var cm_t_text = gbi.getClampMirrorWrapText(cm_t);
 
       dis.text('gsDPSetTile(' +
-        getDefine(gbi.imageFormatTypes, format) + ', ' +
-        getDefine(gbi.imageSizeTypes, size) + ', ' +
+        getDefine(gbi.ImageFormat, format) + ', ' +
+        getDefine(gbi.ImageSize, size) + ', ' +
         line + ', ' + tmem + ', ' + gbi.getTileText(tile_idx) + ', ' +
         palette + ', ' +
         cm_t_text + ', ' + mask_t + ', ' + shift_t + ', ' +
@@ -1730,11 +1730,11 @@ import * as logger from './logger.js';
 
     var color = { r: 0, g: 0, b: 0, a: 0 };
 
-    if (cycle_type === gbi.cycleTypeValues.G_CYC_FILL) {
+    if (cycle_type === gbi.CycleType.G_CYC_FILL) {
       x1 += 1;
       y1 += 1;
 
-      if (state.colorImage.size === gbi.imageSizeTypes.G_IM_SIZ_16b) {
+      if (state.colorImage.size === gbi.ImageSize.G_IM_SIZ_16b) {
         color = makeRGBFromRGBA16(state.fillColor & 0xffff);
       } else {
         color = makeRGBFromRGBA32(state.fillColor);
@@ -1746,7 +1746,7 @@ import * as logger from './logger.js';
         gl.clear(gl.COLOR_BUFFER_BIT);
         return;
       }
-    } else if (cycle_type === gbi.cycleTypeValues.G_CYC_COPY) {
+    } else if (cycle_type === gbi.CycleType.G_CYC_COPY) {
       x1 += 1;
       y1 += 1;
     }
@@ -1789,13 +1789,13 @@ import * as logger from './logger.js';
     var cycle_type = getCycleType();
 
     // In copy mode 4 pixels are copied at once.
-    if (cycle_type === gbi.cycleTypeValues.G_CYC_COPY) {
+    if (cycle_type === gbi.CycleType.G_CYC_COPY) {
       dsdx *= 0.25;
     }
 
     // In Fill/Copy mode the coordinates are inclusive (i.e. add 1.0f to the w/h)
-    if (cycle_type === gbi.cycleTypeValues.G_CYC_COPY ||
-      cycle_type === gbi.cycleTypeValues.G_CYC_FILL) {
+    if (cycle_type === gbi.CycleType.G_CYC_COPY ||
+      cycle_type === gbi.CycleType.G_CYC_FILL) {
       xh += 1.0;
       yh += 1.0;
     }
@@ -1828,13 +1828,13 @@ import * as logger from './logger.js';
     var cycle_type = getCycleType();
 
     // In copy mode 4 pixels are copied at once.
-    if (cycle_type === gbi.cycleTypeValues.G_CYC_COPY) {
+    if (cycle_type === gbi.CycleType.G_CYC_COPY) {
       dsdx *= 0.25;
     }
 
     // In Fill/Copy mode the coordinates are inclusive (i.e. add 1.0f to the w/h)
-    if (cycle_type === gbi.cycleTypeValues.G_CYC_COPY ||
-      cycle_type === gbi.cycleTypeValues.G_CYC_FILL) {
+    if (cycle_type === gbi.CycleType.G_CYC_COPY ||
+      cycle_type === gbi.CycleType.G_CYC_FILL) {
       xh += 1.0;
       yh += 1.0;
     }
@@ -1928,8 +1928,8 @@ import * as logger from './logger.js';
     var address = rdpSegmentAddress(cmd1);
 
     if (dis) {
-      dis.text('gsDPSetTextureImage(' + getDefine(gbi.imageFormatTypes, format) + ', ' +
-        getDefine(gbi.imageSizeTypes, size) + ', ' + width + ', ' + toString32(address) + ');');
+      dis.text('gsDPSetTextureImage(' + getDefine(gbi.ImageFormat, format) + ', ' +
+        getDefine(gbi.ImageSize, size) + ', ' + width + ', ' + toString32(address) + ');');
     }
 
     state.textureImage = {
@@ -1958,8 +1958,8 @@ import * as logger from './logger.js';
 
     if (dis) {
       dis.text('gsDPSetColorImage(' +
-        getDefine(gbi.imageFormatTypes, format) + ', ' +
-        getDefine(gbi.imageSizeTypes, size) + ', ' +
+        getDefine(gbi.ImageFormat, format) + ', ' +
+        getDefine(gbi.ImageSize, size) + ', ' +
         width + ', ' + toString32(address) + ');');
     }
 
@@ -2024,12 +2024,12 @@ import * as logger from './logger.js';
 
   function getCoverageTimesAlpha() {
     // fragment coverage (0) or alpha (1)?
-    return (state.rdpOtherModeL & gbi.renderModeFlags.CVG_X_ALPHA) !== 0;
+    return (state.rdpOtherModeL & gbi.RenderMode.CVG_X_ALPHA) !== 0;
   }
 
   function getAlphaCoverageSelect() {
     // use fragment coverage * fragment alpha
-    return (state.rdpOtherModeL & gbi.renderModeFlags.ALPHA_CVG_SEL) !== 0;
+    return (state.rdpOtherModeL & gbi.RenderMode.ALPHA_CVG_SEL) !== 0;
   }
 
   function getCycleType() {
@@ -2102,9 +2102,9 @@ import * as logger from './logger.js';
     var alpha_cvg_sel = getAlphaCoverageSelect();
 
     var cycle_type = getCycleType();
-    if (cycle_type < gbi.cycleTypeValues.G_CYC_COPY) {
+    if (cycle_type < gbi.CycleType.G_CYC_COPY) {
       var blend_mode = state.rdpOtherModeL >> gbi.G_MDSFT_BLENDER;
-      var active_blend_mode = (cycle_type === gbi.cycleTypeValues.G_CYC_2CYCLE ? blend_mode : (
+      var active_blend_mode = (cycle_type === gbi.CycleType.G_CYC_2CYCLE ? blend_mode : (
         blend_mode >>> 2)) & 0x3333;
       var mode = kBlendModeOpaque;
 
@@ -2157,7 +2157,7 @@ import * as logger from './logger.js';
 
     var alpha_threshold = -1.0;
 
-    if ((getAlphaCompareType() === gbi.alphaCompareValues.G_AC_THRESHOLD)) {
+    if ((getAlphaCompareType() === gbi.AlphaCompare.G_AC_THRESHOLD)) {
       // If using cvg, then there's no alpha value to work with
       if (!alpha_cvg_sel) {
         alpha_threshold = ((state.blendColor >>> 0) & 0xff) / 255.0;
@@ -2221,7 +2221,7 @@ import * as logger from './logger.js';
       gl.uniform2f(shader.uTexScaleUniform, uv_scale_u, uv_scale_v);
       gl.uniform2f(shader.uTexOffsetUniform, uv_offset_u, uv_offset_v);
 
-      if (getTextureFilterType() == gbi.textureFilterValues.G_TF_POINT) {
+      if (getTextureFilterType() == gbi.TextureFilter.G_TF_POINT) {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST_MIPMAP_NEAREST);
       } else {
@@ -2317,7 +2317,7 @@ import * as logger from './logger.js';
     // multiply by state.viewport.trans/scale
     var screen0 = convertN64ToDisplay([x0, y0]);
     var screen1 = convertN64ToDisplay([x1, y1]);
-    var depth_source_prim = (state.rdpOtherModeL & gbi.depthSourceValues.G_ZS_PRIM) !== 0;
+    var depth_source_prim = (state.rdpOtherModeL & gbi.DepthSource.G_ZS_PRIM) !== 0;
     var depth = depth_source_prim ? state.primDepth : 0.0;
 
     var vertices = [
@@ -2414,8 +2414,8 @@ import * as logger from './logger.js';
 
     // Disable depth testing
     var zgeom_mode = (state.geometryMode.zbuffer) !== 0;
-    var zcmp_rendermode = (state.rdpOtherModeL & gbi.renderModeFlags.Z_CMP) !== 0;
-    var zupd_rendermode = (state.rdpOtherModeL & gbi.renderModeFlags.Z_UPD) !== 0;
+    var zcmp_rendermode = (state.rdpOtherModeL & gbi.RenderMode.Z_CMP) !== 0;
+    var zupd_rendermode = (state.rdpOtherModeL & gbi.RenderMode.Z_UPD) !== 0;
 
     if ((zgeom_mode && zcmp_rendermode) || zupd_rendermode) {
       gl.enable(gl.DEPTH_TEST);
@@ -2571,7 +2571,7 @@ import * as logger from './logger.js';
 
     if (dis) {
       dis.text('gsSPModifyVertex(' + vtx + ',' +
-        getDefine(gbi.modifyVtxValues, offset) + ',' +
+        getDefine(gbi.ModifyVtx, offset) + ',' +
         toString32(value) + ');');
     }
 
@@ -2584,11 +2584,11 @@ import * as logger from './logger.js';
     var vertex = state.projectedVertices[vtx];
 
     switch (offset) {
-      case gbi.modifyVtxValues.G_MWO_POINT_RGBA:
+      case gbi.ModifyVtx.G_MWO_POINT_RGBA:
         hleHalt('unhandled modifyVtx');
         break;
 
-      case gbi.modifyVtxValues.G_MWO_POINT_ST:
+      case gbi.ModifyVtx.G_MWO_POINT_ST:
         // u/v are signed
         var u = (value >> 16);
         var v = ((value & 0xffff) << 16) >> 16;
@@ -2597,11 +2597,11 @@ import * as logger from './logger.js';
         vertex.v = v * state.texture.scaleT / 32.0;
         break;
 
-      case gbi.modifyVtxValues.G_MWO_POINT_XYSCREEN:
+      case gbi.ModifyVtx.G_MWO_POINT_XYSCREEN:
         hleHalt('unhandled modifyVtx');
         break;
 
-      case gbi.modifyVtxValues.G_MWO_POINT_ZSCREEN:
+      case gbi.ModifyVtx.G_MWO_POINT_ZSCREEN:
         hleHalt('unhandled modifyVtx');
         break;
 
@@ -2725,11 +2725,11 @@ import * as logger from './logger.js';
     state.texture.scaleT = t;
 
     if (on) {
-      state.geometryModeBits |= gbi.geometryModeFlagsGBI2.G_TEXTURE_ENABLE;
+      state.geometryModeBits |= gbi.GeometryModeGBI2.G_TEXTURE_ENABLE;
     } else {
-      state.geometryModeBits &= ~gbi.geometryModeFlagsGBI2.G_TEXTURE_ENABLE;
+      state.geometryModeBits &= ~gbi.GeometryModeGBI2.G_TEXTURE_ENABLE;
     }
-    updateGeometryModeFromBits(gbi.geometryModeFlagsGBI2);
+    updateGeometryModeFromBits(gbi.GeometryModeGBI2);
   }
 
   function executeGBI2_GeometryMode(cmd0, cmd1, dis) {
@@ -2738,13 +2738,13 @@ import * as logger from './logger.js';
 
     if (dis) {
       dis.text('gsSPGeometryMode(~(' +
-        gbi.getGeometryModeFlagsText(gbi.geometryModeFlagsGBI2, ~arg0) + '),' +
-        gbi.getGeometryModeFlagsText(gbi.geometryModeFlagsGBI2, arg1) + ');');
+        gbi.getGeometryModeFlagsText(gbi.GeometryModeGBI2, ~arg0) + '),' +
+        gbi.getGeometryModeFlagsText(gbi.GeometryModeGBI2, arg1) + ');');
     }
 
     state.geometryModeBits &= arg0;
     state.geometryModeBits |= arg1;
-    updateGeometryModeFromBits(gbi.geometryModeFlagsGBI2);
+    updateGeometryModeFromBits(gbi.GeometryModeGBI2);
   }
 
   function executeGBI2_Matrix(cmd0, cmd1, dis) {
@@ -2801,15 +2801,15 @@ import * as logger from './logger.js';
     var value = cmd1;
 
     if (dis) {
-      var text = 'gMoveWd(' + getDefine(gbi.moveWordTypeValues, type) + ', ' +
+      var text = 'gMoveWd(' + getDefine(gbi.MoveWord, type) + ', ' +
         toString16(offset) + ', ' + toString32(value) + ');';
 
       switch (type) {
-        case gbi.moveWordTypeValues.G_MW_NUMLIGHT:
+        case gbi.MoveWord.G_MW_NUMLIGHT:
           var v = Math.floor(value / 24);
-          text = 'gsSPNumLights(' + getDefine(gbi.numLightValues, v) + ');';
+          text = 'gsSPNumLights(' + getDefine(gbi.NumLights, v) + ');';
           break;
-        case gbi.moveWordTypeValues.G_MW_SEGMENT:
+        case gbi.MoveWord.G_MW_SEGMENT:
           {
             var v = value === 0 ? '0' : toString32(value);
             text = 'gsSPSegment(' + ((offset >>> 2) & 0xf) + ', ' + v + ');';
@@ -2820,21 +2820,21 @@ import * as logger from './logger.js';
     }
 
     switch (type) {
-      // case gbi.moveWordTypeValues.G_MW_MATRIX:  unimplemented(cmd0,cmd1); break;
-      case gbi.moveWordTypeValues.G_MW_NUMLIGHT:
+      // case gbi.MoveWord.G_MW_MATRIX:  unimplemented(cmd0,cmd1); break;
+      case gbi.MoveWord.G_MW_NUMLIGHT:
         state.numLights = Math.floor(value / 24);
         break;
-      case gbi.moveWordTypeValues.G_MW_CLIP:
+      case gbi.MoveWord.G_MW_CLIP:
         /*unimplemented(cmd0,cmd1);*/ break;
-      case gbi.moveWordTypeValues.G_MW_SEGMENT:
+      case gbi.MoveWord.G_MW_SEGMENT:
         state.segments[((offset >>> 2) & 0xf)] = value;
         break;
-      case gbi.moveWordTypeValues.G_MW_FOG:
+      case gbi.MoveWord.G_MW_FOG:
         /*unimplemented(cmd0,cmd1);*/ break;
-      case gbi.moveWordTypeValues.G_MW_LIGHTCOL:
+      case gbi.MoveWord.G_MW_LIGHTCOL:
         /*unimplemented(cmd0,cmd1);*/ break;
-        // case gbi.moveWordTypeValues.G_MW_POINTS:    unimplemented(cmd0,cmd1); break;
-      case gbi.moveWordTypeValues.G_MW_PERSPNORM:
+        // case gbi.MoveWord.G_MW_POINTS:    unimplemented(cmd0,cmd1); break;
+      case gbi.MoveWord.G_MW_PERSPNORM:
         /*unimplemented(cmd0,cmd1);*/ break;
       default:
         unimplemented(cmd0, cmd1);
@@ -2850,19 +2850,19 @@ import * as logger from './logger.js';
     tip += '<br>';
 
     switch (type) {
-      // TODO(hulkholden): moveMemTypeValuesGBI2?
-      case gbi.moveMemTypeValues.G_MV_VIEWPORT:
+      // TODO(hulkholden): MoveMemGBI2?
+      case gbi.MoveMemGBI1.G_MV_VIEWPORT:
         tip += previewViewport(address);
         break;
 
-      case gbi.moveMemTypeValues.G_MV_L0:
-      case gbi.moveMemTypeValues.G_MV_L1:
-      case gbi.moveMemTypeValues.G_MV_L2:
-      case gbi.moveMemTypeValues.G_MV_L3:
-      case gbi.moveMemTypeValues.G_MV_L4:
-      case gbi.moveMemTypeValues.G_MV_L5:
-      case gbi.moveMemTypeValues.G_MV_L6:
-      case gbi.moveMemTypeValues.G_MV_L7:
+      case gbi.MoveMemGBI1.G_MV_L0:
+      case gbi.MoveMemGBI1.G_MV_L1:
+      case gbi.MoveMemGBI1.G_MV_L2:
+      case gbi.MoveMemGBI1.G_MV_L3:
+      case gbi.MoveMemGBI1.G_MV_L4:
+      case gbi.MoveMemGBI1.G_MV_L5:
+      case gbi.MoveMemGBI1.G_MV_L6:
+      case gbi.MoveMemGBI1.G_MV_L7:
         tip += previewLight(address);
         break;
     }
@@ -2879,14 +2879,14 @@ import * as logger from './logger.js';
     if (dis) {
       var address_str = toString32(address);
 
-      var type_str = getDefine(gbi.moveMemTypeValuesGBI2, type);
+      var type_str = getDefine(gbi.MoveMemGBI2, type);
       var text = 'gsDma1p(G_MOVEMEM, ' + address_str + ', ' + length + ', ' + type_str + ');';
 
       switch (type) {
-        case gbi.moveMemTypeValuesGBI2.G_GBI2_MV_VIEWPORT:
+        case gbi.MoveMemGBI2.G_GBI2_MV_VIEWPORT:
           text = 'gsSPViewport(' + address_str + ');';
           break;
-        case gbi.moveMemTypeValuesGBI2.G_GBI2_MV_LIGHT:
+        case gbi.MoveMemGBI2.G_GBI2_MV_LIGHT:
           var offset2 = (cmd0 >>> 5) & 0x3fff;
           switch (offset2) {
             case 0x00:
@@ -2908,10 +2908,10 @@ import * as logger from './logger.js';
     }
 
     switch (type) {
-      case gbi.moveMemTypeValuesGBI2.G_GBI2_MV_VIEWPORT:
+      case gbi.MoveMemGBI2.G_GBI2_MV_VIEWPORT:
         moveMemViewport(address);
         break;
-      case gbi.moveMemTypeValuesGBI2.G_GBI2_MV_LIGHT:
+      case gbi.MoveMemGBI2.G_GBI2_MV_LIGHT:
         var offset2 = (cmd0 >>> 5) & 0x3fff;
         switch (offset2) {
           case 0x00:
@@ -3196,20 +3196,20 @@ import * as logger from './logger.js';
     var h = state.rdpOtherModeH;
     const vals = new Map([
       //var G_MDSFT_BLENDMASK = 0;
-      ['alphaCompare', getDefine(gbi.alphaCompareValues, l & gbi.G_AC_MASK)],
-      ['depthSource', getDefine(gbi.depthSourceValues, l & gbi.G_ZS_MASK)],
-      ['renderMode', gbi.getRenderModeFlagsText(l)],
-      ['alphaDither', getDefine(gbi.alphaDitherValues, h & gbi.G_AD_MASK)],
-      ['colorDither', getDefine(gbi.colorDitherValues, h & gbi.G_CD_MASK)],
-      ['combineKey', getDefine(gbi.combineKeyValues, h & gbi.G_CK_MASK)],
-      ['textureConvert', getDefine(gbi.textureConvertValues, h & gbi.G_TC_MASK)],
-      ['textureFilter', getDefine(gbi.textureFilterValues, h & gbi.G_TF_MASK)],
-      ['textureLUT', getDefine(gbi.textureLUTValues, h & gbi.G_TT_MASK)],
-      ['textureLOD', getDefine(gbi.textureLODValues, h & gbi.G_TL_MASK)],
-      ['texturePersp', getDefine(gbi.texturePerspValues, h & gbi.G_TP_MASK)],
-      ['textureDetail', getDefine(gbi.textureDetailValues, h & gbi.G_TD_MASK)],
-      ['cycleType', getDefine(gbi.cycleTypeValues, h & gbi.G_CYC_MASK)],
-      ['pipelineMode', getDefine(gbi.pipelineModeValues, h & gbi.G_PM_MASK)],
+      ['alphaCompare', getDefine(gbi.AlphaCompare, l & gbi.G_AC_MASK)],
+      ['depthSource', getDefine(gbi.DepthSource, l & gbi.G_ZS_MASK)],
+      ['renderMode', gbi.getRenderModeText(l)],
+      ['alphaDither', getDefine(gbi.AlphaDither, h & gbi.G_AD_MASK)],
+      ['colorDither', getDefine(gbi.ColorDither, h & gbi.G_CD_MASK)],
+      ['combineKey', getDefine(gbi.CombineKey, h & gbi.G_CK_MASK)],
+      ['textureConvert', getDefine(gbi.TextureConvert, h & gbi.G_TC_MASK)],
+      ['textureFilter', getDefine(gbi.TextureFilter, h & gbi.G_TF_MASK)],
+      ['textureLUT', getDefine(gbi.TextureLUT, h & gbi.G_TT_MASK)],
+      ['textureLOD', getDefine(gbi.TextureLOD, h & gbi.G_TL_MASK)],
+      ['texturePersp', getDefine(gbi.TexturePerspective, h & gbi.G_TP_MASK)],
+      ['textureDetail', getDefine(gbi.TextureDetail, h & gbi.G_TD_MASK)],
+      ['cycleType', getDefine(gbi.CycleType, h & gbi.G_CYC_MASK)],
+      ['pipelineMode', getDefine(gbi.PipelineMode, h & gbi.G_PM_MASK)],
     ]);
 
     var $table = $('<table class="table table-condensed" style="width: auto;"></table>');
@@ -3240,7 +3240,7 @@ import * as logger from './logger.js';
 
   function buildCombinerTab() {
     var $p = $('<pre class="combine"></pre>');
-    $p.append(getDefine(gbi.cycleTypeValues, getCycleType()) + '\n');
+    $p.append(getDefine(gbi.CycleType, getCycleType()) + '\n');
     $p.append(buildColorsTable());
     $p.append(shaders.getCombinerText(state.combine.hi, state.combine.lo));
     return $p;
@@ -3332,8 +3332,8 @@ import * as logger from './logger.js';
 
       var vals = [];
       vals.push(i);
-      vals.push(getDefine(gbi.imageFormatTypes, tile.format));
-      vals.push(getDefine(gbi.imageSizeTypes, tile.size));
+      vals.push(getDefine(gbi.ImageFormat, tile.format));
+      vals.push(getDefine(gbi.ImageSize, tile.size));
       vals.push(tile.line);
       vals.push(tile.tmem);
       vals.push(tile.palette);
@@ -3810,8 +3810,8 @@ import * as logger from './logger.js';
     var bytes_per_line = tile.line << 3;
 
     // NB! RGBA/32 line needs to be doubled.
-    if (tile.format == gbi.imageFormatTypes.G_IM_FMT_RGBA &&
-      tile.size == gbi.imageSizeTypes.G_IM_SIZ_32b) {
+    if (tile.format == gbi.ImageFormat.G_IM_FMT_RGBA &&
+      tile.size == gbi.ImageSize.G_IM_SIZ_32b) {
       bytes_per_line *= 2;
     }
 
@@ -3822,12 +3822,12 @@ import * as logger from './logger.js';
     var hash = hashTmem(src, tmem_offset, len, 0);
 
     // For palettised textures, check the palette entries too
-    if (tile.format === gbi.imageFormatTypes.G_IM_FMT_CI ||
-      tile.format === gbi.imageFormatTypes.G_IM_FMT_RGBA) { // NB RGBA check is for extreme-g, which specifies RGBA/4 and RGBA/8 instead of CI/4 and CI/8
+    if (tile.format === gbi.ImageFormat.G_IM_FMT_CI ||
+      tile.format === gbi.ImageFormat.G_IM_FMT_RGBA) { // NB RGBA check is for extreme-g, which specifies RGBA/4 and RGBA/8 instead of CI/4 and CI/8
 
-      if (tile.size === gbi.imageSizeTypes.G_IM_SIZ_8b) {
+      if (tile.size === gbi.ImageSize.G_IM_SIZ_8b) {
         hash = hashTmem(src, 0x100 << 3, 256 * 2, hash);
-      } else if (tile.size === gbi.imageSizeTypes.G_IM_SIZ_4b) {
+      } else if (tile.size === gbi.ImageSize.G_IM_SIZ_4b) {
         hash = hashTmem(src, (0x100 << 3) + (tile.palette * 16 * 2), 16 * 2, hash);
       }
     }
@@ -3874,8 +3874,8 @@ import * as logger from './logger.js';
       return null;
 
     $textureOutput.append(
-      getDefine(gbi.imageFormatTypes, tile.format) + ', ' +
-      getDefine(gbi.imageSizeTypes, tile.size) + ',' +
+      getDefine(gbi.ImageFormat, tile.format) + ', ' +
+      getDefine(gbi.ImageSize, tile.size) + ',' +
       width + 'x' + height + ', ' +
       '<br>');
 
@@ -3885,28 +3885,28 @@ import * as logger from './logger.js';
     var img_data = ctx.createImageData(texture.nativeWidth, texture.nativeHeight);
 
     // NB: assume RGBA16 for G_TT_NONE
-    var conv_fn = (tlutformat === gbi.textureLUTValues.G_TT_IA16) ?
+    var conv_fn = (tlutformat === gbi.TextureLUT.G_TT_IA16) ?
                   convert.convertIA16Pixel : convert.convertRGBA16Pixel;
 
     switch (tile.format) {
-      case gbi.imageFormatTypes.G_IM_FMT_RGBA:
+      case gbi.ImageFormat.G_IM_FMT_RGBA:
         switch (tile.size) {
-          case gbi.imageSizeTypes.G_IM_SIZ_32b:
+          case gbi.ImageSize.G_IM_SIZ_32b:
             convert.convertRGBA32(img_data, state.tmemData, tile.tmem, tile.line, width, height);
             handled = true;
             break;
-          case gbi.imageSizeTypes.G_IM_SIZ_16b:
+          case gbi.ImageSize.G_IM_SIZ_16b:
             convert.convertRGBA16(img_data, state.tmemData, tile.tmem, tile.line, width, height);
             handled = true;
             break;
 
             // Hack - Extreme-G specifies RGBA/8 RGBA/4 textures, but they're really CI
-          case gbi.imageSizeTypes.G_IM_SIZ_8b:
+          case gbi.ImageSize.G_IM_SIZ_8b:
             convert.convertCI8(img_data, state.tmemData, tile.tmem, tile.line, width, height,
               0x100, conv_fn);
             handled = true;
             break;
-          case gbi.imageSizeTypes.G_IM_SIZ_4b:
+          case gbi.ImageSize.G_IM_SIZ_4b:
             convert.convertCI4(img_data, state.tmemData, tile.tmem, tile.line, width, height,
               0x100 + ((tile.palette * 16 * 2) >>> 3), conv_fn);
             handled = true;
@@ -3914,44 +3914,44 @@ import * as logger from './logger.js';
         }
         break;
 
-      case gbi.imageFormatTypes.G_IM_FMT_IA:
+      case gbi.ImageFormat.G_IM_FMT_IA:
         switch (tile.size) {
-          case gbi.imageSizeTypes.G_IM_SIZ_16b:
+          case gbi.ImageSize.G_IM_SIZ_16b:
             convert.convertIA16(img_data, state.tmemData, tile.tmem, tile.line, width, height);
             handled = true;
             break;
-          case gbi.imageSizeTypes.G_IM_SIZ_8b:
+          case gbi.ImageSize.G_IM_SIZ_8b:
             convert.convertIA8(img_data, state.tmemData, tile.tmem, tile.line, width, height);
             handled = true;
             break;
-          case gbi.imageSizeTypes.G_IM_SIZ_4b:
+          case gbi.ImageSize.G_IM_SIZ_4b:
             convert.convertIA4(img_data, state.tmemData, tile.tmem, tile.line, width, height);
             handled = true;
             break;
         }
         break;
 
-      case gbi.imageFormatTypes.G_IM_FMT_I:
+      case gbi.ImageFormat.G_IM_FMT_I:
         switch (tile.size) {
-          case gbi.imageSizeTypes.G_IM_SIZ_8b:
+          case gbi.ImageSize.G_IM_SIZ_8b:
             convert.convertI8(img_data, state.tmemData, tile.tmem, tile.line, width, height);
             handled = true;
             break;
-          case gbi.imageSizeTypes.G_IM_SIZ_4b:
+          case gbi.ImageSize.G_IM_SIZ_4b:
             convert.convertI4(img_data, state.tmemData, tile.tmem, tile.line, width, height);
             handled = true;
             break;
         }
         break;
 
-      case gbi.imageFormatTypes.G_IM_FMT_CI:
+      case gbi.ImageFormat.G_IM_FMT_CI:
         switch (tile.size) {
-          case gbi.imageSizeTypes.G_IM_SIZ_8b:
+          case gbi.ImageSize.G_IM_SIZ_8b:
             convert.convertCI8(img_data, state.tmemData, tile.tmem, tile.line, width, height,
               0x100, conv_fn);
             handled = true;
             break;
-          case gbi.imageSizeTypes.G_IM_SIZ_4b:
+          case gbi.ImageSize.G_IM_SIZ_4b:
             convert.convertCI4(img_data, state.tmemData, tile.tmem, tile.line, width, height,
               0x100 + ((tile.palette * 16 * 2) >>> 3), conv_fn);
             handled = true;
@@ -3972,8 +3972,8 @@ import * as logger from './logger.js';
       $textureOutput.append('<br>');
     } else {
       var msg =
-        getDefine(gbi.imageFormatTypes, tile.format) + '/' +
-        getDefine(gbi.imageSizeTypes, tile.size) + ' is unhandled';
+        getDefine(gbi.ImageFormat, tile.format) + '/' +
+        getDefine(gbi.ImageSize, tile.size) + ' is unhandled';
       $textureOutput.append(msg);
       // FIXME: fill with placeholder texture
       hleHalt(msg);
