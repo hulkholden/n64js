@@ -109,7 +109,7 @@ export function getOtherModeHShiftCountName(value) {
   return format.toString8(value);
 }
 
-export const MoveMemGBI2 = {
+export const MoveMemGBI2 = makeEnum({
   G_GBI2_MV_VIEWPORT: 8,
   G_GBI2_MV_LIGHT:    10,
   G_GBI2_MV_POINT:    12,
@@ -124,7 +124,7 @@ export const MoveMemGBI2 = {
   G_GBI2_MVO_L5:      7 * 24,
   G_GBI2_MVO_L6:      8 * 24,
   G_GBI2_MVO_L7:      9 * 24,
-};
+});
 
 export const G_PM_MASK  = 1 << G_MDSFT_PIPELINE;
 export const G_CYC_MASK = 3 << G_MDSFT_CYCLETYPE;
@@ -148,7 +148,7 @@ export const G_MTX_PUSH       = 0x04;
 export const G_DL_PUSH   = 0x00;
 export const G_DL_NOPUSH = 0x01;
 
-export const MoveWord = {
+export const MoveWord = makeEnum({
   G_MW_MATRIX:    0x00,
   G_MW_NUMLIGHT:  0x02,
   G_MW_CLIP:      0x04,
@@ -157,9 +157,9 @@ export const MoveWord = {
   G_MW_LIGHTCOL:  0x0a,
   G_MW_POINTS:    0x0c,
   G_MW_PERSPNORM: 0x0e,
-};
+});
 
-export const MoveMemGBI1 = {
+export const MoveMemGBI1 = makeEnum({
   G_MV_VIEWPORT: 0x80,
   G_MV_LOOKATY:  0x82,
   G_MV_LOOKATX:  0x84,
@@ -176,7 +176,7 @@ export const MoveMemGBI1 = {
   G_MV_MATRIX_2: 0x98,
   G_MV_MATRIX_3: 0x9a,
   G_MV_MATRIX_4: 0x9c,
-};
+});
 
 export const G_MWO_NUMLIGHT       = 0x00;
 export const G_MWO_CLIP_RNX       = 0x04;
@@ -233,14 +233,14 @@ export const G_MWO_MATRIX_ZZ_ZW_F = 0x34;
 export const G_MWO_MATRIX_WX_WY_F = 0x38;
 export const G_MWO_MATRIX_WZ_WW_F = 0x3c;
 
-export const ModifyVtx = {
+export const ModifyVtx = makeEnum({
   G_MWO_POINT_RGBA:        0x10,
   G_MWO_POINT_ST:          0x14,
   G_MWO_POINT_XYSCREEN:    0x18,
   G_MWO_POINT_ZSCREEN:     0x1c,
-};
+});
 
-export const NumLights = {
+export const NumLights = makeEnum({
   //NUMLIGHTS_0: 1,
   NUMLIGHTS_1: 1,
   NUMLIGHTS_2: 2,
@@ -249,7 +249,7 @@ export const NumLights = {
   NUMLIGHTS_5: 5,
   NUMLIGHTS_6: 6,
   NUMLIGHTS_7: 7,
-};
+});
 
 export const G_TX_LOADTILE   = 7;
 export const G_TX_RENDERTILE = 0;
@@ -275,6 +275,12 @@ export function getClampMirrorWrapText(flags) {
 
   return flags;
 }
+
+export const ScissorMode = makeEnum({
+  G_SC_NON_INTERLACE: 0,
+  G_SC_ODD_INTERLACE: 3,
+  G_SC_EVEN_INTERLACE: 2
+});
 
 export const GeometryModeGBI1 = {
   G_ZBUFFER:            0x00000001,
@@ -329,96 +335,116 @@ export function getGeometryModeFlagsText(flags, data) {
   return t.length > 0 ? t.substr(1) : '0';
 }
 
-export const ImageFormat = {
+/**
+ * Adds a nameOf function to the provided Object so that we can easily find the
+ * name for a given value. e.g.:
+ *     var name = gbi.Foo.nameOf(fooValue);
+ * @param {!Object<string, number>} values
+ * @return {!Object<string, number>}
+ */
+function makeEnum(values) {
+  values.nameOf = (value) => {
+    for (var name in values) {
+      if (values.hasOwnProperty(name) && values[name] === value) {
+        return name;
+      }
+    }
+    return format.toString32(value);
+  };
+
+  return Object.freeze(values);
+}
+
+export const ImageFormat = makeEnum({
   G_IM_FMT_RGBA:    0,
   G_IM_FMT_YUV:     1,
   G_IM_FMT_CI:      2,
   G_IM_FMT_IA:      3,
   G_IM_FMT_I:       4,
-};
+});
 
-export const ImageSize = {
+export const ImageSize = makeEnum({
   G_IM_SIZ_4b:      0,
   G_IM_SIZ_8b:      1,
   G_IM_SIZ_16b:     2,
   G_IM_SIZ_32b:     3,
-};
+});
 
-export const PipelineMode = {
+export const PipelineMode = makeEnum({
   G_PM_1PRIMITIVE:   1 << G_MDSFT_PIPELINE,
   G_PM_NPRIMITIVE:   0 << G_MDSFT_PIPELINE,
-};
+});
 
-export const CycleType = {
+export const CycleType = makeEnum({
   G_CYC_1CYCLE:     0 << G_MDSFT_CYCLETYPE,
   G_CYC_2CYCLE:     1 << G_MDSFT_CYCLETYPE,
   G_CYC_COPY:       2 << G_MDSFT_CYCLETYPE,
   G_CYC_FILL:       3 << G_MDSFT_CYCLETYPE,
-};
+});
 
-export const TexturePerspective = {
+export const TexturePerspective = makeEnum({
   G_TP_NONE:        0 << G_MDSFT_TEXTPERSP,
   G_TP_PERSP:       1 << G_MDSFT_TEXTPERSP,
-};
+});
 
-export const TextureDetail = {
+export const TextureDetail = makeEnum({
   G_TD_CLAMP:       0 << G_MDSFT_TEXTDETAIL,
   G_TD_SHARPEN:     1 << G_MDSFT_TEXTDETAIL,
   G_TD_DETAIL:      2 << G_MDSFT_TEXTDETAIL,
-};
+});
 
-export const TextureLOD = {
+export const TextureLOD = makeEnum({
   G_TL_TILE:        0 << G_MDSFT_TEXTLOD,
   G_TL_LOD:         1 << G_MDSFT_TEXTLOD,
-};
+});
 
-export const TextureLUT = {
+export const TextureLUT = makeEnum({
   G_TT_NONE:        0 << G_MDSFT_TEXTLUT,
   G_TT_RGBA16:      2 << G_MDSFT_TEXTLUT,
   G_TT_IA16:        3 << G_MDSFT_TEXTLUT,
-};
+});
 
-export const TextureFilter = {
+export const TextureFilter = makeEnum({
   G_TF_POINT:       0 << G_MDSFT_TEXTFILT,
   G_TF_AVERAGE:     3 << G_MDSFT_TEXTFILT,
   G_TF_BILERP:      2 << G_MDSFT_TEXTFILT,
-};
+});
 
-export const TextureConvert = {
+export const TextureConvert = makeEnum({
   G_TC_CONV:       0 << G_MDSFT_TEXTCONV,
   G_TC_FILTCONV:   5 << G_MDSFT_TEXTCONV,
   G_TC_FILT:       6 << G_MDSFT_TEXTCONV,
-};
+});
 
-export const CombineKey = {
+export const CombineKey = makeEnum({
   G_CK_NONE:        0 << G_MDSFT_COMBKEY,
   G_CK_KEY:         1 << G_MDSFT_COMBKEY,
-};
+});
 
-export const ColorDither = {
+export const ColorDither = makeEnum({
   G_CD_MAGICSQ:     0 << G_MDSFT_RGBDITHER,
   G_CD_BAYER:       1 << G_MDSFT_RGBDITHER,
   G_CD_NOISE:       2 << G_MDSFT_RGBDITHER,
   G_CD_DISABLE:     3 << G_MDSFT_RGBDITHER,
-};
+});
 
-export const AlphaDither = {
+export const AlphaDither = makeEnum({
   G_AD_PATTERN:     0 << G_MDSFT_ALPHADITHER,
   G_AD_NOTPATTERN:  1 << G_MDSFT_ALPHADITHER,
   G_AD_NOISE:       2 << G_MDSFT_ALPHADITHER,
   G_AD_DISABLE:     3 << G_MDSFT_ALPHADITHER,
-};
+});
 
-export const AlphaCompare = {
+export const AlphaCompare = makeEnum({
   G_AC_NONE:          0 << G_MDSFT_ALPHACOMPARE,
   G_AC_THRESHOLD:     1 << G_MDSFT_ALPHACOMPARE,
   G_AC_DITHER:        3 << G_MDSFT_ALPHACOMPARE,
-};
+});
 
-export const DepthSource = {
+export const DepthSource = makeEnum({
   G_ZS_PIXEL:         0 << G_MDSFT_ZSRCSEL,
   G_ZS_PRIM:          1 << G_MDSFT_ZSRCSEL,
-};
+});
 
 const blendColourSources = [
   'G_BL_CLR_IN',

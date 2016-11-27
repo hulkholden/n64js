@@ -738,7 +738,7 @@ import * as logger from './logger.js';
     if (dis) {
       var address_str = toString32(address);
 
-      var type_str = getDefine(gbi.MoveMemGBI1, type);
+      var type_str = gbi.MoveMemGBI1.nameOf(type);
       var text = 'gsDma1p(G_MOVEMEM, ' + address_str + ', ' + length + ', ' + type_str + ');';
 
       switch (type) {
@@ -777,13 +777,13 @@ import * as logger from './logger.js';
     var value = cmd1;
 
     if (dis) {
-      var text = 'gMoveWd(' + getDefine(gbi.MoveWord, type) + ', ' + toString16(offset) + ', ' + toString32(value) + ');';
+      var text = 'gMoveWd(' + gbi.MoveWord.nameOf(type) + ', ' + toString16(offset) + ', ' + toString32(value) + ');';
 
       switch (type) {
         case gbi.MoveWord.G_MW_NUMLIGHT:
           if (offset === gbi.G_MWO_NUMLIGHT) {
             var v = ((value - 0x80000000) >>> 5) - 1;
-            text = 'gsSPNumLights(' + getDefine(gbi.NumLights, v) + ');';
+            text = 'gsSPNumLights(' + gbi.NumLights.nameOf(v) + ');';
           }
           break;
         case gbi.MoveWord.G_MW_SEGMENT:
@@ -1039,12 +1039,12 @@ import * as logger from './logger.js';
     switch (shift) {
       case gbi.G_MDSFT_ALPHACOMPARE:
         if (len === 2) {
-          text = 'gsDPSetAlphaCompare(' + getDefine(gbi.AlphaCompare, data) + ');';
+          text = 'gsDPSetAlphaCompare(' + gbi.AlphaCompare.nameOf(data) + ');';
         }
         break;
       case gbi.G_MDSFT_ZSRCSEL:
         if (len === 1) {
-          text = 'gsDPSetDepthSource(' + getDefine(gbi.DepthSource, data) + ');';
+          text = 'gsDPSetDepthSource(' + gbi.DepthSource.nameOf(data) + ');';
         }
         break;
       case gbi.G_MDSFT_RENDERMODE:
@@ -1068,58 +1068,58 @@ import * as logger from './logger.js';
         break;
       case gbi.G_MDSFT_ALPHADITHER:
         if (len === 2) {
-          text = 'gsDPSetAlphaDither(' + getDefine(gbi.AlphaDither, data) + ');';
+          text = 'gsDPSetAlphaDither(' + gbi.AlphaDither.nameOf(data) + ');';
         }
         break;
       case gbi.G_MDSFT_RGBDITHER:
         if (len === 2) {
-          text = 'gsDPSetColorDither(' + getDefine(gbi.ColorDither, data) + ');';
+          text = 'gsDPSetColorDither(' + gbi.ColorDither.nameOf(data) + ');';
         }
         break; // NB HW2?
       case gbi.G_MDSFT_COMBKEY:
         if (len === 1) {
-          text = 'gsDPSetCombineKey(' + getDefine(gbi.CombineKey, data) + ');';
+          text = 'gsDPSetCombineKey(' + gbi.CombineKey.nameOf(data) + ');';
         }
         break;
       case gbi.G_MDSFT_TEXTCONV:
         if (len === 3) {
-          text = 'gsDPSetTextureConvert(' + getDefine(gbi.TextureConvert, data) + ');';
+          text = 'gsDPSetTextureConvert(' + gbi.TextureConvert.nameOf(data) + ');';
         }
         break;
       case gbi.G_MDSFT_TEXTFILT:
         if (len === 2) {
-          text = 'gsDPSetTextureFilter(' + getDefine(gbi.TextureFilter, data) + ');';
+          text = 'gsDPSetTextureFilter(' + gbi.TextureFilter.nameOf(data) + ');';
         }
         break;
       case gbi.G_MDSFT_TEXTLOD:
         if (len === 1) {
-          text = 'gsDPSetTextureLOD(' + getDefine(gbi.TextureLOD, data) + ');';
+          text = 'gsDPSetTextureLOD(' + gbi.TextureLOD.nameOf(data) + ');';
         }
         break;
       case gbi.G_MDSFT_TEXTLUT:
         if (len === 2) {
-          text = 'gsDPSetTextureLUT(' + getDefine(gbi.TextureLUT, data) + ');';
+          text = 'gsDPSetTextureLUT(' + gbi.TextureLUT.nameOf(data) + ');';
         }
         break;
       case gbi.G_MDSFT_TEXTDETAIL:
         if (len === 2) {
-          text = 'gsDPSetTextureDetail(' + getDefine(gbi.TextureDetail, data) + ');';
+          text = 'gsDPSetTextureDetail(' + gbi.TextureDetail.nameOf(data) + ');';
         }
         break;
       case gbi.G_MDSFT_TEXTPERSP:
         if (len === 1) {
-          text = 'gsDPSetTexturePersp(' + getDefine(gbi.TexturePerspective, data) + ');';
+          text = 'gsDPSetTexturePersp(' + gbi.TexturePerspective.nameOf(data) + ');';
         }
         break;
       case gbi.G_MDSFT_CYCLETYPE:
         if (len === 2) {
-          text = 'gsDPSetCycleType(' + getDefine(gbi.CycleType, data) + ');';
+          text = 'gsDPSetCycleType(' + gbi.CycleType.nameOf(data) + ');';
         }
         break;
         //case gbi.G_MDSFT_COLORDITHER: if (len === 1) text = 'gsDPSetColorDither(' + dataStr + ');'; break;  // NB HW1?
       case gbi.G_MDSFT_PIPELINE:
         if (len === 1) {
-          text = 'gsDPPipelineMode(' + getDefine(gbi.PipelineMode, data) + ');';
+          text = 'gsDPPipelineMode(' + gbi.PipelineMode.nameOf(data) + ');';
         }
         break;
     }
@@ -1386,12 +1386,6 @@ import * as logger from './logger.js';
     }
   }
 
-  var scissorModeValues = {
-    G_SC_NON_INTERLACE: 0,
-    G_SC_ODD_INTERLACE: 3,
-    G_SC_EVEN_INTERLACE: 2
-  };
-
   function executeSetScissor(cmd0, cmd1, dis) {
     var x0 = ((cmd0 >>> 12) & 0xfff) / 4.0;
     var y0 = ((cmd0 >>> 0) & 0xfff) / 4.0;
@@ -1400,7 +1394,7 @@ import * as logger from './logger.js';
     var mode = (cmd1 >>> 24) & 0x2;
 
     if (dis) {
-      dis.text('gsDPSetScissor(' + getDefine(scissorModeValues, mode) + ', ' + x0 + ', ' + y0 +
+      dis.text('gsDPSetScissor(' + gbi.ScissorMode.nameOf(mode) + ', ' + x0 + ', ' + y0 +
         ', ' + x1 + ', ' + y1 + ');');
     }
 
@@ -1661,8 +1655,8 @@ import * as logger from './logger.js';
       var cm_t_text = gbi.getClampMirrorWrapText(cm_t);
 
       dis.text('gsDPSetTile(' +
-        getDefine(gbi.ImageFormat, format) + ', ' +
-        getDefine(gbi.ImageSize, size) + ', ' +
+        gbi.ImageFormat.nameOf(format) + ', ' +
+        gbi.ImageSize.nameOf(size) + ', ' +
         line + ', ' + tmem + ', ' + gbi.getTileText(tile_idx) + ', ' +
         palette + ', ' +
         cm_t_text + ', ' + mask_t + ', ' + shift_t + ', ' +
@@ -1928,8 +1922,8 @@ import * as logger from './logger.js';
     var address = rdpSegmentAddress(cmd1);
 
     if (dis) {
-      dis.text('gsDPSetTextureImage(' + getDefine(gbi.ImageFormat, format) + ', ' +
-        getDefine(gbi.ImageSize, size) + ', ' + width + ', ' + toString32(address) + ');');
+      dis.text('gsDPSetTextureImage(' + gbi.ImageFormat.nameOf(format) + ', ' +
+        gbi.ImageSize.nameOf(size) + ', ' + width + ', ' + toString32(address) + ');');
     }
 
     state.textureImage = {
@@ -1958,8 +1952,8 @@ import * as logger from './logger.js';
 
     if (dis) {
       dis.text('gsDPSetColorImage(' +
-        getDefine(gbi.ImageFormat, format) + ', ' +
-        getDefine(gbi.ImageSize, size) + ', ' +
+        gbi.ImageFormat.nameOf(format) + ', ' +
+        gbi.ImageSize.nameOf(size) + ', ' +
         width + ', ' + toString32(address) + ');');
     }
 
@@ -2042,15 +2036,6 @@ import * as logger from './logger.js';
 
   function getTextureLUTType() {
     return state.rdpOtherModeH & gbi.G_TT_MASK;
-  }
-
-  function getDefine(m, v) {
-    for (var d in m) {
-      if (m[d] === v) {
-        return d;
-      }
-    }
-    return toString32(v);
   }
 
   function logGLCall(functionName, args) {
@@ -2571,7 +2556,7 @@ import * as logger from './logger.js';
 
     if (dis) {
       dis.text('gsSPModifyVertex(' + vtx + ',' +
-        getDefine(gbi.ModifyVtx, offset) + ',' +
+        gbi.ModifyVtx.nameOf(offset) + ',' +
         toString32(value) + ');');
     }
 
@@ -2801,13 +2786,13 @@ import * as logger from './logger.js';
     var value = cmd1;
 
     if (dis) {
-      var text = 'gMoveWd(' + getDefine(gbi.MoveWord, type) + ', ' +
+      var text = 'gMoveWd(' + gbi.MoveWord.nameOf(type) + ', ' +
         toString16(offset) + ', ' + toString32(value) + ');';
 
       switch (type) {
         case gbi.MoveWord.G_MW_NUMLIGHT:
           var v = Math.floor(value / 24);
-          text = 'gsSPNumLights(' + getDefine(gbi.NumLights, v) + ');';
+          text = 'gsSPNumLights(' + gbi.NumLights.nameOf(v) + ');';
           break;
         case gbi.MoveWord.G_MW_SEGMENT:
           {
@@ -2879,7 +2864,7 @@ import * as logger from './logger.js';
     if (dis) {
       var address_str = toString32(address);
 
-      var type_str = getDefine(gbi.MoveMemGBI2, type);
+      var type_str = gbi.MoveMemGBI2.nameOf(type);
       var text = 'gsDma1p(G_MOVEMEM, ' + address_str + ', ' + length + ', ' + type_str + ');';
 
       switch (type) {
@@ -3196,20 +3181,20 @@ import * as logger from './logger.js';
     var h = state.rdpOtherModeH;
     const vals = new Map([
       //var G_MDSFT_BLENDMASK = 0;
-      ['alphaCompare', getDefine(gbi.AlphaCompare, l & gbi.G_AC_MASK)],
-      ['depthSource', getDefine(gbi.DepthSource, l & gbi.G_ZS_MASK)],
+      ['alphaCompare', gbi.AlphaCompare.nameOf(l & gbi.G_AC_MASK)],
+      ['depthSource', gbi.DepthSource.nameOf(l & gbi.G_ZS_MASK)],
       ['renderMode', gbi.getRenderModeText(l)],
-      ['alphaDither', getDefine(gbi.AlphaDither, h & gbi.G_AD_MASK)],
-      ['colorDither', getDefine(gbi.ColorDither, h & gbi.G_CD_MASK)],
-      ['combineKey', getDefine(gbi.CombineKey, h & gbi.G_CK_MASK)],
-      ['textureConvert', getDefine(gbi.TextureConvert, h & gbi.G_TC_MASK)],
-      ['textureFilter', getDefine(gbi.TextureFilter, h & gbi.G_TF_MASK)],
-      ['textureLUT', getDefine(gbi.TextureLUT, h & gbi.G_TT_MASK)],
-      ['textureLOD', getDefine(gbi.TextureLOD, h & gbi.G_TL_MASK)],
-      ['texturePersp', getDefine(gbi.TexturePerspective, h & gbi.G_TP_MASK)],
-      ['textureDetail', getDefine(gbi.TextureDetail, h & gbi.G_TD_MASK)],
-      ['cycleType', getDefine(gbi.CycleType, h & gbi.G_CYC_MASK)],
-      ['pipelineMode', getDefine(gbi.PipelineMode, h & gbi.G_PM_MASK)],
+      ['alphaDither', gbi.AlphaDither.nameOf(h & gbi.G_AD_MASK)],
+      ['colorDither', gbi.ColorDither.nameOf(h & gbi.G_CD_MASK)],
+      ['combineKey', gbi.CombineKey.nameOf(h & gbi.G_CK_MASK)],
+      ['textureConvert', gbi.TextureConvert.nameOf(h & gbi.G_TC_MASK)],
+      ['textureFilter', gbi.TextureFilter.nameOf(h & gbi.G_TF_MASK)],
+      ['textureLUT', gbi.TextureLUT.nameOf(h & gbi.G_TT_MASK)],
+      ['textureLOD', gbi.TextureLOD.nameOf(h & gbi.G_TL_MASK)],
+      ['texturePersp', gbi.TexturePerspective.nameOf(h & gbi.G_TP_MASK)],
+      ['textureDetail', gbi.TextureDetail.nameOf(h & gbi.G_TD_MASK)],
+      ['cycleType', gbi.CycleType.nameOf(h & gbi.G_CYC_MASK)],
+      ['pipelineMode', gbi.PipelineMode.nameOf(h & gbi.G_PM_MASK)],
     ]);
 
     var $table = $('<table class="table table-condensed" style="width: auto;"></table>');
@@ -3240,7 +3225,7 @@ import * as logger from './logger.js';
 
   function buildCombinerTab() {
     var $p = $('<pre class="combine"></pre>');
-    $p.append(getDefine(gbi.CycleType, getCycleType()) + '\n');
+    $p.append(gbi.CycleType.nameOf(getCycleType()) + '\n');
     $p.append(buildColorsTable());
     $p.append(shaders.getCombinerText(state.combine.hi, state.combine.lo));
     return $p;
@@ -3332,8 +3317,8 @@ import * as logger from './logger.js';
 
       var vals = [];
       vals.push(i);
-      vals.push(getDefine(gbi.ImageFormat, tile.format));
-      vals.push(getDefine(gbi.ImageSize, tile.size));
+      vals.push(gbi.ImageFormat.nameOf(tile.format));
+      vals.push(gbi.ImageSize.nameOf(tile.size));
       vals.push(tile.line);
       vals.push(tile.tmem);
       vals.push(tile.palette);
@@ -3874,8 +3859,8 @@ import * as logger from './logger.js';
       return null;
 
     $textureOutput.append(
-      getDefine(gbi.ImageFormat, tile.format) + ', ' +
-      getDefine(gbi.ImageSize, tile.size) + ',' +
+      gbi.ImageFormat.nameOf(tile.format) + ', ' +
+      gbi.ImageSize.nameOf(tile.size) + ',' +
       width + 'x' + height + ', ' +
       '<br>');
 
@@ -3972,8 +3957,8 @@ import * as logger from './logger.js';
       $textureOutput.append('<br>');
     } else {
       var msg =
-        getDefine(gbi.ImageFormat, tile.format) + '/' +
-        getDefine(gbi.ImageSize, tile.size) + ' is unhandled';
+        gbi.ImageFormat.nameOf(tile.format) + '/' +
+        gbi.ImageSize.nameOf(tile.size) + ' is unhandled';
       $textureOutput.append(msg);
       // FIXME: fill with placeholder texture
       hleHalt(msg);
