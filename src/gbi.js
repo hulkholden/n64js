@@ -60,34 +60,34 @@ export const G_MDSFT_ZSRCSEL      = 2;
 export const G_MDSFT_RENDERMODE   = 3;
 export const G_MDSFT_BLENDER      = 16;
 
-export const G_AC_MASK  = 3 << G_MDSFT_ALPHACOMPARE;
-export const G_ZS_MASK  = 1 << G_MDSFT_ZSRCSEL;
+export const G_AC_MASK = 3 << G_MDSFT_ALPHACOMPARE;
+export const G_ZS_MASK = 1 << G_MDSFT_ZSRCSEL;
 
 export function getOtherModeLShiftCountName(value) {
   switch (value) {
-    case G_MDSFT_ALPHACOMPARE:  return 'G_MDSFT_ALPHACOMPARE';
-    case G_MDSFT_ZSRCSEL:       return 'G_MDSFT_ZSRCSEL';
-    case G_MDSFT_RENDERMODE:    return 'G_MDSFT_RENDERMODE';
-    case G_MDSFT_BLENDER:       return 'G_MDSFT_BLENDER';
+    case G_MDSFT_ALPHACOMPARE: return 'G_MDSFT_ALPHACOMPARE';
+    case G_MDSFT_ZSRCSEL:      return 'G_MDSFT_ZSRCSEL';
+    case G_MDSFT_RENDERMODE:   return 'G_MDSFT_RENDERMODE';
+    case G_MDSFT_BLENDER:      return 'G_MDSFT_BLENDER';
   }
 
   return format.toString8(value);
 }
 
 //G_SETOTHERMODE_H shift count
-export const G_MDSFT_BLENDMASK    = 0;
-export const G_MDSFT_ALPHADITHER  = 4;
-export const G_MDSFT_RGBDITHER    = 6;
-export const G_MDSFT_COMBKEY      = 8;
-export const G_MDSFT_TEXTCONV     = 9;
-export const G_MDSFT_TEXTFILT     = 12;
-export const G_MDSFT_TEXTLUT      = 14;
-export const G_MDSFT_TEXTLOD      = 16;
-export const G_MDSFT_TEXTDETAIL   = 17;
-export const G_MDSFT_TEXTPERSP    = 19;
-export const G_MDSFT_CYCLETYPE    = 20;
-export const G_MDSFT_COLORDITHER  = 22;
-export const G_MDSFT_PIPELINE     = 23;
+export const G_MDSFT_BLENDMASK   = 0;
+export const G_MDSFT_ALPHADITHER = 4;
+export const G_MDSFT_RGBDITHER   = 6;
+export const G_MDSFT_COMBKEY     = 8;
+export const G_MDSFT_TEXTCONV    = 9;
+export const G_MDSFT_TEXTFILT    = 12;
+export const G_MDSFT_TEXTLUT     = 14;
+export const G_MDSFT_TEXTLOD     = 16;
+export const G_MDSFT_TEXTDETAIL  = 17;
+export const G_MDSFT_TEXTPERSP   = 19;
+export const G_MDSFT_CYCLETYPE   = 20;
+export const G_MDSFT_COLORDITHER = 22;
+export const G_MDSFT_PIPELINE    = 23;
 
 export function getOtherModeHShiftCountName(sft) {
   switch (sft) {
@@ -110,6 +110,24 @@ export function getOtherModeHShiftCountName(sft) {
   return format.toString8(sft);
 }
 
+export const moveMemTypeValuesGBI2 = {
+  G_GBI2_MV_VIEWPORT: 8,
+  G_GBI2_MV_LIGHT:    10,
+  G_GBI2_MV_POINT:    12,
+  G_GBI2_MV_MATRIX:   14,    // NOTE: this is in moveword table
+  G_GBI2_MVO_LOOKATX: 0 * 24,
+  G_GBI2_MVO_LOOKATY: 1 * 24,
+  G_GBI2_MVO_L0:      2 * 24,
+  G_GBI2_MVO_L1:      3 * 24,
+  G_GBI2_MVO_L2:      4 * 24,
+  G_GBI2_MVO_L3:      5 * 24,
+  G_GBI2_MVO_L4:      6 * 24,
+  G_GBI2_MVO_L5:      7 * 24,
+  G_GBI2_MVO_L6:      8 * 24,
+  G_GBI2_MVO_L7:      9 * 24,
+};
+
+
 export const G_PM_MASK  = 1 << G_MDSFT_PIPELINE;
 export const G_CYC_MASK = 3 << G_MDSFT_CYCLETYPE;
 export const G_TP_MASK  = 1 << G_MDSFT_TEXTPERSP;
@@ -121,6 +139,197 @@ export const G_TC_MASK  = 7 << G_MDSFT_TEXTCONV;
 export const G_CK_MASK  = 1 << G_MDSFT_COMBKEY;
 export const G_CD_MASK  = 3 << G_MDSFT_RGBDITHER;
 export const G_AD_MASK  = 3 << G_MDSFT_ALPHADITHER;
+
+export const G_MTX_MODELVIEW  = 0x00;
+export const G_MTX_PROJECTION = 0x01;
+export const G_MTX_MUL        = 0x00;
+export const G_MTX_LOAD       = 0x02;
+export const G_MTX_NOPUSH     = 0x00;
+export const G_MTX_PUSH       = 0x04;
+
+export const G_DL_PUSH   = 0x00;
+export const G_DL_NOPUSH = 0x01;
+
+export const moveWordTypeValues = {
+  G_MW_MATRIX:    0x00,
+  G_MW_NUMLIGHT:  0x02,
+  G_MW_CLIP:      0x04,
+  G_MW_SEGMENT:   0x06,
+  G_MW_FOG:       0x08,
+  G_MW_LIGHTCOL:  0x0a,
+  G_MW_POINTS:    0x0c,
+  G_MW_PERSPNORM: 0x0e,
+};
+
+export const moveMemTypeValues = {
+  G_MV_VIEWPORT: 0x80,
+  G_MV_LOOKATY:  0x82,
+  G_MV_LOOKATX:  0x84,
+  G_MV_L0:       0x86,
+  G_MV_L1:       0x88,
+  G_MV_L2:       0x8a,
+  G_MV_L3:       0x8c,
+  G_MV_L4:       0x8e,
+  G_MV_L5:       0x90,
+  G_MV_L6:       0x92,
+  G_MV_L7:       0x94,
+  G_MV_TXTATT:   0x96,
+  G_MV_MATRIX_1: 0x9e,
+  G_MV_MATRIX_2: 0x98,
+  G_MV_MATRIX_3: 0x9a,
+  G_MV_MATRIX_4: 0x9c,
+};
+
+export const G_MWO_NUMLIGHT       = 0x00;
+export const G_MWO_CLIP_RNX       = 0x04;
+export const G_MWO_CLIP_RNY       = 0x0c;
+export const G_MWO_CLIP_RPX       = 0x14;
+export const G_MWO_CLIP_RPY       = 0x1c;
+export const G_MWO_SEGMENT_0      = 0x00;
+export const G_MWO_SEGMENT_1      = 0x01;
+export const G_MWO_SEGMENT_2      = 0x02;
+export const G_MWO_SEGMENT_3      = 0x03;
+export const G_MWO_SEGMENT_4      = 0x04;
+export const G_MWO_SEGMENT_5      = 0x05;
+export const G_MWO_SEGMENT_6      = 0x06;
+export const G_MWO_SEGMENT_7      = 0x07;
+export const G_MWO_SEGMENT_8      = 0x08;
+export const G_MWO_SEGMENT_9      = 0x09;
+export const G_MWO_SEGMENT_A      = 0x0a;
+export const G_MWO_SEGMENT_B      = 0x0b;
+export const G_MWO_SEGMENT_C      = 0x0c;
+export const G_MWO_SEGMENT_D      = 0x0d;
+export const G_MWO_SEGMENT_E      = 0x0e;
+export const G_MWO_SEGMENT_F      = 0x0f;
+export const G_MWO_FOG            = 0x00;
+export const G_MWO_aLIGHT_1       = 0x00;
+export const G_MWO_bLIGHT_1       = 0x04;
+export const G_MWO_aLIGHT_2       = 0x20;
+export const G_MWO_bLIGHT_2       = 0x24;
+export const G_MWO_aLIGHT_3       = 0x40;
+export const G_MWO_bLIGHT_3       = 0x44;
+export const G_MWO_aLIGHT_4       = 0x60;
+export const G_MWO_bLIGHT_4       = 0x64;
+export const G_MWO_aLIGHT_5       = 0x80;
+export const G_MWO_bLIGHT_5       = 0x84;
+export const G_MWO_aLIGHT_6       = 0xa0;
+export const G_MWO_bLIGHT_6       = 0xa4;
+export const G_MWO_aLIGHT_7       = 0xc0;
+export const G_MWO_bLIGHT_7       = 0xc4;
+export const G_MWO_aLIGHT_8       = 0xe0;
+export const G_MWO_bLIGHT_8       = 0xe4;
+export const G_MWO_MATRIX_XX_XY_I = 0x00;
+export const G_MWO_MATRIX_XZ_XW_I = 0x04;
+export const G_MWO_MATRIX_YX_YY_I = 0x08;
+export const G_MWO_MATRIX_YZ_YW_I = 0x0c;
+export const G_MWO_MATRIX_ZX_ZY_I = 0x10;
+export const G_MWO_MATRIX_ZZ_ZW_I = 0x14;
+export const G_MWO_MATRIX_WX_WY_I = 0x18;
+export const G_MWO_MATRIX_WZ_WW_I = 0x1c;
+export const G_MWO_MATRIX_XX_XY_F = 0x20;
+export const G_MWO_MATRIX_XZ_XW_F = 0x24;
+export const G_MWO_MATRIX_YX_YY_F = 0x28;
+export const G_MWO_MATRIX_YZ_YW_F = 0x2c;
+export const G_MWO_MATRIX_ZX_ZY_F = 0x30;
+export const G_MWO_MATRIX_ZZ_ZW_F = 0x34;
+export const G_MWO_MATRIX_WX_WY_F = 0x38;
+export const G_MWO_MATRIX_WZ_WW_F = 0x3c;
+
+export const modifyVtxValues = {
+  G_MWO_POINT_RGBA:        0x10,
+  G_MWO_POINT_ST:          0x14,
+  G_MWO_POINT_XYSCREEN:    0x18,
+  G_MWO_POINT_ZSCREEN:     0x1c,
+};
+
+export const numLightValues = {
+  //NUMLIGHTS_0: 1,
+  NUMLIGHTS_1: 1,
+  NUMLIGHTS_2: 2,
+  NUMLIGHTS_3: 3,
+  NUMLIGHTS_4: 4,
+  NUMLIGHTS_5: 5,
+  NUMLIGHTS_6: 6,
+  NUMLIGHTS_7: 7,
+};
+
+export const G_TX_LOADTILE   = 7;
+export const G_TX_RENDERTILE = 0;
+
+export function getTileText(tile_idx) {
+  var tile_text = tile_idx;
+  if (tile_idx === G_TX_LOADTILE)   tile_text = 'G_TX_LOADTILE';
+  if (tile_idx === G_TX_RENDERTILE) tile_text = 'G_TX_RENDERTILE';
+  return tile_text;
+}
+
+export const G_TX_WRAP       = 0x0;
+export const G_TX_MIRROR     = 0x1;
+export const G_TX_CLAMP      = 0x2;
+
+export function getClampMirrorWrapText(flags) {
+  switch (flags) {
+    case G_TX_WRAP:              return 'G_TX_WRAP';
+    case G_TX_MIRROR:            return 'G_TX_MIRROR';
+    case G_TX_CLAMP:             return 'G_TX_CLAMP';
+    case G_TX_MIRROR|G_TX_CLAMP: return 'G_TX_MIRROR|G_TX_CLAMP';
+  }
+
+  return flags;
+}
+
+export const geometryModeFlagsGBI1 = {
+  G_ZBUFFER:            0x00000001,
+  G_TEXTURE_ENABLE:     0x00000002,  /* Microcode use only */
+  G_SHADE:              0x00000004,  /* enable Gouraud interp */
+  G_SHADING_SMOOTH:     0x00000200,  /* flat or smooth shaded */
+  G_CULL_FRONT:         0x00001000,
+  G_CULL_BACK:          0x00002000,
+  G_CULL_BOTH:          0x00003000,  /* To make code cleaner */
+  G_FOG:                0x00010000,
+  G_LIGHTING:           0x00020000,
+  G_TEXTURE_GEN:        0x00040000,
+  G_TEXTURE_GEN_LINEAR: 0x00080000,
+  G_LOD:                0x00100000, /* NOT IMPLEMENTED */
+};
+
+export const geometryModeFlagsGBI2 = {
+  G_TEXTURE_ENABLE:     0x2,        /* NB - not implemented as geometry mode flag in GBI2 */
+  G_SHADE:              0,
+
+  G_ZBUFFER:            0x00000001,
+  G_CULL_BACK:          0x00000200,
+  G_CULL_FRONT:         0x00000400,
+  G_CULL_BOTH:          0x00000600,  /* To make code cleaner */
+  G_FOG:                0x00010000,
+  G_LIGHTING:           0x00020000,
+  G_TEXTURE_GEN:        0x00040000,
+  G_TEXTURE_GEN_LINEAR: 0x00080000,
+  G_LOD:                0x00100000,  /* NOT IMPLEMENTED */
+  G_SHADING_SMOOTH:     0x00200000,  /* flat or smooth shaded */
+};
+
+export function getGeometryModeFlagsText(flags, data) {
+  var t = '';
+
+  if (data & flags.G_ZBUFFER)               t += '|G_ZBUFFER';
+  if (data & flags.G_TEXTURE_ENABLE)        t += '|G_TEXTURE_ENABLE';
+  if (data & flags.G_SHADE)                 t += '|G_SHADE';
+  if (data & flags.G_SHADING_SMOOTH)        t += '|G_SHADING_SMOOTH';
+
+  var cull = data & flags.G_CULL_BOTH;
+       if (cull === flags.G_CULL_FRONT)     t += '|G_CULL_FRONT';
+  else if (cull === flags.G_CULL_BACK)      t += '|G_CULL_BACK';
+  else if (cull === flags.G_CULL_BOTH)      t += '|G_CULL_BOTH';
+
+  if (data & flags.G_FOG)                   t += '|G_FOG';
+  if (data & flags.G_LIGHTING)              t += '|G_LIGHTING';
+  if (data & flags.G_TEXTURE_GEN)           t += '|G_TEXTURE_GEN';
+  if (data & flags.G_TEXTURE_GEN_LINEAR)    t += '|G_TEXTURE_GEN_LINEAR';
+  if (data & flags.G_LOD)                   t += '|G_LOD';
+
+  return t.length > 0 ? t.substr(1) : '0';
+}
 
 export const pipelineModeValues = {
   G_PM_1PRIMITIVE:   1 << G_MDSFT_PIPELINE,

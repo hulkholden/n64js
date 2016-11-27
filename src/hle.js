@@ -65,180 +65,6 @@ import * as logger from './logger.js';
   const kOffset_yield_data_ptr      = 0x38;    // u64*
   const kOffset_yield_data_size     = 0x3c;    // u32
 
-  const G_MTX_MODELVIEW             = 0x00;
-  const G_MTX_PROJECTION            = 0x01;
-  const G_MTX_MUL                   = 0x00;
-  const G_MTX_LOAD                  = 0x02;
-  const G_MTX_NOPUSH                = 0x00;
-  const G_MTX_PUSH                  = 0x04;
-
-  const G_DL_PUSH                   = 0x00;
-  const G_DL_NOPUSH                 = 0x01;
-
-  const moveWordTypeValues = {
-    G_MW_MATRIX:             0x00,
-    G_MW_NUMLIGHT:           0x02,
-    G_MW_CLIP:               0x04,
-    G_MW_SEGMENT:            0x06,
-    G_MW_FOG:                0x08,
-    G_MW_LIGHTCOL:           0x0a,
-    G_MW_POINTS:             0x0c,
-    G_MW_PERSPNORM:          0x0e
-  };
-
-  const moveMemTypeValues = {
-    G_MV_VIEWPORT:           0x80,
-    G_MV_LOOKATY:            0x82,
-    G_MV_LOOKATX:            0x84,
-    G_MV_L0:                 0x86,
-    G_MV_L1:                 0x88,
-    G_MV_L2:                 0x8a,
-    G_MV_L3:                 0x8c,
-    G_MV_L4:                 0x8e,
-    G_MV_L5:                 0x90,
-    G_MV_L6:                 0x92,
-    G_MV_L7:                 0x94,
-    G_MV_TXTATT:             0x96,
-    G_MV_MATRIX_1:           0x9e,
-    G_MV_MATRIX_2:           0x98,
-    G_MV_MATRIX_3:           0x9a,
-    G_MV_MATRIX_4:           0x9c
-  };
-
-  const G_MWO_NUMLIGHT          = 0x00;
-  const G_MWO_CLIP_RNX          = 0x04;
-  const G_MWO_CLIP_RNY          = 0x0c;
-  const G_MWO_CLIP_RPX          = 0x14;
-  const G_MWO_CLIP_RPY          = 0x1c;
-  const G_MWO_SEGMENT_0         = 0x00;
-  const G_MWO_SEGMENT_1         = 0x01;
-  const G_MWO_SEGMENT_2         = 0x02;
-  const G_MWO_SEGMENT_3         = 0x03;
-  const G_MWO_SEGMENT_4         = 0x04;
-  const G_MWO_SEGMENT_5         = 0x05;
-  const G_MWO_SEGMENT_6         = 0x06;
-  const G_MWO_SEGMENT_7         = 0x07;
-  const G_MWO_SEGMENT_8         = 0x08;
-  const G_MWO_SEGMENT_9         = 0x09;
-  const G_MWO_SEGMENT_A         = 0x0a;
-  const G_MWO_SEGMENT_B         = 0x0b;
-  const G_MWO_SEGMENT_C         = 0x0c;
-  const G_MWO_SEGMENT_D         = 0x0d;
-  const G_MWO_SEGMENT_E         = 0x0e;
-  const G_MWO_SEGMENT_F         = 0x0f;
-  const G_MWO_FOG               = 0x00;
-  const G_MWO_aLIGHT_1          = 0x00;
-  const G_MWO_bLIGHT_1          = 0x04;
-  const G_MWO_aLIGHT_2          = 0x20;
-  const G_MWO_bLIGHT_2          = 0x24;
-  const G_MWO_aLIGHT_3          = 0x40;
-  const G_MWO_bLIGHT_3          = 0x44;
-  const G_MWO_aLIGHT_4          = 0x60;
-  const G_MWO_bLIGHT_4          = 0x64;
-  const G_MWO_aLIGHT_5          = 0x80;
-  const G_MWO_bLIGHT_5          = 0x84;
-  const G_MWO_aLIGHT_6          = 0xa0;
-  const G_MWO_bLIGHT_6          = 0xa4;
-  const G_MWO_aLIGHT_7          = 0xc0;
-  const G_MWO_bLIGHT_7          = 0xc4;
-  const G_MWO_aLIGHT_8          = 0xe0;
-  const G_MWO_bLIGHT_8          = 0xe4;
-  const G_MWO_MATRIX_XX_XY_I    = 0x00;
-  const G_MWO_MATRIX_XZ_XW_I    = 0x04;
-  const G_MWO_MATRIX_YX_YY_I    = 0x08;
-  const G_MWO_MATRIX_YZ_YW_I    = 0x0c;
-  const G_MWO_MATRIX_ZX_ZY_I    = 0x10;
-  const G_MWO_MATRIX_ZZ_ZW_I    = 0x14;
-  const G_MWO_MATRIX_WX_WY_I    = 0x18;
-  const G_MWO_MATRIX_WZ_WW_I    = 0x1c;
-  const G_MWO_MATRIX_XX_XY_F    = 0x20;
-  const G_MWO_MATRIX_XZ_XW_F    = 0x24;
-  const G_MWO_MATRIX_YX_YY_F    = 0x28;
-  const G_MWO_MATRIX_YZ_YW_F    = 0x2c;
-  const G_MWO_MATRIX_ZX_ZY_F    = 0x30;
-  const G_MWO_MATRIX_ZZ_ZW_F    = 0x34;
-  const G_MWO_MATRIX_WX_WY_F    = 0x38;
-  const G_MWO_MATRIX_WZ_WW_F    = 0x3c;
-
-  const modifyVtxValues = {
-    G_MWO_POINT_RGBA:        0x10,
-    G_MWO_POINT_ST:          0x14,
-    G_MWO_POINT_XYSCREEN:    0x18,
-    G_MWO_POINT_ZSCREEN:     0x1c
-  };
-
-  const numLightValues = {
-    //NUMLIGHTS_0: 1,
-    NUMLIGHTS_1: 1,
-    NUMLIGHTS_2: 2,
-    NUMLIGHTS_3: 3,
-    NUMLIGHTS_4: 4,
-    NUMLIGHTS_5: 5,
-    NUMLIGHTS_6: 6,
-    NUMLIGHTS_7: 7
-  };
-
-  const G_TX_LOADTILE   = 7;
-  const G_TX_RENDERTILE = 0;
-
-  const G_TX_WRAP       = 0x0;
-  const G_TX_MIRROR     = 0x1;
-  const G_TX_CLAMP      = 0x2;
-
-
-  const geometryModeFlagsGBI1 = {
-    G_ZBUFFER:            0x00000001,
-    G_TEXTURE_ENABLE:     0x00000002,  /* Microcode use only */
-    G_SHADE:              0x00000004,  /* enable Gouraud interp */
-    G_SHADING_SMOOTH:     0x00000200,  /* flat or smooth shaded */
-    G_CULL_FRONT:         0x00001000,
-    G_CULL_BACK:          0x00002000,
-    G_CULL_BOTH:          0x00003000,  /* To make code cleaner */
-    G_FOG:                0x00010000,
-    G_LIGHTING:           0x00020000,
-    G_TEXTURE_GEN:        0x00040000,
-    G_TEXTURE_GEN_LINEAR: 0x00080000,
-    G_LOD:                0x00100000  /* NOT IMPLEMENTED */
-  };
-
-  const geometryModeFlagsGBI2 = {
-    G_TEXTURE_ENABLE:     0x2,        /* NB - not implemented as geometry mode flag in GBI2 */
-    G_SHADE:              0,
-
-    G_ZBUFFER:            0x00000001,
-    G_CULL_BACK:          0x00000200,
-    G_CULL_FRONT:         0x00000400,
-    G_CULL_BOTH:          0x00000600,  /* To make code cleaner */
-    G_FOG:                0x00010000,
-    G_LIGHTING:           0x00020000,
-    G_TEXTURE_GEN:        0x00040000,
-    G_TEXTURE_GEN_LINEAR: 0x00080000,
-    G_LOD:                0x00100000,  /* NOT IMPLEMENTED */
-    G_SHADING_SMOOTH:     0x00200000   /* flat or smooth shaded */
-  };
-
-  function getGeometryModeFlagsText(flags, data) {
-    var t = '';
-
-    if (data & flags.G_ZBUFFER)               t += '|G_ZBUFFER';
-    if (data & flags.G_TEXTURE_ENABLE)        t += '|G_TEXTURE_ENABLE';
-    if (data & flags.G_SHADE)                 t += '|G_SHADE';
-    if (data & flags.G_SHADING_SMOOTH)        t += '|G_SHADING_SMOOTH';
-
-    var cull = data & flags.G_CULL_BOTH;
-         if (cull === flags.G_CULL_FRONT)     t += '|G_CULL_FRONT';
-    else if (cull === flags.G_CULL_BACK)      t += '|G_CULL_BACK';
-    else if (cull === flags.G_CULL_BOTH)      t += '|G_CULL_BOTH';
-
-    if (data & flags.G_FOG)                   t += '|G_FOG';
-    if (data & flags.G_LIGHTING)              t += '|G_LIGHTING';
-    if (data & flags.G_TEXTURE_GEN)           t += '|G_TEXTURE_GEN';
-    if (data & flags.G_TEXTURE_GEN_LINEAR)    t += '|G_TEXTURE_GEN_LINEAR';
-    if (data & flags.G_LOD)                   t += '|G_LOD';
-
-    return t.length > 0 ? t.substr(1) : '0';
-  }
-
   function updateGeometryModeFromBits(flags) {
     var gm   = state.geometryMode;
     var bits = state.geometryModeBits;
@@ -761,11 +587,11 @@ import * as logger from './logger.js';
     var address = rdpSegmentAddress(cmd1);
 
     if (dis) {
-      var fn = (param === G_DL_PUSH) ? 'gsSPDisplayList' : 'gsSPBranchList';
+      var fn = (param === gbi.G_DL_PUSH) ? 'gsSPDisplayList' : 'gsSPBranchList';
       dis.text(fn + '(<span class="dl-branch">' + toString32(address) + '</span>);');
     }
 
-    if (param === G_DL_PUSH) {
+    if (param === gbi.G_DL_PUSH) {
       state.dlistStack.push({pc: state.pc});
     }
     state.pc = address;
@@ -813,22 +639,22 @@ import * as logger from './logger.js';
     var length  = (cmd0>>> 0)&0xffff;
     var address = rdpSegmentAddress(cmd1);
 
-    var push    = flags & G_MTX_PUSH;
-    var replace = flags & G_MTX_LOAD;
+    var push    = flags & gbi.G_MTX_PUSH;
+    var replace = flags & gbi.G_MTX_LOAD;
 
     var matrix = loadMatrix(address);
 
     if (dis) {
       var t = '';
-      t += (flags & G_MTX_PROJECTION) ? 'G_MTX_PROJECTION' : 'G_MTX_MODELVIEW';
-      t += (flags & G_MTX_LOAD) ?       '|G_MTX_LOAD'       : '|G_MTX_MUL';
-      t += (flags & G_MTX_PUSH) ?       '|G_MTX_PUSH'       : ''; //'|G_MTX_NOPUSH';
+      t += (flags & gbi.G_MTX_PROJECTION) ? 'G_MTX_PROJECTION' : 'G_MTX_MODELVIEW';
+      t += (flags & gbi.G_MTX_LOAD) ?       '|G_MTX_LOAD'       : '|G_MTX_MUL';
+      t += (flags & gbi.G_MTX_PUSH) ?       '|G_MTX_PUSH'       : ''; //'|G_MTX_NOPUSH';
 
       dis.text('gsSPMatrix(' + toString32(address) + ', ' + t + ');');
       dis.tip(previewMatrix(matrix));
     }
 
-    var stack = flags & G_MTX_PROJECTION ? state.projection : state.modelview;
+    var stack = flags & gbi.G_MTX_PROJECTION ? state.projection : state.modelview;
 
     if (!replace) {
       matrix = stack[stack.length-1].multiply(matrix);
@@ -846,7 +672,7 @@ import * as logger from './logger.js';
 
     if (dis) {
       var t = '';
-      t += (flags & G_MTX_PROJECTION) ? 'G_MTX_PROJECTION' : 'G_MTX_MODELVIEW';
+      t += (flags & gbi.G_MTX_PROJECTION) ? 'G_MTX_PROJECTION' : 'G_MTX_MODELVIEW';
       dis.text('gsSPPopMatrix(' + t + ');');
     }
 
@@ -865,18 +691,18 @@ import * as logger from './logger.js';
     tip += '<br>';
 
     switch (type) {
-      case moveMemTypeValues.G_MV_VIEWPORT:
+      case gbi.moveMemTypeValues.G_MV_VIEWPORT:
         tip += previewViewport(address);
         break;
 
-      case moveMemTypeValues.G_MV_L0:
-      case moveMemTypeValues.G_MV_L1:
-      case moveMemTypeValues.G_MV_L2:
-      case moveMemTypeValues.G_MV_L3:
-      case moveMemTypeValues.G_MV_L4:
-      case moveMemTypeValues.G_MV_L5:
-      case moveMemTypeValues.G_MV_L6:
-      case moveMemTypeValues.G_MV_L7:
+      case gbi.moveMemTypeValues.G_MV_L0:
+      case gbi.moveMemTypeValues.G_MV_L1:
+      case gbi.moveMemTypeValues.G_MV_L2:
+      case gbi.moveMemTypeValues.G_MV_L3:
+      case gbi.moveMemTypeValues.G_MV_L4:
+      case gbi.moveMemTypeValues.G_MV_L5:
+      case gbi.moveMemTypeValues.G_MV_L6:
+      case gbi.moveMemTypeValues.G_MV_L7:
         tip += previewLight(address);
         break;
     }
@@ -892,11 +718,11 @@ import * as logger from './logger.js';
     if (dis) {
       var address_str = toString32(address);
 
-      var type_str = getDefine(moveMemTypeValues, type);
+      var type_str = getDefine(gbi.moveMemTypeValues, type);
       var text = 'gsDma1p(G_MOVEMEM, ' + address_str + ', ' + length + ', ' + type_str + ');';
 
       switch (type) {
-        case moveMemTypeValues.G_MV_VIEWPORT:
+        case gbi.moveMemTypeValues.G_MV_VIEWPORT:
           if (length === 16)
             text = 'gsSPViewport(' + address_str + ');';
           break;
@@ -907,19 +733,19 @@ import * as logger from './logger.js';
     }
 
     switch (type) {
-      case moveMemTypeValues.G_MV_VIEWPORT:
+      case gbi.moveMemTypeValues.G_MV_VIEWPORT:
         moveMemViewport(address);
         break;
 
-      case moveMemTypeValues.G_MV_L0:
-      case moveMemTypeValues.G_MV_L1:
-      case moveMemTypeValues.G_MV_L2:
-      case moveMemTypeValues.G_MV_L3:
-      case moveMemTypeValues.G_MV_L4:
-      case moveMemTypeValues.G_MV_L5:
-      case moveMemTypeValues.G_MV_L6:
-      case moveMemTypeValues.G_MV_L7:
-        var light_idx = (type - moveMemTypeValues.G_MV_L0) / 2;
+      case gbi.moveMemTypeValues.G_MV_L0:
+      case gbi.moveMemTypeValues.G_MV_L1:
+      case gbi.moveMemTypeValues.G_MV_L2:
+      case gbi.moveMemTypeValues.G_MV_L3:
+      case gbi.moveMemTypeValues.G_MV_L4:
+      case gbi.moveMemTypeValues.G_MV_L5:
+      case gbi.moveMemTypeValues.G_MV_L6:
+      case gbi.moveMemTypeValues.G_MV_L7:
+        var light_idx = (type - gbi.moveMemTypeValues.G_MV_L0) / 2;
         moveMemLight(light_idx, address);
         break;
     }
@@ -931,16 +757,16 @@ import * as logger from './logger.js';
     var value  = cmd1;
 
     if (dis) {
-      var text = 'gMoveWd(' + getDefine(moveWordTypeValues, type) + ', ' + toString16(offset) + ', ' + toString32(value) + ');';
+      var text = 'gMoveWd(' + getDefine(gbi.moveWordTypeValues, type) + ', ' + toString16(offset) + ', ' + toString32(value) + ');';
 
       switch (type) {
-        case moveWordTypeValues.G_MW_NUMLIGHT:
-          if (offset === G_MWO_NUMLIGHT) {
+        case gbi.moveWordTypeValues.G_MW_NUMLIGHT:
+          if (offset === gbi.G_MWO_NUMLIGHT) {
             var v = ((value - 0x80000000)>>>5) - 1;
-            text = 'gsSPNumLights(' + getDefine(numLightValues, v) + ');';
+            text = 'gsSPNumLights(' + getDefine(gbi.numLightValues, v) + ');';
           }
           break;
-        case moveWordTypeValues.G_MW_SEGMENT:
+        case gbi.moveWordTypeValues.G_MW_SEGMENT:
           {
             var v = value === 0 ? '0' : toString32(value);
             text = 'gsSPSegment(' + ((offset >>> 2)&0xf) + ', ' + v + ');';
@@ -951,15 +777,15 @@ import * as logger from './logger.js';
     }
 
     switch(type) {
-      case moveWordTypeValues.G_MW_MATRIX:     unimplemented(cmd0,cmd1); break;
-      case moveWordTypeValues.G_MW_NUMLIGHT:   state.numLights = ((value - 0x80000000)>>>5) - 1; break;
-      case moveWordTypeValues.G_MW_CLIP:       /*unimplemented(cmd0,cmd1);*/ break;
-      case moveWordTypeValues.G_MW_SEGMENT:    state.segments[((offset >>> 2)&0xf)] = value; break;
-      case moveWordTypeValues.G_MW_FOG:        /*unimplemented(cmd0,cmd1);*/ break;
-      case moveWordTypeValues.G_MW_LIGHTCOL:   unimplemented(cmd0,cmd1); break;
-      case moveWordTypeValues.G_MW_POINTS:     unimplemented(cmd0,cmd1); break;
-      case moveWordTypeValues.G_MW_PERSPNORM:  /*unimplemented(cmd0,cmd1);*/ break;
-      default:                                 unimplemented(cmd0,cmd1); break;
+      case gbi.moveWordTypeValues.G_MW_MATRIX:     unimplemented(cmd0,cmd1); break;
+      case gbi.moveWordTypeValues.G_MW_NUMLIGHT:   state.numLights = ((value - 0x80000000)>>>5) - 1; break;
+      case gbi.moveWordTypeValues.G_MW_CLIP:       /*unimplemented(cmd0,cmd1);*/ break;
+      case gbi.moveWordTypeValues.G_MW_SEGMENT:    state.segments[((offset >>> 2)&0xf)] = value; break;
+      case gbi.moveWordTypeValues.G_MW_FOG:        /*unimplemented(cmd0,cmd1);*/ break;
+      case gbi.moveWordTypeValues.G_MW_LIGHTCOL:   unimplemented(cmd0,cmd1); break;
+      case gbi.moveWordTypeValues.G_MW_POINTS:     unimplemented(cmd0,cmd1); break;
+      case gbi.moveWordTypeValues.G_MW_PERSPNORM:  /*unimplemented(cmd0,cmd1);*/ break;
+      default:                                     unimplemented(cmd0,cmd1); break;
     }
   }
 
@@ -1159,17 +985,17 @@ import * as logger from './logger.js';
 
   function executeGBI1_ClrGeometryMode(cmd0,cmd1,dis) {
     if (dis) {
-      dis.text('gsSPClearGeometryMode(' + getGeometryModeFlagsText(geometryModeFlagsGBI1, cmd1) + ');');
+      dis.text('gsSPClearGeometryMode(' + gbi.getGeometryModeFlagsText(gbi.geometryModeFlagsGBI1, cmd1) + ');');
     }
     state.geometryModeBits &= ~cmd1;
-    updateGeometryModeFromBits(geometryModeFlagsGBI1);
+    updateGeometryModeFromBits(gbi.geometryModeFlagsGBI1);
   }
   function executeGBI1_SetGeometryMode(cmd0,cmd1,dis) {
     if (dis) {
-     dis.text('gsSPSetGeometryMode(' + getGeometryModeFlagsText(geometryModeFlagsGBI1, cmd1) + ');');
+     dis.text('gsSPSetGeometryMode(' + gbi.getGeometryModeFlagsText(gbi.geometryModeFlagsGBI1, cmd1) + ');');
     }
     state.geometryModeBits |= cmd1;
-    updateGeometryModeFromBits(geometryModeFlagsGBI1);
+    updateGeometryModeFromBits(gbi.geometryModeFlagsGBI1);
   }
 
   function disassembleSetOtherModeL(dis, len, shift, data) {
@@ -1258,7 +1084,7 @@ import * as logger from './logger.js';
     if (dis) {
       var s_text = s.toString();
       var t_text = t.toString();
-      var tile_text = getTileText(tile_idx);
+      var tile_text = gbi.getTileText(tile_idx);
 
       if (xparam !== 0) {
         dis.text('gsSPTextureL(' + s_text + ', ' + t_text + ', ' + level + ', ' + xparam + ', ' + tile_text + ', ' + on + ');');
@@ -1273,10 +1099,10 @@ import * as logger from './logger.js';
     state.texture.scaleT = t;
 
     if (on)
-      state.geometryModeBits |=  geometryModeFlagsGBI1.G_TEXTURE_ENABLE;
+      state.geometryModeBits |=  gbi.geometryModeFlagsGBI1.G_TEXTURE_ENABLE;
     else
-      state.geometryModeBits &= ~geometryModeFlagsGBI1.G_TEXTURE_ENABLE;
-    updateGeometryModeFromBits(geometryModeFlagsGBI1);
+      state.geometryModeBits &= ~gbi.geometryModeFlagsGBI1.G_TEXTURE_ENABLE;
+    updateGeometryModeFromBits(gbi.geometryModeFlagsGBI1);
   }
 
   function executeGBI1_CullDL(cmd0,cmd1) {
@@ -1525,7 +1351,7 @@ import * as logger from './logger.js';
     var dxt      = (cmd1>>> 0)&0xfff;
 
     if (dis) {
-      dis.text('gsDPLoadBlock(' + getTileText(tile_idx) + ', ' + uls + ', ' + ult + ', ' + lrs + ', ' + dxt + ');');
+      dis.text('gsDPLoadBlock(' + gbi.getTileText(tile_idx) + ', ' + uls + ', ' + ult + ', ' + lrs + ', ' + dxt + ');');
     }
 
     // Docs reckon these are ignored for all loadBlocks
@@ -1588,7 +1414,7 @@ import * as logger from './logger.js';
     var lrt      = (cmd1>>> 0)&0xfff;
 
     if (dis) {
-      dis.text('gsDPLoadTile(' + getTileText(tile_idx) + ', ' + (uls/4) + ', ' + (ult/4) + ', ' + (lrs/4) + ', ' + (lrt/4) + '); // (' + (uls/4) + ',' + (ult/4) + '), (' + ((lrs/4)+1) + ',' + ((lrt/4)+1) + ')');
+      dis.text('gsDPLoadTile(' + gbi.getTileText(tile_idx) + ', ' + (uls/4) + ', ' + (ult/4) + ', ' + (lrs/4) + ', ' + (lrt/4) + '); // (' + (uls/4) + ',' + (ult/4) + '), (' + ((lrs/4)+1) + ',' + ((lrt/4)+1) + ')');
     }
 
     var tile         = state.tiles[tile_idx];
@@ -1649,7 +1475,7 @@ import * as logger from './logger.js';
     var lrt      = (cmd1>>> 0)&0xfff;
 
     if (dis) {
-      dis.text('gsDPLoadTLUTCmd(' + getTileText(tile_idx) + ', ' + count + '); //' + uls + ', ' + ult + ', ' + lrs + ', ' + lrt);
+      dis.text('gsDPLoadTLUTCmd(' + gbi.getTileText(tile_idx) + ', ' + count + '); //' + uls + ', ' + ult + ', ' + lrs + ', ' + lrt);
     }
 
     // Tlut fmt is sometimes wrong (in 007) and is set after tlut load, but before tile load
@@ -1667,24 +1493,6 @@ import * as logger from './logger.js';
     copyLine(state.tmemData, tmem_offset, ram_u8, ram_offset, bytes);
 
     invalidateTileHashes();
-  }
-
-  function getClampMirrorWrapText(flags) {
-    switch (flags) {
-      case G_TX_WRAP:              return 'G_TX_WRAP';
-      case G_TX_MIRROR:            return 'G_TX_MIRROR';
-      case G_TX_CLAMP:             return 'G_TX_CLAMP';
-      case G_TX_MIRROR|G_TX_CLAMP: return 'G_TX_MIRROR|G_TX_CLAMP';
-    }
-
-    return flags;
-  }
-
-  function getTileText(tile_idx) {
-    var tile_text = tile_idx;
-    if (tile_idx === G_TX_LOADTILE)   tile_text = 'G_TX_LOADTILE';
-    if (tile_idx === G_TX_RENDERTILE) tile_text = 'G_TX_RENDERTILE';
-    return tile_text;
   }
 
   function executeSetTile(cmd0,cmd1,dis) {
@@ -1707,11 +1515,11 @@ import * as logger from './logger.js';
     var shift_s  = (cmd1>>> 0)&0xf;
 
     if (dis) {
-      var cm_s_text = getClampMirrorWrapText(cm_s);
-      var cm_t_text = getClampMirrorWrapText(cm_t);
+      var cm_s_text = gbi.getClampMirrorWrapText(cm_s);
+      var cm_t_text = gbi.getClampMirrorWrapText(cm_t);
 
       dis.text('gsDPSetTile(' + getDefine(imageFormatTypes, format) + ', ' + getDefine(imageSizeTypes, size) + ', ' +
-       line + ', ' + tmem + ', ' + getTileText(tile_idx) + ', ' + palette + ', ' +
+       line + ', ' + tmem + ', ' + gbi.getTileText(tile_idx) + ', ' + palette + ', ' +
        cm_t_text + ', ' + mask_t + ', ' + shift_t + ', ' +
        cm_s_text + ', ' + mask_s + ', ' + shift_s + ');');
     }
@@ -1739,7 +1547,7 @@ import * as logger from './logger.js';
     var lrt      = (cmd1>>> 0)&0xfff;
 
     if (dis) {
-      dis.text('gsDPSetTileSize(' + getTileText(tile_idx) + ', ' + uls + ', ' + ult + ', ' + lrs + ', ' + lrt + '); // (' + (uls/4) + ',' + (ult/4) + '), (' + ((lrs/4)+1) + ',' + ((lrt/4)+1) + ')');
+      dis.text('gsDPSetTileSize(' + gbi.getTileText(tile_idx) + ', ' + uls + ', ' + ult + ', ' + lrs + ', ' + lrt + '); // (' + (uls/4) + ',' + (ult/4) + '), (' + ((lrs/4)+1) + ',' + ((lrt/4)+1) + ')');
     }
 
     var tile  = state.tiles[tile_idx];
@@ -1821,7 +1629,7 @@ import * as logger from './logger.js';
     var dtdy = ((cmd3<<16)>>16) / 1024.0;
 
     if (dis) {
-      dis.text('gsSPTextureRectangle(' + xl + ',' + yl + ',' + xh + ',' + yh + ',' + getTileText(tile_idx) + ',' + s0 + ',' + t0 + ',' + dsdx + ',' + dtdy + ');');
+      dis.text('gsSPTextureRectangle(' + xl + ',' + yl + ',' + xh + ',' + yh + ',' + gbi.getTileText(tile_idx) + ',' + s0 + ',' + t0 + ',' + dsdx + ',' + dtdy + ');');
     }
 
     var cycle_type = getCycleType();
@@ -2603,7 +2411,7 @@ import * as logger from './logger.js';
     var value  = cmd1;
 
     if (dis) {
-      dis.text('gsSPModifyVertex(' + vtx + ',' + getDefine(modifyVtxValues, offset) + ',' + toString32(value) + ');');
+      dis.text('gsSPModifyVertex(' + vtx + ',' + getDefine(gbi.modifyVtxValues, offset) + ',' + toString32(value) + ');');
     }
 
     // Cures crash after swinging in Mario Golf
@@ -2615,11 +2423,11 @@ import * as logger from './logger.js';
     var vertex = state.projectedVertices[vtx];
 
     switch (offset) {
-      case modifyVtxValues.G_MWO_POINT_RGBA:
+      case gbi.modifyVtxValues.G_MWO_POINT_RGBA:
         hleHalt('unhandled modifyVtx');
         break;
 
-      case modifyVtxValues.G_MWO_POINT_ST:
+      case gbi.modifyVtxValues.G_MWO_POINT_ST:
         var u =  (value >> 16);                 // Signed
         var v = ((value&0xffff) << 16) >> 16;   // Signed
         vertex.set = true;
@@ -2627,11 +2435,11 @@ import * as logger from './logger.js';
         vertex.v = v * state.texture.scaleT / 32.0;
         break;
 
-      case modifyVtxValues.G_MWO_POINT_XYSCREEN:
+      case gbi.modifyVtxValues.G_MWO_POINT_XYSCREEN:
         hleHalt('unhandled modifyVtx');
         break;
 
-      case modifyVtxValues.G_MWO_POINT_ZSCREEN:
+      case gbi.modifyVtxValues.G_MWO_POINT_ZSCREEN:
         hleHalt('unhandled modifyVtx');
         break;
 
@@ -2729,7 +2537,7 @@ import * as logger from './logger.js';
     if (dis) {
       var s_text = s.toString();
       var t_text = t.toString();
-      var tile_text = getTileText(tile_idx);
+      var tile_text = gbi.getTileText(tile_idx);
 
       if (xparam !== 0) {
         dis.text('gsSPTextureL(' + s_text + ', ' + t_text + ', ' + level + ', ' + xparam + ', ' + tile_text + ', ' + on + ');');
@@ -2743,13 +2551,13 @@ import * as logger from './logger.js';
     state.texture.scaleS = s;
     state.texture.scaleT = t;
 
-    if (on){
-      state.geometryModeBits |=  geometryModeFlagsGBI2.G_TEXTURE_ENABLE;
+    if (on) {
+      state.geometryModeBits |=  gbi.geometryModeFlagsGBI2.G_TEXTURE_ENABLE;
     } else {
-      state.geometryModeBits &= ~geometryModeFlagsGBI2.G_TEXTURE_ENABLE;
+      state.geometryModeBits &= ~gbi.geometryModeFlagsGBI2.G_TEXTURE_ENABLE;
     }
 
-    updateGeometryModeFromBits(geometryModeFlagsGBI2);
+    updateGeometryModeFromBits(gbi.geometryModeFlagsGBI2);
   }
 
   function executeGBI2_GeometryMode(cmd0,cmd1,dis) {
@@ -2757,12 +2565,12 @@ import * as logger from './logger.js';
     var arg1 = cmd1;
 
     if (dis) {
-      dis.text('gsSPGeometryMode(~(' + getGeometryModeFlagsText(geometryModeFlagsGBI2, ~arg0) + '),' + getGeometryModeFlagsText(geometryModeFlagsGBI2, arg1) + ');');
+      dis.text('gsSPGeometryMode(~(' + gbi.getGeometryModeFlagsText(gbi.geometryModeFlagsGBI2, ~arg0) + '),' + gbi.getGeometryModeFlagsText(gbi.geometryModeFlagsGBI2, arg1) + ');');
     }
 
     state.geometryModeBits &= arg0;
     state.geometryModeBits |= arg1;
-    updateGeometryModeFromBits(geometryModeFlagsGBI2);
+    updateGeometryModeFromBits(gbi.geometryModeFlagsGBI2);
   }
 
   function executeGBI2_Matrix(cmd0,cmd1,dis) {
@@ -2819,14 +2627,14 @@ import * as logger from './logger.js';
     var value  = cmd1;
 
     if (dis) {
-      var text = 'gMoveWd(' + getDefine(moveWordTypeValues, type) + ', ' + toString16(offset) + ', ' + toString32(value) + ');';
+      var text = 'gMoveWd(' + getDefine(gbi.moveWordTypeValues, type) + ', ' + toString16(offset) + ', ' + toString32(value) + ');';
 
       switch (type) {
-        case moveWordTypeValues.G_MW_NUMLIGHT:
+        case gbi.moveWordTypeValues.G_MW_NUMLIGHT:
             var v = Math.floor(value / 24);
-            text = 'gsSPNumLights(' + getDefine(numLightValues, v) + ');';
+            text = 'gsSPNumLights(' + getDefine(gbi.numLightValues, v) + ');';
           break;
-        case moveWordTypeValues.G_MW_SEGMENT:
+        case gbi.moveWordTypeValues.G_MW_SEGMENT:
           {
             var v = value === 0 ? '0' : toString32(value);
             text = 'gsSPSegment(' + ((offset >>> 2)&0xf) + ', ' + v + ');';
@@ -2837,34 +2645,17 @@ import * as logger from './logger.js';
     }
 
     switch(type) {
-      // case moveWordTypeValues.G_MW_MATRIX:     unimplemented(cmd0,cmd1); break;
-      case moveWordTypeValues.G_MW_NUMLIGHT:   state.numLights = Math.floor(value/24); break;
-      case moveWordTypeValues.G_MW_CLIP:       /*unimplemented(cmd0,cmd1);*/ break;
-      case moveWordTypeValues.G_MW_SEGMENT:    state.segments[((offset >>> 2)&0xf)] = value; break;
-      case moveWordTypeValues.G_MW_FOG:        /*unimplemented(cmd0,cmd1);*/ break;
-      case moveWordTypeValues.G_MW_LIGHTCOL:   /*unimplemented(cmd0,cmd1);*/ break;
-      // case moveWordTypeValues.G_MW_POINTS:     unimplemented(cmd0,cmd1); break;
-      case moveWordTypeValues.G_MW_PERSPNORM:  /*unimplemented(cmd0,cmd1);*/ break;
+      // case gbi.moveWordTypeValues.G_MW_MATRIX:  unimplemented(cmd0,cmd1); break;
+      case gbi.moveWordTypeValues.G_MW_NUMLIGHT:   state.numLights = Math.floor(value/24); break;
+      case gbi.moveWordTypeValues.G_MW_CLIP:       /*unimplemented(cmd0,cmd1);*/ break;
+      case gbi.moveWordTypeValues.G_MW_SEGMENT:    state.segments[((offset >>> 2)&0xf)] = value; break;
+      case gbi.moveWordTypeValues.G_MW_FOG:        /*unimplemented(cmd0,cmd1);*/ break;
+      case gbi.moveWordTypeValues.G_MW_LIGHTCOL:   /*unimplemented(cmd0,cmd1);*/ break;
+      // case gbi.moveWordTypeValues.G_MW_POINTS:    unimplemented(cmd0,cmd1); break;
+      case gbi.moveWordTypeValues.G_MW_PERSPNORM:  /*unimplemented(cmd0,cmd1);*/ break;
       default:                                 unimplemented(cmd0,cmd1); break;
     }
   }
-
-  const moveMemTypeValuesGBI2 = {
-    G_GBI2_MV_VIEWPORT: 8,
-    G_GBI2_MV_LIGHT:    10,
-    G_GBI2_MV_POINT:    12,
-    G_GBI2_MV_MATRIX:   14,    // NOTE: this is in moveword table
-    G_GBI2_MVO_LOOKATX: (0*24),
-    G_GBI2_MVO_LOOKATY: (1*24),
-    G_GBI2_MVO_L0:      (2*24),
-    G_GBI2_MVO_L1:      (3*24),
-    G_GBI2_MVO_L2:      (4*24),
-    G_GBI2_MVO_L3:      (5*24),
-    G_GBI2_MVO_L4:      (6*24),
-    G_GBI2_MVO_L5:      (7*24),
-    G_GBI2_MVO_L6:      (8*24),
-    G_GBI2_MVO_L7:      (9*24)
-  };
 
   function previewGBI2_MoveMem(type, length, address, dis) {
     var tip = '';
@@ -2875,18 +2666,18 @@ import * as logger from './logger.js';
 
     switch (type) {
       // TODO(hulkholden): moveMemTypeValuesGBI2?
-      case moveMemTypeValues.G_MV_VIEWPORT:
+      case gbi.moveMemTypeValues.G_MV_VIEWPORT:
         tip += previewViewport(address);
         break;
 
-      case moveMemTypeValues.G_MV_L0:
-      case moveMemTypeValues.G_MV_L1:
-      case moveMemTypeValues.G_MV_L2:
-      case moveMemTypeValues.G_MV_L3:
-      case moveMemTypeValues.G_MV_L4:
-      case moveMemTypeValues.G_MV_L5:
-      case moveMemTypeValues.G_MV_L6:
-      case moveMemTypeValues.G_MV_L7:
+      case gbi.moveMemTypeValues.G_MV_L0:
+      case gbi.moveMemTypeValues.G_MV_L1:
+      case gbi.moveMemTypeValues.G_MV_L2:
+      case gbi.moveMemTypeValues.G_MV_L3:
+      case gbi.moveMemTypeValues.G_MV_L4:
+      case gbi.moveMemTypeValues.G_MV_L5:
+      case gbi.moveMemTypeValues.G_MV_L6:
+      case gbi.moveMemTypeValues.G_MV_L7:
         tip += previewLight(address);
         break;
     }
@@ -2903,14 +2694,14 @@ import * as logger from './logger.js';
     if (dis) {
       var address_str = toString32(address);
 
-      var type_str = getDefine(moveMemTypeValues, type);
+      var type_str = getDefine(gbi.moveMemTypeValuesGBI2, type);
       var text = 'gsDma1p(G_MOVEMEM, ' + address_str + ', ' + length + ', ' + type_str + ');';
 
       switch (type) {
-        case moveMemTypeValuesGBI2.G_GBI2_MV_VIEWPORT:
+        case gbi.moveMemTypeValuesGBI2.G_GBI2_MV_VIEWPORT:
           text = 'gsSPViewport(' + address_str + ');';
           break;
-        case moveMemTypeValuesGBI2.G_GBI2_MV_LIGHT:
+        case gbi.moveMemTypeValuesGBI2.G_GBI2_MV_LIGHT:
           var offset2 = (cmd0 >>> 5) & 0x3fff;
           switch (offset2) {
             case 0x00:
@@ -2932,10 +2723,10 @@ import * as logger from './logger.js';
     }
 
     switch (type) {
-      case moveMemTypeValuesGBI2.G_GBI2_MV_VIEWPORT:
+      case gbi.moveMemTypeValuesGBI2.G_GBI2_MV_VIEWPORT:
         moveMemViewport(address);
         break;
-      case moveMemTypeValuesGBI2.G_GBI2_MV_LIGHT:
+      case gbi.moveMemTypeValuesGBI2.G_GBI2_MV_LIGHT:
         var offset2 = (cmd0 >>> 5) & 0x3fff;
         switch (offset2) {
           case 0x00:
@@ -2960,11 +2751,11 @@ import * as logger from './logger.js';
     var address = rdpSegmentAddress(cmd1);
 
     if (dis) {
-      var fn = (param === G_DL_PUSH) ? 'gsSPDisplayList' : 'gsSPBranchList';
+      var fn = (param === gbi.G_DL_PUSH) ? 'gsSPDisplayList' : 'gsSPBranchList';
       dis.text(fn + '(<span class="dl-branch">' + toString32(address) + '</span>);');
     }
 
-    if (param === G_DL_PUSH) {
+    if (param === gbi.G_DL_PUSH) {
       state.dlistStack.push({pc: state.pc});
     }
     state.pc = address;
@@ -3353,10 +3144,10 @@ import * as logger from './logger.js';
       vals.push(tile.line);
       vals.push(tile.tmem);
       vals.push(tile.palette);
-      vals.push(getClampMirrorWrapText(tile.cm_s));
+      vals.push(gbi.getClampMirrorWrapText(tile.cm_s));
       vals.push(tile.mask_s);
       vals.push(tile.shift_s);
-      vals.push(getClampMirrorWrapText(tile.cm_t));
+      vals.push(gbi.getClampMirrorWrapText(tile.cm_t));
       vals.push(tile.mask_t);
       vals.push(tile.shift_t);
       vals.push(tile.uls / 4.0);
@@ -3969,8 +3760,8 @@ import * as logger from './logger.js';
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
 
-    var mode_s = (tile.cm_s === G_TX_CLAMP || (tile.mask_s === 0)) ? gl.CLAMP_TO_EDGE : (tile.cm_s === G_TX_MIRROR ? gl.MIRRORED_REPEAT : gl.REPEAT);
-    var mode_t = (tile.cm_t === G_TX_CLAMP || (tile.mask_t === 0)) ? gl.CLAMP_TO_EDGE : (tile.cm_t === G_TX_MIRROR ? gl.MIRRORED_REPEAT : gl.REPEAT);
+    var mode_s = (tile.cm_s === gbi.G_TX_CLAMP || (tile.mask_s === 0)) ? gl.CLAMP_TO_EDGE : (tile.cm_s === gbi.G_TX_MIRROR ? gl.MIRRORED_REPEAT : gl.REPEAT);
+    var mode_t = (tile.cm_t === gbi.G_TX_CLAMP || (tile.mask_t === 0)) ? gl.CLAMP_TO_EDGE : (tile.cm_t === gbi.G_TX_MIRROR ? gl.MIRRORED_REPEAT : gl.REPEAT);
 
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, mode_s);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, mode_t);
