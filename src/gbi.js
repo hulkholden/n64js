@@ -334,111 +334,111 @@ export const ImageFormat = {
   G_IM_FMT_YUV:     1,
   G_IM_FMT_CI:      2,
   G_IM_FMT_IA:      3,
-  G_IM_FMT_I:       4
+  G_IM_FMT_I:       4,
 };
 
 export const ImageSize = {
   G_IM_SIZ_4b:      0,
   G_IM_SIZ_8b:      1,
   G_IM_SIZ_16b:     2,
-  G_IM_SIZ_32b:     3
+  G_IM_SIZ_32b:     3,
 };
 
 export const PipelineMode = {
   G_PM_1PRIMITIVE:   1 << G_MDSFT_PIPELINE,
-  G_PM_NPRIMITIVE:   0 << G_MDSFT_PIPELINE
+  G_PM_NPRIMITIVE:   0 << G_MDSFT_PIPELINE,
 };
 
 export const CycleType = {
   G_CYC_1CYCLE:     0 << G_MDSFT_CYCLETYPE,
   G_CYC_2CYCLE:     1 << G_MDSFT_CYCLETYPE,
   G_CYC_COPY:       2 << G_MDSFT_CYCLETYPE,
-  G_CYC_FILL:       3 << G_MDSFT_CYCLETYPE
+  G_CYC_FILL:       3 << G_MDSFT_CYCLETYPE,
 };
 
 export const TexturePerspective = {
   G_TP_NONE:        0 << G_MDSFT_TEXTPERSP,
-  G_TP_PERSP:       1 << G_MDSFT_TEXTPERSP
+  G_TP_PERSP:       1 << G_MDSFT_TEXTPERSP,
 };
 
 export const TextureDetail = {
   G_TD_CLAMP:       0 << G_MDSFT_TEXTDETAIL,
   G_TD_SHARPEN:     1 << G_MDSFT_TEXTDETAIL,
-  G_TD_DETAIL:      2 << G_MDSFT_TEXTDETAIL
+  G_TD_DETAIL:      2 << G_MDSFT_TEXTDETAIL,
 };
 
 export const TextureLOD = {
   G_TL_TILE:        0 << G_MDSFT_TEXTLOD,
-  G_TL_LOD:         1 << G_MDSFT_TEXTLOD
+  G_TL_LOD:         1 << G_MDSFT_TEXTLOD,
 };
 
 export const TextureLUT = {
   G_TT_NONE:        0 << G_MDSFT_TEXTLUT,
   G_TT_RGBA16:      2 << G_MDSFT_TEXTLUT,
-  G_TT_IA16:        3 << G_MDSFT_TEXTLUT
+  G_TT_IA16:        3 << G_MDSFT_TEXTLUT,
 };
 
 export const TextureFilter = {
   G_TF_POINT:       0 << G_MDSFT_TEXTFILT,
   G_TF_AVERAGE:     3 << G_MDSFT_TEXTFILT,
-  G_TF_BILERP:      2 << G_MDSFT_TEXTFILT
+  G_TF_BILERP:      2 << G_MDSFT_TEXTFILT,
 };
 
 export const TextureConvert = {
   G_TC_CONV:       0 << G_MDSFT_TEXTCONV,
   G_TC_FILTCONV:   5 << G_MDSFT_TEXTCONV,
-  G_TC_FILT:       6 << G_MDSFT_TEXTCONV
+  G_TC_FILT:       6 << G_MDSFT_TEXTCONV,
 };
 
 export const CombineKey = {
   G_CK_NONE:        0 << G_MDSFT_COMBKEY,
-  G_CK_KEY:         1 << G_MDSFT_COMBKEY
+  G_CK_KEY:         1 << G_MDSFT_COMBKEY,
 };
 
 export const ColorDither = {
   G_CD_MAGICSQ:     0 << G_MDSFT_RGBDITHER,
   G_CD_BAYER:       1 << G_MDSFT_RGBDITHER,
   G_CD_NOISE:       2 << G_MDSFT_RGBDITHER,
-  G_CD_DISABLE:     3 << G_MDSFT_RGBDITHER
+  G_CD_DISABLE:     3 << G_MDSFT_RGBDITHER,
 };
 
 export const AlphaDither = {
   G_AD_PATTERN:     0 << G_MDSFT_ALPHADITHER,
   G_AD_NOTPATTERN:  1 << G_MDSFT_ALPHADITHER,
   G_AD_NOISE:       2 << G_MDSFT_ALPHADITHER,
-  G_AD_DISABLE:     3 << G_MDSFT_ALPHADITHER
+  G_AD_DISABLE:     3 << G_MDSFT_ALPHADITHER,
 };
 
 export const AlphaCompare = {
   G_AC_NONE:          0 << G_MDSFT_ALPHACOMPARE,
   G_AC_THRESHOLD:     1 << G_MDSFT_ALPHACOMPARE,
-  G_AC_DITHER:        3 << G_MDSFT_ALPHACOMPARE
+  G_AC_DITHER:        3 << G_MDSFT_ALPHACOMPARE,
 };
 
 export const DepthSource = {
   G_ZS_PIXEL:         0 << G_MDSFT_ZSRCSEL,
-  G_ZS_PRIM:          1 << G_MDSFT_ZSRCSEL
+  G_ZS_PRIM:          1 << G_MDSFT_ZSRCSEL,
 };
 
 const blendColourSources = [
   'G_BL_CLR_IN',
   'G_BL_CLR_MEM',
   'G_BL_CLR_BL',
-  'G_BL_CLR_FOG'
+  'G_BL_CLR_FOG',
 ];
 
 const blendSourceFactors = [
   'G_BL_A_IN',
   'G_BL_A_FOG',
   'G_BL_A_SHADE',
-  'G_BL_0'
+  'G_BL_0',
 ];
 
 const blendDestFactors = [
   'G_BL_1MA',
   'G_BL_A_MEM',
   'G_BL_1',
-  'G_BL_0'
+  'G_BL_0',
 ];
 
 export function blendOpText(v) {
