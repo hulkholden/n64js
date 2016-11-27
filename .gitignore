@@ -1,5 +1,7 @@
 .DS_Store
 build/
+n64.min.js
+n64.min.js.map
 n64js.sublime-workspace
 node_modules/
 rom.z64
