@@ -6,11 +6,11 @@ import { ProjectedVertex, TriangleBuffer } from './TriangleBuffer.js';
 import { Vector3 } from './Vector3.js';
 import { Vector4 } from './Vector4.js';
 import * as convert from './convert.js';
+import * as gbi from './gbi.js';
+import * as shaders from './shaders.js';
 import * as logger from './logger.js';
 
 (function (n64js) {'use strict';
-  const kDumpShaders = 0;
-
   var graphics_task_count = 0;
   var texrected = 1;
 
@@ -34,16 +34,11 @@ import * as logger from './logger.js';
 
   var textureCache;
 
-  var gl       = null;
+  var gl = null;
 
   var frameBuffer;
   var frameBufferTexture3D;   // For roms using display lists
   var frameBufferTexture2D;   // For roms writing directly to the frame buffer
-
-  var programs = {};
-
-  var fragmentSource = null;    // We patch in our shader instructions into this source.
-  var genericVertexShader = null;
 
   // n64's display resolution
   var viWidth  = 320;
@@ -1177,159 +1172,42 @@ import * as logger from './logger.js';
     updateGeometryModeFromBits(geometryModeFlagsGBI1);
   }
 
- const renderModeFlags = {
-    AA_EN:               0x0008,
-    Z_CMP:               0x0010,
-    Z_UPD:               0x0020,
-    IM_RD:               0x0040,
-    CLR_ON_CVG:          0x0080,
-    CVG_DST_CLAMP:       0,
-    CVG_DST_WRAP:        0x0100,
-    CVG_DST_FULL:        0x0200,
-    CVG_DST_SAVE:        0x0300,
-    ZMODE_OPA:           0,
-    ZMODE_INTER:         0x0400,
-    ZMODE_XLU:           0x0800,
-    ZMODE_DEC:           0x0c00,
-    CVG_X_ALPHA:         0x1000,
-    ALPHA_CVG_SEL:       0x2000,
-    FORCE_BL:            0x4000,
-    TEX_EDGE:            0x0000 /* used to be 0x8000 */
-  };
-
-  const blendColourSources = [
-    'G_BL_CLR_IN',
-    'G_BL_CLR_MEM',
-    'G_BL_CLR_BL',
-    'G_BL_CLR_FOG'
-  ];
-
-  const blendSourceFactors = [
-    'G_BL_A_IN',
-    'G_BL_A_FOG',
-    'G_BL_A_SHADE',
-    'G_BL_0'
-  ];
-
-  const blendDestFactors = [
-    'G_BL_1MA',
-    'G_BL_A_MEM',
-    'G_BL_1',
-    'G_BL_0'
-  ];
-
-  function blendOpText(v) {
-    var m1a = (v>>>12)&0x3;
-    var m1b = (v>>> 8)&0x3;
-    var m2a = (v>>> 4)&0x3;
-    var m2b = (v>>> 0)&0x3;
-
-    return blendColourSources[m1a] + ',' + blendSourceFactors[m1b] + ',' + blendColourSources[m2a] + ',' + blendDestFactors[m2b];
-  }
-
-  function getRenderModeFlagsText(data) {
-    var t = '';
-
-    if (data & renderModeFlags.AA_EN)               t += '|AA_EN';
-    if (data & renderModeFlags.Z_CMP)               t += '|Z_CMP';
-    if (data & renderModeFlags.Z_UPD)               t += '|Z_UPD';
-    if (data & renderModeFlags.IM_RD)               t += '|IM_RD';
-    if (data & renderModeFlags.CLR_ON_CVG)          t += '|CLR_ON_CVG';
-
-    var cvg = data & 0x0300;
-         if (cvg === renderModeFlags.CVG_DST_CLAMP) t += '|CVG_DST_CLAMP';
-    else if (cvg === renderModeFlags.CVG_DST_WRAP)  t += '|CVG_DST_WRAP';
-    else if (cvg === renderModeFlags.CVG_DST_FULL)  t += '|CVG_DST_FULL';
-    else if (cvg === renderModeFlags.CVG_DST_SAVE)  t += '|CVG_DST_SAVE';
-
-    var zmode = data & 0x0c00;
-         if (zmode === renderModeFlags.ZMODE_OPA)   t += '|ZMODE_OPA';
-    else if (zmode === renderModeFlags.ZMODE_INTER) t += '|ZMODE_INTER';
-    else if (zmode === renderModeFlags.ZMODE_XLU)   t += '|ZMODE_XLU';
-    else if (zmode === renderModeFlags.ZMODE_DEC)   t += '|ZMODE_DEC';
-
-    if (data & renderModeFlags.CVG_X_ALPHA)         t += '|CVG_X_ALPHA';
-    if (data & renderModeFlags.ALPHA_CVG_SEL)       t += '|ALPHA_CVG_SEL';
-    if (data & renderModeFlags.FORCE_BL)            t += '|FORCE_BL';
-
-    var c0 = t.length > 0 ? t.substr(1) : '0';
-
-    var blend = data >>> G_MDSFT_BLENDER;
-
-    var c1 = 'GBL_c1(' + blendOpText(blend>>>2) + ') | GBL_c2(' + blendOpText(blend) + ') /*' + toString16(blend) + '*/';
-
-    return c0 + ', ' + c1;
-  }
-
-  function getOtherModeLShiftCount(sft) {
-    switch (sft) {
-
-      case G_MDSFT_ALPHACOMPARE:  return 'G_MDSFT_ALPHACOMPARE';
-      case G_MDSFT_ZSRCSEL:       return 'G_MDSFT_ZSRCSEL';
-      case G_MDSFT_RENDERMODE:    return 'G_MDSFT_RENDERMODE';
-      case G_MDSFT_BLENDER:       return 'G_MDSFT_BLENDER';
-    }
-
-    return toString8(sft);
-  }
-
-  function getOtherModeHShiftCount(sft) {
-    switch (sft) {
-
-      case G_MDSFT_BLENDMASK:   return 'G_MDSFT_BLENDMASK';
-      case G_MDSFT_ALPHADITHER: return 'G_MDSFT_ALPHADITHER';
-      case G_MDSFT_RGBDITHER:   return 'G_MDSFT_RGBDITHER';
-      case G_MDSFT_COMBKEY:     return 'G_MDSFT_COMBKEY';
-      case G_MDSFT_TEXTCONV:    return 'G_MDSFT_TEXTCONV';
-      case G_MDSFT_TEXTFILT:    return 'G_MDSFT_TEXTFILT';
-      case G_MDSFT_TEXTLUT:     return 'G_MDSFT_TEXTLUT';
-      case G_MDSFT_TEXTLOD:     return 'G_MDSFT_TEXTLOD';
-      case G_MDSFT_TEXTDETAIL:  return 'G_MDSFT_TEXTDETAIL';
-      case G_MDSFT_TEXTPERSP:   return 'G_MDSFT_TEXTPERSP';
-      case G_MDSFT_CYCLETYPE:   return 'G_MDSFT_CYCLETYPE';
-      case G_MDSFT_COLORDITHER: return 'G_MDSFT_COLORDITHER';
-      case G_MDSFT_PIPELINE:    return 'G_MDSFT_PIPELINE';
-    }
-
-    return toString8(sft);
-  }
-
   function disassembleSetOtherModeL(dis, len, shift, data) {
     var data_str  = toString32(data);
-    var shift_str = getOtherModeLShiftCount(shift);
+    var shift_str = gbi.getOtherModeLShiftCountName(shift);
     var text      = 'gsSPSetOtherMode(G_SETOTHERMODE_L, ' + shift_str + ', ' + len + ', ' + data_str + ');';
 
     // Override generic text with specific functions if known
     switch (shift) {
-      case G_MDSFT_ALPHACOMPARE:  if (len === 2)  text = 'gsDPSetAlphaCompare(' + getDefine(alphaCompareValues, data) + ');'; break;
-      case G_MDSFT_ZSRCSEL:       if (len === 1)  text = 'gsDPSetDepthSource('  + getDefine(depthSourceValues, data)  + ');'; break;
-      case G_MDSFT_RENDERMODE:    if (len === 29) text = 'gsDPSetRenderMode('   + getRenderModeFlagsText(data) + ');'; break;
-      //case G_MDSFT_BLENDER:     break; // set with G_MDSFT_RENDERMODE
+      case gbi.G_MDSFT_ALPHACOMPARE:  if (len === 2)  text = 'gsDPSetAlphaCompare(' + getDefine(gbi.alphaCompareValues, data) + ');'; break;
+      case gbi.G_MDSFT_ZSRCSEL:       if (len === 1)  text = 'gsDPSetDepthSource('  + getDefine(gbi.depthSourceValues, data)  + ');'; break;
+      case gbi.G_MDSFT_RENDERMODE:    if (len === 29) text = 'gsDPSetRenderMode('   + gbi.getRenderModeFlagsText(data) + ');'; break;
+      //case gbi.G_MDSFT_BLENDER:     break; // set with G_MDSFT_RENDERMODE
     }
     dis.text(text);
   }
 
   function disassembleSetOtherModeH(dis, len, shift, data) {
-    var shift_str = getOtherModeHShiftCount(shift);
+    var shift_str = gbi.getOtherModeHShiftCountName(shift);
     var data_str  = toString32(data);
 
     var text = 'gsSPSetOtherMode(G_SETOTHERMODE_H, ' + shift_str + ', ' + len + ', ' + data_str + ');';
 
     // Override generic text with specific functions if known
     switch (shift) {
-      case G_MDSFT_BLENDMASK:   break;
-      case G_MDSFT_ALPHADITHER: if (len === 2) text = 'gsDPSetAlphaDither('   + getDefine(alphaDitherValues, data)    + ');'; break;
-      case G_MDSFT_RGBDITHER:   if (len === 2) text = 'gsDPSetColorDither('   + getDefine(colorDitherValues, data)    + ');'; break;  // NB HW2?
-      case G_MDSFT_COMBKEY:     if (len === 1) text = 'gsDPSetCombineKey('    + getDefine(combineKeyValues,  data)    + ');'; break;
-      case G_MDSFT_TEXTCONV:    if (len === 3) text = 'gsDPSetTextureConvert('+ getDefine(textureConvertValues, data) + ');'; break;
-      case G_MDSFT_TEXTFILT:    if (len === 2) text = 'gsDPSetTextureFilter(' + getDefine(textureFilterValues, data)  + ');'; break;
-      case G_MDSFT_TEXTLOD:     if (len === 1) text = 'gsDPSetTextureLOD('    + getDefine(textureLODValues, data)     + ');'; break;
-      case G_MDSFT_TEXTLUT:     if (len === 2) text = 'gsDPSetTextureLUT('    + getDefine(textureLUTValues, data)     + ');'; break;
-      case G_MDSFT_TEXTDETAIL:  if (len === 2) text = 'gsDPSetTextureDetail(' + getDefine(textureDetailValues, data)  + ');'; break;
-      case G_MDSFT_TEXTPERSP:   if (len === 1) text = 'gsDPSetTexturePersp('  + getDefine(texturePerspValues, data)   + ');'; break;
-      case G_MDSFT_CYCLETYPE:   if (len === 2) text = 'gsDPSetCycleType('     + getDefine(cycleTypeValues, data)      + ');'; break;
-      //case G_MDSFT_COLORDITHER: if (len === 1) text = 'gsDPSetColorDither('   + data_str + ');'; break;  // NB HW1?
-      case G_MDSFT_PIPELINE:    if (len === 1) text = 'gsDPPipelineMode('     + getDefine(pipelineModeValues, data)   + ');'; break;
+      case gbi.G_MDSFT_BLENDMASK:   break;
+      case gbi.G_MDSFT_ALPHADITHER: if (len === 2) text = 'gsDPSetAlphaDither('   + getDefine(gbi.alphaDitherValues, data)    + ');'; break;
+      case gbi.G_MDSFT_RGBDITHER:   if (len === 2) text = 'gsDPSetColorDither('   + getDefine(gbi.colorDitherValues, data)    + ');'; break;  // NB HW2?
+      case gbi.G_MDSFT_COMBKEY:     if (len === 1) text = 'gsDPSetCombineKey('    + getDefine(gbi.combineKeyValues,  data)    + ');'; break;
+      case gbi.G_MDSFT_TEXTCONV:    if (len === 3) text = 'gsDPSetTextureConvert('+ getDefine(gbi.textureConvertValues, data) + ');'; break;
+      case gbi.G_MDSFT_TEXTFILT:    if (len === 2) text = 'gsDPSetTextureFilter(' + getDefine(gbi.textureFilterValues, data)  + ');'; break;
+      case gbi.G_MDSFT_TEXTLOD:     if (len === 1) text = 'gsDPSetTextureLOD('    + getDefine(gbi.textureLODValues, data)     + ');'; break;
+      case gbi.G_MDSFT_TEXTLUT:     if (len === 2) text = 'gsDPSetTextureLUT('    + getDefine(gbi.textureLUTValues, data)     + ');'; break;
+      case gbi.G_MDSFT_TEXTDETAIL:  if (len === 2) text = 'gsDPSetTextureDetail(' + getDefine(gbi.textureDetailValues, data)  + ');'; break;
+      case gbi.G_MDSFT_TEXTPERSP:   if (len === 1) text = 'gsDPSetTexturePersp('  + getDefine(gbi.texturePerspValues, data)   + ');'; break;
+      case gbi.G_MDSFT_CYCLETYPE:   if (len === 2) text = 'gsDPSetCycleType('     + getDefine(gbi.cycleTypeValues, data)      + ');'; break;
+      //case gbi.G_MDSFT_COLORDITHER: if (len === 1) text = 'gsDPSetColorDither('   + data_str + ');'; break;  // NB HW1?
+      case gbi.G_MDSFT_PIPELINE:    if (len === 1) text = 'gsDPPipelineMode('     + getDefine(gbi.pipelineModeValues, data)   + ');'; break;
     }
     dis.text(text);
   }
@@ -1894,7 +1772,7 @@ import * as logger from './logger.js';
 
     var color = {r:0, g:0, b:0, a:0};
 
-    if (cycle_type === cycleTypeValues.G_CYC_FILL) {
+    if (cycle_type === gbi.cycleTypeValues.G_CYC_FILL) {
       x1 += 1;
       y1 += 1;
 
@@ -1910,7 +1788,7 @@ import * as logger from './logger.js';
         gl.clear(gl.COLOR_BUFFER_BIT);
         return;
       }
-    } else if (cycle_type === cycleTypeValues.G_CYC_COPY) {
+    } else if (cycle_type === gbi.cycleTypeValues.G_CYC_COPY) {
       x1 += 1;
       y1 += 1;
     }
@@ -1949,13 +1827,13 @@ import * as logger from './logger.js';
     var cycle_type = getCycleType();
 
     // In copy mode 4 pixels are copied at once.
-    if (cycle_type === cycleTypeValues.G_CYC_COPY) {
+    if (cycle_type === gbi.cycleTypeValues.G_CYC_COPY) {
       dsdx *= 0.25;
     }
 
     // In Fill/Copy mode the coordinates are inclusive (i.e. add 1.0f to the w/h)
-    if (cycle_type === cycleTypeValues.G_CYC_COPY ||
-        cycle_type === cycleTypeValues.G_CYC_FILL) {
+    if (cycle_type === gbi.cycleTypeValues.G_CYC_COPY ||
+        cycle_type === gbi.cycleTypeValues.G_CYC_FILL) {
       xh += 1.0;
       yh += 1.0;
     }
@@ -1987,13 +1865,13 @@ import * as logger from './logger.js';
     var cycle_type = getCycleType();
 
     // In copy mode 4 pixels are copied at once.
-    if (cycle_type === cycleTypeValues.G_CYC_COPY) {
+    if (cycle_type === gbi.cycleTypeValues.G_CYC_COPY) {
       dsdx *= 0.25;
     }
 
     // In Fill/Copy mode the coordinates are inclusive (i.e. add 1.0f to the w/h)
-    if (cycle_type === cycleTypeValues.G_CYC_COPY ||
-        cycle_type === cycleTypeValues.G_CYC_FILL) {
+    if (cycle_type === gbi.cycleTypeValues.G_CYC_COPY ||
+        cycle_type === gbi.cycleTypeValues.G_CYC_FILL) {
       xh += 1.0;
       yh += 1.0;
     }
@@ -2062,113 +1940,12 @@ import * as logger from './logger.js';
     state.envColor = cmd1;
   }
 
-  const kMulInputRGB = [
-    'Combined    ', 'Texel0      ',
-    'Texel1      ', 'Primitive   ',
-    'Shade       ', 'Env         ',
-    'KeyScale    ', 'CombinedAlph',
-    'Texel0_Alpha', 'Texel1_Alpha',
-    'Prim_Alpha  ', 'Shade_Alpha ',
-    'Env_Alpha   ', 'LOD_Frac    ',
-    'PrimLODFrac ', 'K5          ',
-    '0           ', '0           ',
-    '0           ', '0           ',
-    '0           ', '0           ',
-    '0           ', '0           ',
-    '0           ', '0           ',
-    '0           ', '0           ',
-    '0           ', '0           ',
-    '0           ', '0           '
-  ];
-
-  const kSubAInputRGB = [
-    'Combined    ', 'Texel0      ',
-    'Texel1      ', 'Primitive   ',
-    'Shade       ', 'Env         ',
-    '1           ', 'Noise       ',
-    '0           ', '0           ',
-    '0           ', '0           ',
-    '0           ', '0           ',
-    '0           ', '0           '
-  ];
-
-  const kSubBInputRGB = [
-    'Combined    ', 'Texel0      ',
-    'Texel1      ', 'Primitive   ',
-    'Shade       ', 'Env         ',
-    'KeyCenter   ', 'K4          ',
-    '0           ', '0           ',
-    '0           ', '0           ',
-    '0           ', '0           ',
-    '0           ', '0           '
-  ];
-
-  const kAddInputRGB = [
-    'Combined    ', 'Texel0      ',
-    'Texel1      ', 'Primitive   ',
-    'Shade       ', 'Env         ',
-    '1           ', '0           '
-  ];
-
-  const kSubInputA = [
-    'Combined    ', 'Texel0      ',
-    'Texel1      ', 'Primitive   ',
-    'Shade       ', 'Env         ',
-    'PrimLODFrac ', '0           '
-  ];
-  const kMulInputA = [
-    'Combined    ', 'Texel0      ',
-    'Texel1      ', 'Primitive   ',
-    'Shade       ', 'Env         ',
-    '1           ', '0           '
-  ];
-  const kAddInputA = [
-    'Combined    ', 'Texel0      ',
-    'Texel1      ', 'Primitive   ',
-    'Shade       ', 'Env         ',
-    '1           ', '0           '
-  ];
-
-  function decodeSetCombine(mux0, mux1) {
-      //
-      var aRGB0  = (mux0>>>20)&0x0F; // c1 c1    // a0
-      var bRGB0  = (mux1>>>28)&0x0F; // c1 c2    // b0
-      var cRGB0  = (mux0>>>15)&0x1F; // c1 c3    // c0
-      var dRGB0  = (mux1>>>15)&0x07; // c1 c4    // d0
-
-      var aA0    = (mux0>>>12)&0x07; // c1 a1    // Aa0
-      var bA0    = (mux1>>>12)&0x07; // c1 a2    // Ab0
-      var cA0    = (mux0>>> 9)&0x07; // c1 a3    // Ac0
-      var dA0    = (mux1>>> 9)&0x07; // c1 a4    // Ad0
-
-      var aRGB1  = (mux0>>> 5)&0x0F; // c2 c1    // a1
-      var bRGB1  = (mux1>>>24)&0x0F; // c2 c2    // b1
-      var cRGB1  = (mux0>>> 0)&0x1F; // c2 c3    // c1
-      var dRGB1  = (mux1>>> 6)&0x07; // c2 c4    // d1
-
-      var aA1    = (mux1>>>21)&0x07; // c2 a1    // Aa1
-      var bA1    = (mux1>>> 3)&0x07; // c2 a2    // Ab1
-      var cA1    = (mux1>>>18)&0x07; // c2 a3    // Ac1
-      var dA1    = (mux1>>> 0)&0x07; // c2 a4    // Ad1
-
-      var decoded = '';
-
-      decoded += 'RGB0 = (' + kSubAInputRGB[aRGB0] + ' - ' + kSubBInputRGB[bRGB0] + ') * ' + kMulInputRGB[cRGB0] + ' + ' + kAddInputRGB[dRGB0] + '\n';
-      decoded += '  A0 = (' + kSubInputA   [  aA0] + ' - ' + kSubInputA   [  bA0] + ') * ' + kMulInputA  [  cA0] + ' + ' + kAddInputA  [  dA0] + '\n';
-      decoded += 'RGB1 = (' + kSubAInputRGB[aRGB1] + ' - ' + kSubBInputRGB[bRGB1] + ') * ' + kMulInputRGB[cRGB1] + ' + ' + kAddInputRGB[dRGB1] + '\n';
-      decoded += '  A1 = (' + kSubInputA   [  aA1] + ' - ' + kSubInputA   [  bA1] + ') * ' + kMulInputA  [  cA1] + ' + ' + kAddInputA  [  dA1] + '\n';
-
-      return decoded;
-  }
-
-
   function executeSetCombine(cmd0,cmd1,dis) {
 
     if (dis) {
       var mux0 = cmd0&0x00ffffff;
       var mux1 = cmd1;
-
-      var decoded = decodeSetCombine(mux0, mux1);
+      var decoded = shaders.getCombinerText(mux0, mux1);
 
       dis.text('gsDPSetCombine(' + toString32(mux0) + ', ' + toString32(mux1) + ');' + '\n' + decoded);
     }
@@ -2285,142 +2062,29 @@ import * as logger from './logger.js';
     // FIXME!
   }
 
-  // G_SETOTHERMODE_L sft: shift count
-  const G_MDSFT_ALPHACOMPARE    = 0;
-  const G_MDSFT_ZSRCSEL         = 2;
-  const G_MDSFT_RENDERMODE      = 3;
-  const G_MDSFT_BLENDER         = 16;
-
-  const G_AC_MASK     = 3 << G_MDSFT_ALPHACOMPARE;
-  const G_ZS_MASK     = 1 << G_MDSFT_ZSRCSEL;
-
   function getAlphaCompareType() {
-    return state.rdpOtherModeL & G_AC_MASK;
+    return state.rdpOtherModeL & gbi.G_AC_MASK;
   }
 
   function getCoverageTimesAlpha() {
-     return (state.rdpOtherModeL & renderModeFlags.CVG_X_ALPHA) !== 0;  // fragment coverage (0) or alpha (1)?
+     return (state.rdpOtherModeL & gbi.renderModeFlags.CVG_X_ALPHA) !== 0;  // fragment coverage (0) or alpha (1)?
   }
 
   function getAlphaCoverageSelect() {
-    return (state.rdpOtherModeL & renderModeFlags.ALPHA_CVG_SEL) !== 0;  // use fragment coverage * fragment alpha
+    return (state.rdpOtherModeL & gbi.renderModeFlags.ALPHA_CVG_SEL) !== 0;  // use fragment coverage * fragment alpha
   }
 
-  //G_SETOTHERMODE_H shift count
-  const G_MDSFT_BLENDMASK       = 0;
-  const G_MDSFT_ALPHADITHER     = 4;
-  const G_MDSFT_RGBDITHER       = 6;
-  const G_MDSFT_COMBKEY         = 8;
-  const G_MDSFT_TEXTCONV        = 9;
-  const G_MDSFT_TEXTFILT        = 12;
-  const G_MDSFT_TEXTLUT         = 14;
-  const G_MDSFT_TEXTLOD         = 16;
-  const G_MDSFT_TEXTDETAIL      = 17;
-  const G_MDSFT_TEXTPERSP       = 19;
-  const G_MDSFT_CYCLETYPE       = 20;
-  const G_MDSFT_COLORDITHER     = 22;
-  const G_MDSFT_PIPELINE        = 23;
-
-  const G_PM_MASK     = 1 << G_MDSFT_PIPELINE;
-  const G_CYC_MASK    = 3 << G_MDSFT_CYCLETYPE;
-  const G_TP_MASK     = 1 << G_MDSFT_TEXTPERSP;
-  const G_TD_MASK     = 3 << G_MDSFT_TEXTDETAIL;
-  const G_TL_MASK     = 1 << G_MDSFT_TEXTLOD;
-  const G_TT_MASK     = 3 << G_MDSFT_TEXTLUT;
-  const G_TF_MASK     = 3 << G_MDSFT_TEXTFILT;
-  const G_TC_MASK     = 7 << G_MDSFT_TEXTCONV;
-  const G_CK_MASK     = 1 << G_MDSFT_COMBKEY;
-  const G_CD_MASK     = 3 << G_MDSFT_RGBDITHER;
-  const G_AD_MASK     = 3 << G_MDSFT_ALPHADITHER;
-
   function getCycleType() {
-    return state.rdpOtherModeH & G_CYC_MASK;
+    return state.rdpOtherModeH & gbi.G_CYC_MASK;
   }
 
   function getTextureFilterType() {
-    return state.rdpOtherModeH & G_TF_MASK;
+    return state.rdpOtherModeH & gbi.G_TF_MASK;
   }
 
   function getTextureLUTType() {
-    return state.rdpOtherModeH & G_TT_MASK;
+    return state.rdpOtherModeH & gbi.G_TT_MASK;
   }
-
-  const pipelineModeValues = {
-    G_PM_1PRIMITIVE:   1 << G_MDSFT_PIPELINE,
-    G_PM_NPRIMITIVE:   0 << G_MDSFT_PIPELINE
-  };
-
-  const cycleTypeValues = {
-    G_CYC_1CYCLE:     0 << G_MDSFT_CYCLETYPE,
-    G_CYC_2CYCLE:     1 << G_MDSFT_CYCLETYPE,
-    G_CYC_COPY:       2 << G_MDSFT_CYCLETYPE,
-    G_CYC_FILL:       3 << G_MDSFT_CYCLETYPE
-  };
-
-  const texturePerspValues = {
-    G_TP_NONE:        0 << G_MDSFT_TEXTPERSP,
-    G_TP_PERSP:       1 << G_MDSFT_TEXTPERSP
-  };
-
-  const textureDetailValues = {
-    G_TD_CLAMP:       0 << G_MDSFT_TEXTDETAIL,
-    G_TD_SHARPEN:     1 << G_MDSFT_TEXTDETAIL,
-    G_TD_DETAIL:      2 << G_MDSFT_TEXTDETAIL
-  };
-
-  const textureLODValues = {
-    G_TL_TILE:        0 << G_MDSFT_TEXTLOD,
-    G_TL_LOD:         1 << G_MDSFT_TEXTLOD
-  };
-
-  const textureLUTValues = {
-    G_TT_NONE:        0 << G_MDSFT_TEXTLUT,
-    G_TT_RGBA16:      2 << G_MDSFT_TEXTLUT,
-    G_TT_IA16:        3 << G_MDSFT_TEXTLUT
-  };
-
-  const textureFilterValues = {
-    G_TF_POINT:       0 << G_MDSFT_TEXTFILT,
-    G_TF_AVERAGE:     3 << G_MDSFT_TEXTFILT,
-    G_TF_BILERP:      2 << G_MDSFT_TEXTFILT
-  };
-
-  const textureConvertValues = {
-    G_TC_CONV:       0 << G_MDSFT_TEXTCONV,
-    G_TC_FILTCONV:   5 << G_MDSFT_TEXTCONV,
-    G_TC_FILT:       6 << G_MDSFT_TEXTCONV
-  };
-
-  const combineKeyValues = {
-    G_CK_NONE:        0 << G_MDSFT_COMBKEY,
-    G_CK_KEY:         1 << G_MDSFT_COMBKEY
-  };
-
-  const colorDitherValues = {
-    G_CD_MAGICSQ:     0 << G_MDSFT_RGBDITHER,
-    G_CD_BAYER:       1 << G_MDSFT_RGBDITHER,
-    G_CD_NOISE:       2 << G_MDSFT_RGBDITHER,
-    G_CD_DISABLE:     3 << G_MDSFT_RGBDITHER
-  };
-
-  const alphaDitherValues = {
-    G_AD_PATTERN:     0 << G_MDSFT_ALPHADITHER,
-    G_AD_NOTPATTERN:  1 << G_MDSFT_ALPHADITHER,
-    G_AD_NOISE:       2 << G_MDSFT_ALPHADITHER,
-    G_AD_DISABLE:     3 << G_MDSFT_ALPHADITHER
-  };
-
-  const alphaCompareValues = {
-    G_AC_NONE:          0 << G_MDSFT_ALPHACOMPARE,
-    G_AC_THRESHOLD:     1 << G_MDSFT_ALPHACOMPARE,
-    G_AC_DITHER:        3 << G_MDSFT_ALPHACOMPARE
-  };
-
-  const depthSourceValues = {
-    G_ZS_PIXEL:         0 << G_MDSFT_ZSRCSEL,
-    G_ZS_PRIM:          1 << G_MDSFT_ZSRCSEL
-  };
-
 
   function getDefine(m, v) {
     for (var d in m) {
@@ -2455,71 +2119,6 @@ import * as logger from './logger.js';
     }
   }
 
-  function initShaders(vs_name, fs_name) {
-    var fragmentShader = getShader(gl, fs_name);
-    var vertexShader   = getShader(gl, vs_name);
-
-    var program = gl.createProgram();
-    gl.attachShader(program, vertexShader);
-    gl.attachShader(program, fragmentShader);
-    gl.linkProgram(program);
-
-    // If creating the shader program failed, alert
-    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-      alert("Unable to initialize the shader program.");
-    }
-    return program;
-  }
-
-  function getShader(gl, id) {
-    let script = document.getElementById(id);
-    if (!script) {
-        return null;
-    }
-    let source = getScriptNodeSource(script);
-
-    let type;
-    if (script.type === 'x-shader/x-fragment') {
-      type = gl.FRAGMENT_SHADER;
-    } else if (script.type === 'x-shader/x-vertex') {
-      type = gl.VERTEX_SHADER;
-    } else {
-       // Unknown shader type
-       return null;
-    }
-
-    return createShader(source, type);
-  }
-
-  function getScriptNodeSource(shaderScript) {
-    let source = '';
-
-    let currentChild = shaderScript.firstChild;
-    while(currentChild) {
-      if (currentChild.nodeType == currentChild.TEXT_NODE) {
-        source += currentChild.textContent;
-      }
-
-      currentChild = currentChild.nextSibling;
-    }
-
-    return source;
-  }
-
-  // type is gl.FRAGMENT_SHADER or gl.VERTEX_SHADER
-  function createShader(source, type) {
-    var shader = gl.createShader(type);
-    gl.shaderSource(shader, source);
-    gl.compileShader(shader);
-
-    // See if it compiled successfully
-    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-        alert("An error occurred compiling the shaders: " + gl.getShaderInfoLog(shader));
-        return null;
-    }
-    return shader;
-  }
-
   var fillShaderProgram;
   var fill_vertexPositionAttribute;
   var fill_uPMatrix;
@@ -2544,9 +2143,9 @@ import * as logger from './logger.js';
     var alpha_cvg_sel = getAlphaCoverageSelect();  // use fragment coverage * fragment alpha
 
     var cycle_type = getCycleType();
-    if (cycle_type < cycleTypeValues.G_CYC_COPY) {
-      var blend_mode          = state.rdpOtherModeL >> G_MDSFT_BLENDER;
-      var active_blend_mode   = (cycle_type === cycleTypeValues.G_CYC_2CYCLE ? blend_mode : (blend_mode>>>2)) & 0x3333;
+    if (cycle_type < gbi.cycleTypeValues.G_CYC_COPY) {
+      var blend_mode          = state.rdpOtherModeL >> gbi.G_MDSFT_BLENDER;
+      var active_blend_mode   = (cycle_type === gbi.cycleTypeValues.G_CYC_2CYCLE ? blend_mode : (blend_mode>>>2)) & 0x3333;
       var mode = kBlendModeOpaque;
 
       switch(active_blend_mode) {
@@ -2574,7 +2173,7 @@ import * as logger from './logger.js';
           break;
 
         default:
-          logger.log(toString16(active_blend_mode) + ' : ' + blendOpText(active_blend_mode) + ', alpha_cvg_sel:' + alpha_cvg_sel + ' cvg_x_alpha:' + cvg_x_alpha);
+          logger.log(toString16(active_blend_mode) + ' : ' + gbi.blendOpText(active_blend_mode) + ', alpha_cvg_sel:' + alpha_cvg_sel + ' cvg_x_alpha:' + cvg_x_alpha);
           mode = kBlendModeOpaque;
         break;
       }
@@ -2597,7 +2196,7 @@ import * as logger from './logger.js';
 
     var alpha_threshold = -1.0;
 
-    if ((getAlphaCompareType() === alphaCompareValues.G_AC_THRESHOLD)) {
+    if ((getAlphaCompareType() === gbi.alphaCompareValues.G_AC_THRESHOLD)) {
       // If using cvg, then there's no alpha value to work with
       if (!alpha_cvg_sel) {
         alpha_threshold = ((state.blendColor>>> 0)&0xff)/255.0;
@@ -2658,7 +2257,7 @@ import * as logger from './logger.js';
       gl.uniform2f(shader.uTexScaleUniform,  uv_scale_u,  uv_scale_v );
       gl.uniform2f(shader.uTexOffsetUniform, uv_offset_u, uv_offset_v );
 
-      if (getTextureFilterType() == textureFilterValues.G_TF_POINT) {
+      if (getTextureFilterType() == gbi.textureFilterValues.G_TF_POINT) {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST_MIPMAP_NEAREST);
       } else {
@@ -2669,11 +2268,9 @@ import * as logger from './logger.js';
 
     gl.uniform4f(shader.uPrimColorUniform, ((state.primColor>>>24)&0xff)/255.0,  ((state.primColor>>>16)&0xff)/255.0, ((state.primColor>>> 8)&0xff)/255.0, ((state.primColor>>> 0)&0xff)/255.0 );
     gl.uniform4f(shader.uEnvColorUniform,  ((state.envColor >>>24)&0xff)/255.0,  ((state.envColor >>>16)&0xff)/255.0, ((state.envColor >>> 8)&0xff)/255.0, ((state.envColor >>> 0)&0xff)/255.0 );
-
   }
 
   function flushTris(num_tris) {
-
     var cycle_type = getCycleType();
     var texture;
     var tex_gen_enabled = false;
@@ -2750,7 +2347,7 @@ import * as logger from './logger.js';
     var screen0 = convertN64ToDisplay( [x0,y0] );
     var screen1 = convertN64ToDisplay( [x1,y1] );
 
-    var depth_source_prim = (state.rdpOtherModeL & depthSourceValues.G_ZS_PRIM) !== 0;
+    var depth_source_prim = (state.rdpOtherModeL & gbi.depthSourceValues.G_ZS_PRIM) !== 0;
 
     var depth = depth_source_prim ? state.primDepth : 0.0;
 
@@ -2847,8 +2444,8 @@ import * as logger from './logger.js';
 
     // Disable depth testing
     var zgeom_mode      = (state.geometryMode.zbuffer) !== 0;
-    var zcmp_rendermode = (state.rdpOtherModeL & renderModeFlags.Z_CMP) !== 0;
-    var zupd_rendermode = (state.rdpOtherModeL & renderModeFlags.Z_UPD) !== 0;
+    var zcmp_rendermode = (state.rdpOtherModeL & gbi.renderModeFlags.Z_CMP) !== 0;
+    var zupd_rendermode = (state.rdpOtherModeL & gbi.renderModeFlags.Z_UPD) !== 0;
 
     if ((zgeom_mode && zcmp_rendermode) || zupd_rendermode) {
       gl.enable(gl.DEPTH_TEST);
@@ -3615,22 +3212,22 @@ import * as logger from './logger.js';
     var l = state.rdpOtherModeL;
     var h = state.rdpOtherModeH;
     const vals = new Map([
-      ['alphaCompare', getDefine(alphaCompareValues,   l & G_AC_MASK)],
-      ['depthSource',  getDefine(depthSourceValues,    l & G_ZS_MASK)],
-      ['renderMode',   getRenderModeFlagsText(l)],
+      ['alphaCompare', getDefine(gbi.alphaCompareValues,   l & gbi.G_AC_MASK)],
+      ['depthSource',  getDefine(gbi.depthSourceValues,    l & gbi.G_ZS_MASK)],
+      ['renderMode',   gbi.getRenderModeFlagsText(l)],
 
       //var G_MDSFT_BLENDMASK       = 0;
-      ['alphaDither',    getDefine(alphaDitherValues,    h & G_AD_MASK)],
-      ['colorDither',    getDefine(colorDitherValues,    h & G_CD_MASK)],
-      ['combineKey',     getDefine(combineKeyValues,     h & G_CK_MASK)],
-      ['textureConvert', getDefine(textureConvertValues, h & G_TC_MASK)],
-      ['textureFilter',  getDefine(textureFilterValues,  h & G_TF_MASK)],
-      ['textureLUT',     getDefine(textureLUTValues,     h & G_TT_MASK)],
-      ['textureLOD',     getDefine(textureLODValues,     h & G_TL_MASK)],
-      ['texturePersp',   getDefine(texturePerspValues,   h & G_TP_MASK)],
-      ['textureDetail',  getDefine(textureDetailValues,  h & G_TD_MASK)],
-      ['cycleType',      getDefine(cycleTypeValues,      h & G_CYC_MASK)],
-      ['pipelineMode',   getDefine(pipelineModeValues,   h & G_PM_MASK)],
+      ['alphaDither',    getDefine(gbi.alphaDitherValues,    h & gbi.G_AD_MASK)],
+      ['colorDither',    getDefine(gbi.colorDitherValues,    h & gbi.G_CD_MASK)],
+      ['combineKey',     getDefine(gbi.combineKeyValues,     h & gbi.G_CK_MASK)],
+      ['textureConvert', getDefine(gbi.textureConvertValues, h & gbi.G_TC_MASK)],
+      ['textureFilter',  getDefine(gbi.textureFilterValues,  h & gbi.G_TF_MASK)],
+      ['textureLUT',     getDefine(gbi.textureLUTValues,     h & gbi.G_TT_MASK)],
+      ['textureLOD',     getDefine(gbi.textureLODValues,     h & gbi.G_TL_MASK)],
+      ['texturePersp',   getDefine(gbi.texturePerspValues,   h & gbi.G_TP_MASK)],
+      ['textureDetail',  getDefine(gbi.textureDetailValues,  h & gbi.G_TD_MASK)],
+      ['cycleType',      getDefine(gbi.cycleTypeValues,      h & gbi.G_CYC_MASK)],
+      ['pipelineMode',   getDefine(gbi.pipelineModeValues,   h & gbi.G_PM_MASK)],
     ]);
 
     var $table = $('<table class="table table-condensed" style="width: auto;"></table>');
@@ -3660,16 +3257,15 @@ import * as logger from './logger.js';
 
   function buildCombinerTab() {
     var $p = $('<pre class="combine"></pre>');
-    $p.append(getDefine(cycleTypeValues, getCycleType()) + '\n');
+    $p.append(getDefine(gbi.cycleTypeValues, getCycleType()) + '\n');
     $p.append(buildColorsTable());
-    $p.append(decodeSetCombine(state.combine.hi, state.combine.lo));
+    $p.append(shaders.getCombinerText(state.combine.hi, state.combine.lo));
     return $p;
   }
 
   function buildTexture(tile_idx) {
     var texture = lookupTexture(tile_idx);
     if (texture) {
-
       // Copy + scale texture data.
       var scale = 8;
       var w = texture.width * scale;
@@ -4148,12 +3744,12 @@ import * as logger from './logger.js';
       gl.disable(gl.BLEND);
       gl.depthFunc(gl.LEQUAL);            // Near things obscure far things
 
-      fillShaderProgram             = initShaders("fill-shader-vs", "fill-shader-fs");
+      fillShaderProgram             = shaders.createShaderProgram(gl, "fill-shader-vs", "fill-shader-fs");
       fill_vertexPositionAttribute  = gl.getAttribLocation(fillShaderProgram, "aVertexPosition");
       fill_uPMatrix                 = gl.getUniformLocation(fillShaderProgram, "uPMatrix");
       fill_uFillColor               = gl.getUniformLocation(fillShaderProgram, "uFillColor");
 
-      blitShaderProgram            = initShaders("blit-shader-vs", "blit-shader-fs");
+      blitShaderProgram            = shaders.createShaderProgram(gl, "blit-shader-vs", "blit-shader-fs");
       blit_vertexPositionAttribute = gl.getAttribLocation(blitShaderProgram,  "aVertexPosition");
       blit_texCoordAttribute       = gl.getAttribLocation(blitShaderProgram,  "aTextureCoord");
       blit_uSampler                = gl.getUniformLocation(blitShaderProgram, "uSampler");
@@ -4175,166 +3771,11 @@ import * as logger from './logger.js';
     ram_dv = n64js.getRamDataView();
   };
 
-  const rgbParams32 = [
-    'combined.rgb', 'tex0.rgb',
-    'tex1.rgb',     'prim.rgb',
-    'shade.rgb',    'env.rgb',
-    'one.rgb',      'combined.a',
-    'tex0.a',       'tex1.a',
-    'prim.a',       'shade.a',
-    'env.a',        'lod_frac',
-    'prim_lod_frac','k5',
-    '?           ', '?           ',
-    '?           ', '?           ',
-    '?           ', '?           ',
-    '?           ', '?           ',
-    '?           ', '?           ',
-    '?           ', '?           ',
-    '?           ', '?           ',
-    '?           ', 'zero.rgb'
-  ];
-  const rgbParams16 = [
-    'combined.rgb', 'tex0.rgb',
-    'tex1.rgb',     'prim.rgb',
-    'shade.rgb',    'env.rgb',
-    'one.rgb',      'combined.a',
-    'tex0.a',       'tex1.a',
-    'prim.a',       'shade.a',
-    'env.a',        'lod_frac',
-    'prim_lod_frac', 'zero.rgb'
-  ];
-  const rgbParams8 = [
-    'combined.rgb', 'tex0.rgb',
-    'tex1.rgb',     'prim.rgb',
-    'shade.rgb',    'env.rgb',
-    'one.rgb',      'zero.rgb'
-  ];
-
-  const alphaParams8 = [
-    'combined.a', 'tex0.a',
-    'tex1.a',     'prim.a',
-    'shade.a',    'env.a',
-    'one.a',      'zero.a'
-  ];
-
-  /**
-   * @constructor
-   */
-  function N64Shader(program) {
-    this.program = program;
-
-    this.vertexPositionAttribute = gl.getAttribLocation(program,  "aVertexPosition");
-    this.vertexColorAttribute    = gl.getAttribLocation(program,  "aVertexColor");
-    this.texCoordAttribute       = gl.getAttribLocation(program,  "aTextureCoord");
-
-    this.uSamplerUniform         = gl.getUniformLocation(program, "uSampler");
-    this.uPrimColorUniform       = gl.getUniformLocation(program, "uPrimColor");
-    this.uEnvColorUniform        = gl.getUniformLocation(program, "uEnvColor");
-    this.uTexScaleUniform        = gl.getUniformLocation(program, "uTexScale");
-    this.uTexOffsetUniform       = gl.getUniformLocation(program, "uTexOffset");
-  }
-
   function getCurrentN64Shader(cycle_type, alpha_threshold) {
     var mux0 = state.combine.hi;
     var mux1 = state.combine.lo;
 
-    // Check if this shader already exists. Copy/Fill are fixed-function so ignore mux for these.
-    var state_text = (cycle_type < cycleTypeValues.G_CYC_COPY) ? (mux0.toString(16) + mux1.toString(16) + '_' + cycle_type) : cycle_type;
-    if (alpha_threshold >= 0.0) {
-      state_text += alpha_threshold;
-    }
-
-    var shader = programs[state_text];
-    if (shader) {
-      return shader;
-    }
-
-    if (!genericVertexShader) {
-      genericVertexShader = getShader(gl, 'n64-shader-vs');
-    }
-
-    if (!fragmentSource) {
-      var fragmentScript = document.getElementById('n64-shader-fs');
-      if (fragmentScript) {
-        fragmentSource = getScriptNodeSource(fragmentScript);
-      }
-    }
-
-    var fragmentShader;
-    var shaderSource = fragmentSource;
-
-    var aRGB0  = (mux0>>>20)&0x0F; // c1 c1    // a0
-    var bRGB0  = (mux1>>>28)&0x0F; // c1 c2    // b0
-    var cRGB0  = (mux0>>>15)&0x1F; // c1 c3    // c0
-    var dRGB0  = (mux1>>>15)&0x07; // c1 c4    // d0
-
-    var aA0    = (mux0>>>12)&0x07; // c1 a1    // Aa0
-    var bA0    = (mux1>>>12)&0x07; // c1 a2    // Ab0
-    var cA0    = (mux0>>> 9)&0x07; // c1 a3    // Ac0
-    var dA0    = (mux1>>> 9)&0x07; // c1 a4    // Ad0
-
-    var aRGB1  = (mux0>>> 5)&0x0F; // c2 c1    // a1
-    var bRGB1  = (mux1>>>24)&0x0F; // c2 c2    // b1
-    var cRGB1  = (mux0>>> 0)&0x1F; // c2 c3    // c1
-    var dRGB1  = (mux1>>> 6)&0x07; // c2 c4    // d1
-
-    var aA1    = (mux1>>>21)&0x07; // c2 a1    // Aa1
-    var bA1    = (mux1>>> 3)&0x07; // c2 a2    // Ab1
-    var cA1    = (mux1>>>18)&0x07; // c2 a3    // Ac1
-    var dA1    = (mux1>>> 0)&0x07; // c2 a4    // Ad1
-
-    // patch in instructions for this mux
-
-    var body;
-    if (cycle_type === cycleTypeValues.G_CYC_FILL) {
-      body = 'col = shade;\n';
-    } else if (cycle_type === cycleTypeValues.G_CYC_COPY) {
-      body = 'col = tex0;\n';
-    } else if (cycle_type === cycleTypeValues.G_CYC_1CYCLE) {
-      body= '';
-      body += 'col.rgb = (' + rgbParams16 [aRGB0] + ' - ' + rgbParams16 [bRGB0] + ') * ' + rgbParams32 [cRGB0] + ' + ' + rgbParams8  [dRGB0] + ';\n';
-      body += 'col.a = ('   + alphaParams8[  aA0] + ' - ' + alphaParams8[  bA0] + ') * ' + alphaParams8[  cA0] + ' + ' + alphaParams8[  dA0] + ';\n';
-    } else {
-      body= '';
-      body += 'col.rgb = (' + rgbParams16 [aRGB0] + ' - ' + rgbParams16 [bRGB0] + ') * ' + rgbParams32 [cRGB0] + ' + ' + rgbParams8  [dRGB0] + ';\n';
-      body += 'col.a = ('   + alphaParams8[  aA0] + ' - ' + alphaParams8[  bA0] + ') * ' + alphaParams8[  cA0] + ' + ' + alphaParams8[  dA0] + ';\n';
-      body += 'combined = vec4(col.rgb, col.a);\n';
-      body += 'col.rgb = (' + rgbParams16 [aRGB1] + ' - ' + rgbParams16 [bRGB1] + ') * ' + rgbParams32 [cRGB1] + ' + ' + rgbParams8  [dRGB1] + ';\n';
-      body += 'col.a = ('   + alphaParams8[  aA1] + ' - ' + alphaParams8[  bA1] + ') * ' + alphaParams8[  cA1] + ' + ' + alphaParams8[  dA1] + ';\n';
-    }
-
-    if (alpha_threshold >= 0.0) {
-      body += 'if(col.a < ' + alpha_threshold.toFixed(3) + ') discard;\n';
-    }
-
-    shaderSource = shaderSource.replace('{{body}}', body);
-
-    if (kDumpShaders) {
-      var decoded = '\n';
-      decoded += '\tRGB0 = (' + kSubAInputRGB[aRGB0] + ' - ' + kSubBInputRGB[bRGB0] + ') * ' + kMulInputRGB[cRGB0] + ' + ' + kAddInputRGB[dRGB0] + '\n';
-      decoded += '\t  A0 = (' + kSubInputA   [  aA0] + ' - ' + kSubInputA   [  bA0] + ') * ' + kMulInputA  [  cA0] + ' + ' + kAddInputA  [  dA0] + '\n';
-      decoded += '\tRGB1 = (' + kSubAInputRGB[aRGB1] + ' - ' + kSubBInputRGB[bRGB1] + ') * ' + kMulInputRGB[cRGB1] + ' + ' + kAddInputRGB[dRGB1] + '\n';
-      decoded += '\t  A1 = (' + kSubInputA   [  aA1] + ' - ' + kSubInputA   [  bA1] + ') * ' + kMulInputA  [  cA1] + ' + ' + kAddInputA  [  dA1] + '\n';
-
-      var m = shaderSource.split('\n').join('<br>');
-      logger.log('Compiled ' + decoded + '\nto\n' + m);
-    }
-
-    fragmentShader = createShader(shaderSource, gl.FRAGMENT_SHADER);
-
-    var gl_program = gl.createProgram();
-    gl.attachShader(gl_program, genericVertexShader);
-    gl.attachShader(gl_program, fragmentShader);
-    gl.linkProgram(gl_program);
-
-    // If creating the shader program failed, alert
-    if (!gl.getProgramParameter(gl_program, gl.LINK_STATUS)) {
-      alert("Unable to initialize the shader program.");
-    }
-
-    shader = new N64Shader(gl_program);
-    programs[state_text] = shader;
-    return shader;
+    return shaders.getOrCreateN64Shader(gl, mux0, mux1, cycle_type, alpha_threshold);
   }
 
   function hashTmem(tmem32, offset, len, hash) {
@@ -4436,7 +3877,7 @@ import * as logger from './logger.js';
     var ctx      = texture.$canvas[0].getContext('2d');
     var img_data = ctx.createImageData(texture.nativeWidth, texture.nativeHeight);
 
-    var conv_fn = (tlutformat === textureLUTValues.G_TT_IA16) ? convert.convertIA16Pixel : convert.convertRGBA16Pixel;  // NB: assume RGBA16 for G_TT_NONE
+    var conv_fn = (tlutformat === gbi.textureLUTValues.G_TT_IA16) ? convert.convertIA16Pixel : convert.convertRGBA16Pixel;  // NB: assume RGBA16 for G_TT_NONE
 
     switch (tile.format) {
       case imageFormatTypes.G_IM_FMT_RGBA:
