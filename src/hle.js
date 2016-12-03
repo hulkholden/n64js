@@ -1,14 +1,14 @@
 /*jshint jquery:true browser:true */
 
 import { padString, toHex, toString8, toString16, toString32 } from './format.js';
-import { Matrix } from './Matrix.js';
-import { ProjectedVertex, TriangleBuffer } from './TriangleBuffer.js';
-import { Vector3 } from './Vector3.js';
-import { Vector4 } from './Vector4.js';
-import * as convert from './convert.js';
 import * as gbi from './gbi.js';
-import * as shaders from './shaders.js';
 import * as logger from './logger.js';
+import { Matrix } from './graphics/Matrix.js';
+import { ProjectedVertex, TriangleBuffer } from './graphics/TriangleBuffer.js';
+import { Vector3 } from './graphics/Vector3.js';
+import { Vector4 } from './graphics/Vector4.js';
+import * as convert from './graphics/convert.js';
+import * as shaders from './graphics/shaders.js';
 
 (function(n64js) {
   'use strict';

@@ -1,5 +1,5 @@
-import * as gbi from './gbi.js';
-import * as logger from './logger.js';
+import * as gbi from '../gbi.js';
+import * as logger from '../logger.js';
 
 /**
  * Whether to log shaders as they're compiled.
