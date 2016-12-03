@@ -4,6 +4,7 @@ import { padString, toHex, toString8, toString16, toString32 } from './format.js
 import * as gbi from './gbi.js';
 import * as logger from './logger.js';
 import { Matrix } from './graphics/Matrix.js';
+import { Texture } from './graphics/Texture.js';
 import { ProjectedVertex, TriangleBuffer } from './graphics/TriangleBuffer.js';
 import { Vector3 } from './graphics/Vector3.js';
 import { Vector4 } from './graphics/Vector4.js';
@@ -110,34 +111,6 @@ import * as shaders from './graphics/shaders.js';
     // Last computed hash for this Tile. 0 if invalid/not calculated.
     // Invalidated on any load, settile, settilesize.
     this.hash = 0;
-  }
-
-  function nextPow2(x) {
-    var y = 1;
-    while (y < x)
-      y *= 2;
-
-    return y;
-  }
-
-  /**
-   * @constructor
-   */
-  function Texture(left, top, width, height) {
-    this.left = left;
-    this.top = top;
-    this.width = width;
-    this.height = height;
-
-    var native_width = nextPow2(width);
-    var native_height = nextPow2(height);
-
-    this.nativeWidth = native_width;
-    this.nativeHeight = native_height;
-
-    // Create a canvas element to poke data into.
-    this.$canvas = $('<canvas width="' + native_width + '" height="' + native_height + '" />', { 'width': native_width, 'height': native_height });
-    this.texture = gl.createTexture();
   }
 
   //
@@ -3231,43 +3204,11 @@ import * as shaders from './graphics/shaders.js';
     return $p;
   }
 
-  function buildTexture(tile_idx) {
-    var texture = lookupTexture(tile_idx);
+  function buildTexture(tileIdx) {
+    var texture = lookupTexture(tileIdx);
     if (texture) {
-      // Copy + scale texture data.
-      var scale = 8;
-      var w = texture.width * scale;
-      var h = texture.height * scale;
-      var $canvas = $('<canvas width="' + w + '" height="' + h +
-        '" style="background-color: black" />', { 'width': w, 'height': h });
-      var src_ctx = texture.$canvas[0].getContext('2d');
-      var dst_ctx = $canvas[0].getContext('2d');
-
-      var src_img_data = src_ctx.getImageData(0, 0, texture.width, texture.height);
-      var dst_img_data = dst_ctx.createImageData(w, h);
-
-      var src = src_img_data.data;
-      var dst = dst_img_data.data;
-      var src_row_stride = src_img_data.width * 4;
-      var dst_row_stride = dst_img_data.width * 4;
-
-      // Repeat last pixel across all lines
-      for (let y = 0; y < h; ++y) {
-        var src_offset = src_row_stride * Math.floor(y / scale);
-        var dst_offset = dst_row_stride * y;
-
-        for (let x = 0; x < w; ++x) {
-          var o = src_offset + Math.floor(x / scale) * 4;
-          dst[dst_offset + 0] = src[o + 0];
-          dst[dst_offset + 1] = src[o + 1];
-          dst[dst_offset + 2] = src[o + 2];
-          dst[dst_offset + 3] = src[o + 3];
-          dst_offset += 4;
-        }
-      }
-
-      dst_ctx.putImageData(dst_img_data, 0, 0);
-      return $canvas;
+      const kScale = 8;
+      return texture.createScaledCanvas(kScale);
     }
   }
 
@@ -3821,13 +3762,18 @@ import * as shaders from './graphics/shaders.js';
     return hash;
   }
 
-  function lookupTexture(tile_idx) {
-    var tile = state.tiles[tile_idx];
+  /**
+   * Looks up the texture defined at the specified tile index.
+   * @param {number} tileIdx
+   * @return {?Texture}
+   */
+  function lookupTexture(tileIdx) {
+    var tile = state.tiles[tileIdx];
     var tmem_address = tile.tmem;
 
     // Skip empty tiles - this is primarily for the debug ui.
     if (tile.line === 0) {
-      return undefined;
+      return null;
     }
 
     // FIXME: we can cache this if tile/tmem state hasn't changed since the last draw call.
@@ -3848,15 +3794,22 @@ import * as shaders from './graphics/shaders.js';
     return texture;
   }
 
-  function decodeTexture(tile, tlutformat) {
+  /**
+   * Decodes the texture defined by the specified tile.
+   * @param {!Tile} tile
+   * @param {number} tlutFormat
+   * @return {?Texture}
+   */
+  function decodeTexture(tile, tlutFormat) {
     var width = getTextureDimension(tile.uls, tile.lrs, tile.mask_s);
     var height = getTextureDimension(tile.ult, tile.lrt, tile.mask_t);
     var left = tile.uls / 4;
     var top = tile.ult / 4;
 
-    var texture = new Texture(left, top, width, height);
-    if (!texture.$canvas[0].getContext)
+    var texture = new Texture(gl, left, top, width, height);
+    if (!texture.$canvas[0].getContext) {
       return null;
+    }
 
     $textureOutput.append(
       gbi.ImageFormat.nameOf(tile.format) + ', ' +
@@ -3870,7 +3823,7 @@ import * as shaders from './graphics/shaders.js';
     var img_data = ctx.createImageData(texture.nativeWidth, texture.nativeHeight);
 
     // NB: assume RGBA16 for G_TT_NONE
-    var conv_fn = (tlutformat === gbi.TextureLUT.G_TT_IA16) ?
+    var conv_fn = (tlutFormat === gbi.TextureLUT.G_TT_IA16) ?
                   convert.convertIA16Pixel : convert.convertRGBA16Pixel;
 
     switch (tile.format) {
