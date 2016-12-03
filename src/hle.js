@@ -1135,7 +1135,7 @@ import * as shaders from './graphics/shaders.js';
   function executeGBI1_Texture(cmd0, cmd1, dis) {
     var xparam = (cmd0 >>> 16) & 0xff;
     var level = (cmd0 >>> 11) & 0x3;
-    var tile_idx = (cmd0 >>> 8) & 0x7;
+    var tileIdx = (cmd0 >>> 8) & 0x7;
     var on = (cmd0 >>> 0) & 0xff;
     var s = calcTextureScale(((cmd1 >>> 16) & 0xffff));
     var t = calcTextureScale(((cmd1 >>> 0) & 0xffff));
@@ -1143,7 +1143,7 @@ import * as shaders from './graphics/shaders.js';
     if (dis) {
       var s_text = s.toString();
       var t_text = t.toString();
-      var tile_text = gbi.getTileText(tile_idx);
+      var tile_text = gbi.getTileText(tileIdx);
 
       if (xparam !== 0) {
         dis.text('gsSPTextureL(' + s_text + ', ' + t_text + ', ' + level + ', ' + xparam + ', ' +
@@ -1155,7 +1155,7 @@ import * as shaders from './graphics/shaders.js';
     }
 
     state.texture.level = level;
-    state.texture.tile = tile_idx;
+    state.texture.tile = tileIdx;
     state.texture.scaleS = s;
     state.texture.scaleT = t;
 
@@ -1428,12 +1428,12 @@ import * as shaders from './graphics/shaders.js';
   function executeLoadBlock(cmd0, cmd1, dis) {
     var uls = (cmd0 >>> 12) & 0xfff;
     var ult = (cmd0 >>> 0) & 0xfff;
-    var tile_idx = (cmd1 >>> 24) & 0x7;
+    var tileIdx = (cmd1 >>> 24) & 0x7;
     var lrs = (cmd1 >>> 12) & 0xfff;
     var dxt = (cmd1 >>> 0) & 0xfff;
 
     if (dis) {
-      var tt = gbi.getTileText(tile_idx);
+      var tt = gbi.getTileText(tileIdx);
       dis.text('gsDPLoadBlock(' + tt + ', ' + uls + ', ' + ult + ', ' + lrs + ', ' + dxt + ');');
     }
 
@@ -1441,7 +1441,7 @@ import * as shaders from './graphics/shaders.js';
     if (uls !== 0) { hleHalt('Unexpected non-zero uls in load block'); }
     if (ult !== 0) { hleHalt('Unexpected non-zero ult in load block'); }
 
-    var tile = state.tiles[tile_idx];
+    var tile = state.tiles[tileIdx];
     var ram_address = calcTextureAddress(uls, ult,
                                          state.textureImage.address,
                                          state.textureImage.width,
@@ -1499,12 +1499,12 @@ import * as shaders from './graphics/shaders.js';
   function executeLoadTile(cmd0, cmd1, dis) {
     var uls = (cmd0 >>> 12) & 0xfff;
     var ult = (cmd0 >>> 0) & 0xfff;
-    var tile_idx = (cmd1 >>> 24) & 0x7;
+    var tileIdx = (cmd1 >>> 24) & 0x7;
     var lrs = (cmd1 >>> 12) & 0xfff;
     var lrt = (cmd1 >>> 0) & 0xfff;
 
     if (dis) {
-      var tt = gbi.getTileText(tile_idx);
+      var tt = gbi.getTileText(tileIdx);
       dis.text('gsDPLoadTile(' + tt + ', ' +
           (uls / 4) + ', ' + (ult / 4) + ', ' +
           (lrs / 4) + ', ' + (lrt / 4) + '); ' +
@@ -1513,7 +1513,7 @@ import * as shaders from './graphics/shaders.js';
           ((lrs / 4) + 1) + ',' + ((lrt / 4) + 1) + ')');
     }
 
-    var tile = state.tiles[tile_idx];
+    var tile = state.tiles[tileIdx];
     var ram_address = calcTextureAddress(uls >>> 2, ult >>> 2,
                                          state.textureImage.address,
                                          state.textureImage.width,
@@ -1565,7 +1565,7 @@ import * as shaders from './graphics/shaders.js';
   }
 
   function executeLoadTLut(cmd0, cmd1, dis) {
-    var tile_idx = (cmd1 >>> 24) & 0x7;
+    var tileIdx = (cmd1 >>> 24) & 0x7;
     var count = (cmd1 >>> 14) & 0x3ff;
 
     // NB, in Daedalus, we interpret this similarly to a loadtile command,
@@ -1576,7 +1576,7 @@ import * as shaders from './graphics/shaders.js';
     var lrt = (cmd1 >>> 0) & 0xfff;
 
     if (dis) {
-      var tt = gbi.getTileText(tile_idx);
+      var tt = gbi.getTileText(tileIdx);
       dis.text('gsDPLoadTLUTCmd(' + tt + ', ' + count + '); //' +
         uls + ', ' + ult + ', ' + lrs + ', ' + lrt);
     }
@@ -1593,7 +1593,7 @@ import * as shaders from './graphics/shaders.js';
                                         gbi.ImageSize.G_IM_SIZ_16b);
     var pitch = (state.textureImage.width << gbi.ImageSize.G_IM_SIZ_16b) >>> 1;
 
-    var tile = state.tiles[tile_idx];
+    var tile = state.tiles[tileIdx];
     var texels = ((lrs - uls) >>> 2) + 1;
     var bytes = texels * 2;
 
@@ -1612,7 +1612,7 @@ import * as shaders from './graphics/shaders.js';
     var tmem = (cmd0 >>> 0) & 0x1ff;
 
     //var pad1   = (cmd1 >>> 27) & 0x1f;
-    var tile_idx = (cmd1 >>> 24) & 0x7;
+    var tileIdx = (cmd1 >>> 24) & 0x7;
     var palette = (cmd1 >>> 20) & 0xf;
 
     var cm_t = (cmd1 >>> 18) & 0x3;
@@ -1630,13 +1630,13 @@ import * as shaders from './graphics/shaders.js';
       dis.text('gsDPSetTile(' +
         gbi.ImageFormat.nameOf(format) + ', ' +
         gbi.ImageSize.nameOf(size) + ', ' +
-        line + ', ' + tmem + ', ' + gbi.getTileText(tile_idx) + ', ' +
+        line + ', ' + tmem + ', ' + gbi.getTileText(tileIdx) + ', ' +
         palette + ', ' +
         cm_t_text + ', ' + mask_t + ', ' + shift_t + ', ' +
         cm_s_text + ', ' + mask_s + ', ' + shift_s + ');');
     }
 
-    var tile = state.tiles[tile_idx];
+    var tile = state.tiles[tileIdx];
     tile.format = format;
     tile.size = size;
     tile.line = line;
@@ -1654,12 +1654,12 @@ import * as shaders from './graphics/shaders.js';
   function executeSetTileSize(cmd0, cmd1, dis) {
     var uls = (cmd0 >>> 12) & 0xfff;
     var ult = (cmd0 >>> 0) & 0xfff;
-    var tile_idx = (cmd1 >>> 24) & 0x7;
+    var tileIdx = (cmd1 >>> 24) & 0x7;
     var lrs = (cmd1 >>> 12) & 0xfff;
     var lrt = (cmd1 >>> 0) & 0xfff;
 
     if (dis) {
-      var tt = gbi.getTileText(tile_idx);
+      var tt = gbi.getTileText(tileIdx);
       dis.text('gsDPSetTileSize(' + tt + ', ' +
         uls + ', ' + ult + ', ' +
         lrs + ', ' + lrt + '); // ' +
@@ -1667,7 +1667,7 @@ import * as shaders from './graphics/shaders.js';
         '(' + ((lrs / 4) + 1) + ',' + ((lrt / 4) + 1) + ')');
     }
 
-    var tile = state.tiles[tile_idx];
+    var tile = state.tiles[tileIdx];
     tile.uls = uls;
     tile.ult = ult;
     tile.lrs = lrs;
@@ -1737,7 +1737,7 @@ import * as shaders from './graphics/shaders.js';
 
     var xh = ((cmd0 >>> 12) & 0xfff) / 4.0;
     var yh = ((cmd0 >>> 0) & 0xfff) / 4.0;
-    var tile_idx = (cmd1 >>> 24) & 0x7;
+    var tileIdx = (cmd1 >>> 24) & 0x7;
     var xl = ((cmd1 >>> 12) & 0xfff) / 4.0;
     var yl = ((cmd1 >>> 0) & 0xfff) / 4.0;
     var s0 = ((cmd2 >>> 16) & 0xffff) / 32.0;
@@ -1747,7 +1747,7 @@ import * as shaders from './graphics/shaders.js';
     var dtdy = ((cmd3 << 16) >> 16) / 1024.0;
 
     if (dis) {
-      var tt = gbi.getTileText(tile_idx);
+      var tt = gbi.getTileText(tileIdx);
       dis.text('gsSPTextureRectangle(' +
         xl + ',' + yl + ',' + xh + ',' + yh + ',' +
         tt + ',' + s0 + ',' + t0 + ',' + dsdx + ',' + dtdy + ');');
@@ -1770,7 +1770,7 @@ import * as shaders from './graphics/shaders.js';
     var s1 = s0 + dsdx * (xh - xl);
     var t1 = t0 + dtdy * (yh - yl);
 
-    texRect(tile_idx, xl, yl, xh, yh, s0, t0, s1, t1, false);
+    texRect(tileIdx, xl, yl, xh, yh, s0, t0, s1, t1, false);
   }
 
   function executeTexRectFlip(cmd0, cmd1) {
@@ -1783,7 +1783,7 @@ import * as shaders from './graphics/shaders.js';
 
     var xh = ((cmd0 >>> 12) & 0xfff) / 4.0;
     var yh = ((cmd0 >>> 0) & 0xfff) / 4.0;
-    var tile_idx = (cmd1 >>> 24) & 0x7;
+    var tileIdx = (cmd1 >>> 24) & 0x7;
     var xl = ((cmd1 >>> 12) & 0xfff) / 4.0;
     var yl = ((cmd1 >>> 0) & 0xfff) / 4.0;
     var s0 = ((cmd2 >>> 16) & 0xffff) / 32.0;
@@ -1810,7 +1810,7 @@ import * as shaders from './graphics/shaders.js';
     var s1 = s0 + dsdx * (yh - yl);
     var t1 = t0 + dtdy * (xh - xl);
 
-    texRect(tile_idx, xl, yl, xh, yh, s0, t0, s1, t1, true);
+    texRect(tileIdx, xl, yl, xh, yh, s0, t0, s1, t1, true);
   }
 
 
@@ -2268,9 +2268,9 @@ import * as shaders from './graphics/shaders.js';
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
 
-  function texRect(tile_idx, x0, y0, x1, y1, s0, t0, s1, t1, flip) {
+  function texRect(tileIdx, x0, y0, x1, y1, s0, t0, s1, t1, flip) {
     // TODO: check scissor
-    var texture = lookupTexture(tile_idx);
+    var texture = lookupTexture(tileIdx);
 
     // multiply by state.viewport.trans/scale
     var screen0 = convertN64ToDisplay([x0, y0]);
@@ -2656,7 +2656,7 @@ import * as shaders from './graphics/shaders.js';
   function executeGBI2_Texture(cmd0, cmd1, dis) {
     var xparam = (cmd0 >>> 16) & 0xff;
     var level = (cmd0 >>> 11) & 0x3;
-    var tile_idx = (cmd0 >>> 8) & 0x7;
+    var tileIdx = (cmd0 >>> 8) & 0x7;
     var on = (cmd0 >>> 1) & 0x01; // NB: uses bit 1
     var s = calcTextureScale(((cmd1 >>> 16) & 0xffff));
     var t = calcTextureScale(((cmd1 >>> 0) & 0xffff));
@@ -2664,7 +2664,7 @@ import * as shaders from './graphics/shaders.js';
     if (dis) {
       var s_text = s.toString();
       var t_text = t.toString();
-      var tt = gbi.getTileText(tile_idx);
+      var tt = gbi.getTileText(tileIdx);
 
       if (xparam !== 0) {
         dis.text('gsSPTextureL(' +
@@ -2678,7 +2678,7 @@ import * as shaders from './graphics/shaders.js';
     }
 
     state.texture.level = level;
-    state.texture.tile = tile_idx;
+    state.texture.tile = tileIdx;
     state.texture.scaleS = s;
     state.texture.scaleT = t;
 
@@ -3020,20 +3020,20 @@ import * as shaders from './graphics/shaders.js';
       var height = 240;
       var pixels = new Uint16Array(width * height); // TODO: should cache this, but at some point we'll need to deal with variable framebuffer size, so do this later.
 
-      var src_offset = 0;
+      var srcOffset = 0;
 
       for (var y = 0; y < height; ++y) {
-        var dst_row_offset = (height - 1 - y) * width;
-        var dst_offset = dst_row_offset;
+        var dstRowOffset = (height - 1 - y) * width;
+        var dstOffset = dstRowOffset;
 
         for (var x = 0; x < width; ++x) {
           // NB: or 1 to ensure we have alpha
-          pixels[dst_offset] =
-            (ram[origin + src_offset] << 8) |
-            ram[origin + src_offset + 1] |
+          pixels[dstOffset] =
+            (ram[origin + srcOffset] << 8) |
+            ram[origin + srcOffset + 1] |
             1;
-          dst_offset += 1;
-          src_offset += 2;
+          dstOffset += 1;
+          srcOffset += 2;
         }
       }
 
@@ -3942,46 +3942,45 @@ import * as shaders from './graphics/shaders.js';
   function clampTexture(img_data, width, height) {
     let dst = img_data.data;
     // Might not be the same as width, due to power of 2.
-    let dst_row_stride = img_data.width * 4;
+    let dstRowStride = img_data.width * 4;
 
     // Repeat last pixel across all lines
     let y = 0;
-    let dst_row_offset;
 
     if (width < img_data.width) {
-      dst_row_offset = 0;
+      let dstRowOffset = 0;
       for (; y < height; ++y) {
 
-        let dst_offset = dst_row_offset + ((width - 1) * 4);
+        let dstOffset = dstRowOffset + ((width - 1) * 4);
 
-        let r = dst[dst_offset + 0];
-        let g = dst[dst_offset + 1];
-        let b = dst[dst_offset + 2];
-        let a = dst[dst_offset + 3];
+        let r = dst[dstOffset + 0];
+        let g = dst[dstOffset + 1];
+        let b = dst[dstOffset + 2];
+        let a = dst[dstOffset + 3];
 
-        dst_offset += 4;
+        dstOffset += 4;
 
         for (let x = width; x < img_data.width; ++x) {
-          dst[dst_offset + 0] = r;
-          dst[dst_offset + 1] = g;
-          dst[dst_offset + 2] = b;
-          dst[dst_offset + 3] = a;
-          dst_offset += 4;
+          dst[dstOffset + 0] = r;
+          dst[dstOffset + 1] = g;
+          dst[dstOffset + 2] = b;
+          dst[dstOffset + 3] = a;
+          dstOffset += 4;
         }
-        dst_row_offset += dst_row_stride;
+        dstRowOffset += dstRowStride;
       }
     }
 
     if (height < img_data.height) {
       // Repeat the final line
-      dst_row_offset = dst_row_stride * height;
-      let last_row_offset = dst_row_offset - dst_row_stride;
+      let dstRowOffset = dstRowStride * height;
+      let last_row_offset = dstRowOffset - dstRowStride;
 
       for (; y < img_data.height; ++y) {
-        for (let i = 0; i < dst_row_stride; ++i) {
-          dst[dst_row_offset + i] = dst[last_row_offset + i];
+        for (let i = 0; i < dstRowStride; ++i) {
+          dst[dstRowOffset + i] = dst[last_row_offset + i];
         }
-        dst_row_offset += dst_row_stride;
+        dstRowOffset += dstRowStride;
       }
     }
   }
