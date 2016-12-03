@@ -1,3 +1,5 @@
+import * as gbi from '../gbi.js';
+
 const kOneToEight = [
   0x00, // 0 -> 00 00 00 00
   0xff, // 1 -> 11 11 11 11
@@ -57,14 +59,14 @@ const kFiveToEight = [
   0xff, // 11111 -> 11111111
 ];
 
-export function convertIA16Pixel(v) {
+function convertIA16Pixel(v) {
   var i = (v >>> 8) & 0xff;
   let a = (v) & 0xff;
 
   return (i << 24) | (i << 16) | (i << 8) | a;
 }
 
-export function convertRGBA16Pixel(v) {
+function convertRGBA16Pixel(v) {
   let r = kFiveToEight[(v >>> 11) & 0x1f];
   let g = kFiveToEight[(v >>> 6) & 0x1f];
   let b = kFiveToEight[(v >>> 1) & 0x1f];
@@ -73,7 +75,7 @@ export function convertRGBA16Pixel(v) {
   return (r << 24) | (g << 16) | (b << 8) | a;
 }
 
-export function convertRGBA32(dstData, srcData, tmem, line, width, height) {
+function convertRGBA32(dstData, srcData, tmem, line, width, height) {
   let dst = dstData.data;
   let dstRowStride = dstData.width * 4; // Might not be the same as width, due to power of 2
   let dstRowOffset = 0;
@@ -108,7 +110,7 @@ export function convertRGBA32(dstData, srcData, tmem, line, width, height) {
   }
 }
 
-export function convertRGBA16(dstData, srcData, tmem, line, width, height) {
+function convertRGBA16(dstData, srcData, tmem, line, width, height) {
   let dst = dstData.data;
   let dstRowStride = dstData.width * 4; // Might not be the same as width, due to power of 2
   let dstRowOffset = 0;
@@ -141,7 +143,7 @@ export function convertRGBA16(dstData, srcData, tmem, line, width, height) {
   }
 }
 
-export function convertIA16(dstData, srcData, tmem, line, width, height) {
+function convertIA16(dstData, srcData, tmem, line, width, height) {
   let dst = dstData.data;
   let dstRowStride = dstData.width * 4; // Might not be the same as width, due to power of 2
   let dstRowOffset = 0;
@@ -175,7 +177,7 @@ export function convertIA16(dstData, srcData, tmem, line, width, height) {
   }
 }
 
-export function convertIA8(dstData, srcData, tmem, line, width, height) {
+function convertIA8(dstData, srcData, tmem, line, width, height) {
   let dst = dstData.data;
   let dstRowStride = dstData.width * 4; // Might not be the same as width, due to power of 2
   let dstRowOffset = 0;
@@ -211,7 +213,7 @@ export function convertIA8(dstData, srcData, tmem, line, width, height) {
   }
 }
 
-export function convertIA4(dstData, srcData, tmem, line, width, height) {
+function convertIA4(dstData, srcData, tmem, line, width, height) {
   let dst = dstData.data;
   let dstRowStride = dstData.width * 4; // Might not be the same as width, due to power of 2
   let dstRowOffset = 0;
@@ -276,7 +278,7 @@ export function convertIA4(dstData, srcData, tmem, line, width, height) {
   }
 }
 
-export function convertI8(dstData, srcData, tmem, line, width, height) {
+function convertI8(dstData, srcData, tmem, line, width, height) {
   let dst = dstData.data;
   let dstRowStride = dstData.width * 4; // Might not be the same as width, due to power of 2
   let dstRowOffset = 0;
@@ -308,7 +310,7 @@ export function convertI8(dstData, srcData, tmem, line, width, height) {
   }
 }
 
-export function convertI4(dstData, srcData, tmem, line, width, height) {
+function convertI4(dstData, srcData, tmem, line, width, height) {
   let dst = dstData.data;
   let dstRowStride = dstData.width * 4; // Might not be the same as width, due to power of 2
   let dstRowOffset = 0;
@@ -364,7 +366,7 @@ export function convertI4(dstData, srcData, tmem, line, width, height) {
   }
 }
 
-export function convertCI8(dstData, srcData, tmem, line, width, height, palAddress, palConv) {
+function convertCI8(dstData, srcData, tmem, line, width, height, palAddress, palConv) {
   let dst = dstData.data;
   let dstRowStride = dstData.width * 4; // Might not be the same as width, due to power of 2
   let dstRowOffset = 0;
@@ -405,7 +407,7 @@ export function convertCI8(dstData, srcData, tmem, line, width, height, palAddre
   }
 }
 
-export function convertCI4(dstData, srcData, tmem, line, width, height, palAddress, palConv) {
+function convertCI4(dstData, srcData, tmem, line, width, height, palAddress, palConv) {
   let dst = dstData.data;
   let dstRowStride = dstData.width * 4; // Might not be the same as width, due to power of 2
   let dstRowOffset = 0;
@@ -468,4 +470,76 @@ export function convertCI4(dstData, srcData, tmem, line, width, height, palAddre
 
     rowSwizzle ^= 0x4; // Alternate lines are word-swapped
   }
+}
+
+export function convertTexels(imgData, tmemData, width, height, tileFormat,
+                              tileSize, tileTmem, tileLine, tilePalette,
+                              tlutFormat) {
+  // NB: assume RGBA16 for G_TT_NONE
+  var convFn = (tlutFormat === gbi.TextureLUT.G_TT_IA16) ?
+                convertIA16Pixel : convertRGBA16Pixel;
+
+  switch (tileFormat) {
+    case gbi.ImageFormat.G_IM_FMT_RGBA:
+      switch (tileSize) {
+        case gbi.ImageSize.G_IM_SIZ_32b:
+          convertRGBA32(imgData, tmemData, tileTmem, tileLine, width, height);
+          return true;
+        case gbi.ImageSize.G_IM_SIZ_16b:
+          convertRGBA16(imgData, tmemData, tileTmem, tileLine, width, height);
+          return true;
+
+          // Hack - Extreme-G specifies RGBA/8 RGBA/4 textures, but they're
+          // really CI
+        case gbi.ImageSize.G_IM_SIZ_8b:
+          convertCI8(imgData, tmemData, tileTmem, tileLine, width, height,
+            0x100, convFn);
+          return true;
+        case gbi.ImageSize.G_IM_SIZ_4b:
+          convertCI4(imgData, tmemData, tileTmem, tileLine, width, height,
+            0x100 + ((tilePalette * 16 * 2) >>> 3), convFn);
+          return true;
+      }
+      break;
+
+    case gbi.ImageFormat.G_IM_FMT_IA:
+      switch (tileSize) {
+        case gbi.ImageSize.G_IM_SIZ_16b:
+          convertIA16(imgData, tmemData, tileTmem, tileLine, width, height);
+          return true;
+        case gbi.ImageSize.G_IM_SIZ_8b:
+          convertIA8(imgData, tmemData, tileTmem, tileLine, width, height);
+          return true;
+        case gbi.ImageSize.G_IM_SIZ_4b:
+          convertIA4(imgData, tmemData, tileTmem, tileLine, width, height);
+          return true;
+      }
+      break;
+
+    case gbi.ImageFormat.G_IM_FMT_I:
+      switch (tileSize) {
+        case gbi.ImageSize.G_IM_SIZ_8b:
+          convertI8(imgData, tmemData, tileTmem, tileLine, width, height);
+          return true;
+        case gbi.ImageSize.G_IM_SIZ_4b:
+          convertI4(imgData, tmemData, tileTmem, tileLine, width, height);
+          return true;
+      }
+      break;
+
+    case gbi.ImageFormat.G_IM_FMT_CI:
+      switch (tileSize) {
+        case gbi.ImageSize.G_IM_SIZ_8b:
+          convertCI8(imgData, tmemData, tileTmem, tileLine, width, height,
+              0x100, convFn);
+          return true;
+        case gbi.ImageSize.G_IM_SIZ_4b:
+          convertCI4(imgData, tmemData, tileTmem, tileLine, width, height,
+              0x100 + ((tilePalette * 16 * 2) >>> 3), convFn);
+          return true;
+      }
+      break;
+  }
+
+  return false;
 }

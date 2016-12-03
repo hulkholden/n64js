@@ -4,12 +4,12 @@ import { padString, toHex, toString8, toString16, toString32 } from './format.js
 import * as gbi from './gbi.js';
 import * as logger from './logger.js';
 import { Matrix } from './graphics/Matrix.js';
-import { Texture } from './graphics/Texture.js';
 import { ProjectedVertex, TriangleBuffer } from './graphics/TriangleBuffer.js';
 import { Vector3 } from './graphics/Vector3.js';
 import { Vector4 } from './graphics/Vector4.js';
-import * as convert from './graphics/convert.js';
+import { convertTexels } from './graphics/convert.js';
 import * as shaders from './graphics/shaders.js';
+import { Texture, clampTexture } from './graphics/textures.js';
 
 (function(n64js) {
   'use strict';
@@ -3817,101 +3817,23 @@ import * as shaders from './graphics/shaders.js';
       width + 'x' + height + ', ' +
       '<br>');
 
-    var handled = false;
 
     var ctx = texture.$canvas[0].getContext('2d');
-    var img_data = ctx.createImageData(texture.nativeWidth, texture.nativeHeight);
+    var imgData = ctx.createImageData(texture.nativeWidth, texture.nativeHeight);
 
-    // NB: assume RGBA16 for G_TT_NONE
-    var conv_fn = (tlutFormat === gbi.TextureLUT.G_TT_IA16) ?
-                  convert.convertIA16Pixel : convert.convertRGBA16Pixel;
-
-    switch (tile.format) {
-      case gbi.ImageFormat.G_IM_FMT_RGBA:
-        switch (tile.size) {
-          case gbi.ImageSize.G_IM_SIZ_32b:
-            convert.convertRGBA32(img_data, state.tmemData, tile.tmem, tile.line, width, height);
-            handled = true;
-            break;
-          case gbi.ImageSize.G_IM_SIZ_16b:
-            convert.convertRGBA16(img_data, state.tmemData, tile.tmem, tile.line, width, height);
-            handled = true;
-            break;
-
-            // Hack - Extreme-G specifies RGBA/8 RGBA/4 textures, but they're really CI
-          case gbi.ImageSize.G_IM_SIZ_8b:
-            convert.convertCI8(img_data, state.tmemData, tile.tmem, tile.line, width, height,
-              0x100, conv_fn);
-            handled = true;
-            break;
-          case gbi.ImageSize.G_IM_SIZ_4b:
-            convert.convertCI4(img_data, state.tmemData, tile.tmem, tile.line, width, height,
-              0x100 + ((tile.palette * 16 * 2) >>> 3), conv_fn);
-            handled = true;
-            break;
-        }
-        break;
-
-      case gbi.ImageFormat.G_IM_FMT_IA:
-        switch (tile.size) {
-          case gbi.ImageSize.G_IM_SIZ_16b:
-            convert.convertIA16(img_data, state.tmemData, tile.tmem, tile.line, width, height);
-            handled = true;
-            break;
-          case gbi.ImageSize.G_IM_SIZ_8b:
-            convert.convertIA8(img_data, state.tmemData, tile.tmem, tile.line, width, height);
-            handled = true;
-            break;
-          case gbi.ImageSize.G_IM_SIZ_4b:
-            convert.convertIA4(img_data, state.tmemData, tile.tmem, tile.line, width, height);
-            handled = true;
-            break;
-        }
-        break;
-
-      case gbi.ImageFormat.G_IM_FMT_I:
-        switch (tile.size) {
-          case gbi.ImageSize.G_IM_SIZ_8b:
-            convert.convertI8(img_data, state.tmemData, tile.tmem, tile.line, width, height);
-            handled = true;
-            break;
-          case gbi.ImageSize.G_IM_SIZ_4b:
-            convert.convertI4(img_data, state.tmemData, tile.tmem, tile.line, width, height);
-            handled = true;
-            break;
-        }
-        break;
-
-      case gbi.ImageFormat.G_IM_FMT_CI:
-        switch (tile.size) {
-          case gbi.ImageSize.G_IM_SIZ_8b:
-            convert.convertCI8(img_data, state.tmemData, tile.tmem, tile.line, width, height,
-              0x100, conv_fn);
-            handled = true;
-            break;
-          case gbi.ImageSize.G_IM_SIZ_4b:
-            convert.convertCI4(img_data, state.tmemData, tile.tmem, tile.line, width, height,
-              0x100 + ((tile.palette * 16 * 2) >>> 3), conv_fn);
-            handled = true;
-            break;
-        }
-        break;
-
-      default:
-        break;
-    }
-
+    var handled = convertTexels(imgData, state.tmemData, width, height,
+                                tile.format, tile.size, tile.tmem, tile.line,
+                                tile.palette, tlutFormat);
     if (handled) {
-      clampTexture(img_data, width, height);
+      clampTexture(imgData, width, height);
 
-      ctx.putImageData(img_data, 0, 0);
+      ctx.putImageData(imgData, 0, 0);
 
       $textureOutput.append(texture.$canvas);
       $textureOutput.append('<br>');
     } else {
-      var msg =
-        gbi.ImageFormat.nameOf(tile.format) + '/' +
-        gbi.ImageSize.nameOf(tile.size) + ' is unhandled';
+      var msg = gbi.ImageFormat.nameOf(tile.format) + '/' +
+          gbi.ImageSize.nameOf(tile.size) + ' is unhandled';
       $textureOutput.append(msg);
       // FIXME: fill with placeholder texture
       hleHalt(msg);
@@ -3937,51 +3859,5 @@ import * as shaders from './graphics/shaders.js';
     gl.generateMipmap(gl.TEXTURE_2D);
     gl.bindTexture(gl.TEXTURE_2D, null);
     return texture;
-  }
-
-  function clampTexture(img_data, width, height) {
-    let dst = img_data.data;
-    // Might not be the same as width, due to power of 2.
-    let dstRowStride = img_data.width * 4;
-
-    // Repeat last pixel across all lines
-    let y = 0;
-
-    if (width < img_data.width) {
-      let dstRowOffset = 0;
-      for (; y < height; ++y) {
-
-        let dstOffset = dstRowOffset + ((width - 1) * 4);
-
-        let r = dst[dstOffset + 0];
-        let g = dst[dstOffset + 1];
-        let b = dst[dstOffset + 2];
-        let a = dst[dstOffset + 3];
-
-        dstOffset += 4;
-
-        for (let x = width; x < img_data.width; ++x) {
-          dst[dstOffset + 0] = r;
-          dst[dstOffset + 1] = g;
-          dst[dstOffset + 2] = b;
-          dst[dstOffset + 3] = a;
-          dstOffset += 4;
-        }
-        dstRowOffset += dstRowStride;
-      }
-    }
-
-    if (height < img_data.height) {
-      // Repeat the final line
-      let dstRowOffset = dstRowStride * height;
-      let last_row_offset = dstRowOffset - dstRowStride;
-
-      for (; y < img_data.height; ++y) {
-        for (let i = 0; i < dstRowStride; ++i) {
-          dst[dstRowOffset + i] = dst[last_row_offset + i];
-        }
-        dstRowOffset += dstRowStride;
-      }
-    }
   }
 }(window.n64js = window.n64js || {}));
