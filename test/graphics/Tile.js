@@ -5,7 +5,7 @@ const assert = require('chai').assert;
 describe('Tile', () => {
   var tile;
   beforeEach(function () {
-      tile = new Tile();
+    tile = new Tile();
   });
 
   describe('constructor', () => {

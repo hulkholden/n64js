@@ -1,6 +1,6 @@
 import * as format from "../src/format.js";
 
-const assert = require('assert');
+const assert = require('chai').assert;
 
 describe('format', () => {
   describe('padString', () => {
