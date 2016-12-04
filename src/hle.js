@@ -4,6 +4,7 @@ import { padString, toHex, toString8, toString16, toString32 } from './format.js
 import * as gbi from './gbi.js';
 import * as logger from './logger.js';
 import { Matrix } from './graphics/Matrix.js';
+import { Tile } from './graphics/Tile.js';
 import { ProjectedVertex, TriangleBuffer } from './graphics/TriangleBuffer.js';
 import { Vector3 } from './graphics/Vector3.js';
 import { Vector4 } from './graphics/Vector4.js';
@@ -86,31 +87,6 @@ import { Texture, clampTexture } from './graphics/textures.js';
     gm.textureGen       = (bits & flags.G_TEXTURE_GEN) ? 1 : 0;
     gm.textureGenLinear = (bits & flags.G_TEXTURE_GEN_LINEAR) ? 1 : 0;
     gm.lod              = (bits & flags.G_LOD) ? 1 : 0;
-  }
-
-  /**
-   * @constructor
-   */
-  function Tile() {
-    this.format = -1;
-    this.size = 0;
-    this.line = 0;
-    this.tmem = 0;
-    this.palette = 0;
-    this.cm_t = 0;
-    this.mask_t = 0;
-    this.shift_t = 0;
-    this.cm_s = 0;
-    this.mask_s = 0;
-    this.shift_s = 0;
-    this.uls = 0;
-    this.ult = 0;
-    this.lrs = 0;
-    this.lrt = 0;
-
-    // Last computed hash for this Tile. 0 if invalid/not calculated.
-    // Invalidated on any load, settile, settilesize.
-    this.hash = 0;
   }
 
   //
@@ -387,11 +363,6 @@ import { Texture, clampTexture } from './graphics/textures.js';
       ram_dv.getInt8(address + 9),
       ram_dv.getInt8(address + 10)
     ]).normaliseInPlace();
-  }
-
-  function getTextureDimension(ul, lr, mask) {
-    var dim = ((lr - ul) / 4) + 1;
-    return mask ? Math.min(1 << mask, dim) : dim;
   }
 
   function rdpSegmentAddress(addr) {
@@ -1607,11 +1578,11 @@ import { Texture, clampTexture } from './graphics/textures.js';
   function executeSetTile(cmd0, cmd1, dis) {
     var format = (cmd0 >>> 21) & 0x7;
     var size = (cmd0 >>> 19) & 0x3;
-    //var pad0   = (cmd0 >>> 18) & 0x1;
+    //var pad0 = (cmd0 >>> 18) & 0x1;
     var line = (cmd0 >>> 9) & 0x1ff;
     var tmem = (cmd0 >>> 0) & 0x1ff;
 
-    //var pad1   = (cmd1 >>> 27) & 0x1f;
+    //var pad1 = (cmd1 >>> 27) & 0x1f;
     var tileIdx = (cmd1 >>> 24) & 0x7;
     var palette = (cmd1 >>> 20) & 0xf;
 
@@ -1941,7 +1912,7 @@ import { Texture, clampTexture } from './graphics/textures.js';
   function executeGBI0_Vertex(cmd0, cmd1, dis) {
     var n = ((cmd0 >>> 20) & 0xf) + 1;
     var v0 = (cmd0 >>> 16) & 0xf;
-    //var length  = (cmd0 >>>  0) & 0xffff;
+    //var length = (cmd0 >>>  0) & 0xffff;
     var address = rdpSegmentAddress(cmd1);
 
     if (dis) {
@@ -1954,7 +1925,7 @@ import { Texture, clampTexture } from './graphics/textures.js';
   function executeVertex_GBI0_WR(cmd0, cmd1, dis) {
     var n = ((cmd0 >>> 9) & 0x7f);
     var v0 = ((cmd0 >>> 16) & 0xff) / 5;
-    //var length  = (cmd0 >>> 0) & 0x1ff;
+    //var length = (cmd0 >>> 0) & 0x1ff;
     var address = rdpSegmentAddress(cmd1);
 
     if (dis) {
@@ -1967,7 +1938,7 @@ import { Texture, clampTexture } from './graphics/textures.js';
   function executeGBI1_Vertex(cmd0, cmd1, dis) {
     var v0 = ((cmd0 >>> 16) & 0xff) / config.vertexStride;
     var n = ((cmd0 >>> 10) & 0x3f);
-    //var length  = (cmd0 >>>  0) & 0x3ff;
+    //var length = (cmd0 >>>  0) & 0x3ff;
     var address = rdpSegmentAddress(cmd1);
 
     if (dis) {
@@ -2830,7 +2801,7 @@ import { Texture, clampTexture } from './graphics/textures.js';
 
   function executeGBI2_MoveMem(cmd0, cmd1, dis) {
     var type = cmd0 & 0xfe;
-    //var length  = (cmd0>>> 8) & 0xffff;
+    //var length = (cmd0>>> 8) & 0xffff;
     var address = rdpSegmentAddress(cmd1);
     var length = 0; // FIXME
 
@@ -3269,10 +3240,10 @@ import { Texture, clampTexture } from './graphics/textures.js';
       vals.push(gbi.getClampMirrorWrapText(tile.cm_t));
       vals.push(tile.mask_t);
       vals.push(tile.shift_t);
-      vals.push(tile.uls / 4.0);
-      vals.push(tile.ult / 4.0);
-      vals.push(tile.lrs / 4.0);
-      vals.push(tile.lrt / 4.0);
+      vals.push(tile.left);
+      vals.push(tile.top);
+      vals.push(tile.right);
+      vals.push(tile.bottom);
 
       $tr = $('<tr><td>' + vals.join('</td><td>') + '</td></tr>');
       $table.append($tr);
@@ -3728,8 +3699,8 @@ import { Texture, clampTexture } from './graphics/textures.js';
       return tile.hash;
     }
 
-    //var width  = getTextureDimension(tile.uls, tile.lrs, tile.mask_s);
-    var height = getTextureDimension(tile.ult, tile.lrt, tile.mask_t);
+    //var width = tile.width;
+    var height = tile.height;
 
     var src = state.tmemData32;
     var tmem_offset = tile.tmem << 3;
@@ -3801,12 +3772,7 @@ import { Texture, clampTexture } from './graphics/textures.js';
    * @return {?Texture}
    */
   function decodeTexture(tile, tlutFormat) {
-    var width = getTextureDimension(tile.uls, tile.lrs, tile.mask_s);
-    var height = getTextureDimension(tile.ult, tile.lrt, tile.mask_t);
-    var left = tile.uls / 4;
-    var top = tile.ult / 4;
-
-    var texture = new Texture(gl, left, top, width, height);
+    var texture = new Texture(gl, tile.left, tile.top, tile.width, tile.height);
     if (!texture.$canvas[0].getContext) {
       return null;
     }
@@ -3814,18 +3780,15 @@ import { Texture, clampTexture } from './graphics/textures.js';
     $textureOutput.append(
       gbi.ImageFormat.nameOf(tile.format) + ', ' +
       gbi.ImageSize.nameOf(tile.size) + ',' +
-      width + 'x' + height + ', ' +
+      tile.width + 'x' + tile.height + ', ' +
       '<br>');
-
 
     var ctx = texture.$canvas[0].getContext('2d');
     var imgData = ctx.createImageData(texture.nativeWidth, texture.nativeHeight);
 
-    var handled = convertTexels(imgData, state.tmemData, width, height,
-                                tile.format, tile.size, tile.tmem, tile.line,
-                                tile.palette, tlutFormat);
+    var handled = convertTexels(imgData, state.tmemData, tile, tlutFormat);
     if (handled) {
-      clampTexture(imgData, width, height);
+      clampTexture(imgData, tile.width, tile.height);
 
       ctx.putImageData(imgData, 0, 0);
 
