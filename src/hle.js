@@ -260,7 +260,6 @@ import { Texture, clampTexture } from './graphics/textures.js';
   }
 
   function setCanvasViewport(w, h) {
-
     canvasWidth = w;
     canvasHeight = h;
 
@@ -309,12 +308,10 @@ import { Texture, clampTexture } from './graphics/textures.js';
   }
 
   function loadMatrix(address) {
-    var recip = 1.0 / 65536.0;
-
+    const recip = 1.0 / 65536.0;
     var dv = new DataView(ram_dv.buffer, address);
 
     var elements = new Float32Array(16);
-
     for (var i = 0; i < 4; ++i) {
       elements[4 * 0 + i] = (dv.getInt16(i * 8 + 0) << 16 | dv.getUint16(i * 8 + 0 + 32)) * recip;
       elements[4 * 1 + i] = (dv.getInt16(i * 8 + 2) << 16 | dv.getUint16(i * 8 + 2 + 32)) * recip;
@@ -326,12 +323,14 @@ import { Texture, clampTexture } from './graphics/textures.js';
   }
 
   function previewViewport(address) {
-    var tip = '';
-    tip += 'scale = (' + ram_dv.getInt16(address + 0) / 4.0 + ', ' + ram_dv.getInt16(address + 2) /
-      4.0 + ') ';
-    tip += 'trans = (' + ram_dv.getInt16(address + 8) / 4.0 + ', ' + ram_dv.getInt16(address + 10) /
-      4.0 + ') ';
-    return tip;
+    var result = '';
+    result += 'scale = (' +
+        ram_dv.getInt16(address + 0) / 4.0 + ', ' +
+        ram_dv.getInt16(address + 2) / 4.0 + ') ';
+    result += 'trans = (' +
+        ram_dv.getInt16(address + 8) / 4.0 + ', ' +
+        ram_dv.getInt16(address + 10) / 4.0 + ') ';
+    return result;
   }
 
   function moveMemViewport(address) {
@@ -346,14 +345,15 @@ import { Texture, clampTexture } from './graphics/textures.js';
   }
 
   function previewLight(address) {
-    var tip = '';
-    tip += 'color = ' + toHex(ram_dv.getUint32(address + 0), 32) + ' ';
-    var dir = Vector3.create([ram_dv.getInt8(address + 8),
+    var result = '';
+    result += 'color = ' + toHex(ram_dv.getUint32(address + 0), 32) + ' ';
+    var dir = Vector3.create([
+      ram_dv.getInt8(address + 8),
       ram_dv.getInt8(address + 9),
       ram_dv.getInt8(address + 10)
     ]).normaliseInPlace();
-    tip += 'norm = (' + dir.elems[0] + ', ' + dir.elems[1] + ', ' + dir.elems[2] + ')';
-    return tip;
+    result += 'norm = (' + dir.elems[0] + ', ' + dir.elems[1] + ', ' + dir.elems[2] + ')';
+    return result;
   }
 
   function moveMemLight(light_idx, address) {
@@ -407,20 +407,20 @@ import { Texture, clampTexture } from './graphics/textures.js';
     return '<span style="background-color: rgb(' + rgb + ')">' + rgba + '</span>';
   }
 
-  function makeColorTextRGBA(col) {
-    var r = (col >>> 24) & 0xff;
-    var g = (col >>> 16) & 0xff;
-    var b = (col >>> 8) & 0xff;
-    var a = (col) & 0xff;
+  function makeColorTextRGBA(rgba) {
+    var r = (rgba >>> 24) & 0xff;
+    var g = (rgba >>> 16) & 0xff;
+    var b = (rgba >>> 8) & 0xff;
+    var a = (rgba) & 0xff;
 
     return makeColourText(r, g, b, a);
   }
 
-  function makeColorTextABGR(col) {
-    var r = col & 0xff;
-    var g = (col >>> 8) & 0xff;
-    var b = (col >>> 16) & 0xff;
-    var a = (col >>> 24) & 0xff;
+  function makeColorTextABGR(abgr) {
+    var r = abgr & 0xff;
+    var g = (abgr >>> 8) & 0xff;
+    var b = (abgr >>> 16) & 0xff;
+    var a = (abgr >>> 24) & 0xff;
 
     return makeColourText(r, g, b, a);
   }
@@ -603,9 +603,6 @@ import { Texture, clampTexture } from './graphics/textures.js';
     var length = (cmd0 >>> 0) & 0xffff;
     var address = rdpSegmentAddress(cmd1);
 
-    var push = flags & gbi.G_MTX_PUSH;
-    var replace = flags & gbi.G_MTX_LOAD;
-
     var matrix = loadMatrix(address);
 
     if (dis) {
@@ -618,13 +615,13 @@ import { Texture, clampTexture } from './graphics/textures.js';
       dis.tip(previewMatrix(matrix));
     }
 
-    var stack = flags & gbi.G_MTX_PROJECTION ? state.projection : state.modelview;
+    var stack = (flags & gbi.G_MTX_PROJECTION) ? state.projection : state.modelview;
 
-    if (!replace) {
+    if ((flags & gbi.G_MTX_LOAD) == 0) {
       matrix = stack[stack.length - 1].multiply(matrix);
     }
 
-    if (push) {
+    if (flags & gbi.G_MTX_PUSH) {
       stack.push(matrix);
     } else {
       stack[stack.length - 1] = matrix;
@@ -1147,21 +1144,21 @@ import { Texture, clampTexture } from './graphics/textures.js';
     var stride = config.vertexStride;
     var verts = state.projectedVertices;
 
-    var tri_idx = 0;
+    var triIdx = 0;
 
     var pc = state.pc;
     do {
       var flag = (cmd1 >>> 24) & 0xff;
-      var v0_idx = ((cmd1 >>> 16) & 0xff) / stride;
-      var v1_idx = ((cmd1 >>> 8) & 0xff) / stride;
-      var v2_idx = ((cmd1 >>> 0) & 0xff) / stride;
+      var v0idx = ((cmd1 >>> 16) & 0xff) / stride;
+      var v1idx = ((cmd1 >>> 8) & 0xff) / stride;
+      var v2idx = ((cmd1 >>> 0) & 0xff) / stride;
 
       if (dis) {
-        dis.text('gsSP1Triangle(' + v0_idx + ', ' + v1_idx + ', ' + v2_idx + ', ' + flag + ');');
+        dis.text('gsSP1Triangle(' + v0idx + ', ' + v1idx + ', ' + v2idx + ', ' + flag + ');');
       }
 
-      triangleBuffer.pushTri(verts[v0_idx], verts[v1_idx], verts[v2_idx], tri_idx);
-      tri_idx++;
+      triangleBuffer.pushTri(verts[v0idx], verts[v1idx], verts[v2idx], triIdx);
+      triIdx++;
 
       cmd0 = ram_dv.getUint32(pc + 0);
       cmd1 = ram_dv.getUint32(pc + 4);
@@ -1169,12 +1166,12 @@ import { Texture, clampTexture } from './graphics/textures.js';
       pc += 8;
 
       // NB: process triangles individually when disassembling
-    } while ((cmd0 >>> 24) === kTri1 && tri_idx < kMaxTris && !dis);
+    } while ((cmd0 >>> 24) === kTri1 && triIdx < kMaxTris && !dis);
 
     state.pc = pc - 8;
     --debugCurrentOp;
 
-    flushTris(tri_idx * 3);
+    flushTris(triIdx * 3);
   }
 
   function executeTri4_GBI0(cmd0, cmd1, dis) {
@@ -1182,7 +1179,7 @@ import { Texture, clampTexture } from './graphics/textures.js';
     var stride = config.vertexStride;
     var verts = state.projectedVertices;
 
-    var tri_idx = 0;
+    var triIdx = 0;
 
     var pc = state.pc;
     do {
@@ -1208,20 +1205,20 @@ import { Texture, clampTexture } from './graphics/textures.js';
       }
 
       if (v00_idx !== v01_idx) {
-        triangleBuffer.pushTri(verts[v00_idx], verts[v01_idx], verts[v02_idx], tri_idx);
-        tri_idx++;
+        triangleBuffer.pushTri(verts[v00_idx], verts[v01_idx], verts[v02_idx], triIdx);
+        triIdx++;
       }
       if (v03_idx !== v04_idx) {
-        triangleBuffer.pushTri(verts[v03_idx], verts[v04_idx], verts[v05_idx], tri_idx);
-        tri_idx++;
+        triangleBuffer.pushTri(verts[v03_idx], verts[v04_idx], verts[v05_idx], triIdx);
+        triIdx++;
       }
       if (v06_idx !== v07_idx) {
-        triangleBuffer.pushTri(verts[v06_idx], verts[v07_idx], verts[v08_idx], tri_idx);
-        tri_idx++;
+        triangleBuffer.pushTri(verts[v06_idx], verts[v07_idx], verts[v08_idx], triIdx);
+        triIdx++;
       }
       if (v09_idx !== v10_idx) {
-        triangleBuffer.pushTri(verts[v09_idx], verts[v10_idx], verts[v11_idx], tri_idx);
-        tri_idx++;
+        triangleBuffer.pushTri(verts[v09_idx], verts[v10_idx], verts[v11_idx], triIdx);
+        triIdx++;
       }
 
       cmd0 = ram_dv.getUint32(pc + 0);
@@ -1229,12 +1226,12 @@ import { Texture, clampTexture } from './graphics/textures.js';
       ++debugCurrentOp;
       pc += 8;
       // NB: process triangles individually when disassembling
-    } while ((cmd0 >>> 24) === kTri4 && tri_idx < kMaxTris && !dis);
+    } while ((cmd0 >>> 24) === kTri4 && triIdx < kMaxTris && !dis);
 
     state.pc = pc - 8;
     --debugCurrentOp;
 
-    flushTris(tri_idx * 3);
+    flushTris(triIdx * 3);
   }
 
   function executeGBI1_Tri2(cmd0, cmd1, dis) {
@@ -1242,38 +1239,38 @@ import { Texture, clampTexture } from './graphics/textures.js';
     var stride = config.vertexStride;
     var verts = state.projectedVertices;
 
-    var tri_idx = 0;
+    var triIdx = 0;
 
     var pc = state.pc;
     do {
-      var v0_idx = ((cmd0 >>> 16) & 0xff) / stride;
-      var v1_idx = ((cmd0 >>> 8) & 0xff) / stride;
-      var v2_idx = ((cmd0 >>> 0) & 0xff) / stride;
-      var v3_idx = ((cmd1 >>> 16) & 0xff) / stride;
-      var v4_idx = ((cmd1 >>> 8) & 0xff) / stride;
-      var v5_idx = ((cmd1 >>> 0) & 0xff) / stride;
+      var v0idx = ((cmd0 >>> 16) & 0xff) / stride;
+      var v1idx = ((cmd0 >>> 8) & 0xff) / stride;
+      var v2idx = ((cmd0 >>> 0) & 0xff) / stride;
+      var v3idx = ((cmd1 >>> 16) & 0xff) / stride;
+      var v4idx = ((cmd1 >>> 8) & 0xff) / stride;
+      var v5idx = ((cmd1 >>> 0) & 0xff) / stride;
 
       if (dis) {
-        dis.text('gsSP1Triangle2(' + v0_idx + ',' + v1_idx + ',' + v2_idx + ', ' +
-          v3_idx + ',' + v4_idx + ',' + v5_idx + ');');
+        dis.text('gsSP1Triangle2(' + v0idx + ',' + v1idx + ',' + v2idx + ', ' +
+          v3idx + ',' + v4idx + ',' + v5idx + ');');
       }
 
-      triangleBuffer.pushTri(verts[v0_idx], verts[v1_idx], verts[v2_idx], tri_idx);
-      tri_idx++;
-      triangleBuffer.pushTri(verts[v3_idx], verts[v4_idx], verts[v5_idx], tri_idx);
-      tri_idx++;
+      triangleBuffer.pushTri(verts[v0idx], verts[v1idx], verts[v2idx], triIdx);
+      triIdx++;
+      triangleBuffer.pushTri(verts[v3idx], verts[v4idx], verts[v5idx], triIdx);
+      triIdx++;
 
       cmd0 = ram_dv.getUint32(pc + 0);
       cmd1 = ram_dv.getUint32(pc + 4);
       ++debugCurrentOp;
       pc += 8;
       // NB: process triangles individually when disassembling
-    } while ((cmd0 >>> 24) === kTri2 && tri_idx < kMaxTris && !dis);
+    } while ((cmd0 >>> 24) === kTri2 && triIdx < kMaxTris && !dis);
 
     state.pc = pc - 8;
     --debugCurrentOp;
 
-    flushTris(tri_idx * 3);
+    flushTris(triIdx * 3);
   }
 
   function executeGBI1_Line3D(cmd0, cmd1, dis) {
@@ -1281,35 +1278,35 @@ import { Texture, clampTexture } from './graphics/textures.js';
     var stride = config.vertexStride;
     var verts = state.projectedVertices;
 
-    var tri_idx = 0;
+    var triIdx = 0;
 
     var pc = state.pc;
     do {
-      var v3_idx = ((cmd1 >>> 24) & 0xff) / stride;
-      var v0_idx = ((cmd1 >>> 16) & 0xff) / stride;
-      var v1_idx = ((cmd1 >>> 8) & 0xff) / stride;
-      var v2_idx = ((cmd1 >>> 0) & 0xff) / stride;
+      var v3idx = ((cmd1 >>> 24) & 0xff) / stride;
+      var v0idx = ((cmd1 >>> 16) & 0xff) / stride;
+      var v1idx = ((cmd1 >>> 8) & 0xff) / stride;
+      var v2idx = ((cmd1 >>> 0) & 0xff) / stride;
 
       if (dis) {
-        dis.text('gsSPLine3D(' + v0_idx + ', ' + v1_idx + ', ' + v2_idx + ', ' + v3_idx + ');');
+        dis.text('gsSPLine3D(' + v0idx + ', ' + v1idx + ', ' + v2idx + ', ' + v3idx + ');');
       }
 
-      triangleBuffer.pushTri(verts[v0_idx], verts[v1_idx], verts[v2_idx], tri_idx);
-      tri_idx++;
-      triangleBuffer.pushTri(verts[v2_idx], verts[v3_idx], verts[v0_idx], tri_idx);
-      tri_idx++;
+      triangleBuffer.pushTri(verts[v0idx], verts[v1idx], verts[v2idx], triIdx);
+      triIdx++;
+      triangleBuffer.pushTri(verts[v2idx], verts[v3idx], verts[v0idx], triIdx);
+      triIdx++;
 
       cmd0 = ram_dv.getUint32(pc + 0);
       cmd1 = ram_dv.getUint32(pc + 4);
       ++debugCurrentOp;
       pc += 8;
       // NB: process triangles individually when disassembling
-    } while ((cmd0 >>> 24) === kLine3D && tri_idx + 1 < kMaxTris && !dis);
+    } while ((cmd0 >>> 24) === kLine3D && triIdx + 1 < kMaxTris && !dis);
 
     state.pc = pc - 8;
     --debugCurrentOp;
 
-    flushTris(tri_idx * 3);
+    flushTris(triIdx * 3);
   }
 
   function executeSetKeyGB(cmd0, cmd1, dis) {
@@ -2549,21 +2546,21 @@ import { Texture, clampTexture } from './graphics/textures.js';
     var stride = config.vertexStride;
     var verts = state.projectedVertices;
 
-    var tri_idx = 0;
+    var triIdx = 0;
 
     var pc = state.pc;
     do {
       var flag = (cmd1 >>> 24) & 0xff;
-      var v0_idx = (cmd0 >>> 17) & 0x7f;
-      var v1_idx = (cmd0 >>> 9) & 0x7f;
-      var v2_idx = (cmd0 >>> 1) & 0x7f;
+      var v0idx = (cmd0 >>> 17) & 0x7f;
+      var v1idx = (cmd0 >>> 9) & 0x7f;
+      var v2idx = (cmd0 >>> 1) & 0x7f;
 
       if (dis) {
-        dis.text('gsSP1Triangle(' + v0_idx + ', ' + v1_idx + ', ' + v2_idx + ', ' + flag + ');');
+        dis.text('gsSP1Triangle(' + v0idx + ', ' + v1idx + ', ' + v2idx + ', ' + flag + ');');
       }
 
-      triangleBuffer.pushTri(verts[v0_idx], verts[v1_idx], verts[v2_idx], tri_idx);
-      tri_idx++;
+      triangleBuffer.pushTri(verts[v0idx], verts[v1idx], verts[v2idx], triIdx);
+      triIdx++;
 
       cmd0 = ram_dv.getUint32(pc + 0);
       cmd1 = ram_dv.getUint32(pc + 4);
@@ -2571,12 +2568,12 @@ import { Texture, clampTexture } from './graphics/textures.js';
       pc += 8;
 
       // NB: process triangles individually when disassembling
-    } while ((cmd0 >>> 24) === kTri1 && tri_idx < kMaxTris && !dis);
+    } while ((cmd0 >>> 24) === kTri1 && triIdx < kMaxTris && !dis);
 
     state.pc = pc - 8;
     --debugCurrentOp;
 
-    flushTris(tri_idx * 3);
+    flushTris(triIdx * 3);
   }
 
   function executeGBI2_Tri2(cmd0, cmd1, dis) {
@@ -2584,38 +2581,38 @@ import { Texture, clampTexture } from './graphics/textures.js';
     var stride = config.vertexStride;
     var verts = state.projectedVertices;
 
-    var tri_idx = 0;
+    var triIdx = 0;
 
     var pc = state.pc;
     do {
-      var v0_idx = (cmd1 >>> 1) & 0x7f;
-      var v1_idx = (cmd1 >>> 9) & 0x7f;
-      var v2_idx = (cmd1 >>> 17) & 0x7f;
-      var v3_idx = (cmd0 >>> 1) & 0x7f;
-      var v4_idx = (cmd0 >>> 9) & 0x7f;
-      var v5_idx = (cmd0 >>> 17) & 0x7f;
+      var v0idx = (cmd1 >>> 1) & 0x7f;
+      var v1idx = (cmd1 >>> 9) & 0x7f;
+      var v2idx = (cmd1 >>> 17) & 0x7f;
+      var v3idx = (cmd0 >>> 1) & 0x7f;
+      var v4idx = (cmd0 >>> 9) & 0x7f;
+      var v5idx = (cmd0 >>> 17) & 0x7f;
 
       if (dis) {
-        dis.text('gsSP1Triangle2(' + v0_idx + ',' + v1_idx + ',' + v2_idx + ', ' +
-          v3_idx + ',' + v4_idx + ',' + v5_idx + ');');
+        dis.text('gsSP1Triangle2(' + v0idx + ',' + v1idx + ',' + v2idx + ', ' +
+          v3idx + ',' + v4idx + ',' + v5idx + ');');
       }
 
-      triangleBuffer.pushTri(verts[v0_idx], verts[v1_idx], verts[v2_idx], tri_idx);
-      tri_idx++;
-      triangleBuffer.pushTri(verts[v3_idx], verts[v4_idx], verts[v5_idx], tri_idx);
-      tri_idx++;
+      triangleBuffer.pushTri(verts[v0idx], verts[v1idx], verts[v2idx], triIdx);
+      triIdx++;
+      triangleBuffer.pushTri(verts[v3idx], verts[v4idx], verts[v5idx], triIdx);
+      triIdx++;
 
       cmd0 = ram_dv.getUint32(pc + 0);
       cmd1 = ram_dv.getUint32(pc + 4);
       ++debugCurrentOp;
       pc += 8;
       // NB: process triangles individually when disassembling
-    } while ((cmd0 >>> 24) === kTri2 && tri_idx < kMaxTris && !dis);
+    } while ((cmd0 >>> 24) === kTri2 && triIdx < kMaxTris && !dis);
 
     state.pc = pc - 8;
     --debugCurrentOp;
 
-    flushTris(tri_idx * 3);
+    flushTris(triIdx * 3);
   }
 
   function executeGBI2_Quad(cmd0, cmd1, dis) {}
