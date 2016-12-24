@@ -626,14 +626,78 @@ import { getFragmentMap, consumeFragmentInvalidationEvents } from './fragments.j
     return $recent;
   }
 
-  function initFragmentRow($tr, fragment, $code) {
-    $tr.click(function () {
-      $code.html('<pre>' + fragment.func.toString() + '</pre>');
+  function updateDynarec() {
+    var invals = consumeFragmentInvalidationEvents();
+    var histogram = new Map();
+    var maxBucket = 0;
+
+    // Build a flattened list of all fragments
+    var fragmentsList = [];
+    for (let [pc, fragment] of getFragmentMap()) {
+      let i = fragment.executionCount > 0 ? Math.floor(Math.log10(fragment.executionCount)) : 0;
+      histogram.set(i, (histogram.get(i) || 0) + 1);
+      fragmentsList.push(fragment);
+      maxBucket = Math.max(maxBucket, i);
+    }
+
+    fragmentsList.sort((a, b) => {
+      return b.opsCompiled * b.executionCount - a.opsCompiled * a.executionCount;
     });
+
+    var $t = $('<div class="container-fluid" />');
+
+    // Histogram showing execution counts
+    var t = '';
+    t += '<div class="row">';
+    t += '<table class="table table-condensed table-nonfluid"><tr><th>Execution Count</th><th>Frequency</th></tr>';
+    for (let i = 0; i <= maxBucket; i++) {
+      var count = histogram.get(i) || 0;
+      var range = '< ' + Math.pow(10, i + 1);
+      t += '<tr><td>' + range + '</td><td>' + count + '</td></tr>';
+    }
+    t += '</table>';
+    t += '</div>';
+    $t.append(t);
+
+    // Table of hot fragments, and the corresponding js
+    t = '';
+    t += '<div class="row">';
+    t += '  <div class="col-lg-6" id="fragments" />';
+    t += '  <div class="col-lg-6" id="fragment-code" />';
+    t += '</div>';
+    var $fragmentDiv = $(t);
+
+    createHotFragmentsTable($fragmentDiv, fragmentsList);
+
+    $t.append($fragmentDiv);
+
+    // Evictions
+    if (invals.length > 0) {
+      t = '';
+      t += '<div class="row">';
+      t += '<div class="col-lg-6">';
+      t += '<table class="table table-condensed">';
+      t += '<tr><th>Address</th><th>Length</th><th>System</th><th>Fragments Removed</th></tr>';
+      for (let i = 0; i < invals.length; ++i) {
+        var vals = [
+          format.toString32(invals[i].address),
+          invals[i].length,
+          invals[i].system,
+          invals[i].fragmentsRemoved,
+        ];
+        t += '<tr><td>' + vals.join('</td><td>') + '</td></tr>';
+      }
+      t += '</table>';
+      t += '</div>';
+      t += '</div>';
+      $t.append(t);
+    }
+
+    $dynarecContent.html($t);
   }
 
-  function createHotFragmentsTable($fragment_div, fragmentsList) {
-    var $code = $fragment_div.find('#fragment_code');
+  function createHotFragmentsTable($fragmentDiv, fragmentsList) {
+    var $code = $fragmentDiv.find('#fragment-code');
 
     var $table = $('<table class="table table-condensed" />');
 
@@ -656,83 +720,17 @@ import { getFragmentMap, consumeFragmentInvalidationEvents } from './fragments.j
       $table.append($tr);
     }
 
-    $fragment_div.find('#fragments').append($table);
+    $fragmentDiv.find('#fragments').append($table);
 
     if (fragmentsList.length > 0) {
       $code.append('<pre>' + fragmentsList[0].func.toString() + '</pre>');
     }
   }
 
-  function log10(x) {
-    return Math.log(x) / Math.log(10);
-  }
-
-  function updateDynarec() {
-    var invals = consumeFragmentInvalidationEvents();
-    var histo = {};
-
-    // Build a flattened list of all fragments
-    var fragmentsList = [];
-    for (let [pc, fragment] of getFragmentMap()) {
-      var logv = fragment.executionCount > 0 ? Math.floor(log10(fragment.executionCount)) : 0;
-      histo[logv] = (histo[logv] || 0) + 1;
-      fragmentsList.push(fragment);
-    }
-
-    fragmentsList.sort(function (a,b) {
-      return b.opsCompiled*b.executionCount - a.opsCompiled*a.executionCount;
+  function initFragmentRow($tr, fragment, $code) {
+    $tr.click(() => {
+      $code.html('<pre>' + fragment.func.toString() + '</pre>');
     });
-
-    var $t = $('<div />');
-
-    // Histogram showing execution counts
-    var t = '';
-    t += '<div class="row-fluid">';
-    t += '<div class="span4"><table class="table table-condensed"><tr><th>Execution Count</th><th>Frequency</th></tr>';
-    for (var i in histo) {
-      var v = Number(i);
-      var range = Math.pow(10, v) + '..' + Math.pow(10, v+1);
-      t += '<tr><td>' + range + '</td><td>' + histo[i] + '</td></tr>';
-    }
-    t += '</table></div>';
-    t += '</div>';
-    $t.append(t);
-
-    // Table of hot fragments, and the corresponding js
-    t = '';
-    t += '<div class="row-fluid">';
-    t += '  <div class="span6" id="fragments" />';
-    t += '  <div class="span6" id="fragment_code" />';
-    t += '</div>';
-    var $fragment_div = $(t);
-
-    createHotFragmentsTable($fragment_div, fragmentsList);
-
-    $t.append($fragment_div);
-
-    // Evictions
-    if (invals.length > 0) {
-      t = '';
-      t += '<div class="row-fluid">';
-      t += '<div class="span6"><table class="table table-condensed"><tr><th>Address</th><th>Length</th><th>System</th><th>Fragments Removed</th></tr>';
-      for (i = 0; i < invals.length; ++i) {
-
-        var vals = [
-          format.toString32(invals[i].address),
-          invals[i].length,
-          invals[i].system,
-          invals[i].fragmentsRemoved,
-        ];
-
-        t += '<tr><td>' + vals.join('</td><td>') + '</td></tr>';
-      }
-      t += '</table></div>';
-      t += '</div>';
-
-      $t.append(t);
-    }
-
-    $dynarecContent.html($t);
   }
 
   function disassemblerDown() {

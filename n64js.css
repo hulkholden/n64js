@@ -7,6 +7,10 @@
   font-size: 12px;
 }
 
+.table-nonfluid {
+   width: auto !important;
+}
+
 .register-table th,
 .register-table td {
   padding: 2px 10px;
