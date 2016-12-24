@@ -116,7 +116,7 @@ import { getFragmentMap, consumeFragmentInvalidationEvents } from './fragments.j
       logger.clear();
     });
 
-    $('#cpu').find('#speed').change(function () {
+    $('#cpu-controls').find('#speed').change(function () {
       debugCycles = Math.pow(10, $(this).val() | 0);
       logger.log('Speed is now ' + debugCycles);
     });

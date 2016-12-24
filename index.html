@@ -135,6 +135,22 @@
 
       <div class="debug" style="display:none">
         <div class="row">
+          <div class="col-xs-4">
+            <div id="cpu-controls" class="cpu-controls">
+              <div class="control-group">
+                <button type="button" class="btn btn-default" onclick="n64js.step()"><i class="glyphicon glyphicon-step-forward"></i> Step</button>
+              </div>
+              <div class="control-group">
+                <label class="control-label" for="speed">Speed</label>
+                <div class="controls">
+                  <input id="speed" type="range" min="0" max="8" value="0" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row">
           <div class="col-xs-12">
             <div class="tabbable">
               <ul class="nav nav-tabs">
@@ -150,22 +166,8 @@
                 <div class="tab-pane" id="debug-content">
 
                   <div id="cpu">
-
                     <div class="cpu-display">
                       <div class="cpu-details">
-
-                        <div class="cpu-controls">
-                          <div class="control-group">
-                            <button type="button" class="btn btn-default" onclick="n64js.step()"><i class="glyphicon glyphicon-step-forward"></i> Step</button>
-                          </div>
-                          <div class="control-group">
-                            <label class="control-label" for="speed">Speed</label>
-                            <div class="controls">
-                              <input id="speed" type="range" min="0" max="8" value="0" />
-                            </div>
-                          </div>
-                        </div>
-
                         <div id="status"></div>
 
                         <div class="tabbable tabs-left">
