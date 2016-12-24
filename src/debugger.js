@@ -315,7 +315,37 @@ import { getFragmentMap, consumeFragmentInvalidationEvents } from './fragments.j
     return $table;
   }
 
-  function addSR($tb) {
+  /**
+   * Makes a table showing the status register contents.
+   * @return {!jQuery}
+   */
+  function makeStatusTable() {
+    let cpu0 = n64js.cpu0;
+
+    let $table = $('<table class="register-table"><tbody></tbody></table>');
+    let $body = $table.find('tbody');
+
+    $body.append('<tr><td>Ops</td><td class="fixed">' + cpu0.opsExecuted + '</td></tr>');
+    $body.append('<tr><td>PC</td><td class="fixed">' + format.toString32(cpu0.pc) + '</td>' +
+                     '<td>delayPC</td><td class="fixed">' + format.toString32(cpu0.delayPC) + '</td></tr>');
+    $body.append('<tr><td>EPC</td><td class="fixed">' + format.toString32(cpu0.control[cpu0.kControlEPC]) + '</td></tr>');
+    $body.append('<tr><td>MultHi</td><td class="fixed">' + format.toString64(cpu0.multHi[1], cpu0.multHi[0]) + '</td>' +
+                     '<td>Cause</td><td class="fixed">' + format.toString32(cpu0.control[cpu0.kControlCause]) + '</td></tr>');
+    $body.append('<tr><td>MultLo</td><td class="fixed">' + format.toString64(cpu0.multLo[1], cpu0.multLo[0]) + '</td>' +
+                     '<td>Count</td><td class="fixed">' + format.toString32(cpu0.control[cpu0.kControlCount]) + '</td></tr>');
+    $body.append('<tr><td></td><td class="fixed"></td>' +
+                     '<td>Compare</td><td class="fixed">' + format.toString32(cpu0.control[cpu0.kControlCompare]) + '</td></tr>');
+
+    for (let i = 0; i < cpu0.events.length; ++i) {
+      $body.append('<tr><td>Event' + i + '</td><td class="fixed">' + cpu0.events[i].countdown + ', ' + cpu0.events[i].getName() + '</td></tr>');
+    }
+
+    $body.append(makeStatusRegisterRow());
+    $body.append(makeMipsInterruptsRow());
+    return $table;
+  }
+
+  function makeStatusRegisterRow() {
     let $tr = $('<tr />');
     $tr.append( '<td>SR</td>' );
 
@@ -323,7 +353,7 @@ import { getFragmentMap, consumeFragmentInvalidationEvents } from './fragments.j
 
     let sr = n64js.cpu0.control[n64js.cpu0.kControlSR];
 
-    let $td = $('<td />');
+    let $td = $('<td class="fixed" />');
     $td.append(format.toString32(sr));
     $td.append('&nbsp;');
 
@@ -343,10 +373,10 @@ import { getFragmentMap, consumeFragmentInvalidationEvents } from './fragments.j
     }
 
     $tr.append($td);
-    $tb.append($tr);
+    return $tr;
   }
 
-  function addMipsInterrupts($tb) {
+  function makeMipsInterruptsRow() {
     const miIntrNames = ['SP', 'SI', 'AI', 'VI', 'PI', 'DP'];
 
     let miIntrLive = n64js.miIntrReg();
@@ -354,7 +384,7 @@ import { getFragmentMap, consumeFragmentInvalidationEvents } from './fragments.j
 
     let $tr = $('<tr />');
     $tr.append( '<td>MI Intr</td>' );
-    let $td = $('<td />');
+    let $td = $('<td class="fixed" />');
     let i;
     for (i = 0; i < miIntrNames.length; ++i) {
       let isSet = (miIntrLive & (1<<i)) !== 0;
@@ -372,39 +402,7 @@ import { getFragmentMap, consumeFragmentInvalidationEvents } from './fragments.j
       $td.append('&nbsp;');
     }
     $tr.append($td);
-    $tb.append($tr);
-  }
-
-  /**
-   * Makes a table showing the status register contents.
-   * @return {!jQuery}
-   */
-  function makeStatusTable() {
-    let cpu0 = n64js.cpu0;
-
-    let $table = $('<table class="register-table"><tbody></tbody></table>');
-    let $body = $table.find('tbody');
-
-// TODO: loop
-
-    $body.append('<tr><td>Ops</td><td class="fixed">' + cpu0.opsExecuted + '</td></tr>');
-    $body.append('<tr><td>PC</td><td class="fixed">' + format.toString32(cpu0.pc) + '</td><td>delayPC</td><td class="fixed">' + format.toString32(cpu0.delayPC) + '</td></tr>');
-    $body.append('<tr><td>EPC</td><td class="fixed">' + format.toString32(cpu0.control[cpu0.kControlEPC]) + '</td></tr>');
-    $body.append('<tr><td>MultHi</td><td class="fixed">' + format.toString64(cpu0.multHi[1], cpu0.multHi[0]) +
-                        '</td><td>Cause</td><td class="fixed">' + format.toString32(cpu0.control[cpu0.kControlCause]) + '</td></tr>');
-    $body.append('<tr><td>MultLo</td><td class="fixed">' + format.toString64(cpu0.multLo[1], cpu0.multLo[0]) +
-                        '</td><td>Count</td><td class="fixed">' + format.toString32(cpu0.control[cpu0.kControlCount]) + '</td></tr>');
-    $body.append('<tr><td></td><td class="fixed">' +
-                      '</td><td>Compare</td><td class="fixed">' + format.toString32(cpu0.control[cpu0.kControlCompare]) + '</td></tr>');
-
-    for (let i = 0; i < cpu0.events.length; ++i) {
-      $body.append('<tr><td>Event' + i + '</td><td class="fixed">' + cpu0.events[i].countdown + ', ' + cpu0.events[i].getName() + '</td></tr>');
-    }
-
-    addSR($body);
-    addMipsInterrupts($body);
-
-    return $table;
+    return $tr;
   }
 
   function setLabelText($elem, address) {
@@ -499,15 +497,15 @@ import { getFragmentMap, consumeFragmentInvalidationEvents } from './fragments.j
       }
 
       let $line = $('<span class="dis-line">' + t + '</span>');
-      $line.find('.dis-label').
-        data('address', address).
-        css('color', makeLabelColor(address)).
-        click(onLabelClicked);
+      $line.find('.dis-label')
+        .data('address', address)
+        .css('color', makeLabelColor(address))
+        .click(onLabelClicked);
 
       if (fragment) {
-        $line.find('.dis-fragment-link').
-          data('fragment', fragment).
-          click(onFragmentClicked);
+        $line.find('.dis-fragment-link')
+          .data('fragment', fragment)
+          .click(onFragmentClicked);
       }
 
       // Keep track of the current instruction (for register formatting) and highlight.
@@ -534,7 +532,7 @@ import { getFragmentMap, consumeFragmentInvalidationEvents } from './fragments.j
       $disGutter.append('<br>');
     }
 
-    // Links for braches, jumps etc should jump to the target address.
+    // Links for branches, jumps etc should jump to the target address.
     $disText.find('.dis-address-jump').each(function () {
       let address = parseInt($(this).text(), 16);
 
