@@ -268,7 +268,28 @@
     <script src="js/bootstrap.min.js"></script>
     <script src="js/stats.js"></script>
     <script src="js/webgl-debug.js"></script>
-    <script src="n64.min.js"></script>
+    <script type="module" src="src/graphics/convert.js"></script>
+    <script type="module" src="src/graphics/Matrix.js"></script>
+    <script type="module" src="src/graphics/shaders.js"></script>
+    <script type="module" src="src/graphics/textures.js"></script>
+    <script type="module" src="src/graphics/Tile.js"></script>
+    <script type="module" src="src/graphics/TriangleBuffer.js"></script>
+    <script type="module" src="src/graphics/Vector3.js"></script>
+    <script type="module" src="src/graphics/Vector4.js"></script>
+    <script type="module" src="src/CPU1.js"></script>
+    <script type="module" src="src/debugger.js"></script>
+    <script type="module" src="src/Device.js"></script>
+    <script type="module" src="src/disassemble.js"></script>
+    <script type="module" src="src/format.js"></script>
+    <script type="module" src="src/fragments.js"></script>
+    <script type="module" src="src/gbi.js"></script>
+    <script type="module" src="src/hle.js"></script>
+    <script type="module" src="src/logger.js"></script>
+    <script type="module" src="src/MemoryRegion.js"></script>
+    <script type="module" src="src/n64.js"></script>
+    <script type="module" src="src/r4300.js"></script>
+    <script type="module" src="src/romdb.js"></script>
+    <script type="module" src="src/sync.js"></script>
 
     <script id="fill-shader-vs" type="x-shader/x-vertex">
       attribute vec3 aVertexPosition;
@@ -289,8 +310,6 @@
         gl_FragColor = uFillColor;
       }
     </script>
-
-
 
     <script id="blit-shader-vs" type="x-shader/x-vertex">
       attribute vec4 aVertexPosition;
@@ -313,7 +332,6 @@
         gl_FragColor = texture2D(uSampler, vTextureCoord);
       }
     </script>
-
 
     <script id="n64-shader-vs" type="x-shader/x-vertex">
       attribute vec4 aVertexPosition;
@@ -359,10 +377,10 @@
       }
     </script>
 
-    <script>
-    $(document).ready(function(){
-      n64js.init();
-    });
+    <script defer>
+      document.addEventListener('DOMContentLoaded', function() {
+        n64js.init();
+      });
     </script>
 
   </body>
