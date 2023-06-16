@@ -398,11 +398,10 @@ import { romdb } from './romdb.js';
     }
   }
 
-  function uint8ArrayReadString(u8array, offset, max_len) {
-    var s = '';
-    var i;
-    for (i = 0; i < max_len; ++i) {
-      var c = u8array[offset+i];
+  function uint8ArrayReadString(u8array, offset, maxLen) {
+    let s = '';
+    for (let i = 0; i < maxLen; ++i) {
+      const c = u8array[offset+i];
       if (c === 0) {
         break;
       }
@@ -422,11 +421,9 @@ import { romdb } from './romdb.js';
     return format.toHex(byteswap(crclo),32) + format.toHex(byteswap(crchi),32);
   }
 
-  function generateCICType(u8array)
-  {
-    var cic = 0;
-    var i;
-    for (i = 0; i < 0xFC0; i++) {
+  function generateCICType(u8array) {
+    let cic = 0;
+    for (let i = 0; i < 0xFC0; i++) {
       cic = cic + u8array[0x40 + i];
     }
 
@@ -452,7 +449,7 @@ import { romdb } from './romdb.js';
     rom_d1a2_handler_uncached.setMem(rom);
     rom_d1a3_handler_uncached.setMem(rom);
 
-    var hdr = {
+    const hdr = {
       header:       rom.readU32(0),
       clock:        rom.readU32(4),
       bootAddress:  rom.readU32(8),
@@ -471,11 +468,9 @@ import { romdb } from './romdb.js';
       unk5:         rom.readU8 (63)
     };
 
-
-    var $table = $('<table class="register-table"><tbody></tbody></table>');
-    var $tb = $table.find('tbody');
-    var i;
-    for (i in hdr) {
+    const $table = $('<table class="register-table"><tbody></tbody></table>');
+    const $tb = $table.find('tbody');
+    for (let i in hdr) {
       $tb.append('<tr>' +
         '<td>' + i + '</td><td>' + (typeof hdr[i] === 'string' ? hdr[i] : toString32(hdr[i])) + '</td>' +
         '</tr>');
@@ -487,7 +482,7 @@ import { romdb } from './romdb.js';
     rominfo.id      = generateRomId(hdr.crclo, hdr.crchi);
     rominfo.country = hdr.countryId;
 
-    var info = romdb[rominfo.id];
+    const info = romdb[rominfo.id];
     if (info) {
       logger.log('Loaded info for ' + rominfo.id + ' from db');
       rominfo.name = info.name;
@@ -520,26 +515,22 @@ import { romdb } from './romdb.js';
   };
 
   n64js.triggerLoad = function () {
-    var $fileinput = $('#fileInput');
-
+    const $fileinput = $('#fileInput');
     // Reset fileInput value, otherwise onchange doesn't recognise when we select the same rome back-to-back
     $fileinput.val('');
     $fileinput.click();
   };
 
   n64js.loadFile = function () {
-    var f = document.getElementById("fileInput");
+    const f = document.getElementById("fileInput");
     if (f && f.files.length > 0) {
-      var file = f.files[0];
-      var name = file.fileName;
-      var size = file.fileSize;
+      const file = f.files[0];
+      const reader = new FileReader();
 
-      var reader = new FileReader();
-
-      reader.onerror = function (e) {
+      reader.onerror = e => {
         n64js.displayWarning('error loading file');
       };
-      reader.onload = function (e) {
+      reader.onload = e => {
         loadRom(e.target.result);
         n64js.reset();
         n64js.refreshDebugger();
@@ -551,7 +542,7 @@ import { romdb } from './romdb.js';
     }
   };
 
-  n64js.step = function () {
+  n64js.step = () => {
     if (!running) {
       n64js.singleStep();
       n64js.refreshDebugger();
@@ -562,31 +553,29 @@ import { romdb } from './romdb.js';
     return (syncFlow || syncInput) ? true : false;
   }
 
-  function syncTick(max_count) {
-    var kEstimatedBytePerCycle = 8;
-    var sync_objects   = [syncFlow, syncInput],
-        max_safe_count = max_count,
-        count,
-        i;
+  function syncTick(maxCount) {
+    const kEstimatedBytePerCycle = 8;
+    let syncObjects = [syncFlow, syncInput];
+    let maxSafeCount = maxCount;
 
-    for (i = 0; i < sync_objects.length; ++i) {
-      var s = sync_objects[i];
+    for (let i = 0; i < syncObjects.length; ++i) {
+      const s = syncObjects[i];
       if (s) {
         if (!s.tick()) {
-          max_safe_count = 0;
+          maxSafeCount = 0;
         }
 
         // Guesstimate num bytes used per cycle
-        count = Math.floor(s.getAvailableBytes() / kEstimatedBytePerCycle);
+        let count = Math.floor(s.getAvailableBytes() / kEstimatedBytePerCycle);
 
         // Ugh - bodgy hacky hacky for input sync
         count = Math.max(0, count - 100);
 
-        max_safe_count = Math.min(max_safe_count, count);
+        maxSafeCount = Math.min(maxSafeCount, count);
       }
     }
 
-    return max_safe_count;
+    return maxSafeCount;
   }
 
   function updateLoopAnimframe() {
@@ -1041,8 +1030,6 @@ import { romdb } from './romdb.js';
   dpc_handler_uncached.readU32 = function (address) {
     return this.readS32(address)>>>0;
   };
-
-
 
   dps_handler_uncached.write32 = function (address, value) {
     var ea = this.calcEA(address);
