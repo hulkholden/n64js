@@ -1,53 +1,85 @@
 /*jshint jquery:true */
 
+import * as format from './format.js';
+import * as logger from './logger.js';
+import { getFragmentMap, consumeFragmentInvalidationEvents } from './fragments.js';
+
+
 (function (n64js) {'use strict';
+  /** @type {?jQuery} */
+  let $debugContent = null;
 
-  var $debugContent   = null;
-  var $status         = null;
-  var $registers      = null;
-  var $disassembly    = null;
-  var $dynarecContent = null;
-  var $memoryContent  = null;
-  var $output         = null;
+  /** @type {?jQuery} */
+  let $status = null;
 
-  var disasmAddress = 0;
-  var lastCycles;
-  var lastPC               = -1;
-  var recentMemoryAccesses = [];
-  var lastMemoryAccessAddress;
-  var lastStore;                  // When we execute a store instruction, keep track of some details so we can show the value that was written
+  /** @type {?Array<?jQuery>} */
+  let $registers = null;
 
-  var labelMap = {};
+  /** @type {?jQuery} */
+  let $disassembly = null;
 
-  var debugCycles = Math.pow(10,0);
-  n64js.getDebugCycles = function () {
+  /** @type {?jQuery} */
+  let $dynarecContent = null;
+
+  /** @type {?jQuery} */
+  let $memoryContent = null;
+
+  /** @type {number} The address to disassemble. */
+  let disasmAddress = 0;
+
+  /** @type {number} The number of cycles executed the last time the display was updated. */
+  let lastCycles;
+
+  /** @type {number} The program counter the last time the display was updated. */
+  let lastPC               = -1;
+
+  /** @type {!Array<!Object>} A list of recent memory accesses. */
+  let recentMemoryAccesses = [];
+
+  /** @type {number} The address of the last memory access. */
+  let lastMemoryAccessAddress = 0;
+
+  /**
+   * When we execute a store instruction, keep track of some details so we can
+   * show the value that was written.
+   * @type {?Object} The address of the last memory access.
+   */
+  let lastStore = null;
+
+  /** @type {!Object<number, string>} A map of labels keyed by address. */
+  let labelMap = {};
+
+  /** @type {number} How many cycles to execute before updating the debugger. */
+  let debugCycles = Math.pow(10,0);
+
+  n64js.getDebugCycles = () => {
     return debugCycles;
   };
 
   function refreshLabelSelect() {
-    var i, address, label, $option,
-        arr = [],
-        $select = $('#cpu').find('#labels');
+    let $select = $('#cpu').find('#labels');
 
-    for (i in labelMap) {
+    let arr = [];
+    for (let i in labelMap) {
       if (labelMap.hasOwnProperty(i)) {
         arr.push(i);
       }
     }
-    arr.sort(function (a,b) { return labelMap[a].localeCompare(labelMap[b]); });
+    arr.sort((a, b) => { return labelMap[a].localeCompare(labelMap[b]); });
 
     $select.html('');
 
-    for (i = 0; i < arr.length; ++i) {
-      address = arr[i];
-      label   = labelMap[address];
-      $option = $('<option value="' + label + '">' + label + '</option>');
+    for (let i = 0; i < arr.length; ++i) {
+      let address = arr[i];
+      let label   = labelMap[address];
+      let $option = $('<option value="' + label + '">' + label + '</option>');
       $option.data('address', address);
       $select.append($option);
     }
 
     $select.change(function () {
-      disasmAddress = $select.find('option:selected').data('address')>>>0;
+      let contents = $select.find('option:selected').data('address');
+      disasmAddress = /** @type {number} */(contents) >>> 0;
       updateDebug();
     });
   }
@@ -71,19 +103,22 @@
     $status         = $('#status');
     $registers      = [$('#cpu0-content'), $('#cpu1-content')];
     $disassembly    = $('#disasm');
-    $output         = $('.output');
     $dynarecContent = $('#dynarec-content');
     $memoryContent  = $('#memory-content');
+
+    logger.initialise($('.output'), () => {
+      return format.toString32(n64js.cpu0.pc);
+    });
 
     n64js.addResetCallback(onReset);
 
     $('#output').find('#clear').click(function () {
-      n64js.clearLog();
+      logger.clear();
     });
 
-    $('#cpu').find('#speed').val(0).change(function () {
+    $('#cpu-controls').find('#speed').change(function () {
       debugCycles = Math.pow(10, $(this).val() | 0);
-      n64js.log('Speed is now ' + debugCycles);
+      logger.log('Speed is now ' + debugCycles);
     });
 
     $('#cpu').find('#address').change(function () {
@@ -92,27 +127,25 @@
     });
     refreshLabelSelect();
 
-    var addr = 0x80000000;
     $memoryContent.find('input').change(function () {
       lastMemoryAccessAddress = parseInt($(this).val(), 16);
       updateMemoryView();
     });
     updateMemoryView();
 
-
-    var kEnter    = 13;
-    var kPageUp   = 33;
-    var kPageDown = 34;
-    var kLeft     = 37;
-    var kUp       = 38;
-    var kRight    = 39;
-    var kDown     = 40;
-    var kF10      = 121;
-    var kF9       = 120;
-    var kF8       = 119;
+    const kEnter    = 13;
+    const kPageUp   = 33;
+    const kPageDown = 34;
+    const kLeft     = 37;
+    const kUp       = 38;
+    const kRight    = 39;
+    const kDown     = 40;
+    const kF10      = 121;
+    const kF9       = 120;
+    const kF8       = 119;
 
     $('body').keydown(function (event) {
-      var consumed = false;
+      let consumed = false;
       switch (event.which) {
         case kDown:     consumed = true; disassemblerDown();             break;
         case kUp:       consumed = true; disassemblerUp();               break;
@@ -130,39 +163,39 @@
   };
 
   function updateMemoryView() {
-    var addr = lastMemoryAccessAddress || 0x80000000;
-    $memoryContent.find('pre').html( makeMemoryTable(addr, 1024) );
+    let addr = lastMemoryAccessAddress || 0x80000000;
+    let $pre = $memoryContent.find('pre');
+    $pre.empty().append(makeMemoryTable(addr, 1024));
   }
 
-  // bytes_per_row should be power-of-two
-  function makeMemoryTable(focus_address, context_bytes, bytes_per_row, highlights) {
-    bytes_per_row = bytes_per_row || 64;
-    highlights = highlights || {};
+  function roundDown(x, a) {
+    return x & ~(a-1);
+  }
 
-    function roundDown(x, a) {
-      return x & ~(a-1);
-    }
+  /**
+   * Constructs HTML for a table of memory values.
+   * @param {number} focusAddress The address to focus on.
+   * @param {number} contextBytes The number of bytes of context.
+   * @param {number=} bytesPerRow The number of bytes per row. Should be a power of two.
+   * @param {Map<number,string>=} highlights Colours to highlight addresses with.
+   * @return {!jQuery}
+   */
+  function makeMemoryTable(focusAddress, contextBytes, bytesPerRow = 64, highlights = null) {
+    let s = roundDown(focusAddress, bytesPerRow) - roundDown(contextBytes/2, bytesPerRow);
+    let e = s + contextBytes;
 
-    var s = roundDown(focus_address, bytes_per_row) - roundDown(context_bytes/2, bytes_per_row);
-    var e = s + context_bytes;
+    let t = '';
+    for (let a = s; a < e; a += bytesPerRow) {
+      let r = format.toHex(a, 32) + ':';
 
-    var t = '';
-
-    var a, o;
-
-    for (a = s; a < e; a += bytes_per_row) {
-      var r = n64js.toHex(a, 32) + ':';
-
-      for (o = 0; o < bytes_per_row; o += 4) {
-        var cur_address = a+o >>> 0;
-        var mem = n64js.readMemoryInternal32(cur_address);
-
-        var style = '';
-        if (highlights.hasOwnProperty(cur_address)) {
-          style = ' style="background-color: ' + highlights[cur_address] + '"';
+      for (let o = 0; o < bytesPerRow; o += 4) {
+        let curAddress = a + o >>> 0;
+        let mem = n64js.readMemoryInternal32(curAddress);
+        let style = '';
+        if (highlights && highlights.has(curAddress)) {
+          style = ' style="background-color: ' + highlights.get(curAddress) + '"';
         }
-
-        r += ' <span id="mem-' + n64js.toHex(cur_address, 32) + '"' + style + '>' + n64js.toHex(mem, 32) + '</span>';
+        r += ' <span id="mem-' + format.toHex(curAddress, 32) + '"' + style + '>' + format.toHex(mem, 32) + '</span>';
       }
 
       r += '\n';
@@ -174,63 +207,59 @@
 
   // access is {reg,offset,mode}
   function addRecentMemoryAccess(address, mode) {
-
-    var col = (mode === 'store') ? '#faa' : '#ffa';
+    let col = (mode === 'store') ? '#faa' : '#ffa';
     if (mode === 'update') {
       col = '#afa';
     }
 
-    var highlights = {};
-    var aligned_addr = (address&~3)>>>0;
-    highlights[aligned_addr] = col;
-
+    let highlights = new Map();
+    let alignedAddress = (address & ~3) >>> 0;
+    highlights.set(alignedAddress, col);
     return makeMemoryTable(address, 32, 32, highlights);
   }
 
   function makeLabelColor(address) {
-    var i = (address>>>2);  // Lowest bits are always 0
-    var hash = (i>>>16) ^ ((i&0xffff) * 2803);
-    var r = (hash     )&0x1f;
-    var g = (hash>>> 5)&0x1f;
-    var b = (hash>>>10)&0x1f;
-    var h = (hash>>>15)&0x3;
+    let i = address >>> 2;  // Lowest bits are always 0
+    let hash = (i >>> 16) ^ ((i & 0xffff) * 2803);
+    let r = (hash       ) & 0x1f;
+    let g = (hash >>>  5) & 0x1f;
+    let b = (hash >>> 10) & 0x1f;
+    let h = (hash >>> 15) & 0x3;
 
-    r = (r*4);
-    g = (g*4);
-    b = (b*4);
-    if (h === 0) {
-      r*=2; g*=2;
-    } else if (h === 1) {
-      g*=2; b*=2;
-    } else if (h === 2) {
-      b*=2; r*=2;
-    } else {
-      r*=2;g*=2;b*=2;
+    r *= 4;
+    g *= 4;
+    b *= 4;
+    switch (h) {
+      case 0: r*=2; g*=2; break;
+      case 1: g*=2; b*=2; break;
+      case 2: b*=2; r*=2; break;
+      default: r*=2;g*=2;b*=2; break;
     }
 
-    return '#' + n64js.toHex(r,8) + n64js.toHex(g,8) + n64js.toHex(b,8);
+    return '#' + format.toHex(r, 8) + format.toHex(g, 8) + format.toHex(b, 8);
   }
 
+  /**
+   * Makes a table of co-processor 0 registers.
+   * @param {!Map<string, string>} registerColours Register colour map.
+   * @return {!jQuery}
+   */
+  function makeCop0RegistersTable(registerColours) {
+    let cpu0 = n64js.cpu0;
+    let $table = $('<table class="register-table"><tbody></tbody></table>');
+    let $body = $table.find('tbody');
 
-  function makeCop0RegistersTable(reg_colors) {
-    var cpu0 = n64js.cpu0,
-        $table = $('<table class="register-table"><tbody></tbody></table>'),
-        $body = $table.find('tbody'),
-        i, r, $tr, $td, name;
+    const kRegistersPerRow = 2;
 
-    var kRegistersPerRow = 2;
+    for (let i = 0; i < 32; i+=kRegistersPerRow) {
+      let $tr = $('<tr />');
+      for (let r = 0; r < kRegistersPerRow; ++r) {
+        let name = n64js.cop0gprNames[i+r];
+        let $td = $('<td>' + name + '</td><td class="fixed">' + format.toString64(cpu0.gprHi[i+r], cpu0.gprLo[i+r]) + '</td>');
 
-    for (i = 0; i < 32; i+=kRegistersPerRow) {
-      $tr = $('<tr />');
-      for (r = 0; r < kRegistersPerRow; ++r) {
-
-        name = n64js.cop0gprNames[i+r];
-        $td = $('<td>' + name + '</td><td class="fixed">' + n64js.toString64(cpu0.gprHi[i+r], cpu0.gprLo[i+r]) + '</td>');
-
-        if (reg_colors.hasOwnProperty(name)) {
-          $td.attr('bgcolor', reg_colors[name]);
+        if (registerColours.has(name)) {
+          $td.attr('bgcolor', registerColours.get(name));
         }
-
         $tr.append($td);
       }
       $body.append($tr);
@@ -239,40 +268,45 @@
     return $table;
   }
 
-  function makeCop1RegistersTable(reg_colors) {
-    var $table = $('<table class="register-table"><tbody></tbody></table>'),
-        $body = $table.find('tbody'),
-        cpu1 = n64js.cpu1,
-        i, $tr, $td, name;
+  /**
+   * Makes a table of co-processor 1 registers.
+   * @param {!Map<string, string>} registerColours Register colour map.
+   * @return {!jQuery}
+   */
+  function makeCop1RegistersTable(registerColours) {
+    let $table = $('<table class="register-table"><tbody></tbody></table>');
+    let $body = $table.find('tbody');
+    let cpu1 = n64js.cpu1;
 
-    for (i = 0; i < 32; ++i) {
-      name = n64js.cop1RegisterNames[i];
+    for (let i = 0; i < 32; ++i) {
+      let name = n64js.cop1RegisterNames[i];
 
+      let $td;
       if ((i&1) === 0) {
         $td = $('<td>' + name +
-          '</td><td class="fixed fp-w">' + n64js.toString32(cpu1.uint32[i]) +
+          '</td><td class="fixed fp-w">' + format.toString32(cpu1.uint32[i]) +
           '</td><td class="fixed fp-s">' + cpu1.float32[i] +
           '</td><td class="fixed fp-d">' + cpu1.float64[i/2] +
           '</td>' );
       } else {
         $td = $('<td>' + name +
-          '</td><td class="fixed fp-w">' + n64js.toString32(cpu1.uint32[i]) +
+          '</td><td class="fixed fp-w">' + format.toString32(cpu1.uint32[i]) +
           '</td><td class="fixed fp-s">' + cpu1.float32[i] +
           '</td><td>' +
           '</td>' );
       }
 
-      $tr = $('<tr />');
+      let $tr = $('<tr />');
       $tr.append($td);
 
-      if (reg_colors.hasOwnProperty(name)) {
-        $tr.attr('bgcolor', reg_colors[name]);
-      } else if (reg_colors.hasOwnProperty(name + '-w')) {
-        $tr.find('.fp-w').attr('bgcolor', reg_colors[name + '-w']);
-      } else if (reg_colors.hasOwnProperty(name + '-s')) {
-        $tr.find('.fp-s').attr('bgcolor', reg_colors[name + '-s']);
-      } else if (reg_colors.hasOwnProperty(name + '-d')) {
-        $tr.find('.fp-d').attr('bgcolor', reg_colors[name + '-d']);
+      if (registerColours.has(name)) {
+        $tr.attr('bgcolor', registerColours.get(name));
+      } else if (registerColours.has(name + '-w')) {
+        $tr.find('.fp-w').attr('bgcolor', registerColours.get(name + '-w'));
+      } else if (registerColours.has(name + '-s')) {
+        $tr.find('.fp-s').attr('bgcolor', registerColours.get(name + '-s'));
+      } else if (registerColours.has(name + '-d')) {
+        $tr.find('.fp-d').attr('bgcolor', registerColours.get(name + '-d'));
       }
 
       $body.append($tr);
@@ -281,25 +315,55 @@
     return $table;
   }
 
-  function addSR($tb) {
-    var $tr = $('<tr />');
+  /**
+   * Makes a table showing the status register contents.
+   * @return {!jQuery}
+   */
+  function makeStatusTable() {
+    let cpu0 = n64js.cpu0;
+
+    let $table = $('<table class="register-table"><tbody></tbody></table>');
+    let $body = $table.find('tbody');
+
+    $body.append('<tr><td>Ops</td><td class="fixed">' + cpu0.opsExecuted + '</td></tr>');
+    $body.append('<tr><td>PC</td><td class="fixed">' + format.toString32(cpu0.pc) + '</td>' +
+                     '<td>delayPC</td><td class="fixed">' + format.toString32(cpu0.delayPC) + '</td></tr>');
+    $body.append('<tr><td>EPC</td><td class="fixed">' + format.toString32(cpu0.control[cpu0.kControlEPC]) + '</td></tr>');
+    $body.append('<tr><td>MultHi</td><td class="fixed">' + format.toString64(cpu0.multHi[1], cpu0.multHi[0]) + '</td>' +
+                     '<td>Cause</td><td class="fixed">' + format.toString32(cpu0.control[cpu0.kControlCause]) + '</td></tr>');
+    $body.append('<tr><td>MultLo</td><td class="fixed">' + format.toString64(cpu0.multLo[1], cpu0.multLo[0]) + '</td>' +
+                     '<td>Count</td><td class="fixed">' + format.toString32(cpu0.control[cpu0.kControlCount]) + '</td></tr>');
+    $body.append('<tr><td></td><td class="fixed"></td>' +
+                     '<td>Compare</td><td class="fixed">' + format.toString32(cpu0.control[cpu0.kControlCompare]) + '</td></tr>');
+
+    for (let i = 0; i < cpu0.events.length; ++i) {
+      $body.append('<tr><td>Event' + i + '</td><td class="fixed">' + cpu0.events[i].countdown + ', ' + cpu0.events[i].getName() + '</td></tr>');
+    }
+
+    $body.append(makeStatusRegisterRow());
+    $body.append(makeMipsInterruptsRow());
+    return $table;
+  }
+
+  function makeStatusRegisterRow() {
+    let $tr = $('<tr />');
     $tr.append( '<td>SR</td>' );
 
-    var flag_names = ['IE', 'EXL', 'ERL' ];//, '', '', 'UX', 'SX', 'KX' ];
+    const flagNames = ['IE', 'EXL', 'ERL' ];//, '', '', 'UX', 'SX', 'KX' ];
 
-    var sr = n64js.cpu0.control[n64js.cpu0.kControlSR];
+    let sr = n64js.cpu0.control[n64js.cpu0.kControlSR];
 
-    var $td = $('<td />');
-    $td.append( n64js.toString32(sr) );
+    let $td = $('<td class="fixed" />');
+    $td.append(format.toString32(sr));
     $td.append('&nbsp;');
 
-    var i;
-    for (i = flag_names.length-1; i >= 0; --i) {
-      if (flag_names[i]) {
-        var is_set = (sr & (1<<i)) !== 0;
+    let i;
+    for (i = flagNames.length-1; i >= 0; --i) {
+      if (flagNames[i]) {
+        let isSet = (sr & (1<<i)) !== 0;
 
-        var $b = $('<span>' + flag_names[i] + '</span>');
-        if (is_set) {
+        let $b = $('<span>' + flagNames[i] + '</span>');
+        if (isSet) {
           $b.css('font-weight', 'bold');
         }
 
@@ -309,28 +373,28 @@
     }
 
     $tr.append($td);
-    $tb.append($tr);
+    return $tr;
   }
 
-  function addMipsInterrupts($tb) {
-    var mi_intr_names = ['SP', 'SI', 'AI', 'VI', 'PI', 'DP'];
+  function makeMipsInterruptsRow() {
+    const miIntrNames = ['SP', 'SI', 'AI', 'VI', 'PI', 'DP'];
 
-    var mi_intr_live = n64js.miIntrReg();
-    var mi_intr_mask = n64js.miIntrMaskReg();
+    let miIntrLive = n64js.miIntrReg();
+    let miIntrMask = n64js.miIntrMaskReg();
 
-    var $tr = $('<tr />');
+    let $tr = $('<tr />');
     $tr.append( '<td>MI Intr</td>' );
-    var $td = $('<td />');
-    var i;
-    for (i = 0; i < mi_intr_names.length; ++i) {
-      var is_set     = (mi_intr_live & (1<<i)) !== 0;
-      var is_enabled = (mi_intr_mask & (1<<i)) !== 0;
+    let $td = $('<td class="fixed" />');
+    let i;
+    for (i = 0; i < miIntrNames.length; ++i) {
+      let isSet = (miIntrLive & (1<<i)) !== 0;
+      let isEnabled = (miIntrMask & (1<<i)) !== 0;
 
-      var $b = $('<span>' + mi_intr_names[i] + '</span>');
-      if (is_set) {
+      let $b = $('<span>' + miIntrNames[i] + '</span>');
+      if (isSet) {
         $b.css('font-weight', 'bold');
       }
-      if (is_enabled) {
+      if (isEnabled) {
         $b.css('background-color', '#AFF4BB');
       }
 
@@ -338,34 +402,7 @@
       $td.append('&nbsp;');
     }
     $tr.append($td);
-    $tb.append($tr);
-  }
-
-  function makeStatusTable() {
-    var cpu0 = n64js.cpu0;
-
-    var $status_table = $('<table class="register-table"><tbody></tbody></table>');
-    var $status_body = $status_table.find('tbody');
-
-    $status_body.append('<tr><td>Ops</td><td class="fixed">' + cpu0.opsExecuted + '</td></tr>');
-    $status_body.append('<tr><td>PC</td><td class="fixed">' + n64js.toString32(cpu0.pc) + '</td><td>delayPC</td><td class="fixed">' + n64js.toString32(cpu0.delayPC) + '</td></tr>');
-    $status_body.append('<tr><td>EPC</td><td class="fixed">' + n64js.toString32(cpu0.control[cpu0.kControlEPC]) + '</td></tr>');
-    $status_body.append('<tr><td>MultHi</td><td class="fixed">' + n64js.toString64(cpu0.multHi[1], cpu0.multHi[0]) +
-                        '</td><td>Cause</td><td class="fixed">' + n64js.toString32(n64js.cpu0.control[n64js.cpu0.kControlCause]) + '</td></tr>');
-    $status_body.append('<tr><td>MultLo</td><td class="fixed">' + n64js.toString64(cpu0.multLo[1], cpu0.multLo[0]) +
-                        '</td><td>Count</td><td class="fixed">' + n64js.toString32(n64js.cpu0.control[n64js.cpu0.kControlCount]) + '</td></tr>');
-    $status_body.append('<tr><td></td><td class="fixed">' +
-                      '</td><td>Compare</td><td class="fixed">' + n64js.toString32(n64js.cpu0.control[n64js.cpu0.kControlCompare]) + '</td></tr>');
-
-    var i;
-    for (i = 0; i < cpu0.events.length; ++i) {
-      $status_body.append('<tr><td>Event' + i + '</td><td class="fixed">' + cpu0.events[i].countdown + ', ' + cpu0.events[i].getName() + '</td></tr>');
-    }
-
-    addSR($status_body);
-    addMipsInterrupts($status_body);
-
-    return $status_table;
+    return $tr;
   }
 
   function setLabelText($elem, address) {
@@ -378,7 +415,7 @@
   }
 
   function makeLabelText(address) {
-    var t = '';
+    let t = '';
     if (labelMap.hasOwnProperty(address)) {
       t = labelMap[address];
     }
@@ -389,16 +426,16 @@
   }
 
   function onLabelClicked(e) {
-      var $label = $(e.delegateTarget);
-      var address = $label.data('address')>>>0;
-      var existing = labelMap[address] || '';
-      var $input = $('<input class="input-mini" value="' + existing + '" />');
+      let $label = $(e.delegateTarget);
+      let address = /** @type {number} */($label.data('address')) >>> 0;
+      let existing = labelMap[address] || '';
+      let $input = $('<input class="input-mini" value="' + existing + '" />');
 
       $input.keypress(function (event) {
         if (event.which == 13) {
-          var new_val = $input.val();
-          if (new_val) {
-            labelMap[address] = new_val;
+          let newVal = $input.val();
+          if (newVal) {
+            labelMap[address] = newVal.toString();
           } else {
             delete labelMap[address];
           }
@@ -410,100 +447,94 @@
       $input.blur(function () {
         $label.html(makeLabelText(address));
       });
-      $label.html($input);
+      $label.empty().append($input);
       $input.focus();
   }
 
   function onFragmentClicked(e) {
-      var $elem = $(e.delegateTarget);
-      var frag = $elem.data('fragment');
-      n64js.log('<pre>' + frag.func.toString() + '</pre>');
+      let $elem = $(e.delegateTarget);
+      let frag = $elem.data('fragment');
+      logger.log('<pre>' + frag.func.toString() + '</pre>');
   }
 
   function onClickBreakpoint(e) {
-    var $elem = $(e.delegateTarget);
-    var address = $elem.data('address')>>>0;
+    let $elem = $(e.delegateTarget);
+    let address = /** @type {number} */($elem.data('address')) >>> 0;
     n64js.toggleBreakpoint(address);
     updateDebug();
   }
 
   function updateDebug() {
-    var cpu0, fragmentMap, disassembly,
-        cpu_count, is_single_step, bp_text,
-        cur_instr, a, i, address, is_target, address_str, label, t, fragment,
-        $dis_gutter, $dis_text, $bp, $line;
-
-    cpu0 = n64js.cpu0;
-
     // If the pc has changed since the last update, recenter the display (e.g. when we take a branch)
-    if (cpu0.pc !== lastPC) {
-      disasmAddress = cpu0.pc;
-      lastPC = cpu0.pc;
+    if (n64js.cpu0.pc !== lastPC) {
+      disasmAddress = n64js.cpu0.pc;
+      lastPC = n64js.cpu0.pc;
     }
 
     // Figure out if we've just stepped by a single instruction. Ergh.
-    cpu_count      = cpu0.getCount();
-    is_single_step = lastCycles === (cpu_count-1);
-    lastCycles     = cpu_count;
+    let cpuCount = n64js.cpu0.getCount();
+    let isSingleStep = lastCycles === (cpuCount-1);
+    lastCycles = cpuCount;
 
-    fragmentMap = n64js.getFragmentMap();
-    disassembly = n64js.disassemble(disasmAddress - 64, disasmAddress + 64);
+    let fragmentMap = getFragmentMap();
+    let disassembly = n64js.disassemble(disasmAddress - 64, disasmAddress + 64);
 
-    $dis_gutter = $('<pre/>');
-    $dis_text   = $('<pre/>');
-    for (i = 0; i < disassembly.length; ++i) {
-      a           = disassembly[i];
-      address     = a.instruction.address;
-      is_target   = a.isJumpTarget || labelMap.hasOwnProperty(address);
-      address_str = (is_target ? '<span class="dis-address-target">' : '<span class="dis-address">') + n64js.toHex(address, 32) + ':</span>';
-      label       = '<span class="dis-label">' + makeLabelText(address) + '</span>';
-      t           = address_str + '  ' + n64js.toHex(a.instruction.opcode, 32) + '  ' + label + a.disassembly;
+    let $disGutter = $('<pre/>');
+    let $disText   = $('<pre/>');
+    let currentInstruction;
 
-      fragment = fragmentMap[address];
+    for (let i = 0; i < disassembly.length; ++i) {
+      let a = disassembly[i];
+      let address = a.instruction.address;
+      let isTarget = a.isJumpTarget || labelMap.hasOwnProperty(address);
+      let addressStr = (isTarget ? '<span class="dis-address-target">' : '<span class="dis-address">') + format.toHex(address, 32) + ':</span>';
+      let label = '<span class="dis-label">' + makeLabelText(address) + '</span>';
+      let t = addressStr + '  ' + format.toHex(a.instruction.opcode, 32) + '  ' + label + a.disassembly;
+
+      let fragment = fragmentMap.get(address);
       if (fragment) {
         t += '<span class="dis-fragment-link"> frag - ops=' + fragment.opsCompiled + ' hit=' + fragment.executionCount + '</span>';
       }
 
-      $line = $('<span class="dis-line">' + t + '</span>');
-
-      $line.find('.dis-label').
-        data('address', address).
-        css('color', makeLabelColor(address)).
-        click(onLabelClicked);
+      let $line = $('<span class="dis-line">' + t + '</span>');
+      $line.find('.dis-label')
+        .data('address', address)
+        .css('color', makeLabelColor(address))
+        .click(onLabelClicked);
 
       if (fragment) {
-        $line.find('.dis-fragment-link').
-          data('fragment', fragment).
-          click(onFragmentClicked);
+        $line.find('.dis-fragment-link')
+          .data('fragment', fragment)
+          .click(onFragmentClicked);
       }
 
       // Keep track of the current instruction (for register formatting) and highlight.
-      if (address === cpu0.pc) {
-        cur_instr = a.instruction;
+      if (address === n64js.cpu0.pc) {
+        currentInstruction = a.instruction;
         $line.addClass('dis-line-cur');
       }
-      if (is_target) {
+      if (isTarget) {
         $line.addClass('dis-line-target');
 
         setLabelColor($line.find('.dis-address-target'), address);
       }
 
-      $dis_text.append($line);
-      $dis_text.append('<br>');
+      $disText.append($line);
+      $disText.append('<br>');
 
-      bp_text = '&nbsp;';
+      let bpText = '&nbsp;';
       if (n64js.isBreakpoint(address)) {
-        bp_text = '&bull;';
+        bpText = '&bull;';
       }
-      $bp = $('<span>' + bp_text + '</span>').data('address', address).click(onClickBreakpoint);
+      let $bp = $('<span>' + bpText + '</span>').data('address', address).click(onClickBreakpoint);
 
-      $dis_gutter.append($bp);
-      $dis_gutter.append('<br>');
+      $disGutter.append($bp);
+      $disGutter.append('<br>');
     }
 
-    // Links for braches, jumps etc should jump to the target address.
-    $dis_text.find('.dis-address-jump').each(function () {
-      var address = parseInt($(this).text(), 16);
+    // Links for branches, jumps etc should jump to the target address.
+    $disText.find('.dis-address-jump').each(function () {
+      let address = parseInt($(this).text(), 16);
 
       setLabelText($(this), address);
       setLabelColor($(this), address);
@@ -514,75 +545,78 @@
       });
     });
 
-    var reg_colors = makeRegisterColours(cur_instr);
-
-    for (i in reg_colors) {
-      $dis_text.find('.dis-reg-' + i).css('background-color', reg_colors[i]);
+    let registerColours = makeRegisterColours(currentInstruction);
+    for (let [reg, colour] of registerColours) {
+      $disText.find('.dis-reg-' + reg).css('background-color', colour);
     }
 
-    $disassembly.find('.dis-recent-memory').html(makeRecentMemoryAccesses(is_single_step, cur_instr));
+    $disassembly.find('.dis-recent-memory').html(makeRecentMemoryAccesses(isSingleStep, currentInstruction));
 
-    $disassembly.find('.dis-gutter').html($dis_gutter);
-    $disassembly.find('.dis-view').html($dis_text);
+    $disassembly.find('.dis-gutter').empty().append($disGutter);
+    $disassembly.find('.dis-view').empty().append($disText);
 
-    $status.html(makeStatusTable());
+    $status.empty().append(makeStatusTable());
 
-    $registers[0].html(makeCop0RegistersTable(reg_colors));
-    $registers[1].html(makeCop1RegistersTable(reg_colors));
+    $registers[0].empty().append(makeCop0RegistersTable(registerColours));
+    $registers[1].empty().append(makeCop1RegistersTable(registerColours));
   }
 
-  function makeRegisterColours(cur_instr) {
-    var availColours = [
+  /**
+   * Makes a map of colours keyed by register name.
+   * @param {?Object} instruction The instruction to produce colours for.
+   * @return {!Map<string, string>}
+   */
+  function makeRegisterColours(instruction) {
+    const availColours = [
       '#F4EEAF', // yellow
       '#AFF4BB', // green
       '#F4AFBE'  // blue
     ];
 
-    var reg_colors = {},
-        i, nextColIdx;
-
-    if (cur_instr) {
-      nextColIdx = 0;
-      for (i in cur_instr.srcRegs) {
-        if (!reg_colors.hasOwnProperty(i)) {
-          reg_colors[i] = availColours[nextColIdx++];
+    let registerColours = new Map();
+    if (instruction) {
+      let nextColIdx = 0;
+      for (let i in instruction.srcRegs) {
+        if (!registerColours.hasOwnProperty(i)) {
+          registerColours.set(i, availColours[nextColIdx++]);
         }
       }
-      for (i in cur_instr.dstRegs) {
-        if (!reg_colors.hasOwnProperty(i)) {
-          reg_colors[i] = availColours[nextColIdx++];
+      for (let i in instruction.dstRegs) {
+        if (!registerColours.hasOwnProperty(i)) {
+          registerColours.set(i, availColours[nextColIdx++]);
         }
       }
     }
 
-    return reg_colors;
+    return registerColours;
   }
 
-  function makeRecentMemoryAccesses(is_single_step, cur_instr) {
-    var cpu0 = n64js.cpu0,
-        element, updated_element, i;
-
+  function makeRecentMemoryAccesses(isSingleStep, currentInstruction) {
     // Keep a small queue showing recent memory accesses
-    if (is_single_step) {
+    if (isSingleStep) {
       // Check if we've just stepped over a previous write op, and update the result
       if (lastStore) {
-        if (lastStore.cycle+1 === cpu0.opsExecuted) {
-          updated_element = addRecentMemoryAccess(lastStore.address, 'update');
-          lastStore.element.append(updated_element);
+        if ((lastStore.cycle + 1) === n64js.cpu0.opsExecuted) {
+          let updatedElement = addRecentMemoryAccess(lastStore.address, 'update');
+          lastStore.element.append(updatedElement);
         }
-        lastStore = undefined;
+        lastStore = null;
       }
 
-      if (cur_instr.memory) {
-        var access   = cur_instr.memory;
-        var new_addr = n64js.cpu0.gprLo[access.reg] + access.offset;
-        element      = addRecentMemoryAccess(new_addr, access.mode);
+      if (currentInstruction.memory) {
+        let access  = currentInstruction.memory;
+        let newAddress = n64js.cpu0.gprLo[access.reg] + access.offset;
+        let element = addRecentMemoryAccess(newAddress, access.mode);
 
         if (access.mode === 'store') {
-          lastStore = {address:new_addr, cycle:cpu0.opsExecuted, element:element};
+          lastStore = {
+            address: newAddress,
+            cycle: n64js.cpu0.opsExecuted,
+            element: element,
+          };
         }
 
-        recentMemoryAccesses.push({element:element});
+        recentMemoryAccesses.push({element: element});
 
         // Nuke anything that happened more than N cycles ago
         //while (recentMemoryAccesses.length > 0 && recentMemoryAccesses[0].cycle+10 < cycle)
@@ -590,21 +624,20 @@
           recentMemoryAccesses.splice(0,1);
         }
 
-        lastMemoryAccessAddress = new_addr;
+        lastMemoryAccessAddress = newAddress;
       }
     } else {
       // Clear the recent memory accesses when running.
       recentMemoryAccesses = [];
-      lastStore = undefined;
+      lastStore = null;
     }
 
-    var $recent = $('<pre />');
-
+    let $recent = $('<pre />');
     if (recentMemoryAccesses.length > 0) {
-      var fading_cols = ['#bbb', '#999', '#666', '#333'];
-      for (i = 0; i < recentMemoryAccesses.length; ++i) {
-        element = recentMemoryAccesses[i].element;
-        element.css('color', fading_cols[i]);
+      const fadingColours = ['#bbb', '#999', '#666', '#333'];
+      for (let i = 0; i < recentMemoryAccesses.length; ++i) {
+        let element = recentMemoryAccesses[i].element;
+        element.css('color', fadingColours[i]);
         $recent.append(element);
       }
     }
@@ -612,122 +645,105 @@
     return $recent;
   }
 
-  function initFragmentRow($tr, fragment, $code) {
-    $tr.click(function () {
-      $code.html('<pre>' + fragment.func.toString() + '</pre>');
-    });
-  }
-
-  function createHotFragmentsTable($fragment_div, fragments_list) {
-    var $code = $fragment_div.find('#fragment_code');
-
-    var $table = $('<table class="table table-condensed" />');
-
-    var columns = ['Address', 'Execution Count', 'Length', 'ExecCount * Length'];
-
-    $table.append('<tr><th>' + columns.join('</th><th>') + '</th></tr>');
-    var i;
-    for (i = 0; i < fragments_list.length && i < 20; ++i) {
-      var fragment = fragments_list[i];
-
-      var vals = [
-        n64js.toString32(fragment.entryPC),
-        fragment.executionCount,
-        fragment.opsCompiled,
-        fragment.executionCount * fragment.opsCompiled
-      ];
-
-      var $tr = $('<tr><td>' + vals.join('</td><td>') + '</td></tr>');
-      initFragmentRow($tr, fragment, $code);
-      $table.append($tr);
-    }
-
-    $fragment_div.find('#fragments').append($table);
-
-    if (fragments_list.length > 0) {
-      $code.append('<pre>' + fragments_list[0].func.toString() + '</pre>');
-    }
-  }
-
-  function log10(x) {
-    return Math.log(x) / Math.log(10);
-  }
-
   function updateDynarec() {
-
-    var fragmentMap = n64js.getFragmentMap();
-    var invals = n64js.getFragmentInvalidationEvents();
-    var histo = {};
+    let invals = consumeFragmentInvalidationEvents();
+    let histogram = new Map();
+    let maxBucket = 0;
 
     // Build a flattened list of all fragments
-    var fragments_list = [];
-
-    var i;
-    for(i in fragmentMap) {
-      if (fragmentMap.hasOwnProperty(i)) {
-        var fragment = fragmentMap[i];
-        var logv     = fragment.executionCount > 0 ? Math.floor(log10(fragment.executionCount)) : 0;
-
-        histo[logv] = (histo[logv] || 0) + 1;
-
-        fragments_list.push(fragment);
-      }
+    let fragmentsList = [];
+    for (let [pc, fragment] of getFragmentMap()) {
+      let i = fragment.executionCount > 0 ? Math.floor(Math.log10(fragment.executionCount)) : 0;
+      histogram.set(i, (histogram.get(i) || 0) + 1);
+      fragmentsList.push(fragment);
+      maxBucket = Math.max(maxBucket, i);
     }
 
-    fragments_list.sort(function (a,b) {
-      return b.opsCompiled*b.executionCount - a.opsCompiled*a.executionCount;
+    fragmentsList.sort((a, b) => {
+      return b.opsCompiled * b.executionCount - a.opsCompiled * a.executionCount;
     });
 
-    var $t = $('<div />');
+    let $t = $('<div class="container-fluid" />');
 
     // Histogram showing execution counts
-    var t = '';
-    t += '<div class="row-fluid">';
-    t += '<div class="span4"><table class="table table-condensed"><tr><th>Execution Count</th><th>Frequency</th></tr>';
-    for(i in histo) {
-      var v = Number(i);
-      var range = Math.pow(10, v) + '..' + Math.pow(10, v+1);
-      t += '<tr><td>' + range + '</td><td>' + histo[i] + '</td></tr>';
+    let t = '';
+    t += '<div class="row">';
+    t += '<table class="table table-condensed table-nonfluid"><tr><th>Execution Count</th><th>Frequency</th></tr>';
+    for (let i = 0; i <= maxBucket; i++) {
+      let count = histogram.get(i) || 0;
+      let range = '< ' + Math.pow(10, i + 1);
+      t += '<tr><td>' + range + '</td><td>' + count + '</td></tr>';
     }
-    t += '</table></div>';
+    t += '</table>';
     t += '</div>';
     $t.append(t);
 
     // Table of hot fragments, and the corresponding js
     t = '';
-    t += '<div class="row-fluid">';
-    t += '  <div class="span6" id="fragments" />';
-    t += '  <div class="span6" id="fragment_code" />';
+    t += '<div class="row">';
+    t += '  <div class="col-lg-6" id="fragments" />';
+    t += '  <div class="col-lg-6" id="fragment-code" />';
     t += '</div>';
-    var $fragment_div = $(t);
+    let $fragmentDiv = $(t);
 
-    createHotFragmentsTable($fragment_div, fragments_list);
+    createHotFragmentsTable($fragmentDiv, fragmentsList);
 
-    $t.append($fragment_div);
+    $t.append($fragmentDiv);
 
     // Evictions
     if (invals.length > 0) {
       t = '';
-      t += '<div class="row-fluid">';
-      t += '<div class="span6"><table class="table table-condensed"><tr><th>Address</th><th>Length</th><th>System</th><th>Fragments Removed</th></tr>';
-      for (i = 0; i < invals.length; ++i) {
-
-        var vals = [
-          n64js.toString32(invals[i].address),
+      t += '<div class="row">';
+      t += '<div class="col-lg-6">';
+      t += '<table class="table table-condensed">';
+      t += '<tr><th>Address</th><th>Length</th><th>System</th><th>Fragments Removed</th></tr>';
+      for (let i = 0; i < invals.length; ++i) {
+        let vals = [
+          format.toString32(invals[i].address),
           invals[i].length,
           invals[i].system,
-          invals[i].fragmentsRemoved
+          invals[i].fragmentsRemoved,
         ];
-
         t += '<tr><td>' + vals.join('</td><td>') + '</td></tr>';
       }
-      t += '</table></div>';
+      t += '</table>';
       t += '</div>';
-
+      t += '</div>';
       $t.append(t);
     }
 
-    $dynarecContent.html($t);
+    $dynarecContent.empty().append($t);
+  }
+
+  function createHotFragmentsTable($fragmentDiv, fragmentsList) {
+    let $code = $fragmentDiv.find('#fragment-code');
+    let $table = $('<table class="table table-condensed" />');
+    let columns = ['Address', 'Execution Count', 'Length', 'ExecCount * Length'];
+
+    $table.append('<tr><th>' + columns.join('</th><th>') + '</th></tr>');
+    for (let i = 0; i < fragmentsList.length && i < 20; ++i) {
+      let fragment = fragmentsList[i];
+      let vals = [
+        format.toString32(fragment.entryPC),
+        fragment.executionCount,
+        fragment.opsCompiled,
+        fragment.executionCount * fragment.opsCompiled
+      ];
+      let $tr = $('<tr><td>' + vals.join('</td><td>') + '</td></tr>');
+      initFragmentRow($tr, fragment, $code);
+      $table.append($tr);
+    }
+    $fragmentDiv.find('#fragments').append($table);
+
+    if (fragmentsList.length > 0) {
+      $code.append('<pre>' + fragmentsList[0].func.toString() + '</pre>');
+    }
+  }
+
+  function initFragmentRow($tr, fragment, $code) {
+    $tr.click(() => {
+      $code.html('<pre>' + fragment.func.toString() + '</pre>');
+    });
   }
 
   function disassemblerDown() {
@@ -751,7 +767,6 @@
   }
 
   n64js.refreshDebugger = function () {
-
     if ($dynarecContent.hasClass('active')) {
       updateDynarec();
     }
@@ -763,19 +778,6 @@
     if ($memoryContent.hasClass('active')) {
       updateMemoryView();
     }
-  };
-
-  n64js.clearLog = function () {
-    $output.html('');
-  };
-
-  n64js.log = function (s) {
-    $output.append(n64js.toString32(n64js.cpu0.pc) + ': ' + s + '<br>');
-    $output.scrollTop($output[0].scrollHeight);
-  };
-
-  n64js.outputAppendHTML = function (s) {
-    $output.append(s);
   };
 
 }(window.n64js = window.n64js || {}));

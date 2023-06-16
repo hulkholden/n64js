@@ -1,0 +1,35 @@
+{
+  "name": "n64js",
+  "version": "1.0.0",
+  "description": "An JavaScript N64 emulator.",
+  "main": "n64.min.js",
+  "scripts": {
+    "build": "rollup -c",
+    "build-closure": "rollup -c && java -jar node_modules/google-closure-compiler/compiler.jar --compilation_level=SIMPLE_OPTIMIZATIONS --warning_level=VERBOSE --language_in=ECMASCRIPT6_STRICT --language_out=ECMASCRIPT5_STRICT --js build/n64.modules.js --js_output_file n64.min.js --source_map_format=V3 --create_source_map n64.min.js.map --externs js/externs/jquery-3.1.js --externs js/externs/localStorage.js --externs js/externs/stats.js --externs js/externs/webgl-debug.js && echo '//# sourceMappingURL=n64.min.js.map' >> n64.min.js",
+    "test": "mocha --compilers js:babel-core/register --recursive"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hulkholden/n64js"
+  },
+  "keywords": [
+    "n64",
+    "emulator"
+  ],
+  "author": "Paul Holden",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/hulkholden/n64js/issues"
+  },
+  "homepage": "https://github.com/hulkholden/n64js",
+  "devDependencies": {
+    "babel-core": "^6.18.2",
+    "babel-preset-es2015": "^6.18.0",
+    "chai": "*",
+    "mocha": "*",
+    "rollup": "^0.36.4"
+  },
+  "dependencies": {
+    "google-closure-compiler": "^20161024.3.0"
+  }
+}

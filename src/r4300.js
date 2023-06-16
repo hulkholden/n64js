@@ -1,200 +1,203 @@
 /*jshint jquery:true, devel:true */
 
+import { CPU1 } from './CPU1.js';
+import * as format from './format.js';
+import { Fragment, lookupFragment, resetFragments } from './fragments.js';
+import * as logger from './logger.js';
+
 (function (n64js) {'use strict';
-  var kDebugTLB = 0;
-  var kDebugDynarec = 0;
-  var kEnableDynarec = true;
+  const toString32 = format.toString32;
 
-  var hitCounts = {};
-  var fragmentMap = {};
-  var fragmentInvalidationEvents = [];
-
-  var kHotFragmentThreshold = 500;
+  const kDebugTLB = 0;
+  const kDebugDynarec = 0;
 
   var accurateCountUpdating = false;
-  var COUNTER_INCREMENT_PER_OP = 1;
+  const COUNTER_INCREMENT_PER_OP = 1;
 
-  var k1Shift32 = 4294967296.0;
+  const k1Shift32 = 4294967296.0;
 
-  var UT_VEC          = 0x80000000;
-  var XUT_VEC         = 0x80000080;
-  var ECC_VEC         = 0x80000100;
-  var E_VEC           = 0x80000180;
+  const UT_VEC          = 0x80000000;
+  const XUT_VEC         = 0x80000080;
+  const ECC_VEC         = 0x80000100;
+  const E_VEC           = 0x80000180;
 
-  var SR_IE           = 0x00000001;
-  var SR_EXL          = 0x00000002;
-  var SR_ERL          = 0x00000004;
-  var SR_KSU_KER      = 0x00000000;
-  var SR_KSU_SUP      = 0x00000008;
-  var SR_KSU_USR      = 0x00000010;
-  var SR_KSU_MASK     = 0x00000018;
-  var SR_UX           = 0x00000020;
-  var SR_SX           = 0x00000040;
-  var SR_KX           = 0x00000080;
+  const SR_IE           = 0x00000001;
+  const SR_EXL          = 0x00000002;
+  const SR_ERL          = 0x00000004;
+  const SR_KSU_KER      = 0x00000000;
+  const SR_KSU_SUP      = 0x00000008;
+  const SR_KSU_USR      = 0x00000010;
+  const SR_KSU_MASK     = 0x00000018;
+  const SR_UX           = 0x00000020;
+  const SR_SX           = 0x00000040;
+  const SR_KX           = 0x00000080;
 
-  var SR_IBIT1        = 0x00000100;
-  var SR_IBIT2        = 0x00000200;
-  var SR_IBIT3        = 0x00000400;
-  var SR_IBIT4        = 0x00000800;
-  var SR_IBIT5        = 0x00001000;
-  var SR_IBIT6        = 0x00002000;
-  var SR_IBIT7        = 0x00004000;
-  var SR_IBIT8        = 0x00008000;
+  const SR_IBIT1        = 0x00000100;
+  const SR_IBIT2        = 0x00000200;
+  const SR_IBIT3        = 0x00000400;
+  const SR_IBIT4        = 0x00000800;
+  const SR_IBIT5        = 0x00001000;
+  const SR_IBIT6        = 0x00002000;
+  const SR_IBIT7        = 0x00004000;
+  const SR_IBIT8        = 0x00008000;
 
-  var SR_IMASK0       = 0x0000ff00;
-  var SR_IMASK1       = 0x0000fe00;
-  var SR_IMASK2       = 0x0000fc00;
-  var SR_IMASK3       = 0x0000f800;
-  var SR_IMASK4       = 0x0000f000;
-  var SR_IMASK5       = 0x0000e000;
-  var SR_IMASK6       = 0x0000c000;
-  var SR_IMASK7       = 0x00008000;
-  var SR_IMASK8       = 0x00000000;
-  var SR_IMASK        = 0x0000ff00;
+  const SR_IMASK0       = 0x0000ff00;
+  const SR_IMASK1       = 0x0000fe00;
+  const SR_IMASK2       = 0x0000fc00;
+  const SR_IMASK3       = 0x0000f800;
+  const SR_IMASK4       = 0x0000f000;
+  const SR_IMASK5       = 0x0000e000;
+  const SR_IMASK6       = 0x0000c000;
+  const SR_IMASK7       = 0x00008000;
+  const SR_IMASK8       = 0x00000000;
+  const SR_IMASK        = 0x0000ff00;
 
-  var SR_DE           = 0x00010000;
-  var SR_CE           = 0x00020000;
-  var SR_CH           = 0x00040000;
-  var SR_SR           = 0x00100000;
-  var SR_TS           = 0x00200000;
-  var SR_BEV          = 0x00400000;
-  var SR_ITS          = 0x01000000;
-  var SR_RE           = 0x02000000;
-  var SR_FR           = 0x04000000;
-  var SR_RP           = 0x08000000;
-  var SR_CU0          = 0x10000000;
-  var SR_CU1          = 0x20000000;
-  var SR_CU2          = 0x40000000;
-  var SR_CU3          = 0x80000000;
+  const SR_DE           = 0x00010000;
+  const SR_CE           = 0x00020000;
+  const SR_CH           = 0x00040000;
+  const SR_SR           = 0x00100000;
+  const SR_TS           = 0x00200000;
+  const SR_BEV          = 0x00400000;
+  const SR_ITS          = 0x01000000;
+  const SR_RE           = 0x02000000;
+  const SR_FR           = 0x04000000;
+  const SR_RP           = 0x08000000;
+  const SR_CU0          = 0x10000000;
+  const SR_CU1          = 0x20000000;
+  const SR_CU2          = 0x40000000;
+  const SR_CU3          = 0x80000000;
 
-  var SR_CUMASK       = 0xf0000000;
+  const SR_CUMASK       = 0xf0000000;
 
-  var CAUSE_BD_BIT    = 31;           // NB: Closure Compiler doesn't like 32 bit constants.
-  var CAUSE_BD        = 0x80000000;
-  var CAUSE_CEMASK    = 0x30000000;
-  var CAUSE_CESHIFT   = 28;
+  const CAUSE_BD_BIT    = 31;           // NB: Closure Compiler doesn't like 32 bit constants.
+  const CAUSE_BD        = 0x80000000;
+  const CAUSE_CEMASK    = 0x30000000;
+  const CAUSE_CESHIFT   = 28;
 
-  var CAUSE_SW1       = 0x00000100;
-  var CAUSE_SW2       = 0x00000200;
-  var CAUSE_IP3       = 0x00000400;
-  var CAUSE_IP4       = 0x00000800;
-  var CAUSE_IP5       = 0x00001000;
-  var CAUSE_IP6       = 0x00002000;
-  var CAUSE_IP7       = 0x00004000;
-  var CAUSE_IP8       = 0x00008000;
+  const CAUSE_SW1       = 0x00000100;
+  const CAUSE_SW2       = 0x00000200;
+  const CAUSE_IP3       = 0x00000400;
+  const CAUSE_IP4       = 0x00000800;
+  const CAUSE_IP5       = 0x00001000;
+  const CAUSE_IP6       = 0x00002000;
+  const CAUSE_IP7       = 0x00004000;
+  const CAUSE_IP8       = 0x00008000;
 
-  var CAUSE_IPMASK    = 0x0000FF00;
+  const CAUSE_IPMASK    = 0x0000FF00;
 
-  var CAUSE_IPSHIFT   = 8;
+  const CAUSE_IPSHIFT   = 8;
 
-  var CAUSE_EXCMASK   = 0x0000007C;
+  const CAUSE_EXCMASK   = 0x0000007C;
 
-  var CAUSE_EXCSHIFT  = 2;
+  const CAUSE_EXCSHIFT  = 2;
 
-  var EXC_INT         = 0;
-  var EXC_MOD         = 4;
-  var EXC_RMISS       = 8;
-  var EXC_WMISS       = 12;
-  var EXC_RADE        = 16;
-  var EXC_WADE        = 20;
-  var EXC_IBE         = 24;
-  var EXC_DBE         = 28;
-  var EXC_SYSCALL     = 32;
-  var EXC_BREAK       = 36;
-  var EXC_II          = 40;
-  var EXC_CPU         = 44;
-  var EXC_OV          = 48;
-  var EXC_TRAP        = 52;
-  var EXC_VCEI        = 56;
-  var EXC_FPE         = 60;
-  var EXC_WATCH       = 92;
-  var EXC_VCED        = 124;
-
-
-  var FPCSR_RM_RN     = 0x00000000;
-  var FPCSR_RM_RZ     = 0x00000001;
-  var FPCSR_RM_RP     = 0x00000002;
-  var FPCSR_RM_RM     = 0x00000003;
-  var FPCSR_FI        = 0x00000004;
-  var FPCSR_FU        = 0x00000008;
-  var FPCSR_FO        = 0x00000010;
-  var FPCSR_FZ        = 0x00000020;
-  var FPCSR_FV        = 0x00000040;
-  var FPCSR_EI        = 0x00000080;
-  var FPCSR_EU        = 0x00000100;
-  var FPCSR_EO        = 0x00000200;
-  var FPCSR_EZ        = 0x00000400;
-  var FPCSR_EV        = 0x00000800;
-  var FPCSR_CI        = 0x00001000;
-  var FPCSR_CU        = 0x00002000;
-  var FPCSR_CO        = 0x00004000;
-  var FPCSR_CZ        = 0x00008000;
-  var FPCSR_CV        = 0x00010000;
-  var FPCSR_CE        = 0x00020000;
-  var FPCSR_C         = 0x00800000;
-  var FPCSR_FS        = 0x01000000;
-
-  var FPCSR_RM_MASK   = 0x00000003;
+  const EXC_INT         = 0;
+  const EXC_MOD         = 4;
+  const EXC_RMISS       = 8;
+  const EXC_WMISS       = 12;
+  const EXC_RADE        = 16;
+  const EXC_WADE        = 20;
+  const EXC_IBE         = 24;
+  const EXC_DBE         = 28;
+  const EXC_SYSCALL     = 32;
+  const EXC_BREAK       = 36;
+  const EXC_II          = 40;
+  const EXC_CPU         = 44;
+  const EXC_OV          = 48;
+  const EXC_TRAP        = 52;
+  const EXC_VCEI        = 56;
+  const EXC_FPE         = 60;
+  const EXC_WATCH       = 92;
+  const EXC_VCED        = 124;
 
 
-  var TLBHI_VPN2MASK    = 0xffffe000;
-  var TLBHI_VPN2MASK_NEG= 0x00001fff;
-  var TLBHI_VPN2SHIFT   = 13;
-  var TLBHI_PIDMASK     = 0xff;
-  var TLBHI_PIDSHIFT    = 0;
-  var TLBHI_NPID        = 255;
+  const FPCSR_RM_RN     = 0x00000000;
+  const FPCSR_RM_RZ     = 0x00000001;
+  const FPCSR_RM_RP     = 0x00000002;
+  const FPCSR_RM_RM     = 0x00000003;
+  const FPCSR_FI        = 0x00000004;
+  const FPCSR_FU        = 0x00000008;
+  const FPCSR_FO        = 0x00000010;
+  const FPCSR_FZ        = 0x00000020;
+  const FPCSR_FV        = 0x00000040;
+  const FPCSR_EI        = 0x00000080;
+  const FPCSR_EU        = 0x00000100;
+  const FPCSR_EO        = 0x00000200;
+  const FPCSR_EZ        = 0x00000400;
+  const FPCSR_EV        = 0x00000800;
+  const FPCSR_CI        = 0x00001000;
+  const FPCSR_CU        = 0x00002000;
+  const FPCSR_CO        = 0x00004000;
+  const FPCSR_CZ        = 0x00008000;
+  const FPCSR_CV        = 0x00010000;
+  const FPCSR_CE        = 0x00020000;
+  const FPCSR_C         = 0x00800000;
+  const FPCSR_FS        = 0x01000000;
 
-  var TLBLO_PFNMASK     = 0x3fffffc0;
-  var TLBLO_PFNSHIFT    = 6;
-  var TLBLO_CACHMASK    = 0x38;
-  var TLBLO_CACHSHIFT   = 3;
-  var TLBLO_UNCACHED    = 0x10;
-  var TLBLO_NONCOHRNT   = 0x18;
-  var TLBLO_EXLWR       = 0x28;
-  var TLBLO_D           = 0x4;
-  var TLBLO_V           = 0x2;
-  var TLBLO_G           = 0x1;
-
-  var TLBINX_PROBE      = 0x80000000;
-  var TLBINX_INXMASK    = 0x3f;
-  var TLBINX_INXSHIFT   = 0;
-
-  var TLBRAND_RANDMASK  = 0x3f;
-  var TLBRAND_RANDSHIFT = 0;
-
-  var TLBWIRED_WIREDMASK  = 0x3f;
-
-  var TLBCTXT_BASEMASK  = 0xff800000;
-  var TLBCTXT_BASESHIFT = 23;
-  var TLBCTXT_BASEBITS  = 9;
-
-  var TLBCTXT_VPNMASK   = 0x7ffff0;
-  var TLBCTXT_VPNSHIFT  = 4;
-
-  var TLBPGMASK_4K      = 0x00000000;
-  var TLBPGMASK_16K     = 0x00006000;
-  var TLBPGMASK_64K     = 0x0001e000;
-  var TLBPGMASK_256K    = 0x0007e000;
-  var TLBPGMASK_1M      = 0x001fe000;
-  var TLBPGMASK_4M      = 0x007fe000;
-  var TLBPGMASK_16M     = 0x01ffe000;
+  const FPCSR_RM_MASK   = 0x00000003;
 
 
-  var kStuffToDoHalt            = 1<<0;
-  var kStuffToDoCheckInterrupts = 1<<1;
-  var kStuffToDoBreakout        = 1<<2;
+  const TLBHI_VPN2MASK    = 0xffffe000;
+  const TLBHI_VPN2MASK_NEG= 0x00001fff;
+  const TLBHI_VPN2SHIFT   = 13;
+  const TLBHI_PIDMASK     = 0xff;
+  const TLBHI_PIDSHIFT    = 0;
+  const TLBHI_NPID        = 255;
 
-  var kVIIntrCycles = 62500;
+  const TLBLO_PFNMASK     = 0x3fffffc0;
+  const TLBLO_PFNSHIFT    = 6;
+  const TLBLO_CACHMASK    = 0x38;
+  const TLBLO_CACHSHIFT   = 3;
+  const TLBLO_UNCACHED    = 0x10;
+  const TLBLO_NONCOHRNT   = 0x18;
+  const TLBLO_EXLWR       = 0x28;
+  const TLBLO_D           = 0x4;
+  const TLBLO_V           = 0x2;
+  const TLBLO_G           = 0x1;
 
-  var kEventVbl          = 0;
-  var kEventCompare      = 1;
-  var kEventRunForCycles = 2;
+  const TLBINX_PROBE      = 0x80000000;
+  const TLBINX_INXMASK    = 0x3f;
+  const TLBINX_INXSHIFT   = 0;
+
+  const TLBRAND_RANDMASK  = 0x3f;
+  const TLBRAND_RANDSHIFT = 0;
+
+  const TLBWIRED_WIREDMASK  = 0x3f;
+
+  const TLBCTXT_BASEMASK  = 0xff800000;
+  const TLBCTXT_BASESHIFT = 23;
+  const TLBCTXT_BASEBITS  = 9;
+
+  const TLBCTXT_VPNMASK   = 0x7ffff0;
+  const TLBCTXT_VPNSHIFT  = 4;
+
+  const TLBPGMASK_4K      = 0x00000000;
+  const TLBPGMASK_16K     = 0x00006000;
+  const TLBPGMASK_64K     = 0x0001e000;
+  const TLBPGMASK_256K    = 0x0007e000;
+  const TLBPGMASK_1M      = 0x001fe000;
+  const TLBPGMASK_4M      = 0x007fe000;
+  const TLBPGMASK_16M     = 0x01ffe000;
+
+
+  const kStuffToDoHalt            = 1<<0;
+  const kStuffToDoCheckInterrupts = 1<<1;
+  const kStuffToDoBreakout        = 1<<2;
+
+  const kVIIntrCycles = 62500;
+
+  const kEventVbl          = 0;
+  const kEventCompare      = 1;
+  const kEventRunForCycles = 2;
 
   n64js.getHi32 = function (v) {
     // >>32 just seems to no-op? Argh.
     return Math.floor( v / k1Shift32 );
   };
 
+  /**
+   * @constructor
+   */
   function TLBEntry() {
     this.pagemask = 0;
     this.hi       = 0;
@@ -206,22 +209,22 @@
 
   TLBEntry.prototype.update = function(index, pagemask, hi, entrylo0, entrylo1) {
     if (kDebugTLB) {
-      n64js.log('TLB update: index=' + index +
-          ', pagemask=' + n64js.toString32(pagemask) +
-          ', entryhi='  + n64js.toString32(hi) +
-          ', entrylo0=' + n64js.toString32(entrylo0) +
-          ', entrylo1=' + n64js.toString32(entrylo1)
+      logger.log('TLB update: index=' + index +
+          ', pagemask=' + format.toString32(pagemask) +
+          ', entryhi='  + format.toString32(hi) +
+          ', entrylo0=' + format.toString32(entrylo0) +
+          ', entrylo1=' + format.toString32(entrylo1)
         );
 
       switch (pagemask) {
-        case TLBPGMASK_4K:      n64js.log('       4k Pagesize');      break;
-        case TLBPGMASK_16K:     n64js.log('       16k Pagesize');     break;
-        case TLBPGMASK_64K:     n64js.log('       64k Pagesize');     break;
-        case TLBPGMASK_256K:    n64js.log('       256k Pagesize');    break;
-        case TLBPGMASK_1M:      n64js.log('       1M Pagesize');      break;
-        case TLBPGMASK_4M:      n64js.log('       4M Pagesize');      break;
-        case TLBPGMASK_16M:     n64js.log('       16M Pagesize');     break;
-        default:                n64js.log('       Unknown Pagesize'); break;
+        case TLBPGMASK_4K:      logger.log('       4k Pagesize');      break;
+        case TLBPGMASK_16K:     logger.log('       16k Pagesize');     break;
+        case TLBPGMASK_64K:     logger.log('       64k Pagesize');     break;
+        case TLBPGMASK_256K:    logger.log('       256k Pagesize');    break;
+        case TLBPGMASK_1M:      logger.log('       1M Pagesize');      break;
+        case TLBPGMASK_4M:      logger.log('       4M Pagesize');      break;
+        case TLBPGMASK_16M:     logger.log('       16M Pagesize');     break;
+        default:                logger.log('       Unknown Pagesize'); break;
       }
     }
 
@@ -255,6 +258,9 @@
       }
   };
 
+  /**
+   * @constructor
+   */
   function CPU0() {
     this.opsExecuted    = 0;            // Approximate...
 
@@ -378,9 +384,7 @@
   CPU0.prototype.reset = function () {
     var i;
 
-    hitCounts = {};
-    fragmentMap = {};
-    fragmentInvalidationEvents = [];
+    resetFragments();
 
     this.ram = n64js.getRamU8Array();
 
@@ -430,7 +434,7 @@
 
         var to_skip = run_countdown + this.events[0].countdown - 1;
 
-        //n64js.log('speedhack: skipping ' + to_skip + ' cycles');
+        //logger.log('speedhack: skipping ' + to_skip + ' cycles');
 
         this.control[this.kControlCount] += to_skip;
         this.events[0].countdown = 1;
@@ -440,10 +444,10 @@
           this.addEvent(kEventRunForCycles, run_countdown);
         }
       } else {
-        n64js.log('no events');
+        logger.log('no events');
       }
     } else {
-      //n64js.log('next instruction does something');
+      //logger.log('next instruction does something');
     }
   };
 
@@ -464,7 +468,7 @@
   CPU0.prototype.setSR = function (value) {
     var old_value = this.control[this.kControlSR];
     if ((old_value & SR_FR) !== (value & SR_FR)) {
-      n64js.log('Changing FPU to ' + ((value & SR_FR) ? '64bit' : '32bit' ));
+      logger.log('Changing FPU to ' + ((value & SR_FR) ? '64bit' : '32bit' ));
     }
 
     this.control[this.kControlSR] = value;
@@ -559,20 +563,22 @@
           this.removeEventsOfType(kEventCompare);
           this.addEvent(kEventCompare, delta);
         } else {
-          n64js.warn('setCompare underflow - was' + n64js.toString32(count) + ', setting to ' + value);
+          n64js.warn('setCompare underflow - was' + format.toString32(count) + ', setting to ' + value);
         }
       }
     }
     this.control[this.kControlCompare] = value;
   };
 
-
-  function Event(type, countdown) {
+  /**
+   * @constructor
+   */
+  function SystemEvent(type, countdown) {
     this.type = type;
     this.countdown = countdown;
   }
 
-  Event.prototype.getName = function () {
+  SystemEvent.prototype.getName = function () {
     switch(this.type) {
       case kEventVbl:           return 'Vbl';
       case kEventCompare:       return 'Compare';
@@ -589,14 +595,14 @@
       if (countdown <= event.countdown) {
         event.countdown -= countdown;
 
-        this.events.splice(i, 0, new Event(type, countdown));
+        this.events.splice(i, 0, new SystemEvent(type, countdown));
         return;
       }
 
       countdown -= event.countdown;
     }
 
-    this.events.push(new Event(type, countdown));
+    this.events.push(new SystemEvent(type, countdown));
   };
 
 
@@ -668,11 +674,11 @@
     this.control[this.kControlEntryLo1] = tlb.pfno | tlb.global;
 
     if (kDebugTLB) {
-      n64js.log('TLB Read Index ' + n64js.toString8(index) + '.');
-      n64js.log('  PageMask: ' + n64js.toString32(this.control[this.kControlPageMask]));
-      n64js.log('  EntryHi:  ' + n64js.toString32(this.control[this.kControlEntryHi]));
-      n64js.log('  EntryLo0: ' + n64js.toString32(this.control[this.kControlEntryLo0]));
-      n64js.log('  EntryLo1: ' + n64js.toString32(this.control[this.kControlEntryLo1]));
+      logger.log('TLB Read Index ' + format.toString8(index) + '.');
+      logger.log('  PageMask: ' + format.toString32(this.control[this.kControlPageMask]));
+      logger.log('  EntryHi:  ' + format.toString32(this.control[this.kControlEntryHi]));
+      logger.log('  EntryLo0: ' + format.toString32(this.control[this.kControlEntryLo0]));
+      logger.log('  EntryLo1: ' + format.toString32(this.control[this.kControlEntryLo1]));
     }
   };
 
@@ -688,7 +694,7 @@
         if (((tlb.hi & TLBHI_PIDMASK)  === entryhi_pid) ||
              tlb.global) {
           if (kDebugTLB) {
-            n64js.log('TLB Probe. EntryHi:' + n64js.toString32(entryhi) + '. Found matching TLB entry - ' + n64js.toString8(i));
+            logger.log('TLB Probe. EntryHi:' + format.toString32(entryhi) + '. Found matching TLB entry - ' + format.toString8(i));
           }
           this.control[this.kControlIndex] = i;
           return;
@@ -697,7 +703,7 @@
     }
 
     if (kDebugTLB) {
-      n64js.log('TLB Probe. EntryHi:' + n64js.toString32(entryhi) + ". Didn't find matching entry");
+      logger.log('TLB Probe. EntryHi:' + format.toString32(entryhi) + ". Didn't find matching entry");
     }
     this.control[this.kControlIndex] = TLBINX_PROBE;
   };
@@ -746,6 +752,9 @@
     return 0;
   };
 
+  /**
+   * @constructor
+   */
   function TLBException(address) {
     this.address = address;
   }
@@ -798,57 +807,6 @@
     throw new TLBException(address);
   };
 
-
-
-  function CPU1() {
-
-    this.control = new Uint32Array(32);
-
-    this.mem     = new ArrayBuffer(32 * 4);   // 32 32-bit regs
-    this.float32 = new Float32Array(this.mem);
-    this.float64 = new Float64Array(this.mem);
-    this.int32   = new Int32Array(this.mem);
-    this.uint32  = new Uint32Array(this.mem);
-
-    this.reset = function () {
-
-      for (var i = 0; i < 32; ++i) {
-        this.control[i] = 0;
-        this.int32[i]   = 0;
-      }
-
-      this.control[0] = 0x00000511;
-    };
-
-    this.setCondition = function (v) {
-      if (v)
-        this.control[31] |=  FPCSR_C;
-      else
-        this.control[31] &= ~FPCSR_C;
-    };
-
-    this.store_64 = function (i, lo, hi) {
-      this.int32[i+0] = lo;
-      this.int32[i+1] = hi;
-    };
-
-    this.load_f64 = function (i) {
-      return this.float64[i>>1];
-    };
-    this.load_s64_as_double = function (i) {
-        return (this.int32[i+1] * k1Shift32) + this.int32[i];
-    };
-
-    this.store_float_as_long = function (i, v) {
-      this.int32[i  ] = v & 0xffffffff;
-      this.int32[i+1] = Math.floor( v / k1Shift32 );
-    };
-
-    this.store_f64 = function (i, v) {
-      this.float64[i>>1] = v;
-    };
-  }
-
   // Expose the cpu state
   var cpu0 = new CPU0();
   var cpu1 = new CPU1();
@@ -887,7 +845,7 @@
 
   function performBranch(new_pc) {
     //if (new_pc < 0) {
-    //  n64js.log('Oops, branching to negative address: ' + new_pc);
+    //  logger.log('Oops, branching to negative address: ' + new_pc);
     //  throw 'Oops, branching to negative address: ' + new_pc;
     //}
     cpu0.branchTarget = new_pc;
@@ -941,7 +899,7 @@
   function sb_slow(addr, value) { n64js.writeMemory8( addr>>>0, value); }
 
 
-  n64js.load_u8 = function (ram, addr) {
+  n64js.load_u8 = (ram, addr) => {
     if (addr < -2139095040) {
       var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
       return ram[phys];
@@ -949,7 +907,7 @@
     return lbu_slow(addr);
   };
 
-  n64js.load_s8 = function (ram, addr) {
+  n64js.load_s8 = (ram, addr) => {
     if (addr < -2139095040) {
       var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
       return (ram[phys] << 24) >> 24;
@@ -957,7 +915,7 @@
     return lb_slow(addr);
   };
 
-  n64js.load_u16 = function (ram, addr) {
+  n64js.load_u16 = (ram, addr) => {
     if (addr < -2139095040) {
       var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
       return (ram[phys] << 8) | ram[phys+1];
@@ -965,7 +923,7 @@
     return lhu_slow(addr);
   };
 
-  n64js.load_s16 = function (ram, addr) {
+  n64js.load_s16 = (ram, addr) => {
     if (addr < -2139095040) {
       var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
       return ((ram[phys] << 24) | (ram[phys+1] << 16)) >> 16;
@@ -973,7 +931,7 @@
     return lh_slow(addr);
   };
 
-  n64js.load_u32 = function (ram, addr) {
+  n64js.load_u32 = (ram, addr) => {
     if (addr < -2139095040) {
       var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
       return ((ram[phys] << 24) | (ram[phys+1] << 16) | (ram[phys+2] << 8) | ram[phys+3]) >>> 0;
@@ -981,7 +939,7 @@
     return lwu_slow(addr);
   };
 
-  n64js.load_s32 = function (ram, addr) {
+  n64js.load_s32 = (ram, addr) => {
     if (addr < -2139095040) {
       var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
       return ((ram[phys] << 24) | (ram[phys+1] << 16) | (ram[phys+2] << 8) | ram[phys+3]) | 0;
@@ -989,7 +947,7 @@
     return lw_slow(addr);
   };
 
-  n64js.store_8 = function (ram, addr, value) {
+  n64js.store_8 = (ram, addr, value) => {
     if (addr < -2139095040) {
       var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
       ram[phys] = value;
@@ -998,7 +956,7 @@
     }
   };
 
-  n64js.store_16 = function (ram, addr, value) {
+  n64js.store_16 = (ram, addr, value) => {
     if (addr < -2139095040) {
       var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
       ram[phys  ] = value >> 8;
@@ -1008,7 +966,7 @@
     }
   };
 
-  n64js.store_32 = function (ram, addr, value) {
+  n64js.store_32 = (ram, addr, value) => {
     if (addr < -2139095040) {
       var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
       ram[phys+0] = value >> 24;
@@ -1020,7 +978,7 @@
     }
   };
 
-  n64js.store_64 = function (ram, addr, value_lo, value_hi) {
+  n64js.store_64 = (ram, addr, value_lo, value_hi) => {
     if (addr < -2139095040) {
       var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
       ram[phys+0] = value_hi >> 24;
@@ -1040,15 +998,18 @@
 
   function unimplemented(pc,i) {
     var r = n64js.disassembleOp(pc,i);
-    var e = 'Unimplemented op ' + n64js.toString32(i) + ' : ' + r.disassembly;
-    n64js.log(e);
+    var e = 'Unimplemented op ' + format.toString32(i) + ' : ' + r.disassembly;
+    logger.log(e);
     throw e;
   }
 
   function executeUnknown(i) {
-    throw 'Unknown op: ' + n64js.toString32(cpu0.pc) + ', ' + n64js.toString32(i);
+    throw 'Unknown op: ' + format.toString32(cpu0.pc) + ', ' + format.toString32(i);
   }
 
+  /**
+   * @constructor
+   */
   function BreakpointException() {
   }
 
@@ -1448,7 +1409,6 @@
     }
   }
   function executeDDIVU(i) {
-
     var s = rs(i);
     var t = rt(i);
 
@@ -1491,9 +1451,6 @@
     return generateTrivialOpBoilerplate(impl,  ctx);
   }
 
-
-
-
   function generateADD(ctx) { return generateTrivialArithmetic(ctx, '+'); }
   function executeADD(i) {
     var d = rd(i);
@@ -1503,7 +1460,6 @@
     cpu0.gprLo_signed[d] = result;
     cpu0.gprHi_signed[d] = result >> 31;
   }
-
 
   function generateADDU(ctx) { return generateTrivialArithmetic(ctx, '+'); }
   function executeADDU(i) {
@@ -1525,7 +1481,6 @@
     cpu0.gprHi_signed[d] = result >> 31;
   }
 
-
   function generateSUBU(ctx) { return generateTrivialArithmetic(ctx, '-'); }
   function executeSUBU(i) {
     var d = rd(i);
@@ -1545,7 +1500,6 @@
     cpu0.gprLo_signed[d] = cpu0.gprLo_signed[s] & cpu0.gprLo_signed[t];
   }
 
-
   function generateOR(ctx) {
     var d = ctx.instr_rd();
     var s = ctx.instr_rs();
@@ -1559,7 +1513,6 @@
 
       return generateTrivialOpBoilerplate(impl,  ctx);
     }
-
     return generateTrivialLogical(ctx, '|');
   }
 
@@ -1570,7 +1523,6 @@
     cpu0.gprHi_signed[d] = cpu0.gprHi_signed[s] | cpu0.gprHi_signed[t];
     cpu0.gprLo_signed[d] = cpu0.gprLo_signed[s] | cpu0.gprLo_signed[t];
   }
-
 
   function generateXOR(ctx) { return generateTrivialLogical(ctx, '^'); }
   function executeXOR(i) {
@@ -1599,7 +1551,6 @@
     cpu0.gprLo_signed[d] = ~(cpu0.gprLo_signed[s] | cpu0.gprLo_signed[t]);
   }
 
-
   function generateSLT(ctx) {
     var d = ctx.instr_rd();
     var s = ctx.instr_rs();
@@ -1617,6 +1568,7 @@
 
     return generateTrivialOpBoilerplate(impl, ctx);
   }
+
   function executeSLT(i) {
     var d = rd(i);
     var s = rs(i);
@@ -1630,7 +1582,6 @@
     cpu0.gprLo_signed[d] = r;
     cpu0.gprHi_signed[d] = 0;
   }
-
 
   function generateSLTU(ctx) {
     var d = ctx.instr_rd();
@@ -1648,6 +1599,7 @@
 
     return generateTrivialOpBoilerplate(impl, ctx);
   }
+
   function executeSLTU(i) {
     var d = rd(i);
     var s = rs(i);
@@ -1660,7 +1612,6 @@
     cpu0.gprLo_signed[d] = r;
     cpu0.gprHi_signed[d] = 0;
   }
-
 
   function executeDADD(i) {
     cpu0.setGPR_s64(rd(i), cpu0.getGPR_s64(rs(i)) + cpu0.getGPR_s64(rt(i)));
@@ -1707,7 +1658,7 @@
     }
 
     var impl = '';
-    impl += 'n64js.executeMTC0(' + n64js.toString32(ctx.instruction) + ');\n';
+    impl += 'n64js.executeMTC0(' + format.toString32(ctx.instruction) + ');\n';
     return generateGenericOpBoilerplate(impl, ctx);
   }
 
@@ -1717,12 +1668,12 @@
 
     switch (control_reg) {
       case cpu0.kControlContext:
-        n64js.log('Setting Context register to ' + n64js.toString32(new_value) );
+        logger.log('Setting Context register to ' + format.toString32(new_value) );
         cpu0.control[cpu0.kControlContext] = new_value;
         break;
 
       case cpu0.kControlWired:
-        n64js.log('Setting Wired register to ' + n64js.toString32(new_value) );
+        logger.log('Setting Wired register to ' + format.toString32(new_value) );
         // Set to top limit on write to wired
         cpu0.control[cpu0.kControlRand]  = 31;
         cpu0.control[cpu0.kControlWired] = new_value;
@@ -1733,11 +1684,11 @@
       case cpu0.kControlPRId:
       case cpu0.kControlCacheErr:
         // All these registers are read-only
-        n64js.log('Attempted write to read-only cpu0 control register. ' + n64js.toString32(new_value) + ' --> ' + n64js.cop0ControlRegisterNames[control_reg] );
+        logger.log('Attempted write to read-only cpu0 control register. ' + format.toString32(new_value) + ' --> ' + n64js.cop0ControlRegisterNames[control_reg] );
         break;
 
       case cpu0.kControlCause:
-        n64js.log('Setting cause register to ' + n64js.toString32(new_value) );
+        logger.log('Setting cause register to ' + format.toString32(new_value) );
         n64js.check(new_value === 0, 'Should only write 0 to Cause register.');
         cpu0.control[cpu0.kControlCause] &= ~0x300;
         cpu0.control[cpu0.kControlCause] |= (new_value & 0x300);
@@ -1766,10 +1717,11 @@
 
       default:
         cpu0.control[control_reg] = new_value;
-        n64js.log('Write to cpu0 control register. ' + n64js.toString32(new_value) + ' --> ' + n64js.cop0ControlRegisterNames[control_reg] );
+        logger.log('Write to cpu0 control register. ' + format.toString32(new_value) + ' --> ' + n64js.cop0ControlRegisterNames[control_reg] );
         break;
     }
   }
+
   function executeTLB(i) {
      switch(tlbop(i)) {
        case 0x01:    cpu0.tlbRead();        return;
@@ -1781,16 +1733,15 @@
      executeUnknown(i);
   }
 
-
   function executeERET(i) {
     if (cpu0.control[cpu0.kControlSR] & SR_ERL) {
       cpu0.nextPC = cpu0.control[cpu0.kControlErrorEPC];
       cpu0.control[cpu0.kControlSR] &= ~SR_ERL;
-      n64js.log('ERET from error trap - ' + cpu0.nextPC);
+      logger.log('ERET from error trap - ' + cpu0.nextPC);
     } else {
       cpu0.nextPC = cpu0.control[cpu0.kControlEPC];
       cpu0.control[cpu0.kControlSR] &= ~SR_EXL;
-      //n64js.log('ERET from interrupt/exception ' + cpu0.nextPC);
+      //logger.log('ERET from interrupt/exception ' + cpu0.nextPC);
     }
   }
 
@@ -1804,7 +1755,7 @@
   // Jump
   function generateJ(ctx) {
     var addr = jumpAddress(ctx.pc, ctx.instruction);
-    var impl = 'c.delayPC = ' + n64js.toString32(addr) + ';\n';
+    var impl = 'c.delayPC = ' + format.toString32(addr) + ';\n';
     return generateBranchOpBoilerplate(impl, ctx, false);
   }
   function executeJ(i) {
@@ -1817,8 +1768,8 @@
     var ra    = ctx.pc + 8;
     var ra_hi = (ra & 0x80000000) ? -1 : 0;
     var impl  = '';
-    impl += 'c.delayPC = ' + n64js.toString32(addr) + ';\n';
-    impl += 'rlo[' + cpu0.kRegister_ra + '] = ' + n64js.toString32(ra) + ';\n';
+    impl += 'c.delayPC = ' + format.toString32(addr) + ';\n';
+    impl += 'rlo[' + cpu0.kRegister_ra + '] = ' + format.toString32(ra) + ';\n';
     impl += 'rhi[' + cpu0.kRegister_ra + '] = ' + ra_hi + ';\n';
     return generateBranchOpBoilerplate(impl, ctx, false);
   }
@@ -1836,7 +1787,7 @@
     var ra_hi = (ra & 0x80000000) ? -1 : 0;
     var impl  = '';
     impl += 'c.delayPC = c.gprLo[' + s + '];\n';  // NB needs to be unsigned
-    impl += 'rlo[' + d + '] = ' + n64js.toString32(ra) + ';\n';
+    impl += 'rlo[' + d + '] = ' + format.toString32(ra) + ';\n';
     impl += 'rhi[' + d + '] = ' + ra_hi + ';\n';
     return generateBranchOpBoilerplate(impl, ctx, false);
   }
@@ -1868,7 +1819,7 @@
         impl += 'c.speedHack();\n';
         ctx.bailOut = true;
       }
-      impl += 'c.delayPC = ' + n64js.toString32(addr) + ';\n';
+      impl += 'c.delayPC = ' + format.toString32(addr) + ';\n';
    } else {
       impl += 'if (' + genSrcRegHi(s) + ' === ' + genSrcRegHi(t) + ' &&\n';
       impl += '    ' + genSrcRegLo(s) + ' === ' + genSrcRegLo(t) + ' ) {\n';
@@ -1876,7 +1827,7 @@
         impl += '  c.speedHack();\n';
         ctx.bailOut = true;
       }
-      impl += '  c.delayPC = ' + n64js.toString32(addr) + ';\n';
+      impl += '  c.delayPC = ' + format.toString32(addr) + ';\n';
       impl += '}\n';
     }
 
@@ -1894,7 +1845,6 @@
     }
   }
 
-
   function generateBEQL(ctx) {
     var s    = ctx.instr_rs();
     var t    = ctx.instr_rt();
@@ -1905,7 +1855,7 @@
 
     impl += 'if (' + genSrcRegHi(s) + ' === ' + genSrcRegHi(t) + ' &&\n';
     impl += '    ' + genSrcRegLo(s) + ' === ' + genSrcRegLo(t) + ' ) {\n';
-    impl += '  c.delayPC = ' + n64js.toString32(addr) + ';\n';
+    impl += '  c.delayPC = ' + format.toString32(addr) + ';\n';
     impl += '} else {\n';
     impl += '  c.nextPC += 4;\n';
     impl += '}\n';
@@ -1924,7 +1874,6 @@
     }
   }
 
-
   function generateBNE(ctx) {
     var s    = ctx.instr_rs();
     var t    = ctx.instr_rt();
@@ -1939,7 +1888,7 @@
       impl += '  c.speedHack();\n';
       ctx.bailOut = true;
     }
-    impl += '  c.delayPC = ' + n64js.toString32(addr) + ';\n';
+    impl += '  c.delayPC = ' + format.toString32(addr) + ';\n';
     impl += '}\n';
 
     return generateBranchOpBoilerplate(impl, ctx, false);
@@ -1965,7 +1914,7 @@
 
     impl += 'if (' + genSrcRegHi(s) + ' !== ' + genSrcRegHi(t) + ' ||\n';
     impl += '    ' + genSrcRegLo(s) + ' !== ' + genSrcRegLo(t) + ' ) {\n';
-    impl += '  c.delayPC = ' + n64js.toString32(addr) + ';\n';
+    impl += '  c.delayPC = ' + format.toString32(addr) + ';\n';
     impl += '} else {\n';
     impl += '  c.nextPC += 4;\n';
     impl += '}\n';
@@ -1992,7 +1941,7 @@
     var impl = '';
     impl += 'if ( ' + genSrcRegHi(s) + ' < 0 ||\n';
     impl += '    (' + genSrcRegHi(s) + ' === 0 && ' + genSrcRegLo(s) + ' === 0) ) {\n';
-    impl += '  c.delayPC = ' + n64js.toString32(addr) + ';\n';
+    impl += '  c.delayPC = ' + format.toString32(addr) + ';\n';
     impl += '}\n';
 
     return generateBranchOpBoilerplate(impl, ctx, false);
@@ -2005,6 +1954,7 @@
       performBranch( branchAddress(cpu0.pc,i) );
     }
   }
+
   function executeBLEZL(i) {
     var s = rs(i);
     // NB: if rs == r0 then this branch is always taken
@@ -2024,7 +1974,7 @@
     var impl = '';
     impl += 'if ( ' + genSrcRegHi(s) + ' >= 0 &&\n';
     impl += '    (' + genSrcRegHi(s) + ' !== 0 || ' + genSrcRegLo(s) + ' !== 0) ) {\n';
-    impl += '  c.delayPC = ' + n64js.toString32(addr) + ';\n';
+    impl += '  c.delayPC = ' + format.toString32(addr) + ';\n';
     impl += '}\n';
 
     return generateBranchOpBoilerplate(impl, ctx, false);
@@ -2037,6 +1987,7 @@
       performBranch( branchAddress(cpu0.pc,i) );
     }
   }
+
   function executeBGTZL(i) {
     var s = rs(i);
     if ( cpu0.gprHi_signed[s] >= 0 &&
@@ -2047,7 +1998,6 @@
     }
   }
 
-
   // Branch Less Than Zero
   function generateBLTZ(ctx) {
     var s    = ctx.instr_rs();
@@ -2055,7 +2005,7 @@
 
     var impl = '';
     impl += 'if (' + genSrcRegHi(s) + ' < 0) {\n';
-    impl += '  c.delayPC = ' + n64js.toString32(addr) + ';\n';
+    impl += '  c.delayPC = ' + format.toString32(addr) + ';\n';
     impl += '}\n';
 
     return generateBranchOpBoilerplate(impl, ctx, false);
@@ -2067,20 +2017,20 @@
     }
   }
 
-
   function generateBLTZL(ctx) {
     var s    = ctx.instr_rs();
     var addr = branchAddress(ctx.pc, ctx.instruction);
 
     var impl = '';
     impl += 'if (' + genSrcRegHi(s) + ' < 0) {\n';
-    impl += '  c.delayPC = ' + n64js.toString32(addr) + ';\n';
+    impl += '  c.delayPC = ' + format.toString32(addr) + ';\n';
     impl += '} else {\n';
     impl += '  c.nextPC += 4;\n';
     impl += '}\n';
 
     return generateBranchOpBoilerplate(impl, ctx, true /* might_adjust_next_pc*/);
   }
+
   function executeBLTZL(i) {
     if (cpu0.gprHi_signed[rs(i)] < 0) {
       performBranch( branchAddress(cpu0.pc,i) );
@@ -2089,14 +2039,13 @@
     }
   }
 
-
-
   function executeBLTZAL(i) {
     setSignExtend(cpu0.kRegister_ra, cpu0.pc + 8);
     if (cpu0.gprHi_signed[rs(i)] < 0) {
       performBranch( branchAddress(cpu0.pc,i) );
     }
   }
+
   function executeBLTZALL(i) {
     setSignExtend(cpu0.kRegister_ra, cpu0.pc + 8);
     if (cpu0.gprHi_signed[rs(i)] < 0) {
@@ -2106,7 +2055,6 @@
     }
   }
 
-
   // Branch Greater Than Zero
   function generateBGEZ(ctx) {
     var s    = ctx.instr_rs();
@@ -2114,11 +2062,12 @@
 
     var impl = '';
     impl += 'if (' + genSrcRegHi(s) + ' >= 0) {\n';
-    impl += '  c.delayPC = ' + n64js.toString32(addr) + ';\n';
+    impl += '  c.delayPC = ' + format.toString32(addr) + ';\n';
     impl += '}\n';
 
     return generateBranchOpBoilerplate(impl, ctx, false);
   }
+
   function executeBGEZ(i) {
     if (cpu0.gprHi_signed[rs(i)] >= 0) {
       performBranch( branchAddress(cpu0.pc,i) );
@@ -2131,13 +2080,14 @@
 
     var impl = '';
     impl += 'if (' + genSrcRegHi(s) + ' >= 0) {\n';
-    impl += '  c.delayPC = ' + n64js.toString32(addr) + ';\n';
+    impl += '  c.delayPC = ' + format.toString32(addr) + ';\n';
     impl += '} else {\n';
     impl += '  c.nextPC += 4;\n';
     impl += '}\n';
 
     return generateBranchOpBoilerplate(impl, ctx, true /* might_adjust_next_pc*/);
   }
+
   function executeBGEZL(i) {
     if (cpu0.gprHi_signed[rs(i)] >= 0) {
       performBranch( branchAddress(cpu0.pc,i) );
@@ -2146,13 +2096,13 @@
     }
   }
 
-
   function executeBGEZAL(i) {
     setSignExtend(cpu0.kRegister_ra, cpu0.pc + 8);
     if (cpu0.gprHi_signed[rs(i)] >= 0) {
       performBranch( branchAddress(cpu0.pc,i) );
     }
   }
+
   function executeBGEZALL(i) {
     setSignExtend(cpu0.kRegister_ra, cpu0.pc + 8);
     if (cpu0.gprHi_signed[rs(i)] >= 0) {
@@ -2198,16 +2148,13 @@
     cpu0.gprHi_signed[t] = result >> 31;
   }
 
-
-
   function executeDADDI(i) {
     cpu0.setGPR_s64(rt(i), cpu0.getGPR_s64(rs(i)) + imms(i));
   }
+
   function executeDADDIU(i) {
     cpu0.setGPR_s64(rt(i), cpu0.getGPR_s64(rs(i)) + imms(i));
   }
-
-
 
   function generateSLTI(ctx) {
     var s = ctx.instr_rs();
@@ -2243,7 +2190,6 @@
     }
     cpu0.gprHi_signed[t] = 0;
   }
-
 
   function generateSLTIU(ctx) {
     var s = ctx.instr_rs();
@@ -2298,8 +2244,6 @@
     cpu0.gprHi_signed[t] = 0;    // always 0, as sign extended immediate value is always 0
   }
 
-
-
   function generateORI(ctx) {
     var s = ctx.instr_rs();
     var t = ctx.instr_rt();
@@ -2316,7 +2260,6 @@
     cpu0.gprLo_signed[t] = cpu0.gprLo_signed[s] | imm(i);
     cpu0.gprHi_signed[t] = cpu0.gprHi_signed[s];
   }
-
 
   function generateXORI(ctx) {
     var s = ctx.instr_rs();
@@ -2336,7 +2279,6 @@
     cpu0.gprHi_signed[t] = cpu0.gprHi_signed[s];
   }
 
-
   function generateLUI(ctx) {
     var t = ctx.instr_rt();
     var value_lo = imms(ctx.instruction) << 16;
@@ -2355,8 +2297,6 @@
     cpu0.gprHi_signed[t] = value >> 31;
   }
 
-
-
   function generateLB(ctx) {
     var t = ctx.instr_rt();
     var b = ctx.instr_base();
@@ -2369,6 +2309,7 @@
 
     return generateMemoryAccessBoilerplate(impl, ctx);
   }
+
   function executeLB(i) {
     var t = rt(i);
     var b = base(i);
@@ -2390,6 +2331,7 @@
 
     return generateMemoryAccessBoilerplate(impl, ctx);
   }
+
   function executeLBU(i) {
     var t = rt(i);
     var b = base(i);
@@ -2411,6 +2353,7 @@
 
     return generateMemoryAccessBoilerplate(impl, ctx);
   }
+
   function executeLH(i) {
     var t = rt(i);
     var b = base(i);
@@ -2432,6 +2375,7 @@
 
     return generateMemoryAccessBoilerplate(impl, ctx);
   }
+
   function executeLHU(i) {
     var t = rt(i);
     var b = base(i);
@@ -2440,7 +2384,6 @@
     cpu0.gprLo_signed[t] = n64js.load_u16(cpu0.ram, cpu0.gprLo_signed[b] + o);
     cpu0.gprHi_signed[t] = 0;
   }
-
 
   function generateLW(ctx) {
     var t = ctx.instr_rt();
@@ -2457,6 +2400,7 @@
 
     return generateMemoryAccessBoilerplate(impl, ctx);
   }
+
   function executeLW(i) {
     var t = rt(i);
     var b = base(i);
@@ -2482,6 +2426,7 @@
 
     return generateMemoryAccessBoilerplate(impl, ctx);
   }
+
   function executeLWU(i) {
     var t = rt(i);
     var b = base(i);
@@ -2490,7 +2435,6 @@
     cpu0.gprLo_signed[t] = n64js.load_u32(cpu0.ram, cpu0.gprLo_signed[b] + o);
     cpu0.gprHi_signed[t] = 0;
   }
-
 
   function generateLD(ctx) {
     var t = ctx.instr_rt();
@@ -2611,6 +2555,7 @@
 
     setSignExtend( rt(i), value );
   }
+
   function executeLWR(i) {
     var address         = memaddr(i)>>>0;
     var address_aligned = (address & ~3)>>>0;
@@ -2627,11 +2572,9 @@
 
     setSignExtend( rt(i), value );
   }
+
   function executeLDL(i)        { unimplemented(cpu0.pc,i); }
   function executeLDR(i)        { unimplemented(cpu0.pc,i); }
-
-
-
 
   function generateSB(ctx) {
     var t = ctx.instr_rt();
@@ -2642,6 +2585,7 @@
     impl += 'n64js.store_8(ram, ' + genSrcRegLo(b) + ' + ' + o + ', ' + genSrcRegLo(t) + ');\n';
     return generateMemoryAccessBoilerplate(impl, ctx);
   }
+
   function executeSB(i) {
     var t = rt(i);
     var b = base(i);
@@ -2659,6 +2603,7 @@
     impl += 'n64js.store_16(ram, ' + genSrcRegLo(b) + ' + ' + o + ', ' + genSrcRegLo(t) + ');\n';
     return generateMemoryAccessBoilerplate(impl, ctx);
   }
+
   function executeSH(i) {
     var t = rt(i);
     var b = base(i);
@@ -2676,6 +2621,7 @@
     impl += 'n64js.store_32(ram, ' + genSrcRegLo(b) + ' + ' + o + ', ' + genSrcRegLo(t) + ');\n';
     return generateMemoryAccessBoilerplate(impl, ctx);
   }
+
   function executeSW(i) {
     var t = rt(i);
     var b = base(i);
@@ -2683,7 +2629,6 @@
 
     n64js.store_32(cpu0.ram, cpu0.gprLo_signed[b] + o, cpu0.gprLo_signed[t]);
   }
-
 
   function generateSD(ctx) {
     var t = ctx.instr_rt();
@@ -2696,6 +2641,7 @@
 
     return generateMemoryAccessBoilerplate(impl, ctx);
   }
+
   function executeSD(i) {
     var t = rt(i);
     var b = base(i);
@@ -2704,7 +2650,6 @@
     var addr = cpu0.gprLo_signed[b] + o;
     n64js.store_64(cpu0.ram, addr, cpu0.gprLo_signed[t], cpu0.gprHi_signed[t]);
   }
-
 
   function generateSWC1(ctx) {
     var t = ctx.instr_ft();
@@ -2727,7 +2672,6 @@
 
     n64js.store_32(cpu0.ram, cpu0.gprLo_signed[b] + o, cpu1.int32[t]);
   }
-
 
   function generateSDC1(ctx) {
     var t = ctx.instr_ft();
@@ -2774,6 +2718,7 @@
 
     n64js.writeMemory32( address_aligned, value );
   }
+
   function executeSWR(i) {
     var address         = memaddr(i);
     var address_aligned = (address & ~3)>>>0;
@@ -2810,6 +2755,7 @@
       return generateNOPBoilerplate('/*ignored CACHE*/', ctx);
     }
   }
+
   function executeCACHE(i) {
     var cache_op = rt(i);
     var cache    = (cache_op      ) & 0x3;
@@ -2840,6 +2786,7 @@
     impl += 'rhi[' + t + '] = result >> 31;\n';
     return impl;
   }
+
   function executeMFC1(i) {
     var t = rt(i);
     var s = fs(i);
@@ -2861,13 +2808,13 @@
     impl += 'rhi[' + t + '] = cpu1.int32[' + hi + '];\n';
     return impl;
   }
+
   function executeDMFC1(i) {
     var t = rt(i);
     var s = fs(i);
     cpu0.gprLo_signed[t] = cpu1.int32[s];
     cpu0.gprHi_signed[t] = cpu1.int32[s+1];
   }
-
 
   function generateMTC1Stub(ctx) {
     var s = ctx.instr_fs();
@@ -2878,6 +2825,7 @@
 
     return 'cpu1.int32[' + s + '] = rlo[' + t + '];\n';
   }
+
   function executeMTC1(i) {
     cpu1.int32[fs(i)] = cpu0.gprLo_signed[rt(i)];
   }
@@ -2895,6 +2843,7 @@
     impl += 'cpu1.int32[' + hi + '] = rhi[' + t + '];\n';
     return impl;
   }
+
   function executeDMTC1(i) {
     var s = fs(i);
     var t = rt(i);
@@ -2960,10 +2909,10 @@
       var v = cpu0.gprLo[t];
 
       // switch (v & FPCSR_RM_MASK) {
-      // case FPCSR_RM_RN:     n64js.log('cop1 - setting round near');  break;
-      // case FPCSR_RM_RZ:     n64js.log('cop1 - setting round zero');  break;
-      // case FPCSR_RM_RP:     n64js.log('cop1 - setting round ceil');  break;
-      // case FPCSR_RM_RM:     n64js.log('cop1 - setting round floor'); break;
+      // case FPCSR_RM_RN:     logger.log('cop1 - setting round near');  break;
+      // case FPCSR_RM_RZ:     logger.log('cop1 - setting round zero');  break;
+      // case FPCSR_RM_RP:     logger.log('cop1 - setting round ceil');  break;
+      // case FPCSR_RM_RM:     logger.log('cop1 - setting round floor'); break;
       // }
 
       cpu1.control[s] = v;
@@ -2984,7 +2933,7 @@
     var impl = '';
     var test = condition ? '!==' : '===';
     impl += 'if ((cpu1.control[31] & FPCSR_C) ' + test + ' 0) {\n';
-    impl += '  c.branchTarget = ' + n64js.toString32(target) + ';\n';
+    impl += '  c.branchTarget = ' + format.toString32(target) + ';\n';
     if (likely) {
       impl += '} else {\n';
       impl += '  c.nextPC += 4;\n';
@@ -3066,7 +3015,6 @@
   }
 
   function generateSInstrStub(ctx) {
-
     var s = ctx.instr_fs();
     var t = ctx.instr_ft();
     var d = ctx.instr_fd();
@@ -3100,7 +3048,7 @@
         case 0x25:    /* 'CVT.L' */       break;
       }
 
-      return 'unimplemented(' + n64js.toString32(ctx.pc) + ',' + n64js.toString32(ctx.instruction) + ');\n';
+      return 'unimplemented(' + format.toString32(ctx.pc) + ',' + format.toString32(ctx.instruction) + ');\n';
     }
 
     // It's a compare instruction
@@ -3112,7 +3060,6 @@
   }
 
   function executeSInstr(i) {
-
     var s = fs(i);
     var t = ft(i);
     var d = fd(i);
@@ -3152,7 +3099,6 @@
   }
 
   function generateDInstrStub(ctx) {
-
     var s = ctx.instr_fs();
     var t = ctx.instr_ft();
     var d = ctx.instr_fd();
@@ -3185,7 +3131,7 @@
         case 0x24:    /* 'CVT.W' */       return 'cpu1.int32[' + d + '] = n64js.convert( cpu1.load_f64( ' + s + ' ) ) | 0;\n';
         case 0x25:    /* 'CVT.L' */       break;
       }
-      return 'unimplemented(' + n64js.toString32(ctx.pc) + ',' + n64js.toString32(ctx.instruction) + ');\n';
+      return 'unimplemented(' + format.toString32(ctx.pc) + ',' + format.toString32(ctx.instruction) + ');\n';
     }
 
     // It's a compare instruction
@@ -3197,7 +3143,6 @@
   }
 
   function executeDInstr(i) {
-
     var s = fs(i);
     var t = ft(i);
     var d = fd(i);
@@ -3246,8 +3191,9 @@
       case 0x20:    /* 'CVT.S' */       return 'cpu1.float32[' + d + '] = cpu1.int32[' + s + '];\n';
       case 0x21:    /* 'CVT.D' */       return 'cpu1.store_f64(' + d + ', cpu1.int32[' + s + ']);\n';
     }
-    return 'unimplemented(' + n64js.toString32(ctx.pc) + ',' + n64js.toString32(ctx.instruction) + ');\n';
+    return 'unimplemented(' + format.toString32(ctx.pc) + ',' + format.toString32(ctx.instruction) + ');\n';
   }
+
   function executeWInstr(i) {
     var s = fs(i);
     var d = fd(i);
@@ -3259,7 +3205,6 @@
     unimplemented(cpu0.pc,i);
   }
 
-
   function generateLInstrStub(ctx) {
     var s = ctx.instr_fs();
     var d = ctx.instr_fd();
@@ -3270,8 +3215,9 @@
       case 0x20:    /* 'CVT.S' */       return 'cpu1.float32[' + d + '] = cpu1.load_s64_as_double(' + s + ');\n';
       case 0x21:    /* 'CVT.D' */       return 'cpu1.store_f64(' + d + ', cpu1.load_s64_as_double(' + s + ') );\n';
     }
-    return 'unimplemented(' + n64js.toString32(ctx.pc) + ',' + n64js.toString32(ctx.instruction) + ');\n';
+    return 'unimplemented(' + format.toString32(ctx.pc) + ',' + format.toString32(ctx.instruction) + ');\n';
   }
+
   function executeLInstr(i) {
     var s = fs(i);
     var d = fd(i);
@@ -3385,8 +3331,8 @@
 
     var op_impl;
     if (typeof fn === 'string') {
-      //n64js.log(fn);
-      op_impl = 'n64js.' + fn + '(' + n64js.toString32(ctx.instruction) + ');\n';
+      //logger.log(fn);
+      op_impl = 'n64js.' + fn + '(' + format.toString32(ctx.instruction) + ');\n';
     } else {
       op_impl = fn(ctx);
     }
@@ -3402,7 +3348,7 @@
 
     } else {
       impl += 'if( (c.control[12] & SR_CU1) === 0 ) {\n';
-      impl += '  executeCop1_disabled(' + n64js.toString32(ctx.instruction) + ');\n';
+      impl += '  executeCop1_disabled(' + format.toString32(ctx.instruction) + ');\n';
       impl += '} else {\n';
       impl += '  ' + op_impl;
       impl += '}\n';
@@ -3425,7 +3371,7 @@
     cop1Table[fmt](i);
   }
   function executeCop1_disabled(i) {
-    n64js.log('Thread accessing cop1 for first time, throwing cop1 unusable exception');
+    logger.log('Thread accessing cop1 for first time, throwing cop1 unusable exception');
 
     n64js.assert( (cpu0.control[cpu0.kControlSR] & SR_CU1) === 0, "SR_CU1 in inconsistent state" );
 
@@ -3602,6 +3548,9 @@
   n64js.executeSDC2    = executeSDC2;
 
 
+  /**
+   * @constructor
+   */
   function FragmentContext() {
     this.fragment    = undefined;
     this.pc          = 0;
@@ -3654,8 +3603,6 @@
   FragmentContext.prototype.instr_base   = function () { return base(this.instruction); };
   FragmentContext.prototype.instr_offset = function () { return offset(this.instruction); };
   FragmentContext.prototype.instr_imms   = function () { return imms(this.instruction); };
-
-
 
   function checkCauseIP3Consistent() {
     var mi_interrupt_set = n64js.miInterruptsUnmasked();
@@ -3879,7 +3826,7 @@
 
       // Check if the last op has a delayed pc update, and do it now.
       if (fragmentContext.delayedPCUpdate !== 0) {
-          fragment.body_code += 'c.pc = ' + n64js.toString32(fragmentContext.delayedPCUpdate) + ';\n';
+          fragment.body_code += 'c.pc = ' + format.toString32(fragmentContext.delayedPCUpdate) + ';\n';
           fragmentContext.delayedPCUpdate = 0;
       }
 
@@ -3893,12 +3840,12 @@
       if (fragment.usesCop1) {
         var cpu1_shizzle = '';
         cpu1_shizzle += 'var cpu1 = n64js.cpu1;\n';
-        cpu1_shizzle += 'var SR_CU1 = ' + n64js.toString32(SR_CU1) + ';\n';
-        cpu1_shizzle += 'var FPCSR_C = ' + n64js.toString32(FPCSR_C) + ';\n';
+        cpu1_shizzle += 'var SR_CU1 = ' + format.toString32(SR_CU1) + ';\n';
+        cpu1_shizzle += 'var FPCSR_C = ' + format.toString32(FPCSR_C) + ';\n';
         fragment.body_code = cpu1_shizzle + '\n\n' + fragment.body_code;
       }
 
-      var code = 'return function fragment_' + n64js.toString32(fragment.entryPC) + '_' + fragment.opsCompiled + '(c, rlo, rhi, ram) {\n' + fragment.body_code + '}\n';
+      var code = 'return function fragment_' + format.toString32(fragment.entryPC) + '_' + fragment.opsCompiled + '(c, rlo, rhi, ram) {\n' + fragment.body_code + '}\n';
 
       // Clear these strings to reduce garbage
       fragment.body_code ='';
@@ -3996,100 +3943,9 @@
     }
   }
 
-  n64js.getFragmentMap = function () {
-    return fragmentMap;
-  };
-
-  n64js.getFragmentInvalidationEvents = function() {
-    var t = fragmentInvalidationEvents;
-    fragmentInvalidationEvents = [];
-    return t;
-  };
-
-  function Fragment(pc) {
-    this.entryPC          = pc;
-    this.minPC            = pc;
-    this.maxPC            = pc+4;
-    this.func             = undefined;
-    this.opsCompiled      = 0;
-    this.executionCount   = 0;
-    this.bailedOut        = false;    // Set if a fragment bailed out.
-    this.nextFragments    = [];       // One slot per op
-
-    // State used when compiling
-    this.body_code        = '';
-    this.needsDelayCheck  = true;
-
-    this.cop1statusKnown = false;
-    this.usesCop1        = false;
-  }
-
-  Fragment.prototype.invalidate = function () {
-    // reset all but entryPC
-    this.minPC            = this.entryPC;
-    this.maxPC            = this.entryPC+4;
-    this.func             = undefined;
-    this.opsCompiled      = 0;
-    this.bailedOut        = false;
-    this.executionCount   = 0;
-    this.nextFragments    = [];
-
-    this.body_code        = '';
-    this.needsDelayCheck  = true;
-
-    this.cop1statusKnown  = false;
-    this.usesCop1         = false;
-  };
-
-  Fragment.prototype.getNextFragment = function (pc, ops_executed) {
-    var next_fragment = this.nextFragments[ops_executed];
-    if (!next_fragment || next_fragment.entryPC !== pc) {
-
-      // If not jump to self, look up
-      if (pc === this.entryPC) {
-        next_fragment = this;
-      } else {
-        next_fragment = lookupFragment(pc);
-      }
-
-      // And cache for next time around.
-      this.nextFragments[ops_executed] = next_fragment;
-    }
-    return next_fragment;
-  };
-
-  function lookupFragment(pc) {
-    // Check if we already have a fragment
-    var fragment = fragmentMap[pc];
-    if (!fragment) {
-
-      if (!kEnableDynarec) {
-        return null;
-      }
-
-      // Check if this pc is hot enough yet
-      var hc = hitCounts[pc] || 0;
-      hc++;
-      hitCounts[pc] = hc;
-
-      if (hc < kHotFragmentThreshold) {
-        return null;
-      }
-
-      fragment = new Fragment(pc);
-      fragmentMap[pc] = fragment;
-    }
-
-    // If we failed to complete the fragment for any reason, reset it
-    if (!fragment.func) {
-      fragment.invalidate();
-    }
-
-    return fragment;
-  }
-
-  var invals = 0;
-
+  /**
+   * @constructor
+   */
   function FragmentMapWho() {
     var i;
 
@@ -4138,7 +3994,7 @@
     }
 
     if (removed) {
-      n64js.log('Fragment cache removed ' + removed + ' entries.');
+      logger.log('Fragment cache removed ' + removed + ' entries.');
     }
 
      //fragmentInvalidationEvents.push({'address': address, 'length': 0x20, 'system': 'CACHE', 'fragmentsRemoved': removed});
@@ -4172,19 +4028,21 @@
     }
 
     if (removed) {
-      n64js.log('Fragment cache removed ' + removed + ' entries.');
+      logger.log('Fragment cache removed ' + removed + ' entries.');
     }
 
      //fragmentInvalidationEvents.push({'address': address, 'length': length, 'system': system, 'fragmentsRemoved': removed});
   };
 
+  var invals = 0;
+
   // Invalidate a single cache line
   n64js.invalidateICacheEntry = function (address) {
-      //n64js.log('cache flush ' + n64js.toString32(address));
+      //logger.log('cache flush ' + format.toString32(address));
 
      ++invals;
      if ((invals%10000) === 0) {
-      n64js.log(invals + ' invals');
+      logger.log(invals + ' invals');
      }
 
      fragmentMapWho.invalidateEntry(address);
@@ -4192,7 +4050,7 @@
 
   // This isn't called right now. We
   n64js.invalidateICacheRange = function (address, length, system) {
-      //n64js.log('cache flush ' + n64js.toString32(address) + ' ' + n64js.toString32(length));
+      //logger.log('cache flush ' + format.toString32(address) + ' ' + format.toString32(length));
       // FIXME: check for overlapping ranges
 
      // NB: not sure PI events are useful right now.
@@ -4214,7 +4072,7 @@
 
   function checkEqual(a,b,m) {
     if (a !== b) {
-      var msg = n64js.toString32(a) + ' !== ' + n64js.toString32(b) + ' : ' + m;
+      var msg = format.toString32(a) + ' !== ' + format.toString32(b) + ' : ' + m;
       console.assert(false, msg);
       n64js.halt(msg);
       return false;
@@ -4241,19 +4099,19 @@
 
     // If the last op tried to delay updating the pc, see if it needs updating now.
     if (!ctx.isTrivial && ctx.delayedPCUpdate !== 0) {
-        ctx.fragment.body_code += '/*applying delayed pc*/\nc.pc = ' + n64js.toString32(ctx.delayedPCUpdate) + ';\n';
+        ctx.fragment.body_code += '/*applying delayed pc*/\nc.pc = ' + format.toString32(ctx.delayedPCUpdate) + ';\n';
         ctx.delayedPCUpdate = 0;
     }
 
     ctx.fragment.needsDelayCheck = ctx.needsDelayCheck;
 
-    //code += 'if (!checkEqual( n64js.readMemoryU32(cpu0.pc), ' + n64js.toString32(instruction) + ', "unexpected instruction (need to flush icache?)")) { return false; }\n';
+    //code += 'if (!checkEqual( n64js.readMemoryU32(cpu0.pc), ' + format.toString32(instruction) + ', "unexpected instruction (need to flush icache?)")) { return false; }\n';
 
     ctx.fragment.bailedOut |= ctx.bailOut;
 
     var sync = n64js.getSyncFlow();
     if (sync) {
-      fn_code = 'if (!n64js.checkSyncState(sync, ' + n64js.toString32(ctx.pc) + ')) { return ' + ctx.fragment.opsCompiled + '; }\n' + fn_code;
+      fn_code = 'if (!n64js.checkSyncState(sync, ' + format.toString32(ctx.pc) + ')) { return ' + ctx.fragment.opsCompiled + '; }\n' + fn_code;
     }
 
     ctx.fragment.body_code += fn_code + '\n';
@@ -4287,8 +4145,8 @@
   function generateOpHelper(fn,ctx) {
     // fn can be a handler function, in which case defer to that.
     if (typeof fn === 'string') {
-      //n64js.log(fn);
-      return generateGenericOpBoilerplate('n64js.' + fn + '(' + n64js.toString32(ctx.instruction) + ');\n', ctx);
+      //logger.log(fn);
+      return generateGenericOpBoilerplate('n64js.' + fn + '(' + format.toString32(ctx.instruction) + ');\n', ctx);
     } else {
       return fn(ctx);
     }
@@ -4296,14 +4154,14 @@
 
   function generateGenericOpBoilerplate(fn,ctx) {
     var code = '';
-    code += ctx.genAssert('c.pc === ' + n64js.toString32(ctx.pc), 'pc mismatch');
+    code += ctx.genAssert('c.pc === ' + format.toString32(ctx.pc), 'pc mismatch');
 
     if (ctx.needsDelayCheck) {
       // NB: delayPC not cleared here - it's always overwritten with branchTarget below.
-      code += 'if (c.delayPC) { c.nextPC = c.delayPC; } else { c.nextPC = ' + n64js.toString32(ctx.pc+4) +'; }\n';
+      code += 'if (c.delayPC) { c.nextPC = c.delayPC; } else { c.nextPC = ' + format.toString32(ctx.pc+4) +'; }\n';
     } else {
       code += ctx.genAssert('c.delayPC === 0', 'delay pc should be zero');
-      code += 'c.nextPC = ' + n64js.toString32(ctx.pc+4) + ';\n';
+      code += 'c.nextPC = ' + format.toString32(ctx.pc+4) + ';\n';
     }
     code += 'c.branchTarget = 0;\n';
 
@@ -4324,7 +4182,7 @@
       code += 'return ' + ctx.fragment.opsCompiled + ';\n';
     } else {
       code += 'if (c.stuffToDo) { return ' + ctx.fragment.opsCompiled + '; }\n';
-      code += 'if (c.pc !== ' + n64js.toString32(ctx.post_pc) + ') { return ' + ctx.fragment.opsCompiled + '; }\n';
+      code += 'if (c.pc !== ' + format.toString32(ctx.post_pc) + ') { return ' + ctx.fragment.opsCompiled + '; }\n';
     }
 
     return code;
@@ -4333,23 +4191,23 @@
   // Standard code for manipulating the pc
   function generateStandardPCUpdate(fn, ctx, might_adjust_next_pc) {
     var code = '';
-    code += ctx.genAssert('c.pc === ' + n64js.toString32(ctx.pc), 'pc mismatch');
+    code += ctx.genAssert('c.pc === ' + format.toString32(ctx.pc), 'pc mismatch');
 
     if (ctx.needsDelayCheck) {
       // We should probably assert on this - two branch instructions back-to-back is weird, but the flag could just be set because of a generic op
-      code += 'if (c.delayPC) { c.nextPC = c.delayPC; c.delayPC = 0; } else { c.nextPC = ' + n64js.toString32(ctx.pc+4) +'; }\n';
+      code += 'if (c.delayPC) { c.nextPC = c.delayPC; c.delayPC = 0; } else { c.nextPC = ' + format.toString32(ctx.pc+4) +'; }\n';
       code += fn;
       code += 'c.pc = c.nextPC;\n';
     } else if (might_adjust_next_pc) {
       // If the branch op might manipulate nextPC, we need to ensure that it's set to the correct value
       code += ctx.genAssert('c.delayPC === 0', 'delay pc should be zero');
-      code += 'c.nextPC = ' + n64js.toString32(ctx.pc+4) + ';\n';
+      code += 'c.nextPC = ' + format.toString32(ctx.pc+4) + ';\n';
       code += fn;
       code += 'c.pc = c.nextPC;\n';
     } else {
       code += ctx.genAssert('c.delayPC === 0', 'delay pc should be zero');
       code += fn;
-      code += 'c.pc = ' + n64js.toString32(ctx.pc+4) + ';\n';
+      code += 'c.pc = ' + format.toString32(ctx.pc+4) + ';\n';
     }
 
     return code;
@@ -4373,7 +4231,7 @@
     // If bailOut is set, always return immediately
     n64js.assert(!ctx.bailOut, "Not expecting bailOut to be set for memory access");
     code += 'if (c.stuffToDo) { return ' + ctx.fragment.opsCompiled + '; }\n';
-    code += 'if (c.pc !== ' + n64js.toString32(ctx.post_pc) + ') { return ' + ctx.fragment.opsCompiled + '; }\n';
+    code += 'if (c.pc !== ' + format.toString32(ctx.post_pc) + ') { return ' + ctx.fragment.opsCompiled + '; }\n';
     return code;
   }
 
@@ -4401,7 +4259,7 @@
       code += 'return ' + ctx.fragment.opsCompiled + ';\n';
     } else {
       if (need_pc_test) {
-        code += 'if (c.pc !== ' + n64js.toString32(ctx.post_pc) + ') { return ' + ctx.fragment.opsCompiled + '; }\n';
+        code += 'if (c.pc !== ' + format.toString32(ctx.post_pc) + ') { return ' + ctx.fragment.opsCompiled + '; }\n';
       }
       else
       {
@@ -4434,19 +4292,19 @@
 
     // NB: do delay handler after executing op, so we can set pc directly
     if (ctx.needsDelayCheck) {
-      code += 'if (c.delayPC) { c.pc = c.delayPC; c.delayPC = 0; } else { c.pc = ' + n64js.toString32(ctx.pc+4) + '; }\n';
+      code += 'if (c.delayPC) { c.pc = c.delayPC; c.delayPC = 0; } else { c.pc = ' + format.toString32(ctx.pc+4) + '; }\n';
       // Might happen: delay op from previous instruction takes effect
-      code += 'if (c.pc !== ' + n64js.toString32(ctx.post_pc) + ') { return ' + ctx.fragment.opsCompiled + '; }\n';
+      code += 'if (c.pc !== ' + format.toString32(ctx.post_pc) + ') { return ' + ctx.fragment.opsCompiled + '; }\n';
     } else {
       code += ctx.genAssert('c.delayPC === 0', 'delay pc should be zero');
 
       // We can avoid off-branch checks in this case.
       if (ctx.post_pc !== ctx.pc+4) {
         n64js.assert("post_pc should always be pc+4 for trival ops?");
-        code += 'c.pc = ' + n64js.toString32(ctx.pc+4) + ';\n';
-        code += 'if (c.pc !== ' + n64js.toString32(ctx.post_pc) + ') { return ' + ctx.fragment.opsCompiled + '; }\n';
+        code += 'c.pc = ' + format.toString32(ctx.pc+4) + ';\n';
+        code += 'if (c.pc !== ' + format.toString32(ctx.post_pc) + ') { return ' + ctx.fragment.opsCompiled + '; }\n';
       } else {
-        //code += 'c.pc = ' + n64js.toString32(ctx.pc+4) + ';\n';
+        //code += 'c.pc = ' + format.toString32(ctx.pc+4) + ';\n';
         code += '/* delaying pc update */\n';
         ctx.delayedPCUpdate = ctx.pc+4;
       }

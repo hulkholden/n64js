@@ -1,5 +1,4 @@
-(function (n64js) {'use strict';
-    n64js.romdb = {
+export const romdb = {
   '134c3f03a7e79e31': {name:"007 - The World is Not Enough",                              save:'Eeprom4k'   },
   '9516943beb5e0af9': {name:"007 - The World is Not Enough",                              save:'Eeprom4k'   },
   '61f1ba1ff1541c2c': {name:"1080 Snowboarding",                                          save:'SRAM'       },
@@ -896,5 +895,4 @@
   'c479518fdc263580': {name:"Space Rotator"                                                                 },
   '70bb552625997d66': {name:"O.D.T.",                                                     save:'Controller' },
   'a61564e8535b3998': {name:"O.D.T.",                                                     save:'Controller' }
-  };
-}(window.n64js = window.n64js || {}));
+};
