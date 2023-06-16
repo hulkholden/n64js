@@ -4,13 +4,9 @@
 import { Device } from './Device.js';
 import { MemoryRegion } from './MemoryRegion.js';
 import * as _debugger from './debugger.js';
-import * as disassemble from './disassemble.js';
 import * as format from './format.js';
-import * as hle from './hle.js';
 import * as logger from './logger.js';
-import * as r4300 from './r4300.js';
 import { romdb } from './romdb.js';
-import * as sync from './sync.js';
 
 (function (n64js) {'use strict';
   const toString32 = format.toString32;
