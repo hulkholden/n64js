@@ -1,297 +1,413 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-VNCSM6YVD4"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-    
-      gtag('config', 'G-VNCSM6YVD4');
-    </script>
 
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+<head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-VNCSM6YVD4"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date());
 
-    <link rel="stylesheet" href="css/bootstrap.css">
-    <link rel="stylesheet" href="n64js.css">
+    gtag('config', 'G-VNCSM6YVD4');
+  </script>
 
-    <title>n64js - An N64 Emulator in Javascript</title>
-  </head>
-  <body>
-    <div class="container-fluid">
-      <div class="row">
-        <div class="col-xs-12">
-          <h1 id="title">n64js</a></h1>
-          <p>A work-in-progress n64 emulator. <a onclick="$('#info').toggle()">Info</a></p>
-        </div>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="css/bootstrap.css">
+  <link rel="stylesheet" href="n64js.css">
+
+  <title>n64js - An N64 Emulator in Javascript</title>
+</head>
+
+<body>
+  <div class="container-fluid">
+    <div class="row">
+      <div class="col-xs-12">
+        <h1 id="title">n64js</a></h1>
+        <p>A work-in-progress n64 emulator. <a onclick="$('#info').toggle()">Info</a></p>
       </div>
+    </div>
 
-      <div class="row toolbar">
-        <div class="col-xs-12">
-          <div class="btn-toolbar">
-            <div class="btn-group">
-              <button type="button" class="btn btn-default" onclick="n64js.triggerLoad()"><i class="glyphicon glyphicon-file"></i> Load</button>
-            </div>
-            <div class="btn-group">
-              <button type="button" class="btn btn-default" onclick="n64js.toggleRun()" id="runbutton"><i class="glyphicon glyphicon-play"></i> Run</button>
-            </div>
-            <div class="btn-group">
-              <button type="button" class="btn btn-default" onclick="$('.debug').toggle()"><i class="glyphicon glyphicon-fire"></i> Debug</button>
-              <button type="button" class="btn btn-default" onclick="n64js.togglePerformance()"><i class="glyphicon glyphicon-signal"></i> Perf</button>
-            </div>
-            <input style="visibility:hidden; display:inline-block;" id="fileInput" name="fileInput" type="file" onchange="n64js.loadFile()" />
+    <div class="row toolbar">
+      <div class="col-xs-12">
+        <div class="btn-toolbar">
+          <div class="btn-group">
+            <button type="button" class="btn btn-default" onclick="n64js.triggerLoad()"><i
+                class="glyphicon glyphicon-file"></i> Load</button>
           </div>
-        </div>
-      </div>
-
-      <div class="row">
-        <div class="col-xs-12" id="alerts"></div>
-      </div>
-
-      <div class="row">
-        <div style="white-space:nowrap;" class="col-xs-8">
-          <canvas id="display" width="640" height="480" style="display:inline-block; background-color:#000;"></canvas>
-          <div id="adjacent-debug" class="col-xs-10 debug" style="display:inline-block; float:none;"></div>
-        </div>
-        <div class="col-xs-2" id="performance"></div>
-      </div>
-      <div class="row">
-        <div class="col-xs-8" id="info" style="display:none">
-
-          <h2>Status</h2>
-          <p>Some early N64 games are running now, and the framerate is improving steadily. Here's a rough feature matirx showing what's been implemented:</p>
-
-          <table class="table table-condensed">
-            <tr><td>CPU</td><td class="impl80">Mostly implemented</td></tr>
-            <tr><td>TLB</td><td class="impl100">Implemented</td></tr>
-            <tr><td>Controller</td><td class="impl80">Mostly implemented</td></tr>
-            <tr><td>Graphics - GBI0</td><td class="impl80">Mostly implemented</td></tr>
-            <tr><td>Graphics - GBI1</td><td class="impl40">Partially implemented</td></tr>
-            <tr><td>Graphics - GBI2</td><td class="impl40">Partially implemented</td></tr>
-            <tr><td>Audio</td><td class="impl0">Not implemented</td></tr>
-            <tr><td>Save - Eeprom4k</td><td class="impl100">Implemented</td></tr>
-            <tr><td>Save - Eeprom4k</td><td class="impl100">Implemented</td></tr>
-            <tr><td>Save - SRAM</td><td class="impl0">Not implemented</td></tr>
-            <tr><td>Save - FlashRAM</td><td class="impl0">Not implemented</td></tr>
-            <tr><td>Save - Mempack</td><td class="impl0">Not implemented</td></tr>
-          </table>
-
-          <h2>Supported Browsers</h2>
-
-          <p>I did some quick testing on OSX 10.8:</p>
-
-          <table class="table table-condensed">
-            <tr><td>Chrome</td><td>21.0.1180.79 or later should be ok - I've been doing most of my development in Chrome.</td></tr>
-            <tr><td>Firefox</td><td>15.0.1 or later seems to work now, but is slower than Chrome.</td></tr>
-            <tr><td>Safari</td><td>6.0 doesn't seem to work. I haven't tried with the latest nightlies.</td></tr>
-            <tr><td>Opera</td><td>Untested.</td></tr>
-          </table>
-
-          <p>WebGL is required, which places certain restrictions on which GPUs the emulator will work with.</p>
-
-          <p><a href="https://twitter.com/#!/hulkholden">Tweet me</a> if you have any additional info.</p>
-
-          <h2>Known Issues</h2>
-
-          <p>There's lots of issues right now with slow performance, graphics glitches, unsupported opcodes, emulation bugs. It's probably easier just to list stuff that actually works right now :)
-          </p>
-
-          <h2>Controls</h2>
-          <table class="table table-condensed">
-            <tr><th>N64</th><th>Keyboard</th></tr>
-            <tr><td>Start</td><td>A</td></tr>
-            <tr><td>A</td><td>S</td></tr>
-            <tr><td>B</td><td>X</td></tr>
-            <tr><td>Z</td><td>Z</td></tr>
-            <tr><td>L</td><td>C</td></tr>
-            <tr><td>R</td><td>V</td></tr>
-            <tr><td>DPad Up</td><td>T</td></tr>
-            <tr><td>DPad Down</td><td>G</td></tr>
-            <tr><td>DPad Left</td><td>F</td></tr>
-            <tr><td>DPad Right</td><td>H</td></tr>
-            <tr><td>C Up</td><td>I</td></tr>
-            <tr><td>C Down</td><td>K</td></tr>
-            <tr><td>C Left</td><td>J</td></tr>
-            <tr><td>C Right</td><td>L</td></tr>
-          </table>
-
-          <h2>Origins</h2>
-          <p>n64js is based on Daedalus, an emulator I started writing while I was at university under a pseudonym of <a href="http://strmnnrmn.blogspot.co.uk/">StrmnNrmn</a>.
-          I've worked on Daedalus intermittantly ever since, but life and work have limited the time I've been able to spend on the project in the past few years. The project
-          lives on due to the excellent work of everyone at <a href="http://forums.daedalusx64.com/">DaedalusX</a>. In particular, Kreationz, Wally, Corn, Salvy all deserve
-          great credit for keeping the project going. Also, hello to Schibo, who's been working on porting 1964 to JavaScript too: <a href="http://1964js.com/">1964js</a>.</p>
-
-          <h2>Thanks</h2>
-          <p>Jan-Christoph Borchardt - better keyboard mapping for QWERTZ keyboards.</p>
-        </div>
-      </div>
-
-      <div class="debug" style="display:none">
-        <div class="row">
-          <div class="col-xs-4">
-            <div id="cpu-controls" class="cpu-controls">
-              <div class="control-group">
-                <button type="button" class="btn btn-default" onclick="n64js.step()"><i class="glyphicon glyphicon-step-forward"></i> Step</button>
-              </div>
-              <div class="control-group">
-                <label class="control-label" for="speed">Speed</label>
-                <div class="controls">
-                  <input id="speed" type="range" min="0" max="8" value="0" />
-                </div>
-              </div>
-            </div>
+          <div class="btn-group">
+            <button type="button" class="btn btn-default" onclick="n64js.toggleRun()" id="runbutton"><i
+                class="glyphicon glyphicon-play"></i> Run</button>
           </div>
-        </div>
-
-        <div class="row">
-          <div class="col-xs-12">
-            <div class="tabbable">
-              <ul class="nav nav-tabs">
-                <li class="active"><a href="#output-content" id="output-tab" data-toggle="tab">Output</a></li>
-                <li><a href="#debug-content" id="debug-tab" data-toggle="tab">Debug</a></li>
-                <li><a href="#memory-content" id="memory-tab" data-toggle="tab">Memory</a></li>
-                <li><a href="#dynarec-content" id="dynarec-tab" data-toggle="tab">Dynarec</a></li>
-                <li><a href="#dlist-content" id="dlist-tab" data-toggle="tab">DisplayList</a></li>
-                <li><a href="#texture-content" id="texture-tab" data-toggle="tab">Textures</a></li>
-              </ul>
-              <div class="tab-content">
-                <div class="tab-pane active" id="output-content"></div>
-                <div class="tab-pane" id="debug-content">
-
-                  <div id="cpu">
-                    <div class="cpu-display">
-                      <div class="cpu-details">
-                        <div id="status"></div>
-
-                        <div class="tabbable tabs-left">
-                          <ul class="nav nav-tabs">
-                            <li class="active"><a href="#cpu0-content" id="cpu0-tab" data-toggle="tab">cpu0</a></li>
-                            <li><a href="#cpu1-content" id="cpu1-tab" data-toggle="tab">cpu1</a></li>
-                          </ul>
-                          <div class="tab-content">
-                            <div id="cpu0-content" class="tab-pane active"></div>
-                            <div id="cpu1-content" class="tab-pane"></div>
-                          </div>
-                        </div>
-                      </div>
-                      <div class="cpu-details">
-                        <div class="control-group">
-                          <label class="control-label" for="address">Address</label>
-                          <div class="controls">
-                            <input class="input-small" id="address" type="text" placeholder="address" />
-                            <select id="labels">
-                            </select>
-                          </div>
-                        </div>
-                        <div id="disasm" class="fixed">
-                          <div class="dis">
-                            <div class="dis-gutter"></div>
-                            <div class="dis-view"></div>
-                          </div>
-                          <div class="dis-recent-memory"></div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                </div>
-                <div class="tab-pane" id="memory-content">
-                  <input type="text" placeholder="address" />
-                  <pre />
-                </div>
-                <div class="tab-pane" id="dlist-content">
-                  <div id="controls">
-                    <div class="btn-toolbar">
-                      <div class="btn-group">
-                        <button type="button" class="btn btn-default" id="rwd"><i class="glyphicon glyphicon-step-backward"></i></button>
-                        <button type="button" class="btn btn-default" id="stop"><i class="glyphicon glyphicon-pause"></i></button>
-                        <button type="button" class="btn btn-default" id="fwd"><i class="glyphicon glyphicon-step-forward"></i></button>
-                      </div>
-                    </div>
-                    <div class="scrub">
-                      <div class="scrub-text"></div>
-                      <div><input type="range" min="0" max="0" value="0" /></div>
-                    </div>
-                    <br>
-                    <div class="hle-state">
-
-                      <div class="tabbable">
-                        <ul class="nav nav-tabs">
-                          <li><a href="#dl-geometrymode-content" id="dl-geometrymode-tab" data-toggle="tab">Geometry Mode</a></li>
-                          <li><a href="#dl-vertices-content" id="dl-vertices-tab" data-toggle="tab">Vertices</a></li>
-                          <li class="active"><a href="#dl-textures-content" id="dl-textures-tab" data-toggle="tab">Textures</a></li>
-                          <li><a href="#dl-combiner-content" id="dl-combiner-tab" data-toggle="tab">Combiner</a></li>
-                          <li><a href="#dl-rdp-content" id="dl-rdp-tab" data-toggle="tab">RDP</a></li>
-                        </ul>
-                        <div class="tab-content">
-                          <div class="tab-pane" id="dl-geometrymode-content"></div>
-                          <div class="tab-pane" id="dl-vertices-content"></div>
-                          <div class="tab-pane active" id="dl-textures-content"></div>
-                          <div class="tab-pane" id="dl-rdp-content"></div>
-                          <div class="tab-pane" id="dl-combiner-content"></div>
-                        </div>
-                      </div>
-                    </div>
-
-                  </div>
-                </div>
-                <div class="tab-pane" id="dynarec-content"></div>
-                <div class="tab-pane" id="texture-content"></div>
-              </div>
-            </div>
-
+          <div class="btn-group">
+            <button type="button" class="btn btn-default" onclick="$('.debug').toggle()"><i
+                class="glyphicon glyphicon-fire"></i> Debug</button>
+            <button type="button" class="btn btn-default" onclick="n64js.togglePerformance()"><i
+                class="glyphicon glyphicon-signal"></i> Perf</button>
           </div>
-        </div>
-
-        <div class="row">
-          &nbsp;
-        </div>
-
-        <div class="row">
-          <div class="col-xs-12" id="output">
-            <button type="button" class="btn btn-default" id="clear"><i class="glyphicon glyphicon-trash"></i> Clear</button>
-            <div class="output fixed"></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="row">
-        <div class="col-xs-12">
-          <p>By <a href="https://twitter.com/#!/hulkholden">@HulkHolden</a>. <a href="http://n64js.blogspot.co.uk/">Blog</a>. <a href="https://github.com/hulkholden/n64js">Code</a>. <a href="http://www.youtube.com/user/n64js">Videos</a>.</p>
+          <input style="visibility:hidden; display:inline-block;" id="fileInput" name="fileInput" type="file"
+            onchange="n64js.loadFile()" />
         </div>
       </div>
     </div>
-    <script src="js/jquery.min.js"></script>
-    <script src="js/bootstrap.min.js"></script>
-    <script src="js/stats.js"></script>
-    <script src="js/webgl-debug.js"></script>
-    <script type="module" src="src/graphics/convert.js"></script>
-    <script type="module" src="src/graphics/Matrix.js"></script>
-    <script type="module" src="src/graphics/shaders.js"></script>
-    <script type="module" src="src/graphics/textures.js"></script>
-    <script type="module" src="src/graphics/Tile.js"></script>
-    <script type="module" src="src/graphics/TriangleBuffer.js"></script>
-    <script type="module" src="src/graphics/Vector3.js"></script>
-    <script type="module" src="src/graphics/Vector4.js"></script>
-    <script type="module" src="src/CPU1.js"></script>
-    <script type="module" src="src/debugger.js"></script>
-    <script type="module" src="src/Device.js"></script>
-    <script type="module" src="src/disassemble.js"></script>
-    <script type="module" src="src/format.js"></script>
-    <script type="module" src="src/fragments.js"></script>
-    <script type="module" src="src/gbi.js"></script>
-    <script type="module" src="src/hle.js"></script>
-    <script type="module" src="src/logger.js"></script>
-    <script type="module" src="src/MemoryRegion.js"></script>
-    <script type="module" src="src/n64.js"></script>
-    <script type="module" src="src/r4300.js"></script>
-    <script type="module" src="src/romdb.js"></script>
-    <script type="module" src="src/sync.js"></script>
 
-    <script id="fill-shader-vs" type="x-shader/x-vertex">
+    <div class="row">
+      <div class="col-xs-12" id="alerts"></div>
+    </div>
+
+    <div class="row">
+      <div style="white-space:nowrap;" class="col-xs-8">
+        <canvas id="display" width="640" height="480" style="display:inline-block; background-color:#000;"></canvas>
+        <div id="adjacent-debug" class="col-xs-10 debug" style="display:inline-block; float:none;"></div>
+      </div>
+      <div class="col-xs-2" id="performance"></div>
+    </div>
+    <div class="row">
+      <div class="col-xs-8" id="info" style="display:none">
+
+        <h2>Status</h2>
+        <p>Some early N64 games are running now, and the framerate is improving steadily. Here's a rough feature matirx
+          showing what's been implemented:</p>
+
+        <table class="table table-condensed">
+          <tr>
+            <td>CPU</td>
+            <td class="impl80">Mostly implemented</td>
+          </tr>
+          <tr>
+            <td>TLB</td>
+            <td class="impl100">Implemented</td>
+          </tr>
+          <tr>
+            <td>Controller</td>
+            <td class="impl80">Mostly implemented</td>
+          </tr>
+          <tr>
+            <td>Graphics - GBI0</td>
+            <td class="impl80">Mostly implemented</td>
+          </tr>
+          <tr>
+            <td>Graphics - GBI1</td>
+            <td class="impl40">Partially implemented</td>
+          </tr>
+          <tr>
+            <td>Graphics - GBI2</td>
+            <td class="impl40">Partially implemented</td>
+          </tr>
+          <tr>
+            <td>Audio</td>
+            <td class="impl0">Not implemented</td>
+          </tr>
+          <tr>
+            <td>Save - Eeprom4k</td>
+            <td class="impl100">Implemented</td>
+          </tr>
+          <tr>
+            <td>Save - Eeprom4k</td>
+            <td class="impl100">Implemented</td>
+          </tr>
+          <tr>
+            <td>Save - SRAM</td>
+            <td class="impl0">Not implemented</td>
+          </tr>
+          <tr>
+            <td>Save - FlashRAM</td>
+            <td class="impl0">Not implemented</td>
+          </tr>
+          <tr>
+            <td>Save - Mempack</td>
+            <td class="impl0">Not implemented</td>
+          </tr>
+        </table>
+
+        <h2>Supported Browsers</h2>
+
+        <p>I did some quick testing on OSX 10.8:</p>
+
+        <table class="table table-condensed">
+          <tr>
+            <td>Chrome</td>
+            <td>21.0.1180.79 or later should be ok - I've been doing most of my development in Chrome.</td>
+          </tr>
+          <tr>
+            <td>Firefox</td>
+            <td>15.0.1 or later seems to work now, but is slower than Chrome.</td>
+          </tr>
+          <tr>
+            <td>Safari</td>
+            <td>6.0 doesn't seem to work. I haven't tried with the latest nightlies.</td>
+          </tr>
+          <tr>
+            <td>Opera</td>
+            <td>Untested.</td>
+          </tr>
+        </table>
+
+        <p>WebGL is required, which places certain restrictions on which GPUs the emulator will work with.</p>
+
+        <p><a href="https://twitter.com/#!/hulkholden">Tweet me</a> if you have any additional info.</p>
+
+        <h2>Known Issues</h2>
+
+        <p>There's lots of issues right now with slow performance, graphics glitches, unsupported opcodes, emulation
+          bugs. It's probably easier just to list stuff that actually works right now :)
+        </p>
+
+        <h2>Controls</h2>
+        <table class="table table-condensed">
+          <tr>
+            <th>N64</th>
+            <th>Keyboard</th>
+          </tr>
+          <tr>
+            <td>Start</td>
+            <td>A</td>
+          </tr>
+          <tr>
+            <td>A</td>
+            <td>S</td>
+          </tr>
+          <tr>
+            <td>B</td>
+            <td>X</td>
+          </tr>
+          <tr>
+            <td>Z</td>
+            <td>Z</td>
+          </tr>
+          <tr>
+            <td>L</td>
+            <td>C</td>
+          </tr>
+          <tr>
+            <td>R</td>
+            <td>V</td>
+          </tr>
+          <tr>
+            <td>DPad Up</td>
+            <td>T</td>
+          </tr>
+          <tr>
+            <td>DPad Down</td>
+            <td>G</td>
+          </tr>
+          <tr>
+            <td>DPad Left</td>
+            <td>F</td>
+          </tr>
+          <tr>
+            <td>DPad Right</td>
+            <td>H</td>
+          </tr>
+          <tr>
+            <td>C Up</td>
+            <td>I</td>
+          </tr>
+          <tr>
+            <td>C Down</td>
+            <td>K</td>
+          </tr>
+          <tr>
+            <td>C Left</td>
+            <td>J</td>
+          </tr>
+          <tr>
+            <td>C Right</td>
+            <td>L</td>
+          </tr>
+        </table>
+
+        <h2>Origins</h2>
+        <p>n64js is based on Daedalus, an emulator I started writing while I was at university under a pseudonym of <a
+            href="http://strmnnrmn.blogspot.co.uk/">StrmnNrmn</a>.
+          I've worked on Daedalus intermittantly ever since, but life and work have limited the time I've been able to
+          spend on the project in the past few years. The project
+          lives on due to the excellent work of everyone at <a href="http://forums.daedalusx64.com/">DaedalusX</a>. In
+          particular, Kreationz, Wally, Corn, Salvy all deserve
+          great credit for keeping the project going. Also, hello to Schibo, who's been working on porting 1964 to
+          JavaScript too: <a href="http://1964js.com/">1964js</a>.</p>
+
+        <h2>Thanks</h2>
+        <p>Jan-Christoph Borchardt - better keyboard mapping for QWERTZ keyboards.</p>
+      </div>
+    </div>
+
+    <div class="debug" style="display:none">
+      <div class="row">
+        <div class="col-xs-4">
+          <div id="cpu-controls" class="cpu-controls">
+            <div class="control-group">
+              <button type="button" class="btn btn-default" onclick="n64js.step()">
+                <i class="glyphicon glyphicon-step-forward"></i> Step</button>
+            </div>
+            <div class="control-group">
+              <label class="control-label" for="speed">Speed</label>
+              <div class="controls">
+                <input id="speed" type="range" min="0" max="8" value="0" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-xs-12">
+          <div class="tabbable">
+            <ul class="nav nav-tabs">
+              <li class="active"><a href="#output-content" id="output-tab" data-toggle="tab">Output</a></li>
+              <li><a href="#debug-content" id="debug-tab" data-toggle="tab">Debug</a></li>
+              <li><a href="#memory-content" id="memory-tab" data-toggle="tab">Memory</a></li>
+              <li><a href="#dynarec-content" id="dynarec-tab" data-toggle="tab">Dynarec</a></li>
+              <li><a href="#dlist-content" id="dlist-tab" data-toggle="tab">DisplayList</a></li>
+              <li><a href="#texture-content" id="texture-tab" data-toggle="tab">Textures</a></li>
+            </ul>
+            <div class="tab-content">
+              <div class="tab-pane active" id="output-content"></div>
+              <div class="tab-pane" id="debug-content">
+
+                <div id="cpu">
+                  <div class="cpu-display">
+                    <div class="cpu-details">
+                      <div id="status"></div>
+
+                      <div class="tabbable tabs-left">
+                        <ul class="nav nav-tabs">
+                          <li class="active"><a href="#cpu0-content" id="cpu0-tab" data-toggle="tab">cpu0</a></li>
+                          <li><a href="#cpu1-content" id="cpu1-tab" data-toggle="tab">cpu1</a></li>
+                        </ul>
+                        <div class="tab-content">
+                          <div id="cpu0-content" class="tab-pane active"></div>
+                          <div id="cpu1-content" class="tab-pane"></div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="cpu-details">
+                      <div class="control-group">
+                        <label class="control-label" for="address">Address</label>
+                        <div class="controls">
+                          <input class="input-small" id="address" type="text" placeholder="address" />
+                          <select id="labels">
+                          </select>
+                        </div>
+                      </div>
+                      <div id="disasm" class="fixed">
+                        <div class="dis">
+                          <div class="dis-gutter"></div>
+                          <div class="dis-view"></div>
+                        </div>
+                        <div class="dis-recent-memory"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+              <div class="tab-pane" id="memory-content">
+                <input type="text" placeholder="address" />
+                <pre />
+              </div>
+              <div class="tab-pane" id="dlist-content">
+                <div id="controls">
+                  <div class="btn-toolbar">
+                    <div class="btn-group">
+                      <button type="button" class="btn btn-default" id="rwd">
+                        <i class="glyphicon glyphicon-step-backward"></i></button>
+                      <button type="button" class="btn btn-default" id="stop">
+                        <i class="glyphicon glyphicon-pause"></i></button>
+                      <button type="button" class="btn btn-default" id="fwd">
+                        <i class="glyphicon glyphicon-step-forward"></i></button>
+                    </div>
+                  </div>
+                  <div class="scrub">
+                    <div class="scrub-text"></div>
+                    <div><input type="range" min="0" max="0" value="0" /></div>
+                  </div>
+                  <br>
+                  <div class="hle-state">
+
+                    <div class="tabbable">
+                      <ul class="nav nav-tabs">
+                        <li><a href="#dl-geometrymode-content" id="dl-geometrymode-tab" data-toggle="tab">
+                            Geometry Mode</a></li>
+                        <li><a href="#dl-vertices-content" id="dl-vertices-tab" data-toggle="tab">Vertices</a></li>
+                        <li class="active"><a href="#dl-textures-content" id="dl-textures-tab"
+                            data-toggle="tab">Textures</a></li>
+                        <li><a href="#dl-combiner-content" id="dl-combiner-tab" data-toggle="tab">Combiner</a></li>
+                        <li><a href="#dl-rdp-content" id="dl-rdp-tab" data-toggle="tab">RDP</a></li>
+                      </ul>
+                      <div class="tab-content">
+                        <div class="tab-pane" id="dl-geometrymode-content"></div>
+                        <div class="tab-pane" id="dl-vertices-content"></div>
+                        <div class="tab-pane active" id="dl-textures-content"></div>
+                        <div class="tab-pane" id="dl-rdp-content"></div>
+                        <div class="tab-pane" id="dl-combiner-content"></div>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+              <div class="tab-pane" id="dynarec-content"></div>
+              <div class="tab-pane" id="texture-content"></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="row">
+        &nbsp;
+      </div>
+
+      <div class="row">
+        <div class="col-xs-12" id="output">
+          <button type="button" class="btn btn-default" id="clear">
+            <i class="glyphicon glyphicon-trash"></i>
+            Clear</button>
+          <div class="output fixed"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-xs-12">
+        <p>By <a href="https://twitter.com/#!/hulkholden">@HulkHolden</a>. <a
+            href="http://n64js.blogspot.co.uk/">Blog</a>. <a href="https://github.com/hulkholden/n64js">Code</a>. <a
+            href="http://www.youtube.com/user/n64js">Videos</a>.</p>
+      </div>
+    </div>
+  </div>
+  <script src="js/jquery.min.js"></script>
+  <script src="js/bootstrap.min.js"></script>
+  <script src="js/stats.js"></script>
+  <script src="js/webgl-debug.js"></script>
+  <script type="module" src="src/graphics/convert.js"></script>
+  <script type="module" src="src/graphics/Matrix.js"></script>
+  <script type="module" src="src/graphics/shaders.js"></script>
+  <script type="module" src="src/graphics/textures.js"></script>
+  <script type="module" src="src/graphics/Tile.js"></script>
+  <script type="module" src="src/graphics/TriangleBuffer.js"></script>
+  <script type="module" src="src/graphics/Vector3.js"></script>
+  <script type="module" src="src/graphics/Vector4.js"></script>
+  <script type="module" src="src/CPU1.js"></script>
+  <script type="module" src="src/debugger.js"></script>
+  <script type="module" src="src/Device.js"></script>
+  <script type="module" src="src/disassemble.js"></script>
+  <script type="module" src="src/format.js"></script>
+  <script type="module" src="src/fragments.js"></script>
+  <script type="module" src="src/gbi.js"></script>
+  <script type="module" src="src/hle.js"></script>
+  <script type="module" src="src/logger.js"></script>
+  <script type="module" src="src/MemoryRegion.js"></script>
+  <script type="module" src="src/n64.js"></script>
+  <script type="module" src="src/r4300.js"></script>
+  <script type="module" src="src/romdb.js"></script>
+  <script type="module" src="src/sync.js"></script>
+
+  <script id="fill-shader-vs" type="x-shader/x-vertex">
       attribute vec3 aVertexPosition;
 
       uniform mat4 uPMatrix;
@@ -300,7 +416,7 @@
         gl_Position = uPMatrix * vec4(aVertexPosition, 1.0);
       }
     </script>
-    <script id="fill-shader-fs" type="x-shader/x-fragment">
+  <script id="fill-shader-fs" type="x-shader/x-fragment">
       precision mediump float;
       uniform vec4 uFillColor;
 
@@ -311,7 +427,7 @@
       }
     </script>
 
-    <script id="blit-shader-vs" type="x-shader/x-vertex">
+  <script id="blit-shader-vs" type="x-shader/x-vertex">
       attribute vec4 aVertexPosition;
       attribute vec2 aTextureCoord;
 
@@ -322,7 +438,7 @@
         vTextureCoord = aTextureCoord;
       }
     </script>
-    <script id="blit-shader-fs" type="x-shader/x-fragment">
+  <script id="blit-shader-fs" type="x-shader/x-fragment">
       precision mediump float;
       varying mediump vec2 vTextureCoord;
 
@@ -333,7 +449,7 @@
       }
     </script>
 
-    <script id="n64-shader-vs" type="x-shader/x-vertex">
+  <script id="n64-shader-vs" type="x-shader/x-vertex">
       attribute vec4 aVertexPosition;
       attribute vec4 aVertexColor;
       attribute vec2 aTextureCoord;
@@ -350,7 +466,7 @@
         vTextureCoord = (aTextureCoord - uTexOffset) * uTexScale;
       }
     </script>
-    <script id="n64-shader-fs" type="x-shader/x-fragment">
+  <script id="n64-shader-fs" type="x-shader/x-fragment">
       precision mediump float;
       varying       vec4 vColor;
       varying mediump vec2 vTextureCoord;
@@ -377,11 +493,12 @@
       }
     </script>
 
-    <script defer>
-      document.addEventListener('DOMContentLoaded', function() {
-        n64js.init();
-      });
-    </script>
+  <script defer>
+    document.addEventListener('DOMContentLoaded', function () {
+      n64js.init();
+    });
+  </script>
 
-  </body>
+</body>
+
 </html>
