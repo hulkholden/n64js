@@ -89,53 +89,6 @@ import { romdb } from './romdb.js';
   const SP_STATUS_YIELDED     = SP_STATUS_SIG1;
   const SP_STATUS_TASKDONE    = SP_STATUS_SIG2;
 
-  // DP Command
-  const DPC_START_REG         = 0x00;
-  const DPC_END_REG           = 0x04;
-  const DPC_CURRENT_REG       = 0x08;
-  const DPC_STATUS_REG        = 0x0C;
-  const DPC_CLOCK_REG         = 0x10;
-  const DPC_BUFBUSY_REG       = 0x14;
-  const DPC_PIPEBUSY_REG      = 0x18;
-  const DPC_TMEM_REG          = 0x1C;
-
-  const DPC_CLR_XBUS_DMEM_DMA = 0x0001;
-  const DPC_SET_XBUS_DMEM_DMA = 0x0002;
-  const DPC_CLR_FREEZE        = 0x0004;
-  const DPC_SET_FREEZE        = 0x0008;
-  const DPC_CLR_FLUSH         = 0x0010;
-  const DPC_SET_FLUSH         = 0x0020;
-  const DPC_CLR_TMEM_CTR      = 0x0040;
-  const DPC_CLR_PIPE_CTR      = 0x0080;
-  const DPC_CLR_CMD_CTR       = 0x0100;
-  const DPC_CLR_CLOCK_CTR     = 0x0200;
-
-  const DPC_STATUS_XBUS_DMEM_DMA = 0x001;
-  const DPC_STATUS_FREEZE        = 0x002;
-  const DPC_STATUS_FLUSH         = 0x004;
-  const DPC_STATUS_START_GCLK    = 0x008;
-  const DPC_STATUS_TMEM_BUSY     = 0x010;
-  const DPC_STATUS_PIPE_BUSY     = 0x020;
-  const DPC_STATUS_CMD_BUSY      = 0x040;
-  const DPC_STATUS_CBUF_READY    = 0x080;
-  const DPC_STATUS_DMA_BUSY      = 0x100;
-  const DPC_STATUS_END_VALID     = 0x200;
-  const DPC_STATUS_START_VALID   = 0x400;
-
-
-  // DP Span
-  const DPS_TBIST_REG        = 0x00;
-  const DPS_TEST_MODE_REG    = 0x04;
-  const DPS_BUFTEST_ADDR_REG = 0x08;
-  const DPS_BUFTEST_DATA_REG = 0x0C;
-
-  const DPS_TBIST_CHECK      = 0x01;
-  const DPS_TBIST_GO         = 0x02;
-  const DPS_TBIST_CLEAR      = 0x04;
-
-  const DPS_TBIST_DONE      = 0x004;
-  const DPS_TBIST_FAILED    = 0x7F8;
-
   // MIPS Interface
   const MI_MODE_REG         = 0x00;
   const MI_VERSION_REG      = 0x04;
@@ -944,41 +897,6 @@ import { romdb } from './romdb.js';
         this.mem.write32(ea, value);
     }
   };
-
-  function dpcUpdateStatus(value)
-  {
-    var dpc_status  =  dpc_mem.readU32(DPC_STATUS_REG);
-
-    if (value & DPC_CLR_XBUS_DMEM_DMA)      { dpc_status &= ~DPC_STATUS_XBUS_DMEM_DMA; }
-    if (value & DPC_SET_XBUS_DMEM_DMA)      { dpc_status |=  DPC_STATUS_XBUS_DMEM_DMA; }
-    if (value & DPC_CLR_FREEZE)             { dpc_status &= ~DPC_STATUS_FREEZE; }
-    //if (value & DPC_SET_FREEZE)           { dpc_status |=  DPC_STATUS_FREEZE; }  // Thanks Lemmy! <= what's wrong with this? ~ Salvy
-    if (value & DPC_CLR_FLUSH)              { dpc_status &= ~DPC_STATUS_FLUSH; }
-    if (value & DPC_SET_FLUSH)              { dpc_status |=  DPC_STATUS_FLUSH; }
-
-    // These should be ignored ! - Salvy
-    /*
-    if (value & DPC_CLR_TMEM_CTR)          { dpc_mem.write32(DPC_TMEM_REG, 0); }
-    if (value & DPC_CLR_PIPE_CTR)          { dpc_mem.write32(DPC_PIPEBUSY_REG, 0); }
-    if (value & DPC_CLR_CMD_CTR)           { dpc_mem.write32(DPC_BUFBUSY_REG, 0); }
-    if (value & DPC_CLR_CLOCK_CTR)         { dpc_mem.write32(DPC_CLOCK_REG, 0); }
-    */
-
-    // if (value & DPC_CLR_XBUS_DMEM_DMA)  { logger.log('DPC_CLR_XBUS_DMEM_DMA'); }
-    // if (value & DPC_SET_XBUS_DMEM_DMA)  { logger.log('DPC_SET_XBUS_DMEM_DMA'); }
-    // if (value & DPC_CLR_FREEZE)         { logger.log('DPC_CLR_FREEZE'); }
-    // if (value & DPC_SET_FREEZE)         { logger.log('DPC_SET_FREEZE'); }
-    // if (value & DPC_CLR_FLUSH)          { logger.log('DPC_CLR_FLUSH'); }
-    // if (value & DPC_SET_FLUSH)          { logger.log('DPC_SET_FLUSH'); }
-    // if (value & DPC_CLR_TMEM_CTR)       { logger.log('DPC_CLR_TMEM_CTR'); }
-    // if (value & DPC_CLR_PIPE_CTR)       { logger.log('DPC_CLR_PIPE_CTR'); }
-    // if (value & DPC_CLR_CMD_CTR)        { logger.log('DPC_CLR_CMD_CTR'); }
-    // if (value & DPC_CLR_CLOCK_CTR)      { logger.log('DPC_CLR_CLOCK_CTR'); }
-
-    //logger.log( 'Modified DPC_STATUS_REG - now ' + toString32(dpc_status) );
-
-    dpc_mem.write32(DPC_STATUS_REG, dpc_status);
-  }
 
   function miWriteModeReg(value) {
     var mi_mode_reg = mi_reg.readU32(MI_MODE_REG);

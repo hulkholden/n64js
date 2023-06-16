@@ -1,8 +1,21 @@
 import { Device } from './device.js';
 
+// DP Span
+const DPS_TBIST_REG        = 0x00;
+const DPS_TEST_MODE_REG    = 0x04;
+const DPS_BUFTEST_ADDR_REG = 0x08;
+const DPS_BUFTEST_DATA_REG = 0x0C;
+
+const DPS_TBIST_CHECK      = 0x01;
+const DPS_TBIST_GO         = 0x02;
+const DPS_TBIST_CLEAR      = 0x04;
+
+const DPS_TBIST_DONE      = 0x004;
+const DPS_TBIST_FAILED    = 0x7F8;
+
 export class UncachedDPSDevice extends Device {
-  constructor(name, mem, rangeStart, rangeEnd) {
-    super(name, mem, rangeStart, rangeEnd);
+  constructor(name, dpsMem, rangeStart, rangeEnd) {
+    super(name, dpsMem, rangeStart, rangeEnd);
   }
 
   write32(address, value) {
