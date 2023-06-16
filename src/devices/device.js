@@ -1,5 +1,5 @@
-import * as format from './format.js';
-import * as logger from './logger.js';
+import * as format from '../format.js';
+import * as logger from '../logger.js';
 
 /**
  * A device represents a region of memory mapped at a certain address.
