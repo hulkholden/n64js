@@ -1,10 +1,12 @@
 import { Device } from './device.js';
 
-export class UncachedDPCHandlerDevice extends Device {
-  constructor(name, mem, rangeStart, rangeEnd) { super(name, mem, rangeStart, rangeEnd); }
+export class UncachedDPCDevice extends Device {
+  constructor(name, mem, rangeStart, rangeEnd) {
+    super(name, mem, rangeStart, rangeEnd);
+  }
 
   write32(address, value) {
-    var ea = this.calcEA(address);
+    const ea = this.calcEA(address);
     if (ea + 4 > this.u8.length) {
       throw 'Write is out of range';
     }
@@ -43,7 +45,7 @@ export class UncachedDPCHandlerDevice extends Device {
 
   readS32(address) {
     this.logRead(address);
-    var ea = this.calcEA(address);
+    const ea = this.calcEA(address);
 
     if (ea + 4 > this.u8.length) {
       throw 'Read is out of range';

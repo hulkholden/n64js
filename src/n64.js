@@ -2,7 +2,8 @@
 /*global Stats:false */
 
 import { Device } from './devices/device.js';
-import { UncachedDPCHandlerDevice } from './devices/dpc.js';
+import { UncachedDPCDevice } from './devices/dpc.js';
+import { UncachedDPSDevice } from './devices/dps.js';
 import { MemoryRegion } from './MemoryRegion.js';
 import * as _debugger from './debugger.js';
 import * as format from './format.js';
@@ -349,8 +350,8 @@ import { romdb } from './romdb.js';
   var sp_mem_handler_uncached    = new Device("SPMem",    sp_mem,       0xa4000000, 0xa4002000);
   var sp_reg_handler_uncached    = new Device("SPReg",    sp_reg,       0xa4040000, 0xa4040020);
   var sp_ibist_handler_uncached  = new Device("SPIBIST",  sp_ibist_mem, 0xa4080000, 0xa4080008);
-  var dpc_handler_uncached       = new UncachedDPCHandlerDevice("DPC",      dpc_mem,      0xa4100000, 0xa4100020);
-  var dps_handler_uncached       = new Device("DPS",      dps_mem,      0xa4200000, 0xa4200010);
+  var dpc_handler_uncached       = new UncachedDPCDevice("DPC",      dpc_mem,      0xa4100000, 0xa4100020);
+  var dps_handler_uncached       = new UncachedDPSDevice("DPS",      dps_mem,      0xa4200000, 0xa4200010);
   var mi_reg_handler_uncached    = new Device("MIReg",    mi_reg,       0xa4300000, 0xa4300010);
   var vi_reg_handler_uncached    = new Device("VIReg",    vi_reg,       0xa4400000, 0xa4400038);
   var ai_reg_handler_uncached    = new Device("AIReg",    ai_reg,       0xa4500000, 0xa4500018);
@@ -978,32 +979,6 @@ import { romdb } from './romdb.js';
 
     dpc_mem.write32(DPC_STATUS_REG, dpc_status);
   }
-
-  dps_handler_uncached.write32 = function (address, value) {
-    var ea = this.calcEA(address);
-    if (ea+4 > this.u8.length) {
-      throw 'Write is out of range';
-    }
-    throw 'DPS writes are unhandled';
-    //this.mem.write32(ea, value);
-  };
-
-  dps_handler_uncached.readS32 = function (address) {
-    this.logRead(address);
-    var ea = this.calcEA(address);
-
-    if (ea+4 > this.u8.length) {
-      throw 'Read is out of range';
-    }
-    throw 'DPS reads are unhandled';
-    //return this.mem.readS32(ea);
-  };
-
-  dps_handler_uncached.readU32 = function (address) {
-    return this.readS32(address)>>>0;
-  };
-
-
 
   function miWriteModeReg(value) {
     var mi_mode_reg = mi_reg.readU32(MI_MODE_REG);
