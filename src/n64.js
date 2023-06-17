@@ -490,7 +490,6 @@ import { romdb } from './romdb.js';
   //
   var startTime;
   var lastPresentTime;
-  var frameTimeSeries;
 
   n64js.emitRunningTime  = function (msg) {
     var cur_time = new Date();
