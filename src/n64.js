@@ -7,6 +7,7 @@ import { UncachedDPSDevice } from './devices/dps.js';
 import { MemoryRegion } from './MemoryRegion.js';
 import * as _debugger from './debugger.js';
 import * as format from './format.js';
+import { Hardware } from './hardware.js';
 import * as logger from './logger.js';
 import { romdb } from './romdb.js';
 
@@ -273,21 +274,23 @@ import { romdb } from './romdb.js';
     }
   }
 
-  var rom           = null;   // Will be memory, mapped at 0xb0000000
-  var pi_mem        = new MemoryRegion(new ArrayBuffer(0x7c0 + 0x40));   // rom+ram
-  var ram           = new MemoryRegion(new ArrayBuffer(8*1024*1024));
-  var sp_mem        = new MemoryRegion(new ArrayBuffer(0x2000));
-  var sp_reg        = new MemoryRegion(new ArrayBuffer(0x20));
-  var sp_ibist_mem  = new MemoryRegion(new ArrayBuffer(0x8));
-  var dpc_mem       = new MemoryRegion(new ArrayBuffer(0x20));
-  var dps_mem       = new MemoryRegion(new ArrayBuffer(0x10));
-  var rdram_reg     = new MemoryRegion(new ArrayBuffer(0x30));
-  var mi_reg        = new MemoryRegion(new ArrayBuffer(0x10));
-  var vi_reg        = new MemoryRegion(new ArrayBuffer(0x38));
-  var ai_reg        = new MemoryRegion(new ArrayBuffer(0x18));
-  var pi_reg        = new MemoryRegion(new ArrayBuffer(0x34));
-  var ri_reg        = new MemoryRegion(new ArrayBuffer(0x20));
-  var si_reg        = new MemoryRegion(new ArrayBuffer(0x1c));
+  const hardware = new Hardware();
+
+  var rom           = hardware.rom;
+  var pi_mem        = hardware.pi_mem;
+  var ram           = hardware.ram
+  var sp_mem        = hardware.sp_mem;
+  var sp_reg        = hardware.sp_reg;
+  var sp_ibist_mem  = hardware.sp_ibist_mem;
+  var dpc_mem       = hardware.dpc_mem;
+  var dps_mem       = hardware.dps_mem;
+  var rdram_reg     = hardware.rdram_reg;
+  var mi_reg        = hardware.mi_reg;
+  var vi_reg        = hardware.vi_reg;
+  var ai_reg        = hardware.ai_reg;
+  var pi_reg        = hardware.pi_reg;
+  var ri_reg        = hardware.ri_reg;
+  var si_reg        = hardware.si_reg;
 
   var eeprom        = null;   // Initialised during reset, using correct size for this rom (may be null if eeprom isn't used)
   var eepromDirty   = false;
@@ -398,7 +401,9 @@ import { romdb } from './romdb.js';
   function loadRom(arrayBuffer) {
     fixEndian(arrayBuffer);
 
-    rom = new MemoryRegion(arrayBuffer);
+    hardware.createROM(arrayBuffer);
+    rom = hardware.rom;
+
     rom_d1a1_handler_uncached.setMem(rom);
     rom_d1a2_handler_uncached.setMem(rom);
     rom_d1a3_handler_uncached.setMem(rom);
