@@ -19,7 +19,7 @@ export class Device {
     this.u8 = mem ? mem.u8 : null;  // Cache the underlying Uint8Array.
     this.rangeStart = rangeStart;
     this.rangeEnd = rangeEnd;
-    this.quiet = false;
+    this.quiet = true;
   }
 
   /**

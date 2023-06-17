@@ -86,19 +86,11 @@ import { romdb } from './romdb.js';
   // FIXME - encapsulate this better.
   n64js.rsp_task_view = new DataView(hardware.sp_mem.arrayBuffer, kTaskOffset, 0x40);
 
-  const cachedMemDevice   = hardware.cachedMemDevice;
-  const uncachedMemDevice = hardware.uncachedMemDevice;
-  const spMemDevice    = hardware.spMemDevice;
-  const spRegDevice    = hardware.spRegDevice;
-  const spIbistDevice  = hardware.spIbistDevice;
-  const dpcDevice      = hardware.dpcDevice;
-  const miRegDevice    = hardware.miRegDevice;
-  const viRegDevice    = hardware.viRegDevice;
-  const aiRegDevice    = hardware.aiRegDevice;
-  const piRegDevice    = hardware.piRegDevice;
-  const riRegDevice    = hardware.riRegDevice;
-  const siRegDevice    = hardware.siRegDevice;
-  const romD1A2Device  = hardware.romD1A2Device;
+  const cachedMemDevice = hardware.cachedMemDevice;
+  const miRegDevice = hardware.miRegDevice;
+  const viRegDevice = hardware.viRegDevice;
+  const piRegDevice = hardware.piRegDevice;
+  const riRegDevice = hardware.riRegDevice;
 
   function uint8ArrayReadString(u8array, offset, maxLen) {
     let s = '';
@@ -826,19 +818,6 @@ import { romdb } from './romdb.js';
   };
 
   n64js.init = function () {
-    cachedMemDevice.quiet      = true;
-    uncachedMemDevice.quiet    = true;
-    spMemDevice.quiet   = true;
-    spRegDevice.quiet   = true;
-    spIbistDevice.quiet = true;
-    miRegDevice.quiet   = true;
-    viRegDevice.quiet   = true;
-    aiRegDevice.quiet   = true;
-    piRegDevice.quiet   = true;
-    siRegDevice.quiet   = true;
-    romD1A2Device.quiet = true;
-    dpcDevice.quiet      = true;
-
     n64js.reset();
 
     $('.debug').hide();
