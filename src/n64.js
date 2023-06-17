@@ -45,117 +45,120 @@ function assert(e, m) {
   }
 }
 
-(function (n64js) {'use strict';
+function initSync() {
+  syncFlow = undefined;//n64js.createSyncConsumer();
+  syncInput = undefined;//n64js.createSyncConsumer();
+}
+
+
+function uint8ArrayReadString(u8array, offset, maxLen) {
+  let s = '';
+  for (let i = 0; i < maxLen; ++i) {
+    const c = u8array[offset + i];
+    if (c === 0) {
+      break;
+    }
+    s += String.fromCharCode(c);
+  }
+  return s;
+}
+
+function byteswap(a) {
+  return ((a >> 24) & 0x000000ff) |
+    ((a >> 8) & 0x0000ff00) |
+    ((a << 8) & 0x00ff0000) |
+    ((a << 24) & 0xff000000);
+}
+
+function generateRomId(crclo, crchi) {
+  return toHex(byteswap(crclo), 32) + toHex(byteswap(crchi), 32);
+}
+
+function generateCICType(u8array) {
+  let cic = 0;
+  for (let i = 0; i < 0xFC0; i++) {
+    cic = cic + u8array[0x40 + i];
+  }
+
+  switch (cic) {
+    case 0x33a27: return '6101';
+    case 0x3421e: return '6101';
+    case 0x34044: return '6102';
+    case 0x357d0: return '6103';
+    case 0x47a81: return '6105';
+    case 0x371cc: return '6106';
+    case 0x343c9: return '6106';
+    default:
+      logger.log('Unknown CIC Code ' + toString32(cic));
+      return '6102';
+  }
+}
+
+function loadRom(arrayBuffer) {
+  fixRomByteOrder(arrayBuffer);
+
+  const rom = hardware.createROM(arrayBuffer);
+
+  const hdr = {
+    header: rom.readU32(0),
+    clock: rom.readU32(4),
+    bootAddress: rom.readU32(8),
+    release: rom.readU32(12),
+    crclo: rom.readU32(16),   // or hi?
+    crchi: rom.readU32(20),   // or lo?
+    unk0: rom.readU32(24),
+    unk1: rom.readU32(28),
+    name: uint8ArrayReadString(rom.u8, 32, 20),
+    unk2: rom.readU32(52),
+    unk3: rom.readU16(56),
+    unk4: rom.readU8(58),
+    manufacturer: rom.readU8(59),
+    cartId: rom.readU16(60),
+    countryId: rom.readU8(62),  // char
+    unk5: rom.readU8(63)
+  };
+
+  const $table = $('<table class="register-table"><tbody></tbody></table>');
+  const $tb = $table.find('tbody');
+  for (let i in hdr) {
+    $tb.append('<tr>' +
+      '<td>' + i + '</td><td>' + (typeof hdr[i] === 'string' ? hdr[i] : toString32(hdr[i])) + '</td>' +
+      '</tr>');
+  }
+  logger.logHTML($table);
+
+  // Set up rominfo
+  rominfo.cic = generateCICType(rom.u8);
+  rominfo.id = generateRomId(hdr.crclo, hdr.crchi);
+  rominfo.country = hdr.countryId;
+
+  const info = romdb[rominfo.id];
+  if (info) {
+    logger.log('Loaded info for ' + rominfo.id + ' from db');
+    rominfo.name = info.name;
+    rominfo.save = info.save;
+  } else {
+    logger.log('No info for ' + rominfo.id + ' in db');
+    rominfo.name = hdr.name;
+    rominfo.save = 'Eeprom4k';
+  }
+
+  logger.log('rominfo is ' + JSON.stringify(rominfo));
+
+  $('#title').text('n64js - ' + rominfo.name);
+}
+
+(function (n64js) {
+  'use strict';
   n64js.hardware = () => hardware;
 
-  function initSync() {
-    syncFlow  = undefined;//n64js.createSyncConsumer();
-    syncInput = undefined;//n64js.createSyncConsumer();
-  }
   n64js.getSyncFlow = () => syncFlow;
   n64js.getSyncInput = () => syncInput;
 
   // Keep a DataView around as a view onto the RSP task
   // FIXME - encapsulate this better.
-  const kTaskOffset   = 0x0fc0;
+  const kTaskOffset = 0x0fc0;
   n64js.rsp_task_view = new DataView(hardware.sp_mem.arrayBuffer, kTaskOffset, 0x40);
-
-  function uint8ArrayReadString(u8array, offset, maxLen) {
-    let s = '';
-    for (let i = 0; i < maxLen; ++i) {
-      const c = u8array[offset+i];
-      if (c === 0) {
-        break;
-      }
-      s += String.fromCharCode(c);
-    }
-    return s;
-  }
-
-  function byteswap(a) {
-    return ((a>>24)&0x000000ff) |
-           ((a>> 8)&0x0000ff00) |
-           ((a<< 8)&0x00ff0000) |
-           ((a<<24)&0xff000000);
-  }
-
-  function generateRomId(crclo, crchi) {
-    return toHex(byteswap(crclo),32) + toHex(byteswap(crchi),32);
-  }
-
-  function generateCICType(u8array) {
-    let cic = 0;
-    for (let i = 0; i < 0xFC0; i++) {
-      cic = cic + u8array[0x40 + i];
-    }
-
-    switch (cic) {
-      case 0x33a27: return '6101';
-      case 0x3421e: return '6101';
-      case 0x34044: return '6102';
-      case 0x357d0: return '6103';
-      case 0x47a81: return '6105';
-      case 0x371cc: return '6106';
-      case 0x343c9: return '6106';
-      default:
-        logger.log('Unknown CIC Code ' + toString32(cic) );
-        return '6102';
-    }
-  }
-
-  function loadRom(arrayBuffer) {
-    fixRomByteOrder(arrayBuffer);
-
-    const rom = hardware.createROM(arrayBuffer);
-
-    const hdr = {
-      header:       rom.readU32(0),
-      clock:        rom.readU32(4),
-      bootAddress:  rom.readU32(8),
-      release:      rom.readU32(12),
-      crclo:        rom.readU32(16),   // or hi?
-      crchi:        rom.readU32(20),   // or lo?
-      unk0:         rom.readU32(24),
-      unk1:         rom.readU32(28),
-      name:         uint8ArrayReadString(rom.u8, 32, 20),
-      unk2:         rom.readU32(52),
-      unk3:         rom.readU16(56),
-      unk4:         rom.readU8 (58),
-      manufacturer: rom.readU8 (59),
-      cartId:       rom.readU16(60),
-      countryId:    rom.readU8 (62),  // char
-      unk5:         rom.readU8 (63)
-    };
-
-    const $table = $('<table class="register-table"><tbody></tbody></table>');
-    const $tb = $table.find('tbody');
-    for (let i in hdr) {
-      $tb.append('<tr>' +
-        '<td>' + i + '</td><td>' + (typeof hdr[i] === 'string' ? hdr[i] : toString32(hdr[i])) + '</td>' +
-        '</tr>');
-    }
-    logger.logHTML($table);
-
-    // Set up rominfo
-    rominfo.cic     = generateCICType(rom.u8);
-    rominfo.id      = generateRomId(hdr.crclo, hdr.crchi);
-    rominfo.country = hdr.countryId;
-
-    const info = romdb[rominfo.id];
-    if (info) {
-      logger.log('Loaded info for ' + rominfo.id + ' from db');
-      rominfo.name = info.name;
-      rominfo.save = info.save;
-    } else {
-      logger.log('No info for ' + rominfo.id + ' in db');
-      rominfo.name = hdr.name;
-      rominfo.save = 'Eeprom4k';
-    }
-
-    logger.log('rominfo is ' + JSON.stringify(rominfo));
-
-    $('#title').text('n64js - ' + rominfo.name);
-  }
 
   n64js.toggleRun = () => {
     running = !running;
