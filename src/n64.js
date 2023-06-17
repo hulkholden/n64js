@@ -90,8 +90,6 @@ import { romdb } from './romdb.js';
     return hardware;
   };
 
-  const cachedMemDevice = hardware.cachedMemDevice;
-
   function uint8ArrayReadString(u8array, offset, maxLen) {
     let s = '';
     for (let i = 0; i < maxLen; ++i) {
@@ -313,11 +311,11 @@ import { romdb } from './romdb.js';
   }
 
   n64js.getRamU8Array = function () {
-    return cachedMemDevice.u8;
+    return hardware.cachedMemDevice.u8;
   };
 
   n64js.getRamS32Array = function () {
-    return cachedMemDevice.mem.s32;
+    return hardware.cachedMemDevice.mem.s32;
   };
 
   n64js.getRamDataView = function () {
