@@ -56,6 +56,31 @@ export class MIRegDevice extends Device {
     this.mem.write32(MI_VERSION_REG, 0x02020102);
   }
 
+  interruptsUnmasked () {
+    return (this.mem.readU32(MI_INTR_MASK_REG) & this.mem.readU32(MI_INTR_REG)) !== 0;
+  }
+
+  intrReg () {
+    return this.mem.readU32(MI_INTR_REG);
+  }
+
+  intrMaskReg () {
+    return this.mem.readU32(MI_INTR_MASK_REG);
+  }
+
+  setInterruptBit(bit) {
+    this.mem.setBits32(MI_INTR_REG, bit);
+    n64js.cpu0.updateCause3();  
+  }
+
+  interruptSP() {
+    this.setInterruptBit(MI_INTR_SP);
+  }
+
+  interruptDP() {
+    this.setInterruptBit(MI_INTR_DP);
+  }
+
   write32(address, value) {
     var ea = this.calcEA(address);
     if (ea + 4 > this.u8.length) {

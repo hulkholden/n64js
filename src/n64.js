@@ -51,17 +51,6 @@ import { romdb } from './romdb.js';
   const SP_STATUS_SIG2        = 0x0200;
   const SP_STATUS_TASKDONE    = SP_STATUS_SIG2;
 
-  // MIPS Interface
-  const MI_INTR_REG         = 0x08;
-  const MI_INTR_MASK_REG    = 0x0C;
-
-  const MI_INTR_SP        = 0x01;
-  const MI_INTR_SI        = 0x02;
-  const MI_INTR_AI        = 0x04;
-  const MI_INTR_VI        = 0x08;
-  const MI_INTR_PI        = 0x10;
-  const MI_INTR_DP        = 0x20;
-
   var running       = false;
 
   var gRumblePakActive = false;
@@ -110,7 +99,6 @@ import { romdb } from './romdb.js';
   const ram    = hardware.ram
   const sp_mem = hardware.sp_mem;
   const sp_reg = hardware.sp_reg;
-  const mi_reg = hardware.mi_reg;
 
   var eeprom        = null;   // Initialised during reset, using correct size for this rom (may be null if eeprom isn't used)
   var eepromDirty   = false;
@@ -1265,17 +1253,9 @@ import { romdb } from './romdb.js';
     vi_reg_handler_uncached.verticalBlank();
   };
 
-  n64js.miInterruptsUnmasked = function () {
-    return (mi_reg.readU32(MI_INTR_MASK_REG) & mi_reg.readU32(MI_INTR_REG)) !== 0;
-  };
-
-  n64js.miIntrReg = function () {
-    return mi_reg.readU32(MI_INTR_REG);
-  };
-
-  n64js.miIntrMaskReg = function () {
-    return mi_reg.readU32(MI_INTR_MASK_REG);
-  };
+  n64js.miInterruptsUnmasked = function () { return mi_reg_handler_uncached.interruptsUnmasked(); };
+  n64js.miIntrReg            = function () { return mi_reg_handler_uncached.intrReg(); };
+  n64js.miIntrMaskReg        = function () { return mi_reg_handler_uncached.intrMaskReg(); };
 
   n64js.viOrigin = function () { return vi_reg_handler_uncached.viOrigin(); };
   n64js.viWidth  = function () { return vi_reg_handler_uncached.viWidth(); };
@@ -1287,14 +1267,12 @@ import { romdb } from './romdb.js';
   n64js.haltSP = function () {
     var status = sp_reg.setBits32(SP_STATUS_REG, SP_STATUS_TASKDONE|SP_STATUS_BROKE|SP_STATUS_HALT);
     if (status & SP_STATUS_INTR_BREAK) {
-      mi_reg.setBits32(MI_INTR_REG, MI_INTR_SP);
-      n64js.cpu0.updateCause3();
+      mi_reg_handler_uncached.interruptSP();
     }
   };
 
   n64js.interruptDP = function () {
-    mi_reg.setBits32(MI_INTR_REG, MI_INTR_DP);
-    n64js.cpu0.updateCause3();
+    mi_reg_handler_uncached.interruptDP();
   };
 
   n64js.assert = assert;
