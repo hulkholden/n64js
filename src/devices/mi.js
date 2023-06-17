@@ -82,18 +82,18 @@ export class MIRegDevice extends Device {
   }
 
   write32(address, value) {
-    var ea = this.calcEA(address);
+    const ea = this.calcEA(address);
     if (ea + 4 > this.u8.length) {
       throw 'Write is out of range';
     }
 
     switch (ea) {
       case MI_MODE_REG:
-        if (!this.quiet) { logger.log('Wrote to MI mode register: ' + toString32(value)); }
+        if (!this.quiet) { logger.log(`Wrote to MI mode register: ${toString32(value)}`); }
         this.writeModeReg(value);
         break;
       case MI_INTR_MASK_REG:
-        if (!this.quiet) { logger.log('Wrote to MI interrupt mask register: ' + toString32(value)); }
+        if (!this.quiet) { logger.log(`Wrote to MI interrupt mask register: ${toString32(value)}`); }
         this.writeIntrMaskReg(value);
         break;
 
@@ -103,25 +103,25 @@ export class MIRegDevice extends Device {
         break;
 
       default:
-        logger.log('Unhandled write to MIReg: ' + toString32(value) + ' -> [' + toString32(address) + ']');
+        logger.log(`Unhandled write to MIReg: ${toString32(value)} -> [${toString32(address)}]`);
         this.mem.write32(ea, value);
         break;
     }
   }
 
   writeModeReg(value) {
-    var mi_mode_reg = this.mem.readU32(MI_MODE_REG);
+    let mode = this.mem.readU32(MI_MODE_REG);
 
-    if (value & MI_SET_RDRAM) { mi_mode_reg |= MI_MODE_RDRAM; }
-    if (value & MI_CLR_RDRAM) { mi_mode_reg &= ~MI_MODE_RDRAM; }
+    if (value & MI_SET_RDRAM) { mode |= MI_MODE_RDRAM; }
+    if (value & MI_CLR_RDRAM) { mode &= ~MI_MODE_RDRAM; }
 
-    if (value & MI_SET_INIT) { mi_mode_reg |= MI_MODE_INIT; }
-    if (value & MI_CLR_INIT) { mi_mode_reg &= ~MI_MODE_INIT; }
+    if (value & MI_SET_INIT) { mode |= MI_MODE_INIT; }
+    if (value & MI_CLR_INIT) { mode &= ~MI_MODE_INIT; }
 
-    if (value & MI_SET_EBUS) { mi_mode_reg |= MI_MODE_EBUS; }
-    if (value & MI_CLR_EBUS) { mi_mode_reg &= ~MI_MODE_EBUS; }
+    if (value & MI_SET_EBUS) { mode |= MI_MODE_EBUS; }
+    if (value & MI_CLR_EBUS) { mode &= ~MI_MODE_EBUS; }
 
-    this.mem.write32(MI_MODE_REG, mi_mode_reg);
+    this.mem.write32(MI_MODE_REG, mode);
 
     if (value & MI_CLR_DP_INTR) {
       this.mem.clearBits32(MI_INTR_REG, MI_INTR_DP);
@@ -130,11 +130,8 @@ export class MIRegDevice extends Device {
   }
 
   writeIntrMaskReg(value) {
-    var mi_intr_mask_reg = this.mem.readU32(MI_INTR_MASK_REG);
-    var mi_intr_reg = this.mem.readU32(MI_INTR_REG);
-
-    var clr = 0;
-    var set = 0;
+    let clr = 0;
+    let set = 0;
 
     // From Corn - nicer way to avoid branching
     clr |= (value & MI_INTR_MASK_CLR_SP) >>> 0;
@@ -151,13 +148,16 @@ export class MIRegDevice extends Device {
     set |= (value & MI_INTR_MASK_SET_PI) >>> 5;
     set |= (value & MI_INTR_MASK_SET_DP) >>> 6;
 
-    mi_intr_mask_reg &= ~clr;
-    mi_intr_mask_reg |= set;
+    let mask = this.mem.readU32(MI_INTR_MASK_REG);
+    let intr = this.mem.readU32(MI_INTR_REG);
 
-    this.mem.write32(MI_INTR_MASK_REG, mi_intr_mask_reg);
+    mask &= ~clr;
+    mask |= set;
+
+    this.mem.write32(MI_INTR_MASK_REG, mask);
 
     // Check if any interrupts are enabled now, and immediately trigger an interrupt
-    if (mi_intr_mask_reg & mi_intr_reg) {
+    if (mask & intr) {
       n64js.cpu0.updateCause3();
     }
   }
