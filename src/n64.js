@@ -7,6 +7,7 @@ import { DPSDevice } from './devices/dps.js';
 import * as mi from './devices/mi.js';
 import * as pi from './devices/pi.js';
 import { MappedMemDevice, CachedMemDevice, UncachedMemDevice } from './devices/ram.js';
+import { ROMD1A1Device, ROMD1A2Device, ROMD1A3Device, ROMD2A1Device, ROMD2A2Device } from './devices/rom.js';
 import * as si from './devices/si.js';
 import { MemoryRegion } from './MemoryRegion.js';
 import * as _debugger from './debugger.js';
@@ -281,12 +282,12 @@ import { romdb } from './romdb.js';
   var pi_reg_handler_uncached    = new pi.PIRegDevice(hardware, 0xa4600000, 0xa4600034);
   var ri_reg_handler_uncached    = new Device("RIReg",    ri_reg,       0xa4700000, 0xa4700020);
   var si_reg_handler_uncached    = new Device("SIReg",    si_reg,       0xa4800000, 0xa480001c);
-  var rom_d2a1_handler_uncached  = new Device("ROMd2a1",  null,         0xa5000000, 0xa6000000);
-  var rom_d1a1_handler_uncached  = new Device("ROMd1a1",  rom,          0xa6000000, 0xa8000000);
-  var rom_d2a2_handler_uncached  = new Device("ROMd2a2",  null,         0xa8000000, 0xb0000000);
-  var rom_d1a2_handler_uncached  = new Device("ROMd1a2",  rom,          0xb0000000, 0xbfc00000);
+  var rom_d2a1_handler_uncached  = new ROMD2A1Device(hardware, 0xa5000000, 0xa6000000);
+  var rom_d1a1_handler_uncached  = new ROMD1A1Device(hardware, 0xa6000000, 0xa8000000);
+  var rom_d2a2_handler_uncached  = new ROMD2A2Device(hardware, 0xa8000000, 0xb0000000);
+  var rom_d1a2_handler_uncached  = new ROMD1A2Device(hardware, 0xb0000000, 0xbfc00000);
   var pi_mem_handler_uncached    = new pi.PIRamDevice(hardware, 0xbfc00000, 0xbfc00800);
-  var rom_d1a3_handler_uncached  = new Device("ROMd1a3",  rom,          0xbfd00000, 0xc0000000);
+  var rom_d1a3_handler_uncached  = new ROMD1A3Device(hardware, 0xbfd00000, 0xc0000000);
 
   function fixEndian(arrayBuffer) {
     var dataView = new DataView(arrayBuffer);
@@ -561,20 +562,8 @@ import { romdb } from './romdb.js';
   };
 
 
-  rom_d1a1_handler_uncached.write32 = function (address, value) { throw 'Writing to rom d1a1'; };
-  rom_d1a1_handler_uncached.write16 = function (address, value) { throw 'Writing to rom d1a1'; };
-  rom_d1a1_handler_uncached.write8  = function (address, value) { throw 'Writing to rom d1a1'; };
-
-  rom_d1a2_handler_uncached.write32 = function (address, value) { throw 'Writing to rom d1a2'; };
-  rom_d1a2_handler_uncached.write16 = function (address, value) { throw 'Writing to rom d1a2'; };
-  rom_d1a2_handler_uncached.write8  = function (address, value) { throw 'Writing to rom d1a2'; };
-
-  rom_d1a3_handler_uncached.write32 = function (address, value) { throw 'Writing to rom d1a3'; };
-  rom_d1a3_handler_uncached.write16 = function (address, value) { throw 'Writing to rom d1a3'; };
-  rom_d1a3_handler_uncached.write8  = function (address, value) { throw 'Writing to rom d1a3'; };
-
   // Should read noise?
-  function getRandomU32() {
+  n64js.getRandomU32 = function() {
     var hi = Math.floor( Math.random() * 0xffff ) & 0xffff;
     var lo = Math.floor( Math.random() * 0xffff ) & 0xffff;
 
@@ -586,26 +575,6 @@ import { romdb } from './romdb.js';
 
     return v;
   }
-
-  rom_d2a1_handler_uncached.readU32  = function (address)        { logger.log('reading noise'); return getRandomU32(); };
-  rom_d2a1_handler_uncached.readU16  = function (address)        { logger.log('reading noise'); return getRandomU32() & 0xffff; };
-  rom_d2a1_handler_uncached.readU8   = function (address)        { logger.log('reading noise'); return getRandomU32() & 0xff; };
-  rom_d2a1_handler_uncached.readS32  = function (address)        { logger.log('reading noise'); return getRandomU32(); };
-  rom_d2a1_handler_uncached.readS16  = function (address)        { logger.log('reading noise'); return getRandomU32() & 0xffff; };
-  rom_d2a1_handler_uncached.readS8   = function (address)        { logger.log('reading noise'); return getRandomU32() & 0xff; };
-  rom_d2a1_handler_uncached.write32  = function (address, value) { throw 'Writing to rom'; };
-  rom_d2a1_handler_uncached.write16  = function (address, value) { throw 'Writing to rom'; };
-  rom_d2a1_handler_uncached.write8   = function (address, value) { throw 'Writing to rom'; };
-
-  rom_d2a2_handler_uncached.readU32  = function (address)        { throw 'Reading from rom d2a2'; };
-  rom_d2a2_handler_uncached.readU16  = function (address)        { throw 'Reading from rom d2a2'; };
-  rom_d2a2_handler_uncached.readU8   = function (address)        { throw 'Reading from rom d2a2'; };
-  rom_d2a2_handler_uncached.readS32  = function (address)        { throw 'Reading from rom d2a2'; };
-  rom_d2a2_handler_uncached.readS16  = function (address)        { throw 'Reading from rom d2a2'; };
-  rom_d2a2_handler_uncached.readS8   = function (address)        { throw 'Reading from rom d2a2'; };
-  rom_d2a2_handler_uncached.write32  = function (address, value) { throw 'Writing to rom'; };
-  rom_d2a2_handler_uncached.write16  = function (address, value) { throw 'Writing to rom'; };
-  rom_d2a2_handler_uncached.write8   = function (address, value) { throw 'Writing to rom'; };
 
   rdram_reg_handler_uncached.calcEA  = function (address) {
     return address&0xff;
