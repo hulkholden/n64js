@@ -395,37 +395,8 @@ import { romdb } from './romdb.js';
 
   n64js.checkSIStatusConsistent = function() { hardware.checkSIStatusConsistent(); };
 
-  var memMap = hardware.createMemMap();
-
-  function getMemoryHandler(address) {
-    //assert(address>=0, "Address is negative");
-    var handler = memMap[address >>> 18];
-    if (handler) {
-      return handler;
-    }
-
-    logger.log('read from unhandled location ' + toString32(address));
-    throw 'unmapped read ' + toString32(address) + ' - need to set exception';
-  }
-
-  // Read/Write memory internal is used for stuff like the debugger. It shouldn't ever throw or change the state of the emulated program.
-  n64js.readMemoryInternal32 = address => {
-    var handler = memMap[address >>> 18];
-    if (handler) {
-      return handler.readInternal32(address);
-    }
-    return 0xdddddddd;
-  };
-
-  n64js.writeMemoryInternal32 = (address, value) => {
-    var handler = memMap[address >>> 18];
-    if (handler) {
-      handler.writeInternal32(address, value);
-    }
-  };
-
   n64js.getInstruction = address => {
-    var instruction = n64js.readMemoryInternal32(address);
+    var instruction = hardware.memMap.readMemoryInternal32(address);
     if (((instruction>>26)&0x3f) === kOpBreakpoint) {
       instruction = breakpoints[address] || 0;
     }
@@ -434,12 +405,12 @@ import { romdb } from './romdb.js';
   };
 
   n64js.isBreakpoint = address => {
-    var orig_op = n64js.readMemoryInternal32(address);
+    var orig_op = hardware.memMap.readMemoryInternal32(address);
     return ((orig_op>>26)&0x3f) === kOpBreakpoint;
   };
 
   n64js.toggleBreakpoint = address => {
-    var orig_op = n64js.readMemoryInternal32(address);
+    var orig_op = hardware.memMap.readMemoryInternal32(address);
     var new_op;
 
     if (((orig_op>>26)&0x3f) === kOpBreakpoint) {
@@ -451,22 +422,23 @@ import { romdb } from './romdb.js';
       breakpoints[address] = orig_op;
     }
 
-    n64js.writeMemoryInternal32(address, new_op);
+    hardware.memMap.writeMemoryInternal32(address, new_op);
   };
 
   // 'emulated' read. May cause exceptions to be thrown in the emulated process
-  n64js.readMemoryU32 = address => { return getMemoryHandler(address).readU32(address); };
-  n64js.readMemoryU16 = address => { return getMemoryHandler(address).readU16(address); };
-  n64js.readMemoryU8  = address => { return getMemoryHandler(address).readU8(address);  };
+  // TODO: cache getMemoryHandler to avoid lookups?
+  n64js.readMemoryU32 = address => { return hardware.memMap.getMemoryHandler(address).readU32(address); };
+  n64js.readMemoryU16 = address => { return hardware.memMap.getMemoryHandler(address).readU16(address); };
+  n64js.readMemoryU8  = address => { return hardware.memMap.getMemoryHandler(address).readU8(address);  };
 
-  n64js.readMemoryS32 = address => { return getMemoryHandler(address).readS32(address); };
-  n64js.readMemoryS16 = address => { return getMemoryHandler(address).readS16(address); };
-  n64js.readMemoryS8  = address => { return getMemoryHandler(address).readS8(address);  };
+  n64js.readMemoryS32 = address => { return hardware.memMap.getMemoryHandler(address).readS32(address); };
+  n64js.readMemoryS16 = address => { return hardware.memMap.getMemoryHandler(address).readS16(address); };
+  n64js.readMemoryS8  = address => { return hardware.memMap.getMemoryHandler(address).readS8(address);  };
 
   // 'emulated' write. May cause exceptions to be thrown in the emulated process
-  n64js.writeMemory32 = (address, value) => { return getMemoryHandler(address).write32(address, value); };
-  n64js.writeMemory16 = (address, value) => { return getMemoryHandler(address).write16(address, value); };
-  n64js.writeMemory8  = (address, value) => { return getMemoryHandler(address).write8(address, value); };
+  n64js.writeMemory32 = (address, value) => { return hardware.memMap.getMemoryHandler(address).write32(address, value); };
+  n64js.writeMemory16 = (address, value) => { return hardware.memMap.getMemoryHandler(address).write16(address, value); };
+  n64js.writeMemory8  = (address, value) => { return hardware.memMap.getMemoryHandler(address).write8(address, value); };
 
   function getLocalStorageName(item) {
     return item + '-' + rominfo.id;
