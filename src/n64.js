@@ -8,6 +8,7 @@ import { DPSDevice } from './devices/dps.js';
 import { MIRegDevice } from './devices/mi.js';
 import * as pi from './devices/pi.js';
 import { MappedMemDevice, CachedMemDevice, UncachedMemDevice } from './devices/ram.js';
+import { RIRegDevice } from './devices/ri.js';
 import { ROMD1A1Device, ROMD1A2Device, ROMD1A3Device, ROMD2A1Device, ROMD2A2Device } from './devices/rom.js';
 import * as si from './devices/si.js';
 import { SPMemDevice, SPRegDevice } from './devices/sp.js';
@@ -62,18 +63,6 @@ import { romdb } from './romdb.js';
   const MI_INTR_VI        = 0x08;
   const MI_INTR_PI        = 0x10;
   const MI_INTR_DP        = 0x20;
-
-  // RDRAM Interface
-  const RI_MODE_REG             = 0x00;
-  const RI_CONFIG_REG           = 0x04;
-  const RI_CURRENT_LOAD_REG     = 0x08;
-  const RI_SELECT_REG           = 0x0C;
-  const RI_REFRESH_REG          = 0x10;
-  const RI_COUNT_REG            = RI_REFRESH_REG;
-  const RI_LATENCY_REG          = 0x14;
-  const RI_RERROR_REG           = 0x18;
-  const RI_WERROR_REG           = 0x1C;
-  const RI_LAST_REG             = RI_WERROR_REG;
 
   // Serial Interface
   const SI_DRAM_ADDR_REG      = 0x00;
@@ -165,7 +154,7 @@ import { romdb } from './romdb.js';
   var vi_reg_handler_uncached    = new VIRegDevice(hardware, 0xa4400000, 0xa4400038);
   var ai_reg_handler_uncached    = new AIRegDevice(hardware, 0xa4500000, 0xa4500018);
   var pi_reg_handler_uncached    = new pi.PIRegDevice(hardware, 0xa4600000, 0xa4600034);
-  var ri_reg_handler_uncached    = new Device("RIReg",    ri_reg,       0xa4700000, 0xa4700020);
+  var ri_reg_handler_uncached    = new RIRegDevice(hardware, 0xa4700000, 0xa4700020);
   var si_reg_handler_uncached    = new Device("SIReg",    si_reg,       0xa4800000, 0xa480001c);
   var rom_d2a1_handler_uncached  = new ROMD2A1Device(hardware, 0xa5000000, 0xa6000000);
   var rom_d1a1_handler_uncached  = new ROMD1A1Device(hardware, 0xa6000000, 0xa8000000);
@@ -1211,7 +1200,8 @@ import { romdb } from './romdb.js';
     n64js.resetRenderer();
 
     mi_reg.write32(MI_VERSION_REG, 0x02020102);
-    ri_reg.write32(RI_SELECT_REG, 1);           // This skips most of init
+
+    ri_reg_handler_uncached.reset();
 
     // Simulate boot
 
