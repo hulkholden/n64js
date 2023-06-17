@@ -6,6 +6,7 @@ import { DPCDevice } from './devices/dpc.js';
 import { DPSDevice } from './devices/dps.js';
 import * as mi from './devices/mi.js';
 import * as pi from './devices/pi.js';
+import { MappedMemDevice, CachedMemDevice, UncachedMemDevice } from './devices/ram.js';
 import * as si from './devices/si.js';
 import { MemoryRegion } from './MemoryRegion.js';
 import * as _debugger from './debugger.js';
@@ -267,9 +268,9 @@ import { romdb } from './romdb.js';
   var kTaskOffset   = 0x0fc0;
   var rsp_task_view = new DataView(sp_mem.arrayBuffer, kTaskOffset, 0x40);
 
-  var mapped_mem_handler         = new Device("VMEM",     null,         0x00000000, 0x80000000);
-  var rdram_handler_cached       = new Device("RAM",      ram,          0x80000000, 0x80800000);
-  var rdram_handler_uncached     = new Device("RAM",      ram,          0xa0000000, 0xa0800000);
+  var mapped_mem_handler         = new MappedMemDevice(hardware, 0x00000000, 0x80000000);
+  var rdram_handler_cached       = new CachedMemDevice(hardware, 0x80000000, 0x80800000);
+  var rdram_handler_uncached     = new UncachedMemDevice(hardware, 0xa0000000, 0xa0800000);
   var rdram_reg_handler_uncached = new Device("RDRAMReg", rdram_reg,    0xa3f00000, 0xa4000000);
   var sp_mem_handler_uncached    = new Device("SPMem",    sp_mem,       0xa4000000, 0xa4002000);
   var sp_reg_handler_uncached    = new Device("SPReg",    sp_reg,       0xa4040000, 0xa4040020);
@@ -561,117 +562,6 @@ import { romdb } from './romdb.js';
     return new DataView(ram.arrayBuffer);
   };
 
-  // This function gets hit A LOT, so eliminate as much fat as possible.
-  rdram_handler_cached.readU32 = function (address) {
-    var off = address - 0x80000000;
-    return ((this.u8[off+0] << 24) | (this.u8[off+1] << 16) | (this.u8[off+2] << 8) | (this.u8[off+3]))>>>0;
-  };
-  rdram_handler_cached.readS32 = function (address) {
-    var off = address - 0x80000000;
-    return (this.u8[off+0] << 24) | (this.u8[off+1] << 16) | (this.u8[off+2] << 8) | (this.u8[off+3]);
-  };
-  rdram_handler_cached.write32 = function (address, value) {
-    var off = address - 0x80000000;
-    this.u8[off+0] = value >> 24;
-    this.u8[off+1] = value >> 16;
-    this.u8[off+2] = value >>  8;
-    this.u8[off+3] = value;
-  };
-
-  mapped_mem_handler.readInternal32 = function (address) {
-    var mapped = n64js.cpu0.translateReadInternal(address) & 0x007fffff;
-    if (mapped !== 0) {
-      if (mapped+4 <= ram.u8.length) {
-        return ram.readU32(mapped);
-      }
-    }
-    return 0x00000000;
-  };
-  mapped_mem_handler.writeInternal32 = function (address, value) {
-    var mapped = n64js.cpu0.translateReadInternal(address) & 0x007fffff;
-    if (mapped !== 0) {
-      if (mapped+4 <= ram.u8.length) {
-        ram.write32(mapped, value);
-      }
-    }
-  };
-
-  mapped_mem_handler.readU32 = function (address) {
-    var mapped = n64js.cpu0.translateRead(address) & 0x007fffff;
-    if (mapped !== 0) {
-      return ram.readU32(mapped);
-    }
-    n64js.halt('virtual readU32 failed - need to throw refill/invalid');
-    return 0x00000000;
-  };
-  mapped_mem_handler.readU16 = function (address) {
-    var mapped = n64js.cpu0.translateRead(address) & 0x007fffff;
-    if (mapped !== 0) {
-      return ram.readU16(mapped);
-    }
-    n64js.halt('virtual readU16 failed - need to throw refill/invalid');
-    return 0x0000;
-  };
-  mapped_mem_handler.readU8 = function (address) {
-    var mapped = n64js.cpu0.translateRead(address) & 0x007fffff;
-    if (mapped !== 0) {
-      return ram.readU8(mapped);
-    }
-    n64js.halt('virtual readU8 failed - need to throw refill/invalid');
-    return 0x00;
-  };
-
-  mapped_mem_handler.readS32 = function (address) {
-    var mapped = n64js.cpu0.translateRead(address) & 0x007fffff;
-    if (mapped !== 0) {
-      return ram.readS32(mapped);
-    }
-    // FIXME: need to somehow interrupt the current instruction from executing, before it has chance to modify state.
-    // For now, goldeneye hits this initially when reading the current instruction. I laemly return 0 so that I execute a NOP and then jump to the exception handler.
-    //    n64js.halt('virtual readS32 failed - need to throw refill/invalid');
-    return 0x00000000;
-  };
-  mapped_mem_handler.readS16 = function (address) {
-    var mapped = n64js.cpu0.translateRead(address) & 0x007fffff;
-    if (mapped !== 0) {
-      return ram.readS16(mapped);
-    }
-    n64js.halt('virtual readS16 failed - need to throw refill/invalid');
-    return 0x0000;
-  };
-  mapped_mem_handler.readS8 = function (address) {
-    var mapped = n64js.cpu0.translateRead(address);
-    if (mapped !== 0) {
-      return ram.readS8(mapped);
-    }
-    n64js.halt('virtual readS8 failed - need to throw refill/invalid');
-    return 0x00;
-  };
-
-  mapped_mem_handler.write32 = function (address, value) {
-    var mapped = n64js.cpu0.translateWrite(address) & 0x007fffff;
-    if (mapped !== 0) {
-      ram.write32(mapped, value);
-      return;
-    }
-    n64js.halt('virtual write32 failed - need to throw refill/invalid');
-  };
-  mapped_mem_handler.write16 = function (address, value) {
-    var mapped = n64js.cpu0.translateWrite(address) & 0x007fffff;
-    if (mapped !== 0) {
-      ram.write16(mapped, value);
-      return;
-    }
-    n64js.halt('virtual write16 failed - need to throw refill/invalid');
-  };
-  mapped_mem_handler.write8 = function (address, value) {
-    var mapped = n64js.cpu0.translateWrite(address) & 0x007fffff;
-    if (mapped !== 0) {
-      ram.write8(mapped, value);
-      return;
-    }
-    n64js.halt('virtual write8 failed - need to throw refill/invalid');
-  };
 
   rom_d1a1_handler_uncached.write32 = function (address, value) { throw 'Writing to rom d1a1'; };
   rom_d1a1_handler_uncached.write16 = function (address, value) { throw 'Writing to rom d1a1'; };
