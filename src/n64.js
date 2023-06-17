@@ -746,13 +746,6 @@ import { romdb } from './romdb.js';
     hardware.verticalBlank();
   };
 
-  n64js.haltSP = function () {
-    var status = hardware.sp_reg.setBits32(SP_STATUS_REG, SP_STATUS_TASKDONE|SP_STATUS_BROKE|SP_STATUS_HALT);
-    if (status & SP_STATUS_INTR_BREAK) {
-      hardware.miRegDevice.interruptSP();
-    }
-  };
-
   n64js.assert = assert;
 
   n64js.check = function (e, m) {
