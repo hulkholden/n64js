@@ -379,8 +379,9 @@ import { getFragmentMap, consumeFragmentInvalidationEvents } from './fragments.j
   function makeMipsInterruptsRow() {
     const miIntrNames = ['SP', 'SI', 'AI', 'VI', 'PI', 'DP'];
 
-    let miIntrLive = n64js.miIntrReg();
-    let miIntrMask = n64js.miIntrMaskReg();
+    const miRegDevice = n64js.hardware().miRegDevice;
+    const miIntrLive = miRegDevice.intrReg();
+    const miIntrMask = miRegDevice.intrMaskReg();
 
     let $tr = $('<tr />');
     $tr.append( '<td>MI Intr</td>' );
