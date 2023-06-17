@@ -52,6 +52,10 @@ export class MIRegDevice extends Device {
     super("MIReg", hardware.mi_reg, rangeStart, rangeEnd);
   }
 
+  reset() {
+    this.mem.write32(MI_VERSION_REG, 0x02020102);
+  }
+
   write32(address, value) {
     var ea = this.calcEA(address);
     if (ea + 4 > this.u8.length) {

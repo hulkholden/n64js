@@ -52,8 +52,6 @@ import { romdb } from './romdb.js';
   const SP_STATUS_TASKDONE    = SP_STATUS_SIG2;
 
   // MIPS Interface
-  const MI_MODE_REG         = 0x00;
-  const MI_VERSION_REG      = 0x04;
   const MI_INTR_REG         = 0x08;
   const MI_INTR_MASK_REG    = 0x0C;
 
@@ -1199,8 +1197,7 @@ import { romdb } from './romdb.js';
 
     n64js.resetRenderer();
 
-    mi_reg.write32(MI_VERSION_REG, 0x02020102);
-
+    mi_reg_handler_uncached.reset();
     ri_reg_handler_uncached.reset();
 
     // Simulate boot
