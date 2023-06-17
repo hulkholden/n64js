@@ -13,6 +13,9 @@ import { VIRegDevice } from './devices/vi.js';
 import { MemoryMap } from './memmap.js';
 import { MemoryRegion } from './MemoryRegion.js';
 
+const kBootstrapOffset = 0x40;
+const kGameOffset = 0x1000;
+
 export class Hardware {
   constructor(rominfo) {
     this.rom = null;   // Will be memory, mapped at 0xb0000000
@@ -117,6 +120,12 @@ export class Hardware {
     return rom;
   }
 
+  loadROM() {
+    if (this.rom) {
+      memoryCopy(this.sp_mem, kBootstrapOffset, this.rom, kBootstrapOffset, kGameOffset - kBootstrapOffset);
+    }
+  }
+
   verticalBlank() {
     this.saveEeprom();
     this.viRegDevice.verticalBlank();
@@ -174,4 +183,11 @@ export class Hardware {
 
 function newMemoryRegion(size) {
   return new MemoryRegion(new ArrayBuffer(size));
+}
+
+// TODO: dedupe.
+function memoryCopy(dst, dstOff, src, srcOff, len) {
+  for (let i = 0; i < len; ++i) {
+    dst.u8[dstOff + i] = src.u8[srcOff + i];
+  }
 }
