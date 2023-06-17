@@ -475,8 +475,8 @@ import { Texture, clampTexture } from './graphics/textures.js';
 
 
   // task_dv is a DataView object
-  n64js.rspProcessTask = function(task_dv) {
-    var task = new RSPTask(task_dv);
+  n64js.rspProcessTask = function() {
+    var task = new RSPTask(n64js.rsp_task_view);
 
     switch (task.type) {
       case M_GFXTASK:
