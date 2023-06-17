@@ -482,7 +482,7 @@ import { Texture, clampTexture } from './graphics/textures.js';
       case M_GFXTASK:
         ++graphics_task_count;
         hleGraphics(task);
-        n64js.interruptDP();
+        n64js.hardware().miRegDevice.interruptDP();
         break;
       case M_AUDTASK:
         //logger.log('audio task');
