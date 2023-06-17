@@ -120,6 +120,13 @@ export class SPRegDevice extends Device {
         }
     }
 
+    halt() {
+      const status = this.mem.setBits32(SP_STATUS_REG, SP_STATUS_TASKDONE | SP_STATUS_BROKE | SP_STATUS_HALT);
+      if (status & SP_STATUS_INTR_BREAK) {
+        this.hardware.miRegDevice.interruptSP();
+      }
+    }
+  
     spUpdateStatus(flags) {
         if (!this.quiet) {
             if (flags & SP_CLR_HALT) { logger.log('SP: Clearing Halt'); }

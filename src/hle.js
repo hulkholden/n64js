@@ -499,7 +499,7 @@ import { Texture, clampTexture } from './graphics/textures.js';
         break;
     }
 
-    n64js.haltSP();
+    n64js.hardware().spRegDevice.halt();
   };
 
   function unimplemented(cmd0, cmd1) {
