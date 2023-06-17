@@ -28,6 +28,7 @@ const rominfo = {
   save: 'Eeprom4k'
 };
 const hardware = new Hardware(rominfo);
+const controllers = new Controllers(hardware);
 
 // An exception thrown when an assert fails.
 class AssertException {
@@ -49,7 +50,6 @@ function initSync() {
   syncFlow = undefined;//n64js.createSyncConsumer();
   syncInput = undefined;//n64js.createSyncConsumer();
 }
-
 
 function syncActive() {
   return (syncFlow || syncInput) ? true : false;
@@ -301,8 +301,6 @@ function loadRom(arrayBuffer) {
 
     return v;
   }
-
-  const controllers = new Controllers(hardware);
 
   n64js.controllers = () => controllers
 
