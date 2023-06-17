@@ -101,7 +101,7 @@ export class SIRegDevice extends Device {
   }
 
   copyToRDRAM() {
-    n64js.updateController();
+    n64js.controllers.updateController();
 
     var dram_address = this.mem.readU32(SI_DRAM_ADDR_REG) & 0x1fffffff;
     var pi_ram = new Uint8Array(this.hardware.pi_mem.arrayBuffer, 0x7c0, 0x040);
