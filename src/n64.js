@@ -26,9 +26,6 @@ import { romdb } from './romdb.js';
     return n64js.syncFlow;
   };
 
-  const kBootstrapOffset = 0x40;
-  const kGameOffset      = 0x1000;
-
   const kOpBreakpoint = 58;
 
   var breakpoints = {};     // address -> original op
@@ -67,14 +64,6 @@ import { romdb } from './romdb.js';
   function assert(e, m) {
     if (!e) {
       throw new AssertException(m);
-    }
-  }
-
-  // TODO: dedupe.
-  function memoryCopy(dst, dstoff, src, srcoff, len) {
-    var i;
-    for (i = 0; i < len; ++i) {
-      dst.u8[dstoff+i] = src.u8[srcoff+i];
     }
   }
 
@@ -508,10 +497,7 @@ import { romdb } from './romdb.js';
     n64js.resetRenderer();
 
     // Simulate boot
-
-    if (hardware.rom) {
-      memoryCopy(hardware.sp_mem, kBootstrapOffset, hardware.rom, kBootstrapOffset, kGameOffset - kBootstrapOffset);
-    }
+    hardware.loadROM()
 
     var cpu0 = n64js.cpu0;
 
