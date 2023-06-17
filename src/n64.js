@@ -119,6 +119,30 @@ import { romdb } from './romdb.js';
   const piMemDevice    = new PIRamDevice(hardware, 0xbfc00000, 0xbfc00800);
   const romD1A3Device  = new ROMD1A3Device(hardware, 0xbfd00000, 0xc0000000);
 
+  const devices = [
+    mappedMemDevice,
+    cachedMemDevice,
+    uncachedMemDevice,
+    rdRamRegDevice,
+    spMemDevice,
+    spRegDevice,
+    spIbistDevice,
+    dpcDevice,
+    dpsDevice,
+    miRegDevice,
+    viRegDevice,
+    aiRegDevice,
+    piRegDevice,
+    riRegDevice,
+    siRegDevice,
+    romD2A1Device,
+    romD1A1Device,
+    romD2A2Device,
+    romD1A2Device,
+    piMemDevice,
+    romD1A3Device,
+  ];
+
   function fixEndian(arrayBuffer) {
     var dataView = new DataView(arrayBuffer);
 
@@ -468,41 +492,19 @@ import { romdb } from './romdb.js';
 
   n64js.checkSIStatusConsistent = siRegDevice.checkSIStatusConsistent.bind(siRegDevice);
 
-  // We create a memory map of 1<<14 entries, corresponding to the top bits of the address range.
-  var memMap = (function () {
-    var map = [];
-    var i;
-    for (i = 0; i < 0x4000; ++i) {
+  var memMap = initMemMap();
+
+  function initMemMap() {
+    const map = [];
+    for (let i = 0; i < 0x4000; ++i) {
       map.push(undefined);
     }
 
-    [
-      mappedMemDevice,
-      cachedMemDevice,
-      uncachedMemDevice,
-      spMemDevice,
-      spRegDevice,
-      spIbistDevice,
-      dpcDevice,
-      dpsDevice,
-      rdRamRegDevice,
-      miRegDevice,
-      viRegDevice,
-      aiRegDevice,
-      piRegDevice,
-      riRegDevice,
-      siRegDevice,
-      romD2A1Device,
-      romD2A2Device,
-      romD1A1Device,
-      romD1A2Device,
-      romD1A3Device,
-      piMemDevice,
-    ].map(function (e){
-        var i;
-        var beg = (e.rangeStart)>>>18;
-        var end = (e.rangeEnd-1)>>>18;
-        for (i = beg; i <= end; ++i) {
+    // We create a memory map of 1<<14 entries, corresponding to the top bits of the address range.
+    devices.map(e => {
+        const beg = (e.rangeStart)>>>18;
+        const end = (e.rangeEnd-1)>>>18;
+        for (let i = beg; i <= end; ++i) {
           map[i] = e;
         }
     });
@@ -512,8 +514,7 @@ import { romdb } from './romdb.js';
     }
 
     return map;
-
-  }());
+  }
 
   function getMemoryHandler(address) {
     //assert(address>=0, "Address is negative");
