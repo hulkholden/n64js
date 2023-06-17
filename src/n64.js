@@ -51,6 +51,35 @@ function initSync() {
 }
 
 
+function syncActive() {
+  return (syncFlow || syncInput) ? true : false;
+}
+
+function syncTick(maxCount) {
+  const kEstimatedBytePerCycle = 8;
+  let syncObjects = [syncFlow, syncInput];
+  let maxSafeCount = maxCount;
+
+  for (let i = 0; i < syncObjects.length; ++i) {
+    const s = syncObjects[i];
+    if (s) {
+      if (!s.tick()) {
+        maxSafeCount = 0;
+      }
+
+      // Guesstimate num bytes used per cycle
+      let count = Math.floor(s.getAvailableBytes() / kEstimatedBytePerCycle);
+
+      // Ugh - bodgy hacky hacky for input sync
+      count = Math.max(0, count - 100);
+
+      maxSafeCount = Math.min(maxSafeCount, count);
+    }
+  }
+
+  return maxSafeCount;
+}
+
 function uint8ArrayReadString(u8array, offset, maxLen) {
   let s = '';
   for (let i = 0; i < maxLen; ++i) {
@@ -210,35 +239,6 @@ function loadRom(arrayBuffer) {
       n64js.refreshDebugger();
     }
   };
-
-  function syncActive() {
-    return (syncFlow || syncInput) ? true : false;
-  }
-
-  function syncTick(maxCount) {
-    const kEstimatedBytePerCycle = 8;
-    let syncObjects = [syncFlow, syncInput];
-    let maxSafeCount = maxCount;
-
-    for (let i = 0; i < syncObjects.length; ++i) {
-      const s = syncObjects[i];
-      if (s) {
-        if (!s.tick()) {
-          maxSafeCount = 0;
-        }
-
-        // Guesstimate num bytes used per cycle
-        let count = Math.floor(s.getAvailableBytes() / kEstimatedBytePerCycle);
-
-        // Ugh - bodgy hacky hacky for input sync
-        count = Math.max(0, count - 100);
-
-        maxSafeCount = Math.min(maxSafeCount, count);
-      }
-    }
-
-    return maxSafeCount;
-  }
 
   function updateLoopAnimframe() {
     if (stats) {
