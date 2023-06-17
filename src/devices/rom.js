@@ -11,7 +11,6 @@ export class ROMD1A1Device extends Device {
     write32(address, value) { throw 'Writing to rom d1a1'; };
     write16(address, value) { throw 'Writing to rom d1a1'; };
     write8(address, value) { throw 'Writing to rom d1a1'; };
-
 }
 
 export class ROMD1A2Device extends Device {
