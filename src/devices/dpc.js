@@ -34,9 +34,9 @@ const DPC_STATUS_DMA_BUSY      = 0x100;
 const DPC_STATUS_END_VALID     = 0x200;
 const DPC_STATUS_START_VALID   = 0x400;
 
-export class UncachedDPCDevice extends Device {
-  constructor(name, dpcMem, rangeStart, rangeEnd) {
-    super(name, dpcMem, rangeStart, rangeEnd);
+export class DPCDevice extends Device {
+  constructor(hardware, rangeStart, rangeEnd) {
+    super("DPC", hardware.dpc_mem, rangeStart, rangeEnd);
   }
 
   write32(address, value) {

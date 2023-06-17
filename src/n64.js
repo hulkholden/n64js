@@ -2,8 +2,8 @@
 /*global Stats:false */
 
 import { Device } from './devices/device.js';
-import { UncachedDPCDevice } from './devices/dpc.js';
-import { UncachedDPSDevice } from './devices/dps.js';
+import { DPCDevice } from './devices/dpc.js';
+import { DPSDevice } from './devices/dps.js';
 import * as mi from './devices/mi.js';
 import * as pi from './devices/pi.js';
 import * as si from './devices/si.js';
@@ -274,19 +274,19 @@ import { romdb } from './romdb.js';
   var sp_mem_handler_uncached    = new Device("SPMem",    sp_mem,       0xa4000000, 0xa4002000);
   var sp_reg_handler_uncached    = new Device("SPReg",    sp_reg,       0xa4040000, 0xa4040020);
   var sp_ibist_handler_uncached  = new Device("SPIBIST",  sp_ibist_mem, 0xa4080000, 0xa4080008);
-  var dpc_handler_uncached       = new UncachedDPCDevice("DPC",      dpc_mem,      0xa4100000, 0xa4100020);
-  var dps_handler_uncached       = new UncachedDPSDevice("DPS",      dps_mem,      0xa4200000, 0xa4200010);
+  var dpc_handler_uncached       = new DPCDevice(hardware, 0xa4100000, 0xa4100020);
+  var dps_handler_uncached       = new DPSDevice(hardware, 0xa4200000, 0xa4200010);
   var mi_reg_handler_uncached    = new Device("MIReg",    mi_reg,       0xa4300000, 0xa4300010);
   var vi_reg_handler_uncached    = new Device("VIReg",    vi_reg,       0xa4400000, 0xa4400038);
   var ai_reg_handler_uncached    = new Device("AIReg",    ai_reg,       0xa4500000, 0xa4500018);
-  var pi_reg_handler_uncached    = new pi.UncachedPIRegDevice(hardware, "PIReg",       0xa4600000, 0xa4600034);
+  var pi_reg_handler_uncached    = new pi.PIRegDevice(hardware, 0xa4600000, 0xa4600034);
   var ri_reg_handler_uncached    = new Device("RIReg",    ri_reg,       0xa4700000, 0xa4700020);
   var si_reg_handler_uncached    = new Device("SIReg",    si_reg,       0xa4800000, 0xa480001c);
   var rom_d2a1_handler_uncached  = new Device("ROMd2a1",  null,         0xa5000000, 0xa6000000);
   var rom_d1a1_handler_uncached  = new Device("ROMd1a1",  rom,          0xa6000000, 0xa8000000);
   var rom_d2a2_handler_uncached  = new Device("ROMd2a2",  null,         0xa8000000, 0xb0000000);
   var rom_d1a2_handler_uncached  = new Device("ROMd1a2",  rom,          0xb0000000, 0xbfc00000);
-  var pi_mem_handler_uncached    = new pi.UncachedPIRamDevice(hardware, "PIRAM",       0xbfc00000, 0xbfc00800);
+  var pi_mem_handler_uncached    = new pi.PIRamDevice(hardware, 0xbfc00000, 0xbfc00800);
   var rom_d1a3_handler_uncached  = new Device("ROMd1a3",  rom,          0xbfd00000, 0xc0000000);
 
   function fixEndian(arrayBuffer) {
