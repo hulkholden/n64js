@@ -1,6 +1,7 @@
 /*jshint jquery:true, browser:true, devel:true */
 /*global Stats:false */
 
+import { AIRegDevice } from './devices/ai.js';
 import { Device } from './devices/device.js';
 import { DPCDevice } from './devices/dpc.js';
 import { DPSDevice } from './devices/dps.js';
@@ -86,15 +87,6 @@ import { romdb } from './romdb.js';
   const VI_H_SYNC_LEAP_REG    = VI_LEAP_REG;
   const VI_H_VIDEO_REG        = VI_H_START_REG;
   const VI_V_VIDEO_REG        = VI_V_START_REG;
-
-  // Audio Interface
-  const AI_DRAM_ADDR_REG  = 0x00;
-  const AI_LEN_REG        = 0x04;
-  const AI_CONTROL_REG    = 0x08;
-  const AI_STATUS_REG     = 0x0C;
-  const AI_DACRATE_REG    = 0x10;
-  const AI_BITRATE_REG    = 0x14;
-
 
   // RDRAM Interface
   const RI_MODE_REG             = 0x00;
@@ -199,7 +191,7 @@ import { romdb } from './romdb.js';
   var dps_handler_uncached       = new DPSDevice(hardware, 0xa4200000, 0xa4200010);
   var mi_reg_handler_uncached    = new MIRegDevice(hardware, 0xa4300000, 0xa4300010);
   var vi_reg_handler_uncached    = new Device("VIReg",    vi_reg,       0xa4400000, 0xa4400038);
-  var ai_reg_handler_uncached    = new Device("AIReg",    ai_reg,       0xa4500000, 0xa4500018);
+  var ai_reg_handler_uncached    = new AIRegDevice(hardware, 0xa4500000, 0xa4500018);
   var pi_reg_handler_uncached    = new pi.PIRegDevice(hardware, 0xa4600000, 0xa4600034);
   var ri_reg_handler_uncached    = new Device("RIReg",    ri_reg,       0xa4700000, 0xa4700020);
   var si_reg_handler_uncached    = new Device("SIReg",    si_reg,       0xa4800000, 0xa480001c);
@@ -499,41 +491,6 @@ import { romdb } from './romdb.js';
 
   rdram_reg_handler_uncached.calcEA  = function (address) {
     return address&0xff;
-  };
-  ai_reg_handler_uncached.write32 = function (address, value) {
-    var ea = this.calcEA(address);
-    if (ea+4 > this.u8.length) {
-      throw 'Write is out of range';
-    }
-
-    switch( ea ) {
-      case AI_DRAM_ADDR_REG:
-      case AI_CONTROL_REG:
-      case AI_BITRATE_REG:
-        if(!this.quiet) { logger.log('Wrote to AIReg: ' + toString32(value) + ' -> [' + toString32(address) + ']' ); }
-        this.mem.write32(ea, value);
-        break;
-
-      case AI_LEN_REG:
-        if(!this.quiet) { logger.log('AI len changed to ' + value); }
-        this.mem.write32(ea, value);
-        break;
-      case AI_DACRATE_REG:
-        if(!this.quiet) { logger.log('AI dacrate changed to ' + value); }
-        this.mem.write32(ea, value);
-        break;
-
-      case AI_STATUS_REG:
-        logger.log('AI interrupt cleared');
-        ai_reg.clearBits32(MI_INTR_REG, MI_INTR_AI);
-        n64js.cpu0.updateCause3();
-        break;
-
-      default:
-        logger.log('Unhandled write to AIReg: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
-        this.mem.write32(ea, value);
-        break;
-    }
   };
 
   vi_reg_handler_uncached.write32 = function (address, value) {
