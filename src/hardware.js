@@ -115,6 +115,11 @@ export class Hardware {
     return rom;
   }
 
+  verticalBlank() {
+    this.saveEeprom();
+    this.viRegDevice.verticalBlank();
+  };
+
   initSaveGame() {
     this.eeprom = null;
     this.eepromDirty = false;
