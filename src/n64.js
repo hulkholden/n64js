@@ -94,12 +94,6 @@ import { romdb } from './romdb.js';
 
   const hardware = new Hardware(rominfo);
 
-  let rom      = hardware.rom;
-  const pi_mem = hardware.pi_mem;
-  const ram    = hardware.ram
-  const sp_mem = hardware.sp_mem;
-  const sp_reg = hardware.sp_reg;
-
   var eeprom        = null;   // Initialised during reset, using correct size for this rom (may be null if eeprom isn't used)
   var eepromDirty   = false;
 
@@ -107,7 +101,7 @@ import { romdb } from './romdb.js';
   var kTaskOffset   = 0x0fc0;
 
   // FIXME - encapsulate this better.
-  n64js.rsp_task_view = new DataView(sp_mem.arrayBuffer, kTaskOffset, 0x40);
+  n64js.rsp_task_view = new DataView(hardware.sp_mem.arrayBuffer, kTaskOffset, 0x40);
 
   var mapped_mem_handler         = new MappedMemDevice(hardware, 0x00000000, 0x80000000);
   var rdram_handler_cached       = new CachedMemDevice(hardware, 0x80000000, 0x80800000);
@@ -212,7 +206,7 @@ import { romdb } from './romdb.js';
     fixEndian(arrayBuffer);
 
     hardware.createROM(arrayBuffer);
-    rom = hardware.rom;
+    const rom = hardware.rom;
 
     rom_d1a1_handler_uncached.setMem(rom);
     rom_d1a2_handler_uncached.setMem(rom);
@@ -400,7 +394,7 @@ import { romdb } from './romdb.js';
 
   n64js.getRamDataView = function () {
     // FIXME: should cache this object, or try to get rid of DataView entirely (Uint8Array + manual shuffling is faster)
-    return new DataView(ram.arrayBuffer);
+    return new DataView(hardware.ram.arrayBuffer);
   };
 
 
@@ -444,7 +438,7 @@ import { romdb } from './romdb.js';
 
   n64js.updateController = function() {
     // read controllers
-    var pi_ram = new Uint8Array(pi_mem.arrayBuffer, 0x7c0, 0x040);
+    var pi_ram = new Uint8Array(hardware.pi_mem.arrayBuffer, 0x7c0, 0x040);
 
     var count   = 0;
     var channel = 0;
@@ -1065,8 +1059,8 @@ import { romdb } from './romdb.js';
 
     // Simulate boot
 
-    if (rom) {
-      memoryCopy( sp_mem, kBootstrapOffset, rom, kBootstrapOffset, kGameOffset - kBootstrapOffset );
+    if (hardware.rom) {
+      memoryCopy(hardware.sp_mem, kBootstrapOffset, hardware.rom, kBootstrapOffset, kGameOffset - kBootstrapOffset);
     }
 
     var cpu0 = n64js.cpu0;
@@ -1265,7 +1259,7 @@ import { romdb } from './romdb.js';
   n64js.viVStart = function () { return vi_reg_handler_uncached.viVStart(); };
 
   n64js.haltSP = function () {
-    var status = sp_reg.setBits32(SP_STATUS_REG, SP_STATUS_TASKDONE|SP_STATUS_BROKE|SP_STATUS_HALT);
+    var status = hardware.sp_reg.setBits32(SP_STATUS_REG, SP_STATUS_TASKDONE|SP_STATUS_BROKE|SP_STATUS_HALT);
     if (status & SP_STATUS_INTR_BREAK) {
       mi_reg_handler_uncached.interruptSP();
     }
