@@ -9,29 +9,17 @@ import { Hardware } from './hardware.js';
 import * as logger from './logger.js';
 import { romdb } from './romdb.js';
 
+const kOpBreakpoint = 58;
+const kCyclesPerUpdate = 100000000;
+
 (function (n64js) {'use strict';
   const toString32 = format.toString32;
 
-  var stats = null;
-
-  const kCyclesPerUpdate = 100000000;
-
-  n64js.syncFlow = null;
-  n64js.syncInput = null;
-  function initSync() {
-    n64js.syncFlow  = undefined;//n64js.createSyncConsumer();
-    n64js.syncInput = undefined;//n64js.createSyncConsumer();
-  }
-  n64js.getSyncFlow = () => n64js.syncFlow;
-
-  const kOpBreakpoint = 58;
-
-  var breakpoints = {};     // address -> original op
-
-  var running       = false;
-
-  var resetCallbacks = [];
-
+  let stats = null;
+  let running       = false;
+  let breakpoints = {};     // address -> original op
+  const resetCallbacks = [];
+  
   const rominfo = {
     id:             '',
     name:           '',
@@ -40,6 +28,13 @@ import { romdb } from './romdb.js';
     save:           'Eeprom4k'
   };
 
+  n64js.syncFlow = null;
+  n64js.syncInput = null;
+  function initSync() {
+    n64js.syncFlow  = undefined;//n64js.createSyncConsumer();
+    n64js.syncInput = undefined;//n64js.createSyncConsumer();
+  }
+  n64js.getSyncFlow = () => n64js.syncFlow;
   /**
    * An exception thrown when an assert fails.
    */
@@ -62,9 +57,8 @@ import { romdb } from './romdb.js';
   n64js.hardware = () => hardware;
 
   // Keep a DataView around as a view onto the RSP task
-  var kTaskOffset   = 0x0fc0;
-
   // FIXME - encapsulate this better.
+  const kTaskOffset   = 0x0fc0;
   n64js.rsp_task_view = new DataView(hardware.sp_mem.arrayBuffer, kTaskOffset, 0x40);
 
   function uint8ArrayReadString(u8array, offset, maxLen) {
@@ -426,8 +420,8 @@ import { romdb } from './romdb.js';
   //
   // Performance
   //
-  var startTime;
-  var lastPresentTime;
+  let startTime;
+  let lastPresentTime;
 
   n64js.emitRunningTime  = (msg) => {
     var cur_time = new Date();
