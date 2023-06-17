@@ -11,6 +11,7 @@ import { MappedMemDevice, CachedMemDevice, UncachedMemDevice } from './devices/r
 import { ROMD1A1Device, ROMD1A2Device, ROMD1A3Device, ROMD2A1Device, ROMD2A2Device } from './devices/rom.js';
 import * as si from './devices/si.js';
 import { SPMemDevice, SPRegDevice } from './devices/sp.js';
+import { VIRegDevice } from './devices/vi.js';
 import { MemoryRegion } from './MemoryRegion.js';
 import * as _debugger from './debugger.js';
 import * as format from './format.js';
@@ -62,32 +63,6 @@ import { romdb } from './romdb.js';
   const MI_INTR_PI        = 0x10;
   const MI_INTR_DP        = 0x20;
 
-  // Video Interface
-  const VI_STATUS_REG     = 0x00;
-  const VI_ORIGIN_REG     = 0x04;
-  const VI_WIDTH_REG      = 0x08;
-  const VI_INTR_REG       = 0x0C;
-  const VI_CURRENT_REG    = 0x10;
-  const VI_BURST_REG      = 0x14;
-  const VI_V_SYNC_REG     = 0x18;
-  const VI_H_SYNC_REG     = 0x1C;
-  const VI_LEAP_REG       = 0x20;
-  const VI_H_START_REG    = 0x24;
-  const VI_V_START_REG    = 0x28;
-  const VI_V_BURST_REG    = 0x2C;
-  const VI_X_SCALE_REG    = 0x30;
-  const VI_Y_SCALE_REG    = 0x34;
-
-  const VI_CONTROL_REG        = VI_STATUS_REG;
-  const VI_DRAM_ADDR_REG      = VI_ORIGIN_REG;
-  const VI_H_WIDTH_REG        = VI_WIDTH_REG;
-  const VI_V_INTR_REG         = VI_INTR_REG;
-  const VI_V_CURRENT_LINE_REG = VI_CURRENT_REG;
-  const VI_TIMING_REG         = VI_BURST_REG;
-  const VI_H_SYNC_LEAP_REG    = VI_LEAP_REG;
-  const VI_H_VIDEO_REG        = VI_H_START_REG;
-  const VI_V_VIDEO_REG        = VI_V_START_REG;
-
   // RDRAM Interface
   const RI_MODE_REG             = 0x00;
   const RI_CONFIG_REG           = 0x04;
@@ -112,9 +87,6 @@ import { romdb } from './romdb.js';
   const SI_STATUS_INTERRUPT   = 0x1000;
 
   var running       = false;
-
-  var cur_vbl       = 0;
-  var last_vbl      = 0;
 
   var gRumblePakActive = false;
   var gEnableRumble = false;
@@ -190,7 +162,7 @@ import { romdb } from './romdb.js';
   var dpc_handler_uncached       = new DPCDevice(hardware, 0xa4100000, 0xa4100020);
   var dps_handler_uncached       = new DPSDevice(hardware, 0xa4200000, 0xa4200010);
   var mi_reg_handler_uncached    = new MIRegDevice(hardware, 0xa4300000, 0xa4300010);
-  var vi_reg_handler_uncached    = new Device("VIReg",    vi_reg,       0xa4400000, 0xa4400038);
+  var vi_reg_handler_uncached    = new VIRegDevice(hardware, 0xa4400000, 0xa4400038);
   var ai_reg_handler_uncached    = new AIRegDevice(hardware, 0xa4500000, 0xa4500018);
   var pi_reg_handler_uncached    = new pi.PIRegDevice(hardware, 0xa4600000, 0xa4600034);
   var ri_reg_handler_uncached    = new Device("RIReg",    ri_reg,       0xa4700000, 0xa4700020);
@@ -492,64 +464,6 @@ import { romdb } from './romdb.js';
   rdram_reg_handler_uncached.calcEA  = function (address) {
     return address&0xff;
   };
-
-  vi_reg_handler_uncached.write32 = function (address, value) {
-    var ea = this.calcEA(address);
-    if (ea+4 > this.u8.length) {
-      throw 'Write is out of range';
-    }
-
-    switch( ea ) {
-      case VI_ORIGIN_REG:
-        var last_origin = this.mem.readU32(ea);
-        var new_origin = value>>>0;
-        if (new_origin !== last_origin/* || cur_vbl !== last_vbl*/) {
-          n64js.presentBackBuffer(n64js.getRamU8Array(), new_origin);
-          n64js.returnControlToSystem();
-          last_vbl = cur_vbl;
-        }
-        this.mem.write32(ea, value);
-        break;
-      case VI_CONTROL_REG:
-        if (!this.quiet) { logger.log('VI control set to: ' + toString32(value) ); }
-        this.mem.write32(ea, value);
-        break;
-      case VI_WIDTH_REG:
-        if (!this.quiet) { logger.log('VI width set to: ' + value ); }
-        this.mem.write32(ea, value);
-        break;
-      case VI_CURRENT_REG:
-        if (!this.quiet) { logger.log('VI current set to: ' + toString32(value) + '.' ); }
-        if (!this.quiet) { logger.log('VI interrupt cleared'); }
-        mi_reg.clearBits32(MI_INTR_REG, MI_INTR_VI);
-        n64js.cpu0.updateCause3();
-        break;
-
-      default:
-        this.mem.write32(ea, value);
-        break;
-    }
-  };
-
-  vi_reg_handler_uncached.readS32 = function (address) {
-    this.logRead(address);
-    var ea = this.calcEA(address);
-
-    if (ea+4 > this.u8.length) {
-      throw 'Read is out of range';
-    }
-    var value = this.mem.readS32(ea);
-    if (ea === VI_CURRENT_REG) {
-      value = (value + 2) % 512;
-      this.mem.write32(ea, value);
-    }
-    return value;
-  };
-
-  vi_reg_handler_uncached.readU32 = function (address) {
-    return this.readS32(address)>>>0;
-  };
-
 
   function siCopyFromRDRAM() {
     var dram_address = si_reg.readU32(SI_DRAM_ADDR_REG) & 0x1fffffff;
@@ -1486,10 +1400,7 @@ import { romdb } from './romdb.js';
 
     saveEeprom();
 
-    mi_reg.setBits32(MI_INTR_REG, MI_INTR_VI);
-    n64js.cpu0.updateCause3();
-
-    ++cur_vbl;
+    vi_reg_handler_uncached.verticalBlank();
   };
 
   n64js.miInterruptsUnmasked = function () {
@@ -1504,12 +1415,12 @@ import { romdb } from './romdb.js';
     return mi_reg.readU32(MI_INTR_MASK_REG);
   };
 
-  n64js.viOrigin = function () { return vi_reg.readU32(VI_ORIGIN_REG); };
-  n64js.viWidth  = function () { return vi_reg.readU32(VI_WIDTH_REG); };
-  n64js.viXScale = function () { return vi_reg.readU32(VI_X_SCALE_REG); };
-  n64js.viYScale = function () { return vi_reg.readU32(VI_Y_SCALE_REG); };
-  n64js.viHStart = function () { return vi_reg.readU32(VI_H_START_REG); };
-  n64js.viVStart = function () { return vi_reg.readU32(VI_V_START_REG); };
+  n64js.viOrigin = function () { return vi_reg_handler_uncached.viOrigin(); };
+  n64js.viWidth  = function () { return vi_reg_handler_uncached.viWidth(); };
+  n64js.viXScale = function () { return vi_reg_handler_uncached.viXScale(); };
+  n64js.viYScale = function () { return vi_reg_handler_uncached.viYScale(); };
+  n64js.viHStart = function () { return vi_reg_handler_uncached.viHStart(); };
+  n64js.viVStart = function () { return vi_reg_handler_uncached.viVStart(); };
 
   n64js.haltSP = function () {
     var status = sp_reg.setBits32(SP_STATUS_REG, SP_STATUS_TASKDONE|SP_STATUS_BROKE|SP_STATUS_HALT);
