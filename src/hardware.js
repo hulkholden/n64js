@@ -100,6 +100,10 @@ export class Hardware {
     this.si_reg.clear();
 
     this.initSaveGame();
+
+    this.piRegDevice.reset();
+    this.miRegDevice.reset();
+    this.riRegDevice.reset();
   }
 
   createROM(arrayBuffer) {

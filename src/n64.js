@@ -89,8 +89,6 @@ import { romdb } from './romdb.js';
   const cachedMemDevice = hardware.cachedMemDevice;
   const miRegDevice = hardware.miRegDevice;
   const viRegDevice = hardware.viRegDevice;
-  const piRegDevice = hardware.piRegDevice;
-  const riRegDevice = hardware.riRegDevice;
 
   function uint8ArrayReadString(u8array, offset, maxLen) {
     let s = '';
@@ -553,17 +551,12 @@ import { romdb } from './romdb.js';
 
     initSync();
 
-    piRegDevice.reset();
-
     hardware.reset();
 
     n64js.cpu0.reset();
     n64js.cpu1.reset();
 
     n64js.resetRenderer();
-
-    miRegDevice.reset();
-    riRegDevice.reset();
 
     // Simulate boot
 
