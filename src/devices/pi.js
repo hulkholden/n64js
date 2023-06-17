@@ -50,9 +50,9 @@ function memoryCopy(dst, dstoff, src, srcoff, len) {
 }
 
 
-export class UncachedPIRegDevice extends Device {
-  constructor(hardware, name, rangeStart, rangeEnd) {
-    super(name, hardware.pi_reg, rangeStart, rangeEnd);
+export class PIRegDevice extends Device {
+  constructor(hardware, rangeStart, rangeEnd) {
+    super("PIReg", hardware.pi_reg, rangeStart, rangeEnd);
     this.hardware = hardware;
     this.haveSetMemorySize = false;
   }
@@ -157,9 +157,9 @@ export class UncachedPIRegDevice extends Device {
   }
 }
 
-export class UncachedPIRamDevice extends Device {
-  constructor(hardware, name, rangeStart, rangeEnd) {
-    super(name, hardware.pi_mem, rangeStart, rangeEnd);
+export class PIRamDevice extends Device {
+  constructor(hardware, rangeStart, rangeEnd) {
+    super("PIRAM", hardware.pi_mem, rangeStart, rangeEnd);
     this.hardware = hardware;
   }
 

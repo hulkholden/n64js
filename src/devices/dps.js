@@ -13,9 +13,9 @@ const DPS_TBIST_CLEAR      = 0x04;
 const DPS_TBIST_DONE      = 0x004;
 const DPS_TBIST_FAILED    = 0x7F8;
 
-export class UncachedDPSDevice extends Device {
-  constructor(name, dpsMem, rangeStart, rangeEnd) {
-    super(name, dpsMem, rangeStart, rangeEnd);
+export class DPSDevice extends Device {
+  constructor(hardware, rangeStart, rangeEnd) {
+    super("DPS", hardware.dps_mem, rangeStart, rangeEnd);
   }
 
   write32(address, value) {
