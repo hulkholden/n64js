@@ -11,7 +11,7 @@ import { MappedMemDevice, CachedMemDevice, UncachedMemDevice } from './devices/r
 import { RIRegDevice } from './devices/ri.js';
 import { ROMD1A1Device, ROMD1A2Device, ROMD1A3Device, ROMD2A1Device, ROMD2A2Device } from './devices/rom.js';
 import { SIRegDevice } from './devices/si.js';
-import { SPMemDevice, SPRegDevice } from './devices/sp.js';
+import { SPMemDevice, SPIBISTDevice, SPRegDevice } from './devices/sp.js';
 import { VIRegDevice } from './devices/vi.js';
 import { MemoryRegion } from './MemoryRegion.js';
 import * as _debugger from './debugger.js';
@@ -134,7 +134,7 @@ import { romdb } from './romdb.js';
   var rdram_reg_handler_uncached = new Device("RDRAMReg", rdram_reg,    0xa3f00000, 0xa4000000);
   var sp_mem_handler_uncached    = new SPMemDevice(hardware, 0xa4000000, 0xa4002000);
   var sp_reg_handler_uncached    = new SPRegDevice(hardware, 0xa4040000, 0xa4040020);
-  var sp_ibist_handler_uncached  = new Device("SPIBIST",  sp_ibist_mem, 0xa4080000, 0xa4080008);
+  var sp_ibist_handler_uncached  = new SPIBISTDevice(hardware, 0xa4080000, 0xa4080008);
   var dpc_handler_uncached       = new DPCDevice(hardware, 0xa4100000, 0xa4100020);
   var dps_handler_uncached       = new DPSDevice(hardware, 0xa4200000, 0xa4200010);
   var mi_reg_handler_uncached    = new MIRegDevice(hardware, 0xa4300000, 0xa4300010);
