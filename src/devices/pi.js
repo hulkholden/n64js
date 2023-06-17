@@ -42,13 +42,11 @@ export function isDom2Addr1(address) { return address >= PI_DOM2_ADDR1 && addres
 export function isDom2Addr2(address) { return address >= PI_DOM2_ADDR2 && address < PI_DOM1_ADDR2; }
 
 // TODO: dedupe.
-function memoryCopy(dst, dstoff, src, srcoff, len) {
-  var i;
-  for (i = 0; i < len; ++i) {
-    dst.u8[dstoff + i] = src.u8[srcoff + i];
+function memoryCopy(dst, dstOff, src, srcOff, len) {
+  for (let i = 0; i < len; ++i) {
+    dst.u8[dstOff + i] = src.u8[srcOff + i];
   }
 }
-
 
 export class PIRegDevice extends Device {
   constructor(hardware, rangeStart, rangeEnd) {
@@ -62,7 +60,7 @@ export class PIRegDevice extends Device {
 
   setMemorySize() {
     if (!this.haveSetMemorySize) {
-      var addr = (this.hardware.rominfo.cic === '6105') ? 0x800003F0 : 0x80000318;
+      const addr = (this.hardware.rominfo.cic === '6105') ? 0x800003F0 : 0x80000318;
       this.hardware.ram.write32(addr - 0x80000000, 8 * 1024 * 1024);
       logger.log('Setting memory size');
       this.haveSetMemorySize = true;
@@ -70,14 +68,14 @@ export class PIRegDevice extends Device {
   }
 
   write32(address, value) {
-    var ea = this.calcEA(address);
+    const ea = this.calcEA(address);
     if (ea + 4 > this.u8.length) {
       throw 'Write is out of range';
     }
     switch (ea) {
       case PI_DRAM_ADDR_REG:
       case PI_CART_ADDR_REG:
-        if (!this.quiet) { logger.log('Writing to PIReg: ' + toString32(value) + ' -> [' + toString32(address) + ']'); }
+        if (!this.quiet) { logger.log(`Writing to PIReg: ${toString32(value)} -> [${toString32(address)}]`); }
         this.mem.write32(ea, value);
         break;
       case PI_RD_LEN_REG:
@@ -100,51 +98,43 @@ export class PIRegDevice extends Device {
         }
         break;
       default:
-        logger.log('Unhandled write to PIReg: ' + toString32(value) + ' -> [' + toString32(address) + ']');
+        logger.log(`Unhandled write to PIReg: ${toString32(value)} -> [${toString32(address)}]`);
         this.mem.write32(ea, value);
         break;
     }
   }
 
   copyToRDRAM() {
-    var dram_address = this.mem.readU32(PI_DRAM_ADDR_REG) & 0x00ffffff;
-    var cart_address = this.mem.readU32(PI_CART_ADDR_REG);
-    var transfer_len = this.mem.readU32(PI_WR_LEN_REG) + 1;
+    const dramAddr = this.mem.readU32(PI_DRAM_ADDR_REG) & 0x00ffffff;
+    const cartAddr = this.mem.readU32(PI_CART_ADDR_REG);
+    const transferLen = this.mem.readU32(PI_WR_LEN_REG) + 1;
 
     if (!this.quiet) {
-      logger.log('PI: copying ' + transfer_len + ' bytes of data from ' + toString32(cart_address) + ' to ' + toString32(dram_address));
+      logger.log(`PI: copying ${transferLen} bytes of data from ${toString32(cartAddr)} to ${toString32(dramAddr)}`);
     }
 
-    if (transfer_len & 1) {
+    if (transferLen & 1) {
       logger.log('PI: Warning - odd address');
-      transfer_len++;
+      transferLen++;
     }
 
-    var copy_succeeded = false;
+    const cacheAddr = 0x80000000 | dramAddr;
 
-    if (isDom1Addr1(cart_address)) {
-      cart_address -= PI_DOM1_ADDR1;
-      memoryCopy(this.hardware.ram, dram_address, this.hardware.rom, cart_address, transfer_len);
-      n64js.invalidateICacheRange(0x80000000 | dram_address, transfer_len, 'PI');
-      copy_succeeded = true;
-    } else if (isDom1Addr2(cart_address)) {
-      cart_address -= PI_DOM1_ADDR2;
-      memoryCopy(this.hardware.ram, dram_address, this.hardware.rom, cart_address, transfer_len);
-      n64js.invalidateICacheRange(0x80000000 | dram_address, transfer_len, 'PI');
-      copy_succeeded = true;
-    } else if (isDom1Addr3(cart_address)) {
-      cart_address -= PI_DOM1_ADDR3;
-      memoryCopy(this.hardware.ram, dram_address, this.hardware.rom, cart_address, transfer_len);
-      n64js.invalidateICacheRange(0x80000000 | dram_address, transfer_len, 'PI');
-      copy_succeeded = true;
-    } else if (isDom2Addr1(cart_address)) {
-      cart_address -= PI_DOM2_ADDR1;
+    if (isDom1Addr1(cartAddr)) {
+      memoryCopy(this.hardware.ram, dramAddr, this.hardware.rom, cartAddr - PI_DOM1_ADDR1, transferLen);
+      n64js.invalidateICacheRange(cacheAddr, transferLen, 'PI');
+    } else if (isDom1Addr2(cartAddr)) {
+      memoryCopy(this.hardware.ram, dramAddr, this.hardware.rom, cartAddr - PI_DOM1_ADDR2, transferLen);
+      n64js.invalidateICacheRange(cacheAddr, transferLen, 'PI');
+    } else if (isDom1Addr3(cartAddr)) {
+      memoryCopy(this.hardware.ram, dramAddr, this.hardware.rom, cartAddr - PI_DOM1_ADDR3, transferLen);
+      n64js.invalidateICacheRange(cacheAddr, transferLen, 'PI');
+    } else if (isDom2Addr1(cartAddr)) {
       n64js.halt('PI: dom2addr1 transfer is unhandled (save)');
-    } else if (isDom2Addr2(cart_address)) {
-      cart_address -= PI_DOM2_ADDR2;
+    } else if (isDom2Addr2(cartAddr)) {
       n64js.halt('PI: dom2addr2 transfer is unhandled (save/flash)');
     } else {
-      n64js.halt('PI: unknown cart address: ' + cart_address);
+      n64js.halt(`PI: unknown cart address: ${cartAddr}`);
     }
 
     this.setMemorySize();
@@ -162,21 +152,19 @@ export class PIRamDevice extends Device {
   }
 
   readS32(address) {
-    var ea = this.calcEA(address);
-
+    const ea = this.calcEA(address);
     if (ea + 4 > this.u8.length) {
       throw 'Read is out of range';
     }
-    var v = this.mem.readS32(ea);
-
+    const v = this.mem.readS32(ea);
     if (ea < 0x7c0) {
-      logger.log('Reading from PIF rom (' + toString32(address) + '). Got ' + toString32(v));
+      logger.log(`Reading from PIF rom (${toString32(address)}). Got ${toString32(v)}`);
     } else {
-      var ram_offset = ea - 0x7c0;
-      switch (ram_offset) {
-        case 0x24: logger.log('Reading CIC values: ' + toString32(v)); break;
-        case 0x3c: logger.log('Reading Control byte: ' + toString32(v)); break;
-        default: logger.log('Reading from PI ram [' + toString32(address) + ']. Got ' + toString32(v));
+      const ramOffset = ea - 0x7c0;
+      switch (ramOffset) {
+        case 0x24: logger.log(`Reading CIC values: ${toString32(v)}`); break;
+        case 0x3c: logger.log(`Reading Control byte: ${toString32(v)}`); break;
+        default: logger.log(`Reading from PI ram [${toString32(address)}]. Got ${toString32(v)}`);
       }
     }
     return v;
@@ -187,18 +175,16 @@ export class PIRamDevice extends Device {
   }
 
   readS8(address) {
-    var ea = this.calcEA(address);
-
-    var v = this.mem.readU8(ea);
-
+    const ea = this.calcEA(address);
+    const v = this.mem.readU8(ea);
     if (ea < 0x7c0) {
-      logger.log('Reading from PIF rom (' + toString32(address) + '). Got ' + toString8(v));
+      logger.log(`Reading from PIF rom (${toString32(address)}). Got ${toString8(v)}`);
     } else {
-      var ram_offset = ea - 0x7c0;
-      switch (ram_offset) {
-        case 0x24: logger.log('Reading CIC values: ' + toString8(v)); break;
-        case 0x3c: logger.log('Reading Control byte: ' + toString8(v)); break;
-        default: logger.log('Reading from PI ram [' + toString32(address) + ']. Got ' + toString8(v));
+      const ramOffset = ea - 0x7c0;
+      switch (ramOffset) {
+        case 0x24: logger.log(`Reading CIC values: ${toString8(v)}`); break;
+        case 0x3c: logger.log(`Reading Control byte: ${toString8(v)}`); break;
+        default: logger.log(`Reading from PI ram [${toString32(address)}]. Got ${toString8(v)}`);
       }
     }
     return v;
@@ -209,56 +195,54 @@ export class PIRamDevice extends Device {
   }
 
   write32(address, value) {
-    var ea = this.calcEA(address);
-
+    const ea = this.calcEA(address);
     if (ea < 0x7c0) {
       logger.log('Attempting to write to PIF ROM');
     } else {
-      var ram_offset = ea - 0x7c0;
+      const ramOffset = ea - 0x7c0;
       this.mem.write32(ea, value);
-      switch (ram_offset) {
-        case 0x24: logger.log('Writing CIC values: ' + toString32(value)); break;
-        case 0x3c: logger.log('Writing Control byte: ' + toString32(value)); this.pifUpdateControl(); break;
-        default: logger.log('Writing directly to PI ram [' + toString32(address) + '] <-- ' + toString32(value)); break;
+      switch (ramOffset) {
+        case 0x24: logger.log(`Writing CIC values: ${toString32(value)}`); break;
+        case 0x3c: logger.log(`Writing Control byte: ${toString32(value)}`); this.pifUpdateControl(); break;
+        default: logger.log(`Writing directly to PI ram [${toString32(address)}] <-- ${toString32(value)}`); break;
       }
     }
   }
 
   pifUpdateControl() {
-    var pi_rom = new Uint8Array(this.mem.arrayBuffer, 0x000, 0x7c0);
-    var pi_ram = new Uint8Array(this.mem.arrayBuffer, 0x7c0, 0x040);
-    var command = pi_ram[0x3f];
-    var i;
+    const piRom = new Uint8Array(this.mem.arrayBuffer, 0x000, 0x7c0);
+    const piRam = new Uint8Array(this.mem.arrayBuffer, 0x7c0, 0x040);
+    const command = piRam[0x3f];
 
     switch (command) {
       case 0x01:
-        logger.log('PI: execute block\n');
+        logger.log('PI: execute block');
         break;
       case 0x08:
-        logger.log('PI: interrupt control\n');
-        pi_ram[0x3f] = 0x00;
+        logger.log('PI: interrupt control');
+        piRam[0x3f] = 0x00;
         this.hardware.si_reg.setBits32(si.SI_STATUS_REG, si.SI_STATUS_INTERRUPT);
         this.hardware.mi_reg.setBits32(mi.MI_INTR_REG, mi.MI_INTR_SI);
         n64js.cpu0.updateCause3();
         break;
       case 0x10:
-        logger.log('PI: clear rom\n');
-        for (i = 0; i < pi_rom.length; ++i) {
-          pi_rom[i] = 0;
+        logger.log('PI: clear rom');
+        for (let i = 0; i < piRom.length; ++i) {
+          piRom[i] = 0;
         }
         break;
       case 0x30:
-        logger.log('PI: set 0x80 control \n');
-        pi_ram[0x3f] = 0x80;
+        logger.log('PI: set 0x80 control ');
+        piRam[0x3f] = 0x80;
         break;
       case 0xc0:
-        logger.log('PI: clear ram\n');
-        for (i = 0; i < pi_ram.length; ++i) {
-          pi_ram[i] = 0;
+        logger.log('PI: clear ram');
+        for (let i = 0; i < piRam.length; ++i) {
+          piRam[i] = 0;
         }
         break;
       default:
-        n64js.halt('Unkown PI control value: ' + toString8(command));
+        n64js.halt(`Unknown PI control value: ${toString8(command)}`);
         break;
     }
   }
