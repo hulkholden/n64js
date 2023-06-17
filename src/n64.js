@@ -753,10 +753,6 @@ import { romdb } from './romdb.js';
     }
   };
 
-  n64js.interruptDP = function () {
-    hardware.miRegDevice.interruptDP();
-  };
-
   n64js.assert = assert;
 
   n64js.check = function (e, m) {
