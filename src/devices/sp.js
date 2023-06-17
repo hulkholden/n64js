@@ -72,6 +72,12 @@ export class SPMemDevice extends Device {
     }
 }
 
+export class SPIBISTDevice extends Device {
+    constructor(hardware, rangeStart, rangeEnd) {
+        super("SPIBIST", hardware.sp_ibist_mem, rangeStart, rangeEnd);
+    }
+}
+
 export class SPRegDevice extends Device {
     constructor(hardware, rangeStart, rangeEnd) {
         super("SPReg", hardware.sp_reg, rangeStart, rangeEnd);
