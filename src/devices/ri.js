@@ -15,7 +15,7 @@ const RI_LAST_REG = RI_WERROR_REG;
 
 export class RIRegDevice extends Device {
     constructor(hardware, rangeStart, rangeEnd) {
-        super("RIReg", hardware.ri_reg, rangeStart, rangeEnd);
+        super("RIReg", hardware, hardware.ri_reg, rangeStart, rangeEnd);
     }
 
     reset() {

@@ -5,7 +5,7 @@ import * as logger from '../logger.js';
 export class ROMD1A1Device extends Device {
     constructor(hardware, rangeStart, rangeEnd) {
         // FIXME: rom is initally unmapped, and the underlying Device isn't updated as it's mapped in.
-        super("ROMd1a1", hardware.rom, rangeStart, rangeEnd);
+        super("ROMd1a1", hardware, hardware.rom, rangeStart, rangeEnd);
     }
 
     write32(address, value) { throw 'Writing to rom d1a1'; };
@@ -16,7 +16,7 @@ export class ROMD1A1Device extends Device {
 export class ROMD1A2Device extends Device {
     constructor(hardware, rangeStart, rangeEnd) {
         // FIXME: rom is initally unmapped, and the underlying Device isn't updated as it's mapped in.
-        super("ROMd1a2", hardware.rom, rangeStart, rangeEnd);
+        super("ROMd1a2", hardware, hardware.rom, rangeStart, rangeEnd);
     }
 
     write32(address, value) { throw 'Writing to rom d1a2'; };
@@ -27,7 +27,7 @@ export class ROMD1A2Device extends Device {
 export class ROMD1A3Device extends Device {
     constructor(hardware, rangeStart, rangeEnd) {
         // FIXME: rom is initally unmapped, and the underlying Device isn't updated as it's mapped in.
-        super("ROMd1a3", hardware.rom, rangeStart, rangeEnd);
+        super("ROMd1a3", hardware, hardware.rom, rangeStart, rangeEnd);
     }
 
     write32(address, value) { throw 'Writing to rom d1a3'; };
@@ -37,7 +37,7 @@ export class ROMD1A3Device extends Device {
 
 export class ROMD2A1Device extends Device {
     constructor(hardware, rangeStart, rangeEnd) {
-        super("ROMd2a1", null, rangeStart, rangeEnd);
+        super("ROMd2a1", hardware, null, rangeStart, rangeEnd);
     }
 
     readU32(address) { logger.log('reading noise'); return n64js.getRandomU32(); };
@@ -53,7 +53,7 @@ export class ROMD2A1Device extends Device {
 
 export class ROMD2A2Device extends Device {
     constructor(hardware, rangeStart, rangeEnd) {
-        super("ROMd2a2", null, rangeStart, rangeEnd);
+        super("ROMd2a2", hardware, null, rangeStart, rangeEnd);
     }
 
     readU32(address) { throw 'Reading from rom d2a2'; };

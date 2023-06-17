@@ -15,7 +15,7 @@ const DPS_TBIST_FAILED    = 0x7F8;
 
 export class DPSDevice extends Device {
   constructor(hardware, rangeStart, rangeEnd) {
-    super("DPS", hardware.dps_mem, rangeStart, rangeEnd);
+    super("DPS", hardware, hardware.dps_mem, rangeStart, rangeEnd);
   }
 
   write32(address, value) {

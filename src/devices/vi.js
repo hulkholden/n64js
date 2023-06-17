@@ -32,8 +32,7 @@ const VI_V_VIDEO_REG = VI_V_START_REG;
 
 export class VIRegDevice extends Device {
   constructor(hardware, rangeStart, rangeEnd) {
-    super("VIReg", hardware.vi_reg, rangeStart, rangeEnd);
-    this.hardware = hardware;
+    super("VIReg", hardware, hardware.vi_reg, rangeStart, rangeEnd);
 
     this.curVbl = 0;
     this.lastVbl = 0;
