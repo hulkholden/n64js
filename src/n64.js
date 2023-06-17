@@ -68,16 +68,13 @@ import { romdb } from './romdb.js';
   }
 
   const hardware = new Hardware(rominfo);
+  n64js.hardware = function () { return hardware; };
 
   // Keep a DataView around as a view onto the RSP task
   var kTaskOffset   = 0x0fc0;
 
   // FIXME - encapsulate this better.
   n64js.rsp_task_view = new DataView(hardware.sp_mem.arrayBuffer, kTaskOffset, 0x40);
-
-  n64js.hardware = function () {
-    return hardware;
-  };
 
   function uint8ArrayReadString(u8array, offset, maxLen) {
     let s = '';
