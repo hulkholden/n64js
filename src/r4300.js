@@ -452,7 +452,8 @@ import * as logger from './logger.js';
   };
 
   CPU0.prototype.updateCause3 = function () {
-    if (n64js.miInterruptsUnmasked()) {
+    const miRegDevice = n64js.hardware().miRegDevice;
+    if (miRegDevice.interruptsUnmasked()) {
       this.control[this.kControlCause] |= CAUSE_IP3;
 
       if (this.checkForUnmaskedInterrupts()) {
@@ -3605,7 +3606,8 @@ import * as logger from './logger.js';
   FragmentContext.prototype.instr_imms   = function () { return imms(this.instruction); };
 
   function checkCauseIP3Consistent() {
-    var mi_interrupt_set = n64js.miInterruptsUnmasked();
+    const miRegDevice = n64js.hardware().miRegDevice;
+    var mi_interrupt_set = miRegDevice.interruptsUnmasked();
     var cause_int_3_set  = (cpu0.control[cpu0.kControlCause] & CAUSE_IP3) !== 0;
     n64js.assert(mi_interrupt_set === cause_int_3_set, 'CAUSE_IP3 inconsistent with MI_INTR_REG');
   }

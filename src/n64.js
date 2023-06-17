@@ -91,7 +91,6 @@ import { romdb } from './romdb.js';
   };
 
   const cachedMemDevice = hardware.cachedMemDevice;
-  const miRegDevice = hardware.miRegDevice;
 
   function uint8ArrayReadString(u8array, offset, maxLen) {
     let s = '';
@@ -742,25 +741,20 @@ import { romdb } from './romdb.js';
     }
   };
 
-
   n64js.verticalBlank = function () {
     // FIXME: framerate limit etc
     hardware.verticalBlank();
   };
 
-  n64js.miInterruptsUnmasked = function () { return miRegDevice.interruptsUnmasked(); };
-  n64js.miIntrReg            = function () { return miRegDevice.intrReg(); };
-  n64js.miIntrMaskReg        = function () { return miRegDevice.intrMaskReg(); };
-
   n64js.haltSP = function () {
     var status = hardware.sp_reg.setBits32(SP_STATUS_REG, SP_STATUS_TASKDONE|SP_STATUS_BROKE|SP_STATUS_HALT);
     if (status & SP_STATUS_INTR_BREAK) {
-      miRegDevice.interruptSP();
+      hardware.miRegDevice.interruptSP();
     }
   };
 
   n64js.interruptDP = function () {
-    miRegDevice.interruptDP();
+    hardware.miRegDevice.interruptDP();
   };
 
   n64js.assert = assert;
