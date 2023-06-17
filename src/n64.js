@@ -30,13 +30,6 @@ import { romdb } from './romdb.js';
 
   var breakpoints = {};     // address -> original op
 
-  const SP_STATUS_REG       = 0x10;
-  const SP_STATUS_HALT        = 0x0001;
-  const SP_STATUS_BROKE       = 0x0002;
-  const SP_STATUS_INTR_BREAK  = 0x0040;
-  const SP_STATUS_SIG2        = 0x0200;
-  const SP_STATUS_TASKDONE    = SP_STATUS_SIG2;
-
   var running       = false;
 
   var resetCallbacks = [];
