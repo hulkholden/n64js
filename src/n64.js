@@ -6,11 +6,11 @@ import { Device } from './devices/device.js';
 import { DPCDevice } from './devices/dpc.js';
 import { DPSDevice } from './devices/dps.js';
 import { MIRegDevice } from './devices/mi.js';
-import * as pi from './devices/pi.js';
+import { PIRegDevice, PIRamDevice } from './devices/pi.js';
 import { MappedMemDevice, CachedMemDevice, UncachedMemDevice } from './devices/ram.js';
 import { RIRegDevice } from './devices/ri.js';
 import { ROMD1A1Device, ROMD1A2Device, ROMD1A3Device, ROMD2A1Device, ROMD2A2Device } from './devices/rom.js';
-import * as si from './devices/si.js';
+import { SIRegDevice } from './devices/si.js';
 import { SPMemDevice, SPRegDevice } from './devices/sp.js';
 import { VIRegDevice } from './devices/vi.js';
 import { MemoryRegion } from './MemoryRegion.js';
@@ -61,17 +61,6 @@ import { romdb } from './romdb.js';
   const MI_INTR_VI        = 0x08;
   const MI_INTR_PI        = 0x10;
   const MI_INTR_DP        = 0x20;
-
-  // Serial Interface
-  const SI_DRAM_ADDR_REG      = 0x00;
-  const SI_PIF_ADDR_RD64B_REG = 0x04;
-  const SI_PIF_ADDR_WR64B_REG = 0x10;
-  const SI_STATUS_REG         = 0x18;
-
-  const SI_STATUS_DMA_BUSY    = 0x0001;
-  const SI_STATUS_RD_BUSY     = 0x0002;
-  const SI_STATUS_DMA_ERROR   = 0x0008;
-  const SI_STATUS_INTERRUPT   = 0x1000;
 
   var running       = false;
 
@@ -151,14 +140,14 @@ import { romdb } from './romdb.js';
   var mi_reg_handler_uncached    = new MIRegDevice(hardware, 0xa4300000, 0xa4300010);
   var vi_reg_handler_uncached    = new VIRegDevice(hardware, 0xa4400000, 0xa4400038);
   var ai_reg_handler_uncached    = new AIRegDevice(hardware, 0xa4500000, 0xa4500018);
-  var pi_reg_handler_uncached    = new pi.PIRegDevice(hardware, 0xa4600000, 0xa4600034);
+  var pi_reg_handler_uncached    = new PIRegDevice(hardware, 0xa4600000, 0xa4600034);
   var ri_reg_handler_uncached    = new RIRegDevice(hardware, 0xa4700000, 0xa4700020);
-  var si_reg_handler_uncached    = new Device("SIReg",    si_reg,       0xa4800000, 0xa480001c);
+  var si_reg_handler_uncached    = new SIRegDevice(hardware, 0xa4800000, 0xa480001c);
   var rom_d2a1_handler_uncached  = new ROMD2A1Device(hardware, 0xa5000000, 0xa6000000);
   var rom_d1a1_handler_uncached  = new ROMD1A1Device(hardware, 0xa6000000, 0xa8000000);
   var rom_d2a2_handler_uncached  = new ROMD2A2Device(hardware, 0xa8000000, 0xb0000000);
   var rom_d1a2_handler_uncached  = new ROMD1A2Device(hardware, 0xb0000000, 0xbfc00000);
-  var pi_mem_handler_uncached    = new pi.PIRamDevice(hardware, 0xbfc00000, 0xbfc00800);
+  var pi_mem_handler_uncached    = new PIRamDevice(hardware, 0xbfc00000, 0xbfc00800);
   var rom_d1a3_handler_uncached  = new ROMD1A3Device(hardware, 0xbfd00000, 0xc0000000);
 
   function fixEndian(arrayBuffer) {
@@ -452,48 +441,6 @@ import { romdb } from './romdb.js';
     return address&0xff;
   };
 
-  function siCopyFromRDRAM() {
-    var dram_address = si_reg.readU32(SI_DRAM_ADDR_REG) & 0x1fffffff;
-    var pi_ram       = new Uint8Array(pi_mem.arrayBuffer, 0x7c0, 0x040);
-
-    if (!si_reg_handler_uncached.quiet) { logger.log('SI: copying from ' + toString32(dram_address) + ' to PI RAM'); }
-
-    var i;
-    for (i = 0; i < 64; ++i) {
-      pi_ram[i] = ram.u8[dram_address+i];
-    }
-
-    var control_byte = pi_ram[0x3f];
-    if (control_byte > 0) {
-      if (!si_reg_handler_uncached.quiet) { logger.log('SI: wrote ' + control_byte + ' to the control byte'); }
-    }
-
-    si_reg.setBits32(SI_STATUS_REG, SI_STATUS_INTERRUPT);
-    mi_reg.setBits32(MI_INTR_REG, MI_INTR_SI);
-    n64js.cpu0.updateCause3();
-  }
-
-  function siCopyToRDRAM() {
-
-    // Update controller state here
-    updateController();
-
-    var dram_address = si_reg.readU32(SI_DRAM_ADDR_REG) & 0x1fffffff;
-    var pi_ram       = new Uint8Array(pi_mem.arrayBuffer, 0x7c0, 0x040);
-
-    if (!si_reg_handler_uncached.quiet) { logger.log('SI: copying from PI RAM to ' + toString32(dram_address)); }
-
-    var i;
-    for (i = 0; i < 64; ++i) {
-      ram.u8[dram_address+i] = pi_ram[i];
-    }
-
-    si_reg.setBits32(SI_STATUS_REG, SI_STATUS_INTERRUPT);
-    mi_reg.setBits32(MI_INTR_REG, MI_INTR_SI);
-    n64js.cpu0.updateCause3();
-  }
-
-
   const PC_CONTROLLER_0      = 0;
   const PC_CONTROLLER_1      = 1;
   const PC_CONTROLLER_2      = 2;
@@ -518,7 +465,7 @@ import { romdb } from './romdb.js';
   const CONT_TX_SIZE_FORMAT_END = 0xFE;         // Format End
   const CONT_TX_SIZE_CHANRESET  = 0xFD;         // Channel Reset
 
-  function updateController() {
+  n64js.updateController = function() {
     // read controllers
     var pi_ram = new Uint8Array(pi_mem.arrayBuffer, 0x7c0, 0x040);
 
@@ -846,64 +793,7 @@ import { romdb } from './romdb.js';
     cmd[37] = calculateDataCrc(cmd, 5);
   }
 
-  function checkSIStatusConsistent() {
-    var mi_si_int_set     = mi_reg.getBits32(MI_INTR_REG,   MI_INTR_SI)          !== 0;
-    var si_status_int_set = si_reg.getBits32(SI_STATUS_REG, SI_STATUS_INTERRUPT) !== 0;
-    if (mi_si_int_set !== si_status_int_set) {
-      n64js.halt("SI_STATUS register is in an inconsistent state");
-    }
-  }
-  n64js.checkSIStatusConsistent = checkSIStatusConsistent;
-
-  si_reg_handler_uncached.readS32 = function (address) {
-    this.logRead(address);
-    var ea = this.calcEA(address);
-
-    if (ea+4 > this.u8.length) {
-      throw 'Read is out of range';
-    }
-    if (ea === SI_STATUS_REG) {
-      checkSIStatusConsistent();
-    }
-    return this.mem.readS32(ea);
-  };
-
-  si_reg_handler_uncached.readU32 = function (address) {
-    return this.readS32(address)>>>0;
-  };
-
-  si_reg_handler_uncached.write32 = function (address, value) {
-    var ea = this.calcEA(address);
-    if (ea+4 > this.u8.length) {
-      throw 'Write is out of range';
-    }
-
-    switch( ea ) {
-      case SI_DRAM_ADDR_REG:
-        if (!this.quiet) { logger.log('Writing to SI dram address reigster: ' + toString32(value) ); }
-        this.mem.write32(ea, value);
-        break;
-      case SI_PIF_ADDR_RD64B_REG:
-        this.mem.write32(ea, value);
-        siCopyToRDRAM();
-        break;
-      case SI_PIF_ADDR_WR64B_REG:
-        this.mem.write32(ea, value);
-        siCopyFromRDRAM();
-        break;
-      case SI_STATUS_REG:
-        if (!this.quiet) { logger.log('SI interrupt cleared'); }
-        si_reg.clearBits32(SI_STATUS_REG, SI_STATUS_INTERRUPT);
-        mi_reg.clearBits32(MI_INTR_REG,   MI_INTR_SI);
-        n64js.cpu0.updateCause3();
-        break;
-      default:
-        logger.log('Unhandled write to SIReg: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
-        this.mem.write32(ea, value);
-        break;
-    }
-  };
-
+  n64js.checkSIStatusConsistent = si_reg_handler_uncached.checkSIStatusConsistent.bind(si_reg_handler_uncached);
 
   // We create a memory map of 1<<14 entries, corresponding to the top bits of the address range.
   var memMap = (function () {
