@@ -97,27 +97,27 @@ import { romdb } from './romdb.js';
   // FIXME - encapsulate this better.
   n64js.rsp_task_view = new DataView(hardware.sp_mem.arrayBuffer, kTaskOffset, 0x40);
 
-  var mapped_mem_handler         = new MappedMemDevice(hardware, 0x00000000, 0x80000000);
-  var rdram_handler_cached       = new CachedMemDevice(hardware, 0x80000000, 0x80800000);
-  var rdram_handler_uncached     = new UncachedMemDevice(hardware, 0xa0000000, 0xa0800000);
-  var rdram_reg_handler_uncached = new RDRamRegDevice(hardware, 0xa3f00000, 0xa4000000);
-  var sp_mem_handler_uncached    = new SPMemDevice(hardware, 0xa4000000, 0xa4002000);
-  var sp_reg_handler_uncached    = new SPRegDevice(hardware, 0xa4040000, 0xa4040020);
-  var sp_ibist_handler_uncached  = new SPIBISTDevice(hardware, 0xa4080000, 0xa4080008);
-  var dpc_handler_uncached       = new DPCDevice(hardware, 0xa4100000, 0xa4100020);
-  var dps_handler_uncached       = new DPSDevice(hardware, 0xa4200000, 0xa4200010);
-  var mi_reg_handler_uncached    = new MIRegDevice(hardware, 0xa4300000, 0xa4300010);
-  var vi_reg_handler_uncached    = new VIRegDevice(hardware, 0xa4400000, 0xa4400038);
-  var ai_reg_handler_uncached    = new AIRegDevice(hardware, 0xa4500000, 0xa4500018);
-  var pi_reg_handler_uncached    = new PIRegDevice(hardware, 0xa4600000, 0xa4600034);
-  var ri_reg_handler_uncached    = new RIRegDevice(hardware, 0xa4700000, 0xa4700020);
-  var si_reg_handler_uncached    = new SIRegDevice(hardware, 0xa4800000, 0xa480001c);
-  var rom_d2a1_handler_uncached  = new ROMD2A1Device(hardware, 0xa5000000, 0xa6000000);
-  var rom_d1a1_handler_uncached  = new ROMD1A1Device(hardware, 0xa6000000, 0xa8000000);
-  var rom_d2a2_handler_uncached  = new ROMD2A2Device(hardware, 0xa8000000, 0xb0000000);
-  var rom_d1a2_handler_uncached  = new ROMD1A2Device(hardware, 0xb0000000, 0xbfc00000);
-  var pi_mem_handler_uncached    = new PIRamDevice(hardware, 0xbfc00000, 0xbfc00800);
-  var rom_d1a3_handler_uncached  = new ROMD1A3Device(hardware, 0xbfd00000, 0xc0000000);
+  const mappedMemDevice   = new MappedMemDevice(hardware, 0x00000000, 0x80000000);
+  const cachedMemDevice   = new CachedMemDevice(hardware, 0x80000000, 0x80800000);
+  const uncachedMemDevice = new UncachedMemDevice(hardware, 0xa0000000, 0xa0800000);
+  const rdRamRegDevice = new RDRamRegDevice(hardware, 0xa3f00000, 0xa4000000);
+  const spMemDevice    = new SPMemDevice(hardware, 0xa4000000, 0xa4002000);
+  const spRegDevice    = new SPRegDevice(hardware, 0xa4040000, 0xa4040020);
+  const spIbistDevice  = new SPIBISTDevice(hardware, 0xa4080000, 0xa4080008);
+  const dpcDevice      = new DPCDevice(hardware, 0xa4100000, 0xa4100020);
+  const dpsDevice      = new DPSDevice(hardware, 0xa4200000, 0xa4200010);
+  const miRegDevice    = new MIRegDevice(hardware, 0xa4300000, 0xa4300010);
+  const viRegDevice    = new VIRegDevice(hardware, 0xa4400000, 0xa4400038);
+  const aiRegDevice    = new AIRegDevice(hardware, 0xa4500000, 0xa4500018);
+  const piRegDevice    = new PIRegDevice(hardware, 0xa4600000, 0xa4600034);
+  const riRegDevice    = new RIRegDevice(hardware, 0xa4700000, 0xa4700020);
+  const siRegDevice    = new SIRegDevice(hardware, 0xa4800000, 0xa480001c);
+  const romD2A1Device  = new ROMD2A1Device(hardware, 0xa5000000, 0xa6000000);
+  const romD1A1Device  = new ROMD1A1Device(hardware, 0xa6000000, 0xa8000000);
+  const romD2A2Device  = new ROMD2A2Device(hardware, 0xa8000000, 0xb0000000);
+  const romD1A2Device  = new ROMD1A2Device(hardware, 0xb0000000, 0xbfc00000);
+  const piMemDevice    = new PIRamDevice(hardware, 0xbfc00000, 0xbfc00800);
+  const romD1A3Device  = new ROMD1A3Device(hardware, 0xbfd00000, 0xc0000000);
 
   function fixEndian(arrayBuffer) {
     var dataView = new DataView(arrayBuffer);
@@ -202,9 +202,9 @@ import { romdb } from './romdb.js';
     hardware.createROM(arrayBuffer);
     const rom = hardware.rom;
 
-    rom_d1a1_handler_uncached.setMem(rom);
-    rom_d1a2_handler_uncached.setMem(rom);
-    rom_d1a3_handler_uncached.setMem(rom);
+    romD1A1Device.setMem(rom);
+    romD1A2Device.setMem(rom);
+    romD1A3Device.setMem(rom);
 
     const hdr = {
       header:       rom.readU32(0),
@@ -379,11 +379,11 @@ import { romdb } from './romdb.js';
   }
 
   n64js.getRamU8Array = function () {
-    return rdram_handler_cached.u8;
+    return cachedMemDevice.u8;
   };
 
   n64js.getRamS32Array = function () {
-    return rdram_handler_cached.mem.s32;
+    return cachedMemDevice.mem.s32;
   };
 
   n64js.getRamDataView = function () {
@@ -466,7 +466,7 @@ import { romdb } from './romdb.js';
     }
   };
 
-  n64js.checkSIStatusConsistent = si_reg_handler_uncached.checkSIStatusConsistent.bind(si_reg_handler_uncached);
+  n64js.checkSIStatusConsistent = siRegDevice.checkSIStatusConsistent.bind(siRegDevice);
 
   // We create a memory map of 1<<14 entries, corresponding to the top bits of the address range.
   var memMap = (function () {
@@ -477,27 +477,27 @@ import { romdb } from './romdb.js';
     }
 
     [
-     mapped_mem_handler,
-          rdram_handler_cached,
-          rdram_handler_uncached,
-         sp_mem_handler_uncached,
-         sp_reg_handler_uncached,
-       sp_ibist_handler_uncached,
-            dpc_handler_uncached,
-            dps_handler_uncached,
-      rdram_reg_handler_uncached,
-         mi_reg_handler_uncached,
-         vi_reg_handler_uncached,
-         ai_reg_handler_uncached,
-         pi_reg_handler_uncached,
-         ri_reg_handler_uncached,
-         si_reg_handler_uncached,
-       rom_d2a1_handler_uncached,
-       rom_d2a2_handler_uncached,
-       rom_d1a1_handler_uncached,
-       rom_d1a2_handler_uncached,
-       rom_d1a3_handler_uncached,
-         pi_mem_handler_uncached
+      mappedMemDevice,
+      cachedMemDevice,
+      uncachedMemDevice,
+      spMemDevice,
+      spRegDevice,
+      spIbistDevice,
+      dpcDevice,
+      dpsDevice,
+      rdRamRegDevice,
+      miRegDevice,
+      viRegDevice,
+      aiRegDevice,
+      piRegDevice,
+      riRegDevice,
+      siRegDevice,
+      romD2A1Device,
+      romD2A2Device,
+      romD1A1Device,
+      romD1A2Device,
+      romD1A3Device,
+      piMemDevice,
     ].map(function (e){
         var i;
         var beg = (e.rangeStart)>>>18;
@@ -647,7 +647,7 @@ import { romdb } from './romdb.js';
 
     initSync();
 
-    pi_reg_handler_uncached.reset();
+    piRegDevice.reset();
 
     hardware.reset();
 
@@ -656,8 +656,8 @@ import { romdb } from './romdb.js';
 
     n64js.resetRenderer();
 
-    mi_reg_handler_uncached.reset();
-    ri_reg_handler_uncached.reset();
+    miRegDevice.reset();
+    riRegDevice.reset();
 
     // Simulate boot
 
@@ -846,29 +846,29 @@ import { romdb } from './romdb.js';
 
     hardware.saveEeprom();
 
-    vi_reg_handler_uncached.verticalBlank();
+    viRegDevice.verticalBlank();
   };
 
-  n64js.miInterruptsUnmasked = function () { return mi_reg_handler_uncached.interruptsUnmasked(); };
-  n64js.miIntrReg            = function () { return mi_reg_handler_uncached.intrReg(); };
-  n64js.miIntrMaskReg        = function () { return mi_reg_handler_uncached.intrMaskReg(); };
+  n64js.miInterruptsUnmasked = function () { return miRegDevice.interruptsUnmasked(); };
+  n64js.miIntrReg            = function () { return miRegDevice.intrReg(); };
+  n64js.miIntrMaskReg        = function () { return miRegDevice.intrMaskReg(); };
 
-  n64js.viOrigin = function () { return vi_reg_handler_uncached.viOrigin(); };
-  n64js.viWidth  = function () { return vi_reg_handler_uncached.viWidth(); };
-  n64js.viXScale = function () { return vi_reg_handler_uncached.viXScale(); };
-  n64js.viYScale = function () { return vi_reg_handler_uncached.viYScale(); };
-  n64js.viHStart = function () { return vi_reg_handler_uncached.viHStart(); };
-  n64js.viVStart = function () { return vi_reg_handler_uncached.viVStart(); };
+  n64js.viOrigin = function () { return viRegDevice.viOrigin(); };
+  n64js.viWidth  = function () { return viRegDevice.viWidth(); };
+  n64js.viXScale = function () { return viRegDevice.viXScale(); };
+  n64js.viYScale = function () { return viRegDevice.viYScale(); };
+  n64js.viHStart = function () { return viRegDevice.viHStart(); };
+  n64js.viVStart = function () { return viRegDevice.viVStart(); };
 
   n64js.haltSP = function () {
     var status = hardware.sp_reg.setBits32(SP_STATUS_REG, SP_STATUS_TASKDONE|SP_STATUS_BROKE|SP_STATUS_HALT);
     if (status & SP_STATUS_INTR_BREAK) {
-      mi_reg_handler_uncached.interruptSP();
+      miRegDevice.interruptSP();
     }
   };
 
   n64js.interruptDP = function () {
-    mi_reg_handler_uncached.interruptDP();
+    miRegDevice.interruptDP();
   };
 
   n64js.assert = assert;
@@ -912,18 +912,18 @@ import { romdb } from './romdb.js';
   };
 
   n64js.init = function () {
-    rdram_handler_cached.quiet      = true;
-    rdram_handler_uncached.quiet    = true;
-    sp_mem_handler_uncached.quiet   = true;
-    sp_reg_handler_uncached.quiet   = true;
-    sp_ibist_handler_uncached.quiet = true;
-    mi_reg_handler_uncached.quiet   = true;
-    vi_reg_handler_uncached.quiet   = true;
-    ai_reg_handler_uncached.quiet   = true;
-    pi_reg_handler_uncached.quiet   = true;
-    si_reg_handler_uncached.quiet   = true;
-    rom_d1a2_handler_uncached.quiet = true;
-    dpc_handler_uncached.quiet      = true;
+    cachedMemDevice.quiet      = true;
+    uncachedMemDevice.quiet    = true;
+    spMemDevice.quiet   = true;
+    spRegDevice.quiet   = true;
+    spIbistDevice.quiet = true;
+    miRegDevice.quiet   = true;
+    viRegDevice.quiet   = true;
+    aiRegDevice.quiet   = true;
+    piRegDevice.quiet   = true;
+    siRegDevice.quiet   = true;
+    romD1A2Device.quiet = true;
+    dpcDevice.quiet      = true;
 
     n64js.reset();
 
