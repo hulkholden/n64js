@@ -458,35 +458,30 @@ import { romdb } from './romdb.js';
   const kKeyDown      = 40;
 
   n64js.handleKey = function (key, down) {
-    var button = 0;
     switch (key) {
-      case 'A'.charCodeAt(0): button = kButtonStart;  break;
-      case 'S'.charCodeAt(0): button = kButtonA;      break;
-      case 'X'.charCodeAt(0): button = kButtonB;      break;
-      case 'Z'.charCodeAt(0): button = kButtonZ;      break;
-      case 'Y'.charCodeAt(0): button = kButtonZ;      break;
-      case 'C'.charCodeAt(0): button = kButtonL;      break;
-      case 'V'.charCodeAt(0): button = kButtonR;      break;
+      case 'A'.charCodeAt(0): controllers.setButton(0, kButtonStart, down); break;
+      case 'S'.charCodeAt(0): controllers.setButton(0, kButtonA, down); break;
+      case 'X'.charCodeAt(0): controllers.setButton(0, kButtonB, down); break;
+      case 'Z'.charCodeAt(0): controllers.setButton(0, kButtonZ, down); break;
+      case 'Y'.charCodeAt(0): controllers.setButton(0, kButtonZ, down); break;
+      case 'C'.charCodeAt(0): controllers.setButton(0, kButtonL, down); break;
+      case 'V'.charCodeAt(0): controllers.setButton(0, kButtonR, down); break;
 
-      case 'T'.charCodeAt(0): button = kButtonJUp;    break;
-      case 'G'.charCodeAt(0): button = kButtonJDown;  break;
-      case 'F'.charCodeAt(0): button = kButtonJLeft;  break;
-      case 'H'.charCodeAt(0): button = kButtonJRight; break;
+      case 'T'.charCodeAt(0): controllers.setButton(0, kButtonJUp, down); break;
+      case 'G'.charCodeAt(0): controllers.setButton(0, kButtonJDown, down); break;
+      case 'F'.charCodeAt(0): controllers.setButton(0, kButtonJLeft, down); break;
+      case 'H'.charCodeAt(0): controllers.setButton(0, kButtonJRight, down); break;
 
-      case 'I'.charCodeAt(0): button = kButtonCUp;    break;
-      case 'K'.charCodeAt(0): button = kButtonCDown;  break;
-      case 'J'.charCodeAt(0): button = kButtonCLeft;  break;
-      case 'L'.charCodeAt(0): button = kButtonCRight; break;
+      case 'I'.charCodeAt(0): controllers.setButton(0, kButtonCUp, down); break;
+      case 'K'.charCodeAt(0): controllers.setButton(0, kButtonCDown, down); break;
+      case 'J'.charCodeAt(0): controllers.setButton(0, kButtonCLeft, down); break;
+      case 'L'.charCodeAt(0): controllers.setButton(0, kButtonCRight, down); break;
 
       case kKeyLeft:  controllers.setStickX(0, down ? -80 : 0); break;
       case kKeyRight: controllers.setStickX(0, down ? +80 : 0); break;
       case kKeyDown:  controllers.setStickY(0, down ? -80 : 0); break;
       case kKeyUp:    controllers.setStickY(0, down ? +80 : 0); break;
       //default: logger.log( 'up code:' + event.which);
-    }
-
-    if (button) {
-      controllers.setButton(0, button, down);
     }
   };
 
