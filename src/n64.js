@@ -105,19 +105,12 @@ import { romdb } from './romdb.js';
 
   const hardware = new Hardware(rominfo);
 
-  let rom           = hardware.rom;
-  const pi_mem        = hardware.pi_mem;
-  const ram           = hardware.ram
-  const sp_mem        = hardware.sp_mem;
-  const sp_reg        = hardware.sp_reg;
-  const sp_ibist_mem  = hardware.sp_ibist_mem;
-  const rdram_reg     = hardware.rdram_reg;
-  const mi_reg        = hardware.mi_reg;
-  const vi_reg        = hardware.vi_reg;
-  const ai_reg        = hardware.ai_reg;
-  const pi_reg        = hardware.pi_reg;
-  const ri_reg        = hardware.ri_reg;
-  const si_reg        = hardware.si_reg;
+  let rom      = hardware.rom;
+  const pi_mem = hardware.pi_mem;
+  const ram    = hardware.ram
+  const sp_mem = hardware.sp_mem;
+  const sp_reg = hardware.sp_reg;
+  const mi_reg = hardware.mi_reg;
 
   var eeprom        = null;   // Initialised during reset, using correct size for this rom (may be null if eeprom isn't used)
   var eepromDirty   = false;
@@ -1072,11 +1065,7 @@ import { romdb } from './romdb.js';
     initSaveGame(rominfo.save);
 
     // NB: don't set eeprom to 0 - we handle this in initSaveGame
-    var memory_regions = [ pi_mem, ram, sp_mem, sp_reg, sp_ibist_mem, rdram_reg, mi_reg, vi_reg, ai_reg, pi_reg, ri_reg, si_reg ];
-    var i;
-    for (i = 0; i < memory_regions.length; ++i) {
-      memory_regions[i].clear();
-    }
+    hardware.clear();
 
     n64js.cpu0.reset();
     n64js.cpu1.reset();
@@ -1262,7 +1251,7 @@ import { romdb } from './romdb.js';
     startTime = new Date();
     lastPresentTime = undefined;
 
-    for (i = 0; i < resetCallbacks.length; ++i) {
+    for (let i = 0; i < resetCallbacks.length; ++i) {
       resetCallbacks[i]();
     }
   };
