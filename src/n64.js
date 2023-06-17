@@ -395,29 +395,7 @@ import { romdb } from './romdb.js';
 
   n64js.checkSIStatusConsistent = function() { hardware.checkSIStatusConsistent(); };
 
-  var memMap = initMemMap();
-
-  function initMemMap() {
-    const map = [];
-    for (let i = 0; i < 0x4000; ++i) {
-      map.push(undefined);
-    }
-
-    // We create a memory map of 1<<14 entries, corresponding to the top bits of the address range.
-    hardware.devices.map(e => {
-        const beg = (e.rangeStart)>>>18;
-        const end = (e.rangeEnd-1)>>>18;
-        for (let i = beg; i <= end; ++i) {
-          map[i] = e;
-        }
-    });
-
-    if (map.length !== 0x4000) {
-      throw 'initialisation error';
-    }
-
-    return map;
-  }
+  var memMap = hardware.createMemMap();
 
   function getMemoryHandler(address) {
     //assert(address>=0, "Address is negative");
