@@ -1,7 +1,4 @@
 import { Device } from './device.js';
-import * as mi from './mi.js';
-import * as logger from '../logger.js';
-import { toString32 } from '../format.js';
 
 // RDRAM Interface
 const RI_MODE_REG = 0x00;
