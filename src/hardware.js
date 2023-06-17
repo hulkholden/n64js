@@ -103,7 +103,12 @@ export class Hardware {
   }
 
   createROM(arrayBuffer) {
-    this.rom = new MemoryRegion(arrayBuffer);
+    const rom = new MemoryRegion(arrayBuffer);
+    this.rom = rom;
+    this.romD1A1Device.setMem(rom);
+    this.romD1A2Device.setMem(rom);
+    this.romD1A3Device.setMem(rom);
+    return rom;
   }
 
   initSaveGame() {

@@ -98,9 +98,7 @@ import { romdb } from './romdb.js';
   const piRegDevice    = hardware.piRegDevice;
   const riRegDevice    = hardware.riRegDevice;
   const siRegDevice    = hardware.siRegDevice;
-  const romD1A1Device  = hardware.romD1A1Device;
   const romD1A2Device  = hardware.romD1A2Device;
-  const romD1A3Device  = hardware.romD1A3Device;
 
   function uint8ArrayReadString(u8array, offset, maxLen) {
     let s = '';
@@ -148,12 +146,7 @@ import { romdb } from './romdb.js';
   function loadRom(arrayBuffer) {
     fixRomByteOrder(arrayBuffer);
 
-    hardware.createROM(arrayBuffer);
-    const rom = hardware.rom;
-
-    romD1A1Device.setMem(rom);
-    romD1A2Device.setMem(rom);
-    romD1A3Device.setMem(rom);
+    const rom = hardware.createROM(arrayBuffer);
 
     const hdr = {
       header:       rom.readU32(0),
