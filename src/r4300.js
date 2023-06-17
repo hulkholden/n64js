@@ -1,13 +1,11 @@
 /*jshint jquery:true, devel:true */
 
 import { CPU1 } from './CPU1.js';
-import * as format from './format.js';
+import { toString8, toString32 } from './format.js';
 import { Fragment, lookupFragment, resetFragments } from './fragments.js';
 import * as logger from './logger.js';
 
 (function (n64js) {'use strict';
-  const toString32 = format.toString32;
-
   const kDebugTLB = 0;
   const kDebugDynarec = 0;
 
@@ -210,10 +208,10 @@ import * as logger from './logger.js';
   TLBEntry.prototype.update = function(index, pagemask, hi, entrylo0, entrylo1) {
     if (kDebugTLB) {
       logger.log('TLB update: index=' + index +
-          ', pagemask=' + format.toString32(pagemask) +
-          ', entryhi='  + format.toString32(hi) +
-          ', entrylo0=' + format.toString32(entrylo0) +
-          ', entrylo1=' + format.toString32(entrylo1)
+          ', pagemask=' + toString32(pagemask) +
+          ', entryhi='  + toString32(hi) +
+          ', entrylo0=' + toString32(entrylo0) +
+          ', entrylo1=' + toString32(entrylo1)
         );
 
       switch (pagemask) {
@@ -564,7 +562,7 @@ import * as logger from './logger.js';
           this.removeEventsOfType(kEventCompare);
           this.addEvent(kEventCompare, delta);
         } else {
-          n64js.warn('setCompare underflow - was' + format.toString32(count) + ', setting to ' + value);
+          n64js.warn('setCompare underflow - was' + toString32(count) + ', setting to ' + value);
         }
       }
     }
@@ -675,11 +673,11 @@ import * as logger from './logger.js';
     this.control[this.kControlEntryLo1] = tlb.pfno | tlb.global;
 
     if (kDebugTLB) {
-      logger.log('TLB Read Index ' + format.toString8(index) + '.');
-      logger.log('  PageMask: ' + format.toString32(this.control[this.kControlPageMask]));
-      logger.log('  EntryHi:  ' + format.toString32(this.control[this.kControlEntryHi]));
-      logger.log('  EntryLo0: ' + format.toString32(this.control[this.kControlEntryLo0]));
-      logger.log('  EntryLo1: ' + format.toString32(this.control[this.kControlEntryLo1]));
+      logger.log('TLB Read Index ' + toString8(index) + '.');
+      logger.log('  PageMask: ' + toString32(this.control[this.kControlPageMask]));
+      logger.log('  EntryHi:  ' + toString32(this.control[this.kControlEntryHi]));
+      logger.log('  EntryLo0: ' + toString32(this.control[this.kControlEntryLo0]));
+      logger.log('  EntryLo1: ' + toString32(this.control[this.kControlEntryLo1]));
     }
   };
 
@@ -695,7 +693,7 @@ import * as logger from './logger.js';
         if (((tlb.hi & TLBHI_PIDMASK)  === entryhi_pid) ||
              tlb.global) {
           if (kDebugTLB) {
-            logger.log('TLB Probe. EntryHi:' + format.toString32(entryhi) + '. Found matching TLB entry - ' + format.toString8(i));
+            logger.log('TLB Probe. EntryHi:' + toString32(entryhi) + '. Found matching TLB entry - ' + toString8(i));
           }
           this.control[this.kControlIndex] = i;
           return;
@@ -704,7 +702,7 @@ import * as logger from './logger.js';
     }
 
     if (kDebugTLB) {
-      logger.log('TLB Probe. EntryHi:' + format.toString32(entryhi) + ". Didn't find matching entry");
+      logger.log('TLB Probe. EntryHi:' + toString32(entryhi) + ". Didn't find matching entry");
     }
     this.control[this.kControlIndex] = TLBINX_PROBE;
   };
@@ -999,13 +997,13 @@ import * as logger from './logger.js';
 
   function unimplemented(pc,i) {
     var r = n64js.disassembleOp(pc,i);
-    var e = 'Unimplemented op ' + format.toString32(i) + ' : ' + r.disassembly;
+    var e = 'Unimplemented op ' + toString32(i) + ' : ' + r.disassembly;
     logger.log(e);
     throw e;
   }
 
   function executeUnknown(i) {
-    throw 'Unknown op: ' + format.toString32(cpu0.pc) + ', ' + format.toString32(i);
+    throw 'Unknown op: ' + toString32(cpu0.pc) + ', ' + toString32(i);
   }
 
   /**
@@ -1659,7 +1657,7 @@ import * as logger from './logger.js';
     }
 
     var impl = '';
-    impl += 'n64js.executeMTC0(' + format.toString32(ctx.instruction) + ');\n';
+    impl += 'n64js.executeMTC0(' + toString32(ctx.instruction) + ');\n';
     return generateGenericOpBoilerplate(impl, ctx);
   }
 
@@ -1669,12 +1667,12 @@ import * as logger from './logger.js';
 
     switch (control_reg) {
       case cpu0.kControlContext:
-        logger.log('Setting Context register to ' + format.toString32(new_value) );
+        logger.log('Setting Context register to ' + toString32(new_value) );
         cpu0.control[cpu0.kControlContext] = new_value;
         break;
 
       case cpu0.kControlWired:
-        logger.log('Setting Wired register to ' + format.toString32(new_value) );
+        logger.log('Setting Wired register to ' + toString32(new_value) );
         // Set to top limit on write to wired
         cpu0.control[cpu0.kControlRand]  = 31;
         cpu0.control[cpu0.kControlWired] = new_value;
@@ -1685,11 +1683,11 @@ import * as logger from './logger.js';
       case cpu0.kControlPRId:
       case cpu0.kControlCacheErr:
         // All these registers are read-only
-        logger.log('Attempted write to read-only cpu0 control register. ' + format.toString32(new_value) + ' --> ' + n64js.cop0ControlRegisterNames[control_reg] );
+        logger.log('Attempted write to read-only cpu0 control register. ' + toString32(new_value) + ' --> ' + n64js.cop0ControlRegisterNames[control_reg] );
         break;
 
       case cpu0.kControlCause:
-        logger.log('Setting cause register to ' + format.toString32(new_value) );
+        logger.log('Setting cause register to ' + toString32(new_value) );
         n64js.check(new_value === 0, 'Should only write 0 to Cause register.');
         cpu0.control[cpu0.kControlCause] &= ~0x300;
         cpu0.control[cpu0.kControlCause] |= (new_value & 0x300);
@@ -1718,7 +1716,7 @@ import * as logger from './logger.js';
 
       default:
         cpu0.control[control_reg] = new_value;
-        logger.log('Write to cpu0 control register. ' + format.toString32(new_value) + ' --> ' + n64js.cop0ControlRegisterNames[control_reg] );
+        logger.log('Write to cpu0 control register. ' + toString32(new_value) + ' --> ' + n64js.cop0ControlRegisterNames[control_reg] );
         break;
     }
   }
@@ -1756,7 +1754,7 @@ import * as logger from './logger.js';
   // Jump
   function generateJ(ctx) {
     var addr = jumpAddress(ctx.pc, ctx.instruction);
-    var impl = 'c.delayPC = ' + format.toString32(addr) + ';\n';
+    var impl = 'c.delayPC = ' + toString32(addr) + ';\n';
     return generateBranchOpBoilerplate(impl, ctx, false);
   }
   function executeJ(i) {
@@ -1769,8 +1767,8 @@ import * as logger from './logger.js';
     var ra    = ctx.pc + 8;
     var ra_hi = (ra & 0x80000000) ? -1 : 0;
     var impl  = '';
-    impl += 'c.delayPC = ' + format.toString32(addr) + ';\n';
-    impl += 'rlo[' + cpu0.kRegister_ra + '] = ' + format.toString32(ra) + ';\n';
+    impl += 'c.delayPC = ' + toString32(addr) + ';\n';
+    impl += 'rlo[' + cpu0.kRegister_ra + '] = ' + toString32(ra) + ';\n';
     impl += 'rhi[' + cpu0.kRegister_ra + '] = ' + ra_hi + ';\n';
     return generateBranchOpBoilerplate(impl, ctx, false);
   }
@@ -1788,7 +1786,7 @@ import * as logger from './logger.js';
     var ra_hi = (ra & 0x80000000) ? -1 : 0;
     var impl  = '';
     impl += 'c.delayPC = c.gprLo[' + s + '];\n';  // NB needs to be unsigned
-    impl += 'rlo[' + d + '] = ' + format.toString32(ra) + ';\n';
+    impl += 'rlo[' + d + '] = ' + toString32(ra) + ';\n';
     impl += 'rhi[' + d + '] = ' + ra_hi + ';\n';
     return generateBranchOpBoilerplate(impl, ctx, false);
   }
@@ -1820,7 +1818,7 @@ import * as logger from './logger.js';
         impl += 'c.speedHack();\n';
         ctx.bailOut = true;
       }
-      impl += 'c.delayPC = ' + format.toString32(addr) + ';\n';
+      impl += 'c.delayPC = ' + toString32(addr) + ';\n';
    } else {
       impl += 'if (' + genSrcRegHi(s) + ' === ' + genSrcRegHi(t) + ' &&\n';
       impl += '    ' + genSrcRegLo(s) + ' === ' + genSrcRegLo(t) + ' ) {\n';
@@ -1828,7 +1826,7 @@ import * as logger from './logger.js';
         impl += '  c.speedHack();\n';
         ctx.bailOut = true;
       }
-      impl += '  c.delayPC = ' + format.toString32(addr) + ';\n';
+      impl += '  c.delayPC = ' + toString32(addr) + ';\n';
       impl += '}\n';
     }
 
@@ -1856,7 +1854,7 @@ import * as logger from './logger.js';
 
     impl += 'if (' + genSrcRegHi(s) + ' === ' + genSrcRegHi(t) + ' &&\n';
     impl += '    ' + genSrcRegLo(s) + ' === ' + genSrcRegLo(t) + ' ) {\n';
-    impl += '  c.delayPC = ' + format.toString32(addr) + ';\n';
+    impl += '  c.delayPC = ' + toString32(addr) + ';\n';
     impl += '} else {\n';
     impl += '  c.nextPC += 4;\n';
     impl += '}\n';
@@ -1889,7 +1887,7 @@ import * as logger from './logger.js';
       impl += '  c.speedHack();\n';
       ctx.bailOut = true;
     }
-    impl += '  c.delayPC = ' + format.toString32(addr) + ';\n';
+    impl += '  c.delayPC = ' + toString32(addr) + ';\n';
     impl += '}\n';
 
     return generateBranchOpBoilerplate(impl, ctx, false);
@@ -1915,7 +1913,7 @@ import * as logger from './logger.js';
 
     impl += 'if (' + genSrcRegHi(s) + ' !== ' + genSrcRegHi(t) + ' ||\n';
     impl += '    ' + genSrcRegLo(s) + ' !== ' + genSrcRegLo(t) + ' ) {\n';
-    impl += '  c.delayPC = ' + format.toString32(addr) + ';\n';
+    impl += '  c.delayPC = ' + toString32(addr) + ';\n';
     impl += '} else {\n';
     impl += '  c.nextPC += 4;\n';
     impl += '}\n';
@@ -1942,7 +1940,7 @@ import * as logger from './logger.js';
     var impl = '';
     impl += 'if ( ' + genSrcRegHi(s) + ' < 0 ||\n';
     impl += '    (' + genSrcRegHi(s) + ' === 0 && ' + genSrcRegLo(s) + ' === 0) ) {\n';
-    impl += '  c.delayPC = ' + format.toString32(addr) + ';\n';
+    impl += '  c.delayPC = ' + toString32(addr) + ';\n';
     impl += '}\n';
 
     return generateBranchOpBoilerplate(impl, ctx, false);
@@ -1975,7 +1973,7 @@ import * as logger from './logger.js';
     var impl = '';
     impl += 'if ( ' + genSrcRegHi(s) + ' >= 0 &&\n';
     impl += '    (' + genSrcRegHi(s) + ' !== 0 || ' + genSrcRegLo(s) + ' !== 0) ) {\n';
-    impl += '  c.delayPC = ' + format.toString32(addr) + ';\n';
+    impl += '  c.delayPC = ' + toString32(addr) + ';\n';
     impl += '}\n';
 
     return generateBranchOpBoilerplate(impl, ctx, false);
@@ -2006,7 +2004,7 @@ import * as logger from './logger.js';
 
     var impl = '';
     impl += 'if (' + genSrcRegHi(s) + ' < 0) {\n';
-    impl += '  c.delayPC = ' + format.toString32(addr) + ';\n';
+    impl += '  c.delayPC = ' + toString32(addr) + ';\n';
     impl += '}\n';
 
     return generateBranchOpBoilerplate(impl, ctx, false);
@@ -2024,7 +2022,7 @@ import * as logger from './logger.js';
 
     var impl = '';
     impl += 'if (' + genSrcRegHi(s) + ' < 0) {\n';
-    impl += '  c.delayPC = ' + format.toString32(addr) + ';\n';
+    impl += '  c.delayPC = ' + toString32(addr) + ';\n';
     impl += '} else {\n';
     impl += '  c.nextPC += 4;\n';
     impl += '}\n';
@@ -2063,7 +2061,7 @@ import * as logger from './logger.js';
 
     var impl = '';
     impl += 'if (' + genSrcRegHi(s) + ' >= 0) {\n';
-    impl += '  c.delayPC = ' + format.toString32(addr) + ';\n';
+    impl += '  c.delayPC = ' + toString32(addr) + ';\n';
     impl += '}\n';
 
     return generateBranchOpBoilerplate(impl, ctx, false);
@@ -2081,7 +2079,7 @@ import * as logger from './logger.js';
 
     var impl = '';
     impl += 'if (' + genSrcRegHi(s) + ' >= 0) {\n';
-    impl += '  c.delayPC = ' + format.toString32(addr) + ';\n';
+    impl += '  c.delayPC = ' + toString32(addr) + ';\n';
     impl += '} else {\n';
     impl += '  c.nextPC += 4;\n';
     impl += '}\n';
@@ -2934,7 +2932,7 @@ import * as logger from './logger.js';
     var impl = '';
     var test = condition ? '!==' : '===';
     impl += 'if ((cpu1.control[31] & FPCSR_C) ' + test + ' 0) {\n';
-    impl += '  c.branchTarget = ' + format.toString32(target) + ';\n';
+    impl += '  c.branchTarget = ' + toString32(target) + ';\n';
     if (likely) {
       impl += '} else {\n';
       impl += '  c.nextPC += 4;\n';
@@ -3049,7 +3047,7 @@ import * as logger from './logger.js';
         case 0x25:    /* 'CVT.L' */       break;
       }
 
-      return 'unimplemented(' + format.toString32(ctx.pc) + ',' + format.toString32(ctx.instruction) + ');\n';
+      return 'unimplemented(' + toString32(ctx.pc) + ',' + toString32(ctx.instruction) + ');\n';
     }
 
     // It's a compare instruction
@@ -3132,7 +3130,7 @@ import * as logger from './logger.js';
         case 0x24:    /* 'CVT.W' */       return 'cpu1.int32[' + d + '] = n64js.convert( cpu1.load_f64( ' + s + ' ) ) | 0;\n';
         case 0x25:    /* 'CVT.L' */       break;
       }
-      return 'unimplemented(' + format.toString32(ctx.pc) + ',' + format.toString32(ctx.instruction) + ');\n';
+      return 'unimplemented(' + toString32(ctx.pc) + ',' + toString32(ctx.instruction) + ');\n';
     }
 
     // It's a compare instruction
@@ -3192,7 +3190,7 @@ import * as logger from './logger.js';
       case 0x20:    /* 'CVT.S' */       return 'cpu1.float32[' + d + '] = cpu1.int32[' + s + '];\n';
       case 0x21:    /* 'CVT.D' */       return 'cpu1.store_f64(' + d + ', cpu1.int32[' + s + ']);\n';
     }
-    return 'unimplemented(' + format.toString32(ctx.pc) + ',' + format.toString32(ctx.instruction) + ');\n';
+    return 'unimplemented(' + toString32(ctx.pc) + ',' + toString32(ctx.instruction) + ');\n';
   }
 
   function executeWInstr(i) {
@@ -3216,7 +3214,7 @@ import * as logger from './logger.js';
       case 0x20:    /* 'CVT.S' */       return 'cpu1.float32[' + d + '] = cpu1.load_s64_as_double(' + s + ');\n';
       case 0x21:    /* 'CVT.D' */       return 'cpu1.store_f64(' + d + ', cpu1.load_s64_as_double(' + s + ') );\n';
     }
-    return 'unimplemented(' + format.toString32(ctx.pc) + ',' + format.toString32(ctx.instruction) + ');\n';
+    return 'unimplemented(' + toString32(ctx.pc) + ',' + toString32(ctx.instruction) + ');\n';
   }
 
   function executeLInstr(i) {
@@ -3333,7 +3331,7 @@ import * as logger from './logger.js';
     var op_impl;
     if (typeof fn === 'string') {
       //logger.log(fn);
-      op_impl = 'n64js.' + fn + '(' + format.toString32(ctx.instruction) + ');\n';
+      op_impl = 'n64js.' + fn + '(' + toString32(ctx.instruction) + ');\n';
     } else {
       op_impl = fn(ctx);
     }
@@ -3349,7 +3347,7 @@ import * as logger from './logger.js';
 
     } else {
       impl += 'if( (c.control[12] & SR_CU1) === 0 ) {\n';
-      impl += '  executeCop1_disabled(' + format.toString32(ctx.instruction) + ');\n';
+      impl += '  executeCop1_disabled(' + toString32(ctx.instruction) + ');\n';
       impl += '} else {\n';
       impl += '  ' + op_impl;
       impl += '}\n';
@@ -3828,7 +3826,7 @@ import * as logger from './logger.js';
 
       // Check if the last op has a delayed pc update, and do it now.
       if (fragmentContext.delayedPCUpdate !== 0) {
-          fragment.body_code += 'c.pc = ' + format.toString32(fragmentContext.delayedPCUpdate) + ';\n';
+          fragment.body_code += 'c.pc = ' + toString32(fragmentContext.delayedPCUpdate) + ';\n';
           fragmentContext.delayedPCUpdate = 0;
       }
 
@@ -3842,12 +3840,12 @@ import * as logger from './logger.js';
       if (fragment.usesCop1) {
         var cpu1_shizzle = '';
         cpu1_shizzle += 'var cpu1 = n64js.cpu1;\n';
-        cpu1_shizzle += 'var SR_CU1 = ' + format.toString32(SR_CU1) + ';\n';
-        cpu1_shizzle += 'var FPCSR_C = ' + format.toString32(FPCSR_C) + ';\n';
+        cpu1_shizzle += 'var SR_CU1 = ' + toString32(SR_CU1) + ';\n';
+        cpu1_shizzle += 'var FPCSR_C = ' + toString32(FPCSR_C) + ';\n';
         fragment.body_code = cpu1_shizzle + '\n\n' + fragment.body_code;
       }
 
-      var code = 'return function fragment_' + format.toString32(fragment.entryPC) + '_' + fragment.opsCompiled + '(c, rlo, rhi, ram) {\n' + fragment.body_code + '}\n';
+      var code = 'return function fragment_' + toString32(fragment.entryPC) + '_' + fragment.opsCompiled + '(c, rlo, rhi, ram) {\n' + fragment.body_code + '}\n';
 
       // Clear these strings to reduce garbage
       fragment.body_code ='';
@@ -4040,7 +4038,7 @@ import * as logger from './logger.js';
 
   // Invalidate a single cache line
   n64js.invalidateICacheEntry = function (address) {
-      //logger.log('cache flush ' + format.toString32(address));
+      //logger.log('cache flush ' + toString32(address));
 
      ++invals;
      if ((invals%10000) === 0) {
@@ -4052,7 +4050,7 @@ import * as logger from './logger.js';
 
   // This isn't called right now. We
   n64js.invalidateICacheRange = function (address, length, system) {
-      //logger.log('cache flush ' + format.toString32(address) + ' ' + format.toString32(length));
+      //logger.log('cache flush ' + toString32(address) + ' ' + toString32(length));
       // FIXME: check for overlapping ranges
 
      // NB: not sure PI events are useful right now.
@@ -4074,7 +4072,7 @@ import * as logger from './logger.js';
 
   function checkEqual(a,b,m) {
     if (a !== b) {
-      var msg = format.toString32(a) + ' !== ' + format.toString32(b) + ' : ' + m;
+      var msg = toString32(a) + ' !== ' + toString32(b) + ' : ' + m;
       console.assert(false, msg);
       n64js.halt(msg);
       return false;
@@ -4101,19 +4099,19 @@ import * as logger from './logger.js';
 
     // If the last op tried to delay updating the pc, see if it needs updating now.
     if (!ctx.isTrivial && ctx.delayedPCUpdate !== 0) {
-        ctx.fragment.body_code += '/*applying delayed pc*/\nc.pc = ' + format.toString32(ctx.delayedPCUpdate) + ';\n';
+        ctx.fragment.body_code += '/*applying delayed pc*/\nc.pc = ' + toString32(ctx.delayedPCUpdate) + ';\n';
         ctx.delayedPCUpdate = 0;
     }
 
     ctx.fragment.needsDelayCheck = ctx.needsDelayCheck;
 
-    //code += 'if (!checkEqual( n64js.readMemoryU32(cpu0.pc), ' + format.toString32(instruction) + ', "unexpected instruction (need to flush icache?)")) { return false; }\n';
+    //code += 'if (!checkEqual( n64js.readMemoryU32(cpu0.pc), ' + toString32(instruction) + ', "unexpected instruction (need to flush icache?)")) { return false; }\n';
 
     ctx.fragment.bailedOut |= ctx.bailOut;
 
     var sync = n64js.getSyncFlow();
     if (sync) {
-      fn_code = 'if (!n64js.checkSyncState(sync, ' + format.toString32(ctx.pc) + ')) { return ' + ctx.fragment.opsCompiled + '; }\n' + fn_code;
+      fn_code = 'if (!n64js.checkSyncState(sync, ' + toString32(ctx.pc) + ')) { return ' + ctx.fragment.opsCompiled + '; }\n' + fn_code;
     }
 
     ctx.fragment.body_code += fn_code + '\n';
@@ -4148,7 +4146,7 @@ import * as logger from './logger.js';
     // fn can be a handler function, in which case defer to that.
     if (typeof fn === 'string') {
       //logger.log(fn);
-      return generateGenericOpBoilerplate('n64js.' + fn + '(' + format.toString32(ctx.instruction) + ');\n', ctx);
+      return generateGenericOpBoilerplate('n64js.' + fn + '(' + toString32(ctx.instruction) + ');\n', ctx);
     } else {
       return fn(ctx);
     }
@@ -4156,14 +4154,14 @@ import * as logger from './logger.js';
 
   function generateGenericOpBoilerplate(fn,ctx) {
     var code = '';
-    code += ctx.genAssert('c.pc === ' + format.toString32(ctx.pc), 'pc mismatch');
+    code += ctx.genAssert('c.pc === ' + toString32(ctx.pc), 'pc mismatch');
 
     if (ctx.needsDelayCheck) {
       // NB: delayPC not cleared here - it's always overwritten with branchTarget below.
-      code += 'if (c.delayPC) { c.nextPC = c.delayPC; } else { c.nextPC = ' + format.toString32(ctx.pc+4) +'; }\n';
+      code += 'if (c.delayPC) { c.nextPC = c.delayPC; } else { c.nextPC = ' + toString32(ctx.pc+4) +'; }\n';
     } else {
       code += ctx.genAssert('c.delayPC === 0', 'delay pc should be zero');
-      code += 'c.nextPC = ' + format.toString32(ctx.pc+4) + ';\n';
+      code += 'c.nextPC = ' + toString32(ctx.pc+4) + ';\n';
     }
     code += 'c.branchTarget = 0;\n';
 
@@ -4184,7 +4182,7 @@ import * as logger from './logger.js';
       code += 'return ' + ctx.fragment.opsCompiled + ';\n';
     } else {
       code += 'if (c.stuffToDo) { return ' + ctx.fragment.opsCompiled + '; }\n';
-      code += 'if (c.pc !== ' + format.toString32(ctx.post_pc) + ') { return ' + ctx.fragment.opsCompiled + '; }\n';
+      code += 'if (c.pc !== ' + toString32(ctx.post_pc) + ') { return ' + ctx.fragment.opsCompiled + '; }\n';
     }
 
     return code;
@@ -4193,23 +4191,23 @@ import * as logger from './logger.js';
   // Standard code for manipulating the pc
   function generateStandardPCUpdate(fn, ctx, might_adjust_next_pc) {
     var code = '';
-    code += ctx.genAssert('c.pc === ' + format.toString32(ctx.pc), 'pc mismatch');
+    code += ctx.genAssert('c.pc === ' + toString32(ctx.pc), 'pc mismatch');
 
     if (ctx.needsDelayCheck) {
       // We should probably assert on this - two branch instructions back-to-back is weird, but the flag could just be set because of a generic op
-      code += 'if (c.delayPC) { c.nextPC = c.delayPC; c.delayPC = 0; } else { c.nextPC = ' + format.toString32(ctx.pc+4) +'; }\n';
+      code += 'if (c.delayPC) { c.nextPC = c.delayPC; c.delayPC = 0; } else { c.nextPC = ' + toString32(ctx.pc+4) +'; }\n';
       code += fn;
       code += 'c.pc = c.nextPC;\n';
     } else if (might_adjust_next_pc) {
       // If the branch op might manipulate nextPC, we need to ensure that it's set to the correct value
       code += ctx.genAssert('c.delayPC === 0', 'delay pc should be zero');
-      code += 'c.nextPC = ' + format.toString32(ctx.pc+4) + ';\n';
+      code += 'c.nextPC = ' + toString32(ctx.pc+4) + ';\n';
       code += fn;
       code += 'c.pc = c.nextPC;\n';
     } else {
       code += ctx.genAssert('c.delayPC === 0', 'delay pc should be zero');
       code += fn;
-      code += 'c.pc = ' + format.toString32(ctx.pc+4) + ';\n';
+      code += 'c.pc = ' + toString32(ctx.pc+4) + ';\n';
     }
 
     return code;
@@ -4233,7 +4231,7 @@ import * as logger from './logger.js';
     // If bailOut is set, always return immediately
     n64js.assert(!ctx.bailOut, "Not expecting bailOut to be set for memory access");
     code += 'if (c.stuffToDo) { return ' + ctx.fragment.opsCompiled + '; }\n';
-    code += 'if (c.pc !== ' + format.toString32(ctx.post_pc) + ') { return ' + ctx.fragment.opsCompiled + '; }\n';
+    code += 'if (c.pc !== ' + toString32(ctx.post_pc) + ') { return ' + ctx.fragment.opsCompiled + '; }\n';
     return code;
   }
 
@@ -4261,7 +4259,7 @@ import * as logger from './logger.js';
       code += 'return ' + ctx.fragment.opsCompiled + ';\n';
     } else {
       if (need_pc_test) {
-        code += 'if (c.pc !== ' + format.toString32(ctx.post_pc) + ') { return ' + ctx.fragment.opsCompiled + '; }\n';
+        code += 'if (c.pc !== ' + toString32(ctx.post_pc) + ') { return ' + ctx.fragment.opsCompiled + '; }\n';
       }
       else
       {
@@ -4294,19 +4292,19 @@ import * as logger from './logger.js';
 
     // NB: do delay handler after executing op, so we can set pc directly
     if (ctx.needsDelayCheck) {
-      code += 'if (c.delayPC) { c.pc = c.delayPC; c.delayPC = 0; } else { c.pc = ' + format.toString32(ctx.pc+4) + '; }\n';
+      code += 'if (c.delayPC) { c.pc = c.delayPC; c.delayPC = 0; } else { c.pc = ' + toString32(ctx.pc+4) + '; }\n';
       // Might happen: delay op from previous instruction takes effect
-      code += 'if (c.pc !== ' + format.toString32(ctx.post_pc) + ') { return ' + ctx.fragment.opsCompiled + '; }\n';
+      code += 'if (c.pc !== ' + toString32(ctx.post_pc) + ') { return ' + ctx.fragment.opsCompiled + '; }\n';
     } else {
       code += ctx.genAssert('c.delayPC === 0', 'delay pc should be zero');
 
       // We can avoid off-branch checks in this case.
       if (ctx.post_pc !== ctx.pc+4) {
         n64js.assert("post_pc should always be pc+4 for trival ops?");
-        code += 'c.pc = ' + format.toString32(ctx.pc+4) + ';\n';
-        code += 'if (c.pc !== ' + format.toString32(ctx.post_pc) + ') { return ' + ctx.fragment.opsCompiled + '; }\n';
+        code += 'c.pc = ' + toString32(ctx.pc+4) + ';\n';
+        code += 'if (c.pc !== ' + toString32(ctx.post_pc) + ') { return ' + ctx.fragment.opsCompiled + '; }\n';
       } else {
-        //code += 'c.pc = ' + format.toString32(ctx.pc+4) + ';\n';
+        //code += 'c.pc = ' + toString32(ctx.pc+4) + ';\n';
         code += '/* delaying pc update */\n';
         ctx.delayedPCUpdate = ctx.pc+4;
       }
