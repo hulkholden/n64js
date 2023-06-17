@@ -1,4 +1,4 @@
-import * as format from '../format.js';
+import { toString8, toString16, toString32 } from '../format.js';
 import * as logger from '../logger.js';
 
 /**
@@ -47,9 +47,7 @@ export class Device {
    * @return {number}
    */
   readInternal32(address) {
-    var ea = this.calcEA(address);
-
-    // We need to make sure this doesn't throw, so do a bounds check
+    const ea = this.calcEA(address);
     if (ea + 4 <= this.u8.length) {
       return this.mem.readU32(ea);
     }
@@ -62,9 +60,7 @@ export class Device {
    * @param {number} value
    */
   writeInternal32(address, value) {
-    var ea = this.calcEA(address);
-
-    // We need to make sure this doesn't throw, so do a bounds check
+    const ea = this.calcEA(address);
     if (ea + 4 <= this.u8.length) {
       this.mem.write32(ea, value);
     }
@@ -76,17 +72,18 @@ export class Device {
    */
   logRead(address) {
     if (!this.quiet) {
-      logger.log('Reading from ' + this.name + ': ' + format.toString32(address));
+      logger.log(`Reading from ${this.name}: ${toString32(address)}`);
     }
   }
 
   /**
    * Logs a write to the specified address.
    * @param {number} address
+   * @param {string} value
    */
-  logWrite(address, value_str) {
+  logWrite(address, value) {
     if (!this.quiet) {
-      logger.log('Writing to ' + this.name + ': ' + value_str + ' -> [' + format.toString32(address) + ']');
+      logger.log(`Writing to ${this.name}: ${value} -> [${toString32(address)}]`);
     }
   }
 
@@ -97,7 +94,7 @@ export class Device {
    */
   readU32(address) {
     this.logRead(address);
-    var ea = this.calcEA(address);
+    const ea = this.calcEA(address);
     return this.mem.readU32(ea);
   }
 
@@ -108,7 +105,7 @@ export class Device {
    */
   readU16(address) {
     this.logRead(address);
-    var ea = this.calcEA(address);
+    const ea = this.calcEA(address);
     return this.mem.readU16(ea);
   }
 
@@ -119,7 +116,7 @@ export class Device {
    */
   readU8(address) {
     this.logRead(address);
-    var ea = this.calcEA(address);
+    const ea = this.calcEA(address);
     return this.mem.readU8(ea);
   }
 
@@ -130,7 +127,7 @@ export class Device {
    */
   readS32(address) {
     this.logRead(address);
-    var ea = this.calcEA(address);
+    const ea = this.calcEA(address);
     return this.mem.readS32(ea);
   }
 
@@ -141,7 +138,7 @@ export class Device {
    */
   readS16(address) {
     this.logRead(address);
-    var ea = this.calcEA(address);
+    const ea = this.calcEA(address);
     return this.mem.readS16(ea);
   }
 
@@ -152,7 +149,7 @@ export class Device {
    */
   readS8(address) {
     this.logRead(address);
-    var ea = this.calcEA(address);
+    const ea = this.calcEA(address);
     return this.mem.readS8(ea);
   }
 
@@ -162,8 +159,8 @@ export class Device {
    * @param {number} value
    */
   write32(address, value) {
-    this.logWrite(address, format.toString32(value));
-    var ea = this.calcEA(address);
+    this.logWrite(address, toString32(value));
+    const ea = this.calcEA(address);
     this.mem.write32(ea, value);
   }
 
@@ -173,8 +170,8 @@ export class Device {
    * @param {number} value
    */
   write16(address, value) {
-    this.logWrite(address, format.toString16(value));
-    var ea = this.calcEA(address);
+    this.logWrite(address, toString16(value));
+    const ea = this.calcEA(address);
     this.mem.write16(ea, value);
   }
 
@@ -184,8 +181,8 @@ export class Device {
    * @param {number} value
    */
   write8(address, value) {
-    this.logWrite(address, format.toString8(value));
-    var ea = this.calcEA(address);
+    this.logWrite(address, toString8(value));
+    const ea = this.calcEA(address);
     this.mem.write8(ea, value);
   }
 }
