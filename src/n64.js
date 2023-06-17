@@ -197,21 +197,19 @@ import { romdb } from './romdb.js';
 
   const hardware = new Hardware(rominfo);
 
-  var rom           = hardware.rom;
-  var pi_mem        = hardware.pi_mem;
-  var ram           = hardware.ram
-  var sp_mem        = hardware.sp_mem;
-  var sp_reg        = hardware.sp_reg;
-  var sp_ibist_mem  = hardware.sp_ibist_mem;
-  var dpc_mem       = hardware.dpc_mem;
-  var dps_mem       = hardware.dps_mem;
-  var rdram_reg     = hardware.rdram_reg;
-  var mi_reg        = hardware.mi_reg;
-  var vi_reg        = hardware.vi_reg;
-  var ai_reg        = hardware.ai_reg;
-  var pi_reg        = hardware.pi_reg;
-  var ri_reg        = hardware.ri_reg;
-  var si_reg        = hardware.si_reg;
+  let rom           = hardware.rom;
+  const pi_mem        = hardware.pi_mem;
+  const ram           = hardware.ram
+  const sp_mem        = hardware.sp_mem;
+  const sp_reg        = hardware.sp_reg;
+  const sp_ibist_mem  = hardware.sp_ibist_mem;
+  const rdram_reg     = hardware.rdram_reg;
+  const mi_reg        = hardware.mi_reg;
+  const vi_reg        = hardware.vi_reg;
+  const ai_reg        = hardware.ai_reg;
+  const pi_reg        = hardware.pi_reg;
+  const ri_reg        = hardware.ri_reg;
+  const si_reg        = hardware.si_reg;
 
   var eeprom        = null;   // Initialised during reset, using correct size for this rom (may be null if eeprom isn't used)
   var eepromDirty   = false;
