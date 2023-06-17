@@ -4,6 +4,9 @@
 import { Device } from './devices/device.js';
 import { UncachedDPCDevice } from './devices/dpc.js';
 import { UncachedDPSDevice } from './devices/dps.js';
+import * as mi from './devices/mi.js';
+import * as pi from './devices/pi.js';
+import * as si from './devices/si.js';
 import { MemoryRegion } from './MemoryRegion.js';
 import * as _debugger from './debugger.js';
 import * as format from './format.js';
@@ -169,42 +172,6 @@ import { romdb } from './romdb.js';
   const AI_DACRATE_REG    = 0x10;
   const AI_BITRATE_REG    = 0x14;
 
-  // Peripheral Interface
-  const PI_DRAM_ADDR_REG    = 0x00;
-  const PI_CART_ADDR_REG    = 0x04;
-  const PI_RD_LEN_REG       = 0x08;
-  const PI_WR_LEN_REG       = 0x0C;
-  const PI_STATUS_REG       = 0x10;
-  const PI_BSD_DOM1_LAT_REG = 0x14;
-  const PI_BSD_DOM1_PWD_REG = 0x18;
-  const PI_BSD_DOM1_PGS_REG = 0x1C;
-  const PI_BSD_DOM1_RLS_REG = 0x20;
-  const PI_BSD_DOM2_LAT_REG = 0x24;
-  const PI_BSD_DOM2_PWD_REG = 0x28;
-  const PI_BSD_DOM2_PGS_REG = 0x2C;
-  const PI_BSD_DOM2_RLS_REG = 0x30;
-
-  // Values read from status reg
-  const PI_STATUS_DMA_BUSY    = 0x01;
-  const PI_STATUS_IO_BUSY     = 0x02;
-  const PI_STATUS_DMA_IO_BUSY = 0x03;
-  const PI_STATUS_ERROR       = 0x04;
-
-  // Values written to status reg
-  const PI_STATUS_RESET     = 0x01;
-  const PI_STATUS_CLR_INTR  = 0x02;
-
-  const PI_DOM1_ADDR1   = 0x06000000;
-  const PI_DOM1_ADDR2   = 0x10000000;
-  const PI_DOM1_ADDR3   = 0x1FD00000;
-  const PI_DOM2_ADDR1   = 0x05000000;
-  const PI_DOM2_ADDR2   = 0x08000000;
-
-  function isDom1Addr1(address) { return address >= PI_DOM1_ADDR1 && address < PI_DOM2_ADDR2; }
-  function isDom1Addr2(address) { return address >= PI_DOM1_ADDR2 && address < 0x1FBFFFFF;    }
-  function isDom1Addr3(address) { return address >= PI_DOM1_ADDR3 && address < 0x7FFFFFFF;    }
-  function isDom2Addr1(address) { return address >= PI_DOM2_ADDR1 && address < PI_DOM1_ADDR1; }
-  function isDom2Addr2(address) { return address >= PI_DOM2_ADDR2 && address < PI_DOM1_ADDR2; }
 
   // RDRAM Interface
   const RI_MODE_REG             = 0x00;
@@ -267,6 +234,7 @@ import { romdb } from './romdb.js';
     }
   }
 
+  // TODO: dedupe.
   function memoryCopy(dst, dstoff, src, srcoff, len) {
     var i;
     for (i = 0; i < len; ++i) {
@@ -274,7 +242,7 @@ import { romdb } from './romdb.js';
     }
   }
 
-  const hardware = new Hardware();
+  const hardware = new Hardware(rominfo);
 
   var rom           = hardware.rom;
   var pi_mem        = hardware.pi_mem;
@@ -311,14 +279,14 @@ import { romdb } from './romdb.js';
   var mi_reg_handler_uncached    = new Device("MIReg",    mi_reg,       0xa4300000, 0xa4300010);
   var vi_reg_handler_uncached    = new Device("VIReg",    vi_reg,       0xa4400000, 0xa4400038);
   var ai_reg_handler_uncached    = new Device("AIReg",    ai_reg,       0xa4500000, 0xa4500018);
-  var pi_reg_handler_uncached    = new Device("PIReg",    pi_reg,       0xa4600000, 0xa4600034);
+  var pi_reg_handler_uncached    = new pi.UncachedPIRegDevice(hardware, "PIReg",       0xa4600000, 0xa4600034);
   var ri_reg_handler_uncached    = new Device("RIReg",    ri_reg,       0xa4700000, 0xa4700020);
   var si_reg_handler_uncached    = new Device("SIReg",    si_reg,       0xa4800000, 0xa480001c);
   var rom_d2a1_handler_uncached  = new Device("ROMd2a1",  null,         0xa5000000, 0xa6000000);
   var rom_d1a1_handler_uncached  = new Device("ROMd1a1",  rom,          0xa6000000, 0xa8000000);
   var rom_d2a2_handler_uncached  = new Device("ROMd2a2",  null,         0xa8000000, 0xb0000000);
   var rom_d1a2_handler_uncached  = new Device("ROMd1a2",  rom,          0xb0000000, 0xbfc00000);
-  var pi_mem_handler_uncached    = new Device("PIRAM",    pi_mem,       0xbfc00000, 0xbfc00800);
+  var pi_mem_handler_uncached    = new pi.UncachedPIRamDevice(hardware, "PIRAM",       0xbfc00000, 0xbfc00800);
   var rom_d1a3_handler_uncached  = new Device("ROMd1a3",  rom,          0xbfd00000, 0xc0000000);
 
   function fixEndian(arrayBuffer) {
@@ -795,8 +763,8 @@ import { romdb } from './romdb.js';
     if (flags & SP_CLR_HALT)       { clr_bits |= SP_STATUS_HALT; start_rsp = true; }
     if (flags & SP_SET_HALT)       { set_bits |= SP_STATUS_HALT; stop_rsp  = true; }
 
-    if (flags & SP_SET_INTR)       { mi_reg.setBits32  (MI_INTR_REG, MI_INTR_SP); n64js.cpu0.updateCause3(); }   // Shouldn't ever set this?
-    else if (flags & SP_CLR_INTR)  { mi_reg.clearBits32(MI_INTR_REG, MI_INTR_SP); n64js.cpu0.updateCause3(); }
+    if (flags & SP_SET_INTR)       { mi_reg.setBits32  (mi.MI_INTR_REG, mi.MI_INTR_SP); n64js.cpu0.updateCause3(); }   // Shouldn't ever set this?
+    else if (flags & SP_CLR_INTR)  { mi_reg.clearBits32(mi.MI_INTR_REG, mi.MI_INTR_SP); n64js.cpu0.updateCause3(); }
 
     clr_bits |= (flags & SP_CLR_BROKE) >> 1;
     clr_bits |= (flags & SP_CLR_SSTEP);
@@ -1078,45 +1046,6 @@ import { romdb } from './romdb.js';
     return this.readS32(address)>>>0;
   };
 
-
-  pi_reg_handler_uncached.write32 = function (address, value) {
-    var ea = this.calcEA(address);
-    if (ea+4 > this.u8.length) {
-      throw 'Write is out of range';
-    }
-    switch( ea ) {
-      case PI_DRAM_ADDR_REG:
-      case PI_CART_ADDR_REG:
-        if (!this.quiet) { logger.log('Writing to PIReg: ' + toString32(value) + ' -> [' + toString32(address) + ']' ); }
-        this.mem.write32(ea, value);
-        break;
-      case PI_RD_LEN_REG:
-        this.mem.write32(ea, value);
-        n64js.halt('PI copy from rdram triggered!');
-        break;
-      case PI_WR_LEN_REG:
-        this.mem.write32(ea, value);
-        piCopyToRDRAM();
-        break;
-      case PI_STATUS_REG:
-        if (value & PI_STATUS_RESET) {
-          if (!this.quiet) { logger.log('PI_STATUS_REG reset'); }
-          this.mem.write32(PI_STATUS_REG, 0);
-        }
-        if (value & PI_STATUS_CLR_INTR) {
-          if (!this.quiet) { logger.log('PI interrupt cleared'); }
-          mi_reg.clearBits32(MI_INTR_REG, MI_INTR_PI);
-          n64js.cpu0.updateCause3();
-        }
-
-        break;
-      default:
-        logger.log('Unhandled write to PIReg: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
-        this.mem.write32(ea, value);
-        break;
-    }
-
-  };
 
   function siCopyFromRDRAM() {
     var dram_address = si_reg.readU32(SI_DRAM_ADDR_REG) & 0x1fffffff;
@@ -1571,162 +1500,6 @@ import { romdb } from './romdb.js';
   };
 
 
-  function piCopyToRDRAM() {
-    var dram_address = pi_reg.readU32(PI_DRAM_ADDR_REG) & 0x00ffffff;
-    var cart_address = pi_reg.readU32(PI_CART_ADDR_REG);
-    var transfer_len = pi_reg.readU32(PI_WR_LEN_REG) + 1;
-
-    if (!pi_reg_handler_uncached.quiet) { logger.log('PI: copying ' + transfer_len + ' bytes of data from ' + toString32(cart_address) + ' to ' + toString32(dram_address)); }
-
-    if (transfer_len&1) {
-      logger.log('PI: Warning - odd address');
-      transfer_len++;
-    }
-
-    var copy_succeeded = false;
-
-    if (isDom1Addr1(cart_address)) {
-      cart_address -= PI_DOM1_ADDR1;
-      memoryCopy( ram, dram_address, rom, cart_address, transfer_len );
-      n64js.invalidateICacheRange( 0x80000000 | dram_address, transfer_len, 'PI' );
-      copy_succeeded = true;
-    } else if (isDom1Addr2(cart_address)) {
-      cart_address -= PI_DOM1_ADDR2;
-      memoryCopy( ram, dram_address, rom, cart_address, transfer_len );
-      n64js.invalidateICacheRange( 0x80000000 | dram_address, transfer_len, 'PI' );
-      copy_succeeded = true;
-    } else if (isDom1Addr3(cart_address)) {
-      cart_address -= PI_DOM1_ADDR3;
-      memoryCopy( ram, dram_address, rom, cart_address, transfer_len );
-      n64js.invalidateICacheRange( 0x80000000 | dram_address, transfer_len, 'PI' );
-      copy_succeeded = true;
-
-    } else if (isDom2Addr1(cart_address)) {
-      cart_address -= PI_DOM2_ADDR1;
-      n64js.halt('PI: dom2addr1 transfer is unhandled (save)');
-
-    } else if (isDom2Addr2(cart_address)) {
-      cart_address -= PI_DOM2_ADDR2;
-      n64js.halt('PI: dom2addr2 transfer is unhandled (save/flash)');
-
-    } else {
-      n64js.halt('PI: unknown cart address: ' + cart_address);
-    }
-
-    if (!setMemorySize) {
-      var addr = (rominfo.cic === '6105') ? 0x800003F0 : 0x80000318;
-      ram.write32(addr - 0x80000000, 8*1024*1024);
-      logger.log('Setting memory size');
-      setMemorySize = true;
-    }
-
-    // If this is the first DMA write the ram size to 0x800003F0 (cic6105) or 0x80000318 (others)
-    pi_reg.clearBits32(PI_STATUS_REG, PI_STATUS_DMA_BUSY);
-    mi_reg.setBits32(MI_INTR_REG, MI_INTR_PI);
-    n64js.cpu0.updateCause3();
-  }
-
-  function pifUpdateControl() {
-    var pi_rom = new Uint8Array(pi_mem.arrayBuffer, 0x000, 0x7c0);
-    var pi_ram = new Uint8Array(pi_mem.arrayBuffer, 0x7c0, 0x040);
-    var command = pi_ram[0x3f];
-    var i;
-
-    switch (command) {
-      case 0x01:
-        logger.log('PI: execute block\n');
-        break;
-      case 0x08:
-        logger.log('PI: interrupt control\n');
-        pi_ram[0x3f] = 0x00;
-        si_reg.setBits32(SI_STATUS_REG, SI_STATUS_INTERRUPT);
-        mi_reg.setBits32(MI_INTR_REG,   MI_INTR_SI);
-        n64js.cpu0.updateCause3();
-        break;
-      case 0x10:
-        logger.log('PI: clear rom\n');
-        for(i = 0; i < pi_rom.length; ++i) {
-          pi_rom[i] = 0;
-        }
-        break;
-      case 0x30:
-        logger.log('PI: set 0x80 control \n');
-        pi_ram[0x3f] = 0x80;
-        break;
-      case 0xc0:
-        logger.log('PI: clear ram\n');
-        for(i = 0; i < pi_ram.length; ++i) {
-          pi_ram[i] = 0;
-        }
-        break;
-      default:
-        n64js.halt('Unkown PI control value: ' + format.toString8(command));
-        break;
-    }
-  }
-
-  pi_mem_handler_uncached.readS32 = function (address) {
-    var ea = this.calcEA(address);
-
-    if (ea+4 > this.u8.length) {
-      throw 'Read is out of range';
-    }
-    var v = this.mem.readS32(ea);
-
-    if (ea < 0x7c0) {
-      logger.log('Reading from PIF rom (' + toString32(address) + '). Got ' + toString32(v));
-    } else {
-      var ram_offset = ea - 0x7c0;
-      switch(ram_offset) {
-        case 0x24:  logger.log('Reading CIC values: '   + toString32(v)); break;
-        case 0x3c:  logger.log('Reading Control byte: ' + toString32(v)); break;
-        default:    logger.log('Reading from PI ram ['  + toString32(address) + ']. Got ' + toString32(v));
-      }
-    }
-    return v;
-  };
-
-  pi_mem_handler_uncached.readU32 = function (address) {
-    return this.readS32(address)>>>0;
-  };
-
-  pi_mem_handler_uncached.readS8 = function (address) {
-    var ea = this.calcEA(address);
-
-    var v = pi_mem.readU8(ea);
-
-    if (ea < 0x7c0) {
-      logger.log('Reading from PIF rom (' + toString32(address) + '). Got ' + format.toString8(v));
-    } else {
-      var ram_offset = ea - 0x7c0;
-      switch(ram_offset) {
-        case 0x24:  logger.log('Reading CIC values: '   + format.toString8(v)); break;
-        case 0x3c:  logger.log('Reading Control byte: ' + format.toString8(v)); break;
-        default:    logger.log('Reading from PI ram ['  + toString32(address) + ']. Got ' + format.toString8(v));
-      }
-    }
-    return v;
-  };
-
-  pi_mem_handler_uncached.readU8 = function (address) {
-    return this.mem.readS8(address)>>>0;
-  };
-  pi_mem_handler_uncached.write32 = function (address, value) {
-    var ea = this.calcEA(address);
-
-    if (ea < 0x7c0) {
-      logger.log('Attempting to write to PIF ROM');
-    } else {
-      var ram_offset = ea - 0x7c0;
-      this.mem.write32(ea, value);
-      switch(ram_offset) {
-      case 0x24:  logger.log('Writing CIC values: '   + toString32(value) ); break;
-      case 0x3c:  logger.log('Writing Control byte: ' + toString32(value) ); pifUpdateControl(); break;
-      default:    logger.log('Writing directly to PI ram [' + toString32(address) + '] <-- ' + toString32(value)); break;
-      }
-    }
-  };
-
   // We create a memory map of 1<<14 entries, corresponding to the top bits of the address range.
   var memMap = (function () {
     var map = [];
@@ -2003,7 +1776,7 @@ import { romdb } from './romdb.js';
 
     initSync();
 
-    setMemorySize = false;
+    pi_reg_handler_uncached.reset();
 
     initSaveGame(rominfo.save);
 

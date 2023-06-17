@@ -1,7 +1,7 @@
 import { MemoryRegion } from './MemoryRegion.js';
 
 export class Hardware {
-    constructor() {
+    constructor(rominfo) {
         this.rom = null;   // Will be memory, mapped at 0xb0000000
         this.pi_mem = newMemoryRegion(0x7c0 + 0x40);   // rom+ram
         this.ram = newMemoryRegion(8 * 1024 * 1024);
@@ -17,6 +17,9 @@ export class Hardware {
         this.pi_reg = newMemoryRegion(0x34);
         this.ri_reg = newMemoryRegion(0x20);
         this.si_reg = newMemoryRegion(0x1c);
+
+        // TODO: Not sure this belongs here.
+        this.rominfo = rominfo;
     }
 
     createROM(arrayBuffer) {
