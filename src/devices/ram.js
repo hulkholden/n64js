@@ -8,7 +8,7 @@ export class MappedMemDevice extends Device {
   }
 
   readInternal32(address) {
-    var mapped = n64js.cpu0.translateReadInternal(address) & 0x007fffff;
+    const mapped = n64js.cpu0.translateReadInternal(address) & 0x007fffff;
     if (mapped !== 0) {
       if (mapped + 4 <= this.ram.u8.length) {
         return this.ram.readU32(mapped);
@@ -18,7 +18,7 @@ export class MappedMemDevice extends Device {
   }
 
   writeInternal32(address, value) {
-    var mapped = n64js.cpu0.translateReadInternal(address) & 0x007fffff;
+    const mapped = n64js.cpu0.translateReadInternal(address) & 0x007fffff;
     if (mapped !== 0) {
       if (mapped + 4 <= this.ram.u8.length) {
         this.ram.write32(mapped, value);
@@ -27,7 +27,7 @@ export class MappedMemDevice extends Device {
   }
 
   readU32(address) {
-    var mapped = n64js.cpu0.translateRead(address) & 0x007fffff;
+    const mapped = n64js.cpu0.translateRead(address) & 0x007fffff;
     if (mapped !== 0) {
       return this.ram.readU32(mapped);
     }
@@ -36,7 +36,7 @@ export class MappedMemDevice extends Device {
   }
 
   readU16(address) {
-    var mapped = n64js.cpu0.translateRead(address) & 0x007fffff;
+    const mapped = n64js.cpu0.translateRead(address) & 0x007fffff;
     if (mapped !== 0) {
       return this.ram.readU16(mapped);
     }
@@ -45,7 +45,7 @@ export class MappedMemDevice extends Device {
   }
 
   readU8(address) {
-    var mapped = n64js.cpu0.translateRead(address) & 0x007fffff;
+    const mapped = n64js.cpu0.translateRead(address) & 0x007fffff;
     if (mapped !== 0) {
       return this.ram.readU8(mapped);
     }
@@ -53,20 +53,19 @@ export class MappedMemDevice extends Device {
     return 0x00;
   }
 
-
   readS32(address) {
-    var mapped = n64js.cpu0.translateRead(address) & 0x007fffff;
+    const mapped = n64js.cpu0.translateRead(address) & 0x007fffff;
     if (mapped !== 0) {
       return this.ram.readS32(mapped);
     }
     // FIXME: need to somehow interrupt the current instruction from executing, before it has chance to modify state.
     // For now, goldeneye hits this initially when reading the current instruction. I laemly return 0 so that I execute a NOP and then jump to the exception handler.
     //    n64js.halt('virtual readS32 failed - need to throw refill/invalid');
-    return 0x00000000;
+    return 0;
   }
 
   readS16(address) {
-    var mapped = n64js.cpu0.translateRead(address) & 0x007fffff;
+    const mapped = n64js.cpu0.translateRead(address) & 0x007fffff;
     if (mapped !== 0) {
       return this.ram.readS16(mapped);
     }
@@ -75,7 +74,7 @@ export class MappedMemDevice extends Device {
   }
 
   readS8(address) {
-    var mapped = n64js.cpu0.translateRead(address);
+    const mapped = n64js.cpu0.translateRead(address);
     if (mapped !== 0) {
       return this.ram.readS8(mapped);
     }
@@ -84,7 +83,7 @@ export class MappedMemDevice extends Device {
   }
 
   write32(address, value) {
-    var mapped = n64js.cpu0.translateWrite(address) & 0x007fffff;
+    const mapped = n64js.cpu0.translateWrite(address) & 0x007fffff;
     if (mapped !== 0) {
       this.ram.write32(mapped, value);
       return;
@@ -93,7 +92,7 @@ export class MappedMemDevice extends Device {
   }
 
   write16(address, value) {
-    var mapped = n64js.cpu0.translateWrite(address) & 0x007fffff;
+    const mapped = n64js.cpu0.translateWrite(address) & 0x007fffff;
     if (mapped !== 0) {
       this.ram.write16(mapped, value);
       return;
@@ -102,7 +101,7 @@ export class MappedMemDevice extends Device {
   }
 
   write8(address, value) {
-    var mapped = n64js.cpu0.translateWrite(address) & 0x007fffff;
+    const mapped = n64js.cpu0.translateWrite(address) & 0x007fffff;
     if (mapped !== 0) {
       this.ram.write8(mapped, value);
       return;
@@ -119,17 +118,17 @@ export class CachedMemDevice extends Device {
 
   // This function gets hit A LOT, so eliminate as much fat as possible.
   readU32(address) {
-    var off = address - 0x80000000;
+    const off = address - 0x80000000;
     return ((this.u8[off + 0] << 24) | (this.u8[off + 1] << 16) | (this.u8[off + 2] << 8) | (this.u8[off + 3])) >>> 0;
   }
 
   readS32(address) {
-    var off = address - 0x80000000;
+    const off = address - 0x80000000;
     return (this.u8[off + 0] << 24) | (this.u8[off + 1] << 16) | (this.u8[off + 2] << 8) | (this.u8[off + 3]);
   }
 
   write32(address, value) {
-    var off = address - 0x80000000;
+    const off = address - 0x80000000;
     this.u8[off + 0] = value >> 24;
     this.u8[off + 1] = value >> 16;
     this.u8[off + 2] = value >> 8;
@@ -149,7 +148,7 @@ export class RDRamRegDevice extends Device {
     super("RDRAMReg", hardware, hardware.rdram_reg, rangeStart, rangeEnd);
   }
 
-  calcEA = function (address) {
+  calcEA(address) {
     return address & 0xff;
   }
 }
