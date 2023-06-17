@@ -49,7 +49,7 @@ export const MI_INTR_DP = 0x20;
 
 export class MIRegDevice extends Device {
   constructor(hardware, rangeStart, rangeEnd) {
-    super("MIReg", hardware.mi_reg, rangeStart, rangeEnd);
+    super("MIReg", hardware, hardware.mi_reg, rangeStart, rangeEnd);
   }
 
   reset() {

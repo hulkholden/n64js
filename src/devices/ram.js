@@ -3,7 +3,7 @@ import { Device } from './device.js';
 
 export class MappedMemDevice extends Device {
   constructor(hardware, rangeStart, rangeEnd) {
-    super("VMEM", null, rangeStart, rangeEnd);
+    super("VMEM", hardware, null, rangeStart, rangeEnd);
     this.ram = hardware.ram;
   }
 
@@ -114,7 +114,7 @@ export class MappedMemDevice extends Device {
 
 export class CachedMemDevice extends Device {
   constructor(hardware, rangeStart, rangeEnd) {
-    super("RAM", hardware.ram, rangeStart, rangeEnd);
+    super("RAM", hardware, hardware.ram, rangeStart, rangeEnd);
   }
 
   // This function gets hit A LOT, so eliminate as much fat as possible.
@@ -140,13 +140,13 @@ export class CachedMemDevice extends Device {
 
 export class UncachedMemDevice extends Device {
   constructor(hardware, rangeStart, rangeEnd) {
-    super("RAM", hardware.ram, rangeStart, rangeEnd);
+    super("RAM", hardware, hardware.ram, rangeStart, rangeEnd);
   }
 }
 
 export class RDRamRegDevice extends Device {
   constructor(hardware, rangeStart, rangeEnd) {
-    super("RDRAMReg", hardware.rdram_reg, rangeStart, rangeEnd);
+    super("RDRAMReg", hardware, hardware.rdram_reg, rangeStart, rangeEnd);
   }
 
   calcEA = function (address) {

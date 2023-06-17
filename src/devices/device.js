@@ -7,17 +7,19 @@ import * as logger from '../logger.js';
 export class Device {
   /**
    * @param {string} name The name of this device.
+   * @param {Hardware} hardware The underlying hardware.
    * @param {MemoryRegion|null} mem The memory region that backs this device.
    * @param {number} rangeStart The start of the address space to use.
    * @param {number} rangeEnd The end of the address space to use.
    */
-  constructor(name, mem, rangeStart, rangeEnd) {
-    this.name       = name;
-    this.mem        = mem;
-    this.u8         = mem ? mem.u8 : null;  // Cache the underlying Uint8Array.
+  constructor(name, hardware, mem, rangeStart, rangeEnd) {
+    this.name = name;
+    this.hardware = hardware;
+    this.mem = mem;
+    this.u8 = mem ? mem.u8 : null;  // Cache the underlying Uint8Array.
     this.rangeStart = rangeStart;
-    this.rangeEnd   = rangeEnd;
-    this.quiet      = false;
+    this.rangeEnd = rangeEnd;
+    this.quiet = false;
   }
 
   /**
@@ -27,7 +29,7 @@ export class Device {
    */
   setMem(mem) {
     this.mem = mem;
-    this.u8  = mem.u8;
+    this.u8 = mem.u8;
   }
 
   /**
@@ -48,7 +50,7 @@ export class Device {
     var ea = this.calcEA(address);
 
     // We need to make sure this doesn't throw, so do a bounds check
-    if (ea+4 <= this.u8.length) {
+    if (ea + 4 <= this.u8.length) {
       return this.mem.readU32(ea);
     }
     return 0xdddddddd;
@@ -63,7 +65,7 @@ export class Device {
     var ea = this.calcEA(address);
 
     // We need to make sure this doesn't throw, so do a bounds check
-    if (ea+4 <= this.u8.length) {
+    if (ea + 4 <= this.u8.length) {
       this.mem.write32(ea, value);
     }
   }
@@ -74,7 +76,7 @@ export class Device {
    */
   logRead(address) {
     if (!this.quiet) {
-      logger.log('Reading from ' + this.name + ': ' + format.toString32(address) );
+      logger.log('Reading from ' + this.name + ': ' + format.toString32(address));
     }
   }
 
@@ -84,7 +86,7 @@ export class Device {
    */
   logWrite(address, value_str) {
     if (!this.quiet) {
-      logger.log('Writing to ' + this.name + ': ' + value_str + ' -> [' + format.toString32(address) + ']' );
+      logger.log('Writing to ' + this.name + ': ' + value_str + ' -> [' + format.toString32(address) + ']');
     }
   }
 

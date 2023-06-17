@@ -19,8 +19,7 @@ export const SI_STATUS_INTERRUPT = 0x1000;
 
 export class SIRegDevice extends Device {
   constructor(hardware, rangeStart, rangeEnd) {
-    super("SIReg", hardware.si_reg, rangeStart, rangeEnd);
-    this.hardware = hardware;
+    super("SIReg", hardware, hardware.si_reg, rangeStart, rangeEnd);
   }
 
   readS32(address) {

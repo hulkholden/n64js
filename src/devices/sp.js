@@ -68,20 +68,19 @@ function memoryCopy(dst, dstoff, src, srcoff, len) {
 
 export class SPMemDevice extends Device {
     constructor(hardware, rangeStart, rangeEnd) {
-        super("SPMem", hardware.sp_mem, rangeStart, rangeEnd);
+        super("SPMem", hardware, hardware.sp_mem, rangeStart, rangeEnd);
     }
 }
 
 export class SPIBISTDevice extends Device {
     constructor(hardware, rangeStart, rangeEnd) {
-        super("SPIBIST", hardware.sp_ibist_mem, rangeStart, rangeEnd);
+        super("SPIBIST", hardware, hardware.sp_ibist_mem, rangeStart, rangeEnd);
     }
 }
 
 export class SPRegDevice extends Device {
     constructor(hardware, rangeStart, rangeEnd) {
-        super("SPReg", hardware.sp_reg, rangeStart, rangeEnd);
-        this.hardware = hardware;
+        super("SPReg", hardware, hardware.sp_reg, rangeStart, rangeEnd);
     }
 
     write32(address, value) {

@@ -14,7 +14,7 @@ const AI_BITRATE_REG = 0x14;
 
 export class AIRegDevice extends Device {
   constructor(hardware, rangeStart, rangeEnd) {
-    super("AIReg", hardware.ai_reg, rangeStart, rangeEnd);
+    super("AIReg", hardware, hardware.ai_reg, rangeStart, rangeEnd);
   }
 
   write32(address, value) {

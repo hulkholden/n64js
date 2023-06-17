@@ -52,8 +52,7 @@ function memoryCopy(dst, dstoff, src, srcoff, len) {
 
 export class PIRegDevice extends Device {
   constructor(hardware, rangeStart, rangeEnd) {
-    super("PIReg", hardware.pi_reg, rangeStart, rangeEnd);
-    this.hardware = hardware;
+    super("PIReg", hardware, hardware.pi_reg, rangeStart, rangeEnd);
     this.haveSetMemorySize = false;
   }
 
@@ -159,8 +158,7 @@ export class PIRegDevice extends Device {
 
 export class PIRamDevice extends Device {
   constructor(hardware, rangeStart, rangeEnd) {
-    super("PIRAM", hardware.pi_mem, rangeStart, rangeEnd);
-    this.hardware = hardware;
+    super("PIRAM", hardware, hardware.pi_mem, rangeStart, rangeEnd);
   }
 
   readS32(address) {

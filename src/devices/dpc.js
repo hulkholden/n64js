@@ -36,7 +36,7 @@ const DPC_STATUS_START_VALID   = 0x400;
 
 export class DPCDevice extends Device {
   constructor(hardware, rangeStart, rangeEnd) {
-    super("DPC", hardware.dpc_mem, rangeStart, rangeEnd);
+    super("DPC", hardware, hardware.dpc_mem, rangeStart, rangeEnd);
   }
 
   write32(address, value) {
