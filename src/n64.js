@@ -199,8 +199,6 @@ import { romdb } from './romdb.js';
 
   var running       = false;
 
-  var setMemorySize = false;
-
   var cur_vbl       = 0;
   var last_vbl      = 0;
 
