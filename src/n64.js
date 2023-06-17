@@ -22,9 +22,7 @@ import { romdb } from './romdb.js';
     n64js.syncFlow  = undefined;//n64js.createSyncConsumer();
     n64js.syncInput = undefined;//n64js.createSyncConsumer();
   }
-  n64js.getSyncFlow = function () {
-    return n64js.syncFlow;
-  };
+  n64js.getSyncFlow = () => n64js.syncFlow;
 
   const kOpBreakpoint = 58;
 
@@ -61,7 +59,7 @@ import { romdb } from './romdb.js';
   }
 
   const hardware = new Hardware(rominfo);
-  n64js.hardware = function () { return hardware; };
+  n64js.hardware = () => hardware;
 
   // Keep a DataView around as a view onto the RSP task
   var kTaskOffset   = 0x0fc0;
@@ -166,7 +164,7 @@ import { romdb } from './romdb.js';
     $('#title').text('n64js - ' + rominfo.name);
   }
 
-  n64js.toggleRun = function () {
+  n64js.toggleRun = () => {
     running = !running;
     $('#runbutton').html(running ? '<i class="glyphicon glyphicon-pause"></i> Pause' : '<i class="glyphicon glyphicon-play"></i> Run');
     if (running) {
@@ -174,7 +172,7 @@ import { romdb } from './romdb.js';
     }
   };
 
-  n64js.breakEmulationForDisplayListDebug = function () {
+  n64js.breakEmulationForDisplayListDebug = () => {
     if (running) {
       n64js.toggleRun();
       n64js.cpu0.breakExecution();
@@ -182,14 +180,14 @@ import { romdb } from './romdb.js';
     }
   };
 
-  n64js.triggerLoad = function () {
+  n64js.triggerLoad = () => {
     const $fileinput = $('#fileInput');
     // Reset fileInput value, otherwise onchange doesn't recognise when we select the same rome back-to-back
     $fileinput.val('');
     $fileinput.click();
   };
 
-  n64js.loadFile = function () {
+  n64js.loadFile = () => {
     const f = document.getElementById("fileInput");
     if (f && f.files.length > 0) {
       const file = f.files[0];
@@ -289,26 +287,17 @@ import { romdb } from './romdb.js';
     }
   }
 
-  n64js.getRamU8Array = function () {
-    return hardware.cachedMemDevice.u8;
-  };
-
-  n64js.getRamS32Array = function () {
-    return hardware.cachedMemDevice.mem.s32;
-  };
-
-  n64js.getRamDataView = function () {
-    // FIXME: should cache this object, or try to get rid of DataView entirely (Uint8Array + manual shuffling is faster)
-    return new DataView(hardware.ram.arrayBuffer);
-  };
-
+  n64js.getRamU8Array = () => hardware.cachedMemDevice.u8;
+  n64js.getRamS32Array = () => hardware.cachedMemDevice.mem.s32;
+  // FIXME: should cache this object, or try to get rid of DataView entirely (Uint8Array + manual shuffling is faster)
+  n64js.getRamDataView = () => new DataView(hardware.ram.arrayBuffer);
 
   // Should read noise?
-  n64js.getRandomU32 = function() {
-    var hi = Math.floor( Math.random() * 0xffff ) & 0xffff;
-    var lo = Math.floor( Math.random() * 0xffff ) & 0xffff;
+  n64js.getRandomU32 = () => {
+    var hi = Math.floor(Math.random() * 0xffff) & 0xffff;
+    var lo = Math.floor(Math.random() * 0xffff) & 0xffff;
 
-    var v = (hi<<16) | lo;
+    var v = (hi << 16) | lo;
 
     if (n64js.syncInput) {
       v = n64js.syncInput.reflect32(v);
@@ -319,9 +308,7 @@ import { romdb } from './romdb.js';
 
   const controllers = new Controllers(hardware);
 
-  n64js.controllers = function () {
-    return controllers;
-  }
+  n64js.controllers = () => controllers
 
   const kButtonA      = 0x8000;
   const kButtonB      = 0x4000;
@@ -344,7 +331,7 @@ import { romdb } from './romdb.js';
   const kKeyRight     = 39;
   const kKeyDown      = 40;
 
-  n64js.handleKey = function (key, down) {
+  n64js.handleKey = (key, down) => {
     switch (key) {
       case 'A'.charCodeAt(0): controllers.setButton(0, kButtonStart, down); break;
       case 'S'.charCodeAt(0): controllers.setButton(0, kButtonA, down); break;
@@ -364,15 +351,15 @@ import { romdb } from './romdb.js';
       case 'J'.charCodeAt(0): controllers.setButton(0, kButtonCLeft, down); break;
       case 'L'.charCodeAt(0): controllers.setButton(0, kButtonCRight, down); break;
 
-      case kKeyLeft:  controllers.setStickX(0, down ? -80 : 0); break;
+      case kKeyLeft: controllers.setStickX(0, down ? -80 : 0); break;
       case kKeyRight: controllers.setStickX(0, down ? +80 : 0); break;
-      case kKeyDown:  controllers.setStickY(0, down ? -80 : 0); break;
-      case kKeyUp:    controllers.setStickY(0, down ? +80 : 0); break;
+      case kKeyDown: controllers.setStickY(0, down ? -80 : 0); break;
+      case kKeyUp: controllers.setStickY(0, down ? +80 : 0); break;
       //default: logger.log( 'up code:' + event.which);
     }
   };
 
-  n64js.checkSIStatusConsistent = function() { hardware.checkSIStatusConsistent(); };
+  n64js.checkSIStatusConsistent = () => { hardware.checkSIStatusConsistent(); };
 
   n64js.getInstruction = address => {
     var instruction = hardware.memMap.readMemoryInternal32(address);
@@ -423,14 +410,14 @@ import { romdb } from './romdb.js';
     return item + '-' + rominfo.id;
   }
 
-  n64js.getLocalStorageItem = function(name) {
-    var ls_name  = getLocalStorageName(name);
+  n64js.getLocalStorageItem = (name) => {
+    var ls_name = getLocalStorageName(name);
     var data_str = localStorage.getItem(ls_name);
-    var data     = data_str ? JSON.parse(data_str) : undefined;
+    var data = data_str ? JSON.parse(data_str) : undefined;
     return data;
   };
 
-  n64js.setLocalStorageItem = function(name, data) {
+  n64js.setLocalStorageItem = (name, data) => {
     var ls_name = getLocalStorageName(name);
     var data_str = JSON.stringify(data);
     localStorage.setItem(ls_name, data_str);
@@ -442,7 +429,7 @@ import { romdb } from './romdb.js';
   var startTime;
   var lastPresentTime;
 
-  n64js.emitRunningTime  = function (msg) {
+  n64js.emitRunningTime  = (msg) => {
     var cur_time = new Date();
     n64js.displayWarning('Time to ' + msg + ' ' + (cur_time.getTime() - startTime.getTime()).toString());
   };
@@ -457,7 +444,7 @@ import { romdb } from './romdb.js';
     $('#title').text(title_text);
   }
 
-  n64js.onPresent = function () {
+  n64js.onPresent = () => {
     var cur_time = new Date();
     if (lastPresentTime) {
       var t = cur_time.getTime() - lastPresentTime.getTime();
@@ -467,12 +454,12 @@ import { romdb } from './romdb.js';
     lastPresentTime = cur_time;
   };
 
-  n64js.addResetCallback = function (fn) {
+  n64js.addResetCallback = (fn) => {
     resetCallbacks.push(fn);
   };
 
-  n64js.reset = function () {
-    var country  = rominfo.country;
+  n64js.reset = () => {
+    var country = rominfo.country;
     var cic_chip = rominfo.cic;
 
     breakpoints = {};
@@ -487,7 +474,7 @@ import { romdb } from './romdb.js';
     n64js.resetRenderer();
 
     // Simulate boot
-    hardware.loadROM()
+    hardware.loadROM();
 
     var cpu0 = n64js.cpu0;
 
@@ -496,12 +483,12 @@ import { romdb } from './romdb.js';
       cpu0.gprLo[reg] = lo;
     }
 
-    cpu0.control[cpu0.kControlSR]       = 0x34000000;
-    cpu0.control[cpu0.kControlConfig]   = 0x0006E463;
-    cpu0.control[cpu0.kControlCount]    = 0x5000;
-    cpu0.control[cpu0.kControlCause]    = 0x0000005c;
-    cpu0.control[cpu0.kControlContext]  = 0x007FFFF0;
-    cpu0.control[cpu0.kControlEPC]      = 0xFFFFFFFF;
+    cpu0.control[cpu0.kControlSR] = 0x34000000;
+    cpu0.control[cpu0.kControlConfig] = 0x0006E463;
+    cpu0.control[cpu0.kControlCount] = 0x5000;
+    cpu0.control[cpu0.kControlCause] = 0x0000005c;
+    cpu0.control[cpu0.kControlContext] = 0x007FFFF0;
+    cpu0.control[cpu0.kControlEPC] = 0xFFFFFFFF;
     cpu0.control[cpu0.kControlBadVAddr] = 0xFFFFFFFF;
     cpu0.control[cpu0.kControlErrorEPC] = 0xFFFFFFFF;
 
@@ -664,30 +651,30 @@ import { romdb } from './romdb.js';
     }
   };
 
-  n64js.verticalBlank = function () {
+  n64js.verticalBlank = () => {
     // FIXME: framerate limit etc
     hardware.verticalBlank();
   };
 
   n64js.assert = assert;
 
-  n64js.check = function (e, m) {
+  n64js.check = (e, m) => {
     if (!e) {
       logger.log(m);
     }
   };
 
-  n64js.warn = function (m) {
+  n64js.warn = (m) => {
     logger.log(m);
   };
 
-  n64js.stopForBreakpoint = function () {
+  n64js.stopForBreakpoint = () => {
     running = false;
     n64js.cpu0.breakExecution();
     logger.log('<span style="color:red">Breakpoint</span>');
   };
 
-  n64js.halt = function (msg) {
+  n64js.halt = (msg) => {
     running = false;
     n64js.cpu0.breakExecution();
     logger.log('<span style="color:red">' + msg + '</span>');
@@ -695,21 +682,21 @@ import { romdb } from './romdb.js';
     n64js.displayError(msg);
   };
 
-  n64js.displayWarning = function (message) {
+  n64js.displayWarning = (message) => {
     var $alert = $('<div class="alert"><button class="close" data-dismiss="alert">×</button><strong>Warning!</strong> ' + message + '</div>');
     $('#alerts').append($alert);
   };
-  n64js.displayError = function (message) {
+  n64js.displayError = (message) => {
     var $alert = $('<div class="alert alert-error"><button class="close" data-dismiss="alert">×</button><strong>Error!</strong> ' + message + '</div>');
     $('#alerts').append($alert);
   };
 
   // Similar to halt, but just relinquishes control to the system
-  n64js.returnControlToSystem = function () {
+  n64js.returnControlToSystem = () => {
     n64js.cpu0.breakExecution();
   };
 
-  n64js.init = function () {
+  n64js.init = () => {
     n64js.reset();
 
     $('.debug').hide();
@@ -718,10 +705,10 @@ import { romdb } from './romdb.js';
 
     n64js.initialiseRenderer($('#display'));
 
-    $('body').keyup(function (event) {
+    $('body').keyup((event) => {
       n64js.handleKey(event.which, false);
     });
-    $('body').keydown(function (event) {
+    $('body').keydown((event) => {
       n64js.handleKey(event.which, true);
     });
     // $('body').keypress(function (event) {
@@ -734,22 +721,22 @@ import { romdb } from './romdb.js';
     //     case 's'.charCodeAt(0): n64js.step();                 break;
     //   }
     // });
-
     // Make sure that the tabs refresh when clicked
-    $('.tabbable a').on('shown', function (e) {
-      n64js.refreshDebugger();
-    });
+    $('.tabbable a').on('shown', (e) => {
+        n64js.refreshDebugger();
+      });
 
     n64js.refreshDebugger();
   };
 
-  n64js.togglePerformance = function () {
+  n64js.togglePerformance = () => {
     if (stats) {
       $('#performance').html('');
       stats = null;
     } else {
       stats = new Stats();
       stats.setMode(1); // 0: fps, 1: ms
+
 
       // Align top-left
       stats.domElement.style.position = 'relative';
