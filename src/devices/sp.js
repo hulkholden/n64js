@@ -60,8 +60,7 @@ export const SP_STATUS_TASKDONE = SP_STATUS_SIG2;
 
 // TODO: dedupe.
 function memoryCopy(dst, dstoff, src, srcoff, len) {
-  var i;
-  for (i = 0; i < len; ++i) {
+  for (let i = 0; i < len; ++i) {
     dst.u8[dstoff + i] = src.u8[srcoff + i];
   }
 }
@@ -84,7 +83,7 @@ export class SPRegDevice extends Device {
   }
 
   write32(address, value) {
-    var ea = this.calcEA(address);
+    const ea = this.calcEA(address);
     if (ea + 4 > this.u8.length) {
       throw 'Write is out of range';
     }
@@ -115,7 +114,7 @@ export class SPRegDevice extends Device {
         break;
 
       default:
-        logger.log('Unhandled write to SPReg: ' + toString32(value) + ' -> [' + toString32(address) + ']');
+        logger.log(`Unhandled write to SPReg: ${toString32(value)} -> [${toString32(address)}]`);
         this.mem.write32(ea, value);
     }
   }
@@ -157,80 +156,80 @@ export class SPRegDevice extends Device {
       if (flags & SP_SET_SIG7) { logger.log('SP: Setting Sig7'); }
     }
 
-    var clr_bits = 0;
-    var set_bits = 0;
+    let clrBits = 0;
+    let setBits = 0;
 
-    var start_rsp = false;
-    var stop_rsp = false;
+    let startRsp = false;
+    let stopRsp = false;
 
-    if (flags & SP_CLR_HALT) { clr_bits |= SP_STATUS_HALT; start_rsp = true; }
-    if (flags & SP_SET_HALT) { set_bits |= SP_STATUS_HALT; stop_rsp = true; }
+    if (flags & SP_CLR_HALT) { clrBits |= SP_STATUS_HALT; startRsp = true; }
+    if (flags & SP_SET_HALT) { setBits |= SP_STATUS_HALT; stopRsp = true; }
 
     if (flags & SP_SET_INTR) { this.hardware.mi_reg.setBits32(mi.MI_INTR_REG, mi.MI_INTR_SP); n64js.cpu0.updateCause3(); }   // Shouldn't ever set this?
     else if (flags & SP_CLR_INTR) { this.hardware.mi_reg.clearBits32(mi.MI_INTR_REG, mi.MI_INTR_SP); n64js.cpu0.updateCause3(); }
 
-    clr_bits |= (flags & SP_CLR_BROKE) >> 1;
-    clr_bits |= (flags & SP_CLR_SSTEP);
-    clr_bits |= (flags & SP_CLR_INTR_BREAK) >> 1;
-    clr_bits |= (flags & SP_CLR_SIG0) >> 2;
-    clr_bits |= (flags & SP_CLR_SIG1) >> 3;
-    clr_bits |= (flags & SP_CLR_SIG2) >> 4;
-    clr_bits |= (flags & SP_CLR_SIG3) >> 5;
-    clr_bits |= (flags & SP_CLR_SIG4) >> 6;
-    clr_bits |= (flags & SP_CLR_SIG5) >> 7;
-    clr_bits |= (flags & SP_CLR_SIG6) >> 8;
-    clr_bits |= (flags & SP_CLR_SIG7) >> 9;
+    clrBits |= (flags & SP_CLR_BROKE) >> 1;
+    clrBits |= (flags & SP_CLR_SSTEP);
+    clrBits |= (flags & SP_CLR_INTR_BREAK) >> 1;
+    clrBits |= (flags & SP_CLR_SIG0) >> 2;
+    clrBits |= (flags & SP_CLR_SIG1) >> 3;
+    clrBits |= (flags & SP_CLR_SIG2) >> 4;
+    clrBits |= (flags & SP_CLR_SIG3) >> 5;
+    clrBits |= (flags & SP_CLR_SIG4) >> 6;
+    clrBits |= (flags & SP_CLR_SIG5) >> 7;
+    clrBits |= (flags & SP_CLR_SIG6) >> 8;
+    clrBits |= (flags & SP_CLR_SIG7) >> 9;
 
-    set_bits |= (flags & SP_SET_SSTEP) >> 1;
-    set_bits |= (flags & SP_SET_INTR_BREAK) >> 2;
-    set_bits |= (flags & SP_SET_SIG0) >> 3;
-    set_bits |= (flags & SP_SET_SIG1) >> 4;
-    set_bits |= (flags & SP_SET_SIG2) >> 5;
-    set_bits |= (flags & SP_SET_SIG3) >> 6;
-    set_bits |= (flags & SP_SET_SIG4) >> 7;
-    set_bits |= (flags & SP_SET_SIG5) >> 8;
-    set_bits |= (flags & SP_SET_SIG6) >> 9;
-    set_bits |= (flags & SP_SET_SIG7) >> 10;
+    setBits |= (flags & SP_SET_SSTEP) >> 1;
+    setBits |= (flags & SP_SET_INTR_BREAK) >> 2;
+    setBits |= (flags & SP_SET_SIG0) >> 3;
+    setBits |= (flags & SP_SET_SIG1) >> 4;
+    setBits |= (flags & SP_SET_SIG2) >> 5;
+    setBits |= (flags & SP_SET_SIG3) >> 6;
+    setBits |= (flags & SP_SET_SIG4) >> 7;
+    setBits |= (flags & SP_SET_SIG5) >> 8;
+    setBits |= (flags & SP_SET_SIG6) >> 9;
+    setBits |= (flags & SP_SET_SIG7) >> 10;
 
-    var status_bits = this.mem.readU32(SP_STATUS_REG);
-    status_bits &= ~clr_bits;
-    status_bits |= set_bits;
-    this.mem.write32(SP_STATUS_REG, status_bits);
+    let statusBits = this.mem.readU32(SP_STATUS_REG);
+    statusBits &= ~clrBits;
+    statusBits |= setBits;
+    this.mem.write32(SP_STATUS_REG, statusBits);
 
-    if (start_rsp) {
+    if (startRsp) {
       n64js.rspProcessTask();
-    } else if (stop_rsp) {
+    } else if (stopRsp) {
       // As we handle all RSP via HLE, nothing to do here.
     }
   }
 
   spCopyFromRDRAM() {
-    var sp_mem_address = this.mem.readU32(SP_MEM_ADDR_REG);
-    var rd_ram_address = this.mem.readU32(SP_DRAM_ADDR_REG);
-    var rdlen_reg = this.mem.readU32(SP_RD_LEN_REG);
-    var splen = (rdlen_reg & 0xfff) + 1;
+    const spMemAddr = this.mem.readU32(SP_MEM_ADDR_REG);
+    const rdRamAddr = this.mem.readU32(SP_DRAM_ADDR_REG);
+    const rdLen = this.mem.readU32(SP_RD_LEN_REG);
+    const spLen = (rdLen & 0xfff) + 1;
 
     if (!this.quiet) {
-      logger.log('SP: copying from ram ' + toString32(rd_ram_address) + ' to sp ' + toString16(sp_mem_address));
+      logger.log(`SP: copying from ram ${toString32(rdRamAddr)} to sp ${toString16(spMemAddr)}`);
     }
 
-    memoryCopy(this.hardware.sp_mem, sp_mem_address & 0xfff, this.hardware.ram, rd_ram_address & 0xffffff, splen);
+    memoryCopy(this.hardware.sp_mem, spMemAddr & 0xfff, this.hardware.ram, rdRamAddr & 0xffffff, spLen);
 
     this.mem.setBits32(SP_DMA_BUSY_REG, 0);
     this.mem.clearBits32(SP_STATUS_REG, SP_STATUS_DMA_BUSY);
   }
 
   spCopyToRDRAM() {
-    var sp_mem_address = this.mem.readU32(SP_MEM_ADDR_REG);
-    var rd_ram_address = this.mem.readU32(SP_DRAM_ADDR_REG);
-    var wrlen_reg = this.mem.readU32(SP_WR_LEN_REG);
-    var splen = (wrlen_reg & 0xfff) + 1;
+    const spMemAddr = this.mem.readU32(SP_MEM_ADDR_REG);
+    const rdRamAddr = this.mem.readU32(SP_DRAM_ADDR_REG);
+    const wrLen = this.mem.readU32(SP_WR_LEN_REG);
+    const spLen = (wrLen & 0xfff) + 1;
 
     if (!this.quiet) {
-      logger.log('SP: copying from sp ' + toString16(sp_mem_address) + ' to ram ' + toString32(rd_ram_address));
+      logger.log(`SP: copying from sp ${toString16(spMemAddr)} to ram ${toString32(rdRamAddr)}`);
     }
 
-    memoryCopy(this.hardware.ram, rd_ram_address & 0xffffff, this.hardware.sp_mem, sp_mem_address & 0xfff, splen);
+    memoryCopy(this.hardware.ram, rdRamAddr & 0xffffff, this.hardware.sp_mem, spMemAddr & 0xfff, spLen);
 
     this.mem.setBits32(SP_DMA_BUSY_REG, 0);
     this.mem.clearBits32(SP_STATUS_REG, SP_STATUS_DMA_BUSY);
