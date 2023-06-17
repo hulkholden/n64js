@@ -7,7 +7,7 @@ import { DPCDevice } from './devices/dpc.js';
 import { DPSDevice } from './devices/dps.js';
 import { MIRegDevice } from './devices/mi.js';
 import { PIRegDevice, PIRamDevice } from './devices/pi.js';
-import { MappedMemDevice, CachedMemDevice, UncachedMemDevice } from './devices/ram.js';
+import { MappedMemDevice, CachedMemDevice, UncachedMemDevice, RDRamRegDevice } from './devices/ram.js';
 import { RIRegDevice } from './devices/ri.js';
 import { ROMD1A1Device, ROMD1A2Device, ROMD1A3Device, ROMD2A1Device, ROMD2A2Device } from './devices/rom.js';
 import { SIRegDevice } from './devices/si.js';
@@ -131,7 +131,7 @@ import { romdb } from './romdb.js';
   var mapped_mem_handler         = new MappedMemDevice(hardware, 0x00000000, 0x80000000);
   var rdram_handler_cached       = new CachedMemDevice(hardware, 0x80000000, 0x80800000);
   var rdram_handler_uncached     = new UncachedMemDevice(hardware, 0xa0000000, 0xa0800000);
-  var rdram_reg_handler_uncached = new Device("RDRAMReg", rdram_reg,    0xa3f00000, 0xa4000000);
+  var rdram_reg_handler_uncached = new RDRamRegDevice(hardware, 0xa3f00000, 0xa4000000);
   var sp_mem_handler_uncached    = new SPMemDevice(hardware, 0xa4000000, 0xa4002000);
   var sp_reg_handler_uncached    = new SPRegDevice(hardware, 0xa4040000, 0xa4040020);
   var sp_ibist_handler_uncached  = new SPIBISTDevice(hardware, 0xa4080000, 0xa4080008);
@@ -436,10 +436,6 @@ import { romdb } from './romdb.js';
 
     return v;
   }
-
-  rdram_reg_handler_uncached.calcEA  = function (address) {
-    return address&0xff;
-  };
 
   const PC_CONTROLLER_0      = 0;
   const PC_CONTROLLER_1      = 1;
