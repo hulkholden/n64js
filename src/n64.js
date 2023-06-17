@@ -86,9 +86,12 @@ import { romdb } from './romdb.js';
   // FIXME - encapsulate this better.
   n64js.rsp_task_view = new DataView(hardware.sp_mem.arrayBuffer, kTaskOffset, 0x40);
 
+  n64js.hardware = function () {
+    return hardware;
+  };
+
   const cachedMemDevice = hardware.cachedMemDevice;
   const miRegDevice = hardware.miRegDevice;
-  const viRegDevice = hardware.viRegDevice;
 
   function uint8ArrayReadString(u8array, offset, maxLen) {
     let s = '';
@@ -301,7 +304,7 @@ import { romdb } from './romdb.js';
     } else if (n64js.debugDisplayListRunning()) {
       requestAnimationFrame(updateLoopAnimframe);
       if (n64js.debugDisplayList()) {
-        n64js.presentBackBuffer(n64js.getRamU8Array(), n64js.viOrigin());
+        n64js.presentBackBuffer(n64js.getRamU8Array(), hardware.viRegDevice.viOrigin());
       }
     }
 
@@ -742,22 +745,12 @@ import { romdb } from './romdb.js';
 
   n64js.verticalBlank = function () {
     // FIXME: framerate limit etc
-
-    hardware.saveEeprom();
-
-    viRegDevice.verticalBlank();
+    hardware.verticalBlank();
   };
 
   n64js.miInterruptsUnmasked = function () { return miRegDevice.interruptsUnmasked(); };
   n64js.miIntrReg            = function () { return miRegDevice.intrReg(); };
   n64js.miIntrMaskReg        = function () { return miRegDevice.intrMaskReg(); };
-
-  n64js.viOrigin = function () { return viRegDevice.viOrigin(); };
-  n64js.viWidth  = function () { return viRegDevice.viWidth(); };
-  n64js.viXScale = function () { return viRegDevice.viXScale(); };
-  n64js.viYScale = function () { return viRegDevice.viYScale(); };
-  n64js.viHStart = function () { return viRegDevice.viHStart(); };
-  n64js.viVStart = function () { return viRegDevice.viVStart(); };
 
   n64js.haltSP = function () {
     var status = hardware.sp_reg.setBits32(SP_STATUS_REG, SP_STATUS_TASKDONE|SP_STATUS_BROKE|SP_STATUS_HALT);

@@ -3019,16 +3019,17 @@ import { Texture, clampTexture } from './graphics/textures.js';
   };
 
   function setViScales() {
-    var width = n64js.viWidth();
+    const viRegDevice = n64js.hardware().viRegDevice;
+    var width = viRegDevice.viWidth();
 
-    var scale_x = (n64js.viXScale() & 0xFFF) / 1024.0;
-    var scale_y = (n64js.viYScale() & 0xFFF) / 2048.0;
+    var scale_x = (viRegDevice.viXScale() & 0xFFF) / 1024.0;
+    var scale_y = (viRegDevice.viYScale() & 0xFFF) / 2048.0;
 
-    var h_start_reg = n64js.viHStart();
+    var h_start_reg = viRegDevice.viHStart();
     var hstart = h_start_reg >> 16;
     var hend = h_start_reg & 0xffff;
 
-    var v_start_reg = n64js.viVStart();
+    var v_start_reg = viRegDevice.viVStart();
     var vstart = v_start_reg >> 16;
     var vend = v_start_reg & 0xffff;
 
