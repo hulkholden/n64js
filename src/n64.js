@@ -17,6 +17,9 @@ let running = false;
 let breakpoints = {};     // address -> original op
 const resetCallbacks = [];
 
+let syncFlow = null;
+let syncInput = null;
+
 const rominfo = {
   id: '',
   name: '',
@@ -44,13 +47,13 @@ function assert(e, m) {
 
 (function (n64js) {'use strict';
   n64js.hardware = () => hardware;
-  n64js.syncFlow = null;
-  n64js.syncInput = null;
+
   function initSync() {
-    n64js.syncFlow  = undefined;//n64js.createSyncConsumer();
-    n64js.syncInput = undefined;//n64js.createSyncConsumer();
+    syncFlow  = undefined;//n64js.createSyncConsumer();
+    syncInput = undefined;//n64js.createSyncConsumer();
   }
-  n64js.getSyncFlow = () => n64js.syncFlow;
+  n64js.getSyncFlow = () => syncFlow;
+  n64js.getSyncInput = () => syncInput;
 
   // Keep a DataView around as a view onto the RSP task
   // FIXME - encapsulate this better.
@@ -206,12 +209,12 @@ function assert(e, m) {
   };
 
   function syncActive() {
-    return (n64js.syncFlow || n64js.syncInput) ? true : false;
+    return (syncFlow || syncInput) ? true : false;
   }
 
   function syncTick(maxCount) {
     const kEstimatedBytePerCycle = 8;
-    let syncObjects = [n64js.syncFlow, n64js.syncInput];
+    let syncObjects = [syncFlow, syncInput];
     let maxSafeCount = maxCount;
 
     for (let i = 0; i < syncObjects.length; ++i) {
@@ -289,8 +292,8 @@ function assert(e, m) {
 
     var v = (hi << 16) | lo;
 
-    if (n64js.syncInput) {
-      v = n64js.syncInput.reflect32(v);
+    if (syncInput) {
+      v = syncInput.reflect32(v);
     }
 
     return v;

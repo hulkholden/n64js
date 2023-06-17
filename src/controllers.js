@@ -140,11 +140,12 @@ export class Controllers {
         stick_x = this.controllers[channel].stick_x;
         stick_y = this.controllers[channel].stick_y;
 
-        if (n64js.syncInput) {
-          n64js.syncInput.sync32(0xbeeff00d, 'input');
-          buttons = n64js.syncInput.reflect32(buttons); // FIXME reflect16
-          stick_x = n64js.syncInput.reflect32(stick_x); // FIXME reflect8
-          stick_y = n64js.syncInput.reflect32(stick_y); // FIXME reflect8
+        const syncInput = n64js.getSyncInput();
+        if (syncInput) {
+          syncInput.sync32(0xbeeff00d, 'input');
+          buttons = syncInput.reflect32(buttons); // FIXME reflect16
+          stick_x = syncInput.reflect32(stick_x); // FIXME reflect8
+          stick_y = syncInput.reflect32(stick_y); // FIXME reflect8
         }
 
         cmd[3] = buttons >>> 8;
