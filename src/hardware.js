@@ -1,3 +1,4 @@
+import * as base64 from './base64.js';
 import { MemoryRegion } from './MemoryRegion.js';
 
 export class Hardware {
@@ -18,15 +19,14 @@ export class Hardware {
     this.ri_reg = newMemoryRegion(0x20);
     this.si_reg = newMemoryRegion(0x1c);
 
+    this.eeprom = null;   // Initialised during reset, using correct size for this rom (may be null if eeprom isn't used)
+    this.eepromDirty = false;
+
     // TODO: Not sure this belongs here.
     this.rominfo = rominfo;
   }
 
-  createROM(arrayBuffer) {
-    this.rom = new MemoryRegion(arrayBuffer);
-  }
-
-  clear() {
+  reset() {
     this.pi_mem.clear();
     this.ram.clear();
     this.sp_mem.clear();
@@ -41,6 +41,57 @@ export class Hardware {
     this.pi_reg.clear();
     this.ri_reg.clear();
     this.si_reg.clear();
+
+    this.initSaveGame();
+  }
+
+  createROM(arrayBuffer) {
+    this.rom = new MemoryRegion(arrayBuffer);
+  }
+
+  initSaveGame() {
+    this.eeprom = null;
+    this.eepromDirty = false;
+
+    switch (this.rominfo.save) {
+      case 'Eeprom4k':
+       this.initEeprom(4 * 1024, n64js.getLocalStorageItem('eeprom'));
+        break;
+      case 'Eeprom16k':
+       this.initEeprom(16 * 1024, n64js.getLocalStorageItem('eeprom'));
+        break;
+
+      default:
+        if (this.rominfo.save) {
+          n64js.displayWarning('Unhandled savegame type: ' + this.rominfo.save + '.');
+        }
+    }
+  }
+
+  initEeprom(size, eeprom_data) {
+    var memory = new MemoryRegion(new ArrayBuffer(size));
+    if (eeprom_data && eeprom_data.data) {
+      base64.decodeArray(eeprom_data.data, memory.u8);
+    }
+    this.eeprom = memory;
+    this.eepromDirty = false;
+  }
+
+  saveEeprom() {
+    if (this.eeprom && this.eepromDirty) {
+
+      var encoded = base64.encodeArray(this.eeprom.u8);
+
+      // Store the name and id so that we can provide some kind of save management in the future
+      var d = {
+        name: this.rominfo.name,
+        id: this.rominfo.id,
+        data: encoded
+      };
+
+      n64js.setLocalStorageItem('eeprom', d);
+      this.eepromDirty = false;
+    }
   }
 }
 

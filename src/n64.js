@@ -1,8 +1,8 @@
 /*jshint jquery:true, browser:true, devel:true */
 /*global Stats:false */
 
+import { Controllers } from './controllers.js';
 import { AIRegDevice } from './devices/ai.js';
-import { Device } from './devices/device.js';
 import { DPCDevice } from './devices/dpc.js';
 import { DPSDevice } from './devices/dps.js';
 import { MIRegDevice } from './devices/mi.js';
@@ -27,14 +27,14 @@ import { romdb } from './romdb.js';
 
   const kCyclesPerUpdate = 100000000;
 
-  var syncFlow;
-  var syncInput;
+  n64js.syncFlow = null;
+  n64js.syncInput = null;
   function initSync() {
-    syncFlow  = undefined;//n64js.createSyncConsumer();
-    syncInput = undefined;//n64js.createSyncConsumer();
+    n64js.syncFlow  = undefined;//n64js.createSyncConsumer();
+    n64js.syncInput = undefined;//n64js.createSyncConsumer();
   }
   n64js.getSyncFlow = function () {
-    return syncFlow;
+    return n64js.syncFlow;
   };
 
   const kBootstrapOffset = 0x40;
@@ -53,12 +53,9 @@ import { romdb } from './romdb.js';
 
   var running       = false;
 
-  var gRumblePakActive = false;
-  var gEnableRumble = false;
-
   var resetCallbacks = [];
 
-  var rominfo = {
+  const rominfo = {
     id:             '',
     name:           '',
     cic:            '6101',
@@ -93,9 +90,6 @@ import { romdb } from './romdb.js';
   }
 
   const hardware = new Hardware(rominfo);
-
-  var eeprom        = null;   // Initialised during reset, using correct size for this rom (may be null if eeprom isn't used)
-  var eepromDirty   = false;
 
   // Keep a DataView around as a view onto the RSP task
   var kTaskOffset   = 0x0fc0;
@@ -313,12 +307,12 @@ import { romdb } from './romdb.js';
   };
 
   function syncActive() {
-    return (syncFlow || syncInput) ? true : false;
+    return (n64js.syncFlow || n64js.syncInput) ? true : false;
   }
 
   function syncTick(maxCount) {
     const kEstimatedBytePerCycle = 8;
-    let syncObjects = [syncFlow, syncInput];
+    let syncObjects = [n64js.syncFlow, n64js.syncInput];
     let maxSafeCount = maxCount;
 
     for (let i = 0; i < syncObjects.length; ++i) {
@@ -405,98 +399,18 @@ import { romdb } from './romdb.js';
 
     var v = (hi<<16) | lo;
 
-    if (syncInput) {
-      v = syncInput.reflect32(v);
+    if (n64js.syncInput) {
+      v = n64js.syncInput.reflect32(v);
     }
 
     return v;
   }
 
-  const PC_CONTROLLER_0      = 0;
-  const PC_CONTROLLER_1      = 1;
-  const PC_CONTROLLER_2      = 2;
-  const PC_CONTROLLER_3      = 3;
-  const PC_EEPROM            = 4;
-  const PC_UNKNOWN_1         = 5;
-  const NUM_CHANNELS         = 5;
-
-  const CONT_GET_STATUS      = 0x00;
-  const CONT_READ_CONTROLLER = 0x01;
-  const CONT_READ_MEMPACK    = 0x02;
-  const CONT_WRITE_MEMPACK   = 0x03;
-  const CONT_READ_EEPROM     = 0x04;
-  const CONT_WRITE_EEPROM    = 0x05;
-  const CONT_RTC_STATUS      = 0x06;
-  const CONT_RTC_READ        = 0x07;
-  const CONT_RTC_WRITE       = 0x08;
-  const CONT_RESET           = 0xff;
-
-  const CONT_TX_SIZE_CHANSKIP   = 0x00;         // Channel Skip
-  const CONT_TX_SIZE_DUMMYDATA  = 0xFF;         // Dummy Data
-  const CONT_TX_SIZE_FORMAT_END = 0xFE;         // Format End
-  const CONT_TX_SIZE_CHANRESET  = 0xFD;         // Channel Reset
+  const controllers = new Controllers(hardware);
 
   n64js.updateController = function() {
-    // read controllers
-    var pi_ram = new Uint8Array(hardware.pi_mem.arrayBuffer, 0x7c0, 0x040);
-
-    var count   = 0;
-    var channel = 0;
-    while (count < 64) {
-      var cmd = pi_ram.subarray(count);
-
-      if (cmd[0] === CONT_TX_SIZE_FORMAT_END) {
-        count = 64;
-        break;
-      }
-
-      if ((cmd[0] === CONT_TX_SIZE_DUMMYDATA) || (cmd[0] === CONT_TX_SIZE_CHANRESET)) {
-        count++;
-        continue;
-      }
-
-      if (cmd[0] === CONT_TX_SIZE_CHANSKIP) {
-        count++;
-        channel++;
-        continue;
-      }
-
-      // 0-3: controller channels
-      if (channel < PC_EEPROM) {
-        // copy controller status
-        if (!processController(cmd, channel)) {
-          count = 64;
-          break;
-        }
-      } else if (channel === PC_EEPROM) {
-        if (!processEeprom(cmd)) {
-          count = 64;
-          break;
-        }
-        break;
-      } else {
-        n64js.halt('Trying to read from invalid controller channel ' + channel + '!');
-        return;
-      }
-
-      channel++;
-      count += cmd[0] + (cmd[1]&0x3f) + 2;
-    }
-
-    pi_ram[63] = 0;
+    controllers.updateController();
   }
-
-  var controllers = [{buttons: 0, stick_x: 0, stick_y: 0, present:true, mempack:true},
-                     {buttons: 0, stick_x: 0, stick_y: 0, present:true, mempack:false},
-                     {buttons: 0, stick_x: 0, stick_y: 0, present:true, mempack:false},
-                     {buttons: 0, stick_x: 0, stick_y: 0, present:true, mempack:false}];
-
-  var mempack_memory = [
-    new Uint8Array(0x400 * 32),
-    new Uint8Array(0x400 * 32),
-    new Uint8Array(0x400 * 32),
-    new Uint8Array(0x400 * 32)
-  ];
 
   const kButtonA      = 0x8000;
   const kButtonB      = 0x4000;
@@ -519,7 +433,6 @@ import { romdb } from './romdb.js';
   const kKeyRight     = 39;
   const kKeyDown      = 40;
 
-
   n64js.handleKey = function (key, down) {
     var button = 0;
     switch (key) {
@@ -541,228 +454,17 @@ import { romdb } from './romdb.js';
       case 'J'.charCodeAt(0): button = kButtonCLeft;  break;
       case 'L'.charCodeAt(0): button = kButtonCRight; break;
 
-      case kKeyLeft:  controllers[0].stick_x = down ? -80 : 0; break;
-      case kKeyRight: controllers[0].stick_x = down ? +80 : 0; break;
-      case kKeyDown:  controllers[0].stick_y = down ? -80 : 0; break;
-      case kKeyUp:    controllers[0].stick_y = down ? +80 : 0; break;
+      case kKeyLeft:  controllers.setStickX(0, down ? -80 : 0); break;
+      case kKeyRight: controllers.setStickX(0, down ? +80 : 0); break;
+      case kKeyDown:  controllers.setStickY(0, down ? -80 : 0); break;
+      case kKeyUp:    controllers.setStickY(0, down ? +80 : 0); break;
       //default: logger.log( 'up code:' + event.which);
     }
 
     if (button) {
-      var buttons = controllers[0].buttons;
-
-      if (down) {
-        buttons |= button;
-      } else {
-        buttons &= ~button;
-      }
-      controllers[0].buttons = buttons;
+      controllers.setButton(0, button, down);
     }
   };
-
-  function processController(cmd, channel) {
-    if (!controllers[channel].present) {
-      cmd[1] |= 0x80;
-      cmd[3]  = 0xff;
-      cmd[4]  = 0xff;
-      cmd[5]  = 0xff;
-      return true;
-    }
-
-    var buttons, stick_x, stick_y;
-
-    switch (cmd[2]) {
-      case CONT_RESET:
-      case CONT_GET_STATUS:
-        cmd[3] = 0x05;
-        cmd[4] = 0x00;
-        cmd[5] = controllers[channel].mempack ? 0x01 : 0x00;
-        break;
-
-      case CONT_READ_CONTROLLER:
-
-        buttons = controllers[channel].buttons;
-        stick_x = controllers[channel].stick_x;
-        stick_y = controllers[channel].stick_y;
-
-        if (syncInput) {
-          syncInput.sync32(0xbeeff00d, 'input');
-          buttons = syncInput.reflect32(buttons); // FIXME reflect16
-          stick_x = syncInput.reflect32(stick_x); // FIXME reflect8
-          stick_y = syncInput.reflect32(stick_y); // FIXME reflect8
-        }
-
-        cmd[3] = buttons >>> 8;
-        cmd[4] = buttons & 0xff;
-        cmd[5] = stick_x;
-        cmd[6] = stick_y;
-        break;
-
-      case CONT_READ_MEMPACK:
-        if (gEnableRumble) {
-          commandReadRumblePack(cmd);
-        } else {
-          commandReadMemPack(cmd, channel);
-        }
-        return false;
-      case CONT_WRITE_MEMPACK:
-        if (gEnableRumble) {
-          commandWriteRumblePack(cmd);
-        } else {
-          commandWriteMemPack(cmd, channel);
-        }
-        return false;
-      default:
-        n64js.halt('Unknown controller command ' + cmd[2]);
-        break;
-    }
-
-    return true;
-  }
-
-  function processEeprom(cmd) {
-    var i, offset;
-
-    switch(cmd[2]) {
-    case CONT_RESET:
-    case CONT_GET_STATUS:
-      cmd[3] = 0x00;
-      cmd[4] = 0x80; /// FIXME GetEepromContType();
-      cmd[5] = 0x00;
-      break;
-
-    case CONT_READ_EEPROM:
-      offset = cmd[3]*8;
-      logger.log('Reading from eeprom+' + offset);
-      for (i = 0; i < 8; ++i) {
-        cmd[4+i] = eeprom.u8[offset+i];
-      }
-      break;
-
-    case CONT_WRITE_EEPROM:
-      offset = cmd[3]*8;
-      logger.log('Writing to eeprom+' + offset);
-      for (i = 0; i < 8; ++i) {
-        eeprom.u8[offset+i] = cmd[4+i];
-      }
-      eepromDirty = true;
-      break;
-
-    // RTC credit: Mupen64 source
-    //
-    case CONT_RTC_STATUS: // RTC status query
-        cmd[3] = 0x00;
-        cmd[4] = 0x10;
-        cmd[5] = 0x00;
-      break;
-
-    case CONT_RTC_READ: // read RTC block
-      n64js.halt('rtc read unhandled');
-      //CommandReadRTC( cmd );
-      break;
-
-    case CONT_RTC_WRITE:  // write RTC block
-      n64js.halt('rtc write unhandled');
-      break;
-
-    default:
-      n64js.halt('unknown eeprom command: ' + format.toString8(cmd[2]));
-      break;
-    }
-
-    return false;
-  }
-
-  function calculateDataCrc(buf, offset) {
-    var c = 0, i;
-    for (i = 0; i < 32; i++) {
-      var s = buf[offset+i];
-
-      c = (((c << 1) | ((s >> 7) & 1))) ^ ((c & 0x80) ? 0x85 : 0);
-      c = (((c << 1) | ((s >> 6) & 1))) ^ ((c & 0x80) ? 0x85 : 0);
-      c = (((c << 1) | ((s >> 5) & 1))) ^ ((c & 0x80) ? 0x85 : 0);
-      c = (((c << 1) | ((s >> 4) & 1))) ^ ((c & 0x80) ? 0x85 : 0);
-      c = (((c << 1) | ((s >> 3) & 1))) ^ ((c & 0x80) ? 0x85 : 0);
-      c = (((c << 1) | ((s >> 2) & 1))) ^ ((c & 0x80) ? 0x85 : 0);
-      c = (((c << 1) | ((s >> 1) & 1))) ^ ((c & 0x80) ? 0x85 : 0);
-      c = (((c << 1) | ((s >> 0) & 1))) ^ ((c & 0x80) ? 0x85 : 0);
-    }
-
-    for (i = 8; i !== 0; i--) {
-      c = (c << 1) ^ ((c & 0x80) ? 0x85 : 0);
-    }
-
-    return c;
-  }
-
-  function commandReadMemPack(cmd, channel) {
-    var addr = ((cmd[3] << 8) | cmd[4]);
-    var i;
-
-    if (addr === 0x8001) {
-      for (i = 0; i < 32; ++i) {
-        cmd[5+i] = 0;
-      }
-    } else {
-      logger.log('Reading from mempack+' + addr);
-      addr &= 0xFFE0;
-
-      if (addr <= 0x7FE0) {
-        for (i = 0; i < 32; ++i) {
-          cmd[5+i] = mempack_memory[channel][addr+i];
-        }
-      } else {
-        // RumblePak
-        for (i = 0; i < 32; ++i) {
-          cmd[5+i] = 0;
-        }
-      }
-    }
-
-    cmd[37] = calculateDataCrc(cmd, 5);
-  }
-
-  function commandWriteMemPack(cmd, channel) {
-    var addr = ((cmd[3] << 8) | cmd[4]);
-    var i;
-
-    if (addr !== 0x8001) {
-      logger.log('Writing to mempack+' + addr);
-      addr &= 0xFFE0;
-
-      if (addr <= 0x7FE0) {
-        for (i = 0; i < 32; ++i) {
-          mempack_memory[channel][addr+i] = cmd[5+i];
-        }
-      } else {
-        // Do nothing, eventually enable rumblepak
-      }
-
-    }
-
-    cmd[37] = calculateDataCrc(cmd, 5);
-  }
-
-  function commandReadRumblePack(cmd) {
-    var addr = ((cmd[3] << 8) | cmd[4]) & 0xFFE0;
-    var val = (addr === 0x8000) ? 0x80 : 0x00;
-    var i;
-    for (i = 0; i < 32; ++i) {
-      cmd[5+i] = val;
-    }
-
-    cmd[37] = calculateDataCrc(cmd, 5);
-  }
-
-  function commandWriteRumblePack(cmd) {
-    var addr = ((cmd[3] << 8) | cmd[4]) & 0xFFE0;
-
-    if (addr === 0xC000) {
-      gRumblePakActive = cmd[5];
-    }
-
-    cmd[37] = calculateDataCrc(cmd, 5);
-  }
 
   n64js.checkSIStatusConsistent = si_reg_handler_uncached.checkSIStatusConsistent.bind(si_reg_handler_uncached);
 
@@ -884,59 +586,6 @@ import { romdb } from './romdb.js';
   n64js.writeMemory16 = (address, value) => { return getMemoryHandler(address).write16(address, value); };
   n64js.writeMemory8  = (address, value) => { return getMemoryHandler(address).write8(address, value); };
 
-  var Base64 = {
-    lookup : "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=",
-    encodeArray(arr) {
-      var t = '';
-      var i;
-      for (i = 0; i < arr.length; i += 3) {
-        var c0 = arr[i+0];
-        var c1 = arr[i+1];
-        var c2 = arr[i+2];
-
-        // aaaaaabb bbbbcccc ccdddddd
-        var a = c0>>>2;
-        var b = ((c0 & 3)<<4) | (c1>>>4);
-        var c = ((c1 & 15)<<2) | (c2>>>6);
-        var d = c2 & 63;
-
-        if (i+1 >= arr.length) {
-          c = 64;
-        }
-        if (i+2 >= arr.length) {
-          d = 64;
-        }
-
-        t += this.lookup.charAt(a) + this.lookup.charAt(b) + this.lookup.charAt(c) + this.lookup.charAt(d);
-      }
-      return t;
-    },
-
-    decodeArray(str, arr) {
-      var outi = 0;
-
-      var i;
-      for (i = 0; i < str.length; i += 4) {
-        var a = this.lookup.indexOf(str.charAt(i+0));
-        var b = this.lookup.indexOf(str.charAt(i+1));
-        var c = this.lookup.indexOf(str.charAt(i+2));
-        var d = this.lookup.indexOf(str.charAt(i+3));
-
-        var c0 = (a << 2) | (b >>> 4);
-        var c1 = ((b & 15) << 4) | (c >>> 2);
-        var c2 = ((c & 3) << 6) | d;
-
-        arr[outi++] = c0;
-        if (c !== 64) {
-          arr[outi++] = c1;
-        }
-        if (d !== 64) {
-          arr[outi++] = c2;
-        }
-      }
-    }
-  };
-
   function getLocalStorageName(item) {
     return item + '-' + rominfo.id;
   }
@@ -953,50 +602,6 @@ import { romdb } from './romdb.js';
     var data_str = JSON.stringify(data);
     localStorage.setItem(ls_name, data_str);
   };
-
-  function initEeprom(size, eeprom_data) {
-    var memory = new MemoryRegion(new ArrayBuffer(size));
-    if (eeprom_data && eeprom_data.data) {
-      Base64.decodeArray(eeprom_data.data, memory.u8);
-    }
-    return memory;
-  }
-
-  function initSaveGame(save_type) {
-    eeprom      = null;
-    eepromDirty = false;
-
-    if (save_type) {
-      switch (save_type) {
-        case 'Eeprom4k':
-          eeprom = initEeprom(4*1024, n64js.getLocalStorageItem('eeprom'));
-          break;
-        case 'Eeprom16k':
-          eeprom = initEeprom(16*1024, n64js.getLocalStorageItem('eeprom'));
-          break;
-
-        default:
-          n64js.displayWarning('Unhandled savegame type: ' + save_type + '.');
-      }
-    }
-  }
-
-  function saveEeprom() {
-    if (eeprom && eepromDirty) {
-
-      var encoded = Base64.encodeArray(eeprom.u8);
-
-      // Store the name and id so that we can provide some kind of save management in the future
-      var d = {
-        name: rominfo.name,
-        id:   rominfo.id,
-        data: encoded
-      };
-
-      n64js.setLocalStorageItem('eeprom', d);
-      eepromDirty = false;
-    }
-  }
 
   //
   // Performance
@@ -1044,10 +649,7 @@ import { romdb } from './romdb.js';
 
     pi_reg_handler_uncached.reset();
 
-    initSaveGame(rominfo.save);
-
-    // NB: don't set eeprom to 0 - we handle this in initSaveGame
-    hardware.clear();
+    hardware.reset();
 
     n64js.cpu0.reset();
     n64js.cpu1.reset();
@@ -1242,7 +844,7 @@ import { romdb } from './romdb.js';
   n64js.verticalBlank = function () {
     // FIXME: framerate limit etc
 
-    saveEeprom();
+    hardware.saveEeprom();
 
     vi_reg_handler_uncached.verticalBlank();
   };
