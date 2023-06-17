@@ -340,8 +340,8 @@ import { romdb } from './romdb.js';
 
   const controllers = new Controllers(hardware);
 
-  n64js.updateController = function() {
-    controllers.updateController();
+  n64js.controllers = function () {
+    return controllers;
   }
 
   const kButtonA      = 0x8000;
