@@ -65,15 +65,15 @@ import { romdb } from './romdb.js';
 
   /**
    * An exception thrown when an assert fails.
-   * @constructor
    */
-  function AssertException(message) {
+  class AssertException {
+    constructor(message) {
     this.message = message;
-  }
-
-  AssertException.prototype.toString = function () {
-    return 'AssertException: ' + this.message;
-  };
+    }
+    toString() {
+      return 'AssertException: ' + this.message;
+    }
+  }  
 
   function assert(e, m) {
     if (!e) {
