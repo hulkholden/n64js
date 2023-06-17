@@ -30,7 +30,7 @@ export class SIRegDevice extends Device {
       throw 'Read is out of range';
     }
     if (ea === SI_STATUS_REG) {
-      this.checkSIStatusConsistent();
+      this.checkStatusConsistent();
     }
     return this.mem.readS32(ea);
   }
@@ -71,7 +71,7 @@ export class SIRegDevice extends Device {
     }
   }
 
-  checkSIStatusConsistent() {
+  checkStatusConsistent() {
     var mi_si_int_set = this.hardware.mi_reg.getBits32(mi.MI_INTR_REG, mi.MI_INTR_SI) !== 0;
     var si_status_int_set = this.mem.getBits32(SI_STATUS_REG, SI_STATUS_INTERRUPT) !== 0;
     if (mi_si_int_set !== si_status_int_set) {
