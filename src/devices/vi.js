@@ -53,33 +53,33 @@ export class VIRegDevice extends Device {
   viVStart() { return this.mem.readU32(VI_V_START_REG); };
 
   write32(address, value) {
-    var ea = this.calcEA(address);
+    const ea = this.calcEA(address);
     if (ea + 4 > this.u8.length) {
       throw 'Write is out of range';
     }
 
     switch (ea) {
       case VI_ORIGIN_REG:
-        var last_origin = this.mem.readU32(ea);
-        var new_origin = value >>> 0;
-        if (new_origin !== last_origin/* || this.curVbl !== this.lastVbl*/) {
-          n64js.presentBackBuffer(n64js.getRamU8Array(), new_origin);
+        const lastOrigin = this.mem.readU32(ea);
+        const newOrigin = value >>> 0;
+        if (newOrigin !== lastOrigin/* || this.curVbl !== this.lastVbl*/) {
+          n64js.presentBackBuffer(n64js.getRamU8Array(), newOrigin);
           n64js.returnControlToSystem();
           this.lastVbl = this.curVbl;
         }
         this.mem.write32(ea, value);
         break;
       case VI_CONTROL_REG:
-        if (!this.quiet) { logger.log('VI control set to: ' + toString32(value)); }
+        if (!this.quiet) { logger.log(`VI control set to: ${toString32(value)}`); }
         this.mem.write32(ea, value);
         break;
       case VI_WIDTH_REG:
-        if (!this.quiet) { logger.log('VI width set to: ' + value); }
+        if (!this.quiet) { logger.log(`VI width set to: ${value}`); }
         this.mem.write32(ea, value);
         break;
       case VI_CURRENT_REG:
-        if (!this.quiet) { logger.log('VI current set to: ' + toString32(value) + '.'); }
-        if (!this.quiet) { logger.log('VI interrupt cleared'); }
+        if (!this.quiet) { logger.log(`VI current set to: ${toString32(value)}`); }
+        if (!this.quiet) { logger.log(`VI interrupt cleared`); }
         this.hardware.mi_reg.clearBits32(mi.MI_INTR_REG, mi.MI_INTR_VI);
         n64js.cpu0.updateCause3();
         break;
@@ -92,12 +92,12 @@ export class VIRegDevice extends Device {
 
   readS32(address) {
     this.logRead(address);
-    var ea = this.calcEA(address);
-
+    const ea = this.calcEA(address);
     if (ea + 4 > this.u8.length) {
       throw 'Read is out of range';
     }
-    var value = this.mem.readS32(ea);
+  
+    let value = this.mem.readS32(ea);
     if (ea === VI_CURRENT_REG) {
       value = (value + 2) % 512;
       this.mem.write32(ea, value);
