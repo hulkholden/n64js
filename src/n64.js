@@ -4,7 +4,7 @@
 import { Controllers } from './controllers.js';
 import * as _debugger from './debugger.js';
 import { fixRomByteOrder } from './endian.js';
-import * as format from './format.js';
+import { toString32, toHex } from './format.js';
 import { Hardware } from './hardware.js';
 import * as logger from './logger.js';
 import { romdb } from './romdb.js';
@@ -12,22 +12,38 @@ import { romdb } from './romdb.js';
 const kOpBreakpoint = 58;
 const kCyclesPerUpdate = 100000000;
 
+let stats = null;
+let running = false;
+let breakpoints = {};     // address -> original op
+const resetCallbacks = [];
+
+const rominfo = {
+  id: '',
+  name: '',
+  cic: '6101',
+  country: 0x45,
+  save: 'Eeprom4k'
+};
+const hardware = new Hardware(rominfo);
+
+// An exception thrown when an assert fails.
+class AssertException {
+  constructor(message) {
+    this.message = message;
+  }
+  toString() {
+    return 'AssertException: ' + this.message;
+  }
+}
+
+function assert(e, m) {
+  if (!e) {
+    throw new AssertException(m);
+  }
+}
+
 (function (n64js) {'use strict';
-  const toString32 = format.toString32;
-
-  let stats = null;
-  let running       = false;
-  let breakpoints = {};     // address -> original op
-  const resetCallbacks = [];
-  
-  const rominfo = {
-    id:             '',
-    name:           '',
-    cic:            '6101',
-    country:        0x45,
-    save:           'Eeprom4k'
-  };
-
+  n64js.hardware = () => hardware;
   n64js.syncFlow = null;
   n64js.syncInput = null;
   function initSync() {
@@ -35,26 +51,6 @@ const kCyclesPerUpdate = 100000000;
     n64js.syncInput = undefined;//n64js.createSyncConsumer();
   }
   n64js.getSyncFlow = () => n64js.syncFlow;
-  /**
-   * An exception thrown when an assert fails.
-   */
-  class AssertException {
-    constructor(message) {
-    this.message = message;
-    }
-    toString() {
-      return 'AssertException: ' + this.message;
-    }
-  }  
-
-  function assert(e, m) {
-    if (!e) {
-      throw new AssertException(m);
-    }
-  }
-
-  const hardware = new Hardware(rominfo);
-  n64js.hardware = () => hardware;
 
   // Keep a DataView around as a view onto the RSP task
   // FIXME - encapsulate this better.
@@ -81,7 +77,7 @@ const kCyclesPerUpdate = 100000000;
   }
 
   function generateRomId(crclo, crchi) {
-    return format.toHex(byteswap(crclo),32) + format.toHex(byteswap(crchi),32);
+    return toHex(byteswap(crclo),32) + toHex(byteswap(crchi),32);
   }
 
   function generateCICType(u8array) {
