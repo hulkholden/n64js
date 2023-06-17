@@ -144,3 +144,12 @@ export class UncachedMemDevice extends Device {
   }
 }
 
+export class RDRamRegDevice extends Device {
+  constructor(hardware, rangeStart, rangeEnd) {
+    super("RDRAMReg", hardware.rdram_reg, rangeStart, rangeEnd);
+  }
+
+  calcEA = function (address) {
+    return address & 0xff;
+  }
+}
