@@ -4,7 +4,7 @@
 import { Device } from './devices/device.js';
 import { DPCDevice } from './devices/dpc.js';
 import { DPSDevice } from './devices/dps.js';
-import * as mi from './devices/mi.js';
+import { MIRegDevice } from './devices/mi.js';
 import * as pi from './devices/pi.js';
 import { MappedMemDevice, CachedMemDevice, UncachedMemDevice } from './devices/ram.js';
 import { ROMD1A1Device, ROMD1A2Device, ROMD1A3Device, ROMD2A1Device, ROMD2A2Device } from './devices/rom.js';
@@ -53,38 +53,6 @@ import { romdb } from './romdb.js';
   const MI_VERSION_REG      = 0x04;
   const MI_INTR_REG         = 0x08;
   const MI_INTR_MASK_REG    = 0x0C;
-
-  const MI_CLR_INIT         = 0x0080;
-  const MI_SET_INIT         = 0x0100;
-  const MI_CLR_EBUS         = 0x0200;
-  const MI_SET_EBUS         = 0x0400;
-  const MI_CLR_DP_INTR      = 0x0800;
-  const MI_CLR_RDRAM        = 0x1000;
-  const MI_SET_RDRAM        = 0x2000;
-
-  const MI_MODE_INIT        = 0x0080;
-  const MI_MODE_EBUS        = 0x0100;
-  const MI_MODE_RDRAM       = 0x0200;
-
-  const MI_INTR_MASK_CLR_SP = 0x0001;
-  const MI_INTR_MASK_SET_SP = 0x0002;
-  const MI_INTR_MASK_CLR_SI = 0x0004;
-  const MI_INTR_MASK_SET_SI = 0x0008;
-  const MI_INTR_MASK_CLR_AI = 0x0010;
-  const MI_INTR_MASK_SET_AI = 0x0020;
-  const MI_INTR_MASK_CLR_VI = 0x0040;
-  const MI_INTR_MASK_SET_VI = 0x0080;
-  const MI_INTR_MASK_CLR_PI = 0x0100;
-  const MI_INTR_MASK_SET_PI = 0x0200;
-  const MI_INTR_MASK_CLR_DP = 0x0400;
-  const MI_INTR_MASK_SET_DP = 0x0800;
-
-  const MI_INTR_MASK_SP   = 0x01;
-  const MI_INTR_MASK_SI   = 0x02;
-  const MI_INTR_MASK_AI   = 0x04;
-  const MI_INTR_MASK_VI   = 0x08;
-  const MI_INTR_MASK_PI   = 0x10;
-  const MI_INTR_MASK_DP   = 0x20;
 
   const MI_INTR_SP        = 0x01;
   const MI_INTR_SI        = 0x02;
@@ -229,7 +197,7 @@ import { romdb } from './romdb.js';
   var sp_ibist_handler_uncached  = new Device("SPIBIST",  sp_ibist_mem, 0xa4080000, 0xa4080008);
   var dpc_handler_uncached       = new DPCDevice(hardware, 0xa4100000, 0xa4100020);
   var dps_handler_uncached       = new DPSDevice(hardware, 0xa4200000, 0xa4200010);
-  var mi_reg_handler_uncached    = new Device("MIReg",    mi_reg,       0xa4300000, 0xa4300010);
+  var mi_reg_handler_uncached    = new MIRegDevice(hardware, 0xa4300000, 0xa4300010);
   var vi_reg_handler_uncached    = new Device("VIReg",    vi_reg,       0xa4400000, 0xa4400038);
   var ai_reg_handler_uncached    = new Device("AIReg",    ai_reg,       0xa4500000, 0xa4500018);
   var pi_reg_handler_uncached    = new pi.PIRegDevice(hardware, 0xa4600000, 0xa4600034);
@@ -532,89 +500,6 @@ import { romdb } from './romdb.js';
   rdram_reg_handler_uncached.calcEA  = function (address) {
     return address&0xff;
   };
-
-  function miWriteModeReg(value) {
-    var mi_mode_reg = mi_reg.readU32(MI_MODE_REG);
-
-    if (value & MI_SET_RDRAM)   { mi_mode_reg |=  MI_MODE_RDRAM; }
-    if (value & MI_CLR_RDRAM)   { mi_mode_reg &= ~MI_MODE_RDRAM; }
-
-    if (value & MI_SET_INIT)    { mi_mode_reg |=  MI_MODE_INIT; }
-    if (value & MI_CLR_INIT)    { mi_mode_reg &= ~MI_MODE_INIT; }
-
-    if (value & MI_SET_EBUS)    { mi_mode_reg |=  MI_MODE_EBUS; }
-    if (value & MI_CLR_EBUS)    { mi_mode_reg &= ~MI_MODE_EBUS; }
-
-    mi_reg.write32(MI_MODE_REG, mi_mode_reg);
-
-    if (value & MI_CLR_DP_INTR) {
-      mi_reg.clearBits32(MI_INTR_REG, MI_INTR_DP);
-      n64js.cpu0.updateCause3();
-    }
-  }
-
-  function miWriteIntrMaskReg(value) {
-    var mi_intr_mask_reg = mi_reg.readU32(MI_INTR_MASK_REG);
-    var mi_intr_reg      = mi_reg.readU32(MI_INTR_REG);
-
-    var clr = 0;
-    var set = 0;
-
-    // From Corn - nicer way to avoid branching
-    clr |= (value & MI_INTR_MASK_CLR_SP) >>> 0;
-    clr |= (value & MI_INTR_MASK_CLR_SI) >>> 1;
-    clr |= (value & MI_INTR_MASK_CLR_AI) >>> 2;
-    clr |= (value & MI_INTR_MASK_CLR_VI) >>> 3;
-    clr |= (value & MI_INTR_MASK_CLR_PI) >>> 4;
-    clr |= (value & MI_INTR_MASK_CLR_DP) >>> 5;
-
-    set |= (value & MI_INTR_MASK_SET_SP) >>> 1;
-    set |= (value & MI_INTR_MASK_SET_SI) >>> 2;
-    set |= (value & MI_INTR_MASK_SET_AI) >>> 3;
-    set |= (value & MI_INTR_MASK_SET_VI) >>> 4;
-    set |= (value & MI_INTR_MASK_SET_PI) >>> 5;
-    set |= (value & MI_INTR_MASK_SET_DP) >>> 6;
-
-    mi_intr_mask_reg &= ~clr;
-    mi_intr_mask_reg |=  set;
-
-    mi_reg.write32(MI_INTR_MASK_REG, mi_intr_mask_reg);
-
-    // Check if any interrupts are enabled now, and immediately trigger an interrupt
-    if (mi_intr_mask_reg & mi_intr_reg) {
-      n64js.cpu0.updateCause3();
-    }
-  }
-
-  mi_reg_handler_uncached.write32 = function (address, value) {
-    var ea = this.calcEA(address);
-    if (ea+4 > this.u8.length) {
-      throw 'Write is out of range';
-    }
-
-    switch( ea ) {
-      case MI_MODE_REG:
-        if (!this.quiet) { logger.log('Wrote to MI mode register: ' + toString32(value) ); }
-        miWriteModeReg(value);
-        break;
-      case MI_INTR_MASK_REG:
-        if (!this.quiet) { logger.log('Wrote to MI interrupt mask register: ' + toString32(value) ); }
-        miWriteIntrMaskReg(value);
-        break;
-
-      case MI_VERSION_REG:
-      case MI_INTR_REG:
-        // Read only
-        break;
-
-      default:
-        logger.log('Unhandled write to MIReg: ' + toString32(value) + ' -> [' + toString32(address) + ']' );
-        this.mem.write32(ea, value);
-        break;
-    }
-  };
-
-
   ai_reg_handler_uncached.write32 = function (address, value) {
     var ea = this.calcEA(address);
     if (ea+4 > this.u8.length) {
