@@ -421,7 +421,7 @@ import * as logger from './logger.js';
   };
 
   CPU0.prototype.speedHack = function () {
-    var next_instruction = n64js.readMemoryInternal32(this.pc + 4);
+    var next_instruction = n64js.hardware().memMap.readMemoryInternal32(this.pc + 4);
     if (next_instruction === 0) {
       if (this.events.length > 0) {
 

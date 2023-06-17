@@ -10,6 +10,7 @@ import { ROMD1A1Device, ROMD1A2Device, ROMD1A3Device, ROMD2A1Device, ROMD2A2Devi
 import { SIRegDevice } from './devices/si.js';
 import { SPMemDevice, SPIBISTDevice, SPRegDevice } from './devices/sp.js';
 import { VIRegDevice } from './devices/vi.js';
+import { MemoryMap } from './memmap.js';
 import { MemoryRegion } from './MemoryRegion.js';
 
 export class Hardware {
@@ -78,6 +79,7 @@ export class Hardware {
       this.piMemDevice,
       this.romD1A3Device,
     ];
+    this.memMap = new MemoryMap(this.devices);
 
     // TODO: Not sure this belongs here.
     this.rominfo = rominfo;
@@ -104,28 +106,6 @@ export class Hardware {
     this.piRegDevice.reset();
     this.miRegDevice.reset();
     this.riRegDevice.reset();
-  }
-
-  createMemMap() {
-    const map = [];
-    for (let i = 0; i < 0x4000; ++i) {
-      map.push(undefined);
-    }
-
-    // We create a memory map of 1<<14 entries, corresponding to the top bits of the address range.
-    this.devices.map(e => {
-      const beg = (e.rangeStart) >>> 18;
-      const end = (e.rangeEnd - 1) >>> 18;
-      for (let i = beg; i <= end; ++i) {
-        map[i] = e;
-      }
-    });
-
-    if (map.length !== 0x4000) {
-      throw 'initialisation error';
-    }
-
-    return map;
   }
 
   createROM(arrayBuffer) {

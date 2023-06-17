@@ -190,7 +190,7 @@ import { getFragmentMap, consumeFragmentInvalidationEvents } from './fragments.j
 
       for (let o = 0; o < bytesPerRow; o += 4) {
         let curAddress = a + o >>> 0;
-        let mem = n64js.readMemoryInternal32(curAddress);
+        let mem = n64js.hardware().memMap.readMemoryInternal32(curAddress);
         let style = '';
         if (highlights && highlights.has(curAddress)) {
           style = ' style="background-color: ' + highlights.get(curAddress) + '"';
