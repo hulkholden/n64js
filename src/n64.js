@@ -175,6 +175,14 @@ function loadRom(arrayBuffer) {
   const kTaskOffset = 0x0fc0;
   n64js.rsp_task_view = new DataView(hardware.sp_mem.arrayBuffer, kTaskOffset, 0x40);
 
+  n64js.loadRomAndStartRunning = (arrayBuffer) => {
+    loadRom(arrayBuffer);
+    n64js.reset();
+    n64js.refreshDebugger();
+    running = false;
+    n64js.toggleRun();
+  };
+
   n64js.toggleRun = () => {
     running = !running;
     $('#runbutton').html(running ? '<i class="glyphicon glyphicon-pause"></i> Pause' : '<i class="glyphicon glyphicon-play"></i> Run');
@@ -188,34 +196,6 @@ function loadRom(arrayBuffer) {
       n64js.toggleRun();
       n64js.cpu0.breakExecution();
       //updateLoopAnimframe();
-    }
-  };
-
-  n64js.triggerLoad = () => {
-    const $fileinput = $('#fileInput');
-    // Reset fileInput value, otherwise onchange doesn't recognise when we select the same rome back-to-back
-    $fileinput.val('');
-    $fileinput.click();
-  };
-
-  n64js.loadFile = () => {
-    const f = document.getElementById("fileInput");
-    if (f && f.files.length > 0) {
-      const file = f.files[0];
-      const reader = new FileReader();
-
-      reader.onerror = e => {
-        n64js.displayWarning('error loading file');
-      };
-      reader.onload = e => {
-        loadRom(e.target.result);
-        n64js.reset();
-        n64js.refreshDebugger();
-        running = false;
-        n64js.toggleRun();
-      };
-
-      reader.readAsArrayBuffer(file);
     }
   };
 
