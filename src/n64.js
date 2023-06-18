@@ -9,6 +9,7 @@ import { toString32, toHex } from './format.js';
 import { Hardware } from './hardware.js';
 import * as logger from './logger.js';
 import { romdb } from './romdb.js';
+import { UI } from './ui.js';
 
 const kOpBreakpoint = 58;
 const kCyclesPerUpdate = 100000000;
@@ -30,6 +31,7 @@ const rominfo = {
 };
 const hardware = new Hardware(rominfo);
 const controllers = new Controllers(hardware);
+const ui = new UI();
 
 function initSync() {
   syncFlow = undefined;//n64js.createSyncConsumer();
@@ -166,6 +168,7 @@ function loadRom(arrayBuffer) {
   'use strict';
   n64js.hardware = () => hardware;
   n64js.controllers = () => controllers
+  n64js.ui = () => ui;
 
   n64js.getSyncFlow = () => syncFlow;
   n64js.getSyncInput = () => syncInput;
@@ -340,7 +343,7 @@ function loadRom(arrayBuffer) {
 
   n64js.emitRunningTime  = (msg) => {
     var cur_time = new Date();
-    n64js.displayWarning('Time to ' + msg + ' ' + (cur_time.getTime() - startTime.getTime()).toString());
+    n64js.ui().displayWarning('Time to ' + msg + ' ' + (cur_time.getTime() - startTime.getTime()).toString());
   };
 
   function setFrameTime(t) {
@@ -418,7 +421,7 @@ function loadRom(arrayBuffer) {
     n64js.cpu0.breakExecution();
     logger.log('<span style="color:red">' + msg + '</span>');
 
-    n64js.displayError(msg);
+    n64js.ui().displayError(msg);
   };
 
   // Similar to halt, but just relinquishes control to the system
@@ -447,7 +450,7 @@ function loadRom(arrayBuffer) {
     //     case 'o': $('#output-tab').tab('show'); break;
     //     case 'd': $( '#debug-tab').tab('show'); break;
     //     case 'm': $('#memory-tab').tab('show'); break;
-    //     case 'l': n64js.triggerLoad();          break;
+    //     case 'l': n64js.ui().triggerLoad();     break;
     //     case 'g': n64js.toggleRun();            break;
     //     case 's': n64js.step();                 break;
     //   }

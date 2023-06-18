@@ -145,7 +145,7 @@ export class Hardware {
 
       default:
         if (this.rominfo.save) {
-          n64js.displayWarning('Unhandled savegame type: ' + this.rominfo.save + '.');
+          n64js.ui().displayWarning(`Unhandled savegame type: ${this.rominfo.save}.`);
         }
     }
   }
