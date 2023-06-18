@@ -1,4 +1,5 @@
 import * as format from './format.js';
+import { assert } from './assert.js';
 
 (function (n64js) {'use strict';
   function _fd(i)        { return (i>>> 6)&0x1f; }
@@ -259,8 +260,7 @@ import * as format from './format.js';
   }
 
   function disassembleBCInstr(i) {
-
-    n64js.assert( ((i.opcode>>>18)&0x7) === 0, "cc bit is not 0" );
+    assert( ((i.opcode>>>18)&0x7) === 0, "cc bit is not 0" );
 
     switch (_cop1_bc(i.opcode)) {
       case 0:    return 'BC1F      !c ? --> ' + i.branchAddress();

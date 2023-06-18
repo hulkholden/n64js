@@ -3,6 +3,7 @@
 import { CPU1 } from './CPU1.js';
 import { toString8, toString32 } from './format.js';
 import { Fragment, lookupFragment, resetFragments } from './fragments.js';
+import { assert } from './assert.js';
 import * as logger from './logger.js';
 
 (function (n64js) {'use strict';
@@ -530,7 +531,7 @@ import * as logger from './logger.js';
         this.delayPC = 0;
 
     } else {
-      n64js.assert(false, "Was expecting an unmasked interrupt - something wrong with kStuffToDoCheckInterrupts?");
+      assert(false, "Was expecting an unmasked interrupt - something wrong with kStuffToDoCheckInterrupts?");
     }
   };
 
@@ -588,7 +589,7 @@ import * as logger from './logger.js';
   };
 
   CPU0.prototype.addEvent = function(type, countdown) {
-    n64js.assert( countdown >0, "Countdown is invalid" );
+    assert( countdown >0, "Countdown is invalid" );
     for (var i = 0; i < this.events.length; ++i) {
       var event = this.events[i];
       if (countdown <= event.countdown) {
@@ -642,7 +643,7 @@ import * as logger from './logger.js';
       random = sync.reflect32(random);
     }
 
-    n64js.assert(random >= wired && random <= 31, "Ooops - random should be in range " + wired + "..31, but got " + random);
+    assert(random >= wired && random <= 31, "Ooops - random should be in range " + wired + "..31, but got " + random);
     return random;
   };
 
@@ -2920,7 +2921,7 @@ import * as logger from './logger.js';
 
   function generateBCInstrStub(ctx) {
     var i = ctx.instruction;
-    n64js.assert( ((i>>>18)&0x7) === 0, "cc bit is not 0" );
+    assert( ((i>>>18)&0x7) === 0, "cc bit is not 0" );
 
     var condition = (i&0x10000) !== 0;
     var likely    = (i&0x20000) !== 0;
@@ -2943,7 +2944,7 @@ import * as logger from './logger.js';
   }
 
   function executeBCInstr(i) {
-    n64js.assert( ((i>>>18)&0x7) === 0, "cc bit is not 0" );
+    assert( ((i>>>18)&0x7) === 0, "cc bit is not 0" );
 
     var condition = (i&0x10000) !== 0;
     var likely    = (i&0x20000) !== 0;
@@ -2973,7 +2974,7 @@ import * as logger from './logger.js';
       case FPCSR_RM_RM:     return  Math.floor(x);
     }
 
-    n64js.assert('unknown rounding mode');
+    assert('unknown rounding mode');
   };
 
   function generateFloatCompare(op) {
@@ -3364,7 +3365,7 @@ import * as logger from './logger.js';
   }
 
   function executeCop1(i) {
-    //n64js.assert( (cpu0.control[cpu0.kControlSR] & SR_CU1) !== 0, "SR_CU1 in inconsistent state" );
+    //assert( (cpu0.control[cpu0.kControlSR] & SR_CU1) !== 0, "SR_CU1 in inconsistent state" );
 
     var fmt = (i >>> 21) & 0x1f;
     cop1Table[fmt](i);
@@ -3372,7 +3373,7 @@ import * as logger from './logger.js';
   function executeCop1_disabled(i) {
     logger.log('Thread accessing cop1 for first time, throwing cop1 unusable exception');
 
-    n64js.assert( (cpu0.control[cpu0.kControlSR] & SR_CU1) === 0, "SR_CU1 in inconsistent state" );
+    assert( (cpu0.control[cpu0.kControlSR] & SR_CU1) === 0, "SR_CU1 in inconsistent state" );
 
     cpu0.throwCop1Unusable();
   }
@@ -3565,7 +3566,7 @@ import * as logger from './logger.js';
 
   FragmentContext.prototype.genAssert = function (test, msg) {
     if (kDebugDynarec) {
-      return 'n64js.assert(' + test + ', "' + msg + '");\n';
+      return 'assert(' + test + ', "' + msg + '");\n';
     }
     return '';
   };
@@ -3607,7 +3608,7 @@ import * as logger from './logger.js';
     const miRegDevice = n64js.hardware().miRegDevice;
     var mi_interrupt_set = miRegDevice.interruptsUnmasked();
     var cause_int_3_set  = (cpu0.control[cpu0.kControlCause] & CAUSE_IP3) !== 0;
-    n64js.assert(mi_interrupt_set === cause_int_3_set, 'CAUSE_IP3 inconsistent with MI_INTR_REG');
+    assert(mi_interrupt_set === cause_int_3_set, 'CAUSE_IP3 inconsistent with MI_INTR_REG');
   }
 
   function mix(a,b,c)
@@ -3786,7 +3787,7 @@ import * as logger from './logger.js';
         c.control_signed[c.kControlCount] += ops_executed * COUNTER_INCREMENT_PER_OP;
       }
 
-      //n64js.assert(fragment.bailedOut || evt.countdown >= 0, "Executed too many ops. Possibly didn't bail out of trace when new event was set up?");
+      //assert(fragment.bailedOut || evt.countdown >= 0, "Executed too many ops. Possibly didn't bail out of trace when new event was set up?");
       if (evt.countdown <= 0) {
         handleCounter();
       }
@@ -4229,7 +4230,7 @@ import * as logger from './logger.js';
     }
 
     // If bailOut is set, always return immediately
-    n64js.assert(!ctx.bailOut, "Not expecting bailOut to be set for memory access");
+    assert(!ctx.bailOut, "Not expecting bailOut to be set for memory access");
     code += 'if (c.stuffToDo) { return ' + ctx.fragment.opsCompiled + '; }\n';
     code += 'if (c.pc !== ' + toString32(ctx.post_pc) + ') { return ' + ctx.fragment.opsCompiled + '; }\n';
     return code;
@@ -4300,7 +4301,7 @@ import * as logger from './logger.js';
 
       // We can avoid off-branch checks in this case.
       if (ctx.post_pc !== ctx.pc+4) {
-        n64js.assert("post_pc should always be pc+4 for trival ops?");
+        assert("post_pc should always be pc+4 for trival ops?");
         code += 'c.pc = ' + toString32(ctx.pc+4) + ';\n';
         code += 'if (c.pc !== ' + toString32(ctx.post_pc) + ') { return ' + ctx.fragment.opsCompiled + '; }\n';
       } else {
