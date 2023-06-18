@@ -5,10 +5,10 @@ import { simulateBoot } from './boot.js';
 import { Controllers } from './controllers.js';
 import * as _debugger from './debugger.js';
 import { fixRomByteOrder } from './endian.js';
-import { toString32, toHex } from './format.js';
+import { toString32 } from './format.js';
 import { Hardware } from './hardware.js';
 import * as logger from './logger.js';
-import { romdb } from './romdb.js';
+import { romdb, generateRomId, generateCICType, uint8ArrayReadString } from './romdb.js';
 import { UI } from './ui.js';
 
 const kOpBreakpoint = 58;
@@ -65,49 +65,6 @@ function syncTick(maxCount) {
   }
 
   return maxSafeCount;
-}
-
-function uint8ArrayReadString(u8array, offset, maxLen) {
-  let s = '';
-  for (let i = 0; i < maxLen; ++i) {
-    const c = u8array[offset + i];
-    if (c === 0) {
-      break;
-    }
-    s += String.fromCharCode(c);
-  }
-  return s;
-}
-
-function byteswap(a) {
-  return ((a >> 24) & 0x000000ff) |
-    ((a >> 8) & 0x0000ff00) |
-    ((a << 8) & 0x00ff0000) |
-    ((a << 24) & 0xff000000);
-}
-
-function generateRomId(crclo, crchi) {
-  return toHex(byteswap(crclo), 32) + toHex(byteswap(crchi), 32);
-}
-
-function generateCICType(u8array) {
-  let cic = 0;
-  for (let i = 0; i < 0xFC0; i++) {
-    cic = cic + u8array[0x40 + i];
-  }
-
-  switch (cic) {
-    case 0x33a27: return '6101';
-    case 0x3421e: return '6101';
-    case 0x34044: return '6102';
-    case 0x357d0: return '6103';
-    case 0x47a81: return '6105';
-    case 0x371cc: return '6106';
-    case 0x343c9: return '6106';
-    default:
-      logger.log('Unknown CIC Code ' + toString32(cic));
-      return '6102';
-  }
 }
 
 function loadRom(arrayBuffer) {
