@@ -88,12 +88,12 @@ class SyncReader {
     this.refill();
 
     if (!this.nextBuffer && !this.curRequest) {
-      var that = this;
+      const that = this;
 
-      this.curRequest = new BinaryRequest('GET', "rsynclog", { o: this.fileOffset, l: this.kBufferLength }, undefined, function (result) {
-        that.nextBuffer = new Uint32Array(result);
-        that.fileOffset += result.byteLength;
-      }).always(function () {
+      this.curRequest = new BinaryRequest('GET', "rsynclog", { o: this.fileOffset, l: this.kBufferLength }, undefined, (result) => {
+          that.nextBuffer = new Uint32Array(result);
+          that.fileOffset += result.byteLength;
+        }).always(function () {
         that.curRequest = null;
       });
 
@@ -103,7 +103,7 @@ class SyncReader {
   }
 
   getAvailableBytes() {
-    var ops = 0;
+    let ops = 0;
     if (this.syncBuffer) {
       ops += this.syncBuffer.length - this.syncBufferIdx;
     }
@@ -119,7 +119,7 @@ class SyncReader {
     }
 
     if (this.syncBuffer && this.syncBufferIdx < this.syncBuffer.length) {
-      var r = this.syncBuffer[this.syncBufferIdx];
+      const r = this.syncBuffer[this.syncBufferIdx];
       this.syncBufferIdx++;
       return r;
     }
@@ -131,7 +131,7 @@ class SyncReader {
       return false;
     }
 
-    var other = this.pop();
+    const other = this.pop();
     if (val !== other) {
       n64js.warn(name + ' mismatch: local ' + toString32(val) + ' remote ' + toString32(other));
       // Flag that we're out of sync so that we don't keep spamming errors.
@@ -172,8 +172,8 @@ class SyncWriter {
 
   tick() {
     if (!this.curRequest && this.syncBufferIdx > 0) {
-      var b = new Uint32Array(this.syncBufferIdx);
-      for (var i = 0; i < this.syncBufferIdx; ++i) {
+      const b = new Uint32Array(this.syncBufferIdx);
+      for (let i = 0; i < this.syncBufferIdx; ++i) {
         b[i] = this.syncBuffer[i];
       }
       this.buffers.push(b);
@@ -182,14 +182,14 @@ class SyncWriter {
     }
     // If no request is active and we have more buffers to flush, kick off the next upload.
     if (!this.curRequest && this.buffers.length > 0) {
-      var buffer = this.buffers[0];
+      const buffer = this.buffers[0];
       this.buffers.splice(0, 1);
 
-      var that = this;
-      var bytes = buffer.length * 4;
-      this.curRequest = new BinaryRequest('POST', "wsynclog", { o: this.fileOffset, l: bytes }, buffer, function (result) {
-        that.fileOffset += bytes;
-      }).always(function () {
+      const that = this;
+      const bytes = buffer.length * 4;
+      this.curRequest = new BinaryRequest('POST', "wsynclog", { o: this.fileOffset, l: bytes }, buffer, (result) => {
+          that.fileOffset += bytes;
+        }).always(function () {
         that.curRequest = null;
       });
     }
