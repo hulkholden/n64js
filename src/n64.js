@@ -30,22 +30,6 @@ const rominfo = {
 const hardware = new Hardware(rominfo);
 const controllers = new Controllers(hardware);
 
-// An exception thrown when an assert fails.
-class AssertException {
-  constructor(message) {
-    this.message = message;
-  }
-  toString() {
-    return 'AssertException: ' + this.message;
-  }
-}
-
-function assert(e, m) {
-  if (!e) {
-    throw new AssertException(m);
-  }
-}
-
 function initSync() {
   syncFlow = undefined;//n64js.createSyncConsumer();
   syncInput = undefined;//n64js.createSyncConsumer();
@@ -649,8 +633,6 @@ function loadRom(arrayBuffer) {
     // FIXME: framerate limit etc
     hardware.verticalBlank();
   };
-
-  n64js.assert = assert;
 
   n64js.check = (e, m) => {
     if (!e) {
