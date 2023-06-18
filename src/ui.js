@@ -24,8 +24,8 @@ export class UI {
     }
   }
 
-  displayWarning(message) { displayAlert("Warning", message); }
-  displayError(message) { displayAlert("Error", message); }
+  displayWarning(message) { this.displayAlert("Warning", message); }
+  displayError(message) { this.displayAlert("Error", message); }
 
   displayAlert(alertType, message) {
     const tmpl = document.getElementById("alert");
