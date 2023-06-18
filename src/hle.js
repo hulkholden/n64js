@@ -13,7 +13,6 @@ import * as shaders from './graphics/shaders.js';
 import { Texture, clampTexture } from './graphics/textures.js';
 
 (function(n64js) {
-  'use strict';
   var graphics_task_count = 0;
   var texrected = 1;
 

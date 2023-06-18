@@ -5,7 +5,7 @@ import * as logger from './logger.js';
 import { getFragmentMap, consumeFragmentInvalidationEvents } from './fragments.js';
 
 
-(function (n64js) {'use strict';
+(function (n64js) {
   /** @type {?jQuery} */
   let $debugContent = null;
 

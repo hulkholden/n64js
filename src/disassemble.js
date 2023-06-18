@@ -1,7 +1,7 @@
 import * as format from './format.js';
 import { assert } from './assert.js';
 
-(function (n64js) {'use strict';
+(function (n64js) {
   function _fd(i)        { return (i>>> 6)&0x1f; }
   function _fs(i)        { return (i>>>11)&0x1f; }
   function _ft(i)        { return (i>>>16)&0x1f; }
