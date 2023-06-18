@@ -1,68 +1,67 @@
 /*jshint browser:true, devel:true */
 
-import * as format from './format.js';
+import { toString32 } from './format.js';
 
 class BinaryRequest {
-  constructor(get_or_post, url, args, data, cb) {
-    get_or_post = get_or_post || 'GET';
+  constructor(getOrPost, url, args, data, cb) {
+    getOrPost = getOrPost || 'GET';
 
-    var alwaysCallbacks = [];
+    this.alwaysCallbacks = [];
 
     if (args) {
-      var arg_str = '';
-      var i;
-      for (i in args) {
+      let argStr = '';
+      for (let i in args) {
         if (args.hasOwnProperty(i)) {
-          if (arg_str) {
-            arg_str += '&';
+          if (argStr) {
+            argStr += '&';
           }
-          arg_str += escape(i);
+          argStr += escape(i);
           if (args[i] !== undefined) {
-            arg_str += '=' + escape(args[i]);
+            argStr += '=' + escape(args[i]);
           }
         }
       }
 
-      url += '?' + arg_str;
+      url += '?' + argStr;
     }
 
-    function invokeAlways() {
-      var i;
-      for (i = 0; i < alwaysCallbacks.length; ++i) {
-        alwaysCallbacks[i]();
-      }
-    }
-
-    var xhr = new XMLHttpRequest();
-    xhr.open(get_or_post, url, true);
-    try {
-      xhr.responseType = "arraybuffer";
-    } catch (e) {
-      alert('responseType arrayBuffer not supported!');
-    }
-    xhr.onreadystatechange = function onreadystatechange() {
+    const xhr = new XMLHttpRequest();
+    this.xhr = xhr;
+    
+    xhr.open(getOrPost, url, true);
+    xhr.responseType = "arraybuffer";
+    
+    const that = this;
+    xhr.addEventListener('readystatechange', (event) => {
       if (xhr.readyState === 4) {
-        invokeAlways();
+        that.invokeCallbacks();
       }
-    };
-    xhr.onload = function onload() {
-      if (ArrayBuffer.prototype.isPrototypeOf(this.response)) {
-        cb(this.response);
+    });
+
+    xhr.addEventListener('load', (event) => {
+      if (ArrayBuffer.prototype.isPrototypeOf(xhr.response)) {
+        cb(xhr.response);
       } else {
-        alert("wasn't arraybuffer, was " + typeof (this.response) + JSON.stringify(this.response));
+        alert("wasn't arraybuffer, was " + typeof (xhr.response) + JSON.stringify(xhr.response));
       }
-    };
+    });
     xhr.send(data);
-
-    this.always = function (cb) {
-      // If the request has already completed then ensure the callback is called.
-      if (xhr.readyState === 4) {
-        cb();
-      }
-      alwaysCallbacks.push(cb);
-      return this;
-    };
   }
+
+  invokeCallbacks() {
+    for (let callback of this.alwaysCallbacks) {
+      callback();
+    }
+  }
+
+  always(callback) {
+    // If the request has already completed then ensure the callback is called.
+    if (this.xhr.readyState === 4) {
+      callback();
+    }
+    this.alwaysCallbacks.push(callback);
+    return this;
+  };
 }
 
 class SyncReader {
@@ -134,7 +133,7 @@ class SyncReader {
 
     var other = this.pop();
     if (val !== other) {
-      n64js.warn(name + ' mismatch: local ' + format.toString32(val) + ' remote ' + format.toString32(other));
+      n64js.warn(name + ' mismatch: local ' + toString32(val) + ' remote ' + toString32(other));
       // Flag that we're out of sync so that we don't keep spamming errors.
       this.oos = true;
       return false;
