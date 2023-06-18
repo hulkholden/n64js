@@ -99,9 +99,8 @@ function loadRom(arrayBuffer) {
   const $table = $('<table class="register-table"><tbody></tbody></table>');
   const $tb = $table.find('tbody');
   for (let i in hdr) {
-    $tb.append('<tr>' +
-      '<td>' + i + '</td><td>' + (typeof hdr[i] === 'string' ? hdr[i] : toString32(hdr[i])) + '</td>' +
-      '</tr>');
+    const value = typeof hdr[i] === 'string' ? hdr[i] : toString32(hdr[i]);
+    $tb.append(`<tr><td>${i}</td><td>${value}</td></tr>`);
   }
   logger.logHTML($table);
 
