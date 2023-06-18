@@ -288,55 +288,6 @@ function loadRom(arrayBuffer) {
     return v;
   }
 
-  const kButtonA      = 0x8000;
-  const kButtonB      = 0x4000;
-  const kButtonZ      = 0x2000;
-  const kButtonStart  = 0x1000;
-  const kButtonJUp    = 0x0800;
-  const kButtonJDown  = 0x0400;
-  const kButtonJLeft  = 0x0200;
-  const kButtonJRight = 0x0100;
-
-  const kButtonL      = 0x0020;
-  const kButtonR      = 0x0010;
-  const kButtonCUp    = 0x0008;
-  const kButtonCDown  = 0x0004;
-  const kButtonCLeft  = 0x0002;
-  const kButtonCRight = 0x0001;
-
-  const kKeyLeft      = 37;
-  const kKeyUp        = 38;
-  const kKeyRight     = 39;
-  const kKeyDown      = 40;
-
-  n64js.handleKey = (key, down) => {
-    switch (key) {
-      case 'A'.charCodeAt(0): controllers.setButton(0, kButtonStart, down); break;
-      case 'S'.charCodeAt(0): controllers.setButton(0, kButtonA, down); break;
-      case 'X'.charCodeAt(0): controllers.setButton(0, kButtonB, down); break;
-      case 'Z'.charCodeAt(0): controllers.setButton(0, kButtonZ, down); break;
-      case 'Y'.charCodeAt(0): controllers.setButton(0, kButtonZ, down); break;
-      case 'C'.charCodeAt(0): controllers.setButton(0, kButtonL, down); break;
-      case 'V'.charCodeAt(0): controllers.setButton(0, kButtonR, down); break;
-
-      case 'T'.charCodeAt(0): controllers.setButton(0, kButtonJUp, down); break;
-      case 'G'.charCodeAt(0): controllers.setButton(0, kButtonJDown, down); break;
-      case 'F'.charCodeAt(0): controllers.setButton(0, kButtonJLeft, down); break;
-      case 'H'.charCodeAt(0): controllers.setButton(0, kButtonJRight, down); break;
-
-      case 'I'.charCodeAt(0): controllers.setButton(0, kButtonCUp, down); break;
-      case 'K'.charCodeAt(0): controllers.setButton(0, kButtonCDown, down); break;
-      case 'J'.charCodeAt(0): controllers.setButton(0, kButtonCLeft, down); break;
-      case 'L'.charCodeAt(0): controllers.setButton(0, kButtonCRight, down); break;
-
-      case kKeyLeft: controllers.setStickX(0, down ? -80 : 0); break;
-      case kKeyRight: controllers.setStickX(0, down ? +80 : 0); break;
-      case kKeyDown: controllers.setStickY(0, down ? -80 : 0); break;
-      case kKeyUp: controllers.setStickY(0, down ? +80 : 0); break;
-      //default: logger.log( 'up code:' + event.which);
-    }
-  };
-
   n64js.checkSIStatusConsistent = () => { hardware.checkSIStatusConsistent(); };
 
   n64js.getInstruction = address => {
@@ -513,20 +464,21 @@ function loadRom(arrayBuffer) {
 
     n64js.initialiseRenderer($('#display'));
 
-    $('body').keyup((event) => {
-      n64js.handleKey(event.which, false);
+    const body = document.querySelector('body');
+    body.addEventListener('keyup', (event) => {
+      controllers.handleKey(0, event.key, false);
     });
-    $('body').keydown((event) => {
-      n64js.handleKey(event.which, true);
+    body.addEventListener('keydown', (event) => {
+      controllers.handleKey(0, event.key, true);
     });
-    // $('body').keypress(function (event) {
-    //   switch (event.which) {
-    //     case 'o'.charCodeAt(0): $('#output-tab').tab('show'); break;
-    //     case 'd'.charCodeAt(0): $( '#debug-tab').tab('show'); break;
-    //     case 'm'.charCodeAt(0): $('#memory-tab').tab('show'); break;
-    //     case 'l'.charCodeAt(0): n64js.triggerLoad();          break;
-    //     case 'g'.charCodeAt(0): n64js.toggleRun();            break;
-    //     case 's'.charCodeAt(0): n64js.step();                 break;
+    // body.addEventListener('keypress', (event) => {
+    //   switch (event.key) {
+    //     case 'o': $('#output-tab').tab('show'); break;
+    //     case 'd': $( '#debug-tab').tab('show'); break;
+    //     case 'm': $('#memory-tab').tab('show'); break;
+    //     case 'l': n64js.triggerLoad();          break;
+    //     case 'g': n64js.toggleRun();            break;
+    //     case 's': n64js.step();                 break;
     //   }
     // });
     // Make sure that the tabs refresh when clicked
