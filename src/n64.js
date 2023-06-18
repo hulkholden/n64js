@@ -174,23 +174,23 @@ function loadRom(arrayBuffer) {
     if (running) {
       requestAnimationFrame(updateLoopAnimframe);
 
-      var max_cycles = kCyclesPerUpdate;
+      let maxCycles = kCyclesPerUpdate;
 
       // NB: don't slow down debugger when we're waiting for a display list to be debugged.
-      var debugging = $('.debug').is(':visible');
+      const debugging = $('.debug').is(':visible');
       if (debugging && !n64js.debugDisplayListRequested()) {
-        max_cycles = n64js.getDebugCycles();
+        maxCycles = n64js.getDebugCycles();
       }
 
       if (syncActive()) {
         // Check how many cycles we can safely execute
-        var sync_count = syncTick(max_cycles);
-        if (sync_count > 0) {
-          n64js.run(sync_count);
+        const syncCount = syncTick(maxCycles);
+        if (syncCount > 0) {
+          n64js.run(syncCount);
           n64js.refreshDebugger();
         }
       } else {
-        n64js.run(max_cycles);
+        n64js.run(maxCycles);
         n64js.refreshDebugger();
       }
 
@@ -216,15 +216,12 @@ function loadRom(arrayBuffer) {
 
   // Should read noise?
   n64js.getRandomU32 = () => {
-    var hi = Math.floor(Math.random() * 0xffff) & 0xffff;
-    var lo = Math.floor(Math.random() * 0xffff) & 0xffff;
-
-    var v = (hi << 16) | lo;
-
+    const hi = Math.floor(Math.random() * 0xffff) & 0xffff;
+    const lo = Math.floor(Math.random() * 0xffff) & 0xffff;
+    const v = (hi << 16) | lo;
     if (syncInput) {
-      v = syncInput.reflect32(v);
+      return syncInput.reflect32(v);
     }
-
     return v;
   }
 
