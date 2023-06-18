@@ -223,9 +223,3 @@ class SyncWriter {
     return val;
   };
 }
-
-(function (n64js) {
-  n64js.createSyncConsumer = function () { return new SyncReader(); };
-  n64js.createSyncProducer = function () { return new SyncWriter(); };
-
-}(window.n64js = window.n64js || {}));

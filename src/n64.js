@@ -39,8 +39,8 @@ function setRunning(value) {
 }
 
 function initSync() {
-  syncFlow = undefined;//n64js.createSyncConsumer();
-  syncInput = undefined;//n64js.createSyncConsumer();
+  syncFlow = undefined; // new SyncReader();
+  syncInput = undefined; // new SyncReader();
 }
 
 function syncActive() {
