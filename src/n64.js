@@ -280,16 +280,15 @@ function loadRom(arrayBuffer) {
   }
 
   n64js.getLocalStorageItem = (name) => {
-    var ls_name = getLocalStorageName(name);
-    var data_str = localStorage.getItem(ls_name);
-    var data = data_str ? JSON.parse(data_str) : undefined;
-    return data;
+    const lsName = getLocalStorageName(name);
+    const dataStr = localStorage.getItem(lsName);
+    return dataStr ? JSON.parse(dataStr) : undefined;
   };
 
   n64js.setLocalStorageItem = (name, data) => {
-    var ls_name = getLocalStorageName(name);
-    var data_str = JSON.stringify(data);
-    localStorage.setItem(ls_name, data_str);
+    const lsName = getLocalStorageName(name);
+    const dataStr = JSON.stringify(data);
+    localStorage.setItem(lsName, dataStr);
   };
 
   //
