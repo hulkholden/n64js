@@ -62,16 +62,52 @@ import { assert } from './assert.js';
     'GR24', 'GR25', 'GR26', 'GR27', 'GR28', 'GR29', 'GR30', 'GR31'
   ];
 
-  /**
-   * @constructor
-   */
-  function Instruction(address, opcode) {
-    this.address = address;
-    this.opcode  = opcode;
-    this.srcRegs = {};
-    this.dstRegs = {};
-    this.target  = '';
-    this.memory  = null;
+  class Instruction {
+    constructor(address, opcode) {
+      this.address = address;
+      this.opcode = opcode;
+      this.srcRegs = {};
+      this.dstRegs = {};
+      this.target = '';
+      this.memory = null;
+    }
+
+    // cop0 regs
+    rt_d() { var reg = gprRegisterNames[_rt(this.opcode)]; this.dstRegs[reg] = 1; return makeRegSpan(reg); }
+    rd() { var reg = gprRegisterNames[_rd(this.opcode)]; this.dstRegs[reg] = 1; return makeRegSpan(reg); }
+    rt() { var reg = gprRegisterNames[_rt(this.opcode)]; this.srcRegs[reg] = 1; return makeRegSpan(reg); }
+    rs() { var reg = gprRegisterNames[_rs(this.opcode)]; this.srcRegs[reg] = 1; return makeRegSpan(reg); }
+
+    // dummy operand - just marks ra as being a dest reg
+    writesRA() { this.dstRegs[n64js.cpu0.kRegister_ra] = 1; return ''; }
+
+    // cop1 regs
+    ft_d(fmt) { var reg = getCop1RegisterName(_ft(this.opcode), fmt); this.dstRegs[reg] = 1; return makeFPRegSpan(reg); }
+    fs_d(fmt) { var reg = getCop1RegisterName(_fs(this.opcode), fmt); this.dstRegs[reg] = 1; return makeFPRegSpan(reg); }
+    fd(fmt) { var reg = getCop1RegisterName(_fd(this.opcode), fmt); this.dstRegs[reg] = 1; return makeFPRegSpan(reg); }
+    ft(fmt) { var reg = getCop1RegisterName(_ft(this.opcode), fmt); this.srcRegs[reg] = 1; return makeFPRegSpan(reg); }
+    fs(fmt) { var reg = getCop1RegisterName(_fs(this.opcode), fmt); this.srcRegs[reg] = 1; return makeFPRegSpan(reg); }
+
+    // cop2 regs
+    gt_d() { var reg = cop2RegisterNames[_rt(this.opcode)]; this.dstRegs[reg] = 1; return makeRegSpan(reg); }
+    gd() { var reg = cop2RegisterNames[_rd(this.opcode)]; this.dstRegs[reg] = 1; return makeRegSpan(reg); }
+    gt() { var reg = cop2RegisterNames[_rt(this.opcode)]; this.srcRegs[reg] = 1; return makeRegSpan(reg); }
+    gs() { var reg = cop2RegisterNames[_rs(this.opcode)]; this.srcRegs[reg] = 1; return makeRegSpan(reg); }
+
+    imm() { return '0x' + format.toHex(_imm(this.opcode), 16); }
+
+    branchAddress() { this.target = _branchAddress(this.address, this.opcode); return makeLabelText(this.target); }
+    jumpAddress() { this.target = _jumpAddress(this.address, this.opcode); return makeLabelText(this.target); }
+
+    memaccess(mode) {
+      var r = this.rs();
+      var off = this.imm();
+      this.memory = { reg: _rs(this.opcode), offset: _imms(this.opcode), mode: mode };
+      return '[' + r + '+' + off + ']';
+    }
+
+    memload() { return this.memaccess('load'); }
+    memstore() { return this.memaccess('store'); }
   }
 
   function makeRegSpan(t) {
@@ -87,49 +123,6 @@ import { assert } from './assert.js';
     var suffix = fmt ? '-' + fmt : '';
     return cop1RegisterNames[r] + suffix;
   }
-
-  Instruction.prototype = {
-    // cop0 regs
-    rt_d() { var reg = gprRegisterNames[_rt(this.opcode)]; this.dstRegs[reg] = 1; return makeRegSpan(reg); },
-    rd  () { var reg = gprRegisterNames[_rd(this.opcode)]; this.dstRegs[reg] = 1; return makeRegSpan(reg); },
-    rt  () { var reg = gprRegisterNames[_rt(this.opcode)]; this.srcRegs[reg] = 1; return makeRegSpan(reg); },
-    rs  () { var reg = gprRegisterNames[_rs(this.opcode)]; this.srcRegs[reg] = 1; return makeRegSpan(reg); },
-
-    // dummy operand - just marks ra as being a dest reg
-    writesRA()  { this.dstRegs[n64js.cpu0.kRegister_ra] = 1; return ''; },
-
-    // cop1 regs
-    ft_d(fmt) { var reg = getCop1RegisterName(_ft(this.opcode), fmt); this.dstRegs[reg] = 1; return makeFPRegSpan(reg); },
-    fs_d(fmt) { var reg = getCop1RegisterName(_fs(this.opcode), fmt); this.dstRegs[reg] = 1; return makeFPRegSpan(reg); },
-    fd  (fmt) { var reg = getCop1RegisterName(_fd(this.opcode), fmt); this.dstRegs[reg] = 1; return makeFPRegSpan(reg); },
-    ft  (fmt) { var reg = getCop1RegisterName(_ft(this.opcode), fmt); this.srcRegs[reg] = 1; return makeFPRegSpan(reg); },
-    fs  (fmt) { var reg = getCop1RegisterName(_fs(this.opcode), fmt); this.srcRegs[reg] = 1; return makeFPRegSpan(reg); },
-
-    // cop2 regs
-    gt_d() { var reg = cop2RegisterNames[_rt(this.opcode)]; this.dstRegs[reg] = 1; return makeRegSpan(reg); },
-    gd  () { var reg = cop2RegisterNames[_rd(this.opcode)]; this.dstRegs[reg] = 1; return makeRegSpan(reg); },
-    gt  () { var reg = cop2RegisterNames[_rt(this.opcode)]; this.srcRegs[reg] = 1; return makeRegSpan(reg); },
-    gs  () { var reg = cop2RegisterNames[_rs(this.opcode)]; this.srcRegs[reg] = 1; return makeRegSpan(reg); },
-
-    imm() { return '0x' + format.toHex( _imm(this.opcode), 16 ); },
-
-    branchAddress() { this.target = _branchAddress(this.address,this.opcode); return makeLabelText( this.target ); },
-    jumpAddress()   { this.target = _jumpAddress(this.address,this.opcode);   return makeLabelText( this.target ); },
-
-    memaccess(mode) {
-      var r   = this.rs();
-      var off = this.imm();
-      this.memory = {reg:_rs(this.opcode), offset:_imms(this.opcode), mode:mode};
-      return '[' + r + '+' + off + ']';
-    },
-    memload() {
-      return this.memaccess('load');
-    },
-    memstore() {
-      return this.memaccess('store');
-    }
-
-  };
 
   const specialTable = [
     i => { if (i.opcode === 0) {
