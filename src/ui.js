@@ -38,4 +38,9 @@ export class UI {
 
     $('#alerts').append(node);
   }
+
+  setRunning(running) {
+    const html = running ? '<i class="glyphicon glyphicon-pause"></i> Pause' : '<i class="glyphicon glyphicon-play"></i> Run';
+    $('#runbutton').html(html);
+  }
 }

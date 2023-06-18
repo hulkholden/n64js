@@ -33,6 +33,11 @@ const hardware = new Hardware(rominfo);
 const controllers = new Controllers(hardware);
 const ui = new UI();
 
+function setRunning(value) {
+  running = value;
+  ui.setRunning(value);
+}
+
 function initSync() {
   syncFlow = undefined;//n64js.createSyncConsumer();
   syncInput = undefined;//n64js.createSyncConsumer();
@@ -139,13 +144,12 @@ function loadRom(arrayBuffer) {
     loadRom(arrayBuffer);
     n64js.reset();
     n64js.refreshDebugger();
-    running = false;
+    setRunning(false);
     n64js.toggleRun();
   };
 
   n64js.toggleRun = () => {
-    running = !running;
-    $('#runbutton').html(running ? '<i class="glyphicon glyphicon-pause"></i> Pause' : '<i class="glyphicon glyphicon-play"></i> Run');
+    setRunning(!running);
     if (running) {
       updateLoopAnimframe();
     }
@@ -190,10 +194,6 @@ function loadRom(arrayBuffer) {
       if (maxCycles > 0) {
         n64js.run(maxCycles);
         n64js.refreshDebugger();
-      }
-
-      if (!running) {
-        $('#runbutton').html('<i class="glyphicon glyphicon-play"></i> Run');
       }
     } else if (n64js.debugDisplayListRunning()) {
       requestAnimationFrame(updateLoopAnimframe);
@@ -361,16 +361,15 @@ function loadRom(arrayBuffer) {
   };
 
   n64js.stopForBreakpoint = () => {
-    running = false;
+    setRunning(false);
     n64js.cpu0.breakExecution();
     logger.log('<span style="color:red">Breakpoint</span>');
   };
 
   n64js.halt = (msg) => {
-    running = false;
+    setRunning(false);
     n64js.cpu0.breakExecution();
     logger.log('<span style="color:red">' + msg + '</span>');
-
     n64js.ui().displayError(msg);
   };
 
