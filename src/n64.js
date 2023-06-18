@@ -231,34 +231,37 @@ function loadRom(arrayBuffer) {
   n64js.checkSIStatusConsistent = () => { hardware.checkSIStatusConsistent(); };
 
   n64js.getInstruction = address => {
-    var instruction = hardware.memMap.readMemoryInternal32(address);
-    if (((instruction>>26)&0x3f) === kOpBreakpoint) {
-      instruction = breakpoints[address] || 0;
+    const instr = hardware.memMap.readMemoryInternal32(address);
+    if (isBreakpointInstruction(instr)) {
+      return breakpoints[address] || 0;
     }
-
-    return instruction;
+    return instr;
   };
 
   n64js.isBreakpoint = address => {
-    var orig_op = hardware.memMap.readMemoryInternal32(address);
-    return ((orig_op>>26)&0x3f) === kOpBreakpoint;
+    const instr = hardware.memMap.readMemoryInternal32(address);
+    return isBreakpointInstruction(instr);
   };
 
   n64js.toggleBreakpoint = address => {
-    var orig_op = hardware.memMap.readMemoryInternal32(address);
-    var new_op;
+    const origInstr = hardware.memMap.readMemoryInternal32(address);
 
-    if (((orig_op>>26)&0x3f) === kOpBreakpoint) {
+    let newInstr;
+    if (isBreakpointInstruction(origInstr)) {
       // breakpoint is already set
-      new_op = breakpoints[address] || 0;
+      newInstr = breakpoints[address] || 0;
       delete breakpoints[address];
     } else {
-      new_op = (kOpBreakpoint<<26);
-      breakpoints[address] = orig_op;
+      newInstr = (kOpBreakpoint<<26);
+      breakpoints[address] = origInstr;
     }
 
-    hardware.memMap.writeMemoryInternal32(address, new_op);
+    hardware.memMap.writeMemoryInternal32(address, newInstr);
   };
+
+  function isBreakpointInstruction(instr) {
+    return ((instr>>26)&0x3f) === kOpBreakpoint;
+  }
 
   // 'emulated' read. May cause exceptions to be thrown in the emulated process
   const getMemoryHandler = hardware.memMap.getMemoryHandler.bind(hardware.memMap);
