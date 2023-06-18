@@ -297,29 +297,25 @@ function loadRom(arrayBuffer) {
   let startTime;
   let lastPresentTime;
 
-  n64js.emitRunningTime  = (msg) => {
-    var cur_time = new Date();
-    n64js.ui().displayWarning('Time to ' + msg + ' ' + (cur_time.getTime() - startTime.getTime()).toString());
+  n64js.emitRunningTime = (msg) => {
+    const curTime = new Date();
+    const elapsed = curTime.getTime() - startTime.getTime();
+    const elapsedStr = elapsed.toString();
+    n64js.ui().displayWarning(`Time to ${msg} ${elapsedStr}`);
   };
 
   function setFrameTime(t) {
-    var title_text ;
-    if (rominfo.name)
-      title_text = 'n64js - ' + rominfo.name + ' - ' + t + 'mspf';
-    else
-      title_text = 'n64js - ' + t + 'mspf';
-
-    $('#title').text(title_text);
+    const titleText = rominfo.name ? `n64js - ${rominfo.name} - ${t}mspf` : `n64js - ${t}mspf`;
+    $('#title').text(titleText);
   }
 
   n64js.onPresent = () => {
-    var cur_time = new Date();
+    const curTime = new Date();
     if (lastPresentTime) {
-      var t = cur_time.getTime() - lastPresentTime.getTime();
-      setFrameTime(t);
+      const elapsed = curTime.getTime() - lastPresentTime.getTime();
+      setFrameTime(elapsed);
     }
-
-    lastPresentTime = cur_time;
+    lastPresentTime = curTime;
   };
 
   n64js.addResetCallback = (fn) => {
