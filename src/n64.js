@@ -126,7 +126,6 @@ function loadRom(arrayBuffer) {
 }
 
 (function (n64js) {
-  'use strict';
   n64js.hardware = () => hardware;
   n64js.controllers = () => controllers
   n64js.ui = () => ui;

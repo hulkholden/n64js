@@ -2,7 +2,7 @@
 
 import * as format from './format.js';
 
-(function (n64js) {'use strict';
+(function (n64js) {
   /**
    * @constructor
    */

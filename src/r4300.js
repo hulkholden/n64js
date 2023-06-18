@@ -6,7 +6,7 @@ import { Fragment, lookupFragment, resetFragments } from './fragments.js';
 import { assert } from './assert.js';
 import * as logger from './logger.js';
 
-(function (n64js) {'use strict';
+(function (n64js) {
   const kDebugTLB = 0;
   const kDebugDynarec = 0;
 
