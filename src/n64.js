@@ -111,18 +111,18 @@ function loadRom(arrayBuffer) {
 
   const info = romdb[rominfo.id];
   if (info) {
-    logger.log('Loaded info for ' + rominfo.id + ' from db');
+    logger.log(`Loaded info for ${rominfo.id} from db`);
     rominfo.name = info.name;
     rominfo.save = info.save;
   } else {
-    logger.log('No info for ' + rominfo.id + ' in db');
+    logger.log(`No info for ${rominfo.id} in db`);
     rominfo.name = hdr.name;
     rominfo.save = 'Eeprom4k';
   }
 
-  logger.log('rominfo is ' + JSON.stringify(rominfo));
+  logger.log(`rominfo is ${JSON.stringify(rominfo)}`);
 
-  $('#title').text('n64js - ' + rominfo.name);
+  $('#title').text(`n64js - ${rominfo.name}`);
 }
 
 (function (n64js) {
