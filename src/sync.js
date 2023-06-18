@@ -2,11 +2,8 @@
 
 import * as format from './format.js';
 
-(function (n64js) {
-  /**
-   * @constructor
-   */
-  function BinaryRequest(get_or_post, url, args, data, cb) {
+class BinaryRequest {
+  constructor(get_or_post, url, args, data, cb) {
     get_or_post = get_or_post || 'GET';
 
     var alwaysCallbacks = [];
@@ -43,8 +40,8 @@ import * as format from './format.js';
     } catch (e) {
       alert('responseType arrayBuffer not supported!');
     }
-    xhr.onreadystatechange = function onreadystatechange () {
-      if(xhr.readyState === 4) {
+    xhr.onreadystatechange = function onreadystatechange() {
+      if (xhr.readyState === 4) {
         invokeAlways();
       }
     };
@@ -52,22 +49,24 @@ import * as format from './format.js';
       if (ArrayBuffer.prototype.isPrototypeOf(this.response)) {
         cb(this.response);
       } else {
-        alert("wasn't arraybuffer, was " + typeof(this.response) + JSON.stringify(this.response));
+        alert("wasn't arraybuffer, was " + typeof (this.response) + JSON.stringify(this.response));
       }
     };
     xhr.send(data);
 
-
     this.always = function (cb) {
       // If the request has already completed then ensure the callback is called.
-      if(xhr.readyState === 4) {
+      if (xhr.readyState === 4) {
         cb();
       }
       alwaysCallbacks.push(cb);
       return this;
     };
   }
+}
 
+
+(function (n64js) {
   /**
    * @constructor
    */
