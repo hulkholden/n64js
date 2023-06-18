@@ -223,7 +223,7 @@ import { Texture, clampTexture } from './graphics/textures.js';
 
   function hleHalt(msg) {
     if (!debugDisplayListRunning) {
-      n64js.displayWarning(msg);
+      n64js.ui().displayWarning(msg);
 
       // Ensure the CPU emulation stops immediately
       n64js.breakEmulationForDisplayListDebug();
