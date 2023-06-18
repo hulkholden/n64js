@@ -21,18 +21,24 @@
       reader.onload = e => {
         n64js.loadRomAndStartRunning(e.target.result);
       };
-
       reader.readAsArrayBuffer(file);
     }
   };
 
-  n64js.displayWarning = (message) => {
-    var $alert = $('<div class="alert"><button class="close" data-dismiss="alert">×</button><strong>Warning!</strong> ' + message + '</div>');
-    $('#alerts').append($alert);
+  n64js.displayWarning = (message) => { displayAlert("Warning", message); };
+  n64js.displayError = (message) => { displayAlert("Error", message); };
+
+  function displayAlert(alertType, message) {
+    const tmpl = document.getElementById("alert");
+    const node = tmpl.content.cloneNode(true);
+    const typeSpan = node.querySelector(".alert-type");
+    const messageSpan = node.querySelector(".alert-message");
+
+    typeSpan.textContent = alertType + "!";
+    messageSpan.textContent = message;
+    
+    $('#alerts').append(node);
   };
-  n64js.displayError = (message) => {
-    var $alert = $('<div class="alert alert-error"><button class="close" data-dismiss="alert">×</button><strong>Error!</strong> ' + message + '</div>');
-    $('#alerts').append($alert);
-  };
+
 
 }(window.n64js = window.n64js || {}));
