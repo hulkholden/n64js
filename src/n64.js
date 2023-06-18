@@ -165,6 +165,7 @@ function loadRom(arrayBuffer) {
 (function (n64js) {
   'use strict';
   n64js.hardware = () => hardware;
+  n64js.controllers = () => controllers
 
   n64js.getSyncFlow = () => syncFlow;
   n64js.getSyncInput = () => syncInput;
@@ -286,8 +287,6 @@ function loadRom(arrayBuffer) {
 
     return v;
   }
-
-  n64js.controllers = () => controllers
 
   const kButtonA      = 0x8000;
   const kButtonB      = 0x4000;
