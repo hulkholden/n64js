@@ -339,8 +339,8 @@ function loadRom(arrayBuffer) {
     startTime = new Date();
     lastPresentTime = undefined;
 
-    for (let i = 0; i < resetCallbacks.length; ++i) {
-      resetCallbacks[i]();
+    for (let callback of resetCallbacks) {
+      callback();
     }
   };
 
