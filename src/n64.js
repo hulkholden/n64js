@@ -184,12 +184,10 @@ function loadRom(arrayBuffer) {
 
       if (syncActive()) {
         // Check how many cycles we can safely execute
-        const syncCount = syncTick(maxCycles);
-        if (syncCount > 0) {
-          n64js.run(syncCount);
-          n64js.refreshDebugger();
-        }
-      } else {
+        maxCycles = syncTick(maxCycles);
+      }
+
+      if (maxCycles > 0) {
         n64js.run(maxCycles);
         n64js.refreshDebugger();
       }
