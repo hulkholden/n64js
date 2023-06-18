@@ -16,7 +16,7 @@ const kCyclesPerUpdate = 100000000;
 
 let stats = null;
 let running = false;
-let breakpoints = {};     // address -> original op
+const breakpoints = new Map();     // address -> original op
 const resetCallbacks = [];
 
 let syncFlow = null;
@@ -320,7 +320,7 @@ function loadRom(arrayBuffer) {
   };
 
   n64js.reset = () => {
-    breakpoints = {};
+    breakpoints.clear();
 
     initSync();
 
