@@ -421,15 +421,6 @@ function loadRom(arrayBuffer) {
     n64js.displayError(msg);
   };
 
-  n64js.displayWarning = (message) => {
-    var $alert = $('<div class="alert"><button class="close" data-dismiss="alert">×</button><strong>Warning!</strong> ' + message + '</div>');
-    $('#alerts').append($alert);
-  };
-  n64js.displayError = (message) => {
-    var $alert = $('<div class="alert alert-error"><button class="close" data-dismiss="alert">×</button><strong>Error!</strong> ' + message + '</div>');
-    $('#alerts').append($alert);
-  };
-
   // Similar to halt, but just relinquishes control to the system
   n64js.returnControlToSystem = () => {
     n64js.cpu0.breakExecution();
