@@ -1,5 +1,5 @@
-import * as format from './format.js';
 import { assert } from './assert.js';
+import { toHex } from './format.js';
 
 (function (n64js) {
   function _fd(i)        { return (i>>> 6)&0x1f; }
@@ -27,7 +27,7 @@ import { assert } from './assert.js';
   function _jumpAddress(a,i)   { return (a&0xf0000000) | (_target(i)*4); }
 
   function makeLabelText(address) {
-    var text = format.toHex( address, 32 );
+    var text = toHex( address, 32 );
     return '<span class="dis-address-jump">'+ text + '</span>';
   }
 
@@ -94,7 +94,7 @@ import { assert } from './assert.js';
     gt() { const reg = cop2RegisterNames[_rt(this.opcode)]; this.srcRegs[reg] = 1; return makeRegSpan(reg); }
     gs() { const reg = cop2RegisterNames[_rs(this.opcode)]; this.srcRegs[reg] = 1; return makeRegSpan(reg); }
 
-    imm() { return '0x' + format.toHex(_imm(this.opcode), 16); }
+    imm() { return '0x' + toHex(_imm(this.opcode), 16); }
 
     branchAddress() { this.target = _branchAddress(this.address, this.opcode); return makeLabelText(this.target); }
     jumpAddress() { this.target = _jumpAddress(this.address, this.opcode); return makeLabelText(this.target); }
@@ -140,8 +140,8 @@ import { assert } from './assert.js';
     i => { return 'JALR      ' + i.rd() + ', ' + i.rs(); },
     i => { return 'Unk'; },
     i => { return 'Unk'; },
-    i => { return 'SYSCALL   ' + format.toHex( (i.opcode>>6)&0xfffff, 20 ); },
-    i => { return 'BREAK     ' + format.toHex( (i.opcode>>6)&0xfffff, 20 ); },
+    i => { return 'SYSCALL   ' + toHex( (i.opcode>>6)&0xfffff, 20 ); },
+    i => { return 'BREAK     ' + toHex( (i.opcode>>6)&0xfffff, 20 ); },
     i => { return 'Unk'; },
     i => { return 'SYNC'; },
     i => { return 'MFHI      ' + i.rd() + ' = MultHi'; },
@@ -309,7 +309,7 @@ import { assert } from './assert.js';
       case 0x3f:    return 'C.NGT.' + fmt_u + '   c = ' + i.fs(fmt) + ' cmp ' + i.ft(fmt);
     }
 
-    return 'Cop1.' + fmt + format.toHex(_cop1_func(i.opcode),8) + '?';
+    return 'Cop1.' + fmt + toHex(_cop1_func(i.opcode),8) + '?';
   }
   function disassembleCop1SInstr(i) {
     return disassembleCop1Instr(i, 's');
@@ -478,7 +478,7 @@ import { assert } from './assert.js';
     i => { return 'SDL       ' + i.rt()   + ' -> ' + i.memstore(); },
     i => { return 'SDR       ' + i.rt()   + ' -> ' + i.memstore(); },
     i => { return 'SWR       ' + i.rt()   + ' -> ' + i.memstore(); },
-    i => { return 'CACHE     ' + format.toHex(_rt(i.opcode),8) + ', ' + i.memaccess(); },
+    i => { return 'CACHE     ' + toHex(_rt(i.opcode),8) + ', ' + i.memaccess(); },
     i => { return 'LL        ' + i.rt_d() + ' <- ' + i.memload(); },
     i => { return 'LWC1      ' + i.ft_d() + ' <- ' + i.memload(); },
     i => { return 'Unk'; },
