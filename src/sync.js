@@ -2,6 +2,43 @@
 
 import { toString32 } from './format.js';
 
+export let syncFlow = null;
+export let syncInput = null;
+
+export function initSync() {
+  syncFlow = undefined; // new SyncReader();
+  syncInput = undefined; // new SyncReader();
+}
+
+export function syncActive() {
+  return (syncFlow || syncInput) ? true : false;
+}
+
+export function syncTick(maxCount) {
+  const kEstimatedBytePerCycle = 8;
+  let syncObjects = [syncFlow, syncInput];
+  let maxSafeCount = maxCount;
+
+  for (let i = 0; i < syncObjects.length; ++i) {
+    const s = syncObjects[i];
+    if (s) {
+      if (!s.tick()) {
+        maxSafeCount = 0;
+      }
+
+      // Guesstimate num bytes used per cycle
+      let count = Math.floor(s.getAvailableBytes() / kEstimatedBytePerCycle);
+
+      // Ugh - bodgy hacky hacky for input sync
+      count = Math.max(0, count - 100);
+
+      maxSafeCount = Math.min(maxSafeCount, count);
+    }
+  }
+
+  return maxSafeCount;
+}
+
 class BinaryRequest {
   constructor(getOrPost, url, args, data, cb) {
     getOrPost = getOrPost || 'GET';

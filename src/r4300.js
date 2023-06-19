@@ -5,6 +5,7 @@ import { toString8, toString32 } from './format.js';
 import { Fragment, lookupFragment, resetFragments } from './fragments.js';
 import { assert } from './assert.js';
 import * as logger from './logger.js';
+import { syncFlow } from './sync.js';
 
 (function (n64js) {
   const kDebugTLB = 0;
@@ -193,6 +194,9 @@ import * as logger from './logger.js';
     // >>32 just seems to no-op? Argh.
     return Math.floor( v / k1Shift32 );
   };
+
+  // Needs to be callable from dynarec.
+  n64js.getSyncFlow = () => syncFlow;
 
   /**
    * @constructor
@@ -638,9 +642,8 @@ import * as logger from './logger.js';
     var wired = this.control[this.kControlWired] & 0x1f;
     var random = Math.floor(Math.random() * (32-wired)) + wired;
 
-    var sync = n64js.getSyncFlow();
-    if (sync) {
-      random = sync.reflect32(random);
+    if (syncFlow) {
+      random = syncFlow.reflect32(random);
     }
 
     assert(random >= wired && random <= 31, "Ooops - random should be in range " + wired + "..31, but got " + random);
@@ -3821,7 +3824,7 @@ import * as logger from './logger.js';
     fragmentContext.set(fragment, entry_pc, instruction, c.pc); // NB: first pc is entry_pc, c.pc is post_pc by this point
     generateCodeForOp(fragmentContext);
 
-    // Break out of the trace as soon as we branch, or  too many ops, or last op generated an interrupt (stuffToDo set)
+    // Break out of the trace as soon as we branch, or too many ops, or last op generated an interrupt (stuffToDo set)
     var long_fragment = fragment.opsCompiled > 8;
     if ((long_fragment && c.pc !== entry_pc+4) || fragment.opsCompiled >= 250 || c.stuffToDo) {
 
@@ -3863,7 +3866,6 @@ import * as logger from './logger.js';
   }
 
   function runImpl() {
-    //var sync = n64js.getSyncFlow();
     var c      = cpu0;
     var events = c.events;
     var ram    = c.ram;
@@ -3882,8 +3884,8 @@ import * as logger from './logger.js';
           fragment = executeFragment(fragment, c, ram, events);
         } else {
 
-          // if (sync) {
-          //   if (!checkSyncState(sync, cpu0.pc)) {
+          // if (syncFlow) {
+          //   if (!checkSyncState(syncFlow, cpu0.pc)) {
           //     n64js.halt('sync error');
           //     break;
           //   }
