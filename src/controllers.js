@@ -1,5 +1,6 @@
 import * as logger from './logger.js';
 import { toString8 } from './format.js';
+import { syncInput } from './sync.js';
 
 const PC_CONTROLLER_0 = 0;
 const PC_CONTROLLER_1 = 1;
@@ -184,7 +185,6 @@ export class Controllers {
         stick_x = this.controllers[channel].stick_x;
         stick_y = this.controllers[channel].stick_y;
 
-        const syncInput = n64js.getSyncInput();
         if (syncInput) {
           syncInput.sync32(0xbeeff00d, 'input');
           buttons = syncInput.reflect32(buttons); // FIXME reflect16

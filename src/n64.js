@@ -10,6 +10,7 @@ import { Hardware } from './hardware.js';
 import * as logger from './logger.js';
 import { romdb, generateRomId, generateCICType, uint8ArrayReadString } from './romdb.js';
 import { UI } from './ui.js';
+import { initSync, syncActive, syncTick } from './sync.js';
 
 const kOpBreakpoint = 58;
 const kCyclesPerUpdate = 100000000;
@@ -18,9 +19,6 @@ let stats = null;
 let running = false;
 const breakpoints = new Map();     // address -> original op
 const resetCallbacks = [];
-
-let syncFlow = null;
-let syncInput = null;
 
 const rominfo = {
   id: '',
@@ -36,40 +34,6 @@ const ui = new UI();
 function setRunning(value) {
   running = value;
   ui.setRunning(value);
-}
-
-function initSync() {
-  syncFlow = undefined; // new SyncReader();
-  syncInput = undefined; // new SyncReader();
-}
-
-function syncActive() {
-  return (syncFlow || syncInput) ? true : false;
-}
-
-function syncTick(maxCount) {
-  const kEstimatedBytePerCycle = 8;
-  let syncObjects = [syncFlow, syncInput];
-  let maxSafeCount = maxCount;
-
-  for (let i = 0; i < syncObjects.length; ++i) {
-    const s = syncObjects[i];
-    if (s) {
-      if (!s.tick()) {
-        maxSafeCount = 0;
-      }
-
-      // Guesstimate num bytes used per cycle
-      let count = Math.floor(s.getAvailableBytes() / kEstimatedBytePerCycle);
-
-      // Ugh - bodgy hacky hacky for input sync
-      count = Math.max(0, count - 100);
-
-      maxSafeCount = Math.min(maxSafeCount, count);
-    }
-  }
-
-  return maxSafeCount;
 }
 
 function loadRom(arrayBuffer) {
@@ -129,9 +93,6 @@ function loadRom(arrayBuffer) {
   n64js.hardware = () => hardware;
   n64js.controllers = () => controllers
   n64js.ui = () => ui;
-
-  n64js.getSyncFlow = () => syncFlow;
-  n64js.getSyncInput = () => syncInput;
 
   // Keep a DataView around as a view onto the RSP task
   // FIXME - encapsulate this better.
