@@ -353,21 +353,15 @@ function loadRom(arrayBuffer) {
   };
 
   n64js.togglePerformance = () => {
+    const parent = document.getElementById("performance");
     if (stats) {
-      $('#performance').html('');
+      parent.removeChild(stats.dom);
       stats = null;
     } else {
       stats = new Stats();
-      stats.setMode(1); // 0: fps, 1: ms
-
-
-      // Align top-left
-      stats.domElement.style.position = 'relative';
-      stats.domElement.style.left = '8px';
-      stats.domElement.style.top = '0px';
-
-      //document.body.appendChild( stats.domElement );
-      $('#performance').append(stats.domElement);
+      stats.showPanel(1); // 0: fps, 1: ms
+      stats.dom.style.position = 'relative';
+      parent.appendChild(stats.dom);
     }
   };
 
