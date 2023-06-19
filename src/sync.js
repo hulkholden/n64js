@@ -16,24 +16,22 @@ export function syncActive() {
 
 export function syncTick(maxCount) {
   const kEstimatedBytePerCycle = 8;
-  let syncObjects = [syncFlow, syncInput];
   let maxSafeCount = maxCount;
 
-  for (let i = 0; i < syncObjects.length; ++i) {
-    const s = syncObjects[i];
-    if (s) {
-      if (!s.tick()) {
-        maxSafeCount = 0;
-      }
-
-      // Guesstimate num bytes used per cycle
-      let count = Math.floor(s.getAvailableBytes() / kEstimatedBytePerCycle);
-
-      // Ugh - bodgy hacky hacky for input sync
-      count = Math.max(0, count - 100);
-
-      maxSafeCount = Math.min(maxSafeCount, count);
+  for (let s of [syncFlow, syncInput]) {
+    if (!s) {
+      continue;
     }
+  
+    if (!s.tick()) {
+      maxSafeCount = 0;
+    }
+
+    // Guesstimate num bytes used per cycle
+    let count = Math.floor(s.getAvailableBytes() / kEstimatedBytePerCycle);
+    // Ugh - bodgy hacky hacky for input sync
+    count = Math.max(0, count - 100);
+    maxSafeCount = Math.min(maxSafeCount, count);
   }
 
   return maxSafeCount;
@@ -64,10 +62,10 @@ class BinaryRequest {
 
     const xhr = new XMLHttpRequest();
     this.xhr = xhr;
-    
+
     xhr.open(getOrPost, url, true);
     xhr.responseType = "arraybuffer";
-    
+
     const that = this;
     xhr.addEventListener('readystatechange', (event) => {
       if (xhr.readyState === 4) {
@@ -128,9 +126,9 @@ class SyncReader {
       const that = this;
 
       this.curRequest = new BinaryRequest('GET', "rsynclog", { o: this.fileOffset, l: this.kBufferLength }, undefined, (result) => {
-          that.nextBuffer = new Uint32Array(result);
-          that.fileOffset += result.byteLength;
-        }).always(function () {
+        that.nextBuffer = new Uint32Array(result);
+        that.fileOffset += result.byteLength;
+      }).always(function () {
         that.curRequest = null;
       });
 
@@ -225,8 +223,8 @@ class SyncWriter {
       const that = this;
       const bytes = buffer.length * 4;
       this.curRequest = new BinaryRequest('POST', "wsynclog", { o: this.fileOffset, l: bytes }, buffer, (result) => {
-          that.fileOffset += bytes;
-        }).always(function () {
+        that.fileOffset += bytes;
+      }).always(function () {
         that.curRequest = null;
       });
     }
