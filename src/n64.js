@@ -319,18 +319,17 @@ function loadRom(arrayBuffer) {
     logger.log(m);
   };
 
-  n64js.stopForBreakpoint = () => {
-    setRunning(false);
-    n64js.cpu0.breakExecution();
-    logger.log('<span style="color:red">Breakpoint</span>');
-  };
+  n64js.stopForBreakpoint = () => { stop("Breakpoint", false); };
+  n64js.halt = (msg) => { stop(msg, true); };
 
-  n64js.halt = (msg) => {
+  function stop(msg, isError) {
     setRunning(false);
     n64js.cpu0.breakExecution();
     logger.log('<span style="color:red">' + msg + '</span>');
-    n64js.ui().displayError(msg);
-  };
+    if (isError) {
+      n64js.ui().displayError(msg);
+    }
+  }
 
   // Similar to halt, but just relinquishes control to the system
   n64js.returnControlToSystem = () => {
