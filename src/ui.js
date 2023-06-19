@@ -1,6 +1,27 @@
 
 
 export class UI {
+  domLoaded() {
+    $('.debug').hide();
+
+    // const body = document.querySelector('body');
+    // body.addEventListener('keypress', (event) => {
+    //   switch (event.key) {
+    //     case 'o': $('#output-tab').tab('show'); break;
+    //     case 'd': $( '#debug-tab').tab('show'); break;
+    //     case 'm': $('#memory-tab').tab('show'); break;
+    //     case 'l': n64js.ui().triggerLoad();     break;
+    //     case 'g': n64js.toggleRun();            break;
+    //     case 's': n64js.step();                 break;
+    //   }
+    // });
+
+    // Make sure that the tabs refresh when clicked
+    $('.tabbable a').on('shown', (e) => { n64js.refreshDebugger(); });
+
+    n64js.refreshDebugger();
+  }
+
   triggerLoad() {
     const fileInput = document.getElementById("fileInput");
     // Reset fileInput value, otherwise onchange doesn't recognise when we select the same rome back-to-back
