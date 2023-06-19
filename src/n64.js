@@ -139,9 +139,8 @@ function loadRom(arrayBuffer) {
 
       let maxCycles = kCyclesPerUpdate;
 
-      // NB: don't slow down debugger when we're waiting for a display list to be debugged.
-      const debugging = $('.debug').is(':visible');
-      if (debugging && !n64js.debugDisplayListRequested()) {
+      // Don't slow down debugger if we're waiting for a display list to be debugged.
+      if (n64js.debuggerVisible() && !n64js.debugDisplayListRequested()) {
         maxCycles = n64js.getDebugCycles();
       }
 
