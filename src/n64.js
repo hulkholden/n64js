@@ -338,11 +338,7 @@ function loadRom(arrayBuffer) {
 
   n64js.init = () => {
     n64js.reset();
-
-    $('.debug').hide();
-
     n64js.initialiseDebugger();
-
     n64js.initialiseRenderer($('#display'));
 
     const body = document.querySelector('body');
@@ -352,22 +348,8 @@ function loadRom(arrayBuffer) {
     body.addEventListener('keydown', (event) => {
       controllers.handleKey(0, event.key, true);
     });
-    // body.addEventListener('keypress', (event) => {
-    //   switch (event.key) {
-    //     case 'o': $('#output-tab').tab('show'); break;
-    //     case 'd': $( '#debug-tab').tab('show'); break;
-    //     case 'm': $('#memory-tab').tab('show'); break;
-    //     case 'l': n64js.ui().triggerLoad();     break;
-    //     case 'g': n64js.toggleRun();            break;
-    //     case 's': n64js.step();                 break;
-    //   }
-    // });
-    // Make sure that the tabs refresh when clicked
-    $('.tabbable a').on('shown', (e) => {
-        n64js.refreshDebugger();
-      });
 
-    n64js.refreshDebugger();
+    ui.domLoaded();
   };
 
   n64js.togglePerformance = () => {
