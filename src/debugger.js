@@ -56,6 +56,20 @@ import { getFragmentMap, consumeFragmentInvalidationEvents } from './fragments.j
     return debugCycles;
   };
 
+  n64js.toggleDebugger = () => {
+    // This toggles both the display list debugger (#adjacent-debug) and the main debugger (no id).
+    // TODO: explicitly toggle panels.
+    $('.debug').toggle();
+  };
+
+  n64js.debuggerVisible = () => {
+    return $('.debug').is(':visible');
+  };
+
+  n64js.hideDebugger = () => {
+    $('.debug').hide();
+  }
+
   function refreshLabelSelect() {
     let $select = $('#cpu').find('#labels');
 

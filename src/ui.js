@@ -2,7 +2,7 @@
 
 export class UI {
   domLoaded() {
-    $('.debug').hide();
+    n64js.hideDebugger();
 
     // const body = document.querySelector('body');
     // body.addEventListener('keypress', (event) => {
