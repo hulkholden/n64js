@@ -3,7 +3,7 @@
 
 import { simulateBoot } from './boot.js';
 import { Controllers } from './controllers.js';
-import * as _debugger from './debugger.js';
+import { Debugger } from './debugger.js';
 import { fixRomByteOrder } from './endian.js';
 import { toString32 } from './format.js';
 import { Hardware } from './hardware.js';
@@ -32,6 +32,7 @@ const rominfo = {
 const hardware = new Hardware(rominfo);
 const controllers = new Controllers(hardware);
 const ui = new UI();
+let dbg = null; // FIXME: can't use debugger as a variable name - fix this when wrapping in a class.
 
 function setRunning(value) {
   running = value;
@@ -94,6 +95,7 @@ function loadRom(arrayBuffer) {
 n64js.hardware = () => hardware;
 n64js.controllers = () => controllers
 n64js.ui = () => ui;
+n64js.debugger = () => dbg;
 
 // Keep a DataView around as a view onto the RSP task
 // FIXME - encapsulate this better.
@@ -103,7 +105,7 @@ n64js.rsp_task_view = new DataView(hardware.sp_mem.arrayBuffer, kTaskOffset, 0x4
 n64js.loadRomAndStartRunning = (arrayBuffer) => {
   loadRom(arrayBuffer);
   n64js.reset();
-  n64js.refreshDebugger();
+  dbg.redraw();
   setRunning(false);
   n64js.toggleRun();
 };
@@ -126,7 +128,7 @@ n64js.breakEmulationForDisplayListDebug = () => {
 n64js.step = () => {
   if (!running) {
     n64js.singleStep();
-    n64js.refreshDebugger();
+    dbg.redraw();
   }
 };
 
@@ -142,7 +144,7 @@ function updateLoopAnimframe() {
 
     // Don't slow down debugger if we're waiting for a display list to be debugged.
     if (n64js.debuggerVisible() && !n64js.debugDisplayListRequested()) {
-      maxCycles = n64js.getDebugCycles();
+      maxCycles = dbg.debugCycles;
     }
 
     if (syncActive()) {
@@ -152,7 +154,7 @@ function updateLoopAnimframe() {
 
     if (maxCycles > 0) {
       n64js.run(maxCycles);
-      n64js.refreshDebugger();
+      dbg.redraw();
     }
   } else if (n64js.debugDisplayListRunning()) {
     requestAnimationFrame(updateLoopAnimframe);
@@ -338,7 +340,7 @@ n64js.returnControlToSystem = () => {
 
 n64js.init = () => {
   n64js.reset();
-  n64js.initialiseDebugger();
+  dbg = new Debugger();
   n64js.initialiseRenderer($('#display'));
 
   const body = document.querySelector('body');

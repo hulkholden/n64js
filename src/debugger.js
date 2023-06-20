@@ -17,7 +17,7 @@ const kF10 = 121;
 const kF9 = 120;
 const kF8 = 119;
 
-class Debugger {
+export class Debugger {
   constructor() {
     /** @type {?jQuery} */
     this.$debugContent = $('#debug-content');
@@ -533,7 +533,7 @@ class Debugger {
 
       $(this).click(function () {
         this.disasmAddress = address;
-        this.refreshDebugger();
+        this.redraw();
       });
     }.bind(this));
 
@@ -739,25 +739,25 @@ class Debugger {
   
   disassemblerDown() {
     this.disasmAddress += 4;
-    this.refreshDebugger();
+    this.redraw();
   }
   
   disassemblerUp() {
     this.disasmAddress -= 4;
-    this.refreshDebugger();
+    this.redraw();
   }
   
   disassemblerPageDown() {
     this.disasmAddress += 64;
-    this.refreshDebugger();
+    this.redraw();
   }
   
   disassemblerPageUp() {
     this.disasmAddress -= 64;
-    this.refreshDebugger();
+    this.redraw();
   }
 
-  refreshDebugger() {
+  redraw() {
     if (this.$dynarecContent.hasClass('active')) {
       this.updateDynarec();
     }
@@ -769,17 +769,8 @@ class Debugger {
     if (this.$memoryContent.hasClass('active')) {
       this.updateMemoryView();
     }
-  };
-  
+  };  
 }
-
-// FIXME: Move initialisation of this to n64.js when everything is encapsulated.
-// FIXME: can't use debugger as a variable name - fix this when wrapping in a class.
-export let dbg = null;
-
-n64js.getDebugCycles = () => {
-  return dbg.debugCycles;
-};
 
 n64js.toggleDebugger = () => {
   // This toggles both the display list debugger (#adjacent-debug) and the main debugger (no id).
@@ -795,14 +786,6 @@ n64js.hideDebugger = () => {
   $('.debug').hide();
 }
 
-n64js.initialiseDebugger = function () {
-  dbg = new Debugger();
-};
-
 function roundDown(x, a) {
   return x & ~(a - 1);
 }
-
-n64js.refreshDebugger = function () {
-  dbg.refreshDebugger()
-};
