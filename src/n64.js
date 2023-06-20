@@ -12,6 +12,8 @@ import { romdb, generateRomId, generateCICType, uint8ArrayReadString } from './r
 import { UI } from './ui.js';
 import { initSync, syncActive, syncTick } from './sync.js';
 
+window.n64js = window.n64js || {};
+
 const kOpBreakpoint = 58;
 const kCyclesPerUpdate = 100000000;
 
@@ -89,279 +91,276 @@ function loadRom(arrayBuffer) {
   $('#title').text(`n64js - ${rominfo.name}`);
 }
 
-(function (n64js) {
-  n64js.hardware = () => hardware;
-  n64js.controllers = () => controllers
-  n64js.ui = () => ui;
+n64js.hardware = () => hardware;
+n64js.controllers = () => controllers
+n64js.ui = () => ui;
 
-  // Keep a DataView around as a view onto the RSP task
-  // FIXME - encapsulate this better.
-  const kTaskOffset = 0x0fc0;
-  n64js.rsp_task_view = new DataView(hardware.sp_mem.arrayBuffer, kTaskOffset, 0x40);
+// Keep a DataView around as a view onto the RSP task
+// FIXME - encapsulate this better.
+const kTaskOffset = 0x0fc0;
+n64js.rsp_task_view = new DataView(hardware.sp_mem.arrayBuffer, kTaskOffset, 0x40);
 
-  n64js.loadRomAndStartRunning = (arrayBuffer) => {
-    loadRom(arrayBuffer);
-    n64js.reset();
-    n64js.refreshDebugger();
-    setRunning(false);
+n64js.loadRomAndStartRunning = (arrayBuffer) => {
+  loadRom(arrayBuffer);
+  n64js.reset();
+  n64js.refreshDebugger();
+  setRunning(false);
+  n64js.toggleRun();
+};
+
+n64js.toggleRun = () => {
+  setRunning(!running);
+  if (running) {
+    updateLoopAnimframe();
+  }
+};
+
+n64js.breakEmulationForDisplayListDebug = () => {
+  if (running) {
     n64js.toggleRun();
-  };
+    n64js.cpu0.breakExecution();
+    //updateLoopAnimframe();
+  }
+};
 
-  n64js.toggleRun = () => {
-    setRunning(!running);
-    if (running) {
-      updateLoopAnimframe();
+n64js.step = () => {
+  if (!running) {
+    n64js.singleStep();
+    n64js.refreshDebugger();
+  }
+};
+
+function updateLoopAnimframe() {
+  if (stats) {
+    stats.begin();
+  }
+
+  if (running) {
+    requestAnimationFrame(updateLoopAnimframe);
+
+    let maxCycles = kCyclesPerUpdate;
+
+    // Don't slow down debugger if we're waiting for a display list to be debugged.
+    if (n64js.debuggerVisible() && !n64js.debugDisplayListRequested()) {
+      maxCycles = n64js.getDebugCycles();
     }
-  };
 
-  n64js.breakEmulationForDisplayListDebug = () => {
-    if (running) {
-      n64js.toggleRun();
-      n64js.cpu0.breakExecution();
-      //updateLoopAnimframe();
+    if (syncActive()) {
+      // Check how many cycles we can safely execute
+      maxCycles = syncTick(maxCycles);
     }
-  };
 
-  n64js.step = () => {
-    if (!running) {
-      n64js.singleStep();
+    if (maxCycles > 0) {
+      n64js.run(maxCycles);
       n64js.refreshDebugger();
     }
-  };
-
-  function updateLoopAnimframe() {
-    if (stats) {
-      stats.begin();
-    }
-
-    if (running) {
-      requestAnimationFrame(updateLoopAnimframe);
-
-      let maxCycles = kCyclesPerUpdate;
-
-      // Don't slow down debugger if we're waiting for a display list to be debugged.
-      if (n64js.debuggerVisible() && !n64js.debugDisplayListRequested()) {
-        maxCycles = n64js.getDebugCycles();
-      }
-
-      if (syncActive()) {
-        // Check how many cycles we can safely execute
-        maxCycles = syncTick(maxCycles);
-      }
-
-      if (maxCycles > 0) {
-        n64js.run(maxCycles);
-        n64js.refreshDebugger();
-      }
-    } else if (n64js.debugDisplayListRunning()) {
-      requestAnimationFrame(updateLoopAnimframe);
-      if (n64js.debugDisplayList()) {
-        n64js.presentBackBuffer(n64js.getRamU8Array(), hardware.viRegDevice.viOrigin());
-      }
-    }
-
-    if (stats) {
-      stats.end();
+  } else if (n64js.debugDisplayListRunning()) {
+    requestAnimationFrame(updateLoopAnimframe);
+    if (n64js.debugDisplayList()) {
+      n64js.presentBackBuffer(n64js.getRamU8Array(), hardware.viRegDevice.viOrigin());
     }
   }
 
-  n64js.getRamU8Array = () => hardware.cachedMemDevice.u8;
-  n64js.getRamS32Array = () => hardware.cachedMemDevice.mem.s32;
-  // FIXME: should cache this object, or try to get rid of DataView entirely (Uint8Array + manual shuffling is faster)
-  n64js.getRamDataView = () => new DataView(hardware.ram.arrayBuffer);
+  if (stats) {
+    stats.end();
+  }
+}
 
-  // Should read noise?
-  n64js.getRandomU32 = () => {
-    const hi = Math.floor(Math.random() * 0xffff) & 0xffff;
-    const lo = Math.floor(Math.random() * 0xffff) & 0xffff;
-    const v = (hi << 16) | lo;
-    if (syncInput) {
-      return syncInput.reflect32(v);
-    }
-    return v;
+n64js.getRamU8Array = () => hardware.cachedMemDevice.u8;
+n64js.getRamS32Array = () => hardware.cachedMemDevice.mem.s32;
+// FIXME: should cache this object, or try to get rid of DataView entirely (Uint8Array + manual shuffling is faster)
+n64js.getRamDataView = () => new DataView(hardware.ram.arrayBuffer);
+
+// Should read noise?
+n64js.getRandomU32 = () => {
+  const hi = Math.floor(Math.random() * 0xffff) & 0xffff;
+  const lo = Math.floor(Math.random() * 0xffff) & 0xffff;
+  const v = (hi << 16) | lo;
+  if (syncInput) {
+    return syncInput.reflect32(v);
+  }
+  return v;
+}
+
+n64js.checkSIStatusConsistent = () => { hardware.checkSIStatusConsistent(); };
+
+n64js.getInstruction = address => {
+  const instr = hardware.memMap.readMemoryInternal32(address);
+  if (isBreakpointInstruction(instr)) {
+    return breakpoints[address] || 0;
+  }
+  return instr;
+};
+
+n64js.isBreakpoint = address => {
+  const instr = hardware.memMap.readMemoryInternal32(address);
+  return isBreakpointInstruction(instr);
+};
+
+n64js.toggleBreakpoint = address => {
+  const origInstr = hardware.memMap.readMemoryInternal32(address);
+
+  let newInstr;
+  if (isBreakpointInstruction(origInstr)) {
+    // breakpoint is already set
+    newInstr = breakpoints[address] || 0;
+    delete breakpoints[address];
+  } else {
+    newInstr = (kOpBreakpoint << 26);
+    breakpoints[address] = origInstr;
   }
 
-  n64js.checkSIStatusConsistent = () => { hardware.checkSIStatusConsistent(); };
+  hardware.memMap.writeMemoryInternal32(address, newInstr);
+};
 
-  n64js.getInstruction = address => {
-    const instr = hardware.memMap.readMemoryInternal32(address);
-    if (isBreakpointInstruction(instr)) {
-      return breakpoints[address] || 0;
-    }
-    return instr;
-  };
+function isBreakpointInstruction(instr) {
+  return ((instr >> 26) & 0x3f) === kOpBreakpoint;
+}
 
-  n64js.isBreakpoint = address => {
-    const instr = hardware.memMap.readMemoryInternal32(address);
-    return isBreakpointInstruction(instr);
-  };
+// 'emulated' read. May cause exceptions to be thrown in the emulated process
+const getMemoryHandler = hardware.memMap.getMemoryHandler.bind(hardware.memMap);
+n64js.readMemoryU32 = address => { return getMemoryHandler(address).readU32(address); };
+n64js.readMemoryU16 = address => { return getMemoryHandler(address).readU16(address); };
+n64js.readMemoryU8 = address => { return getMemoryHandler(address).readU8(address); };
 
-  n64js.toggleBreakpoint = address => {
-    const origInstr = hardware.memMap.readMemoryInternal32(address);
+n64js.readMemoryS32 = address => { return getMemoryHandler(address).readS32(address); };
+n64js.readMemoryS16 = address => { return getMemoryHandler(address).readS16(address); };
+n64js.readMemoryS8 = address => { return getMemoryHandler(address).readS8(address); };
 
-    let newInstr;
-    if (isBreakpointInstruction(origInstr)) {
-      // breakpoint is already set
-      newInstr = breakpoints[address] || 0;
-      delete breakpoints[address];
-    } else {
-      newInstr = (kOpBreakpoint<<26);
-      breakpoints[address] = origInstr;
-    }
+// 'emulated' write. May cause exceptions to be thrown in the emulated process
+n64js.writeMemory32 = (address, value) => { return getMemoryHandler(address).write32(address, value); };
+n64js.writeMemory16 = (address, value) => { return getMemoryHandler(address).write16(address, value); };
+n64js.writeMemory8 = (address, value) => { return getMemoryHandler(address).write8(address, value); };
 
-    hardware.memMap.writeMemoryInternal32(address, newInstr);
-  };
+function getLocalStorageName(item) {
+  return item + '-' + rominfo.id;
+}
 
-  function isBreakpointInstruction(instr) {
-    return ((instr>>26)&0x3f) === kOpBreakpoint;
+n64js.getLocalStorageItem = (name) => {
+  const lsName = getLocalStorageName(name);
+  const dataStr = localStorage.getItem(lsName);
+  return dataStr ? JSON.parse(dataStr) : undefined;
+};
+
+n64js.setLocalStorageItem = (name, data) => {
+  const lsName = getLocalStorageName(name);
+  const dataStr = JSON.stringify(data);
+  localStorage.setItem(lsName, dataStr);
+};
+
+//
+// Performance
+//
+let startTime;
+let lastPresentTime;
+
+n64js.emitRunningTime = (msg) => {
+  const curTime = new Date();
+  const elapsed = curTime.getTime() - startTime.getTime();
+  const elapsedStr = elapsed.toString();
+  n64js.ui().displayWarning(`Time to ${msg} ${elapsedStr}`);
+};
+
+function setFrameTime(t) {
+  const titleText = rominfo.name ? `n64js - ${rominfo.name} - ${t}mspf` : `n64js - ${t}mspf`;
+  $('#title').text(titleText);
+}
+
+n64js.onPresent = () => {
+  const curTime = new Date();
+  if (lastPresentTime) {
+    const elapsed = curTime.getTime() - lastPresentTime.getTime();
+    setFrameTime(elapsed);
   }
+  lastPresentTime = curTime;
+};
 
-  // 'emulated' read. May cause exceptions to be thrown in the emulated process
-  const getMemoryHandler = hardware.memMap.getMemoryHandler.bind(hardware.memMap);
-  n64js.readMemoryU32 = address => { return getMemoryHandler(address).readU32(address); };
-  n64js.readMemoryU16 = address => { return getMemoryHandler(address).readU16(address); };
-  n64js.readMemoryU8  = address => { return getMemoryHandler(address).readU8(address);  };
+n64js.addResetCallback = (fn) => {
+  resetCallbacks.push(fn);
+};
 
-  n64js.readMemoryS32 = address => { return getMemoryHandler(address).readS32(address); };
-  n64js.readMemoryS16 = address => { return getMemoryHandler(address).readS16(address); };
-  n64js.readMemoryS8  = address => { return getMemoryHandler(address).readS8(address);  };
+n64js.reset = () => {
+  breakpoints.clear();
 
-  // 'emulated' write. May cause exceptions to be thrown in the emulated process
-  n64js.writeMemory32 = (address, value) => { return getMemoryHandler(address).write32(address, value); };
-  n64js.writeMemory16 = (address, value) => { return getMemoryHandler(address).write16(address, value); };
-  n64js.writeMemory8  = (address, value) => { return getMemoryHandler(address).write8(address, value); };
+  initSync();
 
-  function getLocalStorageName(item) {
-    return item + '-' + rominfo.id;
+  hardware.reset();
+
+  n64js.cpu0.reset();
+  n64js.cpu1.reset();
+
+  n64js.resetRenderer();
+
+  // Simulate boot
+  hardware.loadROM();
+
+  simulateBoot(n64js.cpu0, rominfo);
+
+  startTime = new Date();
+  lastPresentTime = undefined;
+
+  for (let callback of resetCallbacks) {
+    callback();
   }
+};
 
-  n64js.getLocalStorageItem = (name) => {
-    const lsName = getLocalStorageName(name);
-    const dataStr = localStorage.getItem(lsName);
-    return dataStr ? JSON.parse(dataStr) : undefined;
-  };
+n64js.verticalBlank = () => {
+  // FIXME: framerate limit etc
+  hardware.verticalBlank();
+};
 
-  n64js.setLocalStorageItem = (name, data) => {
-    const lsName = getLocalStorageName(name);
-    const dataStr = JSON.stringify(data);
-    localStorage.setItem(lsName, dataStr);
-  };
-
-  //
-  // Performance
-  //
-  let startTime;
-  let lastPresentTime;
-
-  n64js.emitRunningTime = (msg) => {
-    const curTime = new Date();
-    const elapsed = curTime.getTime() - startTime.getTime();
-    const elapsedStr = elapsed.toString();
-    n64js.ui().displayWarning(`Time to ${msg} ${elapsedStr}`);
-  };
-
-  function setFrameTime(t) {
-    const titleText = rominfo.name ? `n64js - ${rominfo.name} - ${t}mspf` : `n64js - ${t}mspf`;
-    $('#title').text(titleText);
-  }
-
-  n64js.onPresent = () => {
-    const curTime = new Date();
-    if (lastPresentTime) {
-      const elapsed = curTime.getTime() - lastPresentTime.getTime();
-      setFrameTime(elapsed);
-    }
-    lastPresentTime = curTime;
-  };
-
-  n64js.addResetCallback = (fn) => {
-    resetCallbacks.push(fn);
-  };
-
-  n64js.reset = () => {
-    breakpoints.clear();
-
-    initSync();
-
-    hardware.reset();
-
-    n64js.cpu0.reset();
-    n64js.cpu1.reset();
-
-    n64js.resetRenderer();
-
-    // Simulate boot
-    hardware.loadROM();
-
-    simulateBoot(n64js.cpu0, rominfo);
-
-    startTime = new Date();
-    lastPresentTime = undefined;
-
-    for (let callback of resetCallbacks) {
-      callback();
-    }
-  };
-
-  n64js.verticalBlank = () => {
-    // FIXME: framerate limit etc
-    hardware.verticalBlank();
-  };
-
-  n64js.check = (e, m) => {
-    if (!e) {
-      logger.log(m);
-    }
-  };
-
-  n64js.warn = (m) => {
+n64js.check = (e, m) => {
+  if (!e) {
     logger.log(m);
-  };
-
-  n64js.stopForBreakpoint = () => { stop("Breakpoint", false); };
-  n64js.halt = (msg) => { stop(msg, true); };
-
-  function stop(msg, isError) {
-    setRunning(false);
-    n64js.cpu0.breakExecution();
-    logger.log('<span style="color:red">' + msg + '</span>');
-    if (isError) {
-      n64js.ui().displayError(msg);
-    }
   }
+};
 
-  // Similar to halt, but just relinquishes control to the system
-  n64js.returnControlToSystem = () => {
-    n64js.cpu0.breakExecution();
-  };
+n64js.warn = (m) => {
+  logger.log(m);
+};
 
-  n64js.init = () => {
-    n64js.reset();
-    n64js.initialiseDebugger();
-    n64js.initialiseRenderer($('#display'));
+n64js.stopForBreakpoint = () => { stop("Breakpoint", false); };
+n64js.halt = (msg) => { stop(msg, true); };
 
-    const body = document.querySelector('body');
-    body.addEventListener('keyup', (event) => {
-      controllers.handleKey(0, event.key, false);
-    });
-    body.addEventListener('keydown', (event) => {
-      controllers.handleKey(0, event.key, true);
-    });
+function stop(msg, isError) {
+  setRunning(false);
+  n64js.cpu0.breakExecution();
+  logger.log('<span style="color:red">' + msg + '</span>');
+  if (isError) {
+    n64js.ui().displayError(msg);
+  }
+}
 
-    ui.domLoaded();
-  };
+// Similar to halt, but just relinquishes control to the system
+n64js.returnControlToSystem = () => {
+  n64js.cpu0.breakExecution();
+};
 
-  n64js.togglePerformance = () => {
-    const parent = document.getElementById("performance");
-    if (stats) {
-      parent.removeChild(stats.dom);
-      stats = null;
-    } else {
-      stats = new Stats();
-      stats.showPanel(1); // 0: fps, 1: ms
-      stats.dom.style.position = 'relative';
-      parent.appendChild(stats.dom);
-    }
-  };
+n64js.init = () => {
+  n64js.reset();
+  n64js.initialiseDebugger();
+  n64js.initialiseRenderer($('#display'));
 
-}(window.n64js = window.n64js || {}));
+  const body = document.querySelector('body');
+  body.addEventListener('keyup', (event) => {
+    controllers.handleKey(0, event.key, false);
+  });
+  body.addEventListener('keydown', (event) => {
+    controllers.handleKey(0, event.key, true);
+  });
+
+  ui.domLoaded();
+};
+
+n64js.togglePerformance = () => {
+  const parent = document.getElementById("performance");
+  if (stats) {
+    parent.removeChild(stats.dom);
+    stats = null;
+  } else {
+    stats = new Stats();
+    stats.showPanel(1); // 0: fps, 1: ms
+    stats.dom.style.position = 'relative';
+    parent.appendChild(stats.dom);
+  }
+};
