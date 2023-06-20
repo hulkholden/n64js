@@ -6,25 +6,36 @@ import { getFragmentMap, consumeFragmentInvalidationEvents } from './fragments.j
 
 window.n64js = window.n64js || {};
 
+const kEnter = 13;
+const kPageUp = 33;
+const kPageDown = 34;
+const kLeft = 37;
+const kUp = 38;
+const kRight = 39;
+const kDown = 40;
+const kF10 = 121;
+const kF9 = 120;
+const kF8 = 119;
+
 class Debugger {
   constructor() {
     /** @type {?jQuery} */
-    this.$debugContent = null;
+    this.$debugContent = $('#debug-content');
 
     /** @type {?jQuery} */
-    this.$status = null;
+    this.$status = $('#status');
 
     /** @type {?Array<?jQuery>} */
-    this.$registers = null;
+    this.$registers = [$('#cpu0-content'), $('#cpu1-content')];
 
     /** @type {?jQuery} */
-    this.$disassembly = null;
+    this.$disassembly = $('#disasm');
 
     /** @type {?jQuery} */
-    this.$dynarecContent = null;
+    this.$dynarecContent = $('#dynarec-content');
 
     /** @type {?jQuery} */
-    this.$memoryContent = null;
+    this.$memoryContent =  $('#memory-content');
 
     /** @type {number} The address to disassemble. */
     this.disasmAddress = 0;
@@ -53,11 +64,61 @@ class Debugger {
 
     /** @type {number} How many cycles to execute before updating the debugger. */
     this.debugCycles = Math.pow(10, 0);
+
+    logger.initialise($('.output'), () => {
+      return format.toString32(n64js.cpu0.pc);
+    });
+
+    n64js.addResetCallback(this.onReset.bind(this));
+
+    $('#output').find('#clear').click(function () {
+      logger.clear();
+    });
+
+    $('#cpu-controls').find('#speed').change(function () {
+      this.debugCycles = Math.pow(10, $(this).val() | 0);
+      logger.log('Speed is now ' + this.debugCycles);
+    });
+
+    $('#cpu').find('#address').change(function () {
+      this.disasmAddress = parseInt($(this).val(), 16);
+      updateDebug();
+    });
+    this.refreshLabelSelect();
+
+    this.$memoryContent.find('input').change(function () {
+      this.lastMemoryAccessAddress = parseInt($(this).val(), 16);
+      this.updateMemoryView();
+    });
+    this.updateMemoryView();
+
+    $('body').keydown(function (event) {
+      let consumed = false;
+      switch (event.which) {
+        case kDown: consumed = true; disassemblerDown(); break;
+        case kUp: consumed = true; disassemblerUp(); break;
+        case kPageDown: consumed = true; disassemblerPageDown(); break;
+        case kPageUp: consumed = true; disassemblerPageUp(); break;
+        case kF8: consumed = true; n64js.toggleRun(); break;
+        case kF9: consumed = true; n64js.toggleDebugDisplayList(); break;
+        case kF10: consumed = true; n64js.step(); break;
+        //default: alert( 'code:' + event.which);
+      }
+      if (consumed) {
+        event.preventDefault();
+      }
+    });
+  }
+
+  updateMemoryView() {
+    let addr = this.lastMemoryAccessAddress || 0x80000000;
+    let $pre = this.$memoryContent.find('pre');
+    $pre.empty().append(makeMemoryTable(addr, 1024));
   }
 
   refreshLabelSelect() {
     let $select = $('#cpu').find('#labels');
-  
+
     let arr = [];
     for (let i in this.labelMap) {
       if (this.labelMap.hasOwnProperty(i)) {
@@ -65,9 +126,9 @@ class Debugger {
       }
     }
     arr.sort((a, b) => { return this.labelMap[a].localeCompare(this.labelMap[b]); });
-  
+
     $select.html('');
-  
+
     for (let i = 0; i < arr.length; ++i) {
       let address = arr[i];
       let label = this.labelMap[address];
@@ -75,24 +136,24 @@ class Debugger {
       $option.data('address', address);
       $select.append($option);
     }
-  
+
     $select.change(function () {
       let contents = $select.find('option:selected').data('address');
       this.disasmAddress = /** @type {number} */(contents) >>> 0;
       updateDebug();
     });
   }
-  
+
   onReset() {
     this.restoreLabelMap();
   }
-  
+
   restoreLabelMap() {
     this.labelMap = n64js.getLocalStorageItem('debugLabels') || {};
     this.refreshLabelSelect();
     updateDebug();
   }
-  
+
   storeLabelMap() {
     n64js.setLocalStorageItem('debugLabels', this.labelMap);
   }
@@ -100,7 +161,7 @@ class Debugger {
 
 // FIXME: Move initialisation of this to n64.js when everything is encapsulated.
 // FIXME: can't use debugger as a variable name - fix this when wrapping in a class.
-export const dbg = new Debugger();
+export let dbg = null;
 
 n64js.getDebugCycles = () => {
   return dbg.debugCycles;
@@ -121,74 +182,8 @@ n64js.hideDebugger = () => {
 }
 
 n64js.initialiseDebugger = function () {
-  dbg.$debugContent = $('#debug-content');
-  dbg.$status = $('#status');
-  dbg.$registers = [$('#cpu0-content'), $('#cpu1-content')];
-  dbg.$disassembly = $('#disasm');
-  dbg.$dynarecContent = $('#dynarec-content');
-  dbg.$memoryContent = $('#memory-content');
-
-  logger.initialise($('.output'), () => {
-    return format.toString32(n64js.cpu0.pc);
-  });
-
-  n64js.addResetCallback(dbg.onReset.bind(dbg));
-
-  $('#output').find('#clear').click(function () {
-    logger.clear();
-  });
-
-  $('#cpu-controls').find('#speed').change(function () {
-    dbg.debugCycles = Math.pow(10, $(this).val() | 0);
-    logger.log('Speed is now ' + dbg.debugCycles);
-  });
-
-  $('#cpu').find('#address').change(function () {
-    dbg.disasmAddress = parseInt($(this).val(), 16);
-    updateDebug();
-  });
-  dbg.refreshLabelSelect();
-
-  dbg.$memoryContent.find('input').change(function () {
-    dbg.lastMemoryAccessAddress = parseInt($(this).val(), 16);
-    updateMemoryView();
-  });
-  updateMemoryView();
-
-  const kEnter = 13;
-  const kPageUp = 33;
-  const kPageDown = 34;
-  const kLeft = 37;
-  const kUp = 38;
-  const kRight = 39;
-  const kDown = 40;
-  const kF10 = 121;
-  const kF9 = 120;
-  const kF8 = 119;
-
-  $('body').keydown(function (event) {
-    let consumed = false;
-    switch (event.which) {
-      case kDown: consumed = true; disassemblerDown(); break;
-      case kUp: consumed = true; disassemblerUp(); break;
-      case kPageDown: consumed = true; disassemblerPageDown(); break;
-      case kPageUp: consumed = true; disassemblerPageUp(); break;
-      case kF8: consumed = true; n64js.toggleRun(); break;
-      case kF9: consumed = true; n64js.toggleDebugDisplayList(); break;
-      case kF10: consumed = true; n64js.step(); break;
-      //default: alert( 'code:' + event.which);
-    }
-    if (consumed) {
-      event.preventDefault();
-    }
-  });
+  dbg = new Debugger();
 };
-
-function updateMemoryView() {
-  let addr = dbg.lastMemoryAccessAddress || 0x80000000;
-  let $pre = dbg.$memoryContent.find('pre');
-  $pre.empty().append(makeMemoryTable(addr, 1024));
-}
 
 function roundDown(x, a) {
   return x & ~(a - 1);
@@ -799,6 +794,6 @@ n64js.refreshDebugger = function () {
   }
 
   if (dbg.$memoryContent.hasClass('active')) {
-    updateMemoryView();
+    dbg.updateMemoryView();
   }
 };
