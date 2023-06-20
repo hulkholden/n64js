@@ -40,6 +40,19 @@ class Debugger {
 
     /** @type {number} The address of the last memory access. */
     this.lastMemoryAccessAddress = 0;
+
+    /**
+     * When we execute a store instruction, keep track of some details so we can
+     * show the value that was written.
+     * @type {?Object} The address of the last memory access.
+     */
+    this.lastStore = null;
+
+    /** @type {!Object<number, string>} A map of labels keyed by address. */
+    this.labelMap = {};
+
+    /** @type {number} How many cycles to execute before updating the debugger. */
+    this.debugCycles = Math.pow(10, 0);
   }
 }
 
@@ -47,21 +60,8 @@ class Debugger {
 // FIXME: can't use debugger as a variable name - fix this when wrapping in a class.
 export const dbg = new Debugger();
 
-/**
- * When we execute a store instruction, keep track of some details so we can
- * show the value that was written.
- * @type {?Object} The address of the last memory access.
- */
-let lastStore = null;
-
-/** @type {!Object<number, string>} A map of labels keyed by address. */
-let labelMap = {};
-
-/** @type {number} How many cycles to execute before updating the debugger. */
-let debugCycles = Math.pow(10, 0);
-
 n64js.getDebugCycles = () => {
-  return debugCycles;
+  return dbg.debugCycles;
 };
 
 n64js.toggleDebugger = () => {
@@ -82,18 +82,18 @@ function refreshLabelSelect() {
   let $select = $('#cpu').find('#labels');
 
   let arr = [];
-  for (let i in labelMap) {
-    if (labelMap.hasOwnProperty(i)) {
+  for (let i in dbg.labelMap) {
+    if (dbg.labelMap.hasOwnProperty(i)) {
       arr.push(i);
     }
   }
-  arr.sort((a, b) => { return labelMap[a].localeCompare(labelMap[b]); });
+  arr.sort((a, b) => { return dbg.labelMap[a].localeCompare(dbg.labelMap[b]); });
 
   $select.html('');
 
   for (let i = 0; i < arr.length; ++i) {
     let address = arr[i];
-    let label = labelMap[address];
+    let label = dbg.labelMap[address];
     let $option = $('<option value="' + label + '">' + label + '</option>');
     $option.data('address', address);
     $select.append($option);
@@ -111,13 +111,13 @@ function onReset() {
 }
 
 function restoreLabelMap() {
-  labelMap = n64js.getLocalStorageItem('debugLabels') || {};
+  dbg.labelMap = n64js.getLocalStorageItem('debugLabels') || {};
   refreshLabelSelect();
   updateDebug();
 }
 
 function storeLabelMap() {
-  n64js.setLocalStorageItem('debugLabels', labelMap);
+  n64js.setLocalStorageItem('debugLabels', dbg.labelMap);
 }
 
 n64js.initialiseDebugger = function () {
@@ -139,8 +139,8 @@ n64js.initialiseDebugger = function () {
   });
 
   $('#cpu-controls').find('#speed').change(function () {
-    debugCycles = Math.pow(10, $(this).val() | 0);
-    logger.log('Speed is now ' + debugCycles);
+    dbg.debugCycles = Math.pow(10, $(this).val() | 0);
+    logger.log('Speed is now ' + dbg.debugCycles);
   });
 
   $('#cpu').find('#address').change(function () {
@@ -429,8 +429,8 @@ function makeMipsInterruptsRow() {
 }
 
 function setLabelText($elem, address) {
-  if (labelMap.hasOwnProperty(address)) {
-    $elem.append(' (' + labelMap[address] + ')');
+  if (dbg.labelMap.hasOwnProperty(address)) {
+    $elem.append(' (' + dbg.labelMap[address] + ')');
   }
 }
 function setLabelColor($elem, address) {
@@ -439,8 +439,8 @@ function setLabelColor($elem, address) {
 
 function makeLabelText(address) {
   let t = '';
-  if (labelMap.hasOwnProperty(address)) {
-    t = labelMap[address];
+  if (dbg.labelMap.hasOwnProperty(address)) {
+    t = dbg.labelMap[address];
   }
   while (t.length < 20) {
     t += ' ';
@@ -451,16 +451,16 @@ function makeLabelText(address) {
 function onLabelClicked(e) {
   let $label = $(e.delegateTarget);
   let address = /** @type {number} */($label.data('address')) >>> 0;
-  let existing = labelMap[address] || '';
+  let existing = dbg.labelMap[address] || '';
   let $input = $('<input class="input-mini" value="' + existing + '" />');
 
   $input.keypress(function (event) {
     if (event.which == 13) {
       let newVal = $input.val();
       if (newVal) {
-        labelMap[address] = newVal.toString();
+        dbg.labelMap[address] = newVal.toString();
       } else {
-        delete labelMap[address];
+        delete dbg.labelMap[address];
       }
       storeLabelMap();
       refreshLabelSelect();
@@ -509,7 +509,7 @@ function updateDebug() {
   for (let i = 0; i < disassembly.length; ++i) {
     let a = disassembly[i];
     let address = a.instruction.address;
-    let isTarget = a.isJumpTarget || labelMap.hasOwnProperty(address);
+    let isTarget = a.isJumpTarget || dbg.labelMap.hasOwnProperty(address);
     let addressStr = (isTarget ? '<span class="dis-address-target">' : '<span class="dis-address">') + format.toHex(address, 32) + ':</span>';
     let label = '<span class="dis-label">' + makeLabelText(address) + '</span>';
     let t = addressStr + '  ' + format.toHex(a.instruction.opcode, 32) + '  ' + label + a.disassembly;
@@ -618,12 +618,12 @@ function makeRecentMemoryAccesses(isSingleStep, currentInstruction) {
   // Keep a small queue showing recent memory accesses
   if (isSingleStep) {
     // Check if we've just stepped over a previous write op, and update the result
-    if (lastStore) {
-      if ((lastStore.cycle + 1) === n64js.cpu0.opsExecuted) {
-        let updatedElement = addRecentMemoryAccess(lastStore.address, 'update');
-        lastStore.element.append(updatedElement);
+    if (dbg.lastStore) {
+      if ((dbg.lastStore.cycle + 1) === n64js.cpu0.opsExecuted) {
+        let updatedElement = addRecentMemoryAccess(dbg.lastStore.address, 'update');
+        dbg.lastStore.element.append(updatedElement);
       }
-      lastStore = null;
+      dbg.lastStore = null;
     }
 
     if (currentInstruction.memory) {
@@ -632,7 +632,7 @@ function makeRecentMemoryAccesses(isSingleStep, currentInstruction) {
       let element = addRecentMemoryAccess(newAddress, access.mode);
 
       if (access.mode === 'store') {
-        lastStore = {
+        dbg.lastStore = {
           address: newAddress,
           cycle: n64js.cpu0.opsExecuted,
           element: element,
@@ -652,7 +652,7 @@ function makeRecentMemoryAccesses(isSingleStep, currentInstruction) {
   } else {
     // Clear the recent memory accesses when running.
     dbg.recentMemoryAccesses = [];
-    lastStore = null;
+    dbg.lastStore = null;
   }
 
   let $recent = $('<pre />');
