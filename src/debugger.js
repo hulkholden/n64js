@@ -391,6 +391,69 @@ class Debugger {
     $tr.append($td);
     return $tr;
   }
+
+  setLabelText($elem, address) {
+    if (this.labelMap.hasOwnProperty(address)) {
+      $elem.append(' (' + this.labelMap[address] + ')');
+    }
+  }
+
+  setLabelColor($elem, address) {
+    $elem.css('color', this.makeLabelColor(address));
+  }
+
+  makeLabelText(address) {
+    let t = '';
+    if (this.labelMap.hasOwnProperty(address)) {
+      t = this.labelMap[address];
+    }
+    while (t.length < 20) {
+      t += ' ';
+    }
+    return t;
+  }
+
+  onLabelClicked(e) {
+    let $label = $(e.delegateTarget);
+    let address = /** @type {number} */($label.data('address')) >>> 0;
+    let existing = this.labelMap[address] || '';
+    let $input = $('<input class="input-mini" value="' + existing + '" />');
+
+    const that = this;
+
+    $input.keypress((event) => {
+      if (event.which == 13) {
+        let newVal = $input.val();
+        if (newVal) {
+          that.labelMap[address] = newVal.toString();
+        } else {
+          delete that.labelMap[address];
+        }
+        that.storeLabelMap();
+        that.refreshLabelSelect();
+        updateDebug();
+      }
+    });
+    $input.blur(() => {
+      $label.html(that.makeLabelText(address));
+    });
+    $label.empty().append($input);
+    $input.focus();
+  }
+
+  onFragmentClicked(e) {
+    let $elem = $(e.delegateTarget);
+    let frag = $elem.data('fragment');
+    logger.log('<pre>' + frag.func.toString() + '</pre>');
+  }
+
+  onClickBreakpoint(e) {
+    let $elem = $(e.delegateTarget);
+    let address = /** @type {number} */($elem.data('address')) >>> 0;
+    n64js.toggleBreakpoint(address);
+    updateDebug();
+  }
+
 }
 
 // FIXME: Move initialisation of this to n64.js when everything is encapsulated.
@@ -423,65 +486,6 @@ function roundDown(x, a) {
   return x & ~(a - 1);
 }
 
-function setLabelText($elem, address) {
-  if (dbg.labelMap.hasOwnProperty(address)) {
-    $elem.append(' (' + dbg.labelMap[address] + ')');
-  }
-}
-function setLabelColor($elem, address) {
-  $elem.css('color', dbg.makeLabelColor(address));
-}
-
-function makeLabelText(address) {
-  let t = '';
-  if (dbg.labelMap.hasOwnProperty(address)) {
-    t = dbg.labelMap[address];
-  }
-  while (t.length < 20) {
-    t += ' ';
-  }
-  return t;
-}
-
-function onLabelClicked(e) {
-  let $label = $(e.delegateTarget);
-  let address = /** @type {number} */($label.data('address')) >>> 0;
-  let existing = dbg.labelMap[address] || '';
-  let $input = $('<input class="input-mini" value="' + existing + '" />');
-
-  $input.keypress(function (event) {
-    if (event.which == 13) {
-      let newVal = $input.val();
-      if (newVal) {
-        dbg.labelMap[address] = newVal.toString();
-      } else {
-        delete dbg.labelMap[address];
-      }
-      dbg.storeLabelMap();
-      dbg.refreshLabelSelect();
-      updateDebug();
-    }
-  });
-  $input.blur(function () {
-    $label.html(makeLabelText(address));
-  });
-  $label.empty().append($input);
-  $input.focus();
-}
-
-function onFragmentClicked(e) {
-  let $elem = $(e.delegateTarget);
-  let frag = $elem.data('fragment');
-  logger.log('<pre>' + frag.func.toString() + '</pre>');
-}
-
-function onClickBreakpoint(e) {
-  let $elem = $(e.delegateTarget);
-  let address = /** @type {number} */($elem.data('address')) >>> 0;
-  n64js.toggleBreakpoint(address);
-  updateDebug();
-}
-
 function updateDebug() {
   // If the pc has changed since the last update, recenter the display (e.g. when we take a branch)
   if (n64js.cpu0.pc !== dbg.lastPC) {
@@ -506,7 +510,7 @@ function updateDebug() {
     let address = a.instruction.address;
     let isTarget = a.isJumpTarget || dbg.labelMap.hasOwnProperty(address);
     let addressStr = (isTarget ? '<span class="dis-address-target">' : '<span class="dis-address">') + format.toHex(address, 32) + ':</span>';
-    let label = '<span class="dis-label">' + makeLabelText(address) + '</span>';
+    let label = '<span class="dis-label">' + dbg.makeLabelText(address) + '</span>';
     let t = addressStr + '  ' + format.toHex(a.instruction.opcode, 32) + '  ' + label + a.disassembly;
 
     let fragment = fragmentMap.get(address);
@@ -518,12 +522,12 @@ function updateDebug() {
     $line.find('.dis-label')
       .data('address', address)
       .css('color', dbg.makeLabelColor(address))
-      .click(onLabelClicked);
+      .click(dbg.onLabelClicked.bind(dbg));
 
     if (fragment) {
       $line.find('.dis-fragment-link')
         .data('fragment', fragment)
-        .click(onFragmentClicked);
+        .click(dbg.onFragmentClicked.bind(dbg));
     }
 
     // Keep track of the current instruction (for register formatting) and highlight.
@@ -534,7 +538,7 @@ function updateDebug() {
     if (isTarget) {
       $line.addClass('dis-line-target');
 
-      setLabelColor($line.find('.dis-address-target'), address);
+      dbg.setLabelColor($line.find('.dis-address-target'), address);
     }
 
     $disText.append($line);
@@ -544,7 +548,7 @@ function updateDebug() {
     if (n64js.isBreakpoint(address)) {
       bpText = '&bull;';
     }
-    let $bp = $('<span>' + bpText + '</span>').data('address', address).click(onClickBreakpoint);
+    let $bp = $('<span>' + bpText + '</span>').data('address', address).click(dbg.onClickBreakpoint.bind(dbg));
 
     $disGutter.append($bp);
     $disGutter.append('<br>');
@@ -554,8 +558,8 @@ function updateDebug() {
   $disText.find('.dis-address-jump').each(function () {
     let address = parseInt($(this).text(), 16);
 
-    setLabelText($(this), address);
-    setLabelColor($(this), address);
+    dbg.setLabelText($(this), address);
+    dbg.setLabelColor($(this), address);
 
     $(this).click(function () {
       dbg.disasmAddress = address;
