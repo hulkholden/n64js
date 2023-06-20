@@ -533,7 +533,7 @@ class Debugger {
 
       $(this).click(function () {
         this.disasmAddress = address;
-        n64js.refreshDebugger();
+        this.refreshDebugger();
       });
     }.bind(this));
 
@@ -739,23 +739,38 @@ class Debugger {
   
   disassemblerDown() {
     this.disasmAddress += 4;
-    n64js.refreshDebugger();
+    this.refreshDebugger();
   }
   
   disassemblerUp() {
     this.disasmAddress -= 4;
-    n64js.refreshDebugger();
+    this.refreshDebugger();
   }
   
   disassemblerPageDown() {
     this.disasmAddress += 64;
-    n64js.refreshDebugger();
+    this.refreshDebugger();
   }
   
   disassemblerPageUp() {
     this.disasmAddress -= 64;
-    n64js.refreshDebugger();
+    this.refreshDebugger();
   }
+
+  refreshDebugger() {
+    if (this.$dynarecContent.hasClass('active')) {
+      this.updateDynarec();
+    }
+  
+    if (this.$debugContent.hasClass('active')) {
+      this.updateDebug();
+    }
+  
+    if (this.$memoryContent.hasClass('active')) {
+      this.updateMemoryView();
+    }
+  };
+  
 }
 
 // FIXME: Move initialisation of this to n64.js when everything is encapsulated.
@@ -789,15 +804,5 @@ function roundDown(x, a) {
 }
 
 n64js.refreshDebugger = function () {
-  if (dbg.$dynarecContent.hasClass('active')) {
-    dbg.updateDynarec();
-  }
-
-  if (dbg.$debugContent.hasClass('active')) {
-    dbg.updateDebug();
-  }
-
-  if (dbg.$memoryContent.hasClass('active')) {
-    dbg.updateMemoryView();
-  }
+  dbg.refreshDebugger()
 };
