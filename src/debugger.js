@@ -6,17 +6,6 @@ import { getFragmentMap, consumeFragmentInvalidationEvents } from './fragments.j
 
 window.n64js = window.n64js || {};
 
-const kEnter = 13;
-const kPageUp = 33;
-const kPageDown = 34;
-const kLeft = 37;
-const kUp = 38;
-const kRight = 39;
-const kDown = 40;
-const kF10 = 121;
-const kF9 = 120;
-const kF8 = 119;
-
 export class Debugger {
   constructor() {
     /** @type {?jQuery} */
@@ -96,15 +85,15 @@ export class Debugger {
 
     $('body').keydown(function (event) {
       let consumed = false;
-      switch (event.which) {
-        case kDown: consumed = true; that.disassemblerDown(); break;
-        case kUp: consumed = true; that.disassemblerUp(); break;
-        case kPageDown: consumed = true; that.disassemblerPageDown(); break;
-        case kPageUp: consumed = true; that.disassemblerPageUp(); break;
-        case kF8: consumed = true; n64js.toggleRun(); break;
-        case kF9: consumed = true; n64js.toggleDebugDisplayList(); break;
-        case kF10: consumed = true; n64js.step(); break;
-        //default: alert( 'code:' + event.which);
+      switch (event.key) {
+        case 'ArrowDown': consumed = true; that.disassemblerDown(); break;
+        case 'ArrowUp': consumed = true; that.disassemblerUp(); break;
+        case 'PageDown': consumed = true; that.disassemblerPageDown(); break;
+        case 'PageUp': consumed = true; that.disassemblerPageUp(); break;
+        case 'F8': consumed = true; n64js.toggleRun(); break;
+        case 'F9': consumed = true; n64js.toggleDebugDisplayList(); break;
+        case 'F10': consumed = true; n64js.step(); break;
+        default: console.log( `code: ${event.key}`);
       }
       if (consumed) {
         event.preventDefault();
