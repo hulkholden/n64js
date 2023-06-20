@@ -6,38 +6,46 @@ import { getFragmentMap, consumeFragmentInvalidationEvents } from './fragments.j
 
 window.n64js = window.n64js || {};
 
-/** @type {?jQuery} */
-let $debugContent = null;
+class Debugger {
+  constructor() {
+    /** @type {?jQuery} */
+    this.$debugContent = null;
 
-/** @type {?jQuery} */
-let $status = null;
+    /** @type {?jQuery} */
+    this.$status = null;
 
-/** @type {?Array<?jQuery>} */
-let $registers = null;
+    /** @type {?Array<?jQuery>} */
+    this.$registers = null;
 
-/** @type {?jQuery} */
-let $disassembly = null;
+    /** @type {?jQuery} */
+    this.$disassembly = null;
 
-/** @type {?jQuery} */
-let $dynarecContent = null;
+    /** @type {?jQuery} */
+    this.$dynarecContent = null;
 
-/** @type {?jQuery} */
-let $memoryContent = null;
+    /** @type {?jQuery} */
+    this.$memoryContent = null;
 
-/** @type {number} The address to disassemble. */
-let disasmAddress = 0;
+    /** @type {number} The address to disassemble. */
+    this.disasmAddress = 0;
 
-/** @type {number} The number of cycles executed the last time the display was updated. */
-let lastCycles;
+    /** @type {number} The number of cycles executed the last time the display was updated. */
+    this.lastCycles;
 
-/** @type {number} The program counter the last time the display was updated. */
-let lastPC = -1;
+    /** @type {number} The program counter the last time the display was updated. */
+    this.lastPC = -1;
 
-/** @type {!Array<!Object>} A list of recent memory accesses. */
-let recentMemoryAccesses = [];
+    /** @type {!Array<!Object>} A list of recent memory accesses. */
+    this.recentMemoryAccesses = [];
 
-/** @type {number} The address of the last memory access. */
-let lastMemoryAccessAddress = 0;
+    /** @type {number} The address of the last memory access. */
+    this.lastMemoryAccessAddress = 0;
+  }
+}
+
+// FIXME: Move initialisation of this to n64.js when everything is encapsulated.
+// FIXME: can't use debugger as a variable name - fix this when wrapping in a class.
+export const dbg = new Debugger();
 
 /**
  * When we execute a store instruction, keep track of some details so we can
@@ -93,7 +101,7 @@ function refreshLabelSelect() {
 
   $select.change(function () {
     let contents = $select.find('option:selected').data('address');
-    disasmAddress = /** @type {number} */(contents) >>> 0;
+    dbg.disasmAddress = /** @type {number} */(contents) >>> 0;
     updateDebug();
   });
 }
@@ -113,12 +121,12 @@ function storeLabelMap() {
 }
 
 n64js.initialiseDebugger = function () {
-  $debugContent = $('#debug-content');
-  $status = $('#status');
-  $registers = [$('#cpu0-content'), $('#cpu1-content')];
-  $disassembly = $('#disasm');
-  $dynarecContent = $('#dynarec-content');
-  $memoryContent = $('#memory-content');
+  dbg.$debugContent = $('#debug-content');
+  dbg.$status = $('#status');
+  dbg.$registers = [$('#cpu0-content'), $('#cpu1-content')];
+  dbg.$disassembly = $('#disasm');
+  dbg.$dynarecContent = $('#dynarec-content');
+  dbg.$memoryContent = $('#memory-content');
 
   logger.initialise($('.output'), () => {
     return format.toString32(n64js.cpu0.pc);
@@ -136,13 +144,13 @@ n64js.initialiseDebugger = function () {
   });
 
   $('#cpu').find('#address').change(function () {
-    disasmAddress = parseInt($(this).val(), 16);
+    dbg.disasmAddress = parseInt($(this).val(), 16);
     updateDebug();
   });
   refreshLabelSelect();
 
-  $memoryContent.find('input').change(function () {
-    lastMemoryAccessAddress = parseInt($(this).val(), 16);
+  dbg.$memoryContent.find('input').change(function () {
+    dbg.lastMemoryAccessAddress = parseInt($(this).val(), 16);
     updateMemoryView();
   });
   updateMemoryView();
@@ -177,8 +185,8 @@ n64js.initialiseDebugger = function () {
 };
 
 function updateMemoryView() {
-  let addr = lastMemoryAccessAddress || 0x80000000;
-  let $pre = $memoryContent.find('pre');
+  let addr = dbg.lastMemoryAccessAddress || 0x80000000;
+  let $pre = dbg.$memoryContent.find('pre');
   $pre.empty().append(makeMemoryTable(addr, 1024));
 }
 
@@ -481,18 +489,18 @@ function onClickBreakpoint(e) {
 
 function updateDebug() {
   // If the pc has changed since the last update, recenter the display (e.g. when we take a branch)
-  if (n64js.cpu0.pc !== lastPC) {
-    disasmAddress = n64js.cpu0.pc;
-    lastPC = n64js.cpu0.pc;
+  if (n64js.cpu0.pc !== dbg.lastPC) {
+    dbg.disasmAddress = n64js.cpu0.pc;
+    dbg.lastPC = n64js.cpu0.pc;
   }
 
   // Figure out if we've just stepped by a single instruction. Ergh.
   let cpuCount = n64js.cpu0.getCount();
-  let isSingleStep = lastCycles === (cpuCount - 1);
-  lastCycles = cpuCount;
+  let isSingleStep = dbg.lastCycles === (cpuCount - 1);
+  dbg.lastCycles = cpuCount;
 
   let fragmentMap = getFragmentMap();
-  let disassembly = n64js.disassemble(disasmAddress - 64, disasmAddress + 64);
+  let disassembly = n64js.disassemble(dbg.disasmAddress - 64, dbg.disasmAddress + 64);
 
   let $disGutter = $('<pre/>');
   let $disText = $('<pre/>');
@@ -555,7 +563,7 @@ function updateDebug() {
     setLabelColor($(this), address);
 
     $(this).click(function () {
-      disasmAddress = address;
+      dbg.disasmAddress = address;
       n64js.refreshDebugger();
     });
   });
@@ -565,15 +573,15 @@ function updateDebug() {
     $disText.find('.dis-reg-' + reg).css('background-color', colour);
   }
 
-  $disassembly.find('.dis-recent-memory').html(makeRecentMemoryAccesses(isSingleStep, currentInstruction));
+  dbg.$disassembly.find('.dis-recent-memory').html(makeRecentMemoryAccesses(isSingleStep, currentInstruction));
 
-  $disassembly.find('.dis-gutter').empty().append($disGutter);
-  $disassembly.find('.dis-view').empty().append($disText);
+  dbg.$disassembly.find('.dis-gutter').empty().append($disGutter);
+  dbg.$disassembly.find('.dis-view').empty().append($disText);
 
-  $status.empty().append(makeStatusTable());
+  dbg.$status.empty().append(makeStatusTable());
 
-  $registers[0].empty().append(makeCop0RegistersTable(registerColours));
-  $registers[1].empty().append(makeCop1RegistersTable(registerColours));
+  dbg.$registers[0].empty().append(makeCop0RegistersTable(registerColours));
+  dbg.$registers[1].empty().append(makeCop1RegistersTable(registerColours));
 }
 
 /**
@@ -631,27 +639,27 @@ function makeRecentMemoryAccesses(isSingleStep, currentInstruction) {
         };
       }
 
-      recentMemoryAccesses.push({ element: element });
+      dbg.recentMemoryAccesses.push({ element: element });
 
       // Nuke anything that happened more than N cycles ago
-      //while (recentMemoryAccesses.length > 0 && recentMemoryAccesses[0].cycle+10 < cycle)
-      if (recentMemoryAccesses.length > 4) {
-        recentMemoryAccesses.splice(0, 1);
+      //while (dbg.recentMemoryAccesses.length > 0 && dbg.recentMemoryAccesses[0].cycle+10 < cycle)
+      if (dbg.recentMemoryAccesses.length > 4) {
+        dbg.recentMemoryAccesses.splice(0, 1);
       }
 
-      lastMemoryAccessAddress = newAddress;
+      dbg.lastMemoryAccessAddress = newAddress;
     }
   } else {
     // Clear the recent memory accesses when running.
-    recentMemoryAccesses = [];
+    dbg.recentMemoryAccesses = [];
     lastStore = null;
   }
 
   let $recent = $('<pre />');
-  if (recentMemoryAccesses.length > 0) {
+  if (dbg.recentMemoryAccesses.length > 0) {
     const fadingColours = ['#bbb', '#999', '#666', '#333'];
-    for (let i = 0; i < recentMemoryAccesses.length; ++i) {
-      let element = recentMemoryAccesses[i].element;
+    for (let i = 0; i < dbg.recentMemoryAccesses.length; ++i) {
+      let element = dbg.recentMemoryAccesses[i].element;
       element.css('color', fadingColours[i]);
       $recent.append(element);
     }
@@ -727,7 +735,7 @@ function updateDynarec() {
     $t.append(t);
   }
 
-  $dynarecContent.empty().append($t);
+  dbg.$dynarecContent.empty().append($t);
 }
 
 function createHotFragmentsTable($fragmentDiv, fragmentsList) {
@@ -762,35 +770,35 @@ function initFragmentRow($tr, fragment, $code) {
 }
 
 function disassemblerDown() {
-  disasmAddress += 4;
+  dbg.disasmAddress += 4;
   n64js.refreshDebugger();
 }
 
 function disassemblerUp() {
-  disasmAddress -= 4;
+  dbg.disasmAddress -= 4;
   n64js.refreshDebugger();
 }
 
 function disassemblerPageDown() {
-  disasmAddress += 64;
+  dbg.disasmAddress += 64;
   n64js.refreshDebugger();
 }
 
 function disassemblerPageUp() {
-  disasmAddress -= 64;
+  dbg.disasmAddress -= 64;
   n64js.refreshDebugger();
 }
 
 n64js.refreshDebugger = function () {
-  if ($dynarecContent.hasClass('active')) {
+  if (dbg.$dynarecContent.hasClass('active')) {
     updateDynarec();
   }
 
-  if ($debugContent.hasClass('active')) {
+  if (dbg.$debugContent.hasClass('active')) {
     updateDebug();
   }
 
-  if ($memoryContent.hasClass('active')) {
+  if (dbg.$memoryContent.hasClass('active')) {
     updateMemoryView();
   }
 };
