@@ -82,7 +82,7 @@ class Debugger {
 
     $('#cpu').find('#address').change(function () {
       this.disasmAddress = parseInt($(this).val(), 16);
-      updateDebug();
+      this.updateDebug();
     });
     this.refreshLabelSelect();
 
@@ -140,7 +140,7 @@ class Debugger {
     $select.change(function () {
       let contents = $select.find('option:selected').data('address');
       this.disasmAddress = /** @type {number} */(contents) >>> 0;
-      updateDebug();
+      this.updateDebug();
     });
   }
 
@@ -151,7 +151,7 @@ class Debugger {
   restoreLabelMap() {
     this.labelMap = n64js.getLocalStorageItem('debugLabels') || {};
     this.refreshLabelSelect();
-    updateDebug();
+    this.updateDebug();
   }
 
   storeLabelMap() {
@@ -431,7 +431,7 @@ class Debugger {
         }
         that.storeLabelMap();
         that.refreshLabelSelect();
-        updateDebug();
+        this.updateDebug();
       }
     });
     $input.blur(() => {
@@ -451,7 +451,104 @@ class Debugger {
     let $elem = $(e.delegateTarget);
     let address = /** @type {number} */($elem.data('address')) >>> 0;
     n64js.toggleBreakpoint(address);
-    updateDebug();
+    this.updateDebug();
+  }
+
+  updateDebug() {
+    // If the pc has changed since the last update, recenter the display (e.g. when we take a branch)
+    if (n64js.cpu0.pc !== this.lastPC) {
+      this.disasmAddress = n64js.cpu0.pc;
+      this.lastPC = n64js.cpu0.pc;
+    }
+
+    // Figure out if we've just stepped by a single instruction. Ergh.
+    let cpuCount = n64js.cpu0.getCount();
+    let isSingleStep = this.lastCycles === (cpuCount - 1);
+    this.lastCycles = cpuCount;
+
+    let fragmentMap = getFragmentMap();
+    let disassembly = n64js.disassemble(this.disasmAddress - 64, this.disasmAddress + 64);
+
+    let $disGutter = $('<pre/>');
+    let $disText = $('<pre/>');
+    let currentInstruction;
+
+    for (let i = 0; i < disassembly.length; ++i) {
+      let a = disassembly[i];
+      let address = a.instruction.address;
+      let isTarget = a.isJumpTarget || this.labelMap.hasOwnProperty(address);
+      let addressStr = (isTarget ? '<span class="dis-address-target">' : '<span class="dis-address">') + format.toHex(address, 32) + ':</span>';
+      let label = '<span class="dis-label">' + this.makeLabelText(address) + '</span>';
+      let t = addressStr + '  ' + format.toHex(a.instruction.opcode, 32) + '  ' + label + a.disassembly;
+
+      let fragment = fragmentMap.get(address);
+      if (fragment) {
+        t += '<span class="dis-fragment-link"> frag - ops=' + fragment.opsCompiled + ' hit=' + fragment.executionCount + '</span>';
+      }
+
+      let $line = $('<span class="dis-line">' + t + '</span>');
+      $line.find('.dis-label')
+        .data('address', address)
+        .css('color', this.makeLabelColor(address))
+        .click(this.onLabelClicked.bind(this));
+
+      if (fragment) {
+        $line.find('.dis-fragment-link')
+          .data('fragment', fragment)
+          .click(this.onFragmentClicked.bind(this));
+      }
+
+      // Keep track of the current instruction (for register formatting) and highlight.
+      if (address === n64js.cpu0.pc) {
+        currentInstruction = a.instruction;
+        $line.addClass('dis-line-cur');
+      }
+      if (isTarget) {
+        $line.addClass('dis-line-target');
+
+        this.setLabelColor($line.find('.dis-address-target'), address);
+      }
+
+      $disText.append($line);
+      $disText.append('<br>');
+
+      let bpText = '&nbsp;';
+      if (n64js.isBreakpoint(address)) {
+        bpText = '&bull;';
+      }
+      let $bp = $('<span>' + bpText + '</span>').data('address', address).click(this.onClickBreakpoint.bind(this));
+
+      $disGutter.append($bp);
+      $disGutter.append('<br>');
+    }
+
+    // Links for branches, jumps etc should jump to the target address.
+    $disText.find('.dis-address-jump').each(function () {
+      let address = parseInt($(this).text(), 16);
+
+      this.setLabelText($(this), address);
+      this.setLabelColor($(this), address);
+
+      $(this).click(function () {
+        this.disasmAddress = address;
+        n64js.refreshDebugger();
+      });
+    }.bind(this));
+
+    let registerColours = makeRegisterColours(currentInstruction);
+    for (let [reg, colour] of registerColours) {
+      $disText.find('.dis-reg-' + reg).css('background-color', colour);
+    }
+
+    this.$disassembly.find('.dis-recent-memory').html(makeRecentMemoryAccesses(isSingleStep, currentInstruction));
+
+    this.$disassembly.find('.dis-gutter').empty().append($disGutter);
+    this.$disassembly.find('.dis-view').empty().append($disText);
+
+    this.$status.empty().append(this.makeStatusTable());
+
+    this.$registers[0].empty().append(this.makeCop0RegistersTable(registerColours));
+    this.$registers[1].empty().append(this.makeCop1RegistersTable(registerColours));
   }
 
 }
@@ -484,103 +581,6 @@ n64js.initialiseDebugger = function () {
 
 function roundDown(x, a) {
   return x & ~(a - 1);
-}
-
-function updateDebug() {
-  // If the pc has changed since the last update, recenter the display (e.g. when we take a branch)
-  if (n64js.cpu0.pc !== dbg.lastPC) {
-    dbg.disasmAddress = n64js.cpu0.pc;
-    dbg.lastPC = n64js.cpu0.pc;
-  }
-
-  // Figure out if we've just stepped by a single instruction. Ergh.
-  let cpuCount = n64js.cpu0.getCount();
-  let isSingleStep = dbg.lastCycles === (cpuCount - 1);
-  dbg.lastCycles = cpuCount;
-
-  let fragmentMap = getFragmentMap();
-  let disassembly = n64js.disassemble(dbg.disasmAddress - 64, dbg.disasmAddress + 64);
-
-  let $disGutter = $('<pre/>');
-  let $disText = $('<pre/>');
-  let currentInstruction;
-
-  for (let i = 0; i < disassembly.length; ++i) {
-    let a = disassembly[i];
-    let address = a.instruction.address;
-    let isTarget = a.isJumpTarget || dbg.labelMap.hasOwnProperty(address);
-    let addressStr = (isTarget ? '<span class="dis-address-target">' : '<span class="dis-address">') + format.toHex(address, 32) + ':</span>';
-    let label = '<span class="dis-label">' + dbg.makeLabelText(address) + '</span>';
-    let t = addressStr + '  ' + format.toHex(a.instruction.opcode, 32) + '  ' + label + a.disassembly;
-
-    let fragment = fragmentMap.get(address);
-    if (fragment) {
-      t += '<span class="dis-fragment-link"> frag - ops=' + fragment.opsCompiled + ' hit=' + fragment.executionCount + '</span>';
-    }
-
-    let $line = $('<span class="dis-line">' + t + '</span>');
-    $line.find('.dis-label')
-      .data('address', address)
-      .css('color', dbg.makeLabelColor(address))
-      .click(dbg.onLabelClicked.bind(dbg));
-
-    if (fragment) {
-      $line.find('.dis-fragment-link')
-        .data('fragment', fragment)
-        .click(dbg.onFragmentClicked.bind(dbg));
-    }
-
-    // Keep track of the current instruction (for register formatting) and highlight.
-    if (address === n64js.cpu0.pc) {
-      currentInstruction = a.instruction;
-      $line.addClass('dis-line-cur');
-    }
-    if (isTarget) {
-      $line.addClass('dis-line-target');
-
-      dbg.setLabelColor($line.find('.dis-address-target'), address);
-    }
-
-    $disText.append($line);
-    $disText.append('<br>');
-
-    let bpText = '&nbsp;';
-    if (n64js.isBreakpoint(address)) {
-      bpText = '&bull;';
-    }
-    let $bp = $('<span>' + bpText + '</span>').data('address', address).click(dbg.onClickBreakpoint.bind(dbg));
-
-    $disGutter.append($bp);
-    $disGutter.append('<br>');
-  }
-
-  // Links for branches, jumps etc should jump to the target address.
-  $disText.find('.dis-address-jump').each(function () {
-    let address = parseInt($(this).text(), 16);
-
-    dbg.setLabelText($(this), address);
-    dbg.setLabelColor($(this), address);
-
-    $(this).click(function () {
-      dbg.disasmAddress = address;
-      n64js.refreshDebugger();
-    });
-  });
-
-  let registerColours = makeRegisterColours(currentInstruction);
-  for (let [reg, colour] of registerColours) {
-    $disText.find('.dis-reg-' + reg).css('background-color', colour);
-  }
-
-  dbg.$disassembly.find('.dis-recent-memory').html(makeRecentMemoryAccesses(isSingleStep, currentInstruction));
-
-  dbg.$disassembly.find('.dis-gutter').empty().append($disGutter);
-  dbg.$disassembly.find('.dis-view').empty().append($disText);
-
-  dbg.$status.empty().append(dbg.makeStatusTable());
-
-  dbg.$registers[0].empty().append(dbg.makeCop0RegistersTable(registerColours));
-  dbg.$registers[1].empty().append(dbg.makeCop1RegistersTable(registerColours));
 }
 
 /**
@@ -794,7 +794,7 @@ n64js.refreshDebugger = function () {
   }
 
   if (dbg.$debugContent.hasClass('active')) {
-    updateDebug();
+    dbg.updateDebug();
   }
 
   if (dbg.$memoryContent.hasClass('active')) {
