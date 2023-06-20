@@ -35,7 +35,7 @@ class Debugger {
     this.$dynarecContent = $('#dynarec-content');
 
     /** @type {?jQuery} */
-    this.$memoryContent =  $('#memory-content');
+    this.$memoryContent = $('#memory-content');
 
     /** @type {number} The address to disassemble. */
     this.disasmAddress = 0;
@@ -113,7 +113,7 @@ class Debugger {
   updateMemoryView() {
     let addr = this.lastMemoryAccessAddress || 0x80000000;
     let $pre = this.$memoryContent.find('pre');
-    $pre.empty().append(makeMemoryTable(addr, 1024));
+    $pre.empty().append(this.makeMemoryTable(addr, 1024));
   }
 
   refreshLabelSelect() {
@@ -157,6 +157,240 @@ class Debugger {
   storeLabelMap() {
     n64js.setLocalStorageItem('debugLabels', this.labelMap);
   }
+
+  /**
+   * Constructs HTML for a table of memory values.
+   * @param {number} focusAddress The address to focus on.
+   * @param {number} contextBytes The number of bytes of context.
+   * @param {number=} bytesPerRow The number of bytes per row. Should be a power of two.
+   * @param {Map<number,string>=} highlights Colours to highlight addresses with.
+   * @return {!jQuery}
+   */
+  makeMemoryTable(focusAddress, contextBytes, bytesPerRow = 64, highlights = null) {
+    let s = roundDown(focusAddress, bytesPerRow) - roundDown(contextBytes / 2, bytesPerRow);
+    let e = s + contextBytes;
+
+    let t = '';
+    for (let a = s; a < e; a += bytesPerRow) {
+      let r = format.toHex(a, 32) + ':';
+
+      for (let o = 0; o < bytesPerRow; o += 4) {
+        let curAddress = a + o >>> 0;
+        let mem = n64js.hardware().memMap.readMemoryInternal32(curAddress);
+        let style = '';
+        if (highlights && highlights.has(curAddress)) {
+          style = ' style="background-color: ' + highlights.get(curAddress) + '"';
+        }
+        r += ' <span id="mem-' + format.toHex(curAddress, 32) + '"' + style + '>' + format.toHex(mem, 32) + '</span>';
+      }
+
+      r += '\n';
+      t += r;
+    }
+
+    return $('<span>' + t + '</span>');
+  }
+
+  // access is {reg,offset,mode}
+  addRecentMemoryAccess(address, mode) {
+    let col = (mode === 'store') ? '#faa' : '#ffa';
+    if (mode === 'update') {
+      col = '#afa';
+    }
+
+    let highlights = new Map();
+    let alignedAddress = (address & ~3) >>> 0;
+    highlights.set(alignedAddress, col);
+    return this.makeMemoryTable(address, 32, 32, highlights);
+  }
+
+  makeLabelColor(address) {
+    let i = address >>> 2;  // Lowest bits are always 0
+    let hash = (i >>> 16) ^ ((i & 0xffff) * 2803);
+    let r = (hash) & 0x1f;
+    let g = (hash >>> 5) & 0x1f;
+    let b = (hash >>> 10) & 0x1f;
+    let h = (hash >>> 15) & 0x3;
+
+    r *= 4;
+    g *= 4;
+    b *= 4;
+    switch (h) {
+      case 0: r *= 2; g *= 2; break;
+      case 1: g *= 2; b *= 2; break;
+      case 2: b *= 2; r *= 2; break;
+      default: r *= 2; g *= 2; b *= 2; break;
+    }
+
+    return '#' + format.toHex(r, 8) + format.toHex(g, 8) + format.toHex(b, 8);
+  }
+
+  /**
+   * Makes a table of co-processor 0 registers.
+   * @param {!Map<string, string>} registerColours Register colour map.
+   * @return {!jQuery}
+   */
+  makeCop0RegistersTable(registerColours) {
+    let cpu0 = n64js.cpu0;
+    let $table = $('<table class="register-table"><tbody></tbody></table>');
+    let $body = $table.find('tbody');
+
+    const kRegistersPerRow = 2;
+
+    for (let i = 0; i < 32; i += kRegistersPerRow) {
+      let $tr = $('<tr />');
+      for (let r = 0; r < kRegistersPerRow; ++r) {
+        let name = n64js.cop0gprNames[i + r];
+        let $td = $('<td>' + name + '</td><td class="fixed">' + format.toString64(cpu0.gprHi[i + r], cpu0.gprLo[i + r]) + '</td>');
+
+        if (registerColours.has(name)) {
+          $td.attr('bgcolor', registerColours.get(name));
+        }
+        $tr.append($td);
+      }
+      $body.append($tr);
+    }
+
+    return $table;
+  }
+
+  /**
+   * Makes a table of co-processor 1 registers.
+   * @param {!Map<string, string>} registerColours Register colour map.
+   * @return {!jQuery}
+   */
+  makeCop1RegistersTable(registerColours) {
+    let $table = $('<table class="register-table"><tbody></tbody></table>');
+    let $body = $table.find('tbody');
+    let cpu1 = n64js.cpu1;
+
+    for (let i = 0; i < 32; ++i) {
+      let name = n64js.cop1RegisterNames[i];
+
+      let $td;
+      if ((i & 1) === 0) {
+        $td = $('<td>' + name +
+          '</td><td class="fixed fp-w">' + format.toString32(cpu1.uint32[i]) +
+          '</td><td class="fixed fp-s">' + cpu1.float32[i] +
+          '</td><td class="fixed fp-d">' + cpu1.float64[i / 2] +
+          '</td>');
+      } else {
+        $td = $('<td>' + name +
+          '</td><td class="fixed fp-w">' + format.toString32(cpu1.uint32[i]) +
+          '</td><td class="fixed fp-s">' + cpu1.float32[i] +
+          '</td><td>' +
+          '</td>');
+      }
+
+      let $tr = $('<tr />');
+      $tr.append($td);
+
+      if (registerColours.has(name)) {
+        $tr.attr('bgcolor', registerColours.get(name));
+      } else if (registerColours.has(name + '-w')) {
+        $tr.find('.fp-w').attr('bgcolor', registerColours.get(name + '-w'));
+      } else if (registerColours.has(name + '-s')) {
+        $tr.find('.fp-s').attr('bgcolor', registerColours.get(name + '-s'));
+      } else if (registerColours.has(name + '-d')) {
+        $tr.find('.fp-d').attr('bgcolor', registerColours.get(name + '-d'));
+      }
+
+      $body.append($tr);
+    }
+
+    return $table;
+  }
+
+  /**
+   * Makes a table showing the status register contents.
+   * @return {!jQuery}
+   */
+  makeStatusTable() {
+    let cpu0 = n64js.cpu0;
+
+    let $table = $('<table class="register-table"><tbody></tbody></table>');
+    let $body = $table.find('tbody');
+
+    $body.append('<tr><td>Ops</td><td class="fixed">' + cpu0.opsExecuted + '</td></tr>');
+    $body.append('<tr><td>PC</td><td class="fixed">' + format.toString32(cpu0.pc) + '</td>' +
+      '<td>delayPC</td><td class="fixed">' + format.toString32(cpu0.delayPC) + '</td></tr>');
+    $body.append('<tr><td>EPC</td><td class="fixed">' + format.toString32(cpu0.control[cpu0.kControlEPC]) + '</td></tr>');
+    $body.append('<tr><td>MultHi</td><td class="fixed">' + format.toString64(cpu0.multHi[1], cpu0.multHi[0]) + '</td>' +
+      '<td>Cause</td><td class="fixed">' + format.toString32(cpu0.control[cpu0.kControlCause]) + '</td></tr>');
+    $body.append('<tr><td>MultLo</td><td class="fixed">' + format.toString64(cpu0.multLo[1], cpu0.multLo[0]) + '</td>' +
+      '<td>Count</td><td class="fixed">' + format.toString32(cpu0.control[cpu0.kControlCount]) + '</td></tr>');
+    $body.append('<tr><td></td><td class="fixed"></td>' +
+      '<td>Compare</td><td class="fixed">' + format.toString32(cpu0.control[cpu0.kControlCompare]) + '</td></tr>');
+
+    for (let i = 0; i < cpu0.events.length; ++i) {
+      $body.append('<tr><td>Event' + i + '</td><td class="fixed">' + cpu0.events[i].countdown + ', ' + cpu0.events[i].getName() + '</td></tr>');
+    }
+
+    $body.append(this.makeStatusRegisterRow());
+    $body.append(this.makeMipsInterruptsRow());
+    return $table;
+  }
+
+  makeStatusRegisterRow() {
+    let $tr = $('<tr />');
+    $tr.append('<td>SR</td>');
+
+    const flagNames = ['IE', 'EXL', 'ERL'];//, '', '', 'UX', 'SX', 'KX' ];
+
+    let sr = n64js.cpu0.control[n64js.cpu0.kControlSR];
+
+    let $td = $('<td class="fixed" />');
+    $td.append(format.toString32(sr));
+    $td.append('&nbsp;');
+
+    let i;
+    for (i = flagNames.length - 1; i >= 0; --i) {
+      if (flagNames[i]) {
+        let isSet = (sr & (1 << i)) !== 0;
+
+        let $b = $('<span>' + flagNames[i] + '</span>');
+        if (isSet) {
+          $b.css('font-weight', 'bold');
+        }
+
+        $td.append($b);
+        $td.append('&nbsp;');
+      }
+    }
+
+    $tr.append($td);
+    return $tr;
+  }
+
+  makeMipsInterruptsRow() {
+    const miIntrNames = ['SP', 'SI', 'AI', 'VI', 'PI', 'DP'];
+
+    const miRegDevice = n64js.hardware().miRegDevice;
+    const miIntrLive = miRegDevice.intrReg();
+    const miIntrMask = miRegDevice.intrMaskReg();
+
+    let $tr = $('<tr />');
+    $tr.append('<td>MI Intr</td>');
+    let $td = $('<td class="fixed" />');
+    let i;
+    for (i = 0; i < miIntrNames.length; ++i) {
+      let isSet = (miIntrLive & (1 << i)) !== 0;
+      let isEnabled = (miIntrMask & (1 << i)) !== 0;
+
+      let $b = $('<span>' + miIntrNames[i] + '</span>');
+      if (isSet) {
+        $b.css('font-weight', 'bold');
+      }
+      if (isEnabled) {
+        $b.css('background-color', '#AFF4BB');
+      }
+
+      $td.append($b);
+      $td.append('&nbsp;');
+    }
+    $tr.append($td);
+    return $tr;
+  }
 }
 
 // FIXME: Move initialisation of this to n64.js when everything is encapsulated.
@@ -189,247 +423,13 @@ function roundDown(x, a) {
   return x & ~(a - 1);
 }
 
-/**
- * Constructs HTML for a table of memory values.
- * @param {number} focusAddress The address to focus on.
- * @param {number} contextBytes The number of bytes of context.
- * @param {number=} bytesPerRow The number of bytes per row. Should be a power of two.
- * @param {Map<number,string>=} highlights Colours to highlight addresses with.
- * @return {!jQuery}
- */
-function makeMemoryTable(focusAddress, contextBytes, bytesPerRow = 64, highlights = null) {
-  let s = roundDown(focusAddress, bytesPerRow) - roundDown(contextBytes / 2, bytesPerRow);
-  let e = s + contextBytes;
-
-  let t = '';
-  for (let a = s; a < e; a += bytesPerRow) {
-    let r = format.toHex(a, 32) + ':';
-
-    for (let o = 0; o < bytesPerRow; o += 4) {
-      let curAddress = a + o >>> 0;
-      let mem = n64js.hardware().memMap.readMemoryInternal32(curAddress);
-      let style = '';
-      if (highlights && highlights.has(curAddress)) {
-        style = ' style="background-color: ' + highlights.get(curAddress) + '"';
-      }
-      r += ' <span id="mem-' + format.toHex(curAddress, 32) + '"' + style + '>' + format.toHex(mem, 32) + '</span>';
-    }
-
-    r += '\n';
-    t += r;
-  }
-
-  return $('<span>' + t + '</span>');
-}
-
-// access is {reg,offset,mode}
-function addRecentMemoryAccess(address, mode) {
-  let col = (mode === 'store') ? '#faa' : '#ffa';
-  if (mode === 'update') {
-    col = '#afa';
-  }
-
-  let highlights = new Map();
-  let alignedAddress = (address & ~3) >>> 0;
-  highlights.set(alignedAddress, col);
-  return makeMemoryTable(address, 32, 32, highlights);
-}
-
-function makeLabelColor(address) {
-  let i = address >>> 2;  // Lowest bits are always 0
-  let hash = (i >>> 16) ^ ((i & 0xffff) * 2803);
-  let r = (hash) & 0x1f;
-  let g = (hash >>> 5) & 0x1f;
-  let b = (hash >>> 10) & 0x1f;
-  let h = (hash >>> 15) & 0x3;
-
-  r *= 4;
-  g *= 4;
-  b *= 4;
-  switch (h) {
-    case 0: r *= 2; g *= 2; break;
-    case 1: g *= 2; b *= 2; break;
-    case 2: b *= 2; r *= 2; break;
-    default: r *= 2; g *= 2; b *= 2; break;
-  }
-
-  return '#' + format.toHex(r, 8) + format.toHex(g, 8) + format.toHex(b, 8);
-}
-
-/**
- * Makes a table of co-processor 0 registers.
- * @param {!Map<string, string>} registerColours Register colour map.
- * @return {!jQuery}
- */
-function makeCop0RegistersTable(registerColours) {
-  let cpu0 = n64js.cpu0;
-  let $table = $('<table class="register-table"><tbody></tbody></table>');
-  let $body = $table.find('tbody');
-
-  const kRegistersPerRow = 2;
-
-  for (let i = 0; i < 32; i += kRegistersPerRow) {
-    let $tr = $('<tr />');
-    for (let r = 0; r < kRegistersPerRow; ++r) {
-      let name = n64js.cop0gprNames[i + r];
-      let $td = $('<td>' + name + '</td><td class="fixed">' + format.toString64(cpu0.gprHi[i + r], cpu0.gprLo[i + r]) + '</td>');
-
-      if (registerColours.has(name)) {
-        $td.attr('bgcolor', registerColours.get(name));
-      }
-      $tr.append($td);
-    }
-    $body.append($tr);
-  }
-
-  return $table;
-}
-
-/**
- * Makes a table of co-processor 1 registers.
- * @param {!Map<string, string>} registerColours Register colour map.
- * @return {!jQuery}
- */
-function makeCop1RegistersTable(registerColours) {
-  let $table = $('<table class="register-table"><tbody></tbody></table>');
-  let $body = $table.find('tbody');
-  let cpu1 = n64js.cpu1;
-
-  for (let i = 0; i < 32; ++i) {
-    let name = n64js.cop1RegisterNames[i];
-
-    let $td;
-    if ((i & 1) === 0) {
-      $td = $('<td>' + name +
-        '</td><td class="fixed fp-w">' + format.toString32(cpu1.uint32[i]) +
-        '</td><td class="fixed fp-s">' + cpu1.float32[i] +
-        '</td><td class="fixed fp-d">' + cpu1.float64[i / 2] +
-        '</td>');
-    } else {
-      $td = $('<td>' + name +
-        '</td><td class="fixed fp-w">' + format.toString32(cpu1.uint32[i]) +
-        '</td><td class="fixed fp-s">' + cpu1.float32[i] +
-        '</td><td>' +
-        '</td>');
-    }
-
-    let $tr = $('<tr />');
-    $tr.append($td);
-
-    if (registerColours.has(name)) {
-      $tr.attr('bgcolor', registerColours.get(name));
-    } else if (registerColours.has(name + '-w')) {
-      $tr.find('.fp-w').attr('bgcolor', registerColours.get(name + '-w'));
-    } else if (registerColours.has(name + '-s')) {
-      $tr.find('.fp-s').attr('bgcolor', registerColours.get(name + '-s'));
-    } else if (registerColours.has(name + '-d')) {
-      $tr.find('.fp-d').attr('bgcolor', registerColours.get(name + '-d'));
-    }
-
-    $body.append($tr);
-  }
-
-  return $table;
-}
-
-/**
- * Makes a table showing the status register contents.
- * @return {!jQuery}
- */
-function makeStatusTable() {
-  let cpu0 = n64js.cpu0;
-
-  let $table = $('<table class="register-table"><tbody></tbody></table>');
-  let $body = $table.find('tbody');
-
-  $body.append('<tr><td>Ops</td><td class="fixed">' + cpu0.opsExecuted + '</td></tr>');
-  $body.append('<tr><td>PC</td><td class="fixed">' + format.toString32(cpu0.pc) + '</td>' +
-    '<td>delayPC</td><td class="fixed">' + format.toString32(cpu0.delayPC) + '</td></tr>');
-  $body.append('<tr><td>EPC</td><td class="fixed">' + format.toString32(cpu0.control[cpu0.kControlEPC]) + '</td></tr>');
-  $body.append('<tr><td>MultHi</td><td class="fixed">' + format.toString64(cpu0.multHi[1], cpu0.multHi[0]) + '</td>' +
-    '<td>Cause</td><td class="fixed">' + format.toString32(cpu0.control[cpu0.kControlCause]) + '</td></tr>');
-  $body.append('<tr><td>MultLo</td><td class="fixed">' + format.toString64(cpu0.multLo[1], cpu0.multLo[0]) + '</td>' +
-    '<td>Count</td><td class="fixed">' + format.toString32(cpu0.control[cpu0.kControlCount]) + '</td></tr>');
-  $body.append('<tr><td></td><td class="fixed"></td>' +
-    '<td>Compare</td><td class="fixed">' + format.toString32(cpu0.control[cpu0.kControlCompare]) + '</td></tr>');
-
-  for (let i = 0; i < cpu0.events.length; ++i) {
-    $body.append('<tr><td>Event' + i + '</td><td class="fixed">' + cpu0.events[i].countdown + ', ' + cpu0.events[i].getName() + '</td></tr>');
-  }
-
-  $body.append(makeStatusRegisterRow());
-  $body.append(makeMipsInterruptsRow());
-  return $table;
-}
-
-function makeStatusRegisterRow() {
-  let $tr = $('<tr />');
-  $tr.append('<td>SR</td>');
-
-  const flagNames = ['IE', 'EXL', 'ERL'];//, '', '', 'UX', 'SX', 'KX' ];
-
-  let sr = n64js.cpu0.control[n64js.cpu0.kControlSR];
-
-  let $td = $('<td class="fixed" />');
-  $td.append(format.toString32(sr));
-  $td.append('&nbsp;');
-
-  let i;
-  for (i = flagNames.length - 1; i >= 0; --i) {
-    if (flagNames[i]) {
-      let isSet = (sr & (1 << i)) !== 0;
-
-      let $b = $('<span>' + flagNames[i] + '</span>');
-      if (isSet) {
-        $b.css('font-weight', 'bold');
-      }
-
-      $td.append($b);
-      $td.append('&nbsp;');
-    }
-  }
-
-  $tr.append($td);
-  return $tr;
-}
-
-function makeMipsInterruptsRow() {
-  const miIntrNames = ['SP', 'SI', 'AI', 'VI', 'PI', 'DP'];
-
-  const miRegDevice = n64js.hardware().miRegDevice;
-  const miIntrLive = miRegDevice.intrReg();
-  const miIntrMask = miRegDevice.intrMaskReg();
-
-  let $tr = $('<tr />');
-  $tr.append('<td>MI Intr</td>');
-  let $td = $('<td class="fixed" />');
-  let i;
-  for (i = 0; i < miIntrNames.length; ++i) {
-    let isSet = (miIntrLive & (1 << i)) !== 0;
-    let isEnabled = (miIntrMask & (1 << i)) !== 0;
-
-    let $b = $('<span>' + miIntrNames[i] + '</span>');
-    if (isSet) {
-      $b.css('font-weight', 'bold');
-    }
-    if (isEnabled) {
-      $b.css('background-color', '#AFF4BB');
-    }
-
-    $td.append($b);
-    $td.append('&nbsp;');
-  }
-  $tr.append($td);
-  return $tr;
-}
-
 function setLabelText($elem, address) {
   if (dbg.labelMap.hasOwnProperty(address)) {
     $elem.append(' (' + dbg.labelMap[address] + ')');
   }
 }
 function setLabelColor($elem, address) {
-  $elem.css('color', makeLabelColor(address));
+  $elem.css('color', dbg.makeLabelColor(address));
 }
 
 function makeLabelText(address) {
@@ -517,7 +517,7 @@ function updateDebug() {
     let $line = $('<span class="dis-line">' + t + '</span>');
     $line.find('.dis-label')
       .data('address', address)
-      .css('color', makeLabelColor(address))
+      .css('color', dbg.makeLabelColor(address))
       .click(onLabelClicked);
 
     if (fragment) {
@@ -573,10 +573,10 @@ function updateDebug() {
   dbg.$disassembly.find('.dis-gutter').empty().append($disGutter);
   dbg.$disassembly.find('.dis-view').empty().append($disText);
 
-  dbg.$status.empty().append(makeStatusTable());
+  dbg.$status.empty().append(dbg.makeStatusTable());
 
-  dbg.$registers[0].empty().append(makeCop0RegistersTable(registerColours));
-  dbg.$registers[1].empty().append(makeCop1RegistersTable(registerColours));
+  dbg.$registers[0].empty().append(dbg.makeCop0RegistersTable(registerColours));
+  dbg.$registers[1].empty().append(dbg.makeCop1RegistersTable(registerColours));
 }
 
 /**
@@ -615,7 +615,7 @@ function makeRecentMemoryAccesses(isSingleStep, currentInstruction) {
     // Check if we've just stepped over a previous write op, and update the result
     if (dbg.lastStore) {
       if ((dbg.lastStore.cycle + 1) === n64js.cpu0.opsExecuted) {
-        let updatedElement = addRecentMemoryAccess(dbg.lastStore.address, 'update');
+        let updatedElement = dbg.addRecentMemoryAccess(dbg.lastStore.address, 'update');
         dbg.lastStore.element.append(updatedElement);
       }
       dbg.lastStore = null;
@@ -624,7 +624,7 @@ function makeRecentMemoryAccesses(isSingleStep, currentInstruction) {
     if (currentInstruction.memory) {
       let access = currentInstruction.memory;
       let newAddress = n64js.cpu0.gprLo[access.reg] + access.offset;
-      let element = addRecentMemoryAccess(newAddress, access.mode);
+      let element = dbg.addRecentMemoryAccess(newAddress, access.mode);
 
       if (access.mode === 'store') {
         dbg.lastStore = {
