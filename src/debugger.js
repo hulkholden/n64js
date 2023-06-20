@@ -75,30 +75,32 @@ class Debugger {
       logger.clear();
     });
 
+    const that = this;
+
     $('#cpu-controls').find('#speed').change(function () {
-      this.debugCycles = Math.pow(10, $(this).val() | 0);
-      logger.log('Speed is now ' + this.debugCycles);
+      that.debugCycles = Math.pow(10, $(this).val() | 0);
+      logger.log('Speed is now ' + that.debugCycles);
     });
 
     $('#cpu').find('#address').change(function () {
-      this.disasmAddress = parseInt($(this).val(), 16);
-      this.updateDebug();
+      that.disasmAddress = parseInt($(this).val(), 16);
+      that.updateDebug();
     });
     this.refreshLabelSelect();
 
     this.$memoryContent.find('input').change(function () {
-      this.lastMemoryAccessAddress = parseInt($(this).val(), 16);
-      this.updateMemoryView();
+      that.lastMemoryAccessAddress = parseInt($(this).val(), 16);
+      that.updateMemoryView();
     });
     this.updateMemoryView();
 
     $('body').keydown(function (event) {
       let consumed = false;
       switch (event.which) {
-        case kDown: consumed = true; disassemblerDown(); break;
-        case kUp: consumed = true; disassemblerUp(); break;
-        case kPageDown: consumed = true; disassemblerPageDown(); break;
-        case kPageUp: consumed = true; disassemblerPageUp(); break;
+        case kDown: consumed = true; that.disassemblerDown(); break;
+        case kUp: consumed = true; that.disassemblerUp(); break;
+        case kPageDown: consumed = true; that.disassemblerPageDown(); break;
+        case kPageUp: consumed = true; that.disassemblerPageUp(); break;
         case kF8: consumed = true; n64js.toggleRun(); break;
         case kF9: consumed = true; n64js.toggleDebugDisplayList(); break;
         case kF10: consumed = true; n64js.step(); break;
@@ -535,12 +537,12 @@ class Debugger {
       });
     }.bind(this));
 
-    let registerColours = makeRegisterColours(currentInstruction);
+    let registerColours = this.makeRegisterColours(currentInstruction);
     for (let [reg, colour] of registerColours) {
       $disText.find('.dis-reg-' + reg).css('background-color', colour);
     }
 
-    this.$disassembly.find('.dis-recent-memory').html(makeRecentMemoryAccesses(isSingleStep, currentInstruction));
+    this.$disassembly.find('.dis-recent-memory').html(this.makeRecentMemoryAccesses(isSingleStep, currentInstruction));
 
     this.$disassembly.find('.dis-gutter').empty().append($disGutter);
     this.$disassembly.find('.dis-view').empty().append($disText);
@@ -551,6 +553,209 @@ class Debugger {
     this.$registers[1].empty().append(this.makeCop1RegistersTable(registerColours));
   }
 
+  /**
+   * Makes a map of colours keyed by register name.
+   * @param {?Object} instruction The instruction to produce colours for.
+   * @return {!Map<string, string>}
+   */
+  makeRegisterColours(instruction) {
+    const availColours = [
+      '#F4EEAF', // yellow
+      '#AFF4BB', // green
+      '#F4AFBE'  // blue
+    ];
+
+    let registerColours = new Map();
+    if (instruction) {
+      let nextColIdx = 0;
+      for (let i in instruction.srcRegs) {
+        if (!registerColours.hasOwnProperty(i)) {
+          registerColours.set(i, availColours[nextColIdx++]);
+        }
+      }
+      for (let i in instruction.dstRegs) {
+        if (!registerColours.hasOwnProperty(i)) {
+          registerColours.set(i, availColours[nextColIdx++]);
+        }
+      }
+    }
+    return registerColours;
+  }
+
+  makeRecentMemoryAccesses(isSingleStep, currentInstruction) {
+    // Keep a small queue showing recent memory accesses
+    if (isSingleStep) {
+      // Check if we've just stepped over a previous write op, and update the result
+      if (this.lastStore) {
+        if ((this.lastStore.cycle + 1) === n64js.cpu0.opsExecuted) {
+          let updatedElement = this.addRecentMemoryAccess(this.lastStore.address, 'update');
+          this.lastStore.element.append(updatedElement);
+        }
+        this.lastStore = null;
+      }
+
+      if (currentInstruction.memory) {
+        let access = currentInstruction.memory;
+        let newAddress = n64js.cpu0.gprLo[access.reg] + access.offset;
+        let element = this.addRecentMemoryAccess(newAddress, access.mode);
+
+        if (access.mode === 'store') {
+          this.lastStore = {
+            address: newAddress,
+            cycle: n64js.cpu0.opsExecuted,
+            element: element,
+          };
+        }
+
+        this.recentMemoryAccesses.push({ element: element });
+
+        // Nuke anything that happened more than N cycles ago
+        //while (this.recentMemoryAccesses.length > 0 && this.recentMemoryAccesses[0].cycle+10 < cycle)
+        if (this.recentMemoryAccesses.length > 4) {
+          this.recentMemoryAccesses.splice(0, 1);
+        }
+
+        this.lastMemoryAccessAddress = newAddress;
+      }
+    } else {
+      // Clear the recent memory accesses when running.
+      this.recentMemoryAccesses = [];
+      this.lastStore = null;
+    }
+
+    let $recent = $('<pre />');
+    if (this.recentMemoryAccesses.length > 0) {
+      const fadingColours = ['#bbb', '#999', '#666', '#333'];
+      for (let i = 0; i < this.recentMemoryAccesses.length; ++i) {
+        let element = this.recentMemoryAccesses[i].element;
+        element.css('color', fadingColours[i]);
+        $recent.append(element);
+      }
+    }
+
+    return $recent;
+  }
+
+  updateDynarec() {
+    let invals = consumeFragmentInvalidationEvents();
+    let histogram = new Map();
+    let maxBucket = 0;
+  
+    // Build a flattened list of all fragments
+    let fragmentsList = [];
+    for (let [pc, fragment] of getFragmentMap()) {
+      let i = fragment.executionCount > 0 ? Math.floor(Math.log10(fragment.executionCount)) : 0;
+      histogram.set(i, (histogram.get(i) || 0) + 1);
+      fragmentsList.push(fragment);
+      maxBucket = Math.max(maxBucket, i);
+    }
+  
+    fragmentsList.sort((a, b) => {
+      return b.opsCompiled * b.executionCount - a.opsCompiled * a.executionCount;
+    });
+  
+    let $t = $('<div class="container-fluid" />');
+  
+    // Histogram showing execution counts
+    let t = '';
+    t += '<div class="row">';
+    t += '<table class="table table-condensed table-nonfluid"><tr><th>Execution Count</th><th>Frequency</th></tr>';
+    for (let i = 0; i <= maxBucket; i++) {
+      let count = histogram.get(i) || 0;
+      let range = '< ' + Math.pow(10, i + 1);
+      t += '<tr><td>' + range + '</td><td>' + count + '</td></tr>';
+    }
+    t += '</table>';
+    t += '</div>';
+    $t.append(t);
+  
+    // Table of hot fragments, and the corresponding js
+    t = '';
+    t += '<div class="row">';
+    t += '  <div class="col-lg-6" id="fragments" />';
+    t += '  <div class="col-lg-6" id="fragment-code" />';
+    t += '</div>';
+    let $fragmentDiv = $(t);
+  
+    createHotFragmentsTable($fragmentDiv, fragmentsList);
+  
+    $t.append($fragmentDiv);
+  
+    // Evictions
+    if (invals.length > 0) {
+      t = '';
+      t += '<div class="row">';
+      t += '<div class="col-lg-6">';
+      t += '<table class="table table-condensed">';
+      t += '<tr><th>Address</th><th>Length</th><th>System</th><th>Fragments Removed</th></tr>';
+      for (let i = 0; i < invals.length; ++i) {
+        let vals = [
+          format.toString32(invals[i].address),
+          invals[i].length,
+          invals[i].system,
+          invals[i].fragmentsRemoved,
+        ];
+        t += '<tr><td>' + vals.join('</td><td>') + '</td></tr>';
+      }
+      t += '</table>';
+      t += '</div>';
+      t += '</div>';
+      $t.append(t);
+    }
+  
+    this.$dynarecContent.empty().append($t);
+  }
+
+  createHotFragmentsTable($fragmentDiv, fragmentsList) {
+    let $code = $fragmentDiv.find('#fragment-code');
+    let $table = $('<table class="table table-condensed" />');
+    let columns = ['Address', 'Execution Count', 'Length', 'ExecCount * Length'];
+  
+    $table.append('<tr><th>' + columns.join('</th><th>') + '</th></tr>');
+    for (let i = 0; i < fragmentsList.length && i < 20; ++i) {
+      let fragment = fragmentsList[i];
+      let vals = [
+        format.toString32(fragment.entryPC),
+        fragment.executionCount,
+        fragment.opsCompiled,
+        fragment.executionCount * fragment.opsCompiled
+      ];
+      let $tr = $('<tr><td>' + vals.join('</td><td>') + '</td></tr>');
+      initFragmentRow($tr, fragment, $code);
+      $table.append($tr);
+    }
+    $fragmentDiv.find('#fragments').append($table);
+  
+    if (fragmentsList.length > 0) {
+      $code.append('<pre>' + fragmentsList[0].func.toString() + '</pre>');
+    }
+  }
+  
+  initFragmentRow($tr, fragment, $code) {
+    $tr.click(() => {
+      $code.html('<pre>' + fragment.func.toString() + '</pre>');
+    });
+  }
+  
+  disassemblerDown() {
+    this.disasmAddress += 4;
+    n64js.refreshDebugger();
+  }
+  
+  disassemblerUp() {
+    this.disasmAddress -= 4;
+    n64js.refreshDebugger();
+  }
+  
+  disassemblerPageDown() {
+    this.disasmAddress += 64;
+    n64js.refreshDebugger();
+  }
+  
+  disassemblerPageUp() {
+    this.disasmAddress -= 64;
+    n64js.refreshDebugger();
+  }
 }
 
 // FIXME: Move initialisation of this to n64.js when everything is encapsulated.
@@ -583,214 +788,9 @@ function roundDown(x, a) {
   return x & ~(a - 1);
 }
 
-/**
- * Makes a map of colours keyed by register name.
- * @param {?Object} instruction The instruction to produce colours for.
- * @return {!Map<string, string>}
- */
-function makeRegisterColours(instruction) {
-  const availColours = [
-    '#F4EEAF', // yellow
-    '#AFF4BB', // green
-    '#F4AFBE'  // blue
-  ];
-
-  let registerColours = new Map();
-  if (instruction) {
-    let nextColIdx = 0;
-    for (let i in instruction.srcRegs) {
-      if (!registerColours.hasOwnProperty(i)) {
-        registerColours.set(i, availColours[nextColIdx++]);
-      }
-    }
-    for (let i in instruction.dstRegs) {
-      if (!registerColours.hasOwnProperty(i)) {
-        registerColours.set(i, availColours[nextColIdx++]);
-      }
-    }
-  }
-
-  return registerColours;
-}
-
-function makeRecentMemoryAccesses(isSingleStep, currentInstruction) {
-  // Keep a small queue showing recent memory accesses
-  if (isSingleStep) {
-    // Check if we've just stepped over a previous write op, and update the result
-    if (dbg.lastStore) {
-      if ((dbg.lastStore.cycle + 1) === n64js.cpu0.opsExecuted) {
-        let updatedElement = dbg.addRecentMemoryAccess(dbg.lastStore.address, 'update');
-        dbg.lastStore.element.append(updatedElement);
-      }
-      dbg.lastStore = null;
-    }
-
-    if (currentInstruction.memory) {
-      let access = currentInstruction.memory;
-      let newAddress = n64js.cpu0.gprLo[access.reg] + access.offset;
-      let element = dbg.addRecentMemoryAccess(newAddress, access.mode);
-
-      if (access.mode === 'store') {
-        dbg.lastStore = {
-          address: newAddress,
-          cycle: n64js.cpu0.opsExecuted,
-          element: element,
-        };
-      }
-
-      dbg.recentMemoryAccesses.push({ element: element });
-
-      // Nuke anything that happened more than N cycles ago
-      //while (dbg.recentMemoryAccesses.length > 0 && dbg.recentMemoryAccesses[0].cycle+10 < cycle)
-      if (dbg.recentMemoryAccesses.length > 4) {
-        dbg.recentMemoryAccesses.splice(0, 1);
-      }
-
-      dbg.lastMemoryAccessAddress = newAddress;
-    }
-  } else {
-    // Clear the recent memory accesses when running.
-    dbg.recentMemoryAccesses = [];
-    dbg.lastStore = null;
-  }
-
-  let $recent = $('<pre />');
-  if (dbg.recentMemoryAccesses.length > 0) {
-    const fadingColours = ['#bbb', '#999', '#666', '#333'];
-    for (let i = 0; i < dbg.recentMemoryAccesses.length; ++i) {
-      let element = dbg.recentMemoryAccesses[i].element;
-      element.css('color', fadingColours[i]);
-      $recent.append(element);
-    }
-  }
-
-  return $recent;
-}
-
-function updateDynarec() {
-  let invals = consumeFragmentInvalidationEvents();
-  let histogram = new Map();
-  let maxBucket = 0;
-
-  // Build a flattened list of all fragments
-  let fragmentsList = [];
-  for (let [pc, fragment] of getFragmentMap()) {
-    let i = fragment.executionCount > 0 ? Math.floor(Math.log10(fragment.executionCount)) : 0;
-    histogram.set(i, (histogram.get(i) || 0) + 1);
-    fragmentsList.push(fragment);
-    maxBucket = Math.max(maxBucket, i);
-  }
-
-  fragmentsList.sort((a, b) => {
-    return b.opsCompiled * b.executionCount - a.opsCompiled * a.executionCount;
-  });
-
-  let $t = $('<div class="container-fluid" />');
-
-  // Histogram showing execution counts
-  let t = '';
-  t += '<div class="row">';
-  t += '<table class="table table-condensed table-nonfluid"><tr><th>Execution Count</th><th>Frequency</th></tr>';
-  for (let i = 0; i <= maxBucket; i++) {
-    let count = histogram.get(i) || 0;
-    let range = '< ' + Math.pow(10, i + 1);
-    t += '<tr><td>' + range + '</td><td>' + count + '</td></tr>';
-  }
-  t += '</table>';
-  t += '</div>';
-  $t.append(t);
-
-  // Table of hot fragments, and the corresponding js
-  t = '';
-  t += '<div class="row">';
-  t += '  <div class="col-lg-6" id="fragments" />';
-  t += '  <div class="col-lg-6" id="fragment-code" />';
-  t += '</div>';
-  let $fragmentDiv = $(t);
-
-  createHotFragmentsTable($fragmentDiv, fragmentsList);
-
-  $t.append($fragmentDiv);
-
-  // Evictions
-  if (invals.length > 0) {
-    t = '';
-    t += '<div class="row">';
-    t += '<div class="col-lg-6">';
-    t += '<table class="table table-condensed">';
-    t += '<tr><th>Address</th><th>Length</th><th>System</th><th>Fragments Removed</th></tr>';
-    for (let i = 0; i < invals.length; ++i) {
-      let vals = [
-        format.toString32(invals[i].address),
-        invals[i].length,
-        invals[i].system,
-        invals[i].fragmentsRemoved,
-      ];
-      t += '<tr><td>' + vals.join('</td><td>') + '</td></tr>';
-    }
-    t += '</table>';
-    t += '</div>';
-    t += '</div>';
-    $t.append(t);
-  }
-
-  dbg.$dynarecContent.empty().append($t);
-}
-
-function createHotFragmentsTable($fragmentDiv, fragmentsList) {
-  let $code = $fragmentDiv.find('#fragment-code');
-  let $table = $('<table class="table table-condensed" />');
-  let columns = ['Address', 'Execution Count', 'Length', 'ExecCount * Length'];
-
-  $table.append('<tr><th>' + columns.join('</th><th>') + '</th></tr>');
-  for (let i = 0; i < fragmentsList.length && i < 20; ++i) {
-    let fragment = fragmentsList[i];
-    let vals = [
-      format.toString32(fragment.entryPC),
-      fragment.executionCount,
-      fragment.opsCompiled,
-      fragment.executionCount * fragment.opsCompiled
-    ];
-    let $tr = $('<tr><td>' + vals.join('</td><td>') + '</td></tr>');
-    initFragmentRow($tr, fragment, $code);
-    $table.append($tr);
-  }
-  $fragmentDiv.find('#fragments').append($table);
-
-  if (fragmentsList.length > 0) {
-    $code.append('<pre>' + fragmentsList[0].func.toString() + '</pre>');
-  }
-}
-
-function initFragmentRow($tr, fragment, $code) {
-  $tr.click(() => {
-    $code.html('<pre>' + fragment.func.toString() + '</pre>');
-  });
-}
-
-function disassemblerDown() {
-  dbg.disasmAddress += 4;
-  n64js.refreshDebugger();
-}
-
-function disassemblerUp() {
-  dbg.disasmAddress -= 4;
-  n64js.refreshDebugger();
-}
-
-function disassemblerPageDown() {
-  dbg.disasmAddress += 64;
-  n64js.refreshDebugger();
-}
-
-function disassemblerPageUp() {
-  dbg.disasmAddress -= 64;
-  n64js.refreshDebugger();
-}
-
 n64js.refreshDebugger = function () {
   if (dbg.$dynarecContent.hasClass('active')) {
-    updateDynarec();
+    dbg.updateDynarec();
   }
 
   if (dbg.$debugContent.hasClass('active')) {
