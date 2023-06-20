@@ -54,6 +54,48 @@ class Debugger {
     /** @type {number} How many cycles to execute before updating the debugger. */
     this.debugCycles = Math.pow(10, 0);
   }
+
+  refreshLabelSelect() {
+    let $select = $('#cpu').find('#labels');
+  
+    let arr = [];
+    for (let i in this.labelMap) {
+      if (this.labelMap.hasOwnProperty(i)) {
+        arr.push(i);
+      }
+    }
+    arr.sort((a, b) => { return this.labelMap[a].localeCompare(this.labelMap[b]); });
+  
+    $select.html('');
+  
+    for (let i = 0; i < arr.length; ++i) {
+      let address = arr[i];
+      let label = this.labelMap[address];
+      let $option = $('<option value="' + label + '">' + label + '</option>');
+      $option.data('address', address);
+      $select.append($option);
+    }
+  
+    $select.change(function () {
+      let contents = $select.find('option:selected').data('address');
+      this.disasmAddress = /** @type {number} */(contents) >>> 0;
+      updateDebug();
+    });
+  }
+  
+  onReset() {
+    this.restoreLabelMap();
+  }
+  
+  restoreLabelMap() {
+    this.labelMap = n64js.getLocalStorageItem('debugLabels') || {};
+    this.refreshLabelSelect();
+    updateDebug();
+  }
+  
+  storeLabelMap() {
+    n64js.setLocalStorageItem('debugLabels', this.labelMap);
+  }
 }
 
 // FIXME: Move initialisation of this to n64.js when everything is encapsulated.
@@ -78,48 +120,6 @@ n64js.hideDebugger = () => {
   $('.debug').hide();
 }
 
-function refreshLabelSelect() {
-  let $select = $('#cpu').find('#labels');
-
-  let arr = [];
-  for (let i in dbg.labelMap) {
-    if (dbg.labelMap.hasOwnProperty(i)) {
-      arr.push(i);
-    }
-  }
-  arr.sort((a, b) => { return dbg.labelMap[a].localeCompare(dbg.labelMap[b]); });
-
-  $select.html('');
-
-  for (let i = 0; i < arr.length; ++i) {
-    let address = arr[i];
-    let label = dbg.labelMap[address];
-    let $option = $('<option value="' + label + '">' + label + '</option>');
-    $option.data('address', address);
-    $select.append($option);
-  }
-
-  $select.change(function () {
-    let contents = $select.find('option:selected').data('address');
-    dbg.disasmAddress = /** @type {number} */(contents) >>> 0;
-    updateDebug();
-  });
-}
-
-function onReset() {
-  restoreLabelMap();
-}
-
-function restoreLabelMap() {
-  dbg.labelMap = n64js.getLocalStorageItem('debugLabels') || {};
-  refreshLabelSelect();
-  updateDebug();
-}
-
-function storeLabelMap() {
-  n64js.setLocalStorageItem('debugLabels', dbg.labelMap);
-}
-
 n64js.initialiseDebugger = function () {
   dbg.$debugContent = $('#debug-content');
   dbg.$status = $('#status');
@@ -132,7 +132,7 @@ n64js.initialiseDebugger = function () {
     return format.toString32(n64js.cpu0.pc);
   });
 
-  n64js.addResetCallback(onReset);
+  n64js.addResetCallback(dbg.onReset.bind(dbg));
 
   $('#output').find('#clear').click(function () {
     logger.clear();
@@ -147,7 +147,7 @@ n64js.initialiseDebugger = function () {
     dbg.disasmAddress = parseInt($(this).val(), 16);
     updateDebug();
   });
-  refreshLabelSelect();
+  dbg.refreshLabelSelect();
 
   dbg.$memoryContent.find('input').change(function () {
     dbg.lastMemoryAccessAddress = parseInt($(this).val(), 16);
@@ -462,8 +462,8 @@ function onLabelClicked(e) {
       } else {
         delete dbg.labelMap[address];
       }
-      storeLabelMap();
-      refreshLabelSelect();
+      dbg.storeLabelMap();
+      dbg.refreshLabelSelect();
       updateDebug();
     }
   });
