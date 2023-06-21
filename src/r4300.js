@@ -1,6 +1,7 @@
 /*jshint jquery:true, devel:true */
 
 import { CPU1 } from './CPU1.js';
+import { disassembleOp, cop0ControlRegisterNames } from './disassemble.js';
 import { toString8, toString32 } from './format.js';
 import { Fragment, lookupFragment, resetFragments } from './fragments.js';
 import { assert } from './assert.js';
@@ -1000,7 +1001,7 @@ import { syncFlow } from './sync.js';
 
 
   function unimplemented(pc,i) {
-    var r = n64js.disassembleOp(pc,i);
+    var r = disassembleOp(pc,i);
     var e = 'Unimplemented op ' + toString32(i) + ' : ' + r.disassembly;
     logger.log(e);
     throw e;
@@ -1687,7 +1688,7 @@ import { syncFlow } from './sync.js';
       case cpu0.kControlPRId:
       case cpu0.kControlCacheErr:
         // All these registers are read-only
-        logger.log('Attempted write to read-only cpu0 control register. ' + toString32(new_value) + ' --> ' + n64js.cop0ControlRegisterNames[control_reg] );
+        logger.log('Attempted write to read-only cpu0 control register. ' + toString32(new_value) + ' --> ' + cop0ControlRegisterNames[control_reg] );
         break;
 
       case cpu0.kControlCause:
@@ -1720,7 +1721,7 @@ import { syncFlow } from './sync.js';
 
       default:
         cpu0.control[control_reg] = new_value;
-        logger.log('Write to cpu0 control register. ' + toString32(new_value) + ' --> ' + n64js.cop0ControlRegisterNames[control_reg] );
+        logger.log('Write to cpu0 control register. ' + toString32(new_value) + ' --> ' + cop0ControlRegisterNames[control_reg] );
         break;
     }
   }
