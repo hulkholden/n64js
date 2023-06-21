@@ -48,8 +48,8 @@ export class Debugger {
      */
     this.lastStore = null;
 
-    /** @type {!Object<number, string>} A map of labels keyed by address. */
-    this.labelMap = {};
+    /** @type {!Map<number, string>} A map of labels keyed by address. */
+    this.labelMap = new Map();
 
     /** @type {number} How many cycles to execute before updating the debugger. */
     this.debugCycles = Math.pow(10, 0);
@@ -93,7 +93,7 @@ export class Debugger {
         case 'F8': consumed = true; n64js.toggleRun(); break;
         case 'F9': consumed = true; n64js.toggleDebugDisplayList(); break;
         case 'F10': consumed = true; n64js.step(); break;
-        default: console.log( `code: ${event.key}`);
+        // default: console.log(`code: ${event.key}`);
       }
       if (consumed) {
         event.preventDefault();
@@ -102,36 +102,35 @@ export class Debugger {
   }
 
   updateMemoryView() {
-    let addr = this.lastMemoryAccessAddress || 0x80000000;
-    let $pre = this.$memoryContent.find('pre');
+    const addr = this.lastMemoryAccessAddress || 0x80000000;
+    const $pre = this.$memoryContent.find('pre');
     $pre.empty().append(this.makeMemoryTable(addr, 1024));
   }
 
   refreshLabelSelect() {
-    let $select = $('#cpu').find('#labels');
+    const $select = $('#cpu').find('#labels');
+    const arr = Array.from(this.labelMap.keys());
 
-    let arr = [];
-    for (let i in this.labelMap) {
-      if (this.labelMap.hasOwnProperty(i)) {
-        arr.push(i);
-      }
-    }
-    arr.sort((a, b) => { return this.labelMap[a].localeCompare(this.labelMap[b]); });
+    const that = this;
+    arr.sort((a, b) => {
+      const aVal = that.labelMap.get(a);
+      const bVal = that.labelMap.get(b);
+      return aVal.localeCompare(bVal);
+    });
 
     $select.html('');
 
-    for (let i = 0; i < arr.length; ++i) {
-      let address = arr[i];
-      let label = this.labelMap[address];
-      let $option = $('<option value="' + label + '">' + label + '</option>');
+    for (let address of arr) {
+      const label = this.labelMap.get(address);
+      const $option = $(`<option value="${label}">${label}</option>`);
       $option.data('address', address);
       $select.append($option);
     }
 
-    $select.change(function () {
+    $select.change(() => {
       let contents = $select.find('option:selected').data('address');
-      this.disasmAddress = /** @type {number} */(contents) >>> 0;
-      this.updateDebug();
+      that.disasmAddress = /** @type {number} */(contents) >>> 0;
+      that.updateDebug();
     });
   }
 
@@ -140,13 +139,13 @@ export class Debugger {
   }
 
   restoreLabelMap() {
-    this.labelMap = n64js.getLocalStorageItem('debugLabels') || {};
+    this.labelMap = n64js.getLocalStorageItem('debugLabelMap') || new Map();
     this.refreshLabelSelect();
     this.updateDebug();
   }
 
   storeLabelMap() {
-    n64js.setLocalStorageItem('debugLabels', this.labelMap);
+    n64js.setLocalStorageItem('debugLabelMap', this.labelMap);
   }
 
   /**
@@ -384,8 +383,8 @@ export class Debugger {
   }
 
   setLabelText($elem, address) {
-    if (this.labelMap.hasOwnProperty(address)) {
-      $elem.append(' (' + this.labelMap[address] + ')');
+    if (this.labelMap.has(address)) {
+      $elem.append(` (${this.labelMap.get(address)})`);
     }
   }
 
@@ -394,10 +393,7 @@ export class Debugger {
   }
 
   makeLabelText(address) {
-    let t = '';
-    if (this.labelMap.hasOwnProperty(address)) {
-      t = this.labelMap[address];
-    }
+    let t = this.labelMap.get(address) || '';
     while (t.length < 20) {
       t += ' ';
     }
@@ -407,18 +403,18 @@ export class Debugger {
   onLabelClicked(e) {
     let $label = $(e.delegateTarget);
     let address = /** @type {number} */($label.data('address')) >>> 0;
-    let existing = this.labelMap[address] || '';
+    let existing = this.labelMap.get(address) || '';
     let $input = $('<input class="input-mini" value="' + existing + '" />');
 
     const that = this;
 
     $input.keypress((event) => {
       if (event.which == 13) {
-        let newVal = $input.val();
+        const newVal = $input.val();
         if (newVal) {
-          that.labelMap[address] = newVal.toString();
+          that.labelMap.set(address, newVal.toString());
         } else {
-          delete that.labelMap[address];
+          that.labelMap.delete(address);
         }
         that.storeLabelMap();
         that.refreshLabelSelect();
@@ -467,7 +463,7 @@ export class Debugger {
     for (let i = 0; i < disassembly.length; ++i) {
       let a = disassembly[i];
       let address = a.instruction.address;
-      let isTarget = a.isJumpTarget || this.labelMap.hasOwnProperty(address);
+      let isTarget = a.isJumpTarget || this.labelMap.has(address);
       let addressStr = (isTarget ? '<span class="dis-address-target">' : '<span class="dis-address">') + format.toHex(address, 32) + ':</span>';
       let label = '<span class="dis-label">' + this.makeLabelText(address) + '</span>';
       let t = addressStr + '  ' + format.toHex(a.instruction.opcode, 32) + '  ' + label + a.disassembly;
@@ -629,7 +625,7 @@ export class Debugger {
     let invals = consumeFragmentInvalidationEvents();
     let histogram = new Map();
     let maxBucket = 0;
-  
+
     // Build a flattened list of all fragments
     let fragmentsList = [];
     for (let [pc, fragment] of getFragmentMap()) {
@@ -638,13 +634,13 @@ export class Debugger {
       fragmentsList.push(fragment);
       maxBucket = Math.max(maxBucket, i);
     }
-  
+
     fragmentsList.sort((a, b) => {
       return b.opsCompiled * b.executionCount - a.opsCompiled * a.executionCount;
     });
-  
+
     let $t = $('<div class="container-fluid" />');
-  
+
     // Histogram showing execution counts
     let t = '';
     t += '<div class="row">';
@@ -657,7 +653,7 @@ export class Debugger {
     t += '</table>';
     t += '</div>';
     $t.append(t);
-  
+
     // Table of hot fragments, and the corresponding js
     t = '';
     t += '<div class="row">';
@@ -665,11 +661,11 @@ export class Debugger {
     t += '  <div class="col-lg-6" id="fragment-code" />';
     t += '</div>';
     let $fragmentDiv = $(t);
-  
+
     createHotFragmentsTable($fragmentDiv, fragmentsList);
-  
+
     $t.append($fragmentDiv);
-  
+
     // Evictions
     if (invals.length > 0) {
       t = '';
@@ -691,7 +687,7 @@ export class Debugger {
       t += '</div>';
       $t.append(t);
     }
-  
+
     this.$dynarecContent.empty().append($t);
   }
 
@@ -699,7 +695,7 @@ export class Debugger {
     let $code = $fragmentDiv.find('#fragment-code');
     let $table = $('<table class="table table-condensed" />');
     let columns = ['Address', 'Execution Count', 'Length', 'ExecCount * Length'];
-  
+
     $table.append('<tr><th>' + columns.join('</th><th>') + '</th></tr>');
     for (let i = 0; i < fragmentsList.length && i < 20; ++i) {
       let fragment = fragmentsList[i];
@@ -714,33 +710,33 @@ export class Debugger {
       $table.append($tr);
     }
     $fragmentDiv.find('#fragments').append($table);
-  
+
     if (fragmentsList.length > 0) {
       $code.append('<pre>' + fragmentsList[0].func.toString() + '</pre>');
     }
   }
-  
+
   initFragmentRow($tr, fragment, $code) {
     $tr.click(() => {
       $code.html('<pre>' + fragment.func.toString() + '</pre>');
     });
   }
-  
+
   disassemblerDown() {
     this.disasmAddress += 4;
     this.redraw();
   }
-  
+
   disassemblerUp() {
     this.disasmAddress -= 4;
     this.redraw();
   }
-  
+
   disassemblerPageDown() {
     this.disasmAddress += 64;
     this.redraw();
   }
-  
+
   disassemblerPageUp() {
     this.disasmAddress -= 64;
     this.redraw();
@@ -750,15 +746,15 @@ export class Debugger {
     if (this.$dynarecContent.hasClass('active')) {
       this.updateDynarec();
     }
-  
+
     if (this.$debugContent.hasClass('active')) {
       this.updateDebug();
     }
-  
+
     if (this.$memoryContent.hasClass('active')) {
       this.updateMemoryView();
     }
-  };  
+  };
 }
 
 n64js.toggleDebugger = () => {
