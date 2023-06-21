@@ -4,6 +4,7 @@ import { disassemble, cop0gprNames, cop1RegisterNames } from './disassemble.js';
 import * as format from './format.js';
 import * as logger from './logger.js';
 import { getFragmentMap, consumeFragmentInvalidationEvents } from './fragments.js';
+import { toggleDebugDisplayList } from './hle.js';
 
 window.n64js = window.n64js || {};
 
@@ -92,7 +93,7 @@ export class Debugger {
         case 'PageDown': consumed = true; that.disassemblerPageDown(); break;
         case 'PageUp': consumed = true; that.disassemblerPageUp(); break;
         case 'F8': consumed = true; n64js.toggleRun(); break;
-        case 'F9': consumed = true; n64js.toggleDebugDisplayList(); break;
+        case 'F9': consumed = true; toggleDebugDisplayList(); break;
         case 'F10': consumed = true; n64js.step(); break;
         // default: console.log(`code: ${event.key}`);
       }

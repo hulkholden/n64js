@@ -26,8 +26,8 @@ var $dlistOutput;
 var $dlistState;
 var $dlistScrub;
 
-var debugDisplayListRequested = false;
-var debugDisplayListRunning = false;
+export let debugDisplayListRequested = false;
+export let debugDisplayListRunning = false;
 var debugNumOps = 0;
 var debugBailAfter = -1;
 // The last task that we executed.
@@ -475,7 +475,7 @@ RSPTask.prototype.computeMicrocodeHash = function() {
 
 
 // task_dv is a DataView object
-n64js.rspProcessTask = function() {
+export function rspProcessTask() {
   var task = new RSPTask(n64js.rsp_task_view);
 
   switch (task.type) {
@@ -2973,7 +2973,7 @@ function buildUCodeTables(ucode) {
 var last_ucode_str = '';
 var num_display_lists_since_present = 0;
 
-n64js.presentBackBuffer = function(ram, origin) {
+export function presentBackBuffer(ram, origin) {
   var texture;
 
   n64js.onPresent();
@@ -3016,7 +3016,7 @@ n64js.presentBackBuffer = function(ram, origin) {
 
   copyBackBufferToFrontBuffer(texture);
   num_display_lists_since_present = 0;
-};
+}
 
 function setViScales() {
   const viRegDevice = n64js.hardware().viRegDevice;
@@ -3091,13 +3091,6 @@ Disassembler.prototype.finalise = function() {
   });
   // this.$currentDis.find('.dl-branch').click(function () {
   // });
-};
-
-n64js.debugDisplayListRequested = function() {
-  return debugDisplayListRequested;
-};
-n64js.debugDisplayListRunning = function() {
-  return debugDisplayListRunning;
 };
 
 function buildStateTab() {
@@ -3316,7 +3309,7 @@ function hideDebugDisplayListUI() {
   $('.debug').hide();
 }
 
-n64js.toggleDebugDisplayList = function() {
+export function toggleDebugDisplayList() {
   if (debugDisplayListRunning) {
     hideDebugDisplayListUI();
     debugBailAfter = -1;
@@ -3330,7 +3323,7 @@ n64js.toggleDebugDisplayList = function() {
 
 // This is acalled repeatedly so that we can update the ui.
 // We can return false if we don't render anything, but it's useful to keep re-rendering so that we can plot a framerate graph
-n64js.debugDisplayList = function() {
+export function debugDisplayList() {
   if (debugStateTimeShown == -1) {
     // Build some disassembly for this display list
     var disassembler = new Disassembler();
@@ -3357,7 +3350,7 @@ n64js.debugDisplayList = function() {
   }
 
   return true;
-};
+}
 
 function hleGraphics(task) {
   // Bodgily track these parameters so that we can call again with the same params.
@@ -3572,7 +3565,7 @@ function initDebugUI() {
     }
   });
   $dlistControls.find('#stop').click(function() {
-    n64js.toggleDebugDisplayList();
+    toggleDebugDisplayList();
   });
 
   $dlistScrub = $dlistControls.find('.scrub');
@@ -3591,7 +3584,7 @@ function initDebugUI() {
 // Called when the canvas is created to get the ball rolling.
 // Figuratively, that is. There's nothing moving in this demo.
 //
-n64js.initialiseRenderer = function($canvas) {
+export function initialiseRenderer($canvas) {
   initDebugUI();
 
   var canvas = $canvas[0];
@@ -3665,15 +3658,15 @@ n64js.initialiseRenderer = function($canvas) {
 
     setCanvasViewport(canvas.clientWidth, canvas.clientHeight);
   }
-};
+}
 
-n64js.resetRenderer = function() {
+export function resetRenderer() {
   textureCache = {};
   $textureOutput.html('');
   ram_u8 = n64js.getRamU8Array();
   ram_s32 = n64js.getRamS32Array();
   ram_dv = n64js.getRamDataView();
-};
+}
 
 function getCurrentN64Shader(cycle_type, alpha_threshold) {
   var mux0 = state.combine.hi;

@@ -2,6 +2,7 @@ import { Device } from './device.js';
 import * as mi from './mi.js';
 import * as logger from '../logger.js';
 import { toString32 } from '../format.js';
+import { presentBackBuffer } from '../hle.js';
 
 // Video Interface
 const VI_STATUS_REG = 0x00;
@@ -63,7 +64,7 @@ export class VIRegDevice extends Device {
         const lastOrigin = this.mem.readU32(ea);
         const newOrigin = value >>> 0;
         if (newOrigin !== lastOrigin/* || this.curVbl !== this.lastVbl*/) {
-          n64js.presentBackBuffer(n64js.getRamU8Array(), newOrigin);
+          presentBackBuffer(n64js.getRamU8Array(), newOrigin);
           n64js.returnControlToSystem();
           this.lastVbl = this.curVbl;
         }
