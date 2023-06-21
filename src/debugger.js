@@ -1,5 +1,6 @@
 /*jshint jquery:true */
 
+import { disassemble, cop0gprNames, cop1RegisterNames } from './disassemble.js';
 import * as format from './format.js';
 import * as logger from './logger.js';
 import { getFragmentMap, consumeFragmentInvalidationEvents } from './fragments.js';
@@ -230,7 +231,7 @@ export class Debugger {
     for (let i = 0; i < 32; i += kRegistersPerRow) {
       let $tr = $('<tr />');
       for (let r = 0; r < kRegistersPerRow; ++r) {
-        let name = n64js.cop0gprNames[i + r];
+        let name = cop0gprNames[i + r];
         let $td = $('<td>' + name + '</td><td class="fixed">' + format.toString64(cpu0.gprHi[i + r], cpu0.gprLo[i + r]) + '</td>');
 
         if (registerColours.has(name)) {
@@ -255,7 +256,7 @@ export class Debugger {
     let cpu1 = n64js.cpu1;
 
     for (let i = 0; i < 32; ++i) {
-      let name = n64js.cop1RegisterNames[i];
+      let name = cop1RegisterNames[i];
 
       let $td;
       if ((i & 1) === 0) {
@@ -454,7 +455,7 @@ export class Debugger {
     this.lastCycles = cpuCount;
 
     let fragmentMap = getFragmentMap();
-    let disassembly = n64js.disassemble(this.disasmAddress - 64, this.disasmAddress + 64);
+    let disassembly = disassemble(this.disasmAddress - 64, this.disasmAddress + 64);
 
     let $disGutter = $('<pre/>');
     let $disText = $('<pre/>');

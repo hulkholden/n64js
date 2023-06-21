@@ -32,31 +32,28 @@ function makeLabelText(address) {
   return '<span class="dis-address-jump">'+ text + '</span>';
 }
 
-const gprRegisterNames = [
+export const cop0gprNames = [
   'r0', 'at', 'v0', 'v1', 'a0', 'a1', 'a2', 'a3',
   't0', 't1', 't2', 't3', 't4', 't5', 't6', 't7',
   's0', 's1', 's2', 's3', 's4', 's5', 's6', 's7',
   't8', 't9', 'k0', 'k1', 'gp', 'sp', 's8', 'ra'
 ];
-n64js.cop0gprNames = gprRegisterNames;
 
-const cop0ControlRegisterNames = [
+export const cop0ControlRegisterNames = [
   "Index",       "Rand", "EntryLo0", "EntryLo1", "Context", "PageMask",     "Wired",   "?7",
   "BadVAddr",   "Count",  "EntryHi",  "Compare",      "SR",    "Cause",       "EPC", "PrID",
   "?16",         "?17",   "WatchLo",  "WatchHi",     "?20",      "?21",       "?22",  "?23",
   "?24",         "?25",       "ECC", "CacheErr",   "TagLo",    "TagHi",  "ErrorEPC",  "?31"
 ];
-n64js.cop0ControlRegisterNames = cop0ControlRegisterNames;
 
-const cop1RegisterNames = [
+export const cop1RegisterNames = [
   'f00', 'f01', 'f02', 'f03', 'f04', 'f05', 'f06', 'f07',
   'f08', 'f09', 'f10', 'f11', 'f12', 'f13', 'f14', 'f15',
   'f16', 'f17', 'f18', 'f19', 'f20', 'f21', 'f22', 'f23',
   'f24', 'f25', 'f26', 'f27', 'f28', 'f29', 'f30', 'f31'
 ];
-n64js.cop1RegisterNames = cop1RegisterNames;
 
-const cop2RegisterNames = [
+export const cop2RegisterNames = [
   'GR00', 'GR01', 'GR02', 'GR03', 'GR04', 'GR05', 'GR06', 'GR07',
   'GR08', 'GR09', 'GR10', 'GR11', 'GR12', 'GR13', 'GR14', 'GR15',
   'GR16', 'GR17', 'GR18', 'GR19', 'GR20', 'GR21', 'GR22', 'GR23',
@@ -74,10 +71,10 @@ class Instruction {
   }
 
   // cop0 regs
-  rt_d() { const reg = gprRegisterNames[_rt(this.opcode)]; this.dstRegs[reg] = 1; return makeRegSpan(reg); }
-  rd() { const reg = gprRegisterNames[_rd(this.opcode)]; this.dstRegs[reg] = 1; return makeRegSpan(reg); }
-  rt() { const reg = gprRegisterNames[_rt(this.opcode)]; this.srcRegs[reg] = 1; return makeRegSpan(reg); }
-  rs() { const reg = gprRegisterNames[_rs(this.opcode)]; this.srcRegs[reg] = 1; return makeRegSpan(reg); }
+  rt_d() { const reg = cop0gprNames[_rt(this.opcode)]; this.dstRegs[reg] = 1; return makeRegSpan(reg); }
+  rd() { const reg = cop0gprNames[_rd(this.opcode)]; this.dstRegs[reg] = 1; return makeRegSpan(reg); }
+  rt() { const reg = cop0gprNames[_rt(this.opcode)]; this.srcRegs[reg] = 1; return makeRegSpan(reg); }
+  rs() { const reg = cop0gprNames[_rs(this.opcode)]; this.srcRegs[reg] = 1; return makeRegSpan(reg); }
 
   // dummy operand - just marks ra as being a dest reg
   writesRA() { this.dstRegs[n64js.cpu0.kRegister_ra] = 1; return ''; }
@@ -501,26 +498,26 @@ if (simpleTable.length != 64) {
   throw "Oops, didn't build the simple table correctly";
 }
 
-n64js.disassembleOp = function (address, opcode) {
+export function disassembleOp(address, opcode) {
   var i           = new Instruction(address, opcode);
   var o = _op(opcode);
   var disassembly = simpleTable[_op(opcode)](i);
 
   return {instruction:i, disassembly:disassembly, isJumpTarget:false};
-};
+}
 
-n64js.disassembleAddress = function (address) {
+function disassembleAddress(address) {
   var instruction = n64js.getInstruction(address);
-  return n64js.disassembleOp(address, instruction);
-};
+  return disassembleOp(address, instruction);
+}
 
-n64js.disassemble = function (bpc, epc) {
+export function disassemble(bpc, epc) {
   var r = [];
 
   var targets = {};
 
   for (var i = bpc; i < epc; i += 4) {
-      var d = n64js.disassembleAddress(i);
+      var d = disassembleAddress(i);
       if (d.instruction.target) {
         targets[d.instruction.target] = 1;
       }
@@ -536,4 +533,4 @@ n64js.disassemble = function (bpc, epc) {
   }
 
   return r;
-};
+}
