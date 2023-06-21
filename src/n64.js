@@ -7,6 +7,7 @@ import { Debugger } from './debugger.js';
 import { fixRomByteOrder } from './endian.js';
 import { toString32 } from './format.js';
 import { Hardware } from './hardware.js';
+import * as json from './json.js';
 import * as logger from './logger.js';
 import { romdb, generateRomId, generateCICType, uint8ArrayReadString } from './romdb.js';
 import { UI } from './ui.js';
@@ -87,7 +88,7 @@ function loadRom(arrayBuffer) {
     rominfo.save = 'Eeprom4k';
   }
 
-  logger.log(`rominfo is ${JSON.stringify(rominfo)}`);
+  logger.log(`rominfo is ${json.serialize(rominfo)}`);
 
   $('#title').text(`n64js - ${rominfo.name}`);
 }
@@ -241,12 +242,12 @@ function getLocalStorageName(item) {
 n64js.getLocalStorageItem = (name) => {
   const lsName = getLocalStorageName(name);
   const dataStr = localStorage.getItem(lsName);
-  return dataStr ? JSON.parse(dataStr) : undefined;
+  return dataStr ? json.deserialize(dataStr) : undefined;
 };
 
 n64js.setLocalStorageItem = (name, data) => {
   const lsName = getLocalStorageName(name);
-  const dataStr = JSON.stringify(data);
+  const dataStr = json.serialize(data);
   localStorage.setItem(lsName, dataStr);
 };
 
