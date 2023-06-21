@@ -2,6 +2,7 @@ import { Device } from './device.js';
 import * as mi from './mi.js';
 import * as logger from '../logger.js';
 import { toString16, toString32 } from '../format.js';
+import { rspProcessTask } from '../hle.js';
 
 export const SP_MEM_ADDR_REG = 0x00;
 export const SP_DRAM_ADDR_REG = 0x04;
@@ -197,7 +198,7 @@ export class SPRegDevice extends Device {
     this.mem.write32(SP_STATUS_REG, statusBits);
 
     if (startRsp) {
-      n64js.rspProcessTask();
+      rspProcessTask();
     } else if (stopRsp) {
       // As we handle all RSP via HLE, nothing to do here.
     }

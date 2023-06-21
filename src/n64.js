@@ -7,6 +7,7 @@ import { Debugger } from './debugger.js';
 import { fixRomByteOrder } from './endian.js';
 import { toString32 } from './format.js';
 import { Hardware } from './hardware.js';
+import { debugDisplayList, debugDisplayListRequested, debugDisplayListRunning, presentBackBuffer, initialiseRenderer, resetRenderer } from './hle.js';
 import * as json from './json.js';
 import * as logger from './logger.js';
 import { romdb, generateRomId, generateCICType, uint8ArrayReadString } from './romdb.js';
@@ -144,7 +145,7 @@ function updateLoopAnimframe() {
     let maxCycles = kCyclesPerUpdate;
 
     // Don't slow down debugger if we're waiting for a display list to be debugged.
-    if (n64js.debuggerVisible() && !n64js.debugDisplayListRequested()) {
+    if (n64js.debuggerVisible() && !debugDisplayListRequested) {
       maxCycles = dbg.debugCycles;
     }
 
@@ -157,10 +158,10 @@ function updateLoopAnimframe() {
       n64js.run(maxCycles);
       dbg.redraw();
     }
-  } else if (n64js.debugDisplayListRunning()) {
+  } else if (debugDisplayListRunning) {
     requestAnimationFrame(updateLoopAnimframe);
-    if (n64js.debugDisplayList()) {
-      n64js.presentBackBuffer(n64js.getRamU8Array(), hardware.viRegDevice.viOrigin());
+    if (debugDisplayList()) {
+      presentBackBuffer(n64js.getRamU8Array(), hardware.viRegDevice.viOrigin());
     }
   }
 
@@ -292,7 +293,7 @@ n64js.reset = () => {
   n64js.cpu0.reset();
   n64js.cpu1.reset();
 
-  n64js.resetRenderer();
+  resetRenderer();
 
   // Simulate boot
   hardware.loadROM();
@@ -342,7 +343,7 @@ n64js.returnControlToSystem = () => {
 n64js.init = () => {
   n64js.reset();
   dbg = new Debugger();
-  n64js.initialiseRenderer($('#display'));
+  initialiseRenderer($('#display'));
 
   const body = document.querySelector('body');
   body.addEventListener('keyup', (event) => {
