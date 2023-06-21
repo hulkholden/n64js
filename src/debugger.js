@@ -1,7 +1,7 @@
 /*jshint jquery:true */
 
 import { disassemble, cop0gprNames, cop1RegisterNames } from './disassemble.js';
-import * as format from './format.js';
+import { toString32, toString64, toHex } from './format.js';
 import * as logger from './logger.js';
 import { getFragmentMap, consumeFragmentInvalidationEvents } from './fragments.js';
 import { toggleDebugDisplayList } from './hle.js';
@@ -57,7 +57,7 @@ export class Debugger {
     this.debugCycles = Math.pow(10, 0);
 
     logger.initialise($('.output'), () => {
-      return format.toString32(n64js.cpu0.pc);
+      return toString32(n64js.cpu0.pc);
     });
 
     n64js.addResetCallback(this.onReset.bind(this));
@@ -164,7 +164,7 @@ export class Debugger {
 
     let t = '';
     for (let a = s; a < e; a += bytesPerRow) {
-      let r = format.toHex(a, 32) + ':';
+      let r = toHex(a, 32) + ':';
 
       for (let o = 0; o < bytesPerRow; o += 4) {
         let curAddress = a + o >>> 0;
@@ -173,7 +173,7 @@ export class Debugger {
         if (highlights && highlights.has(curAddress)) {
           style = ' style="background-color: ' + highlights.get(curAddress) + '"';
         }
-        r += ' <span id="mem-' + format.toHex(curAddress, 32) + '"' + style + '>' + format.toHex(mem, 32) + '</span>';
+        r += ' <span id="mem-' + toHex(curAddress, 32) + '"' + style + '>' + toHex(mem, 32) + '</span>';
       }
 
       r += '\n';
@@ -214,7 +214,7 @@ export class Debugger {
       default: r *= 2; g *= 2; b *= 2; break;
     }
 
-    return '#' + format.toHex(r, 8) + format.toHex(g, 8) + format.toHex(b, 8);
+    return '#' + toHex(r, 8) + toHex(g, 8) + toHex(b, 8);
   }
 
   /**
@@ -233,7 +233,7 @@ export class Debugger {
       let $tr = $('<tr />');
       for (let r = 0; r < kRegistersPerRow; ++r) {
         let name = cop0gprNames[i + r];
-        let $td = $('<td>' + name + '</td><td class="fixed">' + format.toString64(cpu0.gprHi[i + r], cpu0.gprLo[i + r]) + '</td>');
+        let $td = $('<td>' + name + '</td><td class="fixed">' + toString64(cpu0.gprHi[i + r], cpu0.gprLo[i + r]) + '</td>');
 
         if (registerColours.has(name)) {
           $td.attr('bgcolor', registerColours.get(name));
@@ -262,13 +262,13 @@ export class Debugger {
       let $td;
       if ((i & 1) === 0) {
         $td = $('<td>' + name +
-          '</td><td class="fixed fp-w">' + format.toString32(cpu1.uint32[i]) +
+          '</td><td class="fixed fp-w">' + toString32(cpu1.uint32[i]) +
           '</td><td class="fixed fp-s">' + cpu1.float32[i] +
           '</td><td class="fixed fp-d">' + cpu1.float64[i / 2] +
           '</td>');
       } else {
         $td = $('<td>' + name +
-          '</td><td class="fixed fp-w">' + format.toString32(cpu1.uint32[i]) +
+          '</td><td class="fixed fp-w">' + toString32(cpu1.uint32[i]) +
           '</td><td class="fixed fp-s">' + cpu1.float32[i] +
           '</td><td>' +
           '</td>');
@@ -304,15 +304,15 @@ export class Debugger {
     let $body = $table.find('tbody');
 
     $body.append('<tr><td>Ops</td><td class="fixed">' + cpu0.opsExecuted + '</td></tr>');
-    $body.append('<tr><td>PC</td><td class="fixed">' + format.toString32(cpu0.pc) + '</td>' +
-      '<td>delayPC</td><td class="fixed">' + format.toString32(cpu0.delayPC) + '</td></tr>');
-    $body.append('<tr><td>EPC</td><td class="fixed">' + format.toString32(cpu0.control[cpu0.kControlEPC]) + '</td></tr>');
-    $body.append('<tr><td>MultHi</td><td class="fixed">' + format.toString64(cpu0.multHi[1], cpu0.multHi[0]) + '</td>' +
-      '<td>Cause</td><td class="fixed">' + format.toString32(cpu0.control[cpu0.kControlCause]) + '</td></tr>');
-    $body.append('<tr><td>MultLo</td><td class="fixed">' + format.toString64(cpu0.multLo[1], cpu0.multLo[0]) + '</td>' +
-      '<td>Count</td><td class="fixed">' + format.toString32(cpu0.control[cpu0.kControlCount]) + '</td></tr>');
+    $body.append('<tr><td>PC</td><td class="fixed">' + toString32(cpu0.pc) + '</td>' +
+      '<td>delayPC</td><td class="fixed">' + toString32(cpu0.delayPC) + '</td></tr>');
+    $body.append('<tr><td>EPC</td><td class="fixed">' + toString32(cpu0.control[cpu0.kControlEPC]) + '</td></tr>');
+    $body.append('<tr><td>MultHi</td><td class="fixed">' + toString64(cpu0.multHi[1], cpu0.multHi[0]) + '</td>' +
+      '<td>Cause</td><td class="fixed">' + toString32(cpu0.control[cpu0.kControlCause]) + '</td></tr>');
+    $body.append('<tr><td>MultLo</td><td class="fixed">' + toString64(cpu0.multLo[1], cpu0.multLo[0]) + '</td>' +
+      '<td>Count</td><td class="fixed">' + toString32(cpu0.control[cpu0.kControlCount]) + '</td></tr>');
     $body.append('<tr><td></td><td class="fixed"></td>' +
-      '<td>Compare</td><td class="fixed">' + format.toString32(cpu0.control[cpu0.kControlCompare]) + '</td></tr>');
+      '<td>Compare</td><td class="fixed">' + toString32(cpu0.control[cpu0.kControlCompare]) + '</td></tr>');
 
     for (let i = 0; i < cpu0.events.length; ++i) {
       $body.append('<tr><td>Event' + i + '</td><td class="fixed">' + cpu0.events[i].countdown + ', ' + cpu0.events[i].getName() + '</td></tr>');
@@ -332,7 +332,7 @@ export class Debugger {
     let sr = n64js.cpu0.control[n64js.cpu0.kControlSR];
 
     let $td = $('<td class="fixed" />');
-    $td.append(format.toString32(sr));
+    $td.append(toString32(sr));
     $td.append('&nbsp;');
 
     let i;
@@ -466,9 +466,9 @@ export class Debugger {
       let a = disassembly[i];
       let address = a.instruction.address;
       let isTarget = a.isJumpTarget || this.labelMap.has(address);
-      let addressStr = (isTarget ? '<span class="dis-address-target">' : '<span class="dis-address">') + format.toHex(address, 32) + ':</span>';
+      let addressStr = (isTarget ? '<span class="dis-address-target">' : '<span class="dis-address">') + toHex(address, 32) + ':</span>';
       let label = '<span class="dis-label">' + this.makeLabelText(address) + '</span>';
-      let t = addressStr + '  ' + format.toHex(a.instruction.opcode, 32) + '  ' + label + a.disassembly;
+      let t = addressStr + '  ' + toHex(a.instruction.opcode, 32) + '  ' + label + a.disassembly;
 
       let fragment = fragmentMap.get(address);
       if (fragment) {
@@ -677,7 +677,7 @@ export class Debugger {
       t += '<tr><th>Address</th><th>Length</th><th>System</th><th>Fragments Removed</th></tr>';
       for (let i = 0; i < invals.length; ++i) {
         let vals = [
-          format.toString32(invals[i].address),
+          toString32(invals[i].address),
           invals[i].length,
           invals[i].system,
           invals[i].fragmentsRemoved,
@@ -702,7 +702,7 @@ export class Debugger {
     for (let i = 0; i < fragmentsList.length && i < 20; ++i) {
       let fragment = fragmentsList[i];
       let vals = [
-        format.toString32(fragment.entryPC),
+        toString32(fragment.entryPC),
         fragment.executionCount,
         fragment.opsCompiled,
         fragment.executionCount * fragment.opsCompiled
