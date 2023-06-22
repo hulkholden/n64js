@@ -109,94 +109,98 @@ class Instruction {
 }
 
 function makeRegSpan(t) {
-  return '<span class="dis-reg-' + t + '">' + t + '</span>';
+  return `<span class="dis-reg-${t}">${t}</span>`;
 }
 function makeFPRegSpan(t) {
   // We only use the '-' as a valic css identifier, but want to use '.' in the visible text
-  var text = t.replace('-', '.');
-  return '<span class="dis-reg-' + t + '">' + text + '</span>';
+  const text = t.replace('-', '.');
+  return `<span class="dis-reg-${t}">${text}</span>`;
 }
 
 function getCop1RegisterName(r, fmt) {
-  var suffix = fmt ? '-' + fmt : '';
+  const suffix = fmt ? `-${fmt}` : '';
   return cop1RegisterNames[r] + suffix;
 }
 
 const specialTable = [
-  i => { if (i.opcode === 0) {
-                    return 'NOP';
-                    }
-                  return 'SLL       ' + i.rd() + ' = ' + i.rt() + ' << '  + _sa(i.opcode); },
-  i => { return 'Unk'; },
-  i => { return 'SRL       ' + i.rd() + ' = ' + i.rt() + ' >>> ' + _sa(i.opcode); },
-  i => { return 'SRA       ' + i.rd() + ' = ' + i.rt() + ' >> '  + _sa(i.opcode); },
-  i => { return 'SLLV      ' + i.rd() + ' = ' + i.rt() + ' << '  + i.rs(); },
-  i => { return 'Unk'; },
-  i => { return 'SRLV      ' + i.rd() + ' = ' + i.rt() + ' >>> ' + i.rs(); },
-  i => { return 'SRAV      ' + i.rd() + ' = ' + i.rt() + ' >> '  + i.rs(); },
-  i => { return 'JR        ' + i.rs(); },
-  i => { return 'JALR      ' + i.rd() + ', ' + i.rs(); },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'SYSCALL   ' + toHex( (i.opcode>>6)&0xfffff, 20 ); },
-  i => { return 'BREAK     ' + toHex( (i.opcode>>6)&0xfffff, 20 ); },
-  i => { return 'Unk'; },
-  i => { return 'SYNC'; },
-  i => { return 'MFHI      ' + i.rd() + ' = MultHi'; },
-  i => { return 'MTHI      MultHi = ' + i.rs(); },
-  i => { return 'MFLO      ' + i.rd() + ' = MultLo'; },
-  i => { return 'MTLO      MultLo = ' + i.rs(); },
-  i => { return 'DSLLV     ' + i.rd() + ' = ' + i.rt() + ' << '  + i.rs(); },
-  i => { return 'Unk'; },
-  i => { return 'DSRLV     ' + i.rd() + ' = ' + i.rt() + ' >>> ' + i.rs(); },
-  i => { return 'DSRAV     ' + i.rd() + ' = ' + i.rt() + ' >> '  + i.rs(); },
-  i => { return 'MULT      ' +                  i.rs() + ' * '   + i.rt(); },
-  i => { return 'MULTU     ' +                  i.rs() + ' * '   + i.rt(); },
-  i => { return 'DIV       ' +                  i.rs() + ' / '   + i.rt(); },
-  i => { return 'DIVU      ' +                  i.rs() + ' / '   + i.rt(); },
-  i => { return 'DMULT     ' +                  i.rs() + ' * '   + i.rt(); },
-  i => { return 'DMULTU    ' +                  i.rs() + ' * '   + i.rt(); },
-  i => { return 'DDIV      ' +                  i.rs() + ' / '   + i.rt(); },
-  i => { return 'DDIVU     ' +                  i.rs() + ' / '   + i.rt(); },
-  i => { return 'ADD       ' + i.rd() + ' = ' + i.rs() + ' + '   + i.rt(); },
-  i => { return 'ADDU      ' + i.rd() + ' = ' + i.rs() + ' + '   + i.rt(); },
-  i => { return 'SUB       ' + i.rd() + ' = ' + i.rs() + ' - '   + i.rt(); },
-  i => { return 'SUBU      ' + i.rd() + ' = ' + i.rs() + ' - '   + i.rt(); },
-  i => { return 'AND       ' + i.rd() + ' = ' + i.rs() + ' & '   + i.rt(); },
-  i => { if (_rt(i.opcode) === 0) {
-                    if (_rs(i.opcode) === 0) {
-                    return 'CLEAR     ' + i.rd() + ' = 0';
-                    } else {
-                    return 'MOV       ' + i.rd() + ' = ' + i.rs();
-                    }
-                    }
-                  return 'OR        ' + i.rd() + ' = '    + i.rs() + ' | ' + i.rt(); },
-  i => { return 'XOR       ' + i.rd() + ' = '    + i.rs() + ' ^ ' + i.rt(); },
-  i => { return 'NOR       ' + i.rd() + ' = ~( ' + i.rs() + ' | ' + i.rt() + ' )'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'SLT       ' + i.rd() + ' = ' + i.rs() + ' < ' + i.rt(); },
-  i => { return 'SLTU      ' + i.rd() + ' = ' + i.rs() + ' < ' + i.rt(); },
-  i => { return 'DADD      ' + i.rd() + ' = ' + i.rs() + ' + ' + i.rt(); },
-  i => { return 'DADDU     ' + i.rd() + ' = ' + i.rs() + ' + ' + i.rt(); },
-  i => { return 'DSUB      ' + i.rd() + ' = ' + i.rs() + ' - ' + i.rt(); },
-  i => { return 'DSUBU     ' + i.rd() + ' = ' + i.rs() + ' - ' + i.rt(); },
-  i => { return 'TGE       trap( ' + i.rs() + ' >= ' + i.rt() + ' )'; },
-  i => { return 'TGEU      trap( ' + i.rs() + ' >= ' + i.rt() + ' )'; },
-  i => { return 'TLT       trap( ' + i.rs() + ' < '  + i.rt() + ' )'; },
-  i => { return 'TLTU      trap( ' + i.rs() + ' < '  + i.rt() + ' )'; },
-  i => { return 'TEQ       trap( ' + i.rs() + ' == ' + i.rt() + ' )'; },
-  i => { return 'Unk'; },
-  i => { return 'TNE       trap( ' + i.rs() + ' != ' + i.rt() + ' )'; },
-  i => { return 'Unk'; },
-  i => { return 'DSLL      ' + i.rd() + ' = ' + i.rt() + ' << '  + _sa(i.opcode); },
-  i => { return 'Unk'; },
-  i => { return 'DSRL      ' + i.rd() + ' = ' + i.rt() + ' >>> ' + _sa(i.opcode); },
-  i => { return 'DSRA      ' + i.rd() + ' = ' + i.rt() + ' >> '  + _sa(i.opcode); },
-  i => { return 'DSLL32    ' + i.rd() + ' = ' + i.rt() + ' << (32+'  + _sa(i.opcode) + ')'; },
-  i => { return 'Unk'; },
-  i => { return 'DSRL32    ' + i.rd() + ' = ' + i.rt() + ' >>> (32+' + _sa(i.opcode) + ')'; },
-  i => { return 'DSRA32    ' + i.rd() + ' = ' + i.rt() + ' >> (32+'  + _sa(i.opcode) + ')'; }
+  i => {
+    if (i.opcode === 0) {
+      return 'NOP';
+    }
+    return `SLL       ${i.rd()} = ${i.rt()} << ${_sa(i.opcode)}`;
+  },
+  i => 'Unk',
+  i => `SRL       ${i.rd()} = ${i.rt()} >>> ${_sa(i.opcode)}`,
+  i => `SRA       ${i.rd()} = ${i.rt()} >> ${_sa(i.opcode)}`,
+  i => `SLLV      ${i.rd()} = ${i.rt()} << ${i.rs()}`,
+  i => 'Unk',
+  i => `SRLV      ${i.rd()} = ${i.rt()} >>> ${i.rs()}`,
+  i => `SRAV      ${i.rd()} = ${i.rt()} >> ${i.rs()}`,
+  i => `JR        ${i.rs()}`,
+  i => `JALR      ${i.rd()}, ${i.rs()}`,
+  i => 'Unk',
+  i => 'Unk',
+  i => `SYSCALL   ${toHex((i.opcode >> 6) & 0xfffff, 20)}`,
+  i => `BREAK     ${toHex((i.opcode >> 6) & 0xfffff, 20)}`,
+  i => 'Unk',
+  i => 'SYNC',
+  i => `MFHI      ${i.rd()} = MultHi`,
+  i => `MTHI      MultHi = ${i.rs()}`,
+  i => `MFLO      ${i.rd()} = MultLo`,
+  i => `MTLO      MultLo = ${i.rs()}`,
+  i => `DSLLV     ${i.rd()} = ${i.rt()} << ${i.rs()}`,
+  i => 'Unk',
+  i => `DSRLV     ${i.rd()} = ${i.rt()} >>> ${i.rs()}`,
+  i => `DSRAV     ${i.rd()} = ${i.rt()} >> ${i.rs()}`,
+  i => `MULT      ${i.rs()} * ${i.rt()}`,
+  i => `MULTU     ${i.rs()} * ${i.rt()}`,
+  i => `DIV       ${i.rs()} / ${i.rt()}`,
+  i => `DIVU      ${i.rs()} / ${i.rt()}`,
+  i => `DMULT     ${i.rs()} * ${i.rt()}`,
+  i => `DMULTU    ${i.rs()} * ${i.rt()}`,
+  i => `DDIV      ${i.rs()} / ${i.rt()}`,
+  i => `DDIVU     ${i.rs()} / ${i.rt()}`,
+  i => `ADD       ${i.rd()} = ${i.rs()} + ${i.rt()}`,
+  i => `ADDU      ${i.rd()} = ${i.rs()} + ${i.rt()}`,
+  i => `SUB       ${i.rd()} = ${i.rs()} - ${i.rt()}`,
+  i => `SUBU      ${i.rd()} = ${i.rs()} - ${i.rt()}`,
+  i => `AND       ${i.rd()} = ${i.rs()} & ${i.rt()}`,
+  i => {
+    if (_rt(i.opcode) === 0) {
+      if (_rs(i.opcode) === 0) {
+        return `CLEAR     ${i.rd()} = 0`;
+      } else {
+        return `MOV       ${i.rd()} = ${i.rs()}`;
+      }
+    }
+    return `OR        ${i.rd()} = ${i.rs()} | ${i.rt()}`;
+  },
+  i => `XOR       ${i.rd()} = ${i.rs()} ^ ${i.rt()}`,
+  i => `NOR       ${i.rd()} = ~( ${i.rs()} | ${i.rt()} )`,
+  i => 'Unk',
+  i => 'Unk',
+  i => `SLT       ${i.rd()} = ${i.rs()} < ${i.rt()}`,
+  i => `SLTU      ${i.rd()} = ${i.rs()} < ${i.rt()}`,
+  i => `DADD      ${i.rd()} = ${i.rs()} + ${i.rt()}`,
+  i => `DADDU     ${i.rd()} = ${i.rs()} + ${i.rt()}`,
+  i => `DSUB      ${i.rd()} = ${i.rs()} - ${i.rt()}`,
+  i => `DSUBU     ${i.rd()} = ${i.rs()} - ${i.rt()}`,
+  i => `TGE       trap( ${i.rs()} >= ${i.rt()} )`,
+  i => `TGEU      trap( ${i.rs()} >= ${i.rt()} )`,
+  i => `TLT       trap( ${i.rs()} < ${i.rt()} )`,
+  i => `TLTU      trap( ${i.rs()} < ${i.rt()} )`,
+  i => `TEQ       trap( ${i.rs()} == ${i.rt()} )`,
+  i => 'Unk',
+  i => `TNE       trap( ${i.rs()} != ${i.rt()} )`,
+  i => 'Unk',
+  i => `DSLL      ${i.rd()} = ${i.rt()} << ${_sa(i.opcode)}`,
+  i => 'Unk',
+  i => `DSRL      ${i.rd()} = ${i.rt()} >>> ${_sa(i.opcode)}`,
+  i => `DSRA      ${i.rd()} = ${i.rt()} >> ${_sa(i.opcode)}`,
+  i => `DSLL32    ${i.rd()} = ${i.rt()} << (32+${_sa(i.opcode)})`,
+  i => 'Unk',
+  i => `DSRL32    ${i.rd()} = ${i.rt()} >>> (32+${_sa(i.opcode)})`,
+  i => `DSRA32    ${i.rd()} = ${i.rt()} >> (32+${_sa(i.opcode)})`,
 ];
 if (specialTable.length != 64) {
   throw "Oops, didn't build the special table correctly";
@@ -208,39 +212,39 @@ function disassembleSpecial(i) {
 }
 
 const cop0Table = [
-  i => { return 'MFC0      ' + i.rt() + ' <- ' + cop0ControlRegisterNames[_fs(i.opcode)]; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'MTC0      ' + i.rt() + ' -> ' + cop0ControlRegisterNames[_fs(i.opcode)]; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
+  i => `MFC0      ${i.rt()} <- ${cop0ControlRegisterNames[_fs(i.opcode)]}`,
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => `MTC0      ${i.rt()} -> ${cop0ControlRegisterNames[_fs(i.opcode)]}`,
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
 
   disassembleTLB,
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; }
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
 ];
 if (cop0Table.length != 32) {
   throw "Oops, didn't build the cop0 table correctly";
@@ -254,10 +258,10 @@ function disassembleBCInstr(i) {
   assert( ((i.opcode>>>18)&0x7) === 0, "cc bit is not 0" );
 
   switch (_cop1_bc(i.opcode)) {
-    case 0:    return 'BC1F      !c ? --> ' + i.branchAddress();
-    case 1:    return 'BC1T      c ? --> '  + i.branchAddress();
-    case 2:    return 'BC1FL     !c ? --> ' + i.branchAddress();
-    case 3:    return 'BC1TL     c ? --> '  + i.branchAddress();
+    case 0: return `BC1F      !c ? --> ${i.branchAddress()}`;
+    case 1: return `BC1T      c ? --> ${i.branchAddress()}`;
+    case 2: return `BC1FL     !c ? --> ${i.branchAddress()}`;
+    case 3: return `BC1TL     c ? --> ${i.branchAddress()}`;
   }
 
   return '???';
@@ -267,47 +271,47 @@ function disassembleCop1Instr(i, fmt) {
   var fmt_u = fmt.toUpperCase();
 
   switch(_cop1_func(i.opcode)) {
-    case 0x00:    return 'ADD.' + fmt_u + '     ' + i.fd(fmt) + ' = ' + i.fs(fmt) + ' + ' + i.ft(fmt);
-    case 0x01:    return 'SUB.' + fmt_u + '     ' + i.fd(fmt) + ' = ' + i.fs(fmt) + ' - ' + i.ft(fmt);
-    case 0x02:    return 'MUL.' + fmt_u + '     ' + i.fd(fmt) + ' = ' + i.fs(fmt) + ' * ' + i.ft(fmt);
-    case 0x03:    return 'DIV.' + fmt_u + '     ' + i.fd(fmt) + ' = ' + i.fs(fmt) + ' / ' + i.ft(fmt);
-    case 0x04:    return 'SQRT.' + fmt_u + '    ' + i.fd(fmt) + ' = sqrt(' + i.fs(fmt) + ')';
-    case 0x05:    return 'ABS.' + fmt_u + '     ' + i.fd(fmt) + ' = abs(' + i.fs(fmt) + ')';
-    case 0x06:    return 'MOV.' + fmt_u + '     ' + i.fd(fmt) + ' = ' + i.fs(fmt);
-    case 0x07:    return 'NEG.' + fmt_u + '     ' + i.fd(fmt) + ' = -' + i.fs(fmt);
-    case 0x08:    return 'ROUND.L.' + fmt_u + ' ' + i.fd('l') + ' = round.l(' + i.fs(fmt) + ')';
-    case 0x09:    return 'TRUNC.L.' + fmt_u + ' ' + i.fd('l') + ' = trunc.l(' + i.fs(fmt) + ')';
-    case 0x0a:    return 'CEIL.L.' + fmt_u + '  ' + i.fd('l') + ' = ceil.l(' + i.fs(fmt) + ')';
-    case 0x0b:    return 'FLOOR.L.' + fmt_u + ' ' + i.fd('l') + ' = floor.l(' + i.fs(fmt) + ')';
-    case 0x0c:    return 'ROUND.W.' + fmt_u + ' ' + i.fd('w') + ' = round.w(' + i.fs(fmt) + ')';
-    case 0x0d:    return 'TRUNC.W.' + fmt_u + ' ' + i.fd('w') + ' = trunc.w(' + i.fs(fmt) + ')';
-    case 0x0e:    return 'CEIL.W.' + fmt_u + '  ' + i.fd('w') + ' = ceil.w(' + i.fs(fmt) + ')';
-    case 0x0f:    return 'FLOOR.W.' + fmt_u + ' ' + i.fd('w') + ' = floor.w(' + i.fs(fmt) + ')';
+    case 0x00: return `ADD.${fmt_u}     ${i.fd(fmt)} = ${i.fs(fmt)} + ${i.ft(fmt)}`;
+    case 0x01: return `SUB.${fmt_u}     ${i.fd(fmt)} = ${i.fs(fmt)} - ${i.ft(fmt)}`;
+    case 0x02: return `MUL.${fmt_u}     ${i.fd(fmt)} = ${i.fs(fmt)} * ${i.ft(fmt)}`;
+    case 0x03: return `DIV.${fmt_u}     ${i.fd(fmt)} = ${i.fs(fmt)} / ${i.ft(fmt)}`;
+    case 0x04: return `SQRT.${fmt_u}    ${i.fd(fmt)} = sqrt(${i.fs(fmt)})`;
+    case 0x05: return `ABS.${fmt_u}     ${i.fd(fmt)} = abs(${i.fs(fmt)})`;
+    case 0x06: return `MOV.${fmt_u}     ${i.fd(fmt)} = ${i.fs(fmt)}`;
+    case 0x07: return `NEG.${fmt_u}     ${i.fd(fmt)} = -${i.fs(fmt)}`;
+    case 0x08: return `ROUND.L.${fmt_u} ${i.fd('l')} = round.l(${i.fs(fmt)})`;
+    case 0x09: return `TRUNC.L.${fmt_u} ${i.fd('l')} = trunc.l(${i.fs(fmt)})`;
+    case 0x0a: return `CEIL.L.${fmt_u}  ${i.fd('l')} = ceil.l(${i.fs(fmt)})`;
+    case 0x0b: return `FLOOR.L.${fmt_u} ${i.fd('l')} = floor.l(${i.fs(fmt)})`;
+    case 0x0c: return `ROUND.W.${fmt_u} ${i.fd('w')} = round.w(${i.fs(fmt)})`;
+    case 0x0d: return `TRUNC.W.${fmt_u} ${i.fd('w')} = trunc.w(${i.fs(fmt)})`;
+    case 0x0e: return `CEIL.W.${fmt_u}  ${i.fd('w')} = ceil.w(${i.fs(fmt)})`;
+    case 0x0f: return `FLOOR.W.${fmt_u} ${i.fd('w')} = floor.w(${i.fs(fmt)})`;
 
-    case 0x20:    return 'CVT.S.' + fmt_u + '   ' + i.fd('s') + ' = (s)' + i.fs(fmt);
-    case 0x21:    return 'CVT.D.' + fmt_u + '   ' + i.fd('d') + ' = (d)' + i.fs(fmt);
-    case 0x24:    return 'CVT.W.' + fmt_u + '   ' + i.fd('w') + ' = (w)' + i.fs(fmt);
-    case 0x25:    return 'CVT.L.' + fmt_u + '   ' + i.fd('l') + ' = (l)' + i.fs(fmt);
+    case 0x20: return `CVT.S.${fmt_u}   ${i.fd('s')} = (s)${i.fs(fmt)}`;
+    case 0x21: return `CVT.D.${fmt_u}   ${i.fd('d')} = (d)${i.fs(fmt)}`;
+    case 0x24: return `CVT.W.${fmt_u}   ${i.fd('w')} = (w)${i.fs(fmt)}`;
+    case 0x25: return `CVT.L.${fmt_u}   ${i.fd('l')} = (l)${i.fs(fmt)}`;
 
-    case 0x30:    return 'C.F.' + fmt_u + '     c = ' + i.fs(fmt) + ' cmp ' + i.ft(fmt);
-    case 0x31:    return 'C.UN.' + fmt_u + '    c = ' + i.fs(fmt) + ' cmp ' + i.ft(fmt);
-    case 0x32:    return 'C.EQ.' + fmt_u + '    c = ' + i.fs(fmt) + ' cmp ' + i.ft(fmt);
-    case 0x33:    return 'C.UEQ.' + fmt_u + '   c = ' + i.fs(fmt) + ' cmp ' + i.ft(fmt);
-    case 0x34:    return 'C.OLT.' + fmt_u + '   c = ' + i.fs(fmt) + ' cmp ' + i.ft(fmt);
-    case 0x35:    return 'C.ULT.' + fmt_u + '   c = ' + i.fs(fmt) + ' cmp ' + i.ft(fmt);
-    case 0x36:    return 'C.OLE.' + fmt_u + '   c = ' + i.fs(fmt) + ' cmp ' + i.ft(fmt);
-    case 0x37:    return 'C.ULE.' + fmt_u + '   c = ' + i.fs(fmt) + ' cmp ' + i.ft(fmt);
-    case 0x38:    return 'C.SF.' + fmt_u + '    c = ' + i.fs(fmt) + ' cmp ' + i.ft(fmt);
-    case 0x39:    return 'C.NGLE.' + fmt_u + '  c = ' + i.fs(fmt) + ' cmp ' + i.ft(fmt);
-    case 0x3a:    return 'C.SEQ.' + fmt_u + '   c = ' + i.fs(fmt) + ' cmp ' + i.ft(fmt);
-    case 0x3b:    return 'C.NGL.' + fmt_u + '   c = ' + i.fs(fmt) + ' cmp ' + i.ft(fmt);
-    case 0x3c:    return 'C.LT.' + fmt_u + '    c = ' + i.fs(fmt) + ' cmp ' + i.ft(fmt);
-    case 0x3d:    return 'C.NGE.' + fmt_u + '   c = ' + i.fs(fmt) + ' cmp ' + i.ft(fmt);
-    case 0x3e:    return 'C.LE.' + fmt_u + '    c = ' + i.fs(fmt) + ' cmp ' + i.ft(fmt);
-    case 0x3f:    return 'C.NGT.' + fmt_u + '   c = ' + i.fs(fmt) + ' cmp ' + i.ft(fmt);
+    case 0x30: return `C.F.${fmt_u}     c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
+    case 0x31: return `C.UN.${fmt_u}    c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
+    case 0x32: return `C.EQ.${fmt_u}    c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
+    case 0x33: return `C.UEQ.${fmt_u}   c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
+    case 0x34: return `C.OLT.${fmt_u}   c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
+    case 0x35: return `C.ULT.${fmt_u}   c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
+    case 0x36: return `C.OLE.${fmt_u}   c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
+    case 0x37: return `C.ULE.${fmt_u}   c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
+    case 0x38: return `C.SF.${fmt_u}    c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
+    case 0x39: return `C.NGLE.${fmt_u}  c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
+    case 0x3a: return `C.SEQ.${fmt_u}   c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
+    case 0x3b: return `C.NGL.${fmt_u}   c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
+    case 0x3c: return `C.LT.${fmt_u}    c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
+    case 0x3d: return `C.NGE.${fmt_u}   c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
+    case 0x3e: return `C.LE.${fmt_u}    c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
+    case 0x3f: return `C.NGT.${fmt_u}   c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
   }
 
-  return 'Cop1.' + fmt + toHex(_cop1_func(i.opcode),8) + '?';
+  return `Cop1.${fmt}${toHex(_cop1_func(i.opcode), 8)}?`;
 }
 function disassembleCop1SInstr(i) {
   return disassembleCop1Instr(i, 's');
@@ -324,39 +328,39 @@ function disassembleCop1LInstr(i) {
 
 
 const cop1Table = [
-  i => { return 'MFC1      ' + i.rt_d() + ' = ' + i.fs(); },
-  i => { return 'DMFC1     ' + i.rt_d() + ' = ' + i.fs(); },
-  i => { return 'CFC1      ' + i.rt_d() + ' = CCR' + _rd(i.opcode); },
-  i => { return 'Unk'; },
-  i => { return 'MTC1      ' + i.fs_d() + ' = ' + i.rt(); },
-  i => { return 'DMTC1     ' + i.fs_d() + ' = ' + i.rt(); },
-  i => { return 'CTC1      CCR' + _rd(i.opcode) + ' = ' + i.rt(); },
-  i => { return 'Unk'; },
+  i => `MFC1      ${i.rt_d()} = ${i.fs()}`,
+  i => `DMFC1     ${i.rt_d()} = ${i.fs()}`,
+  i => `CFC1      ${i.rt_d()} = CCR${_rd(i.opcode)}`,
+  i => 'Unk',
+  i => `MTC1      ${i.fs_d()} = ${i.rt()}`,
+  i => `DMTC1     ${i.fs_d()} = ${i.rt()}`,
+  i => `CTC1      CCR${_rd(i.opcode)} = ${i.rt()}`,
+  i => 'Unk',
   disassembleBCInstr,
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
 
   disassembleCop1SInstr,
   disassembleCop1DInstr,
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
+  i => 'Unk',
+  i => 'Unk',
   disassembleCop1WInstr,
   disassembleCop1LInstr,
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; }
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
 ];
 if (cop1Table.length != 32) {
   throw "Oops, didn't build the cop1 table correctly";
@@ -380,40 +384,40 @@ function disassembleTLB(i) {
 }
 
 const regImmTable = [
-  i => { return 'BLTZ      ' + i.rs() +  ' < 0 --> ' + i.branchAddress(); },
-  i => { return 'BGEZ      ' + i.rs() + ' >= 0 --> ' + i.branchAddress(); },
-  i => { return 'BLTZL     ' + i.rs() +  ' < 0 --> ' + i.branchAddress(); },
-  i => { return 'BGEZL     ' + i.rs() + ' >= 0 --> ' + i.branchAddress(); },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
+  i => `BLTZ      ${i.rs()} < 0 --> ${i.branchAddress()}`,
+  i => `BGEZ      ${i.rs()} >= 0 --> ${i.branchAddress()}`,
+  i => `BLTZL     ${i.rs()} < 0 --> ${i.branchAddress()}`,
+  i => `BGEZL     ${i.rs()} >= 0 --> ${i.branchAddress()}`,
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
 
-  i => { return 'TGEI      ' + i.rs() + ' >= ' + i.rt() + ' --> trap '; },
-  i => { return 'TGEIU     ' + i.rs() + ' >= ' + i.rt() + ' --> trap '; },
-  i => { return 'TLTI      ' + i.rs() +  ' < ' + i.rt() + ' --> trap '; },
-  i => { return 'TLTIU     ' + i.rs() +  ' < ' + i.rt() + ' --> trap '; },
-  i => { return 'TEQI      ' + i.rs() + ' == ' + i.rt() + ' --> trap '; },
-  i => { return 'Unk'; },
-  i => { return 'TNEI      ' + i.rs() + ' != ' + i.rt() + ' --> trap '; },
-  i => { return 'Unk'; },
+  i => `TGEI      ${i.rs()} >= ${i.rt()} --> trap `,
+  i => `TGEIU     ${i.rs()} >= ${i.rt()} --> trap `,
+  i => `TLTI      ${i.rs()} < ${i.rt()} --> trap `,
+  i => `TLTIU     ${i.rs()} < ${i.rt()} --> trap `,
+  i => `TEQI      ${i.rs()} == ${i.rt()} --> trap `,
+  i => 'Unk',
+  i => `TNEI      ${i.rs()} != ${i.rt()} --> trap `,
+  i => 'Unk',
 
-  i => { return 'BLTZAL    ' + i.rs() +  ' < 0 --> ' + i.branchAddress() + i.writesRA(); },
-  i => { return 'BGEZAL    ' + i.rs() + ' >= 0 --> ' + i.branchAddress() + i.writesRA(); },
-  i => { return 'BLTZALL   ' + i.rs() +  ' < 0 --> ' + i.branchAddress() + i.writesRA(); },
-  i => { return 'BGEZALL   ' + i.rs() + ' >= 0 --> ' + i.branchAddress() + i.writesRA(); },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; }
+  i => `BLTZAL    ${i.rs()} < 0 --> ${i.branchAddress()}${i.writesRA()}`,
+  i => `BGEZAL    ${i.rs()} >= 0 --> ${i.branchAddress()}${i.writesRA()}`,
+  i => `BLTZALL   ${i.rs()} < 0 --> ${i.branchAddress()}${i.writesRA()}`,
+  i => `BGEZALL   ${i.rs()} >= 0 --> ${i.branchAddress()}${i.writesRA()}`,
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
 ];
 if (regImmTable.length != 32) {
   throw "Oops, didn't build the special table correctly";
@@ -427,72 +431,73 @@ function disassembleRegImm(i) {
 const simpleTable = [
   disassembleSpecial,
   disassembleRegImm,
-  i => { return 'J         --> ' + i.jumpAddress(); },
-  i => { return 'JAL       --> ' + i.jumpAddress() + i.writesRA(); },
+  i => `J         --> ${i.jumpAddress()}`,
+  i => `JAL       --> ${i.jumpAddress()}${i.writesRA()}`,
   i => {
     if (_rs(i.opcode) == _rt(i.opcode)) {
-                  return 'B         --> ' + i.branchAddress();
+      return `B         --> ${i.branchAddress()}`;
     }
-                  return 'BEQ       ' +                     i.rs() + ' == ' + i.rt() + ' --> ' + i.branchAddress(); },
-  i => { return 'BNE       ' +                     i.rs() + ' != ' + i.rt() + ' --> ' + i.branchAddress(); },
-  i => { return 'BLEZ      ' +                     i.rs() + ' <= 0 --> ' + i.branchAddress(); },
-  i => { return 'BGTZ      ' +                     i.rs() + ' > 0 --> '  + i.branchAddress(); },
-  i => { return 'ADDI      ' + i.rt_d() + ' = '  + i.rs() + ' + ' + i.imm(); },
-  i => { return 'ADDIU     ' + i.rt_d() + ' = '  + i.rs() + ' + ' + i.imm(); },
-  i => { return 'SLTI      ' + i.rt_d() + ' = (' + i.rs() + ' < ' + i.imm() + ')'; },
-  i => { return 'SLTIU     ' + i.rt_d() + ' = (' + i.rs() + ' < ' + i.imm() + ')'; },
-  i => { return 'ANDI      ' + i.rt_d() + ' = '  + i.rs() + ' & ' + i.imm(); },
-  i => { return 'ORI       ' + i.rt_d() + ' = '  + i.rs() + ' | ' + i.imm(); },
-  i => { return 'XORI      ' + i.rt_d() + ' = '  + i.rs() + ' ^ ' + i.imm(); },
-  i => { return 'LUI       ' + i.rt_d() + ' = '  + i.imm() + ' << 16'; },
+    return `BEQ       ${i.rs()} == ${i.rt()} --> ${i.branchAddress()}`;
+  },
+  i => `BNE       ${i.rs()} != ${i.rt()} --> ${i.branchAddress()}`,
+  i => `BLEZ      ${i.rs()} <= 0 --> ${i.branchAddress()}`,
+  i => `BGTZ      ${i.rs()} > 0 --> ${i.branchAddress()}`,
+  i => `ADDI      ${i.rt_d()} = ${i.rs()} + ${i.imm()}`,
+  i => `ADDIU     ${i.rt_d()} = ${i.rs()} + ${i.imm()}`,
+  i => `SLTI      ${i.rt_d()} = (${i.rs()} < ${i.imm()})`,
+  i => `SLTIU     ${i.rt_d()} = (${i.rs()} < ${i.imm()})`,
+  i => `ANDI      ${i.rt_d()} = ${i.rs()} & ${i.imm()}`,
+  i => `ORI       ${i.rt_d()} = ${i.rs()} | ${i.imm()}`,
+  i => `XORI      ${i.rt_d()} = ${i.rs()} ^ ${i.imm()}`,
+  i => `LUI       ${i.rt_d()} = ${i.imm()} << 16`,
   disassembleCop0,
   disassembleCop1,
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'BEQL      ' +                    i.rs() + ' == ' + i.rt() + ' --> ' + i.branchAddress(); },
-  i => { return 'BNEL      ' +                    i.rs() + ' != ' + i.rt() + ' --> ' + i.branchAddress(); },
-  i => { return 'BLEZL     ' +                    i.rs() + ' <= 0 --> ' + i.branchAddress(); },
-  i => { return 'BGTZL     ' +                    i.rs() + ' > 0 --> ' + i.branchAddress(); },
-  i => { return 'DADDI     ' + i.rt_d() + ' = ' + i.rs() + ' + ' + i.imm(); },
-  i => { return 'DADDIU    ' + i.rt_d() + ' = ' + i.rs() + ' + ' + i.imm(); },
-  i => { return 'LDL       ' + i.rt_d() + ' <- ' + i.memload(); },
-  i => { return 'LDR       ' + i.rt_d() + ' <- ' + i.memload(); },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'LB        ' + i.rt_d() + ' <- ' + i.memload(); },
-  i => { return 'LH        ' + i.rt_d() + ' <- ' + i.memload(); },
-  i => { return 'LWL       ' + i.rt_d() + ' <- ' + i.memload(); },
-  i => { return 'LW        ' + i.rt_d() + ' <- ' + i.memload(); },
-  i => { return 'LBU       ' + i.rt_d() + ' <- ' + i.memload(); },
-  i => { return 'LHU       ' + i.rt_d() + ' <- ' + i.memload(); },
-  i => { return 'LWR       ' + i.rt_d() + ' <- ' + i.memload(); },
-  i => { return 'LWU       ' + i.rt_d() + ' <- ' + i.memload(); },
-  i => { return 'SB        ' + i.rt()   + ' -> ' + i.memstore(); },
-  i => { return 'SH        ' + i.rt()   + ' -> ' + i.memstore(); },
-  i => { return 'SWL       ' + i.rt()   + ' -> ' + i.memstore(); },
-  i => { return 'SW        ' + i.rt()   + ' -> ' + i.memstore(); },
-  i => { return 'SDL       ' + i.rt()   + ' -> ' + i.memstore(); },
-  i => { return 'SDR       ' + i.rt()   + ' -> ' + i.memstore(); },
-  i => { return 'SWR       ' + i.rt()   + ' -> ' + i.memstore(); },
-  i => { return 'CACHE     ' + toHex(_rt(i.opcode),8) + ', ' + i.memaccess(); },
-  i => { return 'LL        ' + i.rt_d() + ' <- ' + i.memload(); },
-  i => { return 'LWC1      ' + i.ft_d() + ' <- ' + i.memload(); },
-  i => { return 'Unk'; },
-  i => { return 'Unk'; },
-  i => { return 'LLD       ' + i.rt_d() + ' <- ' + i.memload(); },
-  i => { return 'LDC1      ' + i.ft_d() + ' <- ' + i.memload(); },
-  i => { return 'LDC2      ' + i.gt_d() + ' <- ' + i.memload(); },
-  i => { return 'LD        ' + i.rt_d() + ' <- ' + i.memload(); },
-  i => { return 'SC        ' + i.rt()   + ' -> ' + i.memstore(); },
-  i => { return 'SWC1      ' + i.ft()   + ' -> ' + i.memstore(); },
-  i => { return 'BREAKPOINT'; },
-  i => { return 'Unk'; },
-  i => { return 'SCD       ' + i.rt()   + ' -> ' + i.memstore(); },
-  i => { return 'SDC1      ' + i.ft()   + ' -> ' + i.memstore(); },
-  i => { return 'SDC2      ' + i.gt()   + ' -> ' + i.memstore(); },
-  i => { return 'SD        ' + i.rt()   + ' -> ' + i.memstore(); }
+  i => 'Unk',
+  i => 'Unk',
+  i => `BEQL      ${i.rs()} == ${i.rt()} --> ${i.branchAddress()}`,
+  i => `BNEL      ${i.rs()} != ${i.rt()} --> ${i.branchAddress()}`,
+  i => `BLEZL     ${i.rs()} <= 0 --> ${i.branchAddress()}`,
+  i => `BGTZL     ${i.rs()} > 0 --> ${i.branchAddress()}`,
+  i => `DADDI     ${i.rt_d()} = ${i.rs()} + ${i.imm()}`,
+  i => `DADDIU    ${i.rt_d()} = ${i.rs()} + ${i.imm()}`,
+  i => `LDL       ${i.rt_d()} <- ${i.memload()}`,
+  i => `LDR       ${i.rt_d()} <- ${i.memload()}`,
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => `LB        ${i.rt_d()} <- ${i.memload()}`,
+  i => `LH        ${i.rt_d()} <- ${i.memload()}`,
+  i => `LWL       ${i.rt_d()} <- ${i.memload()}`,
+  i => `LW        ${i.rt_d()} <- ${i.memload()}`,
+  i => `LBU       ${i.rt_d()} <- ${i.memload()}`,
+  i => `LHU       ${i.rt_d()} <- ${i.memload()}`,
+  i => `LWR       ${i.rt_d()} <- ${i.memload()}`,
+  i => 'LWU       ' + i.rt_d() + ' <- ' + i.memload(),
+  i => `SB        ${i.rt()} -> ${i.memstore()}`,
+  i => `SH        ${i.rt()} -> ${i.memstore()}`,
+  i => `SWL       ${i.rt()} -> ${i.memstore()}`,
+  i => `SW        ${i.rt()} -> ${i.memstore()}`,
+  i => `SDL       ${i.rt()} -> ${i.memstore()}`,
+  i => `SDR       ${i.rt()} -> ${i.memstore()}`,
+  i => `SWR       ${i.rt()} -> ${i.memstore()}`,
+  i => `CACHE     ${toHex(_rt(i.opcode), 8)}, ${i.memaccess()}`,
+  i => `LL        ${i.rt_d()} <- ${i.memload()}`,
+  i => `LWC1      ${i.ft_d()} <- ${i.memload()}`,
+  i => 'Unk',
+  i => 'Unk',
+  i => `LLD       ${i.rt_d()} <- ${i.memload()}`,
+  i => `LDC1      ${i.ft_d()} <- ${i.memload()}`,
+  i => `LDC2      ${i.gt_d()} <- ${i.memload()}`,
+  i => `LD        ${i.rt_d()} <- ${i.memload()}`,
+  i => `SC        ${i.rt()} -> ${i.memstore()}`,
+  i => `SWC1      ${i.ft()} -> ${i.memstore()}`,
+  i => 'BREAKPOINT',
+  i => 'Unk',
+  i => `SCD       ${i.rt()} -> ${i.memstore()}`,
+  i => `SDC1      ${i.ft()} -> ${i.memstore()}`,
+  i => `SDC2      ${i.gt()} -> ${i.memstore()}`,
+  i => `SD        ${i.rt()} -> ${i.memstore()}`,
 ];
 if (simpleTable.length != 64) {
   throw "Oops, didn't build the simple table correctly";
