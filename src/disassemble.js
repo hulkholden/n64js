@@ -28,8 +28,7 @@ function _branchAddress(a, i) { return (a + 4) + (_imms(i) * 4); }
 function _jumpAddress(a, i) { return (a & 0xf0000000) | (_target(i) * 4); }
 
 function makeLabelText(address) {
-  var text = toHex(address, 32);
-  return '<span class="dis-address-jump">' + text + '</span>';
+  return `<span class="dis-address-jump">${toHex(address, 32)}</span>`;
 }
 
 export const cop0gprNames = [
@@ -95,7 +94,7 @@ class Instruction {
   get gt() { const reg = cop2RegisterNames[_rt(this.opcode)]; this.srcRegs[reg] = 1; return makeRegSpan(reg); }
   get gs() { const reg = cop2RegisterNames[_rs(this.opcode)]; this.srcRegs[reg] = 1; return makeRegSpan(reg); }
 
-  get imm() { return '0x' + toHex(_imm(this.opcode), 16); }
+  get imm() { return `0x${toHex(_imm(this.opcode), 16)}`; }
 
   get branchAddress() { this.target = _branchAddress(this.address, this.opcode); return makeLabelText(this.target); }
   get jumpAddress() { this.target = _jumpAddress(this.address, this.opcode); return makeLabelText(this.target); }
@@ -104,7 +103,7 @@ class Instruction {
     const r = this.rs;
     const off = this.imm;
     this.memory = { reg: _rs(this.opcode), offset: _imms(this.opcode), mode: mode };
-    return '[' + r + '+' + off + ']';
+    return `[${r}+${off}]`;
   }
 
   memload() { return this.memaccess('load'); }
@@ -476,7 +475,7 @@ const simpleTable = [
   i => `LBU       ${i.rt_d} <- ${i.memload()}`,
   i => `LHU       ${i.rt_d} <- ${i.memload()}`,
   i => `LWR       ${i.rt_d} <- ${i.memload()}`,
-  i => 'LWU       ' + i.rt_d + ' <- ' + i.memload(),
+  i => `LWU       ${i.rt_d} <- ${i.memload()}`,
   i => `SB        ${i.rt} -> ${i.memstore()}`,
   i => `SH        ${i.rt} -> ${i.memstore()}`,
   i => `SWL       ${i.rt} -> ${i.memstore()}`,
