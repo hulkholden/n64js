@@ -70,11 +70,14 @@ class Instruction {
     this.memory = null;
   }
 
+  // TODO: make these getters to avoid the parens in the formatting strings.
   // cop0 regs
-  rt_d() { const reg = cop0gprNames[_rt(this.opcode)]; this.dstRegs[reg] = 1; return makeRegSpan(reg); }
-  rd() { const reg = cop0gprNames[_rd(this.opcode)]; this.dstRegs[reg] = 1; return makeRegSpan(reg); }
-  rt() { const reg = cop0gprNames[_rt(this.opcode)]; this.srcRegs[reg] = 1; return makeRegSpan(reg); }
-  rs() { const reg = cop0gprNames[_rs(this.opcode)]; this.srcRegs[reg] = 1; return makeRegSpan(reg); }
+  get rt_d() { const reg = cop0gprNames[_rt(this.opcode)]; this.dstRegs[reg] = 1; return makeRegSpan(reg); }
+  get rd() { const reg = cop0gprNames[_rd(this.opcode)]; this.dstRegs[reg] = 1; return makeRegSpan(reg); }
+  get rt() { const reg = cop0gprNames[_rt(this.opcode)]; this.srcRegs[reg] = 1; return makeRegSpan(reg); }
+  get rs() { const reg = cop0gprNames[_rs(this.opcode)]; this.srcRegs[reg] = 1; return makeRegSpan(reg); }
+
+  get sa() { return _sa(this.opcode); }
 
   // dummy operand - just marks ra as being a dest reg
   writesRA() { this.dstRegs[n64js.cpu0.kRegister_ra] = 1; return ''; }
@@ -87,19 +90,19 @@ class Instruction {
   fs(fmt) { const reg = getCop1RegisterName(_fs(this.opcode), fmt); this.srcRegs[reg] = 1; return makeFPRegSpan(reg); }
 
   // cop2 regs
-  gt_d() { const reg = cop2RegisterNames[_rt(this.opcode)]; this.dstRegs[reg] = 1; return makeRegSpan(reg); }
-  gd() { const reg = cop2RegisterNames[_rd(this.opcode)]; this.dstRegs[reg] = 1; return makeRegSpan(reg); }
-  gt() { const reg = cop2RegisterNames[_rt(this.opcode)]; this.srcRegs[reg] = 1; return makeRegSpan(reg); }
-  gs() { const reg = cop2RegisterNames[_rs(this.opcode)]; this.srcRegs[reg] = 1; return makeRegSpan(reg); }
+  get gt_d() { const reg = cop2RegisterNames[_rt(this.opcode)]; this.dstRegs[reg] = 1; return makeRegSpan(reg); }
+  get gd() { const reg = cop2RegisterNames[_rd(this.opcode)]; this.dstRegs[reg] = 1; return makeRegSpan(reg); }
+  get gt() { const reg = cop2RegisterNames[_rt(this.opcode)]; this.srcRegs[reg] = 1; return makeRegSpan(reg); }
+  get gs() { const reg = cop2RegisterNames[_rs(this.opcode)]; this.srcRegs[reg] = 1; return makeRegSpan(reg); }
 
-  imm() { return '0x' + toHex(_imm(this.opcode), 16); }
+  get imm() { return '0x' + toHex(_imm(this.opcode), 16); }
 
-  branchAddress() { this.target = _branchAddress(this.address, this.opcode); return makeLabelText(this.target); }
-  jumpAddress() { this.target = _jumpAddress(this.address, this.opcode); return makeLabelText(this.target); }
+  get branchAddress() { this.target = _branchAddress(this.address, this.opcode); return makeLabelText(this.target); }
+  get jumpAddress() { this.target = _jumpAddress(this.address, this.opcode); return makeLabelText(this.target); }
 
   memaccess(mode) {
-    const r = this.rs();
-    const off = this.imm();
+    const r = this.rs;
+    const off = this.imm;
     this.memory = { reg: _rs(this.opcode), offset: _imms(this.opcode), mode: mode };
     return '[' + r + '+' + off + ']';
   }
@@ -127,80 +130,80 @@ const specialTable = [
     if (i.opcode === 0) {
       return 'NOP';
     }
-    return `SLL       ${i.rd()} = ${i.rt()} << ${_sa(i.opcode)}`;
+    return `SLL       ${i.rd} = ${i.rt} << ${i.sa}`;
   },
   i => 'Unk',
-  i => `SRL       ${i.rd()} = ${i.rt()} >>> ${_sa(i.opcode)}`,
-  i => `SRA       ${i.rd()} = ${i.rt()} >> ${_sa(i.opcode)}`,
-  i => `SLLV      ${i.rd()} = ${i.rt()} << ${i.rs()}`,
+  i => `SRL       ${i.rd} = ${i.rt} >>> ${i.sa}`,
+  i => `SRA       ${i.rd} = ${i.rt} >> ${i.sa}`,
+  i => `SLLV      ${i.rd} = ${i.rt} << ${i.rs}`,
   i => 'Unk',
-  i => `SRLV      ${i.rd()} = ${i.rt()} >>> ${i.rs()}`,
-  i => `SRAV      ${i.rd()} = ${i.rt()} >> ${i.rs()}`,
-  i => `JR        ${i.rs()}`,
-  i => `JALR      ${i.rd()}, ${i.rs()}`,
+  i => `SRLV      ${i.rd} = ${i.rt} >>> ${i.rs}`,
+  i => `SRAV      ${i.rd} = ${i.rt} >> ${i.rs}`,
+  i => `JR        ${i.rs}`,
+  i => `JALR      ${i.rd}, ${i.rs}`,
   i => 'Unk',
   i => 'Unk',
   i => `SYSCALL   ${toHex((i.opcode >> 6) & 0xfffff, 20)}`,
   i => `BREAK     ${toHex((i.opcode >> 6) & 0xfffff, 20)}`,
   i => 'Unk',
   i => 'SYNC',
-  i => `MFHI      ${i.rd()} = MultHi`,
-  i => `MTHI      MultHi = ${i.rs()}`,
-  i => `MFLO      ${i.rd()} = MultLo`,
-  i => `MTLO      MultLo = ${i.rs()}`,
-  i => `DSLLV     ${i.rd()} = ${i.rt()} << ${i.rs()}`,
+  i => `MFHI      ${i.rd} = MultHi`,
+  i => `MTHI      MultHi = ${i.rs}`,
+  i => `MFLO      ${i.rd} = MultLo`,
+  i => `MTLO      MultLo = ${i.rs}`,
+  i => `DSLLV     ${i.rd} = ${i.rt} << ${i.rs}`,
   i => 'Unk',
-  i => `DSRLV     ${i.rd()} = ${i.rt()} >>> ${i.rs()}`,
-  i => `DSRAV     ${i.rd()} = ${i.rt()} >> ${i.rs()}`,
-  i => `MULT      ${i.rs()} * ${i.rt()}`,
-  i => `MULTU     ${i.rs()} * ${i.rt()}`,
-  i => `DIV       ${i.rs()} / ${i.rt()}`,
-  i => `DIVU      ${i.rs()} / ${i.rt()}`,
-  i => `DMULT     ${i.rs()} * ${i.rt()}`,
-  i => `DMULTU    ${i.rs()} * ${i.rt()}`,
-  i => `DDIV      ${i.rs()} / ${i.rt()}`,
-  i => `DDIVU     ${i.rs()} / ${i.rt()}`,
-  i => `ADD       ${i.rd()} = ${i.rs()} + ${i.rt()}`,
-  i => `ADDU      ${i.rd()} = ${i.rs()} + ${i.rt()}`,
-  i => `SUB       ${i.rd()} = ${i.rs()} - ${i.rt()}`,
-  i => `SUBU      ${i.rd()} = ${i.rs()} - ${i.rt()}`,
-  i => `AND       ${i.rd()} = ${i.rs()} & ${i.rt()}`,
+  i => `DSRLV     ${i.rd} = ${i.rt} >>> ${i.rs}`,
+  i => `DSRAV     ${i.rd} = ${i.rt} >> ${i.rs}`,
+  i => `MULT      ${i.rs} * ${i.rt}`,
+  i => `MULTU     ${i.rs} * ${i.rt}`,
+  i => `DIV       ${i.rs} / ${i.rt}`,
+  i => `DIVU      ${i.rs} / ${i.rt}`,
+  i => `DMULT     ${i.rs} * ${i.rt}`,
+  i => `DMULTU    ${i.rs} * ${i.rt}`,
+  i => `DDIV      ${i.rs} / ${i.rt}`,
+  i => `DDIVU     ${i.rs} / ${i.rt}`,
+  i => `ADD       ${i.rd} = ${i.rs} + ${i.rt}`,
+  i => `ADDU      ${i.rd} = ${i.rs} + ${i.rt}`,
+  i => `SUB       ${i.rd} = ${i.rs} - ${i.rt}`,
+  i => `SUBU      ${i.rd} = ${i.rs} - ${i.rt}`,
+  i => `AND       ${i.rd} = ${i.rs} & ${i.rt}`,
   i => {
     if (_rt(i.opcode) === 0) {
       if (_rs(i.opcode) === 0) {
-        return `CLEAR     ${i.rd()} = 0`;
+        return `CLEAR     ${i.rd} = 0`;
       } else {
-        return `MOV       ${i.rd()} = ${i.rs()}`;
+        return `MOV       ${i.rd} = ${i.rs}`;
       }
     }
-    return `OR        ${i.rd()} = ${i.rs()} | ${i.rt()}`;
+    return `OR        ${i.rd} = ${i.rs} | ${i.rt}`;
   },
-  i => `XOR       ${i.rd()} = ${i.rs()} ^ ${i.rt()}`,
-  i => `NOR       ${i.rd()} = ~( ${i.rs()} | ${i.rt()} )`,
+  i => `XOR       ${i.rd} = ${i.rs} ^ ${i.rt}`,
+  i => `NOR       ${i.rd} = ~( ${i.rs} | ${i.rt} )`,
   i => 'Unk',
   i => 'Unk',
-  i => `SLT       ${i.rd()} = ${i.rs()} < ${i.rt()}`,
-  i => `SLTU      ${i.rd()} = ${i.rs()} < ${i.rt()}`,
-  i => `DADD      ${i.rd()} = ${i.rs()} + ${i.rt()}`,
-  i => `DADDU     ${i.rd()} = ${i.rs()} + ${i.rt()}`,
-  i => `DSUB      ${i.rd()} = ${i.rs()} - ${i.rt()}`,
-  i => `DSUBU     ${i.rd()} = ${i.rs()} - ${i.rt()}`,
-  i => `TGE       trap( ${i.rs()} >= ${i.rt()} )`,
-  i => `TGEU      trap( ${i.rs()} >= ${i.rt()} )`,
-  i => `TLT       trap( ${i.rs()} < ${i.rt()} )`,
-  i => `TLTU      trap( ${i.rs()} < ${i.rt()} )`,
-  i => `TEQ       trap( ${i.rs()} == ${i.rt()} )`,
+  i => `SLT       ${i.rd} = ${i.rs} < ${i.rt}`,
+  i => `SLTU      ${i.rd} = ${i.rs} < ${i.rt}`,
+  i => `DADD      ${i.rd} = ${i.rs} + ${i.rt}`,
+  i => `DADDU     ${i.rd} = ${i.rs} + ${i.rt}`,
+  i => `DSUB      ${i.rd} = ${i.rs} - ${i.rt}`,
+  i => `DSUBU     ${i.rd} = ${i.rs} - ${i.rt}`,
+  i => `TGE       trap( ${i.rs} >= ${i.rt} )`,
+  i => `TGEU      trap( ${i.rs} >= ${i.rt} )`,
+  i => `TLT       trap( ${i.rs} < ${i.rt} )`,
+  i => `TLTU      trap( ${i.rs} < ${i.rt} )`,
+  i => `TEQ       trap( ${i.rs} == ${i.rt} )`,
   i => 'Unk',
-  i => `TNE       trap( ${i.rs()} != ${i.rt()} )`,
+  i => `TNE       trap( ${i.rs} != ${i.rt} )`,
   i => 'Unk',
-  i => `DSLL      ${i.rd()} = ${i.rt()} << ${_sa(i.opcode)}`,
+  i => `DSLL      ${i.rd} = ${i.rt} << ${i.sa}`,
   i => 'Unk',
-  i => `DSRL      ${i.rd()} = ${i.rt()} >>> ${_sa(i.opcode)}`,
-  i => `DSRA      ${i.rd()} = ${i.rt()} >> ${_sa(i.opcode)}`,
-  i => `DSLL32    ${i.rd()} = ${i.rt()} << (32+${_sa(i.opcode)})`,
+  i => `DSRL      ${i.rd} = ${i.rt} >>> ${i.sa}`,
+  i => `DSRA      ${i.rd} = ${i.rt} >> ${i.sa}`,
+  i => `DSLL32    ${i.rd} = ${i.rt} << (32+${i.sa})`,
   i => 'Unk',
-  i => `DSRL32    ${i.rd()} = ${i.rt()} >>> (32+${_sa(i.opcode)})`,
-  i => `DSRA32    ${i.rd()} = ${i.rt()} >> (32+${_sa(i.opcode)})`,
+  i => `DSRL32    ${i.rd} = ${i.rt} >>> (32+${i.sa})`,
+  i => `DSRA32    ${i.rd} = ${i.rt} >> (32+${i.sa})`,
 ];
 if (specialTable.length != 64) {
   throw "Oops, didn't build the special table correctly";
@@ -212,11 +215,11 @@ function disassembleSpecial(i) {
 }
 
 const cop0Table = [
-  i => `MFC0      ${i.rt()} <- ${cop0ControlRegisterNames[_fs(i.opcode)]}`,
+  i => `MFC0      ${i.rt} <- ${cop0ControlRegisterNames[_fs(i.opcode)]}`,
   i => 'Unk',
   i => 'Unk',
   i => 'Unk',
-  i => `MTC0      ${i.rt()} -> ${cop0ControlRegisterNames[_fs(i.opcode)]}`,
+  i => `MTC0      ${i.rt} -> ${cop0ControlRegisterNames[_fs(i.opcode)]}`,
   i => 'Unk',
   i => 'Unk',
   i => 'Unk',
@@ -258,10 +261,10 @@ function disassembleBCInstr(i) {
   assert( ((i.opcode>>>18)&0x7) === 0, "cc bit is not 0" );
 
   switch (_cop1_bc(i.opcode)) {
-    case 0: return `BC1F      !c ? --> ${i.branchAddress()}`;
-    case 1: return `BC1T      c ? --> ${i.branchAddress()}`;
-    case 2: return `BC1FL     !c ? --> ${i.branchAddress()}`;
-    case 3: return `BC1TL     c ? --> ${i.branchAddress()}`;
+    case 0: return `BC1F      !c ? --> ${i.branchAddress}`;
+    case 1: return `BC1T      c ? --> ${i.branchAddress}`;
+    case 2: return `BC1FL     !c ? --> ${i.branchAddress}`;
+    case 3: return `BC1TL     c ? --> ${i.branchAddress}`;
   }
 
   return '???';
@@ -328,13 +331,13 @@ function disassembleCop1LInstr(i) {
 
 
 const cop1Table = [
-  i => `MFC1      ${i.rt_d()} = ${i.fs()}`,
-  i => `DMFC1     ${i.rt_d()} = ${i.fs()}`,
-  i => `CFC1      ${i.rt_d()} = CCR${_rd(i.opcode)}`,
+  i => `MFC1      ${i.rt_d} = ${i.fs()}`,
+  i => `DMFC1     ${i.rt_d} = ${i.fs()}`,
+  i => `CFC1      ${i.rt_d} = CCR${_rd(i.opcode)}`,
   i => 'Unk',
-  i => `MTC1      ${i.fs_d()} = ${i.rt()}`,
-  i => `DMTC1     ${i.fs_d()} = ${i.rt()}`,
-  i => `CTC1      CCR${_rd(i.opcode)} = ${i.rt()}`,
+  i => `MTC1      ${i.fs_d()} = ${i.rt}`,
+  i => `DMTC1     ${i.fs_d()} = ${i.rt}`,
+  i => `CTC1      CCR${_rd(i.opcode)} = ${i.rt}`,
   i => 'Unk',
   disassembleBCInstr,
   i => 'Unk',
@@ -384,28 +387,28 @@ function disassembleTLB(i) {
 }
 
 const regImmTable = [
-  i => `BLTZ      ${i.rs()} < 0 --> ${i.branchAddress()}`,
-  i => `BGEZ      ${i.rs()} >= 0 --> ${i.branchAddress()}`,
-  i => `BLTZL     ${i.rs()} < 0 --> ${i.branchAddress()}`,
-  i => `BGEZL     ${i.rs()} >= 0 --> ${i.branchAddress()}`,
+  i => `BLTZ      ${i.rs} < 0 --> ${i.branchAddress}`,
+  i => `BGEZ      ${i.rs} >= 0 --> ${i.branchAddress}`,
+  i => `BLTZL     ${i.rs} < 0 --> ${i.branchAddress}`,
+  i => `BGEZL     ${i.rs} >= 0 --> ${i.branchAddress}`,
   i => 'Unk',
   i => 'Unk',
   i => 'Unk',
   i => 'Unk',
 
-  i => `TGEI      ${i.rs()} >= ${i.rt()} --> trap `,
-  i => `TGEIU     ${i.rs()} >= ${i.rt()} --> trap `,
-  i => `TLTI      ${i.rs()} < ${i.rt()} --> trap `,
-  i => `TLTIU     ${i.rs()} < ${i.rt()} --> trap `,
-  i => `TEQI      ${i.rs()} == ${i.rt()} --> trap `,
+  i => `TGEI      ${i.rs} >= ${i.rt} --> trap `,
+  i => `TGEIU     ${i.rs} >= ${i.rt} --> trap `,
+  i => `TLTI      ${i.rs} < ${i.rt} --> trap `,
+  i => `TLTIU     ${i.rs} < ${i.rt} --> trap `,
+  i => `TEQI      ${i.rs} == ${i.rt} --> trap `,
   i => 'Unk',
-  i => `TNEI      ${i.rs()} != ${i.rt()} --> trap `,
+  i => `TNEI      ${i.rs} != ${i.rt} --> trap `,
   i => 'Unk',
 
-  i => `BLTZAL    ${i.rs()} < 0 --> ${i.branchAddress()}${i.writesRA()}`,
-  i => `BGEZAL    ${i.rs()} >= 0 --> ${i.branchAddress()}${i.writesRA()}`,
-  i => `BLTZALL   ${i.rs()} < 0 --> ${i.branchAddress()}${i.writesRA()}`,
-  i => `BGEZALL   ${i.rs()} >= 0 --> ${i.branchAddress()}${i.writesRA()}`,
+  i => `BLTZAL    ${i.rs} < 0 --> ${i.branchAddress}${i.writesRA()}`,
+  i => `BGEZAL    ${i.rs} >= 0 --> ${i.branchAddress}${i.writesRA()}`,
+  i => `BLTZALL   ${i.rs} < 0 --> ${i.branchAddress}${i.writesRA()}`,
+  i => `BGEZALL   ${i.rs} >= 0 --> ${i.branchAddress}${i.writesRA()}`,
   i => 'Unk',
   i => 'Unk',
   i => 'Unk',
@@ -431,73 +434,73 @@ function disassembleRegImm(i) {
 const simpleTable = [
   disassembleSpecial,
   disassembleRegImm,
-  i => `J         --> ${i.jumpAddress()}`,
-  i => `JAL       --> ${i.jumpAddress()}${i.writesRA()}`,
+  i => `J         --> ${i.jumpAddress}`,
+  i => `JAL       --> ${i.jumpAddress}${i.writesRA()}`,
   i => {
     if (_rs(i.opcode) == _rt(i.opcode)) {
-      return `B         --> ${i.branchAddress()}`;
+      return `B         --> ${i.branchAddress}`;
     }
-    return `BEQ       ${i.rs()} == ${i.rt()} --> ${i.branchAddress()}`;
+    return `BEQ       ${i.rs} == ${i.rt} --> ${i.branchAddress}`;
   },
-  i => `BNE       ${i.rs()} != ${i.rt()} --> ${i.branchAddress()}`,
-  i => `BLEZ      ${i.rs()} <= 0 --> ${i.branchAddress()}`,
-  i => `BGTZ      ${i.rs()} > 0 --> ${i.branchAddress()}`,
-  i => `ADDI      ${i.rt_d()} = ${i.rs()} + ${i.imm()}`,
-  i => `ADDIU     ${i.rt_d()} = ${i.rs()} + ${i.imm()}`,
-  i => `SLTI      ${i.rt_d()} = (${i.rs()} < ${i.imm()})`,
-  i => `SLTIU     ${i.rt_d()} = (${i.rs()} < ${i.imm()})`,
-  i => `ANDI      ${i.rt_d()} = ${i.rs()} & ${i.imm()}`,
-  i => `ORI       ${i.rt_d()} = ${i.rs()} | ${i.imm()}`,
-  i => `XORI      ${i.rt_d()} = ${i.rs()} ^ ${i.imm()}`,
-  i => `LUI       ${i.rt_d()} = ${i.imm()} << 16`,
+  i => `BNE       ${i.rs} != ${i.rt} --> ${i.branchAddress}`,
+  i => `BLEZ      ${i.rs} <= 0 --> ${i.branchAddress}`,
+  i => `BGTZ      ${i.rs} > 0 --> ${i.branchAddress}`,
+  i => `ADDI      ${i.rt_d} = ${i.rs} + ${i.imm}`,
+  i => `ADDIU     ${i.rt_d} = ${i.rs} + ${i.imm}`,
+  i => `SLTI      ${i.rt_d} = (${i.rs} < ${i.imm})`,
+  i => `SLTIU     ${i.rt_d} = (${i.rs} < ${i.imm})`,
+  i => `ANDI      ${i.rt_d} = ${i.rs} & ${i.imm}`,
+  i => `ORI       ${i.rt_d} = ${i.rs} | ${i.imm}`,
+  i => `XORI      ${i.rt_d} = ${i.rs} ^ ${i.imm}`,
+  i => `LUI       ${i.rt_d} = ${i.imm} << 16`,
   disassembleCop0,
   disassembleCop1,
   i => 'Unk',
   i => 'Unk',
-  i => `BEQL      ${i.rs()} == ${i.rt()} --> ${i.branchAddress()}`,
-  i => `BNEL      ${i.rs()} != ${i.rt()} --> ${i.branchAddress()}`,
-  i => `BLEZL     ${i.rs()} <= 0 --> ${i.branchAddress()}`,
-  i => `BGTZL     ${i.rs()} > 0 --> ${i.branchAddress()}`,
-  i => `DADDI     ${i.rt_d()} = ${i.rs()} + ${i.imm()}`,
-  i => `DADDIU    ${i.rt_d()} = ${i.rs()} + ${i.imm()}`,
-  i => `LDL       ${i.rt_d()} <- ${i.memload()}`,
-  i => `LDR       ${i.rt_d()} <- ${i.memload()}`,
+  i => `BEQL      ${i.rs} == ${i.rt} --> ${i.branchAddress}`,
+  i => `BNEL      ${i.rs} != ${i.rt} --> ${i.branchAddress}`,
+  i => `BLEZL     ${i.rs} <= 0 --> ${i.branchAddress}`,
+  i => `BGTZL     ${i.rs} > 0 --> ${i.branchAddress}`,
+  i => `DADDI     ${i.rt_d} = ${i.rs} + ${i.imm}`,
+  i => `DADDIU    ${i.rt_d} = ${i.rs} + ${i.imm}`,
+  i => `LDL       ${i.rt_d} <- ${i.memload()}`,
+  i => `LDR       ${i.rt_d} <- ${i.memload()}`,
   i => 'Unk',
   i => 'Unk',
   i => 'Unk',
   i => 'Unk',
-  i => `LB        ${i.rt_d()} <- ${i.memload()}`,
-  i => `LH        ${i.rt_d()} <- ${i.memload()}`,
-  i => `LWL       ${i.rt_d()} <- ${i.memload()}`,
-  i => `LW        ${i.rt_d()} <- ${i.memload()}`,
-  i => `LBU       ${i.rt_d()} <- ${i.memload()}`,
-  i => `LHU       ${i.rt_d()} <- ${i.memload()}`,
-  i => `LWR       ${i.rt_d()} <- ${i.memload()}`,
-  i => 'LWU       ' + i.rt_d() + ' <- ' + i.memload(),
-  i => `SB        ${i.rt()} -> ${i.memstore()}`,
-  i => `SH        ${i.rt()} -> ${i.memstore()}`,
-  i => `SWL       ${i.rt()} -> ${i.memstore()}`,
-  i => `SW        ${i.rt()} -> ${i.memstore()}`,
-  i => `SDL       ${i.rt()} -> ${i.memstore()}`,
-  i => `SDR       ${i.rt()} -> ${i.memstore()}`,
-  i => `SWR       ${i.rt()} -> ${i.memstore()}`,
+  i => `LB        ${i.rt_d} <- ${i.memload()}`,
+  i => `LH        ${i.rt_d} <- ${i.memload()}`,
+  i => `LWL       ${i.rt_d} <- ${i.memload()}`,
+  i => `LW        ${i.rt_d} <- ${i.memload()}`,
+  i => `LBU       ${i.rt_d} <- ${i.memload()}`,
+  i => `LHU       ${i.rt_d} <- ${i.memload()}`,
+  i => `LWR       ${i.rt_d} <- ${i.memload()}`,
+  i => 'LWU       ' + i.rt_d + ' <- ' + i.memload(),
+  i => `SB        ${i.rt} -> ${i.memstore()}`,
+  i => `SH        ${i.rt} -> ${i.memstore()}`,
+  i => `SWL       ${i.rt} -> ${i.memstore()}`,
+  i => `SW        ${i.rt} -> ${i.memstore()}`,
+  i => `SDL       ${i.rt} -> ${i.memstore()}`,
+  i => `SDR       ${i.rt} -> ${i.memstore()}`,
+  i => `SWR       ${i.rt} -> ${i.memstore()}`,
   i => `CACHE     ${toHex(_rt(i.opcode), 8)}, ${i.memaccess()}`,
-  i => `LL        ${i.rt_d()} <- ${i.memload()}`,
+  i => `LL        ${i.rt_d} <- ${i.memload()}`,
   i => `LWC1      ${i.ft_d()} <- ${i.memload()}`,
   i => 'Unk',
   i => 'Unk',
-  i => `LLD       ${i.rt_d()} <- ${i.memload()}`,
+  i => `LLD       ${i.rt_d} <- ${i.memload()}`,
   i => `LDC1      ${i.ft_d()} <- ${i.memload()}`,
-  i => `LDC2      ${i.gt_d()} <- ${i.memload()}`,
-  i => `LD        ${i.rt_d()} <- ${i.memload()}`,
-  i => `SC        ${i.rt()} -> ${i.memstore()}`,
+  i => `LDC2      ${i.gt_d} <- ${i.memload()}`,
+  i => `LD        ${i.rt_d} <- ${i.memload()}`,
+  i => `SC        ${i.rt} -> ${i.memstore()}`,
   i => `SWC1      ${i.ft()} -> ${i.memstore()}`,
   i => 'BREAKPOINT',
   i => 'Unk',
-  i => `SCD       ${i.rt()} -> ${i.memstore()}`,
+  i => `SCD       ${i.rt} -> ${i.memstore()}`,
   i => `SDC1      ${i.ft()} -> ${i.memstore()}`,
-  i => `SDC2      ${i.gt()} -> ${i.memstore()}`,
-  i => `SD        ${i.rt()} -> ${i.memstore()}`,
+  i => `SDC2      ${i.gt} -> ${i.memstore()}`,
+  i => `SD        ${i.rt} -> ${i.memstore()}`,
 ];
 if (simpleTable.length != 64) {
   throw "Oops, didn't build the simple table correctly";
