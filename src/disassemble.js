@@ -3,33 +3,33 @@ import { toHex } from './format.js';
 
 window.n64js = window.n64js || {};
 
-function _fd(i)        { return (i>>> 6)&0x1f; }
-function _fs(i)        { return (i>>>11)&0x1f; }
-function _ft(i)        { return (i>>>16)&0x1f; }
-function _copop(i)     { return (i>>>21)&0x1f; }
+function _fd(i) { return (i >>> 6) & 0x1f; }
+function _fs(i) { return (i >>> 11) & 0x1f; }
+function _ft(i) { return (i >>> 16) & 0x1f; }
+function _copop(i) { return (i >>> 21) & 0x1f; }
 
-function _offset(i)    { return (i     )&0xffff; }
-function _sa(i)        { return (i>>> 6)&0x1f; }
-function _rd(i)        { return (i>>>11)&0x1f; }
-function _rt(i)        { return (i>>>16)&0x1f; }
-function _rs(i)        { return (i>>>21)&0x1f; }
-function _op(i)        { return (i>>>26)&0x3f; }
+function _offset(i) { return (i) & 0xffff; }
+function _sa(i) { return (i >>> 6) & 0x1f; }
+function _rd(i) { return (i >>> 11) & 0x1f; }
+function _rt(i) { return (i >>> 16) & 0x1f; }
+function _rs(i) { return (i >>> 21) & 0x1f; }
+function _op(i) { return (i >>> 26) & 0x3f; }
 
-function _tlbop(i)     { return i&0x3f; }
-function _cop1_func(i) { return i&0x3f; }
-function _cop1_bc(i)   { return (i>>>16)&0x3; }
+function _tlbop(i) { return i & 0x3f; }
+function _cop1_func(i) { return i & 0x3f; }
+function _cop1_bc(i) { return (i >>> 16) & 0x3; }
 
-function _target(i)    { return (i     )&0x3ffffff; }
-function _imm(i)       { return (i     )&0xffff; }
-function _imms(i)      { return (_imm(i)<<16)>>16; }   // treat immediate value as signed
-function _base(i)      { return (i>>>21)&0x1f; }
+function _target(i) { return (i) & 0x3ffffff; }
+function _imm(i) { return (i) & 0xffff; }
+function _imms(i) { return (_imm(i) << 16) >> 16; }   // treat immediate value as signed
+function _base(i) { return (i >>> 21) & 0x1f; }
 
-function _branchAddress(a,i) { return (a+4) + (_imms(i)*4); }
-function _jumpAddress(a,i)   { return (a&0xf0000000) | (_target(i)*4); }
+function _branchAddress(a, i) { return (a + 4) + (_imms(i) * 4); }
+function _jumpAddress(a, i) { return (a & 0xf0000000) | (_target(i) * 4); }
 
 function makeLabelText(address) {
-  var text = toHex( address, 32 );
-  return '<span class="dis-address-jump">'+ text + '</span>';
+  var text = toHex(address, 32);
+  return '<span class="dis-address-jump">' + text + '</span>';
 }
 
 export const cop0gprNames = [
@@ -40,10 +40,10 @@ export const cop0gprNames = [
 ];
 
 export const cop0ControlRegisterNames = [
-  "Index",       "Rand", "EntryLo0", "EntryLo1", "Context", "PageMask",     "Wired",   "?7",
-  "BadVAddr",   "Count",  "EntryHi",  "Compare",      "SR",    "Cause",       "EPC", "PrID",
-  "?16",         "?17",   "WatchLo",  "WatchHi",     "?20",      "?21",       "?22",  "?23",
-  "?24",         "?25",       "ECC", "CacheErr",   "TagLo",    "TagHi",  "ErrorEPC",  "?31"
+  "Index", "Rand", "EntryLo0", "EntryLo1", "Context", "PageMask", "Wired", "?7",
+  "BadVAddr", "Count", "EntryHi", "Compare", "SR", "Cause", "EPC", "PrID",
+  "?16", "?17", "WatchLo", "WatchHi", "?20", "?21", "?22", "?23",
+  "?24", "?25", "ECC", "CacheErr", "TagLo", "TagHi", "ErrorEPC", "?31"
 ];
 
 export const cop1RegisterNames = [
@@ -253,12 +253,12 @@ if (cop0Table.length != 32) {
   throw "Oops, didn't build the cop0 table correctly";
 }
 function disassembleCop0(i) {
-  var fmt = (i.opcode>>21) & 0x1f;
+  var fmt = (i.opcode >> 21) & 0x1f;
   return cop0Table[fmt](i);
 }
 
 function disassembleBCInstr(i) {
-  assert( ((i.opcode>>>18)&0x7) === 0, "cc bit is not 0" );
+  assert(((i.opcode >>> 18) & 0x7) === 0, "cc bit is not 0");
 
   switch (_cop1_bc(i.opcode)) {
     case 0: return `BC1F      !c ? --> ${i.branchAddress}`;
@@ -273,7 +273,7 @@ function disassembleBCInstr(i) {
 function disassembleCop1Instr(i, fmt) {
   var fmt_u = fmt.toUpperCase();
 
-  switch(_cop1_func(i.opcode)) {
+  switch (_cop1_func(i.opcode)) {
     case 0x00: return `ADD.${fmt_u}     ${i.fd(fmt)} = ${i.fs(fmt)} + ${i.ft(fmt)}`;
     case 0x01: return `SUB.${fmt_u}     ${i.fd(fmt)} = ${i.fs(fmt)} - ${i.ft(fmt)}`;
     case 0x02: return `MUL.${fmt_u}     ${i.fd(fmt)} = ${i.fs(fmt)} * ${i.ft(fmt)}`;
@@ -369,18 +369,18 @@ if (cop1Table.length != 32) {
   throw "Oops, didn't build the cop1 table correctly";
 }
 function disassembleCop1(i) {
-  var fmt = (i.opcode>>21) & 0x1f;
+  var fmt = (i.opcode >> 21) & 0x1f;
   return cop1Table[fmt](i);
 }
 
 
 function disassembleTLB(i) {
-  switch(_tlbop(i.opcode)) {
-    case 0x01:    return 'TLBR';
-    case 0x02:    return 'TLBWI';
-    case 0x06:    return 'TLBWR';
-    case 0x08:    return 'TLBP';
-    case 0x18:    return 'ERET';
+  switch (_tlbop(i.opcode)) {
+    case 0x01: return 'TLBR';
+    case 0x02: return 'TLBWI';
+    case 0x06: return 'TLBWR';
+    case 0x08: return 'TLBP';
+    case 0x18: return 'ERET';
   }
 
   return 'Unk';
@@ -507,11 +507,11 @@ if (simpleTable.length != 64) {
 }
 
 export function disassembleOp(address, opcode) {
-  var i           = new Instruction(address, opcode);
+  var i = new Instruction(address, opcode);
   var o = _op(opcode);
   var disassembly = simpleTable[_op(opcode)](i);
 
-  return {instruction:i, disassembly:disassembly, isJumpTarget:false};
+  return { instruction: i, disassembly: disassembly, isJumpTarget: false };
 }
 
 function disassembleAddress(address) {
@@ -525,12 +525,12 @@ export function disassemble(bpc, epc) {
   var targets = {};
 
   for (var i = bpc; i < epc; i += 4) {
-      var d = disassembleAddress(i);
-      if (d.instruction.target) {
-        targets[d.instruction.target] = 1;
-      }
+    var d = disassembleAddress(i);
+    if (d.instruction.target) {
+      targets[d.instruction.target] = 1;
+    }
 
-      r.push(d);
+    r.push(d);
   }
 
   // Flag any instructions that are jump targets
