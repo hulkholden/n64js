@@ -525,31 +525,25 @@ export function disassembleInstruction(address, instruction) {
   };
 }
 
-function disassembleAddress(address) {
-  const instruction = n64js.getInstruction(address);
-  return disassembleInstruction(address, instruction);
-}
+export function disassembleRange(beginAddr, endAddr) {
+  const disassembly = [];
+  const targets = new Set();
 
-export function disassemble(bpc, epc) {
-  var r = [];
-
-  var targets = {};
-
-  for (var i = bpc; i < epc; i += 4) {
-    var d = disassembleAddress(i);
+  for (let addr = beginAddr; addr < endAddr; addr += 4) {
+    const instruction = n64js.getInstruction(addr);
+    const d = disassembleInstruction(addr, instruction);
     if (d.instruction.target) {
-      targets[d.instruction.target] = 1;
+      targets.add(d.instruction.target);
     }
-
-    r.push(d);
+    disassembly.push(d);
   }
 
-  // Flag any instructions that are jump targets
-  for (var o = 0; o < r.length; ++o) {
-    if (targets.hasOwnProperty(r[o].instruction.address)) {
-      r[o].isJumpTarget = true;
+  // Mark any instructions that are jump targets.
+  for (let d of disassembly) {
+    if (targets.has(d.instruction.address)) {
+      d.isJumpTarget = true;
     }
   }
 
-  return r;
+  return disassembly;
 }
