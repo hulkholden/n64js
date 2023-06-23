@@ -1,6 +1,6 @@
 /*jshint jquery:true, devel:true */
 
-import { CPU1 } from './CPU1.js';
+import { CPU1 } from './cpu1.js';
 import { disassembleInstruction, cop0ControlRegisterNames } from './disassemble.js';
 import { toString8, toString32 } from './format.js';
 import { Fragment, lookupFragment, resetFragments } from './fragments.js';
