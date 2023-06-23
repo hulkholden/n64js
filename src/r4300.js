@@ -1,7 +1,7 @@
 /*jshint jquery:true, devel:true */
 
 import { CPU1 } from './CPU1.js';
-import { disassembleOp, cop0ControlRegisterNames } from './disassemble.js';
+import { disassembleInstruction, cop0ControlRegisterNames } from './disassemble.js';
 import { toString8, toString32 } from './format.js';
 import { Fragment, lookupFragment, resetFragments } from './fragments.js';
 import { assert } from './assert.js';
@@ -1002,7 +1002,7 @@ n64js.store_64 = (ram, addr, value_lo, value_hi) => {
 
 
 function unimplemented(pc,i) {
-  var r = disassembleOp(pc,i);
+  var r = disassembleInstruction(pc,i);
   var e = 'Unimplemented op ' + toString32(i) + ' : ' + r.disassembly;
   logger.log(e);
   throw e;

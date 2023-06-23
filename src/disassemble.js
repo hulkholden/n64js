@@ -515,17 +515,19 @@ if (simpleTable.length != 64) {
   throw "Oops, didn't build the simple table correctly";
 }
 
-export function disassembleOp(address, opcode) {
-  var i = new Instruction(address, opcode);
-  var o = _op(opcode);
-  var disassembly = simpleTable[_op(opcode)](i);
-
-  return { instruction: i, disassembly: disassembly, isJumpTarget: false };
+export function disassembleInstruction(address, instruction) {
+  const i = new Instruction(address, instruction);
+  const disassembly = simpleTable[_op(instruction)](i);
+  return {
+    instruction: i,
+    disassembly: disassembly,
+    isJumpTarget: false,
+  };
 }
 
 function disassembleAddress(address) {
-  var instruction = n64js.getInstruction(address);
-  return disassembleOp(address, instruction);
+  const instruction = n64js.getInstruction(address);
+  return disassembleInstruction(address, instruction);
 }
 
 export function disassemble(bpc, epc) {
