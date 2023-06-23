@@ -1,6 +1,6 @@
 /*jshint jquery:true */
 
-import { disassemble, cop0gprNames, cop1RegisterNames } from './disassemble.js';
+import { disassembleRange, cop0gprNames, cop1RegisterNames } from './disassemble.js';
 import { toString32, toString64, toHex } from './format.js';
 import * as logger from './logger.js';
 import { getFragmentMap, consumeFragmentInvalidationEvents } from './fragments.js';
@@ -456,7 +456,7 @@ export class Debugger {
     this.lastCycles = cpuCount;
 
     let fragmentMap = getFragmentMap();
-    let disassembly = disassemble(this.disasmAddress - 64, this.disasmAddress + 64);
+    let disassembly = disassembleRange(this.disasmAddress - 64, this.disasmAddress + 64);
 
     let $disGutter = $('<pre/>');
     let $disText = $('<pre/>');
