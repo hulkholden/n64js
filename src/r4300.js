@@ -1,5 +1,6 @@
 /*jshint jquery:true, devel:true */
 
+import * as cpu0_constants from './cpu0_constants.js';
 import { CPU1 } from './cpu1.js';
 import { disassembleInstruction, cop0ControlRegisterNames } from './disassemble.js';
 import { toString8, toString32 } from './format.js';
@@ -305,40 +306,6 @@ function CPU0() {
   for (var i = 0; i < 32; ++i) {
     this.tlbEntries.push(new TLBEntry());
   }
-
-  // General purpose register constants
-  this.kRegister_r0 = 0x00;
-  this.kRegister_at = 0x01;
-  this.kRegister_v0 = 0x02;
-  this.kRegister_v1 = 0x03;
-  this.kRegister_a0 = 0x04;
-  this.kRegister_a1 = 0x05;
-  this.kRegister_a2 = 0x06;
-  this.kRegister_a3 = 0x07;
-  this.kRegister_t0 = 0x08;
-  this.kRegister_t1 = 0x09;
-  this.kRegister_t2 = 0x0a;
-  this.kRegister_t3 = 0x0b;
-  this.kRegister_t4 = 0x0c;
-  this.kRegister_t5 = 0x0d;
-  this.kRegister_t6 = 0x0e;
-  this.kRegister_t7 = 0x0f;
-  this.kRegister_s0 = 0x10;
-  this.kRegister_s1 = 0x11;
-  this.kRegister_s2 = 0x12;
-  this.kRegister_s3 = 0x13;
-  this.kRegister_s4 = 0x14;
-  this.kRegister_s5 = 0x15;
-  this.kRegister_s6 = 0x16;
-  this.kRegister_s7 = 0x17;
-  this.kRegister_t8 = 0x18;
-  this.kRegister_t9 = 0x19;
-  this.kRegister_k0 = 0x1a;
-  this.kRegister_k1 = 0x1b;
-  this.kRegister_gp = 0x1c;
-  this.kRegister_sp = 0x1d;
-  this.kRegister_s8 = 0x1e;
-  this.kRegister_ra = 0x1f;
 
   // Control register constants
   this.kControlIndex     = 0;
@@ -1774,12 +1741,12 @@ function generateJAL(ctx) {
   var ra_hi = (ra & 0x80000000) ? -1 : 0;
   var impl  = '';
   impl += 'c.delayPC = ' + toString32(addr) + ';\n';
-  impl += 'rlo[' + cpu0.kRegister_ra + '] = ' + toString32(ra) + ';\n';
-  impl += 'rhi[' + cpu0.kRegister_ra + '] = ' + ra_hi + ';\n';
+  impl += 'rlo[' + cpu0_constants.RA + '] = ' + toString32(ra) + ';\n';
+  impl += 'rhi[' + cpu0_constants.RA + '] = ' + ra_hi + ';\n';
   return generateBranchOpBoilerplate(impl, ctx, false);
 }
 function executeJAL(i) {
-  setSignExtend(cpu0.kRegister_ra, cpu0.pc + 8);
+  setSignExtend(cpu0_constants.RA, cpu0.pc + 8);
   performBranch( jumpAddress(cpu0.pc,i) );
 }
 
@@ -2045,14 +2012,14 @@ function executeBLTZL(i) {
 }
 
 function executeBLTZAL(i) {
-  setSignExtend(cpu0.kRegister_ra, cpu0.pc + 8);
+  setSignExtend(cpu0_constants.RA, cpu0.pc + 8);
   if (cpu0.gprHi_signed[rs(i)] < 0) {
     performBranch( branchAddress(cpu0.pc,i) );
   }
 }
 
 function executeBLTZALL(i) {
-  setSignExtend(cpu0.kRegister_ra, cpu0.pc + 8);
+  setSignExtend(cpu0_constants.RA, cpu0.pc + 8);
   if (cpu0.gprHi_signed[rs(i)] < 0) {
     performBranch( branchAddress(cpu0.pc,i) );
   } else {
@@ -2102,14 +2069,14 @@ function executeBGEZL(i) {
 }
 
 function executeBGEZAL(i) {
-  setSignExtend(cpu0.kRegister_ra, cpu0.pc + 8);
+  setSignExtend(cpu0_constants.RA, cpu0.pc + 8);
   if (cpu0.gprHi_signed[rs(i)] >= 0) {
     performBranch( branchAddress(cpu0.pc,i) );
   }
 }
 
 function executeBGEZALL(i) {
-  setSignExtend(cpu0.kRegister_ra, cpu0.pc + 8);
+  setSignExtend(cpu0_constants.RA, cpu0.pc + 8);
   if (cpu0.gprHi_signed[rs(i)] >= 0) {
     performBranch( branchAddress(cpu0.pc,i) );
   } else {
