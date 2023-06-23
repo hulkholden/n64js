@@ -306,38 +306,10 @@ function CPU0() {
   for (var i = 0; i < 32; ++i) {
     this.tlbEntries.push(new TLBEntry());
   }
-
-  // Control register constants
-  this.kControlIndex     = 0;
-  this.kControlRand      = 1;
-  this.kControlEntryLo0  = 2;
-  this.kControlEntryLo1  = 3;
-  this.kControlContext   = 4;
-  this.kControlPageMask  = 5;
-  this.kControlWired     = 6;
-  //...
-  this.kControlBadVAddr  = 8;
-  this.kControlCount     = 9;
-  this.kControlEntryHi   = 10;
-  this.kControlCompare   = 11;
-  this.kControlSR        = 12;
-  this.kControlCause     = 13;
-  this.kControlEPC       = 14;
-  this.kControlPRId      = 15;
-  this.kControlConfig    = 16;
-  this.kControlLLAddr    = 17;
-  this.kControlWatchLo   = 18;
-  this.kControlWatchHi   = 19;
-  //...
-  this.kControlECC       = 26;
-  this.kControlCacheErr  = 27;
-  this.kControlTagLo     = 28;
-  this.kControlTagHi     = 29;
-  this.kControlErrorEPC  = 30;
 }
 
 CPU0.prototype.getCount = function() {
-  return this.control[this.kControlCount];
+  return this.control[cpu0_constants.controlCount];
 };
 
 CPU0.prototype.getGPR_s64 = function (r) {
@@ -381,9 +353,9 @@ CPU0.prototype.reset = function () {
   this.multLo[0]    = this.multLo[1] = 0;
   this.multHi[0]    = this.multHi[1] = 0;
 
-  this.control[this.kControlRand]   = 32-1;
-  this.control[this.kControlSR]     = 0x70400004;
-  this.control[this.kControlConfig] = 0x0006e463;
+  this.control[cpu0_constants.controlRand]   = 32-1;
+  this.control[cpu0_constants.controlSR]     = 0x70400004;
+  this.control[cpu0_constants.controlConfig] = 0x0006e463;
 
   this.addEvent(kEventVbl, kVIIntrCycles);
 };
@@ -408,7 +380,7 @@ CPU0.prototype.speedHack = function () {
 
       //logger.log('speedhack: skipping ' + to_skip + ' cycles');
 
-      this.control[this.kControlCount] += to_skip;
+      this.control[cpu0_constants.controlCount] += to_skip;
       this.events[0].countdown = 1;
 
       // Re-add the kEventRunForCycles event
@@ -426,25 +398,25 @@ CPU0.prototype.speedHack = function () {
 CPU0.prototype.updateCause3 = function () {
   const miRegDevice = n64js.hardware().miRegDevice;
   if (miRegDevice.interruptsUnmasked()) {
-    this.control[this.kControlCause] |= CAUSE_IP3;
+    this.control[cpu0_constants.controlCause] |= CAUSE_IP3;
 
     if (this.checkForUnmaskedInterrupts()) {
       this.stuffToDo |= kStuffToDoCheckInterrupts;
     }
   } else {
-    this.control[this.kControlCause] &= ~CAUSE_IP3;
+    this.control[cpu0_constants.controlCause] &= ~CAUSE_IP3;
   }
 
   checkCauseIP3Consistent();
 };
 
 CPU0.prototype.setSR = function (value) {
-  var old_value = this.control[this.kControlSR];
+  var old_value = this.control[cpu0_constants.controlSR];
   if ((old_value & SR_FR) !== (value & SR_FR)) {
     logger.log('Changing FPU to ' + ((value & SR_FR) ? '64bit' : '32bit' ));
   }
 
-  this.control[this.kControlSR] = value;
+  this.control[cpu0_constants.controlSR] = value;
 
   setCop1Enable( (value & SR_CU1) !== 0 );
 
@@ -454,13 +426,13 @@ CPU0.prototype.setSR = function (value) {
 };
 
 CPU0.prototype.checkForUnmaskedInterrupts = function () {
-  var sr = this.control[this.kControlSR];
+  var sr = this.control[cpu0_constants.controlSR];
 
   // Ensure ERL/EXL are clear and IE is set
   if ((sr & (SR_EXL | SR_ERL | SR_IE)) === SR_IE) {
 
     // Check if interrupts are actually pending, and wanted
-    var cause = this.control[this.kControlCause];
+    var cause = this.control[cpu0_constants.controlCause];
 
     if ((sr & cause & CAUSE_IPMASK) !== 0) {
       return true;
@@ -471,13 +443,13 @@ CPU0.prototype.checkForUnmaskedInterrupts = function () {
 };
 
 CPU0.prototype.throwTLBException = function (address, exc_code, vec) {
-  this.control[this.kControlBadVAddr] = address;
+  this.control[cpu0_constants.controlBadVAddr] = address;
 
-  this.control[this.kControlContext] &= 0xff800000;
-  this.control[this.kControlContext] |= ((address >>> 13) << 4);
+  this.control[cpu0_constants.controlContext] &= 0xff800000;
+  this.control[cpu0_constants.controlContext] |= ((address >>> 13) << 4);
 
-  this.control[this.kControlEntryHi] &= 0x00001fff;
-  this.control[this.kControlEntryHi] |= (address & 0xfffffe000);
+  this.control[cpu0_constants.controlEntryHi] &= 0x00001fff;
+  this.control[cpu0_constants.controlEntryHi] |= (address & 0xfffffe000);
 
   // XXXX check we're not inside exception handler before snuffing CAUSE reg?
   this.setException( CAUSE_EXCMASK, exc_code );
@@ -509,27 +481,27 @@ CPU0.prototype.handleInterrupt = function () {
 };
 
 CPU0.prototype.setException = function (mask, exception) {
-  this.control[this.kControlCause] &= ~mask;
-  this.control[this.kControlCause] |= exception;
-  this.control[this.kControlSR]  |= SR_EXL;
-  this.control[this.kControlEPC]  = this.pc;
+  this.control[cpu0_constants.controlCause] &= ~mask;
+  this.control[cpu0_constants.controlCause] |= exception;
+  this.control[cpu0_constants.controlSR]  |= SR_EXL;
+  this.control[cpu0_constants.controlEPC]  = this.pc;
 
   var bd_mask = (1<<CAUSE_BD_BIT);
   if (this.delayPC) {
-    this.control[this.kControlCause] |= bd_mask;
-    this.control[this.kControlEPC]   -= 4;
+    this.control[cpu0_constants.controlCause] |= bd_mask;
+    this.control[cpu0_constants.controlEPC]   -= 4;
   } else {
-    this.control[this.kControlCause] &= ~bd_mask;
+    this.control[cpu0_constants.controlCause] &= ~bd_mask;
   }
 };
 
 CPU0.prototype.setCompare = function (value) {
-  this.control[this.kControlCause] &= ~CAUSE_IP8;
-  if (value === this.control[this.kControlCompare]) {
+  this.control[cpu0_constants.controlCause] &= ~CAUSE_IP8;
+  if (value === this.control[cpu0_constants.controlCompare]) {
     // just clear the IP8 flag
   } else {
     if (value !== 0) {
-      var count = this.control[this.kControlCount];
+      var count = this.control[cpu0_constants.controlCount];
       if (value > count) {
         var delta = value - count;
 
@@ -540,7 +512,7 @@ CPU0.prototype.setCompare = function (value) {
       }
     }
   }
-  this.control[this.kControlCompare] = value;
+  this.control[cpu0_constants.controlCompare] = value;
 };
 
 /**
@@ -608,7 +580,7 @@ CPU0.prototype.hasEvent = function(type) {
 };
 
 CPU0.prototype.getRandom = function () {
-  var wired = this.control[this.kControlWired] & 0x1f;
+  var wired = this.control[cpu0_constants.controlWired] & 0x1f;
   var random = Math.floor(Math.random() * (32-wired)) + wired;
 
   if (syncFlow) {
@@ -620,16 +592,16 @@ CPU0.prototype.getRandom = function () {
 };
 
 CPU0.prototype.setTLB = function (cpu, index) {
-  var pagemask = cpu.control[cpu.kControlPageMask];
-  var entryhi  = cpu.control[cpu.kControlEntryHi];
-  var entrylo1 = cpu.control[cpu.kControlEntryLo1];
-  var entrylo0 = cpu.control[cpu.kControlEntryLo0];
+  var pagemask = cpu.control[cpu0_constants.controlPageMask];
+  var entryhi  = cpu.control[cpu0_constants.controlEntryHi];
+  var entrylo1 = cpu.control[cpu0_constants.controlEntryLo1];
+  var entrylo0 = cpu.control[cpu0_constants.controlEntryLo0];
 
   cpu.tlbEntries[index].update(index, pagemask, entryhi, entrylo0, entrylo1);
 };
 
 CPU0.prototype.tlbWriteIndex = function () {
-  this.setTLB(this, this.control[this.kControlIndex] & 0x1f);
+  this.setTLB(this, this.control[cpu0_constants.controlIndex] & 0x1f);
 };
 
 CPU0.prototype.tlbWriteRandom = function () {
@@ -637,26 +609,26 @@ CPU0.prototype.tlbWriteRandom = function () {
 };
 
 CPU0.prototype.tlbRead = function () {
-  var index = this.control[this.kControlIndex] & 0x1f;
+  var index = this.control[cpu0_constants.controlIndex] & 0x1f;
   var tlb   = this.tlbEntries[index];
 
-  this.control[this.kControlPageMask] = tlb.mask;
-  this.control[this.kControlEntryHi ] = tlb.hi;
-  this.control[this.kControlEntryLo0] = tlb.pfne | tlb.global;
-  this.control[this.kControlEntryLo1] = tlb.pfno | tlb.global;
+  this.control[cpu0_constants.controlPageMask] = tlb.mask;
+  this.control[cpu0_constants.controlEntryHi ] = tlb.hi;
+  this.control[cpu0_constants.controlEntryLo0] = tlb.pfne | tlb.global;
+  this.control[cpu0_constants.controlEntryLo1] = tlb.pfno | tlb.global;
 
   if (kDebugTLB) {
     logger.log('TLB Read Index ' + toString8(index) + '.');
-    logger.log('  PageMask: ' + toString32(this.control[this.kControlPageMask]));
-    logger.log('  EntryHi:  ' + toString32(this.control[this.kControlEntryHi]));
-    logger.log('  EntryLo0: ' + toString32(this.control[this.kControlEntryLo0]));
-    logger.log('  EntryLo1: ' + toString32(this.control[this.kControlEntryLo1]));
+    logger.log('  PageMask: ' + toString32(this.control[cpu0_constants.controlPageMask]));
+    logger.log('  EntryHi:  ' + toString32(this.control[cpu0_constants.controlEntryHi]));
+    logger.log('  EntryLo0: ' + toString32(this.control[cpu0_constants.controlEntryLo0]));
+    logger.log('  EntryLo1: ' + toString32(this.control[cpu0_constants.controlEntryLo1]));
   }
 };
 
 
 CPU0.prototype.tlbProbe = function () {
-  var entryhi      = this.control[this.kControlEntryHi];
+  var entryhi      = this.control[cpu0_constants.controlEntryHi];
   var entryhi_vpn2 = entryhi & TLBHI_VPN2MASK;
   var entryhi_pid  = entryhi & TLBHI_PIDMASK;
 
@@ -668,7 +640,7 @@ CPU0.prototype.tlbProbe = function () {
         if (kDebugTLB) {
           logger.log('TLB Probe. EntryHi:' + toString32(entryhi) + '. Found matching TLB entry - ' + toString8(i));
         }
-        this.control[this.kControlIndex] = i;
+        this.control[cpu0_constants.controlIndex] = i;
         return;
       }
     }
@@ -677,7 +649,7 @@ CPU0.prototype.tlbProbe = function () {
   if (kDebugTLB) {
     logger.log('TLB Probe. EntryHi:' + toString32(entryhi) + ". Didn't find matching entry");
   }
-  this.control[this.kControlIndex] = TLBINX_PROBE;
+  this.control[cpu0_constants.controlIndex] = TLBINX_PROBE;
 };
 
 CPU0.prototype.tlbFindEntry = function (address) {
@@ -689,7 +661,7 @@ CPU0.prototype.tlbFindEntry = function (address) {
 
     if ((address & tlb.vpnmask) === tlb.addrcheck) {
       if (!tlb.global) {
-        var ehi = this.control[this.kControlEntryHi];
+        var ehi = this.control[cpu0_constants.controlEntryHi];
         if ((tlb.hi & TLBHI_PIDMASK) !== (ehi & TLBHI_PIDMASK) ) {
           // Entries ASID must match
           continue;
@@ -1612,11 +1584,11 @@ function executeMFC0(i) {
   var control_reg = fs(i);
 
   // Check consistency
-  if (control_reg === cpu0.kControlCause) {
+  if (control_reg === cpu0_constants.controlCause) {
     checkCauseIP3Consistent();
   }
 
-  if (control_reg === cpu0.kControlRand) {
+  if (control_reg === cpu0_constants.controlRand) {
     setZeroExtend( rt(i), cpu0.getRandom() );
   } else {
     setZeroExtend( rt(i), cpu0.control[control_reg] );
@@ -1625,7 +1597,7 @@ function executeMFC0(i) {
 
 function generateMTC0(ctx) {
   var s = ctx.instr_fs();
-  if (s === cpu0.kControlSR) {
+  if (s === cpu0_constants.controlSR) {
     ctx.fragment.cop1statusKnown = false;
   }
 
@@ -1639,51 +1611,51 @@ function executeMTC0(i) {
   var new_value   = cpu0.gprLo[rt(i)];
 
   switch (control_reg) {
-    case cpu0.kControlContext:
+    case cpu0_constants.controlContext:
       logger.log('Setting Context register to ' + toString32(new_value) );
-      cpu0.control[cpu0.kControlContext] = new_value;
+      cpu0.control[cpu0_constants.controlContext] = new_value;
       break;
 
-    case cpu0.kControlWired:
+    case cpu0_constants.controlWired:
       logger.log('Setting Wired register to ' + toString32(new_value) );
       // Set to top limit on write to wired
-      cpu0.control[cpu0.kControlRand]  = 31;
-      cpu0.control[cpu0.kControlWired] = new_value;
+      cpu0.control[cpu0_constants.controlRand]  = 31;
+      cpu0.control[cpu0_constants.controlWired] = new_value;
       break;
 
-    case cpu0.kControlRand:
-    case cpu0.kControlBadVAddr:
-    case cpu0.kControlPRId:
-    case cpu0.kControlCacheErr:
+    case cpu0_constants.controlRand:
+    case cpu0_constants.controlBadVAddr:
+    case cpu0_constants.controlPRId:
+    case cpu0_constants.controlCacheErr:
       // All these registers are read-only
       logger.log('Attempted write to read-only cpu0 control register. ' + toString32(new_value) + ' --> ' + cop0ControlRegisterNames[control_reg] );
       break;
 
-    case cpu0.kControlCause:
+    case cpu0_constants.controlCause:
       logger.log('Setting cause register to ' + toString32(new_value) );
       n64js.check(new_value === 0, 'Should only write 0 to Cause register.');
-      cpu0.control[cpu0.kControlCause] &= ~0x300;
-      cpu0.control[cpu0.kControlCause] |= (new_value & 0x300);
+      cpu0.control[cpu0_constants.controlCause] &= ~0x300;
+      cpu0.control[cpu0_constants.controlCause] |= (new_value & 0x300);
       break;
 
-    case cpu0.kControlSR:
+    case cpu0_constants.controlSR:
       cpu0.setSR(new_value);
       break;
-    case cpu0.kControlCount:
-      cpu0.control[cpu0.kControlCount] = new_value;
+    case cpu0_constants.controlCount:
+      cpu0.control[cpu0_constants.controlCount] = new_value;
       break;
-    case cpu0.kControlCompare:
+    case cpu0_constants.controlCompare:
       cpu0.setCompare(new_value);
       break;
 
-    case cpu0.kControlEPC:
-    case cpu0.kControlEntryHi:
-    case cpu0.kControlEntryLo0:
-    case cpu0.kControlEntryLo1:
-    case cpu0.kControlIndex:
-    case cpu0.kControlPageMask:
-    case cpu0.kControlTagLo:
-    case cpu0.kControlTagHi:
+    case cpu0_constants.controlEPC:
+    case cpu0_constants.controlEntryHi:
+    case cpu0_constants.controlEntryLo0:
+    case cpu0_constants.controlEntryLo1:
+    case cpu0_constants.controlIndex:
+    case cpu0_constants.controlPageMask:
+    case cpu0_constants.controlTagLo:
+    case cpu0_constants.controlTagHi:
       cpu0.control[control_reg] = new_value;
       break;
 
@@ -1706,13 +1678,13 @@ function executeTLB(i) {
 }
 
 function executeERET(i) {
-  if (cpu0.control[cpu0.kControlSR] & SR_ERL) {
-    cpu0.nextPC = cpu0.control[cpu0.kControlErrorEPC];
-    cpu0.control[cpu0.kControlSR] &= ~SR_ERL;
+  if (cpu0.control[cpu0_constants.controlSR] & SR_ERL) {
+    cpu0.nextPC = cpu0.control[cpu0_constants.controlErrorEPC];
+    cpu0.control[cpu0_constants.controlSR] &= ~SR_ERL;
     logger.log('ERET from error trap - ' + cpu0.nextPC);
   } else {
-    cpu0.nextPC = cpu0.control[cpu0.kControlEPC];
-    cpu0.control[cpu0.kControlSR] &= ~SR_EXL;
+    cpu0.nextPC = cpu0.control[cpu0_constants.controlEPC];
+    cpu0.control[cpu0_constants.controlSR] &= ~SR_EXL;
     //logger.log('ERET from interrupt/exception ' + cpu0.nextPC);
   }
 }
@@ -3337,7 +3309,7 @@ function generateCop1(ctx) {
 }
 
 function executeCop1(i) {
-  //assert( (cpu0.control[cpu0.kControlSR] & SR_CU1) !== 0, "SR_CU1 in inconsistent state" );
+  //assert( (cpu0.control[cpu0_constants.controlSR] & SR_CU1) !== 0, "SR_CU1 in inconsistent state" );
 
   var fmt = (i >>> 21) & 0x1f;
   cop1Table[fmt](i);
@@ -3345,7 +3317,7 @@ function executeCop1(i) {
 function executeCop1_disabled(i) {
   logger.log('Thread accessing cop1 for first time, throwing cop1 unusable exception');
 
-  assert( (cpu0.control[cpu0.kControlSR] & SR_CU1) === 0, "SR_CU1 in inconsistent state" );
+  assert( (cpu0.control[cpu0_constants.controlSR] & SR_CU1) === 0, "SR_CU1 in inconsistent state" );
 
   cpu0.throwCop1Unusable();
 }
@@ -3579,7 +3551,7 @@ FragmentContext.prototype.instr_imms   = function () { return imms(this.instruct
 function checkCauseIP3Consistent() {
   const miRegDevice = n64js.hardware().miRegDevice;
   var mi_interrupt_set = miRegDevice.interruptsUnmasked();
-  var cause_int_3_set  = (cpu0.control[cpu0.kControlCause] & CAUSE_IP3) !== 0;
+  var cause_int_3_set  = (cpu0.control[cpu0_constants.controlCause] & CAUSE_IP3) !== 0;
   assert(mi_interrupt_set === cause_int_3_set, 'CAUSE_IP3 inconsistent with MI_INTR_REG');
 }
 
@@ -3639,9 +3611,9 @@ function checkSyncState(sync, pc) {
   // }
 
   // if(0) {
-  //   if (!sync.sync32(cpu0.control[cpu0.kControlCount], 'count'))
+  //   if (!sync.sync32(cpu0.control[cpu0_constants.controlCount], 'count'))
   //     return false;
-  //   if (!sync.sync32(cpu0.control[cpu0.kControlCompare], 'compare'))
+  //   if (!sync.sync32(cpu0.control[cpu0_constants.controlCompare], 'compare'))
   //     return false;
   // }
 
@@ -3651,7 +3623,7 @@ function checkSyncState(sync, pc) {
 function handleTLBException() {
   cpu0.pc      = cpu0.nextPC;
   cpu0.delayPC = cpu0.branchTarget;
-  cpu0.control_signed[cpu0.kControlCount] += COUNTER_INCREMENT_PER_OP;
+  cpu0.control_signed[cpu0_constants.controlCount] += COUNTER_INCREMENT_PER_OP;
 
   var evt = cpu0.events[0];
   evt.countdown -= COUNTER_INCREMENT_PER_OP;
@@ -3670,7 +3642,7 @@ function handleCounter() {
     if (evt.type === kEventRunForCycles) {
       cpu0.stuffToDo |= kStuffToDoBreakout;
     } else if (evt.type === kEventCompare) {
-      cpu0.control[cpu0.kControlCause] |= CAUSE_IP8;
+      cpu0.control[cpu0_constants.controlCause] |= CAUSE_IP8;
       if (cpu0.checkForUnmaskedInterrupts()) {
         cpu0.stuffToDo |= kStuffToDoCheckInterrupts;
       }
@@ -3756,7 +3728,7 @@ function executeFragment(fragment, c, ram, events) {
     evt.countdown -= ops_executed * COUNTER_INCREMENT_PER_OP;
 
     if (!accurateCountUpdating) {
-      c.control_signed[c.kControlCount] += ops_executed * COUNTER_INCREMENT_PER_OP;
+      c.control_signed[cpu0_constants.controlCount] += ops_executed * COUNTER_INCREMENT_PER_OP;
     }
 
     //assert(fragment.bailedOut || evt.countdown >= 0, "Executed too many ops. Possibly didn't bail out of trace when new event was set up?");
@@ -3879,7 +3851,7 @@ function runImpl() {
         executeOp(instruction);
         c.pc      = c.nextPC;
         c.delayPC = c.branchTarget;
-        c.control_signed[c.kControlCount] += COUNTER_INCREMENT_PER_OP;
+        c.control_signed[cpu0_constants.controlCount] += COUNTER_INCREMENT_PER_OP;
         //checkCauseIP3Consistent();
         //n64js.checkSIStatusConsistent();
 

@@ -31,3 +31,31 @@ export const GP = 0x1c;
 export const SP = 0x1d;
 export const S8 = 0x1e;
 export const RA = 0x1f;
+
+// Control register constants
+export const controlIndex = 0;
+export const controlRand = 1;
+export const controlEntryLo0 = 2;
+export const controlEntryLo1 = 3;
+export const controlContext = 4;
+export const controlPageMask = 5;
+export const controlWired = 6;
+// ...
+export const controlBadVAddr = 8;
+export const controlCount = 9;
+export const controlEntryHi = 10;
+export const controlCompare = 11;
+export const controlSR = 12;
+export const controlCause = 13;
+export const controlEPC = 14;
+export const controlPRId = 15;
+export const controlConfig = 16;
+export const controlLLAddr = 17;
+export const controlWatchLo = 18;
+export const controlWatchHi = 19;
+//...
+export const controlECC = 26;
+export const controlCacheErr = 27;
+export const controlTagLo = 28;
+export const controlTagHi = 29;
+export const controlErrorEPC = 30;

@@ -1,4 +1,4 @@
-
+import * as cpu0_constants from './cpu0_constants.js';
 
 export function simulateBoot(cpu0, rominfo) {
   const country = rominfo.country;
@@ -9,14 +9,14 @@ export function simulateBoot(cpu0, rominfo) {
     cpu0.gprLo[reg] = lo;
   }
 
-  cpu0.control[cpu0.kControlSR] = 0x34000000;
-  cpu0.control[cpu0.kControlConfig] = 0x0006E463;
-  cpu0.control[cpu0.kControlCount] = 0x5000;
-  cpu0.control[cpu0.kControlCause] = 0x0000005c;
-  cpu0.control[cpu0.kControlContext] = 0x007FFFF0;
-  cpu0.control[cpu0.kControlEPC] = 0xFFFFFFFF;
-  cpu0.control[cpu0.kControlBadVAddr] = 0xFFFFFFFF;
-  cpu0.control[cpu0.kControlErrorEPC] = 0xFFFFFFFF;
+  cpu0.control[cpu0_constants.controlSR] = 0x34000000;
+  cpu0.control[cpu0_constants.controlConfig] = 0x0006E463;
+  cpu0.control[cpu0_constants.controlCount] = 0x5000;
+  cpu0.control[cpu0_constants.controlCause] = 0x0000005c;
+  cpu0.control[cpu0_constants.controlContext] = 0x007FFFF0;
+  cpu0.control[cpu0_constants.controlEPC] = 0xFFFFFFFF;
+  cpu0.control[cpu0_constants.controlBadVAddr] = 0xFFFFFFFF;
+  cpu0.control[cpu0_constants.controlErrorEPC] = 0xFFFFFFFF;
 
   setGPR(0, 0x00000000, 0x00000000);
   setGPR(6, 0xFFFFFFFF, 0xA4001F0C);
