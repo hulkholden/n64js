@@ -1,4 +1,5 @@
 import { assert } from './assert.js';
+import * as cpu0_constants from './cpu0_constants.js';
 import { toHex } from './format.js';
 
 window.n64js = window.n64js || {};
@@ -83,7 +84,7 @@ class Instruction {
   }
 
   // dummy operand - just marks ra as being a dest reg
-  writesRA() { this.dstRegs[n64js.cpu0.kRegister_ra] = 1; return ''; }
+  writesRA() { this.dstRegs[cpu0_constants.RA] = 1; return ''; }
 
   // cop1 regs
   ft_d(fmt) { const reg = this.cop1RegName(_ft, fmt); this.dstRegs[reg] = 1; return makeFPRegSpan(reg); }
