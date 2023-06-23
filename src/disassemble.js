@@ -71,28 +71,42 @@ class Instruction {
 
   // TODO: make these getters to avoid the parens in the formatting strings.
   // cop0 regs
-  get rt_d() { const reg = cop0gprNames[_rt(this.opcode)]; this.dstRegs[reg] = 1; return makeRegSpan(reg); }
-  get rd() { const reg = cop0gprNames[_rd(this.opcode)]; this.dstRegs[reg] = 1; return makeRegSpan(reg); }
-  get rt() { const reg = cop0gprNames[_rt(this.opcode)]; this.srcRegs[reg] = 1; return makeRegSpan(reg); }
-  get rs() { const reg = cop0gprNames[_rs(this.opcode)]; this.srcRegs[reg] = 1; return makeRegSpan(reg); }
+  get rt_d() { const reg = this.cop0RegName(_rt); this.dstRegs[reg] = 1; return makeRegSpan(reg); }
+  get rd() { const reg = this.cop0RegName(_rd); this.dstRegs[reg] = 1; return makeRegSpan(reg); }
+  get rt() { const reg = this.cop0RegName(_rt); this.srcRegs[reg] = 1; return makeRegSpan(reg); }
+  get rs() { const reg = this.cop0RegName(_rs); this.srcRegs[reg] = 1; return makeRegSpan(reg); }
 
   get sa() { return _sa(this.opcode); }
+
+  cop0RegName(opFn) {
+    return cop0gprNames[opFn(this.opcode)];
+  }
 
   // dummy operand - just marks ra as being a dest reg
   writesRA() { this.dstRegs[n64js.cpu0.kRegister_ra] = 1; return ''; }
 
   // cop1 regs
-  ft_d(fmt) { const reg = getCop1RegisterName(_ft(this.opcode), fmt); this.dstRegs[reg] = 1; return makeFPRegSpan(reg); }
-  fs_d(fmt) { const reg = getCop1RegisterName(_fs(this.opcode), fmt); this.dstRegs[reg] = 1; return makeFPRegSpan(reg); }
-  fd(fmt) { const reg = getCop1RegisterName(_fd(this.opcode), fmt); this.dstRegs[reg] = 1; return makeFPRegSpan(reg); }
-  ft(fmt) { const reg = getCop1RegisterName(_ft(this.opcode), fmt); this.srcRegs[reg] = 1; return makeFPRegSpan(reg); }
-  fs(fmt) { const reg = getCop1RegisterName(_fs(this.opcode), fmt); this.srcRegs[reg] = 1; return makeFPRegSpan(reg); }
+  ft_d(fmt) { const reg = this.cop1RegName(_ft, fmt); this.dstRegs[reg] = 1; return makeFPRegSpan(reg); }
+  fs_d(fmt) { const reg = this.cop1RegName(_fs, fmt); this.dstRegs[reg] = 1; return makeFPRegSpan(reg); }
+  fd(fmt) { const reg = this.cop1RegName(_fd, fmt); this.dstRegs[reg] = 1; return makeFPRegSpan(reg); }
+  ft(fmt) { const reg = this.cop1RegName(_ft, fmt); this.srcRegs[reg] = 1; return makeFPRegSpan(reg); }
+  fs(fmt) { const reg = this.cop1RegName(_fs, fmt); this.srcRegs[reg] = 1; return makeFPRegSpan(reg); }
+
+  cop1RegName(opFn, fmt) {
+    const regIdx = opFn(this.opcode);
+    const suffix = fmt ? `-${fmt}` : '';
+    return cop1RegisterNames[regIdx] + suffix;
+  }
 
   // cop2 regs
-  get gt_d() { const reg = cop2RegisterNames[_rt(this.opcode)]; this.dstRegs[reg] = 1; return makeRegSpan(reg); }
-  get gd() { const reg = cop2RegisterNames[_rd(this.opcode)]; this.dstRegs[reg] = 1; return makeRegSpan(reg); }
-  get gt() { const reg = cop2RegisterNames[_rt(this.opcode)]; this.srcRegs[reg] = 1; return makeRegSpan(reg); }
-  get gs() { const reg = cop2RegisterNames[_rs(this.opcode)]; this.srcRegs[reg] = 1; return makeRegSpan(reg); }
+  get gt_d() { const reg = this.cop2RegName(_rt); this.dstRegs[reg] = 1; return makeRegSpan(reg); }
+  get gd() { const reg = this.cop2RegName(_rd); this.dstRegs[reg] = 1; return makeRegSpan(reg); }
+  get gt() { const reg = this.cop2RegName(_rt); this.srcRegs[reg] = 1; return makeRegSpan(reg); }
+  get gs() { const reg = this.cop2RegName(_rs); this.srcRegs[reg] = 1; return makeRegSpan(reg); }
+
+  cop2RegName(opFn) {
+    return cop2RegisterNames[opFn(this.opcode)];
+  }
 
   get imm() { return `0x${toHex(_imm(this.opcode), 16)}`; }
 
@@ -113,15 +127,11 @@ class Instruction {
 function makeRegSpan(t) {
   return `<span class="dis-reg-${t}">${t}</span>`;
 }
+
 function makeFPRegSpan(t) {
   // We only use the '-' as a valic css identifier, but want to use '.' in the visible text
   const text = t.replace('-', '.');
   return `<span class="dis-reg-${t}">${text}</span>`;
-}
-
-function getCop1RegisterName(r, fmt) {
-  const suffix = fmt ? `-${fmt}` : '';
-  return cop1RegisterNames[r] + suffix;
 }
 
 const specialTable = [
