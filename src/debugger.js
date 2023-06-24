@@ -332,16 +332,13 @@ export class Debugger {
     $td.append(toString32(sr));
     $td.append('&nbsp;');
 
-    let i;
-    for (i = flagNames.length - 1; i >= 0; --i) {
+    for (let i = flagNames.length - 1; i >= 0; --i) {
       if (flagNames[i]) {
         let isSet = (sr & (1 << i)) !== 0;
-
-        let $b = $('<span>' + flagNames[i] + '</span>');
+        let $b = $(`<span>${flagNames[i]}</span>`);
         if (isSet) {
           $b.css('font-weight', 'bold');
         }
-
         $td.append($b);
         $td.append('&nbsp;');
       }
@@ -358,22 +355,19 @@ export class Debugger {
     const miIntrLive = miRegDevice.intrReg();
     const miIntrMask = miRegDevice.intrMaskReg();
 
-    let $tr = $('<tr />');
+    const $tr = $('<tr />');
     $tr.append('<td>MI Intr</td>');
-    let $td = $('<td class="fixed" />');
-    let i;
-    for (i = 0; i < miIntrNames.length; ++i) {
-      let isSet = (miIntrLive & (1 << i)) !== 0;
-      let isEnabled = (miIntrMask & (1 << i)) !== 0;
-
-      let $b = $('<span>' + miIntrNames[i] + '</span>');
+    const $td = $('<td class="fixed" />');
+    for (let i = 0; i < miIntrNames.length; ++i) {
+      const isSet = (miIntrLive & (1 << i)) !== 0;
+      const isEnabled = (miIntrMask & (1 << i)) !== 0;
+      const $b = $(`<span>${miIntrNames[i]}</span>`);
       if (isSet) {
         $b.css('font-weight', 'bold');
       }
       if (isEnabled) {
         $b.css('background-color', '#AFF4BB');
       }
-
       $td.append($b);
       $td.append('&nbsp;');
     }
@@ -430,7 +424,7 @@ export class Debugger {
   onFragmentClicked(e) {
     let $elem = $(e.delegateTarget);
     let frag = $elem.data('fragment');
-    logger.log('<pre>' + frag.func.toString() + '</pre>');
+    logger.log(`<pre>${frag.func.toString()}</pre>`);
   }
 
   onClickBreakpoint(e) {
@@ -464,15 +458,16 @@ export class Debugger {
       let address = a.instruction.address;
       let isTarget = a.isJumpTarget || this.labelMap.has(address);
       let addressStr = (isTarget ? '<span class="dis-address-target">' : '<span class="dis-address">') + toHex(address, 32) + ':</span>';
-      let label = '<span class="dis-label">' + this.makeLabelText(address) + '</span>';
+      let label = `<span class="dis-label">${this.makeLabelText(address)}</span>`;
       let t = addressStr + '  ' + toHex(a.instruction.opcode, 32) + '  ' + label + a.disassembly;
 
       let fragment = fragmentMap.get(address);
       if (fragment) {
-        t += '<span class="dis-fragment-link"> frag - ops=' + fragment.opsCompiled + ' hit=' + fragment.executionCount + '</span>';
+        const span = `<span class="dis-fragment-link"> frag - ops=${fragment.opsCompiled} hit=${fragment.executionCount}</span>`;
+        t += span;
       }
 
-      let $line = $('<span class="dis-line">' + t + '</span>');
+      let $line = $(`<span class="dis-line">${t}</span>`);
       $line.find('.dis-label')
         .data('address', address)
         .css('color', this.makeLabelColor(address))
@@ -502,7 +497,7 @@ export class Debugger {
       if (n64js.isBreakpoint(address)) {
         bpText = '&bull;';
       }
-      let $bp = $('<span>' + bpText + '</span>').data('address', address).click(this.onClickBreakpoint.bind(this));
+      let $bp = $(`<span>${bpText}</span>`).data('address', address).click(this.onClickBreakpoint.bind(this));
 
       $disGutter.append($bp);
       $disGutter.append('<br>');
