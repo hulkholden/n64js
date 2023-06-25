@@ -119,8 +119,6 @@ var config = {
 
 var tmemBuffer = new ArrayBuffer(4096);
 
-var ram_u8;
-var ram_s32;
 var ram_dv;
 
 var state = {
@@ -431,7 +429,8 @@ const M_VIDTASK = 3;
 const M_JPGTASK = 4;
 
 class RSPTask {
-  constructor(task_dv) {
+  constructor(ram_u8, task_dv) {
+    this.ram_u8 = ram_u8;
     this.type = task_dv.getUint32(kOffset_type);
     this.code = task_dv.getUint32(kOffset_ucode) & 0x1fffffff;
     this.code_size = task_dv.getUint32(kOffset_ucode_size);
@@ -440,18 +439,26 @@ class RSPTask {
     this.data_ptr = task_dv.getUint32(kOffset_data_ptr);
   }
 
+  dataByte(offset) {
+    return this.ram_u8[this.data + offset]
+  }
+
+  codeByte(offset) {
+    return this.ram_u8[this.code + offset];
+  }
+
   detectVersionString() {
     const r = 'R'.charCodeAt(0);
     const s = 'S'.charCodeAt(0);
     const p = 'P'.charCodeAt(0);
 
     for (let i = 0; i + 2 < this.data_size; ++i) {
-      if (ram_u8[this.data + i + 0] === r &&
-        ram_u8[this.data + i + 1] === s &&
-        ram_u8[this.data + i + 2] === p) {
+      if (this.dataByte(i + 0) === r &&
+        this.dataByte(i + 1) === s &&
+        this.dataByte(i + 2) === p) {
         let str = '';
         for (let j = i; j < this.data_size; ++j) {
-          const c = ram_u8[this.data + j];
+          const c = this.dataByte(j);
           if (c === 0) {
             return str;
           }
@@ -466,7 +473,7 @@ class RSPTask {
     let c = 0;
     for (var i = 0; i < this.code_size; ++i) {
       // Best hash ever!
-      c = ((c * 17) + ram_u8[this.code + i]) >>> 0;
+      c = ((c * 17) + this.codeByte(i)) >>> 0;
     }
     return c;
   }
@@ -474,7 +481,9 @@ class RSPTask {
 
 // task_dv is a DataView object
 export function rspProcessTask() {
-  var task = new RSPTask(n64js.rsp_task_view);
+  const ram_u8 = n64js.getRamU8Array();
+
+  var task = new RSPTask(ram_u8, n64js.rsp_task_view);
 
   switch (task.type) {
     case M_GFXTASK:
@@ -1422,6 +1431,8 @@ function executeLoadBlock(cmd0, cmd1, dis) {
   var ram_offset = ram_address >>> 2;
   var tmem_offset = (tile.tmem << 3) >>> 2;
 
+  const ram_s32 = n64js.getRamS32Array();
+
   // Slight fast path for dxt == 0
   if (dxt === 0) {
     copyLineQwords(tmem_data, tmem_offset, ram_s32, ram_offset, qwords);
@@ -1510,6 +1521,8 @@ function executeLoadTile(cmd0, cmd1, dis) {
   //   hleHalt('line is shorter than texel count');
   // }
 
+  const ram_u8 = n64js.getRamU8Array();
+
   var x, y;
   for (y = 0; y < h; ++y) {
     if (y & 1) {
@@ -1563,6 +1576,7 @@ function executeLoadTLut(cmd0, cmd1, dis) {
   var texels = ((lrs - uls) >>> 2) + 1;
   var bytes = texels * 2;
 
+  const ram_u8 = n64js.getRamU8Array();
   var tmem_offset = tile.tmem << 3;
 
   copyLine(state.tmemData, tmem_offset, ram_u8, ram_offset, bytes);
@@ -3477,8 +3491,6 @@ function processDList(task, disassembler, bail_after) {
 function resetState(ucode, ram, pc) {
   config.vertexStride = kUcodeStrides[ucode];
 
-  ram_u8 = n64js.getRamU8Array();
-  ram_s32 = n64js.getRamS32Array();
   ram_dv = ram; // FIXME: remove DataView
   state.rdpOtherModeL = 0x00500001;
   state.rdpOtherModeH = 0x00000000;
@@ -3660,8 +3672,6 @@ export function initialiseRenderer($canvas) {
 export function resetRenderer() {
   textureCache = {};
   $textureOutput.html('');
-  ram_u8 = n64js.getRamU8Array();
-  ram_s32 = n64js.getRamS32Array();
   ram_dv = n64js.getRamDataView();
 }
 
