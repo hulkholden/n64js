@@ -430,49 +430,47 @@ const M_AUDTASK = 2;
 const M_VIDTASK = 3;
 const M_JPGTASK = 4;
 
-/**
- * @constructor
- */
-function RSPTask(task_dv) {
-  this.type = task_dv.getUint32(kOffset_type);
-  this.code_base = task_dv.getUint32(kOffset_ucode) & 0x1fffffff;
-  this.code_size = task_dv.getUint32(kOffset_ucode_size);
-  this.data_base = task_dv.getUint32(kOffset_ucode_data) & 0x1fffffff;
-  this.data_size = task_dv.getUint32(kOffset_ucode_data_size);
-  this.data_ptr = task_dv.getUint32(kOffset_data_ptr);
-}
+class RSPTask {
+  constructor(task_dv) {
+    this.type = task_dv.getUint32(kOffset_type);
+    this.code_base = task_dv.getUint32(kOffset_ucode) & 0x1fffffff;
+    this.code_size = task_dv.getUint32(kOffset_ucode_size);
+    this.data_base = task_dv.getUint32(kOffset_ucode_data) & 0x1fffffff;
+    this.data_size = task_dv.getUint32(kOffset_ucode_data_size);
+    this.data_ptr = task_dv.getUint32(kOffset_data_ptr);
+  }
 
-RSPTask.prototype.detectVersionString = function() {
-  var r = 'R'.charCodeAt(0);
-  var s = 'S'.charCodeAt(0);
-  var p = 'P'.charCodeAt(0);
+  detectVersionString() {
+    var r = 'R'.charCodeAt(0);
+    var s = 'S'.charCodeAt(0);
+    var p = 'P'.charCodeAt(0);
 
-  for (var i = 0; i + 2 < this.data_size; ++i) {
-    if (ram_u8[this.data_base + i + 0] === r &&
-      ram_u8[this.data_base + i + 1] === s &&
-      ram_u8[this.data_base + i + 2] === p) {
-      var str = '';
-      for (var j = i; j < this.data_size; ++j) {
-        var c = ram_u8[this.data_base + j];
-        if (c === 0)
-          return str;
+    for (var i = 0; i + 2 < this.data_size; ++i) {
+      if (ram_u8[this.data_base + i + 0] === r &&
+        ram_u8[this.data_base + i + 1] === s &&
+        ram_u8[this.data_base + i + 2] === p) {
+        var str = '';
+        for (var j = i; j < this.data_size; ++j) {
+          var c = ram_u8[this.data_base + j];
+          if (c === 0)
+            return str;
 
-        str += String.fromCharCode(c);
+          str += String.fromCharCode(c);
+        }
       }
     }
+    return '';
   }
-  return '';
-};
 
-RSPTask.prototype.computeMicrocodeHash = function() {
-  var c = 0;
-  for (var i = 0; i < this.code_size; ++i) {
-    // Best hash ever!
-    c = ((c * 17) + ram_u8[this.code_base + i]) >>> 0;
+  computeMicrocodeHash() {
+    var c = 0;
+    for (var i = 0; i < this.code_size; ++i) {
+      // Best hash ever!
+      c = ((c * 17) + ram_u8[this.code_base + i]) >>> 0;
+    }
+    return c;
   }
-  return c;
-};
-
+}
 
 // task_dv is a DataView object
 export function rspProcessTask() {
