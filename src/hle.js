@@ -3050,48 +3050,48 @@ function setViScales() {
   }
 }
 
-/**
- * @constructor
- */
-function Disassembler() {
-  this.$currentDis = $('<pre></pre>');
-  this.$span = undefined;
-  this.numOps = 0;
+class Disassembler {
+  constructor() {
+    this.$currentDis = $('<pre></pre>');
+    this.$span = undefined;
+    this.numOps = 0;
+  }
+
+  begin(pc, cmd0, cmd1, depth) {
+    var indent = (new Array(depth)).join('    ');
+    var pc_str = ' '; //' [' + toHex(pc,32) + '] '
+
+    this.$span = $('<span class="hle-instr" id="I' + this.numOps + '" />');
+    this.$span.append(padString(this.numOps, 5) + pc_str + toHex(cmd0, 32) + toHex(cmd1, 32) +
+      ' ' + indent);
+    this.$currentDis.append(this.$span);
+  }
+
+  text(t) {
+    this.$span.append(t);
+  }
+
+  tip(t) {
+    var $d = $('<div class="dl-tip">' + t + '</div>');
+    $d.hide();
+    this.$span.append($d);
+  }
+
+  end() {
+    this.$span.append('<br>');
+    this.numOps++;
+  }
+
+  finalise = function () {
+    $dlistOutput.html(this.$currentDis);
+    this.$currentDis.find('.dl-tip').parent().click(function () {
+      $(this).find('.dl-tip').toggle();
+    });
+    // this.$currentDis.find('.dl-branch').click(function () {
+    // });
+  }
 }
 
-Disassembler.prototype.begin = function(pc, cmd0, cmd1, depth) {
-  var indent = (new Array(depth)).join('    ');
-  var pc_str = ' '; //' [' + toHex(pc,32) + '] '
-
-  this.$span = $('<span class="hle-instr" id="I' + this.numOps + '" />');
-  this.$span.append(padString(this.numOps, 5) + pc_str + toHex(cmd0, 32) + toHex(cmd1, 32) +
-    ' ' + indent);
-  this.$currentDis.append(this.$span);
-};
-
-Disassembler.prototype.text = function(t) {
-  this.$span.append(t);
-};
-
-Disassembler.prototype.tip = function(t) {
-  var $d = $('<div class="dl-tip">' + t + '</div>');
-  $d.hide();
-  this.$span.append($d);
-};
-
-Disassembler.prototype.end = function() {
-  this.$span.append('<br>');
-  this.numOps++;
-};
-
-Disassembler.prototype.finalise = function() {
-  $dlistOutput.html(this.$currentDis);
-  this.$currentDis.find('.dl-tip').parent().click(function() {
-    $(this).find('.dl-tip').toggle();
-  });
-  // this.$currentDis.find('.dl-branch').click(function () {
-  // });
-};
 
 function buildStateTab() {
   var $table = $('<table class="table table-condensed" style="width: auto;"></table>');
