@@ -3058,12 +3058,11 @@ class Disassembler {
   }
 
   begin(pc, cmd0, cmd1, depth) {
-    var indent = (new Array(depth)).join('    ');
-    var pc_str = ' '; //' [' + toHex(pc,32) + '] '
+    const indent = (new Array(depth)).join('    ');
+    const pc_str = ' '; //' [' + toHex(pc,32) + '] '
 
     this.$span = $('<span class="hle-instr" id="I' + this.numOps + '" />');
-    this.$span.append(padString(this.numOps, 5) + pc_str + toHex(cmd0, 32) + toHex(cmd1, 32) +
-      ' ' + indent);
+    this.$span.append(`${padString(this.numOps, 5)}${pc_str}${toHex(cmd0, 32)}${toHex(cmd1, 32)} ${indent}`);
     this.$currentDis.append(this.$span);
   }
 
@@ -3072,7 +3071,7 @@ class Disassembler {
   }
 
   tip(t) {
-    var $d = $('<div class="dl-tip">' + t + '</div>');
+    const $d = $(`<div class="dl-tip">${t}</div>`);
     $d.hide();
     this.$span.append($d);
   }
