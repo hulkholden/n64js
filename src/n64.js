@@ -12,7 +12,7 @@ import * as json from './json.js';
 import * as logger from './logger.js';
 import { romdb, generateRomId, generateCICType, uint8ArrayReadString } from './romdb.js';
 import { UI } from './ui.js';
-import { initSync, syncActive, syncTick } from './sync.js';
+import { initSync, syncActive, syncTick, syncInput } from './sync.js';
 
 window.n64js = window.n64js || {};
 
