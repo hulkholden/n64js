@@ -433,28 +433,28 @@ const M_JPGTASK = 4;
 class RSPTask {
   constructor(task_dv) {
     this.type = task_dv.getUint32(kOffset_type);
-    this.code_base = task_dv.getUint32(kOffset_ucode) & 0x1fffffff;
+    this.code = task_dv.getUint32(kOffset_ucode) & 0x1fffffff;
     this.code_size = task_dv.getUint32(kOffset_ucode_size);
-    this.data_base = task_dv.getUint32(kOffset_ucode_data) & 0x1fffffff;
+    this.data = task_dv.getUint32(kOffset_ucode_data) & 0x1fffffff;
     this.data_size = task_dv.getUint32(kOffset_ucode_data_size);
     this.data_ptr = task_dv.getUint32(kOffset_data_ptr);
   }
 
   detectVersionString() {
-    var r = 'R'.charCodeAt(0);
-    var s = 'S'.charCodeAt(0);
-    var p = 'P'.charCodeAt(0);
+    const r = 'R'.charCodeAt(0);
+    const s = 'S'.charCodeAt(0);
+    const p = 'P'.charCodeAt(0);
 
-    for (var i = 0; i + 2 < this.data_size; ++i) {
-      if (ram_u8[this.data_base + i + 0] === r &&
-        ram_u8[this.data_base + i + 1] === s &&
-        ram_u8[this.data_base + i + 2] === p) {
-        var str = '';
-        for (var j = i; j < this.data_size; ++j) {
-          var c = ram_u8[this.data_base + j];
-          if (c === 0)
+    for (let i = 0; i + 2 < this.data_size; ++i) {
+      if (ram_u8[this.data + i + 0] === r &&
+        ram_u8[this.data + i + 1] === s &&
+        ram_u8[this.data + i + 2] === p) {
+        let str = '';
+        for (let j = i; j < this.data_size; ++j) {
+          const c = ram_u8[this.data + j];
+          if (c === 0) {
             return str;
-
+          }
           str += String.fromCharCode(c);
         }
       }
@@ -463,10 +463,10 @@ class RSPTask {
   }
 
   computeMicrocodeHash() {
-    var c = 0;
+    let c = 0;
     for (var i = 0; i < this.code_size; ++i) {
       // Best hash ever!
-      c = ((c * 17) + ram_u8[this.code_base + i]) >>> 0;
+      c = ((c * 17) + ram_u8[this.code + i]) >>> 0;
     }
     return c;
   }
