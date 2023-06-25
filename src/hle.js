@@ -14,46 +14,40 @@ import { Texture, clampTexture } from './graphics/textures.js';
 
 window.n64js = window.n64js || {};
 
-var graphics_task_count = 0;
-var texrected = 1;
-
-var $textureOutput = $('#texture-content');
-
-var $dlistContent = $('#dlist-content');
+const $textureOutput = $('#texture-content');
+const $dlistContent = $('#dlist-content');
 
 // Initialised in initialiseRenderer
-var $dlistOutput;
-var $dlistState;
-var $dlistScrub;
+let $dlistOutput;
+let $dlistState;
+let $dlistScrub;
 
 export let debugDisplayListRequested = false;
 export let debugDisplayListRunning = false;
-var debugNumOps = 0;
-var debugBailAfter = -1;
-// The last task that we executed.
-var debugLastTask;
-var debugStateTimeShown = -1;
 
-// This is updated as we're executing, so that we know which instruction to halt on.
-var debugCurrentOp = 0;
+let debugNumOps = 0;
+let debugBailAfter = -1;
+let debugLastTask;  // The last task that we executed.
+let debugStateTimeShown = -1;
+let debugCurrentOp = 0; // This is updated as we're executing, so that we know which instruction to halt on.
 
-var textureCache;
+let graphicsTaskCount = 0;
 
-var gl = null;
+const textureCache = new Map();
 
-var frameBuffer;
-// For roms using display lists
-var frameBufferTexture3D;
-// For roms writing directly to the frame buffer
-var frameBufferTexture2D;
+let gl = null; // WebGL context for the canvas.
+
+let frameBuffer;
+let frameBufferTexture3D;  // For roms using display lists
+let frameBufferTexture2D;  // For roms writing directly to the frame buffer
 
 // n64's display resolution
-var viWidth = 320;
-var viHeight = 240;
+let viWidth = 320;
+let viHeight = 240;
 
 // canvas dimension
-var canvasWidth = 640;
-var canvasHeight = 480;
+let canvasWidth = 640;
+let canvasHeight = 480;
 
 const kOffset_type             = 0x00; // u32
 const kOffset_flags            = 0x04; // u32
@@ -487,7 +481,7 @@ export function rspProcessTask() {
 
   switch (task.type) {
     case M_GFXTASK:
-      ++graphics_task_count;
+      ++graphicsTaskCount;
       hleGraphics(task);
       n64js.hardware().miRegDevice.interruptDP();
       break;
@@ -1703,11 +1697,6 @@ function executeFillRect(cmd0, cmd1, dis) {
 }
 
 function executeTexRect(cmd0, cmd1, dis) {
-  if (!texrected) {
-    n64js.emitRunningTime('texrect');
-    texrected = true;
-  }
-
   // The following 2 commands contain additional info
   // TODO: check op code matches what we expect?
   var pc = state.pc;
@@ -3433,7 +3422,7 @@ function processDList(task, disassembler, bail_after) {
   }
 
   if (str !== last_ucode_str) {
-    logger.log('GFX: ' + graphics_task_count + ' - ' + str + ' = ucode ' + ucode);
+    logger.log('GFX: ' + graphicsTaskCount + ' - ' + str + ' = ucode ' + ucode);
   }
   last_ucode_str = str;
 
@@ -3670,7 +3659,7 @@ export function initialiseRenderer($canvas) {
 }
 
 export function resetRenderer() {
-  textureCache = {};
+  textureCache.clear();
   $textureOutput.html('');
   ram_dv = n64js.getRamDataView();
 }
@@ -3753,11 +3742,11 @@ function lookupTexture(tileIdx) {
   var cache_id = toString32(hash) + tile.lrs + '-' + tile.lrt;
 
   var texture;
-  if (textureCache.hasOwnProperty(cache_id)) {
-    texture = textureCache[cache_id];
+  if (textureCache.has(cache_id)) {
+    texture = textureCache.get(cache_id);
   } else {
     texture = decodeTexture(tile, getTextureLUTType());
-    textureCache[cache_id] = texture;
+    textureCache.set(cache_id, texture);
   }
 
   return texture;
