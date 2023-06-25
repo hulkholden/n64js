@@ -17,7 +17,7 @@ window.n64js = window.n64js || {};
 const $textureOutput = $('#texture-content');
 const $dlistContent = $('#dlist-content');
 
-// Initialised in initialiseRenderer
+// Initialised in initDebugUI.
 let $dlistOutput;
 let $dlistState;
 let $dlistScrub;
@@ -3578,14 +3578,10 @@ function initDebugUI() {
   $('#adjacent-debug').empty().append($dlistOutput);
 }
 
-//
-// Called when the canvas is created to get the ball rolling.
-// Figuratively, that is. There's nothing moving in this demo.
-//
 export function initialiseRenderer($canvas) {
   initDebugUI();
 
-  var canvas = $canvas[0];
+  const canvas = $canvas[0];
   initWebGL(canvas); // Initialize the GL context
 
   // Only continue if WebGL is available and working
@@ -3609,18 +3605,14 @@ export function initialiseRenderer($canvas) {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, frameBuffer.width, frameBuffer.height, 0, gl.RGBA,
-      gl.UNSIGNED_BYTE, null);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, frameBuffer.width, frameBuffer.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
 
     var renderbuffer = gl.createRenderbuffer();
     gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer);
-    gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, frameBuffer.width,
-      frameBuffer.height);
+    gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, frameBuffer.width, frameBuffer.height);
 
-    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D,
-      frameBufferTexture3D, 0);
-    gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER,
-      renderbuffer);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, frameBufferTexture3D, 0);
+    gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, renderbuffer);
 
     gl.bindTexture(gl.TEXTURE_2D, null);
     gl.bindRenderbuffer(gl.RENDERBUFFER, null);
