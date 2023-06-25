@@ -656,7 +656,7 @@ export class Debugger {
     t += '</div>';
     let $fragmentDiv = $(t);
 
-    createHotFragmentsTable($fragmentDiv, fragmentsList);
+    this.createHotFragmentsTable($fragmentDiv, fragmentsList);
 
     $t.append($fragmentDiv);
 
@@ -700,7 +700,7 @@ export class Debugger {
         fragment.executionCount * fragment.opsCompiled
       ];
       let $tr = $('<tr><td>' + vals.join('</td><td>') + '</td></tr>');
-      initFragmentRow($tr, fragment, $code);
+      this.initFragmentRow($tr, fragment, $code);
       $table.append($tr);
     }
     $fragmentDiv.find('#fragments').append($table);
