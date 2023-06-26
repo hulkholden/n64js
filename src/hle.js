@@ -208,11 +208,6 @@ var state = {
   screenContext2d: null // canvas context
 };
 
-var n64ToCanvasScale = [1.0, 1.0];
-var n64ToCanvasTranslate = [0.0, 0.0];
-
-var canvas2dMatrix = Matrix.makeOrtho(0, canvasWidth, canvasHeight, 0, 0, 1);
-
 function hleHalt(msg) {
   if (!debugDisplayListRunning) {
     n64js.ui().displayWarning(msg);
@@ -236,28 +231,36 @@ function hleHalt(msg) {
 const kMaxTris = 64;
 var triangleBuffer = new TriangleBuffer(kMaxTris);
 
-function convertN64ToCanvas(n64_coords) {
-  return [
-    Math.round(Math.round(n64_coords[0]) * n64ToCanvasScale[0] + n64ToCanvasTranslate[0]),
-    Math.round(Math.round(n64_coords[1]) * n64ToCanvasScale[1] + n64ToCanvasTranslate[1]),
-  ];
+class CanvasTransform {
+  constructor(p0, p1) {
+    this.canvasToDisplay = Matrix.makeOrtho(p0[0], p1[0], p1[1], p0[1], 0, 1);
+  }
+
+  convertN64ToCanvas(n64Vec2) {
+    const scale = [canvasWidth / viWidth, canvasHeight / viHeight];
+    const translate = [0.0, 0.0];
+
+    return [
+      Math.round(Math.round(n64Vec2[0]) * scale[0] + translate[0]),
+      Math.round(Math.round(n64Vec2[1]) * scale[1] + translate[1]),
+    ];
+  }
+  
+  convertN64ToDisplay(n64Vec2) {
+    const n64ToCanvas = this.convertN64ToCanvas(n64Vec2);
+    const canvasToDisplay = this.canvasToDisplay.elems;
+    return [
+      n64ToCanvas[0] * canvasToDisplay[0] + canvasToDisplay[12],
+      n64ToCanvas[1] * canvasToDisplay[5] + canvasToDisplay[13],
+    ];
+  }
 }
 
-function convertN64ToDisplay(n64_coords) {
-  var canvas = convertN64ToCanvas(n64_coords);
-  return [
-    canvas[0] * canvas2dMatrix.elems[0] + canvas2dMatrix.elems[12],
-    canvas[1] * canvas2dMatrix.elems[5] + canvas2dMatrix.elems[13],
-  ];
-}
+let canvasTransform = new CanvasTransform([0, 0], [canvasWidth, canvasHeight]);
 
 function setCanvasViewport(w, h) {
   canvasWidth = w;
   canvasHeight = h;
-
-  n64ToCanvasScale = [w / viWidth, h / viHeight];
-  n64ToCanvasTranslate = [0, 0];
-
   updateViewport();
 }
 
@@ -277,26 +280,26 @@ function setN64Viewport(scale, trans) {
 }
 
 function updateViewport() {
-  var n64_min = [
+  const n64Min = [
     state.viewport.trans[0] - state.viewport.scale[0],
     state.viewport.trans[1] - state.viewport.scale[1],
   ];
-  var n64_max = [
+  const n64Max = [
     state.viewport.trans[0] + state.viewport.scale[0],
     state.viewport.trans[1] + state.viewport.scale[1],
   ];
 
-  var canvasMin = convertN64ToCanvas(n64_min);
-  var canvasMax = convertN64ToCanvas(n64_max);
+  const canvasMin = canvasTransform.convertN64ToCanvas(n64Min);
+  const canvasMax = canvasTransform.convertN64ToCanvas(n64Max);
 
-  var vp_x = canvasMin[0];
-  var vp_y = canvasMin[1];
-  var vp_width = canvasMax[0] - canvasMin[0];
-  var vp_height = canvasMax[1] - canvasMin[1];
+  const vpX = canvasMin[0];
+  const vpY = canvasMin[1];
+  const vpWidth = canvasMax[0] - canvasMin[0];
+  const vpHeight = canvasMax[1] - canvasMin[1];
 
-  canvas2dMatrix = Matrix.makeOrtho(canvasMin[0], canvasMax[0], canvasMax[1], canvasMin[1], 0, 1);
+  canvasTransform = new CanvasTransform(canvasMin, canvasMax);
 
-  gl.viewport(vp_x, vp_y, vp_width, vp_height);
+  gl.viewport(vpX, vpY, vpWidth, vpHeight);
 }
 
 function loadMatrix(address) {
@@ -2204,8 +2207,8 @@ function flushTris(num_tris) {
 
 function fillRect(x0, y0, x1, y1, color) {
   // multiply by state.viewport.trans/scale
-  var screen0 = convertN64ToCanvas([x0, y0]);
-  var screen1 = convertN64ToCanvas([x1, y1]);
+  var screen0 = canvasTransform.convertN64ToCanvas([x0, y0]);
+  var screen1 = canvasTransform.convertN64ToCanvas([x1, y1]);
 
   var vertices = [
     screen1[0], screen1[1], 0.0,
@@ -2223,7 +2226,7 @@ function fillRect(x0, y0, x1, y1, color) {
   gl.vertexAttribPointer(fill_vertexPositionAttribute, 3, gl.FLOAT, false, 0, 0);
 
   // uPMatrix
-  gl.uniformMatrix4fv(fill_uPMatrix, false, canvas2dMatrix.elems);
+  gl.uniformMatrix4fv(fill_uPMatrix, false, canvasTransform.canvasToDisplay.elems);
 
   // uFillColor
   gl.uniform4f(fill_uFillColor, color.r, color.g, color.b, color.a);
@@ -2242,8 +2245,8 @@ function texRect(tileIdx, x0, y0, x1, y1, s0, t0, s1, t1, flip) {
   var texture = lookupTexture(tileIdx);
 
   // multiply by state.viewport.trans/scale
-  var screen0 = convertN64ToDisplay([x0, y0]);
-  var screen1 = convertN64ToDisplay([x1, y1]);
+  var screen0 = canvasTransform.convertN64ToDisplay([x0, y0]);
+  var screen1 = canvasTransform.convertN64ToDisplay([x1, y1]);
   var depth_source_prim = (state.rdpOtherModeL & gbi.DepthSource.G_ZS_PRIM) !== 0;
   var depth = depth_source_prim ? state.primDepth : 0.0;
 
