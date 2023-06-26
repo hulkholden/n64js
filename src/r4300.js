@@ -722,30 +722,27 @@ class CPU0 {
   }
 }
 
-/**
- * @constructor
- */
-function SystemEvent(type, countdown) {
-  this.type = type;
-  this.countdown = countdown;
-}
-
-SystemEvent.prototype.getName = function () {
-  switch (this.type) {
-    case kEventVbl: return 'Vbl';
-    case kEventCompare: return 'Compare';
-    case kEventRunForCycles: return 'Run';
+class SystemEvent {
+  constructor(type, countdown) {
+    this.type = type;
+    this.countdown = countdown;
   }
 
-  return '?';
-};
+  getName() {
+    switch (this.type) {
+      case kEventVbl: return 'Vbl';
+      case kEventCompare: return 'Compare';
+      case kEventRunForCycles: return 'Run';
+    }
 
+    return '?';
+  }
+}
 
-/**
- * @constructor
- */
-function TLBException(address) {
-  this.address = address;
+class TLBException {
+  constructor(address) {
+    this.address = address;
+  }
 }
 
 // Expose the cpu state
