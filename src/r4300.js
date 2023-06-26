@@ -3485,62 +3485,60 @@ n64js.executeSC      = executeSC;
 n64js.executeSCD     = executeSCD;
 n64js.executeSDC2    = executeSDC2;
 
+class FragmentContext {
+  constructor() {
+    this.fragment = undefined;
+    this.pc = 0;
+    this.instruction = 0;
+    this.post_pc = 0;
+    this.bailOut = false; // Set this if the op does something to manipulate event timers.
 
-/**
- * @constructor
- */
-function FragmentContext() {
-  this.fragment    = undefined;
-  this.pc          = 0;
-  this.instruction = 0;
-  this.post_pc     = 0;
-  this.bailOut     = false;       // Set this if the op does something to manipulate event timers.
-
-  this.needsDelayCheck = true;    // Set on entry to generate handler. If set, must check for delayPC when updating the pc.
-  this.isTrivial       = false;   // Set by the code generation handler if the op is considered trivial.
-  this.delayedPCUpdate = 0;       // Trivial ops can try to delay setting the pc so that back-to-back trivial ops can emit them entirely.
-  this.dump            = false;   // Display this op when finished.
-}
-
-FragmentContext.prototype.genAssert = function (test, msg) {
-  if (kDebugDynarec) {
-    return 'assert(' + test + ', "' + msg + '");\n';
+    this.needsDelayCheck = true; // Set on entry to generate handler. If set, must check for delayPC when updating the pc.
+    this.isTrivial = false; // Set by the code generation handler if the op is considered trivial.
+    this.delayedPCUpdate = 0; // Trivial ops can try to delay setting the pc so that back-to-back trivial ops can emit them entirely.
+    this.dump = false; // Display this op when finished.
   }
-  return '';
-};
 
-FragmentContext.prototype.newFragment = function () {
-  this.delayedPCUpdate = 0;
-};
+  genAssert(test, msg) {
+    if (kDebugDynarec) {
+      return 'assert(' + test + ', "' + msg + '");\n';
+    }
+    return '';
+  }
 
-FragmentContext.prototype.set = function (fragment, pc, instruction, post_pc) {
-  this.fragment    = fragment;
-  this.pc          = pc;
-  this.instruction = instruction;
-  this.post_pc     = post_pc;
-  this.bailOut     = false;
+  newFragment() {
+    this.delayedPCUpdate = 0;
+  }
 
-  this.needsDelayCheck = true;
-  this.isTrivial       = false;
+  set(fragment, pc, instruction, post_pc) {
+    this.fragment = fragment;
+    this.pc = pc;
+    this.instruction = instruction;
+    this.post_pc = post_pc;
+    this.bailOut = false;
 
-  this.dump        = false;
+    this.needsDelayCheck = true;
+    this.isTrivial = false;
 
-  // Persist this between ops
-  //this.delayedPCUpdate = 0;
-};
+    this.dump = false;
 
-FragmentContext.prototype.instr_rs     = function () { return rs(this.instruction); };
-FragmentContext.prototype.instr_rt     = function () { return rt(this.instruction); };
-FragmentContext.prototype.instr_rd     = function () { return rd(this.instruction); };
-FragmentContext.prototype.instr_sa     = function () { return sa(this.instruction); };
+    // Persist this between ops
+    //this.delayedPCUpdate = 0;
+  }
 
-FragmentContext.prototype.instr_fs     = function () { return fs(this.instruction); };
-FragmentContext.prototype.instr_ft     = function () { return ft(this.instruction); };
-FragmentContext.prototype.instr_fd     = function () { return fd(this.instruction); };
+  instr_rs() { return rs(this.instruction); }
+  instr_rt() { return rt(this.instruction); }
+  instr_rd() { return rd(this.instruction); }
+  instr_sa() { return sa(this.instruction); }
 
-FragmentContext.prototype.instr_base   = function () { return base(this.instruction); };
-FragmentContext.prototype.instr_offset = function () { return offset(this.instruction); };
-FragmentContext.prototype.instr_imms   = function () { return imms(this.instruction); };
+  instr_fs() { return fs(this.instruction); }
+  instr_ft() { return ft(this.instruction); }
+  instr_fd() { return fd(this.instruction); }
+
+  instr_base() { return base(this.instruction); }
+  instr_offset() { return offset(this.instruction); }
+  instr_imms() { return imms(this.instruction); }
+}
 
 function checkCauseIP3Consistent() {
   const miRegDevice = n64js.hardware().miRegDevice;
