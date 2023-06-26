@@ -214,7 +214,7 @@ class TLBEntry {
   update(index, pagemask, hi, entrylo0, entrylo1) {
     if (kDebugTLB) {
       logger.log(`TLB update: index=${index}, pagemask=${toString32(pagemask)}, entryhi=${toString32(hi)}, entrylo0=${toString32(entrylo0)}, entrylo1=${toString32(entrylo1)}`);
-      logger.log(`       ${pageMaskString(pagemask)} Pagesize`);
+      logger.log(`       ${pageMaskName(pagemask)} Pagesize`);
     }
 
     this.pagemask = pagemask;
@@ -238,29 +238,36 @@ class TLBEntry {
   }
 }
 
-function pageMaskCheckbit(pageMask) {
-  switch (pageMask) {
-    case TLBPGMASK_4K: return 0x00001000;
-    case TLBPGMASK_16K: return 0x00004000;
-    case TLBPGMASK_64K: return 0x00010000;
-    case TLBPGMASK_256K: return 0x00040000;
-    case TLBPGMASK_1M: return 0x00100000;
-    case TLBPGMASK_4M: return 0x00400000;
-    case TLBPGMASK_16M: return 0x01000000;
+class PageMask{
+  constructor(name, checkbit) {
+    this.name = name;
+    this.checkbit = checkbit;
   }
-  // shouldn't happen!
+}
+
+const pageMasks = new Map([
+  [TLBPGMASK_4K, new PageMask('4k', 0x00001000)],
+  [TLBPGMASK_16K, new PageMask('16k', 0x00004000)],
+  [TLBPGMASK_64K, new PageMask('64k', 0x00010000)],
+  [TLBPGMASK_256K, new PageMask('256k', 0x00040000)],
+  [TLBPGMASK_1M, new PageMask('1M', 0x00100000)],
+  [TLBPGMASK_4M, new PageMask('4M', 0x00400000)],
+  [TLBPGMASK_16M, new PageMask('16M', 0x01000000)],
+]);
+
+function pageMaskCheckbit(pageMask) {
+  const pm = pageMasks.get(pageMask);
+  if (pm) {
+    return pm.checkbit;
+  }
+  n64js.halt(`Bad pagemask: ${pageMask}`);
   return 0;
 }
 
-function pageMaskString(pagemask) {
-  switch (pagemask) {
-    case TLBPGMASK_4K: return '4k';
-    case TLBPGMASK_16K: return '16k';
-    case TLBPGMASK_64K: return '64k';
-    case TLBPGMASK_256K: return '256k';
-    case TLBPGMASK_1M: return '1M';
-    case TLBPGMASK_4M: return '4M';
-    case TLBPGMASK_16M: return '16M';
+function pageMaskName(pagemask) {
+  const pm = pageMasks.get(pageMask);
+  if (pm) {
+    return pm.name;
   }
   return 'Unknown';
 }
