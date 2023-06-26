@@ -201,68 +201,67 @@ n64js.getHi32 = function (v) {
 // Needs to be callable from dynarec.
 n64js.getSyncFlow = () => syncFlow;
 
-/**
- * @constructor
- */
-function TLBEntry() {
-  this.pagemask = 0;
-  this.hi       = 0;
-  this.pfne     = 0;
-  this.pfno     = 0;
-  this.mask     = 0;
-  this.global   = 0;
-}
+class TLBEntry {
+  constructor() {
+    this.pagemask = 0;
+    this.hi = 0;
+    this.pfne = 0;
+    this.pfno = 0;
+    this.mask = 0;
+    this.global = 0;
+  }
 
-TLBEntry.prototype.update = function(index, pagemask, hi, entrylo0, entrylo1) {
-  if (kDebugTLB) {
-    logger.log('TLB update: index=' + index +
+  update(index, pagemask, hi, entrylo0, entrylo1) {
+    if (kDebugTLB) {
+      logger.log('TLB update: index=' + index +
         ', pagemask=' + toString32(pagemask) +
-        ', entryhi='  + toString32(hi) +
+        ', entryhi=' + toString32(hi) +
         ', entrylo0=' + toString32(entrylo0) +
         ', entrylo1=' + toString32(entrylo1)
       );
 
-    switch (pagemask) {
-      case TLBPGMASK_4K:      logger.log('       4k Pagesize');      break;
-      case TLBPGMASK_16K:     logger.log('       16k Pagesize');     break;
-      case TLBPGMASK_64K:     logger.log('       64k Pagesize');     break;
-      case TLBPGMASK_256K:    logger.log('       256k Pagesize');    break;
-      case TLBPGMASK_1M:      logger.log('       1M Pagesize');      break;
-      case TLBPGMASK_4M:      logger.log('       4M Pagesize');      break;
-      case TLBPGMASK_16M:     logger.log('       16M Pagesize');     break;
-      default:                logger.log('       Unknown Pagesize'); break;
+      switch (pagemask) {
+        case TLBPGMASK_4K: logger.log('       4k Pagesize'); break;
+        case TLBPGMASK_16K: logger.log('       16k Pagesize'); break;
+        case TLBPGMASK_64K: logger.log('       64k Pagesize'); break;
+        case TLBPGMASK_256K: logger.log('       256k Pagesize'); break;
+        case TLBPGMASK_1M: logger.log('       1M Pagesize'); break;
+        case TLBPGMASK_4M: logger.log('       4M Pagesize'); break;
+        case TLBPGMASK_16M: logger.log('       16M Pagesize'); break;
+        default: logger.log('       Unknown Pagesize'); break;
+      }
+    }
+
+    this.pagemask = pagemask;
+    this.hi = hi;
+    this.pfne = entrylo0;
+    this.pfno = entrylo1;
+
+    this.global = (entrylo0 & entrylo1 & TLBLO_G);
+
+    this.mask = pagemask | TLBHI_VPN2MASK_NEG;
+    this.mask2 = this.mask >>> 1;
+    this.vpnmask = (~this.mask) >>> 0;
+    this.vpn2mask = this.vpnmask >>> 1;
+
+    this.addrcheck = (hi & this.vpnmask) >>> 0;
+
+    this.pfnehi = (this.pfne << TLBLO_PFNSHIFT) & this.vpn2mask;
+    this.pfnohi = (this.pfno << TLBLO_PFNSHIFT) & this.vpn2mask;
+
+    switch (this.pagemask) {
+      case TLBPGMASK_4K: this.checkbit = 0x00001000; break;
+      case TLBPGMASK_16K: this.checkbit = 0x00004000; break;
+      case TLBPGMASK_64K: this.checkbit = 0x00010000; break;
+      case TLBPGMASK_256K: this.checkbit = 0x00040000; break;
+      case TLBPGMASK_1M: this.checkbit = 0x00100000; break;
+      case TLBPGMASK_4M: this.checkbit = 0x00400000; break;
+      case TLBPGMASK_16M: this.checkbit = 0x01000000; break;
+      default: // shouldn't happen!
+        this.checkbit = 0; break;
     }
   }
-
-  this.pagemask = pagemask;
-  this.hi       = hi;
-  this.pfne     = entrylo0;
-  this.pfno     = entrylo1;
-
-  this.global   = (entrylo0 & entrylo1 & TLBLO_G);
-
-  this.mask     = pagemask | TLBHI_VPN2MASK_NEG;
-  this.mask2    = this.mask>>>1;
-  this.vpnmask  = (~this.mask)>>>0;
-  this.vpn2mask = this.vpnmask>>>1;
-
-  this.addrcheck = (hi & this.vpnmask)>>>0;
-
-  this.pfnehi = (this.pfne << TLBLO_PFNSHIFT) & this.vpn2mask;
-  this.pfnohi = (this.pfno << TLBLO_PFNSHIFT) & this.vpn2mask;
-
-  switch (this.pagemask) {
-    case TLBPGMASK_4K:      this.checkbit = 0x00001000; break;
-    case TLBPGMASK_16K:     this.checkbit = 0x00004000; break;
-    case TLBPGMASK_64K:     this.checkbit = 0x00010000; break;
-    case TLBPGMASK_256K:    this.checkbit = 0x00040000; break;
-    case TLBPGMASK_1M:      this.checkbit = 0x00100000; break;
-    case TLBPGMASK_4M:      this.checkbit = 0x00400000; break;
-    case TLBPGMASK_16M:     this.checkbit = 0x01000000; break;
-    default: // shouldn't happen!
-                            this.checkbit = 0;          break;
-    }
-};
+}
 
 class CPU0 {
   constructor() {
