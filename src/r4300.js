@@ -654,70 +654,57 @@ class CPU0 {
   }
 
   translateReadInternal(address) {
-    var tlb = this.tlbFindEntry(address);
-    if (tlb) {
-      var valid;
-      var physical_addr;
-      if (address & tlb.checkbit) {
-        valid = (tlb.pfno & TLBLO_V) !== 0;
-        physical_addr = tlb.pfnohi | (address & tlb.mask2);
-      } else {
-        valid = (tlb.pfne & TLBLO_V) !== 0;
-        physical_addr = tlb.pfnehi | (address & tlb.mask2);
-      }
-
-      if (valid)
-        return physical_addr;
+    const tlb = this.tlbFindEntry(address);
+    if (!tlb) {
       return 0;
+    }
+
+    const odd = address & tlb.checkbit;
+    const entryLo = odd ? tlb.pfno : tlb.pfne;
+    const highBits = odd ? tlb.pfnohi : tlb.pfnehi;
+    const maskedAddress = address & tlb.mask2;
+
+    if ((entryLo & TLBLO_V) !== 0) {
+      return highBits | maskedAddress;
     }
     return 0;
   }
 
   translateRead(address) {
-    var tlb = this.tlbFindEntry(address);
-    if (tlb) {
-      var valid;
-      var physical_addr;
-      if (address & tlb.checkbit) {
-        valid = (tlb.pfno & TLBLO_V) !== 0;
-        physical_addr = tlb.pfnohi | (address & tlb.mask2);
-      } else {
-        valid = (tlb.pfne & TLBLO_V) !== 0;
-        physical_addr = tlb.pfnehi | (address & tlb.mask2);
-      }
-
-      if (valid)
-        return physical_addr;
-
-      this.throwTLBReadInvalid(address);
+    const tlb = this.tlbFindEntry(address);
+    if (!tlb) {
+      this.throwTLBReadMiss(address);
       throw new TLBException(address);
     }
 
-    this.throwTLBReadMiss(address);
+    const odd = address & tlb.checkbit;
+    const entryLo = odd ? tlb.pfno : tlb.pfne;
+    const highBits = odd ? tlb.pfnohi : tlb.pfnehi;
+    const maskedAddress = address & tlb.mask2;
+  
+    if ((entryLo & TLBLO_V) !== 0) {
+      return highBits | maskedAddress;
+    }
+    this.throwTLBReadInvalid(address);
     throw new TLBException(address);
   }
 
   translateWrite(address) {
-    var tlb = this.tlbFindEntry(address);
-    if (tlb) {
-      var valid;
-      var physical_addr;
-      if (address & tlb.checkbit) {
-        valid = (tlb.pfno & TLBLO_V) !== 0;
-        physical_addr = tlb.pfnohi | (address & tlb.mask2);
-      } else {
-        valid = (tlb.pfne & TLBLO_V) !== 0;
-        physical_addr = tlb.pfnehi | (address & tlb.mask2);
-      }
-
-      if (valid)
-        return physical_addr;
-
-      this.throwTLBWriteInvalid(address);
+    const tlb = this.tlbFindEntry(address);
+    if (!tlb) {
+      this.throwTLBWriteMiss(address);
       throw new TLBException(address);
     }
 
-    this.throwTLBWriteMiss(address);
+    const odd = address & tlb.checkbit;
+    const entryLo = odd ? tlb.pfno : tlb.pfne;
+    const highBits = odd ? tlb.pfnohi : tlb.pfnehi;
+    const maskedAddress = address & tlb.mask2;
+
+    if ((entryLo & TLBLO_V) !== 0) {
+      return highBits | maskedAddress;
+    }
+    this.throwTLBWriteInvalid(address);
     throw new TLBException(address);
   }
 }
