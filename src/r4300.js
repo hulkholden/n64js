@@ -181,7 +181,7 @@ const TLBPGMASK_256K    = 0x0007e000;
 const TLBPGMASK_1M      = 0x001fe000;
 const TLBPGMASK_4M      = 0x007fe000;
 const TLBPGMASK_16M     = 0x01ffe000;
-
+const pageMaskValidBits = 0x01ffe000;
 
 const kStuffToDoHalt            = 1<<0;
 const kStuffToDoCheckInterrupts = 1<<1;
@@ -586,7 +586,7 @@ class CPU0 {
     const index = this.control[cpu0_constants.controlIndex] & 0x1f;
     const tlb = this.tlbEntries[index];
 
-    this.control[cpu0_constants.controlPageMask] = tlb.mask;
+    this.control[cpu0_constants.controlPageMask] = tlb.pagemask;
     this.control[cpu0_constants.controlEntryHi] = tlb.hi;
     this.control[cpu0_constants.controlEntryLo0] = tlb.pfne | tlb.global;
     this.control[cpu0_constants.controlEntryLo1] = tlb.pfno | tlb.global;
@@ -1620,12 +1620,15 @@ function executeMTC0(i) {
       cpu0.setCompare(new_value);
       break;
 
+    case cpu0_constants.controlPageMask:
+      cpu0.control[cpu0_constants.controlPageMask] = new_value & pageMaskValidBits;
+      break;
+  
     case cpu0_constants.controlEPC:
     case cpu0_constants.controlEntryHi:
     case cpu0_constants.controlEntryLo0:
     case cpu0_constants.controlEntryLo1:
     case cpu0_constants.controlIndex:
-    case cpu0_constants.controlPageMask:
     case cpu0_constants.controlTagLo:
     case cpu0_constants.controlTagHi:
       cpu0.control[control_reg] = new_value;
