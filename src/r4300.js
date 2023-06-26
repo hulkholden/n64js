@@ -213,23 +213,8 @@ class TLBEntry {
 
   update(index, pagemask, hi, entrylo0, entrylo1) {
     if (kDebugTLB) {
-      logger.log('TLB update: index=' + index +
-        ', pagemask=' + toString32(pagemask) +
-        ', entryhi=' + toString32(hi) +
-        ', entrylo0=' + toString32(entrylo0) +
-        ', entrylo1=' + toString32(entrylo1)
-      );
-
-      switch (pagemask) {
-        case TLBPGMASK_4K: logger.log('       4k Pagesize'); break;
-        case TLBPGMASK_16K: logger.log('       16k Pagesize'); break;
-        case TLBPGMASK_64K: logger.log('       64k Pagesize'); break;
-        case TLBPGMASK_256K: logger.log('       256k Pagesize'); break;
-        case TLBPGMASK_1M: logger.log('       1M Pagesize'); break;
-        case TLBPGMASK_4M: logger.log('       4M Pagesize'); break;
-        case TLBPGMASK_16M: logger.log('       16M Pagesize'); break;
-        default: logger.log('       Unknown Pagesize'); break;
-      }
+      logger.log(`TLB update: index=${index}, pagemask=${toString32(pagemask)}, entryhi=${toString32(hi)}, entrylo0=${toString32(entrylo0)}, entrylo1=${toString32(entrylo1)}`);
+      logger.log(`       ${pageMaskString(pagemask)} Pagesize`);
     }
 
     this.pagemask = pagemask;
@@ -249,18 +234,35 @@ class TLBEntry {
     this.pfnehi = (this.pfne << TLBLO_PFNSHIFT) & this.vpn2mask;
     this.pfnohi = (this.pfno << TLBLO_PFNSHIFT) & this.vpn2mask;
 
-    switch (this.pagemask) {
-      case TLBPGMASK_4K: this.checkbit = 0x00001000; break;
-      case TLBPGMASK_16K: this.checkbit = 0x00004000; break;
-      case TLBPGMASK_64K: this.checkbit = 0x00010000; break;
-      case TLBPGMASK_256K: this.checkbit = 0x00040000; break;
-      case TLBPGMASK_1M: this.checkbit = 0x00100000; break;
-      case TLBPGMASK_4M: this.checkbit = 0x00400000; break;
-      case TLBPGMASK_16M: this.checkbit = 0x01000000; break;
-      default: // shouldn't happen!
-        this.checkbit = 0; break;
-    }
+    this.checkbit = pageMaskCheckbit(pagemask);
   }
+}
+
+function pageMaskCheckbit(pageMask) {
+  switch (pageMask) {
+    case TLBPGMASK_4K: return 0x00001000;
+    case TLBPGMASK_16K: return 0x00004000;
+    case TLBPGMASK_64K: return 0x00010000;
+    case TLBPGMASK_256K: return 0x00040000;
+    case TLBPGMASK_1M: return 0x00100000;
+    case TLBPGMASK_4M: return 0x00400000;
+    case TLBPGMASK_16M: return 0x01000000;
+  }
+  // shouldn't happen!
+  return 0;
+}
+
+function pageMaskString(pagemask) {
+  switch (pagemask) {
+    case TLBPGMASK_4K: return '4k';
+    case TLBPGMASK_16K: return '16k';
+    case TLBPGMASK_64K: return '64k';
+    case TLBPGMASK_256K: return '256k';
+    case TLBPGMASK_1M: return '1M';
+    case TLBPGMASK_4M: return '4M';
+    case TLBPGMASK_16M: return '16M';
+  }
+  return 'Unknown';
 }
 
 class CPU0 {
