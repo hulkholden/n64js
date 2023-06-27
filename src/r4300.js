@@ -3887,7 +3887,7 @@ function runImpl() {
   }
 }
 
-class FragmentMapWho {
+class FragmentMap {
   constructor() {
     this.kNumEntries = 16 * 1024;
 
@@ -3962,6 +3962,8 @@ class FragmentMapWho {
   }
 }
 
+var fragmentMap = new FragmentMap();
+
 var invals = 0;
 
 // Invalidate a single cache line
@@ -3973,7 +3975,7 @@ n64js.invalidateICacheEntry = function (address) {
     logger.log(invals + ' invals');
   }
 
-  fragmentMapWho.invalidateEntry(address);
+  fragmentMap.invalidateEntry(address);
 };
 
 // This isn't called right now. We
@@ -3986,16 +3988,14 @@ n64js.invalidateICacheRange = function (address, length, system) {
     return;
   }
 
-  fragmentMapWho.invalidateRange(address, length);
+  fragmentMap.invalidateRange(address, length);
 };
-
-var fragmentMapWho = new FragmentMapWho();
 
 function updateFragment(fragment, pc) {
   fragment.minPC = Math.min(fragment.minPC, pc);
   fragment.maxPC = Math.max(fragment.maxPC, pc + 4);
 
-  fragmentMapWho.add(pc, fragment);
+  fragmentMap.add(pc, fragment);
 }
 
 function checkEqual(a, b, m) {
