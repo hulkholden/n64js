@@ -29,17 +29,17 @@ export const PI_STATUS_ERROR = 0x04;
 export const PI_STATUS_RESET = 0x01;
 export const PI_STATUS_CLR_INTR = 0x02;
 
-export const PI_DOM1_ADDR1 = 0x06000000;
-export const PI_DOM1_ADDR2 = 0x10000000;
+export const PI_DOM2_ADDR1 = 0x05000000; // 64DD Registers
+export const PI_DOM1_ADDR1 = 0x06000000; // 64DD ROM
+export const PI_DOM2_ADDR2 = 0x08000000; // SRAM
+export const PI_DOM1_ADDR2 = 0x10000000; // ROM
 export const PI_DOM1_ADDR3 = 0x1FD00000;
-export const PI_DOM2_ADDR1 = 0x05000000;
-export const PI_DOM2_ADDR2 = 0x08000000;
 
-export function isDom1Addr1(address) { return address >= PI_DOM1_ADDR1 && address < PI_DOM2_ADDR2; }
-export function isDom1Addr2(address) { return address >= PI_DOM1_ADDR2 && address < 0x1FBFFFFF; }
-export function isDom1Addr3(address) { return address >= PI_DOM1_ADDR3 && address < 0x7FFFFFFF; }
 export function isDom2Addr1(address) { return address >= PI_DOM2_ADDR1 && address < PI_DOM1_ADDR1; }
+export function isDom1Addr1(address) { return address >= PI_DOM1_ADDR1 && address < PI_DOM2_ADDR2; }
 export function isDom2Addr2(address) { return address >= PI_DOM2_ADDR2 && address < PI_DOM1_ADDR2; }
+export function isDom1Addr2(address) { return address >= PI_DOM1_ADDR2 && address <= 0x1FBFFFFF; }
+export function isDom1Addr3(address) { return address >= PI_DOM1_ADDR3 && address <= 0x7FFFFFFF; }
 
 // TODO: dedupe.
 function memoryCopy(dst, dstOff, src, srcOff, len) {
