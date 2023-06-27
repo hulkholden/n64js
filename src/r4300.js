@@ -3990,7 +3990,7 @@ function updateFragment(fragment, pc) {
 
 function checkEqual(a, b, m) {
   if (a !== b) {
-    const msg = toString32(a) + ' !== ' + toString32(b) + ' : ' + m;
+    const msg = `${toString32(a)} !== ${toString32(b)} : ${m}`;
     console.assert(false, msg);
     n64js.halt(msg);
     return false;
@@ -4017,19 +4017,19 @@ function generateCodeForOp(ctx) {
 
   // If the last op tried to delay updating the pc, see if it needs updating now.
   if (!ctx.isTrivial && ctx.delayedPCUpdate !== 0) {
-    ctx.fragment.body_code += '/*applying delayed pc*/\nc.pc = ' + toString32(ctx.delayedPCUpdate) + ';\n';
+    ctx.fragment.body_code += `/*applying delayed pc*/\nc.pc = ${toString32(ctx.delayedPCUpdate)};\n`;
     ctx.delayedPCUpdate = 0;
   }
 
   ctx.fragment.needsDelayCheck = ctx.needsDelayCheck;
 
-  //code += 'if (!checkEqual( n64js.readMemoryU32(cpu0.pc), ' + toString32(instruction) + ', "unexpected instruction (need to flush icache?)")) { return false; }\n';
+  // code += `if (!checkEqual( n64js.readMemoryU32(cpu0.pc), ${toString32(instruction)}, "unexpected instruction (need to flush icache?)")) { return false; }\n`;
 
   ctx.fragment.bailedOut |= ctx.bailOut;
 
   const sync = n64js.getSyncFlow();
   if (sync) {
-    fn_code = 'if (!n64js.checkSyncState(sync, ' + toString32(ctx.pc) + ')) { return ' + ctx.fragment.opsCompiled + '; }\n' + fn_code;
+    fn_code = `if (!n64js.checkSyncState(sync, ${toString32(ctx.pc)})) { return ${ctx.fragment.opsCompiled}; }\n${fn_code}`;
   }
 
   ctx.fragment.body_code += fn_code + '\n';
@@ -4064,7 +4064,7 @@ function generateOpHelper(fn, ctx) {
   // fn can be a handler function, in which case defer to that.
   if (typeof fn === 'string') {
     //logger.log(fn);
-    return generateGenericOpBoilerplate('n64js.' + fn + '(' + toString32(ctx.instruction) + ');\n', ctx);
+    return generateGenericOpBoilerplate(`n64js.${fn}(${toString32(ctx.instruction)});\n`, ctx);
   } else {
     return fn(ctx);
   }
@@ -4072,14 +4072,14 @@ function generateOpHelper(fn, ctx) {
 
 function generateGenericOpBoilerplate(fn, ctx) {
   let code = '';
-  code += ctx.genAssert('c.pc === ' + toString32(ctx.pc), 'pc mismatch');
+  code += ctx.genAssert(`c.pc === ${toString32(ctx.pc)}`, 'pc mismatch');
 
   if (ctx.needsDelayCheck) {
     // NB: delayPC not cleared here - it's always overwritten with branchTarget below.
-    code += 'if (c.delayPC) { c.nextPC = c.delayPC; } else { c.nextPC = ' + toString32(ctx.pc + 4) + '; }\n';
+    code += `if (c.delayPC) { c.nextPC = c.delayPC; } else { c.nextPC = ${toString32(ctx.pc + 4)}; }\n`;
   } else {
     code += ctx.genAssert('c.delayPC === 0', 'delay pc should be zero');
-    code += 'c.nextPC = ' + toString32(ctx.pc + 4) + ';\n';
+    code += `c.nextPC = ${toString32(ctx.pc + 4)};\n`;
   }
   code += 'c.branchTarget = 0;\n';
 
@@ -4088,19 +4088,19 @@ function generateGenericOpBoilerplate(fn, ctx) {
   code += 'c.pc = c.nextPC;\n';
   code += 'c.delayPC = c.branchTarget;\n';
 
-  // We don't know if the generic op set delayPC, so assume the worst
+  // We don't know if the generic op set delayPC, so assume the worst.
   ctx.needsDelayCheck = true;
 
   if (accurateCountUpdating) {
     code += 'c.control_signed[9] += 1;\n';
   }
 
-  // If bailOut is set, always return immediately
+  // If bailOut is set, always return immediately.
   if (ctx.bailOut) {
-    code += 'return ' + ctx.fragment.opsCompiled + ';\n';
+    code += `return ${ctx.fragment.opsCompiled};\n`;
   } else {
-    code += 'if (c.stuffToDo) { return ' + ctx.fragment.opsCompiled + '; }\n';
-    code += 'if (c.pc !== ' + toString32(ctx.post_pc) + ') { return ' + ctx.fragment.opsCompiled + '; }\n';
+    code += `if (c.stuffToDo) { return ${ctx.fragment.opsCompiled}; }\n`;
+    code += `if (c.pc !== ${toString32(ctx.post_pc)}) { return ${ctx.fragment.opsCompiled}; }\n`;
   }
 
   return code;
@@ -4109,23 +4109,23 @@ function generateGenericOpBoilerplate(fn, ctx) {
 // Standard code for manipulating the pc
 function generateStandardPCUpdate(fn, ctx, might_adjust_next_pc) {
   let code = '';
-  code += ctx.genAssert('c.pc === ' + toString32(ctx.pc), 'pc mismatch');
+  code += ctx.genAssert(`c.pc === ${toString32(ctx.pc)}`, 'pc mismatch');
 
   if (ctx.needsDelayCheck) {
     // We should probably assert on this - two branch instructions back-to-back is weird, but the flag could just be set because of a generic op
-    code += 'if (c.delayPC) { c.nextPC = c.delayPC; c.delayPC = 0; } else { c.nextPC = ' + toString32(ctx.pc + 4) + '; }\n';
+    code += `if (c.delayPC) { c.nextPC = c.delayPC; c.delayPC = 0; } else { c.nextPC = ${toString32(ctx.pc + 4)}; }\n`;
     code += fn;
     code += 'c.pc = c.nextPC;\n';
   } else if (might_adjust_next_pc) {
     // If the branch op might manipulate nextPC, we need to ensure that it's set to the correct value
     code += ctx.genAssert('c.delayPC === 0', 'delay pc should be zero');
-    code += 'c.nextPC = ' + toString32(ctx.pc + 4) + ';\n';
+    code += `c.nextPC = ${toString32(ctx.pc + 4)};\n`;
     code += fn;
     code += 'c.pc = c.nextPC;\n';
   } else {
     code += ctx.genAssert('c.delayPC === 0', 'delay pc should be zero');
     code += fn;
-    code += 'c.pc = ' + toString32(ctx.pc + 4) + ';\n';
+    code += `c.pc = ${toString32(ctx.pc + 4)};\n`;
   }
 
   return code;
@@ -4148,8 +4148,8 @@ function generateMemoryAccessBoilerplate(fn, ctx) {
 
   // If bailOut is set, always return immediately
   assert(!ctx.bailOut, "Not expecting bailOut to be set for memory access");
-  code += 'if (c.stuffToDo) { return ' + ctx.fragment.opsCompiled + '; }\n';
-  code += 'if (c.pc !== ' + toString32(ctx.post_pc) + ') { return ' + ctx.fragment.opsCompiled + '; }\n';
+  code += `if (c.stuffToDo) { return ${ctx.fragment.opsCompiled}; }\n`;
+  code += `if (c.pc !== ${toString32(ctx.post_pc)}) { return ${ctx.fragment.opsCompiled}; }\n`;
   return code;
 }
 
@@ -4177,7 +4177,7 @@ function generateBranchOpBoilerplate(fn, ctx, might_adjust_next_pc) {
     code += 'return ' + ctx.fragment.opsCompiled + ';\n';
   } else {
     if (need_pc_test) {
-      code += 'if (c.pc !== ' + toString32(ctx.post_pc) + ') { return ' + ctx.fragment.opsCompiled + '; }\n';
+      code += `if (c.pc !== ${toString32(ctx.post_pc)}) { return ${ctx.fragment.opsCompiled}; }\n`;
     } else {
       code += '/* skipping pc test */\n';
     }
@@ -4207,19 +4207,19 @@ function generateTrivialOpBoilerplate(fn, ctx) {
 
   // NB: do delay handler after executing op, so we can set pc directly
   if (ctx.needsDelayCheck) {
-    code += 'if (c.delayPC) { c.pc = c.delayPC; c.delayPC = 0; } else { c.pc = ' + toString32(ctx.pc + 4) + '; }\n';
+    code += `if (c.delayPC) { c.pc = c.delayPC; c.delayPC = 0; } else { c.pc = ${toString32(ctx.pc + 4)}; }\n`;
     // Might happen: delay op from previous instruction takes effect
-    code += 'if (c.pc !== ' + toString32(ctx.post_pc) + ') { return ' + ctx.fragment.opsCompiled + '; }\n';
+    code += `if (c.pc !== ${toString32(ctx.post_pc)}) { return ${ctx.fragment.opsCompiled}; }\n`;
   } else {
     code += ctx.genAssert('c.delayPC === 0', 'delay pc should be zero');
 
     // We can avoid off-branch checks in this case.
     if (ctx.post_pc !== ctx.pc + 4) {
       assert("post_pc should always be pc+4 for trival ops?");
-      code += 'c.pc = ' + toString32(ctx.pc + 4) + ';\n';
-      code += 'if (c.pc !== ' + toString32(ctx.post_pc) + ') { return ' + ctx.fragment.opsCompiled + '; }\n';
+      code += `c.pc = ${toString32(ctx.pc + 4)};\n`;
+      code += `if (c.pc !== ${toString32(ctx.post_pc)}) { return ${ctx.fragment.opsCompiled}; }\n`;
     } else {
-      //code += 'c.pc = ' + toString32(ctx.pc+4) + ';\n';
+      // code += `c.pc = ${toString32(ctx.pc + 4)};\n`;
       code += '/* delaying pc update */\n';
       ctx.delayedPCUpdate = ctx.pc + 4;
     }
