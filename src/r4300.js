@@ -94,6 +94,9 @@ const CAUSE_EXCMASK   = 0x0000007C;
 
 const CAUSE_EXCSHIFT  = 2;
 
+// Only the software interrupt values are writeable.
+const causeWritableBits = CAUSE_SW1 | CAUSE_SW2;
+
 const EXC_INT         = 0;
 const EXC_MOD         = 4;
 const EXC_RMISS       = 8;
@@ -158,9 +161,13 @@ const TLBLO_D           = 0x4;
 const TLBLO_V           = 0x2;
 const TLBLO_G           = 0x1;
 
+const entryLoWritableBits = 0x3fffffff;
+
 const TLBINX_PROBE      = 0x80000000;
 const TLBINX_INXMASK    = 0x3f;
 const TLBINX_INXSHIFT   = 0;
+
+const indexWritableBits = 0x8000003f;
 
 const TLBRAND_RANDMASK  = 0x3f;
 const TLBRAND_RANDSHIFT = 0;
@@ -181,7 +188,8 @@ const TLBPGMASK_256K    = 0x0007e000;
 const TLBPGMASK_1M      = 0x001fe000;
 const TLBPGMASK_4M      = 0x007fe000;
 const TLBPGMASK_16M     = 0x01ffe000;
-const pageMaskValidBits = 0x01ffe000;
+
+const pageMaskWritableBits = 0x01ffe000;
 
 const kStuffToDoHalt            = 1<<0;
 const kStuffToDoCheckInterrupts = 1<<1;
@@ -1590,16 +1598,37 @@ function executeMTC0(i) {
   var new_value   = cpu0.gprLo[rt(i)];
 
   switch (control_reg) {
+    case cpu0_constants.controlIndex:
+      cpu0.control[control_reg] = new_value & indexWritableBits;
+      break;
+
+    case cpu0_constants.controlEntryLo0:
+    case cpu0_constants.controlEntryLo1:
+      cpu0.control[control_reg] = new_value & entryLoWritableBits;
+      break;
+
     case cpu0_constants.controlContext:
-      logger.log('Setting Context register to ' + toString32(new_value) );
-      cpu0.control[cpu0_constants.controlContext] = new_value;
+      logger.log(`Setting Context register to ${toString32(new_value)}` );
+      // TODO: bits 0 to 3 are hardcoded to zero.
+      // TODO: bits 4 to 22 are not writeable.
+      cpu0.control[control_reg] = new_value;
+      break;
+
+    case cpu0_constants.controlPageMask:
+      cpu0.control[control_reg] = new_value & pageMaskWritableBits;
       break;
 
     case cpu0_constants.controlWired:
-      logger.log('Setting Wired register to ' + toString32(new_value) );
+      logger.log(`Setting Wired register to ${toString32(new_value)}` );
+      // TODO: bits 6 to 31 are hardcoded to zero.
+      cpu0.control[control_reg] = new_value;
       // Set to top limit on write to wired
       cpu0.control[cpu0_constants.controlRand]  = 31;
-      cpu0.control[cpu0_constants.controlWired] = new_value;
+      break;
+
+    case cpu0_constants.controlEntryHi:
+      // TODO: bits 8 to 12 are hardcoded to zero.
+      cpu0.control[control_reg] = new_value;
       break;
 
     case cpu0_constants.controlRand:
@@ -1607,35 +1636,27 @@ function executeMTC0(i) {
     case cpu0_constants.controlPRId:
     case cpu0_constants.controlCacheErr:
       // All these registers are read-only
-      logger.log('Attempted write to read-only cpu0 control register. ' + toString32(new_value) + ' --> ' + cop0ControlRegisterNames[control_reg] );
+      logger.log(`Attempted write to read-only cpu0 control register. ${toString32(new_value)} --> ${cop0ControlRegisterNames[control_reg]}` );
       break;
 
     case cpu0_constants.controlCause:
-      logger.log('Setting cause register to ' + toString32(new_value) );
+      logger.log(`Setting cause register to ${toString32(new_value)}` );
       n64js.check(new_value === 0, 'Should only write 0 to Cause register.');
-      cpu0.control[cpu0_constants.controlCause] &= ~0x300;
-      cpu0.control[cpu0_constants.controlCause] |= (new_value & 0x300);
+      cpu0.control[control_reg] &= ~causeWritableBits;
+      cpu0.control[control_reg] |= (new_value & causeWritableBits);
       break;
 
     case cpu0_constants.controlSR:
       cpu0.setSR(new_value);
       break;
     case cpu0_constants.controlCount:
-      cpu0.control[cpu0_constants.controlCount] = new_value;
+      cpu0.control[control_reg] = new_value;
       break;
     case cpu0_constants.controlCompare:
       cpu0.setCompare(new_value);
       break;
 
-    case cpu0_constants.controlPageMask:
-      cpu0.control[cpu0_constants.controlPageMask] = new_value & pageMaskValidBits;
-      break;
-  
     case cpu0_constants.controlEPC:
-    case cpu0_constants.controlEntryHi:
-    case cpu0_constants.controlEntryLo0:
-    case cpu0_constants.controlEntryLo1:
-    case cpu0_constants.controlIndex:
     case cpu0_constants.controlTagLo:
     case cpu0_constants.controlTagHi:
       cpu0.control[control_reg] = new_value;
@@ -1643,7 +1664,7 @@ function executeMTC0(i) {
 
     default:
       cpu0.control[control_reg] = new_value;
-      logger.log('Write to cpu0 control register. ' + toString32(new_value) + ' --> ' + cop0ControlRegisterNames[control_reg] );
+      logger.log(`Write to cpu0 control register. ${toString32(new_value)} --> ${cop0ControlRegisterNames[control_reg]}` );
       break;
   }
 }
