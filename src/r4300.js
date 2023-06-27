@@ -3906,16 +3906,16 @@ class FragmentMap {
   }
 
   add(pc, fragment) {
-    const cache_line_idx = this.addressToCacheLine(pc);
-    const entry_idx = cache_line_idx % this.entries.length;
-    const entry = this.entries[entry_idx];
+    const cacheLineIdx = this.addressToCacheLine(pc);
+    const entryIdx = cacheLineIdx % this.entries.length;
+    const entry = this.entries[entryIdx];
     entry.set(fragment.entryPC, fragment);
   }
 
   invalidateEntry(address) {
-    const cache_line_idx = this.addressToCacheLine(address);
-    const entry_idx = cache_line_idx % this.entries.length;
-    const entry = this.entries[entry_idx];
+    const cacheLineIdx = this.addressToCacheLine(address);
+    const entryIdx = cacheLineIdx % this.entries.length;
+    const entry = this.entries[entryIdx];
     let removed = 0;
 
     for (const [i, fragment] of entry.entries()) {
@@ -3934,19 +3934,19 @@ class FragmentMap {
   }
 
   invalidateRange(address, length) {
-    const minaddr = address;
-    const maxaddr = address + length;
-    const minpage = this.addressToCacheLine(minaddr);
-    const maxpage = this.addressToCacheLineRoundUp(maxaddr);
+    const minAddr = address;
+    const maxAddr = address + length;
+    const minPage = this.addressToCacheLine(minAddr);
+    const maxPage = this.addressToCacheLineRoundUp(maxAddr);
     const entries = this.entries;
     let removed = 0;
 
-    for (let cache_line_idx = minpage; cache_line_idx <= maxpage; ++cache_line_idx) {
-      const entry_idx = cache_line_idx % entries.length;
-      const entry = entries[entry_idx];
+    for (let cacheLineIdx = minPage; cacheLineIdx <= maxPage; ++cacheLineIdx) {
+      const entryIdx = cacheLineIdx % entries.length;
+      const entry = entries[entryIdx];
 
       for (const [i, fragment] of entry.entries()) {
-        if (fragment.minPC <= maxaddr && fragment.maxPC > minaddr) {
+        if (fragment.minPC <= maxAddr && fragment.maxPC > minAddr) {
           fragment.invalidate();
           entry.delete(i);
           removed++;
