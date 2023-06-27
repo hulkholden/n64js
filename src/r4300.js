@@ -203,7 +203,7 @@ const kEventRunForCycles = 2;
 
 n64js.getHi32 = function (v) {
   // >>32 just seems to no-op? Argh.
-  return Math.floor( v / k1Shift32 );
+  return Math.floor(v / k1Shift32);
 };
 
 // Needs to be callable from dynarec.
@@ -246,7 +246,7 @@ class TLBEntry {
   }
 }
 
-class PageMask{
+class PageMask {
   constructor(name, checkbit) {
     this.name = name;
     this.checkbit = checkbit;
@@ -687,7 +687,7 @@ class CPU0 {
     const entryLo = odd ? tlb.pfno : tlb.pfne;
     const highBits = odd ? tlb.pfnohi : tlb.pfnehi;
     const maskedAddress = address & tlb.mask2;
-  
+
     if ((entryLo & TLBLO_V) !== 0) {
       return highBits | maskedAddress;
     }
@@ -767,12 +767,12 @@ function   imms(i) { return ((i&0xffff)<<16)>>16; }   // treat immediate value a
 function   base(i) { return (i>>>21)&0x1f; }
 
 function memaddr(i) {
-    return cpu0.gprLo[base(i)] + imms(i);
+  return cpu0.gprLo[base(i)] + imms(i);
 }
 
-function branchAddress(pc,i) { return ((pc+4) + (offset(i)*4))>>>0; }
+function branchAddress(pc, i) { return ((pc + 4) + (offset(i) * 4)) >>> 0; }
 //function branchAddress(pc,i) { return (((pc>>>2)+1) + offset(i))<<2; }  // NB: convoluted calculation to avoid >>>0 (deopt)
-function   jumpAddress(pc,i) { return ((pc&0xf0000000) | (target(i)*4))>>>0; }
+function jumpAddress(pc, i) { return ((pc & 0xf0000000) | (target(i) * 4)) >>> 0; }
 
 function performBranch(new_pc) {
   //if (new_pc < 0) {
@@ -782,7 +782,7 @@ function performBranch(new_pc) {
   cpu0.branchTarget = new_pc;
 }
 
-function setSignExtend(r,v) {
+function setSignExtend(r, v) {
   cpu0.gprLo[r] = v;
   cpu0.gprHi_signed[r] = v >> 31;
 }
@@ -817,17 +817,17 @@ function genSrcRegHi(i) {
 //
 
 // These are out of line so that the >>>0 doesn't cause a shift-i deopt in the body of the calling function
-function lwu_slow(addr)       { return n64js.readMemoryU32(addr>>>0); }
-function lhu_slow(addr)       { return n64js.readMemoryU16(addr>>>0); }
-function lbu_slow(addr)       { return n64js.readMemoryU8( addr>>>0); }
+function lwu_slow(addr) { return n64js.readMemoryU32(addr >>> 0); }
+function lhu_slow(addr) { return n64js.readMemoryU16(addr >>> 0); }
+function lbu_slow(addr) { return n64js.readMemoryU8(addr >>> 0); }
 
-function lw_slow(addr)        { return n64js.readMemoryS32(addr>>>0); }
-function lh_slow(addr)        { return n64js.readMemoryS16(addr>>>0); }
-function lb_slow(addr)        { return n64js.readMemoryS8( addr>>>0); }
+function lw_slow(addr) { return n64js.readMemoryS32(addr >>> 0); }
+function lh_slow(addr) { return n64js.readMemoryS16(addr >>> 0); }
+function lb_slow(addr) { return n64js.readMemoryS8(addr >>> 0); }
 
-function sw_slow(addr, value) { n64js.writeMemory32(addr>>>0, value); }
-function sh_slow(addr, value) { n64js.writeMemory16(addr>>>0, value); }
-function sb_slow(addr, value) { n64js.writeMemory8( addr>>>0, value); }
+function sw_slow(addr, value) { n64js.writeMemory32(addr >>> 0, value); }
+function sh_slow(addr, value) { n64js.writeMemory16(addr >>> 0, value); }
+function sb_slow(addr, value) { n64js.writeMemory8(addr >>> 0, value); }
 
 
 n64js.load_u8 = (ram, addr) => {
@@ -849,7 +849,7 @@ n64js.load_s8 = (ram, addr) => {
 n64js.load_u16 = (ram, addr) => {
   if (addr < -2139095040) {
     var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
-    return (ram[phys] << 8) | ram[phys+1];
+    return (ram[phys] << 8) | ram[phys + 1];
   }
   return lhu_slow(addr);
 };
@@ -857,7 +857,7 @@ n64js.load_u16 = (ram, addr) => {
 n64js.load_s16 = (ram, addr) => {
   if (addr < -2139095040) {
     var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
-    return ((ram[phys] << 24) | (ram[phys+1] << 16)) >> 16;
+    return ((ram[phys] << 24) | (ram[phys + 1] << 16)) >> 16;
   }
   return lh_slow(addr);
 };
@@ -865,7 +865,7 @@ n64js.load_s16 = (ram, addr) => {
 n64js.load_u32 = (ram, addr) => {
   if (addr < -2139095040) {
     var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
-    return ((ram[phys] << 24) | (ram[phys+1] << 16) | (ram[phys+2] << 8) | ram[phys+3]) >>> 0;
+    return ((ram[phys] << 24) | (ram[phys + 1] << 16) | (ram[phys + 2] << 8) | ram[phys + 3]) >>> 0;
   }
   return lwu_slow(addr);
 };
@@ -873,7 +873,7 @@ n64js.load_u32 = (ram, addr) => {
 n64js.load_s32 = (ram, addr) => {
   if (addr < -2139095040) {
     var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
-    return ((ram[phys] << 24) | (ram[phys+1] << 16) | (ram[phys+2] << 8) | ram[phys+3]) | 0;
+    return ((ram[phys] << 24) | (ram[phys + 1] << 16) | (ram[phys + 2] << 8) | ram[phys + 3]) | 0;
   }
   return lw_slow(addr);
 };
@@ -890,8 +890,8 @@ n64js.store_8 = (ram, addr, value) => {
 n64js.store_16 = (ram, addr, value) => {
   if (addr < -2139095040) {
     var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
-    ram[phys  ] = value >> 8;
-    ram[phys+1] = value;
+    ram[phys] = value >> 8;
+    ram[phys + 1] = value;
   } else {
     sh_slow(addr, value);
   }
@@ -900,10 +900,10 @@ n64js.store_16 = (ram, addr, value) => {
 n64js.store_32 = (ram, addr, value) => {
   if (addr < -2139095040) {
     var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
-    ram[phys+0] = value >> 24;
-    ram[phys+1] = value >> 16;
-    ram[phys+2] = value >>  8;
-    ram[phys+3] = value;
+    ram[phys + 0] = value >> 24;
+    ram[phys + 1] = value >> 16;
+    ram[phys + 2] = value >> 8;
+    ram[phys + 3] = value;
   } else {
     sw_slow(addr, value);
   }
@@ -912,23 +912,23 @@ n64js.store_32 = (ram, addr, value) => {
 n64js.store_64 = (ram, addr, value_lo, value_hi) => {
   if (addr < -2139095040) {
     var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
-    ram[phys+0] = value_hi >> 24;
-    ram[phys+1] = value_hi >> 16;
-    ram[phys+2] = value_hi >>  8;
-    ram[phys+3] = value_hi;
-    ram[phys+4] = value_lo >> 24;
-    ram[phys+5] = value_lo >> 16;
-    ram[phys+6] = value_lo >>  8;
-    ram[phys+7] = value_lo;
+    ram[phys + 0] = value_hi >> 24;
+    ram[phys + 1] = value_hi >> 16;
+    ram[phys + 2] = value_hi >> 8;
+    ram[phys + 3] = value_hi;
+    ram[phys + 4] = value_lo >> 24;
+    ram[phys + 5] = value_lo >> 16;
+    ram[phys + 6] = value_lo >> 8;
+    ram[phys + 7] = value_lo;
   } else {
-    sw_slow(addr,     value_hi);
+    sw_slow(addr, value_hi);
     sw_slow(addr + 4, value_lo);
   }
 };
 
 
-function unimplemented(pc,i) {
-  var r = disassembleInstruction(pc,i);
+function unimplemented(pc, i) {
+  var r = disassembleInstruction(pc, i);
   var e = 'Unimplemented op ' + toString32(i) + ' : ' + r.disassembly;
   logger.log(e);
   throw e;
@@ -954,8 +954,8 @@ function generateShiftImmediate(ctx, op) {
   if (ctx.instruction === 0)
     return generateNOPBoilerplate('/*NOP*/', ctx);
 
-  var d     = ctx.instr_rd();
-  var t     = ctx.instr_rt();
+  var d = ctx.instr_rd();
+  var t = ctx.instr_rt();
   var shift = ctx.instr_sa();
 
   var impl = '';
@@ -971,8 +971,8 @@ function executeSLL(i) {
   if (i === 0)
     return;
 
-  var d     = rd(i);
-  var t     = rt(i);
+  var d = rd(i);
+  var t = rt(i);
   var shift = sa(i);
 
   var result = cpu0.gprLo_signed[t] << shift;
@@ -983,8 +983,8 @@ function executeSLL(i) {
 
 function generateSRL(ctx) { return generateShiftImmediate(ctx, '>>>'); }
 function executeSRL(i) {
-  var d     = rd(i);
-  var t     = rt(i);
+  var d = rd(i);
+  var t = rt(i);
   var shift = sa(i);
 
   var result = cpu0.gprLo_signed[t] >>> shift;
@@ -995,8 +995,8 @@ function executeSRL(i) {
 
 function generateSRA(ctx) { return generateShiftImmediate(ctx, '>>'); }
 function executeSRA(i) {
-  var d     = rd(i);
-  var t     = rt(i);
+  var d = rd(i);
+  var t = rt(i);
   var shift = sa(i);
 
   var result = cpu0.gprLo_signed[t] >> shift;
@@ -1063,10 +1063,10 @@ function executeDSLLV(i) {
   var hi = cpu0.gprHi[t];
 
   if (shift < 32) {
-    var nshift = 32-shift;
+    var nshift = 32 - shift;
 
-    cpu0.gprLo[d] = (lo<<shift);
-    cpu0.gprHi[d] = (hi<<shift) | (lo>>>nshift);
+    cpu0.gprLo[d] = (lo << shift);
+    cpu0.gprHi[d] = (hi << shift) | (lo >>> nshift);
   } else {
     cpu0.gprLo_signed[d] = 0;
     cpu0.gprHi_signed[d] = lo << (shift - 32);
@@ -1084,10 +1084,10 @@ function executeDSRLV(i) {
   var hi = cpu0.gprHi[t];
 
   if (shift < 32) {
-    var nshift = 32-shift;
+    var nshift = 32 - shift;
 
-    cpu0.gprLo[d] = (lo>>>shift) | (hi<<nshift);
-    cpu0.gprHi[d] = (hi>>>shift);
+    cpu0.gprLo[d] = (lo >>> shift) | (hi << nshift);
+    cpu0.gprHi[d] = (hi >>> shift);
   } else {
     cpu0.gprLo[d] = hi >>> (shift - 32);
     cpu0.gprHi_signed[d] = 0;
@@ -1105,10 +1105,10 @@ function executeDSRAV(i) {
   var hi = cpu0.gprHi_signed[t];
 
   if (shift < 32) {
-    var nshift = 32-shift;
+    var nshift = 32 - shift;
 
-    cpu0.gprLo[d] = (lo>>>shift) | (hi<<nshift);
-    cpu0.gprHi[d] = (hi>>shift);
+    cpu0.gprLo[d] = (lo >>> shift) | (hi << nshift);
+    cpu0.gprHi[d] = (hi >> shift);
   } else {
     var olo = hi >> (shift - 32);
     cpu0.gprLo_signed[d] = olo;
@@ -1117,16 +1117,16 @@ function executeDSRAV(i) {
 }
 
 function executeDSLL(i) {
-  var d     = rd(i);
-  var t     = rt(i);
+  var d = rd(i);
+  var t = rt(i);
   var shift = sa(i);
-  var nshift = 32-shift;
+  var nshift = 32 - shift;
 
   var lo = cpu0.gprLo[t];
   var hi = cpu0.gprHi[t];
 
-  cpu0.gprLo[d] = (lo<<shift);
-  cpu0.gprHi[d] = (hi<<shift) | (lo>>>nshift);
+  cpu0.gprLo[d] = (lo << shift);
+  cpu0.gprHi[d] = (hi << shift) | (lo >>> nshift);
 }
 function executeDSLL32(i) {
   var d = rd(i);
@@ -1135,16 +1135,16 @@ function executeDSLL32(i) {
 }
 
 function executeDSRL(i) {
-  var d     = rd(i);
-  var t     = rt(i);
+  var d = rd(i);
+  var t = rt(i);
   var shift = sa(i);
-  var nshift = 32-shift;
+  var nshift = 32 - shift;
 
   var lo = cpu0.gprLo[t];
   var hi = cpu0.gprHi[t];
 
-  cpu0.gprLo[d] = (lo>>>shift) | (hi<<nshift);
-  cpu0.gprHi[d] = (hi>>>shift);
+  cpu0.gprLo[d] = (lo >>> shift) | (hi << nshift);
+  cpu0.gprHi[d] = (hi >>> shift);
 }
 function executeDSRL32(i) {
   var d = rd(i);
@@ -1153,28 +1153,28 @@ function executeDSRL32(i) {
 }
 
 function executeDSRA(i) {
-  var d     = rd(i);
-  var t     = rt(i);
+  var d = rd(i);
+  var t = rt(i);
   var shift = sa(i);
-  var nshift = 32-shift;
+  var nshift = 32 - shift;
 
   var lo = cpu0.gprLo[t];
   var hi = cpu0.gprHi_signed[t];
 
-  cpu0.gprLo[d] = (lo>>>shift) | (hi<<nshift);
-  cpu0.gprHi[d] = (hi>>shift);
+  cpu0.gprLo[d] = (lo >>> shift) | (hi << nshift);
+  cpu0.gprHi[d] = (hi >> shift);
 }
 function executeDSRA32(i) {
-  var d   = rd(i);
+  var d = rd(i);
   var olo = cpu0.gprHi_signed[rt(i)] >> sa(i);
   cpu0.gprLo_signed[d] = olo;
   cpu0.gprHi_signed[d] = olo >> 31;
 }
 
 
-function executeSYSCALL(i)    { unimplemented(cpu0.pc,i); }
-function executeBREAK(i)      { unimplemented(cpu0.pc,i); }
-function executeSYNC(i)       { unimplemented(cpu0.pc,i); }
+function executeSYSCALL(i) { unimplemented(cpu0.pc, i); }
+function executeBREAK(i) { unimplemented(cpu0.pc, i); }
+function executeSYNC(i) { unimplemented(cpu0.pc, i); }
 
 
 function generateMFHI(ctx) {
@@ -1224,7 +1224,7 @@ function generateMTLO(ctx) {
   impl += 'c.multLo_signed[1] = rhi[' + s + '];\n';
   return generateTrivialOpBoilerplate(impl, ctx);
 }
-function executeMTLO(i)  {
+function executeMTLO(i) {
   var s = rs(i);
   cpu0.multLo_signed[0] = cpu0.gprLo_signed[s];
   cpu0.multLo_signed[1] = cpu0.gprHi_signed[s];
@@ -1270,7 +1270,7 @@ function generateMULTU(ctx) {
   impl += 'c.multLo[1] = result_lo >> 31;\n';
   impl += 'c.multHi[0] = result_hi;\n';
   impl += 'c.multHi[1] = result_hi >> 31;\n';
-  return generateTrivialOpBoilerplate(impl,  ctx);
+  return generateTrivialOpBoilerplate(impl, ctx);
 }
 function executeMULTU(i) {
   var result = cpu0.gprLo[rs(i)] * cpu0.gprLo[rt(i)];
@@ -1302,18 +1302,18 @@ function executeDMULTU(i) {
 
 function executeDIV(i) {
   var dividend = cpu0.gprLo_signed[rs(i)];
-  var divisor  = cpu0.gprLo_signed[rt(i)];
+  var divisor = cpu0.gprLo_signed[rt(i)];
   if (divisor) {
-    setHiLoSignExtend( cpu0.multLo, Math.floor(dividend / divisor) );
-    setHiLoSignExtend( cpu0.multHi, dividend % divisor );
+    setHiLoSignExtend(cpu0.multLo, Math.floor(dividend / divisor));
+    setHiLoSignExtend(cpu0.multHi, dividend % divisor);
   }
 }
 function executeDIVU(i) {
   var dividend = cpu0.gprLo[rs(i)];
-  var divisor  = cpu0.gprLo[rt(i)];
+  var divisor = cpu0.gprLo[rt(i)];
   if (divisor) {
-    setHiLoSignExtend( cpu0.multLo, Math.floor(dividend / divisor) );
-    setHiLoSignExtend( cpu0.multHi, dividend % divisor );
+    setHiLoSignExtend(cpu0.multLo, Math.floor(dividend / divisor));
+    setHiLoSignExtend(cpu0.multHi, dividend % divisor);
   }
 }
 
@@ -1322,20 +1322,20 @@ function executeDDIV(i) {
   var t = rt(i);
 
   if ((cpu0.gprHi[s] + (cpu0.gprLo[s] >>> 31) +
-        cpu0.gprHi[t] + (cpu0.gprLo[t] >>> 31)) !== 0) {
+    cpu0.gprHi[t] + (cpu0.gprLo[t] >>> 31)) !== 0) {
     // FIXME: seems ok if dividend/divisor fit in mantissa of double...
     var dividend = cpu0.getGPR_s64(s);
-    var divisor  = cpu0.getGPR_s64(t);
+    var divisor = cpu0.getGPR_s64(t);
     if (divisor) {
-      setHiLoZeroExtend( cpu0.multLo, Math.floor(dividend / divisor) );
-      setHiLoZeroExtend( cpu0.multHi, dividend % divisor );
+      setHiLoZeroExtend(cpu0.multLo, Math.floor(dividend / divisor));
+      setHiLoZeroExtend(cpu0.multHi, dividend % divisor);
     }
   } else {
     var dividend = cpu0.gprLo_signed[s];
-    var divisor  = cpu0.gprLo_signed[t];
+    var divisor = cpu0.gprLo_signed[t];
     if (divisor) {
-      setHiLoSignExtend( cpu0.multLo, Math.floor(dividend / divisor) );
-      setHiLoSignExtend( cpu0.multHi, dividend % divisor );
+      setHiLoSignExtend(cpu0.multLo, Math.floor(dividend / divisor));
+      setHiLoSignExtend(cpu0.multHi, dividend % divisor);
     }
   }
 }
@@ -1346,22 +1346,22 @@ function executeDDIVU(i) {
   if ((cpu0.gprHi[s] | cpu0.gprHi[t]) !== 0) {
     // FIXME: seems ok if dividend/divisor fit in mantissa of double...
     var dividend = cpu0.getGPR_u64(s);
-    var divisor  = cpu0.getGPR_u64(t);
+    var divisor = cpu0.getGPR_u64(t);
     if (divisor) {
-      setHiLoZeroExtend( cpu0.multLo, Math.floor(dividend / divisor) );
-      setHiLoZeroExtend( cpu0.multHi, dividend % divisor );
+      setHiLoZeroExtend(cpu0.multLo, Math.floor(dividend / divisor));
+      setHiLoZeroExtend(cpu0.multHi, dividend % divisor);
     }
   } else {
     var dividend = cpu0.gprLo[s];
-    var divisor  = cpu0.gprLo[t];
+    var divisor = cpu0.gprLo[t];
     if (divisor) {
-      setHiLoZeroExtend( cpu0.multLo, Math.floor(dividend / divisor) );
-      setHiLoZeroExtend( cpu0.multHi, dividend % divisor );
+      setHiLoZeroExtend(cpu0.multLo, Math.floor(dividend / divisor));
+      setHiLoZeroExtend(cpu0.multHi, dividend % divisor);
     }
   }
 }
 
-function  generateTrivialArithmetic(ctx, op) {
+function generateTrivialArithmetic(ctx, op) {
   var d = ctx.instr_rd();
   var s = ctx.instr_rs();
   var t = ctx.instr_rt();
@@ -1369,17 +1369,17 @@ function  generateTrivialArithmetic(ctx, op) {
   impl += 'var result = ' + genSrcRegLo(s) + ' ' + op + ' ' + genSrcRegLo(t) + ';\n';
   impl += 'rlo[' + d + '] = result;\n';
   impl += 'rhi[' + d + '] = result >> 31;\n';
-  return generateTrivialOpBoilerplate(impl,  ctx);
+  return generateTrivialOpBoilerplate(impl, ctx);
 }
 
-function  generateTrivialLogical(ctx, op) {
+function generateTrivialLogical(ctx, op) {
   var d = ctx.instr_rd();
   var s = ctx.instr_rs();
   var t = ctx.instr_rt();
   var impl = '';
   impl += 'rlo[' + d + '] = ' + genSrcRegLo(s) + ' ' + op + ' ' + genSrcRegLo(t) + ';\n';
   impl += 'rhi[' + d + '] = ' + genSrcRegHi(s) + ' ' + op + ' ' + genSrcRegHi(t) + ';\n';
-  return generateTrivialOpBoilerplate(impl,  ctx);
+  return generateTrivialOpBoilerplate(impl, ctx);
 }
 
 function generateADD(ctx) { return generateTrivialArithmetic(ctx, '+'); }
@@ -1442,7 +1442,7 @@ function generateOR(ctx) {
     impl += 'rlo[' + d + '] = ' + genSrcRegLo(s) + ';\n';
     impl += 'rhi[' + d + '] = ' + genSrcRegHi(s) + ';\n';
 
-    return generateTrivialOpBoilerplate(impl,  ctx);
+    return generateTrivialOpBoilerplate(impl, ctx);
   }
   return generateTrivialLogical(ctx, '|');
 }
@@ -1464,7 +1464,7 @@ function executeXOR(i) {
   cpu0.gprLo_signed[d] = cpu0.gprLo_signed[s] ^ cpu0.gprLo_signed[t];
 }
 
-function  generateNOR(ctx) {
+function generateNOR(ctx) {
   var d = ctx.instr_rd();
   var s = ctx.instr_rs();
   var t = ctx.instr_rt();
@@ -1474,7 +1474,7 @@ function  generateNOR(ctx) {
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
-function  executeNOR(i) {
+function executeNOR(i) {
   var d = rd(i);
   var s = rs(i);
   var t = rt(i);
@@ -1537,7 +1537,7 @@ function executeSLTU(i) {
   var t = rt(i);
   var r = 0;
   if (cpu0.gprHi[s] < cpu0.gprHi[t] ||
-      (cpu0.gprHi_signed[s] === cpu0.gprHi_signed[t] && cpu0.gprLo[s] < cpu0.gprLo[t])) { // NB signed cmps avoid deopts
+    (cpu0.gprHi_signed[s] === cpu0.gprHi_signed[t] && cpu0.gprLo[s] < cpu0.gprLo[t])) { // NB signed cmps avoid deopts
     r = 1;
   }
   cpu0.gprLo_signed[d] = r;
@@ -1560,12 +1560,12 @@ function executeDSUBU(i) {
   cpu0.setGPR_s64(rd(i), cpu0.getGPR_s64(rs(i)) - cpu0.getGPR_s64(rt(i)));
 }
 
-function executeTGE(i)        { unimplemented(cpu0.pc,i); }
-function executeTGEU(i)       { unimplemented(cpu0.pc,i); }
-function executeTLT(i)        { unimplemented(cpu0.pc,i); }
-function executeTLTU(i)       { unimplemented(cpu0.pc,i); }
-function executeTEQ(i)        { unimplemented(cpu0.pc,i); }
-function executeTNE(i)        { unimplemented(cpu0.pc,i); }
+function executeTGE(i) { unimplemented(cpu0.pc, i); }
+function executeTGEU(i) { unimplemented(cpu0.pc, i); }
+function executeTLT(i) { unimplemented(cpu0.pc, i); }
+function executeTLTU(i) { unimplemented(cpu0.pc, i); }
+function executeTEQ(i) { unimplemented(cpu0.pc, i); }
+function executeTNE(i) { unimplemented(cpu0.pc, i); }
 
 function executeMFC0(i) {
   var control_reg = fs(i);
@@ -1576,9 +1576,9 @@ function executeMFC0(i) {
   }
 
   if (control_reg === cpu0_constants.controlRand) {
-    setZeroExtend( rt(i), cpu0.getRandom() );
+    setZeroExtend(rt(i), cpu0.getRandom());
   } else {
-    setZeroExtend( rt(i), cpu0.control[control_reg] );
+    setZeroExtend(rt(i), cpu0.control[control_reg]);
   }
 }
 
@@ -1595,7 +1595,7 @@ function generateMTC0(ctx) {
 
 function executeMTC0(i) {
   var control_reg = fs(i);
-  var new_value   = cpu0.gprLo[rt(i)];
+  var new_value = cpu0.gprLo[rt(i)];
 
   switch (control_reg) {
     case cpu0_constants.controlIndex:
@@ -1623,7 +1623,7 @@ function executeMTC0(i) {
       // TODO: bits 6 to 31 are hardcoded to zero.
       cpu0.control[control_reg] = new_value;
       // Set to top limit on write to wired
-      cpu0.control[cpu0_constants.controlRand]  = 31;
+      cpu0.control[cpu0_constants.controlRand] = 31;
       break;
 
     case cpu0_constants.controlEntryHi:
@@ -1670,14 +1670,14 @@ function executeMTC0(i) {
 }
 
 function executeTLB(i) {
-    switch(tlbop(i)) {
-      case 0x01:    cpu0.tlbRead();        return;
-      case 0x02:    cpu0.tlbWriteIndex();  return;
-      case 0x06:    cpu0.tlbWriteRandom(); return;
-      case 0x08:    cpu0.tlbProbe();       return;
-      case 0x18:    executeERET(i);        return;
-    }
-    executeUnknown(i);
+  switch (tlbop(i)) {
+    case 0x01: cpu0.tlbRead(); return;
+    case 0x02: cpu0.tlbWriteIndex(); return;
+    case 0x06: cpu0.tlbWriteRandom(); return;
+    case 0x08: cpu0.tlbProbe(); return;
+    case 0x18: executeERET(i); return;
+  }
+  executeUnknown(i);
 }
 
 function executeERET(i) {
@@ -1692,12 +1692,12 @@ function executeERET(i) {
   }
 }
 
-function executeTGEI(i)       { unimplemented(cpu0.pc,i); }
-function executeTGEIU(i)      { unimplemented(cpu0.pc,i); }
-function executeTLTI(i)       { unimplemented(cpu0.pc,i); }
-function executeTLTIU(i)      { unimplemented(cpu0.pc,i); }
-function executeTEQI(i)       { unimplemented(cpu0.pc,i); }
-function executeTNEI(i)       { unimplemented(cpu0.pc,i); }
+function executeTGEI(i) { unimplemented(cpu0.pc, i); }
+function executeTGEIU(i) { unimplemented(cpu0.pc, i); }
+function executeTLTI(i) { unimplemented(cpu0.pc, i); }
+function executeTLTIU(i) { unimplemented(cpu0.pc, i); }
+function executeTEQI(i) { unimplemented(cpu0.pc, i); }
+function executeTNEI(i) { unimplemented(cpu0.pc, i); }
 
 // Jump
 function generateJ(ctx) {
@@ -1706,15 +1706,15 @@ function generateJ(ctx) {
   return generateBranchOpBoilerplate(impl, ctx, false);
 }
 function executeJ(i) {
-  performBranch( jumpAddress(cpu0.pc,i) );
+  performBranch(jumpAddress(cpu0.pc, i));
 }
 
 
 function generateJAL(ctx) {
-  var addr  = jumpAddress(ctx.pc, ctx.instruction);
-  var ra    = ctx.pc + 8;
+  var addr = jumpAddress(ctx.pc, ctx.instruction);
+  var ra = ctx.pc + 8;
   var ra_hi = (ra & 0x80000000) ? -1 : 0;
-  var impl  = '';
+  var impl = '';
   impl += 'c.delayPC = ' + toString32(addr) + ';\n';
   impl += 'rlo[' + cpu0_constants.RA + '] = ' + toString32(ra) + ';\n';
   impl += 'rhi[' + cpu0_constants.RA + '] = ' + ra_hi + ';\n';
@@ -1722,17 +1722,17 @@ function generateJAL(ctx) {
 }
 function executeJAL(i) {
   setSignExtend(cpu0_constants.RA, cpu0.pc + 8);
-  performBranch( jumpAddress(cpu0.pc,i) );
+  performBranch(jumpAddress(cpu0.pc, i));
 }
 
 
 function generateJALR(ctx) {
-  var s    = ctx.instr_rs();
-  var d    = ctx.instr_rd();
+  var s = ctx.instr_rs();
+  var d = ctx.instr_rd();
 
-  var ra    = ctx.pc + 8;
+  var ra = ctx.pc + 8;
   var ra_hi = (ra & 0x80000000) ? -1 : 0;
-  var impl  = '';
+  var impl = '';
   impl += 'c.delayPC = c.gprLo[' + s + '];\n';  // NB needs to be unsigned
   impl += 'rlo[' + d + '] = ' + toString32(ra) + ';\n';
   impl += 'rhi[' + d + '] = ' + ra_hi + ';\n';
@@ -1741,22 +1741,22 @@ function generateJALR(ctx) {
 function executeJALR(i) {
   var new_pc = cpu0.gprLo[rs(i)];
   setSignExtend(rd(i), cpu0.pc + 8);
-  performBranch( new_pc );
+  performBranch(new_pc);
 }
 
 
 function generateJR(ctx) {
   var impl = 'c.delayPC = c.gprLo[' + ctx.instr_rs() + '];\n'; // NB needs to be unsigned
   return generateBranchOpBoilerplate(impl, ctx, false);
-  }
-  function executeJR(i) {
-  performBranch( cpu0.gprLo[rs(i)] );
+}
+function executeJR(i) {
+  performBranch(cpu0.gprLo[rs(i)]);
 }
 
 function generateBEQ(ctx) {
-  var s    = ctx.instr_rs();
-  var t    = ctx.instr_rt();
-  var off  = ctx.instr_offset();
+  var s = ctx.instr_rs();
+  var t = ctx.instr_rt();
+  var off = ctx.instr_offset();
   var addr = branchAddress(ctx.pc, ctx.instruction);
 
   var impl = '';
@@ -1785,17 +1785,17 @@ function executeBEQ(i) {
   var s = rs(i);
   var t = rt(i);
   if (cpu0.gprHi_signed[s] === cpu0.gprHi_signed[t] &&
-      cpu0.gprLo_signed[s] === cpu0.gprLo_signed[t] ) {
-    if (offset(i) === -1 )
+    cpu0.gprLo_signed[s] === cpu0.gprLo_signed[t]) {
+    if (offset(i) === -1)
       cpu0.speedHack();
-    performBranch( branchAddress(cpu0.pc,i) );
+    performBranch(branchAddress(cpu0.pc, i));
   }
 }
 
 function generateBEQL(ctx) {
-  var s    = ctx.instr_rs();
-  var t    = ctx.instr_rt();
-  var off  = ctx.instr_offset();
+  var s = ctx.instr_rs();
+  var t = ctx.instr_rt();
+  var off = ctx.instr_offset();
   var addr = branchAddress(ctx.pc, ctx.instruction);
 
   var impl = '';
@@ -1814,17 +1814,17 @@ function executeBEQL(i) {
   var s = rs(i);
   var t = rt(i);
   if (cpu0.gprHi_signed[s] === cpu0.gprHi_signed[t] &&
-      cpu0.gprLo_signed[s] === cpu0.gprLo_signed[t] ) {
-    performBranch( branchAddress(cpu0.pc,i) );
+    cpu0.gprLo_signed[s] === cpu0.gprLo_signed[t]) {
+    performBranch(branchAddress(cpu0.pc, i));
   } else {
     cpu0.nextPC += 4;   // skip the next instruction
   }
 }
 
 function generateBNE(ctx) {
-  var s    = ctx.instr_rs();
-  var t    = ctx.instr_rt();
-  var off  = ctx.instr_offset();
+  var s = ctx.instr_rs();
+  var t = ctx.instr_rt();
+  var off = ctx.instr_offset();
   var addr = branchAddress(ctx.pc, ctx.instruction);
 
   var impl = '';
@@ -1845,16 +1845,16 @@ function executeBNE(i) {
   var s = rs(i);
   var t = rt(i);
   if (cpu0.gprHi_signed[s] !== cpu0.gprHi_signed[t] ||
-      cpu0.gprLo_signed[s] !== cpu0.gprLo_signed[t] ) {      // NB: if imms(i) == -1 then this is a branch to self/busywait
-    performBranch( branchAddress(cpu0.pc,i) );
+    cpu0.gprLo_signed[s] !== cpu0.gprLo_signed[t]) {      // NB: if imms(i) == -1 then this is a branch to self/busywait
+    performBranch(branchAddress(cpu0.pc, i));
   }
 }
 
 
 function generateBNEL(ctx) {
-  var s    = ctx.instr_rs();
-  var t    = ctx.instr_rt();
-  var off  = ctx.instr_offset();
+  var s = ctx.instr_rs();
+  var t = ctx.instr_rt();
+  var off = ctx.instr_offset();
   var addr = branchAddress(ctx.pc, ctx.instruction);
 
   var impl = '';
@@ -1873,8 +1873,8 @@ function executeBNEL(i) {
   var s = rs(i);
   var t = rt(i);
   if (cpu0.gprHi_signed[s] !== cpu0.gprHi_signed[t] ||
-      cpu0.gprLo_signed[s] !== cpu0.gprLo_signed[t] ) {
-    performBranch( branchAddress(cpu0.pc,i) );
+    cpu0.gprLo_signed[s] !== cpu0.gprLo_signed[t]) {
+    performBranch(branchAddress(cpu0.pc, i));
   } else {
     cpu0.nextPC += 4;   // skip the next instruction
   }
@@ -1882,7 +1882,7 @@ function executeBNEL(i) {
 
 // Branch Less Than or Equal To Zero
 function generateBLEZ(ctx) {
-  var s    = ctx.instr_rs();
+  var s = ctx.instr_rs();
   var addr = branchAddress(ctx.pc, ctx.instruction);
 
   var impl = '';
@@ -1896,18 +1896,18 @@ function generateBLEZ(ctx) {
 
 function executeBLEZ(i) {
   var s = rs(i);
-  if ( cpu0.gprHi_signed[s] < 0 ||
-      (cpu0.gprHi_signed[s] === 0 && cpu0.gprLo_signed[s] === 0) ) {
-    performBranch( branchAddress(cpu0.pc,i) );
+  if (cpu0.gprHi_signed[s] < 0 ||
+    (cpu0.gprHi_signed[s] === 0 && cpu0.gprLo_signed[s] === 0)) {
+    performBranch(branchAddress(cpu0.pc, i));
   }
 }
 
 function executeBLEZL(i) {
   var s = rs(i);
   // NB: if rs == r0 then this branch is always taken
-  if ( cpu0.gprHi_signed[s] < 0 ||
-      (cpu0.gprHi_signed[s] === 0 && cpu0.gprLo_signed[s] === 0) ) {
-    performBranch( branchAddress(cpu0.pc,i) );
+  if (cpu0.gprHi_signed[s] < 0 ||
+    (cpu0.gprHi_signed[s] === 0 && cpu0.gprLo_signed[s] === 0)) {
+    performBranch(branchAddress(cpu0.pc, i));
   } else {
     cpu0.nextPC += 4;   // skip the next instruction
   }
@@ -1915,7 +1915,7 @@ function executeBLEZL(i) {
 
 // Branch Greater Than Zero
 function generateBGTZ(ctx) {
-  var s    = ctx.instr_rs();
+  var s = ctx.instr_rs();
   var addr = branchAddress(ctx.pc, ctx.instruction);
 
   var impl = '';
@@ -1929,17 +1929,17 @@ function generateBGTZ(ctx) {
 
 function executeBGTZ(i) {
   var s = rs(i);
-  if ( cpu0.gprHi_signed[s] >= 0 &&
-      (cpu0.gprHi_signed[s] !== 0 || cpu0.gprLo_signed[s] !== 0) ) {
-    performBranch( branchAddress(cpu0.pc,i) );
+  if (cpu0.gprHi_signed[s] >= 0 &&
+    (cpu0.gprHi_signed[s] !== 0 || cpu0.gprLo_signed[s] !== 0)) {
+    performBranch(branchAddress(cpu0.pc, i));
   }
 }
 
 function executeBGTZL(i) {
   var s = rs(i);
-  if ( cpu0.gprHi_signed[s] >= 0 &&
-      (cpu0.gprHi_signed[s] !== 0 || cpu0.gprLo_signed[s] !== 0) ) {
-    performBranch( branchAddress(cpu0.pc,i) );
+  if (cpu0.gprHi_signed[s] >= 0 &&
+    (cpu0.gprHi_signed[s] !== 0 || cpu0.gprLo_signed[s] !== 0)) {
+    performBranch(branchAddress(cpu0.pc, i));
   } else {
     cpu0.nextPC += 4;   // skip the next instruction
   }
@@ -1947,7 +1947,7 @@ function executeBGTZL(i) {
 
 // Branch Less Than Zero
 function generateBLTZ(ctx) {
-  var s    = ctx.instr_rs();
+  var s = ctx.instr_rs();
   var addr = branchAddress(ctx.pc, ctx.instruction);
 
   var impl = '';
@@ -1960,12 +1960,12 @@ function generateBLTZ(ctx) {
 
 function executeBLTZ(i) {
   if (cpu0.gprHi_signed[rs(i)] < 0) {
-    performBranch( branchAddress(cpu0.pc,i) );
+    performBranch(branchAddress(cpu0.pc, i));
   }
 }
 
 function generateBLTZL(ctx) {
-  var s    = ctx.instr_rs();
+  var s = ctx.instr_rs();
   var addr = branchAddress(ctx.pc, ctx.instruction);
 
   var impl = '';
@@ -1980,7 +1980,7 @@ function generateBLTZL(ctx) {
 
 function executeBLTZL(i) {
   if (cpu0.gprHi_signed[rs(i)] < 0) {
-    performBranch( branchAddress(cpu0.pc,i) );
+    performBranch(branchAddress(cpu0.pc, i));
   } else {
     cpu0.nextPC += 4;   // skip the next instruction
   }
@@ -1989,14 +1989,14 @@ function executeBLTZL(i) {
 function executeBLTZAL(i) {
   setSignExtend(cpu0_constants.RA, cpu0.pc + 8);
   if (cpu0.gprHi_signed[rs(i)] < 0) {
-    performBranch( branchAddress(cpu0.pc,i) );
+    performBranch(branchAddress(cpu0.pc, i));
   }
 }
 
 function executeBLTZALL(i) {
   setSignExtend(cpu0_constants.RA, cpu0.pc + 8);
   if (cpu0.gprHi_signed[rs(i)] < 0) {
-    performBranch( branchAddress(cpu0.pc,i) );
+    performBranch(branchAddress(cpu0.pc, i));
   } else {
     cpu0.nextPC += 4;   // skip the next instruction
   }
@@ -2004,7 +2004,7 @@ function executeBLTZALL(i) {
 
 // Branch Greater Than Zero
 function generateBGEZ(ctx) {
-  var s    = ctx.instr_rs();
+  var s = ctx.instr_rs();
   var addr = branchAddress(ctx.pc, ctx.instruction);
 
   var impl = '';
@@ -2017,12 +2017,12 @@ function generateBGEZ(ctx) {
 
 function executeBGEZ(i) {
   if (cpu0.gprHi_signed[rs(i)] >= 0) {
-    performBranch( branchAddress(cpu0.pc,i) );
+    performBranch(branchAddress(cpu0.pc, i));
   }
 }
 
 function generateBGEZL(ctx) {
-  var s    = ctx.instr_rs();
+  var s = ctx.instr_rs();
   var addr = branchAddress(ctx.pc, ctx.instruction);
 
   var impl = '';
@@ -2037,7 +2037,7 @@ function generateBGEZL(ctx) {
 
 function executeBGEZL(i) {
   if (cpu0.gprHi_signed[rs(i)] >= 0) {
-    performBranch( branchAddress(cpu0.pc,i) );
+    performBranch(branchAddress(cpu0.pc, i));
   } else {
     cpu0.nextPC += 4;   // skip the next instruction
   }
@@ -2046,14 +2046,14 @@ function executeBGEZL(i) {
 function executeBGEZAL(i) {
   setSignExtend(cpu0_constants.RA, cpu0.pc + 8);
   if (cpu0.gprHi_signed[rs(i)] >= 0) {
-    performBranch( branchAddress(cpu0.pc,i) );
+    performBranch(branchAddress(cpu0.pc, i));
   }
 }
 
 function executeBGEZALL(i) {
   setSignExtend(cpu0_constants.RA, cpu0.pc + 8);
   if (cpu0.gprHi_signed[rs(i)] >= 0) {
-    performBranch( branchAddress(cpu0.pc,i) );
+    performBranch(branchAddress(cpu0.pc, i));
   } else {
     cpu0.nextPC += 4;   // skip the next instruction
   }
@@ -2070,9 +2070,9 @@ function generateADDI(ctx) {
 }
 
 function executeADDI(i) {
-  var s         = rs(i);
-  var t         = rt(i);
-  var result    = cpu0.gprLo_signed[s] + imms(i);
+  var s = rs(i);
+  var t = rt(i);
+  var result = cpu0.gprLo_signed[s] + imms(i);
   cpu0.gprLo_signed[t] = result;
   cpu0.gprHi_signed[t] = result >> 31;
 }
@@ -2088,9 +2088,9 @@ function generateADDIU(ctx) {
 }
 
 function executeADDIU(i) {
-  var s         = rs(i);
-  var t         = rt(i);
-  var result    = cpu0.gprLo_signed[s] + imms(i);
+  var s = rs(i);
+  var t = rt(i);
+  var result = cpu0.gprLo_signed[s] + imms(i);
   cpu0.gprLo_signed[t] = result;
   cpu0.gprHi_signed[t] = result >> 31;
 }
@@ -2107,13 +2107,13 @@ function generateSLTI(ctx) {
   var s = ctx.instr_rs();
   var t = ctx.instr_rt();
 
-  var immediate    = imms(ctx.instruction);
-  var imm_hi       = immediate >> 31;
+  var immediate = imms(ctx.instruction);
+  var imm_hi = immediate >> 31;
   var imm_unsigned = immediate >>> 0;
 
   var impl = '';
   impl += 'if (' + genSrcRegHi(s) + ' === ' + imm_hi + ') {\n';
-  impl += '  rlo[' + t + '] = (c.gprLo[' + s  +'] < ' + imm_unsigned + ') ? 1 : 0;\n';
+  impl += '  rlo[' + t + '] = (c.gprLo[' + s + '] < ' + imm_unsigned + ') ? 1 : 0;\n';
   impl += '} else {\n';
   impl += '  rlo[' + t + '] = (' + genSrcRegHi(s) + ' < ' + imm_hi + ') ? 1 : 0;\n';
   impl += '}\n';
@@ -2123,15 +2123,15 @@ function generateSLTI(ctx) {
 }
 
 function executeSLTI(i) {
-  var s         = rs(i);
-  var t         = rt(i);
+  var s = rs(i);
+  var t = rt(i);
 
   var immediate = imms(i);
-  var imm_hi    = immediate >> 31;
-  var s_hi      = cpu0.gprHi_signed[s];
+  var imm_hi = immediate >> 31;
+  var s_hi = cpu0.gprHi_signed[s];
 
   if (s_hi === imm_hi) {
-    cpu0.gprLo_signed[t] = (cpu0.gprLo[s] < (immediate>>>0)) ? 1 : 0;    // NB signed compare
+    cpu0.gprLo_signed[t] = (cpu0.gprLo[s] < (immediate >>> 0)) ? 1 : 0;    // NB signed compare
   } else {
     cpu0.gprLo_signed[t] = (s_hi < imm_hi) ? 1 : 0;
   }
@@ -2142,15 +2142,15 @@ function generateSLTIU(ctx) {
   var s = ctx.instr_rs();
   var t = ctx.instr_rt();
 
-  var immediate    = imms(ctx.instruction);
-  var imm_hi       = immediate >> 31;
+  var immediate = imms(ctx.instruction);
+  var imm_hi = immediate >> 31;
   var imm_unsigned = immediate >>> 0;
 
   var impl = '';
   impl += 'if (' + genSrcRegHi(s) + ' === ' + imm_hi + ') {\n';
-  impl += '  rlo[' + t + '] = (c.gprLo[' + s  +'] < ' + imm_unsigned + ') ? 1 : 0;\n';
+  impl += '  rlo[' + t + '] = (c.gprLo[' + s + '] < ' + imm_unsigned + ') ? 1 : 0;\n';
   impl += '} else {\n';
-  impl += '  rlo[' + t + '] = ((' + genSrcRegHi(s) + '>>>0) < (' + (imm_hi>>>0) + ')) ? 1 : 0;\n';
+  impl += '  rlo[' + t + '] = ((' + genSrcRegHi(s) + '>>>0) < (' + (imm_hi >>> 0) + ')) ? 1 : 0;\n';
   impl += '}\n';
   impl += 'rhi[' + t + '] = 0;\n';
 
@@ -2158,18 +2158,18 @@ function generateSLTIU(ctx) {
 }
 
 function executeSLTIU(i) {
-  var s         = rs(i);
-  var t         = rt(i);
+  var s = rs(i);
+  var t = rt(i);
 
   // NB: immediate value is still sign-extended, but treated as unsigned
   var immediate = imms(i);
-  var imm_hi    = immediate >> 31;
-  var s_hi      = cpu0.gprHi_signed[s];
+  var imm_hi = immediate >> 31;
+  var s_hi = cpu0.gprHi_signed[s];
 
   if (s_hi === imm_hi) {
-    cpu0.gprLo[t] = (cpu0.gprLo[s] < (immediate>>>0)) ? 1 : 0;
+    cpu0.gprLo[t] = (cpu0.gprLo[s] < (immediate >>> 0)) ? 1 : 0;
   } else {
-    cpu0.gprLo[t] = ((s_hi>>>0) < (imm_hi>>>0)) ? 1 : 0;
+    cpu0.gprLo[t] = ((s_hi >>> 0) < (imm_hi >>> 0)) ? 1 : 0;
   }
   cpu0.gprHi[t] = 0;
 
@@ -2232,8 +2232,8 @@ function generateLUI(ctx) {
   var value_hi = (value_lo < 0) ? -1 : 0;
 
   var impl = '';
-  impl += 'rlo[' + t +'] = ' + value_lo + ';\n';
-  impl += 'rhi[' + t +'] = ' + value_hi + ';\n';
+  impl += 'rlo[' + t + '] = ' + value_lo + ';\n';
+  impl += 'rhi[' + t + '] = ' + value_hi + ';\n';
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
@@ -2410,8 +2410,8 @@ function executeLD(i) {
   if (addr < -2139095040) {
     var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
     var ram = cpu0.ram;
-    cpu0.gprHi_signed[t] = ((ram[phys  ] << 24) | (ram[phys+1] << 16) | (ram[phys+2] << 8) | ram[phys+3]) | 0;
-    cpu0.gprLo_signed[t] = ((ram[phys+4] << 24) | (ram[phys+5] << 16) | (ram[phys+6] << 8) | ram[phys+7]) | 0;
+    cpu0.gprHi_signed[t] = ((ram[phys] << 24) | (ram[phys + 1] << 16) | (ram[phys + 2] << 8) | ram[phys + 3]) | 0;
+    cpu0.gprLo_signed[t] = ((ram[phys + 4] << 24) | (ram[phys + 5] << 16) | (ram[phys + 6] << 8) | ram[phys + 7]) | 0;
   } else {
     cpu0.gprHi_signed[t] = lw_slow(addr);
     cpu0.gprLo_signed[t] = lw_slow(addr + 4);
@@ -2438,7 +2438,7 @@ function executeLWC1(i) {
   cpu1.int32[t] = n64js.load_s32(cpu0.ram, cpu0.gprLo_signed[b] + o);
 }
 
-function generateLDC1(ctx){
+function generateLDC1(ctx) {
   var t = ctx.instr_ft();
   var b = ctx.instr_base();
   var o = ctx.instr_imms();
@@ -2474,54 +2474,54 @@ function executeLDC1(i) {
   if (addr < -2139095040) {
     var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
     var ram = cpu0.ram;
-    value_hi = ((ram[phys  ] << 24) | (ram[phys+1] << 16) | (ram[phys+2] << 8) | ram[phys+3]) | 0;
-    value_lo = ((ram[phys+4] << 24) | (ram[phys+5] << 16) | (ram[phys+6] << 8) | ram[phys+7]) | 0;
+    value_hi = ((ram[phys] << 24) | (ram[phys + 1] << 16) | (ram[phys + 2] << 8) | ram[phys + 3]) | 0;
+    value_lo = ((ram[phys + 4] << 24) | (ram[phys + 5] << 16) | (ram[phys + 6] << 8) | ram[phys + 7]) | 0;
   } else {
     value_hi = lw_slow(addr);
     value_lo = lw_slow(addr + 4);
   }
 
-  cpu1.store_64( t, value_lo, value_hi );
+  cpu1.store_64(t, value_lo, value_hi);
 }
 
-function executeLDC2(i)       { unimplemented(cpu0.pc,i); }
+function executeLDC2(i) { unimplemented(cpu0.pc, i); }
 
 function executeLWL(i) {
-  var address         = memaddr(i)>>>0;
-  var address_aligned = (address & ~3)>>>0;
-  var memory          = n64js.readMemoryU32(address_aligned);
-  var reg             = cpu0.gprLo[rt(i)];
+  var address = memaddr(i) >>> 0;
+  var address_aligned = (address & ~3) >>> 0;
+  var memory = n64js.readMemoryU32(address_aligned);
+  var reg = cpu0.gprLo[rt(i)];
 
   var value;
-  switch(address % 4) {
-    case 0:       value = memory;                              break;
-    case 1:       value = (reg & 0x000000ff) | (memory <<  8); break;
-    case 2:       value = (reg & 0x0000ffff) | (memory << 16); break;
-    default:      value = (reg & 0x00ffffff) | (memory << 24); break;
+  switch (address % 4) {
+    case 0: value = memory; break;
+    case 1: value = (reg & 0x000000ff) | (memory << 8); break;
+    case 2: value = (reg & 0x0000ffff) | (memory << 16); break;
+    default: value = (reg & 0x00ffffff) | (memory << 24); break;
   }
 
-  setSignExtend( rt(i), value );
+  setSignExtend(rt(i), value);
 }
 
 function executeLWR(i) {
-  var address         = memaddr(i)>>>0;
-  var address_aligned = (address & ~3)>>>0;
-  var memory          = n64js.readMemoryU32(address_aligned);
-  var reg             = cpu0.gprLo[rt(i)];
+  var address = memaddr(i) >>> 0;
+  var address_aligned = (address & ~3) >>> 0;
+  var memory = n64js.readMemoryU32(address_aligned);
+  var reg = cpu0.gprLo[rt(i)];
 
   var value;
-  switch(address % 4) {
-    case 0:       value = (reg & 0xffffff00) | (memory >>> 24); break;
-    case 1:       value = (reg & 0xffff0000) | (memory >>> 16); break;
-    case 2:       value = (reg & 0xff000000) | (memory >>>  8); break;
-    default:      value = memory;                               break;
+  switch (address % 4) {
+    case 0: value = (reg & 0xffffff00) | (memory >>> 24); break;
+    case 1: value = (reg & 0xffff0000) | (memory >>> 16); break;
+    case 2: value = (reg & 0xff000000) | (memory >>> 8); break;
+    default: value = memory; break;
   }
 
-  setSignExtend( rt(i), value );
+  setSignExtend(rt(i), value);
 }
 
-function executeLDL(i)        { unimplemented(cpu0.pc,i); }
-function executeLDR(i)        { unimplemented(cpu0.pc,i); }
+function executeLDL(i) { unimplemented(cpu0.pc, i); }
+function executeLDR(i) { unimplemented(cpu0.pc, i); }
 
 function generateSB(ctx) {
   var t = ctx.instr_rt();
@@ -2625,7 +2625,7 @@ function generateSDC1(ctx) {
   var b = ctx.instr_base();
   var o = ctx.instr_imms();
 
-  var hi = t+1;
+  var hi = t + 1;
 
   ctx.fragment.usesCop1 = true;
 
@@ -2644,56 +2644,56 @@ function executeSDC1(i) {
 
   // FIXME: this can do a single check that the address is in ram
   var addr = cpu0.gprLo_signed[b] + o;
-  n64js.store_64(cpu0.ram, addr, cpu1.int32[t], cpu1.int32[t+1]);
+  n64js.store_64(cpu0.ram, addr, cpu1.int32[t], cpu1.int32[t + 1]);
 }
 
-function executeSDC2(i)       { unimplemented(cpu0.pc,i); }
+function executeSDC2(i) { unimplemented(cpu0.pc, i); }
 
 function executeSWL(i) {
-  var address         = memaddr(i);
-  var address_aligned = (address & ~3)>>>0;
-  var memory          = n64js.readMemoryU32(address_aligned);
-  var reg             = cpu0.gprLo[rt(i)];
+  var address = memaddr(i);
+  var address_aligned = (address & ~3) >>> 0;
+  var memory = n64js.readMemoryU32(address_aligned);
+  var reg = cpu0.gprLo[rt(i)];
 
   var value;
-  switch(address % 4) {
-    case 0:       value = reg;                                  break;
-    case 1:       value = (memory & 0xff000000) | (reg >>>  8); break;
-    case 2:       value = (memory & 0xffff0000) | (reg >>> 16); break;
-    default:      value = (memory & 0xffffff00) | (reg >>> 24); break;
+  switch (address % 4) {
+    case 0: value = reg; break;
+    case 1: value = (memory & 0xff000000) | (reg >>> 8); break;
+    case 2: value = (memory & 0xffff0000) | (reg >>> 16); break;
+    default: value = (memory & 0xffffff00) | (reg >>> 24); break;
   }
 
-  n64js.writeMemory32( address_aligned, value );
+  n64js.writeMemory32(address_aligned, value);
 }
 
 function executeSWR(i) {
-  var address         = memaddr(i);
-  var address_aligned = (address & ~3)>>>0;
-  var memory          = n64js.readMemoryU32(address_aligned);
-  var reg             = cpu0.gprLo[rt(i)];
+  var address = memaddr(i);
+  var address_aligned = (address & ~3) >>> 0;
+  var memory = n64js.readMemoryU32(address_aligned);
+  var reg = cpu0.gprLo[rt(i)];
 
   var value;
-  switch(address % 4) {
-    case 0:       value = (memory & 0x00ffffff) | (reg << 24); break;
-    case 1:       value = (memory & 0x0000ffff) | (reg << 16); break;
-    case 2:       value = (memory & 0x000000ff) | (reg <<  8); break;
-    default:      value = reg;                                 break;
+  switch (address % 4) {
+    case 0: value = (memory & 0x00ffffff) | (reg << 24); break;
+    case 1: value = (memory & 0x0000ffff) | (reg << 16); break;
+    case 2: value = (memory & 0x000000ff) | (reg << 8); break;
+    default: value = reg; break;
   }
 
-  n64js.writeMemory32( address_aligned, value );
+  n64js.writeMemory32(address_aligned, value);
 }
 
-function executeSDL(i)        { unimplemented(cpu0.pc,i); }
-function executeSDR(i)        { unimplemented(cpu0.pc,i); }
+function executeSDL(i) { unimplemented(cpu0.pc, i); }
+function executeSDR(i) { unimplemented(cpu0.pc, i); }
 
 function generateCACHE(ctx) {
-  var b        = ctx.instr_base();
-  var o        = ctx.instr_imms();
+  var b = ctx.instr_base();
+  var o = ctx.instr_imms();
   var cache_op = ctx.instr_rt();
-  var cache    = (cache_op      ) & 0x3;
-  var action   = (cache_op >>> 2) & 0x7;
+  var cache = (cache_op) & 0x3;
+  var action = (cache_op >>> 2) & 0x7;
 
-  if(cache === 0 && (action === 0 || action === 4)) {
+  if (cache === 0 && (action === 0 || action === 4)) {
     var impl = '';
     impl += 'var addr = ' + genSrcRegLo(b) + ' + ' + o + ';\n';
     impl += "n64js.invalidateICacheEntry(addr);\n";
@@ -2705,27 +2705,27 @@ function generateCACHE(ctx) {
 
 function executeCACHE(i) {
   var cache_op = rt(i);
-  var cache    = (cache_op      ) & 0x3;
-  var action   = (cache_op >>> 2) & 0x7;
+  var cache = (cache_op) & 0x3;
+  var action = (cache_op >>> 2) & 0x7;
 
-  if(cache === 0 && (action === 0 || action === 4)) {
+  if (cache === 0 && (action === 0 || action === 4)) {
     // NB: only bother generating address if we handle the instruction - memaddr deopts like crazy
-    var address  = memaddr(i);
+    var address = memaddr(i);
     n64js.invalidateICacheEntry(address);
   }
 }
 
-function executeLL(i)         { unimplemented(cpu0.pc,i); }
-function executeLLD(i)        { unimplemented(cpu0.pc,i); }
-function executeSC(i)         { unimplemented(cpu0.pc,i); }
-function executeSCD(i)        { unimplemented(cpu0.pc,i); }
+function executeLL(i) { unimplemented(cpu0.pc, i); }
+function executeLLD(i) { unimplemented(cpu0.pc, i); }
+function executeSC(i) { unimplemented(cpu0.pc, i); }
+function executeSCD(i) { unimplemented(cpu0.pc, i); }
 
 function generateMFC1Stub(ctx) {
   var t = ctx.instr_rt();
   var s = ctx.instr_fs();
 
   ctx.fragment.usesCop1 = true;
-  ctx.isTrivial         = true;
+  ctx.isTrivial = true;
 
   var impl = '';
   impl += 'var result = cpu1.int32[' + s + '];\n';
@@ -2745,13 +2745,13 @@ function executeMFC1(i) {
 function generateDMFC1Stub(ctx) {
   var t = ctx.instr_rt();
   var s = ctx.instr_fs();
-  var hi = s+1;
+  var hi = s + 1;
 
   ctx.fragment.usesCop1 = true;
-  ctx.isTrivial         = true;
+  ctx.isTrivial = true;
 
   var impl = '';
-  impl += 'rlo[' + t + '] = cpu1.int32[' + s  + '];\n';
+  impl += 'rlo[' + t + '] = cpu1.int32[' + s + '];\n';
   impl += 'rhi[' + t + '] = cpu1.int32[' + hi + '];\n';
   return impl;
 }
@@ -2760,7 +2760,7 @@ function executeDMFC1(i) {
   var t = rt(i);
   var s = fs(i);
   cpu0.gprLo_signed[t] = cpu1.int32[s];
-  cpu0.gprHi_signed[t] = cpu1.int32[s+1];
+  cpu0.gprHi_signed[t] = cpu1.int32[s + 1];
 }
 
 function generateMTC1Stub(ctx) {
@@ -2768,7 +2768,7 @@ function generateMTC1Stub(ctx) {
   var t = ctx.instr_rt();
 
   ctx.fragment.usesCop1 = true;
-  ctx.isTrivial         = true;
+  ctx.isTrivial = true;
 
   return 'cpu1.int32[' + s + '] = rlo[' + t + '];\n';
 }
@@ -2780,13 +2780,13 @@ function executeMTC1(i) {
 function generateDMTC1Stub(ctx) {
   var s = ctx.instr_fs();
   var t = ctx.instr_rt();
-  var hi = s+1;
+  var hi = s + 1;
 
   ctx.fragment.usesCop1 = true;
-  ctx.isTrivial         = true;
+  ctx.isTrivial = true;
 
   var impl = '';
-  impl += 'cpu1.int32[' + s  + '] = rlo[' + t + '];\n';
+  impl += 'cpu1.int32[' + s + '] = rlo[' + t + '];\n';
   impl += 'cpu1.int32[' + hi + '] = rhi[' + t + '];\n';
   return impl;
 }
@@ -2795,8 +2795,8 @@ function executeDMTC1(i) {
   var s = fs(i);
   var t = rt(i);
 
-  cpu1.int32[s+0] = cpu0.gprLo_signed[t];
-  cpu1.int32[s+1] = cpu0.gprHi_signed[t];
+  cpu1.int32[s + 0] = cpu0.gprLo_signed[t];
+  cpu1.int32[s + 1] = cpu0.gprHi_signed[t];
 }
 
 function generateCFC1Stub(ctx) {
@@ -2804,11 +2804,11 @@ function generateCFC1Stub(ctx) {
   var t = ctx.instr_rt();
 
   ctx.fragment.usesCop1 = true;
-  ctx.isTrivial         = true;
+  ctx.isTrivial = true;
 
   var impl = '';
 
-  switch(s) {
+  switch (s) {
     case 0:
     case 31:
       impl += 'var value = cpu1.control[' + s + '];\n';
@@ -2824,7 +2824,7 @@ function executeCFC1(i) {
   var s = fs(i);
   var t = rt(i);
 
-  switch(s) {
+  switch (s) {
     case 0:
     case 31:
       var value = cpu1.control[s];
@@ -2839,7 +2839,7 @@ function generateCTC1Stub(ctx) {
   var t = ctx.instr_rt();
 
   ctx.fragment.usesCop1 = true;
-  ctx.isTrivial         = true;
+  ctx.isTrivial = true;
 
   if (s === 31) {
     return 'cpu1.control[' + s + '] = rlo[' + t + '];\n';
@@ -2868,14 +2868,14 @@ function executeCTC1(i) {
 
 function generateBCInstrStub(ctx) {
   var i = ctx.instruction;
-  assert( ((i>>>18)&0x7) === 0, "cc bit is not 0" );
+  assert(((i >>> 18) & 0x7) === 0, "cc bit is not 0");
 
-  var condition = (i&0x10000) !== 0;
-  var likely    = (i&0x20000) !== 0;
-  var target    = branchAddress(ctx.pc, i);
+  var condition = (i & 0x10000) !== 0;
+  var likely = (i & 0x20000) !== 0;
+  var target = branchAddress(ctx.pc, i);
 
   ctx.fragment.usesCop1 = true;
-  ctx.isTrivial         = false; // NB: not trivial - branches!
+  ctx.isTrivial = false; // NB: not trivial - branches!
 
   var impl = '';
   var test = condition ? '!==' : '===';
@@ -2891,14 +2891,14 @@ function generateBCInstrStub(ctx) {
 }
 
 function executeBCInstr(i) {
-  assert( ((i>>>18)&0x7) === 0, "cc bit is not 0" );
+  assert(((i >>> 18) & 0x7) === 0, "cc bit is not 0");
 
-  var condition = (i&0x10000) !== 0;
-  var likely    = (i&0x20000) !== 0;
-  var cc        = (cpu1.control[31] & FPCSR_C) !== 0;
+  var condition = (i & 0x10000) !== 0;
+  var likely = (i & 0x20000) !== 0;
+  var cc = (cpu1.control[31] & FPCSR_C) !== 0;
 
   if (cc === condition) {
-    performBranch( branchAddress(cpu0.pc, i) );
+    performBranch(branchAddress(cpu0.pc, i));
   } else {
     if (likely) {
       cpu0.nextPC += 4;   // skip the next instruction
@@ -2914,11 +2914,11 @@ n64js.trunc = function (x) {
 };
 
 n64js.convert = function (x) {
-  switch(cpu1.control[31] & FPCSR_RM_MASK) {
-    case FPCSR_RM_RN:     return  Math.round(x);
-    case FPCSR_RM_RZ:     return n64js.trunc(x);
-    case FPCSR_RM_RP:     return  Math.ceil(x);
-    case FPCSR_RM_RM:     return  Math.floor(x);
+  switch (cpu1.control[31] & FPCSR_RM_MASK) {
+    case FPCSR_RM_RN: return Math.round(x);
+    case FPCSR_RM_RZ: return n64js.trunc(x);
+    case FPCSR_RM_RP: return Math.ceil(x);
+    case FPCSR_RM_RM: return Math.floor(x);
   }
 
   assert('unknown rounding mode');
@@ -2928,17 +2928,17 @@ function generateFloatCompare(op) {
   var impl = '';
   impl += 'var cc = false;\n';
   impl += 'if (isNaN(fs+ft)) {\n';
-  if (op&0x8) {
+  if (op & 0x8) {
     impl += '  n64js.halt("should raise Invalid Operation here.");\n';
   }
-  if (op&0x1) {
+  if (op & 0x1) {
     impl += '  cc = true;\n';
   }
   impl += '} else {\n';
-  if (op&0x4) {
+  if (op & 0x4) {
     impl += '  cc |= fs < ft;\n';
   }
-  if (op&0x2) {
+  if (op & 0x2) {
     impl += '  cc |= fs == ft;\n';
   }
   impl += '}\n';
@@ -2947,18 +2947,18 @@ function generateFloatCompare(op) {
 }
 
 function handleFloatCompare(op, fs, ft) {
-    var c = false;
-    if (isNaN(fs+ft)) {
-      if (op&0x8) {
-        n64js.halt('Should raise Invalid Operation here.');
-      }
-      if (op&0x1) c = true;
-    } else {
-      if (op&0x4) c |= fs <  ft;
-      if (op&0x2) c |= fs == ft;
-      // unordered is false here
+  var c = false;
+  if (isNaN(fs + ft)) {
+    if (op & 0x8) {
+      n64js.halt('Should raise Invalid Operation here.');
     }
-    cpu1.setCondition(c);
+    if (op & 0x1) c = true;
+  } else {
+    if (op & 0x4) c |= fs < ft;
+    if (op & 0x2) c |= fs == ft;
+    // unordered is false here
+  }
+  cpu1.setCondition(c);
 }
 
 function generateSInstrStub(ctx) {
@@ -2967,20 +2967,20 @@ function generateSInstrStub(ctx) {
   var d = ctx.instr_fd();
 
   ctx.fragment.usesCop1 = true;
-  ctx.isTrivial         = true;
+  ctx.isTrivial = true;
 
   var op = cop1_func(ctx.instruction);
 
   if (op < 0x30) {
-    switch(op) {
-      case 0x00:    return 'cpu1.float32[' + d + '] = cpu1.float32[' + s + '] + cpu1.float32[' + t + '];\n';
-      case 0x01:    return 'cpu1.float32[' + d + '] = cpu1.float32[' + s + '] - cpu1.float32[' + t + '];\n';
-      case 0x02:    return 'cpu1.float32[' + d + '] = cpu1.float32[' + s + '] * cpu1.float32[' + t + '];\n';
-      case 0x03:    return 'cpu1.float32[' + d + '] = cpu1.float32[' + s + '] / cpu1.float32[' + t + '];\n';
-      case 0x04:    return 'cpu1.float32[' + d + '] = Math.sqrt( cpu1.float32[' + s + '] );\n';
-      case 0x05:    return 'cpu1.float32[' + d + '] = Math.abs(  cpu1.float32[' + s + '] );\n';
-      case 0x06:    return 'cpu1.float32[' + d + '] =  cpu1.float32[' + s + '];\n';
-      case 0x07:    return 'cpu1.float32[' + d + '] = -cpu1.float32[' + s + '];\n';
+    switch (op) {
+      case 0x00: return 'cpu1.float32[' + d + '] = cpu1.float32[' + s + '] + cpu1.float32[' + t + '];\n';
+      case 0x01: return 'cpu1.float32[' + d + '] = cpu1.float32[' + s + '] - cpu1.float32[' + t + '];\n';
+      case 0x02: return 'cpu1.float32[' + d + '] = cpu1.float32[' + s + '] * cpu1.float32[' + t + '];\n';
+      case 0x03: return 'cpu1.float32[' + d + '] = cpu1.float32[' + s + '] / cpu1.float32[' + t + '];\n';
+      case 0x04: return 'cpu1.float32[' + d + '] = Math.sqrt( cpu1.float32[' + s + '] );\n';
+      case 0x05: return 'cpu1.float32[' + d + '] = Math.abs(  cpu1.float32[' + s + '] );\n';
+      case 0x06: return 'cpu1.float32[' + d + '] =  cpu1.float32[' + s + '];\n';
+      case 0x07: return 'cpu1.float32[' + d + '] = -cpu1.float32[' + s + '];\n';
       case 0x08:    /* 'ROUND.L.'*/     return 'cpu1.store_float_as_long(' + d + ',  Math.round( cpu1.float32[' + s + ']));\n';
       case 0x09:    /* 'TRUNC.L.'*/     return 'cpu1.store_float_as_long(' + d + ', n64js.trunc( cpu1.float32[' + s + ']));\n';
       case 0x0a:    /* 'CEIL.L.'*/      return 'cpu1.store_float_as_long(' + d + ',  Math.ceil(  cpu1.float32[' + s + ']));\n';
@@ -3014,30 +3014,30 @@ function executeSInstr(i) {
   var op = cop1_func(i);
 
   if (op < 0x30) {
-    switch(op) {
-      case 0x00:    cpu1.float32[d] = cpu1.float32[s] + cpu1.float32[t]; return;
-      case 0x01:    cpu1.float32[d] = cpu1.float32[s] - cpu1.float32[t]; return;
-      case 0x02:    cpu1.float32[d] = cpu1.float32[s] * cpu1.float32[t]; return;
-      case 0x03:    cpu1.float32[d] = cpu1.float32[s] / cpu1.float32[t]; return;
-      case 0x04:    cpu1.float32[d] = Math.sqrt( cpu1.float32[s] ); return;
-      case 0x05:    cpu1.float32[d] = Math.abs(  cpu1.float32[s] ); return;
-      case 0x06:    cpu1.float32[d] =  cpu1.float32[s]; return;
-      case 0x07:    cpu1.float32[d] = -cpu1.float32[s]; return;
-      case 0x08:    /* 'ROUND.L.'*/     cpu1.store_float_as_long(d,  Math.round( cpu1.float32[s] )); return;
-      case 0x09:    /* 'TRUNC.L.'*/     cpu1.store_float_as_long(d, n64js.trunc( cpu1.float32[s] )); return;
-      case 0x0a:    /* 'CEIL.L.'*/      cpu1.store_float_as_long(d,  Math.ceil(  cpu1.float32[s] )); return;
-      case 0x0b:    /* 'FLOOR.L.'*/     cpu1.store_float_as_long(d,  Math.floor( cpu1.float32[s] )); return;
-      case 0x0c:    /* 'ROUND.W.'*/     cpu1.int32[d] =  Math.round( cpu1.float32[s] )|0; return;  // TODO: check this
-      case 0x0d:    /* 'TRUNC.W.'*/     cpu1.int32[d] = n64js.trunc( cpu1.float32[s] )|0; return;
-      case 0x0e:    /* 'CEIL.W.'*/      cpu1.int32[d] =  Math.ceil(  cpu1.float32[s] )|0; return;
-      case 0x0f:    /* 'FLOOR.W.'*/     cpu1.int32[d] =  Math.floor( cpu1.float32[s] )|0; return;
+    switch (op) {
+      case 0x00: cpu1.float32[d] = cpu1.float32[s] + cpu1.float32[t]; return;
+      case 0x01: cpu1.float32[d] = cpu1.float32[s] - cpu1.float32[t]; return;
+      case 0x02: cpu1.float32[d] = cpu1.float32[s] * cpu1.float32[t]; return;
+      case 0x03: cpu1.float32[d] = cpu1.float32[s] / cpu1.float32[t]; return;
+      case 0x04: cpu1.float32[d] = Math.sqrt(cpu1.float32[s]); return;
+      case 0x05: cpu1.float32[d] = Math.abs(cpu1.float32[s]); return;
+      case 0x06: cpu1.float32[d] = cpu1.float32[s]; return;
+      case 0x07: cpu1.float32[d] = -cpu1.float32[s]; return;
+      case 0x08: /* 'ROUND.L.'*/ cpu1.store_float_as_long(d, Math.round(cpu1.float32[s])); return;
+      case 0x09: /* 'TRUNC.L.'*/ cpu1.store_float_as_long(d, n64js.trunc(cpu1.float32[s])); return;
+      case 0x0a: /* 'CEIL.L.'*/  cpu1.store_float_as_long(d, Math.ceil(cpu1.float32[s])); return;
+      case 0x0b: /* 'FLOOR.L.'*/ cpu1.store_float_as_long(d, Math.floor(cpu1.float32[s])); return;
+      case 0x0c: /* 'ROUND.W.'*/ cpu1.int32[d] = Math.round(cpu1.float32[s]) | 0; return;  // TODO: check this
+      case 0x0d: /* 'TRUNC.W.'*/ cpu1.int32[d] = n64js.trunc(cpu1.float32[s]) | 0; return;
+      case 0x0e: /* 'CEIL.W.'*/  cpu1.int32[d] = Math.ceil(cpu1.float32[s]) | 0; return;
+      case 0x0f: /* 'FLOOR.W.'*/ cpu1.int32[d] = Math.floor(cpu1.float32[s]) | 0; return;
 
-      case 0x20:    /* 'CVT.S' */       unimplemented(cpu0.pc,i); return;
-      case 0x21:    /* 'CVT.D' */       cpu1.store_f64( d, cpu1.float32[s] ); return;
-      case 0x24:    /* 'CVT.W' */       cpu1.int32[d] = n64js.convert( cpu1.float32[s] )|0; return;
-      case 0x25:    /* 'CVT.L' */       unimplemented(cpu0.pc,i); return;
+      case 0x20: /* 'CVT.S' */   unimplemented(cpu0.pc, i); return;
+      case 0x21: /* 'CVT.D' */   cpu1.store_f64(d, cpu1.float32[s]); return;
+      case 0x24: /* 'CVT.W' */   cpu1.int32[d] = n64js.convert(cpu1.float32[s]) | 0; return;
+      case 0x25: /* 'CVT.L' */   unimplemented(cpu0.pc, i); return;
     }
-    unimplemented(cpu0.pc,i);
+    unimplemented(cpu0.pc, i);
   } else {
     var _s = cpu1.float32[s];
     var _t = cpu1.float32[t];
@@ -3051,32 +3051,32 @@ function generateDInstrStub(ctx) {
   var d = ctx.instr_fd();
 
   ctx.fragment.usesCop1 = true;
-  ctx.isTrivial         = true;
+  ctx.isTrivial = true;
 
   var op = cop1_func(ctx.instruction);
 
   if (op < 0x30) {
-    switch(op) {
-      case 0x00:    return 'cpu1.store_f64( ' + d + ', cpu1.load_f64( ' + s + ' ) + cpu1.load_f64( ' + t + ' ) );\n';
-      case 0x01:    return 'cpu1.store_f64( ' + d + ', cpu1.load_f64( ' + s + ' ) - cpu1.load_f64( ' + t + ' ) );\n';
-      case 0x02:    return 'cpu1.store_f64( ' + d + ', cpu1.load_f64( ' + s + ' ) * cpu1.load_f64( ' + t + ' ) );\n';
-      case 0x03:    return 'cpu1.store_f64( ' + d + ', cpu1.load_f64( ' + s + ' ) / cpu1.load_f64( ' + t + ' ) );\n';
-      case 0x04:    return 'cpu1.store_f64( ' + d + ', Math.sqrt( cpu1.load_f64( ' + s + ' ) ) );\n';
-      case 0x05:    return 'cpu1.store_f64( ' + d + ', Math.abs(  cpu1.load_f64( ' + s + ' ) ) );\n';
-      case 0x06:    return 'cpu1.store_f64( ' + d + ',  cpu1.load_f64( ' + s + ' ) );\n';
-      case 0x07:    return 'cpu1.store_f64( ' + d + ', -cpu1.load_f64( ' + s + ' )  );\n';
-      case 0x08:    /* 'ROUND.L.'*/     return 'cpu1.store_float_as_long(' + d + ',  Math.round( cpu1.load_f64( ' + s + ' )));\n';
-      case 0x09:    /* 'TRUNC.L.'*/     return 'cpu1.store_float_as_long(' + d + ', n64js.trunc( cpu1.load_f64( ' + s + ' )));\n';
-      case 0x0a:    /* 'CEIL.L.'*/      return 'cpu1.store_float_as_long(' + d + ',  Math.ceil(  cpu1.load_f64( ' + s + ' )));\n';
-      case 0x0b:    /* 'FLOOR.L.'*/     return 'cpu1.store_float_as_long(' + d + ',  Math.floor( cpu1.load_f64( ' + s + ' )));\n';
-      case 0x0c:    /* 'ROUND.W.'*/     return 'cpu1.int32[' + d + '] =  Math.round( cpu1.load_f64( ' + s + ' ) ) | 0;\n';  // TODO: check this
-      case 0x0d:    /* 'TRUNC.W.'*/     return 'cpu1.int32[' + d + '] = n64js.trunc( cpu1.load_f64( ' + s + ' ) ) | 0;\n';
-      case 0x0e:    /* 'CEIL.W.'*/      return 'cpu1.int32[' + d + '] =  Math.ceil(  cpu1.load_f64( ' + s + ' ) ) | 0;\n';
-      case 0x0f:    /* 'FLOOR.W.'*/     return 'cpu1.int32[' + d + '] =  Math.floor( cpu1.load_f64( ' + s + ' ) ) | 0;\n';
-      case 0x20:    /* 'CVT.S' */       return 'cpu1.float32[' + d + '] = cpu1.load_f64( ' + s + ' );\n';
-      case 0x21:    /* 'CVT.D' */       break;
-      case 0x24:    /* 'CVT.W' */       return 'cpu1.int32[' + d + '] = n64js.convert( cpu1.load_f64( ' + s + ' ) ) | 0;\n';
-      case 0x25:    /* 'CVT.L' */       break;
+    switch (op) {
+      case 0x00: return 'cpu1.store_f64( ' + d + ', cpu1.load_f64( ' + s + ' ) + cpu1.load_f64( ' + t + ' ) );\n';
+      case 0x01: return 'cpu1.store_f64( ' + d + ', cpu1.load_f64( ' + s + ' ) - cpu1.load_f64( ' + t + ' ) );\n';
+      case 0x02: return 'cpu1.store_f64( ' + d + ', cpu1.load_f64( ' + s + ' ) * cpu1.load_f64( ' + t + ' ) );\n';
+      case 0x03: return 'cpu1.store_f64( ' + d + ', cpu1.load_f64( ' + s + ' ) / cpu1.load_f64( ' + t + ' ) );\n';
+      case 0x04: return 'cpu1.store_f64( ' + d + ', Math.sqrt( cpu1.load_f64( ' + s + ' ) ) );\n';
+      case 0x05: return 'cpu1.store_f64( ' + d + ', Math.abs(  cpu1.load_f64( ' + s + ' ) ) );\n';
+      case 0x06: return 'cpu1.store_f64( ' + d + ',  cpu1.load_f64( ' + s + ' ) );\n';
+      case 0x07: return 'cpu1.store_f64( ' + d + ', -cpu1.load_f64( ' + s + ' )  );\n';
+      case 0x08: /* 'ROUND.L.'*/ return 'cpu1.store_float_as_long(' + d + ',  Math.round( cpu1.load_f64( ' + s + ' )));\n';
+      case 0x09: /* 'TRUNC.L.'*/ return 'cpu1.store_float_as_long(' + d + ', n64js.trunc( cpu1.load_f64( ' + s + ' )));\n';
+      case 0x0a: /* 'CEIL.L.'*/  return 'cpu1.store_float_as_long(' + d + ',  Math.ceil(  cpu1.load_f64( ' + s + ' )));\n';
+      case 0x0b: /* 'FLOOR.L.'*/ return 'cpu1.store_float_as_long(' + d + ',  Math.floor( cpu1.load_f64( ' + s + ' )));\n';
+      case 0x0c: /* 'ROUND.W.'*/ return 'cpu1.int32[' + d + '] =  Math.round( cpu1.load_f64( ' + s + ' ) ) | 0;\n';  // TODO: check this
+      case 0x0d: /* 'TRUNC.W.'*/ return 'cpu1.int32[' + d + '] = n64js.trunc( cpu1.load_f64( ' + s + ' ) ) | 0;\n';
+      case 0x0e: /* 'CEIL.W.'*/  return 'cpu1.int32[' + d + '] =  Math.ceil(  cpu1.load_f64( ' + s + ' ) ) | 0;\n';
+      case 0x0f: /* 'FLOOR.W.'*/ return 'cpu1.int32[' + d + '] =  Math.floor( cpu1.load_f64( ' + s + ' ) ) | 0;\n';
+      case 0x20: /* 'CVT.S' */   return 'cpu1.float32[' + d + '] = cpu1.load_f64( ' + s + ' );\n';
+      case 0x21: /* 'CVT.D' */   break;
+      case 0x24: /* 'CVT.W' */   return 'cpu1.int32[' + d + '] = n64js.convert( cpu1.load_f64( ' + s + ' ) ) | 0;\n';
+      case 0x25: /* 'CVT.L' */   break;
     }
     return 'unimplemented(' + toString32(ctx.pc) + ',' + toString32(ctx.instruction) + ');\n';
   }
@@ -3097,33 +3097,33 @@ function executeDInstr(i) {
   var op = cop1_func(i);
 
   if (op < 0x30) {
-    switch(op) {
-      case 0x00:    cpu1.store_f64( d, cpu1.load_f64( s ) + cpu1.load_f64( t ) ); return;
-      case 0x01:    cpu1.store_f64( d, cpu1.load_f64( s ) - cpu1.load_f64( t ) ); return;
-      case 0x02:    cpu1.store_f64( d, cpu1.load_f64( s ) * cpu1.load_f64( t ) ); return;
-      case 0x03:    cpu1.store_f64( d, cpu1.load_f64( s ) / cpu1.load_f64( t ) ); return;
-      case 0x04:    cpu1.store_f64( d, Math.sqrt( cpu1.load_f64( s ) ) ); return;
-      case 0x05:    cpu1.store_f64( d, Math.abs(  cpu1.load_f64( s ) ) ); return;
-      case 0x06:    cpu1.store_f64( d,  cpu1.load_f64( s ) ); return;
-      case 0x07:    cpu1.store_f64( d, -cpu1.load_f64( s )  ); return;
-      case 0x08:    /* 'ROUND.L.'*/     cpu1.store_float_as_long(d,  Math.round( cpu1.load_f64( s ) )); return;
-      case 0x09:    /* 'TRUNC.L.'*/     cpu1.store_float_as_long(d, n64js.trunc( cpu1.load_f64( s ) )); return;
-      case 0x0a:    /* 'CEIL.L.'*/      cpu1.store_float_as_long(d,  Math.ceil(  cpu1.load_f64( s ) )); return;
-      case 0x0b:    /* 'FLOOR.L.'*/     cpu1.store_float_as_long(d,  Math.floor( cpu1.load_f64( s ) )); return;
-      case 0x0c:    /* 'ROUND.W.'*/     cpu1.int32[d] =  Math.round( cpu1.load_f64( s ) ) | 0; return;  // TODO: check this
-      case 0x0d:    /* 'TRUNC.W.'*/     cpu1.int32[d] = n64js.trunc( cpu1.load_f64( s ) ) | 0; return;
-      case 0x0e:    /* 'CEIL.W.'*/      cpu1.int32[d] =  Math.ceil(  cpu1.load_f64( s ) ) | 0; return;
-      case 0x0f:    /* 'FLOOR.W.'*/     cpu1.int32[d] =  Math.floor( cpu1.load_f64( s ) ) | 0; return;
+    switch (op) {
+      case 0x00: cpu1.store_f64(d, cpu1.load_f64(s) + cpu1.load_f64(t)); return;
+      case 0x01: cpu1.store_f64(d, cpu1.load_f64(s) - cpu1.load_f64(t)); return;
+      case 0x02: cpu1.store_f64(d, cpu1.load_f64(s) * cpu1.load_f64(t)); return;
+      case 0x03: cpu1.store_f64(d, cpu1.load_f64(s) / cpu1.load_f64(t)); return;
+      case 0x04: cpu1.store_f64(d, Math.sqrt(cpu1.load_f64(s))); return;
+      case 0x05: cpu1.store_f64(d, Math.abs(cpu1.load_f64(s))); return;
+      case 0x06: cpu1.store_f64(d, cpu1.load_f64(s)); return;
+      case 0x07: cpu1.store_f64(d, -cpu1.load_f64(s)); return;
+      case 0x08: /* 'ROUND.L.'*/ cpu1.store_float_as_long(d, Math.round(cpu1.load_f64(s))); return;
+      case 0x09: /* 'TRUNC.L.'*/ cpu1.store_float_as_long(d, n64js.trunc(cpu1.load_f64(s))); return;
+      case 0x0a: /* 'CEIL.L.'*/  cpu1.store_float_as_long(d, Math.ceil(cpu1.load_f64(s))); return;
+      case 0x0b: /* 'FLOOR.L.'*/ cpu1.store_float_as_long(d, Math.floor(cpu1.load_f64(s))); return;
+      case 0x0c: /* 'ROUND.W.'*/ cpu1.int32[d] = Math.round(cpu1.load_f64(s)) | 0; return;  // TODO: check this
+      case 0x0d: /* 'TRUNC.W.'*/ cpu1.int32[d] = n64js.trunc(cpu1.load_f64(s)) | 0; return;
+      case 0x0e: /* 'CEIL.W.'*/  cpu1.int32[d] = Math.ceil(cpu1.load_f64(s)) | 0; return;
+      case 0x0f: /* 'FLOOR.W.'*/ cpu1.int32[d] = Math.floor(cpu1.load_f64(s)) | 0; return;
 
-      case 0x20:    /* 'CVT.S' */       cpu1.float32[d] = cpu1.load_f64( s ); return;
-      case 0x21:    /* 'CVT.D' */       unimplemented(cpu0.pc,i); return;
-      case 0x24:    /* 'CVT.W' */       cpu1.int32[d] = n64js.convert( cpu1.load_f64( s ) ) | 0; return;
-      case 0x25:    /* 'CVT.L' */       unimplemented(cpu0.pc,i); return;
+      case 0x20: /* 'CVT.S' */   cpu1.float32[d] = cpu1.load_f64(s); return;
+      case 0x21: /* 'CVT.D' */   unimplemented(cpu0.pc, i); return;
+      case 0x24: /* 'CVT.W' */   cpu1.int32[d] = n64js.convert(cpu1.load_f64(s)) | 0; return;
+      case 0x25: /* 'CVT.L' */   unimplemented(cpu0.pc, i); return;
     }
-    unimplemented(cpu0.pc,i);
+    unimplemented(cpu0.pc, i);
   } else {
-    var _s = cpu1.load_f64( s );
-    var _t = cpu1.load_f64( t );
+    var _s = cpu1.load_f64(s);
+    var _t = cpu1.load_f64(t);
     handleFloatCompare(op, _s, _t);
   }
 }
@@ -3133,8 +3133,8 @@ function generateWInstrStub(ctx) {
   var d = ctx.instr_fd();
 
   ctx.fragment.usesCop1 = true;
-  ctx.isTrivial         = true;
-  switch(cop1_func(ctx.instruction)) {
+  ctx.isTrivial = true;
+  switch (cop1_func(ctx.instruction)) {
     case 0x20:    /* 'CVT.S' */       return 'cpu1.float32[' + d + '] = cpu1.int32[' + s + '];\n';
     case 0x21:    /* 'CVT.D' */       return 'cpu1.store_f64(' + d + ', cpu1.int32[' + s + ']);\n';
   }
@@ -3145,11 +3145,11 @@ function executeWInstr(i) {
   var s = fs(i);
   var d = fd(i);
 
-  switch(cop1_func(i)) {
-    case 0x20:    cpu1.float32[d] = cpu1.int32[s];  return;
-    case 0x21:    cpu1.store_f64(d, cpu1.int32[s]); return;
+  switch (cop1_func(i)) {
+    case 0x20: cpu1.float32[d] = cpu1.int32[s]; return;
+    case 0x21: cpu1.store_f64(d, cpu1.int32[s]); return;
   }
-  unimplemented(cpu0.pc,i);
+  unimplemented(cpu0.pc, i);
 }
 
 function generateLInstrStub(ctx) {
@@ -3157,8 +3157,8 @@ function generateLInstrStub(ctx) {
   var d = ctx.instr_fd();
 
   ctx.fragment.usesCop1 = true;
-  ctx.isTrivial         = true;
-  switch(cop1_func(ctx.instruction)) {
+  ctx.isTrivial = true;
+  switch (cop1_func(ctx.instruction)) {
     case 0x20:    /* 'CVT.S' */       return 'cpu1.float32[' + d + '] = cpu1.load_s64_as_double(' + s + ');\n';
     case 0x21:    /* 'CVT.D' */       return 'cpu1.store_f64(' + d + ', cpu1.load_s64_as_double(' + s + ') );\n';
   }
@@ -3169,11 +3169,11 @@ function executeLInstr(i) {
   var s = fs(i);
   var d = fd(i);
 
-  switch(cop1_func(i)) {
+  switch (cop1_func(i)) {
     case 0x20:    /* 'CVT.S' */ cpu1.float32[d] = cpu1.load_s64_as_double(s); return;
     case 0x21:    /* 'CVT.D' */ cpu1.store_f64(d, cpu1.load_s64_as_double(s)); return;
   }
-  unimplemented(cpu0.pc,i);
+  unimplemented(cpu0.pc, i);
 }
 
 var specialTable = [
@@ -3236,7 +3236,7 @@ if (cop0TableGen.length != 32) {
 // Expose all the functions that we don't yet generate
 n64js.executeMFC0 = executeMFC0;
 n64js.executeMTC0 = executeMTC0;  // There's a generateMTC0, but it calls through to the interpreter
-n64js.executeTLB  = executeTLB;
+n64js.executeTLB = executeTLB;
 
 
 function executeCop0(i) {
@@ -3320,7 +3320,7 @@ function executeCop1(i) {
 function executeCop1_disabled(i) {
   logger.log('Thread accessing cop1 for first time, throwing cop1 unusable exception');
 
-  assert( (cpu0.control[cpu0_constants.controlSR] & SR_CU1) === 0, "SR_CU1 in inconsistent state" );
+  assert((cpu0.control[cpu0_constants.controlSR] & SR_CU1) === 0, "SR_CU1 in inconsistent state");
 
   cpu0.throwCop1Unusable();
 }
@@ -3557,15 +3557,15 @@ function checkCauseIP3Consistent() {
 }
 
 function mix(a, b, c) {
-  a -= b; a -= c; a ^= (c>>>13);
-  b -= c; b -= a; b ^= (a<<8);
-  c -= a; c -= b; c ^= (b>>>13);
-  a -= b; a -= c; a ^= (c>>>12);
-  b -= c; b -= a; b ^= (a<<16);
-  c -= a; c -= b; c ^= (b>>>5);
-  a -= b; a -= c; a ^= (c>>>3);
-  b -= c; b -= a; b ^= (a<<10);
-  c -= a; c -= b; c ^= (b>>>15);
+  a -= b; a -= c; a ^= (c >>> 13);
+  b -= c; b -= a; b ^= (a << 8);
+  c -= a; c -= b; c ^= (b >>> 13);
+  a -= b; a -= c; a ^= (c >>> 12);
+  b -= c; b -= a; b ^= (a << 16);
+  c -= a; c -= b; c ^= (b >>> 5);
+  a -= b; a -= c; a ^= (c >>> 3);
+  b -= c; b -= a; b ^= (a << 10);
+  c -= a; c -= b; c ^= (b >>> 15);
 
   return a;
 }
@@ -3595,9 +3595,9 @@ function checkSyncState(sync, pc) {
   if (1) {
     var a = 0;
     for (i = 0; i < 32; ++i) {
-      a = mix(a,cpu0.gprLo[i], 0);
+      a = mix(a, cpu0.gprLo[i], 0);
     }
-    a = a>>>0;
+    a = a >>> 0;
 
     if (!sync.sync32(a, 'regs'))
       return false;
@@ -3621,7 +3621,7 @@ function checkSyncState(sync, pc) {
 }
 
 function handleTLBException() {
-  cpu0.pc      = cpu0.nextPC;
+  cpu0.pc = cpu0.nextPC;
   cpu0.delayPC = cpu0.branchTarget;
   cpu0.control_signed[cpu0_constants.controlCount] += COUNTER_INCREMENT_PER_OP;
 
@@ -3719,7 +3719,7 @@ n64js.run = function (cycles) {
 
 function executeFragment(fragment, c, ram, events) {
   var evt = events[0];
-  if (evt.countdown >= fragment.opsCompiled*COUNTER_INCREMENT_PER_OP) {
+  if (evt.countdown >= fragment.opsCompiled * COUNTER_INCREMENT_PER_OP) {
     fragment.executionCount++;
     var ops_executed = fragment.func(c, c.gprLo_signed, c.gprHi_signed, ram);   // Absolute value is number of ops executed.
 
@@ -3767,12 +3767,12 @@ function addOpToFragment(fragment, entry_pc, instruction, c) {
 
   // Break out of the trace as soon as we branch, or too many ops, or last op generated an interrupt (stuffToDo set)
   var long_fragment = fragment.opsCompiled > 8;
-  if ((long_fragment && c.pc !== entry_pc+4) || fragment.opsCompiled >= 250 || c.stuffToDo) {
+  if ((long_fragment && c.pc !== entry_pc + 4) || fragment.opsCompiled >= 250 || c.stuffToDo) {
 
     // Check if the last op has a delayed pc update, and do it now.
     if (fragmentContext.delayedPCUpdate !== 0) {
-        fragment.body_code += 'c.pc = ' + toString32(fragmentContext.delayedPCUpdate) + ';\n';
-        fragmentContext.delayedPCUpdate = 0;
+      fragment.body_code += 'c.pc = ' + toString32(fragmentContext.delayedPCUpdate) + ';\n';
+      fragmentContext.delayedPCUpdate = 0;
     }
 
     fragment.body_code += 'return ' + fragment.opsCompiled + ';\n';    // Return the number of ops exected
@@ -3793,7 +3793,7 @@ function addOpToFragment(fragment, entry_pc, instruction, c) {
     var code = 'return function fragment_' + toString32(fragment.entryPC) + '_' + fragment.opsCompiled + '(c, rlo, rhi, ram) {\n' + fragment.body_code + '}\n';
 
     // Clear these strings to reduce garbage
-    fragment.body_code ='';
+    fragment.body_code = '';
 
     fragment.func = new Function(code)();
     fragment.nextFragments = [];
@@ -3807,9 +3807,9 @@ function addOpToFragment(fragment, entry_pc, instruction, c) {
 }
 
 function runImpl() {
-  var c      = cpu0;
+  var c = cpu0;
   var events = c.events;
-  var ram    = c.ram;
+  var ram = c.ram;
 
   var fragment;
   var evt;
@@ -3842,14 +3842,14 @@ function runImpl() {
         var instruction;
         if (pc < -2139095040) {
           var phys = (pc + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
-          instruction = ((ram[phys] << 24) | (ram[phys+1] << 16) | (ram[phys+2] << 8) | ram[phys+3]) | 0;
+          instruction = ((ram[phys] << 24) | (ram[phys + 1] << 16) | (ram[phys + 2] << 8) | ram[phys + 3]) | 0;
         } else {
           instruction = lw_slow(pc);
         }
 
         c.branchTarget = 0;
         executeOp(instruction);
-        c.pc      = c.nextPC;
+        c.pc = c.nextPC;
         c.delayPC = c.branchTarget;
         c.control_signed[cpu0_constants.controlCount] += COUNTER_INCREMENT_PER_OP;
         //checkCauseIP3Consistent();
@@ -3893,7 +3893,7 @@ function runImpl() {
 function FragmentMapWho() {
   var i;
 
-  this.kNumEntries = 16*1024;
+  this.kNumEntries = 16 * 1024;
 
   this.entries = [];
   for (i = 0; i < this.kNumEntries; ++i) {
@@ -3906,21 +3906,21 @@ FragmentMapWho.prototype.addressToCacheLine = function (address) {
 };
 
 FragmentMapWho.prototype.addressToCacheLineRoundUp = function (address) {
-  return Math.floor((address+31) >>> 5);
+  return Math.floor((address + 31) >>> 5);
 };
 
 FragmentMapWho.prototype.add = function (pc, fragment) {
   var cache_line_idx = this.addressToCacheLine(pc);
-  var entry_idx      = cache_line_idx % this.entries.length;
-  var entry          = this.entries[entry_idx];
+  var entry_idx = cache_line_idx % this.entries.length;
+  var entry = this.entries[entry_idx];
   entry[fragment.entryPC] = fragment;
 };
 
 FragmentMapWho.prototype.invalidateEntry = function (address) {
   var cache_line_idx = this.addressToCacheLine(address),
-      entry_idx      = cache_line_idx % this.entries.length,
-      entry          = this.entries[entry_idx],
-      removed        = 0;
+    entry_idx = cache_line_idx % this.entries.length,
+    entry = this.entries[entry_idx],
+    removed = 0;
 
   var i, fragment;
 
@@ -3941,22 +3941,22 @@ FragmentMapWho.prototype.invalidateEntry = function (address) {
     logger.log('Fragment cache removed ' + removed + ' entries.');
   }
 
-    //fragmentInvalidationEvents.push({'address': address, 'length': 0x20, 'system': 'CACHE', 'fragmentsRemoved': removed});
+  //fragmentInvalidationEvents.push({'address': address, 'length': 0x20, 'system': 'CACHE', 'fragmentsRemoved': removed});
 };
 
 FragmentMapWho.prototype.invalidateRange = function (address, length) {
-  var minaddr   = address,
-      maxaddr   = address + length,
-      minpage   = this.addressToCacheLine(minaddr),
-      maxpage   = this.addressToCacheLineRoundUp(maxaddr),
-      entries   = this.entries,
-      removed   = 0;
+  var minaddr = address,
+    maxaddr = address + length,
+    minpage = this.addressToCacheLine(minaddr),
+    maxpage = this.addressToCacheLineRoundUp(maxaddr),
+    entries = this.entries,
+    removed = 0;
 
   var cache_line_idx, entry_idx, entry, i, fragment;
 
   for (cache_line_idx = minpage; cache_line_idx <= maxpage; ++cache_line_idx) {
     entry_idx = cache_line_idx % entries.length;
-    entry     = entries[entry_idx];
+    entry = entries[entry_idx];
 
     for (i in entry) {
       if (entry.hasOwnProperty(i)) {
@@ -3975,46 +3975,46 @@ FragmentMapWho.prototype.invalidateRange = function (address, length) {
     logger.log('Fragment cache removed ' + removed + ' entries.');
   }
 
-    //fragmentInvalidationEvents.push({'address': address, 'length': length, 'system': system, 'fragmentsRemoved': removed});
+  //fragmentInvalidationEvents.push({'address': address, 'length': length, 'system': system, 'fragmentsRemoved': removed});
 };
 
 var invals = 0;
 
 // Invalidate a single cache line
 n64js.invalidateICacheEntry = function (address) {
-    //logger.log('cache flush ' + toString32(address));
+  //logger.log('cache flush ' + toString32(address));
 
-    ++invals;
-    if ((invals%10000) === 0) {
+  ++invals;
+  if ((invals % 10000) === 0) {
     logger.log(invals + ' invals');
-    }
+  }
 
-    fragmentMapWho.invalidateEntry(address);
+  fragmentMapWho.invalidateEntry(address);
 };
 
 // This isn't called right now. We
 n64js.invalidateICacheRange = function (address, length, system) {
-    //logger.log('cache flush ' + toString32(address) + ' ' + toString32(length));
-    // FIXME: check for overlapping ranges
+  //logger.log('cache flush ' + toString32(address) + ' ' + toString32(length));
+  // FIXME: check for overlapping ranges
 
-    // NB: not sure PI events are useful right now.
-    if (system==='PI') {
+  // NB: not sure PI events are useful right now.
+  if (system === 'PI') {
     return;
-    }
+  }
 
-    fragmentMapWho.invalidateRange(address, length);
+  fragmentMapWho.invalidateRange(address, length);
 };
 
 var fragmentMapWho = new FragmentMapWho();
 
 function updateFragment(fragment, pc) {
   fragment.minPC = Math.min(fragment.minPC, pc);
-  fragment.maxPC = Math.max(fragment.maxPC, pc+4);
+  fragment.maxPC = Math.max(fragment.maxPC, pc + 4);
 
   fragmentMapWho.add(pc, fragment);
 }
 
-function checkEqual(a,b,m) {
+function checkEqual(a, b, m) {
   if (a !== b) {
     var msg = toString32(a) + ' !== ' + toString32(b) + ' : ' + m;
     console.assert(false, msg);
@@ -4029,7 +4029,7 @@ n64js.checkSyncState = checkSyncState;    // Needs to be callable from dynarec
 function generateCodeForOp(ctx) {
 
   ctx.needsDelayCheck = ctx.fragment.needsDelayCheck;
-  ctx.isTrivial       = false;
+  ctx.isTrivial = false;
 
   var fn_code = generateOp(ctx);
 
@@ -4043,8 +4043,8 @@ function generateCodeForOp(ctx) {
 
   // If the last op tried to delay updating the pc, see if it needs updating now.
   if (!ctx.isTrivial && ctx.delayedPCUpdate !== 0) {
-      ctx.fragment.body_code += '/*applying delayed pc*/\nc.pc = ' + toString32(ctx.delayedPCUpdate) + ';\n';
-      ctx.delayedPCUpdate = 0;
+    ctx.fragment.body_code += '/*applying delayed pc*/\nc.pc = ' + toString32(ctx.delayedPCUpdate) + ';\n';
+    ctx.delayedPCUpdate = 0;
   }
 
   ctx.fragment.needsDelayCheck = ctx.needsDelayCheck;
@@ -4082,11 +4082,11 @@ function generateRegImm(ctx) {
 function generateCop0(ctx) {
   var fmt = (ctx.instruction >>> 21) & 0x1f;
   var fn = cop0TableGen[fmt];
-  return generateOpHelper(fn,ctx);
+  return generateOpHelper(fn, ctx);
 }
 
 // This takes a fn - either a string (in which case we generate some unoptimised boilerplate) or a function (which we call recursively)
-function generateOpHelper(fn,ctx) {
+function generateOpHelper(fn, ctx) {
   // fn can be a handler function, in which case defer to that.
   if (typeof fn === 'string') {
     //logger.log(fn);
@@ -4096,16 +4096,16 @@ function generateOpHelper(fn,ctx) {
   }
 }
 
-function generateGenericOpBoilerplate(fn,ctx) {
+function generateGenericOpBoilerplate(fn, ctx) {
   var code = '';
   code += ctx.genAssert('c.pc === ' + toString32(ctx.pc), 'pc mismatch');
 
   if (ctx.needsDelayCheck) {
     // NB: delayPC not cleared here - it's always overwritten with branchTarget below.
-    code += 'if (c.delayPC) { c.nextPC = c.delayPC; } else { c.nextPC = ' + toString32(ctx.pc+4) +'; }\n';
+    code += 'if (c.delayPC) { c.nextPC = c.delayPC; } else { c.nextPC = ' + toString32(ctx.pc + 4) + '; }\n';
   } else {
     code += ctx.genAssert('c.delayPC === 0', 'delay pc should be zero');
-    code += 'c.nextPC = ' + toString32(ctx.pc+4) + ';\n';
+    code += 'c.nextPC = ' + toString32(ctx.pc + 4) + ';\n';
   }
   code += 'c.branchTarget = 0;\n';
 
@@ -4139,26 +4139,26 @@ function generateStandardPCUpdate(fn, ctx, might_adjust_next_pc) {
 
   if (ctx.needsDelayCheck) {
     // We should probably assert on this - two branch instructions back-to-back is weird, but the flag could just be set because of a generic op
-    code += 'if (c.delayPC) { c.nextPC = c.delayPC; c.delayPC = 0; } else { c.nextPC = ' + toString32(ctx.pc+4) +'; }\n';
+    code += 'if (c.delayPC) { c.nextPC = c.delayPC; c.delayPC = 0; } else { c.nextPC = ' + toString32(ctx.pc + 4) + '; }\n';
     code += fn;
     code += 'c.pc = c.nextPC;\n';
   } else if (might_adjust_next_pc) {
     // If the branch op might manipulate nextPC, we need to ensure that it's set to the correct value
     code += ctx.genAssert('c.delayPC === 0', 'delay pc should be zero');
-    code += 'c.nextPC = ' + toString32(ctx.pc+4) + ';\n';
+    code += 'c.nextPC = ' + toString32(ctx.pc + 4) + ';\n';
     code += fn;
     code += 'c.pc = c.nextPC;\n';
   } else {
     code += ctx.genAssert('c.delayPC === 0', 'delay pc should be zero');
     code += fn;
-    code += 'c.pc = ' + toString32(ctx.pc+4) + ';\n';
+    code += 'c.pc = ' + toString32(ctx.pc + 4) + ';\n';
   }
 
   return code;
 }
 
 // Memory access does not adjust branchTarget, but nextPC may be adjusted if they cause an exception.
-function generateMemoryAccessBoilerplate(fn,ctx) {
+function generateMemoryAccessBoilerplate(fn, ctx) {
   var code = '';
 
   var might_adjust_next_pc = true;
@@ -4181,11 +4181,11 @@ function generateMemoryAccessBoilerplate(fn,ctx) {
 
 // Branch ops explicitly manipulate nextPC rather than branchTarget. They also guarnatee that stuffToDo is not set.
 // might_adjust_next_pc is typically used by branch likely instructions.
-function generateBranchOpBoilerplate(fn,ctx, might_adjust_next_pc) {
+function generateBranchOpBoilerplate(fn, ctx, might_adjust_next_pc) {
   var code = '';
 
   // We only need to check for off-trace branches
-  var need_pc_test = ctx.needsDelayCheck || might_adjust_next_pc || ctx.post_pc !== ctx.pc+4;
+  var need_pc_test = ctx.needsDelayCheck || might_adjust_next_pc || ctx.post_pc !== ctx.pc + 4;
 
   code += generateStandardPCUpdate(fn, ctx, might_adjust_next_pc);
 
@@ -4204,9 +4204,7 @@ function generateBranchOpBoilerplate(fn,ctx, might_adjust_next_pc) {
   } else {
     if (need_pc_test) {
       code += 'if (c.pc !== ' + toString32(ctx.post_pc) + ') { return ' + ctx.fragment.opsCompiled + '; }\n';
-    }
-    else
-    {
+    } else {
       code += '/* skipping pc test */\n';
     }
   }
@@ -4221,7 +4219,7 @@ function generateBranchOpBoilerplate(fn,ctx, might_adjust_next_pc) {
 // Don't set branchTarget
 // Don't manipulate nextPC (e.g. ERET, cop1 unusable, likely instructions)
 
-function generateTrivialOpBoilerplate(fn,ctx) {
+function generateTrivialOpBoilerplate(fn, ctx) {
 
   var code = '';
 
@@ -4236,21 +4234,21 @@ function generateTrivialOpBoilerplate(fn,ctx) {
 
   // NB: do delay handler after executing op, so we can set pc directly
   if (ctx.needsDelayCheck) {
-    code += 'if (c.delayPC) { c.pc = c.delayPC; c.delayPC = 0; } else { c.pc = ' + toString32(ctx.pc+4) + '; }\n';
+    code += 'if (c.delayPC) { c.pc = c.delayPC; c.delayPC = 0; } else { c.pc = ' + toString32(ctx.pc + 4) + '; }\n';
     // Might happen: delay op from previous instruction takes effect
     code += 'if (c.pc !== ' + toString32(ctx.post_pc) + ') { return ' + ctx.fragment.opsCompiled + '; }\n';
   } else {
     code += ctx.genAssert('c.delayPC === 0', 'delay pc should be zero');
 
     // We can avoid off-branch checks in this case.
-    if (ctx.post_pc !== ctx.pc+4) {
+    if (ctx.post_pc !== ctx.pc + 4) {
       assert("post_pc should always be pc+4 for trival ops?");
-      code += 'c.pc = ' + toString32(ctx.pc+4) + ';\n';
+      code += 'c.pc = ' + toString32(ctx.pc + 4) + ';\n';
       code += 'if (c.pc !== ' + toString32(ctx.post_pc) + ') { return ' + ctx.fragment.opsCompiled + '; }\n';
     } else {
       //code += 'c.pc = ' + toString32(ctx.pc+4) + ';\n';
       code += '/* delaying pc update */\n';
-      ctx.delayedPCUpdate = ctx.pc+4;
+      ctx.delayedPCUpdate = ctx.pc + 4;
     }
   }
 
@@ -4266,5 +4264,5 @@ function generateTrivialOpBoilerplate(fn,ctx) {
 }
 
 function generateNOPBoilerplate(comment, ctx) {
-  return generateTrivialOpBoilerplate(comment + '\n',ctx);
+  return generateTrivialOpBoilerplate(comment + '\n', ctx);
 }
