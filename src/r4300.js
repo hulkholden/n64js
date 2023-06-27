@@ -3889,12 +3889,10 @@ function runImpl() {
 
 class FragmentMapWho {
   constructor() {
-    var i;
-
     this.kNumEntries = 16 * 1024;
 
     this.entries = [];
-    for (i = 0; i < this.kNumEntries; ++i) {
+    for (let i = 0; i < this.kNumEntries; ++i) {
       this.entries.push({});
     }
   }
@@ -3908,24 +3906,21 @@ class FragmentMapWho {
   }
 
   add(pc, fragment) {
-    var cache_line_idx = this.addressToCacheLine(pc);
-    var entry_idx = cache_line_idx % this.entries.length;
-    var entry = this.entries[entry_idx];
+    const cache_line_idx = this.addressToCacheLine(pc);
+    const entry_idx = cache_line_idx % this.entries.length;
+    const entry = this.entries[entry_idx];
     entry[fragment.entryPC] = fragment;
   }
 
   invalidateEntry(address) {
-    var cache_line_idx = this.addressToCacheLine(address),
-      entry_idx = cache_line_idx % this.entries.length,
-      entry = this.entries[entry_idx],
-      removed = 0;
+    const cache_line_idx = this.addressToCacheLine(address);
+    const entry_idx = cache_line_idx % this.entries.length;
+    const entry = this.entries[entry_idx];
+    let removed = 0;
 
-    var i, fragment;
-
-    for (i in entry) {
+    for (let i in entry) {
       if (entry.hasOwnProperty(i)) {
-        fragment = entry[i];
-
+        const fragment = entry[i];
         if (fragment.minPC <= address && fragment.maxPC > address) {
           fragment.invalidate();
           delete entry[i];
@@ -3935,44 +3930,41 @@ class FragmentMapWho {
     }
 
     if (removed) {
-      logger.log('Fragment cache removed ' + removed + ' entries.');
+      logger.log(`Fragment cache removed ${removed} entries.`);
     }
 
-        //fragmentInvalidationEvents.push({'address': address, 'length': 0x20, 'system': 'CACHE', 'fragmentsRemoved': removed});
+    // fragmentInvalidationEvents.push({'address': address, 'length': 0x20, 'system': 'CACHE', 'fragmentsRemoved': removed});
   }
 
   invalidateRange(address, length) {
-  var minaddr = address,
-    maxaddr = address + length,
-    minpage = this.addressToCacheLine(minaddr),
-    maxpage = this.addressToCacheLineRoundUp(maxaddr),
-    entries = this.entries,
-    removed = 0;
+    const minaddr = address;
+    const maxaddr = address + length;
+    const minpage = this.addressToCacheLine(minaddr);
+    const maxpage = this.addressToCacheLineRoundUp(maxaddr);
+    const entries = this.entries;
+    let removed = 0;
 
-  var cache_line_idx, entry_idx, entry, i, fragment;
+    for (let cache_line_idx = minpage; cache_line_idx <= maxpage; ++cache_line_idx) {
+      const entry_idx = cache_line_idx % entries.length;
+      const entry = entries[entry_idx];
 
-  for (cache_line_idx = minpage; cache_line_idx <= maxpage; ++cache_line_idx) {
-    entry_idx = cache_line_idx % entries.length;
-    entry = entries[entry_idx];
-
-    for (i in entry) {
-      if (entry.hasOwnProperty(i)) {
-        fragment = entry[i];
-
-        if (fragment.minPC <= maxaddr && fragment.maxPC > minaddr) {
-          fragment.invalidate();
-          delete entry[i];
-          removed++;
+      for (let i in entry) {
+        if (entry.hasOwnProperty(i)) {
+          const fragment = entry[i];
+          if (fragment.minPC <= maxaddr && fragment.maxPC > minaddr) {
+            fragment.invalidate();
+            delete entry[i];
+            removed++;
+          }
         }
       }
     }
-  }
 
-  if (removed) {
-    logger.log('Fragment cache removed ' + removed + ' entries.');
-  }
+    if (removed) {
+      logger.log(`Fragment cache removed ${removed} entries.`);
+    }
 
-  //fragmentInvalidationEvents.push({'address': address, 'length': length, 'system': system, 'fragmentsRemoved': removed});
+    // fragmentInvalidationEvents.push({'address': address, 'length': length, 'system': system, 'fragmentsRemoved': removed});
   }
 }
 
