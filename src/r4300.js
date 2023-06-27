@@ -3887,64 +3887,61 @@ function runImpl() {
   }
 }
 
-/**
- * @constructor
- */
-function FragmentMapWho() {
-  var i;
+class FragmentMapWho {
+  constructor() {
+    var i;
 
-  this.kNumEntries = 16 * 1024;
+    this.kNumEntries = 16 * 1024;
 
-  this.entries = [];
-  for (i = 0; i < this.kNumEntries; ++i) {
-    this.entries.push({});
-  }
-}
-
-FragmentMapWho.prototype.addressToCacheLine = function (address) {
-  return Math.floor(address >>> 5);
-};
-
-FragmentMapWho.prototype.addressToCacheLineRoundUp = function (address) {
-  return Math.floor((address + 31) >>> 5);
-};
-
-FragmentMapWho.prototype.add = function (pc, fragment) {
-  var cache_line_idx = this.addressToCacheLine(pc);
-  var entry_idx = cache_line_idx % this.entries.length;
-  var entry = this.entries[entry_idx];
-  entry[fragment.entryPC] = fragment;
-};
-
-FragmentMapWho.prototype.invalidateEntry = function (address) {
-  var cache_line_idx = this.addressToCacheLine(address),
-    entry_idx = cache_line_idx % this.entries.length,
-    entry = this.entries[entry_idx],
-    removed = 0;
-
-  var i, fragment;
-
-
-  for (i in entry) {
-    if (entry.hasOwnProperty(i)) {
-      fragment = entry[i];
-
-      if (fragment.minPC <= address && fragment.maxPC > address) {
-        fragment.invalidate();
-        delete entry[i];
-        removed++;
-      }
+    this.entries = [];
+    for (i = 0; i < this.kNumEntries; ++i) {
+      this.entries.push({});
     }
   }
 
-  if (removed) {
-    logger.log('Fragment cache removed ' + removed + ' entries.');
+  addressToCacheLine(address) {
+    return Math.floor(address >>> 5);
   }
 
-  //fragmentInvalidationEvents.push({'address': address, 'length': 0x20, 'system': 'CACHE', 'fragmentsRemoved': removed});
-};
+  addressToCacheLineRoundUp(address) {
+    return Math.floor((address + 31) >>> 5);
+  }
 
-FragmentMapWho.prototype.invalidateRange = function (address, length) {
+  add(pc, fragment) {
+    var cache_line_idx = this.addressToCacheLine(pc);
+    var entry_idx = cache_line_idx % this.entries.length;
+    var entry = this.entries[entry_idx];
+    entry[fragment.entryPC] = fragment;
+  }
+
+  invalidateEntry(address) {
+    var cache_line_idx = this.addressToCacheLine(address),
+      entry_idx = cache_line_idx % this.entries.length,
+      entry = this.entries[entry_idx],
+      removed = 0;
+
+    var i, fragment;
+
+    for (i in entry) {
+      if (entry.hasOwnProperty(i)) {
+        fragment = entry[i];
+
+        if (fragment.minPC <= address && fragment.maxPC > address) {
+          fragment.invalidate();
+          delete entry[i];
+          removed++;
+        }
+      }
+    }
+
+    if (removed) {
+      logger.log('Fragment cache removed ' + removed + ' entries.');
+    }
+
+        //fragmentInvalidationEvents.push({'address': address, 'length': 0x20, 'system': 'CACHE', 'fragmentsRemoved': removed});
+  }
+
+  invalidateRange(address, length) {
   var minaddr = address,
     maxaddr = address + length,
     minpage = this.addressToCacheLine(minaddr),
@@ -3976,7 +3973,8 @@ FragmentMapWho.prototype.invalidateRange = function (address, length) {
   }
 
   //fragmentInvalidationEvents.push({'address': address, 'length': length, 'system': system, 'fragmentsRemoved': removed});
-};
+  }
+}
 
 var invals = 0;
 
