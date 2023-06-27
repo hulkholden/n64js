@@ -1608,7 +1608,7 @@ function executeMTC0(i) {
       break;
 
     case cpu0_constants.controlContext:
-      logger.log(`Setting Context register to ${toString32(new_value)}` );
+      logger.log(`Setting Context register to ${toString32(new_value)}`);
       // TODO: bits 0 to 3 are hardcoded to zero.
       // TODO: bits 4 to 22 are not writeable.
       cpu0.control[control_reg] = new_value;
@@ -1619,7 +1619,7 @@ function executeMTC0(i) {
       break;
 
     case cpu0_constants.controlWired:
-      logger.log(`Setting Wired register to ${toString32(new_value)}` );
+      logger.log(`Setting Wired register to ${toString32(new_value)}`);
       // TODO: bits 6 to 31 are hardcoded to zero.
       cpu0.control[control_reg] = new_value;
       // Set to top limit on write to wired
@@ -1636,11 +1636,11 @@ function executeMTC0(i) {
     case cpu0_constants.controlPRId:
     case cpu0_constants.controlCacheErr:
       // All these registers are read-only
-      logger.log(`Attempted write to read-only cpu0 control register. ${toString32(new_value)} --> ${cop0ControlRegisterNames[control_reg]}` );
+      logger.log(`Attempted write to read-only cpu0 control register. ${toString32(new_value)} --> ${cop0ControlRegisterNames[control_reg]}`);
       break;
 
     case cpu0_constants.controlCause:
-      logger.log(`Setting cause register to ${toString32(new_value)}` );
+      logger.log(`Setting cause register to ${toString32(new_value)}`);
       n64js.check(new_value === 0, 'Should only write 0 to Cause register.');
       cpu0.control[control_reg] &= ~causeWritableBits;
       cpu0.control[control_reg] |= (new_value & causeWritableBits);
@@ -1664,7 +1664,7 @@ function executeMTC0(i) {
 
     default:
       cpu0.control[control_reg] = new_value;
-      logger.log(`Write to cpu0 control register. ${toString32(new_value)} --> ${cop0ControlRegisterNames[control_reg]}` );
+      logger.log(`Write to cpu0 control register. ${toString32(new_value)} --> ${cop0ControlRegisterNames[control_reg]}`);
       break;
   }
 }
