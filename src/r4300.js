@@ -14,7 +14,7 @@ window.n64js = window.n64js || {};
 const kDebugTLB = 0;
 const kDebugDynarec = 0;
 
-var accurateCountUpdating = false;
+const accurateCountUpdating = false;
 const COUNTER_INCREMENT_PER_OP = 1;
 
 const k1Shift32 = 4294967296.0;
@@ -317,7 +317,7 @@ class CPU0 {
     this.multLo_signed = new Int32Array(this.multLoMem);
 
     this.tlbEntries = [];
-    for (var i = 0; i < 32; ++i) {
+    for (let i = 0; i < 32; ++i) {
       this.tlbEntries.push(new TLBEntry());
     }
   }
@@ -377,7 +377,7 @@ class CPU0 {
   }
 
   speedHack() {
-    var nextInstruction = n64js.hardware().memMap.readMemoryInternal32(this.pc + 4);
+    const nextInstruction = n64js.hardware().memMap.readMemoryInternal32(this.pc + 4);
     if (nextInstruction === 0) {
       if (this.events.length > 0) {
         // Ignore the kEventRunForCycles event
@@ -739,8 +739,8 @@ class TLBException {
 }
 
 // Expose the cpu state
-var cpu0 = new CPU0();
-var cpu1 = new CPU1();
+const cpu0 = new CPU0();
+const cpu1 = new CPU1();
 n64js.cpu0 = cpu0;
 n64js.cpu1 = cpu1;
 
@@ -832,7 +832,7 @@ function sb_slow(addr, value) { n64js.writeMemory8(addr >>> 0, value); }
 
 n64js.load_u8 = (ram, addr) => {
   if (addr < -2139095040) {
-    var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
+    const phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
     return ram[phys];
   }
   return lbu_slow(addr);
@@ -840,7 +840,7 @@ n64js.load_u8 = (ram, addr) => {
 
 n64js.load_s8 = (ram, addr) => {
   if (addr < -2139095040) {
-    var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
+    const phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
     return (ram[phys] << 24) >> 24;
   }
   return lb_slow(addr);
@@ -848,7 +848,7 @@ n64js.load_s8 = (ram, addr) => {
 
 n64js.load_u16 = (ram, addr) => {
   if (addr < -2139095040) {
-    var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
+    const phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
     return (ram[phys] << 8) | ram[phys + 1];
   }
   return lhu_slow(addr);
@@ -856,7 +856,7 @@ n64js.load_u16 = (ram, addr) => {
 
 n64js.load_s16 = (ram, addr) => {
   if (addr < -2139095040) {
-    var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
+    const phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
     return ((ram[phys] << 24) | (ram[phys + 1] << 16)) >> 16;
   }
   return lh_slow(addr);
@@ -864,7 +864,7 @@ n64js.load_s16 = (ram, addr) => {
 
 n64js.load_u32 = (ram, addr) => {
   if (addr < -2139095040) {
-    var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
+    const phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
     return ((ram[phys] << 24) | (ram[phys + 1] << 16) | (ram[phys + 2] << 8) | ram[phys + 3]) >>> 0;
   }
   return lwu_slow(addr);
@@ -872,7 +872,7 @@ n64js.load_u32 = (ram, addr) => {
 
 n64js.load_s32 = (ram, addr) => {
   if (addr < -2139095040) {
-    var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
+    const phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
     return ((ram[phys] << 24) | (ram[phys + 1] << 16) | (ram[phys + 2] << 8) | ram[phys + 3]) | 0;
   }
   return lw_slow(addr);
@@ -880,7 +880,7 @@ n64js.load_s32 = (ram, addr) => {
 
 n64js.store_8 = (ram, addr, value) => {
   if (addr < -2139095040) {
-    var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
+    const phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
     ram[phys] = value;
   } else {
     sb_slow(addr, value);
@@ -889,7 +889,7 @@ n64js.store_8 = (ram, addr, value) => {
 
 n64js.store_16 = (ram, addr, value) => {
   if (addr < -2139095040) {
-    var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
+    const phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
     ram[phys] = value >> 8;
     ram[phys + 1] = value;
   } else {
@@ -899,7 +899,7 @@ n64js.store_16 = (ram, addr, value) => {
 
 n64js.store_32 = (ram, addr, value) => {
   if (addr < -2139095040) {
-    var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
+    const phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
     ram[phys + 0] = value >> 24;
     ram[phys + 1] = value >> 16;
     ram[phys + 2] = value >> 8;
@@ -911,7 +911,7 @@ n64js.store_32 = (ram, addr, value) => {
 
 n64js.store_64 = (ram, addr, value_lo, value_hi) => {
   if (addr < -2139095040) {
-    var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
+    const phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
     ram[phys + 0] = value_hi >> 24;
     ram[phys + 1] = value_hi >> 16;
     ram[phys + 2] = value_hi >> 8;
@@ -928,8 +928,8 @@ n64js.store_64 = (ram, addr, value_lo, value_hi) => {
 
 
 function unimplemented(pc, i) {
-  var r = disassembleInstruction(pc, i);
-  var e = 'Unimplemented op ' + toString32(i) + ' : ' + r.disassembly;
+  const r = disassembleInstruction(pc, i);
+  const e = `Unimplemented op ${toString32(i)} : ${r.disassembly}`;
   logger.log(e);
   throw e;
 }
@@ -954,11 +954,11 @@ function generateShiftImmediate(ctx, op) {
   if (ctx.instruction === 0)
     return generateNOPBoilerplate('/*NOP*/', ctx);
 
-  var d = ctx.instr_rd();
-  var t = ctx.instr_rt();
-  var shift = ctx.instr_sa();
+  const d = ctx.instr_rd();
+  const t = ctx.instr_rt();
+  const shift = ctx.instr_sa();
 
-  var impl = '';
+  let impl = '';
   impl += 'var result = ' + genSrcRegLo(t) + ' ' + op + ' ' + shift + ';\n';
   impl += 'rlo[' + d + '] = result;\n';
   impl += 'rhi[' + d + '] = result >> 31;\n';
@@ -971,11 +971,11 @@ function executeSLL(i) {
   if (i === 0)
     return;
 
-  var d = rd(i);
-  var t = rt(i);
-  var shift = sa(i);
+  const d = rd(i);
+  const t = rt(i);
+  const shift = sa(i);
 
-  var result = cpu0.gprLo_signed[t] << shift;
+  const result = cpu0.gprLo_signed[t] << shift;
   cpu0.gprLo_signed[d] = result;
   cpu0.gprHi_signed[d] = result >> 31;    // sign extend
 }
@@ -983,11 +983,11 @@ function executeSLL(i) {
 
 function generateSRL(ctx) { return generateShiftImmediate(ctx, '>>>'); }
 function executeSRL(i) {
-  var d = rd(i);
-  var t = rt(i);
-  var shift = sa(i);
+  const d = rd(i);
+  const t = rt(i);
+  const shift = sa(i);
 
-  var result = cpu0.gprLo_signed[t] >>> shift;
+  const result = cpu0.gprLo_signed[t] >>> shift;
   cpu0.gprLo_signed[d] = result;
   cpu0.gprHi_signed[d] = result >> 31;    // sign extend
 }
@@ -995,22 +995,22 @@ function executeSRL(i) {
 
 function generateSRA(ctx) { return generateShiftImmediate(ctx, '>>'); }
 function executeSRA(i) {
-  var d = rd(i);
-  var t = rt(i);
-  var shift = sa(i);
+  const d = rd(i);
+  const t = rt(i);
+  const shift = sa(i);
 
-  var result = cpu0.gprLo_signed[t] >> shift;
+  const result = cpu0.gprLo_signed[t] >> shift;
   cpu0.gprLo_signed[d] = result;
   cpu0.gprHi_signed[d] = result >> 31;    // sign extend
 }
 
 
 function generateShiftVariable(ctx, op) {
-  var d = ctx.instr_rd();
-  var s = ctx.instr_rs();
-  var t = ctx.instr_rt();
+  const d = ctx.instr_rd();
+  const s = ctx.instr_rs();
+  const t = ctx.instr_rt();
 
-  var impl = '';
+  let impl = '';
   impl += 'var result = ' + genSrcRegLo(t) + ' ' + op + ' (' + genSrcRegLo(s) + ' & 0x1f);\n';
   impl += 'rlo[' + d + '] = result;\n';
   impl += 'rhi[' + d + '] = result >> 31;\n';
@@ -1019,11 +1019,11 @@ function generateShiftVariable(ctx, op) {
 
 function generateSLLV(ctx) { return generateShiftVariable(ctx, '<<'); }
 function executeSLLV(i) {
-  var d = rd(i);
-  var s = rs(i);
-  var t = rt(i);
+  const d = rd(i);
+  const s = rs(i);
+  const t = rt(i);
 
-  var result = cpu0.gprLo_signed[t] << (cpu0.gprLo_signed[s] & 0x1f);
+  const result = cpu0.gprLo_signed[t] << (cpu0.gprLo_signed[s] & 0x1f);
   cpu0.gprLo_signed[d] = result;
   cpu0.gprHi_signed[d] = result >> 31;    // sign extend
 }
@@ -1031,11 +1031,11 @@ function executeSLLV(i) {
 
 function generateSRLV(ctx) { return generateShiftVariable(ctx, '>>>'); }
 function executeSRLV(i) {
-  var d = rd(i);
-  var s = rs(i);
-  var t = rt(i);
+  const d = rd(i);
+  const s = rs(i);
+  const t = rt(i);
 
-  var result = cpu0.gprLo_signed[t] >>> (cpu0.gprLo_signed[s] & 0x1f);
+  const result = cpu0.gprLo_signed[t] >>> (cpu0.gprLo_signed[s] & 0x1f);
   cpu0.gprLo_signed[d] = result;
   cpu0.gprHi_signed[d] = result >> 31;    // sign extend
 }
@@ -1043,27 +1043,27 @@ function executeSRLV(i) {
 
 function generateSRAV(ctx) { return generateShiftVariable(ctx, '>>'); }
 function executeSRAV(i) {
-  var d = rd(i);
-  var s = rs(i);
-  var t = rt(i);
+  const d = rd(i);
+  const s = rs(i);
+  const t = rt(i);
 
-  var result = cpu0.gprLo_signed[t] >> (cpu0.gprLo_signed[s] & 0x1f);
+  const result = cpu0.gprLo_signed[t] >> (cpu0.gprLo_signed[s] & 0x1f);
   cpu0.gprLo_signed[d] = result;
   cpu0.gprHi_signed[d] = result >> 31;    // sign extend
 }
 
 function executeDSLLV(i) {
-  var d = rd(i);
-  var t = rt(i);
-  var s = rs(i);
+  const d = rd(i);
+  const t = rt(i);
+  const s = rs(i);
 
-  var shift = cpu0.gprLo[s] & 0x3f;
+  const shift = cpu0.gprLo[s] & 0x3f;
 
-  var lo = cpu0.gprLo[t];
-  var hi = cpu0.gprHi[t];
+  const lo = cpu0.gprLo[t];
+  const hi = cpu0.gprHi[t];
 
   if (shift < 32) {
-    var nshift = 32 - shift;
+    const nshift = 32 - shift;
 
     cpu0.gprLo[d] = (lo << shift);
     cpu0.gprHi[d] = (hi << shift) | (lo >>> nshift);
@@ -1074,17 +1074,17 @@ function executeDSLLV(i) {
 }
 
 function executeDSRLV(i) {
-  var d = rd(i);
-  var t = rt(i);
-  var s = rs(i);
+  const d = rd(i);
+  const t = rt(i);
+  const s = rs(i);
 
-  var shift = cpu0.gprLo[s] & 0x3f;
+  const shift = cpu0.gprLo[s] & 0x3f;
 
-  var lo = cpu0.gprLo[t];
-  var hi = cpu0.gprHi[t];
+  const lo = cpu0.gprLo[t];
+  const hi = cpu0.gprHi[t];
 
   if (shift < 32) {
-    var nshift = 32 - shift;
+    const nshift = 32 - shift;
 
     cpu0.gprLo[d] = (lo >>> shift) | (hi << nshift);
     cpu0.gprHi[d] = (hi >>> shift);
@@ -1095,78 +1095,81 @@ function executeDSRLV(i) {
 }
 
 function executeDSRAV(i) {
-  var d = rd(i);
-  var t = rt(i);
-  var s = rs(i);
+  const d = rd(i);
+  const t = rt(i);
+  const s = rs(i);
 
-  var shift = cpu0.gprLo[s] & 0x3f;
+  const shift = cpu0.gprLo[s] & 0x3f;
 
-  var lo = cpu0.gprLo[t];
-  var hi = cpu0.gprHi_signed[t];
+  const lo = cpu0.gprLo[t];
+  const hi = cpu0.gprHi_signed[t];
 
   if (shift < 32) {
-    var nshift = 32 - shift;
+    const nshift = 32 - shift;
 
     cpu0.gprLo[d] = (lo >>> shift) | (hi << nshift);
     cpu0.gprHi[d] = (hi >> shift);
   } else {
-    var olo = hi >> (shift - 32);
+    const olo = hi >> (shift - 32);
     cpu0.gprLo_signed[d] = olo;
     cpu0.gprHi_signed[d] = olo >> 31;
   }
 }
 
 function executeDSLL(i) {
-  var d = rd(i);
-  var t = rt(i);
-  var shift = sa(i);
-  var nshift = 32 - shift;
+  const d = rd(i);
+  const t = rt(i);
+  const shift = sa(i);
+  const nshift = 32 - shift;
 
-  var lo = cpu0.gprLo[t];
-  var hi = cpu0.gprHi[t];
+  const lo = cpu0.gprLo[t];
+  const hi = cpu0.gprHi[t];
 
   cpu0.gprLo[d] = (lo << shift);
   cpu0.gprHi[d] = (hi << shift) | (lo >>> nshift);
 }
+
 function executeDSLL32(i) {
-  var d = rd(i);
+  const d = rd(i);
   cpu0.gprLo_signed[d] = 0;
   cpu0.gprHi_signed[d] = cpu0.gprLo[rt(i)] << sa(i);
 }
 
 function executeDSRL(i) {
-  var d = rd(i);
-  var t = rt(i);
-  var shift = sa(i);
-  var nshift = 32 - shift;
+  const d = rd(i);
+  const t = rt(i);
+  const shift = sa(i);
+  const nshift = 32 - shift;
 
-  var lo = cpu0.gprLo[t];
-  var hi = cpu0.gprHi[t];
+  const lo = cpu0.gprLo[t];
+  const hi = cpu0.gprHi[t];
 
   cpu0.gprLo[d] = (lo >>> shift) | (hi << nshift);
   cpu0.gprHi[d] = (hi >>> shift);
 }
+
 function executeDSRL32(i) {
-  var d = rd(i);
+  const d = rd(i);
   cpu0.gprLo[d] = cpu0.gprHi[rt(i)] >>> sa(i);
   cpu0.gprHi_signed[d] = 0;
 }
 
 function executeDSRA(i) {
-  var d = rd(i);
-  var t = rt(i);
-  var shift = sa(i);
-  var nshift = 32 - shift;
+  const d = rd(i);
+  const t = rt(i);
+  const shift = sa(i);
+  const nshift = 32 - shift;
 
-  var lo = cpu0.gprLo[t];
-  var hi = cpu0.gprHi_signed[t];
+  const lo = cpu0.gprLo[t];
+  const hi = cpu0.gprHi_signed[t];
 
   cpu0.gprLo[d] = (lo >>> shift) | (hi << nshift);
   cpu0.gprHi[d] = (hi >> shift);
 }
+
 function executeDSRA32(i) {
-  var d = rd(i);
-  var olo = cpu0.gprHi_signed[rt(i)] >> sa(i);
+  const d = rd(i);
+  const olo = cpu0.gprHi_signed[rt(i)] >> sa(i);
   cpu0.gprLo_signed[d] = olo;
   cpu0.gprHi_signed[d] = olo >> 31;
 }
@@ -1178,64 +1181,64 @@ function executeSYNC(i) { unimplemented(cpu0.pc, i); }
 
 
 function generateMFHI(ctx) {
-  var d = ctx.instr_rd();
-  var impl = '';
+  const d = ctx.instr_rd();
+  let impl = '';
   impl += 'rlo[' + d + '] = c.multHi_signed[0];\n';
   impl += 'rhi[' + d + '] = c.multHi_signed[1];\n';
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 function executeMFHI(i) {
-  var d = rd(i);
+  const d = rd(i);
 
   cpu0.gprLo_signed[d] = cpu0.multHi_signed[0];
   cpu0.gprHi_signed[d] = cpu0.multHi_signed[1];
 }
 
 function generateMFLO(ctx) {
-  var d = ctx.instr_rd();
-  var impl = '';
+  const d = ctx.instr_rd();
+  let impl = '';
   impl += 'rlo[' + d + '] = c.multLo_signed[0];\n';
   impl += 'rhi[' + d + '] = c.multLo_signed[1];\n';
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 function executeMFLO(i) {
-  var d = rd(i);
+  const d = rd(i);
   cpu0.gprLo_signed[d] = cpu0.multLo_signed[0];
   cpu0.gprHi_signed[d] = cpu0.multLo_signed[1];
 }
 
 function generateMTHI(ctx) {
-  var s = ctx.instr_rs();
-  var impl = '';
+  const s = ctx.instr_rs();
+  let impl = '';
   impl += 'c.multHi_signed[0] = rlo[' + s + '];\n';
   impl += 'c.multHi_signed[1] = rhi[' + s + '];\n';
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 function executeMTHI(i) {
-  var s = rs(i);
+  const s = rs(i);
   cpu0.multHi_signed[0] = cpu0.gprLo_signed[s];
   cpu0.multHi_signed[1] = cpu0.gprHi_signed[s];
 }
 
 function generateMTLO(ctx) {
-  var s = ctx.instr_rs();
-  var impl = '';
+  const s = ctx.instr_rs();
+  let impl = '';
   impl += 'c.multLo_signed[0] = rlo[' + s + '];\n';
   impl += 'c.multLo_signed[1] = rhi[' + s + '];\n';
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 function executeMTLO(i) {
-  var s = rs(i);
+  const s = rs(i);
   cpu0.multLo_signed[0] = cpu0.gprLo_signed[s];
   cpu0.multLo_signed[1] = cpu0.gprHi_signed[s];
 }
 
 function generateMULT(ctx) {
-  var d = ctx.instr_rd();
-  var s = ctx.instr_rs();
-  var t = ctx.instr_rt();
+  const d = ctx.instr_rd();
+  const s = ctx.instr_rs();
+  const t = ctx.instr_rt();
 
-  var impl = '';
+  let impl = '';
   impl += 'var result = ' + genSrcRegLo(s) + ' * ' + genSrcRegLo(t) + ';\n';
   impl += 'var result_lo = result & 0xffffffff;\n';
   impl += 'var result_hi = n64js.getHi32(result);\n';
@@ -1245,11 +1248,11 @@ function generateMULT(ctx) {
   impl += 'c.multHi[1] = result_hi >> 31;\n';
   return generateTrivialOpBoilerplate(impl, ctx);
 }
-function executeMULT(i) {
-  var result = cpu0.gprLo_signed[rs(i)] * cpu0.gprLo_signed[rt(i)];
 
-  var lo = result & 0xffffffff;
-  var hi = n64js.getHi32(result);
+function executeMULT(i) {
+  const result = cpu0.gprLo_signed[rs(i)] * cpu0.gprLo_signed[rt(i)];
+  const lo = result & 0xffffffff;
+  const hi = n64js.getHi32(result);
 
   cpu0.multLo[0] = lo;
   cpu0.multLo[1] = lo >> 31;
@@ -1258,11 +1261,11 @@ function executeMULT(i) {
 }
 
 function generateMULTU(ctx) {
-  var d = ctx.instr_rd();
-  var s = ctx.instr_rs();
-  var t = ctx.instr_rt();
+  const d = ctx.instr_rd();
+  const s = ctx.instr_rs();
+  const t = ctx.instr_rt();
 
-  var impl = '';
+  let impl = '';
   impl += 'var result = c.gprLo[' + s + '] * c.gprLo[' + t + '];\n';
   impl += 'var result_lo = result & 0xffffffff;\n';
   impl += 'var result_hi = n64js.getHi32(result);\n';
@@ -1272,11 +1275,11 @@ function generateMULTU(ctx) {
   impl += 'c.multHi[1] = result_hi >> 31;\n';
   return generateTrivialOpBoilerplate(impl, ctx);
 }
-function executeMULTU(i) {
-  var result = cpu0.gprLo[rs(i)] * cpu0.gprLo[rt(i)];
 
-  var lo = result & 0xffffffff;
-  var hi = n64js.getHi32(result);
+function executeMULTU(i) {
+  const result = cpu0.gprLo[rs(i)] * cpu0.gprLo[rt(i)];
+  const lo = result & 0xffffffff;
+  const hi = n64js.getHi32(result);
 
   cpu0.multLo[0] = lo;
   cpu0.multLo[1] = lo >> 31;
@@ -1285,7 +1288,7 @@ function executeMULTU(i) {
 }
 
 function executeDMULT(i) {
-  var result = cpu0.getGPR_s64(rs(i)) * cpu0.getGPR_s64(rt(i));
+  const result = cpu0.getGPR_s64(rs(i)) * cpu0.getGPR_s64(rt(i));
   cpu0.multLo[0] = result & 0xffffffff;
   cpu0.multLo[1] = n64js.getHi32(result);
   cpu0.multHi_signed[0] = 0;
@@ -1293,7 +1296,7 @@ function executeDMULT(i) {
 }
 
 function executeDMULTU(i) {
-  var result = cpu0.getGPR_u64(rs(i)) * cpu0.getGPR_u64(rt(i));
+  const result = cpu0.getGPR_u64(rs(i)) * cpu0.getGPR_u64(rt(i));
   cpu0.multLo[0] = result & 0xffffffff;
   cpu0.multLo[1] = n64js.getHi32(result);
   cpu0.multHi_signed[0] = 0;
@@ -1301,16 +1304,17 @@ function executeDMULTU(i) {
 }
 
 function executeDIV(i) {
-  var dividend = cpu0.gprLo_signed[rs(i)];
-  var divisor = cpu0.gprLo_signed[rt(i)];
+  const dividend = cpu0.gprLo_signed[rs(i)];
+  const divisor = cpu0.gprLo_signed[rt(i)];
   if (divisor) {
     setHiLoSignExtend(cpu0.multLo, Math.floor(dividend / divisor));
     setHiLoSignExtend(cpu0.multHi, dividend % divisor);
   }
 }
+
 function executeDIVU(i) {
-  var dividend = cpu0.gprLo[rs(i)];
-  var divisor = cpu0.gprLo[rt(i)];
+  const dividend = cpu0.gprLo[rs(i)];
+  const divisor = cpu0.gprLo[rt(i)];
   if (divisor) {
     setHiLoSignExtend(cpu0.multLo, Math.floor(dividend / divisor));
     setHiLoSignExtend(cpu0.multHi, dividend % divisor);
@@ -1318,21 +1322,21 @@ function executeDIVU(i) {
 }
 
 function executeDDIV(i) {
-  var s = rs(i);
-  var t = rt(i);
+  const s = rs(i);
+  const t = rt(i);
 
   if ((cpu0.gprHi[s] + (cpu0.gprLo[s] >>> 31) +
     cpu0.gprHi[t] + (cpu0.gprLo[t] >>> 31)) !== 0) {
     // FIXME: seems ok if dividend/divisor fit in mantissa of double...
-    var dividend = cpu0.getGPR_s64(s);
-    var divisor = cpu0.getGPR_s64(t);
+    const dividend = cpu0.getGPR_s64(s);
+    const divisor = cpu0.getGPR_s64(t);
     if (divisor) {
       setHiLoZeroExtend(cpu0.multLo, Math.floor(dividend / divisor));
       setHiLoZeroExtend(cpu0.multHi, dividend % divisor);
     }
   } else {
-    var dividend = cpu0.gprLo_signed[s];
-    var divisor = cpu0.gprLo_signed[t];
+    const dividend = cpu0.gprLo_signed[s];
+    const divisor = cpu0.gprLo_signed[t];
     if (divisor) {
       setHiLoSignExtend(cpu0.multLo, Math.floor(dividend / divisor));
       setHiLoSignExtend(cpu0.multHi, dividend % divisor);
@@ -1340,20 +1344,20 @@ function executeDDIV(i) {
   }
 }
 function executeDDIVU(i) {
-  var s = rs(i);
-  var t = rt(i);
+  const s = rs(i);
+  const t = rt(i);
 
   if ((cpu0.gprHi[s] | cpu0.gprHi[t]) !== 0) {
     // FIXME: seems ok if dividend/divisor fit in mantissa of double...
-    var dividend = cpu0.getGPR_u64(s);
-    var divisor = cpu0.getGPR_u64(t);
+    const dividend = cpu0.getGPR_u64(s);
+    const divisor = cpu0.getGPR_u64(t);
     if (divisor) {
       setHiLoZeroExtend(cpu0.multLo, Math.floor(dividend / divisor));
       setHiLoZeroExtend(cpu0.multHi, dividend % divisor);
     }
   } else {
-    var dividend = cpu0.gprLo[s];
-    var divisor = cpu0.gprLo[t];
+    const dividend = cpu0.gprLo[s];
+    const divisor = cpu0.gprLo[t];
     if (divisor) {
       setHiLoZeroExtend(cpu0.multLo, Math.floor(dividend / divisor));
       setHiLoZeroExtend(cpu0.multHi, dividend % divisor);
@@ -1362,10 +1366,10 @@ function executeDDIVU(i) {
 }
 
 function generateTrivialArithmetic(ctx, op) {
-  var d = ctx.instr_rd();
-  var s = ctx.instr_rs();
-  var t = ctx.instr_rt();
-  var impl = '';
+  const d = ctx.instr_rd();
+  const s = ctx.instr_rs();
+  const t = ctx.instr_rt();
+  let impl = '';
   impl += 'var result = ' + genSrcRegLo(s) + ' ' + op + ' ' + genSrcRegLo(t) + ';\n';
   impl += 'rlo[' + d + '] = result;\n';
   impl += 'rhi[' + d + '] = result >> 31;\n';
@@ -1373,10 +1377,10 @@ function generateTrivialArithmetic(ctx, op) {
 }
 
 function generateTrivialLogical(ctx, op) {
-  var d = ctx.instr_rd();
-  var s = ctx.instr_rs();
-  var t = ctx.instr_rt();
-  var impl = '';
+  const d = ctx.instr_rd();
+  const s = ctx.instr_rs();
+  const t = ctx.instr_rt();
+  let impl = '';
   impl += 'rlo[' + d + '] = ' + genSrcRegLo(s) + ' ' + op + ' ' + genSrcRegLo(t) + ';\n';
   impl += 'rhi[' + d + '] = ' + genSrcRegHi(s) + ' ' + op + ' ' + genSrcRegHi(t) + ';\n';
   return generateTrivialOpBoilerplate(impl, ctx);
@@ -1384,61 +1388,61 @@ function generateTrivialLogical(ctx, op) {
 
 function generateADD(ctx) { return generateTrivialArithmetic(ctx, '+'); }
 function executeADD(i) {
-  var d = rd(i);
-  var s = rs(i);
-  var t = rt(i);
-  var result = cpu0.gprLo_signed[s] + cpu0.gprLo_signed[t];
+  const d = rd(i);
+  const s = rs(i);
+  const t = rt(i);
+  const result = cpu0.gprLo_signed[s] + cpu0.gprLo_signed[t];
   cpu0.gprLo_signed[d] = result;
   cpu0.gprHi_signed[d] = result >> 31;
 }
 
 function generateADDU(ctx) { return generateTrivialArithmetic(ctx, '+'); }
 function executeADDU(i) {
-  var d = rd(i);
-  var s = rs(i);
-  var t = rt(i);
-  var result = cpu0.gprLo_signed[s] + cpu0.gprLo_signed[t];
+  const d = rd(i);
+  const s = rs(i);
+  const t = rt(i);
+  const result = cpu0.gprLo_signed[s] + cpu0.gprLo_signed[t];
   cpu0.gprLo_signed[d] = result;
   cpu0.gprHi_signed[d] = result >> 31;
 }
 
 function generateSUB(ctx) { return generateTrivialArithmetic(ctx, '-'); }
 function executeSUB(i) {
-  var d = rd(i);
-  var s = rs(i);
-  var t = rt(i);
-  var result = cpu0.gprLo_signed[s] - cpu0.gprLo_signed[t];
+  const d = rd(i);
+  const s = rs(i);
+  const t = rt(i);
+  const result = cpu0.gprLo_signed[s] - cpu0.gprLo_signed[t];
   cpu0.gprLo_signed[d] = result;
   cpu0.gprHi_signed[d] = result >> 31;
 }
 
 function generateSUBU(ctx) { return generateTrivialArithmetic(ctx, '-'); }
 function executeSUBU(i) {
-  var d = rd(i);
-  var s = rs(i);
-  var t = rt(i);
-  var result = cpu0.gprLo_signed[s] - cpu0.gprLo_signed[t];
+  const d = rd(i);
+  const s = rs(i);
+  const t = rt(i);
+  const result = cpu0.gprLo_signed[s] - cpu0.gprLo_signed[t];
   cpu0.gprLo_signed[d] = result;
   cpu0.gprHi_signed[d] = result >> 31;
 }
 
 function generateAND(ctx) { return generateTrivialLogical(ctx, '&'); }
 function executeAND(i) {
-  var d = rd(i);
-  var s = rs(i);
-  var t = rt(i);
+  const d = rd(i);
+  const s = rs(i);
+  const t = rt(i);
   cpu0.gprHi_signed[d] = cpu0.gprHi_signed[s] & cpu0.gprHi_signed[t];
   cpu0.gprLo_signed[d] = cpu0.gprLo_signed[s] & cpu0.gprLo_signed[t];
 }
 
 function generateOR(ctx) {
-  var d = ctx.instr_rd();
-  var s = ctx.instr_rs();
-  var t = ctx.instr_rt();
+  const d = ctx.instr_rd();
+  const s = ctx.instr_rs();
+  const t = ctx.instr_rt();
 
   // OR is used to implement CLEAR and MOV
   if (t === 0) {
-    var impl = '';
+    let impl = '';
     impl += 'rlo[' + d + '] = ' + genSrcRegLo(s) + ';\n';
     impl += 'rhi[' + d + '] = ' + genSrcRegHi(s) + ';\n';
 
@@ -1448,45 +1452,45 @@ function generateOR(ctx) {
 }
 
 function executeOR(i) {
-  var d = rd(i);
-  var s = rs(i);
-  var t = rt(i);
+  const d = rd(i);
+  const s = rs(i);
+  const t = rt(i);
   cpu0.gprHi_signed[d] = cpu0.gprHi_signed[s] | cpu0.gprHi_signed[t];
   cpu0.gprLo_signed[d] = cpu0.gprLo_signed[s] | cpu0.gprLo_signed[t];
 }
 
 function generateXOR(ctx) { return generateTrivialLogical(ctx, '^'); }
 function executeXOR(i) {
-  var d = rd(i);
-  var s = rs(i);
-  var t = rt(i);
+  const d = rd(i);
+  const s = rs(i);
+  const t = rt(i);
   cpu0.gprHi_signed[d] = cpu0.gprHi_signed[s] ^ cpu0.gprHi_signed[t];
   cpu0.gprLo_signed[d] = cpu0.gprLo_signed[s] ^ cpu0.gprLo_signed[t];
 }
 
 function generateNOR(ctx) {
-  var d = ctx.instr_rd();
-  var s = ctx.instr_rs();
-  var t = ctx.instr_rt();
-  var impl = '';
+  const d = ctx.instr_rd();
+  const s = ctx.instr_rs();
+  const t = ctx.instr_rt();
+  let impl = '';
   impl += 'rhi[' + d + '] = ~(' + genSrcRegHi(s) + ' | ' + genSrcRegHi(t) + ');\n';
   impl += 'rlo[' + d + '] = ~(' + genSrcRegLo(s) + ' | ' + genSrcRegLo(t) + ');\n';
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
 function executeNOR(i) {
-  var d = rd(i);
-  var s = rs(i);
-  var t = rt(i);
+  const d = rd(i);
+  const s = rs(i);
+  const t = rt(i);
   cpu0.gprHi_signed[d] = ~(cpu0.gprHi_signed[s] | cpu0.gprHi_signed[t]);
   cpu0.gprLo_signed[d] = ~(cpu0.gprLo_signed[s] | cpu0.gprLo_signed[t]);
 }
 
 function generateSLT(ctx) {
-  var d = ctx.instr_rd();
-  var s = ctx.instr_rs();
-  var t = ctx.instr_rt();
-  var impl = '';
+  const d = ctx.instr_rd();
+  const s = ctx.instr_rs();
+  const t = ctx.instr_rt();
+  let impl = '';
 
   impl += 'var r = 0;\n';
   impl += 'if (' + genSrcRegHi(s) + ' < ' + genSrcRegHi(t) + ') {\n';
@@ -1501,10 +1505,10 @@ function generateSLT(ctx) {
 }
 
 function executeSLT(i) {
-  var d = rd(i);
-  var s = rs(i);
-  var t = rt(i);
-  var r = 0;
+  const d = rd(i);
+  const s = rs(i);
+  const t = rt(i);
+  let r = 0;
   if (cpu0.gprHi_signed[s] < cpu0.gprHi_signed[t]) {
     r = 1;
   } else if (cpu0.gprHi_signed[s] === cpu0.gprHi_signed[t]) {
@@ -1515,10 +1519,10 @@ function executeSLT(i) {
 }
 
 function generateSLTU(ctx) {
-  var d = ctx.instr_rd();
-  var s = ctx.instr_rs();
-  var t = ctx.instr_rt();
-  var impl = '';
+  const d = ctx.instr_rd();
+  const s = ctx.instr_rs();
+  const t = ctx.instr_rt();
+  let impl = '';
 
   impl += 'var r = 0;\n';
   impl += 'if (c.gprHi[' + s + '] < c.gprHi[' + t + '] ||\n';
@@ -1532,10 +1536,10 @@ function generateSLTU(ctx) {
 }
 
 function executeSLTU(i) {
-  var d = rd(i);
-  var s = rs(i);
-  var t = rt(i);
-  var r = 0;
+  const d = rd(i);
+  const s = rs(i);
+  const t = rt(i);
+  let r = 0;
   if (cpu0.gprHi[s] < cpu0.gprHi[t] ||
     (cpu0.gprHi_signed[s] === cpu0.gprHi_signed[t] && cpu0.gprLo[s] < cpu0.gprLo[t])) { // NB signed cmps avoid deopts
     r = 1;
@@ -1568,7 +1572,7 @@ function executeTEQ(i) { unimplemented(cpu0.pc, i); }
 function executeTNE(i) { unimplemented(cpu0.pc, i); }
 
 function executeMFC0(i) {
-  var control_reg = fs(i);
+  const control_reg = fs(i);
 
   // Check consistency
   if (control_reg === cpu0_constants.controlCause) {
@@ -1583,19 +1587,19 @@ function executeMFC0(i) {
 }
 
 function generateMTC0(ctx) {
-  var s = ctx.instr_fs();
+  const s = ctx.instr_fs();
   if (s === cpu0_constants.controlSR) {
     ctx.fragment.cop1statusKnown = false;
   }
 
-  var impl = '';
+  let impl = '';
   impl += 'n64js.executeMTC0(' + toString32(ctx.instruction) + ');\n';
   return generateGenericOpBoilerplate(impl, ctx);
 }
 
 function executeMTC0(i) {
-  var control_reg = fs(i);
-  var new_value = cpu0.gprLo[rt(i)];
+  const control_reg = fs(i);
+  const new_value = cpu0.gprLo[rt(i)];
 
   switch (control_reg) {
     case cpu0_constants.controlIndex:
@@ -1701,8 +1705,8 @@ function executeTNEI(i) { unimplemented(cpu0.pc, i); }
 
 // Jump
 function generateJ(ctx) {
-  var addr = jumpAddress(ctx.pc, ctx.instruction);
-  var impl = 'c.delayPC = ' + toString32(addr) + ';\n';
+  const addr = jumpAddress(ctx.pc, ctx.instruction);
+  const impl = 'c.delayPC = ' + toString32(addr) + ';\n';
   return generateBranchOpBoilerplate(impl, ctx, false);
 }
 function executeJ(i) {
@@ -1711,10 +1715,10 @@ function executeJ(i) {
 
 
 function generateJAL(ctx) {
-  var addr = jumpAddress(ctx.pc, ctx.instruction);
-  var ra = ctx.pc + 8;
-  var ra_hi = (ra & 0x80000000) ? -1 : 0;
-  var impl = '';
+  const addr = jumpAddress(ctx.pc, ctx.instruction);
+  const ra = ctx.pc + 8;
+  const ra_hi = (ra & 0x80000000) ? -1 : 0;
+  let impl = '';
   impl += 'c.delayPC = ' + toString32(addr) + ';\n';
   impl += 'rlo[' + cpu0_constants.RA + '] = ' + toString32(ra) + ';\n';
   impl += 'rhi[' + cpu0_constants.RA + '] = ' + ra_hi + ';\n';
@@ -1727,26 +1731,26 @@ function executeJAL(i) {
 
 
 function generateJALR(ctx) {
-  var s = ctx.instr_rs();
-  var d = ctx.instr_rd();
+  const s = ctx.instr_rs();
+  const d = ctx.instr_rd();
 
-  var ra = ctx.pc + 8;
-  var ra_hi = (ra & 0x80000000) ? -1 : 0;
-  var impl = '';
+  const ra = ctx.pc + 8;
+  const ra_hi = (ra & 0x80000000) ? -1 : 0;
+  let impl = '';
   impl += 'c.delayPC = c.gprLo[' + s + '];\n';  // NB needs to be unsigned
   impl += 'rlo[' + d + '] = ' + toString32(ra) + ';\n';
   impl += 'rhi[' + d + '] = ' + ra_hi + ';\n';
   return generateBranchOpBoilerplate(impl, ctx, false);
 }
 function executeJALR(i) {
-  var new_pc = cpu0.gprLo[rs(i)];
+  const new_pc = cpu0.gprLo[rs(i)];
   setSignExtend(rd(i), cpu0.pc + 8);
   performBranch(new_pc);
 }
 
 
 function generateJR(ctx) {
-  var impl = 'c.delayPC = c.gprLo[' + ctx.instr_rs() + '];\n'; // NB needs to be unsigned
+  const impl = 'c.delayPC = c.gprLo[' + ctx.instr_rs() + '];\n'; // NB needs to be unsigned
   return generateBranchOpBoilerplate(impl, ctx, false);
 }
 function executeJR(i) {
@@ -1754,12 +1758,12 @@ function executeJR(i) {
 }
 
 function generateBEQ(ctx) {
-  var s = ctx.instr_rs();
-  var t = ctx.instr_rt();
-  var off = ctx.instr_offset();
-  var addr = branchAddress(ctx.pc, ctx.instruction);
+  const s = ctx.instr_rs();
+  const t = ctx.instr_rt();
+  const off = ctx.instr_offset();
+  const addr = branchAddress(ctx.pc, ctx.instruction);
 
-  var impl = '';
+  let impl = '';
 
   if (s === t) {
     if (off === -1) {
@@ -1782,8 +1786,8 @@ function generateBEQ(ctx) {
 }
 
 function executeBEQ(i) {
-  var s = rs(i);
-  var t = rt(i);
+  const s = rs(i);
+  const t = rt(i);
   if (cpu0.gprHi_signed[s] === cpu0.gprHi_signed[t] &&
     cpu0.gprLo_signed[s] === cpu0.gprLo_signed[t]) {
     if (offset(i) === -1)
@@ -1793,13 +1797,12 @@ function executeBEQ(i) {
 }
 
 function generateBEQL(ctx) {
-  var s = ctx.instr_rs();
-  var t = ctx.instr_rt();
-  var off = ctx.instr_offset();
-  var addr = branchAddress(ctx.pc, ctx.instruction);
+  const s = ctx.instr_rs();
+  const t = ctx.instr_rt();
+  const off = ctx.instr_offset();
+  const addr = branchAddress(ctx.pc, ctx.instruction);
 
-  var impl = '';
-
+  let impl = '';
   impl += 'if (' + genSrcRegHi(s) + ' === ' + genSrcRegHi(t) + ' &&\n';
   impl += '    ' + genSrcRegLo(s) + ' === ' + genSrcRegLo(t) + ' ) {\n';
   impl += '  c.delayPC = ' + toString32(addr) + ';\n';
@@ -1811,8 +1814,8 @@ function generateBEQL(ctx) {
 }
 
 function executeBEQL(i) {
-  var s = rs(i);
-  var t = rt(i);
+  const s = rs(i);
+  const t = rt(i);
   if (cpu0.gprHi_signed[s] === cpu0.gprHi_signed[t] &&
     cpu0.gprLo_signed[s] === cpu0.gprLo_signed[t]) {
     performBranch(branchAddress(cpu0.pc, i));
@@ -1822,13 +1825,12 @@ function executeBEQL(i) {
 }
 
 function generateBNE(ctx) {
-  var s = ctx.instr_rs();
-  var t = ctx.instr_rt();
-  var off = ctx.instr_offset();
-  var addr = branchAddress(ctx.pc, ctx.instruction);
+  const s = ctx.instr_rs();
+  const t = ctx.instr_rt();
+  const off = ctx.instr_offset();
+  const addr = branchAddress(ctx.pc, ctx.instruction);
 
-  var impl = '';
-
+  let impl = '';
   impl += 'if (' + genSrcRegHi(s) + ' !== ' + genSrcRegHi(t) + ' ||\n';
   impl += '    ' + genSrcRegLo(s) + ' !== ' + genSrcRegLo(t) + ' ) {\n';
   if (off === -1) {
@@ -1842,8 +1844,8 @@ function generateBNE(ctx) {
 }
 
 function executeBNE(i) {
-  var s = rs(i);
-  var t = rt(i);
+  const s = rs(i);
+  const t = rt(i);
   if (cpu0.gprHi_signed[s] !== cpu0.gprHi_signed[t] ||
     cpu0.gprLo_signed[s] !== cpu0.gprLo_signed[t]) {      // NB: if imms(i) == -1 then this is a branch to self/busywait
     performBranch(branchAddress(cpu0.pc, i));
@@ -1852,12 +1854,11 @@ function executeBNE(i) {
 
 
 function generateBNEL(ctx) {
-  var s = ctx.instr_rs();
-  var t = ctx.instr_rt();
-  var off = ctx.instr_offset();
-  var addr = branchAddress(ctx.pc, ctx.instruction);
+  const s = ctx.instr_rs();
+  const t = ctx.instr_rt();
+  const addr = branchAddress(ctx.pc, ctx.instruction);
 
-  var impl = '';
+  let impl = '';
 
   impl += 'if (' + genSrcRegHi(s) + ' !== ' + genSrcRegHi(t) + ' ||\n';
   impl += '    ' + genSrcRegLo(s) + ' !== ' + genSrcRegLo(t) + ' ) {\n';
@@ -1870,8 +1871,8 @@ function generateBNEL(ctx) {
 }
 
 function executeBNEL(i) {
-  var s = rs(i);
-  var t = rt(i);
+  const s = rs(i);
+  const t = rt(i);
   if (cpu0.gprHi_signed[s] !== cpu0.gprHi_signed[t] ||
     cpu0.gprLo_signed[s] !== cpu0.gprLo_signed[t]) {
     performBranch(branchAddress(cpu0.pc, i));
@@ -1882,10 +1883,10 @@ function executeBNEL(i) {
 
 // Branch Less Than or Equal To Zero
 function generateBLEZ(ctx) {
-  var s = ctx.instr_rs();
-  var addr = branchAddress(ctx.pc, ctx.instruction);
+  const s = ctx.instr_rs();
+  const addr = branchAddress(ctx.pc, ctx.instruction);
 
-  var impl = '';
+  let impl = '';
   impl += 'if ( ' + genSrcRegHi(s) + ' < 0 ||\n';
   impl += '    (' + genSrcRegHi(s) + ' === 0 && ' + genSrcRegLo(s) + ' === 0) ) {\n';
   impl += '  c.delayPC = ' + toString32(addr) + ';\n';
@@ -1895,7 +1896,7 @@ function generateBLEZ(ctx) {
 }
 
 function executeBLEZ(i) {
-  var s = rs(i);
+  const s = rs(i);
   if (cpu0.gprHi_signed[s] < 0 ||
     (cpu0.gprHi_signed[s] === 0 && cpu0.gprLo_signed[s] === 0)) {
     performBranch(branchAddress(cpu0.pc, i));
@@ -1903,7 +1904,7 @@ function executeBLEZ(i) {
 }
 
 function executeBLEZL(i) {
-  var s = rs(i);
+  const s = rs(i);
   // NB: if rs == r0 then this branch is always taken
   if (cpu0.gprHi_signed[s] < 0 ||
     (cpu0.gprHi_signed[s] === 0 && cpu0.gprLo_signed[s] === 0)) {
@@ -1915,10 +1916,10 @@ function executeBLEZL(i) {
 
 // Branch Greater Than Zero
 function generateBGTZ(ctx) {
-  var s = ctx.instr_rs();
-  var addr = branchAddress(ctx.pc, ctx.instruction);
+  const s = ctx.instr_rs();
+  const addr = branchAddress(ctx.pc, ctx.instruction);
 
-  var impl = '';
+  let impl = '';
   impl += 'if ( ' + genSrcRegHi(s) + ' >= 0 &&\n';
   impl += '    (' + genSrcRegHi(s) + ' !== 0 || ' + genSrcRegLo(s) + ' !== 0) ) {\n';
   impl += '  c.delayPC = ' + toString32(addr) + ';\n';
@@ -1928,7 +1929,7 @@ function generateBGTZ(ctx) {
 }
 
 function executeBGTZ(i) {
-  var s = rs(i);
+  const s = rs(i);
   if (cpu0.gprHi_signed[s] >= 0 &&
     (cpu0.gprHi_signed[s] !== 0 || cpu0.gprLo_signed[s] !== 0)) {
     performBranch(branchAddress(cpu0.pc, i));
@@ -1936,7 +1937,7 @@ function executeBGTZ(i) {
 }
 
 function executeBGTZL(i) {
-  var s = rs(i);
+  const s = rs(i);
   if (cpu0.gprHi_signed[s] >= 0 &&
     (cpu0.gprHi_signed[s] !== 0 || cpu0.gprLo_signed[s] !== 0)) {
     performBranch(branchAddress(cpu0.pc, i));
@@ -1947,10 +1948,10 @@ function executeBGTZL(i) {
 
 // Branch Less Than Zero
 function generateBLTZ(ctx) {
-  var s = ctx.instr_rs();
-  var addr = branchAddress(ctx.pc, ctx.instruction);
+  const s = ctx.instr_rs();
+  const addr = branchAddress(ctx.pc, ctx.instruction);
 
-  var impl = '';
+  let impl = '';
   impl += 'if (' + genSrcRegHi(s) + ' < 0) {\n';
   impl += '  c.delayPC = ' + toString32(addr) + ';\n';
   impl += '}\n';
@@ -1965,10 +1966,10 @@ function executeBLTZ(i) {
 }
 
 function generateBLTZL(ctx) {
-  var s = ctx.instr_rs();
-  var addr = branchAddress(ctx.pc, ctx.instruction);
+  const s = ctx.instr_rs();
+  const addr = branchAddress(ctx.pc, ctx.instruction);
 
-  var impl = '';
+  let impl = '';
   impl += 'if (' + genSrcRegHi(s) + ' < 0) {\n';
   impl += '  c.delayPC = ' + toString32(addr) + ';\n';
   impl += '} else {\n';
@@ -2004,10 +2005,10 @@ function executeBLTZALL(i) {
 
 // Branch Greater Than Zero
 function generateBGEZ(ctx) {
-  var s = ctx.instr_rs();
-  var addr = branchAddress(ctx.pc, ctx.instruction);
+  const s = ctx.instr_rs();
+  const addr = branchAddress(ctx.pc, ctx.instruction);
 
-  var impl = '';
+  let impl = '';
   impl += 'if (' + genSrcRegHi(s) + ' >= 0) {\n';
   impl += '  c.delayPC = ' + toString32(addr) + ';\n';
   impl += '}\n';
@@ -2022,10 +2023,10 @@ function executeBGEZ(i) {
 }
 
 function generateBGEZL(ctx) {
-  var s = ctx.instr_rs();
-  var addr = branchAddress(ctx.pc, ctx.instruction);
+  const s = ctx.instr_rs();
+  const addr = branchAddress(ctx.pc, ctx.instruction);
 
-  var impl = '';
+  let impl = '';
   impl += 'if (' + genSrcRegHi(s) + ' >= 0) {\n';
   impl += '  c.delayPC = ' + toString32(addr) + ';\n';
   impl += '} else {\n';
@@ -2060,9 +2061,9 @@ function executeBGEZALL(i) {
 }
 
 function generateADDI(ctx) {
-  var s = ctx.instr_rs();
-  var t = ctx.instr_rt();
-  var impl = '';
+  const s = ctx.instr_rs();
+  const t = ctx.instr_rt();
+  let impl = '';
   impl += 'var result = ' + genSrcRegLo(s) + ' + ' + imms(ctx.instruction) + ';\n';
   impl += 'rlo[' + t + '] = result;\n';
   impl += 'rhi[' + t + '] = result >> 31;\n';
@@ -2070,17 +2071,17 @@ function generateADDI(ctx) {
 }
 
 function executeADDI(i) {
-  var s = rs(i);
-  var t = rt(i);
-  var result = cpu0.gprLo_signed[s] + imms(i);
+  const s = rs(i);
+  const t = rt(i);
+  const result = cpu0.gprLo_signed[s] + imms(i);
   cpu0.gprLo_signed[t] = result;
   cpu0.gprHi_signed[t] = result >> 31;
 }
 
 function generateADDIU(ctx) {
-  var s = ctx.instr_rs();
-  var t = ctx.instr_rt();
-  var impl = '';
+  const s = ctx.instr_rs();
+  const t = ctx.instr_rt();
+  let impl = '';
   impl += 'var result = ' + genSrcRegLo(s) + ' + ' + imms(ctx.instruction) + ';\n';
   impl += 'rlo[' + t + '] = result;\n';
   impl += 'rhi[' + t + '] = result >> 31;\n';
@@ -2088,9 +2089,9 @@ function generateADDIU(ctx) {
 }
 
 function executeADDIU(i) {
-  var s = rs(i);
-  var t = rt(i);
-  var result = cpu0.gprLo_signed[s] + imms(i);
+  const s = rs(i);
+  const t = rt(i);
+  const result = cpu0.gprLo_signed[s] + imms(i);
   cpu0.gprLo_signed[t] = result;
   cpu0.gprHi_signed[t] = result >> 31;
 }
@@ -2104,14 +2105,14 @@ function executeDADDIU(i) {
 }
 
 function generateSLTI(ctx) {
-  var s = ctx.instr_rs();
-  var t = ctx.instr_rt();
+  const s = ctx.instr_rs();
+  const t = ctx.instr_rt();
 
-  var immediate = imms(ctx.instruction);
-  var imm_hi = immediate >> 31;
-  var imm_unsigned = immediate >>> 0;
+  const immediate = imms(ctx.instruction);
+  const imm_hi = immediate >> 31;
+  const imm_unsigned = immediate >>> 0;
 
-  var impl = '';
+  let impl = '';
   impl += 'if (' + genSrcRegHi(s) + ' === ' + imm_hi + ') {\n';
   impl += '  rlo[' + t + '] = (c.gprLo[' + s + '] < ' + imm_unsigned + ') ? 1 : 0;\n';
   impl += '} else {\n';
@@ -2123,12 +2124,12 @@ function generateSLTI(ctx) {
 }
 
 function executeSLTI(i) {
-  var s = rs(i);
-  var t = rt(i);
+  const s = rs(i);
+  const t = rt(i);
 
-  var immediate = imms(i);
-  var imm_hi = immediate >> 31;
-  var s_hi = cpu0.gprHi_signed[s];
+  const immediate = imms(i);
+  const imm_hi = immediate >> 31;
+  const s_hi = cpu0.gprHi_signed[s];
 
   if (s_hi === imm_hi) {
     cpu0.gprLo_signed[t] = (cpu0.gprLo[s] < (immediate >>> 0)) ? 1 : 0;    // NB signed compare
@@ -2139,14 +2140,14 @@ function executeSLTI(i) {
 }
 
 function generateSLTIU(ctx) {
-  var s = ctx.instr_rs();
-  var t = ctx.instr_rt();
+  const s = ctx.instr_rs();
+  const t = ctx.instr_rt();
 
-  var immediate = imms(ctx.instruction);
-  var imm_hi = immediate >> 31;
-  var imm_unsigned = immediate >>> 0;
+  const immediate = imms(ctx.instruction);
+  const imm_hi = immediate >> 31;
+  const imm_unsigned = immediate >>> 0;
 
-  var impl = '';
+  let impl = '';
   impl += 'if (' + genSrcRegHi(s) + ' === ' + imm_hi + ') {\n';
   impl += '  rlo[' + t + '] = (c.gprLo[' + s + '] < ' + imm_unsigned + ') ? 1 : 0;\n';
   impl += '} else {\n';
@@ -2158,13 +2159,13 @@ function generateSLTIU(ctx) {
 }
 
 function executeSLTIU(i) {
-  var s = rs(i);
-  var t = rt(i);
+  const s = rs(i);
+  const t = rt(i);
 
   // NB: immediate value is still sign-extended, but treated as unsigned
-  var immediate = imms(i);
-  var imm_hi = immediate >> 31;
-  var s_hi = cpu0.gprHi_signed[s];
+  const immediate = imms(i);
+  const imm_hi = immediate >> 31;
+  const s_hi = cpu0.gprHi_signed[s];
 
   if (s_hi === imm_hi) {
     cpu0.gprLo[t] = (cpu0.gprLo[s] < (immediate >>> 0)) ? 1 : 0;
@@ -2176,25 +2177,25 @@ function executeSLTIU(i) {
 }
 
 function generateANDI(ctx) {
-  var s = ctx.instr_rs();
-  var t = ctx.instr_rt();
-  var impl = '';
+  const s = ctx.instr_rs();
+  const t = ctx.instr_rt();
+  let impl = '';
   impl += 'rlo[' + t + '] = ' + genSrcRegLo(s) + ' & ' + imm(ctx.instruction) + ';\n';
   impl += 'rhi[' + t + '] = 0;\n';
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
 function executeANDI(i) {
-  var s = rs(i);
-  var t = rt(i);
+  const s = rs(i);
+  const t = rt(i);
   cpu0.gprLo_signed[t] = cpu0.gprLo_signed[s] & imm(i);
   cpu0.gprHi_signed[t] = 0;    // always 0, as sign extended immediate value is always 0
 }
 
 function generateORI(ctx) {
-  var s = ctx.instr_rs();
-  var t = ctx.instr_rt();
-  var impl = '';
+  const s = ctx.instr_rs();
+  const t = ctx.instr_rt();
+  let impl = '';
   impl += 'rlo[' + t + '] = ' + genSrcRegLo(s) + ' | ' + imm(ctx.instruction) + ';\n';
   if (s !== t)
     impl += 'rhi[' + t + '] = ' + genSrcRegHi(s) + ';\n';
@@ -2202,16 +2203,16 @@ function generateORI(ctx) {
 }
 
 function executeORI(i) {
-  var s = rs(i);
-  var t = rt(i);
+  const s = rs(i);
+  const t = rt(i);
   cpu0.gprLo_signed[t] = cpu0.gprLo_signed[s] | imm(i);
   cpu0.gprHi_signed[t] = cpu0.gprHi_signed[s];
 }
 
 function generateXORI(ctx) {
-  var s = ctx.instr_rs();
-  var t = ctx.instr_rt();
-  var impl = '';
+  const s = ctx.instr_rs();
+  const t = ctx.instr_rt();
+  let impl = '';
   impl += 'rlo[' + t + '] = ' + genSrcRegLo(s) + ' ^ ' + imm(ctx.instruction) + ';\n';
   if (s !== t)
     impl += 'rhi[' + t + '] = ' + genSrcRegHi(s) + ';\n';
@@ -2220,36 +2221,36 @@ function generateXORI(ctx) {
 
 function executeXORI(i) {
   // High 32 bits are always unchanged, as sign extended immediate value is always 0
-  var s = rs(i);
-  var t = rt(i);
+  const s = rs(i);
+  const t = rt(i);
   cpu0.gprLo_signed[t] = cpu0.gprLo_signed[s] ^ imm(i);
   cpu0.gprHi_signed[t] = cpu0.gprHi_signed[s];
 }
 
 function generateLUI(ctx) {
-  var t = ctx.instr_rt();
-  var value_lo = imms(ctx.instruction) << 16;
-  var value_hi = (value_lo < 0) ? -1 : 0;
+  const t = ctx.instr_rt();
+  const value_lo = imms(ctx.instruction) << 16;
+  const value_hi = (value_lo < 0) ? -1 : 0;
 
-  var impl = '';
+  let impl = '';
   impl += 'rlo[' + t + '] = ' + value_lo + ';\n';
   impl += 'rhi[' + t + '] = ' + value_hi + ';\n';
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
 function executeLUI(i) {
-  var t = rt(i);
-  var value = imms(i) << 16;
+  const t = rt(i);
+  const value = imms(i) << 16;
   cpu0.gprLo_signed[t] = value;
   cpu0.gprHi_signed[t] = value >> 31;
 }
 
 function generateLB(ctx) {
-  var t = ctx.instr_rt();
-  var b = ctx.instr_base();
-  var o = ctx.instr_imms();
+  const t = ctx.instr_rt();
+  const b = ctx.instr_base();
+  const o = ctx.instr_imms();
 
-  var impl = '';
+  let impl = '';
   impl += 'var value = n64js.load_s8(ram, ' + genSrcRegLo(b) + ' + ' + o + ');\n';
   impl += 'rlo[' + t + '] = value;\n';
   impl += 'rhi[' + t + '] = value >> 31;\n';
@@ -2258,21 +2259,21 @@ function generateLB(ctx) {
 }
 
 function executeLB(i) {
-  var t = rt(i);
-  var b = base(i);
-  var o = imms(i);
+  const t = rt(i);
+  const b = base(i);
+  const o = imms(i);
 
-  var value = n64js.load_s8(cpu0.ram, cpu0.gprLo_signed[b] + o);
+  const value = n64js.load_s8(cpu0.ram, cpu0.gprLo_signed[b] + o);
   cpu0.gprLo_signed[t] = value;
   cpu0.gprHi_signed[t] = value >> 31;
 }
 
 function generateLBU(ctx) {
-  var t = ctx.instr_rt();
-  var b = ctx.instr_base();
-  var o = ctx.instr_imms();
+  const t = ctx.instr_rt();
+  const b = ctx.instr_base();
+  const o = ctx.instr_imms();
 
-  var impl = '';
+  let impl = '';
   impl += 'rlo[' + t + '] = n64js.load_u8(ram, ' + genSrcRegLo(b) + ' + ' + o + ');\n';
   impl += 'rhi[' + t + '] = 0;\n';
 
@@ -2280,20 +2281,20 @@ function generateLBU(ctx) {
 }
 
 function executeLBU(i) {
-  var t = rt(i);
-  var b = base(i);
-  var o = imms(i);
+  const t = rt(i);
+  const b = base(i);
+  const o = imms(i);
 
   cpu0.gprLo_signed[t] = n64js.load_u8(cpu0.ram, cpu0.gprLo_signed[b] + o);
   cpu0.gprHi_signed[t] = 0;
 }
 
 function generateLH(ctx) {
-  var t = ctx.instr_rt();
-  var b = ctx.instr_base();
-  var o = ctx.instr_imms();
+  const t = ctx.instr_rt();
+  const b = ctx.instr_base();
+  const o = ctx.instr_imms();
 
-  var impl = '';
+  let impl = '';
   impl += 'var value = n64js.load_s16(ram, ' + genSrcRegLo(b) + ' + ' + o + ');\n';
   impl += 'rlo[' + t + '] = value;\n';
   impl += 'rhi[' + t + '] = value >> 31;\n';
@@ -2302,21 +2303,21 @@ function generateLH(ctx) {
 }
 
 function executeLH(i) {
-  var t = rt(i);
-  var b = base(i);
-  var o = imms(i);
+  const t = rt(i);
+  const b = base(i);
+  const o = imms(i);
 
-  var value = n64js.load_s16(cpu0.ram, cpu0.gprLo_signed[b] + o);
+  const value = n64js.load_s16(cpu0.ram, cpu0.gprLo_signed[b] + o);
   cpu0.gprLo_signed[t] = value;
   cpu0.gprHi_signed[t] = value >> 31;
 }
 
 function generateLHU(ctx) {
-  var t = ctx.instr_rt();
-  var b = ctx.instr_base();
-  var o = ctx.instr_imms();
+  const t = ctx.instr_rt();
+  const b = ctx.instr_base();
+  const o = ctx.instr_imms();
 
-  var impl = '';
+  let impl = '';
   impl += 'rlo[' + t + '] = n64js.load_u16(ram, ' + genSrcRegLo(b) + ' + ' + o + ');\n';
   impl += 'rhi[' + t + '] = 0;\n';
 
@@ -2324,23 +2325,23 @@ function generateLHU(ctx) {
 }
 
 function executeLHU(i) {
-  var t = rt(i);
-  var b = base(i);
-  var o = imms(i);
+  const t = rt(i);
+  const b = base(i);
+  const o = imms(i);
 
   cpu0.gprLo_signed[t] = n64js.load_u16(cpu0.ram, cpu0.gprLo_signed[b] + o);
   cpu0.gprHi_signed[t] = 0;
 }
 
 function generateLW(ctx) {
-  var t = ctx.instr_rt();
-  var b = ctx.instr_base();
-  var o = ctx.instr_imms();
+  const t = ctx.instr_rt();
+  const b = ctx.instr_base();
+  const o = ctx.instr_imms();
   // SF2049 requires this, apparently
   if (t === 0)
     return generateNOPBoilerplate('/*load to r0!*/', ctx);
 
-  var impl = '';
+  let impl = '';
   impl += 'var value = n64js.load_s32(ram, ' + genSrcRegLo(b) + ' + ' + o + ');\n';
   impl += 'rlo[' + t + '] = value;\n';
   impl += 'rhi[' + t + '] = value >> 31;\n';
@@ -2349,25 +2350,25 @@ function generateLW(ctx) {
 }
 
 function executeLW(i) {
-  var t = rt(i);
-  var b = base(i);
-  var o = imms(i);
+  const t = rt(i);
+  const b = base(i);
+  const o = imms(i);
 
   // SF2049 requires this, apparently
   if (t === 0)
     return;
 
-  var value = n64js.load_s32(cpu0.ram, cpu0.gprLo_signed[b] + o);
+  const value = n64js.load_s32(cpu0.ram, cpu0.gprLo_signed[b] + o);
   cpu0.gprLo_signed[t] = value;
   cpu0.gprHi_signed[t] = value >> 31;
 }
 
 function generateLWU(ctx) {
-  var t = ctx.instr_rt();
-  var b = ctx.instr_base();
-  var o = ctx.instr_imms();
+  const t = ctx.instr_rt();
+  const b = ctx.instr_base();
+  const o = ctx.instr_imms();
 
-  var impl = '';
+  let impl = '';
   impl += 'rlo[' + t + '] = n64js.load_u32(ram, ' + genSrcRegLo(b) + ' + ' + o + ');\n';
   impl += 'rhi[' + t + '] = 0;\n';
 
@@ -2375,20 +2376,20 @@ function generateLWU(ctx) {
 }
 
 function executeLWU(i) {
-  var t = rt(i);
-  var b = base(i);
-  var o = imms(i);
+  const t = rt(i);
+  const b = base(i);
+  const o = imms(i);
 
   cpu0.gprLo_signed[t] = n64js.load_u32(cpu0.ram, cpu0.gprLo_signed[b] + o);
   cpu0.gprHi_signed[t] = 0;
 }
 
 function generateLD(ctx) {
-  var t = ctx.instr_rt();
-  var b = ctx.instr_base();
-  var o = ctx.instr_imms();
+  const t = ctx.instr_rt();
+  const b = ctx.instr_base();
+  const o = ctx.instr_imms();
 
-  var impl = '';
+  let impl = '';
   impl += 'var addr = ' + genSrcRegLo(b) + ' + ' + o + ';\n';
   impl += 'if (addr < -2139095040) {\n';
   impl += '  var phys = (addr + 0x80000000) | 0;\n';
@@ -2402,14 +2403,14 @@ function generateLD(ctx) {
 }
 
 function executeLD(i) {
-  var t = rt(i);
-  var b = base(i);
-  var o = imms(i);
+  const t = rt(i);
+  const b = base(i);
+  const o = imms(i);
 
-  var addr = cpu0.gprLo_signed[b] + o;
+  const addr = cpu0.gprLo_signed[b] + o;
   if (addr < -2139095040) {
-    var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
-    var ram = cpu0.ram;
+    const phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
+    const ram = cpu0.ram;
     cpu0.gprHi_signed[t] = ((ram[phys] << 24) | (ram[phys + 1] << 16) | (ram[phys + 2] << 8) | ram[phys + 3]) | 0;
     cpu0.gprLo_signed[t] = ((ram[phys + 4] << 24) | (ram[phys + 5] << 16) | (ram[phys + 6] << 8) | ram[phys + 7]) | 0;
   } else {
@@ -2419,33 +2420,33 @@ function executeLD(i) {
 }
 
 function generateLWC1(ctx) {
-  var t = ctx.instr_ft();
-  var b = ctx.instr_base();
-  var o = ctx.instr_imms();
+  const t = ctx.instr_ft();
+  const b = ctx.instr_base();
+  const o = ctx.instr_imms();
 
   ctx.fragment.usesCop1 = true;
 
-  var impl = 'cpu1.int32[' + t + '] = n64js.load_s32(ram, ' + genSrcRegLo(b) + ' + ' + o + ');\n';
+  const impl = 'cpu1.int32[' + t + '] = n64js.load_s32(ram, ' + genSrcRegLo(b) + ' + ' + o + ');\n';
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
 
 // FIXME: needs to check Cop1Enabled - thanks Salvy!
 function executeLWC1(i) {
-  var t = ft(i);
-  var b = base(i);
-  var o = imms(i);
+  const t = ft(i);
+  const b = base(i);
+  const o = imms(i);
 
   cpu1.int32[t] = n64js.load_s32(cpu0.ram, cpu0.gprLo_signed[b] + o);
 }
 
 function generateLDC1(ctx) {
-  var t = ctx.instr_ft();
-  var b = ctx.instr_base();
-  var o = ctx.instr_imms();
+  const t = ctx.instr_ft();
+  const b = ctx.instr_base();
+  const o = ctx.instr_imms();
 
   ctx.fragment.usesCop1 = true;
 
-  var impl = '';
+  let impl = '';
   impl += 'var value_lo;\n';
   impl += 'var value_hi;\n';
   impl += 'var addr = ' + genSrcRegLo(b) + ' + ' + o + ';\n';
@@ -2464,16 +2465,16 @@ function generateLDC1(ctx) {
 
 // FIXME: needs to check Cop1Enabled - thanks Salvy!
 function executeLDC1(i) {
-  var t = ft(i);
-  var b = base(i);
-  var o = imms(i);
+  const t = ft(i);
+  const b = base(i);
+  const o = imms(i);
 
-  var addr = cpu0.gprLo_signed[b] + o;
-  var value_lo;
-  var value_hi;
+  const addr = cpu0.gprLo_signed[b] + o;
+  let value_lo;
+  let value_hi;
   if (addr < -2139095040) {
-    var phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
-    var ram = cpu0.ram;
+    const phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
+    const ram = cpu0.ram;
     value_hi = ((ram[phys] << 24) | (ram[phys + 1] << 16) | (ram[phys + 2] << 8) | ram[phys + 3]) | 0;
     value_lo = ((ram[phys + 4] << 24) | (ram[phys + 5] << 16) | (ram[phys + 6] << 8) | ram[phys + 7]) | 0;
   } else {
@@ -2487,12 +2488,12 @@ function executeLDC1(i) {
 function executeLDC2(i) { unimplemented(cpu0.pc, i); }
 
 function executeLWL(i) {
-  var address = memaddr(i) >>> 0;
-  var address_aligned = (address & ~3) >>> 0;
-  var memory = n64js.readMemoryU32(address_aligned);
-  var reg = cpu0.gprLo[rt(i)];
+  const address = memaddr(i) >>> 0;
+  const address_aligned = (address & ~3) >>> 0;
+  const memory = n64js.readMemoryU32(address_aligned);
+  const reg = cpu0.gprLo[rt(i)];
 
-  var value;
+  let value;
   switch (address % 4) {
     case 0: value = memory; break;
     case 1: value = (reg & 0x000000ff) | (memory << 8); break;
@@ -2504,12 +2505,12 @@ function executeLWL(i) {
 }
 
 function executeLWR(i) {
-  var address = memaddr(i) >>> 0;
-  var address_aligned = (address & ~3) >>> 0;
-  var memory = n64js.readMemoryU32(address_aligned);
-  var reg = cpu0.gprLo[rt(i)];
+  const address = memaddr(i) >>> 0;
+  const address_aligned = (address & ~3) >>> 0;
+  const memory = n64js.readMemoryU32(address_aligned);
+  const reg = cpu0.gprLo[rt(i)];
 
-  var value;
+  let value;
   switch (address % 4) {
     case 0: value = (reg & 0xffffff00) | (memory >>> 24); break;
     case 1: value = (reg & 0xffff0000) | (memory >>> 16); break;
@@ -2524,65 +2525,65 @@ function executeLDL(i) { unimplemented(cpu0.pc, i); }
 function executeLDR(i) { unimplemented(cpu0.pc, i); }
 
 function generateSB(ctx) {
-  var t = ctx.instr_rt();
-  var b = ctx.instr_base();
-  var o = ctx.instr_imms();
+  const t = ctx.instr_rt();
+  const b = ctx.instr_base();
+  const o = ctx.instr_imms();
 
-  var impl = '';
+  let impl = '';
   impl += 'n64js.store_8(ram, ' + genSrcRegLo(b) + ' + ' + o + ', ' + genSrcRegLo(t) + ');\n';
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
 
 function executeSB(i) {
-  var t = rt(i);
-  var b = base(i);
-  var o = imms(i);
+  const t = rt(i);
+  const b = base(i);
+  const o = imms(i);
 
   n64js.store_8(cpu0.ram, cpu0.gprLo_signed[b] + o, cpu0.gprLo_signed[t] /*& 0xff*/);
 }
 
 function generateSH(ctx) {
-  var t = ctx.instr_rt();
-  var b = ctx.instr_base();
-  var o = ctx.instr_imms();
+  const t = ctx.instr_rt();
+  const b = ctx.instr_base();
+  const o = ctx.instr_imms();
 
-  var impl = '';
+  let impl = '';
   impl += 'n64js.store_16(ram, ' + genSrcRegLo(b) + ' + ' + o + ', ' + genSrcRegLo(t) + ');\n';
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
 
 function executeSH(i) {
-  var t = rt(i);
-  var b = base(i);
-  var o = imms(i);
+  const t = rt(i);
+  const b = base(i);
+  const o = imms(i);
 
   n64js.store_16(cpu0.ram, cpu0.gprLo_signed[b] + o, cpu0.gprLo_signed[t] /*& 0xffff*/);
 }
 
 function generateSW(ctx) {
-  var t = ctx.instr_rt();
-  var b = ctx.instr_base();
-  var o = ctx.instr_imms();
+  const t = ctx.instr_rt();
+  const b = ctx.instr_base();
+  const o = ctx.instr_imms();
 
-  var impl = '';
+  let impl = '';
   impl += 'n64js.store_32(ram, ' + genSrcRegLo(b) + ' + ' + o + ', ' + genSrcRegLo(t) + ');\n';
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
 
 function executeSW(i) {
-  var t = rt(i);
-  var b = base(i);
-  var o = imms(i);
+  const t = rt(i);
+  const b = base(i);
+  const o = imms(i);
 
   n64js.store_32(cpu0.ram, cpu0.gprLo_signed[b] + o, cpu0.gprLo_signed[t]);
 }
 
 function generateSD(ctx) {
-  var t = ctx.instr_rt();
-  var b = ctx.instr_base();
-  var o = ctx.instr_imms();
+  const t = ctx.instr_rt();
+  const b = ctx.instr_base();
+  const o = ctx.instr_imms();
 
-  var impl = '';
+  let impl = '';
   impl += 'var addr = ' + genSrcRegLo(b) + ' + ' + o + ';\n';
   impl += 'n64js.store_64(ram, addr,     ' + genSrcRegLo(t) + ',' + genSrcRegHi(t) + ');\n';
 
@@ -2590,47 +2591,47 @@ function generateSD(ctx) {
 }
 
 function executeSD(i) {
-  var t = rt(i);
-  var b = base(i);
-  var o = imms(i);
+  const t = rt(i);
+  const b = base(i);
+  const o = imms(i);
 
-  var addr = cpu0.gprLo_signed[b] + o;
+  const addr = cpu0.gprLo_signed[b] + o;
   n64js.store_64(cpu0.ram, addr, cpu0.gprLo_signed[t], cpu0.gprHi_signed[t]);
 }
 
 function generateSWC1(ctx) {
-  var t = ctx.instr_ft();
-  var b = ctx.instr_base();
-  var o = ctx.instr_imms();
+  const t = ctx.instr_ft();
+  const b = ctx.instr_base();
+  const o = ctx.instr_imms();
 
   ctx.fragment.usesCop1 = true;
 
   // FIXME: can avoid cpuStuffToDo if we're writing to ram
-  var impl = '';
+  let impl = '';
   impl += 'n64js.store_32(ram, ' + genSrcRegLo(b) + ' + ' + o + ', cpu1.int32[' + t + ']);\n';
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
 
 // FIXME: needs to check Cop1Enabled - thanks Salvy!
 function executeSWC1(i) {
-  var t = ft(i);
-  var b = base(i);
-  var o = imms(i);
+  const t = ft(i);
+  const b = base(i);
+  const o = imms(i);
 
   n64js.store_32(cpu0.ram, cpu0.gprLo_signed[b] + o, cpu1.int32[t]);
 }
 
 function generateSDC1(ctx) {
-  var t = ctx.instr_ft();
-  var b = ctx.instr_base();
-  var o = ctx.instr_imms();
+  const t = ctx.instr_ft();
+  const b = ctx.instr_base();
+  const o = ctx.instr_imms();
 
-  var hi = t + 1;
+  const hi = t + 1;
 
   ctx.fragment.usesCop1 = true;
 
   // FIXME: can avoid cpuStuffToDo if we're writing to ram
-  var impl = '';
+  let impl = '';
   impl += 'var addr = ' + genSrcRegLo(b) + ' + ' + o + ';\n';
   impl += 'n64js.store_64(ram, addr, cpu1.int32[' + t + '], cpu1.int32[' + hi + ']);\n';
   return generateMemoryAccessBoilerplate(impl, ctx);
@@ -2638,24 +2639,24 @@ function generateSDC1(ctx) {
 
 // FIXME: needs to check Cop1Enabled - thanks Salvy!
 function executeSDC1(i) {
-  var t = ft(i);
-  var b = base(i);
-  var o = imms(i);
+  const t = ft(i);
+  const b = base(i);
+  const o = imms(i);
 
   // FIXME: this can do a single check that the address is in ram
-  var addr = cpu0.gprLo_signed[b] + o;
+  const addr = cpu0.gprLo_signed[b] + o;
   n64js.store_64(cpu0.ram, addr, cpu1.int32[t], cpu1.int32[t + 1]);
 }
 
 function executeSDC2(i) { unimplemented(cpu0.pc, i); }
 
 function executeSWL(i) {
-  var address = memaddr(i);
-  var address_aligned = (address & ~3) >>> 0;
-  var memory = n64js.readMemoryU32(address_aligned);
-  var reg = cpu0.gprLo[rt(i)];
+  const address = memaddr(i);
+  const address_aligned = (address & ~3) >>> 0;
+  const memory = n64js.readMemoryU32(address_aligned);
+  const reg = cpu0.gprLo[rt(i)];
 
-  var value;
+  let value;
   switch (address % 4) {
     case 0: value = reg; break;
     case 1: value = (memory & 0xff000000) | (reg >>> 8); break;
@@ -2667,12 +2668,12 @@ function executeSWL(i) {
 }
 
 function executeSWR(i) {
-  var address = memaddr(i);
-  var address_aligned = (address & ~3) >>> 0;
-  var memory = n64js.readMemoryU32(address_aligned);
-  var reg = cpu0.gprLo[rt(i)];
+  const address = memaddr(i);
+  const address_aligned = (address & ~3) >>> 0;
+  const memory = n64js.readMemoryU32(address_aligned);
+  const reg = cpu0.gprLo[rt(i)];
 
-  var value;
+  let value;
   switch (address % 4) {
     case 0: value = (memory & 0x00ffffff) | (reg << 24); break;
     case 1: value = (memory & 0x0000ffff) | (reg << 16); break;
@@ -2687,14 +2688,14 @@ function executeSDL(i) { unimplemented(cpu0.pc, i); }
 function executeSDR(i) { unimplemented(cpu0.pc, i); }
 
 function generateCACHE(ctx) {
-  var b = ctx.instr_base();
-  var o = ctx.instr_imms();
-  var cache_op = ctx.instr_rt();
-  var cache = (cache_op) & 0x3;
-  var action = (cache_op >>> 2) & 0x7;
+  const b = ctx.instr_base();
+  const o = ctx.instr_imms();
+  const cache_op = ctx.instr_rt();
+  const cache = (cache_op) & 0x3;
+  const action = (cache_op >>> 2) & 0x7;
 
   if (cache === 0 && (action === 0 || action === 4)) {
-    var impl = '';
+    let impl = '';
     impl += 'var addr = ' + genSrcRegLo(b) + ' + ' + o + ';\n';
     impl += "n64js.invalidateICacheEntry(addr);\n";
     return generateTrivialOpBoilerplate(impl, ctx);
@@ -2704,13 +2705,13 @@ function generateCACHE(ctx) {
 }
 
 function executeCACHE(i) {
-  var cache_op = rt(i);
-  var cache = (cache_op) & 0x3;
-  var action = (cache_op >>> 2) & 0x7;
+  const cache_op = rt(i);
+  const cache = (cache_op) & 0x3;
+  const action = (cache_op >>> 2) & 0x7;
 
   if (cache === 0 && (action === 0 || action === 4)) {
     // NB: only bother generating address if we handle the instruction - memaddr deopts like crazy
-    var address = memaddr(i);
+    const address = memaddr(i);
     n64js.invalidateICacheEntry(address);
   }
 }
@@ -2721,13 +2722,13 @@ function executeSC(i) { unimplemented(cpu0.pc, i); }
 function executeSCD(i) { unimplemented(cpu0.pc, i); }
 
 function generateMFC1Stub(ctx) {
-  var t = ctx.instr_rt();
-  var s = ctx.instr_fs();
+  const t = ctx.instr_rt();
+  const s = ctx.instr_fs();
 
   ctx.fragment.usesCop1 = true;
   ctx.isTrivial = true;
 
-  var impl = '';
+  let impl = '';
   impl += 'var result = cpu1.int32[' + s + '];\n';
   impl += 'rlo[' + t + '] = result;\n';
   impl += 'rhi[' + t + '] = result >> 31;\n';
@@ -2735,37 +2736,37 @@ function generateMFC1Stub(ctx) {
 }
 
 function executeMFC1(i) {
-  var t = rt(i);
-  var s = fs(i);
-  var result = cpu1.int32[s];
+  const t = rt(i);
+  const s = fs(i);
+  const result = cpu1.int32[s];
   cpu0.gprLo_signed[t] = result;
   cpu0.gprHi_signed[t] = result >> 31;
 }
 
 function generateDMFC1Stub(ctx) {
-  var t = ctx.instr_rt();
-  var s = ctx.instr_fs();
-  var hi = s + 1;
+  const t = ctx.instr_rt();
+  const s = ctx.instr_fs();
+  const hi = s + 1;
 
   ctx.fragment.usesCop1 = true;
   ctx.isTrivial = true;
 
-  var impl = '';
+  let impl = '';
   impl += 'rlo[' + t + '] = cpu1.int32[' + s + '];\n';
   impl += 'rhi[' + t + '] = cpu1.int32[' + hi + '];\n';
   return impl;
 }
 
 function executeDMFC1(i) {
-  var t = rt(i);
-  var s = fs(i);
+  const t = rt(i);
+  const s = fs(i);
   cpu0.gprLo_signed[t] = cpu1.int32[s];
   cpu0.gprHi_signed[t] = cpu1.int32[s + 1];
 }
 
 function generateMTC1Stub(ctx) {
-  var s = ctx.instr_fs();
-  var t = ctx.instr_rt();
+  const s = ctx.instr_fs();
+  const t = ctx.instr_rt();
 
   ctx.fragment.usesCop1 = true;
   ctx.isTrivial = true;
@@ -2778,35 +2779,35 @@ function executeMTC1(i) {
 }
 
 function generateDMTC1Stub(ctx) {
-  var s = ctx.instr_fs();
-  var t = ctx.instr_rt();
-  var hi = s + 1;
+  const s = ctx.instr_fs();
+  const t = ctx.instr_rt();
+  const hi = s + 1;
 
   ctx.fragment.usesCop1 = true;
   ctx.isTrivial = true;
 
-  var impl = '';
+  let impl = '';
   impl += 'cpu1.int32[' + s + '] = rlo[' + t + '];\n';
   impl += 'cpu1.int32[' + hi + '] = rhi[' + t + '];\n';
   return impl;
 }
 
 function executeDMTC1(i) {
-  var s = fs(i);
-  var t = rt(i);
+  const s = fs(i);
+  const t = rt(i);
 
   cpu1.int32[s + 0] = cpu0.gprLo_signed[t];
   cpu1.int32[s + 1] = cpu0.gprHi_signed[t];
 }
 
 function generateCFC1Stub(ctx) {
-  var s = ctx.instr_fs();
-  var t = ctx.instr_rt();
+  const s = ctx.instr_fs();
+  const t = ctx.instr_rt();
 
   ctx.fragment.usesCop1 = true;
   ctx.isTrivial = true;
 
-  var impl = '';
+  let impl = '';
 
   switch (s) {
     case 0:
@@ -2821,13 +2822,13 @@ function generateCFC1Stub(ctx) {
 }
 
 function executeCFC1(i) {
-  var s = fs(i);
-  var t = rt(i);
+  const s = fs(i);
+  const t = rt(i);
 
   switch (s) {
     case 0:
     case 31:
-      var value = cpu1.control[s];
+      const value = cpu1.control[s];
       cpu0.gprLo_signed[t] = value;
       cpu0.gprHi_signed[t] = value >> 31;
       break;
@@ -2835,8 +2836,8 @@ function executeCFC1(i) {
 }
 
 function generateCTC1Stub(ctx) {
-  var s = ctx.instr_fs();
-  var t = ctx.instr_rt();
+  const s = ctx.instr_fs();
+  const t = ctx.instr_rt();
 
   ctx.fragment.usesCop1 = true;
   ctx.isTrivial = true;
@@ -2849,11 +2850,11 @@ function generateCTC1Stub(ctx) {
 }
 
 function executeCTC1(i) {
-  var s = fs(i);
-  var t = rt(i);
+  const s = fs(i);
+  const t = rt(i);
 
   if (s === 31) {
-    var v = cpu0.gprLo[t];
+    const v = cpu0.gprLo[t];
 
     // switch (v & FPCSR_RM_MASK) {
     // case FPCSR_RM_RN:     logger.log('cop1 - setting round near');  break;
@@ -2867,18 +2868,18 @@ function executeCTC1(i) {
 }
 
 function generateBCInstrStub(ctx) {
-  var i = ctx.instruction;
+  const i = ctx.instruction;
   assert(((i >>> 18) & 0x7) === 0, "cc bit is not 0");
 
-  var condition = (i & 0x10000) !== 0;
-  var likely = (i & 0x20000) !== 0;
-  var target = branchAddress(ctx.pc, i);
+  const condition = (i & 0x10000) !== 0;
+  const likely = (i & 0x20000) !== 0;
+  const target = branchAddress(ctx.pc, i);
 
   ctx.fragment.usesCop1 = true;
   ctx.isTrivial = false; // NB: not trivial - branches!
 
-  var impl = '';
-  var test = condition ? '!==' : '===';
+  let impl = '';
+  const test = condition ? '!==' : '===';
   impl += 'if ((cpu1.control[31] & FPCSR_C) ' + test + ' 0) {\n';
   impl += '  c.branchTarget = ' + toString32(target) + ';\n';
   if (likely) {
@@ -2893,9 +2894,9 @@ function generateBCInstrStub(ctx) {
 function executeBCInstr(i) {
   assert(((i >>> 18) & 0x7) === 0, "cc bit is not 0");
 
-  var condition = (i & 0x10000) !== 0;
-  var likely = (i & 0x20000) !== 0;
-  var cc = (cpu1.control[31] & FPCSR_C) !== 0;
+  const condition = (i & 0x10000) !== 0;
+  const likely = (i & 0x20000) !== 0;
+  const cc = (cpu1.control[31] & FPCSR_C) !== 0;
 
   if (cc === condition) {
     performBranch(branchAddress(cpu0.pc, i));
@@ -2925,7 +2926,7 @@ n64js.convert = function (x) {
 };
 
 function generateFloatCompare(op) {
-  var impl = '';
+  let impl = '';
   impl += 'var cc = false;\n';
   impl += 'if (isNaN(fs+ft)) {\n';
   if (op & 0x8) {
@@ -2947,7 +2948,7 @@ function generateFloatCompare(op) {
 }
 
 function handleFloatCompare(op, fs, ft) {
-  var c = false;
+  let c = false;
   if (isNaN(fs + ft)) {
     if (op & 0x8) {
       n64js.halt('Should raise Invalid Operation here.');
@@ -2962,14 +2963,14 @@ function handleFloatCompare(op, fs, ft) {
 }
 
 function generateSInstrStub(ctx) {
-  var s = ctx.instr_fs();
-  var t = ctx.instr_ft();
-  var d = ctx.instr_fd();
+  const s = ctx.instr_fs();
+  const t = ctx.instr_ft();
+  const d = ctx.instr_fd();
 
   ctx.fragment.usesCop1 = true;
   ctx.isTrivial = true;
 
-  var op = cop1_func(ctx.instruction);
+  const op = cop1_func(ctx.instruction);
 
   if (op < 0x30) {
     switch (op) {
@@ -2981,25 +2982,25 @@ function generateSInstrStub(ctx) {
       case 0x05: return 'cpu1.float32[' + d + '] = Math.abs(  cpu1.float32[' + s + '] );\n';
       case 0x06: return 'cpu1.float32[' + d + '] =  cpu1.float32[' + s + '];\n';
       case 0x07: return 'cpu1.float32[' + d + '] = -cpu1.float32[' + s + '];\n';
-      case 0x08:    /* 'ROUND.L.'*/     return 'cpu1.store_float_as_long(' + d + ',  Math.round( cpu1.float32[' + s + ']));\n';
-      case 0x09:    /* 'TRUNC.L.'*/     return 'cpu1.store_float_as_long(' + d + ', n64js.trunc( cpu1.float32[' + s + ']));\n';
-      case 0x0a:    /* 'CEIL.L.'*/      return 'cpu1.store_float_as_long(' + d + ',  Math.ceil(  cpu1.float32[' + s + ']));\n';
-      case 0x0b:    /* 'FLOOR.L.'*/     return 'cpu1.store_float_as_long(' + d + ',  Math.floor( cpu1.float32[' + s + ']));\n';
-      case 0x0c:    /* 'ROUND.W.'*/     return 'cpu1.int32[' + d + '] =  Math.round( cpu1.float32[' + s + '] );\n';  // TODO: check this
-      case 0x0d:    /* 'TRUNC.W.'*/     return 'cpu1.int32[' + d + '] = n64js.trunc( cpu1.float32[' + s + '] );\n';
-      case 0x0e:    /* 'CEIL.W.'*/      return 'cpu1.int32[' + d + '] =  Math.ceil(  cpu1.float32[' + s + '] );\n';
-      case 0x0f:    /* 'FLOOR.W.'*/     return 'cpu1.int32[' + d + '] =  Math.floor( cpu1.float32[' + s + '] );\n';
-      case 0x20:    /* 'CVT.S' */       break;
-      case 0x21:    /* 'CVT.D' */       return 'cpu1.store_f64( ' + d + ', cpu1.float32[' + s + '] );\n';
-      case 0x24:    /* 'CVT.W' */       return 'cpu1.int32[' + d + '] = n64js.convert( cpu1.float32[' + s + '] );\n';
-      case 0x25:    /* 'CVT.L' */       break;
+      case 0x08: /* 'ROUND.L.'*/ return 'cpu1.store_float_as_long(' + d + ',  Math.round( cpu1.float32[' + s + ']));\n';
+      case 0x09: /* 'TRUNC.L.'*/ return 'cpu1.store_float_as_long(' + d + ', n64js.trunc( cpu1.float32[' + s + ']));\n';
+      case 0x0a: /* 'CEIL.L.'*/  return 'cpu1.store_float_as_long(' + d + ',  Math.ceil(  cpu1.float32[' + s + ']));\n';
+      case 0x0b: /* 'FLOOR.L.'*/ return 'cpu1.store_float_as_long(' + d + ',  Math.floor( cpu1.float32[' + s + ']));\n';
+      case 0x0c: /* 'ROUND.W.'*/ return 'cpu1.int32[' + d + '] =  Math.round( cpu1.float32[' + s + '] );\n';  // TODO: check this
+      case 0x0d: /* 'TRUNC.W.'*/ return 'cpu1.int32[' + d + '] = n64js.trunc( cpu1.float32[' + s + '] );\n';
+      case 0x0e: /* 'CEIL.W.'*/  return 'cpu1.int32[' + d + '] =  Math.ceil(  cpu1.float32[' + s + '] );\n';
+      case 0x0f: /* 'FLOOR.W.'*/ return 'cpu1.int32[' + d + '] =  Math.floor( cpu1.float32[' + s + '] );\n';
+      case 0x20: /* 'CVT.S' */   break;
+      case 0x21: /* 'CVT.D' */   return 'cpu1.store_f64( ' + d + ', cpu1.float32[' + s + '] );\n';
+      case 0x24: /* 'CVT.W' */   return 'cpu1.int32[' + d + '] = n64js.convert( cpu1.float32[' + s + '] );\n';
+      case 0x25: /* 'CVT.L' */   break;
     }
 
     return 'unimplemented(' + toString32(ctx.pc) + ',' + toString32(ctx.instruction) + ');\n';
   }
 
   // It's a compare instruction
-  var impl = '';
+  let impl = '';
   impl += 'var fs = cpu1.float32[' + s + '];\n';
   impl += 'var ft = cpu1.float32[' + t + '];\n';
   impl += generateFloatCompare(op);
@@ -3007,11 +3008,11 @@ function generateSInstrStub(ctx) {
 }
 
 function executeSInstr(i) {
-  var s = fs(i);
-  var t = ft(i);
-  var d = fd(i);
+  const s = fs(i);
+  const t = ft(i);
+  const d = fd(i);
 
-  var op = cop1_func(i);
+  const op = cop1_func(i);
 
   if (op < 0x30) {
     switch (op) {
@@ -3039,21 +3040,21 @@ function executeSInstr(i) {
     }
     unimplemented(cpu0.pc, i);
   } else {
-    var _s = cpu1.float32[s];
-    var _t = cpu1.float32[t];
+    const _s = cpu1.float32[s];
+    const _t = cpu1.float32[t];
     handleFloatCompare(op, _s, _t);
   }
 }
 
 function generateDInstrStub(ctx) {
-  var s = ctx.instr_fs();
-  var t = ctx.instr_ft();
-  var d = ctx.instr_fd();
+  const s = ctx.instr_fs();
+  const t = ctx.instr_ft();
+  const d = ctx.instr_fd();
 
   ctx.fragment.usesCop1 = true;
   ctx.isTrivial = true;
 
-  var op = cop1_func(ctx.instruction);
+  const op = cop1_func(ctx.instruction);
 
   if (op < 0x30) {
     switch (op) {
@@ -3082,7 +3083,7 @@ function generateDInstrStub(ctx) {
   }
 
   // It's a compare instruction
-  var impl = '';
+  let impl = '';
   impl += 'var fs = cpu1.load_f64(' + s + ');\n';
   impl += 'var ft = cpu1.load_f64(' + t + ');\n';
   impl += generateFloatCompare(op);
@@ -3090,11 +3091,11 @@ function generateDInstrStub(ctx) {
 }
 
 function executeDInstr(i) {
-  var s = fs(i);
-  var t = ft(i);
-  var d = fd(i);
+  const s = fs(i);
+  const t = ft(i);
+  const d = fd(i);
 
-  var op = cop1_func(i);
+  const op = cop1_func(i);
 
   if (op < 0x30) {
     switch (op) {
@@ -3122,15 +3123,15 @@ function executeDInstr(i) {
     }
     unimplemented(cpu0.pc, i);
   } else {
-    var _s = cpu1.load_f64(s);
-    var _t = cpu1.load_f64(t);
+    const _s = cpu1.load_f64(s);
+    const _t = cpu1.load_f64(t);
     handleFloatCompare(op, _s, _t);
   }
 }
 
 function generateWInstrStub(ctx) {
-  var s = ctx.instr_fs();
-  var d = ctx.instr_fd();
+  const s = ctx.instr_fs();
+  const d = ctx.instr_fd();
 
   ctx.fragment.usesCop1 = true;
   ctx.isTrivial = true;
@@ -3142,8 +3143,8 @@ function generateWInstrStub(ctx) {
 }
 
 function executeWInstr(i) {
-  var s = fs(i);
-  var d = fd(i);
+  const s = fs(i);
+  const d = fd(i);
 
   switch (cop1_func(i)) {
     case 0x20: cpu1.float32[d] = cpu1.int32[s]; return;
@@ -3153,8 +3154,8 @@ function executeWInstr(i) {
 }
 
 function generateLInstrStub(ctx) {
-  var s = ctx.instr_fs();
-  var d = ctx.instr_fd();
+  const s = ctx.instr_fs();
+  const d = ctx.instr_fd();
 
   ctx.fragment.usesCop1 = true;
   ctx.isTrivial = true;
@@ -3166,8 +3167,8 @@ function generateLInstrStub(ctx) {
 }
 
 function executeLInstr(i) {
-  var s = fs(i);
-  var d = fd(i);
+  const s = fs(i);
+  const d = fd(i);
 
   switch (cop1_func(i)) {
     case 0x20:    /* 'CVT.S' */ cpu1.float32[d] = cpu1.load_s64_as_double(s); return;
@@ -3176,7 +3177,7 @@ function executeLInstr(i) {
   unimplemented(cpu0.pc, i);
 }
 
-var specialTable = [
+const specialTable = [
   executeSLL,           executeUnknown,       executeSRL,         executeSRA,
   executeSLLV,          executeUnknown,       executeSRLV,        executeSRAV,
   executeJR,            executeJALR,          executeUnknown,     executeUnknown,
@@ -3200,11 +3201,11 @@ if (specialTable.length != 64) {
 n64js.executeUnknown = executeUnknown;
 
 function executeSpecial(i) {
-  var fn = i & 0x3f;
+  const fn = i & 0x3f;
   specialTable[fn](i);
 }
 
-var cop0Table = [
+const cop0Table = [
   executeMFC0,          executeUnknown,       executeUnknown,     executeUnknown,
   executeMTC0,          executeUnknown,       executeUnknown,     executeUnknown,
   executeUnknown,       executeUnknown,       executeUnknown,     executeUnknown,
@@ -3219,7 +3220,7 @@ if (cop0Table.length != 32) {
 }
 
 
-var cop0TableGen = [
+const cop0TableGen = [
   'executeMFC0',          'executeUnknown',       'executeUnknown',     'executeUnknown',
   generateMTC0,           'executeUnknown',       'executeUnknown',     'executeUnknown',
   'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
@@ -3240,11 +3241,11 @@ n64js.executeTLB = executeTLB;
 
 
 function executeCop0(i) {
-  var fmt = (i >>> 21) & 0x1f;
+  const fmt = (i >>> 21) & 0x1f;
   cop0Table[fmt](i);
 }
 
-var cop1Table = [
+const cop1Table = [
   executeMFC1,          executeDMFC1,         executeCFC1,        executeUnknown,
   executeMTC1,          executeDMTC1,         executeCTC1,        executeUnknown,
   executeBCInstr,       executeUnknown,       executeUnknown,     executeUnknown,
@@ -3258,7 +3259,7 @@ if (cop1Table.length != 32) {
   throw "Oops, didn't build the cop1 table correctly";
 }
 
-var cop1TableGen = [
+const cop1TableGen = [
   generateMFC1Stub,       generateDMFC1Stub,      generateCFC1Stub,     'executeUnknown',
   generateMTC1Stub,       generateDMTC1Stub,      generateCTC1Stub,     'executeUnknown',
   generateBCInstrStub,    'executeUnknown',       'executeUnknown',     'executeUnknown',
@@ -3273,10 +3274,10 @@ if (cop1TableGen.length != 32) {
 }
 
 function generateCop1(ctx) {
-  var fmt = (ctx.instruction >>> 21) & 0x1f;
-  var fn = cop1TableGen[fmt];
+  const fmt = (ctx.instruction >>> 21) & 0x1f;
+  const fn = cop1TableGen[fmt];
 
-  var op_impl;
+  let op_impl;
   if (typeof fn === 'string') {
     //logger.log(fn);
     op_impl = 'n64js.' + fn + '(' + toString32(ctx.instruction) + ');\n';
@@ -3284,7 +3285,7 @@ function generateCop1(ctx) {
     op_impl = fn(ctx);
   }
 
-  var impl = '';
+  let impl = '';
 
   ctx.fragment.usesCop1 = true;
 
@@ -3314,7 +3315,7 @@ function generateCop1(ctx) {
 function executeCop1(i) {
   //assert( (cpu0.control[cpu0_constants.controlSR] & SR_CU1) !== 0, "SR_CU1 in inconsistent state" );
 
-  var fmt = (i >>> 21) & 0x1f;
+  const fmt = (i >>> 21) & 0x1f;
   cop1Table[fmt](i);
 }
 function executeCop1_disabled(i) {
@@ -3329,7 +3330,7 @@ function setCop1Enable(enable) {
   simpleTable[0x11] = enable ? executeCop1 : executeCop1_disabled;
 }
 
-var regImmTable = [
+const regImmTable = [
   executeBLTZ,          executeBGEZ,          executeBLTZL,       executeBGEZL,
   executeUnknown,       executeUnknown,       executeUnknown,     executeUnknown,
   executeTGEI,          executeTGEIU,         executeTLTI,        executeTLTIU,
@@ -3344,11 +3345,11 @@ if (regImmTable.length != 32) {
 }
 
 function executeRegImm(i) {
-  var rt = (i >>> 16) & 0x1f;
+  const rt = (i >>> 16) & 0x1f;
   return regImmTable[rt](i);
 }
 
-var simpleTable = [
+const simpleTable = [
   executeSpecial,       executeRegImm,        executeJ,           executeJAL,
   executeBEQ,           executeBNE,           executeBLEZ,        executeBGTZ,
   executeADDI,          executeADDIU,         executeSLTI,        executeSLTIU,
@@ -3371,11 +3372,11 @@ if (simpleTable.length != 64) {
 }
 
 function executeOp(i) {
-  var opcode = (i >>> 26) & 0x3f;
+  const opcode = (i >>> 26) & 0x3f;
   return simpleTable[opcode](i);
 }
 
-var specialTableGen = [
+const specialTableGen = [
   generateSLL,            'executeUnknown',       generateSRL,          generateSRA,
   generateSLLV,           'executeUnknown',       generateSRLV,         generateSRAV,
   generateJR,             generateJALR,           'executeUnknown',     'executeUnknown',
@@ -3427,7 +3428,7 @@ n64js.executeDSLL32  = executeDSLL32;
 n64js.executeDSRL32  = executeDSRL32;
 n64js.executeDSRA32  = executeDSRA32;
 
-var regImmTableGen = [
+const regImmTableGen = [
   generateBLTZ,           generateBGEZ,           generateBLTZL,        generateBGEZL,
   'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
   'executeTGEI',          'executeTGEIU',         'executeTLTI',        'executeTLTIU',
@@ -3453,7 +3454,7 @@ n64js.executeBGEZAL  = executeBGEZAL;
 n64js.executeBLTZALL = executeBLTZALL;
 n64js.executeBGEZALL = executeBGEZALL;
 
-var simpleTableGen = [
+const simpleTableGen = [
   generateSpecial,        generateRegImm,         generateJ,            generateJAL,
   generateBEQ,            generateBNE,            generateBLEZ,         generateBGTZ,
   generateADDI,           generateADDIU,          generateSLTI,         generateSLTIU,
@@ -3571,14 +3572,14 @@ function mix(a, b, c) {
 }
 
 function checkSyncState(sync, pc) {
-  var i;
+  let i;
 
   if (!sync.sync32(pc, 'pc'))
     return false;
 
-  // var next_vbl = 0;
+  // let next_vbl = 0;
   // for (i = 0; i < cpu0.events.length; ++i) {
-  //   var event = cpu0.events[i];
+  //   const event = cpu0.events[i];
   //   next_vbl += event.countdown;
   //   if (event.type === kEventVbl) {
   //     next_vbl = next_vbl*2+1;
@@ -3593,7 +3594,7 @@ function checkSyncState(sync, pc) {
   //   return false;
 
   if (1) {
-    var a = 0;
+    let a = 0;
     for (i = 0; i < 32; ++i) {
       a = mix(a, cpu0.gprLo[i], 0);
     }
@@ -3625,7 +3626,7 @@ function handleTLBException() {
   cpu0.delayPC = cpu0.branchTarget;
   cpu0.control_signed[cpu0_constants.controlCount] += COUNTER_INCREMENT_PER_OP;
 
-  var evt = cpu0.events[0];
+  const evt = cpu0.events[0];
   evt.countdown -= COUNTER_INCREMENT_PER_OP;
   if (evt.countdown <= 0) {
     handleCounter();
@@ -3633,9 +3634,8 @@ function handleTLBException() {
 }
 
 function handleCounter() {
-
   while (cpu0.events.length > 0 && cpu0.events[0].countdown <= 0) {
-    var evt = cpu0.events[0];
+    const evt = cpu0.events[0];
     cpu0.events.splice(0, 1);
 
     // if it's our cycles event then just bail
@@ -3659,7 +3659,7 @@ function handleCounter() {
 }
 
 n64js.singleStep = function () {
-  var restore_breakpoint_address = 0;
+  const restore_breakpoint_address = 0;
   if (n64js.isBreakpoint(cpu0.pc)) {
     restore_breakpoint_address = cpu0.pc;
     n64js.toggleBreakpoint(restore_breakpoint_address);
@@ -3673,7 +3673,6 @@ n64js.singleStep = function () {
 };
 
 n64js.run = function (cycles) {
-
   cpu0.stuffToDo &= ~kStuffToDoHalt;
 
   checkCauseIP3Consistent();
@@ -3682,16 +3681,12 @@ n64js.run = function (cycles) {
   cpu0.addEvent(kEventRunForCycles, cycles);
 
   while (cpu0.hasEvent(kEventRunForCycles)) {
-
     try {
-
       // NB: the bulk of run() is implemented as a separate function.
       // v8 won't optimise code with try/catch blocks, so structuring the code in this way allows runImpl to be optimised.
       runImpl();
       break;
-
     } catch (e) {
-
       if (e instanceof TLBException) {
         // If we hit a TLB exception we apply the nextPC (which should have been set to an exception vector) and continue looping.
         handleTLBException();
@@ -3706,7 +3701,7 @@ n64js.run = function (cycles) {
   }
 
   // Clean up any kEventRunForCycles events before we bail out
-  var cycles_remaining = cpu0.removeEventsOfType(kEventRunForCycles);
+  let cycles_remaining = cpu0.removeEventsOfType(kEventRunForCycles);
 
   // If the event no longer exists, assume we've executed all the cycles
   if (cycles_remaining < 0) {
@@ -3718,10 +3713,10 @@ n64js.run = function (cycles) {
 };
 
 function executeFragment(fragment, c, ram, events) {
-  var evt = events[0];
+  let evt = events[0];
   if (evt.countdown >= fragment.opsCompiled * COUNTER_INCREMENT_PER_OP) {
     fragment.executionCount++;
-    var ops_executed = fragment.func(c, c.gprLo_signed, c.gprHi_signed, ram);   // Absolute value is number of ops executed.
+    const ops_executed = fragment.func(c, c.gprLo_signed, c.gprHi_signed, ram);   // Absolute value is number of ops executed.
 
     // refresh latest event - may have changed
     evt = events[0];
@@ -3738,7 +3733,7 @@ function executeFragment(fragment, c, ram, events) {
 
     // If stuffToDo is set, we'll break on the next loop
 
-    var next_fragment = fragment.nextFragments[ops_executed];
+    let next_fragment = fragment.nextFragments[ops_executed];
     if (!next_fragment || next_fragment.entryPC !== c.pc) {
       next_fragment = fragment.getNextFragment(c.pc, ops_executed);
     }
@@ -3753,7 +3748,7 @@ function executeFragment(fragment, c, ram, events) {
 }
 
 // We need just one of these - declare at global scope to avoid generating garbage
-var fragmentContext = new FragmentContext(); // NB: first pc is entry_pc, cpu0.pc is post_pc by this point
+const fragmentContext = new FragmentContext(); // NB: first pc is entry_pc, cpu0.pc is post_pc by this point
 
 function addOpToFragment(fragment, entry_pc, instruction, c) {
   if (fragment.opsCompiled === 0) {
@@ -3766,7 +3761,7 @@ function addOpToFragment(fragment, entry_pc, instruction, c) {
   generateCodeForOp(fragmentContext);
 
   // Break out of the trace as soon as we branch, or too many ops, or last op generated an interrupt (stuffToDo set)
-  var long_fragment = fragment.opsCompiled > 8;
+  const long_fragment = fragment.opsCompiled > 8;
   if ((long_fragment && c.pc !== entry_pc + 4) || fragment.opsCompiled >= 250 || c.stuffToDo) {
 
     // Check if the last op has a delayed pc update, and do it now.
@@ -3777,27 +3772,27 @@ function addOpToFragment(fragment, entry_pc, instruction, c) {
 
     fragment.body_code += 'return ' + fragment.opsCompiled + ';\n';    // Return the number of ops exected
 
-    var sync = n64js.getSyncFlow();
+    const sync = n64js.getSyncFlow();
     if (sync) {
       fragment.body_code = 'var sync = n64js.getSyncFlow();\n' + fragment.body_code;
     }
 
     if (fragment.usesCop1) {
-      var cpu1_shizzle = '';
+      let cpu1_shizzle = '';
       cpu1_shizzle += 'var cpu1 = n64js.cpu1;\n';
       cpu1_shizzle += 'var SR_CU1 = ' + toString32(SR_CU1) + ';\n';
       cpu1_shizzle += 'var FPCSR_C = ' + toString32(FPCSR_C) + ';\n';
       fragment.body_code = cpu1_shizzle + '\n\n' + fragment.body_code;
     }
 
-    var code = 'return function fragment_' + toString32(fragment.entryPC) + '_' + fragment.opsCompiled + '(c, rlo, rhi, ram) {\n' + fragment.body_code + '}\n';
+    const code = 'return function fragment_' + toString32(fragment.entryPC) + '_' + fragment.opsCompiled + '(c, rlo, rhi, ram) {\n' + fragment.body_code + '}\n';
 
     // Clear these strings to reduce garbage
     fragment.body_code = '';
 
     fragment.func = new Function(code)();
     fragment.nextFragments = [];
-    for (var i = 0; i < fragment.opsCompiled; i++) {
+    for (let i = 0; i < fragment.opsCompiled; i++) {
       fragment.nextFragments.push(undefined);
     }
     fragment = lookupFragment(c.pc);
@@ -3807,24 +3802,19 @@ function addOpToFragment(fragment, entry_pc, instruction, c) {
 }
 
 function runImpl() {
-  var c = cpu0;
-  var events = c.events;
-  var ram = c.ram;
-
-  var fragment;
-  var evt;
+  const c = cpu0;
+  const events = c.events;
+  const ram = c.ram;
 
   while (c.hasEvent(kEventRunForCycles)) {
-
-    fragment = lookupFragment(c.pc);
-    //fragment = null;
+    let fragment = lookupFragment(c.pc);
+    // fragment = null;
 
     while (!c.stuffToDo) {
 
       if (fragment && fragment.func) {
         fragment = executeFragment(fragment, c, ram, events);
       } else {
-
         // if (syncFlow) {
         //   if (!checkSyncState(syncFlow, cpu0.pc)) {
         //     n64js.halt('sync error');
@@ -3832,16 +3822,16 @@ function runImpl() {
         //   }
         // }
 
-        var pc = c.pc;   // take a copy of this, so we can refer to it later
+        const pc = c.pc;   // take a copy of this, so we can refer to it later
 
         // NB: set nextPC before the call to readMemoryS32. If this throws an exception, we need nextPC to be set up correctly.
         if (c.delayPC) { c.nextPC = c.delayPC; } else { c.nextPC = c.pc + 4; }
 
         // NB: load instruction using normal memory access routines - this means that we throw a tlb miss/refill approptiately
-        //var instruction = n64js.load_s32(ram, pc);
-        var instruction;
+        // let instruction = n64js.load_s32(ram, pc);
+        let instruction;
         if (pc < -2139095040) {
-          var phys = (pc + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
+          const phys = (pc + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
           instruction = ((ram[phys] << 24) | (ram[phys + 1] << 16) | (ram[phys + 2] << 8) | ram[phys + 3]) | 0;
         } else {
           instruction = lw_slow(pc);
@@ -3855,7 +3845,7 @@ function runImpl() {
         //checkCauseIP3Consistent();
         //n64js.checkSIStatusConsistent();
 
-        evt = events[0];
+        let evt = events[0];
         evt.countdown -= COUNTER_INCREMENT_PER_OP;
         if (evt.countdown <= 0) {
           handleCounter();
@@ -3962,9 +3952,9 @@ class FragmentMap {
   }
 }
 
-var fragmentMap = new FragmentMap();
+const fragmentMap = new FragmentMap();
 
-var invals = 0;
+let invals = 0;
 
 // Invalidate a single cache line
 n64js.invalidateICacheEntry = function (address) {
@@ -4000,7 +3990,7 @@ function updateFragment(fragment, pc) {
 
 function checkEqual(a, b, m) {
   if (a !== b) {
-    var msg = toString32(a) + ' !== ' + toString32(b) + ' : ' + m;
+    const msg = toString32(a) + ' !== ' + toString32(b) + ' : ' + m;
     console.assert(false, msg);
     n64js.halt(msg);
     return false;
@@ -4015,7 +4005,7 @@ function generateCodeForOp(ctx) {
   ctx.needsDelayCheck = ctx.fragment.needsDelayCheck;
   ctx.isTrivial = false;
 
-  var fn_code = generateOp(ctx);
+  const fn_code = generateOp(ctx);
 
   if (ctx.dump) {
     console.log(fn_code);
@@ -4037,7 +4027,7 @@ function generateCodeForOp(ctx) {
 
   ctx.fragment.bailedOut |= ctx.bailOut;
 
-  var sync = n64js.getSyncFlow();
+  const sync = n64js.getSyncFlow();
   if (sync) {
     fn_code = 'if (!n64js.checkSyncState(sync, ' + toString32(ctx.pc) + ')) { return ' + ctx.fragment.opsCompiled + '; }\n' + fn_code;
   }
@@ -4046,26 +4036,26 @@ function generateCodeForOp(ctx) {
 }
 
 function generateOp(ctx) {
-  var opcode = (ctx.instruction >>> 26) & 0x3f;
-  var fn = simpleTableGen[opcode];
+  const opcode = (ctx.instruction >>> 26) & 0x3f;
+  const fn = simpleTableGen[opcode];
   return generateOpHelper(fn, ctx);
 }
 
 function generateSpecial(ctx) {
-  var special_fn = ctx.instruction & 0x3f;
-  var fn = specialTableGen[special_fn];
+  const special_fn = ctx.instruction & 0x3f;
+  const fn = specialTableGen[special_fn];
   return generateOpHelper(fn, ctx);
 }
 
 function generateRegImm(ctx) {
-  var rt = (ctx.instruction >>> 16) & 0x1f;
-  var fn = regImmTableGen[rt];
+  const rt = (ctx.instruction >>> 16) & 0x1f;
+  const fn = regImmTableGen[rt];
   return generateOpHelper(fn, ctx);
 }
 
 function generateCop0(ctx) {
-  var fmt = (ctx.instruction >>> 21) & 0x1f;
-  var fn = cop0TableGen[fmt];
+  const fmt = (ctx.instruction >>> 21) & 0x1f;
+  const fn = cop0TableGen[fmt];
   return generateOpHelper(fn, ctx);
 }
 
@@ -4081,7 +4071,7 @@ function generateOpHelper(fn, ctx) {
 }
 
 function generateGenericOpBoilerplate(fn, ctx) {
-  var code = '';
+  let code = '';
   code += ctx.genAssert('c.pc === ' + toString32(ctx.pc), 'pc mismatch');
 
   if (ctx.needsDelayCheck) {
@@ -4118,7 +4108,7 @@ function generateGenericOpBoilerplate(fn, ctx) {
 
 // Standard code for manipulating the pc
 function generateStandardPCUpdate(fn, ctx, might_adjust_next_pc) {
-  var code = '';
+  let code = '';
   code += ctx.genAssert('c.pc === ' + toString32(ctx.pc), 'pc mismatch');
 
   if (ctx.needsDelayCheck) {
@@ -4143,9 +4133,9 @@ function generateStandardPCUpdate(fn, ctx, might_adjust_next_pc) {
 
 // Memory access does not adjust branchTarget, but nextPC may be adjusted if they cause an exception.
 function generateMemoryAccessBoilerplate(fn, ctx) {
-  var code = '';
+  let code = '';
 
-  var might_adjust_next_pc = true;
+  const might_adjust_next_pc = true;
   code += generateStandardPCUpdate(fn, ctx, might_adjust_next_pc);
 
   // Memory instructions never cause a branch delay
@@ -4166,10 +4156,10 @@ function generateMemoryAccessBoilerplate(fn, ctx) {
 // Branch ops explicitly manipulate nextPC rather than branchTarget. They also guarnatee that stuffToDo is not set.
 // might_adjust_next_pc is typically used by branch likely instructions.
 function generateBranchOpBoilerplate(fn, ctx, might_adjust_next_pc) {
-  var code = '';
+  let code = '';
 
   // We only need to check for off-trace branches
-  var need_pc_test = ctx.needsDelayCheck || might_adjust_next_pc || ctx.post_pc !== ctx.pc + 4;
+  const need_pc_test = ctx.needsDelayCheck || might_adjust_next_pc || ctx.post_pc !== ctx.pc + 4;
 
   code += generateStandardPCUpdate(fn, ctx, might_adjust_next_pc);
 
@@ -4204,8 +4194,7 @@ function generateBranchOpBoilerplate(fn, ctx, might_adjust_next_pc) {
 // Don't manipulate nextPC (e.g. ERET, cop1 unusable, likely instructions)
 
 function generateTrivialOpBoilerplate(fn, ctx) {
-
-  var code = '';
+  let code = '';
 
   // NB: trivial functions don't rely on pc being set up, so we perform the op before updating the pc.
   code += fn;
