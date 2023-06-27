@@ -3893,7 +3893,7 @@ class FragmentMapWho {
 
     this.entries = [];
     for (let i = 0; i < this.kNumEntries; ++i) {
-      this.entries.push({});
+      this.entries.push(new Map());
     }
   }
 
@@ -3909,7 +3909,7 @@ class FragmentMapWho {
     const cache_line_idx = this.addressToCacheLine(pc);
     const entry_idx = cache_line_idx % this.entries.length;
     const entry = this.entries[entry_idx];
-    entry[fragment.entryPC] = fragment;
+    entry.set(fragment.entryPC, fragment);
   }
 
   invalidateEntry(address) {
@@ -3918,14 +3918,11 @@ class FragmentMapWho {
     const entry = this.entries[entry_idx];
     let removed = 0;
 
-    for (let i in entry) {
-      if (entry.hasOwnProperty(i)) {
-        const fragment = entry[i];
-        if (fragment.minPC <= address && fragment.maxPC > address) {
-          fragment.invalidate();
-          delete entry[i];
-          removed++;
-        }
+    for (const [i, fragment] of entry.entries()) {
+      if (fragment.minPC <= address && fragment.maxPC > address) {
+        fragment.invalidate();
+        entry.delete(i);
+        removed++;
       }
     }
 
@@ -3948,14 +3945,11 @@ class FragmentMapWho {
       const entry_idx = cache_line_idx % entries.length;
       const entry = entries[entry_idx];
 
-      for (let i in entry) {
-        if (entry.hasOwnProperty(i)) {
-          const fragment = entry[i];
-          if (fragment.minPC <= maxaddr && fragment.maxPC > minaddr) {
-            fragment.invalidate();
-            delete entry[i];
-            removed++;
-          }
+      for (const [i, fragment] of entry.entries()) {
+        if (fragment.minPC <= maxaddr && fragment.maxPC > minaddr) {
+          fragment.invalidate();
+          entry.delete(i);
+          removed++;
         }
       }
     }
