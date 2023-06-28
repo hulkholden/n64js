@@ -4054,6 +4054,9 @@ function redentLines(code, indent) {
 function dedent(str) {
 	str = str.replace(/^\n/, '');
 	const match = str.match(/^\s+/);
+  if (!match) {
+    return str;
+  }
   const prefix = match[0];
 	return match ? str.replace(new RegExp('^'+prefix, 'gm'), '') : str;
 }
