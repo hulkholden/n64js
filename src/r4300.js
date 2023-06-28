@@ -952,16 +952,17 @@ function executeBreakpoint(i) {
 function generateShiftImmediate(ctx, op) {
   // Handle NOP for SLL
   if (ctx.instruction === 0)
-    return generateNOPBoilerplate('/*NOP*/', ctx);
+    return generateNOPBoilerplate('NOP', ctx);
 
   const d = ctx.instr_rd();
   const t = ctx.instr_rt();
   const shift = ctx.instr_sa();
 
-  let impl = '';
-  impl += 'var result = ' + genSrcRegLo(t) + ' ' + op + ' ' + shift + ';\n';
-  impl += 'rlo[' + d + '] = result;\n';
-  impl += 'rhi[' + d + '] = result >> 31;\n';
+  const impl = `
+    const result = ${genSrcRegLo(t)} ${op} ${shift};
+    rlo[${d}] = result;
+    rhi[${d}] = result >> 31;
+    `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
@@ -1010,10 +1011,11 @@ function generateShiftVariable(ctx, op) {
   const s = ctx.instr_rs();
   const t = ctx.instr_rt();
 
-  let impl = '';
-  impl += 'var result = ' + genSrcRegLo(t) + ' ' + op + ' (' + genSrcRegLo(s) + ' & 0x1f);\n';
-  impl += 'rlo[' + d + '] = result;\n';
-  impl += 'rhi[' + d + '] = result >> 31;\n';
+  const impl = `
+    const result = ${genSrcRegLo(t)} ${op} (${genSrcRegLo(s)} & 0x1f);
+    rlo[${d}] = result;
+    rhi[${d}] = result >> 31;
+    `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
@@ -1182,11 +1184,13 @@ function executeSYNC(i) { unimplemented(cpu0.pc, i); }
 
 function generateMFHI(ctx) {
   const d = ctx.instr_rd();
-  let impl = '';
-  impl += 'rlo[' + d + '] = c.multHi_signed[0];\n';
-  impl += 'rhi[' + d + '] = c.multHi_signed[1];\n';
+  const impl = `
+    rlo[${d}] = c.multHi_signed[0];
+    rhi[${d}] = c.multHi_signed[1];
+    `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
+
 function executeMFHI(i) {
   const d = rd(i);
 
@@ -1196,11 +1200,13 @@ function executeMFHI(i) {
 
 function generateMFLO(ctx) {
   const d = ctx.instr_rd();
-  let impl = '';
-  impl += 'rlo[' + d + '] = c.multLo_signed[0];\n';
-  impl += 'rhi[' + d + '] = c.multLo_signed[1];\n';
+  const impl = `
+    rlo[${d}] = c.multLo_signed[0];
+    rhi[${d}] = c.multLo_signed[1];
+    `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
+
 function executeMFLO(i) {
   const d = rd(i);
   cpu0.gprLo_signed[d] = cpu0.multLo_signed[0];
@@ -1209,11 +1215,13 @@ function executeMFLO(i) {
 
 function generateMTHI(ctx) {
   const s = ctx.instr_rs();
-  let impl = '';
-  impl += 'c.multHi_signed[0] = rlo[' + s + '];\n';
-  impl += 'c.multHi_signed[1] = rhi[' + s + '];\n';
+  const impl = `
+    c.multHi_signed[0] = rlo[${s}];
+    c.multHi_signed[1] = rhi[${s}];
+    `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
+
 function executeMTHI(i) {
   const s = rs(i);
   cpu0.multHi_signed[0] = cpu0.gprLo_signed[s];
@@ -1222,11 +1230,13 @@ function executeMTHI(i) {
 
 function generateMTLO(ctx) {
   const s = ctx.instr_rs();
-  let impl = '';
-  impl += 'c.multLo_signed[0] = rlo[' + s + '];\n';
-  impl += 'c.multLo_signed[1] = rhi[' + s + '];\n';
+  const impl = `
+    c.multLo_signed[0] = rlo[${s}];
+    c.multLo_signed[1] = rhi[${s}];
+    `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
+
 function executeMTLO(i) {
   const s = rs(i);
   cpu0.multLo_signed[0] = cpu0.gprLo_signed[s];
@@ -1238,14 +1248,15 @@ function generateMULT(ctx) {
   const s = ctx.instr_rs();
   const t = ctx.instr_rt();
 
-  let impl = '';
-  impl += 'var result = ' + genSrcRegLo(s) + ' * ' + genSrcRegLo(t) + ';\n';
-  impl += 'var result_lo = result & 0xffffffff;\n';
-  impl += 'var result_hi = n64js.getHi32(result);\n';
-  impl += 'c.multLo[0] = result_lo;\n';
-  impl += 'c.multLo[1] = result_lo >> 31;\n';
-  impl += 'c.multHi[0] = result_hi;\n';
-  impl += 'c.multHi[1] = result_hi >> 31;\n';
+  const impl = `
+    const result = ${genSrcRegLo(s)} * ${genSrcRegLo(t)};
+    const result_lo = result & 0xffffffff;
+    const result_hi = n64js.getHi32(result);
+    c.multLo[0] = result_lo;
+    c.multLo[1] = result_lo >> 31;
+    c.multHi[0] = result_hi;
+    c.multHi[1] = result_hi >> 31;
+    `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
@@ -1265,14 +1276,15 @@ function generateMULTU(ctx) {
   const s = ctx.instr_rs();
   const t = ctx.instr_rt();
 
-  let impl = '';
-  impl += 'var result = c.gprLo[' + s + '] * c.gprLo[' + t + '];\n';
-  impl += 'var result_lo = result & 0xffffffff;\n';
-  impl += 'var result_hi = n64js.getHi32(result);\n';
-  impl += 'c.multLo[0] = result_lo;\n';
-  impl += 'c.multLo[1] = result_lo >> 31;\n';
-  impl += 'c.multHi[0] = result_hi;\n';
-  impl += 'c.multHi[1] = result_hi >> 31;\n';
+  const impl = `
+    const result = c.gprLo[${s}] * c.gprLo[${t}];
+    const result_lo = result & 0xffffffff;
+    const result_hi = n64js.getHi32(result);
+    c.multLo[0] = result_lo;
+    c.multLo[1] = result_lo >> 31;
+    c.multHi[0] = result_hi;
+    c.multHi[1] = result_hi >> 31;
+    `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
@@ -1369,10 +1381,11 @@ function generateTrivialArithmetic(ctx, op) {
   const d = ctx.instr_rd();
   const s = ctx.instr_rs();
   const t = ctx.instr_rt();
-  let impl = '';
-  impl += 'var result = ' + genSrcRegLo(s) + ' ' + op + ' ' + genSrcRegLo(t) + ';\n';
-  impl += 'rlo[' + d + '] = result;\n';
-  impl += 'rhi[' + d + '] = result >> 31;\n';
+  const impl = `
+    const result = ${genSrcRegLo(s)} ${op} ${genSrcRegLo(t)};
+    rlo[${d}] = result;
+    rhi[${d}] = result >> 31;
+    `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
@@ -1380,9 +1393,10 @@ function generateTrivialLogical(ctx, op) {
   const d = ctx.instr_rd();
   const s = ctx.instr_rs();
   const t = ctx.instr_rt();
-  let impl = '';
-  impl += 'rlo[' + d + '] = ' + genSrcRegLo(s) + ' ' + op + ' ' + genSrcRegLo(t) + ';\n';
-  impl += 'rhi[' + d + '] = ' + genSrcRegHi(s) + ' ' + op + ' ' + genSrcRegHi(t) + ';\n';
+  const impl = `
+    rlo[${d}] = ${genSrcRegLo(s)} ${op} ${genSrcRegLo(t)};
+    rhi[${d}] = ${genSrcRegHi(s)} ${op} ${genSrcRegHi(t)};
+    `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
@@ -1442,10 +1456,10 @@ function generateOR(ctx) {
 
   // OR is used to implement CLEAR and MOV
   if (t === 0) {
-    let impl = '';
-    impl += 'rlo[' + d + '] = ' + genSrcRegLo(s) + ';\n';
-    impl += 'rhi[' + d + '] = ' + genSrcRegHi(s) + ';\n';
-
+    const impl = `
+      rlo[${d}] = ${genSrcRegLo(s)};
+      rhi[${d}] = ${genSrcRegHi(s)};
+      `;
     return generateTrivialOpBoilerplate(impl, ctx);
   }
   return generateTrivialLogical(ctx, '|');
@@ -1472,9 +1486,10 @@ function generateNOR(ctx) {
   const d = ctx.instr_rd();
   const s = ctx.instr_rs();
   const t = ctx.instr_rt();
-  let impl = '';
-  impl += 'rhi[' + d + '] = ~(' + genSrcRegHi(s) + ' | ' + genSrcRegHi(t) + ');\n';
-  impl += 'rlo[' + d + '] = ~(' + genSrcRegLo(s) + ' | ' + genSrcRegLo(t) + ');\n';
+  const impl = `
+    rhi[${d}] = ~(${genSrcRegHi(s)} | ${genSrcRegHi(t)});
+    rlo[${d}] = ~(${genSrcRegLo(s)} | ${genSrcRegLo(t)});
+    `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
@@ -1490,17 +1505,17 @@ function generateSLT(ctx) {
   const d = ctx.instr_rd();
   const s = ctx.instr_rs();
   const t = ctx.instr_rt();
-  let impl = '';
 
-  impl += 'var r = 0;\n';
-  impl += 'if (' + genSrcRegHi(s) + ' < ' + genSrcRegHi(t) + ') {\n';
-  impl += '  r = 1;\n';
-  impl += '} else if (' + genSrcRegHi(s) + ' === ' + genSrcRegHi(t) + ') {\n';
-  impl += '  r = (c.gprLo[' + s + '] < c.gprLo[' + t + ']) ? 1 : 0;\n';
-  impl += '}\n';
-  impl += 'rlo[' + d + '] = r;\n';
-  impl += 'rhi[' + d + '] = 0;\n';
-
+  const impl = `
+    let r = 0;
+    if (${genSrcRegHi(s)} < ${genSrcRegHi(t)}) {
+      r = 1;
+    } else if (${genSrcRegHi(s)} === ${genSrcRegHi(t)}) {
+      r = (c.gprLo[${s}] < c.gprLo[${t}]) ? 1 : 0;
+    }
+    rlo[${d}] = r;
+    rhi[${d}] = 0;
+    `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
@@ -1522,16 +1537,16 @@ function generateSLTU(ctx) {
   const d = ctx.instr_rd();
   const s = ctx.instr_rs();
   const t = ctx.instr_rt();
-  let impl = '';
 
-  impl += 'var r = 0;\n';
-  impl += 'if (c.gprHi[' + s + '] < c.gprHi[' + t + '] ||\n';
-  impl += '    (' + genSrcRegHi(s) + ' === ' + genSrcRegHi(t) + ' && c.gprLo[' + s + '] < c.gprLo[' + t + '])) {\n';
-  impl += '  r = 1;\n';
-  impl += '}\n';
-  impl += 'rlo[' + d + '] = r;\n';
-  impl += 'rhi[' + d + '] = 0;\n';
-
+  const impl = `
+    let r = 0;
+    if (c.gprHi[${s}] < c.gprHi[${t}] ||
+        (${genSrcRegHi(s)} === ${genSrcRegHi(t)} && c.gprLo[${s}] < c.gprLo[${t}])) {
+      r = 1;
+    }
+    rlo[${d}] = r;
+    rhi[${d}] = 0;
+    `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
@@ -1592,8 +1607,9 @@ function generateMTC0(ctx) {
     ctx.fragment.cop1statusKnown = false;
   }
 
-  let impl = '';
-  impl += 'n64js.executeMTC0(' + toString32(ctx.instruction) + ');\n';
+  let impl = `
+    n64js.executeMTC0(${toString32(ctx.instruction)});
+    `;
   return generateGenericOpBoilerplate(impl, ctx);
 }
 
@@ -1718,10 +1734,11 @@ function generateJAL(ctx) {
   const addr = jumpAddress(ctx.pc, ctx.instruction);
   const ra = ctx.pc + 8;
   const ra_hi = (ra & 0x80000000) ? -1 : 0;
-  let impl = '';
-  impl += 'c.delayPC = ' + toString32(addr) + ';\n';
-  impl += 'rlo[' + cpu0_constants.RA + '] = ' + toString32(ra) + ';\n';
-  impl += 'rhi[' + cpu0_constants.RA + '] = ' + ra_hi + ';\n';
+  const impl = `
+    c.delayPC = ${toString32(addr)};
+    rlo[${cpu0_constants.RA}] = ${toString32(ra)};
+    rhi[${cpu0_constants.RA}] = ${ra_hi};
+    `;
   return generateBranchOpBoilerplate(impl, ctx, false);
 }
 function executeJAL(i) {
@@ -1736,10 +1753,11 @@ function generateJALR(ctx) {
 
   const ra = ctx.pc + 8;
   const ra_hi = (ra & 0x80000000) ? -1 : 0;
-  let impl = '';
-  impl += 'c.delayPC = c.gprLo[' + s + '];\n';  // NB needs to be unsigned
-  impl += 'rlo[' + d + '] = ' + toString32(ra) + ';\n';
-  impl += 'rhi[' + d + '] = ' + ra_hi + ';\n';
+  const impl = `
+    c.delayPC = c.gprLo[${s}];  // NB needs to be unsigned
+    rlo[${d}] = ${toString32(ra)};
+    rhi[${d}] = ${ra_hi};
+    `;
   return generateBranchOpBoilerplate(impl, ctx, false);
 }
 function executeJALR(i) {
@@ -1748,9 +1766,10 @@ function executeJALR(i) {
   performBranch(new_pc);
 }
 
-
 function generateJR(ctx) {
-  const impl = 'c.delayPC = c.gprLo[' + ctx.instr_rs() + '];\n'; // NB needs to be unsigned
+  const impl = `
+    c.delayPC = c.gprLo[${ctx.instr_rs()}]; // NB needs to be unsigned
+    `;
   return generateBranchOpBoilerplate(impl, ctx, false);
 }
 function executeJR(i) {
@@ -1770,15 +1789,15 @@ function generateBEQ(ctx) {
       impl += 'c.speedHack();\n';
       ctx.bailOut = true;
     }
-    impl += 'c.delayPC = ' + toString32(addr) + ';\n';
+    impl += `c.delayPC = ${toString32(addr)};\n`;
   } else {
-    impl += 'if (' + genSrcRegHi(s) + ' === ' + genSrcRegHi(t) + ' &&\n';
-    impl += '    ' + genSrcRegLo(s) + ' === ' + genSrcRegLo(t) + ' ) {\n';
+    impl += `if (${genSrcRegHi(s)} === ${genSrcRegHi(t)} &&\n`;
+    impl += `    ${genSrcRegLo(s)} === ${genSrcRegLo(t)} ) {\n`;
     if (off === -1) {
       impl += '  c.speedHack();\n';
       ctx.bailOut = true;
     }
-    impl += '  c.delayPC = ' + toString32(addr) + ';\n';
+    impl += `  c.delayPC = ${toString32(addr)};\n`;
     impl += '}\n';
   }
 
@@ -1802,13 +1821,14 @@ function generateBEQL(ctx) {
   const off = ctx.instr_offset();
   const addr = branchAddress(ctx.pc, ctx.instruction);
 
-  let impl = '';
-  impl += 'if (' + genSrcRegHi(s) + ' === ' + genSrcRegHi(t) + ' &&\n';
-  impl += '    ' + genSrcRegLo(s) + ' === ' + genSrcRegLo(t) + ' ) {\n';
-  impl += '  c.delayPC = ' + toString32(addr) + ';\n';
-  impl += '} else {\n';
-  impl += '  c.nextPC += 4;\n';
-  impl += '}\n';
+  const impl = `
+    if (${genSrcRegHi(s)} === ${genSrcRegHi(t)} &&
+        ${genSrcRegLo(s)} === ${genSrcRegLo(t)} ) {
+      c.delayPC = ${toString32(addr)};
+    } else {
+      c.nextPC += 4;
+    }
+    `;
 
   return generateBranchOpBoilerplate(impl, ctx, true /* might_adjust_next_pc*/);
 }
@@ -1831,13 +1851,13 @@ function generateBNE(ctx) {
   const addr = branchAddress(ctx.pc, ctx.instruction);
 
   let impl = '';
-  impl += 'if (' + genSrcRegHi(s) + ' !== ' + genSrcRegHi(t) + ' ||\n';
-  impl += '    ' + genSrcRegLo(s) + ' !== ' + genSrcRegLo(t) + ' ) {\n';
+  impl += `if (${genSrcRegHi(s)} !== ${genSrcRegHi(t)} ||\n`;
+  impl += `    ${genSrcRegLo(s)} !== ${genSrcRegLo(t)} ) {\n`;
   if (off === -1) {
     impl += '  c.speedHack();\n';
     ctx.bailOut = true;
   }
-  impl += '  c.delayPC = ' + toString32(addr) + ';\n';
+  impl += `  c.delayPC = ${toString32(addr)};\n`;
   impl += '}\n';
 
   return generateBranchOpBoilerplate(impl, ctx, false);
@@ -1858,14 +1878,14 @@ function generateBNEL(ctx) {
   const t = ctx.instr_rt();
   const addr = branchAddress(ctx.pc, ctx.instruction);
 
-  let impl = '';
-
-  impl += 'if (' + genSrcRegHi(s) + ' !== ' + genSrcRegHi(t) + ' ||\n';
-  impl += '    ' + genSrcRegLo(s) + ' !== ' + genSrcRegLo(t) + ' ) {\n';
-  impl += '  c.delayPC = ' + toString32(addr) + ';\n';
-  impl += '} else {\n';
-  impl += '  c.nextPC += 4;\n';
-  impl += '}\n';
+  const impl = `
+    if (${genSrcRegHi(s)} !== ${genSrcRegHi(t)} ||
+        ${genSrcRegLo(s)} !== ${genSrcRegLo(t)} ) {
+      c.delayPC = ${toString32(addr)};
+    } else {
+      c.nextPC += 4;
+    }
+    `;
 
   return generateBranchOpBoilerplate(impl, ctx, true /* might_adjust_next_pc*/);
 }
@@ -1886,11 +1906,12 @@ function generateBLEZ(ctx) {
   const s = ctx.instr_rs();
   const addr = branchAddress(ctx.pc, ctx.instruction);
 
-  let impl = '';
-  impl += 'if ( ' + genSrcRegHi(s) + ' < 0 ||\n';
-  impl += '    (' + genSrcRegHi(s) + ' === 0 && ' + genSrcRegLo(s) + ' === 0) ) {\n';
-  impl += '  c.delayPC = ' + toString32(addr) + ';\n';
-  impl += '}\n';
+  const impl = `
+    if ( ${genSrcRegHi(s)} < 0 ||
+        (${genSrcRegHi(s)} === 0 && ${genSrcRegLo(s)} === 0) ) {
+      c.delayPC = ${toString32(addr)};
+    }
+    `;
 
   return generateBranchOpBoilerplate(impl, ctx, false);
 }
@@ -1919,11 +1940,12 @@ function generateBGTZ(ctx) {
   const s = ctx.instr_rs();
   const addr = branchAddress(ctx.pc, ctx.instruction);
 
-  let impl = '';
-  impl += 'if ( ' + genSrcRegHi(s) + ' >= 0 &&\n';
-  impl += '    (' + genSrcRegHi(s) + ' !== 0 || ' + genSrcRegLo(s) + ' !== 0) ) {\n';
-  impl += '  c.delayPC = ' + toString32(addr) + ';\n';
-  impl += '}\n';
+  const impl = `
+    if (${genSrcRegHi(s)} >= 0 &&
+        (${genSrcRegHi(s)} !== 0 || ${genSrcRegLo(s)} !== 0)) {
+      c.delayPC = ${toString32(addr)};
+    }
+    `;
 
   return generateBranchOpBoilerplate(impl, ctx, false);
 }
@@ -1951,10 +1973,11 @@ function generateBLTZ(ctx) {
   const s = ctx.instr_rs();
   const addr = branchAddress(ctx.pc, ctx.instruction);
 
-  let impl = '';
-  impl += 'if (' + genSrcRegHi(s) + ' < 0) {\n';
-  impl += '  c.delayPC = ' + toString32(addr) + ';\n';
-  impl += '}\n';
+  const impl = `
+    if (${genSrcRegHi(s)} < 0) {
+      c.delayPC = ${toString32(addr)};
+    }
+    `;
 
   return generateBranchOpBoilerplate(impl, ctx, false);
 }
@@ -1969,12 +1992,13 @@ function generateBLTZL(ctx) {
   const s = ctx.instr_rs();
   const addr = branchAddress(ctx.pc, ctx.instruction);
 
-  let impl = '';
-  impl += 'if (' + genSrcRegHi(s) + ' < 0) {\n';
-  impl += '  c.delayPC = ' + toString32(addr) + ';\n';
-  impl += '} else {\n';
-  impl += '  c.nextPC += 4;\n';
-  impl += '}\n';
+  const impl = `
+    if (${genSrcRegHi(s)} < 0) {
+      c.delayPC = ${toString32(addr)};
+    } else {
+      c.nextPC += 4;
+    }
+    `;
 
   return generateBranchOpBoilerplate(impl, ctx, true /* might_adjust_next_pc*/);
 }
@@ -2008,10 +2032,11 @@ function generateBGEZ(ctx) {
   const s = ctx.instr_rs();
   const addr = branchAddress(ctx.pc, ctx.instruction);
 
-  let impl = '';
-  impl += 'if (' + genSrcRegHi(s) + ' >= 0) {\n';
-  impl += '  c.delayPC = ' + toString32(addr) + ';\n';
-  impl += '}\n';
+  const impl = `
+    if (${genSrcRegHi(s)} >= 0) {
+      c.delayPC = ${toString32(addr)};
+    }
+    `;
 
   return generateBranchOpBoilerplate(impl, ctx, false);
 }
@@ -2026,12 +2051,13 @@ function generateBGEZL(ctx) {
   const s = ctx.instr_rs();
   const addr = branchAddress(ctx.pc, ctx.instruction);
 
-  let impl = '';
-  impl += 'if (' + genSrcRegHi(s) + ' >= 0) {\n';
-  impl += '  c.delayPC = ' + toString32(addr) + ';\n';
-  impl += '} else {\n';
-  impl += '  c.nextPC += 4;\n';
-  impl += '}\n';
+  const impl = `
+    if (${genSrcRegHi(s)} >= 0) {
+      c.delayPC = ${toString32(addr)};
+    } else {
+      c.nextPC += 4;
+    }
+    `;
 
   return generateBranchOpBoilerplate(impl, ctx, true /* might_adjust_next_pc*/);
 }
@@ -2063,10 +2089,11 @@ function executeBGEZALL(i) {
 function generateADDI(ctx) {
   const s = ctx.instr_rs();
   const t = ctx.instr_rt();
-  let impl = '';
-  impl += 'var result = ' + genSrcRegLo(s) + ' + ' + imms(ctx.instruction) + ';\n';
-  impl += 'rlo[' + t + '] = result;\n';
-  impl += 'rhi[' + t + '] = result >> 31;\n';
+  const impl = `
+    const result = ${genSrcRegLo(s)} + ${imms(ctx.instruction)};
+    rlo[${t}] = result;
+    rhi[${t}] = result >> 31;
+    `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
@@ -2081,10 +2108,11 @@ function executeADDI(i) {
 function generateADDIU(ctx) {
   const s = ctx.instr_rs();
   const t = ctx.instr_rt();
-  let impl = '';
-  impl += 'var result = ' + genSrcRegLo(s) + ' + ' + imms(ctx.instruction) + ';\n';
-  impl += 'rlo[' + t + '] = result;\n';
-  impl += 'rhi[' + t + '] = result >> 31;\n';
+  const impl = `
+    const result = ${genSrcRegLo(s)} + ${imms(ctx.instruction)};
+    rlo[${t}] = result;
+    rhi[${t}] = result >> 31;
+    `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
@@ -2112,13 +2140,14 @@ function generateSLTI(ctx) {
   const imm_hi = immediate >> 31;
   const imm_unsigned = immediate >>> 0;
 
-  let impl = '';
-  impl += 'if (' + genSrcRegHi(s) + ' === ' + imm_hi + ') {\n';
-  impl += '  rlo[' + t + '] = (c.gprLo[' + s + '] < ' + imm_unsigned + ') ? 1 : 0;\n';
-  impl += '} else {\n';
-  impl += '  rlo[' + t + '] = (' + genSrcRegHi(s) + ' < ' + imm_hi + ') ? 1 : 0;\n';
-  impl += '}\n';
-  impl += 'rhi[' + t + '] = 0;\n';
+  const impl = `
+    if (${genSrcRegHi(s)} === ${imm_hi}) {
+      rlo[${t}] = (c.gprLo[${s}] < ${imm_unsigned}) ? 1 : 0;
+    } else {
+      rlo[${t}] = (${genSrcRegHi(s)} < ${imm_hi}) ? 1 : 0;
+    }
+    rhi[${t}] = 0;
+    `;
 
   return generateTrivialOpBoilerplate(impl, ctx);
 }
@@ -2147,13 +2176,14 @@ function generateSLTIU(ctx) {
   const imm_hi = immediate >> 31;
   const imm_unsigned = immediate >>> 0;
 
-  let impl = '';
-  impl += 'if (' + genSrcRegHi(s) + ' === ' + imm_hi + ') {\n';
-  impl += '  rlo[' + t + '] = (c.gprLo[' + s + '] < ' + imm_unsigned + ') ? 1 : 0;\n';
-  impl += '} else {\n';
-  impl += '  rlo[' + t + '] = ((' + genSrcRegHi(s) + '>>>0) < (' + (imm_hi >>> 0) + ')) ? 1 : 0;\n';
-  impl += '}\n';
-  impl += 'rhi[' + t + '] = 0;\n';
+  const impl = `
+    if (${genSrcRegHi(s)} === ${imm_hi}) {
+      rlo[${t}] = (c.gprLo[${s}] < ${imm_unsigned}) ? 1 : 0;
+    } else {
+      rlo[${t}] = ((${genSrcRegHi(s)}>>>0) < (${imm_hi >>> 0})) ? 1 : 0;
+    }
+    rhi[${t}] = 0;
+    `;
 
   return generateTrivialOpBoilerplate(impl, ctx);
 }
@@ -2179,9 +2209,10 @@ function executeSLTIU(i) {
 function generateANDI(ctx) {
   const s = ctx.instr_rs();
   const t = ctx.instr_rt();
-  let impl = '';
-  impl += 'rlo[' + t + '] = ' + genSrcRegLo(s) + ' & ' + imm(ctx.instruction) + ';\n';
-  impl += 'rhi[' + t + '] = 0;\n';
+  const impl = `
+    rlo[${t}] = ${genSrcRegLo(s)} & ${imm(ctx.instruction)};
+    rhi[${t}] = 0;
+    `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
@@ -2195,10 +2226,17 @@ function executeANDI(i) {
 function generateORI(ctx) {
   const s = ctx.instr_rs();
   const t = ctx.instr_rt();
-  let impl = '';
-  impl += 'rlo[' + t + '] = ' + genSrcRegLo(s) + ' | ' + imm(ctx.instruction) + ';\n';
-  if (s !== t)
-    impl += 'rhi[' + t + '] = ' + genSrcRegHi(s) + ';\n';
+  let impl;
+  if (s !== t) {
+    impl = `
+      rlo[${t}] = ${genSrcRegLo(s)} | ${imm(ctx.instruction)};
+      rhi[${t}] = ${genSrcRegHi(s)};
+      `;
+  } else {
+    impl = `
+      rlo[${t}] = ${genSrcRegLo(s)} | ${imm(ctx.instruction)};
+      `;
+  }
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
@@ -2212,10 +2250,17 @@ function executeORI(i) {
 function generateXORI(ctx) {
   const s = ctx.instr_rs();
   const t = ctx.instr_rt();
-  let impl = '';
-  impl += 'rlo[' + t + '] = ' + genSrcRegLo(s) + ' ^ ' + imm(ctx.instruction) + ';\n';
-  if (s !== t)
-    impl += 'rhi[' + t + '] = ' + genSrcRegHi(s) + ';\n';
+  let impl;
+  if (s !== t) {
+    impl = `
+      rlo[${t}] = ${genSrcRegLo(s)} ^ ${imm(ctx.instruction)};
+      rhi[${t}] = ${genSrcRegHi(s)};
+      `;
+  } else {
+    impl = `
+      rlo[${t}] = ${genSrcRegLo(s)} ^ ${imm(ctx.instruction)};
+      `;
+  }
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
@@ -2232,9 +2277,10 @@ function generateLUI(ctx) {
   const value_lo = imms(ctx.instruction) << 16;
   const value_hi = (value_lo < 0) ? -1 : 0;
 
-  let impl = '';
-  impl += 'rlo[' + t + '] = ' + value_lo + ';\n';
-  impl += 'rhi[' + t + '] = ' + value_hi + ';\n';
+  const impl = `
+    rlo[${t}] = ${value_lo};
+    rhi[${t}] = ${value_hi};
+    `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
@@ -2250,10 +2296,11 @@ function generateLB(ctx) {
   const b = ctx.instr_base();
   const o = ctx.instr_imms();
 
-  let impl = '';
-  impl += 'var value = n64js.load_s8(ram, ' + genSrcRegLo(b) + ' + ' + o + ');\n';
-  impl += 'rlo[' + t + '] = value;\n';
-  impl += 'rhi[' + t + '] = value >> 31;\n';
+  const impl = `
+    const value = n64js.load_s8(ram, ${genSrcRegLo(b)} + ${o});
+    rlo[${t}] = value;
+    rhi[${t}] = value >> 31;
+    `;
 
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
@@ -2273,9 +2320,10 @@ function generateLBU(ctx) {
   const b = ctx.instr_base();
   const o = ctx.instr_imms();
 
-  let impl = '';
-  impl += 'rlo[' + t + '] = n64js.load_u8(ram, ' + genSrcRegLo(b) + ' + ' + o + ');\n';
-  impl += 'rhi[' + t + '] = 0;\n';
+  const impl = `
+    rlo[${t}] = n64js.load_u8(ram, ${genSrcRegLo(b)} + ${o});
+    rhi[${t}] = 0;
+    `;
 
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
@@ -2294,10 +2342,11 @@ function generateLH(ctx) {
   const b = ctx.instr_base();
   const o = ctx.instr_imms();
 
-  let impl = '';
-  impl += 'var value = n64js.load_s16(ram, ' + genSrcRegLo(b) + ' + ' + o + ');\n';
-  impl += 'rlo[' + t + '] = value;\n';
-  impl += 'rhi[' + t + '] = value >> 31;\n';
+  const impl = `
+    const value = n64js.load_s16(ram, ${genSrcRegLo(b)} + ${o});
+    rlo[${t}] = value;
+    rhi[${t}] = value >> 31;
+    `;
 
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
@@ -2317,9 +2366,10 @@ function generateLHU(ctx) {
   const b = ctx.instr_base();
   const o = ctx.instr_imms();
 
-  let impl = '';
-  impl += 'rlo[' + t + '] = n64js.load_u16(ram, ' + genSrcRegLo(b) + ' + ' + o + ');\n';
-  impl += 'rhi[' + t + '] = 0;\n';
+  const impl = `
+    rlo[${t}] = n64js.load_u16(ram, ${genSrcRegLo(b)} + ${o});
+    rhi[${t}] = 0;
+    `;
 
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
@@ -2339,12 +2389,13 @@ function generateLW(ctx) {
   const o = ctx.instr_imms();
   // SF2049 requires this, apparently
   if (t === 0)
-    return generateNOPBoilerplate('/*load to r0!*/', ctx);
+    return generateNOPBoilerplate('load to r0!', ctx);
 
-  let impl = '';
-  impl += 'var value = n64js.load_s32(ram, ' + genSrcRegLo(b) + ' + ' + o + ');\n';
-  impl += 'rlo[' + t + '] = value;\n';
-  impl += 'rhi[' + t + '] = value >> 31;\n';
+  const impl = `
+    const value = n64js.load_s32(ram, ${genSrcRegLo(b)} + ${o});
+    rlo[${t}] = value;
+    rhi[${t}] = value >> 31;
+    `;
 
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
@@ -2368,9 +2419,10 @@ function generateLWU(ctx) {
   const b = ctx.instr_base();
   const o = ctx.instr_imms();
 
-  let impl = '';
-  impl += 'rlo[' + t + '] = n64js.load_u32(ram, ' + genSrcRegLo(b) + ' + ' + o + ');\n';
-  impl += 'rhi[' + t + '] = 0;\n';
+  const impl = `
+    rlo[${t}] = n64js.load_u32(ram, ${genSrcRegLo(b)} + ${o});
+    rhi[${t}] = 0;
+    `;
 
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
@@ -2389,16 +2441,17 @@ function generateLD(ctx) {
   const b = ctx.instr_base();
   const o = ctx.instr_imms();
 
-  let impl = '';
-  impl += 'var addr = ' + genSrcRegLo(b) + ' + ' + o + ';\n';
-  impl += 'if (addr < -2139095040) {\n';
-  impl += '  var phys = (addr + 0x80000000) | 0;\n';
-  impl += '  rhi[' + t + '] = ((ram[phys  ] << 24) | (ram[phys+1] << 16) | (ram[phys+2] << 8) | ram[phys+3]);\n';
-  impl += '  rlo[' + t + '] = ((ram[phys+4] << 24) | (ram[phys+5] << 16) | (ram[phys+6] << 8) | ram[phys+7]);\n';
-  impl += '} else {\n';
-  impl += '  rhi[' + t + '] = lw_slow(addr);\n';
-  impl += '  rlo[' + t + '] = lw_slow(addr + 4);\n';
-  impl += '}\n';
+  const impl = `
+    const addr = ${genSrcRegLo(b)} + ${o};
+    if (addr < -2139095040) {
+      const phys = (addr + 0x80000000) | 0;
+      rhi[${t}] = ((ram[phys  ] << 24) | (ram[phys+1] << 16) | (ram[phys+2] << 8) | ram[phys+3]);
+      rlo[${t}] = ((ram[phys+4] << 24) | (ram[phys+5] << 16) | (ram[phys+6] << 8) | ram[phys+7]);
+    } else {
+      rhi[${t}] = lw_slow(addr);
+      rlo[${t}] = lw_slow(addr + 4);
+    }
+    `;
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
 
@@ -2426,7 +2479,9 @@ function generateLWC1(ctx) {
 
   ctx.fragment.usesCop1 = true;
 
-  const impl = 'cpu1.int32[' + t + '] = n64js.load_s32(ram, ' + genSrcRegLo(b) + ' + ' + o + ');\n';
+  const impl = `
+    cpu1.int32[${t}] = n64js.load_s32(ram, ${genSrcRegLo(b)} + ${o});
+    `;
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
 
@@ -2446,20 +2501,20 @@ function generateLDC1(ctx) {
 
   ctx.fragment.usesCop1 = true;
 
-  let impl = '';
-  impl += 'var value_lo;\n';
-  impl += 'var value_hi;\n';
-  impl += 'var addr = ' + genSrcRegLo(b) + ' + ' + o + ';\n';
-  impl += 'if (addr < -2139095040) {\n';
-  impl += '  var phys = (addr + 0x80000000) | 0;\n';
-  impl += '  value_hi = ((ram[phys  ] << 24) | (ram[phys+1] << 16) | (ram[phys+2] << 8) | ram[phys+3]) | 0;\n'; // FIXME: |0 needed?
-  impl += '  value_lo = ((ram[phys+4] << 24) | (ram[phys+5] << 16) | (ram[phys+6] << 8) | ram[phys+7]) | 0;\n';
-  impl += '} else {\n';
-  impl += '  value_hi = lw_slow(addr);\n';
-  impl += '  value_lo = lw_slow(addr + 4);\n';
-  impl += '}\n';
-  impl += 'cpu1.store_64(' + t + ', value_lo, value_hi);\n';
-
+  const impl = `
+    let value_lo;
+    let value_hi;
+    const addr = ${genSrcRegLo(b)} + ${o};
+    if (addr < -2139095040) {
+      const phys = (addr + 0x80000000) | 0;
+      value_hi = ((ram[phys  ] << 24) | (ram[phys+1] << 16) | (ram[phys+2] << 8) | ram[phys+3]) | 0; // FIXME: is the |0 needed?
+      value_lo = ((ram[phys+4] << 24) | (ram[phys+5] << 16) | (ram[phys+6] << 8) | ram[phys+7]) | 0;
+    } else {
+      value_hi = lw_slow(addr);
+      value_lo = lw_slow(addr + 4);
+    }
+    cpu1.store_64(${t}, value_lo, value_hi);
+    `;
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
 
@@ -2529,8 +2584,9 @@ function generateSB(ctx) {
   const b = ctx.instr_base();
   const o = ctx.instr_imms();
 
-  let impl = '';
-  impl += 'n64js.store_8(ram, ' + genSrcRegLo(b) + ' + ' + o + ', ' + genSrcRegLo(t) + ');\n';
+  const impl = `
+    n64js.store_8(ram, ${genSrcRegLo(b)} + ${o}, ${genSrcRegLo(t)});
+    `;
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
 
@@ -2547,8 +2603,9 @@ function generateSH(ctx) {
   const b = ctx.instr_base();
   const o = ctx.instr_imms();
 
-  let impl = '';
-  impl += 'n64js.store_16(ram, ' + genSrcRegLo(b) + ' + ' + o + ', ' + genSrcRegLo(t) + ');\n';
+  const impl = `
+    n64js.store_16(ram, ${genSrcRegLo(b)} + ${o}, ${genSrcRegLo(t)});
+    `;
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
 
@@ -2565,8 +2622,9 @@ function generateSW(ctx) {
   const b = ctx.instr_base();
   const o = ctx.instr_imms();
 
-  let impl = '';
-  impl += 'n64js.store_32(ram, ' + genSrcRegLo(b) + ' + ' + o + ', ' + genSrcRegLo(t) + ');\n';
+  const impl = `
+    n64js.store_32(ram, ${genSrcRegLo(b)} + ${o}, ${genSrcRegLo(t)});
+    `;
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
 
@@ -2583,10 +2641,10 @@ function generateSD(ctx) {
   const b = ctx.instr_base();
   const o = ctx.instr_imms();
 
-  let impl = '';
-  impl += 'var addr = ' + genSrcRegLo(b) + ' + ' + o + ';\n';
-  impl += 'n64js.store_64(ram, addr,     ' + genSrcRegLo(t) + ',' + genSrcRegHi(t) + ');\n';
-
+  const impl = `
+    const addr = ${genSrcRegLo(b)} + ${o};
+    n64js.store_64(ram, addr, ${genSrcRegLo(t)},${genSrcRegHi(t)});
+    `;
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
 
@@ -2607,8 +2665,9 @@ function generateSWC1(ctx) {
   ctx.fragment.usesCop1 = true;
 
   // FIXME: can avoid cpuStuffToDo if we're writing to ram
-  let impl = '';
-  impl += 'n64js.store_32(ram, ' + genSrcRegLo(b) + ' + ' + o + ', cpu1.int32[' + t + ']);\n';
+  const impl = `
+    n64js.store_32(ram, ${genSrcRegLo(b)} + ${o}, cpu1.int32[${t}]);
+    `;
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
 
@@ -2631,9 +2690,10 @@ function generateSDC1(ctx) {
   ctx.fragment.usesCop1 = true;
 
   // FIXME: can avoid cpuStuffToDo if we're writing to ram
-  let impl = '';
-  impl += 'var addr = ' + genSrcRegLo(b) + ' + ' + o + ';\n';
-  impl += 'n64js.store_64(ram, addr, cpu1.int32[' + t + '], cpu1.int32[' + hi + ']);\n';
+  const impl = `
+    const addr = ${genSrcRegLo(b)} + ${o};
+    n64js.store_64(ram, addr, cpu1.int32[${t}], cpu1.int32[${hi}]);
+    `;
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
 
@@ -2695,12 +2755,13 @@ function generateCACHE(ctx) {
   const action = (cache_op >>> 2) & 0x7;
 
   if (cache === 0 && (action === 0 || action === 4)) {
-    let impl = '';
-    impl += 'var addr = ' + genSrcRegLo(b) + ' + ' + o + ';\n';
-    impl += "n64js.invalidateICacheEntry(addr);\n";
+    const impl = `
+      const addr = ${genSrcRegLo(b)} + ${o};
+      n64js.invalidateICacheEntry(addr);
+      `;
     return generateTrivialOpBoilerplate(impl, ctx);
   } else {
-    return generateNOPBoilerplate('/*ignored CACHE*/', ctx);
+    return generateNOPBoilerplate('CACHE (ignored)', ctx);
   }
 }
 
@@ -2728,11 +2789,11 @@ function generateMFC1Stub(ctx) {
   ctx.fragment.usesCop1 = true;
   ctx.isTrivial = true;
 
-  let impl = '';
-  impl += 'var result = cpu1.int32[' + s + '];\n';
-  impl += 'rlo[' + t + '] = result;\n';
-  impl += 'rhi[' + t + '] = result >> 31;\n';
-  return impl;
+  return `
+    const result = cpu1.int32[${s}];
+    rlo[${t}] = result;
+    rhi[${t}] = result >> 31;
+    `;
 }
 
 function executeMFC1(i) {
@@ -2751,10 +2812,10 @@ function generateDMFC1Stub(ctx) {
   ctx.fragment.usesCop1 = true;
   ctx.isTrivial = true;
 
-  let impl = '';
-  impl += 'rlo[' + t + '] = cpu1.int32[' + s + '];\n';
-  impl += 'rhi[' + t + '] = cpu1.int32[' + hi + '];\n';
-  return impl;
+  return `
+    rlo[${t}] = cpu1.int32[${s}];
+    rhi[${t}] = cpu1.int32[${hi}];
+    `;
 }
 
 function executeDMFC1(i) {
@@ -2771,7 +2832,9 @@ function generateMTC1Stub(ctx) {
   ctx.fragment.usesCop1 = true;
   ctx.isTrivial = true;
 
-  return 'cpu1.int32[' + s + '] = rlo[' + t + '];\n';
+  return `
+    cpu1.int32[${s}] = rlo[${t}];
+    `;
 }
 
 function executeMTC1(i) {
@@ -2786,10 +2849,10 @@ function generateDMTC1Stub(ctx) {
   ctx.fragment.usesCop1 = true;
   ctx.isTrivial = true;
 
-  let impl = '';
-  impl += 'cpu1.int32[' + s + '] = rlo[' + t + '];\n';
-  impl += 'cpu1.int32[' + hi + '] = rhi[' + t + '];\n';
-  return impl;
+  return `
+    cpu1.int32[${s}] = rlo[${t}];
+    cpu1.int32[${hi}] = rhi[${t}];
+    `;
 }
 
 function executeDMTC1(i) {
@@ -2807,18 +2870,20 @@ function generateCFC1Stub(ctx) {
   ctx.fragment.usesCop1 = true;
   ctx.isTrivial = true;
 
-  let impl = '';
-
   switch (s) {
     case 0:
     case 31:
-      impl += 'var value = cpu1.control[' + s + '];\n';
-      impl += 'rlo[' + t + '] = value;\n';
-      impl += 'rhi[' + t + '] = value >> 31;\n';
+      return `
+        const value = cpu1.control[${s}];
+        rlo[${t}] = value;
+        rhi[${t}] = value >> 31;
+        `;
       return impl;
   }
 
-  return '/*CFC1 invalid reg*/\n';
+  return `
+    // CFC1 invalid reg
+    `;
 }
 
 function executeCFC1(i) {
@@ -2843,10 +2908,14 @@ function generateCTC1Stub(ctx) {
   ctx.isTrivial = true;
 
   if (s === 31) {
-    return 'cpu1.control[' + s + '] = rlo[' + t + '];\n';
+    return `
+      cpu1.control[${s}] = rlo[${t}];
+      `;
   }
 
-  return '/*CTC1 invalid reg*/\n';
+  return `
+    // CTC1 invalid reg
+    `;
 }
 
 function executeCTC1(i) {
@@ -2880,14 +2949,13 @@ function generateBCInstrStub(ctx) {
 
   let impl = '';
   const test = condition ? '!==' : '===';
-  impl += 'if ((cpu1.control[31] & FPCSR_C) ' + test + ' 0) {\n';
-  impl += '  c.branchTarget = ' + toString32(target) + ';\n';
+  impl += `if ((cpu1.control[31] & FPCSR_C) ${test} 0) {\n`;
+  impl += `  c.branchTarget = ${toString32(target)};\n`;
   if (likely) {
     impl += '} else {\n';
     impl += '  c.nextPC += 4;\n';
   }
   impl += '}\n';
-
   return impl;
 }
 
@@ -2927,7 +2995,7 @@ n64js.convert = function (x) {
 
 function generateFloatCompare(op) {
   let impl = '';
-  impl += 'var cc = false;\n';
+  impl += 'let cc = false;\n';
   impl += 'if (isNaN(fs+ft)) {\n';
   if (op & 0x8) {
     impl += '  n64js.halt("should raise Invalid Operation here.");\n';
@@ -2974,35 +3042,35 @@ function generateSInstrStub(ctx) {
 
   if (op < 0x30) {
     switch (op) {
-      case 0x00: return 'cpu1.float32[' + d + '] = cpu1.float32[' + s + '] + cpu1.float32[' + t + '];\n';
-      case 0x01: return 'cpu1.float32[' + d + '] = cpu1.float32[' + s + '] - cpu1.float32[' + t + '];\n';
-      case 0x02: return 'cpu1.float32[' + d + '] = cpu1.float32[' + s + '] * cpu1.float32[' + t + '];\n';
-      case 0x03: return 'cpu1.float32[' + d + '] = cpu1.float32[' + s + '] / cpu1.float32[' + t + '];\n';
-      case 0x04: return 'cpu1.float32[' + d + '] = Math.sqrt( cpu1.float32[' + s + '] );\n';
-      case 0x05: return 'cpu1.float32[' + d + '] = Math.abs(  cpu1.float32[' + s + '] );\n';
-      case 0x06: return 'cpu1.float32[' + d + '] =  cpu1.float32[' + s + '];\n';
-      case 0x07: return 'cpu1.float32[' + d + '] = -cpu1.float32[' + s + '];\n';
-      case 0x08: /* 'ROUND.L.'*/ return 'cpu1.store_float_as_long(' + d + ',  Math.round( cpu1.float32[' + s + ']));\n';
-      case 0x09: /* 'TRUNC.L.'*/ return 'cpu1.store_float_as_long(' + d + ', n64js.trunc( cpu1.float32[' + s + ']));\n';
-      case 0x0a: /* 'CEIL.L.'*/  return 'cpu1.store_float_as_long(' + d + ',  Math.ceil(  cpu1.float32[' + s + ']));\n';
-      case 0x0b: /* 'FLOOR.L.'*/ return 'cpu1.store_float_as_long(' + d + ',  Math.floor( cpu1.float32[' + s + ']));\n';
-      case 0x0c: /* 'ROUND.W.'*/ return 'cpu1.int32[' + d + '] =  Math.round( cpu1.float32[' + s + '] );\n';  // TODO: check this
-      case 0x0d: /* 'TRUNC.W.'*/ return 'cpu1.int32[' + d + '] = n64js.trunc( cpu1.float32[' + s + '] );\n';
-      case 0x0e: /* 'CEIL.W.'*/  return 'cpu1.int32[' + d + '] =  Math.ceil(  cpu1.float32[' + s + '] );\n';
-      case 0x0f: /* 'FLOOR.W.'*/ return 'cpu1.int32[' + d + '] =  Math.floor( cpu1.float32[' + s + '] );\n';
+      case 0x00: return `cpu1.float32[${d}] = cpu1.float32[${s}] + cpu1.float32[${t}];\n`;
+      case 0x01: return `cpu1.float32[${d}] = cpu1.float32[${s}] - cpu1.float32[${t}];\n`;
+      case 0x02: return `cpu1.float32[${d}] = cpu1.float32[${s}] * cpu1.float32[${t}];\n`;
+      case 0x03: return `cpu1.float32[${d}] = cpu1.float32[${s}] / cpu1.float32[${t}];\n`;
+      case 0x04: return `cpu1.float32[${d}] = Math.sqrt(cpu1.float32[${s}]);\n`;
+      case 0x05: return `cpu1.float32[${d}] = Math.abs( cpu1.float32[${s}]);\n`;
+      case 0x06: return `cpu1.float32[${d}] =  cpu1.float32[${s}];\n`;
+      case 0x07: return `cpu1.float32[${d}] = -cpu1.float32[${s}];\n`;
+      case 0x08: /* 'ROUND.L.'*/ return `cpu1.store_float_as_long(${d}, Math.round(cpu1.float32[${s}]));\n`;
+      case 0x09: /* 'TRUNC.L.'*/ return `cpu1.store_float_as_long(${d}, n64js.trunc(cpu1.float32[${s}]));\n`;
+      case 0x0a: /* 'CEIL.L.'*/  return `cpu1.store_float_as_long(${d}, Math.ceil( cpu1.float32[${s}]));\n`;
+      case 0x0b: /* 'FLOOR.L.'*/ return `cpu1.store_float_as_long(${d}, Math.floor(cpu1.float32[${s}]));\n`;
+      case 0x0c: /* 'ROUND.W.'*/ return `cpu1.int32[${d}] = Math.round(cpu1.float32[${s}]);\n`;  // TODO: check this
+      case 0x0d: /* 'TRUNC.W.'*/ return `cpu1.int32[${d}] = n64js.trunc(cpu1.float32[${s}]);\n`;
+      case 0x0e: /* 'CEIL.W.'*/  return `cpu1.int32[${d}] = Math.ceil( cpu1.float32[${s}]);\n`;
+      case 0x0f: /* 'FLOOR.W.'*/ return `cpu1.int32[${d}] = Math.floor(cpu1.float32[${s}]);\n`;
       case 0x20: /* 'CVT.S' */   break;
-      case 0x21: /* 'CVT.D' */   return 'cpu1.store_f64( ' + d + ', cpu1.float32[' + s + '] );\n';
-      case 0x24: /* 'CVT.W' */   return 'cpu1.int32[' + d + '] = n64js.convert( cpu1.float32[' + s + '] );\n';
+      case 0x21: /* 'CVT.D' */   return `cpu1.store_f64( ${d}, cpu1.float32[${s}] );\n`;
+      case 0x24: /* 'CVT.W' */   return `cpu1.int32[${d}] = n64js.convert(cpu1.float32[${s}]);\n`;
       case 0x25: /* 'CVT.L' */   break;
     }
 
-    return 'unimplemented(' + toString32(ctx.pc) + ',' + toString32(ctx.instruction) + ');\n';
+    return `unimplemented(${toString32(ctx.pc)},${toString32(ctx.instruction)});\n`;
   }
 
   // It's a compare instruction
   let impl = '';
-  impl += 'var fs = cpu1.float32[' + s + '];\n';
-  impl += 'var ft = cpu1.float32[' + t + '];\n';
+  impl += `const fs = cpu1.float32[${s}];\n`;
+  impl += `const ft = cpu1.float32[${t}];\n`;
   impl += generateFloatCompare(op);
   return impl;
 }
@@ -3058,34 +3126,34 @@ function generateDInstrStub(ctx) {
 
   if (op < 0x30) {
     switch (op) {
-      case 0x00: return 'cpu1.store_f64( ' + d + ', cpu1.load_f64( ' + s + ' ) + cpu1.load_f64( ' + t + ' ) );\n';
-      case 0x01: return 'cpu1.store_f64( ' + d + ', cpu1.load_f64( ' + s + ' ) - cpu1.load_f64( ' + t + ' ) );\n';
-      case 0x02: return 'cpu1.store_f64( ' + d + ', cpu1.load_f64( ' + s + ' ) * cpu1.load_f64( ' + t + ' ) );\n';
-      case 0x03: return 'cpu1.store_f64( ' + d + ', cpu1.load_f64( ' + s + ' ) / cpu1.load_f64( ' + t + ' ) );\n';
-      case 0x04: return 'cpu1.store_f64( ' + d + ', Math.sqrt( cpu1.load_f64( ' + s + ' ) ) );\n';
-      case 0x05: return 'cpu1.store_f64( ' + d + ', Math.abs(  cpu1.load_f64( ' + s + ' ) ) );\n';
-      case 0x06: return 'cpu1.store_f64( ' + d + ',  cpu1.load_f64( ' + s + ' ) );\n';
-      case 0x07: return 'cpu1.store_f64( ' + d + ', -cpu1.load_f64( ' + s + ' )  );\n';
-      case 0x08: /* 'ROUND.L.'*/ return 'cpu1.store_float_as_long(' + d + ',  Math.round( cpu1.load_f64( ' + s + ' )));\n';
-      case 0x09: /* 'TRUNC.L.'*/ return 'cpu1.store_float_as_long(' + d + ', n64js.trunc( cpu1.load_f64( ' + s + ' )));\n';
-      case 0x0a: /* 'CEIL.L.'*/  return 'cpu1.store_float_as_long(' + d + ',  Math.ceil(  cpu1.load_f64( ' + s + ' )));\n';
-      case 0x0b: /* 'FLOOR.L.'*/ return 'cpu1.store_float_as_long(' + d + ',  Math.floor( cpu1.load_f64( ' + s + ' )));\n';
-      case 0x0c: /* 'ROUND.W.'*/ return 'cpu1.int32[' + d + '] =  Math.round( cpu1.load_f64( ' + s + ' ) ) | 0;\n';  // TODO: check this
-      case 0x0d: /* 'TRUNC.W.'*/ return 'cpu1.int32[' + d + '] = n64js.trunc( cpu1.load_f64( ' + s + ' ) ) | 0;\n';
-      case 0x0e: /* 'CEIL.W.'*/  return 'cpu1.int32[' + d + '] =  Math.ceil(  cpu1.load_f64( ' + s + ' ) ) | 0;\n';
-      case 0x0f: /* 'FLOOR.W.'*/ return 'cpu1.int32[' + d + '] =  Math.floor( cpu1.load_f64( ' + s + ' ) ) | 0;\n';
-      case 0x20: /* 'CVT.S' */   return 'cpu1.float32[' + d + '] = cpu1.load_f64( ' + s + ' );\n';
+      case 0x00: return `cpu1.store_f64( ${d}, cpu1.load_f64( ${s} ) + cpu1.load_f64( ${t} ) );\n`;
+      case 0x01: return `cpu1.store_f64( ${d}, cpu1.load_f64( ${s} ) - cpu1.load_f64( ${t} ) );\n`;
+      case 0x02: return `cpu1.store_f64( ${d}, cpu1.load_f64( ${s} ) * cpu1.load_f64( ${t} ) );\n`;
+      case 0x03: return `cpu1.store_f64( ${d}, cpu1.load_f64( ${s} ) / cpu1.load_f64( ${t} ) );\n`;
+      case 0x04: return `cpu1.store_f64( ${d}, Math.sqrt(cpu1.load_f64(${s})));\n`;
+      case 0x05: return `cpu1.store_f64( ${d}, Math.abs(cpu1.load_f64( ${s})));\n`;
+      case 0x06: return `cpu1.store_f64( ${d},  cpu1.load_f64(${s}));\n`;
+      case 0x07: return `cpu1.store_f64( ${d}, -cpu1.load_f64(${s}));\n`;
+      case 0x08: /* 'ROUND.L.'*/ return `cpu1.store_float_as_long(${d}, Math.round(cpu1.load_f64(${s})));\n`;
+      case 0x09: /* 'TRUNC.L.'*/ return `cpu1.store_float_as_long(${d}, n64js.trunc(cpu1.load_f64(${s})));\n`;
+      case 0x0a: /* 'CEIL.L.'*/  return `cpu1.store_float_as_long(${d}, Math.ceil(cpu1.load_f64(${s})));\n`;
+      case 0x0b: /* 'FLOOR.L.'*/ return `cpu1.store_float_as_long(${d}, Math.floor(cpu1.load_f64(${s})));\n`;
+      case 0x0c: /* 'ROUND.W.'*/ return `cpu1.int32[${d}] = Math.round(cpu1.load_f64(${s})) | 0;\n`;  // TODO: check this
+      case 0x0d: /* 'TRUNC.W.'*/ return `cpu1.int32[${d}] = n64js.trunc(cpu1.load_f64(${s})) | 0;\n`;
+      case 0x0e: /* 'CEIL.W.'*/  return `cpu1.int32[${d}] = Math.ceil(cpu1.load_f64(${s})) | 0;\n`;
+      case 0x0f: /* 'FLOOR.W.'*/ return `cpu1.int32[${d}] = Math.floor(cpu1.load_f64(${s})) | 0;\n`;
+      case 0x20: /* 'CVT.S' */   return `cpu1.float32[${d}] = cpu1.load_f64(${s});\n`;
       case 0x21: /* 'CVT.D' */   break;
-      case 0x24: /* 'CVT.W' */   return 'cpu1.int32[' + d + '] = n64js.convert( cpu1.load_f64( ' + s + ' ) ) | 0;\n';
+      case 0x24: /* 'CVT.W' */   return `cpu1.int32[${d}] = n64js.convert(cpu1.load_f64(${s})) | 0;\n`;
       case 0x25: /* 'CVT.L' */   break;
     }
-    return 'unimplemented(' + toString32(ctx.pc) + ',' + toString32(ctx.instruction) + ');\n';
+    return `unimplemented(${toString32(ctx.pc)},${toString32(ctx.instruction)});\n`;
   }
 
   // It's a compare instruction
   let impl = '';
-  impl += 'var fs = cpu1.load_f64(' + s + ');\n';
-  impl += 'var ft = cpu1.load_f64(' + t + ');\n';
+  impl += `const fs = cpu1.load_f64(${s});\n`;
+  impl += `const ft = cpu1.load_f64(${t});\n`;
   impl += generateFloatCompare(op);
   return impl;
 }
@@ -3296,7 +3364,7 @@ function generateCop1(ctx) {
 
   } else {
     impl += 'if( (c.control[12] & SR_CU1) === 0 ) {\n';
-    impl += '  executeCop1_disabled(' + toString32(ctx.instruction) + ');\n';
+    impl += `  executeCop1_disabled(${toString32(ctx.instruction)});\n`;
     impl += '} else {\n';
     impl += '  ' + op_impl;
     impl += '}\n';
@@ -3774,14 +3842,14 @@ function addOpToFragment(fragment, entry_pc, instruction, c) {
 
     const sync = n64js.getSyncFlow();
     if (sync) {
-      fragment.body_code = 'var sync = n64js.getSyncFlow();\n' + fragment.body_code;
+      fragment.body_code = 'const sync = n64js.getSyncFlow();\n' + fragment.body_code;
     }
 
     if (fragment.usesCop1) {
       let cpu1_shizzle = '';
-      cpu1_shizzle += 'var cpu1 = n64js.cpu1;\n';
-      cpu1_shizzle += 'var SR_CU1 = ' + toString32(SR_CU1) + ';\n';
-      cpu1_shizzle += 'var FPCSR_C = ' + toString32(FPCSR_C) + ';\n';
+      cpu1_shizzle += 'const cpu1 = n64js.cpu1;\n';
+      cpu1_shizzle += 'const SR_CU1 = ' + toString32(SR_CU1) + ';\n';
+      cpu1_shizzle += 'const FPCSR_C = ' + toString32(FPCSR_C) + ';\n';
       fragment.body_code = cpu1_shizzle + '\n\n' + fragment.body_code;
     }
 
@@ -4016,7 +4084,8 @@ function generateCodeForOp(ctx) {
 
   // If the last op tried to delay updating the pc, see if it needs updating now.
   if (!ctx.isTrivial && ctx.delayedPCUpdate !== 0) {
-    ctx.fragment.body_code += `/*applying delayed pc*/\nc.pc = ${toString32(ctx.delayedPCUpdate)};\n`;
+    // TODO: add a template string function to dedent this.
+    ctx.fragment.body_code += `// Applying delayed pc\nc.pc = ${toString32(ctx.delayedPCUpdate)};\n`;
     ctx.delayedPCUpdate = 0;
   }
 
@@ -4044,6 +4113,7 @@ ${lines}
 
 // Indents all lines to the provided indent, removing any empty lines.
 function redentLines(code, indent) {
+  // TODO: it would make more sense to dedent the literals where they're declared.
   const dedented = dedent(code);
   const lines = dedented.split('\n');
   const filtered = lines.filter(l => l != '');
@@ -4205,7 +4275,7 @@ function generateBranchOpBoilerplate(fn, ctx, might_adjust_next_pc) {
     if (need_pc_test) {
       code += `if (c.pc !== ${toString32(ctx.post_pc)}) { return ${ctx.fragment.opsCompiled}; }\n`;
     } else {
-      code += '/* skipping pc test */\n';
+      code += '// Skipping pc test\n';
     }
   }
 
@@ -4246,7 +4316,7 @@ function generateTrivialOpBoilerplate(fn, ctx) {
       code += `if (c.pc !== ${toString32(ctx.post_pc)}) { return ${ctx.fragment.opsCompiled}; }\n`;
     } else {
       // code += `c.pc = ${toString32(ctx.pc + 4)};\n`;
-      code += '/* delaying pc update */\n';
+      code += '// Delaying pc update';
       ctx.delayedPCUpdate = ctx.pc + 4;
     }
   }
@@ -4263,5 +4333,5 @@ function generateTrivialOpBoilerplate(fn, ctx) {
 }
 
 function generateNOPBoilerplate(comment, ctx) {
-  return generateTrivialOpBoilerplate(comment + '\n', ctx);
+  return generateTrivialOpBoilerplate(`// ${comment}\n`, ctx);
 }
