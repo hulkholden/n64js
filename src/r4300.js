@@ -4001,7 +4001,6 @@ function checkEqual(a, b, m) {
 n64js.checkSyncState = checkSyncState;    // Needs to be callable from dynarec
 
 function generateCodeForOp(ctx) {
-
   ctx.needsDelayCheck = ctx.fragment.needsDelayCheck;
   ctx.isTrivial = false;
 
@@ -4032,7 +4031,20 @@ function generateCodeForOp(ctx) {
     fn_code = `if (!n64js.checkSyncState(sync, ${toString32(ctx.pc)})) { return ${ctx.fragment.opsCompiled}; }\n${fn_code}`;
   }
 
-  ctx.fragment.body_code += fn_code + '\n';
+  const lines = indentLines(fn_code, '  ');
+  const dasm = disassembleInstruction(ctx.pc, ctx.instruction);
+
+  ctx.fragment.body_code += `// ${dasm.disassembly}
+{
+${lines}
+}
+
+`;
+}
+
+// Indents all lines by indent and removes any empty lines.
+function indentLines(lines, indent) {
+  return lines.split('\n').map(l => l ? indent + l : '').filter(l => l != '').join('\n');
 }
 
 function generateOp(ctx) {
