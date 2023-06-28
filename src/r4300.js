@@ -4031,8 +4031,8 @@ function generateCodeForOp(ctx) {
     fn_code = `if (!n64js.checkSyncState(sync, ${toString32(ctx.pc)})) { return ${ctx.fragment.opsCompiled}; }\n${fn_code}`;
   }
 
-  const lines = indentLines(fn_code, '  ');
   const dasm = disassembleInstruction(ctx.pc, ctx.instruction);
+  const lines = redentLines(fn_code, '  ');
 
   ctx.fragment.body_code += `// ${dasm.disassembly}
 {
@@ -4042,9 +4042,20 @@ ${lines}
 `;
 }
 
-// Indents all lines by indent and removes any empty lines.
-function indentLines(lines, indent) {
-  return lines.split('\n').map(l => l ? indent + l : '').filter(l => l != '').join('\n');
+// Indents all lines to the provided indent, removing any empty lines.
+function redentLines(code, indent) {
+  const dedented = dedent(code);
+  const lines = dedented.split('\n');
+  const filtered = lines.filter(l => l != '');
+  const indented = filtered.map(l => indent + l);
+  return indented.join('\n');
+}
+
+function dedent(str) {
+	str = str.replace(/^\n/, '');
+	const match = str.match(/^\s+/);
+  const prefix = match[0];
+	return match ? str.replace(new RegExp('^'+prefix, 'gm'), '') : str;
 }
 
 function generateOp(ctx) {
