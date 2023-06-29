@@ -24,7 +24,9 @@ export function initialise(output, prefix) {
  * Clears the log output.
  */
 export function clear() {
-  outputElement.html('');
+  if (outputElement) {
+    outputElement.html('');
+  }
 }
 
 /**
@@ -32,8 +34,14 @@ export function clear() {
  * @param {string} str
  */
 export function log(str) {
-  outputElement.append(getPrefixFn() + ': ' + str + '<br>');
-  outputElement.scrollTop(outputElement[0].scrollHeight);
+  if (getPrefixFn) {
+    str = `${getPrefixFn()}: ${str}`;
+  }
+  console.log(str);
+  if (outputElement) {
+    outputElement.append(`${str}<br>`);
+    outputElement.scrollTop(outputElement[0].scrollHeight);
+  }
 }
 
 /**
@@ -41,5 +49,8 @@ export function log(str) {
  * @param {jQuery} html
  */
 export function logHTML(html) {
-  outputElement.append(html);
+  console.log(html);
+  if (outputElement) {
+    outputElement.append(html);
+  }
 }
