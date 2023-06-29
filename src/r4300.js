@@ -3579,7 +3579,7 @@ class FragmentContext {
 
   genAssert(test, msg) {
     if (kDebugDynarec) {
-      return 'assert(' + test + ', "' + msg + '");\n';
+      return 'n64js.assert(' + test + ', "' + msg + '");\n';
     }
     return '';
   }
