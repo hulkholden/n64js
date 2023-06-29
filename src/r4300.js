@@ -272,7 +272,7 @@ function pageMaskCheckbit(pageMask) {
   return 0;
 }
 
-function pageMaskName(pagemask) {
+function pageMaskName(pageMask) {
   const pm = pageMasks.get(pageMask);
   if (pm) {
     return pm.name;
