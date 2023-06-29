@@ -11,8 +11,8 @@ import { syncFlow } from './sync.js';
 
 window.n64js = window.n64js || {};
 
-const kDebugTLB = 0;
-const kDebugDynarec = 0;
+const kDebugTLB = false;
+const kDebugDynarec = false;
 
 const accurateCountUpdating = false;
 const COUNTER_INCREMENT_PER_OP = 1;
