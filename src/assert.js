@@ -14,3 +14,9 @@ export function assert(e, m) {
     throw new AssertException(m);
   }
 }
+
+// Expose to dynarec.
+window.n64js = window.n64js || {};
+n64js.assert = (cond, msg) => {
+  assert(cond, msg);
+};
