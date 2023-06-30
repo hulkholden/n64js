@@ -1319,8 +1319,13 @@ function executeDIV(i) {
   const dividend = cpu0.gprLo_signed[rs(i)];
   const divisor = cpu0.gprLo_signed[rt(i)];
   if (divisor) {
-    setHiLoSignExtend(cpu0.multLo, Math.floor(dividend / divisor));
-    setHiLoSignExtend(cpu0.multHi, dividend % divisor);
+    const m = (dividend / divisor) >> 0;
+    const r = dividend % divisor;
+
+    cpu0.multLo[0] = m;
+    cpu0.multLo[1] = m >> 31;
+    cpu0.multHi[0] = r;
+    cpu0.multHi[1] = r >> 31;
   }
 }
 
@@ -1328,8 +1333,13 @@ function executeDIVU(i) {
   const dividend = cpu0.gprLo[rs(i)];
   const divisor = cpu0.gprLo[rt(i)];
   if (divisor) {
-    setHiLoSignExtend(cpu0.multLo, Math.floor(dividend / divisor));
-    setHiLoSignExtend(cpu0.multHi, dividend % divisor);
+    const m = (dividend / divisor) >> 0;
+    const r = dividend % divisor;
+
+    cpu0.multLo[0] = m;
+    cpu0.multLo[1] = m >> 31;
+    cpu0.multHi[0] = r;
+    cpu0.multHi[1] = r >> 31;
   }
 }
 
