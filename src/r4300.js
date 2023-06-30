@@ -202,11 +202,6 @@ const kEventVbl          = 0;
 const kEventCompare      = 1;
 const kEventRunForCycles = 2;
 
-n64js.getHi32 = function (v) {
-  // >>32 just seems to no-op? Argh.
-  return Math.floor(v / k1Shift32);
-};
-
 // Needs to be callable from dynarec.
 n64js.getSyncFlow = () => syncFlow;
 
