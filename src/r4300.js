@@ -796,15 +796,6 @@ function setZeroExtend(r, v) {
   cpu0.gprHi_signed[r] = 0;
 }
 
-function setHiLoSignExtend(arr, v) {
-  arr[0] = v;
-  arr[1] = v >> 31;
-}
-function setHiLoZeroExtend(arr, v) {
-  arr[0] = v;
-  arr[1] = 0;
-}
-
 function genSrcRegLo(i) {
   if (i === 0)
     return '0';
@@ -1343,46 +1334,24 @@ function executeDIVU(i) {
 }
 
 function executeDDIV(i) {
-  const s = rs(i);
-  const t = rt(i);
-
-  if ((cpu0.gprHi[s] + (cpu0.gprLo[s] >>> 31) +
-    cpu0.gprHi[t] + (cpu0.gprLo[t] >>> 31)) !== 0) {
-    // FIXME: seems ok if dividend/divisor fit in mantissa of double...
-    const dividend = cpu0.getGPR_s64(s);
-    const divisor = cpu0.getGPR_s64(t);
-    if (divisor) {
-      setHiLoZeroExtend(cpu0.multLo, Math.floor(dividend / divisor));
-      setHiLoZeroExtend(cpu0.multHi, dividend % divisor);
-    }
-  } else {
-    const dividend = cpu0.gprLo_signed[s];
-    const divisor = cpu0.gprLo_signed[t];
-    if (divisor) {
-      setHiLoSignExtend(cpu0.multLo, Math.floor(dividend / divisor));
-      setHiLoSignExtend(cpu0.multHi, dividend % divisor);
-    }
+  const divisor = cpu0.getGPR_s64_bigint(rt(i));
+  if (divisor) {
+    const dividend = cpu0.getGPR_s64_bigint(rs(i));
+    cpu0.multLo[0] = Number(dividend / divisor);
+    cpu0.multLo[1] = 0;
+    cpu0.multHi[0] = Number(dividend % divisor);
+    cpu0.multHi[1] = 0;
   }
 }
-function executeDDIVU(i) {
-  const s = rs(i);
-  const t = rt(i);
 
-  if ((cpu0.gprHi[s] | cpu0.gprHi[t]) !== 0) {
-    // FIXME: seems ok if dividend/divisor fit in mantissa of double...
-    const dividend = cpu0.getGPR_u64(s);
-    const divisor = cpu0.getGPR_u64(t);
-    if (divisor) {
-      setHiLoZeroExtend(cpu0.multLo, Math.floor(dividend / divisor));
-      setHiLoZeroExtend(cpu0.multHi, dividend % divisor);
-    }
-  } else {
-    const dividend = cpu0.gprLo[s];
-    const divisor = cpu0.gprLo[t];
-    if (divisor) {
-      setHiLoZeroExtend(cpu0.multLo, Math.floor(dividend / divisor));
-      setHiLoZeroExtend(cpu0.multHi, dividend % divisor);
-    }
+function executeDDIVU(i) {
+  const divisor = cpu0.getGPR_u64_bigint(rt(i));
+  if (divisor) {
+    const dividend = cpu0.getGPR_u64_bigint(rs(i));
+    cpu0.multLo[0] = Number(dividend / divisor);
+    cpu0.multLo[1] = 0;
+    cpu0.multHi[0] = Number(dividend % divisor);
+    cpu0.multHi[1] = 0;
   }
 }
 
