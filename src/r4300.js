@@ -326,10 +326,6 @@ class CPU0 {
     return (this.gprHi_signed[r] * k1Shift32) + this.gprLo[r];
   }
 
-  getGPR_u64(r) {
-    return (this.gprHi[r] * k1Shift32) + this.gprLo[r];
-  }
-
   setGPR_s64(r, v) {
     this.gprHi_signed[r] = Math.floor(v / k1Shift32);
     this.gprLo_signed[r] = v;
