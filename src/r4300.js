@@ -322,21 +322,17 @@ class CPU0 {
     return this.control[cpu0_constants.controlCount];
   }
 
-  getGPR_s64(r) {
-    return (this.gprHi_signed[r] * k1Shift32) + this.gprLo[r];
-  }
-
-  setGPR_s64(r, v) {
-    this.gprHi_signed[r] = Math.floor(v / k1Shift32);
-    this.gprLo_signed[r] = v;
-  }
-
   getGPR_s64_bigint(r) {
     return (BigInt(this.gprHi_signed[r]) << 32n) + BigInt(this.gprLo[r]);
   }
 
   getGPR_u64_bigint(r) {
     return (BigInt(this.gprHi[r]) << 32n) + BigInt(this.gprLo[r]);
+  }
+
+  setGPR_s64_bigint(r, v) {
+    this.gprHi_signed[r] = Number(v >> 32n);
+    this.gprLo_signed[r] = Number(v & 0xffffffffn);
   }
 
   reset() {
@@ -1548,19 +1544,37 @@ function executeSLTU(i) {
 }
 
 function executeDADD(i) {
-  cpu0.setGPR_s64(rd(i), cpu0.getGPR_s64(rs(i)) + cpu0.getGPR_s64(rt(i)));
-  // NB: identical to DADDU, but should throw exception on overflow
+  const s = cpu0.getGPR_s64_bigint(rs(i));
+  const t = cpu0.getGPR_s64_bigint(rt(i));
+  const result = s + t;
+  if ((~(s ^ t) & (s ^ result)) & 0x8000000000000000n) {
+    n64js.halt("DADD overlow");
+  }
+  cpu0.setGPR_s64_bigint(rd(i), result);
 }
+
 function executeDADDU(i) {
-  cpu0.setGPR_s64(rd(i), cpu0.getGPR_s64(rs(i)) + cpu0.getGPR_s64(rt(i)));
+  const s = cpu0.getGPR_s64_bigint(rs(i));
+  const t = cpu0.getGPR_s64_bigint(rt(i));
+  const result = s + t;
+  cpu0.setGPR_s64_bigint(rd(i), result);
 }
 
 function executeDSUB(i) {
-  cpu0.setGPR_s64(rd(i), cpu0.getGPR_s64(rs(i)) - cpu0.getGPR_s64(rt(i)));
-  // NB: identical to DSUBU, but should throw exception on overflow
+  const s = cpu0.getGPR_s64_bigint(rs(i));
+  const t = cpu0.getGPR_s64_bigint(st(i));
+  const result = s - t;
+  if ((s ^ t) & (s ^ result) & 0x8000000000000000n) {
+    n64js.halt("DSUB overlow");
+  }
+  cpu0.setGPR_s64_bigint(rd(i), result);
 }
+
 function executeDSUBU(i) {
-  cpu0.setGPR_s64(rd(i), cpu0.getGPR_s64(rs(i)) - cpu0.getGPR_s64(rt(i)));
+  const s = cpu0.getGPR_s64_bigint(rs(i));
+  const t = cpu0.getGPR_s64_bigint(rt(i));
+  const result = s - t;
+  cpu0.setGPR_s64_bigint(rd(i), result);
 }
 
 function executeTGE(i) { unimplemented(cpu0.pc, i); }
@@ -2109,11 +2123,20 @@ function executeADDIU(i) {
 }
 
 function executeDADDI(i) {
-  cpu0.setGPR_s64(rt(i), cpu0.getGPR_s64(rs(i)) + imms(i));
+  const s = cpu0.getGPR_s64_bigint(rs(i));
+  const imm = BigInt(imms(i));
+  const result = s + imm;
+  if ((~(s ^ imm) & (s ^ result)) & 0x8000000000000000n) {
+    n64js.halt("DADDI overlow");
+  }
+  cpu0.setGPR_s64_bigint(rt(i), s + imm);
 }
 
 function executeDADDIU(i) {
-  cpu0.setGPR_s64(rt(i), cpu0.getGPR_s64(rs(i)) + imms(i));
+  const s = cpu0.getGPR_s64_bigint(rs(i));
+  const imm = BigInt(imms(i));
+  const result = s + imm;
+  cpu0.setGPR_s64_bigint(rt(i), result);
 }
 
 function generateSLTI(ctx) {
