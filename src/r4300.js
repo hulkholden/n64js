@@ -17,6 +17,7 @@ const kDebugDynarec = false;
 const accurateCountUpdating = false;
 const COUNTER_INCREMENT_PER_OP = 1;
 
+// Multiply by a large constant as 32 bit shifts don't work.
 const k1Shift32 = 4294967296.0;
 
 const UT_VEC          = 0x80000000;
@@ -337,6 +338,14 @@ class CPU0 {
   setGPR_s64(r, v) {
     this.gprHi_signed[r] = Math.floor(v / k1Shift32);
     this.gprLo_signed[r] = v;
+  }
+
+  getGPR_s64_bigint(r) {
+    return (BigInt(this.gprHi_signed[r]) << 32n) + BigInt(this.gprLo[r]);
+  }
+
+  getGPR_u64_bigint(r) {
+    return (BigInt(this.gprHi[r]) << 32n) + BigInt(this.gprLo[r]);
   }
 
   reset() {
@@ -1249,26 +1258,26 @@ function generateMULT(ctx) {
   const t = ctx.instr_rt();
 
   const impl = `
-    const result = ${genSrcRegLo(s)} * ${genSrcRegLo(t)};
-    const result_lo = result & 0xffffffff;
-    const result_hi = n64js.getHi32(result);
-    c.multLo[0] = result_lo;
-    c.multLo[1] = result_lo >> 31;
-    c.multHi[0] = result_hi;
-    c.multHi[1] = result_hi >> 31;
+    const result = BigInt(${genSrcRegLo(s)}) * BigInt(${genSrcRegLo(t)});
+    const lo = result & 0xffffffffn;
+    const hi = result >> 32n;
+    c.multLo[0] = Number(lo);
+    c.multLo[1] = Number(lo >> 31n);
+    c.multHi[0] = Number(hi);
+    c.multHi[1] = Number(hi >> 31n);
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
 function executeMULT(i) {
-  const result = cpu0.gprLo_signed[rs(i)] * cpu0.gprLo_signed[rt(i)];
-  const lo = result & 0xffffffff;
-  const hi = n64js.getHi32(result);
+  const result = BigInt(cpu0.gprLo_signed[rs(i)]) * BigInt(cpu0.gprLo_signed[rt(i)]);
+  const lo = result & 0xffffffffn;
+  const hi = result >> 32n;
 
-  cpu0.multLo[0] = lo;
-  cpu0.multLo[1] = lo >> 31;
-  cpu0.multHi[0] = hi;
-  cpu0.multHi[1] = hi >> 31;
+  cpu0.multLo[0] = Number(lo);
+  cpu0.multLo[1] = Number(lo >> 31n);
+  cpu0.multHi[0] = Number(hi);
+  cpu0.multHi[1] = Number(hi >> 31n);
 }
 
 function generateMULTU(ctx) {
@@ -1277,40 +1286,45 @@ function generateMULTU(ctx) {
   const t = ctx.instr_rt();
 
   const impl = `
-    const result = c.gprLo[${s}] * c.gprLo[${t}];
-    const result_lo = result & 0xffffffff;
-    const result_hi = n64js.getHi32(result);
-    c.multLo[0] = result_lo;
-    c.multLo[1] = result_lo >> 31;
-    c.multHi[0] = result_hi;
-    c.multHi[1] = result_hi >> 31;
+    const result = BigInt(c.gprLo[${s}]) * BigInt(c.gprLo[${t}]);
+    const lo = result & 0xffffffffn;
+    const hi = result >> 32n;
+    c.multLo[0] = Number(lo);
+    c.multLo[1] = Number(lo >> 31n);
+    c.multHi[0] = Number(hi);
+    c.multHi[1] = Number(hi >> 31n);
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
 function executeMULTU(i) {
-  const result = cpu0.gprLo[rs(i)] * cpu0.gprLo[rt(i)];
-  const lo = result & 0xffffffff;
-  const hi = n64js.getHi32(result);
+  const result = BigInt(cpu0.gprLo[rs(i)]) * BigInt(cpu0.gprLo[rt(i)]);
+  const lo = result & 0xffffffffn;
+  const hi = result >> 32n;
 
-  cpu0.multLo[0] = lo;
-  cpu0.multLo[1] = lo >> 31;
-  cpu0.multHi[0] = hi;
-  cpu0.multHi[1] = hi >> 31;
+  cpu0.multLo[0] = Number(lo);
+  cpu0.multLo[1] = Number(lo >> 31n);
+  cpu0.multHi[0] = Number(hi);
+  cpu0.multHi[1] = Number(hi >> 31n);
 }
 
 function executeDMULT(i) {
-  const result = cpu0.getGPR_s64(rs(i)) * cpu0.getGPR_s64(rt(i));
-  cpu0.multLo[0] = result & 0xffffffff;
-  cpu0.multLo[1] = n64js.getHi32(result);
+  const result = cpu0.getGPR_s64_bigint(rs(i)) * cpu0.getGPR_s64_bigint(rt(i));
+  const lo = result & 0xffffffffn;
+  const hi = result >> 32n;
+
+  cpu0.multLo[0] = Number(lo);
+  cpu0.multLo[1] = Number(hi);
   cpu0.multHi_signed[0] = 0;
   cpu0.multHi_signed[1] = 0;
 }
 
 function executeDMULTU(i) {
-  const result = cpu0.getGPR_u64(rs(i)) * cpu0.getGPR_u64(rt(i));
-  cpu0.multLo[0] = result & 0xffffffff;
-  cpu0.multLo[1] = n64js.getHi32(result);
+  const result = cpu0.getGPR_u64_bigint(rs(i)) * cpu0.getGPR_u64_bigint(rt(i));
+  const lo = result & 0xffffffffn;
+  const hi = result >> 32n;
+  cpu0.multLo[0] = Number(lo);
+  cpu0.multLo[1] = Number(hi);
   cpu0.multHi_signed[0] = 0;
   cpu0.multHi_signed[1] = 0;
 }
