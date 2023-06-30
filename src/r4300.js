@@ -17,9 +17,6 @@ const kDebugDynarec = false;
 const accurateCountUpdating = false;
 const COUNTER_INCREMENT_PER_OP = 1;
 
-// Multiply by a large constant as 32 bit shifts don't work.
-const k1Shift32 = 4294967296.0;
-
 const UT_VEC          = 0x80000000;
 const XUT_VEC         = 0x80000080;
 const ECC_VEC         = 0x80000100;
