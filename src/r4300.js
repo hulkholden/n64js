@@ -813,12 +813,12 @@ function setHiLoZeroExtend(arr, v) {
 function genSrcRegLo(i) {
   if (i === 0)
     return '0';
-  return 'rlo[' + i + ']';
+  return `rlo[${i}]`;
 }
 function genSrcRegHi(i) {
   if (i === 0)
     return '0';
-  return 'rhi[' + i + ']';
+  return `rhi[${i}]`;
 }
 
 //
