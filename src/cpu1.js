@@ -50,8 +50,9 @@ export class CPU1 {
    * @param {number} value The value to store.
    */
   store_float_as_long(i, value) {
-    this.int32[i  ] = value & 0xffffffff;
-    this.int32[i+1] = Math.floor(value / k1Shift32);
+    const v = BigInt(value);
+    this.int32[i  ] = v & 0xffffffffn;
+    this.int32[i+1] = v >> 32n;
   }
 
   /**
