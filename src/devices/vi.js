@@ -100,7 +100,11 @@ export class VIRegDevice extends Device {
   
     let value = this.mem.readS32(ea);
     if (ea === VI_CURRENT_REG) {
-      value = (value + 2) % 512;
+      const sync = this.mem.readU32(VI_V_SYNC_REG);
+      value++;
+      if (value >= sync) {
+        value -= sync;
+      }
       this.mem.write32(ea, value);
     }
     return value;
