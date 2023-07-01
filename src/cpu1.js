@@ -51,8 +51,8 @@ export class CPU1 {
    */
   store_float_as_long(i, value) {
     const v = BigInt(value);
-    this.int32[i  ] = v & 0xffffffffn;
-    this.int32[i+1] = v >> 32n;
+    this.int32[i  ] = Number(v & 0xffffffffn);
+    this.int32[i+1] = Number(v >> 32n);
   }
 
   /**
