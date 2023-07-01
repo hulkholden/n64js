@@ -100,11 +100,13 @@ export class VIRegDevice extends Device {
   
     let value = this.mem.readS32(ea);
     if (ea === VI_CURRENT_REG) {
-      const sync = this.mem.readU32(VI_V_SYNC_REG);
-      value++;
-      if (value >= sync) {
-        value -= sync;
-      }
+      // TODO: should limit to VI_V_SYNC_REG but this seems to break Wetrix.
+      // const sync = this.mem.readU32(VI_V_SYNC_REG);
+      // value++;
+      // if (value >= sync) {
+      //   value -= sync;
+      // }
+      value = (value + 2) % 512;
       this.mem.write32(ea, value);
     }
     return value;
