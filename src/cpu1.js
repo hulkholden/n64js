@@ -1,7 +1,6 @@
 
 // TODO(hulkholden): Share this somewhere.
 const FPCSR_C = 0x00800000;
-const k1Shift32 = 4294967296.0;
 
 export class CPU1 {
   constructor() {
@@ -76,6 +75,6 @@ export class CPU1 {
    * @return {number}
    */
   load_s64_as_double(i) {
-    return (this.int32[i+1] * k1Shift32) + this.int32[i];
+    return Number((BigInt(this.int32[i + 1]) << 32n) + BigInt(this.int32[i]));
   }
 }
