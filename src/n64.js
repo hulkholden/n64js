@@ -165,7 +165,7 @@ function updateLoopAnimframe() {
   } else if (debugDisplayListRunning) {
     requestAnimationFrame(updateLoopAnimframe);
     if (debugDisplayList()) {
-      presentBackBuffer(n64js.getRamU8Array(), hardware.viRegDevice.viOrigin());
+      presentBackBuffer(n64js.getRamU8Array());
     }
   }
 

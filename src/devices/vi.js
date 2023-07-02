@@ -41,6 +41,8 @@ const VI_CTRL_SERRATE_ON = 0x00040;
 const VI_CTRL_ANTIALIAS_MASK = 0x00300;
 const VI_CTRL_DITHER_FILTER_ON = 0x10000;
 
+const controlTypeMask = 0x3;
+
 const VI_PAL_CLOCK = 49656530;
 const VI_NTSC_CLOCK = 48681812;
 const VI_MPAL_CLOCK = 48628316;
@@ -108,6 +110,11 @@ export class VIRegDevice extends Device {
     n64js.cpu0.addVblEvent(this.countPerVbl);
   }
 
+  viIs32Bit() {
+    const control = this.mem.readU32(VI_CONTROL_REG);
+    return (control & controlTypeMask) == VI_CTRL_TYPE_32;
+  }
+
   viOrigin() { return this.mem.readU32(VI_ORIGIN_REG); };
   viWidth() { return this.mem.readU32(VI_WIDTH_REG); };
   viXScale() { return this.mem.readU32(VI_X_SCALE_REG); };
@@ -124,13 +131,16 @@ export class VIRegDevice extends Device {
     switch (ea) {
       case VI_ORIGIN_REG:
         const lastOrigin = this.mem.readU32(ea);
-        const newOrigin = value >>> 0;
+        const newOrigin = value & 0x00ffffff;
+        this.mem.write32(ea, value);
+        // TODO: just handle this during vertical blank.
         if (newOrigin !== lastOrigin/* || this.curVbl !== this.lastVbl*/) {
-          presentBackBuffer(n64js.getRamU8Array(), newOrigin);
+          presentBackBuffer(n64js.getRamU8Array());
           n64js.returnControlToSystem();
           this.lastVbl = this.curVbl;
+        } else {
+          console.log('ignoring VI_ORIGIN_REG');
         }
-        this.mem.write32(ea, value);
         break;
       case VI_CONTROL_REG:
         if (!this.quiet) { logger.log(`VI control set to: ${toString32(value)}`); }

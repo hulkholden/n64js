@@ -2977,42 +2977,59 @@ function buildUCodeTables(ucode) {
 var last_ucode_str = '';
 var num_display_lists_since_present = 0;
 
-export function presentBackBuffer(ram, origin) {
-  var texture;
+export function presentBackBuffer(ram) {
 
   n64js.onPresent();
 
-  // NB: if no display lists executed, interpret framebuffer as bytes
+  var texture;
+
+  // If no display lists executed, interpret framebuffer as bytes
   if (num_display_lists_since_present === 0) {
-    //logger.log('new origin: ' + toString32(origin) + ' but no display lists rendered to skipping');
+    // TODO: from viWidth/viHeight.
+    const width = 320;
+    const height = 240;
 
-    origin = (origin & 0x7ffffffe) | 0; // NB: clear top bit (make address physical). Clear bottom bit (sometimes odd valued addresses are passed through)
-
-    var width = 320;
-    var height = 240;
-    var pixels = new Uint16Array(width * height); // TODO: should cache this, but at some point we'll need to deal with variable framebuffer size, so do this later.
-
-    var srcOffset = 0;
-
-    for (var y = 0; y < height; ++y) {
-      var dstRowOffset = (height - 1 - y) * width;
-      var dstOffset = dstRowOffset;
-
-      for (var x = 0; x < width; ++x) {
-        // NB: or 1 to ensure we have alpha
-        pixels[dstOffset] =
-          (ram[origin + srcOffset] << 8) |
-          ram[origin + srcOffset + 1] |
-          1;
-        dstOffset += 1;
-        srcOffset += 2;
-      }
-    }
+    const vi = n64js.hardware().viRegDevice;
+    const origin = vi.viOrigin() & 0x00fffffe; // Clear top bit to make address physical. Clear bottom bit (sometimes odd valued addresses are passed through)
 
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, frameBufferTexture2D);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_SHORT_5_5_5_1,
-      pixels);
+
+    if (vi.viIs32Bit()) {
+      // TODO: cache this.
+      const pixels = new Uint8Array(width * height * 4);
+      let srcOffset = origin;
+      for (let y = 0; y < height; ++y) {
+        const dstRowOffset = (height - 1 - y) * width;
+        let dstOffset = dstRowOffset * 4;
+
+        for (let x = 0; x < width; ++x) {
+          pixels[dstOffset + 0] = ram[srcOffset + 0];
+          pixels[dstOffset + 1] = ram[srcOffset + 1];
+          pixels[dstOffset + 2] = ram[srcOffset + 2];
+          pixels[dstOffset + 3] = 0xff;
+          dstOffset += 4;
+          srcOffset += 4;
+        }
+      }
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+    } else {
+      // TODO: cache this.
+      const pixels = new Uint16Array(width * height);
+      let srcOffset = origin;
+      for (let y = 0; y < height; ++y) {
+        const dstRowOffset = (height - 1 - y) * width;
+        let dstOffset = dstRowOffset;
+
+        for (let x = 0; x < width; ++x) {
+          // Or 1 to ensure we have alpha
+          pixels[dstOffset] = (ram[srcOffset] << 8) | ram[srcOffset + 1] | 1;
+          dstOffset += 1;
+          srcOffset += 2;
+        }
+      }
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_SHORT_5_5_5_1, pixels);
+    }
     texture = frameBufferTexture2D;
   } else {
     texture = frameBufferTexture3D;
@@ -3023,17 +3040,17 @@ export function presentBackBuffer(ram, origin) {
 }
 
 function setViScales() {
-  const viRegDevice = n64js.hardware().viRegDevice;
-  var width = viRegDevice.viWidth();
+  const vi = n64js.hardware().viRegDevice;
+  var width = vi.viWidth();
 
-  var scale_x = (viRegDevice.viXScale() & 0xFFF) / 1024.0;
-  var scale_y = (viRegDevice.viYScale() & 0xFFF) / 2048.0;
+  var scale_x = (vi.viXScale() & 0xFFF) / 1024.0;
+  var scale_y = (vi.viYScale() & 0xFFF) / 2048.0;
 
-  var h_start_reg = viRegDevice.viHStart();
+  var h_start_reg = vi.viHStart();
   var hstart = h_start_reg >> 16;
   var hend = h_start_reg & 0xffff;
 
-  var v_start_reg = viRegDevice.viVStart();
+  var v_start_reg = vi.viVStart();
   var vstart = v_start_reg >> 16;
   var vend = v_start_reg & 0xffff;
 
