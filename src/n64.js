@@ -11,6 +11,7 @@ import { debugDisplayList, debugDisplayListRequested, debugDisplayListRunning, p
 import * as json from './json.js';
 import * as logger from './logger.js';
 import { romdb, generateRomId, generateCICType, uint8ArrayReadString } from './romdb.js';
+import { countryNorthAmerica, OS_TV_NTSC, tvTypeFromCountry } from './system_constants.js';
 import { UI } from './ui.js';
 import { initSync, syncActive, syncTick, syncInput } from './sync.js';
 
@@ -28,9 +29,11 @@ const rominfo = {
   id: '',
   name: '',
   cic: '6101',
-  country: 0x45,
+  country: countryNorthAmerica,
+  tvType: OS_TV_NTSC,
   save: 'Eeprom4k'
 };
+
 const hardware = new Hardware(rominfo);
 const controllers = new Controllers(hardware);
 const ui = new UI();
@@ -77,6 +80,7 @@ function loadRom(arrayBuffer) {
   rominfo.cic = generateCICType(rom.u8);
   rominfo.id = generateRomId(hdr.crclo, hdr.crchi);
   rominfo.country = hdr.countryId;
+  rominfo.tvType = tvTypeFromCountry(hdr.countryId);
 
   const info = romdb[rominfo.id];
   if (info) {
