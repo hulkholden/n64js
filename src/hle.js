@@ -2975,16 +2975,15 @@ function buildUCodeTables(ucode) {
 }
 
 var last_ucode_str = '';
-var num_display_lists_since_present = 0;
+let numDisplayListsRendered = 0;
 
 export function presentBackBuffer(ram) {
-
   n64js.onPresent();
 
   var texture;
 
   // If no display lists executed, interpret framebuffer as bytes
-  if (num_display_lists_since_present === 0) {
+  if (numDisplayListsRendered === 0) {
     // TODO: from viWidth/viHeight.
     const width = 320;
     const height = 240;
@@ -3036,7 +3035,6 @@ export function presentBackBuffer(ram) {
   }
 
   copyBackBufferToFrontBuffer(texture);
-  num_display_lists_since_present = 0;
 }
 
 function setViScales() {
@@ -3392,8 +3390,8 @@ function hleGraphics(task) {
 }
 
 function processDList(task, disassembler, bail_after) {
-  // Update a counter to tell the video code that we've rendered something since the last vbl.
-  ++num_display_lists_since_present;
+  // Update a counter to tell the video code that we've rendered something.
+  numDisplayListsRendered++;
   if (!gl) {
     return;
   }

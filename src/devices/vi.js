@@ -64,9 +64,6 @@ export class VIRegDevice extends Device {
   constructor(hardware, rangeStart, rangeEnd) {
     super("VIReg", hardware, hardware.vi_reg, rangeStart, rangeEnd);
 
-    this.curVbl = 0;
-    this.lastVbl = 0;
-
     this.field = 0;
     this.clock = 0;
     this.refreshRate = 0;
@@ -84,8 +81,6 @@ export class VIRegDevice extends Device {
   }
 
   verticalBlank() {
-    this.curVbl++;
-
     const control = this.mem.readU32(VI_CONTROL_REG);
     const interlaced = (control & VI_CTRL_SERRATE_ON) ? 1 : 0;
     this.field ^= interlaced;
@@ -95,6 +90,9 @@ export class VIRegDevice extends Device {
 
     this.hardware.mi_reg.setBits32(mi.MI_INTR_REG, mi.MI_INTR_VI);
     n64js.cpu0.updateCause3();
+
+    presentBackBuffer(n64js.getRamU8Array());
+    n64js.returnControlToSystem();
   }
 
   initInterrupt() {
@@ -130,22 +128,14 @@ export class VIRegDevice extends Device {
 
     switch (ea) {
       case VI_ORIGIN_REG:
-        const lastOrigin = this.mem.readU32(ea);
-        const newOrigin = value & 0x00ffffff;
         this.mem.write32(ea, value);
-        // TODO: just handle this during vertical blank.
-        if (newOrigin !== lastOrigin/* || this.curVbl !== this.lastVbl*/) {
-          presentBackBuffer(n64js.getRamU8Array());
-          n64js.returnControlToSystem();
-          this.lastVbl = this.curVbl;
-        } else {
-          console.log('ignoring VI_ORIGIN_REG');
-        }
         break;
+
       case VI_CONTROL_REG:
         if (!this.quiet) { logger.log(`VI control set to: ${toString32(value)}`); }
         this.mem.write32(ea, value);
         break;
+
       case VI_WIDTH_REG:
         if (!this.quiet) { logger.log(`VI width set to: ${value}`); }
         this.mem.write32(ea, value);
