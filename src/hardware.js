@@ -109,6 +109,7 @@ export class Hardware {
     this.piRegDevice.reset();
     this.miRegDevice.reset();
     this.riRegDevice.reset();
+    this.viRegDevice.reset();
   }
 
   createROM(arrayBuffer) {

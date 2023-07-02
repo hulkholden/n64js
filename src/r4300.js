@@ -193,8 +193,6 @@ const kStuffToDoHalt            = 1<<0;
 const kStuffToDoCheckInterrupts = 1<<1;
 const kStuffToDoBreakout        = 1<<2;
 
-const kVIIntrCycles = 62500;
-
 const kEventVbl          = 0;
 const kEventCompare      = 1;
 const kEventRunForCycles = 2;
@@ -361,8 +359,6 @@ class CPU0 {
     this.control[cpu0_constants.controlRand] = 32 - 1;
     this.control[cpu0_constants.controlSR] = 0x70400004;
     this.control[cpu0_constants.controlConfig] = 0x0006e463;
-
-    this.addEvent(kEventVbl, kVIIntrCycles);
   }
 
   breakExecution() {
@@ -516,16 +512,34 @@ class CPU0 {
       }
     }
     this.control[cpu0_constants.controlCompare] = value;
+
+  }
+
+  // TODO: refector this so event types are accessible.
+  addVblEvent(countdown) {
+    this.addEvent(kEventVbl, countdown);
+  }
+
+  hasVblEvent() {
+    return this.hasEvent(kEventVbl);
+  }
+
+  getVblCount() {
+    const event = this.getEvent(kEventVbl);
+    if (event) {
+      return event.countdown;
+    }
+    return 0;
   }
 
   addEvent(type, countdown) {
-    assert(countdown > 0, "Countdown is invalid");
+    assert(!this.hasEvent(type), `Already has event of type ${type}`);
+    assert(countdown > 0, `Countdown must be positive`);
 
     for (let i = 0; i < this.events.length; ++i) {
       const event = this.events[i];
       if (countdown <= event.countdown) {
         event.countdown -= countdown;
-
         this.events.splice(i, 0, new SystemEvent(type, countdown));
         return;
       }
@@ -537,9 +551,10 @@ class CPU0 {
   removeEventsOfType(type) {
     let count = 0;
     for (let i = 0; i < this.events.length; ++i) {
-      count += this.events[i].countdown;
+      const event = this.events[i];
+      count += event.countdown;
 
-      if (this.events[i].type == type) {
+      if (event.type == type) {
         // Add this countdown on to the subsequent event
         if ((i + 1) < this.events.length) {
           this.events[i + 1].countdown += this.events[i].countdown;
@@ -553,13 +568,17 @@ class CPU0 {
     return -1;
   }
 
-  hasEvent(type) {
-    for (let i = 0; i < this.events.length; ++i) {
-      if (this.events[i].type == type) {
-        return true;
+  getEvent(type) {
+    for (let event of this.events) {
+      if (event.type == type) {
+        return event;
       }
     }
-    return false;
+    return null;
+  }
+
+  hasEvent(type) {
+    return Boolean(this.getEvent(type));
   }
 
   getRandom() {
@@ -3719,9 +3738,6 @@ function handleCounter() {
         cpu0.stuffToDo |= kStuffToDoCheckInterrupts;
       }
     } else if (evt.type === kEventVbl) {
-      // FIXME: this should be based on VI_V_SYNC_REG
-      cpu0.addEvent(kEventVbl, kVIIntrCycles);
-
       n64js.verticalBlank();
       cpu0.stuffToDo |= kStuffToDoBreakout;
     } else {
