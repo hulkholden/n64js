@@ -18,6 +18,9 @@ const kGameOffset = 0x1000;
 
 export class Hardware {
   constructor(rominfo) {
+    // TODO: Not sure this belongs here.
+    this.rominfo = rominfo;
+
     this.rom = null;   // Will be memory, mapped at 0xb0000000
     this.pi_mem = newMemoryRegion(0x7c0 + 0x40);   // rom+ram
     this.ram = newMemoryRegion(8 * 1024 * 1024);
@@ -83,9 +86,6 @@ export class Hardware {
       this.romD1A3Device,
     ];
     this.memMap = new MemoryMap(this.devices);
-
-    // TODO: Not sure this belongs here.
-    this.rominfo = rominfo;
   }
 
   reset() {
