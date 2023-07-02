@@ -107,7 +107,7 @@ export class PIRegDevice extends Device {
   copyToRDRAM() {
     const dramAddr = this.mem.readU32(PI_DRAM_ADDR_REG) & 0x00ffffff;
     const cartAddr = this.mem.readU32(PI_CART_ADDR_REG);
-    const transferLen = this.mem.readU32(PI_WR_LEN_REG) + 1;
+    let transferLen = this.mem.readU32(PI_WR_LEN_REG) + 1;
 
     if (!this.quiet) {
       logger.log(`PI: copying ${transferLen} bytes of data from ${toString32(cartAddr)} to ${toString32(dramAddr)}`);
