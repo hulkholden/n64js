@@ -2984,12 +2984,15 @@ export function presentBackBuffer(ram) {
 
   // If no display lists executed, interpret framebuffer as bytes
   if (numDisplayListsRendered === 0) {
-    // TODO: from viWidth/viHeight.
-    const width = 320;
-    const height = 240;
-
     const vi = n64js.hardware().viRegDevice;
     const origin = vi.viOrigin() & 0x00fffffe; // Clear top bit to make address physical. Clear bottom bit (sometimes odd valued addresses are passed through)
+
+    const dims = computeViDimension();
+    if (!dims) {
+      return;
+    }
+    const width = dims.width;
+    const height = dims.height;
 
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, frameBufferTexture2D);
@@ -3037,35 +3040,67 @@ export function presentBackBuffer(ram) {
   copyBackBufferToFrontBuffer(texture);
 }
 
-function setViScales() {
+class viDimension {
+  constructor(w, h) {
+    this.width = w;
+    this.height = h;
+  }
+}
+
+function computeViDimension() {
   const vi = n64js.hardware().viRegDevice;
-  var width = vi.viWidth();
 
-  const scaleX = (vi.viXScale() & 0xFFF) / 1024.0;
-  const scaleY = (vi.viYScale() & 0xFFF) / 2048.0;
+  // Some games don't seem to set VI_X_SCALE, so default this.
+  const scaleX = (vi.viXScale() & 0xfff) || 0x200;
+  const scaleY = (vi.viYScale() & 0xfff) || 0x400;
 
-  const hStartReg = vi.viHStart();
-  const hStart = hStartReg >> 16;
-  let hEnd = hStartReg & 0xffff;
+  const hStartReg = vi.viHVideo();
+  const hStart = (hStartReg >> 16) & 0x03ff;
+  const hEnd = hStartReg & 0x03ff;
 
-  const vStartReg = vi.viVStart();
-  const vStart = vStartReg >> 16;
-  const vEnd = vStartReg & 0xffff;
+  const vStartReg = vi.viVVideo();
+  const vStart = (vStartReg >> 16) & 0x03ff;
+  const vEnd = vStartReg & 0x03ff;
 
-  // Sometimes hStartReg can be zero.. ex PD, Lode Runner, Cyber Tiger
-  if (hEnd === hStart) {
-    hEnd = (width / scaleX) | 0;
+  // console.log(`scale_x/y ${scaleX}, ${scaleY} (${toString32(vi.viXScale())}, ${toString32(vi.viYScale())}) - h/v start/end ${hStart}, ${hEnd}, ${vStart}, ${vEnd}`);
+
+  // Sometimes hStartReg can be zero.. e.g. PD, Lode Runner, Cyber Tiger.
+  // This might just be to avoid displaying garbage while the game is booting.
+  if (hEnd <= hStart || vEnd <= vStart) {
+    // logger.log(`got bad h or v start/end: h: (${hStart}, ${hEnd}), v (${vStart}, ${vEnd})`);
+    return null;
   }
 
-  viWidth = ((hEnd - hStart) * scaleX) >> 0;
-  viHeight = ((vEnd - vStart) * scaleY * (80 / 79)) >> 0;
+  // The extra shift for vDelta is to convert half lines to lines.
+  const hDelta = hEnd - hStart;
+  const vDelta = (vEnd - vStart) >> 1;
+
+  // Apply scale and shift to divide by 2.10 fixed point denominator.
+  const viWidth = (hDelta * scaleX) >> 10;
+  // const viHeight = (vDelta * scaleY) >> 10;
+  // TODO: figure out why (and if) this scaling constant is needed to get 320x240 rather than 320x237.
+  // TODO: figure out if this is correct for PAL.
+  const viHeight = (vDelta * scaleY * (240 / 237)) >> 10;
+
+  // console.log(`w/h = ${viWidth}, ${viHeight} - scale_x/y ${scaleX}, ${scaleY} - h/v start/end ${hStart}, ${hEnd}, ${vStart}, ${vEnd}`);
 
   // XXX Need to check PAL games.
-  //if (g_ROM.TvType != OS_TV_NTSC) sRatio = 9/11.0f;
+  // if (g_ROM.TvType != OS_TV_NTSC) sRatio = 9/11.0f;
 
-  //This corrects height in various games ex : Megaman 64, CyberTiger
+  // This corrects height in various games ex : Megaman 64, CyberTiger
+  // TODO: figure out why this is needed.
+  const width = vi.viWidth();
   if (width > 0x300) {
-    viHeight *= 2;
+    return new viDimension(viWidth, viHeight * 2);
+  }
+  return new viDimension(viWidth, viHeight);
+}
+
+function setViScales() {
+  const dims = computeViDimension();
+  if (dims) {
+    viWidth = dims.width;
+    viHeight = dims.height;
   }
 }
 

@@ -117,8 +117,8 @@ export class VIRegDevice extends Device {
   viWidth() { return this.mem.readU32(VI_WIDTH_REG); };
   viXScale() { return this.mem.readU32(VI_X_SCALE_REG); };
   viYScale() { return this.mem.readU32(VI_Y_SCALE_REG); };
-  viHStart() { return this.mem.readU32(VI_H_START_REG); };
-  viVStart() { return this.mem.readU32(VI_V_START_REG); };
+  viHVideo() { return this.mem.readU32(VI_H_VIDEO_REG); };
+  viVVideo() { return this.mem.readU32(VI_V_VIDEO_REG); };
 
   write32(address, value) {
     const ea = this.calcEA(address);
