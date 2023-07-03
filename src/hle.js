@@ -3057,15 +3057,15 @@ function setViScales() {
     hend = (width / scale_x) | 0;
   }
 
-  viWidth = (hend - hstart) * scale_x;
-  viHeight = (vend - vstart) * scale_y * 1.0126582;
+  viWidth = ((hend - hstart) * scale_x) >> 0;
+  viHeight = ((vend - vstart) * scale_y * (80 / 79)) >> 0;
 
   // XXX Need to check PAL games.
   //if (g_ROM.TvType != OS_TV_NTSC) sRatio = 9/11.0f;
 
   //This corrects height in various games ex : Megaman 64, CyberTiger
   if (width > 0x300) {
-    viHeight *= 2.0;
+    viHeight *= 2;
   }
 }
 
