@@ -157,9 +157,7 @@ export class MIRegDevice extends Device {
     this.mem.write32(MI_INTR_MASK_REG, mask);
 
     // Check if any interrupts are enabled now, and immediately trigger an interrupt
-    if (mask & intr) {
-      n64js.cpu0.updateCause3();
-    }
+    n64js.cpu0.updateCause3();
   }
 }
 
