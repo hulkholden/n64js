@@ -3457,6 +3457,7 @@ function processDList(task, disassembler, bail_after) {
         ucode = kUCode_GBI0;
         break; // Fish demo
       case 0xf4c3491b:
+      case 0x0f31f23f:
         ucode = kUCode_GBI0;
         break; // Super Mario 64
       case 0x313f038b:
