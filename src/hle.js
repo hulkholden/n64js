@@ -3041,24 +3041,24 @@ function setViScales() {
   const vi = n64js.hardware().viRegDevice;
   var width = vi.viWidth();
 
-  var scale_x = (vi.viXScale() & 0xFFF) / 1024.0;
-  var scale_y = (vi.viYScale() & 0xFFF) / 2048.0;
+  const scaleX = (vi.viXScale() & 0xFFF) / 1024.0;
+  const scaleY = (vi.viYScale() & 0xFFF) / 2048.0;
 
-  var h_start_reg = vi.viHStart();
-  var hstart = h_start_reg >> 16;
-  var hend = h_start_reg & 0xffff;
+  const hStartReg = vi.viHStart();
+  const hStart = hStartReg >> 16;
+  let hEnd = hStartReg & 0xffff;
 
-  var v_start_reg = vi.viVStart();
-  var vstart = v_start_reg >> 16;
-  var vend = v_start_reg & 0xffff;
+  const vStartReg = vi.viVStart();
+  const vStart = vStartReg >> 16;
+  const vEnd = vStartReg & 0xffff;
 
-  // Sometimes h_start_reg can be zero.. ex PD, Lode Runner, Cyber Tiger
-  if (hend === hstart) {
-    hend = (width / scale_x) | 0;
+  // Sometimes hStartReg can be zero.. ex PD, Lode Runner, Cyber Tiger
+  if (hEnd === hStart) {
+    hEnd = (width / scaleX) | 0;
   }
 
-  viWidth = ((hend - hstart) * scale_x) >> 0;
-  viHeight = ((vend - vstart) * scale_y * (80 / 79)) >> 0;
+  viWidth = ((hEnd - hStart) * scaleX) >> 0;
+  viHeight = ((vEnd - vStart) * scaleY * (80 / 79)) >> 0;
 
   // XXX Need to check PAL games.
   //if (g_ROM.TvType != OS_TV_NTSC) sRatio = 9/11.0f;
