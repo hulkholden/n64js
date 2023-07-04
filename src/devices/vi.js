@@ -87,7 +87,8 @@ export class VIRegDevice extends Device {
 
   // Values derived from the registers.
   get interlaced() { return (this.controlReg & VI_CTRL_SERRATE_ON) != 0; }
-  get is32BitMode() { return (this.controlReg & controlTypeMask) == VI_CTRL_TYPE_32; }
+  get modeType() { return this.controlReg & controlTypeMask; }
+  get is32BitMode() { return this.modeType == VI_CTRL_TYPE_32; }
   get xScale() { return (this.xScaleReg & 0xfff) / 1024; }
   get yScale() { return (this.yScaleReg & 0xfff) / 1024; }
 
@@ -221,7 +222,11 @@ export class VIRegDevice extends Device {
   }
 
   computeDimensions() {
-    // TODO: return if (control & 0x3) == 0
+    // If there is no mode (16 or 32 bit) set, don't render anything.
+    if (this.modeType == 0) {
+      logger.log('mode type is 0 - not rendering');
+      return null;
+    }
   
     // Some games don't seem to set VI_X_SCALE, so default this.
     const scaleX = (this.xScaleReg & 0xfff) || 0x200;
@@ -235,7 +240,7 @@ export class VIRegDevice extends Device {
     const vStart = (vStartReg >> 16) & 0x03ff;
     const vEnd = vStartReg & 0x03ff;
   
-    // console.log(`scale_x/y ${scaleX}, ${scaleY} (${toString32(this.viXScaleReg)}, ${toString32(this.viYScaleReg)}) - h/v start/end ${hStart}, ${hEnd}, ${vStart}, ${vEnd}`);
+    // logger.log(`scale_x/y ${scaleX}, ${scaleY} (${toString32(this.viXScaleReg)}, ${toString32(this.viYScaleReg)}) - h/v start/end ${hStart}, ${hEnd}, ${vStart}, ${vEnd}`);
   
     // Sometimes hStartReg can be zero.. e.g. PD, Lode Runner, Cyber Tiger.
     // This might just be to avoid displaying garbage while the game is booting.
@@ -251,7 +256,7 @@ export class VIRegDevice extends Device {
     // Apply scale and shift to divide by 2.10 fixed point denominator.
     const viWidth = (hDelta * scaleX) >> 10;
     const viHeight = (vDelta * scaleY) >> 10;
-    // console.log(`w/h = ${viWidth}, ${viHeight} - scale_x/y ${scaleX}, ${scaleY} - h/v start/end ${hStart}, ${hEnd}, ${vStart}, ${vEnd}`);
+    // logger.log(`w/h = ${viWidth}, ${viHeight} - scale_x/y ${scaleX}, ${scaleY} - h/v start/end ${hStart}, ${hEnd}, ${vStart}, ${vEnd}`);
   
     // XXX Need to check PAL games.
     // if (g_ROM.TvType != OS_TV_NTSC) sRatio = 9/11.0f;
