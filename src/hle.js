@@ -1370,7 +1370,14 @@ function executeSetPrimDepth(cmd0, cmd1, dis) {
   // FIXME
 }
 
-function executeSetRDPOtherMode(cmd0, cmd1) { unimplemented(cmd0, cmd1); }
+function executeSetRDPOtherMode(cmd0, cmd1, dis) {
+  if (dis) {
+    dis.text(`gsDPSetOtherMode(${toString32(modeH)}, ${toString32(modeL)}); // TODO: fix formatting`);
+  }
+
+  state.rdpOtherModeH = cmd0;
+  state.rdpOtherModeL = cmd1;
+}
 
 function calcTextureAddress(uls, ult, address, width, size) {
   return state.textureImage.address +
