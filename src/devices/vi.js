@@ -239,9 +239,7 @@ export class VIRegDevice extends Device {
     const vStartReg = this.vVideoReg;
     const vStart = (vStartReg >> 16) & 0x03ff;
     const vEnd = vStartReg & 0x03ff;
-  
-    // logger.log(`scale_x/y ${scaleX}, ${scaleY} (${toString32(this.viXScaleReg)}, ${toString32(this.viYScaleReg)}) - h/v start/end ${hStart}, ${hEnd}, ${vStart}, ${vEnd}`);
-  
+
     // Sometimes hStartReg can be zero.. e.g. PD, Lode Runner, Cyber Tiger.
     // This might just be to avoid displaying garbage while the game is booting.
     if (hEnd <= hStart || vEnd <= vStart) {
@@ -255,18 +253,12 @@ export class VIRegDevice extends Device {
   
     // Apply scale and shift to divide by 2.10 fixed point denominator.
     const viWidth = (hDelta * scaleX) >> 10;
-    const viHeight = (vDelta * scaleY) >> 10;
-    // logger.log(`w/h = ${viWidth}, ${viHeight} - scale_x/y ${scaleX}, ${scaleY} - h/v start/end ${hStart}, ${hEnd}, ${vStart}, ${vEnd}`);
-  
-    // XXX Need to check PAL games.
-    // if (g_ROM.TvType != OS_TV_NTSC) sRatio = 9/11.0f;
-  
-    // Double the y resolution if the screen is interlaced.
-    // TODO: verify this is correct.
+    // Double the y resolution in certain (interlaced?) modes.
     // This corrects height in various games ex : Megaman 64, CyberTiger
-    if (this.interlaced) {
-       return new Dimensions(viWidth, viHeight * 2);
-    }
+    const vFudge = (this.hWidthReg > 0x300 || this.hWidthReg >= (viWidth * 2)) ? 2 : 1;
+    const viHeight = (vFudge * vDelta * scaleY) >> 10;
+    
+    // logger.log(`w/h = ${viWidth}, ${viHeight} - scale_x/y ${this.xScale}, ${this.yScale} - h/v start/end (${hStart}, ${hEnd}) = ${hDelta}, (${vStart}, ${vEnd}) = ${vDelta}`);
     return new Dimensions(viWidth, viHeight);
   }
 }
