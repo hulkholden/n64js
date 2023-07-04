@@ -2998,7 +2998,7 @@ export function presentBackBuffer(ram) {
       return;
     }
 
-    const dims = computeViDimension();
+    const dims = vi.computeDimensions();
     if (!dims) {
       return;
     }
@@ -3051,60 +3051,9 @@ export function presentBackBuffer(ram) {
   copyBackBufferToFrontBuffer(texture);
 }
 
-class viDimension {
-  constructor(w, h) {
-    this.width = w;
-    this.height = h;
-  }
-}
-
-function computeViDimension() {
-  const vi = n64js.hardware().viRegDevice;
-
-  // Some games don't seem to set VI_X_SCALE, so default this.
-  const scaleX = (vi.xScaleReg & 0xfff) || 0x200;
-  const scaleY = (vi.yScaleReg & 0xfff) || 0x400;
-
-  const hStartReg = vi.hVideoReg;
-  const hStart = (hStartReg >> 16) & 0x03ff;
-  const hEnd = hStartReg & 0x03ff;
-
-  const vStartReg = vi.vVideoReg;
-  const vStart = (vStartReg >> 16) & 0x03ff;
-  const vEnd = vStartReg & 0x03ff;
-
-  // console.log(`scale_x/y ${scaleX}, ${scaleY} (${toString32(vi.viXScaleReg)}, ${toString32(vi.viYScaleReg)}) - h/v start/end ${hStart}, ${hEnd}, ${vStart}, ${vEnd}`);
-
-  // Sometimes hStartReg can be zero.. e.g. PD, Lode Runner, Cyber Tiger.
-  // This might just be to avoid displaying garbage while the game is booting.
-  if (hEnd <= hStart || vEnd <= vStart) {
-    // logger.log(`got bad h or v start/end: h: (${hStart}, ${hEnd}), v (${vStart}, ${vEnd})`);
-    return null;
-  }
-
-  // The extra shift for vDelta is to convert half lines to lines.
-  const hDelta = hEnd - hStart;
-  const vDelta = (vEnd - vStart) >> 1;
-
-  // Apply scale and shift to divide by 2.10 fixed point denominator.
-  const viWidth = (hDelta * scaleX) >> 10;
-  const viHeight = (vDelta * scaleY) >> 10;
-  // console.log(`w/h = ${viWidth}, ${viHeight} - scale_x/y ${scaleX}, ${scaleY} - h/v start/end ${hStart}, ${hEnd}, ${vStart}, ${vEnd}`);
-
-  // XXX Need to check PAL games.
-  // if (g_ROM.TvType != OS_TV_NTSC) sRatio = 9/11.0f;
-
-  // Double the y resolution if the screen is interlaced.
-  // TODO: verify this is correct.
-  // This corrects height in various games ex : Megaman 64, CyberTiger
-  if (vi.interlaced) {
-     return new viDimension(viWidth, viHeight * 2);
-  }
-  return new viDimension(viWidth, viHeight);
-}
-
 function setViScales() {
-  const dims = computeViDimension();
+  const vi = n64js.hardware().viRegDevice;
+  const dims = vi.computeDimensions();
   if (dims) {
     viWidth = dims.width;
     viHeight = dims.height;
