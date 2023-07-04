@@ -3083,11 +3083,11 @@ function computeViDimension() {
   // XXX Need to check PAL games.
   // if (g_ROM.TvType != OS_TV_NTSC) sRatio = 9/11.0f;
 
+  // Double the y resolution if the screen is interlaced.
+  // TODO: verify this is correct.
   // This corrects height in various games ex : Megaman 64, CyberTiger
-  // TODO: figure out why this is needed.
-  const width = vi.viWidth();
-  if (width > 0x300) {
-    return new viDimension(viWidth, viHeight * 2);
+  if (vi.interlaced) {
+     return new viDimension(viWidth, viHeight * 2);
   }
   return new viDimension(viWidth, viHeight);
 }
