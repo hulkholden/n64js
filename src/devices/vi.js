@@ -80,6 +80,37 @@ export class VIRegDevice extends Device {
     this.countPerVbl = 0;
   }
 
+  viControl() { return this.mem.readU32(VI_CONTROL_REG); }
+
+  // TODO: rename viDramAddr
+  viOrigin() { return this.mem.readU32(VI_ORIGIN_REG); }
+  viWidth() { return this.mem.readU32(VI_WIDTH_REG); }
+
+  viHVideo() { return this.mem.readU32(VI_H_VIDEO_REG); }
+  viVVideo() { return this.mem.readU32(VI_V_VIDEO_REG); }
+  viXScale() { return this.mem.readU32(VI_X_SCALE_REG); }
+  viYScale() { return this.mem.readU32(VI_Y_SCALE_REG); }
+
+  viXScaleFrac() { return (this.viXScale() & 0xfff) / 1024; }
+  viYScaleFrac() { return (this.viYScale() & 0xfff) / 1024; }
+
+  dump() {
+    console.log(`VI_CONTROL = ${toString32(this.viControl())}`);
+    console.log(`VI_DRAM_ADDR = ${toString32(this.mem.readU32(VI_DRAM_ADDR_REG))}`);
+    console.log(`VI_H_WIDTH = ${toString32(this.mem.readU32(VI_H_WIDTH_REG))}`);
+    console.log(`VI_V_INTR = ${toString32(this.mem.readU32(VI_V_INTR_REG))}`);
+    console.log(`VI_V_CURRENT_LINE = ${toString32(this.mem.readU32(VI_V_CURRENT_LINE_REG))}`);
+    console.log(`VI_TIMING = ${toString32(this.mem.readU32(VI_TIMING_REG))}`);
+    console.log(`VI_V_SYNC = ${toString32(this.mem.readU32(VI_V_SYNC_REG))}`);
+    console.log(`VI_H_SYNC = ${toString32(this.mem.readU32(VI_H_SYNC_REG))}`);
+    console.log(`VI_H_SYNC_LEAP = ${toString32(this.mem.readU32(VI_H_SYNC_LEAP_REG))}`);
+    console.log(`VI_H_VIDEO = ${toString32(this.viHVideo())}`);
+    console.log(`VI_V_VIDEO = ${toString32(this.viVVideo())}`);
+    console.log(`VI_V_BURST = ${toString32(this.mem.readU32(VI_V_BURST_REG))}`);
+    console.log(`VI_X_SCALE = ${toString32(this.viXScale())} = ${this.viXScaleFrac()}`);
+    console.log(`VI_Y_SCALE = ${toString32(this.viYScale())} = ${this.viYScaleFrac()}`);
+  }
+
   verticalBlank() {
     const control = this.mem.readU32(VI_CONTROL_REG);
     const interlaced = (control & VI_CTRL_SERRATE_ON) ? 1 : 0;
@@ -112,13 +143,6 @@ export class VIRegDevice extends Device {
     const control = this.mem.readU32(VI_CONTROL_REG);
     return (control & controlTypeMask) == VI_CTRL_TYPE_32;
   }
-
-  viOrigin() { return this.mem.readU32(VI_ORIGIN_REG); };
-  viWidth() { return this.mem.readU32(VI_WIDTH_REG); };
-  viXScale() { return this.mem.readU32(VI_X_SCALE_REG); };
-  viYScale() { return this.mem.readU32(VI_Y_SCALE_REG); };
-  viHVideo() { return this.mem.readU32(VI_H_VIDEO_REG); };
-  viVVideo() { return this.mem.readU32(VI_V_VIDEO_REG); };
 
   write32(address, value) {
     const ea = this.calcEA(address);
