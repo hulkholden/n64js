@@ -3077,11 +3077,7 @@ function computeViDimension() {
 
   // Apply scale and shift to divide by 2.10 fixed point denominator.
   const viWidth = (hDelta * scaleX) >> 10;
-  // const viHeight = (vDelta * scaleY) >> 10;
-  // TODO: figure out why (and if) this scaling constant is needed to get 320x240 rather than 320x237.
-  // TODO: figure out if this is correct for PAL.
-  const viHeight = (vDelta * scaleY * (240 / 237)) >> 10;
-
+  const viHeight = (vDelta * scaleY) >> 10;
   // console.log(`w/h = ${viWidth}, ${viHeight} - scale_x/y ${scaleX}, ${scaleY} - h/v start/end ${hStart}, ${hEnd}, ${vStart}, ${vEnd}`);
 
   // XXX Need to check PAL games.
