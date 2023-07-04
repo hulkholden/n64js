@@ -2993,7 +2993,7 @@ export function presentBackBuffer(ram) {
   // If no display lists executed, interpret framebuffer as bytes
   if (numDisplayListsRendered === 0) {
     const vi = n64js.hardware().viRegDevice;
-    const dramAddr = vi.viDramAddrReg() & 0x00fffffe; // Clear top bit to make address physical. Clear bottom bit (sometimes odd valued addresses are passed through)
+    const dramAddr = vi.viDramAddrReg & 0x00fffffe; // Clear top bit to make address physical. Clear bottom bit (sometimes odd valued addresses are passed through)
     if (!dramAddr) {
       return;
     }
@@ -3062,18 +3062,18 @@ function computeViDimension() {
   const vi = n64js.hardware().viRegDevice;
 
   // Some games don't seem to set VI_X_SCALE, so default this.
-  const scaleX = (vi.viXScaleReg() & 0xfff) || 0x200;
-  const scaleY = (vi.viYScaleReg() & 0xfff) || 0x400;
+  const scaleX = (vi.viXScaleReg & 0xfff) || 0x200;
+  const scaleY = (vi.viYScaleReg & 0xfff) || 0x400;
 
-  const hStartReg = vi.viHVideoReg();
+  const hStartReg = vi.viHVideoReg;
   const hStart = (hStartReg >> 16) & 0x03ff;
   const hEnd = hStartReg & 0x03ff;
 
-  const vStartReg = vi.viVVideoReg();
+  const vStartReg = vi.viVVideoReg;
   const vStart = (vStartReg >> 16) & 0x03ff;
   const vEnd = vStartReg & 0x03ff;
 
-  // console.log(`scale_x/y ${scaleX}, ${scaleY} (${toString32(vi.viXScale())}, ${toString32(vi.viYScale())}) - h/v start/end ${hStart}, ${hEnd}, ${vStart}, ${vEnd}`);
+  // console.log(`scale_x/y ${scaleX}, ${scaleY} (${toString32(vi.viXScaleReg)}, ${toString32(vi.viYScaleReg)}) - h/v start/end ${hStart}, ${hEnd}, ${vStart}, ${vEnd}`);
 
   // Sometimes hStartReg can be zero.. e.g. PD, Lode Runner, Cyber Tiger.
   // This might just be to avoid displaying garbage while the game is booting.
