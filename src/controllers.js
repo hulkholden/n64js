@@ -304,7 +304,7 @@ export class Controllers {
         cmd[5 + i] = 0;
       }
     } else {
-      logger.log('Reading from mempack+' + addr);
+      // logger.log('Reading from mempack+' + addr);
       addr &= 0xFFE0;
 
       if (addr <= 0x7FE0) {
