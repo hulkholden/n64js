@@ -2987,6 +2987,10 @@ export function presentBackBuffer(ram) {
     const vi = n64js.hardware().viRegDevice;
     const origin = vi.viOrigin() & 0x00fffffe; // Clear top bit to make address physical. Clear bottom bit (sometimes odd valued addresses are passed through)
 
+    if (!origin) {
+      return;
+    }
+
     const dims = computeViDimension();
     if (!dims) {
       return;
