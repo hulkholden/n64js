@@ -80,6 +80,10 @@ export class VIRegDevice extends Device {
     this.countPerVbl = 0;
   }
 
+  get interlaced() {
+    return (this.viControl() & VI_CTRL_SERRATE_ON) != 0;
+  }
+
   viControl() { return this.mem.readU32(VI_CONTROL_REG); }
 
   // TODO: rename viDramAddr
