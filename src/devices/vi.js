@@ -6,31 +6,20 @@ import { presentBackBuffer } from '../hle.js';
 import { OS_TV_PAL, OS_TV_NTSC, OS_TV_MPAL } from '../system_constants.js';
 
 // Video Interface
-const VI_STATUS_REG = 0x00;
-const VI_ORIGIN_REG = 0x04;
-const VI_WIDTH_REG = 0x08;
-const VI_INTR_REG = 0x0C;
-const VI_CURRENT_REG = 0x10;
-const VI_BURST_REG = 0x14;
+const VI_CONTROL_REG = 0x00;
+const VI_DRAM_ADDR_REG = 0x04;
+const VI_H_WIDTH_REG = 0x08;
+const VI_V_INTR_REG = 0x0C;
+const VI_V_CURRENT_LINE_REG = 0x10;
+const VI_TIMING_REG = 0x14;
 const VI_V_SYNC_REG = 0x18;
 const VI_H_SYNC_REG = 0x1C;
-const VI_LEAP_REG = 0x20;
-const VI_H_START_REG = 0x24;
-const VI_V_START_REG = 0x28;
+const VI_H_SYNC_LEAP_REG = 0x20;
+const VI_H_VIDEO_REG = 0x24;
+const VI_V_VIDEO_REG = 0x28;
 const VI_V_BURST_REG = 0x2C;
 const VI_X_SCALE_REG = 0x30;
 const VI_Y_SCALE_REG = 0x34;
-
-// Alternate names.
-const VI_CONTROL_REG = VI_STATUS_REG;
-const VI_DRAM_ADDR_REG = VI_ORIGIN_REG;
-const VI_H_WIDTH_REG = VI_WIDTH_REG;
-const VI_V_INTR_REG = VI_INTR_REG;
-const VI_V_CURRENT_LINE_REG = VI_CURRENT_REG;
-const VI_TIMING_REG = VI_BURST_REG;
-const VI_H_SYNC_LEAP_REG = VI_LEAP_REG;
-const VI_H_VIDEO_REG = VI_H_START_REG;
-const VI_V_VIDEO_REG = VI_V_START_REG;
 
 const VI_CTRL_TYPE_16 = 0x00002;
 const VI_CTRL_TYPE_32 = 0x00003;
@@ -81,38 +70,42 @@ export class VIRegDevice extends Device {
   }
 
   get interlaced() {
-    return (this.viControl() & VI_CTRL_SERRATE_ON) != 0;
+    return (this.viControlReg() & VI_CTRL_SERRATE_ON) != 0;
   }
 
-  viControl() { return this.mem.readU32(VI_CONTROL_REG); }
+  viControlReg() { return this.mem.readU32(VI_CONTROL_REG); }
+  viDramAddrReg() { return this.mem.readU32(VI_DRAM_ADDR_REG); }
+  viHWidthReg() { return this.mem.readU32(VI_H_WIDTH_REG); }
+  viVIntrReg() { return this.mem.readU32(VI_V_INTR_REG); }
+  viVCurrentLineReg() { return this.mem.readU32(VI_V_CURRENT_LINE_REG); }
+  viTimingReg() { return this.mem.readU32(VI_TIMING_REG); }
+  viVSyncReg() {return this.mem.readU32(VI_V_SYNC_REG); }
+  viHSyncReg() {return this.mem.readU32(VI_H_SYNC_REG); }
+  viHSyncLeapReg() {return this.mem.readU32(VI_H_SYNC_LEAP_REG); }
+  viHVideoReg() { return this.mem.readU32(VI_H_VIDEO_REG); }
+  viVVideoReg() { return this.mem.readU32(VI_V_VIDEO_REG); }
+  viVBurstReg() {return this.mem.readU32(VI_V_BURST_REG); }
+  viXScaleReg() { return this.mem.readU32(VI_X_SCALE_REG); }
+  viYScaleReg() { return this.mem.readU32(VI_Y_SCALE_REG); }
 
-  // TODO: rename viDramAddr
-  viOrigin() { return this.mem.readU32(VI_ORIGIN_REG); }
-  viWidth() { return this.mem.readU32(VI_WIDTH_REG); }
-
-  viHVideo() { return this.mem.readU32(VI_H_VIDEO_REG); }
-  viVVideo() { return this.mem.readU32(VI_V_VIDEO_REG); }
-  viXScale() { return this.mem.readU32(VI_X_SCALE_REG); }
-  viYScale() { return this.mem.readU32(VI_Y_SCALE_REG); }
-
-  viXScaleFrac() { return (this.viXScale() & 0xfff) / 1024; }
-  viYScaleFrac() { return (this.viYScale() & 0xfff) / 1024; }
+  viXScaleFrac() { return (this.viXScaleReg() & 0xfff) / 1024; }
+  viYScaleFrac() { return (this.viYScaleReg() & 0xfff) / 1024; }
 
   dump() {
-    console.log(`VI_CONTROL = ${toString32(this.viControl())}`);
-    console.log(`VI_DRAM_ADDR = ${toString32(this.mem.readU32(VI_DRAM_ADDR_REG))}`);
-    console.log(`VI_H_WIDTH = ${toString32(this.mem.readU32(VI_H_WIDTH_REG))}`);
-    console.log(`VI_V_INTR = ${toString32(this.mem.readU32(VI_V_INTR_REG))}`);
-    console.log(`VI_V_CURRENT_LINE = ${toString32(this.mem.readU32(VI_V_CURRENT_LINE_REG))}`);
-    console.log(`VI_TIMING = ${toString32(this.mem.readU32(VI_TIMING_REG))}`);
-    console.log(`VI_V_SYNC = ${toString32(this.mem.readU32(VI_V_SYNC_REG))}`);
-    console.log(`VI_H_SYNC = ${toString32(this.mem.readU32(VI_H_SYNC_REG))}`);
-    console.log(`VI_H_SYNC_LEAP = ${toString32(this.mem.readU32(VI_H_SYNC_LEAP_REG))}`);
-    console.log(`VI_H_VIDEO = ${toString32(this.viHVideo())}`);
-    console.log(`VI_V_VIDEO = ${toString32(this.viVVideo())}`);
-    console.log(`VI_V_BURST = ${toString32(this.mem.readU32(VI_V_BURST_REG))}`);
-    console.log(`VI_X_SCALE = ${toString32(this.viXScale())} = ${this.viXScaleFrac()}`);
-    console.log(`VI_Y_SCALE = ${toString32(this.viYScale())} = ${this.viYScaleFrac()}`);
+    console.log(`VI_CONTROL = ${toString32(this.viControlReg())}`);
+    console.log(`VI_DRAM_ADDR = ${toString32(this.viDramAddrReg())}`);
+    console.log(`VI_H_WIDTH = ${toString32(this.viHWidthReg())}`);
+    console.log(`VI_V_INTR = ${toString32(this.viVIntrReg())}`);
+    console.log(`VI_V_CURRENT_LINE = ${toString32(this.viVCurrentLineReg())}`);
+    console.log(`VI_TIMING = ${toString32(this.viTimingReg())}`);
+    console.log(`VI_V_SYNC = ${toString32(this.viVSyncReg())}`);
+    console.log(`VI_H_SYNC = ${toString32(this.viHSyncReg())}`);
+    console.log(`VI_H_SYNC_LEAP = ${toString32(this.viHSyncLeapReg())}`);
+    console.log(`VI_H_VIDEO = ${toString32(this.viHVideoReg())}`);
+    console.log(`VI_V_VIDEO = ${toString32(this.viVVideoReg())}`);
+    console.log(`VI_V_BURST = ${toString32(this.viVBurstReg())}`);
+    console.log(`VI_X_SCALE = ${toString32(this.viXScaleReg())} = ${this.viXScaleFrac()}`);
+    console.log(`VI_Y_SCALE = ${toString32(this.viYScaleReg())} = ${this.viYScaleFrac()}`);
   }
 
   verticalBlank() {
@@ -155,7 +148,7 @@ export class VIRegDevice extends Device {
     }
 
     switch (ea) {
-      case VI_ORIGIN_REG:
+      case VI_DRAM_ADDR_REG:
         this.mem.write32(ea, value);
         break;
 
@@ -164,18 +157,18 @@ export class VIRegDevice extends Device {
         this.mem.write32(ea, value);
         break;
 
-      case VI_WIDTH_REG:
+      case VI_H_WIDTH_REG:
         if (!this.quiet) { logger.log(`VI width set to: ${value}`); }
         this.mem.write32(ea, value);
         break;
 
-      case VI_INTR_REG:
+      case VI_V_INTR_REG:
         if (!this.quiet) { logger.log(`VI intr set to: ${value}`); }
         this.mem.write32(ea, value);
         this.initInterrupt();
         break;
 
-      case VI_CURRENT_REG:
+      case VI_V_CURRENT_LINE_REG:
         if (!this.quiet) { logger.log(`VI current set to: ${toString32(value)}`); }
         if (!this.quiet) { logger.log(`VI interrupt cleared`); }
         this.hardware.mi_reg.clearBits32(mi.MI_INTR_REG, mi.MI_INTR_VI);
@@ -207,7 +200,7 @@ export class VIRegDevice extends Device {
       throw 'Read is out of range';
     }
 
-    if (ea === VI_CURRENT_REG) {
+    if (ea === VI_V_CURRENT_LINE_REG) {
       // Figure out the current scanline based on how many cycles to the next interrupt.
       const cyclesToNextVbl = n64js.cpu0.getVblCount();
       const countExecuted = (this.countPerVbl - cyclesToNextVbl);
