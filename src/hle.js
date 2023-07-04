@@ -952,22 +952,21 @@ function executeGBI1_RDPHalf_Cont(cmd0, cmd1) { unimplemented(cmd0, cmd1); }
 
 function executeGBI1_RDPHalf_2(cmd0, cmd1, dis) {
   if (dis) {
-    dis.text('gsImmp1(G_RDPHALF_2, ' + toString32(cmd1) + ');');
+    dis.text(`gsImmp1(G_RDPHALF_2, ${toString32(cmd1)});`);
   }
   state.rdpHalf2 = cmd1;
 }
 
 function executeGBI1_RDPHalf_1(cmd0, cmd1, dis) {
   if (dis) {
-    dis.text('gsImmp1(G_RDPHALF_1, ' + toString32(cmd1) + ');');
+    dis.text(`gsImmp1(G_RDPHALF_1, ${toString32(cmd1)});`);
   }
   state.rdpHalf1 = cmd1;
 }
 
 function executeGBI1_ClrGeometryMode(cmd0, cmd1, dis) {
   if (dis) {
-    dis.text('gsSPClearGeometryMode(' +
-      gbi.getGeometryModeFlagsText(gbi.GeometryModeGBI1, cmd1) + ');');
+    dis.text(`gsSPClearGeometryMode(${gbi.getGeometryModeFlagsText(gbi.GeometryModeGBI1, cmd1)});`);
   }
   state.geometryModeBits &= ~cmd1;
   updateGeometryModeFromBits(gbi.GeometryModeGBI1);
@@ -975,8 +974,7 @@ function executeGBI1_ClrGeometryMode(cmd0, cmd1, dis) {
 
 function executeGBI1_SetGeometryMode(cmd0, cmd1, dis) {
   if (dis) {
-    dis.text('gsSPSetGeometryMode(' +
-      gbi.getGeometryModeFlagsText(gbi.GeometryModeGBI1, cmd1) + ');');
+    dis.text(`gsSPSetGeometryMode(${gbi.getGeometryModeFlagsText(gbi.GeometryModeGBI1, cmd1)});`);
   }
   state.geometryModeBits |= cmd1;
   updateGeometryModeFromBits(gbi.GeometryModeGBI1);
@@ -985,24 +983,23 @@ function executeGBI1_SetGeometryMode(cmd0, cmd1, dis) {
 function disassembleSetOtherModeL(dis, len, shift, data) {
   var dataStr = toString32(data);
   var shiftStr = gbi.getOtherModeLShiftCountName(shift);
-  var text = 'gsSPSetOtherMode(G_SETOTHERMODE_L, ' + shiftStr + ', ' + len + ', ' + dataStr +
-    ');';
+  var text = `gsSPSetOtherMode(G_SETOTHERMODE_L, ${shiftStr}, ${len}, ${dataStr});`;
 
   // Override generic text with specific functions if known
   switch (shift) {
     case gbi.G_MDSFT_ALPHACOMPARE:
       if (len === 2) {
-        text = 'gsDPSetAlphaCompare(' + gbi.AlphaCompare.nameOf(data) + ');';
+        text = `gsDPSetAlphaCompare(${gbi.AlphaCompare.nameOf(data)});`;
       }
       break;
     case gbi.G_MDSFT_ZSRCSEL:
       if (len === 1) {
-        text = 'gsDPSetDepthSource(' + gbi.DepthSource.nameOf(data) + ');';
+        text = `gsDPSetDepthSource(${gbi.DepthSource.nameOf(data)});`;
       }
       break;
     case gbi.G_MDSFT_RENDERMODE:
       if (len === 29) {
-        text = 'gsDPSetRenderMode(' + gbi.getRenderModeText(data) + ');';
+        text = `gsDPSetRenderMode(${gbi.getRenderModeText(data)});`;
       }
       break;
       //case gbi.G_MDSFT_BLENDER:     break; // set with G_MDSFT_RENDERMODE
@@ -1013,7 +1010,7 @@ function disassembleSetOtherModeL(dis, len, shift, data) {
 function disassembleSetOtherModeH(dis, len, shift, data) {
   var shiftStr = gbi.getOtherModeHShiftCountName(shift);
   var dataStr = toString32(data);
-  var text = 'gsSPSetOtherMode(G_SETOTHERMODE_H, ' + shiftStr + ', ' + len + ', ' + dataStr + ');';
+  var text = `gsSPSetOtherMode(G_SETOTHERMODE_H, ${shiftStr}, ${len}, ${dataStr});`;
 
   // Override generic text with specific functions if known
   switch (shift) {
@@ -1021,58 +1018,58 @@ function disassembleSetOtherModeH(dis, len, shift, data) {
       break;
     case gbi.G_MDSFT_ALPHADITHER:
       if (len === 2) {
-        text = 'gsDPSetAlphaDither(' + gbi.AlphaDither.nameOf(data) + ');';
+        text = `gsDPSetAlphaDither(${gbi.AlphaDither.nameOf(data)});`;
       }
       break;
     case gbi.G_MDSFT_RGBDITHER:
       if (len === 2) {
-        text = 'gsDPSetColorDither(' + gbi.ColorDither.nameOf(data) + ');';
+        text = `gsDPSetColorDither(${gbi.ColorDither.nameOf(data)});`;
       }
       break; // NB HW2?
     case gbi.G_MDSFT_COMBKEY:
       if (len === 1) {
-        text = 'gsDPSetCombineKey(' + gbi.CombineKey.nameOf(data) + ');';
+        text = `gsDPSetCombineKey(${gbi.CombineKey.nameOf(data)});`;
       }
       break;
     case gbi.G_MDSFT_TEXTCONV:
       if (len === 3) {
-        text = 'gsDPSetTextureConvert(' + gbi.TextureConvert.nameOf(data) + ');';
+        text = `gsDPSetTextureConvert(${gbi.TextureConvert.nameOf(data)});`;
       }
       break;
     case gbi.G_MDSFT_TEXTFILT:
       if (len === 2) {
-        text = 'gsDPSetTextureFilter(' + gbi.TextureFilter.nameOf(data) + ');';
+        text = `gsDPSetTextureFilter(${gbi.TextureFilter.nameOf(data)});`;
       }
       break;
     case gbi.G_MDSFT_TEXTLOD:
       if (len === 1) {
-        text = 'gsDPSetTextureLOD(' + gbi.TextureLOD.nameOf(data) + ');';
+        text = `gsDPSetTextureLOD(${gbi.TextureLOD.nameOf(data)});`;
       }
       break;
     case gbi.G_MDSFT_TEXTLUT:
       if (len === 2) {
-        text = 'gsDPSetTextureLUT(' + gbi.TextureLUT.nameOf(data) + ');';
+        text = `gsDPSetTextureLUT(${gbi.TextureLUT.nameOf(data)});`;
       }
       break;
     case gbi.G_MDSFT_TEXTDETAIL:
       if (len === 2) {
-        text = 'gsDPSetTextureDetail(' + gbi.TextureDetail.nameOf(data) + ');';
+        text = `gsDPSetTextureDetail(${gbi.TextureDetail.nameOf(data)});`;
       }
       break;
     case gbi.G_MDSFT_TEXTPERSP:
       if (len === 1) {
-        text = 'gsDPSetTexturePersp(' + gbi.TexturePerspective.nameOf(data) + ');';
+        text = `gsDPSetTexturePersp(${gbi.TexturePerspective.nameOf(data)});`;
       }
       break;
     case gbi.G_MDSFT_CYCLETYPE:
       if (len === 2) {
-        text = 'gsDPSetCycleType(' + gbi.CycleType.nameOf(data) + ');';
+        text = `gsDPSetCycleType(${gbi.CycleType.nameOf(data)});`;
       }
       break;
       //case gbi.G_MDSFT_COLORDITHER: if (len === 1) text = 'gsDPSetColorDither(' + dataStr + ');'; break;  // NB HW1?
     case gbi.G_MDSFT_PIPELINE:
       if (len === 1) {
-        text = 'gsDPPipelineMode(' + gbi.PipelineMode.nameOf(data) + ');';
+        text = `gsDPPipelineMode(${gbi.PipelineMode.nameOf(data)});`;
       }
       break;
   }
@@ -1126,11 +1123,9 @@ function executeGBI1_Texture(cmd0, cmd1, dis) {
     var tile_text = gbi.getTileText(tileIdx);
 
     if (xparam !== 0) {
-      dis.text('gsSPTextureL(' + s_text + ', ' + t_text + ', ' + level + ', ' + xparam + ', ' +
-        tile_text + ', ' + on + ');');
+      dis.text(`gsSPTextureL(${s_text}, ${t_text}, ${level}, ${xparam}, ${tile_text}, ${on});`);
     } else {
-      dis.text('gsSPTexture(' + s_text + ', ' + t_text + ', ' + level + ', ' + tile_text + ', ' +
-        on + ');');
+      dis.text(`gsSPTexture(${s_text}, ${t_text}, ${level}, ${tile_text}, ${on});`);
     }
   }
 
@@ -1166,7 +1161,7 @@ function executeGBI1_Tri1(cmd0, cmd1, dis) {
     var v2idx = ((cmd1 >>> 0) & 0xff) / stride;
 
     if (dis) {
-      dis.text('gsSP1Triangle(' + v0idx + ', ' + v1idx + ', ' + v2idx + ', ' + flag + ');');
+      dis.text(`gsSP1Triangle(${v0idx}, ${v1idx}, ${v2idx}, ${flag});`);
     }
 
     triangleBuffer.pushTri(verts[v0idx], verts[v1idx], verts[v2idx], triIdx);
