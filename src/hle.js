@@ -2993,7 +2993,7 @@ export function presentBackBuffer(ram) {
   // If no display lists executed, interpret framebuffer as bytes
   if (numDisplayListsRendered === 0) {
     const vi = n64js.hardware().viRegDevice;
-    const dramAddr = vi.viDramAddrReg & 0x00fffffe; // Clear top bit to make address physical. Clear bottom bit (sometimes odd valued addresses are passed through)
+    const dramAddr = vi.dramAddrReg & 0x00fffffe; // Clear top bit to make address physical. Clear bottom bit (sometimes odd valued addresses are passed through)
     if (!dramAddr) {
       return;
     }
@@ -3008,7 +3008,7 @@ export function presentBackBuffer(ram) {
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, frameBufferTexture2D);
 
-    if (vi.viIs32Bit()) {
+    if (vi.is32BitMode) {
       // TODO: cache this.
       const pixels = new Uint8Array(width * height * 4);
       let srcOffset = dramAddr;
@@ -3062,14 +3062,14 @@ function computeViDimension() {
   const vi = n64js.hardware().viRegDevice;
 
   // Some games don't seem to set VI_X_SCALE, so default this.
-  const scaleX = (vi.viXScaleReg & 0xfff) || 0x200;
-  const scaleY = (vi.viYScaleReg & 0xfff) || 0x400;
+  const scaleX = (vi.xScaleReg & 0xfff) || 0x200;
+  const scaleY = (vi.yScaleReg & 0xfff) || 0x400;
 
-  const hStartReg = vi.viHVideoReg;
+  const hStartReg = vi.hVideoReg;
   const hStart = (hStartReg >> 16) & 0x03ff;
   const hEnd = hStartReg & 0x03ff;
 
-  const vStartReg = vi.viVVideoReg;
+  const vStartReg = vi.vVideoReg;
   const vStart = (vStartReg >> 16) & 0x03ff;
   const vEnd = vStartReg & 0x03ff;
 

@@ -70,41 +70,42 @@ export class VIRegDevice extends Device {
   }
 
   // Raw register values.
-  get viControlReg() { return this.mem.readU32(VI_CONTROL_REG); }
-  get viDramAddrReg() { return this.mem.readU32(VI_DRAM_ADDR_REG); }
-  get viHWidthReg() { return this.mem.readU32(VI_H_WIDTH_REG); }
-  get viVIntrReg() { return this.mem.readU32(VI_V_INTR_REG); }
-  get viVCurrentLineReg() { return this.mem.readU32(VI_V_CURRENT_LINE_REG); }
-  get viTimingReg() { return this.mem.readU32(VI_TIMING_REG); }
-  get viVSyncReg() { return this.mem.readU32(VI_V_SYNC_REG); }
-  get viHSyncReg() { return this.mem.readU32(VI_H_SYNC_REG); }
-  get viHSyncLeapReg() { return this.mem.readU32(VI_H_SYNC_LEAP_REG); }
-  get viHVideoReg() { return this.mem.readU32(VI_H_VIDEO_REG); }
-  get viVVideoReg() { return this.mem.readU32(VI_V_VIDEO_REG); }
-  get viVBurstReg() { return this.mem.readU32(VI_V_BURST_REG); }
-  get viXScaleReg() { return this.mem.readU32(VI_X_SCALE_REG); }
-  get viYScaleReg() { return this.mem.readU32(VI_Y_SCALE_REG); }
+  get controlReg() { return this.mem.readU32(VI_CONTROL_REG); }
+  get dramAddrReg() { return this.mem.readU32(VI_DRAM_ADDR_REG); }
+  get hWidthReg() { return this.mem.readU32(VI_H_WIDTH_REG); }
+  get vIntrReg() { return this.mem.readU32(VI_V_INTR_REG); }
+  get vCurrentLineReg() { return this.mem.readU32(VI_V_CURRENT_LINE_REG); }
+  get timingReg() { return this.mem.readU32(VI_TIMING_REG); }
+  get vSyncReg() { return this.mem.readU32(VI_V_SYNC_REG); }
+  get hSyncReg() { return this.mem.readU32(VI_H_SYNC_REG); }
+  get hSyncLeapReg() { return this.mem.readU32(VI_H_SYNC_LEAP_REG); }
+  get hVideoReg() { return this.mem.readU32(VI_H_VIDEO_REG); }
+  get vVideoReg() { return this.mem.readU32(VI_V_VIDEO_REG); }
+  get vBurstReg() { return this.mem.readU32(VI_V_BURST_REG); }
+  get xScaleReg() { return this.mem.readU32(VI_X_SCALE_REG); }
+  get yScaleReg() { return this.mem.readU32(VI_Y_SCALE_REG); }
 
   // Values derived from the registers.
-  get interlaced() { return (this.viControlReg & VI_CTRL_SERRATE_ON) != 0; }
-  get viXScale() { return (this.viXScaleReg & 0xfff) / 1024; }
-  get viYScale() { return (this.viYScaleReg & 0xfff) / 1024; }
+  get interlaced() { return (this.controlReg & VI_CTRL_SERRATE_ON) != 0; }
+  get is32BitMode() { return (this.controlReg & controlTypeMask) == VI_CTRL_TYPE_32; }
+  get xScale() { return (this.xScaleReg & 0xfff) / 1024; }
+  get yScale() { return (this.yScaleReg & 0xfff) / 1024; }
 
   dump() {
-    console.log(`VI_CONTROL = ${toString32(this.viControlReg)}`);
-    console.log(`VI_DRAM_ADDR = ${toString32(this.viDramAddrReg)}`);
-    console.log(`VI_H_WIDTH = ${toString32(this.viHWidthReg)}`);
-    console.log(`VI_V_INTR = ${toString32(this.viVIntrReg)}`);
-    console.log(`VI_V_CURRENT_LINE = ${toString32(this.viVCurrentLineReg)}`);
-    console.log(`VI_TIMING = ${toString32(this.viTimingReg)}`);
-    console.log(`VI_V_SYNC = ${toString32(this.viVSyncReg)}`);
-    console.log(`VI_H_SYNC = ${toString32(this.viHSyncReg)}`);
-    console.log(`VI_H_SYNC_LEAP = ${toString32(this.viHSyncLeapReg)}`);
-    console.log(`VI_H_VIDEO = ${toString32(this.viHVideoReg)}`);
-    console.log(`VI_V_VIDEO = ${toString32(this.viVVideoReg)}`);
-    console.log(`VI_V_BURST = ${toString32(this.viVBurstReg)}`);
-    console.log(`VI_X_SCALE = ${toString32(this.viXScaleReg)} = ${this.viXScale}`);
-    console.log(`VI_Y_SCALE = ${toString32(this.viYScaleReg)} = ${this.viYScale}`);
+    console.log(`VI_CONTROL = ${toString32(this.controlReg)}`);
+    console.log(`VI_DRAM_ADDR = ${toString32(this.dramAddrReg)}`);
+    console.log(`VI_H_WIDTH = ${toString32(this.hWidthReg)}`);
+    console.log(`VI_V_INTR = ${toString32(this.vIntrReg)}`);
+    console.log(`VI_V_CURRENT_LINE = ${toString32(this.vCurrentLineReg)}`);
+    console.log(`VI_TIMING = ${toString32(this.timingReg)}`);
+    console.log(`VI_V_SYNC = ${toString32(this.vSyncReg)}`);
+    console.log(`VI_H_SYNC = ${toString32(this.hSyncReg)}`);
+    console.log(`VI_H_SYNC_LEAP = ${toString32(this.hSyncLeapReg)}`);
+    console.log(`VI_H_VIDEO = ${toString32(this.hVideoReg)}`);
+    console.log(`VI_V_VIDEO = ${toString32(this.vVideoReg)}`);
+    console.log(`VI_V_BURST = ${toString32(this.vBurstReg)}`);
+    console.log(`VI_X_SCALE = ${toString32(this.xScaleReg)} = ${this.xScale}`);
+    console.log(`VI_Y_SCALE = ${toString32(this.yScaleReg)} = ${this.yScale}`);
   }
 
   verticalBlank() {
@@ -133,11 +134,6 @@ export class VIRegDevice extends Device {
       return;
     }
     n64js.cpu0.addVblEvent(this.countPerVbl);
-  }
-
-  viIs32Bit() {
-    const control = this.mem.readU32(VI_CONTROL_REG);
-    return (control & controlTypeMask) == VI_CTRL_TYPE_32;
   }
 
   write32(address, value) {
