@@ -2993,9 +2993,8 @@ export function presentBackBuffer(ram) {
   // If no display lists executed, interpret framebuffer as bytes
   if (numDisplayListsRendered === 0) {
     const vi = n64js.hardware().viRegDevice;
-    const origin = vi.viOrigin() & 0x00fffffe; // Clear top bit to make address physical. Clear bottom bit (sometimes odd valued addresses are passed through)
-
-    if (!origin) {
+    const dramAddr = vi.viDramAddrReg() & 0x00fffffe; // Clear top bit to make address physical. Clear bottom bit (sometimes odd valued addresses are passed through)
+    if (!dramAddr) {
       return;
     }
 
@@ -3012,7 +3011,7 @@ export function presentBackBuffer(ram) {
     if (vi.viIs32Bit()) {
       // TODO: cache this.
       const pixels = new Uint8Array(width * height * 4);
-      let srcOffset = origin;
+      let srcOffset = dramAddr;
       for (let y = 0; y < height; ++y) {
         const dstRowOffset = (height - 1 - y) * width;
         let dstOffset = dstRowOffset * 4;
@@ -3030,7 +3029,7 @@ export function presentBackBuffer(ram) {
     } else {
       // TODO: cache this.
       const pixels = new Uint16Array(width * height);
-      let srcOffset = origin;
+      let srcOffset = dramAddr;
       for (let y = 0; y < height; ++y) {
         const dstRowOffset = (height - 1 - y) * width;
         let dstOffset = dstRowOffset;
@@ -3063,14 +3062,14 @@ function computeViDimension() {
   const vi = n64js.hardware().viRegDevice;
 
   // Some games don't seem to set VI_X_SCALE, so default this.
-  const scaleX = (vi.viXScale() & 0xfff) || 0x200;
-  const scaleY = (vi.viYScale() & 0xfff) || 0x400;
+  const scaleX = (vi.viXScaleReg() & 0xfff) || 0x200;
+  const scaleY = (vi.viYScaleReg() & 0xfff) || 0x400;
 
-  const hStartReg = vi.viHVideo();
+  const hStartReg = vi.viHVideoReg();
   const hStart = (hStartReg >> 16) & 0x03ff;
   const hEnd = hStartReg & 0x03ff;
 
-  const vStartReg = vi.viVVideo();
+  const vStartReg = vi.viVVideoReg();
   const vStart = (vStartReg >> 16) & 0x03ff;
   const vEnd = vStartReg & 0x03ff;
 
