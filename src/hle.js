@@ -2952,14 +2952,22 @@ function buildUCodeTables(ucode) {
   switch (ucode) {
     case kUCode_GBI0:
     case kUCode_GBI0_WR:
+    case kUCode_GBI0_DKR:
+    case kUCode_GBI0_SE:
     case kUCode_GBI0_GE:
+    case kUCode_GBI0_PD:
       ucode_table = ucode_gbi0;
       break;
     case kUCode_GBI1:
+    case kUCode_GBI1_LL:
       ucode_table = ucode_gbi1;
       break;
     case kUCode_GBI2:
+    case kUCode_GBI2_CONKER:
       ucode_table = ucode_gbi2;
+      break;
+    default:
+      logger.log(`unhandled ucode during table init: ${ucode}`);
   }
 
   // Build a copy of the table as an array
