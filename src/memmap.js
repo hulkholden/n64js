@@ -36,8 +36,8 @@ export class MemoryMap {
       return handler;
     }
 
-    logger.log('read from unhandled location ' + toString32(address));
-    throw 'unmapped read ' + toString32(address) + ' - need to set exception';
+    logger.log(`accessing unhandled location ${toString32(address)}`);
+    throw `unhandled access ${toString32(address)}`;
   }
 
   // Read/Write memory internal is used for stuff like the debugger
