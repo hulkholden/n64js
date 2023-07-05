@@ -32,14 +32,19 @@ export const PI_STATUS_CLR_INTR = 0x02;
 export const PI_DOM2_ADDR1 = 0x05000000; // 64DD Registers
 export const PI_DOM1_ADDR1 = 0x06000000; // 64DD ROM
 export const PI_DOM2_ADDR2 = 0x08000000; // SRAM
+export const PI_DOM2_ADDR2_END = 0x0800ffff;
 export const PI_DOM1_ADDR2 = 0x10000000; // ROM
+export const PI_DOM1_ADDR2_END = 0x1FBFFFFF;
 export const PI_DOM1_ADDR3 = 0x1FD00000;
+export const P1_DOM1_ADDR3_END = 0x7FFFFFFF;
 
 export function isDom2Addr1(address) { return address >= PI_DOM2_ADDR1 && address < PI_DOM1_ADDR1; }
 export function isDom1Addr1(address) { return address >= PI_DOM1_ADDR1 && address < PI_DOM2_ADDR2; }
 export function isDom2Addr2(address) { return address >= PI_DOM2_ADDR2 && address < PI_DOM1_ADDR2; }
-export function isDom1Addr2(address) { return address >= PI_DOM1_ADDR2 && address <= 0x1FBFFFFF; }
-export function isDom1Addr3(address) { return address >= PI_DOM1_ADDR3 && address <= 0x7FFFFFFF; }
+export function isDom1Addr2(address) { return address >= PI_DOM1_ADDR2 && address <= PI_DOM1_ADDR2_END; }
+export function isDom1Addr3(address) { return address >= PI_DOM1_ADDR3 && address <= P1_DOM1_ADDR3_END; }
+
+function isFlashDomAddr(address) { return address >= PI_DOM2_ADDR2 && address <= PI_DOM2_ADDR2_END; }
 
 // TODO: dedupe.
 function memoryCopy(dst, dstOff, src, srcOff, len) {
@@ -80,7 +85,7 @@ export class PIRegDevice extends Device {
         break;
       case PI_RD_LEN_REG:
         this.mem.write32(ea, value);
-        n64js.halt('PI copy from rdram triggered!');
+        this.copyFromRDRAM();
         break;
       case PI_WR_LEN_REG:
         this.mem.write32(ea, value);
@@ -104,6 +109,39 @@ export class PIRegDevice extends Device {
     }
   }
 
+  copyFromRDRAM() {
+    const dramAddr = this.mem.readU32(PI_DRAM_ADDR_REG) & 0x00ffffff;
+    const cartAddr = this.mem.readU32(PI_CART_ADDR_REG);
+    let transferLen = this.mem.readU32(PI_WR_LEN_REG) + 1;
+
+    let dst;
+    let dstOffset = 0;
+
+    if (isDom2Addr2(cartAddr)) {
+      if (isFlashDomAddr(cartAddr)) {
+        switch (this.hardware.saveType) {
+          case 'SRAM':
+            dst = this.hardware.sram;
+            dstOffset = cartAddr - PI_DOM2_ADDR2;
+            break;
+        }
+      } else {
+        n64js.halt(`PI: unknown dom2addr2 address: ${cartAddr}`);
+      }
+    } else {
+      n64js.halt(`PI: unknown cart address: ${cartAddr}`);
+    }
+
+    if (dst) {
+      memoryCopy(dst, dstOffset, this.hardware.ram, dramAddr, transferLen);
+      // TODO: mark save as dirty.
+    }
+
+    this.mem.clearBits32(PI_STATUS_REG, PI_STATUS_DMA_BUSY);
+    this.hardware.mi_reg.setBits32(mi.MI_INTR_REG, mi.MI_INTR_PI);
+    n64js.cpu0.updateCause3();
+  }
+
   copyToRDRAM() {
     const dramAddr = this.mem.readU32(PI_DRAM_ADDR_REG) & 0x00ffffff;
     const cartAddr = this.mem.readU32(PI_CART_ADDR_REG);
@@ -114,32 +152,50 @@ export class PIRegDevice extends Device {
     }
 
     if (transferLen & 1) {
+      // Triggered by Densha de GO! 64.
       logger.log('PI: Warning - odd address');
       transferLen++;
     }
 
     const cacheAddr = 0x80000000 | dramAddr;
 
+    let src;
+    let srcOffset = 0;
+
     if (isDom1Addr1(cartAddr)) {
-      memoryCopy(this.hardware.ram, dramAddr, this.hardware.rom, cartAddr - PI_DOM1_ADDR1, transferLen);
-      n64js.invalidateICacheRange(cacheAddr, transferLen, 'PI');
+      src = this.hardware.rom;
+      srcOffset = cartAddr - PI_DOM1_ADDR1;
     } else if (isDom1Addr2(cartAddr)) {
-      memoryCopy(this.hardware.ram, dramAddr, this.hardware.rom, cartAddr - PI_DOM1_ADDR2, transferLen);
-      n64js.invalidateICacheRange(cacheAddr, transferLen, 'PI');
+      src = this.hardware.rom;
+      srcOffset = cartAddr - PI_DOM1_ADDR2;
     } else if (isDom1Addr3(cartAddr)) {
-      memoryCopy(this.hardware.ram, dramAddr, this.hardware.rom, cartAddr - PI_DOM1_ADDR3, transferLen);
-      n64js.invalidateICacheRange(cacheAddr, transferLen, 'PI');
+      src = this.hardware.rom;
+      srcOffset = cartAddr - PI_DOM1_ADDR3;
     } else if (isDom2Addr1(cartAddr)) {
       n64js.halt('PI: dom2addr1 transfer is unhandled (save)');
     } else if (isDom2Addr2(cartAddr)) {
-      n64js.halt('PI: dom2addr2 transfer is unhandled (save/flash)');
+      if (isFlashDomAddr(cartAddr)) {
+        switch (this.hardware.saveType) {
+          case 'SRAM':
+            src = this.hardware.sram;
+            srcOffset = cartAddr - PI_DOM2_ADDR2;
+            break;
+        }
+      } else {
+        n64js.halt(`PI: unknown dom2addr2 address: ${cartAddr}`);
+      }
     } else {
       n64js.halt(`PI: unknown cart address: ${cartAddr}`);
     }
 
-    this.setMemorySize();
+    if (src) {
+      memoryCopy(this.hardware.ram, dramAddr, src, srcOffset, transferLen);
+      n64js.invalidateICacheRange(cacheAddr, transferLen, 'PI');
+    }
 
     // If this is the first DMA write the ram size to 0x800003F0 (cic6105) or 0x80000318 (others)
+    this.setMemorySize();
+
     this.mem.clearBits32(PI_STATUS_REG, PI_STATUS_DMA_BUSY);
     this.hardware.mi_reg.setBits32(mi.MI_INTR_REG, mi.MI_INTR_PI);
     n64js.cpu0.updateCause3();
