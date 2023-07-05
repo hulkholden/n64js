@@ -3645,7 +3645,7 @@ function checkCauseIP3Consistent() {
   const miRegDevice = n64js.hardware().miRegDevice;
   const miIntr = miRegDevice.interruptsUnmasked();
   const causeIP3 = (cpu0.control[cpu0_constants.controlCause] & CAUSE_IP3) !== 0;
-  assert(miIntr === causeIP3, 'CAUSE_IP3 inconsistent with MI_INTR_REG');
+  assert(miIntr === causeIP3, `CAUSE_IP3 ${causeIP3} inconsistent with MI_INTR_REG ${miIntr}`);
 }
 
 function mix(a, b, c) {
