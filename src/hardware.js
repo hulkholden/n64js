@@ -39,6 +39,8 @@ export class Hardware {
 
     this.eeprom = null;   // Initialised during reset, using correct size for this rom (may be null if eeprom isn't used)
     this.eepromDirty = false;
+    // TODO: add a dirty flag and persist to local storage.
+    this.sram = null;
 
     this.mappedMemDevice = new MappedMemDevice(this, 0x00000000, 0x80000000);
     this.cachedMemDevice = new CachedMemDevice(this, 0x80000000, 0x80800000);
@@ -133,23 +135,30 @@ export class Hardware {
   };
 
   initSaveGame() {
+    this.sram = null;
     this.eeprom = null;
     this.eepromDirty = false;
 
-    switch (this.rominfo.save) {
+    switch (this.saveType) {
       case 'Eeprom4k':
         this.initEeprom(4 * 1024, n64js.getLocalStorageItem('eeprom'));
         break;
       case 'Eeprom16k':
         this.initEeprom(16 * 1024, n64js.getLocalStorageItem('eeprom'));
         break;
+      case 'SRAM':
+        this.sram = new MemoryRegion(32 * 1024);
+        // TODO: restore contents from local storage.
+        break;
 
       default:
-        if (this.rominfo.save) {
-          n64js.ui().displayWarning(`Unhandled savegame type: ${this.rominfo.save}.`);
+        if (this.saveType) {
+          n64js.ui().displayWarning(`Unhandled savegame type: ${this.saveType}.`);
         }
     }
   }
+
+  get saveType() { return this.rominfo.save; }
 
   initEeprom(size, eeprom_data) {
     var memory = new MemoryRegion(new ArrayBuffer(size));
