@@ -1,6 +1,6 @@
 import { Device } from './device.js';
+import { toString32 } from '../format.js';
 import * as logger from '../logger.js';
-
 
 export class ROMD1A1Device extends Device {
     constructor(hardware, rangeStart, rangeEnd) {
@@ -40,12 +40,24 @@ export class ROMD2A1Device extends Device {
         super("ROMd2a1", hardware, null, rangeStart, rangeEnd);
     }
 
-    readU32(address) { logger.log('reading noise'); return n64js.getRandomU32(); };
-    readU16(address) { logger.log('reading noise'); return n64js.getRandomU32() & 0xffff; };
-    readU8(address) { logger.log('reading noise'); return n64js.getRandomU32() & 0xff; };
-    readS32(address) { logger.log('reading noise'); return n64js.getRandomU32(); };
-    readS16(address) { logger.log('reading noise'); return n64js.getRandomU32() & 0xffff; };
-    readS8(address) { logger.log('reading noise'); return n64js.getRandomU32() & 0xff; };
+    read(address) {
+        // 0xa5000508 is 64DD region.. set -1 fixes F-Zero U
+        if (address == 0xa5000508) {
+            logger.log('Reading from ROMd2a1 0xa5000508 - spoofing ~0 value')
+            return ~0;
+        }
+        logger.log(`Reading from invalid ROMd2a1 address ${toString32(address)}`);
+        return 0;
+    }
+
+    readU32(address) { return this.read(address) >>> 0; }
+    readU16(address) { return this.read(address) & 0xffff; };
+    readU8(address) { return this.read(address) & 0xff; };
+
+    readS32(address) { return this.read(address) >> 0; }
+    readS16(address) { return this.read(address) & 0xffff; };
+    readS8(address) { return this.read(address) & 0xff; };
+
     write32(address, value) { throw 'Writing to rom'; };
     write16(address, value) { throw 'Writing to rom'; };
     write8(address, value) { throw 'Writing to rom'; };
