@@ -24,6 +24,7 @@ export const PI_STATUS_DMA_BUSY = 0x01;
 export const PI_STATUS_IO_BUSY = 0x02;
 export const PI_STATUS_DMA_IO_BUSY = 0x03;
 export const PI_STATUS_ERROR = 0x04;
+export const PI_STATUS_INTERRUPT = 0x08;
 
 // Values written to status reg
 export const PI_STATUS_RESET = 0x01;
@@ -72,15 +73,45 @@ export class PIRegDevice extends Device {
     }
   }
 
+  readS32(address) {
+    const ea = this.calcEA(address);
+    if (ea + 4 > this.u8.length) {
+      throw 'Read is out of range';
+    }
+    let v = this.mem.readS32(ea);
+    switch (ea) {
+      case PI_DRAM_ADDR_REG:
+        v &= 0x00fffffe;
+        break;
+      case PI_CART_ADDR_REG:
+        v &= 0xfffffffe;
+        break;
+      case PI_RD_LEN_REG:
+      case PI_WR_LEN_REG:
+        // See https://n64brew.dev/wiki/Peripheral_Interface.
+        v = 0x7f;
+        break;
+    }
+
+    if (!this.quiet) { logger.log(`Reading from PIReg: [${toString32(address)}] -> ${toString32(v)}`); }
+
+    return v;
+  }
+
+  readU32(address) {
+    return this.readS32(address) >>> 0;
+  }
+
   write32(address, value) {
     const ea = this.calcEA(address);
     if (ea + 4 > this.u8.length) {
       throw 'Write is out of range';
     }
+    if (!this.quiet) { logger.log(`Writing to PIReg: ${toString32(value)} -> [${toString32(address)}]`); }
+
     switch (ea) {
       case PI_DRAM_ADDR_REG:
       case PI_CART_ADDR_REG:
-        if (!this.quiet) { logger.log(`Writing to PIReg: ${toString32(value)} -> [${toString32(address)}]`); }
         this.mem.write32(ea, value);
         break;
       case PI_RD_LEN_REG:
@@ -98,6 +129,7 @@ export class PIRegDevice extends Device {
         }
         if (value & PI_STATUS_CLR_INTR) {
           if (!this.quiet) { logger.log('PI interrupt cleared'); }
+          this.mem.clearBits32(PI_STATUS_REG, PI_STATUS_INTERRUPT);
           this.hardware.mi_reg.clearBits32(mi.MI_INTR_REG, mi.MI_INTR_PI);
           n64js.cpu0.updateCause3();
         }
@@ -110,12 +142,17 @@ export class PIRegDevice extends Device {
   }
 
   copyFromRDRAM() {
-    const dramAddr = this.mem.readU32(PI_DRAM_ADDR_REG) & 0x00ffffff;
-    const cartAddr = this.mem.readU32(PI_CART_ADDR_REG);
-    let transferLen = this.mem.readU32(PI_WR_LEN_REG) + 1;
+    const dramAddr = this.mem.readU32(PI_DRAM_ADDR_REG) & 0x00fffffe;
+    const cartAddr = this.mem.readU32(PI_CART_ADDR_REG) & 0xfffffffe;
+    let transferLen = (this.mem.readU32(PI_RD_LEN_REG) & 0x00ffffff) + 1;
 
     let dst;
     let dstOffset = 0;
+
+    // Short transfers are handled differently (see https://n64brew.dev/wiki/Peripheral_Interface)
+    if (transferLen >= 0x7f && (transferLen & 1)) {
+      transferLen++;
+    }
 
     if (isDom2Addr2(cartAddr)) {
       if (isFlashDomAddr(cartAddr)) {
@@ -137,27 +174,30 @@ export class PIRegDevice extends Device {
       // TODO: mark save as dirty.
     }
 
+    // TODO: Update address registers?
+
     this.mem.clearBits32(PI_STATUS_REG, PI_STATUS_DMA_BUSY);
+    this.mem.setBits32(PI_STATUS_REG, PI_STATUS_INTERRUPT);
     this.hardware.mi_reg.setBits32(mi.MI_INTR_REG, mi.MI_INTR_PI);
     n64js.cpu0.updateCause3();
   }
 
   copyToRDRAM() {
-    const dramAddr = this.mem.readU32(PI_DRAM_ADDR_REG) & 0x00ffffff;
-    const cartAddr = this.mem.readU32(PI_CART_ADDR_REG);
-    let transferLen = this.mem.readU32(PI_WR_LEN_REG) + 1;
+    const dramAddr = this.mem.readU32(PI_DRAM_ADDR_REG) & 0x00fffffe;
+    const cartAddr = this.mem.readU32(PI_CART_ADDR_REG) & 0xfffffffe;
+    let transferLen = (this.mem.readU32(PI_WR_LEN_REG) & 0x00ffffff) + 1;
 
     if (!this.quiet) {
       logger.log(`PI: copying ${transferLen} bytes of data from ${toString32(cartAddr)} to ${toString32(dramAddr)}`);
     }
 
-    if (transferLen & 1) {
-      // Triggered by Densha de GO! 64.
-      logger.log('PI: Warning - odd address');
+    // Short transfers are handled differently (see https://n64brew.dev/wiki/Peripheral_Interface)
+    if (transferLen >= 0x7f && (transferLen & 1)) {
       transferLen++;
     }
-
-    const cacheAddr = 0x80000000 | dramAddr;
+    if (transferLen <= 0x80) {
+        transferLen -= dramAddr & 0x7;
+    }
 
     let src;
     let srcOffset = 0;
@@ -190,13 +230,21 @@ export class PIRegDevice extends Device {
 
     if (src) {
       memoryCopy(this.hardware.ram, dramAddr, src, srcOffset, transferLen);
-      n64js.invalidateICacheRange(cacheAddr, transferLen, 'PI');
+
+      // TODO: should also invalidate 0xa0000000.
+      n64js.invalidateICacheRange(0x80000000 | dramAddr, transferLen, 'PI');
     }
 
     // If this is the first DMA write the ram size to 0x800003F0 (cic6105) or 0x80000318 (others)
     this.setMemorySize();
 
+    // Address registers are updated when the transfer completes.
+    this.mem.write32(PI_DRAM_ADDR_REG, (this.mem.readU32(PI_DRAM_ADDR_REG) + transferLen + 7) & ~7);
+    this.mem.write32(PI_CART_ADDR_REG, (this.mem.readU32(PI_CART_ADDR_REG) + transferLen + 1) & ~1);
+
+    // TODO: figure out how many cycles the transfer should take, and schedule an interrupt.
     this.mem.clearBits32(PI_STATUS_REG, PI_STATUS_DMA_BUSY);
+    this.mem.setBits32(PI_STATUS_REG, PI_STATUS_INTERRUPT);
     this.hardware.mi_reg.setBits32(mi.MI_INTR_REG, mi.MI_INTR_PI);
     n64js.cpu0.updateCause3();
   }
