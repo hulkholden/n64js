@@ -1,5 +1,6 @@
 import { Device } from './device.js';
-
+import { toString32 } from '../format.js';
+import * as logger from '../logger.js';
 
 export class MappedMemDevice extends Device {
   constructor(hardware, rangeStart, rangeEnd) {
@@ -141,6 +142,33 @@ export class UncachedMemDevice extends Device {
   constructor(hardware, rangeStart, rangeEnd) {
     super("RAM", hardware, hardware.ram, rangeStart, rangeEnd);
   }
+}
+
+export class InvalidMemDevice extends Device {
+  constructor(hardware, rangeStart, rangeEnd) {
+    super("Invalid", hardware, null, rangeStart, rangeEnd);
+  }
+
+  read(address) {
+    logger.log(`Reading from invalid address ${toString32(address)}`);
+    return 0;
+  }
+
+  write(address) {
+    logger.log(`Writing to invalid address ${toString32(address)}`);
+  }
+
+  readU32(address) { return this.read(address) >>> 0; }
+  readU16(address) { return this.read(address) & 0xffff; };
+  readU8(address) { return this.read(address) & 0xff; };
+
+  readS32(address) { return this.read(address) >> 0; }
+  readS16(address) { return this.read(address) & 0xffff; };
+  readS8(address) { return this.read(address) & 0xff; };
+
+  write32(address, value) { this.write(address, value); };
+  write16(address, value) { this.write(address, value); };
+  write8(address, value) { this.write(address, value); };
 }
 
 export class RDRamRegDevice extends Device {

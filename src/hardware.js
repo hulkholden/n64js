@@ -4,7 +4,7 @@ import { DPCDevice } from './devices/dpc.js';
 import { DPSDevice } from './devices/dps.js';
 import { MIRegDevice } from './devices/mi.js';
 import { PIRegDevice, PIRamDevice } from './devices/pi.js';
-import { MappedMemDevice, CachedMemDevice, UncachedMemDevice, RDRamRegDevice } from './devices/ram.js';
+import { MappedMemDevice, CachedMemDevice, UncachedMemDevice, InvalidMemDevice, RDRamRegDevice } from './devices/ram.js';
 import { RIRegDevice } from './devices/ri.js';
 import { ROMD1A1Device, ROMD1A2Device, ROMD1A3Device, ROMD2A1Device, ROMD2A2Device } from './devices/rom.js';
 import { SIRegDevice } from './devices/si.js';
@@ -42,8 +42,13 @@ export class Hardware {
     // TODO: add a dirty flag and persist to local storage.
     this.sram = null;
 
+    // KUSEG, TLB mapped.
     this.mappedMemDevice = new MappedMemDevice(this, 0x00000000, 0x80000000);
+    // KSEG0, directly mapped, cached.
+    this.invalidCachedMemDevice = new InvalidMemDevice(this, 0x80000000, 0xa0000000);
     this.cachedMemDevice = new CachedMemDevice(this, 0x80000000, 0x80800000);
+    // KSEG1, directly mapped, uncached.
+    this.invalidUnachedMemDevice = new InvalidMemDevice(this, 0xa0000000, 0xc0000000);
     this.uncachedMemDevice = new UncachedMemDevice(this, 0xa0000000, 0xa0800000);
     this.rdRamRegDevice = new RDRamRegDevice(this, 0xa3f00000, 0xa4000000);
     this.spMemDevice = new SPMemDevice(this, 0xa4000000, 0xa4002000);
@@ -63,10 +68,18 @@ export class Hardware {
     this.romD1A2Device = new ROMD1A2Device(this, 0xb0000000, 0xbfc00000);
     this.piMemDevice = new PIRamDevice(this, 0xbfc00000, 0xbfc00800);
     this.romD1A3Device = new ROMD1A3Device(this, 0xbfd00000, 0xc0000000);
+    // KSSEG, TLB mapped.
+    // 0xc000_0000 to 0xe000_0000
+    // KSEG3, TLB mapped.
+    // 0xe000_0000 to 0x1_0000_0000  
 
     this.devices = [
       this.mappedMemDevice,
+      // Register the invalid memory device before all the other KSEG0 devices.
+      this.invalidCachedMemDevice,
       this.cachedMemDevice,
+      // Register the invalid memory device before all the other KSEG1 devices.
+      this.invalidUnachedMemDevice,
       this.uncachedMemDevice,
       this.rdRamRegDevice,
       this.spMemDevice,
@@ -80,8 +93,8 @@ export class Hardware {
       this.piRegDevice,
       this.riRegDevice,
       this.siRegDevice,
-      this.romD2A1Device,
-      this.romD1A1Device,
+      this.romD2A1Device, // Breaks F-Zero?
+      this.romD1A1Device, // Breaks F-Zero?
       this.romD2A2Device,
       this.romD1A2Device,
       this.piMemDevice,
