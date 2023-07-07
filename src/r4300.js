@@ -1321,29 +1321,38 @@ function executeDMULTU(i) {
 function executeDIV(i) {
   const dividend = cpu0.gprLo_signed[rs(i)];
   const divisor = cpu0.gprLo_signed[rt(i)];
-  if (divisor) {
-    const m = (dividend / divisor) >> 0;
-    const r = dividend % divisor;
 
-    cpu0.multLo[0] = m;
-    cpu0.multLo[1] = m >> 31;
-    cpu0.multHi[0] = r;
-    cpu0.multHi[1] = r >> 31;
+  let lo, hi;
+  if (divisor) {
+    lo = (dividend / divisor) >> 0;
+    hi = dividend % divisor;
+  } else {
+    lo = dividend < 0 ? 1 : -1;
+    hi = dividend;
   }
+  cpu0.multLo[0] = lo;
+  cpu0.multLo[1] = lo >> 31;
+  cpu0.multHi[0] = hi;
+  cpu0.multHi[1] = hi >> 31;
 }
 
 function executeDIVU(i) {
   const dividend = cpu0.gprLo[rs(i)];
   const divisor = cpu0.gprLo[rt(i)];
-  if (divisor) {
-    const m = (dividend / divisor) >> 0;
-    const r = dividend % divisor;
 
-    cpu0.multLo[0] = m;
-    cpu0.multLo[1] = m >> 31;
-    cpu0.multHi[0] = r;
-    cpu0.multHi[1] = r >> 31;
+  let lo, hi;
+  if (divisor) {
+    lo = (dividend / divisor) >> 0;
+    hi = dividend % divisor;
+  } else {
+    lo = -1;
+    hi = dividend;
   }
+
+  cpu0.multLo[0] = lo;
+  cpu0.multLo[1] = lo >> 31;
+  cpu0.multHi[0] = hi;
+  cpu0.multHi[1] = hi >> 31;
 }
 
 function executeDDIV(i) {
