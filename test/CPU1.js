@@ -59,7 +59,7 @@ describe('CPU1', () => {
     it('should load the correct values', () => {
       cpu.int32[0] = 0x1c8;
       cpu.int32[1] = 0x7b;
-      assert.equal(0x7B000001C8, cpu.load_s64_as_double(0));
+      assert.equal(0x7B000001C8, cpu.load_i64_number(0));
     });
   });
 });
