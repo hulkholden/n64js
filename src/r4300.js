@@ -1357,24 +1357,39 @@ function executeDIVU(i) {
 
 function executeDDIV(i) {
   const divisor = cpu0.getGPR_s64_bigint(rt(i));
+  const dividend = cpu0.getGPR_s64_bigint(rs(i));
+
+  let lo, hi;
   if (divisor) {
-    const dividend = cpu0.getGPR_s64_bigint(rs(i));
-    cpu0.multLo[0] = Number(dividend / divisor);
-    cpu0.multLo[1] = 0;
-    cpu0.multHi[0] = Number(dividend % divisor);
-    cpu0.multHi[1] = 0;
+    lo = dividend / divisor;
+    hi = dividend % divisor;
+  } else {
+    lo = dividend < 0 ? 1n : -1n;
+    hi = dividend;
   }
+  cpu0.multLo[0] = Number(lo & 0xffffffffn);
+  cpu0.multLo[1] = Number((lo >> 32n) & 0xffffffffn);
+  cpu0.multHi[0] = Number(hi & 0xffffffffn);
+  cpu0.multHi[1] = Number((hi >> 32n) & 0xffffffffn);
 }
 
 function executeDDIVU(i) {
   const divisor = cpu0.getGPR_u64_bigint(rt(i));
+  const dividend = cpu0.getGPR_u64_bigint(rs(i));
+
+  let lo, hi;
   if (divisor) {
-    const dividend = cpu0.getGPR_u64_bigint(rs(i));
-    cpu0.multLo[0] = Number(dividend / divisor);
-    cpu0.multLo[1] = 0;
-    cpu0.multHi[0] = Number(dividend % divisor);
-    cpu0.multHi[1] = 0;
+    lo = dividend / divisor;
+    hi = dividend % divisor;
+  } else {
+    lo = -1;
+    hi = dividend;
   }
+
+  cpu0.multLo[0] = Number(lo & 0xffffffffn);
+  cpu0.multLo[1] = Number((lo >> 32n) & 0xffffffffn);
+  cpu0.multHi[0] = Number(hi & 0xffffffffn);
+  cpu0.multHi[1] = Number((hi >> 32n) & 0xffffffffn);
 }
 
 function generateTrivialArithmetic(ctx, op) {
