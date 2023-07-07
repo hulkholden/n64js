@@ -1304,23 +1304,18 @@ function executeMULTU(i) {
 
 function executeDMULT(i) {
   const result = cpu0.getGPR_s64_bigint(rs(i)) * cpu0.getGPR_s64_bigint(rt(i));
-  const lo = result & 0xffffffffn;
-  const hi = result >> 32n;
-
-  cpu0.multLo[0] = Number(lo);
-  cpu0.multLo[1] = Number(hi);
-  cpu0.multHi_signed[0] = 0;
-  cpu0.multHi_signed[1] = 0;
+  cpu0.multLo[0] = Number(result & 0xffffffffn);
+  cpu0.multLo[1] = Number((result >> 32n) & 0xffffffffn);
+  cpu0.multHi[0] = Number((result >> 64n) & 0xffffffffn);
+  cpu0.multHi[1] = Number((result >> 96n) & 0xffffffffn);
 }
 
 function executeDMULTU(i) {
   const result = cpu0.getGPR_u64_bigint(rs(i)) * cpu0.getGPR_u64_bigint(rt(i));
-  const lo = result & 0xffffffffn;
-  const hi = result >> 32n;
-  cpu0.multLo[0] = Number(lo);
-  cpu0.multLo[1] = Number(hi);
-  cpu0.multHi_signed[0] = 0;
-  cpu0.multHi_signed[1] = 0;
+  cpu0.multLo[0] = Number(result & 0xffffffffn);
+  cpu0.multLo[1] = Number((result >> 32n) & 0xffffffffn);
+  cpu0.multHi[0] = Number((result >> 64n) & 0xffffffffn);
+  cpu0.multHi[1] = Number((result >> 96n) & 0xffffffffn);
 }
 
 function executeDIV(i) {
