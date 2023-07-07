@@ -359,6 +359,7 @@ class CPU0 {
     this.control[cpu0_constants.controlRand] = 32 - 1;
     this.control[cpu0_constants.controlSR] = 0x70400004;
     this.control[cpu0_constants.controlConfig] = 0x0006e463;
+    cop1ControlChanged();
   }
 
   breakExecution() {
@@ -417,8 +418,7 @@ class CPU0 {
     }
 
     this.control[cpu0_constants.controlSR] = value;
-
-    setCop1Enable((value & SR_CU1) !== 0);
+    cop1ControlChanged();
 
     if (this.checkForUnmaskedInterrupts()) {
       this.stuffToDo |= kStuffToDoCheckInterrupts;
@@ -3417,9 +3417,12 @@ function executeCop1_disabled(i) {
   cpu0.throwCop1Unusable();
 }
 
-function setCop1Enable(enable) {
+function cop1ControlChanged() {
+  const control = cpu0.control[cpu0_constants.controlSR];
+  const enable = (control & SR_CU1) !== 0;
   simpleTable[0x11] = enable ? executeCop1 : executeCop1_disabled;
 }
+n64js.cop1ControlChanged = cop1ControlChanged;
 
 const regImmTable = [
   executeBLTZ,          executeBGEZ,          executeBLTZL,       executeBGEZL,
