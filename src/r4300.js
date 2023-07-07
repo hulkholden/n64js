@@ -2522,7 +2522,7 @@ function generateLWC1(ctx) {
   ctx.fragment.usesCop1 = true;
 
   const impl = `
-    cpu1.int32[${t}] = n64js.load_s32(ram, ${genSrcRegLo(b)} + ${o});
+    cpu1.store_i32(${t}, n64js.load_s32(ram, ${genSrcRegLo(b)} + ${o}));
     `;
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
@@ -2533,7 +2533,7 @@ function executeLWC1(i) {
   const b = base(i);
   const o = imms(i);
 
-  cpu1.int32[t] = n64js.load_s32(cpu0.ram, cpu0.gprLo_signed[b] + o);
+  cpu1.store_i32(t, n64js.load_s32(cpu0.ram, cpu0.gprLo_signed[b] + o));
 }
 
 function generateLDC1(ctx) {
@@ -2544,18 +2544,18 @@ function generateLDC1(ctx) {
   ctx.fragment.usesCop1 = true;
 
   const impl = `
-    let value_lo;
-    let value_hi;
+    let lo;
+    let hi;
     const addr = ${genSrcRegLo(b)} + ${o};
     if (addr < -2139095040) {
       const phys = (addr + 0x80000000) | 0;
-      value_hi = ((ram[phys  ] << 24) | (ram[phys+1] << 16) | (ram[phys+2] << 8) | ram[phys+3]) | 0; // FIXME: is the |0 needed?
-      value_lo = ((ram[phys+4] << 24) | (ram[phys+5] << 16) | (ram[phys+6] << 8) | ram[phys+7]) | 0;
+      hi = ((ram[phys  ] << 24) | (ram[phys+1] << 16) | (ram[phys+2] << 8) | ram[phys+3]) | 0; // FIXME: is the |0 needed?
+      lo = ((ram[phys+4] << 24) | (ram[phys+5] << 16) | (ram[phys+6] << 8) | ram[phys+7]) | 0;
     } else {
-      value_hi = lw_slow(addr);
-      value_lo = lw_slow(addr + 4);
+      hi = lw_slow(addr);
+      lo = lw_slow(addr + 4);
     }
-    cpu1.store_64(${t}, value_lo, value_hi);
+    cpu1.store_64_hi_lo(${t}, lo, hi);
     `;
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
@@ -2567,19 +2567,19 @@ function executeLDC1(i) {
   const o = imms(i);
 
   const addr = cpu0.gprLo_signed[b] + o;
-  let value_lo;
-  let value_hi;
+  let lo;
+  let hi;
   if (addr < -2139095040) {
     const phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
     const ram = cpu0.ram;
-    value_hi = ((ram[phys] << 24) | (ram[phys + 1] << 16) | (ram[phys + 2] << 8) | ram[phys + 3]) | 0;
-    value_lo = ((ram[phys + 4] << 24) | (ram[phys + 5] << 16) | (ram[phys + 6] << 8) | ram[phys + 7]) | 0;
+    hi = ((ram[phys] << 24) | (ram[phys + 1] << 16) | (ram[phys + 2] << 8) | ram[phys + 3]) | 0;
+    lo = ((ram[phys + 4] << 24) | (ram[phys + 5] << 16) | (ram[phys + 6] << 8) | ram[phys + 7]) | 0;
   } else {
-    value_hi = lw_slow(addr);
-    value_lo = lw_slow(addr + 4);
+    hi = lw_slow(addr);
+    lo = lw_slow(addr + 4);
   }
 
-  cpu1.store_64(t, value_lo, value_hi);
+  cpu1.store_64_hi_lo(t, lo, hi);
 }
 
 function executeLDC2(i) { unimplemented(cpu0.pc, i); }
@@ -2708,7 +2708,7 @@ function generateSWC1(ctx) {
 
   // FIXME: can avoid cpuStuffToDo if we're writing to ram
   const impl = `
-    n64js.store_32(ram, ${genSrcRegLo(b)} + ${o}, cpu1.int32[${t}]);
+    n64js.store_32(ram, ${genSrcRegLo(b)} + ${o}, cpu1.load_i32(${t}));
     `;
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
@@ -2719,7 +2719,7 @@ function executeSWC1(i) {
   const b = base(i);
   const o = imms(i);
 
-  n64js.store_32(cpu0.ram, cpu0.gprLo_signed[b] + o, cpu1.int32[t]);
+  n64js.store_32(cpu0.ram, cpu0.gprLo_signed[b] + o, cpu1.load_i32(t));
 }
 
 function generateSDC1(ctx) {
@@ -2727,14 +2727,15 @@ function generateSDC1(ctx) {
   const b = ctx.instr_base();
   const o = ctx.instr_imms();
 
-  const hi = t + 1;
-
   ctx.fragment.usesCop1 = true;
 
   // FIXME: can avoid cpuStuffToDo if we're writing to ram
   const impl = `
     const addr = ${genSrcRegLo(b)} + ${o};
-    n64js.store_64(ram, addr, cpu1.int32[${t}], cpu1.int32[${hi}]);
+    const value = cpu1.load_i64_bigint(${t});
+    const lo = Number(value & 0xffffffffn);
+    const hi = Number(value >> 32n);
+    n64js.store_64(ram, addr, lo, hi);
     `;
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
@@ -2747,7 +2748,10 @@ function executeSDC1(i) {
 
   // FIXME: this can do a single check that the address is in ram
   const addr = cpu0.gprLo_signed[b] + o;
-  n64js.store_64(cpu0.ram, addr, cpu1.int32[t], cpu1.int32[t + 1]);
+  const value = cpu1.load_i64_bigint(t);
+  const lo = Number(value & 0xffffffffn);
+  const hi = Number(value >> 32n);
+  n64js.store_64(cpu0.ram, addr, lo, hi);
 }
 
 function executeSDC2(i) { unimplemented(cpu0.pc, i); }
@@ -2832,7 +2836,7 @@ function generateMFC1Stub(ctx) {
   ctx.isTrivial = true;
 
   return `
-    const result = cpu1.int32[${s}];
+    const result = cpu1.load_i32(${s});
     rlo[${t}] = result;
     rhi[${t}] = result >> 31;
     `;
@@ -2841,7 +2845,7 @@ function generateMFC1Stub(ctx) {
 function executeMFC1(i) {
   const t = rt(i);
   const s = fs(i);
-  const result = cpu1.int32[s];
+  const result = cpu1.load_i32(s);
   cpu0.gprLo_signed[t] = result;
   cpu0.gprHi_signed[t] = result >> 31;
 }
@@ -2855,16 +2859,18 @@ function generateDMFC1Stub(ctx) {
   ctx.isTrivial = true;
 
   return `
-    rlo[${t}] = cpu1.int32[${s}];
-    rhi[${t}] = cpu1.int32[${hi}];
+    const v = cpu1.load_i64_bigint(${s});
+    rlo[${t}] = Number(v & 0xffffffffn);
+    rhi[${t}] = Number(v >> 32n);
     `;
 }
 
 function executeDMFC1(i) {
   const t = rt(i);
   const s = fs(i);
-  cpu0.gprLo_signed[t] = cpu1.int32[s];
-  cpu0.gprHi_signed[t] = cpu1.int32[s + 1];
+  const v = cpu1.load_i64_bigint(s);
+  cpu0.gprLo_signed[t] = Number(v & 0xffffffffn);
+  cpu0.gprHi_signed[t] = Number(v >> 32n);
 }
 
 function generateMTC1Stub(ctx) {
@@ -2875,34 +2881,29 @@ function generateMTC1Stub(ctx) {
   ctx.isTrivial = true;
 
   return `
-    cpu1.int32[${s}] = rlo[${t}];
+    cpu1.store_i32(${s}, rlo[${t}]);
     `;
 }
 
 function executeMTC1(i) {
-  cpu1.int32[fs(i)] = cpu0.gprLo_signed[rt(i)];
+  cpu1.store_i32(fs(i), cpu0.gprLo_signed[rt(i)]);
 }
 
 function generateDMTC1Stub(ctx) {
   const s = ctx.instr_fs();
   const t = ctx.instr_rt();
-  const hi = s + 1;
-
   ctx.fragment.usesCop1 = true;
   ctx.isTrivial = true;
 
   return `
-    cpu1.int32[${s}] = rlo[${t}];
-    cpu1.int32[${hi}] = rhi[${t}];
+    cpu1.store_64_hi_lo(${s}, rlo[${t}], rhi[${t}]);
     `;
 }
 
 function executeDMTC1(i) {
   const s = fs(i);
   const t = rt(i);
-
-  cpu1.int32[s + 0] = cpu0.gprLo_signed[t];
-  cpu1.int32[s + 1] = cpu0.gprHi_signed[t];
+  cpu1.store_64_hi_lo(s, cpu0.gprLo_signed[t], cpu0.gprHi_signed[t]);
 }
 
 function generateCFC1Stub(ctx) {
@@ -3084,25 +3085,25 @@ function generateSInstrStub(ctx) {
 
   if (op < 0x30) {
     switch (op) {
-      case 0x00: return `cpu1.float32[${d}] = cpu1.float32[${s}] + cpu1.float32[${t}];\n`;
-      case 0x01: return `cpu1.float32[${d}] = cpu1.float32[${s}] - cpu1.float32[${t}];\n`;
-      case 0x02: return `cpu1.float32[${d}] = cpu1.float32[${s}] * cpu1.float32[${t}];\n`;
-      case 0x03: return `cpu1.float32[${d}] = cpu1.float32[${s}] / cpu1.float32[${t}];\n`;
-      case 0x04: return `cpu1.float32[${d}] = Math.sqrt(cpu1.float32[${s}]);\n`;
-      case 0x05: return `cpu1.float32[${d}] = Math.abs( cpu1.float32[${s}]);\n`;
-      case 0x06: return `cpu1.float32[${d}] =  cpu1.float32[${s}];\n`;
-      case 0x07: return `cpu1.float32[${d}] = -cpu1.float32[${s}];\n`;
-      case 0x08: /* 'ROUND.L.'*/ return `cpu1.store_float_as_long(${d}, Math.round(cpu1.float32[${s}]));\n`;
-      case 0x09: /* 'TRUNC.L.'*/ return `cpu1.store_float_as_long(${d}, n64js.trunc(cpu1.float32[${s}]));\n`;
-      case 0x0a: /* 'CEIL.L.'*/  return `cpu1.store_float_as_long(${d}, Math.ceil( cpu1.float32[${s}]));\n`;
-      case 0x0b: /* 'FLOOR.L.'*/ return `cpu1.store_float_as_long(${d}, Math.floor(cpu1.float32[${s}]));\n`;
-      case 0x0c: /* 'ROUND.W.'*/ return `cpu1.int32[${d}] = Math.round(cpu1.float32[${s}]);\n`;  // TODO: check this
-      case 0x0d: /* 'TRUNC.W.'*/ return `cpu1.int32[${d}] = n64js.trunc(cpu1.float32[${s}]);\n`;
-      case 0x0e: /* 'CEIL.W.'*/  return `cpu1.int32[${d}] = Math.ceil( cpu1.float32[${s}]);\n`;
-      case 0x0f: /* 'FLOOR.W.'*/ return `cpu1.int32[${d}] = Math.floor(cpu1.float32[${s}]);\n`;
+      case 0x00: return `cpu1.store_f32(${d}, cpu1.load_f32(${s}) + cpu1.load_f32(${t}));\n`;
+      case 0x01: return `cpu1.store_f32(${d}, cpu1.load_f32(${s}) - cpu1.load_f32(${t}));\n`;
+      case 0x02: return `cpu1.store_f32(${d}, cpu1.load_f32(${s}) * cpu1.load_f32(${t}));\n`;
+      case 0x03: return `cpu1.store_f32(${d}, cpu1.load_f32(${s}) / cpu1.load_f32(${t}));\n`;
+      case 0x04: return `cpu1.store_f32(${d}, Math.sqrt(cpu1.load_f32(${s})));\n`;
+      case 0x05: return `cpu1.store_f32(${d}, Math.abs(cpu1.load_f32(${s})));\n`;
+      case 0x06: return `cpu1.store_f32(${d},  cpu1.load_f32(${s}));\n`;
+      case 0x07: return `cpu1.store_f32(${d}, -cpu1.load_f32(${s}));\n`;
+      case 0x08: /* 'ROUND.L.'*/ return `cpu1.store_i64_number(${d}, Math.round(cpu1.load_f32(${s})));\n`;
+      case 0x09: /* 'TRUNC.L.'*/ return `cpu1.store_i64_number(${d}, n64js.trunc(cpu1.load_f32(${s})));\n`;
+      case 0x0a: /* 'CEIL.L.'*/  return `cpu1.store_i64_number(${d}, Math.ceil(cpu1.load_f32(${s})));\n`;
+      case 0x0b: /* 'FLOOR.L.'*/ return `cpu1.store_i64_number(${d}, Math.floor(cpu1.load_f32(${s})));\n`;
+      case 0x0c: /* 'ROUND.W.'*/ return `cpu1.store_i32(${d}, Math.round(cpu1.load_f32(${s})) | 0);\n`;  // TODO: check this
+      case 0x0d: /* 'TRUNC.W.'*/ return `cpu1.store_i32(${d}, n64js.trunc(cpu1.load_f32(${s})) | 0);\n`;
+      case 0x0e: /* 'CEIL.W.'*/  return `cpu1.store_i32(${d}, Math.ceil(cpu1.load_f32(${s})) | 0);\n`;
+      case 0x0f: /* 'FLOOR.W.'*/ return `cpu1.store_i32(${d}, Math.floor(cpu1.load_f32(${s})) | 0);\n`;
       case 0x20: /* 'CVT.S' */   break;
-      case 0x21: /* 'CVT.D' */   return `cpu1.store_f64( ${d}, cpu1.float32[${s}] );\n`;
-      case 0x24: /* 'CVT.W' */   return `cpu1.int32[${d}] = n64js.convert(cpu1.float32[${s}]);\n`;
+      case 0x21: /* 'CVT.D' */   return `cpu1.store_f64(${d}, cpu1.load_f32(${s}));\n`;
+      case 0x24: /* 'CVT.W' */   return `cpu1.store_i32(${d}, n64js.convert(cpu1.load_f32(${s})) | 0);\n`;
       case 0x25: /* 'CVT.L' */   break;
     }
 
@@ -3111,8 +3112,8 @@ function generateSInstrStub(ctx) {
 
   // It's a compare instruction
   let impl = '';
-  impl += `const fs = cpu1.float32[${s}];\n`;
-  impl += `const ft = cpu1.float32[${t}];\n`;
+  impl += `const fs = cpu1.load_f32(${s});\n`;
+  impl += `const ft = cpu1.load_f32(${t});\n`;
   impl += generateFloatCompare(op);
   return impl;
 }
@@ -3126,32 +3127,32 @@ function executeSInstr(i) {
 
   if (op < 0x30) {
     switch (op) {
-      case 0x00: cpu1.float32[d] = cpu1.float32[s] + cpu1.float32[t]; return;
-      case 0x01: cpu1.float32[d] = cpu1.float32[s] - cpu1.float32[t]; return;
-      case 0x02: cpu1.float32[d] = cpu1.float32[s] * cpu1.float32[t]; return;
-      case 0x03: cpu1.float32[d] = cpu1.float32[s] / cpu1.float32[t]; return;
-      case 0x04: cpu1.float32[d] = Math.sqrt(cpu1.float32[s]); return;
-      case 0x05: cpu1.float32[d] = Math.abs(cpu1.float32[s]); return;
-      case 0x06: cpu1.float32[d] = cpu1.float32[s]; return;
-      case 0x07: cpu1.float32[d] = -cpu1.float32[s]; return;
-      case 0x08: /* 'ROUND.L.'*/ cpu1.store_float_as_long(d, Math.round(cpu1.float32[s])); return;
-      case 0x09: /* 'TRUNC.L.'*/ cpu1.store_float_as_long(d, n64js.trunc(cpu1.float32[s])); return;
-      case 0x0a: /* 'CEIL.L.'*/  cpu1.store_float_as_long(d, Math.ceil(cpu1.float32[s])); return;
-      case 0x0b: /* 'FLOOR.L.'*/ cpu1.store_float_as_long(d, Math.floor(cpu1.float32[s])); return;
-      case 0x0c: /* 'ROUND.W.'*/ cpu1.int32[d] = Math.round(cpu1.float32[s]) | 0; return;  // TODO: check this
-      case 0x0d: /* 'TRUNC.W.'*/ cpu1.int32[d] = n64js.trunc(cpu1.float32[s]) | 0; return;
-      case 0x0e: /* 'CEIL.W.'*/  cpu1.int32[d] = Math.ceil(cpu1.float32[s]) | 0; return;
-      case 0x0f: /* 'FLOOR.W.'*/ cpu1.int32[d] = Math.floor(cpu1.float32[s]) | 0; return;
+      case 0x00: cpu1.store_f32(d, cpu1.load_f32(s) + cpu1.load_f32(t)); return;
+      case 0x01: cpu1.store_f32(d, cpu1.load_f32(s) - cpu1.load_f32(t)); return;
+      case 0x02: cpu1.store_f32(d, cpu1.load_f32(s) * cpu1.load_f32(t)); return;
+      case 0x03: cpu1.store_f32(d, cpu1.load_f32(s) / cpu1.load_f32(t)); return;
+      case 0x04: cpu1.store_f32(d, Math.sqrt(cpu1.load_f32(s))); return;
+      case 0x05: cpu1.store_f32(d, Math.abs(cpu1.load_f32(s))); return;
+      case 0x06: cpu1.store_f32(d, cpu1.load_f32(s)); return;
+      case 0x07: cpu1.store_f32(d, -cpu1.load_f32(s)); return;
+      case 0x08: /* 'ROUND.L.'*/ cpu1.store_i64_number(d, Math.round(cpu1.load_f32(s))); return;
+      case 0x09: /* 'TRUNC.L.'*/ cpu1.store_i64_number(d, n64js.trunc(cpu1.load_f32(s))); return;
+      case 0x0a: /* 'CEIL.L.'*/  cpu1.store_i64_number(d, Math.ceil(cpu1.load_f32(s))); return;
+      case 0x0b: /* 'FLOOR.L.'*/ cpu1.store_i64_number(d, Math.floor(cpu1.load_f32(s))); return;
+      case 0x0c: /* 'ROUND.W.'*/ cpu1.store_i32(d, Math.round(cpu1.load_f32(s))); return;  // TODO: check this
+      case 0x0d: /* 'TRUNC.W.'*/ cpu1.store_i32(d, n64js.trunc(cpu1.load_f32(s))); return;
+      case 0x0e: /* 'CEIL.W.'*/  cpu1.store_i32(d, Math.ceil(cpu1.load_f32(s))); return;
+      case 0x0f: /* 'FLOOR.W.'*/ cpu1.store_i32(d, Math.floor(cpu1.load_f32(s))); return;
 
       case 0x20: /* 'CVT.S' */   unimplemented(cpu0.pc, i); return;
-      case 0x21: /* 'CVT.D' */   cpu1.store_f64(d, cpu1.float32[s]); return;
-      case 0x24: /* 'CVT.W' */   cpu1.int32[d] = n64js.convert(cpu1.float32[s]) | 0; return;
+      case 0x21: /* 'CVT.D' */   cpu1.store_f64(d, cpu1.load_f32(s)); return;
+      case 0x24: /* 'CVT.W' */   cpu1.store_i32(d, n64js.convert(cpu1.load_f32(s))); return;
       case 0x25: /* 'CVT.L' */   unimplemented(cpu0.pc, i); return;
     }
     unimplemented(cpu0.pc, i);
   } else {
-    const _s = cpu1.float32[s];
-    const _t = cpu1.float32[t];
+    const _s = cpu1.load_f32(s);
+    const _t = cpu1.load_f32(t);
     handleFloatCompare(op, _s, _t);
   }
 }
@@ -3168,25 +3169,25 @@ function generateDInstrStub(ctx) {
 
   if (op < 0x30) {
     switch (op) {
-      case 0x00: return `cpu1.store_f64( ${d}, cpu1.load_f64( ${s} ) + cpu1.load_f64( ${t} ) );\n`;
-      case 0x01: return `cpu1.store_f64( ${d}, cpu1.load_f64( ${s} ) - cpu1.load_f64( ${t} ) );\n`;
-      case 0x02: return `cpu1.store_f64( ${d}, cpu1.load_f64( ${s} ) * cpu1.load_f64( ${t} ) );\n`;
-      case 0x03: return `cpu1.store_f64( ${d}, cpu1.load_f64( ${s} ) / cpu1.load_f64( ${t} ) );\n`;
-      case 0x04: return `cpu1.store_f64( ${d}, Math.sqrt(cpu1.load_f64(${s})));\n`;
-      case 0x05: return `cpu1.store_f64( ${d}, Math.abs(cpu1.load_f64( ${s})));\n`;
-      case 0x06: return `cpu1.store_f64( ${d},  cpu1.load_f64(${s}));\n`;
-      case 0x07: return `cpu1.store_f64( ${d}, -cpu1.load_f64(${s}));\n`;
-      case 0x08: /* 'ROUND.L.'*/ return `cpu1.store_float_as_long(${d}, Math.round(cpu1.load_f64(${s})));\n`;
-      case 0x09: /* 'TRUNC.L.'*/ return `cpu1.store_float_as_long(${d}, n64js.trunc(cpu1.load_f64(${s})));\n`;
-      case 0x0a: /* 'CEIL.L.'*/  return `cpu1.store_float_as_long(${d}, Math.ceil(cpu1.load_f64(${s})));\n`;
-      case 0x0b: /* 'FLOOR.L.'*/ return `cpu1.store_float_as_long(${d}, Math.floor(cpu1.load_f64(${s})));\n`;
-      case 0x0c: /* 'ROUND.W.'*/ return `cpu1.int32[${d}] = Math.round(cpu1.load_f64(${s})) | 0;\n`;  // TODO: check this
-      case 0x0d: /* 'TRUNC.W.'*/ return `cpu1.int32[${d}] = n64js.trunc(cpu1.load_f64(${s})) | 0;\n`;
-      case 0x0e: /* 'CEIL.W.'*/  return `cpu1.int32[${d}] = Math.ceil(cpu1.load_f64(${s})) | 0;\n`;
-      case 0x0f: /* 'FLOOR.W.'*/ return `cpu1.int32[${d}] = Math.floor(cpu1.load_f64(${s})) | 0;\n`;
-      case 0x20: /* 'CVT.S' */   return `cpu1.float32[${d}] = cpu1.load_f64(${s});\n`;
+      case 0x00: return `cpu1.store_f64(${d}, cpu1.load_f64( ${s} ) + cpu1.load_f64( ${t}));\n`;
+      case 0x01: return `cpu1.store_f64(${d}, cpu1.load_f64( ${s} ) - cpu1.load_f64( ${t}));\n`;
+      case 0x02: return `cpu1.store_f64(${d}, cpu1.load_f64( ${s} ) * cpu1.load_f64( ${t}));\n`;
+      case 0x03: return `cpu1.store_f64(${d}, cpu1.load_f64( ${s} ) / cpu1.load_f64( ${t}));\n`;
+      case 0x04: return `cpu1.store_f64(${d}, Math.sqrt(cpu1.load_f64(${s})));\n`;
+      case 0x05: return `cpu1.store_f64(${d}, Math.abs(cpu1.load_f64( ${s})));\n`;
+      case 0x06: return `cpu1.store_f64(${d}, cpu1.load_f64(${s}));\n`;
+      case 0x07: return `cpu1.store_f64(${d}, -cpu1.load_f64(${s}));\n`;
+      case 0x08: /* 'ROUND.L.'*/ return `cpu1.store_i64_number(${d}, Math.round(cpu1.load_f64(${s})));\n`;
+      case 0x09: /* 'TRUNC.L.'*/ return `cpu1.store_i64_number(${d}, n64js.trunc(cpu1.load_f64(${s})));\n`;
+      case 0x0a: /* 'CEIL.L.'*/  return `cpu1.store_i64_number(${d}, Math.ceil(cpu1.load_f64(${s})));\n`;
+      case 0x0b: /* 'FLOOR.L.'*/ return `cpu1.store_i64_number(${d}, Math.floor(cpu1.load_f64(${s})));\n`;
+      case 0x0c: /* 'ROUND.W.'*/ return `cpu1.store_i32(${d}, Math.round(cpu1.load_f64(${s})));\n`;  // TODO: check this
+      case 0x0d: /* 'TRUNC.W.'*/ return `cpu1.store_i32(${d}, n64js.trunc(cpu1.load_f64(${s})));\n`;
+      case 0x0e: /* 'CEIL.W.'*/  return `cpu1.store_i32(${d}, Math.ceil(cpu1.load_f64(${s})));\n`;
+      case 0x0f: /* 'FLOOR.W.'*/ return `cpu1.store_i32(${d}, Math.floor(cpu1.load_f64(${s})));\n`;
+      case 0x20: /* 'CVT.S' */   return `cpu1.store_f32(${d}, cpu1.load_f64(${s}));\n`;
       case 0x21: /* 'CVT.D' */   break;
-      case 0x24: /* 'CVT.W' */   return `cpu1.int32[${d}] = n64js.convert(cpu1.load_f64(${s})) | 0;\n`;
+      case 0x24: /* 'CVT.W' */   return `cpu1.store_i32(${d}, n64js.convert(cpu1.load_f64(${s})));\n`;
       case 0x25: /* 'CVT.L' */   break;
     }
     return `unimplemented(${toString32(ctx.pc)},${toString32(ctx.instruction)});\n`;
@@ -3217,18 +3218,18 @@ function executeDInstr(i) {
       case 0x05: cpu1.store_f64(d, Math.abs(cpu1.load_f64(s))); return;
       case 0x06: cpu1.store_f64(d, cpu1.load_f64(s)); return;
       case 0x07: cpu1.store_f64(d, -cpu1.load_f64(s)); return;
-      case 0x08: /* 'ROUND.L.'*/ cpu1.store_float_as_long(d, Math.round(cpu1.load_f64(s))); return;
-      case 0x09: /* 'TRUNC.L.'*/ cpu1.store_float_as_long(d, n64js.trunc(cpu1.load_f64(s))); return;
-      case 0x0a: /* 'CEIL.L.'*/  cpu1.store_float_as_long(d, Math.ceil(cpu1.load_f64(s))); return;
-      case 0x0b: /* 'FLOOR.L.'*/ cpu1.store_float_as_long(d, Math.floor(cpu1.load_f64(s))); return;
-      case 0x0c: /* 'ROUND.W.'*/ cpu1.int32[d] = Math.round(cpu1.load_f64(s)) | 0; return;  // TODO: check this
-      case 0x0d: /* 'TRUNC.W.'*/ cpu1.int32[d] = n64js.trunc(cpu1.load_f64(s)) | 0; return;
-      case 0x0e: /* 'CEIL.W.'*/  cpu1.int32[d] = Math.ceil(cpu1.load_f64(s)) | 0; return;
-      case 0x0f: /* 'FLOOR.W.'*/ cpu1.int32[d] = Math.floor(cpu1.load_f64(s)) | 0; return;
+      case 0x08: /* 'ROUND.L.'*/ cpu1.store_i64_number(d, Math.round(cpu1.load_f64(s))); return;
+      case 0x09: /* 'TRUNC.L.'*/ cpu1.store_i64_number(d, n64js.trunc(cpu1.load_f64(s))); return;
+      case 0x0a: /* 'CEIL.L.'*/  cpu1.store_i64_number(d, Math.ceil(cpu1.load_f64(s))); return;
+      case 0x0b: /* 'FLOOR.L.'*/ cpu1.store_i64_number(d, Math.floor(cpu1.load_f64(s))); return;
+      case 0x0c: /* 'ROUND.W.'*/ cpu1.store_i32(d, Math.round(cpu1.load_f64(s))); return;  // TODO: check this
+      case 0x0d: /* 'TRUNC.W.'*/ cpu1.store_i32(d, n64js.trunc(cpu1.load_f64(s))); return;
+      case 0x0e: /* 'CEIL.W.'*/  cpu1.store_i32(d, Math.ceil(cpu1.load_f64(s))); return;
+      case 0x0f: /* 'FLOOR.W.'*/ cpu1.store_i32(d, Math.floor(cpu1.load_f64(s))); return;
 
-      case 0x20: /* 'CVT.S' */   cpu1.float32[d] = cpu1.load_f64(s); return;
+      case 0x20: /* 'CVT.S' */   cpu1.store_f32(d, cpu1.load_f64(s)); return;
       case 0x21: /* 'CVT.D' */   unimplemented(cpu0.pc, i); return;
-      case 0x24: /* 'CVT.W' */   cpu1.int32[d] = n64js.convert(cpu1.load_f64(s)) | 0; return;
+      case 0x24: /* 'CVT.W' */   cpu1.store_i32(d, n64js.convert(cpu1.load_f64(s))); return;
       case 0x25: /* 'CVT.L' */   unimplemented(cpu0.pc, i); return;
     }
     unimplemented(cpu0.pc, i);
@@ -3246,10 +3247,10 @@ function generateWInstrStub(ctx) {
   ctx.fragment.usesCop1 = true;
   ctx.isTrivial = true;
   switch (cop1_func(ctx.instruction)) {
-    case 0x20:    /* 'CVT.S' */       return 'cpu1.float32[' + d + '] = cpu1.int32[' + s + '];\n';
-    case 0x21:    /* 'CVT.D' */       return 'cpu1.store_f64(' + d + ', cpu1.int32[' + s + ']);\n';
+    case 0x20: /* 'CVT.S' */ return `cpu1.store_f32(${d}, cpu1.load_i32(${s}));\n`;
+    case 0x21: /* 'CVT.D' */ return `cpu1.store_f64(${d}, cpu1.load_i32(${s}));\n`;
   }
-  return 'unimplemented(' + toString32(ctx.pc) + ',' + toString32(ctx.instruction) + ');\n';
+  return `unimplemented(${toString32(ctx.pc)},${toString32(ctx.instruction)});\n`;
 }
 
 function executeWInstr(i) {
@@ -3257,8 +3258,8 @@ function executeWInstr(i) {
   const d = fd(i);
 
   switch (cop1_func(i)) {
-    case 0x20: cpu1.float32[d] = cpu1.int32[s]; return;
-    case 0x21: cpu1.store_f64(d, cpu1.int32[s]); return;
+    case 0x20: cpu1.store_f32(d, cpu1.load_i32(s)); return;
+    case 0x21: cpu1.store_f64(d, cpu1.load_i32(s)); return;
   }
   unimplemented(cpu0.pc, i);
 }
@@ -3270,10 +3271,10 @@ function generateLInstrStub(ctx) {
   ctx.fragment.usesCop1 = true;
   ctx.isTrivial = true;
   switch (cop1_func(ctx.instruction)) {
-    case 0x20:    /* 'CVT.S' */       return 'cpu1.float32[' + d + '] = cpu1.load_s64_as_double(' + s + ');\n';
-    case 0x21:    /* 'CVT.D' */       return 'cpu1.store_f64(' + d + ', cpu1.load_s64_as_double(' + s + ') );\n';
+    case 0x20: /* 'CVT.S' */ return `cpu1.store_f32(${d}, cpu1.load_i64_number(${s});\n`;
+    case 0x21: /* 'CVT.D' */ return `cpu1.store_f64(${d}, cpu1.load_i64_number(${s}));\n`;
   }
-  return 'unimplemented(' + toString32(ctx.pc) + ',' + toString32(ctx.instruction) + ');\n';
+  return `unimplemented(${toString32(ctx.pc)},${toString32(ctx.instruction)});\n`;
 }
 
 function executeLInstr(i) {
@@ -3281,8 +3282,8 @@ function executeLInstr(i) {
   const d = fd(i);
 
   switch (cop1_func(i)) {
-    case 0x20:    /* 'CVT.S' */ cpu1.float32[d] = cpu1.load_s64_as_double(s); return;
-    case 0x21:    /* 'CVT.D' */ cpu1.store_f64(d, cpu1.load_s64_as_double(s)); return;
+    case 0x20: /* 'CVT.S' */ cpu1.store_f32(d, cpu1.load_i64_number(s)); return;
+    case 0x21: /* 'CVT.D' */ cpu1.store_f64(d, cpu1.load_i64_number(s)); return;
   }
   unimplemented(cpu0.pc, i);
 }
@@ -3406,7 +3407,7 @@ function generateCop1(ctx) {
 
   } else {
     impl += 'if( (c.control[12] & SR_CU1) === 0 ) {\n';
-    impl += `  executeCop1_disabled(${toString32(ctx.instruction)});\n`;
+    impl += `  n64js.executeCop1_disabled(${toString32(ctx.instruction)});\n`;
     impl += '} else {\n';
     impl += '  ' + op_impl;
     impl += '}\n';
@@ -3428,6 +3429,7 @@ function executeCop1(i) {
   const fmt = (i >>> 21) & 0x1f;
   cop1Table[fmt](i);
 }
+
 function executeCop1_disabled(i) {
   logger.log('Thread accessing cop1 for first time, throwing cop1 unusable exception');
 
@@ -3435,11 +3437,14 @@ function executeCop1_disabled(i) {
 
   cpu0.throwCop1Unusable();
 }
+n64js.executeCop1_disabled = executeCop1_disabled;
 
 function cop1ControlChanged() {
   const control = cpu0.control[cpu0_constants.controlSR];
   const enable = (control & SR_CU1) !== 0;
   simpleTable[0x11] = enable ? executeCop1 : executeCop1_disabled;
+
+  cpu1.fullMode = (control & SR_FR) !== 0;
 }
 n64js.cop1ControlChanged = cop1ControlChanged;
 
