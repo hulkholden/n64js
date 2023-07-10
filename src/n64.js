@@ -44,8 +44,15 @@ function setRunning(value) {
   ui.setRunning(value);
 }
 
+function computeHash(arrayBuffer) {
+  const hash = md5(arrayBuffer);
+  logger.log(`hash is ${hash}`);
+}
+
 function loadRom(arrayBuffer) {
   fixRomByteOrder(arrayBuffer);
+
+  computeHash(arrayBuffer);
 
   const rom = hardware.createROM(arrayBuffer);
 
