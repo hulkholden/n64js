@@ -41,3 +41,9 @@ export function toString64(hi, lo) {
   var u = toHex(hi, 32);
   return '0x' + u + t;
 };
+
+export function toString64_bigint(v) {
+  var u = toHex(Number(v >> 32n), 32);
+  var t = toHex(Number(v & 0xffffffffn), 32);
+  return '0x' + u + t;
+};
