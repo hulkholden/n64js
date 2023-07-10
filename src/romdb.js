@@ -759,7 +759,7 @@ export const romdb = {
   '5bf3e8a2d987dcc9': {name:"Superman - The Animated Series"                                                },
   '74ab4cb4299a0207': {name:"Superman - The Animated Series"                                                },
   'f311e83524277999': {name:"Susume! Taisen Puzzle Dama Toukon! Marumata Chou"                              },
-  '56a48bb9af762b5b': {name:"Tamagotchi World 64"                                                           },
+  '56a48bb9af762b5b': {name:"Tamagotchi World 64" ,                                       save:'Eeprom4k'   },
   '54ddbcae4a83ff15': {name:"Taz Express",                                                save:'Eeprom4k'   },
   'bb2f04d97c99fffc': {name:"Telefoot Soccer 2000"                                                          },
   'a6db3a969bc8d5f7': {name:"Tetris 64"                                                                     },
