@@ -881,6 +881,12 @@ n64js.load_s32 = (ram, addr) => {
   return lw_slow(addr);
 };
 
+n64js.load_u64_bigint = (ram, address) => {
+  const hi = n64js.load_u32(ram, address);
+  const lo = n64js.load_u32(ram, address + 4);
+  return (BigInt(hi) << 32n) | BigInt(lo >>> 0);
+}
+
 n64js.store_8 = (ram, addr, value) => {
   if (addr < -2139095040) {
     const phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
@@ -929,6 +935,11 @@ n64js.store_64 = (ram, addr, value_lo, value_hi) => {
   }
 };
 
+n64js.store_64_bigint = (ram, addr, value) => {
+  const lo = Number(value & 0xffffffffn);
+  const hi = Number(value >> 32n);
+  n64js.store_64(ram, addr, lo, hi);
+};
 
 function unimplemented(pc, i) {
   const r = disassembleInstruction(pc, i);
@@ -2618,8 +2629,36 @@ function executeLWR(i) {
   setSignExtend(rt(i), value);
 }
 
-function executeLDL(i) { unimplemented(cpu0.pc, i); }
-function executeLDR(i) { unimplemented(cpu0.pc, i); }
+function executeLDL(i) {
+  const addr = memaddr(i) >>> 0;
+  const addrAligned = (addr & ~7) >>> 0;
+  const mem = n64js.load_u64_bigint(cpu0.ram, addrAligned);
+  const reg = cpu0.getGPR_u64_bigint(rt(i));
+
+  const n = addr & 7;
+  const shift = BigInt(8 * n);
+  const allBits = 0xffff_ffff_ffff_ffffn;
+  const mask = allBits >> (64n - shift);
+
+  // Final mask shouldn't be needed - BigInt bug?
+  const result = ((reg & mask) | (mem << shift)) & allBits;
+  cpu0.setGPR_s64_bigint(rt(i), result);
+}
+
+function executeLDR(i) {
+  const addr = memaddr(i) >>> 0;
+  const addrAligned = (addr & ~7) >>> 0;
+  const mem = n64js.load_u64_bigint(cpu0.ram, addrAligned);
+  const reg = cpu0.getGPR_u64_bigint(rt(i));
+
+  const n = addr & 7;
+  const shift = BigInt(8 * (7 - n));
+  const allBits = 0xffff_ffff_ffff_ffffn;
+  const mask = ~(allBits >> shift);
+
+  const result = (reg & mask) | (mem >> shift);
+  cpu0.setGPR_s64_bigint(rt(i), result);
+}
 
 function generateSB(ctx) {
   const t = ctx.instr_rt();
@@ -2790,8 +2829,36 @@ function executeSWR(i) {
   n64js.writeMemory32(address_aligned, value);
 }
 
-function executeSDL(i) { unimplemented(cpu0.pc, i); }
-function executeSDR(i) { unimplemented(cpu0.pc, i); }
+function executeSDL(i) {
+  const addr = memaddr(i) >>> 0;
+  const addrAligned = (addr & ~7) >>> 0;
+  const mem = n64js.load_u64_bigint(cpu0.ram, addrAligned);
+  const reg = cpu0.getGPR_u64_bigint(rt(i));
+
+  const n = addr & 7;
+  const shift = BigInt(8 * n);
+  const allBits = 0xffff_ffff_ffff_ffffn;
+  const mask = ~(allBits >> shift);
+
+  const result = (mem & mask) | (reg >> shift);
+  n64js.store_64_bigint(cpu0.ram, addrAligned, result);
+}
+
+function executeSDR(i) {
+  const addr = memaddr(i) >>> 0;
+  const addrAligned = (addr & ~7) >>> 0;
+  const mem = n64js.load_u64_bigint(cpu0.ram, addrAligned);
+  const reg = cpu0.getGPR_u64_bigint(rt(i));
+
+  const n = addr & 7;
+  const shift = BigInt(8 * (7 - n));
+  const allBits = 0xffff_ffff_ffff_ffffn;
+  const mask = allBits >> (64n - shift);
+
+  // Final mask shouldn't be needed - BigInt bug?
+  const result = ((mem & mask) | (reg << shift)) & allBits;
+  n64js.store_64_bigint(cpu0.ram, addrAligned, result);
+}
 
 function generateCACHE(ctx) {
   const b = ctx.instr_base();
