@@ -2596,37 +2596,33 @@ function executeLDC1(i) {
 function executeLDC2(i) { unimplemented(cpu0.pc, i); }
 
 function executeLWL(i) {
-  const address = memaddr(i) >>> 0;
-  const address_aligned = (address & ~3) >>> 0;
-  const memory = n64js.readMemoryU32(address_aligned);
+  const addr = memaddr(i) >>> 0;
+  const addrAligned = (addr & ~3) >>> 0;
+  const mem = n64js.readMemoryU32(addrAligned);
   const reg = cpu0.gprLo[rt(i)];
 
-  let value;
-  switch (address % 4) {
-    case 0: value = memory; break;
-    case 1: value = (reg & 0x000000ff) | (memory << 8); break;
-    case 2: value = (reg & 0x0000ffff) | (memory << 16); break;
-    default: value = (reg & 0x00ffffff) | (memory << 24); break;
-  }
+  const n = addr & 3;
+  const shift = 8 * n;
+  const allBits = 0xffff_ffff;
+  const mask = shift ? allBits >>> (32 - shift) : 0; // >>>32 is undefined.
 
-  setSignExtend(rt(i), value);
+  const result = (reg & mask) | (mem << shift);
+  setSignExtend(rt(i), result);
 }
 
 function executeLWR(i) {
-  const address = memaddr(i) >>> 0;
-  const address_aligned = (address & ~3) >>> 0;
-  const memory = n64js.readMemoryU32(address_aligned);
+  const addr = memaddr(i) >>> 0;
+  const addrAligned = (addr & ~3) >>> 0;
+  const mem = n64js.readMemoryU32(addrAligned);
   const reg = cpu0.gprLo[rt(i)];
 
-  let value;
-  switch (address % 4) {
-    case 0: value = (reg & 0xffffff00) | (memory >>> 24); break;
-    case 1: value = (reg & 0xffff0000) | (memory >>> 16); break;
-    case 2: value = (reg & 0xff000000) | (memory >>> 8); break;
-    default: value = memory; break;
-  }
+  const n = addr & 3;
+  const shift = 8 * (3 - n);
+  const allBits = 0xffff_ffff;
+  const mask = ~(allBits >>> shift);
 
-  setSignExtend(rt(i), value);
+  const result = (reg & mask) | (mem >>> shift);
+  setSignExtend(rt(i), result);
 }
 
 function executeLDL(i) {
@@ -2796,37 +2792,33 @@ function executeSDC1(i) {
 function executeSDC2(i) { unimplemented(cpu0.pc, i); }
 
 function executeSWL(i) {
-  const address = memaddr(i);
-  const address_aligned = (address & ~3) >>> 0;
-  const memory = n64js.readMemoryU32(address_aligned);
+  const addr = memaddr(i);
+  const addrAligned = (addr & ~3) >>> 0;
+  const mem = n64js.readMemoryU32(addrAligned);
   const reg = cpu0.gprLo[rt(i)];
 
-  let value;
-  switch (address % 4) {
-    case 0: value = reg; break;
-    case 1: value = (memory & 0xff000000) | (reg >>> 8); break;
-    case 2: value = (memory & 0xffff0000) | (reg >>> 16); break;
-    default: value = (memory & 0xffffff00) | (reg >>> 24); break;
-  }
+  const n = addr & 3;
+  const shift = 8 * n;
+  const allBits = 0xffff_ffff;
+  const mask = ~(allBits >>> shift);
 
-  n64js.writeMemory32(address_aligned, value);
+  const result = (mem & mask) | (reg >>> shift);
+  n64js.writeMemory32(addrAligned, result);
 }
 
 function executeSWR(i) {
-  const address = memaddr(i);
-  const address_aligned = (address & ~3) >>> 0;
-  const memory = n64js.readMemoryU32(address_aligned);
+  const addr = memaddr(i);
+  const addrAligned = (addr & ~3) >>> 0;
+  const mem = n64js.readMemoryU32(addrAligned);
   const reg = cpu0.gprLo[rt(i)];
 
-  let value;
-  switch (address % 4) {
-    case 0: value = (memory & 0x00ffffff) | (reg << 24); break;
-    case 1: value = (memory & 0x0000ffff) | (reg << 16); break;
-    case 2: value = (memory & 0x000000ff) | (reg << 8); break;
-    default: value = reg; break;
-  }
+  const n = addr & 3;
+  const shift = 8 * (3 - n);
+  const allBits = 0xffff_ffff;
+  const mask = shift > 0 ? allBits >>> (32 - shift) : 0; // >>>32 is undefined.
 
-  n64js.writeMemory32(address_aligned, value);
+  const result = (mem & mask) | (reg << shift);
+  n64js.writeMemory32(addrAligned, result);
 }
 
 function executeSDL(i) {
