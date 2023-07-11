@@ -1608,7 +1608,7 @@ function executeDADDU(i) {
 
 function executeDSUB(i) {
   const s = cpu0.getGPR_s64_bigint(rs(i));
-  const t = cpu0.getGPR_s64_bigint(st(i));
+  const t = cpu0.getGPR_s64_bigint(rt(i));
   const result = s - t;
   if ((s ^ t) & (s ^ result) & 0x8000000000000000n) {
     n64js.halt("DSUB overlow");
