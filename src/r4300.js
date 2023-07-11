@@ -1397,7 +1397,7 @@ function executeDDIVU(i) {
     lo = dividend / divisor;
     hi = dividend % divisor;
   } else {
-    lo = -1;
+    lo = -1n;
     hi = dividend;
   }
 
