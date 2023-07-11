@@ -1163,7 +1163,8 @@ function executeDSRL(i) {
   const lo = cpu0.gprLo[t];
   const hi = cpu0.gprHi[t];
 
-  cpu0.gprLo[d] = (lo >>> shift) | (hi << nshift);
+  // Take care with shift of 32 (JS treats as shift of 0).
+  cpu0.gprLo[d] = (lo >>> shift) | (shift > 0 ? (hi << (32 - shift)) : 0);
   cpu0.gprHi[d] = (hi >>> shift);
 }
 
