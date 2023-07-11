@@ -1147,8 +1147,11 @@ function executeDSLL(i) {
 
 function executeDSLL32(i) {
   const d = rd(i);
+
+  const val = cpu0.gprLo[rt(i)];
+
   cpu0.gprLo_signed[d] = 0;
-  cpu0.gprHi_signed[d] = cpu0.gprLo[rt(i)] << sa(i);
+  cpu0.gprHi_signed[d] = val << sa(i);
 }
 
 function executeDSRL(i) {
