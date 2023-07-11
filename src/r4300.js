@@ -1136,13 +1136,13 @@ function executeDSLL(i) {
   const d = rd(i);
   const t = rt(i);
   const shift = sa(i);
-  const nshift = 32 - shift;
 
   const lo = cpu0.gprLo[t];
   const hi = cpu0.gprHi[t];
 
-  cpu0.gprLo[d] = (lo << shift);
-  cpu0.gprHi[d] = (hi << shift) | (lo >>> nshift);
+  // Take care with right shift of 32 (JS treats as shift of 0).
+  cpu0.gprLo[d] = lo << shift;
+  cpu0.gprHi[d] = (hi << shift) | (shift > 0 ? (lo >>> (32 - shift)) : 0);
 }
 
 function executeDSLL32(i) {
