@@ -1089,16 +1089,35 @@ function executeSRLV(i) {
   cpu0.gprHi_signed[d] = result >> 31;    // sign extend
 }
 
+function generateSRAV(ctx) {
+  const d = ctx.instr_rd();
+  const s = ctx.instr_rs();
+  const t = ctx.instr_rt();
 
-function generateSRAV(ctx) { return generateShiftVariable(ctx, '>>'); }
+  const impl = `
+  const shift = (${genSrcRegLo(s)} & 0x1f);
+  const lo = ${genSrcRegLo(t)};
+  const hi = ${genSrcRegHi(t)};
+  const result = (lo >>> shift) | (shift > 0 ? (hi << (32 - shift)) : 0);
+  rlo[${d}] = result;
+  rhi[${d}] = result >> 31;
+  `;
+  return generateTrivialOpBoilerplate(impl, ctx);
+}
+
 function executeSRAV(i) {
   const d = rd(i);
   const s = rs(i);
   const t = rt(i);
 
-  const result = cpu0.gprLo_signed[t] >> (cpu0.gprLo_signed[s] & 0x1f);
-  cpu0.gprLo_signed[d] = result;
-  cpu0.gprHi_signed[d] = result >> 31;    // sign extend
+  const shift = cpu0.gprLo_signed[s] & 0x1f;
+  const lo = cpu0.gprLo[t];
+  const hi = cpu0.gprHi_signed[t];
+
+  // Take care with shift of 32 (JS treats as shift of 0).
+  const result = (lo >>> shift) | (shift > 0 ? (hi << (32 - shift)) : 0);
+  cpu0.gprLo[d] = result;
+  cpu0.gprHi[d] = result >> 31;
 }
 
 function executeDSLLV(i) {
