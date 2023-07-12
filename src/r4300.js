@@ -366,7 +366,7 @@ class CPU0 {
     this.multHi[0] = this.multHi[1] = 0;
 
     this.control[cpu0_constants.controlRand] = 32 - 1;
-    this.control[cpu0_constants.controlSR] = 0x70400004;
+    this.control[cpu0_constants.controlStatus] = 0x70400004;
     this.control[cpu0_constants.controlConfig] = 0x0006e463;
     cop1ControlChanged();
   }
@@ -421,12 +421,12 @@ class CPU0 {
   }
 
   setSR(value) {
-    const oldVal = this.control[cpu0_constants.controlSR];
+    const oldVal = this.control[cpu0_constants.controlStatus];
     if ((oldVal & SR_FR) !== (value & SR_FR)) {
       logger.log('Changing FPU to ' + ((value & SR_FR) ? '64bit' : '32bit'));
     }
 
-    this.control[cpu0_constants.controlSR] = value;
+    this.control[cpu0_constants.controlStatus] = value;
     cop1ControlChanged();
 
     if (this.checkForUnmaskedInterrupts()) {
@@ -435,7 +435,7 @@ class CPU0 {
   }
 
   checkForUnmaskedInterrupts() {
-    const sr = this.control[cpu0_constants.controlSR];
+    const sr = this.control[cpu0_constants.controlStatus];
 
     // Ensure ERL/EXL are clear and IE is set
     if ((sr & (SR_EXL | SR_ERL | SR_IE)) === SR_IE) {
@@ -491,7 +491,7 @@ class CPU0 {
   setException(mask, exception) {
     this.control[cpu0_constants.controlCause] &= ~mask;
     this.control[cpu0_constants.controlCause] |= exception;
-    this.control[cpu0_constants.controlSR] |= SR_EXL;
+    this.control[cpu0_constants.controlStatus] |= SR_EXL;
     this.control[cpu0_constants.controlEPC] = this.pc;
 
     const bdMask = (1 << CAUSE_BD_BIT);
@@ -1741,7 +1741,7 @@ function executeMFC0(i) {
 
 function generateMTC0(ctx) {
   const s = ctx.instr_fs();
-  if (s === cpu0_constants.controlSR) {
+  if (s === cpu0_constants.controlStatus) {
     ctx.fragment.cop1statusKnown = false;
   }
 
@@ -1800,7 +1800,7 @@ function executeMTC0(i) {
       cpu0.control[control_reg] |= (new_value & causeWritableBits);
       break;
 
-    case cpu0_constants.controlSR:
+    case cpu0_constants.controlStatus:
       cpu0.setSR(new_value);
       break;
     case cpu0_constants.controlCount:
@@ -1872,13 +1872,13 @@ function executeTLB(i) {
 }
 
 function executeERET(i) {
-  if (cpu0.control[cpu0_constants.controlSR] & SR_ERL) {
+  if (cpu0.control[cpu0_constants.controlStatus] & SR_ERL) {
     cpu0.nextPC = cpu0.control[cpu0_constants.controlErrorEPC];
-    cpu0.control[cpu0_constants.controlSR] &= ~SR_ERL;
+    cpu0.control[cpu0_constants.controlStatus] &= ~SR_ERL;
     logger.log('ERET from error trap - ' + cpu0.nextPC);
   } else {
     cpu0.nextPC = cpu0.control[cpu0_constants.controlEPC];
-    cpu0.control[cpu0_constants.controlSR] &= ~SR_EXL;
+    cpu0.control[cpu0_constants.controlStatus] &= ~SR_EXL;
     //logger.log('ERET from interrupt/exception ' + cpu0.nextPC);
   }
 
@@ -3684,14 +3684,14 @@ function executeCop1(i) {
 function executeCop1_disabled(i) {
   logger.log('Thread accessing cop1 for first time, throwing cop1 unusable exception');
 
-  assert((cpu0.control[cpu0_constants.controlSR] & SR_CU1) === 0, "SR_CU1 in inconsistent state");
+  assert((cpu0.control[cpu0_constants.controlStatus] & SR_CU1) === 0, "SR_CU1 in inconsistent state");
 
   cpu0.throwCop1Unusable();
 }
 n64js.executeCop1_disabled = executeCop1_disabled;
 
 function cop1ControlChanged() {
-  const control = cpu0.control[cpu0_constants.controlSR];
+  const control = cpu0.control[cpu0_constants.controlStatus];
   const enable = (control & SR_CU1) !== 0;
   simpleTable[0x11] = enable ? executeCop1 : executeCop1_disabled;
 
