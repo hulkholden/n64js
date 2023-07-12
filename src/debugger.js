@@ -326,7 +326,7 @@ export class Debugger {
 
     const flagNames = ['IE', 'EXL', 'ERL'];//, '', '', 'UX', 'SX', 'KX' ];
 
-    let sr = n64js.cpu0.control[cpu0_constants.controlSR];
+    let sr = n64js.cpu0.control[cpu0_constants.controlStatus];
 
     let $td = $('<td class="fixed" />');
     $td.append(toString32(sr));

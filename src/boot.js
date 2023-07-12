@@ -9,7 +9,7 @@ export function simulateBoot(cpu0, rominfo) {
     cpu0.gprLo[reg] = lo;
   }
 
-  cpu0.control[cpu0_constants.controlSR] = 0x241000E0;
+  cpu0.control[cpu0_constants.controlStatus] = 0x241000E0;
   cpu0.control[cpu0_constants.controlConfig] = 0x7006E463;
   cpu0.control[cpu0_constants.controlCount] = 0x5000;
   cpu0.control[cpu0_constants.controlCause] = 0x30000000;
