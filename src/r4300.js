@@ -2,8 +2,8 @@
 
 import * as cpu0_constants from './cpu0_constants.js';
 import { CPU1 } from './cpu1.js';
-import { disassembleInstruction, cop0ControlRegisterNames } from './disassemble.js';
-import { toString8, toString32 } from './format.js';
+import { disassembleInstruction, cop0ControlRegisterNames, cop0gprNames } from './disassemble.js';
+import { toString8, toString32, toString64_bigint } from './format.js';
 import { Fragment, lookupFragment, resetFragments } from './fragments.js';
 import { assert } from './assert.js';
 import * as logger from './logger.js';
@@ -1840,6 +1840,23 @@ function executeMTC0(i) {
   }
 }
 
+function executeDMFC0(i) {
+  const controlReg = fs(i);
+
+  logger.log(`DMFC0 ${cop0ControlRegisterNames[controlReg]} -> ${cop0gprNames[rt(i)]}`)
+  // TODO: Implement this correctly.
+  executeMFC0(i);
+}
+
+function executeDMTC0(i) {
+  const controlReg = fs(i);
+  const newValue = cpu0.getGPR_u64_bigint(rt(i));
+
+  logger.log(`DMTC0 ${toString64_bigint(newValue)} --> ${cop0ControlRegisterNames[controlReg]}`)
+  // TODO: Implement this correctly.
+  executeMTC0(i);
+}
+
 function executeTLB(i) {
   switch (tlbop(i)) {
     case 0x01: cpu0.tlbRead(); return;
@@ -3547,29 +3564,28 @@ function executeSpecial(i) {
 }
 
 const cop0Table = [
-  executeMFC0,          executeUnknown,       executeUnknown,     executeUnknown,
-  executeMTC0,          executeUnknown,       executeUnknown,     executeUnknown,
-  executeUnknown,       executeUnknown,       executeUnknown,     executeUnknown,
-  executeUnknown,       executeUnknown,       executeUnknown,     executeUnknown,
-  executeTLB,           executeUnknown,       executeUnknown,     executeUnknown,
-  executeUnknown,       executeUnknown,       executeUnknown,     executeUnknown,
-  executeUnknown,       executeUnknown,       executeUnknown,     executeUnknown,
-  executeUnknown,       executeUnknown,       executeUnknown,     executeUnknown
+  executeMFC0,    executeDMFC0,   executeUnknown, executeUnknown,
+  executeMTC0,    executeDMTC0,   executeUnknown, executeUnknown,
+  executeUnknown, executeUnknown, executeUnknown, executeUnknown,
+  executeUnknown, executeUnknown, executeUnknown, executeUnknown,
+  executeTLB,     executeUnknown, executeUnknown, executeUnknown,
+  executeUnknown, executeUnknown, executeUnknown, executeUnknown,
+  executeUnknown, executeUnknown, executeUnknown, executeUnknown,
+  executeUnknown, executeUnknown, executeUnknown, executeUnknown
 ];
 if (cop0Table.length != 32) {
   throw "Oops, didn't build the cop0 table correctly";
 }
 
-
 const cop0TableGen = [
-  'executeMFC0',          'executeUnknown',       'executeUnknown',     'executeUnknown',
-  generateMTC0,           'executeUnknown',       'executeUnknown',     'executeUnknown',
-  'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
-  'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
-  'executeTLB',           'executeUnknown',       'executeUnknown',     'executeUnknown',
-  'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
-  'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
-  'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown'
+  'executeMFC0',    'executeDMFC0',   'executeUnknown', 'executeUnknown',
+  generateMTC0,     'executeDMTC0',   'executeUnknown', 'executeUnknown',
+  'executeUnknown', 'executeUnknown', 'executeUnknown', 'executeUnknown',
+  'executeUnknown', 'executeUnknown', 'executeUnknown', 'executeUnknown',
+  'executeTLB',     'executeUnknown', 'executeUnknown', 'executeUnknown',
+  'executeUnknown', 'executeUnknown', 'executeUnknown', 'executeUnknown',
+  'executeUnknown', 'executeUnknown', 'executeUnknown', 'executeUnknown',
+  'executeUnknown', 'executeUnknown', 'executeUnknown', 'executeUnknown'
 ];
 if (cop0TableGen.length != 32) {
   throw "Oops, didn't build the cop0 table correctly";
@@ -3578,6 +3594,8 @@ if (cop0TableGen.length != 32) {
 // Expose all the functions that we don't yet generate
 n64js.executeMFC0 = executeMFC0;
 n64js.executeMTC0 = executeMTC0;  // There's a generateMTC0, but it calls through to the interpreter
+n64js.executeDMFC0 = executeDMFC0;
+n64js.executeDMTC0 = executeDMTC0;
 n64js.executeTLB = executeTLB;
 
 
