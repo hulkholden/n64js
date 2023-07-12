@@ -997,16 +997,27 @@ function executeSLL(i) {
   cpu0.gprHi_signed[d] = result >> 31;    // sign extend
 }
 
+function generateSRL(ctx) {
+  const d = ctx.instr_rd();
+  const t = ctx.instr_rt();
+  const shift = ctx.instr_sa();
 
-function generateSRL(ctx) { return generateShiftImmediate(ctx, '>>>'); }
+  const impl = `
+    const result = ${genSrcRegLo(t)} >>> ${shift};
+    rlo[${d}] = result;
+    rhi[${d}] = result >> 31;
+    `;
+  return generateTrivialOpBoilerplate(impl, ctx);
+}
+
 function executeSRL(i) {
   const d = rd(i);
   const t = rt(i);
   const shift = sa(i);
 
-  const result = cpu0.gprLo_signed[t] >>> shift;
-  cpu0.gprLo_signed[d] = result;
-  cpu0.gprHi_signed[d] = result >> 31;    // sign extend
+  const result = cpu0.gprLo[t] >>> shift;
+  cpu0.gprLo[d] = result;
+  cpu0.gprHi[d] = result >> 31;    // sign extend
 }
 
 function generateSRA(ctx) {
@@ -1034,6 +1045,7 @@ function executeSRA(i) {
   const lo = cpu0.gprLo[t];
   const hi = cpu0.gprHi[t];
 
+  // SRA appears to shift the full 64 bit reg, trunc to 32 bits, then sign extend.
   // Take care with shift of 32 (JS treats as shift of 0).
   const result = (lo >>> shift) | (shift > 0 ? (hi << (32 - shift)) : 0);
   cpu0.gprLo[d] = result;
