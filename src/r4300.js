@@ -70,6 +70,9 @@ const SR_CU3          = 0x80000000;
 
 const SR_CUMASK       = 0xf0000000;
 
+// Only bit 19 is unwritable.
+const statusWritableBits = ~0x80000;
+
 const CAUSE_BD_BIT    = 31;           // NB: Closure Compiler doesn't like 32 bit constants.
 const CAUSE_BD        = 0x80000000;
 const CAUSE_CEMASK    = 0x30000000;
@@ -420,13 +423,13 @@ class CPU0 {
     checkCauseIP3Consistent();
   }
 
-  setSR(value) {
+  setStatus(value) {
     const oldVal = this.control[cpu0_constants.controlStatus];
     if ((oldVal & SR_FR) !== (value & SR_FR)) {
       logger.log('Changing FPU to ' + ((value & SR_FR) ? '64bit' : '32bit'));
     }
 
-    this.control[cpu0_constants.controlStatus] = value;
+    this.control[cpu0_constants.controlStatus] = value & statusWritableBits;
     cop1ControlChanged();
 
     if (this.checkForUnmaskedInterrupts()) {
@@ -1801,7 +1804,7 @@ function executeMTC0(i) {
       break;
 
     case cpu0_constants.controlStatus:
-      cpu0.setSR(new_value);
+      cpu0.setStatus(new_value);
       break;
     case cpu0_constants.controlCount:
       cpu0.control[control_reg] = new_value;
