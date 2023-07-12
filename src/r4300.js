@@ -172,6 +172,8 @@ const TLBRAND_RANDSHIFT = 0;
 
 const TLBWIRED_WIREDMASK  = 0x3f;
 
+const wiredWritableBits = 0x3f;
+
 const TLBCTXT_BASEMASK  = 0xff800000;
 const TLBCTXT_BASESHIFT = 23;
 const TLBCTXT_BASEBITS  = 9;
@@ -1775,9 +1777,7 @@ function executeMTC0(i) {
       break;
 
     case cpu0_constants.controlWired:
-      logger.log(`Setting Wired register to ${toString32(new_value)}`);
-      // TODO: bits 6 to 31 are hardcoded to zero.
-      cpu0.control[control_reg] = new_value;
+      cpu0.control[control_reg] = new_value & wiredWritableBits;
       // Set to top limit on write to wired
       cpu0.control[cpu0_constants.controlRand] = 31;
       break;
