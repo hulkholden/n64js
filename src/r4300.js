@@ -951,7 +951,7 @@ function unimplemented(pc, i) {
 }
 
 function executeUnknown(i) {
-  throw 'Unknown op: ' + toString32(cpu0.pc) + ', ' + toString32(i);
+  throw `Unknown op, pc: ${toString32(cpu0.pc)}, instruction: ${toString32(i)}`;
 }
 
 /**
