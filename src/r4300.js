@@ -1791,7 +1791,6 @@ function executeMTC0(i) {
     case cpu0_constants.controlPRId:
     case cpu0_constants.controlCacheErr:
       // All these registers are read-only
-      logger.log(`Attempted write to read-only cpu0 control register. ${toString32(new_value)} --> ${cop0ControlRegisterNames[control_reg]}`);
       break;
 
     case cpu0_constants.controlCause:
