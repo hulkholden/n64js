@@ -1009,18 +1009,36 @@ function executeSRL(i) {
   cpu0.gprHi_signed[d] = result >> 31;    // sign extend
 }
 
+function generateSRA(ctx) {
+  const d = ctx.instr_rd();
+  const t = ctx.instr_rt();
+  const shift = ctx.instr_sa();
 
-function generateSRA(ctx) { return generateShiftImmediate(ctx, '>>'); }
+  const hiFrag = shift > 0 ? `(hi << (${32 - shift}))` : `0`;
+
+  const impl = `
+    const lo = ${genSrcRegLo(t)};
+    const hi = ${genSrcRegHi(t)};
+    const result = (lo >>> ${shift}) | ${hiFrag};
+    rlo[${d}] = result;
+    rhi[${d}] = result >> 31;
+    `;
+  return generateTrivialOpBoilerplate(impl, ctx);
+}
+
 function executeSRA(i) {
   const d = rd(i);
   const t = rt(i);
   const shift = sa(i);
 
-  const result = cpu0.gprLo_signed[t] >> shift;
-  cpu0.gprLo_signed[d] = result;
-  cpu0.gprHi_signed[d] = result >> 31;    // sign extend
-}
+  const lo = cpu0.gprLo[t];
+  const hi = cpu0.gprHi[t];
 
+  // Take care with shift of 32 (JS treats as shift of 0).
+  const result = (lo >>> shift) | (shift > 0 ? (hi << (32 - shift)) : 0);
+  cpu0.gprLo[d] = result;
+  cpu0.gprHi[d] = result >> 31;
+}
 
 function generateShiftVariable(ctx, op) {
   const d = ctx.instr_rd();
