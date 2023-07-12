@@ -296,6 +296,8 @@ class CPU0 {
     this.nextPC = 0; // Set to the next expected PC before an op executes. Ops can update this to change control flow without branch delay (e.g. likely branches, ERET)
     this.branchTarget = 0; // Set to indicate a branch has been taken. Sets the delayPC for the subsequent op.
 
+    this.llBit = 0;  // Load Linked bit.
+
     this.stuffToDo = 0; // used to flag r4300 to cease execution
 
     this.events = [];
@@ -1730,6 +1732,10 @@ function executeMTC0(i) {
       cpu0.control[control_reg] = new_value;
       break;
 
+    case cpu0_constants.controlLLAddr:
+      cpu0.control[control_reg] = new_value;
+      break;
+
     default:
       cpu0.control[control_reg] = new_value;
       logger.log(`Write to cpu0 control register. ${toString32(new_value)} --> ${cop0ControlRegisterNames[control_reg]}`);
@@ -1758,6 +1764,8 @@ function executeERET(i) {
     cpu0.control[cpu0_constants.controlSR] &= ~SR_EXL;
     //logger.log('ERET from interrupt/exception ' + cpu0.nextPC);
   }
+
+  cpu0.llBit = 0;
 }
 
 function executeTGEI(i) { unimplemented(cpu0.pc, i); }
@@ -2886,10 +2894,72 @@ function executeCACHE(i) {
   }
 }
 
-function executeLL(i) { unimplemented(cpu0.pc, i); }
-function executeLLD(i) { unimplemented(cpu0.pc, i); }
-function executeSC(i) { unimplemented(cpu0.pc, i); }
-function executeSCD(i) { unimplemented(cpu0.pc, i); }
+// TODO: move this somewhere central.
+function physicalAddress(addr) {
+  return addr & (~0xe0000000)
+}
+
+function makeLLAddr(addr) {
+  return physicalAddress(addr) >>> 4;
+}
+
+function executeLL(i) {
+  const t = rt(i);
+  const b = base(i);
+  const o = imms(i);
+
+  const addr = (cpu0.gprLo_signed[b] + o) >>> 0;
+  const value = n64js.load_s32(cpu0.ram, addr);
+
+  cpu0.control[cpu0_constants.controlLLAddr] = makeLLAddr(addr);
+  cpu0.gprLo_signed[t] = value;
+  cpu0.gprHi_signed[t] = value >> 31;
+  cpu0.llBit = 1;
+}
+
+function executeLLD(i) {
+  const t = rt(i);
+  const b = base(i);
+  const o = imms(i);
+
+  const addr = (cpu0.gprLo_signed[b] + o) >>> 0;
+  
+  cpu0.control[cpu0_constants.controlLLAddr] = makeLLAddr(addr);
+  cpu0.gprHi_signed[t] = n64js.load_s32(cpu0.ram, addr);
+  cpu0.gprLo_signed[t] = n64js.load_s32(cpu0.ram, addr + 4);
+  cpu0.llBit = 1;
+}
+
+function executeSC(i) {
+  const t = rt(i);
+  const b = base(i);
+  const o = imms(i);
+
+  let result = 0;
+  if (cpu0.llBit) {
+    n64js.store_32(cpu0.ram, cpu0.gprLo_signed[b] + o, cpu0.gprLo_signed[t]);
+    cpu0.llBit = 0;
+    result = 1;
+  }
+  cpu0.gprLo[t] = result;
+  cpu0.gprHi[t] = 0;
+}
+
+function executeSCD(i) {
+  const t = rt(i);
+  const b = base(i);
+  const o = imms(i);
+
+  const addr = cpu0.gprLo_signed[b] + o;
+  let result = 0;
+  if (cpu0.llBit) {
+    n64js.store_64(cpu0.ram, addr, cpu0.gprLo_signed[t], cpu0.gprHi_signed[t]);
+    cpu0.llBit = 0;
+    result = 1;
+  }
+  cpu0.gprLo[t] = result;
+  cpu0.gprHi[t] = 0;
+}
 
 function generateMFC1Stub(ctx) {
   const t = ctx.instr_rt();
