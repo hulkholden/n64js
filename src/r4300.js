@@ -1768,7 +1768,6 @@ function executeMTC0(i) {
       break;
 
     case cpu0_constants.controlContext:
-      logger.log(`Setting Context register to ${toString32(new_value)}`);
       cpu0.control[control_reg] = new_value & contextWriteableBits;
       break;
 
