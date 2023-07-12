@@ -1080,9 +1080,11 @@ function executeDSLLV(i) {
   const lo = cpu0.gprLo[t];
   const hi = cpu0.gprHi[t];
 
-  if (shift < 32) {
+  if (shift == 0) {
+    cpu0.gprLo_signed[d] = lo;
+    cpu0.gprHi_signed[d] = hi;
+  } else if (shift < 32) {
     const nshift = 32 - shift;
-
     cpu0.gprLo[d] = (lo << shift);
     cpu0.gprHi[d] = (hi << shift) | (lo >>> nshift);
   } else {
@@ -1101,9 +1103,11 @@ function executeDSRLV(i) {
   const lo = cpu0.gprLo[t];
   const hi = cpu0.gprHi[t];
 
-  if (shift < 32) {
+  if (shift == 0) {
+    cpu0.gprLo_signed[d] = lo;
+    cpu0.gprHi_signed[d] = hi;
+  } else if (shift < 32) {
     const nshift = 32 - shift;
-
     cpu0.gprLo[d] = (lo >>> shift) | (hi << nshift);
     cpu0.gprHi[d] = (hi >>> shift);
   } else {
@@ -1122,9 +1126,11 @@ function executeDSRAV(i) {
   const lo = cpu0.gprLo[t];
   const hi = cpu0.gprHi_signed[t];
 
-  if (shift < 32) {
+  if (shift == 0) {
+    cpu0.gprLo_signed[d] = lo;
+    cpu0.gprHi_signed[d] = hi;
+  } else if (shift < 32) {
     const nshift = 32 - shift;
-
     cpu0.gprLo[d] = (lo >>> shift) | (hi << nshift);
     cpu0.gprHi[d] = (hi >> shift);
   } else {
