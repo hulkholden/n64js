@@ -1265,7 +1265,10 @@ function executeDSRA32(i) {
 
 function executeSYSCALL(i) { unimplemented(cpu0.pc, i); }
 function executeBREAK(i) { unimplemented(cpu0.pc, i); }
-function executeSYNC(i) { unimplemented(cpu0.pc, i); }
+
+function executeSYNC(i) {
+  // Ignored.
+}
 
 
 function generateMFHI(ctx) {
