@@ -1053,20 +1053,19 @@ function executeSRA(i) {
   cpu0.gprHi[d] = result >> 31;
 }
 
-function generateShiftVariable(ctx, op) {
+function generateSLLV(ctx) {
   const d = ctx.instr_rd();
   const s = ctx.instr_rs();
   const t = ctx.instr_rt();
 
   const impl = `
-    const result = ${genSrcRegLo(t)} ${op} (${genSrcRegLo(s)} & 0x1f);
+    const result = ${genSrcRegLo(t)} << (${genSrcRegLo(s)} & 0x1f);
     rlo[${d}] = result;
     rhi[${d}] = result >> 31;
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
-function generateSLLV(ctx) { return generateShiftVariable(ctx, '<<'); }
 function executeSLLV(i) {
   const d = rd(i);
   const s = rs(i);
@@ -1077,8 +1076,19 @@ function executeSLLV(i) {
   cpu0.gprHi_signed[d] = result >> 31;    // sign extend
 }
 
+function generateSRLV(ctx) {
+  const d = ctx.instr_rd();
+  const s = ctx.instr_rs();
+  const t = ctx.instr_rt();
 
-function generateSRLV(ctx) { return generateShiftVariable(ctx, '>>>'); }
+  const impl = `
+    const result = ${genSrcRegLo(t)} >>> (${genSrcRegLo(s)} & 0x1f);
+    rlo[${d}] = result;
+    rhi[${d}] = result >> 31;
+    `;
+  return generateTrivialOpBoilerplate(impl, ctx);
+}
+
 function executeSRLV(i) {
   const d = rd(i);
   const s = rs(i);
