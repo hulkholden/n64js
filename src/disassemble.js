@@ -42,7 +42,7 @@ export const cop0gprNames = [
 export const cop0ControlRegisterNames = [
   "Index", "Rand", "EntryLo0", "EntryLo1", "Context", "PageMask", "Wired", "?7",
   "BadVAddr", "Count", "EntryHi", "Compare", "SR", "Cause", "EPC", "PrID",
-  "?16", "?17", "WatchLo", "WatchHi", "?20", "?21", "?22", "?23",
+  "Config", "LLAddr", "WatchLo", "WatchHi", "XContext", "?21", "?22", "?23",
   "?24", "?25", "ECC", "CacheErr", "TagLo", "TagHi", "ErrorEPC", "?31"
 ];
 
