@@ -291,6 +291,9 @@ class CPU0 {
     this.control = new Uint32Array(this.controlMem);
     this.control_signed = new Int32Array(this.controlMem);
 
+    // Reads from invalid control registers will use the value last written to any control register.
+    this.lastControlRegWrite = 0;
+
     this.pc = 0;
     this.delayPC = 0;
     this.nextPC = 0; // Set to the next expected PC before an op executes. Ops can update this to change control flow without branch delay (e.g. likely branches, ERET)
@@ -1713,9 +1716,21 @@ function executeMFC0(i) {
     checkCauseIP3Consistent();
   }
 
-  if (control_reg === cpu0_constants.controlRand) {
+  switch (control_reg) {
+    case cpu0_constants.controlRand:
     setZeroExtend(rt(i), cpu0.getRandom());
-  } else {
+      break;
+    case cpu0_constants.controlInvalid7:
+    case cpu0_constants.controlInvalid21:
+    case cpu0_constants.controlInvalid22:
+    case cpu0_constants.controlInvalid23:
+    case cpu0_constants.controlInvalid24:
+    case cpu0_constants.controlInvalid25:
+    case cpu0_constants.controlInvalid31:
+      // Reads from invalid control registers will use the value last written to any control register.
+      setZeroExtend(rt(i), cpu0.lastControlRegWrite);
+      break;
+    default:
     setZeroExtend(rt(i), cpu0.control[control_reg]);
   }
 }
@@ -1735,6 +1750,8 @@ function generateMTC0(ctx) {
 function executeMTC0(i) {
   const control_reg = fs(i);
   const new_value = cpu0.gprLo[rt(i)];
+
+  cpu0.lastControlRegWrite = new_value;
 
   switch (control_reg) {
     case cpu0_constants.controlIndex:
@@ -1803,6 +1820,17 @@ function executeMTC0(i) {
 
     case cpu0_constants.controlLLAddr:
       cpu0.control[control_reg] = new_value;
+      break;
+
+    case cpu0_constants.controlInvalid7:
+    case cpu0_constants.controlInvalid21:
+    case cpu0_constants.controlInvalid22:
+    case cpu0_constants.controlInvalid23:
+    case cpu0_constants.controlInvalid24:
+    case cpu0_constants.controlInvalid25:
+    case cpu0_constants.controlInvalid31:
+      // Ignore writes.
+      // Reads from invalid control registers will use the value last written to any control register.
       break;
 
     default:

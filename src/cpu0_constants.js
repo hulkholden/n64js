@@ -40,7 +40,7 @@ export const controlEntryLo1 = 3;
 export const controlContext = 4;
 export const controlPageMask = 5;
 export const controlWired = 6;
-// ...
+export const controlInvalid7 = 7;
 export const controlBadVAddr = 8;
 export const controlCount = 9;
 export const controlEntryHi = 10;
@@ -54,9 +54,14 @@ export const controlLLAddr = 17;
 export const controlWatchLo = 18;
 export const controlWatchHi = 19;
 export const controlXContext = 20;
-//...
+export const controlInvalid21 = 21;
+export const controlInvalid22 = 22;
+export const controlInvalid23 = 23;
+export const controlInvalid24 = 24;
+export const controlInvalid25 = 25;
 export const controlECC = 26;
 export const controlCacheErr = 27;
 export const controlTagLo = 28;
 export const controlTagHi = 29;
 export const controlErrorEPC = 30;
+export const controlInvalid31 = 31;
