@@ -53,6 +53,7 @@ export const controlConfig = 16;
 export const controlLLAddr = 17;
 export const controlWatchLo = 18;
 export const controlWatchHi = 19;
+export const controlXContext = 20;
 //...
 export const controlECC = 26;
 export const controlCacheErr = 27;
