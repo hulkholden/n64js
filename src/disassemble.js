@@ -226,11 +226,11 @@ function disassembleSpecial(i) {
 
 const cop0Table = [
   i => `MFC0      ${i.rt} <- ${cop0ControlRegisterNames[_fs(i.opcode)]}`,
-  i => 'Unk',
+  i => `DMFC0     ${i.rt} <- ${cop0ControlRegisterNames[_fs(i.opcode)]}`,
   i => 'Unk',
   i => 'Unk',
   i => `MTC0      ${i.rt} -> ${cop0ControlRegisterNames[_fs(i.opcode)]}`,
-  i => 'Unk',
+  i => `DMTC0     ${i.rt} -> ${cop0ControlRegisterNames[_fs(i.opcode)]}`,
   i => 'Unk',
   i => 'Unk',
   i => 'Unk',
