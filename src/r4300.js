@@ -1812,6 +1812,11 @@ function executeMTC0(i) {
       cpu0.setCompare(new_value);
       break;
 
+    case cpu0_constants.controlXContext:
+      // TODO: only the high bits are writable but we don't implement 64 bit registers yet.
+      // Just no-op for now.
+      break;
+
     case cpu0_constants.controlEPC:
     case cpu0_constants.controlTagLo:
     case cpu0_constants.controlTagHi:
