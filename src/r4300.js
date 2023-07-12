@@ -3410,7 +3410,7 @@ function generateLInstrStub(ctx) {
   ctx.fragment.usesCop1 = true;
   ctx.isTrivial = true;
   switch (cop1_func(ctx.instruction)) {
-    case 0x20: /* 'CVT.S' */ return `cpu1.store_f32(${d}, cpu1.load_i64_number(${s});\n`;
+    case 0x20: /* 'CVT.S' */ return `cpu1.store_f32(${d}, cpu1.load_i64_number(${s}));\n`;
     case 0x21: /* 'CVT.D' */ return `cpu1.store_f64(${d}, cpu1.load_i64_number(${s}));\n`;
   }
   return `unimplemented(${toString32(ctx.pc)},${toString32(ctx.instruction)});\n`;
