@@ -965,28 +965,29 @@ function executeBreakpoint(i) {
   throw new BreakpointException();
 }
 
-function generateShiftImmediate(ctx, op) {
-  // Handle NOP for SLL
-  if (ctx.instruction === 0)
+function generateSLL(ctx) {
+  // NOP
+  if (ctx.instruction === 0) {
     return generateNOPBoilerplate('NOP', ctx);
+  }
 
   const d = ctx.instr_rd();
   const t = ctx.instr_rt();
   const shift = ctx.instr_sa();
 
   const impl = `
-    const result = ${genSrcRegLo(t)} ${op} ${shift};
+    const result = ${genSrcRegLo(t)} << ${shift};
     rlo[${d}] = result;
     rhi[${d}] = result >> 31;
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
-function generateSLL(ctx) { return generateShiftImmediate(ctx, '<<'); }
 function executeSLL(i) {
   // NOP
-  if (i === 0)
+  if (i === 0) {
     return;
+  }
 
   const d = rd(i);
   const t = rt(i);
