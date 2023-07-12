@@ -179,6 +179,8 @@ const TLBCTXT_BASEBITS  = 9;
 const TLBCTXT_VPNMASK   = 0x7ffff0;
 const TLBCTXT_VPNSHIFT  = 4;
 
+const contextWriteableBits = ~0x7fffff;
+
 const TLBPGMASK_4K      = 0x00000000;
 const TLBPGMASK_16K     = 0x00006000;
 const TLBPGMASK_64K     = 0x0001e000;
@@ -1765,9 +1767,7 @@ function executeMTC0(i) {
 
     case cpu0_constants.controlContext:
       logger.log(`Setting Context register to ${toString32(new_value)}`);
-      // TODO: bits 0 to 3 are hardcoded to zero.
-      // TODO: bits 4 to 22 are not writeable.
-      cpu0.control[control_reg] = new_value;
+      cpu0.control[control_reg] = new_value & contextWriteableBits;
       break;
 
     case cpu0_constants.controlPageMask:
