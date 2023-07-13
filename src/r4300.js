@@ -484,7 +484,7 @@ class CPU0 {
     this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, causeExcCodeRI);
   }
 
-  throwTLBException(address, exc_code, vec) {
+  raiseTLBException(address, exc_code, vec) {
     this.control[cpu0_constants.controlBadVAddr] = address;
 
     this.control[cpu0_constants.controlContext] &= 0xff800000;
@@ -497,11 +497,11 @@ class CPU0 {
     this.raiseException(CAUSE_EXCMASK, exc_code, vec);
   }
 
-  throwTLBReadMiss(address) { this.throwTLBException(address, causeExcCodeTLBL, UT_VEC); }
-  throwTLBWriteMiss(address) { this.throwTLBException(address, causeExcCodeTLBS, UT_VEC); }
+  raiseTLBReadMissException(address) { this.raiseTLBException(address, causeExcCodeTLBL, UT_VEC); }
+  raiseTLBWriteMissException(address) { this.raiseTLBException(address, causeExcCodeTLBS, UT_VEC); }
 
-  throwTLBReadInvalid(address) { this.throwTLBException(address, causeExcCodeTLBL, E_VEC); }
-  throwTLBWriteInvalid(address) { this.throwTLBException(address, causeExcCodeTLBS, E_VEC); }
+  raiseTLBReadInvalidException(address) { this.raiseTLBException(address, causeExcCodeTLBL, E_VEC); }
+  raiseTLBWriteInvalidException(address) { this.raiseTLBException(address, causeExcCodeTLBS, E_VEC); }
 
 
   handleInterrupt() {
@@ -733,7 +733,7 @@ class CPU0 {
   translateRead(address) {
     const tlb = this.tlbFindEntry(address);
     if (!tlb) {
-      this.throwTLBReadMiss(address);
+      this.raiseTLBReadMissException(address);
       throw new TLBException(address);
     }
 
@@ -745,14 +745,14 @@ class CPU0 {
     if ((entryLo & TLBLO_V) !== 0) {
       return highBits | maskedAddress;
     }
-    this.throwTLBReadInvalid(address);
+    this.raiseTLBReadInvalidException(address);
     throw new TLBException(address);
   }
 
   translateWrite(address) {
     const tlb = this.tlbFindEntry(address);
     if (!tlb) {
-      this.throwTLBWriteMiss(address);
+      this.raiseTLBWriteMissException(address);
       throw new TLBException(address);
     }
 
@@ -764,7 +764,7 @@ class CPU0 {
     if ((entryLo & TLBLO_V) !== 0) {
       return highBits | maskedAddress;
     }
-    this.throwTLBWriteInvalid(address);
+    this.raiseTLBWriteInvalidException(address);
     throw new TLBException(address);
   }
 }
