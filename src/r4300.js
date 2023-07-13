@@ -3724,6 +3724,14 @@ function cop1ControlChanged() {
 }
 n64js.cop1ControlChanged = cop1ControlChanged;
 
+function executeCop2(i) {
+  cpu0.throwCopXUnusable(2);
+}
+
+function executeCop3(i) {
+  cpu0.throwCopXUnusable(3);
+}
+
 const regImmTable = [
   executeBLTZ,          executeBGEZ,          executeBLTZL,       executeBGEZL,
   executeUnknown,       executeUnknown,       executeUnknown,     executeUnknown,
@@ -3748,7 +3756,7 @@ const simpleTable = [
   executeBEQ,           executeBNE,           executeBLEZ,        executeBGTZ,
   executeADDI,          executeADDIU,         executeSLTI,        executeSLTIU,
   executeANDI,          executeORI,           executeXORI,        executeLUI,
-  executeCop0,          executeCop1_disabled, executeUnknown,     executeUnknown,
+  executeCop0,          executeCop1_disabled, executeCop2,        executeCop3,
   executeBEQL,          executeBNEL,          executeBLEZL,       executeBGTZL,
   executeDADDI,         executeDADDIU,        executeLDL,         executeLDR,
   executeUnknown,       executeUnknown,       executeUnknown,     executeUnknown,
@@ -3853,7 +3861,7 @@ const simpleTableGen = [
   generateBEQ,            generateBNE,            generateBLEZ,         generateBGTZ,
   generateADDI,           generateADDIU,          generateSLTI,         generateSLTIU,
   generateANDI,           generateORI,            generateXORI,         generateLUI,
-  generateCop0,           generateCop1,           'executeUnknown',     'executeUnknown',
+  generateCop0,           generateCop1,           'executeCop2',        'executeCop3',
   generateBEQL,           generateBNEL,           'executeBLEZL',       'executeBGTZL',
   'executeDADDI',         'executeDADDIU',        'executeLDL',         'executeLDR',
   'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
@@ -3870,6 +3878,8 @@ if (simpleTableGen.length != 64) {
   throw "Oops, didn't build the simple gen table correctly";
 }
 // Expose all the functions that we don't yet generate
+n64js.executeCop2    = executeCop2;
+n64js.executeCop3    = executeCop3;
 n64js.executeBLEZL   = executeBLEZL;
 n64js.executeBGTZL   = executeBGTZL;
 n64js.executeDADDI   = executeDADDI;
