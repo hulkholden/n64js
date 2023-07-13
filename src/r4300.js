@@ -99,24 +99,24 @@ const CAUSE_EXCSHIFT  = 2;
 // Only the software interrupt values are writeable.
 const causeWritableBits = CAUSE_SW1 | CAUSE_SW2;
 
-const EXC_INT         = 0;
-const EXC_MOD         = 4;
-const EXC_RMISS       = 8;
-const EXC_WMISS       = 12;
-const EXC_RADE        = 16;
-const EXC_WADE        = 20;
-const EXC_IBE         = 24;
-const EXC_DBE         = 28;
-const EXC_SYSCALL     = 32;
-const EXC_BREAK       = 36;
-const EXC_II          = 40;
-const EXC_CPU         = 44;
-const EXC_OV          = 48;
-const EXC_TRAP        = 52;
-const EXC_VCEI        = 56;
-const EXC_FPE         = 60;
-const EXC_WATCH       = 92;
-const EXC_VCED        = 124;
+const causeExcCodeInt = 0;  // Interrupt
+const causeExcCodeMod = 4;  // TLB Modification
+const causeExcCodeTLBL = 8;  // TLB Miss (load or instruction fetch)
+const causeExcCodeTLBS = 12;  // TLB Miss (store)
+const causeExcCodeAdEL = 16;  // Address Error (load or instruction fetch)
+const causeExcCodeAdES = 20;  // Address Error (store)
+const causeExcCodeIBE = 24;  // Bus Error (instruction fetch)
+const causeExcCodeDBE = 28;  // Bus Error (data reference: load or store)
+const causeExcCodeSys = 32;  // Syscall
+const causeExcCodeBp = 36;  // Breakpoint
+const causeExcCodeRI = 40;  // Reserved Instruction
+const causeExcCodeCpU = 44;  // Coprocessor Unusable
+const causeExcCodeOv = 48;  // Arithmetic Overflow
+const causeExcCodeTr = 52;  // Trap
+const causeExcCodeVCEI = 56;  // ?
+const causeExcCodeFPE = 60;  // Floating-Point
+const causeExcCodeWATCH = 92;  // Watch
+const causeExcCodeVCED = 124; // ?
 
 
 const FPCSR_RM_RN     = 0x00000000;
@@ -469,15 +469,19 @@ class CPU0 {
   throwCopXUnusable(copIdx) {
     // XXXX check we're not inside exception handler before snuffing CAUSE reg?
     const ce = copIdx << CAUSE_CESHIFT;
-    this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, EXC_CPU | ce);
+    this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, causeExcCodeCpU | ce);
   }
 
   raiseSYSCALLException() {
-    this.raiseGeneralException(CAUSE_EXCMASK|CAUSE_CEMASK, EXC_SYSCALL);
+    this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, causeExcCodeSys);
   }
 
   raiseBREAKException() {
-    this.raiseGeneralException(CAUSE_EXCMASK|CAUSE_CEMASK, EXC_BREAK);
+    this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, causeExcCodeBp);
+  }
+
+  raiseRESERVEDException() {
+    this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, causeExcCodeRI);
   }
 
   throwTLBException(address, exc_code, vec) {
@@ -493,16 +497,16 @@ class CPU0 {
     this.raiseException(CAUSE_EXCMASK, exc_code, vec);
   }
 
-  throwTLBReadMiss(address) { this.throwTLBException(address, EXC_RMISS, UT_VEC); }
-  throwTLBWriteMiss(address) { this.throwTLBException(address, EXC_WMISS, UT_VEC); }
+  throwTLBReadMiss(address) { this.throwTLBException(address, causeExcCodeTLBL, UT_VEC); }
+  throwTLBWriteMiss(address) { this.throwTLBException(address, causeExcCodeTLBS, UT_VEC); }
 
-  throwTLBReadInvalid(address) { this.throwTLBException(address, EXC_RMISS, E_VEC); }
-  throwTLBWriteInvalid(address) { this.throwTLBException(address, EXC_WMISS, E_VEC); }
+  throwTLBReadInvalid(address) { this.throwTLBException(address, causeExcCodeTLBL, E_VEC); }
+  throwTLBWriteInvalid(address) { this.throwTLBException(address, causeExcCodeTLBS, E_VEC); }
 
 
   handleInterrupt() {
     if (this.checkForUnmaskedInterrupts()) {
-      this.raiseGeneralException(CAUSE_EXCMASK, EXC_INT);
+      this.raiseGeneralException(CAUSE_EXCMASK, causeExcCodeInt);
       // This is handled outside of the main dispatch loop, so need to update pc directly.
       this.delayPC = 0;
 
@@ -987,6 +991,10 @@ function unimplemented(pc, i) {
 
 function executeUnknown(i) {
   throw `Unknown op, pc: ${toString32(cpu0.pc)}, instruction: ${toString32(i)}`;
+}
+
+function executeRESERVED(i) {
+  cpu0.raiseRESERVEDException()
 }
 
 /**
@@ -3777,7 +3785,7 @@ const simpleTable = [
   executeCop0,          executeCop1_disabled, executeCop2,        executeCop3,
   executeBEQL,          executeBNEL,          executeBLEZL,       executeBGTZL,
   executeDADDI,         executeDADDIU,        executeLDL,         executeLDR,
-  executeUnknown,       executeUnknown,       executeUnknown,     executeUnknown,
+  executeUnknown,       executeUnknown,       executeUnknown,     executeRESERVED,
   executeLB,            executeLH,            executeLWL,         executeLW,
   executeLBU,           executeLHU,           executeLWR,         executeLWU,
   executeSB,            executeSH,            executeSWL,         executeSW,
@@ -3882,7 +3890,7 @@ const simpleTableGen = [
   generateCop0,           generateCop1,           'executeCop2',        'executeCop3',
   generateBEQL,           generateBNEL,           'executeBLEZL',       'executeBGTZL',
   'executeDADDI',         'executeDADDIU',        'executeLDL',         'executeLDR',
-  'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
+  'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeRESERVED',
   generateLB,             generateLH,             'executeLWL',         generateLW,
   generateLBU,            generateLHU,            'executeLWR',         generateLWU,
   generateSB,             generateSH,             'executeSWL',         generateSW,
@@ -3896,26 +3904,27 @@ if (simpleTableGen.length != 64) {
   throw "Oops, didn't build the simple gen table correctly";
 }
 // Expose all the functions that we don't yet generate
-n64js.executeCop2    = executeCop2;
-n64js.executeCop3    = executeCop3;
-n64js.executeBLEZL   = executeBLEZL;
-n64js.executeBGTZL   = executeBGTZL;
-n64js.executeDADDI   = executeDADDI;
-n64js.executeDADDIU  = executeDADDIU;
-n64js.executeLDL     = executeLDL;
-n64js.executeLDR     = executeLDR;
-n64js.executeLWL     = executeLWL;
-n64js.executeLWR     = executeLWR;
-n64js.executeSWL     = executeSWL;
-n64js.executeSDL     = executeSDL;
-n64js.executeSDR     = executeSDR;
-n64js.executeSWR     = executeSWR;
-n64js.executeLL      = executeLL;
-n64js.executeLLD     = executeLLD;
-n64js.executeLDC2    = executeLDC2;
-n64js.executeSC      = executeSC;
-n64js.executeSCD     = executeSCD;
-n64js.executeSDC2    = executeSDC2;
+n64js.executeCop2 = executeCop2;
+n64js.executeCop3 = executeCop3;
+n64js.executeBLEZL = executeBLEZL;
+n64js.executeBGTZL = executeBGTZL;
+n64js.executeDADDI = executeDADDI;
+n64js.executeDADDIU = executeDADDIU;
+n64js.executeLDL = executeLDL;
+n64js.executeLDR = executeLDR;
+n64js.executeRESERVED = executeRESERVED;
+n64js.executeLWL = executeLWL;
+n64js.executeLWR = executeLWR;
+n64js.executeSWL = executeSWL;
+n64js.executeSDL = executeSDL;
+n64js.executeSDR = executeSDR;
+n64js.executeSWR = executeSWR;
+n64js.executeLL = executeLL;
+n64js.executeLLD = executeLLD;
+n64js.executeLDC2 = executeLDC2;
+n64js.executeSC = executeSC;
+n64js.executeSCD = executeSCD;
+n64js.executeSDC2 = executeSDC2;
 
 class FragmentContext {
   constructor() {
