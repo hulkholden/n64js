@@ -1864,7 +1864,6 @@ function executeMTC0(i) {
 function executeDMFC0(i) {
   const controlReg = fs(i);
 
-  logger.log(`DMFC0 ${cop0ControlRegisterNames[controlReg]} -> ${cop0gprNames[rt(i)]}`)
   // TODO: Implement this correctly.
   executeMFC0(i);
 }
@@ -1873,7 +1872,6 @@ function executeDMTC0(i) {
   const controlReg = fs(i);
   const newValue = cpu0.getGPR_u64_bigint(rt(i));
 
-  logger.log(`DMTC0 ${toString64_bigint(newValue)} --> ${cop0ControlRegisterNames[controlReg]}`)
   // TODO: Implement this correctly.
   executeMTC0(i);
 }
