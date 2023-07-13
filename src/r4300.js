@@ -469,8 +469,15 @@ class CPU0 {
   throwCopXUnusable(copIdx) {
     // XXXX check we're not inside exception handler before snuffing CAUSE reg?
     const ce = copIdx << CAUSE_CESHIFT;
-    this.setException(CAUSE_EXCMASK | CAUSE_CEMASK, EXC_CPU | ce);
-    this.nextPC = E_VEC;
+    this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, EXC_CPU | ce);
+  }
+
+  raiseSYSCALLException() {
+    this.raiseGeneralException(CAUSE_EXCMASK|CAUSE_CEMASK, EXC_SYSCALL);
+  }
+
+  raiseBREAKException() {
+    this.raiseGeneralException(CAUSE_EXCMASK|CAUSE_CEMASK, EXC_BREAK);
   }
 
   throwTLBException(address, exc_code, vec) {
@@ -483,8 +490,7 @@ class CPU0 {
     this.control[cpu0_constants.controlEntryHi] |= (address & 0xfffffe000);
 
     // XXXX check we're not inside exception handler before snuffing CAUSE reg?
-    this.setException(CAUSE_EXCMASK, exc_code);
-    this.nextPC = vec;
+    this.raiseException(CAUSE_EXCMASK, exc_code, vec);
   }
 
   throwTLBReadMiss(address) { this.throwTLBException(address, EXC_RMISS, UT_VEC); }
@@ -496,9 +502,8 @@ class CPU0 {
 
   handleInterrupt() {
     if (this.checkForUnmaskedInterrupts()) {
-      this.setException(CAUSE_EXCMASK, EXC_INT);
+      this.raiseGeneralException(CAUSE_EXCMASK, EXC_INT);
       // This is handled outside of the main dispatch loop, so need to update pc directly.
-      this.pc = E_VEC;
       this.delayPC = 0;
 
     } else {
@@ -506,7 +511,7 @@ class CPU0 {
     }
   }
 
-  setException(mask, exception) {
+  raiseException(mask, exception, excVec) {
     this.control[cpu0_constants.controlCause] &= ~mask;
     this.control[cpu0_constants.controlCause] |= exception;
     this.control[cpu0_constants.controlStatus] |= SR_EXL;
@@ -519,6 +524,15 @@ class CPU0 {
     } else {
       this.control[cpu0_constants.controlCause] &= ~bdMask;
     }
+    this.nextPC = excVec;
+    // TODO: always clear delayPC?
+    if (this.delayPC) {
+      console.log("exception with delay active")
+    }
+  }
+
+  raiseGeneralException(mask, exception) {
+    this.raiseException(mask, exception, E_VEC);
   }
 
   setCompare(value) {
@@ -1288,8 +1302,13 @@ function executeDSRA32(i) {
 }
 
 
-function executeSYSCALL(i) { unimplemented(cpu0.pc, i); }
-function executeBREAK(i) { unimplemented(cpu0.pc, i); }
+function executeSYSCALL(i) {
+  cpu0.raiseSYSCALLException();
+}
+
+function executeBREAK(i) {
+  cpu0.raiseBREAKException();
+}
 
 function executeSYNC(i) {
   // Ignored.
