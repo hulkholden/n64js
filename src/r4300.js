@@ -525,10 +525,6 @@ class CPU0 {
       this.control[cpu0_constants.controlCause] &= ~bdMask;
     }
     this.nextPC = excVec;
-    // TODO: always clear delayPC?
-    if (this.delayPC) {
-      console.log("exception with delay active")
-    }
   }
 
   raiseGeneralException(mask, exception) {
