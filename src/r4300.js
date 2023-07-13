@@ -3376,7 +3376,7 @@ function generateSInstrStub(ctx) {
       case 0x0d: /* 'TRUNC.W.'*/ return `cpu1.store_i32(${d}, n64js.trunc(cpu1.load_f32(${s})));\n`;
       case 0x0e: /* 'CEIL.W.'*/  return `cpu1.store_i32(${d}, Math.ceil(cpu1.load_f32(${s})));\n`;
       case 0x0f: /* 'FLOOR.W.'*/ return `cpu1.store_i32(${d}, Math.floor(cpu1.load_f32(${s})));\n`;
-      case 0x20: /* 'CVT.S' */   break;
+      case 0x20: /* 'CVT.S' */   return `cpu1.store_f32(${d}, cpu1.load_f32(${s}));\n`;
       case 0x21: /* 'CVT.D' */   return `cpu1.store_f64(${d}, cpu1.load_f32(${s}));\n`;
       case 0x24: /* 'CVT.W' */   return `cpu1.store_i32(${d}, n64js.convert(cpu1.load_f32(${s})));\n`;
       case 0x25: /* 'CVT.L' */   return `cpu1.store_i64_number(${d}, n64js.convert(cpu1.load_f32(${s})));\n`;
@@ -3418,8 +3418,7 @@ function executeSInstr(i) {
       case 0x0d: /* 'TRUNC.W.'*/ cpu1.store_i32(d, n64js.trunc(cpu1.load_f32(s))); return;
       case 0x0e: /* 'CEIL.W.'*/  cpu1.store_i32(d, Math.ceil(cpu1.load_f32(s))); return;
       case 0x0f: /* 'FLOOR.W.'*/ cpu1.store_i32(d, Math.floor(cpu1.load_f32(s))); return;
-
-      case 0x20: /* 'CVT.S' */   unimplemented(cpu0.pc, i); return;
+      case 0x20: /* 'CVT.S' */   cpu1.store_f32(d, cpu1.load_f32(s)); return;
       case 0x21: /* 'CVT.D' */   cpu1.store_f64(d, cpu1.load_f32(s)); return;
       case 0x24: /* 'CVT.W' */   cpu1.store_i32(d, n64js.convert(cpu1.load_f32(s))); return;
       case 0x25: /* 'CVT.L' */   cpu1.store_i64_number(d, n64js.convert(cpu1.load_f32(s))); return;
@@ -3461,7 +3460,7 @@ function generateDInstrStub(ctx) {
       case 0x0e: /* 'CEIL.W.'*/  return `cpu1.store_i32(${d}, Math.ceil(cpu1.load_f64(${s})));\n`;
       case 0x0f: /* 'FLOOR.W.'*/ return `cpu1.store_i32(${d}, Math.floor(cpu1.load_f64(${s})));\n`;
       case 0x20: /* 'CVT.S' */   return `cpu1.store_f32(${d}, cpu1.load_f64(${s}));\n`;
-      case 0x21: /* 'CVT.D' */   break;
+      case 0x21: /* 'CVT.D' */   return `cpu1.store_f64(${d}, cpu1.load_f64(${s}));\n`;
       case 0x24: /* 'CVT.W' */   return `cpu1.store_i32(${d}, n64js.convert(cpu1.load_f64(${s})));\n`;
       case 0x25: /* 'CVT.L' */   return `cpu1.store_i64_number(${d}, n64js.convert(cpu1.load_f64(${s})));\n`;
     }
@@ -3503,7 +3502,7 @@ function executeDInstr(i) {
       case 0x0f: /* 'FLOOR.W.'*/ cpu1.store_i32(d, Math.floor(cpu1.load_f64(s))); return;
 
       case 0x20: /* 'CVT.S' */   cpu1.store_f32(d, cpu1.load_f64(s)); return;
-      case 0x21: /* 'CVT.D' */   unimplemented(cpu0.pc, i); return;
+      case 0x21: /* 'CVT.D' */   cpu1.store_f64(d, cpu1.load_f64(s)); return;
       case 0x24: /* 'CVT.W' */   cpu1.store_i32(d, n64js.convert(cpu1.load_f64(s))); return;
       case 0x25: /* 'CVT.L' */   cpu1.store_i64_number(d, n64js.convert(cpu1.load_f64(s))); return;
     }
@@ -3524,6 +3523,7 @@ function generateWInstrStub(ctx) {
   switch (cop1_func(ctx.instruction)) {
     case 0x20: /* 'CVT.S' */ return `cpu1.store_f32(${d}, cpu1.load_i32(${s}));\n`;
     case 0x21: /* 'CVT.D' */ return `cpu1.store_f64(${d}, cpu1.load_i32(${s}));\n`;
+    case 0x24: /* 'CVT.W' */ return `cpu1.store_i32(${d}, cpu1.load_i32(${s}));\n`;
   }
   return `unimplemented(${toString32(ctx.pc)},${toString32(ctx.instruction)});\n`;
 }
@@ -3533,8 +3533,9 @@ function executeWInstr(i) {
   const d = fd(i);
 
   switch (cop1_func(i)) {
-    case 0x20: cpu1.store_f32(d, cpu1.load_i32(s)); return;
-    case 0x21: cpu1.store_f64(d, cpu1.load_i32(s)); return;
+    case 0x20: /* 'CVT.S' */ cpu1.store_f32(d, cpu1.load_i32(s)); return;
+    case 0x21: /* 'CVT.D' */ cpu1.store_f64(d, cpu1.load_i32(s)); return;
+    case 0x24: /* 'CVT.W' */ cpu1.store_i32(d, cpu1.load_i32(s)); return;
   }
   unimplemented(cpu0.pc, i);
 }
@@ -3548,6 +3549,8 @@ function generateLInstrStub(ctx) {
   switch (cop1_func(ctx.instruction)) {
     case 0x20: /* 'CVT.S' */ return `cpu1.store_f32(${d}, cpu1.load_i64_number(${s}));\n`;
     case 0x21: /* 'CVT.D' */ return `cpu1.store_f64(${d}, cpu1.load_i64_number(${s}));\n`;
+    case 0x24: /* 'CVT.W' */ return `cpu1.store_i32(${d}, cpu1.load_i64_number(${s}));\n`;
+    case 0x25: /* 'CVT.L' */ return `cpu1.store_i64_bigint(${d}, cpu1.load_i64_bigint(${s}))\n`; return;
   }
   return `unimplemented(${toString32(ctx.pc)},${toString32(ctx.instruction)});\n`;
 }
@@ -3559,6 +3562,8 @@ function executeLInstr(i) {
   switch (cop1_func(i)) {
     case 0x20: /* 'CVT.S' */ cpu1.store_f32(d, cpu1.load_i64_number(s)); return;
     case 0x21: /* 'CVT.D' */ cpu1.store_f64(d, cpu1.load_i64_number(s)); return;
+    case 0x24: /* 'CVT.W' */ cpu1.store_i32(d, cpu1.load_i64_number(s)); return;
+    case 0x25: /* 'CVT.L' */ cpu1.store_i64_bigint(d, cpu1.load_i64_bigint(s)); return;
   }
   unimplemented(cpu0.pc, i);
 }
