@@ -484,6 +484,16 @@ class CPU0 {
     this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, causeExcCodeRI);
   }
 
+  raiseTRAPException() {
+    this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, causeExcCodeTr);
+  }
+
+  maybeRaiseTRAPException(cond) {
+    if (cond) {
+      this.raiseTRAPException();
+    }
+  }
+
   raiseTLBException(address, exc_code, vec) {
     this.control[cpu0_constants.controlBadVAddr] = address;
 
@@ -1747,13 +1757,6 @@ function executeDSUBU(i) {
   cpu0.setGPR_s64_bigint(rd(i), result);
 }
 
-function executeTGE(i) { unimplemented(cpu0.pc, i); }
-function executeTGEU(i) { unimplemented(cpu0.pc, i); }
-function executeTLT(i) { unimplemented(cpu0.pc, i); }
-function executeTLTU(i) { unimplemented(cpu0.pc, i); }
-function executeTEQ(i) { unimplemented(cpu0.pc, i); }
-function executeTNE(i) { unimplemented(cpu0.pc, i); }
-
 function executeMFC0(i) {
   const control_reg = fs(i);
 
@@ -1925,12 +1928,43 @@ function executeERET(i) {
   cpu0.llBit = 0;
 }
 
-function executeTGEI(i) { unimplemented(cpu0.pc, i); }
-function executeTGEIU(i) { unimplemented(cpu0.pc, i); }
-function executeTLTI(i) { unimplemented(cpu0.pc, i); }
-function executeTLTIU(i) { unimplemented(cpu0.pc, i); }
-function executeTEQI(i) { unimplemented(cpu0.pc, i); }
-function executeTNEI(i) { unimplemented(cpu0.pc, i); }
+function executeTGE(i) {
+  cpu0.maybeRaiseTRAPException(cpu0.getGPR_s64_bigint(rs(i)) >= cpu0.getGPR_s64_bigint(rt(i)));
+}
+function executeTGEU(i) {
+  cpu0.maybeRaiseTRAPException(cpu0.getGPR_u64_bigint(rs(i)) >= cpu0.getGPR_u64_bigint(rt(i)));
+}
+function executeTLT(i) {
+  cpu0.maybeRaiseTRAPException(cpu0.getGPR_s64_bigint(rs(i)) < cpu0.getGPR_s64_bigint(rt(i)));
+}
+function executeTLTU(i) {
+  cpu0.maybeRaiseTRAPException(cpu0.getGPR_u64_bigint(rs(i)) < cpu0.getGPR_u64_bigint(rt(i)));
+}
+function executeTEQ(i) {
+  cpu0.maybeRaiseTRAPException(cpu0.getGPR_s64_bigint(rs(i)) == cpu0.getGPR_s64_bigint(rt(i)));
+}
+function executeTNE(i) {
+  cpu0.maybeRaiseTRAPException(cpu0.getGPR_s64_bigint(rs(i)) != cpu0.getGPR_s64_bigint(rt(i)));
+}
+
+function executeTGEI(i) {
+  cpu0.maybeRaiseTRAPException(cpu0.getGPR_s64_bigint(rs(i)) >= BigInt(imms(i)));
+}
+function executeTGEIU(i) {
+  cpu0.maybeRaiseTRAPException(cpu0.getGPR_u64_bigint(rs(i)) >= BigInt.asUintN(64, BigInt(imms(i))));
+}
+function executeTLTI(i) {
+  cpu0.maybeRaiseTRAPException(cpu0.getGPR_s64_bigint(rs(i)) < BigInt(imms(i)));
+}
+function executeTLTIU(i) {
+  cpu0.maybeRaiseTRAPException(cpu0.getGPR_u64_bigint(rs(i)) < BigInt.asUintN(64, BigInt(imms(i))));
+}
+function executeTEQI(i) {
+  cpu0.maybeRaiseTRAPException(cpu0.getGPR_s64_bigint(rs(i)) == BigInt(imms(i)));
+}
+function executeTNEI(i) {
+  cpu0.maybeRaiseTRAPException(cpu0.getGPR_s64_bigint(rs(i)) != BigInt(imms(i)));
+}
 
 // Jump
 function generateJ(ctx) {
