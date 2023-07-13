@@ -508,6 +508,7 @@ class CPU0 {
     if (this.checkForUnmaskedInterrupts()) {
       this.raiseGeneralException(CAUSE_EXCMASK, causeExcCodeInt);
       // This is handled outside of the main dispatch loop, so need to update pc directly.
+      this.pc = E_VEC;
       this.delayPC = 0;
 
     } else {
