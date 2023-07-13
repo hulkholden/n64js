@@ -69,6 +69,7 @@ const SR_CU2          = 0x40000000;
 const SR_CU3          = 0x80000000;
 
 const SR_CUMASK       = 0xf0000000;
+const SR_CUSHIFT      = 28;
 
 // Only bit 19 is unwritable.
 const statusWritableBits = ~0x80000;
@@ -453,6 +454,25 @@ class CPU0 {
     return false;
   }
 
+  checkCopXUsable(copIdx) {
+    // TODO: this probably needs to throw a JS exception which is caught in n64js.run
+    // to ensure bookkeeping (like updating the delayPC) isn't run.
+    const bit = 1 << (SR_CUSHIFT + copIdx);
+    const usable = (cpu0.control[cpu0_constants.controlStatus] & bit) != 0;
+    if (!usable) {
+      this.throwCopXUnusable(copIdx);
+      return false;
+    }
+    return true;
+  } 
+
+  throwCopXUnusable(copIdx) {
+    // XXXX check we're not inside exception handler before snuffing CAUSE reg?
+    const ce = copIdx << CAUSE_CESHIFT;
+    this.setException(CAUSE_EXCMASK | CAUSE_CEMASK, EXC_CPU | ce);
+    this.nextPC = E_VEC;
+  }
+
   throwTLBException(address, exc_code, vec) {
     this.control[cpu0_constants.controlBadVAddr] = address;
 
@@ -473,11 +493,6 @@ class CPU0 {
   throwTLBReadInvalid(address) { this.throwTLBException(address, EXC_RMISS, E_VEC); }
   throwTLBWriteInvalid(address) { this.throwTLBException(address, EXC_WMISS, E_VEC); }
 
-  throwCop1Unusable() {
-    // XXXX check we're not inside exception handler before snuffing CAUSE reg?
-    this.setException(CAUSE_EXCMASK | CAUSE_CEMASK, EXC_CPU | 0x10000000);
-    this.nextPC = E_VEC;
-  }
 
   handleInterrupt() {
     if (this.checkForUnmaskedInterrupts()) {
@@ -3205,11 +3220,14 @@ function generateCTC1Stub(ctx) {
 
   if (s === 31) {
     return `
-      cpu1.control[${s}] = rlo[${t}];
+      if (c.checkCopXUsable(1)) {
+        cpu1.control[${s}] = rlo[${t}];
+      }
       `;
   }
 
   return `
+    if (c.checkCopXUsable(1)) {}    
     // CTC1 invalid reg
     `;
 }
@@ -3217,6 +3235,10 @@ function generateCTC1Stub(ctx) {
 function executeCTC1(i) {
   const s = fs(i);
   const t = rt(i);
+
+  if (!cpu0.checkCopXUsable(1)) {
+    return;
+  }
 
   if (s === 31) {
     const v = cpu0.gprLo[t];
@@ -3689,7 +3711,7 @@ function executeCop1_disabled(i) {
 
   assert((cpu0.control[cpu0_constants.controlStatus] & SR_CU1) === 0, "SR_CU1 in inconsistent state");
 
-  cpu0.throwCop1Unusable();
+  cpu0.throwCopXUnusable(1);
 }
 n64js.executeCop1_disabled = executeCop1_disabled;
 
