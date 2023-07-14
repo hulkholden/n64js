@@ -3422,7 +3422,7 @@ function generateSInstrStub(ctx) {
       case 0x03: return `cpu1.store_f32(${d}, cpu1.load_f32(${s}) / cpu1.load_f32(${t}));\n`;
       case 0x04: return `cpu1.store_f32(${d}, Math.sqrt(cpu1.load_f32(${s})));\n`;
       case 0x05: return `cpu1.store_f32(${d}, Math.abs(cpu1.load_f32(${s})));\n`;
-      case 0x06: return `cpu1.store_f32(${d},  cpu1.load_f32(${s}));\n`;
+      case 0x06: return `cpu1.store_i32(${d},  cpu1.load_i32(${s}));\n`;
       case 0x07: return `cpu1.store_f32(${d}, -cpu1.load_f32(${s}));\n`;
       case 0x08: /* 'ROUND.L.'*/ return `cpu1.store_i64_number(${d}, Math.round(cpu1.load_f32(${s})));\n`;
       case 0x09: /* 'TRUNC.L.'*/ return `cpu1.store_i64_number(${d}, n64js.trunc(cpu1.load_f32(${s})));\n`;
@@ -3464,7 +3464,7 @@ function executeSInstr(i) {
       case 0x03: cpu1.store_f32(d, cpu1.load_f32(s) / cpu1.load_f32(t)); return;
       case 0x04: cpu1.store_f32(d, Math.sqrt(cpu1.load_f32(s))); return;
       case 0x05: cpu1.store_f32(d, Math.abs(cpu1.load_f32(s))); return;
-      case 0x06: cpu1.store_f32(d, cpu1.load_f32(s)); return;
+      case 0x06: cpu1.store_i32(d, cpu1.load_i32(s)); return;  // Move bits directly, to avoid renomalisation.
       case 0x07: cpu1.store_f32(d, -cpu1.load_f32(s)); return;
       case 0x08: /* 'ROUND.L.'*/ cpu1.store_i64_number(d, Math.round(cpu1.load_f32(s))); return;
       case 0x09: /* 'TRUNC.L.'*/ cpu1.store_i64_number(d, n64js.trunc(cpu1.load_f32(s))); return;
@@ -3505,7 +3505,7 @@ function generateDInstrStub(ctx) {
       case 0x03: return `cpu1.store_f64(${d}, cpu1.load_f64( ${s} ) / cpu1.load_f64( ${t}));\n`;
       case 0x04: return `cpu1.store_f64(${d}, Math.sqrt(cpu1.load_f64(${s})));\n`;
       case 0x05: return `cpu1.store_f64(${d}, Math.abs(cpu1.load_f64( ${s})));\n`;
-      case 0x06: return `cpu1.store_f64(${d}, cpu1.load_f64(${s}));\n`;
+      case 0x06: return `cpu1.store_i64_bigint(${d}, cpu1.load_i64_bigint(${s}));\n`;
       case 0x07: return `cpu1.store_f64(${d}, -cpu1.load_f64(${s}));\n`;
       case 0x08: /* 'ROUND.L.'*/ return `cpu1.store_i64_number(${d}, Math.round(cpu1.load_f64(${s})));\n`;
       case 0x09: /* 'TRUNC.L.'*/ return `cpu1.store_i64_number(${d}, n64js.trunc(cpu1.load_f64(${s})));\n`;
@@ -3546,7 +3546,7 @@ function executeDInstr(i) {
       case 0x03: cpu1.store_f64(d, cpu1.load_f64(s) / cpu1.load_f64(t)); return;
       case 0x04: cpu1.store_f64(d, Math.sqrt(cpu1.load_f64(s))); return;
       case 0x05: cpu1.store_f64(d, Math.abs(cpu1.load_f64(s))); return;
-      case 0x06: cpu1.store_f64(d, cpu1.load_f64(s)); return;
+      case 0x06: cpu1.store_i64_bigint(d, cpu1.load_i64_bigint(s)); return;  // Move bits directly, to avoid renomalisation.
       case 0x07: cpu1.store_f64(d, -cpu1.load_f64(s)); return;
       case 0x08: /* 'ROUND.L.'*/ cpu1.store_i64_number(d, Math.round(cpu1.load_f64(s))); return;
       case 0x09: /* 'TRUNC.L.'*/ cpu1.store_i64_number(d, n64js.trunc(cpu1.load_f64(s))); return;
