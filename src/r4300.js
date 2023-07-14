@@ -425,11 +425,6 @@ class CPU0 {
   }
 
   setStatus(value) {
-    const oldVal = this.control[cpu0_constants.controlStatus];
-    if ((oldVal & SR_FR) !== (value & SR_FR)) {
-      logger.log('Changing FPU to ' + ((value & SR_FR) ? '64bit' : '32bit'));
-    }
-
     this.control[cpu0_constants.controlStatus] = value & statusWritableBits;
     cop1ControlChanged();
 
