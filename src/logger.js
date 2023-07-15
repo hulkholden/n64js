@@ -49,7 +49,6 @@ export function log(str) {
  * @param {jQuery} html
  */
 export function logHTML(html) {
-  console.log(html);
   if (outputElement) {
     outputElement.append(html);
   }
