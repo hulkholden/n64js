@@ -3363,10 +3363,10 @@ function generateSInstrStub(ctx) {
 
   if (op < 0x30) {
     switch (op) {
-      case cop1ADD: return `cpu1.store_f32(${d}, cpu1.load_f32(${s}) + cpu1.load_f32(${t}));\n`;
-      case cop1SUB: return `cpu1.store_f32(${d}, cpu1.load_f32(${s}) - cpu1.load_f32(${t}));\n`;
-      case cop1MUL: return `cpu1.store_f32(${d}, cpu1.load_f32(${s}) * cpu1.load_f32(${t}));\n`;
-      case cop1DIV: return `cpu1.store_f32(${d}, cpu1.load_f32(${s}) / cpu1.load_f32(${t}));\n`;
+      case cop1ADD: return `cpu1.ADD_S(${d}, ${s}, ${t});\n`;
+      case cop1SUB: return `cpu1.SUB_S(${d}, ${s}, ${t});\n`;
+      case cop1MUL: return `cpu1.MUL_S(${d}, ${s}, ${t});\n`;
+      case cop1DIV: return `cpu1.DIV_S(${d}, ${s}, ${t});\n`;
       case cop1SQRT: return `cpu1.SQRT_S(${d}, ${s});\n`;
       case cop1ABS: return `cpu1.ABS_S(${d}, ${s});\n`;
       case cop1MOV: return `cpu1.MOV_S(${d}, ${s});\n`;
@@ -3402,10 +3402,10 @@ function executeSInstr(i) {
 
   if (op < 0x30) {
     switch (op) {
-      case cop1ADD: cpu1.store_f32(d, cpu1.load_f32(s) + cpu1.load_f32(t)); return;
-      case cop1SUB: cpu1.store_f32(d, cpu1.load_f32(s) - cpu1.load_f32(t)); return;
-      case cop1MUL: cpu1.store_f32(d, cpu1.load_f32(s) * cpu1.load_f32(t)); return;
-      case cop1DIV: cpu1.store_f32(d, cpu1.load_f32(s) / cpu1.load_f32(t)); return;
+      case cop1ADD: cpu1.ADD_S(d, s, t); return;
+      case cop1SUB: cpu1.SUB_S(d, s, t); return;
+      case cop1MUL: cpu1.MUL_S(d, s, t); return;
+      case cop1DIV: cpu1.DIV_S(d, s, t); return;
       case cop1SQRT: cpu1.SQRT_S(d, s); return;
       case cop1ABS: cpu1.ABS_S(d, s); return;
       case cop1MOV: cpu1.MOV_S(d, s); return;
@@ -3441,10 +3441,10 @@ function generateDInstrStub(ctx) {
 
   if (op < 0x30) {
     switch (op) {
-      case cop1ADD: return `cpu1.store_f64(${d}, cpu1.load_f64( ${s} ) + cpu1.load_f64( ${t}));\n`;
-      case cop1SUB: return `cpu1.store_f64(${d}, cpu1.load_f64( ${s} ) - cpu1.load_f64( ${t}));\n`;
-      case cop1MUL: return `cpu1.store_f64(${d}, cpu1.load_f64( ${s} ) * cpu1.load_f64( ${t}));\n`;
-      case cop1DIV: return `cpu1.store_f64(${d}, cpu1.load_f64( ${s} ) / cpu1.load_f64( ${t}));\n`;
+      case cop1ADD: return `cpu1.ADD_D(${d}, ${s}, ${t});\n`;
+      case cop1SUB: return `cpu1.SUB_D(${d}, ${s}, ${t});\n`;
+      case cop1MUL: return `cpu1.MUL_D(${d}, ${s}, ${t});\n`;
+      case cop1DIV: return `cpu1.DIV_D(${d}, ${s}, ${t});\n`;
       case cop1SQRT: return `cpu1.SQRT_D(${d}, ${s});\n`;
       case cop1ABS: return `cpu1.ABS_D(${d}, ${s});\n`;
       case cop1MOV: return `cpu1.MOV_D(${d}, ${s});\n`;
@@ -3479,10 +3479,10 @@ function executeDInstr(i) {
 
   if (op < 0x30) {
     switch (op) {
-      case cop1ADD: cpu1.store_f64(d, cpu1.load_f64(s) + cpu1.load_f64(t)); return;
-      case cop1SUB: cpu1.store_f64(d, cpu1.load_f64(s) - cpu1.load_f64(t)); return;
-      case cop1MUL: cpu1.store_f64(d, cpu1.load_f64(s) * cpu1.load_f64(t)); return;
-      case cop1DIV: cpu1.store_f64(d, cpu1.load_f64(s) / cpu1.load_f64(t)); return;
+      case cop1ADD: cpu1.ADD_D(d, s, t); return;
+      case cop1SUB: cpu1.SUB_D(d, s, t); return;
+      case cop1MUL: cpu1.MUL_D(d, s, t); return;
+      case cop1DIV: cpu1.DIV_D(d, s, t); return;
       case cop1SQRT: cpu1.SQRT_D(d, s); return;
       case cop1ABS: cpu1.ABS_D(d, s); return;
       case cop1MOV: cpu1.MOV_D(d, s); return;
