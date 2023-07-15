@@ -1,7 +1,7 @@
 /*jshint jquery:true, devel:true */
 
 import * as cpu0_constants from './cpu0_constants.js';
-import { CPU1, convertModeCeil, convertModeDefault, convertModeFloor, convertModeRound, convertModeTrunc } from './cpu1.js';
+import { CPU1, convertModeCeil, convertModeFloor, convertModeRound, convertModeTrunc } from './cpu1.js';
 import { disassembleInstruction, cop0ControlRegisterNames, cop0gprNames } from './disassemble.js';
 import { toString8, toString32 } from './format.js';
 import { lookupFragment, resetFragments } from './fragments.js';
