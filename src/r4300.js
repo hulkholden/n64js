@@ -123,22 +123,7 @@ const FPCSR_RM_RN     = 0x00000000;
 const FPCSR_RM_RZ     = 0x00000001;
 const FPCSR_RM_RP     = 0x00000002;
 const FPCSR_RM_RM     = 0x00000003;
-const FPCSR_FI        = 0x00000004;
-const FPCSR_FU        = 0x00000008;
-const FPCSR_FO        = 0x00000010;
-const FPCSR_FZ        = 0x00000020;
-const FPCSR_FV        = 0x00000040;
-const FPCSR_EI        = 0x00000080;
-const FPCSR_EU        = 0x00000100;
-const FPCSR_EO        = 0x00000200;
-const FPCSR_EZ        = 0x00000400;
-const FPCSR_EV        = 0x00000800;
-const FPCSR_CI        = 0x00001000;
-const FPCSR_CU        = 0x00002000;
-const FPCSR_CO        = 0x00004000;
-const FPCSR_CZ        = 0x00008000;
-const FPCSR_CV        = 0x00010000;
-const FPCSR_CE        = 0x00020000;
+
 const FPCSR_C         = 0x00800000;
 const FPCSR_FS        = 0x01000000;
 
@@ -799,7 +784,7 @@ class TLBException {
 
 // Expose the cpu state
 const cpu0 = new CPU0();
-const cpu1 = new CPU1();
+const cpu1 = new CPU1(cpu0);
 n64js.cpu0 = cpu0;
 n64js.cpu1 = cpu1;
 
@@ -3362,43 +3347,6 @@ n64js.convert = function (x) {
   assert('unknown rounding mode');
 };
 
-function generateFloatCompare(op) {
-  let impl = '';
-  impl += 'let cc = false;\n';
-  impl += 'if (isNaN(fs+ft)) {\n';
-  if (op & 0x8) {
-    impl += '  n64js.warn("should raise Invalid Operation here.");\n';
-  }
-  if (op & 0x1) {
-    impl += '  cc = true;\n';
-  }
-  impl += '} else {\n';
-  if (op & 0x4) {
-    impl += '  cc |= fs < ft;\n';
-  }
-  if (op & 0x2) {
-    impl += '  cc |= fs == ft;\n';
-  }
-  impl += '}\n';
-  impl += 'if (cc) { cpu1.control[31] |= FPCSR_C; } else { cpu1.control[31] &= ~FPCSR_C; }\n';
-  return impl;
-}
-
-function handleFloatCompare(op, fs, ft) {
-  let c = false;
-  if (isNaN(fs + ft)) {
-    if (op & 0x8) {
-      n64js.warn('Should raise Invalid Operation here.');
-    }
-    if (op & 0x1) c = true;
-  } else {
-    if (op & 0x4) c |= fs < ft;
-    if (op & 0x2) c |= fs == ft;
-    // unordered is false here
-  }
-  cpu1.setCondition(c);
-}
-
 function generateSInstrStub(ctx) {
   const s = ctx.instr_fs();
   const t = ctx.instr_ft();
@@ -3436,12 +3384,9 @@ function generateSInstrStub(ctx) {
     return `unimplemented(${toString32(ctx.pc)},${toString32(ctx.instruction)});\n`;
   }
 
-  // It's a compare instruction
-  let impl = '';
-  impl += `const fs = cpu1.load_f32(${s});\n`;
-  impl += `const ft = cpu1.load_f32(${t});\n`;
-  impl += generateFloatCompare(op);
-  return impl;
+  return `
+    cpu1.handleFloatCompareSingle(${op}, ${s}, ${t});
+  `;
 }
 
 function executeSInstr(i) {
@@ -3476,9 +3421,7 @@ function executeSInstr(i) {
     }
     unimplemented(cpu0.pc, i);
   } else {
-    const _s = cpu1.load_f32(s);
-    const _t = cpu1.load_f32(t);
-    handleFloatCompare(op, _s, _t);
+    cpu1.handleFloatCompareSingle(op, s, t);
   }
 }
 
@@ -3518,12 +3461,9 @@ function generateDInstrStub(ctx) {
     return `unimplemented(${toString32(ctx.pc)},${toString32(ctx.instruction)});\n`;
   }
 
-  // It's a compare instruction
-  let impl = '';
-  impl += `const fs = cpu1.load_f64(${s});\n`;
-  impl += `const ft = cpu1.load_f64(${t});\n`;
-  impl += generateFloatCompare(op);
-  return impl;
+  return `
+    cpu1.handleFloatCompareDouble(${op}, ${s}, ${t});
+  `;
 }
 
 function executeDInstr(i) {
@@ -3559,9 +3499,7 @@ function executeDInstr(i) {
     }
     unimplemented(cpu0.pc, i);
   } else {
-    const _s = cpu1.load_f64(s);
-    const _t = cpu1.load_f64(t);
-    handleFloatCompare(op, _s, _t);
+    cpu1.handleFloatCompareDouble(op, s, t);
   }
 }
 
