@@ -21,40 +21,97 @@ const FPCSR_CO = 0x00004000;  // Cause, Overflow
 const FPCSR_CZ = 0x00008000;  // Cause, Division by Zero
 const FPCSR_CV = 0x00010000;  // Cause, Invalid
 const FPCSR_CE = 0x00020000;  // Cause, Unimplemented
-const FPCSR_C = 0x00800000;
-const FPCSR_FS = 0x01000000;
+const FPCSR_C = 0x00800000;  // Condition
+const FPCSR_FS = 0x01000000;  // Flush Status
 
+const FPCSR_RM_MASK = 0x00000003;
+
+const exceptionInexactBit = 0x01;
+const exceptionIUnderflowBit = 0x02;
+const exceptionOverflowBit = 0x04;
+const exceptionIDivByZeroBit = 0x08;
+const exceptionInvalidBit = 0x10;
+
+const flagShift = 2;
+const enableShift = 7;
+const causeShift = 12;
+
+const flagMask = 0x0000007c;
+const enableMask = 0x00000f80;
+const causeMask = 0x0003f000; // Note this also includes FPCSR_CE.
+
+function makeFlagBits(bits) { return bits << flagShift; }
+function makeEnableBits(bits) { return bits << enableShift; }
+function makeCauseBits(bits) { return bits << causeShift; }
+
+// https://stackoverflow.com/questions/29666236
+const f32SignBit = 0x80000000;
 const f32ExponentBits = 0x7f800000;
 const f32ManissaBits = 0x007fffff;
 const f32QuietBit = (1 << 22);
 
+const f32SignallingNaNBits = 0x7fbfffff;
+const f32PosInfinityBits = f32ExponentBits;
+const f32NegInfinityBits = f32ExponentBits | f32SignBit;
+
+const f64SignBit = 0x8000000000000000n;
 const f64ExponentBits = 0x7ff0000000000000n;
 const f64ManissaBits = 0x000fffffffffffffn;
 const f64QuietBit = (1n << 51n);
 
+const f64SignallingNaNBits = 0x7ff7ffffffffffffn;
+const f64PosInfinityBits = f64ExponentBits;
+const f64NegInfinityBits = f64ExponentBits | f64SignBit;
+
 const floatTypeNormal = 0;
-const floatTypeInfinity = 1;
-const floatTypeQNaN = 2;
-const floatTypeSNaN = 3;
+const floatTypeDenormal = 1;
+const floatTypePosInfinity = 2;
+const floatTypeNegInfinity = 3;
+const floatTypeQNaN = 4;
+const floatTypeSNaN = 5;
+
+export const convertModeDefault = 0;
+export const convertModeRound = 1;
+export const convertModeTrunc = 2;
+export const convertModeCeil = 3;
+export const convertModeFloor = 4;
 
 function classifyFloat32Bits(bits) {
-  if ((bits & f32ExponentBits) != f32ExponentBits) {
-    return floatTypeNormal;
+  const exponent = bits & f32ExponentBits;
+  const mantissa = bits & f32ManissaBits;
+
+  // If the exponent bits are set, it's Infinity or a NaN.
+  if (exponent == f32ExponentBits) {
+    if (mantissa == 0) {
+      return (bits & f32SignBit) ? floatTypeNegInfinity : floatTypePosInfinity;
+    }
+    return bits & f32QuietBit ? floatTypeQNaN : floatTypeSNaN;
   }
-  if ((bits & f32ManissaBits) == 0) {
-    return floatTypeInfinity;
+  if (exponent == 0 && mantissa != 0) {
+    return floatTypeDenormal;
   }
-  return bits & f32QuietBit ? floatTypeQNaN : floatTypeSNaN;
+
+  // Positive zero, negative zero, or normalized finie.
+  return floatTypeNormal;
 }
 
 function classifyFloat64Bits(bits) {
-  if ((bits & f64ExponentBits) != f64ExponentBits) {
-    return floatTypeNormal;
+  const exponent = bits & f64ExponentBits;
+  const mantissa = bits & f64ManissaBits;
+
+  // If the exponent bits are set, it's Infinity or a NaN.
+  if (exponent == f64ExponentBits) {
+    if (mantissa == 0) {
+      return (bits & f64SignBit) ? floatTypeNegInfinity : floatTypePosInfinity;
+    }
+    return bits & f64QuietBit ? floatTypeQNaN : floatTypeSNaN;
   }
-  if ((bits & f64ManissaBits) == 0) {
-    return floatTypeInfinity;
+  if (exponent == 0 && mantissa != 0) {
+    return floatTypeDenormal;
   }
-  return bits & f64QuietBit ? floatTypeQNaN : floatTypeSNaN;
+
+  // Positive zero, negative zero, or normalized finie.
+  return floatTypeNormal;
 }
 
 function floatTypeNaN(t) {
@@ -75,6 +132,15 @@ export class CPU1 {
 
     this.regIdx32 = new Uint32Array(new ArrayBuffer(32 * 4));
     this.regIdx64 = new Uint32Array(new ArrayBuffer(32 * 4));
+
+    // A single register for conversions.
+    this.tempBuf = new ArrayBuffer(8);
+    this.tempF32 = new Float32Array(this.tempBuf);
+    this.tempF64 = new Float64Array(this.tempBuf);
+    this.tempU32 = new Uint32Array(this.tempBuf);
+    this.tempS32 = new Int32Array(this.tempBuf);
+    this.tempU64 = new BigUint64Array(this.tempBuf);
+    this.tempS64 = new BigInt64Array(this.tempBuf);
 
     this._fullMode = true;
     this.fullMode = true;
@@ -121,8 +187,7 @@ export class CPU1 {
     let c = false;
     if (floatTypeNaN(fsType) || floatTypeNaN(ftType)) {
       if ((op & 0x8) || fsType == floatTypeQNaN || ftType == floatTypeQNaN) {
-        if (this.setInvalidOperation()) {
-          this.cpu0.raiseFPE();
+        if (this.raiseInvalid()) {
           return;
         }
       }
@@ -147,8 +212,7 @@ export class CPU1 {
     let c = false;
     if (floatTypeNaN(fsType) || floatTypeNaN(ftType)) {
       if ((op & 0x8) || fsType == floatTypeQNaN || ftType == floatTypeQNaN) {
-        if (this.setInvalidOperation()) {
-          this.cpu0.raiseFPE();
+        if (this.raiseInvalid()) {
           return;
         }
       }
@@ -163,6 +227,267 @@ export class CPU1 {
     this.setCondition(c);
   }
 
+  CVT_S_D(d, s) {
+    this.clearCause();
+
+    const sourceBits = this.load_i64_bigint(s);
+    const sourceType = classifyFloat64Bits(sourceBits);
+
+    let exceptionBits = 0;
+    switch (sourceType) {
+      case floatTypeSNaN:
+      case floatTypeDenormal:
+        this.raiseUnimplemented();
+        return;
+      case floatTypeQNaN:
+        exceptionBits |= exceptionInvalidBit;
+        this.tempU32[0] = f32SignallingNaNBits;
+        break;
+      case floatTypePosInfinity:
+        this.tempU32[0] = f32PosInfinityBits;
+        break;
+      case floatTypeNegInfinity:
+        this.tempU32[0] = f32NegInfinityBits;
+        break;
+      default:
+        const sourceValue = this.load_f64(s);
+        this.tempF32[0] = sourceValue;
+
+        if (sourceValue != this.tempF32[0]) {
+          exceptionBits |= exceptionInexactBit;
+        }
+        // TODO: this is really this.tempF32[0] > float32 max value
+        if (!isFinite(this.tempF32[0])) {
+          exceptionBits |= exceptionOverflowBit;
+        }
+        break;
+    }
+
+    if (this.raiseExceptions(exceptionBits)) {
+      return;
+    }
+    this.store_i32(d, this.tempU32[0]);
+  }
+
+  CVT_S_W(d, s) {
+    this.clearCause();
+    this.store_f32(d, this.load_i32(s));
+  }
+
+  CVT_S_L(d, s) {
+    this.clearCause();
+
+    let exceptionBits = 0;
+
+    const source = this.load_i64_bigint(s);
+    const result = Number(source);
+    if (source >= (1n << 55n)) {
+      this.raiseUnimplemented();
+      return;
+    }
+
+    if (this.raiseExceptions(exceptionBits)) {
+      return;
+    }
+    this.store_f32(d, result);
+  }
+
+  CVT_D_S(d, s) {
+    this.clearCause();
+
+    const sourceBits = this.load_i32(s);
+    const sourceType = classifyFloat32Bits(sourceBits);
+
+    let exceptionBits = 0;
+    switch (sourceType) {
+      case floatTypeSNaN:
+      case floatTypeDenormal:
+        this.raiseUnimplemented();
+        return;
+      case floatTypeQNaN:
+        exceptionBits |= exceptionInvalidBit;
+        this.tempU64[0] = f64SignallingNaNBits;
+        break;
+      case floatTypePosInfinity:
+        this.tempU64[0] = f64PosInfinityBits;
+        break;
+      case floatTypeNegInfinity:
+        this.tempU64[0] = f64NegInfinityBits;
+        break;
+      default:
+        const sourceValue = this.load_f32(s);
+        this.tempF64[0] = sourceValue;
+        break;
+    }
+
+    if (this.raiseExceptions(exceptionBits)) {
+      return;
+    }
+    this.store_i64_bigint(d, this.tempU64[0]);
+  }
+
+  CVT_D_W(d, s) {
+    this.clearCause();
+    this.store_f64(d, this.load_i32(s));
+  }
+
+  CVT_D_L(d, s) {
+    this.clearCause();
+    this.store_f64(d, this.load_i64_number(s));
+  }
+
+  ConvertSToL(d, s, mode) {
+    this.clearCause();
+
+    const sourceBits = this.load_i32(s);
+    const sourceType = classifyFloat32Bits(sourceBits);
+
+    let exceptionBits = 0;
+    switch (sourceType) {
+      case floatTypeSNaN:
+      case floatTypeQNaN:
+      case floatTypeDenormal:
+      case floatTypePosInfinity:
+      case floatTypeNegInfinity:
+        this.raiseUnimplemented();
+        return;
+      default:
+        const sourceValue = this.load_f32(s);
+        this.tempS64[0] = BigInt(this.convertUsingMode(sourceValue, mode) | 0); // Force to int to allow BigInt conversion.
+        if (sourceValue != this.tempS64[0]) {
+          exceptionBits |= exceptionInexactBit;
+        }
+        break;
+    }
+
+    if (this.raiseExceptions(exceptionBits)) {
+      return;
+    }
+    this.store_i64_bigint(d, this.tempS64[0]);
+  }
+
+  ConvertDToL(d, s, mode) {
+    this.clearCause();
+
+    const sourceBits = this.load_i64_bigint(s);
+    const sourceType = classifyFloat64Bits(sourceBits);
+
+    let exceptionBits = 0;
+    switch (sourceType) {
+      case floatTypeSNaN:
+      case floatTypeQNaN:
+      case floatTypeDenormal:
+      case floatTypePosInfinity:
+      case floatTypeNegInfinity:
+        this.raiseUnimplemented();
+        return;
+      default:
+        const sourceValue = this.load_f64(s);
+        this.tempS64[0] = BigInt(this.convertUsingMode(sourceValue, mode) | 0); // Force to int to allow BigInt conversion.
+        if (sourceValue != this.tempS64[0]) {
+          exceptionBits |= exceptionInexactBit;
+        }
+        break;
+    }
+
+    if (this.raiseExceptions(exceptionBits)) {
+      return;
+    }
+    this.store_i64_bigint(d, this.tempS64[0]);
+  }
+
+
+  ConvertSToW(d, s, mode) {
+    this.clearCause();
+
+    const sourceBits = this.load_i32(s);
+    const sourceType = classifyFloat32Bits(sourceBits);
+
+    let exceptionBits = 0;
+    switch (sourceType) {
+      case floatTypeSNaN:
+      case floatTypeQNaN:
+      case floatTypeDenormal:
+      case floatTypePosInfinity:
+      case floatTypeNegInfinity:
+        this.raiseUnimplemented();
+        return;
+      default:
+        const sourceValue = this.load_f32(s);
+        this.tempS32[0] = this.convertUsingMode(sourceValue, mode);
+        if (sourceValue != this.tempS32[0]) {
+          exceptionBits |= exceptionInexactBit;
+        }
+        break;
+    }
+
+    if (this.raiseExceptions(exceptionBits)) {
+      return;
+    }
+    this.store_i32(d, this.tempS32[0]);
+  }
+
+  ConvertDToW(d, s, mode) {
+    this.clearCause();
+
+    const sourceBits = this.load_i64_bigint(s);
+    const sourceType = classifyFloat64Bits(sourceBits);
+
+    let exceptionBits = 0;
+    switch (sourceType) {
+      case floatTypeSNaN:
+      case floatTypeQNaN:
+      case floatTypeDenormal:
+      case floatTypePosInfinity:
+      case floatTypeNegInfinity:
+        this.raiseUnimplemented();
+        return;
+      default:
+        const sourceValue = this.load_f64(s);
+        this.tempS32[0] = this.convertUsingMode(sourceValue, mode);
+        if (sourceValue != this.tempS32[0]) {
+          exceptionBits |= exceptionInexactBit;
+        }
+        break;
+    }
+
+    if (this.raiseExceptions(exceptionBits)) {
+      return;
+    }
+    this.store_i32(d, this.tempS32[0]);
+  }
+
+  modeFromControlRegister() {
+    switch (this.control[31] & FPCSR_RM_MASK) {
+      case FPCSR_RM_RN: return convertModeRound;
+      case FPCSR_RM_RZ: return convertModeTrunc;
+      case FPCSR_RM_RP: return convertModeCeil;
+      case FPCSR_RM_RM: return convertModeFloor;
+    }
+    assert('unknown rounding mode');
+  }
+
+  convertUsingMode(x, mode) {
+    if (mode == convertModeDefault) {
+      mode = this.modeFromControlRegister();
+    }
+
+    switch (mode) {
+      case convertModeRound: return Math.round(x); break;
+      case convertModeTrunc: return this.trunc(x); break;
+      case convertModeCeil: return Math.ceil(x); break;
+      case convertModeFloor: return Math.floor(x); break;
+    }
+    assert('unknown rounding mode');
+  }
+
+  trunc(x) {
+    if (x < 0)
+      return Math.ceil(x);
+    else
+      return Math.floor(x);
+  }; 
+
   /**
    * Set the condition control bit.
    * @param {boolean} enable
@@ -175,14 +500,39 @@ export class CPU1 {
     }
   }
 
-  setInvalidOperation() {
-    //const bits = this.control[31];
-    if (this.control[31] & FPCSR_EV) {
-      this.control[31] |= FPCSR_CV;
-      return true;
-    } else {
-      this.control[31] |= FPCSR_FV | FPCSR_CV;
+  clearCause() { this.control[31] &= ~causeMask; }
+
+  // If these return true, an exception has been raised and the operation should
+  // not continue.
+  raiseExceptions(exceptionBits) {
+    if (!exceptionBits) {
+      return false;
     }
+    const enable = makeEnableBits(exceptionBits);
+    const cause = makeCauseBits(exceptionBits);
+    const flag = makeFlagBits(exceptionBits);
+    return this.setStatusBits(enable, cause, flag);
+  }
+
+  raiseInexact() { return this.setStatusBits(FPCSR_EI, FPCSR_CI, FPCSR_FI); }
+  raiseUnderflow() { return this.setStatusBits(FPCSR_EU, FPCSR_CU, FPCSR_FU); }
+  raiseOverflow() { return this.setStatusBits(FPCSR_EO, FPCSR_CO, FPCSR_FO); }
+  raiseDivByZero() { return this.setStatusBits(FPCSR_EZ, FPCSR_CZ, FPCSR_FZ); }
+  raiseInvalid() { return this.setStatusBits(FPCSR_EV, FPCSR_CV, FPCSR_FV); }
+
+  raiseUnimplemented(msg) {
+    this.control[31] |= FPCSR_CE;
+    this.cpu0.raiseFPE();
+    return true;
+  }
+
+  setStatusBits(enable, cause, flag) {
+    if (this.control[31] & enable) {
+      this.control[31] |= cause;
+      this.cpu0.raiseFPE();
+      return true;
+    }
+    this.control[31] |= flag | cause;
     return false;
   }
 
