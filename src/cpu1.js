@@ -291,6 +291,55 @@ export class CPU1 {
     this.store_i32(d, this.tempU32[0]);
   }
 
+  // Move bits directly, to avoid renomalisation.
+  MOV_S(d, s) { this.store_i32(d, this.load_i32(s)); }
+
+  SQRT_S(d, s) { this.f32UnaryOp(d, s, x => Math.sqrt(x)); }
+  ABS_S(d, s) { this.f32UnaryOp(d, s, x => Math.abs(x)); }
+  NEG_S(d, s) { this.f32UnaryOp(d, s, x => -x); }
+
+  f32UnaryOp(d, s, operator) {
+    this.clearCause();
+
+    const sourceBits = this.load_i32(s);
+    const sourceType = classifyFloat32Bits(sourceBits);
+
+    let exceptionBits = 0;
+    switch (sourceType) {
+      case floatTypeSNaN:
+      case floatTypeDenormal:
+        this.raiseUnimplemented();
+        return;
+      case floatTypeQNaN:
+        exceptionBits |= exceptionInvalidBit;
+        this.tempU32[0] = f32SignallingNaNBits;
+        break;
+      case floatTypePosInfinity:
+        this.tempU32[0] = f32PosInfinityBits;
+        break;
+      case floatTypeNegInfinity:
+        this.tempU32[0] = f32NegInfinityBits;
+        break;
+      default:
+        const sourceValue = this.load_f32(s);
+        this.tempF32[0] = operator(sourceValue);
+
+        // if (sourceValue != this.tempF32[0]) {
+        //   exceptionBits |= exceptionInexactBit;
+        // }
+        // // TODO: this is really this.tempF32[0] > float32 max value
+        // if (!isFinite(this.tempF32[0])) {
+        //   exceptionBits |= exceptionOverflowBit;
+        // }
+        break;
+    }
+
+    if (this.raiseExceptions(exceptionBits)) {
+      return;
+    }
+    this.store_i32(d, this.tempU32[0]);
+  }
+
   CVT_D_S(d, s) {
     this.clearCause();
 
@@ -342,6 +391,55 @@ export class CPU1 {
     let exceptionBits = 0;
     this.tempF64[0] = Number(source);
   
+    if (this.raiseExceptions(exceptionBits)) {
+      return;
+    }
+    this.store_i64_bigint(d, this.tempU64[0]);
+  }
+
+  // Move bits directly, to avoid renomalisation.
+  MOV_D(d, s) { this.store_i64_bigint(d, this.load_i64_bigint(s)); }
+
+  SQRT_D(d, s) { this.f64UnaryOp(d, s, x => Math.sqrt(x)); }
+  ABS_D(d, s) { this.f64UnaryOp(d, s, x => Math.abs(x)); }
+  NEG_D(d, s) { this.f64UnaryOp(d, s, x => -x); }
+
+  f64UnaryOp(d, s, operator) {
+    this.clearCause();
+
+    const sourceBits = this.load_i64_bigint(s);
+    const sourceType = classifyFloat64Bits(sourceBits);
+
+    let exceptionBits = 0;
+    switch (sourceType) {
+      case floatTypeSNaN:
+      case floatTypeDenormal:
+        this.raiseUnimplemented();
+        return;
+      case floatTypeQNaN:
+        exceptionBits |= exceptionInvalidBit;
+        this.tempU64[0] = f64SignallingNaNBits;
+        break;
+      case floatTypePosInfinity:
+        this.tempU64[0] = f64PosInfinityBits;
+        break;
+      case floatTypeNegInfinity:
+        this.tempU64[0] = f64NegInfinityBits;
+        break;
+      default:
+        const sourceValue = this.load_f64(s);
+        this.tempF64[0] = operator(sourceValue);
+
+        // if (sourceValue != this.tempF32[0]) {
+        //   exceptionBits |= exceptionInexactBit;
+        // }
+        // // TODO: this is really this.tempF32[0] > float32 max value
+        // if (!isFinite(this.tempF32[0])) {
+        //   exceptionBits |= exceptionOverflowBit;
+        // }
+        break;
+    }
+
     if (this.raiseExceptions(exceptionBits)) {
       return;
     }

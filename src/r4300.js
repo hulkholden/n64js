@@ -3367,10 +3367,10 @@ function generateSInstrStub(ctx) {
       case cop1SUB: return `cpu1.store_f32(${d}, cpu1.load_f32(${s}) - cpu1.load_f32(${t}));\n`;
       case cop1MUL: return `cpu1.store_f32(${d}, cpu1.load_f32(${s}) * cpu1.load_f32(${t}));\n`;
       case cop1DIV: return `cpu1.store_f32(${d}, cpu1.load_f32(${s}) / cpu1.load_f32(${t}));\n`;
-      case cop1SQRT: return `cpu1.store_f32(${d}, Math.sqrt(cpu1.load_f32(${s})));\n`;
-      case cop1ABS: return `cpu1.store_f32(${d}, Math.abs(cpu1.load_f32(${s})));\n`;
-      case cop1MOV: return `cpu1.store_i32(${d},  cpu1.load_i32(${s}));\n`;
-      case cop1NEG: return `cpu1.store_f32(${d}, -cpu1.load_f32(${s}));\n`;
+      case cop1SQRT: return `cpu1.SQRT_S(${d}, ${s});\n`;
+      case cop1ABS: return `cpu1.ABS_S(${d}, ${s});\n`;
+      case cop1MOV: return `cpu1.MOV_S(${d}, ${s});\n`;
+      case cop1NEG: return `cpu1.NEG_S(${d}, ${s});\n`;
       case cop1ROUND_L: return `cpu1.ConvertSToL(${d}, ${s}, ${convertModeRound});\n`;
       case cop1TRUNC_L: return `cpu1.ConvertSToL(${d}, ${s}, ${convertModeTrunc});\n`;
       case cop1CEIL_L: return `cpu1.ConvertSToL(${d}, ${s}, ${convertModeCeil});\n`;
@@ -3406,10 +3406,10 @@ function executeSInstr(i) {
       case cop1SUB: cpu1.store_f32(d, cpu1.load_f32(s) - cpu1.load_f32(t)); return;
       case cop1MUL: cpu1.store_f32(d, cpu1.load_f32(s) * cpu1.load_f32(t)); return;
       case cop1DIV: cpu1.store_f32(d, cpu1.load_f32(s) / cpu1.load_f32(t)); return;
-      case cop1SQRT: cpu1.store_f32(d, Math.sqrt(cpu1.load_f32(s))); return;
-      case cop1ABS: cpu1.store_f32(d, Math.abs(cpu1.load_f32(s))); return;
-      case cop1MOV: cpu1.store_i32(d, cpu1.load_i32(s)); return;  // Move bits directly, to avoid renomalisation.
-      case cop1NEG: cpu1.store_f32(d, -cpu1.load_f32(s)); return;
+      case cop1SQRT: cpu1.SQRT_S(d, s); return;
+      case cop1ABS: cpu1.ABS_S(d, s); return;
+      case cop1MOV: cpu1.MOV_S(d, s); return;
+      case cop1NEG: cpu1.NEG_S(d, s); return;
       case cop1ROUND_L: cpu1.ConvertSToL(d, s, convertModeRound); return;
       case cop1TRUNC_L: cpu1.ConvertSToL(d, s, convertModeTrunc); return;
       case cop1CEIL_L: cpu1.ConvertSToL(d, s, convertModeCeil); return;
@@ -3445,10 +3445,10 @@ function generateDInstrStub(ctx) {
       case cop1SUB: return `cpu1.store_f64(${d}, cpu1.load_f64( ${s} ) - cpu1.load_f64( ${t}));\n`;
       case cop1MUL: return `cpu1.store_f64(${d}, cpu1.load_f64( ${s} ) * cpu1.load_f64( ${t}));\n`;
       case cop1DIV: return `cpu1.store_f64(${d}, cpu1.load_f64( ${s} ) / cpu1.load_f64( ${t}));\n`;
-      case cop1SQRT: return `cpu1.store_f64(${d}, Math.sqrt(cpu1.load_f64(${s})));\n`;
-      case cop1ABS: return `cpu1.store_f64(${d}, Math.abs(cpu1.load_f64( ${s})));\n`;
-      case cop1MOV: return `cpu1.store_i64_bigint(${d}, cpu1.load_i64_bigint(${s}));\n`;
-      case cop1NEG: return `cpu1.store_f64(${d}, -cpu1.load_f64(${s}));\n`;
+      case cop1SQRT: return `cpu1.SQRT_D(${d}, ${s});\n`;
+      case cop1ABS: return `cpu1.ABS_D(${d}, ${s});\n`;
+      case cop1MOV: return `cpu1.MOV_D(${d}, ${s});\n`;
+      case cop1NEG: return `cpu1.NEG_D(${d}, ${s});\n`;
       case cop1ROUND_L: return `cpu1.ConvertDToL(${d}, ${s}, ${convertModeRound});\n`;
       case cop1TRUNC_L: return `cpu1.ConvertDToL(${d}, ${s}, ${convertModeTrunc});\n`;
       case cop1CEIL_L: return `cpu1.ConvertDToL(${d}, ${s}, ${convertModeCeil});\n`;
@@ -3483,10 +3483,10 @@ function executeDInstr(i) {
       case cop1SUB: cpu1.store_f64(d, cpu1.load_f64(s) - cpu1.load_f64(t)); return;
       case cop1MUL: cpu1.store_f64(d, cpu1.load_f64(s) * cpu1.load_f64(t)); return;
       case cop1DIV: cpu1.store_f64(d, cpu1.load_f64(s) / cpu1.load_f64(t)); return;
-      case cop1SQRT: cpu1.store_f64(d, Math.sqrt(cpu1.load_f64(s))); return;
-      case cop1ABS: cpu1.store_f64(d, Math.abs(cpu1.load_f64(s))); return;
-      case cop1MOV: cpu1.store_i64_bigint(d, cpu1.load_i64_bigint(s)); return;  // Move bits directly, to avoid renomalisation.
-      case cop1NEG: cpu1.store_f64(d, -cpu1.load_f64(s)); return;
+      case cop1SQRT: cpu1.SQRT_D(d, s); return;
+      case cop1ABS: cpu1.ABS_D(d, s); return;
+      case cop1MOV: cpu1.MOV_D(d, s); return;
+      case cop1NEG: cpu1.NEG_D(d, s); return;
       case cop1ROUND_L: cpu1.ConvertDToL(d, s, convertModeRound); return;
       case cop1TRUNC_L: cpu1.ConvertDToL(d, s, convertModeTrunc); return;
       case cop1CEIL_L: cpu1.ConvertDToL(d, s, convertModeCeil); return;
