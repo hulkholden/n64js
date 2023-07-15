@@ -297,6 +297,10 @@ export class CPU1 {
   SQRT_S(d, s) { this.f32UnaryOp(d, s, x => Math.sqrt(x)); }
   ABS_S(d, s) { this.f32UnaryOp(d, s, x => Math.abs(x)); }
   NEG_S(d, s) { this.f32UnaryOp(d, s, x => -x); }
+  ADD_S(d, s, t) { this.store_f32(d, this.load_f32(s) + this.load_f32(t)); }
+  SUB_S(d, s, t) { this.store_f32(d, this.load_f32(s) - this.load_f32(t)); }
+  MUL_S(d, s, t) { this.store_f32(d, this.load_f32(s) * this.load_f32(t)); }
+  DIV_S(d, s, t) { this.store_f32(d, this.load_f32(s) / this.load_f32(t)); }
 
   f32UnaryOp(d, s, operator) {
     this.clearCause();
@@ -403,6 +407,10 @@ export class CPU1 {
   SQRT_D(d, s) { this.f64UnaryOp(d, s, x => Math.sqrt(x)); }
   ABS_D(d, s) { this.f64UnaryOp(d, s, x => Math.abs(x)); }
   NEG_D(d, s) { this.f64UnaryOp(d, s, x => -x); }
+  ADD_D(d, s, t) { this.store_f64(d, this.load_f64(s) + this.load_f64(t)); }
+  SUB_D(d, s, t) { this.store_f64(d, this.load_f64(s) - this.load_f64(t)); }
+  MUL_D(d, s, t) { this.store_f64(d, this.load_f64(s) * this.load_f64(t)); }
+  DIV_D(d, s, t) { this.store_f64(d, this.load_f64(s) / this.load_f64(t)); }
 
   f64UnaryOp(d, s, operator) {
     this.clearCause();
