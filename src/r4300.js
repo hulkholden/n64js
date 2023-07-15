@@ -3381,8 +3381,8 @@ function generateSInstrStub(ctx) {
       case cop1FLOOR_W: return `cpu1.ConvertSToW(${d}, ${s}, ${convertModeFloor});\n`;
       case cop1CVT_S: return `cpu1.raiseUnimplemented();\n`;
       case cop1CVT_D: return `cpu1.CVT_D_S(${d}, ${s});\n`;
-      case cop1CVT_W: return `cpu1.ConvertSToW(${d}, ${s}, ${convertModeDefault});\n`;
-      case cop1CVT_L: return `cpu1.ConvertSToL(${d}, ${s}, ${convertModeDefault});\n`;
+      case cop1CVT_W: return `cpu1.ConvertSToW(${d}, ${s}, cpu1.roundingMode);\n`;
+      case cop1CVT_L: return `cpu1.ConvertSToL(${d}, ${s}, cpu1.roundingMode);\n`;
     }
 
     return `unimplemented(${toString32(ctx.pc)},${toString32(ctx.instruction)});\n`;
@@ -3420,8 +3420,8 @@ function executeSInstr(i) {
       case cop1FLOOR_W: cpu1.ConvertSToW(d, s, convertModeFloor); return;
       case cop1CVT_S: cpu1.raiseUnimplemented(); return;
       case cop1CVT_D: cpu1.CVT_D_S(d, s); return;
-      case cop1CVT_W: cpu1.ConvertSToW(d, s, convertModeDefault); return;
-      case cop1CVT_L: cpu1.ConvertSToL(d, s, convertModeDefault); return;
+      case cop1CVT_W: cpu1.ConvertSToW(d, s, cpu1.roundingMode); return;
+      case cop1CVT_L: cpu1.ConvertSToL(d, s, cpu1.roundingMode); return;
     }
     unimplemented(cpu0.pc, i);
   } else {
@@ -3459,8 +3459,8 @@ function generateDInstrStub(ctx) {
       case cop1FLOOR_W: return `cpu1.ConvertDToW(${d}, ${s}, ${convertModeFloor});\n`;
       case cop1CVT_S: return `cpu1.CVT_S_D(${d}, ${s});\n`;
       case cop1CVT_D: return `cpu1.raiseUnimplemented();\n`;
-      case cop1CVT_W: return `cpu1.ConvertDToW(${d}, ${s}, ${convertModeDefault});\n`;
-      case cop1CVT_L: return `cpu1.ConvertDToL(${d}, ${s}, ${convertModeDefault});\n`;
+      case cop1CVT_W: return `cpu1.ConvertDToW(${d}, ${s}, cpu1.roundingMode);\n`;
+      case cop1CVT_L: return `cpu1.ConvertDToL(${d}, ${s}, cpu1.roundingMode);\n`;
     }
     return `unimplemented(${toString32(ctx.pc)},${toString32(ctx.instruction)});\n`;
   }
@@ -3497,8 +3497,8 @@ function executeDInstr(i) {
       case cop1FLOOR_W: cpu1.ConvertDToW(d, s, convertModeFloor); return;
       case cop1CVT_S: cpu1.CVT_S_D(d, s); return;
       case cop1CVT_D: cpu1.raiseUnimplemented(); return;
-      case cop1CVT_W: cpu1.ConvertDToW(d, s, convertModeDefault); return;
-      case cop1CVT_L: cpu1.ConvertDToL(d, s, convertModeDefault); return;
+      case cop1CVT_W: cpu1.ConvertDToW(d, s, cpu1.roundingMode); return;
+      case cop1CVT_L: cpu1.ConvertDToL(d, s, cpu1.roundingMode); return;
     }
     unimplemented(cpu0.pc, i);
   } else {
