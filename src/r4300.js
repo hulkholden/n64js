@@ -99,24 +99,24 @@ const CAUSE_EXCSHIFT  = 2;
 // Only the software interrupt values are writeable.
 const causeWritableBits = CAUSE_SW1 | CAUSE_SW2;
 
-const causeExcCodeInt = 0;  // Interrupt
-const causeExcCodeMod = 4;  // TLB Modification
-const causeExcCodeTLBL = 8;  // TLB Miss (load or instruction fetch)
-const causeExcCodeTLBS = 12;  // TLB Miss (store)
-const causeExcCodeAdEL = 16;  // Address Error (load or instruction fetch)
-const causeExcCodeAdES = 20;  // Address Error (store)
-const causeExcCodeIBE = 24;  // Bus Error (instruction fetch)
-const causeExcCodeDBE = 28;  // Bus Error (data reference: load or store)
-const causeExcCodeSys = 32;  // Syscall
-const causeExcCodeBp = 36;  // Breakpoint
-const causeExcCodeRI = 40;  // Reserved Instruction
-const causeExcCodeCpU = 44;  // Coprocessor Unusable
-const causeExcCodeOv = 48;  // Arithmetic Overflow
-const causeExcCodeTr = 52;  // Trap
-const causeExcCodeVCEI = 56;  // ?
-const causeExcCodeFPE = 60;  // Floating-Point
-const causeExcCodeWATCH = 92;  // Watch
-const causeExcCodeVCED = 124; // ?
+const causeExcCodeInt = 0 << 2;  // Interrupt
+const causeExcCodeMod = 1 << 2;  // TLB Modification
+const causeExcCodeTLBL = 2 << 2;  // TLB Miss (load or instruction fetch)
+const causeExcCodeTLBS = 3 << 2;  // TLB Miss (store)
+const causeExcCodeAdEL = 4 << 2;  // Address Error (load or instruction fetch)
+const causeExcCodeAdES = 5 << 2;  // Address Error (store)
+const causeExcCodeIBE = 6 << 2;  // Bus Error (instruction fetch)
+const causeExcCodeDBE = 7 << 2;  // Bus Error (data reference: load or store)
+const causeExcCodeSys = 8 << 2;  // Syscall
+const causeExcCodeBp = 9 << 2;  // Breakpoint
+const causeExcCodeRI = 10 << 2;  // Reserved Instruction
+const causeExcCodeCpU = 11 << 2;  // Coprocessor Unusable
+const causeExcCodeOv = 12 << 2;  // Arithmetic Overflow
+const causeExcCodeTr = 13 << 2;  // Trap
+const causeExcCodeVCEI = 14 << 2;  // ?
+const causeExcCodeFPE = 15 << 2;  // Floating-Point
+const causeExcCodeWATCH = 23 << 2;  // Watch
+const causeExcCodeVCED = 31 << 2; // ?
 
 
 const FPCSR_RM_RN     = 0x00000000;
