@@ -27,9 +27,9 @@ const FPCSR_FS = 0x01000000;  // Flush Status
 const FPCSR_RM_MASK = 0x00000003;
 
 const exceptionInexactBit = 0x01;
-const exceptionIUnderflowBit = 0x02;
+const exceptionUnderflowBit = 0x02;
 const exceptionOverflowBit = 0x04;
-const exceptionIDivByZeroBit = 0x08;
+const exceptionDivByZeroBit = 0x08;
 const exceptionInvalidBit = 0x10;
 
 const flagShift = 2;
