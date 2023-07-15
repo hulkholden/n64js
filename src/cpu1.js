@@ -486,7 +486,7 @@ export class CPU1 {
     }
 
     switch (mode) {
-      case convertModeRound: return Math.round(x); break;
+      case convertModeRound: return this.round(x); break;
       case convertModeTrunc: return this.trunc(x); break;
       case convertModeCeil: return Math.ceil(x); break;
       case convertModeFloor: return Math.floor(x); break;
@@ -494,11 +494,29 @@ export class CPU1 {
     assert('unknown rounding mode');
   }
 
+  // n64 round is a different to Math.round.
+  // Values exactly midway between two ints are rounded up or down,
+  // depending on whether the integer part is even or odd.
+  round(x) {
+    const floor = Math.floor(x);
+    const frac = x - floor;
+    if (frac == 0.5) {
+      const ceil = Math.ceil(x);
+      if (x < 0) {
+        const odd = ceil % 2 != 0;
+        return odd ? floor : ceil;
+      }
+      const odd = floor % 2 != 0;
+      return odd ? ceil : floor;
+    }
+    return Math.round(x);
+  }
+
   trunc(x) {
-    if (x < 0)
+    if (x < 0) {
       return Math.ceil(x);
-    else
-      return Math.floor(x);
+    }
+    return Math.floor(x);
   }; 
 
   /**
