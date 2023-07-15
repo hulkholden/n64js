@@ -277,19 +277,19 @@ export class CPU1 {
   CVT_S_L(d, s) {
     this.clearCause();
 
-    let exceptionBits = 0;
-
     const source = this.load_i64_bigint(s);
-    const result = Number(source);
-    if (source >= (1n << 55n)) {
+    if (source >= (1n << 55n) || source < -(1n << 55n)) {
       this.raiseUnimplemented();
       return;
     }
-
+    
+    let exceptionBits = 0;
+    this.tempF32[0] = Number(source);
+    
     if (this.raiseExceptions(exceptionBits)) {
       return;
     }
-    this.store_f32(d, result);
+    this.store_i32(d, this.tempU32[0]);
   }
 
   CVT_D_S(d, s) {
@@ -333,7 +333,20 @@ export class CPU1 {
 
   CVT_D_L(d, s) {
     this.clearCause();
-    this.store_f64(d, this.load_i64_number(s));
+    
+    const source = this.load_i64_bigint(s);
+    if (source >= (1n << 55n) || source < -(1n << 55n)) {
+      this.raiseUnimplemented();
+      return;
+    }
+
+    let exceptionBits = 0;
+    this.tempF64[0] = Number(source);
+  
+    if (this.raiseExceptions(exceptionBits)) {
+      return;
+    }
+    this.store_i64_bigint(d, this.tempU64[0]);
   }
 
   ConvertSToL(d, s, mode) {
