@@ -70,11 +70,10 @@ const floatTypeNegInfinity = 3;
 const floatTypeQNaN = 4;
 const floatTypeSNaN = 5;
 
-export const convertModeDefault = 0;
-export const convertModeRound = 1;
-export const convertModeTrunc = 2;
-export const convertModeCeil = 3;
-export const convertModeFloor = 4;
+export const convertModeRound = 0;
+export const convertModeTrunc = 1;
+export const convertModeCeil = 2;
+export const convertModeFloor = 3;
 
 function classifyFloat32Bits(bits) {
   const exponent = bits & f32ExponentBits;
@@ -470,7 +469,7 @@ export class CPU1 {
     this.store_i32(d, this.tempS32[0]);
   }
 
-  modeFromControlRegister() {
+  get roundingMode() {
     switch (this.control[31] & FPCSR_RM_MASK) {
       case FPCSR_RM_RN: return convertModeRound;
       case FPCSR_RM_RZ: return convertModeTrunc;
@@ -481,10 +480,6 @@ export class CPU1 {
   }
 
   convertUsingMode(x, mode) {
-    if (mode == convertModeDefault) {
-      mode = this.modeFromControlRegister();
-    }
-
     switch (mode) {
       case convertModeRound: return this.round(x); break;
       case convertModeTrunc: return this.trunc(x); break;
