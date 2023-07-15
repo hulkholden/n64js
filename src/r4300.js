@@ -3347,6 +3347,27 @@ n64js.convert = function (x) {
   assert('unknown rounding mode');
 };
 
+const cop1ADD = 0x00;
+const cop1SUB = 0x01;
+const cop1MUL = 0x02;
+const cop1DIV = 0x03;
+const cop1SQRT = 0x04;
+const cop1ABS = 0x05;
+const cop1MOV = 0x06;
+const cop1NEG = 0x07;
+const cop1ROUND_L = 0x08;
+const cop1TRUNC_L = 0x09;
+const cop1CEIL_L = 0x0a;
+const cop1FLOOR_L = 0x0b;
+const cop1ROUND_W = 0x0c;
+const cop1TRUNC_W = 0x0d;
+const cop1CEIL_W = 0x0e;
+const cop1FLOOR_W = 0x0f;
+const cop1CVT_S = 0x20;
+const cop1CVT_D = 0x21;
+const cop1CVT_W = 0x24;
+const cop1CVT_L = 0x25;  
+
 function generateSInstrStub(ctx) {
   const s = ctx.instr_fs();
   const t = ctx.instr_ft();
@@ -3359,26 +3380,26 @@ function generateSInstrStub(ctx) {
 
   if (op < 0x30) {
     switch (op) {
-      case 0x00: return `cpu1.store_f32(${d}, cpu1.load_f32(${s}) + cpu1.load_f32(${t}));\n`;
-      case 0x01: return `cpu1.store_f32(${d}, cpu1.load_f32(${s}) - cpu1.load_f32(${t}));\n`;
-      case 0x02: return `cpu1.store_f32(${d}, cpu1.load_f32(${s}) * cpu1.load_f32(${t}));\n`;
-      case 0x03: return `cpu1.store_f32(${d}, cpu1.load_f32(${s}) / cpu1.load_f32(${t}));\n`;
-      case 0x04: return `cpu1.store_f32(${d}, Math.sqrt(cpu1.load_f32(${s})));\n`;
-      case 0x05: return `cpu1.store_f32(${d}, Math.abs(cpu1.load_f32(${s})));\n`;
-      case 0x06: return `cpu1.store_i32(${d},  cpu1.load_i32(${s}));\n`;
-      case 0x07: return `cpu1.store_f32(${d}, -cpu1.load_f32(${s}));\n`;
-      case 0x08: /* 'ROUND.L.'*/ return `cpu1.store_i64_number(${d}, Math.round(cpu1.load_f32(${s})));\n`;
-      case 0x09: /* 'TRUNC.L.'*/ return `cpu1.store_i64_number(${d}, n64js.trunc(cpu1.load_f32(${s})));\n`;
-      case 0x0a: /* 'CEIL.L.'*/  return `cpu1.store_i64_number(${d}, Math.ceil(cpu1.load_f32(${s})));\n`;
-      case 0x0b: /* 'FLOOR.L.'*/ return `cpu1.store_i64_number(${d}, Math.floor(cpu1.load_f32(${s})));\n`;
-      case 0x0c: /* 'ROUND.W.'*/ return `cpu1.store_i32(${d}, Math.round(cpu1.load_f32(${s})));\n`;  // TODO: check this
-      case 0x0d: /* 'TRUNC.W.'*/ return `cpu1.store_i32(${d}, n64js.trunc(cpu1.load_f32(${s})));\n`;
-      case 0x0e: /* 'CEIL.W.'*/  return `cpu1.store_i32(${d}, Math.ceil(cpu1.load_f32(${s})));\n`;
-      case 0x0f: /* 'FLOOR.W.'*/ return `cpu1.store_i32(${d}, Math.floor(cpu1.load_f32(${s})));\n`;
-      case 0x20: /* 'CVT.S' */   return `cpu1.store_f32(${d}, cpu1.load_f32(${s}));\n`;
-      case 0x21: /* 'CVT.D' */   return `cpu1.store_f64(${d}, cpu1.load_f32(${s}));\n`;
-      case 0x24: /* 'CVT.W' */   return `cpu1.store_i32(${d}, n64js.convert(cpu1.load_f32(${s})));\n`;
-      case 0x25: /* 'CVT.L' */   return `cpu1.store_i64_number(${d}, n64js.convert(cpu1.load_f32(${s})));\n`;
+      case cop1ADD: return `cpu1.store_f32(${d}, cpu1.load_f32(${s}) + cpu1.load_f32(${t}));\n`;
+      case cop1SUB: return `cpu1.store_f32(${d}, cpu1.load_f32(${s}) - cpu1.load_f32(${t}));\n`;
+      case cop1MUL: return `cpu1.store_f32(${d}, cpu1.load_f32(${s}) * cpu1.load_f32(${t}));\n`;
+      case cop1DIV: return `cpu1.store_f32(${d}, cpu1.load_f32(${s}) / cpu1.load_f32(${t}));\n`;
+      case cop1SQRT: return `cpu1.store_f32(${d}, Math.sqrt(cpu1.load_f32(${s})));\n`;
+      case cop1ABS: return `cpu1.store_f32(${d}, Math.abs(cpu1.load_f32(${s})));\n`;
+      case cop1MOV: return `cpu1.store_i32(${d},  cpu1.load_i32(${s}));\n`;
+      case cop1NEG: return `cpu1.store_f32(${d}, -cpu1.load_f32(${s}));\n`;
+      case cop1ROUND_L: return `cpu1.store_i64_number(${d}, Math.round(cpu1.load_f32(${s})));\n`;
+      case cop1TRUNC_L: return `cpu1.store_i64_number(${d}, n64js.trunc(cpu1.load_f32(${s})));\n`;
+      case cop1CEIL_L: return `cpu1.store_i64_number(${d}, Math.ceil(cpu1.load_f32(${s})));\n`;
+      case cop1FLOOR_L: return `cpu1.store_i64_number(${d}, Math.floor(cpu1.load_f32(${s})));\n`;
+      case cop1ROUND_W: return `cpu1.store_i32(${d}, Math.round(cpu1.load_f32(${s})));\n`;  // TODO: check this
+      case cop1TRUNC_W: return `cpu1.store_i32(${d}, n64js.trunc(cpu1.load_f32(${s})));\n`;
+      case cop1CEIL_W: return `cpu1.store_i32(${d}, Math.ceil(cpu1.load_f32(${s})));\n`;
+      case cop1FLOOR_W: return `cpu1.store_i32(${d}, Math.floor(cpu1.load_f32(${s})));\n`;
+      case cop1CVT_S: return `cpu1.store_f32(${d}, cpu1.load_f32(${s}));\n`;
+      case cop1CVT_D: return `cpu1.store_f64(${d}, cpu1.load_f32(${s}));\n`;
+      case cop1CVT_W: return `cpu1.store_i32(${d}, n64js.convert(cpu1.load_f32(${s})));\n`;
+      case cop1CVT_L: return `cpu1.store_i64_number(${d}, n64js.convert(cpu1.load_f32(${s})));\n`;
     }
 
     return `unimplemented(${toString32(ctx.pc)},${toString32(ctx.instruction)});\n`;
@@ -3398,26 +3419,26 @@ function executeSInstr(i) {
 
   if (op < 0x30) {
     switch (op) {
-      case 0x00: cpu1.store_f32(d, cpu1.load_f32(s) + cpu1.load_f32(t)); return;
-      case 0x01: cpu1.store_f32(d, cpu1.load_f32(s) - cpu1.load_f32(t)); return;
-      case 0x02: cpu1.store_f32(d, cpu1.load_f32(s) * cpu1.load_f32(t)); return;
-      case 0x03: cpu1.store_f32(d, cpu1.load_f32(s) / cpu1.load_f32(t)); return;
-      case 0x04: cpu1.store_f32(d, Math.sqrt(cpu1.load_f32(s))); return;
-      case 0x05: cpu1.store_f32(d, Math.abs(cpu1.load_f32(s))); return;
-      case 0x06: cpu1.store_i32(d, cpu1.load_i32(s)); return;  // Move bits directly, to avoid renomalisation.
-      case 0x07: cpu1.store_f32(d, -cpu1.load_f32(s)); return;
-      case 0x08: /* 'ROUND.L.'*/ cpu1.store_i64_number(d, Math.round(cpu1.load_f32(s))); return;
-      case 0x09: /* 'TRUNC.L.'*/ cpu1.store_i64_number(d, n64js.trunc(cpu1.load_f32(s))); return;
-      case 0x0a: /* 'CEIL.L.'*/  cpu1.store_i64_number(d, Math.ceil(cpu1.load_f32(s))); return;
-      case 0x0b: /* 'FLOOR.L.'*/ cpu1.store_i64_number(d, Math.floor(cpu1.load_f32(s))); return;
-      case 0x0c: /* 'ROUND.W.'*/ cpu1.store_i32(d, Math.round(cpu1.load_f32(s))); return;  // TODO: check this
-      case 0x0d: /* 'TRUNC.W.'*/ cpu1.store_i32(d, n64js.trunc(cpu1.load_f32(s))); return;
-      case 0x0e: /* 'CEIL.W.'*/  cpu1.store_i32(d, Math.ceil(cpu1.load_f32(s))); return;
-      case 0x0f: /* 'FLOOR.W.'*/ cpu1.store_i32(d, Math.floor(cpu1.load_f32(s))); return;
-      case 0x20: /* 'CVT.S' */   cpu1.store_f32(d, cpu1.load_f32(s)); return;
-      case 0x21: /* 'CVT.D' */   cpu1.store_f64(d, cpu1.load_f32(s)); return;
-      case 0x24: /* 'CVT.W' */   cpu1.store_i32(d, n64js.convert(cpu1.load_f32(s))); return;
-      case 0x25: /* 'CVT.L' */   cpu1.store_i64_number(d, n64js.convert(cpu1.load_f32(s))); return;
+      case cop1ADD: cpu1.store_f32(d, cpu1.load_f32(s) + cpu1.load_f32(t)); return;
+      case cop1SUB: cpu1.store_f32(d, cpu1.load_f32(s) - cpu1.load_f32(t)); return;
+      case cop1MUL: cpu1.store_f32(d, cpu1.load_f32(s) * cpu1.load_f32(t)); return;
+      case cop1DIV: cpu1.store_f32(d, cpu1.load_f32(s) / cpu1.load_f32(t)); return;
+      case cop1SQRT: cpu1.store_f32(d, Math.sqrt(cpu1.load_f32(s))); return;
+      case cop1ABS: cpu1.store_f32(d, Math.abs(cpu1.load_f32(s))); return;
+      case cop1MOV: cpu1.store_i32(d, cpu1.load_i32(s)); return;  // Move bits directly, to avoid renomalisation.
+      case cop1NEG: cpu1.store_f32(d, -cpu1.load_f32(s)); return;
+      case cop1ROUND_L: cpu1.store_i64_number(d, Math.round(cpu1.load_f32(s))); return;
+      case cop1TRUNC_L: cpu1.store_i64_number(d, n64js.trunc(cpu1.load_f32(s))); return;
+      case cop1CEIL_L: cpu1.store_i64_number(d, Math.ceil(cpu1.load_f32(s))); return;
+      case cop1FLOOR_L: cpu1.store_i64_number(d, Math.floor(cpu1.load_f32(s))); return;
+      case cop1ROUND_W: cpu1.store_i32(d, Math.round(cpu1.load_f32(s))); return;  // TODO: check this
+      case cop1TRUNC_W: cpu1.store_i32(d, n64js.trunc(cpu1.load_f32(s))); return;
+      case cop1CEIL_W: cpu1.store_i32(d, Math.ceil(cpu1.load_f32(s))); return;
+      case cop1FLOOR_W: cpu1.store_i32(d, Math.floor(cpu1.load_f32(s))); return;
+      case cop1CVT_S: cpu1.store_f32(d, cpu1.load_f32(s)); return;
+      case cop1CVT_D: cpu1.store_f64(d, cpu1.load_f32(s)); return;
+      case cop1CVT_W: cpu1.store_i32(d, n64js.convert(cpu1.load_f32(s))); return;
+      case cop1CVT_L: cpu1.store_i64_number(d, n64js.convert(cpu1.load_f32(s))); return;
     }
     unimplemented(cpu0.pc, i);
   } else {
@@ -3437,26 +3458,26 @@ function generateDInstrStub(ctx) {
 
   if (op < 0x30) {
     switch (op) {
-      case 0x00: return `cpu1.store_f64(${d}, cpu1.load_f64( ${s} ) + cpu1.load_f64( ${t}));\n`;
-      case 0x01: return `cpu1.store_f64(${d}, cpu1.load_f64( ${s} ) - cpu1.load_f64( ${t}));\n`;
-      case 0x02: return `cpu1.store_f64(${d}, cpu1.load_f64( ${s} ) * cpu1.load_f64( ${t}));\n`;
-      case 0x03: return `cpu1.store_f64(${d}, cpu1.load_f64( ${s} ) / cpu1.load_f64( ${t}));\n`;
-      case 0x04: return `cpu1.store_f64(${d}, Math.sqrt(cpu1.load_f64(${s})));\n`;
-      case 0x05: return `cpu1.store_f64(${d}, Math.abs(cpu1.load_f64( ${s})));\n`;
-      case 0x06: return `cpu1.store_i64_bigint(${d}, cpu1.load_i64_bigint(${s}));\n`;
-      case 0x07: return `cpu1.store_f64(${d}, -cpu1.load_f64(${s}));\n`;
-      case 0x08: /* 'ROUND.L.'*/ return `cpu1.store_i64_number(${d}, Math.round(cpu1.load_f64(${s})));\n`;
-      case 0x09: /* 'TRUNC.L.'*/ return `cpu1.store_i64_number(${d}, n64js.trunc(cpu1.load_f64(${s})));\n`;
-      case 0x0a: /* 'CEIL.L.'*/  return `cpu1.store_i64_number(${d}, Math.ceil(cpu1.load_f64(${s})));\n`;
-      case 0x0b: /* 'FLOOR.L.'*/ return `cpu1.store_i64_number(${d}, Math.floor(cpu1.load_f64(${s})));\n`;
-      case 0x0c: /* 'ROUND.W.'*/ return `cpu1.store_i32(${d}, Math.round(cpu1.load_f64(${s})));\n`;  // TODO: check this
-      case 0x0d: /* 'TRUNC.W.'*/ return `cpu1.store_i32(${d}, n64js.trunc(cpu1.load_f64(${s})));\n`;
-      case 0x0e: /* 'CEIL.W.'*/  return `cpu1.store_i32(${d}, Math.ceil(cpu1.load_f64(${s})));\n`;
-      case 0x0f: /* 'FLOOR.W.'*/ return `cpu1.store_i32(${d}, Math.floor(cpu1.load_f64(${s})));\n`;
-      case 0x20: /* 'CVT.S' */   return `cpu1.store_f32(${d}, cpu1.load_f64(${s}));\n`;
-      case 0x21: /* 'CVT.D' */   return `cpu1.store_f64(${d}, cpu1.load_f64(${s}));\n`;
-      case 0x24: /* 'CVT.W' */   return `cpu1.store_i32(${d}, n64js.convert(cpu1.load_f64(${s})));\n`;
-      case 0x25: /* 'CVT.L' */   return `cpu1.store_i64_number(${d}, n64js.convert(cpu1.load_f64(${s})));\n`;
+      case cop1ADD: return `cpu1.store_f64(${d}, cpu1.load_f64( ${s} ) + cpu1.load_f64( ${t}));\n`;
+      case cop1SUB: return `cpu1.store_f64(${d}, cpu1.load_f64( ${s} ) - cpu1.load_f64( ${t}));\n`;
+      case cop1MUL: return `cpu1.store_f64(${d}, cpu1.load_f64( ${s} ) * cpu1.load_f64( ${t}));\n`;
+      case cop1DIV: return `cpu1.store_f64(${d}, cpu1.load_f64( ${s} ) / cpu1.load_f64( ${t}));\n`;
+      case cop1SQRT: return `cpu1.store_f64(${d}, Math.sqrt(cpu1.load_f64(${s})));\n`;
+      case cop1ABS: return `cpu1.store_f64(${d}, Math.abs(cpu1.load_f64( ${s})));\n`;
+      case cop1MOV: return `cpu1.store_i64_bigint(${d}, cpu1.load_i64_bigint(${s}));\n`;
+      case cop1NEG: return `cpu1.store_f64(${d}, -cpu1.load_f64(${s}));\n`;
+      case cop1ROUND_L: return `cpu1.store_i64_number(${d}, Math.round(cpu1.load_f64(${s})));\n`;
+      case cop1TRUNC_L: return `cpu1.store_i64_number(${d}, n64js.trunc(cpu1.load_f64(${s})));\n`;
+      case cop1CEIL_L: return `cpu1.store_i64_number(${d}, Math.ceil(cpu1.load_f64(${s})));\n`;
+      case cop1FLOOR_L: return `cpu1.store_i64_number(${d}, Math.floor(cpu1.load_f64(${s})));\n`;
+      case cop1ROUND_W: return `cpu1.store_i32(${d}, Math.round(cpu1.load_f64(${s})));\n`;  // TODO: check this
+      case cop1TRUNC_W: return `cpu1.store_i32(${d}, n64js.trunc(cpu1.load_f64(${s})));\n`;
+      case cop1CEIL_W: return `cpu1.store_i32(${d}, Math.ceil(cpu1.load_f64(${s})));\n`;
+      case cop1FLOOR_W: return `cpu1.store_i32(${d}, Math.floor(cpu1.load_f64(${s})));\n`;
+      case cop1CVT_S: return `cpu1.store_f32(${d}, cpu1.load_f64(${s}));\n`;
+      case cop1CVT_D: return `cpu1.store_f64(${d}, cpu1.load_f64(${s}));\n`;
+      case cop1CVT_W: return `cpu1.store_i32(${d}, n64js.convert(cpu1.load_f64(${s})));\n`;
+      case cop1CVT_L: return `cpu1.store_i64_number(${d}, n64js.convert(cpu1.load_f64(${s})));\n`;
     }
     return `unimplemented(${toString32(ctx.pc)},${toString32(ctx.instruction)});\n`;
   }
@@ -3475,27 +3496,27 @@ function executeDInstr(i) {
 
   if (op < 0x30) {
     switch (op) {
-      case 0x00: cpu1.store_f64(d, cpu1.load_f64(s) + cpu1.load_f64(t)); return;
-      case 0x01: cpu1.store_f64(d, cpu1.load_f64(s) - cpu1.load_f64(t)); return;
-      case 0x02: cpu1.store_f64(d, cpu1.load_f64(s) * cpu1.load_f64(t)); return;
-      case 0x03: cpu1.store_f64(d, cpu1.load_f64(s) / cpu1.load_f64(t)); return;
-      case 0x04: cpu1.store_f64(d, Math.sqrt(cpu1.load_f64(s))); return;
-      case 0x05: cpu1.store_f64(d, Math.abs(cpu1.load_f64(s))); return;
-      case 0x06: cpu1.store_i64_bigint(d, cpu1.load_i64_bigint(s)); return;  // Move bits directly, to avoid renomalisation.
-      case 0x07: cpu1.store_f64(d, -cpu1.load_f64(s)); return;
-      case 0x08: /* 'ROUND.L.'*/ cpu1.store_i64_number(d, Math.round(cpu1.load_f64(s))); return;
-      case 0x09: /* 'TRUNC.L.'*/ cpu1.store_i64_number(d, n64js.trunc(cpu1.load_f64(s))); return;
-      case 0x0a: /* 'CEIL.L.'*/  cpu1.store_i64_number(d, Math.ceil(cpu1.load_f64(s))); return;
-      case 0x0b: /* 'FLOOR.L.'*/ cpu1.store_i64_number(d, Math.floor(cpu1.load_f64(s))); return;
-      case 0x0c: /* 'ROUND.W.'*/ cpu1.store_i32(d, Math.round(cpu1.load_f64(s))); return;  // TODO: check this
-      case 0x0d: /* 'TRUNC.W.'*/ cpu1.store_i32(d, n64js.trunc(cpu1.load_f64(s))); return;
-      case 0x0e: /* 'CEIL.W.'*/  cpu1.store_i32(d, Math.ceil(cpu1.load_f64(s))); return;
-      case 0x0f: /* 'FLOOR.W.'*/ cpu1.store_i32(d, Math.floor(cpu1.load_f64(s))); return;
+      case cop1ADD: cpu1.store_f64(d, cpu1.load_f64(s) + cpu1.load_f64(t)); return;
+      case cop1SUB: cpu1.store_f64(d, cpu1.load_f64(s) - cpu1.load_f64(t)); return;
+      case cop1MUL: cpu1.store_f64(d, cpu1.load_f64(s) * cpu1.load_f64(t)); return;
+      case cop1DIV: cpu1.store_f64(d, cpu1.load_f64(s) / cpu1.load_f64(t)); return;
+      case cop1SQRT: cpu1.store_f64(d, Math.sqrt(cpu1.load_f64(s))); return;
+      case cop1ABS: cpu1.store_f64(d, Math.abs(cpu1.load_f64(s))); return;
+      case cop1MOV: cpu1.store_i64_bigint(d, cpu1.load_i64_bigint(s)); return;  // Move bits directly, to avoid renomalisation.
+      case cop1NEG: cpu1.store_f64(d, -cpu1.load_f64(s)); return;
+      case cop1ROUND_L: cpu1.store_i64_number(d, Math.round(cpu1.load_f64(s))); return;
+      case cop1TRUNC_L: cpu1.store_i64_number(d, n64js.trunc(cpu1.load_f64(s))); return;
+      case cop1CEIL_L: cpu1.store_i64_number(d, Math.ceil(cpu1.load_f64(s))); return;
+      case cop1FLOOR_L: cpu1.store_i64_number(d, Math.floor(cpu1.load_f64(s))); return;
+      case cop1ROUND_W: cpu1.store_i32(d, Math.round(cpu1.load_f64(s))); return;  // TODO: check this
+      case cop1TRUNC_W: cpu1.store_i32(d, n64js.trunc(cpu1.load_f64(s))); return;
+      case cop1CEIL_W: cpu1.store_i32(d, Math.ceil(cpu1.load_f64(s))); return;
+      case cop1FLOOR_W: cpu1.store_i32(d, Math.floor(cpu1.load_f64(s))); return;
 
-      case 0x20: /* 'CVT.S' */   cpu1.store_f32(d, cpu1.load_f64(s)); return;
-      case 0x21: /* 'CVT.D' */   cpu1.store_f64(d, cpu1.load_f64(s)); return;
-      case 0x24: /* 'CVT.W' */   cpu1.store_i32(d, n64js.convert(cpu1.load_f64(s))); return;
-      case 0x25: /* 'CVT.L' */   cpu1.store_i64_number(d, n64js.convert(cpu1.load_f64(s))); return;
+      case cop1CVT_S: cpu1.store_f32(d, cpu1.load_f64(s)); return;
+      case cop1CVT_D: cpu1.store_f64(d, cpu1.load_f64(s)); return;
+      case cop1CVT_W: cpu1.store_i32(d, n64js.convert(cpu1.load_f64(s))); return;
+      case cop1CVT_L: cpu1.store_i64_number(d, n64js.convert(cpu1.load_f64(s))); return;
     }
     unimplemented(cpu0.pc, i);
   } else {
@@ -3510,9 +3531,9 @@ function generateWInstrStub(ctx) {
   ctx.fragment.usesCop1 = true;
   ctx.isTrivial = true;
   switch (cop1_func(ctx.instruction)) {
-    case 0x20: /* 'CVT.S' */ return `cpu1.store_f32(${d}, cpu1.load_i32(${s}));\n`;
-    case 0x21: /* 'CVT.D' */ return `cpu1.store_f64(${d}, cpu1.load_i32(${s}));\n`;
-    case 0x24: /* 'CVT.W' */ return `cpu1.store_i32(${d}, cpu1.load_i32(${s}));\n`;
+    case cop1CVT_S: return `cpu1.store_f32(${d}, cpu1.load_i32(${s}));\n`;
+    case cop1CVT_D: return `cpu1.store_f64(${d}, cpu1.load_i32(${s}));\n`;
+    case cop1CVT_W: return `cpu1.store_i32(${d}, cpu1.load_i32(${s}));\n`;
   }
   return `unimplemented(${toString32(ctx.pc)},${toString32(ctx.instruction)});\n`;
 }
@@ -3522,9 +3543,9 @@ function executeWInstr(i) {
   const d = fd(i);
 
   switch (cop1_func(i)) {
-    case 0x20: /* 'CVT.S' */ cpu1.store_f32(d, cpu1.load_i32(s)); return;
-    case 0x21: /* 'CVT.D' */ cpu1.store_f64(d, cpu1.load_i32(s)); return;
-    case 0x24: /* 'CVT.W' */ cpu1.store_i32(d, cpu1.load_i32(s)); return;
+    case cop1CVT_S: cpu1.store_f32(d, cpu1.load_i32(s)); return;
+    case cop1CVT_D: cpu1.store_f64(d, cpu1.load_i32(s)); return;
+    case cop1CVT_W: cpu1.store_i32(d, cpu1.load_i32(s)); return;
   }
   unimplemented(cpu0.pc, i);
 }
@@ -3536,10 +3557,10 @@ function generateLInstrStub(ctx) {
   ctx.fragment.usesCop1 = true;
   ctx.isTrivial = true;
   switch (cop1_func(ctx.instruction)) {
-    case 0x20: /* 'CVT.S' */ return `cpu1.store_f32(${d}, cpu1.load_i64_number(${s}));\n`;
-    case 0x21: /* 'CVT.D' */ return `cpu1.store_f64(${d}, cpu1.load_i64_number(${s}));\n`;
-    case 0x24: /* 'CVT.W' */ return `cpu1.store_i32(${d}, cpu1.load_i64_number(${s}));\n`;
-    case 0x25: /* 'CVT.L' */ return `cpu1.store_i64_bigint(${d}, cpu1.load_i64_bigint(${s}))\n`; return;
+    case cop1CVT_S: return `cpu1.store_f32(${d}, cpu1.load_i64_number(${s}));\n`;
+    case cop1CVT_D: return `cpu1.store_f64(${d}, cpu1.load_i64_number(${s}));\n`;
+    case cop1CVT_W: return `cpu1.store_i32(${d}, cpu1.load_i64_number(${s}));\n`;
+    case cop1CVT_L: return `cpu1.store_i64_bigint(${d}, cpu1.load_i64_bigint(${s}))\n`; return;
   }
   return `unimplemented(${toString32(ctx.pc)},${toString32(ctx.instruction)});\n`;
 }
@@ -3549,10 +3570,10 @@ function executeLInstr(i) {
   const d = fd(i);
 
   switch (cop1_func(i)) {
-    case 0x20: /* 'CVT.S' */ cpu1.store_f32(d, cpu1.load_i64_number(s)); return;
-    case 0x21: /* 'CVT.D' */ cpu1.store_f64(d, cpu1.load_i64_number(s)); return;
-    case 0x24: /* 'CVT.W' */ cpu1.store_i32(d, cpu1.load_i64_number(s)); return;
-    case 0x25: /* 'CVT.L' */ cpu1.store_i64_bigint(d, cpu1.load_i64_bigint(s)); return;
+    case cop1CVT_S: cpu1.store_f32(d, cpu1.load_i64_number(s)); return;
+    case cop1CVT_D: cpu1.store_f64(d, cpu1.load_i64_number(s)); return;
+    case cop1CVT_W: cpu1.store_i32(d, cpu1.load_i64_number(s)); return;
+    case cop1CVT_L: cpu1.store_i64_bigint(d, cpu1.load_i64_bigint(s)); return;
   }
   unimplemented(cpu0.pc, i);
 }
