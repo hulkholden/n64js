@@ -64,11 +64,13 @@ const f64PosInfinityBits = f64ExponentBits;
 const f64NegInfinityBits = f64ExponentBits | f64SignBit;
 
 const floatTypeNormal = 0;
-const floatTypeDenormal = 1;
-const floatTypePosInfinity = 2;
-const floatTypeNegInfinity = 3;
-const floatTypeQNaN = 4;
-const floatTypeSNaN = 5;
+const floatTypePosZero = 2;
+const floatTypeNegZero = 3;
+const floatTypeDenormal = 4;
+const floatTypePosInfinity = 5;
+const floatTypeNegInfinity = 6;
+const floatTypeQNaN = 7;
+const floatTypeSNaN = 8;
 
 export const convertModeRound = 0;
 export const convertModeTrunc = 1;
@@ -84,13 +86,14 @@ function classifyFloat32Bits(bits) {
     if (mantissa == 0) {
       return (bits & f32SignBit) ? floatTypeNegInfinity : floatTypePosInfinity;
     }
-    return bits & f32QuietBit ? floatTypeQNaN : floatTypeSNaN;
+    return (bits & f32QuietBit) ? floatTypeQNaN : floatTypeSNaN;
   }
-  if (exponent == 0 && mantissa != 0) {
-    return floatTypeDenormal;
+  if (exponent == 0) {
+    if (mantissa != 0) {
+      return floatTypeDenormal;
+    }
+    return (bits & f32SignBit) ? floatTypeNegZero : floatTypePosZero;
   }
-
-  // Positive zero, negative zero, or normalized finie.
   return floatTypeNormal;
 }
 
@@ -105,11 +108,12 @@ function classifyFloat64Bits(bits) {
     }
     return bits & f64QuietBit ? floatTypeQNaN : floatTypeSNaN;
   }
-  if (exponent == 0 && mantissa != 0) {
-    return floatTypeDenormal;
+  if (exponent == 0) {
+    if (mantissa != 0) {
+      return floatTypeDenormal;
+    }
+    return (bits & f64SignBit) ? floatTypeNegZero : floatTypePosZero;
   }
-
-  // Positive zero, negative zero, or normalized finie.
   return floatTypeNormal;
 }
 
@@ -297,10 +301,10 @@ export class CPU1 {
   SQRT_S(d, s) { this.f32UnaryOp(d, s, x => Math.sqrt(x)); }
   ABS_S(d, s) { this.f32UnaryOp(d, s, x => Math.abs(x)); }
   NEG_S(d, s) { this.f32UnaryOp(d, s, x => -x); }
-  ADD_S(d, s, t) { this.f32BinaryOp(d, s, t, (a, b) => a + b); }
-  SUB_S(d, s, t) { this.f32BinaryOp(d, s, t, (a, b) => a - b); }
-  MUL_S(d, s, t) { this.f32BinaryOp(d, s, t, (a, b) => a * b); }
-  DIV_S(d, s, t) { this.f32BinaryOp(d, s, t, (a, b) => a / b); }
+  ADD_S(d, s, t) { this.f32BinaryOp(d, s, t, (a, b) => a + b, false); }
+  SUB_S(d, s, t) { this.f32BinaryOp(d, s, t, (a, b) => a - b, false); }
+  MUL_S(d, s, t) { this.f32BinaryOp(d, s, t, (a, b) => a * b, false); }
+  DIV_S(d, s, t) { this.f32BinaryOp(d, s, t, (a, b) => a / b, true); }
 
   f32UnaryOp(d, s, operator) {
     this.clearCause();
@@ -344,7 +348,7 @@ export class CPU1 {
     this.store_i32(d, this.tempU32[0]);
   }
 
-  f32BinaryOp(d, s, t, operator) {
+  f32BinaryOp(d, s, t, operator, isDiv) {
     this.clearCause();
 
     const sBits = this.load_i32(s);
@@ -368,7 +372,22 @@ export class CPU1 {
         // Adding positive and negative infinity results in a SNaN.
         exceptionBits |= exceptionInvalidBit;
         this.tempU32[0] = f32SignallingNaNBits;          
-    } else {
+    }
+
+    if (isDiv) {
+      if ((sType == floatTypePosZero || sType == floatTypeNegZero) && (tType == floatTypePosZero)) {
+        // +0/+0 or -0/+0 results in a SNaN.
+        exceptionBits |= exceptionInvalidBit;
+        this.tempU32[0] = f32SignallingNaNBits;
+      } else if (tType == floatTypePosZero || tType == floatTypeNegZero) {
+        // x/0 or x/-0 produces infinity.
+        exceptionBits |= exceptionDivByZeroBit;
+        const sameSign = (sBits & f32SignBit) == (tBits & f32SignBit)
+        this.tempU32[0] = sameSign ? f32PosInfinityBits : f32NegInfinityBits;
+      }
+    }
+
+    if (!exceptionBits) {
       const sValue = this.load_f32(s);
       const tValue = this.load_f32(t);
       this.tempF32[0] = operator(sValue, tValue);
@@ -443,10 +462,10 @@ export class CPU1 {
   SQRT_D(d, s) { this.f64UnaryOp(d, s, x => Math.sqrt(x)); }
   ABS_D(d, s) { this.f64UnaryOp(d, s, x => Math.abs(x)); }
   NEG_D(d, s) { this.f64UnaryOp(d, s, x => -x); }
-  ADD_D(d, s, t) { this.f64BinaryOp(d, s, t, (a, b) => a + b); }
-  SUB_D(d, s, t) { this.f64BinaryOp(d, s, t, (a, b) => a - b); }
-  MUL_D(d, s, t) { this.f64BinaryOp(d, s, t, (a, b) => a * b); }
-  DIV_D(d, s, t) { this.f64BinaryOp(d, s, t, (a, b) => a / b); }
+  ADD_D(d, s, t) { this.f64BinaryOp(d, s, t, (a, b) => a + b, false); }
+  SUB_D(d, s, t) { this.f64BinaryOp(d, s, t, (a, b) => a - b, false); }
+  MUL_D(d, s, t) { this.f64BinaryOp(d, s, t, (a, b) => a * b, false); }
+  DIV_D(d, s, t) { this.f64BinaryOp(d, s, t, (a, b) => a / b, true); }
 
   f64UnaryOp(d, s, operator) {
     this.clearCause();
@@ -490,7 +509,7 @@ export class CPU1 {
     this.store_i64_bigint(d, this.tempU64[0]);
   }
 
-  f64BinaryOp(d, s, t, operator) {
+  f64BinaryOp(d, s, t, operator, isDiv) {
     this.clearCause();
 
     const sBits = this.load_i64_bigint(s);
@@ -514,7 +533,22 @@ export class CPU1 {
         // Adding positive and negative infinity results in a SNaN.
         exceptionBits |= exceptionInvalidBit;
         this.tempU64[0] = f64SignallingNaNBits;          
-    } else {
+    }
+    
+    if (isDiv) {
+      if ((sType == floatTypePosZero || sType == floatTypeNegZero) && (tType == floatTypePosZero)) {
+        // +0/+0 or -0/+0 results in a SNaN.
+        exceptionBits |= exceptionInvalidBit;
+        this.tempU64[0] = f64SignallingNaNBits;
+      } else if (tType == floatTypePosZero || tType == floatTypeNegZero) {
+        // x/0 or x/-0 produces infinity.
+        exceptionBits |= exceptionDivByZeroBit;
+        const sameSign = (sBits & f64SignBit) == (tBits & f64SignBit)
+        this.tempU64[0] = sameSign ? f64PosInfinityBits : f64NegInfinityBits;
+      }
+    }
+    
+    if (!exceptionBits) {
       const sValue = this.load_f64(s);
       const tValue = this.load_f64(t);
       this.tempF64[0] = operator(sValue, tValue);
