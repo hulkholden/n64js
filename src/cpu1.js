@@ -64,13 +64,44 @@ const f64PosInfinityBits = f64ExponentBits;
 const f64NegInfinityBits = f64ExponentBits | f64SignBit;
 
 const floatTypeNormal = 0;
-const floatTypePosZero = 2;
-const floatTypeNegZero = 3;
-const floatTypeDenormal = 4;
-const floatTypePosInfinity = 5;
-const floatTypeNegInfinity = 6;
-const floatTypeQNaN = 7;
-const floatTypeSNaN = 8;
+const floatTypePosZero = 1;
+const floatTypeNegZero = 2;
+const floatTypePosInfinity = 3;
+const floatTypeNegInfinity = 4;
+const floatTypeQNaN = 5;
+const floatTypeSNaN = 6;
+const floatTypeDenormal = 7;
+const numFloatTypes = 8;
+
+// Operation types.
+const opInvalid = 0;
+const opUnimplm = 1;
+const opDivZero = 2;
+const opDivide = 3;
+
+function getOpCase(cases, sType, fType) {
+  return cases[(sType * numFloatTypes) + fType];
+}
+
+function validateOpCaseTable(cases) {
+  if (cases.length != (numFloatTypes * numFloatTypes)) {
+    throw "Case table is unexpected size.";
+  }
+}
+
+// Operation cases for divide.
+const divOpCases = [
+  // t = normal, posZero, negZero, posInf, negInf, qNaN, sNaN, denormal
+  opDivide,  opDivZero, opDivZero, opDivide,  opDivide,  opInvalid, opUnimplm, opUnimplm,   // s = normal
+  opDivide,  opInvalid, opDivZero, opDivide,  opDivide,  opInvalid, opUnimplm, opUnimplm,   // s = posZero
+  opDivide,  opInvalid, opDivZero, opDivide,  opDivide,  opInvalid, opUnimplm, opUnimplm,   // s = negZero
+  opDivide,  opDivZero, opDivZero, opInvalid, opInvalid, opInvalid, opUnimplm, opUnimplm,   // s = posInf
+  opDivide,  opDivZero, opDivZero, opInvalid, opInvalid, opInvalid, opUnimplm, opUnimplm,   // s = negInf
+  opInvalid, opInvalid, opInvalid, opInvalid, opInvalid, opInvalid, opUnimplm, opUnimplm,   // s = qNaN
+  opUnimplm, opUnimplm, opUnimplm, opUnimplm, opUnimplm, opUnimplm, opUnimplm, opUnimplm,   // s = sNaN
+  opUnimplm, opUnimplm, opUnimplm, opUnimplm, opUnimplm, opUnimplm, opUnimplm, opUnimplm,   // s = denormal
+];
+validateOpCaseTable(divOpCases);
 
 export const convertModeRound = 0;
 export const convertModeTrunc = 1;
@@ -117,10 +148,9 @@ function classifyFloat64Bits(bits) {
   return floatTypeNormal;
 }
 
-function floatTypeNaN(t) {
-  return t == floatTypeQNaN || t == floatTypeSNaN;
-}
-
+function floatTypeNaN(t) { return t == floatTypeQNaN || t == floatTypeSNaN; }
+function floatTypeZero(t) { return t == floatTypePosZero || t == floatTypeNegZero; }
+function floatTypeInfinity(t) { return t == floatTypePosInfinity || t == floatTypeNegInfinity; }
 
 export class CPU1 {
   constructor(cpu0) {
@@ -301,10 +331,10 @@ export class CPU1 {
   SQRT_S(d, s) { this.f32UnaryOp(d, s, x => Math.sqrt(x)); }
   ABS_S(d, s) { this.f32UnaryOp(d, s, x => Math.abs(x)); }
   NEG_S(d, s) { this.f32UnaryOp(d, s, x => -x); }
-  ADD_S(d, s, t) { this.f32BinaryOp(d, s, t, (a, b) => a + b, false); }
-  SUB_S(d, s, t) { this.f32BinaryOp(d, s, t, (a, b) => a - b, false); }
-  MUL_S(d, s, t) { this.f32BinaryOp(d, s, t, (a, b) => a * b, false); }
-  DIV_S(d, s, t) { this.f32BinaryOp(d, s, t, (a, b) => a / b, true); }
+  ADD_S(d, s, t) { this.f32BinaryOp(d, s, t, (a, b) => a + b); }
+  SUB_S(d, s, t) { this.f32BinaryOp(d, s, t, (a, b) => a - b); }
+  MUL_S(d, s, t) { this.f32BinaryOp(d, s, t, (a, b) => a * b); }
+  DIV_S(d, s, t) { this.f32BinaryOp2(d, s, t, divOpCases); }
 
   f32UnaryOp(d, s, operator) {
     this.clearCause();
@@ -348,7 +378,63 @@ export class CPU1 {
     this.store_i32(d, this.tempU32[0]);
   }
 
-  f32BinaryOp(d, s, t, operator, isDiv) {
+  f32BinaryOp2(d, s, t, cases) {
+    this.clearCause();
+
+    const sBits = this.load_i32(s);
+    const tBits = this.load_i32(t);
+    const sType = classifyFloat32Bits(sBits);
+    const tType = classifyFloat32Bits(tBits);
+    const opCase = getOpCase(cases, sType, tType);
+
+    let exceptionBits = 0;
+
+    // console.log(`div: ${this.load_f32(s)} op ${this.load_f32(t)} - ${opCase}`);
+
+    switch (opCase) {
+      case opUnimplm:
+        this.raiseUnimplemented();
+        return
+      case opInvalid:
+        exceptionBits |= exceptionInvalidBit;
+        this.tempU32[0] = f32SignallingNaNBits;
+        break;
+      case opDivZero:
+        exceptionBits |= exceptionDivByZeroBit;
+        const sameSign = (sBits & f32SignBit) == (tBits & f32SignBit)
+        this.tempU32[0] = sameSign ? f32PosInfinityBits : f32NegInfinityBits;
+        break;
+      case opDivide:
+        const sValue = this.load_f32(s);
+        const tValue = this.load_f32(t);
+        const result = sValue / tValue;
+        this.tempF32[0] = result;
+        if (result != this.tempF32[0]) {
+          exceptionBits |= exceptionInexactBit;
+        }
+        // TODO: only on add/sub
+        // If the result is unchanged but the operand was non-zero then we lost precision.
+        // if (result == sValue && !floatTypeZero(tType)) {
+        //   exceptionBits |= exceptionInexactBit;
+        // }
+        // If the result was finite but it become infinite when storing, we overflowed.
+        // TODO: maybe this is true if both the operands are non-infinite?
+        if (isFinite(result) && !isFinite(this.tempF32[0])) {
+          exceptionBits |= exceptionOverflowBit;
+        }
+        //console.log(`${ sValue } op ${ tValue } = ${ result } -> ${ this.tempF32[0] }`);
+        break;
+      default:
+        throw `unhandled op case: ${opCase}`;
+    }
+
+    if (this.raiseExceptions(exceptionBits)) {
+      return;
+    }
+    this.store_i32(d, this.tempU32[0]);
+  }
+
+  f32BinaryOp(d, s, t, operator) {
     this.clearCause();
 
     const sBits = this.load_i32(s);
@@ -372,19 +458,6 @@ export class CPU1 {
         // Adding positive and negative infinity results in a SNaN.
         exceptionBits |= exceptionInvalidBit;
         this.tempU32[0] = f32SignallingNaNBits;          
-    }
-
-    if (isDiv) {
-      if ((sType == floatTypePosZero || sType == floatTypeNegZero) && (tType == floatTypePosZero)) {
-        // +0/+0 or -0/+0 results in a SNaN.
-        exceptionBits |= exceptionInvalidBit;
-        this.tempU32[0] = f32SignallingNaNBits;
-      } else if (tType == floatTypePosZero || tType == floatTypeNegZero) {
-        // x/0 or x/-0 produces infinity.
-        exceptionBits |= exceptionDivByZeroBit;
-        const sameSign = (sBits & f32SignBit) == (tBits & f32SignBit)
-        this.tempU32[0] = sameSign ? f32PosInfinityBits : f32NegInfinityBits;
-      }
     }
 
     if (!exceptionBits) {
