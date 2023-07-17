@@ -165,12 +165,44 @@ const opAdd = 3;
 const opSub = 4;
 const opMul = 5;
 const opDiv = 6;
+const opSqrt = 7;
+const opAbs = 8;
+const opNeg = 9;
 
-function getOpCase(cases, sType, fType) {
-  return cases[(sType * numFloatTypes) + fType];
+function getUnaryOpCase(cases, sType) {
+  return cases[sType];
 }
 
-function validateOpCaseTable(cases) {
+function validateUnaryOpCaseTable(cases) {
+  if (cases.length != numFloatTypes) {
+    throw "Case table is unexpected size.";
+  }
+  return cases;
+}
+
+// Operation cases for sqrt.
+const sqrtOpCases = validateUnaryOpCaseTable([
+  // s = normal, posZero, negZero, posInf, negInf, qNaN, sNaN, denormal
+  opSqrt, opSqrt, opSqrt, opSqrt, opInvalid, opInvalid, opUnimplm, opUnimplm,
+]);
+
+// Operation cases for abs.
+const absOpCases = validateUnaryOpCaseTable([
+  // s = normal, posZero, negZero, posInf, negInf, qNaN, sNaN, denormal
+  opAbs, opAbs, opAbs, opAbs, opAbs, opInvalid, opUnimplm, opUnimplm,
+]);
+
+// Operation cases for neg.
+const negOpCases = validateUnaryOpCaseTable([
+  // s = normal, posZero, negZero, posInf, negInf, qNaN, sNaN, denormal
+  opNeg, opNeg, opNeg, opNeg, opNeg, opInvalid, opUnimplm, opUnimplm,
+]);
+
+function getBinaryOpCase(cases, sType, tType) {
+  return cases[(sType * numFloatTypes) + tType];
+}
+
+function validateBinaryOpCaseTable(cases) {
   if (cases.length != (numFloatTypes * numFloatTypes)) {
     throw "Case table is unexpected size.";
   }
@@ -178,7 +210,7 @@ function validateOpCaseTable(cases) {
 }
 
 // Operation cases for addition.
-const addOpCases = validateOpCaseTable([
+const addOpCases = validateBinaryOpCaseTable([
   // t = normal, posZero, negZero, posInf, negInf, qNaN, sNaN, denormal
   opAdd,     opAdd,     opAdd,     opAdd,     opAdd,     opInvalid, opUnimplm, opUnimplm,   // s = normal
   opAdd,     opAdd,     opAdd,     opAdd,     opAdd,     opInvalid, opUnimplm, opUnimplm,   // s = posZero
@@ -191,7 +223,7 @@ const addOpCases = validateOpCaseTable([
 ]);
 
 // Operation cases for subtraction.
-const subOpCases = validateOpCaseTable([
+const subOpCases = validateBinaryOpCaseTable([
   // t = normal, posZero, negZero, posInf, negInf, qNaN, sNaN, denormal
   opSub,     opSub,     opSub,     opSub,     opSub,     opInvalid, opUnimplm, opUnimplm,   // s = normal
   opSub,     opSub,     opSub,     opSub,     opSub,     opInvalid, opUnimplm, opUnimplm,   // s = posZero
@@ -204,7 +236,7 @@ const subOpCases = validateOpCaseTable([
 ]);
 
 // Operation cases for multiplication.
-const mulOpCases = validateOpCaseTable([
+const mulOpCases = validateBinaryOpCaseTable([
   // t = normal, posZero, negZero, posInf, negInf, qNaN, sNaN, denormal
   opMul,     opMul,     opMul,     opMul,     opMul,     opInvalid, opUnimplm, opUnimplm,   // s = normal
   opMul,     opMul,     opMul,     opInvalid, opInvalid, opInvalid, opUnimplm, opUnimplm,   // s = posZero
@@ -217,7 +249,7 @@ const mulOpCases = validateOpCaseTable([
 ]);
 
 // Operation cases for division.
-const divOpCases = validateOpCaseTable([
+const divOpCases = validateBinaryOpCaseTable([
   // t = normal, posZero, negZero, posInf, negInf, qNaN, sNaN, denormal
   opDiv,     opDivZero, opDivZero, opDiv,     opDiv,     opInvalid, opUnimplm, opUnimplm,   // s = normal
   opDiv,     opInvalid, opDivZero, opDiv,     opDiv,     opInvalid, opUnimplm, opUnimplm,   // s = posZero
@@ -345,9 +377,9 @@ export class CPU1 {
   // Move bits directly, to avoid renomalisation.
   MOV_S(d, s) { this.store_i32(d, this.load_i32(s)); }
 
-  SQRT_S(d, s) { this.f32UnaryOp(d, s, x => Math.sqrt(x)); }
-  ABS_S(d, s) { this.f32UnaryOp(d, s, x => Math.abs(x)); }
-  NEG_S(d, s) { this.f32UnaryOp(d, s, x => -x); }
+  SQRT_S(d, s) { this.f32UnaryOp(d, s, sqrtOpCases); }
+  ABS_S(d, s) { this.f32UnaryOp(d, s, absOpCases); }
+  NEG_S(d, s) { this.f32UnaryOp(d, s, negOpCases); }
   ADD_S(d, s, t) { this.f32BinaryOp(d, s, t, addOpCases); }
   SUB_S(d, s, t) { this.f32BinaryOp(d, s, t, subOpCases); }
   MUL_S(d, s, t) { this.f32BinaryOp(d, s, t, mulOpCases); }
@@ -429,49 +461,69 @@ export class CPU1 {
     this.store_i32(d, this.tempU32[0]);
   }
 
-  f32UnaryOp(d, s, operator) {
+  f32UnaryOp(d, s, cases) {
     this.clearCause();
 
+    const sValue = this.load_f32(s);
     const sBits = this.load_i32(s);
     const sType = f32Classify(sBits);
+    const opCase = getUnaryOpCase(cases, sType);
 
     // Keep track of the intermediate result, as it's needed to figure
     // out if we saw underflow, overflow etc.
     let result;  
-    switch (sType) {
-      case floatTypeSNaN:
-      case floatTypeDenormal:
+    switch (opCase) {
+      case opUnimplm:
         this.raiseUnimplemented();
         return;
-      case floatTypeQNaN:
+      case opInvalid:
         if (!this.raiseException(exceptionInvalidBit)) {
           this.store_i32(d, f32SignallingNaNBits);
         }
         return;
-      case floatTypePosInfinity:
-        result = +Infinity;
+      case opSqrt:
+        if (sValue < 0) {
+          if (!this.raiseException(exceptionInvalidBit)) {
+            this.store_i32(d, f32SignallingNaNBits);
+          }
+          return;
+        }
+        result =  Math.sqrt(sValue);
         break;
-      case floatTypeNegInfinity:
-        result = -Infinity;
+      case opAbs:
+        result = Math.abs(sValue);
+        break;
+      case opNeg:
+        result = -sValue;
         break;
       default:
-        const sourceValue = this.load_f32(s);
-        result = operator(sourceValue);
-        break;
+        throw `unhandled op case: ${opCase}`;
     }
 
     // Store the result as a float32 so we can see if it loses precision.
     this.tempF32[0] = result;
+    const rType = f32Classify(this.tempU32[0]);
 
     let exceptionBits = 0;
 
-    // if (sourceValue != this.tempF32[0]) {
-    //   exceptionBits |= exceptionInexactBit;
-    // }
-    // // TODO: this is really this.tempF32[0] > float32 max value
-    // if (!isFinite(this.tempF32[0])) {
-    //   exceptionBits |= exceptionOverflowBit;
-    // }
+    // Check for inexact result (result changed value).
+    if (result != this.tempF32[0]) {
+      exceptionBits |= exceptionInexactBit;
+    }
+
+    // Check for overflow (finite operands produced infinity).
+    if (floatTypeInfinity(rType) && !floatTypeInfinity(sType)) {
+      // See page 239 of VR4300-Users-Manual.pdf.
+      //   With the IEEE754, the inexact operation exception occurs only if an
+      //   overflow occurs only when the overflow exception is disabled.
+      //   However, the VR4300 always generates the overflow exception and
+      //   inexact operation exception when an overflow occurs. 
+      exceptionBits |= exceptionInexactBit | exceptionOverflowBit;
+
+      // TODO: set the output based on the rounding mode.
+    }
+
+    // TODO: check for underflow?
 
     if (!this.raiseException(exceptionBits)) {
       this.store_i32(d, this.tempU32[0]);
@@ -487,7 +539,7 @@ export class CPU1 {
     const tBits = this.load_i32(t);
     const sType = f32Classify(sBits);
     const tType = f32Classify(tBits);
-    const opCase = getOpCase(cases, sType, tType);
+    const opCase = getBinaryOpCase(cases, sType, tType);
     
     // Keep track of the intermediate result, as it's needed to figure
     // out if we saw underflow, overflow etc.
@@ -681,7 +733,7 @@ export class CPU1 {
     const tBits = this.load_i64_bigint(t);
     const sType = f64Classify(sBits);
     const tType = f64Classify(tBits);
-    const opCase = getOpCase(cases, sType, tType);
+    const opCase = getBinaryOpCase(cases, sType, tType);
 
     // Keep track of the intermediate result, as it's needed to figure
     // out if we saw underflow, overflow etc.
