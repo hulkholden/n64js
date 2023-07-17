@@ -1280,6 +1280,8 @@ function executeGBI1_Tri2(cmd0, cmd1, dis) {
   flushTris(triIdx * 3);
 }
 
+let executeGBI1_Line3D_Warned = false;
+
 function executeGBI1_Line3D(cmd0, cmd1, dis) {
   var kLine3D = cmd0 >>> 24;
   var stride = config.vertexStride;
@@ -1298,10 +1300,21 @@ function executeGBI1_Line3D(cmd0, cmd1, dis) {
       dis.text('gsSPLine3D(' + v0idx + ', ' + v1idx + ', ' + v2idx + ', ' + v3idx + ');');
     }
 
-    triangleBuffer.pushTri(verts[v0idx], verts[v1idx], verts[v2idx], triIdx);
-    triIdx++;
-    triangleBuffer.pushTri(verts[v2idx], verts[v3idx], verts[v0idx], triIdx);
-    triIdx++;
+    // Tamagotchi World 64 seems to trigger this. 
+    if (v0idx < verts.length && v1idx < verts.length && v2idx < verts.length) {
+      triangleBuffer.pushTri(verts[v0idx], verts[v1idx], verts[v2idx], triIdx);
+      triIdx++;
+    } else if (!executeGBI1_Line3D_Warned) {
+      console.log(`verts out of bounds, ignoring: ${v0idx}, ${v1idx}, ${v2idx} vs ${verts.length}, stride ${stride}`);
+      executeGBI1_Line3D_Warned = true;
+    }
+    if (v2idx < verts.length && v3idx < verts.length && v0idx < verts.length) {
+      triangleBuffer.pushTri(verts[v2idx], verts[v3idx], verts[v0idx], triIdx);
+      triIdx++;
+    } else if (!executeGBI1_Line3D_Warned) {
+      console.log(`verts out of bounds, ignoring: ${v2idx}, ${v3idx}, ${v0idx} vs ${verts.length}, stride ${stride}`);
+      executeGBI1_Line3D_Warned = true;
+    }
 
     cmd0 = ram_dv.getUint32(pc + 0);
     cmd1 = ram_dv.getUint32(pc + 4);
