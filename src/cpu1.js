@@ -158,7 +158,7 @@ export const convertModeTrunc = 1;
 export const convertModeCeil = 2;
 export const convertModeFloor = 3;
 
-function classifyFloat32Bits(bits) {
+function f32Classify(bits) {
   const exponent = bits & f32ExponentBits;
   const mantissa = bits & f32ManissaBits;
 
@@ -178,7 +178,7 @@ function classifyFloat32Bits(bits) {
   return floatTypeNormal;
 }
 
-function classifyFloat64Bits(bits) {
+function f64Classify(bits) {
   const exponent = bits & f64ExponentBits;
   const mantissa = bits & f64ManissaBits;
 
@@ -264,8 +264,8 @@ export class CPU1 {
     const fsi = this.load_i32(s);
     const fti = this.load_i32(t);
 
-    const fsType = classifyFloat32Bits(fsi);
-    const ftType = classifyFloat32Bits(fti);
+    const fsType = f32Classify(fsi);
+    const ftType = f32Classify(fti);
 
     let c = false;
     if (floatTypeNaN(fsType) || floatTypeNaN(ftType)) {
@@ -289,8 +289,8 @@ export class CPU1 {
     const fsi = this.load_i64_bigint(s);
     const fti = this.load_i64_bigint(t);
 
-    const fsType = classifyFloat64Bits(fsi);
-    const ftType = classifyFloat64Bits(fti);
+    const fsType = f64Classify(fsi);
+    const ftType = f64Classify(fti);
 
     let c = false;
     if (floatTypeNaN(fsType) || floatTypeNaN(ftType)) {
@@ -336,7 +336,7 @@ export class CPU1 {
     this.clearCause();
 
     const sourceBits = this.load_i64_bigint(s);
-    const sourceType = classifyFloat64Bits(sourceBits);
+    const sourceType = f64Classify(sourceBits);
 
     let exceptionBits = 0;
     switch (sourceType) {
@@ -401,7 +401,7 @@ export class CPU1 {
     this.clearCause();
 
     const sourceBits = this.load_i32(s);
-    const sourceType = classifyFloat32Bits(sourceBits);
+    const sourceType = f32Classify(sourceBits);
 
     let exceptionBits = 0;
     switch (sourceType) {
@@ -446,8 +446,8 @@ export class CPU1 {
     const tValue = this.load_f32(t);
     const sBits = this.load_i32(s);
     const tBits = this.load_i32(t);
-    const sType = classifyFloat32Bits(sBits);
-    const tType = classifyFloat32Bits(tBits);
+    const sType = f32Classify(sBits);
+    const tType = f32Classify(tBits);
     const opCase = getOpCase(cases, sType, tType);
     
     // Keep track of the intermediate result, as it's needed to figure
@@ -486,7 +486,7 @@ export class CPU1 {
 
     // Store the result as a float32 so we can see if it loses precision.
     this.tempF32[0] = result;
-    const rType = classifyFloat32Bits(this.tempU32[0]);
+    const rType = f32Classify(this.tempU32[0]);
 
     let exceptionBits = 0;
 
@@ -545,7 +545,7 @@ export class CPU1 {
     this.clearCause();
 
     const sourceBits = this.load_i32(s);
-    const sourceType = classifyFloat32Bits(sourceBits);
+    const sourceType = f32Classify(sourceBits);
 
     let exceptionBits = 0;
     switch (sourceType) {
@@ -602,7 +602,7 @@ export class CPU1 {
     this.clearCause();
 
     const sourceBits = this.load_i64_bigint(s);
-    const sourceType = classifyFloat64Bits(sourceBits);
+    const sourceType = f64Classify(sourceBits);
 
     let exceptionBits = 0;
     switch (sourceType) {
@@ -647,8 +647,8 @@ export class CPU1 {
     const tValue = this.load_f64(t);
     const sBits = this.load_i64_bigint(s);
     const tBits = this.load_i64_bigint(t);
-    const sType = classifyFloat64Bits(sBits);
-    const tType = classifyFloat64Bits(tBits);
+    const sType = f64Classify(sBits);
+    const tType = f64Classify(tBits);
     const opCase = getOpCase(cases, sType, tType);
 
     // Keep track of the intermediate result, as it's needed to figure
@@ -688,7 +688,7 @@ export class CPU1 {
 
     // Store the result as a float64 so we can see if it loses precision.
     this.tempF64[0] = result;
-    const rType = classifyFloat64Bits(this.tempU64[0]);
+    const rType = f64Classify(this.tempU64[0]);
 
     let exceptionBits = 0;
 
@@ -748,7 +748,7 @@ export class CPU1 {
     this.clearCause();
 
     const sourceBits = this.load_i32(s);
-    const sourceType = classifyFloat32Bits(sourceBits);
+    const sourceType = f32Classify(sourceBits);
 
     let exceptionBits = 0;
     switch (sourceType) {
@@ -778,7 +778,7 @@ export class CPU1 {
     this.clearCause();
 
     const sourceBits = this.load_i64_bigint(s);
-    const sourceType = classifyFloat64Bits(sourceBits);
+    const sourceType = f64Classify(sourceBits);
 
     let exceptionBits = 0;
     switch (sourceType) {
@@ -808,7 +808,7 @@ export class CPU1 {
     this.clearCause();
 
     const sourceBits = this.load_i32(s);
-    const sourceType = classifyFloat32Bits(sourceBits);
+    const sourceType = f32Classify(sourceBits);
 
     let exceptionBits = 0;
     switch (sourceType) {
@@ -838,7 +838,7 @@ export class CPU1 {
     this.clearCause();
 
     const sourceBits = this.load_i64_bigint(s);
-    const sourceType = classifyFloat64Bits(sourceBits);
+    const sourceType = f64Classify(sourceBits);
 
     let exceptionBits = 0;
     switch (sourceType) {
