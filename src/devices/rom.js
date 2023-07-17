@@ -1,5 +1,5 @@
 import { Device } from './device.js';
-import { toString32 } from '../format.js';
+import { toString32, toString16, toString8 } from '../format.js';
 import * as logger from '../logger.js';
 
 export class ROMD1A1Device extends Device {
@@ -9,8 +9,8 @@ export class ROMD1A1Device extends Device {
     }
 
     write32(address, value) { throw `Writing to rom d1a1 ${toString32(value)} -> [${toString32(address)}]`; };
-    write16(address, value) { throw `Writing to rom d1a1 ${toString32(value)} -> [${toString32(address)}]`; };
-    write8(address, value) { throw `Writing to rom d1a1 ${toString32(value)} -> [${toString32(address)}]`; };
+    write16(address, value) { throw `Writing to rom d1a1 ${toString16(value)} -> [${toString32(address)}]`; };
+    write8(address, value) { throw `Writing to rom d1a1 ${toString8(value)} -> [${toString32(address)}]`; };
 }
 
 export class ROMD1A2Device extends Device {
@@ -20,8 +20,8 @@ export class ROMD1A2Device extends Device {
     }
 
     write32(address, value) { throw `Writing to rom d1a2 ${toString32(value)} -> [${toString32(address)}]`; };
-    write16(address, value) { throw `Writing to rom d1a2 ${toString32(value)} -> [${toString32(address)}]`; };
-    write8(address, value) { throw `Writing to rom d1a2 ${toString32(value)} -> [${toString32(address)}]`; };
+    write16(address, value) { throw `Writing to rom d1a2 ${toString16(value)} -> [${toString32(address)}]`; };
+    write8(address, value) { throw `Writing to rom d1a2 ${toString8(value)} -> [${toString32(address)}]`; };
 }
 
 export class ROMD1A3Device extends Device {
@@ -31,8 +31,8 @@ export class ROMD1A3Device extends Device {
     }
 
     write32(address, value) { throw `Writing to rom d1a3 ${toString32(value)} -> [${toString32(address)}]`; };
-    write16(address, value) { throw `Writing to rom d1a3 ${toString32(value)} -> [${toString32(address)}]`; };
-    write8(address, value) { throw `Writing to rom d1a3 ${toString32(value)} -> [${toString32(address)}]`; };
+    write16(address, value) { throw `Writing to rom d1a3 ${toString16(value)} -> [${toString32(address)}]`; };
+    write8(address, value) { throw `Writing to rom d1a3 ${toString8(value)} -> [${toString32(address)}]`; };
 }
 
 export class ROMD2A1Device extends Device {
@@ -59,8 +59,8 @@ export class ROMD2A1Device extends Device {
     readS8(address) { return this.read(address) & 0xff; };
 
     write32(address, value) { throw `Writing to rom ${toString32(value)} -> [${toString32(address)}]`; };
-    write16(address, value) { throw `Writing to rom ${toString32(value)} -> [${toString32(address)}]`; };
-    write8(address, value) { throw `Writing to rom ${toString32(value)} -> [${toString32(address)}]`; };
+    write16(address, value) { throw `Writing to rom ${toString16(value)} -> [${toString32(address)}]`; };
+    write8(address, value) { throw `Writing to rom ${toString8(value)} -> [${toString32(address)}]`; };
 }
 
 export class ROMD2A2Device extends Device {
@@ -68,13 +68,13 @@ export class ROMD2A2Device extends Device {
         super("ROMd2a2", hardware, null, rangeStart, rangeEnd);
     }
 
-    readU32(address) { throw `Reading from rom d2a2 [${toString32(address)}]`; };
-    readU16(address) { throw `Reading from rom d2a2 [${toString32(address)}]`; };
-    readU8(address) { throw `Reading from rom d2a2 [${toString32(address)}]`; };
-    readS32(address) { throw `Reading from rom d2a2 [${toString32(address)}]`; };
-    readS16(address) { throw `Reading from rom d2a2 [${toString32(address)}]`; };
-    readS8(address) { throw `Reading from rom d2a2 [${toString32(address)}]`; };
+    readU32(address) { throw `Reading u32 from rom d2a2 [${toString32(address)}]`; };
+    readU16(address) { throw `Reading u16 from rom d2a2 [${toString32(address)}]`; };
+    readU8(address) { throw `Reading u8 from rom d2a2 [${toString32(address)}]`; };
+    readS32(address) { throw `Reading s32 from rom d2a2 [${toString32(address)}]`; };
+    readS16(address) { throw `Reading s16 from rom d2a2 [${toString32(address)}]`; };
+    readS8(address) { throw `Reading s8 from rom d2a2 [${toString32(address)}]`; };
     write32(address, value) { throw `Writing to rom ${toString32(value)} -> [${toString32(address)}]`; };
-    write16(address, value) { throw `Writing to rom ${toString32(value)} -> [${toString32(address)}]`; };
-    write8(address, value) { throw `Writing to rom ${toString32(value)} -> [${toString32(address)}]`; };
+    write16(address, value) { throw `Writing to rom ${toString16(value)} -> [${toString32(address)}]`; };
+    write8(address, value) { throw `Writing to rom ${toString8(value)} -> [${toString32(address)}]`; };
 }
