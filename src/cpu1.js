@@ -388,9 +388,9 @@ export class CPU1 {
   // Move bits directly, to avoid renomalisation.
   MOV_D(d, s) { this.store_i64_bigint(d, this.load_i64_bigint(s)); }
 
-  SQRT_D(d, s) { this.f64UnaryOp(d, s, x => Math.sqrt(x)); }
-  ABS_D(d, s) { this.f64UnaryOp(d, s, x => Math.abs(x)); }
-  NEG_D(d, s) { this.f64UnaryOp(d, s, x => -x); }
+  SQRT_D(d, s) { this.f64UnaryOp(d, s, sqrtOpCases); }
+  ABS_D(d, s) { this.f64UnaryOp(d, s, absOpCases); }
+  NEG_D(d, s) { this.f64UnaryOp(d, s, negOpCases); }
   ADD_D(d, s, t) { this.f64BinaryOp(d, s, t, addOpCases); }
   SUB_D(d, s, t) { this.f64BinaryOp(d, s, t, subOpCases); }
   MUL_D(d, s, t) { this.f64BinaryOp(d, s, t, mulOpCases); }
@@ -677,47 +677,69 @@ export class CPU1 {
     this.store_i64_bigint(d, this.tempU64[0]);
   }
 
-  f64UnaryOp(d, s, operator) {
+  f64UnaryOp(d, s, cases) {
     this.clearCause();
 
+    const sValue = this.load_f64(s);
     const sBits = this.load_i64_bigint(s);
     const sType = f64Classify(sBits);
+    const opCase = getUnaryOpCase(cases, sType);
 
+    // Keep track of the intermediate result, as it's needed to figure
+    // out if we saw underflow, overflow etc.
     let result;
-    switch (sType) {
-      case floatTypeSNaN:
-      case floatTypeDenormal:
+    switch (opCase) {
+      case opUnimplm:
         this.raiseUnimplemented();
         return;
-      case floatTypeQNaN:
+      case opInvalid:
         if (!this.raiseException(exceptionInvalidBit)) {
           this.store_i64_bigint(d, f64SignallingNaNBits);
         }
         return;
-      case floatTypePosInfinity:
-        result = +Infinity;
+      case opSqrt:
+        if (sValue < 0) {
+          if (!this.raiseException(exceptionInvalidBit)) {
+            this.store_i64_bigint(d, f64SignallingNaNBits);
+          }
+          return;
+        }
+        result = Math.sqrt(sValue);
         break;
-      case floatTypeNegInfinity:
-        result = -Infinity;
+      case opAbs:
+        result = Math.abs(sValue);
+        break;
+      case opNeg:
+        result = -sValue;
         break;
       default:
-        const sourceValue = this.load_f64(s);
-        result = operator(sourceValue);
-        break;
+        throw `unhandled op case: ${opCase}`;
     }
 
     // Store the result as a float64 so we can see if it loses precision.
     this.tempF64[0] = result;
+    const rType = f64Classify(this.tempU64[0]);
 
     let exceptionBits = 0;
 
-    // if (sourceValue != this.tempF32[0]) {
-    //   exceptionBits |= exceptionInexactBit;
-    // }
-    // // TODO: this is really this.tempF32[0] > float32 max value
-    // if (!isFinite(this.tempF32[0])) {
-    //   exceptionBits |= exceptionOverflowBit;
-    // }
+    // Check for inexact result (result changed value).
+    if (result != this.tempF64[0]) {
+      exceptionBits |= exceptionInexactBit;
+    }
+
+    // Check for overflow (finite operands produced infinity).
+    if (floatTypeInfinity(rType) && !floatTypeInfinity(sType)) {
+      // See page 239 of VR4300-Users-Manual.pdf.
+      //   With the IEEE754, the inexact operation exception occurs only if an
+      //   overflow occurs only when the overflow exception is disabled.
+      //   However, the VR4300 always generates the overflow exception and
+      //   inexact operation exception when an overflow occurs. 
+      exceptionBits |= exceptionInexactBit | exceptionOverflowBit;
+
+      // TODO: set the output based on the rounding mode.
+    }
+
+    // TODO: check for underflow?
 
     if (!this.raiseException(exceptionBits)) {
       this.store_i64_bigint(d, this.tempU64[0]);
