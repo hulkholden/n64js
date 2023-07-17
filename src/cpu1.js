@@ -432,43 +432,50 @@ export class CPU1 {
   f32UnaryOp(d, s, operator) {
     this.clearCause();
 
-    const sourceBits = this.load_i32(s);
-    const sourceType = f32Classify(sourceBits);
+    const sBits = this.load_i32(s);
+    const sType = f32Classify(sBits);
 
-    let exceptionBits = 0;
-    switch (sourceType) {
+    // Keep track of the intermediate result, as it's needed to figure
+    // out if we saw underflow, overflow etc.
+    let result;  
+    switch (sType) {
       case floatTypeSNaN:
       case floatTypeDenormal:
         this.raiseUnimplemented();
         return;
       case floatTypeQNaN:
-        exceptionBits |= exceptionInvalidBit;
-        this.tempU32[0] = f32SignallingNaNBits;
-        break;
+        if (!this.raiseException(exceptionInvalidBit)) {
+          this.store_i32(d, f32SignallingNaNBits);
+        }
+        return;
       case floatTypePosInfinity:
-        this.tempU32[0] = f32PosInfinityBits;
+        result = +Infinity;
         break;
       case floatTypeNegInfinity:
-        this.tempU32[0] = f32NegInfinityBits;
+        result = -Infinity;
         break;
       default:
         const sourceValue = this.load_f32(s);
-        this.tempF32[0] = operator(sourceValue);
-
-        // if (sourceValue != this.tempF32[0]) {
-        //   exceptionBits |= exceptionInexactBit;
-        // }
-        // // TODO: this is really this.tempF32[0] > float32 max value
-        // if (!isFinite(this.tempF32[0])) {
-        //   exceptionBits |= exceptionOverflowBit;
-        // }
+        result = operator(sourceValue);
         break;
     }
 
-    if (this.raiseException(exceptionBits)) {
-      return;
+    // Store the result as a float32 so we can see if it loses precision.
+    this.tempF32[0] = result;
+
+    let exceptionBits = 0;
+
+    // if (sourceValue != this.tempF32[0]) {
+    //   exceptionBits |= exceptionInexactBit;
+    // }
+    // // TODO: this is really this.tempF32[0] > float32 max value
+    // if (!isFinite(this.tempF32[0])) {
+    //   exceptionBits |= exceptionOverflowBit;
+    // }
+
+    if (!this.raiseException(exceptionBits)) {
+      this.store_i32(d, this.tempU32[0]);
     }
-    this.store_i32(d, this.tempU32[0]);
   }
 
   f32BinaryOp(d, s, t, cases) {
@@ -621,43 +628,48 @@ export class CPU1 {
   f64UnaryOp(d, s, operator) {
     this.clearCause();
 
-    const sourceBits = this.load_i64_bigint(s);
-    const sourceType = f64Classify(sourceBits);
+    const sBits = this.load_i64_bigint(s);
+    const sType = f64Classify(sBits);
 
-    let exceptionBits = 0;
-    switch (sourceType) {
+    let result;
+    switch (sType) {
       case floatTypeSNaN:
       case floatTypeDenormal:
         this.raiseUnimplemented();
         return;
       case floatTypeQNaN:
-        exceptionBits |= exceptionInvalidBit;
-        this.tempU64[0] = f64SignallingNaNBits;
-        break;
+        if (!this.raiseException(exceptionInvalidBit)) {
+          this.store_i64_bigint(d, f64SignallingNaNBits);
+        }
+        return;
       case floatTypePosInfinity:
-        this.tempU64[0] = f64PosInfinityBits;
+        result = +Infinity;
         break;
       case floatTypeNegInfinity:
-        this.tempU64[0] = f64NegInfinityBits;
+        result = -Infinity;
         break;
       default:
         const sourceValue = this.load_f64(s);
-        this.tempF64[0] = operator(sourceValue);
-
-        // if (sourceValue != this.tempF32[0]) {
-        //   exceptionBits |= exceptionInexactBit;
-        // }
-        // // TODO: this is really this.tempF32[0] > float32 max value
-        // if (!isFinite(this.tempF32[0])) {
-        //   exceptionBits |= exceptionOverflowBit;
-        // }
+        result = operator(sourceValue);
         break;
     }
 
-    if (this.raiseException(exceptionBits)) {
-      return;
+    // Store the result as a float64 so we can see if it loses precision.
+    this.tempF64[0] = result;
+
+    let exceptionBits = 0;
+
+    // if (sourceValue != this.tempF32[0]) {
+    //   exceptionBits |= exceptionInexactBit;
+    // }
+    // // TODO: this is really this.tempF32[0] > float32 max value
+    // if (!isFinite(this.tempF32[0])) {
+    //   exceptionBits |= exceptionOverflowBit;
+    // }
+
+    if (!this.raiseException(exceptionBits)) {
+      this.store_i64_bigint(d, this.tempU64[0]);
     }
-    this.store_i64_bigint(d, this.tempU64[0]);
   }
 
   f64BinaryOp(d, s, t, cases) {
