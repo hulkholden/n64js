@@ -484,8 +484,8 @@ export class CPU1 {
       }
     }
 
-    // Check for overflow (finite result became infinite).
-    if (floatTypeInfinity(rType) && isFinite(result)) {
+    // Check for overflow (finite operands produced infinity).
+    if (floatTypeInfinity(rType) && !floatTypeInfinity(sType) && !floatTypeInfinity(tType)) {
       // See page 239 of VR4300-Users-Manual.pdf.
       //   With the IEEE754, the inexact operation exception occurs only if an
       //   overflow occurs only when the overflow exception is disabled.
