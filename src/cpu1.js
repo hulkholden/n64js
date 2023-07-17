@@ -516,18 +516,7 @@ export class CPU1 {
     }
 
     // Check for underflow (non-zero result became denormal or zero).
-    if ((rType ==floatTypeDenormal || floatTypeZero(rType)) && result != 0) {
-      // See page 239 of VR4300-Users-Manual.pdf.
-      //   If both the underflow exception and inexact operation exception are
-      //   disabled when the exponent underflow occurs, and if the FS bit of
-      //   FCR31 is set, the Cause bit and Flag bit of the underflow exception and
-      //   inexact operation exception are set. Otherwise, the Cause bit of the
-      //   unimplemented operation exception is set.
-      const inexactOrUnderflowEnabled = this.control[31] & (FPCSR_EU|FPCSR_EI)  
-      if (inexactOrUnderflowEnabled || !this.flushSubnormals) {
-        this.raiseUnimplemented();
-        return;
-      }
+    if ((rType == floatTypeDenormal || floatTypeZero(rType)) && result != 0) {
       exceptionBits |= exceptionInexactBit | exceptionUnderflowBit;
 
       // Set the output based on the rounding mode.
@@ -730,18 +719,7 @@ export class CPU1 {
     }
 
     // Check for underflow (non-zero result became denormal or zero).
-    if ((rType ==floatTypeDenormal || floatTypeZero(rType)) && result != 0) {
-      // See page 239 of VR4300-Users-Manual.pdf.
-      //   If both the underflow exception and inexact operation exception are
-      //   disabled when the exponent underflow occurs, and if the FS bit of
-      //   FCR31 is set, the Cause bit and Flag bit of the underflow exception and
-      //   inexact operation exception are set. Otherwise, the Cause bit of the
-      //   unimplemented operation exception is set.
-      const inexactOrUnderflowEnabled = this.control[31] & (FPCSR_EU|FPCSR_EI)  
-      if (inexactOrUnderflowEnabled || !this.flushSubnormals) {
-        this.raiseUnimplemented();
-        return;
-      }
+    if ((rType == floatTypeDenormal || floatTypeZero(rType)) && result != 0) {
       exceptionBits |= exceptionInexactBit | exceptionUnderflowBit;
 
       // Set the output based on the rounding mode.
@@ -955,6 +933,20 @@ export class CPU1 {
     if (!exceptionBits) {
       return false;
     }
+
+    if (exceptionBits & exceptionUnderflowBit) {
+      // See page 239 of VR4300-Users-Manual.pdf.
+      //   If both the underflow exception and inexact operation exception are
+      //   disabled when the exponent underflow occurs, and if the FS bit of
+      //   FCR31 is set, the Cause bit and Flag bit of the underflow exception and
+      //   inexact operation exception are set. Otherwise, the Cause bit of the
+      //   unimplemented operation exception is set.
+      const inexactOrUnderflowEnabled = (this.control[31] & (FPCSR_EU | FPCSR_EI)) != 0;
+      if (inexactOrUnderflowEnabled || !this.flushSubnormals) {
+        return this.raiseUnimplemented();
+      }
+    }
+
     const enable = makeEnableBits(exceptionBits);
     const cause = makeCauseBits(exceptionBits);
     const flag = makeFlagBits(exceptionBits);
