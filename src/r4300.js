@@ -1708,9 +1708,6 @@ function executeDADD(i) {
   const s = cpu0.getGPR_s64_bigint(rs(i));
   const t = cpu0.getGPR_s64_bigint(rt(i));
   const result = s + t;
-  if ((~(s ^ t) & (s ^ result)) & 0x8000000000000000n) {
-    n64js.halt("DADD overlow");
-  }
   cpu0.setGPR_s64_bigint(rd(i), result);
 }
 
@@ -1725,9 +1722,6 @@ function executeDSUB(i) {
   const s = cpu0.getGPR_s64_bigint(rs(i));
   const t = cpu0.getGPR_s64_bigint(rt(i));
   const result = s - t;
-  if ((s ^ t) & (s ^ result) & 0x8000000000000000n) {
-    n64js.halt("DSUB overlow");
-  }
   cpu0.setGPR_s64_bigint(rd(i), result);
 }
 
@@ -2356,9 +2350,6 @@ function executeDADDI(i) {
   const s = cpu0.getGPR_s64_bigint(rs(i));
   const imm = BigInt(imms(i));
   const result = s + imm;
-  if ((~(s ^ imm) & (s ^ result)) & 0x8000000000000000n) {
-    n64js.halt("DADDI overlow");
-  }
   cpu0.setGPR_s64_bigint(rt(i), s + imm);
 }
 
