@@ -45,23 +45,31 @@ function makeEnableBits(bits) { return bits << enableShift; }
 function makeCauseBits(bits) { return bits << causeShift; }
 
 // https://stackoverflow.com/questions/29666236
-const f32SignBit = 0x80000000;
-const f32ExponentBits = 0x7f800000;
-const f32ManissaBits = 0x007fffff;
+const f32SignBit = 0x8000_0000;
+const f32ExponentBits = 0x7f80_0000;
+const f32ManissaBits = 0x007f_ffff;
 const f32QuietBit = (1 << 22);
 
-const f32SignallingNaNBits = 0x7fbfffff;
+const f32SignallingNaNBits = 0x7fbf_ffff;
+const f32PosZeroBits = 0;
+const f32NegZeroBits = f32SignBit;
+const f32MinPosNumberBits = 0x0080_0000;
+const f32MinNegNumberBits = f32SignBit | f32MinPosNumberBits;
 const f32PosInfinityBits = f32ExponentBits;
-const f32NegInfinityBits = f32ExponentBits | f32SignBit;
+const f32NegInfinityBits = f32SignBit | f32ExponentBits;
 
-const f64SignBit = 0x8000000000000000n;
-const f64ExponentBits = 0x7ff0000000000000n;
-const f64ManissaBits = 0x000fffffffffffffn;
+const f64SignBit = 0x8000_0000_0000_0000n;
+const f64ExponentBits = 0x7ff0_0000_0000_0000n;
+const f64ManissaBits = 0x000f_ffff_ffff_ffffn;
 const f64QuietBit = (1n << 51n);
 
-const f64SignallingNaNBits = 0x7ff7ffffffffffffn;
+const f64SignallingNaNBits = 0x7ff7_ffff_ffff_ffffn;
+const f64PosZeroBits = 0n;
+const f64NegZeroBits = f64SignBit;
+const f64MinPosNumberBits = 0x0010_0000_0000_0000n;
+const f64MinNegNumberBits = f64SignBit | f64MinPosNumberBits;
 const f64PosInfinityBits = f64ExponentBits;
-const f64NegInfinityBits = f64ExponentBits | f64SignBit;
+const f64NegInfinityBits = f64SignBit | f64ExponentBits;
 
 const floatTypeNormal = 0;
 const floatTypePosZero = 1;
@@ -434,8 +442,6 @@ export class CPU1 {
     // Keep track of the intermediate result, as it's needed to figure
     // out if we saw underflow, overflow etc.
     let result;
-    let exceptionBits = 0;
-
     switch (opCase) {
       case opUnimplm:
         this.raiseUnimplemented();
@@ -470,6 +476,8 @@ export class CPU1 {
     // Store the result as a float32 so we can see if it loses precision.
     this.tempF32[0] = result;
     const rType = classifyFloat32Bits(this.tempU32[0]);
+
+    let exceptionBits = 0;
 
     // Check for inexact result (result changed value).
     if (result != this.tempF32[0]) {
@@ -516,13 +524,13 @@ export class CPU1 {
       switch (this.control[31] & FPCSR_RM_MASK) {
         case FPCSR_RM_RN:
         case FPCSR_RM_RZ:
-          this.tempF32[0] = result > 0 ? 0 : -0;
+          this.tempU32[0] = result > 0 ? f32PosZeroBits : f32NegZeroBits;
           break;
         case FPCSR_RM_RP:
-          this.tempU32[0] = result > 0 ? 0x800000 : 0x80000000;
+          this.tempU32[0] = result > 0 ? f32MinPosNumberBits : f32NegZeroBits;
           break;
         case FPCSR_RM_RM:
-          this.tempU32[0] = result > 0 ? 0 : 0x80800000;
+          this.tempU32[0] = result > 0 ? f32PosZeroBits : f32MinNegNumberBits;
           break;
       }
     }  
