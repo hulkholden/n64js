@@ -310,6 +310,28 @@ export class CPU1 {
     this.setCondition(c);
   }
 
+  // Move bits directly, to avoid renomalisation.
+  MOV_S(d, s) { this.store_i32(d, this.load_i32(s)); }
+
+  SQRT_S(d, s) { this.f32UnaryOp(d, s, x => Math.sqrt(x)); }
+  ABS_S(d, s) { this.f32UnaryOp(d, s, x => Math.abs(x)); }
+  NEG_S(d, s) { this.f32UnaryOp(d, s, x => -x); }
+  ADD_S(d, s, t) { this.f32BinaryOp(d, s, t, addOpCases); }
+  SUB_S(d, s, t) { this.f32BinaryOp(d, s, t, subOpCases); }
+  MUL_S(d, s, t) { this.f32BinaryOp(d, s, t, mulOpCases); }
+  DIV_S(d, s, t) { this.f32BinaryOp(d, s, t, divOpCases); }
+
+  // Move bits directly, to avoid renomalisation.
+  MOV_D(d, s) { this.store_i64_bigint(d, this.load_i64_bigint(s)); }
+
+  SQRT_D(d, s) { this.f64UnaryOp(d, s, x => Math.sqrt(x)); }
+  ABS_D(d, s) { this.f64UnaryOp(d, s, x => Math.abs(x)); }
+  NEG_D(d, s) { this.f64UnaryOp(d, s, x => -x); }
+  ADD_D(d, s, t) { this.f64BinaryOp(d, s, t, addOpCases); }
+  SUB_D(d, s, t) { this.f64BinaryOp(d, s, t, subOpCases); }
+  MUL_D(d, s, t) { this.f64BinaryOp(d, s, t, mulOpCases); }
+  DIV_D(d, s, t) { this.f64BinaryOp(d, s, t, divOpCases); }
+
   CVT_S_D(d, s) {
     this.clearCause();
 
@@ -374,17 +396,6 @@ export class CPU1 {
     }
     this.store_i32(d, this.tempU32[0]);
   }
-
-  // Move bits directly, to avoid renomalisation.
-  MOV_S(d, s) { this.store_i32(d, this.load_i32(s)); }
-
-  SQRT_S(d, s) { this.f32UnaryOp(d, s, x => Math.sqrt(x)); }
-  ABS_S(d, s) { this.f32UnaryOp(d, s, x => Math.abs(x)); }
-  NEG_S(d, s) { this.f32UnaryOp(d, s, x => -x); }
-  ADD_S(d, s, t) { this.f32BinaryOp(d, s, t, addOpCases); }
-  SUB_S(d, s, t) { this.f32BinaryOp(d, s, t, subOpCases); }
-  MUL_S(d, s, t) { this.f32BinaryOp(d, s, t, mulOpCases); }
-  DIV_S(d, s, t) { this.f32BinaryOp(d, s, t, divOpCases); }
 
   f32UnaryOp(d, s, operator) {
     this.clearCause();
@@ -598,17 +609,6 @@ export class CPU1 {
     this.store_i64_bigint(d, this.tempU64[0]);
   }
 
-  // Move bits directly, to avoid renomalisation.
-  MOV_D(d, s) { this.store_i64_bigint(d, this.load_i64_bigint(s)); }
-
-  SQRT_D(d, s) { this.f64UnaryOp(d, s, x => Math.sqrt(x)); }
-  ABS_D(d, s) { this.f64UnaryOp(d, s, x => Math.abs(x)); }
-  NEG_D(d, s) { this.f64UnaryOp(d, s, x => -x); }
-  ADD_D(d, s, t) { this.f64BinaryOp(d, s, t, (a, b) => a + b, false); }
-  SUB_D(d, s, t) { this.f64BinaryOp(d, s, t, (a, b) => a - b, false); }
-  MUL_D(d, s, t) { this.f64BinaryOp(d, s, t, (a, b) => a * b, false); }
-  DIV_D(d, s, t) { this.f64BinaryOp(d, s, t, (a, b) => a / b, true); }
-
   f64UnaryOp(d, s, operator) {
     this.clearCause();
 
@@ -651,55 +651,119 @@ export class CPU1 {
     this.store_i64_bigint(d, this.tempU64[0]);
   }
 
-  f64BinaryOp(d, s, t, operator, isDiv) {
+  f64BinaryOp(d, s, t, cases) {
     this.clearCause();
 
+    const sValue = this.load_f64(s);
+    const tValue = this.load_f64(t);
     const sBits = this.load_i64_bigint(s);
     const tBits = this.load_i64_bigint(t);
     const sType = classifyFloat64Bits(sBits);
     const tType = classifyFloat64Bits(tBits);
+    const opCase = getOpCase(cases, sType, tType);
+
+    // Keep track of the intermediate result, as it's needed to figure
+    // out if we saw underflow, overflow etc.
+    let result;
+
+    switch (opCase) {
+      case opUnimplm:
+        this.raiseUnimplemented();
+        return;
+      case opInvalid:
+        if (!this.raiseException(exceptionInvalidBit)) {
+          this.store_i64_bigint(d, f64SignallingNaNBits);
+        }
+        return;
+      case opDivZero:
+        if (!this.raiseException(exceptionDivByZeroBit)) {
+          const sameSign = (sBits & f64SignBit) == (tBits & f64SignBit)
+          this.store_i64_bigint(d, sameSign ? f64PosInfinityBits : f64NegInfinityBits);
+        }
+        return;
+      case opAdd:
+        result = sValue + tValue;
+        break;
+      case opSub:
+        result = sValue - tValue;
+        break;
+      case opMul:
+        result = sValue * tValue;
+        break;
+      case opDiv:
+        result = sValue / tValue;
+        break;
+      default:
+        throw `unhandled op case: ${opCase}`;
+    }
+
+    // Store the result as a float64 so we can see if it loses precision.
+    this.tempF64[0] = result;
+    const rType = classifyFloat64Bits(this.tempU64[0]);
 
     let exceptionBits = 0;
 
-    if (sType == floatTypeSNaN || tType == floatTypeSNaN ||
-      sType == floatTypeDenormal || tType == floatTypeDenormal) {
-      this.raiseUnimplemented();
-      return;
-    }
+    // Check for inexact result (result changed value).
+    // FIXME: this won't work for f64 as the intermediate isn't held in higher precision in registers.
+    // if (result != this.tempF64[0]) {
+    //   exceptionBits |= exceptionInexactBit;
+    // }
 
-    if (sType == floatTypeQNaN || tType == floatTypeQNaN) {
-      exceptionBits |= exceptionInvalidBit;
-      this.tempU64[0] = f64SignallingNaNBits;
-    } else if ((sType == floatTypePosInfinity && tType == floatTypeNegInfinity) ||
-      (sType == floatTypeNegInfinity && tType == floatTypePosInfinity)) {
-        // Adding positive and negative infinity results in a SNaN.
-        exceptionBits |= exceptionInvalidBit;
-        this.tempU64[0] = f64SignallingNaNBits;          
-    }
-    
-    if (isDiv) {
-      if ((sType == floatTypePosZero || sType == floatTypeNegZero) && (tType == floatTypePosZero)) {
-        // +0/+0 or -0/+0 results in a SNaN.
-        exceptionBits |= exceptionInvalidBit;
-        this.tempU64[0] = f64SignallingNaNBits;
-      } else if (tType == floatTypePosZero || tType == floatTypeNegZero) {
-        // x/0 or x/-0 produces infinity.
-        exceptionBits |= exceptionDivByZeroBit;
-        const sameSign = (sBits & f64SignBit) == (tBits & f64SignBit)
-        this.tempU64[0] = sameSign ? f64PosInfinityBits : f64NegInfinityBits;
+    if (opCase == opAdd || opCase == opSub) {
+      // If the result is unchanged but the operand was non-zero then we lost precision.
+      if ((!floatTypeZero(tType) && (result == sValue)) ||
+        (!floatTypeZero(sType) && (result == tValue))) {
+        exceptionBits |= exceptionInexactBit;
       }
     }
-    
-    if (!exceptionBits) {
-      const sValue = this.load_f64(s);
-      const tValue = this.load_f64(t);
-      this.tempF64[0] = operator(sValue, tValue);
+
+    // Check for overflow (finite operands produced infinity).
+    if (floatTypeInfinity(rType) && !floatTypeInfinity(sType) && !floatTypeInfinity(tType)) {
+      // See page 239 of VR4300-Users-Manual.pdf.
+      //   With the IEEE754, the inexact operation exception occurs only if an
+      //   overflow occurs only when the overflow exception is disabled.
+      //   However, the VR4300 always generates the overflow exception and
+      //   inexact operation exception when an overflow occurs. 
+      exceptionBits |= exceptionInexactBit | exceptionOverflowBit;
+
+      // TODO: set the output based on the rounding mode.
     }
 
-    if (this.raiseException(exceptionBits)) {
-      return;
+    // Check for underflow (non-zero result became denormal or zero).
+    if ((rType ==floatTypeDenormal || floatTypeZero(rType)) && result != 0) {
+      // See page 239 of VR4300-Users-Manual.pdf.
+      //   If both the underflow exception and inexact operation exception are
+      //   disabled when the exponent underflow occurs, and if the FS bit of
+      //   FCR31 is set, the Cause bit and Flag bit of the underflow exception and
+      //   inexact operation exception are set. Otherwise, the Cause bit of the
+      //   unimplemented operation exception is set.
+      const inexactOrUnderflowEnabled = this.control[31] & (FPCSR_EU|FPCSR_EI)  
+      if (inexactOrUnderflowEnabled || !this.flushSubnormals) {
+        this.raiseUnimplemented();
+        return;
+      }
+      exceptionBits |= exceptionInexactBit | exceptionUnderflowBit;
+
+      // Set the output based on the rounding mode.
+      // See page 238 of VR4300-Users-Manual.pdf.
+      switch (this.control[31] & FPCSR_RM_MASK) {
+        case FPCSR_RM_RN:
+        case FPCSR_RM_RZ:
+          this.tempU64[0] = result > 0 ? f64PosZeroBits : f64NegZeroBits;
+          break;
+        case FPCSR_RM_RP:
+          this.tempU64[0] = result > 0 ? f64MinPosNumberBits : f64NegZeroBits;
+          break;
+        case FPCSR_RM_RM:
+          this.tempU64[0] = result > 0 ? f64PosZeroBits : f64MinNegNumberBits;
+          break;
+      }
+    }  
+
+    if (!this.raiseException(exceptionBits)) {
+      // Store the underlying bits to avoid renormalising.
+      this.store_i64_bigint(d, this.tempU64[0]);
     }
-    this.store_i64_bigint(d, this.tempU64[0]);
   }
 
   ConvertSToL(d, s, mode) {
