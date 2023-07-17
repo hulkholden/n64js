@@ -71,6 +71,8 @@ const f64MinNegNumberBits = f64SignBit | f64MinPosNumberBits;
 const f64PosInfinityBits = f64ExponentBits;
 const f64NegInfinityBits = f64SignBit | f64ExponentBits;
 
+
+// Float classification.
 const floatTypeNormal = 0;
 const floatTypePosZero = 1;
 const floatTypeNegZero = 2;
@@ -80,6 +82,80 @@ const floatTypeQNaN = 5;
 const floatTypeSNaN = 6;
 const floatTypeDenormal = 7;
 const numFloatTypes = 8;
+
+function f32Classify(bits) {
+  const exponent = bits & f32ExponentBits;
+  const mantissa = bits & f32ManissaBits;
+
+  // If the exponent bits are set, it's Infinity or a NaN.
+  if (exponent == f32ExponentBits) {
+    if (mantissa == 0) {
+      return (bits & f32SignBit) ? floatTypeNegInfinity : floatTypePosInfinity;
+    }
+    return (bits & f32QuietBit) ? floatTypeQNaN : floatTypeSNaN;
+  }
+  if (exponent == 0) {
+    if (mantissa != 0) {
+      return floatTypeDenormal;
+    }
+    return (bits & f32SignBit) ? floatTypeNegZero : floatTypePosZero;
+  }
+  return floatTypeNormal;
+}
+
+function f64Classify(bits) {
+  const exponent = bits & f64ExponentBits;
+  const mantissa = bits & f64ManissaBits;
+
+  // If the exponent bits are set, it's Infinity or a NaN.
+  if (exponent == f64ExponentBits) {
+    if (mantissa == 0) {
+      return (bits & f64SignBit) ? floatTypeNegInfinity : floatTypePosInfinity;
+    }
+    return bits & f64QuietBit ? floatTypeQNaN : floatTypeSNaN;
+  }
+  if (exponent == 0) {
+    if (mantissa != 0) {
+      return floatTypeDenormal;
+    }
+    return (bits & f64SignBit) ? floatTypeNegZero : floatTypePosZero;
+  }
+  return floatTypeNormal;
+}
+
+function floatTypeNaN(t) { return t == floatTypeQNaN || t == floatTypeSNaN; }
+function floatTypeZero(t) { return t == floatTypePosZero || t == floatTypeNegZero; }
+function floatTypeInfinity(t) { return t == floatTypePosInfinity || t == floatTypeNegInfinity; }
+
+
+function getUnderflowValue(cases, roundingMode, negative) {
+  return cases[(roundingMode * 2) + (negative ? 1 : 0)];
+}
+
+function validateRoundingModeTable(cases) {
+  if (cases.length != (4 * 2)) {
+    throw "Case table is unexpected size.";
+  }
+  return cases;
+}
+
+// See page 238 of VR4300-Users-Manual.pdf.
+const f32UnderflowResults = validateRoundingModeTable([
+  // Negative, Positive
+  f32NegZeroBits, f32PosZeroBits, // FPCSR_RM_RN
+  f32NegZeroBits, f32PosZeroBits, // FPCSR_RM_RZ
+  f32NegZeroBits, f32MinPosNumberBits, // FPCSR_RM_RP
+  f32MinNegNumberBits, f32PosZeroBits, // FPCSR_RM_RM
+]);
+
+// See page 238 of VR4300-Users-Manual.pdf.
+const f64UnderflowResults = validateRoundingModeTable([
+  // Negative, Positive
+  f64NegZeroBits, f64PosZeroBits, // FPCSR_RM_RN
+  f64NegZeroBits, f64PosZeroBits, // FPCSR_RM_RZ
+  f64NegZeroBits, f64MinPosNumberBits, // FPCSR_RM_RP
+  f64MinNegNumberBits, f64PosZeroBits, // FPCSR_RM_RM
+]);
 
 // Operation types.
 const opInvalid = 0;
@@ -157,50 +233,6 @@ export const convertModeRound = 0;
 export const convertModeTrunc = 1;
 export const convertModeCeil = 2;
 export const convertModeFloor = 3;
-
-function f32Classify(bits) {
-  const exponent = bits & f32ExponentBits;
-  const mantissa = bits & f32ManissaBits;
-
-  // If the exponent bits are set, it's Infinity or a NaN.
-  if (exponent == f32ExponentBits) {
-    if (mantissa == 0) {
-      return (bits & f32SignBit) ? floatTypeNegInfinity : floatTypePosInfinity;
-    }
-    return (bits & f32QuietBit) ? floatTypeQNaN : floatTypeSNaN;
-  }
-  if (exponent == 0) {
-    if (mantissa != 0) {
-      return floatTypeDenormal;
-    }
-    return (bits & f32SignBit) ? floatTypeNegZero : floatTypePosZero;
-  }
-  return floatTypeNormal;
-}
-
-function f64Classify(bits) {
-  const exponent = bits & f64ExponentBits;
-  const mantissa = bits & f64ManissaBits;
-
-  // If the exponent bits are set, it's Infinity or a NaN.
-  if (exponent == f64ExponentBits) {
-    if (mantissa == 0) {
-      return (bits & f64SignBit) ? floatTypeNegInfinity : floatTypePosInfinity;
-    }
-    return bits & f64QuietBit ? floatTypeQNaN : floatTypeSNaN;
-  }
-  if (exponent == 0) {
-    if (mantissa != 0) {
-      return floatTypeDenormal;
-    }
-    return (bits & f64SignBit) ? floatTypeNegZero : floatTypePosZero;
-  }
-  return floatTypeNormal;
-}
-
-function floatTypeNaN(t) { return t == floatTypeQNaN || t == floatTypeSNaN; }
-function floatTypeZero(t) { return t == floatTypePosZero || t == floatTypeNegZero; }
-function floatTypeInfinity(t) { return t == floatTypePosInfinity || t == floatTypeNegInfinity; }
 
 export class CPU1 {
   constructor(cpu0) {
@@ -520,19 +552,7 @@ export class CPU1 {
       exceptionBits |= exceptionInexactBit | exceptionUnderflowBit;
 
       // Set the output based on the rounding mode.
-      // See page 238 of VR4300-Users-Manual.pdf.
-      switch (this.control[31] & FPCSR_RM_MASK) {
-        case FPCSR_RM_RN:
-        case FPCSR_RM_RZ:
-          this.tempU32[0] = result > 0 ? f32PosZeroBits : f32NegZeroBits;
-          break;
-        case FPCSR_RM_RP:
-          this.tempU32[0] = result > 0 ? f32MinPosNumberBits : f32NegZeroBits;
-          break;
-        case FPCSR_RM_RM:
-          this.tempU32[0] = result > 0 ? f32PosZeroBits : f32MinNegNumberBits;
-          break;
-      }
+      this.tempU32[0] = getUnderflowValue(f32UnderflowResults, this.control[31] & FPCSR_RM_MASK, result > 0);
     }  
 
     if (!this.raiseException(exceptionBits)) {
@@ -723,19 +743,7 @@ export class CPU1 {
       exceptionBits |= exceptionInexactBit | exceptionUnderflowBit;
 
       // Set the output based on the rounding mode.
-      // See page 238 of VR4300-Users-Manual.pdf.
-      switch (this.control[31] & FPCSR_RM_MASK) {
-        case FPCSR_RM_RN:
-        case FPCSR_RM_RZ:
-          this.tempU64[0] = result > 0 ? f64PosZeroBits : f64NegZeroBits;
-          break;
-        case FPCSR_RM_RP:
-          this.tempU64[0] = result > 0 ? f64MinPosNumberBits : f64NegZeroBits;
-          break;
-        case FPCSR_RM_RM:
-          this.tempU64[0] = result > 0 ? f64PosZeroBits : f64MinNegNumberBits;
-          break;
-      }
+      this.tempU64[0] = getUnderflowValue(f64UnderflowResults, this.control[31] & FPCSR_RM_MASK, result > 0);
     }  
 
     if (!this.raiseException(exceptionBits)) {
