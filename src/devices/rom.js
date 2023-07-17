@@ -2,6 +2,11 @@ import { Device } from './device.js';
 import { toString32, toString16, toString8 } from '../format.js';
 import * as logger from '../logger.js';
 
+const dbgOutWriteLen = 0xb3ff0014
+const dbgOutBufStart = 0xb3ff0020;
+const dbgOutBufLen = 512;
+const dbgOutBufEnd = dbgOutBufStart + dbgOutBufLen;
+
 export class ROMD1A1Device extends Device {
     constructor(hardware, rangeStart, rangeEnd) {
         // FIXME: rom is initally unmapped, and the underlying Device isn't updated as it's mapped in.
@@ -17,11 +22,54 @@ export class ROMD1A2Device extends Device {
     constructor(hardware, rangeStart, rangeEnd) {
         // FIXME: rom is initally unmapped, and the underlying Device isn't updated as it's mapped in.
         super("ROMd1a2", hardware, hardware.rom, rangeStart, rangeEnd);
+
+        // A buffer for storing debug output, mapped to dbgOutBufStart.
+        // This is flushed on writes to dbgOutWriteLen.
+        this.debugBuffer = new ArrayBuffer(dbgOutBufLen);
+        this.debugBufferU32 = new Uint32Array(this.debugBuffer);
+        this.debugBufferU8 = new Uint8Array(this.debugBuffer);
+        // The accumulated debug output.
+        // Complete lines (upto and including a newline) are flushed to the debug console.
+        this.output = ''
     }
 
-    write32(address, value) { throw `Writing to rom d1a2 ${toString32(value)} -> [${toString32(address)}]`; };
-    write16(address, value) { throw `Writing to rom d1a2 ${toString16(value)} -> [${toString32(address)}]`; };
-    write8(address, value) { throw `Writing to rom d1a2 ${toString8(value)} -> [${toString32(address)}]`; };
+    write32(address, value) {
+        if (address == dbgOutWriteLen) {
+            return this.writeDebugBufferLen(value);
+        }
+        if (address >= dbgOutBufStart && address < dbgOutBufEnd) {
+            return this.writeDebugBuffer32(address - dbgOutBufStart, value);
+        }
+
+        console.log(`[unhandled] Writing word to rom d1a2 ${toString32(value)} -> [${toString32(address)}]`);
+    };
+
+    write16(address, value) { console.log(`[unhandled] Writing to rom d1a2 ${toString16(value)} -> [${toString32(address)}]`); };
+    write8(address, value) { console.log(`[unhandled] Writing to rom d1a2 ${toString8(value)} -> [${toString32(address)}]`); };
+
+    writeDebugBufferLen(value) {
+        if (value > dbgOutBufLen) {
+            console.log(`debug buffer value too long (${value}), truncating`);
+            value = dbgOutBufLen;
+        }
+        for (let i = 0; i < value; i++) {
+            this.output += String.fromCharCode(this.debugBufferU8[i ^ 0x3]);
+        }
+        this.flushDebugOutput();
+    }
+
+    writeDebugBuffer32(address, value) {
+        const wordIdx = address >>> 2;
+        this.debugBufferU32[wordIdx] = value;
+    }
+
+    flushDebugOutput() {
+        const idx = this.output.lastIndexOf('\n');
+        if (idx >= 0) {
+            console.log(this.output.substring(0, idx + 1));
+            this.output = this.output.substring(idx + 1);
+        }
+    }
 }
 
 export class ROMD1A3Device extends Device {
