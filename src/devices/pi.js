@@ -163,10 +163,10 @@ export class PIRegDevice extends Device {
             break;
         }
       } else {
-        n64js.halt(`PI: unknown dom2addr2 address: ${cartAddr}`);
+        n64js.halt(`PI: unknown dom2addr2 address: ${toString32(cartAddr)}`);
       }
     } else {
-      n64js.halt(`PI: unknown cart address: ${cartAddr}`);
+      n64js.halt(`PI: unknown cart address: ${toString32(cartAddr)}`);
     }
 
     if (dst) {
