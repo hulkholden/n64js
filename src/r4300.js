@@ -2275,15 +2275,17 @@ function executeBLTZL(i) {
 }
 
 function executeBLTZAL(i) {
+  const value = cpu0.gprHi_signed[rs(i)];
   setSignExtend(cpu0_constants.RA, cpu0.pc + 8);
-  if (cpu0.gprHi_signed[rs(i)] < 0) {
+  if (value < 0) {
     performBranch(branchAddress(cpu0.pc, i));
   }
 }
 
 function executeBLTZALL(i) {
+  const value = cpu0.gprHi_signed[rs(i)];
   setSignExtend(cpu0_constants.RA, cpu0.pc + 8);
-  if (cpu0.gprHi_signed[rs(i)] < 0) {
+  if (value < 0) {
     performBranch(branchAddress(cpu0.pc, i));
   } else {
     cpu0.nextPC += 4;   // skip the next instruction
@@ -2334,15 +2336,17 @@ function executeBGEZL(i) {
 }
 
 function executeBGEZAL(i) {
+  const value = cpu0.gprHi_signed[rs(i)];
   setSignExtend(cpu0_constants.RA, cpu0.pc + 8);
-  if (cpu0.gprHi_signed[rs(i)] >= 0) {
+  if (value >= 0) {
     performBranch(branchAddress(cpu0.pc, i));
   }
 }
 
 function executeBGEZALL(i) {
+  const value = cpu0.gprHi_signed[rs(i)];
   setSignExtend(cpu0_constants.RA, cpu0.pc + 8);
-  if (cpu0.gprHi_signed[rs(i)] >= 0) {
+  if (value >= 0) {
     performBranch(branchAddress(cpu0.pc, i));
   } else {
     cpu0.nextPC += 4;   // skip the next instruction
