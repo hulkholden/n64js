@@ -3617,7 +3617,59 @@ const specialTable = [
 if (specialTable.length != 64) {
   throw "Oops, didn't build the special table correctly";
 }
+
+const specialTableGen = [
+  generateSLL,            'executeUnknown',       generateSRL,          generateSRA,
+  generateSLLV,           'executeUnknown',       generateSRLV,         generateSRAV,
+  generateJR,             generateJALR,           'executeUnknown',     'executeUnknown',
+  'executeSYSCALL',       'executeBREAK',         'executeUnknown',     'executeSYNC',
+  generateMFHI,           generateMTHI,           generateMFLO,         generateMTLO,
+  'executeDSLLV',         'executeUnknown',       'executeDSRLV',       'executeDSRAV',
+  generateMULT,           generateMULTU,          'executeDIV',         'executeDIVU',
+  'executeDMULT',         'executeDMULTU',        'executeDDIV',        'executeDDIVU',
+  generateADD,            generateADDU,           generateSUB,          generateSUBU,
+  generateAND,            generateOR,             generateXOR,          generateNOR,
+  'executeUnknown',       'executeUnknown',       generateSLT,          generateSLTU,
+  'executeDADD',          'executeDADDU',         'executeDSUB',        'executeDSUBU',
+  'executeTGE',           'executeTGEU',          'executeTLT',         'executeTLTU',
+  'executeTEQ',           'executeUnknown',       'executeTNE',         'executeUnknown',
+  'executeDSLL',          'executeUnknown',       'executeDSRL',        'executeDSRA',
+  'executeDSLL32',        'executeUnknown',       'executeDSRL32',      'executeDSRA32'
+];
+if (specialTableGen.length != 64) {
+  throw "Oops, didn't build the special gen table correctly";
+}
+
+// Expose all the functions that we don't yet generate
 n64js.executeUnknown = executeUnknown;
+n64js.executeSYSCALL = executeSYSCALL;
+n64js.executeBREAK   = executeBREAK;
+n64js.executeSYNC    = executeSYNC;
+n64js.executeDSLLV   = executeDSLLV;
+n64js.executeDSRLV   = executeDSRLV;
+n64js.executeDSRAV   = executeDSRAV;
+n64js.executeDIV     = executeDIV;
+n64js.executeDIVU    = executeDIVU;
+n64js.executeDMULT   = executeDMULT;
+n64js.executeDMULTU  = executeDMULTU;
+n64js.executeDDIV    = executeDDIV;
+n64js.executeDDIVU   = executeDDIVU;
+n64js.executeDADD    = executeDADD;
+n64js.executeDADDU   = executeDADDU;
+n64js.executeDSUB    = executeDSUB;
+n64js.executeDSUBU   = executeDSUBU;
+n64js.executeTGE     = executeTGE;
+n64js.executeTGEU    = executeTGEU;
+n64js.executeTLT     = executeTLT;
+n64js.executeTLTU    = executeTLTU;
+n64js.executeTEQ     = executeTEQ;
+n64js.executeTNE     = executeTNE;
+n64js.executeDSLL    = executeDSLL;
+n64js.executeDSRL    = executeDSRL;
+n64js.executeDSRA    = executeDSRA;
+n64js.executeDSLL32  = executeDSLL32;
+n64js.executeDSRL32  = executeDSRL32;
+n64js.executeDSRA32  = executeDSRA32;
 
 function executeSpecial(i) {
   const fn = i & 0x3f;
@@ -3809,57 +3861,6 @@ function executeOp(i) {
   return simpleTable[opcode](i);
 }
 
-const specialTableGen = [
-  generateSLL,            'executeUnknown',       generateSRL,          generateSRA,
-  generateSLLV,           'executeUnknown',       generateSRLV,         generateSRAV,
-  generateJR,             generateJALR,           'executeUnknown',     'executeUnknown',
-  'executeSYSCALL',       'executeBREAK',         'executeUnknown',     'executeSYNC',
-  generateMFHI,           generateMTHI,           generateMFLO,         generateMTLO,
-  'executeDSLLV',         'executeUnknown',       'executeDSRLV',       'executeDSRAV',
-  generateMULT,           generateMULTU,          'executeDIV',         'executeDIVU',
-  'executeDMULT',         'executeDMULTU',        'executeDDIV',        'executeDDIVU',
-  generateADD,            generateADDU,           generateSUB,          generateSUBU,
-  generateAND,            generateOR,             generateXOR,          generateNOR,
-  'executeUnknown',       'executeUnknown',       generateSLT,          generateSLTU,
-  'executeDADD',          'executeDADDU',         'executeDSUB',        'executeDSUBU',
-  'executeTGE',           'executeTGEU',          'executeTLT',         'executeTLTU',
-  'executeTEQ',           'executeUnknown',       'executeTNE',         'executeUnknown',
-  'executeDSLL',          'executeUnknown',       'executeDSRL',        'executeDSRA',
-  'executeDSLL32',        'executeUnknown',       'executeDSRL32',      'executeDSRA32'
-];
-if (specialTableGen.length != 64) {
-  throw "Oops, didn't build the special gen table correctly";
-}
-
-// Expose all the functions that we don't yet generate
-n64js.executeSYSCALL = executeSYSCALL;
-n64js.executeBREAK   = executeBREAK;
-n64js.executeSYNC    = executeSYNC;
-n64js.executeDSLLV   = executeDSLLV;
-n64js.executeDSRLV   = executeDSRLV;
-n64js.executeDSRAV   = executeDSRAV;
-n64js.executeDIV     = executeDIV;
-n64js.executeDIVU    = executeDIVU;
-n64js.executeDMULT   = executeDMULT;
-n64js.executeDMULTU  = executeDMULTU;
-n64js.executeDDIV    = executeDDIV;
-n64js.executeDDIVU   = executeDDIVU;
-n64js.executeDADD    = executeDADD;
-n64js.executeDADDU   = executeDADDU;
-n64js.executeDSUB    = executeDSUB;
-n64js.executeDSUBU   = executeDSUBU;
-n64js.executeTGE     = executeTGE;
-n64js.executeTGEU    = executeTGEU;
-n64js.executeTLT     = executeTLT;
-n64js.executeTLTU    = executeTLTU;
-n64js.executeTEQ     = executeTEQ;
-n64js.executeTNE     = executeTNE;
-n64js.executeDSLL    = executeDSLL;
-n64js.executeDSRL    = executeDSRL;
-n64js.executeDSRA    = executeDSRA;
-n64js.executeDSLL32  = executeDSLL32;
-n64js.executeDSRL32  = executeDSRL32;
-n64js.executeDSRA32  = executeDSRA32;
 
 const regImmTableGen = [
   generateBLTZ,           generateBGEZ,           generateBLTZL,        generateBGEZL,
