@@ -457,8 +457,9 @@ class CPU0 {
     this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, causeExcCodeBp);
   }
 
-  raiseRESERVEDException() {
-    this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, causeExcCodeRI);
+  raiseRESERVEDException(copIdx) {
+    const ce = copIdx << CAUSE_CESHIFT;
+    this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, causeExcCodeRI | ce);
   }
 
   raiseTRAPException() {
@@ -760,6 +761,48 @@ class CPU0 {
   }
 }
 
+class CPU2 {
+  constructor() {
+    // Provide state for a single 64 bit register.
+    const buf = new ArrayBuffer(8);
+    this.regU32 = new Uint32Array(buf);
+    this.regU64 = new BigUint64Array(buf);
+  }
+
+  /**
+   * Set the lower 32 bits of the register value, and sign extend.
+   * @param {Number} value
+   */
+  setReg32(val) {
+    this.regU32[0] = val;
+    this.regU32[1] = val >> 31;
+  }
+
+  /**
+   * Set the full 64 bits of the register value.
+   * @param {BigInt} value
+   */
+  setReg64(val) {
+    this.regU64[0] = val;
+  }
+
+  /**
+   * Return the lower 32 bits of the register value.
+   * @returns {Number}
+   */
+  getReg32() {
+    return this.regU32[0];
+  }
+
+  /**
+   * Return the full 64 bits of the register value.
+   * @returns {BigInt}
+   */
+  getReg64() {
+    return this.regU64[0];
+  }
+}
+
 class SystemEvent {
   constructor(type, countdown) {
     this.type = type;
@@ -786,8 +829,10 @@ class TLBException {
 // Expose the cpu state
 const cpu0 = new CPU0();
 const cpu1 = new CPU1(cpu0);
+const cpu2 = new CPU2();
 n64js.cpu0 = cpu0;
 n64js.cpu1 = cpu1;
+n64js.cpu2 = cpu2;
 
 
 function     fd(i) { return (i>>> 6)&0x1f; }
@@ -986,7 +1031,7 @@ function executeUnknown(i) {
 }
 
 function executeRESERVED(i) {
-  cpu0.raiseRESERVEDException()
+  cpu0.raiseRESERVEDException(0);
 }
 
 /**
@@ -3597,6 +3642,38 @@ function executeLInstr(i) {
   unimplemented(cpu0.pc, i);
 }
 
+function executeMFC2(i) {
+  setSignExtend(rt(i), cpu2.getReg32());
+}
+
+function executeDMFC2(i) {
+  cpu0.setGPR_s64_bigint(rt(i), cpu2.getReg64());
+}
+
+function executeCFC2(i) {
+  setSignExtend(rt(i), cpu2.getReg32());
+}
+
+function executeDCFC2(i) {
+  cpu0.raiseRESERVEDException(2);
+}
+
+function executeMTC2(i) {
+  cpu2.setReg64(cpu0.getGPR_u64_bigint(rt(i)));
+}
+
+function executeDMTC2(i) {
+  cpu2.setReg64(cpu0.getGPR_u64_bigint(rt(i)));
+}
+
+function executeCTC2(i) {
+  cpu2.setReg64(cpu0.getGPR_u64_bigint(rt(i)));
+}
+
+function executeDCTC2(i) {
+  cpu0.raiseRESERVEDException(2);
+}
+
 function validateSpecialOpTable(cases) {
   if (cases.length != 64) {
     throw "Special table is unexpected size.";
@@ -3748,18 +3825,27 @@ function executeCop1(i) {
   cop1Table[fmt](i);
 }
 
+const cop2Table = validateCopOpTable([
+  executeMFC2,        executeDMFC2,       executeCFC2,        executeDCFC2,
+  executeMTC2,        executeDMTC2,       executeCTC2,        executeDCTC2,
+  executeUnknown,     executeUnknown,     executeUnknown,     executeUnknown,
+  executeUnknown,     executeUnknown,     executeUnknown,     executeUnknown,
+  executeUnknown,     executeUnknown,     executeUnknown,     executeUnknown,
+  executeUnknown,     executeUnknown,     executeUnknown,     executeUnknown,
+  executeUnknown,     executeUnknown,     executeUnknown,     executeUnknown,
+  executeUnknown,     executeUnknown,     executeUnknown,     executeUnknown
+]);
+
 function executeCop2(i) {
   if (!cpu0.checkCopXUsable(2)) {
     return;
   }
-  console.log('cop2 usable')
+  const fmt = (i >>> 21) & 0x1f;
+  cop2Table[fmt](i);
 }
 
 function executeCop3(i) {
-  if (!cpu0.checkCopXUsable(3)) {
-    return;
-  }
-  console.log('cop3 usable')
+  cpu0.raiseRESERVEDException(0); 
 }
 
 function generateCop1(ctx) {
