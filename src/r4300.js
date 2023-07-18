@@ -877,11 +877,6 @@ function setSignExtend(r, v) {
   cpu0.gprHi_signed[r] = v >> 31;
 }
 
-function setZeroExtend(r, v) {
-  cpu0.gprLo[r] = v;
-  cpu0.gprHi_signed[r] = 0;
-}
-
 function genSrcRegLo(i) {
   if (i === 0)
     return '0';
