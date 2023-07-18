@@ -3596,7 +3596,14 @@ function executeLInstr(i) {
   unimplemented(cpu0.pc, i);
 }
 
-const specialTable = [
+function validateSpecialOpTable(cases) {
+  if (cases.length != 64) {
+    throw "Special table is unexpected size.";
+  }
+  return cases;
+}
+
+const specialTable = validateSpecialOpTable([
   executeSLL,           executeUnknown,       executeSRL,         executeSRA,
   executeSLLV,          executeUnknown,       executeSRLV,        executeSRAV,
   executeJR,            executeJALR,          executeUnknown,     executeUnknown,
@@ -3613,12 +3620,9 @@ const specialTable = [
   executeTEQ,           executeUnknown,       executeTNE,         executeUnknown,
   executeDSLL,          executeUnknown,       executeDSRL,        executeDSRA,
   executeDSLL32,        executeUnknown,       executeDSRL32,      executeDSRA32
-];
-if (specialTable.length != 64) {
-  throw "Oops, didn't build the special table correctly";
-}
+]);
 
-const specialTableGen = [
+const specialTableGen = validateSpecialOpTable([
   generateSLL,            'executeUnknown',       generateSRL,          generateSRA,
   generateSLLV,           'executeUnknown',       generateSRLV,         generateSRAV,
   generateJR,             generateJALR,           'executeUnknown',     'executeUnknown',
@@ -3635,9 +3639,11 @@ const specialTableGen = [
   'executeTEQ',           'executeUnknown',       'executeTNE',         'executeUnknown',
   'executeDSLL',          'executeUnknown',       'executeDSRL',        'executeDSRA',
   'executeDSLL32',        'executeUnknown',       'executeDSRL32',      'executeDSRA32'
-];
-if (specialTableGen.length != 64) {
-  throw "Oops, didn't build the special gen table correctly";
+]);
+
+function executeSpecial(i) {
+  const fn = i & 0x3f;
+  specialTable[fn](i);
 }
 
 // Expose all the functions that we don't yet generate
@@ -3671,12 +3677,14 @@ n64js.executeDSLL32  = executeDSLL32;
 n64js.executeDSRL32  = executeDSRL32;
 n64js.executeDSRA32  = executeDSRA32;
 
-function executeSpecial(i) {
-  const fn = i & 0x3f;
-  specialTable[fn](i);
+function validateCopOpTable(cases) {
+  if (cases.length != 32) {
+    throw "Cop table is unexpected size.";
+  }
+  return cases;
 }
 
-const cop0Table = [
+const cop0Table = validateCopOpTable([
   executeMFC0,    executeDMFC0,   executeUnknown, executeUnknown,
   executeMTC0,    executeDMTC0,   executeUnknown, executeUnknown,
   executeUnknown, executeUnknown, executeUnknown, executeUnknown,
@@ -3685,12 +3693,9 @@ const cop0Table = [
   executeUnknown, executeUnknown, executeUnknown, executeUnknown,
   executeUnknown, executeUnknown, executeUnknown, executeUnknown,
   executeUnknown, executeUnknown, executeUnknown, executeUnknown
-];
-if (cop0Table.length != 32) {
-  throw "Oops, didn't build the cop0 table correctly";
-}
+]);
 
-const cop0TableGen = [
+const cop0TableGen = validateCopOpTable([
   'executeMFC0',    'executeDMFC0',   'executeUnknown', 'executeUnknown',
   generateMTC0,     'executeDMTC0',   'executeUnknown', 'executeUnknown',
   'executeUnknown', 'executeUnknown', 'executeUnknown', 'executeUnknown',
@@ -3699,9 +3704,11 @@ const cop0TableGen = [
   'executeUnknown', 'executeUnknown', 'executeUnknown', 'executeUnknown',
   'executeUnknown', 'executeUnknown', 'executeUnknown', 'executeUnknown',
   'executeUnknown', 'executeUnknown', 'executeUnknown', 'executeUnknown'
-];
-if (cop0TableGen.length != 32) {
-  throw "Oops, didn't build the cop0 table correctly";
+]);
+
+function executeCop0(i) {
+  const fmt = (i >>> 21) & 0x1f;
+  cop0Table[fmt](i);
 }
 
 // Expose all the functions that we don't yet generate
@@ -3711,13 +3718,7 @@ n64js.executeDMFC0 = executeDMFC0;
 n64js.executeDMTC0 = executeDMTC0;
 n64js.executeTLB = executeTLB;
 
-
-function executeCop0(i) {
-  const fmt = (i >>> 21) & 0x1f;
-  cop0Table[fmt](i);
-}
-
-const cop1Table = [
+const cop1Table = validateCopOpTable([
   executeMFC1,        executeDMFC1,       executeCFC1,        executeDCFC1,
   executeMTC1,        executeDMTC1,       executeCTC1,        executeDCTC1,
   executeBCInstr,     executeUnknown,     executeUnknown,     executeUnknown,
@@ -3726,12 +3727,9 @@ const cop1Table = [
   executeWInstr,      executeLInstr,      executeUnknown,     executeUnknown,
   executeUnknown,     executeUnknown,     executeUnknown,     executeUnknown,
   executeUnknown,     executeUnknown,     executeUnknown,     executeUnknown
-];
-if (cop1Table.length != 32) {
-  throw "Oops, didn't build the cop1 table correctly";
-}
+]);
 
-const cop1TableGen = [
+const cop1TableGen = validateCopOpTable([
   generateMFC1Stub,       generateDMFC1Stub,      generateCFC1Stub,     'executeDCFC1',
   generateMTC1Stub,       generateDMTC1Stub,      generateCTC1Stub,     'executeDCTC1',
   generateBCInstrStub,    'executeUnknown',       'executeUnknown',     'executeUnknown',
@@ -3740,9 +3738,27 @@ const cop1TableGen = [
   generateWInstrStub,     generateLInstrStub,     'executeUnknown',     'executeUnknown',
   'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
   'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown'
-];
-if (cop1TableGen.length != 32) {
-  throw "Oops, didn't build the cop1 gen table correctly";
+]);
+
+function executeCop1(i) {
+  //assert( (cpu0.control[cpu0_constants.controlSR] & SR_CU1) !== 0, "SR_CU1 in inconsistent state" );
+
+  const fmt = (i >>> 21) & 0x1f;
+  cop1Table[fmt](i);
+}
+
+function executeCop2(i) {
+  if (!cpu0.checkCopXUsable(2)) {
+    return;
+  }
+  console.log('cop2 usable')
+}
+
+function executeCop3(i) {
+  if (!cpu0.checkCopXUsable(3)) {
+    return;
+  }
+  console.log('cop3 usable')
 }
 
 function generateCop1(ctx) {
@@ -3784,13 +3800,6 @@ function generateCop1(ctx) {
   return generateGenericOpBoilerplate(impl, ctx);
 }
 
-function executeCop1(i) {
-  //assert( (cpu0.control[cpu0_constants.controlSR] & SR_CU1) !== 0, "SR_CU1 in inconsistent state" );
-
-  const fmt = (i >>> 21) & 0x1f;
-  cop1Table[fmt](i);
-}
-
 function executeCop1_disabled(i) {
   assert((cpu0.control[cpu0_constants.controlStatus] & SR_CU1) === 0, "SR_CU1 in inconsistent state");
 
@@ -3807,15 +3816,14 @@ function cop1ControlChanged() {
 }
 n64js.cop1ControlChanged = cop1ControlChanged;
 
-function executeCop2(i) {
-  cpu0.throwCopXUnusable(2);
+function validateRegImmOpTable(cases) {
+  if (cases.length != 32) {
+    throw "RegImm table is unexpected size.";
+  }
+  return cases;
 }
 
-function executeCop3(i) {
-  cpu0.throwCopXUnusable(3);
-}
-
-const regImmTable = [
+const regImmTable = validateRegImmOpTable([
   executeBLTZ,          executeBGEZ,          executeBLTZL,       executeBGEZL,
   executeUnknown,       executeUnknown,       executeUnknown,     executeUnknown,
   executeTGEI,          executeTGEIU,         executeTLTI,        executeTLTIU,
@@ -3824,17 +3832,9 @@ const regImmTable = [
   executeUnknown,       executeUnknown,       executeUnknown,     executeUnknown,
   executeUnknown,       executeUnknown,       executeUnknown,     executeUnknown,
   executeUnknown,       executeUnknown,       executeUnknown,     executeUnknown
-];
-if (regImmTable.length != 32) {
-  throw "Oops, didn't build the regimm table correctly";
-}
+]);
 
-function executeRegImm(i) {
-  const rt = (i >>> 16) & 0x1f;
-  return regImmTable[rt](i);
-}
-
-const regImmTableGen = [
+const regImmTableGen = validateRegImmOpTable([
   generateBLTZ,           generateBGEZ,           generateBLTZL,        generateBGEZL,
   'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
   'executeTGEI',          'executeTGEIU',         'executeTLTI',        'executeTLTIU',
@@ -3843,9 +3843,11 @@ const regImmTableGen = [
   'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
   'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
   'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown'
-];
-if (regImmTableGen.length != 32) {
-  throw "Oops, didn't build the regimm gen table correctly";
+]);
+
+function executeRegImm(i) {
+  const rt = (i >>> 16) & 0x1f;
+  return regImmTable[rt](i);
 }
 
 // Expose all the functions that we don't yet generate
@@ -3860,7 +3862,19 @@ n64js.executeBGEZAL  = executeBGEZAL;
 n64js.executeBLTZALL = executeBLTZALL;
 n64js.executeBGEZALL = executeBGEZALL;
 
-const simpleTable = [
+function validateSimpleOpTable(cases) {
+  if (cases.length != 64) {
+    throw "Simple table is unexpected size.";
+  }
+  return cases;
+}
+
+function executeOp(i) {
+  const opcode = (i >>> 26) & 0x3f;
+  return simpleTable[opcode](i);
+}
+
+const simpleTable = validateSimpleOpTable([
   executeSpecial,       executeRegImm,        executeJ,           executeJAL,
   executeBEQ,           executeBNE,           executeBLEZ,        executeBGTZ,
   executeADDI,          executeADDIU,         executeSLTI,        executeSLTIU,
@@ -3877,19 +3891,9 @@ const simpleTable = [
   executeLLD,           executeLDC1,          executeLDC2,        executeLD,
   executeSC,            executeSWC1,          executeBreakpoint,  executeUnknown,
   executeSCD,           executeSDC1,          executeSDC2,        executeSD
-];
-if (simpleTable.length != 64) {
-  throw "Oops, didn't build the simple table correctly";
-}
+]);
 
-function executeOp(i) {
-  const opcode = (i >>> 26) & 0x3f;
-  return simpleTable[opcode](i);
-}
-
-
-
-const simpleTableGen = [
+const simpleTableGen = validateSimpleOpTable([
   generateSpecial,        generateRegImm,         generateJ,            generateJAL,
   generateBEQ,            generateBNE,            generateBLEZ,         generateBGTZ,
   generateADDI,           generateADDIU,          generateSLTI,         generateSLTIU,
@@ -3906,10 +3910,8 @@ const simpleTableGen = [
   'executeLLD',           generateLDC1,           'executeLDC2',        generateLD,
   'executeSC',            generateSWC1,           'executeUnknown',     'executeUnknown',
   'executeSCD',           generateSDC1,           'executeSDC2',        generateSD
-];
-if (simpleTableGen.length != 64) {
-  throw "Oops, didn't build the simple gen table correctly";
-}
+]);
+
 // Expose all the functions that we don't yet generate
 n64js.executeCop2 = executeCop2;
 n64js.executeCop3 = executeCop3;
