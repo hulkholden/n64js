@@ -344,11 +344,11 @@ const cop1Table = [
   i => `MFC1      ${i.rt_d} = ${i.fs()}`,
   i => `DMFC1     ${i.rt_d} = ${i.fs()}`,
   i => `CFC1      ${i.rt_d} = CCR${_rd(i.opcode)}`,
-  i => 'Unk',
+  i => `DCFC1     ${i.rt_d} = CCR${_rd(i.opcode)}`,
   i => `MTC1      ${i.fs_d()} = ${i.rt}`,
   i => `DMTC1     ${i.fs_d()} = ${i.rt}`,
   i => `CTC1      CCR${_rd(i.opcode)} = ${i.rt}`,
-  i => 'Unk',
+  i => `DCTC1     CCR${_rd(i.opcode)} = ${i.rt}`,
   disassembleBCInstr,
   i => 'Unk',
   i => 'Unk',
@@ -383,6 +383,92 @@ function disassembleCop1(i) {
   return cop1Table[fmt](i);
 }
 
+
+const cop2Table = [
+  i => `MFC2      ${i.rt_d} = ${i.fs()}`,
+  i => `DMFC2     ${i.rt_d} = ${i.fs()}`,
+  i => `CFC2      ${i.rt_d} = CCR${_rd(i.opcode)}`,
+  i => `DCFC2     ${i.rt_d} = CCR${_rd(i.opcode)}`,
+  i => `MTC2      ${i.fs_d()} = ${i.rt}`,
+  i => `DMTC2     ${i.fs_d()} = ${i.rt}`,
+  i => `CTC2      CCR${_rd(i.opcode)} = ${i.rt}`,
+  i => `DCTC2     CCR${_rd(i.opcode)} = ${i.rt}`,
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+];
+if (cop2Table.length != 32) {
+  throw "Oops, didn't build the cop2 table correctly";
+}
+function disassembleCop2(i) {
+  var fmt = (i.opcode >> 21) & 0x1f;
+  return cop2Table[fmt](i);
+}
+
+const cop3Table = [
+  i => `MFC3      ${i.rt_d} = ${i.fs()}`,
+  i => `DMFC3     ${i.rt_d} = ${i.fs()}`,
+  i => `CFC3      ${i.rt_d} = CCR${_rd(i.opcode)}`,
+  i => `DCFC3     ${i.rt_d} = CCR${_rd(i.opcode)}`,
+  i => `MTC3      ${i.fs_d()} = ${i.rt}`,
+  i => `DMTC3     ${i.fs_d()} = ${i.rt}`,
+  i => `CTC3      CCR${_rd(i.opcode)} = ${i.rt}`,
+  i => `DCTC3     CCR${_rd(i.opcode)} = ${i.rt}`,
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+  i => 'Unk',
+];
+if (cop3Table.length != 32) {
+  throw "Oops, didn't build the cop3 table correctly";
+}
+function disassembleCop3(i) {
+  var fmt = (i.opcode >> 21) & 0x1f;
+  return cop3Table[fmt](i);
+}
 
 function disassembleTLB(i) {
   switch (_tlbop(i.opcode)) {
@@ -465,8 +551,8 @@ const simpleTable = [
   i => `LUI       ${i.rt_d} = ${i.imm} << 16`,
   disassembleCop0,
   disassembleCop1,
-  i => 'cop2 Unk',
-  i => 'cop3 Unk',
+  disassembleCop2,
+  disassembleCop3,
   i => `BEQL      ${i.rs} == ${i.rt} --> ${i.branchAddress}`,
   i => `BNEL      ${i.rs} != ${i.rt} --> ${i.branchAddress}`,
   i => `BLEZL     ${i.rs} <= 0 --> ${i.branchAddress}`,
