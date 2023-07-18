@@ -1742,7 +1742,7 @@ function executeMFC0(i) {
 
   switch (control_reg) {
     case cpu0_constants.controlRand:
-    setZeroExtend(rt(i), cpu0.getRandom());
+      setSignExtend(rt(i), cpu0.getRandom());
       break;
     case cpu0_constants.controlInvalid7:
     case cpu0_constants.controlInvalid21:
@@ -1752,10 +1752,11 @@ function executeMFC0(i) {
     case cpu0_constants.controlInvalid25:
     case cpu0_constants.controlInvalid31:
       // Reads from invalid control registers will use the value last written to any control register.
-      setZeroExtend(rt(i), cpu0.lastControlRegWrite);
+      setSignExtend(rt(i), cpu0.lastControlRegWrite);
       break;
     default:
-    setZeroExtend(rt(i), cpu0.control[control_reg]);
+      setSignExtend(rt(i), cpu0.control[control_reg]);
+      break;
   }
 }
 
