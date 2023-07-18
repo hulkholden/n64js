@@ -2708,13 +2708,18 @@ function generateLWC1(ctx) {
   ctx.fragment.usesCop1 = true;
 
   const impl = `
-    cpu1.store_i32(${t}, n64js.load_s32(ram, ${genSrcRegLo(b)} + ${o}));
+    if (c.checkCopXUsable(1)) {
+      cpu1.store_i32(${t}, n64js.load_s32(ram, ${genSrcRegLo(b)} + ${o}));
+    }
     `;
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
 
-// FIXME: needs to check Cop1Enabled - thanks Salvy!
 function executeLWC1(i) {
+  if (!cpu0.checkCopXUsable(1)) {
+    return;
+  }
+
   const t = ft(i);
   const b = base(i);
   const o = imms(i);
@@ -2730,24 +2735,29 @@ function generateLDC1(ctx) {
   ctx.fragment.usesCop1 = true;
 
   const impl = `
-    let lo;
-    let hi;
-    const addr = ${genSrcRegLo(b)} + ${o};
-    if (addr < -2139095040) {
-      const phys = (addr + 0x80000000) | 0;
-      hi = ((ram[phys  ] << 24) | (ram[phys+1] << 16) | (ram[phys+2] << 8) | ram[phys+3]) | 0; // FIXME: is the |0 needed?
-      lo = ((ram[phys+4] << 24) | (ram[phys+5] << 16) | (ram[phys+6] << 8) | ram[phys+7]) | 0;
-    } else {
-      hi = lw_slow(addr);
-      lo = lw_slow(addr + 4);
+    if (c.checkCopXUsable(1)) {
+      let lo;
+      let hi;
+      const addr = ${genSrcRegLo(b)} + ${o};
+      if (addr < -2139095040) {
+        const phys = (addr + 0x80000000) | 0;
+        hi = ((ram[phys  ] << 24) | (ram[phys+1] << 16) | (ram[phys+2] << 8) | ram[phys+3]) | 0; // FIXME: is the |0 needed?
+        lo = ((ram[phys+4] << 24) | (ram[phys+5] << 16) | (ram[phys+6] << 8) | ram[phys+7]) | 0;
+      } else {
+        hi = lw_slow(addr);
+        lo = lw_slow(addr + 4);
+      }
+      cpu1.store_64_hi_lo(${t}, lo, hi);
     }
-    cpu1.store_64_hi_lo(${t}, lo, hi);
     `;
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
 
-// FIXME: needs to check Cop1Enabled - thanks Salvy!
 function executeLDC1(i) {
+  if (!cpu0.checkCopXUsable(1)) {
+    return;
+  }
+
   const t = ft(i);
   const b = base(i);
   const o = imms(i);
@@ -2918,13 +2928,18 @@ function generateSWC1(ctx) {
 
   // FIXME: can avoid cpuStuffToDo if we're writing to ram
   const impl = `
-    n64js.store_32(ram, ${genSrcRegLo(b)} + ${o}, cpu1.load_i32(${t}));
+    if (c.checkCopXUsable(1)) {
+      n64js.store_32(ram, ${genSrcRegLo(b)} + ${o}, cpu1.load_i32(${t}));
+    }
     `;
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
 
-// FIXME: needs to check Cop1Enabled - thanks Salvy!
 function executeSWC1(i) {
+  if (!cpu0.checkCopXUsable(1)) {
+    return;
+  }
+
   const t = ft(i);
   const b = base(i);
   const o = imms(i);
@@ -2941,17 +2956,22 @@ function generateSDC1(ctx) {
 
   // FIXME: can avoid cpuStuffToDo if we're writing to ram
   const impl = `
-    const addr = ${genSrcRegLo(b)} + ${o};
-    const value = cpu1.load_i64_bigint(${t});
-    const lo = Number(value & 0xffffffffn);
-    const hi = Number(value >> 32n);
-    n64js.store_64(ram, addr, lo, hi);
+    if (c.checkCopXUsable(1)) {
+      const addr = ${genSrcRegLo(b)} + ${o};
+      const value = cpu1.load_i64_bigint(${t});
+      const lo = Number(value & 0xffffffffn);
+      const hi = Number(value >> 32n);
+      n64js.store_64(ram, addr, lo, hi);
+    }
     `;
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
 
-// FIXME: needs to check Cop1Enabled - thanks Salvy!
 function executeSDC1(i) {
+  if (!cpu0.checkCopXUsable(1)) {
+    return;
+  }
+ 
   const t = ft(i);
   const b = base(i);
   const o = imms(i);
