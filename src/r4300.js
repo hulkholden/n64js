@@ -3248,39 +3248,23 @@ function generateCTC1Stub(ctx) {
 
   if (s === 31) {
     return `
-      if (c.checkCopXUsable(1)) {
-        cpu1.control[${s}] = rlo[${t}];
-      }
+      cpu1.control[${s}] = rlo[${t}];
       `;
   }
 
   return `
-    if (c.checkCopXUsable(1)) {}    
     // CTC1 invalid reg
     `;
 }
 
-function executeCTC1(i) {
+function executeCTC1(i) { 
   const s = fs(i);
   const t = rt(i);
-
-  if (!cpu0.checkCopXUsable(1)) {
-    return;
-  }
-
   if (s === 31) {
-    const v = cpu0.gprLo[t];
-
-    // switch (v & FPCSR_RM_MASK) {
-    // case FPCSR_RM_RN:     logger.log('cop1 - setting round near');  break;
-    // case FPCSR_RM_RZ:     logger.log('cop1 - setting round zero');  break;
-    // case FPCSR_RM_RP:     logger.log('cop1 - setting round ceil');  break;
-    // case FPCSR_RM_RM:     logger.log('cop1 - setting round floor'); break;
-    // }
-
-    cpu1.control[s] = v;
+    cpu1.control[s] = cpu0.gprLo[t];
   }
 }
+
 
 function generateBCInstrStub(ctx) {
   const i = ctx.instruction;
