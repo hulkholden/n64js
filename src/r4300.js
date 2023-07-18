@@ -3666,22 +3666,22 @@ function executeCop0(i) {
 }
 
 const cop1Table = [
-  executeMFC1,          executeDMFC1,         executeCFC1,        executeUnknown,
-  executeMTC1,          executeDMTC1,         executeCTC1,        executeUnknown,
-  executeBCInstr,       executeUnknown,       executeUnknown,     executeUnknown,
-  executeUnknown,       executeUnknown,       executeUnknown,     executeUnknown,
-  executeSInstr,        executeDInstr,        executeUnknown,     executeUnknown,
-  executeWInstr,        executeLInstr,        executeUnknown,     executeUnknown,
-  executeUnknown,       executeUnknown,       executeUnknown,     executeUnknown,
-  executeUnknown,       executeUnknown,       executeUnknown,     executeUnknown
+  executeMFC1,        executeDMFC1,       executeCFC1,        executeDCFC1,
+  executeMTC1,        executeDMTC1,       executeCTC1,        executeDCTC1,
+  executeBCInstr,     executeUnknown,     executeUnknown,     executeUnknown,
+  executeUnknown,     executeUnknown,     executeUnknown,     executeUnknown,
+  executeSInstr,      executeDInstr,      executeUnknown,     executeUnknown,
+  executeWInstr,      executeLInstr,      executeUnknown,     executeUnknown,
+  executeUnknown,     executeUnknown,     executeUnknown,     executeUnknown,
+  executeUnknown,     executeUnknown,     executeUnknown,     executeUnknown
 ];
 if (cop1Table.length != 32) {
   throw "Oops, didn't build the cop1 table correctly";
 }
 
 const cop1TableGen = [
-  generateMFC1Stub,       generateDMFC1Stub,      generateCFC1Stub,     'executeUnknown',
-  generateMTC1Stub,       generateDMTC1Stub,      generateCTC1Stub,     'executeUnknown',
+  generateMFC1Stub,       generateDMFC1Stub,      generateCFC1Stub,     'executeDCFC1',
+  generateMTC1Stub,       generateDMTC1Stub,      generateCTC1Stub,     'executeDCTC1',
   generateBCInstrStub,    'executeUnknown',       'executeUnknown',     'executeUnknown',
   'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
   generateSInstrStub,     generateDInstrStub,     'executeUnknown',     'executeUnknown',
@@ -3740,8 +3740,6 @@ function executeCop1(i) {
 }
 
 function executeCop1_disabled(i) {
-  logger.log('Thread accessing cop1 for first time, throwing cop1 unusable exception');
-
   assert((cpu0.control[cpu0_constants.controlStatus] & SR_CU1) === 0, "SR_CU1 in inconsistent state");
 
   cpu0.throwCopXUnusable(1);
