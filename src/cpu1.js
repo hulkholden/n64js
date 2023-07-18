@@ -374,6 +374,16 @@ export class CPU1 {
     this.setCondition(c);
   }
 
+  DCFC1(rt, fs) {
+    this.clearCause();
+    this.raiseUnimplemented();
+  }
+
+  DCTC1(fs, rt) {
+    this.clearCause();
+    this.raiseUnimplemented();
+  }
+
   // Move bits directly, to avoid renomalisation.
   MOV_S(d, s) { this.store_i32(d, this.load_i32(s)); }
 

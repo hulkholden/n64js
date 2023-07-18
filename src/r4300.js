@@ -3285,6 +3285,13 @@ function executeCTC1(i) {
   }
 }
 
+function executeDCFC1(i) {
+  cpu1.DCFC1(rt(i), fs(i));
+}
+
+function executeDCTC1(i) {
+  cpu1.DCTC1(fs(i), rt(i));
+}
 
 function generateBCInstrStub(ctx) {
   const i = ctx.instruction;
