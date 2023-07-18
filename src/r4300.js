@@ -3834,6 +3834,32 @@ function executeRegImm(i) {
   return regImmTable[rt](i);
 }
 
+const regImmTableGen = [
+  generateBLTZ,           generateBGEZ,           generateBLTZL,        generateBGEZL,
+  'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
+  'executeTGEI',          'executeTGEIU',         'executeTLTI',        'executeTLTIU',
+  'executeTEQI',          'executeUnknown',       'executeTNEI',        'executeUnknown',
+  'executeBLTZAL',        'executeBGEZAL',        'executeBLTZALL',     'executeBGEZALL',
+  'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
+  'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
+  'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown'
+];
+if (regImmTableGen.length != 32) {
+  throw "Oops, didn't build the regimm gen table correctly";
+}
+
+// Expose all the functions that we don't yet generate
+n64js.executeTGEI    = executeTGEI;
+n64js.executeTGEIU   = executeTGEIU;
+n64js.executeTLTI    = executeTLTI;
+n64js.executeTLTIU   = executeTLTIU;
+n64js.executeTEQI    = executeTEQI;
+n64js.executeTNEI    = executeTNEI;
+n64js.executeBLTZAL  = executeBLTZAL;
+n64js.executeBGEZAL  = executeBGEZAL;
+n64js.executeBLTZALL = executeBLTZALL;
+n64js.executeBGEZALL = executeBGEZALL;
+
 const simpleTable = [
   executeSpecial,       executeRegImm,        executeJ,           executeJAL,
   executeBEQ,           executeBNE,           executeBLEZ,        executeBGTZ,
@@ -3862,31 +3888,6 @@ function executeOp(i) {
 }
 
 
-const regImmTableGen = [
-  generateBLTZ,           generateBGEZ,           generateBLTZL,        generateBGEZL,
-  'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
-  'executeTGEI',          'executeTGEIU',         'executeTLTI',        'executeTLTIU',
-  'executeTEQI',          'executeUnknown',       'executeTNEI',        'executeUnknown',
-  'executeBLTZAL',        'executeBGEZAL',        'executeBLTZALL',     'executeBGEZALL',
-  'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
-  'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
-  'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown'
-];
-if (regImmTableGen.length != 32) {
-  throw "Oops, didn't build the regimm gen table correctly";
-}
-
-// Expose all the functions that we don't yet generate
-n64js.executeTGEI    = executeTGEI;
-n64js.executeTGEIU   = executeTGEIU;
-n64js.executeTLTI    = executeTLTI;
-n64js.executeTLTIU   = executeTLTIU;
-n64js.executeTEQI    = executeTEQI;
-n64js.executeTNEI    = executeTNEI;
-n64js.executeBLTZAL  = executeBLTZAL;
-n64js.executeBGEZAL  = executeBGEZAL;
-n64js.executeBLTZALL = executeBLTZALL;
-n64js.executeBGEZALL = executeBGEZALL;
 
 const simpleTableGen = [
   generateSpecial,        generateRegImm,         generateJ,            generateJAL,
