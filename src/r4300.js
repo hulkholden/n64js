@@ -190,6 +190,32 @@ const kEventRunForCycles = 2;
 // Needs to be callable from dynarec.
 n64js.getSyncFlow = () => syncFlow;
 
+const s32SignBit = 0x8000_0000;
+const s64SignBit = 0x8000_0000_0000_0000n;
+
+// See https://grack.com/blog/2022/12/20/deriving-a-bit-twiddling-hack/.
+function s32CheckAddOverflow(a, b, c) {
+  return (~(a ^ b) & (c ^ a) & s32SignBit) != 0;
+}
+
+function s32CheckSubOverflow(a, b, c) {
+  return ((a ^ b) & (c ^ a) & s32SignBit) != 0;
+}
+
+function s64CheckAddOverflow(a, b, c) {
+  return (~(a ^ b) & (c ^ a) & s64SignBit) != 0n;
+}
+
+function s64CheckSubOverflow(a, b, c) {
+  return ((a ^ b) & (c ^ a) & s64SignBit) != 0n;
+}
+
+n64js.s32CheckAddOverflow = s32CheckAddOverflow;
+n64js.s32CheckSubOverflow = s32CheckSubOverflow;
+n64js.s64CheckAddOverflow = s64CheckAddOverflow;
+n64js.s64CheckSubOverflow = s64CheckSubOverflow;
+
+
 class TLBEntry {
   constructor() {
     this.pagemask = 0;
@@ -323,6 +349,11 @@ class CPU0 {
   setGPR_s64_bigint(r, v) {
     this.gprHi_signed[r] = Number(v >> 32n);
     this.gprLo_signed[r] = Number(v & 0xffffffffn);
+  }
+
+  setGPR_s32_signed(r, v) {
+    this.gprLo_signed[r] = v;
+    this.gprHi_signed[r] = v >> 31;    
   }
 
   reset() {
@@ -470,6 +501,10 @@ class CPU0 {
     if (cond) {
       this.raiseTRAPException();
     }
+  }
+
+  raiseOverflowException() {
+    this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, causeExcCodeOv);
   }
 
   raiseFPE() {
@@ -1558,18 +1593,6 @@ function executeDDIVU(i) {
   cpu0.multHi[1] = Number((hi >> 32n) & 0xffffffffn);
 }
 
-function generateTrivialArithmetic(ctx, op) {
-  const d = ctx.instr_rd();
-  const s = ctx.instr_rs();
-  const t = ctx.instr_rt();
-  const impl = `
-    const result = ${genSrcRegLo(s)} ${op} ${genSrcRegLo(t)};
-    rlo[${d}] = result;
-    rhi[${d}] = result >> 31;
-    `;
-  return generateTrivialOpBoilerplate(impl, ctx);
-}
-
 function generateTrivialLogical(ctx, op) {
   const d = ctx.instr_rd();
   const s = ctx.instr_rs();
@@ -1581,44 +1604,104 @@ function generateTrivialLogical(ctx, op) {
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
-function generateADD(ctx) { return generateTrivialArithmetic(ctx, '+'); }
+function generateADD(ctx) {
+  const d = ctx.instr_rd();
+  const s = ctx.instr_rs();
+  const t = ctx.instr_rt();
+  const impl = `
+    const s = ${genSrcRegLo(s)};
+    const t = ${genSrcRegLo(t)};
+    const result = s + t;
+    if (n64js.s32CheckAddOverflow(s, t, result)) {
+      c.raiseOverflowException();
+    } else {
+      rlo[${d}] = result;
+      rhi[${d}] = result >> 31;
+    }
+    `;
+  // Use the generic boilerplate because we might have generated an overflow exception.
+  return generateGenericOpBoilerplate(impl, ctx);
+}
+
 function executeADD(i) {
-  const d = rd(i);
-  const s = rs(i);
-  const t = rt(i);
-  const result = cpu0.gprLo_signed[s] + cpu0.gprLo_signed[t];
-  cpu0.gprLo_signed[d] = result;
-  cpu0.gprHi_signed[d] = result >> 31;
+  const s = cpu0.gprLo_signed[rs(i)];
+  const t = cpu0.gprLo_signed[rt(i)];
+  const result = s + t;
+  if (s32CheckAddOverflow(s, t, result)) {
+    cpu0.raiseOverflowException();
+    return; 
+  }
+  cpu0.setGPR_s32_signed(rd(i), result);
 }
 
-function generateADDU(ctx) { return generateTrivialArithmetic(ctx, '+'); }
+function generateADDU(ctx) {
+  const d = ctx.instr_rd();
+  const s = ctx.instr_rs();
+  const t = ctx.instr_rt();
+  const impl = `
+    const s = ${genSrcRegLo(s)};
+    const t = ${genSrcRegLo(t)};
+    const result = s + t;
+    rlo[${d}] = result;
+    rhi[${d}] = result >> 31;
+    `;
+  return generateTrivialOpBoilerplate(impl, ctx);
+}
 function executeADDU(i) {
-  const d = rd(i);
-  const s = rs(i);
-  const t = rt(i);
-  const result = cpu0.gprLo_signed[s] + cpu0.gprLo_signed[t];
-  cpu0.gprLo_signed[d] = result;
-  cpu0.gprHi_signed[d] = result >> 31;
+  const s = cpu0.gprLo_signed[rs(i)];
+  const t = cpu0.gprLo_signed[rt(i)];
+  const result = s + t;
+  cpu0.setGPR_s32_signed(rd(i), result);
 }
 
-function generateSUB(ctx) { return generateTrivialArithmetic(ctx, '-'); }
+function generateSUB(ctx) {
+  const d = ctx.instr_rd();
+  const s = ctx.instr_rs();
+  const t = ctx.instr_rt();
+  const impl = `
+    const s = ${genSrcRegLo(s)};
+    const t = ${genSrcRegLo(t)};
+    const result = s - t;
+    if (n64js.s32CheckSubOverflow(s, t, result)) {
+      c.raiseOverflowException();
+    } else {
+      rlo[${d}] = result;
+      rhi[${d}] = result >> 31;
+    }
+  `;
+  // Use the generic boilerplate because we might have generated an overflow exception.
+  return generateGenericOpBoilerplate(impl, ctx);
+}
+
 function executeSUB(i) {
-  const d = rd(i);
-  const s = rs(i);
-  const t = rt(i);
-  const result = cpu0.gprLo_signed[s] - cpu0.gprLo_signed[t];
-  cpu0.gprLo_signed[d] = result;
-  cpu0.gprHi_signed[d] = result >> 31;
+  const s = cpu0.gprLo_signed[rs(i)];
+  const t = cpu0.gprLo_signed[rt(i)];
+  const result = s - t;
+  if (s32CheckSubOverflow(s, t, result)) {
+    cpu0.raiseOverflowException();
+    return; 
+  }
+  cpu0.setGPR_s32_signed(rd(i), result);
 }
 
-function generateSUBU(ctx) { return generateTrivialArithmetic(ctx, '-'); }
+function generateSUBU(ctx) {
+  const d = ctx.instr_rd();
+  const s = ctx.instr_rs();
+  const t = ctx.instr_rt();
+  const impl = `
+    const s = ${genSrcRegLo(s)};
+    const t = ${genSrcRegLo(t)};
+    const result = s - t;
+    rlo[${d}] = result;
+    rhi[${d}] = result >> 31;
+    `;
+  return generateTrivialOpBoilerplate(impl, ctx);
+}
 function executeSUBU(i) {
-  const d = rd(i);
-  const s = rs(i);
-  const t = rt(i);
-  const result = cpu0.gprLo_signed[s] - cpu0.gprLo_signed[t];
-  cpu0.gprLo_signed[d] = result;
-  cpu0.gprHi_signed[d] = result >> 31;
+  const s = cpu0.gprLo_signed[rs(i)];
+  const t = cpu0.gprLo_signed[rt(i)];
+  const result = s - t;
+  cpu0.setGPR_s32_signed(rd(i), result);
 }
 
 function generateAND(ctx) { return generateTrivialLogical(ctx, '&'); }
@@ -1748,6 +1831,10 @@ function executeDADD(i) {
   const s = cpu0.getGPR_s64_bigint(rs(i));
   const t = cpu0.getGPR_s64_bigint(rt(i));
   const result = s + t;
+  if (s64CheckAddOverflow(s, t, result)) {
+    cpu0.raiseOverflowException();
+    return; 
+  }
   cpu0.setGPR_s64_bigint(rd(i), result);
 }
 
@@ -1762,6 +1849,10 @@ function executeDSUB(i) {
   const s = cpu0.getGPR_s64_bigint(rs(i));
   const t = cpu0.getGPR_s64_bigint(rt(i));
   const result = s - t;
+  if (s64CheckSubOverflow(s, t, result)) {
+    cpu0.raiseOverflowException();
+    return;
+  }
   cpu0.setGPR_s64_bigint(rd(i), result);
 }
 
@@ -2357,26 +2448,38 @@ function generateADDI(ctx) {
   const s = ctx.instr_rs();
   const t = ctx.instr_rt();
   const impl = `
-    const result = ${genSrcRegLo(s)} + ${imms(ctx.instruction)};
-    rlo[${t}] = result;
-    rhi[${t}] = result >> 31;
+    const s = ${genSrcRegLo(s)};
+    const imm = ${imms(ctx.instruction)};
+    const result = s + imm;
+    if (n64js.s32CheckAddOverflow(s, imm, result)) {
+      c.raiseOverflowException();
+    } else {    
+      rlo[${t}] = result;
+      rhi[${t}] = result >> 31;
+    }
     `;
-  return generateTrivialOpBoilerplate(impl, ctx);
+  // Use the generic boilerplate because we might have generated an overflow exception.
+  return generateGenericOpBoilerplate(impl, ctx);
 }
 
 function executeADDI(i) {
-  const s = rs(i);
-  const t = rt(i);
-  const result = cpu0.gprLo_signed[s] + imms(i);
-  cpu0.gprLo_signed[t] = result;
-  cpu0.gprHi_signed[t] = result >> 31;
+  const s = cpu0.gprLo_signed[rs(i)];
+  const imm = imms(i);
+  const result = s + imm;
+  if (s32CheckAddOverflow(s, imm, result)) {
+    cpu0.raiseOverflowException();
+    return; 
+  }
+  cpu0.setGPR_s32_signed(rt(i), result);
 }
 
 function generateADDIU(ctx) {
   const s = ctx.instr_rs();
   const t = ctx.instr_rt();
   const impl = `
-    const result = ${genSrcRegLo(s)} + ${imms(ctx.instruction)};
+    const s = ${genSrcRegLo(s)};
+    const imm = ${imms(ctx.instruction)};
+    const result = s + imm;
     rlo[${t}] = result;
     rhi[${t}] = result >> 31;
     `;
@@ -2384,18 +2487,21 @@ function generateADDIU(ctx) {
 }
 
 function executeADDIU(i) {
-  const s = rs(i);
-  const t = rt(i);
-  const result = cpu0.gprLo_signed[s] + imms(i);
-  cpu0.gprLo_signed[t] = result;
-  cpu0.gprHi_signed[t] = result >> 31;
+  const s = cpu0.gprLo_signed[rs(i)];
+  const imm = imms(i);
+  const result = s + imm;
+  cpu0.setGPR_s32_signed(rt(i), result);
 }
 
 function executeDADDI(i) {
   const s = cpu0.getGPR_s64_bigint(rs(i));
   const imm = BigInt(imms(i));
   const result = s + imm;
-  cpu0.setGPR_s64_bigint(rt(i), s + imm);
+  if (s64CheckAddOverflow(s, imm, result)) {
+    cpu0.raiseOverflowException();
+    return; 
+  }
+  cpu0.setGPR_s64_bigint(rt(i), result);
 }
 
 function executeDADDIU(i) {
