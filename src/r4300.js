@@ -1099,13 +1099,8 @@ function executeSLL(i) {
     return;
   }
 
-  const d = rd(i);
-  const t = rt(i);
-  const shift = sa(i);
-
-  const result = cpu0.gprLo_signed[t] << shift;
-  cpu0.gprLo_signed[d] = result;
-  cpu0.gprHi_signed[d] = result >> 31;    // sign extend
+  const result = cpu0.gprLo_signed[rt(i)] << sa(i);
+  cpu0.setGPR_s32_signed(rd(i), result);
 }
 
 function generateSRL(ctx) {
@@ -1122,13 +1117,8 @@ function generateSRL(ctx) {
 }
 
 function executeSRL(i) {
-  const d = rd(i);
-  const t = rt(i);
-  const shift = sa(i);
-
-  const result = cpu0.gprLo[t] >>> shift;
-  cpu0.gprLo[d] = result;
-  cpu0.gprHi[d] = result >> 31;    // sign extend
+  const result = cpu0.gprLo[rt(i)] >>> sa(i);
+  cpu0.setGPR_s32_signed(rd(i), result);
 }
 
 function generateSRA(ctx) {
@@ -1149,7 +1139,6 @@ function generateSRA(ctx) {
 }
 
 function executeSRA(i) {
-  const d = rd(i);
   const t = rt(i);
   const shift = sa(i);
 
@@ -1159,8 +1148,7 @@ function executeSRA(i) {
   // SRA appears to shift the full 64 bit reg, trunc to 32 bits, then sign extend.
   // Take care with shift of 32 (JS treats as shift of 0).
   const result = (lo >>> shift) | (shift > 0 ? (hi << (32 - shift)) : 0);
-  cpu0.gprLo[d] = result;
-  cpu0.gprHi[d] = result >> 31;
+  cpu0.setGPR_s32_signed(rd(i), result);
 }
 
 function generateSLLV(ctx) {
