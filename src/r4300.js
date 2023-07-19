@@ -2404,18 +2404,17 @@ function generateSLTI(ctx) {
 
 function executeSLTI(i) {
   const s = rs(i);
-  const t = rt(i);
-
   const immediate = imms(i);
   const imm_hi = immediate >> 31;
-  const s_hi = cpu0.gprHi_signed[s];
+  const s_hi = cpu0.getGPR_s32_hi_signed(s);
 
+  let result;
   if (s_hi === imm_hi) {
-    cpu0.gprLo_signed[t] = (cpu0.gprLo[s] < (immediate >>> 0)) ? 1 : 0;    // NB signed compare
+    result = (cpu0.gprLo[s] < (immediate >>> 0)) ? 1 : 0;    // NB signed compare
   } else {
-    cpu0.gprLo_signed[t] = (s_hi < imm_hi) ? 1 : 0;
+    result = (s_hi < imm_hi) ? 1 : 0;
   }
-  cpu0.gprHi_signed[t] = 0;
+  cpu0.setGPR_s32_unsigned(rt(i), result);
 }
 
 function generateSLTIU(ctx) {
@@ -2441,20 +2440,19 @@ function generateSLTIU(ctx) {
 
 function executeSLTIU(i) {
   const s = rs(i);
-  const t = rt(i);
 
   // NB: immediate value is still sign-extended, but treated as unsigned
   const immediate = imms(i);
   const imm_hi = immediate >> 31;
-  const s_hi = cpu0.gprHi_signed[s];
+  const s_hi = cpu0.getGPR_s32_hi_signed(s);
 
+  let result;
   if (s_hi === imm_hi) {
-    cpu0.gprLo[t] = (cpu0.gprLo[s] < (immediate >>> 0)) ? 1 : 0;
+    result = (cpu0.gprLo[s] < (immediate >>> 0)) ? 1 : 0;
   } else {
-    cpu0.gprLo[t] = ((s_hi >>> 0) < (imm_hi >>> 0)) ? 1 : 0;
+    result = ((s_hi >>> 0) < (imm_hi >>> 0)) ? 1 : 0;
   }
-  cpu0.gprHi[t] = 0;
-
+  cpu0.setGPR_s32_unsigned(rt(i), result);
 }
 
 function generateANDI(ctx) {
