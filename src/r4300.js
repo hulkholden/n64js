@@ -293,6 +293,7 @@ class CPU0 {
 
     this.ram = undefined; // bound to in reset n64js.getRamU8Array();
 
+    // TODO: interleave. these into a single buffer so we can use BigIntArray.
     const gprLoMem = new ArrayBuffer(32 * 4);
     const gprHiMem = new ArrayBuffer(32 * 4);
 
