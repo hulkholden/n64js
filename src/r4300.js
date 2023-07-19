@@ -1678,29 +1678,15 @@ function generateSLT(ctx) {
   const t = ctx.instr_rt();
 
   const impl = `
-    let r = 0;
-    if (${genSrcRegHi(s)} < ${genSrcRegHi(t)}) {
-      r = 1;
-    } else if (${genSrcRegHi(s)} === ${genSrcRegHi(t)}) {
-      r = (c.gprLo[${s}] < c.gprLo[${t}]) ? 1 : 0;
-    }
+    const r = c.getGPR_s64_bigint(${s}) < c.getGPR_s64_bigint(${t}) ? 1 : 0;
     c.setGPR_s32_unsigned(${d}, r);
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
 function executeSLT(i) {
-  const d = rd(i);
-  const s = rs(i);
-  const t = rt(i);
-  let r = 0;
-  if (cpu0.gprHi_signed[s] < cpu0.gprHi_signed[t]) {
-    r = 1;
-  } else if (cpu0.gprHi_signed[s] === cpu0.gprHi_signed[t]) {
-    r = (cpu0.gprLo[s] < cpu0.gprLo[t]) ? 1 : 0;
-  }
-  cpu0.gprLo_signed[d] = r;
-  cpu0.gprHi_signed[d] = 0;
+  const r = cpu0.getGPR_s64_bigint(rs(i)) < cpu0.getGPR_s64_bigint(rt(i)) ? 1 : 0;
+  cpu0.setGPR_s32_unsigned(rd(i), r);
 }
 
 function generateSLTU(ctx) {
@@ -1709,27 +1695,15 @@ function generateSLTU(ctx) {
   const t = ctx.instr_rt();
 
   const impl = `
-    let r = 0;
-    if (c.gprHi[${s}] < c.gprHi[${t}] ||
-        (${genSrcRegHi(s)} === ${genSrcRegHi(t)} && c.gprLo[${s}] < c.gprLo[${t}])) {
-      r = 1;
-    }
+    const r = c.getGPR_u64_bigint(${s}) < c.getGPR_u64_bigint(${t}) ? 1 : 0;
     c.setGPR_s32_unsigned(${d}, r);
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
 function executeSLTU(i) {
-  const d = rd(i);
-  const s = rs(i);
-  const t = rt(i);
-  let r = 0;
-  if (cpu0.gprHi[s] < cpu0.gprHi[t] ||
-    (cpu0.gprHi_signed[s] === cpu0.gprHi_signed[t] && cpu0.gprLo[s] < cpu0.gprLo[t])) { // NB signed cmps avoid deopts
-    r = 1;
-  }
-  cpu0.gprLo_signed[d] = r;
-  cpu0.gprHi_signed[d] = 0;
+  const r = cpu0.getGPR_u64_bigint(rs(i)) < cpu0.getGPR_u64_bigint(rt(i)) ? 1 : 0;
+  cpu0.setGPR_s32_unsigned(rd(i), r);
 }
 
 function executeDADD(i) {
