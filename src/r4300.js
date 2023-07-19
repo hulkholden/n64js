@@ -1165,13 +1165,8 @@ function generateSLLV(ctx) {
 }
 
 function executeSLLV(i) {
-  const d = rd(i);
-  const s = rs(i);
-  const t = rt(i);
-
-  const result = cpu0.gprLo_signed[t] << (cpu0.gprLo_signed[s] & 0x1f);
-  cpu0.gprLo_signed[d] = result;
-  cpu0.gprHi_signed[d] = result >> 31;    // sign extend
+  const result = cpu0.gprLo_signed[rt(i)] << (cpu0.gprLo_signed[rs(i)] & 0x1f);
+  cpu0.setGPR_s32_signed(rd(i), result);
 }
 
 function generateSRLV(ctx) {
@@ -1188,13 +1183,8 @@ function generateSRLV(ctx) {
 }
 
 function executeSRLV(i) {
-  const d = rd(i);
-  const s = rs(i);
-  const t = rt(i);
-
-  const result = cpu0.gprLo_signed[t] >>> (cpu0.gprLo_signed[s] & 0x1f);
-  cpu0.gprLo_signed[d] = result;
-  cpu0.gprHi_signed[d] = result >> 31;    // sign extend
+  const result = cpu0.gprLo_signed[rt(i)] >>> (cpu0.gprLo_signed[rs(i)] & 0x1f);
+  cpu0.setGPR_s32_signed(rd(i), result);
 }
 
 function generateSRAV(ctx) {
@@ -1214,18 +1204,15 @@ function generateSRAV(ctx) {
 }
 
 function executeSRAV(i) {
-  const d = rd(i);
-  const s = rs(i);
   const t = rt(i);
 
-  const shift = cpu0.gprLo_signed[s] & 0x1f;
+  const shift = cpu0.gprLo_signed[rs(i)] & 0x1f;
   const lo = cpu0.gprLo[t];
   const hi = cpu0.gprHi_signed[t];
 
   // Take care with shift of 32 (JS treats as shift of 0).
   const result = (lo >>> shift) | (shift > 0 ? (hi << (32 - shift)) : 0);
-  cpu0.gprLo[d] = result;
-  cpu0.gprHi[d] = result >> 31;
+  cpu0.setGPR_s32_signed(rd(i), result);
 }
 
 function executeDSLLV(i) {
