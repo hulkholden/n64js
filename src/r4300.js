@@ -349,6 +349,10 @@ class CPU0 {
     return this.gprHi_signed[r];
   }
 
+  getGPR_s32_hi_unsigned(r) {
+    return this.gprHi[r];
+  }
+
   getGPR_s64_bigint(r) {
     return (BigInt(this.gprHi_signed[r]) << 32n) + BigInt(this.gprLo[r]);
   }
@@ -358,8 +362,10 @@ class CPU0 {
   }
 
   setGPR_s64_bigint(r, v) {
-    this.gprHi_signed[r] = Number(v >> 32n);
-    this.gprLo_signed[r] = Number(v & 0xffffffffn);
+    // This shouldn't be needed but there seems to be a bug with BigInts > 64 bits.
+    const truncated = v & 0xffff_ffff_ffff_ffffn;
+    this.gprHi_signed[r] = Number(truncated >> 32n);
+    this.gprLo_signed[r] = Number(truncated & 0xffff_ffffn);
   }
 
   setGPR_s64_lo_hi(r, lo, hi) {
@@ -1314,67 +1320,28 @@ function executeDSRAV(i) {
 }
 
 function executeDSLL(i) {
-  const d = rd(i);
-  const t = rt(i);
-  const shift = sa(i);
-
-  const lo = cpu0.gprLo[t];
-  const hi = cpu0.gprHi[t];
-
-  // Take care with shift of 32 (JS treats as shift of 0).
-  cpu0.gprLo[d] = lo << shift;
-  cpu0.gprHi[d] = (hi << shift) | (shift > 0 ? (lo >>> (32 - shift)) : 0);
-}
-
-function executeDSLL32(i) {
-  const d = rd(i);
-
-  const val = cpu0.gprLo[rt(i)];
-
-  cpu0.gprLo_signed[d] = 0;
-  cpu0.gprHi_signed[d] = val << sa(i);
+  cpu0.setGPR_s64_bigint(rd(i), cpu0.getGPR_u64_bigint(rt(i)) << BigInt(sa(i)));
 }
 
 function executeDSRL(i) {
-  const d = rd(i);
-  const t = rt(i);
-  const shift = sa(i);
-  const nshift = 32 - shift;
-
-  const lo = cpu0.gprLo[t];
-  const hi = cpu0.gprHi[t];
-
-  // Take care with shift of 32 (JS treats as shift of 0).
-  cpu0.gprLo[d] = (lo >>> shift) | (shift > 0 ? (hi << (32 - shift)) : 0);
-  cpu0.gprHi[d] = (hi >>> shift);
-}
-
-function executeDSRL32(i) {
-  const d = rd(i);
-  cpu0.gprLo[d] = cpu0.gprHi[rt(i)] >>> sa(i);
-  cpu0.gprHi_signed[d] = 0;
+  cpu0.setGPR_s64_bigint(rd(i), cpu0.getGPR_u64_bigint(rt(i)) >> BigInt(sa(i)));
 }
 
 function executeDSRA(i) {
-  const d = rd(i);
-  const t = rt(i);
-  const shift = sa(i);
-
-  const lo = cpu0.gprLo[t];
-  const hi = cpu0.gprHi_signed[t];
-
-  // Take care with shift of 32 (JS treats as shift of 0).
-  cpu0.gprLo[d] = (lo >>> shift) | (shift > 0 ? (hi << (32 - shift)) : 0);
-  cpu0.gprHi[d] = (hi >> shift);
+  cpu0.setGPR_s64_bigint(rd(i), cpu0.getGPR_s64_bigint(rt(i)) >> BigInt(sa(i)));
 }
+
+function executeDSLL32(i) {
+  cpu0.setGPR_s64_bigint(rd(i), cpu0.getGPR_u64_bigint(rt(i)) << BigInt(sa(i) + 32));
+}  
+
+function executeDSRL32(i) {
+  cpu0.setGPR_s64_bigint(rd(i), cpu0.getGPR_u64_bigint(rt(i)) >> BigInt(sa(i) + 32));
+}  
 
 function executeDSRA32(i) {
-  const d = rd(i);
-  const olo = cpu0.gprHi_signed[rt(i)] >> sa(i);
-  cpu0.gprLo_signed[d] = olo;
-  cpu0.gprHi_signed[d] = olo >> 31;
+  cpu0.setGPR_s64_bigint(rd(i), cpu0.getGPR_s64_bigint(rt(i)) >> BigInt(sa(i) + 32));
 }
-
 
 function executeSYSCALL(i) {
   cpu0.raiseSYSCALLException();
