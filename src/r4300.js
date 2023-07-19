@@ -353,7 +353,12 @@ class CPU0 {
 
   setGPR_s32_signed(r, v) {
     this.gprLo_signed[r] = v;
-    this.gprHi_signed[r] = v >> 31;    
+    this.gprHi_signed[r] = v >> 31;
+  }
+
+  setGPR_s32_unsigned(r, v) {
+    this.gprLo_signed[r] = v;
+    this.gprHi_signed[r] = 0;
   }
 
   reset() {
@@ -2950,11 +2955,7 @@ function generateSB(ctx) {
 }
 
 function executeSB(i) {
-  const t = rt(i);
-  const b = base(i);
-  const o = imms(i);
-
-  n64js.store_8(cpu0.ram, cpu0.gprLo_signed[b] + o, cpu0.gprLo_signed[t] /*& 0xff*/);
+  n64js.store_8(cpu0.ram, cpu0.gprLo_signed[base(i)] + imms(i), cpu0.gprLo_signed[rt(i)] /*& 0xff*/);
 }
 
 function generateSH(ctx) {
@@ -2969,11 +2970,7 @@ function generateSH(ctx) {
 }
 
 function executeSH(i) {
-  const t = rt(i);
-  const b = base(i);
-  const o = imms(i);
-
-  n64js.store_16(cpu0.ram, cpu0.gprLo_signed[b] + o, cpu0.gprLo_signed[t] /*& 0xffff*/);
+  n64js.store_16(cpu0.ram, cpu0.gprLo_signed[base(i)] + imms(i), cpu0.gprLo_signed[rt(i)] /*& 0xffff*/);
 }
 
 function generateSW(ctx) {
@@ -2988,11 +2985,7 @@ function generateSW(ctx) {
 }
 
 function executeSW(i) {
-  const t = rt(i);
-  const b = base(i);
-  const o = imms(i);
-
-  n64js.store_32(cpu0.ram, cpu0.gprLo_signed[b] + o, cpu0.gprLo_signed[t]);
+  n64js.store_32(cpu0.ram, cpu0.gprLo_signed[base(i)] + imms(i), cpu0.gprLo_signed[rt(i)]);
 }
 
 function generateSD(ctx) {
@@ -3009,10 +3002,7 @@ function generateSD(ctx) {
 
 function executeSD(i) {
   const t = rt(i);
-  const b = base(i);
-  const o = imms(i);
-
-  const addr = cpu0.gprLo_signed[b] + o;
+  const addr = cpu0.gprLo_signed[base(i)] + imms(i);
   n64js.store_64(cpu0.ram, addr, cpu0.gprLo_signed[t], cpu0.gprHi_signed[t]);
 }
 
@@ -3036,12 +3026,7 @@ function executeSWC1(i) {
   if (!cpu0.checkCopXUsable(1)) {
     return;
   }
-
-  const t = ft(i);
-  const b = base(i);
-  const o = imms(i);
-
-  n64js.store_32(cpu0.ram, cpu0.gprLo_signed[b] + o, cpu1.load_i32(t));
+  n64js.store_32(cpu0.ram, cpu0.gprLo_signed[base(i)] + imms(i), cpu1.load_i32(ft(i)));
 }
 
 function generateSDC1(ctx) {
@@ -3068,14 +3053,9 @@ function executeSDC1(i) {
   if (!cpu0.checkCopXUsable(1)) {
     return;
   }
- 
-  const t = ft(i);
-  const b = base(i);
-  const o = imms(i);
-
   // FIXME: this can do a single check that the address is in ram
-  const addr = cpu0.gprLo_signed[b] + o;
-  const value = cpu1.load_i64_bigint(t);
+  const addr = cpu0.gprLo_signed[base(i)] + imms(i);
+  const value = cpu1.load_i64_bigint(ft(i));
   const lo = Number(value & 0xffffffffn);
   const hi = Number(value >> 32n);
   n64js.store_64(cpu0.ram, addr, lo, hi);
