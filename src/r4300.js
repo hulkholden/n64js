@@ -336,6 +336,14 @@ class CPU0 {
     return this.control[cpu0_constants.controlCount];
   }
 
+  getGPR_s32_signed(r) {
+    return this.gprLo_signed[r];
+  }
+
+  getGPR_s32_unsigned(r) {
+    return this.gprLo[r];
+  }
+
   getGPR_s64_bigint(r) {
     return (BigInt(this.gprHi_signed[r]) << 32n) + BigInt(this.gprLo[r]);
   }
