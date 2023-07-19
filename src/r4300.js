@@ -3236,17 +3236,12 @@ function generateMFC1Stub(ctx) {
 }
 
 function executeMFC1(i) {
-  const t = rt(i);
-  const s = fs(i);
-  const result = cpu1.load_i32(s);
-  cpu0.gprLo_signed[t] = result;
-  cpu0.gprHi_signed[t] = result >> 31;
+  cpu0.setGPR_s32_signed(rt(i), cpu1.load_i32(fs(i)));
 }
 
 function generateDMFC1Stub(ctx) {
   const t = ctx.instr_rt();
   const s = ctx.instr_fs();
-  const hi = s + 1;
 
   ctx.fragment.usesCop1 = true;
   ctx.isTrivial = true;
@@ -3259,11 +3254,7 @@ function generateDMFC1Stub(ctx) {
 }
 
 function executeDMFC1(i) {
-  const t = rt(i);
-  const s = fs(i);
-  const v = cpu1.load_i64_bigint(s);
-  cpu0.gprLo_signed[t] = Number(v & 0xffffffffn);
-  cpu0.gprHi_signed[t] = Number(v >> 32n);
+  cpu0.setGPR_s64_bigint(rt(i), cpu1.load_i64_bigint(fs(i)));
 }
 
 function generateMTC1Stub(ctx) {
@@ -3296,7 +3287,7 @@ function generateDMTC1Stub(ctx) {
 function executeDMTC1(i) {
   const s = fs(i);
   const t = rt(i);
-  cpu1.store_64_hi_lo(s, cpu0.gprLo_signed[t], cpu0.gprHi_signed[t]);
+  cpu1.store_i64_bigint(s, cpu0.getGPR_s64_bigint(t));
 }
 
 function generateCFC1Stub(ctx) {
