@@ -933,10 +933,23 @@ function genSrcRegLo(i) {
     return '0';
   return `rlo[${i}]`;
 }
+
 function genSrcRegHi(i) {
   if (i === 0)
     return '0';
   return `rhi[${i}]`;
+}
+
+function genSrcRegS64(i) {
+  if (i === 0)
+    return '0n';
+  return `c.getGPR_s64_bigint(${i})`;
+}
+
+function genSrcRegU64(i) {
+  if (i === 0)
+    return '0n';
+  return `c.getGPR_u64_bigint(${i})`;
 }
 
 //
@@ -1142,14 +1155,9 @@ function generateSRA(ctx) {
   const t = ctx.instr_rt();
   const shift = ctx.instr_sa();
 
-  const hiFrag = shift > 0 ? `(hi << (${32 - shift}))` : `0`;
-
   const impl = `
-    const lo = ${genSrcRegLo(t)};
-    const hi = ${genSrcRegHi(t)};
-    const result = (lo >>> ${shift}) | ${hiFrag};
-    rlo[${d}] = result;
-    rhi[${d}] = result >> 31;
+    const result = ${genSrcRegS64(t)} >> BigInt(${shift});
+    c.setGPR_s32_signed(${d}, Number(result & 0xffff_ffffn));
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
@@ -1158,13 +1166,9 @@ function executeSRA(i) {
   const t = rt(i);
   const shift = sa(i);
 
-  const lo = cpu0.gprLo[t];
-  const hi = cpu0.gprHi[t];
-
   // SRA appears to shift the full 64 bit reg, trunc to 32 bits, then sign extend.
-  // Take care with shift of 32 (JS treats as shift of 0).
-  const result = (lo >>> shift) | (shift > 0 ? (hi << (32 - shift)) : 0);
-  cpu0.setGPR_s32_signed(rd(i), result);
+  const result = cpu0.getGPR_s64_bigint(t) >> BigInt(shift);
+  cpu0.setGPR_s32_signed(rd(i), Number(result & 0xffff_ffffn));
 }
 
 function generateSLLV(ctx) {
