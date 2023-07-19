@@ -349,6 +349,11 @@ class CPU0 {
     this.gprLo_signed[r] = Number(v & 0xffffffffn);
   }
 
+  setGPR_s64_lo_hi(r, lo, hi) {
+    this.gprLo_signed[r] = lo;
+    this.gprHi_signed[r] = hi;    
+  }
+
   setGPR_s32_signed(r, v) {
     this.gprLo_signed[r] = v;
     this.gprHi_signed[r] = v >> 31;
@@ -1228,17 +1233,19 @@ function executeDSLLV(i) {
   const lo = cpu0.gprLo[t];
   const hi = cpu0.gprHi[t];
 
+  let rlo, rhi;
   if (shift == 0) {
-    cpu0.gprLo_signed[d] = lo;
-    cpu0.gprHi_signed[d] = hi;
+    rlo = lo;
+    rhi = hi;
   } else if (shift < 32) {
     const nshift = 32 - shift;
-    cpu0.gprLo[d] = (lo << shift);
-    cpu0.gprHi[d] = (hi << shift) | (lo >>> nshift);
+    rlo = lo << shift;
+    rhi = (hi << shift) | (lo >>> nshift);
   } else {
-    cpu0.gprLo_signed[d] = 0;
-    cpu0.gprHi_signed[d] = lo << (shift - 32);
+    rlo = 0;
+    rhi = lo << (shift - 32);
   }
+  cpu0.setGPR_s64_lo_hi(d, rlo, rhi);
 }
 
 function executeDSRLV(i) {
@@ -1251,17 +1258,19 @@ function executeDSRLV(i) {
   const lo = cpu0.gprLo[t];
   const hi = cpu0.gprHi[t];
 
+  let rlo, rhi;
   if (shift == 0) {
-    cpu0.gprLo_signed[d] = lo;
-    cpu0.gprHi_signed[d] = hi;
+    rlo = lo;
+    rhi = hi;
   } else if (shift < 32) {
     const nshift = 32 - shift;
-    cpu0.gprLo[d] = (lo >>> shift) | (hi << nshift);
-    cpu0.gprHi[d] = (hi >>> shift);
+    rlo = (lo >>> shift) | (hi << nshift);
+    rhi = (hi >>> shift);
   } else {
-    cpu0.gprLo[d] = hi >>> (shift - 32);
-    cpu0.gprHi_signed[d] = 0;
+    rlo = hi >>> (shift - 32);
+    rhi = 0;
   }
+  cpu0.setGPR_s64_lo_hi(d, rlo, rhi);
 }
 
 function executeDSRAV(i) {
@@ -1274,18 +1283,19 @@ function executeDSRAV(i) {
   const lo = cpu0.gprLo[t];
   const hi = cpu0.gprHi_signed[t];
 
+  let rlo, rhi;
   if (shift == 0) {
-    cpu0.gprLo_signed[d] = lo;
-    cpu0.gprHi_signed[d] = hi;
+    rlo = lo;
+    rhi = hi;
   } else if (shift < 32) {
     const nshift = 32 - shift;
-    cpu0.gprLo[d] = (lo >>> shift) | (hi << nshift);
-    cpu0.gprHi[d] = (hi >> shift);
+    rlo = (lo >>> shift) | (hi << nshift);
+    rhi = hi >> shift;
   } else {
-    const olo = hi >> (shift - 32);
-    cpu0.gprLo_signed[d] = olo;
-    cpu0.gprHi_signed[d] = olo >> 31;
+    rlo = hi >> (shift - 32);
+    rhi = rlo >> 31;
   }
+  cpu0.setGPR_s64_lo_hi(d, rlo, rhi);
 }
 
 function executeDSLL(i) {
