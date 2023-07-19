@@ -1305,10 +1305,7 @@ function generateMFHI(ctx) {
 }
 
 function executeMFHI(i) {
-  const d = rd(i);
-
-  cpu0.gprLo_signed[d] = cpu0.multHi_signed[0];
-  cpu0.gprHi_signed[d] = cpu0.multHi_signed[1];
+  cpu0.setGPR_s64_lo_hi(rd(i), cpu0.multHi_signed[0], cpu0.multHi_signed[1]);
 }
 
 function generateMFLO(ctx) {
@@ -1320,9 +1317,7 @@ function generateMFLO(ctx) {
 }
 
 function executeMFLO(i) {
-  const d = rd(i);
-  cpu0.gprLo_signed[d] = cpu0.multLo_signed[0];
-  cpu0.gprHi_signed[d] = cpu0.multLo_signed[1];
+  cpu0.setGPR_s64_lo_hi(rd(i), cpu0.multLo_signed[0], cpu0.multLo_signed[1]);
 }
 
 function generateMTHI(ctx) {
