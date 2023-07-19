@@ -1428,8 +1428,8 @@ function executeDMULTU(i) {
 }
 
 function executeDIV(i) {
-  const dividend = cpu0.gprLo_signed[rs(i)];
-  const divisor = cpu0.gprLo_signed[rt(i)];
+  const dividend = cpu0.getGPR_s32_signed(rs(i));
+  const divisor = cpu0.getGPR_s32_signed(rt(i));
 
   let lo, hi;
   if (divisor) {
@@ -1446,8 +1446,8 @@ function executeDIV(i) {
 }
 
 function executeDIVU(i) {
-  const dividend = cpu0.gprLo[rs(i)];
-  const divisor = cpu0.gprLo[rt(i)];
+  const dividend = cpu0.getGPR_s32_unsigned(rs(i));
+  const divisor = cpu0.getGPR_s32_unsigned(rt(i));
 
   let lo, hi;
   if (divisor) {
