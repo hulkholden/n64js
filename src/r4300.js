@@ -2459,16 +2459,16 @@ function generateANDI(ctx) {
   const s = ctx.instr_rs();
   const t = ctx.instr_rt();
   const impl = `
-    c.setGPR_s32_unsigned(${t}, ${genSrcRegLo(s)} & ${imm(ctx.instruction)});
+    c.setGPR_s64_lo_hi(${t}, ${genSrcRegLo(s)} & ${imm(ctx.instruction)}, 0);
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
 function executeANDI(i) {
-  const s = rs(i);
-  const t = rt(i);
-  cpu0.gprLo_signed[t] = cpu0.gprLo_signed[s] & imm(i);
-  cpu0.gprHi_signed[t] = 0;    // always 0, as sign extended immediate value is always 0
+  // High bits always 0, as sign extended immediate value is always 0
+  const lo = cpu0.getGPR_s32_unsigned(rs(i)) & imm(i);
+  const hi = 0;
+  cpu0.setGPR_s64_lo_hi(rt(i), lo, hi);
 }
 
 function generateORI(ctx) {
@@ -2491,9 +2491,9 @@ function generateORI(ctx) {
 
 function executeORI(i) {
   const s = rs(i);
-  const t = rt(i);
-  cpu0.gprLo_signed[t] = cpu0.gprLo_signed[s] | imm(i);
-  cpu0.gprHi_signed[t] = cpu0.gprHi_signed[s];
+  const lo = cpu0.getGPR_s32_unsigned(s) | imm(i);
+  const hi = cpu0.getGPR_s32_hi_unsigned(s);
+  cpu0.setGPR_s64_lo_hi(rt(i), lo, hi);
 }
 
 function generateXORI(ctx) {
@@ -2518,8 +2518,9 @@ function executeXORI(i) {
   // High 32 bits are always unchanged, as sign extended immediate value is always 0
   const s = rs(i);
   const t = rt(i);
-  cpu0.gprLo_signed[t] = cpu0.gprLo_signed[s] ^ imm(i);
-  cpu0.gprHi_signed[t] = cpu0.gprHi_signed[s];
+  const lo = cpu0.getGPR_s32_unsigned(s) ^ imm(i);
+  const hi = cpu0.getGPR_s32_hi_unsigned(s);
+  cpu0.setGPR_s64_lo_hi(rt(i), lo, hi);
 }
 
 function generateLUI(ctx) {
