@@ -2639,10 +2639,7 @@ function generateLUI(ctx) {
 }
 
 function executeLUI(i) {
-  const t = rt(i);
-  const value = imms(i) << 16;
-  cpu0.gprLo_signed[t] = value;
-  cpu0.gprHi_signed[t] = value >> 31;
+  cpu0.setGPR_s32_signed(rt(i), imms(i) << 16);
 }
 
 function generateLB(ctx) {
@@ -2660,13 +2657,8 @@ function generateLB(ctx) {
 }
 
 function executeLB(i) {
-  const t = rt(i);
-  const b = base(i);
-  const o = imms(i);
-
-  const value = n64js.load_s8(cpu0.ram, cpu0.gprLo_signed[b] + o);
-  cpu0.gprLo_signed[t] = value;
-  cpu0.gprHi_signed[t] = value >> 31;
+  const value = n64js.load_s8(cpu0.ram, cpu0.gprLo_signed[base(i)] + imms(i));
+  cpu0.setGPR_s32_signed(rt(i), value);
 }
 
 function generateLBU(ctx) {
@@ -2683,12 +2675,8 @@ function generateLBU(ctx) {
 }
 
 function executeLBU(i) {
-  const t = rt(i);
-  const b = base(i);
-  const o = imms(i);
-
-  cpu0.gprLo_signed[t] = n64js.load_u8(cpu0.ram, cpu0.gprLo_signed[b] + o);
-  cpu0.gprHi_signed[t] = 0;
+  const value = n64js.load_u8(cpu0.ram, cpu0.gprLo_signed[base(i)] + imms(i));
+  cpu0.setGPR_s32_unsigned(rt(i), value);
 }
 
 function generateLH(ctx) {
@@ -2706,13 +2694,8 @@ function generateLH(ctx) {
 }
 
 function executeLH(i) {
-  const t = rt(i);
-  const b = base(i);
-  const o = imms(i);
-
-  const value = n64js.load_s16(cpu0.ram, cpu0.gprLo_signed[b] + o);
-  cpu0.gprLo_signed[t] = value;
-  cpu0.gprHi_signed[t] = value >> 31;
+  const value = n64js.load_s16(cpu0.ram, cpu0.gprLo_signed[base(i)] + imms(i));
+  cpu0.setGPR_s32_signed(rt(i), value);
 }
 
 function generateLHU(ctx) {
@@ -2729,12 +2712,8 @@ function generateLHU(ctx) {
 }
 
 function executeLHU(i) {
-  const t = rt(i);
-  const b = base(i);
-  const o = imms(i);
-
-  cpu0.gprLo_signed[t] = n64js.load_u16(cpu0.ram, cpu0.gprLo_signed[b] + o);
-  cpu0.gprHi_signed[t] = 0;
+  const value = n64js.load_u16(cpu0.ram, cpu0.gprLo_signed[base(i)] + imms(i));
+  cpu0.setGPR_s32_unsigned(rt(i), value);
 }
 
 function generateLW(ctx) {
@@ -2755,17 +2734,13 @@ function generateLW(ctx) {
 }
 
 function executeLW(i) {
-  const t = rt(i);
-  const b = base(i);
-  const o = imms(i);
-
   // SF2049 requires this, apparently
-  if (t === 0)
+  if (rt(i) === 0) {
     return;
+  }
 
-  const value = n64js.load_s32(cpu0.ram, cpu0.gprLo_signed[b] + o);
-  cpu0.gprLo_signed[t] = value;
-  cpu0.gprHi_signed[t] = value >> 31;
+  const value = n64js.load_s32(cpu0.ram, cpu0.gprLo_signed[base(i)] + imms(i));
+  cpu0.setGPR_s32_signed(rt(i), value);
 }
 
 function generateLWU(ctx) {
@@ -2782,12 +2757,8 @@ function generateLWU(ctx) {
 }
 
 function executeLWU(i) {
-  const t = rt(i);
-  const b = base(i);
-  const o = imms(i);
-
-  cpu0.gprLo_signed[t] = n64js.load_u32(cpu0.ram, cpu0.gprLo_signed[b] + o);
-  cpu0.gprHi_signed[t] = 0;
+  const value = n64js.load_u32(cpu0.ram, cpu0.gprLo_signed[base(i)] + imms(i));
+  cpu0.setGPR_s32_unsigned(rt(i), value);
 }
 
 function generateLD(ctx) {
