@@ -1245,78 +1245,18 @@ function executeSRAV(i) {
 }
 
 function executeDSLLV(i) {
-  const d = rd(i);
-  const t = rt(i);
-  const s = rs(i);
-
-  const shift = cpu0.gprLo[s] & 0x3f;
-
-  const lo = cpu0.gprLo[t];
-  const hi = cpu0.gprHi[t];
-
-  let rlo, rhi;
-  if (shift == 0) {
-    rlo = lo;
-    rhi = hi;
-  } else if (shift < 32) {
-    const nshift = 32 - shift;
-    rlo = lo << shift;
-    rhi = (hi << shift) | (lo >>> nshift);
-  } else {
-    rlo = 0;
-    rhi = lo << (shift - 32);
-  }
-  cpu0.setGPR_s64_lo_hi(d, rlo, rhi);
+  const shift = cpu0.getGPR_s32_unsigned(rs(i)) & 0x3f;
+  cpu0.setGPR_s64_bigint(rd(i), cpu0.getGPR_u64_bigint(rt(i)) << BigInt(shift));
 }
 
 function executeDSRLV(i) {
-  const d = rd(i);
-  const t = rt(i);
-  const s = rs(i);
-
-  const shift = cpu0.gprLo[s] & 0x3f;
-
-  const lo = cpu0.gprLo[t];
-  const hi = cpu0.gprHi[t];
-
-  let rlo, rhi;
-  if (shift == 0) {
-    rlo = lo;
-    rhi = hi;
-  } else if (shift < 32) {
-    const nshift = 32 - shift;
-    rlo = (lo >>> shift) | (hi << nshift);
-    rhi = (hi >>> shift);
-  } else {
-    rlo = hi >>> (shift - 32);
-    rhi = 0;
-  }
-  cpu0.setGPR_s64_lo_hi(d, rlo, rhi);
+  const shift = cpu0.getGPR_s32_unsigned(rs(i)) & 0x3f;
+  cpu0.setGPR_s64_bigint(rd(i), cpu0.getGPR_u64_bigint(rt(i)) >> BigInt(shift));
 }
 
 function executeDSRAV(i) {
-  const d = rd(i);
-  const t = rt(i);
-  const s = rs(i);
-
-  const shift = cpu0.gprLo[s] & 0x3f;
-
-  const lo = cpu0.gprLo[t];
-  const hi = cpu0.gprHi_signed[t];
-
-  let rlo, rhi;
-  if (shift == 0) {
-    rlo = lo;
-    rhi = hi;
-  } else if (shift < 32) {
-    const nshift = 32 - shift;
-    rlo = (lo >>> shift) | (hi << nshift);
-    rhi = hi >> shift;
-  } else {
-    rlo = hi >> (shift - 32);
-    rhi = rlo >> 31;
-  }
-  cpu0.setGPR_s64_lo_hi(d, rlo, rhi);
+  const shift = cpu0.getGPR_s32_unsigned(rs(i)) & 0x3f;
+  cpu0.setGPR_s64_bigint(rd(i), cpu0.getGPR_s64_bigint(rt(i)) >> BigInt(shift));
 }
 
 function executeDSLL(i) {
