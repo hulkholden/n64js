@@ -486,6 +486,20 @@ class CPU0 {
     return false;
   }
 
+  raiseAdELException(address) {
+    this.control[cpu0_constants.controlBadVAddr] = address;
+
+    this.control[cpu0_constants.controlContext] &= 0xff800000;
+    this.control[cpu0_constants.controlContext] |= ((address >>> 13) << 4);
+
+    // FIXME this is a 64 bit register.
+    this.control[cpu0_constants.controlXContext] &= 0;
+    this.control[cpu0_constants.controlXContext] |= (((address >>> 13) & 0x7ffffff) << 4); // badvpn2
+    this.control[cpu0_constants.controlXContext] |= (((address >>> 30) & 0x3) << 31); // r
+
+    this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, causeExcCodeAdEL);
+  }
+
   checkCopXUsable(copIdx) {
     // TODO: this probably needs to throw a JS exception which is caught in n64js.run
     // to ensure bookkeeping (like updating the delayPC) isn't run.
