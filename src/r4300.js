@@ -1612,8 +1612,9 @@ function executeAND(i) {
   const d = rd(i);
   const s = rs(i);
   const t = rt(i);
-  cpu0.gprHi_signed[d] = cpu0.gprHi_signed[s] & cpu0.gprHi_signed[t];
-  cpu0.gprLo_signed[d] = cpu0.gprLo_signed[s] & cpu0.gprLo_signed[t];
+  const lo = cpu0.getGPR_s32_unsigned(s) & cpu0.getGPR_s32_unsigned(t);
+  const hi = cpu0.getGPR_s32_hi_unsigned(s) & cpu0.getGPR_s32_hi_unsigned(t);
+  cpu0.setGPR_s64_lo_hi(d, lo, hi);
 }
 
 function generateOR(ctx) {
@@ -1635,8 +1636,9 @@ function executeOR(i) {
   const d = rd(i);
   const s = rs(i);
   const t = rt(i);
-  cpu0.gprHi_signed[d] = cpu0.gprHi_signed[s] | cpu0.gprHi_signed[t];
-  cpu0.gprLo_signed[d] = cpu0.gprLo_signed[s] | cpu0.gprLo_signed[t];
+  const lo = cpu0.getGPR_s32_unsigned(s) | cpu0.getGPR_s32_unsigned(t);
+  const hi = cpu0.getGPR_s32_hi_unsigned(s) | cpu0.getGPR_s32_hi_unsigned(t);
+  cpu0.setGPR_s64_lo_hi(d, lo, hi);
 }
 
 function generateXOR(ctx) { return generateTrivialLogical(ctx, '^'); }
@@ -1644,8 +1646,9 @@ function executeXOR(i) {
   const d = rd(i);
   const s = rs(i);
   const t = rt(i);
-  cpu0.gprHi_signed[d] = cpu0.gprHi_signed[s] ^ cpu0.gprHi_signed[t];
-  cpu0.gprLo_signed[d] = cpu0.gprLo_signed[s] ^ cpu0.gprLo_signed[t];
+  const lo = cpu0.getGPR_s32_unsigned(s) ^ cpu0.getGPR_s32_unsigned(t);
+  const hi = cpu0.getGPR_s32_hi_unsigned(s) ^ cpu0.getGPR_s32_hi_unsigned(t);
+  cpu0.setGPR_s64_lo_hi(d, lo, hi);
 }
 
 function generateNOR(ctx) {
@@ -1664,8 +1667,9 @@ function executeNOR(i) {
   const d = rd(i);
   const s = rs(i);
   const t = rt(i);
-  cpu0.gprHi_signed[d] = ~(cpu0.gprHi_signed[s] | cpu0.gprHi_signed[t]);
-  cpu0.gprLo_signed[d] = ~(cpu0.gprLo_signed[s] | cpu0.gprLo_signed[t]);
+  const lo = ~(cpu0.getGPR_s32_unsigned(s) | cpu0.getGPR_s32_unsigned(t));
+  const hi = ~(cpu0.getGPR_s32_hi_unsigned(s) | cpu0.getGPR_s32_hi_unsigned(t));
+  cpu0.setGPR_s64_lo_hi(d, lo, hi);
 }
 
 function generateSLT(ctx) {
