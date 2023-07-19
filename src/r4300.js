@@ -1532,8 +1532,8 @@ function generateADD(ctx) {
 }
 
 function executeADD(i) {
-  const s = cpu0.gprLo_signed[rs(i)];
-  const t = cpu0.gprLo_signed[rt(i)];
+  const s = cpu0.getGPR_s32_signed(rs(i));
+  const t = cpu0.getGPR_s32_signed(rt(i));
   const result = s + t;
   if (s32CheckAddOverflow(s, t, result)) {
     cpu0.raiseOverflowException();
@@ -1554,8 +1554,8 @@ function generateADDU(ctx) {
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 function executeADDU(i) {
-  const s = cpu0.gprLo_signed[rs(i)];
-  const t = cpu0.gprLo_signed[rt(i)];
+  const s = cpu0.getGPR_s32_signed(rs(i));
+  const t = cpu0.getGPR_s32_signed(rt(i));
   const result = s + t;
   cpu0.setGPR_s32_signed(rd(i), result);
 }
@@ -1579,8 +1579,8 @@ function generateSUB(ctx) {
 }
 
 function executeSUB(i) {
-  const s = cpu0.gprLo_signed[rs(i)];
-  const t = cpu0.gprLo_signed[rt(i)];
+  const s = cpu0.getGPR_s32_signed(rs(i));
+  const t = cpu0.getGPR_s32_signed(rt(i));
   const result = s - t;
   if (s32CheckSubOverflow(s, t, result)) {
     cpu0.raiseOverflowException();
@@ -1601,8 +1601,8 @@ function generateSUBU(ctx) {
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 function executeSUBU(i) {
-  const s = cpu0.gprLo_signed[rs(i)];
-  const t = cpu0.gprLo_signed[rt(i)];
+  const s = cpu0.getGPR_s32_signed(rs(i));
+  const t = cpu0.getGPR_s32_signed(rt(i));
   const result = s - t;
   cpu0.setGPR_s32_signed(rd(i), result);
 }
