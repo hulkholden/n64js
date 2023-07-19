@@ -1197,7 +1197,7 @@ function generateSLLV(ctx) {
 }
 
 function executeSLLV(i) {
-  const result = cpu0.gprLo_signed[rt(i)] << (cpu0.gprLo_signed[rs(i)] & 0x1f);
+  const result = cpu0.getGPR_s32_signed(rt(i)) << (cpu0.getGPR_s32_signed(rs(i)) & 0x1f);
   cpu0.setGPR_s32_signed(rd(i), result);
 }
 
@@ -1214,7 +1214,7 @@ function generateSRLV(ctx) {
 }
 
 function executeSRLV(i) {
-  const result = cpu0.gprLo_signed[rt(i)] >>> (cpu0.gprLo_signed[rs(i)] & 0x1f);
+  const result = cpu0.getGPR_s32_signed(rt(i)) >>> (cpu0.getGPR_s32_signed(rs(i)) & 0x1f);
   cpu0.setGPR_s32_signed(rd(i), result);
 }
 
@@ -1225,24 +1225,16 @@ function generateSRAV(ctx) {
 
   const impl = `
   const shift = (${genSrcRegLo(s)} & 0x1f);
-  const lo = ${genSrcRegLo(t)};
-  const hi = ${genSrcRegHi(t)};
-  const result = (lo >>> shift) | (shift > 0 ? (hi << (32 - shift)) : 0);
-  c.setGPR_s32_signed(${d}, result);
+  const result = ${genSrcRegS64(t)} >> BigInt(shift);
+  c.setGPR_s32_signed(${d}, Number(result & 0xffff_ffffn));
   `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
 function executeSRAV(i) {
-  const t = rt(i);
-
-  const shift = cpu0.gprLo_signed[rs(i)] & 0x1f;
-  const lo = cpu0.gprLo[t];
-  const hi = cpu0.gprHi_signed[t];
-
-  // Take care with shift of 32 (JS treats as shift of 0).
-  const result = (lo >>> shift) | (shift > 0 ? (hi << (32 - shift)) : 0);
-  cpu0.setGPR_s32_signed(rd(i), result);
+  const shift = cpu0.getGPR_s32_signed(rs(i)) & 0x1f;
+  const result = cpu0.getGPR_s64_bigint(rt(i)) >> BigInt(shift);
+  cpu0.setGPR_s32_signed(rd(i), Number(result & 0xffff_ffffn));
 }
 
 function executeDSLLV(i) {
