@@ -1336,8 +1336,8 @@ function generateMTHI(ctx) {
 
 function executeMTHI(i) {
   const s = rs(i);
-  cpu0.multHi_signed[0] = cpu0.gprLo_signed[s];
-  cpu0.multHi_signed[1] = cpu0.gprHi_signed[s];
+  cpu0.multHi_signed[0] = cpu0.getGPR_s32_signed(s);
+  cpu0.multHi_signed[1] = cpu0.getGPR_s32_hi_signed(s);
 }
 
 function generateMTLO(ctx) {
@@ -1351,8 +1351,8 @@ function generateMTLO(ctx) {
 
 function executeMTLO(i) {
   const s = rs(i);
-  cpu0.multLo_signed[0] = cpu0.gprLo_signed[s];
-  cpu0.multLo_signed[1] = cpu0.gprHi_signed[s];
+  cpu0.multLo_signed[0] = cpu0.getGPR_s32_signed(s);
+  cpu0.multLo_signed[1] = cpu0.getGPR_s32_hi_signed(s);
 }
 
 function generateMULT(ctx) {
@@ -1373,7 +1373,7 @@ function generateMULT(ctx) {
 }
 
 function executeMULT(i) {
-  const result = BigInt(cpu0.gprLo_signed[rs(i)]) * BigInt(cpu0.gprLo_signed[rt(i)]);
+  const result = BigInt(cpu0.getGPR_s32_signed(rs(i))) * BigInt(cpu0.getGPR_s32_signed(rt(i)));
   const lo = result & 0xffffffffn;
   const hi = result >> 32n;
 
@@ -1401,7 +1401,7 @@ function generateMULTU(ctx) {
 }
 
 function executeMULTU(i) {
-  const result = BigInt(cpu0.gprLo[rs(i)]) * BigInt(cpu0.gprLo[rt(i)]);
+  const result = BigInt(cpu0.getGPR_s32_unsigned(rs(i))) * BigInt(cpu0.getGPR_s32_unsigned(rt(i)));
   const lo = result & 0xffffffffn;
   const hi = result >> 32n;
 
