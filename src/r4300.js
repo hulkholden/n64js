@@ -1137,8 +1137,7 @@ function generateSLL(ctx) {
   const shift = ctx.instr_sa();
 
   const impl = `
-    const result = ${genSrcRegLo(t)} << ${shift};
-    c.setGPR_s32_signed(${d}, result);
+    c.setGPR_s32_signed(${d}, ${genSrcRegLo(t)} << ${shift});
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
@@ -1149,8 +1148,7 @@ function executeSLL(i) {
     return;
   }
 
-  const result = cpu0.gprLo_signed[rt(i)] << sa(i);
-  cpu0.setGPR_s32_signed(rd(i), result);
+  cpu0.setGPR_s32_signed(rd(i), cpu0.getGPR_s32_signed(rt(i)) << sa(i));
 }
 
 function generateSRL(ctx) {
@@ -1159,15 +1157,13 @@ function generateSRL(ctx) {
   const shift = ctx.instr_sa();
 
   const impl = `
-    const result = ${genSrcRegLo(t)} >>> ${shift};
-    c.setGPR_s32_signed(${d}, result);
+    c.setGPR_s32_signed(${d}, ${genSrcRegLo(t)} >>> ${shift});
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
 function executeSRL(i) {
-  const result = cpu0.gprLo[rt(i)] >>> sa(i);
-  cpu0.setGPR_s32_signed(rd(i), result);
+  cpu0.setGPR_s32_signed(rd(i), cpu0.getGPR_s32_unsigned(rt(i)) >>> sa(i));
 }
 
 function generateSRA(ctx) {
@@ -1183,11 +1179,8 @@ function generateSRA(ctx) {
 }
 
 function executeSRA(i) {
-  const t = rt(i);
-  const shift = sa(i);
-
   // SRA appears to shift the full 64 bit reg, trunc to 32 bits, then sign extend.
-  const result = cpu0.getGPR_s64_bigint(t) >> BigInt(shift);
+  const result = cpu0.getGPR_s64_bigint(rt(i)) >> BigInt(sa(i));
   cpu0.setGPR_s32_signed(rd(i), Number(result & 0xffff_ffffn));
 }
 
