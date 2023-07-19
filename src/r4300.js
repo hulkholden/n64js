@@ -344,6 +344,10 @@ class CPU0 {
     return this.gprLo[r];
   }
 
+  getGPR_s32_hi_signed(r) {
+    return this.gprHi_signed[r];
+  }
+
   getGPR_s64_bigint(r) {
     return (BigInt(this.gprHi_signed[r]) << 32n) + BigInt(this.gprLo[r]);
   }
@@ -360,6 +364,10 @@ class CPU0 {
   setGPR_s64_lo_hi(r, lo, hi) {
     this.gprLo_signed[r] = lo;
     this.gprHi_signed[r] = hi;    
+  }
+
+  setGPR_s32_lo(r, v) {
+    this.gprLo_signed[r] = v;
   }
 
   setGPR_s32_signed(r, v) {
@@ -931,13 +939,13 @@ function setSignExtend(r, v) {
 function genSrcRegLo(i) {
   if (i === 0)
     return '0';
-  return `rlo[${i}]`;
+  return `c.getGPR_s32_signed(${i})`;
 }
 
 function genSrcRegHi(i) {
   if (i === 0)
     return '0';
-  return `rhi[${i}]`;
+  return `c.getGPR_s32_hi_signed(${i})`;
 }
 
 function genSrcRegS64(i) {
@@ -1116,8 +1124,7 @@ function generateSLL(ctx) {
 
   const impl = `
     const result = ${genSrcRegLo(t)} << ${shift};
-    rlo[${d}] = result;
-    rhi[${d}] = result >> 31;
+    c.setGPR_s32_signed(${d}, result);
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
@@ -1139,8 +1146,7 @@ function generateSRL(ctx) {
 
   const impl = `
     const result = ${genSrcRegLo(t)} >>> ${shift};
-    rlo[${d}] = result;
-    rhi[${d}] = result >> 31;
+    c.setGPR_s32_signed(${d}, result);
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
@@ -1178,8 +1184,7 @@ function generateSLLV(ctx) {
 
   const impl = `
     const result = ${genSrcRegLo(t)} << (${genSrcRegLo(s)} & 0x1f);
-    rlo[${d}] = result;
-    rhi[${d}] = result >> 31;
+    c.setGPR_s32_signed(${d}, result);
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
@@ -1196,8 +1201,7 @@ function generateSRLV(ctx) {
 
   const impl = `
     const result = ${genSrcRegLo(t)} >>> (${genSrcRegLo(s)} & 0x1f);
-    rlo[${d}] = result;
-    rhi[${d}] = result >> 31;
+    c.setGPR_s32_signed(${d}, result);
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
@@ -1217,8 +1221,7 @@ function generateSRAV(ctx) {
   const lo = ${genSrcRegLo(t)};
   const hi = ${genSrcRegHi(t)};
   const result = (lo >>> shift) | (shift > 0 ? (hi << (32 - shift)) : 0);
-  rlo[${d}] = result;
-  rhi[${d}] = result >> 31;
+  c.setGPR_s32_signed(${d}, result);
   `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
@@ -1389,8 +1392,7 @@ function executeSYNC(i) {
 function generateMFHI(ctx) {
   const d = ctx.instr_rd();
   const impl = `
-    rlo[${d}] = c.multHi_signed[0];
-    rhi[${d}] = c.multHi_signed[1];
+    c.setGPR_s64_lo_hi(${d}, c.multHi_signed[0], c.multHi_signed[1]);
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
@@ -1405,8 +1407,7 @@ function executeMFHI(i) {
 function generateMFLO(ctx) {
   const d = ctx.instr_rd();
   const impl = `
-    rlo[${d}] = c.multLo_signed[0];
-    rhi[${d}] = c.multLo_signed[1];
+    c.setGPR_s64_lo_hi(${d}, c.multLo_signed[0], c.multLo_signed[1]);
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
@@ -1420,8 +1421,8 @@ function executeMFLO(i) {
 function generateMTHI(ctx) {
   const s = ctx.instr_rs();
   const impl = `
-    c.multHi_signed[0] = rlo[${s}];
-    c.multHi_signed[1] = rhi[${s}];
+    c.multHi_signed[0] = c.getGPR_s32_signed(${s});
+    c.multHi_signed[1] = c.getGPR_s32_hi_signed(${s});
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
@@ -1435,8 +1436,8 @@ function executeMTHI(i) {
 function generateMTLO(ctx) {
   const s = ctx.instr_rs();
   const impl = `
-    c.multLo_signed[0] = rlo[${s}];
-    c.multLo_signed[1] = rhi[${s}];
+    c.multLo_signed[0] = c.getGPR_s32_signed(${s});
+    c.multLo_signed[1] = c.getGPR_s32_hi_signed(${s});
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
@@ -1481,7 +1482,7 @@ function generateMULTU(ctx) {
   const t = ctx.instr_rt();
 
   const impl = `
-    const result = BigInt(c.gprLo[${s}]) * BigInt(c.gprLo[${t}]);
+    const result = BigInt(c.getGPR_s32_unsigned(${s})) * BigInt(c.getGPR_s32_unsigned(${t}));
     const lo = result & 0xffffffffn;
     const hi = result >> 32n;
     c.multLo[0] = Number(lo);
@@ -1598,8 +1599,9 @@ function generateTrivialLogical(ctx, op) {
   const s = ctx.instr_rs();
   const t = ctx.instr_rt();
   const impl = `
-    rlo[${d}] = ${genSrcRegLo(s)} ${op} ${genSrcRegLo(t)};
-    rhi[${d}] = ${genSrcRegHi(s)} ${op} ${genSrcRegHi(t)};
+    const lo = ${genSrcRegLo(s)} ${op} ${genSrcRegLo(t)};
+    const hi = ${genSrcRegHi(s)} ${op} ${genSrcRegHi(t)};
+    c.setGPR_s64_lo_hi(${d}, lo, hi);
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
@@ -1615,8 +1617,7 @@ function generateADD(ctx) {
     if (n64js.s32CheckAddOverflow(s, t, result)) {
       c.raiseOverflowException();
     } else {
-      rlo[${d}] = result;
-      rhi[${d}] = result >> 31;
+      c.setGPR_s32_signed(${d}, result);
     }
     `;
   // Use the generic boilerplate because we might have generated an overflow exception.
@@ -1641,9 +1642,7 @@ function generateADDU(ctx) {
   const impl = `
     const s = ${genSrcRegLo(s)};
     const t = ${genSrcRegLo(t)};
-    const result = s + t;
-    rlo[${d}] = result;
-    rhi[${d}] = result >> 31;
+    c.setGPR_s32_signed(${d}, s + t);
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
@@ -1665,8 +1664,7 @@ function generateSUB(ctx) {
     if (n64js.s32CheckSubOverflow(s, t, result)) {
       c.raiseOverflowException();
     } else {
-      rlo[${d}] = result;
-      rhi[${d}] = result >> 31;
+      c.setGPR_s32_signed(${d}, result);
     }
   `;
   // Use the generic boilerplate because we might have generated an overflow exception.
@@ -1691,9 +1689,7 @@ function generateSUBU(ctx) {
   const impl = `
     const s = ${genSrcRegLo(s)};
     const t = ${genSrcRegLo(t)};
-    const result = s - t;
-    rlo[${d}] = result;
-    rhi[${d}] = result >> 31;
+    c.setGPR_s32_signed(${d}, s - t);
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
@@ -1721,8 +1717,7 @@ function generateOR(ctx) {
   // OR is used to implement CLEAR and MOV
   if (t === 0) {
     const impl = `
-      rlo[${d}] = ${genSrcRegLo(s)};
-      rhi[${d}] = ${genSrcRegHi(s)};
+      c.setGPR_s64_lo_hi(${d}, ${genSrcRegLo(s)}, ${genSrcRegHi(s)});
       `;
     return generateTrivialOpBoilerplate(impl, ctx);
   }
@@ -1751,8 +1746,9 @@ function generateNOR(ctx) {
   const s = ctx.instr_rs();
   const t = ctx.instr_rt();
   const impl = `
-    rhi[${d}] = ~(${genSrcRegHi(s)} | ${genSrcRegHi(t)});
-    rlo[${d}] = ~(${genSrcRegLo(s)} | ${genSrcRegLo(t)});
+    const hi = ~(${genSrcRegHi(s)} | ${genSrcRegHi(t)});
+    const lo = ~(${genSrcRegLo(s)} | ${genSrcRegLo(t)});
+    c.setGPR_s64_lo_hi(${d}, lo, hi);
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
@@ -1777,8 +1773,7 @@ function generateSLT(ctx) {
     } else if (${genSrcRegHi(s)} === ${genSrcRegHi(t)}) {
       r = (c.gprLo[${s}] < c.gprLo[${t}]) ? 1 : 0;
     }
-    rlo[${d}] = r;
-    rhi[${d}] = 0;
+    c.setGPR_s32_unsigned(${d}, r);
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
@@ -1808,8 +1803,7 @@ function generateSLTU(ctx) {
         (${genSrcRegHi(s)} === ${genSrcRegHi(t)} && c.gprLo[${s}] < c.gprLo[${t}])) {
       r = 1;
     }
-    rlo[${d}] = r;
-    rhi[${d}] = 0;
+    c.setGPR_s32_unsigned(${d}, r);
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
@@ -2090,8 +2084,7 @@ function generateJAL(ctx) {
   const ra_hi = (ra & 0x80000000) ? -1 : 0;
   const impl = `
     c.delayPC = ${toString32(addr)};
-    rlo[${cpu0_constants.RA}] = ${toString32(ra)};
-    rhi[${cpu0_constants.RA}] = ${ra_hi};
+    c.setGPR_s64_lo_hi(${cpu0_constants.RA}, ${toString32(ra)}, ${ra_hi});
     `;
   return generateBranchOpBoilerplate(impl, ctx, false);
 }
@@ -2109,8 +2102,7 @@ function generateJALR(ctx) {
   const ra_hi = (ra & 0x80000000) ? -1 : 0;
   const impl = `
     c.delayPC = c.gprLo[${s}];  // NB needs to be unsigned
-    rlo[${d}] = ${toString32(ra)};
-    rhi[${d}] = ${ra_hi};
+    c.setGPR_s64_lo_hi(${d}, ${toString32(ra)}, ${ra_hi});
     `;
   return generateBranchOpBoilerplate(impl, ctx, false);
 }
@@ -2453,9 +2445,8 @@ function generateADDI(ctx) {
     const result = s + imm;
     if (n64js.s32CheckAddOverflow(s, imm, result)) {
       c.raiseOverflowException();
-    } else {    
-      rlo[${t}] = result;
-      rhi[${t}] = result >> 31;
+    } else {
+      c.setGPR_s32_signed(${t}, result);
     }
     `;
   // Use the generic boilerplate because we might have generated an overflow exception.
@@ -2480,8 +2471,7 @@ function generateADDIU(ctx) {
     const s = ${genSrcRegLo(s)};
     const imm = ${imms(ctx.instruction)};
     const result = s + imm;
-    rlo[${t}] = result;
-    rhi[${t}] = result >> 31;
+    c.setGPR_s32_signed(${t}, result);
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
@@ -2520,12 +2510,13 @@ function generateSLTI(ctx) {
   const imm_unsigned = immediate >>> 0;
 
   const impl = `
+    let result;
     if (${genSrcRegHi(s)} === ${imm_hi}) {
-      rlo[${t}] = (c.gprLo[${s}] < ${imm_unsigned}) ? 1 : 0;
+      result = (c.gprLo[${s}] < ${imm_unsigned}) ? 1 : 0;
     } else {
-      rlo[${t}] = (${genSrcRegHi(s)} < ${imm_hi}) ? 1 : 0;
+      result = (${genSrcRegHi(s)} < ${imm_hi}) ? 1 : 0;
     }
-    rhi[${t}] = 0;
+    c.setGPR_s32_unsigned(${t}, result);
     `;
 
   return generateTrivialOpBoilerplate(impl, ctx);
@@ -2556,12 +2547,13 @@ function generateSLTIU(ctx) {
   const imm_unsigned = immediate >>> 0;
 
   const impl = `
+    let result;
     if (${genSrcRegHi(s)} === ${imm_hi}) {
-      rlo[${t}] = (c.gprLo[${s}] < ${imm_unsigned}) ? 1 : 0;
+      result = (c.gprLo[${s}] < ${imm_unsigned}) ? 1 : 0;
     } else {
-      rlo[${t}] = ((${genSrcRegHi(s)}>>>0) < (${imm_hi >>> 0})) ? 1 : 0;
+      result = ((${genSrcRegHi(s)}>>>0) < (${imm_hi >>> 0})) ? 1 : 0;
     }
-    rhi[${t}] = 0;
+    c.setGPR_s32_unsigned(${t}, result);
     `;
 
   return generateTrivialOpBoilerplate(impl, ctx);
@@ -2589,8 +2581,7 @@ function generateANDI(ctx) {
   const s = ctx.instr_rs();
   const t = ctx.instr_rt();
   const impl = `
-    rlo[${t}] = ${genSrcRegLo(s)} & ${imm(ctx.instruction)};
-    rhi[${t}] = 0;
+    c.setGPR_s32_unsigned(${t}, ${genSrcRegLo(s)} & ${imm(ctx.instruction)});
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
@@ -2605,15 +2596,16 @@ function executeANDI(i) {
 function generateORI(ctx) {
   const s = ctx.instr_rs();
   const t = ctx.instr_rt();
+
+  // Optimisation for ORing into same register - top bits are unchanged.
   let impl;
-  if (s !== t) {
+  if (s === t) {
     impl = `
-      rlo[${t}] = ${genSrcRegLo(s)} | ${imm(ctx.instruction)};
-      rhi[${t}] = ${genSrcRegHi(s)};
+      c.setGPR_s32_lo(${t}, ${genSrcRegLo(s)} | ${imm(ctx.instruction)});
       `;
   } else {
     impl = `
-      rlo[${t}] = ${genSrcRegLo(s)} | ${imm(ctx.instruction)};
+      c.setGPR_s64_lo_hi(${t}, ${genSrcRegLo(s)} | ${imm(ctx.instruction)}, ${genSrcRegHi(s)});
       `;
   }
   return generateTrivialOpBoilerplate(impl, ctx);
@@ -2629,15 +2621,16 @@ function executeORI(i) {
 function generateXORI(ctx) {
   const s = ctx.instr_rs();
   const t = ctx.instr_rt();
+
+  // Optimisation for XORing into same register - top bits are unchanged.
   let impl;
-  if (s !== t) {
+  if (s === t) {
     impl = `
-      rlo[${t}] = ${genSrcRegLo(s)} ^ ${imm(ctx.instruction)};
-      rhi[${t}] = ${genSrcRegHi(s)};
+    c.setGPR_s32_lo(${t}, ${genSrcRegLo(s)} ^ ${imm(ctx.instruction)});
       `;
   } else {
     impl = `
-      rlo[${t}] = ${genSrcRegLo(s)} ^ ${imm(ctx.instruction)};
+    c.setGPR_s64_lo_hi(${t}, ${genSrcRegLo(s)} ^ ${imm(ctx.instruction)}, ${genSrcRegHi(s)});
       `;
   }
   return generateTrivialOpBoilerplate(impl, ctx);
@@ -2657,8 +2650,7 @@ function generateLUI(ctx) {
   const value_hi = (value_lo < 0) ? -1 : 0;
 
   const impl = `
-    rlo[${t}] = ${value_lo};
-    rhi[${t}] = ${value_hi};
+    c.setGPR_s64_lo_hi(${t}, ${value_lo}, ${value_hi});
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
@@ -2674,8 +2666,7 @@ function generateLB(ctx) {
 
   const impl = `
     const value = n64js.load_s8(ram, ${genSrcRegLo(b)} + ${o});
-    rlo[${t}] = value;
-    rhi[${t}] = value >> 31;
+    c.setGPR_s32_signed(${t}, value);
     `;
 
   return generateMemoryAccessBoilerplate(impl, ctx);
@@ -2692,8 +2683,8 @@ function generateLBU(ctx) {
   const o = ctx.instr_imms();
 
   const impl = `
-    rlo[${t}] = n64js.load_u8(ram, ${genSrcRegLo(b)} + ${o});
-    rhi[${t}] = 0;
+    const value = n64js.load_u8(ram, ${genSrcRegLo(b)} + ${o});
+    c.setGPR_s32_unsigned(${t}, value);
     `;
 
   return generateMemoryAccessBoilerplate(impl, ctx);
@@ -2711,8 +2702,7 @@ function generateLH(ctx) {
 
   const impl = `
     const value = n64js.load_s16(ram, ${genSrcRegLo(b)} + ${o});
-    rlo[${t}] = value;
-    rhi[${t}] = value >> 31;
+    c.setGPR_s32_signed(${t}, value);
     `;
 
   return generateMemoryAccessBoilerplate(impl, ctx);
@@ -2729,8 +2719,8 @@ function generateLHU(ctx) {
   const o = ctx.instr_imms();
 
   const impl = `
-    rlo[${t}] = n64js.load_u16(ram, ${genSrcRegLo(b)} + ${o});
-    rhi[${t}] = 0;
+    const value = n64js.load_u16(ram, ${genSrcRegLo(b)} + ${o});
+    c.setGPR_s32_unsigned(${t}, value);
     `;
 
   return generateMemoryAccessBoilerplate(impl, ctx);
@@ -2751,8 +2741,7 @@ function generateLW(ctx) {
 
   const impl = `
     const value = n64js.load_s32(ram, ${genSrcRegLo(b)} + ${o});
-    rlo[${t}] = value;
-    rhi[${t}] = value >> 31;
+    c.setGPR_s32_signed(${t}, value);
     `;
 
   return generateMemoryAccessBoilerplate(impl, ctx);
@@ -2774,8 +2763,8 @@ function generateLWU(ctx) {
   const o = ctx.instr_imms();
 
   const impl = `
-    rlo[${t}] = n64js.load_u32(ram, ${genSrcRegLo(b)} + ${o});
-    rhi[${t}] = 0;
+    const value = n64js.load_u32(ram, ${genSrcRegLo(b)} + ${o});
+    c.setGPR_s32_unsigned(${t}, value);
     `;
 
   return generateMemoryAccessBoilerplate(impl, ctx);
@@ -2793,14 +2782,16 @@ function generateLD(ctx) {
 
   const impl = `
     const addr = ${genSrcRegLo(b)} + ${o};
+    let lo, hi;
     if (addr < -2139095040) {
       const phys = (addr + 0x80000000) | 0;
-      rhi[${t}] = ((ram[phys  ] << 24) | (ram[phys+1] << 16) | (ram[phys+2] << 8) | ram[phys+3]);
-      rlo[${t}] = ((ram[phys+4] << 24) | (ram[phys+5] << 16) | (ram[phys+6] << 8) | ram[phys+7]);
+      hi = ((ram[phys  ] << 24) | (ram[phys+1] << 16) | (ram[phys+2] << 8) | ram[phys+3]);
+      lo = ((ram[phys+4] << 24) | (ram[phys+5] << 16) | (ram[phys+6] << 8) | ram[phys+7]);
     } else {
-      rhi[${t}] = lw_slow(addr);
-      rlo[${t}] = lw_slow(addr + 4);
+      hi = lw_slow(addr);
+      lo = lw_slow(addr + 4);
     }
+    c.setGPR_s64_lo_hi(${t}, lo, hi);
     `;
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
@@ -3249,9 +3240,7 @@ function generateMFC1Stub(ctx) {
   ctx.isTrivial = true;
 
   return `
-    const result = cpu1.load_i32(${s});
-    rlo[${t}] = result;
-    rhi[${t}] = result >> 31;
+    c.setGPR_s32_signed(${t}, cpu1.load_i32(${s}));
     `;
 }
 
@@ -3267,9 +3256,7 @@ function generateDMFC1Stub(ctx) {
   ctx.isTrivial = true;
 
   return `
-    const v = cpu1.load_i64_bigint(${s});
-    rlo[${t}] = Number(v & 0xffffffffn);
-    rhi[${t}] = Number(v >> 32n);
+    c.setGPR_s64_bigint(${t}, cpu1.load_i64_bigint(${s}));
     `;
 }
 
@@ -3285,7 +3272,7 @@ function generateMTC1Stub(ctx) {
   ctx.isTrivial = true;
 
   return `
-    cpu1.store_i32(${s}, rlo[${t}]);
+    cpu1.store_i32(${s}, c.getGPR_s32_signed(${t}));
     `;
 }
 
@@ -3300,7 +3287,7 @@ function generateDMTC1Stub(ctx) {
   ctx.isTrivial = true;
 
   return `
-    cpu1.store_64_hi_lo(${s}, rlo[${t}], rhi[${t}]);
+    cpu1.store_i64_bigint(${s}, c.getGPR_s64_bigint(${t}));
     `;
 }
 
@@ -3322,8 +3309,7 @@ function generateCFC1Stub(ctx) {
     case 31:
       return `
         const value = cpu1.control[${s}];
-        rlo[${t}] = value;
-        rhi[${t}] = value >> 31;
+        c.setGPR_s32_signed(${t}, value);
         `;
       return impl;
   }
@@ -3356,7 +3342,7 @@ function generateCTC1Stub(ctx) {
 
   if (s === 31) {
     return `
-      cpu1.control[${s}] = rlo[${t}];
+      cpu1.control[${s}] = c.getGPR_s32_unsigned(${t});
       `;
   }
 
@@ -4282,7 +4268,7 @@ function executeFragment(fragment, c, ram, events) {
   let evt = events[0];
   if (evt.countdown >= fragment.opsCompiled * COUNTER_INCREMENT_PER_OP) {
     fragment.executionCount++;
-    const ops_executed = fragment.func(c, c.gprLo_signed, c.gprHi_signed, ram);   // Absolute value is number of ops executed.
+    const ops_executed = fragment.func(c, ram);   // Absolute value is number of ops executed.
 
     // refresh latest event - may have changed
     evt = events[0];
@@ -4351,7 +4337,7 @@ function addOpToFragment(fragment, entry_pc, instruction, c) {
       fragment.body_code = cpu1_shizzle + '\n\n' + fragment.body_code;
     }
 
-    const code = 'return function fragment_' + toString32(fragment.entryPC) + '_' + fragment.opsCompiled + '(c, rlo, rhi, ram) {\n' + fragment.body_code + '}\n';
+    const code = 'return function fragment_' + toString32(fragment.entryPC) + '_' + fragment.opsCompiled + '(c, ram) {\n' + fragment.body_code + '}\n';
 
     // Clear these strings to reduce garbage
     fragment.body_code = '';
