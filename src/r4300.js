@@ -293,19 +293,17 @@ class CPU0 {
 
     this.ram = undefined; // bound to in reset n64js.getRamU8Array();
 
-    this.gprLoMem = new ArrayBuffer(32 * 4);
-    this.gprHiMem = new ArrayBuffer(32 * 4);
+    const gprLoMem = new ArrayBuffer(32 * 4);
+    const gprHiMem = new ArrayBuffer(32 * 4);
 
-    this.gprLoBytes = new Uint8Array(this.gprLoMem); // Used to help form addresses without causing deopts or generating HeapNumbers.
+    this.gprLo = new Uint32Array(gprLoMem);
+    this.gprHi = new Uint32Array(gprHiMem);
+    this.gprLo_signed = new Int32Array(gprLoMem);
+    this.gprHi_signed = new Int32Array(gprHiMem);
 
-    this.gprLo = new Uint32Array(this.gprLoMem);
-    this.gprHi = new Uint32Array(this.gprHiMem);
-    this.gprLo_signed = new Int32Array(this.gprLoMem);
-    this.gprHi_signed = new Int32Array(this.gprHiMem);
-
-    this.controlMem = new ArrayBuffer(32 * 4);
-    this.control = new Uint32Array(this.controlMem);
-    this.control_signed = new Int32Array(this.controlMem);
+    const controlMem = new ArrayBuffer(32 * 4);
+    this.control = new Uint32Array(controlMem);
+    this.control_signed = new Int32Array(controlMem);
 
     // Reads from invalid control registers will use the value last written to any control register.
     this.lastControlRegWrite = 0;
@@ -321,12 +319,12 @@ class CPU0 {
 
     this.events = [];
 
-    this.multHiMem = new ArrayBuffer(2 * 4);
-    this.multLoMem = new ArrayBuffer(2 * 4);
-    this.multHi = new Uint32Array(this.multHiMem);
-    this.multLo = new Uint32Array(this.multLoMem);
-    this.multHi_signed = new Int32Array(this.multHiMem);
-    this.multLo_signed = new Int32Array(this.multLoMem);
+    const multHiMem = new ArrayBuffer(2 * 4);
+    const multLoMem = new ArrayBuffer(2 * 4);
+    this.multHi = new Uint32Array(multHiMem);
+    this.multLo = new Uint32Array(multLoMem);
+    this.multHi_signed = new Int32Array(multHiMem);
+    this.multLo_signed = new Int32Array(multLoMem);
 
     this.tlbEntries = [];
     for (let i = 0; i < 32; ++i) {
