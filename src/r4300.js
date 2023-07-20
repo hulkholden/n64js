@@ -293,14 +293,10 @@ class CPU0 {
 
     this.ram = undefined; // bound to in reset n64js.getRamU8Array();
 
-    // TODO: interleave. these into a single buffer so we can use BigIntArray.
-    const gprLoMem = new ArrayBuffer(32 * 4);
-    const gprHiMem = new ArrayBuffer(32 * 4);
-
-    this.gprLo = new Uint32Array(gprLoMem);
-    this.gprHi = new Uint32Array(gprHiMem);
-    this.gprLo_signed = new Int32Array(gprLoMem);
-    this.gprHi_signed = new Int32Array(gprHiMem);
+    // TODO: add BigIntArrays.
+    const gprMem = new ArrayBuffer(32 * 8);
+    this.gprU32 = new Uint32Array(gprMem);
+    this.gprS32 = new Int32Array(gprMem);
 
     const controlMem = new ArrayBuffer(32 * 4);
     this.control = new Uint32Array(controlMem);
@@ -338,53 +334,53 @@ class CPU0 {
   }
 
   getGPR_s32_signed(r) {
-    return this.gprLo_signed[r];
+    return this.gprS32[r * 2 + 0];
   }
 
   getGPR_s32_unsigned(r) {
-    return this.gprLo[r];
+    return this.gprU32[r * 2 + 0];
   }
 
   getGPR_s32_hi_signed(r) {
-    return this.gprHi_signed[r];
+    return this.gprS32[r * 2 + 1];
   }
 
   getGPR_s32_hi_unsigned(r) {
-    return this.gprHi[r];
+    return this.gprU32[r * 2 + 1];
   }
 
   getGPR_s64_bigint(r) {
-    return (BigInt(this.gprHi_signed[r]) << 32n) + BigInt(this.gprLo[r]);
+    return (BigInt(this.gprS32[r * 2 + 1]) << 32n) + BigInt(this.gprU32[r * 2 + 0]);
   }
 
   getGPR_u64_bigint(r) {
-    return (BigInt(this.gprHi[r]) << 32n) + BigInt(this.gprLo[r]);
+    return (BigInt(this.gprU32[r * 2 + 1]) << 32n) + BigInt(this.gprU32[r * 2 + 0]);
   }
 
   setGPR_s64_bigint(r, v) {
     // This shouldn't be needed but there seems to be a bug with BigInts > 64 bits.
     const truncated = v & 0xffff_ffff_ffff_ffffn;
-    this.gprHi_signed[r] = Number(truncated >> 32n);
-    this.gprLo_signed[r] = Number(truncated & 0xffff_ffffn);
+    this.gprS32[r * 2 + 1] = Number(truncated >> 32n);
+    this.gprS32[r * 2 + 0] = Number(truncated & 0xffff_ffffn);
   }
 
   setGPR_s64_lo_hi(r, lo, hi) {
-    this.gprLo_signed[r] = lo;
-    this.gprHi_signed[r] = hi;    
+    this.gprS32[r * 2 + 0] = lo;
+    this.gprS32[r * 2 + 1] = hi;    
   }
 
   setGPR_s32_lo(r, v) {
-    this.gprLo_signed[r] = v;
+    this.gprS32[r * 2 + 0] = v;
   }
 
   setGPR_s32_signed(r, v) {
-    this.gprLo_signed[r] = v;
-    this.gprHi_signed[r] = v >> 31;
+    this.gprS32[r * 2 + 0] = v;
+    this.gprS32[r * 2 + 1] = v >> 31;
   }
 
   setGPR_s32_unsigned(r, v) {
-    this.gprLo_signed[r] = v;
-    this.gprHi_signed[r] = 0;
+    this.gprS32[r * 2 + 0] = v;
+    this.gprS32[r * 2 + 1] = 0;
   }
 
   reset() {
@@ -393,8 +389,8 @@ class CPU0 {
     this.ram = n64js.getRamU8Array();
 
     for (let i = 0; i < 32; ++i) {
-      this.gprLo[i] = 0;
-      this.gprHi[i] = 0;
+      this.gprU32[i * 2 + 0] = 0;
+      this.gprU32[i * 2 + 1] = 0;
       this.control[i] = 0;
     }
     for (let i = 0; i < 32; ++i) {
