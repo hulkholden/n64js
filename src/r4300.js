@@ -1859,16 +1859,11 @@ function executeMTC0(i) {
 }
 
 function executeDMFC0(i) {
-  const controlReg = fs(i);
-
   // TODO: Implement this correctly.
   executeMFC0(i);
 }
 
 function executeDMTC0(i) {
-  const controlReg = fs(i);
-  const newValue = cpu0.getRegU64(rt(i));
-
   // TODO: Implement this correctly.
   executeMTC0(i);
 }
