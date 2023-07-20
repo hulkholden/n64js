@@ -5,8 +5,7 @@ export function simulateBoot(cpu0, rominfo) {
   const cicChip = rominfo.cic;
 
   function setGPR(reg, hi, lo) {
-    cpu0.gprHi[reg] = hi;
-    cpu0.gprLo[reg] = lo;
+    cpu0.setGPR_s64_lo_hi(reg, lo, hi);
   }
 
   cpu0.control[cpu0_constants.controlStatus] = 0x241000E0;
