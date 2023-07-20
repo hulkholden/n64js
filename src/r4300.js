@@ -275,7 +275,7 @@ function pageMaskCheckbit(pageMask) {
   if (pm) {
     return pm.checkbit;
   }
-  n64js.halt(`Bad pagemask: ${pageMask}`);
+  logger.log(`Bad pagemask: ${pageMask}`);
   return 0;
 }
 
