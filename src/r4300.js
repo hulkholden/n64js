@@ -2324,7 +2324,7 @@ function generateADDI(ctx) {
 }
 
 function executeADDI(i) {
-  const s = cpu0.gprLo_signed[rs(i)];
+  const s = cpu0.getGPR_s32_signed(rs(i));
   const imm = imms(i);
   const result = s + imm;
   if (s32CheckAddOverflow(s, imm, result)) {
@@ -2347,7 +2347,7 @@ function generateADDIU(ctx) {
 }
 
 function executeADDIU(i) {
-  const s = cpu0.gprLo_signed[rs(i)];
+  const s = cpu0.getGPR_s32_signed(rs(i));
   const imm = imms(i);
   const result = s + imm;
   cpu0.setGPR_s32_signed(rt(i), result);
@@ -2542,7 +2542,7 @@ function generateLB(ctx) {
 }
 
 function executeLB(i) {
-  const value = n64js.load_s8(cpu0.ram, cpu0.gprLo_signed[base(i)] + imms(i));
+  const value = n64js.load_s8(cpu0.ram, cpu0.getGPR_s32_signed(base(i)) + imms(i));
   cpu0.setGPR_s32_signed(rt(i), value);
 }
 
@@ -2560,7 +2560,7 @@ function generateLBU(ctx) {
 }
 
 function executeLBU(i) {
-  const value = n64js.load_u8(cpu0.ram, cpu0.gprLo_signed[base(i)] + imms(i));
+  const value = n64js.load_u8(cpu0.ram, cpu0.getGPR_s32_signed(base(i)) + imms(i));
   cpu0.setGPR_s32_unsigned(rt(i), value);
 }
 
@@ -2578,7 +2578,7 @@ function generateLH(ctx) {
 }
 
 function executeLH(i) {
-  const value = n64js.load_s16(cpu0.ram, cpu0.gprLo_signed[base(i)] + imms(i));
+  const value = n64js.load_s16(cpu0.ram, cpu0.getGPR_s32_signed(base(i)) + imms(i));
   cpu0.setGPR_s32_signed(rt(i), value);
 }
 
@@ -2596,7 +2596,7 @@ function generateLHU(ctx) {
 }
 
 function executeLHU(i) {
-  const value = n64js.load_u16(cpu0.ram, cpu0.gprLo_signed[base(i)] + imms(i));
+  const value = n64js.load_u16(cpu0.ram, cpu0.getGPR_s32_signed(base(i)) + imms(i));
   cpu0.setGPR_s32_unsigned(rt(i), value);
 }
 
@@ -2622,7 +2622,7 @@ function executeLW(i) {
     return;
   }
 
-  const value = n64js.load_s32(cpu0.ram, cpu0.gprLo_signed[base(i)] + imms(i));
+  const value = n64js.load_s32(cpu0.ram, cpu0.getGPR_s32_signed(base(i)) + imms(i));
   cpu0.setGPR_s32_signed(rt(i), value);
 }
 
@@ -2640,7 +2640,7 @@ function generateLWU(ctx) {
 }
 
 function executeLWU(i) {
-  const value = n64js.load_u32(cpu0.ram, cpu0.gprLo_signed[base(i)] + imms(i));
+  const value = n64js.load_u32(cpu0.ram, cpu0.getGPR_s32_signed(base(i)) + imms(i));
   cpu0.setGPR_s32_unsigned(rt(i), value);
 }
 
@@ -2700,12 +2700,7 @@ function executeLWC1(i) {
   if (!cpu0.checkCopXUsable(1)) {
     return;
   }
-
-  const t = ft(i);
-  const b = base(i);
-  const o = imms(i);
-
-  cpu1.store_i32(t, n64js.load_s32(cpu0.ram, cpu0.gprLo_signed[b] + o));
+  cpu1.store_i32(ft(i), n64js.load_s32(cpu0.ram, cpu0.getGPR_s32_signed(base(i)) + imms(i)));
 }
 
 function generateLDC1(ctx) {
@@ -2739,11 +2734,7 @@ function executeLDC1(i) {
     return;
   }
 
-  const t = ft(i);
-  const b = base(i);
-  const o = imms(i);
-
-  const addr = cpu0.gprLo_signed[b] + o;
+  const addr = cpu0.getGPR_s32_signed(base(i)) + imms(i);
   let lo;
   let hi;
   if (addr < -2139095040) {
@@ -2756,7 +2747,7 @@ function executeLDC1(i) {
     lo = lw_slow(addr + 4);
   }
 
-  cpu1.store_64_hi_lo(t, lo, hi);
+  cpu1.store_64_hi_lo(ft(i), lo, hi);
 }
 
 function executeLDC2(i) { unimplemented(cpu0.pc, i); }
@@ -2907,7 +2898,7 @@ function executeSWC1(i) {
   if (!cpu0.checkCopXUsable(1)) {
     return;
   }
-  n64js.store_32(cpu0.ram, cpu0.gprLo_signed[base(i)] + imms(i), cpu1.load_i32(ft(i)));
+  n64js.store_32(cpu0.ram, cpu0.getGPR_s32_signed(base(i)) + imms(i), cpu1.load_i32(ft(i)));
 }
 
 function generateSDC1(ctx) {
@@ -2935,7 +2926,7 @@ function executeSDC1(i) {
     return;
   }
   // FIXME: this can do a single check that the address is in ram
-  const addr = cpu0.gprLo_signed[base(i)] + imms(i);
+  const addr = cpu0.getGPR_s32_signed(base(i)) + imms(i);
   const value = cpu1.load_i64_bigint(ft(i));
   const lo = Number(value & 0xffffffffn);
   const hi = Number(value >> 32n);
@@ -3133,7 +3124,7 @@ function generateMTC1Stub(ctx) {
 }
 
 function executeMTC1(i) {
-  cpu1.store_i32(fs(i), cpu0.gprLo_signed[rt(i)]);
+  cpu1.store_i32(fs(i), cpu0.getGPR_s32_signed(rt(i)));
 }
 
 function generateDMTC1Stub(ctx) {
