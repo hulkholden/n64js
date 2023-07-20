@@ -335,29 +335,12 @@ class CPU0 {
     return this.control[cpu0_constants.controlCount];
   }
 
-  getRegS32Lo(r) {
-    return this.gprS32[r * 2 + 0];
-  }
-
-  getRegU32Lo(r) {
-    return this.gprU32[r * 2 + 0];
-  }
-
-  getRegS32Hi(r) {
-    return this.gprS32[r * 2 + 1];
-  }
-
-  getRegU32Hi(r) {
-    return this.gprU32[r * 2 + 1];
-  }
-
-  getRegS64(r) {
-    return this.gprS64[r];
-  }
-
-  getRegU64(r) {
-    return this.gprU64[r];
-  }
+  getRegS32Lo(r) { return this.gprS32[r * 2 + 0]; }
+  getRegS32Hi(r) { return this.gprS32[r * 2 + 1]; }
+  getRegU32Lo(r) { return this.gprU32[r * 2 + 0]; }
+  getRegU32Hi(r) { return this.gprU32[r * 2 + 1]; }
+  getRegS64(r) { return this.gprS64[r]; }
+  getRegU64(r) { return this.gprU64[r]; }
 
   setRegU64(r, v) {
     // This shouldn't be needed but there seems to be a bug with BigInts > 64 bits.
