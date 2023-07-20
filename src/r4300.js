@@ -2434,28 +2434,14 @@ function executeORI(i) {
 function generateXORI(ctx) {
   const s = ctx.instr_rs();
   const t = ctx.instr_rt();
-
-  // Optimisation for XORing into same register - top bits are unchanged.
-  let impl;
-  if (s === t) {
-    impl = `
-    c.setRegS32Lo(${t}, ${genSrcRegS32Lo(s)} ^ ${imm(ctx.instruction)});
-      `;
-  } else {
-    impl = `
-    c.setRegS64LoHi(${t}, ${genSrcRegS32Lo(s)} ^ ${imm(ctx.instruction)}, ${genSrcRegS32Hi(s)});
-      `;
-  }
+  const impl = `
+    c.setRegU64(${t}, ${genSrcRegU64(s)} ^ BigInt(${imm(ctx.instruction)}));
+    `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
 function executeXORI(i) {
-  // High 32 bits are always unchanged, as sign extended immediate value is always 0
-  const s = rs(i);
-  const t = rt(i);
-  const lo = cpu0.getRegU32Lo(s) ^ imm(i);
-  const hi = cpu0.getRegU32Hi(s);
-  cpu0.setRegS64LoHi(rt(i), lo, hi);
+  cpu0.setRegU64(rt(i), cpu0.getRegU64(rs(i)) ^ BigInt(imm(i)));
 }
 
 function generateLUI(ctx) {
