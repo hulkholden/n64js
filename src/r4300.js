@@ -952,7 +952,7 @@ function genSrcRegS32Lo(i) {
   return `c.getRegS32Lo(${i})`;
 }
 
-function genSrcRegHi(i) {
+function genSrcRegS32Hi(i) {
   if (i === 0)
     return '0';
   return `c.getRegS32Hi(${i})`;
@@ -1319,7 +1319,7 @@ function generateMTHI(ctx) {
   const s = ctx.instr_rs();
   const impl = `
     c.multHi_signed[0] = ${genSrcRegS32Lo(s)};
-    c.multHi_signed[1] = ${genSrcRegHi(s)};
+    c.multHi_signed[1] = ${genSrcRegS32Hi(s)};
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
@@ -1334,7 +1334,7 @@ function generateMTLO(ctx) {
   const s = ctx.instr_rs();
   const impl = `
     c.multLo_signed[0] = ${genSrcRegS32Lo(s)};
-    c.multLo_signed[1] = ${genSrcRegHi(s)};
+    c.multLo_signed[1] = ${genSrcRegS32Hi(s)};
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
@@ -1497,7 +1497,7 @@ function generateTrivialLogical(ctx, op) {
   const t = ctx.instr_rt();
   const impl = `
     const lo = ${genSrcRegS32Lo(s)} ${op} ${genSrcRegS32Lo(t)};
-    const hi = ${genSrcRegHi(s)} ${op} ${genSrcRegHi(t)};
+    const hi = ${genSrcRegS32Hi(s)} ${op} ${genSrcRegS32Hi(t)};
     c.setGPR_s64_lo_hi(${d}, lo, hi);
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
@@ -1615,7 +1615,7 @@ function generateOR(ctx) {
   // OR is used to implement CLEAR and MOV
   if (t === 0) {
     const impl = `
-      c.setGPR_s64_lo_hi(${d}, ${genSrcRegS32Lo(s)}, ${genSrcRegHi(s)});
+      c.setGPR_s64_lo_hi(${d}, ${genSrcRegS32Lo(s)}, ${genSrcRegS32Hi(s)});
       `;
     return generateTrivialOpBoilerplate(impl, ctx);
   }
@@ -1646,7 +1646,7 @@ function generateNOR(ctx) {
   const s = ctx.instr_rs();
   const t = ctx.instr_rt();
   const impl = `
-    const hi = ~(${genSrcRegHi(s)} | ${genSrcRegHi(t)});
+    const hi = ~(${genSrcRegS32Hi(s)} | ${genSrcRegS32Hi(t)});
     const lo = ~(${genSrcRegS32Lo(s)} | ${genSrcRegS32Lo(t)});
     c.setGPR_s64_lo_hi(${d}, lo, hi);
     `;
@@ -2006,7 +2006,7 @@ function generateBEQ(ctx) {
     }
     impl += `c.delayPC = ${toString32(addr)};\n`;
   } else {
-    impl += `if (${genSrcRegHi(s)} === ${genSrcRegHi(t)} &&\n`;
+    impl += `if (${genSrcRegS32Hi(s)} === ${genSrcRegS32Hi(t)} &&\n`;
     impl += `    ${genSrcRegS32Lo(s)} === ${genSrcRegS32Lo(t)} ) {\n`;
     if (off === -1) {
       impl += '  c.speedHack();\n';
@@ -2037,7 +2037,7 @@ function generateBEQL(ctx) {
   const addr = branchAddress(ctx.pc, ctx.instruction);
 
   const impl = `
-    if (${genSrcRegHi(s)} === ${genSrcRegHi(t)} &&
+    if (${genSrcRegS32Hi(s)} === ${genSrcRegS32Hi(t)} &&
         ${genSrcRegS32Lo(s)} === ${genSrcRegS32Lo(t)} ) {
       c.delayPC = ${toString32(addr)};
     } else {
@@ -2066,7 +2066,7 @@ function generateBNE(ctx) {
   const addr = branchAddress(ctx.pc, ctx.instruction);
 
   let impl = '';
-  impl += `if (${genSrcRegHi(s)} !== ${genSrcRegHi(t)} ||\n`;
+  impl += `if (${genSrcRegS32Hi(s)} !== ${genSrcRegS32Hi(t)} ||\n`;
   impl += `    ${genSrcRegS32Lo(s)} !== ${genSrcRegS32Lo(t)} ) {\n`;
   if (off === -1) {
     impl += '  c.speedHack();\n';
@@ -2094,7 +2094,7 @@ function generateBNEL(ctx) {
   const addr = branchAddress(ctx.pc, ctx.instruction);
 
   const impl = `
-    if (${genSrcRegHi(s)} !== ${genSrcRegHi(t)} ||
+    if (${genSrcRegS32Hi(s)} !== ${genSrcRegS32Hi(t)} ||
         ${genSrcRegS32Lo(s)} !== ${genSrcRegS32Lo(t)} ) {
       c.delayPC = ${toString32(addr)};
     } else {
@@ -2122,8 +2122,8 @@ function generateBLEZ(ctx) {
   const addr = branchAddress(ctx.pc, ctx.instruction);
 
   const impl = `
-    if ( ${genSrcRegHi(s)} < 0 ||
-        (${genSrcRegHi(s)} === 0 && ${genSrcRegS32Lo(s)} === 0) ) {
+    if ( ${genSrcRegS32Hi(s)} < 0 ||
+        (${genSrcRegS32Hi(s)} === 0 && ${genSrcRegS32Lo(s)} === 0) ) {
       c.delayPC = ${toString32(addr)};
     }
     `;
@@ -2156,8 +2156,8 @@ function generateBGTZ(ctx) {
   const addr = branchAddress(ctx.pc, ctx.instruction);
 
   const impl = `
-    if (${genSrcRegHi(s)} >= 0 &&
-        (${genSrcRegHi(s)} !== 0 || ${genSrcRegS32Lo(s)} !== 0)) {
+    if (${genSrcRegS32Hi(s)} >= 0 &&
+        (${genSrcRegS32Hi(s)} !== 0 || ${genSrcRegS32Lo(s)} !== 0)) {
       c.delayPC = ${toString32(addr)};
     }
     `;
@@ -2189,7 +2189,7 @@ function generateBLTZ(ctx) {
   const addr = branchAddress(ctx.pc, ctx.instruction);
 
   const impl = `
-    if (${genSrcRegHi(s)} < 0) {
+    if (${genSrcRegS32Hi(s)} < 0) {
       c.delayPC = ${toString32(addr)};
     }
     `;
@@ -2208,7 +2208,7 @@ function generateBLTZL(ctx) {
   const addr = branchAddress(ctx.pc, ctx.instruction);
 
   const impl = `
-    if (${genSrcRegHi(s)} < 0) {
+    if (${genSrcRegS32Hi(s)} < 0) {
       c.delayPC = ${toString32(addr)};
     } else {
       c.nextPC += 4;
@@ -2250,7 +2250,7 @@ function generateBGEZ(ctx) {
   const addr = branchAddress(ctx.pc, ctx.instruction);
 
   const impl = `
-    if (${genSrcRegHi(s)} >= 0) {
+    if (${genSrcRegS32Hi(s)} >= 0) {
       c.delayPC = ${toString32(addr)};
     }
     `;
@@ -2269,7 +2269,7 @@ function generateBGEZL(ctx) {
   const addr = branchAddress(ctx.pc, ctx.instruction);
 
   const impl = `
-    if (${genSrcRegHi(s)} >= 0) {
+    if (${genSrcRegS32Hi(s)} >= 0) {
       c.delayPC = ${toString32(addr)};
     } else {
       c.nextPC += 4;
@@ -2380,10 +2380,10 @@ function generateSLTI(ctx) {
 
   const impl = `
     let result;
-    if (${genSrcRegHi(s)} === ${imm_hi}) {
+    if (${genSrcRegS32Hi(s)} === ${imm_hi}) {
       result = (${genSrcRegU32Lo(s)} < ${imm_unsigned}) ? 1 : 0;
     } else {
-      result = (${genSrcRegHi(s)} < ${imm_hi}) ? 1 : 0;
+      result = (${genSrcRegS32Hi(s)} < ${imm_hi}) ? 1 : 0;
     }
     c.setGPR_s32_unsigned(${t}, result);
     `;
@@ -2416,10 +2416,10 @@ function generateSLTIU(ctx) {
 
   const impl = `
     let result;
-    if (${genSrcRegHi(s)} === ${imm_hi}) {
+    if (${genSrcRegS32Hi(s)} === ${imm_hi}) {
       result = (${genSrcRegU32Lo(s)} < ${imm_unsigned}) ? 1 : 0;
     } else {
-      result = ((${genSrcRegHi(s)}>>>0) < (${imm_hi >>> 0})) ? 1 : 0;
+      result = ((${genSrcRegS32Hi(s)}>>>0) < (${imm_hi >>> 0})) ? 1 : 0;
     }
     c.setGPR_s32_unsigned(${t}, result);
     `;
@@ -2472,7 +2472,7 @@ function generateORI(ctx) {
       `;
   } else {
     impl = `
-      c.setGPR_s64_lo_hi(${t}, ${genSrcRegS32Lo(s)} | ${imm(ctx.instruction)}, ${genSrcRegHi(s)});
+      c.setGPR_s64_lo_hi(${t}, ${genSrcRegS32Lo(s)} | ${imm(ctx.instruction)}, ${genSrcRegS32Hi(s)});
       `;
   }
   return generateTrivialOpBoilerplate(impl, ctx);
@@ -2497,7 +2497,7 @@ function generateXORI(ctx) {
       `;
   } else {
     impl = `
-    c.setGPR_s64_lo_hi(${t}, ${genSrcRegS32Lo(s)} ^ ${imm(ctx.instruction)}, ${genSrcRegHi(s)});
+    c.setGPR_s64_lo_hi(${t}, ${genSrcRegS32Lo(s)} ^ ${imm(ctx.instruction)}, ${genSrcRegS32Hi(s)});
       `;
   }
   return generateTrivialOpBoilerplate(impl, ctx);
