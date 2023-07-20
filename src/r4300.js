@@ -3053,61 +3053,47 @@ function makeLLAddr(addr) {
 }
 
 function executeLL(i) {
-  const t = rt(i);
-  const b = base(i);
-  const o = imms(i);
-
-  const addr = (cpu0.gprLo_signed[b] + o) >>> 0;
+  const addr = (cpu0.getGPR_s32_signed(base(i)) + imms(i)) >>> 0;
   const value = n64js.load_s32(cpu0.ram, addr);
 
   cpu0.control[cpu0_constants.controlLLAddr] = makeLLAddr(addr);
-  cpu0.gprLo_signed[t] = value;
-  cpu0.gprHi_signed[t] = value >> 31;
+  cpu0.setGPR_s32_signed(rt(i), value);
   cpu0.llBit = 1;
 }
 
 function executeLLD(i) {
-  const t = rt(i);
-  const b = base(i);
-  const o = imms(i);
-
-  const addr = (cpu0.gprLo_signed[b] + o) >>> 0;
+  const addr = (cpu0.getGPR_s32_signed(base(i)) + imms(i)) >>> 0;
   
   cpu0.control[cpu0_constants.controlLLAddr] = makeLLAddr(addr);
-  cpu0.gprHi_signed[t] = n64js.load_s32(cpu0.ram, addr);
-  cpu0.gprLo_signed[t] = n64js.load_s32(cpu0.ram, addr + 4);
+  const hi = n64js.load_s32(cpu0.ram, addr);
+  const lo = n64js.load_s32(cpu0.ram, addr + 4);
+  cpu0.setGPR_s64_lo_hi(rt(i), lo, hi);
   cpu0.llBit = 1;
 }
 
 function executeSC(i) {
   const t = rt(i);
-  const b = base(i);
-  const o = imms(i);
-
   let result = 0;
   if (cpu0.llBit) {
-    n64js.store_32(cpu0.ram, cpu0.gprLo_signed[b] + o, cpu0.gprLo_signed[t]);
+    const addr = cpu0.getGPR_s32_signed(base(i)) + imms(i);
+    n64js.store_32(cpu0.ram, addr, cpu0.getGPR_s32_signed(t));
     cpu0.llBit = 0;
     result = 1;
   }
-  cpu0.gprLo[t] = result;
-  cpu0.gprHi[t] = 0;
+  cpu0.setGPR_s32_unsigned(t, result);
 }
 
 function executeSCD(i) {
   const t = rt(i);
-  const b = base(i);
-  const o = imms(i);
 
-  const addr = cpu0.gprLo_signed[b] + o;
   let result = 0;
   if (cpu0.llBit) {
-    n64js.store_64(cpu0.ram, addr, cpu0.gprLo_signed[t], cpu0.gprHi_signed[t]);
+    const addr = cpu0.getGPR_s32_signed(base(i)) + imms(i);
+    n64js.store_64_bigint(cpu0.ram, addr, cpu0.getGPR_u64_bigint(t));
     cpu0.llBit = 0;
     result = 1;
   }
-  cpu0.gprLo[t] = result;
-  cpu0.gprHi[t] = 0;
+  cpu0.setGPR_s32_unsigned(t, result);
 }
 
 function generateMFC1Stub(ctx) {
