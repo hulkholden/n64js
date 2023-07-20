@@ -355,7 +355,7 @@ class CPU0 {
     return this.gprS64[r];
   }
 
-  getGPR_u64_bigint(r) {
+  getRegU64(r) {
     return this.gprU64[r];
   }
 
@@ -967,7 +967,7 @@ function genSrcRegS64(i) {
 function genSrcRegU64(i) {
   if (i === 0)
     return '0n';
-  return `c.getGPR_u64_bigint(${i})`;
+  return `c.getRegU64(${i})`;
 }
 
 //
@@ -1235,12 +1235,12 @@ function executeSRAV(i) {
 
 function executeDSLLV(i) {
   const shift = cpu0.getGPR_s32_unsigned(rs(i)) & 0x3f;
-  cpu0.setGPR_s64_bigint(rd(i), cpu0.getGPR_u64_bigint(rt(i)) << BigInt(shift));
+  cpu0.setGPR_s64_bigint(rd(i), cpu0.getRegU64(rt(i)) << BigInt(shift));
 }
 
 function executeDSRLV(i) {
   const shift = cpu0.getGPR_s32_unsigned(rs(i)) & 0x3f;
-  cpu0.setGPR_s64_bigint(rd(i), cpu0.getGPR_u64_bigint(rt(i)) >> BigInt(shift));
+  cpu0.setGPR_s64_bigint(rd(i), cpu0.getRegU64(rt(i)) >> BigInt(shift));
 }
 
 function executeDSRAV(i) {
@@ -1249,11 +1249,11 @@ function executeDSRAV(i) {
 }
 
 function executeDSLL(i) {
-  cpu0.setGPR_s64_bigint(rd(i), cpu0.getGPR_u64_bigint(rt(i)) << BigInt(sa(i)));
+  cpu0.setGPR_s64_bigint(rd(i), cpu0.getRegU64(rt(i)) << BigInt(sa(i)));
 }
 
 function executeDSRL(i) {
-  cpu0.setGPR_s64_bigint(rd(i), cpu0.getGPR_u64_bigint(rt(i)) >> BigInt(sa(i)));
+  cpu0.setGPR_s64_bigint(rd(i), cpu0.getRegU64(rt(i)) >> BigInt(sa(i)));
 }
 
 function executeDSRA(i) {
@@ -1261,11 +1261,11 @@ function executeDSRA(i) {
 }
 
 function executeDSLL32(i) {
-  cpu0.setGPR_s64_bigint(rd(i), cpu0.getGPR_u64_bigint(rt(i)) << BigInt(sa(i) + 32));
+  cpu0.setGPR_s64_bigint(rd(i), cpu0.getRegU64(rt(i)) << BigInt(sa(i) + 32));
 }  
 
 function executeDSRL32(i) {
-  cpu0.setGPR_s64_bigint(rd(i), cpu0.getGPR_u64_bigint(rt(i)) >> BigInt(sa(i) + 32));
+  cpu0.setGPR_s64_bigint(rd(i), cpu0.getRegU64(rt(i)) >> BigInt(sa(i) + 32));
 }  
 
 function executeDSRA32(i) {
@@ -1404,7 +1404,7 @@ function executeDMULT(i) {
 }
 
 function executeDMULTU(i) {
-  const result = cpu0.getGPR_u64_bigint(rs(i)) * cpu0.getGPR_u64_bigint(rt(i));
+  const result = cpu0.getRegU64(rs(i)) * cpu0.getRegU64(rt(i));
   cpu0.multLo[0] = Number(result & 0xffffffffn);
   cpu0.multLo[1] = Number((result >> 32n) & 0xffffffffn);
   cpu0.multHi[0] = Number((result >> 64n) & 0xffffffffn);
@@ -1467,8 +1467,8 @@ function executeDDIV(i) {
 }
 
 function executeDDIVU(i) {
-  const divisor = cpu0.getGPR_u64_bigint(rt(i));
-  const dividend = cpu0.getGPR_u64_bigint(rs(i));
+  const divisor = cpu0.getRegU64(rt(i));
+  const dividend = cpu0.getRegU64(rs(i));
 
   let lo, hi;
   if (divisor) {
@@ -1679,14 +1679,14 @@ function generateSLTU(ctx) {
   const t = ctx.instr_rt();
 
   const impl = `
-    const r = c.getGPR_u64_bigint(${s}) < c.getGPR_u64_bigint(${t}) ? 1 : 0;
+    const r = ${genSrcRegU64(s)} < ${genSrcRegU64(t)} ? 1 : 0;
     c.setGPR_s32_unsigned(${d}, r);
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
 function executeSLTU(i) {
-  const r = cpu0.getGPR_u64_bigint(rs(i)) < cpu0.getGPR_u64_bigint(rt(i)) ? 1 : 0;
+  const r = cpu0.getRegU64(rs(i)) < cpu0.getRegU64(rt(i)) ? 1 : 0;
   cpu0.setGPR_s32_unsigned(rd(i), r);
 }
 
@@ -1867,7 +1867,7 @@ function executeDMFC0(i) {
 
 function executeDMTC0(i) {
   const controlReg = fs(i);
-  const newValue = cpu0.getGPR_u64_bigint(rt(i));
+  const newValue = cpu0.getRegU64(rt(i));
 
   // TODO: Implement this correctly.
   executeMTC0(i);
@@ -1902,13 +1902,13 @@ function executeTGE(i) {
   cpu0.maybeRaiseTRAPException(cpu0.getRegS64(rs(i)) >= cpu0.getRegS64(rt(i)));
 }
 function executeTGEU(i) {
-  cpu0.maybeRaiseTRAPException(cpu0.getGPR_u64_bigint(rs(i)) >= cpu0.getGPR_u64_bigint(rt(i)));
+  cpu0.maybeRaiseTRAPException(cpu0.getRegU64(rs(i)) >= cpu0.getRegU64(rt(i)));
 }
 function executeTLT(i) {
   cpu0.maybeRaiseTRAPException(cpu0.getRegS64(rs(i)) < cpu0.getRegS64(rt(i)));
 }
 function executeTLTU(i) {
-  cpu0.maybeRaiseTRAPException(cpu0.getGPR_u64_bigint(rs(i)) < cpu0.getGPR_u64_bigint(rt(i)));
+  cpu0.maybeRaiseTRAPException(cpu0.getRegU64(rs(i)) < cpu0.getRegU64(rt(i)));
 }
 function executeTEQ(i) {
   cpu0.maybeRaiseTRAPException(cpu0.getRegS64(rs(i)) == cpu0.getRegS64(rt(i)));
@@ -1921,13 +1921,13 @@ function executeTGEI(i) {
   cpu0.maybeRaiseTRAPException(cpu0.getRegS64(rs(i)) >= BigInt(imms(i)));
 }
 function executeTGEIU(i) {
-  cpu0.maybeRaiseTRAPException(cpu0.getGPR_u64_bigint(rs(i)) >= BigInt.asUintN(64, BigInt(imms(i))));
+  cpu0.maybeRaiseTRAPException(cpu0.getRegU64(rs(i)) >= BigInt.asUintN(64, BigInt(imms(i))));
 }
 function executeTLTI(i) {
   cpu0.maybeRaiseTRAPException(cpu0.getRegS64(rs(i)) < BigInt(imms(i)));
 }
 function executeTLTIU(i) {
-  cpu0.maybeRaiseTRAPException(cpu0.getGPR_u64_bigint(rs(i)) < BigInt.asUintN(64, BigInt(imms(i))));
+  cpu0.maybeRaiseTRAPException(cpu0.getRegU64(rs(i)) < BigInt.asUintN(64, BigInt(imms(i))));
 }
 function executeTEQI(i) {
   cpu0.maybeRaiseTRAPException(cpu0.getRegS64(rs(i)) == BigInt(imms(i)));
@@ -2784,7 +2784,7 @@ function executeLDL(i) {
   const addr = (cpu0.getGPR_s32_unsigned(base(i)) + imms(i)) >>> 0;
   const addrAligned = (addr & ~7) >>> 0;
   const mem = n64js.load_u64_bigint(cpu0.ram, addrAligned);
-  const reg = cpu0.getGPR_u64_bigint(rt(i));
+  const reg = cpu0.getRegU64(rt(i));
 
   const n = addr & 7;
   const shift = BigInt(8 * n);
@@ -2800,7 +2800,7 @@ function executeLDR(i) {
   const addr = (cpu0.getGPR_s32_unsigned(base(i)) + imms(i)) >>> 0;
   const addrAligned = (addr & ~7) >>> 0;
   const mem = n64js.load_u64_bigint(cpu0.ram, addrAligned);
-  const reg = cpu0.getGPR_u64_bigint(rt(i));
+  const reg = cpu0.getRegU64(rt(i));
 
   const n = addr & 7;
   const shift = BigInt(8 * (7 - n));
@@ -2873,7 +2873,7 @@ function generateSD(ctx) {
 
 function executeSD(i) {
   const addr = cpu0.getGPR_s32_signed(base(i)) + imms(i);
-  n64js.store_64_bigint(cpu0.ram, addr, cpu0.getGPR_u64_bigint(rt(i)));
+  n64js.store_64_bigint(cpu0.ram, addr, cpu0.getRegU64(rt(i)));
 }
 
 function generateSWC1(ctx) {
@@ -2967,7 +2967,7 @@ function executeSDL(i) {
   const addr = (cpu0.getGPR_s32_unsigned(base(i)) + imms(i)) >>> 0;
   const addrAligned = (addr & ~7) >>> 0;
   const mem = n64js.load_u64_bigint(cpu0.ram, addrAligned);
-  const reg = cpu0.getGPR_u64_bigint(rt(i));
+  const reg = cpu0.getRegU64(rt(i));
 
   const n = addr & 7;
   const shift = BigInt(8 * n);
@@ -2982,7 +2982,7 @@ function executeSDR(i) {
   const addr = (cpu0.getGPR_s32_unsigned(base(i)) + imms(i)) >>> 0;
   const addrAligned = (addr & ~7) >>> 0;
   const mem = n64js.load_u64_bigint(cpu0.ram, addrAligned);
-  const reg = cpu0.getGPR_u64_bigint(rt(i));
+  const reg = cpu0.getRegU64(rt(i));
 
   const n = addr & 7;
   const shift = BigInt(8 * (7 - n));
@@ -3070,7 +3070,7 @@ function executeSCD(i) {
   let result = 0;
   if (cpu0.llBit) {
     const addr = cpu0.getGPR_s32_signed(base(i)) + imms(i);
-    n64js.store_64_bigint(cpu0.ram, addr, cpu0.getGPR_u64_bigint(t));
+    n64js.store_64_bigint(cpu0.ram, addr, cpu0.getRegU64(t));
     cpu0.llBit = 0;
     result = 1;
   }
@@ -3530,15 +3530,15 @@ function executeDCFC2(i) {
 }
 
 function executeMTC2(i) {
-  cpu2.setReg64(cpu0.getGPR_u64_bigint(rt(i)));
+  cpu2.setReg64(cpu0.getRegU64(rt(i)));
 }
 
 function executeDMTC2(i) {
-  cpu2.setReg64(cpu0.getGPR_u64_bigint(rt(i)));
+  cpu2.setReg64(cpu0.getRegU64(rt(i)));
 }
 
 function executeCTC2(i) {
-  cpu2.setReg64(cpu0.getGPR_u64_bigint(rt(i)));
+  cpu2.setReg64(cpu0.getRegU64(rt(i)));
 }
 
 function executeDCTC2(i) {
