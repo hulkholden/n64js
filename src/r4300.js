@@ -3187,8 +3187,7 @@ function executeCFC1(i) {
     case 0:
     case 31:
       const value = cpu1.control[s];
-      cpu0.gprLo_signed[t] = value;
-      cpu0.gprHi_signed[t] = value >> 31;
+      cpu0.setGPR_s32_signed(t, value);
       break;
   }
 }
