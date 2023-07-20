@@ -1770,7 +1770,7 @@ function generateMTC0(ctx) {
 
 function executeMTC0(i) {
   const control_reg = fs(i);
-  const new_value = cpu0.gprLo[rt(i)];
+  const new_value = cpu0.getGPR_s32_unsigned(rt(i));
 
   cpu0.lastControlRegWrite = new_value;
 
@@ -3208,9 +3208,8 @@ function generateCTC1Stub(ctx) {
 
 function executeCTC1(i) { 
   const s = fs(i);
-  const t = rt(i);
   if (s === 31) {
-    cpu1.control[s] = cpu0.gprLo[t];
+    cpu1.control[s] = cpu0.getGPR_s32_unsigned(rt(i));
   }
 }
 
@@ -4006,7 +4005,7 @@ function checkSyncState(sync, pc) {
   if (1) {
     let a = 0;
     for (i = 0; i < 32; ++i) {
-      a = mix(a, cpu0.gprLo[i], 0);
+      a = mix(a, cpu0.getGPR_s32_unsigned(i), 0);
     }
     a = a >>> 0;
 
