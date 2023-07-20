@@ -234,7 +234,7 @@ export class Debugger {
       let $tr = $('<tr />');
       for (let r = 0; r < kRegistersPerRow; ++r) {
         let name = cop0gprNames[i + r];
-        let $td = $('<td>' + name + '</td><td class="fixed">' + toString64(cpu0.gprHi[i + r], cpu0.gprLo[i + r]) + '</td>');
+        let $td = $('<td>' + name + '</td><td class="fixed">' + toString64(cpu0.getGPR_s32_hi_unsigned(i + r), cpu0.getGPR_s32_unsigned(i + r)) + '</td>');
 
         if (registerColours.has(name)) {
           $td.attr('bgcolor', registerColours.get(name));
@@ -575,7 +575,7 @@ export class Debugger {
 
       if (currentInstruction.memory) {
         let access = currentInstruction.memory;
-        let newAddress = n64js.cpu0.gprLo[access.reg] + access.offset;
+        let newAddress = n64js.cpu0.getGPR_s32_unsigned(access.reg) + access.offset;
         let element = this.addRecentMemoryAccess(newAddress, access.mode);
 
         if (access.mode === 'store') {
