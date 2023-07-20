@@ -1971,25 +1971,25 @@ function generateJALR(ctx) {
   const ra = ctx.pc + 8;
   const ra_hi = (ra & 0x80000000) ? -1 : 0;
   const impl = `
-    c.delayPC = c.gprLo[${s}];  // NB needs to be unsigned
+    c.delayPC = c.getGPR_s32_unsigned(${s});  // NB needs to be unsigned
     c.setGPR_s64_lo_hi(${d}, ${toString32(ra)}, ${ra_hi});
     `;
   return generateBranchOpBoilerplate(impl, ctx, false);
 }
 function executeJALR(i) {
-  const new_pc = cpu0.gprLo[rs(i)];
+  const new_pc = cpu0.getGPR_s32_unsigned(rs(i));
   cpu0.setGPR_s32_signed(rd(i), cpu0.pc + 8);
   performBranch(new_pc);
 }
 
 function generateJR(ctx) {
   const impl = `
-    c.delayPC = c.gprLo[${ctx.instr_rs()}]; // NB needs to be unsigned
+    c.delayPC = c.getGPR_s32_unsigned(${ctx.instr_rs()}); // NB needs to be unsigned
     `;
   return generateBranchOpBoilerplate(impl, ctx, false);
 }
 function executeJR(i) {
-  performBranch(cpu0.gprLo[rs(i)]);
+  performBranch(cpu0.getGPR_s32_unsigned(rs(i)));
 }
 
 function generateBEQ(ctx) {
