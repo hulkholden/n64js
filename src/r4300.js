@@ -2676,20 +2676,19 @@ function generateLD(ctx) {
 }
 
 function executeLD(i) {
-  const t = rt(i);
-  const b = base(i);
-  const o = imms(i);
+  const addr = cpu0.getGPR_s32_signed(base(i)) + imms(i);
 
-  const addr = cpu0.gprLo_signed[b] + o;
+  let lo, hi;
   if (addr < -2139095040) {
     const phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
     const ram = cpu0.ram;
-    cpu0.gprHi_signed[t] = ((ram[phys] << 24) | (ram[phys + 1] << 16) | (ram[phys + 2] << 8) | ram[phys + 3]) | 0;
-    cpu0.gprLo_signed[t] = ((ram[phys + 4] << 24) | (ram[phys + 5] << 16) | (ram[phys + 6] << 8) | ram[phys + 7]) | 0;
+    hi = ((ram[phys] << 24) | (ram[phys + 1] << 16) | (ram[phys + 2] << 8) | ram[phys + 3]) | 0;
+    lo = ((ram[phys + 4] << 24) | (ram[phys + 5] << 16) | (ram[phys + 6] << 8) | ram[phys + 7]) | 0;
   } else {
-    cpu0.gprHi_signed[t] = lw_slow(addr);
-    cpu0.gprLo_signed[t] = lw_slow(addr + 4);
+    hi = lw_slow(addr);
+    lo = lw_slow(addr + 4);
   }
+  cpu0.setGPR_s64_lo_hi(rt(i), lo, hi);
 }
 
 function generateLWC1(ctx) {
