@@ -2765,7 +2765,7 @@ function executeLWL(i) {
   const addr = (cpu0.getGPR_s32_unsigned(base(i)) + imms(i)) >>> 0;
   const addrAligned = (addr & ~3) >>> 0;
   const mem = n64js.readMemoryU32(addrAligned);
-  const reg = cpu0.gprLo[rt(i)];
+  const reg = cpu0.getGPR_s32_unsigned(rt(i));
 
   const n = addr & 3;
   const shift = 8 * n;
@@ -2780,7 +2780,7 @@ function executeLWR(i) {
   const addr = (cpu0.getGPR_s32_unsigned(base(i)) + imms(i)) >>> 0;
   const addrAligned = (addr & ~3) >>> 0;
   const mem = n64js.readMemoryU32(addrAligned);
-  const reg = cpu0.gprLo[rt(i)];
+  const reg = cpu0.getGPR_s32_unsigned(rt(i));
 
   const n = addr & 3;
   const shift = 8 * (3 - n);
@@ -2948,7 +2948,7 @@ function executeSWL(i) {
   const addr = (cpu0.getGPR_s32_unsigned(base(i)) + imms(i));
   const addrAligned = (addr & ~3) >>> 0;
   const mem = n64js.readMemoryU32(addrAligned);
-  const reg = cpu0.gprLo[rt(i)];
+  const reg = cpu0.getGPR_s32_unsigned(rt(i));
 
   const n = addr & 3;
   const shift = 8 * n;
@@ -2963,7 +2963,7 @@ function executeSWR(i) {
   const addr = (cpu0.getGPR_s32_unsigned(base(i)) + imms(i));
   const addrAligned = (addr & ~3) >>> 0;
   const mem = n64js.readMemoryU32(addrAligned);
-  const reg = cpu0.gprLo[rt(i)];
+  const reg = cpu0.getGPR_s32_unsigned(rt(i));
 
   const n = addr & 3;
   const shift = 8 * (3 - n);
