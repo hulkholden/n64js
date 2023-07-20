@@ -343,7 +343,7 @@ class CPU0 {
     return this.gprU32[r * 2 + 0];
   }
 
-  getGPR_s32_hi_signed(r) {
+  getRegS32Hi(r) {
     return this.gprS32[r * 2 + 1];
   }
 
@@ -955,7 +955,7 @@ function genSrcRegLo(i) {
 function genSrcRegHi(i) {
   if (i === 0)
     return '0';
-  return `c.getGPR_s32_hi_signed(${i})`;
+  return `c.getRegS32Hi(${i})`;
 }
 
 function genSrcRegS64(i) {
@@ -1313,7 +1313,7 @@ function generateMTHI(ctx) {
   const s = ctx.instr_rs();
   const impl = `
     c.multHi_signed[0] = c.getGPR_s32_signed(${s});
-    c.multHi_signed[1] = c.getGPR_s32_hi_signed(${s});
+    c.multHi_signed[1] = ${genSrcRegHi(s)};
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
@@ -1321,14 +1321,14 @@ function generateMTHI(ctx) {
 function executeMTHI(i) {
   const s = rs(i);
   cpu0.multHi_signed[0] = cpu0.getGPR_s32_signed(s);
-  cpu0.multHi_signed[1] = cpu0.getGPR_s32_hi_signed(s);
+  cpu0.multHi_signed[1] = cpu0.getRegS32Hi(s);
 }
 
 function generateMTLO(ctx) {
   const s = ctx.instr_rs();
   const impl = `
     c.multLo_signed[0] = c.getGPR_s32_signed(${s});
-    c.multLo_signed[1] = c.getGPR_s32_hi_signed(${s});
+    c.multLo_signed[1] = ${genSrcRegHi(s)};
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
@@ -1336,7 +1336,7 @@ function generateMTLO(ctx) {
 function executeMTLO(i) {
   const s = rs(i);
   cpu0.multLo_signed[0] = cpu0.getGPR_s32_signed(s);
-  cpu0.multLo_signed[1] = cpu0.getGPR_s32_hi_signed(s);
+  cpu0.multLo_signed[1] = cpu0.getRegS32Hi(s);
 }
 
 function generateMULT(ctx) {
@@ -2016,7 +2016,7 @@ function generateBEQ(ctx) {
 function executeBEQ(i) {
   const s = rs(i);
   const t = rt(i);
-  if (cpu0.getGPR_s32_hi_signed(s) === cpu0.getGPR_s32_hi_signed(t) &&
+  if (cpu0.getRegS32Hi(s) === cpu0.getRegS32Hi(t) &&
     cpu0.getGPR_s32_signed(s) === cpu0.getGPR_s32_signed(t)) {
     if (offset(i) === -1)
       cpu0.speedHack();
@@ -2045,7 +2045,7 @@ function generateBEQL(ctx) {
 function executeBEQL(i) {
   const s = rs(i);
   const t = rt(i);
-  if (cpu0.getGPR_s32_hi_signed(s) === cpu0.getGPR_s32_hi_signed(t) &&
+  if (cpu0.getRegS32Hi(s) === cpu0.getRegS32Hi(t) &&
     cpu0.getGPR_s32_signed(s) === cpu0.getGPR_s32_signed(t)) {
     performBranch(branchAddress(cpu0.pc, i));
   } else {
@@ -2075,7 +2075,7 @@ function generateBNE(ctx) {
 function executeBNE(i) {
   const s = rs(i);
   const t = rt(i);
-  if (cpu0.getGPR_s32_hi_signed(s) !== cpu0.getGPR_s32_hi_signed(t) ||
+  if (cpu0.getRegS32Hi(s) !== cpu0.getRegS32Hi(t) ||
     cpu0.getGPR_s32_signed(s) !== cpu0.getGPR_s32_signed(t)) {      // NB: if imms(i) == -1 then this is a branch to self/busywait
     performBranch(branchAddress(cpu0.pc, i));
   }
@@ -2102,7 +2102,7 @@ function generateBNEL(ctx) {
 function executeBNEL(i) {
   const s = rs(i);
   const t = rt(i);
-  if (cpu0.getGPR_s32_hi_signed(s) !== cpu0.getGPR_s32_hi_signed(t) ||
+  if (cpu0.getRegS32Hi(s) !== cpu0.getRegS32Hi(t) ||
     cpu0.getGPR_s32_signed(s) !== cpu0.getGPR_s32_signed(t)) {
     performBranch(branchAddress(cpu0.pc, i));
   } else {
@@ -2127,8 +2127,8 @@ function generateBLEZ(ctx) {
 
 function executeBLEZ(i) {
   const s = rs(i);
-  if (cpu0.getGPR_s32_hi_signed(s) < 0 ||
-    (cpu0.getGPR_s32_hi_signed(s) === 0 && cpu0.getGPR_s32_signed(s) === 0)) {
+  if (cpu0.getRegS32Hi(s) < 0 ||
+    (cpu0.getRegS32Hi(s) === 0 && cpu0.getGPR_s32_signed(s) === 0)) {
     performBranch(branchAddress(cpu0.pc, i));
   }
 }
@@ -2136,8 +2136,8 @@ function executeBLEZ(i) {
 function executeBLEZL(i) {
   const s = rs(i);
   // NB: if rs == r0 then this branch is always taken
-  if (cpu0.getGPR_s32_hi_signed(s) < 0 ||
-    (cpu0.getGPR_s32_hi_signed(s) === 0 && cpu0.getGPR_s32_signed(s) === 0)) {
+  if (cpu0.getRegS32Hi(s) < 0 ||
+    (cpu0.getRegS32Hi(s) === 0 && cpu0.getGPR_s32_signed(s) === 0)) {
     performBranch(branchAddress(cpu0.pc, i));
   } else {
     cpu0.nextPC += 4;   // skip the next instruction
@@ -2161,16 +2161,16 @@ function generateBGTZ(ctx) {
 
 function executeBGTZ(i) {
   const s = rs(i);
-  if (cpu0.getGPR_s32_hi_signed(s) >= 0 &&
-    (cpu0.getGPR_s32_hi_signed(s) !== 0 || cpu0.getGPR_s32_signed(s) !== 0)) {
+  if (cpu0.getRegS32Hi(s) >= 0 &&
+    (cpu0.getRegS32Hi(s) !== 0 || cpu0.getGPR_s32_signed(s) !== 0)) {
     performBranch(branchAddress(cpu0.pc, i));
   }
 }
 
 function executeBGTZL(i) {
   const s = rs(i);
-  if (cpu0.getGPR_s32_hi_signed(s) >= 0 &&
-    (cpu0.getGPR_s32_hi_signed(s) !== 0 || cpu0.getGPR_s32_signed(s) !== 0)) {
+  if (cpu0.getRegS32Hi(s) >= 0 &&
+    (cpu0.getRegS32Hi(s) !== 0 || cpu0.getGPR_s32_signed(s) !== 0)) {
     performBranch(branchAddress(cpu0.pc, i));
   } else {
     cpu0.nextPC += 4;   // skip the next instruction
@@ -2192,7 +2192,7 @@ function generateBLTZ(ctx) {
 }
 
 function executeBLTZ(i) {
-  if (cpu0.getGPR_s32_hi_signed(rs(i)) < 0) {
+  if (cpu0.getRegS32Hi(rs(i)) < 0) {
     performBranch(branchAddress(cpu0.pc, i));
   }
 }
@@ -2213,7 +2213,7 @@ function generateBLTZL(ctx) {
 }
 
 function executeBLTZL(i) {
-  if (cpu0.getGPR_s32_hi_signed(rs(i)) < 0) {
+  if (cpu0.getRegS32Hi(rs(i)) < 0) {
     performBranch(branchAddress(cpu0.pc, i));
   } else {
     cpu0.nextPC += 4;   // skip the next instruction
@@ -2221,7 +2221,7 @@ function executeBLTZL(i) {
 }
 
 function executeBLTZAL(i) {
-  const value = cpu0.getGPR_s32_hi_signed(rs(i));
+  const value = cpu0.getRegS32Hi(rs(i));
   cpu0.setGPR_s32_signed(cpu0_constants.RA, cpu0.pc + 8);
   if (value < 0) {
     performBranch(branchAddress(cpu0.pc, i));
@@ -2229,7 +2229,7 @@ function executeBLTZAL(i) {
 }
 
 function executeBLTZALL(i) {
-  const value = cpu0.getGPR_s32_hi_signed(rs(i));
+  const value = cpu0.getRegS32Hi(rs(i));
   cpu0.setGPR_s32_signed(cpu0_constants.RA, cpu0.pc + 8);
   if (value < 0) {
     performBranch(branchAddress(cpu0.pc, i));
@@ -2253,7 +2253,7 @@ function generateBGEZ(ctx) {
 }
 
 function executeBGEZ(i) {
-  if (cpu0.getGPR_s32_hi_signed(rs(i)) >= 0) {
+  if (cpu0.getRegS32Hi(rs(i)) >= 0) {
     performBranch(branchAddress(cpu0.pc, i));
   }
 }
@@ -2274,7 +2274,7 @@ function generateBGEZL(ctx) {
 }
 
 function executeBGEZL(i) {
-  if (cpu0.getGPR_s32_hi_signed(rs(i)) >= 0) {
+  if (cpu0.getRegS32Hi(rs(i)) >= 0) {
     performBranch(branchAddress(cpu0.pc, i));
   } else {
     cpu0.nextPC += 4;   // skip the next instruction
@@ -2282,7 +2282,7 @@ function executeBGEZL(i) {
 }
 
 function executeBGEZAL(i) {
-  const value = cpu0.getGPR_s32_hi_signed(rs(i));
+  const value = cpu0.getRegS32Hi(rs(i));
   cpu0.setGPR_s32_signed(cpu0_constants.RA, cpu0.pc + 8);
   if (value >= 0) {
     performBranch(branchAddress(cpu0.pc, i));
@@ -2290,7 +2290,7 @@ function executeBGEZAL(i) {
 }
 
 function executeBGEZALL(i) {
-  const value = cpu0.getGPR_s32_hi_signed(rs(i));
+  const value = cpu0.getRegS32Hi(rs(i));
   cpu0.setGPR_s32_signed(cpu0_constants.RA, cpu0.pc + 8);
   if (value >= 0) {
     performBranch(branchAddress(cpu0.pc, i));
@@ -2389,7 +2389,7 @@ function executeSLTI(i) {
   const s = rs(i);
   const immediate = imms(i);
   const imm_hi = immediate >> 31;
-  const s_hi = cpu0.getGPR_s32_hi_signed(s);
+  const s_hi = cpu0.getRegS32Hi(s);
 
   let result;
   if (s_hi === imm_hi) {
@@ -2427,7 +2427,7 @@ function executeSLTIU(i) {
   // NB: immediate value is still sign-extended, but treated as unsigned
   const immediate = imms(i);
   const imm_hi = immediate >> 31;
-  const s_hi = cpu0.getGPR_s32_hi_signed(s);
+  const s_hi = cpu0.getRegS32Hi(s);
 
   let result;
   if (s_hi === imm_hi) {
