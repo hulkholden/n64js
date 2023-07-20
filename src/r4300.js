@@ -2409,22 +2409,18 @@ function generateANDI(ctx) {
   const s = ctx.instr_rs();
   const t = ctx.instr_rt();
   const impl = `
-    c.setRegS64LoHi(${t}, ${genSrcRegS32Lo(s)} & ${imm(ctx.instruction)}, 0);
+    c.setRegU64(${t}, ${genSrcRegU64(s)} & BigInt(${imm(ctx.instruction)}));
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
 function executeANDI(i) {
-  // High bits always 0, as sign extended immediate value is always 0
-  const lo = cpu0.getRegU32Lo(rs(i)) & imm(i);
-  const hi = 0;
-  cpu0.setRegS64LoHi(rt(i), lo, hi);
+  cpu0.setRegU64(rt(i), cpu0.getRegU64(rs(i)) & BigInt(imm(i)));
 }
 
 function generateORI(ctx) {
   const s = ctx.instr_rs();
   const t = ctx.instr_rt();
-
   const impl = `
     c.setRegU64(${t}, ${genSrcRegU64(s)} | BigInt(${imm(ctx.instruction)}));
     `;
