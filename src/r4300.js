@@ -1474,18 +1474,6 @@ function executeDDIVU(i) {
   cpu0.multHi[1] = Number((hi >> 32n) & 0xffffffffn);
 }
 
-function generateTrivialLogical(ctx, op) {
-  const d = ctx.instr_rd();
-  const s = ctx.instr_rs();
-  const t = ctx.instr_rt();
-  const impl = `
-    const lo = ${genSrcRegS32Lo(s)} ${op} ${genSrcRegS32Lo(t)};
-    const hi = ${genSrcRegS32Hi(s)} ${op} ${genSrcRegS32Hi(t)};
-    c.setRegS64LoHi(${d}, lo, hi);
-    `;
-  return generateTrivialOpBoilerplate(impl, ctx);
-}
-
 function generateADD(ctx) {
   const d = ctx.instr_rd();
   const s = ctx.instr_rs();
@@ -1580,14 +1568,19 @@ function executeSUBU(i) {
   cpu0.setRegS32Extend(rd(i), result);
 }
 
+function generateTrivialLogical(ctx, op) {
+  const d = ctx.instr_rd();
+  const s = ctx.instr_rs();
+  const t = ctx.instr_rt();
+  const impl = `
+    c.setRegU64(${d}, ${genSrcRegU64(s)} ${op} ${genSrcRegU64(t)});
+    `;
+  return generateTrivialOpBoilerplate(impl, ctx);
+}
+
 function generateAND(ctx) { return generateTrivialLogical(ctx, '&'); }
 function executeAND(i) {
-  const d = rd(i);
-  const s = rs(i);
-  const t = rt(i);
-  const lo = cpu0.getRegU32Lo(s) & cpu0.getRegU32Lo(t);
-  const hi = cpu0.getRegU32Hi(s) & cpu0.getRegU32Hi(t);
-  cpu0.setRegS64LoHi(d, lo, hi);
+  cpu0.setRegU64(rd(i), cpu0.getRegU64(rs(i)) & cpu0.getRegU64(rt(i)));
 }
 
 function generateOR(ctx) {
@@ -1606,22 +1599,12 @@ function generateOR(ctx) {
 }
 
 function executeOR(i) {
-  const d = rd(i);
-  const s = rs(i);
-  const t = rt(i);
-  const lo = cpu0.getRegU32Lo(s) | cpu0.getRegU32Lo(t);
-  const hi = cpu0.getRegU32Hi(s) | cpu0.getRegU32Hi(t);
-  cpu0.setRegS64LoHi(d, lo, hi);
+  cpu0.setRegU64(rd(i), cpu0.getRegU64(rs(i)) | cpu0.getRegU64(rt(i)));
 }
 
 function generateXOR(ctx) { return generateTrivialLogical(ctx, '^'); }
 function executeXOR(i) {
-  const d = rd(i);
-  const s = rs(i);
-  const t = rt(i);
-  const lo = cpu0.getRegU32Lo(s) ^ cpu0.getRegU32Lo(t);
-  const hi = cpu0.getRegU32Hi(s) ^ cpu0.getRegU32Hi(t);
-  cpu0.setRegS64LoHi(d, lo, hi);
+  cpu0.setRegU64(rd(i), cpu0.getRegU64(rs(i)) ^ cpu0.getRegU64(rt(i)));
 }
 
 function generateNOR(ctx) {
@@ -1637,12 +1620,7 @@ function generateNOR(ctx) {
 }
 
 function executeNOR(i) {
-  const d = rd(i);
-  const s = rs(i);
-  const t = rt(i);
-  const lo = ~(cpu0.getRegU32Lo(s) | cpu0.getRegU32Lo(t));
-  const hi = ~(cpu0.getRegU32Hi(s) | cpu0.getRegU32Hi(t));
-  cpu0.setRegS64LoHi(d, lo, hi);
+  cpu0.setRegU64(rd(i), ~(cpu0.getRegU64(rs(i)) | cpu0.getRegU64(rt(i))));
 }
 
 function generateSLT(ctx) {
