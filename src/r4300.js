@@ -936,10 +936,6 @@ function    imm(i) { return (i     )&0xffff; }
 function   imms(i) { return ((i&0xffff)<<16)>>16; }   // treat immediate value as signed
 function   base(i) { return (i>>>21)&0x1f; }
 
-function memaddr(i) {
-  return cpu0.gprLo[base(i)] + imms(i);
-}
-
 function branchAddress(pc, i) { return ((pc + 4) + (offset(i) * 4)) >>> 0; }
 //function branchAddress(pc,i) { return (((pc>>>2)+1) + offset(i))<<2; }  // NB: convoluted calculation to avoid >>>0 (deopt)
 function jumpAddress(pc, i) { return ((pc & 0xf0000000) | (target(i) * 4)) >>> 0; }
@@ -2766,7 +2762,7 @@ function executeLDC1(i) {
 function executeLDC2(i) { unimplemented(cpu0.pc, i); }
 
 function executeLWL(i) {
-  const addr = memaddr(i) >>> 0;
+  const addr = (cpu0.getGPR_s32_unsigned(base(i)) + imms(i)) >>> 0;
   const addrAligned = (addr & ~3) >>> 0;
   const mem = n64js.readMemoryU32(addrAligned);
   const reg = cpu0.gprLo[rt(i)];
@@ -2781,7 +2777,7 @@ function executeLWL(i) {
 }
 
 function executeLWR(i) {
-  const addr = memaddr(i) >>> 0;
+  const addr = (cpu0.getGPR_s32_unsigned(base(i)) + imms(i)) >>> 0;
   const addrAligned = (addr & ~3) >>> 0;
   const mem = n64js.readMemoryU32(addrAligned);
   const reg = cpu0.gprLo[rt(i)];
@@ -2796,7 +2792,7 @@ function executeLWR(i) {
 }
 
 function executeLDL(i) {
-  const addr = memaddr(i) >>> 0;
+  const addr = (cpu0.getGPR_s32_unsigned(base(i)) + imms(i)) >>> 0;
   const addrAligned = (addr & ~7) >>> 0;
   const mem = n64js.load_u64_bigint(cpu0.ram, addrAligned);
   const reg = cpu0.getGPR_u64_bigint(rt(i));
@@ -2812,7 +2808,7 @@ function executeLDL(i) {
 }
 
 function executeLDR(i) {
-  const addr = memaddr(i) >>> 0;
+  const addr = (cpu0.getGPR_s32_unsigned(base(i)) + imms(i)) >>> 0;
   const addrAligned = (addr & ~7) >>> 0;
   const mem = n64js.load_u64_bigint(cpu0.ram, addrAligned);
   const reg = cpu0.getGPR_u64_bigint(rt(i));
@@ -2949,7 +2945,7 @@ function executeSDC1(i) {
 function executeSDC2(i) { unimplemented(cpu0.pc, i); }
 
 function executeSWL(i) {
-  const addr = memaddr(i);
+  const addr = (cpu0.getGPR_s32_unsigned(base(i)) + imms(i));
   const addrAligned = (addr & ~3) >>> 0;
   const mem = n64js.readMemoryU32(addrAligned);
   const reg = cpu0.gprLo[rt(i)];
@@ -2964,7 +2960,7 @@ function executeSWL(i) {
 }
 
 function executeSWR(i) {
-  const addr = memaddr(i);
+  const addr = (cpu0.getGPR_s32_unsigned(base(i)) + imms(i));
   const addrAligned = (addr & ~3) >>> 0;
   const mem = n64js.readMemoryU32(addrAligned);
   const reg = cpu0.gprLo[rt(i)];
@@ -2979,7 +2975,7 @@ function executeSWR(i) {
 }
 
 function executeSDL(i) {
-  const addr = memaddr(i) >>> 0;
+  const addr = (cpu0.getGPR_s32_unsigned(base(i)) + imms(i)) >>> 0;
   const addrAligned = (addr & ~7) >>> 0;
   const mem = n64js.load_u64_bigint(cpu0.ram, addrAligned);
   const reg = cpu0.getGPR_u64_bigint(rt(i));
@@ -2994,7 +2990,7 @@ function executeSDL(i) {
 }
 
 function executeSDR(i) {
-  const addr = memaddr(i) >>> 0;
+  const addr = (cpu0.getGPR_s32_unsigned(base(i)) + imms(i)) >>> 0;
   const addrAligned = (addr & ~7) >>> 0;
   const mem = n64js.load_u64_bigint(cpu0.ram, addrAligned);
   const reg = cpu0.getGPR_u64_bigint(rt(i));
@@ -3034,7 +3030,7 @@ function executeCACHE(i) {
 
   if (cache === 0 && (action === 0 || action === 4)) {
     // NB: only bother generating address if we handle the instruction - memaddr deopts like crazy
-    const address = memaddr(i);
+    const address = (cpu0.getGPR_s32_unsigned(base(i)) + imms(i));
     n64js.invalidateICacheEntry(address);
   }
 }
