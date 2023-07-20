@@ -358,7 +358,7 @@ class CPU0 {
     this.gprS32[r * 2 + 0] = v;
   }
 
-  setGPR_s32_signed(r, v) {
+  setRegS32Extend(r, v) {
     this.gprS32[r * 2 + 0] = v;
     this.gprS32[r * 2 + 1] = v >> 31;
   }
@@ -1122,7 +1122,7 @@ function generateSLL(ctx) {
   const shift = ctx.instr_sa();
 
   const impl = `
-    c.setGPR_s32_signed(${d}, ${genSrcRegS32Lo(t)} << ${shift});
+    c.setRegS32Extend(${d}, ${genSrcRegS32Lo(t)} << ${shift});
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
@@ -1133,7 +1133,7 @@ function executeSLL(i) {
     return;
   }
 
-  cpu0.setGPR_s32_signed(rd(i), cpu0.getRegS32Lo(rt(i)) << sa(i));
+  cpu0.setRegS32Extend(rd(i), cpu0.getRegS32Lo(rt(i)) << sa(i));
 }
 
 function generateSRL(ctx) {
@@ -1142,13 +1142,13 @@ function generateSRL(ctx) {
   const shift = ctx.instr_sa();
 
   const impl = `
-    c.setGPR_s32_signed(${d}, ${genSrcRegS32Lo(t)} >>> ${shift});
+    c.setRegS32Extend(${d}, ${genSrcRegS32Lo(t)} >>> ${shift});
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
 function executeSRL(i) {
-  cpu0.setGPR_s32_signed(rd(i), cpu0.getRegU32Lo(rt(i)) >>> sa(i));
+  cpu0.setRegS32Extend(rd(i), cpu0.getRegU32Lo(rt(i)) >>> sa(i));
 }
 
 function generateSRA(ctx) {
@@ -1158,7 +1158,7 @@ function generateSRA(ctx) {
 
   const impl = `
     const result = ${genSrcRegS64(t)} >> BigInt(${shift});
-    c.setGPR_s32_signed(${d}, Number(result & 0xffff_ffffn));
+    c.setRegS32Extend(${d}, Number(result & 0xffff_ffffn));
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
@@ -1166,7 +1166,7 @@ function generateSRA(ctx) {
 function executeSRA(i) {
   // SRA appears to shift the full 64 bit reg, trunc to 32 bits, then sign extend.
   const result = cpu0.getRegS64(rt(i)) >> BigInt(sa(i));
-  cpu0.setGPR_s32_signed(rd(i), Number(result & 0xffff_ffffn));
+  cpu0.setRegS32Extend(rd(i), Number(result & 0xffff_ffffn));
 }
 
 function generateSLLV(ctx) {
@@ -1176,14 +1176,14 @@ function generateSLLV(ctx) {
 
   const impl = `
     const result = ${genSrcRegS32Lo(t)} << (${genSrcRegS32Lo(s)} & 0x1f);
-    c.setGPR_s32_signed(${d}, result);
+    c.setRegS32Extend(${d}, result);
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
 function executeSLLV(i) {
   const result = cpu0.getRegS32Lo(rt(i)) << (cpu0.getRegS32Lo(rs(i)) & 0x1f);
-  cpu0.setGPR_s32_signed(rd(i), result);
+  cpu0.setRegS32Extend(rd(i), result);
 }
 
 function generateSRLV(ctx) {
@@ -1193,14 +1193,14 @@ function generateSRLV(ctx) {
 
   const impl = `
     const result = ${genSrcRegS32Lo(t)} >>> (${genSrcRegS32Lo(s)} & 0x1f);
-    c.setGPR_s32_signed(${d}, result);
+    c.setRegS32Extend(${d}, result);
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
 function executeSRLV(i) {
   const result = cpu0.getRegS32Lo(rt(i)) >>> (cpu0.getRegS32Lo(rs(i)) & 0x1f);
-  cpu0.setGPR_s32_signed(rd(i), result);
+  cpu0.setRegS32Extend(rd(i), result);
 }
 
 function generateSRAV(ctx) {
@@ -1211,7 +1211,7 @@ function generateSRAV(ctx) {
   const impl = `
   const shift = (${genSrcRegS32Lo(s)} & 0x1f);
   const result = ${genSrcRegS64(t)} >> BigInt(shift);
-  c.setGPR_s32_signed(${d}, Number(result & 0xffff_ffffn));
+  c.setRegS32Extend(${d}, Number(result & 0xffff_ffffn));
   `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
@@ -1219,7 +1219,7 @@ function generateSRAV(ctx) {
 function executeSRAV(i) {
   const shift = cpu0.getRegS32Lo(rs(i)) & 0x1f;
   const result = cpu0.getRegS64(rt(i)) >> BigInt(shift);
-  cpu0.setGPR_s32_signed(rd(i), Number(result & 0xffff_ffffn));
+  cpu0.setRegS32Extend(rd(i), Number(result & 0xffff_ffffn));
 }
 
 function executeDSLLV(i) {
@@ -1497,7 +1497,7 @@ function generateADD(ctx) {
     if (n64js.s32CheckAddOverflow(s, t, result)) {
       c.raiseOverflowException();
     } else {
-      c.setGPR_s32_signed(${d}, result);
+      c.setRegS32Extend(${d}, result);
     }
     `;
   // Use the generic boilerplate because we might have generated an overflow exception.
@@ -1512,7 +1512,7 @@ function executeADD(i) {
     cpu0.raiseOverflowException();
     return; 
   }
-  cpu0.setGPR_s32_signed(rd(i), result);
+  cpu0.setRegS32Extend(rd(i), result);
 }
 
 function generateADDU(ctx) {
@@ -1522,7 +1522,7 @@ function generateADDU(ctx) {
   const impl = `
     const s = ${genSrcRegS32Lo(s)};
     const t = ${genSrcRegS32Lo(t)};
-    c.setGPR_s32_signed(${d}, s + t);
+    c.setRegS32Extend(${d}, s + t);
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
@@ -1530,7 +1530,7 @@ function executeADDU(i) {
   const s = cpu0.getRegS32Lo(rs(i));
   const t = cpu0.getRegS32Lo(rt(i));
   const result = s + t;
-  cpu0.setGPR_s32_signed(rd(i), result);
+  cpu0.setRegS32Extend(rd(i), result);
 }
 
 function generateSUB(ctx) {
@@ -1544,7 +1544,7 @@ function generateSUB(ctx) {
     if (n64js.s32CheckSubOverflow(s, t, result)) {
       c.raiseOverflowException();
     } else {
-      c.setGPR_s32_signed(${d}, result);
+      c.setRegS32Extend(${d}, result);
     }
   `;
   // Use the generic boilerplate because we might have generated an overflow exception.
@@ -1559,7 +1559,7 @@ function executeSUB(i) {
     cpu0.raiseOverflowException();
     return; 
   }
-  cpu0.setGPR_s32_signed(rd(i), result);
+  cpu0.setRegS32Extend(rd(i), result);
 }
 
 function generateSUBU(ctx) {
@@ -1569,7 +1569,7 @@ function generateSUBU(ctx) {
   const impl = `
     const s = ${genSrcRegS32Lo(s)};
     const t = ${genSrcRegS32Lo(t)};
-    c.setGPR_s32_signed(${d}, s - t);
+    c.setRegS32Extend(${d}, s - t);
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
@@ -1577,7 +1577,7 @@ function executeSUBU(i) {
   const s = cpu0.getRegS32Lo(rs(i));
   const t = cpu0.getRegS32Lo(rt(i));
   const result = s - t;
-  cpu0.setGPR_s32_signed(rd(i), result);
+  cpu0.setRegS32Extend(rd(i), result);
 }
 
 function generateAND(ctx) { return generateTrivialLogical(ctx, '&'); }
@@ -1725,7 +1725,7 @@ function executeMFC0(i) {
 
   switch (control_reg) {
     case cpu0_constants.controlRand:
-      cpu0.setGPR_s32_signed(rt(i), cpu0.getRandom());
+      cpu0.setRegS32Extend(rt(i), cpu0.getRandom());
       break;
     case cpu0_constants.controlInvalid7:
     case cpu0_constants.controlInvalid21:
@@ -1735,10 +1735,10 @@ function executeMFC0(i) {
     case cpu0_constants.controlInvalid25:
     case cpu0_constants.controlInvalid31:
       // Reads from invalid control registers will use the value last written to any control register.
-      cpu0.setGPR_s32_signed(rt(i), cpu0.lastControlRegWrite);
+      cpu0.setRegS32Extend(rt(i), cpu0.lastControlRegWrite);
       break;
     default:
-      cpu0.setGPR_s32_signed(rt(i), cpu0.control[control_reg]);
+      cpu0.setRegS32Extend(rt(i), cpu0.control[control_reg]);
       break;
   }
 }
@@ -1942,7 +1942,7 @@ function generateJAL(ctx) {
   return generateBranchOpBoilerplate(impl, ctx, false);
 }
 function executeJAL(i) {
-  cpu0.setGPR_s32_signed(cpu0_constants.RA, cpu0.pc + 8);
+  cpu0.setRegS32Extend(cpu0_constants.RA, cpu0.pc + 8);
   performBranch(jumpAddress(cpu0.pc, i));
 }
 
@@ -1960,7 +1960,7 @@ function generateJALR(ctx) {
 }
 function executeJALR(i) {
   const new_pc = cpu0.getRegU32Lo(rs(i));
-  cpu0.setGPR_s32_signed(rd(i), cpu0.pc + 8);
+  cpu0.setRegS32Extend(rd(i), cpu0.pc + 8);
   performBranch(new_pc);
 }
 
@@ -2211,7 +2211,7 @@ function executeBLTZL(i) {
 
 function executeBLTZAL(i) {
   const value = cpu0.getRegS32Hi(rs(i));
-  cpu0.setGPR_s32_signed(cpu0_constants.RA, cpu0.pc + 8);
+  cpu0.setRegS32Extend(cpu0_constants.RA, cpu0.pc + 8);
   if (value < 0) {
     performBranch(branchAddress(cpu0.pc, i));
   }
@@ -2219,7 +2219,7 @@ function executeBLTZAL(i) {
 
 function executeBLTZALL(i) {
   const value = cpu0.getRegS32Hi(rs(i));
-  cpu0.setGPR_s32_signed(cpu0_constants.RA, cpu0.pc + 8);
+  cpu0.setRegS32Extend(cpu0_constants.RA, cpu0.pc + 8);
   if (value < 0) {
     performBranch(branchAddress(cpu0.pc, i));
   } else {
@@ -2272,7 +2272,7 @@ function executeBGEZL(i) {
 
 function executeBGEZAL(i) {
   const value = cpu0.getRegS32Hi(rs(i));
-  cpu0.setGPR_s32_signed(cpu0_constants.RA, cpu0.pc + 8);
+  cpu0.setRegS32Extend(cpu0_constants.RA, cpu0.pc + 8);
   if (value >= 0) {
     performBranch(branchAddress(cpu0.pc, i));
   }
@@ -2280,7 +2280,7 @@ function executeBGEZAL(i) {
 
 function executeBGEZALL(i) {
   const value = cpu0.getRegS32Hi(rs(i));
-  cpu0.setGPR_s32_signed(cpu0_constants.RA, cpu0.pc + 8);
+  cpu0.setRegS32Extend(cpu0_constants.RA, cpu0.pc + 8);
   if (value >= 0) {
     performBranch(branchAddress(cpu0.pc, i));
   } else {
@@ -2298,7 +2298,7 @@ function generateADDI(ctx) {
     if (n64js.s32CheckAddOverflow(s, imm, result)) {
       c.raiseOverflowException();
     } else {
-      c.setGPR_s32_signed(${t}, result);
+      c.setRegS32Extend(${t}, result);
     }
     `;
   // Use the generic boilerplate because we might have generated an overflow exception.
@@ -2313,7 +2313,7 @@ function executeADDI(i) {
     cpu0.raiseOverflowException();
     return; 
   }
-  cpu0.setGPR_s32_signed(rt(i), result);
+  cpu0.setRegS32Extend(rt(i), result);
 }
 
 function generateADDIU(ctx) {
@@ -2323,7 +2323,7 @@ function generateADDIU(ctx) {
     const s = ${genSrcRegS32Lo(s)};
     const imm = ${imms(ctx.instruction)};
     const result = s + imm;
-    c.setGPR_s32_signed(${t}, result);
+    c.setRegS32Extend(${t}, result);
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
@@ -2332,7 +2332,7 @@ function executeADDIU(i) {
   const s = cpu0.getRegS32Lo(rs(i));
   const imm = imms(i);
   const result = s + imm;
-  cpu0.setGPR_s32_signed(rt(i), result);
+  cpu0.setRegS32Extend(rt(i), result);
 }
 
 function executeDADDI(i) {
@@ -2507,7 +2507,7 @@ function generateLUI(ctx) {
 }
 
 function executeLUI(i) {
-  cpu0.setGPR_s32_signed(rt(i), imms(i) << 16);
+  cpu0.setRegS32Extend(rt(i), imms(i) << 16);
 }
 
 function generateLB(ctx) {
@@ -2517,7 +2517,7 @@ function generateLB(ctx) {
 
   const impl = `
     const value = n64js.load_s8(ram, ${genSrcRegS32Lo(b)} + ${o});
-    c.setGPR_s32_signed(${t}, value);
+    c.setRegS32Extend(${t}, value);
     `;
 
   return generateMemoryAccessBoilerplate(impl, ctx);
@@ -2525,7 +2525,7 @@ function generateLB(ctx) {
 
 function executeLB(i) {
   const value = n64js.load_s8(cpu0.ram, cpu0.getRegS32Lo(base(i)) + imms(i));
-  cpu0.setGPR_s32_signed(rt(i), value);
+  cpu0.setRegS32Extend(rt(i), value);
 }
 
 function generateLBU(ctx) {
@@ -2553,7 +2553,7 @@ function generateLH(ctx) {
 
   const impl = `
     const value = n64js.load_s16(ram, ${genSrcRegS32Lo(b)} + ${o});
-    c.setGPR_s32_signed(${t}, value);
+    c.setRegS32Extend(${t}, value);
     `;
 
   return generateMemoryAccessBoilerplate(impl, ctx);
@@ -2561,7 +2561,7 @@ function generateLH(ctx) {
 
 function executeLH(i) {
   const value = n64js.load_s16(cpu0.ram, cpu0.getRegS32Lo(base(i)) + imms(i));
-  cpu0.setGPR_s32_signed(rt(i), value);
+  cpu0.setRegS32Extend(rt(i), value);
 }
 
 function generateLHU(ctx) {
@@ -2592,7 +2592,7 @@ function generateLW(ctx) {
 
   const impl = `
     const value = n64js.load_s32(ram, ${genSrcRegS32Lo(b)} + ${o});
-    c.setGPR_s32_signed(${t}, value);
+    c.setRegS32Extend(${t}, value);
     `;
 
   return generateMemoryAccessBoilerplate(impl, ctx);
@@ -2605,7 +2605,7 @@ function executeLW(i) {
   }
 
   const value = n64js.load_s32(cpu0.ram, cpu0.getRegS32Lo(base(i)) + imms(i));
-  cpu0.setGPR_s32_signed(rt(i), value);
+  cpu0.setRegS32Extend(rt(i), value);
 }
 
 function generateLWU(ctx) {
@@ -2746,7 +2746,7 @@ function executeLWL(i) {
   const mask = shift ? allBits >>> (32 - shift) : 0; // >>>32 is undefined.
 
   const result = (reg & mask) | (mem << shift);
-  cpu0.setGPR_s32_signed(rt(i), result);
+  cpu0.setRegS32Extend(rt(i), result);
 }
 
 function executeLWR(i) {
@@ -2761,7 +2761,7 @@ function executeLWR(i) {
   const mask = ~(allBits >>> shift);
 
   const result = (reg & mask) | (mem >>> shift);
-  cpu0.setGPR_s32_signed(rt(i), result);
+  cpu0.setRegS32Extend(rt(i), result);
 }
 
 function executeLDL(i) {
@@ -3022,7 +3022,7 @@ function executeLL(i) {
   const value = n64js.load_s32(cpu0.ram, addr);
 
   cpu0.control[cpu0_constants.controlLLAddr] = makeLLAddr(addr);
-  cpu0.setGPR_s32_signed(rt(i), value);
+  cpu0.setRegS32Extend(rt(i), value);
   cpu0.llBit = 1;
 }
 
@@ -3069,12 +3069,12 @@ function generateMFC1Stub(ctx) {
   ctx.isTrivial = true;
 
   return `
-    c.setGPR_s32_signed(${t}, cpu1.load_i32(${s}));
+    c.setRegS32Extend(${t}, cpu1.load_i32(${s}));
     `;
 }
 
 function executeMFC1(i) {
-  cpu0.setGPR_s32_signed(rt(i), cpu1.load_i32(fs(i)));
+  cpu0.setRegS32Extend(rt(i), cpu1.load_i32(fs(i)));
 }
 
 function generateDMFC1Stub(ctx) {
@@ -3138,7 +3138,7 @@ function generateCFC1Stub(ctx) {
     case 31:
       return `
         const value = cpu1.control[${s}];
-        c.setGPR_s32_signed(${t}, value);
+        c.setRegS32Extend(${t}, value);
         `;
       return impl;
   }
@@ -3156,7 +3156,7 @@ function executeCFC1(i) {
     case 0:
     case 31:
       const value = cpu1.control[s];
-      cpu0.setGPR_s32_signed(t, value);
+      cpu0.setRegS32Extend(t, value);
       break;
   }
 }
@@ -3498,7 +3498,7 @@ function executeLInstr(i) {
 }
 
 function executeMFC2(i) {
-  cpu0.setGPR_s32_signed(rt(i), cpu2.getReg32());
+  cpu0.setRegS32Extend(rt(i), cpu2.getReg32());
 }
 
 function executeDMFC2(i) {
@@ -3506,7 +3506,7 @@ function executeDMFC2(i) {
 }
 
 function executeCFC2(i) {
-  cpu0.setGPR_s32_signed(rt(i), cpu2.getReg32());
+  cpu0.setRegS32Extend(rt(i), cpu2.getReg32());
 }
 
 function executeDCFC2(i) {
