@@ -297,6 +297,8 @@ class CPU0 {
     const gprMem = new ArrayBuffer(32 * 8);
     this.gprU32 = new Uint32Array(gprMem);
     this.gprS32 = new Int32Array(gprMem);
+    this.gprU64 = new BigUint64Array(gprMem);
+    this.gprS64 = new BigInt64Array(gprMem);
 
     const controlMem = new ArrayBuffer(32 * 4);
     this.control = new Uint32Array(controlMem);
@@ -350,18 +352,18 @@ class CPU0 {
   }
 
   getGPR_s64_bigint(r) {
-    return (BigInt(this.gprS32[r * 2 + 1]) << 32n) + BigInt(this.gprU32[r * 2 + 0]);
+    return this.gprS64[r];
   }
 
   getGPR_u64_bigint(r) {
-    return (BigInt(this.gprU32[r * 2 + 1]) << 32n) + BigInt(this.gprU32[r * 2 + 0]);
+    return this.gprU64[r];
   }
 
   setGPR_s64_bigint(r, v) {
     // This shouldn't be needed but there seems to be a bug with BigInts > 64 bits.
+    // TODO: check still needed with BigUint64Array.
     const truncated = v & 0xffff_ffff_ffff_ffffn;
-    this.gprS32[r * 2 + 1] = Number(truncated >> 32n);
-    this.gprS32[r * 2 + 0] = Number(truncated & 0xffff_ffffn);
+    this.gprU64[r] = truncated;
   }
 
   setGPR_s64_lo_hi(r, lo, hi) {
