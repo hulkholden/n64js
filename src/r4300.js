@@ -2382,7 +2382,7 @@ function generateSLTI(ctx) {
   const impl = `
     let result;
     if (${genSrcRegHi(s)} === ${imm_hi}) {
-      result = (c.gprLo[${s}] < ${imm_unsigned}) ? 1 : 0;
+      result = (c.getGPR_s32_unsigned(${s}) < ${imm_unsigned}) ? 1 : 0;
     } else {
       result = (${genSrcRegHi(s)} < ${imm_hi}) ? 1 : 0;
     }
@@ -2400,7 +2400,7 @@ function executeSLTI(i) {
 
   let result;
   if (s_hi === imm_hi) {
-    result = (cpu0.gprLo[s] < (immediate >>> 0)) ? 1 : 0;    // NB signed compare
+    result = (cpu0.getGPR_s32_unsigned(s) < (immediate >>> 0)) ? 1 : 0;    // NB signed compare
   } else {
     result = (s_hi < imm_hi) ? 1 : 0;
   }
@@ -2418,7 +2418,7 @@ function generateSLTIU(ctx) {
   const impl = `
     let result;
     if (${genSrcRegHi(s)} === ${imm_hi}) {
-      result = (c.gprLo[${s}] < ${imm_unsigned}) ? 1 : 0;
+      result = (c.getGPR_s32_unsigned(${s}) < ${imm_unsigned}) ? 1 : 0;
     } else {
       result = ((${genSrcRegHi(s)}>>>0) < (${imm_hi >>> 0})) ? 1 : 0;
     }
@@ -2438,7 +2438,7 @@ function executeSLTIU(i) {
 
   let result;
   if (s_hi === imm_hi) {
-    result = (cpu0.gprLo[s] < (immediate >>> 0)) ? 1 : 0;
+    result = (cpu0.getGPR_s32_unsigned(s) < (immediate >>> 0)) ? 1 : 0;
   } else {
     result = ((s_hi >>> 0) < (imm_hi >>> 0)) ? 1 : 0;
   }
