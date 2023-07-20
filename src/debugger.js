@@ -234,7 +234,7 @@ export class Debugger {
       let $tr = $('<tr />');
       for (let r = 0; r < kRegistersPerRow; ++r) {
         let name = cop0gprNames[i + r];
-        let $td = $('<td>' + name + '</td><td class="fixed">' + toString64(cpu0.getGPR_s32_hi_unsigned(i + r), cpu0.getGPR_s32_unsigned(i + r)) + '</td>');
+        let $td = $('<td>' + name + '</td><td class="fixed">' + toString64(cpu0.getRegU32Hi(i + r), cpu0.getGPR_s32_unsigned(i + r)) + '</td>');
 
         if (registerColours.has(name)) {
           $td.attr('bgcolor', registerColours.get(name));

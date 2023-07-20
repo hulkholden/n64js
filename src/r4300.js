@@ -347,7 +347,7 @@ class CPU0 {
     return this.gprS32[r * 2 + 1];
   }
 
-  getGPR_s32_hi_unsigned(r) {
+  getRegU32Hi(r) {
     return this.gprU32[r * 2 + 1];
   }
 
@@ -1597,7 +1597,7 @@ function executeAND(i) {
   const s = rs(i);
   const t = rt(i);
   const lo = cpu0.getGPR_s32_unsigned(s) & cpu0.getGPR_s32_unsigned(t);
-  const hi = cpu0.getGPR_s32_hi_unsigned(s) & cpu0.getGPR_s32_hi_unsigned(t);
+  const hi = cpu0.getRegU32Hi(s) & cpu0.getRegU32Hi(t);
   cpu0.setGPR_s64_lo_hi(d, lo, hi);
 }
 
@@ -1621,7 +1621,7 @@ function executeOR(i) {
   const s = rs(i);
   const t = rt(i);
   const lo = cpu0.getGPR_s32_unsigned(s) | cpu0.getGPR_s32_unsigned(t);
-  const hi = cpu0.getGPR_s32_hi_unsigned(s) | cpu0.getGPR_s32_hi_unsigned(t);
+  const hi = cpu0.getRegU32Hi(s) | cpu0.getRegU32Hi(t);
   cpu0.setGPR_s64_lo_hi(d, lo, hi);
 }
 
@@ -1631,7 +1631,7 @@ function executeXOR(i) {
   const s = rs(i);
   const t = rt(i);
   const lo = cpu0.getGPR_s32_unsigned(s) ^ cpu0.getGPR_s32_unsigned(t);
-  const hi = cpu0.getGPR_s32_hi_unsigned(s) ^ cpu0.getGPR_s32_hi_unsigned(t);
+  const hi = cpu0.getRegU32Hi(s) ^ cpu0.getRegU32Hi(t);
   cpu0.setGPR_s64_lo_hi(d, lo, hi);
 }
 
@@ -1652,7 +1652,7 @@ function executeNOR(i) {
   const s = rs(i);
   const t = rt(i);
   const lo = ~(cpu0.getGPR_s32_unsigned(s) | cpu0.getGPR_s32_unsigned(t));
-  const hi = ~(cpu0.getGPR_s32_hi_unsigned(s) | cpu0.getGPR_s32_hi_unsigned(t));
+  const hi = ~(cpu0.getRegU32Hi(s) | cpu0.getRegU32Hi(t));
   cpu0.setGPR_s64_lo_hi(d, lo, hi);
 }
 
@@ -2475,7 +2475,7 @@ function generateORI(ctx) {
 function executeORI(i) {
   const s = rs(i);
   const lo = cpu0.getGPR_s32_unsigned(s) | imm(i);
-  const hi = cpu0.getGPR_s32_hi_unsigned(s);
+  const hi = cpu0.getRegU32Hi(s);
   cpu0.setGPR_s64_lo_hi(rt(i), lo, hi);
 }
 
@@ -2502,7 +2502,7 @@ function executeXORI(i) {
   const s = rs(i);
   const t = rt(i);
   const lo = cpu0.getGPR_s32_unsigned(s) ^ imm(i);
-  const hi = cpu0.getGPR_s32_hi_unsigned(s);
+  const hi = cpu0.getRegU32Hi(s);
   cpu0.setGPR_s64_lo_hi(rt(i), lo, hi);
 }
 
