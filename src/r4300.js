@@ -363,7 +363,7 @@ class CPU0 {
     this.gprS32[r * 2 + 1] = v >> 31;
   }
 
-  setGPR_s32_unsigned(r, v) {
+  setRegU32Extend(r, v) {
     this.gprS32[r * 2 + 0] = v;
     this.gprS32[r * 2 + 1] = 0;
   }
@@ -1652,14 +1652,14 @@ function generateSLT(ctx) {
 
   const impl = `
     const r = ${genSrcRegS64(s)} < ${genSrcRegS64(t)} ? 1 : 0;
-    c.setGPR_s32_unsigned(${d}, r);
+    c.setRegU32Extend(${d}, r);
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
 function executeSLT(i) {
   const r = cpu0.getRegS64(rs(i)) < cpu0.getRegS64(rt(i)) ? 1 : 0;
-  cpu0.setGPR_s32_unsigned(rd(i), r);
+  cpu0.setRegU32Extend(rd(i), r);
 }
 
 function generateSLTU(ctx) {
@@ -1669,14 +1669,14 @@ function generateSLTU(ctx) {
 
   const impl = `
     const r = ${genSrcRegU64(s)} < ${genSrcRegU64(t)} ? 1 : 0;
-    c.setGPR_s32_unsigned(${d}, r);
+    c.setRegU32Extend(${d}, r);
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
 function executeSLTU(i) {
   const r = cpu0.getRegU64(rs(i)) < cpu0.getRegU64(rt(i)) ? 1 : 0;
-  cpu0.setGPR_s32_unsigned(rd(i), r);
+  cpu0.setRegU32Extend(rd(i), r);
 }
 
 function executeDADD(i) {
@@ -2368,7 +2368,7 @@ function generateSLTI(ctx) {
     } else {
       result = (${genSrcRegS32Hi(s)} < ${imm_hi}) ? 1 : 0;
     }
-    c.setGPR_s32_unsigned(${t}, result);
+    c.setRegU32Extend(${t}, result);
     `;
 
   return generateTrivialOpBoilerplate(impl, ctx);
@@ -2386,7 +2386,7 @@ function executeSLTI(i) {
   } else {
     result = (s_hi < imm_hi) ? 1 : 0;
   }
-  cpu0.setGPR_s32_unsigned(rt(i), result);
+  cpu0.setRegU32Extend(rt(i), result);
 }
 
 function generateSLTIU(ctx) {
@@ -2404,7 +2404,7 @@ function generateSLTIU(ctx) {
     } else {
       result = ((${genSrcRegS32Hi(s)}>>>0) < (${imm_hi >>> 0})) ? 1 : 0;
     }
-    c.setGPR_s32_unsigned(${t}, result);
+    c.setRegU32Extend(${t}, result);
     `;
 
   return generateTrivialOpBoilerplate(impl, ctx);
@@ -2424,7 +2424,7 @@ function executeSLTIU(i) {
   } else {
     result = ((s_hi >>> 0) < (imm_hi >>> 0)) ? 1 : 0;
   }
-  cpu0.setGPR_s32_unsigned(rt(i), result);
+  cpu0.setRegU32Extend(rt(i), result);
 }
 
 function generateANDI(ctx) {
@@ -2535,7 +2535,7 @@ function generateLBU(ctx) {
 
   const impl = `
     const value = n64js.load_u8(ram, ${genSrcRegS32Lo(b)} + ${o});
-    c.setGPR_s32_unsigned(${t}, value);
+    c.setRegU32Extend(${t}, value);
     `;
 
   return generateMemoryAccessBoilerplate(impl, ctx);
@@ -2543,7 +2543,7 @@ function generateLBU(ctx) {
 
 function executeLBU(i) {
   const value = n64js.load_u8(cpu0.ram, cpu0.getRegS32Lo(base(i)) + imms(i));
-  cpu0.setGPR_s32_unsigned(rt(i), value);
+  cpu0.setRegU32Extend(rt(i), value);
 }
 
 function generateLH(ctx) {
@@ -2571,7 +2571,7 @@ function generateLHU(ctx) {
 
   const impl = `
     const value = n64js.load_u16(ram, ${genSrcRegS32Lo(b)} + ${o});
-    c.setGPR_s32_unsigned(${t}, value);
+    c.setRegU32Extend(${t}, value);
     `;
 
   return generateMemoryAccessBoilerplate(impl, ctx);
@@ -2579,7 +2579,7 @@ function generateLHU(ctx) {
 
 function executeLHU(i) {
   const value = n64js.load_u16(cpu0.ram, cpu0.getRegS32Lo(base(i)) + imms(i));
-  cpu0.setGPR_s32_unsigned(rt(i), value);
+  cpu0.setRegU32Extend(rt(i), value);
 }
 
 function generateLW(ctx) {
@@ -2615,7 +2615,7 @@ function generateLWU(ctx) {
 
   const impl = `
     const value = n64js.load_u32(ram, ${genSrcRegS32Lo(b)} + ${o});
-    c.setGPR_s32_unsigned(${t}, value);
+    c.setRegU32Extend(${t}, value);
     `;
 
   return generateMemoryAccessBoilerplate(impl, ctx);
@@ -2623,7 +2623,7 @@ function generateLWU(ctx) {
 
 function executeLWU(i) {
   const value = n64js.load_u32(cpu0.ram, cpu0.getRegS32Lo(base(i)) + imms(i));
-  cpu0.setGPR_s32_unsigned(rt(i), value);
+  cpu0.setRegU32Extend(rt(i), value);
 }
 
 function generateLD(ctx) {
@@ -3045,7 +3045,7 @@ function executeSC(i) {
     cpu0.llBit = 0;
     result = 1;
   }
-  cpu0.setGPR_s32_unsigned(t, result);
+  cpu0.setRegU32Extend(t, result);
 }
 
 function executeSCD(i) {
@@ -3058,7 +3058,7 @@ function executeSCD(i) {
     cpu0.llBit = 0;
     result = 1;
   }
-  cpu0.setGPR_s32_unsigned(t, result);
+  cpu0.setRegU32Extend(t, result);
 }
 
 function generateMFC1Stub(ctx) {
