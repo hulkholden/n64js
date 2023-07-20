@@ -354,7 +354,7 @@ class CPU0 {
     this.gprS32[r * 2 + 1] = hi;    
   }
 
-  setGPR_s32_lo(r, v) {
+  setRegS32Lo(r, v) {
     this.gprS32[r * 2 + 0] = v;
   }
 
@@ -2451,7 +2451,7 @@ function generateORI(ctx) {
   let impl;
   if (s === t) {
     impl = `
-      c.setGPR_s32_lo(${t}, ${genSrcRegS32Lo(s)} | ${imm(ctx.instruction)});
+      c.setRegS32Lo(${t}, ${genSrcRegS32Lo(s)} | ${imm(ctx.instruction)});
       `;
   } else {
     impl = `
@@ -2476,7 +2476,7 @@ function generateXORI(ctx) {
   let impl;
   if (s === t) {
     impl = `
-    c.setGPR_s32_lo(${t}, ${genSrcRegS32Lo(s)} ^ ${imm(ctx.instruction)});
+    c.setRegS32Lo(${t}, ${genSrcRegS32Lo(s)} ^ ${imm(ctx.instruction)});
       `;
   } else {
     impl = `
