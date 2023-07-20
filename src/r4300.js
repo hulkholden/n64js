@@ -952,11 +952,6 @@ function performBranch(new_pc) {
   cpu0.branchTarget = new_pc;
 }
 
-function setSignExtend(r, v) {
-  cpu0.gprLo[r] = v;
-  cpu0.gprHi_signed[r] = v >> 31;
-}
-
 function genSrcRegLo(i) {
   if (i === 0)
     return '0';
@@ -1747,7 +1742,7 @@ function executeMFC0(i) {
 
   switch (control_reg) {
     case cpu0_constants.controlRand:
-      setSignExtend(rt(i), cpu0.getRandom());
+      cpu0.setGPR_s32_signed(rt(i), cpu0.getRandom());
       break;
     case cpu0_constants.controlInvalid7:
     case cpu0_constants.controlInvalid21:
@@ -1757,10 +1752,10 @@ function executeMFC0(i) {
     case cpu0_constants.controlInvalid25:
     case cpu0_constants.controlInvalid31:
       // Reads from invalid control registers will use the value last written to any control register.
-      setSignExtend(rt(i), cpu0.lastControlRegWrite);
+      cpu0.setGPR_s32_signed(rt(i), cpu0.lastControlRegWrite);
       break;
     default:
-      setSignExtend(rt(i), cpu0.control[control_reg]);
+      cpu0.setGPR_s32_signed(rt(i), cpu0.control[control_reg]);
       break;
   }
 }
@@ -1957,10 +1952,10 @@ function executeJ(i) {
   performBranch(jumpAddress(cpu0.pc, i));
 }
 
-
 function generateJAL(ctx) {
   const addr = jumpAddress(ctx.pc, ctx.instruction);
   const ra = ctx.pc + 8;
+  // Optimise as sign is known at compile time.
   const ra_hi = (ra & 0x80000000) ? -1 : 0;
   const impl = `
     c.delayPC = ${toString32(addr)};
@@ -1969,10 +1964,9 @@ function generateJAL(ctx) {
   return generateBranchOpBoilerplate(impl, ctx, false);
 }
 function executeJAL(i) {
-  setSignExtend(cpu0_constants.RA, cpu0.pc + 8);
+  cpu0.setGPR_s32_signed(cpu0_constants.RA, cpu0.pc + 8);
   performBranch(jumpAddress(cpu0.pc, i));
 }
-
 
 function generateJALR(ctx) {
   const s = ctx.instr_rs();
@@ -1988,7 +1982,7 @@ function generateJALR(ctx) {
 }
 function executeJALR(i) {
   const new_pc = cpu0.gprLo[rs(i)];
-  setSignExtend(rd(i), cpu0.pc + 8);
+  cpu0.setGPR_s32_signed(rd(i), cpu0.pc + 8);
   performBranch(new_pc);
 }
 
@@ -2239,7 +2233,7 @@ function executeBLTZL(i) {
 
 function executeBLTZAL(i) {
   const value = cpu0.getGPR_s32_hi_signed(rs(i));
-  setSignExtend(cpu0_constants.RA, cpu0.pc + 8);
+  cpu0.setGPR_s32_signed(cpu0_constants.RA, cpu0.pc + 8);
   if (value < 0) {
     performBranch(branchAddress(cpu0.pc, i));
   }
@@ -2247,7 +2241,7 @@ function executeBLTZAL(i) {
 
 function executeBLTZALL(i) {
   const value = cpu0.getGPR_s32_hi_signed(rs(i));
-  setSignExtend(cpu0_constants.RA, cpu0.pc + 8);
+  cpu0.setGPR_s32_signed(cpu0_constants.RA, cpu0.pc + 8);
   if (value < 0) {
     performBranch(branchAddress(cpu0.pc, i));
   } else {
@@ -2300,7 +2294,7 @@ function executeBGEZL(i) {
 
 function executeBGEZAL(i) {
   const value = cpu0.getGPR_s32_hi_signed(rs(i));
-  setSignExtend(cpu0_constants.RA, cpu0.pc + 8);
+  cpu0.setGPR_s32_signed(cpu0_constants.RA, cpu0.pc + 8);
   if (value >= 0) {
     performBranch(branchAddress(cpu0.pc, i));
   }
@@ -2308,7 +2302,7 @@ function executeBGEZAL(i) {
 
 function executeBGEZALL(i) {
   const value = cpu0.getGPR_s32_hi_signed(rs(i));
-  setSignExtend(cpu0_constants.RA, cpu0.pc + 8);
+  cpu0.setGPR_s32_signed(cpu0_constants.RA, cpu0.pc + 8);
   if (value >= 0) {
     performBranch(branchAddress(cpu0.pc, i));
   } else {
@@ -2783,7 +2777,7 @@ function executeLWL(i) {
   const mask = shift ? allBits >>> (32 - shift) : 0; // >>>32 is undefined.
 
   const result = (reg & mask) | (mem << shift);
-  setSignExtend(rt(i), result);
+  cpu0.setGPR_s32_signed(rt(i), result);
 }
 
 function executeLWR(i) {
@@ -2798,7 +2792,7 @@ function executeLWR(i) {
   const mask = ~(allBits >>> shift);
 
   const result = (reg & mask) | (mem >>> shift);
-  setSignExtend(rt(i), result);
+  cpu0.setGPR_s32_signed(rt(i), result);
 }
 
 function executeLDL(i) {
@@ -3537,7 +3531,7 @@ function executeLInstr(i) {
 }
 
 function executeMFC2(i) {
-  setSignExtend(rt(i), cpu2.getReg32());
+  cpu0.setGPR_s32_signed(rt(i), cpu2.getReg32());
 }
 
 function executeDMFC2(i) {
@@ -3545,7 +3539,7 @@ function executeDMFC2(i) {
 }
 
 function executeCFC2(i) {
-  setSignExtend(rt(i), cpu2.getReg32());
+  cpu0.setGPR_s32_signed(rt(i), cpu2.getReg32());
 }
 
 function executeDCFC2(i) {
