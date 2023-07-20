@@ -359,7 +359,7 @@ class CPU0 {
     return this.gprU64[r];
   }
 
-  setGPR_s64_bigint(r, v) {
+  setRegU64(r, v) {
     // This shouldn't be needed but there seems to be a bug with BigInts > 64 bits.
     // TODO: check still needed with BigUint64Array.
     const truncated = v & 0xffff_ffff_ffff_ffffn;
@@ -1235,41 +1235,41 @@ function executeSRAV(i) {
 
 function executeDSLLV(i) {
   const shift = cpu0.getGPR_s32_unsigned(rs(i)) & 0x3f;
-  cpu0.setGPR_s64_bigint(rd(i), cpu0.getRegU64(rt(i)) << BigInt(shift));
+  cpu0.setRegU64(rd(i), cpu0.getRegU64(rt(i)) << BigInt(shift));
 }
 
 function executeDSRLV(i) {
   const shift = cpu0.getGPR_s32_unsigned(rs(i)) & 0x3f;
-  cpu0.setGPR_s64_bigint(rd(i), cpu0.getRegU64(rt(i)) >> BigInt(shift));
+  cpu0.setRegU64(rd(i), cpu0.getRegU64(rt(i)) >> BigInt(shift));
 }
 
 function executeDSRAV(i) {
   const shift = cpu0.getGPR_s32_unsigned(rs(i)) & 0x3f;
-  cpu0.setGPR_s64_bigint(rd(i), cpu0.getRegS64(rt(i)) >> BigInt(shift));
+  cpu0.setRegU64(rd(i), cpu0.getRegS64(rt(i)) >> BigInt(shift));
 }
 
 function executeDSLL(i) {
-  cpu0.setGPR_s64_bigint(rd(i), cpu0.getRegU64(rt(i)) << BigInt(sa(i)));
+  cpu0.setRegU64(rd(i), cpu0.getRegU64(rt(i)) << BigInt(sa(i)));
 }
 
 function executeDSRL(i) {
-  cpu0.setGPR_s64_bigint(rd(i), cpu0.getRegU64(rt(i)) >> BigInt(sa(i)));
+  cpu0.setRegU64(rd(i), cpu0.getRegU64(rt(i)) >> BigInt(sa(i)));
 }
 
 function executeDSRA(i) {
-  cpu0.setGPR_s64_bigint(rd(i), cpu0.getRegS64(rt(i)) >> BigInt(sa(i)));
+  cpu0.setRegU64(rd(i), cpu0.getRegS64(rt(i)) >> BigInt(sa(i)));
 }
 
 function executeDSLL32(i) {
-  cpu0.setGPR_s64_bigint(rd(i), cpu0.getRegU64(rt(i)) << BigInt(sa(i) + 32));
+  cpu0.setRegU64(rd(i), cpu0.getRegU64(rt(i)) << BigInt(sa(i) + 32));
 }  
 
 function executeDSRL32(i) {
-  cpu0.setGPR_s64_bigint(rd(i), cpu0.getRegU64(rt(i)) >> BigInt(sa(i) + 32));
+  cpu0.setRegU64(rd(i), cpu0.getRegU64(rt(i)) >> BigInt(sa(i) + 32));
 }  
 
 function executeDSRA32(i) {
-  cpu0.setGPR_s64_bigint(rd(i), cpu0.getRegS64(rt(i)) >> BigInt(sa(i) + 32));
+  cpu0.setRegU64(rd(i), cpu0.getRegS64(rt(i)) >> BigInt(sa(i) + 32));
 }
 
 function executeSYSCALL(i) {
@@ -1698,14 +1698,14 @@ function executeDADD(i) {
     cpu0.raiseOverflowException();
     return; 
   }
-  cpu0.setGPR_s64_bigint(rd(i), result);
+  cpu0.setRegU64(rd(i), result);
 }
 
 function executeDADDU(i) {
   const s = cpu0.getRegS64(rs(i));
   const t = cpu0.getRegS64(rt(i));
   const result = s + t;
-  cpu0.setGPR_s64_bigint(rd(i), result);
+  cpu0.setRegU64(rd(i), result);
 }
 
 function executeDSUB(i) {
@@ -1716,14 +1716,14 @@ function executeDSUB(i) {
     cpu0.raiseOverflowException();
     return;
   }
-  cpu0.setGPR_s64_bigint(rd(i), result);
+  cpu0.setRegU64(rd(i), result);
 }
 
 function executeDSUBU(i) {
   const s = cpu0.getRegS64(rs(i));
   const t = cpu0.getRegS64(rt(i));
   const result = s - t;
-  cpu0.setGPR_s64_bigint(rd(i), result);
+  cpu0.setRegU64(rd(i), result);
 }
 
 function executeMFC0(i) {
@@ -2354,14 +2354,14 @@ function executeDADDI(i) {
     cpu0.raiseOverflowException();
     return; 
   }
-  cpu0.setGPR_s64_bigint(rt(i), result);
+  cpu0.setRegU64(rt(i), result);
 }
 
 function executeDADDIU(i) {
   const s = cpu0.getRegS64(rs(i));
   const imm = BigInt(imms(i));
   const result = s + imm;
-  cpu0.setGPR_s64_bigint(rt(i), result);
+  cpu0.setRegU64(rt(i), result);
 }
 
 function generateSLTI(ctx) {
@@ -2788,7 +2788,7 @@ function executeLDL(i) {
 
   // Final mask shouldn't be needed - BigInt bug?
   const result = ((reg & mask) | (mem << shift)) & allBits;
-  cpu0.setGPR_s64_bigint(rt(i), result);
+  cpu0.setRegU64(rt(i), result);
 }
 
 function executeLDR(i) {
@@ -2803,7 +2803,7 @@ function executeLDR(i) {
   const mask = ~(allBits >> shift);
 
   const result = (reg & mask) | (mem >> shift);
-  cpu0.setGPR_s64_bigint(rt(i), result);
+  cpu0.setRegU64(rt(i), result);
 }
 
 function generateSB(ctx) {
@@ -3096,12 +3096,12 @@ function generateDMFC1Stub(ctx) {
   ctx.isTrivial = true;
 
   return `
-    c.setGPR_s64_bigint(${t}, cpu1.load_i64_bigint(${s}));
+    c.setRegU64(${t}, cpu1.load_i64_bigint(${s}));
     `;
 }
 
 function executeDMFC1(i) {
-  cpu0.setGPR_s64_bigint(rt(i), cpu1.load_i64_bigint(fs(i)));
+  cpu0.setRegU64(rt(i), cpu1.load_i64_bigint(fs(i)));
 }
 
 function generateMTC1Stub(ctx) {
@@ -3513,7 +3513,7 @@ function executeMFC2(i) {
 }
 
 function executeDMFC2(i) {
-  cpu0.setGPR_s64_bigint(rt(i), cpu2.getReg64());
+  cpu0.setRegU64(rt(i), cpu2.getReg64());
 }
 
 function executeCFC2(i) {
@@ -4234,7 +4234,7 @@ function runImpl() {
         // TODO: figure out if we want to do this here, or enforce via
         // any instruction that writes to registers.
         // TODO: figure out where to do this in generated code.
-        cpu0.setGPR_s64_bigint(0, 0n);
+        cpu0.setRegU64(0, 0n);
 
         c.pc = c.nextPC;
         c.delayPC = c.branchTarget;
