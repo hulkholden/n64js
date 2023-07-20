@@ -4250,6 +4250,13 @@ function runImpl() {
 
         c.branchTarget = 0;
         executeOp(instruction);
+
+        // Force r0 to be 0.
+        // TODO: figure out if we want to do this here, or enforce via
+        // any instruction that writes to registers.
+        // TODO: figure out where to do this in generated code.
+        cpu0.setGPR_s64_bigint(0, 0n);
+
         c.pc = c.nextPC;
         c.delayPC = c.branchTarget;
         c.control_signed[cpu0_constants.controlCount] += COUNTER_INCREMENT_PER_OP;
