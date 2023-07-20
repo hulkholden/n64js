@@ -2844,7 +2844,8 @@ function generateSB(ctx) {
 }
 
 function executeSB(i) {
-  n64js.store_8(cpu0.ram, cpu0.gprLo_signed[base(i)] + imms(i), cpu0.gprLo_signed[rt(i)] /*& 0xff*/);
+  const addr = cpu0.getGPR_s32_signed(base(i)) + imms(i);
+  n64js.store_8(cpu0.ram, addr, cpu0.getGPR_s32_signed(rt(i)) /*& 0xff*/);
 }
 
 function generateSH(ctx) {
@@ -2859,7 +2860,8 @@ function generateSH(ctx) {
 }
 
 function executeSH(i) {
-  n64js.store_16(cpu0.ram, cpu0.gprLo_signed[base(i)] + imms(i), cpu0.gprLo_signed[rt(i)] /*& 0xffff*/);
+  const addr = cpu0.getGPR_s32_signed(base(i)) + imms(i);
+  n64js.store_16(cpu0.ram, addr, cpu0.getGPR_s32_signed(rt(i)) /*& 0xffff*/);
 }
 
 function generateSW(ctx) {
@@ -2874,7 +2876,8 @@ function generateSW(ctx) {
 }
 
 function executeSW(i) {
-  n64js.store_32(cpu0.ram, cpu0.gprLo_signed[base(i)] + imms(i), cpu0.gprLo_signed[rt(i)]);
+  const addr = cpu0.getGPR_s32_signed(base(i)) + imms(i);
+  n64js.store_32(cpu0.ram, addr, cpu0.getGPR_s32_signed(rt(i)));
 }
 
 function generateSD(ctx) {
@@ -2884,15 +2887,14 @@ function generateSD(ctx) {
 
   const impl = `
     const addr = ${genSrcRegLo(b)} + ${o};
-    n64js.store_64(ram, addr, ${genSrcRegLo(t)},${genSrcRegHi(t)});
+    n64js.store_64_bigint(ram, addr, ${genSrcRegU64(t)});
     `;
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
 
 function executeSD(i) {
-  const t = rt(i);
-  const addr = cpu0.gprLo_signed[base(i)] + imms(i);
-  n64js.store_64(cpu0.ram, addr, cpu0.gprLo_signed[t], cpu0.gprHi_signed[t]);
+  const addr = cpu0.getGPR_s32_signed(base(i)) + imms(i);
+  n64js.store_64_bigint(cpu0.ram, addr, cpu0.getGPR_u64_bigint(rt(i)));
 }
 
 function generateSWC1(ctx) {
