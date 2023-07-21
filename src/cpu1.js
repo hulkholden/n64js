@@ -1094,15 +1094,6 @@ export class CPU1 {
 
   /**
    * @param {number} i The register index.
-   * @param {number} value The value to store.
-   */
-  store_i64_number(i, value) {
-    const v = BigInt(value);
-    this.store_i64_bigint(i, v);
-  }
-
-  /**
-   * @param {number} i The register index.
    * @param {bigint} value The value to store.
    */
   store_i64_bigint(i, value) {
