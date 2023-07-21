@@ -2371,38 +2371,19 @@ function generateSLTIU(ctx) {
   const s = ctx.instr_rs();
   const t = ctx.instr_rt();
 
-  const immediate = imms(ctx.instruction);
-  const imm_hi = immediate >> 31;
-  const imm_unsigned = immediate >>> 0;
-
+  // Immediate value is sign-extended to 64 bits and treated as a u64.
+  const immediate = BigInt.asUintN(64, BigInt(imms(ctx.instruction)));
   const impl = `
-    let result;
-    if (${genSrcRegS32Hi(s)} === ${imm_hi}) {
-      result = (${genSrcRegU32Lo(s)} < ${imm_unsigned}) ? 1 : 0;
-    } else {
-      result = ((${genSrcRegS32Hi(s)}>>>0) < (${imm_hi >>> 0})) ? 1 : 0;
-    }
-    c.setRegU32Extend(${t}, result);
+    c.setRegU32Extend(${t}, c.getRegU64(${s}) < ${immediate}n ? 1 : 0);
     `;
 
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
 function executeSLTIU(i) {
-  const s = rs(i);
-
-  // NB: immediate value is still sign-extended, but treated as unsigned
-  const immediate = imms(i);
-  const imm_hi = immediate >> 31;
-  const s_hi = cpu0.getRegS32Hi(s);
-
-  let result;
-  if (s_hi === imm_hi) {
-    result = (cpu0.getRegU32Lo(s) < (immediate >>> 0)) ? 1 : 0;
-  } else {
-    result = ((s_hi >>> 0) < (imm_hi >>> 0)) ? 1 : 0;
-  }
-  cpu0.setRegU32Extend(rt(i), result);
+  // Immediate value is sign-extended to 64 bits and treated as a u64.
+  const immediate = BigInt.asUintN(64, BigInt(imms(i)));
+  cpu0.setRegU32Extend(rt(i), cpu0.getRegU64(rs(i)) < immediate ? 1 : 0);
 }
 
 function generateANDI(ctx) {
