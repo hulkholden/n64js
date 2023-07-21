@@ -2834,9 +2834,8 @@ function executeLLD(i) {
   const addr = (cpu0.getRegS32Lo(base(i)) + imms(i)) >>> 0;
   
   cpu0.control[cpu0_constants.controlLLAddr] = makeLLAddr(addr);
-  const hi = n64js.load_s32(cpu0.ram, addr);
-  const lo = n64js.load_s32(cpu0.ram, addr + 4);
-  cpu0.setRegS64LoHi(rt(i), lo, hi);
+  const value = n64js.load_u64_bigint(cpu0.ram, addr);
+  cpu0.setRegU64(rt(i), value);
   cpu0.llBit = 1;
 }
 
