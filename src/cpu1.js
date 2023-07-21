@@ -327,8 +327,8 @@ export class CPU1 {
   }
 
   handleFloatCompareSingle(op, s, t) {
-    const fsi = this.load_i32(s);
-    const fti = this.load_i32(t);
+    const fsi = this.loadS32(s);
+    const fti = this.loadS32(t);
 
     const fsType = f32Classify(fsi);
     const ftType = f32Classify(fti);
@@ -342,8 +342,8 @@ export class CPU1 {
       }
       if (op & 0x1) c = true;
     } else {
-      const fs = this.load_f32(s);
-      const ft = this.load_f32(t);
+      const fs = this.loadF32(s);
+      const ft = this.loadF32(t);
 
       if (op & 0x4) c |= fs < ft;
       if (op & 0x2) c |= fs == ft;
@@ -367,8 +367,8 @@ export class CPU1 {
       }
       if (op & 0x1) c = true;
     } else {
-      const fs = this.load_f64(s);
-      const ft = this.load_f64(t);
+      const fs = this.loadF64(s);
+      const ft = this.loadF64(t);
 
       if (op & 0x4) c |= fs < ft;
       if (op & 0x2) c |= fs == ft;
@@ -387,7 +387,7 @@ export class CPU1 {
   }
 
   // Move bits directly, to avoid renomalisation.
-  MOV_S(d, s) { this.storeS32(d, this.load_i32(s)); }
+  MOV_S(d, s) { this.storeS32(d, this.loadS32(s)); }
 
   SQRT_S(d, s) { this.f32UnaryOp(d, s, sqrtOpCases); }
   ABS_S(d, s) { this.f32UnaryOp(d, s, absOpCases); }
@@ -431,7 +431,7 @@ export class CPU1 {
         this.tempU32[0] = f32NegInfinityBits;
         break;
       default:
-        const sourceValue = this.load_f64(s);
+        const sourceValue = this.loadF64(s);
         this.tempF32[0] = sourceValue;
 
         if (sourceValue != this.tempF32[0]) {
@@ -452,7 +452,7 @@ export class CPU1 {
 
   CVT_S_W(d, s) {
     this.clearCause();
-    this.storeF32(d, this.load_i32(s));
+    this.storeF32(d, this.loadS32(s));
   }
 
   CVT_S_L(d, s) {
@@ -476,8 +476,8 @@ export class CPU1 {
   f32UnaryOp(d, s, cases) {
     this.clearCause();
 
-    const sValue = this.load_f32(s);
-    const sBits = this.load_i32(s);
+    const sValue = this.loadF32(s);
+    const sBits = this.loadS32(s);
     const sType = f32Classify(sBits);
     const opCase = getUnaryOpCase(cases, sType);
 
@@ -545,10 +545,10 @@ export class CPU1 {
   f32BinaryOp(d, s, t, cases) {
     this.clearCause();
 
-    const sValue = this.load_f32(s);
-    const tValue = this.load_f32(t);
-    const sBits = this.load_i32(s);
-    const tBits = this.load_i32(t);
+    const sValue = this.loadF32(s);
+    const tValue = this.loadF32(t);
+    const sBits = this.loadS32(s);
+    const tBits = this.loadS32(t);
     const sType = f32Classify(sBits);
     const tType = f32Classify(tBits);
     const opCase = getBinaryOpCase(cases, sType, tType);
@@ -635,7 +635,7 @@ export class CPU1 {
   CVT_D_S(d, s) {
     this.clearCause();
 
-    const sourceBits = this.load_i32(s);
+    const sourceBits = this.loadS32(s);
     const sourceType = f32Classify(sourceBits);
 
     let exceptionBits = 0;
@@ -655,7 +655,7 @@ export class CPU1 {
         this.tempU64[0] = f64NegInfinityBits;
         break;
       default:
-        const sourceValue = this.load_f32(s);
+        const sourceValue = this.loadF32(s);
         this.tempF64[0] = sourceValue;
         break;
     }
@@ -668,7 +668,7 @@ export class CPU1 {
 
   CVT_D_W(d, s) {
     this.clearCause();
-    this.storeF64(d, this.load_i32(s));
+    this.storeF64(d, this.loadS32(s));
   }
 
   CVT_D_L(d, s) {
@@ -692,7 +692,7 @@ export class CPU1 {
   f64UnaryOp(d, s, cases) {
     this.clearCause();
 
-    const sValue = this.load_f64(s);
+    const sValue = this.loadF64(s);
     const sBits = this.load_i64_bigint(s);
     const sType = f64Classify(sBits);
     const opCase = getUnaryOpCase(cases, sType);
@@ -761,8 +761,8 @@ export class CPU1 {
   f64BinaryOp(d, s, t, cases) {
     this.clearCause();
 
-    const sValue = this.load_f64(s);
-    const tValue = this.load_f64(t);
+    const sValue = this.loadF64(s);
+    const tValue = this.loadF64(t);
     const sBits = this.load_i64_bigint(s);
     const tBits = this.load_i64_bigint(t);
     const sType = f64Classify(sBits);
@@ -853,7 +853,7 @@ export class CPU1 {
   ConvertSToL(d, s, mode) {
     this.clearCause();
 
-    const sourceBits = this.load_i32(s);
+    const sourceBits = this.loadS32(s);
     const sourceType = f32Classify(sourceBits);
 
     let exceptionBits = 0;
@@ -866,7 +866,7 @@ export class CPU1 {
         this.raiseUnimplemented();
         return;
       default:
-        const sourceValue = this.load_f32(s);
+        const sourceValue = this.loadF32(s);
         this.tempS64[0] = BigInt(this.convertUsingMode(sourceValue, mode) | 0); // Force to int to allow BigInt conversion.
         if (sourceValue != this.tempS64[0]) {
           exceptionBits |= exceptionInexactBit;
@@ -896,7 +896,7 @@ export class CPU1 {
         this.raiseUnimplemented();
         return;
       default:
-        const sourceValue = this.load_f64(s);
+        const sourceValue = this.loadF64(s);
         this.tempS64[0] = BigInt(this.convertUsingMode(sourceValue, mode) | 0); // Force to int to allow BigInt conversion.
         if (sourceValue != this.tempS64[0]) {
           exceptionBits |= exceptionInexactBit;
@@ -913,7 +913,7 @@ export class CPU1 {
   ConvertSToW(d, s, mode) {
     this.clearCause();
 
-    const sourceBits = this.load_i32(s);
+    const sourceBits = this.loadS32(s);
     const sourceType = f32Classify(sourceBits);
 
     let exceptionBits = 0;
@@ -926,7 +926,7 @@ export class CPU1 {
         this.raiseUnimplemented();
         return;
       default:
-        const sourceValue = this.load_f32(s);
+        const sourceValue = this.loadF32(s);
         this.tempS32[0] = this.convertUsingMode(sourceValue, mode);
         if (sourceValue != this.tempS32[0]) {
           exceptionBits |= exceptionInexactBit;
@@ -956,7 +956,7 @@ export class CPU1 {
         this.raiseUnimplemented();
         return;
       default:
-        const sourceValue = this.load_f64(s);
+        const sourceValue = this.loadF64(s);
         this.tempS32[0] = this.convertUsingMode(sourceValue, mode);
         if (sourceValue != this.tempS32[0]) {
           exceptionBits |= exceptionInexactBit;
@@ -1121,7 +1121,7 @@ export class CPU1 {
    * @param {number} i The register index.
    * @return {number}
    */
-  load_f32(i) {
+  loadF32(i) {
     const regIdx = this.regIdx32[i];
     return this.regF32[regIdx];
   }
@@ -1130,7 +1130,7 @@ export class CPU1 {
    * @param {number} i The register index.
    * @return {number}
    */
-  load_i32(i) {
+  loadS32(i) {
     const regIdx = this.regIdx32[i];
     return this.regS32[regIdx];
   }
@@ -1139,7 +1139,7 @@ export class CPU1 {
    * @param {number} i The register index.
    * @return {number}
    */
-  load_f64(i) {
+  loadF64(i) {
     const regIdx = this.regIdx64[i];
     return this.regF64[regIdx];
   }
@@ -1153,14 +1153,6 @@ export class CPU1 {
     const lo = this.regS32[(regIdx * 2)];
     const hi = this.regS32[(regIdx * 2) + 1];
     return (BigInt(hi) << 32n) + BigInt(lo >>> 0);
-  }
-
-  /**
-   * @param {number} i The register index.
-   * @return {number}
-   */
-  load_i64_number(i) {
-    return Number(this.load_i64_bigint(i));
   }
 
   dump() {

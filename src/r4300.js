@@ -2697,7 +2697,7 @@ function generateSWC1(ctx) {
   // FIXME: can avoid cpuStuffToDo if we're writing to ram
   const impl = `
     if (c.checkCopXUsable(1)) {
-      n64js.store_32(ram, ${genSrcRegS32Lo(b)} + ${o}, cpu1.load_i32(${t}));
+      n64js.store_32(ram, ${genSrcRegS32Lo(b)} + ${o}, cpu1.loadS32(${t}));
     }
     `;
   return generateMemoryAccessBoilerplate(impl, ctx);
@@ -2707,7 +2707,7 @@ function executeSWC1(i) {
   if (!cpu0.checkCopXUsable(1)) {
     return;
   }
-  n64js.store_32(cpu0.ram, cpu0.getRegS32Lo(base(i)) + imms(i), cpu1.load_i32(ft(i)));
+  n64js.store_32(cpu0.ram, cpu0.getRegS32Lo(base(i)) + imms(i), cpu1.loadS32(ft(i)));
 }
 
 function generateSDC1(ctx) {
@@ -2892,12 +2892,12 @@ function generateMFC1Stub(ctx) {
   ctx.isTrivial = true;
 
   return `
-    c.setRegS32Extend(${t}, cpu1.load_i32(${s}));
+    c.setRegS32Extend(${t}, cpu1.loadS32(${s}));
     `;
 }
 
 function executeMFC1(i) {
-  cpu0.setRegS32Extend(rt(i), cpu1.load_i32(fs(i)));
+  cpu0.setRegS32Extend(rt(i), cpu1.loadS32(fs(i)));
 }
 
 function generateDMFC1Stub(ctx) {
