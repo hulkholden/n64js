@@ -263,14 +263,14 @@ export class Debugger {
       let $td;
       if ((i & 1) === 0) {
         $td = $('<td>' + name +
-          '</td><td class="fixed fp-w">' + toString32(cpu1.uint32[i]) +
-          '</td><td class="fixed fp-s">' + cpu1.float32[i] +
-          '</td><td class="fixed fp-d">' + cpu1.float64[i / 2] +
+          '</td><td class="fixed fp-w">' + toString32(cpu1.regU32[i]) +
+          '</td><td class="fixed fp-s">' + cpu1.regF32[i] +
+          '</td><td class="fixed fp-d">' + cpu1.regF64[i / 2] +
           '</td>');
       } else {
         $td = $('<td>' + name +
-          '</td><td class="fixed fp-w">' + toString32(cpu1.uint32[i]) +
-          '</td><td class="fixed fp-s">' + cpu1.float32[i] +
+          '</td><td class="fixed fp-w">' + toString32(cpu1.regU32[i]) +
+          '</td><td class="fixed fp-s">' + cpu1.regF32[i] +
           '</td><td>' +
           '</td>');
       }
