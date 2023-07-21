@@ -1083,17 +1083,6 @@ export class CPU1 {
 
   /**
    * @param {number} i The register index.
-   * @param {number} lo The low 32 bits to store.
-   * @param {number} hi The high 32 bits to store.
-   */
-  store_64_hi_lo(i, lo, hi) {
-    const regIdx = this.regIdx64[i];
-    this.regS32[(regIdx * 2) + 0] = lo;
-    this.regS32[(regIdx * 2) + 1] = hi;
-  }
-
-  /**
-   * @param {number} i The register index.
    * @param {bigint} value The value to store.
    */
   store_i64_bigint(i, value) {
