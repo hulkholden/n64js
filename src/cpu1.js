@@ -398,7 +398,7 @@ export class CPU1 {
   DIV_S(d, s, t) { this.f32BinaryOp(d, s, t, divOpCases); }
 
   // Move bits directly, to avoid renomalisation.
-  MOV_D(d, s) { this.store_i64_bigint(d, this.load_i64_bigint(s)); }
+  MOV_D(d, s) { this.storeU64(d, this.load_i64_bigint(s)); }
 
   SQRT_D(d, s) { this.f64UnaryOp(d, s, sqrtOpCases); }
   ABS_D(d, s) { this.f64UnaryOp(d, s, absOpCases); }
@@ -663,7 +663,7 @@ export class CPU1 {
     if (this.raiseException(exceptionBits)) {
       return;
     }
-    this.store_i64_bigint(d, this.tempU64[0]);
+    this.storeU64(d, this.tempU64[0]);
   }
 
   CVT_D_W(d, s) {
@@ -686,7 +686,7 @@ export class CPU1 {
     if (this.raiseException(exceptionBits)) {
       return;
     }
-    this.store_i64_bigint(d, this.tempU64[0]);
+    this.storeU64(d, this.tempU64[0]);
   }
 
   f64UnaryOp(d, s, cases) {
@@ -706,13 +706,13 @@ export class CPU1 {
         return;
       case opInvalid:
         if (!this.raiseException(exceptionInvalidBit)) {
-          this.store_i64_bigint(d, f64SignallingNaNBits);
+          this.storeU64(d, f64SignallingNaNBits);
         }
         return;
       case opSqrt:
         if (sValue < 0) {
           if (!this.raiseException(exceptionInvalidBit)) {
-            this.store_i64_bigint(d, f64SignallingNaNBits);
+            this.storeU64(d, f64SignallingNaNBits);
           }
           return;
         }
@@ -754,7 +754,7 @@ export class CPU1 {
     // TODO: check for underflow?
 
     if (!this.raiseException(exceptionBits)) {
-      this.store_i64_bigint(d, this.tempU64[0]);
+      this.storeU64(d, this.tempU64[0]);
     }
   }
 
@@ -779,13 +779,13 @@ export class CPU1 {
         return;
       case opInvalid:
         if (!this.raiseException(exceptionInvalidBit)) {
-          this.store_i64_bigint(d, f64SignallingNaNBits);
+          this.storeU64(d, f64SignallingNaNBits);
         }
         return;
       case opDivZero:
         if (!this.raiseException(exceptionDivByZeroBit)) {
           const sameSign = (sBits & f64SignBit) == (tBits & f64SignBit)
-          this.store_i64_bigint(d, sameSign ? f64PosInfinityBits : f64NegInfinityBits);
+          this.storeU64(d, sameSign ? f64PosInfinityBits : f64NegInfinityBits);
         }
         return;
       case opAdd:
@@ -846,7 +846,7 @@ export class CPU1 {
 
     if (!this.raiseException(exceptionBits)) {
       // Store the underlying bits to avoid renormalising.
-      this.store_i64_bigint(d, this.tempU64[0]);
+      this.storeU64(d, this.tempU64[0]);
     }
   }
 
@@ -877,7 +877,7 @@ export class CPU1 {
     if (this.raiseException(exceptionBits)) {
       return;
     }
-    this.store_i64_bigint(d, this.tempS64[0]);
+    this.storeU64(d, this.tempS64[0]);
   }
 
   ConvertDToL(d, s, mode) {
@@ -907,7 +907,7 @@ export class CPU1 {
     if (this.raiseException(exceptionBits)) {
       return;
     }
-    this.store_i64_bigint(d, this.tempS64[0]);
+    this.storeU64(d, this.tempS64[0]);
   }
 
   ConvertSToW(d, s, mode) {
@@ -1085,7 +1085,7 @@ export class CPU1 {
    * @param {number} i The register index.
    * @param {bigint} value The value to store.
    */
-  store_i64_bigint(i, value) {
+  storeU64(i, value) {
     const regIdx = this.regIdx64[i];
     this.regU64[regIdx] = value;
   }
