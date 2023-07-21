@@ -2791,9 +2791,7 @@ function generateSDC1(ctx) {
     if (c.checkCopXUsable(1)) {
       const addr = ${genSrcRegS32Lo(b)} + ${o};
       const value = cpu1.load_i64_bigint(${t});
-      const lo = Number(value & 0xffffffffn);
-      const hi = Number(value >> 32n);
-      n64js.store_64(ram, addr, lo, hi);
+      n64js.store_64_bigint(ram, addr, value);
     }
     `;
   return generateMemoryAccessBoilerplate(impl, ctx);
@@ -2806,9 +2804,7 @@ function executeSDC1(i) {
   // FIXME: this can do a single check that the address is in ram
   const addr = cpu0.getRegS32Lo(base(i)) + imms(i);
   const value = cpu1.load_i64_bigint(ft(i));
-  const lo = Number(value & 0xffffffffn);
-  const hi = Number(value >> 32n);
-  n64js.store_64(cpu0.ram, addr, lo, hi);
+  n64js.store_64_bigint(cpu0.ram, addr, value);
 }
 
 function executeSDC2(i) { unimplemented(cpu0.pc, i); }
