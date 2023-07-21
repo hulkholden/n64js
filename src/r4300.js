@@ -1539,6 +1539,19 @@ function executeSUBU(i) {
   cpu0.setRegS32Extend(rd(i), result);
 }
 
+function executeAND(i) {
+  cpu0.setRegU64(rd(i), cpu0.getRegU64(rs(i)) & cpu0.getRegU64(rt(i)));
+}
+function executeOR(i) {
+  cpu0.setRegU64(rd(i), cpu0.getRegU64(rs(i)) | cpu0.getRegU64(rt(i)));
+}
+function executeXOR(i) {
+  cpu0.setRegU64(rd(i), cpu0.getRegU64(rs(i)) ^ cpu0.getRegU64(rt(i)));
+}
+function executeNOR(i) {
+  cpu0.setRegU64(rd(i), ~(cpu0.getRegU64(rs(i)) | cpu0.getRegU64(rt(i))));
+}
+
 function generateTrivialLogical(ctx, op) {
   const d = ctx.instr_rd();
   const s = ctx.instr_rs();
@@ -1550,9 +1563,6 @@ function generateTrivialLogical(ctx, op) {
 }
 
 function generateAND(ctx) { return generateTrivialLogical(ctx, '&'); }
-function executeAND(i) {
-  cpu0.setRegU64(rd(i), cpu0.getRegU64(rs(i)) & cpu0.getRegU64(rt(i)));
-}
 
 function generateOR(ctx) {
   const d = ctx.instr_rd();
@@ -1562,36 +1572,23 @@ function generateOR(ctx) {
   // OR is used to implement CLEAR and MOV
   if (t === 0) {
     const impl = `
-      c.setRegS64LoHi(${d}, ${genSrcRegS32Lo(s)}, ${genSrcRegS32Hi(s)});
+      c.setRegU64(${d}, ${genSrcRegU64(s)});
       `;
     return generateTrivialOpBoilerplate(impl, ctx);
   }
   return generateTrivialLogical(ctx, '|');
 }
 
-function executeOR(i) {
-  cpu0.setRegU64(rd(i), cpu0.getRegU64(rs(i)) | cpu0.getRegU64(rt(i)));
-}
-
 function generateXOR(ctx) { return generateTrivialLogical(ctx, '^'); }
-function executeXOR(i) {
-  cpu0.setRegU64(rd(i), cpu0.getRegU64(rs(i)) ^ cpu0.getRegU64(rt(i)));
-}
 
 function generateNOR(ctx) {
   const d = ctx.instr_rd();
   const s = ctx.instr_rs();
   const t = ctx.instr_rt();
   const impl = `
-    const hi = ~(${genSrcRegS32Hi(s)} | ${genSrcRegS32Hi(t)});
-    const lo = ~(${genSrcRegS32Lo(s)} | ${genSrcRegS32Lo(t)});
-    c.setRegS64LoHi(${d}, lo, hi);
+    c.setRegU64(${d}, ~(${genSrcRegU64(s)} | ${genSrcRegU64(t)}));
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
-}
-
-function executeNOR(i) {
-  cpu0.setRegU64(rd(i), ~(cpu0.getRegU64(rs(i)) | cpu0.getRegU64(rt(i))));
 }
 
 function generateSLT(ctx) {
