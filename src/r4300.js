@@ -1679,14 +1679,14 @@ function executeDSUBU(i) {
 }
 
 function executeMFC0(i) {
-  const control_reg = fs(i);
+  const controlReg = fs(i);
 
   // Check consistency
-  if (control_reg === cpu0_constants.controlCause) {
+  if (controlReg === cpu0_constants.controlCause) {
     checkCauseIP3Consistent();
   }
 
-  switch (control_reg) {
+  switch (controlReg) {
     case cpu0_constants.controlRand:
       cpu0.setRegS32Extend(rt(i), cpu0.getRandom());
       break;
@@ -1701,7 +1701,7 @@ function executeMFC0(i) {
       cpu0.setRegS32Extend(rt(i), cpu0.lastControlRegWrite);
       break;
     default:
-      cpu0.setRegS32Extend(rt(i), cpu0.control[control_reg]);
+      cpu0.setRegS32Extend(rt(i), cpu0.control[controlReg]);
       break;
   }
 }
@@ -1719,38 +1719,38 @@ function generateMTC0(ctx) {
 }
 
 function executeMTC0(i) {
-  const control_reg = fs(i);
-  const new_value = cpu0.getRegU32Lo(rt(i));
+  const controlReg = fs(i);
+  const newValue = cpu0.getRegU32Lo(rt(i));
 
-  cpu0.lastControlRegWrite = new_value;
+  cpu0.lastControlRegWrite = newValue;
 
-  switch (control_reg) {
+  switch (controlReg) {
     case cpu0_constants.controlIndex:
-      cpu0.control[control_reg] = new_value & indexWritableBits;
+      cpu0.control[controlReg] = newValue & indexWritableBits;
       break;
 
     case cpu0_constants.controlEntryLo0:
     case cpu0_constants.controlEntryLo1:
-      cpu0.control[control_reg] = new_value & entryLoWritableBits;
+      cpu0.control[controlReg] = newValue & entryLoWritableBits;
       break;
 
     case cpu0_constants.controlContext:
-      cpu0.control[control_reg] = new_value & contextWriteableBits;
+      cpu0.control[controlReg] = newValue & contextWriteableBits;
       break;
 
     case cpu0_constants.controlPageMask:
-      cpu0.control[control_reg] = new_value & pageMaskWritableBits;
+      cpu0.control[controlReg] = newValue & pageMaskWritableBits;
       break;
 
     case cpu0_constants.controlWired:
-      cpu0.control[control_reg] = new_value & wiredWritableBits;
+      cpu0.control[controlReg] = newValue & wiredWritableBits;
       // Set to top limit on write to wired
       cpu0.control[cpu0_constants.controlRand] = 31;
       break;
 
     case cpu0_constants.controlEntryHi:
       // TODO: bits 8 to 12 are hardcoded to zero.
-      cpu0.control[control_reg] = new_value;
+      cpu0.control[controlReg] = newValue;
       break;
 
     case cpu0_constants.controlRand:
@@ -1761,20 +1761,20 @@ function executeMTC0(i) {
       break;
 
     case cpu0_constants.controlCause:
-      logger.log(`Setting cause register to ${toString32(new_value)}`);
-      n64js.check(new_value === 0, 'Should only write 0 to Cause register.');
-      cpu0.control[control_reg] &= ~causeWritableBits;
-      cpu0.control[control_reg] |= (new_value & causeWritableBits);
+      logger.log(`Setting cause register to ${toString32(newValue)}`);
+      n64js.check(newValue === 0, 'Should only write 0 to Cause register.');
+      cpu0.control[controlReg] &= ~causeWritableBits;
+      cpu0.control[controlReg] |= (newValue & causeWritableBits);
       break;
 
     case cpu0_constants.controlStatus:
-      cpu0.setStatus(new_value);
+      cpu0.setStatus(newValue);
       break;
     case cpu0_constants.controlCount:
-      cpu0.control[control_reg] = new_value;
+      cpu0.control[controlReg] = newValue;
       break;
     case cpu0_constants.controlCompare:
-      cpu0.setCompare(new_value);
+      cpu0.setCompare(newValue);
       break;
 
     case cpu0_constants.controlXContext:
@@ -1785,11 +1785,11 @@ function executeMTC0(i) {
     case cpu0_constants.controlEPC:
     case cpu0_constants.controlTagLo:
     case cpu0_constants.controlTagHi:
-      cpu0.control[control_reg] = new_value;
+      cpu0.control[controlReg] = newValue;
       break;
 
     case cpu0_constants.controlLLAddr:
-      cpu0.control[control_reg] = new_value;
+      cpu0.control[controlReg] = newValue;
       break;
 
     case cpu0_constants.controlInvalid7:
@@ -1804,8 +1804,8 @@ function executeMTC0(i) {
       break;
 
     default:
-      cpu0.control[control_reg] = new_value;
-      logger.log(`Write to cpu0 control register. ${toString32(new_value)} --> ${cop0ControlRegisterNames[control_reg]}`);
+      cpu0.control[controlReg] = newValue;
+      logger.log(`Write to cpu0 control register. ${toString32(newValue)} --> ${cop0ControlRegisterNames[controlReg]}`);
       break;
   }
 }
