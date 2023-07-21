@@ -373,10 +373,14 @@ class CPU0 {
     this.gprS32[r * 2 + 1] = 0;
   }
 
+  getMultLoS64() { return this.multLoS64[0]; }
+  getMultLoU64() { return this.multLoU64[0]; }
   setMultLoS32Extend(v) { this.multLoS64[0] = BigInt.asIntN(32, v); }
   setMultLoS64(v) { this.multLoS64[0] = v; }
   setMultLoU64(v) { this.multLoU64[0] = v; }
-
+  
+  getMultHiS64() { return this.multHiS64[0]; }
+  getMultHiU64() { return this.multHiU64[0]; }
   setMultHiS32Extend(v) { this.multHiS64[0] = BigInt.asIntN(32, v); }
   setMultHiS64(v) { this.multHiS64[0] = v; }
   setMultHiU64(v) { this.multHiU64[0] = v; }
@@ -1286,59 +1290,41 @@ function executeSYNC(i) {
   // Ignored.
 }
 
+function executeMFHI(i) { cpu0.setRegU64(rd(i), cpu0.getMultHiU64()); }
+function executeMFLO(i) { cpu0.setRegU64(rd(i), cpu0.getMultLoU64()); }
+function executeMTHI(i) { cpu0.setMultHiU64(cpu0.getRegU64(rs(i))); }
+function executeMTLO(i) { cpu0.setMultLoU64(cpu0.getRegU64(rs(i))); }
 
 function generateMFHI(ctx) {
   const d = ctx.instr_rd();
   const impl = `
-    c.setRegS64LoHi(${d}, c.multHiS32[0], c.multHiS32[1]);
+    c.setRegU64(${d}, c.getMultHiU64());
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
-}
-
-function executeMFHI(i) {
-  cpu0.setRegS64LoHi(rd(i), cpu0.multHiS32[0], cpu0.multHiS32[1]);
 }
 
 function generateMFLO(ctx) {
   const d = ctx.instr_rd();
   const impl = `
-    c.setRegS64LoHi(${d}, c.multLoS32[0], c.multLoS32[1]);
+    c.setRegU64(${d}, c.getMultLoU64());
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
-}
-
-function executeMFLO(i) {
-  cpu0.setRegS64LoHi(rd(i), cpu0.multLoS32[0], cpu0.multLoS32[1]);
 }
 
 function generateMTHI(ctx) {
   const s = ctx.instr_rs();
   const impl = `
-    c.multHiS32[0] = ${genSrcRegS32Lo(s)};
-    c.multHiS32[1] = ${genSrcRegS32Hi(s)};
-    `;
+    c.setMultHiU64(c.getRegU64(${s}));
+  `;
   return generateTrivialOpBoilerplate(impl, ctx);
-}
-
-function executeMTHI(i) {
-  const s = rs(i);
-  cpu0.multHiS32[0] = cpu0.getRegS32Lo(s);
-  cpu0.multHiS32[1] = cpu0.getRegS32Hi(s);
 }
 
 function generateMTLO(ctx) {
   const s = ctx.instr_rs();
   const impl = `
-    c.multLoS32[0] = ${genSrcRegS32Lo(s)};
-    c.multLoS32[1] = ${genSrcRegS32Hi(s)};
+    c.setMultLoU64(c.getRegU64(${s}));
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
-}
-
-function executeMTLO(i) {
-  const s = rs(i);
-  cpu0.multLoS32[0] = cpu0.getRegS32Lo(s);
-  cpu0.multLoS32[1] = cpu0.getRegS32Hi(s);
 }
 
 function generateMULT(ctx) {
