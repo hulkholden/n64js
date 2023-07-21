@@ -2541,7 +2541,7 @@ function generateLWC1(ctx) {
 
   const impl = `
     if (c.checkCopXUsable(1)) {
-      cpu1.store_i32(${t}, n64js.load_s32(ram, ${genSrcRegS32Lo(b)} + ${o}));
+      cpu1.storeS32(${t}, n64js.load_s32(ram, ${genSrcRegS32Lo(b)} + ${o}));
     }
     `;
   return generateMemoryAccessBoilerplate(impl, ctx);
@@ -2551,7 +2551,7 @@ function executeLWC1(i) {
   if (!cpu0.checkCopXUsable(1)) {
     return;
   }
-  cpu1.store_i32(ft(i), n64js.load_s32(cpu0.ram, cpu0.getRegS32Lo(base(i)) + imms(i)));
+  cpu1.storeS32(ft(i), n64js.load_s32(cpu0.ram, cpu0.getRegS32Lo(base(i)) + imms(i)));
 }
 
 function generateLDC1(ctx) {
@@ -2966,12 +2966,12 @@ function generateMTC1Stub(ctx) {
   ctx.isTrivial = true;
 
   return `
-    cpu1.store_i32(${s}, ${genSrcRegS32Lo(t)});
+    cpu1.storeS32(${s}, ${genSrcRegS32Lo(t)});
     `;
 }
 
 function executeMTC1(i) {
-  cpu1.store_i32(fs(i), cpu0.getRegS32Lo(rt(i)));
+  cpu1.storeS32(fs(i), cpu0.getRegS32Lo(rt(i)));
 }
 
 function generateDMTC1Stub(ctx) {
