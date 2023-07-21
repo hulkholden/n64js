@@ -320,10 +320,10 @@ class CPU0 {
 
     const multHiMem = new ArrayBuffer(2 * 4);
     const multLoMem = new ArrayBuffer(2 * 4);
-    this.multHi = new Uint32Array(multHiMem);
-    this.multLo = new Uint32Array(multLoMem);
-    this.multHi_signed = new Int32Array(multHiMem);
-    this.multLo_signed = new Int32Array(multLoMem);
+    this.multHiU32 = new Uint32Array(multHiMem);
+    this.multLoU32 = new Uint32Array(multLoMem);
+    this.multHiS32 = new Int32Array(multHiMem);
+    this.multLoS32 = new Int32Array(multLoMem);
 
     this.tlbEntries = [];
     for (let i = 0; i < 32; ++i) {
@@ -391,8 +391,8 @@ class CPU0 {
 
     this.events = [];
 
-    this.multLo[0] = this.multLo[1] = 0;
-    this.multHi[0] = this.multHi[1] = 0;
+    this.multLoU32[0] = this.multLoU32[1] = 0;
+    this.multHiU32[0] = this.multHiU32[1] = 0;
 
     this.control[cpu0_constants.controlRand] = 32 - 1;
     this.control[cpu0_constants.controlStatus] = 0x70400004;
@@ -1277,55 +1277,55 @@ function executeSYNC(i) {
 function generateMFHI(ctx) {
   const d = ctx.instr_rd();
   const impl = `
-    c.setRegS64LoHi(${d}, c.multHi_signed[0], c.multHi_signed[1]);
+    c.setRegS64LoHi(${d}, c.multHiS32[0], c.multHiS32[1]);
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
 function executeMFHI(i) {
-  cpu0.setRegS64LoHi(rd(i), cpu0.multHi_signed[0], cpu0.multHi_signed[1]);
+  cpu0.setRegS64LoHi(rd(i), cpu0.multHiS32[0], cpu0.multHiS32[1]);
 }
 
 function generateMFLO(ctx) {
   const d = ctx.instr_rd();
   const impl = `
-    c.setRegS64LoHi(${d}, c.multLo_signed[0], c.multLo_signed[1]);
+    c.setRegS64LoHi(${d}, c.multLoS32[0], c.multLoS32[1]);
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
 function executeMFLO(i) {
-  cpu0.setRegS64LoHi(rd(i), cpu0.multLo_signed[0], cpu0.multLo_signed[1]);
+  cpu0.setRegS64LoHi(rd(i), cpu0.multLoS32[0], cpu0.multLoS32[1]);
 }
 
 function generateMTHI(ctx) {
   const s = ctx.instr_rs();
   const impl = `
-    c.multHi_signed[0] = ${genSrcRegS32Lo(s)};
-    c.multHi_signed[1] = ${genSrcRegS32Hi(s)};
+    c.multHiS32[0] = ${genSrcRegS32Lo(s)};
+    c.multHiS32[1] = ${genSrcRegS32Hi(s)};
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
 function executeMTHI(i) {
   const s = rs(i);
-  cpu0.multHi_signed[0] = cpu0.getRegS32Lo(s);
-  cpu0.multHi_signed[1] = cpu0.getRegS32Hi(s);
+  cpu0.multHiS32[0] = cpu0.getRegS32Lo(s);
+  cpu0.multHiS32[1] = cpu0.getRegS32Hi(s);
 }
 
 function generateMTLO(ctx) {
   const s = ctx.instr_rs();
   const impl = `
-    c.multLo_signed[0] = ${genSrcRegS32Lo(s)};
-    c.multLo_signed[1] = ${genSrcRegS32Hi(s)};
+    c.multLoS32[0] = ${genSrcRegS32Lo(s)};
+    c.multLoS32[1] = ${genSrcRegS32Hi(s)};
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
 function executeMTLO(i) {
   const s = rs(i);
-  cpu0.multLo_signed[0] = cpu0.getRegS32Lo(s);
-  cpu0.multLo_signed[1] = cpu0.getRegS32Hi(s);
+  cpu0.multLoS32[0] = cpu0.getRegS32Lo(s);
+  cpu0.multLoS32[1] = cpu0.getRegS32Hi(s);
 }
 
 function generateMULT(ctx) {
@@ -1337,10 +1337,10 @@ function generateMULT(ctx) {
     const result = BigInt(${genSrcRegS32Lo(s)}) * BigInt(${genSrcRegS32Lo(t)});
     const lo = result & 0xffffffffn;
     const hi = result >> 32n;
-    c.multLo[0] = Number(lo);
-    c.multLo[1] = Number(lo >> 31n);
-    c.multHi[0] = Number(hi);
-    c.multHi[1] = Number(hi >> 31n);
+    c.multLoU32[0] = Number(lo);
+    c.multLoU32[1] = Number(lo >> 31n);
+    c.multHiU32[0] = Number(hi);
+    c.multHiU32[1] = Number(hi >> 31n);
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
@@ -1350,10 +1350,10 @@ function executeMULT(i) {
   const lo = result & 0xffffffffn;
   const hi = result >> 32n;
 
-  cpu0.multLo[0] = Number(lo);
-  cpu0.multLo[1] = Number(lo >> 31n);
-  cpu0.multHi[0] = Number(hi);
-  cpu0.multHi[1] = Number(hi >> 31n);
+  cpu0.multLoU32[0] = Number(lo);
+  cpu0.multLoU32[1] = Number(lo >> 31n);
+  cpu0.multHiU32[0] = Number(hi);
+  cpu0.multHiU32[1] = Number(hi >> 31n);
 }
 
 function generateMULTU(ctx) {
@@ -1365,10 +1365,10 @@ function generateMULTU(ctx) {
     const result = BigInt(${genSrcRegU32Lo(s)}) * BigInt(${genSrcRegU32Lo(t)});
     const lo = result & 0xffffffffn;
     const hi = result >> 32n;
-    c.multLo[0] = Number(lo);
-    c.multLo[1] = Number(lo >> 31n);
-    c.multHi[0] = Number(hi);
-    c.multHi[1] = Number(hi >> 31n);
+    c.multLoU32[0] = Number(lo);
+    c.multLoU32[1] = Number(lo >> 31n);
+    c.multHiU32[0] = Number(hi);
+    c.multHiU32[1] = Number(hi >> 31n);
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
@@ -1378,26 +1378,26 @@ function executeMULTU(i) {
   const lo = result & 0xffffffffn;
   const hi = result >> 32n;
 
-  cpu0.multLo[0] = Number(lo);
-  cpu0.multLo[1] = Number(lo >> 31n);
-  cpu0.multHi[0] = Number(hi);
-  cpu0.multHi[1] = Number(hi >> 31n);
+  cpu0.multLoU32[0] = Number(lo);
+  cpu0.multLoU32[1] = Number(lo >> 31n);
+  cpu0.multHiU32[0] = Number(hi);
+  cpu0.multHiU32[1] = Number(hi >> 31n);
 }
 
 function executeDMULT(i) {
   const result = cpu0.getRegS64(rs(i)) * cpu0.getRegS64(rt(i));
-  cpu0.multLo[0] = Number(result & 0xffffffffn);
-  cpu0.multLo[1] = Number((result >> 32n) & 0xffffffffn);
-  cpu0.multHi[0] = Number((result >> 64n) & 0xffffffffn);
-  cpu0.multHi[1] = Number((result >> 96n) & 0xffffffffn);
+  cpu0.multLoU32[0] = Number(result & 0xffffffffn);
+  cpu0.multLoU32[1] = Number((result >> 32n) & 0xffffffffn);
+  cpu0.multHiU32[0] = Number((result >> 64n) & 0xffffffffn);
+  cpu0.multHiU32[1] = Number((result >> 96n) & 0xffffffffn);
 }
 
 function executeDMULTU(i) {
   const result = cpu0.getRegU64(rs(i)) * cpu0.getRegU64(rt(i));
-  cpu0.multLo[0] = Number(result & 0xffffffffn);
-  cpu0.multLo[1] = Number((result >> 32n) & 0xffffffffn);
-  cpu0.multHi[0] = Number((result >> 64n) & 0xffffffffn);
-  cpu0.multHi[1] = Number((result >> 96n) & 0xffffffffn);
+  cpu0.multLoU32[0] = Number(result & 0xffffffffn);
+  cpu0.multLoU32[1] = Number((result >> 32n) & 0xffffffffn);
+  cpu0.multHiU32[0] = Number((result >> 64n) & 0xffffffffn);
+  cpu0.multHiU32[1] = Number((result >> 96n) & 0xffffffffn);
 }
 
 function executeDIV(i) {
@@ -1412,10 +1412,10 @@ function executeDIV(i) {
     lo = dividend < 0 ? 1 : -1;
     hi = dividend;
   }
-  cpu0.multLo[0] = lo;
-  cpu0.multLo[1] = lo >> 31;
-  cpu0.multHi[0] = hi;
-  cpu0.multHi[1] = hi >> 31;
+  cpu0.multLoU32[0] = lo;
+  cpu0.multLoU32[1] = lo >> 31;
+  cpu0.multHiU32[0] = hi;
+  cpu0.multHiU32[1] = hi >> 31;
 }
 
 function executeDIVU(i) {
@@ -1431,10 +1431,10 @@ function executeDIVU(i) {
     hi = dividend;
   }
 
-  cpu0.multLo[0] = lo;
-  cpu0.multLo[1] = lo >> 31;
-  cpu0.multHi[0] = hi;
-  cpu0.multHi[1] = hi >> 31;
+  cpu0.multLoU32[0] = lo;
+  cpu0.multLoU32[1] = lo >> 31;
+  cpu0.multHiU32[0] = hi;
+  cpu0.multHiU32[1] = hi >> 31;
 }
 
 function executeDDIV(i) {
@@ -1449,10 +1449,10 @@ function executeDDIV(i) {
     lo = dividend < 0 ? 1n : -1n;
     hi = dividend;
   }
-  cpu0.multLo[0] = Number(lo & 0xffffffffn);
-  cpu0.multLo[1] = Number((lo >> 32n) & 0xffffffffn);
-  cpu0.multHi[0] = Number(hi & 0xffffffffn);
-  cpu0.multHi[1] = Number((hi >> 32n) & 0xffffffffn);
+  cpu0.multLoU32[0] = Number(lo & 0xffffffffn);
+  cpu0.multLoU32[1] = Number((lo >> 32n) & 0xffffffffn);
+  cpu0.multHiU32[0] = Number(hi & 0xffffffffn);
+  cpu0.multHiU32[1] = Number((hi >> 32n) & 0xffffffffn);
 }
 
 function executeDDIVU(i) {
@@ -1468,10 +1468,10 @@ function executeDDIVU(i) {
     hi = dividend;
   }
 
-  cpu0.multLo[0] = Number(lo & 0xffffffffn);
-  cpu0.multLo[1] = Number((lo >> 32n) & 0xffffffffn);
-  cpu0.multHi[0] = Number(hi & 0xffffffffn);
-  cpu0.multHi[1] = Number((hi >> 32n) & 0xffffffffn);
+  cpu0.multLoU32[0] = Number(lo & 0xffffffffn);
+  cpu0.multLoU32[1] = Number((lo >> 32n) & 0xffffffffn);
+  cpu0.multHiU32[0] = Number(hi & 0xffffffffn);
+  cpu0.multHiU32[1] = Number((hi >> 32n) & 0xffffffffn);
 }
 
 function generateADD(ctx) {
@@ -3898,9 +3898,9 @@ function checkSyncState(sync, pc) {
   }
 
   // if(0) {
-  //   if (!sync.sync32(cpu0.multLo[0], 'multlo'))
+  //   if (!sync.sync32(cpu0.multLoU32[0], 'multlo'))
   //     return false;
-  //   if (!sync.sync32(cpu0.multHi[0], 'multhi'))
+  //   if (!sync.sync32(cpu0.multHiU32[0], 'multhi'))
   //     return false;
   // }
 
