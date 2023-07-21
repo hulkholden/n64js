@@ -319,11 +319,16 @@ class CPU0 {
     this.events = [];
 
     const multHiMem = new ArrayBuffer(2 * 4);
-    const multLoMem = new ArrayBuffer(2 * 4);
     this.multHiU32 = new Uint32Array(multHiMem);
-    this.multLoU32 = new Uint32Array(multLoMem);
     this.multHiS32 = new Int32Array(multHiMem);
+    this.multHiU64 = new BigUint64Array(multHiMem);
+    this.multHiS64 = new BigInt64Array(multHiMem);
+    
+    const multLoMem = new ArrayBuffer(2 * 4);
+    this.multLoU32 = new Uint32Array(multLoMem);
     this.multLoS32 = new Int32Array(multLoMem);
+    this.multLoU64 = new BigUint64Array(multLoMem);
+    this.multLoS64 = new BigInt64Array(multLoMem);
 
     this.tlbEntries = [];
     for (let i = 0; i < 32; ++i) {
@@ -366,6 +371,13 @@ class CPU0 {
   setRegU32Extend(r, v) {
     this.gprS32[r * 2 + 0] = v;
     this.gprS32[r * 2 + 1] = 0;
+  }
+
+  setMultLoS32Extend(v) {
+    this.multLoS64[0] = BigInt.asIntN(32, v);
+  }
+  setMultHiS32Extend(v) {
+    this.multHiS64[0] = BigInt.asIntN(32, v);
   }
 
   reset() {
@@ -1329,59 +1341,43 @@ function executeMTLO(i) {
 }
 
 function generateMULT(ctx) {
-  const d = ctx.instr_rd();
   const s = ctx.instr_rs();
   const t = ctx.instr_rt();
 
   const impl = `
     const result = BigInt(${genSrcRegS32Lo(s)}) * BigInt(${genSrcRegS32Lo(t)});
-    const lo = result & 0xffffffffn;
-    const hi = result >> 32n;
-    c.multLoU32[0] = Number(lo);
-    c.multLoU32[1] = Number(lo >> 31n);
-    c.multHiU32[0] = Number(hi);
-    c.multHiU32[1] = Number(hi >> 31n);
+    c.setMultLoS32Extend(result & 0xffffffffn);
+    c.setMultHiS32Extend(result >> 32n);
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
 function executeMULT(i) {
   const result = BigInt(cpu0.getRegS32Lo(rs(i))) * BigInt(cpu0.getRegS32Lo(rt(i)));
-  const lo = result & 0xffffffffn;
-  const hi = result >> 32n;
-
-  cpu0.multLoU32[0] = Number(lo);
-  cpu0.multLoU32[1] = Number(lo >> 31n);
-  cpu0.multHiU32[0] = Number(hi);
-  cpu0.multHiU32[1] = Number(hi >> 31n);
+  // TODO: verify if these results should be sign extended or not.
+  // n64-systemtest doesn't seem to cover MULT.
+  cpu0.setMultLoS32Extend(result & 0xffffffffn);
+  cpu0.setMultHiS32Extend(result >> 32n);
 }
 
 function generateMULTU(ctx) {
-  const d = ctx.instr_rd();
   const s = ctx.instr_rs();
   const t = ctx.instr_rt();
 
   const impl = `
     const result = BigInt(${genSrcRegU32Lo(s)}) * BigInt(${genSrcRegU32Lo(t)});
-    const lo = result & 0xffffffffn;
-    const hi = result >> 32n;
-    c.multLoU32[0] = Number(lo);
-    c.multLoU32[1] = Number(lo >> 31n);
-    c.multHiU32[0] = Number(hi);
-    c.multHiU32[1] = Number(hi >> 31n);
+    c.setMultLoS32Extend(result & 0xffffffffn);
+    c.setMultHiS32Extend(result >> 32n);
     `;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
 function executeMULTU(i) {
   const result = BigInt(cpu0.getRegU32Lo(rs(i))) * BigInt(cpu0.getRegU32Lo(rt(i)));
-  const lo = result & 0xffffffffn;
-  const hi = result >> 32n;
-
-  cpu0.multLoU32[0] = Number(lo);
-  cpu0.multLoU32[1] = Number(lo >> 31n);
-  cpu0.multHiU32[0] = Number(hi);
-  cpu0.multHiU32[1] = Number(hi >> 31n);
+  // TODO: verify if these results should be sign extended or not.
+  // n64-systemtest doesn't seem to cover MULT.
+  cpu0.setMultLoS32Extend(result & 0xffffffffn);
+  cpu0.setMultHiS32Extend(result >> 32n);
 }
 
 function executeDMULT(i) {
