@@ -272,10 +272,10 @@ export class CPU1 {
     this.control = new Uint32Array(32);
 
     this.mem     = new ArrayBuffer(32 * 8);   // 32 64-bit regs
-    this.float32 = new Float32Array(this.mem);
-    this.float64 = new Float64Array(this.mem);
-    this.int32   = new Int32Array(this.mem);
-    this.uint32  = new Uint32Array(this.mem);
+    this.regF32 = new Float32Array(this.mem);
+    this.regF64 = new Float64Array(this.mem);
+    this.regS32 = new Int32Array(this.mem);
+    this.regU32 = new Uint32Array(this.mem);
 
     this.regIdx32 = new Uint32Array(new ArrayBuffer(32 * 4));
     this.regIdx64 = new Uint32Array(new ArrayBuffer(32 * 4));
@@ -296,7 +296,7 @@ export class CPU1 {
   reset() {
     for (var i = 0; i < 32; ++i) {
       this.control[i] = 0;
-      this.int32[i]   = 0;
+      this.regS32[i]   = 0;
     }
 
     this.control[0] = 0x00000511;
@@ -1086,8 +1086,8 @@ export class CPU1 {
    */
   store_64_hi_lo(i, lo, hi) {
     const regIdx = this.regIdx64[i];
-    this.int32[(regIdx * 2) + 0] = lo;
-    this.int32[(regIdx * 2) + 1] = hi;
+    this.regS32[(regIdx * 2) + 0] = lo;
+    this.regS32[(regIdx * 2) + 1] = hi;
   }
 
   /**
@@ -1115,7 +1115,7 @@ export class CPU1 {
    */
   store_f32(i, value) {
     const regIdx = this.regIdx32[i];
-    this.float32[regIdx] = value;
+    this.regF32[regIdx] = value;
   }
 
   /**
@@ -1124,7 +1124,7 @@ export class CPU1 {
    */
   store_i32(i, value) {
     const regIdx = this.regIdx32[i];
-    this.int32[regIdx] = value | 0;
+    this.regS32[regIdx] = value | 0;
   }
 
   /**
@@ -1133,7 +1133,7 @@ export class CPU1 {
    */
   store_f64(i, value) {
     const regIdx = this.regIdx64[i];
-    this.float64[regIdx] = value;
+    this.regF64[regIdx] = value;
   }
 
   /**
@@ -1142,7 +1142,7 @@ export class CPU1 {
    */
   load_f32(i) {
     const regIdx = this.regIdx32[i];
-    return this.float32[regIdx];
+    return this.regF32[regIdx];
   }
 
   /**
@@ -1151,7 +1151,7 @@ export class CPU1 {
    */
   load_i32(i) {
     const regIdx = this.regIdx32[i];
-    return this.int32[regIdx];
+    return this.regS32[regIdx];
   }
 
   /**
@@ -1160,7 +1160,7 @@ export class CPU1 {
    */
   load_f64(i) {
     const regIdx = this.regIdx64[i];
-    return this.float64[regIdx];
+    return this.regF64[regIdx];
   }
 
   /**
@@ -1169,8 +1169,8 @@ export class CPU1 {
    */
   load_i64_bigint(i) {
     const regIdx = this.regIdx64[i];
-    const lo = this.int32[(regIdx * 2)];
-    const hi = this.int32[(regIdx * 2) + 1];
+    const lo = this.regS32[(regIdx * 2)];
+    const hi = this.regS32[(regIdx * 2) + 1];
     return (BigInt(hi) << 32n) + BigInt(lo >>> 0);
   }
 
@@ -1185,9 +1185,9 @@ export class CPU1 {
   dump() {
     let s = 'Regs: ';
     for (let i = 0; i < 4; +i++) {
-      s += toString32(this.int32[i]) + ', ';
+      s += toString32(this.regS32[i]) + ', ';
     }
     logger.log(s);
-    logger.log(`float64: [${this.float64[0]}, ${this.float64[1]}, ...]`);
+    logger.log(`float64: [${this.regF64[0]}, ${this.regF64[1]}, ...]`);
   }
 }
