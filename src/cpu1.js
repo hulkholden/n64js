@@ -276,6 +276,8 @@ export class CPU1 {
     this.regF64 = new Float64Array(this.mem);
     this.regS32 = new Int32Array(this.mem);
     this.regU32 = new Uint32Array(this.mem);
+    this.regS64 = new BigInt64Array(this.mem);
+    this.regU64 = new BigUint64Array(this.mem);
 
     this.regIdx32 = new Uint32Array(new ArrayBuffer(32 * 4));
     this.regIdx64 = new Uint32Array(new ArrayBuffer(32 * 4));
@@ -296,7 +298,7 @@ export class CPU1 {
   reset() {
     for (var i = 0; i < 32; ++i) {
       this.control[i] = 0;
-      this.regS32[i]   = 0;
+      this.regS64[i] = 0n;
     }
 
     this.control[0] = 0x00000511;
