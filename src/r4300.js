@@ -2336,35 +2336,16 @@ function generateSLTI(ctx) {
   const t = ctx.instr_rt();
 
   const immediate = imms(ctx.instruction);
-  const imm_hi = immediate >> 31;
-  const imm_unsigned = immediate >>> 0;
-
   const impl = `
-    let result;
-    if (${genSrcRegS32Hi(s)} === ${imm_hi}) {
-      result = (${genSrcRegU32Lo(s)} < ${imm_unsigned}) ? 1 : 0;
-    } else {
-      result = (${genSrcRegS32Hi(s)} < ${imm_hi}) ? 1 : 0;
-    }
-    c.setRegU32Extend(${t}, result);
+    c.setRegU32Extend(${t}, c.getRegS64(${s}) < ${immediate}n ? 1 : 0);
     `;
 
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
 function executeSLTI(i) {
-  const s = rs(i);
-  const immediate = imms(i);
-  const imm_hi = immediate >> 31;
-  const s_hi = cpu0.getRegS32Hi(s);
-
-  let result;
-  if (s_hi === imm_hi) {
-    result = (cpu0.getRegU32Lo(s) < (immediate >>> 0)) ? 1 : 0;    // NB signed compare
-  } else {
-    result = (s_hi < imm_hi) ? 1 : 0;
-  }
-  cpu0.setRegU32Extend(rt(i), result);
+  const immediate = BigInt(imms(i));
+  cpu0.setRegU32Extend(rt(i), cpu0.getRegS64(rs(i)) < immediate ? 1 : 0);
 }
 
 function generateSLTIU(ctx) {
