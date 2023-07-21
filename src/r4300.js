@@ -2501,35 +2501,15 @@ function generateLD(ctx) {
   const o = ctx.instr_imms();
 
   const impl = `
-    const addr = ${genSrcRegS32Lo(b)} + ${o};
-    let lo, hi;
-    if (addr < -2139095040) {
-      const phys = (addr + 0x80000000) | 0;
-      hi = ((ram[phys  ] << 24) | (ram[phys+1] << 16) | (ram[phys+2] << 8) | ram[phys+3]);
-      lo = ((ram[phys+4] << 24) | (ram[phys+5] << 16) | (ram[phys+6] << 8) | ram[phys+7]);
-    } else {
-      hi = lw_slow(addr);
-      lo = lw_slow(addr + 4);
-    }
-    c.setRegS64LoHi(${t}, lo, hi);
+    const value = n64js.load_u64_bigint(ram, ${genSrcRegS32Lo(b)} + ${o});
+    c.setRegU64(${t}, value);
     `;
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
 
 function executeLD(i) {
-  const addr = cpu0.getRegS32Lo(base(i)) + imms(i);
-
-  let lo, hi;
-  if (addr < -2139095040) {
-    const phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
-    const ram = cpu0.ram;
-    hi = ((ram[phys] << 24) | (ram[phys + 1] << 16) | (ram[phys + 2] << 8) | ram[phys + 3]) | 0;
-    lo = ((ram[phys + 4] << 24) | (ram[phys + 5] << 16) | (ram[phys + 6] << 8) | ram[phys + 7]) | 0;
-  } else {
-    hi = lw_slow(addr);
-    lo = lw_slow(addr + 4);
-  }
-  cpu0.setRegS64LoHi(rt(i), lo, hi);
+  const value = n64js.load_u64_bigint(cpu0.ram, cpu0.getRegS32Lo(base(i)) + imms(i));
+  cpu0.setRegU64(rt(i), value);
 }
 
 function generateLWC1(ctx) {
@@ -2563,18 +2543,8 @@ function generateLDC1(ctx) {
 
   const impl = `
     if (c.checkCopXUsable(1)) {
-      let lo;
-      let hi;
-      const addr = ${genSrcRegS32Lo(b)} + ${o};
-      if (addr < -2139095040) {
-        const phys = (addr + 0x80000000) | 0;
-        hi = ((ram[phys  ] << 24) | (ram[phys+1] << 16) | (ram[phys+2] << 8) | ram[phys+3]) | 0; // FIXME: is the |0 needed?
-        lo = ((ram[phys+4] << 24) | (ram[phys+5] << 16) | (ram[phys+6] << 8) | ram[phys+7]) | 0;
-      } else {
-        hi = lw_slow(addr);
-        lo = lw_slow(addr + 4);
-      }
-      cpu1.store_64_hi_lo(${t}, lo, hi);
+      const value = n64js.load_u64_bigint(ram, ${genSrcRegS32Lo(b)} + ${o});
+      cpu1.store_i64_bigint(${t}, value);
     }
     `;
   return generateMemoryAccessBoilerplate(impl, ctx);
@@ -2585,20 +2555,8 @@ function executeLDC1(i) {
     return;
   }
 
-  const addr = cpu0.getRegS32Lo(base(i)) + imms(i);
-  let lo;
-  let hi;
-  if (addr < -2139095040) {
-    const phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
-    const ram = cpu0.ram;
-    hi = ((ram[phys] << 24) | (ram[phys + 1] << 16) | (ram[phys + 2] << 8) | ram[phys + 3]) | 0;
-    lo = ((ram[phys + 4] << 24) | (ram[phys + 5] << 16) | (ram[phys + 6] << 8) | ram[phys + 7]) | 0;
-  } else {
-    hi = lw_slow(addr);
-    lo = lw_slow(addr + 4);
-  }
-
-  cpu1.store_64_hi_lo(ft(i), lo, hi);
+  const value = n64js.load_u64_bigint(cpu0.ram, cpu0.getRegS32Lo(base(i)) + imms(i));
+  cpu1.store_i64_bigint(ft(i), value);
 }
 
 function executeLDC2(i) { unimplemented(cpu0.pc, i); }
