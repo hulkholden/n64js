@@ -374,12 +374,10 @@ class CPU0 {
   }
 
   setMultLoS32Extend(v) { this.multLoS64[0] = BigInt.asIntN(32, v); }
-  setMultLoU32Extend(v) { this.multLoU64[0] = BigInt.asUintN(32, v); }
   setMultLoS64(v) { this.multLoS64[0] = v; }
   setMultLoU64(v) { this.multLoU64[0] = v; }
 
   setMultHiS32Extend(v) { this.multHiS64[0] = BigInt.asIntN(32, v); }
-  setMultHiU32Extend(v) { this.multHiU64[0] = BigInt.asUintN(32, v); }
   setMultHiS64(v) { this.multHiS64[0] = v; }
   setMultHiU64(v) { this.multHiU64[0] = v; }
 
@@ -1407,10 +1405,9 @@ function executeDIV(i) {
     lo = dividend < 0 ? 1 : -1;
     hi = dividend;
   }
-  cpu0.multLoU32[0] = lo;
-  cpu0.multLoU32[1] = lo >> 31;
-  cpu0.multHiU32[0] = hi;
-  cpu0.multHiU32[1] = hi >> 31;
+  // 32 bit result is sign extended to 64 bits.
+  cpu0.setMultLoS32Extend(BigInt(lo));
+  cpu0.setMultHiS32Extend(BigInt(hi));
 }
 
 function executeDIVU(i) {
@@ -1425,11 +1422,9 @@ function executeDIVU(i) {
     lo = -1;
     hi = dividend;
   }
-
-  cpu0.multLoU32[0] = lo;
-  cpu0.multLoU32[1] = lo >> 31;
-  cpu0.multHiU32[0] = hi;
-  cpu0.multHiU32[1] = hi >> 31;
+  // 32 bit result is sign extended to 64 bits.
+  cpu0.setMultLoS32Extend(BigInt(lo));
+  cpu0.setMultHiS32Extend(BigInt(hi));
 }
 
 function executeDDIV(i) {
@@ -1444,10 +1439,8 @@ function executeDDIV(i) {
     lo = dividend < 0 ? 1n : -1n;
     hi = dividend;
   }
-  cpu0.multLoU32[0] = Number(lo & 0xffffffffn);
-  cpu0.multLoU32[1] = Number((lo >> 32n) & 0xffffffffn);
-  cpu0.multHiU32[0] = Number(hi & 0xffffffffn);
-  cpu0.multHiU32[1] = Number((hi >> 32n) & 0xffffffffn);
+  cpu0.setMultLoS64(lo);
+  cpu0.setMultHiS64(hi);
 }
 
 function executeDDIVU(i) {
@@ -1462,11 +1455,8 @@ function executeDDIVU(i) {
     lo = -1n;
     hi = dividend;
   }
-
-  cpu0.multLoU32[0] = Number(lo & 0xffffffffn);
-  cpu0.multLoU32[1] = Number((lo >> 32n) & 0xffffffffn);
-  cpu0.multHiU32[0] = Number(hi & 0xffffffffn);
-  cpu0.multHiU32[1] = Number((hi >> 32n) & 0xffffffffn);
+  cpu0.setMultLoU64(lo);
+  cpu0.setMultHiU64(hi);
 }
 
 function generateADD(ctx) {
