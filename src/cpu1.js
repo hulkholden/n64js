@@ -1097,9 +1097,8 @@ export class CPU1 {
    * @param {bigint} value The value to store.
    */
   store_i64_bigint(i, value) {
-    const lo = Number(value & 0xffffffffn);
-    const hi = Number(value >> 32n);
-    this.store_64_hi_lo(i, lo, hi);
+    const regIdx = this.regIdx64[i];
+    this.regU64[regIdx] = value;
   }
 
   /**
