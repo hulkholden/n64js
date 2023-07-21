@@ -43,9 +43,9 @@ describe('CPU1', () => {
       assert.equal(512, cpu.uint32[3]);
     });
   });
-  describe('store_f64', () => {
+  describe('storeF64', () => {
     it('should store the correct values', () => {
-      cpu.store_f64(4, 3.142);
+      cpu.storeF64(4, 3.142);
       assert.equal(3.142, cpu.float64[2]);
     });
   });

@@ -452,7 +452,7 @@ export class CPU1 {
 
   CVT_S_W(d, s) {
     this.clearCause();
-    this.store_f32(d, this.load_i32(s));
+    this.storeF32(d, this.load_i32(s));
   }
 
   CVT_S_L(d, s) {
@@ -668,7 +668,7 @@ export class CPU1 {
 
   CVT_D_W(d, s) {
     this.clearCause();
-    this.store_f64(d, this.load_i32(s));
+    this.storeF64(d, this.load_i32(s));
   }
 
   CVT_D_L(d, s) {
@@ -1094,7 +1094,7 @@ export class CPU1 {
    * @param {number} i The register index.
    * @param {number} value The value to store.
    */
-  store_f32(i, value) {
+  storeF32(i, value) {
     const regIdx = this.regIdx32[i];
     this.regF32[regIdx] = value;
   }
@@ -1112,7 +1112,7 @@ export class CPU1 {
    * @param {number} i The register index.
    * @param {number} value The value to store.
    */
-  store_f64(i, value) {
+  storeF64(i, value) {
     const regIdx = this.regIdx64[i];
     this.regF64[regIdx] = value;
   }
