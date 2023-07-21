@@ -1952,8 +1952,7 @@ function generateBEQ(ctx) {
     }
     impl += `c.delayPC = ${toString32(addr)};\n`;
   } else {
-    impl += `if (${genSrcRegS32Hi(s)} === ${genSrcRegS32Hi(t)} &&\n`;
-    impl += `    ${genSrcRegS32Lo(s)} === ${genSrcRegS32Lo(t)} ) {\n`;
+    impl += `if (${genSrcRegU64(s)} === ${genSrcRegU64(t)}) {\n`;
     if (off === -1) {
       impl += '  c.speedHack();\n';
       ctx.bailOut = true;
@@ -1966,10 +1965,7 @@ function generateBEQ(ctx) {
 }
 
 function executeBEQ(i) {
-  const s = rs(i);
-  const t = rt(i);
-  if (cpu0.getRegS32Hi(s) === cpu0.getRegS32Hi(t) &&
-    cpu0.getRegS32Lo(s) === cpu0.getRegS32Lo(t)) {
+  if (cpu0.getRegU64(rs(i)) === cpu0.getRegU64(rt(i))) {
     if (offset(i) === -1)
       cpu0.speedHack();
     performBranch(branchAddress(cpu0.pc, i));
@@ -1979,12 +1975,10 @@ function executeBEQ(i) {
 function generateBEQL(ctx) {
   const s = ctx.instr_rs();
   const t = ctx.instr_rt();
-  const off = ctx.instr_offset();
   const addr = branchAddress(ctx.pc, ctx.instruction);
 
   const impl = `
-    if (${genSrcRegS32Hi(s)} === ${genSrcRegS32Hi(t)} &&
-        ${genSrcRegS32Lo(s)} === ${genSrcRegS32Lo(t)} ) {
+    if (${genSrcRegU64(s)} === ${genSrcRegU64(t)}) {
       c.delayPC = ${toString32(addr)};
     } else {
       c.nextPC += 4;
@@ -1995,10 +1989,7 @@ function generateBEQL(ctx) {
 }
 
 function executeBEQL(i) {
-  const s = rs(i);
-  const t = rt(i);
-  if (cpu0.getRegS32Hi(s) === cpu0.getRegS32Hi(t) &&
-    cpu0.getRegS32Lo(s) === cpu0.getRegS32Lo(t)) {
+  if (cpu0.getRegU64(rs(i)) === cpu0.getRegU64(rt(i))) {
     performBranch(branchAddress(cpu0.pc, i));
   } else {
     cpu0.nextPC += 4;   // skip the next instruction
@@ -2012,8 +2003,7 @@ function generateBNE(ctx) {
   const addr = branchAddress(ctx.pc, ctx.instruction);
 
   let impl = '';
-  impl += `if (${genSrcRegS32Hi(s)} !== ${genSrcRegS32Hi(t)} ||\n`;
-  impl += `    ${genSrcRegS32Lo(s)} !== ${genSrcRegS32Lo(t)} ) {\n`;
+  impl += `if (${genSrcRegU64(s)} !== ${genSrcRegU64(t)}) {\n`;
   if (off === -1) {
     impl += '  c.speedHack();\n';
     ctx.bailOut = true;
@@ -2025,10 +2015,7 @@ function generateBNE(ctx) {
 }
 
 function executeBNE(i) {
-  const s = rs(i);
-  const t = rt(i);
-  if (cpu0.getRegS32Hi(s) !== cpu0.getRegS32Hi(t) ||
-    cpu0.getRegS32Lo(s) !== cpu0.getRegS32Lo(t)) {      // NB: if imms(i) == -1 then this is a branch to self/busywait
+  if (cpu0.getRegU64(rs(i)) !== cpu0.getRegU64(rt(i))) {
     performBranch(branchAddress(cpu0.pc, i));
   }
 }
@@ -2040,8 +2027,7 @@ function generateBNEL(ctx) {
   const addr = branchAddress(ctx.pc, ctx.instruction);
 
   const impl = `
-    if (${genSrcRegS32Hi(s)} !== ${genSrcRegS32Hi(t)} ||
-        ${genSrcRegS32Lo(s)} !== ${genSrcRegS32Lo(t)} ) {
+    if (${genSrcRegU64(s)} !== ${genSrcRegU64(t)}) {
       c.delayPC = ${toString32(addr)};
     } else {
       c.nextPC += 4;
@@ -2052,10 +2038,7 @@ function generateBNEL(ctx) {
 }
 
 function executeBNEL(i) {
-  const s = rs(i);
-  const t = rt(i);
-  if (cpu0.getRegS32Hi(s) !== cpu0.getRegS32Hi(t) ||
-    cpu0.getRegS32Lo(s) !== cpu0.getRegS32Lo(t)) {
+  if (cpu0.getRegU64(rs(i)) !== cpu0.getRegU64(rt(i))) {
     performBranch(branchAddress(cpu0.pc, i));
   } else {
     cpu0.nextPC += 4;   // skip the next instruction
@@ -2068,8 +2051,7 @@ function generateBLEZ(ctx) {
   const addr = branchAddress(ctx.pc, ctx.instruction);
 
   const impl = `
-    if ( ${genSrcRegS32Hi(s)} < 0 ||
-        (${genSrcRegS32Hi(s)} === 0 && ${genSrcRegS32Lo(s)} === 0) ) {
+    if ( ${genSrcRegS64(s)} <= 0n) {
       c.delayPC = ${toString32(addr)};
     }
     `;
@@ -2078,18 +2060,14 @@ function generateBLEZ(ctx) {
 }
 
 function executeBLEZ(i) {
-  const s = rs(i);
-  if (cpu0.getRegS32Hi(s) < 0 ||
-    (cpu0.getRegS32Hi(s) === 0 && cpu0.getRegS32Lo(s) === 0)) {
+  if (cpu0.getRegS64(rs(i)) <= 0n) {
     performBranch(branchAddress(cpu0.pc, i));
   }
 }
 
 function executeBLEZL(i) {
-  const s = rs(i);
   // NB: if rs == r0 then this branch is always taken
-  if (cpu0.getRegS32Hi(s) < 0 ||
-    (cpu0.getRegS32Hi(s) === 0 && cpu0.getRegS32Lo(s) === 0)) {
+  if (cpu0.getRegS64(rs(i)) <= 0n) {
     performBranch(branchAddress(cpu0.pc, i));
   } else {
     cpu0.nextPC += 4;   // skip the next instruction
@@ -2102,8 +2080,7 @@ function generateBGTZ(ctx) {
   const addr = branchAddress(ctx.pc, ctx.instruction);
 
   const impl = `
-    if (${genSrcRegS32Hi(s)} >= 0 &&
-        (${genSrcRegS32Hi(s)} !== 0 || ${genSrcRegS32Lo(s)} !== 0)) {
+    if (${genSrcRegS64(s)} > 0) {
       c.delayPC = ${toString32(addr)};
     }
     `;
@@ -2112,17 +2089,13 @@ function generateBGTZ(ctx) {
 }
 
 function executeBGTZ(i) {
-  const s = rs(i);
-  if (cpu0.getRegS32Hi(s) >= 0 &&
-    (cpu0.getRegS32Hi(s) !== 0 || cpu0.getRegS32Lo(s) !== 0)) {
+  if (cpu0.getRegS64(rs(i)) > 0n) {
     performBranch(branchAddress(cpu0.pc, i));
   }
 }
 
 function executeBGTZL(i) {
-  const s = rs(i);
-  if (cpu0.getRegS32Hi(s) >= 0 &&
-    (cpu0.getRegS32Hi(s) !== 0 || cpu0.getRegS32Lo(s) !== 0)) {
+  if (cpu0.getRegS64(rs(i)) > 0n) {
     performBranch(branchAddress(cpu0.pc, i));
   } else {
     cpu0.nextPC += 4;   // skip the next instruction
@@ -2135,7 +2108,7 @@ function generateBLTZ(ctx) {
   const addr = branchAddress(ctx.pc, ctx.instruction);
 
   const impl = `
-    if (${genSrcRegS32Hi(s)} < 0) {
+    if (${genSrcRegS64(s)} < 0n) {
       c.delayPC = ${toString32(addr)};
     }
     `;
@@ -2144,7 +2117,7 @@ function generateBLTZ(ctx) {
 }
 
 function executeBLTZ(i) {
-  if (cpu0.getRegS32Hi(rs(i)) < 0) {
+  if (cpu0.getRegS64(rs(i)) < 0n) {
     performBranch(branchAddress(cpu0.pc, i));
   }
 }
@@ -2154,7 +2127,7 @@ function generateBLTZL(ctx) {
   const addr = branchAddress(ctx.pc, ctx.instruction);
 
   const impl = `
-    if (${genSrcRegS32Hi(s)} < 0) {
+    if (${genSrcRegS64(s)} < 0n) {
       c.delayPC = ${toString32(addr)};
     } else {
       c.nextPC += 4;
@@ -2165,7 +2138,7 @@ function generateBLTZL(ctx) {
 }
 
 function executeBLTZL(i) {
-  if (cpu0.getRegS32Hi(rs(i)) < 0) {
+  if (cpu0.getRegS64(rs(i)) < 0n) {
     performBranch(branchAddress(cpu0.pc, i));
   } else {
     cpu0.nextPC += 4;   // skip the next instruction
@@ -2173,17 +2146,17 @@ function executeBLTZL(i) {
 }
 
 function executeBLTZAL(i) {
-  const value = cpu0.getRegS32Hi(rs(i));
+  const cond = cpu0.getRegS64(rs(i)) < 0n;
   cpu0.setRegS32Extend(cpu0_constants.RA, cpu0.pc + 8);
-  if (value < 0) {
+  if (cond) {
     performBranch(branchAddress(cpu0.pc, i));
   }
 }
 
 function executeBLTZALL(i) {
-  const value = cpu0.getRegS32Hi(rs(i));
+  const cond = cpu0.getRegS64(rs(i)) < 0;
   cpu0.setRegS32Extend(cpu0_constants.RA, cpu0.pc + 8);
-  if (value < 0) {
+  if (cond) {
     performBranch(branchAddress(cpu0.pc, i));
   } else {
     cpu0.nextPC += 4;   // skip the next instruction
@@ -2196,7 +2169,7 @@ function generateBGEZ(ctx) {
   const addr = branchAddress(ctx.pc, ctx.instruction);
 
   const impl = `
-    if (${genSrcRegS32Hi(s)} >= 0) {
+    if (${genSrcRegS64(s)} >= 0n) {
       c.delayPC = ${toString32(addr)};
     }
     `;
@@ -2205,7 +2178,7 @@ function generateBGEZ(ctx) {
 }
 
 function executeBGEZ(i) {
-  if (cpu0.getRegS32Hi(rs(i)) >= 0) {
+  if (cpu0.getRegS64(rs(i)) >= 0n) {
     performBranch(branchAddress(cpu0.pc, i));
   }
 }
@@ -2215,7 +2188,7 @@ function generateBGEZL(ctx) {
   const addr = branchAddress(ctx.pc, ctx.instruction);
 
   const impl = `
-    if (${genSrcRegS32Hi(s)} >= 0) {
+    if (${genSrcRegS64(s)} >= 0n) {
       c.delayPC = ${toString32(addr)};
     } else {
       c.nextPC += 4;
@@ -2226,7 +2199,7 @@ function generateBGEZL(ctx) {
 }
 
 function executeBGEZL(i) {
-  if (cpu0.getRegS32Hi(rs(i)) >= 0) {
+  if (cpu0.getRegS64(rs(i)) >= 0n) {
     performBranch(branchAddress(cpu0.pc, i));
   } else {
     cpu0.nextPC += 4;   // skip the next instruction
@@ -2234,17 +2207,17 @@ function executeBGEZL(i) {
 }
 
 function executeBGEZAL(i) {
-  const value = cpu0.getRegS32Hi(rs(i));
+  const cond = cpu0.getRegS64(rs(i)) >= 0n;
   cpu0.setRegS32Extend(cpu0_constants.RA, cpu0.pc + 8);
-  if (value >= 0) {
+  if (cond) {
     performBranch(branchAddress(cpu0.pc, i));
   }
 }
 
 function executeBGEZALL(i) {
-  const value = cpu0.getRegS32Hi(rs(i));
+  const cond = cpu0.getRegS64(rs(i)) >= 0n;
   cpu0.setRegS32Extend(cpu0_constants.RA, cpu0.pc + 8);
-  if (value >= 0) {
+  if (cond) {
     performBranch(branchAddress(cpu0.pc, i));
   } else {
     cpu0.nextPC += 4;   // skip the next instruction
