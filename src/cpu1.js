@@ -1083,24 +1083,6 @@ export class CPU1 {
 
   /**
    * @param {number} i The register index.
-   * @param {bigint} value The value to store.
-   */
-  storeU64(i, value) {
-    const regIdx = this.regIdx64[i];
-    this.regU64[regIdx] = value;
-  }
-
-  /**
-   * @param {number} i The register index.
-   * @param {bigint} value The value to store.
-   */
-  storeS64(i, value) {
-    const regIdx = this.regIdx64[i];
-    this.regS64[regIdx] = value;
-  }
-
-  /**
-   * @param {number} i The register index.
    * @param {number} value The value to store.
    */
   storeF32(i, value) {
@@ -1124,6 +1106,24 @@ export class CPU1 {
   storeF64(i, value) {
     const regIdx = this.regIdx64[i];
     this.regF64[regIdx] = value;
+  }
+
+  /**
+   * @param {number} i The register index.
+   * @param {bigint} value The value to store.
+   */
+  storeS64(i, value) {
+    const regIdx = this.regIdx64[i];
+    this.regS64[regIdx] = value;
+  }
+
+  /**
+   * @param {number} i The register index.
+   * @param {bigint} value The value to store.
+   */
+  storeU64(i, value) {
+    const regIdx = this.regIdx64[i];
+    this.regU64[regIdx] = value;
   }
 
   /**
