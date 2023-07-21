@@ -352,8 +352,8 @@ export class CPU1 {
   }
 
   handleFloatCompareDouble(op, s, t) {
-    const fsi = this.load_i64_bigint(s);
-    const fti = this.load_i64_bigint(t);
+    const fsi = this.loadS64(s);
+    const fti = this.loadS64(t);
 
     const fsType = f64Classify(fsi);
     const ftType = f64Classify(fti);
@@ -398,7 +398,7 @@ export class CPU1 {
   DIV_S(d, s, t) { this.f32BinaryOp(d, s, t, divOpCases); }
 
   // Move bits directly, to avoid renomalisation.
-  MOV_D(d, s) { this.storeU64(d, this.load_i64_bigint(s)); }
+  MOV_D(d, s) { this.storeS64(d, this.loadS64(s)); }
 
   SQRT_D(d, s) { this.f64UnaryOp(d, s, sqrtOpCases); }
   ABS_D(d, s) { this.f64UnaryOp(d, s, absOpCases); }
@@ -411,7 +411,7 @@ export class CPU1 {
   CVT_S_D(d, s) {
     this.clearCause();
 
-    const sourceBits = this.load_i64_bigint(s);
+    const sourceBits = this.loadS64(s);
     const sourceType = f64Classify(sourceBits);
 
     let exceptionBits = 0;
@@ -458,7 +458,7 @@ export class CPU1 {
   CVT_S_L(d, s) {
     this.clearCause();
 
-    const source = this.load_i64_bigint(s);
+    const source = this.loadS64(s);
     if (source >= (1n << 55n) || source < -(1n << 55n)) {
       this.raiseUnimplemented();
       return;
@@ -674,7 +674,7 @@ export class CPU1 {
   CVT_D_L(d, s) {
     this.clearCause();
     
-    const source = this.load_i64_bigint(s);
+    const source = this.loadS64(s);
     if (source >= (1n << 55n) || source < -(1n << 55n)) {
       this.raiseUnimplemented();
       return;
@@ -693,7 +693,7 @@ export class CPU1 {
     this.clearCause();
 
     const sValue = this.loadF64(s);
-    const sBits = this.load_i64_bigint(s);
+    const sBits = this.loadS64(s);
     const sType = f64Classify(sBits);
     const opCase = getUnaryOpCase(cases, sType);
 
@@ -763,8 +763,8 @@ export class CPU1 {
 
     const sValue = this.loadF64(s);
     const tValue = this.loadF64(t);
-    const sBits = this.load_i64_bigint(s);
-    const tBits = this.load_i64_bigint(t);
+    const sBits = this.loadS64(s);
+    const tBits = this.loadS64(t);
     const sType = f64Classify(sBits);
     const tType = f64Classify(tBits);
     const opCase = getBinaryOpCase(cases, sType, tType);
@@ -883,7 +883,7 @@ export class CPU1 {
   ConvertDToL(d, s, mode) {
     this.clearCause();
 
-    const sourceBits = this.load_i64_bigint(s);
+    const sourceBits = this.loadS64(s);
     const sourceType = f64Classify(sourceBits);
 
     let exceptionBits = 0;
@@ -943,7 +943,7 @@ export class CPU1 {
   ConvertDToW(d, s, mode) {
     this.clearCause();
 
-    const sourceBits = this.load_i64_bigint(s);
+    const sourceBits = this.loadS64(s);
     const sourceType = f64Classify(sourceBits);
 
     let exceptionBits = 0;
@@ -1092,6 +1092,15 @@ export class CPU1 {
 
   /**
    * @param {number} i The register index.
+   * @param {bigint} value The value to store.
+   */
+  storeS64(i, value) {
+    const regIdx = this.regIdx64[i];
+    this.regS64[regIdx] = value;
+  }
+
+  /**
+   * @param {number} i The register index.
    * @param {number} value The value to store.
    */
   storeF32(i, value) {
@@ -1145,14 +1154,23 @@ export class CPU1 {
   }
 
   /**
+   * Returns the signed 64 bit value at the provided register index.
    * @param {number} i The register index.
    * @return {bigint}
    */
-  load_i64_bigint(i) {
+  loadS64(i) {
     const regIdx = this.regIdx64[i];
-    const lo = this.regS32[(regIdx * 2)];
-    const hi = this.regS32[(regIdx * 2) + 1];
-    return (BigInt(hi) << 32n) + BigInt(lo >>> 0);
+    return this.regS64[regIdx];
+  }
+
+  /**
+   * Returns the unsigned 64 bit value at the provided register index.
+   * @param {number} i The register index.
+   * @return {bigint}
+   */
+  loadU64(i) {
+    const regIdx = this.regIdx64[i];
+    return this.regU64[regIdx];
   }
 
   dump() {
