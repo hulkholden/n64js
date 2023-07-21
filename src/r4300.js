@@ -373,12 +373,15 @@ class CPU0 {
     this.gprS32[r * 2 + 1] = 0;
   }
 
-  setMultLoS32Extend(v) {
-    this.multLoS64[0] = BigInt.asIntN(32, v);
-  }
-  setMultHiS32Extend(v) {
-    this.multHiS64[0] = BigInt.asIntN(32, v);
-  }
+  setMultLoS32Extend(v) { this.multLoS64[0] = BigInt.asIntN(32, v); }
+  setMultLoU32Extend(v) { this.multLoU64[0] = BigInt.asUintN(32, v); }
+  setMultLoS64(v) { this.multLoS64[0] = v; }
+  setMultLoU64(v) { this.multLoU64[0] = v; }
+
+  setMultHiS32Extend(v) { this.multHiS64[0] = BigInt.asIntN(32, v); }
+  setMultHiU32Extend(v) { this.multHiU64[0] = BigInt.asUintN(32, v); }
+  setMultHiS64(v) { this.multHiS64[0] = v; }
+  setMultHiU64(v) { this.multHiU64[0] = v; }
 
   reset() {
     resetFragments();
@@ -1382,18 +1385,14 @@ function executeMULTU(i) {
 
 function executeDMULT(i) {
   const result = cpu0.getRegS64(rs(i)) * cpu0.getRegS64(rt(i));
-  cpu0.multLoU32[0] = Number(result & 0xffffffffn);
-  cpu0.multLoU32[1] = Number((result >> 32n) & 0xffffffffn);
-  cpu0.multHiU32[0] = Number((result >> 64n) & 0xffffffffn);
-  cpu0.multHiU32[1] = Number((result >> 96n) & 0xffffffffn);
+  cpu0.setMultLoS64(result & 0xffff_ffff_ffff_ffffn);
+  cpu0.setMultHiS64(result >> 64n);
 }
 
 function executeDMULTU(i) {
   const result = cpu0.getRegU64(rs(i)) * cpu0.getRegU64(rt(i));
-  cpu0.multLoU32[0] = Number(result & 0xffffffffn);
-  cpu0.multLoU32[1] = Number((result >> 32n) & 0xffffffffn);
-  cpu0.multHiU32[0] = Number((result >> 64n) & 0xffffffffn);
-  cpu0.multHiU32[1] = Number((result >> 96n) & 0xffffffffn);
+  cpu0.setMultLoU64(result & 0xffff_ffff_ffff_ffffn);
+  cpu0.setMultHiU64(result >> 64n);
 }
 
 function executeDIV(i) {
