@@ -307,8 +307,8 @@ export class Debugger {
     $body.append(`<tr><td>Ops</td><td class="fixed">${cpu0.opsExecuted}</td></tr>`);
     $body.append(`<tr><td>PC</td><td class="fixed">${toString32(cpu0.pc)}</td><td>delayPC</td><td class="fixed">${toString32(cpu0.delayPC)}</td></tr>`);
     $body.append(`<tr><td>EPC</td><td class="fixed">${toString32(cpu0.control[cpu0_constants.controlEPC])}</td></tr>`);
-    $body.append(`<tr><td>MultHi</td><td class="fixed">${toString64(cpu0.multHi[1], cpu0.multHi[0])}</td><td>Cause</td><td class="fixed">${toString32(cpu0.control[cpu0_constants.controlCause])}</td></tr>`);
-    $body.append(`<tr><td>MultLo</td><td class="fixed">${toString64(cpu0.multLo[1], cpu0.multLo[0])}</td><td>Count</td><td class="fixed">${toString32(cpu0.control[cpu0_constants.controlCount])}</td></tr>`);
+    $body.append(`<tr><td>MultHi</td><td class="fixed">${toString64(cpu0.multHiU32[1], cpu0.multHiU32[0])}</td><td>Cause</td><td class="fixed">${toString32(cpu0.control[cpu0_constants.controlCause])}</td></tr>`);
+    $body.append(`<tr><td>MultLo</td><td class="fixed">${toString64(cpu0.multLoU32[1], cpu0.multLoU32[0])}</td><td>Count</td><td class="fixed">${toString32(cpu0.control[cpu0_constants.controlCount])}</td></tr>`);
     $body.append(`<tr><td></td><td class="fixed"></td><td>Compare</td><td class="fixed">${toString32(cpu0.control[cpu0_constants.controlCompare])}</td></tr>`);
 
     for (let i = 0; i < cpu0.events.length; ++i) {
