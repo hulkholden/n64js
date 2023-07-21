@@ -387,7 +387,7 @@ export class CPU1 {
   }
 
   // Move bits directly, to avoid renomalisation.
-  MOV_S(d, s) { this.store_i32(d, this.load_i32(s)); }
+  MOV_S(d, s) { this.storeS32(d, this.load_i32(s)); }
 
   SQRT_S(d, s) { this.f32UnaryOp(d, s, sqrtOpCases); }
   ABS_S(d, s) { this.f32UnaryOp(d, s, absOpCases); }
@@ -447,7 +447,7 @@ export class CPU1 {
     if (this.raiseException(exceptionBits)) {
       return;
     }
-    this.store_i32(d, this.tempU32[0]);
+    this.storeS32(d, this.tempU32[0]);
   }
 
   CVT_S_W(d, s) {
@@ -470,7 +470,7 @@ export class CPU1 {
     if (this.raiseException(exceptionBits)) {
       return;
     }
-    this.store_i32(d, this.tempU32[0]);
+    this.storeS32(d, this.tempU32[0]);
   }
 
   f32UnaryOp(d, s, cases) {
@@ -490,13 +490,13 @@ export class CPU1 {
         return;
       case opInvalid:
         if (!this.raiseException(exceptionInvalidBit)) {
-          this.store_i32(d, f32SignallingNaNBits);
+          this.storeS32(d, f32SignallingNaNBits);
         }
         return;
       case opSqrt:
         if (sValue < 0) {
           if (!this.raiseException(exceptionInvalidBit)) {
-            this.store_i32(d, f32SignallingNaNBits);
+            this.storeS32(d, f32SignallingNaNBits);
           }
           return;
         }
@@ -538,7 +538,7 @@ export class CPU1 {
     // TODO: check for underflow?
 
     if (!this.raiseException(exceptionBits)) {
-      this.store_i32(d, this.tempU32[0]);
+      this.storeS32(d, this.tempU32[0]);
     }
   }
 
@@ -562,13 +562,13 @@ export class CPU1 {
         return;
       case opInvalid:
         if (!this.raiseException(exceptionInvalidBit)) {
-          this.store_i32(d, f32SignallingNaNBits);
+          this.storeS32(d, f32SignallingNaNBits);
         }
         return;
       case opDivZero:
         if (!this.raiseException(exceptionDivByZeroBit)) {
           const sameSign = (sBits & f32SignBit) == (tBits & f32SignBit)
-          this.store_i32(d, sameSign ? f32PosInfinityBits : f32NegInfinityBits);
+          this.storeS32(d, sameSign ? f32PosInfinityBits : f32NegInfinityBits);
         }
         return;
       case opAdd:
@@ -628,7 +628,7 @@ export class CPU1 {
 
     if (!this.raiseException(exceptionBits)) {
       // Store the underlying bits to avoid renormalising.
-      this.store_i32(d, this.tempU32[0]);
+      this.storeS32(d, this.tempU32[0]);
     }
   }
 
@@ -937,7 +937,7 @@ export class CPU1 {
     if (this.raiseException(exceptionBits)) {
       return;
     }
-    this.store_i32(d, this.tempS32[0]);
+    this.storeS32(d, this.tempS32[0]);
   }
 
   ConvertDToW(d, s, mode) {
@@ -967,7 +967,7 @@ export class CPU1 {
     if (this.raiseException(exceptionBits)) {
       return;
     }
-    this.store_i32(d, this.tempS32[0]);
+    this.storeS32(d, this.tempS32[0]);
   }
 
   get roundingMode() {
@@ -1124,7 +1124,7 @@ export class CPU1 {
    * @param {number} i The register index.
    * @param {number} value The value to store.
    */
-  store_i32(i, value) {
+  storeS32(i, value) {
     const regIdx = this.regIdx32[i];
     this.regS32[regIdx] = value | 0;
   }
