@@ -49,17 +49,17 @@ describe('CPU1', () => {
       assert.equal(3.142, cpu.float64[2]);
     });
   });
-  describe('load_f64', () => {
+  describe('loadF64', () => {
     it('should load the correct values', () => {
       cpu.float64[2] = 1.112;
-      assert.equal(1.112, cpu.load_f64(4));
+      assert.equal(1.112, cpu.loadF64(4));
     });
   });
-  describe('load_f64_as_double', () => {
+  describe('load_i64_bigint', () => {
     it('should load the correct values', () => {
       cpu.int32[0] = 0x1c8;
       cpu.int32[1] = 0x7b;
-      assert.equal(0x7B000001C8, cpu.load_i64_number(0));
+      assert.equal(0x7B000001C8n, cpu.load_i64_bigint(0));
     });
   });
 });
