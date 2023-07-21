@@ -2721,8 +2721,7 @@ function generateSDC1(ctx) {
   const impl = `
     if (c.checkCopXUsable(1)) {
       const addr = ${genSrcRegS32Lo(b)} + ${o};
-      const value = cpu1.load_i64_bigint(${t});
-      n64js.store_64_bigint(ram, addr, value);
+      n64js.store_64_bigint(ram, addr, cpu1.loadS64(${t}));
     }
     `;
   return generateMemoryAccessBoilerplate(impl, ctx);
@@ -2734,8 +2733,7 @@ function executeSDC1(i) {
   }
   // FIXME: this can do a single check that the address is in ram
   const addr = cpu0.getRegS32Lo(base(i)) + imms(i);
-  const value = cpu1.load_i64_bigint(ft(i));
-  n64js.store_64_bigint(cpu0.ram, addr, value);
+  n64js.store_64_bigint(cpu0.ram, addr, cpu1.loadS64(ft(i)));
 }
 
 function executeSDC2(i) { unimplemented(cpu0.pc, i); }
@@ -2908,12 +2906,12 @@ function generateDMFC1Stub(ctx) {
   ctx.isTrivial = true;
 
   return `
-    c.setRegU64(${t}, cpu1.load_i64_bigint(${s}));
+    c.setRegU64(${t}, cpu1.loadU64(${s}));
     `;
 }
 
 function executeDMFC1(i) {
-  cpu0.setRegU64(rt(i), cpu1.load_i64_bigint(fs(i)));
+  cpu0.setRegU64(rt(i), cpu1.loadU64(fs(i)));
 }
 
 function generateMTC1Stub(ctx) {
