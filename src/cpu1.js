@@ -411,11 +411,11 @@ export class CPU1 {
   CVT_S_D(d, s) {
     this.clearCause();
 
-    const sourceBits = this.loadS64(s);
-    const sourceType = f64Classify(sourceBits);
+    const sBits = this.loadS64(s);
+    const sType = f64Classify(sBits);
 
     let exceptionBits = 0;
-    switch (sourceType) {
+    switch (sType) {
       case floatTypeSNaN:
       case floatTypeDenormal:
         this.raiseUnimplemented();
@@ -431,10 +431,10 @@ export class CPU1 {
         this.tempU32[0] = f32NegInfinityBits;
         break;
       default:
-        const sourceValue = this.loadF64(s);
-        this.tempF32[0] = sourceValue;
+        const sValue = this.loadF64(s);
+        this.tempF32[0] = sValue;
 
-        if (sourceValue != this.tempF32[0]) {
+        if (sValue != this.tempF32[0]) {
           exceptionBits |= exceptionInexactBit;
         }
         // TODO: this is really this.tempF32[0] > float32 max value
@@ -635,11 +635,11 @@ export class CPU1 {
   CVT_D_S(d, s) {
     this.clearCause();
 
-    const sourceBits = this.loadS32(s);
-    const sourceType = f32Classify(sourceBits);
+    const sBits = this.loadS32(s);
+    const sType = f32Classify(sBits);
 
     let exceptionBits = 0;
-    switch (sourceType) {
+    switch (sType) {
       case floatTypeSNaN:
       case floatTypeDenormal:
         this.raiseUnimplemented();
@@ -655,8 +655,8 @@ export class CPU1 {
         this.tempU64[0] = f64NegInfinityBits;
         break;
       default:
-        const sourceValue = this.loadF32(s);
-        this.tempF64[0] = sourceValue;
+        const sValue = this.loadF32(s);
+        this.tempF64[0] = sValue;
         break;
     }
 
@@ -853,11 +853,11 @@ export class CPU1 {
   ConvertSToL(d, s, mode) {
     this.clearCause();
 
-    const sourceBits = this.loadS32(s);
-    const sourceType = f32Classify(sourceBits);
+    const sBits = this.loadS32(s);
+    const sType = f32Classify(sBits);
 
     let exceptionBits = 0;
-    switch (sourceType) {
+    switch (sType) {
       case floatTypeSNaN:
       case floatTypeQNaN:
       case floatTypeDenormal:
@@ -866,9 +866,9 @@ export class CPU1 {
         this.raiseUnimplemented();
         return;
       default:
-        const sourceValue = this.loadF32(s);
-        this.tempS64[0] = BigInt(this.convertUsingMode(sourceValue, mode) | 0); // Force to int to allow BigInt conversion.
-        if (sourceValue != this.tempS64[0]) {
+        const sValue = this.loadF32(s);
+        this.tempS64[0] = BigInt(this.convertUsingMode(sValue, mode) | 0); // Force to int to allow BigInt conversion.
+        if (sValue != this.tempS64[0]) {
           exceptionBits |= exceptionInexactBit;
         }
         break;
@@ -883,11 +883,11 @@ export class CPU1 {
   ConvertDToL(d, s, mode) {
     this.clearCause();
 
-    const sourceBits = this.loadS64(s);
-    const sourceType = f64Classify(sourceBits);
+    const sBits = this.loadS64(s);
+    const sType = f64Classify(sBits);
 
     let exceptionBits = 0;
-    switch (sourceType) {
+    switch (sType) {
       case floatTypeSNaN:
       case floatTypeQNaN:
       case floatTypeDenormal:
@@ -896,9 +896,9 @@ export class CPU1 {
         this.raiseUnimplemented();
         return;
       default:
-        const sourceValue = this.loadF64(s);
-        this.tempS64[0] = BigInt(this.convertUsingMode(sourceValue, mode) | 0); // Force to int to allow BigInt conversion.
-        if (sourceValue != this.tempS64[0]) {
+        const sValue = this.loadF64(s);
+        this.tempS64[0] = BigInt(this.convertUsingMode(sValue, mode) | 0); // Force to int to allow BigInt conversion.
+        if (sValue != this.tempS64[0]) {
           exceptionBits |= exceptionInexactBit;
         }
         break;
@@ -913,11 +913,11 @@ export class CPU1 {
   ConvertSToW(d, s, mode) {
     this.clearCause();
 
-    const sourceBits = this.loadS32(s);
-    const sourceType = f32Classify(sourceBits);
+    const sBits = this.loadS32(s);
+    const sType = f32Classify(sBits);
 
     let exceptionBits = 0;
-    switch (sourceType) {
+    switch (sType) {
       case floatTypeSNaN:
       case floatTypeQNaN:
       case floatTypeDenormal:
@@ -926,9 +926,9 @@ export class CPU1 {
         this.raiseUnimplemented();
         return;
       default:
-        const sourceValue = this.loadF32(s);
-        this.tempS32[0] = this.convertUsingMode(sourceValue, mode);
-        if (sourceValue != this.tempS32[0]) {
+        const sValue = this.loadF32(s);
+        this.tempS32[0] = this.convertUsingMode(sValue, mode);
+        if (sValue != this.tempS32[0]) {
           exceptionBits |= exceptionInexactBit;
         }
         break;
@@ -943,11 +943,11 @@ export class CPU1 {
   ConvertDToW(d, s, mode) {
     this.clearCause();
 
-    const sourceBits = this.loadS64(s);
-    const sourceType = f64Classify(sourceBits);
+    const sBits = this.loadS64(s);
+    const sType = f64Classify(sBits);
 
     let exceptionBits = 0;
-    switch (sourceType) {
+    switch (sType) {
       case floatTypeSNaN:
       case floatTypeQNaN:
       case floatTypeDenormal:
@@ -956,9 +956,9 @@ export class CPU1 {
         this.raiseUnimplemented();
         return;
       default:
-        const sourceValue = this.loadF64(s);
-        this.tempS32[0] = this.convertUsingMode(sourceValue, mode);
-        if (sourceValue != this.tempS32[0]) {
+        const sValue = this.loadF64(s);
+        this.tempS32[0] = this.convertUsingMode(sValue, mode);
+        if (sValue != this.tempS32[0]) {
           exceptionBits |= exceptionInexactBit;
         }
         break;
