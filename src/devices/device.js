@@ -1,4 +1,4 @@
-import { toString8, toString16, toString32 } from '../format.js';
+import { toStringN, toString32 } from '../format.js';
 import * as logger from '../logger.js';
 
 /**
@@ -81,9 +81,9 @@ export class Device {
    * @param {number} address
    * @param {string} value
    */
-  logWrite(address, value) {
+  logWrite(address, value, bits) {
     if (!this.quiet) {
-      logger.log(`Writing to ${this.name}: ${value} -> [${toString32(address)}]`);
+      logger.log(`Writing to ${this.name}: ${toStringN(value, bits)} -> [${toString32(address)}]`);
     }
   }
 
@@ -159,7 +159,7 @@ export class Device {
    * @param {number} value
    */
   write32(address, value) {
-    this.logWrite(address, toString32(value));
+    this.logWrite(address, value, 32);
     const ea = this.calcEA(address);
     this.mem.write32(ea, value);
   }
@@ -170,7 +170,7 @@ export class Device {
    * @param {number} value
    */
   write16(address, value) {
-    this.logWrite(address, toString16(value));
+    this.logWrite(address, value, 16);
     const ea = this.calcEA(address);
     this.mem.write16(ea, value);
   }
@@ -181,7 +181,7 @@ export class Device {
    * @param {number} value
    */
   write8(address, value) {
-    this.logWrite(address, toString8(value));
+    this.logWrite(address, value, 8);
     const ea = this.calcEA(address);
     this.mem.write8(ea, value);
   }
