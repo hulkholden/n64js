@@ -33,6 +33,11 @@ export class ROMD1A2Device extends Device {
         this.output = ''
     }
 
+    // LH and LB are broken -every other 16 bit word is unreachable.
+    calcEA(address) {
+        return ((address - this.rangeStart) + 2) & ~2;
+    }
+
     write32(address, value) {
         if (address == dbgOutWriteLen) {
             return this.writeDebugBufferLen(value);
