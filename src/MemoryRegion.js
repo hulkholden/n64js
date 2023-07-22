@@ -7,14 +7,13 @@ export class MemoryRegion {
    */
   constructor(arrayBuffer) {
     this.arrayBuffer = arrayBuffer;
-    this.length      = arrayBuffer.byteLength;
-    this.u8          = new Uint8Array(arrayBuffer);
-    this.s32         = new Int32Array(arrayBuffer);
+    this.length = arrayBuffer.byteLength;
+    this.u8 = new Uint8Array(arrayBuffer);
+    this.s32 = new Int32Array(arrayBuffer);
   }
 
   clear() {
-    var i;
-    for (i = 0; i < this.u8.length; ++i) {
+    for (let i = 0; i < this.u8.length; ++i) {
       this.u8[i] = 0;
     }
   }
@@ -25,7 +24,11 @@ export class MemoryRegion {
    * @return {number}
    */
   readU32(offset) {
-    return ((this.u8[offset] << 24) | (this.u8[offset+1] << 16) | (this.u8[offset+2] << 8) | this.u8[offset+3])>>>0;
+    return (
+      (this.u8[offset + 0] << 24) |
+      (this.u8[offset + 1] << 16) |
+      (this.u8[offset + 2] << 8) |
+      (this.u8[offset + 3])) >>> 0;
   }
 
   /**
@@ -34,7 +37,8 @@ export class MemoryRegion {
    * @return {number}
    */
   readU16(offset) {
-    return (this.u8[offset] <<  8) | (this.u8[offset+1]      );
+    return (this.u8[offset] << 8) |
+      (this.u8[offset + 1]);
   }
 
   /**
@@ -52,7 +56,11 @@ export class MemoryRegion {
    * @return {number}
    */
   readS32(offset) {
-    return ((this.u8[offset] << 24) | (this.u8[offset+1] << 16) | (this.u8[offset+2] << 8) | this.u8[offset+3]) | 0;
+    return (
+      (this.u8[offset + 0] << 24) |
+      (this.u8[offset + 1] << 16) |
+      (this.u8[offset + 2] << 8) |
+      (this.u8[offset + 3])) | 0;
   }
 
   /**
@@ -61,7 +69,9 @@ export class MemoryRegion {
    * @return {number}
    */
   readS16(offset) {
-    return  ((this.u8[offset] << 24) | (this.u8[offset+1] << 16) ) >> 16;
+    return (
+      (this.u8[offset + 0] << 24) |
+      (this.u8[offset + 1] << 16)) >> 16;
   }
 
   /**
@@ -70,7 +80,7 @@ export class MemoryRegion {
    * @return {number}
    */
   readS8(offset) {
-    return  ((this.u8[offset] << 24) ) >> 24;
+    return ((this.u8[offset] << 24)) >> 24;
   }
 
   /**
@@ -79,10 +89,10 @@ export class MemoryRegion {
    * @param {number} value
    */
   write32(offset, value) {
-    this.u8[offset  ] = value >> 24;
-    this.u8[offset+1] = value >> 16;
-    this.u8[offset+2] = value >>  8;
-    this.u8[offset+3] = value;
+    this.u8[offset + 0] = value >> 24;
+    this.u8[offset + 1] = value >> 16;
+    this.u8[offset + 2] = value >> 8;
+    this.u8[offset + 3] = value;
   }
 
   /**
@@ -91,8 +101,8 @@ export class MemoryRegion {
    * @param {number} value
    */
   write16(offset, value) {
-    this.u8[offset  ] = value >> 8;
-    this.u8[offset+1] = value;
+    this.u8[offset + 0] = value >> 8;
+    this.u8[offset + 1] = value;
   }
 
   /**
@@ -111,7 +121,7 @@ export class MemoryRegion {
    * @return {number}
    */
   clearBits32(offset, bits) {
-    var value = this.readU32(offset) & ~bits;
+    const value = this.readU32(offset) & ~bits;
     this.write32(offset, value);
     return value;
   }
@@ -123,7 +133,7 @@ export class MemoryRegion {
    * @return {number}
    */
   setBits32(offset, bits) {
-    var value = this.readU32(offset) | bits;
+    const value = this.readU32(offset) | bits;
     this.write32(offset, value);
     return value;
   }
