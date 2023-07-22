@@ -3994,7 +3994,7 @@ function runImpl() {
         //   }
         // }
 
-        const pc = c.pc;   // take a copy of this, so we can refer to it later
+        const pc = c.pc|0;   // take a copy of this, so we can refer to it later
 
         // NB: set nextPC before the call to readMemoryS32. If this throws an exception, we need nextPC to be set up correctly.
         if (c.delayPC) { c.nextPC = c.delayPC; } else { c.nextPC = c.pc + 4; }
