@@ -183,8 +183,7 @@ function updateLoopAnimframe() {
 
 n64js.getRamU8Array = () => hardware.cachedMemDevice.u8;
 n64js.getRamS32Array = () => hardware.cachedMemDevice.s32;
-// FIXME: should cache this object, or try to get rid of DataView entirely (Uint8Array + manual shuffling is faster)
-n64js.getRamDataView = () => new DataView(hardware.ram.arrayBuffer);
+n64js.getRamDataView = () => hardware.cachedMemDevice.mem.dataView;
 
 // Should read noise?
 n64js.getRandomU32 = () => {
