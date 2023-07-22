@@ -24,6 +24,17 @@ export function toHex(r, bits) {
   return t;
 };
 
+export function toStringN(v, bits) {
+  // TODO: generalise this.
+  if (bits == 8) {
+    return toString8(v);
+  }
+  if (bits == 16) {
+    return toString16(v);
+  }
+  return toString32(v);
+}
+
 export function toString8(v) {
   return '0x' + toHex((v&0xff)>>>0, 8);
 };
