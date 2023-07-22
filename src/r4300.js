@@ -4002,7 +4002,11 @@ function runImpl() {
         // NB: load instruction using normal memory access routines - this means that we throw a tlb miss/refill approptiately
         // let instruction = cpu0.loadS32(pc);
         let instruction;
-        if (pc < -2139095040) {
+        if ((pc & 3) != 0) {
+          c.raiseAdELException(pc);
+          c.pc = c.nextPC;
+          continue;
+        } else if (pc < -2139095040) {
           const phys = (pc + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
           instruction = ramDV.getInt32(phys, false);
         } else {
