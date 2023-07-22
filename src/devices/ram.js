@@ -117,29 +117,26 @@ export class CachedMemDevice extends Device {
     super("RAM", hardware, hardware.ram, rangeStart, rangeEnd);
 
     // Used by n64js.getRamS32Array.
+    this.dataView = this.mem.dataView;
     this.s32 = new Int32Array(this.mem.arrayBuffer);
   }
 
   // This function gets hit A LOT, so eliminate as much fat as possible.
   readU32(address) {
     const off = address - 0x80000000;
-    return ((this.u8[off + 0] << 24) | (this.u8[off + 1] << 16) | (this.u8[off + 2] << 8) | (this.u8[off + 3])) >>> 0;
+    return this.dataView.getUint32(off, false); 
   }
 
   readS32(address) {
     const off = address - 0x80000000;
-    return (this.u8[off + 0] << 24) | (this.u8[off + 1] << 16) | (this.u8[off + 2] << 8) | (this.u8[off + 3]);
+    return this.dataView.getInt32(off, false); 
   }
 
   write32(address, value) {
     const off = address - 0x80000000;
-    this.u8[off + 0] = value >> 24;
-    this.u8[off + 1] = value >> 16;
-    this.u8[off + 2] = value >> 8;
-    this.u8[off + 3] = value;
+    this.dataView.setUint32(off, value, false); 
   }
 }
-
 
 export class UncachedMemDevice extends Device {
   constructor(hardware, rangeStart, rangeEnd) {
