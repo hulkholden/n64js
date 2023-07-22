@@ -51,7 +51,7 @@ export class Hardware {
     this.invalidUnachedMemDevice = new InvalidMemDevice(this, 0xa0000000, 0xc0000000);
     this.uncachedMemDevice = new UncachedMemDevice(this, 0xa0000000, 0xa0800000);
     this.rdRamRegDevice = new RDRamRegDevice(this, 0xa3f00000, 0xa4000000);
-    this.spMemDevice = new SPMemDevice(this, 0xa4000000, 0xa4002000);
+    this.spMemDevice = new SPMemDevice(this, 0xa4000000, 0xa4040000);  // Mem is only 0x2000 bytes, but wraps.
     this.spRegDevice = new SPRegDevice(this, 0xa4040000, 0xa4040020);
     this.spIbistDevice = new SPIBISTDevice(this, 0xa4080000, 0xa4080008);
     this.dpcDevice = new DPCDevice(this, 0xa4100000, 0xa4100020);

@@ -70,6 +70,11 @@ export class SPMemDevice extends Device {
   constructor(hardware, rangeStart, rangeEnd) {
     super("SPMem", hardware, hardware.sp_mem, rangeStart, rangeEnd);
   }
+
+  calcEA(address) {
+    // SPMem wraps around.
+    return (address - this.rangeStart) % 0x2000;
+  }
 }
 
 export class SPIBISTDevice extends Device {
