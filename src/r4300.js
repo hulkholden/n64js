@@ -291,9 +291,8 @@ class CPU0 {
   constructor() {
     this.opsExecuted = 0; // Approximate...
 
-    this.ram = undefined; // bound to in reset n64js.getRamU8Array();
+    this.ramDV = undefined; // Bound in reset().
 
-    // TODO: add BigIntArrays.
     const gprMem = new ArrayBuffer(32 * 8);
     this.gprU32 = new Uint32Array(gprMem);
     this.gprS32 = new Int32Array(gprMem);
@@ -388,7 +387,7 @@ class CPU0 {
   reset() {
     resetFragments();
 
-    this.ram = n64js.getRamU8Array();
+    this.ramDV = n64js.getRamDataView();
 
     for (let i = 0; i < 32; ++i) {
       this.gprU32[i * 2 + 0] = 0;
@@ -416,6 +415,106 @@ class CPU0 {
     this.control[cpu0_constants.controlConfig] = 0x0006e463;
     cop1ControlChanged();
   }
+
+  loadU8(addr) {
+    if (addr < -2139095040) {
+      const phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
+      return this.ramDV.getUint8(phys, false);
+    }
+    return lbu_slow(addr);
+  }
+
+  loadS8(addr) {
+    if (addr < -2139095040) {
+      const phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
+      return this.ramDV.getInt8(phys, false);
+    }
+    return lb_slow(addr);
+  };
+
+  loadU16(addr) {
+    if (addr < -2139095040) {
+      const phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
+      return this.ramDV.getUint16(phys, false);
+    }
+    return lhu_slow(addr);
+  };
+
+  loadS16(addr) {
+    if (addr < -2139095040) {
+      const phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
+      return this.ramDV.getInt16(phys, false);
+    }
+    return lh_slow(addr);
+  };
+
+  loadU32(addr) {
+    if (addr < -2139095040) {
+      const phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
+      return this.ramDV.getUint32(phys, false);
+    }
+    return lwu_slow(addr);
+  };
+
+  loadS32(addr) {
+    if (addr < -2139095040) {
+      const phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
+      return this.ramDV.getInt32(phys, false);
+    }
+    return lw_slow(addr);
+  };
+
+  loadU64(addr) {
+    // TODO: read using dataview.
+    const hi = this.loadU32(addr);
+    const lo = this.loadU32(addr + 4);
+    return (BigInt(hi) << 32n) | BigInt(lo >>> 0);
+  }
+
+  store8(addr, value) {
+    if (addr < -2139095040) {
+      const phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
+      this.ramDV.setUint8(phys, value, false);
+    } else {
+      sb_slow(addr, value);
+    }
+  };
+
+  store16(addr, value) {
+    if (addr < -2139095040) {
+      const phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
+      this.ramDV.setUint16(phys, value, false);
+    } else {
+      sh_slow(addr, value);
+    }
+  };
+
+  store32(addr, value) {
+    if (addr < -2139095040) {
+      const phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
+      this.ramDV.setUint32(phys, value, false);
+    } else {
+      sw_slow(addr, value);
+    }
+  };
+
+  store64_lo_hi(addr, value_lo, value_hi) {
+    if (addr < -2139095040) {
+      const phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
+      this.ramDV.setUint32(phys + 0, value_hi, false);
+      this.ramDV.setUint32(phys + 4, value_lo, false);
+    } else {
+      sw_slow(addr, value_hi);
+      sw_slow(addr + 4, value_lo);
+    }
+  };
+
+  store64(addr, value) {
+    // TODO: write using dataview.
+    const lo = Number(value & 0xffffffffn);
+    const hi = Number(value >> 32n);
+    this.store64_lo_hi(addr, lo, hi);
+  };
 
   breakExecution() {
     this.stuffToDo |= kStuffToDoHalt;
@@ -992,115 +1091,6 @@ function lb_slow(addr) { return n64js.readMemoryS8(addr >>> 0); }
 function sw_slow(addr, value) { n64js.writeMemory32(addr >>> 0, value); }
 function sh_slow(addr, value) { n64js.writeMemory16(addr >>> 0, value); }
 function sb_slow(addr, value) { n64js.writeMemory8(addr >>> 0, value); }
-
-
-n64js.load_u8 = (ram, addr) => {
-  if (addr < -2139095040) {
-    const phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
-    return ram[phys];
-  }
-  return lbu_slow(addr);
-};
-
-n64js.load_s8 = (ram, addr) => {
-  if (addr < -2139095040) {
-    const phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
-    return (ram[phys] << 24) >> 24;
-  }
-  return lb_slow(addr);
-};
-
-n64js.load_u16 = (ram, addr) => {
-  if (addr < -2139095040) {
-    const phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
-    return (ram[phys] << 8) | ram[phys + 1];
-  }
-  return lhu_slow(addr);
-};
-
-n64js.load_s16 = (ram, addr) => {
-  if (addr < -2139095040) {
-    const phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
-    return ((ram[phys] << 24) | (ram[phys + 1] << 16)) >> 16;
-  }
-  return lh_slow(addr);
-};
-
-n64js.load_u32 = (ram, addr) => {
-  if (addr < -2139095040) {
-    const phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
-    return ((ram[phys] << 24) | (ram[phys + 1] << 16) | (ram[phys + 2] << 8) | ram[phys + 3]) >>> 0;
-  }
-  return lwu_slow(addr);
-};
-
-n64js.load_s32 = (ram, addr) => {
-  if (addr < -2139095040) {
-    const phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
-    return ((ram[phys] << 24) | (ram[phys + 1] << 16) | (ram[phys + 2] << 8) | ram[phys + 3]) | 0;
-  }
-  return lw_slow(addr);
-};
-
-n64js.load_u64_bigint = (ram, address) => {
-  const hi = n64js.load_u32(ram, address);
-  const lo = n64js.load_u32(ram, address + 4);
-  return (BigInt(hi) << 32n) | BigInt(lo >>> 0);
-}
-
-n64js.store_8 = (ram, addr, value) => {
-  if (addr < -2139095040) {
-    const phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
-    ram[phys] = value;
-  } else {
-    sb_slow(addr, value);
-  }
-};
-
-n64js.store_16 = (ram, addr, value) => {
-  if (addr < -2139095040) {
-    const phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
-    ram[phys] = value >> 8;
-    ram[phys + 1] = value;
-  } else {
-    sh_slow(addr, value);
-  }
-};
-
-n64js.store_32 = (ram, addr, value) => {
-  if (addr < -2139095040) {
-    const phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
-    ram[phys + 0] = value >> 24;
-    ram[phys + 1] = value >> 16;
-    ram[phys + 2] = value >> 8;
-    ram[phys + 3] = value;
-  } else {
-    sw_slow(addr, value);
-  }
-};
-
-n64js.store_64 = (ram, addr, value_lo, value_hi) => {
-  if (addr < -2139095040) {
-    const phys = (addr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
-    ram[phys + 0] = value_hi >> 24;
-    ram[phys + 1] = value_hi >> 16;
-    ram[phys + 2] = value_hi >> 8;
-    ram[phys + 3] = value_hi;
-    ram[phys + 4] = value_lo >> 24;
-    ram[phys + 5] = value_lo >> 16;
-    ram[phys + 6] = value_lo >> 8;
-    ram[phys + 7] = value_lo;
-  } else {
-    sw_slow(addr, value_hi);
-    sw_slow(addr + 4, value_lo);
-  }
-};
-
-n64js.store_64_bigint = (ram, addr, value) => {
-  const lo = Number(value & 0xffffffffn);
-  const hi = Number(value >> 32n);
-  n64js.store_64(ram, addr, lo, hi);
-};
 
 function unimplemented(pc, i) {
   const r = disassembleInstruction(pc, i);
@@ -2368,7 +2358,7 @@ function generateLB(ctx) {
   const o = ctx.instr_imms();
 
   const impl = `
-    const value = n64js.load_s8(ram, ${genSrcRegS32Lo(b)} + ${o});
+    const value = c.loadS8(${genSrcRegS32Lo(b)} + ${o});
     c.setRegS32Extend(${t}, value);
     `;
 
@@ -2376,7 +2366,7 @@ function generateLB(ctx) {
 }
 
 function executeLB(i) {
-  const value = n64js.load_s8(cpu0.ram, cpu0.getRegS32Lo(base(i)) + imms(i));
+  const value = cpu0.loadS8(cpu0.getRegS32Lo(base(i)) + imms(i));
   cpu0.setRegS32Extend(rt(i), value);
 }
 
@@ -2386,7 +2376,7 @@ function generateLBU(ctx) {
   const o = ctx.instr_imms();
 
   const impl = `
-    const value = n64js.load_u8(ram, ${genSrcRegS32Lo(b)} + ${o});
+    const value = c.loadU8(${genSrcRegS32Lo(b)} + ${o});
     c.setRegU32Extend(${t}, value);
     `;
 
@@ -2394,7 +2384,7 @@ function generateLBU(ctx) {
 }
 
 function executeLBU(i) {
-  const value = n64js.load_u8(cpu0.ram, cpu0.getRegS32Lo(base(i)) + imms(i));
+  const value = cpu0.loadU8(cpu0.getRegS32Lo(base(i)) + imms(i));
   cpu0.setRegU32Extend(rt(i), value);
 }
 
@@ -2404,7 +2394,7 @@ function generateLH(ctx) {
   const o = ctx.instr_imms();
 
   const impl = `
-    const value = n64js.load_s16(ram, ${genSrcRegS32Lo(b)} + ${o});
+    const value = c.loadS16(${genSrcRegS32Lo(b)} + ${o});
     c.setRegS32Extend(${t}, value);
     `;
 
@@ -2412,7 +2402,7 @@ function generateLH(ctx) {
 }
 
 function executeLH(i) {
-  const value = n64js.load_s16(cpu0.ram, cpu0.getRegS32Lo(base(i)) + imms(i));
+  const value = cpu0.loadS16(cpu0.getRegS32Lo(base(i)) + imms(i));
   cpu0.setRegS32Extend(rt(i), value);
 }
 
@@ -2422,7 +2412,7 @@ function generateLHU(ctx) {
   const o = ctx.instr_imms();
 
   const impl = `
-    const value = n64js.load_u16(ram, ${genSrcRegS32Lo(b)} + ${o});
+    const value = c.loadU16(${genSrcRegS32Lo(b)} + ${o});
     c.setRegU32Extend(${t}, value);
     `;
 
@@ -2430,7 +2420,7 @@ function generateLHU(ctx) {
 }
 
 function executeLHU(i) {
-  const value = n64js.load_u16(cpu0.ram, cpu0.getRegS32Lo(base(i)) + imms(i));
+  const value = cpu0.loadU16(cpu0.getRegS32Lo(base(i)) + imms(i));
   cpu0.setRegU32Extend(rt(i), value);
 }
 
@@ -2443,7 +2433,7 @@ function generateLW(ctx) {
     return generateNOPBoilerplate('load to r0!', ctx);
 
   const impl = `
-    const value = n64js.load_s32(ram, ${genSrcRegS32Lo(b)} + ${o});
+    const value = c.loadS32(${genSrcRegS32Lo(b)} + ${o});
     c.setRegS32Extend(${t}, value);
     `;
 
@@ -2456,7 +2446,7 @@ function executeLW(i) {
     return;
   }
 
-  const value = n64js.load_s32(cpu0.ram, cpu0.getRegS32Lo(base(i)) + imms(i));
+  const value = cpu0.loadS32(cpu0.getRegS32Lo(base(i)) + imms(i));
   cpu0.setRegS32Extend(rt(i), value);
 }
 
@@ -2466,7 +2456,7 @@ function generateLWU(ctx) {
   const o = ctx.instr_imms();
 
   const impl = `
-    const value = n64js.load_u32(ram, ${genSrcRegS32Lo(b)} + ${o});
+    const value = c.loadU32(${genSrcRegS32Lo(b)} + ${o});
     c.setRegU32Extend(${t}, value);
     `;
 
@@ -2474,7 +2464,7 @@ function generateLWU(ctx) {
 }
 
 function executeLWU(i) {
-  const value = n64js.load_u32(cpu0.ram, cpu0.getRegS32Lo(base(i)) + imms(i));
+  const value = cpu0.loadU32(cpu0.getRegS32Lo(base(i)) + imms(i));
   cpu0.setRegU32Extend(rt(i), value);
 }
 
@@ -2484,14 +2474,14 @@ function generateLD(ctx) {
   const o = ctx.instr_imms();
 
   const impl = `
-    const value = n64js.load_u64_bigint(ram, ${genSrcRegS32Lo(b)} + ${o});
+    const value = c.loadU64(${genSrcRegS32Lo(b)} + ${o});
     c.setRegU64(${t}, value);
     `;
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
 
 function executeLD(i) {
-  const value = n64js.load_u64_bigint(cpu0.ram, cpu0.getRegS32Lo(base(i)) + imms(i));
+  const value = cpu0.loadU64(cpu0.getRegS32Lo(base(i)) + imms(i));
   cpu0.setRegU64(rt(i), value);
 }
 
@@ -2504,7 +2494,7 @@ function generateLWC1(ctx) {
 
   const impl = `
     if (c.checkCopXUsable(1)) {
-      cpu1.storeS32(${t}, n64js.load_s32(ram, ${genSrcRegS32Lo(b)} + ${o}));
+      cpu1.storeS32(${t}, c.loadS32(${genSrcRegS32Lo(b)} + ${o}));
     }
     `;
   return generateMemoryAccessBoilerplate(impl, ctx);
@@ -2514,7 +2504,7 @@ function executeLWC1(i) {
   if (!cpu0.checkCopXUsable(1)) {
     return;
   }
-  cpu1.storeS32(ft(i), n64js.load_s32(cpu0.ram, cpu0.getRegS32Lo(base(i)) + imms(i)));
+  cpu1.storeS32(ft(i), cpu0.loadS32(cpu0.getRegS32Lo(base(i)) + imms(i)));
 }
 
 function generateLDC1(ctx) {
@@ -2526,7 +2516,7 @@ function generateLDC1(ctx) {
 
   const impl = `
     if (c.checkCopXUsable(1)) {
-      const value = n64js.load_u64_bigint(ram, ${genSrcRegS32Lo(b)} + ${o});
+      const value = c.loadU64(${genSrcRegS32Lo(b)} + ${o});
       cpu1.storeU64(${t}, value);
     }
     `;
@@ -2538,7 +2528,7 @@ function executeLDC1(i) {
     return;
   }
 
-  const value = n64js.load_u64_bigint(cpu0.ram, cpu0.getRegS32Lo(base(i)) + imms(i));
+  const value = cpu0.loadU64(cpu0.getRegS32Lo(base(i)) + imms(i));
   cpu1.storeU64(ft(i), value);
 }
 
@@ -2547,7 +2537,7 @@ function executeLDC2(i) { unimplemented(cpu0.pc, i); }
 function executeLWL(i) {
   const addr = (cpu0.getRegU32Lo(base(i)) + imms(i)) >>> 0;
   const addrAligned = (addr & ~3) >>> 0;
-  const mem = n64js.readMemoryU32(addrAligned);
+  const mem = cpu0.loadU32(addrAligned);
   const reg = cpu0.getRegU32Lo(rt(i));
 
   const n = addr & 3;
@@ -2562,7 +2552,7 @@ function executeLWL(i) {
 function executeLWR(i) {
   const addr = (cpu0.getRegU32Lo(base(i)) + imms(i)) >>> 0;
   const addrAligned = (addr & ~3) >>> 0;
-  const mem = n64js.readMemoryU32(addrAligned);
+  const mem = cpu0.loadU32(addrAligned);
   const reg = cpu0.getRegU32Lo(rt(i));
 
   const n = addr & 3;
@@ -2577,7 +2567,7 @@ function executeLWR(i) {
 function executeLDL(i) {
   const addr = (cpu0.getRegU32Lo(base(i)) + imms(i)) >>> 0;
   const addrAligned = (addr & ~7) >>> 0;
-  const mem = n64js.load_u64_bigint(cpu0.ram, addrAligned);
+  const mem = cpu0.loadU64(addrAligned);
   const reg = cpu0.getRegU64(rt(i));
 
   const n = addr & 7;
@@ -2593,7 +2583,7 @@ function executeLDL(i) {
 function executeLDR(i) {
   const addr = (cpu0.getRegU32Lo(base(i)) + imms(i)) >>> 0;
   const addrAligned = (addr & ~7) >>> 0;
-  const mem = n64js.load_u64_bigint(cpu0.ram, addrAligned);
+  const mem = cpu0.loadU64(addrAligned);
   const reg = cpu0.getRegU64(rt(i));
 
   const n = addr & 7;
@@ -2611,14 +2601,14 @@ function generateSB(ctx) {
   const o = ctx.instr_imms();
 
   const impl = `
-    n64js.store_8(ram, ${genSrcRegS32Lo(b)} + ${o}, ${genSrcRegS32Lo(t)});
+    c.store8(${genSrcRegS32Lo(b)} + ${o}, ${genSrcRegS32Lo(t)});
     `;
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
 
 function executeSB(i) {
   const addr = cpu0.getRegS32Lo(base(i)) + imms(i);
-  n64js.store_8(cpu0.ram, addr, cpu0.getRegS32Lo(rt(i)) /*& 0xff*/);
+  cpu0.store8(addr, cpu0.getRegS32Lo(rt(i)) /*& 0xff*/);
 }
 
 function generateSH(ctx) {
@@ -2627,14 +2617,14 @@ function generateSH(ctx) {
   const o = ctx.instr_imms();
 
   const impl = `
-    n64js.store_16(ram, ${genSrcRegS32Lo(b)} + ${o}, ${genSrcRegS32Lo(t)});
+    c.store16(${genSrcRegS32Lo(b)} + ${o}, ${genSrcRegS32Lo(t)});
     `;
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
 
 function executeSH(i) {
   const addr = cpu0.getRegS32Lo(base(i)) + imms(i);
-  n64js.store_16(cpu0.ram, addr, cpu0.getRegS32Lo(rt(i)) /*& 0xffff*/);
+  cpu0.store16(addr, cpu0.getRegS32Lo(rt(i)) /*& 0xffff*/);
 }
 
 function generateSW(ctx) {
@@ -2643,14 +2633,14 @@ function generateSW(ctx) {
   const o = ctx.instr_imms();
 
   const impl = `
-    n64js.store_32(ram, ${genSrcRegS32Lo(b)} + ${o}, ${genSrcRegS32Lo(t)});
+    c.store32(${genSrcRegS32Lo(b)} + ${o}, ${genSrcRegS32Lo(t)});
     `;
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
 
 function executeSW(i) {
   const addr = cpu0.getRegS32Lo(base(i)) + imms(i);
-  n64js.store_32(cpu0.ram, addr, cpu0.getRegS32Lo(rt(i)));
+  cpu0.store32(addr, cpu0.getRegS32Lo(rt(i)));
 }
 
 function generateSD(ctx) {
@@ -2660,14 +2650,14 @@ function generateSD(ctx) {
 
   const impl = `
     const addr = ${genSrcRegS32Lo(b)} + ${o};
-    n64js.store_64_bigint(ram, addr, ${genSrcRegU64(t)});
+    c.store64(addr, ${genSrcRegU64(t)});
     `;
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
 
 function executeSD(i) {
   const addr = cpu0.getRegS32Lo(base(i)) + imms(i);
-  n64js.store_64_bigint(cpu0.ram, addr, cpu0.getRegU64(rt(i)));
+  cpu0.store64(addr, cpu0.getRegU64(rt(i)));
 }
 
 function generateSWC1(ctx) {
@@ -2680,7 +2670,7 @@ function generateSWC1(ctx) {
   // FIXME: can avoid cpuStuffToDo if we're writing to ram
   const impl = `
     if (c.checkCopXUsable(1)) {
-      n64js.store_32(ram, ${genSrcRegS32Lo(b)} + ${o}, cpu1.loadS32(${t}));
+      c.store32(${genSrcRegS32Lo(b)} + ${o}, cpu1.loadS32(${t}));
     }
     `;
   return generateMemoryAccessBoilerplate(impl, ctx);
@@ -2690,7 +2680,7 @@ function executeSWC1(i) {
   if (!cpu0.checkCopXUsable(1)) {
     return;
   }
-  n64js.store_32(cpu0.ram, cpu0.getRegS32Lo(base(i)) + imms(i), cpu1.loadS32(ft(i)));
+  cpu0.store32(cpu0.getRegS32Lo(base(i)) + imms(i), cpu1.loadS32(ft(i)));
 }
 
 function generateSDC1(ctx) {
@@ -2704,7 +2694,7 @@ function generateSDC1(ctx) {
   const impl = `
     if (c.checkCopXUsable(1)) {
       const addr = ${genSrcRegS32Lo(b)} + ${o};
-      n64js.store_64_bigint(ram, addr, cpu1.loadS64(${t}));
+      c.store64(addr, cpu1.loadS64(${t}));
     }
     `;
   return generateMemoryAccessBoilerplate(impl, ctx);
@@ -2716,7 +2706,7 @@ function executeSDC1(i) {
   }
   // FIXME: this can do a single check that the address is in ram
   const addr = cpu0.getRegS32Lo(base(i)) + imms(i);
-  n64js.store_64_bigint(cpu0.ram, addr, cpu1.loadS64(ft(i)));
+  cpu0.store64(addr, cpu1.loadS64(ft(i)));
 }
 
 function executeSDC2(i) { unimplemented(cpu0.pc, i); }
@@ -2724,7 +2714,7 @@ function executeSDC2(i) { unimplemented(cpu0.pc, i); }
 function executeSWL(i) {
   const addr = (cpu0.getRegU32Lo(base(i)) + imms(i));
   const addrAligned = (addr & ~3) >>> 0;
-  const mem = n64js.readMemoryU32(addrAligned);
+  const mem = cpu0.loadU32(addrAligned);
   const reg = cpu0.getRegU32Lo(rt(i));
 
   const n = addr & 3;
@@ -2733,13 +2723,13 @@ function executeSWL(i) {
   const mask = ~(allBits >>> shift);
 
   const result = (mem & mask) | (reg >>> shift);
-  n64js.writeMemory32(addrAligned, result);
+  cpu0.store32(addrAligned, result);
 }
 
 function executeSWR(i) {
   const addr = (cpu0.getRegU32Lo(base(i)) + imms(i));
   const addrAligned = (addr & ~3) >>> 0;
-  const mem = n64js.readMemoryU32(addrAligned);
+  const mem = cpu0.loadU32(addrAligned);
   const reg = cpu0.getRegU32Lo(rt(i));
 
   const n = addr & 3;
@@ -2748,13 +2738,13 @@ function executeSWR(i) {
   const mask = shift > 0 ? allBits >>> (32 - shift) : 0; // >>>32 is undefined.
 
   const result = (mem & mask) | (reg << shift);
-  n64js.writeMemory32(addrAligned, result);
+  cpu0.store32(addrAligned, result);
 }
 
 function executeSDL(i) {
   const addr = (cpu0.getRegU32Lo(base(i)) + imms(i)) >>> 0;
   const addrAligned = (addr & ~7) >>> 0;
-  const mem = n64js.load_u64_bigint(cpu0.ram, addrAligned);
+  const mem = cpu0.loadU64(addrAligned);
   const reg = cpu0.getRegU64(rt(i));
 
   const n = addr & 7;
@@ -2763,13 +2753,13 @@ function executeSDL(i) {
   const mask = ~(allBits >> shift);
 
   const result = (mem & mask) | (reg >> shift);
-  n64js.store_64_bigint(cpu0.ram, addrAligned, result);
+  cpu0.store64(addrAligned, result);
 }
 
 function executeSDR(i) {
   const addr = (cpu0.getRegU32Lo(base(i)) + imms(i)) >>> 0;
   const addrAligned = (addr & ~7) >>> 0;
-  const mem = n64js.load_u64_bigint(cpu0.ram, addrAligned);
+  const mem = cpu0.loadU64(addrAligned);
   const reg = cpu0.getRegU64(rt(i));
 
   const n = addr & 7;
@@ -2779,7 +2769,7 @@ function executeSDR(i) {
 
   // Final mask shouldn't be needed - BigInt bug?
   const result = ((mem & mask) | (reg << shift)) & allBits;
-  n64js.store_64_bigint(cpu0.ram, addrAligned, result);
+  cpu0.store64(addrAligned, result);
 }
 
 function generateCACHE(ctx) {
@@ -2823,7 +2813,7 @@ function makeLLAddr(addr) {
 
 function executeLL(i) {
   const addr = (cpu0.getRegS32Lo(base(i)) + imms(i)) >>> 0;
-  const value = n64js.load_s32(cpu0.ram, addr);
+  const value = cpu0.loadS32(addr);
 
   cpu0.control[cpu0_constants.controlLLAddr] = makeLLAddr(addr);
   cpu0.setRegS32Extend(rt(i), value);
@@ -2834,7 +2824,7 @@ function executeLLD(i) {
   const addr = (cpu0.getRegS32Lo(base(i)) + imms(i)) >>> 0;
   
   cpu0.control[cpu0_constants.controlLLAddr] = makeLLAddr(addr);
-  const value = n64js.load_u64_bigint(cpu0.ram, addr);
+  const value = cpu0.loadU64(addr);
   cpu0.setRegU64(rt(i), value);
   cpu0.llBit = 1;
 }
@@ -2844,7 +2834,7 @@ function executeSC(i) {
   let result = 0;
   if (cpu0.llBit) {
     const addr = cpu0.getRegS32Lo(base(i)) + imms(i);
-    n64js.store_32(cpu0.ram, addr, cpu0.getRegS32Lo(t));
+    cpu0.store32(addr, cpu0.getRegS32Lo(t));
     cpu0.llBit = 0;
     result = 1;
   }
@@ -2857,7 +2847,7 @@ function executeSCD(i) {
   let result = 0;
   if (cpu0.llBit) {
     const addr = cpu0.getRegS32Lo(base(i)) + imms(i);
-    n64js.store_64_bigint(cpu0.ram, addr, cpu0.getRegU64(t));
+    cpu0.store64(addr, cpu0.getRegU64(t));
     cpu0.llBit = 0;
     result = 1;
   }
@@ -3894,11 +3884,11 @@ n64js.run = function (cycles) {
   }
 };
 
-function executeFragment(fragment, c, ram, events) {
+function executeFragment(fragment, c, events) {
   let evt = events[0];
   if (evt.countdown >= fragment.opsCompiled * COUNTER_INCREMENT_PER_OP) {
     fragment.executionCount++;
-    const ops_executed = fragment.func(c, ram);   // Absolute value is number of ops executed.
+    const ops_executed = fragment.func(c);   // Absolute value is number of ops executed.
 
     // refresh latest event - may have changed
     evt = events[0];
@@ -3967,7 +3957,7 @@ function addOpToFragment(fragment, entry_pc, instruction, c) {
       fragment.body_code = cpu1_shizzle + '\n\n' + fragment.body_code;
     }
 
-    const code = 'return function fragment_' + toString32(fragment.entryPC) + '_' + fragment.opsCompiled + '(c, ram) {\n' + fragment.body_code + '}\n';
+    const code = 'return function fragment_' + toString32(fragment.entryPC) + '_' + fragment.opsCompiled + '(c) {\n' + fragment.body_code + '}\n';
 
     // Clear these strings to reduce garbage
     fragment.body_code = '';
@@ -3986,7 +3976,7 @@ function addOpToFragment(fragment, entry_pc, instruction, c) {
 function runImpl() {
   const c = cpu0;
   const events = c.events;
-  const ram = c.ram;
+  const ramDV = c.ramDV;
 
   while (c.hasEvent(kEventRunForCycles)) {
     let fragment = lookupFragment(c.pc);
@@ -3995,7 +3985,7 @@ function runImpl() {
     while (!c.stuffToDo) {
 
       if (fragment && fragment.func) {
-        fragment = executeFragment(fragment, c, ram, events);
+        fragment = executeFragment(fragment, c, events);
       } else {
         // if (syncFlow) {
         //   if (!checkSyncState(syncFlow, cpu0.pc)) {
@@ -4010,11 +4000,11 @@ function runImpl() {
         if (c.delayPC) { c.nextPC = c.delayPC; } else { c.nextPC = c.pc + 4; }
 
         // NB: load instruction using normal memory access routines - this means that we throw a tlb miss/refill approptiately
-        // let instruction = n64js.load_s32(ram, pc);
+        // let instruction = cpu0.loadS32(pc);
         let instruction;
         if (pc < -2139095040) {
           const phys = (pc + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
-          instruction = ((ram[phys] << 24) | (ram[phys + 1] << 16) | (ram[phys + 2] << 8) | ram[phys + 3]) | 0;
+          instruction = ramDV.getInt32(phys, false);
         } else {
           instruction = lw_slow(pc);
         }
