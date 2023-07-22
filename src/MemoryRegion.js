@@ -10,6 +10,7 @@ export class MemoryRegion {
     this.length = arrayBuffer.byteLength;
     this.u8 = new Uint8Array(arrayBuffer);
     this.s32 = new Int32Array(arrayBuffer);
+    this.dataView = new DataView(arrayBuffer);
   }
 
   clear() {
@@ -23,96 +24,63 @@ export class MemoryRegion {
    * @param {number} offset
    * @return {number}
    */
-  readU32(offset) {
-    return (
-      (this.u8[offset + 0] << 24) |
-      (this.u8[offset + 1] << 16) |
-      (this.u8[offset + 2] << 8) |
-      (this.u8[offset + 3])) >>> 0;
-  }
+  readU32(offset) { return this.dataView.getUint32(offset, false); }
 
   /**
    * Read the value at the specified offset.
    * @param {number} offset
    * @return {number}
    */
-  readU16(offset) {
-    return (this.u8[offset] << 8) |
-      (this.u8[offset + 1]);
-  }
+  readU16(offset) { return this.dataView.getUint16(offset, false); }
 
   /**
    * Read the value at the specified offset.
    * @param {number} offset
    * @return {number}
    */
-  readU8(offset) {
-    return this.u8[offset];
-  }
+  readU8(offset) { return this.dataView.getUint8(offset, false); }
 
   /**
    * Read the value at the specified offset.
    * @param {number} offset
    * @return {number}
    */
-  readS32(offset) {
-    return (
-      (this.u8[offset + 0] << 24) |
-      (this.u8[offset + 1] << 16) |
-      (this.u8[offset + 2] << 8) |
-      (this.u8[offset + 3])) | 0;
-  }
+  readS32(offset) { return this.dataView.getInt32(offset, false); }
 
   /**
    * Read the value at the specified offset.
    * @param {number} offset
    * @return {number}
    */
-  readS16(offset) {
-    return (
-      (this.u8[offset + 0] << 24) |
-      (this.u8[offset + 1] << 16)) >> 16;
-  }
+  readS16(offset) { return this.dataView.getInt16(offset, false); }
 
   /**
    * Read the value at the specified offset.
    * @param {number} offset
    * @return {number}
    */
-  readS8(offset) {
-    return ((this.u8[offset] << 24)) >> 24;
-  }
+  readS8(offset) { return this.dataView.getInt8(offset, false); }
 
   /**
    * Write the value to the specified offset.
    * @param {number} offset
    * @param {number} value
    */
-  write32(offset, value) {
-    this.u8[offset + 0] = value >> 24;
-    this.u8[offset + 1] = value >> 16;
-    this.u8[offset + 2] = value >> 8;
-    this.u8[offset + 3] = value;
-  }
+  write32(offset, value) { this.dataView.setUint32(offset, value, false); }
 
   /**
    * Write the value to the specified offset.
    * @param {number} offset
    * @param {number} value
    */
-  write16(offset, value) {
-    this.u8[offset + 0] = value >> 8;
-    this.u8[offset + 1] = value;
-  }
+  write16(offset, value) { this.dataView.setUint16(offset, value, false); }
 
   /**
    * Write the value to the specified offset.
    * @param {number} offset
    * @param {number} value
    */
-  write8(offset, value) {
-    this.u8[offset] = value;
-  }
+  write8(offset, value) { this.dataView.setUint8(offset, value, false); }
 
   /**
    * Clear the specified bits at the specified offset.
