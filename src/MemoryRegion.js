@@ -9,7 +9,6 @@ export class MemoryRegion {
     this.arrayBuffer = arrayBuffer;
     this.length = arrayBuffer.byteLength;
     this.u8 = new Uint8Array(arrayBuffer);
-    this.s32 = new Int32Array(arrayBuffer);
     this.dataView = new DataView(arrayBuffer);
   }
 

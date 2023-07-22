@@ -115,6 +115,9 @@ export class MappedMemDevice extends Device {
 export class CachedMemDevice extends Device {
   constructor(hardware, rangeStart, rangeEnd) {
     super("RAM", hardware, hardware.ram, rangeStart, rangeEnd);
+
+    // Used by n64js.getRamS32Array.
+    this.s32 = new Int32Array(this.mem.arrayBuffer);
   }
 
   // This function gets hit A LOT, so eliminate as much fat as possible.
