@@ -23,6 +23,11 @@ export class ROMD1A2Device extends Device {
         // FIXME: rom is initally unmapped, and the underlying Device isn't updated as it's mapped in.
         super("ROMd1a2", hardware, hardware.rom, rangeStart, rangeEnd);
 
+        // Writes are buffered for a short period. Reads will return the written value.
+        // Additional writes will be ignored until the value has decayed.
+        this.lastWrite = 0;
+        this.hasLastWrite = false;
+
         // A buffer for storing debug output, mapped to dbgOutBufStart.
         // This is flushed on writes to dbgOutWriteLen.
         this.debugBuffer = new ArrayBuffer(dbgOutBufLen);
@@ -46,11 +51,69 @@ export class ROMD1A2Device extends Device {
             return this.writeDebugBuffer32(address - dbgOutBufStart, value);
         }
 
-        console.log(`[unhandled] Writing word to rom d1a2 ${toString32(value)} -> [${toString32(address)}]`);
-    };
+        this.cacheLastWrite(value >>> 0);
+    }
 
-    write16(address, value) { console.log(`[unhandled] Writing to rom d1a2 ${toString16(value)} -> [${toString32(address)}]`); };
-    write8(address, value) { console.log(`[unhandled] Writing to rom d1a2 ${toString8(value)} -> [${toString32(address)}]`); };
+    write16(address, value) {
+        this.cacheLastWrite((value & 0xffff) << 16);
+    }
+    write8(address, value) {
+        this.cacheLastWrite((value & 0xff) << 24);
+    }
+
+    readU32(address) {
+        if (this.hasLastWrite) {
+            return this.consumeLastWrite() >>> 0;
+        }
+        return super.readU32(address);
+    }
+
+    readS32(address) {
+        if (this.hasLastWrite) {
+            return this.consumeLastWrite() >> 0;
+        }
+        return super.readS32(address);
+    }
+
+    readU16(address) {
+        if (this.hasLastWrite) {
+            return this.consumeLastWrite() >>> 16;
+        }
+        return super.readU16(address);
+    }
+
+    readS16(address) {
+        if (this.hasLastWrite) {
+            return this.consumeLastWrite() >> 16;
+        }
+        return super.readS16(address);
+    }
+
+    readU8(address) {
+        if (this.hasLastWrite) {
+            return this.consumeLastWrite() >>> 24;
+        }
+        return super.readU8(address);
+    }
+
+    readS8(address) {
+        if (this.hasLastWrite) {
+            return this.consumeLastWrite() >> 24;
+        }
+        return super.readS8(address);
+    }
+
+    cacheLastWrite(value) {
+        if (!this.hasLastWrite) {
+            this.lastWrite = value;
+            this.hasLastWrite = true;
+        }
+    }
+
+    consumeLastWrite() {
+        this.hasLastWrite = false;
+        return this.lastWrite;
+    }
 
     writeDebugBufferLen(value) {
         if (value > dbgOutBufLen) {
