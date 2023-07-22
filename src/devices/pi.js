@@ -295,7 +295,7 @@ export class PIRamDevice extends Device {
   }
 
   readU8(address) {
-    return this.mem.readS8(address) >>> 0;
+    return this.readS8(address) >>> 0;
   }
 
   write32(address, value) {
