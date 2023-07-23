@@ -3,7 +3,7 @@
 import * as cpu0_constants from './cpu0_constants.js';
 import { CPU1, convertModeCeil, convertModeFloor, convertModeRound, convertModeTrunc } from './cpu1.js';
 import { disassembleInstruction, cop0ControlRegisterNames, cop0gprNames } from './disassemble.js';
-import { toString8, toString32 } from './format.js';
+import { toString8, toString32, toString64_bigint } from './format.js';
 import { lookupFragment, resetFragments } from './fragments.js';
 import { assert } from './assert.js';
 import * as logger from './logger.js';
@@ -97,7 +97,7 @@ const CAUSE_EXCMASK   = 0x0000007C;
 const CAUSE_EXCSHIFT  = 2;
 
 // Only the software interrupt values are writeable.
-const causeWritableBits = CAUSE_SW1 | CAUSE_SW2;
+const causeWritableBits = BigInt(CAUSE_SW1 | CAUSE_SW2);
 
 const causeExcCodeInt = 0 << 2;  // Interrupt
 const causeExcCodeMod = 1 << 2;  // TLB Modification
@@ -134,7 +134,7 @@ const TLBHI_PIDMASK     = 0xff;
 const TLBHI_PIDSHIFT    = 0;
 const TLBHI_NPID        = 255;
 
-const entryHiWritableBits = 0xffffe0ff;
+const entryHiWritableBits = 0xffffe0ffn;
 
 const TLBLO_PFNMASK     = 0x3fffffc0;
 const TLBLO_PFNSHIFT    = 6;
@@ -147,20 +147,20 @@ const TLBLO_D           = 0x4;
 const TLBLO_V           = 0x2;
 const TLBLO_G           = 0x1;
 
-const entryLoWritableBits = 0x3fffffff;
+const entryLoWritableBits = 0x3fffffffn;
 
 const TLBINX_PROBE      = 0x80000000;
 const TLBINX_INXMASK    = 0x3f;
 const TLBINX_INXSHIFT   = 0;
 
-const indexWritableBits = 0x8000003f;
+const indexWritableBits = 0x8000003fn;
 
 const TLBRAND_RANDMASK  = 0x3f;
 const TLBRAND_RANDSHIFT = 0;
 
 const TLBWIRED_WIREDMASK  = 0x3f;
 
-const wiredWritableBits = 0x3f;
+const wiredWritableBits = 0x3fn;
 
 const TLBCTXT_BASEMASK  = 0xff800000;
 const TLBCTXT_BASESHIFT = 23;
@@ -169,7 +169,7 @@ const TLBCTXT_BASEBITS  = 9;
 const TLBCTXT_VPNMASK   = 0x7ffff0;
 const TLBCTXT_VPNSHIFT  = 4;
 
-const contextWriteableBits = ~0x7fffff;
+const contextWriteableBits = ~0x7fffffn;
 
 const TLBPGMASK_4K      = 0x00000000;
 const TLBPGMASK_16K     = 0x00006000;
@@ -179,7 +179,7 @@ const TLBPGMASK_1M      = 0x001fe000;
 const TLBPGMASK_4M      = 0x007fe000;
 const TLBPGMASK_16M     = 0x01ffe000;
 
-const pageMaskWritableBits = 0x01ffe000;
+const pageMaskWritableBits = 0x01ffe000n;
 
 const kStuffToDoHalt            = 1<<0;
 const kStuffToDoCheckInterrupts = 1<<1;
@@ -308,7 +308,7 @@ class CPU0 {
     this.controlRegS64 = new BigInt64Array(controlMem);
 
     // Reads from invalid control registers will use the value last written to any control register.
-    this.lastControlRegWrite = 0;
+    this.lastControlRegWrite = 0n;
 
     this.pc = 0;
     this.delayPC = 0;
@@ -549,35 +549,40 @@ class CPU0 {
     this.store64_lo_hi(addr, lo, hi);
   }
 
+  /**
+   * Moves the software-provided value to the control register, obeying masking.
+   * @param {number} controlReg The control register to update.
+   * @param {bigint} newValue The value to set.
+   */
   moveToControl(controlReg, newValue) {
     this.lastControlRegWrite = newValue;
 
     switch (controlReg) {
       case cpu0_constants.controlIndex:
-        this.setControlU32(controlReg, newValue & indexWritableBits);
+        this.setControlU64(controlReg, newValue & indexWritableBits);
         break;
 
       case cpu0_constants.controlEntryLo0:
       case cpu0_constants.controlEntryLo1:
-        this.setControlU32(controlReg, newValue & entryLoWritableBits);
+        this.setControlU64(controlReg, newValue & entryLoWritableBits);
         break;
 
       case cpu0_constants.controlContext:
-        this.setControlU32(controlReg, newValue & contextWriteableBits);
+        this.setControlU64(controlReg, newValue & contextWriteableBits);
         break;
 
       case cpu0_constants.controlPageMask:
-        this.setControlU32(controlReg, newValue & pageMaskWritableBits);
+        this.setControlU64(controlReg, newValue & pageMaskWritableBits);
         break;
 
       case cpu0_constants.controlWired:
-        this.setControlU32(controlReg, newValue & wiredWritableBits);
+        this.setControlU64(controlReg, newValue & wiredWritableBits);
         // Set to top limit on write to wired
-        this.setControlU32(cpu0_constants.controlRand, 31);
+        this.setControlU64(cpu0_constants.controlRand, 31n);
         break;
 
       case cpu0_constants.controlEntryHi:
-        this.setControlU32(controlReg, newValue & entryHiWritableBits);
+        this.setControlU64(controlReg, newValue & entryHiWritableBits);
         break;
 
       case cpu0_constants.controlRand:
@@ -590,17 +595,17 @@ class CPU0 {
       case cpu0_constants.controlCause:
         logger.log(`Setting cause register to ${toString32(newValue)}`);
         n64js.check(newValue === 0, 'Should only write 0 to Cause register.');
-        this.maskControlBits32(controlReg, causeWritableBits, newValue);
+        this.maskControlBits64(controlReg, causeWritableBits, newValue);
         break;
 
       case cpu0_constants.controlStatus:
-        this.setStatus(newValue);
+        this.setStatus(Number(newValue & 0xffff_ffffn));
         break;
       case cpu0_constants.controlCount:
-        this.setControlU32(controlReg, newValue);
+        this.setControlU64(controlReg, newValue);
         break;
       case cpu0_constants.controlCompare:
-        this.setCompare(newValue);
+        this.setCompare(Number(newValue & 0xffff_ffffn));
         break;
 
       case cpu0_constants.controlXContext:
@@ -611,11 +616,11 @@ class CPU0 {
       case cpu0_constants.controlEPC:
       case cpu0_constants.controlTagLo:
       case cpu0_constants.controlTagHi:
-        this.setControlU32(controlReg, newValue);
+        this.setControlU64(controlReg, newValue);
         break;
 
       case cpu0_constants.controlLLAddr:
-        this.setControlU32(controlReg, newValue);
+        this.setControlU64(controlReg, newValue);
         break;
 
       case cpu0_constants.controlInvalid7:
@@ -630,9 +635,37 @@ class CPU0 {
         break;
 
       default:
-        this.setControlU32(controlReg, newValue);
-        logger.log(`Write to cpu0 control register. ${toString32(newValue)} --> ${cop0ControlRegisterNames[controlReg]}`);
+        this.setControlU64(controlReg, newValue);
+        logger.log(`Write to cpu0 control register. ${toString64_bigint(newValue)} --> ${cop0ControlRegisterNames[controlReg]}`);
         break;
+    }
+  }
+
+  /**
+   * Returns the control register value.
+   * @param {number} controlReg The control register to get.
+   * @returns {bigint} The register value.
+   */
+  moveFromControl(controlReg) {
+    // Check consistency
+    if (controlReg === cpu0_constants.controlCause) {
+      checkCauseIP3Consistent();
+    }
+
+    switch (controlReg) {
+      case cpu0_constants.controlRand:
+        return BigInt(this.getRandom());
+      case cpu0_constants.controlInvalid7:
+      case cpu0_constants.controlInvalid21:
+      case cpu0_constants.controlInvalid22:
+      case cpu0_constants.controlInvalid23:
+      case cpu0_constants.controlInvalid24:
+      case cpu0_constants.controlInvalid25:
+      case cpu0_constants.controlInvalid31:
+        // Reads from invalid control registers will use the value last written to any control register.
+        return this.lastControlRegWrite;
+      default:
+        return this.getControlU64(controlReg);
     }
   }
 
@@ -1769,36 +1802,12 @@ function executeDSUBU(i) {
 }
 
 function executeMFC0(i) {
-  const controlReg = fs(i);
-
-  // Check consistency
-  if (controlReg === cpu0_constants.controlCause) {
-    checkCauseIP3Consistent();
-  }
-
-  switch (controlReg) {
-    case cpu0_constants.controlRand:
-      cpu0.setRegS32Extend(rt(i), cpu0.getRandom());
-      break;
-    case cpu0_constants.controlInvalid7:
-    case cpu0_constants.controlInvalid21:
-    case cpu0_constants.controlInvalid22:
-    case cpu0_constants.controlInvalid23:
-    case cpu0_constants.controlInvalid24:
-    case cpu0_constants.controlInvalid25:
-    case cpu0_constants.controlInvalid31:
-      // Reads from invalid control registers will use the value last written to any control register.
-      cpu0.setRegS32Extend(rt(i), cpu0.lastControlRegWrite);
-      break;
-    default:
-      cpu0.setRegS32Extend(rt(i), cpu0.getControlS32(controlReg));
-      break;
-  }
+  const value = cpu0.moveFromControl(fs(i));
+  cpu0.setRegS32Extend(rt(i), Number(value & 0xffff_ffffn));
 }
 
 function executeDMFC0(i) {
-  // TODO: Implement this using 64 bits.
-  executeMFC0(i);
+  cpu0.setRegU64(rt(i), cpu0.moveFromControl(fs(i)));
 }
 
 function generateMTC0(ctx) {
@@ -1809,18 +1818,17 @@ function generateMTC0(ctx) {
   }
 
   let impl = `
-    c.moveToControl(${s}, ${genSrcRegU32Lo(t)})
+    c.moveToControl(${s}, BigInt(${genSrcRegU32Lo(t)}))
     `;
   return generateGenericOpBoilerplate(impl, ctx);
 }
 
 function executeMTC0(i) {
-  cpu0.moveToControl(fs(i), cpu0.getRegU32Lo(rt(i)));
+  cpu0.moveToControl(fs(i), BigInt(cpu0.getRegU32Lo(rt(i))));
 }
 
 function executeDMTC0(i) {
-  // TODO: Implement this using 64 bit value.
-  cpu0.moveToControl(fs(i), cpu0.getRegU32Lo(rt(i)));
+  cpu0.moveToControl(fs(i), cpu0.getRegU64(rt(i)));
 }
 
 function executeTLB(i) {
