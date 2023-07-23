@@ -302,8 +302,8 @@ class CPU0 {
     this.gprS64 = new BigInt64Array(gprMem);
 
     const controlMem = new ArrayBuffer(32 * 4);
-    this.control = new Uint32Array(controlMem);
-    this.control_signed = new Int32Array(controlMem);
+    this.controlRegU32 = new Uint32Array(controlMem);
+    this.controlRegS32 = new Int32Array(controlMem);
 
     // Reads from invalid control registers will use the value last written to any control register.
     this.lastControlRegWrite = 0;
@@ -391,21 +391,21 @@ class CPU0 {
   setMultHiS64(v) { this.multHiS64[0] = v; }
   setMultHiU64(v) { this.multHiU64[0] = v; }
 
-  setControlU32(r, v) { this.control[r] = v; }
-  setControlS32(r, v) { this.control_signed[r] = v; }
-  getControlU32(r) { return this.control[r]; }
-  getControlS32(r) { return this.control_signed[r]; }
+  setControlU32(r, v) { this.controlRegU32[r] = v; }
+  setControlS32(r, v) { this.controlRegS32[r] = v; }
+  getControlU32(r) { return this.controlRegU32[r]; }
+  getControlS32(r) { return this.controlRegS32[r]; }
 
   maskControlBits32(r, mask, value) {
-    this.control[r] = (this.control[r] & ~mask) | (value & mask);
+    this.controlRegU32[r] = (this.controlRegU32[r] & ~mask) | (value & mask);
   }
 
   setControlBits32(r, value) {
-    this.control[r] |= value;
+    this.controlRegU32[r] |= value;
   }
 
   clearControlBits32(r, value) {
-    this.control[r] &= ~value;
+    this.controlRegU32[r] &= ~value;
   }
 
   reset() {
@@ -416,7 +416,7 @@ class CPU0 {
     for (let i = 0; i < 32; ++i) {
       this.gprU32[i * 2 + 0] = 0;
       this.gprU32[i * 2 + 1] = 0;
-      this.control[i] = 0;
+      this.controlRegU32[i] = 0;
     }
     for (let i = 0; i < 32; ++i) {
       this.tlbEntries[i].update(i, 0, 0x80000000, 0, 0);
