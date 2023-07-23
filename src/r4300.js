@@ -181,6 +181,8 @@ const TLBPGMASK_16M     = 0x01ffe000;
 
 const pageMaskWritableBits = 0x01ffe000n;
 
+const configWritableBits = 0x0f00800fn;
+
 const kStuffToDoHalt            = 1<<0;
 const kStuffToDoCheckInterrupts = 1<<1;
 const kStuffToDoBreakout        = 1<<2;
@@ -445,7 +447,7 @@ class CPU0 {
 
     this.setControlU32(cpu0_constants.controlRand, 32 - 1);
     this.setControlU32(cpu0_constants.controlStatus, 0x70400004);
-    this.setControlU32(cpu0_constants.controlConfig, 0x0006e463);
+    this.setControlU32(cpu0_constants.controlConfig, 0x7006e463);
     cop1ControlChanged();
   }
 
@@ -590,6 +592,10 @@ class CPU0 {
       case cpu0_constants.controlPRId:
       case cpu0_constants.controlCacheErr:
         // All these registers are read-only
+        break;
+
+      case cpu0_constants.controlConfig:
+        this.maskControlBits64(controlReg, configWritableBits, newValue);
         break;
 
       case cpu0_constants.controlCause:
