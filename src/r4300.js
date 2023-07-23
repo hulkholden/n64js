@@ -134,7 +134,7 @@ const TLBHI_PIDMASK     = 0xff;
 const TLBHI_PIDSHIFT    = 0;
 const TLBHI_NPID        = 255;
 
-const entryHiWritableBits = 0xffffe0ffn;
+const entryHiWritableBits = 0xc00000ffffffe0ffn;
 
 const TLBLO_PFNMASK     = 0x3fffffc0;
 const TLBLO_PFNSHIFT    = 6;
