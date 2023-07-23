@@ -134,6 +134,8 @@ const TLBHI_PIDMASK     = 0xff;
 const TLBHI_PIDSHIFT    = 0;
 const TLBHI_NPID        = 255;
 
+const entryHiWritableBits = 0xffffe0ff;
+
 const TLBLO_PFNMASK     = 0x3fffffc0;
 const TLBLO_PFNSHIFT    = 6;
 const TLBLO_CACHMASK    = 0x38;
@@ -1722,8 +1724,7 @@ function executeMTC0(i) {
       break;
 
     case cpu0_constants.controlEntryHi:
-      // TODO: bits 8 to 12 are hardcoded to zero.
-      cpu0.control[controlReg] = newValue;
+      cpu0.control[controlReg] = newValue & entryHiWritableBits;
       break;
 
     case cpu0_constants.controlRand:
