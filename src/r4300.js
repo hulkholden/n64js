@@ -338,7 +338,12 @@ class CPU0 {
   }
 
   getCount() {
-    return this.control[cpu0_constants.controlCount];
+    return this.getControlU32(cpu0_constants.controlCount);
+  }
+
+  incrementCount(val) {
+    const curCount = this.getControlS32(cpu0_constants.controlCount);
+    this.setControlS32(cpu0_constants.controlCount, curCount + val);
   }
 
   getRegS32Lo(r) { return this.gprS32[r * 2 + 0]; }
@@ -386,6 +391,23 @@ class CPU0 {
   setMultHiS64(v) { this.multHiS64[0] = v; }
   setMultHiU64(v) { this.multHiU64[0] = v; }
 
+  setControlU32(r, v) { this.control[r] = v; }
+  setControlS32(r, v) { this.control_signed[r] = v; }
+  getControlU32(r) { return this.control[r]; }
+  getControlS32(r) { return this.control_signed[r]; }
+
+  maskControlBits32(r, mask, value) {
+    this.control[r] = (this.control[r] & ~mask) | (value & mask);
+  }
+
+  setControlBits32(r, value) {
+    this.control[r] |= value;
+  }
+
+  clearControlBits32(r, value) {
+    this.control[r] &= ~value;
+  }
+
   reset() {
     resetFragments();
 
@@ -412,9 +434,9 @@ class CPU0 {
     this.multLoU32[0] = this.multLoU32[1] = 0;
     this.multHiU32[0] = this.multHiU32[1] = 0;
 
-    this.control[cpu0_constants.controlRand] = 32 - 1;
-    this.control[cpu0_constants.controlStatus] = 0x70400004;
-    this.control[cpu0_constants.controlConfig] = 0x0006e463;
+    this.setControlU32(cpu0_constants.controlRand, 32 - 1);
+    this.setControlU32(cpu0_constants.controlStatus, 0x70400004);
+    this.setControlU32(cpu0_constants.controlConfig, 0x0006e463);
     cop1ControlChanged();
   }
 
@@ -523,30 +545,30 @@ class CPU0 {
 
     switch (controlReg) {
       case cpu0_constants.controlIndex:
-        this.control[controlReg] = newValue & indexWritableBits;
+        this.setControlU32(controlReg, newValue & indexWritableBits);
         break;
 
       case cpu0_constants.controlEntryLo0:
       case cpu0_constants.controlEntryLo1:
-        this.control[controlReg] = newValue & entryLoWritableBits;
+        this.setControlU32(controlReg, newValue & entryLoWritableBits);
         break;
 
       case cpu0_constants.controlContext:
-        this.control[controlReg] = newValue & contextWriteableBits;
+        this.setControlU32(controlReg, newValue & contextWriteableBits);
         break;
 
       case cpu0_constants.controlPageMask:
-        this.control[controlReg] = newValue & pageMaskWritableBits;
+        this.setControlU32(controlReg, newValue & pageMaskWritableBits);
         break;
 
       case cpu0_constants.controlWired:
-        this.control[controlReg] = newValue & wiredWritableBits;
+        this.setControlU32(controlReg, newValue & wiredWritableBits);
         // Set to top limit on write to wired
-        this.control[cpu0_constants.controlRand] = 31;
+        this.setControlU32(cpu0_constants.controlRand, 31);
         break;
 
       case cpu0_constants.controlEntryHi:
-        this.control[controlReg] = newValue & entryHiWritableBits;
+        this.setControlU32(controlReg, newValue & entryHiWritableBits);
         break;
 
       case cpu0_constants.controlRand:
@@ -559,15 +581,14 @@ class CPU0 {
       case cpu0_constants.controlCause:
         logger.log(`Setting cause register to ${toString32(newValue)}`);
         n64js.check(newValue === 0, 'Should only write 0 to Cause register.');
-        this.control[controlReg] &= ~causeWritableBits;
-        this.control[controlReg] |= (newValue & causeWritableBits);
+        this.maskControlBits32(controlReg, causeWritableBits, newValue);
         break;
 
       case cpu0_constants.controlStatus:
         this.setStatus(newValue);
         break;
       case cpu0_constants.controlCount:
-        this.control[controlReg] = newValue;
+        this.setControlU32(controlReg, newValue);
         break;
       case cpu0_constants.controlCompare:
         this.setCompare(newValue);
@@ -581,11 +602,11 @@ class CPU0 {
       case cpu0_constants.controlEPC:
       case cpu0_constants.controlTagLo:
       case cpu0_constants.controlTagHi:
-        this.control[controlReg] = newValue;
+        this.setControlU32(controlReg, newValue);
         break;
 
       case cpu0_constants.controlLLAddr:
-        this.control[controlReg] = newValue;
+        this.setControlU32(controlReg, newValue);
         break;
 
       case cpu0_constants.controlInvalid7:
@@ -600,7 +621,7 @@ class CPU0 {
         break;
 
       default:
-        this.control[controlReg] = newValue;
+        this.setControlU32(controlReg, newValue);
         logger.log(`Write to cpu0 control register. ${toString32(newValue)} --> ${cop0ControlRegisterNames[controlReg]}`);
         break;
     }
@@ -625,7 +646,8 @@ class CPU0 {
 
         // logger.log('speedhack: skipping ' + toSkip + ' cycles');
 
-        this.control[cpu0_constants.controlCount] += toSkip;
+        const curCount = this.getControlU32(cpu0_constants.controlCount);
+        this.setControlU32(cpu0_constants.controlCount, curCount + toSkip);
         this.events[0].countdown = 1;
 
         // Re-add the kEventRunForCycles event
@@ -643,20 +665,20 @@ class CPU0 {
   updateCause3() {
     const miRegDevice = n64js.hardware().miRegDevice;
     if (miRegDevice.interruptsUnmasked()) {
-      this.control[cpu0_constants.controlCause] |= CAUSE_IP3;
+      this.setControlBits32(cpu0_constants.controlCause, CAUSE_IP3);
 
       if (this.checkForUnmaskedInterrupts()) {
         this.stuffToDo |= kStuffToDoCheckInterrupts;
       }
     } else {
-      this.control[cpu0_constants.controlCause] &= ~CAUSE_IP3;
+      this.clearControlBits32(cpu0_constants.controlCause, CAUSE_IP3);
     }
 
     checkCauseIP3Consistent();
   }
 
   setStatus(value) {
-    this.control[cpu0_constants.controlStatus] = value & statusWritableBits;
+    this.setControlU32(cpu0_constants.controlStatus, value & statusWritableBits);
     cop1ControlChanged();
 
     if (this.checkForUnmaskedInterrupts()) {
@@ -665,13 +687,12 @@ class CPU0 {
   }
 
   checkForUnmaskedInterrupts() {
-    const sr = this.control[cpu0_constants.controlStatus];
+    const sr = this.getControlU32(cpu0_constants.controlStatus);
 
     // Ensure ERL/EXL are clear and IE is set
     if ((sr & (SR_EXL | SR_ERL | SR_IE)) === SR_IE) {
       // Check if interrupts are actually pending, and wanted
-      const cause = this.control[cpu0_constants.controlCause];
-
+      const cause = this.getControlU32(cpu0_constants.controlCause);
       if ((sr & cause & CAUSE_IPMASK) !== 0) {
         return true;
       }
@@ -681,15 +702,16 @@ class CPU0 {
   }
 
   raiseAdELException(address) {
-    this.control[cpu0_constants.controlBadVAddr] = address;
+    this.setControlU32(cpu0_constants.controlBadVAddr, address);
 
-    this.control[cpu0_constants.controlContext] &= 0xff800000;
-    this.control[cpu0_constants.controlContext] |= ((address >>> 13) << 4);
+    const context = ((address >>> 13) << TLBCTXT_VPNSHIFT);
+    this.maskControlBits32(cpu0_constants.controlContext, TLBCTXT_VPNMASK, context);
 
-    // FIXME this is a 64 bit register.
-    this.control[cpu0_constants.controlXContext] &= 0;
-    this.control[cpu0_constants.controlXContext] |= (((address >>> 13) & 0x7ffffff) << 4); // badvpn2
-    this.control[cpu0_constants.controlXContext] |= (((address >>> 30) & 0x3) << 31); // r
+    const xcontext = (
+      (((address >>> 13) & 0x7ffffff) << 4) | // badvpn2
+      (((address >>> 30) & 0x3) << 31)); // r
+      // FIXME this is a 64 bit register.
+    this.maskControlBits32(cpu0_constants.controlXContext, 0xffffffff, xcontext);
 
     this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, causeExcCodeAdEL);
   }
@@ -698,7 +720,7 @@ class CPU0 {
     // TODO: this probably needs to throw a JS exception which is caught in n64js.run
     // to ensure bookkeeping (like updating the delayPC) isn't run.
     const bit = 1 << (SR_CUSHIFT + copIdx);
-    const usable = (cpu0.control[cpu0_constants.controlStatus] & bit) != 0;
+    const usable = (cpu0.getControlU32(cpu0_constants.controlStatus) & bit) != 0;
     if (!usable) {
       this.throwCopXUnusable(copIdx);
       return false;
@@ -743,14 +765,12 @@ class CPU0 {
     this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, causeExcCodeFPE);
   }
 
-  raiseTLBException(address, exc_code, vec) {
-    this.control[cpu0_constants.controlBadVAddr] = address;
-
-    this.control[cpu0_constants.controlContext] &= 0xff800000;
-    this.control[cpu0_constants.controlContext] |= ((address >>> 13) << 4);
-
-    this.control[cpu0_constants.controlEntryHi] &= 0x00001fff;
-    this.control[cpu0_constants.controlEntryHi] |= (address & 0xfffffe000);
+  raiseTLBException(address, exc_code, vec) { 
+    const context = ((address >>> 13) << TLBCTXT_VPNSHIFT);
+  
+    this.setControlU32(cpu0_constants.controlBadVAddr, address);
+    this.maskControlBits32(cpu0_constants.controlContext, TLBCTXT_VPNMASK, context);
+    this.maskControlBits32(cpu0_constants.controlEntryHi, TLBHI_VPN2MASK, address);
 
     // XXXX check we're not inside exception handler before snuffing CAUSE reg?
     this.raiseException(CAUSE_EXCMASK, exc_code, vec);
@@ -776,17 +796,15 @@ class CPU0 {
   }
 
   raiseException(mask, exception, excVec) {
-    this.control[cpu0_constants.controlCause] &= ~mask;
-    this.control[cpu0_constants.controlCause] |= exception;
-    this.control[cpu0_constants.controlStatus] |= SR_EXL;
-    this.control[cpu0_constants.controlEPC] = this.pc;
-
-    const bdMask = (1 << CAUSE_BD_BIT);
+    this.maskControlBits32(cpu0_constants.controlCause, mask, exception);
+    this.setControlBits32(cpu0_constants.controlStatus, SR_EXL);
+    
     if (this.delayPC) {
-      this.control[cpu0_constants.controlCause] |= bdMask;
-      this.control[cpu0_constants.controlEPC] -= 4;
+      this.setControlBits32(cpu0_constants.controlCause, CAUSE_BD);
+      this.setControlU32(cpu0_constants.controlEPC, this.pc - 4);
     } else {
-      this.control[cpu0_constants.controlCause] &= ~bdMask;
+      this.clearControlBits32(cpu0_constants.controlCause, CAUSE_BD);
+      this.setControlU32(cpu0_constants.controlEPC, this.pc);
     }
     this.nextPC = excVec;
   }
@@ -796,12 +814,13 @@ class CPU0 {
   }
 
   setCompare(value) {
-    this.control[cpu0_constants.controlCause] &= ~CAUSE_IP8;
-    if (value === this.control[cpu0_constants.controlCompare]) {
+    this.clearControlBits32(cpu0_constants.controlCause, CAUSE_IP8);
+
+    if (value === this.getControlU32(cpu0_constants.controlCompare)) {
       // just clear the IP8 flag
     } else {
       if (value !== 0) {
-        const count = this.control[cpu0_constants.controlCount];
+        const count = this.getControlU32(cpu0_constants.controlCount);
         if (value > count) {
           const delta = value - count;
 
@@ -811,9 +830,8 @@ class CPU0 {
           n64js.warn('setCompare underflow - was' + toString32(count) + ', setting to ' + value);
         }
       }
+      this.setControlU32(cpu0_constants.controlCompare, value);
     }
-    this.control[cpu0_constants.controlCompare] = value;
-
   }
 
   // TODO: refector this so event types are accessible.
@@ -883,7 +901,7 @@ class CPU0 {
   }
 
   getRandom() {
-    const wired = this.control[cpu0_constants.controlWired] & 0x1f;
+    const wired = this.getControlU32(cpu0_constants.controlWired) & 0x1f;
     let random = Math.floor(Math.random() * (32 - wired)) + wired;
     if (syncFlow) {
       random = syncFlow.reflect32(random);
@@ -903,7 +921,7 @@ class CPU0 {
   }
 
   tlbWriteIndex() {
-    this.setTLB(this, this.control[cpu0_constants.controlIndex] & 0x1f);
+    this.setTLB(this, this.getControlU32(cpu0_constants.controlIndex) & 0x1f);
   }
 
   tlbWriteRandom() {
@@ -911,25 +929,25 @@ class CPU0 {
   }
 
   tlbRead() {
-    const index = this.control[cpu0_constants.controlIndex] & 0x1f;
+    const index = this.getControlU32(cpu0_constants.controlIndex) & 0x1f;
     const tlb = this.tlbEntries[index];
 
-    this.control[cpu0_constants.controlPageMask] = tlb.pagemask;
-    this.control[cpu0_constants.controlEntryHi] = tlb.hi;
-    this.control[cpu0_constants.controlEntryLo0] = tlb.pfne | tlb.global;
-    this.control[cpu0_constants.controlEntryLo1] = tlb.pfno | tlb.global;
+    this.setControlU32(cpu0_constants.controlPageMask, tlb.pagemask);
+    this.setControlU32(cpu0_constants.controlEntryHi, tlb.hi);
+    this.setControlU32(cpu0_constants.controlEntryLo0, tlb.pfne | tlb.global);
+    this.setControlU32(cpu0_constants.controlEntryLo1, tlb.pfno | tlb.global);
 
     if (kDebugTLB) {
       logger.log('TLB Read Index ' + toString8(index) + '.');
-      logger.log('  PageMask: ' + toString32(this.control[cpu0_constants.controlPageMask]));
-      logger.log('  EntryHi:  ' + toString32(this.control[cpu0_constants.controlEntryHi]));
-      logger.log('  EntryLo0: ' + toString32(this.control[cpu0_constants.controlEntryLo0]));
-      logger.log('  EntryLo1: ' + toString32(this.control[cpu0_constants.controlEntryLo1]));
+      logger.log('  PageMask: ' + toString32(this.getControlU32(cpu0_constants.controlPageMask)));
+      logger.log('  EntryHi:  ' + toString32(this.getControlU32(cpu0_constants.controlEntryHi)));
+      logger.log('  EntryLo0: ' + toString32(this.getControlU32(cpu0_constants.controlEntryLo0)));
+      logger.log('  EntryLo1: ' + toString32(this.getControlU32(cpu0_constants.controlEntryLo1)));
     }
   }
 
   tlbProbe() {
-    const entryHi = this.control[cpu0_constants.controlEntryHi];
+    const entryHi = this.getControlU32(cpu0_constants.controlEntryHi);
     const entryHiVpn2 = entryHi & TLBHI_VPN2MASK;
     const entryHiPID = entryHi & TLBHI_PIDMASK;
 
@@ -940,7 +958,7 @@ class CPU0 {
           if (kDebugTLB) {
             logger.log('TLB Probe. EntryHi:' + toString32(entryHi) + '. Found matching TLB entry - ' + toString8(i));
           }
-          this.control[cpu0_constants.controlIndex] = i;
+          this.setControlU32(cpu0_constants.controlIndex, i);
           return;
         }
       }
@@ -949,7 +967,7 @@ class CPU0 {
     if (kDebugTLB) {
       logger.log('TLB Probe. EntryHi:' + toString32(entryHi) + ". Didn't find matching entry");
     }
-    this.control[cpu0_constants.controlIndex] = TLBINX_PROBE;
+    this.setControlU32(cpu0_constants.controlIndex, TLBINX_PROBE);
   }
 
   tlbFindEntry(address) {
@@ -959,7 +977,7 @@ class CPU0 {
 
       if ((address & tlb.vpnmask) === tlb.addrcheck) {
         if (!tlb.global) {
-          const ehi = this.control[cpu0_constants.controlEntryHi];
+          const ehi = this.getControlU32(cpu0_constants.controlEntryHi);
           if ((tlb.hi & TLBHI_PIDMASK) !== (ehi & TLBHI_PIDMASK)) {
             // Entries ASID must match
             continue;
@@ -1764,7 +1782,7 @@ function executeMFC0(i) {
       cpu0.setRegS32Extend(rt(i), cpu0.lastControlRegWrite);
       break;
     default:
-      cpu0.setRegS32Extend(rt(i), cpu0.control[controlReg]);
+      cpu0.setRegS32Extend(rt(i), cpu0.getControlS32(controlReg));
       break;
   }
 }
@@ -1808,13 +1826,13 @@ function executeTLB(i) {
 }
 
 function executeERET(i) {
-  if (cpu0.control[cpu0_constants.controlStatus] & SR_ERL) {
-    cpu0.nextPC = cpu0.control[cpu0_constants.controlErrorEPC];
-    cpu0.control[cpu0_constants.controlStatus] &= ~SR_ERL;
+  if (cpu0.getControlU32(cpu0_constants.controlStatus) & SR_ERL) {
+    cpu0.nextPC = cpu0.getControlU32(cpu0_constants.controlErrorEPC);
+    cpu0.clearControlBits32(cpu0_constants.controlStatus, ~SR_ERL);
     logger.log('ERET from error trap - ' + cpu0.nextPC);
   } else {
-    cpu0.nextPC = cpu0.control[cpu0_constants.controlEPC];
-    cpu0.control[cpu0_constants.controlStatus] &= ~SR_EXL;
+    cpu0.nextPC = cpu0.getControlU32(cpu0_constants.controlEPC);
+    cpu0.clearControlBits32(cpu0_constants.controlStatus, SR_EXL);
     //logger.log('ERET from interrupt/exception ' + cpu0.nextPC);
   }
 
@@ -2818,7 +2836,7 @@ function executeLL(i) {
   const addr = (cpu0.getRegS32Lo(base(i)) + imms(i)) >>> 0;
   const value = cpu0.loadS32(addr);
 
-  cpu0.control[cpu0_constants.controlLLAddr] = makeLLAddr(addr);
+  cpu0.setControlU32(cpu0_constants.controlLLAddr, makeLLAddr(addr));
   cpu0.setRegS32Extend(rt(i), value);
   cpu0.llBit = 1;
 }
@@ -2826,7 +2844,7 @@ function executeLL(i) {
 function executeLLD(i) {
   const addr = (cpu0.getRegS32Lo(base(i)) + imms(i)) >>> 0;
   
-  cpu0.control[cpu0_constants.controlLLAddr] = makeLLAddr(addr);
+  cpu0.setControlU32(cpu0_constants.controlLLAddr, makeLLAddr(addr));
   const value = cpu0.loadU64(addr);
   cpu0.setRegU64(rt(i), value);
   cpu0.llBit = 1;
@@ -3470,7 +3488,7 @@ const cop1TableGen = validateCopOpTable([
 ]);
 
 function executeCop1(i) {
-  //assert( (cpu0.control[cpu0_constants.controlSR] & SR_CU1) !== 0, "SR_CU1 in inconsistent state" );
+  //assert( (cpu0.getControlU32(cpu0_constants.controlSR) & SR_CU1) !== 0, "SR_CU1 in inconsistent state" );
 
   const fmt = (i >>> 21) & 0x1f;
   cop1Table[fmt](i);
@@ -3539,14 +3557,14 @@ function generateCop1(ctx) {
 }
 
 function executeCop1_disabled(i) {
-  assert((cpu0.control[cpu0_constants.controlStatus] & SR_CU1) === 0, "SR_CU1 in inconsistent state");
+  assert((cpu0.getControlU32(cpu0_constants.controlStatus) & SR_CU1) === 0, "SR_CU1 in inconsistent state");
 
   cpu0.throwCopXUnusable(1);
 }
 n64js.executeCop1_disabled = executeCop1_disabled;
 
 function cop1ControlChanged() {
-  const control = cpu0.control[cpu0_constants.controlStatus];
+  const control = cpu0.getControlU32(cpu0_constants.controlStatus);
   const enable = (control & SR_CU1) !== 0;
   simpleTable[0x11] = enable ? executeCop1 : executeCop1_disabled;
 
@@ -3733,7 +3751,7 @@ class FragmentContext {
 function checkCauseIP3Consistent() {
   const miRegDevice = n64js.hardware().miRegDevice;
   const miIntr = miRegDevice.interruptsUnmasked();
-  const causeIP3 = (cpu0.control[cpu0_constants.controlCause] & CAUSE_IP3) !== 0;
+  const causeIP3 = (cpu0.getControlU32(cpu0_constants.controlCause) & CAUSE_IP3) !== 0;
   assert(miIntr === causeIP3, `CAUSE_IP3 ${causeIP3} inconsistent with MI_INTR_REG ${miIntr}`);
 }
 
@@ -3792,9 +3810,9 @@ function checkSyncState(sync, pc) {
   // }
 
   // if(0) {
-  //   if (!sync.sync32(cpu0.control[cpu0_constants.controlCount], 'count'))
+  //   if (!sync.sync32(cpu0.getControlU32(cpu0_constants.controlCount), 'count'))
   //     return false;
-  //   if (!sync.sync32(cpu0.control[cpu0_constants.controlCompare], 'compare'))
+  //   if (!sync.sync32(cpu0.getControlU32(cpu0_constants.controlCompare), 'compare'))
   //     return false;
   // }
 
@@ -3804,7 +3822,7 @@ function checkSyncState(sync, pc) {
 function handleTLBException() {
   cpu0.pc = cpu0.nextPC;
   cpu0.delayPC = cpu0.branchTarget;
-  cpu0.control_signed[cpu0_constants.controlCount] += COUNTER_INCREMENT_PER_OP;
+  cpu0.incrementCount(COUNTER_INCREMENT_PER_OP);
 
   const evt = cpu0.events[0];
   evt.countdown -= COUNTER_INCREMENT_PER_OP;
@@ -3822,7 +3840,7 @@ function handleCounter() {
     if (evt.type === kEventRunForCycles) {
       cpu0.stuffToDo |= kStuffToDoBreakout;
     } else if (evt.type === kEventCompare) {
-      cpu0.control[cpu0_constants.controlCause] |= CAUSE_IP8;
+      cpu0.setControlBits32(cpu0_constants.controlCause, CAUSE_IP8);
       if (cpu0.checkForUnmaskedInterrupts()) {
         cpu0.stuffToDo |= kStuffToDoCheckInterrupts;
       }
@@ -3900,7 +3918,7 @@ function executeFragment(fragment, c, events) {
     evt.countdown -= ops_executed * COUNTER_INCREMENT_PER_OP;
 
     if (!accurateCountUpdating) {
-      c.control_signed[cpu0_constants.controlCount] += ops_executed * COUNTER_INCREMENT_PER_OP;
+      c.incrementCount(ops_executed * COUNTER_INCREMENT_PER_OP);
     }
 
     //assert(fragment.bailedOut || evt.countdown >= 0, "Executed too many ops. Possibly didn't bail out of trace when new event was set up?");
@@ -4031,7 +4049,7 @@ function runImpl() {
 
         c.pc = c.nextPC;
         c.delayPC = c.branchTarget;
-        c.control_signed[cpu0_constants.controlCount] += COUNTER_INCREMENT_PER_OP;
+        c.incrementCount(COUNTER_INCREMENT_PER_OP);
         //checkCauseIP3Consistent();
         //n64js.checkSIStatusConsistent();
 
