@@ -301,9 +301,11 @@ class CPU0 {
     this.gprU64 = new BigUint64Array(gprMem);
     this.gprS64 = new BigInt64Array(gprMem);
 
-    const controlMem = new ArrayBuffer(32 * 4);
+    const controlMem = new ArrayBuffer(32 * 8);
     this.controlRegU32 = new Uint32Array(controlMem);
     this.controlRegS32 = new Int32Array(controlMem);
+    this.controlRegU64 = new BigUint64Array(controlMem);
+    this.controlRegS64 = new BigInt64Array(controlMem);
 
     // Reads from invalid control registers will use the value last written to any control register.
     this.lastControlRegWrite = 0;
@@ -391,22 +393,30 @@ class CPU0 {
   setMultHiS64(v) { this.multHiS64[0] = v; }
   setMultHiU64(v) { this.multHiU64[0] = v; }
 
-  setControlU32(r, v) { this.controlRegU32[r] = v; }
-  setControlS32(r, v) { this.controlRegS32[r] = v; }
-  getControlU32(r) { return this.controlRegU32[r]; }
-  getControlS32(r) { return this.controlRegS32[r]; }
+  setControlU32(r, v) { this.controlRegU32[r * 2 + 0] = v; }
+  setControlS32(r, v) { this.controlRegS32[r * 2 + 0] = v; }
+  getControlU32(r) { return this.controlRegU32[r * 2 + 0]; }
+  getControlS32(r) { return this.controlRegS32[r * 2 + 0]; }
+
+  setControlU64(r, v) { this.controlRegU64[r] = v; }
+  setControlS64(r, v) { this.controlRegS64[r] = v; }
+  getControlU64(r) { return this.controlRegU64[r]; }
+  getControlS64(r) { return this.controlRegS64[r]; }
 
   maskControlBits32(r, mask, value) {
-    this.controlRegU32[r] = (this.controlRegU32[r] & ~mask) | (value & mask);
+    const idx = r * 2 + 0;
+    this.controlRegU32[idx] = (this.controlRegU32[idx] & ~mask) | (value & mask);
   }
 
-  setControlBits32(r, value) {
-    this.controlRegU32[r] |= value;
+  setControlBits32(r, value) { this.controlRegU32[r * 2 + 0] |= value; }
+  clearControlBits32(r, value) { this.controlRegU32[r * 2 + 0] &= ~value; }
+  
+  maskControlBits64(r, mask, value) {
+    this.controlRegU64[r] = (this.controlRegU64[r] & ~mask) | (value & mask);
   }
-
-  clearControlBits32(r, value) {
-    this.controlRegU32[r] &= ~value;
-  }
+  
+  setControlBits64(r, value) { this.controlRegU64[r] |= value; }
+  clearControlBits64(r, value) { this.controlRegU64[r] &= ~value; }
 
   reset() {
     resetFragments();
@@ -414,9 +424,8 @@ class CPU0 {
     this.ramDV = n64js.getRamDataView();
 
     for (let i = 0; i < 32; ++i) {
-      this.gprU32[i * 2 + 0] = 0;
-      this.gprU32[i * 2 + 1] = 0;
-      this.controlRegU32[i] = 0;
+      this.gprU64[i] = 0n;
+      this.controlRegU64[i] = 0n;
     }
     for (let i = 0; i < 32; ++i) {
       this.tlbEntries[i].update(i, 0, 0x80000000, 0, 0);
