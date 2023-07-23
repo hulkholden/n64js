@@ -1868,7 +1868,7 @@ function executeJ(i) {
 
 function generateJAL(ctx) {
   const addr = jumpAddress(ctx.pc, ctx.instruction);
-  const ra = ctx.pc + 8;
+  const ra = ctx.nextPC + 4;
   // Optimise as sign is known at compile time.
   const ra_hi = (ra & 0x80000000) ? -1 : 0;
   const impl = `
@@ -1878,7 +1878,7 @@ function generateJAL(ctx) {
   return generateBranchOpBoilerplate(impl, ctx, false);
 }
 function executeJAL(i) {
-  cpu0.setRegS32Extend(cpu0_constants.RA, cpu0.pc + 8);
+  cpu0.setRegS32Extend(cpu0_constants.RA, cpu0.nextPC + 4);
   performBranch(jumpAddress(cpu0.pc, i));
 }
 
@@ -1886,7 +1886,7 @@ function generateJALR(ctx) {
   const s = ctx.instr_rs();
   const d = ctx.instr_rd();
 
-  const ra = ctx.pc + 8;
+  const ra = ctx.nextPC + 4;
   const ra_hi = (ra & 0x80000000) ? -1 : 0;
   const impl = `
     c.delayPC = ${genSrcRegU32Lo(s)};  // NB needs to be unsigned
@@ -1896,7 +1896,7 @@ function generateJALR(ctx) {
 }
 function executeJALR(i) {
   const new_pc = cpu0.getRegU32Lo(rs(i));
-  cpu0.setRegS32Extend(rd(i), cpu0.pc + 8);
+  cpu0.setRegS32Extend(rd(i), cpu0.nextPC + 4);
   performBranch(new_pc);
 }
 
@@ -2120,7 +2120,7 @@ function executeBLTZL(i) {
 
 function executeBLTZAL(i) {
   const cond = cpu0.getRegS64(rs(i)) < 0n;
-  cpu0.setRegS32Extend(cpu0_constants.RA, cpu0.pc + 8);
+  cpu0.setRegS32Extend(cpu0_constants.RA, cpu0.nextPC + 4);
   if (cond) {
     performBranch(branchAddress(cpu0.pc, i));
   }
@@ -2128,7 +2128,7 @@ function executeBLTZAL(i) {
 
 function executeBLTZALL(i) {
   const cond = cpu0.getRegS64(rs(i)) < 0;
-  cpu0.setRegS32Extend(cpu0_constants.RA, cpu0.pc + 8);
+  cpu0.setRegS32Extend(cpu0_constants.RA, cpu0.nextPC + 4);
   if (cond) {
     performBranch(branchAddress(cpu0.pc, i));
   } else {
@@ -2181,7 +2181,7 @@ function executeBGEZL(i) {
 
 function executeBGEZAL(i) {
   const cond = cpu0.getRegS64(rs(i)) >= 0n;
-  cpu0.setRegS32Extend(cpu0_constants.RA, cpu0.pc + 8);
+  cpu0.setRegS32Extend(cpu0_constants.RA, cpu0.nextPC + 4);
   if (cond) {
     performBranch(branchAddress(cpu0.pc, i));
   }
@@ -2189,7 +2189,7 @@ function executeBGEZAL(i) {
 
 function executeBGEZALL(i) {
   const cond = cpu0.getRegS64(rs(i)) >= 0n;
-  cpu0.setRegS32Extend(cpu0_constants.RA, cpu0.pc + 8);
+  cpu0.setRegS32Extend(cpu0_constants.RA, cpu0.nextPC + 4);
   if (cond) {
     performBranch(branchAddress(cpu0.pc, i));
   } else {
