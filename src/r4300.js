@@ -171,6 +171,9 @@ const TLBCTXT_VPNSHIFT  = 4;
 
 const contextWriteableBits = ~0x7fffffn;
 
+const xContextBadVPN2Mask = 0x7fff_fff0n;
+const xContextRMask = 0x1_8000_0000n;
+
 const TLBPGMASK_4K      = 0x00000000;
 const TLBPGMASK_16K     = 0x00006000;
 const TLBPGMASK_64K     = 0x0001e000;
@@ -755,16 +758,19 @@ class CPU0 {
   }
 
   raiseAdELException(address) {
-    this.setControlU32(cpu0_constants.controlBadVAddr, address);
-
     const context = ((address >>> 13) << TLBCTXT_VPNSHIFT);
-    this.maskControlBits32(cpu0_constants.controlContext, TLBCTXT_VPNMASK, context);
 
-    const xcontext = (
-      (((address >>> 13) & 0x7ffffff) << 4) | // badvpn2
-      (((address >>> 30) & 0x3) << 31)); // r
-      // FIXME this is a 64 bit register.
-    this.maskControlBits32(cpu0_constants.controlXContext, 0xffffffff, xcontext);
+    // TODO: is it correct to assume the address is 64 bits?
+    const address64 = BigInt(address);
+    const badvpn2 = (((address64 >> 13n) & 0x7ffffffn) << 4n) ;
+    const r =  (((address64 >> 62n) & 3n) << 31n);
+
+    const xcontext = badvpn2 | r;
+    const xContextMask = xContextBadVPN2Mask | xContextRMask;
+
+    this.setControlS32Extend(cpu0_constants.controlBadVAddr, address);
+    this.maskControlBits32(cpu0_constants.controlContext, TLBCTXT_VPNMASK, context);
+    this.maskControlBits64(cpu0_constants.controlXContext, xContextMask, xcontext);
 
     this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, causeExcCodeAdEL);
   }
