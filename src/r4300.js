@@ -400,6 +400,11 @@ class CPU0 {
   getControlU32(r) { return this.controlRegU32[r * 2 + 0]; }
   getControlS32(r) { return this.controlRegS32[r * 2 + 0]; }
 
+  setControlS32Extend(r, v) {
+    this.controlRegS32[r * 2 + 0] = v;
+    this.controlRegS32[r * 2 + 1] = v >> 31; 
+  }
+
   setControlU64(r, v) { this.controlRegU64[r] = v; }
   setControlS64(r, v) { this.controlRegS64[r] = v; }
   getControlU64(r) { return this.controlRegU64[r]; }
@@ -849,10 +854,10 @@ class CPU0 {
     
     if (this.delayPC) {
       this.setControlBits32(cpu0_constants.controlCause, CAUSE_BD);
-      this.setControlU32(cpu0_constants.controlEPC, this.pc - 4);
+      this.setControlS32Extend(cpu0_constants.controlEPC, this.pc - 4);
     } else {
       this.clearControlBits32(cpu0_constants.controlCause, CAUSE_BD);
-      this.setControlU32(cpu0_constants.controlEPC, this.pc);
+      this.setControlS32Extend(cpu0_constants.controlEPC, this.pc);
     }
     this.nextPC = excVec;
   }
