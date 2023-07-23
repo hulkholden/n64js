@@ -911,21 +911,21 @@ class CPU0 {
     return random;
   }
 
-  setTLB(cpu, index) {
-    const pagemask = cpu.control[cpu0_constants.controlPageMask];
-    const entryhi = cpu.control[cpu0_constants.controlEntryHi];
-    const entrylo1 = cpu.control[cpu0_constants.controlEntryLo1];
-    const entrylo0 = cpu.control[cpu0_constants.controlEntryLo0];
+  setTLB(index) {
+    const pagemask = this.getControlU32(cpu0_constants.controlPageMask);
+    const entryhi = this.getControlU32(cpu0_constants.controlEntryHi);
+    const entrylo1 = this.getControlU32(cpu0_constants.controlEntryLo1);
+    const entrylo0 = this.getControlU32(cpu0_constants.controlEntryLo0);
 
-    cpu.tlbEntries[index].update(index, pagemask, entryhi, entrylo0, entrylo1);
+    this.tlbEntries[index].update(index, pagemask, entryhi, entrylo0, entrylo1);
   }
 
   tlbWriteIndex() {
-    this.setTLB(this, this.getControlU32(cpu0_constants.controlIndex) & 0x1f);
+    this.setTLB(this.getControlU32(cpu0_constants.controlIndex) & 0x1f);
   }
 
   tlbWriteRandom() {
-    this.setTLB(this, this.getRandom());
+    this.setTLB(this.getRandom());
   }
 
   tlbRead() {
