@@ -518,6 +518,94 @@ class CPU0 {
     this.store64_lo_hi(addr, lo, hi);
   }
 
+  moveToControl(controlReg, newValue) {
+    this.lastControlRegWrite = newValue;
+
+    switch (controlReg) {
+      case cpu0_constants.controlIndex:
+        this.control[controlReg] = newValue & indexWritableBits;
+        break;
+
+      case cpu0_constants.controlEntryLo0:
+      case cpu0_constants.controlEntryLo1:
+        this.control[controlReg] = newValue & entryLoWritableBits;
+        break;
+
+      case cpu0_constants.controlContext:
+        this.control[controlReg] = newValue & contextWriteableBits;
+        break;
+
+      case cpu0_constants.controlPageMask:
+        this.control[controlReg] = newValue & pageMaskWritableBits;
+        break;
+
+      case cpu0_constants.controlWired:
+        this.control[controlReg] = newValue & wiredWritableBits;
+        // Set to top limit on write to wired
+        this.control[cpu0_constants.controlRand] = 31;
+        break;
+
+      case cpu0_constants.controlEntryHi:
+        this.control[controlReg] = newValue & entryHiWritableBits;
+        break;
+
+      case cpu0_constants.controlRand:
+      case cpu0_constants.controlBadVAddr:
+      case cpu0_constants.controlPRId:
+      case cpu0_constants.controlCacheErr:
+        // All these registers are read-only
+        break;
+
+      case cpu0_constants.controlCause:
+        logger.log(`Setting cause register to ${toString32(newValue)}`);
+        n64js.check(newValue === 0, 'Should only write 0 to Cause register.');
+        this.control[controlReg] &= ~causeWritableBits;
+        this.control[controlReg] |= (newValue & causeWritableBits);
+        break;
+
+      case cpu0_constants.controlStatus:
+        this.setStatus(newValue);
+        break;
+      case cpu0_constants.controlCount:
+        this.control[controlReg] = newValue;
+        break;
+      case cpu0_constants.controlCompare:
+        this.setCompare(newValue);
+        break;
+
+      case cpu0_constants.controlXContext:
+        // TODO: only the high bits are writable but we don't implement 64 bit registers yet.
+        // Just no-op for now.
+        break;
+
+      case cpu0_constants.controlEPC:
+      case cpu0_constants.controlTagLo:
+      case cpu0_constants.controlTagHi:
+        this.control[controlReg] = newValue;
+        break;
+
+      case cpu0_constants.controlLLAddr:
+        this.control[controlReg] = newValue;
+        break;
+
+      case cpu0_constants.controlInvalid7:
+      case cpu0_constants.controlInvalid21:
+      case cpu0_constants.controlInvalid22:
+      case cpu0_constants.controlInvalid23:
+      case cpu0_constants.controlInvalid24:
+      case cpu0_constants.controlInvalid25:
+      case cpu0_constants.controlInvalid31:
+        // Ignore writes.
+        // Reads from invalid control registers will use the value last written to any control register.
+        break;
+
+      default:
+        this.control[controlReg] = newValue;
+        logger.log(`Write to cpu0 control register. ${toString32(newValue)} --> ${cop0ControlRegisterNames[controlReg]}`);
+        break;
+    }
+  }
+
   breakExecution() {
     this.stuffToDo |= kStuffToDoHalt;
   }
@@ -1681,117 +1769,31 @@ function executeMFC0(i) {
   }
 }
 
+function executeDMFC0(i) {
+  // TODO: Implement this using 64 bits.
+  executeMFC0(i);
+}
+
 function generateMTC0(ctx) {
   const s = ctx.instr_fs();
+  const t = ctx.instr_rt();
   if (s === cpu0_constants.controlStatus) {
     ctx.fragment.cop1statusKnown = false;
   }
 
   let impl = `
-    n64js.executeMTC0(${toString32(ctx.instruction)});
+    c.moveToControl(${s}, ${genSrcRegU32Lo(t)})
     `;
   return generateGenericOpBoilerplate(impl, ctx);
 }
 
 function executeMTC0(i) {
-  const controlReg = fs(i);
-  const newValue = cpu0.getRegU32Lo(rt(i));
-
-  cpu0.lastControlRegWrite = newValue;
-
-  switch (controlReg) {
-    case cpu0_constants.controlIndex:
-      cpu0.control[controlReg] = newValue & indexWritableBits;
-      break;
-
-    case cpu0_constants.controlEntryLo0:
-    case cpu0_constants.controlEntryLo1:
-      cpu0.control[controlReg] = newValue & entryLoWritableBits;
-      break;
-
-    case cpu0_constants.controlContext:
-      cpu0.control[controlReg] = newValue & contextWriteableBits;
-      break;
-
-    case cpu0_constants.controlPageMask:
-      cpu0.control[controlReg] = newValue & pageMaskWritableBits;
-      break;
-
-    case cpu0_constants.controlWired:
-      cpu0.control[controlReg] = newValue & wiredWritableBits;
-      // Set to top limit on write to wired
-      cpu0.control[cpu0_constants.controlRand] = 31;
-      break;
-
-    case cpu0_constants.controlEntryHi:
-      cpu0.control[controlReg] = newValue & entryHiWritableBits;
-      break;
-
-    case cpu0_constants.controlRand:
-    case cpu0_constants.controlBadVAddr:
-    case cpu0_constants.controlPRId:
-    case cpu0_constants.controlCacheErr:
-      // All these registers are read-only
-      break;
-
-    case cpu0_constants.controlCause:
-      logger.log(`Setting cause register to ${toString32(newValue)}`);
-      n64js.check(newValue === 0, 'Should only write 0 to Cause register.');
-      cpu0.control[controlReg] &= ~causeWritableBits;
-      cpu0.control[controlReg] |= (newValue & causeWritableBits);
-      break;
-
-    case cpu0_constants.controlStatus:
-      cpu0.setStatus(newValue);
-      break;
-    case cpu0_constants.controlCount:
-      cpu0.control[controlReg] = newValue;
-      break;
-    case cpu0_constants.controlCompare:
-      cpu0.setCompare(newValue);
-      break;
-
-    case cpu0_constants.controlXContext:
-      // TODO: only the high bits are writable but we don't implement 64 bit registers yet.
-      // Just no-op for now.
-      break;
-
-    case cpu0_constants.controlEPC:
-    case cpu0_constants.controlTagLo:
-    case cpu0_constants.controlTagHi:
-      cpu0.control[controlReg] = newValue;
-      break;
-
-    case cpu0_constants.controlLLAddr:
-      cpu0.control[controlReg] = newValue;
-      break;
-
-    case cpu0_constants.controlInvalid7:
-    case cpu0_constants.controlInvalid21:
-    case cpu0_constants.controlInvalid22:
-    case cpu0_constants.controlInvalid23:
-    case cpu0_constants.controlInvalid24:
-    case cpu0_constants.controlInvalid25:
-    case cpu0_constants.controlInvalid31:
-      // Ignore writes.
-      // Reads from invalid control registers will use the value last written to any control register.
-      break;
-
-    default:
-      cpu0.control[controlReg] = newValue;
-      logger.log(`Write to cpu0 control register. ${toString32(newValue)} --> ${cop0ControlRegisterNames[controlReg]}`);
-      break;
-  }
-}
-
-function executeDMFC0(i) {
-  // TODO: Implement this correctly.
-  executeMFC0(i);
+  cpu0.moveToControl(fs(i), cpu0.getRegU32Lo(rt(i)));
 }
 
 function executeDMTC0(i) {
-  // TODO: Implement this correctly.
-  executeMTC0(i);
+  // TODO: Implement this using 64 bit value.
+  cpu0.moveToControl(fs(i), cpu0.getRegU32Lo(rt(i)));
 }
 
 function executeTLB(i) {
