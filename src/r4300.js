@@ -3675,8 +3675,9 @@ class FragmentContext {
     this.fragment = undefined;
     this.pc = 0;
     this.instruction = 0;
-    this.post_pc = 0;
+    this.postPC = 0;
     this.bailOut = false; // Set this if the op does something to manipulate event timers.
+    this.nextPC = 0;
 
     this.needsDelayCheck = true; // Set on entry to generate handler. If set, must check for delayPC when updating the pc.
     this.isTrivial = false; // Set by the code generation handler if the op is considered trivial.
@@ -3695,11 +3696,12 @@ class FragmentContext {
     this.delayedPCUpdate = 0;
   }
 
-  set(fragment, pc, instruction, post_pc) {
+  set(fragment, pc, instruction, postPC, nextPC) {
     this.fragment = fragment;
     this.pc = pc;
     this.instruction = instruction;
-    this.post_pc = post_pc;
+    this.postPC = postPC;
+    this.nextPC = nextPC;
     this.bailOut = false;
 
     this.needsDelayCheck = true;
@@ -3920,7 +3922,7 @@ function executeFragment(fragment, c, events) {
 }
 
 // We need just one of these - declare at global scope to avoid generating garbage
-const fragmentContext = new FragmentContext(); // NB: first pc is entry_pc, cpu0.pc is post_pc by this point
+const fragmentContext = new FragmentContext();
 
 function addOpToFragment(fragment, entry_pc, instruction, c) {
   if (fragment.opsCompiled === 0) {
@@ -3929,7 +3931,9 @@ function addOpToFragment(fragment, entry_pc, instruction, c) {
   fragment.opsCompiled++;
   updateFragment(fragment, entry_pc);
 
-  fragmentContext.set(fragment, entry_pc, instruction, c.pc); // NB: first pc is entry_pc, c.pc is post_pc by this point
+  const curPC = entry_pc;
+  const postPC = c.pc;
+  fragmentContext.set(fragment, curPC, instruction, postPC, c.nextPC);
   generateCodeForOp(fragmentContext);
 
   // Break out of the trace as soon as we branch, or too many ops, or last op generated an interrupt (stuffToDo set)
@@ -4311,7 +4315,7 @@ function generateGenericOpBoilerplate(fn, ctx) {
     code += `return ${ctx.fragment.opsCompiled};\n`;
   } else {
     code += `if (c.stuffToDo) { return ${ctx.fragment.opsCompiled}; }\n`;
-    code += `if (c.pc !== ${toString32(ctx.post_pc)}) { return ${ctx.fragment.opsCompiled}; }\n`;
+    code += `if (c.pc !== ${toString32(ctx.postPC)}) { return ${ctx.fragment.opsCompiled}; }\n`;
   }
 
   return code;
@@ -4360,7 +4364,7 @@ function generateMemoryAccessBoilerplate(fn, ctx) {
   // If bailOut is set, always return immediately
   assert(!ctx.bailOut, "Not expecting bailOut to be set for memory access");
   code += `if (c.stuffToDo) { return ${ctx.fragment.opsCompiled}; }\n`;
-  code += `if (c.pc !== ${toString32(ctx.post_pc)}) { return ${ctx.fragment.opsCompiled}; }\n`;
+  code += `if (c.pc !== ${toString32(ctx.postPC)}) { return ${ctx.fragment.opsCompiled}; }\n`;
   return code;
 }
 
@@ -4370,7 +4374,7 @@ function generateBranchOpBoilerplate(fn, ctx, might_adjust_next_pc) {
   let code = '';
 
   // We only need to check for off-trace branches
-  const need_pc_test = ctx.needsDelayCheck || might_adjust_next_pc || ctx.post_pc !== ctx.pc + 4;
+  const need_pc_test = ctx.needsDelayCheck || might_adjust_next_pc || ctx.postPC !== ctx.pc + 4;
 
   code += generateStandardPCUpdate(fn, ctx, might_adjust_next_pc);
 
@@ -4388,7 +4392,7 @@ function generateBranchOpBoilerplate(fn, ctx, might_adjust_next_pc) {
     code += 'return ' + ctx.fragment.opsCompiled + ';\n';
   } else {
     if (need_pc_test) {
-      code += `if (c.pc !== ${toString32(ctx.post_pc)}) { return ${ctx.fragment.opsCompiled}; }\n`;
+      code += `if (c.pc !== ${toString32(ctx.postPC)}) { return ${ctx.fragment.opsCompiled}; }\n`;
     } else {
       code += '// Skipping pc test\n';
     }
@@ -4420,22 +4424,21 @@ function generateTrivialOpBoilerplate(fn, ctx) {
   if (ctx.needsDelayCheck) {
     code += `if (c.delayPC) { c.pc = c.delayPC; c.delayPC = 0; } else { c.pc = ${toString32(ctx.pc + 4)}; }\n`;
     // Might happen: delay op from previous instruction takes effect
-    code += `if (c.pc !== ${toString32(ctx.post_pc)}) { return ${ctx.fragment.opsCompiled}; }\n`;
+    code += `if (c.pc !== ${toString32(ctx.postPC)}) { return ${ctx.fragment.opsCompiled}; }\n`;
   } else {
     code += ctx.genAssert('c.delayPC === 0', 'delay pc should be zero');
 
     // We can avoid off-branch checks in this case.
-    if (ctx.post_pc !== ctx.pc + 4) {
-      assert("post_pc should always be pc+4 for trival ops?");
-      code += `c.pc = ${toString32(ctx.pc + 4)};\n`;
-      code += `if (c.pc !== ${toString32(ctx.post_pc)}) { return ${ctx.fragment.opsCompiled}; }\n`;
+    const expectedPC = ctx.pc + 4;
+    if (ctx.postPC !== expectedPC) {
+      assert("postPC should always be pc+4 for trival ops?");
+      code += `c.pc = ${toString32(expectedPC)};\n`;
+      code += `if (c.pc !== ${toString32(ctx.postPC)}) { return ${ctx.fragment.opsCompiled}; }\n`;
     } else {
-      // code += `c.pc = ${toString32(ctx.pc + 4)};\n`;
       code += '// Delaying pc update';
-      ctx.delayedPCUpdate = ctx.pc + 4;
+      ctx.delayedPCUpdate = expectedPC;
     }
   }
-
 
   // Trivial instructions never cause a branch delay
   code += ctx.genAssert('c.delayPC === 0', 'delay pc should be zero');
