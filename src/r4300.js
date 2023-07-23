@@ -4328,7 +4328,7 @@ function generateGenericOpBoilerplate(fn, ctx) {
   ctx.needsDelayCheck = true;
 
   if (accurateCountUpdating) {
-    code += 'c.control_signed[9] += 1;\n';
+    code += 'c.incrementCount(1);\n';
   }
 
   // If bailOut is set, always return immediately.
@@ -4379,7 +4379,7 @@ function generateMemoryAccessBoilerplate(fn, ctx) {
   ctx.needsDelayCheck = false;
 
   if (accurateCountUpdating) {
-    code += 'c.control_signed[9] += 1;\n';
+    code += 'c.incrementCount(1);\n';
   }
 
   // If bailOut is set, always return immediately
@@ -4403,7 +4403,7 @@ function generateBranchOpBoilerplate(fn, ctx, might_adjust_next_pc) {
   ctx.needsDelayCheck = true;
 
   if (accurateCountUpdating) {
-    code += 'c.control_signed[9] += 1;\n';
+    code += 'c.incrementCount(1);\n';
   }
 
   code += ctx.genAssert('c.stuffToDo === 0', 'stuffToDo should be zero');
@@ -4438,7 +4438,7 @@ function generateTrivialOpBoilerplate(fn, ctx) {
   ctx.isTrivial = true;
 
   if (accurateCountUpdating) {
-    code += 'c.control_signed[9] += 1;\n';
+    code += 'c.incrementCount(1);\n';
   }
 
   // NB: do delay handler after executing op, so we can set pc directly
