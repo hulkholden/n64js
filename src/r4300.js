@@ -432,7 +432,7 @@ class CPU0 {
       return this.ramDV.getInt8(phys, false);
     }
     return lb_slow(addr);
-  };
+  }
 
   loadU16(addr) {
     if (addr < -2139095040) {
@@ -440,7 +440,7 @@ class CPU0 {
       return this.ramDV.getUint16(phys, false);
     }
     return lhu_slow(addr);
-  };
+  }
 
   loadS16(addr) {
     if (addr < -2139095040) {
@@ -448,7 +448,7 @@ class CPU0 {
       return this.ramDV.getInt16(phys, false);
     }
     return lh_slow(addr);
-  };
+  }
 
   loadU32(addr) {
     if (addr < -2139095040) {
@@ -456,7 +456,7 @@ class CPU0 {
       return this.ramDV.getUint32(phys, false);
     }
     return lwu_slow(addr);
-  };
+  }
 
   loadS32(addr) {
     if (addr < -2139095040) {
@@ -464,7 +464,7 @@ class CPU0 {
       return this.ramDV.getInt32(phys, false);
     }
     return lw_slow(addr);
-  };
+  }
 
   loadU64(addr) {
     // TODO: read using dataview.
@@ -480,7 +480,7 @@ class CPU0 {
     } else {
       sb_slow(addr, value);
     }
-  };
+  }
 
   store16(addr, value) {
     if (addr < -2139095040) {
@@ -489,7 +489,7 @@ class CPU0 {
     } else {
       sh_slow(addr, value);
     }
-  };
+  }
 
   store32(addr, value) {
     if (addr < -2139095040) {
@@ -498,7 +498,7 @@ class CPU0 {
     } else {
       sw_slow(addr, value);
     }
-  };
+  }
 
   store64_lo_hi(addr, value_lo, value_hi) {
     if (addr < -2139095040) {
@@ -509,14 +509,14 @@ class CPU0 {
       sw_slow(addr, value_hi);
       sw_slow(addr + 4, value_lo);
     }
-  };
+  }
 
   store64(addr, value) {
     // TODO: write using dataview.
     const lo = Number(value & 0xffffffffn);
     const hi = Number(value >> 32n);
     this.store64_lo_hi(addr, lo, hi);
-  };
+  }
 
   breakExecution() {
     this.stuffToDo |= kStuffToDoHalt;
