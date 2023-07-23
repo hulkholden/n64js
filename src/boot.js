@@ -8,15 +8,15 @@ export function simulateBoot(cpu0, rominfo) {
     cpu0.setRegS64LoHi(reg, lo, hi);
   }
 
-  cpu0.control[cpu0_constants.controlStatus] = 0x241000E0;
-  cpu0.control[cpu0_constants.controlConfig] = 0x7006E463;
-  cpu0.control[cpu0_constants.controlCount] = 0x5000;
-  cpu0.control[cpu0_constants.controlCause] = 0x30000000;
-  cpu0.control[cpu0_constants.controlPRId] = 0xb22;
-  cpu0.control[cpu0_constants.controlContext] = 0x007FFFF0;
-  cpu0.control[cpu0_constants.controlEPC] = 0xFFFFFFFF;
-  cpu0.control[cpu0_constants.controlBadVAddr] = 0xFFFFFFFF;
-  cpu0.control[cpu0_constants.controlErrorEPC] = 0xFFFFFFFF;
+  cpu0.setControlU32(cpu0_constants.controlStatus, 0x241000E0);
+  cpu0.setControlU32(cpu0_constants.controlConfig, 0x7006E463);
+  cpu0.setControlU32(cpu0_constants.controlCount, 0x5000);
+  cpu0.setControlU32(cpu0_constants.controlCause, 0x30000000);
+  cpu0.setControlU32(cpu0_constants.controlPRId, 0xb22);
+  cpu0.setControlU32(cpu0_constants.controlContext, 0x007FFFF0);
+  cpu0.setControlU32(cpu0_constants.controlEPC, 0xFFFFFFFF);
+  cpu0.setControlU32(cpu0_constants.controlBadVAddr, 0xFFFFFFFF);
+  cpu0.setControlU32(cpu0_constants.controlErrorEPC, 0xFFFFFFFF);
   n64js.cop1ControlChanged();
 
   setGPR(0, 0x00000000, 0x00000000);
