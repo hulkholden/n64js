@@ -758,8 +758,22 @@ class CPU0 {
   }
 
   raiseAdELException(address) {
-    const context = ((address >>> 13) << TLBCTXT_VPNSHIFT);
+    this.setBadVAddr(address);
+    this.setContext(address);
+    this.setXContext(address);
+    this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, causeExcCodeAdEL);
+  }
 
+  setBadVAddr(address) {
+    this.setControlS32Extend(cpu0_constants.controlBadVAddr, address);
+  }
+
+  setContext(address) {
+    const context = ((address >>> 13) << TLBCTXT_VPNSHIFT);
+    this.maskControlBits32(cpu0_constants.controlContext, TLBCTXT_VPNMASK, context);
+  }
+
+  setXContext(address) {
     // TODO: is it correct to assume the address is 64 bits?
     const address64 = BigInt(address);
     const badvpn2 = (((address64 >> 13n) & 0x7ffffffn) << 4n) ;
@@ -767,12 +781,7 @@ class CPU0 {
 
     const xcontext = badvpn2 | r;
     const xContextMask = xContextBadVPN2Mask | xContextRMask;
-
-    this.setControlS32Extend(cpu0_constants.controlBadVAddr, address);
-    this.maskControlBits32(cpu0_constants.controlContext, TLBCTXT_VPNMASK, context);
     this.maskControlBits64(cpu0_constants.controlXContext, xContextMask, xcontext);
-
-    this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, causeExcCodeAdEL);
   }
 
   checkCopXUsable(copIdx) {
@@ -825,14 +834,12 @@ class CPU0 {
   }
 
   raiseTLBException(address, exc_code, vec) { 
-    const context = ((address >>> 13) << TLBCTXT_VPNSHIFT);
-  
-    this.setControlU32(cpu0_constants.controlBadVAddr, address);
-    this.maskControlBits32(cpu0_constants.controlContext, TLBCTXT_VPNMASK, context);
-    this.maskControlBits32(cpu0_constants.controlEntryHi, TLBHI_VPN2MASK, address);
+    this.setBadVAddr(address);
+    this.setContext(address);
+    this.setXContext(address);
 
     // XXXX check we're not inside exception handler before snuffing CAUSE reg?
-    this.raiseException(CAUSE_EXCMASK, exc_code, vec);
+    this.raiseException(CAUSE_EXCMASK | CAUSE_CEMASK, exc_code, vec);
   }
 
   raiseTLBReadMissException(address) { this.raiseTLBException(address, causeExcCodeTLBL, UT_VEC); }
