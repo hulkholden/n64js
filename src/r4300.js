@@ -837,6 +837,7 @@ class CPU0 {
     this.setBadVAddr(address);
     this.setContext(address);
     this.setXContext(address);
+    this.maskControlBits32(cpu0_constants.controlEntryHi, TLBHI_VPN2MASK, address);
 
     // XXXX check we're not inside exception handler before snuffing CAUSE reg?
     this.raiseException(CAUSE_EXCMASK | CAUSE_CEMASK, exc_code, vec);
