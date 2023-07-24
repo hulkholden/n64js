@@ -983,17 +983,21 @@ class CPU0 {
   }
 
   getRandom() {
-    const wired = this.getControlU32(cpu0_constants.controlWired) & 0x1f;
-    let random = Math.floor(Math.random() * (32 - wired)) + wired;
+    // If wired >=32 values in the range [0,64) are returned, else [wired, 32)
+    const wired = this.getControlU32(cpu0_constants.controlWired);
+    const min = wired >= 32 ? 0 : (wired & 31);
+    const max = wired >= 32 ? 64 : 32;
+  
+    let random = Math.floor(Math.random() * (max - min)) + min;
+    assert(random >= min && random < max, `Ooops - random should be in range [${min},${max}), but got ${random}`);
     if (syncFlow) {
       random = syncFlow.reflect32(random);
     }
-
-    assert(random >= wired && random <= 31, `Ooops - random should be in range ${wired}..31, but got ${random}`);
     return random;
   }
 
-  setTLB(index) {
+  setTLB(indexRaw) {
+    const index = indexRaw & 31;
     const pagemask = this.getControlU32(cpu0_constants.controlPageMask);
     const entryhi = this.getControlU32(cpu0_constants.controlEntryHi);
     const entrylo1 = this.getControlU32(cpu0_constants.controlEntryLo1);
@@ -1003,7 +1007,7 @@ class CPU0 {
   }
 
   tlbWriteIndex() {
-    this.setTLB(this.getControlU32(cpu0_constants.controlIndex) & 0x1f);
+    this.setTLB(this.getControlU32(cpu0_constants.controlIndex));
   }
 
   tlbWriteRandom() {
