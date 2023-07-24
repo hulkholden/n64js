@@ -239,14 +239,14 @@ class TLBEntry {
       logger.log(`       ${pageMaskName(pagemask)} Pagesize`);
     }
 
-    this.pagemask = pagemask;
+    this.pagemask = canonicalisePageMask(pagemask);
     this.hi = hi;
     this.pfne = entrylo0;
     this.pfno = entrylo1;
 
     this.global = (entrylo0 & entrylo1 & TLBLO_G);
 
-    this.mask = pagemask | TLBHI_VPN2MASK_NEG;
+    this.mask = this.pagemask | TLBHI_VPN2MASK_NEG;
     this.mask2 = this.mask >>> 1;
     this.vpnmask = (~this.mask) >>> 0;
     this.vpn2mask = this.vpnmask >>> 1;
@@ -256,42 +256,57 @@ class TLBEntry {
     this.pfnehi = (this.pfne << TLBLO_PFNSHIFT) & this.vpn2mask;
     this.pfnohi = (this.pfno << TLBLO_PFNSHIFT) & this.vpn2mask;
 
-    this.checkbit = pageMaskCheckbit(pagemask);
+    this.checkbit = pageMaskCheckbit(this.pagemask);
   }
 }
 
-class PageMask {
-  constructor(name, checkbit) {
-    this.name = name;
-    this.checkbit = checkbit;
-  }
-}
-
-const pageMasks = new Map([
-  [TLBPGMASK_4K, new PageMask('4k', 0x00001000)],
-  [TLBPGMASK_16K, new PageMask('16k', 0x00004000)],
-  [TLBPGMASK_64K, new PageMask('64k', 0x00010000)],
-  [TLBPGMASK_256K, new PageMask('256k', 0x00040000)],
-  [TLBPGMASK_1M, new PageMask('1M', 0x00100000)],
-  [TLBPGMASK_4M, new PageMask('4M', 0x00400000)],
-  [TLBPGMASK_16M, new PageMask('16M', 0x01000000)],
+const pageMaskNames = new Map([
+  [TLBPGMASK_4K, '4k'],
+  [TLBPGMASK_16K, '16k'],
+  [TLBPGMASK_64K, '64k'],
+  [TLBPGMASK_256K, '256k'],
+  [TLBPGMASK_1M, '1M'],
+  [TLBPGMASK_4M, '4M'],
+  [TLBPGMASK_16M, '16M'],
 ]);
 
+function pageMaskBits(pageMask) {
+  return (pageMask >> 13) & 0xfff;
+}
+
+/**
+ * Returns the pagemask as canonicalised by the VR4300 (i.e. the value
+ * that's read back via TLBR).
+ * @param {number} pageMask 
+ * @returns 
+ */
+function canonicalisePageMask(pageMask) {
+  const bits = pageMaskBits(pageMask);
+  // Each pair of bits is considered separately.
+  // If the upper (odd) bit is set then both bits are set in result.
+  const oddBits = bits & 0b1010_1010_1010;
+  const r = oddBits | (oddBits >> 1);
+  return r << 13;
+}
+
 function pageMaskCheckbit(pageMask) {
-  const pm = pageMasks.get(pageMask);
-  if (pm) {
-    return pm.checkbit;
-  }
-  logger.log(`Bad pagemask: ${pageMask}`);
-  return 0;
+  const bits = pageMaskBits(pageMask);
+  if (bits & 0b1000_0000_0000) return 1 << 24;
+  if (bits & 0b0010_0000_0000) return 1 << 22;
+  if (bits & 0b0000_1000_0000) return 1 << 20;
+  if (bits & 0b0000_0010_0000) return 1 << 18;
+  if (bits & 0b0000_0000_1000) return 1 << 16;
+  if (bits & 0b0000_0000_0010) return 1 << 14;
+  return 1 << 12;
 }
 
 function pageMaskName(pageMask) {
-  const pm = pageMasks.get(pageMask);
-  if (pm) {
-    return pm.name;
+  const name = pageMaskNames.get(pageMask);
+  if (name) {
+    return name;
   }
-  return 'Unknown';
+  const bits = pageMaskBits(pageMask);
+  return `Unknown(${bits.toString(2)})`;
 }
 
 class CPU0 {
