@@ -3882,7 +3882,8 @@ function checkSyncState(sync, pc) {
 
 function handleTLBException() {
   cpu0.pc = cpu0.nextPC;
-  cpu0.delayPC = cpu0.branchTarget;
+  cpu0.delayPC = 0;
+  cpu0.branchTarget = 0;
   cpu0.incrementCount(COUNTER_INCREMENT_PER_OP);
 
   const evt = cpu0.events[0];
