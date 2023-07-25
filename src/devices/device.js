@@ -154,6 +154,21 @@ export class Device {
   }
 
   /**
+   * Writes 32 bit data using a mask to the specified address.
+   * @param {number} address
+   * @param {number} value
+   * @param {number} mask Bits to overwrite
+   */
+  write32masked(address, value, mask) {
+    this.logWrite(address, value, 32);
+    const ea = this.calcEA(address);
+    
+    const orig = this.mem.readU32(ea);
+    const result = (orig & ~mask) | (value & mask);
+    this.mem.write32(ea, result);
+  }
+
+  /**
    * Writes 32 bit data to the specified address.
    * @param {number} address
    * @param {number} value
