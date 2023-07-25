@@ -397,8 +397,8 @@ class CPU0 {
   }
 
   setRegU32Extend(r, v) {
-    this.gprS32[r * 2 + 0] = v;
-    this.gprS32[r * 2 + 1] = 0;
+    this.gprU32[r * 2 + 0] = v;
+    this.gprU32[r * 2 + 1] = 0;
   }
 
   getMultLoS64() { return this.multLoS64[0]; }
