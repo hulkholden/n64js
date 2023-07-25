@@ -574,8 +574,7 @@ class CPU0 {
   }
 
   store64masked(addr, value, mask) {
-    sw_slow_masked(addr + 0, Number(value >> 32n), Number(mask >> 32n));
-    sw_slow_masked(addr + 4, Number(value & 0xffffffffn), Number(mask & 0xffffffffn));
+    sd_slow_masked(addr, value, mask);
   }
 
   store64_lo_hi(addr, value_lo, value_hi) {
@@ -1304,7 +1303,16 @@ function lw_slow(addr) { return n64js.readMemoryS32(addr >>> 0); }
 function lh_slow(addr) { return n64js.readMemoryS16(addr >>> 0); }
 function lb_slow(addr) { return n64js.readMemoryS8(addr >>> 0); }
 
-function sw_slow_masked(addr, value, mask) { n64js.writeMemory32masked(addr >>> 0, value, mask); }
+function sd_slow_masked(addr, value, mask) {
+  const addrAligned = (addr & ~7) >>> 0;
+  sw_slow_masked(addrAligned + 0, Number(value >> 32n), Number(mask >> 32n));
+  sw_slow_masked(addrAligned + 4, Number(value & 0xffffffffn), Number(mask & 0xffffffffn)); 
+}
+
+function sw_slow_masked(addr, value, mask) {
+  const addrAligned = (addr & ~3) >>> 0;
+  n64js.writeMemory32masked(addrAligned, value, mask);
+}
 function sw_slow(addr, value) { n64js.writeMemory32(addr >>> 0, value); }
 function sh_slow(addr, value) { n64js.writeMemory16(addr >>> 0, value); }
 function sb_slow(addr, value) { n64js.writeMemory8(addr >>> 0, value); }
@@ -2792,7 +2800,7 @@ function executeSWL(i) {
   const shift = 8 * (addr & 3);
   const reg = cpu0.getRegU32Lo(rt(i));
 
-  cpu0.store32masked((addr & ~3) >>> 0, reg >>> shift, u32Max >>> shift);
+  cpu0.store32masked(addr, reg >>> shift, u32Max >>> shift);
 }
 
 function executeSWR(i) {
@@ -2800,7 +2808,7 @@ function executeSWR(i) {
   const shift = 8 * (3 - (addr & 3));
   const reg = cpu0.getRegU32Lo(rt(i));
 
-  cpu0.store32masked((addr & ~3) >>> 0, reg << shift, u32Max << shift);
+  cpu0.store32masked(addr, reg << shift, u32Max << shift);
 }
 
 function executeSDL(i) {
@@ -2808,7 +2816,7 @@ function executeSDL(i) {
   const shift = BigInt(8 * (addr & 7));
   const reg = cpu0.getRegU64(rt(i));
 
-  cpu0.store64masked((addr & ~7) >>> 0, reg >> shift, u64Max >> shift);
+  cpu0.store64masked(addr, reg >> shift, u64Max >> shift);
 }
 
 function executeSDR(i) {
@@ -2816,7 +2824,7 @@ function executeSDR(i) {
   const reg = cpu0.getRegU64(rt(i));
   const shift = BigInt(8 * (7 - (addr & 7)));
 
-  cpu0.store64masked((addr & ~7) >>> 0, (reg << shift) & u64Max, (u64Max << shift) & u64Max);
+  cpu0.store64masked(addr, (reg << shift) & u64Max, (u64Max << shift) & u64Max);
 }
 
 function generateCACHE(ctx) {
