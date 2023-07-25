@@ -69,9 +69,10 @@ export class Hardware {
     this.piMemDevice = new PIRamDevice(this, 0xbfc00000, 0xbfc00800);
     this.romD1A3Device = new ROMD1A3Device(this, 0xbfd00000, 0xc0000000);
     // KSSEG, TLB mapped.
-    // 0xc000_0000 to 0xe000_0000
+    this.mappedMem2Device = new MappedMemDevice(this, 0xc0000000, 0xe0000000);
     // KSEG3, TLB mapped.
-    // 0xe000_0000 to 0x1_0000_0000  
+    this.mappedMem3Device = new MappedMemDevice(this, 0xe0000000, 0x1_00000000);
+
 
     this.devices = [
       this.mappedMemDevice,
@@ -99,6 +100,8 @@ export class Hardware {
       this.romD1A2Device,
       this.piMemDevice,
       this.romD1A3Device,
+      this.mappedMem2Device,
+      this.mappedMem3Device,
     ];
     this.memMap = new MemoryMap(this.devices);
   }
