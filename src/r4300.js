@@ -72,7 +72,7 @@ const SR_CUMASK       = 0xf0000000;
 const SR_CUSHIFT      = 28;
 
 // Only bit 19 is unwritable.
-const statusWritableBits = ~0x80000;
+const statusWritableBits = 0xfff7_ffffn;
 
 const CAUSE_BD_BIT    = 31;           // NB: Closure Compiler doesn't like 32 bit constants.
 const CAUSE_BD        = 0x80000000;
@@ -628,7 +628,8 @@ class CPU0 {
         break;
 
       case cpu0_constants.controlStatus:
-        this.setStatus(Number(newValue & 0xffff_ffffn));
+        this.setControlU64(controlReg, newValue & statusWritableBits);
+        this.statusRegisterChanged();
         break;
       case cpu0_constants.controlCount:
         this.setControlU64(controlReg, newValue);
@@ -748,8 +749,7 @@ class CPU0 {
     checkCauseIP3Consistent();
   }
 
-  setStatus(value) {
-    this.setControlU32(cpu0_constants.controlStatus, value & statusWritableBits);
+  statusRegisterChanged() {
     cop1ControlChanged();
 
     if (this.checkForUnmaskedInterrupts()) {
