@@ -200,6 +200,9 @@ n64js.getSyncFlow = () => syncFlow;
 const s32SignBit = 0x8000_0000;
 const s64SignBit = 0x8000_0000_0000_0000n;
 
+const u32Max = 0xffff_ffff;
+const u64Max = 0xffff_ffff_ffff_ffffn;
+
 // See https://grack.com/blog/2022/12/20/deriving-a-bit-twiddling-hack/.
 function s32CheckAddOverflow(a, b, c) {
   return (~(a ^ b) & (c ^ a) & s32SignBit) != 0;
@@ -378,8 +381,12 @@ class CPU0 {
   setRegU64(r, v) {
     // This shouldn't be needed but there seems to be a bug with BigInts > 64 bits.
     // TODO: check still needed with BigUint64Array.
-    const truncated = v & 0xffff_ffff_ffff_ffffn;
+    const truncated = v & u64Max;
     this.gprU64[r] = truncated;
+  }
+
+  setRegU64Masked(r, v, m) {
+    this.gprU64[r] = (this.gprU64[r] & ~m) | (v & m);
   }
 
   setRegS64LoHi(r, lo, hi) {
@@ -389,6 +396,12 @@ class CPU0 {
 
   setRegS32Lo(r, v) {
     this.gprS32[r * 2 + 0] = v;
+  }
+
+  setRegS32ExtendMasked(r, v, m) {
+    const result = (this.gprS32[r * 2 + 0] & ~m) | (v & m);
+    this.gprS32[r * 2 + 0] = result;
+    this.gprS32[r * 2 + 1] = result >> 31;
   }
 
   setRegS32Extend(r, v) {
@@ -554,6 +567,15 @@ class CPU0 {
     } else {
       sw_slow(addr, value);
     }
+  }
+
+  store32masked(addr, value, mask) {
+    sw_slow_masked(addr, value, mask);
+  }
+
+  store64masked(addr, value, mask) {
+    sw_slow_masked(addr + 0, Number(value >> 32n), Number(mask >> 32n));
+    sw_slow_masked(addr + 4, Number(value & 0xffffffffn), Number(mask & 0xffffffffn));
   }
 
   store64_lo_hi(addr, value_lo, value_hi) {
@@ -1282,6 +1304,7 @@ function lw_slow(addr) { return n64js.readMemoryS32(addr >>> 0); }
 function lh_slow(addr) { return n64js.readMemoryS16(addr >>> 0); }
 function lb_slow(addr) { return n64js.readMemoryS8(addr >>> 0); }
 
+function sw_slow_masked(addr, value, mask) { n64js.writeMemory32masked(addr >>> 0, value, mask); }
 function sw_slow(addr, value) { n64js.writeMemory32(addr >>> 0, value); }
 function sh_slow(addr, value) { n64js.writeMemory16(addr >>> 0, value); }
 function sb_slow(addr, value) { n64js.writeMemory8(addr >>> 0, value); }
@@ -1553,13 +1576,13 @@ function executeMULTU(i) {
 
 function executeDMULT(i) {
   const result = cpu0.getRegS64(rs(i)) * cpu0.getRegS64(rt(i));
-  cpu0.setMultLoS64(result & 0xffff_ffff_ffff_ffffn);
+  cpu0.setMultLoS64(result & u64Max);
   cpu0.setMultHiS64(result >> 64n);
 }
 
 function executeDMULTU(i) {
   const result = cpu0.getRegU64(rs(i)) * cpu0.getRegU64(rt(i));
-  cpu0.setMultLoU64(result & 0xffff_ffff_ffff_ffffn);
+  cpu0.setMultLoU64(result & u64Max);
   cpu0.setMultHiU64(result >> 64n);
 }
 
@@ -2618,63 +2641,34 @@ function executeLDC2(i) { unimplemented(cpu0.pc, i); }
 
 function executeLWL(i) {
   const addr = (cpu0.getRegU32Lo(base(i)) + imms(i)) >>> 0;
-  const addrAligned = (addr & ~3) >>> 0;
-  const mem = cpu0.loadU32(addrAligned);
-  const reg = cpu0.getRegU32Lo(rt(i));
+  const mem = cpu0.loadU32((addr & ~3) >>> 0);
+  const shift = 8 * (addr & 3);
 
-  const n = addr & 3;
-  const shift = 8 * n;
-  const allBits = 0xffff_ffff;
-  const mask = shift ? allBits >>> (32 - shift) : 0; // >>>32 is undefined.
-
-  const result = (reg & mask) | (mem << shift);
-  cpu0.setRegS32Extend(rt(i), result);
+  cpu0.setRegS32ExtendMasked(rt(i), mem << shift, u32Max << shift);
 }
 
 function executeLWR(i) {
   const addr = (cpu0.getRegU32Lo(base(i)) + imms(i)) >>> 0;
-  const addrAligned = (addr & ~3) >>> 0;
-  const mem = cpu0.loadU32(addrAligned);
-  const reg = cpu0.getRegU32Lo(rt(i));
+  const mem = cpu0.loadU32((addr & ~3) >>> 0);
+  const shift = 8 * (3 - (addr & 3));
 
-  const n = addr & 3;
-  const shift = 8 * (3 - n);
-  const allBits = 0xffff_ffff;
-  const mask = ~(allBits >>> shift);
-
-  const result = (reg & mask) | (mem >>> shift);
-  cpu0.setRegS32Extend(rt(i), result);
+  cpu0.setRegS32ExtendMasked(rt(i), mem >>> shift, u32Max >>> shift);
 }
 
 function executeLDL(i) {
   const addr = (cpu0.getRegU32Lo(base(i)) + imms(i)) >>> 0;
-  const addrAligned = (addr & ~7) >>> 0;
-  const mem = cpu0.loadU64(addrAligned);
-  const reg = cpu0.getRegU64(rt(i));
+  const shift = BigInt(8 * (addr & 7));
+  const mem = cpu0.loadU64((addr & ~7) >>> 0);
 
-  const n = addr & 7;
-  const shift = BigInt(8 * n);
-  const allBits = 0xffff_ffff_ffff_ffffn;
-  const mask = allBits >> (64n - shift);
-
-  // Final mask shouldn't be needed - BigInt bug?
-  const result = ((reg & mask) | (mem << shift)) & allBits;
-  cpu0.setRegU64(rt(i), result);
+  cpu0.setRegU64Masked(rt(i), (mem << shift) & u64Max, (u64Max << shift) & u64Max);
 }
 
 function executeLDR(i) {
   const addr = (cpu0.getRegU32Lo(base(i)) + imms(i)) >>> 0;
-  const addrAligned = (addr & ~7) >>> 0;
-  const mem = cpu0.loadU64(addrAligned);
-  const reg = cpu0.getRegU64(rt(i));
+  const shift = BigInt(8 * (7 - (addr & 7)));
+  const mem = cpu0.loadU64((addr & ~7) >>> 0);
 
-  const n = addr & 7;
-  const shift = BigInt(8 * (7 - n));
-  const allBits = 0xffff_ffff_ffff_ffffn;
-  const mask = ~(allBits >> shift);
-
-  const result = (reg & mask) | (mem >> shift);
-  cpu0.setRegU64(rt(i), result);
+  cpu0.setRegU64Masked(rt(i), mem >> shift, u64Max >> shift);
 }
 
 function generateSB(ctx) {
@@ -2795,63 +2789,34 @@ function executeSDC2(i) { unimplemented(cpu0.pc, i); }
 
 function executeSWL(i) {
   const addr = (cpu0.getRegU32Lo(base(i)) + imms(i));
-  const addrAligned = (addr & ~3) >>> 0;
-  const mem = cpu0.loadU32(addrAligned);
+  const shift = 8 * (addr & 3);
   const reg = cpu0.getRegU32Lo(rt(i));
 
-  const n = addr & 3;
-  const shift = 8 * n;
-  const allBits = 0xffff_ffff;
-  const mask = ~(allBits >>> shift);
-
-  const result = (mem & mask) | (reg >>> shift);
-  cpu0.store32(addrAligned, result);
+  cpu0.store32masked((addr & ~3) >>> 0, reg >>> shift, u32Max >>> shift);
 }
 
 function executeSWR(i) {
   const addr = (cpu0.getRegU32Lo(base(i)) + imms(i));
-  const addrAligned = (addr & ~3) >>> 0;
-  const mem = cpu0.loadU32(addrAligned);
+  const shift = 8 * (3 - (addr & 3));
   const reg = cpu0.getRegU32Lo(rt(i));
 
-  const n = addr & 3;
-  const shift = 8 * (3 - n);
-  const allBits = 0xffff_ffff;
-  const mask = shift > 0 ? allBits >>> (32 - shift) : 0; // >>>32 is undefined.
-
-  const result = (mem & mask) | (reg << shift);
-  cpu0.store32(addrAligned, result);
+  cpu0.store32masked((addr & ~3) >>> 0, reg << shift, u32Max << shift);
 }
 
 function executeSDL(i) {
   const addr = (cpu0.getRegU32Lo(base(i)) + imms(i)) >>> 0;
-  const addrAligned = (addr & ~7) >>> 0;
-  const mem = cpu0.loadU64(addrAligned);
+  const shift = BigInt(8 * (addr & 7));
   const reg = cpu0.getRegU64(rt(i));
 
-  const n = addr & 7;
-  const shift = BigInt(8 * n);
-  const allBits = 0xffff_ffff_ffff_ffffn;
-  const mask = ~(allBits >> shift);
-
-  const result = (mem & mask) | (reg >> shift);
-  cpu0.store64(addrAligned, result);
+  cpu0.store64masked((addr & ~7) >>> 0, reg >> shift, u64Max >> shift);
 }
 
 function executeSDR(i) {
   const addr = (cpu0.getRegU32Lo(base(i)) + imms(i)) >>> 0;
-  const addrAligned = (addr & ~7) >>> 0;
-  const mem = cpu0.loadU64(addrAligned);
   const reg = cpu0.getRegU64(rt(i));
+  const shift = BigInt(8 * (7 - (addr & 7)));
 
-  const n = addr & 7;
-  const shift = BigInt(8 * (7 - n));
-  const allBits = 0xffff_ffff_ffff_ffffn;
-  const mask = allBits >> (64n - shift);
-
-  // Final mask shouldn't be needed - BigInt bug?
-  const result = ((mem & mask) | (reg << shift)) & allBits;
-  cpu0.store64(addrAligned, result);
+  cpu0.store64masked((addr & ~7) >>> 0, (reg << shift) & u64Max, (u64Max << shift) & u64Max);
 }
 
 function generateCACHE(ctx) {
