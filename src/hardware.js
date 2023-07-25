@@ -93,8 +93,8 @@ export class Hardware {
       this.piRegDevice,
       this.riRegDevice,
       this.siRegDevice,
-      this.romD2A1Device, // Breaks F-Zero?
-      this.romD1A1Device, // Breaks F-Zero?
+      this.romD2A1Device,
+      this.romD1A1Device,
       this.romD2A2Device,
       this.romD1A2Device,
       this.piMemDevice,
@@ -160,7 +160,7 @@ export class Hardware {
         this.initEeprom(16 * 1024, n64js.getLocalStorageItem('eeprom'));
         break;
       case 'SRAM':
-        this.sram = new MemoryRegion(32 * 1024);
+        this.sram = new MemoryRegion(new ArrayBuffer(32 * 1024));
         // TODO: restore contents from local storage.
         break;
 
