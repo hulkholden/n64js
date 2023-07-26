@@ -89,24 +89,19 @@ export class Device {
 
   /**
    * Logs a read at the specified address.
+   * Does nothing for Device - use LoggingDevice to enable output.
    * @param {number} address
    */
-  logRead(address) {
-    if (!this.quiet) {
-      logger.log(`Reading from ${this.name}: ${toString32(address)}`);
-    }
-  }
+  logRead(address) {}
 
   /**
    * Logs a write to the specified address.
+   * Does nothing for Device - use LoggingDevice to enable output.
    * @param {number} address
    * @param {string} value
+   * @param {number} bits
    */
-  logWrite(address, value, bits) {
-    if (!this.quiet) {
-      logger.log(`Writing to ${this.name}: ${toStringN(value, bits)} -> [${toString32(address)}]`);
-    }
-  }
+  logWrite(address, value, bits) {}
 
   /**
    * Reads unsigned 64 bit data at the specified address.
@@ -114,7 +109,6 @@ export class Device {
    * @return {bigint}
    */
   readU64(address) {
-    this.logRead(address);
     const ea = this.calcReadEA(address);
     return this.mem.readU64(ea);
   }
@@ -125,7 +119,6 @@ export class Device {
    * @return {number}
    */
   readU32(address) {
-    this.logRead(address);
     const ea = this.calcReadEA(address);
     return this.mem.readU32(ea);
   }
@@ -136,7 +129,6 @@ export class Device {
    * @return {number}
    */
   readU16(address) {
-    this.logRead(address);
     const ea = this.calcReadEA(address);
     return this.mem.readU16(ea);
   }
@@ -147,7 +139,6 @@ export class Device {
    * @return {number}
    */
   readU8(address) {
-    this.logRead(address);
     const ea = this.calcReadEA(address);
     return this.mem.readU8(ea);
   }
@@ -158,7 +149,6 @@ export class Device {
    * @return {number}
    */
   readS32(address) {
-    this.logRead(address);
     const ea = this.calcReadEA(address);
     return this.mem.readS32(ea);
   }
@@ -169,7 +159,6 @@ export class Device {
    * @return {number}
    */
   readS16(address) {
-    this.logRead(address);
     const ea = this.calcReadEA(address);
     return this.mem.readS16(ea);
   }
@@ -180,7 +169,6 @@ export class Device {
    * @return {number}
    */
   readS8(address) {
-    this.logRead(address);
     const ea = this.calcReadEA(address);
     return this.mem.readS8(ea);
   }
@@ -192,7 +180,6 @@ export class Device {
    * @param {bigint} mask Bits to overwrite.
    */
   write64masked(address, value, mask) {
-    this.logWrite(address, value, 64);
     const ea = this.calcWriteEA(address) & ~7;
     this.mem.write64masked(ea, value, mask);
   }
@@ -204,7 +191,6 @@ export class Device {
    * @param {number} mask Bits to overwrite.
    */
   write32masked(address, value, mask) {
-    this.logWrite(address, value, 32);
     const ea = this.calcWriteEA(address) & ~3;
     this.mem.write32masked(ea, value, mask);
   }
@@ -215,7 +201,6 @@ export class Device {
    * @param {bigint} value
    */
   write64(address, value) {
-    this.logWrite(address, value, 64);
     const ea = this.calcWriteEA(address);
     this.mem.write64(ea, value);
   }
@@ -226,7 +211,6 @@ export class Device {
    * @param {number} value
    */
   write32(address, value) {
-    this.logWrite(address, value, 32);
     const ea = this.calcWriteEA(address);
     this.mem.write32(ea, value);
   }
@@ -237,7 +221,6 @@ export class Device {
    * @param {number} value
    */
   write16(address, value) {
-    this.logWrite(address, value, 16);
     const ea = this.calcWriteEA(address);
     this.mem.write16(ea, value);
   }
@@ -248,8 +231,106 @@ export class Device {
    * @param {number} value
    */
   write8(address, value) {
-    this.logWrite(address, value, 8);
     const ea = this.calcWriteEA(address);
     this.mem.write8(ea, value);
+  }
+}
+
+/**
+ * A device that logs.
+ */
+export class LoggingDevice extends Device {
+  /**
+   * @param {string} name The name of this device.
+   * @param {Hardware} hardware The underlying hardware.
+   * @param {MemoryRegion|null} mem The memory region that backs this device.
+   * @param {number} rangeStart The start of the address space to use.
+   * @param {number} rangeEnd The end of the address space to use.
+   */
+  constructor(name, hardware, mem, rangeStart, rangeEnd) {
+    super(name, hardware, mem, rangeStart, rangeEnd);
+    this.quiet = false;
+  }
+
+  /**
+   * Logs a read at the specified address.
+   * @param {number} address
+   */
+  logRead(address) {
+    logger.log(`Reading from ${this.name}: ${toString32(address)}`);
+  }
+
+  /**
+   * Logs a write to the specified address.
+   * @param {number} address
+   * @param {string} value
+   */
+  logWrite(address, value, bits) {
+    logger.log(`Writing to ${this.name}: ${toStringN(value, bits)} -> [${toString32(address)}]`);
+  }
+
+  readU64(address) {
+    this.logRead(address);
+    return super.readU64(address);
+  }
+
+  readU32(address) {
+    this.logRead(address);
+    return super.readU32(address);
+  }
+
+  readU16(address) {
+    this.logRead(address);
+    return super.readU16(address);
+  }
+
+  readU8(address) {
+    this.logRead(address);
+    return super.readU8(address);
+  }
+
+  readS32(address) {
+    this.logRead(address);
+    return super.readS32(address);
+  }
+
+  readS16(address) {
+    this.logRead(address);
+    return super.readS16(address);
+  }
+
+  readS8(address) {
+    this.logRead(address);
+    return super.readS8(address);
+  }
+
+  write64masked(address, value, mask) {
+    this.logWrite(address, value, 64);
+    super.write64masked(address, value, mask);
+  }
+
+  write32masked(address, value, mask) {
+    this.logWrite(address, value, 32);
+    super.write32masked(address, value, mask);
+  }
+
+  write64(address, value) {
+    this.logWrite(address, value, 64);
+    super.write64(address, value);
+  }
+
+  write32(address, value) {
+    this.logWrite(address, value, 32);
+    super.write32(address, value);
+  }
+
+  write16(address, value) {
+    this.logWrite(address, value, 16);
+    super.write16(address, value);
+  }
+
+  write8(address, value) {
+    this.logWrite(address, value, 8);
+    super.write8(address, value);
   }
 }
