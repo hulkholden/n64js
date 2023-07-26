@@ -21,6 +21,13 @@ export class MemoryRegion {
   /**
    * Read the value at the specified offset.
    * @param {number} offset
+   * @return {bigint}
+   */
+  readU64(offset) { return this.dataView.getBigUint64(offset, false); }
+
+  /**
+   * Read the value at the specified offset.
+   * @param {number} offset
    * @return {number}
    */
   readU32(offset) { return this.dataView.getUint32(offset, false); }
@@ -42,6 +49,13 @@ export class MemoryRegion {
   /**
    * Read the value at the specified offset.
    * @param {number} offset
+   * @return {bigint}
+   */
+  readS64(offset) { return this.dataView.getBigInt64(offset, false); }
+
+  /**
+   * Read the value at the specified offset.
+   * @param {number} offset
    * @return {number}
    */
   readS32(offset) { return this.dataView.getInt32(offset, false); }
@@ -59,6 +73,37 @@ export class MemoryRegion {
    * @return {number}
    */
   readS8(offset) { return this.dataView.getInt8(offset, false); }
+
+  /**
+   * Write the value to the specified offset, using the provided masking.
+   * @param {number} offset
+   * @param {bigint} value
+   * @param {bigint} mask
+   */
+  write64masked(offset, value, mask) {
+    const orig = this.readU64(offset, false);
+    const result = (orig & ~mask) | (value & mask);
+    this.write64(offset, result, false);
+  }
+
+  /**
+   * Write the value to the specified offset, using the provided masking.
+   * @param {number} offset
+   * @param {number} value
+   * @param {number} mask
+   */
+  write32masked(offset, value, mask) {
+    const orig = this.readU32(offset, false);
+    const result = (orig & ~mask) | (value & mask);
+    this.write32(offset, result);
+  }
+
+  /**
+   * Write the value to the specified offset.
+   * @param {number} offset
+   * @param {bigint} value
+   */
+  write64(offset, value) { this.dataView.setBigUint64(offset, value, false); }
 
   /**
    * Write the value to the specified offset.
