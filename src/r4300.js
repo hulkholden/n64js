@@ -1311,9 +1311,7 @@ function loadU64(sAddr) {
 function loadU64slow(sAddr) {
   const addr = sAddr >>> 0;
   const mh = getMemoryHandler(addr);
-  const hi = mh.readU32(addr + 0);
-  const lo = mh.readU32(addr + 4);
-  return (BigInt(hi) << 32n) | BigInt(lo >>> 0);
+  return mh.readU64(addr);
 }
 
 function store8(sAddr, value) {
@@ -1373,8 +1371,7 @@ function store64(sAddr, value) {
 function store64slow(sAddr, value) {
   const addr = sAddr >>> 0;
   const mh = getMemoryHandler(addr);
-  mh.write32(addr + 0, Number(value >> 32n));
-  mh.write32(addr + 4, Number(value & 0xffffffffn));
+  mh.write64(addr, value);
 }
 
 function store32masked(sAddr, value, mask) {
