@@ -83,15 +83,24 @@ export class MappedMemDevice extends Device {
     return 0x00;
   }
 
-  write32masked(address, value, mask) {
-    const mapped = n64js.cpu0.translateWrite(address) & 0x007fffff;
+  write64masked(address, value, mask) {
+    // Align address to 64 bits after translation.
+    const mapped = n64js.cpu0.translateWrite(address) & 0x007ffff8;
     if (mapped === 0) {
       n64js.halt('virtual write32masked failed - need to throw refill/invalid');
       return;
     }
-    const orig = this.ram.readU32(mapped);
-    const result = (orig & ~mask) | (value & mask);
-    this.ram.write32(mapped, result);
+    this.ram.write64masked(mapped, value, mask);
+  }
+
+  write32masked(address, value, mask) {
+    // Align address to 32 bits after translation.
+    const mapped = n64js.cpu0.translateWrite(address) & 0x007ffffc;
+    if (mapped === 0) {
+      n64js.halt('virtual write32masked failed - need to throw refill/invalid');
+      return;
+    }
+    this.ram.write32masked(mapped, value, mask);
   }
 
   write32(address, value) {

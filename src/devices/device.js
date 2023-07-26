@@ -154,18 +154,27 @@ export class Device {
   }
 
   /**
+   * Writes 64 bit data using a mask to the specified address.
+   * @param {number} address Address to write to - will be 64 bit aligned.
+   * @param {bigint} value Value to write.
+   * @param {bigint} mask Bits to overwrite.
+   */
+  write64masked(address, value, mask) {
+    this.logWrite(address, value, 64);
+    const ea = this.calcEA(address) & ~7;
+    this.mem.write64masked(ea, value, mask);
+  }
+
+  /**
    * Writes 32 bit data using a mask to the specified address.
-   * @param {number} address
-   * @param {number} value
-   * @param {number} mask Bits to overwrite
+   * @param {number} address Address to write to - will be 32 bit aligned.
+   * @param {number} value Value to write.
+   * @param {number} mask Bits to overwrite.
    */
   write32masked(address, value, mask) {
     this.logWrite(address, value, 32);
-    const ea = this.calcEA(address);
-    
-    const orig = this.mem.readU32(ea);
-    const result = (orig & ~mask) | (value & mask);
-    this.mem.write32(ea, result);
+    const ea = this.calcEA(address) & ~3;
+    this.mem.write32masked(ea, value, mask);
   }
 
   /**
