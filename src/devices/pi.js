@@ -74,7 +74,7 @@ export class PIRegDevice extends Device {
   }
 
   readS32(address) {
-    const ea = this.calcEA(address);
+    const ea = this.calcReadEA(address);
     if (ea + 4 > this.u8.length) {
       throw 'Read is out of range';
     }
@@ -103,7 +103,7 @@ export class PIRegDevice extends Device {
   }
 
   write32(address, value) {
-    const ea = this.calcEA(address);
+    const ea = this.calcWriteEA(address);
     if (ea + 4 > this.u8.length) {
       throw 'Write is out of range';
     }
@@ -256,7 +256,7 @@ export class PIRamDevice extends Device {
   }
 
   readS32(address) {
-    const ea = this.calcEA(address);
+    const ea = this.calcReadEA(address);
     if (ea + 4 > this.u8.length) {
       throw 'Read is out of range';
     }
@@ -279,7 +279,7 @@ export class PIRamDevice extends Device {
   }
 
   readS8(address) {
-    const ea = this.calcEA(address);
+    const ea = this.calcReadEA(address);
     const v = this.mem.readU8(ea);
     if (ea < 0x7c0) {
       logger.log(`Reading from PIF rom (${toString32(address)}). Got ${toString8(v)}`);
@@ -299,7 +299,7 @@ export class PIRamDevice extends Device {
   }
 
   write32(address, value) {
-    const ea = this.calcEA(address);
+    const ea = this.calcWriteEA(address);
     if (ea < 0x7c0) {
       logger.log('Attempting to write to PIF ROM');
     } else {

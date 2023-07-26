@@ -82,7 +82,7 @@ export class MIRegDevice extends Device {
   }
 
   write32(address, value) {
-    const ea = this.calcEA(address);
+    const ea = this.calcWriteEA(address);
     if (ea + 4 > this.u8.length) {
       throw 'Write is out of range';
     }
