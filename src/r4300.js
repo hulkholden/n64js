@@ -1364,8 +1364,7 @@ function store32slow(sAddr, value) {
 function store64(sAddr, value) { 
   if (sAddr < -2139095040) {
     const phys = (sAddr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
-    ramDV.setUint32(phys + 0, Number(value >> 32n), false);
-    ramDV.setUint32(phys + 4, Number(value & 0xffffffffn), false);
+    ramDV.setBigUint64(phys, value, false);
     return;
   }
   store64slow(sAddr, value);
