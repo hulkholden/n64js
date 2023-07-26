@@ -1379,16 +1379,15 @@ function store64slow(sAddr, value) {
 }
 
 function store32masked(sAddr, value, mask) {
-  const addrAligned = (sAddr & ~3) >>> 0;
-  const mh = getMemoryHandler(addrAligned);
-  mh.write32masked(addrAligned, value, mask);
+  const addr = sAddr >>> 0;
+  const mh = getMemoryHandler(addr);
+  mh.write32masked(addr, value, mask);
 }
 
 function store64masked(sAddr, value, mask) {
-  const addrAligned = (sAddr & ~7) >>> 0;
-  const mh = getMemoryHandler(addrAligned);
-  mh.write32masked(addrAligned + 0, Number(value >> 32n), Number(mask >> 32n));
-  mh.write32masked(addrAligned + 4, Number(value & 0xffffffffn), Number(mask & 0xffffffffn));
+  const addr = sAddr >>> 0;
+  const mh = getMemoryHandler(addr);
+  mh.write64masked(addr, value, mask);
 }
 
 function unimplemented(pc, i) {
