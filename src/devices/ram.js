@@ -4,84 +4,25 @@ import * as logger from '../logger.js';
 
 export class MappedMemDevice extends Device {
   constructor(hardware, rangeStart, rangeEnd) {
-    super("VMEM", hardware, null, rangeStart, rangeEnd);
-    this.ram = hardware.ram;
+    super("VMEM", hardware, hardware.ram, rangeStart, rangeEnd);
   }
 
-  readInternal32(address) {
-    const mapped = n64js.cpu0.translateReadInternal(address) & 0x007fffff;
-    if (mapped !== 0) {
-      if (mapped + 4 <= this.ram.u8.length) {
-        return this.ram.readU32(mapped);
-      }
-    }
-    return 0x00000000;
+  calcInternalEA(address) {
+    // FIXME: why do we mask against this value?
+    // If the access is outside of ram we should handle the same as InvalidMemDevice.
+    return n64js.cpu0.translateReadInternal(address) & 0x007fffff;
   }
 
-  writeInternal32(address, value) {
-    const mapped = n64js.cpu0.translateReadInternal(address) & 0x007fffff;
-    if (mapped !== 0) {
-      if (mapped + 4 <= this.ram.u8.length) {
-        this.ram.write32(mapped, value);
-      }
-    }
+  calcReadEA(address) {
+    // FIXME: why do we mask against this value?
+    // If the read is outside of ram we should handle the same as InvalidMemDevice.
+    return n64js.cpu0.translateRead(address) & 0x007fffff;
   }
 
-  readU32(address) {
-    const mapped = n64js.cpu0.translateRead(address) & 0x007fffff;
-    return this.ram.readU32(mapped);
-  }
-
-  readU16(address) {
-    const mapped = n64js.cpu0.translateRead(address) & 0x007fffff;
-    return this.ram.readU16(mapped);
-  }
-
-  readU8(address) {
-    const mapped = n64js.cpu0.translateRead(address) & 0x007fffff;
-    return this.ram.readU8(mapped);
-  }
-
-  readS32(address) {
-    const mapped = n64js.cpu0.translateRead(address) & 0x007fffff;
-    return this.ram.readS32(mapped);
-  }
-
-  readS16(address) {
-    const mapped = n64js.cpu0.translateRead(address) & 0x007fffff;
-    return this.ram.readS16(mapped);
-  }
-
-  readS8(address) {
-    const mapped = n64js.cpu0.translateRead(address);
-    return this.ram.readS8(mapped);
-  }
-
-  write64masked(address, value, mask) {
-    // Align address to 64 bits after translation.
-    const mapped = n64js.cpu0.translateWrite(address) & 0x007ffff8;
-    this.ram.write64masked(mapped, value, mask);
-  }
-
-  write32masked(address, value, mask) {
-    // Align address to 32 bits after translation.
-    const mapped = n64js.cpu0.translateWrite(address) & 0x007ffffc;
-    this.ram.write32masked(mapped, value, mask);
-  }
-
-  write32(address, value) {
-    const mapped = n64js.cpu0.translateWrite(address) & 0x007fffff;
-    this.ram.write32(mapped, value);
-  }
-
-  write16(address, value) {
-    const mapped = n64js.cpu0.translateWrite(address) & 0x007fffff;
-    this.ram.write16(mapped, value);
-  }
-
-  write8(address, value) {
-    const mapped = n64js.cpu0.translateWrite(address) & 0x007fffff;
-    this.ram.write8(mapped, value);
+  calcWriteEA(address) {
+    // FIXME: why do we mask against this value?
+    // If the write is outside of ram we should handle the same as InvalidMemDevice.
+    return n64js.cpu0.translateWrite(address) & 0x007fffff;
   }
 }
 
