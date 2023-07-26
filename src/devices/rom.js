@@ -43,6 +43,13 @@ export class ROMD1A2Device extends Device {
         return ((address - this.rangeStart) + 2) & ~2;
     }
 
+    // 64-bit reads from the rom crash the n64, so no need to define these.
+
+    write64(address, value) {
+        // Only the upper 32 bits are used.
+        this.cacheLastWrite(Number(value >> 32n));
+    }
+
     write32(address, value) {
         if (address == dbgOutWriteLen) {
             return this.writeDebugBufferLen(value);

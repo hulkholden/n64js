@@ -109,6 +109,17 @@ export class Device {
   }
 
   /**
+   * Reads unsigned 64 bit data at the specified address.
+   * @param {number} address
+   * @return {bigint}
+   */
+  readU64(address) {
+    this.logRead(address);
+    const ea = this.calcReadEA(address);
+    return this.mem.readU64(ea);
+  }
+
+  /**
    * Reads unsigned 32 bit data at the specified address.
    * @param {number} address
    * @return {number}
@@ -196,6 +207,17 @@ export class Device {
     this.logWrite(address, value, 32);
     const ea = this.calcWriteEA(address) & ~3;
     this.mem.write32masked(ea, value, mask);
+  }
+
+  /**
+   * Writes 64 bit data to the specified address.
+   * @param {number} address
+   * @param {bigint} value
+   */
+  write64(address, value) {
+    this.logWrite(address, value, 64);
+    const ea = this.calcWriteEA(address);
+    this.mem.write64(ea, value);
   }
 
   /**
