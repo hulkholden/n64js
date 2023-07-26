@@ -1301,9 +1301,18 @@ function loadS32slow(sAddr) {
 }
 
 function loadU64(sAddr) {
-  // TODO: read using dataview.
-  const hi = loadU32(sAddr);
-  const lo = loadU32(sAddr + 4);
+  if (sAddr < -2139095040) {
+    const phys = (sAddr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
+    return ramDV.getBigUint64(phys, false);
+  }
+  return loadU64slow(sAddr);
+}
+
+function loadU64slow(sAddr) {
+  const addr = sAddr >>> 0;
+  const mh = getMemoryHandler(addr);
+  const hi = mh.readU32(addr + 0);
+  const lo = mh.readU32(addr + 4);
   return (BigInt(hi) << 32n) | BigInt(lo >>> 0);
 }
 
