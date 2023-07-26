@@ -29,103 +29,59 @@ export class MappedMemDevice extends Device {
 
   readU32(address) {
     const mapped = n64js.cpu0.translateRead(address) & 0x007fffff;
-    if (mapped !== 0) {
-      return this.ram.readU32(mapped);
-    }
-    n64js.halt('virtual readU32 failed - need to throw refill/invalid');
-    return 0x00000000;
+    return this.ram.readU32(mapped);
   }
 
   readU16(address) {
     const mapped = n64js.cpu0.translateRead(address) & 0x007fffff;
-    if (mapped !== 0) {
-      return this.ram.readU16(mapped);
-    }
-    n64js.halt('virtual readU16 failed - need to throw refill/invalid');
-    return 0x0000;
+    return this.ram.readU16(mapped);
   }
 
   readU8(address) {
     const mapped = n64js.cpu0.translateRead(address) & 0x007fffff;
-    if (mapped !== 0) {
-      return this.ram.readU8(mapped);
-    }
-    n64js.halt('virtual readU8 failed - need to throw refill/invalid');
-    return 0x00;
+    return this.ram.readU8(mapped);
   }
 
   readS32(address) {
     const mapped = n64js.cpu0.translateRead(address) & 0x007fffff;
-    if (mapped !== 0) {
-      return this.ram.readS32(mapped);
-    }
-    n64js.halt('virtual readS32 failed - need to throw refill/invalid');
-    return 0;
+    return this.ram.readS32(mapped);
   }
 
   readS16(address) {
     const mapped = n64js.cpu0.translateRead(address) & 0x007fffff;
-    if (mapped !== 0) {
-      return this.ram.readS16(mapped);
-    }
-    n64js.halt('virtual readS16 failed - need to throw refill/invalid');
-    return 0x0000;
+    return this.ram.readS16(mapped);
   }
 
   readS8(address) {
     const mapped = n64js.cpu0.translateRead(address);
-    if (mapped !== 0) {
-      return this.ram.readS8(mapped);
-    }
-    n64js.halt('virtual readS8 failed - need to throw refill/invalid');
-    return 0x00;
+    return this.ram.readS8(mapped);
   }
 
   write64masked(address, value, mask) {
     // Align address to 64 bits after translation.
     const mapped = n64js.cpu0.translateWrite(address) & 0x007ffff8;
-    if (mapped === 0) {
-      n64js.halt('virtual write32masked failed - need to throw refill/invalid');
-      return;
-    }
     this.ram.write64masked(mapped, value, mask);
   }
 
   write32masked(address, value, mask) {
     // Align address to 32 bits after translation.
     const mapped = n64js.cpu0.translateWrite(address) & 0x007ffffc;
-    if (mapped === 0) {
-      n64js.halt('virtual write32masked failed - need to throw refill/invalid');
-      return;
-    }
     this.ram.write32masked(mapped, value, mask);
   }
 
   write32(address, value) {
     const mapped = n64js.cpu0.translateWrite(address) & 0x007fffff;
-    if (mapped !== 0) {
-      this.ram.write32(mapped, value);
-      return;
-    }
-    n64js.halt('virtual write32 failed - need to throw refill/invalid');
+    this.ram.write32(mapped, value);
   }
 
   write16(address, value) {
     const mapped = n64js.cpu0.translateWrite(address) & 0x007fffff;
-    if (mapped !== 0) {
-      this.ram.write16(mapped, value);
-      return;
-    }
-    n64js.halt('virtual write16 failed - need to throw refill/invalid');
+    this.ram.write16(mapped, value);
   }
 
   write8(address, value) {
     const mapped = n64js.cpu0.translateWrite(address) & 0x007fffff;
-    if (mapped !== 0) {
-      this.ram.write8(mapped, value);
-      return;
-    }
-    n64js.halt('virtual write8 failed - need to throw refill/invalid');
+    this.ram.write8(mapped, value);
   }
 }
 
@@ -139,7 +95,7 @@ export class CachedMemDevice extends Device {
     this.s32 = new Int32Array(this.mem.arrayBuffer);
   }
 
-  // This function gets hit A LOT, so eliminate as much fat as possible.
+  // Provide specialised implementations for some hot functions - hard-code some calcuations for performance.
   readU32(address) {
     const off = address - 0x80000000;
     return this.dataView.getUint32(off, false); 
