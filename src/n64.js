@@ -231,22 +231,6 @@ function isBreakpointInstruction(instr) {
   return ((instr >> 26) & 0x3f) === kOpBreakpoint;
 }
 
-// 'emulated' read. May cause exceptions to be thrown in the emulated process
-const getMemoryHandler = hardware.memMap.getMemoryHandler.bind(hardware.memMap);
-n64js.readMemoryU32 = address => { return getMemoryHandler(address).readU32(address); };
-n64js.readMemoryU16 = address => { return getMemoryHandler(address).readU16(address); };
-n64js.readMemoryU8 = address => { return getMemoryHandler(address).readU8(address); };
-
-n64js.readMemoryS32 = address => { return getMemoryHandler(address).readS32(address); };
-n64js.readMemoryS16 = address => { return getMemoryHandler(address).readS16(address); };
-n64js.readMemoryS8 = address => { return getMemoryHandler(address).readS8(address); };
-
-// 'emulated' write. May cause exceptions to be thrown in the emulated process
-n64js.writeMemory32masked = (address, value, mask) => { return getMemoryHandler(address).write32masked(address, value, mask); };
-n64js.writeMemory32 = (address, value) => { return getMemoryHandler(address).write32(address, value); };
-n64js.writeMemory16 = (address, value) => { return getMemoryHandler(address).write16(address, value); };
-n64js.writeMemory8 = (address, value) => { return getMemoryHandler(address).write8(address, value); };
-
 function getLocalStorageName(item) {
   return item + '-' + rominfo.id;
 }
