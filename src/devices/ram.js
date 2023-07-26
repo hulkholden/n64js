@@ -59,9 +59,7 @@ export class MappedMemDevice extends Device {
     if (mapped !== 0) {
       return this.ram.readS32(mapped);
     }
-    // FIXME: need to somehow interrupt the current instruction from executing, before it has chance to modify state.
-    // For now, goldeneye hits this initially when reading the current instruction. I laemly return 0 so that I execute a NOP and then jump to the exception handler.
-    //    n64js.halt('virtual readS32 failed - need to throw refill/invalid');
+    n64js.halt('virtual readS32 failed - need to throw refill/invalid');
     return 0;
   }
 
