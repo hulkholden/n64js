@@ -1203,10 +1203,14 @@ function genSrcRegU64(i) {
 
 //
 // Memory access routines.
+//
 // These are structured to provide a hot path for accesses to unmapped physical memory, with the slow
 // path calling out to a separate function. This allows the slow path function to be deoptimized by Chrome
 // without affecting performance of the hot path.
 //
+// The fastpath helpers compare addresses to -2139095040 to perform a quick check to see if the address is
+// in bounds for ram (0x8000_0000 <= x < 0x8080_0000). The constant is derived from interpreting 0x80800000
+// as a 32-bit signed value.
 
 // TODO: it's brittle to depend on n64js.hardware() being initialized before this module.
 const getMemoryHandler = n64js.hardware().memMap.getMemoryHandler.bind(n64js.hardware().memMap);
