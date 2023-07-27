@@ -336,7 +336,7 @@ export class CPU1 {
     let c = false;
     if (floatTypeNaN(fsType) || floatTypeNaN(ftType)) {
       if ((op & 0x8) || fsType == floatTypeQNaN || ftType == floatTypeQNaN) {
-        if (this.raiseInvalid()) {
+        if (this.raiseException(exceptionInvalidBit)) {
           return;
         }
       }
@@ -361,7 +361,7 @@ export class CPU1 {
     let c = false;
     if (floatTypeNaN(fsType) || floatTypeNaN(ftType)) {
       if ((op & 0x8) || fsType == floatTypeQNaN || ftType == floatTypeQNaN) {
-        if (this.raiseInvalid()) {
+        if (this.raiseException(exceptionInvalidBit)) {
           return;
         }
       }
@@ -1058,12 +1058,6 @@ export class CPU1 {
     const flag = makeFlagBits(exceptionBits);
     return this.setStatusBits(enable, cause, flag);
   }
-
-  raiseInexact() { return this.setStatusBits(FPCSR_EI, FPCSR_CI, FPCSR_FI); }
-  raiseUnderflow() { return this.setStatusBits(FPCSR_EU, FPCSR_CU, FPCSR_FU); }
-  raiseOverflow() { return this.setStatusBits(FPCSR_EO, FPCSR_CO, FPCSR_FO); }
-  raiseDivByZero() { return this.setStatusBits(FPCSR_EZ, FPCSR_CZ, FPCSR_FZ); }
-  raiseInvalid() { return this.setStatusBits(FPCSR_EV, FPCSR_CV, FPCSR_FV); }
 
   raiseUnimplemented(msg) {
     this.control[31] |= FPCSR_CE;
