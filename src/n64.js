@@ -57,22 +57,22 @@ function loadRom(arrayBuffer) {
   const rom = hardware.createROM(arrayBuffer);
 
   const hdr = {
-    header: rom.readU32(0),
-    clock: rom.readU32(4),
-    bootAddress: rom.readU32(8),
-    release: rom.readU32(12),
-    crclo: rom.readU32(16),   // or hi?
-    crchi: rom.readU32(20),   // or lo?
-    unk0: rom.readU32(24),
-    unk1: rom.readU32(28),
+    header: rom.getU32(0),
+    clock: rom.getU32(4),
+    bootAddress: rom.getU32(8),
+    release: rom.getU32(12),
+    crclo: rom.getU32(16),   // or hi?
+    crchi: rom.getU32(20),   // or lo?
+    unk0: rom.getU32(24),
+    unk1: rom.getU32(28),
     name: uint8ArrayReadString(rom.u8, 32, 20),
-    unk2: rom.readU32(52),
-    unk3: rom.readU16(56),
-    unk4: rom.readU8(58),
-    manufacturer: rom.readU8(59),
-    cartId: rom.readU16(60),
-    countryId: rom.readU8(62),  // char
-    unk5: rom.readU8(63)
+    unk2: rom.getU32(52),
+    unk3: rom.getU16(56),
+    unk4: rom.getU8(58),
+    manufacturer: rom.getU8(59),
+    cartId: rom.getU16(60),
+    countryId: rom.getU8(62),  // char
+    unk5: rom.getU8(63)
   };
 
   const $table = $('<table class="register-table"><tbody></tbody></table>');

@@ -53,19 +53,19 @@ export class MIRegDevice extends Device {
   }
 
   reset() {
-    this.mem.write32(MI_VERSION_REG, 0x02020102);
+    this.mem.set32(MI_VERSION_REG, 0x02020102);
   }
 
   interruptsUnmasked() {
-    return (this.mem.readU32(MI_INTR_MASK_REG) & this.mem.readU32(MI_INTR_REG)) !== 0;
+    return (this.mem.getU32(MI_INTR_MASK_REG) & this.mem.getU32(MI_INTR_REG)) !== 0;
   }
 
   intrReg() {
-    return this.mem.readU32(MI_INTR_REG);
+    return this.mem.getU32(MI_INTR_REG);
   }
 
   intrMaskReg() {
-    return this.mem.readU32(MI_INTR_MASK_REG);
+    return this.mem.getU32(MI_INTR_MASK_REG);
   }
 
   setInterruptBit(bit) {
@@ -104,13 +104,13 @@ export class MIRegDevice extends Device {
 
       default:
         logger.log(`Unhandled write to MIReg: ${toString32(value)} -> [${toString32(address)}]`);
-        this.mem.write32(ea, value);
+        this.mem.set32(ea, value);
         break;
     }
   }
 
   writeModeReg(value) {
-    let mode = this.mem.readU32(MI_MODE_REG);
+    let mode = this.mem.getU32(MI_MODE_REG);
 
     if (value & MI_SET_RDRAM) { mode |= MI_MODE_RDRAM; }
     if (value & MI_CLR_RDRAM) { mode &= ~MI_MODE_RDRAM; }
@@ -121,7 +121,7 @@ export class MIRegDevice extends Device {
     if (value & MI_SET_EBUS) { mode |= MI_MODE_EBUS; }
     if (value & MI_CLR_EBUS) { mode &= ~MI_MODE_EBUS; }
 
-    this.mem.write32(MI_MODE_REG, mode);
+    this.mem.set32(MI_MODE_REG, mode);
 
     if (value & MI_CLR_DP_INTR) {
       this.mem.clearBits32(MI_INTR_REG, MI_INTR_DP);
@@ -148,13 +148,13 @@ export class MIRegDevice extends Device {
     set |= (value & MI_INTR_MASK_SET_PI) >>> 5;
     set |= (value & MI_INTR_MASK_SET_DP) >>> 6;
 
-    let mask = this.mem.readU32(MI_INTR_MASK_REG);
-    let intr = this.mem.readU32(MI_INTR_REG);
+    let mask = this.mem.getU32(MI_INTR_MASK_REG);
+    let intr = this.mem.getU32(MI_INTR_REG);
 
     mask &= ~clr;
     mask |= set;
 
-    this.mem.write32(MI_INTR_MASK_REG, mask);
+    this.mem.set32(MI_INTR_MASK_REG, mask);
 
     // Check if any interrupts are enabled now, and immediately trigger an interrupt
     n64js.cpu0.updateCause3();

@@ -70,20 +70,20 @@ export class VIRegDevice extends Device {
   }
 
   // Raw register values.
-  get controlReg() { return this.mem.readU32(VI_CONTROL_REG); }
-  get dramAddrReg() { return this.mem.readU32(VI_DRAM_ADDR_REG); }
-  get hWidthReg() { return this.mem.readU32(VI_H_WIDTH_REG); }
-  get vIntrReg() { return this.mem.readU32(VI_V_INTR_REG); }
-  get vCurrentLineReg() { return this.mem.readU32(VI_V_CURRENT_LINE_REG); }
-  get timingReg() { return this.mem.readU32(VI_TIMING_REG); }
-  get vSyncReg() { return this.mem.readU32(VI_V_SYNC_REG); }
-  get hSyncReg() { return this.mem.readU32(VI_H_SYNC_REG); }
-  get hSyncLeapReg() { return this.mem.readU32(VI_H_SYNC_LEAP_REG); }
-  get hVideoReg() { return this.mem.readU32(VI_H_VIDEO_REG); }
-  get vVideoReg() { return this.mem.readU32(VI_V_VIDEO_REG); }
-  get vBurstReg() { return this.mem.readU32(VI_V_BURST_REG); }
-  get xScaleReg() { return this.mem.readU32(VI_X_SCALE_REG); }
-  get yScaleReg() { return this.mem.readU32(VI_Y_SCALE_REG); }
+  get controlReg() { return this.mem.getU32(VI_CONTROL_REG); }
+  get dramAddrReg() { return this.mem.getU32(VI_DRAM_ADDR_REG); }
+  get hWidthReg() { return this.mem.getU32(VI_H_WIDTH_REG); }
+  get vIntrReg() { return this.mem.getU32(VI_V_INTR_REG); }
+  get vCurrentLineReg() { return this.mem.getU32(VI_V_CURRENT_LINE_REG); }
+  get timingReg() { return this.mem.getU32(VI_TIMING_REG); }
+  get vSyncReg() { return this.mem.getU32(VI_V_SYNC_REG); }
+  get hSyncReg() { return this.mem.getU32(VI_H_SYNC_REG); }
+  get hSyncLeapReg() { return this.mem.getU32(VI_H_SYNC_LEAP_REG); }
+  get hVideoReg() { return this.mem.getU32(VI_H_VIDEO_REG); }
+  get vVideoReg() { return this.mem.getU32(VI_V_VIDEO_REG); }
+  get vBurstReg() { return this.mem.getU32(VI_V_BURST_REG); }
+  get xScaleReg() { return this.mem.getU32(VI_X_SCALE_REG); }
+  get yScaleReg() { return this.mem.getU32(VI_Y_SCALE_REG); }
 
   // Values derived from the registers.
   get interlaced() { return (this.controlReg & VI_CTRL_SERRATE_ON) != 0; }
@@ -110,7 +110,7 @@ export class VIRegDevice extends Device {
   }
 
   verticalBlank() {
-    const control = this.mem.readU32(VI_CONTROL_REG);
+    const control = this.mem.getU32(VI_CONTROL_REG);
     const interlaced = (control & VI_CTRL_SERRATE_ON) ? 1 : 0;
     this.field ^= interlaced;
 
@@ -128,8 +128,8 @@ export class VIRegDevice extends Device {
     if (n64js.cpu0.hasVblEvent()) {
       return;
     }
-    const intr = this.mem.readU32(VI_V_INTR_REG);
-    const sync = this.mem.readU32(VI_V_SYNC_REG);
+    const intr = this.mem.getU32(VI_V_INTR_REG);
+    const sync = this.mem.getU32(VI_V_SYNC_REG);
     if (intr >= sync) {
       logger.log(`not setting VI interrupt - intr ${intr} >= sync ${sync}`);
       return;
@@ -145,22 +145,22 @@ export class VIRegDevice extends Device {
 
     switch (ea) {
       case VI_DRAM_ADDR_REG:
-        this.mem.write32(ea, value);
+        this.mem.set32(ea, value);
         break;
 
       case VI_CONTROL_REG:
         if (!this.quiet) { logger.log(`VI control set to: ${toString32(value)}`); }
-        this.mem.write32(ea, value);
+        this.mem.set32(ea, value);
         break;
 
       case VI_H_WIDTH_REG:
         if (!this.quiet) { logger.log(`VI width set to: ${value}`); }
-        this.mem.write32(ea, value);
+        this.mem.set32(ea, value);
         break;
 
       case VI_V_INTR_REG:
         if (!this.quiet) { logger.log(`VI intr set to: ${value}`); }
-        this.mem.write32(ea, value);
+        this.mem.set32(ea, value);
         this.initInterrupt();
         break;
 
@@ -172,19 +172,19 @@ export class VIRegDevice extends Device {
         break;
 
       case VI_V_SYNC_REG:
-        const lastSync = this.mem.readU32(ea);
+        const lastSync = this.mem.getU32(ea);
         if (lastSync != value) {
           const scanlines = value + 1;
           this.countPerScanline = ((this.clock / this.refreshRate) / scanlines) >> 0;
           this.countPerVbl = scanlines * this.countPerScanline;
           logger.log(`VI_V_SYNC_REG set to ${value}, cycles per scanline = ${this.countPerScanline}, cycles per vbl = ${this.countPerVbl}`);
-          this.mem.write32(ea, value);
+          this.mem.set32(ea, value);
           this.initInterrupt();
         }
         break;
 
       default:
-        this.mem.write32(ea, value);
+        this.mem.set32(ea, value);
         break;
     }
   }
@@ -203,7 +203,7 @@ export class VIRegDevice extends Device {
       const scanline = (countExecuted / this.countPerScanline) >> 0;
 
       // Wrap around the sync value.
-      const sync = this.mem.readU32(VI_V_SYNC_REG);
+      const sync = this.mem.getU32(VI_V_SYNC_REG);
       let value = scanline;
       if (value >= sync) {
         value -= sync;
@@ -212,9 +212,9 @@ export class VIRegDevice extends Device {
       // Bit 0 is constant for non-interlaced modes. In interlaced modes, bit 0 gives the field number.
       value = (value & (~1)) | this.field;
 
-      this.mem.write32(ea, value);
+      this.mem.set32(ea, value);
     }
-    return this.mem.readS32(ea);
+    return this.mem.getS32(ea);
   }
 
   readU32(address) {

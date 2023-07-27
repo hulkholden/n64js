@@ -48,12 +48,12 @@ export class DPCDevice extends Device {
     switch (ea) {
       case DPC_START_REG:
         if (!this.quiet) { logger.log(`DPC start set to: ${toString32(value)}`); }
-        this.mem.write32(ea, value);
-        this.mem.write32(DPC_CURRENT_REG, value);
+        this.mem.set32(ea, value);
+        this.mem.set32(DPC_CURRENT_REG, value);
         break;
       case DPC_END_REG:
         if (!this.quiet) { logger.log(`DPC end set to: ${toString32(value)}`); }
-        this.mem.write32(ea, value);
+        this.mem.set32(ea, value);
         //mi_reg.setBits32(MI_INTR_REG, MI_INTR_DP);
         //n64js.cpu0.updateCause3();
         break;
@@ -72,7 +72,7 @@ export class DPCDevice extends Device {
         break;
 
       default:
-        this.mem.write32(ea, value);
+        this.mem.set32(ea, value);
         break;
     }
   }
@@ -84,7 +84,7 @@ export class DPCDevice extends Device {
     if (ea + 4 > this.u8.length) {
       throw 'Read is out of range';
     }
-    return this.mem.readS32(ea);
+    return this.mem.getS32(ea);
   };
 
   readU32(address) {
@@ -92,7 +92,7 @@ export class DPCDevice extends Device {
   };
 
   updateStatus(value) {
-    let dpcStatus = this.mem.readU32(DPC_STATUS_REG);
+    let dpcStatus = this.mem.getU32(DPC_STATUS_REG);
 
     if (value & DPC_CLR_XBUS_DMEM_DMA) { dpcStatus &= ~DPC_STATUS_XBUS_DMEM_DMA; }
     if (value & DPC_SET_XBUS_DMEM_DMA) { dpcStatus |= DPC_STATUS_XBUS_DMEM_DMA; }
@@ -103,10 +103,10 @@ export class DPCDevice extends Device {
 
     // These should be ignored ! - Salvy
     /*
-    if (value & DPC_CLR_TMEM_CTR)          { this.mem.write32(DPC_TMEM_REG, 0); }
-    if (value & DPC_CLR_PIPE_CTR)          { this.mem.write32(DPC_PIPEBUSY_REG, 0); }
-    if (value & DPC_CLR_CMD_CTR)           { this.mem.write32(DPC_BUFBUSY_REG, 0); }
-    if (value & DPC_CLR_CLOCK_CTR)         { this.mem.write32(DPC_CLOCK_REG, 0); }
+    if (value & DPC_CLR_TMEM_CTR)          { this.mem.set32(DPC_TMEM_REG, 0); }
+    if (value & DPC_CLR_PIPE_CTR)          { this.mem.set32(DPC_PIPEBUSY_REG, 0); }
+    if (value & DPC_CLR_CMD_CTR)           { this.mem.set32(DPC_BUFBUSY_REG, 0); }
+    if (value & DPC_CLR_CLOCK_CTR)         { this.mem.set32(DPC_CLOCK_REG, 0); }
     */
 
     // if (value & DPC_CLR_XBUS_DMEM_DMA)  { logger.log('DPC_CLR_XBUS_DMEM_DMA'); }
@@ -122,6 +122,6 @@ export class DPCDevice extends Device {
 
     //logger.log( `Modified DPC_STATUS_REG - now ${toString32(dpc_status)}` );
 
-    this.mem.write32(DPC_STATUS_REG, dpcStatus);
+    this.mem.set32(DPC_STATUS_REG, dpcStatus);
   }
 }

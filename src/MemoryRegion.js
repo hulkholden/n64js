@@ -19,112 +19,112 @@ export class MemoryRegion {
   }
 
   /**
-   * Read the value at the specified offset.
+   * Gets the value at the specified offset.
    * @param {number} offset
    * @return {bigint}
    */
-  readU64(offset) { return this.dataView.getBigUint64(offset, false); }
+  getU64(offset) { return this.dataView.getBigUint64(offset, false); }
 
   /**
-   * Read the value at the specified offset.
+   * Gets the value at the specified offset.
    * @param {number} offset
    * @return {number}
    */
-  readU32(offset) { return this.dataView.getUint32(offset, false); }
+  getU32(offset) { return this.dataView.getUint32(offset, false); }
 
   /**
-   * Read the value at the specified offset.
+   * Gets the value at the specified offset.
    * @param {number} offset
    * @return {number}
    */
-  readU16(offset) { return this.dataView.getUint16(offset, false); }
+  getU16(offset) { return this.dataView.getUint16(offset, false); }
 
   /**
-   * Read the value at the specified offset.
+   * Gets the value at the specified offset.
    * @param {number} offset
    * @return {number}
    */
-  readU8(offset) { return this.dataView.getUint8(offset, false); }
+  getU8(offset) { return this.dataView.getUint8(offset, false); }
 
   /**
-   * Read the value at the specified offset.
+   * Gets the value at the specified offset.
    * @param {number} offset
    * @return {bigint}
    */
-  readS64(offset) { return this.dataView.getBigInt64(offset, false); }
+  getS64(offset) { return this.dataView.getBigInt64(offset, false); }
 
   /**
-   * Read the value at the specified offset.
+   * Gets the value at the specified offset.
    * @param {number} offset
    * @return {number}
    */
-  readS32(offset) { return this.dataView.getInt32(offset, false); }
+  getS32(offset) { return this.dataView.getInt32(offset, false); }
 
   /**
-   * Read the value at the specified offset.
+   * Gets the value at the specified offset.
    * @param {number} offset
    * @return {number}
    */
-  readS16(offset) { return this.dataView.getInt16(offset, false); }
+  getS16(offset) { return this.dataView.getInt16(offset, false); }
 
   /**
-   * Read the value at the specified offset.
+   * Gets the value at the specified offset.
    * @param {number} offset
    * @return {number}
    */
-  readS8(offset) { return this.dataView.getInt8(offset, false); }
+  getS8(offset) { return this.dataView.getInt8(offset, false); }
 
   /**
-   * Write the value to the specified offset, using the provided masking.
+   * Sets the value at the specified offset, using the provided masking.
    * @param {number} offset
    * @param {bigint} value
    * @param {bigint} mask
    */
-  write64masked(offset, value, mask) {
-    const orig = this.readU64(offset, false);
+  set64masked(offset, value, mask) {
+    const orig = this.getU64(offset, false);
     const result = (orig & ~mask) | (value & mask);
-    this.write64(offset, result, false);
+    this.set64(offset, result, false);
   }
 
   /**
-   * Write the value to the specified offset, using the provided masking.
+   * Sets the value at the specified offset, using the provided masking.
    * @param {number} offset
    * @param {number} value
    * @param {number} mask
    */
-  write32masked(offset, value, mask) {
-    const orig = this.readU32(offset, false);
+  set32masked(offset, value, mask) {
+    const orig = this.getU32(offset, false);
     const result = (orig & ~mask) | (value & mask);
-    this.write32(offset, result);
+    this.set32(offset, result);
   }
 
   /**
-   * Write the value to the specified offset.
+   * Sets the value at the specified offset.
    * @param {number} offset
    * @param {bigint} value
    */
-  write64(offset, value) { this.dataView.setBigUint64(offset, value, false); }
+  set64(offset, value) { this.dataView.setBigUint64(offset, value, false); }
 
   /**
-   * Write the value to the specified offset.
+   * Sets the value at the specified offset.
    * @param {number} offset
    * @param {number} value
    */
-  write32(offset, value) { this.dataView.setUint32(offset, value, false); }
+  set32(offset, value) { this.dataView.setUint32(offset, value, false); }
 
   /**
-   * Write the value to the specified offset.
+   * Sets the value at the specified offset.
    * @param {number} offset
    * @param {number} value
    */
-  write16(offset, value) { this.dataView.setUint16(offset, value, false); }
+  set16(offset, value) { this.dataView.setUint16(offset, value, false); }
 
   /**
-   * Write the value to the specified offset.
+   * Sets the value at the specified offset.
    * @param {number} offset
    * @param {number} value
    */
-  write8(offset, value) { this.dataView.setUint8(offset, value, false); }
+  set8(offset, value) { this.dataView.setUint8(offset, value, false); }
 
   /**
    * Clear the specified bits at the specified offset.
@@ -133,8 +133,8 @@ export class MemoryRegion {
    * @return {number}
    */
   clearBits32(offset, bits) {
-    const value = this.readU32(offset) & ~bits;
-    this.write32(offset, value);
+    const value = this.getU32(offset) & ~bits;
+    this.set32(offset, value);
     return value;
   }
 
@@ -145,8 +145,8 @@ export class MemoryRegion {
    * @return {number}
    */
   setBits32(offset, bits) {
-    const value = this.readU32(offset) | bits;
-    this.write32(offset, value);
+    const value = this.getU32(offset) | bits;
+    this.set32(offset, value);
     return value;
   }
 
@@ -157,6 +157,6 @@ export class MemoryRegion {
    * @return {number}
    */
   getBits32(offset, bits) {
-    return this.readU32(offset) & bits;
+    return this.getU32(offset) & bits;
   }
 }

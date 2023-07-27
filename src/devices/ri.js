@@ -20,6 +20,6 @@ export class RIRegDevice extends Device {
 
     reset() {
         // This skips most of init
-        this.mem.write32(RI_SELECT_REG, 1);
+        this.mem.set32(RI_SELECT_REG, 1);
     }
 }

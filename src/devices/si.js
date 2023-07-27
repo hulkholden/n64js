@@ -32,7 +32,7 @@ export class SIRegDevice extends Device {
     if (ea === SI_STATUS_REG) {
       this.checkStatusConsistent();
     }
-    return this.mem.readS32(ea);
+    return this.mem.getS32(ea);
   }
 
   readU32(address) {
@@ -48,14 +48,14 @@ export class SIRegDevice extends Device {
     switch (ea) {
       case SI_DRAM_ADDR_REG:
         if (!this.quiet) { logger.log(`Writing to SI dram address reigster: ${toString32(value)}`); }
-        this.mem.write32(ea, value);
+        this.mem.set32(ea, value);
         break;
       case SI_PIF_ADDR_RD64B_REG:
-        this.mem.write32(ea, value);
+        this.mem.set32(ea, value);
         this.copyToRDRAM();
         break;
       case SI_PIF_ADDR_WR64B_REG:
-        this.mem.write32(ea, value);
+        this.mem.set32(ea, value);
         this.copyFromRDRAM();
         break;
       case SI_STATUS_REG:
@@ -66,7 +66,7 @@ export class SIRegDevice extends Device {
         break;
       default:
         logger.log(`Unhandled write to SIReg: ${toString32(value)} -> [${toString32(address)}]`);
-        this.mem.write32(ea, value);
+        this.mem.set32(ea, value);
         break;
     }
   }
@@ -80,7 +80,7 @@ export class SIRegDevice extends Device {
   }
 
   copyFromRDRAM() {
-    const dramAddr = this.mem.readU32(SI_DRAM_ADDR_REG) & 0x1fffffff;
+    const dramAddr = this.mem.getU32(SI_DRAM_ADDR_REG) & 0x1fffffff;
     const piRam = new Uint8Array(this.hardware.pi_mem.arrayBuffer, 0x7c0, 0x040);
 
     if (!this.quiet) { logger.log(`SI: copying from ${toString32(dramAddr)} to PI RAM`); }
@@ -102,7 +102,7 @@ export class SIRegDevice extends Device {
   copyToRDRAM() {
     n64js.controllers().updateController();
 
-    const dramAddr = this.mem.readU32(SI_DRAM_ADDR_REG) & 0x1fffffff;
+    const dramAddr = this.mem.getU32(SI_DRAM_ADDR_REG) & 0x1fffffff;
     const piRam = new Uint8Array(this.hardware.pi_mem.arrayBuffer, 0x7c0, 0x040);
 
     if (!this.quiet) { logger.log(`SI: copying from PI RAM to ${toString32(dramAddr)}`); }
