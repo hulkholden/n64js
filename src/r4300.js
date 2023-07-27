@@ -231,12 +231,22 @@ n64js.s64CheckSubOverflow = s64CheckSubOverflow;
 
 class TLBEntry {
   constructor() {
+    // TLB state (as configured by application).
     this.pagemask = 0;
     this.hi = 0;
     this.pfne = 0;
     this.pfno = 0;
-    this.mask = 0;
     this.global = 0;
+
+    // Derived state (cached for performance).
+    this.mask = 0;
+    this.vpnmask = ~0 >>> 0;
+    this.vpn2mask = ~0 >>> 0;
+
+    this.addrcheck = 0;
+    this.pfnehi = 0;
+    this.pfnohi = 0;
+    this.checkbit = 0;
   }
 
   update(index, pagemask, hi, entrylo0, entrylo1) {
@@ -249,7 +259,6 @@ class TLBEntry {
     this.hi = hi;
     this.pfne = entrylo0;
     this.pfno = entrylo1;
-
     this.global = (entrylo0 & entrylo1 & TLBLO_G);
 
     this.mask = this.pagemask | pageMaskLowBits;
