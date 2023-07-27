@@ -1178,6 +1178,18 @@ function performBranch(new_pc) {
   cpu0.branchTarget = new_pc;
 }
 
+function genCalcAddressS32(ctx) {
+  const base = ctx.instr_base();
+  const offset = ctx.instr_imms();
+  return `(c.getRegS32Lo(${base}) + ${offset})`;
+}
+
+function genCalcAddressU32(ctx) {
+  const base = ctx.instr_base();
+  const offset = ctx.instr_imms();
+  return `((c.getRegU32Lo(${base}) + ${offset}) >>> 0)`;
+}
+
 function genSrcRegS32Lo(i) {
   if (i === 0)
     return '0';
@@ -2352,12 +2364,8 @@ function executeLUI(i) {
 
 function generateLB(ctx) {
   const t = ctx.instr_rt();
-  const b = ctx.instr_base();
-  const o = ctx.instr_imms();
-
   const impl = `
-    const value = c.loadS8fast(${genSrcRegS32Lo(b)} + ${o});
-    c.setRegS32Extend(${t}, value);
+    c.setRegS32Extend(${t}, c.loadS8fast(${genCalcAddressS32(ctx)}));
     `;
 
   return generateMemoryAccessBoilerplate(impl, ctx);
@@ -2370,12 +2378,8 @@ function executeLB(i) {
 
 function generateLBU(ctx) {
   const t = ctx.instr_rt();
-  const b = ctx.instr_base();
-  const o = ctx.instr_imms();
-
   const impl = `
-    const value = c.loadU8fast(${genSrcRegS32Lo(b)} + ${o});
-    c.setRegU32Extend(${t}, value);
+    c.setRegU32Extend(${t}, c.loadU8fast(${genCalcAddressS32(ctx)}));
     `;
 
   return generateMemoryAccessBoilerplate(impl, ctx);
@@ -2388,12 +2392,8 @@ function executeLBU(i) {
 
 function generateLH(ctx) {
   const t = ctx.instr_rt();
-  const b = ctx.instr_base();
-  const o = ctx.instr_imms();
-
   const impl = `
-    const value = c.loadS16fast(${genSrcRegS32Lo(b)} + ${o});
-    c.setRegS32Extend(${t}, value);
+    c.setRegS32Extend(${t}, c.loadS16fast(${genCalcAddressS32(ctx)}));
     `;
 
   return generateMemoryAccessBoilerplate(impl, ctx);
@@ -2406,12 +2406,8 @@ function executeLH(i) {
 
 function generateLHU(ctx) {
   const t = ctx.instr_rt();
-  const b = ctx.instr_base();
-  const o = ctx.instr_imms();
-
   const impl = `
-    const value = c.loadU16fast(${genSrcRegS32Lo(b)} + ${o});
-    c.setRegU32Extend(${t}, value);
+    c.setRegU32Extend(${t}, c.loadU16fast(${genCalcAddressS32(ctx)}));
     `;
 
   return generateMemoryAccessBoilerplate(impl, ctx);
@@ -2424,15 +2420,12 @@ function executeLHU(i) {
 
 function generateLW(ctx) {
   const t = ctx.instr_rt();
-  const b = ctx.instr_base();
-  const o = ctx.instr_imms();
   // SF2049 requires this, apparently
   if (t === 0)
     return generateNOPBoilerplate('load to r0!', ctx);
 
   const impl = `
-    const value = c.loadS32fast(${genSrcRegS32Lo(b)} + ${o});
-    c.setRegS32Extend(${t}, value);
+    c.setRegS32Extend(${t}, c.loadS32fast(${genCalcAddressS32(ctx)}));
     `;
 
   return generateMemoryAccessBoilerplate(impl, ctx);
@@ -2450,12 +2443,8 @@ function executeLW(i) {
 
 function generateLWU(ctx) {
   const t = ctx.instr_rt();
-  const b = ctx.instr_base();
-  const o = ctx.instr_imms();
-
   const impl = `
-    const value = c.loadU32fast(${genSrcRegS32Lo(b)} + ${o});
-    c.setRegU32Extend(${t}, value);
+    c.setRegU32Extend(${t}, c.loadU32fast(${genCalcAddressS32(ctx)}));
     `;
 
   return generateMemoryAccessBoilerplate(impl, ctx);
@@ -2468,12 +2457,8 @@ function executeLWU(i) {
 
 function generateLD(ctx) {
   const t = ctx.instr_rt();
-  const b = ctx.instr_base();
-  const o = ctx.instr_imms();
-
   const impl = `
-    const value = c.loadU64fast(${genSrcRegS32Lo(b)} + ${o});
-    c.setRegU64(${t}, value);
+    c.setRegU64(${t}, c.loadU64fast(${genCalcAddressS32(ctx)}));
     `;
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
@@ -2485,14 +2470,12 @@ function executeLD(i) {
 
 function generateLWC1(ctx) {
   const t = ctx.instr_ft();
-  const b = ctx.instr_base();
-  const o = ctx.instr_imms();
 
   ctx.fragment.usesCop1 = true;
 
   const impl = `
     if (c.checkCopXUsable(1)) {
-      cpu1.storeS32(${t}, c.loadS32fast(${genSrcRegS32Lo(b)} + ${o}));
+      cpu1.storeS32(${t}, c.loadS32fast(${genCalcAddressS32(ctx)}));
     }
     `;
   return generateMemoryAccessBoilerplate(impl, ctx);
@@ -2507,15 +2490,12 @@ function executeLWC1(i) {
 
 function generateLDC1(ctx) {
   const t = ctx.instr_ft();
-  const b = ctx.instr_base();
-  const o = ctx.instr_imms();
 
   ctx.fragment.usesCop1 = true;
 
   const impl = `
     if (c.checkCopXUsable(1)) {
-      const value = c.loadU64fast(${genSrcRegS32Lo(b)} + ${o});
-      cpu1.storeU64(${t}, value);
+      cpu1.storeU64(${t}, c.loadU64fast(${genCalcAddressS32(ctx)}));
     }
     `;
   return generateMemoryAccessBoilerplate(impl, ctx);
@@ -2566,11 +2546,8 @@ function executeLDR(i) {
 
 function generateSB(ctx) {
   const t = ctx.instr_rt();
-  const b = ctx.instr_base();
-  const o = ctx.instr_imms();
-
   const impl = `
-    c.store8fast(${genSrcRegS32Lo(b)} + ${o}, ${genSrcRegS32Lo(t)});
+    c.store8fast(${genCalcAddressS32(ctx)}, ${genSrcRegS32Lo(t)});
     `;
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
@@ -2581,11 +2558,8 @@ function executeSB(i) {
 
 function generateSH(ctx) {
   const t = ctx.instr_rt();
-  const b = ctx.instr_base();
-  const o = ctx.instr_imms();
-
   const impl = `
-    c.store16fast(${genSrcRegS32Lo(b)} + ${o}, ${genSrcRegS32Lo(t)});
+    c.store16fast(${genCalcAddressS32(ctx)}, ${genSrcRegS32Lo(t)});
     `;
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
@@ -2596,11 +2570,8 @@ function executeSH(i) {
 
 function generateSW(ctx) {
   const t = ctx.instr_rt();
-  const b = ctx.instr_base();
-  const o = ctx.instr_imms();
-
   const impl = `
-    c.store32fast(${genSrcRegS32Lo(b)} + ${o}, ${genSrcRegS32Lo(t)});
+    c.store32fast(${genCalcAddressS32(ctx)}, ${genSrcRegS32Lo(t)});
     `;
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
@@ -2611,12 +2582,8 @@ function executeSW(i) {
 
 function generateSD(ctx) {
   const t = ctx.instr_rt();
-  const b = ctx.instr_base();
-  const o = ctx.instr_imms();
-
   const impl = `
-    const addr = ${genSrcRegS32Lo(b)} + ${o};
-    c.store64fast(addr, ${genSrcRegU64(t)});
+    c.store64fast(${genCalcAddressS32(ctx)}, ${genSrcRegU64(t)});
     `;
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
@@ -2627,15 +2594,13 @@ function executeSD(i) {
 
 function generateSWC1(ctx) {
   const t = ctx.instr_ft();
-  const b = ctx.instr_base();
-  const o = ctx.instr_imms();
 
   ctx.fragment.usesCop1 = true;
 
   // FIXME: can avoid cpuStuffToDo if we're writing to ram
   const impl = `
     if (c.checkCopXUsable(1)) {
-      c.store32fast(${genSrcRegS32Lo(b)} + ${o}, cpu1.loadS32(${t}));
+      c.store32fast(${genCalcAddressS32(ctx)}, cpu1.loadS32(${t}));
     }
     `;
   return generateMemoryAccessBoilerplate(impl, ctx);
@@ -2650,16 +2615,13 @@ function executeSWC1(i) {
 
 function generateSDC1(ctx) {
   const t = ctx.instr_ft();
-  const b = ctx.instr_base();
-  const o = ctx.instr_imms();
 
   ctx.fragment.usesCop1 = true;
 
   // FIXME: can avoid cpuStuffToDo if we're writing to ram
   const impl = `
     if (c.checkCopXUsable(1)) {
-      const addr = ${genSrcRegS32Lo(b)} + ${o};
-      c.store64fast(addr, cpu1.loadS64(${t}));
+      c.store64fast(${genCalcAddressS32(ctx)}, cpu1.loadS64(${t}));
     }
     `;
   return generateMemoryAccessBoilerplate(impl, ctx);
@@ -2707,16 +2669,13 @@ function executeSDR(i) {
 }
 
 function generateCACHE(ctx) {
-  const b = ctx.instr_base();
-  const o = ctx.instr_imms();
   const cache_op = ctx.instr_rt();
   const cache = (cache_op) & 0x3;
   const action = (cache_op >>> 2) & 0x7;
 
   if (cache === 0 && (action === 0 || action === 4)) {
     const impl = `
-      const addr = ${genSrcRegS32Lo(b)} + ${o};
-      n64js.invalidateICacheEntry(addr);
+      n64js.invalidateICacheEntry(${genCalcAddressS32(ctx)});
       `;
     return generateTrivialOpBoilerplate(impl, ctx);
   } else {
