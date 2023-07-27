@@ -3404,6 +3404,10 @@ function executeCop1(i) {
   cop1Table[fmt](i);
 }
 
+// Expose all the functions that we don't yet generate
+n64js.executeDCFC1 = executeDCFC1;
+n64js.executeDCTC1 = executeDCTC1;
+
 const cop2Table = validateCopOpTable([
   executeMFC2,        executeDMFC2,       executeCFC2,        executeDCFC2,
   executeMTC2,        executeDMTC2,       executeCTC2,        executeDCTC2,
