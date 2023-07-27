@@ -183,6 +183,8 @@ const TLBPGMASK_1M      = 0x001fe000;
 const TLBPGMASK_4M      = 0x007fe000;
 const TLBPGMASK_16M     = 0x01ffe000;
 
+const pageMaskLowBits = 0x00001fff;
+
 const pageMaskWritableBits = 0x01ffe000n;
 
 const configWritableBits = 0x0f00800fn;
@@ -250,7 +252,7 @@ class TLBEntry {
 
     this.global = (entrylo0 & entrylo1 & TLBLO_G);
 
-    this.mask = this.pagemask | TLBHI_VPN2MASK_NEG;
+    this.mask = this.pagemask | pageMaskLowBits;
     this.mask2 = this.mask >>> 1;
     this.vpnmask = (~this.mask) >>> 0;
     this.vpn2mask = this.vpnmask >>> 1;
