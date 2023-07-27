@@ -1221,13 +1221,7 @@ function loadU8fast(sAddr) {
     const phys = (sAddr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
     return ramDV.getUint8(phys, false);
   }
-  return loadU8slow(sAddr);
-}
-
-function loadU8slow(sAddr) {
-  const addr = sAddr >>> 0;
-  const mh = getMemoryHandler(addr);
-  return mh.readU8(addr);
+  return loadU8slow(sAddr >>> 0);
 }
 
 function loadS8fast(sAddr) {
@@ -1235,13 +1229,7 @@ function loadS8fast(sAddr) {
     const phys = (sAddr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
     return ramDV.getInt8(phys, false);
   }
-  return loadS8slow(sAddr);
-}
-
-function loadS8slow(sAddr) {
-  const addr = sAddr >>> 0;
-  const mh = getMemoryHandler(addr);
-  return mh.readS8(addr);
+  return loadS8slow(sAddr >>> 0);
 }
 
 function loadU16fast(sAddr) {
@@ -1249,13 +1237,7 @@ function loadU16fast(sAddr) {
     const phys = (sAddr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
     return ramDV.getUint16(phys, false);
   }
-  return loadU16slow(sAddr);
-}
-
-function loadU16slow(sAddr) {
-  const addr = sAddr >>> 0;
-  const mh = getMemoryHandler(addr);
-  return mh.readU16(addr);
+  return loadU16slow(sAddr >>> 0);
 }
 
 function loadS16fast(sAddr) {
@@ -1263,13 +1245,7 @@ function loadS16fast(sAddr) {
     const phys = (sAddr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
     return ramDV.getInt16(phys, false);
   }
-  return loadS16slow(sAddr);
-}
-
-function loadS16slow(sAddr) {
-  const addr = sAddr >>> 0;
-  const mh = getMemoryHandler(addr);
-  return mh.readS16(addr);
+  return loadS16slow(sAddr >>> 0);
 }
 
 function loadU32fast(sAddr) {
@@ -1277,13 +1253,7 @@ function loadU32fast(sAddr) {
     const phys = (sAddr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
     return ramDV.getUint32(phys, false);
   }
-  return loadU32slow(sAddr);
-}
-
-function loadU32slow(sAddr) {
-  const addr = sAddr >>> 0;
-  const mh = getMemoryHandler(addr);
-  return mh.readU32(addr);
+  return loadU32slow(sAddr >>> 0);
 }
 
 function loadS32fast(sAddr) {
@@ -1291,13 +1261,7 @@ function loadS32fast(sAddr) {
     const phys = (sAddr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
     return ramDV.getInt32(phys, false);
   }
-  return loadS32slow(sAddr);
-}
-
-function loadS32slow(sAddr) {
-  const addr = sAddr >>> 0;
-  const mh = getMemoryHandler(addr);
-  return mh.readS32(addr);
+  return loadS32slow(sAddr >>> 0);
 }
 
 function loadU64fast(sAddr) {
@@ -1305,13 +1269,7 @@ function loadU64fast(sAddr) {
     const phys = (sAddr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
     return ramDV.getBigUint64(phys, false);
   }
-  return loadU64slow(sAddr);
-}
-
-function loadU64slow(sAddr) {
-  const addr = sAddr >>> 0;
-  const mh = getMemoryHandler(addr);
-  return mh.readU64(addr);
+  return loadU64slow(sAddr >>> 0);
 }
 
 function store8fast(sAddr, value) {
@@ -1320,13 +1278,7 @@ function store8fast(sAddr, value) {
     ramDV.setUint8(phys, value, false);
     return;
   }
-  store8slow(sAddr, value);
-}
-
-function store8slow(sAddr, value) {
-  const addr = sAddr >>> 0;
-  const mh = getMemoryHandler(addr);
-  mh.write8(addr, value);
+  store8slow(sAddr >>> 0, value);
 }
 
 function store16fast(sAddr, value) {
@@ -1335,13 +1287,7 @@ function store16fast(sAddr, value) {
     ramDV.setUint16(phys, value, false);
     return;
   }
-  store16slow(sAddr, value);
-}
-
-function store16slow(sAddr, value) {
-  const addr = sAddr >>> 0;
-  const mh = getMemoryHandler(addr);
-  mh.write16(addr, value);
+  store16slow(sAddr >>> 0, value);
 }
 
 function store32fast(sAddr, value) {
@@ -1350,14 +1296,8 @@ function store32fast(sAddr, value) {
     ramDV.setUint32(phys, value, false);
     return
   }
-  store32slow(sAddr, value);
+  store32slow(sAddr >>> 0, value);
 }
-
-function store32slow(sAddr, value) {
-  const addr = sAddr >>> 0;
-  const mh = getMemoryHandler(addr);
-  mh.write32(addr, value);
-} 
 
 function store64fast(sAddr, value) { 
   if (sAddr < -2139095040) {
@@ -1365,26 +1305,25 @@ function store64fast(sAddr, value) {
     ramDV.setBigUint64(phys, value, false);
     return;
   }
-  store64slow(sAddr, value);
+  store64slow(sAddr >>> 0, value);
 }
 
-function store64slow(sAddr, value) {
-  const addr = sAddr >>> 0;
-  const mh = getMemoryHandler(addr);
-  mh.write64(addr, value);
-}
+function loadU64slow(addr) { return getMemoryHandler(addr).readU64(addr); }
+function loadU16slow(addr) { return getMemoryHandler(addr).readU16(addr); }
+function loadU32slow(addr) { return getMemoryHandler(addr).readU32(addr); }
+function loadU8slow(addr) { return getMemoryHandler(addr).readU8(addr); }
 
-function store32masked(sAddr, value, mask) {
-  const addr = sAddr >>> 0;
-  const mh = getMemoryHandler(addr);
-  mh.write32masked(addr, value, mask);
-}
+function loadS32slow(addr) { return getMemoryHandler(addr).readS32(addr); }
+function loadS16slow(addr) { return getMemoryHandler(addr).readS16(addr); }
+function loadS8slow(addr) { return getMemoryHandler(addr).readS8(addr); }
 
-function store64masked(sAddr, value, mask) {
-  const addr = sAddr >>> 0;
-  const mh = getMemoryHandler(addr);
-  mh.write64masked(addr, value, mask);
-}
+function store64slow(addr, value) { getMemoryHandler(addr).write64(addr, value); }
+function store32slow(addr, value) { getMemoryHandler(addr).write32(addr, value); }
+function store16slow(addr, value) { getMemoryHandler(addr).write16(addr, value); }
+function store8slow(addr, value) { getMemoryHandler(addr).write8(addr, value); }
+
+function store32masked(addr, value, mask) { getMemoryHandler(addr).write32masked(addr, value, mask); }
+function store64masked(addr, value, mask) { getMemoryHandler(addr).write64masked(addr, value, mask); }
 
 function unimplemented(pc, i) {
   const r = disassembleInstruction(pc, i);
@@ -4139,7 +4078,7 @@ function runImpl() {
           const phys = (pc + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
           instruction = ramDV.getInt32(phys, false);
         } else {
-          instruction = loadS32slow(pc);
+          instruction = loadS32slow(pc >>> 0);
         }
 
         c.branchTarget = 0;
@@ -4335,7 +4274,7 @@ function generateCodeForOp(ctx) {
 
   ctx.fragment.needsDelayCheck = ctx.needsDelayCheck;
 
-  // code += `if (!checkEqual( loadS32slow(cpu0.pc), ${toString32(instruction)}, "unexpected instruction (need to flush icache?)")) { return false; }\n`;
+  // code += `if (!checkEqual( loadS32slow(cpu0.pc >>> 0), ${toString32(instruction)}, "unexpected instruction (need to flush icache?)")) { return false; }\n`;
 
   ctx.fragment.bailedOut |= ctx.bailOut;
 
