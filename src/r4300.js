@@ -799,13 +799,6 @@ class CPU0 {
     this.raiseException(CAUSE_EXCMASK | CAUSE_CEMASK, exc_code, vec);
   }
 
-  raiseTLBReadMissException(address) { this.raiseTLBException(address, causeExcCodeTLBL, UT_VEC); }
-  raiseTLBWriteMissException(address) { this.raiseTLBException(address, causeExcCodeTLBS, UT_VEC); }
-
-  raiseTLBReadInvalidException(address) { this.raiseTLBException(address, causeExcCodeTLBL, E_VEC); }
-  raiseTLBWriteInvalidException(address) { this.raiseTLBException(address, causeExcCodeTLBS, E_VEC); }
-
-
   handleInterrupt() {
     if (this.checkForUnmaskedInterrupts()) {
       this.raiseGeneralException(CAUSE_EXCMASK, causeExcCodeInt);
@@ -1028,16 +1021,16 @@ class CPU0 {
     const highBits = odd ? tlb.pfnohi : tlb.pfnehi;
     const maskedAddress = address & tlb.mask2;
 
-    if ((entryLo & TLBLO_V) !== 0) {
-      return highBits | maskedAddress;
+    if ((entryLo & TLBLO_V) === 0) {
+      return 0;
     }
-    return 0;
+    return highBits | maskedAddress;
   }
 
   translateRead(address) {
     const tlb = this.tlbFindEntry(address);
     if (!tlb) {
-      this.raiseTLBReadMissException(address);
+      this.raiseTLBException(address, causeExcCodeTLBL, UT_VEC);
       throw new TLBException(address);
     }
 
@@ -1046,17 +1039,17 @@ class CPU0 {
     const highBits = odd ? tlb.pfnohi : tlb.pfnehi;
     const maskedAddress = address & tlb.mask2;
 
-    if ((entryLo & TLBLO_V) !== 0) {
-      return highBits | maskedAddress;
+    if ((entryLo & TLBLO_V) === 0) {
+      this.raiseTLBException(address, causeExcCodeTLBL, E_VEC)
+      throw new TLBException(address);
     }
-    this.raiseTLBReadInvalidException(address);
-    throw new TLBException(address);
+    return highBits | maskedAddress;
   }
 
   translateWrite(address) {
     const tlb = this.tlbFindEntry(address);
     if (!tlb) {
-      this.raiseTLBWriteMissException(address);
+      this.raiseTLBException(address, causeExcCodeTLBS, UT_VEC);
       throw new TLBException(address);
     }
 
@@ -1065,11 +1058,15 @@ class CPU0 {
     const highBits = odd ? tlb.pfnohi : tlb.pfnehi;
     const maskedAddress = address & tlb.mask2;
 
-    if ((entryLo & TLBLO_V) !== 0) {
-      return highBits | maskedAddress;
+    if ((entryLo & TLBLO_V) === 0) {
+      this.raiseTLBException(address, causeExcCodeTLBS, E_VEC);
+      throw new TLBException(address);
     }
-    this.raiseTLBWriteInvalidException(address);
-    throw new TLBException(address);
+    if ((entryLo & TLBLO_D) === 0) {
+      this.raiseTLBException(address, causeExcCodeMod, E_VEC);
+      throw new TLBException(address);
+    }
+    return highBits | maskedAddress;
   }
 }
 
