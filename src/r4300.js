@@ -241,7 +241,6 @@ class TLBEntry {
     // Derived state (cached for performance).
     this.mask = 0;
     this.vpnmask = ~0 >>> 0;
-    this.vpn2mask = ~0 >>> 0;
 
     this.addrcheck = 0;
     this.pfnehi = 0;
@@ -263,12 +262,11 @@ class TLBEntry {
 
     this.mask = this.pagemask | pageMaskLowBits;
     this.vpnmask = (~this.mask) >>> 0;
-    this.vpn2mask = this.vpnmask >>> 1;
 
     this.addrcheck = (hi & this.vpnmask) >>> 0;
 
-    this.pfnehi = (this.pfne << TLBLO_PFNSHIFT) & this.vpn2mask;
-    this.pfnohi = (this.pfno << TLBLO_PFNSHIFT) & this.vpn2mask;
+    this.pfnehi = (this.pfne << TLBLO_PFNSHIFT) & (this.vpnmask >>> 1);
+    this.pfnohi = (this.pfno << TLBLO_PFNSHIFT) & (this.vpnmask >>> 1);
 
     this.checkbit = pageMaskCheckbit(this.pagemask);
   }
