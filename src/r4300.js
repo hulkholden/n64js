@@ -253,7 +253,6 @@ class TLBEntry {
     this.global = (entrylo0 & entrylo1 & TLBLO_G);
 
     this.mask = this.pagemask | pageMaskLowBits;
-    this.mask2 = this.mask >>> 1;
     this.vpnmask = (~this.mask) >>> 0;
     this.vpn2mask = this.vpnmask >>> 1;
 
@@ -1019,7 +1018,7 @@ class CPU0 {
     const odd = address & tlb.checkbit;
     const entryLo = odd ? tlb.pfno : tlb.pfne;
     const highBits = odd ? tlb.pfnohi : tlb.pfnehi;
-    const maskedAddress = address & tlb.mask2;
+    const maskedAddress = address & (tlb.mask >>> 1);
 
     if ((entryLo & TLBLO_V) === 0) {
       return 0;
@@ -1037,7 +1036,7 @@ class CPU0 {
     const odd = address & tlb.checkbit;
     const entryLo = odd ? tlb.pfno : tlb.pfne;
     const highBits = odd ? tlb.pfnohi : tlb.pfnehi;
-    const maskedAddress = address & tlb.mask2;
+    const maskedAddress = address & (tlb.mask >>> 1);
 
     if ((entryLo & TLBLO_V) === 0) {
       this.raiseTLBException(address, causeExcCodeTLBL, E_VEC)
@@ -1056,7 +1055,7 @@ class CPU0 {
     const odd = address & tlb.checkbit;
     const entryLo = odd ? tlb.pfno : tlb.pfne;
     const highBits = odd ? tlb.pfnohi : tlb.pfnehi;
-    const maskedAddress = address & tlb.mask2;
+    const maskedAddress = address & (tlb.mask >>> 1);
 
     if ((entryLo & TLBLO_V) === 0) {
       this.raiseTLBException(address, causeExcCodeTLBS, E_VEC);
