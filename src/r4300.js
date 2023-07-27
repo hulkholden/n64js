@@ -392,9 +392,7 @@ class CPU0 {
   }
 
   getRegS32Lo(r) { return this.gprS32[r * 2 + 0]; }
-  getRegS32Hi(r) { return this.gprS32[r * 2 + 1]; }
   getRegU32Lo(r) { return this.gprU32[r * 2 + 0]; }
-  getRegU32Hi(r) { return this.gprU32[r * 2 + 1]; }
   getRegS64(r) { return this.gprS64[r]; }
   getRegU64(r) { return this.gprU64[r]; }
 
@@ -1184,12 +1182,6 @@ function genSrcRegS32Lo(i) {
   if (i === 0)
     return '0';
   return `c.getRegS32Lo(${i})`;
-}
-
-function genSrcRegS32Hi(i) {
-  if (i === 0)
-    return '0';
-  return `c.getRegS32Hi(${i})`;
 }
 
 function genSrcRegU32Lo(i) {
