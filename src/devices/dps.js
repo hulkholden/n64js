@@ -24,7 +24,7 @@ export class DPSDevice extends Device {
       throw 'Write is out of range';
     }
     throw 'DPS writes are unhandled';
-    //this.mem.write32(ea, value);
+    //this.mem.set32(ea, value);
   };
 
   readS32(address) {
@@ -35,7 +35,7 @@ export class DPSDevice extends Device {
       throw 'Read is out of range';
     }
     throw 'DPS reads are unhandled';
-    //return this.mem.readS32(ea);
+    //return this.mem.getS32(ea);
   };
 
   readU32(address) {

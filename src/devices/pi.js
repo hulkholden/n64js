@@ -67,7 +67,7 @@ export class PIRegDevice extends Device {
   setMemorySize() {
     if (!this.haveSetMemorySize) {
       const addr = (this.hardware.rominfo.cic === '6105') ? 0x800003F0 : 0x80000318;
-      this.hardware.ram.write32(addr - 0x80000000, 8 * 1024 * 1024);
+      this.hardware.ram.set32(addr - 0x80000000, 8 * 1024 * 1024);
       logger.log('Setting memory size');
       this.haveSetMemorySize = true;
     }
@@ -78,7 +78,7 @@ export class PIRegDevice extends Device {
     if (ea + 4 > this.u8.length) {
       throw 'Read is out of range';
     }
-    let v = this.mem.readS32(ea);
+    let v = this.mem.getS32(ea);
     switch (ea) {
       case PI_DRAM_ADDR_REG:
         v &= 0x00fffffe;
@@ -112,20 +112,20 @@ export class PIRegDevice extends Device {
     switch (ea) {
       case PI_DRAM_ADDR_REG:
       case PI_CART_ADDR_REG:
-        this.mem.write32(ea, value);
+        this.mem.set32(ea, value);
         break;
       case PI_RD_LEN_REG:
-        this.mem.write32(ea, value);
+        this.mem.set32(ea, value);
         this.copyFromRDRAM();
         break;
       case PI_WR_LEN_REG:
-        this.mem.write32(ea, value);
+        this.mem.set32(ea, value);
         this.copyToRDRAM();
         break;
       case PI_STATUS_REG:
         if (value & PI_STATUS_RESET) {
           if (!this.quiet) { logger.log('PI_STATUS_REG reset'); }
-          this.mem.write32(PI_STATUS_REG, 0);
+          this.mem.set32(PI_STATUS_REG, 0);
         }
         if (value & PI_STATUS_CLR_INTR) {
           if (!this.quiet) { logger.log('PI interrupt cleared'); }
@@ -136,15 +136,15 @@ export class PIRegDevice extends Device {
         break;
       default:
         logger.log(`Unhandled write to PIReg: ${toString32(value)} -> [${toString32(address)}]`);
-        this.mem.write32(ea, value);
+        this.mem.set32(ea, value);
         break;
     }
   }
 
   copyFromRDRAM() {
-    const dramAddr = this.mem.readU32(PI_DRAM_ADDR_REG) & 0x00fffffe;
-    const cartAddr = this.mem.readU32(PI_CART_ADDR_REG) & 0xfffffffe;
-    let transferLen = (this.mem.readU32(PI_RD_LEN_REG) & 0x00ffffff) + 1;
+    const dramAddr = this.mem.getU32(PI_DRAM_ADDR_REG) & 0x00fffffe;
+    const cartAddr = this.mem.getU32(PI_CART_ADDR_REG) & 0xfffffffe;
+    let transferLen = (this.mem.getU32(PI_RD_LEN_REG) & 0x00ffffff) + 1;
 
     let dst;
     let dstOffset = 0;
@@ -183,9 +183,9 @@ export class PIRegDevice extends Device {
   }
 
   copyToRDRAM() {
-    const dramAddr = this.mem.readU32(PI_DRAM_ADDR_REG) & 0x00fffffe;
-    const cartAddr = this.mem.readU32(PI_CART_ADDR_REG) & 0xfffffffe;
-    let transferLen = (this.mem.readU32(PI_WR_LEN_REG) & 0x00ffffff) + 1;
+    const dramAddr = this.mem.getU32(PI_DRAM_ADDR_REG) & 0x00fffffe;
+    const cartAddr = this.mem.getU32(PI_CART_ADDR_REG) & 0xfffffffe;
+    let transferLen = (this.mem.getU32(PI_WR_LEN_REG) & 0x00ffffff) + 1;
 
     if (!this.quiet) {
       logger.log(`PI: copying ${transferLen} bytes of data from ${toString32(cartAddr)} to ${toString32(dramAddr)}`);
@@ -239,8 +239,8 @@ export class PIRegDevice extends Device {
     this.setMemorySize();
 
     // Address registers are updated when the transfer completes.
-    this.mem.write32(PI_DRAM_ADDR_REG, (this.mem.readU32(PI_DRAM_ADDR_REG) + transferLen + 7) & ~7);
-    this.mem.write32(PI_CART_ADDR_REG, (this.mem.readU32(PI_CART_ADDR_REG) + transferLen + 1) & ~1);
+    this.mem.set32(PI_DRAM_ADDR_REG, (this.mem.getU32(PI_DRAM_ADDR_REG) + transferLen + 7) & ~7);
+    this.mem.set32(PI_CART_ADDR_REG, (this.mem.getU32(PI_CART_ADDR_REG) + transferLen + 1) & ~1);
 
     // TODO: figure out how many cycles the transfer should take, and schedule an interrupt.
     this.mem.clearBits32(PI_STATUS_REG, PI_STATUS_DMA_BUSY);
@@ -260,7 +260,7 @@ export class PIRamDevice extends Device {
     if (ea + 4 > this.u8.length) {
       throw 'Read is out of range';
     }
-    const v = this.mem.readS32(ea);
+    const v = this.mem.getS32(ea);
     if (ea < 0x7c0) {
       logger.log(`Reading from PIF rom (${toString32(address)}). Got ${toString32(v)}`);
     } else {
@@ -280,7 +280,7 @@ export class PIRamDevice extends Device {
 
   readS8(address) {
     const ea = this.calcReadEA(address);
-    const v = this.mem.readU8(ea);
+    const v = this.mem.getU8(ea);
     if (ea < 0x7c0) {
       logger.log(`Reading from PIF rom (${toString32(address)}). Got ${toString8(v)}`);
     } else {
@@ -304,7 +304,7 @@ export class PIRamDevice extends Device {
       logger.log('Attempting to write to PIF ROM');
     } else {
       const ramOffset = ea - 0x7c0;
-      this.mem.write32(ea, value);
+      this.mem.set32(ea, value);
       switch (ramOffset) {
         case 0x24: logger.log(`Writing CIC values: ${toString32(value)}`); break;
         case 0x3c: logger.log(`Writing Control byte: ${toString32(value)}`); this.pifUpdateControl(); break;

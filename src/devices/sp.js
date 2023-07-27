@@ -98,15 +98,15 @@ export class SPRegDevice extends Device {
       case SP_MEM_ADDR_REG:
       case SP_DRAM_ADDR_REG:
       case SP_SEMAPHORE_REG:
-        this.mem.write32(ea, value);
+        this.mem.set32(ea, value);
         break;
       case SP_RD_LEN_REG:
-        this.mem.write32(ea, value);
+        this.mem.set32(ea, value);
         this.spCopyFromRDRAM();
         break;
 
       case SP_WR_LEN_REG:
-        this.mem.write32(ea, value);
+        this.mem.set32(ea, value);
         this.spCopyToRDRAM();
         break;
 
@@ -121,7 +121,7 @@ export class SPRegDevice extends Device {
 
       default:
         logger.log(`Unhandled write to SPReg: ${toString32(value)} -> [${toString32(address)}]`);
-        this.mem.write32(ea, value);
+        this.mem.set32(ea, value);
     }
   }
 
@@ -197,10 +197,10 @@ export class SPRegDevice extends Device {
     setBits |= (flags & SP_SET_SIG6) >> 9;
     setBits |= (flags & SP_SET_SIG7) >> 10;
 
-    let statusBits = this.mem.readU32(SP_STATUS_REG);
+    let statusBits = this.mem.getU32(SP_STATUS_REG);
     statusBits &= ~clrBits;
     statusBits |= setBits;
-    this.mem.write32(SP_STATUS_REG, statusBits);
+    this.mem.set32(SP_STATUS_REG, statusBits);
 
     if (startRsp) {
       rspProcessTask();
@@ -210,9 +210,9 @@ export class SPRegDevice extends Device {
   }
 
   spCopyFromRDRAM() {
-    const spMemAddr = this.mem.readU32(SP_MEM_ADDR_REG);
-    const rdRamAddr = this.mem.readU32(SP_DRAM_ADDR_REG);
-    const rdLen = this.mem.readU32(SP_RD_LEN_REG);
+    const spMemAddr = this.mem.getU32(SP_MEM_ADDR_REG);
+    const rdRamAddr = this.mem.getU32(SP_DRAM_ADDR_REG);
+    const rdLen = this.mem.getU32(SP_RD_LEN_REG);
     const spLen = (rdLen & 0xfff) + 1;
 
     if (!this.quiet) {
@@ -226,9 +226,9 @@ export class SPRegDevice extends Device {
   }
 
   spCopyToRDRAM() {
-    const spMemAddr = this.mem.readU32(SP_MEM_ADDR_REG);
-    const rdRamAddr = this.mem.readU32(SP_DRAM_ADDR_REG);
-    const wrLen = this.mem.readU32(SP_WR_LEN_REG);
+    const spMemAddr = this.mem.getU32(SP_MEM_ADDR_REG);
+    const rdRamAddr = this.mem.getU32(SP_DRAM_ADDR_REG);
+    const wrLen = this.mem.getU32(SP_WR_LEN_REG);
     const spLen = (wrLen & 0xfff) + 1;
 
     if (!this.quiet) {

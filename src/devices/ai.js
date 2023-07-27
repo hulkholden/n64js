@@ -27,16 +27,16 @@ export class AIRegDevice extends Device {
       case AI_CONTROL_REG:
       case AI_BITRATE_REG:
         if (!this.quiet) { logger.log(`Wrote to AIReg: ${toString32(value)} -> [${toString32(address)}]`); }
-        this.mem.write32(ea, value);
+        this.mem.set32(ea, value);
         break;
 
       case AI_LEN_REG:
         if (!this.quiet) { logger.log(`AI len changed to ${value}`); }
-        this.mem.write32(ea, value);
+        this.mem.set32(ea, value);
         break;
       case AI_DACRATE_REG:
         if (!this.quiet) { logger.log(`AI dacrate changed to ${value}`); }
-        this.mem.write32(ea, value);
+        this.mem.set32(ea, value);
         break;
 
       case AI_STATUS_REG:
@@ -47,7 +47,7 @@ export class AIRegDevice extends Device {
 
       default:
         logger.log(`Unhandled write to AIReg: ${toString32(value)} -> [${toString32(address)}]`);
-        this.mem.write32(ea, value);
+        this.mem.set32(ea, value);
         break;
     }
   }

@@ -70,7 +70,7 @@ export class Device {
   readInternal32(address) {
     const ea = this.calcInternalEA(address);
     if (ea + 4 <= this.u8.length) {
-      return this.mem.readU32(ea);
+      return this.mem.getU32(ea);
     }
     return 0xdddddddd;
   }
@@ -83,7 +83,7 @@ export class Device {
   writeInternal32(address, value) {
     const ea = this.calcInternalEA(address);
     if (ea + 4 <= this.u8.length) {
-      this.mem.write32(ea, value);
+      this.mem.set32(ea, value);
     }
   }
 
@@ -110,7 +110,7 @@ export class Device {
    */
   readU64(address) {
     const ea = this.calcReadEA(address);
-    return this.mem.readU64(ea);
+    return this.mem.getU64(ea);
   }
 
   /**
@@ -120,7 +120,7 @@ export class Device {
    */
   readU32(address) {
     const ea = this.calcReadEA(address);
-    return this.mem.readU32(ea);
+    return this.mem.getU32(ea);
   }
 
   /**
@@ -130,7 +130,7 @@ export class Device {
    */
   readU16(address) {
     const ea = this.calcReadEA(address);
-    return this.mem.readU16(ea);
+    return this.mem.getU16(ea);
   }
 
   /**
@@ -140,7 +140,7 @@ export class Device {
    */
   readU8(address) {
     const ea = this.calcReadEA(address);
-    return this.mem.readU8(ea);
+    return this.mem.getU8(ea);
   }
 
   /**
@@ -150,7 +150,7 @@ export class Device {
    */
   readS32(address) {
     const ea = this.calcReadEA(address);
-    return this.mem.readS32(ea);
+    return this.mem.getS32(ea);
   }
 
   /**
@@ -160,7 +160,7 @@ export class Device {
    */
   readS16(address) {
     const ea = this.calcReadEA(address);
-    return this.mem.readS16(ea);
+    return this.mem.getS16(ea);
   }
 
   /**
@@ -170,7 +170,7 @@ export class Device {
    */
   readS8(address) {
     const ea = this.calcReadEA(address);
-    return this.mem.readS8(ea);
+    return this.mem.getS8(ea);
   }
 
   /**
@@ -181,7 +181,7 @@ export class Device {
    */
   write64masked(address, value, mask) {
     const ea = this.calcWriteEA(address) & ~7;
-    this.mem.write64masked(ea, value, mask);
+    this.mem.set64masked(ea, value, mask);
   }
 
   /**
@@ -192,7 +192,7 @@ export class Device {
    */
   write32masked(address, value, mask) {
     const ea = this.calcWriteEA(address) & ~3;
-    this.mem.write32masked(ea, value, mask);
+    this.mem.set32masked(ea, value, mask);
   }
 
   /**
@@ -202,7 +202,7 @@ export class Device {
    */
   write64(address, value) {
     const ea = this.calcWriteEA(address);
-    this.mem.write64(ea, value);
+    this.mem.set64(ea, value);
   }
 
   /**
@@ -212,7 +212,7 @@ export class Device {
    */
   write32(address, value) {
     const ea = this.calcWriteEA(address);
-    this.mem.write32(ea, value);
+    this.mem.set32(ea, value);
   }
 
   /**
@@ -222,7 +222,7 @@ export class Device {
    */
   write16(address, value) {
     const ea = this.calcWriteEA(address);
-    this.mem.write16(ea, value);
+    this.mem.set16(ea, value);
   }
 
   /**
@@ -232,7 +232,7 @@ export class Device {
    */
   write8(address, value) {
     const ea = this.calcWriteEA(address);
-    this.mem.write8(ea, value);
+    this.mem.set8(ea, value);
   }
 }
 
