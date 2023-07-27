@@ -398,6 +398,14 @@ class CPU0 {
   getRegS64(r) { return this.gprS64[r]; }
   getRegU64(r) { return this.gprU64[r]; }
 
+  calcAddressS32(instr) {
+    return this.getRegS32Lo(base(instr)) + imms(instr);
+  }
+
+  calcAddressU32(instr) {
+    return (this.getRegU32Lo(base(instr)) + imms(instr)) >>> 0;
+  }
+
   setRegU64(r, v) {
     // This shouldn't be needed but there seems to be a bug with BigInts > 64 bits.
     // TODO: check still needed with BigUint64Array.
@@ -2364,7 +2372,7 @@ function generateLB(ctx) {
 }
 
 function executeLB(i) {
-  const value = memaccess.loadS8fast(cpu0.getRegS32Lo(base(i)) + imms(i));
+  const value = memaccess.loadS8fast(cpu0.calcAddressS32(i));
   cpu0.setRegS32Extend(rt(i), value);
 }
 
@@ -2382,7 +2390,7 @@ function generateLBU(ctx) {
 }
 
 function executeLBU(i) {
-  const value = memaccess.loadU8fast(cpu0.getRegS32Lo(base(i)) + imms(i));
+  const value = memaccess.loadU8fast(cpu0.calcAddressS32(i));
   cpu0.setRegU32Extend(rt(i), value);
 }
 
@@ -2400,7 +2408,7 @@ function generateLH(ctx) {
 }
 
 function executeLH(i) {
-  const value = memaccess.loadS16fast(cpu0.getRegS32Lo(base(i)) + imms(i));
+  const value = memaccess.loadS16fast(cpu0.calcAddressS32(i));
   cpu0.setRegS32Extend(rt(i), value);
 }
 
@@ -2418,7 +2426,7 @@ function generateLHU(ctx) {
 }
 
 function executeLHU(i) {
-  const value = memaccess.loadU16fast(cpu0.getRegS32Lo(base(i)) + imms(i));
+  const value = memaccess.loadU16fast(cpu0.calcAddressS32(i));
   cpu0.setRegU32Extend(rt(i), value);
 }
 
@@ -2444,7 +2452,7 @@ function executeLW(i) {
     return;
   }
 
-  const value = memaccess.loadS32fast(cpu0.getRegS32Lo(base(i)) + imms(i));
+  const value = memaccess.loadS32fast(cpu0.calcAddressS32(i));
   cpu0.setRegS32Extend(rt(i), value);
 }
 
@@ -2462,7 +2470,7 @@ function generateLWU(ctx) {
 }
 
 function executeLWU(i) {
-  const value = memaccess.loadU32fast(cpu0.getRegS32Lo(base(i)) + imms(i));
+  const value = memaccess.loadU32fast(cpu0.calcAddressS32(i));
   cpu0.setRegU32Extend(rt(i), value);
 }
 
@@ -2479,7 +2487,7 @@ function generateLD(ctx) {
 }
 
 function executeLD(i) {
-  const value = memaccess.loadU64fast(cpu0.getRegS32Lo(base(i)) + imms(i));
+  const value = memaccess.loadU64fast(cpu0.calcAddressS32(i));
   cpu0.setRegU64(rt(i), value);
 }
 
@@ -2502,7 +2510,7 @@ function executeLWC1(i) {
   if (!cpu0.checkCopXUsable(1)) {
     return;
   }
-  cpu1.storeS32(ft(i), memaccess.loadS32fast(cpu0.getRegS32Lo(base(i)) + imms(i)));
+  cpu1.storeS32(ft(i), memaccess.loadS32fast(cpu0.calcAddressS32(i)));
 }
 
 function generateLDC1(ctx) {
@@ -2526,14 +2534,14 @@ function executeLDC1(i) {
     return;
   }
 
-  const value = memaccess.loadU64fast(cpu0.getRegS32Lo(base(i)) + imms(i));
+  const value = memaccess.loadU64fast(cpu0.calcAddressS32(i));
   cpu1.storeU64(ft(i), value);
 }
 
 function executeLDC2(i) { unimplemented(cpu0.pc, i); }
 
 function executeLWL(i) {
-  const addr = (cpu0.getRegU32Lo(base(i)) + imms(i)) >>> 0;
+  const addr = cpu0.calcAddressU32(i);
   const mem = memaccess.loadU32fast((addr & ~3) >>> 0);
   const shift = 8 * (addr & 3);
 
@@ -2541,7 +2549,7 @@ function executeLWL(i) {
 }
 
 function executeLWR(i) {
-  const addr = (cpu0.getRegU32Lo(base(i)) + imms(i)) >>> 0;
+  const addr = cpu0.calcAddressU32(i);
   const mem = memaccess.loadU32fast((addr & ~3) >>> 0);
   const shift = 8 * (3 - (addr & 3));
 
@@ -2549,7 +2557,7 @@ function executeLWR(i) {
 }
 
 function executeLDL(i) {
-  const addr = (cpu0.getRegU32Lo(base(i)) + imms(i)) >>> 0;
+  const addr = cpu0.calcAddressU32(i);
   const shift = BigInt(8 * (addr & 7));
   const mem = memaccess.loadU64fast((addr & ~7) >>> 0);
 
@@ -2557,7 +2565,7 @@ function executeLDL(i) {
 }
 
 function executeLDR(i) {
-  const addr = (cpu0.getRegU32Lo(base(i)) + imms(i)) >>> 0;
+  const addr = cpu0.calcAddressU32(i);
   const shift = BigInt(8 * (7 - (addr & 7)));
   const mem = memaccess.loadU64fast((addr & ~7) >>> 0);
 
@@ -2576,8 +2584,7 @@ function generateSB(ctx) {
 }
 
 function executeSB(i) {
-  const addr = cpu0.getRegS32Lo(base(i)) + imms(i);
-  memaccess.store8fast(addr, cpu0.getRegS32Lo(rt(i)) /*& 0xff*/);
+  memaccess.store8fast(cpu0.calcAddressS32(i), cpu0.getRegS32Lo(rt(i)) /*& 0xff*/);
 }
 
 function generateSH(ctx) {
@@ -2592,8 +2599,7 @@ function generateSH(ctx) {
 }
 
 function executeSH(i) {
-  const addr = cpu0.getRegS32Lo(base(i)) + imms(i);
-  memaccess.store16fast(addr, cpu0.getRegS32Lo(rt(i)) /*& 0xffff*/);
+  memaccess.store16fast(cpu0.calcAddressS32(i), cpu0.getRegS32Lo(rt(i)) /*& 0xffff*/);
 }
 
 function generateSW(ctx) {
@@ -2608,8 +2614,7 @@ function generateSW(ctx) {
 }
 
 function executeSW(i) {
-  const addr = cpu0.getRegS32Lo(base(i)) + imms(i);
-  memaccess.store32fast(addr, cpu0.getRegS32Lo(rt(i)));
+  memaccess.store32fast(cpu0.calcAddressS32(i), cpu0.getRegS32Lo(rt(i)));
 }
 
 function generateSD(ctx) {
@@ -2625,8 +2630,7 @@ function generateSD(ctx) {
 }
 
 function executeSD(i) {
-  const addr = cpu0.getRegS32Lo(base(i)) + imms(i);
-  memaccess.store64fast(addr, cpu0.getRegU64(rt(i)));
+  memaccess.store64fast(cpu0.calcAddressS32(i), cpu0.getRegU64(rt(i)));
 }
 
 function generateSWC1(ctx) {
@@ -2649,7 +2653,7 @@ function executeSWC1(i) {
   if (!cpu0.checkCopXUsable(1)) {
     return;
   }
-  memaccess.store32fast(cpu0.getRegS32Lo(base(i)) + imms(i), cpu1.loadS32(ft(i)));
+  memaccess.store32fast(cpu0.calcAddressS32(i), cpu1.loadS32(ft(i)));
 }
 
 function generateSDC1(ctx) {
@@ -2673,14 +2677,13 @@ function executeSDC1(i) {
   if (!cpu0.checkCopXUsable(1)) {
     return;
   }
-  const addr = cpu0.getRegS32Lo(base(i)) + imms(i);
-  memaccess.store64fast(addr, cpu1.loadS64(ft(i)));
+  memaccess.store64fast(cpu0.calcAddressS32(i), cpu1.loadS64(ft(i)));
 }
 
 function executeSDC2(i) { unimplemented(cpu0.pc, i); }
 
 function executeSWL(i) {
-  const addr = (cpu0.getRegU32Lo(base(i)) + imms(i));
+  const addr = cpu0.calcAddressU32(i);
   const shift = 8 * (addr & 3);
   const reg = cpu0.getRegU32Lo(rt(i));
 
@@ -2688,7 +2691,7 @@ function executeSWL(i) {
 }
 
 function executeSWR(i) {
-  const addr = (cpu0.getRegU32Lo(base(i)) + imms(i));
+  const addr = cpu0.calcAddressU32(i);
   const shift = 8 * (3 - (addr & 3));
   const reg = cpu0.getRegU32Lo(rt(i));
 
@@ -2696,7 +2699,7 @@ function executeSWR(i) {
 }
 
 function executeSDL(i) {
-  const addr = (cpu0.getRegU32Lo(base(i)) + imms(i)) >>> 0;
+  const addr = cpu0.calcAddressU32(i);
   const shift = BigInt(8 * (addr & 7));
   const reg = cpu0.getRegU64(rt(i));
 
@@ -2704,7 +2707,7 @@ function executeSDL(i) {
 }
 
 function executeSDR(i) {
-  const addr = (cpu0.getRegU32Lo(base(i)) + imms(i)) >>> 0;
+  const addr = cpu0.calcAddressU32(i);
   const reg = cpu0.getRegU64(rt(i));
   const shift = BigInt(8 * (7 - (addr & 7)));
 
@@ -2736,8 +2739,7 @@ function executeCACHE(i) {
 
   if (cache === 0 && (action === 0 || action === 4)) {
     // NB: only bother generating address if we handle the instruction - memaddr deopts like crazy
-    const address = (cpu0.getRegU32Lo(base(i)) + imms(i));
-    n64js.invalidateICacheEntry(address);
+    n64js.invalidateICacheEntry(cpu0.calcAddressU32(i));
   }
 }
 
@@ -2746,12 +2748,12 @@ function physicalAddress(addr) {
   return addr & (~0xe0000000)
 }
 
-function makeLLAddr(addr) {
-  return physicalAddress(addr) >>> 4;
+function makeLLAddr(sAddr) {
+  return physicalAddress(sAddr >>> 0) >>> 4;
 }
 
 function executeLL(i) {
-  const addr = (cpu0.getRegS32Lo(base(i)) + imms(i)) >>> 0;
+  const addr = cpu0.calcAddressS32(i);
   const value = memaccess.loadS32fast(addr);
 
   cpu0.setControlU32(cpu0_constants.controlLLAddr, makeLLAddr(addr));
@@ -2760,10 +2762,10 @@ function executeLL(i) {
 }
 
 function executeLLD(i) {
-  const addr = (cpu0.getRegS32Lo(base(i)) + imms(i)) >>> 0;
+  const addr = cpu0.calcAddressS32(i);
+  const value = memaccess.loadU64fast(addr);
   
   cpu0.setControlU32(cpu0_constants.controlLLAddr, makeLLAddr(addr));
-  const value = memaccess.loadU64fast(addr);
   cpu0.setRegU64(rt(i), value);
   cpu0.llBit = 1;
 }
@@ -2772,8 +2774,7 @@ function executeSC(i) {
   const t = rt(i);
   let result = 0;
   if (cpu0.llBit) {
-    const addr = cpu0.getRegS32Lo(base(i)) + imms(i);
-    memaccess.store32fast(addr, cpu0.getRegS32Lo(t));
+    memaccess.store32fast(cpu0.calcAddressS32(i), cpu0.getRegS32Lo(t));
     cpu0.llBit = 0;
     result = 1;
   }
@@ -2785,8 +2786,7 @@ function executeSCD(i) {
 
   let result = 0;
   if (cpu0.llBit) {
-    const addr = cpu0.getRegS32Lo(base(i)) + imms(i);
-    memaccess.store64fast(addr, cpu0.getRegU64(t));
+    memaccess.store64fast(cpu0.calcAddressS32(i), cpu0.getRegU64(t));
     cpu0.llBit = 0;
     result = 1;
   }
