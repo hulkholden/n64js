@@ -2,7 +2,7 @@
 
 import * as cpu0_constants from './cpu0_constants.js';
 import { disassembleRange, cop0gprNames, cop1RegisterNames } from './disassemble.js';
-import { toString32, toString64, toHex } from './format.js';
+import { toString32, toString64, toHex, toString64_bigint } from './format.js';
 import * as logger from './logger.js';
 import { getFragmentMap, consumeFragmentInvalidationEvents } from './fragments.js';
 import { toggleDebugDisplayList } from './hle.js';
@@ -234,7 +234,7 @@ export class Debugger {
       let $tr = $('<tr />');
       for (let r = 0; r < kRegistersPerRow; ++r) {
         let name = cop0gprNames[i + r];
-        let $td = $('<td>' + name + '</td><td class="fixed">' + toString64(cpu0.getRegU32Hi(i + r), cpu0.getRegU32Lo(i + r)) + '</td>');
+        let $td = $('<td>' + name + '</td><td class="fixed">' + toString64_bigint(cpu0.getRegU64(i + r)) + '</td>');
 
         if (registerColours.has(name)) {
           $td.attr('bgcolor', registerColours.get(name));
