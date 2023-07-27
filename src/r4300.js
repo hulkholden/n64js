@@ -2943,7 +2943,7 @@ function generateSInstrStub(ctx) {
   const d = ctx.instr_fd();
 
   ctx.fragment.usesCop1 = true;
-  ctx.isTrivial = true;
+  ctx.isTrivial = false;  // Can raise FPE.
 
   const op = cop1_func(ctx.instruction);
 
@@ -3021,7 +3021,7 @@ function generateDInstrStub(ctx) {
   const d = ctx.instr_fd();
 
   ctx.fragment.usesCop1 = true;
-  ctx.isTrivial = true;
+  ctx.isTrivial = false;  // Can raise FPE.
 
   const op = cop1_func(ctx.instruction);
 
@@ -3097,7 +3097,7 @@ function generateWInstrStub(ctx) {
   const d = ctx.instr_fd();
 
   ctx.fragment.usesCop1 = true;
-  ctx.isTrivial = true;
+  ctx.isTrivial = false;  // Can raise FPE.
   switch (cop1_func(ctx.instruction)) {
     case cop1ROUND_L: return `cpu1.raiseUnimplemented();\n`;
     case cop1TRUNC_L: return `cpu1.raiseUnimplemented();\n`;
@@ -3141,7 +3141,7 @@ function generateLInstrStub(ctx) {
   const d = ctx.instr_fd();
 
   ctx.fragment.usesCop1 = true;
-  ctx.isTrivial = true;
+  ctx.isTrivial = false;  // Can raise FPE.
   switch (cop1_func(ctx.instruction)) {
     case cop1ROUND_L: return `cpu1.raiseUnimplemented();\n`;
     case cop1TRUNC_L: return `cpu1.raiseUnimplemented();\n`;
