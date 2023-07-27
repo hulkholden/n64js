@@ -2422,24 +2422,30 @@ function executeLHU(i) {
 
 function generateLW(ctx) {
   const t = ctx.instr_rt();
-  // SF2049 requires this, apparently
-  if (t === 0)
-    return generateNOPBoilerplate('load to r0!', ctx);
-
-  const impl = `
-    c.setRegS32Extend(${t}, c.loadS32fast(${genCalcAddressS32(ctx)}));
-    `;
+  let impl;
+  if (t === 0) {
+    // Perform the load even if the result isn't stored to trigger any exceptions.
+    impl = `
+      c.loadS32fast(${genCalcAddressS32(ctx)});
+      `;
+  } else {
+    impl = `
+      c.setRegS32Extend(${t}, c.loadS32fast(${genCalcAddressS32(ctx)}));
+      `;
+  }
 
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
 
 function executeLW(i) {
-  // SF2049 requires this, apparently
-  if (rt(i) === 0) {
+  const value = memaccess.loadS32fast(cpu0.calcAddressS32(i));
+
+  // TODO: check if SF2049 requires LW to R0 to be ignored.
+  // This is redundant right now because we also force R0 to zero in runImpl.
+  if (rt(i) == 0) {
+    console.log("LW to register 0");
     return;
   }
-
-  const value = memaccess.loadS32fast(cpu0.calcAddressS32(i));
   cpu0.setRegS32Extend(rt(i), value);
 }
 
