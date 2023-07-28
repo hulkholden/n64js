@@ -128,16 +128,14 @@ const FPCSR_RM_RM     = 0x00000003;
 const FPCSR_C         = 0x00800000;
 const FPCSR_FS        = 0x01000000;
 
-const TLBHI_VPN2MASK    = 0xffffe000;
-const TLBHI_VPN2MASK_NEG= 0x00001fff;
-const TLBHI_VPN2SHIFT   = 13;
-const TLBHI_PIDMASK     = 0xff;
-const TLBHI_PIDSHIFT    = 0;
-const TLBHI_NPID        = 255;
+// TODO: rename PID -> ASID
+const TLBHI_RMASK = 0xc000000000000000n;
+const TLBHI_VPN2MASK = 0x000000ffffffe000n;
+const TLBHI_PIDMASK = 0xffn;
 
 const entryHiWritableBits = 0xc00000ffffffe0ffn;
 
-const TLBLO_PFNMASK     = 0x3fffffc0;
+const TLBLO_PFNMASK     = 0x3fffffc0; // This looks incorrect should be 0x03ff_ffc0
 const TLBLO_PFNSHIFT    = 6;
 const TLBLO_CACHMASK    = 0x38;
 const TLBLO_CACHSHIFT   = 3;
@@ -233,24 +231,32 @@ class TLBEntry {
   constructor() {
     // TLB state (as configured by application).
     this.pagemask = 0;
-    this.hi = 0;
+    this.hi = 0n;
     this.pfne = 0;
     this.pfno = 0;
     this.global = 0;
 
     // Derived state (cached for performance).
-    this.mask = 0;
-    this.vpnmask = ~0 >>> 0;
+    this.offsetMask = 0;
+    this.vpnmask64 = TLBHI_VPN2MASK;
 
-    this.addrcheck = 0;
-    this.pfnehi = 0;
-    this.pfnohi = 0;
+    this.vpn2bits = 0n;
+    this.physEven = 0;
+    this.physOdd = 0;
     this.checkbit = 0;
   }
 
+  /**
+   * 
+   * @param {number} index 
+   * @param {number} pagemask 
+   * @param {bigint} hi 
+   * @param {number} entrylo0 
+   * @param {number} entrylo1 
+   */
   update(index, pagemask, hi, entrylo0, entrylo1) {
     if (kDebugTLB) {
-      logger.log(`TLB update: index=${index}, pagemask=${toString32(pagemask)}, entryhi=${toString32(hi)}, entrylo0=${toString32(entrylo0)}, entrylo1=${toString32(entrylo1)}`);
+      logger.log(`TLB update: index=${index}, pagemask=${toString32(pagemask)}, entryhi=${toString64_bigint(hi)}, entrylo0=${toString32(entrylo0)}, entrylo1=${toString32(entrylo1)}`);
       logger.log(`       ${pageMaskName(pagemask)} Pagesize`);
     }
 
@@ -260,13 +266,14 @@ class TLBEntry {
     this.pfno = entrylo1;
     this.global = (entrylo0 & entrylo1 & TLBLO_G);
 
-    this.mask = this.pagemask | pageMaskLowBits;
-    this.vpnmask = (~this.mask) >>> 0;
+    this.offsetMask = (this.pagemask | pageMaskLowBits) >>> 1;
 
-    this.addrcheck = (hi & this.vpnmask) >>> 0;
-
-    this.pfnehi = (this.pfne << TLBLO_PFNSHIFT) & (this.vpnmask >>> 1);
-    this.pfnohi = (this.pfno << TLBLO_PFNSHIFT) & (this.vpnmask >>> 1);
+    // VPN mask is shrunk depending on the page size (larger page -> smaller VPN).
+    this.vpnmask64 = TLBHI_VPN2MASK & BigInt(~this.pagemask);
+    this.vpn2bits = hi & this.vpnmask64;
+    
+    this.physEven = (this.pfne << 6) & ~this.offsetMask;
+    this.physOdd = (this.pfno << 6) & ~this.offsetMask;
 
     this.checkbit = pageMaskCheckbit(this.pagemask);
   }
@@ -500,7 +507,7 @@ class CPU0 {
       this.controlRegU64[i] = 0n;
     }
     for (let i = 0; i < 32; ++i) {
-      this.tlbEntries[i].update(i, 0, 0x80000000, 0, 0);
+      this.tlbEntries[i].update(i, 0, 0x80000000n, 0, 0);
     }
 
     this.pc = 0;
@@ -799,7 +806,8 @@ class CPU0 {
     this.setBadVAddr(address);
     this.setContext(address);
     this.setXContext(address);
-    this.maskControlBits32(cpu0_constants.controlEntryHi, TLBHI_VPN2MASK, address);
+    // TODO: plumb through 64 bit addresses.
+    this.maskControlBits64(cpu0_constants.controlEntryHi, TLBHI_VPN2MASK, BigInt(address));
 
     // XXXX check we're not inside exception handler before snuffing CAUSE reg?
     this.raiseException(CAUSE_EXCMASK | CAUSE_CEMASK, exc_code, vec);
@@ -939,7 +947,7 @@ class CPU0 {
   setTLB(indexRaw) {
     const index = indexRaw & 31;
     const pagemask = this.getControlU32(cpu0_constants.controlPageMask);
-    const entryhi = this.getControlU32(cpu0_constants.controlEntryHi);
+    const entryhi = this.getControlU64(cpu0_constants.controlEntryHi);
     const entrylo1 = this.getControlU32(cpu0_constants.controlEntryLo1);
     const entrylo0 = this.getControlU32(cpu0_constants.controlEntryLo0);
 
@@ -958,36 +966,46 @@ class CPU0 {
     const index = this.getControlU32(cpu0_constants.controlIndex) & 0x1f;
     const tlb = this.tlbEntries[index];
 
+    // TODO: can hiMask be simplified (perhaps bake the mask into the tlb.hi value)?
+    // TODO: Why does the pfn mask not seem to match TLBLO_PFNMASK? Is ultra header buggy?
+    const hiMask = (TLBHI_RMASK | TLBHI_VPN2MASK | TLBHI_PIDMASK) & BigInt(~tlb.pagemask);
+    const pfnMask = 0x03ff_ffff & ~TLBLO_G;
+
     this.setControlU32(cpu0_constants.controlPageMask, tlb.pagemask);
-    this.setControlU32(cpu0_constants.controlEntryHi, tlb.hi);
-    this.setControlU32(cpu0_constants.controlEntryLo0, tlb.pfne | tlb.global);
-    this.setControlU32(cpu0_constants.controlEntryLo1, tlb.pfno | tlb.global);
+    this.setControlU64(cpu0_constants.controlEntryHi, tlb.hi & hiMask);
+    this.setControlU32(cpu0_constants.controlEntryLo0, (tlb.pfne & pfnMask) | tlb.global);
+    this.setControlU32(cpu0_constants.controlEntryLo1, (tlb.pfno & pfnMask) | tlb.global);
 
     if (kDebugTLB) {
       logger.log('TLB Read Index ' + toString8(index) + '.');
       logger.log('  PageMask: ' + toString32(this.getControlU32(cpu0_constants.controlPageMask)));
-      logger.log('  EntryHi:  ' + toString32(this.getControlU32(cpu0_constants.controlEntryHi)));
+      logger.log('  EntryHi:  ' + toString64_bigint(this.getControlU64(cpu0_constants.controlEntryHi)));
       logger.log('  EntryLo0: ' + toString32(this.getControlU32(cpu0_constants.controlEntryLo0)));
       logger.log('  EntryLo1: ' + toString32(this.getControlU32(cpu0_constants.controlEntryLo1)));
     }
   }
 
   tlbProbe() {
-    const entryHi = this.getControlU32(cpu0_constants.controlEntryHi);
-    const entryHiVpn2 = entryHi & TLBHI_VPN2MASK;
+    const entryHi = this.getControlU64(cpu0_constants.controlEntryHi);
     const entryHiPID = entryHi & TLBHI_PIDMASK;
 
     for (let i = 0; i < 32; ++i) {
       const tlb = this.tlbEntries[i];
-      if ((tlb.hi & TLBHI_VPN2MASK) === entryHiVpn2) {
-        if (((tlb.hi & TLBHI_PIDMASK) === entryHiPID) || tlb.global) {
-          if (kDebugTLB) {
-            logger.log('TLB Probe. EntryHi:' + toString32(entryHi) + '. Found matching TLB entry - ' + toString8(i));
-          }
-          this.setControlU32(cpu0_constants.controlIndex, i);
-          return;
-        }
+      // VPN and R should match.
+      const vpnAndRMask = tlb.vpnmask64 | TLBHI_RMASK;
+      if ((tlb.hi & vpnAndRMask) !== (entryHi & vpnAndRMask)) {
+        continue;
       }
+      // ASID should match, or should be global.
+      if (!tlb.global && ((tlb.hi & TLBHI_PIDMASK) !== entryHiPID)) {
+        continue;
+      }
+
+      if (kDebugTLB) {
+        logger.log('TLB Probe. EntryHi:' + toString32(entryHi) + '. Found matching TLB entry - ' + toString8(i));
+      }
+      this.setControlU32(cpu0_constants.controlIndex, i);
+      return;
     }
 
     if (kDebugTLB) {
@@ -997,20 +1015,26 @@ class CPU0 {
   }
 
   tlbFindEntry(address) {
+    const entryHi = this.getControlU64(cpu0_constants.controlEntryHi);
+    const entryHiPID = entryHi & TLBHI_PIDMASK;
+
+    // TODO: plumb through 64 bit addresses.
+    const address64 = BigInt(address >>> 0);
+
     for (let i = 0; i < 32; ++i) {
       // TODO: use MRU cache here.
       const tlb = this.tlbEntries[i];
 
-      if ((address & tlb.vpnmask) === tlb.addrcheck) {
-        if (!tlb.global) {
-          const ehi = this.getControlU32(cpu0_constants.controlEntryHi);
-          if ((tlb.hi & TLBHI_PIDMASK) !== (ehi & TLBHI_PIDMASK)) {
-            // Entries ASID must match
-            continue;
-          }
-        }
-        return tlb;
+      // VPN should match.
+      // TODO: also R?
+      if ((address64 & tlb.vpnmask64) !== tlb.vpn2bits) {
+        continue;
       }
+      if (!tlb.global && ((tlb.hi & TLBHI_PIDMASK) !== entryHiPID)) {
+        // ASID should match, or should be global.
+        continue;
+      }
+      return tlb;
     }
 
     return null;
@@ -1024,13 +1048,13 @@ class CPU0 {
 
     const odd = address & tlb.checkbit;
     const entryLo = odd ? tlb.pfno : tlb.pfne;
-    const highBits = odd ? tlb.pfnohi : tlb.pfnehi;
-    const maskedAddress = address & (tlb.mask >>> 1);
-
     if ((entryLo & TLBLO_V) === 0) {
       return 0;
     }
-    return highBits | maskedAddress;
+
+    const phys = odd ? tlb.physOdd : tlb.physEven;
+    const offset = address & tlb.offsetMask;
+    return phys | offset;
   }
 
   translateRead(address) {
@@ -1042,14 +1066,14 @@ class CPU0 {
 
     const odd = address & tlb.checkbit;
     const entryLo = odd ? tlb.pfno : tlb.pfne;
-    const highBits = odd ? tlb.pfnohi : tlb.pfnehi;
-    const maskedAddress = address & (tlb.mask >>> 1);
-
     if ((entryLo & TLBLO_V) === 0) {
       this.raiseTLBException(address, causeExcCodeTLBL, E_VEC)
       throw new TLBException(address);
     }
-    return highBits | maskedAddress;
+
+    const phys = odd ? tlb.physOdd : tlb.physEven;
+    const offset = address & tlb.offsetMask;
+    return phys | offset;
   }
 
   translateWrite(address) {
@@ -1061,9 +1085,6 @@ class CPU0 {
 
     const odd = address & tlb.checkbit;
     const entryLo = odd ? tlb.pfno : tlb.pfne;
-    const highBits = odd ? tlb.pfnohi : tlb.pfnehi;
-    const maskedAddress = address & (tlb.mask >>> 1);
-
     if ((entryLo & TLBLO_V) === 0) {
       this.raiseTLBException(address, causeExcCodeTLBS, E_VEC);
       throw new TLBException(address);
@@ -1072,7 +1093,10 @@ class CPU0 {
       this.raiseTLBException(address, causeExcCodeMod, E_VEC);
       throw new TLBException(address);
     }
-    return highBits | maskedAddress;
+
+    const phys = odd ? tlb.physOdd : tlb.physEven;
+    const offset = address & tlb.offsetMask;
+    return phys | offset;
   }
 }
 
