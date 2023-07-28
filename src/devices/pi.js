@@ -307,13 +307,13 @@ export class PIRamDevice extends Device {
       this.mem.set32(ea, value);
       switch (ramOffset) {
         case 0x24: logger.log(`Writing CIC values: ${toString32(value)}`); break;
-        case 0x3c: logger.log(`Writing Control byte: ${toString32(value)}`); this.pifUpdateControl(); break;
+        case 0x3c: logger.log(`Writing Control byte: ${toString32(value)}`); this.updateControl(); break;
         default: logger.log(`Writing directly to PI ram [${toString32(address)}] <-- ${toString32(value)}`); break;
       }
     }
   }
 
-  pifUpdateControl() {
+  updateControl() {
     const piRom = new Uint8Array(this.mem.arrayBuffer, 0x000, 0x7c0);
     const piRam = new Uint8Array(this.mem.arrayBuffer, 0x7c0, 0x040);
     const command = piRam[0x3f];
