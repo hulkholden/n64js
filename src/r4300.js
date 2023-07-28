@@ -269,11 +269,13 @@ class TLBEntry {
       logger.log(`       ${pageMaskName(pagemask)} Pagesize`);
     }
 
+    const global = entrylo0 & entrylo1 & TLBLO_G;
+
     this.pagemask = canonicalisePageMask(pagemask);
     this.hi = hi;
-    this.pfne = entrylo0;
-    this.pfno = entrylo1;
-    this.global = (entrylo0 & entrylo1 & TLBLO_G);
+    this.pfne = (entrylo0 & ~TLBLO_G) | global;
+    this.pfno = (entrylo1 & ~TLBLO_G) | global;
+    this.global = global;
 
     this.offsetMask = (this.pagemask | pageMaskLowBits) >>> 1;
 
@@ -977,12 +979,12 @@ class CPU0 {
     // TODO: can hiMask be simplified (perhaps bake the mask into the tlb.hi value)?
     // TODO: Why does the pfn mask not seem to match TLBLO_PFNMASK? Is ultra header buggy?
     const hiMask = (TLBHI_RMASK | TLBHI_VPN2MASK | TLBHI_PIDMASK) & BigInt(~tlb.pagemask);
-    const pfnMask = 0x03ff_ffff & ~TLBLO_G;
+    const pfnMask = 0x03ff_ffff;
 
     this.setControlU32(cpu0_constants.controlPageMask, tlb.pagemask);
     this.setControlU64(cpu0_constants.controlEntryHi, tlb.hi & hiMask);
-    this.setControlU32(cpu0_constants.controlEntryLo0, (tlb.pfne & pfnMask) | tlb.global);
-    this.setControlU32(cpu0_constants.controlEntryLo1, (tlb.pfno & pfnMask) | tlb.global);
+    this.setControlU32(cpu0_constants.controlEntryLo0, tlb.pfne & pfnMask);
+    this.setControlU32(cpu0_constants.controlEntryLo1, tlb.pfno & pfnMask);
 
     if (kDebugTLB) {
       logger.log('TLB Read Index ' + toString8(index) + '.');
