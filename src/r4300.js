@@ -130,7 +130,9 @@ const FPCSR_FS        = 0x01000000;
 
 // TODO: rename PID -> ASID
 const TLBHI_RMASK = 0xc000000000000000n;
+const TLBHI_RSHIFT = 62n;
 const TLBHI_VPN2MASK = 0x000000ffffffe000n;
+const TLBHI_VPN2SHIFT = 13n;
 const TLBHI_PIDMASK = 0xffn;
 
 const entryHiWritableBits = 0xc00000ffffffe0ffn;
@@ -171,7 +173,9 @@ const TLBCTXT_VPNSHIFT  = 4;
 const contextWriteableBits = ~0x7fffffn;
 
 const xContextBadVPN2Mask = 0x7fff_fff0n;
+const xContextBadVPN2Shift = 4n;
 const xContextRMask = 0x1_8000_0000n;
+const xContextRShift = 31n;
 
 const TLBPGMASK_4K      = 0x00000000;
 const TLBPGMASK_16K     = 0x00006000;
@@ -194,6 +198,11 @@ const kStuffToDoBreakout        = 1<<2;
 const kEventVbl          = 0;
 const kEventCompare      = 1;
 const kEventRunForCycles = 2;
+
+// TODO: figure out what masking and shifting constants this should use.
+function getAddress32VPN2(address) { return (address >>> 13);}
+function getAddress64VPN2(address) { return (address & TLBHI_VPN2MASK) >> TLBHI_VPN2SHIFT;}
+function getAddress64R(address) { return (address & TLBHI_RMASK) >> TLBHI_RSHIFT;}
 
 // Needs to be callable from dynarec.
 n64js.getSyncFlow = () => syncFlow;
@@ -726,29 +735,18 @@ class CPU0 {
     return false;
   }
 
-  raiseAdELException(address) {
-    this.setBadVAddr(address);
-    this.setContext(address);
-    this.setXContext(address);
-    this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, causeExcCodeAdEL);
+  setBadVAddr(address64) {
+    this.setControlU64(cpu0_constants.controlBadVAddr, address64);
   }
 
-  setBadVAddr(address) {
-    this.setControlS32Extend(cpu0_constants.controlBadVAddr, address);
-  }
-
-  setContext(address) {
-    const context = ((address >>> 13) << TLBCTXT_VPNSHIFT);
+  setContext(address64) {
+    const address32 = Number(address64 & 0xffffffffn);
+    const context = getAddress32VPN2(address32) << TLBCTXT_VPNSHIFT;
     this.maskControlBits32(cpu0_constants.controlContext, TLBCTXT_VPNMASK, context);
   }
 
-  setXContext(address) {
-    // TODO: is it correct to assume the address is 64 bits?
-    const address64 = BigInt(address);
-    const badvpn2 = (((address64 >> 13n) & 0x7ffffffn) << 4n) ;
-    const r =  (((address64 >> 62n) & 3n) << 31n);
-
-    const xcontext = badvpn2 | r;
+  setXContext(address64) {
+    const xcontext = (getAddress64VPN2(address64) << xContextBadVPN2Shift) | (getAddress64R(address64) << xContextRShift);
     const xContextMask = xContextBadVPN2Mask | xContextRMask;
     this.maskControlBits64(cpu0_constants.controlXContext, xContextMask, xcontext);
   }
@@ -802,15 +800,25 @@ class CPU0 {
     this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, causeExcCodeFPE);
   }
 
-  raiseTLBException(address, exc_code, vec) { 
-    this.setBadVAddr(address);
-    this.setContext(address);
-    this.setXContext(address);
-    // TODO: plumb through 64 bit addresses.
-    this.maskControlBits64(cpu0_constants.controlEntryHi, TLBHI_VPN2MASK, BigInt(address));
+  raiseTLBException(address32, exc_code, vec) { 
+    // TODO: plumb 64 bit addresses everywhere.
+    const address64 = BigInt(address32 >>> 0);
+    this.setBadVAddr(address64);
+    this.setContext(address64);
+    this.setXContext(address64);
+    this.maskControlBits64(cpu0_constants.controlEntryHi, TLBHI_VPN2MASK, address64);
 
     // XXXX check we're not inside exception handler before snuffing CAUSE reg?
     this.raiseException(CAUSE_EXCMASK | CAUSE_CEMASK, exc_code, vec);
+  }
+
+  raiseAdELException(address32) {
+    // TODO: plumb 64 bit addresses everywhere.
+    const address64 = BigInt(address32 >>> 0);
+    this.setBadVAddr(address64);
+    this.setContext(address64);
+    this.setXContext(address64);
+    this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, causeExcCodeAdEL);
   }
 
   handleInterrupt() {
