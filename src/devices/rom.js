@@ -62,10 +62,12 @@ export class ROMD1A2Device extends Device {
     }
 
     write16(address, value) {
-        this.cacheLastWrite((value & 0xffff) << 16);
+        const shift = 8 * (2 - (address & 2));
+        this.cacheLastWrite((value << shift) & 0xffffffff);
     }
     write8(address, value) {
-        this.cacheLastWrite((value & 0xff) << 24);
+        const shift = 8 * (3 - (address & 3));
+        this.cacheLastWrite((value << shift) & 0xffffffff);
     }
 
     readU32(address) {
