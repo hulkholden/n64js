@@ -408,6 +408,27 @@ class CPU0 {
     this.store64masked = memaccess.store64masked;
   }
 
+  conditionalBranch(cond, offset) {
+    const effectiveOffset = cond ? (offset * 4) : 4;
+    this.branchTarget = this.pc + 4 + effectiveOffset;
+  }
+
+  conditionalBranchLikely(cond, offset) {
+    if (cond) {
+      this.branchTarget = this.pc + 4 + (offset * 4);
+    } else {
+      this.nextPC += 4;  // Skip the next instruction
+    }
+  }
+
+  jump(pc) {
+    //if (pc < 0) {
+    //  logger.log('Oops, branching to negative address: ' + pc);
+    //  throw 'Oops, branching to negative address: ' + pc;
+    //}
+    this.branchTarget = pc;
+  }
+
   getCount() {
     return this.getControlU32(cpu0_constants.controlCount);
   }
@@ -838,7 +859,7 @@ class CPU0 {
   raiseException(mask, exception, excVec) {
     this.maskControlBits32(cpu0_constants.controlCause, mask, exception);
     this.setControlBits32(cpu0_constants.controlStatus, SR_EXL);
-    
+
     if (this.delayPC) {
       this.setControlBits32(cpu0_constants.controlCause, CAUSE_BD);
       this.setControlS32Extend(cpu0_constants.controlEPC, this.pc - 4);
@@ -1208,14 +1229,6 @@ function   base(i) { return (i>>>21)&0x1f; }
 function branchAddress(pc, i) { return ((pc + 4) + (offset(i) * 4)) >>> 0; }
 //function branchAddress(pc,i) { return (((pc>>>2)+1) + offset(i))<<2; }  // NB: convoluted calculation to avoid >>>0 (deopt)
 function jumpAddress(pc, i) { return ((pc & 0xf0000000) | (target(i) * 4)) >>> 0; }
-
-function performBranch(new_pc) {
-  //if (new_pc < 0) {
-  //  logger.log('Oops, branching to negative address: ' + new_pc);
-  //  throw 'Oops, branching to negative address: ' + new_pc;
-  //}
-  cpu0.branchTarget = new_pc;
-}
 
 function genCalcAddressS32(ctx) {
   const base = ctx.instr_base();
@@ -1892,7 +1905,7 @@ function generateJ(ctx) {
   return generateBranchOpBoilerplate(impl, ctx, false);
 }
 function executeJ(i) {
-  performBranch(jumpAddress(cpu0.pc, i));
+  cpu0.jump(jumpAddress(cpu0.pc, i));
 }
 
 function generateJAL(ctx) {
@@ -1908,7 +1921,7 @@ function generateJAL(ctx) {
 }
 function executeJAL(i) {
   cpu0.setRegS32Extend(cpu0_constants.RA, cpu0.nextPC + 4);
-  performBranch(jumpAddress(cpu0.pc, i));
+  cpu0.jump(jumpAddress(cpu0.pc, i));
 }
 
 function generateJALR(ctx) {
@@ -1927,7 +1940,7 @@ function generateJALR(ctx) {
 function executeJALR(i) {
   const new_pc = cpu0.getRegU32Lo(rs(i));
   cpu0.setRegS32Extend(rd(i), cpu0.nextPC + 4);
-  performBranch(new_pc);
+  cpu0.jump(new_pc);
 }
 
 function generateJR(ctx) {
@@ -1936,7 +1949,7 @@ function generateJR(ctx) {
   return generateBranchOpBoilerplate(impl, ctx, false);
 }
 function executeJR(i) {
-  performBranch(cpu0.getRegU32Lo(rs(i)));
+  cpu0.jump(cpu0.getRegU32Lo(rs(i)));
 }
 
 function generateBEQ(ctx) {
@@ -1960,6 +1973,8 @@ function generateBEQ(ctx) {
       ctx.bailOut = true;
     }
     impl += `  c.delayPC = ${toString32(addr)};\n`;
+    impl += '} else {\n';
+    impl += `  c.delayPC = ${toString32(ctx.pc + 8)};\n`;
     impl += '}\n';
   }
 
@@ -1967,10 +1982,11 @@ function generateBEQ(ctx) {
 }
 
 function executeBEQ(i) {
-  if (cpu0.getRegU64(rs(i)) === cpu0.getRegU64(rt(i))) {
-    if (offset(i) === -1)
-      cpu0.speedHack();
-    performBranch(branchAddress(cpu0.pc, i));
+  const cond = cpu0.getRegU64(rs(i)) === cpu0.getRegU64(rt(i));
+  cpu0.conditionalBranch(cond, offset(i));
+
+  if (cond && offset(i) === -1) {
+    cpu0.speedHack();
   }
 }
 
@@ -1990,11 +2006,8 @@ function generateBEQL(ctx) {
 }
 
 function executeBEQL(i) {
-  if (cpu0.getRegU64(rs(i)) === cpu0.getRegU64(rt(i))) {
-    performBranch(branchAddress(cpu0.pc, i));
-  } else {
-    cpu0.nextPC += 4;   // skip the next instruction
-  }
+  const cond = cpu0.getRegU64(rs(i)) === cpu0.getRegU64(rt(i));
+  cpu0.conditionalBranchLikely(cond, offset(i));
 }
 
 function generateBNE(ctx) {
@@ -2010,17 +2023,17 @@ function generateBNE(ctx) {
     ctx.bailOut = true;
   }
   impl += `  c.delayPC = ${toString32(addr)};\n`;
+  impl += '} else {\n';
+  impl += `  c.delayPC = ${toString32(ctx.pc + 8)};\n`;
   impl += '}\n';
 
   return generateBranchOpBoilerplate(impl, ctx, false);
 }
 
 function executeBNE(i) {
-  if (cpu0.getRegU64(rs(i)) !== cpu0.getRegU64(rt(i))) {
-    performBranch(branchAddress(cpu0.pc, i));
-  }
+  const cond = cpu0.getRegU64(rs(i)) !== cpu0.getRegU64(rt(i));
+  cpu0.conditionalBranch(cond, offset(i));
 }
-
 
 function generateBNEL(ctx) {
   const s = ctx.instr_rs();
@@ -2039,11 +2052,8 @@ function generateBNEL(ctx) {
 }
 
 function executeBNEL(i) {
-  if (cpu0.getRegU64(rs(i)) !== cpu0.getRegU64(rt(i))) {
-    performBranch(branchAddress(cpu0.pc, i));
-  } else {
-    cpu0.nextPC += 4;   // skip the next instruction
-  }
+  const cond = cpu0.getRegU64(rs(i)) !== cpu0.getRegU64(rt(i));
+  cpu0.conditionalBranchLikely(cond, offset(i));
 }
 
 // Branch Less Than or Equal To Zero
@@ -2054,24 +2064,21 @@ function generateBLEZ(ctx) {
   const impl = dedent(`
     if ( ${genSrcRegS64(s)} <= 0n) {
       c.delayPC = ${toString32(addr)};
+    } else {
+      c.delayPC = ${toString32(ctx.pc + 8)};
     }`);
 
   return generateBranchOpBoilerplate(impl, ctx, false);
 }
 
 function executeBLEZ(i) {
-  if (cpu0.getRegS64(rs(i)) <= 0n) {
-    performBranch(branchAddress(cpu0.pc, i));
-  }
+  const cond = cpu0.getRegS64(rs(i)) <= 0n;
+  cpu0.conditionalBranch(cond, offset(i));
 }
 
 function executeBLEZL(i) {
-  // NB: if rs == r0 then this branch is always taken
-  if (cpu0.getRegS64(rs(i)) <= 0n) {
-    performBranch(branchAddress(cpu0.pc, i));
-  } else {
-    cpu0.nextPC += 4;   // skip the next instruction
-  }
+  const cond = cpu0.getRegS64(rs(i)) <= 0n;
+  cpu0.conditionalBranchLikely(cond, offset(i));
 }
 
 // Branch Greater Than Zero
@@ -2082,23 +2089,21 @@ function generateBGTZ(ctx) {
   const impl = dedent(`
     if (${genSrcRegS64(s)} > 0) {
       c.delayPC = ${toString32(addr)};
+    } else {
+      c.delayPC = ${toString32(ctx.pc + 8)};
     }`);
 
   return generateBranchOpBoilerplate(impl, ctx, false);
 }
 
 function executeBGTZ(i) {
-  if (cpu0.getRegS64(rs(i)) > 0n) {
-    performBranch(branchAddress(cpu0.pc, i));
-  }
+  const cond = cpu0.getRegS64(rs(i)) > 0n;
+  cpu0.conditionalBranch(cond, offset(i));
 }
 
 function executeBGTZL(i) {
-  if (cpu0.getRegS64(rs(i)) > 0n) {
-    performBranch(branchAddress(cpu0.pc, i));
-  } else {
-    cpu0.nextPC += 4;   // skip the next instruction
-  }
+  const cond = cpu0.getRegS64(rs(i)) > 0n;
+  cpu0.conditionalBranchLikely(cond, offset(i));
 }
 
 // Branch Less Than Zero
@@ -2109,15 +2114,16 @@ function generateBLTZ(ctx) {
   const impl = dedent(`
     if (${genSrcRegS64(s)} < 0n) {
       c.delayPC = ${toString32(addr)};
+    } else {
+      c.delayPC = ${toString32(ctx.pc + 8)};
     }`);
 
   return generateBranchOpBoilerplate(impl, ctx, false);
 }
 
 function executeBLTZ(i) {
-  if (cpu0.getRegS64(rs(i)) < 0n) {
-    performBranch(branchAddress(cpu0.pc, i));
-  }
+  const cond = cpu0.getRegS64(rs(i)) < 0n;
+  cpu0.conditionalBranch(cond, offset(i));
 }
 
 function generateBLTZL(ctx) {
@@ -2135,29 +2141,20 @@ function generateBLTZL(ctx) {
 }
 
 function executeBLTZL(i) {
-  if (cpu0.getRegS64(rs(i)) < 0n) {
-    performBranch(branchAddress(cpu0.pc, i));
-  } else {
-    cpu0.nextPC += 4;   // skip the next instruction
-  }
+  const cond = cpu0.getRegS64(rs(i)) < 0n;
+  cpu0.conditionalBranchLikely(cond, offset(i));
 }
 
 function executeBLTZAL(i) {
   const cond = cpu0.getRegS64(rs(i)) < 0n;
   cpu0.setRegS32Extend(cpu0_constants.RA, cpu0.nextPC + 4);
-  if (cond) {
-    performBranch(branchAddress(cpu0.pc, i));
-  }
+  cpu0.conditionalBranch(cond, offset(i));
 }
 
 function executeBLTZALL(i) {
   const cond = cpu0.getRegS64(rs(i)) < 0;
   cpu0.setRegS32Extend(cpu0_constants.RA, cpu0.nextPC + 4);
-  if (cond) {
-    performBranch(branchAddress(cpu0.pc, i));
-  } else {
-    cpu0.nextPC += 4;   // skip the next instruction
-  }
+  cpu0.conditionalBranchLikely(cond, offset(i));
 }
 
 // Branch Greater Than Zero
@@ -2168,15 +2165,16 @@ function generateBGEZ(ctx) {
   const impl = dedent(`
     if (${genSrcRegS64(s)} >= 0n) {
       c.delayPC = ${toString32(addr)};
+    } else {
+      c.delayPC = ${toString32(ctx.pc + 8)};
     }`);
 
   return generateBranchOpBoilerplate(impl, ctx, false);
 }
 
 function executeBGEZ(i) {
-  if (cpu0.getRegS64(rs(i)) >= 0n) {
-    performBranch(branchAddress(cpu0.pc, i));
-  }
+  const cond = cpu0.getRegS64(rs(i)) >= 0n;
+  cpu0.conditionalBranch(cond, offset(i));
 }
 
 function generateBGEZL(ctx) {
@@ -2194,29 +2192,20 @@ function generateBGEZL(ctx) {
 }
 
 function executeBGEZL(i) {
-  if (cpu0.getRegS64(rs(i)) >= 0n) {
-    performBranch(branchAddress(cpu0.pc, i));
-  } else {
-    cpu0.nextPC += 4;   // skip the next instruction
-  }
+  const cond = cpu0.getRegS64(rs(i)) >= 0n;
+  cpu0.conditionalBranchLikely(cond, offset(i));
 }
 
 function executeBGEZAL(i) {
   const cond = cpu0.getRegS64(rs(i)) >= 0n;
   cpu0.setRegS32Extend(cpu0_constants.RA, cpu0.nextPC + 4);
-  if (cond) {
-    performBranch(branchAddress(cpu0.pc, i));
-  }
+  cpu0.conditionalBranch(cond, offset(i));
 }
 
 function executeBGEZALL(i) {
   const cond = cpu0.getRegS64(rs(i)) >= 0n;
   cpu0.setRegS32Extend(cpu0_constants.RA, cpu0.nextPC + 4);
-  if (cond) {
-    performBranch(branchAddress(cpu0.pc, i));
-  } else {
-    cpu0.nextPC += 4;   // skip the next instruction
-  }
+  cpu0.conditionalBranchLikely(cond, offset(i));
 }
 
 function generateADDI(ctx) {
@@ -2845,15 +2834,22 @@ function generateBCInstrStub(ctx) {
   ctx.fragment.usesCop1 = true;
   ctx.isTrivial = false; // NB: not trivial - branches!
 
-  let impl = '';
   const test = condition ? '!==' : '===';
-  impl += `if ((cpu1.control[31] & FPCSR_C) ${test} 0) {\n`;
-  impl += `  c.branchTarget = ${toString32(target)};\n`;
+  
+  let impl = `const cond = (cpu1.control[31] & FPCSR_C) ${test} 0;\n`;
   if (likely) {
+    impl += `if (cond) {\n`;
+    impl += `  c.branchTarget = ${toString32(target)};\n`;
     impl += '} else {\n';
     impl += '  c.nextPC += 4;\n';
+    impl += '}\n';
+  } else {
+    impl += `if (cond) {\n`;
+    impl += `  c.branchTarget = ${toString32(target)};\n`;
+    impl += '} else {\n';
+    impl += `  c.branchTarget = ${toString32(ctx.pc + 8)};\n`;
+    impl += '}\n';
   }
-  impl += '}\n';
   return impl;
 }
 
@@ -2864,12 +2860,11 @@ function executeBCInstr(i) {
   const likely = (i & 0x20000) !== 0;
   const cc = (cpu1.control[31] & FPCSR_C) !== 0;
 
-  if (cc === condition) {
-    performBranch(branchAddress(cpu0.pc, i));
+  const cond = cc === condition;
+  if (likely) {
+    cpu0.conditionalBranchLikely(cond, offset(i));
   } else {
-    if (likely) {
-      cpu0.nextPC += 4;   // skip the next instruction
-    }
+    cpu0.conditionalBranch(cond, offset(i));
   }
 }
 
