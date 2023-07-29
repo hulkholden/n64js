@@ -3362,13 +3362,12 @@ function generateCop1(ctx) {
   if (ctx.fragment.cop1statusKnown) {
     // Assert that cop1 is enabled
     impl += ctx.genAssert('(c.getControlU32(12) & SR_CU1) !== 0', 'cop1 should be enabled');
-    impl += op_impl;
-
+    impl += addNewlines(op_impl);
   } else {
     impl += 'if( (c.getControlU32(12) & SR_CU1) === 0 ) {\n';
     impl += `  n64js.executeCop1_disabled(${toString32(ctx.instruction)});\n`;
     impl += '} else {\n';
-    impl += '  ' + op_impl;
+    impl += '  ' + addNewlines(op_impl);
     impl += '}\n';
 
     ctx.isTrivial = false;    // Not trivial!
