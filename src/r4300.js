@@ -454,6 +454,10 @@ class CPU0 {
   }
 
   setRegU64(r, v) {
+    // TODO: Avoid the need for this in dynarec code.
+    if (r == 0) {
+      return;
+    }
     // This shouldn't be needed but there seems to be a bug with BigInts > 64 bits.
     // TODO: check still needed with BigUint64Array.
     const truncated = v & u64Max;
@@ -461,26 +465,46 @@ class CPU0 {
   }
 
   setRegU64Masked(r, v, m) {
+    // TODO: Avoid the need for this in dynarec code.
+    if (r == 0) {
+      return;
+    }
     this.gprU64[r] = (this.gprU64[r] & ~m) | (v & m);
   }
 
   setRegS64LoHi(r, lo, hi) {
+    // TODO: Avoid the need for this in dynarec code.
+    if (r == 0) {
+      return;
+    }
     this.gprS32[r * 2 + 0] = lo;
     this.gprS32[r * 2 + 1] = hi;    
   }
 
   setRegS32ExtendMasked(r, v, m) {
+    // TODO: Avoid the need for this in dynarec code.
+    if (r == 0) {
+      return;
+    }
     const result = (this.gprS32[r * 2 + 0] & ~m) | (v & m);
     this.gprS32[r * 2 + 0] = result;
     this.gprS32[r * 2 + 1] = result >> 31;
   }
 
   setRegS32Extend(r, v) {
+    // TODO: Avoid the need for this in dynarec code.
+    if (r == 0) {
+      return;
+    }
     this.gprS32[r * 2 + 0] = v;
     this.gprS32[r * 2 + 1] = v >> 31;
   }
 
   setRegU32Extend(r, v) {
+    // TODO: Avoid the need for this in dynarec code.
+    if (r == 0) {
+      return;
+    }
     this.gprU32[r * 2 + 0] = v;
     this.gprU32[r * 2 + 1] = 0;
   }
@@ -3859,12 +3883,6 @@ function runImpl() {
 
         c.branchTarget = 0;
         executeOp(instruction);
-
-        // Force r0 to be 0.
-        // TODO: figure out if we want to do this here, or enforce via
-        // any instruction that writes to registers.
-        // TODO: figure out where to do this in generated code.
-        cpu0.setRegU64(0, 0n);
 
         c.pc = c.nextPC;
         c.delayPC = c.branchTarget;
