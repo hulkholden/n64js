@@ -647,8 +647,7 @@ class CPU0 {
         break;
 
       case cpu0_constants.controlXContext:
-        // TODO: only the high bits are writable but we don't implement 64 bit registers yet.
-        // Just no-op for now.
+        this.maskControlBits64(controlReg, 0xFFFFFFFE_00000000n, newValue);
         break;
 
       case cpu0_constants.controlEPC:
@@ -1845,12 +1844,12 @@ function generateMTC0(ctx) {
     ctx.fragment.cop1statusKnown = false;
   }
 
-  const impl = `c.moveToControl(${s}, BigInt(${genSrcRegU32Lo(t)}))`;
+  const impl = `c.moveToControl(${s}, BigInt(${genSrcRegS32Lo(t)}))`;
   return generateGenericOpBoilerplate(impl, ctx);
 }
 
 function executeMTC0(i) {
-  cpu0.moveToControl(fs(i), BigInt(cpu0.getRegU32Lo(rt(i))));
+  cpu0.moveToControl(fs(i), BigInt(cpu0.getRegS32Lo(rt(i))));
 }
 
 function executeDMTC0(i) {
