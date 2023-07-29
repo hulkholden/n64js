@@ -179,6 +179,8 @@ const xContextBadVPN2Shift = 4n;
 const xContextRMask = 0x1_8000_0000n;
 const xContextRShift = 31n;
 
+const xContextWritableBits = 0xfffffffe_00000000n;
+
 const TLBPGMASK_4K      = 0x00000000;
 const TLBPGMASK_16K     = 0x00006000;
 const TLBPGMASK_64K     = 0x0001e000;
@@ -192,6 +194,8 @@ const pageMaskLowBits = 0x00001fff;
 const pageMaskWritableBits = 0x01ffe000n;
 
 const configWritableBits = 0x0f00800fn;
+
+const llAddrWritableBits = 0xffffffffn;
 
 const kStuffToDoHalt            = 1<<0;
 const kStuffToDoCheckInterrupts = 1<<1;
@@ -647,7 +651,7 @@ class CPU0 {
         break;
 
       case cpu0_constants.controlXContext:
-        this.maskControlBits64(controlReg, 0xFFFFFFFE_00000000n, newValue);
+        this.maskControlBits64(controlReg, xContextWritableBits, newValue);
         break;
 
       case cpu0_constants.controlEPC:
@@ -657,7 +661,7 @@ class CPU0 {
         break;
 
       case cpu0_constants.controlLLAddr:
-        this.setControlU64(controlReg, newValue);
+        this.maskControlBits64(controlReg, llAddrWritableBits, newValue);
         break;
 
       case cpu0_constants.controlInvalid7:
