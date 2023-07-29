@@ -13,6 +13,20 @@ export const SP_DMA_FULL_REG = 0x14;
 export const SP_DMA_BUSY_REG = 0x18;
 export const SP_SEMAPHORE_REG = 0x1C;
 
+const memAddrWritableBits = 0xffff_fff8;
+const dramAddrWritableBits = 0xffff_fff8;
+const readLenWritableBits = 0xff8f_fff8;
+const writeLenWritableBits = 0xff8f_fff8;
+
+const memAddrBankBit = 0x1000;
+
+const lenRegSkipMask = 0xfff0_0000;
+const lenRegSkipShift = 20;
+const lenRegCountMask = 0x000f_f000;
+const lenRegCountShift = 12;
+const lenRegLenMask = 0x0000_0fff;
+const lenRegLenShift = 0;
+
 export const SP_CLR_HALT = 0x0000001;
 export const SP_SET_HALT = 0x0000002;
 export const SP_CLR_BROKE = 0x0000004;
@@ -58,13 +72,6 @@ export const SP_STATUS_SIG7 = 0x4000;
 export const SP_STATUS_YIELD = SP_STATUS_SIG0;
 export const SP_STATUS_YIELDED = SP_STATUS_SIG1;
 export const SP_STATUS_TASKDONE = SP_STATUS_SIG2;
-
-// TODO: dedupe.
-function memoryCopy(dst, dstoff, src, srcoff, len) {
-  for (let i = 0; i < len; ++i) {
-    dst.u8[dstoff + i] = src.u8[srcoff + i];
-  }
-}
 
 export class SPMemDevice extends Device {
   constructor(hardware, rangeStart, rangeEnd) {
@@ -112,6 +119,8 @@ export class SPRegDevice extends Device {
     super("SPReg", hardware, hardware.sp_reg, rangeStart, rangeEnd);
   }
 
+  // TODO: set SP_SEMAPHORE_REG to 1 after any read.
+
   write32(address, value) {
     const ea = this.calcWriteEA(address);
     if (ea + 4 > this.u8.length) {
@@ -120,27 +129,30 @@ export class SPRegDevice extends Device {
 
     switch (ea) {
       case SP_MEM_ADDR_REG:
+        // TODO: register is latched and shouldn't return this value immediately.
+        this.mem.set32(ea, value & memAddrWritableBits);
+        break;
       case SP_DRAM_ADDR_REG:
-      case SP_SEMAPHORE_REG:
-        this.mem.set32(ea, value);
+        // TODO: register is latched and shouldn't return this value immediately.
+        this.mem.set32(ea, value & dramAddrWritableBits);
         break;
       case SP_RD_LEN_REG:
-        this.mem.set32(ea, value);
+        this.mem.set32(ea, value & readLenWritableBits);
         this.spCopyFromRDRAM();
         break;
-
       case SP_WR_LEN_REG:
-        this.mem.set32(ea, value);
+        this.mem.set32(ea, value & writeLenWritableBits);
         this.spCopyToRDRAM();
         break;
-
       case SP_STATUS_REG:
         this.spUpdateStatus(value);
         break;
-
       case SP_DMA_FULL_REG:
       case SP_DMA_BUSY_REG:
-        // Prevent writing to read-only mem
+        // Unwritable.
+        break;
+      case SP_SEMAPHORE_REG:
+        this.mem.set32(ea, value);
         break;
 
       default:
@@ -234,32 +246,74 @@ export class SPRegDevice extends Device {
   }
 
   spCopyFromRDRAM() {
-    const spMemAddr = this.mem.getU32(SP_MEM_ADDR_REG);
-    const rdRamAddr = this.mem.getU32(SP_DRAM_ADDR_REG);
-    const rdLen = this.mem.getU32(SP_RD_LEN_REG);
-    const spLen = (rdLen & 0xfff) + 1;
+    const spMemAddr = this.mem.getU32(SP_MEM_ADDR_REG) & 0x1fff;
+    const rdRamAddr = this.mem.getU32(SP_DRAM_ADDR_REG) & 0x00ff_ffff;
+    const lenReg = this.mem.getU32(SP_RD_LEN_REG);
+
+    const len = (((lenReg & lenRegLenMask) >>> lenRegLenShift) | 7) + 1; // Add 1 then round to next multiple of 8.
+    const count = ((lenReg & lenRegCountMask) >>> lenRegCountShift) + 1;
+    const skip = ((lenReg & lenRegSkipMask) >>> lenRegSkipShift);
+  
+    const bankBit = spMemAddr & memAddrBankBit; // DMAs wrap within imem or dmem.
 
     if (!this.quiet) {
-      logger.log(`SP: copying from ram ${toString32(rdRamAddr)} to sp ${toString16(spMemAddr)}`);
+      logger.log(`SP: copying ${len} bytes from ram ${toString32(rdRamAddr)} to sp ${toString16(spMemAddr)}, count ${count}, skip ${skip}`);
     }
 
-    memoryCopy(this.hardware.sp_mem, spMemAddr & 0xfff, this.hardware.ram, rdRamAddr & 0xffffff, spLen);
+    let memOffset = spMemAddr;
+    let ramOffset = rdRamAddr;
+    for (let c = 0; c < count; c++) {
+      for (let i = 0; i < len; ++i) {
+        this.hardware.sp_mem.u8[(bankBit | (memOffset) & 0xfff)] = this.hardware.ram.u8[ramOffset];
+        memOffset++;
+        ramOffset++;
+      }
+      ramOffset += skip;
+    }
+
+    // Update registers at the end of the transfer.
+    // Address regs get set to the next memory address.
+    // Len reg has count set to zero and len set to 0xff8 (-8, counting down). Skip is unchanged.
+    this.mem.set32(SP_MEM_ADDR_REG, (bankBit | (memOffset) & 0xfff));
+    this.mem.set32(SP_DRAM_ADDR_REG, ramOffset);
+    this.mem.set32masked(SP_RD_LEN_REG, 0xff8 << lenRegLenShift, lenRegCountMask|lenRegLenMask);
 
     this.mem.setBits32(SP_DMA_BUSY_REG, 0);
     this.mem.clearBits32(SP_STATUS_REG, SP_STATUS_DMA_BUSY);
   }
 
   spCopyToRDRAM() {
-    const spMemAddr = this.mem.getU32(SP_MEM_ADDR_REG);
-    const rdRamAddr = this.mem.getU32(SP_DRAM_ADDR_REG);
-    const wrLen = this.mem.getU32(SP_WR_LEN_REG);
-    const spLen = (wrLen & 0xfff) + 1;
+    const spMemAddr = this.mem.getU32(SP_MEM_ADDR_REG) & 0x1fff;
+    const rdRamAddr = this.mem.getU32(SP_DRAM_ADDR_REG) & 0x00ff_ffff;
+    const lenReg = this.mem.getU32(SP_WR_LEN_REG);
+  
+    const len = (((lenReg & lenRegLenMask) >>> lenRegLenShift) | 7) + 1; // Add 1 then round to next multiple of 8.
+    const count = ((lenReg & lenRegCountMask) >>> lenRegCountShift) + 1;
+    const skip = ((lenReg & lenRegSkipMask) >>> lenRegSkipShift);
+
+    const bankBit = spMemAddr & memAddrBankBit; // DMAs wrap within imem or dmem.
 
     if (!this.quiet) {
-      logger.log(`SP: copying from sp ${toString16(spMemAddr)} to ram ${toString32(rdRamAddr)}`);
+      logger.log(`SP: copying ${len} bytes from sp ${toString16(spMemAddr)} to ram ${toString32(rdRamAddr)}, count ${count}, skip ${skip}`);
     }
 
-    memoryCopy(this.hardware.ram, rdRamAddr & 0xffffff, this.hardware.sp_mem, spMemAddr & 0xfff, spLen);
+    let ramOffset = rdRamAddr;
+    let memOffset = spMemAddr;
+    for (let c = 0; c < count; c++) {
+      for (let i = 0; i < len; ++i) {
+        this.hardware.ram.u8[ramOffset] = this.hardware.sp_mem.u8[(bankBit | (memOffset) & 0xfff)];
+        ramOffset++;
+        memOffset++;
+      }
+      ramOffset += skip;
+    }
+
+    // Update registers at the end of the transfer.
+    // Address regs get set to the next memory address.
+    // Len reg has count set to zero and len set to 0xff8 (-8, counting down). Skip is unchanged.
+    this.mem.set32(SP_MEM_ADDR_REG, (bankBit | (memOffset) & 0xfff));
+    this.mem.set32(SP_DRAM_ADDR_REG, ramOffset);
+    this.mem.set32masked(SP_RD_LEN_REG, 0xff8 << lenRegLenShift, lenRegCountMask|lenRegLenMask);
 
     this.mem.setBits32(SP_DMA_BUSY_REG, 0);
     this.mem.clearBits32(SP_STATUS_REG, SP_STATUS_DMA_BUSY);
