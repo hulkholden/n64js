@@ -249,7 +249,6 @@ export class PIRegDevice extends Device {
     n64js.cpu0.updateCause3();
   }
 }
-
 export class PIRamDevice extends Device {
   constructor(hardware, rangeStart, rangeEnd) {
     super("PIRAM", hardware, hardware.pi_mem, rangeStart, rangeEnd);
@@ -268,7 +267,7 @@ export class PIRamDevice extends Device {
       switch (ramOffset) {
         case 0x24: logger.log(`Reading CIC values: ${toString32(v)}`); break;
         case 0x3c: logger.log(`Reading Control byte: ${toString32(v)}`); break;
-        default: logger.log(`Reading from PI ram [${toString32(address)}]. Got ${toString32(v)}`);
+        default: logger.log(`Reading from PI ram [${toString32(address)}]. Got ${toString32(v)}`); break;
       }
     }
     return v;
@@ -288,7 +287,7 @@ export class PIRamDevice extends Device {
       switch (ramOffset) {
         case 0x24: logger.log(`Reading CIC values: ${toString8(v)}`); break;
         case 0x3c: logger.log(`Reading Control byte: ${toString8(v)}`); break;
-        default: logger.log(`Reading from PI ram [${toString32(address)}]. Got ${toString8(v)}`);
+        default: logger.log(`Reading from PI ram [${toString32(address)}]. Got ${toString8(v)}`); break;
       }
     }
     return v;
@@ -302,15 +301,42 @@ export class PIRamDevice extends Device {
     const ea = this.calcWriteEA(address);
     if (ea < 0x7c0) {
       logger.log('Attempting to write to PIF ROM');
-    } else {
-      const ramOffset = ea - 0x7c0;
-      this.mem.set32(ea, value);
-      switch (ramOffset) {
-        case 0x24: logger.log(`Writing CIC values: ${toString32(value)}`); break;
-        case 0x3c: logger.log(`Writing Control byte: ${toString32(value)}`); this.updateControl(); break;
-        default: logger.log(`Writing directly to PI ram [${toString32(address)}] <-- ${toString32(value)}`); break;
-      }
+      return;
     }
+
+    this.mem.set32(ea, value);
+    const ramOffset = ea - 0x7c0;
+    switch (ramOffset) {
+      case 0x24: logger.log(`Writing CIC values: ${toString32(value)}`); break;
+      case 0x3c: logger.log(`Writing Control byte: ${toString32(value)}`); this.updateControl(); break;
+      default: logger.log(`Writing directly to PI ram [${toString32(address)}] <-- ${toString32(value)}`); break;
+    }
+  }
+
+  write16(address, value) {
+    const ea = this.calcWriteEA(address);
+    if (ea < 0x7c0) {
+      logger.log('Attempting to write to PIF ROM');
+      return;
+    }
+    // SH is broken - it writes a 32-bit value.
+    // It also uses 32 bits from the source register (i.e. value is not masked to 16 bits).
+    const aligned = ea & ~3;
+    const shift = 8 * (2 - (ea & 2));
+    this.mem.set32(aligned, value << shift);
+  }
+
+  write8(address, value) {
+    if (ea < 0x7c0) {
+      logger.log('Attempting to write to PIF ROM');
+      return;
+    }
+    // SB is broken - it writes a 32-bit value.
+    // It also uses 32 bits from the source register (i.e. value is not masked to 8 bits).
+    const ea = this.calcWriteEA(address);
+    const aligned = ea & ~3;
+    const shift = 8 * (3 - (ea & 3));
+    this.mem.set32(aligned, value << shift);
   }
 
   updateControl() {
