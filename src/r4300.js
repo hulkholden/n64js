@@ -4225,6 +4225,31 @@ function generateOpHelper(fn, ctx) {
   }
 }
 
+// Standard code for manipulating the pc
+function generateStandardPCUpdate(fn, ctx, might_adjust_next_pc) {
+  let code = '';
+  code += ctx.genAssert(`c.pc === ${toString32(ctx.pc)}`, 'pc mismatch');
+
+  if (ctx.needsDelayCheck) {
+    // We should probably assert on this - two branch instructions back-to-back is weird, but the flag could just be set because of a generic op
+    code += `if (c.delayPC) { c.nextPC = c.delayPC; c.delayPC = 0; } else { c.nextPC = ${toString32(ctx.pc + 4)}; }\n`;
+    code += fn;
+    code += 'c.pc = c.nextPC;\n';
+  } else if (might_adjust_next_pc) {
+    // If the branch op might manipulate nextPC, we need to ensure that it's set to the correct value
+    code += ctx.genAssert('c.delayPC === 0', 'delay pc should be zero');
+    code += `c.nextPC = ${toString32(ctx.pc + 4)};\n`;
+    code += fn;
+    code += 'c.pc = c.nextPC;\n';
+  } else {
+    code += ctx.genAssert('c.delayPC === 0', 'delay pc should be zero');
+    code += fn;
+    code += `c.pc = ${toString32(ctx.pc + 4)};\n`;
+  }
+
+  return code;
+}
+
 function generateGenericOpBoilerplate(fn, ctx) {
   let code = '';
   code += ctx.genAssert(`c.pc === ${toString32(ctx.pc)}`, 'pc mismatch');
@@ -4253,31 +4278,6 @@ function generateGenericOpBoilerplate(fn, ctx) {
   } else {
     code += `if (c.stuffToDo) { return ${ctx.fragment.opsCompiled}; }\n`;
     code += `if (c.pc !== ${toString32(ctx.postPC)}) { return ${ctx.fragment.opsCompiled}; }\n`;
-  }
-
-  return code;
-}
-
-// Standard code for manipulating the pc
-function generateStandardPCUpdate(fn, ctx, might_adjust_next_pc) {
-  let code = '';
-  code += ctx.genAssert(`c.pc === ${toString32(ctx.pc)}`, 'pc mismatch');
-
-  if (ctx.needsDelayCheck) {
-    // We should probably assert on this - two branch instructions back-to-back is weird, but the flag could just be set because of a generic op
-    code += `if (c.delayPC) { c.nextPC = c.delayPC; c.delayPC = 0; } else { c.nextPC = ${toString32(ctx.pc + 4)}; }\n`;
-    code += fn;
-    code += 'c.pc = c.nextPC;\n';
-  } else if (might_adjust_next_pc) {
-    // If the branch op might manipulate nextPC, we need to ensure that it's set to the correct value
-    code += ctx.genAssert('c.delayPC === 0', 'delay pc should be zero');
-    code += `c.nextPC = ${toString32(ctx.pc + 4)};\n`;
-    code += fn;
-    code += 'c.pc = c.nextPC;\n';
-  } else {
-    code += ctx.genAssert('c.delayPC === 0', 'delay pc should be zero');
-    code += fn;
-    code += `c.pc = ${toString32(ctx.pc + 4)};\n`;
   }
 
   return code;
