@@ -190,12 +190,10 @@ const TLBPGMASK_4M      = 0x007fe000;
 const TLBPGMASK_16M     = 0x01ffe000;
 
 const pageMaskLowBits = 0x00001fff;
-
 const pageMaskWritableBits = 0x01ffe000n;
-
 const configWritableBits = 0x0f00800fn;
-
 const llAddrWritableBits = 0xffffffffn;
+const eccWritableBits = 0xffn
 
 const kStuffToDoHalt            = 1<<0;
 const kStuffToDoCheckInterrupts = 1<<1;
@@ -673,6 +671,10 @@ class CPU0 {
       case cpu0_constants.controlInvalid31:
         // Ignore writes.
         // Reads from invalid control registers will use the value last written to any control register.
+        break;
+
+      case cpu0_constants.controlParityError:
+        this.setControlU64(controlReg, newValue & eccWritableBits);
         break;
 
       case cpu0_constants.controlErrorEPC:
