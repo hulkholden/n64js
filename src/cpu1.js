@@ -301,7 +301,7 @@ export class CPU1 {
       this.regS64[i] = 0n;
     }
 
-    this.control[0] = 0x00000511;
+    this.control[0] = 0xa00;
     this.fullMode = true;
   }
 
