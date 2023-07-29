@@ -4284,7 +4284,7 @@ function generateTrivialOpBoilerplate(fn, ctx) {
       code += `c.pc = ${toString32(expectedPC)};\n`;
       code += `if (c.pc !== ${toString32(ctx.postPC)}) { return ${ctx.fragment.opsCompiled}; }\n`;
     } else {
-      code += '// Delaying pc update';
+      code += '// Delaying pc update\n';
       ctx.delayedPCUpdate = expectedPC;
     }
   }
