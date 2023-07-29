@@ -15,6 +15,8 @@ window.n64js = window.n64js || {};
 const kDebugTLB = false;
 const kDebugDynarec = false;
 
+const kValidateDynarecPCs = false;
+
 const accurateCountUpdating = false;
 const COUNTER_INCREMENT_PER_OP = 1;
 
@@ -4033,7 +4035,16 @@ function generateCodeForOp(ctx) {
   ctx.needsDelayCheck = ctx.fragment.needsDelayCheck;
   ctx.isTrivial = false;
 
-  const fn_code = generateOp(ctx);
+  let preflight = '';
+  if (kValidateDynarecPCs) {
+    const preflight = dedent(`
+      if (c.pc != ${toString32(ctx.pc)}) {
+        throw 'expected pc ${toString32(ctx.pc)}, got ' + c.pc;
+      }
+    `);
+  }
+
+  const fn_code = preflight + generateOp(ctx);
 
   if (ctx.dump) {
     console.log(fn_code);
@@ -4286,6 +4297,9 @@ function generateTrivialOpBoilerplate(fn, ctx) {
     } else {
       code += '// Delaying pc update\n';
       ctx.delayedPCUpdate = expectedPC;
+      if (kValidateDynarecPCs) {
+        code += `c.pc = ${toString32(expectedPC)};\n`;
+      }
     }
   }
 
