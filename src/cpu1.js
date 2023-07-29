@@ -1075,6 +1075,17 @@ export class CPU1 {
     return false;
   }
 
+  setStatus(value) {
+    this.control[31] = value;
+    const enable = (value & enableMask) >> enableShift;
+    const cause = (value & causeMask) >> causeShift;
+    if ((enable & cause) || (value & FPCSR_CE)) {
+      this.cpu0.raiseFPE();
+      return true;
+    }
+    return false;
+  }
+
   /**
    * @param {number} i The register index.
    * @param {number} value The value to store.

@@ -2831,7 +2831,7 @@ function generateCTC1Stub(ctx) {
   ctx.isTrivial = true;
 
   if (s === 31) {
-    return `cpu1.control[${s}] = ${genSrcRegU32Lo(t)};`;
+    return `cpu1.setStatus(${genSrcRegU32Lo(t)};)`;
   }
 
   return `// CTC1 invalid reg`;
@@ -2840,7 +2840,7 @@ function generateCTC1Stub(ctx) {
 function executeCTC1(i) { 
   const s = fs(i);
   if (s === 31) {
-    cpu1.control[s] = cpu0.getRegU32Lo(rt(i));
+    cpu1.setStatus(cpu0.getRegU32Lo(rt(i)));
   }
 }
 
