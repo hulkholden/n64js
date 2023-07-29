@@ -40,6 +40,8 @@ const flagMask = 0x0000007c;
 const enableMask = 0x00000f80;
 const causeMask = 0x0003f000; // Note this also includes FPCSR_CE.
 
+const fpcsr31WritableBits = 0x0183_ffff;
+
 function makeFlagBits(bits) { return bits << flagShift; }
 function makeEnableBits(bits) { return bits << enableShift; }
 function makeCauseBits(bits) { return bits << causeShift; }
@@ -1076,7 +1078,7 @@ export class CPU1 {
   }
 
   setStatus(value) {
-    this.control[31] = value;
+    this.control[31] = value & fpcsr31WritableBits;
     const enable = (value & enableMask) >> enableShift;
     const cause = (value & causeMask) >> causeShift;
     if ((enable & cause) || (value & FPCSR_CE)) {
