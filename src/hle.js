@@ -1380,7 +1380,7 @@ function executeSetPrimDepth(cmd0, cmd1, dis) {
 
 function executeSetRDPOtherMode(cmd0, cmd1, dis) {
   if (dis) {
-    dis.text(`gsDPSetOtherMode(${toString32(modeH)}, ${toString32(modeL)}); // TODO: fix formatting`);
+    dis.text(`gsDPSetOtherMode(${toString32(cmd0)}, ${toString32(cmd1)}); // TODO: fix formatting`);
   }
 
   state.rdpOtherModeH = cmd0;
