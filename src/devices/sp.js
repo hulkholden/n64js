@@ -75,6 +75,30 @@ export class SPMemDevice extends Device {
     // SPMem wraps around.
     return (address - this.rangeStart) % 0x2000;
   }
+
+  write64(address, value) {
+    // SD is broken - only the upper 32 bits are written.
+    const ea = this.calcWriteEA(address);
+    this.mem.set32(ea, Number(value >> 32n));
+  }
+
+  write16(address, value) {
+    // SH is broken - it writes a 32-bit value.
+    // It also uses 32 bits from the source register (i.e. value is not masked to 16 bits).
+    const ea = this.calcWriteEA(address);
+    const aligned = ea & ~3;
+    const shift = 8 * (2 - (ea & 2));
+    this.mem.set32(aligned, value << shift);
+  }
+
+  write8(address, value) {
+    // SB is broken - it writes a 32-bit value.
+    // It also uses 32 bits from the source register (i.e. value is not masked to 8 bits).
+    const ea = this.calcWriteEA(address);
+    const aligned = ea & ~3;
+    const shift = 8 * (3 - (ea & 3));
+    this.mem.set32(aligned, value << shift);
+  }
 }
 
 export class SPIBISTDevice extends Device {
