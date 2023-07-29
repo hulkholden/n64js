@@ -327,13 +327,13 @@ export class PIRamDevice extends Device {
   }
 
   write8(address, value) {
+    const ea = this.calcWriteEA(address);
     if (ea < 0x7c0) {
       logger.log('Attempting to write to PIF ROM');
       return;
     }
     // SB is broken - it writes a 32-bit value.
     // It also uses 32 bits from the source register (i.e. value is not masked to 8 bits).
-    const ea = this.calcWriteEA(address);
     const aligned = ea & ~3;
     const shift = 8 * (3 - (ea & 3));
     this.mem.set32(aligned, value << shift);
