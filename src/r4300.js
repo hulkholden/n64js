@@ -469,10 +469,6 @@ class CPU0 {
     this.gprS32[r * 2 + 1] = hi;    
   }
 
-  setRegS32Lo(r, v) {
-    this.gprS32[r * 2 + 0] = v;
-  }
-
   setRegS32ExtendMasked(r, v, m) {
     const result = (this.gprS32[r * 2 + 0] & ~m) | (v & m);
     this.gprS32[r * 2 + 0] = result;
