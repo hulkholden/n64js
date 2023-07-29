@@ -4230,16 +4230,13 @@ function generateGenericOpBoilerplate(fn, ctx) {
   code += ctx.genAssert(`c.pc === ${toString32(ctx.pc)}`, 'pc mismatch');
 
   if (ctx.needsDelayCheck) {
-    // NB: delayPC not cleared here - it's always overwritten with branchTarget below.
-    code += `if (c.delayPC) { c.nextPC = c.delayPC; } else { c.nextPC = ${toString32(ctx.pc + 4)}; }\n`;
+    code += `c.nextPC = c.delayPC || ${toString32(ctx.pc + 4)};\n`;
   } else {
     code += ctx.genAssert('c.delayPC === 0', 'delay pc should be zero');
     code += `c.nextPC = ${toString32(ctx.pc + 4)};\n`;
   }
   code += 'c.branchTarget = 0;\n';
-
   code += fn;
-
   code += 'c.pc = c.nextPC;\n';
   code += 'c.delayPC = c.branchTarget;\n';
 
