@@ -3884,7 +3884,7 @@ function runImpl() {
 
         // If we have a fragment, we're assembling code as we go
         if (fragment) {
-          fragment = addOpToFragment(fragment, pc, instruction, c);
+          fragment = addOpToFragment(fragment, pc >>> 0, instruction, c);
         } else {
           // If there's no current fragment and we branch backwards, this is possibly a new loop
           if (c.pc < pc) {
