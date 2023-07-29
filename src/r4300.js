@@ -671,6 +671,10 @@ class CPU0 {
         // Reads from invalid control registers will use the value last written to any control register.
         break;
 
+      case cpu0_constants.controlErrorEPC:
+        this.setControlU64(controlReg, newValue);
+        break;
+
       default:
         this.setControlU64(controlReg, newValue);
         logger.log(`Write to cpu0 control register. ${toString64_bigint(newValue)} --> ${cop0ControlRegisterNames[controlReg]}`);
