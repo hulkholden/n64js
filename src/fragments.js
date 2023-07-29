@@ -49,8 +49,8 @@ export class Fragment {
     this.maxPC            = this.entryPC+4;
     this.func             = undefined;
     this.opsCompiled      = 0;
-    this.bailedOut        = false;
     this.executionCount   = 0;
+    this.bailedOut        = false;
     this.nextFragments    = [];
 
     this.body_code        = '';
@@ -74,6 +74,11 @@ export class Fragment {
         nextFragment = this;
       } else {
         nextFragment = lookupFragment(pc);
+        // FIXME: for defense in depth, figure out how to prevent runImpl from unconditionally
+        // adding instructions to partially compiled fragments that are interrupted by exceptions/interrupts.
+        if (nextFragment && !nextFragment.func) {
+          nextFragment = null;
+        }
       }
 
       // And cache for next time around.
