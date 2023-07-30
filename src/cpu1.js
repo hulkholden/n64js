@@ -1,4 +1,4 @@
-import { toString32 } from "./format.js";
+import { toString32, toString64_bigint } from "./format.js";
 import * as logger from './logger.js';
 
 const FPCSR_RM_RN = 0x00000000;
@@ -73,6 +73,11 @@ const f64MinNegNumberBits = f64SignBit | f64MinPosNumberBits;
 const f64PosInfinityBits = f64ExponentBits;
 const f64NegInfinityBits = f64SignBit | f64ExponentBits;
 
+const maxSafeS64 = Number.MAX_SAFE_INTEGER;
+const minSafeS64 = Number.MIN_SAFE_INTEGER;
+
+const maxSafeS32 = 0x7fffffff;
+const minSafeS32 = -0x80000000;
 
 // Float classification.
 const floatTypeNormal = 0;
@@ -879,7 +884,12 @@ export class CPU1 {
         return;
       default:
         const sValue = this.loadF32(this.fsRegIdx32(s));
-        this.tempS64[0] = BigInt(this.convertUsingMode(sValue, mode) | 0); // Force to int to allow BigInt conversion.
+        const rounded = this.convertUsingMode(sValue, mode);
+        if (rounded > maxSafeS64 || rounded < minSafeS64) {
+          this.raiseUnimplemented();
+          return;
+        }
+        this.tempS64[0] = BigInt(rounded);
         if (sValue != this.tempS64[0]) {
           exceptionBits |= exceptionInexactBit;
         }
@@ -908,7 +918,12 @@ export class CPU1 {
         return;
       default:
         const sValue = this.loadF64(this.fsRegIdx64(s));
-        this.tempS64[0] = BigInt(this.convertUsingMode(sValue, mode) | 0); // Force to int to allow BigInt conversion.
+        const rounded = this.convertUsingMode(sValue, mode);
+        if (rounded > maxSafeS64 || rounded < minSafeS64) {
+          this.raiseUnimplemented();
+          return;
+        }
+        this.tempS64[0] = BigInt(rounded);
         if (sValue != this.tempS64[0]) {
           exceptionBits |= exceptionInexactBit;
         }
@@ -937,7 +952,12 @@ export class CPU1 {
         return;
       default:
         const sValue = this.loadF32(this.fsRegIdx32(s));
-        this.tempS32[0] = this.convertUsingMode(sValue, mode);
+        const rounded = this.convertUsingMode(sValue, mode);
+        if (rounded > maxSafeS32 || rounded < minSafeS32) {
+          this.raiseUnimplemented();
+          return;
+        }
+        this.tempS32[0] = rounded;
         if (sValue != this.tempS32[0]) {
           exceptionBits |= exceptionInexactBit;
         }
@@ -966,7 +986,12 @@ export class CPU1 {
         return;
       default:
         const sValue = this.loadF64(this.fsRegIdx64(s));
-        this.tempS32[0] = this.convertUsingMode(sValue, mode);
+        const rounded =  this.convertUsingMode(sValue, mode);
+        if (rounded > maxSafeS32 || rounded < minSafeS32) {
+          this.raiseUnimplemented();
+          return;
+        }
+        this.tempS32[0] = rounded;
         if (sValue != this.tempS32[0]) {
           exceptionBits |= exceptionInexactBit;
         }
