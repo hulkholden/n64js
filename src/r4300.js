@@ -2833,7 +2833,7 @@ function generateCTC1Stub(ctx) {
   ctx.isTrivial = true;
 
   if (s === 31) {
-    return `cpu1.setStatus(${genSrcRegU32Lo(t)};)`;
+    return `cpu1.setStatus(${genSrcRegU32Lo(t)});`;
   }
 
   return `// CTC1 invalid reg`;
