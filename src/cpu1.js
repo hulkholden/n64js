@@ -454,10 +454,20 @@ export class CPU1 {
       default:
         const sValue = this.loadF64(this.fsRegIdx64(s));
         this.tempF32[0] = sValue;
+        const rType = f32Classify(this.tempU32[0]);
 
         if (sValue != this.tempF32[0]) {
           exceptionBits |= exceptionInexactBit;
         }
+
+        // Check for underflow (non-zero result became denormal or zero).
+        if ((rType == floatTypeDenormal || floatTypeZero(rType)) && sValue != 0) {
+          exceptionBits |= exceptionInexactBit | exceptionUnderflowBit;
+
+          // Set the output based on the rounding mode.
+          this.tempU32[0] = getUnderflowValue(f32UnderflowResults, this.control[31] & FPCSR_RM_MASK, sValue > 0);
+        }  
+      
         // TODO: this is really this.tempF32[0] > float32 max value
         if (!isFinite(this.tempF32[0])) {
           exceptionBits |= exceptionOverflowBit;
