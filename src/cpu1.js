@@ -473,22 +473,35 @@ export class CPU1 {
 
   CVT_S_W(d, s) {
     this.clearCause();
-    this.tempF32[0] = this.loadS32(this.fsRegIdx32(s));
+    const sValue = this.loadS32(this.fsRegIdx32(s));
+    this.tempF32[0] = sValue;
+
+    let exceptionBits = 0;
+    if (sValue != this.tempF32[0]) {
+      exceptionBits |= exceptionInexactBit;
+    }
+
+    if (this.raiseException(exceptionBits)) {
+      return;
+    }
     this.store32ZeroExtend(this.fdRegIdx32(d), this.tempU32[0]);
   }
 
   CVT_S_L(d, s) {
     this.clearCause();
 
-    const source = this.loadS64(this.fsRegIdx64(s));
-    if (source >= (1n << 55n) || source < -(1n << 55n)) {
+    const sValue = this.loadS64(this.fsRegIdx64(s));
+    if (sValue >= (1n << 55n) || sValue < -(1n << 55n)) {
       this.raiseUnimplemented();
       return;
     }
     
+    this.tempF32[0] = Number(sValue);
     let exceptionBits = 0;
-    this.tempF32[0] = Number(source);
-    
+    if (sValue != this.tempF32[0]) {
+      exceptionBits |= exceptionInexactBit;
+    }
+
     if (this.raiseException(exceptionBits)) {
       return;
     }
