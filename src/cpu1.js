@@ -1060,7 +1060,7 @@ export class CPU1 {
       return Math.ceil(x);
     }
     return Math.floor(x);
-  }; 
+  }
 
   /**
    * Set the condition control bit.
