@@ -2481,7 +2481,7 @@ function generateLWC1(ctx) {
 
   const impl = dedent(`
     if (c.checkCopXUsable(1)) {
-      cpu1.storeS32(${t}, c.loadS32fast(${genCalcAddressS32(ctx)}));
+      cpu1.store32(cpu1.copRegIdx32(${t}), c.loadS32fast(${genCalcAddressS32(ctx)}));
     }`);
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
@@ -2490,7 +2490,7 @@ function executeLWC1(i) {
   if (!cpu0.checkCopXUsable(1)) {
     return;
   }
-  cpu1.storeS32(ft(i), memaccess.loadS32fast(cpu0.calcAddressS32(i)));
+  cpu1.store32(cpu1.copRegIdx32(ft(i)), memaccess.loadS32fast(cpu0.calcAddressS32(i)));
 }
 
 function generateLDC1(ctx) {
@@ -2500,7 +2500,7 @@ function generateLDC1(ctx) {
 
   const impl = dedent(`
     if (c.checkCopXUsable(1)) {
-      cpu1.storeU64(${t}, c.loadU64fast(${genCalcAddressS32(ctx)}));
+      cpu1.store64(cpu1.copRegIdx64(${t}), c.loadU64fast(${genCalcAddressS32(ctx)}));
     }`);
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
@@ -2511,7 +2511,7 @@ function executeLDC1(i) {
   }
 
   const value = memaccess.loadU64fast(cpu0.calcAddressS32(i));
-  cpu1.storeU64(ft(i), value);
+  cpu1.store64(cpu1.copRegIdx64(ft(i)), value);
 }
 
 function executeLDC2(i) { unimplemented(cpu0.pc, i); }
@@ -2596,7 +2596,7 @@ function generateSWC1(ctx) {
   // FIXME: can avoid cpuStuffToDo if we're writing to ram
   const impl = dedent(`
     if (c.checkCopXUsable(1)) {
-      c.store32fast(${genCalcAddressS32(ctx)}, cpu1.loadS32(${t}));
+      c.store32fast(${genCalcAddressS32(ctx)}, cpu1.loadU32(cpu1.copRegIdx32(${t})));
     }`);
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
@@ -2605,7 +2605,7 @@ function executeSWC1(i) {
   if (!cpu0.checkCopXUsable(1)) {
     return;
   }
-  memaccess.store32fast(cpu0.calcAddressS32(i), cpu1.loadS32(ft(i)));
+  memaccess.store32fast(cpu0.calcAddressS32(i), cpu1.loadU32(cpu1.copRegIdx32(ft(i))));
 }
 
 function generateSDC1(ctx) {
@@ -2616,7 +2616,7 @@ function generateSDC1(ctx) {
   // FIXME: can avoid cpuStuffToDo if we're writing to ram
   const impl = dedent(`
     if (c.checkCopXUsable(1)) {
-      c.store64fast(${genCalcAddressS32(ctx)}, cpu1.loadS64(${t}));
+      c.store64fast(${genCalcAddressS32(ctx)}, cpu1.loadU64(cpu1.copRegIdx64(${t})));
     }`);
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
@@ -2625,7 +2625,7 @@ function executeSDC1(i) {
   if (!cpu0.checkCopXUsable(1)) {
     return;
   }
-  memaccess.store64fast(cpu0.calcAddressS32(i), cpu1.loadS64(ft(i)));
+  memaccess.store64fast(cpu0.calcAddressS32(i), cpu1.loadU64(cpu1.copRegIdx64(ft(i))));
 }
 
 function executeSDC2(i) { unimplemented(cpu0.pc, i); }
@@ -2743,11 +2743,11 @@ function generateMFC1Stub(ctx) {
   ctx.fragment.usesCop1 = true;
   ctx.isTrivial = true;
 
-  return `c.setRegS32Extend(${t}, cpu1.loadS32(${s}));`;
+  return `c.setRegS32Extend(${t}, cpu1.loadS32(cpu1.copRegIdx32(${s})));`;
 }
 
 function executeMFC1(i) {
-  cpu0.setRegS32Extend(rt(i), cpu1.loadS32(fs(i)));
+  cpu0.setRegS32Extend(rt(i), cpu1.loadS32(cpu1.copRegIdx32(fs(i))));
 }
 
 function generateDMFC1Stub(ctx) {
@@ -2757,11 +2757,11 @@ function generateDMFC1Stub(ctx) {
   ctx.fragment.usesCop1 = true;
   ctx.isTrivial = true;
 
-  return `c.setRegU64(${t}, cpu1.loadU64(${s}));`;
+  return `c.setRegU64(${t}, cpu1.loadU64(cpu1.copRegIdx64(${s})));`;
 }
 
 function executeDMFC1(i) {
-  cpu0.setRegU64(rt(i), cpu1.loadU64(fs(i)));
+  cpu0.setRegU64(rt(i), cpu1.loadU64(cpu1.copRegIdx64(fs(i))));
 }
 
 function generateMTC1Stub(ctx) {
@@ -2771,11 +2771,11 @@ function generateMTC1Stub(ctx) {
   ctx.fragment.usesCop1 = true;
   ctx.isTrivial = true;
 
-  return `cpu1.storeS32(${s}, ${genSrcRegS32Lo(t)});`;
+  return `cpu1.store32(cpu1.copRegIdx32(${s}), ${genSrcRegS32Lo(t)});`;
 }
 
 function executeMTC1(i) {
-  cpu1.storeS32(fs(i), cpu0.getRegS32Lo(rt(i)));
+  cpu1.store32(cpu1.copRegIdx32(fs(i)), cpu0.getRegS32Lo(rt(i)));
 }
 
 function generateDMTC1Stub(ctx) {
@@ -2784,13 +2784,13 @@ function generateDMTC1Stub(ctx) {
   ctx.fragment.usesCop1 = true;
   ctx.isTrivial = true;
 
-  return `cpu1.storeU64(${s}, ${genSrcRegS64(t)});`;
+  return `cpu1.store64(cpu1.copRegIdx64(${s}), ${genSrcRegS64(t)});`;
 }
 
 function executeDMTC1(i) {
   const s = fs(i);
   const t = rt(i);
-  cpu1.storeU64(s, cpu0.getRegS64(t));
+  cpu1.store64(cpu1.copRegIdx64(s), cpu0.getRegS64(t));
 }
 
 function generateCFC1Stub(ctx) {
