@@ -133,7 +133,7 @@ n64js.toggleRun = () => {
 n64js.breakEmulationForDisplayListDebug = () => {
   if (running) {
     n64js.toggleRun();
-    n64js.cpu0.breakExecution();
+    breakAllExecution();
     //updateLoopAnimframe();
   }
 };
@@ -287,6 +287,7 @@ n64js.reset = () => {
 
   n64js.cpu0.reset();
   n64js.cpu1.reset();
+  n64js.rsp.reset();
 
   resetRenderer();
 
@@ -323,7 +324,7 @@ n64js.halt = (msg) => { stop(msg, true); };
 
 function stop(msg, isError) {
   setRunning(false);
-  n64js.cpu0.breakExecution();
+  breakAllExecution();
   logger.log('<span style="color:red">' + msg + '</span>');
   if (isError) {
     n64js.ui().displayError(msg);
@@ -332,8 +333,13 @@ function stop(msg, isError) {
 
 // Similar to halt, but just relinquishes control to the system
 n64js.returnControlToSystem = () => {
-  n64js.cpu0.breakExecution();
+  breakAllExecution();
 };
+
+function breakAllExecution() {
+  n64js.cpu0.breakExecution();
+  n64js.rsp.breakExecution();
+}
 
 n64js.init = () => {
   n64js.reset();
