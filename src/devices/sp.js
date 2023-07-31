@@ -2,7 +2,7 @@ import { Device } from './device.js';
 import * as mi from './mi.js';
 import * as logger from '../logger.js';
 import { toString16, toString32 } from '../format.js';
-import { rspProcessTask } from '../hle.js';
+import { hleProcessRSPTask } from '../hle.js';
 
 export const SP_MEM_ADDR_REG = 0x00;
 export const SP_DRAM_ADDR_REG = 0x04;
@@ -257,7 +257,10 @@ export class SPRegDevice extends Device {
     this.mem.set32(SP_STATUS_REG, statusBits);
 
     if (startRsp) {
-      rspProcessTask();
+      if (!hleProcessRSPTask()) {
+        logger.log('unhandled RSP task');
+        n64js.hardware().spRegDevice.halt();
+      }
     } else if (stopRsp) {
       // As we handle all RSP via HLE, nothing to do here.
     }
