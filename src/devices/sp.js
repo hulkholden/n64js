@@ -73,6 +73,10 @@ export const SP_STATUS_YIELD = SP_STATUS_SIG0;
 export const SP_STATUS_YIELDED = SP_STATUS_SIG1;
 export const SP_STATUS_TASKDONE = SP_STATUS_SIG2;
 
+export const SPIBIST_PC_REG = 0x00;
+
+const pcWritableBits = 0xffc;
+
 export class SPMemDevice extends Device {
   constructor(hardware, rangeStart, rangeEnd) {
     super("SPMem", hardware, hardware.sp_mem, rangeStart, rangeEnd);
@@ -111,6 +115,20 @@ export class SPMemDevice extends Device {
 export class SPIBISTDevice extends Device {
   constructor(hardware, rangeStart, rangeEnd) {
     super("SPIBIST", hardware, hardware.sp_ibist_mem, rangeStart, rangeEnd);
+  }
+
+  write32(address, value) {
+    const ea = this.calcWriteEA(address);
+    switch (ea) {
+      case SPIBIST_PC_REG:
+        this.mem.set32(ea, value & pcWritableBits);
+        break;
+
+      default:
+        logger.log(`Unhandled write to SPIBISTReg: ${toString32(value)} -> [${toString32(address)}]`);
+    }
+
+    // TODO: return random bits if read while the RSP is running.
   }
 }
 
