@@ -488,34 +488,40 @@ class RSPTask {
   }
 }
 
-// task_dv is a DataView object
-export function rspProcessTask() {
-  const ram_u8 = n64js.getRamU8Array();
+export function hleProcessRSPTask() {
+  const ramU8 = n64js.getRamU8Array();
+  var task = new RSPTask(ramU8, n64js.rsp_task_view);
 
-  var task = new RSPTask(ram_u8, n64js.rsp_task_view);
+  let handled = false;
 
   switch (task.type) {
     case M_GFXTASK:
       ++graphicsTaskCount;
       hleGraphics(task);
       n64js.hardware().miRegDevice.interruptDP();
+      n64js.hardware().spRegDevice.halt();
+      handled = true;
       break;
     case M_AUDTASK:
-      //logger.log('audio task');
+      // Ignore for now (pretend we handled it to avoid running RSP).
+      n64js.hardware().spRegDevice.halt();
+      handled = true;
       break;
     case M_VIDTASK:
       logger.log('video task');
+      // Ignore for now (pretend we handled it to avoid running RSP).
+      n64js.hardware().spRegDevice.halt();
+      handled = true;
       break;
     case M_JPGTASK:
       logger.log('jpg task');
-      break;
-
-    default:
-      logger.log('unknown task');
+      // Ignore for now (pretend we handled it to avoid running RSP).
+      n64js.hardware().spRegDevice.halt();
+      handled = true;
       break;
   }
 
-  n64js.hardware().spRegDevice.halt();
+  return handled;
 };
 
 function unimplemented(cmd0, cmd1) {
