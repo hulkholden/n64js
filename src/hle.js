@@ -357,9 +357,13 @@ function previewLight(address) {
   return result;
 }
 
-function moveMemLight(light_idx, address) {
-  state.lights[light_idx].color = unpackRGBAToColor(ram_dv.getUint32(address + 0));
-  state.lights[light_idx].dir = Vector3.create([
+function moveMemLight(lightIdx, address) {
+  if (lightIdx >= state.lights.length) {
+    logger.log(`light index ${lightIdx} out of range`);
+    return;
+  }
+  state.lights[lightIdx].color = unpackRGBAToColor(ram_dv.getUint32(address + 0));
+  state.lights[lightIdx].dir = Vector3.create([
     ram_dv.getInt8(address + 8),
     ram_dv.getInt8(address + 9),
     ram_dv.getInt8(address + 10)
