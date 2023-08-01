@@ -1,23 +1,32 @@
 import { toString32, toHex } from "./format.js";
 
-function _offset(i) { return (i) & 0xffff; }
+function _funct(i) { return i & 0x3f; }
+
 function _sa(i) { return (i >>> 6) & 0x1f; }
 function _rd(i) { return (i >>> 11) & 0x1f; }
 function _rt(i) { return (i >>> 16) & 0x1f; }
 function _rs(i) { return (i >>> 21) & 0x1f; }
 function _op(i) { return (i >>> 26) & 0x3f; }
 
-function _tlbop(i) { return i & 0x3f; }
-function _cop1_func(i) { return i & 0x3f; }
-function _cop1_bc(i) { return (i >>> 16) & 0x3; }
+function _ve(i) { return (i >>> 7) & 0xf; }
+function _vd(i) { return (i >>> 11) & 0x1f; }
+function _vt(i) { return (i >>> 16) & 0x1f; }
+function _vs(i) { return (i >>> 21) & 0x1f; }
 
-function _target(i) { return (i) & 0x3ffffff; }
-function _imm(i) { return (i) & 0xffff; }
+function _target(i) { return i & 0x3ffffff; }
+function _imm(i) { return i & 0xffff; }
 function _imms(i) { return (_imm(i) << 16) >> 16; }   // treat immediate value as signed
+
 function _base(i) { return (i >>> 21) & 0x1f; }
+function _offsetS16(i) { return (_imm(i) << 16) >> 16; }   // treat immediate value as signed
+function _offsetU16(i) { return i & 0xffff; }
 
 function _branchAddress(a, i) { return (a + 4) + (_imms(i) * 4); }
 function _jumpAddress(a, i) { return (a & 0xf0000000) | (_target(i) * 4); }
+
+function _vbase(i) { return (i >>> 21) & 0x1f; }
+function _voffset(i) { return ((i & 0x3f) << 26) >> 26; }
+
 
 function makeLabelText(address) {
   //return `<span class="dis-address-jump">${toHex(address, 32)}</span>`;
@@ -29,6 +38,33 @@ export const gprNames = [
   't0', 't1', 't2', 't3', 't4', 't5', 't6', 't7',
   's0', 's1', 's2', 's3', 's4', 's5', 's6', 's7',
   't8', 't9', 'k0', 'k1', 'gp', 'sp', 's8', 'ra'
+];
+
+const RA = 0x1f;
+
+const cop0RegNames = [
+  // 0
+  'SP_MEM_ADDR_REG',
+  'SP_DRAM_ADDR_REG',
+  'SP_RD_LEN_REG',
+  'SP_WR_LEN_REG',
+  'SP_STATUS_REG',
+  'SP_DMA_FULL_REG',
+  'SP_DMA_BUSY_REG',
+  'SP_SEMAPHORE_REG',
+  // 8
+  'DPC_START_REG',
+  'DPC_END_REG',
+  'DPC_CURRENT_REG',
+  'DPC_STATUS_REG',
+  'DPC_CLOCK_REG',
+  'DPC_BUFBUSY_REG',
+  'DPC_PIPEBUSY_REG',
+  'DPC_TMEM_REG',
+];
+
+const c2ControlNames = [
+  'VCO', 'VCC', 'VCE', '?',
 ];
 
 function makeRegSpan(t) {
@@ -46,10 +82,28 @@ class Instruction {
     this.memory = null;
   }
 
-  get rt_d() { const reg = this.gprName(_rt); this.dstRegs[reg] = 1; return makeRegSpan(reg); }
   get rd() { const reg = this.gprName(_rd); this.dstRegs[reg] = 1; return makeRegSpan(reg); }
   get rt() { const reg = this.gprName(_rt); this.srcRegs[reg] = 1; return makeRegSpan(reg); }
   get rs() { const reg = this.gprName(_rs); this.srcRegs[reg] = 1; return makeRegSpan(reg); }
+  // Shortcut for using rt as a destination register.
+  get rt_d() { const reg = this.gprName(_rt); this.dstRegs[reg] = 1; return makeRegSpan(reg); }
+
+  get c0reg() {
+    const regIdx = _rd(this.opcode);
+    if (regIdx < cop0RegNames.length) {
+      return cop0RegNames[regIdx];
+    }
+    return `c0reg${regIdx}`;
+  }
+
+  // Vector element.
+  get ve() { return `E${_ve(this.opcode)}`; }
+  // Vector register.
+  get vd() { return `V${_vd(this.opcode)}`; }
+  get vt() { return `V${_vt(this.opcode)}`; }
+  get vs() { return `V${_vs(this.opcode)}`; }
+
+  get c2flag() { return c2ControlNames[_rd(this.opcode) & 0x3]; }
 
   get sa() { return _sa(this.opcode); }
 
@@ -58,22 +112,31 @@ class Instruction {
   }
 
   // dummy operand - just marks ra as being a dest reg
-  writesRA() { this.dstRegs[cpu0_constants.RA] = 1; return ''; }
+  writesRA() { this.dstRegs[RA] = 1; return ''; }
 
   get imm() { return `0x${toHex(_imm(this.opcode), 16)}`; }
 
   get branchAddress() { this.target = _branchAddress(this.address, this.opcode); return makeLabelText(this.target); }
   get jumpAddress() { this.target = _jumpAddress(this.address, this.opcode); return makeLabelText(this.target); }
 
+  get base() { const reg = this.gprName(_base); this.srcRegs[reg] = 1; return makeRegSpan(reg); }
+  get offsetU16() { return `0x${toHex(_offsetU16(this.opcode), 16)}`; }
+  get offsetS16() { return `0x${toHex(_offsetS16(this.opcode), 16)}`; }
   memaccess(mode) {
-    const r = this.rs;
-    const off = this.imm;
-    this.memory = { reg: _rs(this.opcode), offset: _imms(this.opcode), mode: mode };
-    return `[${r}+${off}]`;
+    this.memory = { reg: _base(this.opcode), offset: _offsetS16(this.opcode), mode: mode };
+    return `[${this.base}+${this.offsetU16}]`;
   }
-
   memload() { return this.memaccess('load'); }
   memstore() { return this.memaccess('store'); }
+
+  get vbase() { const reg = this.gprName(_vbase); this.srcRegs[reg] = 1; return makeRegSpan(reg); }
+  get voffset() { const off = _voffset(this.opcode); return (off >= 0 ? '+' : '') + off.toString(); }
+  vmemaccess(mode) {
+    this.memory = { reg: _vbase(this.opcode), offset: _voffset(this.opcode), mode: mode };
+    return `[${this.vbase}${this.voffset}]`;
+  }
+  vmemload() { return this.vmemaccess('load'); }
+  vmemstore() { return this.vmemaccess('store'); }
 }
 
 const specialTable = (() => {
@@ -84,7 +147,7 @@ const specialTable = (() => {
 
   tbl[0] = i => {
     if (i.opcode === 0) {
-      return 'NOP';
+      return `NOP`;
     }
     return `SLL       ${i.rd} = ${i.rt} << ${i.sa}`;
   };
@@ -112,7 +175,7 @@ const specialTable = (() => {
 const regImmTable = (() => {
   let tbl = [];
   for (let i = 0; i < 32; i++) {
-    tbl[i] = disassembleUnknown;
+    tbl.push(disassembleUnknown);
   }
 
   tbl[0] = i => `BLTZ      ${i.rs} < 0 --> ${i.branchAddress}`;
@@ -122,14 +185,143 @@ const regImmTable = (() => {
   return tbl;
 })();
 
+const cop0Table = (() => {
+  let tbl = [];
+  for (let i = 0; i < 32; i++) {
+    tbl.push(disassembleUnknown);
+  }
+  tbl[0] = i => `MFC0      ${i.rt_d} <- ${i.c0reg}`;
+  tbl[4] = i => `MTC0      ${i.rt} -> ${i.c0reg}`;
+  return tbl;
+})();
+
+const cop2Table = (() => {
+  let tbl = [];
+  for (let i = 0; i < 32; i++) {
+    tbl.push(disassembleUnknown);
+  }
+  tbl[0] = i => `MFC2      ${i.rt_d} = ${i.vs}[${i.ve}]`;
+  tbl[2] = i => `CFC2      ${i.rt_d} = ${i.c2flag}`;
+  tbl[4] = i => `MTC2      ${i.vs}[${i.ve}] = ${i.rt}`;
+  tbl[6] = i => `CTC2      ${i.c2flag} = ${i.rt}`;
+
+  for (let i = 16; i < 32; i++) {
+    tbl[i] = disassembleVector;
+  }
+  return tbl;
+})();
+
+const vectorTable = (() => {
+  let tbl = [];
+  for (let i = 0; i < 64; i++) {
+    tbl.push(disassembleUnknown);
+  }
+
+  // TODO: flesh these out.
+  tbl[0] = i => `VMULF`;
+  tbl[1] = i => `VMULU`;
+  tbl[4] = i => `VMUDL`;
+  tbl[5] = i => `VMUDM`;
+  tbl[6] = i => `VMUDN`;
+  tbl[7] = i => `VMUDH`;
+  tbl[8] = i => `VMACF`;
+  tbl[9] = i => `VMACU`;
+  tbl[11] = i => `VMACQ`;
+  tbl[12] = i => `VMADL`;
+  tbl[13] = i => `VMADM`;
+  tbl[14] = i => `VMADN`;
+  tbl[15] = i => `VMADH`;
+  tbl[16] = i => `VADD`;
+  tbl[17] = i => `VSUB`;
+  tbl[18] = i => `VSUT`;
+  tbl[19] = i => `VABS`;
+  tbl[20] = i => `VADDC`;
+  tbl[21] = i => `VSUBC`;
+  tbl[29] = i => `VSAW`;
+  tbl[32] = i => `VLT`;
+  tbl[33] = i => `VEQ`;
+  tbl[34] = i => `VNE`;
+  tbl[35] = i => `VGE`;
+  tbl[36] = i => `VCL`;
+  tbl[37] = i => `VCH`;
+  tbl[38] = i => `VCR`;
+  tbl[39] = i => `VMRG`;
+  tbl[40] = i => `VAND`;
+  tbl[41] = i => `VNAND`;
+  tbl[42] = i => `VOR`;
+  tbl[43] = i => `VNOR`;
+  tbl[44] = i => `VXOR`;
+  tbl[45] = i => `VNXOR`;
+  tbl[48] = i => `VRCP`;
+  tbl[49] = i => `VRCPL`;
+  tbl[50] = i => `VRCPH`;
+  tbl[51] = i => `VMOV`;
+  tbl[52] = i => `VRSQ`;
+  tbl[53] = i => `VRSQL`;
+  tbl[54] = i => `VRSQH`;
+  tbl[55] = i => `VNOOP`;
+
+  return tbl;
+})();
+
+function disassembleVector(i) {
+  return vectorTable[_funct(i.opcode)](i);
+}
+
+const lc2Table = (() => {
+  let tbl = [];
+  for (let i = 0; i < 32; i++) {
+    tbl.push(disassembleUnknown);
+  }
+
+  // TODO: flesh these out.
+  tbl[0] = i => `LBV       ${i.vt} <- ${i.vmemload()}`;
+  tbl[1] = i => `LSV       ${i.vt} <- ${i.vmemload()}`;
+  tbl[2] = i => `LLV       ${i.vt} <- ${i.vmemload()}`;
+  tbl[3] = i => `LDV       ${i.vt} <- ${i.vmemload()}`;
+  tbl[4] = i => `LQV       ${i.vt} <- ${i.vmemload()}`;
+  tbl[5] = i => `LRV       ${i.vt} <- ${i.vmemload()}`;
+  tbl[6] = i => `LPV       ${i.vt} <- ${i.vmemload()}`;
+  tbl[7] = i => `LUV       ${i.vt} <- ${i.vmemload()}`;
+  tbl[8] = i => `LHV       ${i.vt} <- ${i.vmemload()}`;
+  tbl[9] = i => `LFV       ${i.vt} <- ${i.vmemload()}`;
+  tbl[10] = i => `LWV       ${i.vt} <- ${i.vmemload()}`;
+  tbl[11] = i => `LTV       ${i.vt} <- ${i.vmemload()}`;
+
+  return tbl;
+})();
+
+const sc2Table = (() => {
+  let tbl = [];
+  for (let i = 0; i < 32; i++) {
+    tbl.push(disassembleUnknown);
+  }
+  
+  // TODO: flesh these out.
+  tbl[0] = i => `SBV       ${i.vt} -> ${i.vmemstore()}`;
+  tbl[1] = i => `SSV       ${i.vt} -> ${i.vmemstore()}`;
+  tbl[2] = i => `SLV       ${i.vt} -> ${i.vmemstore()}`;
+  tbl[3] = i => `SDV       ${i.vt} -> ${i.vmemstore()}`;
+  tbl[4] = i => `SQV       ${i.vt} -> ${i.vmemstore()}`;
+  tbl[5] = i => `SRV       ${i.vt} -> ${i.vmemstore()}`;
+  tbl[6] = i => `SPV       ${i.vt} -> ${i.vmemstore()}`;
+  tbl[7] = i => `SUV       ${i.vt} -> ${i.vmemstore()}`;
+  tbl[8] = i => `SHV       ${i.vt} -> ${i.vmemstore()}`;
+  tbl[9] = i => `SFV       ${i.vt} -> ${i.vmemstore()}`;
+  tbl[10] = i => `SWV       ${i.vt} -> ${i.vmemstore()}`;
+  tbl[11] = i => `STV       ${i.vt} -> ${i.vmemstore()}`;
+
+  return tbl;
+})();
+
 const simpleTable = (() => {
   let tbl = [];
   for (let i = 0; i < 64; i++) {
-    tbl[i] = disassembleUnknown;
+    tbl.push(disassembleUnknown);
   }
 
-  tbl[0] = disassembleSpecial;
-  tbl[1] = disassembleRegImm;
+  tbl[0] = i => specialTable[_funct(i.opcode)](i);
+  tbl[1] = i => regImmTable[_rt(i.opcode)](i);
   tbl[2] = i => `J         --> ${i.jumpAddress}`;
   tbl[3] = i => `JAL       --> ${i.jumpAddress}${i.writesRA()}`;
   tbl[4] = i => {
@@ -149,8 +341,8 @@ const simpleTable = (() => {
   tbl[13] = i => `ORI       ${i.rt_d} = ${i.rs} | ${i.imm}`;
   tbl[14] = i => `XORI      ${i.rt_d} = ${i.rs} ^ ${i.imm}`;
   tbl[15] = i => `LUI       ${i.rt_d} = ${i.imm} << 16`;
-  tbl[16] = i => `Cop0`;
-  tbl[18] = i => `Cop2`;
+  tbl[16] = i => cop0Table[_rs(i.opcode)](i);
+  tbl[18] = i => cop2Table[_rs(i.opcode)](i);
   tbl[32] = i => `LB        ${i.rt_d} <- ${i.memload()}`;
   tbl[33] = i => `LH        ${i.rt_d} <- ${i.memload()}`;
   tbl[35] = i => `LW        ${i.rt_d} <- ${i.memload()}`;
@@ -160,21 +352,10 @@ const simpleTable = (() => {
   tbl[40] = i => `SB        ${i.rt} -> ${i.memstore()}`;
   tbl[41] = i => `SH        ${i.rt} -> ${i.memstore()}`;
   tbl[43] = i => `SW        ${i.rt} -> ${i.memstore()}`;
-  tbl[50] = i => `LC2`;
-  tbl[58] = i => `SC2`;
+  tbl[50] = i => lc2Table[_rd(i.opcode)](i);
+  tbl[58] = i => sc2Table[_rd(i.opcode)](i);
   return tbl;
 })();
-
-
-function disassembleSpecial(i) {
-  var fn = i.opcode & 0x3f;
-  return specialTable[fn](i);
-}
-
-function disassembleRegImm(i) {
-  var rt = (i.opcode >> 16) & 0x1f;
-  return regImmTable[rt](i);
-}
 
 function disassembleUnknown(i) {
   return `unknown: ${toString32(i)}`;
