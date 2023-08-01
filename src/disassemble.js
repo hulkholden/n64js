@@ -9,7 +9,6 @@ function _fs(i) { return (i >>> 11) & 0x1f; }
 function _ft(i) { return (i >>> 16) & 0x1f; }
 function _copop(i) { return (i >>> 21) & 0x1f; }
 
-function _offset(i) { return (i) & 0xffff; }
 function _sa(i) { return (i >>> 6) & 0x1f; }
 function _rd(i) { return (i >>> 11) & 0x1f; }
 function _rt(i) { return (i >>> 16) & 0x1f; }
@@ -23,7 +22,10 @@ function _cop1_bc(i) { return (i >>> 16) & 0x3; }
 function _target(i) { return (i) & 0x3ffffff; }
 function _imm(i) { return (i) & 0xffff; }
 function _imms(i) { return (_imm(i) << 16) >> 16; }   // treat immediate value as signed
+
 function _base(i) { return (i >>> 21) & 0x1f; }
+function _offsetU16(i) { return i & 0xffff; }
+function _offsetS16(i) { return (_imm(i) << 16) >> 16; }   // treat immediate value as signed
 
 function _branchAddress(a, i) { return (a + 4) + (_imms(i) * 4); }
 function _jumpAddress(a, i) { return (a & 0xf0000000) | (_target(i) * 4); }
@@ -70,8 +72,6 @@ class Instruction {
     this.memory = null;
   }
 
-  // TODO: make these getters to avoid the parens in the formatting strings.
-  // cop0 regs
   get rt_d() { const reg = this.cop0RegName(_rt); this.dstRegs[reg] = 1; return makeRegSpan(reg); }
   get rd() { const reg = this.cop0RegName(_rd); this.dstRegs[reg] = 1; return makeRegSpan(reg); }
   get rt() { const reg = this.cop0RegName(_rt); this.srcRegs[reg] = 1; return makeRegSpan(reg); }
@@ -114,11 +114,12 @@ class Instruction {
   get branchAddress() { this.target = _branchAddress(this.address, this.opcode); return makeLabelText(this.target); }
   get jumpAddress() { this.target = _jumpAddress(this.address, this.opcode); return makeLabelText(this.target); }
 
+  get base() { const reg = this.cop0RegName(_base); this.srcRegs[reg] = 1; return makeRegSpan(reg); }
+  get offsetU16() { return `0x${toHex(_offsetU16(this.opcode), 16)}`; }
+  get offsetS16() { return `0x${toHex(_offsetS16(this.opcode), 16)}`; }
   memaccess(mode) {
-    const r = this.rs;
-    const off = this.imm;
-    this.memory = { reg: _rs(this.opcode), offset: _imms(this.opcode), mode: mode };
-    return `[${r}+${off}]`;
+    this.memory = { reg: _base(this.opcode), offset: _offsetS16(this.opcode), mode: mode };
+    return `[${this.base}+${this.offsetU16}]`;
   }
 
   memload() { return this.memaccess('load'); }
