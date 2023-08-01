@@ -1338,11 +1338,6 @@ function generateSLL(ctx) {
 }
 
 function executeSLL(i) {
-  // NOP
-  if (i === 0) {
-    return;
-  }
-
   cpu0.setRegS32Extend(rd(i), cpu0.getRegS32Lo(rt(i)) << sa(i));
 }
 
