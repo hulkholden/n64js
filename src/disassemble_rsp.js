@@ -365,6 +365,7 @@ export function disassembleInstruction(address, instruction) {
   const i = new Instruction(address, instruction);
   const disassembly = simpleTable[_op(instruction)](i);
   return {
+    address: address,
     instruction: i,
     disassembly: disassembly,
     isJumpTarget: false,
