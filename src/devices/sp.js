@@ -4,6 +4,8 @@ import * as logger from '../logger.js';
 import { toString16, toString32 } from '../format.js';
 import { hleProcessRSPTask } from '../hle.js';
 
+const emulateRSP = true;
+
 export const SP_MEM_ADDR_REG = 0x00;
 export const SP_DRAM_ADDR_REG = 0x04;
 export const SP_RD_LEN_REG = 0x08;
@@ -261,8 +263,11 @@ export class SPRegDevice extends Device {
 
     if (startRsp) {
       if (!hleProcessRSPTask()) {
-        logger.log('unhandled RSP task');
-        n64js.hardware().spRegDevice.halt();
+        if (emulateRSP) {
+          n64js.rsp.startExecution();
+        } else {
+          n64js.hardware().spRegDevice.halt();
+        }
       }
     } else if (stopRsp) {
       // As we handle all RSP via HLE, nothing to do here.
@@ -277,7 +282,8 @@ export class SPRegDevice extends Device {
     const len = (((lenReg & lenRegLenMask) >>> lenRegLenShift) | 7) + 1; // Add 1 then round to next multiple of 8.
     const count = ((lenReg & lenRegCountMask) >>> lenRegCountShift) + 1;
     const skip = ((lenReg & lenRegSkipMask) >>> lenRegSkipShift);
-  
+
+    // TODO: create DataViews for IMEM and DMEM to simplify wrapping?
     const bankBit = spMemAddr & memAddrBankBit; // DMAs wrap within imem or dmem.
 
     if (!this.quiet) {
@@ -300,7 +306,7 @@ export class SPRegDevice extends Device {
     // Len reg has count set to zero and len set to 0xff8 (-8, counting down). Skip is unchanged.
     this.mem.set32(SP_MEM_ADDR_REG, (bankBit | (memOffset) & 0xfff));
     this.mem.set32(SP_DRAM_ADDR_REG, ramOffset);
-    this.mem.set32masked(SP_RD_LEN_REG, 0xff8 << lenRegLenShift, lenRegCountMask|lenRegLenMask);
+    this.mem.set32masked(SP_RD_LEN_REG, 0xff8 << lenRegLenShift, lenRegCountMask | lenRegLenMask);
 
     this.mem.setBits32(SP_DMA_BUSY_REG, 0);
     this.mem.clearBits32(SP_STATUS_REG, SP_STATUS_DMA_BUSY);
@@ -310,11 +316,12 @@ export class SPRegDevice extends Device {
     const spMemAddr = this.mem.getU32(SP_MEM_ADDR_REG) & 0x1fff;
     const rdRamAddr = this.mem.getU32(SP_DRAM_ADDR_REG) & 0x00ff_ffff;
     const lenReg = this.mem.getU32(SP_WR_LEN_REG);
-  
+
     const len = (((lenReg & lenRegLenMask) >>> lenRegLenShift) | 7) + 1; // Add 1 then round to next multiple of 8.
     const count = ((lenReg & lenRegCountMask) >>> lenRegCountShift) + 1;
     const skip = ((lenReg & lenRegSkipMask) >>> lenRegSkipShift);
 
+    // TODO: create DataViews for IMEM and DMEM to simplify wrapping?
     const bankBit = spMemAddr & memAddrBankBit; // DMAs wrap within imem or dmem.
 
     if (!this.quiet) {
@@ -337,7 +344,7 @@ export class SPRegDevice extends Device {
     // Len reg has count set to zero and len set to 0xff8 (-8, counting down). Skip is unchanged.
     this.mem.set32(SP_MEM_ADDR_REG, (bankBit | (memOffset) & 0xfff));
     this.mem.set32(SP_DRAM_ADDR_REG, ramOffset);
-    this.mem.set32masked(SP_RD_LEN_REG, 0xff8 << lenRegLenShift, lenRegCountMask|lenRegLenMask);
+    this.mem.set32masked(SP_RD_LEN_REG, 0xff8 << lenRegLenShift, lenRegCountMask | lenRegLenMask);
 
     this.mem.setBits32(SP_DMA_BUSY_REG, 0);
     this.mem.clearBits32(SP_STATUS_REG, SP_STATUS_DMA_BUSY);
