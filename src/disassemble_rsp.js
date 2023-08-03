@@ -220,12 +220,15 @@ const vectorTable = (() => {
   // TODO: flesh these out.
   tbl[0] = i => `VMULF`;
   tbl[1] = i => `VMULU`;
+  tbl[3] = i => `VRNDP`;
+  tbl[3] = i => `VMULQ`;
   tbl[4] = i => `VMUDL`;
   tbl[5] = i => `VMUDM`;
   tbl[6] = i => `VMUDN`;
   tbl[7] = i => `VMUDH`;
   tbl[8] = i => `VMACF`;
   tbl[9] = i => `VMACU`;
+  tbl[10] = i => `VRNDN`;
   tbl[11] = i => `VMACQ`;
   tbl[12] = i => `VMADL`;
   tbl[13] = i => `VMADM`;
@@ -237,7 +240,16 @@ const vectorTable = (() => {
   tbl[19] = i => `VABS`;
   tbl[20] = i => `VADDC`;
   tbl[21] = i => `VSUBC`;
-  tbl[29] = i => `VSAW`;
+  tbl[22] = i => `VADDB`;
+  tbl[23] = i => `VSUBB`;
+  tbl[24] = i => `VACCB`;
+  tbl[25] = i => `VSUCB`;
+  tbl[26] = i => `VSAD`;
+  tbl[27] = i => `VSAC`;
+  tbl[28] = i => `VSUM`;
+  tbl[29] = i => `VSAR`;
+  tbl[30] = i => `V30`;
+  tbl[31] = i => `V31`;
   tbl[32] = i => `VLT`;
   tbl[33] = i => `VEQ`;
   tbl[34] = i => `VNE`;
@@ -252,6 +264,8 @@ const vectorTable = (() => {
   tbl[43] = i => `VNOR`;
   tbl[44] = i => `VXOR`;
   tbl[45] = i => `VNXOR`;
+  tbl[46] = i => `V46`;
+  tbl[47] = i => `V47`;
   tbl[48] = i => `VRCP`;
   tbl[49] = i => `VRCPL`;
   tbl[50] = i => `VRCPH`;
@@ -259,7 +273,15 @@ const vectorTable = (() => {
   tbl[52] = i => `VRSQ`;
   tbl[53] = i => `VRSQL`;
   tbl[54] = i => `VRSQH`;
-  tbl[55] = i => `VNOOP`;
+  tbl[55] = i => `VNOP`;
+  tbl[56] = i => `VEXTT`;
+  tbl[57] = i => `VEXTQ`;
+  tbl[58] = i => `VEXTN`;
+  tbl[59] = i => `V59`;
+  tbl[60] = i => `VINST`;
+  tbl[61] = i => `VINSQ`;
+  tbl[62] = i => `VINSN`;
+  tbl[63] = i => `VNULL`;
 
   return tbl;
 })();
@@ -358,7 +380,7 @@ const simpleTable = (() => {
 })();
 
 function disassembleUnknown(i) {
-  return `unknown: ${toString32(i)}`;
+  return `unknown: ${toString32(i.opcode)}`;
 }
 
 export function disassembleInstruction(address, instruction) {
