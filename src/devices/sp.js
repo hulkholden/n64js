@@ -144,7 +144,10 @@ export class SPRegDevice extends Device {
     if (ea + 4 > this.u8.length) {
       throw 'Write is out of range';
     }
+    this.writeReg(ea, value);
+  }
 
+  writeReg(ea, value) {
     switch (ea) {
       case SP_MEM_ADDR_REG:
         // TODO: register is latched and shouldn't return this value immediately.
