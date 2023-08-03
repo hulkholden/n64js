@@ -407,12 +407,15 @@ const vectorTable = (() => {
   // TODO: flesh these out.
   tbl[0] = i => executeUnhandled('VMULF', i);
   tbl[1] = i => executeUnhandled('VMULU', i);
+  tbl[2] = i => executeUnhandled('VRNDP', i);
+  tbl[3] = i => executeUnhandled('VMULQ', i);
   tbl[4] = i => executeUnhandled('VMUDL', i);
   tbl[5] = i => executeUnhandled('VMUDM', i);
   tbl[6] = i => executeUnhandled('VMUDN', i);
   tbl[7] = i => executeUnhandled('VMUDH', i);
   tbl[8] = i => executeUnhandled('VMACF', i);
   tbl[9] = i => executeUnhandled('VMACU', i);
+  tbl[10] = i => executeUnhandled('VRNDN', i);
   tbl[11] = i => executeUnhandled('VMACQ', i);
   tbl[12] = i => executeUnhandled('VMADL', i);
   tbl[13] = i => executeUnhandled('VMADM', i);
@@ -424,7 +427,16 @@ const vectorTable = (() => {
   tbl[19] = i => executeUnhandled('VABS', i);
   tbl[20] = i => executeUnhandled('VADDC', i);
   tbl[21] = i => executeUnhandled('VSUBC', i);
-  tbl[29] = i => executeUnhandled('VSAW', i);
+  tbl[22] = i => executeUnhandled('VADDB', i);
+  tbl[23] = i => executeUnhandled('VSUBB', i);
+  tbl[24] = i => executeUnhandled('VACCB', i);
+  tbl[25] = i => executeUnhandled('VSUCB', i);
+  tbl[26] = i => executeUnhandled('VSAD', i);
+  tbl[27] = i => executeUnhandled('VSAC', i);
+  tbl[28] = i => executeUnhandled('VSUM', i);
+  tbl[29] = i => executeUnhandled('VSAR', i);
+  tbl[30] = i => executeUnhandled('V30', i);
+  tbl[31] = i => executeUnhandled('V31', i);
   tbl[32] = i => executeUnhandled('VLT', i);
   tbl[33] = i => executeUnhandled('VEQ', i);
   tbl[34] = i => executeUnhandled('VNE', i);
@@ -439,6 +451,8 @@ const vectorTable = (() => {
   tbl[43] = i => executeUnhandled('VNOR', i);
   tbl[44] = i => executeUnhandled('VXOR', i);
   tbl[45] = i => executeUnhandled('VNXOR', i);
+  tbl[46] = i => executeUnhandled('V46', i);
+  tbl[47] = i => executeUnhandled('V47', i);
   tbl[48] = i => executeUnhandled('VRCP', i);
   tbl[49] = i => executeUnhandled('VRCPL', i);
   tbl[50] = i => executeUnhandled('VRCPH', i);
@@ -446,8 +460,15 @@ const vectorTable = (() => {
   tbl[52] = i => executeUnhandled('VRSQ', i);
   tbl[53] = i => executeUnhandled('VRSQL', i);
   tbl[54] = i => executeUnhandled('VRSQH', i);
-  tbl[55] = i => executeUnhandled('VNOOP', i);
-
+  tbl[55] = i => executeUnhandled('VNOP', i);
+  tbl[56] = i => executeUnhandled('VEXTT', i);
+  tbl[57] = i => executeUnhandled('VEXTQ', i);
+  tbl[58] = i => executeUnhandled('VEXTN', i);
+  tbl[59] = i => executeUnhandled('V59', i);
+  tbl[60] = i => executeUnhandled('VINST', i);
+  tbl[61] = i => executeUnhandled('VINSQ', i);
+  tbl[62] = i => executeUnhandled('VINSN', i);
+  tbl[63] = i => executeUnhandled('VNULL', i);
   return tbl;
 })();
 
@@ -542,7 +563,7 @@ const simpleTable = (() => {
 
 function executedUnknown(i) {
   rsp.disassembleOp(rsp.pc, i);
-  n64js.halt('unknown op');
+  n64js.halt(`unknown op ${toString32(i)}`);
 }
 
 function executeUnhandled(name, i) {
