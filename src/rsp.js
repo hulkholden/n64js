@@ -145,11 +145,11 @@ class RSP {
   loadU16(offset) { return (offset <= 0xffe) ? this.dmem.getUint16(offset, false) : this.loadU16Wrapped(offset); }
   loadU32(offset) { return (offset <= 0xffc) ? this.dmem.getUint32(offset, false) : this.loadU32Wrapped(offset); }
 
-  loadS8(offset) { return (offset <= 0xfff) ? this.dmem.getInt8(offset, false) : 0; }
+  loadS8(offset) { return this.dmem.getInt8(offset & 0xfff, false); }
   loadS16(offset) { return (offset <= 0xffe) ? this.dmem.getInt16(offset, false) : this.loadS16Wrapped(offset); }
   loadS32(offset) { return (offset <= 0xffc) ? this.dmem.getInt32(offset, false) : this.loadS32Wrapped(offset); }
 
-  store8(offset, value) { return (offset <= 0xfff) ? this.dmem.setUint8(offset, value, false) : 0; }
+  store8(offset, value) { return this.dmem.setUint8(offset & 0xfff, value, false); }
   store16(offset, value) { return (offset <= 0xffe) ? this.dmem.setUint16(offset, value, false) : this.store16Wrapped(offset, value); }
   store32(offset, value) { return (offset <= 0xffc) ? this.dmem.setUint32(offset, value, false) : this.store32Wrapped(offset, value); }
   store32masked(offset, value, mask) {
