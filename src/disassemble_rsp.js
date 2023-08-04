@@ -25,7 +25,7 @@ function _branchAddress(a, i) { return (a + 4) + (_imms(i) * 4); }
 function _jumpAddress(a, i) { return (a & 0xf0000000) | (_target(i) * 4); }
 
 function _vbase(i) { return (i >>> 21) & 0x1f; }
-function _voffset(i) { return ((i & 0x3f) << 26) >> 26; }
+function _voffset(i) { return ((i & 0x7f) << 25) >> 25; }
 
 
 function makeLabelText(address) {
@@ -130,13 +130,15 @@ class Instruction {
   memstore() { return this.memaccess('store'); }
 
   get vbase() { const reg = this.gprName(_vbase); this.srcRegs[reg] = 1; return makeRegSpan(reg); }
-  get voffset() { const off = _voffset(this.opcode); return (off >= 0 ? '+' : '') + off.toString(); }
-  vmemaccess(mode) {
-    this.memory = { reg: _vbase(this.opcode), offset: _voffset(this.opcode), mode: mode };
-    return `[${this.vbase}${this.voffset}]`;
+  scaleVOffset(scale) { const off = _voffset(this.opcode) * scale; return (off >= 0 ? '+' : '') + off.toString(); }
+
+  vmemaccess(mode, scale) {
+    scale = scale || 1;
+    this.memory = { reg: _vbase(this.opcode), offset: _voffset(this.opcode) * scale, mode: mode };
+    return `[${this.vbase}${this.scaleVOffset(scale)}]`;
   }
-  vmemload() { return this.vmemaccess('load'); }
-  vmemstore() { return this.vmemaccess('store'); }
+  vmemload(scale) { return this.vmemaccess('load', scale); }
+  vmemstore(scale) { return this.vmemaccess('store', scale); }
 }
 
 const specialTable = (() => {
@@ -297,18 +299,18 @@ const lc2Table = (() => {
   }
 
   // TODO: flesh these out.
-  tbl[0] = i => `LBV       ${i.vt} <- ${i.vmemload()}`;
-  tbl[1] = i => `LSV       ${i.vt} <- ${i.vmemload()}`;
-  tbl[2] = i => `LLV       ${i.vt} <- ${i.vmemload()}`;
-  tbl[3] = i => `LDV       ${i.vt} <- ${i.vmemload()}`;
-  tbl[4] = i => `LQV       ${i.vt} <- ${i.vmemload()}`;
-  tbl[5] = i => `LRV       ${i.vt} <- ${i.vmemload()}`;
-  tbl[6] = i => `LPV       ${i.vt} <- ${i.vmemload()}`;
-  tbl[7] = i => `LUV       ${i.vt} <- ${i.vmemload()}`;
-  tbl[8] = i => `LHV       ${i.vt} <- ${i.vmemload()}`;
-  tbl[9] = i => `LFV       ${i.vt} <- ${i.vmemload()}`;
-  tbl[10] = i => `LWV       ${i.vt} <- ${i.vmemload()}`;
-  tbl[11] = i => `LTV       ${i.vt} <- ${i.vmemload()}`;
+  tbl[0] = i => `LBV       ${i.vt} <- ${i.vmemload(1)}`;
+  tbl[1] = i => `LSV       ${i.vt} <- ${i.vmemload(2)}`;
+  tbl[2] = i => `LLV       ${i.vt} <- ${i.vmemload(4)}`;
+  tbl[3] = i => `LDV       ${i.vt} <- ${i.vmemload(8)}`;
+  tbl[4] = i => `LQV       ${i.vt} <- ${i.vmemload(16)}`;
+  tbl[5] = i => `LRV       ${i.vt} <- ${i.vmemload(16)}`;
+  tbl[6] = i => `LPV       ${i.vt} <- ${i.vmemload(8)}`;
+  tbl[7] = i => `LUV       ${i.vt} <- ${i.vmemload(8)}`;
+  tbl[8] = i => `LHV       ${i.vt} <- ${i.vmemload(16)}`;
+  tbl[9] = i => `LFV       ${i.vt} <- ${i.vmemload(16)}`;
+  tbl[10] = i => `LWV       ${i.vt} <- ${i.vmemload(16)}`;
+  tbl[11] = i => `LTV       ${i.vt} <- ${i.vmemload(16)}`;
 
   return tbl;
 })();
@@ -318,20 +320,20 @@ const sc2Table = (() => {
   for (let i = 0; i < 32; i++) {
     tbl.push(disassembleUnknown);
   }
-  
+
   // TODO: flesh these out.
-  tbl[0] = i => `SBV       ${i.vt} -> ${i.vmemstore()}`;
-  tbl[1] = i => `SSV       ${i.vt} -> ${i.vmemstore()}`;
-  tbl[2] = i => `SLV       ${i.vt} -> ${i.vmemstore()}`;
-  tbl[3] = i => `SDV       ${i.vt} -> ${i.vmemstore()}`;
-  tbl[4] = i => `SQV       ${i.vt} -> ${i.vmemstore()}`;
-  tbl[5] = i => `SRV       ${i.vt} -> ${i.vmemstore()}`;
-  tbl[6] = i => `SPV       ${i.vt} -> ${i.vmemstore()}`;
-  tbl[7] = i => `SUV       ${i.vt} -> ${i.vmemstore()}`;
-  tbl[8] = i => `SHV       ${i.vt} -> ${i.vmemstore()}`;
-  tbl[9] = i => `SFV       ${i.vt} -> ${i.vmemstore()}`;
-  tbl[10] = i => `SWV       ${i.vt} -> ${i.vmemstore()}`;
-  tbl[11] = i => `STV       ${i.vt} -> ${i.vmemstore()}`;
+  tbl[0] = i => `SBV       ${i.vt} -> ${i.vmemstore(1)}`;
+  tbl[1] = i => `SSV       ${i.vt} -> ${i.vmemstore(2)}`;
+  tbl[2] = i => `SLV       ${i.vt} -> ${i.vmemstore(4)}`;
+  tbl[3] = i => `SDV       ${i.vt} -> ${i.vmemstore(8)}`;
+  tbl[4] = i => `SQV       ${i.vt} -> ${i.vmemstore(16)}`;
+  tbl[5] = i => `SRV       ${i.vt} -> ${i.vmemstore(16)}`;
+  tbl[6] = i => `SPV       ${i.vt} -> ${i.vmemstore(8)}`;
+  tbl[7] = i => `SUV       ${i.vt} -> ${i.vmemstore(8)}`;
+  tbl[8] = i => `SHV       ${i.vt} -> ${i.vmemstore(16)}`;
+  tbl[9] = i => `SFV       ${i.vt} -> ${i.vmemstore(16)}`;
+  tbl[10] = i => `SWV       ${i.vt} -> ${i.vmemstore(16)}`;
+  tbl[11] = i => `STV       ${i.vt} -> ${i.vmemstore(16)}`;
 
   return tbl;
 })();
