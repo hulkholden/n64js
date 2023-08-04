@@ -1,5 +1,5 @@
 import * as disassemble_rsp from "./disassemble_rsp.js";
-import { toString32, toHex } from "./format.js";
+import { toString16, toString32, toHex } from "./format.js";
 
 window.n64js = window.n64js || {};
 
@@ -27,7 +27,7 @@ function branchAddress(a, i) { return (a + 4) + (imms(i) * 4); }
 function jumpAddress(a, i) { return (a & 0xf0000000) | (target(i) * 4); }
 
 function vbase(i) { return (i >>> 21) & 0x1f; }
-function voffset(i) { return ((i & 0x3f) << 26) >> 26; }
+function voffset(i) { return ((i & 0x7f) << 25) >> 25; }
 
 const RA = 0x1f;
 
@@ -96,9 +96,15 @@ class RSP {
     this.gprU32 = new Uint32Array(gprMem);
     this.gprS32 = new Int32Array(gprMem);
 
-    for (let i = 0; i < 32; ++i) {
-      this.gprS32[i] = 0;
-    }
+    const vecMem = new ArrayBuffer(32 * 16);
+    this.vpr = new DataView(vecMem);
+    this.vprS16 = new Int16Array(vecMem);
+    this.vprS8 = new Int8Array(vecMem);
+
+    const vAccMem = new ArrayBuffer(8 * 8); // Actually 48 bits, not 64. 
+    this.vAcc = new BigInt64Array(vecMem);
+
+    this.reset();
   }
 
   reset() {
@@ -111,7 +117,11 @@ class RSP {
 
     for (let i = 0; i < 32; ++i) {
       this.gprS32[i] = 0;
+      for (let v = 0; v < 8; v++) {
+        this.vprS16[i * 8 + v] = 0;
+      }
     }
+    this.vAcc[0] = 0n;
   }
 
   getRegS32(r) { return this.gprS32[r]; }
@@ -119,7 +129,19 @@ class RSP {
   setRegS32(r, v) { if (r != 0) { this.gprS32[r] = v; } }
   setRegU32(r, v) { if (r != 0) { this.gprU32[r] = v; } }
 
-  loadU8(offset) { return (offset <= 0xfff) ? this.dmem.getUint8(offset, false) : 0; }
+  getVecS16(r, e) { return this.vpr.getInt16((8 * r + e) * 2, false); }
+  getVecS8(r, e) { return this.vpr.getInt8(16 * r + e, false); }
+  setVecS8(r, e, v) { this.vpr.setInt8(16 * r + e, v); }
+
+  sprintVecReg(r) {
+    let s = [];
+    for (let v = 0; v < 8; v++) {
+      s.push(toString16(this.getVecS16(r, v)));
+    }
+    return `V${r}: [${s.join(', ')}]`;
+  }
+
+  loadU8(offset) { return this.dmem.getUint8(offset & 0xfff, false); }
   loadU16(offset) { return (offset <= 0xffe) ? this.dmem.getUint16(offset, false) : this.loadU16Wrapped(offset); }
   loadU32(offset) { return (offset <= 0xffc) ? this.dmem.getUint32(offset, false) : this.loadU32Wrapped(offset); }
 
@@ -172,6 +194,10 @@ class RSP {
 
   calcAddress(instr) {
     return (this.getRegS32(base(instr)) + imms(instr)) & 0xfff;
+  }
+
+  calcVecAddress(instr, scale) {
+    return (this.getRegS32(vbase(instr)) + (voffset(instr) * scale)) & 0xfff;
   }
 
   conditionalBranch(cond, offset) {
@@ -482,19 +508,18 @@ const lc2Table = (() => {
     tbl.push(executedUnknown);
   }
 
-  // TODO: flesh these out.
-  tbl[0] = i => executeUnhandled('LBV', i);
-  tbl[1] = i => executeUnhandled('LSV', i);
-  tbl[2] = i => executeUnhandled('LLV', i);
-  tbl[3] = i => executeUnhandled('LDV', i);
-  tbl[4] = i => executeUnhandled('LQV', i);
-  tbl[5] = i => executeUnhandled('LRV', i);
-  tbl[6] = i => executeUnhandled('LPV', i);
-  tbl[7] = i => executeUnhandled('LUV', i);
-  tbl[8] = i => executeUnhandled('LHV', i);
-  tbl[9] = i => executeUnhandled('LFV', i);
-  tbl[10] = i => executeUnhandled('LWV', i);
-  tbl[11] = i => executeUnhandled('LTV', i);
+  tbl[0] = i => executeLBV(i);
+  tbl[1] = i => executeLSV(i);
+  tbl[2] = i => executeLLV(i);
+  tbl[3] = i => executeLDV(i);
+  tbl[4] = i => executeLQV(i);
+  tbl[5] = i => executeLRV(i);
+  tbl[6] = i => executeLPV(i);
+  tbl[7] = i => executeLUV(i);
+  tbl[8] = i => executeLHV(i);
+  tbl[9] = i => executeLFV(i);
+  tbl[10] = i => executeLWV(i);
+  tbl[11] = i => executeLTV(i);
 
   return tbl;
 })();
@@ -505,19 +530,18 @@ const sc2Table = (() => {
     tbl.push(executedUnknown);
   }
 
-  // TODO: flesh these out.
-  tbl[0] = i => executeUnhandled('SBV', i);
-  tbl[1] = i => executeUnhandled('SSV', i);
-  tbl[2] = i => executeUnhandled('SLV', i);
-  tbl[3] = i => executeUnhandled('SDV', i);
-  tbl[4] = i => executeUnhandled('SQV', i);
-  tbl[5] = i => executeUnhandled('SRV', i);
-  tbl[6] = i => executeUnhandled('SPV', i);
-  tbl[7] = i => executeUnhandled('SUV', i);
-  tbl[8] = i => executeUnhandled('SHV', i);
-  tbl[9] = i => executeUnhandled('SFV', i);
-  tbl[10] = i => executeUnhandled('SWV', i);
-  tbl[11] = i => executeUnhandled('STV', i);
+  tbl[0] = i => executeSBV(i);
+  tbl[1] = i => executeSSV(i);
+  tbl[2] = i => executeSLV(i);
+  tbl[3] = i => executeSDV(i);
+  tbl[4] = i => executeSQV(i);
+  tbl[5] = i => executeSRV(i);
+  tbl[6] = i => executeSPV(i);
+  tbl[7] = i => executeSUV(i);
+  tbl[8] = i => executeSHV(i);
+  tbl[9] = i => executeSFV(i);
+  tbl[10] = i => executeSWV(i);
+  tbl[11] = i => executeSTV(i);
 
   return tbl;
 })();
@@ -640,3 +664,100 @@ function executeLWU(i) { rsp.setRegU32(rt(i), rsp.loadU32(rsp.calcAddress(i))); 
 function executeSB(i) { rsp.store8(rsp.calcAddress(i), rsp.getRegS32(rt(i))); }
 function executeSH(i) { rsp.store16(rsp.calcAddress(i), rsp.getRegS32(rt(i))); }
 function executeSW(i) { rsp.store32(rsp.calcAddress(i), rsp.getRegS32(rt(i))); }
+
+
+function loadVector(i, scale) {
+  const addr = rsp.calcVecAddress(i, scale);
+  const t = vt(i);
+  const el = ve(i);
+
+  const len = (16 - el) < scale ? (16 - el) : scale;
+
+  for (let x = 0; x < len; x++) {
+    rsp.setVecS8(t, (el + x), rsp.loadS8(addr + x));
+  }
+}
+
+function storeVector(i, scale) {
+  const addr = rsp.calcVecAddress(i, scale);
+  const t = vt(i);
+  const el = ve(i);
+
+  for (let x = 0; x < scale; x++) {
+    rsp.store8(addr + x, rsp.getVecS8(t, (el + x) & 15));
+  }
+}
+
+
+function executeLBV(i) { loadVector(i, 1); }
+function executeLSV(i) { loadVector(i, 2); }
+function executeLLV(i) { loadVector(i, 4); }
+function executeLDV(i) { loadVector(i, 8); }
+function executeLQV(i) {
+  const addr = rsp.calcVecAddress(i, 16);
+  const end = (addr + 16) & 0xff0;
+  const t = vt(i);
+  const el = ve(i);
+
+  const len = Math.min(end - addr, 16 - el);
+  for (let x = 0; x < len; x++) {
+    rsp.setVecS8(t, el + x, rsp.loadU8(addr + x));
+  }
+}
+
+function executeLRV(i) {
+  const end = rsp.calcVecAddress(i, 16);
+  const addr = end & 0xff0;
+  const t = vt(i);
+  const el = ve(i);
+
+  const offset = end & 15;
+  const startEl = (16 - offset) + el;
+  const len = Math.min(offset, 16 - startEl);
+  for (let x = 0; x < len; x++) {
+    rsp.setVecS8(t, startEl + x, rsp.loadU8(addr + x));
+  }
+}
+function executeLPV(i) { executeUnhandled('LPV', i); }
+function executeLUV(i) { executeUnhandled('LUV', i); }
+function executeLHV(i) { executeUnhandled('LHV', i); }
+function executeLFV(i) { executeUnhandled('LFV', i); }
+function executeLWV(i) { executeUnhandled('LWV', i); }
+function executeLTV(i) { executeUnhandled('LTV', i); }
+
+function executeSBV(i) { storeVector(i, 1); }
+function executeSSV(i) { storeVector(i, 2); }
+function executeSLV(i) { storeVector(i, 4); }
+function executeSDV(i) { storeVector(i, 8); }
+function executeSQV(i) {
+  const addr = rsp.calcVecAddress(i, 16);
+  const end = (addr + 16) & 0xff0;
+  const t = vt(i);
+  const el = ve(i);
+
+  let len = end - addr;
+  for (let x = 0; x < len; x++) {
+    // Stores wrap around the vector, unlike loads. 
+    rsp.store8(addr + x, rsp.getVecS8(t, (el + x) & 15));
+  }
+}
+function executeSRV(i) {
+  const end = rsp.calcVecAddress(i, 16);
+  const addr = end & 0xff0;
+  const t = vt(i);
+  const el = ve(i);
+
+  const offset = end & 15;
+  const startEl = (16 - offset) + el;
+  const len = offset;
+  for (let x = 0; x < len; x++) {
+    // Stores wrap around the vector, unlike loads. 
+    rsp.store8(addr + x, rsp.getVecS8(t, (startEl + x) & 15));
+  }
+}
+function executeSPV(i) { executeUnhandled('SPV', i); }
+function executeSUV(i) { executeUnhandled('SUV', i); }
+function executeSHV(i) { executeUnhandled('SHV', i); }
+function executeSFV(i) { executeUnhandled('SFV', i); }
+function executeSWV(i) { executeUnhandled('SWV', i); }
+function executeSTV(i) { executeUnhandled('STV', i); }
