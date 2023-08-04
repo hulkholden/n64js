@@ -131,7 +131,15 @@ class RSP {
 
   getVecS16(r, e) { return this.vpr.getInt16((8 * r + e) * 2, false); }
   getVecS8(r, e) { return this.vpr.getInt8(16 * r + e, false); }
-  setVecS8(r, e, v) { this.vpr.setInt8(16 * r + e, v); }
+  getVecU8(r, e) { return this.vpr.getUint8(16 * r + e, false); }
+
+  getVecU16Wrap(r, e) {
+    const hi = rsp.getVecU8(r, e & 15);
+    const lo = rsp.getVecU8(r, (e + 1) & 15);
+    return (hi << 8) | lo;
+  }
+
+  setVecS8(r, e, v) { this.vpr.setInt8(16 * r + e, v, false); }
 
   sprintVecReg(r) {
     let s = [];
@@ -729,6 +737,7 @@ function executeSBV(i) { storeVector(i, 1); }
 function executeSSV(i) { storeVector(i, 2); }
 function executeSLV(i) { storeVector(i, 4); }
 function executeSDV(i) { storeVector(i, 8); }
+
 function executeSQV(i) {
   const addr = rsp.calcVecAddress(i, 16);
   const end = (addr + 16) & 0xff0;
@@ -741,6 +750,7 @@ function executeSQV(i) {
     rsp.store8(addr + x, rsp.getVecS8(t, (el + x) & 15));
   }
 }
+
 function executeSRV(i) {
   const end = rsp.calcVecAddress(i, 16);
   const addr = end & 0xff0;
@@ -755,9 +765,48 @@ function executeSRV(i) {
     rsp.store8(addr + x, rsp.getVecS8(t, (startEl + x) & 15));
   }
 }
-function executeSPV(i) { executeUnhandled('SPV', i); }
-function executeSUV(i) { executeUnhandled('SUV', i); }
-function executeSHV(i) { executeUnhandled('SHV', i); }
+
+function executeSPV(i) {
+  const addr = rsp.calcVecAddress(i, 8);
+  const t = vt(i);
+  const el = ve(i);
+
+  for (let i = 0; i < 8; i++) {
+    const elIdx = el + i;
+    const shift = (elIdx & 8) ? 7 : 8;
+    const val = rsp.getVecS16(t, elIdx & 7) >>> shift;
+    rsp.store8(addr + i, val);
+  }
+}
+
+function executeSUV(i) {
+  const addr = rsp.calcVecAddress(i, 8);
+  const t = vt(i);
+  const el = ve(i);
+
+  for (let i = 0; i < 8; i++) {
+    const elIdx = el + i;
+    const shift = (elIdx & 8) ? 8 : 7;
+    const val = rsp.getVecS16(t, elIdx & 7) >>> shift;
+    rsp.store8(addr + i, val);
+  }
+}
+
+function executeSHV(i) {
+  const addr = rsp.calcVecAddress(i, 16);
+  const t = vt(i);
+  const el = ve(i);
+
+  const offset = addr & 7;
+  const base = addr - offset;
+  for (let i = 0; i < 8; i++) {
+    const elIdx = el + (i * 2);
+    const memIdx = (offset + (i * 2)) & 15;
+    const val = rsp.getVecU16Wrap(t, elIdx) >>> 7;
+    rsp.store8(base + memIdx, val);
+  }
+}
+
 function executeSFV(i) { executeUnhandled('SFV', i); }
 function executeSWV(i) { executeUnhandled('SWV', i); }
 function executeSTV(i) { executeUnhandled('STV', i); }
