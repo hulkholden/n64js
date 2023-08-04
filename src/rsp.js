@@ -262,7 +262,7 @@ class RSP {
   }
 
   executeOp(instr) {
-    // if (instr != 0 ) this.disassembleOp(this.pc, instr);
+    // if (instr != 0) this.disassembleOp(this.pc, instr);
     simpleTable[op(instr)](instr);
   }
 
