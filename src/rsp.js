@@ -129,18 +129,25 @@ class RSP {
   setRegS32(r, v) { if (r != 0) { this.gprS32[r] = v; } }
   setRegU32(r, v) { if (r != 0) { this.gprU32[r] = v; } }
 
-  getVecS16(r, e) { return this.vpr.getInt16((8 * r + e) * 2, false); }
-  getVecU16(r, e) { return this.vpr.getUint16((8 * r + e) * 2, false); }
-  getVecS8(r, e) { return this.vpr.getInt8(16 * r + e, false); }
-  getVecU8(r, e) { return this.vpr.getUint8(16 * r + e, false); }
+  // TODO: Remove this once finished implementing.
+  assertElIdx(e) {
+    if (e < 0 || e > 15) {
+      throw `e out of range: ${e}`
+    }
+  }
+
+  getVecS16(r, e) { this.assertElIdx(e); return this.vpr.getInt16((8 * r + e) * 2, false); }
+  getVecU16(r, e) { this.assertElIdx(e); return this.vpr.getUint16((8 * r + e) * 2, false); }
+  getVecS8(r, e) { this.assertElIdx(e); return this.vpr.getInt8(16 * r + e, false); }
+  getVecU8(r, e) { this.assertElIdx(e); return this.vpr.getUint8(16 * r + e, false); }
+
+  setVecS8(r, e, v) { this.assertElIdx(e); this.vpr.setInt8(16 * r + e, v, false); }
 
   getVecU16Wrap(r, e) {
     const hi = rsp.getVecU8(r, e & 15);
     const lo = rsp.getVecU8(r, (e + 1) & 15);
     return (hi << 8) | lo;
   }
-
-  setVecS8(r, e, v) { this.vpr.setInt8(16 * r + e, v, false); }
 
   sprintVecReg(r) {
     let s = [];
