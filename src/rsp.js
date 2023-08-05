@@ -777,7 +777,7 @@ function executeLLV(i) { loadVector(i, 4); }
 function executeLDV(i) { loadVector(i, 8); }
 function executeLQV(i) {
   const addr = rsp.calcVecAddress(i, 16);
-  const end = (addr + 16) & 0xff0;
+  const end = (addr & 0xff0) + 16;
   const t = vt(i);
   const el = ve(i);
 
@@ -814,7 +814,7 @@ function executeSDV(i) { storeVector(i, 8); }
 
 function executeSQV(i) {
   const addr = rsp.calcVecAddress(i, 16);
-  const end = (addr + 16) & 0xff0;
+  const end = (addr & 0xff0) + 16;
   const t = vt(i);
   const el = ve(i);
 
