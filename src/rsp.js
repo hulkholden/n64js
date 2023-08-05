@@ -818,7 +818,7 @@ function executeLPV(i) { loadPacked(rsp.calcVecAddress(i, 8), vt(i), ve(i), 8, 1
 function executeLUV(i) { loadPacked(rsp.calcVecAddress(i, 8), vt(i), ve(i), 7, 1); }
 function executeLHV(i) { loadPacked(rsp.calcVecAddress(i, 16), vt(i), ve(i), 7, 2); }
 
-function executeLFV(i) { 
+function executeLFV(i) {
   const addr = rsp.calcVecAddress(i, 16);
   const t = vt(i);
   const el = ve(i);
@@ -842,6 +842,24 @@ function executeLFV(i) {
   }
 }
 
+function executeLWV(i) { /* No-op */ }
+
+function executeLTV(i) {
+  const addr = rsp.calcVecAddress(i, 16);
+  const t = vt(i);
+  const el = ve(i);
+
+  const regBase = t & ~7;
+  const regOffset = el >> 1;
+  const memBase = addr & ~7;
+  const memOffset = (addr & 8) + el;
+
+  for (let i = 0; i < 8; i++) {
+    const regIdx = (regOffset + i) & 7;
+    rsp.setVecS8(regBase + regIdx, (i * 2) + 0, rsp.loadU8(memBase + ((memOffset + (i * 2) + 0) & 0xf)));
+    rsp.setVecS8(regBase + regIdx, (i * 2) + 1, rsp.loadU8(memBase + ((memOffset + (i * 2) + 1) & 0xf)));
+  }
+}
 
 function executeSBV(i) { storeVector(i, 1); }
 function executeSSV(i) { storeVector(i, 2); }
