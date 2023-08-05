@@ -102,7 +102,11 @@ class RSP {
     this.vprS8 = new Int8Array(vecMem);
 
     const vAccMem = new ArrayBuffer(8 * 8); // Actually 48 bits, not 64. 
-    this.vAcc = new BigInt64Array(vecMem);
+    this.vAcc = new BigInt64Array(vAccMem);
+
+    this.vuVCOReg = new Uint16Array(new ArrayBuffer(2));
+    this.vuVCCReg = new Uint16Array(new ArrayBuffer(2));
+    this.vuVCEReg = new Uint8Array(new ArrayBuffer(1));
 
     this.reset();
   }
@@ -124,11 +128,25 @@ class RSP {
     this.vAcc[0] = 0n;
   }
 
+  // General Purpose Registers.
   getRegS32(r) { return this.gprS32[r]; }
   getRegU32(r) { return this.gprU32[r]; }
   setRegS32(r, v) { if (r != 0) { this.gprS32[r] = v; } }
   setRegU32(r, v) { if (r != 0) { this.gprU32[r] = v; } }
 
+  // Vector Unit (Cop2) Control Registers.
+  // VCO = Vector Carry Out, 16 bits.
+  // VCC = Vector Compare Code, 16 bits.
+  // VCE = Vector Compare Extension, 8 bits.
+  get VCO() { return this.vuVCOReg[0]; }
+  get VCC() { return this.vuVCCReg[0]; }
+  get VCE() { return this.vuVCEReg[0]; }
+
+  set VCO(val) { this.vuVCOReg[0] = val; }
+  set VCC(val) { this.vuVCCReg[0] = val; }
+  set VCE(val) { this.vuVCEReg[0] = val; }
+
+  // Vector Unit (Cop2) General Purpose Registers.
   // TODO: Remove this once finished implementing.
   assertElIdx(e) {
     if (e < 0 || e > 15) {
@@ -430,9 +448,9 @@ const cop2Table = (() => {
     tbl.push(executedUnknown);
   }
   tbl[0] = i => executeUnhandled('MFC2', i);
-  tbl[2] = i => executeUnhandled('CFC2', i);
+  tbl[2] = i => executeCFC2(i);
   tbl[4] = i => executeUnhandled('MTC2', i);
-  tbl[6] = i => executeUnhandled('CTC2', i);
+  tbl[6] = i => executeCTC2(i);
 
   for (let i = 16; i < 32; i++) {
     tbl[i] = executeVector;
@@ -655,6 +673,28 @@ function executeBGEZAL(i) {
 // Cop0 Ops.
 function executeMFC0(i) { rsp.setRegU32(rt(i), rsp.moveFromControl(rd(i))); }
 function executeMTC0(i) { rsp.moveToControl(rd(i), rsp.getRegU32(rt(i))); }
+
+// Cop2 Ops.
+function executeCFC2(i) {
+  let value;
+  switch (rd(i) & 0x03) {
+    case 0: value = (rsp.VCO << 16) >> 16; break;
+    case 1: value = (rsp.VCC << 16) >> 16; break;
+    case 2: value = rsp.VCE; break;
+    case 3: value = rsp.VCE; break;
+  }
+  rsp.setRegU32(rt(i), value);
+}
+
+function executeCTC2(i) {
+  const value = rsp.getRegS32(rt(i));
+  switch (rd(i) & 0x03) {
+    case 0: rsp.VCO = value; break;
+    case 1: rsp.VCC = value; break;
+    case 2: rsp.VCE = value; break;
+    case 3: rsp.VCE = value; break;
+  }
+}
 
 // Simple Ops.
 function executeJ(i) { rsp.jump(jumpAddress(rsp.pc, i)); }
