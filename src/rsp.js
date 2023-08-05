@@ -802,21 +802,19 @@ function executeLRV(i) {
   }
 }
 
-function executeLPV(i) {
-  const addr = rsp.calcVecAddress(i, 8);
-  const t = vt(i);
-  const el = ve(i);
-
+function loadPacked(addr, t, el, shift, iScale) {
   const misalignment = addr & 7;
   const base = addr & 0xff8;
   for (let i = 0; i < 8; i++) {
-    const memIdx = (16 - el + i + misalignment) & 0xf;
-    rsp.setVecS16(t, i, rsp.loadU8(base + memIdx) << 8);
+    const memIdx = (16 - el + (i * iScale) + misalignment) & 0xf;
+    rsp.setVecS16(t, i, rsp.loadU8(base + memIdx) << shift);
   }
 }
 
-function executeLUV(i) { executeUnhandled('LUV', i); }
-function executeLHV(i) { executeUnhandled('LHV', i); }
+function executeLPV(i) { loadPacked(rsp.calcVecAddress(i, 8), vt(i), ve(i), 8, 1); }
+function executeLUV(i) { loadPacked(rsp.calcVecAddress(i, 8), vt(i), ve(i), 7, 1); }
+function executeLHV(i) { loadPacked(rsp.calcVecAddress(i, 16), vt(i), ve(i), 7, 2); }
+
 function executeLFV(i) { executeUnhandled('LFV', i); }
 function executeLWV(i) { executeUnhandled('LWV', i); }
 function executeLTV(i) { executeUnhandled('LTV', i); }
