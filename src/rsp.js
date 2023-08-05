@@ -163,12 +163,13 @@ class RSP {
   }
 
   // TODO: need to make it clearer these are 2-byte aligned and e is in the range 0..8.
-  getVecS16(r, e) { this.assertElIdxRange(e*2, 2); return this.vpr.getInt16((8 * r + e) * 2, false); }
-  getVecU16(r, e) { this.assertElIdxRange(e*2, 2); return this.vpr.getUint16((8 * r + e) * 2, false); }
-  getVecS8(r, e) { this.assertElIdx(e); return this.vpr.getInt8(16 * r + e, false); }
-  getVecU8(r, e) { this.assertElIdx(e); return this.vpr.getUint8(16 * r + e, false); }
- 
-  setVecS8(r, e, v) { this.assertElIdx(e); this.vpr.setInt8(16 * r + e, v, false); }
+  getVecS16(r, e) { this.assertElIdxRange(e * 2, 2); return this.vpr.getInt16((16 * r) + (e * 2), false); }
+  getVecU16(r, e) { this.assertElIdxRange(e * 2, 2); return this.vpr.getUint16((16 * r) + (e * 2), false); }
+  getVecS8(r, e) { this.assertElIdx(e); return this.vpr.getInt8((16 * r) + e, false); }
+  getVecU8(r, e) { this.assertElIdx(e); return this.vpr.getUint8((16 * r) + e, false); }
+
+  setVecS16(r, e, v) { this.assertElIdxRange(e * 2, 2); this.vpr.setInt16((16 * r) + (e * 2), v, false); }
+  setVecS8(r, e, v) { this.assertElIdx(e); this.vpr.setInt8((16 * r) + e, v, false); }
 
   // Gets an unaligned 16 bit vector register with wraparound (reading from element 15 uses element 0 for low bits).
   getVecU16UnalignedWrap(r, e) {
@@ -800,7 +801,20 @@ function executeLRV(i) {
     rsp.setVecS8(t, startEl + x, rsp.loadU8(addr + x));
   }
 }
-function executeLPV(i) { executeUnhandled('LPV', i); }
+
+function executeLPV(i) {
+  const addr = rsp.calcVecAddress(i, 8);
+  const t = vt(i);
+  const el = ve(i);
+
+  const misalignment = addr & 7;
+  const base = addr & 0xff8;
+  for (let i = 0; i < 8; i++) {
+    const memIdx = (16 - el + i + misalignment) & 0xf;
+    rsp.setVecS16(t, i, rsp.loadU8(base + memIdx) << 8);
+  }
+}
+
 function executeLUV(i) { executeUnhandled('LUV', i); }
 function executeLHV(i) { executeUnhandled('LHV', i); }
 function executeLFV(i) { executeUnhandled('LFV', i); }
