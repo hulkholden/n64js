@@ -130,6 +130,7 @@ class RSP {
   setRegU32(r, v) { if (r != 0) { this.gprU32[r] = v; } }
 
   getVecS16(r, e) { return this.vpr.getInt16((8 * r + e) * 2, false); }
+  getVecU16(r, e) { return this.vpr.getUint16((8 * r + e) * 2, false); }
   getVecS8(r, e) { return this.vpr.getInt8(16 * r + e, false); }
   getVecU8(r, e) { return this.vpr.getUint8(16 * r + e, false); }
 
@@ -807,6 +808,44 @@ function executeSHV(i) {
   }
 }
 
-function executeSFV(i) { executeUnhandled('SFV', i); }
+// Element selectors for SFV.
+// Given a starting value the following 3 elements increment, wrapping in the vector half,
+// i.e. elementN = (first&4) | ((first + i) & 3).
+// TODO: figure out if there's any logic to how the initial element is chosen.
+// It's interesting that all elements appear appear as initial elements, except 2.
+const sfvElements = new Map([
+  [0, [0, 1, 2, 3]],
+  [1, [6, 7, 4, 5]],
+  [4, [1, 2, 3, 0]],
+  [5, [7, 4, 5, 6]],
+  [8, [4, 5, 6, 7]],
+  [11, [3, 0, 1, 2]],
+  [12, [5, 6, 7, 4]],
+  [15, [0, 1, 2, 3]],
+]);
+
+function executeSFV(i) {
+  const addr = rsp.calcVecAddress(i, 16);
+  const t = vt(i);
+  const el = ve(i);
+
+  const offset = addr & 7;
+  const base = addr - offset;
+
+  const elems = sfvElements.get(el);
+  if (elems) {
+    for (let i = 0; i < 4; i++) {
+      const memIdx = (offset + (i * 4)) & 15;
+      const val = rsp.getVecU16(t, elems[i]) >>> 7;
+      rsp.store8(base + memIdx, val);
+    }
+  } else {
+    for (let i = 0; i < 4; i++) {
+      const memIdx = (offset + (i * 4)) & 15;
+      rsp.store8(base + memIdx, 0);
+    }
+  }
+}
+
 function executeSWV(i) { executeUnhandled('SWV', i); }
 function executeSTV(i) { executeUnhandled('STV', i); }
