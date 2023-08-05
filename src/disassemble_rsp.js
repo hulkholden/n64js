@@ -64,7 +64,7 @@ const cop0RegNames = [
 ];
 
 const c2ControlNames = [
-  'VCO', 'VCC', 'VCE', '?',
+  'VCO', 'VCC', 'VCE', 'VCE',
 ];
 
 function makeRegSpan(t) {
