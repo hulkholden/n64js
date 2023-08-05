@@ -836,8 +836,7 @@ function executeSFV(i) {
   if (elems) {
     for (let i = 0; i < 4; i++) {
       const memIdx = (offset + (i * 4)) & 15;
-      const val = rsp.getVecU16(t, elems[i]) >>> 7;
-      rsp.store8(base + memIdx, val);
+      rsp.store8(base + memIdx, rsp.getVecU16(t, elems[i]) >>> 7);
     }
   } else {
     for (let i = 0; i < 4; i++) {
@@ -847,5 +846,19 @@ function executeSFV(i) {
   }
 }
 
-function executeSWV(i) { executeUnhandled('SWV', i); }
+function executeSWV(i) {
+  const addr = rsp.calcVecAddress(i, 16);
+  const t = vt(i);
+  const el = ve(i);
+
+  const offset = addr & 0x7;
+  const base = addr - offset;
+
+  for (let i = 0; i < 16; i++) {
+    const elIdx = (el + i) & 15;
+    const memIdx = (offset + i) & 15;
+    rsp.store8(base + memIdx, rsp.getVecS8(t, elIdx));
+  }
+}
+
 function executeSTV(i) { executeUnhandled('STV', i); }
