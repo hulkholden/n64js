@@ -108,6 +108,9 @@ class RSP {
     this.vuVCCReg = new Uint16Array(new ArrayBuffer(2));
     this.vuVCEReg = new Uint8Array(new ArrayBuffer(1));
 
+    // Temporary storage for LFV.
+    this.lfvTempVec = new DataView(new ArrayBuffer(8 * 16));
+
     this.reset();
   }
 
@@ -815,9 +818,30 @@ function executeLPV(i) { loadPacked(rsp.calcVecAddress(i, 8), vt(i), ve(i), 8, 1
 function executeLUV(i) { loadPacked(rsp.calcVecAddress(i, 8), vt(i), ve(i), 7, 1); }
 function executeLHV(i) { loadPacked(rsp.calcVecAddress(i, 16), vt(i), ve(i), 7, 2); }
 
-function executeLFV(i) { executeUnhandled('LFV', i); }
-function executeLWV(i) { executeUnhandled('LWV', i); }
-function executeLTV(i) { executeUnhandled('LTV', i); }
+function executeLFV(i) { 
+  const addr = rsp.calcVecAddress(i, 16);
+  const t = vt(i);
+  const el = ve(i);
+
+  const misalignment = addr & 7;
+  const base = addr & 0xff8;
+
+  const dv = rsp.lfvTempVec;
+  dv.setInt16(0, rsp.loadU8(base + ((misalignment + 0 - el) & 0xF)) << 7, false);
+  dv.setInt16(2, rsp.loadU8(base + ((misalignment + 4 - el) & 0xF)) << 7, false);
+  dv.setInt16(4, rsp.loadU8(base + ((misalignment + 8 - el) & 0xF)) << 7, false);
+  dv.setInt16(6, rsp.loadU8(base + ((misalignment + 12 - el) & 0xF)) << 7, false);
+  dv.setInt16(8, rsp.loadU8(base + ((misalignment + 8 - el) & 0xF)) << 7, false);
+  dv.setInt16(10, rsp.loadU8(base + ((misalignment + 12 - el) & 0xF)) << 7, false);
+  dv.setInt16(12, rsp.loadU8(base + ((misalignment + 0 - el) & 0xF)) << 7, false);
+  dv.setInt16(14, rsp.loadU8(base + ((misalignment + 4 - el) & 0xF)) << 7, false);
+
+  const len = Math.min(8, 16 - el);
+  for (let i = el, n = el + len; i < n; i++) {
+    rsp.setVecS8(t, i, dv.getInt8(i, false));
+  }
+}
+
 
 function executeSBV(i) { storeVector(i, 1); }
 function executeSSV(i) { storeVector(i, 2); }
