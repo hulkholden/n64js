@@ -819,7 +819,7 @@ function executeSHV(i) {
 // Given a starting value the following 3 elements increment, wrapping in the vector half,
 // i.e. elementN = (first&4) | ((first + i) & 3).
 // TODO: figure out if there's any logic to how the initial element is chosen.
-// It's interesting that all elements appear appear as initial elements, except 2.
+// It's interesting that all elements except 2 appear appear as initial elements.
 const sfvElements = new Map([
   [0, [0, 1, 2, 3]],
   [1, [6, 7, 4, 5]],
