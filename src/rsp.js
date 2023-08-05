@@ -868,4 +868,24 @@ function executeSWV(i) {
   }
 }
 
-function executeSTV(i) { executeUnhandled('STV', i); }
+function executeSTV(i) {
+  const addr = rsp.calcVecAddress(i, 16);
+  const t = vt(i);
+  const el = ve(i);
+
+  // Output seems to be 8 byte aligned and rotate through 16-bytes.
+  const memBase = addr & 0xff8;
+  const memOffset = addr & 0xf;
+  // Element index is offset by 0 or 8 depending on dest alignment.
+  const elOffset = addr & 0x8;
+  // Output is stored in 8 consecutive registers.
+  const regBase = t & ~7;
+  const regOffset = (el - (addr & 0x8)) >> 1;
+
+  for (let i = 0; i < 16; i++) {
+    const memIdx = memBase + ((memOffset + i) & 0xf);
+    const regIdx = regBase + ((regOffset + (i >> 1)) & 0x7);
+    const elIdx = (elOffset + i) & 0xf;
+    rsp.store8(memIdx, rsp.getVecS8(regIdx, elIdx));
+  }
+}
