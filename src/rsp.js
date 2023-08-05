@@ -134,6 +134,8 @@ class RSP {
   setRegS32(r, v) { if (r != 0) { this.gprS32[r] = v; } }
   setRegU32(r, v) { if (r != 0) { this.gprU32[r] = v; } }
 
+  setRegS16SignExtend(r, v) { if (r != 0) { this.gprS32[r] = (v << 16) >> 16; } }
+
   // Vector Unit (Cop2) Control Registers.
   // VCO = Vector Carry Out, 16 bits.
   // VCC = Vector Compare Code, 16 bits.
@@ -153,18 +155,34 @@ class RSP {
       throw `e out of range: ${e}`
     }
   }
+  assertElIdxRange(start, count) {
+    const end = start + count;
+    if (start < 0 || end > 16) {
+      throw `e out of range: ${start}..${end}`
+    }
+  }
 
-  getVecS16(r, e) { this.assertElIdx(e); return this.vpr.getInt16((8 * r + e) * 2, false); }
-  getVecU16(r, e) { this.assertElIdx(e); return this.vpr.getUint16((8 * r + e) * 2, false); }
+  // TODO: need to make it clearer these are 2-byte aligned and e is in the range 0..8.
+  getVecS16(r, e) { this.assertElIdxRange(e*2, 2); return this.vpr.getInt16((8 * r + e) * 2, false); }
+  getVecU16(r, e) { this.assertElIdxRange(e*2, 2); return this.vpr.getUint16((8 * r + e) * 2, false); }
   getVecS8(r, e) { this.assertElIdx(e); return this.vpr.getInt8(16 * r + e, false); }
   getVecU8(r, e) { this.assertElIdx(e); return this.vpr.getUint8(16 * r + e, false); }
-
+ 
   setVecS8(r, e, v) { this.assertElIdx(e); this.vpr.setInt8(16 * r + e, v, false); }
 
-  getVecU16Wrap(r, e) {
+  // Gets an unaligned 16 bit vector register with wraparound (reading from element 15 uses element 0 for low bits).
+  getVecU16UnalignedWrap(r, e) {
     const hi = rsp.getVecU8(r, e & 15);
     const lo = rsp.getVecU8(r, (e + 1) & 15);
     return (hi << 8) | lo;
+  }
+
+  // Sets a vector register with no wraparound (low bits are discarded for assignment to element 15).
+  setVecU16UnalignedNoWrap(r, e, v) {
+    this.setVecS8(r, e + 0, v >> 8);
+    if (e < 15) {
+      this.setVecS8(r, e + 1, v);
+    }
   }
 
   sprintVecReg(r) {
@@ -447,9 +465,9 @@ const cop2Table = (() => {
   for (let i = 0; i < 32; i++) {
     tbl.push(executedUnknown);
   }
-  tbl[0] = i => executeUnhandled('MFC2', i);
+  tbl[0] = i => executeMFC2(i);
   tbl[2] = i => executeCFC2(i);
-  tbl[4] = i => executeUnhandled('MTC2', i);
+  tbl[4] = i => executeMTC2(i);
   tbl[6] = i => executeCTC2(i);
 
   for (let i = 16; i < 32; i++) {
@@ -675,6 +693,14 @@ function executeMFC0(i) { rsp.setRegU32(rt(i), rsp.moveFromControl(rd(i))); }
 function executeMTC0(i) { rsp.moveToControl(rd(i), rsp.getRegU32(rt(i))); }
 
 // Cop2 Ops.
+function executeMFC2(i) {
+  rsp.setRegS16SignExtend(rt(i), rsp.getVecU16UnalignedWrap(vd(i), ve(i)));
+}
+
+function executeMTC2(i) {
+  rsp.setVecU16UnalignedNoWrap(vd(i), ve(i), rsp.getRegU32(rt(i)));
+}
+
 function executeCFC2(i) {
   let value;
   switch (rd(i) & 0x03) {
@@ -850,7 +876,7 @@ function executeSHV(i) {
   for (let i = 0; i < 8; i++) {
     const elIdx = el + (i * 2);
     const memIdx = (offset + (i * 2)) & 15;
-    const val = rsp.getVecU16Wrap(t, elIdx) >>> 7;
+    const val = rsp.getVecU16UnalignedWrap(t, elIdx) >>> 7;
     rsp.store8(base + memIdx, val);
   }
 }
