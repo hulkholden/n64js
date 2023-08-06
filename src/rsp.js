@@ -83,6 +83,18 @@ const SP_STATUS_YIELD = SP_STATUS_SIG0;
 const SP_STATUS_YIELDED = SP_STATUS_SIG1;
 const SP_STATUS_TASKDONE = SP_STATUS_SIG2;
 
+function clampSigned(accum) {
+  if (accum < -32768) return -32768;
+  if (accum > 32767) return 32767;
+  return accum;
+}
+
+function clampUnsigned(accum) {
+  if (accum < 0) return 0;
+  if (accum > 32767) return 65535;
+  return accum;
+}
+
 class RSP {
   constructor() {
     const hw = n64js.hardware();
@@ -105,6 +117,7 @@ class RSP {
     this.vpr = new DataView(vecMem);
     this.vprS16 = new Int16Array(vecMem);
     this.vprS8 = new Int8Array(vecMem);
+    this.vprU64 = new BigUint64Array(vecMem);
 
     const vAccMem = new ArrayBuffer(8 * 8); // Actually 48 bits, not 64. 
     this.vAcc = new BigInt64Array(vAccMem);
@@ -113,8 +126,34 @@ class RSP {
     this.vuVCCReg = new Uint16Array(new ArrayBuffer(2));
     this.vuVCEReg = new Uint8Array(new ArrayBuffer(1));
 
+    // Element selection table.
+    // The element field of the opcode is used to select one of these rows.
+    // Each nibble of the pattern corresponds to a source element to use.
+    // Patterns are constructed so the loops processing each element in turn
+    // can read the bottom 4 bits from the pattern then shift right by 4 for the
+    // next iteration.
+    this.vecSelectU32 = new Uint32Array(new ArrayBuffer(16 * 4));
+    this.vecSelectU32[0] = 0x76543210; // None
+    this.vecSelectU32[1] = 0x76543210; // None
+    this.vecSelectU32[2] = 0x66442200; // 0q
+    this.vecSelectU32[3] = 0x77553311; // 1q
+    this.vecSelectU32[4] = 0x44440000; // 0h
+    this.vecSelectU32[5] = 0x55551111; // 1h
+    this.vecSelectU32[6] = 0x66662222; // 2h
+    this.vecSelectU32[7] = 0x77773333; // 3h
+    this.vecSelectU32[8] = 0x00000000; // 0
+    this.vecSelectU32[9] = 0x11111111; // 1
+    this.vecSelectU32[10] = 0x22222222; // 2
+    this.vecSelectU32[11] = 0x33333333; // 3
+    this.vecSelectU32[12] = 0x44444444; // 4
+    this.vecSelectU32[13] = 0x55555555; // 5
+    this.vecSelectU32[14] = 0x66666666; // 6
+    this.vecSelectU32[15] = 0x77777777; // 7
+
     // Temporary vector for intermediate calculations.
-    this.vecTemp = new DataView(new ArrayBuffer(8 * 16));
+    const vecTempMem = new ArrayBuffer(8 * 16);
+    this.vecTemp = new DataView(vecTempMem);
+    this.vecTempU64 = new BigUint64Array(vecTempMem);
 
     this.reset();
   }
@@ -175,6 +214,11 @@ class RSP {
   getVecU16(r, e) { this.assertElIdxRange(e * 2, 2); return this.vpr.getUint16((16 * r) + (e * 2), false); }
   getVecS8(r, e) { this.assertElIdx(e); return this.vpr.getInt8((16 * r) + e, false); }
   getVecU8(r, e) { this.assertElIdx(e); return this.vpr.getUint8((16 * r) + e, false); }
+
+  setVecFromTemp(r) {
+    this.vprU64[(r * 2) + 0] = this.vecTempU64[0];
+    this.vprU64[(r * 2) + 1] = this.vecTempU64[1];
+  }
 
   setVecS16(r, e, v) { this.assertElIdxRange(e * 2, 2); this.vpr.setInt16((16 * r) + (e * 2), v, false); }
   setVecS8(r, e, v) { this.assertElIdx(e); this.vpr.setInt8((16 * r) + e, v, false); }
@@ -499,16 +543,16 @@ const vectorTable = (() => {
   tbl[4] = i => executeUnhandled('VMUDL', i);
   tbl[5] = i => executeUnhandled('VMUDM', i);
   tbl[6] = i => executeUnhandled('VMUDN', i);
-  tbl[7] = i => executeUnhandled('VMUDH', i);
+  tbl[7] = i => executeVMUDH(i);
   tbl[8] = i => executeUnhandled('VMACF', i);
   tbl[9] = i => executeUnhandled('VMACU', i);
   tbl[10] = i => executeUnhandled('VRNDN', i);
   tbl[11] = i => executeUnhandled('VMACQ', i);
   tbl[12] = i => executeUnhandled('VMADL', i);
   tbl[13] = i => executeUnhandled('VMADM', i);
-  tbl[14] = i => executeUnhandled('VMADN', i);
+  tbl[14] = i => executeVMADN(i);
   tbl[15] = i => executeUnhandled('VMADH', i);
-  tbl[16] = i => executeUnhandled('VADD', i);
+  tbl[16] = i => executeVADD(i);
   tbl[17] = i => executeUnhandled('VSUB', i);
   tbl[18] = i => executeUnhandled('VSUT', i);
   tbl[19] = i => executeUnhandled('VABS', i);
@@ -521,7 +565,7 @@ const vectorTable = (() => {
   tbl[26] = i => executeUnhandled('VSAD', i);
   tbl[27] = i => executeUnhandled('VSAC', i);
   tbl[28] = i => executeUnhandled('VSUM', i);
-  tbl[29] = i => executeUnhandled('VSAR', i);
+  tbl[29] = i => executeVSAR(i);
   tbl[30] = i => executeUnhandled('V30', i);
   tbl[31] = i => executeUnhandled('V31', i);
   tbl[32] = i => executeUnhandled('VLT', i);
@@ -728,6 +772,122 @@ function executeCTC2(i) {
     case 1: rsp.VCC = value; break;
     case 2: rsp.VCE = value; break;
     case 3: rsp.VCE = value; break;
+  }
+}
+
+function accum48SignExtend(x) {
+  return BigInt.asIntN(48, x);
+}
+function accum48ZeroExtend(x) {
+  return BigInt.asUintN(48, x);
+}
+
+// TODO: see if there are any common patterns to these and give them a more generic name.
+function clampVMUDH(x) {
+  if (x >= 0) {
+    return ((x & ~0x7fffn) != 0) ? 0x7fff : Number(x);
+  }
+  return ((~x & ~0x7fffn) != 0) ? 0x8000 : Number(x);
+}
+
+function clampVMADN(x) {
+  if (x >= 0) {
+    return ((x & ~0x7fffffffn) != 0) ? 0xffff : Number(x);
+  }
+  return ((~x & ~0x7fffffffn) != 0) ? 0 : Number(x);
+}
+
+// Vector Multiply of High Partial Products.
+function executeVMUDH(i) {
+  const d = cop2VD(i);
+  const s = cop2VS(i);
+  const t = cop2VT(i);
+  const e = cop2E(i);
+
+  const dv = rsp.vecTemp;
+  let select = rsp.vecSelectU32[e];
+
+  for (let el = 0; el < 8; el++, select >>= 4) {
+    const a = rsp.getVecS16(s, el);
+    const b = rsp.getVecS16(t, select & 0x7);
+    const product = BigInt(a * b);
+    const newAccum = product << 16n;
+    const clamped = clampVMUDH(newAccum);
+
+    dv.setInt16(el * 2, clamped);
+    rsp.vAcc[el] = accum48ZeroExtend(newAccum);
+  }
+  rsp.setVecFromTemp(d);
+}
+
+// Vector Multiply-Accumulate of Mid Partial Products.
+function executeVMADN(i) {
+  const d = cop2VD(i);
+  const s = cop2VS(i);
+  const t = cop2VT(i);
+  const e = cop2E(i);
+
+  const dv = rsp.vecTemp;
+  let select = rsp.vecSelectU32[e];
+
+  for (let el = 0; el < 8; el++, select >>= 4) {
+    const a = rsp.getVecU16(s, el);
+    const b = rsp.getVecS16(t, select & 0x7);
+    const product = a * b;
+    const newAccum = accum48SignExtend(rsp.vAcc[el]) + BigInt(product);
+    const clamped = clampVMADN(newAccum);
+
+    dv.setInt16(el * 2, clamped);
+    rsp.vAcc[el] = accum48ZeroExtend(newAccum);
+  }
+  rsp.setVecFromTemp(d);
+}
+
+// Vector Add of Short Elements
+function executeVADD(i) {
+  const d = cop2VD(i);
+  const s = cop2VS(i);
+  const t = cop2VT(i);
+  const e = cop2E(i);
+
+  const vco = rsp.VCO;
+  const dv = rsp.vecTemp;
+  let select = rsp.vecSelectU32[e];
+
+  for (let el = 0; el < 8; el++, select >>= 4) {
+    const a = rsp.getVecS16(s, el);
+    const b = rsp.getVecS16(t, select & 0x7);
+    const c = ((vco >> (7 - el)) & 0x1);
+    const unclamped = a + b + c;
+    const clamped = clampSigned(unclamped);
+    // TODO: provide low/mid/high accessors.
+    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(unclamped) & 0xffffn);
+    dv.setInt16(el * 2, clamped);
+  }
+  rsp.setVecFromTemp(d);
+  rsp.VCO = 0;
+}
+
+// Constants for accessing different parts of the accumulator via VSAR.
+const vsarHigh = 8;
+const vsarMid = 9;
+const vsarLow = 10;
+
+// Vector Accumulator Read (and Write).
+function executeVSAR(i) {
+  const d = cop2VD(i);
+  const e = cop2E(i);
+
+  // Default to a shift of 64 to produce zeros.
+  let shift = 64n;
+  switch (e) {
+    case vsarHigh: shift = 32n; break;
+    case vsarMid: shift = 16n; break;
+    case vsarLow: shift = 0n; break;
+  }
+  for (let el = 0; el < 8; el++) {
+    rsp.setVecS16(d, el, Number(rsp.vAcc[el] >> shift));
+    // TODO: Set vAcc from VS register value.
   }
 }
 
