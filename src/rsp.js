@@ -537,7 +537,7 @@ const vectorTable = (() => {
   }
 
   // TODO: flesh these out.
-  tbl[0] = i => executeUnhandled('VMULF', i);
+  tbl[0] = i => executeVMULF(i);
   tbl[1] = i => executeUnhandled('VMULU', i);
   tbl[2] = i => executeUnhandled('VRNDP', i);
   tbl[3] = i => executeUnhandled('VMULQ', i);
@@ -784,6 +784,10 @@ function accum48ZeroExtend(x) {
 }
 
 // TODO: see if there are any common patterns to these and give them a more generic name.
+function clampVMULF(x) {
+  return ((x > 0) && ((x & ~0x7fffffffn) != 0)) ? 0x7fff : Number(x >> 16n);
+}
+
 function clampVMUDH(x) {
   if (x >= 0) {
     return ((x & ~0x7fffn) != 0) ? 0x7fff : Number(x);
@@ -796,6 +800,29 @@ function clampVMADN(x) {
     return ((x & ~0x7fffffffn) != 0) ? 0xffff : Number(x);
   }
   return ((~x & ~0x7fffffffn) != 0) ? 0 : Number(x);
+}
+
+// Vector Multiply of Signed Fractions.
+function executeVMULF(i) {
+  const d = cop2VD(i);
+  const s = cop2VS(i);
+  const t = cop2VT(i);
+  const e = cop2E(i);
+
+  const dv = rsp.vecTemp;
+  let select = rsp.vecSelectU32[e];
+
+  for (let el = 0; el < 8; el++, select >>= 4) {
+    const a = rsp.getVecS16(s, el);
+    const b = rsp.getVecS16(t, select & 0x7);
+    const product = BigInt(a * b);
+    const newAccum = (product << 1n) + 0x8000n;   //could be 32 bit?
+    const clamped = clampVMULF(newAccum);
+
+    dv.setInt16(el * 2, clamped);
+    rsp.vAcc[el] = accum48ZeroExtend(newAccum);
+  }
+  rsp.setVecFromTemp(d);
 }
 
 // Vector Multiply of High Partial Products.
