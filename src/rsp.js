@@ -804,83 +804,69 @@ function clampVMADN(x) {
 
 // Vector Multiply of Signed Fractions.
 function executeVMULF(i) {
-  const d = cop2VD(i);
   const s = cop2VS(i);
   const t = cop2VT(i);
-  const e = cop2E(i);
 
   const dv = rsp.vecTemp;
-  let select = rsp.vecSelectU32[e];
+  let select = rsp.vecSelectU32[cop2E(i)];
 
   for (let el = 0; el < 8; el++, select >>= 4) {
     const a = rsp.getVecS16(s, el);
     const b = rsp.getVecS16(t, select & 0x7);
-    const product = BigInt(a * b);
-    const newAccum = (product << 1n) + 0x8000n;   //could be 32 bit?
-    const clamped = clampVMULF(newAccum);
+    const newAccum = (BigInt(a * b) << 1n) + 0x8000n;
 
-    dv.setInt16(el * 2, clamped);
+    dv.setInt16(el * 2, clampVMULF(newAccum));
     rsp.vAcc[el] = accum48ZeroExtend(newAccum);
   }
-  rsp.setVecFromTemp(d);
+  rsp.setVecFromTemp(cop2VD(i));
 }
 
 // Vector Multiply of High Partial Products.
 function executeVMUDH(i) {
-  const d = cop2VD(i);
   const s = cop2VS(i);
   const t = cop2VT(i);
-  const e = cop2E(i);
 
   const dv = rsp.vecTemp;
-  let select = rsp.vecSelectU32[e];
+  let select = rsp.vecSelectU32[cop2E(i)];
 
   for (let el = 0; el < 8; el++, select >>= 4) {
     const a = rsp.getVecS16(s, el);
     const b = rsp.getVecS16(t, select & 0x7);
-    const product = BigInt(a * b);
-    const newAccum = product << 16n;
-    const clamped = clampVMUDH(newAccum);
+    const newAccum = BigInt(a * b) << 16n;
 
-    dv.setInt16(el * 2, clamped);
+    dv.setInt16(el * 2, clampVMUDH(newAccum));
     rsp.vAcc[el] = accum48ZeroExtend(newAccum);
   }
-  rsp.setVecFromTemp(d);
+  rsp.setVecFromTemp(cop2VD(i));
 }
 
 // Vector Multiply-Accumulate of Mid Partial Products.
 function executeVMADN(i) {
-  const d = cop2VD(i);
   const s = cop2VS(i);
   const t = cop2VT(i);
-  const e = cop2E(i);
 
   const dv = rsp.vecTemp;
-  let select = rsp.vecSelectU32[e];
+  let select = rsp.vecSelectU32[cop2E(i)];
 
   for (let el = 0; el < 8; el++, select >>= 4) {
     const a = rsp.getVecU16(s, el);
     const b = rsp.getVecS16(t, select & 0x7);
-    const product = a * b;
-    const newAccum = accum48SignExtend(rsp.vAcc[el]) + BigInt(product);
-    const clamped = clampVMADN(newAccum);
+    const newAccum = accum48SignExtend(rsp.vAcc[el]) + BigInt(a * b);
 
-    dv.setInt16(el * 2, clamped);
+    dv.setInt16(el * 2, clampVMADN(newAccum));
     rsp.vAcc[el] = accum48ZeroExtend(newAccum);
   }
-  rsp.setVecFromTemp(d);
+  rsp.setVecFromTemp(cop2VD(i));
 }
 
 // Vector Add of Short Elements
 function executeVADD(i) {
-  const d = cop2VD(i);
   const s = cop2VS(i);
   const t = cop2VT(i);
-  const e = cop2E(i);
 
   const vco = rsp.VCO;
   const dv = rsp.vecTemp;
-  let select = rsp.vecSelectU32[e];
+  let select = rsp.vecSelectU32[cop2E(i)];
 
   for (let el = 0; el < 8; el++, select >>= 4) {
     const a = rsp.getVecS16(s, el);
@@ -892,7 +878,7 @@ function executeVADD(i) {
     rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(unclamped) & 0xffffn);
     dv.setInt16(el * 2, clamped);
   }
-  rsp.setVecFromTemp(d);
+  rsp.setVecFromTemp(cop2VD(i));
   rsp.VCO = 0;
 }
 
@@ -903,16 +889,15 @@ const vsarLow = 10;
 
 // Vector Accumulator Read (and Write).
 function executeVSAR(i) {
-  const d = cop2VD(i);
-  const e = cop2E(i);
-
   // Default to a shift of 64 to produce zeros.
   let shift = 64n;
-  switch (e) {
+  switch (cop2E(i)) {
     case vsarHigh: shift = 32n; break;
     case vsarMid: shift = 16n; break;
     case vsarLow: shift = 0n; break;
   }
+
+  const d = cop2VD(i);
   for (let el = 0; el < 8; el++) {
     rsp.setVecS16(d, el, Number(rsp.vAcc[el] >> shift));
     // TODO: Set vAcc from VS register value.
