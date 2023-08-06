@@ -12,10 +12,17 @@ function rt(i) { return (i >>> 16) & 0x1f; }
 function rs(i) { return (i >>> 21) & 0x1f; }
 function op(i) { return (i >>> 26) & 0x3f; }
 
-function ve(i) { return (i >>> 7) & 0xf; }
-function vd(i) { return (i >>> 11) & 0x1f; }
-function vt(i) { return (i >>> 16) & 0x1f; }
-function vs(i) { return (i >>> 21) & 0x1f; }
+// LWC2 and SWC2 instructions.
+function vmemBase(i) { return (i >>> 21) & 0x1f; }
+function vmemVT(i) { return (i >>> 16) & 0x1f; }
+function vmemEl(i) { return (i >>> 7) & 0xf; }
+function vmemOffset(i) { return ((i & 0x7f) << 25) >> 25; }
+
+// COP2 instructions
+function cop2E(i) { return (i >>> 25) & 0xf; }
+function cop2VS(i) { return (i >>> 21) & 0x1f; }
+function cop2VT(i) { return (i >>> 16) & 0x1f; }
+function cop2VD(i) { return (i >>> 11) & 0x1f; }
 
 function target(i) { return i & 0x3ffffff; }
 function imm(i) { return i & 0xffff; }
@@ -26,8 +33,6 @@ function base(i) { return (i >>> 21) & 0x1f; }
 function branchAddress(a, i) { return (a + 4) + (imms(i) * 4); }
 function jumpAddress(a, i) { return (a & 0xf0000000) | (target(i) * 4); }
 
-function vbase(i) { return (i >>> 21) & 0x1f; }
-function voffset(i) { return ((i & 0x7f) << 25) >> 25; }
 
 const RA = 0x1f;
 
@@ -253,7 +258,7 @@ class RSP {
   }
 
   calcVecAddress(instr, scale) {
-    return (this.getRegS32(vbase(instr)) + (voffset(instr) * scale)) & 0xfff;
+    return (this.getRegS32(vmemBase(instr)) + (vmemOffset(instr) * scale)) & 0xfff;
   }
 
   conditionalBranch(cond, offset) {
@@ -698,11 +703,11 @@ function executeMTC0(i) { rsp.moveToControl(rd(i), rsp.getRegU32(rt(i))); }
 
 // Cop2 Ops.
 function executeMFC2(i) {
-  rsp.setRegS16SignExtend(rt(i), rsp.getVecU16UnalignedWrap(vd(i), ve(i)));
+  rsp.setRegS16SignExtend(rt(i), rsp.getVecU16UnalignedWrap(rd(i), vmemEl(i)));
 }
 
 function executeMTC2(i) {
-  rsp.setVecU16UnalignedNoWrap(vd(i), ve(i), rsp.getRegU32(rt(i)));
+  rsp.setVecU16UnalignedNoWrap(rd(i), vmemEl(i), rsp.getRegU32(rt(i)));
 }
 
 function executeCFC2(i) {
@@ -754,8 +759,8 @@ function executeSW(i) { rsp.store32(rsp.calcAddress(i), rsp.getRegS32(rt(i))); }
 
 function loadVector(i, scale) {
   const addr = rsp.calcVecAddress(i, scale);
-  const t = vt(i);
-  const el = ve(i);
+  const t = vmemVT(i);
+  const el = vmemEl(i);
 
   const len = (16 - el) < scale ? (16 - el) : scale;
 
@@ -766,8 +771,8 @@ function loadVector(i, scale) {
 
 function storeVector(i, scale) {
   const addr = rsp.calcVecAddress(i, scale);
-  const t = vt(i);
-  const el = ve(i);
+  const t = vmemVT(i);
+  const el = vmemEl(i);
 
   for (let x = 0; x < scale; x++) {
     rsp.store8(addr + x, rsp.getVecS8(t, (el + x) & 15));
@@ -782,8 +787,8 @@ function executeLDV(i) { loadVector(i, 8); }
 function executeLQV(i) {
   const addr = rsp.calcVecAddress(i, 16);
   const end = (addr & 0xff0) + 16;
-  const t = vt(i);
-  const el = ve(i);
+  const t = vmemVT(i);
+  const el = vmemEl(i);
 
   const len = Math.min(end - addr, 16 - el);
   for (let x = 0; x < len; x++) {
@@ -794,8 +799,8 @@ function executeLQV(i) {
 function executeLRV(i) {
   const end = rsp.calcVecAddress(i, 16);
   const addr = end & 0xff0;
-  const t = vt(i);
-  const el = ve(i);
+  const t = vmemVT(i);
+  const el = vmemEl(i);
 
   const offset = end & 15;
   const startEl = (16 - offset) + el;
@@ -814,14 +819,14 @@ function loadPacked(addr, t, el, shift, iScale) {
   }
 }
 
-function executeLPV(i) { loadPacked(rsp.calcVecAddress(i, 8), vt(i), ve(i), 8, 1); }
-function executeLUV(i) { loadPacked(rsp.calcVecAddress(i, 8), vt(i), ve(i), 7, 1); }
-function executeLHV(i) { loadPacked(rsp.calcVecAddress(i, 16), vt(i), ve(i), 7, 2); }
+function executeLPV(i) { loadPacked(rsp.calcVecAddress(i, 8), vmemVT(i), vmemEl(i), 8, 1); }
+function executeLUV(i) { loadPacked(rsp.calcVecAddress(i, 8), vmemVT(i), vmemEl(i), 7, 1); }
+function executeLHV(i) { loadPacked(rsp.calcVecAddress(i, 16), vmemVT(i), vmemEl(i), 7, 2); }
 
 function executeLFV(i) {
   const addr = rsp.calcVecAddress(i, 16);
-  const t = vt(i);
-  const el = ve(i);
+  const t = vmemVT(i);
+  const el = vmemEl(i);
 
   const misalignment = addr & 7;
   const base = addr & 0xff8;
@@ -846,8 +851,8 @@ function executeLWV(i) { /* No-op */ }
 
 function executeLTV(i) {
   const addr = rsp.calcVecAddress(i, 16);
-  const t = vt(i);
-  const el = ve(i);
+  const t = vmemVT(i);
+  const el = vmemEl(i);
 
   const regBase = t & ~7;
   const regOffset = el >> 1;
@@ -869,8 +874,8 @@ function executeSDV(i) { storeVector(i, 8); }
 function executeSQV(i) {
   const addr = rsp.calcVecAddress(i, 16);
   const end = (addr & 0xff0) + 16;
-  const t = vt(i);
-  const el = ve(i);
+  const t = vmemVT(i);
+  const el = vmemEl(i);
 
   let len = end - addr;
   for (let x = 0; x < len; x++) {
@@ -882,8 +887,8 @@ function executeSQV(i) {
 function executeSRV(i) {
   const end = rsp.calcVecAddress(i, 16);
   const addr = end & 0xff0;
-  const t = vt(i);
-  const el = ve(i);
+  const t = vmemVT(i);
+  const el = vmemEl(i);
 
   const offset = end & 15;
   const startEl = (16 - offset) + el;
@@ -896,8 +901,8 @@ function executeSRV(i) {
 
 function executeSPV(i) {
   const addr = rsp.calcVecAddress(i, 8);
-  const t = vt(i);
-  const el = ve(i);
+  const t = vmemVT(i);
+  const el = vmemEl(i);
 
   for (let i = 0; i < 8; i++) {
     const elIdx = el + i;
@@ -909,8 +914,8 @@ function executeSPV(i) {
 
 function executeSUV(i) {
   const addr = rsp.calcVecAddress(i, 8);
-  const t = vt(i);
-  const el = ve(i);
+  const t = vmemVT(i);
+  const el = vmemEl(i);
 
   for (let i = 0; i < 8; i++) {
     const elIdx = el + i;
@@ -922,8 +927,8 @@ function executeSUV(i) {
 
 function executeSHV(i) {
   const addr = rsp.calcVecAddress(i, 16);
-  const t = vt(i);
-  const el = ve(i);
+  const t = vmemVT(i);
+  const el = vmemEl(i);
 
   const offset = addr & 7;
   const base = addr - offset;
@@ -953,8 +958,8 @@ const sfvElements = new Map([
 
 function executeSFV(i) {
   const addr = rsp.calcVecAddress(i, 16);
-  const t = vt(i);
-  const el = ve(i);
+  const t = vmemVT(i);
+  const el = vmemEl(i);
 
   const offset = addr & 7;
   const base = addr - offset;
@@ -975,8 +980,8 @@ function executeSFV(i) {
 
 function executeSWV(i) {
   const addr = rsp.calcVecAddress(i, 16);
-  const t = vt(i);
-  const el = ve(i);
+  const t = vmemVT(i);
+  const el = vmemEl(i);
 
   const offset = addr & 0x7;
   const base = addr - offset;
@@ -990,8 +995,8 @@ function executeSWV(i) {
 
 function executeSTV(i) {
   const addr = rsp.calcVecAddress(i, 16);
-  const t = vt(i);
-  const el = ve(i);
+  const t = vmemVT(i);
+  const el = vmemEl(i);
 
   // Output seems to be 8 byte aligned and rotate through 16-bytes.
   const memBase = addr & 0xff8;
