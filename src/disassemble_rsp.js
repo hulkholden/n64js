@@ -8,10 +8,17 @@ function _rt(i) { return (i >>> 16) & 0x1f; }
 function _rs(i) { return (i >>> 21) & 0x1f; }
 function _op(i) { return (i >>> 26) & 0x3f; }
 
-function _ve(i) { return (i >>> 7) & 0xf; }
-function _vd(i) { return (i >>> 11) & 0x1f; }
-function _vt(i) { return (i >>> 16) & 0x1f; }
-function _vs(i) { return (i >>> 21) & 0x1f; }
+// LWC2 and SWC2 instructions.
+function _vmemBase(i) { return (i >>> 21) & 0x1f; }
+function _vmemVT(i) { return (i >>> 16) & 0x1f; }
+function _vmemEl(i) { return (i >>> 7) & 0xf; }
+function _vmemOffset(i) { return ((i & 0x7f) << 25) >> 25; }
+
+// COP2 instructions.
+function _cop2E(i) { return (i >>> 25) & 0xf; }
+function _cop2VS(i) { return (i >>> 21) & 0x1f; }
+function _cop2VT(i) { return (i >>> 16) & 0x1f; }
+function _cop2VD(i) { return (i >>> 11) & 0x1f; }
 
 function _target(i) { return i & 0x3ffffff; }
 function _imm(i) { return i & 0xffff; }
@@ -23,9 +30,6 @@ function _offsetU16(i) { return i & 0xffff; }
 
 function _branchAddress(a, i) { return (a + 4) + (_imms(i) * 4); }
 function _jumpAddress(a, i) { return (a & 0xf0000000) | (_target(i) * 4); }
-
-function _vbase(i) { return (i >>> 21) & 0x1f; }
-function _voffset(i) { return ((i & 0x7f) << 25) >> 25; }
 
 
 function makeLabelText(address) {
@@ -96,20 +100,17 @@ class Instruction {
     return `c0reg${regIdx}`;
   }
 
-  // Vector element.
-  get ve() { return `E${_ve(this.opcode)}`; }
-  // Vector register.
-  get vd() { return `V${_vd(this.opcode)}`; }
-  get vt() { return `V${_vt(this.opcode)}`; }
-  get vs() { return `V${_vs(this.opcode)}`; }
+  // Cop2 operations.
+  get cop2E() { return `e${_cop2E(this.opcode)}`; }
+  get cop2VD() { return `V${_cop2VD(this.opcode)}`; }
+  get cop2VT() { return `V${_cop2VT(this.opcode)}`; }
+  get cop2VS() { return `V${_cop2VS(this.opcode)}`; }
 
   get c2flag() { return c2ControlNames[_rd(this.opcode) & 0x3]; }
 
   get sa() { return _sa(this.opcode); }
 
-  gprName(opFn) {
-    return gprNames[opFn(this.opcode)];
-  }
+  gprName(opFn) { return gprNames[opFn(this.opcode)]; }
 
   // dummy operand - just marks ra as being a dest reg
   writesRA() { this.dstRegs[RA] = 1; return ''; }
@@ -119,26 +120,31 @@ class Instruction {
   get branchAddress() { this.target = _branchAddress(this.address, this.opcode); return makeLabelText(this.target); }
   get jumpAddress() { this.target = _jumpAddress(this.address, this.opcode); return makeLabelText(this.target); }
 
+  // Load and Store operations.
   get base() { const reg = this.gprName(_base); this.srcRegs[reg] = 1; return makeRegSpan(reg); }
   get offsetU16() { return `0x${toHex(_offsetU16(this.opcode), 16)}`; }
   get offsetS16() { return `0x${toHex(_offsetS16(this.opcode), 16)}`; }
+
+  memload() { return this.memaccess('load'); }
+  memstore() { return this.memaccess('store'); }
   memaccess(mode) {
     this.memory = { reg: _base(this.opcode), offset: _offsetS16(this.opcode), mode: mode };
     return `[${this.base}+${this.offsetU16}]`;
   }
-  memload() { return this.memaccess('load'); }
-  memstore() { return this.memaccess('store'); }
 
-  get vbase() { const reg = this.gprName(_vbase); this.srcRegs[reg] = 1; return makeRegSpan(reg); }
-  scaleVOffset(scale) { const off = _voffset(this.opcode) * scale; return (off >= 0 ? '+' : '') + off.toString(); }
+  // LWC2 and SWC2 operations.
+  get vmemEl() { return `E${_vmemEl(this.opcode)}`; }
+  get vmemVT() { return `V${_vmemVT(this.opcode)}`; }
+  get vmemBase() { const reg = this.gprName(_vmemBase); this.srcRegs[reg] = 1; return makeRegSpan(reg); }
 
-  vmemaccess(mode, scale) {
-    scale = scale || 1;
-    this.memory = { reg: _vbase(this.opcode), offset: _voffset(this.opcode) * scale, mode: mode };
-    return `[${this.vbase}${this.scaleVOffset(scale)}]`;
-  }
   vmemload(scale) { return this.vmemaccess('load', scale); }
   vmemstore(scale) { return this.vmemaccess('store', scale); }
+  vmemaccess(mode, scale) {
+    scale = scale || 1;
+    this.memory = { reg: _vmemBase(this.opcode), offset: _vmemOffset(this.opcode) * scale, mode: mode };
+    return `[${this.vmemBase}${this.sprintVOffset(scale)}]`;
+  }
+  sprintVOffset(scale) { const off = _vmemOffset(this.opcode) * scale; return (off >= 0 ? '+' : '') + off.toString(); }
 }
 
 const specialTable = (() => {
@@ -202,9 +208,9 @@ const cop2Table = (() => {
   for (let i = 0; i < 32; i++) {
     tbl.push(disassembleUnknown);
   }
-  tbl[0] = i => `MFC2      ${i.rt_d} = ${i.vs}[${i.ve}]`;
+  tbl[0] = i => `MFC2      ${i.rt_d} = ${_rd(i.opcode)}[${_vmemEl(i.opcode)}]`;
   tbl[2] = i => `CFC2      ${i.rt_d} = ${i.c2flag}`;
-  tbl[4] = i => `MTC2      ${i.vs}[${i.ve}] = ${i.rt}`;
+  tbl[4] = i => `MTC2      V${_rd(i.opcode)}[${_vmemEl(i.opcode)}] = ${i.rt}`;
   tbl[6] = i => `CTC2      ${i.c2flag} = ${i.rt}`;
 
   for (let i = 16; i < 32; i++) {
