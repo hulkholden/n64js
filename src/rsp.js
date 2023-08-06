@@ -338,7 +338,8 @@ class RSP {
       this.pc = this.nextPC;
       this.delayPC = this.branchTarget;
 
-      if (count > 20000) {
+      // TODO: remove this when we run in parallel to the CPU.
+      if (count > 1_000_000) {
         console.log(`took over ${count} ops - halting`)
         this.halt();
       }
