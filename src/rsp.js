@@ -113,8 +113,8 @@ class RSP {
     this.vuVCCReg = new Uint16Array(new ArrayBuffer(2));
     this.vuVCEReg = new Uint8Array(new ArrayBuffer(1));
 
-    // Temporary storage for LFV.
-    this.lfvTempVec = new DataView(new ArrayBuffer(8 * 16));
+    // Temporary vector for intermediate calculations.
+    this.vecTemp = new DataView(new ArrayBuffer(8 * 16));
 
     this.reset();
   }
@@ -831,7 +831,7 @@ function executeLFV(i) {
   const misalignment = addr & 7;
   const base = addr & 0xff8;
 
-  const dv = rsp.lfvTempVec;
+  const dv = rsp.vecTemp;
   dv.setInt16(0, rsp.loadU8(base + ((misalignment + 0 - el) & 0xF)) << 7, false);
   dv.setInt16(2, rsp.loadU8(base + ((misalignment + 4 - el) & 0xF)) << 7, false);
   dv.setInt16(4, rsp.loadU8(base + ((misalignment + 8 - el) & 0xF)) << 7, false);
