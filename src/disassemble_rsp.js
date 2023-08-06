@@ -71,6 +71,13 @@ const c2ControlNames = [
   'VCO', 'VCC', 'VCE', 'VCE',
 ];
 
+const vecSelectNames = [
+  'All', 'All1',
+  '0q', '1q', 
+  '0h', '1h', '2h', '3h',
+  '0', '1', '2', '3', '4', '5', '6', '7',
+];
+
 function makeRegSpan(t) {
   return t;
   //return `<span class="dis-reg-${t}">${t}</span>`;
@@ -105,6 +112,8 @@ class Instruction {
   get cop2VD() { return `V${_cop2VD(this.opcode)}`; }
   get cop2VT() { return `V${_cop2VT(this.opcode)}`; }
   get cop2VS() { return `V${_cop2VS(this.opcode)}`; }
+
+  get cop2VecSelect() { return vecSelectNames[_cop2E(this.opcode)]; }
 
   get c2flag() { return c2ControlNames[_rd(this.opcode) & 0x3]; }
 
@@ -226,23 +235,23 @@ const vectorTable = (() => {
   }
 
   // TODO: flesh these out.
-  tbl[0] = i => `VMULF`;
-  tbl[1] = i => `VMULU`;
-  tbl[3] = i => `VRNDP`;
-  tbl[3] = i => `VMULQ`;
-  tbl[4] = i => `VMUDL`;
-  tbl[5] = i => `VMUDM`;
-  tbl[6] = i => `VMUDN`;
-  tbl[7] = i => `VMUDH`;
-  tbl[8] = i => `VMACF`;
-  tbl[9] = i => `VMACU`;
-  tbl[10] = i => `VRNDN`;
-  tbl[11] = i => `VMACQ`;
-  tbl[12] = i => `VMADL`;
-  tbl[13] = i => `VMADM`;
-  tbl[14] = i => `VMADN`;
-  tbl[15] = i => `VMADH`;
-  tbl[16] = i => `VADD`;
+  tbl[0] = i => `VMULF     ${i.cop2VD} = ${i.cop2VS} * ${i.cop2VT}[${i.cop2VecSelect}]`;
+  tbl[1] = i => `VMULU     ${i.cop2VD} = ${i.cop2VS} * ${i.cop2VT}[${i.cop2VecSelect}]`;
+  tbl[3] = i => `VRNDP     ${i.cop2VD} = ${i.cop2VS} * ${i.cop2VT}[${i.cop2VecSelect}]`;
+  tbl[3] = i => `VMULQ     ${i.cop2VD} = ${i.cop2VS} * ${i.cop2VT}[${i.cop2VecSelect}]`;
+  tbl[4] = i => `VMUDL     ${i.cop2VD} = ${i.cop2VS} * ${i.cop2VT}[${i.cop2VecSelect}]`;
+  tbl[5] = i => `VMUDM     ${i.cop2VD} = ${i.cop2VS} * ${i.cop2VT}[${i.cop2VecSelect}]`;
+  tbl[6] = i => `VMUDN     ${i.cop2VD} = ${i.cop2VS} * ${i.cop2VT}[${i.cop2VecSelect}]`;
+  tbl[7] = i => `VMUDH     ${i.cop2VD} = ${i.cop2VS} * ${i.cop2VT}[${i.cop2VecSelect}]`;
+  tbl[8] = i => `VMACF     ${i.cop2VD} = ${i.cop2VS} * ${i.cop2VT}[${i.cop2VecSelect}]`;
+  tbl[9] = i => `VMACU     ${i.cop2VD} = ${i.cop2VS} * ${i.cop2VT}[${i.cop2VecSelect}]`;
+  tbl[10] = i => `VRNDN     ${i.cop2VD} = ${i.cop2VS} * ${i.cop2VT}[${i.cop2VecSelect}]`;
+  tbl[11] = i => `VMACQ     ${i.cop2VD} = ${i.cop2VS} * ${i.cop2VT}[${i.cop2VecSelect}]`;
+  tbl[12] = i => `VMADL     ${i.cop2VD} = ${i.cop2VS} * ${i.cop2VT}[${i.cop2VecSelect}]`;
+  tbl[13] = i => `VMADM     ${i.cop2VD} = ${i.cop2VS} * ${i.cop2VT}[${i.cop2VecSelect}]`;
+  tbl[14] = i => `VMADN     ${i.cop2VD} = ${i.cop2VS} * ${i.cop2VT}[${i.cop2VecSelect}]`;
+  tbl[15] = i => `VMADH     ${i.cop2VD} = ${i.cop2VS} * ${i.cop2VT}[${i.cop2VecSelect}]`;
+  tbl[16] = i => `VADD      ${i.cop2VD} = ${i.cop2VS} + ${i.cop2VT}[${i.cop2VecSelect}]`;
   tbl[17] = i => `VSUB`;
   tbl[18] = i => `VSUT`;
   tbl[19] = i => `VABS`;
@@ -255,7 +264,7 @@ const vectorTable = (() => {
   tbl[26] = i => `VSAD`;
   tbl[27] = i => `VSAC`;
   tbl[28] = i => `VSUM`;
-  tbl[29] = i => `VSAR`;
+  tbl[29] = i => `VSAR      ${i.cop2VD}, ${i.cop2VS}, ${i.cop2VT}[${i.cop2E}]`; // TODO: show low/med/high name?
   tbl[30] = i => `V30`;
   tbl[31] = i => `V31`;
   tbl[32] = i => `VLT`;
