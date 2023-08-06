@@ -19,10 +19,10 @@ function vmemEl(i) { return (i >>> 7) & 0xf; }
 function vmemOffset(i) { return ((i & 0x7f) << 25) >> 25; }
 
 // COP2 instructions
-function cop2E(i) { return (i >>> 25) & 0xf; }
-function cop2VS(i) { return (i >>> 21) & 0x1f; }
+function cop2E(i) { return (i >>> 21) & 0xf; }
 function cop2VT(i) { return (i >>> 16) & 0x1f; }
-function cop2VD(i) { return (i >>> 11) & 0x1f; }
+function cop2VS(i) { return (i >>> 11) & 0x1f; }
+function cop2VD(i) { return (i >>> 6) & 0x1f; }
 
 function target(i) { return i & 0x3ffffff; }
 function imm(i) { return i & 0xffff; }
