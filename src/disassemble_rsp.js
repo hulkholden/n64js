@@ -15,10 +15,10 @@ function _vmemEl(i) { return (i >>> 7) & 0xf; }
 function _vmemOffset(i) { return ((i & 0x7f) << 25) >> 25; }
 
 // COP2 instructions.
-function _cop2E(i) { return (i >>> 25) & 0xf; }
-function _cop2VS(i) { return (i >>> 21) & 0x1f; }
+function _cop2E(i) { return (i >>> 21) & 0xf; }
 function _cop2VT(i) { return (i >>> 16) & 0x1f; }
-function _cop2VD(i) { return (i >>> 11) & 0x1f; }
+function _cop2VS(i) { return (i >>> 11) & 0x1f; }
+function _cop2VD(i) { return (i >>> 6) & 0x1f; }
 
 function _target(i) { return i & 0x3ffffff; }
 function _imm(i) { return i & 0xffff; }
@@ -101,7 +101,7 @@ class Instruction {
   }
 
   // Cop2 operations.
-  get cop2E() { return `e${_cop2E(this.opcode)}`; }
+  get cop2E() { return `${_cop2E(this.opcode)}`; }
   get cop2VD() { return `V${_cop2VD(this.opcode)}`; }
   get cop2VT() { return `V${_cop2VT(this.opcode)}`; }
   get cop2VS() { return `V${_cop2VS(this.opcode)}`; }
