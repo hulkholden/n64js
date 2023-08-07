@@ -252,13 +252,13 @@ const vectorTable = (() => {
   tbl[14] = i => `VMADN     ${i.cop2VD} = ${i.cop2VS} * ${i.cop2VT}[${i.cop2VecSelect}]`;
   tbl[15] = i => `VMADH     ${i.cop2VD} = ${i.cop2VS} * ${i.cop2VT}[${i.cop2VecSelect}]`;
   tbl[16] = i => `VADD      ${i.cop2VD} = ${i.cop2VS} + ${i.cop2VT}[${i.cop2VecSelect}]`;
-  tbl[17] = i => `VSUB`;
-  tbl[18] = i => `VSUT`;
+  tbl[17] = i => `VSUB      ${i.cop2VD} = ${i.cop2VS} - ${i.cop2VT}[${i.cop2VecSelect}]`;
+  tbl[18] = i => `VSUT      ${i.cop2VD} = ${i.cop2VS} . ${i.cop2VT}[${i.cop2VecSelect}]`;
   tbl[19] = i => `VABS`;
   tbl[20] = i => `VADDC`;
-  tbl[21] = i => `VSUBC`;
+  tbl[21] = i => `VSUBC      ${i.cop2VD} = ${i.cop2VS} - ${i.cop2VT}[${i.cop2VecSelect}]`;
   tbl[22] = i => `VADDB`;
-  tbl[23] = i => `VSUBB`;
+  tbl[23] = i => `VSUBB      ${i.cop2VD} = ${i.cop2VS} . ${i.cop2VT}[${i.cop2VecSelect}]`;
   tbl[24] = i => `VACCB`;
   tbl[25] = i => `VSUCB`;
   tbl[26] = i => `VSAD`;
