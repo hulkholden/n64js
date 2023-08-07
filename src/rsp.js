@@ -1226,7 +1226,7 @@ function executeVSAC(i) {
   vectorZero(i);
 }
 function executeVSUM(i) {
-  rsp.disassembleOp(rsp.pc, i);
+  vectorZero(i);
 }
 
 // Constants for accessing different parts of the accumulator via VSAR.

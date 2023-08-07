@@ -263,7 +263,7 @@ const vectorTable = (() => {
   tbl[25] = i => `VSUCB     ${i.cop2VD} = 0, ACC = ${i.cop2VS} + ${i.cop2VT}[${i.cop2VecSelect}]`;
   tbl[26] = i => `VSAD      ${i.cop2VD} = 0, ACC = ${i.cop2VS} + ${i.cop2VT}[${i.cop2VecSelect}]`;
   tbl[27] = i => `VSAC      ${i.cop2VD} = 0, ACC = ${i.cop2VS} + ${i.cop2VT}[${i.cop2VecSelect}]`;
-  tbl[28] = i => `VSUM`;
+  tbl[28] = i => `VSUM      ${i.cop2VD} = 0, ACC = ${i.cop2VS} + ${i.cop2VT}[${i.cop2VecSelect}]`;
   tbl[29] = i => `VSAR      ${i.cop2VD}, ${i.cop2VS}, ${i.cop2VT}[${i.cop2E}]`; // TODO: show low/med/high name?
   tbl[30] = i => `V30`;
   tbl[31] = i => `V31`;
