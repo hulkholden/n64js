@@ -254,7 +254,7 @@ const vectorTable = (() => {
   tbl[16] = i => `VADD      ${i.cop2VD} = ${i.cop2VS} + ${i.cop2VT}[${i.cop2VecSelect}]`;
   tbl[17] = i => `VSUB      ${i.cop2VD} = ${i.cop2VS} - ${i.cop2VT}[${i.cop2VecSelect}]`;
   tbl[18] = i => `VSUT      ${i.cop2VD} = 0, ACC = ${i.cop2VS} + ${i.cop2VT}[${i.cop2VecSelect}]`;
-  tbl[19] = i => `VABS`;
+  tbl[19] = i => `VABS      ${i.cop2VD} = sign(${i.cop2VS}) * ${i.cop2VT}[${i.cop2VecSelect}]`;
   tbl[20] = i => `VADDC     ${i.cop2VD} = ${i.cop2VS} + ${i.cop2VT}[${i.cop2VecSelect}]`;
   tbl[21] = i => `VSUBC     ${i.cop2VD} = ${i.cop2VS} - ${i.cop2VT}[${i.cop2VecSelect}]`;
   tbl[22] = i => `VADDB     ${i.cop2VD} = 0, ACC = ${i.cop2VS} + ${i.cop2VT}[${i.cop2VecSelect}]`;
