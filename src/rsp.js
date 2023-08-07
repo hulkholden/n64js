@@ -821,6 +821,14 @@ function clampVMUDH(x) {
   return ((~x & ~0x7fffn) != 0) ? 0x8000 : Number(x);
 }
 
+function clampVMACF(x) {
+  return clampVMUDH(x >> 16n);
+}
+
+function clampVMACU(x) {
+  return clampVMULU(x);
+}
+
 function clampVMADL(x) {
   return clampVMADN(x);
 }
@@ -1001,8 +1009,44 @@ function executeVMUDH(i) {
   rsp.setVecFromTemp(cop2VD(i));
 }
 
-function executeVMACF(i) { rsp.disassembleOp(rsp.pc, i); }
-function executeVMACU(i) { rsp.disassembleOp(rsp.pc, i); }
+// Vector Multiply-Accumulate of Signed Fractions.
+function executeVMACF(i) {
+  const s = cop2VS(i);
+  const t = cop2VT(i);
+
+  const dv = rsp.vecTemp;
+  let select = rsp.vecSelectU32[cop2E(i)];
+
+  for (let el = 0; el < 8; el++, select >>= 4) {
+    const a = rsp.getVecS16(s, el);
+    const b = rsp.getVecS16(t, select & 0x7);
+    const newAccum = accum48SignExtend(rsp.vAcc[el]) + (BigInt(a * b) << 1n);
+
+    dv.setInt16(el * 2, clampVMACF(newAccum));
+    rsp.vAcc[el] = accum48ZeroExtend(newAccum);
+  }
+  rsp.setVecFromTemp(cop2VD(i));
+}
+
+// Vector Multiply-Accumulate of Unsigned Fractions.
+function executeVMACU(i) { 
+  const s = cop2VS(i);
+  const t = cop2VT(i);
+
+  const dv = rsp.vecTemp;
+  let select = rsp.vecSelectU32[cop2E(i)];
+
+  for (let el = 0; el < 8; el++, select >>= 4) {
+    const a = rsp.getVecS16(s, el);
+    const b = rsp.getVecS16(t, select & 0x7);
+    const newAccum = accum48SignExtend(rsp.vAcc[el]) + (BigInt(a * b) << 1n);
+
+    dv.setInt16(el * 2, clampVMACU(newAccum));
+    rsp.vAcc[el] = accum48ZeroExtend(newAccum);
+  }
+  rsp.setVecFromTemp(cop2VD(i));
+}
+
 function executeVRNDN(i) { rsp.disassembleOp(rsp.pc, i); }
 function executeVMACQ(i) { rsp.disassembleOp(rsp.pc, i); }
 
