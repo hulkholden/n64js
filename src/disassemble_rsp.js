@@ -237,7 +237,7 @@ const vectorTable = (() => {
   // TODO: flesh these out.
   tbl[0] = i => `VMULF     ${i.cop2VD} = ${i.cop2VS} * ${i.cop2VT}[${i.cop2VecSelect}]`;
   tbl[1] = i => `VMULU     ${i.cop2VD} = ${i.cop2VS} * ${i.cop2VT}[${i.cop2VecSelect}]`;
-  tbl[3] = i => `VRNDP     ${i.cop2VD} = ${i.cop2VS} * ${i.cop2VT}[${i.cop2VecSelect}]`;
+  tbl[2] = i => `VRNDP     ${i.cop2VD} = ${i.cop2VS} * ${i.cop2VT}[${i.cop2VecSelect}]`;
   tbl[3] = i => `VMULQ     ${i.cop2VD} = ${i.cop2VS} * ${i.cop2VT}[${i.cop2VecSelect}]`;
   tbl[4] = i => `VMUDL     ${i.cop2VD} = ${i.cop2VS} * ${i.cop2VT}[${i.cop2VecSelect}]`;
   tbl[5] = i => `VMUDM     ${i.cop2VD} = ${i.cop2VS} * ${i.cop2VT}[${i.cop2VecSelect}]`;
