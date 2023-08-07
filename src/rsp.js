@@ -574,10 +574,10 @@ const vectorTable = (() => {
   tbl[29] = i => executeVSAR(i);
   tbl[30] = i => executeUnhandled('V30', i);
   tbl[31] = i => executeUnhandled('V31', i);
-  tbl[32] = i => executeUnhandled('VLT', i);
-  tbl[33] = i => executeUnhandled('VEQ', i);
-  tbl[34] = i => executeUnhandled('VNE', i);
-  tbl[35] = i => executeUnhandled('VGE', i);
+  tbl[32] = i => executeVLT(i);
+  tbl[33] = i => executeVEQ(i);
+  tbl[34] = i => executeVNE(i);
+  tbl[35] = i => executeVGE(i);
   tbl[36] = i => executeUnhandled('VCL', i);
   tbl[37] = i => executeUnhandled('VCH', i);
   tbl[38] = i => executeUnhandled('VCR', i);
@@ -1275,6 +1275,134 @@ function executeVSAR(i) {
     rsp.setVecS16(d, el, Number(rsp.vAcc[el] >> shift));
     // TODO: Set vAcc from VS register value.
   }
+}
+
+function executeVLT(i) {
+  const s = cop2VS(i);
+  const t = cop2VT(i);
+
+  const vco = rsp.VCO;
+  let vccLo = 0;
+  let vccHi = 0;
+  const dv = rsp.vecTemp;
+  let select = rsp.vecSelectU32[cop2E(i)];
+
+  for (let el = 0; el < 8; el++, select >>= 4) {
+    const a = rsp.getVecS16(s, el);
+    const b = rsp.getVecS16(t, select & 0x7);
+
+    const elBit = 1 << el;
+    const vcoLo = (vco & elBit) != 0;
+    const vcoHi = (vco & (elBit << 8)) != 0;
+    const onEqual = vcoLo && vcoHi;
+
+    const cond = a < b || ((a == b) && onEqual);
+    const result = cond ? a : b;
+    vccLo |= cond ? elBit : 0;
+
+    // TODO: provide low/mid/high accessors.
+    // TODO: understand why only low is set.
+    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(result) & 0xffffn);
+    dv.setInt16(el * 2, result);
+  }
+  rsp.setVecFromTemp(cop2VD(i));
+  rsp.VCC = (vccHi << 8) | vccLo;
+  rsp.VCO = 0;
+}
+
+function executeVEQ(i) {
+  const s = cop2VS(i);
+  const t = cop2VT(i);
+
+  const vco = rsp.VCO;
+  let vccLo = 0;
+  let vccHi = 0;
+  const dv = rsp.vecTemp;
+  let select = rsp.vecSelectU32[cop2E(i)];
+
+  for (let el = 0; el < 8; el++, select >>= 4) {
+    const a = rsp.getVecS16(s, el);
+    const b = rsp.getVecS16(t, select & 0x7);
+
+    const elBit = 1 << el;
+    const vcoHi = (vco & (elBit << 8)) != 0;
+
+    const cond = (a == b) && !vcoHi;
+    const result = b;
+    vccLo |= cond ? elBit : 0;
+
+    // TODO: provide low/mid/high accessors.
+    // TODO: understand why only low is set.
+    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(result) & 0xffffn);
+    dv.setInt16(el * 2, result);
+  }
+  rsp.setVecFromTemp(cop2VD(i));
+  rsp.VCC = (vccHi << 8) | vccLo;
+  rsp.VCO = 0;
+}
+
+function executeVNE(i) {
+  const s = cop2VS(i);
+  const t = cop2VT(i);
+
+  const vco = rsp.VCO;
+  let vccLo = 0;
+  let vccHi = 0;
+  const dv = rsp.vecTemp;
+  let select = rsp.vecSelectU32[cop2E(i)];
+
+  for (let el = 0; el < 8; el++, select >>= 4) {
+    const a = rsp.getVecS16(s, el);
+    const b = rsp.getVecS16(t, select & 0x7);
+
+    const elBit = 1 << el;
+    const vcoHi = (vco & (elBit << 8)) != 0;
+
+    const cond = (a != b) || vcoHi;
+    const result = a;
+    vccLo |= cond ? elBit : 0;
+
+    // TODO: provide low/mid/high accessors.
+    // TODO: understand why only low is set.
+    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(result) & 0xffffn);
+    dv.setInt16(el * 2, result);
+  }
+  rsp.setVecFromTemp(cop2VD(i));
+  rsp.VCC = (vccHi << 8) | vccLo;
+  rsp.VCO = 0;
+}
+
+function executeVGE(i) {
+  const s = cop2VS(i);
+  const t = cop2VT(i);
+
+  const vco = rsp.VCO;
+  let vccLo = 0;
+  let vccHi = 0;
+  const dv = rsp.vecTemp;
+  let select = rsp.vecSelectU32[cop2E(i)];
+
+  for (let el = 0; el < 8; el++, select >>= 4) {
+    const a = rsp.getVecS16(s, el);
+    const b = rsp.getVecS16(t, select & 0x7);
+
+    const elBit = 1 << el;
+    const vcoLo = (vco & elBit) != 0;
+    const vcoHi = (vco & (elBit << 8)) != 0;
+    const onEqual = vcoLo && vcoHi;
+
+    const cond = a > b || ((a == b) && !onEqual);
+    const result = cond ? a : b;
+    vccLo |= cond ? elBit : 0;
+
+    // TODO: provide low/mid/high accessors.
+    // TODO: understand why only low is set.
+    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(result) & 0xffffn);
+    dv.setInt16(el * 2, result);
+  }
+  rsp.setVecFromTemp(cop2VD(i));
+  rsp.VCC = (vccHi << 8) | vccLo;
+  rsp.VCO = 0;
 }
 
 // Simple Ops.

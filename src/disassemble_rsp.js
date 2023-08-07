@@ -267,10 +267,10 @@ const vectorTable = (() => {
   tbl[29] = i => `VSAR      ${i.cop2VD}, ${i.cop2VS}, ${i.cop2VT}[${i.cop2E}]`; // TODO: show low/med/high name?
   tbl[30] = i => `V30`;
   tbl[31] = i => `V31`;
-  tbl[32] = i => `VLT`;
-  tbl[33] = i => `VEQ`;
-  tbl[34] = i => `VNE`;
-  tbl[35] = i => `VGE`;
+  tbl[32] = i => `VLT     ${i.cop2VD}, CC = cmpLT(${i.cop2VS}, ${i.cop2VT}[${i.cop2VecSelect}])`;
+  tbl[33] = i => `VEQ     ${i.cop2VD}, CC = cmpEQ(${i.cop2VS}, ${i.cop2VT}[${i.cop2VecSelect}])`;
+  tbl[34] = i => `VNE     ${i.cop2VD}, CC = cmpNE(${i.cop2VS}, ${i.cop2VT}[${i.cop2VecSelect}])`;
+  tbl[35] = i => `VGE     ${i.cop2VD}, CC = cmpGE(${i.cop2VS}, ${i.cop2VT}[${i.cop2VecSelect}])`;
   tbl[36] = i => `VCL`;
   tbl[37] = i => `VCH`;
   tbl[38] = i => `VCR`;
