@@ -1208,22 +1208,22 @@ function executeVSUBC(i) {
 }
 
 function executeVADDB(i) {
-  rsp.disassembleOp(rsp.pc, i);
+  vectorZero(i);
 }
 function executeVSUBB(i) {
   vectorZero(i);
 }
 function executeVACCB(i) {
-  rsp.disassembleOp(rsp.pc, i);
+  vectorZero(i);
 }
 function executeVSUCB(i) {
-  rsp.disassembleOp(rsp.pc, i);
+  vectorZero(i);
 }
 function executeVSAD(i) {
-  rsp.disassembleOp(rsp.pc, i);
+  vectorZero(i);
 }
 function executeVSAC(i) {
-  rsp.disassembleOp(rsp.pc, i);
+  vectorZero(i);
 }
 function executeVSUM(i) {
   rsp.disassembleOp(rsp.pc, i);
