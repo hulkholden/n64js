@@ -1152,8 +1152,34 @@ function executeVSUT(i) {
   vectorZero(i);
 }
 
+function conditionalNegate(s, x) {
+  if (s < 0) { return -x; }
+  if (s > 0) { return x; }
+  return 0;
+}
+
+// Vector Absolute Value of Short Elements.
 function executeVABS(i) {
-  rsp.disassembleOp(rsp.pc, i);
+  const s = cop2VS(i);
+  const t = cop2VT(i);
+
+  const dv = rsp.vecTemp;
+  let select = rsp.vecSelectU32[cop2E(i)];
+
+  for (let el = 0; el < 8; el++, select >>= 4) {
+    const a = rsp.getVecS16(s, el);
+    const b = rsp.getVecU16(t, select & 0x7);
+
+    const overflow = (a < 0) && b == 0x8000;
+    const result = overflow ? 0x7fff : conditionalNegate(a, b);
+    const acc = overflow ? 0x8000 : result;
+
+    // TODO: provide low/mid/high accessors.
+    // TODO: understand why only low is set.
+    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(acc) & 0xffffn);
+    dv.setInt16(el * 2, result);
+  }
+  rsp.setVecFromTemp(cop2VD(i));
 }
 
 // Vector Add Short Elements With Carry.
