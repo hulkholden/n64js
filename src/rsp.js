@@ -1,5 +1,5 @@
 import * as disassemble_rsp from "./disassemble_rsp.js";
-import { toString16, toString32, toHex, toString64_bigint } from "./format.js";
+import { toString16, toString32, toHex } from "./format.js";
 
 window.n64js = window.n64js || {};
 
@@ -214,6 +214,11 @@ class RSP {
   getVecU16(r, e) { this.assertElIdxRange(e * 2, 2); return this.vpr.getUint16((16 * r) + (e * 2), false); }
   getVecS8(r, e) { this.assertElIdx(e); return this.vpr.getInt8((16 * r) + e, false); }
   getVecU8(r, e) { this.assertElIdx(e); return this.vpr.getUint8((16 * r) + e, false); }
+
+  setVecZero(r) {
+    this.vprU64[(r * 2) + 0] = 0n;
+    this.vprU64[(r * 2) + 1] = 0n;
+  }
 
   setVecFromTemp(r) {
     this.vprU64[(r * 2) + 0] = this.vecTempU64[0];
@@ -554,18 +559,18 @@ const vectorTable = (() => {
   tbl[14] = i => executeVMADN(i);
   tbl[15] = i => executeVMADH(i);
   tbl[16] = i => executeVADD(i);
-  tbl[17] = i => executeUnhandled('VSUB', i);
-  tbl[18] = i => executeUnhandled('VSUT', i);
-  tbl[19] = i => executeUnhandled('VABS', i);
-  tbl[20] = i => executeUnhandled('VADDC', i);
-  tbl[21] = i => executeUnhandled('VSUBC', i);
-  tbl[22] = i => executeUnhandled('VADDB', i);
-  tbl[23] = i => executeUnhandled('VSUBB', i);
-  tbl[24] = i => executeUnhandled('VACCB', i);
-  tbl[25] = i => executeUnhandled('VSUCB', i);
-  tbl[26] = i => executeUnhandled('VSAD', i);
-  tbl[27] = i => executeUnhandled('VSAC', i);
-  tbl[28] = i => executeUnhandled('VSUM', i);
+  tbl[17] = i => executeVSUB(i);
+  tbl[18] = i => executeVSUT(i);
+  tbl[19] = i => executeVABS(i);
+  tbl[20] = i => executeVADDC(i);
+  tbl[21] = i => executeVSUBC(i);
+  tbl[22] = i => executeVADDB(i);
+  tbl[23] = i => executeVSUBB(i);
+  tbl[24] = i => executeVACCB(i);
+  tbl[25] = i => executeVSUCB(i);
+  tbl[26] = i => executeVSAD(i);
+  tbl[27] = i => executeVSAC(i);
+  tbl[28] = i => executeVSUM(i);
   tbl[29] = i => executeVSAR(i);
   tbl[30] = i => executeUnhandled('V30', i);
   tbl[31] = i => executeUnhandled('V31', i);
@@ -1099,6 +1104,108 @@ function executeVADD(i) {
   }
   rsp.setVecFromTemp(cop2VD(i));
   rsp.VCO = 0;
+}
+
+// Vector Subtraction of Short Elements
+function executeVSUB(i) {
+  const s = cop2VS(i);
+  const t = cop2VT(i);
+
+  const vco = rsp.VCO;
+  const dv = rsp.vecTemp;
+  let select = rsp.vecSelectU32[cop2E(i)];
+
+  for (let el = 0; el < 8; el++, select >>= 4) {
+    const a = rsp.getVecS16(s, el);
+    const b = rsp.getVecS16(t, select & 0x7);
+    const c = ((vco >> (7 - el)) & 0x1);    // TODO: figure out why this isn't just (vco>>el).
+    const unclamped = a - (b + c);
+    const clamped = clampSigned(unclamped);
+    // TODO: provide low/mid/high accessors.
+    // TODO: understand why only low is set.
+    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(unclamped) & 0xffffn);
+    dv.setInt16(el * 2, clamped);
+  }
+  rsp.setVecFromTemp(cop2VD(i));
+  rsp.VCO = 0;
+}
+
+function vectorZero(i) {
+  const s = cop2VS(i);
+  const t = cop2VT(i);
+
+  let select = rsp.vecSelectU32[cop2E(i)];
+  for (let el = 0; el < 8; el++, select >>= 4) {
+    const a = rsp.getVecS16(s, el);
+    const b = rsp.getVecS16(t, select & 0x7);
+    const unclamped = a + b;
+    // TODO: provide low/mid/high accessors.
+    // TODO: understand why only low is set.
+    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(unclamped) & 0xffffn);
+  }
+  rsp.setVecZero(cop2VD(i));
+}
+
+// It's unclear what this opcode mnemonic stands for.
+// It just sets the accumulator and clears the target register.
+function executeVSUT(i) {
+  vectorZero(i);
+}
+
+function executeVABS(i) {
+  rsp.disassembleOp(rsp.pc, i);
+}
+
+function executeVADDC(i) {
+  rsp.disassembleOp(rsp.pc, i);
+}
+
+// Vector Subtraction of Short Elements With Carry.
+function executeVSUBC(i) {
+  const s = cop2VS(i);
+  const t = cop2VT(i);
+
+  let newVCO = 0;
+  const dv = rsp.vecTemp;
+  let select = rsp.vecSelectU32[cop2E(i)];
+
+  for (let el = 0; el < 8; el++, select >>= 4) {
+    const a = rsp.getVecU16(s, el);
+    const b = rsp.getVecU16(t, select & 0x7);
+    const unclamped = a - b;
+    const clamped = unclamped & 0xffff;
+    // TODO: provide low/mid/high accessors.
+    // TODO: understand why only low is set.
+    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(unclamped) & 0xffffn);
+    dv.setInt16(el * 2, clamped);
+
+    newVCO |= (unclamped != 0) ? (1 << (el+8)) : 0;
+    newVCO |= (unclamped < 0) ? (1 << (el+0)) : 0;
+  }
+  rsp.setVecFromTemp(cop2VD(i));
+  rsp.VCO = newVCO;
+}
+
+function executeVADDB(i) {
+  rsp.disassembleOp(rsp.pc, i);
+}
+function executeVSUBB(i) {
+  vectorZero(i);
+}
+function executeVACCB(i) {
+  rsp.disassembleOp(rsp.pc, i);
+}
+function executeVSUCB(i) {
+  rsp.disassembleOp(rsp.pc, i);
+}
+function executeVSAD(i) {
+  rsp.disassembleOp(rsp.pc, i);
+}
+function executeVSAC(i) {
+  rsp.disassembleOp(rsp.pc, i);
+}
+function executeVSUM(i) {
+  rsp.disassembleOp(rsp.pc, i);
 }
 
 // Constants for accessing different parts of the accumulator via VSAR.
