@@ -1156,8 +1156,29 @@ function executeVABS(i) {
   rsp.disassembleOp(rsp.pc, i);
 }
 
+// Vector Add Short Elements With Carry.
 function executeVADDC(i) {
-  rsp.disassembleOp(rsp.pc, i);
+  const s = cop2VS(i);
+  const t = cop2VT(i);
+
+  let newVCO = 0;
+  const dv = rsp.vecTemp;
+  let select = rsp.vecSelectU32[cop2E(i)];
+
+  for (let el = 0; el < 8; el++, select >>= 4) {
+    const a = rsp.getVecU16(s, el);
+    const b = rsp.getVecU16(t, select & 0x7);
+    const unclamped = a + b;
+    const clamped = unclamped & 0xffff;
+    // TODO: provide low/mid/high accessors.
+    // TODO: understand why only low is set.
+    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(unclamped) & 0xffffn);
+    dv.setInt16(el * 2, clamped);
+
+    newVCO |= (unclamped != clamped) ? (1 << el) : 0;
+  }
+  rsp.setVecFromTemp(cop2VD(i));
+  rsp.VCO = newVCO;
 }
 
 // Vector Subtraction of Short Elements With Carry.
@@ -1179,8 +1200,8 @@ function executeVSUBC(i) {
     rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(unclamped) & 0xffffn);
     dv.setInt16(el * 2, clamped);
 
-    newVCO |= (unclamped != 0) ? (1 << (el+8)) : 0;
-    newVCO |= (unclamped < 0) ? (1 << (el+0)) : 0;
+    newVCO |= (unclamped != 0) ? (1 << (el + 8)) : 0;
+    newVCO |= (unclamped < 0) ? (1 << (el + 0)) : 0;
   }
   rsp.setVecFromTemp(cop2VD(i));
   rsp.VCO = newVCO;

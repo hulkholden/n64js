@@ -255,10 +255,10 @@ const vectorTable = (() => {
   tbl[17] = i => `VSUB      ${i.cop2VD} = ${i.cop2VS} - ${i.cop2VT}[${i.cop2VecSelect}]`;
   tbl[18] = i => `VSUT      ${i.cop2VD} = ${i.cop2VS} . ${i.cop2VT}[${i.cop2VecSelect}]`;
   tbl[19] = i => `VABS`;
-  tbl[20] = i => `VADDC`;
-  tbl[21] = i => `VSUBC      ${i.cop2VD} = ${i.cop2VS} - ${i.cop2VT}[${i.cop2VecSelect}]`;
+  tbl[20] = i => `VADDC     ${i.cop2VD} = ${i.cop2VS} + ${i.cop2VT}[${i.cop2VecSelect}]`;
+  tbl[21] = i => `VSUBC     ${i.cop2VD} = ${i.cop2VS} - ${i.cop2VT}[${i.cop2VecSelect}]`;
   tbl[22] = i => `VADDB`;
-  tbl[23] = i => `VSUBB      ${i.cop2VD} = ${i.cop2VS} . ${i.cop2VT}[${i.cop2VecSelect}]`;
+  tbl[23] = i => `VSUBB     ${i.cop2VD} = ${i.cop2VS} . ${i.cop2VT}[${i.cop2VecSelect}]`;
   tbl[24] = i => `VACCB`;
   tbl[25] = i => `VSUCB`;
   tbl[26] = i => `VSAD`;
