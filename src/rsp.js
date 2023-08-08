@@ -803,8 +803,12 @@ function clampVMULU(x) {
   }
 }
 
+function clampVRNDN(x) {
+  return clampVMUDH(x);
+}
+
 function clampVRNDP(x) {
-  return clampVMULF(x);
+  return ((x > 0) && ((x & ~0x7fffn) != 0)) ? 0x7fff : Number(x);
 }
 
 function clampVMULQ(x) {
@@ -893,6 +897,28 @@ function executeVMULU(i) {
   rsp.setVecFromTemp(cop2VD(i));
 }
 
+// Vector Accumulator DCT Rounding (Negative).
+function executeVRNDN(i) {
+  const s = cop2VS(i);
+  const t = cop2VT(i);
+
+  const dv = rsp.vecTemp;
+  let select = rsp.vecSelectU32[cop2E(i)];
+
+  const shift = (s & 1) ? 16 : 0;
+
+  for (let el = 0; el < 8; el++, select >>= 4) {
+    const acc = accum48SignExtend(rsp.vAcc[el]);
+    const incr = rsp.getVecS16(t, select & 0x7) << shift;
+    const newAccum = acc + ((acc < 0) ? BigInt(incr) : 0n);
+
+    dv.setInt16(el * 2, clampVRNDN(newAccum >> 16n));
+    rsp.vAcc[el] = accum48ZeroExtend(newAccum);
+  }
+  rsp.setVecFromTemp(cop2VD(i));
+}
+
+// Vector Accumulator DCT Rounding (Positive).
 function executeVRNDP(i) {
   const s = cop2VS(i);
   const t = cop2VT(i);
@@ -907,7 +933,7 @@ function executeVRNDP(i) {
     const incr = rsp.getVecS16(t, select & 0x7) << shift;
     const newAccum = acc + ((acc >= 0) ? BigInt(incr) : 0n);
 
-    dv.setInt16(el * 2, clampVRNDP(newAccum));
+    dv.setInt16(el * 2, clampVRNDP(newAccum >> 16n));
     rsp.vAcc[el] = accum48ZeroExtend(newAccum);
   }
   rsp.setVecFromTemp(cop2VD(i));
@@ -1047,7 +1073,6 @@ function executeVMACU(i) {
   rsp.setVecFromTemp(cop2VD(i));
 }
 
-function executeVRNDN(i) { rsp.disassembleOp(rsp.pc, i); }
 function executeVMACQ(i) { rsp.disassembleOp(rsp.pc, i); }
 
 // Vector Multiply-Accumulate of Low Partial Products.
