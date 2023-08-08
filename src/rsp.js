@@ -833,6 +833,10 @@ function clampVMACU(x) {
   return clampVMULU(x);
 }
 
+function clampVMACQ(x) {
+  return clampVMUDH(x);
+}
+
 function clampVMADL(x) {
   return clampVMADN(x);
 }
@@ -1073,7 +1077,29 @@ function executeVMACU(i) {
   rsp.setVecFromTemp(cop2VD(i));
 }
 
-function executeVMACQ(i) { rsp.disassembleOp(rsp.pc, i); }
+// Vector Accumulator Oddification.
+function executeVMACQ(i) {
+  const dv = rsp.vecTemp;
+
+  for (let el = 0; el < 8; el++) {
+    const acc = accum48SignExtend(rsp.vAcc[el]);
+
+    const acc21zero = (acc & 0x20_0000n) == 0;
+    let newAccum = acc;
+    if (acc21zero) {
+      const upper = acc >> 22n;
+      if (upper < 0) {
+        newAccum += 0x20_0000n;
+      } else if (upper > 0) {
+        newAccum -= 0x20_0000n;
+      }
+    }
+
+    dv.setInt16(el * 2, clampVMACQ(newAccum >> 17n) & 0xfff0);
+    rsp.vAcc[el] = accum48ZeroExtend(newAccum);
+  }
+  rsp.setVecFromTemp(cop2VD(i));
+}
 
 // Vector Multiply-Accumulate of Low Partial Products.
 function executeVMADL(i) {
