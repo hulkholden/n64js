@@ -246,7 +246,7 @@ const vectorTable = (() => {
   tbl[8] = i => `VMACF     ${i.cop2VD} = ${i.cop2VS} * ${i.cop2VT}[${i.cop2VecSelect}]`;
   tbl[9] = i => `VMACU     ${i.cop2VD} = ${i.cop2VS} * ${i.cop2VT}[${i.cop2VecSelect}]`;
   tbl[10] = i => `VRNDN     ${i.cop2VD} = ${i.cop2VS} * ${i.cop2VT}[${i.cop2VecSelect}]`;
-  tbl[11] = i => `VMACQ     ${i.cop2VD} = ${i.cop2VS} * ${i.cop2VT}[${i.cop2VecSelect}]`;
+  tbl[11] = i => `VMACQ     ${i.cop2VD}, ACC = oddify(ACC)`;
   tbl[12] = i => `VMADL     ${i.cop2VD} = ${i.cop2VS} * ${i.cop2VT}[${i.cop2VecSelect}]`;
   tbl[13] = i => `VMADM     ${i.cop2VD} = ${i.cop2VS} * ${i.cop2VT}[${i.cop2VecSelect}]`;
   tbl[14] = i => `VMADN     ${i.cop2VD} = ${i.cop2VS} * ${i.cop2VT}[${i.cop2VecSelect}]`;
