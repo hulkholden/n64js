@@ -1055,7 +1055,7 @@ function executeVMACF(i) {
 }
 
 // Vector Multiply-Accumulate of Unsigned Fractions.
-function executeVMACU(i) { 
+function executeVMACU(i) {
   const s = cop2VS(i);
   const t = cop2VT(i);
 
