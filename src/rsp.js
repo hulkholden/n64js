@@ -128,6 +128,11 @@ class RSP {
     this.vuVCCReg = new Uint16Array(new ArrayBuffer(2));
     this.vuVCEReg = new Uint8Array(new ArrayBuffer(1));
 
+    // Internal registers used by VRCP and friends.
+    this.divDP = false;
+    this.divIn = 0;
+    this.divOut = 0;
+
     // Element selection table.
     // The element field of the opcode is used to select one of these rows.
     // Each nibble of the pattern corresponds to a source element to use.
@@ -175,6 +180,18 @@ class RSP {
       }
     }
     this.vAcc[0] = 0n;
+
+    this.vuVCOReg[0] = 0;
+    this.vuVCOReg[1] = 0;
+
+    this.vuVCCReg[0] = 0;
+    this.vuVCCReg[1] = 0;
+
+    this.vuVCEReg[0] = 0;
+
+    this.divDP = false;
+    this.divIn = 0;
+    this.divOut = 0;
   }
 
   // General Purpose Registers.
@@ -1621,31 +1638,54 @@ function executeVNXOR(i) {
   rsp.setVecFromTemp(cop2VD(i));
 }
 
+function vrcp(i, dpInstruction) {
+  const vt = cop2VT(i);
+  const vte = cop2E(i);
+
+  // Handle double or single precision.
+  const val16 = rsp.getVecS16(vt, vte & 7);
+  const input = (dpInstruction && rsp.divDP) ? ((rsp.divIn << 16) | (val16 >>> 0)) : val16; 
+
+  // Accumulator is set to the entire input vector.
+  // TODO: add helper + dedupe with VRCPH.
+  let select = rsp.vecSelectU32[vte];
+  for (let el = 0; el < 8; el++, select >>= 4) {
+    const val = rsp.getVecS16(vt, select & 0x7);
+    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffffffff0000n) | (BigInt(val) & 0xffffn);
+  }
+
+  // Output is set to the result.
+  const result = rcp16(input);
+  rsp.divDP = false;
+  rsp.divOut = result >> 16;
+  rsp.setVecS16(cop2VD(i), cop2DE(i) & 7, result & 0xffff);
+}
+
 // Vector Element Scaler Reciprocal (Single Precision).
 function executeVRCP(i) {
+  vrcp(i, false);
+}
+
+// Vector Element Scaler Reciprocal (Double Precision Low).
+function executeVRCPL(i) {
+  vrcp(i, true);
+}
+
+// Vector Element Scaler Reciprocal (Double Precision High).
+function executeVRCPH(i) {
   const t = cop2VT(i);
 
   // Accumulator is set to the entire input vector.
+  // TODO: add helper + dedupe with VRCP.
   let select = rsp.vecSelectU32[cop2E(i)];
   for (let el = 0; el < 8; el++, select >>= 4) {
     const val = rsp.getVecS16(t, select & 0x7);
     rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(val) & 0xffffn);
   }
 
-  // Output is rest to the result.
-  const input = rsp.getVecS16(t, cop2E(i) & 7);
-  const result = rcp16(input);
-  rsp.setVecS16(cop2VD(i), cop2DE(i) & 7, result);
-}
-
-// Vector Element Scaler Reciprocal (Double Precision Low).
-function executeVRCPL(i) {
-  rsp.disassembleOp(rsp.pc, i);
-}
-
-// Vector Element Scaler Reciprocal (Double Precision High).
-function executeVRCPH(i) {
-  rsp.disassembleOp(rsp.pc, i);
+  rsp.divDP = true;
+  rsp.divIn = rsp.getVecS16(t, select & 0x7);
+  rsp.setVecS16(cop2VD(i), cop2DE(i) & 7, rsp.divOut);
 }
 
 function executeVMOV(i) {
