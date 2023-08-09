@@ -1,5 +1,6 @@
 import * as disassemble_rsp from "./disassemble_rsp.js";
 import { toString16, toString32, toHex } from "./format.js";
+import { rcp16 } from "./rsp_recip.js";
 
 window.n64js = window.n64js || {};
 
@@ -20,6 +21,7 @@ function vmemOffset(i) { return ((i & 0x7f) << 25) >> 25; }
 
 // COP2 instructions
 function cop2E(i) { return (i >>> 21) & 0xf; }
+function cop2DE(i) { return (i >>> 11) & 0x1f; }
 function cop2VT(i) { return (i >>> 16) & 0x1f; }
 function cop2VS(i) { return (i >>> 11) & 0x1f; }
 function cop2VD(i) { return (i >>> 6) & 0x1f; }
@@ -590,13 +592,13 @@ const vectorTable = (() => {
   tbl[45] = i => executeVNXOR(i);
   tbl[46] = i => executeUnhandled('V46', i);
   tbl[47] = i => executeUnhandled('V47', i);
-  tbl[48] = i => executeUnhandled('VRCP', i);
-  tbl[49] = i => executeUnhandled('VRCPL', i);
-  tbl[50] = i => executeUnhandled('VRCPH', i);
-  tbl[51] = i => executeUnhandled('VMOV', i);
-  tbl[52] = i => executeUnhandled('VRSQ', i);
-  tbl[53] = i => executeUnhandled('VRSQL', i);
-  tbl[54] = i => executeUnhandled('VRSQH', i);
+  tbl[48] = i => executeVRCP(i);
+  tbl[49] = i => executeVRCPL(i);
+  tbl[50] = i => executeVRCPH(i);
+  tbl[51] = i => executeVMOV(i);
+  tbl[52] = i => executeVRSQ(i);
+  tbl[53] = i => executeVRSQL(i);
+  tbl[54] = i => executeVRSQH(i);
   tbl[55] = i => executeVNOP(i);
   tbl[56] = i => executeUnhandled('VEXTT', i);
   tbl[57] = i => executeUnhandled('VEXTQ', i);
@@ -1617,6 +1619,49 @@ function executeVNXOR(i) {
     rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(result) & 0xffffn);
   }
   rsp.setVecFromTemp(cop2VD(i));
+}
+
+// Vector Element Scaler Reciprocal (Single Precision).
+function executeVRCP(i) {
+  const t = cop2VT(i);
+
+  // Accumulator is set to the entire input vector.
+  let select = rsp.vecSelectU32[cop2E(i)];
+  for (let el = 0; el < 8; el++, select >>= 4) {
+    const val = rsp.getVecS16(t, select & 0x7);
+    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(val) & 0xffffn);
+  }
+
+  // Output is rest to the result.
+  const input = rsp.getVecS16(t, cop2E(i) & 7);
+  const result = rcp16(input);
+  rsp.setVecS16(cop2VD(i), cop2DE(i) & 7, result);
+}
+
+// Vector Element Scaler Reciprocal (Double Precision Low).
+function executeVRCPL(i) {
+  rsp.disassembleOp(rsp.pc, i);
+}
+
+// Vector Element Scaler Reciprocal (Double Precision High).
+function executeVRCPH(i) {
+  rsp.disassembleOp(rsp.pc, i);
+}
+
+function executeVMOV(i) {
+  rsp.disassembleOp(rsp.pc, i);
+}
+
+function executeVRSQ(i) {
+  rsp.disassembleOp(rsp.pc, i);
+}
+
+function executeVRSQL(i) {
+  rsp.disassembleOp(rsp.pc, i);
+}
+
+function executeVRSQH(i) {
+  rsp.disassembleOp(rsp.pc, i);
 }
 
 function executeVNOP(i) { /* No-op */ }
