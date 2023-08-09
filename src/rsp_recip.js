@@ -26,18 +26,39 @@ const rcp16Table = (function () {
   return tbl;
 })();
 
+const INT16_MIN = -32768;
+
+/**
+ * Calculate the 32-bit reciprocal of the signed 16-bit fixed point input.
+ * @param {Number} input A signed 16-bit fixed point input.
+ * @returns {Number} The result.
+ */
 export function rcp16(input) {
   // Handle edge cases.
-  if (input == -32768) {
+  if (input == INT16_MIN) {
     return 0xffff_0000;
   } else if (input == 0) {
     return 0x7fff_ffff;
   }
 
-  const signBits = input >> 31;
-  const absInput = (input ^ signBits) - signBits;
+  // Create a mask of either 0 or 0xffffffff depending on the sign of the input.
+  const signMask = input >> 31;
+  // Convert twos-complement value to positive integer.
+  const absInput = (input ^ signMask) - signMask;
+  // Shift left to discard the top bit (baked into the lookup table as it's always 1)
+  // and ensure we're using the most significant bits for the index.
+  // This effectively applies a scaling factor to the input which is removed later.
   const shift = Math.clz32(absInput) + 1;
-  const index = ((absInput << shift)) >>> 23;     // Extract most significant bits (less top bit).
-  const result = ((0x10000 | rcp16Table[index]) << 14) >>> (32 - shift);
-  return result ^ signBits;
+  const scaledInput = absInput << shift;
+  // Shift right to get the top 9 bits to index the 512 entry table.
+  const index = scaledInput >>> (32 - 9);
+  // Read the 16-bit reciprical value from the lookup table,
+  // re-add the most significant bit, and shift left to form a 31 bit value.
+  const tableValue31 = (0x10000 | rcp16Table[index]) << 14;
+  // Shift right to correct for the scaling factor applied earlier.
+  const result = tableValue31 >>> (32 - shift);
+  // Convert back to negative number if needed.
+  // This doesn't re-add 1 so this isn't two's complement. I'm not sure if
+  // this is a hardware bug or I'm misunderstanding something.
+  return result ^ signMask;
 }
