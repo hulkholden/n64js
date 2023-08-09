@@ -16,6 +16,7 @@ function _vmemOffset(i) { return ((i & 0x7f) << 25) >> 25; }
 
 // COP2 instructions.
 function _cop2E(i) { return (i >>> 21) & 0xf; }
+function _cop2DE(i) { return (i >>> 11) & 0x1f; }
 function _cop2VT(i) { return (i >>> 16) & 0x1f; }
 function _cop2VS(i) { return (i >>> 11) & 0x1f; }
 function _cop2VD(i) { return (i >>> 6) & 0x1f; }
@@ -109,6 +110,7 @@ class Instruction {
 
   // Cop2 operations.
   get cop2E() { return `${_cop2E(this.opcode)}`; }
+  get cop2DE() { return `${_cop2DE(this.opcode)}`; }
   get cop2VD() { return `V${_cop2VD(this.opcode)}`; }
   get cop2VT() { return `V${_cop2VT(this.opcode)}`; }
   get cop2VS() { return `V${_cop2VS(this.opcode)}`; }
@@ -283,9 +285,9 @@ const vectorTable = (() => {
   tbl[45] = i => `VNXOR     ${i.cop2VD} = ~(${i.cop2VS} ^ ${i.cop2VT}[${i.cop2VecSelect}])`;
   tbl[46] = i => `V46`;
   tbl[47] = i => `V47`;
-  tbl[48] = i => `VRCP`;
-  tbl[49] = i => `VRCPL`;
-  tbl[50] = i => `VRCPH`;
+  tbl[48] = i => `VRCP       ${i.cop2VD}[${i.cop2DE}] = 1/sqrt(${i.cop2VT}[${i.cop2VecSelect}])`;
+  tbl[49] = i => `VRCPL      ${i.cop2VD}[${i.cop2DE}] = 1/sqrt(${i.cop2VT}[${i.cop2VecSelect}])`;
+  tbl[50] = i => `VRCPH      ${i.cop2VD}[${i.cop2DE}] = 1/sqrt(${i.cop2VT}[${i.cop2VecSelect}])`;
   tbl[51] = i => `VMOV`;
   tbl[52] = i => `VRSQ`;
   tbl[53] = i => `VRSQL`;
