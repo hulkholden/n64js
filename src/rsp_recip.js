@@ -41,10 +41,24 @@ export function rcp16(input) {
     return 0x7fff_ffff;
   }
 
+  // The first few lines compute the absolute value of the input.
+  // However I think there's possibly an RSP hardware bug on the that produces
+  // incorrect values for inputs <= INT16_MIN. Inputs in this range seem to
+  // produce absolute values 1 lower than expected and there is a discontinuity:
+  //
+  //  input | output
+  // ---------------
+  // -32766 | +32766
+  // -32767 | +32767
+  // -32768 | +32767
+  // -32769 | +32768
+  //
   // Create a mask of either 0 or 0xffffffff depending on the sign of the input.
-  const signMask = input >> 31;
+  const adjusted = (input >>> 0) > 0xffff_8000 ? (input - 1) : input;
+  const signMask = adjusted >> 31;
   // Convert twos-complement value to positive integer.
-  const absInput = (input ^ signMask) - signMask;
+  // In theory this should be `(input ^ signMask) - signMask` but there seems to be a hardware bug.
+  const absInput = adjusted ^ signMask;
   // Shift left to discard the top bit (baked into the lookup table as it's always 1)
   // and ensure we're using the most significant bits for the index.
   // This effectively applies a scaling factor to the input which is removed later.
