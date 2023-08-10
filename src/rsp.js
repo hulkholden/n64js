@@ -1630,7 +1630,7 @@ function vrcp(i, dpInstruction) {
 
   // Handle double or single precision.
   const val16 = rsp.getVecS16(vt, vte & 7);
-  const input = (dpInstruction && rsp.divDP) ? ((rsp.divIn << 16) | (val16 & 0xffff)) : val16; 
+  const input = (dpInstruction && rsp.divDP) ? ((rsp.divIn << 16) | (val16 & 0xffff)) : val16;
 
   // Accumulator is set to the entire input vector.
   // TODO: add helper + dedupe with VRCPH.
@@ -1684,7 +1684,7 @@ function vrsq(i, dpInstruction) {
 
   // Handle double or single precision.
   const val16 = rsp.getVecS16(vt, vte & 7);
-  const input = (dpInstruction && rsp.divDP) ? ((rsp.divIn << 16) | (val16 & 0xffff)) : val16; 
+  const input = (dpInstruction && rsp.divDP) ? ((rsp.divIn << 16) | (val16 & 0xffff)) : val16;
 
   // Accumulator is set to the entire input vector.
   // TODO: add helper + dedupe with VRCPH.
