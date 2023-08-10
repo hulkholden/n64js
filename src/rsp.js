@@ -1659,18 +1659,19 @@ function executeVRCPL(i) {
 
 // Vector Element Scaler Reciprocal (Double Precision High).
 function executeVRCPH(i) {
-  const t = cop2VT(i);
+  const vt = cop2VT(i);
+  const vte = cop2E(i);
 
   // Accumulator is set to the entire input vector.
   // TODO: add helper + dedupe with VRCP.
-  let select = rsp.vecSelectU32[cop2E(i)];
+  let select = rsp.vecSelectU32[vte];
   for (let el = 0; el < 8; el++, select >>= 4) {
-    const val = rsp.getVecS16(t, select & 0x7);
+    const val = rsp.getVecS16(vt, select & 0x7);
     rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(val) & 0xffffn);
   }
 
   rsp.divDP = true;
-  rsp.divIn = rsp.getVecS16(t, select & 0x7);
+  rsp.divIn = rsp.getVecS16(vt, vte & 7);
   rsp.setVecS16(cop2VD(i), cop2DE(i) & 7, rsp.divOut);
 }
 
@@ -1713,18 +1714,19 @@ function executeVRSQL(i) {
 
 // Vector Element Scalar SQRT Reciprocal (Double Precision High).
 function executeVRSQH(i) {
-  const t = cop2VT(i);
+  const vt = cop2VT(i);
+  const vte = cop2E(i);
 
   // Accumulator is set to the entire input vector.
   // TODO: add helper + dedupe with VRCP.
-  let select = rsp.vecSelectU32[cop2E(i)];
+  let select = rsp.vecSelectU32[vte];
   for (let el = 0; el < 8; el++, select >>= 4) {
-    const val = rsp.getVecS16(t, select & 0x7);
+    const val = rsp.getVecS16(vt, select & 0x7);
     rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(val) & 0xffffn);
   }
 
   rsp.divDP = true;
-  rsp.divIn = rsp.getVecS16(t, select & 0x7);
+  rsp.divIn = rsp.getVecS16(vt, vte & 7);
   rsp.setVecS16(cop2VD(i), cop2DE(i) & 7, rsp.divOut);
 }
 
