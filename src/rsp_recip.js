@@ -1,6 +1,8 @@
 
-// N64 RSP RCP table generation is derived from Ares:
-// https://github.com/ares-emulator/ares/blob/v133/ares/n64/rsp/rsp.cpp#L109
+// N64 RSP RCP and RSQ table generation is derived from Ares and n64-systemtest.
+//
+// https://github.com/ares-emulator/ares/blob/v133/ares/n64/rsp/rsp.cpp
+// https://github.com/lemmy-64/n64-systemtest/blob/aab1f0fe635a5de11ddfa04cfd2876a13a9cd2f9/src/tests/rsp/op_vmov_vrcp.rs
 //
 // Copyright (c) 2004-2021 ares team, Near et al
 //
@@ -15,6 +17,30 @@
 // WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 // ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 // OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+//
+// MIT License
+//
+// Copyright (c) 2021 lemmy-64
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+const INT16_MIN = -32768;
 
 const rcp16Table = (function () {
   const tbl = [];
@@ -26,7 +52,28 @@ const rcp16Table = (function () {
   return tbl;
 })();
 
-const INT16_MIN = -32768;
+function rsqEntry(index) {
+  const a = (index < 256) ? (BigInt(index) + 256n) : (((BigInt(index) - 256n) << 1n) + 512n);
+  let b = 1n << 17n;
+  // Find the largest b where b < 1.0 / sqrt(a).
+  let increment = 512n;
+  while (increment != 0) {
+    while (a * (b + increment) * (b + increment) < (1n << 44n)) {
+      b += increment;
+    }
+    increment >>= 1n;
+  }
+  return Number((b >> 1n) & 0xffffn);
+}
+
+const rsq16Table = (function () {
+  const tbl = [];
+  for (let x = 0; x < 512; x++) {
+    tbl.push(rsqEntry(x));
+  }
+  console.log(tbl)
+  return tbl;
+})();
 
 /**
  * Calculate the 32-bit reciprocal of the signed 16-bit fixed point input.
@@ -74,5 +121,31 @@ export function rcp16(input) {
   // Convert back to negative number if needed.
   // This doesn't re-add 1 so this isn't two's complement. I'm not sure if
   // this is a hardware bug or I'm misunderstanding something.
+  return result ^ signMask;
+}
+
+/**
+ * Calculate the 32-bit reciprocal square root of the signed 16-bit fixed point input.
+ * @param {Number} input A signed 16-bit fixed point input.
+ * @returns {Number} The result.
+ */
+export function rsq16(input)  {
+  // Handle edge cases.
+  if (input == INT16_MIN) {
+    return 0xffff_0000;
+  } else if (input == 0) {
+    return 0x7fff_ffff;
+  }
+
+  // The code is similar to rcp16 with a small variation with how the index is calculated.
+  const adjusted = (input >>> 0) > 0xffff_8000 ? (input - 1) : input;
+  const signMask = adjusted >> 31;
+  const absInput = adjusted ^ signMask;
+  const shift = Math.clz32(absInput) + 1;
+  const scaledInput = absInput << shift;
+  // For uneven shifts, take the second half of the table
+  const index = (scaledInput >>> (32 - 8)) | ((shift & 1) << 8);
+  const tableValue31 = (0x10000 | rsq16Table[index]) << 14;
+  const result = tableValue31 >>> ((32 - shift) >> 1);
   return result ^ signMask;
 }

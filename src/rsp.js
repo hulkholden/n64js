@@ -1692,16 +1692,54 @@ function executeVMOV(i) {
   rsp.disassembleOp(rsp.pc, i);
 }
 
+function vrsq(i, dpInstruction) {
+  const vt = cop2VT(i);
+  const vte = cop2E(i);
+
+  // Handle double or single precision.
+  const val16 = rsp.getVecS16(vt, vte & 7);
+  const input = (dpInstruction && rsp.divDP) ? ((rsp.divIn << 16) | (val16 & 0xffff)) : val16; 
+
+  // Accumulator is set to the entire input vector.
+  // TODO: add helper + dedupe with VRCPH.
+  let select = rsp.vecSelectU32[vte];
+  for (let el = 0; el < 8; el++, select >>= 4) {
+    const val = rsp.getVecS16(vt, select & 0x7);
+    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffffffff0000n) | (BigInt(val) & 0xffffn);
+  }
+
+  // Output is set to the result.
+  const result = rsq16(input);
+  rsp.divDP = false;
+  rsp.divOut = result >> 16;
+  rsp.setVecS16(cop2VD(i), cop2DE(i) & 7, result & 0xffff);
+}
+
+// Vector Element Scalar SQRT Reciprocal.
 function executeVRSQ(i) {
-  rsp.disassembleOp(rsp.pc, i);
+  vrsq(i, false);
 }
 
+// Vector Element Scalar SQRT Reciprocal (Double Precision Low).
 function executeVRSQL(i) {
-  rsp.disassembleOp(rsp.pc, i);
+  vrsq(i, true);
 }
 
+// Vector Element Scalar SQRT Reciprocal (Double Precision High).
 function executeVRSQH(i) {
-  rsp.disassembleOp(rsp.pc, i);
+  const t = cop2VT(i);
+
+  // Accumulator is set to the entire input vector.
+  // TODO: add helper + dedupe with VRCP.
+  let select = rsp.vecSelectU32[cop2E(i)];
+  for (let el = 0; el < 8; el++, select >>= 4) {
+    const val = rsp.getVecS16(t, select & 0x7);
+    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(val) & 0xffffn);
+  }
+
+  rsp.divDP = true;
+  rsp.divIn = rsp.getVecS16(t, select & 0x7);
+  rsp.setVecS16(cop2VD(i), cop2DE(i) & 7, rsp.divOut);
 }
 
 function executeVNOP(i) { /* No-op */ }
