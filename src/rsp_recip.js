@@ -71,7 +71,6 @@ const rsq16Table = (function () {
   for (let x = 0; x < 512; x++) {
     tbl.push(rsqEntry(x));
   }
-  console.log(tbl)
   return tbl;
 })();
 
