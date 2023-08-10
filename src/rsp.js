@@ -1,6 +1,6 @@
 import * as disassemble_rsp from "./disassemble_rsp.js";
 import { toString16, toString32, toHex } from "./format.js";
-import { rcp16 } from "./rsp_recip.js";
+import { rcp16, rsq16 } from "./rsp_recip.js";
 
 window.n64js = window.n64js || {};
 
