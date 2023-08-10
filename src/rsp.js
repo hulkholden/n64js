@@ -591,8 +591,8 @@ const vectorTable = (() => {
   tbl[27] = i => executeVSAC(i);
   tbl[28] = i => executeVSUM(i);
   tbl[29] = i => executeVSAR(i);
-  tbl[30] = i => executeUnhandled('V30', i);
-  tbl[31] = i => executeUnhandled('V31', i);
+  tbl[30] = i => executeV30(i);
+  tbl[31] = i => executeV31(i);
   tbl[32] = i => executeVLT(i);
   tbl[33] = i => executeVEQ(i);
   tbl[34] = i => executeVNE(i);
@@ -607,8 +607,8 @@ const vectorTable = (() => {
   tbl[43] = i => executeVNOR(i);
   tbl[44] = i => executeVXOR(i);
   tbl[45] = i => executeVNXOR(i);
-  tbl[46] = i => executeUnhandled('V46', i);
-  tbl[47] = i => executeUnhandled('V47', i);
+  tbl[46] = i => executeV46(i);
+  tbl[47] = i => executeV47(i);
   tbl[48] = i => executeVRCP(i);
   tbl[49] = i => executeVRCPL(i);
   tbl[50] = i => executeVRCPH(i);
@@ -620,7 +620,7 @@ const vectorTable = (() => {
   tbl[56] = i => executeUnhandled('VEXTT', i);
   tbl[57] = i => executeUnhandled('VEXTQ', i);
   tbl[58] = i => executeUnhandled('VEXTN', i);
-  tbl[59] = i => executeUnhandled('V59', i);
+  tbl[59] = i => executeV59(i);
   tbl[60] = i => executeUnhandled('VINST', i);
   tbl[61] = i => executeUnhandled('VINSQ', i);
   tbl[62] = i => executeUnhandled('VINSN', i);
@@ -879,8 +879,38 @@ function clampVMADH(x) {
     return ((x & ~0x7fffn) != 0) ? 0x7fff : Number(x);
   }
   return ((~x & ~0x7FFFn) != 0) ? 0x8000 : Number(x);
-
 }
+
+function vectorZero(i) {
+  const s = cop2VS(i);
+  const t = cop2VT(i);
+
+  let select = rsp.vecSelectU32[cop2E(i)];
+  for (let el = 0; el < 8; el++, select >>= 4) {
+    const a = rsp.getVecS16(s, el);
+    const b = rsp.getVecS16(t, select & 0x7);
+    const unclamped = a + b;
+    // TODO: provide low/mid/high accessors.
+    // TODO: understand why only low is set.
+    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(unclamped) & 0xffffn);
+  }
+  rsp.setVecZero(cop2VD(i));
+}
+
+// All these instructions just set the accumulator and zero the target register.
+function executeVSUT(i) { vectorZero(i); }
+function executeVADDB(i) { vectorZero(i); }
+function executeVSUBB(i) { vectorZero(i); }
+function executeVACCB(i) { vectorZero(i); }
+function executeVSUCB(i) { vectorZero(i); }
+function executeVSAD(i) { vectorZero(i); }
+function executeVSAC(i) { vectorZero(i); }
+function executeVSUM(i) { vectorZero(i); }
+function executeV30(i) { vectorZero(i); }
+function executeV31(i) { vectorZero(i); }
+function executeV46(i) { vectorZero(i); }
+function executeV47(i) { vectorZero(i); }
+function executeV59(i) { vectorZero(i); }
 
 // Vector Multiply of Signed Fractions.
 function executeVMULF(i) {
@@ -1244,28 +1274,6 @@ function executeVSUB(i) {
   rsp.VCO = 0;
 }
 
-function vectorZero(i) {
-  const s = cop2VS(i);
-  const t = cop2VT(i);
-
-  let select = rsp.vecSelectU32[cop2E(i)];
-  for (let el = 0; el < 8; el++, select >>= 4) {
-    const a = rsp.getVecS16(s, el);
-    const b = rsp.getVecS16(t, select & 0x7);
-    const unclamped = a + b;
-    // TODO: provide low/mid/high accessors.
-    // TODO: understand why only low is set.
-    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(unclamped) & 0xffffn);
-  }
-  rsp.setVecZero(cop2VD(i));
-}
-
-// It's unclear what this opcode mnemonic stands for.
-// It just sets the accumulator and clears the target register.
-function executeVSUT(i) {
-  vectorZero(i);
-}
-
 function conditionalNegate(s, x) {
   if (s < 0) { return -x; }
   if (s > 0) { return x; }
@@ -1345,28 +1353,6 @@ function executeVSUBC(i) {
   }
   rsp.setVecFromTemp(cop2VD(i));
   rsp.VCO = newVCO;
-}
-
-function executeVADDB(i) {
-  vectorZero(i);
-}
-function executeVSUBB(i) {
-  vectorZero(i);
-}
-function executeVACCB(i) {
-  vectorZero(i);
-}
-function executeVSUCB(i) {
-  vectorZero(i);
-}
-function executeVSAD(i) {
-  vectorZero(i);
-}
-function executeVSAC(i) {
-  vectorZero(i);
-}
-function executeVSUM(i) {
-  vectorZero(i);
 }
 
 // Constants for accessing different parts of the accumulator via VSAR.
