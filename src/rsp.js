@@ -1080,10 +1080,10 @@ function executeVMUDH(i) {
   for (let el = 0; el < 8; el++, select >>= 4) {
     const a = rsp.getVecS16(s, el);
     const b = rsp.getVecS16(t, select & 0x7);
-    const newAccum = BigInt(a * b) << 16n;
+    const newAccum = BigInt(a * b);
 
     dv.setInt16(el * 2, clampVMUDH(newAccum));
-    rsp.vAcc[el] = accum48ZeroExtend(newAccum);
+    rsp.vAcc[el] = accum48ZeroExtend(newAccum << 16n);
   }
   rsp.setVecFromTemp(cop2VD(i));
 }
