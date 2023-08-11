@@ -1647,17 +1647,17 @@ function vrcp(i, dpInstruction) {
   rsp.setVecS16(cop2VD(i), cop2DE(i) & 7, result & 0xffff);
 }
 
-// Vector Element Scaler Reciprocal (Single Precision).
+// Vector Element Scalar Reciprocal (Single Precision).
 function executeVRCP(i) {
   vrcp(i, false);
 }
 
-// Vector Element Scaler Reciprocal (Double Precision Low).
+// Vector Element Scalar Reciprocal (Double Precision Low).
 function executeVRCPL(i) {
   vrcp(i, true);
 }
 
-// Vector Element Scaler Reciprocal (Double Precision High).
+// Vector Element Scalar Reciprocal (Double Precision High).
 function executeVRCPH(i) {
   const vt = cop2VT(i);
   const vte = cop2E(i);
