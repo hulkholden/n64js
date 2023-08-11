@@ -807,64 +807,35 @@ function accum48ZeroExtend(x) {
   return BigInt.asUintN(48, x);
 }
 
-// TODO: see if there are any common patterns to these and give them a more generic name.
+/**
+ * Saturate a 48 bit accumulator value.
+ * @param {BigInt} x 
+ * @param {Number} negLimit
+ * @param {Number} posLimit
+ * @returns {Number}
+ */
+function saturate(x, negLimit, posLimit) {
+  if (x >= 0) {
+    return ((x & ~0x7fffn) != 0) ? posLimit : Number(x);
+  }
+  return ((~x & ~0x7fffn) != 0) ? negLimit : Number(x);
+}
+
+function clampVMACF(x) { return saturate(x, 0x8000, 0x7fff); }
+function clampVMACQ(x) { return saturate(x, 0x8000, 0x7fff); }
+function clampVMADH(x) { return saturate(x, 0x8000, 0x7fff); }
+function clampVMADM(x) { return saturate(x, 0, 0x7fff); }
+function clampVMUDH(x) { return saturate(x, 0x8000, 0x7fff); }
+function clampVMULQ(x) { return saturate(x, 0x8000, 0x7fff); }
+function clampVRNDN(x) { return saturate(x, 0x8000, 0x7fff); }
+
+function clampVMACU(x) { return clampVMULU(x); }
+function clampVMADL(x) { return clampVMADN(x); }
+function clampVRNDP(x) { return clampVMULF(x); }
+
+// TODO: see if there are any common patterns to these and migrate to saturate().
 function clampVMULF(x) {
-  return ((x > 0) && ((x & ~0x7fff_ffffn) != 0)) ? 0x7fff : Number(x >> 16n);
-}
-
-function clampVMULU(x) {
-  if ((x & 0x1_0000_0000_0000n) != 0) {
-    return 0;
-  } else if ((x & ~0x7fff_ffffn) != 0) {
-    return 0xffff;
-  } else {
-    return Number((x >> 16n) & 0xffffn);
-  }
-}
-
-function clampVRNDN(x) {
-  return clampVMUDH(x);
-}
-
-function clampVRNDP(x) {
   return ((x > 0) && ((x & ~0x7fffn) != 0)) ? 0x7fff : Number(x);
-}
-
-function clampVMULQ(x) {
-  if (x < 0) {
-    return ((~x >> 32n) != 0) ? 0x8000 : Number((x >> 17n) & 0xfff0n);
-  }
-  return ((x >> 32n) != 0) ? 0x7ff0 : Number((x >> 17n) & 0xfff0n);
-}
-
-function clampVMUDH(x) {
-  if (x >= 0) {
-    return ((x & ~0x7fffn) != 0) ? 0x7fff : Number(x);
-  }
-  return ((~x & ~0x7fffn) != 0) ? 0x8000 : Number(x);
-}
-
-function clampVMACF(x) {
-  return clampVMUDH(x >> 16n);
-}
-
-function clampVMACU(x) {
-  return clampVMULU(x);
-}
-
-function clampVMACQ(x) {
-  return clampVMUDH(x);
-}
-
-function clampVMADL(x) {
-  return clampVMADN(x);
-}
-
-function clampVMADM(x) {
-  if (x >= 0) {
-    return ((x & ~0x7fffn) != 0) ? 0x7fff : Number(x);
-  }
-  return ((~x & ~0x7fffn) != 0) ? 0 : Number(x);
 }
 
 function clampVMADN(x) {
@@ -874,11 +845,14 @@ function clampVMADN(x) {
   return ((~x & ~0x7fff_ffffn) != 0) ? 0 : Number(x);
 }
 
-function clampVMADH(x) {
-  if (x >= 0) {
-    return ((x & ~0x7fffn) != 0) ? 0x7fff : Number(x);
+function clampVMULU(x) {
+  if ((x & ~0xffff_ffffn) != 0) {
+    return 0;
+  } else if ((x & ~0x7fffn) != 0) {
+    return 0xffff;
+  } else {
+    return Number(x);
   }
-  return ((~x & ~0x7FFFn) != 0) ? 0x8000 : Number(x);
 }
 
 function vectorZero(i) {
@@ -925,7 +899,7 @@ function executeVMULF(i) {
     const b = rsp.getVecS16(t, select & 0x7);
     const newAccum = (BigInt(a * b) << 1n) + 0x8000n;
 
-    dv.setInt16(el * 2, clampVMULF(newAccum));
+    dv.setInt16(el * 2, clampVMULF(newAccum >> 16n));
     rsp.vAcc[el] = accum48ZeroExtend(newAccum);
   }
   rsp.setVecFromTemp(cop2VD(i));
@@ -944,7 +918,7 @@ function executeVMULU(i) {
     const b = rsp.getVecS16(t, select & 0x7);
     const newAccum = (BigInt(a * b) << 1n) + 0x8000n;
 
-    dv.setInt16(el * 2, clampVMULU(newAccum));
+    dv.setInt16(el * 2, clampVMULU(newAccum >> 16n));
     rsp.vAcc[el] = accum48ZeroExtend(newAccum);
   }
   rsp.setVecFromTemp(cop2VD(i));
@@ -1006,7 +980,7 @@ function executeVMULQ(i) {
     const product = BigInt(a * b) << 16n;
     const newAccum = product + (product < 0 ? 0x1f0000n : 0n);
 
-    dv.setInt16(el * 2, clampVMULQ(newAccum));
+    dv.setInt16(el * 2, clampVMULQ(newAccum >> 17n) & 0xfff0);
     rsp.vAcc[el] = accum48ZeroExtend(newAccum);
   }
   rsp.setVecFromTemp(cop2VD(i));
@@ -1101,7 +1075,7 @@ function executeVMACF(i) {
     const b = rsp.getVecS16(t, select & 0x7);
     const newAccum = accum48SignExtend(rsp.vAcc[el]) + (BigInt(a * b) << 1n);
 
-    dv.setInt16(el * 2, clampVMACF(newAccum));
+    dv.setInt16(el * 2, clampVMACF(newAccum >> 16n));
     rsp.vAcc[el] = accum48ZeroExtend(newAccum);
   }
   rsp.setVecFromTemp(cop2VD(i));
@@ -1120,7 +1094,7 @@ function executeVMACU(i) {
     const b = rsp.getVecS16(t, select & 0x7);
     const newAccum = accum48SignExtend(rsp.vAcc[el]) + (BigInt(a * b) << 1n);
 
-    dv.setInt16(el * 2, clampVMACU(newAccum));
+    dv.setInt16(el * 2, clampVMACU(newAccum >> 16n));
     rsp.vAcc[el] = accum48ZeroExtend(newAccum);
   }
   rsp.setVecFromTemp(cop2VD(i));
