@@ -597,10 +597,10 @@ const vectorTable = (() => {
   tbl[33] = i => executeVEQ(i);
   tbl[34] = i => executeVNE(i);
   tbl[35] = i => executeVGE(i);
-  tbl[36] = i => executeUnhandled('VCL', i);
-  tbl[37] = i => executeUnhandled('VCH', i);
-  tbl[38] = i => executeUnhandled('VCR', i);
-  tbl[39] = i => executeUnhandled('VMRG', i);
+  tbl[36] = i => executeVCL(i);
+  tbl[37] = i => executeVCH(i);
+  tbl[38] = i => executeVCR(i);
+  tbl[39] = i => executeVMRG(i);
   tbl[40] = i => executeVAND(i);
   tbl[41] = i => executeVNAND(i);
   tbl[42] = i => executeVOR(i);
@@ -1483,6 +1483,41 @@ function executeVGE(i) {
   rsp.VCO = 0;
 }
 
+// Vector Select Clip Test Low.
+function executeVCL(i) {
+  rsp.disassembleOp(rsp.pc, i);
+}
+
+// Vector Select Clip Test High.
+function executeVCH(i) {
+  rsp.disassembleOp(rsp.pc, i);
+}
+
+// Vector Select Crimp Test Low.
+function executeVCR(i) {
+  rsp.disassembleOp(rsp.pc, i);
+}
+
+// Vector Select Merge.
+function executeVMRG(i) {
+  const s = cop2VS(i);
+  const t = cop2VT(i);
+
+  const dv = rsp.vecTemp;
+  let select = rsp.vecSelectU32[cop2E(i)];
+  let vcc = rsp.VCC;
+
+  for (let el = 0; el < 8; el++, vcc >>= 1, select >>= 4) {
+    const a = rsp.getVecS16(s, el);
+    const b = rsp.getVecU16(t, select & 0x7);
+    const result = (vcc & 1) ? a : b;
+
+    dv.setInt16(el * 2, result);
+    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(result) & 0xffffn);
+  }
+  rsp.setVecFromTemp(cop2VD(i));
+  rsp.VCO = 0;
+}
 
 // Vector AND of Short Elements.
 function executeVAND(i) {
