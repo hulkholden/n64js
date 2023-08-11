@@ -1675,8 +1675,22 @@ function executeVRCPH(i) {
   rsp.setVecS16(cop2VD(i), cop2DE(i) & 7, rsp.divOut);
 }
 
+// Vector Element Scalar Move.
 function executeVMOV(i) {
-  rsp.disassembleOp(rsp.pc, i);
+  const vt = cop2VT(i);
+  const vd = cop2VD(i);
+  const vde = cop2DE(i) & 7;
+
+  // The low accumulator bits are set to VT, using the broadcast pattern.
+  const select = rsp.vecSelectU32[cop2E(i)];
+  for (let el = 0, curSelect = select; el < 8; el++, curSelect >>= 4) {
+    const accVal = rsp.getVecS16(vt, curSelect & 0x7);
+    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(accVal) & 0xffffn);
+  }
+
+  // Only a single element is set.
+  // The E is used to pick the broadcast pattern and DE is used to pick the element.
+  rsp.setVecS16(vd, vde & 7, rsp.getVecS16(vt, (select >> (4 * vde)) & 7));
 }
 
 function vrsq(i, dpInstruction) {

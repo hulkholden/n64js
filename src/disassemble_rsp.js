@@ -267,8 +267,8 @@ const vectorTable = (() => {
   tbl[27] = i => `VSAC      ${i.cop2VD} = 0, ACC = ${i.cop2VS} + ${i.cop2VT}[${i.cop2VecSelect}]`;
   tbl[28] = i => `VSUM      ${i.cop2VD} = 0, ACC = ${i.cop2VS} + ${i.cop2VT}[${i.cop2VecSelect}]`;
   tbl[29] = i => `VSAR      ${i.cop2VD}, ${i.cop2VS}, ${i.cop2VT}[${i.cop2E}]`; // TODO: show low/med/high name?
-  tbl[30] = i => `V30`;
-  tbl[31] = i => `V31`;
+  tbl[30] = i => `V30       ${i.cop2VD} = 0, ACC = ${i.cop2VS} + ${i.cop2VT}[${i.cop2VecSelect}]`;
+  tbl[31] = i => `V31       ${i.cop2VD} = 0, ACC = ${i.cop2VS} + ${i.cop2VT}[${i.cop2VecSelect}]`;
   tbl[32] = i => `VLT       ${i.cop2VD}, CC = cmpLT(${i.cop2VS}, ${i.cop2VT}[${i.cop2VecSelect}])`;
   tbl[33] = i => `VEQ       ${i.cop2VD}, CC = cmpEQ(${i.cop2VS}, ${i.cop2VT}[${i.cop2VecSelect}])`;
   tbl[34] = i => `VNE       ${i.cop2VD}, CC = cmpNE(${i.cop2VS}, ${i.cop2VT}[${i.cop2VecSelect}])`;
@@ -283,20 +283,20 @@ const vectorTable = (() => {
   tbl[43] = i => `VNOR      ${i.cop2VD} = ~(${i.cop2VS} | ${i.cop2VT}[${i.cop2VecSelect}])`;
   tbl[44] = i => `VXOR      ${i.cop2VD} = ${i.cop2VS} ^ ${i.cop2VT}[${i.cop2VecSelect}]`;
   tbl[45] = i => `VNXOR     ${i.cop2VD} = ~(${i.cop2VS} ^ ${i.cop2VT}[${i.cop2VecSelect}])`;
-  tbl[46] = i => `V46`;
-  tbl[47] = i => `V47`;
-  tbl[48] = i => `VRCP       ${i.cop2VD}[${i.cop2DE}] = 1/${i.cop2VT}[${i.cop2VecSelect}]`;
-  tbl[49] = i => `VRCPL      ${i.cop2VD}[${i.cop2DE}] = 1/${i.cop2VT}[${i.cop2VecSelect}]`;
-  tbl[50] = i => `VRCPH      ${i.cop2VD}[${i.cop2DE}], DIVIN = DIVOUT, ${i.cop2VT}[${i.cop2VecSelect}]`;
-  tbl[51] = i => `VMOV`;
-  tbl[52] = i => `VRSQ       ${i.cop2VD}[${i.cop2DE}] = 1/sqrt(${i.cop2VT}[${i.cop2VecSelect}])`;
-  tbl[53] = i => `VRSQL       ${i.cop2VD}[${i.cop2DE}] = 1/sqrt(${i.cop2VT}[${i.cop2VecSelect}])`;
-  tbl[54] = i => `VRSQH       ${i.cop2VD}[${i.cop2DE}], DIVIN = DIVOUT, ${i.cop2VT}[${i.cop2VecSelect}]`;
+  tbl[46] = i => `V46       ${i.cop2VD} = 0, ACC = ${i.cop2VS} + ${i.cop2VT}[${i.cop2VecSelect}]`;
+  tbl[47] = i => `V47       ${i.cop2VD} = 0, ACC = ${i.cop2VS} + ${i.cop2VT}[${i.cop2VecSelect}]`;
+  tbl[48] = i => `VRCP      ${i.cop2VD}[${i.cop2DE}] = 1/${i.cop2VT}[${i.cop2VecSelect}]`;
+  tbl[49] = i => `VRCPL     ${i.cop2VD}[${i.cop2DE}] = 1/${i.cop2VT}[${i.cop2VecSelect}]`;
+  tbl[50] = i => `VRCPH     ${i.cop2VD}[${i.cop2DE}], DIVIN = DIVOUT, ${i.cop2VT}[${i.cop2VecSelect}]`;
+  tbl[51] = i => `VMOV      ${i.cop2VD}[${i.cop2DE}] = ${i.cop2VT}[${i.cop2VecSelect}]`;
+  tbl[52] = i => `VRSQ      ${i.cop2VD}[${i.cop2DE}] = 1/sqrt(${i.cop2VT}[${i.cop2VecSelect}])`;
+  tbl[53] = i => `VRSQL     ${i.cop2VD}[${i.cop2DE}] = 1/sqrt(${i.cop2VT}[${i.cop2VecSelect}])`;
+  tbl[54] = i => `VRSQH     ${i.cop2VD}[${i.cop2DE}], DIVIN = DIVOUT, ${i.cop2VT}[${i.cop2VecSelect}]`;
   tbl[55] = i => `VNOP`;
   tbl[56] = i => `VEXTT`;
   tbl[57] = i => `VEXTQ`;
   tbl[58] = i => `VEXTN`;
-  tbl[59] = i => `V59`;
+  tbl[59] = i => `V59       ${i.cop2VD} = 0, ACC = ${i.cop2VS} + ${i.cop2VT}[${i.cop2VecSelect}]`;
   tbl[60] = i => `VINST`;
   tbl[61] = i => `VINSQ`;
   tbl[62] = i => `VINSN`;
@@ -316,18 +316,18 @@ const lc2Table = (() => {
   }
 
   // TODO: flesh these out.
-  tbl[0] = i => `LBV       ${i.vt} <- ${i.vmemload(1)}`;
-  tbl[1] = i => `LSV       ${i.vt} <- ${i.vmemload(2)}`;
-  tbl[2] = i => `LLV       ${i.vt} <- ${i.vmemload(4)}`;
-  tbl[3] = i => `LDV       ${i.vt} <- ${i.vmemload(8)}`;
-  tbl[4] = i => `LQV       ${i.vt} <- ${i.vmemload(16)}`;
-  tbl[5] = i => `LRV       ${i.vt} <- ${i.vmemload(16)}`;
-  tbl[6] = i => `LPV       ${i.vt} <- ${i.vmemload(8)}`;
-  tbl[7] = i => `LUV       ${i.vt} <- ${i.vmemload(8)}`;
-  tbl[8] = i => `LHV       ${i.vt} <- ${i.vmemload(16)}`;
-  tbl[9] = i => `LFV       ${i.vt} <- ${i.vmemload(16)}`;
-  tbl[10] = i => `LWV       ${i.vt} <- ${i.vmemload(16)}`;
-  tbl[11] = i => `LTV       ${i.vt} <- ${i.vmemload(16)}`;
+  tbl[0] = i => `LBV       ${i.vmemVT} <- ${i.vmemload(1)}`;
+  tbl[1] = i => `LSV       ${i.vmemVT} <- ${i.vmemload(2)}`;
+  tbl[2] = i => `LLV       ${i.vmemVT} <- ${i.vmemload(4)}`;
+  tbl[3] = i => `LDV       ${i.vmemVT} <- ${i.vmemload(8)}`;
+  tbl[4] = i => `LQV       ${i.vmemVT} <- ${i.vmemload(16)}`;
+  tbl[5] = i => `LRV       ${i.vmemVT} <- ${i.vmemload(16)}`;
+  tbl[6] = i => `LPV       ${i.vmemVT} <- ${i.vmemload(8)}`;
+  tbl[7] = i => `LUV       ${i.vmemVT} <- ${i.vmemload(8)}`;
+  tbl[8] = i => `LHV       ${i.vmemVT} <- ${i.vmemload(16)}`;
+  tbl[9] = i => `LFV       ${i.vmemVT} <- ${i.vmemload(16)}`;
+  tbl[10] = i => `LWV       ${i.vmemVT} <- ${i.vmemload(16)}`;
+  tbl[11] = i => `LTV       ${i.vmemVT} <- ${i.vmemload(16)}`;
 
   return tbl;
 })();
@@ -339,18 +339,18 @@ const sc2Table = (() => {
   }
 
   // TODO: flesh these out.
-  tbl[0] = i => `SBV       ${i.vt} -> ${i.vmemstore(1)}`;
-  tbl[1] = i => `SSV       ${i.vt} -> ${i.vmemstore(2)}`;
-  tbl[2] = i => `SLV       ${i.vt} -> ${i.vmemstore(4)}`;
-  tbl[3] = i => `SDV       ${i.vt} -> ${i.vmemstore(8)}`;
-  tbl[4] = i => `SQV       ${i.vt} -> ${i.vmemstore(16)}`;
-  tbl[5] = i => `SRV       ${i.vt} -> ${i.vmemstore(16)}`;
-  tbl[6] = i => `SPV       ${i.vt} -> ${i.vmemstore(8)}`;
-  tbl[7] = i => `SUV       ${i.vt} -> ${i.vmemstore(8)}`;
-  tbl[8] = i => `SHV       ${i.vt} -> ${i.vmemstore(16)}`;
-  tbl[9] = i => `SFV       ${i.vt} -> ${i.vmemstore(16)}`;
-  tbl[10] = i => `SWV       ${i.vt} -> ${i.vmemstore(16)}`;
-  tbl[11] = i => `STV       ${i.vt} -> ${i.vmemstore(16)}`;
+  tbl[0] = i => `SBV       ${i.vmemVT} -> ${i.vmemstore(1)}`;
+  tbl[1] = i => `SSV       ${i.vmemVT} -> ${i.vmemstore(2)}`;
+  tbl[2] = i => `SLV       ${i.vmemVT} -> ${i.vmemstore(4)}`;
+  tbl[3] = i => `SDV       ${i.vmemVT} -> ${i.vmemstore(8)}`;
+  tbl[4] = i => `SQV       ${i.vmemVT} -> ${i.vmemstore(16)}`;
+  tbl[5] = i => `SRV       ${i.vmemVT} -> ${i.vmemstore(16)}`;
+  tbl[6] = i => `SPV       ${i.vmemVT} -> ${i.vmemstore(8)}`;
+  tbl[7] = i => `SUV       ${i.vmemVT} -> ${i.vmemstore(8)}`;
+  tbl[8] = i => `SHV       ${i.vmemVT} -> ${i.vmemstore(16)}`;
+  tbl[9] = i => `SFV       ${i.vmemVT} -> ${i.vmemstore(16)}`;
+  tbl[10] = i => `SWV       ${i.vmemVT} -> ${i.vmemstore(16)}`;
+  tbl[11] = i => `STV       ${i.vmemVT} -> ${i.vmemstore(16)}`;
 
   return tbl;
 })();
