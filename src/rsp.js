@@ -1527,8 +1527,7 @@ function executeVCL(i) {
       result = le ? -t : s;
     } else {
       if (eq) {
-        const diff = s - t;
-        ge = diff >= 0;
+        ge = (s - t) >= 0;
       }
       result = ge ? t : s;
     }
