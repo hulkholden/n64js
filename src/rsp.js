@@ -1539,7 +1539,7 @@ function executeVMRG(i) {
   let vcc = rsp.VCC;
 
   for (let el = 0; el < 8; el++, vcc >>= 1, select >>= 4) {
-    const a = rsp.getVecS16(s, el);
+    const a = rsp.getVecU16(s, el);
     const b = rsp.getVecU16(t, select & 0x7);
     const result = (vcc & 1) ? a : b;
 
