@@ -293,13 +293,13 @@ const vectorTable = (() => {
   tbl[53] = i => `VRSQL     ${i.cop2VD}[${i.cop2DE}] = 1/sqrt(${i.cop2VT}[${i.cop2VecSelect}])`;
   tbl[54] = i => `VRSQH     ${i.cop2VD}[${i.cop2DE}], DIVIN = DIVOUT, ${i.cop2VT}[${i.cop2VecSelect}]`;
   tbl[55] = i => `VNOP`;
-  tbl[56] = i => `VEXTT`;
-  tbl[57] = i => `VEXTQ`;
-  tbl[58] = i => `VEXTN`;
+  tbl[56] = i => `VEXTT     ${i.cop2VD} = 0, ACC = ${i.cop2VS} + ${i.cop2VT}[${i.cop2VecSelect}]`;
+  tbl[57] = i => `VEXTQ     ${i.cop2VD} = 0, ACC = ${i.cop2VS} + ${i.cop2VT}[${i.cop2VecSelect}]`;
+  tbl[58] = i => `VEXTN     ${i.cop2VD} = 0, ACC = ${i.cop2VS} + ${i.cop2VT}[${i.cop2VecSelect}]`;
   tbl[59] = i => `V59       ${i.cop2VD} = 0, ACC = ${i.cop2VS} + ${i.cop2VT}[${i.cop2VecSelect}]`;
-  tbl[60] = i => `VINST`;
-  tbl[61] = i => `VINSQ`;
-  tbl[62] = i => `VINSN`;
+  tbl[60] = i => `VINST     ${i.cop2VD} = 0, ACC = ${i.cop2VS} + ${i.cop2VT}[${i.cop2VecSelect}]`;
+  tbl[61] = i => `VINSQ     ${i.cop2VD} = 0, ACC = ${i.cop2VS} + ${i.cop2VT}[${i.cop2VecSelect}]`;
+  tbl[62] = i => `VINSN     ${i.cop2VD} = 0, ACC = ${i.cop2VS} + ${i.cop2VT}[${i.cop2VecSelect}]`;
   tbl[63] = i => `VNULL`;
 
   return tbl;

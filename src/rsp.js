@@ -620,13 +620,13 @@ const vectorTable = (() => {
   tbl[53] = i => executeVRSQL(i);
   tbl[54] = i => executeVRSQH(i);
   tbl[55] = i => executeVNOP(i);
-  tbl[56] = i => executeUnhandled('VEXTT', i);
-  tbl[57] = i => executeUnhandled('VEXTQ', i);
-  tbl[58] = i => executeUnhandled('VEXTN', i);
+  tbl[56] = i => executeVEXTT(i);
+  tbl[57] = i => executeVEXTQ(i);
+  tbl[58] = i => executeVEXTN(i);
   tbl[59] = i => executeV59(i);
-  tbl[60] = i => executeUnhandled('VINST', i);
-  tbl[61] = i => executeUnhandled('VINSQ', i);
-  tbl[62] = i => executeUnhandled('VINSN', i);
+  tbl[60] = i => executeVINST(i);
+  tbl[61] = i => executeVINSQ(i);
+  tbl[62] = i => executeVINSN(i);
   tbl[63] = i => executeVNULL(i);
   return tbl;
 })();
@@ -887,7 +887,13 @@ function executeV30(i) { vectorZero(i); }
 function executeV31(i) { vectorZero(i); }
 function executeV46(i) { vectorZero(i); }
 function executeV47(i) { vectorZero(i); }
+function executeVEXTT(i) { vectorZero(i); }
+function executeVEXTQ(i) { vectorZero(i); }
+function executeVEXTN(i) { vectorZero(i); }
 function executeV59(i) { vectorZero(i); }
+function executeVINST(i) { vectorZero(i); }
+function executeVINSQ(i) { vectorZero(i); }
+function executeVINSN(i) { vectorZero(i); }
 
 // Vector Multiply of Signed Fractions.
 function executeVMULF(i) {
