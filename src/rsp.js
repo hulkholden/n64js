@@ -1495,7 +1495,38 @@ function executeVCH(i) {
 
 // Vector Select Crimp Test Low.
 function executeVCR(i) {
-  rsp.disassembleOp(rsp.pc, i);
+  const vs = cop2VS(i);
+  const vt = cop2VT(i);
+
+  const dv = rsp.vecTemp;
+  let select = rsp.vecSelectU32[cop2E(i)];
+  let vccH = 0;
+  let vccL = 0;
+
+  for (let el = 0; el < 8; el++, select >>= 4) {
+    const s = rsp.getVecS16(vs, el);
+    const t = rsp.getVecS16(vt, select & 0x7);
+
+    let le, ge, newAccum;
+    if ((s ^ t) < 0) {
+      ge = t < 0;
+      le = (s + t + 1) <= 0;
+      newAccum = le ? ~t : s;
+    } else {
+      le = t < 0;
+      ge = (s - t) >= 0;
+      newAccum = ge ? t : s;
+    }
+    vccL |= le << el;
+    vccH |= ge << el;
+
+    dv.setInt16(el * 2, newAccum);
+    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(newAccum) & 0xffffn);
+  }
+  rsp.setVecFromTemp(cop2VD(i));
+  rsp.VCC = (vccH << 8) | vccL;
+  rsp.VCO = 0;
+  rsp.VCE = 0;
 }
 
 // Vector Select Merge.
