@@ -1545,7 +1545,53 @@ function executeVCL(i) {
 
 // Vector Select Clip Test High.
 function executeVCH(i) {
-  rsp.disassembleOp(rsp.pc, i);
+  const vs = cop2VS(i);
+  const vt = cop2VT(i);
+
+  const dv = rsp.vecTemp;
+  let select = rsp.vecSelectU32[cop2E(i)];
+
+  let vccHi = 0;
+  let vccLo = 0;
+  let vcoHi = 0;
+  let vcoLo = 0;
+  let vce = 0;
+  
+  for (let el = 0; el < 8; el++, select >>= 4) {
+    const s = rsp.getVecS16(vs, el);
+    const t = rsp.getVecS16(vt, select & 0x7);
+
+    let le, ge, ce, ne, result;
+    const sign = (s ^ t) < 0;
+    if (sign) {
+      const sum = ((s + t) << 16) >> 16;
+      ge = t < 0;
+      le = sum <= 0;
+      ce = sum == -1;
+      ne = sum != 0 && (s != ~t);
+      result = le ? -t : s;
+    } else {
+      const diff = ((s - t) << 16) >> 16;
+      le = t < 0;
+      ge = diff >= 0;
+      ce = 0;
+      ne = diff != 0;
+      result = ge ? t : s;
+    }
+    dv.setInt16(el * 2, result);
+    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(result) & 0xffffn);
+
+    vccHi |= ge << el;
+    vccLo |= le << el
+    vcoHi |= ne << el;
+    vcoLo |= sign << el;
+    vce |= ce << el;
+  }
+
+  rsp.setVecFromTemp(cop2VD(i));
+  rsp.setVCCHiLo(vccHi, vccLo);
+  rsp.setVCOHiLo(vcoHi, vcoLo);
+  rsp.VCE = vce;
 }
 
 // Vector Select Crimp Test Low.
