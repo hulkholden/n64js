@@ -627,7 +627,7 @@ const vectorTable = (() => {
   tbl[60] = i => executeUnhandled('VINST', i);
   tbl[61] = i => executeUnhandled('VINSQ', i);
   tbl[62] = i => executeUnhandled('VINSN', i);
-  tbl[63] = i => executeUnhandled('VNULL', i);
+  tbl[63] = i => executeVNULL(i);
   return tbl;
 })();
 
@@ -1886,6 +1886,7 @@ function executeVRSQH(i) {
 }
 
 function executeVNOP(i) { /* No-op */ }
+function executeVNULL(i) { /* No-op */ }
 
 // Simple Ops.
 function executeJ(i) { rsp.jump(jumpAddress(rsp.pc, i)); }
