@@ -182,11 +182,7 @@ class RSP {
     this.vAcc[0] = 0n;
 
     this.vuVCOReg[0] = 0;
-    this.vuVCOReg[1] = 0;
-
     this.vuVCCReg[0] = 0;
-    this.vuVCCReg[1] = 0;
-
     this.vuVCEReg[0] = 0;
 
     this.divDP = false;
