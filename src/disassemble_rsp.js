@@ -273,8 +273,8 @@ const vectorTable = (() => {
   tbl[33] = i => `VEQ       ${i.cop2VD}, CC = cmpEQ(${i.cop2VS}, ${i.cop2VT}[${i.cop2VecSelect}])`;
   tbl[34] = i => `VNE       ${i.cop2VD}, CC = cmpNE(${i.cop2VS}, ${i.cop2VT}[${i.cop2VecSelect}])`;
   tbl[35] = i => `VGE       ${i.cop2VD}, CC = cmpGE(${i.cop2VS}, ${i.cop2VT}[${i.cop2VecSelect}])`;
-  tbl[36] = i => `VCL`;
-  tbl[37] = i => `VCH`;
+  tbl[36] = i => `VCL       ${i.cop2VD}, ACC = ${i.cop2VS} clip ${i.cop2VT}[${i.cop2VecSelect}]`;
+  tbl[37] = i => `VCH       ${i.cop2VD}, ACC = ${i.cop2VS} clip ${i.cop2VT}[${i.cop2VecSelect}]`;
   tbl[38] = i => `VCR       ${i.cop2VD}, ACC = ${i.cop2VS} crimp ${i.cop2VT}[${i.cop2VecSelect}]`;
   tbl[39] = i => `VMRG      ${i.cop2VD} = VCC ? ${i.cop2VS} : ${i.cop2VT}[${i.cop2VecSelect}]`;
   tbl[40] = i => `VAND      ${i.cop2VD} = ${i.cop2VS} & ${i.cop2VT}[${i.cop2VecSelect}]`;

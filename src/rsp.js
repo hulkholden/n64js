@@ -203,6 +203,8 @@ class RSP {
   // VCC = Vector Compare Code, 16 bits.
   // VCE = Vector Compare Extension, 8 bits.
   get VCO() { return this.vuVCOReg[0]; }
+  get VCOHi() { return (this.vuVCOReg[0] >>> 8) & 0xff; }
+  get VCOLo() { return (this.vuVCOReg[0] >>> 0) & 0xff; }
   get VCC() { return this.vuVCCReg[0]; }
   get VCCHi() { return (this.vuVCCReg[0] >>> 8) & 0xff; }
   get VCCLo() { return (this.vuVCCReg[0] >>> 0) & 0xff; }
@@ -212,6 +214,7 @@ class RSP {
   set VCC(val) { this.vuVCCReg[0] = val; }
   set VCE(val) { this.vuVCEReg[0] = val; }
 
+  setVCOHiLo(hi, lo) { this.vuVCOReg[0] = (hi << 8) | lo; }
   setVCCHiLo(hi, lo) { this.vuVCCReg[0] = (hi << 8) | lo; }
 
   // Vector Unit (Cop2) General Purpose Registers.
@@ -1486,7 +1489,59 @@ function executeVGE(i) {
 
 // Vector Select Clip Test Low.
 function executeVCL(i) {
-  rsp.disassembleOp(rsp.pc, i);
+  const vs = cop2VS(i);
+  const vt = cop2VT(i);
+
+  const dv = rsp.vecTemp;
+  let select = rsp.vecSelectU32[cop2E(i)];
+
+  const vccHi = rsp.VCCHi;
+  const vccLo = rsp.VCCLo;
+  const vce = rsp.VCE;
+  const vcoHi = rsp.VCOHi;
+  const vcoLo = rsp.VCOLo;
+
+  let vccOutHi = 0;
+  let vccOutLo = 0;
+
+  for (let el = 0; el < 8; el++, select >>= 4) {
+    const s = rsp.getVecU16(vs, el);
+    const t = rsp.getVecU16(vt, select & 0x7);
+
+    let le = (vccLo >> el) & 1;
+    let ge = (vccHi >> el) & 1;
+    const ce = (vce >> el) & 1;
+    const eq = (~(vcoHi >> el)) & 1;
+    const sign = (vcoLo >> el) & 1;
+
+    let result;
+    if (sign) {
+      if (eq) {
+        const sum = (s + t) & 0xffff;
+        const carry = (s + t) > 0xffff;
+        // TODO: which of these are correct? Or does it not matter?
+        // First is according to RSP docs. Second is what n64-systemtest checks for.
+        le = (!ce && (!sum && !carry)) || (ce && (!sum || !carry));
+        // le = (!sum && !carry) || (ce && (!sum || !carry));
+      }
+      result = le ? -t : s;
+    } else {
+      if (eq) {
+        const diff = s - t;
+        ge = diff >= 0;
+      }
+      result = ge ? t : s;
+    }
+    dv.setInt16(el * 2, result);
+    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(result) & 0xffffn);
+    vccOutHi |= ge << el;
+    vccOutLo |= le << el
+  }
+
+  rsp.setVecFromTemp(cop2VD(i));
+  rsp.setVCCHiLo(vccOutHi, vccOutLo);
+  rsp.VCO = 0;
+  rsp.VCE = 0;
 }
 
 // Vector Select Clip Test High.
