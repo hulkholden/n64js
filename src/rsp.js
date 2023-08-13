@@ -1223,7 +1223,6 @@ function executeVLT(i) {
   const vco = rsp.VCO;
   let vccLo = 0;
   let vccHi = 0;
-  const dv = rsp.vecTemp;
   let select = rsp.vecSelectU32[cop2E(i)];
 
   for (let el = 0; el < 8; el++, select >>= 4) {
@@ -1240,9 +1239,8 @@ function executeVLT(i) {
     vccLo |= cond ? elBit : 0;
 
     rsp.setAccLow(el, result);
-    dv.setInt16(el * 2, result);
   }
-  rsp.setVecFromTemp(cop2VD(i));
+  rsp.setVecFromAccLow(cop2VD(i));
   rsp.setVCCHiLo(vccHi, vccLo);
   rsp.VCO = 0;
 }
@@ -1255,7 +1253,6 @@ function executeVEQ(i) {
   const vco = rsp.VCO;
   let vccLo = 0;
   let vccHi = 0;
-  const dv = rsp.vecTemp;
   let select = rsp.vecSelectU32[cop2E(i)];
 
   for (let el = 0; el < 8; el++, select >>= 4) {
@@ -1270,9 +1267,8 @@ function executeVEQ(i) {
     vccLo |= cond ? elBit : 0;
 
     rsp.setAccLow(el, result);
-    dv.setInt16(el * 2, result);
   }
-  rsp.setVecFromTemp(cop2VD(i));
+  rsp.setVecFromAccLow(cop2VD(i));
   rsp.setVCCHiLo(vccHi, vccLo);
   rsp.VCO = 0;
 }
@@ -1285,7 +1281,6 @@ function executeVNE(i) {
   const vco = rsp.VCO;
   let vccLo = 0;
   let vccHi = 0;
-  const dv = rsp.vecTemp;
   let select = rsp.vecSelectU32[cop2E(i)];
 
   for (let el = 0; el < 8; el++, select >>= 4) {
@@ -1300,9 +1295,8 @@ function executeVNE(i) {
     vccLo |= cond ? elBit : 0;
 
     rsp.setAccLow(el, result);
-    dv.setInt16(el * 2, result);
   }
-  rsp.setVecFromTemp(cop2VD(i));
+  rsp.setVecFromAccLow(cop2VD(i));
   rsp.VCC = (vccHi << 8) | vccLo;
   rsp.setVCCHiLo(vccHi, vccLo);
   rsp.VCO = 0;
@@ -1316,7 +1310,6 @@ function executeVGE(i) {
   const vco = rsp.VCO;
   let vccLo = 0;
   let vccHi = 0;
-  const dv = rsp.vecTemp;
   let select = rsp.vecSelectU32[cop2E(i)];
 
   for (let el = 0; el < 8; el++, select >>= 4) {
@@ -1333,9 +1326,8 @@ function executeVGE(i) {
     vccLo |= cond ? elBit : 0;
 
     rsp.setAccLow(el, result);
-    dv.setInt16(el * 2, result);
   }
-  rsp.setVecFromTemp(cop2VD(i));
+  rsp.setVecFromAccLow(cop2VD(i));
   rsp.setVCCHiLo(vccHi, vccLo);
   rsp.VCO = 0;
 }
@@ -1345,7 +1337,6 @@ function executeVCL(i) {
   const vs = cop2VS(i);
   const vt = cop2VT(i);
 
-  const dv = rsp.vecTemp;
   let select = rsp.vecSelectU32[cop2E(i)];
 
   const vccHi = rsp.VCCHi;
@@ -1384,13 +1375,12 @@ function executeVCL(i) {
       }
       result = ge ? t : s;
     }
-    dv.setInt16(el * 2, result);
     rsp.setAccLow(el, result);
     vccOutHi |= ge << el;
     vccOutLo |= le << el
   }
 
-  rsp.setVecFromTemp(cop2VD(i));
+  rsp.setVecFromAccLow(cop2VD(i));
   rsp.setVCCHiLo(vccOutHi, vccOutLo);
   rsp.VCO = 0;
   rsp.VCE = 0;
@@ -1401,7 +1391,6 @@ function executeVCH(i) {
   const vs = cop2VS(i);
   const vt = cop2VT(i);
 
-  const dv = rsp.vecTemp;
   let select = rsp.vecSelectU32[cop2E(i)];
 
   let vccHi = 0;
@@ -1431,7 +1420,6 @@ function executeVCH(i) {
       ne = diff != 0;
       result = ge ? t : s;
     }
-    dv.setInt16(el * 2, result);
     rsp.setAccLow(el, result);
 
     vccHi |= ge << el;
@@ -1441,7 +1429,7 @@ function executeVCH(i) {
     vce |= ce << el;
   }
 
-  rsp.setVecFromTemp(cop2VD(i));
+  rsp.setVecFromAccLow(cop2VD(i));
   rsp.setVCCHiLo(vccHi, vccLo);
   rsp.setVCOHiLo(vcoHi, vcoLo);
   rsp.VCE = vce;
@@ -1452,7 +1440,6 @@ function executeVCR(i) {
   const vs = cop2VS(i);
   const vt = cop2VT(i);
 
-  const dv = rsp.vecTemp;
   let select = rsp.vecSelectU32[cop2E(i)];
   let vccHi = 0;
   let vccLo = 0;
@@ -1461,23 +1448,22 @@ function executeVCR(i) {
     const s = rsp.getVecS16(vs, el);
     const t = rsp.getVecS16(vt, select & 0x7);
 
-    let le, ge, newAccum;
+    let le, ge, result;
     if ((s ^ t) < 0) {
       ge = t < 0;
       le = (s + t + 1) <= 0;
-      newAccum = le ? ~t : s;
+      result = le ? ~t : s;
     } else {
       le = t < 0;
       ge = (s - t) >= 0;
-      newAccum = ge ? t : s;
+      result = ge ? t : s;
     }
     vccLo |= le << el;
     vccHi |= ge << el;
 
-    dv.setInt16(el * 2, newAccum);
-    rsp.setAccLow(el, newAccum);
+    rsp.setAccLow(el, result);
   }
-  rsp.setVecFromTemp(cop2VD(i));
+  rsp.setVecFromAccLow(cop2VD(i));
   rsp.setVCCHiLo(vccHi, vccLo);
   rsp.VCO = 0;
   rsp.VCE = 0;
