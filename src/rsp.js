@@ -1474,19 +1474,16 @@ function executeVMRG(i) {
   const vs = cop2VS(i);
   const vt = cop2VT(i);
 
-  const dv = rsp.vecTemp;
-  let select = rsp.vecSelectU32[cop2E(i)];
   let vcc = rsp.VCC;
-
+  
+  let select = rsp.vecSelectU32[cop2E(i)];
   for (let el = 0; el < 8; el++, vcc >>= 1, select >>= 4) {
     const s = rsp.getVecU16(vs, el);
     const t = rsp.getVecU16(vt, select & 0x7);
     const result = (vcc & 1) ? s : t;
-
-    dv.setInt16(el * 2, result);
     rsp.setAccLow(el, result);
   }
-  rsp.setVecFromTemp(cop2VD(i));
+  rsp.setVecFromAccLow(cop2VD(i));
   rsp.VCO = 0;
 }
 
@@ -1513,7 +1510,7 @@ function executeVNAND(i) {
   for (let el = 0; el < 8; el++, select >>= 4) {
     const s = rsp.getVecU16(vs, el);
     const t = rsp.getVecU16(vt, select & 0x7);
-    rsp.setAccLow(el,  ~(s & t));
+    rsp.setAccLow(el, ~(s & t));
   }
   rsp.setVecFromAccLow(cop2VD(i));
 }
