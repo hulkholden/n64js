@@ -880,9 +880,8 @@ function executeVMULF(i) {
   for (let el = 0; el < 8; el++, select >>= 4) {
     const a = rsp.getVecS16(s, el);
     const b = rsp.getVecS16(t, select & 0x7);
-    const newAccum = accum48SignExtend((BigInt(a * b) << 1n) + 0x8000n);
-    rsp.vAcc[el] = newAccum;
-    dv.setInt16(el * 2, saturateSigned(newAccum, 16n, 0x8000, 0x7fff));
+    rsp.vAcc[el] = accum48SignExtend((BigInt(a * b) << 1n) + 0x8000n);
+    dv.setInt16(el * 2, saturateSigned(rsp.vAcc[el], 16n, 0x8000, 0x7fff));
   }
   rsp.setVecFromTemp(cop2VD(i));
 }
@@ -898,9 +897,8 @@ function executeVMULU(i) {
   for (let el = 0; el < 8; el++, select >>= 4) {
     const a = rsp.getVecS16(s, el);
     const b = rsp.getVecS16(t, select & 0x7);
-    const newAccum = accum48SignExtend((BigInt(a * b) << 1n) + 0x8000n);
-    rsp.vAcc[el] = newAccum;
-    dv.setInt16(el * 2, saturateUnsigned(newAccum, 16n, 0x0000, 0xffff));
+    rsp.vAcc[el] = accum48SignExtend((BigInt(a * b) << 1n) + 0x8000n);
+    dv.setInt16(el * 2, saturateUnsigned(rsp.vAcc[el], 16n, 0x0000, 0xffff));
   }
   rsp.setVecFromTemp(cop2VD(i));
 }
@@ -918,9 +916,8 @@ function executeVRNDN(i) {
   for (let el = 0; el < 8; el++, select >>= 4) {
     const acc = accum48SignExtend(rsp.vAcc[el]);
     const incr = rsp.getVecS16(t, select & 0x7) << shift;
-    const newAccum = accum48SignExtend(acc + ((acc < 0) ? BigInt(incr) : 0n));
-    rsp.vAcc[el] = newAccum;
-    dv.setInt16(el * 2, saturateSigned(newAccum, 16n, 0x8000, 0x7fff));
+    rsp.vAcc[el] = accum48SignExtend(acc + ((acc < 0) ? BigInt(incr) : 0n));
+    dv.setInt16(el * 2, saturateSigned(rsp.vAcc[el], 16n, 0x8000, 0x7fff));
   }
   rsp.setVecFromTemp(cop2VD(i));
 }
@@ -938,9 +935,8 @@ function executeVRNDP(i) {
   for (let el = 0; el < 8; el++, select >>= 4) {
     const acc = accum48SignExtend(rsp.vAcc[el]);
     const incr = rsp.getVecS16(t, select & 0x7) << shift;
-    const newAccum = accum48SignExtend(acc + ((acc >= 0) ? BigInt(incr) : 0n));
-    rsp.vAcc[el] = newAccum;
-    dv.setInt16(el * 2, saturateSigned(newAccum, 16n, 0x8000, 0x7fff));
+    rsp.vAcc[el] = accum48SignExtend(acc + ((acc >= 0) ? BigInt(incr) : 0n));
+    dv.setInt16(el * 2, saturateSigned(rsp.vAcc[el], 16n, 0x8000, 0x7fff));
   }
   rsp.setVecFromTemp(cop2VD(i));
 }
@@ -957,9 +953,8 @@ function executeVMULQ(i) {
     const a = rsp.getVecS16(s, el);
     const b = rsp.getVecS16(t, select & 0x7);
     const product = BigInt(a * b) << 16n;
-    const newAccum = accum48SignExtend(product + (product < 0 ? 0x1f0000n : 0n));
-    rsp.vAcc[el] = newAccum;
-    dv.setInt16(el * 2, saturateSigned(newAccum >> 1n, 16n, 0x8000, 0x7fff) & 0xfff0);
+    rsp.vAcc[el] = accum48SignExtend(product + (product < 0 ? 0x1f0000n : 0n));
+    dv.setInt16(el * 2, saturateSigned(rsp.vAcc[el] >> 1n, 16n, 0x8000, 0x7fff) & 0xfff0);
   }
   rsp.setVecFromTemp(cop2VD(i));
 }
@@ -975,9 +970,8 @@ function executeVMUDL(i) {
   for (let el = 0; el < 8; el++, select >>= 4) {
     const a = rsp.getVecU16(s, el);
     const b = rsp.getVecU16(t, select & 0x7);
-    const newAccum = accum48SignExtend(BigInt(a * b) >> 16n);
-    rsp.vAcc[el] = newAccum;
-    dv.setInt16(el * 2, Number(newAccum & 0xffffn));
+    rsp.vAcc[el] = accum48SignExtend(BigInt(a * b) >> 16n);
+    dv.setInt16(el * 2, Number(rsp.vAcc[el] & 0xffffn));
   }
   rsp.setVecFromTemp(cop2VD(i));
 }
@@ -993,9 +987,8 @@ function executeVMUDM(i) {
   for (let el = 0; el < 8; el++, select >>= 4) {
     const a = rsp.getVecS16(s, el);
     const b = rsp.getVecU16(t, select & 0x7);
-    const newAccum = accum48SignExtend(BigInt(a * b));
-    rsp.vAcc[el] = newAccum;
-    dv.setInt16(el * 2, Number((newAccum >> 16n) & 0xffffn));
+    rsp.vAcc[el] = accum48SignExtend(BigInt(a * b));
+    dv.setInt16(el * 2, Number((rsp.vAcc[el] >> 16n) & 0xffffn));
   }
   rsp.setVecFromTemp(cop2VD(i));
 }
@@ -1011,9 +1004,8 @@ function executeVMUDN(i) {
   for (let el = 0; el < 8; el++, select >>= 4) {
     const a = rsp.getVecU16(s, el);
     const b = rsp.getVecS16(t, select & 0x7);
-    const newAccum = accum48SignExtend(BigInt(a * b));
-    rsp.vAcc[el] = newAccum;
-    dv.setInt16(el * 2, Number(newAccum & 0xffffn));
+    rsp.vAcc[el] = accum48SignExtend(BigInt(a * b));
+    dv.setInt16(el * 2, Number(rsp.vAcc[el] & 0xffffn));
   }
   rsp.setVecFromTemp(cop2VD(i));
 }
@@ -1029,9 +1021,8 @@ function executeVMUDH(i) {
   for (let el = 0; el < 8; el++, select >>= 4) {
     const a = rsp.getVecS16(s, el);
     const b = rsp.getVecS16(t, select & 0x7);
-    const newAccum = accum48SignExtend(BigInt(a * b) << 16n);
-    rsp.vAcc[el] = newAccum;
-    dv.setInt16(el * 2, saturateSigned(newAccum, 16n, 0x8000, 0x7fff));
+    rsp.vAcc[el] = accum48SignExtend(BigInt(a * b) << 16n);
+    dv.setInt16(el * 2, saturateSigned(rsp.vAcc[el], 16n, 0x8000, 0x7fff));
   }
   rsp.setVecFromTemp(cop2VD(i));
 }
@@ -1047,9 +1038,8 @@ function executeVMACF(i) {
   for (let el = 0; el < 8; el++, select >>= 4) {
     const a = rsp.getVecS16(s, el);
     const b = rsp.getVecS16(t, select & 0x7);
-    const newAccum = accum48SignExtend(accum48SignExtend(rsp.vAcc[el]) + (BigInt(a * b) << 1n));
-    rsp.vAcc[el] = newAccum;
-    dv.setInt16(el * 2, saturateSigned(newAccum, 16n, 0x8000, 0x7fff));
+    rsp.vAcc[el] = accum48SignExtend(accum48SignExtend(rsp.vAcc[el]) + (BigInt(a * b) << 1n));
+    dv.setInt16(el * 2, saturateSigned(rsp.vAcc[el], 16n, 0x8000, 0x7fff));
   }
   rsp.setVecFromTemp(cop2VD(i));
 }
@@ -1065,9 +1055,8 @@ function executeVMACU(i) {
   for (let el = 0; el < 8; el++, select >>= 4) {
     const a = rsp.getVecS16(s, el);
     const b = rsp.getVecS16(t, select & 0x7);
-    const newAccum = accum48SignExtend((accum48SignExtend(rsp.vAcc[el]) + (BigInt(a * b) << 1n)));
-    rsp.vAcc[el] = newAccum;
-    dv.setInt16(el * 2, saturateUnsigned(newAccum, 16n, 0x0000, 0xffff));
+    rsp.vAcc[el] = accum48SignExtend((accum48SignExtend(rsp.vAcc[el]) + (BigInt(a * b) << 1n)));
+    dv.setInt16(el * 2, saturateUnsigned(rsp.vAcc[el], 16n, 0x0000, 0xffff));
   }
   rsp.setVecFromTemp(cop2VD(i));
 }
@@ -1087,9 +1076,8 @@ function executeVMACQ(i) {
         incr = -0x20_0000n;
       }
     }
-    const newAccum = accum48SignExtend(acc + incr);
-    rsp.vAcc[el] = newAccum;
-    dv.setInt16(el * 2, saturateSigned(newAccum >> 1n, 16n, 0x8000, 0x7fff) & 0xfff0);
+    rsp.vAcc[el] = accum48SignExtend(acc + incr);
+    dv.setInt16(el * 2, saturateSigned(rsp.vAcc[el] >> 1n, 16n, 0x8000, 0x7fff) & 0xfff0);
   }
   rsp.setVecFromTemp(cop2VD(i));
 }
@@ -1105,9 +1093,8 @@ function executeVMADL(i) {
   for (let el = 0; el < 8; el++, select >>= 4) {
     const a = rsp.getVecU16(s, el);
     const b = rsp.getVecU16(t, select & 0x7);
-    const newAccum = accum48SignExtend(accum48SignExtend(rsp.vAcc[el]) + (BigInt(a * b) >> 16n));
-    rsp.vAcc[el] = newAccum;
-    dv.setInt16(el * 2, saturateSigned(newAccum, 0n, 0, 0xffff));
+    rsp.vAcc[el] = accum48SignExtend(accum48SignExtend(rsp.vAcc[el]) + (BigInt(a * b) >> 16n));
+    dv.setInt16(el * 2, saturateSigned(rsp.vAcc[el], 0n, 0, 0xffff));
   }
   rsp.setVecFromTemp(cop2VD(i));
 }
@@ -1123,9 +1110,8 @@ function executeVMADM(i) {
   for (let el = 0; el < 8; el++, select >>= 4) {
     const a = rsp.getVecS16(s, el);
     const b = rsp.getVecU16(t, select & 0x7);
-    const newAccum = accum48SignExtend(accum48SignExtend(rsp.vAcc[el]) + BigInt(a * b));
-    rsp.vAcc[el] = newAccum;
-    dv.setInt16(el * 2, saturateSigned(newAccum, 16n, 0x8000, 0x7fff));
+    rsp.vAcc[el] = accum48SignExtend(accum48SignExtend(rsp.vAcc[el]) + BigInt(a * b));
+    dv.setInt16(el * 2, saturateSigned(rsp.vAcc[el], 16n, 0x8000, 0x7fff));
   }
   rsp.setVecFromTemp(cop2VD(i));
 }
@@ -1141,9 +1127,8 @@ function executeVMADN(i) {
   for (let el = 0; el < 8; el++, select >>= 4) {
     const a = rsp.getVecU16(s, el);
     const b = rsp.getVecS16(t, select & 0x7);
-    const newAccum = accum48SignExtend(accum48SignExtend(rsp.vAcc[el]) + BigInt(a * b));
-    rsp.vAcc[el] = newAccum;
-    dv.setInt16(el * 2, saturateSigned(newAccum, 0n, 0, 0xffff));
+    rsp.vAcc[el] = accum48SignExtend(accum48SignExtend(rsp.vAcc[el]) + BigInt(a * b));
+    dv.setInt16(el * 2, saturateSigned(rsp.vAcc[el], 0n, 0, 0xffff));
   }
   rsp.setVecFromTemp(cop2VD(i));
 }
@@ -1159,9 +1144,8 @@ function executeVMADH(i) {
   for (let el = 0; el < 8; el++, select >>= 4) {
     const a = rsp.getVecS16(s, el);
     const b = rsp.getVecS16(t, select & 0x7);
-    const newAccum = accum48SignExtend(accum48SignExtend(rsp.vAcc[el]) + (BigInt(a * b) << 16n));
-    rsp.vAcc[el] = newAccum;
-    dv.setInt16(el * 2, saturateSigned(newAccum, 16n, 0x8000, 0x7fff));
+    rsp.vAcc[el] = accum48SignExtend(accum48SignExtend(rsp.vAcc[el]) + (BigInt(a * b) << 16n));
+    dv.setInt16(el * 2, saturateSigned(rsp.vAcc[el], 16n, 0x8000, 0x7fff));
   }
   rsp.setVecFromTemp(cop2VD(i));
 }
