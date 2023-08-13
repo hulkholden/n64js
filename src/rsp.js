@@ -190,6 +190,10 @@ class RSP {
   getAccS48(el) { return BigInt.asIntN(48, this.vAcc[el]); }    // TODO: ensure this is correctly signed.
   incAccS48(el, v) { this.setAccS48(el, this.getAccS48(el) + v); }
 
+  setAccLow(el, v) {
+    this.vAcc[el] = (this.vAcc[el] & ~0xffffn) | (BigInt(v) & 0xffffn);
+  }
+
   setVecFromAccSignedMid(r) {
     for (let el = 0; el < 8; el++) {
       this.setVecS16(r, el, saturateSigned(this.vAcc[el], 16n, 0x8000, 0x7fff));
@@ -876,10 +880,7 @@ function vectorZero(i) {
   for (let el = 0; el < 8; el++, select >>= 4) {
     const a = rsp.getVecS16(s, el);
     const b = rsp.getVecS16(t, select & 0x7);
-    const unclamped = a + b;
-    // TODO: provide low/mid/high accessors.
-    // TODO: understand why only low is set.
-    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(unclamped) & 0xffffn);
+    rsp.setAccLow(el, a + b);
   }
   rsp.setVecZero(cop2VD(i));
 }
@@ -1152,9 +1153,7 @@ function executeVADD(i) {
     const t = rsp.getVecS16(vt, select & 0x7);
     const c = (vco >> el) & 0x1;
     const unclamped = s + t + c;
-    // TODO: provide low/mid/high accessors.
-    // TODO: understand why only low is set.
-    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(unclamped) & 0xffffn);
+    rsp.setAccLow(el, unclamped);
     dv.setInt16(el * 2, clampSigned(unclamped));
   }
   rsp.setVecFromTemp(cop2VD(i));
@@ -1175,9 +1174,7 @@ function executeVSUB(i) {
     const t = rsp.getVecS16(vt, select & 0x7);
     const c = (vco >> el) & 0x1;
     const unclamped = s - (t + c);
-    // TODO: provide low/mid/high accessors.
-    // TODO: understand why only low is set.
-    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(unclamped) & 0xffffn);
+    rsp.setAccLow(el, unclamped);
     dv.setInt16(el * 2, clampSigned(unclamped));
   }
   rsp.setVecFromTemp(cop2VD(i));
@@ -1205,10 +1202,7 @@ function executeVABS(i) {
     const overflow = (s < 0) && t == 0x8000;
     const result = overflow ? 0x7fff : conditionalNegate(s, t);
     const acc = overflow ? 0x8000 : result;
-
-    // TODO: provide low/mid/high accessors.
-    // TODO: understand why only low is set.
-    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(acc) & 0xffffn);
+    rsp.setAccLow(el, acc);
     dv.setInt16(el * 2, result);
   }
   rsp.setVecFromTemp(cop2VD(i));
@@ -1228,9 +1222,7 @@ function executeVADDC(i) {
     const t = rsp.getVecU16(vt, select & 0x7);
     const unclamped = s + t;
     const clamped = unclamped & 0xffff;
-    // TODO: provide low/mid/high accessors.
-    // TODO: understand why only low is set.
-    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(unclamped) & 0xffffn);
+    rsp.setAccLow(el, unclamped);
     dv.setInt16(el * 2, clamped);
 
     newVCO |= (unclamped != clamped) ? (1 << el) : 0;
@@ -1253,9 +1245,7 @@ function executeVSUBC(i) {
     const t = rsp.getVecU16(vt, select & 0x7);
     const unclamped = s - t;
     const clamped = unclamped & 0xffff;
-    // TODO: provide low/mid/high accessors.
-    // TODO: understand why only low is set.
-    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(unclamped) & 0xffffn);
+    rsp.setAccLow(el, unclamped);
     dv.setInt16(el * 2, clamped);
 
     newVCO |= (unclamped != 0) ? (1 << (el + 8)) : 0;
@@ -1311,9 +1301,7 @@ function executeVLT(i) {
     const result = cond ? s : t;
     vccLo |= cond ? elBit : 0;
 
-    // TODO: provide low/mid/high accessors.
-    // TODO: understand why only low is set.
-    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(result) & 0xffffn);
+    rsp.setAccLow(el, result);
     dv.setInt16(el * 2, result);
   }
   rsp.setVecFromTemp(cop2VD(i));
@@ -1343,9 +1331,7 @@ function executeVEQ(i) {
     const result = t;
     vccLo |= cond ? elBit : 0;
 
-    // TODO: provide low/mid/high accessors.
-    // TODO: understand why only low is set.
-    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(result) & 0xffffn);
+    rsp.setAccLow(el, result);
     dv.setInt16(el * 2, result);
   }
   rsp.setVecFromTemp(cop2VD(i));
@@ -1375,9 +1361,7 @@ function executeVNE(i) {
     const result = s;
     vccLo |= cond ? elBit : 0;
 
-    // TODO: provide low/mid/high accessors.
-    // TODO: understand why only low is set.
-    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(result) & 0xffffn);
+    rsp.setAccLow(el, result);
     dv.setInt16(el * 2, result);
   }
   rsp.setVecFromTemp(cop2VD(i));
@@ -1410,9 +1394,7 @@ function executeVGE(i) {
     const result = cond ? s : t;
     vccLo |= cond ? elBit : 0;
 
-    // TODO: provide low/mid/high accessors.
-    // TODO: understand why only low is set.
-    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(result) & 0xffffn);
+    rsp.setAccLow(el, result);
     dv.setInt16(el * 2, result);
   }
   rsp.setVecFromTemp(cop2VD(i));
@@ -1465,7 +1447,7 @@ function executeVCL(i) {
       result = ge ? t : s;
     }
     dv.setInt16(el * 2, result);
-    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(result) & 0xffffn);
+    rsp.setAccLow(el, result);
     vccOutHi |= ge << el;
     vccOutLo |= le << el
   }
@@ -1512,7 +1494,7 @@ function executeVCH(i) {
       result = ge ? t : s;
     }
     dv.setInt16(el * 2, result);
-    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(result) & 0xffffn);
+    rsp.setAccLow(el, result);
 
     vccHi |= ge << el;
     vccLo |= le << el
@@ -1555,7 +1537,7 @@ function executeVCR(i) {
     vccHi |= ge << el;
 
     dv.setInt16(el * 2, newAccum);
-    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(newAccum) & 0xffffn);
+    rsp.setAccLow(el, newAccum);
   }
   rsp.setVecFromTemp(cop2VD(i));
   rsp.setVCCHiLo(vccHi, vccLo);
@@ -1578,7 +1560,7 @@ function executeVMRG(i) {
     const result = (vcc & 1) ? s : t;
 
     dv.setInt16(el * 2, result);
-    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(result) & 0xffffn);
+    rsp.setAccLow(el, result);
   }
   rsp.setVecFromTemp(cop2VD(i));
   rsp.VCO = 0;
@@ -1598,7 +1580,7 @@ function executeVAND(i) {
     const result = s & t;
 
     dv.setInt16(el * 2, result);
-    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(result) & 0xffffn);
+    rsp.setAccLow(el, result);
   }
   rsp.setVecFromTemp(cop2VD(i));
 }
@@ -1617,7 +1599,7 @@ function executeVNAND(i) {
     const result = ~(s & t);
 
     dv.setInt16(el * 2, result);
-    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(result) & 0xffffn);
+    rsp.setAccLow(el, result);
   }
   rsp.setVecFromTemp(cop2VD(i));
 }
@@ -1636,7 +1618,7 @@ function executeVOR(i) {
     const result = s | t;
 
     dv.setInt16(el * 2, result);
-    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(result) & 0xffffn);
+    rsp.setAccLow(el, result);
   }
   rsp.setVecFromTemp(cop2VD(i));
 }
@@ -1655,7 +1637,7 @@ function executeVNOR(i) {
     const result = ~(s | t);
 
     dv.setInt16(el * 2, result);
-    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(result) & 0xffffn);
+    rsp.setAccLow(el, result);
   }
   rsp.setVecFromTemp(cop2VD(i));
 }
@@ -1674,7 +1656,7 @@ function executeVXOR(i) {
     const result = s ^ t;
 
     dv.setInt16(el * 2, result);
-    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(result) & 0xffffn);
+    rsp.setAccLow(el, result);
   }
   rsp.setVecFromTemp(cop2VD(i));
 }
@@ -1693,7 +1675,7 @@ function executeVNXOR(i) {
     const result = ~(s ^ t);
 
     dv.setInt16(el * 2, result);
-    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(result) & 0xffffn);
+    rsp.setAccLow(el, result);
   }
   rsp.setVecFromTemp(cop2VD(i));
 }
@@ -1711,7 +1693,7 @@ function vrcp(i, dpInstruction) {
   let select = rsp.vecSelectU32[vte];
   for (let el = 0; el < 8; el++, select >>= 4) {
     const val = rsp.getVecS16(vt, select & 0x7);
-    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffffffff0000n) | (BigInt(val) & 0xffffn);
+    rsp.setAccLow(el, val);
   }
 
   // Output is set to the result.
@@ -1741,7 +1723,7 @@ function executeVRCPH(i) {
   let select = rsp.vecSelectU32[vte];
   for (let el = 0; el < 8; el++, select >>= 4) {
     const val = rsp.getVecS16(vt, select & 0x7);
-    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(val) & 0xffffn);
+    rsp.setAccLow(el, val);
   }
 
   rsp.divDP = true;
@@ -1759,7 +1741,7 @@ function executeVMOV(i) {
   const select = rsp.vecSelectU32[cop2E(i)];
   for (let el = 0, curSelect = select; el < 8; el++, curSelect >>= 4) {
     const accVal = rsp.getVecS16(vt, curSelect & 0x7);
-    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(accVal) & 0xffffn);
+    rsp.setAccLow(el, accVal);
   }
 
   // Only a single element is set.
@@ -1780,7 +1762,7 @@ function vrsq(i, dpInstruction) {
   let select = rsp.vecSelectU32[vte];
   for (let el = 0; el < 8; el++, select >>= 4) {
     const val = rsp.getVecS16(vt, select & 0x7);
-    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffffffff0000n) | (BigInt(val) & 0xffffn);
+    rsp.setAccLow(el, val);
   }
 
   // Output is set to the result.
@@ -1810,7 +1792,7 @@ function executeVRSQH(i) {
   let select = rsp.vecSelectU32[vte];
   for (let el = 0; el < 8; el++, select >>= 4) {
     const val = rsp.getVecS16(vt, select & 0x7);
-    rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(val) & 0xffffn);
+    rsp.setAccLow(el, val);
   }
 
   rsp.divDP = true;
