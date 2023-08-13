@@ -188,7 +188,7 @@ class RSP {
 
   setAccS48(el, v) { this.vAcc[el] = BigInt.asIntN(48, v); }
   getAccS48(el) { return BigInt.asIntN(48, this.vAcc[el]); }    // TODO: ensure this is correctly signed.
-  incAccS48(el, v) { this.setAccS48(el, this.getAccS48(el) + v); }    // TODO: ensure this is correctly signed.
+  incAccS48(el, v) { this.setAccS48(el, this.getAccS48(el) + v); }
 
   getAccClampedS16(el, shift, neg, pos) { return saturateSigned(this.vAcc[el], shift, neg, pos); }
   getAccClampedU16(el, shift, neg, pos) { return saturateUnsigned(this.vAcc[el], shift, neg, pos); }
