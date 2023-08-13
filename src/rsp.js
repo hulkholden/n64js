@@ -85,18 +85,6 @@ const SP_STATUS_YIELD = SP_STATUS_SIG0;
 const SP_STATUS_YIELDED = SP_STATUS_SIG1;
 const SP_STATUS_TASKDONE = SP_STATUS_SIG2;
 
-function clampSigned(accum) {
-  if (accum < -32768) return -32768;
-  if (accum > 32767) return 32767;
-  return accum;
-}
-
-function clampUnsigned(accum) {
-  if (accum < 0) return 0;
-  if (accum > 32767) return 65535;
-  return accum;
-}
-
 class RSP {
   constructor() {
     const hw = n64js.hardware();
@@ -806,56 +794,42 @@ function executeCTC2(i) {
 function accum48SignExtend(x) {
   return BigInt.asIntN(48, x);
 }
-function accum48ZeroExtend(x) {
-  return BigInt.asUintN(48, x);
+
+/**
+ * Saturate a signed 48 bit accumulator value, treating the result as signed.
+ * @param {BigInt} x 
+ * @param {BigInt} shift Right shift to apply to the result.
+ * @param {Number} negLimit Value to return on negative underflow
+ * @param {Number} posLimit Value to return on positive underflow.
+ * @returns {Number}
+ */
+function saturateSigned(x, shift, negLimit, posLimit) {
+  if (x >= 0) {
+    return ((x & ~0x7fff_ffffn) != 0) ? posLimit : Number(x >> shift);
+  }
+  return ((~x & ~0x7fff_ffffn) != 0) ? negLimit : Number(x >> shift);
 }
 
 /**
- * Saturate a 48 bit accumulator value.
+ * Saturate a signed 48 bit accumulator value, treating the result as unsigned.
  * @param {BigInt} x 
- * @param {Number} negLimit
- * @param {Number} posLimit
+ * @param {BigInt} shift Right shift to apply to the result.
+ * @param {Number} negLimit Value to return on negative underflow
+ * @param {Number} posLimit Value to return on positive underflow.
  * @returns {Number}
  */
-function saturate(x, negLimit, posLimit) {
+function saturateUnsigned(x, shift, negLimit, posLimit) {
   if (x >= 0) {
-    return ((x & ~0x7fffn) != 0) ? posLimit : Number(x);
+    return ((x & ~0x7fff_ffffn) != 0) ? posLimit : Number(x >> shift);
   }
-  return ((~x & ~0x7fffn) != 0) ? negLimit : Number(x);
+  return negLimit;
 }
 
-function clampVMACF(x) { return saturate(x, 0x8000, 0x7fff); }
-function clampVMACQ(x) { return saturate(x, 0x8000, 0x7fff); }
-function clampVMADH(x) { return saturate(x, 0x8000, 0x7fff); }
-function clampVMADM(x) { return saturate(x, 0, 0x7fff); }
-function clampVMUDH(x) { return saturate(x, 0x8000, 0x7fff); }
-function clampVMULQ(x) { return saturate(x, 0x8000, 0x7fff); }
-function clampVRNDN(x) { return saturate(x, 0x8000, 0x7fff); }
-
-function clampVMACU(x) { return clampVMULU(x); }
-function clampVMADL(x) { return clampVMADN(x); }
-function clampVRNDP(x) { return clampVMULF(x); }
-
-// TODO: see if there are any common patterns to these and migrate to saturate().
-function clampVMULF(x) {
-  return ((x > 0) && ((x & ~0x7fffn) != 0)) ? 0x7fff : Number(x);
-}
-
-function clampVMADN(x) {
-  if (x >= 0) {
-    return ((x & ~0x7fff_ffffn) != 0) ? 0xffff : Number(x);
-  }
-  return ((~x & ~0x7fff_ffffn) != 0) ? 0 : Number(x);
-}
-
-function clampVMULU(x) {
-  if ((x & ~0xffff_ffffn) != 0) {
-    return 0;
-  } else if ((x & ~0x7fffn) != 0) {
-    return 0xffff;
-  } else {
-    return Number(x);
-  }
+// TODO: can this be implemented in terms of saturateSigned?
+function clampSigned(x) {
+  if (x < -32768) return -32768;
+  if (x > 32767) return 32767;
+  return x;
 }
 
 function vectorZero(i) {
@@ -906,10 +880,9 @@ function executeVMULF(i) {
   for (let el = 0; el < 8; el++, select >>= 4) {
     const a = rsp.getVecS16(s, el);
     const b = rsp.getVecS16(t, select & 0x7);
-    const newAccum = (BigInt(a * b) << 1n) + 0x8000n;
-
-    dv.setInt16(el * 2, clampVMULF(newAccum >> 16n));
-    rsp.vAcc[el] = accum48ZeroExtend(newAccum);
+    const newAccum = accum48SignExtend((BigInt(a * b) << 1n) + 0x8000n);
+    rsp.vAcc[el] = newAccum;
+    dv.setInt16(el * 2, saturateSigned(newAccum, 16n, 0x8000, 0x7fff));
   }
   rsp.setVecFromTemp(cop2VD(i));
 }
@@ -925,10 +898,9 @@ function executeVMULU(i) {
   for (let el = 0; el < 8; el++, select >>= 4) {
     const a = rsp.getVecS16(s, el);
     const b = rsp.getVecS16(t, select & 0x7);
-    const newAccum = (BigInt(a * b) << 1n) + 0x8000n;
-
-    dv.setInt16(el * 2, clampVMULU(newAccum >> 16n));
-    rsp.vAcc[el] = accum48ZeroExtend(newAccum);
+    const newAccum = accum48SignExtend((BigInt(a * b) << 1n) + 0x8000n);
+    rsp.vAcc[el] = newAccum;
+    dv.setInt16(el * 2, saturateUnsigned(newAccum, 16n, 0x0000, 0xffff));
   }
   rsp.setVecFromTemp(cop2VD(i));
 }
@@ -946,10 +918,9 @@ function executeVRNDN(i) {
   for (let el = 0; el < 8; el++, select >>= 4) {
     const acc = accum48SignExtend(rsp.vAcc[el]);
     const incr = rsp.getVecS16(t, select & 0x7) << shift;
-    const newAccum = acc + ((acc < 0) ? BigInt(incr) : 0n);
-
-    dv.setInt16(el * 2, clampVRNDN(newAccum >> 16n));
-    rsp.vAcc[el] = accum48ZeroExtend(newAccum);
+    const newAccum = accum48SignExtend(acc + ((acc < 0) ? BigInt(incr) : 0n));
+    rsp.vAcc[el] = newAccum;
+    dv.setInt16(el * 2, saturateSigned(newAccum, 16n, 0x8000, 0x7fff));
   }
   rsp.setVecFromTemp(cop2VD(i));
 }
@@ -967,10 +938,9 @@ function executeVRNDP(i) {
   for (let el = 0; el < 8; el++, select >>= 4) {
     const acc = accum48SignExtend(rsp.vAcc[el]);
     const incr = rsp.getVecS16(t, select & 0x7) << shift;
-    const newAccum = acc + ((acc >= 0) ? BigInt(incr) : 0n);
-
-    dv.setInt16(el * 2, clampVRNDP(newAccum >> 16n));
-    rsp.vAcc[el] = accum48ZeroExtend(newAccum);
+    const newAccum = accum48SignExtend(acc + ((acc >= 0) ? BigInt(incr) : 0n));
+    rsp.vAcc[el] = newAccum;
+    dv.setInt16(el * 2, saturateSigned(newAccum, 16n, 0x8000, 0x7fff));
   }
   rsp.setVecFromTemp(cop2VD(i));
 }
@@ -987,10 +957,10 @@ function executeVMULQ(i) {
     const a = rsp.getVecS16(s, el);
     const b = rsp.getVecS16(t, select & 0x7);
     const product = BigInt(a * b) << 16n;
-    const newAccum = product + (product < 0 ? 0x1f0000n : 0n);
-
-    dv.setInt16(el * 2, clampVMULQ(newAccum >> 17n) & 0xfff0);
-    rsp.vAcc[el] = accum48ZeroExtend(newAccum);
+    const newAccum = accum48SignExtend(product + (product < 0 ? 0x1f0000n : 0n));
+    rsp.vAcc[el] = newAccum;
+    // TODO: right shift by 17?
+    dv.setInt16(el * 2, saturateSigned(newAccum >> 1n, 16n, 0x8000, 0x7fff) & 0xfff0);
   }
   rsp.setVecFromTemp(cop2VD(i));
 }
@@ -1006,10 +976,9 @@ function executeVMUDL(i) {
   for (let el = 0; el < 8; el++, select >>= 4) {
     const a = rsp.getVecU16(s, el);
     const b = rsp.getVecU16(t, select & 0x7);
-    const newAccum = BigInt(a * b) >> 16n;
-
-    dv.setInt16(el * 2, Number(newAccum));
-    rsp.vAcc[el] = accum48ZeroExtend(newAccum);
+    const newAccum = accum48SignExtend(BigInt(a * b) >> 16n);
+    rsp.vAcc[el] = newAccum;
+    dv.setInt16(el * 2, Number(newAccum & 0xffffn));
   }
   rsp.setVecFromTemp(cop2VD(i));
 }
@@ -1025,10 +994,9 @@ function executeVMUDM(i) {
   for (let el = 0; el < 8; el++, select >>= 4) {
     const a = rsp.getVecS16(s, el);
     const b = rsp.getVecU16(t, select & 0x7);
-    const newAccum = BigInt(a * b);
-
+    const newAccum = accum48SignExtend(BigInt(a * b));
+    rsp.vAcc[el] = newAccum;
     dv.setInt16(el * 2, Number((newAccum >> 16n) & 0xffffn));
-    rsp.vAcc[el] = accum48ZeroExtend(newAccum);
   }
   rsp.setVecFromTemp(cop2VD(i));
 }
@@ -1044,10 +1012,9 @@ function executeVMUDN(i) {
   for (let el = 0; el < 8; el++, select >>= 4) {
     const a = rsp.getVecU16(s, el);
     const b = rsp.getVecS16(t, select & 0x7);
-    const newAccum = BigInt(a * b);
-
+    const newAccum = accum48SignExtend(BigInt(a * b));
+    rsp.vAcc[el] = newAccum;
     dv.setInt16(el * 2, Number(newAccum & 0xffffn));
-    rsp.vAcc[el] = accum48ZeroExtend(newAccum);
   }
   rsp.setVecFromTemp(cop2VD(i));
 }
@@ -1063,10 +1030,9 @@ function executeVMUDH(i) {
   for (let el = 0; el < 8; el++, select >>= 4) {
     const a = rsp.getVecS16(s, el);
     const b = rsp.getVecS16(t, select & 0x7);
-    const newAccum = BigInt(a * b);
-
-    dv.setInt16(el * 2, clampVMUDH(newAccum));
-    rsp.vAcc[el] = accum48ZeroExtend(newAccum << 16n);
+    const newAccum = accum48SignExtend(BigInt(a * b) << 16n);
+    rsp.vAcc[el] = newAccum;
+    dv.setInt16(el * 2, saturateSigned(newAccum, 16n, 0x8000, 0x7fff));
   }
   rsp.setVecFromTemp(cop2VD(i));
 }
@@ -1082,10 +1048,9 @@ function executeVMACF(i) {
   for (let el = 0; el < 8; el++, select >>= 4) {
     const a = rsp.getVecS16(s, el);
     const b = rsp.getVecS16(t, select & 0x7);
-    const newAccum = accum48SignExtend(rsp.vAcc[el]) + (BigInt(a * b) << 1n);
-
-    dv.setInt16(el * 2, clampVMACF(newAccum >> 16n));
-    rsp.vAcc[el] = accum48ZeroExtend(newAccum);
+    const newAccum = accum48SignExtend(accum48SignExtend(rsp.vAcc[el]) + (BigInt(a * b) << 1n));
+    rsp.vAcc[el] = newAccum;
+    dv.setInt16(el * 2, saturateSigned(newAccum, 16n, 0x8000, 0x7fff));
   }
   rsp.setVecFromTemp(cop2VD(i));
 }
@@ -1101,10 +1066,9 @@ function executeVMACU(i) {
   for (let el = 0; el < 8; el++, select >>= 4) {
     const a = rsp.getVecS16(s, el);
     const b = rsp.getVecS16(t, select & 0x7);
-    const newAccum = accum48SignExtend(rsp.vAcc[el]) + (BigInt(a * b) << 1n);
-
-    dv.setInt16(el * 2, clampVMACU(newAccum >> 16n));
-    rsp.vAcc[el] = accum48ZeroExtend(newAccum);
+    const newAccum = accum48SignExtend((accum48SignExtend(rsp.vAcc[el]) + (BigInt(a * b) << 1n)));
+    rsp.vAcc[el] = newAccum;
+    dv.setInt16(el * 2, saturateUnsigned(newAccum, 16n, 0x0000, 0xffff));
   }
   rsp.setVecFromTemp(cop2VD(i));
 }
@@ -1115,20 +1079,19 @@ function executeVMACQ(i) {
 
   for (let el = 0; el < 8; el++) {
     const acc = accum48SignExtend(rsp.vAcc[el]);
-
-    const acc21zero = (acc & 0x20_0000n) == 0;
-    let newAccum = acc;
-    if (acc21zero) {
+    let incr = 0n;
+    if ((acc & 0x20_0000n) == 0) {
       const upper = acc >> 22n;
       if (upper < 0) {
-        newAccum += 0x20_0000n;
+        incr = 0x20_0000n;
       } else if (upper > 0) {
-        newAccum -= 0x20_0000n;
+        incr = -0x20_0000n;
       }
     }
-
-    dv.setInt16(el * 2, clampVMACQ(newAccum >> 17n) & 0xfff0);
-    rsp.vAcc[el] = accum48ZeroExtend(newAccum);
+    const newAccum = accum48SignExtend(acc + incr);
+    rsp.vAcc[el] = newAccum;
+    // TODO: right shift by 17?
+    dv.setInt16(el * 2, saturateSigned(newAccum >> 1n, 16n, 0x8000, 0x7fff) & 0xfff0);
   }
   rsp.setVecFromTemp(cop2VD(i));
 }
@@ -1144,10 +1107,9 @@ function executeVMADL(i) {
   for (let el = 0; el < 8; el++, select >>= 4) {
     const a = rsp.getVecU16(s, el);
     const b = rsp.getVecU16(t, select & 0x7);
-    const newAccum = accum48SignExtend(rsp.vAcc[el]) + (BigInt(a * b) >> 16n);
-
-    dv.setInt16(el * 2, clampVMADL(newAccum));
-    rsp.vAcc[el] = accum48ZeroExtend(newAccum);
+    const newAccum = accum48SignExtend(accum48SignExtend(rsp.vAcc[el]) + (BigInt(a * b) >> 16n));
+    rsp.vAcc[el] = newAccum;
+    dv.setInt16(el * 2, saturateSigned(newAccum, 0n, 0, 0xffff));
   }
   rsp.setVecFromTemp(cop2VD(i));
 }
@@ -1163,10 +1125,9 @@ function executeVMADM(i) {
   for (let el = 0; el < 8; el++, select >>= 4) {
     const a = rsp.getVecS16(s, el);
     const b = rsp.getVecU16(t, select & 0x7);
-    const newAccum = accum48SignExtend(rsp.vAcc[el]) + BigInt(a * b);
-
-    dv.setInt16(el * 2, clampVMADM(newAccum >> 16n));
-    rsp.vAcc[el] = accum48ZeroExtend(newAccum);
+    const newAccum = accum48SignExtend(accum48SignExtend(rsp.vAcc[el]) + BigInt(a * b));
+    rsp.vAcc[el] = newAccum;
+    dv.setInt16(el * 2, saturateSigned(newAccum, 16n, 0x8000, 0x7fff));
   }
   rsp.setVecFromTemp(cop2VD(i));
 }
@@ -1182,10 +1143,9 @@ function executeVMADN(i) {
   for (let el = 0; el < 8; el++, select >>= 4) {
     const a = rsp.getVecU16(s, el);
     const b = rsp.getVecS16(t, select & 0x7);
-    const newAccum = accum48SignExtend(rsp.vAcc[el]) + BigInt(a * b);
-
-    dv.setInt16(el * 2, clampVMADN(newAccum));
-    rsp.vAcc[el] = accum48ZeroExtend(newAccum);
+    const newAccum = accum48SignExtend(accum48SignExtend(rsp.vAcc[el]) + BigInt(a * b));
+    rsp.vAcc[el] = newAccum;
+    dv.setInt16(el * 2, saturateSigned(newAccum, 0n, 0, 0xffff));
   }
   rsp.setVecFromTemp(cop2VD(i));
 }
@@ -1201,10 +1161,9 @@ function executeVMADH(i) {
   for (let el = 0; el < 8; el++, select >>= 4) {
     const a = rsp.getVecS16(s, el);
     const b = rsp.getVecS16(t, select & 0x7);
-    const newAccum = accum48SignExtend(rsp.vAcc[el]) + (BigInt(a * b) << 16n);
-
-    dv.setInt16(el * 2, clampVMADH(newAccum >> 16n));
-    rsp.vAcc[el] = accum48ZeroExtend(newAccum);
+    const newAccum = accum48SignExtend(accum48SignExtend(rsp.vAcc[el]) + (BigInt(a * b) << 16n));
+    rsp.vAcc[el] = newAccum;
+    dv.setInt16(el * 2, saturateSigned(newAccum, 16n, 0x8000, 0x7fff));
   }
   rsp.setVecFromTemp(cop2VD(i));
 }
@@ -1223,11 +1182,10 @@ function executeVADD(i) {
     const b = rsp.getVecS16(t, select & 0x7);
     const c = ((vco >> (7 - el)) & 0x1);    // TODO: figure out why this isn't just (vco>>el).
     const unclamped = a + b + c;
-    const clamped = clampSigned(unclamped);
     // TODO: provide low/mid/high accessors.
     // TODO: understand why only low is set.
     rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(unclamped) & 0xffffn);
-    dv.setInt16(el * 2, clamped);
+    dv.setInt16(el * 2, clampSigned(unclamped));
   }
   rsp.setVecFromTemp(cop2VD(i));
   rsp.VCO = 0;
@@ -1247,11 +1205,10 @@ function executeVSUB(i) {
     const b = rsp.getVecS16(t, select & 0x7);
     const c = ((vco >> (7 - el)) & 0x1);    // TODO: figure out why this isn't just (vco>>el).
     const unclamped = a - (b + c);
-    const clamped = clampSigned(unclamped);
     // TODO: provide low/mid/high accessors.
     // TODO: understand why only low is set.
     rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(unclamped) & 0xffffn);
-    dv.setInt16(el * 2, clamped);
+    dv.setInt16(el * 2, clampSigned(unclamped));
   }
   rsp.setVecFromTemp(cop2VD(i));
   rsp.VCO = 0;
@@ -1562,7 +1519,7 @@ function executeVCH(i) {
   let vcoHi = 0;
   let vcoLo = 0;
   let vce = 0;
-  
+
   for (let el = 0; el < 8; el++, select >>= 4) {
     const s = rsp.getVecS16(vs, el);
     const t = rsp.getVecS16(vt, select & 0x7);
