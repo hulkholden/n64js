@@ -1152,9 +1152,9 @@ function executeVADD(i) {
     const s = rsp.getVecS16(vs, el);
     const t = rsp.getVecS16(vt, select & 0x7);
     const c = (vco >> el) & 0x1;
-    const unclamped = s + t + c;
-    rsp.setAccLow(el, unclamped);
-    dv.setInt16(el * 2, clampSigned(unclamped));
+    const result = s + t + c;
+    rsp.setAccLow(el, result);
+    dv.setInt16(el * 2, clampSigned(result));
   }
   rsp.setVecFromTemp(cop2VD(i));
   rsp.VCO = 0;
@@ -1173,9 +1173,9 @@ function executeVSUB(i) {
     const s = rsp.getVecS16(vs, el);
     const t = rsp.getVecS16(vt, select & 0x7);
     const c = (vco >> el) & 0x1;
-    const unclamped = s - (t + c);
-    rsp.setAccLow(el, unclamped);
-    dv.setInt16(el * 2, clampSigned(unclamped));
+    const result = s - (t + c);
+    rsp.setAccLow(el, result);
+    dv.setInt16(el * 2, clampSigned(result));
   }
   rsp.setVecFromTemp(cop2VD(i));
   rsp.VCO = 0;
@@ -1200,10 +1200,9 @@ function executeVABS(i) {
     const t = rsp.getVecU16(vt, select & 0x7);
 
     const overflow = (s < 0) && t == 0x8000;
-    const result = overflow ? 0x7fff : conditionalNegate(s, t);
-    const acc = overflow ? 0x8000 : result;
-    rsp.setAccLow(el, acc);
-    dv.setInt16(el * 2, result);
+    const result = conditionalNegate(s, t);
+    rsp.setAccLow(el, overflow ? 0x8000 : result);
+    dv.setInt16(el * 2, overflow ? 0x7fff : result);
   }
   rsp.setVecFromTemp(cop2VD(i));
 }
@@ -1220,12 +1219,12 @@ function executeVADDC(i) {
   for (let el = 0; el < 8; el++, select >>= 4) {
     const s = rsp.getVecU16(vs, el);
     const t = rsp.getVecU16(vt, select & 0x7);
-    const unclamped = s + t;
-    const clamped = unclamped & 0xffff;
-    rsp.setAccLow(el, unclamped);
+    const result = s + t;
+    const clamped = result & 0xffff;
+    rsp.setAccLow(el, result);
     dv.setInt16(el * 2, clamped);
 
-    newVCO |= (unclamped != clamped) ? (1 << el) : 0;
+    newVCO |= (result != clamped) ? (1 << el) : 0;
   }
   rsp.setVecFromTemp(cop2VD(i));
   rsp.VCO = newVCO;
@@ -1243,13 +1242,13 @@ function executeVSUBC(i) {
   for (let el = 0; el < 8; el++, select >>= 4) {
     const s = rsp.getVecU16(vs, el);
     const t = rsp.getVecU16(vt, select & 0x7);
-    const unclamped = s - t;
-    const clamped = unclamped & 0xffff;
-    rsp.setAccLow(el, unclamped);
+    const result = s - t;
+    const clamped = result & 0xffff;
+    rsp.setAccLow(el, result);
     dv.setInt16(el * 2, clamped);
 
-    newVCO |= (unclamped != 0) ? (1 << (el + 8)) : 0;
-    newVCO |= (unclamped < 0) ? (1 << (el + 0)) : 0;
+    newVCO |= (result != 0) ? (1 << (el + 8)) : 0;
+    newVCO |= (result < 0) ? (1 << (el + 0)) : 0;
   }
   rsp.setVecFromTemp(cop2VD(i));
   rsp.VCO = newVCO;
