@@ -907,42 +907,42 @@ function executeVINSN(i) { vectorZero(i); }
 
 // Vector Multiply of Signed Fractions.
 function executeVMULF(i) {
-  const s = cop2VS(i);
-  const t = cop2VT(i);
+  const vs = cop2VS(i);
+  const vt = cop2VT(i);
 
   let select = rsp.vecSelectU32[cop2E(i)];
   for (let el = 0; el < 8; el++, select >>= 4) {
-    const a = rsp.getVecS16(s, el);
-    const b = rsp.getVecS16(t, select & 0x7);
-    rsp.setAccS48(el, (BigInt(a * b) << 1n) + 0x8000n);
+    const s = rsp.getVecS16(vs, el);
+    const t = rsp.getVecS16(vt, select & 0x7);
+    rsp.setAccS48(el, (BigInt(s * t) << 1n) + 0x8000n);
   }
   rsp.setVecFromAccSignedMid(cop2VD(i));
 }
 
 // Vector Multiply of Unsigned Fractions.
 function executeVMULU(i) {
-  const s = cop2VS(i);
-  const t = cop2VT(i);
+  const vs = cop2VS(i);
+  const vt = cop2VT(i);
 
   let select = rsp.vecSelectU32[cop2E(i)];
   for (let el = 0; el < 8; el++, select >>= 4) {
-    const a = rsp.getVecS16(s, el);
-    const b = rsp.getVecS16(t, select & 0x7);
-    rsp.setAccS48(el, (BigInt(a * b) << 1n) + 0x8000n);
+    const s = rsp.getVecS16(vs, el);
+    const t = rsp.getVecS16(vt, select & 0x7);
+    rsp.setAccS48(el, (BigInt(s * t) << 1n) + 0x8000n);
   }
   rsp.setVecFromAccUnsignedMid(cop2VD(i));
 }
 
 // Vector Accumulator DCT Rounding (Negative).
 function executeVRNDN(i) {
-  const s = cop2VS(i);
-  const t = cop2VT(i);
+  const vs = cop2VS(i);
+  const vt = cop2VT(i);
 
-  const shift = (s & 1) ? 16 : 0;
+  const shift = (vs & 1) ? 16 : 0;
   let select = rsp.vecSelectU32[cop2E(i)];
   for (let el = 0; el < 8; el++, select >>= 4) {
     const acc = rsp.getAccS48(el);
-    const incr = rsp.getVecS16(t, select & 0x7) << shift;
+    const incr = rsp.getVecS16(vt, select & 0x7) << shift;
     rsp.setAccS48(el, acc + ((acc < 0) ? BigInt(incr) : 0n));
   }
   rsp.setVecFromAccSignedMid(cop2VD(i));
@@ -950,14 +950,14 @@ function executeVRNDN(i) {
 
 // Vector Accumulator DCT Rounding (Positive).
 function executeVRNDP(i) {
-  const s = cop2VS(i);
-  const t = cop2VT(i);
+  const vs = cop2VS(i);
+  const vt = cop2VT(i);
 
-  const shift = (s & 1) ? 16 : 0;  
+  const shift = (vs & 1) ? 16 : 0;  
   let select = rsp.vecSelectU32[cop2E(i)];
   for (let el = 0; el < 8; el++, select >>= 4) {
     const acc = rsp.getAccS48(el);
-    const incr = rsp.getVecS16(t, select & 0x7) << shift;
+    const incr = rsp.getVecS16(vt, select & 0x7) << shift;
     rsp.setAccS48(el, acc + ((acc >= 0) ? BigInt(incr) : 0n));
   }
   rsp.setVecFromAccSignedMid(cop2VD(i));
@@ -965,14 +965,14 @@ function executeVRNDP(i) {
 
 // Vector Multiply MPEG Quantization.
 function executeVMULQ(i) {
-  const s = cop2VS(i);
-  const t = cop2VT(i);
+  const vs = cop2VS(i);
+  const vt = cop2VT(i);
 
   let select = rsp.vecSelectU32[cop2E(i)];
   for (let el = 0; el < 8; el++, select >>= 4) {
-    const a = rsp.getVecS16(s, el);
-    const b = rsp.getVecS16(t, select & 0x7);
-    const product = BigInt(a * b) << 16n;
+    const s = rsp.getVecS16(vs, el);
+    const t = rsp.getVecS16(vt, select & 0x7);
+    const product = BigInt(s * t) << 16n;
     rsp.setAccS48(el, product + (product < 0 ? 0x1f0000n : 0n));
   }
   rsp.setVecFromAccOddified(cop2VD(i));
@@ -980,84 +980,84 @@ function executeVMULQ(i) {
 
 // Vector Multiply of Low Partial Products.
 function executeVMUDL(i) {
-  const s = cop2VS(i);
-  const t = cop2VT(i);
+  const vs = cop2VS(i);
+  const vt = cop2VT(i);
 
   let select = rsp.vecSelectU32[cop2E(i)];
   for (let el = 0; el < 8; el++, select >>= 4) {
-    const a = rsp.getVecU16(s, el);
-    const b = rsp.getVecU16(t, select & 0x7);
-    rsp.setAccS48(el, BigInt(a * b) >> 16n);
+    const s = rsp.getVecU16(vs, el);
+    const t = rsp.getVecU16(vt, select & 0x7);
+    rsp.setAccS48(el, BigInt(s * t) >> 16n);
   }
   rsp.setVecFromAccLow(cop2VD(i));
 }
 
 // Vector Multiply of Mid Partial Products.
 function executeVMUDM(i) {
-  const s = cop2VS(i);
-  const t = cop2VT(i);
+  const vs = cop2VS(i);
+  const vt = cop2VT(i);
 
   let select = rsp.vecSelectU32[cop2E(i)];
   for (let el = 0; el < 8; el++, select >>= 4) {
-    const a = rsp.getVecS16(s, el);
-    const b = rsp.getVecU16(t, select & 0x7);
-    rsp.setAccS48(el, BigInt(a * b));
+    const s = rsp.getVecS16(vs, el);
+    const t = rsp.getVecU16(vt, select & 0x7);
+    rsp.setAccS48(el, BigInt(s * t));
   }
   rsp.setVecFromAccMid(cop2VD(i));
 }
 
 // Vector Multiply of Mid Partial Products.
 function executeVMUDN(i) {
-  const s = cop2VS(i);
-  const t = cop2VT(i);
+  const vs = cop2VS(i);
+  const vt = cop2VT(i);
 
   let select = rsp.vecSelectU32[cop2E(i)];
   for (let el = 0; el < 8; el++, select >>= 4) {
-    const a = rsp.getVecU16(s, el);
-    const b = rsp.getVecS16(t, select & 0x7);
-    rsp.setAccS48(el, BigInt(a * b));
+    const s = rsp.getVecU16(vs, el);
+    const t = rsp.getVecS16(vt, select & 0x7);
+    rsp.setAccS48(el, BigInt(s * t));
   }
   rsp.setVecFromAccLow(cop2VD(i));
 }
 
 // Vector Multiply of High Partial Products.
 function executeVMUDH(i) {
-  const s = cop2VS(i);
-  const t = cop2VT(i);
+  const vs = cop2VS(i);
+  const vt = cop2VT(i);
 
   let select = rsp.vecSelectU32[cop2E(i)];
   for (let el = 0; el < 8; el++, select >>= 4) {
-    const a = rsp.getVecS16(s, el);
-    const b = rsp.getVecS16(t, select & 0x7);
-    rsp.setAccS48(el, BigInt(a * b) << 16n);
+    const s = rsp.getVecS16(vs, el);
+    const t = rsp.getVecS16(vt, select & 0x7);
+    rsp.setAccS48(el, BigInt(s * t) << 16n);
   }
   rsp.setVecFromAccSignedMid(cop2VD(i));
 }
 
 // Vector Multiply-Accumulate of Signed Fractions.
 function executeVMACF(i) {
-  const s = cop2VS(i);
-  const t = cop2VT(i);
+  const vs = cop2VS(i);
+  const vt = cop2VT(i);
 
   let select = rsp.vecSelectU32[cop2E(i)];
   for (let el = 0; el < 8; el++, select >>= 4) {
-    const a = rsp.getVecS16(s, el);
-    const b = rsp.getVecS16(t, select & 0x7);
-    rsp.incAccS48(el, BigInt(a * b) << 1n);
+    const s = rsp.getVecS16(vs, el);
+    const t = rsp.getVecS16(vt, select & 0x7);
+    rsp.incAccS48(el, BigInt(s * t) << 1n);
   }
   rsp.setVecFromAccSignedMid(cop2VD(i));
 }
 
 // Vector Multiply-Accumulate of Unsigned Fractions.
 function executeVMACU(i) {
-  const s = cop2VS(i);
-  const t = cop2VT(i);
+  const vs = cop2VS(i);
+  const vt = cop2VT(i);
 
   let select = rsp.vecSelectU32[cop2E(i)];
   for (let el = 0; el < 8; el++, select >>= 4) {
-    const a = rsp.getVecS16(s, el);
-    const b = rsp.getVecS16(t, select & 0x7);
-    rsp.incAccS48(el, BigInt(a * b) << 1n);
+    const s = rsp.getVecS16(vs, el);
+    const t = rsp.getVecS16(vt, select & 0x7);
+    rsp.incAccS48(el, BigInt(s * t) << 1n);
   }
   rsp.setVecFromAccUnsignedMid(cop2VD(i));
 }
@@ -1083,14 +1083,14 @@ function executeVMACQ(i) {
 
 // Vector Multiply-Accumulate of Low Partial Products.
 function executeVMADL(i) {
-  const s = cop2VS(i);
-  const t = cop2VT(i);
+  const vs = cop2VS(i);
+  const vt = cop2VT(i);
 
   let select = rsp.vecSelectU32[cop2E(i)];
   for (let el = 0; el < 8; el++, select >>= 4) {
-    const a = rsp.getVecU16(s, el);
-    const b = rsp.getVecU16(t, select & 0x7);
-    rsp.incAccS48(el, BigInt(a * b) >> 16n);
+    const s = rsp.getVecU16(vs, el);
+    const t = rsp.getVecU16(vt, select & 0x7);
+    rsp.incAccS48(el, BigInt(s * t) >> 16n);
   }
 
   rsp.setVecFromAccSignedLow(cop2VD(i));
@@ -1098,60 +1098,60 @@ function executeVMADL(i) {
 
 // Vector Multiply-Accumulate of Mid Partial Products.
 function executeVMADM(i) {
-  const s = cop2VS(i);
-  const t = cop2VT(i);
+  const vs = cop2VS(i);
+  const vt = cop2VT(i);
 
   let select = rsp.vecSelectU32[cop2E(i)];
   for (let el = 0; el < 8; el++, select >>= 4) {
-    const a = rsp.getVecS16(s, el);
-    const b = rsp.getVecU16(t, select & 0x7);
-    rsp.incAccS48(el, BigInt(a * b));
+    const s = rsp.getVecS16(vs, el);
+    const t = rsp.getVecU16(vt, select & 0x7);
+    rsp.incAccS48(el, BigInt(s * t));
   }
   rsp.setVecFromAccSignedMid(cop2VD(i));
 }
 
 // Vector Multiply-Accumulate of Mid Partial Products.
 function executeVMADN(i) {
-  const s = cop2VS(i);
-  const t = cop2VT(i);
+  const vs = cop2VS(i);
+  const vt = cop2VT(i);
 
   let select = rsp.vecSelectU32[cop2E(i)];
   for (let el = 0; el < 8; el++, select >>= 4) {
-    const a = rsp.getVecU16(s, el);
-    const b = rsp.getVecS16(t, select & 0x7);
-    rsp.incAccS48(el, BigInt(a * b));
+    const s = rsp.getVecU16(vs, el);
+    const t = rsp.getVecS16(vt, select & 0x7);
+    rsp.incAccS48(el, BigInt(s * t));
   }
   rsp.setVecFromAccSignedLow(cop2VD(i));
 }
 
 // Vector Multiply-Accumulate of High Partial Products.
 function executeVMADH(i) {
-  const s = cop2VS(i);
-  const t = cop2VT(i);
+  const vs = cop2VS(i);
+  const vt = cop2VT(i);
 
   let select = rsp.vecSelectU32[cop2E(i)];
   for (let el = 0; el < 8; el++, select >>= 4) {
-    const a = rsp.getVecS16(s, el);
-    const b = rsp.getVecS16(t, select & 0x7);
-    rsp.incAccS48(el, BigInt(a * b) << 16n);
+    const s = rsp.getVecS16(vs, el);
+    const t = rsp.getVecS16(vt, select & 0x7);
+    rsp.incAccS48(el, BigInt(s * t) << 16n);
   }
   rsp.setVecFromAccSignedMid(cop2VD(i));
 }
 
 // Vector Add of Short Elements
 function executeVADD(i) {
-  const s = cop2VS(i);
-  const t = cop2VT(i);
+  const vs = cop2VS(i);
+  const vt = cop2VT(i);
 
   const vco = rsp.VCO;
   const dv = rsp.vecTemp;
   let select = rsp.vecSelectU32[cop2E(i)];
 
   for (let el = 0; el < 8; el++, select >>= 4) {
-    const a = rsp.getVecS16(s, el);
-    const b = rsp.getVecS16(t, select & 0x7);
+    const s = rsp.getVecS16(vs, el);
+    const t = rsp.getVecS16(vt, select & 0x7);
     const c = ((vco >> (7 - el)) & 0x1);    // TODO: figure out why this isn't just (vco>>el).
-    const unclamped = a + b + c;
+    const unclamped = s + t + c;
     // TODO: provide low/mid/high accessors.
     // TODO: understand why only low is set.
     rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(unclamped) & 0xffffn);
@@ -1163,18 +1163,18 @@ function executeVADD(i) {
 
 // Vector Subtraction of Short Elements
 function executeVSUB(i) {
-  const s = cop2VS(i);
-  const t = cop2VT(i);
+  const vs = cop2VS(i);
+  const vt = cop2VT(i);
 
   const vco = rsp.VCO;
   const dv = rsp.vecTemp;
   let select = rsp.vecSelectU32[cop2E(i)];
 
   for (let el = 0; el < 8; el++, select >>= 4) {
-    const a = rsp.getVecS16(s, el);
-    const b = rsp.getVecS16(t, select & 0x7);
+    const s = rsp.getVecS16(vs, el);
+    const t = rsp.getVecS16(vt, select & 0x7);
     const c = ((vco >> (7 - el)) & 0x1);    // TODO: figure out why this isn't just (vco>>el).
-    const unclamped = a - (b + c);
+    const unclamped = s - (t + c);
     // TODO: provide low/mid/high accessors.
     // TODO: understand why only low is set.
     rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(unclamped) & 0xffffn);
@@ -1192,18 +1192,18 @@ function conditionalNegate(s, x) {
 
 // Vector Absolute Value of Short Elements.
 function executeVABS(i) {
-  const s = cop2VS(i);
-  const t = cop2VT(i);
+  const vs = cop2VS(i);
+  const vt = cop2VT(i);
 
   const dv = rsp.vecTemp;
   let select = rsp.vecSelectU32[cop2E(i)];
 
   for (let el = 0; el < 8; el++, select >>= 4) {
-    const a = rsp.getVecS16(s, el);
-    const b = rsp.getVecU16(t, select & 0x7);
+    const s = rsp.getVecS16(vs, el);
+    const t = rsp.getVecU16(vt, select & 0x7);
 
-    const overflow = (a < 0) && b == 0x8000;
-    const result = overflow ? 0x7fff : conditionalNegate(a, b);
+    const overflow = (s < 0) && t == 0x8000;
+    const result = overflow ? 0x7fff : conditionalNegate(s, t);
     const acc = overflow ? 0x8000 : result;
 
     // TODO: provide low/mid/high accessors.
@@ -1216,17 +1216,17 @@ function executeVABS(i) {
 
 // Vector Add Short Elements With Carry.
 function executeVADDC(i) {
-  const s = cop2VS(i);
-  const t = cop2VT(i);
+  const vs = cop2VS(i);
+  const vt = cop2VT(i);
 
   let newVCO = 0;
   const dv = rsp.vecTemp;
   let select = rsp.vecSelectU32[cop2E(i)];
 
   for (let el = 0; el < 8; el++, select >>= 4) {
-    const a = rsp.getVecU16(s, el);
-    const b = rsp.getVecU16(t, select & 0x7);
-    const unclamped = a + b;
+    const s = rsp.getVecU16(vs, el);
+    const t = rsp.getVecU16(vt, select & 0x7);
+    const unclamped = s + t;
     const clamped = unclamped & 0xffff;
     // TODO: provide low/mid/high accessors.
     // TODO: understand why only low is set.
@@ -1241,17 +1241,17 @@ function executeVADDC(i) {
 
 // Vector Subtraction of Short Elements With Carry.
 function executeVSUBC(i) {
-  const s = cop2VS(i);
-  const t = cop2VT(i);
+  const vs = cop2VS(i);
+  const vt = cop2VT(i);
 
   let newVCO = 0;
   const dv = rsp.vecTemp;
   let select = rsp.vecSelectU32[cop2E(i)];
 
   for (let el = 0; el < 8; el++, select >>= 4) {
-    const a = rsp.getVecU16(s, el);
-    const b = rsp.getVecU16(t, select & 0x7);
-    const unclamped = a - b;
+    const s = rsp.getVecU16(vs, el);
+    const t = rsp.getVecU16(vt, select & 0x7);
+    const unclamped = s - t;
     const clamped = unclamped & 0xffff;
     // TODO: provide low/mid/high accessors.
     // TODO: understand why only low is set.
@@ -1289,8 +1289,8 @@ function executeVSAR(i) {
 
 // Vector Select Less Than.
 function executeVLT(i) {
-  const s = cop2VS(i);
-  const t = cop2VT(i);
+  const vs = cop2VS(i);
+  const vt = cop2VT(i);
 
   const vco = rsp.VCO;
   let vccLo = 0;
@@ -1299,16 +1299,16 @@ function executeVLT(i) {
   let select = rsp.vecSelectU32[cop2E(i)];
 
   for (let el = 0; el < 8; el++, select >>= 4) {
-    const a = rsp.getVecS16(s, el);
-    const b = rsp.getVecS16(t, select & 0x7);
+    const s = rsp.getVecS16(vs, el);
+    const t = rsp.getVecS16(vt, select & 0x7);
 
     const elBit = 1 << el;
     const vcoLo = (vco & elBit) != 0;
     const vcoHi = (vco & (elBit << 8)) != 0;
     const onEqual = vcoLo && vcoHi;
 
-    const cond = a < b || ((a == b) && onEqual);
-    const result = cond ? a : b;
+    const cond = s < t || ((s == t) && onEqual);
+    const result = cond ? s : t;
     vccLo |= cond ? elBit : 0;
 
     // TODO: provide low/mid/high accessors.
@@ -1323,8 +1323,8 @@ function executeVLT(i) {
 
 // Vector Select Equal.
 function executeVEQ(i) {
-  const s = cop2VS(i);
-  const t = cop2VT(i);
+  const vs = cop2VS(i);
+  const vt = cop2VT(i);
 
   const vco = rsp.VCO;
   let vccLo = 0;
@@ -1333,14 +1333,14 @@ function executeVEQ(i) {
   let select = rsp.vecSelectU32[cop2E(i)];
 
   for (let el = 0; el < 8; el++, select >>= 4) {
-    const a = rsp.getVecS16(s, el);
-    const b = rsp.getVecS16(t, select & 0x7);
+    const s = rsp.getVecS16(vs, el);
+    const t = rsp.getVecS16(vt, select & 0x7);
 
     const elBit = 1 << el;
     const vcoHi = (vco & (elBit << 8)) != 0;
 
-    const cond = (a == b) && !vcoHi;
-    const result = b;
+    const cond = (s == t) && !vcoHi;
+    const result = t;
     vccLo |= cond ? elBit : 0;
 
     // TODO: provide low/mid/high accessors.
@@ -1355,8 +1355,8 @@ function executeVEQ(i) {
 
 // Vector Select Not Equal.
 function executeVNE(i) {
-  const s = cop2VS(i);
-  const t = cop2VT(i);
+  const vs = cop2VS(i);
+  const vt = cop2VT(i);
 
   const vco = rsp.VCO;
   let vccLo = 0;
@@ -1365,14 +1365,14 @@ function executeVNE(i) {
   let select = rsp.vecSelectU32[cop2E(i)];
 
   for (let el = 0; el < 8; el++, select >>= 4) {
-    const a = rsp.getVecS16(s, el);
-    const b = rsp.getVecS16(t, select & 0x7);
+    const s = rsp.getVecS16(vs, el);
+    const t = rsp.getVecS16(vt, select & 0x7);
 
     const elBit = 1 << el;
     const vcoHi = (vco & (elBit << 8)) != 0;
 
-    const cond = (a != b) || vcoHi;
-    const result = a;
+    const cond = (s != t) || vcoHi;
+    const result = s;
     vccLo |= cond ? elBit : 0;
 
     // TODO: provide low/mid/high accessors.
@@ -1388,8 +1388,8 @@ function executeVNE(i) {
 
 // Vector Select Greater Than or Equal.
 function executeVGE(i) {
-  const s = cop2VS(i);
-  const t = cop2VT(i);
+  const vs = cop2VS(i);
+  const vt = cop2VT(i);
 
   const vco = rsp.VCO;
   let vccLo = 0;
@@ -1398,16 +1398,16 @@ function executeVGE(i) {
   let select = rsp.vecSelectU32[cop2E(i)];
 
   for (let el = 0; el < 8; el++, select >>= 4) {
-    const a = rsp.getVecS16(s, el);
-    const b = rsp.getVecS16(t, select & 0x7);
+    const s = rsp.getVecS16(vs, el);
+    const t = rsp.getVecS16(vt, select & 0x7);
 
     const elBit = 1 << el;
     const vcoLo = (vco & elBit) != 0;
     const vcoHi = (vco & (elBit << 8)) != 0;
     const onEqual = vcoLo && vcoHi;
 
-    const cond = a > b || ((a == b) && !onEqual);
-    const result = cond ? a : b;
+    const cond = s > t || ((s == t) && !onEqual);
+    const result = cond ? s : t;
     vccLo |= cond ? elBit : 0;
 
     // TODO: provide low/mid/high accessors.
@@ -1565,17 +1565,17 @@ function executeVCR(i) {
 
 // Vector Select Merge.
 function executeVMRG(i) {
-  const s = cop2VS(i);
-  const t = cop2VT(i);
+  const vs = cop2VS(i);
+  const vt = cop2VT(i);
 
   const dv = rsp.vecTemp;
   let select = rsp.vecSelectU32[cop2E(i)];
   let vcc = rsp.VCC;
 
   for (let el = 0; el < 8; el++, vcc >>= 1, select >>= 4) {
-    const a = rsp.getVecU16(s, el);
-    const b = rsp.getVecU16(t, select & 0x7);
-    const result = (vcc & 1) ? a : b;
+    const s = rsp.getVecU16(vs, el);
+    const t = rsp.getVecU16(vt, select & 0x7);
+    const result = (vcc & 1) ? s : t;
 
     dv.setInt16(el * 2, result);
     rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(result) & 0xffffn);
@@ -1586,16 +1586,16 @@ function executeVMRG(i) {
 
 // Vector AND of Short Elements.
 function executeVAND(i) {
-  const s = cop2VS(i);
-  const t = cop2VT(i);
+  const vs = cop2VS(i);
+  const vt = cop2VT(i);
 
   const dv = rsp.vecTemp;
   let select = rsp.vecSelectU32[cop2E(i)];
 
   for (let el = 0; el < 8; el++, select >>= 4) {
-    const a = rsp.getVecS16(s, el);
-    const b = rsp.getVecU16(t, select & 0x7);
-    const result = a & b;
+    const s = rsp.getVecS16(vs, el);
+    const t = rsp.getVecU16(vt, select & 0x7);
+    const result = s & t;
 
     dv.setInt16(el * 2, result);
     rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(result) & 0xffffn);
@@ -1605,16 +1605,16 @@ function executeVAND(i) {
 
 // Vector NAND of Short Elements.
 function executeVNAND(i) {
-  const s = cop2VS(i);
-  const t = cop2VT(i);
+  const vs = cop2VS(i);
+  const vt = cop2VT(i);
 
   const dv = rsp.vecTemp;
   let select = rsp.vecSelectU32[cop2E(i)];
 
   for (let el = 0; el < 8; el++, select >>= 4) {
-    const a = rsp.getVecS16(s, el);
-    const b = rsp.getVecU16(t, select & 0x7);
-    const result = ~(a & b);
+    const s = rsp.getVecS16(vs, el);
+    const t = rsp.getVecU16(vt, select & 0x7);
+    const result = ~(s & t);
 
     dv.setInt16(el * 2, result);
     rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(result) & 0xffffn);
@@ -1624,16 +1624,16 @@ function executeVNAND(i) {
 
 // Vector OR of Short Elements.
 function executeVOR(i) {
-  const s = cop2VS(i);
-  const t = cop2VT(i);
+  const vs = cop2VS(i);
+  const vt = cop2VT(i);
 
   const dv = rsp.vecTemp;
   let select = rsp.vecSelectU32[cop2E(i)];
 
   for (let el = 0; el < 8; el++, select >>= 4) {
-    const a = rsp.getVecS16(s, el);
-    const b = rsp.getVecU16(t, select & 0x7);
-    const result = a | b;
+    const s = rsp.getVecS16(vs, el);
+    const t = rsp.getVecU16(vt, select & 0x7);
+    const result = s | t;
 
     dv.setInt16(el * 2, result);
     rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(result) & 0xffffn);
@@ -1643,16 +1643,16 @@ function executeVOR(i) {
 
 // Vector NOR of Short Elements.
 function executeVNOR(i) {
-  const s = cop2VS(i);
-  const t = cop2VT(i);
+  const vs = cop2VS(i);
+  const vt = cop2VT(i);
 
   const dv = rsp.vecTemp;
   let select = rsp.vecSelectU32[cop2E(i)];
 
   for (let el = 0; el < 8; el++, select >>= 4) {
-    const a = rsp.getVecS16(s, el);
-    const b = rsp.getVecU16(t, select & 0x7);
-    const result = ~(a | b);
+    const s = rsp.getVecS16(vs, el);
+    const t = rsp.getVecU16(vt, select & 0x7);
+    const result = ~(s | t);
 
     dv.setInt16(el * 2, result);
     rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(result) & 0xffffn);
@@ -1662,16 +1662,16 @@ function executeVNOR(i) {
 
 // Vector XOR of Short Elements.
 function executeVXOR(i) {
-  const s = cop2VS(i);
-  const t = cop2VT(i);
+  const vs = cop2VS(i);
+  const vt = cop2VT(i);
 
   const dv = rsp.vecTemp;
   let select = rsp.vecSelectU32[cop2E(i)];
 
   for (let el = 0; el < 8; el++, select >>= 4) {
-    const a = rsp.getVecS16(s, el);
-    const b = rsp.getVecU16(t, select & 0x7);
-    const result = a ^ b;
+    const s = rsp.getVecS16(vs, el);
+    const t = rsp.getVecU16(vt, select & 0x7);
+    const result = s ^ t;
 
     dv.setInt16(el * 2, result);
     rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(result) & 0xffffn);
@@ -1681,16 +1681,16 @@ function executeVXOR(i) {
 
 // Vector NXOR of Short Elements.
 function executeVNXOR(i) {
-  const s = cop2VS(i);
-  const t = cop2VT(i);
+  const vs = cop2VS(i);
+  const vt = cop2VT(i);
 
   const dv = rsp.vecTemp;
   let select = rsp.vecSelectU32[cop2E(i)];
 
   for (let el = 0; el < 8; el++, select >>= 4) {
-    const a = rsp.getVecS16(s, el);
-    const b = rsp.getVecU16(t, select & 0x7);
-    const result = ~(a ^ b);
+    const s = rsp.getVecS16(vs, el);
+    const t = rsp.getVecU16(vt, select & 0x7);
+    const result = ~(s ^ t);
 
     dv.setInt16(el * 2, result);
     rsp.vAcc[el] = (rsp.vAcc[el] & 0xffff_ffff_0000n) | (BigInt(result) & 0xffffn);
@@ -1861,11 +1861,11 @@ function loadVector(i, scale) {
 
 function storeVector(i, scale) {
   const addr = rsp.calcVecAddress(i, scale);
-  const t = vmemVT(i);
+  const vt = vmemVT(i);
   const el = vmemEl(i);
 
   for (let x = 0; x < scale; x++) {
-    rsp.store8(addr + x, rsp.getVecS8(t, (el + x) & 15));
+    rsp.store8(addr + x, rsp.getVecS8(vt, (el + x) & 15));
   }
 }
 
@@ -1877,26 +1877,26 @@ function executeLDV(i) { loadVector(i, 8); }
 function executeLQV(i) {
   const addr = rsp.calcVecAddress(i, 16);
   const end = (addr & 0xff0) + 16;
-  const t = vmemVT(i);
+  const vt = vmemVT(i);
   const el = vmemEl(i);
 
   const len = Math.min(end - addr, 16 - el);
   for (let x = 0; x < len; x++) {
-    rsp.setVecS8(t, el + x, rsp.loadU8(addr + x));
+    rsp.setVecS8(vt, el + x, rsp.loadU8(addr + x));
   }
 }
 
 function executeLRV(i) {
   const end = rsp.calcVecAddress(i, 16);
   const addr = end & 0xff0;
-  const t = vmemVT(i);
+  const vt = vmemVT(i);
   const el = vmemEl(i);
 
   const offset = end & 15;
   const startEl = (16 - offset) + el;
   const len = Math.min(offset, 16 - startEl);
   for (let x = 0; x < len; x++) {
-    rsp.setVecS8(t, startEl + x, rsp.loadU8(addr + x));
+    rsp.setVecS8(vt, startEl + x, rsp.loadU8(addr + x));
   }
 }
 
@@ -1915,7 +1915,7 @@ function executeLHV(i) { loadPacked(rsp.calcVecAddress(i, 16), vmemVT(i), vmemEl
 
 function executeLFV(i) {
   const addr = rsp.calcVecAddress(i, 16);
-  const t = vmemVT(i);
+  const vt = vmemVT(i);
   const el = vmemEl(i);
 
   const misalignment = addr & 7;
@@ -1933,7 +1933,7 @@ function executeLFV(i) {
 
   const len = Math.min(8, 16 - el);
   for (let i = el, n = el + len; i < n; i++) {
-    rsp.setVecS8(t, i, dv.getInt8(i, false));
+    rsp.setVecS8(vt, i, dv.getInt8(i, false));
   }
 }
 
@@ -1941,10 +1941,10 @@ function executeLWV(i) { /* No-op */ }
 
 function executeLTV(i) {
   const addr = rsp.calcVecAddress(i, 16);
-  const t = vmemVT(i);
+  const vt = vmemVT(i);
   const el = vmemEl(i);
 
-  const regBase = t & ~7;
+  const regBase = vt & ~7;
   const regOffset = el >> 1;
   const memBase = addr & ~7;
   const memOffset = (addr & 8) + el;
@@ -1964,20 +1964,20 @@ function executeSDV(i) { storeVector(i, 8); }
 function executeSQV(i) {
   const addr = rsp.calcVecAddress(i, 16);
   const end = (addr & 0xff0) + 16;
-  const t = vmemVT(i);
+  const vt = vmemVT(i);
   const el = vmemEl(i);
 
   let len = end - addr;
   for (let x = 0; x < len; x++) {
     // Stores wrap around the vector, unlike loads. 
-    rsp.store8(addr + x, rsp.getVecS8(t, (el + x) & 15));
+    rsp.store8(addr + x, rsp.getVecS8(vt, (el + x) & 15));
   }
 }
 
 function executeSRV(i) {
   const end = rsp.calcVecAddress(i, 16);
   const addr = end & 0xff0;
-  const t = vmemVT(i);
+  const vt = vmemVT(i);
   const el = vmemEl(i);
 
   const offset = end & 15;
@@ -1985,39 +1985,39 @@ function executeSRV(i) {
   const len = offset;
   for (let x = 0; x < len; x++) {
     // Stores wrap around the vector, unlike loads. 
-    rsp.store8(addr + x, rsp.getVecS8(t, (startEl + x) & 15));
+    rsp.store8(addr + x, rsp.getVecS8(vt, (startEl + x) & 15));
   }
 }
 
 function executeSPV(i) {
   const addr = rsp.calcVecAddress(i, 8);
-  const t = vmemVT(i);
+  const vt = vmemVT(i);
   const el = vmemEl(i);
 
   for (let i = 0; i < 8; i++) {
     const elIdx = el + i;
     const shift = (elIdx & 8) ? 7 : 8;
-    const val = rsp.getVecS16(t, elIdx & 7) >>> shift;
+    const val = rsp.getVecS16(vt, elIdx & 7) >>> shift;
     rsp.store8(addr + i, val);
   }
 }
 
 function executeSUV(i) {
   const addr = rsp.calcVecAddress(i, 8);
-  const t = vmemVT(i);
+  const vt = vmemVT(i);
   const el = vmemEl(i);
 
   for (let i = 0; i < 8; i++) {
     const elIdx = el + i;
     const shift = (elIdx & 8) ? 8 : 7;
-    const val = rsp.getVecS16(t, elIdx & 7) >>> shift;
+    const val = rsp.getVecS16(vt, elIdx & 7) >>> shift;
     rsp.store8(addr + i, val);
   }
 }
 
 function executeSHV(i) {
   const addr = rsp.calcVecAddress(i, 16);
-  const t = vmemVT(i);
+  const vt = vmemVT(i);
   const el = vmemEl(i);
 
   const offset = addr & 7;
@@ -2025,7 +2025,7 @@ function executeSHV(i) {
   for (let i = 0; i < 8; i++) {
     const elIdx = el + (i * 2);
     const memIdx = (offset + (i * 2)) & 15;
-    const val = rsp.getVecU16UnalignedWrap(t, elIdx) >>> 7;
+    const val = rsp.getVecU16UnalignedWrap(vt, elIdx) >>> 7;
     rsp.store8(base + memIdx, val);
   }
 }
@@ -2048,7 +2048,7 @@ const sfvElements = new Map([
 
 function executeSFV(i) {
   const addr = rsp.calcVecAddress(i, 16);
-  const t = vmemVT(i);
+  const vt = vmemVT(i);
   const el = vmemEl(i);
 
   const offset = addr & 7;
@@ -2058,7 +2058,7 @@ function executeSFV(i) {
   if (elems) {
     for (let i = 0; i < 4; i++) {
       const memIdx = (offset + (i * 4)) & 15;
-      rsp.store8(base + memIdx, rsp.getVecU16(t, elems[i]) >>> 7);
+      rsp.store8(base + memIdx, rsp.getVecU16(vt, elems[i]) >>> 7);
     }
   } else {
     for (let i = 0; i < 4; i++) {
@@ -2070,7 +2070,7 @@ function executeSFV(i) {
 
 function executeSWV(i) {
   const addr = rsp.calcVecAddress(i, 16);
-  const t = vmemVT(i);
+  const vt = vmemVT(i);
   const el = vmemEl(i);
 
   const offset = addr & 0x7;
@@ -2079,13 +2079,13 @@ function executeSWV(i) {
   for (let i = 0; i < 16; i++) {
     const elIdx = (el + i) & 15;
     const memIdx = (offset + i) & 15;
-    rsp.store8(base + memIdx, rsp.getVecS8(t, elIdx));
+    rsp.store8(base + memIdx, rsp.getVecS8(vt, elIdx));
   }
 }
 
 function executeSTV(i) {
   const addr = rsp.calcVecAddress(i, 16);
-  const t = vmemVT(i);
+  const vt = vmemVT(i);
   const el = vmemEl(i);
 
   // Output seems to be 8 byte aligned and rotate through 16-bytes.
@@ -2094,7 +2094,7 @@ function executeSTV(i) {
   // Element index is offset by 0 or 8 depending on dest alignment.
   const elOffset = addr & 0x8;
   // Output is stored in 8 consecutive registers.
-  const regBase = t & ~7;
+  const regBase = vt & ~7;
   const regOffset = (el - (addr & 0x8)) >> 1;
 
   for (let i = 0; i < 16; i++) {
