@@ -880,8 +880,7 @@ function vectorZero(i) {
   const s = cop2VS(i);
   const t = cop2VT(i);
 
-  let select = rsp.vecSelectU32[cop2E(i)];
-  for (let el = 0; el < 8; el++, select >>= 4) {
+  for (let el = 0, select = rsp.vecSelectU32[cop2E(i)]; el < 8; el++, select >>= 4) {
     const a = rsp.getVecS16(s, el);
     const b = rsp.getVecS16(t, select & 0x7);
     rsp.setAccLow(el, a + b);
@@ -1049,8 +1048,7 @@ function executeVMULQ(i) {
   const vs = cop2VS(i);
   const vt = cop2VT(i);
 
-  let select = rsp.vecSelectU32[cop2E(i)];
-  for (let el = 0; el < 8; el++, select >>= 4) {
+  for (let el = 0, select = rsp.vecSelectU32[cop2E(i)]; el < 8; el++, select >>= 4) {
     const s = rsp.getVecS16(vs, el);
     const t = rsp.getVecS16(vt, select & 0x7);
     const product = BigInt(s * t) << 16n;
@@ -1085,9 +1083,7 @@ function executeVADD(i) {
 
   const vco = rsp.VCO;
   const dv = rsp.vecTemp;
-  let select = rsp.vecSelectU32[cop2E(i)];
-
-  for (let el = 0; el < 8; el++, select >>= 4) {
+  for (let el = 0, select = rsp.vecSelectU32[cop2E(i)]; el < 8; el++, select >>= 4) {
     const s = rsp.getVecS16(vs, el);
     const t = rsp.getVecS16(vt, select & 0x7);
     const c = (vco >> el) & 0x1;
@@ -1106,9 +1102,7 @@ function executeVSUB(i) {
 
   const vco = rsp.VCO;
   const dv = rsp.vecTemp;
-  let select = rsp.vecSelectU32[cop2E(i)];
-
-  for (let el = 0; el < 8; el++, select >>= 4) {
+  for (let el = 0, select = rsp.vecSelectU32[cop2E(i)]; el < 8; el++, select >>= 4) {
     const s = rsp.getVecS16(vs, el);
     const t = rsp.getVecS16(vt, select & 0x7);
     const c = (vco >> el) & 0x1;
@@ -1132,9 +1126,7 @@ function executeVABS(i) {
   const vt = cop2VT(i);
 
   const dv = rsp.vecTemp;
-  let select = rsp.vecSelectU32[cop2E(i)];
-
-  for (let el = 0; el < 8; el++, select >>= 4) {
+  for (let el = 0, select = rsp.vecSelectU32[cop2E(i)]; el < 8; el++, select >>= 4) {
     const s = rsp.getVecS16(vs, el);
     const t = rsp.getVecU16(vt, select & 0x7);
 
@@ -1213,9 +1205,7 @@ function executeVLT(i) {
   const vco = rsp.VCO;
   let vccLo = 0;
   let vccHi = 0;
-  let select = rsp.vecSelectU32[cop2E(i)];
-
-  for (let el = 0; el < 8; el++, select >>= 4) {
+  for (let el = 0, select = rsp.vecSelectU32[cop2E(i)]; el < 8; el++, select >>= 4) {
     const s = rsp.getVecS16(vs, el);
     const t = rsp.getVecS16(vt, select & 0x7);
 
@@ -1243,9 +1233,7 @@ function executeVEQ(i) {
   const vco = rsp.VCO;
   let vccLo = 0;
   let vccHi = 0;
-  let select = rsp.vecSelectU32[cop2E(i)];
-
-  for (let el = 0; el < 8; el++, select >>= 4) {
+  for (let el = 0, select = rsp.vecSelectU32[cop2E(i)]; el < 8; el++, select >>= 4) {
     const s = rsp.getVecS16(vs, el);
     const t = rsp.getVecS16(vt, select & 0x7);
 
@@ -1271,9 +1259,7 @@ function executeVNE(i) {
   const vco = rsp.VCO;
   let vccLo = 0;
   let vccHi = 0;
-  let select = rsp.vecSelectU32[cop2E(i)];
-
-  for (let el = 0; el < 8; el++, select >>= 4) {
+  for (let el = 0, select = rsp.vecSelectU32[cop2E(i)]; el < 8; el++, select >>= 4) {
     const s = rsp.getVecS16(vs, el);
     const t = rsp.getVecS16(vt, select & 0x7);
 
@@ -1300,9 +1286,7 @@ function executeVGE(i) {
   const vco = rsp.VCO;
   let vccLo = 0;
   let vccHi = 0;
-  let select = rsp.vecSelectU32[cop2E(i)];
-
-  for (let el = 0; el < 8; el++, select >>= 4) {
+  for (let el = 0, select = rsp.vecSelectU32[cop2E(i)]; el < 8; el++, select >>= 4) {
     const s = rsp.getVecS16(vs, el);
     const t = rsp.getVecS16(vt, select & 0x7);
 
@@ -1327,8 +1311,6 @@ function executeVCL(i) {
   const vs = cop2VS(i);
   const vt = cop2VT(i);
 
-  let select = rsp.vecSelectU32[cop2E(i)];
-
   const vccHi = rsp.VCCHi;
   const vccLo = rsp.VCCLo;
   const vce = rsp.VCE;
@@ -1338,7 +1320,7 @@ function executeVCL(i) {
   let vccOutHi = 0;
   let vccOutLo = 0;
 
-  for (let el = 0; el < 8; el++, select >>= 4) {
+  for (let el = 0, select = rsp.vecSelectU32[cop2E(i)]; el < 8; el++, select >>= 4) {
     const s = rsp.getVecU16(vs, el);
     const t = rsp.getVecU16(vt, select & 0x7);
 
@@ -1381,15 +1363,12 @@ function executeVCH(i) {
   const vs = cop2VS(i);
   const vt = cop2VT(i);
 
-  let select = rsp.vecSelectU32[cop2E(i)];
-
   let vccHi = 0;
   let vccLo = 0;
   let vcoHi = 0;
   let vcoLo = 0;
   let vce = 0;
-
-  for (let el = 0; el < 8; el++, select >>= 4) {
+  for (let el = 0, select = rsp.vecSelectU32[cop2E(i)]; el < 8; el++, select >>= 4) {
     const s = rsp.getVecS16(vs, el);
     const t = rsp.getVecS16(vt, select & 0x7);
 
@@ -1430,11 +1409,9 @@ function executeVCR(i) {
   const vs = cop2VS(i);
   const vt = cop2VT(i);
 
-  let select = rsp.vecSelectU32[cop2E(i)];
   let vccHi = 0;
   let vccLo = 0;
-
-  for (let el = 0; el < 8; el++, select >>= 4) {
+  for (let el = 0, select = rsp.vecSelectU32[cop2E(i)]; el < 8; el++, select >>= 4) {
     const s = rsp.getVecS16(vs, el);
     const t = rsp.getVecS16(vt, select & 0x7);
 
@@ -1465,9 +1442,7 @@ function executeVMRG(i) {
   const vt = cop2VT(i);
 
   let vcc = rsp.VCC;
-  
-  let select = rsp.vecSelectU32[cop2E(i)];
-  for (let el = 0; el < 8; el++, vcc >>= 1, select >>= 4) {
+  for (let el = 0, select = rsp.vecSelectU32[cop2E(i)]; el < 8; el++, vcc >>= 1, select >>= 4) {
     const s = rsp.getVecU16(vs, el);
     const t = rsp.getVecU16(vt, select & 0x7);
     const result = (vcc & 1) ? s : t;
@@ -1482,8 +1457,7 @@ function executeVAND(i) {
   const vs = cop2VS(i);
   const vt = cop2VT(i);
 
-  let select = rsp.vecSelectU32[cop2E(i)];
-  for (let el = 0; el < 8; el++, select >>= 4) {
+  for (let el = 0, select = rsp.vecSelectU32[cop2E(i)]; el < 8; el++, select >>= 4) {
     const s = rsp.getVecU16(vs, el);
     const t = rsp.getVecU16(vt, select & 0x7);
     rsp.setAccLow(el, s & t);
@@ -1496,8 +1470,7 @@ function executeVNAND(i) {
   const vs = cop2VS(i);
   const vt = cop2VT(i);
 
-  let select = rsp.vecSelectU32[cop2E(i)];
-  for (let el = 0; el < 8; el++, select >>= 4) {
+  for (let el = 0, select = rsp.vecSelectU32[cop2E(i)]; el < 8; el++, select >>= 4) {
     const s = rsp.getVecU16(vs, el);
     const t = rsp.getVecU16(vt, select & 0x7);
     rsp.setAccLow(el, ~(s & t));
@@ -1510,8 +1483,7 @@ function executeVOR(i) {
   const vs = cop2VS(i);
   const vt = cop2VT(i);
 
-  let select = rsp.vecSelectU32[cop2E(i)];
-  for (let el = 0; el < 8; el++, select >>= 4) {
+  for (let el = 0, select = rsp.vecSelectU32[cop2E(i)]; el < 8; el++, select >>= 4) {
     const s = rsp.getVecU16(vs, el);
     const t = rsp.getVecU16(vt, select & 0x7);
     rsp.setAccLow(el, s | t);
@@ -1524,8 +1496,7 @@ function executeVNOR(i) {
   const vs = cop2VS(i);
   const vt = cop2VT(i);
 
-  let select = rsp.vecSelectU32[cop2E(i)];
-  for (let el = 0; el < 8; el++, select >>= 4) {
+  for (let el = 0, select = rsp.vecSelectU32[cop2E(i)]; el < 8; el++, select >>= 4) {
     const s = rsp.getVecU16(vs, el);
     const t = rsp.getVecU16(vt, select & 0x7);
     rsp.setAccLow(el, ~(s | t));
@@ -1538,8 +1509,7 @@ function executeVXOR(i) {
   const vs = cop2VS(i);
   const vt = cop2VT(i);
 
-  let select = rsp.vecSelectU32[cop2E(i)];
-  for (let el = 0; el < 8; el++, select >>= 4) {
+  for (let el = 0, select = rsp.vecSelectU32[cop2E(i)]; el < 8; el++, select >>= 4) {
     const s = rsp.getVecU16(vs, el);
     const t = rsp.getVecU16(vt, select & 0x7);
     rsp.setAccLow(el, s ^ t);
@@ -1552,8 +1522,7 @@ function executeVNXOR(i) {
   const vs = cop2VS(i);
   const vt = cop2VT(i);
 
-  let select = rsp.vecSelectU32[cop2E(i)];
-  for (let el = 0; el < 8; el++, select >>= 4) {
+  for (let el = 0, select = rsp.vecSelectU32[cop2E(i)]; el < 8; el++, select >>= 4) {
     const s = rsp.getVecU16(vs, el);
     const t = rsp.getVecU16(vt, select & 0x7);
     rsp.setAccLow(el, ~(s ^ t));
@@ -1567,7 +1536,7 @@ function vrcp(i, dpInstruction) {
 
   // Accumulator is set to the entire input vector.
   vectorSetAccFromReg(vte, vt);
-  
+
   // Handle double or single precision.
   const val16 = rsp.getVecS16(vt, vte & 7);
   const input = (dpInstruction && rsp.divDP) ? ((rsp.divIn << 16) | (val16 & 0xffff)) : val16;
@@ -1616,15 +1585,15 @@ function executeVMOV(i) {
   const vde = cop2DE(i) & 7;
 
   // The low accumulator bits are set to VT, using the broadcast pattern.
-  const select = rsp.vecSelectU32[cop2E(i)];
-  for (let el = 0, curSelect = select; el < 8; el++, curSelect >>= 4) {
-    const accVal = rsp.getVecS16(vt, curSelect & 0x7);
+  const vselect = rsp.vecSelectU32[cop2E(i)];
+  for (let el = 0, select = vselect; el < 8; el++, select >>= 4) {
+    const accVal = rsp.getVecS16(vt, select & 0x7);
     rsp.setAccLow(el, accVal);
   }
 
   // Only a single element is set.
   // The E is used to pick the broadcast pattern and DE is used to pick the element.
-  rsp.setVecS16(vd, vde & 7, rsp.getVecS16(vt, (select >> (4 * vde)) & 7));
+  rsp.setVecS16(vd, vde & 7, rsp.getVecS16(vt, (vselect >> (4 * vde)) & 7));
 }
 
 function vrsq(i, dpInstruction) {
