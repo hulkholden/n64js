@@ -959,7 +959,6 @@ function executeVMULQ(i) {
     const product = BigInt(a * b) << 16n;
     const newAccum = accum48SignExtend(product + (product < 0 ? 0x1f0000n : 0n));
     rsp.vAcc[el] = newAccum;
-    // TODO: right shift by 17?
     dv.setInt16(el * 2, saturateSigned(newAccum >> 1n, 16n, 0x8000, 0x7fff) & 0xfff0);
   }
   rsp.setVecFromTemp(cop2VD(i));
@@ -1090,7 +1089,6 @@ function executeVMACQ(i) {
     }
     const newAccum = accum48SignExtend(acc + incr);
     rsp.vAcc[el] = newAccum;
-    // TODO: right shift by 17?
     dv.setInt16(el * 2, saturateSigned(newAccum >> 1n, 16n, 0x8000, 0x7fff) & 0xfff0);
   }
   rsp.setVecFromTemp(cop2VD(i));
