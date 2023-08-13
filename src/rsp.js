@@ -1496,6 +1496,18 @@ function vectorSetAccFromReg(vt, vte) {
   }
 }
 
+function vectorRecipHigh(i) {
+  const vt = cop2VT(i);
+  const vte = cop2E(i);
+
+  // Accumulator is set to the entire input vector.
+  vectorSetAccFromReg(vt, vte);
+
+  rsp.divDP = true;
+  rsp.divIn = rsp.getVecS16(vt, vte & 7);
+  rsp.setVecS16(cop2VD(i), cop2DE(i) & 7, rsp.divOut);
+}
+
 function vrcp(i, dpInstruction) {
   const vt = cop2VT(i);
   const vte = cop2E(i);
@@ -1526,15 +1538,7 @@ function executeVRCPL(i) {
 
 // Vector Element Scalar Reciprocal (Double Precision High).
 function executeVRCPH(i) {
-  const vt = cop2VT(i);
-  const vte = cop2E(i);
-
-  // Accumulator is set to the entire input vector.
-  vectorSetAccFromReg(vt, vte);
-
-  rsp.divDP = true;
-  rsp.divIn = rsp.getVecS16(vt, vte & 7);
-  rsp.setVecS16(cop2VD(i), cop2DE(i) & 7, rsp.divOut);
+  vectorRecipHigh(i);
 }
 
 function vrsq(i, dpInstruction) {
@@ -1567,15 +1571,7 @@ function executeVRSQL(i) {
 
 // Vector Element Scalar SQRT Reciprocal (Double Precision High).
 function executeVRSQH(i) {
-  const vt = cop2VT(i);
-  const vte = cop2E(i);
-
-  // Accumulator is set to the entire input vector.
-  vectorSetAccFromReg(vt, vte);
-
-  rsp.divDP = true;
-  rsp.divIn = rsp.getVecS16(vt, vte & 7);
-  rsp.setVecS16(cop2VD(i), cop2DE(i) & 7, rsp.divOut);
+  vectorRecipHigh(i);
 }
 
 function executeVNOP(i) { /* No-op */ }
