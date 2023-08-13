@@ -1150,7 +1150,7 @@ function executeVADD(i) {
   for (let el = 0; el < 8; el++, select >>= 4) {
     const s = rsp.getVecS16(vs, el);
     const t = rsp.getVecS16(vt, select & 0x7);
-    const c = ((vco >> (7 - el)) & 0x1);    // TODO: figure out why this isn't just (vco>>el).
+    const c = (vco >> el) & 0x1;
     const unclamped = s + t + c;
     // TODO: provide low/mid/high accessors.
     // TODO: understand why only low is set.
@@ -1173,7 +1173,7 @@ function executeVSUB(i) {
   for (let el = 0; el < 8; el++, select >>= 4) {
     const s = rsp.getVecS16(vs, el);
     const t = rsp.getVecS16(vt, select & 0x7);
-    const c = ((vco >> (7 - el)) & 0x1);    // TODO: figure out why this isn't just (vco>>el).
+    const c = (vco >> el) & 0x1;
     const unclamped = s - (t + c);
     // TODO: provide low/mid/high accessors.
     // TODO: understand why only low is set.
