@@ -1622,23 +1622,25 @@ function vrcp(i, dpInstruction) {
   const vt = cop2VT(i);
   const vte = cop2E(i);
 
+  // Accumulator is set to the entire input vector.
+  vectorSetAccFromReg(vte, vt);
+  
   // Handle double or single precision.
   const val16 = rsp.getVecS16(vt, vte & 7);
   const input = (dpInstruction && rsp.divDP) ? ((rsp.divIn << 16) | (val16 & 0xffff)) : val16;
-
-  // Accumulator is set to the entire input vector.
-  // TODO: add helper + dedupe with VRCPH.
-  let select = rsp.vecSelectU32[vte];
-  for (let el = 0; el < 8; el++, select >>= 4) {
-    const val = rsp.getVecS16(vt, select & 0x7);
-    rsp.setAccLow(el, val);
-  }
 
   // Output is set to the result.
   const result = rcp16(input);
   rsp.divDP = false;
   rsp.divOut = result >> 16;
   rsp.setVecS16(cop2VD(i), cop2DE(i) & 7, result & 0xffff);
+}
+
+function vectorSetAccFromReg(vte, vt) {
+  for (let el = 0, select = rsp.vecSelectU32[vte]; el < 8; el++, select >>= 4) {
+    const result = rsp.getVecS16(vt, select & 0x7);
+    rsp.setAccLow(el, result);
+  }
 }
 
 // Vector Element Scalar Reciprocal (Single Precision).
@@ -1657,12 +1659,7 @@ function executeVRCPH(i) {
   const vte = cop2E(i);
 
   // Accumulator is set to the entire input vector.
-  // TODO: add helper + dedupe with VRCP.
-  let select = rsp.vecSelectU32[vte];
-  for (let el = 0; el < 8; el++, select >>= 4) {
-    const val = rsp.getVecS16(vt, select & 0x7);
-    rsp.setAccLow(el, val);
-  }
+  vectorSetAccFromReg(vte, vt);
 
   rsp.divDP = true;
   rsp.divIn = rsp.getVecS16(vt, vte & 7);
