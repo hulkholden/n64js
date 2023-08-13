@@ -1170,21 +1170,16 @@ function executeVSUBC(i) {
   const vt = cop2VT(i);
 
   let newVCO = 0;
-  const dv = rsp.vecTemp;
-  let select = rsp.vecSelectU32[cop2E(i)];
-
-  for (let el = 0; el < 8; el++, select >>= 4) {
+  for (let el = 0, select = rsp.vecSelectU32[cop2E(i)]; el < 8; el++, select >>= 4) {
     const s = rsp.getVecU16(vs, el);
     const t = rsp.getVecU16(vt, select & 0x7);
     const result = s - t;
-    const clamped = result & 0xffff;
     rsp.setAccLow(el, result);
-    dv.setInt16(el * 2, clamped);
 
     newVCO |= (result != 0) ? (1 << (el + 8)) : 0;
     newVCO |= (result < 0) ? (1 << (el + 0)) : 0;
   }
-  rsp.setVecFromTemp(cop2VD(i));
+  rsp.setVecFromAccLow(cop2VD(i));
   rsp.VCO = newVCO;
 }
 
