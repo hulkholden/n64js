@@ -186,8 +186,8 @@ class RSP {
 
   setRegS16SignExtend(r, v) { if (r != 0) { this.gprS32[r] = (v << 16) >> 16; } }
 
-  setAccS48(el, v) { this.vAcc[el] = accum48SignExtend(v); }
-  getAccS48(el) { return accum48SignExtend(this.vAcc[el]); }    // TODO: ensure this is correctly signed.
+  setAccS48(el, v) { this.vAcc[el] = BigInt.asIntN(48, v); }
+  getAccS48(el) { return BigInt.asIntN(48, this.vAcc[el]); }    // TODO: ensure this is correctly signed.
   incAccS48(el, v) { this.setAccS48(el, this.getAccS48(el) + v); }    // TODO: ensure this is correctly signed.
 
   getAccClampedS16(el, shift, neg, pos) { return saturateSigned(this.vAcc[el], shift, neg, pos); }
@@ -796,10 +796,6 @@ function executeCTC2(i) {
     case 2: rsp.VCE = value; break;
     case 3: rsp.VCE = value; break;
   }
-}
-
-function accum48SignExtend(x) {
-  return BigInt.asIntN(48, x);
 }
 
 /**
