@@ -1508,7 +1508,7 @@ function vectorRecipHigh(i) {
   rsp.setVecS16(cop2VD(i), cop2DE(i) & 7, rsp.divOut);
 }
 
-function vrcp(i, dpInstruction) {
+function vectorRecip(i, dpInstruction) {
   const vt = cop2VT(i);
   const vte = cop2E(i);
 
@@ -1527,21 +1527,15 @@ function vrcp(i, dpInstruction) {
 }
 
 // Vector Element Scalar Reciprocal (Single Precision).
-function executeVRCP(i) {
-  vrcp(i, false);
-}
+function executeVRCP(i) { vectorRecip(i, false); }
 
 // Vector Element Scalar Reciprocal (Double Precision Low).
-function executeVRCPL(i) {
-  vrcp(i, true);
-}
+function executeVRCPL(i) { vectorRecip(i, true); }
 
 // Vector Element Scalar Reciprocal (Double Precision High).
-function executeVRCPH(i) {
-  vectorRecipHigh(i);
-}
+function executeVRCPH(i) { vectorRecipHigh(i); }
 
-function vrsq(i, dpInstruction) {
+function vectorRecipSqrt(i, dpInstruction) {
   const vt = cop2VT(i);
   const vte = cop2E(i);
 
@@ -1560,19 +1554,13 @@ function vrsq(i, dpInstruction) {
 }
 
 // Vector Element Scalar SQRT Reciprocal.
-function executeVRSQ(i) {
-  vrsq(i, false);
-}
+function executeVRSQ(i) { vectorRecipSqrt(i, false); }
 
 // Vector Element Scalar SQRT Reciprocal (Double Precision Low).
-function executeVRSQL(i) {
-  vrsq(i, true);
-}
+function executeVRSQL(i) { vectorRecipSqrt(i, true); }
 
 // Vector Element Scalar SQRT Reciprocal (Double Precision High).
-function executeVRSQH(i) {
-  vectorRecipHigh(i);
-}
+function executeVRSQH(i) { vectorRecipHigh(i); }
 
 function executeVNOP(i) { /* No-op */ }
 function executeVNULL(i) { /* No-op */ }
