@@ -1471,6 +1471,24 @@ function vectorLogical(i, fn) {
   rsp.setVecFromAccLow(cop2VD(i));
 }
 
+// Vector Element Scalar Move.
+function executeVMOV(i) {
+  const vt = cop2VT(i);
+  const vd = cop2VD(i);
+  const vde = cop2DE(i) & 7;
+
+  // The low accumulator bits are set to VT, using the broadcast pattern.
+  const vselect = rsp.vecSelectU32[cop2E(i)];
+  for (let el = 0, select = vselect; el < 8; el++, select >>= 4) {
+    const accVal = rsp.getVecS16(vt, select & 0x7);
+    rsp.setAccLow(el, accVal);
+  }
+
+  // Only a single element is set.
+  // The E is used to pick the broadcast pattern and DE is used to pick the element.
+  rsp.setVecS16(vd, vde & 7, rsp.getVecS16(vt, (vselect >> (4 * vde)) & 7));
+}
+
 function vrcp(i, dpInstruction) {
   const vt = cop2VT(i);
   const vte = cop2E(i);
@@ -1517,24 +1535,6 @@ function executeVRCPH(i) {
   rsp.divDP = true;
   rsp.divIn = rsp.getVecS16(vt, vte & 7);
   rsp.setVecS16(cop2VD(i), cop2DE(i) & 7, rsp.divOut);
-}
-
-// Vector Element Scalar Move.
-function executeVMOV(i) {
-  const vt = cop2VT(i);
-  const vd = cop2VD(i);
-  const vde = cop2DE(i) & 7;
-
-  // The low accumulator bits are set to VT, using the broadcast pattern.
-  const vselect = rsp.vecSelectU32[cop2E(i)];
-  for (let el = 0, select = vselect; el < 8; el++, select >>= 4) {
-    const accVal = rsp.getVecS16(vt, select & 0x7);
-    rsp.setAccLow(el, accVal);
-  }
-
-  // Only a single element is set.
-  // The E is used to pick the broadcast pattern and DE is used to pick the element.
-  rsp.setVecS16(vd, vde & 7, rsp.getVecS16(vt, (vselect >> (4 * vde)) & 7));
 }
 
 function vrsq(i, dpInstruction) {
