@@ -1508,56 +1508,38 @@ function vectorRecipHigh(i) {
   rsp.setVecS16(cop2VD(i), cop2DE(i) & 7, rsp.divOut);
 }
 
-function vectorRecip(i, dpInstruction) {
+function vectorRecip(i, fn, dpInstruction) {
   const vt = cop2VT(i);
   const vte = cop2E(i);
-
-  // Accumulator is set to the entire input vector.
-  vectorSetAccFromReg(vt, vte);
 
   // Handle double or single precision.
   const val16 = rsp.getVecS16(vt, vte & 7);
   const input = (dpInstruction && rsp.divDP) ? ((rsp.divIn << 16) | (val16 & 0xffff)) : val16;
 
+  // Accumulator is set to the entire input vector.
+  vectorSetAccFromReg(vt, vte);
+
   // Output is set to the result.
-  const result = rcp16(input);
+  const result = fn(input);
   rsp.divDP = false;
   rsp.divOut = result >> 16;
   rsp.setVecS16(cop2VD(i), cop2DE(i) & 7, result & 0xffff);
 }
 
 // Vector Element Scalar Reciprocal (Single Precision).
-function executeVRCP(i) { vectorRecip(i, false); }
+function executeVRCP(i) { vectorRecip(i, rcp16, false); }
 
 // Vector Element Scalar Reciprocal (Double Precision Low).
-function executeVRCPL(i) { vectorRecip(i, true); }
+function executeVRCPL(i) { vectorRecip(i, rcp16, true); }
 
 // Vector Element Scalar Reciprocal (Double Precision High).
 function executeVRCPH(i) { vectorRecipHigh(i); }
 
-function vectorRecipSqrt(i, dpInstruction) {
-  const vt = cop2VT(i);
-  const vte = cop2E(i);
-
-  // Handle double or single precision.
-  const val16 = rsp.getVecS16(vt, vte & 7);
-  const input = (dpInstruction && rsp.divDP) ? ((rsp.divIn << 16) | (val16 & 0xffff)) : val16;
-
-  // Accumulator is set to the entire input vector.
-  vectorSetAccFromReg(vt, vte);
-
-  // Output is set to the result.
-  const result = rsq16(input);
-  rsp.divDP = false;
-  rsp.divOut = result >> 16;
-  rsp.setVecS16(cop2VD(i), cop2DE(i) & 7, result & 0xffff);
-}
-
 // Vector Element Scalar SQRT Reciprocal.
-function executeVRSQ(i) { vectorRecipSqrt(i, false); }
+function executeVRSQ(i) { vectorRecip(i, rsq16, false); }
 
 // Vector Element Scalar SQRT Reciprocal (Double Precision Low).
-function executeVRSQL(i) { vectorRecipSqrt(i, true); }
+function executeVRSQL(i) { vectorRecip(i, rsq16, true); }
 
 // Vector Element Scalar SQRT Reciprocal (Double Precision High).
 function executeVRSQH(i) { vectorRecipHigh(i); }
