@@ -1495,18 +1495,13 @@ function executeVAND(i) {
   const vs = cop2VS(i);
   const vt = cop2VT(i);
 
-  const dv = rsp.vecTemp;
   let select = rsp.vecSelectU32[cop2E(i)];
-
   for (let el = 0; el < 8; el++, select >>= 4) {
-    const s = rsp.getVecS16(vs, el);
+    const s = rsp.getVecU16(vs, el);
     const t = rsp.getVecU16(vt, select & 0x7);
-    const result = s & t;
-
-    dv.setInt16(el * 2, result);
-    rsp.setAccLow(el, result);
+    rsp.setAccLow(el, s & t);
   }
-  rsp.setVecFromTemp(cop2VD(i));
+  rsp.setVecFromAccLow(cop2VD(i));
 }
 
 // Vector NAND of Short Elements.
@@ -1514,18 +1509,13 @@ function executeVNAND(i) {
   const vs = cop2VS(i);
   const vt = cop2VT(i);
 
-  const dv = rsp.vecTemp;
   let select = rsp.vecSelectU32[cop2E(i)];
-
   for (let el = 0; el < 8; el++, select >>= 4) {
-    const s = rsp.getVecS16(vs, el);
+    const s = rsp.getVecU16(vs, el);
     const t = rsp.getVecU16(vt, select & 0x7);
-    const result = ~(s & t);
-
-    dv.setInt16(el * 2, result);
-    rsp.setAccLow(el, result);
+    rsp.setAccLow(el,  ~(s & t));
   }
-  rsp.setVecFromTemp(cop2VD(i));
+  rsp.setVecFromAccLow(cop2VD(i));
 }
 
 // Vector OR of Short Elements.
@@ -1533,18 +1523,13 @@ function executeVOR(i) {
   const vs = cop2VS(i);
   const vt = cop2VT(i);
 
-  const dv = rsp.vecTemp;
   let select = rsp.vecSelectU32[cop2E(i)];
-
   for (let el = 0; el < 8; el++, select >>= 4) {
-    const s = rsp.getVecS16(vs, el);
+    const s = rsp.getVecU16(vs, el);
     const t = rsp.getVecU16(vt, select & 0x7);
-    const result = s | t;
-
-    dv.setInt16(el * 2, result);
-    rsp.setAccLow(el, result);
+    rsp.setAccLow(el, s | t);
   }
-  rsp.setVecFromTemp(cop2VD(i));
+  rsp.setVecFromAccLow(cop2VD(i));
 }
 
 // Vector NOR of Short Elements.
@@ -1552,18 +1537,13 @@ function executeVNOR(i) {
   const vs = cop2VS(i);
   const vt = cop2VT(i);
 
-  const dv = rsp.vecTemp;
   let select = rsp.vecSelectU32[cop2E(i)];
-
   for (let el = 0; el < 8; el++, select >>= 4) {
-    const s = rsp.getVecS16(vs, el);
+    const s = rsp.getVecU16(vs, el);
     const t = rsp.getVecU16(vt, select & 0x7);
-    const result = ~(s | t);
-
-    dv.setInt16(el * 2, result);
-    rsp.setAccLow(el, result);
+    rsp.setAccLow(el, ~(s | t));
   }
-  rsp.setVecFromTemp(cop2VD(i));
+  rsp.setVecFromAccLow(cop2VD(i));
 }
 
 // Vector XOR of Short Elements.
@@ -1571,18 +1551,13 @@ function executeVXOR(i) {
   const vs = cop2VS(i);
   const vt = cop2VT(i);
 
-  const dv = rsp.vecTemp;
   let select = rsp.vecSelectU32[cop2E(i)];
-
   for (let el = 0; el < 8; el++, select >>= 4) {
-    const s = rsp.getVecS16(vs, el);
+    const s = rsp.getVecU16(vs, el);
     const t = rsp.getVecU16(vt, select & 0x7);
-    const result = s ^ t;
-
-    dv.setInt16(el * 2, result);
-    rsp.setAccLow(el, result);
+    rsp.setAccLow(el, s ^ t);
   }
-  rsp.setVecFromTemp(cop2VD(i));
+  rsp.setVecFromAccLow(cop2VD(i));
 }
 
 // Vector NXOR of Short Elements.
@@ -1590,18 +1565,13 @@ function executeVNXOR(i) {
   const vs = cop2VS(i);
   const vt = cop2VT(i);
 
-  const dv = rsp.vecTemp;
   let select = rsp.vecSelectU32[cop2E(i)];
-
   for (let el = 0; el < 8; el++, select >>= 4) {
-    const s = rsp.getVecS16(vs, el);
+    const s = rsp.getVecU16(vs, el);
     const t = rsp.getVecU16(vt, select & 0x7);
-    const result = ~(s ^ t);
-
-    dv.setInt16(el * 2, result);
-    rsp.setAccLow(el, result);
+    rsp.setAccLow(el, ~(s ^ t));
   }
-  rsp.setVecFromTemp(cop2VD(i));
+  rsp.setVecFromAccLow(cop2VD(i));
 }
 
 function vrcp(i, dpInstruction) {
