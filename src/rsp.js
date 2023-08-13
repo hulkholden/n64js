@@ -1636,12 +1636,8 @@ function vrsq(i, dpInstruction) {
   const input = (dpInstruction && rsp.divDP) ? ((rsp.divIn << 16) | (val16 & 0xffff)) : val16;
 
   // Accumulator is set to the entire input vector.
-  // TODO: add helper + dedupe with VRCPH.
-  let select = rsp.vecSelectU32[vte];
-  for (let el = 0; el < 8; el++, select >>= 4) {
-    const val = rsp.getVecS16(vt, select & 0x7);
-    rsp.setAccLow(el, val);
-  }
+  vectorSetAccFromReg(vte, vt);
+
 
   // Output is set to the result.
   const result = rsq16(input);
@@ -1666,12 +1662,7 @@ function executeVRSQH(i) {
   const vte = cop2E(i);
 
   // Accumulator is set to the entire input vector.
-  // TODO: add helper + dedupe with VRCP.
-  let select = rsp.vecSelectU32[vte];
-  for (let el = 0; el < 8; el++, select >>= 4) {
-    const val = rsp.getVecS16(vt, select & 0x7);
-    rsp.setAccLow(el, val);
-  }
+  vectorSetAccFromReg(vte, vt);
 
   rsp.divDP = true;
   rsp.divIn = rsp.getVecS16(vt, vte & 7);
