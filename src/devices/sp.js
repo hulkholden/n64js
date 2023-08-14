@@ -242,8 +242,8 @@ export class SPRegDevice extends Device {
     let startRsp = false;
     let stopRsp = false;
 
-    if (flags & SP_CLR_HALT) { clrBits |= SP_STATUS_HALT; startRsp = true; }
     if (flags & SP_SET_HALT) { setBits |= SP_STATUS_HALT; stopRsp = true; }
+    else if (flags & SP_CLR_HALT) { clrBits |= SP_STATUS_HALT; startRsp = true; }
 
     if (flags & SP_SET_INTR) { this.hardware.mi_reg.setBits32(mi.MI_INTR_REG, mi.MI_INTR_SP); n64js.cpu0.updateCause3(); }   // Shouldn't ever set this?
     else if (flags & SP_CLR_INTR) { this.hardware.mi_reg.clearBits32(mi.MI_INTR_REG, mi.MI_INTR_SP); n64js.cpu0.updateCause3(); }
