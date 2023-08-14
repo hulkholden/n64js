@@ -239,14 +239,12 @@ export class SPRegDevice extends Device {
     function setOrClear(statusBits, flags, clrMask, setMask, bit) {
       const set = flags & setMask;
       const clr = flags & clrMask;
-      if (set && clr) {
-        // No-op if both set and clear are set.
-        return statusBits;
-      } else if (set) { 
-        return statusBits |= bit;
-      } else {
-        return statusBits &= ~bit;
+      if (set && !clr) { 
+        return statusBits | bit;
+      } else if (clr && !set) {
+        return statusBits & ~bit;
       }
+      return statusBits;
     }
 
     let statusBits = this.mem.getU32(SP_STATUS_REG);
