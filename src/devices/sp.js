@@ -319,6 +319,7 @@ export class SPRegDevice extends Device {
     this.mem.set32(SP_MEM_ADDR_REG, (bankBit | (memOffset) & 0xfff));
     this.mem.set32(SP_DRAM_ADDR_REG, ramOffset);
     this.mem.set32masked(SP_RD_LEN_REG, 0xff8 << lenRegLenShift, lenRegCountMask | lenRegLenMask);
+    this.mem.set32masked(SP_WR_LEN_REG, 0xff8 << lenRegLenShift, lenRegCountMask | lenRegLenMask);
 
     this.mem.setBits32(SP_DMA_BUSY_REG, 0);
     this.mem.clearBits32(SP_STATUS_REG, SP_STATUS_DMA_BUSY);
@@ -357,6 +358,7 @@ export class SPRegDevice extends Device {
     this.mem.set32(SP_MEM_ADDR_REG, (bankBit | (memOffset) & 0xfff));
     this.mem.set32(SP_DRAM_ADDR_REG, ramOffset);
     this.mem.set32masked(SP_RD_LEN_REG, 0xff8 << lenRegLenShift, lenRegCountMask | lenRegLenMask);
+    this.mem.set32masked(SP_WR_LEN_REG, 0xff8 << lenRegLenShift, lenRegCountMask | lenRegLenMask);
 
     this.mem.setBits32(SP_DMA_BUSY_REG, 0);
     this.mem.clearBits32(SP_STATUS_REG, SP_STATUS_DMA_BUSY);
