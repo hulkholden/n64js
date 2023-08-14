@@ -142,14 +142,13 @@ export class SPRegDevice extends Device {
   // TODO: set SP_SEMAPHORE_REG to 1 after any read.
 
   write32(address, value) {
-    const ea = this.calcWriteEA(address);
+    this.writeReg32(this.calcWriteEA(address), value);
+  }
+
+  writeReg32(ea, value) {
     if (ea + 4 > this.u8.length) {
       throw 'Write is out of range';
     }
-    this.writeReg(ea, value);
-  }
-
-  writeReg(ea, value) {
     switch (ea) {
       case SP_MEM_ADDR_REG:
         // TODO: register is latched and shouldn't return this value immediately.
@@ -182,6 +181,22 @@ export class SPRegDevice extends Device {
         logger.log(`Unhandled write to SPReg: ${toString32(value)} -> [${toString32(address)}]`);
         this.mem.set32(ea, value);
     }
+  }
+
+  readU32(address) {
+    this.logRead(address);
+    return this.readRegU32(this.calcReadEA(address));
+  }
+  readS32(address) {
+    this.logRead(address);
+    return this.readRegU32(this.calcReadEA(address)) >> 0;
+  }
+
+  readRegU32(ea) {
+    if (ea + 4 > this.u8.length) {
+      throw 'Read is out of range';
+    }
+    return this.mem.getU32(ea);
   }
 
   halt() {
