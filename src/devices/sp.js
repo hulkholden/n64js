@@ -139,8 +139,6 @@ export class SPRegDevice extends Device {
     super("SPReg", hardware, hardware.sp_reg, rangeStart, rangeEnd);
   }
 
-  // TODO: set SP_SEMAPHORE_REG to 1 after any read.
-
   write32(address, value) {
     this.writeReg32(this.calcWriteEA(address), value);
   }
@@ -174,7 +172,8 @@ export class SPRegDevice extends Device {
         // Unwritable.
         break;
       case SP_SEMAPHORE_REG:
-        this.mem.set32(ea, value);
+        // Writing any value causes next read to be 0.
+        this.mem.set32(ea, 0);
         break;
 
       default:
@@ -196,7 +195,12 @@ export class SPRegDevice extends Device {
     if (ea + 4 > this.u8.length) {
       throw 'Read is out of range';
     }
-    return this.mem.getU32(ea);
+    const value = this.mem.getU32(ea);
+    if (ea == SP_SEMAPHORE_REG) {
+      // Reading causes next read to be 1.
+      this.mem.set32(ea, 1);
+    }
+    return value;
   }
 
   halt() {
