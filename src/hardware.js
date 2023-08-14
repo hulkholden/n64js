@@ -124,10 +124,9 @@ export class Hardware {
 
     this.initSaveGame();
 
-    this.piRegDevice.reset();
-    this.miRegDevice.reset();
-    this.riRegDevice.reset();
-    this.viRegDevice.reset();
+    for (let d of this.devices) {
+      d.reset();
+    }
   }
 
   createROM(arrayBuffer) {

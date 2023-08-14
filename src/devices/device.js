@@ -33,6 +33,11 @@ export class Device {
   }
 
   /**
+   * Resets the device.
+   */
+  reset() {}
+
+  /**
    * Calculate the relative offset of the address for this device.
    * The default implementation calculates the offset from the rangeStart, but
    * other approaches can be used like wrapping at a certain length.
