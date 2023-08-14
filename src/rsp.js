@@ -46,14 +46,17 @@ const controlRegSPStatus = 4;
 const controlRegSPDmaFull = 5;
 const controlRegSPDmaBusy = 6;
 const controlRegSPSemaphore = 7;
-const DPC_START_REG = 8;
-const DPC_END_REG = 9;
-const DPC_CURRENT_REG = 10;
-const DPC_STATUS_REG = 11;
-const DPC_CLOCK_REG = 12;
-const DPC_BUFBUSY_REG = 13;
-const DPC_PIPEBUSY_REG = 14;
-const DPC_TMEM_REG = 15;
+const controlRegDPCStart = 8;
+const controlRegDPCEnd = 9;
+const controlRegDPCCurrent = 10;
+const controlRegDPCStatus = 11;
+const controlRegDPCClock = 12;
+const controlRegDPCBufBusy = 13;
+const controlRegDPCPipeBusy = 14;
+const controlRegDPCTMEM = 15;
+
+function controlRegToSPReg(r) { return r * 4; }
+function controlRegToDPCReg(r) { return (r - controlRegDPCStart) * 4; }
 
 // TODO: dedupe with sp.js.
 const SP_MEM_ADDR_REG = 0x00;
@@ -436,87 +439,54 @@ class RSP {
   }
 
   moveFromControl(controlReg) {
-    let value = 0;
     switch (controlReg) {
       case controlRegSPMemAddr:
-        break;
       case controlRegSPRamAddr:
-        break;
       case controlRegSPReadLen:
-        break;
       case controlRegSPWriteLen:
-        break;
       case controlRegSPStatus:
-        value = this.hardware.sp_reg.getU32(SP_STATUS_REG);
-        break;
       case controlRegSPDmaFull:
-        break;
       case controlRegSPDmaBusy:
-        break;
       case controlRegSPSemaphore:
-        break;
-      case DPC_START_REG:
-        break;
-      case DPC_END_REG:
-        break;
-      case DPC_CURRENT_REG:
-        break;
-      case DPC_STATUS_REG:
-        break;
-      case DPC_CLOCK_REG:
-        break;
-      case DPC_BUFBUSY_REG:
-        break;
-      case DPC_PIPEBUSY_REG:
-        break;
-      case DPC_TMEM_REG:
-        break;
-      default:
-        console.log(`Unhandled RSP MFC0 register: ${controlReg}`)
-        break;
+        return this.hardware.spRegDevice.readRegU32(controlRegToSPReg(controlReg));
+      case controlRegDPCStart:
+      case controlRegDPCEnd:
+      case controlRegDPCCurrent:
+      case controlRegDPCStatus:
+      case controlRegDPCClock:
+      case controlRegDPCBufBusy:
+      case controlRegDPCPipeBusy:
+      case controlRegDPCTMEM:
+        return this.hardware.dpcDevice.readRegU32(controlRegToDPCReg(controlReg));
     }
-    console.log(`MFC0: ${controlReg} returns ${toString32(value)}`)
+    console.log(`MFC0: ${controlReg} unhandled - returning 0`)
     return 0;
   }
 
   moveToControl(controlReg, value) {
-    console.log(`MTC0: ${controlReg} ${value}`)
     switch (controlReg) {
       case controlRegSPMemAddr:
-        break;
       case controlRegSPRamAddr:
-        break;
       case controlRegSPReadLen:
-        break;
       case controlRegSPWriteLen:
-        break;
       case controlRegSPStatus:
-        this.hardware.spRegDevice.writeReg(controlReg * 4, value);
-        break;
       case controlRegSPDmaFull:
-        break;
       case controlRegSPDmaBusy:
-        break;
       case controlRegSPSemaphore:
+        this.hardware.spRegDevice.writeReg32(controlRegToSPReg(controlReg), value);
         break;
-      case DPC_START_REG:
-        break;
-      case DPC_END_REG:
-        break;
-      case DPC_CURRENT_REG:
-        break;
-      case DPC_STATUS_REG:
-        break;
-      case DPC_CLOCK_REG:
-        break;
-      case DPC_BUFBUSY_REG:
-        break;
-      case DPC_PIPEBUSY_REG:
-        break;
-      case DPC_TMEM_REG:
+      case controlRegDPCStart:
+      case controlRegDPCEnd:
+      case controlRegDPCCurrent:
+      case controlRegDPCStatus:
+      case controlRegDPCClock:
+      case controlRegDPCBufBusy:
+      case controlRegDPCPipeBusy:
+      case controlRegDPCTMEM:
+        this.hardware.dpcDevice.writeReg32(controlRegToDPCReg(controlReg), value);
         break;
       default:
-        console.log(`Unhandled RSP MTC0 register: ${controlReg}`)
+        console.log(`Unhandled RSP MTC0 register: ${controlReg} = ${toString32(value)}`)
         break;
     }
   }

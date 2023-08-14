@@ -40,11 +40,13 @@ export class DPCDevice extends Device {
   }
 
   write32(address, value) {
-    const ea = this.calcWriteEA(address);
+    this.writeReg32(this.calcWriteEA(address), value);
+  }
+
+  writeReg32(ea, value) {
     if (ea + 4 > this.u8.length) {
       throw 'Write is out of range';
     }
-
     switch (ea) {
       case DPC_START_REG:
         if (!this.quiet) { logger.log(`DPC start set to: ${toString32(value)}`); }
@@ -77,19 +79,21 @@ export class DPCDevice extends Device {
     }
   }
 
+  readU32(address) {
+    this.logRead(address);
+    return this.readRegU32(this.calcReadEA(address));
+  }
   readS32(address) {
     this.logRead(address);
-    const ea = this.calcReadEA(address);
+    return this.readRegU32(this.calcReadEA(address)) >> 0;
+  }
 
+  readRegU32(ea) {
     if (ea + 4 > this.u8.length) {
       throw 'Read is out of range';
     }
-    return this.mem.getS32(ea);
-  };
-
-  readU32(address) {
-    return this.readS32(address) >>> 0;
-  };
+    return this.mem.getU32(ea);
+  }
 
   updateStatus(value) {
     let dpcStatus = this.mem.getU32(DPC_STATUS_REG);
