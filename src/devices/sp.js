@@ -236,44 +236,43 @@ export class SPRegDevice extends Device {
       if (flags & SP_SET_SIG7) { logger.log('SP: Setting Sig7'); }
     }
 
-    let clrBits = 0;
-    let setBits = 0;
+    function setOrClear(statusBits, flags, clrMask, setMask, bit) {
+      const set = flags & setMask;
+      const clr = flags & clrMask;
+      if (set && clr) {
+        // No-op if both set and clear are set.
+        return statusBits;
+      } else if (set) { 
+        return statusBits |= bit;
+      } else {
+        return statusBits &= ~bit;
+      }
+    }
+
+    let statusBits = this.mem.getU32(SP_STATUS_REG);
 
     let startRsp = false;
     let stopRsp = false;
 
-    if (flags & SP_SET_HALT) { setBits |= SP_STATUS_HALT; stopRsp = true; }
-    else if (flags & SP_CLR_HALT) { clrBits |= SP_STATUS_HALT; startRsp = true; }
+    if ((flags & SP_SET_HALT) && (flags & SP_CLR_HALT)) { /* no-op */ }
+    else if (flags & SP_SET_HALT) { statusBits |= SP_STATUS_HALT; stopRsp = true; }
+    else if (flags & SP_CLR_HALT) { statusBits &= ~SP_STATUS_HALT; startRsp = true; }
 
-    if (flags & SP_SET_INTR) { this.hardware.mi_reg.setBits32(mi.MI_INTR_REG, mi.MI_INTR_SP); n64js.cpu0.updateCause3(); }   // Shouldn't ever set this?
+    if ((flags & SP_SET_INTR) && (flags & SP_CLR_INTR)) { /* no-op */ }
+    else if (flags & SP_SET_INTR) { this.hardware.mi_reg.setBits32(mi.MI_INTR_REG, mi.MI_INTR_SP); n64js.cpu0.updateCause3(); }   // Shouldn't ever set this?
     else if (flags & SP_CLR_INTR) { this.hardware.mi_reg.clearBits32(mi.MI_INTR_REG, mi.MI_INTR_SP); n64js.cpu0.updateCause3(); }
 
-    clrBits |= (flags & SP_CLR_BROKE) >> 1;
-    clrBits |= (flags & SP_CLR_SSTEP);
-    clrBits |= (flags & SP_CLR_INTR_BREAK) >> 1;
-    clrBits |= (flags & SP_CLR_SIG0) >> 2;
-    clrBits |= (flags & SP_CLR_SIG1) >> 3;
-    clrBits |= (flags & SP_CLR_SIG2) >> 4;
-    clrBits |= (flags & SP_CLR_SIG3) >> 5;
-    clrBits |= (flags & SP_CLR_SIG4) >> 6;
-    clrBits |= (flags & SP_CLR_SIG5) >> 7;
-    clrBits |= (flags & SP_CLR_SIG6) >> 8;
-    clrBits |= (flags & SP_CLR_SIG7) >> 9;
-
-    setBits |= (flags & SP_SET_SSTEP) >> 1;
-    setBits |= (flags & SP_SET_INTR_BREAK) >> 2;
-    setBits |= (flags & SP_SET_SIG0) >> 3;
-    setBits |= (flags & SP_SET_SIG1) >> 4;
-    setBits |= (flags & SP_SET_SIG2) >> 5;
-    setBits |= (flags & SP_SET_SIG3) >> 6;
-    setBits |= (flags & SP_SET_SIG4) >> 7;
-    setBits |= (flags & SP_SET_SIG5) >> 8;
-    setBits |= (flags & SP_SET_SIG6) >> 9;
-    setBits |= (flags & SP_SET_SIG7) >> 10;
-
-    let statusBits = this.mem.getU32(SP_STATUS_REG);
-    statusBits &= ~clrBits;
-    statusBits |= setBits;
+    statusBits = setOrClear(statusBits, flags, SP_CLR_BROKE, 0, SP_STATUS_BROKE);
+    statusBits = setOrClear(statusBits, flags, SP_CLR_SSTEP, SP_SET_SSTEP, SP_STATUS_SSTEP);
+    statusBits = setOrClear(statusBits, flags, SP_CLR_INTR_BREAK, SP_SET_INTR_BREAK, SP_STATUS_INTR_BREAK);
+    statusBits = setOrClear(statusBits, flags, SP_CLR_SIG0, SP_SET_SIG0, SP_STATUS_SIG0);
+    statusBits = setOrClear(statusBits, flags, SP_CLR_SIG1, SP_SET_SIG1, SP_STATUS_SIG1);
+    statusBits = setOrClear(statusBits, flags, SP_CLR_SIG2, SP_SET_SIG2, SP_STATUS_SIG2);
+    statusBits = setOrClear(statusBits, flags, SP_CLR_SIG3, SP_SET_SIG3, SP_STATUS_SIG3);
+    statusBits = setOrClear(statusBits, flags, SP_CLR_SIG4, SP_SET_SIG4, SP_STATUS_SIG4);
+    statusBits = setOrClear(statusBits, flags, SP_CLR_SIG5, SP_SET_SIG5, SP_STATUS_SIG5);
+    statusBits = setOrClear(statusBits, flags, SP_CLR_SIG6, SP_SET_SIG6, SP_STATUS_SIG6);
+    statusBits = setOrClear(statusBits, flags, SP_CLR_SIG7, SP_SET_SIG7, SP_STATUS_SIG7);
     this.mem.set32(SP_STATUS_REG, statusBits);
 
     if (startRsp) {
