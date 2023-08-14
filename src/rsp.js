@@ -407,14 +407,14 @@ class RSP {
       // TODO: remove this when we run in parallel to the CPU.
       if (count > 1_000_000) {
         console.log(`took over ${count} ops - halting`)
-        this.halt();
+        this.halt(0);
       }
       count++;
     }
   }
 
-  halt() {
-    const status = this.hardware.sp_reg.setBits32(SP_STATUS_REG, SP_STATUS_BROKE | SP_STATUS_HALT);
+  halt(statusBits) {
+    const status = this.hardware.sp_reg.setBits32(SP_STATUS_REG, statusBits | SP_STATUS_HALT);
     if (status & SP_STATUS_INTR_BREAK) {
       this.hardware.miRegDevice.interruptSP();
     }
@@ -749,7 +749,7 @@ function executeJALR(i) {
 }
 
 // FIXME: actually signal break.
-function executeBREAK(i) { rsp.halt(); }
+function executeBREAK(i) { rsp.halt(SP_STATUS_BROKE); }
 function executeADD(i) { rsp.setRegS32(rd(i), rsp.getRegS32(rs(i)) + rsp.getRegS32(rt(i))); }
 function executeADDU(i) { rsp.setRegU32(rd(i), rsp.getRegU32(rs(i)) + rsp.getRegU32(rt(i))); }
 function executeSUB(i) { rsp.setRegS32(rd(i), rsp.getRegS32(rs(i)) - rsp.getRegS32(rt(i))); }

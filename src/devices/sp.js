@@ -286,7 +286,7 @@ export class SPRegDevice extends Device {
         }
       }
     } else if (stopRsp) {
-      // As we handle all RSP via HLE, nothing to do here.
+      n64js.rsp.halt(0);
     }
   }
 
