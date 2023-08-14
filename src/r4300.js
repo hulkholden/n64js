@@ -856,7 +856,7 @@ class CPU0 {
 
   raiseTLBException(address32, exc_code, vec) { 
     // TODO: plumb 64 bit addresses everywhere.
-    const address64 = BigInt(address32 >>> 0);
+    const address64 = BigInt(address32 >> 0);
     this.setBadVAddr(address64);
     this.setContext(address64);
     this.setXContext(address64);
@@ -868,7 +868,7 @@ class CPU0 {
 
   raiseAdELException(address32) {
     // TODO: plumb 64 bit addresses everywhere.
-    const address64 = BigInt(address32 >>> 0);
+    const address64 = BigInt(address32 >> 0);
     this.setBadVAddr(address64);
     this.setContext(address64);
     this.setXContext(address64);
