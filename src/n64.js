@@ -294,7 +294,7 @@ n64js.reset = () => {
   // Simulate boot
   hardware.loadROM();
 
-  simulateBoot(n64js.cpu0, rominfo);
+  simulateBoot(n64js.cpu0, hardware, rominfo);
 
   startTime = new Date();
   lastPresentTime = undefined;

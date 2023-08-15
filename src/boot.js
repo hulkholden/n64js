@@ -1,8 +1,12 @@
 import * as cpu0_constants from './cpu0_constants.js';
 
-export function simulateBoot(cpu0, rominfo) {
+export function simulateBoot(cpu0, hardware, rominfo) {
   const country = rominfo.country;
   const cicChip = rominfo.cic;
+
+  // Create a DataView of IMEM so we can initialise it.
+  // TODO: should cache this somewhere.
+  const imem = new DataView(hardware.sp_mem.arrayBuffer, 0x1000, 0x1000);
 
   function setGPR(reg, hi, lo) {
     cpu0.setRegS64LoHi(reg, lo, hi);
@@ -37,6 +41,8 @@ export function simulateBoot(cpu0, rominfo) {
   setGPR(29, 0xFFFFFFFF, 0xA4001FF0);
   setGPR(30, 0x00000000, 0x00000000);
 
+  let imem4 = 0;
+
   switch (country) {
     case 0x44: //Germany
     case 0x46: //french
@@ -58,7 +64,7 @@ export function simulateBoot(cpu0, rominfo) {
           setGPR(24, 0x00000000, 0x00000000);
           break;
         case '6105':
-          //*(u32 *)&pIMemBase[0x04] = 0xBDA807FC;
+          imem4 = 0xBDA807FC;
           setGPR(5, 0xFFFFFFFF, 0xDECAAAD1);
           setGPR(14, 0x00000000, 0x0CF85C13);
           setGPR(24, 0x00000000, 0x00000002);
@@ -91,7 +97,7 @@ export function simulateBoot(cpu0, rominfo) {
           setGPR(14, 0x00000000, 0x5BACA1DF);
           break;
         case '6105':
-          //*(u32  *)&pIMemBase[0x04] = 0x8DA807FC;
+          imem4 = 0x8DA807FC;
           setGPR(5, 0x00000000, 0x5493FB9A);
           setGPR(14, 0xFFFFFFFF, 0xC2C20384);
           break;
@@ -136,13 +142,17 @@ export function simulateBoot(cpu0, rominfo) {
       setGPR(25, 0xFFFFFFFF, 0x825B21C9);
       break;
     case '6105':
-      //*(u32  *)&pIMemBase[0x00] = 0x3C0DBFC0;
-      //*(u32  *)&pIMemBase[0x08] = 0x25AD07C0;
-      //*(u32  *)&pIMemBase[0x0C] = 0x31080080;
-      //*(u32  *)&pIMemBase[0x10] = 0x5500FFFC;
-      //*(u32  *)&pIMemBase[0x14] = 0x3C0DBFC0;
-      //*(u32  *)&pIMemBase[0x18] = 0x8DA80024;
-      //*(u32  *)&pIMemBase[0x1C] = 0x3C0BB000;
+      // IPL1 or IPL2 leaves this junk in imem which CIC x105 ends up XORing
+      // to decrypt and executing on the RSP.
+      imem.setUint32(0x00, 0x3c0dbfc0);
+      imem.setUint32(0x04, imem4);
+      imem.setUint32(0x08, 0x25ad07c0);
+      imem.setUint32(0x0c, 0x31080080);
+      imem.setUint32(0x10, 0x5500fffc);
+      imem.setUint32(0x14, 0x3c0dbfc0);
+      imem.setUint32(0x18, 0x8da80024);
+      imem.setUint32(0x1c, 0x3c0bb000); 
+
       setGPR(1, 0x00000000, 0x00000000);
       setGPR(2, 0xFFFFFFFF, 0xF58B0FBF);
       setGPR(3, 0xFFFFFFFF, 0xF58B0FBF);
