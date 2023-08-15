@@ -725,8 +725,8 @@ const simpleTable = (() => {
 
 
 function executedUnknown(i) {
-  rsp.disassembleOp(rsp.pc, i);
-  n64js.halt(`unknown op ${toString32(i)}`);
+  rsp.disassembleAll();
+  n64js.halt(`RSP: unknown op, pc: ${toString16(rsp.pc)}, instruction: ${toString32(i)}`);
 }
 
 function executeUnhandled(name, i) {

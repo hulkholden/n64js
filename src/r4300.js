@@ -1305,7 +1305,7 @@ function unimplemented(pc, i) {
 }
 
 function executeUnknown(i) {
-  throw `Unknown op, pc: ${toString32(cpu0.pc)}, instruction: ${toString32(i)}`;
+  throw `CPU: unknown op, pc: ${toString32(cpu0.pc)}, instruction: ${toString32(i)}`;
 }
 
 function executeRESERVED(i) {
