@@ -8,38 +8,34 @@ export function simulateBoot(cpu0, hardware, rominfo) {
   // TODO: should cache this somewhere.
   const imem = new DataView(hardware.sp_mem.arrayBuffer, 0x1000, 0x1000);
 
-  function setGPR(reg, hi, lo) {
-    cpu0.setRegS64LoHi(reg, lo, hi);
-  }
-
-  cpu0.setControlU32(cpu0_constants.controlStatus, 0x241000E0);
-  cpu0.setControlU32(cpu0_constants.controlConfig, 0x7006E463);
+  cpu0.setControlU32(cpu0_constants.controlStatus, 0x241000e0);
+  cpu0.setControlU32(cpu0_constants.controlConfig, 0x7006e463);
   cpu0.setControlU32(cpu0_constants.controlCount, 0x5000);
   cpu0.setControlU32(cpu0_constants.controlCause, 0x30000000);
   cpu0.setControlU32(cpu0_constants.controlPRId, 0xb22);
-  cpu0.setControlU32(cpu0_constants.controlContext, 0x007FFFF0);
-  cpu0.setControlU32(cpu0_constants.controlEPC, 0xFFFFFFFF);
-  cpu0.setControlU32(cpu0_constants.controlBadVAddr, 0xFFFFFFFF);
-  cpu0.setControlU32(cpu0_constants.controlErrorEPC, 0xFFFFFFFF);
+  cpu0.setControlU32(cpu0_constants.controlContext, 0x007ffff0);
+  cpu0.setControlU32(cpu0_constants.controlEPC, 0xffffffff);
+  cpu0.setControlU32(cpu0_constants.controlBadVAddr, 0xffffffff);
+  cpu0.setControlU32(cpu0_constants.controlErrorEPC, 0xffffffff);
   n64js.cop1ControlChanged();
 
-  setGPR(0, 0x00000000, 0x00000000);
-  setGPR(6, 0xFFFFFFFF, 0xA4001F0C);
-  setGPR(7, 0xFFFFFFFF, 0xA4001F08);
-  setGPR(8, 0x00000000, 0x000000C0);
-  setGPR(9, 0x00000000, 0x00000000);
-  setGPR(10, 0x00000000, 0x00000040);
-  setGPR(11, 0xFFFFFFFF, 0xA4000040);
-  setGPR(16, 0x00000000, 0x00000000);
-  setGPR(17, 0x00000000, 0x00000000);
-  setGPR(18, 0x00000000, 0x00000000);
-  setGPR(19, 0x00000000, 0x00000000);
-  setGPR(21, 0x00000000, 0x00000000);
-  setGPR(26, 0x00000000, 0x00000000);
-  setGPR(27, 0x00000000, 0x00000000);
-  setGPR(28, 0x00000000, 0x00000000);
-  setGPR(29, 0xFFFFFFFF, 0xA4001FF0);
-  setGPR(30, 0x00000000, 0x00000000);
+  cpu0.setRegU64(0, 0x00000000_00000000n);
+  cpu0.setRegU64(6, 0xffffffff_a4001f0cn);
+  cpu0.setRegU64(7, 0xffffffff_a4001f08n);
+  cpu0.setRegU64(8, 0x00000000_000000c0n);
+  cpu0.setRegU64(9, 0x00000000_00000000n);
+  cpu0.setRegU64(10, 0x00000000_00000040n);
+  cpu0.setRegU64(11, 0xffffffff_a4000040n);
+  cpu0.setRegU64(16, 0x00000000_00000000n);
+  cpu0.setRegU64(17, 0x00000000_00000000n);
+  cpu0.setRegU64(18, 0x00000000_00000000n);
+  cpu0.setRegU64(19, 0x00000000_00000000n);
+  cpu0.setRegU64(21, 0x00000000_00000000n);
+  cpu0.setRegU64(26, 0x00000000_00000000n);
+  cpu0.setRegU64(27, 0x00000000_00000000n);
+  cpu0.setRegU64(28, 0x00000000_00000000n);
+  cpu0.setRegU64(29, 0xffffffff_a4001ff0n);
+  cpu0.setRegU64(30, 0x00000000_00000000n);
 
   let imem4 = 0;
 
@@ -54,33 +50,33 @@ export function simulateBoot(cpu0, hardware, rominfo) {
     case 0x59: // X (PAL)
       switch (cicChip) {
         case '6102':
-          setGPR(5, 0xFFFFFFFF, 0xC0F1D859);
-          setGPR(14, 0x00000000, 0x2DE108EA);
-          setGPR(24, 0x00000000, 0x00000000);
+          cpu0.setRegU64(5, 0xffffffff_c0f1d859n);
+          cpu0.setRegU64(14, 0x00000000_2de108ean);
+          cpu0.setRegU64(24, 0x00000000_00000000n);
           break;
         case '6103':
-          setGPR(5, 0xFFFFFFFF, 0xD4646273);
-          setGPR(14, 0x00000000, 0x1AF99984);
-          setGPR(24, 0x00000000, 0x00000000);
+          cpu0.setRegU64(5, 0xffffffff_d4646273n);
+          cpu0.setRegU64(14, 0x00000000_1af99984n);
+          cpu0.setRegU64(24, 0x00000000_00000000n);
           break;
         case '6105':
           imem4 = 0xBDA807FC;
-          setGPR(5, 0xFFFFFFFF, 0xDECAAAD1);
-          setGPR(14, 0x00000000, 0x0CF85C13);
-          setGPR(24, 0x00000000, 0x00000002);
+          cpu0.setRegU64(5, 0xffffffff_decaaad1n);
+          cpu0.setRegU64(14, 0x00000000_0cf85c13n);
+          cpu0.setRegU64(24, 0x00000000_00000002n);
           break;
         case '6106':
-          setGPR(5, 0xFFFFFFFF, 0xB04DC903);
-          setGPR(14, 0x00000000, 0x1AF99984);
-          setGPR(24, 0x00000000, 0x00000002);
+          cpu0.setRegU64(5, 0xffffffff_b04dc903n);
+          cpu0.setRegU64(14, 0x00000000_1af99984n);
+          cpu0.setRegU64(24, 0x00000000_00000002n);
           break;
         default:
           break;
       }
 
-      setGPR(20, 0x00000000, 0x00000000);
-      setGPR(23, 0x00000000, 0x00000006);
-      setGPR(31, 0xFFFFFFFF, 0xA4001554);
+      cpu0.setRegU64(20, 0x00000000_00000000n);
+      cpu0.setRegU64(23, 0x00000000_00000006n);
+      cpu0.setRegU64(31, 0xffffffff_a4001554n);
       break;
     case 0x37: // 7 (Beta)
     case 0x41: // ????
@@ -89,61 +85,62 @@ export function simulateBoot(cpu0, hardware, rominfo) {
     default:
       switch (cicChip) {
         case '6102':
-          setGPR(5, 0xFFFFFFFF, 0xC95973D5);
-          setGPR(14, 0x00000000, 0x2449A366);
+          cpu0.setRegU64(5, 0xffffffff_c95973d5n);
+          cpu0.setRegU64(14, 0x00000000_2449a366n);
           break;
         case '6103':
-          setGPR(5, 0xFFFFFFFF, 0x95315A28);
-          setGPR(14, 0x00000000, 0x5BACA1DF);
+          cpu0.setRegU64(5, 0xffffffff_95315a28n);
+          cpu0.setRegU64(14, 0x00000000_5baca1dfn);
           break;
         case '6105':
           imem4 = 0x8DA807FC;
-          setGPR(5, 0x00000000, 0x5493FB9A);
-          setGPR(14, 0xFFFFFFFF, 0xC2C20384);
+          cpu0.setRegU64(5, 0x00000000_5493fb9an);
+          cpu0.setRegU64(14, 0xffffffff_c2c20384n);
           break;
         case '6106':
-          setGPR(5, 0xFFFFFFFF, 0xE067221F);
-          setGPR(14, 0x00000000, 0x5CD2B70F);
+          cpu0.setRegU64(5, 0xffffffff_e067221fn);
+          cpu0.setRegU64(14, 0x00000000_5cd2b70fn);
           break;
         default:
           break;
       }
-      setGPR(20, 0x00000000, 0x00000001);
-      setGPR(23, 0x00000000, 0x00000000);
-      setGPR(24, 0x00000000, 0x00000003);
-      setGPR(31, 0xFFFFFFFF, 0xA4001550);
+      cpu0.setRegU64(20, 0x00000000_00000001n);
+      cpu0.setRegU64(23, 0x00000000_00000000n);
+      cpu0.setRegU64(24, 0x00000000_00000003n);
+      cpu0.setRegU64(31, 0xffffffff_a4001550n);
   }
 
 
   switch (cicChip) {
     case '6101':
-      setGPR(22, 0x00000000, 0x0000003F);
+      cpu0.setRegU64(22, 0x00000000_0000003fn);
       break;
     case '6102':
-      setGPR(1, 0x00000000, 0x00000001);
-      setGPR(2, 0x00000000, 0x0EBDA536);
-      setGPR(3, 0x00000000, 0x0EBDA536);
-      setGPR(4, 0x00000000, 0x0000A536);
-      setGPR(12, 0xFFFFFFFF, 0xED10D0B3);
-      setGPR(13, 0x00000000, 0x1402A4CC);
-      setGPR(15, 0x00000000, 0x3103E121);
-      setGPR(22, 0x00000000, 0x0000003F);
-      setGPR(25, 0xFFFFFFFF, 0x9DEBB54F);
+      cpu0.setRegU64(1, 0x00000000_00000001n);
+      cpu0.setRegU64(2, 0x00000000_0ebda536n);
+      cpu0.setRegU64(3, 0x00000000_0ebda536n);
+      cpu0.setRegU64(4, 0x00000000_0000a536n);
+      cpu0.setRegU64(12, 0xffffffff_ed10d0b3n);
+      cpu0.setRegU64(13, 0x00000000_1402a4ccn);
+      cpu0.setRegU64(15, 0x00000000_3103e121n);
+      cpu0.setRegU64(22, 0x00000000_0000003fn);
+      cpu0.setRegU64(25, 0xffffffff_9debb54fn);
       break;
     case '6103':
-      setGPR(1, 0x00000000, 0x00000001);
-      setGPR(2, 0x00000000, 0x49A5EE96);
-      setGPR(3, 0x00000000, 0x49A5EE96);
-      setGPR(4, 0x00000000, 0x0000EE96);
-      setGPR(12, 0xFFFFFFFF, 0xCE9DFBF7);
-      setGPR(13, 0xFFFFFFFF, 0xCE9DFBF7);
-      setGPR(15, 0x00000000, 0x18B63D28);
-      setGPR(22, 0x00000000, 0x00000078);
-      setGPR(25, 0xFFFFFFFF, 0x825B21C9);
+      cpu0.setRegU64(1, 0x00000000_00000001n);
+      cpu0.setRegU64(2, 0x00000000_49a5ee96n);
+      cpu0.setRegU64(3, 0x00000000_49a5ee96n);
+      cpu0.setRegU64(4, 0x00000000_0000ee96n);
+      cpu0.setRegU64(12, 0xffffffff_ce9dfbf7n);
+      cpu0.setRegU64(13, 0xffffffff_ce9dfbf7n);
+      cpu0.setRegU64(15, 0x00000000_18b63d28n);
+      cpu0.setRegU64(22, 0x00000000_00000078n);
+      cpu0.setRegU64(25, 0xffffffff_825b21c9n);
       break;
     case '6105':
       // IPL1 or IPL2 leaves this junk in imem which CIC x105 ends up XORing
-      // to decrypt and executing on the RSP.
+      // to decrypt and executing on the RSP during IPL3.
+      // See https://github.com/decompals/N64-IPL/blob/d93544681bfa822865fa8110d88f846b52293e23/src/ipl3.s#L63.
       imem.setUint32(0x00, 0x3c0dbfc0);
       imem.setUint32(0x04, imem4);
       imem.setUint32(0x08, 0x25ad07c0);
@@ -153,26 +150,26 @@ export function simulateBoot(cpu0, hardware, rominfo) {
       imem.setUint32(0x18, 0x8da80024);
       imem.setUint32(0x1c, 0x3c0bb000); 
 
-      setGPR(1, 0x00000000, 0x00000000);
-      setGPR(2, 0xFFFFFFFF, 0xF58B0FBF);
-      setGPR(3, 0xFFFFFFFF, 0xF58B0FBF);
-      setGPR(4, 0x00000000, 0x00000FBF);
-      setGPR(12, 0xFFFFFFFF, 0x9651F81E);
-      setGPR(13, 0x00000000, 0x2D42AAC5);
-      setGPR(15, 0x00000000, 0x56584D60);
-      setGPR(22, 0x00000000, 0x00000091);
-      setGPR(25, 0xFFFFFFFF, 0xCDCE565F);
+      cpu0.setRegU64(1, 0x00000000_00000000n);
+      cpu0.setRegU64(2, 0xffffffff_f58b0fbfn);
+      cpu0.setRegU64(3, 0xffffffff_f58b0fbfn);
+      cpu0.setRegU64(4, 0x00000000_00000fbfn);
+      cpu0.setRegU64(12, 0xffffffff_9651f81en);
+      cpu0.setRegU64(13, 0x00000000_2d42aac5n);
+      cpu0.setRegU64(15, 0x00000000_56584d60n);
+      cpu0.setRegU64(22, 0x00000000_00000091n);
+      cpu0.setRegU64(25, 0xffffffff_cdce565fn);
       break;
     case '6106':
-      setGPR(1, 0x00000000, 0x00000000);
-      setGPR(2, 0xFFFFFFFF, 0xA95930A4);
-      setGPR(3, 0xFFFFFFFF, 0xA95930A4);
-      setGPR(4, 0x00000000, 0x000030A4);
-      setGPR(12, 0xFFFFFFFF, 0xBCB59510);
-      setGPR(13, 0xFFFFFFFF, 0xBCB59510);
-      setGPR(15, 0x00000000, 0x7A3C07F4);
-      setGPR(22, 0x00000000, 0x00000085);
-      setGPR(25, 0x00000000, 0x465E3F72);
+      cpu0.setRegU64(1, 0x00000000_00000000n);
+      cpu0.setRegU64(2, 0xffffffff_a95930a4n);
+      cpu0.setRegU64(3, 0xffffffff_a95930a4n);
+      cpu0.setRegU64(4, 0x00000000_000030a4n);
+      cpu0.setRegU64(12, 0xffffffff_bcb59510n);
+      cpu0.setRegU64(13, 0xffffffff_bcb59510n);
+      cpu0.setRegU64(15, 0x00000000_7a3c07f4n);
+      cpu0.setRegU64(22, 0x00000000_00000085n);
+      cpu0.setRegU64(25, 0x00000000_465e3f72n);
       break;
     default:
       break;
