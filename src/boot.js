@@ -6,15 +6,16 @@ export function simulateBoot(cpu0, hardware, rominfo) {
   // TODO: should cache this somewhere.
   const imem = new DataView(hardware.sp_mem.arrayBuffer, 0x1000, 0x1000);
 
-  cpu0.moveToControl(cpu0_constants.controlStatus, 0x00000000_34000000n);
-  cpu0.moveToControl(cpu0_constants.controlConfig, 0x00000000_0006e463n);
-  cpu0.moveToControl(cpu0_constants.controlCount, 0x00000000_00005000n);
-  cpu0.moveToControl(cpu0_constants.controlCause, 0x00000000_0000005cn);
-  cpu0.moveToControl(cpu0_constants.controlPRId, 0x00000000_00000b22n);
-  cpu0.moveToControl(cpu0_constants.controlContext, 0x00000000_007ffff0n);
-  cpu0.moveToControl(cpu0_constants.controlEPC, 0xffffffff_ffffffffn);
-  cpu0.moveToControl(cpu0_constants.controlBadVAddr, 0xffffffff_ffffffffn);
-  cpu0.moveToControl(cpu0_constants.controlErrorEPC, 0xffffffff_ffffffffn);
+  cpu0.setControlU64(cpu0_constants.controlStatus, 0x00000000_34000000n);
+  cpu0.setControlU64(cpu0_constants.controlConfig, 0x00000000_7006e463n);
+  cpu0.setControlU64(cpu0_constants.controlCount, 0x00000000_00005000n);
+  cpu0.setControlU64(cpu0_constants.controlCause, 0x00000000_0000005cn);
+  cpu0.setControlU64(cpu0_constants.controlPRId, 0x00000000_00000b22n);
+  cpu0.setControlU64(cpu0_constants.controlContext, 0x00000000_007ffff0n);
+  cpu0.setControlU64(cpu0_constants.controlEPC, 0xffffffff_ffffffffn);
+  cpu0.setControlU64(cpu0_constants.controlBadVAddr, 0xffffffff_ffffffffn);
+  cpu0.setControlU64(cpu0_constants.controlErrorEPC, 0xffffffff_ffffffffn);
+  n64js.cop1ControlChanged();
 
   const zero = 0x00000000_00000000n;
   cpu0.setRegU64(0, zero);
