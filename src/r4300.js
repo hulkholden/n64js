@@ -867,12 +867,20 @@ class CPU0 {
   }
 
   raiseAdELException(address32) {
+    this.raiseAddressException(address32, causeExcCodeAdEL);
+  }
+
+  raiseAdESException(address32) {
+    this.raiseAddressException(address32, causeExcCodeAdES);
+  }
+
+  raiseAddressException(address32, code) {
     // TODO: plumb 64 bit addresses everywhere.
     const address64 = BigInt(address32 >> 0);
     this.setBadVAddr(address64);
     this.setContext(address64);
     this.setXContext(address64);
-    this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, causeExcCodeAdEL);
+    this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, code);
   }
 
   handleInterrupt() {
@@ -1123,14 +1131,14 @@ class CPU0 {
     const tlb = this.tlbFindEntry(address);
     if (!tlb) {
       this.raiseTLBException(address, causeExcCodeTLBL, UT_VEC);
-      throw new TLBException(address);
+      throw new EmulatedException();
     }
 
     const odd = address & tlb.checkbit;
     const entryLo = odd ? tlb.pfno : tlb.pfne;
     if ((entryLo & TLBLO_V) === 0) {
       this.raiseTLBException(address, causeExcCodeTLBL, E_VEC)
-      throw new TLBException(address);
+      throw new EmulatedException();
     }
 
     const phys = odd ? tlb.physOdd : tlb.physEven;
@@ -1142,25 +1150,36 @@ class CPU0 {
     const tlb = this.tlbFindEntry(address);
     if (!tlb) {
       this.raiseTLBException(address, causeExcCodeTLBS, UT_VEC);
-      throw new TLBException(address);
+      throw new EmulatedException();
     }
 
     const odd = address & tlb.checkbit;
     const entryLo = odd ? tlb.pfno : tlb.pfne;
     if ((entryLo & TLBLO_V) === 0) {
       this.raiseTLBException(address, causeExcCodeTLBS, E_VEC);
-      throw new TLBException(address);
+      throw new EmulatedException();
     }
     if ((entryLo & TLBLO_D) === 0) {
       this.raiseTLBException(address, causeExcCodeMod, E_VEC);
-      throw new TLBException(address);
+      throw new EmulatedException();
     }
 
     const phys = odd ? tlb.physOdd : tlb.physEven;
     const offset = address & tlb.offsetMask;
     return phys | offset;
   }
+
+  unalignedLoad(address) {
+    this.raiseAdELException(address);
+    throw new EmulatedException();
+  }
+
+  unalignedStore(address) {
+    this.raiseAdESException(address);
+    throw new EmulatedException();
+  }
 }
+
 
 class CPU2 {
   constructor() {
@@ -1221,11 +1240,9 @@ class SystemEvent {
   }
 }
 
-class TLBException {
-  constructor(address) {
-    this.address = address;
-  }
-}
+// EmulatedException interrupts processing of an instruction
+// and prevents state (such as memory or registers) being updated.
+class EmulatedException {}
 
 // Expose the cpu state
 const cpu0 = new CPU0();
@@ -3665,7 +3682,7 @@ function checkSyncState(sync, pc) {
   return true;
 }
 
-function handleTLBException() {
+function handleEmulatedException() {
   cpu0.pc = cpu0.nextPC;
   cpu0.delayPC = 0;
   cpu0.branchTarget = 0;
@@ -3729,9 +3746,9 @@ n64js.run = function (cycles) {
       runImpl();
       break;
     } catch (e) {
-      if (e instanceof TLBException) {
-        // If we hit a TLB exception we apply the nextPC (which should have been set to an exception vector) and continue looping.
-        handleTLBException();
+      if (e instanceof EmulatedException) {
+        // If we hit an emulated exception we apply the nextPC (which should have been set to an exception vector) and continue looping.
+        handleEmulatedException();
       } else if (e instanceof BreakpointException) {
         n64js.stopForBreakpoint();
       } else {
