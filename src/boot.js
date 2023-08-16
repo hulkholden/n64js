@@ -1,9 +1,7 @@
 import * as cpu0_constants from './cpu0_constants.js';
+import { OS_TV_NTSC, OS_TV_PAL } from './system_constants.js';
 
 export function simulateBoot(cpu0, hardware, rominfo) {
-  const country = rominfo.country;
-  const cicChip = rominfo.cic;
-
   // Create a DataView of IMEM so we can initialise it.
   // TODO: should cache this somewhere.
   const imem = new DataView(hardware.sp_mem.arrayBuffer, 0x1000, 0x1000);
@@ -49,81 +47,63 @@ export function simulateBoot(cpu0, hardware, rominfo) {
   cpu0.setRegU64(30, zero);
   cpu0.setRegU64(31, 0xffffffff_a4001554n);
 
-  let imem4 = 0;
+  if (rominfo.tvType == OS_TV_PAL) {
+    switch (rominfo.cic) {
+      case '6102':
+        cpu0.setRegU64(5, 0xffffffff_c0f1d859n);
+        cpu0.setRegU64(14, 0x00000000_2de108ean);
+        cpu0.setRegU64(24, zero);
+        break;
+      case '6103':
+        cpu0.setRegU64(5, 0xffffffff_d4646273n);
+        cpu0.setRegU64(14, 0x00000000_1af99984n);
+        cpu0.setRegU64(24, zero);
+        break;
+      case '6105':
+        cpu0.setRegU64(5, 0xffffffff_decaaad1n);
+        cpu0.setRegU64(14, 0x00000000_0cf85c13n);
+        cpu0.setRegU64(24, 0x00000000_00000002n);
+        break;
+      case '6106':
+        cpu0.setRegU64(5, 0xffffffff_b04dc903n);
+        cpu0.setRegU64(14, 0x00000000_1af99984n);
+        cpu0.setRegU64(24, 0x00000000_00000002n);
+        break;
+      default:
+        break;
+    }
 
-  switch (country) {
-    case 0x44: //Germany
-    case 0x46: //french
-    case 0x49: //Italian
-    case 0x50: //Europe
-    case 0x53: //Spanish
-    case 0x55: //Australia
-    case 0x58: // ????
-    case 0x59: // X (PAL)
-      switch (cicChip) {
-        case '6102':
-          cpu0.setRegU64(5, 0xffffffff_c0f1d859n);
-          cpu0.setRegU64(14, 0x00000000_2de108ean);
-          cpu0.setRegU64(24, 0x00000000_00000000n);
-          break;
-        case '6103':
-          cpu0.setRegU64(5, 0xffffffff_d4646273n);
-          cpu0.setRegU64(14, 0x00000000_1af99984n);
-          cpu0.setRegU64(24, 0x00000000_00000000n);
-          break;
-        case '6105':
-          imem4 = 0xbda807fc;
-          cpu0.setRegU64(5, 0xffffffff_decaaad1n);
-          cpu0.setRegU64(14, 0x00000000_0cf85c13n);
-          cpu0.setRegU64(24, 0x00000000_00000002n);
-          break;
-        case '6106':
-          cpu0.setRegU64(5, 0xffffffff_b04dc903n);
-          cpu0.setRegU64(14, 0x00000000_1af99984n);
-          cpu0.setRegU64(24, 0x00000000_00000002n);
-          break;
-        default:
-          break;
-      }
-
-      cpu0.setRegU64(20, 0x00000000_00000000n);
-      cpu0.setRegU64(23, 0x00000000_00000006n);
-      cpu0.setRegU64(31, 0xffffffff_a4001554n);
-      break;
-    case 0x37: // 7 (Beta)
-    case 0x41: // ????
-    case 0x45: // USA
-    case 0x4A: // Japan
-    default:
-      switch (cicChip) {
-        case '6102':
-          cpu0.setRegU64(5, 0xffffffff_c95973d5n);
-          cpu0.setRegU64(14, 0x00000000_2449a366n);
-          break;
-        case '6103':
-          cpu0.setRegU64(5, 0xffffffff_95315a28n);
-          cpu0.setRegU64(14, 0x00000000_5baca1dfn);
-          break;
-        case '6105':
-          imem4 = 0x8da807fc;
-          cpu0.setRegU64(5, 0x00000000_5493fb9an);
-          cpu0.setRegU64(14, 0xffffffff_c2c20384n);
-          break;
-        case '6106':
-          cpu0.setRegU64(5, 0xffffffff_e067221fn);
-          cpu0.setRegU64(14, 0x00000000_5cd2b70fn);
-          break;
-        default:
-          break;
-      }
-      cpu0.setRegU64(20, 0x00000000_00000001n);
-      cpu0.setRegU64(23, 0x00000000_00000000n);
-      cpu0.setRegU64(24, 0x00000000_00000003n);
-      cpu0.setRegU64(31, 0xffffffff_a4001550n);
+    cpu0.setRegU64(20, zero);
+    cpu0.setRegU64(23, 0x00000000_00000006n);
+    cpu0.setRegU64(31, 0xffffffff_a4001554n);
+  } else {
+    switch (rominfo.cic) {
+      case '6102':
+        cpu0.setRegU64(5, 0xffffffff_c95973d5n);
+        cpu0.setRegU64(14, 0x00000000_2449a366n);
+        break;
+      case '6103':
+        cpu0.setRegU64(5, 0xffffffff_95315a28n);
+        cpu0.setRegU64(14, 0x00000000_5baca1dfn);
+        break;
+      case '6105':
+        cpu0.setRegU64(5, 0x00000000_5493fb9an);
+        cpu0.setRegU64(14, 0xffffffff_c2c20384n);
+        break;
+      case '6106':
+        cpu0.setRegU64(5, 0xffffffff_e067221fn);
+        cpu0.setRegU64(14, 0x00000000_5cd2b70fn);
+        break;
+      default:
+        break;
+    }
+    cpu0.setRegU64(20, 0x00000000_00000001n);
+    cpu0.setRegU64(23, zero);
+    cpu0.setRegU64(24, 0x00000000_00000003n);
+    cpu0.setRegU64(31, 0xffffffff_a4001550n);
   }
 
-
-  switch (cicChip) {
+  switch (rominfo.cic) {
     case '6101':
       cpu0.setRegU64(22, 0x00000000_0000003fn);
       break;
@@ -154,7 +134,7 @@ export function simulateBoot(cpu0, hardware, rominfo) {
       // to decrypt and executing on the RSP during IPL3.
       // See https://github.com/decompals/N64-IPL/blob/d93544681bfa822865fa8110d88f846b52293e23/src/ipl3.s#L63.
       imem.setUint32(0x00, 0x3c0dbfc0);
-      imem.setUint32(0x04, imem4);
+      imem.setUint32(0x04, rominfo.tvType == OS_TV_PAL ? 0xbda807fc : 0x8da807fc);
       imem.setUint32(0x08, 0x25ad07c0);
       imem.setUint32(0x0c, 0x31080080);
       imem.setUint32(0x10, 0x5500fffc);
@@ -162,7 +142,7 @@ export function simulateBoot(cpu0, hardware, rominfo) {
       imem.setUint32(0x18, 0x8da80024);
       imem.setUint32(0x1c, 0x3c0bb000);
 
-      cpu0.setRegU64(1, 0x00000000_00000000n);
+      cpu0.setRegU64(1, zero);
       cpu0.setRegU64(2, 0xffffffff_f58b0fbfn);
       cpu0.setRegU64(3, 0xffffffff_f58b0fbfn);
       cpu0.setRegU64(4, 0x00000000_00000fbfn);
@@ -173,7 +153,7 @@ export function simulateBoot(cpu0, hardware, rominfo) {
       cpu0.setRegU64(25, 0xffffffff_cdce565fn);
       break;
     case '6106':
-      cpu0.setRegU64(1, 0x00000000_00000000n);
+      cpu0.setRegU64(1, zero);
       cpu0.setRegU64(2, 0xffffffff_a95930a4n);
       cpu0.setRegU64(3, 0xffffffff_a95930a4n);
       cpu0.setRegU64(4, 0x00000000_000030a4n);
