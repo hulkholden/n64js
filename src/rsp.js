@@ -97,6 +97,9 @@ class RSP {
 
     this.halted = true;
 
+    // Take a deep reference to the SPIBIST registers to access the program counter.
+    this.pcDataView = this.hardware.sp_ibist_mem.dataView;
+
     this.pc = 0;
     this.delayPC = 0;
     this.nextPC = 0; // Set to the next expected PC before an op executes. Ops can update this to change control flow without branch delay (e.g. likely branches, ERET)
@@ -380,11 +383,12 @@ class RSP {
     this.branchTarget = (pc >>> 0) & 0xffc;
   }
 
+  get pc() { return this.pcDataView.getInt32(0, false); }
+  set pc(value) { this.pcDataView.setUint32(0, value, false); }
+
   startExecution() {
-    this.pc = this.hardware.sp_ibist_mem.getS32(0);
     this.halted = false;
     this.runImpl();
-    this.hardware.sp_ibist_mem.set32(0, this.pc);
   }
 
   breakExecution() {
