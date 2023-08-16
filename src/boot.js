@@ -8,34 +8,46 @@ export function simulateBoot(cpu0, hardware, rominfo) {
   // TODO: should cache this somewhere.
   const imem = new DataView(hardware.sp_mem.arrayBuffer, 0x1000, 0x1000);
 
-  cpu0.setControlU32(cpu0_constants.controlStatus, 0x241000e0);
-  cpu0.setControlU32(cpu0_constants.controlConfig, 0x7006e463);
-  cpu0.setControlU32(cpu0_constants.controlCount, 0x5000);
-  cpu0.setControlU32(cpu0_constants.controlCause, 0x30000000);
-  cpu0.setControlU32(cpu0_constants.controlPRId, 0xb22);
-  cpu0.setControlU32(cpu0_constants.controlContext, 0x007ffff0);
-  cpu0.setControlU32(cpu0_constants.controlEPC, 0xffffffff);
-  cpu0.setControlU32(cpu0_constants.controlBadVAddr, 0xffffffff);
-  cpu0.setControlU32(cpu0_constants.controlErrorEPC, 0xffffffff);
-  n64js.cop1ControlChanged();
+  cpu0.moveToControl(cpu0_constants.controlStatus, 0x00000000_34000000n);
+  cpu0.moveToControl(cpu0_constants.controlConfig, 0x00000000_0006e463n);
+  cpu0.moveToControl(cpu0_constants.controlCount, 0x00000000_00005000n);
+  cpu0.moveToControl(cpu0_constants.controlCause, 0x00000000_0000005cn);
+  cpu0.moveToControl(cpu0_constants.controlPRId, 0x00000000_00000b22n);
+  cpu0.moveToControl(cpu0_constants.controlContext, 0x00000000_007ffff0n);
+  cpu0.moveToControl(cpu0_constants.controlEPC, 0xffffffff_ffffffffn);
+  cpu0.moveToControl(cpu0_constants.controlBadVAddr, 0xffffffff_ffffffffn);
+  cpu0.moveToControl(cpu0_constants.controlErrorEPC, 0xffffffff_ffffffffn);
 
-  cpu0.setRegU64(0, 0x00000000_00000000n);
+  const zero = 0x00000000_00000000n;
+  cpu0.setRegU64(0, zero);
+	cpu0.setRegU64(1, zero);
+	cpu0.setRegU64(2, 0xffffffff_d1731be9n);
+	cpu0.setRegU64(3, 0xffffffff_d1731be9n);
+	cpu0.setRegU64(4, 0x00000000_00001be9n);
+	cpu0.setRegU64(5, 0xffffffff_f45231e5n);
   cpu0.setRegU64(6, 0xffffffff_a4001f0cn);
   cpu0.setRegU64(7, 0xffffffff_a4001f08n);
   cpu0.setRegU64(8, 0x00000000_000000c0n);
-  cpu0.setRegU64(9, 0x00000000_00000000n);
+  cpu0.setRegU64(9, zero);
   cpu0.setRegU64(10, 0x00000000_00000040n);
   cpu0.setRegU64(11, 0xffffffff_a4000040n);
-  cpu0.setRegU64(16, 0x00000000_00000000n);
-  cpu0.setRegU64(17, 0x00000000_00000000n);
-  cpu0.setRegU64(18, 0x00000000_00000000n);
-  cpu0.setRegU64(19, 0x00000000_00000000n);
-  cpu0.setRegU64(21, 0x00000000_00000000n);
-  cpu0.setRegU64(26, 0x00000000_00000000n);
-  cpu0.setRegU64(27, 0x00000000_00000000n);
-  cpu0.setRegU64(28, 0x00000000_00000000n);
+  // 12 - 15
+  cpu0.setRegU64(16, zero);
+  cpu0.setRegU64(17, zero);
+  cpu0.setRegU64(18, zero);
+  cpu0.setRegU64(19, zero);
+	cpu0.setRegU64(20, BigInt(rominfo.tvType));
+  cpu0.setRegU64(21, zero);
+  // 22
+	cpu0.setRegU64(23, 0x00000000_00000006n);
+	cpu0.setRegU64(24, zero);
+	cpu0.setRegU64(25, 0xffffffff_d73f2993n);
+  cpu0.setRegU64(26, zero);
+  cpu0.setRegU64(27, zero);
+  cpu0.setRegU64(28, zero);
   cpu0.setRegU64(29, 0xffffffff_a4001ff0n);
-  cpu0.setRegU64(30, 0x00000000_00000000n);
+  cpu0.setRegU64(30, zero);
+	cpu0.setRegU64(31, 0xffffffff_a4001554n);
 
   let imem4 = 0;
 
@@ -60,7 +72,7 @@ export function simulateBoot(cpu0, hardware, rominfo) {
           cpu0.setRegU64(24, 0x00000000_00000000n);
           break;
         case '6105':
-          imem4 = 0xBDA807FC;
+          imem4 = 0xbda807fc;
           cpu0.setRegU64(5, 0xffffffff_decaaad1n);
           cpu0.setRegU64(14, 0x00000000_0cf85c13n);
           cpu0.setRegU64(24, 0x00000000_00000002n);
@@ -80,8 +92,8 @@ export function simulateBoot(cpu0, hardware, rominfo) {
       break;
     case 0x37: // 7 (Beta)
     case 0x41: // ????
-    case 0x45: //USA
-    case 0x4A: //Japan
+    case 0x45: // USA
+    case 0x4A: // Japan
     default:
       switch (cicChip) {
         case '6102':
@@ -93,7 +105,7 @@ export function simulateBoot(cpu0, hardware, rominfo) {
           cpu0.setRegU64(14, 0x00000000_5baca1dfn);
           break;
         case '6105':
-          imem4 = 0x8DA807FC;
+          imem4 = 0x8da807fc;
           cpu0.setRegU64(5, 0x00000000_5493fb9an);
           cpu0.setRegU64(14, 0xffffffff_c2c20384n);
           break;
