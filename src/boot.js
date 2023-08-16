@@ -20,11 +20,11 @@ export function simulateBoot(cpu0, hardware, rominfo) {
 
   const zero = 0x00000000_00000000n;
   cpu0.setRegU64(0, zero);
-	cpu0.setRegU64(1, zero);
-	cpu0.setRegU64(2, 0xffffffff_d1731be9n);
-	cpu0.setRegU64(3, 0xffffffff_d1731be9n);
-	cpu0.setRegU64(4, 0x00000000_00001be9n);
-	cpu0.setRegU64(5, 0xffffffff_f45231e5n);
+  cpu0.setRegU64(1, zero);
+  cpu0.setRegU64(2, 0xffffffff_d1731be9n);
+  cpu0.setRegU64(3, 0xffffffff_d1731be9n);
+  cpu0.setRegU64(4, 0x00000000_00001be9n);
+  cpu0.setRegU64(5, 0xffffffff_f45231e5n);
   cpu0.setRegU64(6, 0xffffffff_a4001f0cn);
   cpu0.setRegU64(7, 0xffffffff_a4001f08n);
   cpu0.setRegU64(8, 0x00000000_000000c0n);
@@ -36,18 +36,18 @@ export function simulateBoot(cpu0, hardware, rominfo) {
   cpu0.setRegU64(17, zero);
   cpu0.setRegU64(18, zero);
   cpu0.setRegU64(19, zero);
-	cpu0.setRegU64(20, BigInt(rominfo.tvType));
+  cpu0.setRegU64(20, BigInt(rominfo.tvType));
   cpu0.setRegU64(21, zero);
   // 22
-	cpu0.setRegU64(23, 0x00000000_00000006n);
-	cpu0.setRegU64(24, zero);
-	cpu0.setRegU64(25, 0xffffffff_d73f2993n);
+  cpu0.setRegU64(23, 0x00000000_00000006n);
+  cpu0.setRegU64(24, zero);
+  cpu0.setRegU64(25, 0xffffffff_d73f2993n);
   cpu0.setRegU64(26, zero);
   cpu0.setRegU64(27, zero);
   cpu0.setRegU64(28, zero);
   cpu0.setRegU64(29, 0xffffffff_a4001ff0n);
   cpu0.setRegU64(30, zero);
-	cpu0.setRegU64(31, 0xffffffff_a4001554n);
+  cpu0.setRegU64(31, 0xffffffff_a4001554n);
 
   let imem4 = 0;
 
@@ -160,7 +160,7 @@ export function simulateBoot(cpu0, hardware, rominfo) {
       imem.setUint32(0x10, 0x5500fffc);
       imem.setUint32(0x14, 0x3c0dbfc0);
       imem.setUint32(0x18, 0x8da80024);
-      imem.setUint32(0x1c, 0x3c0bb000); 
+      imem.setUint32(0x1c, 0x3c0bb000);
 
       cpu0.setRegU64(1, 0x00000000_00000000n);
       cpu0.setRegU64(2, 0xffffffff_f58b0fbfn);
