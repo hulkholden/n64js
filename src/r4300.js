@@ -4020,16 +4020,9 @@ class FragmentMap {
 
 const fragmentMap = new FragmentMap();
 
-let invals = 0;
-
 // Invalidate a single cache line
 n64js.invalidateICacheEntry = function (address) {
   //logger.log('cache flush ' + toString32(address));
-
-  ++invals;
-  if ((invals % 10000) === 0) {
-    logger.log(invals + ' invals');
-  }
 
   fragmentMap.invalidateEntry(address);
 };
