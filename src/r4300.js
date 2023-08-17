@@ -917,19 +917,13 @@ class CPU0 {
     this.clearControlBits32(cpu0_constants.controlCause, CAUSE_IP8);
 
     if (value === this.getControlU32(cpu0_constants.controlCompare)) {
-      // just clear the IP8 flag
+      // Just clear the IP8 flag if the same value is being written back
+      // (don't update the events).
     } else {
-      if (value !== 0) {
-        const count = this.getControlU32(cpu0_constants.controlCount);
-        if (value > count) {
-          const delta = value - count;
-
-          this.removeEventsOfType(kEventCompare);
-          this.addEvent(kEventCompare, delta);
-        } else {
-          n64js.warn('setCompare underflow - was' + toString32(count) + ', setting to ' + value);
-        }
-      }
+      const count = this.getControlU32(cpu0_constants.controlCount);
+      const delta = (value - count) >>> 0;
+      this.removeEventsOfType(kEventCompare);
+      this.addEvent(kEventCompare, delta);
       this.setControlU32(cpu0_constants.controlCompare, value);
     }
   }
