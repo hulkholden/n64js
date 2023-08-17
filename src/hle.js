@@ -506,14 +506,10 @@ export function hleProcessRSPTask() {
       handled = true;
       break;
     case M_VIDTASK:
-      logger.log('video task');
-      // Ignore for now (pretend we handled it to avoid running RSP).
-      handled = true;
+      // Run on the RSP.
       break;
     case M_JPGTASK:
-      logger.log('jpg task');
-      // Ignore for now (pretend we handled it to avoid running RSP).
-      handled = true;
+      // Run on the RSP.
       break;
   }
 
