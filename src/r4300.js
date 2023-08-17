@@ -3864,6 +3864,7 @@ function addOpToFragment(fragment, entry_pc, instruction, c) {
 
 function runImpl() {
   const c = cpu0;
+  const rsp = n64js.rsp;
   const events = c.events;
   const ramDV = c.ramDV;
 
@@ -3882,6 +3883,9 @@ function runImpl() {
         //     break;
         //   }
         // }
+
+        // TODO: this should also be called from dynarec.
+        rsp.step();
 
         const pc = c.pc|0;   // take a copy of this, so we can refer to it later
 
