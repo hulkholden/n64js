@@ -286,7 +286,7 @@ class TLBEntry {
     // VPN mask is shrunk depending on the page size (larger page -> smaller VPN).
     this.vpnmask64 = TLBHI_VPN2MASK & BigInt(~this.pagemask);
     this.vpn2bits = hi & this.vpnmask64;
-    
+
     this.physEven = (this.pfne << 6) & ~this.offsetMask;
     this.physOdd = (this.pfno << 6) & ~this.offsetMask;
 
@@ -380,7 +380,7 @@ class CPU0 {
     this.multHiS32 = new Int32Array(multHiMem);
     this.multHiU64 = new BigUint64Array(multHiMem);
     this.multHiS64 = new BigInt64Array(multHiMem);
-    
+
     const multLoMem = new ArrayBuffer(2 * 4);
     this.multLoU32 = new Uint32Array(multLoMem);
     this.multLoS32 = new Int32Array(multLoMem);
@@ -480,7 +480,7 @@ class CPU0 {
       return;
     }
     this.gprS32[r * 2 + 0] = lo;
-    this.gprS32[r * 2 + 1] = hi;    
+    this.gprS32[r * 2 + 1] = hi;
   }
 
   setRegS32ExtendMasked(r, v, m) {
@@ -516,7 +516,7 @@ class CPU0 {
   setMultLoS32Extend(v) { this.multLoS64[0] = BigInt.asIntN(32, v); }
   setMultLoS64(v) { this.multLoS64[0] = v; }
   setMultLoU64(v) { this.multLoU64[0] = v; }
-  
+
   getMultHiS64() { return this.multHiS64[0]; }
   getMultHiU64() { return this.multHiU64[0]; }
   setMultHiS32Extend(v) { this.multHiS64[0] = BigInt.asIntN(32, v); }
@@ -530,7 +530,7 @@ class CPU0 {
 
   setControlS32Extend(r, v) {
     this.controlRegS32[r * 2 + 0] = v;
-    this.controlRegS32[r * 2 + 1] = v >> 31; 
+    this.controlRegS32[r * 2 + 1] = v >> 31;
   }
 
   setControlU64(r, v) { this.controlRegU64[r] = v; }
@@ -545,11 +545,11 @@ class CPU0 {
 
   setControlBits32(r, value) { this.controlRegU32[r * 2 + 0] |= value; }
   clearControlBits32(r, value) { this.controlRegU32[r * 2 + 0] &= ~value; }
-  
+
   maskControlBits64(r, mask, value) {
     this.controlRegU64[r] = (this.controlRegU64[r] & ~mask) | (value & mask);
   }
-  
+
   setControlBits64(r, value) { this.controlRegU64[r] |= value; }
   clearControlBits64(r, value) { this.controlRegU64[r] &= ~value; }
 
@@ -815,7 +815,7 @@ class CPU0 {
       return false;
     }
     return true;
-  } 
+  }
 
   throwCopXUnusable(copIdx) {
     // XXXX check we're not inside exception handler before snuffing CAUSE reg?
@@ -854,7 +854,7 @@ class CPU0 {
     this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, causeExcCodeFPE);
   }
 
-  raiseTLBException(address32, exc_code, vec) { 
+  raiseTLBException(address32, exc_code, vec) {
     // TODO: plumb 64 bit addresses everywhere.
     const address64 = BigInt(address32 >> 0);
     this.setBadVAddr(address64);
@@ -1005,7 +1005,7 @@ class CPU0 {
     const wired = this.getControlU32(cpu0_constants.controlWired);
     const min = wired >= 32 ? 0 : (wired & 31);
     const max = wired >= 32 ? 64 : 32;
-  
+
     let random = Math.floor(Math.random() * (max - min)) + min;
     assert(random >= min && random < max, `Ooops - random should be in range [${min},${max}), but got ${random}`);
     if (syncFlow) {
@@ -1242,7 +1242,7 @@ class SystemEvent {
 
 // EmulatedException interrupts processing of an instruction
 // and prevents state (such as memory or registers) being updated.
-class EmulatedException {}
+class EmulatedException { }
 
 // Expose the cpu state
 const cpu0 = new CPU0();
@@ -1253,26 +1253,26 @@ n64js.cpu1 = cpu1;
 n64js.cpu2 = cpu2;
 
 
-function     fd(i) { return (i>>> 6)&0x1f; }
-function     fs(i) { return (i>>>11)&0x1f; }
-function     ft(i) { return (i>>>16)&0x1f; }
-function  copop(i) { return (i>>>21)&0x1f; }
+function fd(i) { return (i >>> 6) & 0x1f; }
+function fs(i) { return (i >>> 11) & 0x1f; }
+function ft(i) { return (i >>> 16) & 0x1f; }
+function copop(i) { return (i >>> 21) & 0x1f; }
 
-function offset(i) { return ((i&0xffff)<<16)>>16; }
-function     sa(i) { return (i>>> 6)&0x1f; }
-function     rd(i) { return (i>>>11)&0x1f; }
-function     rt(i) { return (i>>>16)&0x1f; }
-function     rs(i) { return (i>>>21)&0x1f; }
-function     op(i) { return (i>>>26)&0x1f; }
+function offset(i) { return ((i & 0xffff) << 16) >> 16; }
+function sa(i) { return (i >>> 6) & 0x1f; }
+function rd(i) { return (i >>> 11) & 0x1f; }
+function rt(i) { return (i >>> 16) & 0x1f; }
+function rs(i) { return (i >>> 21) & 0x1f; }
+function op(i) { return (i >>> 26) & 0x1f; }
 
-function tlbop(i)     { return i&0x3f; }
-function cop1_func(i) { return i&0x3f; }
-function cop1_bc(i)   { return (i>>>16)&0x3; }
+function tlbop(i) { return i & 0x3f; }
+function cop1_func(i) { return i & 0x3f; }
+function cop1_bc(i) { return (i >>> 16) & 0x3; }
 
-function target(i) { return (i     )&0x3ffffff; }
-function    imm(i) { return (i     )&0xffff; }
-function   imms(i) { return ((i&0xffff)<<16)>>16; }   // treat immediate value as signed
-function   base(i) { return (i>>>21)&0x1f; }
+function target(i) { return (i) & 0x3ffffff; }
+function imm(i) { return (i) & 0xffff; }
+function imms(i) { return ((i & 0xffff) << 16) >> 16; }   // treat immediate value as signed
+function base(i) { return (i >>> 21) & 0x1f; }
 
 function branchAddress(pc, i) { return ((pc + 4) + (offset(i) * 4)) >>> 0; }
 //function branchAddress(pc,i) { return (((pc>>>2)+1) + offset(i))<<2; }  // NB: convoluted calculation to avoid >>>0 (deopt)
@@ -1471,11 +1471,11 @@ function executeDSRA(i) {
 
 function executeDSLL32(i) {
   cpu0.setRegU64(rd(i), cpu0.getRegU64(rt(i)) << BigInt(sa(i) + 32));
-}  
+}
 
 function executeDSRL32(i) {
   cpu0.setRegU64(rd(i), cpu0.getRegU64(rt(i)) >> BigInt(sa(i) + 32));
-}  
+}
 
 function executeDSRA32(i) {
   cpu0.setRegU64(rd(i), cpu0.getRegS64(rt(i)) >> BigInt(sa(i) + 32));
@@ -1664,7 +1664,7 @@ function executeADD(i) {
   const result = s + t;
   if (s32CheckAddOverflow(s, t, result)) {
     cpu0.raiseOverflowException();
-    return; 
+    return;
   }
   cpu0.setRegS32Extend(rd(i), result);
 }
@@ -1711,7 +1711,7 @@ function executeSUB(i) {
   const result = s - t;
   if (s32CheckSubOverflow(s, t, result)) {
     cpu0.raiseOverflowException();
-    return; 
+    return;
   }
   cpu0.setRegS32Extend(rd(i), result);
 }
@@ -1820,7 +1820,7 @@ function executeDADD(i) {
   const result = s + t;
   if (s64CheckAddOverflow(s, t, result)) {
     cpu0.raiseOverflowException();
-    return; 
+    return;
   }
   cpu0.setRegU64(rd(i), result);
 }
@@ -2273,7 +2273,7 @@ function executeADDI(i) {
   const result = s + imm;
   if (s32CheckAddOverflow(s, imm, result)) {
     cpu0.raiseOverflowException();
-    return; 
+    return;
   }
   cpu0.setRegS32Extend(rt(i), result);
 }
@@ -2303,7 +2303,7 @@ function executeDADDI(i) {
   const result = s + imm;
   if (s64CheckAddOverflow(s, imm, result)) {
     cpu0.raiseOverflowException();
-    return; 
+    return;
   }
   cpu0.setRegU64(rt(i), result);
 }
@@ -2719,7 +2719,7 @@ function executeLL(i) {
 function executeLLD(i) {
   const addr = cpu0.calcAddressS32(i);
   const value = memaccess.loadU64fast(addr);
-  
+
   cpu0.setControlU32(cpu0_constants.controlLLAddr, makeLLAddr(addr));
   cpu0.setRegU64(rt(i), value);
   cpu0.llBit = 1;
@@ -2851,7 +2851,7 @@ function generateCTC1Stub(ctx) {
   return `// CTC1 invalid reg`;
 }
 
-function executeCTC1(i) { 
+function executeCTC1(i) {
   const s = fs(i);
   if (s === 31) {
     cpu1.setStatus(cpu0.getRegU32Lo(rt(i)));
@@ -2878,7 +2878,7 @@ function generateBCInstrStub(ctx) {
   ctx.isTrivial = false; // NB: not trivial - branches!
 
   const test = condition ? '!==' : '===';
-  
+
   let impl = `const cond = (cpu1.control[31] & FPCSR_C) ${test} 0;\n`;
   if (likely) {
     impl += `if (cond) {\n`;
@@ -2930,7 +2930,7 @@ const cop1FLOOR_W = 0x0f;
 const cop1CVT_S = 0x20;
 const cop1CVT_D = 0x21;
 const cop1CVT_W = 0x24;
-const cop1CVT_L = 0x25;  
+const cop1CVT_L = 0x25;
 
 function generateSInstrStub(ctx) {
   const s = ctx.instr_fs();
@@ -3378,7 +3378,7 @@ function executeCop2(i) {
 }
 
 function executeCop3(i) {
-  cpu0.raiseRESERVEDException(0); 
+  cpu0.raiseRESERVEDException(0);
 }
 
 function generateCop1(ctx) {
@@ -3887,7 +3887,7 @@ function runImpl() {
         // TODO: this should also be called from dynarec.
         rsp.step();
 
-        const pc = c.pc|0;   // take a copy of this, so we can refer to it later
+        const pc = c.pc | 0;   // take a copy of this, so we can refer to it later
 
         // NB: set nextPC before the call to readMemoryS32. If this throws an exception, we need nextPC to be set up correctly.
         c.nextPC = c.delayPC || c.pc + 4;
@@ -4126,13 +4126,13 @@ function redentLines(code, indent) {
 }
 
 function dedent(str) {
-	str = str.replace(/^\n/, '');
-	const match = str.match(/^\s+/);
+  str = str.replace(/^\n/, '');
+  const match = str.match(/^\s+/);
   if (!match) {
     return str;
   }
   const prefix = match[0];
-	return match ? str.replace(new RegExp('^'+prefix, 'gm'), '') : str;
+  return match ? str.replace(new RegExp('^' + prefix, 'gm'), '') : str;
 }
 
 function addNewlines(code) {
