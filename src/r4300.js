@@ -755,10 +755,7 @@ class CPU0 {
     const miRegDevice = n64js.hardware().miRegDevice;
     if (miRegDevice.interruptsUnmasked()) {
       this.setControlBits32(cpu0_constants.controlCause, CAUSE_IP3);
-
-      if (this.checkForUnmaskedInterrupts()) {
-        this.stuffToDo |= kStuffToDoCheckInterrupts;
-      }
+      this.updateStuffToDoForInterrupts();
     } else {
       this.clearControlBits32(cpu0_constants.controlCause, CAUSE_IP3);
     }
@@ -768,10 +765,7 @@ class CPU0 {
 
   statusRegisterChanged() {
     cop1ControlChanged();
-
-    if (this.checkForUnmaskedInterrupts()) {
-      this.stuffToDo |= kStuffToDoCheckInterrupts;
-    }
+    this.updateStuffToDoForInterrupts();
   }
 
   checkForUnmaskedInterrupts() {
@@ -787,6 +781,14 @@ class CPU0 {
     }
 
     return false;
+  }
+
+  updateStuffToDoForInterrupts() {
+    if (this.checkForUnmaskedInterrupts()) {
+      this.stuffToDo |= kStuffToDoCheckInterrupts;
+    } else {
+      this.stuffToDo &= ~kStuffToDoCheckInterrupts;
+    }
   }
 
   setBadVAddr(address64) {
@@ -3699,9 +3701,7 @@ function handleCounter() {
       cpu0.stuffToDo |= kStuffToDoBreakout;
     } else if (evt.type === kEventCompare) {
       cpu0.setControlBits32(cpu0_constants.controlCause, CAUSE_IP8);
-      if (cpu0.checkForUnmaskedInterrupts()) {
-        cpu0.stuffToDo |= kStuffToDoCheckInterrupts;
-      }
+      cpu0.updateStuffToDoForInterrupts();
     } else if (evt.type === kEventVbl) {
       n64js.verticalBlank();
       cpu0.stuffToDo |= kStuffToDoBreakout;
@@ -3880,6 +3880,12 @@ function runImpl() {
 
         // TODO: this should also be called from dynarec.
         rsp.step();
+        if (c.stuffToDo) {
+          // RSP can generate interrupt which can be cleared by CPU.
+          // TODO: for performance we should throw an exception when
+          // an interrupt is raised and avoid testing this every instruction.
+          break;
+        }
 
         const pc = c.pc | 0;   // take a copy of this, so we can refer to it later
 
