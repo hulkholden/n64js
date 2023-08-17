@@ -1174,6 +1174,23 @@ class CPU0 {
     this.raiseAdESException(address);
     throw new EmulatedException();
   }
+
+  // SRA appears to shift the full 64 bit reg, trunc to 32 bits, then sign extend.
+  execSLL(rd, rt, sa) { this.setRegS32Extend(rd, this.getRegS32Lo(rt) << sa); }
+  execSRL(rd, rt, sa) { this.setRegS32Extend(rd, this.getRegU32Lo(rt) >>> sa); }
+  execSRA(rd, rt, sa) { this.setRegS32Extend(rd, Number(this.getRegS64(rt) >> BigInt(sa) & 0xffff_ffffn)); }
+  execSLLV(rd, rt, rs) { this.setRegS32Extend(rd, this.getRegS32Lo(rt) << (this.getRegS32Lo(rs) & 0x1f)); }
+  execSRLV(rd, rt, rs) { this.setRegS32Extend(rd, this.getRegS32Lo(rt) >>> (this.getRegS32Lo(rs) & 0x1f)); }
+  execSRAV(rd, rt, rs) { this.setRegS32Extend(rd, Number(this.getRegS64(rt) >> BigInt(this.getRegS32Lo(rs) & 0x1f) & 0xffff_ffffn)); }
+  execDSLLV(rd, rt, rs) { this.setRegU64(rd, this.getRegU64(rt) << BigInt(this.getRegU32Lo(rs) & 0x3f)); }
+  execDSRLV(rd, rt, rs) { this.setRegU64(rd, this.getRegU64(rt) >> BigInt(this.getRegU32Lo(rs) & 0x3f)); }
+  execDSRAV(rd, rt, rs) { this.setRegU64(rd, this.getRegS64(rt) >> BigInt(this.getRegU32Lo(rs) & 0x3f)); }
+  execDSLL(rd, rt, sa) { this.setRegU64(rd, this.getRegU64(rt) << BigInt(sa)); }
+  execDSRL(rd, rt, sa) { this.setRegU64(rd, this.getRegU64(rt) >> BigInt(sa)); }
+  execDSRA(rd, rt, sa) { this.setRegU64(rd, this.getRegS64(rt) >> BigInt(sa)); }
+  execDSLL32(rd, rt, sa) { this.setRegU64(rd, this.getRegU64(rt) << BigInt(sa + 32)); }
+  execDSRL32(rd, rt, sa) { this.setRegU64(rd, this.getRegU64(rt) >> BigInt(sa + 32)); }
+  execDSRA32(rd, rt, sa) { this.setRegU64(rd, this.getRegS64(rt) >> BigInt(sa + 32)); }
 }
 
 
@@ -1336,145 +1353,54 @@ function executeBreakpoint(i) {
   throw new BreakpointException();
 }
 
+function executeSLL(i) { cpu0.execSLL(rd(i), rt(i), sa(i)); }
+function executeSRL(i) { cpu0.execSRL(rd(i), rt(i), sa(i)); }
+function executeSRA(i) { cpu0.execSRA(rd(i), rt(i), sa(i)); }
+function executeSLLV(i) { cpu0.execSLLV(rd(i), rt(i), rs(i)); }
+function executeSRLV(i) { cpu0.execSRLV(rd(i), rt(i), rs(i)); }
+function executeSRAV(i) { cpu0.execSRAV(rd(i), rt(i), rs(i)); }
+function executeDSLLV(i) { cpu0.execDSLLV(rd(i), rt(i), rs(i)); }
+function executeDSRLV(i) { cpu0.execDSRLV(rd(i), rt(i), rs(i)); }
+function executeDSRAV(i) { cpu0.execDSRAV(rd(i), rt(i), rs(i)); }
+function executeDSLL(i) { cpu0.execDSLL(rd(i), rt(i), sa(i)); }
+function executeDSRL(i) { cpu0.execDSRL(rd(i), rt(i), sa(i)); }
+function executeDSRA(i) { cpu0.execDSRA(rd(i), rt(i), sa(i)); }
+function executeDSLL32(i) { cpu0.execDSLL32(rd(i), rt(i), sa(i)); }
+function executeDSRL32(i) { cpu0.execDSRL32(rd(i), rt(i), sa(i)); }
+function executeDSRA32(i) { cpu0.execDSRA32(rd(i), rt(i), sa(i)); }
+
 function generateSLL(ctx) {
   // NOP
   if (ctx.instruction === 0) {
     return generateNOPBoilerplate('NOP', ctx);
   }
-
-  const d = ctx.instr_rd();
-  const t = ctx.instr_rt();
-  const shift = ctx.instr_sa();
-
-  const impl = `c.setRegS32Extend(${d}, ${genSrcRegS32Lo(t)} << ${shift});`;
+  const impl = `c.execSLL(${ctx.instr_rd()}, ${ctx.instr_rt()}, ${ctx.instr_sa()});`;
   return generateTrivialOpBoilerplate(impl, ctx);
-}
-
-function executeSLL(i) {
-  cpu0.setRegS32Extend(rd(i), cpu0.getRegS32Lo(rt(i)) << sa(i));
 }
 
 function generateSRL(ctx) {
-  const d = ctx.instr_rd();
-  const t = ctx.instr_rt();
-  const shift = ctx.instr_sa();
-
-  const impl = `c.setRegS32Extend(${d}, ${genSrcRegS32Lo(t)} >>> ${shift});`;
+  const impl = `c.execSRL(${ctx.instr_rd()}, ${ctx.instr_rt()}, ${ctx.instr_sa()});`;
   return generateTrivialOpBoilerplate(impl, ctx);
-}
-
-function executeSRL(i) {
-  cpu0.setRegS32Extend(rd(i), cpu0.getRegU32Lo(rt(i)) >>> sa(i));
 }
 
 function generateSRA(ctx) {
-  const d = ctx.instr_rd();
-  const t = ctx.instr_rt();
-  const shift = ctx.instr_sa();
-
-  const impl = dedent(`
-    const result = ${genSrcRegS64(t)} >> BigInt(${shift});
-    c.setRegS32Extend(${d}, Number(result & 0xffff_ffffn));
-    `);
+  const impl = `c.execSRA(${ctx.instr_rd()}, ${ctx.instr_rt()}, ${ctx.instr_sa()});`;
   return generateTrivialOpBoilerplate(impl, ctx);
-}
-
-function executeSRA(i) {
-  // SRA appears to shift the full 64 bit reg, trunc to 32 bits, then sign extend.
-  const result = cpu0.getRegS64(rt(i)) >> BigInt(sa(i));
-  cpu0.setRegS32Extend(rd(i), Number(result & 0xffff_ffffn));
 }
 
 function generateSLLV(ctx) {
-  const d = ctx.instr_rd();
-  const s = ctx.instr_rs();
-  const t = ctx.instr_rt();
-
-  const impl = dedent(`
-    const result = ${genSrcRegS32Lo(t)} << (${genSrcRegS32Lo(s)} & 0x1f);
-    c.setRegS32Extend(${d}, result);
-    `);
+  const impl = `c.execSLLV(${ctx.instr_rd()}, ${ctx.instr_rt()}, ${ctx.instr_rs()});`;
   return generateTrivialOpBoilerplate(impl, ctx);
-}
-
-function executeSLLV(i) {
-  const result = cpu0.getRegS32Lo(rt(i)) << (cpu0.getRegS32Lo(rs(i)) & 0x1f);
-  cpu0.setRegS32Extend(rd(i), result);
 }
 
 function generateSRLV(ctx) {
-  const d = ctx.instr_rd();
-  const s = ctx.instr_rs();
-  const t = ctx.instr_rt();
-
-  const impl = dedent(`
-    const result = ${genSrcRegS32Lo(t)} >>> (${genSrcRegS32Lo(s)} & 0x1f);
-    c.setRegS32Extend(${d}, result);
-    `);
+  const impl = `c.execSRLV(${ctx.instr_rd()}, ${ctx.instr_rt()}, ${ctx.instr_rs()});`;
   return generateTrivialOpBoilerplate(impl, ctx);
-}
-
-function executeSRLV(i) {
-  const result = cpu0.getRegS32Lo(rt(i)) >>> (cpu0.getRegS32Lo(rs(i)) & 0x1f);
-  cpu0.setRegS32Extend(rd(i), result);
 }
 
 function generateSRAV(ctx) {
-  const d = ctx.instr_rd();
-  const s = ctx.instr_rs();
-  const t = ctx.instr_rt();
-
-  const impl = dedent(`
-    const shift = (${genSrcRegS32Lo(s)} & 0x1f);
-    const result = ${genSrcRegS64(t)} >> BigInt(shift);
-    c.setRegS32Extend(${d}, Number(result & 0xffff_ffffn));
-    `);
+  const impl = `c.execSRAV(${ctx.instr_rd()}, ${ctx.instr_rt()}, ${ctx.instr_rs()});`;
   return generateTrivialOpBoilerplate(impl, ctx);
-}
-
-function executeSRAV(i) {
-  const shift = cpu0.getRegS32Lo(rs(i)) & 0x1f;
-  const result = cpu0.getRegS64(rt(i)) >> BigInt(shift);
-  cpu0.setRegS32Extend(rd(i), Number(result & 0xffff_ffffn));
-}
-
-function executeDSLLV(i) {
-  const shift = cpu0.getRegU32Lo(rs(i)) & 0x3f;
-  cpu0.setRegU64(rd(i), cpu0.getRegU64(rt(i)) << BigInt(shift));
-}
-
-function executeDSRLV(i) {
-  const shift = cpu0.getRegU32Lo(rs(i)) & 0x3f;
-  cpu0.setRegU64(rd(i), cpu0.getRegU64(rt(i)) >> BigInt(shift));
-}
-
-function executeDSRAV(i) {
-  const shift = cpu0.getRegU32Lo(rs(i)) & 0x3f;
-  cpu0.setRegU64(rd(i), cpu0.getRegS64(rt(i)) >> BigInt(shift));
-}
-
-function executeDSLL(i) {
-  cpu0.setRegU64(rd(i), cpu0.getRegU64(rt(i)) << BigInt(sa(i)));
-}
-
-function executeDSRL(i) {
-  cpu0.setRegU64(rd(i), cpu0.getRegU64(rt(i)) >> BigInt(sa(i)));
-}
-
-function executeDSRA(i) {
-  cpu0.setRegU64(rd(i), cpu0.getRegS64(rt(i)) >> BigInt(sa(i)));
-}
-
-function executeDSLL32(i) {
-  cpu0.setRegU64(rd(i), cpu0.getRegU64(rt(i)) << BigInt(sa(i) + 32));
-}
-
-function executeDSRL32(i) {
-  cpu0.setRegU64(rd(i), cpu0.getRegU64(rt(i)) >> BigInt(sa(i) + 32));
-}
-
-function executeDSRA32(i) {
-  cpu0.setRegU64(rd(i), cpu0.getRegS64(rt(i)) >> BigInt(sa(i) + 32));
 }
 
 function executeSYSCALL(i) {
