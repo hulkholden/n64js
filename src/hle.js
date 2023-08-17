@@ -499,24 +499,20 @@ export function hleProcessRSPTask() {
       ++graphicsTaskCount;
       hleGraphics(task);
       n64js.hardware().miRegDevice.interruptDP();
-      n64js.hardware().spRegDevice.halt();
       handled = true;
       break;
     case M_AUDTASK:
       // Ignore for now (pretend we handled it to avoid running RSP).
-      n64js.hardware().spRegDevice.halt();
       handled = true;
       break;
     case M_VIDTASK:
       logger.log('video task');
       // Ignore for now (pretend we handled it to avoid running RSP).
-      n64js.hardware().spRegDevice.halt();
       handled = true;
       break;
     case M_JPGTASK:
       logger.log('jpg task');
       // Ignore for now (pretend we handled it to avoid running RSP).
-      n64js.hardware().spRegDevice.halt();
       handled = true;
       break;
   }

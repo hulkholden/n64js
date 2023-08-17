@@ -386,43 +386,29 @@ class RSP {
   get pc() { return this.pcDataView.getInt32(0, false); }
   set pc(value) { this.pcDataView.setUint32(0, value, false); }
 
-  startExecution() {
+  unhalt() {
+    // TODO: should this just check the status bits?
     this.halted = false;
-    this.runImpl();
   }
 
-  breakExecution() {
-    this.halted = true;
-  }
-
-  runImpl() {
-    let count = 0;
-    while (!this.halted) {
-      const pc = this.pc;
-      this.nextPC = this.delayPC || ((this.pc + 4) & 0xffc);
-
-      const instr = this.imem.getUint32(this.pc, false);
-
-      this.branchTarget = 0;
-      this.executeOp(instr);
-      this.pc = this.nextPC;
-      this.delayPC = this.branchTarget;
-
-      // TODO: remove this when we run in parallel to the CPU.
-      if (count > 1_000_000) {
-        console.log(`took over ${count} ops - halting`)
-        this.halt(0);
-      }
-      count++;
+  step() {
+    if (this.halted) {
+      return;
     }
+    const pc = this.pc;
+    this.nextPC = this.delayPC || ((this.pc + 4) & 0xffc);
+
+    const instr = this.imem.getUint32(this.pc, false);
+
+    this.branchTarget = 0;
+    this.executeOp(instr);
+    this.pc = this.nextPC;
+    this.delayPC = this.branchTarget;
   }
 
   halt(statusBits) {
-    const status = this.hardware.sp_reg.setBits32(SP_STATUS_REG, statusBits | SP_STATUS_HALT);
-    if (status & SP_STATUS_INTR_BREAK) {
-      this.hardware.miRegDevice.interruptSP();
-    }
-    this.breakExecution();
+    this.hardware.spRegDevice.setStatusBits(statusBits | SP_STATUS_HALT);
+    this.halted = true;
   }
 
   disassembleAll() {

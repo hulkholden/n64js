@@ -338,7 +338,6 @@ n64js.returnControlToSystem = () => {
 
 function breakAllExecution() {
   n64js.cpu0.breakExecution();
-  n64js.rsp.breakExecution();
 }
 
 n64js.init = () => {

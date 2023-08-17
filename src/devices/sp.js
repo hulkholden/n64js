@@ -203,8 +203,8 @@ export class SPRegDevice extends Device {
     return value;
   }
 
-  halt() {
-    const status = this.mem.setBits32(SP_STATUS_REG, SP_STATUS_TASKDONE | SP_STATUS_BROKE | SP_STATUS_HALT);
+  setStatusBits(bits) {
+    const status = this.mem.setBits32(SP_STATUS_REG, bits);
     if (status & SP_STATUS_INTR_BREAK) {
       this.hardware.miRegDevice.interruptSP();
     }
@@ -278,12 +278,10 @@ export class SPRegDevice extends Device {
     this.mem.set32(SP_STATUS_REG, statusBits);
 
     if (startRsp) {
-      if (!hleProcessRSPTask()) {
-        if (emulateRSP) {
-          n64js.rsp.startExecution();
-        } else {
-          n64js.hardware().spRegDevice.halt();
-        }
+      if (hleProcessRSPTask() || !emulateRSP) {
+        this.hardware.spRegDevice.setStatusBits(SP_STATUS_TASKDONE | SP_STATUS_BROKE | SP_STATUS_HALT);
+      } else {
+        n64js.rsp.unhalt();
       }
     } else if (stopRsp) {
       n64js.rsp.halt(0);
