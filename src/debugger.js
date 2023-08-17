@@ -737,6 +737,10 @@ export class Debugger {
   }
 
   redraw() {
+    if (!n64js.debuggerVisible()) {
+      return;
+    }
+
     if (this.$dynarecContent.hasClass('active')) {
       this.updateDynarec();
     }
