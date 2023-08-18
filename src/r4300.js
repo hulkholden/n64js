@@ -1387,6 +1387,60 @@ class CPU0 {
     const r = this.getRegU64(rs) < this.getRegU64(rt) ? 1 : 0;
     this.setRegU32Extend(rd, r);
   }
+
+  execMFC0(rt, fs) {
+    this.setRegS32Extend(rt, Number(this.moveFromControl(fs) & 0xffff_ffffn));
+  }
+
+  execDMFC0(rt, fs) {
+    this.setRegU64(rt, this.moveFromControl(fs));
+  }
+
+  execMTC0(rt, fs) {
+    this.moveToControl(fs, BigInt(this.getRegS32Lo(rt)));
+  }
+
+  execDMTC0(rt, fs) {
+    this.moveToControl(fs, this.getRegU64(rt));
+  }
+
+  execTLB(op) {
+    switch (op) {
+      case 0x01: this.tlbRead(); return;
+      case 0x02: this.tlbWriteIndex(); return;
+      case 0x06: this.tlbWriteRandom(); return;
+      case 0x08: this.tlbProbe(); return;
+      case 0x18: this.execERET(); return;
+    }
+    n64js.warn(`CPU: unknown TLB op, pc: ${toString32(this.pc)}, op: ${toString32(op)}`);
+  }
+
+  execERET() {
+    if (this.getControlU32(cpu0_constants.controlStatus) & SR_ERL) {
+      this.nextPC = this.getControlU32(cpu0_constants.controlErrorEPC);
+      this.clearControlBits32(cpu0_constants.controlStatus, ~SR_ERL);
+      logger.log('ERET from error trap - ' + this.nextPC);
+    } else {
+      this.nextPC = this.getControlU32(cpu0_constants.controlEPC);
+      this.clearControlBits32(cpu0_constants.controlStatus, SR_EXL);
+      //logger.log('ERET from interrupt/exception ' + this.nextPC);
+    }
+    this.llBit = 0;
+  }
+
+  execTGE(rt, rs) { this.maybeRaiseTRAPException(this.getRegS64(rs) >= this.getRegS64(rt)); }
+  execTGEU(rt, rs) { this.maybeRaiseTRAPException(this.getRegU64(rs) >= this.getRegU64(rt)); }
+  execTLT(rt, rs) { this.maybeRaiseTRAPException(this.getRegS64(rs) < this.getRegS64(rt)); }
+  execTLTU(rt, rs) { this.maybeRaiseTRAPException(this.getRegU64(rs) < this.getRegU64(rt)); }
+  execTEQ(rt, rs) { this.maybeRaiseTRAPException(this.getRegS64(rs) == this.getRegS64(rt)); }
+  execTNE(rt, rs) { this.maybeRaiseTRAPException(this.getRegS64(rs) != this.getRegS64(rt)); }
+
+  execTGEI(rs, imms) { this.maybeRaiseTRAPException(this.getRegS64(rs) >= BigInt(imms)); }
+  execTGEIU(rs, imms) { this.maybeRaiseTRAPException(this.getRegU64(rs) >= BigInt.asUintN(64, BigInt(imms))); }
+  execTLTI(rs, imms) { this.maybeRaiseTRAPException(this.getRegS64(rs) < BigInt(imms)); }
+  execTLTIU(rs, imms) { this.maybeRaiseTRAPException(this.getRegU64(rs) < BigInt.asUintN(64, BigInt(imms))); }
+  execTEQI(rs, imms) { this.maybeRaiseTRAPException(this.getRegS64(rs) == BigInt(imms)); }
+  execTNEI(rs, imms) { this.maybeRaiseTRAPException(this.getRegS64(rs) != BigInt(imms)); }
 }
 
 
@@ -1594,7 +1648,6 @@ function executeOR(i) { cpu0.execOR(rd(i), rt(i), rs(i)); }
 function executeXOR(i) { cpu0.execXOR(rd(i), rt(i), rs(i)); }
 function executeNOR(i) { cpu0.execNOR(rd(i), rt(i), rs(i)); }
 
-
 function executeSLT(i) { cpu0.execSLT(rd(i), rt(i), rs(i)); }
 function executeSLTU(i) { cpu0.execSLTU(rd(i), rt(i), rs(i)); }
 
@@ -1603,6 +1656,26 @@ function executeDADDU(i) {  cpu0.execDADDU(rd(i), rt(i), rs(i)); }
 function executeDSUB(i) {  cpu0.execDSUB(rd(i), rt(i), rs(i)); }
 function executeDSUBU(i) {  cpu0.execDSUBU(rd(i), rt(i), rs(i)); }
 
+function executeMFC0(i) { cpu0.execMFC0(rt(i), fs(i)); }
+function executeDMFC0(i) { cpu0.execDMFC0(rt(i), fs(i)); }
+function executeMTC0(i) { cpu0.execMTC0(rt(i), fs(i)); }
+function executeDMTC0(i) { cpu0.execDMTC0(rt(i), fs(i)); }
+
+function executeTLB(i) { cpu0.execTLB(tlbop(i)); }
+
+function executeTGE(i) { cpu0.execTGE(rt(i), rs(i)); }
+function executeTGEU(i) { cpu0.execTGEU(rt(i), rs(i)); }
+function executeTLT(i) { cpu0.execTLT(rt(i), rs(i)); }
+function executeTLTU(i) { cpu0.execTLTU(rt(i), rs(i)); }
+function executeTEQ(i) { cpu0.execTEQ(rt(i), rs(i)); }
+function executeTNE(i) { cpu0.execTNE(rt(i), rs(i)); }
+
+function executeTGEI(i) { cpu0.execTGEI(rs(i), imms(i)); }
+function executeTGEIU(i) { cpu0.execTGEIU(rs(i), imms(i)); }
+function executeTLTI(i) { cpu0.execTLTI(rs(i), imms(i)); }
+function executeTLTIU(i) { cpu0.execTLTIU(rs(i), imms(i)); }
+function executeTEQI(i) { cpu0.execTEQI(rs(i), imms(i)); }
+function executeTNEI(i) { cpu0.execTNEI(rs(i), imms(i)); }
 
 function generateSLL(ctx) {
   // NOP
@@ -1729,95 +1802,12 @@ function generateSLTU(ctx) {
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
-function executeMFC0(i) {
-  const value = cpu0.moveFromControl(fs(i));
-  cpu0.setRegS32Extend(rt(i), Number(value & 0xffff_ffffn));
-}
-
-function executeDMFC0(i) {
-  cpu0.setRegU64(rt(i), cpu0.moveFromControl(fs(i)));
-}
-
 function generateMTC0(ctx) {
-  const s = ctx.instr_fs();
-  const t = ctx.instr_rt();
-  if (s === cpu0_constants.controlStatus) {
+  if (ctx.instr_fs() === cpu0_constants.controlStatus) {
     ctx.fragment.cop1statusKnown = false;
   }
-
-  const impl = `c.moveToControl(${s}, BigInt(${genSrcRegS32Lo(t)}))`;
+  const impl = `c.execMTC0(${ctx.instr_rt()}, ${ctx.instr_fs()});`;
   return generateGenericOpBoilerplate(impl, ctx);
-}
-
-function executeMTC0(i) {
-  cpu0.moveToControl(fs(i), BigInt(cpu0.getRegS32Lo(rt(i))));
-}
-
-function executeDMTC0(i) {
-  cpu0.moveToControl(fs(i), cpu0.getRegU64(rt(i)));
-}
-
-function executeTLB(i) {
-  switch (tlbop(i)) {
-    case 0x01: cpu0.tlbRead(); return;
-    case 0x02: cpu0.tlbWriteIndex(); return;
-    case 0x06: cpu0.tlbWriteRandom(); return;
-    case 0x08: cpu0.tlbProbe(); return;
-    case 0x18: executeERET(i); return;
-  }
-  executeUnknown(i);
-}
-
-function executeERET(i) {
-  if (cpu0.getControlU32(cpu0_constants.controlStatus) & SR_ERL) {
-    cpu0.nextPC = cpu0.getControlU32(cpu0_constants.controlErrorEPC);
-    cpu0.clearControlBits32(cpu0_constants.controlStatus, ~SR_ERL);
-    logger.log('ERET from error trap - ' + cpu0.nextPC);
-  } else {
-    cpu0.nextPC = cpu0.getControlU32(cpu0_constants.controlEPC);
-    cpu0.clearControlBits32(cpu0_constants.controlStatus, SR_EXL);
-    //logger.log('ERET from interrupt/exception ' + cpu0.nextPC);
-  }
-
-  cpu0.llBit = 0;
-}
-
-function executeTGE(i) {
-  cpu0.maybeRaiseTRAPException(cpu0.getRegS64(rs(i)) >= cpu0.getRegS64(rt(i)));
-}
-function executeTGEU(i) {
-  cpu0.maybeRaiseTRAPException(cpu0.getRegU64(rs(i)) >= cpu0.getRegU64(rt(i)));
-}
-function executeTLT(i) {
-  cpu0.maybeRaiseTRAPException(cpu0.getRegS64(rs(i)) < cpu0.getRegS64(rt(i)));
-}
-function executeTLTU(i) {
-  cpu0.maybeRaiseTRAPException(cpu0.getRegU64(rs(i)) < cpu0.getRegU64(rt(i)));
-}
-function executeTEQ(i) {
-  cpu0.maybeRaiseTRAPException(cpu0.getRegS64(rs(i)) == cpu0.getRegS64(rt(i)));
-}
-function executeTNE(i) {
-  cpu0.maybeRaiseTRAPException(cpu0.getRegS64(rs(i)) != cpu0.getRegS64(rt(i)));
-}
-
-function executeTGEI(i) {
-  cpu0.maybeRaiseTRAPException(cpu0.getRegS64(rs(i)) >= BigInt(imms(i)));
-}
-function executeTGEIU(i) {
-  cpu0.maybeRaiseTRAPException(cpu0.getRegU64(rs(i)) >= BigInt.asUintN(64, BigInt(imms(i))));
-}
-function executeTLTI(i) {
-  cpu0.maybeRaiseTRAPException(cpu0.getRegS64(rs(i)) < BigInt(imms(i)));
-}
-function executeTLTIU(i) {
-  cpu0.maybeRaiseTRAPException(cpu0.getRegU64(rs(i)) < BigInt.asUintN(64, BigInt(imms(i))));
-}
-function executeTEQI(i) {
-  cpu0.maybeRaiseTRAPException(cpu0.getRegS64(rs(i)) == BigInt(imms(i)));
-}
-function executeTNEI(i) {
-  cpu0.maybeRaiseTRAPException(cpu0.getRegS64(rs(i)) != BigInt(imms(i)));
 }
 
 // Jump
