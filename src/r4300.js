@@ -1191,6 +1191,144 @@ class CPU0 {
   execDSLL32(rd, rt, sa) { this.setRegU64(rd, this.getRegU64(rt) << BigInt(sa + 32)); }
   execDSRL32(rd, rt, sa) { this.setRegU64(rd, this.getRegU64(rt) >> BigInt(sa + 32)); }
   execDSRA32(rd, rt, sa) { this.setRegU64(rd, this.getRegS64(rt) >> BigInt(sa + 32)); }
+
+  execSYSCALL() { this.raiseSYSCALLException(); }
+  execBREAK() { this.raiseBREAKException(); }
+  execSYNC() { /* no-op */ }
+
+  execMFHI(rd) { this.setRegU64(rd, this.getMultHiU64()); }
+  execMFLO(rd) { this.setRegU64(rd, this.getMultLoU64()); }
+  execMTHI(rs) { this.setMultHiU64(this.getRegU64(rs)); }
+  execMTLO(rs) { this.setMultLoU64(this.getRegU64(rs)); }
+
+  execMULT(rt, rs) {
+    const result = BigInt(this.getRegS32Lo(rs)) * BigInt(this.getRegS32Lo(rt));
+    // TODO: verify if these results should be sign extended or not.
+    // n64-systemtest doesn't seem to cover MULT.
+    this.setMultLoS32Extend(result & 0xffffffffn);
+    this.setMultHiS32Extend(result >> 32n);
+  }
+
+  execMULTU(rt, rs) {
+    const result = BigInt(this.getRegU32Lo(rs)) * BigInt(this.getRegU32Lo(rt));
+    // TODO: verify if these results should be sign extended or not.
+    // n64-systemtest doesn't seem to cover MULT.
+    this.setMultLoS32Extend(result & 0xffffffffn);
+    this.setMultHiS32Extend(result >> 32n);
+  }
+
+  execDMULT(rt, rs) {
+    const result = this.getRegS64(rs) * this.getRegS64(rt);
+    this.setMultLoS64(result & u64Max);
+    this.setMultHiS64(result >> 64n);
+  }
+
+  execDMULTU(rt, rs) {
+    const result = this.getRegU64(rs) * this.getRegU64(rt);
+    this.setMultLoU64(result & u64Max);
+    this.setMultHiU64(result >> 64n);
+  }
+
+  execDIV(rt, rs) {
+    const dividend = this.getRegS32Lo(rs);
+    const divisor = this.getRegS32Lo(rt);
+
+    let lo, hi;
+    if (divisor) {
+      lo = (dividend / divisor) >> 0;
+      hi = dividend % divisor;
+    } else {
+      lo = dividend < 0 ? 1 : -1;
+      hi = dividend;
+    }
+    // 32 bit result is sign extended to 64 bits.
+    this.setMultLoS32Extend(BigInt(lo));
+    this.setMultHiS32Extend(BigInt(hi));
+  }
+
+  execDIVU(rt, rs) {
+    const dividend = this.getRegU32Lo(rs);
+    const divisor = this.getRegU32Lo(rt);
+
+    let lo, hi;
+    if (divisor) {
+      lo = (dividend / divisor) >> 0;
+      hi = dividend % divisor;
+    } else {
+      lo = -1;
+      hi = dividend;
+    }
+    // 32 bit result is sign extended to 64 bits.
+    this.setMultLoS32Extend(BigInt(lo));
+    this.setMultHiS32Extend(BigInt(hi));
+  }
+
+  execDDIV(rt, rs) {
+    const divisor = this.getRegS64(rt);
+    const dividend = this.getRegS64(rs);
+
+    let lo, hi;
+    if (divisor) {
+      lo = dividend / divisor;
+      hi = dividend % divisor;
+    } else {
+      lo = dividend < 0 ? 1n : -1n;
+      hi = dividend;
+    }
+    this.setMultLoS64(lo);
+    this.setMultHiS64(hi);
+  }
+
+  execDDIVU(rt, rs) {
+    const divisor = this.getRegU64(rt);
+    const dividend = this.getRegU64(rs);
+
+    let lo, hi;
+    if (divisor) {
+      lo = dividend / divisor;
+      hi = dividend % divisor;
+    } else {
+      lo = -1n;
+      hi = dividend;
+    }
+    this.setMultLoU64(lo);
+    this.setMultHiU64(hi);
+  }
+
+  execADD(rd, rt, rs) {
+    const s = this.getRegS32Lo(rs);
+    const t = this.getRegS32Lo(rt);
+    const result = s + t;
+    if (s32CheckAddOverflow(s, t, result)) {
+      this.raiseOverflowException();
+      return;
+    }
+    this.setRegS32Extend(rd, result);
+  }
+
+  execADDU(rd, rt, rs) {
+    const s = this.getRegS32Lo(rs);
+    const t = this.getRegS32Lo(rt);
+    const result = s + t;
+    this.setRegS32Extend(rd, result);
+  }
+
+  execSUB(rd, rt, rs) {
+    const s = this.getRegS32Lo(rs);
+    const t = this.getRegS32Lo(rt);
+    const result = s - t;
+    if (s32CheckSubOverflow(s, t, result)) {
+      this.raiseOverflowException();
+      return;
+    }
+    this.setRegS32Extend(rd, result);
+  }
+  execSUBU(rd, rt, rs) {
+    const s = this.getRegS32Lo(rs);
+    const t = this.getRegS32Lo(rt);
+    const result = s - t;
+    this.setRegS32Extend(rd, result);
+  }
 }
 
 
@@ -1369,6 +1507,30 @@ function executeDSLL32(i) { cpu0.execDSLL32(rd(i), rt(i), sa(i)); }
 function executeDSRL32(i) { cpu0.execDSRL32(rd(i), rt(i), sa(i)); }
 function executeDSRA32(i) { cpu0.execDSRA32(rd(i), rt(i), sa(i)); }
 
+function executeSYSCALL(i) { cpu0.execSYSCALL(); }
+function executeBREAK(i) { cpu0.execBREAK(); }
+function executeSYNC(i) { cpu0.execSYNC(); }
+
+function executeMFHI(i) { cpu0.execMFHI(rd(i)); }
+function executeMFLO(i) { cpu0.execMFLO(rd(i)); }
+function executeMTHI(i) { cpu0.execMTHI(rs(i)); }
+function executeMTLO(i) { cpu0.execMTLO(rs(i)); }
+
+function executeMULT(i) { cpu0.execMULT(rt(i), rs(i)); }
+function executeMULTU(i) { cpu0.execMULTU(rt(i), rs(i)); }
+function executeDMULT(i) { cpu0.execDMULT(rt(i), rs(i)); }
+function executeDMULTU(i) { cpu0.execDMULTU(rt(i), rs(i)); }
+
+function executeDIV(i) { cpu0.execDIV(rt(i), rs(i)); }
+function executeDIVU(i) { cpu0.execDIVU(rt(i), rs(i)); }
+function executeDDIV(i) { cpu0.execDDIV(rt(i), rs(i)); }
+function executeDDIVU(i) { cpu0.execDDIVU(rt(i), rs(i)); }
+
+function executeADD(i) { cpu0.execADD(rd(i), rt(i), rs(i)); }
+function executeADDU(i) { cpu0.execADDU(rd(i), rt(i), rs(i)); }
+function executeSUB(i) { cpu0.execSUB(rd(i), rt(i), rs(i)); }
+function executeSUBU(i) { cpu0.execSUBU(rd(i), rt(i), rs(i)); }
+
 function generateSLL(ctx) {
   // NOP
   if (ctx.instruction === 0) {
@@ -1403,257 +1565,56 @@ function generateSRAV(ctx) {
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
-function executeSYSCALL(i) {
-  cpu0.raiseSYSCALLException();
-}
-
-function executeBREAK(i) {
-  cpu0.raiseBREAKException();
-}
-
-function executeSYNC(i) {
-  // Ignored.
-}
-
-function executeMFHI(i) { cpu0.setRegU64(rd(i), cpu0.getMultHiU64()); }
-function executeMFLO(i) { cpu0.setRegU64(rd(i), cpu0.getMultLoU64()); }
-function executeMTHI(i) { cpu0.setMultHiU64(cpu0.getRegU64(rs(i))); }
-function executeMTLO(i) { cpu0.setMultLoU64(cpu0.getRegU64(rs(i))); }
-
 function generateMFHI(ctx) {
-  const d = ctx.instr_rd();
-  const impl = `c.setRegU64(${d}, c.getMultHiU64());`;
+  const impl = `c.execMFHI(${ctx.instr_rd()});`;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
 function generateMFLO(ctx) {
-  const d = ctx.instr_rd();
-  const impl = `c.setRegU64(${d}, c.getMultLoU64());`;
+  const impl = `c.execMFLO(${ctx.instr_rd()});`;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
 function generateMTHI(ctx) {
-  const s = ctx.instr_rs();
-  const impl = `c.setMultHiU64(c.getRegU64(${s}));`;
+  const impl = `c.execMTHI(${ctx.instr_rs()});`;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
 function generateMTLO(ctx) {
-  const s = ctx.instr_rs();
-  const impl = `c.setMultLoU64(c.getRegU64(${s}));`;
+  const impl = `c.execMTLO(${ctx.instr_rs()});`;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
 function generateMULT(ctx) {
-  const s = ctx.instr_rs();
-  const t = ctx.instr_rt();
-
-  const impl = dedent(`
-    const result = BigInt(${genSrcRegS32Lo(s)}) * BigInt(${genSrcRegS32Lo(t)});
-    c.setMultLoS32Extend(result & 0xffffffffn);
-    c.setMultHiS32Extend(result >> 32n);
-    `);
+  const impl = `c.execMULT(${ctx.instr_rt()}, ${ctx.instr_rs()});`;
   return generateTrivialOpBoilerplate(impl, ctx);
-}
-
-function executeMULT(i) {
-  const result = BigInt(cpu0.getRegS32Lo(rs(i))) * BigInt(cpu0.getRegS32Lo(rt(i)));
-  // TODO: verify if these results should be sign extended or not.
-  // n64-systemtest doesn't seem to cover MULT.
-  cpu0.setMultLoS32Extend(result & 0xffffffffn);
-  cpu0.setMultHiS32Extend(result >> 32n);
 }
 
 function generateMULTU(ctx) {
-  const s = ctx.instr_rs();
-  const t = ctx.instr_rt();
-
-  const impl = dedent(`
-    const result = BigInt(${genSrcRegU32Lo(s)}) * BigInt(${genSrcRegU32Lo(t)});
-    c.setMultLoS32Extend(result & 0xffffffffn);
-    c.setMultHiS32Extend(result >> 32n);
-    `);
+  const impl = `c.execMULTU(${ctx.instr_rt()}, ${ctx.instr_rs()});`;
   return generateTrivialOpBoilerplate(impl, ctx);
-}
-
-function executeMULTU(i) {
-  const result = BigInt(cpu0.getRegU32Lo(rs(i))) * BigInt(cpu0.getRegU32Lo(rt(i)));
-  // TODO: verify if these results should be sign extended or not.
-  // n64-systemtest doesn't seem to cover MULT.
-  cpu0.setMultLoS32Extend(result & 0xffffffffn);
-  cpu0.setMultHiS32Extend(result >> 32n);
-}
-
-function executeDMULT(i) {
-  const result = cpu0.getRegS64(rs(i)) * cpu0.getRegS64(rt(i));
-  cpu0.setMultLoS64(result & u64Max);
-  cpu0.setMultHiS64(result >> 64n);
-}
-
-function executeDMULTU(i) {
-  const result = cpu0.getRegU64(rs(i)) * cpu0.getRegU64(rt(i));
-  cpu0.setMultLoU64(result & u64Max);
-  cpu0.setMultHiU64(result >> 64n);
-}
-
-function executeDIV(i) {
-  const dividend = cpu0.getRegS32Lo(rs(i));
-  const divisor = cpu0.getRegS32Lo(rt(i));
-
-  let lo, hi;
-  if (divisor) {
-    lo = (dividend / divisor) >> 0;
-    hi = dividend % divisor;
-  } else {
-    lo = dividend < 0 ? 1 : -1;
-    hi = dividend;
-  }
-  // 32 bit result is sign extended to 64 bits.
-  cpu0.setMultLoS32Extend(BigInt(lo));
-  cpu0.setMultHiS32Extend(BigInt(hi));
-}
-
-function executeDIVU(i) {
-  const dividend = cpu0.getRegU32Lo(rs(i));
-  const divisor = cpu0.getRegU32Lo(rt(i));
-
-  let lo, hi;
-  if (divisor) {
-    lo = (dividend / divisor) >> 0;
-    hi = dividend % divisor;
-  } else {
-    lo = -1;
-    hi = dividend;
-  }
-  // 32 bit result is sign extended to 64 bits.
-  cpu0.setMultLoS32Extend(BigInt(lo));
-  cpu0.setMultHiS32Extend(BigInt(hi));
-}
-
-function executeDDIV(i) {
-  const divisor = cpu0.getRegS64(rt(i));
-  const dividend = cpu0.getRegS64(rs(i));
-
-  let lo, hi;
-  if (divisor) {
-    lo = dividend / divisor;
-    hi = dividend % divisor;
-  } else {
-    lo = dividend < 0 ? 1n : -1n;
-    hi = dividend;
-  }
-  cpu0.setMultLoS64(lo);
-  cpu0.setMultHiS64(hi);
-}
-
-function executeDDIVU(i) {
-  const divisor = cpu0.getRegU64(rt(i));
-  const dividend = cpu0.getRegU64(rs(i));
-
-  let lo, hi;
-  if (divisor) {
-    lo = dividend / divisor;
-    hi = dividend % divisor;
-  } else {
-    lo = -1n;
-    hi = dividend;
-  }
-  cpu0.setMultLoU64(lo);
-  cpu0.setMultHiU64(hi);
 }
 
 function generateADD(ctx) {
-  const d = ctx.instr_rd();
-  const s = ctx.instr_rs();
-  const t = ctx.instr_rt();
-  const impl = dedent(`
-    const s = ${genSrcRegS32Lo(s)};
-    const t = ${genSrcRegS32Lo(t)};
-    const result = s + t;
-    if (n64js.s32CheckAddOverflow(s, t, result)) {
-      c.raiseOverflowException();
-    } else {
-      c.setRegS32Extend(${d}, result);
-    }
-    `);
+  const impl = `c.execADD(${ctx.instr_rd()}, ${ctx.instr_rt()}, ${ctx.instr_rs()});`;
   // Use the generic boilerplate because we might have generated an overflow exception.
   return generateGenericOpBoilerplate(impl, ctx);
-}
-
-function executeADD(i) {
-  const s = cpu0.getRegS32Lo(rs(i));
-  const t = cpu0.getRegS32Lo(rt(i));
-  const result = s + t;
-  if (s32CheckAddOverflow(s, t, result)) {
-    cpu0.raiseOverflowException();
-    return;
-  }
-  cpu0.setRegS32Extend(rd(i), result);
 }
 
 function generateADDU(ctx) {
-  const d = ctx.instr_rd();
-  const s = ctx.instr_rs();
-  const t = ctx.instr_rt();
-  const impl = dedent(`
-    const s = ${genSrcRegS32Lo(s)};
-    const t = ${genSrcRegS32Lo(t)};
-    c.setRegS32Extend(${d}, s + t);
-    `);
+  const impl = `c.execADDU(${ctx.instr_rd()}, ${ctx.instr_rt()}, ${ctx.instr_rs()});`;
   return generateTrivialOpBoilerplate(impl, ctx);
-}
-function executeADDU(i) {
-  const s = cpu0.getRegS32Lo(rs(i));
-  const t = cpu0.getRegS32Lo(rt(i));
-  const result = s + t;
-  cpu0.setRegS32Extend(rd(i), result);
 }
 
 function generateSUB(ctx) {
-  const d = ctx.instr_rd();
-  const s = ctx.instr_rs();
-  const t = ctx.instr_rt();
-  const impl = dedent(`
-    const s = ${genSrcRegS32Lo(s)};
-    const t = ${genSrcRegS32Lo(t)};
-    const result = s - t;
-    if (n64js.s32CheckSubOverflow(s, t, result)) {
-      c.raiseOverflowException();
-    } else {
-      c.setRegS32Extend(${d}, result);
-    }
-  `);
+  const impl = `c.execSUB(${ctx.instr_rd()}, ${ctx.instr_rt()}, ${ctx.instr_rs()});`;
   // Use the generic boilerplate because we might have generated an overflow exception.
   return generateGenericOpBoilerplate(impl, ctx);
 }
 
-function executeSUB(i) {
-  const s = cpu0.getRegS32Lo(rs(i));
-  const t = cpu0.getRegS32Lo(rt(i));
-  const result = s - t;
-  if (s32CheckSubOverflow(s, t, result)) {
-    cpu0.raiseOverflowException();
-    return;
-  }
-  cpu0.setRegS32Extend(rd(i), result);
-}
-
 function generateSUBU(ctx) {
-  const d = ctx.instr_rd();
-  const s = ctx.instr_rs();
-  const t = ctx.instr_rt();
-  const impl = dedent(`
-    const s = ${genSrcRegS32Lo(s)};
-    const t = ${genSrcRegS32Lo(t)};
-    c.setRegS32Extend(${d}, s - t);
-    `);
+  const impl = `c.execSUBU(${ctx.instr_rd()}, ${ctx.instr_rt()}, ${ctx.instr_rs()});`;
   return generateTrivialOpBoilerplate(impl, ctx);
-}
-function executeSUBU(i) {
-  const s = cpu0.getRegS32Lo(rs(i));
-  const t = cpu0.getRegS32Lo(rt(i));
-  const result = s - t;
-  cpu0.setRegS32Extend(rd(i), result);
 }
 
 function executeAND(i) {
