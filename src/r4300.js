@@ -1441,6 +1441,65 @@ class CPU0 {
   execTLTIU(rs, imms) { this.maybeRaiseTRAPException(this.getRegU64(rs) < BigInt.asUintN(64, BigInt(imms))); }
   execTEQI(rs, imms) { this.maybeRaiseTRAPException(this.getRegS64(rs) == BigInt(imms)); }
   execTNEI(rs, imms) { this.maybeRaiseTRAPException(this.getRegS64(rs) != BigInt(imms)); }
+
+  execJ(address) { this.jump(address); }
+  execJR(rs) { this.jump(this.getRegU32Lo(rs)); }
+  execJAL(address) {
+    this.setRegS32Extend(cpu0_constants.RA, this.nextPC + 4);
+    this.jump(address);
+  }
+  execJALR(rd, rs) {
+    const newPC = this.getRegU32Lo(rs);
+    this.setRegS32Extend(rd, this.nextPC + 4);
+    this.jump(newPC);
+  }
+
+  execBEQ(rt, rs, offset) {
+    const cond = this.getRegU64(rs) === this.getRegU64(rt);
+    this.conditionalBranch(cond, offset);
+
+    if (cond && offset === -1) {
+      this.speedHack();
+    }
+  }
+
+  execBNE(rt, rs, offset) { this.conditionalBranch(this.getRegU64(rs) !== this.getRegU64(rt), offset); }
+  execBEQL(rt, rs, offset) { this.conditionalBranchLikely(this.getRegU64(rs) === this.getRegU64(rt), offset); }
+  execBNEL(rt, rs, offset) { this.conditionalBranchLikely(this.getRegU64(rs) !== this.getRegU64(rt), offset); }
+
+  execBGEZ(rs, offset) { this.conditionalBranch(this.getRegS64(rs) >= 0n, offset); }
+  execBGTZ(rs, offset) { this.conditionalBranch(this.getRegS64(rs) > 0n, offset); }
+  execBLEZ(rs, offset) { this.conditionalBranch(this.getRegS64(rs) <= 0n, offset); }
+  execBLTZ(rs, offset) { this.conditionalBranch(this.getRegS64(rs) < 0n, offset); }
+
+  execBGEZL(rs, offset) { this.conditionalBranchLikely(this.getRegS64(rs) >= 0n, offset); }
+  execBGTZL(rs, offset) { this.conditionalBranchLikely(this.getRegS64(rs) > 0n, offset); }
+  execBLEZL(rs, offset) { this.conditionalBranchLikely(this.getRegS64(rs) <= 0n, offset); }
+  execBLTZL(rs, offset) { this.conditionalBranchLikely(this.getRegS64(rs) < 0n, offset); }
+
+  execBLTZAL(rs, offset) {
+    const cond = this.getRegS64(rs) < 0n;
+    this.setRegS32Extend(cpu0_constants.RA, this.nextPC + 4);
+    this.conditionalBranch(cond, offset);
+  }
+
+  execBGEZAL(rs, offset) {
+    const cond = this.getRegS64(rs) >= 0n;
+    this.setRegS32Extend(cpu0_constants.RA, this.nextPC + 4);
+    this.conditionalBranch(cond, offset);
+  }
+
+  execBLTZALL(rs, offset) {
+    const cond = this.getRegS64(rs) < 0n;
+    this.setRegS32Extend(cpu0_constants.RA, this.nextPC + 4);
+    this.conditionalBranchLikely(cond, offset);
+  }
+
+  execBGEZALL(rs, offset) {
+    const cond = this.getRegS64(rs) >= 0n;
+    this.setRegS32Extend(cpu0_constants.RA, this.nextPC + 4);
+    this.conditionalBranchLikely(cond, offset);
+  }
 }
 
 
@@ -1677,6 +1736,29 @@ function executeTLTIU(i) { cpu0.execTLTIU(rs(i), imms(i)); }
 function executeTEQI(i) { cpu0.execTEQI(rs(i), imms(i)); }
 function executeTNEI(i) { cpu0.execTNEI(rs(i), imms(i)); }
 
+function executeJ(i) { cpu0.execJ(jumpAddress(cpu0.pc, i)); }
+function executeJR(i) { cpu0.execJR(rs(i)); }
+function executeJAL(i) { cpu0.execJAL(jumpAddress(cpu0.pc, i)); }
+function executeJALR(i) { cpu0.execJALR(rd(i), rs(i)); }
+
+function executeBEQ(i) { cpu0.execBEQ(rt(i), rs(i), offset(i)); }
+function executeBEQL(i) { cpu0.execBEQL(rt(i), rs(i), offset(i)); }
+function executeBNE(i) { cpu0.execBNE(rt(i), rs(i), offset(i)); }
+function executeBNEL(i) { cpu0.execBNEL(rt(i), rs(i), offset(i)); }
+
+function executeBLEZ(i) { cpu0.execBLEZ(rs(i), offset(i)); }
+function executeBLEZL(i) { cpu0.execBLEZL(rs(i), offset(i)); }
+function executeBGTZ(i) { cpu0.execBGTZ(rs(i), offset(i)); }
+function executeBGTZL(i) { cpu0.execBGTZL(rs(i), offset(i)); }
+function executeBLTZ(i) { cpu0.execBLTZ(rs(i), offset(i)); }
+function executeBLTZL(i) { cpu0.execBLTZL(rs(i), offset(i)); }
+function executeBLTZAL(i) { cpu0.execBLTZAL(rs(i), offset(i)); }
+function executeBLTZALL(i) { cpu0.execBLTZALL(rs(i), offset(i)); }
+function executeBGEZ(i) { cpu0.execBGEZ(rs(i), offset(i)); }
+function executeBGEZL(i) { cpu0.execBGEZL(rs(i), offset(i)); }
+function executeBGEZAL(i) { cpu0.execBGEZAL(rs(i), offset(i)); }
+function executeBGEZALL(i) { cpu0.execBGEZALL(rs(i), offset(i)); }
+
 function generateSLL(ctx) {
   // NOP
   if (ctx.instruction === 0) {
@@ -1812,15 +1894,14 @@ function generateMTC0(ctx) {
 
 // Jump
 function generateJ(ctx) {
+  // TODO: can this call execJ? It would need reworking to use branchTarget.
   const addr = jumpAddress(ctx.pc, ctx.instruction);
   const impl = 'c.delayPC = ' + toString32(addr) + ';';
   return generateBranchOpBoilerplate(impl, ctx, false);
 }
-function executeJ(i) {
-  cpu0.jump(jumpAddress(cpu0.pc, i));
-}
 
 function generateJAL(ctx) {
+  // TODO: can this call execJAL? It would need reworking to use branchTarget.
   const addr = jumpAddress(ctx.pc, ctx.instruction);
   const ra = ctx.nextPC + 4;
   // Optimise as sign is known at compile time.
@@ -1831,12 +1912,9 @@ function generateJAL(ctx) {
     `);
   return generateBranchOpBoilerplate(impl, ctx, false);
 }
-function executeJAL(i) {
-  cpu0.setRegS32Extend(cpu0_constants.RA, cpu0.nextPC + 4);
-  cpu0.jump(jumpAddress(cpu0.pc, i));
-}
 
 function generateJALR(ctx) {
+  // TODO: can this call execJALR? It would need reworking to use branchTarget.
   const s = ctx.instr_rs();
   const d = ctx.instr_rd();
 
@@ -1849,19 +1927,12 @@ function generateJALR(ctx) {
     `);
   return generateBranchOpBoilerplate(impl, ctx, false);
 }
-function executeJALR(i) {
-  const new_pc = cpu0.getRegU32Lo(rs(i));
-  cpu0.setRegS32Extend(rd(i), cpu0.nextPC + 4);
-  cpu0.jump(new_pc);
-}
 
 function generateJR(ctx) {
+  // TODO: can this call execJR? It would need reworking to use branchTarget.
   // NB needs to be unsigned
   const impl = `c.delayPC = ${genSrcRegU32Lo(ctx.instr_rs())};`;
   return generateBranchOpBoilerplate(impl, ctx, false);
-}
-function executeJR(i) {
-  cpu0.jump(cpu0.getRegU32Lo(rs(i)));
 }
 
 function generateBEQ(ctx) {
@@ -1893,15 +1964,6 @@ function generateBEQ(ctx) {
   return generateBranchOpBoilerplate(impl, ctx, false);
 }
 
-function executeBEQ(i) {
-  const cond = cpu0.getRegU64(rs(i)) === cpu0.getRegU64(rt(i));
-  cpu0.conditionalBranch(cond, offset(i));
-
-  if (cond && offset(i) === -1) {
-    cpu0.speedHack();
-  }
-}
-
 function generateBEQL(ctx) {
   const s = ctx.instr_rs();
   const t = ctx.instr_rt();
@@ -1915,11 +1977,6 @@ function generateBEQL(ctx) {
     }`);
 
   return generateBranchOpBoilerplate(impl, ctx, true /* might_adjust_next_pc*/);
-}
-
-function executeBEQL(i) {
-  const cond = cpu0.getRegU64(rs(i)) === cpu0.getRegU64(rt(i));
-  cpu0.conditionalBranchLikely(cond, offset(i));
 }
 
 function generateBNE(ctx) {
@@ -1942,11 +1999,6 @@ function generateBNE(ctx) {
   return generateBranchOpBoilerplate(impl, ctx, false);
 }
 
-function executeBNE(i) {
-  const cond = cpu0.getRegU64(rs(i)) !== cpu0.getRegU64(rt(i));
-  cpu0.conditionalBranch(cond, offset(i));
-}
-
 function generateBNEL(ctx) {
   const s = ctx.instr_rs();
   const t = ctx.instr_rt();
@@ -1961,11 +2013,6 @@ function generateBNEL(ctx) {
     `);
 
   return generateBranchOpBoilerplate(impl, ctx, true /* might_adjust_next_pc*/);
-}
-
-function executeBNEL(i) {
-  const cond = cpu0.getRegU64(rs(i)) !== cpu0.getRegU64(rt(i));
-  cpu0.conditionalBranchLikely(cond, offset(i));
 }
 
 // Branch Less Than or Equal To Zero
@@ -1983,16 +2030,6 @@ function generateBLEZ(ctx) {
   return generateBranchOpBoilerplate(impl, ctx, false);
 }
 
-function executeBLEZ(i) {
-  const cond = cpu0.getRegS64(rs(i)) <= 0n;
-  cpu0.conditionalBranch(cond, offset(i));
-}
-
-function executeBLEZL(i) {
-  const cond = cpu0.getRegS64(rs(i)) <= 0n;
-  cpu0.conditionalBranchLikely(cond, offset(i));
-}
-
 // Branch Greater Than Zero
 function generateBGTZ(ctx) {
   const s = ctx.instr_rs();
@@ -2006,16 +2043,6 @@ function generateBGTZ(ctx) {
     }`);
 
   return generateBranchOpBoilerplate(impl, ctx, false);
-}
-
-function executeBGTZ(i) {
-  const cond = cpu0.getRegS64(rs(i)) > 0n;
-  cpu0.conditionalBranch(cond, offset(i));
-}
-
-function executeBGTZL(i) {
-  const cond = cpu0.getRegS64(rs(i)) > 0n;
-  cpu0.conditionalBranchLikely(cond, offset(i));
 }
 
 // Branch Less Than Zero
@@ -2033,11 +2060,6 @@ function generateBLTZ(ctx) {
   return generateBranchOpBoilerplate(impl, ctx, false);
 }
 
-function executeBLTZ(i) {
-  const cond = cpu0.getRegS64(rs(i)) < 0n;
-  cpu0.conditionalBranch(cond, offset(i));
-}
-
 function generateBLTZL(ctx) {
   const s = ctx.instr_rs();
   const addr = branchAddress(ctx.pc, ctx.instruction);
@@ -2052,22 +2074,6 @@ function generateBLTZL(ctx) {
   return generateBranchOpBoilerplate(impl, ctx, true /* might_adjust_next_pc*/);
 }
 
-function executeBLTZL(i) {
-  const cond = cpu0.getRegS64(rs(i)) < 0n;
-  cpu0.conditionalBranchLikely(cond, offset(i));
-}
-
-function executeBLTZAL(i) {
-  const cond = cpu0.getRegS64(rs(i)) < 0n;
-  cpu0.setRegS32Extend(cpu0_constants.RA, cpu0.nextPC + 4);
-  cpu0.conditionalBranch(cond, offset(i));
-}
-
-function executeBLTZALL(i) {
-  const cond = cpu0.getRegS64(rs(i)) < 0;
-  cpu0.setRegS32Extend(cpu0_constants.RA, cpu0.nextPC + 4);
-  cpu0.conditionalBranchLikely(cond, offset(i));
-}
 
 // Branch Greater Than Zero
 function generateBGEZ(ctx) {
@@ -2084,11 +2090,6 @@ function generateBGEZ(ctx) {
   return generateBranchOpBoilerplate(impl, ctx, false);
 }
 
-function executeBGEZ(i) {
-  const cond = cpu0.getRegS64(rs(i)) >= 0n;
-  cpu0.conditionalBranch(cond, offset(i));
-}
-
 function generateBGEZL(ctx) {
   const s = ctx.instr_rs();
   const addr = branchAddress(ctx.pc, ctx.instruction);
@@ -2101,23 +2102,6 @@ function generateBGEZL(ctx) {
     }`);
 
   return generateBranchOpBoilerplate(impl, ctx, true /* might_adjust_next_pc*/);
-}
-
-function executeBGEZL(i) {
-  const cond = cpu0.getRegS64(rs(i)) >= 0n;
-  cpu0.conditionalBranchLikely(cond, offset(i));
-}
-
-function executeBGEZAL(i) {
-  const cond = cpu0.getRegS64(rs(i)) >= 0n;
-  cpu0.setRegS32Extend(cpu0_constants.RA, cpu0.nextPC + 4);
-  cpu0.conditionalBranch(cond, offset(i));
-}
-
-function executeBGEZALL(i) {
-  const cond = cpu0.getRegS64(rs(i)) >= 0n;
-  cpu0.setRegS32Extend(cpu0_constants.RA, cpu0.nextPC + 4);
-  cpu0.conditionalBranchLikely(cond, offset(i));
 }
 
 function generateADDI(ctx) {
@@ -4133,7 +4117,7 @@ function generateMemoryAccessBoilerplate(fn, ctx) {
   return code;
 }
 
-// Branch ops explicitly manipulate nextPC rather than branchTarget. They also guarnatee that stuffToDo is not set.
+// Branch ops explicitly manipulate nextPC rather than branchTarget. They also guarantee that stuffToDo is not set.
 // might_adjust_next_pc is typically used by branch likely instructions.
 function generateBranchOpBoilerplate(fn, ctx, might_adjust_next_pc) {
   let code = '';
