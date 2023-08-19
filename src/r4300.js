@@ -1388,6 +1388,35 @@ class CPU0 {
     this.setRegU32Extend(rd, r);
   }
 
+  execADDI(rt, rs, imms) {
+    const s = this.getRegS32Lo(rs);
+    const result = s + imms;
+    if (s32CheckAddOverflow(s, imms, result)) {
+      this.raiseOverflowException();
+      return;
+    }
+    this.setRegS32Extend(rt, result);
+  }
+
+  execDADDI(rt, rs, imms) {
+    const s = this.getRegS64(rs);
+    const imm = BigInt(imms);
+    const result = s + imm;
+    if (s64CheckAddOverflow(s, imm, result)) {
+      this.raiseOverflowException();
+      return;
+    }
+    this.setRegU64(rt, result);
+  }
+
+  execADDIU(rt, rs, imms) {
+    this.setRegS32Extend(rt, this.getRegS32Lo(rs) + imms);
+  }
+
+  execDADDIU(rt, rs, imms) {
+    this.setRegU64(rt, this.getRegS64(rs) + BigInt(imms));
+  }
+
   execMFC0(rt, fs) {
     this.setRegS32Extend(rt, Number(this.moveFromControl(fs) & 0xffff_ffffn));
   }
@@ -1701,6 +1730,11 @@ function executeADD(i) { cpu0.execADD(rd(i), rt(i), rs(i)); }
 function executeADDU(i) { cpu0.execADDU(rd(i), rt(i), rs(i)); }
 function executeSUB(i) { cpu0.execSUB(rd(i), rt(i), rs(i)); }
 function executeSUBU(i) { cpu0.execSUBU(rd(i), rt(i), rs(i)); }
+
+function executeADDI(i) { cpu0.execADDI(rt(i), rs(i), imms(i)); }
+function executeADDIU(i) { cpu0.execADDIU(rt(i), rs(i), imms(i)); }
+function executeDADDI(i) { cpu0.execDADDI(rt(i), rs(i), imms(i)); }
+function executeDADDIU(i) { cpu0.execDADDIU(rt(i), rs(i), imms(i)); }
 
 function executeAND(i) { cpu0.execAND(rd(i), rt(i), rs(i)); }
 function executeOR(i) { cpu0.execOR(rd(i), rt(i), rs(i)); }
@@ -2027,6 +2061,26 @@ function generateSLTU(ctx) {
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
+function generateADDI(ctx) {
+  const impl = `c.execADDI(${ctx.instr_rt()}, ${ctx.instr_rs()}, ${ctx.instr_imms()});`;
+  return generateGenericOpBoilerplate(impl, ctx); // May raise Overflow exception.
+}
+
+function generateDADDI(ctx) {
+  const impl = `c.execDADDI(${ctx.instr_rt()}, ${ctx.instr_rs()}, ${ctx.instr_imms()});`;
+  return generateTrivialOpBoilerplate(impl, ctx);
+}
+
+function generateADDIU(ctx) {
+  const impl = `c.execADDI(${ctx.instr_rt()}, ${ctx.instr_rs()}, ${ctx.instr_imms()});`;
+  return generateGenericOpBoilerplate(impl, ctx); // May raise Overflow exception.
+}
+
+function generateDADDIU(ctx) {
+  const impl = `c.execDADDI(${ctx.instr_rt()}, ${ctx.instr_rs()}, ${ctx.instr_imms()});`;
+  return generateTrivialOpBoilerplate(impl, ctx);
+}
+
 function generateMTC0(ctx) {
   if (ctx.instr_fs() === cpu0_constants.controlStatus) {
     ctx.fragment.cop1statusKnown = false;
@@ -2245,70 +2299,6 @@ function generateBGEZL(ctx) {
     }`);
 
   return generateBranchOpBoilerplate(impl, ctx, true /* might_adjust_next_pc*/);
-}
-
-function generateADDI(ctx) {
-  const s = ctx.instr_rs();
-  const t = ctx.instr_rt();
-  const impl = dedent(`
-    const s = ${genSrcRegS32Lo(s)};
-    const imm = ${imms(ctx.instruction)};
-    const result = s + imm;
-    if (n64js.s32CheckAddOverflow(s, imm, result)) {
-      c.raiseOverflowException();
-    } else {
-      c.setRegS32Extend(${t}, result);
-    }`);
-  // Use the generic boilerplate because we might have generated an overflow exception.
-  return generateGenericOpBoilerplate(impl, ctx);
-}
-
-function executeADDI(i) {
-  const s = cpu0.getRegS32Lo(rs(i));
-  const imm = imms(i);
-  const result = s + imm;
-  if (s32CheckAddOverflow(s, imm, result)) {
-    cpu0.raiseOverflowException();
-    return;
-  }
-  cpu0.setRegS32Extend(rt(i), result);
-}
-
-function generateADDIU(ctx) {
-  const s = ctx.instr_rs();
-  const t = ctx.instr_rt();
-  const impl = dedent(`
-    const s = ${genSrcRegS32Lo(s)};
-    const imm = ${imms(ctx.instruction)};
-    const result = s + imm;
-    c.setRegS32Extend(${t}, result);
-    `);
-  return generateTrivialOpBoilerplate(impl, ctx);
-}
-
-function executeADDIU(i) {
-  const s = cpu0.getRegS32Lo(rs(i));
-  const imm = imms(i);
-  const result = s + imm;
-  cpu0.setRegS32Extend(rt(i), result);
-}
-
-function executeDADDI(i) {
-  const s = cpu0.getRegS64(rs(i));
-  const imm = BigInt(imms(i));
-  const result = s + imm;
-  if (s64CheckAddOverflow(s, imm, result)) {
-    cpu0.raiseOverflowException();
-    return;
-  }
-  cpu0.setRegU64(rt(i), result);
-}
-
-function executeDADDIU(i) {
-  const s = cpu0.getRegS64(rs(i));
-  const imm = BigInt(imms(i));
-  const result = s + imm;
-  cpu0.setRegU64(rt(i), result);
 }
 
 function generateSLTI(ctx) {
@@ -3487,7 +3477,7 @@ const simpleTableGen = validateSimpleOpTable([
   generateANDI,           generateORI,            generateXORI,         generateLUI,
   generateCop0,           generateCop1,           'executeCop2',        'executeCop3',
   generateBEQL,           generateBNEL,           'executeBLEZL',       'executeBGTZL',
-  'executeDADDI',         'executeDADDIU',        'executeLDL',         'executeLDR',
+  generateDADDI,          generateDADDIU,         'executeLDL',         'executeLDR',
   'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeRESERVED',
   generateLB,             generateLH,             'executeLWL',         generateLW,
   generateLBU,            generateLHU,            'executeLWR',         generateLWU,
@@ -3504,8 +3494,6 @@ n64js.executeCop2 = executeCop2;
 n64js.executeCop3 = executeCop3;
 n64js.executeBLEZL = executeBLEZL;
 n64js.executeBGTZL = executeBGTZL;
-n64js.executeDADDI = executeDADDI;
-n64js.executeDADDIU = executeDADDIU;
 n64js.executeLDL = executeLDL;
 n64js.executeLDR = executeLDR;
 n64js.executeRESERVED = executeRESERVED;
