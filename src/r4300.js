@@ -449,14 +449,6 @@ class CPU0 {
   getRegS64(r) { return this.gprS64[r]; }
   getRegU64(r) { return this.gprU64[r]; }
 
-  calcAddressS32(instr) {
-    return this.getRegS32Lo(base(instr)) + imms(instr);
-  }
-
-  // TODO: see if we can remove calcAddressS32
-  addrS32(base, imms) { return (this.getRegS32Lo(base) + imms) >> 0; }
-  addrU32(base, imms) { return (this.getRegS32Lo(base) + imms) >>> 0; }
-
   setRegU64(r, v) {
     // TODO: Avoid the need for this in dynarec code.
     if (r == 0) {
@@ -1424,6 +1416,10 @@ class CPU0 {
   execXORI(rt, rs, imm) { this.setRegU64(rt, this.getRegU64(rs) ^ BigInt(imm)); }
   execLUI(rt, imm) { this.setRegS32Extend(rt, imm << 16); }
 
+  // Helpers for load and store instructions.
+  addrS32(base, imms) { return (this.getRegS32Lo(base) + imms) >> 0; }
+  addrU32(base, imms) { return (this.getRegS32Lo(base) + imms) >>> 0; }
+
   execLB(rt, base, imms) {
     const value = memaccess.loadS8fast(this.addrS32(base, imms));
     this.setRegS32Extend(rt, value);
@@ -1569,6 +1565,40 @@ class CPU0 {
       return;
     }
     memaccess.store64fast(this.addrS32(base, imms), cpu1.loadU64(cpu1.copRegIdx64(ft)));
+  }
+
+  execLL(rt, base, imms) {
+    const addr = this.addrS32(base, imms);
+    this.setControlU32(cpu0_constants.controlLLAddr, makeLLAddr(addr));
+    this.setRegS32Extend(rt, memaccess.loadS32fast(addr));
+    this.llBit = 1;
+  }
+
+  execLLD(rt, base, imms) {
+    const addr = this.addrS32(base, imms);
+    this.setControlU32(cpu0_constants.controlLLAddr, makeLLAddr(addr));
+    this.setRegU64(rt, memaccess.loadU64fast(addr));
+    this.llBit = 1;
+  }
+
+  execSC(rt, base, imms) {
+    let result = 0;
+    if (this.llBit) {
+      memaccess.store32fast(this.addrS32(base, imms), this.getRegS32Lo(rt));
+      this.llBit = 0;
+      result = 1;
+    }
+    this.setRegU32Extend(rt, result);
+  }
+
+  execSCD(rt, base, imms) {
+    let result = 0;
+    if (this.llBit) {
+      memaccess.store64fast(this.addrS32(base, imms), this.getRegU64(rt));
+      this.llBit = 0;
+      result = 1;
+    }
+    this.setRegU32Extend(rt, result);
   }
 
   execCACHE(rt, base, imms) {
@@ -1952,6 +1982,11 @@ function executeSWC1(i) { cpu0.execSWC1(ft(i), base(i), imms(i)); }
 function executeSDC1(i) { cpu0.execSDC1(ft(i), base(i), imms(i)); }
 function executeSDC2(i) { unimplemented(cpu0.pc, i); }
 
+function executeLL(i) { cpu0.execLL(rt(i), base(i), imms(i)); }
+function executeLLD(i) { cpu0.execLLD(rt(i), base(i), imms(i)); }
+function executeSC(i) { cpu0.execSC(rt(i), base(i), imms(i)); }
+function executeSCD(i) { cpu0.execSCD(rt(i), base(i), imms(i)); }
+
 function executeCACHE(i) { cpu0.execCACHE(rt(i), base(i), imms(i)); }
 
 function executeMFC0(i) { cpu0.execMFC0(rt(i), fs(i)); }
@@ -2121,7 +2156,6 @@ function generateTNE(ctx) {
   const impl = `c.execTNE(${ctx.instr_rt()}, ${ctx.instr_sa()});`;
   return generateGenericOpBoilerplate(impl, ctx); // Generic as may raise TRAP exception.
 }
-
 
 function generateMFHI(ctx) {
   const impl = `c.execMFHI(${ctx.instr_rd()});`;
@@ -2631,47 +2665,6 @@ function physicalAddress(addr) {
 
 function makeLLAddr(sAddr) {
   return physicalAddress(sAddr >>> 0) >>> 4;
-}
-
-function executeLL(i) {
-  const addr = cpu0.calcAddressS32(i);
-  const value = memaccess.loadS32fast(addr);
-
-  cpu0.setControlU32(cpu0_constants.controlLLAddr, makeLLAddr(addr));
-  cpu0.setRegS32Extend(rt(i), value);
-  cpu0.llBit = 1;
-}
-
-function executeLLD(i) {
-  const addr = cpu0.calcAddressS32(i);
-  const value = memaccess.loadU64fast(addr);
-
-  cpu0.setControlU32(cpu0_constants.controlLLAddr, makeLLAddr(addr));
-  cpu0.setRegU64(rt(i), value);
-  cpu0.llBit = 1;
-}
-
-function executeSC(i) {
-  const t = rt(i);
-  let result = 0;
-  if (cpu0.llBit) {
-    memaccess.store32fast(cpu0.calcAddressS32(i), cpu0.getRegS32Lo(t));
-    cpu0.llBit = 0;
-    result = 1;
-  }
-  cpu0.setRegU32Extend(t, result);
-}
-
-function executeSCD(i) {
-  const t = rt(i);
-
-  let result = 0;
-  if (cpu0.llBit) {
-    memaccess.store64fast(cpu0.calcAddressS32(i), cpu0.getRegU64(t));
-    cpu0.llBit = 0;
-    result = 1;
-  }
-  cpu0.setRegU32Extend(t, result);
 }
 
 function generateMFC1Stub(ctx) {
