@@ -1924,13 +1924,6 @@ function executeSCD(i) { cpu0.execSCD(rt(i), base(i), imms(i)); }
 
 function executeCACHE(i) { cpu0.execCACHE(rt(i), base(i), imms(i)); }
 
-function executeMFC0(i) { cpu0.execMFC0(rt(i), fs(i)); }
-function executeDMFC0(i) { cpu0.execDMFC0(rt(i), fs(i)); }
-function executeMTC0(i) { cpu0.execMTC0(rt(i), fs(i)); }
-function executeDMTC0(i) { cpu0.execDMTC0(rt(i), fs(i)); }
-
-function executeTLB(i) { cpu0.execTLB(tlbop(i)); }
-
 function executeTGEI(i) { cpu0.execTGEI(rs(i), imms(i)); }
 function executeTGEIU(i) { cpu0.execTGEIU(rs(i), imms(i)); }
 function executeTLTI(i) { cpu0.execTLTI(rs(i), imms(i)); }
@@ -2246,6 +2239,16 @@ function generateDADDIU(ctx) {
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
+function generateMFC0(ctx) {
+  const impl = `c.execMFC0(${ctx.instr_rt()}, ${ctx.instr_fs()});`;
+  return generateGenericOpBoilerplate(impl, ctx);
+}
+
+function generateDMFC0(ctx) {
+  const impl = `c.execDMFC0(${ctx.instr_rt()}, ${ctx.instr_fs()});`;
+  return generateGenericOpBoilerplate(impl, ctx);
+}
+
 function generateMTC0(ctx) {
   if (ctx.instr_fs() === cpu0_constants.controlStatus) {
     ctx.fragment.cop1statusKnown = false;
@@ -2253,6 +2256,20 @@ function generateMTC0(ctx) {
   const impl = `c.execMTC0(${ctx.instr_rt()}, ${ctx.instr_fs()});`;
   return generateGenericOpBoilerplate(impl, ctx);
 }
+
+function generateDMTC0(ctx) {
+  if (ctx.instr_fs() === cpu0_constants.controlStatus) {
+    ctx.fragment.cop1statusKnown = false;
+  }
+  const impl = `c.execDMTC0(${ctx.instr_rt()}, ${ctx.instr_fs()});`;
+  return generateGenericOpBoilerplate(impl, ctx);
+}
+
+function generateTLB(ctx) {
+  const impl = `c.execTLB(${ctx.instr_tlbop()});`;
+  return generateGenericOpBoilerplate(impl, ctx);
+}
+
 
 // Jump
 function generateJ(ctx) {
@@ -3164,22 +3181,49 @@ function validateCopOpTable(cases) {
 }
 
 const cop0Table = validateCopOpTable([
-  executeMFC0,    executeDMFC0,   executeUnknown, executeUnknown,
-  executeMTC0,    executeDMTC0,   executeUnknown, executeUnknown,
-  executeUnknown, executeUnknown, executeUnknown, executeUnknown,
-  executeUnknown, executeUnknown, executeUnknown, executeUnknown,
-  executeTLB,     executeUnknown, executeUnknown, executeUnknown,
-  executeUnknown, executeUnknown, executeUnknown, executeUnknown,
-  executeUnknown, executeUnknown, executeUnknown, executeUnknown,
-  executeUnknown, executeUnknown, executeUnknown, executeUnknown
+  i => cpu0.execMFC0(rt(i), fs(i)),
+  i => cpu0.execDMFC0(rt(i), fs(i)),
+  executeUnknown,
+  executeUnknown,
+  i => cpu0.execMTC0(rt(i), fs(i)),
+  i => cpu0.execDMTC0(rt(i), fs(i)),
+  executeUnknown,
+  executeUnknown,
+
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+
+  i => cpu0.execTLB(tlbop(i)),
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown
 ]);
 
 const cop0TableGen = validateCopOpTable([
-  'executeMFC0',    'executeDMFC0',   'executeUnknown', 'executeUnknown',
-  generateMTC0,     'executeDMTC0',   'executeUnknown', 'executeUnknown',
+  generateMFC0,     generateDMFC0,    'executeUnknown', 'executeUnknown',
+  generateMTC0,     generateDMTC0,    'executeUnknown', 'executeUnknown',
   'executeUnknown', 'executeUnknown', 'executeUnknown', 'executeUnknown',
   'executeUnknown', 'executeUnknown', 'executeUnknown', 'executeUnknown',
-  'executeTLB',     'executeUnknown', 'executeUnknown', 'executeUnknown',
+  generateTLB,      'executeUnknown', 'executeUnknown', 'executeUnknown',
   'executeUnknown', 'executeUnknown', 'executeUnknown', 'executeUnknown',
   'executeUnknown', 'executeUnknown', 'executeUnknown', 'executeUnknown',
   'executeUnknown', 'executeUnknown', 'executeUnknown', 'executeUnknown'
@@ -3189,13 +3233,6 @@ function executeCop0(i) {
   const fmt = (i >>> 21) & 0x1f;
   cop0Table[fmt](i);
 }
-
-// Expose all the functions that we don't yet generate
-n64js.executeMFC0 = executeMFC0;
-n64js.executeMTC0 = executeMTC0;  // There's a generateMTC0, but it calls through to the interpreter
-n64js.executeDMFC0 = executeDMFC0;
-n64js.executeDMTC0 = executeDMTC0;
-n64js.executeTLB = executeTLB;
 
 const cop1Table = validateCopOpTable([
   executeMFC1,        executeDMFC1,       executeCFC1,        executeDCFC1,
@@ -3480,6 +3517,8 @@ class FragmentContext {
   instr_offset() { return offset(this.instruction); }
   instr_imms() { return imms(this.instruction); }
   instr_imm() { return imm(this.instruction); }
+
+  instr_tlbop() { return tlbop(this.instruction); }
 }
 
 function checkCauseIP3Consistent() {
