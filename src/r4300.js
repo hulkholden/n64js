@@ -2409,6 +2409,21 @@ function generateBLEZ(ctx) {
   return generateBranchOpBoilerplate(impl, ctx, false);
 }
 
+// Branch Less Than or Equal To Zero Likely
+function generateBLEZL(ctx) {
+  const s = ctx.instr_rs();
+  const addr = branchAddress(ctx.pc, ctx.instruction);
+
+  const impl = dedent(`
+    if ( ${genSrcRegS64(s)} <= 0n) {
+      c.delayPC = ${toString32(addr)};
+    } else {
+      c.nextPC += 4;
+    }`);
+
+  return generateBranchOpBoilerplate(impl, ctx, false);
+}
+
 // Branch Greater Than Zero
 function generateBGTZ(ctx) {
   const s = ctx.instr_rs();
@@ -2419,6 +2434,21 @@ function generateBGTZ(ctx) {
       c.delayPC = ${toString32(addr)};
     } else {
       c.delayPC = ${toString32(ctx.pc + 8)};
+    }`);
+
+  return generateBranchOpBoilerplate(impl, ctx, false);
+}
+
+// Branch Greater Than Zero Likely
+function generateBGTZL(ctx) {
+  const s = ctx.instr_rs();
+  const addr = branchAddress(ctx.pc, ctx.instruction);
+
+  const impl = dedent(`
+    if (${genSrcRegS64(s)} > 0) {
+      c.delayPC = ${toString32(addr)};
+    } else {
+      c.nextPC += 4;
     }`);
 
   return generateBranchOpBoilerplate(impl, ctx, false);
@@ -2452,7 +2482,6 @@ function generateBLTZL(ctx) {
 
   return generateBranchOpBoilerplate(impl, ctx, true /* might_adjust_next_pc*/);
 }
-
 
 // Branch Greater Than Zero
 function generateBGEZ(ctx) {
@@ -3467,7 +3496,7 @@ const simpleTableGen = validateSimpleOpTable([
   generateADDI,           generateADDIU,          generateSLTI,         generateSLTIU,
   generateANDI,           generateORI,            generateXORI,         generateLUI,
   generateCop0,           generateCop1,           'executeCop2',        'executeCop3',
-  generateBEQL,           generateBNEL,           'executeBLEZL',       'executeBGTZL',
+  generateBEQL,           generateBNEL,           generateBLEZL,        generateBGTZL,
   generateDADDI,          generateDADDIU,         generateLDL,          generateLDR,
   'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeRESERVED',
   generateLB,             generateLH,             generateLWL,          generateLW,
