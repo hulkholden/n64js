@@ -2548,6 +2548,26 @@ function generateLD(ctx) {
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
 
+function generateLWL(ctx) {
+  const impl = `c.execLWL(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
+  return generateMemoryAccessBoilerplate(impl, ctx);
+}
+
+function generateLWR(ctx) {
+  const impl = `c.execLWR(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
+  return generateMemoryAccessBoilerplate(impl, ctx);
+}
+
+function generateLDL(ctx) {
+  const impl = `c.execLDL(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
+  return generateMemoryAccessBoilerplate(impl, ctx);
+}
+
+function generateLDR(ctx) {
+  const impl = `c.execLDR(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
+  return generateMemoryAccessBoilerplate(impl, ctx);
+}
+
 function generateLWC1(ctx) {
   const impl = `c.execLWC1(${ctx.instr_ft()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
   return generateMemoryAccessBoilerplate(impl, ctx);
@@ -2575,6 +2595,26 @@ function generateSW(ctx) {
 
 function generateSD(ctx) {
   const impl = `c.execSD(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
+  return generateMemoryAccessBoilerplate(impl, ctx);
+}
+
+function generateSWL(ctx) {
+  const impl = `c.execSWL(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
+  return generateMemoryAccessBoilerplate(impl, ctx);
+}
+
+function generateSWR(ctx) {
+  const impl = `c.execSWR(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
+  return generateMemoryAccessBoilerplate(impl, ctx);
+}
+
+function generateSDL(ctx) {
+  const impl = `c.execSDL(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
+  return generateMemoryAccessBoilerplate(impl, ctx);
+}
+
+function generateSDR(ctx) {
+  const impl = `c.execSDR(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
 
@@ -3428,12 +3468,12 @@ const simpleTableGen = validateSimpleOpTable([
   generateANDI,           generateORI,            generateXORI,         generateLUI,
   generateCop0,           generateCop1,           'executeCop2',        'executeCop3',
   generateBEQL,           generateBNEL,           'executeBLEZL',       'executeBGTZL',
-  generateDADDI,          generateDADDIU,         'executeLDL',         'executeLDR',
+  generateDADDI,          generateDADDIU,         generateLDL,          generateLDR,
   'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeRESERVED',
-  generateLB,             generateLH,             'executeLWL',         generateLW,
-  generateLBU,            generateLHU,            'executeLWR',         generateLWU,
-  generateSB,             generateSH,             'executeSWL',         generateSW,
-  'executeSDL',           'executeSDR',           'executeSWR',         generateCACHE,
+  generateLB,             generateLH,             generateLWL,          generateLW,
+  generateLBU,            generateLHU,            generateLWR,          generateLWU,
+  generateSB,             generateSH,             generateSWL,          generateSW,
+  generateSDL,            generateSDR,            generateSWR,          generateCACHE,
   'executeLL',            generateLWC1,           'executeUnknown',     'executeUnknown',
   'executeLLD',           generateLDC1,           'executeLDC2',        generateLD,
   'executeSC',            generateSWC1,           'executeUnknown',     'executeUnknown',
