@@ -457,6 +457,10 @@ class CPU0 {
     return (this.getRegU32Lo(base(instr)) + imms(instr)) >>> 0;
   }
 
+  // TODO: see if we can remove calcAddressS32 and calcAddressU32
+  addrS32(base, imms) { return (this.getRegS32Lo(base) + imms) >> 0; }
+  addrU32(base, imms) { return (this.getRegS32Lo(base) + imms) >>> 0; }
+
   setRegU64(r, v) {
     // TODO: Avoid the need for this in dynarec code.
     if (r == 0) {
@@ -1424,6 +1428,95 @@ class CPU0 {
   execXORI(rt, rs, imm) { this.setRegU64(rt, this.getRegU64(rs) ^ BigInt(imm)); }
   execLUI(rt, imm) { this.setRegS32Extend(rt, imm << 16); }
 
+  execLB(rt, base, imms) {
+    const value = memaccess.loadS8fast(this.addrS32(base, imms));
+    this.setRegS32Extend(rt, value);
+  }
+
+  execLBU(rt, base, imms) {
+    const value = memaccess.loadU8fast(this.addrS32(base, imms));
+    this.setRegU32Extend(rt, value);
+  }
+
+  execLH(rt, base, imms) {
+    const value = memaccess.loadS16fast(this.addrS32(base, imms));
+    this.setRegS32Extend(rt, value);
+  }
+
+  execLHU(rt, base, imms) {
+    const value = memaccess.loadU16fast(this.addrS32(base, imms));
+    this.setRegU32Extend(rt, value);
+  }
+
+  execLW(rt, base, imms) {
+    const value = memaccess.loadS32fast(this.addrS32(base, imms));
+
+    // TODO: check if SF2049 requires LW to R0 to be ignored.
+    // This is redundant right now because we also force R0 to zero in runImpl.
+    if (rt == 0) {
+      console.log("LW to register 0");
+      return;
+    }
+    this.setRegS32Extend(rt, value);
+  }
+
+  execLWU(rt, base, imms) {
+    const value = memaccess.loadU32fast(this.addrS32(base, imms));
+    this.setRegU32Extend(rt, value);
+  }
+
+  execLD(rt, base, imms) {
+    const value = memaccess.loadU64fast(this.addrS32(base, imms));
+    this.setRegU64(rt, value);
+  }
+
+  execLWL(rt, base, imms) {
+    const addr = this.addrU32(base, imms);
+    const mem = memaccess.loadU32fast((addr & ~3) >>> 0);
+    const shift = 8 * (addr & 3);
+
+    this.setRegS32ExtendMasked(rt, mem << shift, u32Max << shift);
+  }
+
+  execLWR(rt, base, imms) {
+    const addr = this.addrU32(base, imms);
+    const mem = memaccess.loadU32fast((addr & ~3) >>> 0);
+    const shift = 8 * (3 - (addr & 3));
+
+    this.setRegS32ExtendMasked(rt, mem >>> shift, u32Max >>> shift);
+  }
+
+  execLDL(rt, base, imms) {
+    const addr = this.addrU32(base, imms);
+    const shift = BigInt(8 * (addr & 7));
+    const mem = memaccess.loadU64fast((addr & ~7) >>> 0);
+
+    this.setRegU64Masked(rt, (mem << shift) & u64Max, (u64Max << shift) & u64Max);
+  }
+
+  execLDR(rt, base, imms) {
+    const addr = this.addrU32(base, imms);
+    const shift = BigInt(8 * (7 - (addr & 7)));
+    const mem = memaccess.loadU64fast((addr & ~7) >>> 0);
+
+    this.setRegU64Masked(rt, mem >> shift, u64Max >> shift);
+  }
+
+  execLWC1(ft, base, imms) {
+    if (!this.checkCopXUsable(1)) {
+      return;
+    }
+    cpu1.store32(cpu1.copRegIdx32(ft), memaccess.loadS32fast(this.addrS32(base, imms)));
+  }
+
+  execLDC1(ft, base, imms) {
+    if (!this.checkCopXUsable(1)) {
+      return;
+    }
+    const value = memaccess.loadU64fast(this.addrS32(base, imms));
+    cpu1.store64(cpu1.copRegIdx64(ft), value);
+  }
+
   execMFC0(rt, fs) {
     this.setRegS32Extend(rt, Number(this.moveFromControl(fs) & 0xffff_ffffn));
   }
@@ -1762,6 +1855,22 @@ function executeANDI(i) { cpu0.execANDI(rt(i), rs(i), imm(i)); }
 function executeORI(i) { cpu0.execORI(rt(i), rs(i), imm(i)); }
 function executeXORI(i) { cpu0.execXORI(rt(i), rs(i), imm(i)); }
 function executeLUI(i) { cpu0.execLUI(rt(i), imm(i)); }
+
+function executeLB(i) { cpu0.execLB(rt(i), base(i), imms(i)); }
+function executeLBU(i) { cpu0.execLBU(rt(i), base(i), imms(i)); }
+function executeLH(i) { cpu0.execLH(rt(i), base(i), imms(i)); }
+function executeLHU(i) { cpu0.execLHU(rt(i), base(i), imms(i)); }
+function executeLW(i) { cpu0.execLW(rt(i), base(i), imms(i)); }
+function executeLWU(i) { cpu0.execLWU(rt(i), base(i), imms(i)); }
+function executeLD(i) { cpu0.execLD(rt(i), base(i), imms(i)); }
+function executeLWL(i) { cpu0.execLWL(rt(i), base(i), imms(i)); }
+function executeLWR(i) { cpu0.execLWR(rt(i), base(i), imms(i)); }
+function executeLDL(i) { cpu0.execLDL(rt(i), base(i), imms(i)); }
+function executeLDR(i) { cpu0.execLDR(rt(i), base(i), imms(i)); }
+
+function executeLWC1(i) { cpu0.execLWC1(ft(i), base(i), imms(i)); }
+function executeLDC1(i) { cpu0.execLDC1(ft(i), base(i), imms(i)); }
+function executeLDC2(i) { unimplemented(cpu0.pc, i); }
 
 function executeMFC0(i) { cpu0.execMFC0(rt(i), fs(i)); }
 function executeDMFC0(i) { cpu0.execDMFC0(rt(i), fs(i)); }
@@ -2346,170 +2455,48 @@ function generateLUI(ctx) {
 }
 
 function generateLB(ctx) {
-  const t = ctx.instr_rt();
-  const impl = `c.setRegS32Extend(${t}, c.loadS8fast(${genCalcAddressS32(ctx)}));`;
+  const impl = `c.execLB(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
   return generateMemoryAccessBoilerplate(impl, ctx);
-}
-
-function executeLB(i) {
-  const value = memaccess.loadS8fast(cpu0.calcAddressS32(i));
-  cpu0.setRegS32Extend(rt(i), value);
 }
 
 function generateLBU(ctx) {
-  const t = ctx.instr_rt();
-  const impl = `c.setRegU32Extend(${t}, c.loadU8fast(${genCalcAddressS32(ctx)}));`;
+  const impl = `c.execLBU(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
   return generateMemoryAccessBoilerplate(impl, ctx);
-}
-
-function executeLBU(i) {
-  const value = memaccess.loadU8fast(cpu0.calcAddressS32(i));
-  cpu0.setRegU32Extend(rt(i), value);
 }
 
 function generateLH(ctx) {
-  const t = ctx.instr_rt();
-  const impl = `c.setRegS32Extend(${t}, c.loadS16fast(${genCalcAddressS32(ctx)}));`;
+  const impl = `c.execLH(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
   return generateMemoryAccessBoilerplate(impl, ctx);
-}
-
-function executeLH(i) {
-  const value = memaccess.loadS16fast(cpu0.calcAddressS32(i));
-  cpu0.setRegS32Extend(rt(i), value);
 }
 
 function generateLHU(ctx) {
-  const t = ctx.instr_rt();
-  const impl = `c.setRegU32Extend(${t}, c.loadU16fast(${genCalcAddressS32(ctx)}));`;
-
+  const impl = `c.execLHU(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
   return generateMemoryAccessBoilerplate(impl, ctx);
-}
-
-function executeLHU(i) {
-  const value = memaccess.loadU16fast(cpu0.calcAddressS32(i));
-  cpu0.setRegU32Extend(rt(i), value);
 }
 
 function generateLW(ctx) {
-  const t = ctx.instr_rt();
-  let impl;
-  if (t === 0) {
-    // Perform the load even if the result isn't stored to trigger any exceptions.
-    impl = `c.loadS32fast(${genCalcAddressS32(ctx)});`;
-  } else {
-    impl = `c.setRegS32Extend(${t}, c.loadS32fast(${genCalcAddressS32(ctx)}));`;
-  }
-
+  const impl = `c.execLW(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
   return generateMemoryAccessBoilerplate(impl, ctx);
-}
-
-function executeLW(i) {
-  const value = memaccess.loadS32fast(cpu0.calcAddressS32(i));
-
-  // TODO: check if SF2049 requires LW to R0 to be ignored.
-  // This is redundant right now because we also force R0 to zero in runImpl.
-  if (rt(i) == 0) {
-    console.log("LW to register 0");
-    return;
-  }
-  cpu0.setRegS32Extend(rt(i), value);
 }
 
 function generateLWU(ctx) {
-  const t = ctx.instr_rt();
-  const impl = `c.setRegU32Extend(${t}, c.loadU32fast(${genCalcAddressS32(ctx)}));`;
-
+  const impl = `c.execLWU(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
   return generateMemoryAccessBoilerplate(impl, ctx);
-}
-
-function executeLWU(i) {
-  const value = memaccess.loadU32fast(cpu0.calcAddressS32(i));
-  cpu0.setRegU32Extend(rt(i), value);
 }
 
 function generateLD(ctx) {
-  const t = ctx.instr_rt();
-  const impl = `c.setRegU64(${t}, c.loadU64fast(${genCalcAddressS32(ctx)}));`;
+  const impl = `c.execLD(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
   return generateMemoryAccessBoilerplate(impl, ctx);
-}
-
-function executeLD(i) {
-  const value = memaccess.loadU64fast(cpu0.calcAddressS32(i));
-  cpu0.setRegU64(rt(i), value);
 }
 
 function generateLWC1(ctx) {
-  const t = ctx.instr_ft();
-
-  ctx.fragment.usesCop1 = true;
-
-  const impl = dedent(`
-    if (c.checkCopXUsable(1)) {
-      cpu1.store32(cpu1.copRegIdx32(${t}), c.loadS32fast(${genCalcAddressS32(ctx)}));
-    }`);
+  const impl = `c.execLWC1(${ctx.instr_ft()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
   return generateMemoryAccessBoilerplate(impl, ctx);
-}
-
-function executeLWC1(i) {
-  if (!cpu0.checkCopXUsable(1)) {
-    return;
-  }
-  cpu1.store32(cpu1.copRegIdx32(ft(i)), memaccess.loadS32fast(cpu0.calcAddressS32(i)));
 }
 
 function generateLDC1(ctx) {
-  const t = ctx.instr_ft();
-
-  ctx.fragment.usesCop1 = true;
-
-  const impl = dedent(`
-    if (c.checkCopXUsable(1)) {
-      cpu1.store64(cpu1.copRegIdx64(${t}), c.loadU64fast(${genCalcAddressS32(ctx)}));
-    }`);
+  const impl = `c.execLDC1(${ctx.instr_ft()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
   return generateMemoryAccessBoilerplate(impl, ctx);
-}
-
-function executeLDC1(i) {
-  if (!cpu0.checkCopXUsable(1)) {
-    return;
-  }
-
-  const value = memaccess.loadU64fast(cpu0.calcAddressS32(i));
-  cpu1.store64(cpu1.copRegIdx64(ft(i)), value);
-}
-
-function executeLDC2(i) { unimplemented(cpu0.pc, i); }
-
-function executeLWL(i) {
-  const addr = cpu0.calcAddressU32(i);
-  const mem = memaccess.loadU32fast((addr & ~3) >>> 0);
-  const shift = 8 * (addr & 3);
-
-  cpu0.setRegS32ExtendMasked(rt(i), mem << shift, u32Max << shift);
-}
-
-function executeLWR(i) {
-  const addr = cpu0.calcAddressU32(i);
-  const mem = memaccess.loadU32fast((addr & ~3) >>> 0);
-  const shift = 8 * (3 - (addr & 3));
-
-  cpu0.setRegS32ExtendMasked(rt(i), mem >>> shift, u32Max >>> shift);
-}
-
-function executeLDL(i) {
-  const addr = cpu0.calcAddressU32(i);
-  const shift = BigInt(8 * (addr & 7));
-  const mem = memaccess.loadU64fast((addr & ~7) >>> 0);
-
-  cpu0.setRegU64Masked(rt(i), (mem << shift) & u64Max, (u64Max << shift) & u64Max);
-}
-
-function executeLDR(i) {
-  const addr = cpu0.calcAddressU32(i);
-  const shift = BigInt(8 * (7 - (addr & 7)));
-  const mem = memaccess.loadU64fast((addr & ~7) >>> 0);
-
-  cpu0.setRegU64Masked(rt(i), mem >> shift, u64Max >> shift);
 }
 
 function generateSB(ctx) {
