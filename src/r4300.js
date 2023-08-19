@@ -1729,6 +1729,30 @@ class CPU0 {
     this.llBit = 0;
   }
 
+  // Cop1
+  execMFC1(rt, fs) { this.setRegS32Extend(rt, cpu1.loadS32(cpu1.copRegIdx32(fs))); }
+  execDMFC1(rt, fs) { this.setRegU64(rt, cpu1.loadU64(cpu1.copRegIdx64(fs))); }
+  execMTC1(rt, fs) { cpu1.store32(cpu1.copRegIdx32(fs), this.getRegS32Lo(rt)); }
+  execDMTC1(rt, fs) { cpu1.store64(cpu1.copRegIdx64(fs), this.getRegS64(rt)); }
+
+  execCFC1(rt, fs) {
+    switch (fs) {
+      case 0:
+      case 31:
+        this.setRegS32Extend(rt, cpu1.control[fs]);
+        break;
+    }
+  }
+
+  execCTC1(rt, fs) {
+    if (fs === 31) {
+      cpu1.setStatus(this.getRegU32Lo(rt));
+    }
+  }
+
+  execDCFC1(rt, fs) { cpu1.DCFC1(rt, fs); }
+  execDCTC1(rt, fs) { cpu1.DCTC1(fs, rt); }
+
   // Cop2
   execMFC2(rt) {
     if (!this.checkCopXUsable(2)) { return; }
@@ -2766,122 +2790,52 @@ function makeLLAddr(sAddr) {
   return physicalAddress(sAddr >>> 0) >>> 4;
 }
 
-function generateMFC1Stub(ctx) {
-  const t = ctx.instr_rt();
-  const s = ctx.instr_fs();
-
+function generateMFC1(ctx) {
   ctx.fragment.usesCop1 = true;
   ctx.isTrivial = true;
-
-  return `c.setRegS32Extend(${t}, cpu1.loadS32(cpu1.copRegIdx32(${s})));`;
+  return `c.execMFC1(${ctx.instr_rt()}, ${ctx.instr_fs()});`;
 }
 
-function executeMFC1(i) {
-  cpu0.setRegS32Extend(rt(i), cpu1.loadS32(cpu1.copRegIdx32(fs(i))));
-}
-
-function generateDMFC1Stub(ctx) {
-  const t = ctx.instr_rt();
-  const s = ctx.instr_fs();
-
+function generateDMFC1(ctx) {
   ctx.fragment.usesCop1 = true;
   ctx.isTrivial = true;
-
-  return `c.setRegU64(${t}, cpu1.loadU64(cpu1.copRegIdx64(${s})));`;
+  return `c.execDMFC1(${ctx.instr_rt()}, ${ctx.instr_fs()});`;
 }
 
-function executeDMFC1(i) {
-  cpu0.setRegU64(rt(i), cpu1.loadU64(cpu1.copRegIdx64(fs(i))));
-}
-
-function generateMTC1Stub(ctx) {
-  const s = ctx.instr_fs();
-  const t = ctx.instr_rt();
-
+function generateMTC1(ctx) {
   ctx.fragment.usesCop1 = true;
   ctx.isTrivial = true;
-
-  return `cpu1.store32(cpu1.copRegIdx32(${s}), ${genSrcRegS32Lo(t)});`;
+  return `c.execMTC1(${ctx.instr_rt()}, ${ctx.instr_fs()});`;
 }
 
-function executeMTC1(i) {
-  cpu1.store32(cpu1.copRegIdx32(fs(i)), cpu0.getRegS32Lo(rt(i)));
-}
-
-function generateDMTC1Stub(ctx) {
-  const s = ctx.instr_fs();
-  const t = ctx.instr_rt();
+function generateDMTC1(ctx) {
   ctx.fragment.usesCop1 = true;
   ctx.isTrivial = true;
-
-  return `cpu1.store64(cpu1.copRegIdx64(${s}), ${genSrcRegS64(t)});`;
+  return `c.execDMTC1(${ctx.instr_rt()}, ${ctx.instr_fs()});`;
 }
 
-function executeDMTC1(i) {
-  const s = fs(i);
-  const t = rt(i);
-  cpu1.store64(cpu1.copRegIdx64(s), cpu0.getRegS64(t));
-}
-
-function generateCFC1Stub(ctx) {
-  const s = ctx.instr_fs();
-  const t = ctx.instr_rt();
-
+function generateCFC1(ctx) {
   ctx.fragment.usesCop1 = true;
   ctx.isTrivial = true;
-
-  switch (s) {
-    case 0:
-    case 31:
-      return dedent(`
-        const value = cpu1.control[${s}];
-        c.setRegS32Extend(${t}, value);
-        `);
-  }
-
-  return `// CFC1 invalid reg`;
+  return `c.execCFC1(${ctx.instr_rt()}, ${ctx.instr_fs()});`;
 }
 
-function executeCFC1(i) {
-  const s = fs(i);
-  const t = rt(i);
-
-  switch (s) {
-    case 0:
-    case 31:
-      const value = cpu1.control[s];
-      cpu0.setRegS32Extend(t, value);
-      break;
-  }
-}
-
-function generateCTC1Stub(ctx) {
-  const s = ctx.instr_fs();
-  const t = ctx.instr_rt();
-
+function generateCTC1(ctx) {
   ctx.fragment.usesCop1 = true;
   ctx.isTrivial = true;
-
-  if (s === 31) {
-    return `cpu1.setStatus(${genSrcRegU32Lo(t)});`;
-  }
-
-  return `// CTC1 invalid reg`;
+  return `c.execCTC1(${ctx.instr_rt()}, ${ctx.instr_fs()});`;
 }
 
-function executeCTC1(i) {
-  const s = fs(i);
-  if (s === 31) {
-    cpu1.setStatus(cpu0.getRegU32Lo(rt(i)));
-  }
+function generateDCFC1(ctx) {
+  ctx.fragment.usesCop1 = true;
+  ctx.isTrivial = false; // Raises FPE Unimplemented exception.
+  return `c.execDCFC1(${ctx.instr_rt()}, ${ctx.instr_fs()});`;
 }
 
-function executeDCFC1(i) {
-  cpu1.DCFC1(rt(i), fs(i));
-}
-
-function executeDCTC1(i) {
-  cpu1.DCTC1(fs(i), rt(i));
+function generateDCTC1(ctx) {
+  ctx.fragment.usesCop1 = true;
+  ctx.isTrivial = false; // Raises FPE Unimplemented exception.
+  return `c.execDCTC1(${ctx.instr_rt()}, ${ctx.instr_fs()});`;
 }
 
 function generateBCInstrStub(ctx) {
@@ -3359,19 +3313,46 @@ function executeCop0(i) {
 }
 
 const cop1Table = validateCopOpTable([
-  executeMFC1,        executeDMFC1,       executeCFC1,        executeDCFC1,
-  executeMTC1,        executeDMTC1,       executeCTC1,        executeDCTC1,
-  executeBCInstr,     executeUnknown,     executeUnknown,     executeUnknown,
-  executeUnknown,     executeUnknown,     executeUnknown,     executeUnknown,
-  executeSInstr,      executeDInstr,      executeUnknown,     executeUnknown,
-  executeWInstr,      executeLInstr,      executeUnknown,     executeUnknown,
-  executeUnknown,     executeUnknown,     executeUnknown,     executeUnknown,
-  executeUnknown,     executeUnknown,     executeUnknown,     executeUnknown
+  i => cpu0.execMFC1(rt(i), fs(i)),
+  i => cpu0.execDMFC1(rt(i), fs(i)),
+  i => cpu0.execCFC1(rt(i), fs(i)),
+  i => cpu0.execDCFC1(rt(i), fs(i)),
+  i => cpu0.execMTC1(rt(i), fs(i)),
+  i => cpu0.execDMTC1(rt(i), fs(i)),
+  i => cpu0.execCTC1(rt(i), fs(i)),
+  i => cpu0.execDCTC1(rt(i), fs(i)),
+
+  executeBCInstr,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+
+  executeSInstr,
+  executeDInstr,
+  executeUnknown,
+  executeUnknown,
+  executeWInstr,
+  executeLInstr,
+  executeUnknown,
+  executeUnknown,
+
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
 ]);
 
 const cop1TableGen = validateCopOpTable([
-  generateMFC1Stub,       generateDMFC1Stub,      generateCFC1Stub,     'executeDCFC1',
-  generateMTC1Stub,       generateDMTC1Stub,      generateCTC1Stub,     'executeDCTC1',
+  generateMFC1,           generateDMFC1,          generateCFC1,         generateDCFC1,
+  generateMTC1,           generateDMTC1,          generateCTC1,         generateDCTC1,
   generateBCInstrStub,    'executeUnknown',       'executeUnknown',     'executeUnknown',
   'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
   generateSInstrStub,     generateDInstrStub,     'executeUnknown',     'executeUnknown',
@@ -3386,10 +3367,6 @@ function executeCop1(i) {
   const fmt = (i >>> 21) & 0x1f;
   cop1Table[fmt](i);
 }
-
-// Expose all the functions that we don't yet generate
-n64js.executeDCFC1 = executeDCFC1;
-n64js.executeDCTC1 = executeDCTC1;
 
 const cop2Table = validateCopOpTable([
   i => cpu0.execMFC2(rt(i)),
