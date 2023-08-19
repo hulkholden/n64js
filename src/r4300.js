@@ -1876,59 +1876,6 @@ function executeBreakpoint(i) {
   throw new BreakpointException();
 }
 
-function executeSLL(i) { cpu0.execSLL(rd(i), rt(i), sa(i)); }
-function executeSRL(i) { cpu0.execSRL(rd(i), rt(i), sa(i)); }
-function executeSRA(i) { cpu0.execSRA(rd(i), rt(i), sa(i)); }
-function executeSLLV(i) { cpu0.execSLLV(rd(i), rt(i), rs(i)); }
-function executeSRLV(i) { cpu0.execSRLV(rd(i), rt(i), rs(i)); }
-function executeSRAV(i) { cpu0.execSRAV(rd(i), rt(i), rs(i)); }
-function executeDSLLV(i) { cpu0.execDSLLV(rd(i), rt(i), rs(i)); }
-function executeDSRLV(i) { cpu0.execDSRLV(rd(i), rt(i), rs(i)); }
-function executeDSRAV(i) { cpu0.execDSRAV(rd(i), rt(i), rs(i)); }
-function executeDSLL(i) { cpu0.execDSLL(rd(i), rt(i), sa(i)); }
-function executeDSRL(i) { cpu0.execDSRL(rd(i), rt(i), sa(i)); }
-function executeDSRA(i) { cpu0.execDSRA(rd(i), rt(i), sa(i)); }
-function executeDSLL32(i) { cpu0.execDSLL32(rd(i), rt(i), sa(i)); }
-function executeDSRL32(i) { cpu0.execDSRL32(rd(i), rt(i), sa(i)); }
-function executeDSRA32(i) { cpu0.execDSRA32(rd(i), rt(i), sa(i)); }
-
-function executeSYSCALL(i) { cpu0.execSYSCALL(); }
-function executeBREAK(i) { cpu0.execBREAK(); }
-function executeSYNC(i) { cpu0.execSYNC(); }
-
-function executeMFHI(i) { cpu0.execMFHI(rd(i)); }
-function executeMFLO(i) { cpu0.execMFLO(rd(i)); }
-function executeMTHI(i) { cpu0.execMTHI(rs(i)); }
-function executeMTLO(i) { cpu0.execMTLO(rs(i)); }
-
-function executeMULT(i) { cpu0.execMULT(rt(i), rs(i)); }
-function executeMULTU(i) { cpu0.execMULTU(rt(i), rs(i)); }
-function executeDMULT(i) { cpu0.execDMULT(rt(i), rs(i)); }
-function executeDMULTU(i) { cpu0.execDMULTU(rt(i), rs(i)); }
-
-function executeDIV(i) { cpu0.execDIV(rt(i), rs(i)); }
-function executeDIVU(i) { cpu0.execDIVU(rt(i), rs(i)); }
-function executeDDIV(i) { cpu0.execDDIV(rt(i), rs(i)); }
-function executeDDIVU(i) { cpu0.execDDIVU(rt(i), rs(i)); }
-
-function executeADD(i) { cpu0.execADD(rd(i), rt(i), rs(i)); }
-function executeADDU(i) { cpu0.execADDU(rd(i), rt(i), rs(i)); }
-function executeSUB(i) { cpu0.execSUB(rd(i), rt(i), rs(i)); }
-function executeSUBU(i) { cpu0.execSUBU(rd(i), rt(i), rs(i)); }
-
-function executeAND(i) { cpu0.execAND(rd(i), rt(i), rs(i)); }
-function executeOR(i) { cpu0.execOR(rd(i), rt(i), rs(i)); }
-function executeXOR(i) { cpu0.execXOR(rd(i), rt(i), rs(i)); }
-function executeNOR(i) { cpu0.execNOR(rd(i), rt(i), rs(i)); }
-
-function executeSLT(i) { cpu0.execSLT(rd(i), rt(i), rs(i)); }
-function executeSLTU(i) { cpu0.execSLTU(rd(i), rt(i), rs(i)); }
-
-function executeDADD(i) { cpu0.execDADD(rd(i), rt(i), rs(i)); }
-function executeDADDU(i) { cpu0.execDADDU(rd(i), rt(i), rs(i)); }
-function executeDSUB(i) { cpu0.execDSUB(rd(i), rt(i), rs(i)); }
-function executeDSUBU(i) { cpu0.execDSUBU(rd(i), rt(i), rs(i)); }
-
 function executeADDI(i) { cpu0.execADDI(rt(i), rs(i), imms(i)); }
 function executeADDIU(i) { cpu0.execADDIU(rt(i), rs(i), imms(i)); }
 function executeDADDI(i) { cpu0.execDADDI(rt(i), rs(i), imms(i)); }
@@ -1984,13 +1931,6 @@ function executeDMTC0(i) { cpu0.execDMTC0(rt(i), fs(i)); }
 
 function executeTLB(i) { cpu0.execTLB(tlbop(i)); }
 
-function executeTGE(i) { cpu0.execTGE(rt(i), rs(i)); }
-function executeTGEU(i) { cpu0.execTGEU(rt(i), rs(i)); }
-function executeTLT(i) { cpu0.execTLT(rt(i), rs(i)); }
-function executeTLTU(i) { cpu0.execTLTU(rt(i), rs(i)); }
-function executeTEQ(i) { cpu0.execTEQ(rt(i), rs(i)); }
-function executeTNE(i) { cpu0.execTNE(rt(i), rs(i)); }
-
 function executeTGEI(i) { cpu0.execTGEI(rs(i), imms(i)); }
 function executeTGEIU(i) { cpu0.execTGEIU(rs(i), imms(i)); }
 function executeTLTI(i) { cpu0.execTLTI(rs(i), imms(i)); }
@@ -1999,9 +1939,7 @@ function executeTEQI(i) { cpu0.execTEQI(rs(i), imms(i)); }
 function executeTNEI(i) { cpu0.execTNEI(rs(i), imms(i)); }
 
 function executeJ(i) { cpu0.execJ(jumpAddress(cpu0.pc, i)); }
-function executeJR(i) { cpu0.execJR(rs(i)); }
 function executeJAL(i) { cpu0.execJAL(jumpAddress(cpu0.pc, i)); }
-function executeJALR(i) { cpu0.execJALR(rd(i), rs(i)); }
 
 function executeBEQ(i) { cpu0.execBEQ(rt(i), rs(i), offset(i)); }
 function executeBEQL(i) { cpu0.execBEQL(rt(i), rs(i), offset(i)); }
@@ -3118,22 +3056,77 @@ function validateSpecialOpTable(cases) {
 }
 
 const specialTable = validateSpecialOpTable([
-  executeSLL,           executeUnknown,       executeSRL,         executeSRA,
-  executeSLLV,          executeUnknown,       executeSRLV,        executeSRAV,
-  executeJR,            executeJALR,          executeUnknown,     executeUnknown,
-  executeSYSCALL,       executeBREAK,         executeUnknown,     executeSYNC,
-  executeMFHI,          executeMTHI,          executeMFLO,        executeMTLO,
-  executeDSLLV,         executeUnknown,       executeDSRLV,       executeDSRAV,
-  executeMULT,          executeMULTU,         executeDIV,         executeDIVU,
-  executeDMULT,         executeDMULTU,        executeDDIV,        executeDDIVU,
-  executeADD,           executeADDU,          executeSUB,         executeSUBU,
-  executeAND,           executeOR,            executeXOR,         executeNOR,
-  executeUnknown,       executeUnknown,       executeSLT,         executeSLTU,
-  executeDADD,          executeDADDU,         executeDSUB,        executeDSUBU,
-  executeTGE,           executeTGEU,          executeTLT,         executeTLTU,
-  executeTEQ,           executeUnknown,       executeTNE,         executeUnknown,
-  executeDSLL,          executeUnknown,       executeDSRL,        executeDSRA,
-  executeDSLL32,        executeUnknown,       executeDSRL32,      executeDSRA32
+  i => cpu0.execSLL(rd(i), rt(i), sa(i)),
+  executeUnknown,
+  i => cpu0.execSRL(rd(i), rt(i), sa(i)),
+  i => cpu0.execSRA(rd(i), rt(i), sa(i)),
+  i => cpu0.execSLLV(rd(i), rt(i), rs(i)),
+  executeUnknown,
+  i => cpu0.execSRLV(rd(i), rt(i), rs(i)),
+  i => cpu0.execSRAV(rd(i), rt(i), rs(i)),
+
+  i => cpu0.execJR(rs(i)),
+  i => cpu0.execJALR(rd(i), rs(i)),
+  executeUnknown,
+  executeUnknown,
+  i => cpu0.execSYSCALL(),
+  i => cpu0.execBREAK(),
+  executeUnknown,
+  i => cpu0.execSYNC(),
+
+  i => cpu0.execMFHI(rd(i)),
+  i => cpu0.execMTHI(rs(i)),
+  i => cpu0.execMFLO(rd(i)),
+  i => cpu0.execMTLO(rs(i)),
+  i => cpu0.execDSLLV(rd(i), rt(i), rs(i)),
+  executeUnknown,
+  i => cpu0.execDSRLV(rd(i), rt(i), rs(i)),
+  i => cpu0.execDSRAV(rd(i), rt(i), rs(i)),
+
+  i => cpu0.execMULT(rt(i), rs(i)),
+  i => cpu0.execMULTU(rt(i), rs(i)),
+  i => cpu0.execDIV(rt(i), rs(i)),
+  i => cpu0.execDIVU(rt(i), rs(i)),
+  i => cpu0.execDMULT(rt(i), rs(i)),
+  i => cpu0.execDMULTU(rt(i), rs(i)),
+  i => cpu0.execDDIV(rt(i), rs(i)),
+  i => cpu0.execDDIVU(rt(i), rs(i)),
+
+  i => cpu0.execADD(rd(i), rt(i), rs(i)),
+  i => cpu0.execADDU(rd(i), rt(i), rs(i)),
+  i => cpu0.execSUB(rd(i), rt(i), rs(i)),
+  i => cpu0.execSUBU(rd(i), rt(i), rs(i)),
+  i => cpu0.execAND(rd(i), rt(i), rs(i)),
+  i => cpu0.execOR(rd(i), rt(i), rs(i)),
+  i => cpu0.execXOR(rd(i), rt(i), rs(i)),
+  i => cpu0.execNOR(rd(i), rt(i), rs(i)),
+
+  executeUnknown,
+  executeUnknown,
+  i => cpu0.execSLT(rd(i), rt(i), rs(i)),
+  i => cpu0.execSLTU(rd(i), rt(i), rs(i)),
+  i => cpu0.execDADD(rd(i), rt(i), rs(i)),
+  i => cpu0.execDADDU(rd(i), rt(i), rs(i)),
+  i => cpu0.execDSUB(rd(i), rt(i), rs(i)),
+  i => cpu0.execDSUBU(rd(i), rt(i), rs(i)),
+
+  i => cpu0.execTGE(rt(i), rs(i)),
+  i => cpu0.execTGEU(rt(i), rs(i)),
+  i => cpu0.execTLT(rt(i), rs(i)),
+  i => cpu0.execTLTU(rt(i), rs(i)),
+  i => cpu0.execTEQ(rt(i), rs(i)),
+  executeUnknown,
+  i => cpu0.execTNE(rt(i), rs(i)),
+  executeUnknown,
+
+  i => cpu0.execDSLL(rd(i), rt(i), sa(i)),
+  executeUnknown,
+  i => cpu0.execDSRL(rd(i), rt(i), sa(i)),
+  i => cpu0.execDSRA(rd(i), rt(i), sa(i)),
+  i => cpu0.execDSLL32(rd(i), rt(i), sa(i)),
+  executeUnknown,
+  i => cpu0.execDSRL32(rd(i), rt(i), sa(i)),
+  i => cpu0.execDSRA32(rd(i), rt(i), sa(i)),
 ]);
 
 const specialTableGen = validateSpecialOpTable([
