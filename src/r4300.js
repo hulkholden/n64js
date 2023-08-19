@@ -1409,13 +1409,20 @@ class CPU0 {
     this.setRegU64(rt, result);
   }
 
-  execADDIU(rt, rs, imms) {
-    this.setRegS32Extend(rt, this.getRegS32Lo(rs) + imms);
+  execADDIU(rt, rs, imms) { this.setRegS32Extend(rt, this.getRegS32Lo(rs) + imms); }
+  execDADDIU(rt, rs, imms) { this.setRegU64(rt, this.getRegS64(rs) + BigInt(imms)); }
+
+  execSLTI(rt, rs, imms) { this.setRegU32Extend(rt, this.getRegS64(rs) < BigInt(imms) ? 1 : 0); }
+  execSLTIU(rt, rs, imms) {
+    // Immediate value is sign-extended to 64 bits and treated as a u64.
+    const immediate = BigInt.asUintN(64, BigInt(imms));
+    this.setRegU32Extend(rt, this.getRegU64(rs) < immediate ? 1 : 0);
   }
 
-  execDADDIU(rt, rs, imms) {
-    this.setRegU64(rt, this.getRegS64(rs) + BigInt(imms));
-  }
+  execANDI(rt, rs, imm) { this.setRegU64(rt, this.getRegU64(rs) & BigInt(imm)); }
+  execORI(rt, rs, imm) { this.setRegU64(rt, this.getRegU64(rs) | BigInt(imm)); }
+  execXORI(rt, rs, imm) { this.setRegU64(rt, this.getRegU64(rs) ^ BigInt(imm)); }
+  execLUI(rt, imm) { this.setRegS32Extend(rt, imm << 16); }
 
   execMFC0(rt, fs) {
     this.setRegS32Extend(rt, Number(this.moveFromControl(fs) & 0xffff_ffffn));
@@ -1731,11 +1738,6 @@ function executeADDU(i) { cpu0.execADDU(rd(i), rt(i), rs(i)); }
 function executeSUB(i) { cpu0.execSUB(rd(i), rt(i), rs(i)); }
 function executeSUBU(i) { cpu0.execSUBU(rd(i), rt(i), rs(i)); }
 
-function executeADDI(i) { cpu0.execADDI(rt(i), rs(i), imms(i)); }
-function executeADDIU(i) { cpu0.execADDIU(rt(i), rs(i), imms(i)); }
-function executeDADDI(i) { cpu0.execDADDI(rt(i), rs(i), imms(i)); }
-function executeDADDIU(i) { cpu0.execDADDIU(rt(i), rs(i), imms(i)); }
-
 function executeAND(i) { cpu0.execAND(rd(i), rt(i), rs(i)); }
 function executeOR(i) { cpu0.execOR(rd(i), rt(i), rs(i)); }
 function executeXOR(i) { cpu0.execXOR(rd(i), rt(i), rs(i)); }
@@ -1748,6 +1750,18 @@ function executeDADD(i) { cpu0.execDADD(rd(i), rt(i), rs(i)); }
 function executeDADDU(i) { cpu0.execDADDU(rd(i), rt(i), rs(i)); }
 function executeDSUB(i) { cpu0.execDSUB(rd(i), rt(i), rs(i)); }
 function executeDSUBU(i) { cpu0.execDSUBU(rd(i), rt(i), rs(i)); }
+
+function executeADDI(i) { cpu0.execADDI(rt(i), rs(i), imms(i)); }
+function executeADDIU(i) { cpu0.execADDIU(rt(i), rs(i), imms(i)); }
+function executeDADDI(i) { cpu0.execDADDI(rt(i), rs(i), imms(i)); }
+function executeDADDIU(i) { cpu0.execDADDIU(rt(i), rs(i), imms(i)); }
+
+function executeSLTI(i) { cpu0.execSLTI(rt(i), rs(i), imms(i)); }
+function executeSLTIU(i) { cpu0.execSLTIU(rt(i), rs(i), imms(i)); }
+function executeANDI(i) { cpu0.execANDI(rt(i), rs(i), imm(i)); }
+function executeORI(i) { cpu0.execORI(rt(i), rs(i), imm(i)); }
+function executeXORI(i) { cpu0.execXORI(rt(i), rs(i), imm(i)); }
+function executeLUI(i) { cpu0.execLUI(rt(i), imm(i)); }
 
 function executeMFC0(i) { cpu0.execMFC0(rt(i), fs(i)); }
 function executeDMFC0(i) { cpu0.execDMFC0(rt(i), fs(i)); }
@@ -2302,81 +2316,33 @@ function generateBGEZL(ctx) {
 }
 
 function generateSLTI(ctx) {
-  const s = ctx.instr_rs();
-  const t = ctx.instr_rt();
-
-  const immediate = imms(ctx.instruction);
-  const impl = `c.setRegU32Extend(${t}, c.getRegS64(${s}) < ${immediate}n ? 1 : 0);`;
-
+  const impl = `c.execSLTI(${ctx.instr_rt()}, ${ctx.instr_rs()}, ${ctx.instr_imms()});`;
   return generateTrivialOpBoilerplate(impl, ctx);
-}
-
-function executeSLTI(i) {
-  const immediate = BigInt(imms(i));
-  cpu0.setRegU32Extend(rt(i), cpu0.getRegS64(rs(i)) < immediate ? 1 : 0);
 }
 
 function generateSLTIU(ctx) {
-  const s = ctx.instr_rs();
-  const t = ctx.instr_rt();
-
-  // Immediate value is sign-extended to 64 bits and treated as a u64.
-  const immediate = BigInt.asUintN(64, BigInt(imms(ctx.instruction)));
-  const impl = `c.setRegU32Extend(${t}, c.getRegU64(${s}) < ${immediate}n ? 1 : 0);`;
-
+  const impl = `c.execSLTIU(${ctx.instr_rt()}, ${ctx.instr_rs()}, ${ctx.instr_imms()});`;
   return generateTrivialOpBoilerplate(impl, ctx);
-}
-
-function executeSLTIU(i) {
-  // Immediate value is sign-extended to 64 bits and treated as a u64.
-  const immediate = BigInt.asUintN(64, BigInt(imms(i)));
-  cpu0.setRegU32Extend(rt(i), cpu0.getRegU64(rs(i)) < immediate ? 1 : 0);
 }
 
 function generateANDI(ctx) {
-  const s = ctx.instr_rs();
-  const t = ctx.instr_rt();
-  const impl = `c.setRegU64(${t}, ${genSrcRegU64(s)} & BigInt(${imm(ctx.instruction)}));`;
+  const impl = `c.execANDI(${ctx.instr_rt()}, ${ctx.instr_rs()}, ${ctx.instr_imm()});`;
   return generateTrivialOpBoilerplate(impl, ctx);
-}
-
-function executeANDI(i) {
-  cpu0.setRegU64(rt(i), cpu0.getRegU64(rs(i)) & BigInt(imm(i)));
 }
 
 function generateORI(ctx) {
-  const s = ctx.instr_rs();
-  const t = ctx.instr_rt();
-  const impl = `c.setRegU64(${t}, ${genSrcRegU64(s)} | BigInt(${imm(ctx.instruction)}));`;
+  const impl = `c.execORI(${ctx.instr_rt()}, ${ctx.instr_rs()}, ${ctx.instr_imm()});`;
   return generateTrivialOpBoilerplate(impl, ctx);
-}
-
-function executeORI(i) {
-  cpu0.setRegU64(rt(i), cpu0.getRegU64(rs(i)) | BigInt(imm(i)));
 }
 
 function generateXORI(ctx) {
-  const s = ctx.instr_rs();
-  const t = ctx.instr_rt();
-  const impl = `c.setRegU64(${t}, ${genSrcRegU64(s)} ^ BigInt(${imm(ctx.instruction)}));`;
+  const impl = `c.execXORI(${ctx.instr_rt()}, ${ctx.instr_rs()}, ${ctx.instr_imm()});`;
   return generateTrivialOpBoilerplate(impl, ctx);
-}
-
-function executeXORI(i) {
-  cpu0.setRegU64(rt(i), cpu0.getRegU64(rs(i)) ^ BigInt(imm(i)));
 }
 
 function generateLUI(ctx) {
-  const t = ctx.instr_rt();
-  const value_lo = imms(ctx.instruction) << 16;
-  const value_hi = (value_lo < 0) ? -1 : 0;
-
-  const impl = `c.setRegS64LoHi(${t}, ${value_lo}, ${value_hi});`;
+  const impl = `c.execLUI(${ctx.instr_rt()}, ${ctx.instr_imm()});`;
   return generateTrivialOpBoilerplate(impl, ctx);
-}
-
-function executeLUI(i) {
-  cpu0.setRegS32Extend(rt(i), imms(i) << 16);
 }
 
 function generateLB(ctx) {
@@ -3565,6 +3531,7 @@ class FragmentContext {
   instr_base() { return base(this.instruction); }
   instr_offset() { return offset(this.instruction); }
   instr_imms() { return imms(this.instruction); }
+  instr_imm() { return imm(this.instruction); }
 }
 
 function checkCauseIP3Consistent() {
