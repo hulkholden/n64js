@@ -1615,46 +1615,6 @@ class CPU0 {
     return cache !== 0 || (action !== 0 && action !== 4);
   }
 
-  execMFC0(rt, fs) {
-    this.setRegS32Extend(rt, Number(this.moveFromControl(fs) & 0xffff_ffffn));
-  }
-
-  execDMFC0(rt, fs) {
-    this.setRegU64(rt, this.moveFromControl(fs));
-  }
-
-  execMTC0(rt, fs) {
-    this.moveToControl(fs, BigInt(this.getRegS32Lo(rt)));
-  }
-
-  execDMTC0(rt, fs) {
-    this.moveToControl(fs, this.getRegU64(rt));
-  }
-
-  execTLB(op) {
-    switch (op) {
-      case 0x01: this.tlbRead(); return;
-      case 0x02: this.tlbWriteIndex(); return;
-      case 0x06: this.tlbWriteRandom(); return;
-      case 0x08: this.tlbProbe(); return;
-      case 0x18: this.execERET(); return;
-    }
-    n64js.warn(`CPU: unknown TLB op, pc: ${toString32(this.pc)}, op: ${toString32(op)}`);
-  }
-
-  execERET() {
-    if (this.getControlU32(cpu0_constants.controlStatus) & SR_ERL) {
-      this.nextPC = this.getControlU32(cpu0_constants.controlErrorEPC);
-      this.clearControlBits32(cpu0_constants.controlStatus, ~SR_ERL);
-      logger.log('ERET from error trap - ' + this.nextPC);
-    } else {
-      this.nextPC = this.getControlU32(cpu0_constants.controlEPC);
-      this.clearControlBits32(cpu0_constants.controlStatus, SR_EXL);
-      //logger.log('ERET from interrupt/exception ' + this.nextPC);
-    }
-    this.llBit = 0;
-  }
-
   execTGE(rt, rs) { this.maybeRaiseTRAPException(this.getRegS64(rs) >= this.getRegS64(rt)); }
   execTGEU(rt, rs) { this.maybeRaiseTRAPException(this.getRegU64(rs) >= this.getRegU64(rt)); }
   execTLT(rt, rs) { this.maybeRaiseTRAPException(this.getRegS64(rs) < this.getRegS64(rt)); }
@@ -1727,7 +1687,48 @@ class CPU0 {
     this.setRegS32Extend(cpu0_constants.RA, this.nextPC + 4);
     this.conditionalBranchLikely(cond, offset);
   }
-}
+
+  // Cop0
+  execMFC0(rt, fs) {
+    this.setRegS32Extend(rt, Number(this.moveFromControl(fs) & 0xffff_ffffn));
+  }
+
+  execDMFC0(rt, fs) {
+    this.setRegU64(rt, this.moveFromControl(fs));
+  }
+
+  execMTC0(rt, fs) {
+    this.moveToControl(fs, BigInt(this.getRegS32Lo(rt)));
+  }
+
+  execDMTC0(rt, fs) {
+    this.moveToControl(fs, this.getRegU64(rt));
+  }
+
+  execTLB(op) {
+    switch (op) {
+      case 0x01: this.tlbRead(); return;
+      case 0x02: this.tlbWriteIndex(); return;
+      case 0x06: this.tlbWriteRandom(); return;
+      case 0x08: this.tlbProbe(); return;
+      case 0x18: this.execERET(); return;
+    }
+    n64js.warn(`CPU: unknown TLB op, pc: ${toString32(this.pc)}, op: ${toString32(op)}`);
+  }
+
+  execERET() {
+    if (this.getControlU32(cpu0_constants.controlStatus) & SR_ERL) {
+      this.nextPC = this.getControlU32(cpu0_constants.controlErrorEPC);
+      this.clearControlBits32(cpu0_constants.controlStatus, ~SR_ERL);
+      logger.log('ERET from error trap - ' + this.nextPC);
+    } else {
+      this.nextPC = this.getControlU32(cpu0_constants.controlEPC);
+      this.clearControlBits32(cpu0_constants.controlStatus, SR_EXL);
+      //logger.log('ERET from interrupt/exception ' + this.nextPC);
+    }
+    this.llBit = 0;
+  }
+
 
 
 class CPU2 {
