@@ -453,11 +453,7 @@ class CPU0 {
     return this.getRegS32Lo(base(instr)) + imms(instr);
   }
 
-  calcAddressU32(instr) {
-    return (this.getRegU32Lo(base(instr)) + imms(instr)) >>> 0;
-  }
-
-  // TODO: see if we can remove calcAddressS32 and calcAddressU32
+  // TODO: see if we can remove calcAddressS32
   addrS32(base, imms) { return (this.getRegS32Lo(base) + imms) >> 0; }
   addrU32(base, imms) { return (this.getRegS32Lo(base) + imms) >>> 0; }
 
@@ -1517,6 +1513,75 @@ class CPU0 {
     cpu1.store64(cpu1.copRegIdx64(ft), value);
   }
 
+  execSB(rt, base, imms) {
+    memaccess.store8fast(this.addrS32(base, imms), this.getRegS32Lo(rt) /*& 0xff*/);
+  }
+  execSH(rt, base, imms) {
+    memaccess.store16fast(this.addrS32(base, imms), this.getRegS32Lo(rt) /*& 0xffff*/);
+  }
+  execSW(rt, base, imms) {
+    memaccess.store32fast(this.addrS32(base, imms), this.getRegS32Lo(rt));
+  }
+  execSD(rt, base, imms) {
+    memaccess.store64fast(this.addrS32(base, imms), this.getRegU64(rt));
+  }
+
+  execSWL(rt, base, imms) {
+    const addr = this.addrU32(base, imms);
+    const shift = 8 * (addr & 3);
+    const reg = this.getRegU32Lo(rt);
+
+    memaccess.store32masked(addr, reg >>> shift, u32Max >>> shift);
+  }
+
+  execSWR(rt, base, imms) {
+    const addr = this.addrU32(base, imms);
+    const shift = 8 * (3 - (addr & 3));
+    const reg = this.getRegU32Lo(rt);
+
+    memaccess.store32masked(addr, reg << shift, u32Max << shift);
+  }
+
+  execSDL(rt, base, imms) {
+    const addr = this.addrU32(base, imms);
+    const shift = BigInt(8 * (addr & 7));
+    const reg = this.getRegU64(rt);
+
+    memaccess.store64masked(addr, reg >> shift, u64Max >> shift);
+  }
+
+  execSDR(rt, base, imms) {
+    const addr = this.addrU32(base, imms);
+    const reg = this.getRegU64(rt);
+    const shift = BigInt(8 * (7 - (addr & 7)));
+
+    memaccess.store64masked(addr, (reg << shift) & u64Max, (u64Max << shift) & u64Max);
+  }
+
+  execSWC1(ft, base, imms) {
+    if (!this.checkCopXUsable(1)) {
+      return;
+    }
+    memaccess.store32fast(this.addrS32(base, imms), cpu1.loadU32(cpu1.copRegIdx32(ft)));
+  }
+  execSDC1(ft, base, imms) {
+    if (!this.checkCopXUsable(1)) {
+      return;
+    }
+    memaccess.store64fast(this.addrS32(base, imms), cpu1.loadU64(cpu1.copRegIdx64(ft)));
+  }
+
+  execCACHE(rt, base, imms) {
+    const cache_op = rt;
+    const cache = (cache_op) & 0x3;
+    const action = (cache_op >>> 2) & 0x7;
+
+    if (cache === 0 && (action === 0 || action === 4)) {
+      // NB: only bother generating address if we handle the instruction - memaddr deopts like crazy
+      n64js.invalidateICacheEntry(this.addrU32(base, imms));
+    }
+  }
+
   execMFC0(rt, fs) {
     this.setRegS32Extend(rt, Number(this.moveFromControl(fs) & 0xffff_ffffn));
   }
@@ -1871,6 +1936,21 @@ function executeLDR(i) { cpu0.execLDR(rt(i), base(i), imms(i)); }
 function executeLWC1(i) { cpu0.execLWC1(ft(i), base(i), imms(i)); }
 function executeLDC1(i) { cpu0.execLDC1(ft(i), base(i), imms(i)); }
 function executeLDC2(i) { unimplemented(cpu0.pc, i); }
+
+function executeSB(i) { cpu0.execSB(rt(i), base(i), imms(i)); }
+function executeSH(i) { cpu0.execSH(rt(i), base(i), imms(i)); }
+function executeSW(i) { cpu0.execSW(rt(i), base(i), imms(i)); }
+function executeSD(i) { cpu0.execSD(rt(i), base(i), imms(i)); }
+function executeSWL(i) { cpu0.execSWL(rt(i), base(i), imms(i)); }
+function executeSWR(i) { cpu0.execSWR(rt(i), base(i), imms(i)); }
+function executeSDL(i) { cpu0.execSDL(rt(i), base(i), imms(i)); }
+function executeSDR(i) { cpu0.execSDR(rt(i), base(i), imms(i)); }
+
+function executeSWC1(i) { cpu0.execSWC1(ft(i), base(i), imms(i)); }
+function executeSDC1(i) { cpu0.execSDC1(ft(i), base(i), imms(i)); }
+function executeSDC2(i) { unimplemented(cpu0.pc, i); }
+
+function executeCACHE(i) { cpu0.execCACHE(rt(i), base(i), imms(i)); }
 
 function executeMFC0(i) { cpu0.execMFC0(rt(i), fs(i)); }
 function executeDMFC0(i) { cpu0.execDMFC0(rt(i), fs(i)); }
@@ -2500,140 +2580,49 @@ function generateLDC1(ctx) {
 }
 
 function generateSB(ctx) {
-  const t = ctx.instr_rt();
-  const impl = `c.store8fast(${genCalcAddressS32(ctx)}, ${genSrcRegS32Lo(t)});`;
+  const impl = `c.execSB(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
   return generateMemoryAccessBoilerplate(impl, ctx);
-}
-
-function executeSB(i) {
-  memaccess.store8fast(cpu0.calcAddressS32(i), cpu0.getRegS32Lo(rt(i)) /*& 0xff*/);
 }
 
 function generateSH(ctx) {
-  const t = ctx.instr_rt();
-  const impl = `c.store16fast(${genCalcAddressS32(ctx)}, ${genSrcRegS32Lo(t)});`;
+  const impl = `c.execSH(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
   return generateMemoryAccessBoilerplate(impl, ctx);
-}
-
-function executeSH(i) {
-  memaccess.store16fast(cpu0.calcAddressS32(i), cpu0.getRegS32Lo(rt(i)) /*& 0xffff*/);
 }
 
 function generateSW(ctx) {
-  const t = ctx.instr_rt();
-  const impl = `c.store32fast(${genCalcAddressS32(ctx)}, ${genSrcRegS32Lo(t)});`;
+  const impl = `c.execSW(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
   return generateMemoryAccessBoilerplate(impl, ctx);
-}
-
-function executeSW(i) {
-  memaccess.store32fast(cpu0.calcAddressS32(i), cpu0.getRegS32Lo(rt(i)));
 }
 
 function generateSD(ctx) {
-  const t = ctx.instr_rt();
-  const impl = `c.store64fast(${genCalcAddressS32(ctx)}, ${genSrcRegU64(t)});`;
+  const impl = `c.execSD(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
   return generateMemoryAccessBoilerplate(impl, ctx);
-}
-
-function executeSD(i) {
-  memaccess.store64fast(cpu0.calcAddressS32(i), cpu0.getRegU64(rt(i)));
 }
 
 function generateSWC1(ctx) {
-  const t = ctx.instr_ft();
-
   ctx.fragment.usesCop1 = true;
-
   // FIXME: can avoid cpuStuffToDo if we're writing to ram
-  const impl = dedent(`
-    if (c.checkCopXUsable(1)) {
-      c.store32fast(${genCalcAddressS32(ctx)}, cpu1.loadU32(cpu1.copRegIdx32(${t})));
-    }`);
+  const impl = `c.execSWC1(${ctx.instr_ft()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
   return generateMemoryAccessBoilerplate(impl, ctx);
-}
-
-function executeSWC1(i) {
-  if (!cpu0.checkCopXUsable(1)) {
-    return;
-  }
-  memaccess.store32fast(cpu0.calcAddressS32(i), cpu1.loadU32(cpu1.copRegIdx32(ft(i))));
 }
 
 function generateSDC1(ctx) {
-  const t = ctx.instr_ft();
-
   ctx.fragment.usesCop1 = true;
-
   // FIXME: can avoid cpuStuffToDo if we're writing to ram
-  const impl = dedent(`
-    if (c.checkCopXUsable(1)) {
-      c.store64fast(${genCalcAddressS32(ctx)}, cpu1.loadU64(cpu1.copRegIdx64(${t})));
-    }`);
+  const impl = `c.execSDC1(${ctx.instr_ft()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
   return generateMemoryAccessBoilerplate(impl, ctx);
-}
-
-function executeSDC1(i) {
-  if (!cpu0.checkCopXUsable(1)) {
-    return;
-  }
-  memaccess.store64fast(cpu0.calcAddressS32(i), cpu1.loadU64(cpu1.copRegIdx64(ft(i))));
-}
-
-function executeSDC2(i) { unimplemented(cpu0.pc, i); }
-
-function executeSWL(i) {
-  const addr = cpu0.calcAddressU32(i);
-  const shift = 8 * (addr & 3);
-  const reg = cpu0.getRegU32Lo(rt(i));
-
-  memaccess.store32masked(addr, reg >>> shift, u32Max >>> shift);
-}
-
-function executeSWR(i) {
-  const addr = cpu0.calcAddressU32(i);
-  const shift = 8 * (3 - (addr & 3));
-  const reg = cpu0.getRegU32Lo(rt(i));
-
-  memaccess.store32masked(addr, reg << shift, u32Max << shift);
-}
-
-function executeSDL(i) {
-  const addr = cpu0.calcAddressU32(i);
-  const shift = BigInt(8 * (addr & 7));
-  const reg = cpu0.getRegU64(rt(i));
-
-  memaccess.store64masked(addr, reg >> shift, u64Max >> shift);
-}
-
-function executeSDR(i) {
-  const addr = cpu0.calcAddressU32(i);
-  const reg = cpu0.getRegU64(rt(i));
-  const shift = BigInt(8 * (7 - (addr & 7)));
-
-  memaccess.store64masked(addr, (reg << shift) & u64Max, (u64Max << shift) & u64Max);
 }
 
 function generateCACHE(ctx) {
   const cache_op = ctx.instr_rt();
   const cache = (cache_op) & 0x3;
   const action = (cache_op >>> 2) & 0x7;
-
+  
   if (cache === 0 && (action === 0 || action === 4)) {
-    const impl = `n64js.invalidateICacheEntry(${genCalcAddressS32(ctx)});`;
+    const impl = `c.execCACHE(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
     return generateTrivialOpBoilerplate(impl, ctx);
   } else {
     return generateNOPBoilerplate('CACHE (ignored)', ctx);
-  }
-}
-
-function executeCACHE(i) {
-  const cache_op = rt(i);
-  const cache = (cache_op) & 0x3;
-  const action = (cache_op >>> 2) & 0x7;
-
-  if (cache === 0 && (action === 0 || action === 4)) {
-    // NB: only bother generating address if we handle the instruction - memaddr deopts like crazy
-    n64js.invalidateICacheEntry(cpu0.calcAddressU32(i));
   }
 }
 
