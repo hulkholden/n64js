@@ -1793,6 +1793,97 @@ function generateSRAV(ctx) {
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
+function generateDSLLV(ctx) {
+  const impl = `c.execDSLLV(${ctx.instr_rd()}, ${ctx.instr_rt()}, ${ctx.instr_rs()});`;
+  return generateTrivialOpBoilerplate(impl, ctx);
+}
+
+function generateDSRLV(ctx) {
+  const impl = `c.execDSRLV(${ctx.instr_rd()}, ${ctx.instr_rt()}, ${ctx.instr_rs()});`;
+  return generateTrivialOpBoilerplate(impl, ctx);
+}
+
+function generateDSRAV(ctx) {
+  const impl = `c.execDSRAV(${ctx.instr_rd()}, ${ctx.instr_rt()}, ${ctx.instr_rs()});`;
+  return generateTrivialOpBoilerplate(impl, ctx);
+}
+
+function generateDSLL(ctx) {
+  const impl = `c.execDSLL(${ctx.instr_rd()}, ${ctx.instr_rt()}, ${ctx.instr_sa()});`;
+  return generateTrivialOpBoilerplate(impl, ctx);
+}
+
+function generateDSLL32(ctx) {
+  const impl = `c.execDSLL32(${ctx.instr_rd()}, ${ctx.instr_rt()}, ${ctx.instr_sa()});`;
+  return generateTrivialOpBoilerplate(impl, ctx);
+}
+
+function generateDSRL(ctx) {
+  const impl = `c.execDSRL(${ctx.instr_rd()}, ${ctx.instr_rt()}, ${ctx.instr_sa()});`;
+  return generateTrivialOpBoilerplate(impl, ctx);
+}
+
+function generateDSRL32(ctx) {
+  const impl = `c.execDSRL32(${ctx.instr_rd()}, ${ctx.instr_rt()}, ${ctx.instr_sa()});`;
+  return generateTrivialOpBoilerplate(impl, ctx);
+}
+
+function generateDSRA(ctx) {
+  const impl = `c.execDSRA(${ctx.instr_rd()}, ${ctx.instr_rt()}, ${ctx.instr_sa()});`;
+  return generateTrivialOpBoilerplate(impl, ctx);
+}
+
+function generateDSRA32(ctx) {
+  const impl = `c.execDSRA32(${ctx.instr_rd()}, ${ctx.instr_rt()}, ${ctx.instr_sa()});`;
+  return generateTrivialOpBoilerplate(impl, ctx);
+}
+
+function generateSYSCALL(ctx) {
+  const impl = `c.execSYSCALL();`;
+  return generateGenericOpBoilerplate(impl, ctx); // Generic as raises SYSCALL exception.
+}
+
+function generateBREAK(ctx) {
+  const impl = `c.execBREAK();`;
+  return generateGenericOpBoilerplate(impl, ctx); // Generic as raises BREAK exception.
+}
+
+function generateSYNC(ctx) {
+  const impl = `c.execSYNC();`;
+  return generateGenericOpBoilerplate(impl, ctx); // Generic as raises SYNC exception.
+}
+
+function generateTGE(ctx) {
+  const impl = `c.execTGE(${ctx.instr_rt()}, ${ctx.instr_sa()});`;
+  return generateGenericOpBoilerplate(impl, ctx); // Generic as may raise TRAP exception.
+}
+
+function generateTGEU(ctx) {
+  const impl = `c.execTGEU(${ctx.instr_rt()}, ${ctx.instr_sa()});`;
+  return generateGenericOpBoilerplate(impl, ctx); // Generic as may raise TRAP exception.
+}
+
+function generateTLT(ctx) {
+  const impl = `c.execTLT(${ctx.instr_rt()}, ${ctx.instr_sa()});`;
+  return generateGenericOpBoilerplate(impl, ctx); // Generic as may raise TRAP exception.
+}
+
+function generateTLTU(ctx) {
+  const impl = `c.execTLTU(${ctx.instr_rt()}, ${ctx.instr_sa()});`;
+  return generateGenericOpBoilerplate(impl, ctx); // Generic as may raise TRAP exception.
+}
+
+function generateTEQ(ctx) {
+  const impl = `c.execTEQ(${ctx.instr_rt()}, ${ctx.instr_sa()});`;
+  return generateGenericOpBoilerplate(impl, ctx); // Generic as may raise TRAP exception.
+}
+
+function generateTNE(ctx) {
+  const impl = `c.execTNE(${ctx.instr_rt()}, ${ctx.instr_sa()});`;
+  return generateGenericOpBoilerplate(impl, ctx); // Generic as may raise TRAP exception.
+}
+
+
 function generateMFHI(ctx) {
   const impl = `c.execMFHI(${ctx.instr_rd()});`;
   return generateTrivialOpBoilerplate(impl, ctx);
@@ -1823,8 +1914,44 @@ function generateMULTU(ctx) {
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
+function generateDMULT(ctx) {
+  const impl = `c.execDMULT(${ctx.instr_rt()}, ${ctx.instr_rs()});`;
+  return generateTrivialOpBoilerplate(impl, ctx);
+}
+
+function generateDMULTU(ctx) {
+  const impl = `c.execDMULTU(${ctx.instr_rt()}, ${ctx.instr_rs()});`;
+  return generateTrivialOpBoilerplate(impl, ctx);
+}
+
+function generateDIV(ctx) {
+  const impl = `c.execDIV(${ctx.instr_rt()}, ${ctx.instr_rs()});`;
+  return generateTrivialOpBoilerplate(impl, ctx);
+}
+
+function generateDIVU(ctx) {
+  const impl = `c.execDIVU(${ctx.instr_rt()}, ${ctx.instr_rs()});`;
+  return generateTrivialOpBoilerplate(impl, ctx);
+}
+
+function generateDDIV(ctx) {
+  const impl = `c.execDDIV(${ctx.instr_rt()}, ${ctx.instr_rs()});`;
+  return generateTrivialOpBoilerplate(impl, ctx);
+}
+
+function generateDDIVU(ctx) {
+  const impl = `c.execDDIVU(${ctx.instr_rt()}, ${ctx.instr_rs()});`;
+  return generateTrivialOpBoilerplate(impl, ctx);
+}
+
 function generateADD(ctx) {
   const impl = `c.execADD(${ctx.instr_rd()}, ${ctx.instr_rt()}, ${ctx.instr_rs()});`;
+  // Use the generic boilerplate because we might have generated an overflow exception.
+  return generateGenericOpBoilerplate(impl, ctx);
+}
+
+function generateDADD(ctx) {
+  const impl = `c.execDADD(${ctx.instr_rd()}, ${ctx.instr_rt()}, ${ctx.instr_rs()});`;
   // Use the generic boilerplate because we might have generated an overflow exception.
   return generateGenericOpBoilerplate(impl, ctx);
 }
@@ -1834,14 +1961,30 @@ function generateADDU(ctx) {
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
+function generateDADDU(ctx) {
+  const impl = `c.execDADDU(${ctx.instr_rd()}, ${ctx.instr_rt()}, ${ctx.instr_rs()});`;
+  return generateTrivialOpBoilerplate(impl, ctx);
+}
+
 function generateSUB(ctx) {
   const impl = `c.execSUB(${ctx.instr_rd()}, ${ctx.instr_rt()}, ${ctx.instr_rs()});`;
   // Use the generic boilerplate because we might have generated an overflow exception.
   return generateGenericOpBoilerplate(impl, ctx);
 }
 
+function generateDSUB(ctx) {
+  const impl = `c.execDSUB(${ctx.instr_rd()}, ${ctx.instr_rt()}, ${ctx.instr_rs()});`;
+  // Use the generic boilerplate because we might have generated an overflow exception.
+  return generateGenericOpBoilerplate(impl, ctx);
+}
+
 function generateSUBU(ctx) {
   const impl = `c.execSUBU(${ctx.instr_rd()}, ${ctx.instr_rt()}, ${ctx.instr_rs()});`;
+  return generateTrivialOpBoilerplate(impl, ctx);
+}
+
+function generateDSUBU(ctx) {
+  const impl = `c.execDSUBU(${ctx.instr_rd()}, ${ctx.instr_rt()}, ${ctx.instr_rs()});`;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
@@ -3086,20 +3229,20 @@ const specialTableGen = validateSpecialOpTable([
   generateSLL,            'executeUnknown',       generateSRL,          generateSRA,
   generateSLLV,           'executeUnknown',       generateSRLV,         generateSRAV,
   generateJR,             generateJALR,           'executeUnknown',     'executeUnknown',
-  'executeSYSCALL',       'executeBREAK',         'executeUnknown',     'executeSYNC',
+  generateSYSCALL,        generateBREAK,          'executeUnknown',     generateSYNC,
   generateMFHI,           generateMTHI,           generateMFLO,         generateMTLO,
-  'executeDSLLV',         'executeUnknown',       'executeDSRLV',       'executeDSRAV',
-  generateMULT,           generateMULTU,          'executeDIV',         'executeDIVU',
-  'executeDMULT',         'executeDMULTU',        'executeDDIV',        'executeDDIVU',
+  generateDSLLV,          'executeUnknown',       generateDSRLV,        generateDSRAV,
+  generateMULT,           generateMULTU,          generateDIV,          generateDIVU,
+  generateDMULT,          generateDMULTU,         generateDDIV,         generateDDIVU,
   generateADD,            generateADDU,           generateSUB,          generateSUBU,
   generateAND,            generateOR,             generateXOR,          generateNOR,
   'executeUnknown',       'executeUnknown',       generateSLT,          generateSLTU,
-  'executeDADD',          'executeDADDU',         'executeDSUB',        'executeDSUBU',
-  'executeTGE',           'executeTGEU',          'executeTLT',         'executeTLTU',
-  'executeTEQ',           'executeUnknown',       'executeTNE',         'executeUnknown',
-  'executeDSLL',          'executeUnknown',       'executeDSRL',        'executeDSRA',
-  'executeDSLL32',        'executeUnknown',       'executeDSRL32',      'executeDSRA32'
-]);
+  generateDADD,           generateDADDU,          generateDSUB,         generateDSUBU,
+  generateTGE,            generateTGEU,           generateTLT,          generateTLTU,
+  generateTEQ,            'executeUnknown',       generateTNE,          'executeUnknown',
+  generateDSLL,           'executeUnknown',       generateDSRL,         generateDSRA,
+  generateDSLL32,         'executeUnknown',       generateDSRL32,       generateDSRA32
+ ]);
 
 function executeSpecial(i) {
   const fn = i & 0x3f;
@@ -3108,34 +3251,6 @@ function executeSpecial(i) {
 
 // Expose all the functions that we don't yet generate
 n64js.executeUnknown = executeUnknown;
-n64js.executeSYSCALL = executeSYSCALL;
-n64js.executeBREAK   = executeBREAK;
-n64js.executeSYNC    = executeSYNC;
-n64js.executeDSLLV   = executeDSLLV;
-n64js.executeDSRLV   = executeDSRLV;
-n64js.executeDSRAV   = executeDSRAV;
-n64js.executeDIV     = executeDIV;
-n64js.executeDIVU    = executeDIVU;
-n64js.executeDMULT   = executeDMULT;
-n64js.executeDMULTU  = executeDMULTU;
-n64js.executeDDIV    = executeDDIV;
-n64js.executeDDIVU   = executeDDIVU;
-n64js.executeDADD    = executeDADD;
-n64js.executeDADDU   = executeDADDU;
-n64js.executeDSUB    = executeDSUB;
-n64js.executeDSUBU   = executeDSUBU;
-n64js.executeTGE     = executeTGE;
-n64js.executeTGEU    = executeTGEU;
-n64js.executeTLT     = executeTLT;
-n64js.executeTLTU    = executeTLTU;
-n64js.executeTEQ     = executeTEQ;
-n64js.executeTNE     = executeTNE;
-n64js.executeDSLL    = executeDSLL;
-n64js.executeDSRL    = executeDSRL;
-n64js.executeDSRA    = executeDSRA;
-n64js.executeDSLL32  = executeDSLL32;
-n64js.executeDSRL32  = executeDSRL32;
-n64js.executeDSRA32  = executeDSRA32;
 
 function validateCopOpTable(cases) {
   if (cases.length != 32) {
