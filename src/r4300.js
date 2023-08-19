@@ -1710,10 +1710,10 @@ function executeNOR(i) { cpu0.execNOR(rd(i), rt(i), rs(i)); }
 function executeSLT(i) { cpu0.execSLT(rd(i), rt(i), rs(i)); }
 function executeSLTU(i) { cpu0.execSLTU(rd(i), rt(i), rs(i)); }
 
-function executeDADD(i) {  cpu0.execDADD(rd(i), rt(i), rs(i)); }
-function executeDADDU(i) {  cpu0.execDADDU(rd(i), rt(i), rs(i)); }
-function executeDSUB(i) {  cpu0.execDSUB(rd(i), rt(i), rs(i)); }
-function executeDSUBU(i) {  cpu0.execDSUBU(rd(i), rt(i), rs(i)); }
+function executeDADD(i) { cpu0.execDADD(rd(i), rt(i), rs(i)); }
+function executeDADDU(i) { cpu0.execDADDU(rd(i), rt(i), rs(i)); }
+function executeDSUB(i) { cpu0.execDSUB(rd(i), rt(i), rs(i)); }
+function executeDSUBU(i) { cpu0.execDSUBU(rd(i), rt(i), rs(i)); }
 
 function executeMFC0(i) { cpu0.execMFC0(rt(i), fs(i)); }
 function executeDMFC0(i) { cpu0.execDMFC0(rt(i), fs(i)); }
