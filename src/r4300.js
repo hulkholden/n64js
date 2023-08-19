@@ -1186,6 +1186,7 @@ class CPU0 {
   execDSRL32(rd, rt, sa) { this.setRegU64(rd, this.getRegU64(rt) >> BigInt(sa + 32)); }
   execDSRA32(rd, rt, sa) { this.setRegU64(rd, this.getRegS64(rt) >> BigInt(sa + 32)); }
 
+  execRESERVED(copIdx) { this.raiseRESERVEDException(copIdx); }
   execSYSCALL() { this.raiseSYSCALLException(); }
   execBREAK() { this.raiseBREAKException(); }
   execSYNC() { /* no-op */ }
@@ -1861,9 +1862,7 @@ function executeUnknown(i) {
   throw `CPU: unknown op, pc: ${toString32(cpu0.pc)}, instruction: ${toString32(i)}`;
 }
 
-function executeRESERVED(i) {
-  cpu0.raiseRESERVEDException(0);
-}
+function executeRESERVED(i) { cpu0.execRESERVED(0); }
 
 /**
  * @constructor
@@ -2029,6 +2028,11 @@ function generateDSRA(ctx) {
 function generateDSRA32(ctx) {
   const impl = `c.execDSRA32(${ctx.instr_rd()}, ${ctx.instr_rt()}, ${ctx.instr_sa()});`;
   return generateTrivialOpBoilerplate(impl, ctx);
+}
+
+function generateRESERVED(ctx) {
+  const impl = `c.execRESERVED(0);`;
+  return generateGenericOpBoilerplate(impl, ctx); // Generic as raises SYSCALL exception.
 }
 
 function generateSYSCALL(ctx) {
@@ -3103,34 +3107,58 @@ function executeLInstr(i) {
 }
 
 function executeMFC2(i) {
+  if (!cpu0.checkCopXUsable(2)) {
+    return;
+  }
   cpu0.setRegS32Extend(rt(i), cpu2.getReg32());
 }
 
 function executeDMFC2(i) {
+  if (!cpu0.checkCopXUsable(2)) {
+    return;
+  }
   cpu0.setRegU64(rt(i), cpu2.getReg64());
 }
 
 function executeCFC2(i) {
+  if (!cpu0.checkCopXUsable(2)) {
+    return;
+  }
   cpu0.setRegS32Extend(rt(i), cpu2.getReg32());
 }
 
 function executeDCFC2(i) {
+  if (!cpu0.checkCopXUsable(2)) {
+    return;
+  }
   cpu0.raiseRESERVEDException(2);
 }
 
 function executeMTC2(i) {
+  if (!cpu0.checkCopXUsable(2)) {
+    return;
+  }
   cpu2.setReg64(cpu0.getRegU64(rt(i)));
 }
 
 function executeDMTC2(i) {
+  if (!cpu0.checkCopXUsable(2)) {
+    return;
+  }
   cpu2.setReg64(cpu0.getRegU64(rt(i)));
 }
 
 function executeCTC2(i) {
+  if (!cpu0.checkCopXUsable(2)) {
+    return;
+  }
   cpu2.setReg64(cpu0.getRegU64(rt(i)));
 }
 
 function executeDCTC2(i) {
+  if (!cpu0.checkCopXUsable(2)) {
+    return;
+  }
   cpu0.raiseRESERVEDException(2);
 }
 
@@ -3347,10 +3375,27 @@ const cop2Table = validateCopOpTable([
   executeUnknown,     executeUnknown,     executeUnknown,     executeUnknown
 ]);
 
+const cop2TableGen = validateCopOpTable([
+  'executeMFC2',    'executeDMFC2',   'executeCFC2',    'executeDCFC2',
+  'executeMTC2',    'executeDMTC2',   'executeCTC2',    'executeDCTC2',
+  'executeUnknown', 'executeUnknown', 'executeUnknown', 'executeUnknown',
+  'executeUnknown', 'executeUnknown', 'executeUnknown', 'executeUnknown',
+  'executeUnknown', 'executeUnknown', 'executeUnknown', 'executeUnknown',
+  'executeUnknown', 'executeUnknown', 'executeUnknown', 'executeUnknown',
+  'executeUnknown', 'executeUnknown', 'executeUnknown', 'executeUnknown',
+  'executeUnknown', 'executeUnknown', 'executeUnknown', 'executeUnknown'
+]);
+// Expose all the functions that we don't yet generate
+n64js.executeMFC2 = executeMFC2;
+n64js.executeMTC2 = executeMTC2;
+n64js.executeCFC2 = executeCFC2;
+n64js.executeCTC2 = executeCTC2;
+n64js.executeDCFC2 = executeDCFC2;
+n64js.executeDCTC2 = executeDCTC2;
+n64js.executeDMFC2 = executeDMFC2;
+n64js.executeDMTC2 = executeDMTC2;
+
 function executeCop2(i) {
-  if (!cpu0.checkCopXUsable(2)) {
-    return;
-  }
   const fmt = (i >>> 21) & 0x1f;
   cop2Table[fmt](i);
 }
@@ -3495,10 +3540,10 @@ const simpleTableGen = validateSimpleOpTable([
   generateBEQ,            generateBNE,            generateBLEZ,         generateBGTZ,
   generateADDI,           generateADDIU,          generateSLTI,         generateSLTIU,
   generateANDI,           generateORI,            generateXORI,         generateLUI,
-  generateCop0,           generateCop1,           'executeCop2',        'executeCop3',
+  generateCop0,           generateCop1,           generateCop2,        generateCop3,
   generateBEQL,           generateBNEL,           generateBLEZL,        generateBGTZL,
   generateDADDI,          generateDADDIU,         generateLDL,          generateLDR,
-  'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeRESERVED',
+  'executeUnknown',       'executeUnknown',       'executeUnknown',     generateRESERVED,
   generateLB,             generateLH,             generateLWL,          generateLW,
   generateLBU,            generateLHU,            generateLWR,          generateLWU,
   generateSB,             generateSH,             generateSWL,          generateSW,
@@ -3511,8 +3556,6 @@ const simpleTableGen = validateSimpleOpTable([
 
 // Expose all the functions that we don't yet generate
 n64js.executeCop2 = executeCop2;
-n64js.executeCop3 = executeCop3;
-n64js.executeRESERVED = executeRESERVED;
 n64js.executeLL = executeLL;
 n64js.executeLLD = executeLLD;
 n64js.executeLDC2 = executeLDC2;
@@ -4140,6 +4183,17 @@ function generateCop0(ctx) {
   const fmt = (ctx.instruction >>> 21) & 0x1f;
   const fn = cop0TableGen[fmt];
   return generateOpHelper(fn, ctx);
+}
+
+function generateCop2(ctx) {
+  const fmt = (ctx.instruction >>> 21) & 0x1f;
+  const fn = cop2TableGen[fmt];
+  return generateOpHelper(fn, ctx);
+}
+
+function generateCop3(ctx) {
+  const impl = `c.execRESERVED(0);`;
+  return generateGenericOpBoilerplate(impl, ctx); // Generic as raises RESERVED exception.
 }
 
 // This takes a fn - either a string (in which case we generate some unoptimised boilerplate) or a function (which we call recursively)
