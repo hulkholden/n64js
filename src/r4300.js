@@ -1572,14 +1572,16 @@ class CPU0 {
   }
 
   execCACHE(rt, base, imms) {
-    const cache_op = rt;
-    const cache = (cache_op) & 0x3;
-    const action = (cache_op >>> 2) & 0x7;
-
-    if (cache === 0 && (action === 0 || action === 4)) {
+    if (!this.ignoreCacheOp(rt)) {
       // NB: only bother generating address if we handle the instruction - memaddr deopts like crazy
       n64js.invalidateICacheEntry(this.addrU32(base, imms));
     }
+  }
+
+  ignoreCacheOp(cacheOp) {
+    const cache = cacheOp & 0x3;
+    const action = (cacheOp >>> 2) & 0x7;
+    return cache !== 0 || (action !== 0 && action !== 4);
   }
 
   execMFC0(rt, fs) {
@@ -2614,11 +2616,7 @@ function generateSDC1(ctx) {
 }
 
 function generateCACHE(ctx) {
-  const cache_op = ctx.instr_rt();
-  const cache = (cache_op) & 0x3;
-  const action = (cache_op >>> 2) & 0x7;
-  
-  if (cache === 0 && (action === 0 || action === 4)) {
+  if (!cpu0.ignoreCacheOp(ctx.instr_rt())) {
     const impl = `c.execCACHE(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
     return generateTrivialOpBoilerplate(impl, ctx);
   } else {
