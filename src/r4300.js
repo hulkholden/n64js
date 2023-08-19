@@ -4235,7 +4235,7 @@ function generateBranchOpBoilerplate(fn, ctx, might_adjust_next_pc) {
 
   // If bailOut is set, always return immediately
   if (ctx.bailOut) {
-    code += 'return ' + ctx.fragment.opsCompiled + ';\n';
+    code += `return ${ctx.fragment.opsCompiled};\n`;
   } else {
     if (need_pc_test) {
       code += `if (c.pc !== ${toString32(ctx.postPC)}) { return ${ctx.fragment.opsCompiled}; }\n`;
