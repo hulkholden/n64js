@@ -1729,6 +1729,47 @@ class CPU0 {
     this.llBit = 0;
   }
 
+  // Cop2
+  execMFC2(rt) {
+    if (!this.checkCopXUsable(2)) { return; }
+    this.setRegS32Extend(rt, cpu2.getReg32());
+  }
+
+  execDMFC2(rt) {
+    if (!this.checkCopXUsable(2)) { return; }
+    this.setRegU64(rt, cpu2.getReg64());
+  }
+
+  execCFC2(rt) {
+    if (!this.checkCopXUsable(2)) { return; }
+    this.setRegS32Extend(rt, cpu2.getReg32());
+  }
+
+  execDCFC2(rt) {
+    if (!this.checkCopXUsable(2)) { return; }
+    this.raiseRESERVEDException(2);
+  }
+
+  execMTC2(rt) {
+    if (!this.checkCopXUsable(2)) { return; }
+    cpu2.setReg64(this.getRegU64(rt));
+  }
+
+  execDMTC2(rt) {
+    if (!this.checkCopXUsable(2)) { return; }
+    cpu2.setReg64(this.getRegU64(rt));
+  }
+
+  execCTC2(rt) {
+    if (!this.checkCopXUsable(2)) { return; }
+    cpu2.setReg64(this.getRegU64(rt));
+  }
+
+  execDCTC2(rt) {
+    if (!this.checkCopXUsable(2)) { return; }
+    this.raiseRESERVEDException(2);
+  }
+}
 
 
 class CPU2 {
@@ -2244,6 +2285,7 @@ function generateDADDIU(ctx) {
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
+// Cop0
 function generateMFC0(ctx) {
   const impl = `c.execMFC0(${ctx.instr_rt()}, ${ctx.instr_fs()});`;
   return generateGenericOpBoilerplate(impl, ctx);
@@ -2275,6 +2317,46 @@ function generateTLB(ctx) {
   return generateGenericOpBoilerplate(impl, ctx);
 }
 
+// Cop2
+function generateMFC2(ctx) {
+  const impl = `c.execMFC2(${ctx.instr_rt()});`;
+  return generateGenericOpBoilerplate(impl, ctx); // Generic as may raise Cop Unusable exception.
+}
+
+function generateDMFC2(ctx) {
+  const impl = `c.execDMFC2(${ctx.instr_rt()});`;
+  return generateGenericOpBoilerplate(impl, ctx); // Generic as may raise Cop Unusable exception.
+}
+
+function generateCFC2(ctx) {
+  const impl = `c.execCFC2(${ctx.instr_rt()});`;
+  return generateGenericOpBoilerplate(impl, ctx); // Generic as may raise Cop Unusable exception.
+}
+
+function generateDCFC2(ctx) {
+  const impl = `c.execDCFC2(${ctx.instr_rt()});`;
+  return generateGenericOpBoilerplate(impl, ctx); // Generic as may raise Cop Unusable exception.
+}
+
+function generateMTC2(ctx) {
+  const impl = `c.execMTC2(${ctx.instr_rt()});`;
+  return generateGenericOpBoilerplate(impl, ctx); // Generic as may raise Cop Unusable exception.
+}
+
+function generateDMTC2(ctx) {
+  const impl = `c.execDMTC2(${ctx.instr_rt()});`;
+  return generateGenericOpBoilerplate(impl, ctx); // Generic as may raise Cop Unusable exception.
+}
+
+function generateCTC2(ctx) {
+  const impl = `c.execCTC2(${ctx.instr_rt()});`;
+  return generateGenericOpBoilerplate(impl, ctx); // Generic as may raise Cop Unusable exception.
+}
+
+function generateDCTC2(ctx) {
+  const impl = `c.execDCTC2(${ctx.instr_rt()});`;
+  return generateGenericOpBoilerplate(impl, ctx); // Generic as may raise Cop Unusable exception.
+}
 
 // Jump
 function generateJ(ctx) {
@@ -3107,62 +3189,6 @@ function executeLInstr(i) {
   unimplemented(cpu0.pc, i);
 }
 
-function executeMFC2(i) {
-  if (!cpu0.checkCopXUsable(2)) {
-    return;
-  }
-  cpu0.setRegS32Extend(rt(i), cpu2.getReg32());
-}
-
-function executeDMFC2(i) {
-  if (!cpu0.checkCopXUsable(2)) {
-    return;
-  }
-  cpu0.setRegU64(rt(i), cpu2.getReg64());
-}
-
-function executeCFC2(i) {
-  if (!cpu0.checkCopXUsable(2)) {
-    return;
-  }
-  cpu0.setRegS32Extend(rt(i), cpu2.getReg32());
-}
-
-function executeDCFC2(i) {
-  if (!cpu0.checkCopXUsable(2)) {
-    return;
-  }
-  cpu0.raiseRESERVEDException(2);
-}
-
-function executeMTC2(i) {
-  if (!cpu0.checkCopXUsable(2)) {
-    return;
-  }
-  cpu2.setReg64(cpu0.getRegU64(rt(i)));
-}
-
-function executeDMTC2(i) {
-  if (!cpu0.checkCopXUsable(2)) {
-    return;
-  }
-  cpu2.setReg64(cpu0.getRegU64(rt(i)));
-}
-
-function executeCTC2(i) {
-  if (!cpu0.checkCopXUsable(2)) {
-    return;
-  }
-  cpu2.setReg64(cpu0.getRegU64(rt(i)));
-}
-
-function executeDCTC2(i) {
-  if (!cpu0.checkCopXUsable(2)) {
-    return;
-  }
-  cpu0.raiseRESERVEDException(2);
-}
-
 function validateSpecialOpTable(cases) {
   if (cases.length != 64) {
     throw "Special table is unexpected size.";
@@ -3366,19 +3392,46 @@ n64js.executeDCFC1 = executeDCFC1;
 n64js.executeDCTC1 = executeDCTC1;
 
 const cop2Table = validateCopOpTable([
-  executeMFC2,        executeDMFC2,       executeCFC2,        executeDCFC2,
-  executeMTC2,        executeDMTC2,       executeCTC2,        executeDCTC2,
-  executeUnknown,     executeUnknown,     executeUnknown,     executeUnknown,
-  executeUnknown,     executeUnknown,     executeUnknown,     executeUnknown,
-  executeUnknown,     executeUnknown,     executeUnknown,     executeUnknown,
-  executeUnknown,     executeUnknown,     executeUnknown,     executeUnknown,
-  executeUnknown,     executeUnknown,     executeUnknown,     executeUnknown,
-  executeUnknown,     executeUnknown,     executeUnknown,     executeUnknown
+  i => cpu0.execMFC2(rt(i)),
+  i => cpu0.execDMFC2(rt(i)),
+  i => cpu0.execCFC2(rt(i)),
+  i => cpu0.execDCFC2(rt(i)),
+  i => cpu0.execMTC2(rt(i)),
+  i => cpu0.execDMTC2(rt(i)),
+  i => cpu0.execCTC2(rt(i)),
+  i => cpu0.execDCTC2(rt(i)),
+  
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
 ]);
 
 const cop2TableGen = validateCopOpTable([
-  'executeMFC2',    'executeDMFC2',   'executeCFC2',    'executeDCFC2',
-  'executeMTC2',    'executeDMTC2',   'executeCTC2',    'executeDCTC2',
+  generateMFC2,     generateDMFC2,    generateCFC2,     generateDCFC2,
+  generateMTC2,     generateDMTC2,    generateCTC2,     generateDCTC2,
   'executeUnknown', 'executeUnknown', 'executeUnknown', 'executeUnknown',
   'executeUnknown', 'executeUnknown', 'executeUnknown', 'executeUnknown',
   'executeUnknown', 'executeUnknown', 'executeUnknown', 'executeUnknown',
@@ -3386,15 +3439,6 @@ const cop2TableGen = validateCopOpTable([
   'executeUnknown', 'executeUnknown', 'executeUnknown', 'executeUnknown',
   'executeUnknown', 'executeUnknown', 'executeUnknown', 'executeUnknown'
 ]);
-// Expose all the functions that we don't yet generate
-n64js.executeMFC2 = executeMFC2;
-n64js.executeMTC2 = executeMTC2;
-n64js.executeCFC2 = executeCFC2;
-n64js.executeCTC2 = executeCTC2;
-n64js.executeDCFC2 = executeDCFC2;
-n64js.executeDCTC2 = executeDCTC2;
-n64js.executeDMFC2 = executeDMFC2;
-n64js.executeDMTC2 = executeDMTC2;
 
 function executeCop2(i) {
   const fmt = (i >>> 21) & 0x1f;
