@@ -1826,18 +1826,6 @@ function branchAddress(pc, i) { return ((pc + 4) + (offset(i) * 4)) >>> 0; }
 //function branchAddress(pc,i) { return (((pc>>>2)+1) + offset(i))<<2; }  // NB: convoluted calculation to avoid >>>0 (deopt)
 function jumpAddress(pc, i) { return ((pc & 0xf0000000) | (target(i) * 4)) >>> 0; }
 
-function genCalcAddressS32(ctx) {
-  const base = ctx.instr_base();
-  const offset = ctx.instr_imms();
-  return `(c.getRegS32Lo(${base}) + ${offset})`;
-}
-
-function genCalcAddressU32(ctx) {
-  const base = ctx.instr_base();
-  const offset = ctx.instr_imms();
-  return `((c.getRegU32Lo(${base}) + ${offset}) >>> 0)`;
-}
-
 function genSrcRegS32Lo(i) {
   if (i === 0)
     return '0';
