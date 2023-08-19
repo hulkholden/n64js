@@ -3512,17 +3512,7 @@ const simpleTableGen = validateSimpleOpTable([
 // Expose all the functions that we don't yet generate
 n64js.executeCop2 = executeCop2;
 n64js.executeCop3 = executeCop3;
-n64js.executeBLEZL = executeBLEZL;
-n64js.executeBGTZL = executeBGTZL;
-n64js.executeLDL = executeLDL;
-n64js.executeLDR = executeLDR;
 n64js.executeRESERVED = executeRESERVED;
-n64js.executeLWL = executeLWL;
-n64js.executeLWR = executeLWR;
-n64js.executeSWL = executeSWL;
-n64js.executeSDL = executeSDL;
-n64js.executeSDR = executeSDR;
-n64js.executeSWR = executeSWR;
 n64js.executeLL = executeLL;
 n64js.executeLLD = executeLLD;
 n64js.executeLDC2 = executeLDC2;
