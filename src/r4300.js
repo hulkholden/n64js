@@ -1495,19 +1495,30 @@ class CPU0 {
     this.setRegU64Masked(rt, mem >> shift, u64Max >> shift);
   }
 
-  execLWC1(ft, base, imms) {
-    if (!this.checkCopXUsable(1)) {
-      return;
-    }
-    cpu1.store32(cpu1.copRegIdx32(ft), memaccess.loadS32fast(this.addrS32(base, imms)));
+  execLWC1(rt, base, imms) {
+    if (!this.checkCopXUsable(1)) { return; }
+    cpu1.store32(cpu1.copRegIdx32(rt), memaccess.loadS32fast(this.addrS32(base, imms)));
   }
 
-  execLDC1(ft, base, imms) {
-    if (!this.checkCopXUsable(1)) {
-      return;
-    }
+  execLWC2(rt, base, imms) {
+    if (!this.checkCopXUsable(2)) { return; }
+    this.unimplemented(this.pc, 'LWC2');
+  }
+
+  execLWC3(rt, base, imms) {
+    if (!this.checkCopXUsable(3)) { return; }
+    this.unimplemented(this.pc, 'LWC3');
+  }
+
+  execLDC1(rt, base, imms) {
+    if (!this.checkCopXUsable(1)) { return; }
     const value = memaccess.loadU64fast(this.addrS32(base, imms));
-    cpu1.store64(cpu1.copRegIdx64(ft), value);
+    cpu1.store64(cpu1.copRegIdx64(rt), value);
+  }
+
+  execLDC2(rt, base, imms) {
+    if (!this.checkCopXUsable(2)) { return; }
+    this.unimplemented(this.pc, 'LDC2');
   }
 
   execSB(rt, base, imms) {
@@ -1555,17 +1566,29 @@ class CPU0 {
     memaccess.store64masked(addr, (reg << shift) & u64Max, (u64Max << shift) & u64Max);
   }
 
-  execSWC1(ft, base, imms) {
-    if (!this.checkCopXUsable(1)) {
-      return;
-    }
-    memaccess.store32fast(this.addrS32(base, imms), cpu1.loadU32(cpu1.copRegIdx32(ft)));
+  execSWC1(rt, base, imms) {
+    if (!this.checkCopXUsable(1)) { return; }
+    memaccess.store32fast(this.addrS32(base, imms), cpu1.loadU32(cpu1.copRegIdx32(rt)));
   }
-  execSDC1(ft, base, imms) {
-    if (!this.checkCopXUsable(1)) {
-      return;
-    }
-    memaccess.store64fast(this.addrS32(base, imms), cpu1.loadU64(cpu1.copRegIdx64(ft)));
+
+  execSWC2(rt, base, imms) {
+    if (!this.checkCopXUsable(2)) { return; }
+    this.unimplemented(this.pc, 'SWC2');
+  }
+
+  execSWC3(rt, base, imms) {
+    if (!this.checkCopXUsable(3)) { return; }
+    this.unimplemented(this.pc, 'SWC3');
+  }
+
+  execSDC1(rt, base, imms) {
+    if (!this.checkCopXUsable(1)) { return; }
+    memaccess.store64fast(this.addrS32(base, imms), cpu1.loadU64(cpu1.copRegIdx64(rt)));
+  }
+
+  execSDC2(rt, base, imms) {
+    if (!this.checkCopXUsable(2)) { return; }
+    this.unimplemented(this.pc, 'SDC2');
   }
 
   execLL(rt, base, imms) {
@@ -1793,6 +1816,10 @@ class CPU0 {
     if (!this.checkCopXUsable(2)) { return; }
     this.raiseRESERVEDException(2);
   }
+
+  unimplemented(pc, name) {
+    n64js.warn(`${pc}: ${name} is unimplemented`)
+  }
 }
 
 
@@ -1938,9 +1965,6 @@ function executeBreakpoint(i) {
   // NB: throw here so that we don't execute the op.
   throw new BreakpointException();
 }
-
-function executeLDC2(i) { unimplemented(cpu0.pc, i); }
-function executeSDC2(i) { unimplemented(cpu0.pc, i); }
 
 function executeTGEI(i) { cpu0.execTGEI(rs(i), imms(i)); }
 function executeTGEIU(i) { cpu0.execTGEIU(rs(i), imms(i)); }
@@ -2650,12 +2674,29 @@ function generateLDR(ctx) {
 }
 
 function generateLWC1(ctx) {
+  ctx.fragment.usesCop1 = true;
   const impl = `c.execLWC1(${ctx.instr_ft()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
 
 function generateLDC1(ctx) {
-  const impl = `c.execLDC1(${ctx.instr_ft()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
+  ctx.fragment.usesCop1 = true;
+  const impl = `c.execLDC1(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
+  return generateMemoryAccessBoilerplate(impl, ctx);
+}
+
+function generateLWC2(ctx) {
+  const impl = `c.execLWC2(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
+  return generateMemoryAccessBoilerplate(impl, ctx);
+}
+
+function generateLWC3(ctx) {
+  const impl = `c.execLWC3(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
+  return generateMemoryAccessBoilerplate(impl, ctx);
+}
+
+function generateLDC2(ctx) {
+  const impl = `c.execLDC2(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
 
@@ -2701,15 +2742,28 @@ function generateSDR(ctx) {
 
 function generateSWC1(ctx) {
   ctx.fragment.usesCop1 = true;
-  // FIXME: can avoid cpuStuffToDo if we're writing to ram
-  const impl = `c.execSWC1(${ctx.instr_ft()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
+  const impl = `c.execSWC1(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
 
 function generateSDC1(ctx) {
   ctx.fragment.usesCop1 = true;
-  // FIXME: can avoid cpuStuffToDo if we're writing to ram
-  const impl = `c.execSDC1(${ctx.instr_ft()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
+  const impl = `c.execSDC1(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
+  return generateMemoryAccessBoilerplate(impl, ctx);
+}
+
+function generateSWC2(ctx) {
+  const impl = `c.execSWC2(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
+  return generateMemoryAccessBoilerplate(impl, ctx);
+}
+
+function generateSWC3(ctx) {
+  const impl = `c.execSWC3(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
+  return generateMemoryAccessBoilerplate(impl, ctx);
+}
+
+function generateSDC2(ctx) {
+  const impl = `c.execSDC2(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
 
@@ -3531,7 +3585,7 @@ const simpleTable = validateSimpleOpTable([
   i => cpu0.execDADDIU(rt(i), rs(i), imms(i)),
   i => cpu0.execLDL(rt(i), base(i), imms(i)),
   i => cpu0.execLDR(rt(i), base(i), imms(i)),
-  executeUnknown,
+  executeBreakpoint,
   executeUnknown,
   executeUnknown,
   i => cpu0.execRESERVED(0),
@@ -3555,21 +3609,21 @@ const simpleTable = validateSimpleOpTable([
   i => cpu0.execCACHE(rt(i), base(i), imms(i)),
 
   i => cpu0.execLL(rt(i), base(i), imms(i)),
-  i => cpu0.execLWC1(ft(i), base(i), imms(i)),
-  executeUnknown,
-  executeUnknown,
+  i => cpu0.execLWC1(rt(i), base(i), imms(i)),
+  i => cpu0.execLWC2(rt(i), base(i), imms(i)),
+  i => cpu0.execLWC3(rt(i), base(i), imms(i)),
   i => cpu0.execLLD(rt(i), base(i), imms(i)),
-  i => cpu0.execLDC1(ft(i), base(i), imms(i)),
-  executeLDC2,
+  i => cpu0.execLDC1(rt(i), base(i), imms(i)),
+  i => cpu0.execLDC2(rt(i), base(i), imms(i)),
   i => cpu0.execLD(rt(i), base(i), imms(i)),
 
   i => cpu0.execSC(rt(i), base(i), imms(i)),
-  i => cpu0.execSWC1(ft(i), base(i), imms(i)),
-  executeBreakpoint,
-  executeUnknown,
+  i => cpu0.execSWC1(rt(i), base(i), imms(i)),
+  i => cpu0.execSWC2(rt(i), base(i), imms(i)),
+  i => cpu0.execSWC3(rt(i), base(i), imms(i)),
   i => cpu0.execSCD(rt(i), base(i), imms(i)),
-  i => cpu0.execSDC1(ft(i), base(i), imms(i)),
-  executeSDC2,
+  i => cpu0.execSDC1(rt(i), base(i), imms(i)),
+  i => cpu0.execSDC2(rt(i), base(i), imms(i)),
   i => cpu0.execSD(rt(i), base(i), imms(i)),
 ]);
 
@@ -3578,24 +3632,22 @@ const simpleTableGen = validateSimpleOpTable([
   generateBEQ,            generateBNE,            generateBLEZ,         generateBGTZ,
   generateADDI,           generateADDIU,          generateSLTI,         generateSLTIU,
   generateANDI,           generateORI,            generateXORI,         generateLUI,
-  generateCop0,           generateCop1,           generateCop2,        generateCop3,
+  generateCop0,           generateCop1,           generateCop2,         generateCop3,
   generateBEQL,           generateBNEL,           generateBLEZL,        generateBGTZL,
   generateDADDI,          generateDADDIU,         generateLDL,          generateLDR,
-  'executeUnknown',       'executeUnknown',       'executeUnknown',     generateRESERVED,
+  'executeBreakpoint',    'executeUnknown',       'executeUnknown',     generateRESERVED,
   generateLB,             generateLH,             generateLWL,          generateLW,
   generateLBU,            generateLHU,            generateLWR,          generateLWU,
   generateSB,             generateSH,             generateSWL,          generateSW,
   generateSDL,            generateSDR,            generateSWR,          generateCACHE,
-  generateLL,             generateLWC1,           'executeUnknown',     'executeUnknown',
-  generateLLD,            generateLDC1,           'executeLDC2',        generateLD,
-  generateSC,             generateSWC1,           'executeUnknown',     'executeUnknown',
-  generateSCD,            generateSDC1,           'executeSDC2',        generateSD
+  generateLL,             generateLWC1,           generateLWC2,         generateLWC3,
+  generateLLD,            generateLDC1,           generateLDC2,         generateLD,
+  generateSC,             generateSWC1,           generateSWC2,         generateSWC3,
+  generateSCD,            generateSDC1,           generateSDC2,         generateSD
 ]);
 
 // Expose all the functions that we don't yet generate
-n64js.executeCop2 = executeCop2;
-n64js.executeLDC2 = executeLDC2;
-n64js.executeSDC2 = executeSDC2;
+n64js.executeBreakpoint = executeBreakpoint;
 
 class FragmentContext {
   constructor() {
