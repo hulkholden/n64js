@@ -3493,13 +3493,7 @@ function generateCop1(ctx) {
   const fmt = (ctx.instruction >>> 21) & 0x1f;
   const fn = cop1TableGen[fmt];
 
-  let op_impl;
-  if (typeof fn === 'string') {
-    //logger.log(fn);
-    op_impl = 'n64js.' + fn + '(' + toString32(ctx.instruction) + ');\n';
-  } else {
-    op_impl = fn(ctx);
-  }
+  const opImpl = fn(ctx);
 
   let impl = '';
 
@@ -3508,12 +3502,12 @@ function generateCop1(ctx) {
   if (ctx.fragment.cop1statusKnown) {
     // Assert that cop1 is enabled
     impl += ctx.genAssert('(c.getControlU32(12) & SR_CU1) !== 0', 'cop1 should be enabled');
-    impl += addNewlines(op_impl);
+    impl += addNewlines(opImpl);
   } else {
     impl += 'if( (c.getControlU32(12) & SR_CU1) === 0 ) {\n';
     impl += `  n64js.executeCop1_disabled(${toString32(ctx.instruction)});\n`;
     impl += '} else {\n';
-    impl += '  ' + addNewlines(op_impl);
+    impl += '  ' + addNewlines(opImpl);
     impl += '}\n';
 
     ctx.isTrivial = false;    // Not trivial!
