@@ -1966,13 +1966,6 @@ function executeBreakpoint(i) {
   throw new BreakpointException();
 }
 
-function executeTGEI(i) { cpu0.execTGEI(rs(i), imms(i)); }
-function executeTGEIU(i) { cpu0.execTGEIU(rs(i), imms(i)); }
-function executeTLTI(i) { cpu0.execTLTI(rs(i), imms(i)); }
-function executeTLTIU(i) { cpu0.execTLTIU(rs(i), imms(i)); }
-function executeTEQI(i) { cpu0.execTEQI(rs(i), imms(i)); }
-function executeTNEI(i) { cpu0.execTNEI(rs(i), imms(i)); }
-
 function executeBLTZ(i) { cpu0.execBLTZ(rs(i), offset(i)); }
 function executeBLTZL(i) { cpu0.execBLTZL(rs(i), offset(i)); }
 function executeBLTZAL(i) { cpu0.execBLTZAL(rs(i), offset(i)); }
@@ -2586,6 +2579,36 @@ function generateBGEZL(ctx) {
     }`);
 
   return generateBranchOpBoilerplate(impl, ctx, true /* might_adjust_next_pc*/);
+}
+
+function generateTGEI(ctx) {
+  const impl = `c.execTGEI(${ctx.instr_rs()}, ${ctx.instr_imms()});`;
+  return generateGenericOpBoilerplate(impl, ctx); // Generic as may raise TRAP exception.
+}
+
+function generateTGEIU(ctx) {
+  const impl = `c.execTGEIU(${ctx.instr_rs()}, ${ctx.instr_imms()});`;
+  return generateGenericOpBoilerplate(impl, ctx); // Generic as may raise TRAP exception.
+}
+
+function generateTLTI(ctx) {
+  const impl = `c.execTLTI(${ctx.instr_rs()}, ${ctx.instr_imms()});`;
+  return generateGenericOpBoilerplate(impl, ctx); // Generic as may raise TRAP exception.
+}
+
+function generateTLTIU(ctx) {
+  const impl = `c.execTLTIU(${ctx.instr_rs()}, ${ctx.instr_imms()});`;
+  return generateGenericOpBoilerplate(impl, ctx); // Generic as may raise TRAP exception.
+}
+
+function generateTEQI(ctx) {
+  const impl = `c.execTEQI(${ctx.instr_rs()}, ${ctx.instr_imms()});`;
+  return generateGenericOpBoilerplate(impl, ctx); // Generic as may raise TRAP exception.
+}
+
+function generateTNEI(ctx) {
+  const impl = `c.execTNEI(${ctx.instr_rs()}, ${ctx.instr_imms()});`;
+  return generateGenericOpBoilerplate(impl, ctx); // Generic as may raise TRAP exception.
 }
 
 function generateSLTI(ctx) {
@@ -3503,21 +3526,48 @@ function validateRegImmOpTable(cases) {
 }
 
 const regImmTable = validateRegImmOpTable([
-  executeBLTZ,          executeBGEZ,          executeBLTZL,       executeBGEZL,
-  executeUnknown,       executeUnknown,       executeUnknown,     executeUnknown,
-  executeTGEI,          executeTGEIU,         executeTLTI,        executeTLTIU,
-  executeTEQI,          executeUnknown,       executeTNEI,        executeUnknown,
-  executeBLTZAL,        executeBGEZAL,        executeBLTZALL,     executeBGEZALL,
-  executeUnknown,       executeUnknown,       executeUnknown,     executeUnknown,
-  executeUnknown,       executeUnknown,       executeUnknown,     executeUnknown,
-  executeUnknown,       executeUnknown,       executeUnknown,     executeUnknown
+  executeBLTZ,
+  executeBGEZ,
+  executeBLTZL,
+  executeBGEZL,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+
+  i => cpu0.execTGEI(rs(i), imms(i)),
+  i => cpu0.execTGEIU(rs(i), imms(i)),
+  i => cpu0.execTLTI(rs(i), imms(i)),
+  i => cpu0.execTLTIU(rs(i), imms(i)),
+  i => cpu0.execTEQI(rs(i), imms(i)),
+  executeUnknown,
+  i => cpu0.execTNEI(rs(i), imms(i)),
+  executeUnknown,
+
+  executeBLTZAL,
+  executeBGEZAL,
+  executeBLTZALL,
+  executeBGEZALL,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
+  executeUnknown,
 ]);
 
 const regImmTableGen = validateRegImmOpTable([
   generateBLTZ,           generateBGEZ,           generateBLTZL,        generateBGEZL,
   'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
-  'executeTGEI',          'executeTGEIU',         'executeTLTI',        'executeTLTIU',
-  'executeTEQI',          'executeUnknown',       'executeTNEI',        'executeUnknown',
+  generateTGEI,           generateTGEIU,          generateTLTI,         generateTLTIU,
+  generateTEQI,           'executeUnknown',       generateTNEI,         'executeUnknown',
   'executeBLTZAL',        'executeBGEZAL',        'executeBLTZALL',     'executeBGEZALL',
   'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
   'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
@@ -3530,12 +3580,6 @@ function executeRegImm(i) {
 }
 
 // Expose all the functions that we don't yet generate
-n64js.executeTGEI    = executeTGEI;
-n64js.executeTGEIU   = executeTGEIU;
-n64js.executeTLTI    = executeTLTI;
-n64js.executeTLTIU   = executeTLTIU;
-n64js.executeTEQI    = executeTEQI;
-n64js.executeTNEI    = executeTNEI;
 n64js.executeBLTZAL  = executeBLTZAL;
 n64js.executeBGEZAL  = executeBGEZAL;
 n64js.executeBLTZALL = executeBLTZALL;
