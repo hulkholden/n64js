@@ -1966,6 +1966,12 @@ function executeBreakpoint(i) {
   throw new BreakpointException();
 }
 
+function generateUnknown(ctx) {
+  const impl = `throw 'unknown op, pc ${toString32(ctx.pc)}, instruction: ${toString32(ctx.instruction)}'`;
+  return generateGenericOpBoilerplate(impl, ctx);
+}
+
+
 function generateSLL(ctx) {
   // NOP
   if (ctx.instruction === 0) {
@@ -3278,22 +3284,22 @@ const specialTable = validateSpecialOpTable([
 ]);
 
 const specialTableGen = validateSpecialOpTable([
-  generateSLL,            'executeUnknown',       generateSRL,          generateSRA,
-  generateSLLV,           'executeUnknown',       generateSRLV,         generateSRAV,
-  generateJR,             generateJALR,           'executeUnknown',     'executeUnknown',
-  generateSYSCALL,        generateBREAK,          'executeUnknown',     generateSYNC,
-  generateMFHI,           generateMTHI,           generateMFLO,         generateMTLO,
-  generateDSLLV,          'executeUnknown',       generateDSRLV,        generateDSRAV,
-  generateMULT,           generateMULTU,          generateDIV,          generateDIVU,
-  generateDMULT,          generateDMULTU,         generateDDIV,         generateDDIVU,
-  generateADD,            generateADDU,           generateSUB,          generateSUBU,
-  generateAND,            generateOR,             generateXOR,          generateNOR,
-  'executeUnknown',       'executeUnknown',       generateSLT,          generateSLTU,
-  generateDADD,           generateDADDU,          generateDSUB,         generateDSUBU,
-  generateTGE,            generateTGEU,           generateTLT,          generateTLTU,
-  generateTEQ,            'executeUnknown',       generateTNE,          'executeUnknown',
-  generateDSLL,           'executeUnknown',       generateDSRL,         generateDSRA,
-  generateDSLL32,         'executeUnknown',       generateDSRL32,       generateDSRA32
+  generateSLL,       generateUnknown,   generateSRL,     generateSRA,
+  generateSLLV,      generateUnknown,   generateSRLV,    generateSRAV,
+  generateJR,        generateJALR,      generateUnknown, generateUnknown,
+  generateSYSCALL,   generateBREAK,     generateUnknown, generateSYNC,
+  generateMFHI,      generateMTHI,      generateMFLO,    generateMTLO,
+  generateDSLLV,     generateUnknown,   generateDSRLV,   generateDSRAV,
+  generateMULT,      generateMULTU,     generateDIV,     generateDIVU,
+  generateDMULT,     generateDMULTU,    generateDDIV,    generateDDIVU,
+  generateADD,       generateADDU,      generateSUB,     generateSUBU,
+  generateAND,       generateOR,        generateXOR,     generateNOR,
+  generateUnknown,   generateUnknown,   generateSLT,     generateSLTU,
+  generateDADD,      generateDADDU,     generateDSUB,    generateDSUBU,
+  generateTGE,       generateTGEU,      generateTLT,     generateTLTU,
+  generateTEQ,       generateUnknown,   generateTNE,     generateUnknown,
+  generateDSLL,      generateUnknown,   generateDSRL,    generateDSRA,
+  generateDSLL32,    generateUnknown,   generateDSRL32,  generateDSRA32,
  ]);
 
 function executeSpecial(i) {
@@ -3350,14 +3356,14 @@ const cop0Table = validateCopOpTable([
 ]);
 
 const cop0TableGen = validateCopOpTable([
-  generateMFC0,     generateDMFC0,    'executeUnknown', 'executeUnknown',
-  generateMTC0,     generateDMTC0,    'executeUnknown', 'executeUnknown',
-  'executeUnknown', 'executeUnknown', 'executeUnknown', 'executeUnknown',
-  'executeUnknown', 'executeUnknown', 'executeUnknown', 'executeUnknown',
-  generateTLB,      'executeUnknown', 'executeUnknown', 'executeUnknown',
-  'executeUnknown', 'executeUnknown', 'executeUnknown', 'executeUnknown',
-  'executeUnknown', 'executeUnknown', 'executeUnknown', 'executeUnknown',
-  'executeUnknown', 'executeUnknown', 'executeUnknown', 'executeUnknown'
+  generateMFC0,    generateDMFC0,   generateUnknown, generateUnknown,
+  generateMTC0,    generateDMTC0,   generateUnknown, generateUnknown,
+  generateUnknown, generateUnknown, generateUnknown, generateUnknown,
+  generateUnknown, generateUnknown, generateUnknown, generateUnknown,
+  generateTLB,     generateUnknown, generateUnknown, generateUnknown,
+  generateUnknown, generateUnknown, generateUnknown, generateUnknown,
+  generateUnknown, generateUnknown, generateUnknown, generateUnknown,
+  generateUnknown, generateUnknown, generateUnknown, generateUnknown,
 ]);
 
 function executeCop0(i) {
@@ -3404,14 +3410,14 @@ const cop1Table = validateCopOpTable([
 ]);
 
 const cop1TableGen = validateCopOpTable([
-  generateMFC1,           generateDMFC1,          generateCFC1,         generateDCFC1,
-  generateMTC1,           generateDMTC1,          generateCTC1,         generateDCTC1,
-  generateBCInstrStub,    'executeUnknown',       'executeUnknown',     'executeUnknown',
-  'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
-  generateSInstrStub,     generateDInstrStub,     'executeUnknown',     'executeUnknown',
-  generateWInstrStub,     generateLInstrStub,     'executeUnknown',     'executeUnknown',
-  'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
-  'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown'
+  generateMFC1,        generateDMFC1,      generateCFC1,    generateDCFC1,
+  generateMTC1,        generateDMTC1,      generateCTC1,    generateDCTC1,
+  generateBCInstrStub, generateUnknown,    generateUnknown, generateUnknown,
+  generateUnknown,     generateUnknown,    generateUnknown, generateUnknown,
+  generateSInstrStub,  generateDInstrStub, generateUnknown, generateUnknown,
+  generateWInstrStub,  generateLInstrStub, generateUnknown, generateUnknown,
+  generateUnknown,     generateUnknown,    generateUnknown, generateUnknown,
+  generateUnknown,     generateUnknown,    generateUnknown, generateUnknown,
 ]);
 
 function executeCop1(i) {
@@ -3460,14 +3466,14 @@ const cop2Table = validateCopOpTable([
 ]);
 
 const cop2TableGen = validateCopOpTable([
-  generateMFC2,     generateDMFC2,    generateCFC2,     generateDCFC2,
-  generateMTC2,     generateDMTC2,    generateCTC2,     generateDCTC2,
-  'executeUnknown', 'executeUnknown', 'executeUnknown', 'executeUnknown',
-  'executeUnknown', 'executeUnknown', 'executeUnknown', 'executeUnknown',
-  'executeUnknown', 'executeUnknown', 'executeUnknown', 'executeUnknown',
-  'executeUnknown', 'executeUnknown', 'executeUnknown', 'executeUnknown',
-  'executeUnknown', 'executeUnknown', 'executeUnknown', 'executeUnknown',
-  'executeUnknown', 'executeUnknown', 'executeUnknown', 'executeUnknown'
+  generateMFC2,    generateDMFC2,   generateCFC2,    generateDCFC2,
+  generateMTC2,    generateDMTC2,   generateCTC2,    generateDCTC2,
+  generateUnknown, generateUnknown, generateUnknown, generateUnknown,
+  generateUnknown, generateUnknown, generateUnknown, generateUnknown,
+  generateUnknown, generateUnknown, generateUnknown, generateUnknown,
+  generateUnknown, generateUnknown, generateUnknown, generateUnknown,
+  generateUnknown, generateUnknown, generateUnknown, generateUnknown,
+  generateUnknown, generateUnknown, generateUnknown, generateUnknown,
 ]);
 
 function executeCop2(i) {
@@ -3579,14 +3585,14 @@ const regImmTable = validateRegImmOpTable([
 ]);
 
 const regImmTableGen = validateRegImmOpTable([
-  generateBLTZ,           generateBGEZ,           generateBLTZL,        generateBGEZL,
-  'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
-  generateTGEI,           generateTGEIU,          generateTLTI,         generateTLTIU,
-  generateTEQI,           'executeUnknown',       generateTNEI,         'executeUnknown',
-  generateBLTZAL,         generateBGEZAL,         generateBLTZALL,      generateBGEZALL,
-  'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
-  'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
-  'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown'
+  generateBLTZ,    generateBGEZ,    generateBLTZL,   generateBGEZL,
+  generateUnknown, generateUnknown, generateUnknown, generateUnknown,
+  generateTGEI,    generateTGEIU,   generateTLTI,    generateTLTIU,
+  generateTEQI,    generateUnknown, generateTNEI,    generateUnknown,
+  generateBLTZAL,  generateBGEZAL,  generateBLTZALL, generateBGEZALL,
+  generateUnknown, generateUnknown, generateUnknown, generateUnknown,
+  generateUnknown, generateUnknown, generateUnknown, generateUnknown,
+  generateUnknown, generateUnknown, generateUnknown, generateUnknown,
 ]);
 
 function executeRegImm(i) {
@@ -3681,22 +3687,22 @@ const simpleTable = validateSimpleOpTable([
 ]);
 
 const simpleTableGen = validateSimpleOpTable([
-  generateSpecial,        generateRegImm,         generateJ,            generateJAL,
-  generateBEQ,            generateBNE,            generateBLEZ,         generateBGTZ,
-  generateADDI,           generateADDIU,          generateSLTI,         generateSLTIU,
-  generateANDI,           generateORI,            generateXORI,         generateLUI,
-  generateCop0,           generateCop1,           generateCop2,         generateCop3,
-  generateBEQL,           generateBNEL,           generateBLEZL,        generateBGTZL,
-  generateDADDI,          generateDADDIU,         generateLDL,          generateLDR,
-  'executeBreakpoint',    'executeUnknown',       'executeUnknown',     generateRESERVED,
-  generateLB,             generateLH,             generateLWL,          generateLW,
-  generateLBU,            generateLHU,            generateLWR,          generateLWU,
-  generateSB,             generateSH,             generateSWL,          generateSW,
-  generateSDL,            generateSDR,            generateSWR,          generateCACHE,
-  generateLL,             generateLWC1,           generateLWC2,         generateLWC3,
-  generateLLD,            generateLDC1,           generateLDC2,         generateLD,
-  generateSC,             generateSWC1,           generateSWC2,         generateSWC3,
-  generateSCD,            generateSDC1,           generateSDC2,         generateSD
+  generateSpecial,     generateRegImm,  generateJ,       generateJAL,
+  generateBEQ,         generateBNE,     generateBLEZ,    generateBGTZ,
+  generateADDI,        generateADDIU,   generateSLTI,    generateSLTIU,
+  generateANDI,        generateORI,     generateXORI,    generateLUI,
+  generateCop0,        generateCop1,    generateCop2,    generateCop3,
+  generateBEQL,        generateBNEL,    generateBLEZL,   generateBGTZL,
+  generateDADDI,       generateDADDIU,  generateLDL,     generateLDR,
+  'executeBreakpoint', generateUnknown, generateUnknown, generateRESERVED,
+  generateLB,          generateLH,      generateLWL,     generateLW,
+  generateLBU,         generateLHU,     generateLWR,     generateLWU,
+  generateSB,          generateSH,      generateSWL,     generateSW,
+  generateSDL,         generateSDR,     generateSWR,     generateCACHE,
+  generateLL,          generateLWC1,    generateLWC2,    generateLWC3,
+  generateLLD,         generateLDC1,    generateLDC2,    generateLD,
+  generateSC,          generateSWC1,    generateSWC2,    generateSWC3,
+  generateSCD,         generateSDC1,    generateSDC2,    generateSD
 ]);
 
 // Expose all the functions that we don't yet generate
