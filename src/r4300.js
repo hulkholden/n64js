@@ -1169,6 +1169,11 @@ class CPU0 {
     throw new EmulatedException();
   }
 
+  execBreakpoint() {
+    // NB: throw here so that we don't execute the op.
+    throw new BreakpointException();
+  }
+
   // SRA appears to shift the full 64 bit reg, trunc to 32 bits, then sign extend.
   execSLL(rd, rt, sa) { this.setRegS32Extend(rd, this.getRegS32Lo(rt) << sa); }
   execSRL(rd, rt, sa) { this.setRegS32Extend(rd, this.getRegU32Lo(rt) >>> sa); }
@@ -1961,16 +1966,15 @@ function executeUnknown(i) {
 function BreakpointException() {
 }
 
-function executeBreakpoint(i) {
-  // NB: throw here so that we don't execute the op.
-  throw new BreakpointException();
-}
-
 function generateUnknown(ctx) {
   const impl = `throw 'unknown op, pc ${toString32(ctx.pc)}, instruction: ${toString32(ctx.instruction)}'`;
   return generateGenericOpBoilerplate(impl, ctx);
 }
 
+function generateBreakpoint(ctx) {
+  const impl = `c.execBreakpoint();`;
+  return generateGenericOpBoilerplate(impl, ctx);
+}
 
 function generateSLL(ctx) {
   // NOP
@@ -3644,7 +3648,7 @@ const simpleTable = validateSimpleOpTable([
   i => cpu0.execDADDIU(rt(i), rs(i), imms(i)),
   i => cpu0.execLDL(rt(i), base(i), imms(i)),
   i => cpu0.execLDR(rt(i), base(i), imms(i)),
-  executeBreakpoint,
+  i => cpu0.execBreakpoint(),
   executeUnknown,
   executeUnknown,
   i => cpu0.execRESERVED(0),
@@ -3687,26 +3691,23 @@ const simpleTable = validateSimpleOpTable([
 ]);
 
 const simpleTableGen = validateSimpleOpTable([
-  generateSpecial,     generateRegImm,  generateJ,       generateJAL,
-  generateBEQ,         generateBNE,     generateBLEZ,    generateBGTZ,
-  generateADDI,        generateADDIU,   generateSLTI,    generateSLTIU,
-  generateANDI,        generateORI,     generateXORI,    generateLUI,
-  generateCop0,        generateCop1,    generateCop2,    generateCop3,
-  generateBEQL,        generateBNEL,    generateBLEZL,   generateBGTZL,
-  generateDADDI,       generateDADDIU,  generateLDL,     generateLDR,
-  'executeBreakpoint', generateUnknown, generateUnknown, generateRESERVED,
-  generateLB,          generateLH,      generateLWL,     generateLW,
-  generateLBU,         generateLHU,     generateLWR,     generateLWU,
-  generateSB,          generateSH,      generateSWL,     generateSW,
-  generateSDL,         generateSDR,     generateSWR,     generateCACHE,
-  generateLL,          generateLWC1,    generateLWC2,    generateLWC3,
-  generateLLD,         generateLDC1,    generateLDC2,    generateLD,
-  generateSC,          generateSWC1,    generateSWC2,    generateSWC3,
-  generateSCD,         generateSDC1,    generateSDC2,    generateSD
+  generateSpecial,    generateRegImm,  generateJ,       generateJAL,
+  generateBEQ,        generateBNE,     generateBLEZ,    generateBGTZ,
+  generateADDI,       generateADDIU,   generateSLTI,    generateSLTIU,
+  generateANDI,       generateORI,     generateXORI,    generateLUI,
+  generateCop0,       generateCop1,    generateCop2,    generateCop3,
+  generateBEQL,       generateBNEL,    generateBLEZL,   generateBGTZL,
+  generateDADDI,      generateDADDIU,  generateLDL,     generateLDR,
+  generateBreakpoint, generateUnknown, generateUnknown, generateRESERVED,
+  generateLB,         generateLH,      generateLWL,     generateLW,
+  generateLBU,        generateLHU,     generateLWR,     generateLWU,
+  generateSB,         generateSH,      generateSWL,     generateSW,
+  generateSDL,        generateSDR,     generateSWR,     generateCACHE,
+  generateLL,         generateLWC1,    generateLWC2,    generateLWC3,
+  generateLLD,        generateLDC1,    generateLDC2,    generateLD,
+  generateSC,         generateSWC1,    generateSWC2,    generateSWC3,
+  generateSCD,        generateSDC1,    generateSDC2,    generateSD
 ]);
-
-// Expose all the functions that we don't yet generate
-n64js.executeBreakpoint = executeBreakpoint;
 
 class FragmentContext {
   constructor() {
