@@ -2076,32 +2076,32 @@ function generateSYNC(ctx) {
 }
 
 function generateTGE(ctx) {
-  const impl = `c.execTGE(${ctx.instr_rt()}, ${ctx.instr_sa()});`;
+  const impl = `c.execTGE(${ctx.instr_rt()}, ${ctx.instr_rs()});`;
   return generateGenericOpBoilerplate(impl, ctx); // Generic as may raise TRAP exception.
 }
 
 function generateTGEU(ctx) {
-  const impl = `c.execTGEU(${ctx.instr_rt()}, ${ctx.instr_sa()});`;
+  const impl = `c.execTGEU(${ctx.instr_rt()}, ${ctx.instr_rs()});`;
   return generateGenericOpBoilerplate(impl, ctx); // Generic as may raise TRAP exception.
 }
 
 function generateTLT(ctx) {
-  const impl = `c.execTLT(${ctx.instr_rt()}, ${ctx.instr_sa()});`;
+  const impl = `c.execTLT(${ctx.instr_rt()}, ${ctx.instr_rs()});`;
   return generateGenericOpBoilerplate(impl, ctx); // Generic as may raise TRAP exception.
 }
 
 function generateTLTU(ctx) {
-  const impl = `c.execTLTU(${ctx.instr_rt()}, ${ctx.instr_sa()});`;
+  const impl = `c.execTLTU(${ctx.instr_rt()}, ${ctx.instr_rs()});`;
   return generateGenericOpBoilerplate(impl, ctx); // Generic as may raise TRAP exception.
 }
 
 function generateTEQ(ctx) {
-  const impl = `c.execTEQ(${ctx.instr_rt()}, ${ctx.instr_sa()});`;
+  const impl = `c.execTEQ(${ctx.instr_rt()}, ${ctx.instr_rs()});`;
   return generateGenericOpBoilerplate(impl, ctx); // Generic as may raise TRAP exception.
 }
 
 function generateTNE(ctx) {
-  const impl = `c.execTNE(${ctx.instr_rt()}, ${ctx.instr_sa()});`;
+  const impl = `c.execTNE(${ctx.instr_rt()}, ${ctx.instr_rs()});`;
   return generateGenericOpBoilerplate(impl, ctx); // Generic as may raise TRAP exception.
 }
 
