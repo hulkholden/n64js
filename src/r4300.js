@@ -3815,18 +3815,18 @@ n64js.run = function (cycles) {
   }
 };
 
-function executeFragment(fragment, c, events) {
+function executeFragment(fragment, cpu0, rsp, events) {
   let evt = events[0];
   if (evt.countdown >= fragment.opsCompiled * COUNTER_INCREMENT_PER_OP) {
     fragment.executionCount++;
-    const ops_executed = fragment.func(c);   // Absolute value is number of ops executed.
+    const ops_executed = fragment.func(cpu0, rsp);   // Absolute value is number of ops executed.
 
     // refresh latest event - may have changed
     evt = events[0];
     evt.countdown -= ops_executed * COUNTER_INCREMENT_PER_OP;
 
     if (!accurateCountUpdating) {
-      c.incrementCount(ops_executed * COUNTER_INCREMENT_PER_OP);
+      cpu0.incrementCount(ops_executed * COUNTER_INCREMENT_PER_OP);
     }
 
     //assert(fragment.bailedOut || evt.countdown >= 0, "Executed too many ops. Possibly didn't bail out of trace when new event was set up?");
@@ -3837,8 +3837,8 @@ function executeFragment(fragment, c, events) {
     // If stuffToDo is set, we'll break on the next loop
 
     let next_fragment = fragment.nextFragments[ops_executed];
-    if (!next_fragment || next_fragment.entryPC !== c.pc) {
-      next_fragment = fragment.getNextFragment(c.pc, ops_executed);
+    if (!next_fragment || next_fragment.entryPC !== cpu0.pc) {
+      next_fragment = fragment.getNextFragment(cpu0.pc, ops_executed);
     }
     fragment = next_fragment;
 
@@ -3856,9 +3856,14 @@ const fragmentContext = new FragmentContext();
 function addOpToFragment(fragment, entry_pc, instruction, c) {
   if (fragment.opsCompiled === 0) {
     fragmentContext.newFragment();
-  }
+  }  
   fragment.opsCompiled++;
   updateFragment(fragment, entry_pc);
+
+  // TODO: can we avoid the stuffToDo check? Throw exception?
+  fragment.body_code += 'rsp.step();\n';
+  fragment.body_code += `if (c.stuffToDo) { return ${fragment.opsCompiled - 1}; }\n`;
+  fragment.body_code += `\n`;
 
   const curPC = entry_pc;
   const postPC = c.pc;
@@ -3890,7 +3895,7 @@ function addOpToFragment(fragment, entry_pc, instruction, c) {
       fragment.body_code = cpu1_shizzle + '\n\n' + fragment.body_code;
     }
 
-    const code = 'return function fragment_' + toString32(fragment.entryPC) + '_' + fragment.opsCompiled + '(c) {\n' + fragment.body_code + '}\n';
+    const code = 'return function fragment_' + toString32(fragment.entryPC) + '_' + fragment.opsCompiled + '(c, rsp) {\n' + fragment.body_code + '}\n';
 
     // Clear these strings to reduce garbage
     fragment.body_code = '';
@@ -3907,19 +3912,18 @@ function addOpToFragment(fragment, entry_pc, instruction, c) {
 }
 
 function runImpl() {
-  const c = cpu0;
   const rsp = n64js.rsp;
-  const events = c.events;
-  const ramDV = c.ramDV;
+  const events = cpu0.events;
+  const ramDV = cpu0.ramDV;
 
-  while (c.hasEvent(kEventRunForCycles)) {
-    let fragment = lookupFragment(c.pc);
+  while (cpu0.hasEvent(kEventRunForCycles)) {
+    let fragment = lookupFragment(cpu0.pc);
     // fragment = null;
 
-    while (!c.stuffToDo) {
+    while (!cpu0.stuffToDo) {
 
       if (fragment && fragment.func) {
-        fragment = executeFragment(fragment, c, events);
+        fragment = executeFragment(fragment, cpu0, rsp, events);
       } else {
         // if (syncFlow) {
         //   if (!checkSyncState(syncFlow, cpu0.pc)) {
@@ -3930,24 +3934,24 @@ function runImpl() {
 
         // TODO: this should also be called from dynarec.
         rsp.step();
-        if (c.stuffToDo) {
+        if (cpu0.stuffToDo) {
           // RSP can generate interrupt which can be cleared by CPU.
           // TODO: for performance we should throw an exception when
           // an interrupt is raised and avoid testing this every instruction.
           break;
         }
 
-        const pc = c.pc | 0;   // take a copy of this, so we can refer to it later
+        const pc = cpu0.pc | 0;   // take a copy of this, so we can refer to it later
 
         // NB: set nextPC before the call to readMemoryS32. If this throws an exception, we need nextPC to be set up correctly.
-        c.nextPC = c.delayPC || c.pc + 4;
+        cpu0.nextPC = cpu0.delayPC || cpu0.pc + 4;
 
         // NB: load instruction using normal memory access routines - this means that we throw a tlb miss/refill approptiately
         // let instruction = memaccess.loadS32fast(pc);
         let instruction;
         if ((pc & 3) != 0) {
-          c.raiseAdELException(pc);
-          c.pc = c.nextPC;
+          cpu0.raiseAdELException(pc);
+          cpu0.pc = cpu0.nextPC;
           continue;
         } else if (pc < -2139095040) {
           const phys = (pc + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
@@ -3956,12 +3960,12 @@ function runImpl() {
           instruction = memaccess.loadS32slow(pc >>> 0);
         }
 
-        c.branchTarget = 0;
+        cpu0.branchTarget = 0;
         executeOp(instruction);
 
-        c.pc = c.nextPC;
-        c.delayPC = c.branchTarget;
-        c.incrementCount(COUNTER_INCREMENT_PER_OP);
+        cpu0.pc = cpu0.nextPC;
+        cpu0.delayPC = cpu0.branchTarget;
+        cpu0.incrementCount(COUNTER_INCREMENT_PER_OP);
         //checkCauseIP3Consistent();
         //n64js.checkSIStatusConsistent();
 
@@ -3973,24 +3977,24 @@ function runImpl() {
 
         // If we have a fragment, we're assembling code as we go
         if (fragment) {
-          fragment = addOpToFragment(fragment, pc >>> 0, instruction, c);
+          fragment = addOpToFragment(fragment, pc >>> 0, instruction, cpu0);
         } else {
           // If there's no current fragment and we branch backwards, this is possibly a new loop
-          if (c.pc < pc) {
-            fragment = lookupFragment(c.pc);
+          if (cpu0.pc < pc) {
+            fragment = lookupFragment(cpu0.pc);
           }
         }
       }
     }
 
-    c.stuffToDo &= ~kStuffToDoBreakout;
+    cpu0.stuffToDo &= ~kStuffToDoBreakout;
 
-    if (c.stuffToDo & kStuffToDoCheckInterrupts) {
-      c.stuffToDo &= ~kStuffToDoCheckInterrupts;
-      c.handleInterrupt();
-    } else if (c.stuffToDo & kStuffToDoHalt) {
+    if (cpu0.stuffToDo & kStuffToDoCheckInterrupts) {
+      cpu0.stuffToDo &= ~kStuffToDoCheckInterrupts;
+      cpu0.handleInterrupt();
+    } else if (cpu0.stuffToDo & kStuffToDoHalt) {
       break;
-    } else if (c.stuffToDo) {
+    } else if (cpu0.stuffToDo) {
       n64js.warn("Don't know how to handle this event!");
       break;
     }
