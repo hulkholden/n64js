@@ -2255,7 +2255,7 @@ function generateADDI(ctx) {
 
 function generateDADDI(ctx) {
   const impl = `c.execDADDI(${ctx.instr_rt()}, ${ctx.instr_rs()}, ${ctx.instr_imms()});`;
-  return generateTrivialOpBoilerplate(impl, ctx);
+  return generateGenericOpBoilerplate(impl, ctx); // May raise Overflow exception.
 }
 
 function generateADDIU(ctx) {
