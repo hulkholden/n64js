@@ -805,7 +805,7 @@ class CPU0 {
     // TODO: this probably needs to throw a JS exception which is caught in n64js.run
     // to ensure bookkeeping (like updating the delayPC) isn't run.
     const bit = 1 << (SR_CUSHIFT + copIdx);
-    const usable = (cpu0.getControlU32(cpu0_constants.controlStatus) & bit) != 0;
+    const usable = (this.getControlU32(cpu0_constants.controlStatus) & bit) != 0;
     if (!usable) {
       this.throwCopXUnusable(copIdx);
       return false;
