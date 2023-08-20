@@ -2264,7 +2264,7 @@ function generateADDIU(ctx) {
 }
 
 function generateDADDIU(ctx) {
-  const impl = `c.execDADDI(${ctx.instr_rt()}, ${ctx.instr_rs()}, ${ctx.instr_imms()});`;
+  const impl = `c.execDADDIU(${ctx.instr_rt()}, ${ctx.instr_rs()}, ${ctx.instr_imms()});`;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
