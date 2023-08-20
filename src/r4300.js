@@ -4307,48 +4307,32 @@ function addNewlines(code) {
 
 function generateOp(ctx) {
   const opcode = (ctx.instruction >>> 26) & 0x3f;
-  const fn = simpleTableGen[opcode];
-  return generateOpHelper(fn, ctx);
+  return simpleTableGen[opcode](ctx);
 }
 
 function generateSpecial(ctx) {
   const special_fn = ctx.instruction & 0x3f;
-  const fn = specialTableGen[special_fn];
-  return generateOpHelper(fn, ctx);
+  return specialTableGen[special_fn](ctx);
 }
 
 function generateRegImm(ctx) {
   const rt = (ctx.instruction >>> 16) & 0x1f;
-  const fn = regImmTableGen[rt];
-  return generateOpHelper(fn, ctx);
+  return regImmTableGen[rt](ctx);
 }
 
 function generateCop0(ctx) {
   const fmt = (ctx.instruction >>> 21) & 0x1f;
-  const fn = cop0TableGen[fmt];
-  return generateOpHelper(fn, ctx);
+  return cop0TableGen[fmt](ctx);
 }
 
 function generateCop2(ctx) {
   const fmt = (ctx.instruction >>> 21) & 0x1f;
-  const fn = cop2TableGen[fmt];
-  return generateOpHelper(fn, ctx);
+  return cop2TableGen[fmt](ctx);
 }
 
 function generateCop3(ctx) {
   const impl = `c.execRESERVED(0);`;
   return generateGenericOpBoilerplate(impl, ctx); // Generic as raises RESERVED exception.
-}
-
-// This takes a fn - either a string (in which case we generate some unoptimised boilerplate) or a function (which we call recursively)
-function generateOpHelper(fn, ctx) {
-  // fn can be a handler function, in which case defer to that.
-  if (typeof fn === 'string') {
-    //logger.log(fn);
-    return generateGenericOpBoilerplate(`n64js.${fn}(${toString32(ctx.instruction)});\n`, ctx);
-  } else {
-    return fn(ctx);
-  }
 }
 
 // Standard code for manipulating the pc
