@@ -1966,15 +1966,6 @@ function executeBreakpoint(i) {
   throw new BreakpointException();
 }
 
-function executeBLTZ(i) { cpu0.execBLTZ(rs(i), offset(i)); }
-function executeBLTZL(i) { cpu0.execBLTZL(rs(i), offset(i)); }
-function executeBLTZAL(i) { cpu0.execBLTZAL(rs(i), offset(i)); }
-function executeBLTZALL(i) { cpu0.execBLTZALL(rs(i), offset(i)); }
-function executeBGEZ(i) { cpu0.execBGEZ(rs(i), offset(i)); }
-function executeBGEZL(i) { cpu0.execBGEZL(rs(i), offset(i)); }
-function executeBGEZAL(i) { cpu0.execBGEZAL(rs(i), offset(i)); }
-function executeBGEZALL(i) { cpu0.execBGEZALL(rs(i), offset(i)); }
-
 function generateSLL(ctx) {
   // NOP
   if (ctx.instruction === 0) {
@@ -2579,6 +2570,30 @@ function generateBGEZL(ctx) {
     }`);
 
   return generateBranchOpBoilerplate(impl, ctx, true /* might_adjust_next_pc*/);
+}
+
+function generateBLTZAL(ctx) {
+  // TODO: implement as generateBranchOpBoilerplate.
+  const impl = `c.execBLTZAL(${ctx.instr_rs()}, ${ctx.instr_imms()});`;
+  return generateGenericOpBoilerplate(impl, ctx);
+}
+
+function generateBGEZAL(ctx) {
+  // TODO: implement as generateBranchOpBoilerplate.
+  const impl = `c.execBGEZAL(${ctx.instr_rs()}, ${ctx.instr_imms()});`;
+  return generateGenericOpBoilerplate(impl, ctx);
+}
+
+function generateBLTZALL(ctx) {
+  // TODO: implement as generateBranchOpBoilerplate.
+  const impl = `c.execBLTZALL(${ctx.instr_rs()}, ${ctx.instr_imms()});`;
+  return generateGenericOpBoilerplate(impl, ctx);
+}
+
+function generateBGEZALL(ctx) {
+  // TODO: implement as generateBranchOpBoilerplate.
+  const impl = `c.execBGEZALL(${ctx.instr_rs()}, ${ctx.instr_imms()});`;
+  return generateGenericOpBoilerplate(impl, ctx);
 }
 
 function generateTGEI(ctx) {
@@ -3526,10 +3541,10 @@ function validateRegImmOpTable(cases) {
 }
 
 const regImmTable = validateRegImmOpTable([
-  executeBLTZ,
-  executeBGEZ,
-  executeBLTZL,
-  executeBGEZL,
+  i => cpu0.execBLTZ(rs(i), offset(i)),
+  i => cpu0.execBGEZ(rs(i), offset(i)),
+  i => cpu0.execBLTZL(rs(i), offset(i)),
+  i => cpu0.execBGEZL(rs(i), offset(i)),
   executeUnknown,
   executeUnknown,
   executeUnknown,
@@ -3544,10 +3559,10 @@ const regImmTable = validateRegImmOpTable([
   i => cpu0.execTNEI(rs(i), imms(i)),
   executeUnknown,
 
-  executeBLTZAL,
-  executeBGEZAL,
-  executeBLTZALL,
-  executeBGEZALL,
+  i => cpu0.execBLTZAL(rs(i), offset(i)),
+  i => cpu0.execBGEZAL(rs(i), offset(i)),
+  i => cpu0.execBLTZALL(rs(i), offset(i)),
+  i => cpu0.execBGEZALL(rs(i), offset(i)),
   executeUnknown,
   executeUnknown,
   executeUnknown,
@@ -3568,7 +3583,7 @@ const regImmTableGen = validateRegImmOpTable([
   'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
   generateTGEI,           generateTGEIU,          generateTLTI,         generateTLTIU,
   generateTEQI,           'executeUnknown',       generateTNEI,         'executeUnknown',
-  'executeBLTZAL',        'executeBGEZAL',        'executeBLTZALL',     'executeBGEZALL',
+  generateBLTZAL,         generateBGEZAL,         generateBLTZALL,      generateBGEZALL,
   'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
   'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown',
   'executeUnknown',       'executeUnknown',       'executeUnknown',     'executeUnknown'
@@ -3578,12 +3593,6 @@ function executeRegImm(i) {
   const rt = (i >>> 16) & 0x1f;
   return regImmTable[rt](i);
 }
-
-// Expose all the functions that we don't yet generate
-n64js.executeBLTZAL  = executeBLTZAL;
-n64js.executeBGEZAL  = executeBGEZAL;
-n64js.executeBLTZALL = executeBLTZALL;
-n64js.executeBGEZALL = executeBGEZALL;
 
 function validateSimpleOpTable(cases) {
   if (cases.length != 64) {
