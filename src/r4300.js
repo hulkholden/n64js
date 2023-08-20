@@ -1942,11 +1942,6 @@ function executeBreakpoint(i) {
 function executeLDC2(i) { unimplemented(cpu0.pc, i); }
 function executeSDC2(i) { unimplemented(cpu0.pc, i); }
 
-function executeLL(i) { cpu0.execLL(rt(i), base(i), imms(i)); }
-function executeLLD(i) { cpu0.execLLD(rt(i), base(i), imms(i)); }
-function executeSC(i) { cpu0.execSC(rt(i), base(i), imms(i)); }
-function executeSCD(i) { cpu0.execSCD(rt(i), base(i), imms(i)); }
-
 function executeTGEI(i) { cpu0.execTGEI(rs(i), imms(i)); }
 function executeTGEIU(i) { cpu0.execTGEIU(rs(i), imms(i)); }
 function executeTLTI(i) { cpu0.execTLTI(rs(i), imms(i)); }
@@ -2715,6 +2710,26 @@ function generateSDC1(ctx) {
   ctx.fragment.usesCop1 = true;
   // FIXME: can avoid cpuStuffToDo if we're writing to ram
   const impl = `c.execSDC1(${ctx.instr_ft()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
+  return generateMemoryAccessBoilerplate(impl, ctx);
+}
+
+function generateLL(ctx) {
+  const impl = `c.execLL(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
+  return generateMemoryAccessBoilerplate(impl, ctx);
+}
+
+function generateLLD(ctx) {
+  const impl = `c.execLLD(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
+  return generateMemoryAccessBoilerplate(impl, ctx);
+}
+
+function generateSC(ctx) {
+  const impl = `c.execSC(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
+  return generateMemoryAccessBoilerplate(impl, ctx);
+}
+
+function generateSCD(ctx) {
+  const impl = `c.execSCD(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
 
@@ -3539,20 +3554,20 @@ const simpleTable = validateSimpleOpTable([
   i => cpu0.execSWR(rt(i), base(i), imms(i)),
   i => cpu0.execCACHE(rt(i), base(i), imms(i)),
 
-  executeLL,
+  i => cpu0.execLL(rt(i), base(i), imms(i)),
   i => cpu0.execLWC1(ft(i), base(i), imms(i)),
   executeUnknown,
   executeUnknown,
-  executeLLD,
+  i => cpu0.execLLD(rt(i), base(i), imms(i)),
   i => cpu0.execLDC1(ft(i), base(i), imms(i)),
   executeLDC2,
   i => cpu0.execLD(rt(i), base(i), imms(i)),
 
-  executeSC,
+  i => cpu0.execSC(rt(i), base(i), imms(i)),
   i => cpu0.execSWC1(ft(i), base(i), imms(i)),
   executeBreakpoint,
   executeUnknown,
-  executeSCD,
+  i => cpu0.execSCD(rt(i), base(i), imms(i)),
   i => cpu0.execSDC1(ft(i), base(i), imms(i)),
   executeSDC2,
   i => cpu0.execSD(rt(i), base(i), imms(i)),
@@ -3571,19 +3586,15 @@ const simpleTableGen = validateSimpleOpTable([
   generateLBU,            generateLHU,            generateLWR,          generateLWU,
   generateSB,             generateSH,             generateSWL,          generateSW,
   generateSDL,            generateSDR,            generateSWR,          generateCACHE,
-  'executeLL',            generateLWC1,           'executeUnknown',     'executeUnknown',
-  'executeLLD',           generateLDC1,           'executeLDC2',        generateLD,
-  'executeSC',            generateSWC1,           'executeUnknown',     'executeUnknown',
-  'executeSCD',           generateSDC1,           'executeSDC2',        generateSD
+  generateLL,             generateLWC1,           'executeUnknown',     'executeUnknown',
+  generateLLD,            generateLDC1,           'executeLDC2',        generateLD,
+  generateSC,             generateSWC1,           'executeUnknown',     'executeUnknown',
+  generateSCD,            generateSDC1,           'executeSDC2',        generateSD
 ]);
 
 // Expose all the functions that we don't yet generate
 n64js.executeCop2 = executeCop2;
-n64js.executeLL = executeLL;
-n64js.executeLLD = executeLLD;
 n64js.executeLDC2 = executeLDC2;
-n64js.executeSC = executeSC;
-n64js.executeSCD = executeSCD;
 n64js.executeSDC2 = executeSDC2;
 
 class FragmentContext {
