@@ -17,7 +17,7 @@ export class UI {
     // });
 
     // Make sure that the tabs refresh when clicked
-    $('.tabbable a').on('shown', (e) => { n64js.debugger().redraw(); });
+    $('.tabbable a').on('shown.bs.tab', (e) => { n64js.debugger().redraw(); });
 
     n64js.debugger().redraw();
   }
