@@ -4191,9 +4191,9 @@ function generateCodeForOp(ctx) {
 
   let preflight = '';
   if (kValidateDynarecPCs) {
-    const preflight = dedent(`
+    preflight = dedent(`
       if (c.pc != ${toString32(ctx.pc)}) {
-        throw 'expected pc ${toString32(ctx.pc)}, got ' + c.pc;
+        throw 'expected pc ${toString32(ctx.pc)}, got ' + c.pc.toString(16);
       }
     `);
   }
