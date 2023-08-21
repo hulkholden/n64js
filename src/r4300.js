@@ -3982,6 +3982,8 @@ function addOpToFragment(fragment, entry_pc, instruction, c) {
   if ((long_fragment && c.pc !== entry_pc + 4) || fragment.opsCompiled >= kFragmentLengthLimit || c.stuffToDo) {
     compileFragment(fragment);
     fragment = lookupFragment(c.pc);
+  } else {
+    fragment.body_code += `// Keep going: ops ${fragment.opsCompiled}, pc: ${toString32(c.pc)}, entry+4: ${toString32(entry_pc + 4)}, stuff: ${c.stuffToDo}\n`
   }
 
   return fragment;
