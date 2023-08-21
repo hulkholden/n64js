@@ -230,9 +230,6 @@ export class PIRegDevice extends Device {
 
     if (src) {
       memoryCopy(this.hardware.ram, dramAddr, src, srcOffset, transferLen);
-
-      // TODO: should also invalidate 0xa0000000.
-      n64js.invalidateICacheRange(0x80000000 | dramAddr, transferLen, 'PI');
     }
 
     // If this is the first DMA write the ram size to 0x800003F0 (cic6105) or 0x80000318 (others)
