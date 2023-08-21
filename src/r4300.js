@@ -4071,7 +4071,6 @@ class FragmentMap {
 
 const fragmentMap = new FragmentMap();
 
-
 function executeFragment(fragment, cpu0, rsp, events) {
   let evt = events[0];
   if (evt.countdown >= fragment.opsCompiled * COUNTER_INCREMENT_PER_OP) {
@@ -4118,9 +4117,9 @@ function addOpToFragment(fragment, entry_pc, instruction, c) {
   fragmentMap.addInstructionToFragment(fragment, entry_pc);
 
   // TODO: can we avoid the stuffToDo check? Throw exception?
-  fragment.body_code += 'rsp.step();\n';
-  fragment.body_code += `if (c.stuffToDo) { return ${fragment.opsCompiled - 1}; }\n`;
-  fragment.body_code += `\n`;
+  fragment.bodyCode += 'rsp.step();\n';
+  fragment.bodyCode += `if (c.stuffToDo) { return ${fragment.opsCompiled - 1}; }\n`;
+  fragment.bodyCode += `\n`;
 
   const curPC = entry_pc;
   const postPC = c.pc;
@@ -4133,7 +4132,7 @@ function addOpToFragment(fragment, entry_pc, instruction, c) {
     compileFragment(fragment);
     fragment = lookupFragment(c.pc);
   } else {
-    fragment.body_code += `// Keep going: ops ${fragment.opsCompiled}, pc: ${toString32(c.pc)}, entry+4: ${toString32(entry_pc + 4)}, stuff: ${c.stuffToDo}\n`
+    fragment.bodyCode += `// Keep going: ops ${fragment.opsCompiled}, pc: ${toString32(c.pc)}, entry+4: ${toString32(entry_pc + 4)}, stuff: ${c.stuffToDo}\n`
   }
 
   return fragment;
@@ -4142,15 +4141,15 @@ function addOpToFragment(fragment, entry_pc, instruction, c) {
 function compileFragment(fragment) {
   // Check if the last op has a delayed pc update, and do it now.
   if (fragmentContext.delayedPCUpdate !== 0) {
-    fragment.body_code += 'c.pc = ' + toString32(fragmentContext.delayedPCUpdate) + ';\n';
+    fragment.bodyCode += 'c.pc = ' + toString32(fragmentContext.delayedPCUpdate) + ';\n';
     fragmentContext.delayedPCUpdate = 0;
   }
 
-  fragment.body_code += 'return ' + fragment.opsCompiled + ';\n'; // Return the number of ops exected
+  fragment.bodyCode += 'return ' + fragment.opsCompiled + ';\n'; // Return the number of ops exected
 
   const sync = n64js.getSyncFlow();
   if (sync) {
-    fragment.body_code = 'const sync = n64js.getSyncFlow();\n' + fragment.body_code;
+    fragment.bodyCode = 'const sync = n64js.getSyncFlow();\n' + fragment.bodyCode;
   }
 
   if (fragment.usesCop1) {
@@ -4158,13 +4157,13 @@ function compileFragment(fragment) {
     cpu1_shizzle += 'const cpu1 = n64js.cpu1;\n';
     cpu1_shizzle += 'const SR_CU1 = ' + toString32(SR_CU1) + ';\n';
     cpu1_shizzle += 'const FPCSR_C = ' + toString32(FPCSR_C) + ';\n';
-    fragment.body_code = cpu1_shizzle + '\n\n' + fragment.body_code;
+    fragment.bodyCode = cpu1_shizzle + '\n\n' + fragment.bodyCode;
   }
 
-  const code = 'return function fragment_' + toString32(fragment.entryPC) + '_' + fragment.opsCompiled + '(c, rsp) {\n' + fragment.body_code + '}\n';
+  const code = 'return function fragment_' + toString32(fragment.entryPC) + '_' + fragment.opsCompiled + '(c, rsp) {\n' + fragment.bodyCode + '}\n';
 
   // Clear these strings to reduce garbage
-  fragment.body_code = '';
+  fragment.bodyCode = '';
 
   fragment.func = new Function(code)();
   fragment.nextFragments = [];
@@ -4172,8 +4171,6 @@ function compileFragment(fragment) {
     fragment.nextFragments.push(undefined);
   }
 }
-
-
 
 function checkEqual(a, b, m) {
   if (a !== b) {
@@ -4213,7 +4210,7 @@ function generateCodeForOp(ctx) {
   // If the last op tried to delay updating the pc, see if it needs updating now.
   if (!ctx.isTrivial && ctx.delayedPCUpdate !== 0) {
     // TODO: add a template string function to dedent this.
-    ctx.fragment.body_code += `// Applying delayed pc\nc.pc = ${toString32(ctx.delayedPCUpdate)};\n`;
+    ctx.fragment.bodyCode += `// Applying delayed pc\nc.pc = ${toString32(ctx.delayedPCUpdate)};\n`;
     ctx.delayedPCUpdate = 0;
   }
 
@@ -4231,7 +4228,7 @@ function generateCodeForOp(ctx) {
   const dasm = disassembleInstruction(ctx.pc, ctx.instruction, false);
   const lines = redentLines(fn_code, '  ');
 
-  ctx.fragment.body_code += `// ${dasm.disassembly}
+  ctx.fragment.bodyCode += `// ${dasm.disassembly}
 {
 ${lines}
 }

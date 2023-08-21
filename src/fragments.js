@@ -35,7 +35,7 @@ export class Fragment {
     this.nextFragments    = [];       // One slot per op
 
     // State used when compiling
-    this.body_code        = '';
+    this.bodyCode         = '';
     this.needsDelayCheck  = true;
 
     this.cop1statusKnown = false;
@@ -52,7 +52,7 @@ export class Fragment {
     this.bailedOut        = false;
     this.nextFragments    = [];
 
-    this.body_code        = '';
+    this.bodyCode         = '';
     this.needsDelayCheck  = true;
 
     this.cop1statusKnown  = false;
