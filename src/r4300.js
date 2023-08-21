@@ -3963,6 +3963,7 @@ function runImpl() {
         if ((pc & 3) != 0) {
           cpu0.raiseAdELException(pc);
           cpu0.pc = cpu0.nextPC;
+          fragment = lookupFragment(cpu0.pc);
           continue;
         } else if (pc < -2139095040) {
           const phys = (pc + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
