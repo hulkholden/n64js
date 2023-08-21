@@ -16,6 +16,8 @@ const kDebugTLB = false;
 const kDebugDynarec = false;
 
 const kValidateDynarecPCs = false;
+const kFragmentLengthLimit = 250;
+const kUseOptimisedDynarecHandlers = true;
 
 const accurateCountUpdating = false;
 const COUNTER_INCREMENT_PER_OP = 1;
@@ -3977,7 +3979,7 @@ function addOpToFragment(fragment, entry_pc, instruction, c) {
 
   // Break out of the trace as soon as we branch, or too many ops, or last op generated an interrupt (stuffToDo set)
   const long_fragment = fragment.opsCompiled > 8;
-  if ((long_fragment && c.pc !== entry_pc + 4) || fragment.opsCompiled >= 250 || c.stuffToDo) {
+  if ((long_fragment && c.pc !== entry_pc + 4) || fragment.opsCompiled >= kFragmentLengthLimit || c.stuffToDo) {
 
     // Check if the last op has a delayed pc update, and do it now.
     if (fragmentContext.delayedPCUpdate !== 0) {
@@ -4265,9 +4267,15 @@ function addNewlines(code) {
   return code;
 }
 
+n64js.executeOp = executeOp;
+
 function generateOp(ctx) {
-  const opcode = (ctx.instruction >>> 26) & 0x3f;
-  return simpleTableGen[opcode](ctx);
+  if (kUseOptimisedDynarecHandlers) {
+    const opcode = (ctx.instruction >>> 26) & 0x3f;
+    return simpleTableGen[opcode](ctx);
+  }
+  const impl = `n64js.executeOp(${ctx.instruction});`
+  return generateGenericOpBoilerplate(impl, ctx);
 }
 
 function generateSpecial(ctx) {
