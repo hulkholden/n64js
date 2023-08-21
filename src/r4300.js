@@ -3980,42 +3980,45 @@ function addOpToFragment(fragment, entry_pc, instruction, c) {
   // Break out of the trace as soon as we branch, or too many ops, or last op generated an interrupt (stuffToDo set)
   const long_fragment = fragment.opsCompiled > 8;
   if ((long_fragment && c.pc !== entry_pc + 4) || fragment.opsCompiled >= kFragmentLengthLimit || c.stuffToDo) {
-
-    // Check if the last op has a delayed pc update, and do it now.
-    if (fragmentContext.delayedPCUpdate !== 0) {
-      fragment.body_code += 'c.pc = ' + toString32(fragmentContext.delayedPCUpdate) + ';\n';
-      fragmentContext.delayedPCUpdate = 0;
-    }
-
-    fragment.body_code += 'return ' + fragment.opsCompiled + ';\n';    // Return the number of ops exected
-
-    const sync = n64js.getSyncFlow();
-    if (sync) {
-      fragment.body_code = 'const sync = n64js.getSyncFlow();\n' + fragment.body_code;
-    }
-
-    if (fragment.usesCop1) {
-      let cpu1_shizzle = '';
-      cpu1_shizzle += 'const cpu1 = n64js.cpu1;\n';
-      cpu1_shizzle += 'const SR_CU1 = ' + toString32(SR_CU1) + ';\n';
-      cpu1_shizzle += 'const FPCSR_C = ' + toString32(FPCSR_C) + ';\n';
-      fragment.body_code = cpu1_shizzle + '\n\n' + fragment.body_code;
-    }
-
-    const code = 'return function fragment_' + toString32(fragment.entryPC) + '_' + fragment.opsCompiled + '(c, rsp) {\n' + fragment.body_code + '}\n';
-
-    // Clear these strings to reduce garbage
-    fragment.body_code = '';
-
-    fragment.func = new Function(code)();
-    fragment.nextFragments = [];
-    for (let i = 0; i < fragment.opsCompiled; i++) {
-      fragment.nextFragments.push(undefined);
-    }
+    compileFragment(fragment);
     fragment = lookupFragment(c.pc);
   }
 
   return fragment;
+}
+
+function compileFragment(fragment) {
+  // Check if the last op has a delayed pc update, and do it now.
+  if (fragmentContext.delayedPCUpdate !== 0) {
+    fragment.body_code += 'c.pc = ' + toString32(fragmentContext.delayedPCUpdate) + ';\n';
+    fragmentContext.delayedPCUpdate = 0;
+  }
+
+  fragment.body_code += 'return ' + fragment.opsCompiled + ';\n'; // Return the number of ops exected
+
+  const sync = n64js.getSyncFlow();
+  if (sync) {
+    fragment.body_code = 'const sync = n64js.getSyncFlow();\n' + fragment.body_code;
+  }
+
+  if (fragment.usesCop1) {
+    let cpu1_shizzle = '';
+    cpu1_shizzle += 'const cpu1 = n64js.cpu1;\n';
+    cpu1_shizzle += 'const SR_CU1 = ' + toString32(SR_CU1) + ';\n';
+    cpu1_shizzle += 'const FPCSR_C = ' + toString32(FPCSR_C) + ';\n';
+    fragment.body_code = cpu1_shizzle + '\n\n' + fragment.body_code;
+  }
+
+  const code = 'return function fragment_' + toString32(fragment.entryPC) + '_' + fragment.opsCompiled + '(c, rsp) {\n' + fragment.body_code + '}\n';
+
+  // Clear these strings to reduce garbage
+  fragment.body_code = '';
+
+  fragment.func = new Function(code)();
+  fragment.nextFragments = [];
+  for (let i = 0; i < fragment.opsCompiled; i++) {
+    fragment.nextFragments.push(undefined);
+  }
 }
 
 function runImpl() {
