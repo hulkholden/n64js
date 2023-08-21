@@ -4070,37 +4070,27 @@ const fragmentMap = new FragmentMap();
 
 function executeFragment(fragment, cpu0, rsp, events) {
   let evt = events[0];
-  if (evt.countdown >= fragment.opsCompiled * COUNTER_INCREMENT_PER_OP) {
-    fragment.executionCount++;
-    const ops_executed = fragment.func(cpu0, rsp);   // Absolute value is number of ops executed.
+  if (evt.countdown < fragment.opsCompiled * COUNTER_INCREMENT_PER_OP) {
+    // We're close to another event: drop to the interpreter.
+    return null;
+  }
+  fragment.executionCount++;
+  const opsExecuted = fragment.func(cpu0, rsp);   // Absolute value is number of ops executed.
 
-    // refresh latest event - may have changed
-    evt = events[0];
-    evt.countdown -= ops_executed * COUNTER_INCREMENT_PER_OP;
+  // refresh latest event - may have changed
+  evt = events[0];
+  evt.countdown -= opsExecuted * COUNTER_INCREMENT_PER_OP;
 
-    if (!accurateCountUpdating) {
-      cpu0.incrementCount(ops_executed * COUNTER_INCREMENT_PER_OP);
-    }
-
-    //assert(fragment.bailedOut || evt.countdown >= 0, "Executed too many ops. Possibly didn't bail out of trace when new event was set up?");
-    if (evt.countdown <= 0) {
-      handleCounter();
-    }
-
-    // If stuffToDo is set, we'll break on the next loop
-
-    let next_fragment = fragment.nextFragments[ops_executed];
-    if (!next_fragment || next_fragment.entryPC !== cpu0.pc) {
-      next_fragment = fragment.getNextFragment(cpu0.pc, ops_executed);
-    }
-    fragment = next_fragment;
-
-  } else {
-    // We're close to another event: drop to the interpreter
-    fragment = null;
+  if (!accurateCountUpdating) {
+    cpu0.incrementCount(opsExecuted * COUNTER_INCREMENT_PER_OP);
   }
 
-  return fragment;
+  //assert(fragment.bailedOut || evt.countdown >= 0, "Executed too many ops. Possibly didn't bail out of trace when new event was set up?");
+  if (evt.countdown <= 0) {
+    handleCounter();
+  }
+
+  return fragment.getNextFragment(cpu0.pc, opsExecuted);
 }
 
 // We need just one of these - declare at global scope to avoid generating garbage
