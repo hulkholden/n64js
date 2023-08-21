@@ -59,6 +59,11 @@ export class Fragment {
     this.usesCop1         = false;
   }
 
+  updateMinMax(pc) {
+    this.minPC = Math.min(this.minPC, pc);
+    this.maxPC = Math.max(this.maxPC, pc + 4);
+  }
+
   /**
    * Gets the next fragment and caches the results.
    * @param {number} pc The current pc.
