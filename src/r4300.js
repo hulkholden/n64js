@@ -3929,7 +3929,6 @@ function runImpl() {
 
   while (cpu0.hasEvent(kEventRunForCycles)) {
     let fragment = lookupFragment(cpu0.pc);
-    // fragment = null;
 
     while (!cpu0.stuffToDo) {
 
