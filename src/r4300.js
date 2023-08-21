@@ -1632,8 +1632,7 @@ class CPU0 {
 
   execCACHE(rt, base, imms) {
     if (!this.ignoreCacheOp(rt)) {
-      // NB: only bother generating address if we handle the instruction - memaddr deopts like crazy
-      n64js.invalidateICacheEntry(this.addrU32(base, imms));
+      fragmentMap.invalidateEntry(this.addrU32(base, imms));
     }
   }
 
@@ -4113,7 +4112,7 @@ class FragmentMap {
 
     this.entries = [];
     for (let i = 0; i < this.kNumEntries; ++i) {
-      this.entries.push(new Map());
+      this.entries.push(new Set());
     }
   }
 
@@ -4125,24 +4124,33 @@ class FragmentMap {
     return Math.floor((address + 31) >>> 5);
   }
 
-  add(pc, fragment) {
-    const cacheLineIdx = this.addressToCacheLine(pc);
+  lookupEntry(address) {
+    const cacheLineIdx = this.addressToCacheLine(address);
     const entryIdx = cacheLineIdx % this.entries.length;
-    const entry = this.entries[entryIdx];
-    entry.set(fragment.entryPC, fragment);
+    return this.entries[entryIdx];
+  }
+
+  add(pc, fragment) {
+    this.lookupEntry(pc).add(fragment);
   }
 
   invalidateEntry(address) {
-    const cacheLineIdx = this.addressToCacheLine(address);
-    const entryIdx = cacheLineIdx % this.entries.length;
-    const entry = this.entries[entryIdx];
+    const entry = this.lookupEntry(address);
     let removed = 0;
 
-    for (const [i, fragment] of entry.entries()) {
-      if (fragment.minPC <= address && fragment.maxPC > address) {
+    // TODO: should this really be translating virtual -> physical?
+    // Example 'invalidate 0x800000c0 not removing 0xa40000c4 - min/max 0xa40000c4/0xa40000c8'
+    const cacheLine = this.addressToCacheLine(address);
+
+    // TODO: just invalidate fragment map entries for this address?
+    for (const [fragment, _] of entry.entries()) {
+      if (this.addressToCacheLine(fragment.minPC) <= cacheLine &&
+        this.addressToCacheLineRoundUp(fragment.maxPC) >= cacheLine) {
         fragment.invalidate();
-        entry.delete(i);
+        entry.delete(fragment);
         removed++;
+      } else {
+        // logger.log(`invalidate ${toString32(address)} not removing ${toString32(fragment.entryPC)} - min/max ${toString32(fragment.minPC)}/${toString32(fragment.maxPC)}`)
       }
     }
 
@@ -4152,57 +4160,9 @@ class FragmentMap {
 
     // fragmentInvalidationEvents.push({'address': address, 'length': 0x20, 'system': 'CACHE', 'fragmentsRemoved': removed});
   }
-
-  invalidateRange(address, length) {
-    const minAddr = address;
-    const maxAddr = address + length;
-    const minPage = this.addressToCacheLine(minAddr);
-    const maxPage = this.addressToCacheLineRoundUp(maxAddr);
-    const entries = this.entries;
-    let removed = 0;
-
-    for (let cacheLineIdx = minPage; cacheLineIdx <= maxPage; ++cacheLineIdx) {
-      const entryIdx = cacheLineIdx % entries.length;
-      const entry = entries[entryIdx];
-
-      for (const [i, fragment] of entry.entries()) {
-        if (fragment.minPC <= maxAddr && fragment.maxPC > minAddr) {
-          fragment.invalidate();
-          entry.delete(i);
-          removed++;
-        }
-      }
-    }
-
-    if (removed) {
-      logger.log(`Fragment cache removed ${removed} entries.`);
-    }
-
-    // fragmentInvalidationEvents.push({'address': address, 'length': length, 'system': system, 'fragmentsRemoved': removed});
-  }
 }
 
 const fragmentMap = new FragmentMap();
-
-// Invalidate a single cache line
-n64js.invalidateICacheEntry = function (address) {
-  //logger.log('cache flush ' + toString32(address));
-
-  fragmentMap.invalidateEntry(address);
-};
-
-// This isn't called right now. We
-n64js.invalidateICacheRange = function (address, length, system) {
-  //logger.log('cache flush ' + toString32(address) + ' ' + toString32(length));
-  // FIXME: check for overlapping ranges
-
-  // NB: not sure PI events are useful right now.
-  if (system === 'PI') {
-    return;
-  }
-
-  fragmentMap.invalidateRange(address, length);
-};
 
 function updateFragment(fragment, pc) {
   fragment.minPC = Math.min(fragment.minPC, pc);
