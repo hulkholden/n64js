@@ -4205,10 +4205,6 @@ function generateCodeForOp(ctx) {
     console.log(fn_code);
   }
 
-  // if (fn_code.indexOf('execute') >= 0 && fn_code.indexOf('executeCop1_disabled') < 0 ) {
-  //   console.log('slow' + fn_code);
-  // }
-
   // If the last op tried to delay updating the pc, see if it needs updating now.
   if (!ctx.isTrivial && ctx.delayedPCUpdate !== 0) {
     // TODO: add a template string function to dedent this.
