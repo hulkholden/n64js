@@ -87,6 +87,7 @@ export class Fragment {
       // console.log(`invalidating partially compiled fragment ${toString32(nextFragment.entryPC)} on reentry`)
       nextFragment.invalidate();
     }
+    return nextFragment;
   }
 }
 
