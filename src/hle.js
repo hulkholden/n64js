@@ -3099,7 +3099,7 @@ class Disassembler {
   }
 
   begin(pc, cmd0, cmd1, depth) {
-    const indent = (new Array(depth)).join('    ');
+    const indent = (new Array(depth + 1)).join('  ');
     const pc_str = ' '; //' [' + toHex(pc,32) + '] '
 
     this.$span = $('<span class="hle-instr" id="I' + this.numOps + '" />');
