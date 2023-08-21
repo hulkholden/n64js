@@ -1749,11 +1749,11 @@ class CPU0 {
     if (this.getControlU32(cpu0_constants.controlStatus) & SR_ERL) {
       this.nextPC = this.getControlU32(cpu0_constants.controlErrorEPC);
       this.clearControlBits32(cpu0_constants.controlStatus, SR_ERL);
-      logger.log('ERET from error trap - ' + this.nextPC);
+      logger.log(`ERET from error trap - ${toString32(this.nextPC)}`);
     } else {
       this.nextPC = this.getControlU32(cpu0_constants.controlEPC);
       this.clearControlBits32(cpu0_constants.controlStatus, SR_EXL);
-      //logger.log('ERET from interrupt/exception ' + this.nextPC);
+      //logger.log(`ERET from interrupt/exception ${toString32(this.nextPC)}`);
     }
     this.llBit = 0;
   }
