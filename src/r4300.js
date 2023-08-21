@@ -1747,7 +1747,7 @@ class CPU0 {
   execERET() {
     if (this.getControlU32(cpu0_constants.controlStatus) & SR_ERL) {
       this.nextPC = this.getControlU32(cpu0_constants.controlErrorEPC);
-      this.clearControlBits32(cpu0_constants.controlStatus, ~SR_ERL);
+      this.clearControlBits32(cpu0_constants.controlStatus, SR_ERL);
       logger.log('ERET from error trap - ' + this.nextPC);
     } else {
       this.nextPC = this.getControlU32(cpu0_constants.controlEPC);
