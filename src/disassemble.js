@@ -30,9 +30,6 @@ function _offsetS16(i) { return (_imm(i) << 16) >> 16; }   // treat immediate va
 function _branchAddress(a, i) { return (a + 4) + (_imms(i) * 4); }
 function _jumpAddress(a, i) { return (a & 0xf0000000) | (_target(i) * 4); }
 
-function makeLabelText(address) {
-  return `<span class="dis-address-jump">${toHex(address, 32)}</span>`;
-}
 
 export const cop0gprNames = [
   'r0', 'at', 'v0', 'v1', 'a0', 'a1', 'a2', 'a3',
@@ -63,19 +60,20 @@ export const cop2RegisterNames = [
 ];
 
 class Instruction {
-  constructor(address, opcode) {
+  constructor(address, opcode, outputHTML) {
     this.address = address;
     this.opcode = opcode;
     this.srcRegs = {};
     this.dstRegs = {};
     this.target = '';
     this.memory = null;
+    this.outputHTML = outputHTML;
   }
 
-  get rt_d() { const reg = this.cop0RegName(_rt); this.dstRegs[reg] = 1; return makeRegSpan(reg); }
-  get rd() { const reg = this.cop0RegName(_rd); this.dstRegs[reg] = 1; return makeRegSpan(reg); }
-  get rt() { const reg = this.cop0RegName(_rt); this.srcRegs[reg] = 1; return makeRegSpan(reg); }
-  get rs() { const reg = this.cop0RegName(_rs); this.srcRegs[reg] = 1; return makeRegSpan(reg); }
+  get rt_d() { const reg = this.cop0RegName(_rt); this.dstRegs[reg] = 1; return this.makeRegSpan(reg); }
+  get rd() { const reg = this.cop0RegName(_rd); this.dstRegs[reg] = 1; return this.makeRegSpan(reg); }
+  get rt() { const reg = this.cop0RegName(_rt); this.srcRegs[reg] = 1; return this.makeRegSpan(reg); }
+  get rs() { const reg = this.cop0RegName(_rs); this.srcRegs[reg] = 1; return this.makeRegSpan(reg); }
 
   get sa() { return _sa(this.opcode); }
 
@@ -87,11 +85,11 @@ class Instruction {
   writesRA() { this.dstRegs[cpu0_constants.RA] = 1; return ''; }
 
   // cop1 regs
-  ft_d(fmt) { const reg = this.cop1RegName(_ft, fmt); this.dstRegs[reg] = 1; return makeFPRegSpan(reg); }
-  fs_d(fmt) { const reg = this.cop1RegName(_fs, fmt); this.dstRegs[reg] = 1; return makeFPRegSpan(reg); }
-  fd(fmt) { const reg = this.cop1RegName(_fd, fmt); this.dstRegs[reg] = 1; return makeFPRegSpan(reg); }
-  ft(fmt) { const reg = this.cop1RegName(_ft, fmt); this.srcRegs[reg] = 1; return makeFPRegSpan(reg); }
-  fs(fmt) { const reg = this.cop1RegName(_fs, fmt); this.srcRegs[reg] = 1; return makeFPRegSpan(reg); }
+  ft_d(fmt) { const reg = this.cop1RegName(_ft, fmt); this.dstRegs[reg] = 1; return this.makeFPRegSpan(reg); }
+  fs_d(fmt) { const reg = this.cop1RegName(_fs, fmt); this.dstRegs[reg] = 1; return this.makeFPRegSpan(reg); }
+  fd(fmt) { const reg = this.cop1RegName(_fd, fmt); this.dstRegs[reg] = 1; return this.makeFPRegSpan(reg); }
+  ft(fmt) { const reg = this.cop1RegName(_ft, fmt); this.srcRegs[reg] = 1; return this.makeFPRegSpan(reg); }
+  fs(fmt) { const reg = this.cop1RegName(_fs, fmt); this.srcRegs[reg] = 1; return this.makeFPRegSpan(reg); }
 
   cop1RegName(opFn, fmt) {
     const regIdx = opFn(this.opcode);
@@ -100,10 +98,10 @@ class Instruction {
   }
 
   // cop2 regs
-  get gt_d() { const reg = this.cop2RegName(_rt); this.dstRegs[reg] = 1; return makeRegSpan(reg); }
-  get gd() { const reg = this.cop2RegName(_rd); this.dstRegs[reg] = 1; return makeRegSpan(reg); }
-  get gt() { const reg = this.cop2RegName(_rt); this.srcRegs[reg] = 1; return makeRegSpan(reg); }
-  get gs() { const reg = this.cop2RegName(_rs); this.srcRegs[reg] = 1; return makeRegSpan(reg); }
+  get gt_d() { const reg = this.cop2RegName(_rt); this.dstRegs[reg] = 1; return this.makeRegSpan(reg); }
+  get gd() { const reg = this.cop2RegName(_rd); this.dstRegs[reg] = 1; return this.makeRegSpan(reg); }
+  get gt() { const reg = this.cop2RegName(_rt); this.srcRegs[reg] = 1; return this.makeRegSpan(reg); }
+  get gs() { const reg = this.cop2RegName(_rs); this.srcRegs[reg] = 1; return this.makeRegSpan(reg); }
 
   cop2RegName(opFn) {
     return cop2RegisterNames[opFn(this.opcode)];
@@ -111,10 +109,10 @@ class Instruction {
 
   get imm() { return `0x${toHex(_imm(this.opcode), 16)}`; }
 
-  get branchAddress() { this.target = _branchAddress(this.address, this.opcode); return makeLabelText(this.target); }
-  get jumpAddress() { this.target = _jumpAddress(this.address, this.opcode); return makeLabelText(this.target); }
+  get branchAddress() { this.target = _branchAddress(this.address, this.opcode); return this.makeLabelText(this.target); }
+  get jumpAddress() { this.target = _jumpAddress(this.address, this.opcode); return this.makeLabelText(this.target); }
 
-  get base() { const reg = this.cop0RegName(_base); this.srcRegs[reg] = 1; return makeRegSpan(reg); }
+  get base() { const reg = this.cop0RegName(_base); this.srcRegs[reg] = 1; return this.makeRegSpan(reg); }
   get offsetU16() { return `0x${toHex(_offsetU16(this.opcode), 16)}`; }
   get offsetS16() { return `0x${toHex(_offsetS16(this.opcode), 16)}`; }
   memaccess(mode) {
@@ -124,16 +122,29 @@ class Instruction {
 
   memload() { return this.memaccess('load'); }
   memstore() { return this.memaccess('store'); }
-}
 
-function makeRegSpan(t) {
-  return `<span class="dis-reg-${t}">${t}</span>`;
-}
+  makeLabelText(address) {
+    if (this.outputHTML) {
+      return `<span class="dis-address-jump">${toHex(address, 32)}</span>`;
+    }
+    return toHex(address, 32);
+  }
 
-function makeFPRegSpan(t) {
-  // We only use the '-' as a valic css identifier, but want to use '.' in the visible text
-  const text = t.replace('-', '.');
-  return `<span class="dis-reg-${t}">${text}</span>`;
+  makeRegSpan(t) {
+    if (this.outputHTML) {
+      return `<span class="dis-reg-${t}">${t}</span>`;
+    }
+    return t;
+  }
+
+  makeFPRegSpan(t) {
+    // We only use the '-' as a valic css identifier, but want to use '.' in the visible text
+    const text = t.replace('-', '.');
+    if (this.outputHTML) {
+      return `<span class="dis-reg-${t}">${text}</span>`;
+    }
+    return text;
+  }
 }
 
 const specialTable = [
@@ -603,8 +614,8 @@ if (simpleTable.length != 64) {
   throw "Oops, didn't build the simple table correctly";
 }
 
-export function disassembleInstruction(address, instruction) {
-  const i = new Instruction(address, instruction);
+export function disassembleInstruction(address, instruction, outputHTML) {
+  const i = new Instruction(address, instruction, outputHTML);
   const disassembly = simpleTable[_op(instruction)](i);
   return {
     instruction: i,
@@ -613,13 +624,13 @@ export function disassembleInstruction(address, instruction) {
   };
 }
 
-export function disassembleRange(beginAddr, endAddr) {
+export function disassembleRange(beginAddr, endAddr, outputHTML) {
   const disassembly = [];
   const targets = new Set();
 
   for (let addr = beginAddr; addr < endAddr; addr += 4) {
     const instruction = n64js.getInstruction(addr);
-    const d = disassembleInstruction(addr, instruction);
+    const d = disassembleInstruction(addr, instruction, outputHTML);
     if (d.instruction.target) {
       targets.add(d.instruction.target);
     }

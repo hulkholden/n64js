@@ -447,7 +447,7 @@ export class Debugger {
     this.lastCycles = cpuCount;
 
     let fragmentMap = getFragmentMap();
-    let disassembly = disassembleRange(this.disasmAddress - 64, this.disasmAddress + 64);
+    let disassembly = disassembleRange(this.disasmAddress - 64, this.disasmAddress + 64, true);
 
     let $disGutter = $('<pre/>');
     let $disText = $('<pre/>');

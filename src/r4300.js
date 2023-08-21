@@ -2,7 +2,7 @@
 
 import * as cpu0_constants from './cpu0_constants.js';
 import { CPU1, convertModeCeil, convertModeFloor, convertModeRound, convertModeTrunc } from './cpu1.js';
-import { disassembleInstruction, cop0ControlRegisterNames, cop0gprNames } from './disassemble.js';
+import { disassembleInstruction, cop0ControlRegisterNames } from './disassemble.js';
 import { toString8, toString32, toString64_bigint } from './format.js';
 import { lookupFragment, resetFragments } from './fragments.js';
 import { assert } from './assert.js';
@@ -1950,7 +1950,7 @@ function genSrcRegU64(i) {
 }
 
 function unimplemented(pc, i) {
-  const r = disassembleInstruction(pc, i);
+  const r = disassembleInstruction(pc, i, false);
   const e = `Unimplemented op ${toString32(i)} : ${r.disassembly}`;
   logger.log(e);
   throw e;
@@ -4264,7 +4264,7 @@ function generateCodeForOp(ctx) {
     fn_code = `if (!n64js.checkSyncState(sync, ${toString32(ctx.pc)})) { return ${ctx.fragment.opsCompiled}; }\n${fn_code}`;
   }
 
-  const dasm = disassembleInstruction(ctx.pc, ctx.instruction);
+  const dasm = disassembleInstruction(ctx.pc, ctx.instruction, false);
   const lines = redentLines(fn_code, '  ');
 
   ctx.fragment.body_code += `// ${dasm.disassembly}
