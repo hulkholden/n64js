@@ -3922,107 +3922,6 @@ n64js.run = function (cycles) {
   }
 };
 
-function executeFragment(fragment, cpu0, rsp, events) {
-  let evt = events[0];
-  if (evt.countdown >= fragment.opsCompiled * COUNTER_INCREMENT_PER_OP) {
-    fragment.executionCount++;
-    const ops_executed = fragment.func(cpu0, rsp);   // Absolute value is number of ops executed.
-
-    // refresh latest event - may have changed
-    evt = events[0];
-    evt.countdown -= ops_executed * COUNTER_INCREMENT_PER_OP;
-
-    if (!accurateCountUpdating) {
-      cpu0.incrementCount(ops_executed * COUNTER_INCREMENT_PER_OP);
-    }
-
-    //assert(fragment.bailedOut || evt.countdown >= 0, "Executed too many ops. Possibly didn't bail out of trace when new event was set up?");
-    if (evt.countdown <= 0) {
-      handleCounter();
-    }
-
-    // If stuffToDo is set, we'll break on the next loop
-
-    let next_fragment = fragment.nextFragments[ops_executed];
-    if (!next_fragment || next_fragment.entryPC !== cpu0.pc) {
-      next_fragment = fragment.getNextFragment(cpu0.pc, ops_executed);
-    }
-    fragment = next_fragment;
-
-  } else {
-    // We're close to another event: drop to the interpreter
-    fragment = null;
-  }
-
-  return fragment;
-}
-
-// We need just one of these - declare at global scope to avoid generating garbage
-const fragmentContext = new FragmentContext();
-
-function addOpToFragment(fragment, entry_pc, instruction, c) {
-  if (fragment.opsCompiled === 0) {
-    fragmentContext.newFragment();
-  }  
-  fragment.opsCompiled++;
-  updateFragment(fragment, entry_pc);
-
-  // TODO: can we avoid the stuffToDo check? Throw exception?
-  fragment.body_code += 'rsp.step();\n';
-  fragment.body_code += `if (c.stuffToDo) { return ${fragment.opsCompiled - 1}; }\n`;
-  fragment.body_code += `\n`;
-
-  const curPC = entry_pc;
-  const postPC = c.pc;
-  fragmentContext.set(fragment, curPC, instruction, postPC, c.nextPC);
-  generateCodeForOp(fragmentContext);
-
-  // Break out of the trace as soon as we branch, or too many ops, or last op generated an interrupt (stuffToDo set)
-  const long_fragment = fragment.opsCompiled > 8;
-  if ((long_fragment && c.pc !== entry_pc + 4) || fragment.opsCompiled >= kFragmentLengthLimit || c.stuffToDo) {
-    compileFragment(fragment);
-    fragment = lookupFragment(c.pc);
-  } else {
-    fragment.body_code += `// Keep going: ops ${fragment.opsCompiled}, pc: ${toString32(c.pc)}, entry+4: ${toString32(entry_pc + 4)}, stuff: ${c.stuffToDo}\n`
-  }
-
-  return fragment;
-}
-
-function compileFragment(fragment) {
-  // Check if the last op has a delayed pc update, and do it now.
-  if (fragmentContext.delayedPCUpdate !== 0) {
-    fragment.body_code += 'c.pc = ' + toString32(fragmentContext.delayedPCUpdate) + ';\n';
-    fragmentContext.delayedPCUpdate = 0;
-  }
-
-  fragment.body_code += 'return ' + fragment.opsCompiled + ';\n'; // Return the number of ops exected
-
-  const sync = n64js.getSyncFlow();
-  if (sync) {
-    fragment.body_code = 'const sync = n64js.getSyncFlow();\n' + fragment.body_code;
-  }
-
-  if (fragment.usesCop1) {
-    let cpu1_shizzle = '';
-    cpu1_shizzle += 'const cpu1 = n64js.cpu1;\n';
-    cpu1_shizzle += 'const SR_CU1 = ' + toString32(SR_CU1) + ';\n';
-    cpu1_shizzle += 'const FPCSR_C = ' + toString32(FPCSR_C) + ';\n';
-    fragment.body_code = cpu1_shizzle + '\n\n' + fragment.body_code;
-  }
-
-  const code = 'return function fragment_' + toString32(fragment.entryPC) + '_' + fragment.opsCompiled + '(c, rsp) {\n' + fragment.body_code + '}\n';
-
-  // Clear these strings to reduce garbage
-  fragment.body_code = '';
-
-  fragment.func = new Function(code)();
-  fragment.nextFragments = [];
-  for (let i = 0; i < fragment.opsCompiled; i++) {
-    fragment.nextFragments.push(undefined);
-  }
-}
-
 function runImpl() {
   const rsp = n64js.rsp;
   const events = cpu0.events;
@@ -4177,6 +4076,109 @@ function updateFragment(fragment, pc) {
 
   fragmentMap.add(pc, fragment);
 }
+
+function executeFragment(fragment, cpu0, rsp, events) {
+  let evt = events[0];
+  if (evt.countdown >= fragment.opsCompiled * COUNTER_INCREMENT_PER_OP) {
+    fragment.executionCount++;
+    const ops_executed = fragment.func(cpu0, rsp);   // Absolute value is number of ops executed.
+
+    // refresh latest event - may have changed
+    evt = events[0];
+    evt.countdown -= ops_executed * COUNTER_INCREMENT_PER_OP;
+
+    if (!accurateCountUpdating) {
+      cpu0.incrementCount(ops_executed * COUNTER_INCREMENT_PER_OP);
+    }
+
+    //assert(fragment.bailedOut || evt.countdown >= 0, "Executed too many ops. Possibly didn't bail out of trace when new event was set up?");
+    if (evt.countdown <= 0) {
+      handleCounter();
+    }
+
+    // If stuffToDo is set, we'll break on the next loop
+
+    let next_fragment = fragment.nextFragments[ops_executed];
+    if (!next_fragment || next_fragment.entryPC !== cpu0.pc) {
+      next_fragment = fragment.getNextFragment(cpu0.pc, ops_executed);
+    }
+    fragment = next_fragment;
+
+  } else {
+    // We're close to another event: drop to the interpreter
+    fragment = null;
+  }
+
+  return fragment;
+}
+
+// We need just one of these - declare at global scope to avoid generating garbage
+const fragmentContext = new FragmentContext();
+
+function addOpToFragment(fragment, entry_pc, instruction, c) {
+  if (fragment.opsCompiled === 0) {
+    fragmentContext.newFragment();
+  }  
+  fragment.opsCompiled++;
+  updateFragment(fragment, entry_pc);
+
+  // TODO: can we avoid the stuffToDo check? Throw exception?
+  fragment.body_code += 'rsp.step();\n';
+  fragment.body_code += `if (c.stuffToDo) { return ${fragment.opsCompiled - 1}; }\n`;
+  fragment.body_code += `\n`;
+
+  const curPC = entry_pc;
+  const postPC = c.pc;
+  fragmentContext.set(fragment, curPC, instruction, postPC, c.nextPC);
+  generateCodeForOp(fragmentContext);
+
+  // Break out of the trace as soon as we branch, or too many ops, or last op generated an interrupt (stuffToDo set)
+  const long_fragment = fragment.opsCompiled > 8;
+  if ((long_fragment && c.pc !== entry_pc + 4) || fragment.opsCompiled >= kFragmentLengthLimit || c.stuffToDo) {
+    compileFragment(fragment);
+    fragment = lookupFragment(c.pc);
+  } else {
+    fragment.body_code += `// Keep going: ops ${fragment.opsCompiled}, pc: ${toString32(c.pc)}, entry+4: ${toString32(entry_pc + 4)}, stuff: ${c.stuffToDo}\n`
+  }
+
+  return fragment;
+}
+
+function compileFragment(fragment) {
+  // Check if the last op has a delayed pc update, and do it now.
+  if (fragmentContext.delayedPCUpdate !== 0) {
+    fragment.body_code += 'c.pc = ' + toString32(fragmentContext.delayedPCUpdate) + ';\n';
+    fragmentContext.delayedPCUpdate = 0;
+  }
+
+  fragment.body_code += 'return ' + fragment.opsCompiled + ';\n'; // Return the number of ops exected
+
+  const sync = n64js.getSyncFlow();
+  if (sync) {
+    fragment.body_code = 'const sync = n64js.getSyncFlow();\n' + fragment.body_code;
+  }
+
+  if (fragment.usesCop1) {
+    let cpu1_shizzle = '';
+    cpu1_shizzle += 'const cpu1 = n64js.cpu1;\n';
+    cpu1_shizzle += 'const SR_CU1 = ' + toString32(SR_CU1) + ';\n';
+    cpu1_shizzle += 'const FPCSR_C = ' + toString32(FPCSR_C) + ';\n';
+    fragment.body_code = cpu1_shizzle + '\n\n' + fragment.body_code;
+  }
+
+  const code = 'return function fragment_' + toString32(fragment.entryPC) + '_' + fragment.opsCompiled + '(c, rsp) {\n' + fragment.body_code + '}\n';
+
+  // Clear these strings to reduce garbage
+  fragment.body_code = '';
+
+  fragment.func = new Function(code)();
+  fragment.nextFragments = [];
+  for (let i = 0; i < fragment.opsCompiled; i++) {
+    fragment.nextFragments.push(undefined);
+  }
+}
+
+
 
 function checkEqual(a, b, m) {
   if (a !== b) {
