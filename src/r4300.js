@@ -4096,6 +4096,7 @@ function executeFragment(fragment, cpu0, rsp, events) {
 const fragmentContext = new FragmentContext();
 
 function addOpToFragment(fragment, entry_pc, instruction, c) {
+  n64js.assert(!fragment.func, `attempting to append op to already-compiled fragment ${toString32(fragment.entryPC)}`);
   if (fragment.opsCompiled === 0) {
     fragmentContext.newFragment();
   }  
