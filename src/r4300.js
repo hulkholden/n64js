@@ -4036,7 +4036,8 @@ class FragmentMap {
     return this.entries[entryIdx];
   }
 
-  add(pc, fragment) {
+  addInstructionToFragment(fragment, pc) {
+    fragment.updateMinMax(pc);
     this.lookupEntry(pc).add(fragment);
   }
 
@@ -4070,12 +4071,6 @@ class FragmentMap {
 
 const fragmentMap = new FragmentMap();
 
-function updateFragment(fragment, pc) {
-  fragment.minPC = Math.min(fragment.minPC, pc);
-  fragment.maxPC = Math.max(fragment.maxPC, pc + 4);
-
-  fragmentMap.add(pc, fragment);
-}
 
 function executeFragment(fragment, cpu0, rsp, events) {
   let evt = events[0];
@@ -4120,7 +4115,7 @@ function addOpToFragment(fragment, entry_pc, instruction, c) {
     fragmentContext.newFragment();
   }  
   fragment.opsCompiled++;
-  updateFragment(fragment, entry_pc);
+  fragmentMap.addInstructionToFragment(fragment, entry_pc);
 
   // TODO: can we avoid the stuffToDo check? Throw exception?
   fragment.body_code += 'rsp.step();\n';
