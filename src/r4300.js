@@ -2725,13 +2725,13 @@ function generateLDR(ctx) {
 function generateLWC1(ctx) {
   ctx.fragment.usesCop1 = true;
   const impl = `c.execLWC1(${ctx.instr_ft()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx);
+  return generateGenericOpBoilerplate(impl, ctx); // Can generate cop1 unusable so needs PC set correctly.
 }
 
 function generateLDC1(ctx) {
   ctx.fragment.usesCop1 = true;
   const impl = `c.execLDC1(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx);
+  return generateGenericOpBoilerplate(impl, ctx); // Can generate cop1 unusable so needs PC set correctly.
 }
 
 function generateLWC2(ctx) {
@@ -2792,13 +2792,13 @@ function generateSDR(ctx) {
 function generateSWC1(ctx) {
   ctx.fragment.usesCop1 = true;
   const impl = `c.execSWC1(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx);
+  return generateGenericOpBoilerplate(impl, ctx); // Can generate cop1 unusable so needs PC set correctly.
 }
 
 function generateSDC1(ctx) {
   ctx.fragment.usesCop1 = true;
   const impl = `c.execSDC1(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx);
+  return generateGenericOpBoilerplate(impl, ctx); // Can generate cop1 unusable so needs PC set correctly.
 }
 
 function generateSWC2(ctx) {
