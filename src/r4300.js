@@ -4062,10 +4062,6 @@ class FragmentMap {
       }
     }
 
-    if (removed) {
-      logger.log(`Fragment cache removed ${removed} entries.`);
-    }
-
     // fragmentInvalidationEvents.push({'address': address, 'length': 0x20, 'system': 'CACHE', 'fragmentsRemoved': removed});
   }
 }
