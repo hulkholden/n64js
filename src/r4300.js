@@ -4100,6 +4100,12 @@ function addOpToFragment(fragment, entry_pc, instruction, c) {
   if (fragment.opsCompiled === 0) {
     fragmentContext.newFragment();
   }  
+
+  // FIXME: this fires for loops to self.
+  // if (fragment.opsCompiled > 0 && entry_pc == fragment.entryPC) {
+  //   console.log(`re-entering ${toString32(entry_pc)}`)
+  // }
+
   fragment.opsCompiled++;
   fragmentMap.addInstructionToFragment(fragment, entry_pc);
 
@@ -4114,7 +4120,7 @@ function addOpToFragment(fragment, entry_pc, instruction, c) {
   generateCodeForOp(fragmentContext);
 
   // Break out of the trace as soon as we branch, or too many ops, or last op generated an interrupt (stuffToDo set)
-  // TODO: what is long_fragment for?
+  // TODO: what is long_fragment for? This allows short busy loops to be expanded out but it's not clear if that's desirable.
   // TODO: the stuffToDo check won't work for fragments interrupted via exceptions. 
   //       would it be better to just always check if the control flow is as expected?
   const long_fragment = fragment.opsCompiled > 8;
