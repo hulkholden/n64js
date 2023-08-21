@@ -2565,7 +2565,10 @@ function executeGBI2_ModifyVtx(cmd0, cmd1, dis) {
   }
 }
 
-function executeGBI2_CullDL(cmd0, cmd1, dis) {}
+function executeGBI2_CullDL(cmd0, cmd1, dis) {
+  // Same imple as GBI1.
+  executeGBI1_CullDL(cmd0, cmd1, dis);
+}
 
 function executeGBI2_BranchZ(cmd0, cmd1, dis) {}
 
