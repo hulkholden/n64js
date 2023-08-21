@@ -2637,9 +2637,41 @@ function executeGBI2_Tri2(cmd0, cmd1, dis) {
   flushTris(numTris);
 }
 
-function executeGBI2_Quad(cmd0, cmd1, dis) {}
+// TODO: this is effectively the same as executeGBI2_Tri2, just different disassembly.
+function executeGBI2_Quad(cmd0, cmd1, dis) {
+  const kTriCommand = cmd0 >>> 24;
+  const verts = state.projectedVertices;
 
-function executeGBI2_Line3D(cmd0, cmd1, dis) {}
+  let numTris = 0;
+  let pc = state.pc;
+  do {
+    const v00idx = (cmd1 >>> 1) & 0x7f;
+    const v01idx = (cmd1 >>> 9) & 0x7f;
+    const v02idx = (cmd1 >>> 17) & 0x7f;
+    const v10idx = (cmd0 >>> 1) & 0x7f;
+    const v11idx = (cmd0 >>> 9) & 0x7f;
+    const v12idx = (cmd0 >>> 17) & 0x7f;
+
+    if (dis) {
+      dis.text('gSP1Quadrangle(' + v00idx + ',' + v01idx + ',' + v02idx + ', ' + v10idx + ',' + v11idx + ',' + v12idx + ');');
+    }
+
+    triangleBuffer.pushTri(verts[v00idx], verts[v01idx], verts[v02idx], numTris + 0);
+    triangleBuffer.pushTri(verts[v10idx], verts[v11idx], verts[v12idx], numTris + 1);
+    numTris += 2;
+
+    cmd0 = ram_dv.getUint32(pc + 0);
+    cmd1 = ram_dv.getUint32(pc + 4);
+    ++debugCurrentOp;
+    pc += 8;
+    // NB: process triangles individually when disassembling
+  } while ((cmd0 >>> 24) === kTriCommand && numTris < kMaxTris && !dis);
+
+  state.pc = pc - 8;
+  --debugCurrentOp;
+
+  flushTris(numTris);
+}
 
 function executeGBI2_DmaIo(cmd0, cmd1, dis) {}
 
