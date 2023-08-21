@@ -72,23 +72,21 @@ export class Fragment {
    */
   getNextFragment(pc, opsExecuted) {
     let nextFragment = this.nextFragments[opsExecuted];
+    // TODO: why can this change? Is it due to branches taken/not taken? Should improve cache?
+    // if (nextFragment && nextFragment.entryPC !== pc) {
+    //   throw 'next fragment has broken entryPC?'
+    // }
     if (!nextFragment || nextFragment.entryPC !== pc) {
-      // If not jump to self, look up
-      if (pc === this.entryPC) {
-        nextFragment = this;
-      } else {
-        nextFragment = lookupFragment(pc);
-        // FIXME: for defense in depth, figure out how to prevent runImpl from unconditionally
-        // adding instructions to partially compiled fragments that are interrupted by exceptions/interrupts.
-        if (nextFragment && !nextFragment.func) {
-          nextFragment.invalidate();
-        }
-      }
-
-      // And cache for next time around.
+      // If not jump to self, look up and cache for next time around.
+      nextFragment = (pc === this.entryPC) ? this : lookupFragment(pc);
       this.nextFragments[opsExecuted] = nextFragment;
     }
-    return nextFragment;
+    // Invalidate the fragment if it's not finished being compiled.
+    // This is to ensure we only append instructions to fragments being traced.
+    if (nextFragment && nextFragment.opsCompiled > 0 && !nextFragment.func) {
+      // console.log(`invalidating partially compiled fragment ${toString32(nextFragment.entryPC)} on reentry`)
+      nextFragment.invalidate();
+    }
   }
 }
 
