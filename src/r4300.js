@@ -4127,6 +4127,9 @@ function addOpToFragment(fragment, entry_pc, instruction, c) {
   generateCodeForOp(fragmentContext);
 
   // Break out of the trace as soon as we branch, or too many ops, or last op generated an interrupt (stuffToDo set)
+  // TODO: what is long_fragment for?
+  // TODO: the stuffToDo check won't work for fragments interrupted via exceptions. 
+  //       would it be better to just always check if the control flow is as expected?
   const long_fragment = fragment.opsCompiled > 8;
   if ((long_fragment && c.pc !== entry_pc + 4) || fragment.opsCompiled >= kFragmentLengthLimit || c.stuffToDo) {
     compileFragment(fragment);
@@ -4134,7 +4137,6 @@ function addOpToFragment(fragment, entry_pc, instruction, c) {
   } else {
     fragment.bodyCode += `// Keep going: ops ${fragment.opsCompiled}, pc: ${toString32(c.pc)}, entry+4: ${toString32(entry_pc + 4)}, stuff: ${c.stuffToDo}\n`
   }
-
   return fragment;
 }
 
@@ -4153,11 +4155,11 @@ function compileFragment(fragment) {
   }
 
   if (fragment.usesCop1) {
-    let cpu1_shizzle = '';
-    cpu1_shizzle += 'const cpu1 = n64js.cpu1;\n';
-    cpu1_shizzle += 'const SR_CU1 = ' + toString32(SR_CU1) + ';\n';
-    cpu1_shizzle += 'const FPCSR_C = ' + toString32(FPCSR_C) + ';\n';
-    fragment.bodyCode = cpu1_shizzle + '\n\n' + fragment.bodyCode;
+    let cpu1consts = '';
+    cpu1consts += 'const cpu1 = n64js.cpu1;\n';
+    cpu1consts += 'const SR_CU1 = ' + toString32(SR_CU1) + ';\n';
+    cpu1consts += 'const FPCSR_C = ' + toString32(FPCSR_C) + ';\n';
+    fragment.bodyCode = cpu1consts + '\n\n' + fragment.bodyCode;
   }
 
   const code = 'return function fragment_' + toString32(fragment.entryPC) + '_' + fragment.opsCompiled + '(c, rsp) {\n' + fragment.bodyCode + '}\n';
