@@ -76,7 +76,7 @@ export class Fragment {
         // FIXME: for defense in depth, figure out how to prevent runImpl from unconditionally
         // adding instructions to partially compiled fragments that are interrupted by exceptions/interrupts.
         if (nextFragment && !nextFragment.func) {
-          nextFragment = null;
+          nextFragment.invalidate();
         }
       }
 
