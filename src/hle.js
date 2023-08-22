@@ -3331,7 +3331,7 @@ function buildVerticesTab() {
     'v'
   ];
 
-  var $table = $('<table class="table table-condensed" style="width: auto"></table>');
+  var $table = $('<table class="table table-condensed dl-vertices-table" style="width: auto"></table>');
   var $tr = $('<tr><th>' + vtx_fields.join('</th><th>') + '</th></tr>');
   $table.append($tr);
 
