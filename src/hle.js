@@ -828,7 +828,7 @@ function previewVertexImpl(v0, n, dv, dis) {
       dv.getInt16(vtx_base + 8), // u
       dv.getInt16(vtx_base + 10), // v
       dv.getInt8(vtx_base + 12) + ',' + dv.getInt8(vtx_base + 13) + ',' + dv.getInt8(vtx_base + 14), // norm
-      toString32(dv.getUint32(vtx_base + 12)), // rgba
+      makeColorTextRGBA(dv.getUint32(vtx_base + 12)), // rgba
     ];
 
     tip += '<tr><td>' + v.join('</td><td>') + '</td></tr>\n';
