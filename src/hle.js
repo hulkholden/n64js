@@ -2725,8 +2725,10 @@ function executeGBI2_GeometryMode(cmd0, cmd1, dis) {
       gbi.getGeometryModeFlagsText(gbi.GeometryModeGBI2, arg1) + ');');
   }
 
-  state.geometryModeBits &= arg0;
-  state.geometryModeBits |= arg1;
+  // Texture enablement is controlled via gsSPTexture, so ignore this.
+  state.geometryModeBits &= (arg0 | gbi.GeometryModeGBI2.G_TEXTURE_ENABLE);
+  state.geometryModeBits |= (arg1 & ~gbi.GeometryModeGBI2.G_TEXTURE_ENABLE);
+
   updateGeometryModeFromBits(gbi.GeometryModeGBI2);
 }
 
