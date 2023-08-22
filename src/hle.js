@@ -810,25 +810,26 @@ function calculateLighting(normal) {
   return (a << 24) | (b << 16) | (g << 8) | r;
 }
 
-function previewVertexImpl(v0, n, dv, dis) {
-  const cols = ['#', 'x', 'y', 'z', '?', 'u', 'v', 'norm', 'rgba'];
+function previewVertexImpl(v0, n, dv, dis, light) {
+  const cols = ['#', 'x', 'y', 'z', '?', 'u', 'v', light ? 'norm' : 'rgba'];
 
-  var tip = '';
+  let tip = '';
   tip += '<table class="vertex-table">';
   tip += '<tr><th>' + cols.join('</th><th>') + '</th></tr>\n';
 
   for (var i = 0; i < n; ++i) {
-    var vtx_base = i * 16;
+    const base = i * 16;
+    const normOrCol = light ? `${dv.getInt8(base + 12)},${dv.getInt8(base + 13)},${dv.getInt8(base + 14)}` : makeColorTextRGBA(dv.getUint32(base + 12));
+
     var v = [
       v0 + i,
-      dv.getInt16(vtx_base + 0), // x
-      dv.getInt16(vtx_base + 2), // y
-      dv.getInt16(vtx_base + 4), // z
-      dv.getInt16(vtx_base + 6), // ?
-      dv.getInt16(vtx_base + 8), // u
-      dv.getInt16(vtx_base + 10), // v
-      dv.getInt8(vtx_base + 12) + ',' + dv.getInt8(vtx_base + 13) + ',' + dv.getInt8(vtx_base + 14), // norm
-      makeColorTextRGBA(dv.getUint32(vtx_base + 12)), // rgba
+      dv.getInt16(base + 0), // x
+      dv.getInt16(base + 2), // y
+      dv.getInt16(base + 4), // z
+      dv.getInt16(base + 6), // ?
+      dv.getInt16(base + 8), // u
+      dv.getInt16(base + 10), // v
+      normOrCol, // norm or rgba
     ];
 
     tip += '<tr><td>' + v.join('</td><td>') + '</td></tr>\n';
@@ -851,7 +852,7 @@ function executeVertexImpl(v0, n, address, dis) {
   var dv = new DataView(ram_dv.buffer, address);
 
   if (dis) {
-    previewVertexImpl(v0, n, dv, dis);
+    previewVertexImpl(v0, n, dv, dis, light);
   }
 
   if (v0 + n >= 64) { // FIXME or 80 for later GBI
