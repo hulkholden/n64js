@@ -2516,7 +2516,7 @@ function executeGBI2_Vertex(cmd0, cmd1, dis) {
   var address = rdpSegmentAddress(cmd1);
 
   if (dis) {
-    dis.text('gsSPVertex(' + toString32(address) + ', ' + n + ', ' + v0 + ');');
+    dis.text(`gsSPVertex(${toString32(address)}, ${n}, ${v0});`);
   }
 
   executeVertexImpl(v0, n, address, dis);
@@ -2528,9 +2528,7 @@ function executeGBI2_ModifyVtx(cmd0, cmd1, dis) {
   var value = cmd1;
 
   if (dis) {
-    dis.text('gsSPModifyVertex(' + vtx + ',' +
-      gbi.ModifyVtx.nameOf(offset) + ',' +
-      toString32(value) + ');');
+    dis.text(`gsSPModifyVertex(${vtx},${gbi.ModifyVtx.nameOf(offset)},${toString32(value)});`);
   }
 
   // Cures crash after swinging in Mario Golf
@@ -2589,7 +2587,7 @@ function executeGBI2_Tri1(cmd0, cmd1, dis) {
     const v2idx = (cmd0 >>> 1) & 0x7f;
 
     if (dis) {
-      dis.text('gsSP1Triangle(' + v0idx + ', ' + v1idx + ', ' + v2idx + ', ' + flag + ');');
+      dis.text(`gsSP1Triangle(${v0idx},${v1idx},${v2idx}, ${flag});`);
     }
 
     triangleBuffer.pushTri(verts[v0idx], verts[v1idx], verts[v2idx], numTris);
@@ -2624,7 +2622,7 @@ function executeGBI2_Tri2(cmd0, cmd1, dis) {
     const v12idx = (cmd0 >>> 17) & 0x7f;
 
     if (dis) {
-      dis.text('gsSP2Triangles(' + v00idx + ',' + v01idx + ',' + v02idx + ', ' + v10idx + ',' + v11idx + ',' + v12idx + ');');
+      dis.text(`gsSP2Triangles(${v00idx},${v01idx},${v02idx}, ${v10idx},${v11idx},${v12idx});`);
     }
 
     triangleBuffer.pushTri(verts[v00idx], verts[v01idx], verts[v02idx], numTris + 0);
@@ -2660,7 +2658,7 @@ function executeGBI2_Quad(cmd0, cmd1, dis) {
     const v12idx = (cmd0 >>> 17) & 0x7f;
 
     if (dis) {
-      dis.text('gSP1Quadrangle(' + v00idx + ',' + v01idx + ',' + v02idx + ', ' + v10idx + ',' + v11idx + ',' + v12idx + ');');
+      dis.text(`gSP1Quadrangle(${v00idx},${v01idx},${v02idx}, ${v10idx},${v11idx},${v12idx});`);
     }
 
     triangleBuffer.pushTri(verts[v00idx], verts[v01idx], verts[v02idx], numTris + 0);
@@ -2696,13 +2694,9 @@ function executeGBI2_Texture(cmd0, cmd1, dis) {
     var tt = gbi.getTileText(tileIdx);
 
     if (xparam !== 0) {
-      dis.text('gsSPTextureL(' +
-        s_text + ', ' + t_text + ', ' +
-        level + ', ' + xparam + ', ' + tt + ', ' + on + ');');
+      dis.text(`gsSPTextureL(${s_text}, ${t_text}, ${level}, ${xparam}, ${tt}, ${on});`);
     } else {
-      dis.text('gsSPTexture(' +
-        s_text + ', ' + t_text + ', ' +
-        level + ', ' + tt + ', ' + on + ');');
+      dis.text(`gsSPTexture(${s_text}, ${t_text}, ${level}, ${tt}, ${on});`);
     }
   }
 
@@ -2724,9 +2718,9 @@ function executeGBI2_GeometryMode(cmd0, cmd1, dis) {
   var arg1 = cmd1;
 
   if (dis) {
-    dis.text('gsSPGeometryMode(~(' +
-      gbi.getGeometryModeFlagsText(gbi.GeometryModeGBI2, ~arg0) + '),' +
-      gbi.getGeometryModeFlagsText(gbi.GeometryModeGBI2, arg1) + ');');
+    const clr = gbi.getGeometryModeFlagsText(gbi.GeometryModeGBI2, ~arg0)
+    const set = gbi.getGeometryModeFlagsText(gbi.GeometryModeGBI2, arg1);
+    dis.text(`gsSPGeometryMode(~(${clr}),${set});`);
   }
 
   // Texture enablement is controlled via gsSPTexture, so ignore this.
@@ -2750,7 +2744,7 @@ function executeGBI2_Matrix(cmd0, cmd1, dis) {
     t += replace ? '|G_MTX_LOAD' : '|G_MTX_MUL';
     t += push ? '|G_MTX_PUSH' : ''; //'|G_MTX_NOPUSH';
 
-    dis.text('gsSPMatrix(' + toString32(address) + ', ' + t + ');');
+    dis.text(`gsSPMatrix(${toString32(address)}, ${t});`);
     dis.tip(previewMatrix(matrix));
   }
 
@@ -2773,9 +2767,8 @@ function executeGBI2_PopMatrix(cmd0, cmd1, dis) {
   var projection = 0;
 
   if (dis) {
-    var t = '';
-    t += projection ? 'G_MTX_PROJECTION' : 'G_MTX_MODELVIEW';
-    dis.text('gsSPPopMatrix(' + t + ');');
+    const t = projection ? 'G_MTX_PROJECTION' : 'G_MTX_MODELVIEW';
+    dis.text(`gsSPPopMatrix(${t});`);
   }
 
   var stack = projection ? state.projection : state.modelview;
@@ -2790,18 +2783,17 @@ function executeGBI2_MoveWord(cmd0, cmd1, dis) {
   var value = cmd1;
 
   if (dis) {
-    var text = 'gMoveWd(' + gbi.MoveWord.nameOf(type) + ', ' +
-      toString16(offset) + ', ' + toString32(value) + ');';
+    var text = `gMoveWd(${gbi.MoveWord.nameOf(type)}, ${toString16(offset)}, ${toString32(value)});`;
 
     switch (type) {
       case gbi.MoveWord.G_MW_NUMLIGHT:
         var v = Math.floor(value / 24);
-        text = 'gsSPNumLights(' + gbi.NumLights.nameOf(v) + ');';
+        text = `gsSPNumLights(${gbi.NumLights.nameOf(v)});`;
         break;
       case gbi.MoveWord.G_MW_SEGMENT:
         {
           var v = value === 0 ? '0' : toString32(value);
-          text = 'gsSPSegment(' + ((offset >>> 2) & 0xf) + ', ' + v + ');';
+          text = `gsSPSegment(${(offset >>> 2) & 0xf}, ${v});`;
         }
         break;
     }
@@ -2869,11 +2861,11 @@ function executeGBI2_MoveMem(cmd0, cmd1, dis) {
     var address_str = toString32(address);
 
     var type_str = gbi.MoveMemGBI2.nameOf(type);
-    var text = 'gsDma1p(G_MOVEMEM, ' + address_str + ', ' + length + ', ' + type_str + ');';
+    var text = `gsDma1p(G_MOVEMEM, ${address_str}, ${length}, ${type_str});`;
 
     switch (type) {
       case gbi.MoveMemGBI2.G_GBI2_MV_VIEWPORT:
-        text = 'gsSPViewport(' + address_str + ');';
+        text = `gsSPViewport(${address_str});`;
         break;
       case gbi.MoveMemGBI2.G_GBI2_MV_LIGHT:
         var offset2 = (cmd0 >>> 5) & 0x3fff;
@@ -2885,7 +2877,7 @@ function executeGBI2_MoveMem(cmd0, cmd1, dis) {
           default:
             //
             var light_idx = Math.floor((offset2 - 0x30) / 0x18);
-            text += ' // (light ' + light_idx + ')';
+            text += ` // (light ${light_idx})`;
             break;
         }
         break;
@@ -2915,7 +2907,7 @@ function executeGBI2_MoveMem(cmd0, cmd1, dis) {
       break;
 
     default:
-      hleHalt('unknown movemen: ' + type.toString(16));
+      hleHalt(`unknown movemen: ${type.toString(16)}`);
   }
 }
 
@@ -2927,7 +2919,7 @@ function executeGBI2_DL(cmd0, cmd1, dis) {
 
   if (dis) {
     var fn = (param === gbi.G_DL_PUSH) ? 'gsSPDisplayList' : 'gsSPBranchList';
-    dis.text(fn + '(<span class="dl-branch">' + toString32(address) + '</span>);');
+    dis.text(`${fn}(<span class="dl-branch">${toString32(address)}</span>);`);
   }
 
   if (param === gbi.G_DL_PUSH) {
