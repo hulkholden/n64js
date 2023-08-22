@@ -3162,7 +3162,7 @@ class Disassembler {
 
 
 function buildStateTab() {
-  var $table = $('<table class="table table-condensed" style="width: auto;"></table>');
+  var $table = $('<table class="table table-condensed dl-geometrymode-table" style="width: auto;"></table>');
   var $tr = $('<tr />');
 
   for (let i in state.geometryMode) {
