@@ -168,3 +168,10 @@ table .impl100 {
 
   text-align: center;
 }
+
+.dl-vertices-table th,
+.dl-vertices-table td {
+  padding: 2px 10px;
+
+  text-align: center;
+}
