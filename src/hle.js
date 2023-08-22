@@ -2056,10 +2056,9 @@ function setProgramState(positions, colours, coords, texture, tex_gen_enabled) {
   var alpha_cvg_sel = getAlphaCoverageSelect();
 
   var cycle_type = getCycleType();
-  if (cycle_type < gbi.CycleType.G_CYC_COPY) {
+  if (cycle_type == gbi.CycleType.G_CYC_1CYCLE || cycle_type == gbi.CycleType.G_CYC_2CYCLE) {
     var blend_mode = state.rdpOtherModeL >> gbi.G_MDSFT_BLENDER;
-    var active_blend_mode = (cycle_type === gbi.CycleType.G_CYC_2CYCLE ? blend_mode : (
-      blend_mode >>> 2)) & 0x3333;
+    var active_blend_mode = (cycle_type === gbi.CycleType.G_CYC_2CYCLE ? blend_mode : (blend_mode >>> 2)) & 0x3333;
     var mode = kBlendModeOpaque;
 
     switch (active_blend_mode) {
@@ -2069,8 +2068,10 @@ function setProgramState(positions, colours, coords, texture, tex_gen_enabled) {
       case 0x0010: //G_BL_CLR_IN,G_BL_A_IN,G_BL_CLR_MEM,G_BL_1MA
       case 0x0011: //G_BL_CLR_IN,G_BL_A_IN,G_BL_CLR_MEM,G_BL_A_MEM
         // These modes either do a weighted sum of coverage (or coverage and alpha) or a plain alpha blend
-        if (!alpha_cvg_sel || cvg_x_alpha) // If alpha_cvg_sel is 0, or if we're multiplying by fragment alpha, then we have alpha to blend with
+        // If alpha_cvg_sel is 0, or if we're multiplying by fragment alpha, then we have alpha to blend with.
+        if (!alpha_cvg_sel || cvg_x_alpha) {
           mode = kBlendModeAlphaTrans;
+        }
         break;
 
       case 0x0110: //G_BL_CLR_IN,G_BL_A_FOG,G_BL_CLR_MEM,G_BL_1MA, alpha_cvg_sel:false cvg_x_alpha:false
@@ -2197,7 +2198,6 @@ function setProgramState(positions, colours, coords, texture, tex_gen_enabled) {
 }
 
 function flushTris(numTris) {
-  var cycle_type = getCycleType();
   var texture;
   var tex_gen_enabled = false;
 
