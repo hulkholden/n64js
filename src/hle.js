@@ -2581,10 +2581,10 @@ function executeGBI2_Tri1(cmd0, cmd1, dis) {
   let numTris = 0;
   let pc = state.pc;
   do {
-    const flag = (cmd1 >>> 24) & 0xff;
-    const v0idx = (cmd0 >>> 17) & 0x7f;
+    const v0idx = (cmd0 >>> 1) & 0x7f;
     const v1idx = (cmd0 >>> 9) & 0x7f;
-    const v2idx = (cmd0 >>> 1) & 0x7f;
+    const v2idx = (cmd0 >>> 17) & 0x7f;
+    const flag = (cmd1 >>> 24) & 0xff;
 
     if (dis) {
       dis.text(`gsSP1Triangle(${v0idx},${v1idx},${v2idx}, ${flag});`);
