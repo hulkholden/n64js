@@ -1144,8 +1144,11 @@ function executeGBI1_Texture(cmd0, cmd1, dis) {
   updateGeometryModeFromBits(gbi.GeometryModeGBI1);
 }
 
-function executeGBI1_CullDL(cmd0, cmd1) {
+function executeGBI1_CullDL(cmd0, cmd1, dis) {
   // FIXME: culldl
+  if (dis) {
+    dis.text(`gSPCullDisplayList(/* TODO */); // TODO: implement`);
+  }
 }
 
 function executeGBI1_Tri1(cmd0, cmd1, dis) {
