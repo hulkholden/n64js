@@ -59,6 +59,9 @@ const kFiveToEight = [
   0xff, // 11111 -> 11111111
 ];
 
+// A temporary buffer used to cache converted palette entries.
+let tempPal = new Uint32Array(256);
+
 /**
  * Converts an IA16 pixel to the native RGBA format.
  * @param {number} value An IA16 value
@@ -415,23 +418,30 @@ function convertI4(dstData, src, tile) {
  * @param {!ImageData} dstData
  * @param {!Uint8Array} src
  * @param {!Tile} tile
- * @param {number} palAddress Palette address in src.
  * @param {function(number): number} palConv Palette conversion function.
  */
-function convertCI8(dstData, src, tile, palAddress, palConv) {
-  let dst = dstData.data;
-  let dstRowStride = dstData.width * 4; // Might not be the same as width, due to power of 2
+function convertCI8(dstData, src, tile, palConv) {
+  const dst = dstData.data;
+  const dstRowStride = dstData.width * 4; // Might not be the same as width, due to power of 2
   let dstRowOffset = 0;
 
-  let srcRowStride = tile.line << 3;
+  const srcRowStride = tile.line << 3;
   let srcRowOffset = tile.tmem << 3;
 
-  let palOffset = palAddress << 3;
-  let pal = new Uint32Array(256);
+  // Each 8 byte word contains 4 copies of the LUT entry, which duplicates
+  // it across 4 memory banks (presumably for performance). In theory different
+  // values could be loaded into different banks so for accuracy we should
+  // sample from the correct bank. For now assume we just sample from bank 0.
+  // TODO: figure out which bank to sample from.
+  const lutBankIndex = 0;
 
+  // Convert the LUT once and cache the results in tempPal.
   for (let i = 0; i < 256; ++i) {
-    let srcPixel = (src[palOffset + i * 2 + 0] << 8) | src[palOffset + i * 2 + 1];
-    pal[i] = palConv(srcPixel);
+    const luValue = i;
+    const lutEntry = (luValue * 4) + lutBankIndex;
+    const tmemOffset = 0x800 + (lutEntry * 2);
+    const srcPixel = (src[tmemOffset + 0] << 8) | src[tmemOffset + 1];
+    tempPal[i] = palConv(srcPixel);
   }
 
   let rowSwizzle = 0;
@@ -440,7 +450,7 @@ function convertCI8(dstData, src, tile, palAddress, palConv) {
     let dstOffset = dstRowOffset;
 
     for (let x = 0; x < tile.width; ++x) {
-      let srcPixel = pal[src[srcOffset ^ rowSwizzle]];
+      const srcPixel = tempPal[src[srcOffset ^ rowSwizzle]];
 
       dst[dstOffset + 0] = (srcPixel >> 24) & 0xff;
       dst[dstOffset + 1] = (srcPixel >> 16) & 0xff;
@@ -462,27 +472,33 @@ function convertCI8(dstData, src, tile, palAddress, palConv) {
  * @param {!ImageData} dstData
  * @param {!Uint8Array} src
  * @param {!Tile} tile
- * @param {number} palAddress Palette address in src.
+ * @param {number} palette Palette index.
  * @param {function(number): number} palConv Palette conversion function.
  */
-function convertCI4(dstData, src, tile, palAddress, palConv) {
-  let dst = dstData.data;
-  let dstRowStride = dstData.width * 4; // Might not be the same as width, due to power of 2
+function convertCI4(dstData, src, tile, palette, palConv) {
+  const dst = dstData.data;
+  const dstRowStride = dstData.width * 4; // Might not be the same as width, due to power of 2
   let dstRowOffset = 0;
 
-  let srcRowStride = tile.line << 3;
+  const srcRowStride = tile.line << 3;
   let srcRowOffset = tile.tmem << 3;
 
-  let palOffset = palAddress << 3;
-  let pal = new Uint32Array(16);
+  // Each 8 byte word contains 4 copies of the LUT entry, which duplicates
+  // it across 4 memory banks (presumably for performance). In theory different
+  // values could be loaded into different banks so for accuracy we should
+  // sample from the correct bank. For now assume we just sample from bank 0.
+  // TODO: figure out which bank to sample from.
+  const lutBankIndex = 0;
 
   for (let i = 0; i < 16; ++i) {
-    let srcPixel = (src[palOffset + i * 2 + 0] << 8) | src[palOffset + i * 2 + 1];
-    pal[i] = palConv(srcPixel);
+    const luValue = (palette * 16) | i;
+    const lutEntry = (luValue * 4) + lutBankIndex;
+    const tmemOffset = 0x800 + (lutEntry * 2);
+    const srcPixel = (src[tmemOffset + 0] << 8) | src[tmemOffset + 1];
+    tempPal[i] = palConv(srcPixel);
   }
 
   let rowSwizzle = 0;
-
   for (let y = 0; y < tile.height; ++y) {
     let srcOffset = srcRowOffset;
     let dstOffset = dstRowOffset;
@@ -490,8 +506,8 @@ function convertCI4(dstData, src, tile, palAddress, palConv) {
     // Process 2 pixels at a time
     for (let x = 0; x + 1 < tile.width; x += 2) {
       let srcPixel = src[srcOffset ^ rowSwizzle];
-      let c0 = pal[(srcPixel & 0xf0) >>> 4];
-      let c1 = pal[(srcPixel & 0x0f) >>> 0];
+      let c0 = tempPal[(srcPixel & 0xf0) >>> 4];
+      let c1 = tempPal[(srcPixel & 0x0f) >>> 0];
 
       dst[dstOffset + 0] = (c0 >> 24) & 0xff;
       dst[dstOffset + 1] = (c0 >> 16) & 0xff;
@@ -510,7 +526,7 @@ function convertCI4(dstData, src, tile, palAddress, palConv) {
     // Handle trailing pixel, if odd width
     if (tile.width & 1) {
       let srcPixel = src[srcOffset ^ rowSwizzle];
-      let c0 = pal[(srcPixel & 0xf0) >>> 4];
+      let c0 = tempPal[(srcPixel & 0xf0) >>> 4];
 
       dst[dstOffset + 0] = (c0 >> 24) & 0xff;
       dst[dstOffset + 1] = (c0 >> 16) & 0xff;
@@ -552,10 +568,10 @@ export function convertTexels(dstData, tmem, tile, tlutFormat) {
           // Hack - Extreme-G specifies RGBA/8 RGBA/4 textures, but they're
           // really CI
         case gbi.ImageSize.G_IM_SIZ_8b:
-          convertCI8(dstData, tmem, tile, 0x100, convFn);
+          convertCI8(dstData, tmem, tile, convFn);
           return true;
         case gbi.ImageSize.G_IM_SIZ_4b:
-          convertCI4(dstData, tmem, tile, 0x100 + ((tile.palette * 16 * 2) >>> 3), convFn);
+          convertCI4(dstData, tmem, tile, tile.palette, convFn);
           return true;
       }
       break;
@@ -588,10 +604,10 @@ export function convertTexels(dstData, tmem, tile, tlutFormat) {
     case gbi.ImageFormat.G_IM_FMT_CI:
       switch (tile.size) {
         case gbi.ImageSize.G_IM_SIZ_8b:
-          convertCI8(dstData, tmem, tile, 0x100, convFn);
+          convertCI8(dstData, tmem, tile, convFn);
           return true;
         case gbi.ImageSize.G_IM_SIZ_4b:
-          convertCI4(dstData, tmem, tile, 0x100 + ((tile.palette * 16 * 2) >>> 3), convFn);
+          convertCI4(dstData, tmem, tile, tile.palette, convFn);
           return true;
       }
       break;
