@@ -1499,14 +1499,31 @@ function executeLoadTLut(cmd0, cmd1, dis) {
 
   var tile = state.tiles[tileIdx];
   var texels = ((lrs - uls) >>> 2) + 1;
-  var bytes = texels * 2;
 
   const ram_u8 = n64js.getRamU8Array();
   var tmem_offset = tile.tmem << 3;
 
-  copyLine(state.tmemData, tmem_offset, ram_u8, ram_offset, bytes);
+  copyLineTLUT(state.tmemData, tmem_offset, ram_u8, ram_offset, texels);
 
   invalidateTileHashes();
+}
+
+function copyLineTLUT(tmem, tmem_offset, ram, ram_offset, texels) {
+  // TLUT entries are "quadricated" across banks.
+  // TODO: optimise this.
+  for (let texel = 0; texel < texels; texel++) {
+    const lo = ram[ram_offset + (texel * 2) + 0];
+    const hi = ram[ram_offset + (texel * 2) + 1];
+
+    tmem[tmem_offset + (texel * 8) + 0] = lo;
+    tmem[tmem_offset + (texel * 8) + 1] = hi;
+    tmem[tmem_offset + (texel * 8) + 2] = lo;
+    tmem[tmem_offset + (texel * 8) + 3] = hi;
+    tmem[tmem_offset + (texel * 8) + 4] = lo;
+    tmem[tmem_offset + (texel * 8) + 5] = hi;
+    tmem[tmem_offset + (texel * 8) + 6] = lo;
+    tmem[tmem_offset + (texel * 8) + 7] = hi;
+  }
 }
 
 function executeSetTile(cmd0, cmd1, dis) {
@@ -3719,7 +3736,8 @@ function calculateTmemCrc(tile) {
     if (tile.size === gbi.ImageSize.G_IM_SIZ_8b) {
       hash = hashTmem(src, 0x100 << 3, 256 * 2, hash);
     } else if (tile.size === gbi.ImageSize.G_IM_SIZ_4b) {
-      hash = hashTmem(src, (0x100 << 3) + (tile.palette * 16 * 2), 16 * 2, hash);
+      // Palette is "quadricated", so it's 8 bytes per entry.
+      hash = hashTmem(src, (0x100 << 3) + (tile.palette * 16 * 2), 16 * 8, hash);
     }
   }
 
@@ -3733,29 +3751,26 @@ function calculateTmemCrc(tile) {
  * @return {?Texture}
  */
 function lookupTexture(tileIdx) {
-  var tile = state.tiles[tileIdx];
-  var tmem_address = tile.tmem;
-
+  const tile = state.tiles[tileIdx];
   // Skip empty tiles - this is primarily for the debug ui.
   if (tile.line === 0) {
     return null;
   }
 
   // FIXME: we can cache this if tile/tmem state hasn't changed since the last draw call.
-  var hash = calculateTmemCrc(tile);
+  const hash = calculateTmemCrc(tile);
 
   // Check if the texture is already cached.
   // FIXME: we also need to check other properties (mirror, clamp etc), and recreate every frame (or when underlying data changes)
-  var cache_id = `${toString32(hash) + tile.lrs}-${tile.lrt}`;
+  const cacheID = `${toString32(hash) + tile.lrs}-${tile.lrt}`;
 
-  var texture;
-  if (textureCache.has(cache_id)) {
-    texture = textureCache.get(cache_id);
+  let texture;
+  if (textureCache.has(cacheID)) {
+    texture = textureCache.get(cacheID);
   } else {
     texture = decodeTexture(tile, getTextureLUTType());
-    textureCache.set(cache_id, texture);
+    textureCache.set(cacheID, texture);
   }
-
   return texture;
 }
 
