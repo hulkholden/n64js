@@ -271,7 +271,7 @@ function setCanvasViewport(w, h) {
 }
 
 function setN64Viewport(scale, trans) {
-  //logger.log('Viewport: scale=' + scale[0] + ',' + scale[1] + ' trans=' + trans[0] + ',' + trans[1] );
+  //logger.log(`Viewport: scale=${scale[0]},${scale[1]} trans=${trans[0]},${trans[1]}` );
 
   if (scale[0] === state.viewport.scale[0] &&
     scale[1] === state.viewport.scale[1] &&
@@ -325,12 +325,8 @@ function loadMatrix(address) {
 
 function previewViewport(address) {
   var result = '';
-  result += 'scale = (' +
-      ram_dv.getInt16(address + 0) / 4.0 + ', ' +
-      ram_dv.getInt16(address + 2) / 4.0 + ') ';
-  result += 'trans = (' +
-      ram_dv.getInt16(address + 8) / 4.0 + ', ' +
-      ram_dv.getInt16(address + 10) / 4.0 + ') ';
+  result += `scale = (${ram_dv.getInt16(address + 0) / 4.0}, ${ram_dv.getInt16(address + 2) / 4.0}) `;
+  result += `trans = (${ram_dv.getInt16(address + 8) / 4.0}, ${ram_dv.getInt16(address + 10) / 4.0}) `;
   return result;
 }
 
@@ -347,13 +343,13 @@ function moveMemViewport(address) {
 
 function previewLight(address) {
   var result = '';
-  result += 'color = ' + toHex(ram_dv.getUint32(address + 0), 32) + ' ';
+  result += `color = ${toHex(ram_dv.getUint32(address + 0), 32)} `;
   var dir = Vector3.create([
     ram_dv.getInt8(address + 8),
     ram_dv.getInt8(address + 9),
     ram_dv.getInt8(address + 10)
   ]).normaliseInPlace();
-  result += 'norm = (' + dir.elems[0] + ', ' + dir.elems[1] + ', ' + dir.elems[2] + ')';
+  result += `norm = (${dir.elems[0]}, ${dir.elems[1]}, ${dir.elems[2]})`;
   return result;
 }
 
@@ -404,15 +400,15 @@ function unpackRGBAToColor(col) {
 }
 
 function makeColourText(r, g, b, a) {
-  var rgb = r + ', ' + g + ', ' + b;
-  var rgba = rgb + ', ' + a;
+  const rgb = `${r}, ${g}, ${b}`;
+  const rgba = `${rgb}, ${a}`;
 
   if ((r < 128 && g < 128) ||
       (g < 128 && b < 128) ||
       (b < 128 && r < 128)) {
-    return '<span style="color: white; background-color: rgb(' + rgb + ')">' + rgba + '</span>';
+    return `<span style="color: white; background-color: rgb(${rgb})">${rgba}</span>`;
   }
-  return '<span style="background-color: rgb(' + rgb + ')">' + rgba + '</span>';
+  return `<span style="background-color: rgb(${rgb})">${rgba}</span>`;
 }
 
 function makeColorTextRGBA(rgba) {
@@ -520,11 +516,11 @@ export function hleProcessRSPTask() {
 };
 
 function unimplemented(cmd0, cmd1) {
-  hleHalt('Unimplemented display list op ' + toString8(cmd0 >>> 24));
+  hleHalt(`Unimplemented display list op ${toString8(cmd0 >>> 24)}`);
 }
 
 function executeUnknown(cmd0, cmd1) {
-  hleHalt('Unknown display list op ' + toString8(cmd0 >>> 24));
+  hleHalt(`Unknown display list op ${toString8(cmd0 >>> 24)}`);
   state.pc = 0;
 }
 
@@ -570,7 +566,7 @@ function executeGBI1_DL(cmd0, cmd1, dis) {
 
   if (dis) {
     var fn = (param === gbi.G_DL_PUSH) ? 'gsSPDisplayList' : 'gsSPBranchList';
-    dis.text(fn + '(<span class="dl-branch">' + toString32(address) + '</span>);');
+    dis.text(`${fn}(<span class="dl-branch">${toString32(address)}</span>);`);
   }
 
   if (param === gbi.G_DL_PUSH) {
@@ -607,12 +603,12 @@ function previewMatrix(matrix) {
   var c = [m[8], m[9], m[10], m[11]];
   var d = [m[12], m[13], m[14], m[15]];
 
-  return '<div><table class="matrix-table">' +
-      '<tr><td>' + a.join('</td><td>') + '</td></tr>' +
-      '<tr><td>' + b.join('</td><td>') + '</td></tr>' +
-      '<tr><td>' + c.join('</td><td>') + '</td></tr>' +
-      '<tr><td>' + d.join('</td><td>') + '</td></tr>' +
-      '</table></div>';
+  return `<div><table class="matrix-table">
+    <tr><td>${a.join('</td><td>')}</td></tr>
+    <tr><td>${b.join('</td><td>')}</td></tr>
+    <tr><td>${c.join('</td><td>')}</td></tr>
+    <tr><td>${d.join('</td><td>')}</td></tr>
+  </table></div>`;
 }
 
 function executeGBI1_Matrix(cmd0, cmd1, dis) {
@@ -628,7 +624,7 @@ function executeGBI1_Matrix(cmd0, cmd1, dis) {
     t += (flags & gbi.G_MTX_LOAD) ? '|G_MTX_LOAD' : '|G_MTX_MUL';
     t += (flags & gbi.G_MTX_PUSH) ? '|G_MTX_PUSH' : ''; //'|G_MTX_NOPUSH';
 
-    dis.text('gsSPMatrix(' + toString32(address) + ', ' + t + ');');
+    dis.text(`gsSPMatrix(${toString32(address)}, ${t});`);
     dis.tip(previewMatrix(matrix));
   }
 
@@ -651,7 +647,7 @@ function executeGBI1_PopMatrix(cmd0, cmd1, dis) {
   if (dis) {
     var t = '';
     t += (flags & gbi.G_MTX_PROJECTION) ? 'G_MTX_PROJECTION' : 'G_MTX_MODELVIEW';
-    dis.text('gsSPPopMatrix(' + t + ');');
+    dis.text(`gsSPPopMatrix(${t});`);
   }
 
   // FIXME: pop is always modelview?
@@ -697,12 +693,12 @@ function executeGBI1_MoveMem(cmd0, cmd1, dis) {
     var address_str = toString32(address);
 
     var type_str = gbi.MoveMemGBI1.nameOf(type);
-    var text = 'gsDma1p(G_MOVEMEM, ' + address_str + ', ' + length + ', ' + type_str + ');';
+    var text = `gsDma1p(G_MOVEMEM, ${address_str}, ${length}, ${type_str});`;
 
     switch (type) {
       case gbi.MoveMemGBI1.G_MV_VIEWPORT:
         if (length === 16)
-          text = 'gsSPViewport(' + address_str + ');';
+          text = `gsSPViewport(${address_str});`;
         break;
     }
 
@@ -735,19 +731,19 @@ function executeGBI1_MoveWord(cmd0, cmd1, dis) {
   var value = cmd1;
 
   if (dis) {
-    var text = 'gMoveWd(' + gbi.MoveWord.nameOf(type) + ', ' + toString16(offset) + ', ' + toString32(value) + ');';
+    var text = `gMoveWd(${gbi.MoveWord.nameOf(type)}, ${toString16(offset)}, ${toString32(value)});`;
 
     switch (type) {
       case gbi.MoveWord.G_MW_NUMLIGHT:
         if (offset === gbi.G_MWO_NUMLIGHT) {
           var v = ((value - 0x80000000) >>> 5) - 1;
-          text = 'gsSPNumLights(' + gbi.NumLights.nameOf(v) + ');';
+          text = `gsSPNumLights(${gbi.NumLights.nameOf(v)});`;
         }
         break;
       case gbi.MoveWord.G_MW_SEGMENT:
         {
           var v = value === 0 ? '0' : toString32(value);
-          text = 'gsSPSegment(' + ((offset >>> 2) & 0xf) + ', ' + v + ');';
+          text = `gsSPSegment(${(offset >>> 2) & 0xf}, ${v});`;
         }
         break;
     }
@@ -818,7 +814,7 @@ function previewVertexImpl(v0, n, dv, dis, light) {
 
   let tip = '';
   tip += '<table class="vertex-table">';
-  tip += '<tr><th>' + cols.join('</th><th>') + '</th></tr>\n';
+  tip += `<tr><th>${cols.join('</th><th>')}</th></tr>\n`;
 
   for (var i = 0; i < n; ++i) {
     const base = i * 16;
@@ -835,7 +831,7 @@ function previewVertexImpl(v0, n, dv, dis, light) {
       normOrCol, // norm or rgba
     ];
 
-    tip += '<tr><td>' + v.join('</td><td>') + '</td></tr>\n';
+    tip += `<tr><td>${v.join('</td><td>')}</td></tr>\n`;
   }
   tip += '</table>';
   dis.tip(tip);
@@ -886,7 +882,7 @@ function executeVertexImpl(v0, n, address, dis) {
     var projected = vertex.pos;
     wvp.transformPoint(xyz, projected);
 
-    //hleHalt(x + ',' + y + ',' + z + '-&gt;' + projected.elems[0] + ',' + projected.elems[1] + ',' + projected.elems[2]);
+    //hleHalt(`${x},${y},${z}-&gt;${projected.elems[0]},${projected.elems[1]},${projected.elems[2]}`);
 
     // var clip_flags = 0;
     //      if (projected[0] < -projected[3]) clip_flags |= X_POS;
@@ -1065,7 +1061,7 @@ function disassembleSetOtherModeH(dis, len, shift, data) {
         text = `gsDPSetCycleType(${gbi.CycleType.nameOf(data)});`;
       }
       break;
-      //case gbi.G_MDSFT_COLORDITHER: if (len === 1) text = 'gsDPSetColorDither(' + dataStr + ');'; break;  // NB HW1?
+    // case gbi.G_MDSFT_COLORDITHER: if (len === 1) text = `gsDPSetColorDither(${dataStr});`; break;  // NB HW1?
     case gbi.G_MDSFT_PIPELINE:
       if (len === 1) {
         text = `gsDPPipelineMode(${gbi.PipelineMode.nameOf(data)});`;
@@ -1724,9 +1720,7 @@ function executeTexRect(cmd0, cmd1, dis) {
 
   if (dis) {
     var tt = gbi.getTileText(tileIdx);
-    dis.text('gsSPTextureRectangle(' +
-      xl + ',' + yl + ',' + xh + ',' + yh + ',' +
-      tt + ',' + s0 + ',' + t0 + ',' + dsdx + ',' + dtdy + ');');
+    dis.text(`gsSPTextureRectangle(${xl},${yl},${xh},${yh},${tt},${s0},${t0},${dsdx},${dtdy});`);
   }
 
   var cycle_type = getCycleType();
@@ -3107,9 +3101,9 @@ class Disassembler {
 
   begin(pc, cmd0, cmd1, depth) {
     const indent = (new Array(depth + 1)).join('  ');
-    const pc_str = ' '; //' [' + toHex(pc,32) + '] '
+    const pc_str = ' '; //  ` [${toHex(pc, 32)}] `
 
-    this.$span = $('<span class="hle-instr" id="I' + this.numOps + '" />');
+    this.$span = $(`<span class="hle-instr" id="I${this.numOps}" />`);
     this.$span.append(`${padString(this.numOps, 5)}${pc_str}${toHex(cmd0, 32)}${toHex(cmd1, 32)} ${indent}`);
     this.$currentDis.append(this.$span);
   }
@@ -3146,7 +3140,7 @@ function buildStateTab() {
 
   for (let i in state.geometryMode) {
     if (state.geometryMode.hasOwnProperty(i)) {
-      var $td = $('<td>' + i + '</td>');
+      var $td = $(`<td>${i}</td>`);
       if (state.geometryMode[i]) {
         $td.css('background-color', '#AFF4BB');
       }
@@ -3181,7 +3175,7 @@ function buildRDPTab() {
 
   var $table = $('<table class="table table-condensed" style="width: auto;"></table>');
   for (let [name, value] of vals) {
-    let $tr = $('<tr><td>' + name + '</td><td>' + value + '</td></tr>');
+    let $tr = $(`<tr><td>${name}</td><td>${value}</td></tr>`);
     $table.append($tr);
   }
   return $table;
@@ -3198,8 +3192,7 @@ function buildColorsTable() {
 
   var $table = $('<table class="table table-condensed" style="width: auto;"></table>');
   for (let color of colors) {
-    let row = $('<tr><td>' + color + '</td><td>' + makeColorTextRGBA(state[color]) +
-      '</td></tr>');
+    let row = $(`<tr><td>${color}</td><td>${makeColorTextRGBA(state[color])}</td></tr>`);
     $table.append(row);
   }
   return $table;
@@ -3254,7 +3247,7 @@ function buildTilesTable() {
   ];
 
   var $table = $('<table class="table table-condensed" style="width: auto"></table>');
-  var $tr = $('<tr><th>' + tile_fields.join('</th><th>') + '</th></tr>');
+  var $tr = $(`<tr><th>${tile_fields.join('</th><th>')}</th></tr>`);
   $table.append($tr);
 
   for (let i = 0; i < state.tiles.length; ++i) {
@@ -3283,7 +3276,7 @@ function buildTilesTable() {
     vals.push(tile.right);
     vals.push(tile.bottom);
 
-    $tr = $('<tr><td>' + vals.join('</td><td>') + '</td></tr>');
+    $tr = $(`<tr><td>${vals.join('</td><td>')}</td></tr>`);
     $table.append($tr);
   }
 
@@ -3306,7 +3299,7 @@ function buildVerticesTab() {
   ];
 
   var $table = $('<table class="table table-condensed dl-vertices-table" style="width: auto"></table>');
-  var $tr = $('<tr><th>' + vtx_fields.join('</th><th>') + '</th></tr>');
+  var $tr = $(`<tr><th>${vtx_fields.join('</th><th>')}</th></tr>`);
   $table.append($tr);
 
   for (let i = 0; i < state.projectedVertices.length; ++i) {
@@ -3332,7 +3325,7 @@ function buildVerticesTab() {
     vals.push(vtx.u.toFixed(3));
     vals.push(vtx.v.toFixed(3));
 
-    $tr = $('<tr><td>' + vals.join('</td><td>') + '</td></tr>');
+    $tr = $(`<tr><td>${vals.join('</td><td>')}</td></tr>`);
     $table.append($tr);
   }
 
@@ -3467,7 +3460,7 @@ function processDList(task, disassembler, bail_after) {
   }
 
   if (str !== last_ucode_str) {
-    logger.log('GFX: ' + graphicsTaskCount + ' - ' + str + ' = ucode ' + ucode);
+    logger.log(`GFX: ${graphicsTaskCount} - ${str} = ucode ${ucode}`);
   }
   last_ucode_str = str;
 
@@ -3566,7 +3559,7 @@ function resetState(ucode, ram, pc) {
 }
 
 function setScrubText(x, max) {
-  $dlistScrub.find('.scrub-text').html('uCode op ' + x + '/' + max + '.');
+  $dlistScrub.find('.scrub-text').html(`uCode op ${x}/${max}.`);
 }
 
 function setScrubRange(max) {
@@ -3582,7 +3575,7 @@ function setScrubTime(t) {
   debugBailAfter = t;
   setScrubText(debugBailAfter, debugNumOps);
 
-  var $instr = $dlistOutput.find('#I' + debugBailAfter);
+  var $instr = $dlistOutput.find(`#I${debugBailAfter}`);
 
   $dlistOutput.scrollTop($dlistOutput.scrollTop() + $instr.position().top -
     $dlistOutput.height() / 2 + $instr.height() / 2);
@@ -3776,7 +3769,7 @@ function lookupTexture(tileIdx) {
 
   // Check if the texture is already cached.
   // FIXME: we also need to check other properties (mirror, clamp etc), and recreate every frame (or when underlying data changes)
-  var cache_id = toString32(hash) + tile.lrs + '-' + tile.lrt;
+  var cache_id = `${toString32(hash) + tile.lrs}-${tile.lrt}`;
 
   var texture;
   if (textureCache.has(cache_id)) {
@@ -3802,10 +3795,7 @@ function decodeTexture(tile, tlutFormat) {
   }
 
   $textureOutput.append(
-    gbi.ImageFormat.nameOf(tile.format) + ', ' +
-    gbi.ImageSize.nameOf(tile.size) + ',' +
-    tile.width + 'x' + tile.height + ', ' +
-    '<br>');
+    `${gbi.ImageFormat.nameOf(tile.format)}, ${gbi.ImageSize.nameOf(tile.size)},${tile.width}x${tile.height}, <br>`);
 
   var ctx = texture.$canvas[0].getContext('2d');
   var imgData = ctx.createImageData(texture.nativeWidth, texture.nativeHeight);
@@ -3819,8 +3809,7 @@ function decodeTexture(tile, tlutFormat) {
     $textureOutput.append(texture.$canvas);
     $textureOutput.append('<br>');
   } else {
-    var msg = gbi.ImageFormat.nameOf(tile.format) + '/' +
-        gbi.ImageSize.nameOf(tile.size) + ' is unhandled';
+    var msg = `${gbi.ImageFormat.nameOf(tile.format)}/${gbi.ImageSize.nameOf(tile.size)} is unhandled`;
     $textureOutput.append(msg);
     // FIXME: fill with placeholder texture
     hleHalt(msg);
