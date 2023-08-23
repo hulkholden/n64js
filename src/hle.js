@@ -372,7 +372,10 @@ function moveMemLight(lightIdx, address) {
 
 function rdpSegmentAddress(addr) {
   var segment = (addr >>> 24) & 0xf;
-  return (state.segments[segment] & 0x00ffffff) + (addr & 0x00ffffff);
+  // TODO: this should probably mask against 0x00ff_ffff (same as SP_DRAM_ADDR_REG)
+  // but that can result in out of bounds accesses in some DataViews (e.g. Wetrix)
+  // which tries to load from 0x00f000ff. Really we should try to emulate SP DMA more accurately.
+  return (state.segments[segment] & 0x007fffff) + (addr & 0x007fffff);
 }
 
 function makeRGBFromRGBA16(col) {
@@ -842,13 +845,6 @@ function executeVertexImpl(v0, n, address, dis) {
   var light = state.geometryMode.lighting;
   var texgen = state.geometryMode.textureGen;
   var texgenlin = state.geometryMode.textureGenLinear;
-
-  if (address + n * 16 > 0x00800000) {
-    // Wetrix causes this. Not sure if it's a cpu emulation bug which is generating bad display lists?
-    //     hleHalt('Invalid address');
-    return;
-  }
-
   var dv = new DataView(ram_dv.buffer, address);
 
   if (dis) {
