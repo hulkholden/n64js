@@ -516,8 +516,19 @@ export function hleProcessRSPTask() {
   return handled;
 };
 
-function unimplemented(cmd0, cmd1) {
+function haltUnimplemented(cmd0, cmd1) {
   hleHalt(`Unimplemented display list op ${toString8(cmd0 >>> 24)}`);
+}
+
+// Map to keep track of which unimplemented ops we've already warned about.
+const loggedUnimplemented = new Map();
+
+function logUnimplemented(name) {
+  if (loggedUnimplemented.get(name)) {
+    return;
+  }
+  loggedUnimplemented.set(name, true);
+  n64js.warn(`${name} unimplemented`);
 }
 
 function executeUnknown(cmd0, cmd1) {
@@ -753,7 +764,7 @@ function executeGBI1_MoveWord(cmd0, cmd1, dis) {
 
   switch (type) {
     case gbi.MoveWord.G_MW_MATRIX:
-      unimplemented(cmd0, cmd1);
+      haltUnimplemented(cmd0, cmd1);
       break;
     case gbi.MoveWord.G_MW_NUMLIGHT:
       state.numLights = ((value - 0x80000000) >>> 5) - 1;
@@ -766,15 +777,15 @@ function executeGBI1_MoveWord(cmd0, cmd1, dis) {
     case gbi.MoveWord.G_MW_FOG:
       /*unimplemented(cmd0,cmd1);*/ break;
     case gbi.MoveWord.G_MW_LIGHTCOL:
-      unimplemented(cmd0, cmd1);
+      haltUnimplemented(cmd0, cmd1);
       break;
     case gbi.MoveWord.G_MW_POINTS:
-      unimplemented(cmd0, cmd1);
+      haltUnimplemented(cmd0, cmd1);
       break;
     case gbi.MoveWord.G_MW_PERSPNORM:
       /*unimplemented(cmd0,cmd1);*/ break;
     default:
-      unimplemented(cmd0, cmd1);
+      haltUnimplemented(cmd0, cmd1);
       break;
   }
 }
@@ -942,9 +953,13 @@ function executeVertexImpl(v0, n, address, dis) {
   }
 }
 
-function executeGBI1_Sprite2DBase(cmd0, cmd1) { unimplemented(cmd0, cmd1); }
+function executeGBI1_Sprite2DBase(cmd0, cmd1) {
+  logUnimplemented('executeGBI1_Sprite2DBase');
+}
 
-function executeGBI1_RDPHalf_Cont(cmd0, cmd1) { unimplemented(cmd0, cmd1); }
+function executeGBI1_RDPHalf_Cont(cmd0, cmd1) {
+  logUnimplemented('executeGBI1_RDPHalf_Cont');
+}
 
 function executeGBI1_RDPHalf_2(cmd0, cmd1, dis) {
   if (dis) {
@@ -2360,6 +2375,9 @@ const ucode_gbi2 = {
   0x06: executeGBI2_Tri2,
   0x07: executeGBI2_Quad,
   0x08: executeGBI2_Line3D,
+  0x09: executeGBI2_BgRect1Cyc,		
+  0x0a: executeGBI2_BgRectCopy,	
+  0x0b: executeGBI2_ObjRenderMode,
 
   // 0xd3: executeGBI2_Special1,
   // 0xd4: executeGBI2_Special2,
@@ -2452,7 +2470,9 @@ function executeGBI2_CullDL(cmd0, cmd1, dis) {
   executeGBI1_CullDL(cmd0, cmd1, dis);
 }
 
-function executeGBI2_BranchZ(cmd0, cmd1, dis) {}
+function executeGBI2_BranchZ(cmd0, cmd1, dis) {
+  logUnimplemented('executeGBI2_BranchZ')
+}
 
 function executeGBI2_Tri1(cmd0, cmd1, dis) {
   const kTriCommand = cmd0 >>> 24;
@@ -2558,7 +2578,45 @@ function executeGBI2_Quad(cmd0, cmd1, dis) {
   flushTris(numTris);
 }
 
-function executeGBI2_DmaIo(cmd0, cmd1, dis) {}
+function executeGBI2_Line3D(cmd0, cmd1, dis) {
+  logUnimplemented('executeGBI2_Line3D');
+
+  if (dis) {
+    dis.text(`gsSPLine3D(/* TODO */);`);
+  }
+}
+
+function executeGBI2_BgRect1Cyc(cmd0, cmd1, dis) {
+  logUnimplemented('executeGBI2_BgRect1Cyc');
+
+  if (dis) {
+    dis.text(`gsSPBgRect1Cyc(/* TODO */);`);
+  }
+}
+
+function executeGBI2_BgRectCopy(cmd0, cmd1, dis) {
+  logUnimplemented('executeGBI2_BgRectCopy');
+
+  if (dis) {
+    dis.text(`gsSPBgRectCopy(/* TODO */);`);
+  }
+}
+
+function executeGBI2_ObjRenderMode(cmd0, cmd1, dis) {
+  logUnimplemented('executeGBI2_ObjRenderMode');
+
+  if (dis) {
+    dis.text(`gsSPObjRenderMode(/* TODO */);`);
+  }
+}
+
+function executeGBI2_DmaIo(cmd0, cmd1, dis) {
+  // No-op?
+
+  if (dis) {
+    dis.text(`DmaIo(/* TODO */);`);
+  }
+}
 
 function executeGBI2_Texture(cmd0, cmd1, dis) {
   var xparam = (cmd0 >>> 16) & 0xff;
@@ -2698,7 +2756,7 @@ function executeGBI2_MoveWord(cmd0, cmd1, dis) {
     case gbi.MoveWord.G_MW_PERSPNORM:
       /*unimplemented(cmd0,cmd1);*/ break;
     default:
-      unimplemented(cmd0, cmd1);
+      haltUnimplemented(cmd0, cmd1);
       break;
   }
 }
@@ -2791,7 +2849,9 @@ function executeGBI2_MoveMem(cmd0, cmd1, dis) {
   }
 }
 
-function executeGBI2_LoadUcode(cmd0, cmd1, dis) {}
+function executeGBI2_LoadUcode(cmd0, cmd1, dis) {
+  logUnimplemented('executeGBI2_LoadUcode');
+}
 
 function executeGBI2_DL(cmd0, cmd1, dis) {
   var param = (cmd0 >>> 16) & 0xff;
@@ -2846,11 +2906,23 @@ function executeGBI2_SetOtherModeH(cmd0, cmd1, dis) {
   state.rdpOtherModeH = (state.rdpOtherModeH & ~mask) | data;
 }
 
-function executeGBI2_SpNoop(cmd0, cmd1, dis) {}
+function executeGBI2_SpNoop(cmd0, cmd1, dis) {
+  // No-op.
+}
 
-function executeGBI2_RDPHalf_1(cmd0, cmd1, dis) {}
+function executeGBI2_RDPHalf_1(cmd0, cmd1, dis) {
+  if (dis) {
+    dis.text(`gsImmp1(G_RDPHALF_1, ${toString32(cmd1)});`);
+  }
+  state.rdpHalf1 = cmd1;
+}
 
-function executeGBI2_RDPHalf_2(cmd0, cmd1, dis) {}
+function executeGBI2_RDPHalf_2(cmd0, cmd1, dis) {
+  if (dis) {
+    dis.text(`gsImmp1(G_RDPHALF_2, ${toString32(cmd1)});`);
+  }
+  state.rdpHalf2 = cmd1;
+}
 
 // var ucode_sprite2d = {
 //   0xbe: executeSprite2dScaleFlip,
