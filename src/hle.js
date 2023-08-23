@@ -2054,70 +2054,13 @@ const kBlendModeAlphaTrans = 1;
 const kBlendModeFade = 2;
 
 function setProgramState(positions, colours, coords, texture, tex_gen_enabled) {
-  // fragment coverage (0) or alpha (1)?
-  var cvg_x_alpha = getCoverageTimesAlpha();
-  // use fragment coverage * fragment alpha
-  var alpha_cvg_sel = getAlphaCoverageSelect();
-
-  var cycle_type = getCycleType();
-  if (cycle_type == gbi.CycleType.G_CYC_1CYCLE || cycle_type == gbi.CycleType.G_CYC_2CYCLE) {
-    var blend_mode = state.rdpOtherModeL >> gbi.G_MDSFT_BLENDER;
-    var active_blend_mode = (cycle_type === gbi.CycleType.G_CYC_2CYCLE ? blend_mode : (blend_mode >>> 2)) & 0x3333;
-    var mode = kBlendModeOpaque;
-
-    switch (active_blend_mode) {
-      case 0x0000: //G_BL_CLR_IN,G_BL_A_IN,G_BL_CLR_IN,G_BL_1MA
-        mode = kBlendModeOpaque;
-        break;
-      case 0x0010: //G_BL_CLR_IN,G_BL_A_IN,G_BL_CLR_MEM,G_BL_1MA
-      case 0x0011: //G_BL_CLR_IN,G_BL_A_IN,G_BL_CLR_MEM,G_BL_A_MEM
-        // These modes either do a weighted sum of coverage (or coverage and alpha) or a plain alpha blend
-        // If alpha_cvg_sel is 0, or if we're multiplying by fragment alpha, then we have alpha to blend with.
-        if (!alpha_cvg_sel || cvg_x_alpha) {
-          mode = kBlendModeAlphaTrans;
-        }
-        break;
-
-      case 0x0110: //G_BL_CLR_IN,G_BL_A_FOG,G_BL_CLR_MEM,G_BL_1MA, alpha_cvg_sel:false cvg_x_alpha:false
-        // FIXME: this needs to blend the input colour with the fog alpha, but we don't compute this yet.
-        mode = kBlendModeOpaque;
-        break;
-
-      case 0x0302: //G_BL_CLR_IN,G_BL_0,G_BL_CLR_IN,G_BL_1
-        // This blend mode doesn't use the alpha value
-        mode = kBlendModeOpaque;
-        break;
-      case 0x0310: //G_BL_CLR_IN,G_BL_0,G_BL_CLR_MEM,G_BL_1MA, alpha_cvg_sel:false cvg_x_alpha:false
-        mode = kBlendModeFade;
-        break;
-
-      default:
-        logger.log(toString16(active_blend_mode) + ' : ' + gbi.blendOpText(active_blend_mode) +
-          ', alpha_cvg_sel:' + alpha_cvg_sel + ', cvg_x_alpha:' + cvg_x_alpha);
-        mode = kBlendModeOpaque;
-        break;
-    }
-
-    if (mode == kBlendModeAlphaTrans) {
-      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-      gl.blendEquation(gl.FUNC_ADD);
-      gl.enable(gl.BLEND);
-    } else if (mode == kBlendModeFade) {
-      gl.blendFunc(gl.ZERO, gl.ONE_MINUS_SRC_ALPHA);
-      gl.blendEquation(gl.FUNC_ADD);
-      gl.enable(gl.BLEND);
-    } else {
-      gl.disable(gl.BLEND);
-    }
-  } else {
-    // No blending in copy/fill modes, although we do alpha thresholding below
-    gl.disable(gl.BLEND);
-  }
+  setGLBlendMode();
 
   var alpha_threshold = -1.0;
 
   if ((getAlphaCompareType() === gbi.AlphaCompare.G_AC_THRESHOLD)) {
     // If using cvg, then there's no alpha value to work with
+    const alpha_cvg_sel = getAlphaCoverageSelect();
     if (!alpha_cvg_sel) {
       alpha_threshold = ((state.blendColor >>> 0) & 0xff) / 255.0;
     }
@@ -2128,7 +2071,8 @@ function setProgramState(positions, colours, coords, texture, tex_gen_enabled) {
     // sceGuEnable(GU_ALPHA_TEST);
   }
 
-  var shader = getCurrentN64Shader(cycle_type, alpha_threshold);
+  var cycleType = getCycleType();
+  var shader = getCurrentN64Shader(cycleType, alpha_threshold);
   gl.useProgram(shader.program);
 
   // aVertexPosition
@@ -2199,6 +2143,71 @@ function setProgramState(positions, colours, coords, texture, tex_gen_enabled) {
     ((state.envColor >>> 16) & 0xff) / 255.0,
     ((state.envColor >>> 8) & 0xff) / 255.0,
     ((state.envColor >>> 0) & 0xff) / 255.0);
+}
+
+function setGLBlendMode() {
+  // fragment coverage (0) or alpha (1)?
+  const cvgXAlpha = getCoverageTimesAlpha();
+  // use fragment coverage * fragment alpha
+  const alphaCvgSel = getAlphaCoverageSelect();
+
+  const cycleType = getCycleType();
+  if (cycleType == gbi.CycleType.G_CYC_FILL || cycleType == gbi.CycleType.G_CYC_COPY) {
+    // No blending in copy/fill modes, although they may set up alpha thresholding in the shader.
+    gl.disable(gl.BLEND);
+    return;
+  }
+
+  const blendMode = state.rdpOtherModeL >> gbi.G_MDSFT_BLENDER;
+  const activeBlendMode = (cycleType === gbi.CycleType.G_CYC_2CYCLE ? blendMode : (blendMode >>> 2)) & 0x3333;
+  let mode = kBlendModeOpaque;
+
+  switch (activeBlendMode) {
+    case 0x0000: //G_BL_CLR_IN,G_BL_A_IN,G_BL_CLR_IN,G_BL_1MA
+      mode = kBlendModeOpaque;
+      break;
+    case 0x0010: //G_BL_CLR_IN,G_BL_A_IN,G_BL_CLR_MEM,G_BL_1MA
+    case 0x0011: //G_BL_CLR_IN,G_BL_A_IN,G_BL_CLR_MEM,G_BL_A_MEM
+      // These modes either do a weighted sum of coverage (or coverage and alpha) or a plain alpha blend
+      // If alpha_cvg_sel is 0, or if we're multiplying by fragment alpha, then we have alpha to blend with.
+      if (!alphaCvgSel || cvgXAlpha) {
+        mode = kBlendModeAlphaTrans;
+      }
+      break;
+
+    case 0x0110: //G_BL_CLR_IN,G_BL_A_FOG,G_BL_CLR_MEM,G_BL_1MA, alpha_cvg_sel:false cvg_x_alpha:false
+      // FIXME: this needs to blend the input colour with the fog alpha, but we don't compute this yet.
+      mode = kBlendModeOpaque;
+      break;
+
+    case 0x0302: //G_BL_CLR_IN,G_BL_0,G_BL_CLR_IN,G_BL_1
+      // This blend mode doesn't use the alpha value
+      mode = kBlendModeOpaque;
+      break;
+    case 0x0310: //G_BL_CLR_IN,G_BL_0,G_BL_CLR_MEM,G_BL_1MA, alpha_cvg_sel:false cvg_x_alpha:false
+      mode = kBlendModeFade;
+      break;
+
+    default:
+      logger.log(`${toString16(activeBlendMode)} : ${gbi.blendOpText(activeBlendMode)}, alphaCvgSel:${alphaCvgSel}, cvgXAlpha:${cvgXAlpha}`);
+      mode = kBlendModeOpaque;
+      break;
+  }
+
+  switch (mode) {
+    case kBlendModeAlphaTrans:
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      gl.blendEquation(gl.FUNC_ADD);
+      gl.enable(gl.BLEND);
+      break;
+    case kBlendModeFade:
+      gl.blendFunc(gl.ZERO, gl.ONE_MINUS_SRC_ALPHA);
+      gl.blendEquation(gl.FUNC_ADD);
+      gl.enable(gl.BLEND);
+      break;
+    default:
+      gl.disable(gl.BLEND);
+  }
 }
 
 function flushTris(numTris) {
