@@ -1699,8 +1699,7 @@ function executeFillRect(cmd0, cmd1, dis) {
     x1 += 1;
     y1 += 1;
   }
-  //color.r = Math.random();
-  color.a = 1.0;
+
   fillRect(x0, y0, x1, y1, color);
 }
 
@@ -2215,6 +2214,8 @@ function flushTris(numTris) {
 }
 
 function fillRect(x0, y0, x1, y1, color) {
+  setGLBlendMode();
+
   // multiply by state.viewport.trans/scale
   var screen0 = canvasTransform.convertN64ToCanvas([x0, y0]);
   var screen1 = canvasTransform.convertN64ToCanvas([x1, y1]);
@@ -2240,10 +2241,9 @@ function fillRect(x0, y0, x1, y1, color) {
   // uFillColor
   gl.uniform4f(fill_uFillColor, color.r, color.g, color.b, color.a);
 
-  // Disable depth testing
-  gl.disable(gl.DEPTH_TEST);
+  // Disable culling and depth testing.
   gl.disable(gl.CULL_FACE);
-  gl.disable(gl.BLEND);
+  gl.disable(gl.DEPTH_TEST);
   gl.depthMask(false);
 
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
