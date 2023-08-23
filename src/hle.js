@@ -11,6 +11,7 @@ import { Vector4 } from './graphics/Vector4.js';
 import { convertTexels } from './graphics/convert.js';
 import * as shaders from './graphics/shaders.js';
 import { Texture, clampTexture } from './graphics/textures.js';
+import * as disassemble from './hle/disassemble.js';
 
 window.n64js = window.n64js || {};
 
@@ -975,102 +976,6 @@ function executeGBI1_SetGeometryMode(cmd0, cmd1, dis) {
   updateGeometryModeFromBits(gbi.GeometryModeGBI1);
 }
 
-function disassembleSetOtherModeL(dis, len, shift, data) {
-  var dataStr = toString32(data);
-  var shiftStr = gbi.getOtherModeLShiftCountName(shift);
-  var text = `gsSPSetOtherMode(G_SETOTHERMODE_L, ${shiftStr}, ${len}, ${dataStr});`;
-
-  // Override generic text with specific functions if known
-  switch (shift) {
-    case gbi.G_MDSFT_ALPHACOMPARE:
-      if (len === 2) {
-        text = `gsDPSetAlphaCompare(${gbi.AlphaCompare.nameOf(data)});`;
-      }
-      break;
-    case gbi.G_MDSFT_ZSRCSEL:
-      if (len === 1) {
-        text = `gsDPSetDepthSource(${gbi.DepthSource.nameOf(data)});`;
-      }
-      break;
-    case gbi.G_MDSFT_RENDERMODE:
-      if (len === 29) {
-        text = `gsDPSetRenderMode(${gbi.getRenderModeText(data)});`;
-      }
-      break;
-      //case gbi.G_MDSFT_BLENDER:     break; // set with G_MDSFT_RENDERMODE
-  }
-  dis.text(text);
-}
-
-function disassembleSetOtherModeH(dis, len, shift, data) {
-  var shiftStr = gbi.getOtherModeHShiftCountName(shift);
-  var dataStr = toString32(data);
-  var text = `gsSPSetOtherMode(G_SETOTHERMODE_H, ${shiftStr}, ${len}, ${dataStr});`;
-
-  // Override generic text with specific functions if known
-  switch (shift) {
-    case gbi.G_MDSFT_BLENDMASK:
-      break;
-    case gbi.G_MDSFT_ALPHADITHER:
-      if (len === 2) {
-        text = `gsDPSetAlphaDither(${gbi.AlphaDither.nameOf(data)});`;
-      }
-      break;
-    case gbi.G_MDSFT_RGBDITHER:
-      if (len === 2) {
-        text = `gsDPSetColorDither(${gbi.ColorDither.nameOf(data)});`;
-      }
-      break; // NB HW2?
-    case gbi.G_MDSFT_COMBKEY:
-      if (len === 1) {
-        text = `gsDPSetCombineKey(${gbi.CombineKey.nameOf(data)});`;
-      }
-      break;
-    case gbi.G_MDSFT_TEXTCONV:
-      if (len === 3) {
-        text = `gsDPSetTextureConvert(${gbi.TextureConvert.nameOf(data)});`;
-      }
-      break;
-    case gbi.G_MDSFT_TEXTFILT:
-      if (len === 2) {
-        text = `gsDPSetTextureFilter(${gbi.TextureFilter.nameOf(data)});`;
-      }
-      break;
-    case gbi.G_MDSFT_TEXTLOD:
-      if (len === 1) {
-        text = `gsDPSetTextureLOD(${gbi.TextureLOD.nameOf(data)});`;
-      }
-      break;
-    case gbi.G_MDSFT_TEXTLUT:
-      if (len === 2) {
-        text = `gsDPSetTextureLUT(${gbi.TextureLUT.nameOf(data)});`;
-      }
-      break;
-    case gbi.G_MDSFT_TEXTDETAIL:
-      if (len === 2) {
-        text = `gsDPSetTextureDetail(${gbi.TextureDetail.nameOf(data)});`;
-      }
-      break;
-    case gbi.G_MDSFT_TEXTPERSP:
-      if (len === 1) {
-        text = `gsDPSetTexturePersp(${gbi.TexturePerspective.nameOf(data)});`;
-      }
-      break;
-    case gbi.G_MDSFT_CYCLETYPE:
-      if (len === 2) {
-        text = `gsDPSetCycleType(${gbi.CycleType.nameOf(data)});`;
-      }
-      break;
-    // case gbi.G_MDSFT_COLORDITHER: if (len === 1) text = `gsDPSetColorDither(${dataStr});`; break;  // NB HW1?
-    case gbi.G_MDSFT_PIPELINE:
-      if (len === 1) {
-        text = `gsDPPipelineMode(${gbi.PipelineMode.nameOf(data)});`;
-      }
-      break;
-  }
-  dis.text(text);
-}
-
 function executeGBI1_SetOtherModeL(cmd0, cmd1, dis) {
   var shift = (cmd0 >>> 8) & 0xff;
   var len = (cmd0 >>> 0) & 0xff;
@@ -1078,7 +983,7 @@ function executeGBI1_SetOtherModeL(cmd0, cmd1, dis) {
   var mask = ((1 << len) - 1) << shift;
 
   if (dis) {
-    disassembleSetOtherModeL(dis, len, shift, data);
+    disassemble.SetOtherModeL(dis, len, shift, data);
   }
 
   state.rdpOtherModeL = (state.rdpOtherModeL & ~mask) | data;
@@ -1091,7 +996,7 @@ function executeGBI1_SetOtherModeH(cmd0, cmd1, dis) {
   var mask = ((1 << len) - 1) << shift;
 
   if (dis) {
-    disassembleSetOtherModeH(dis, len, shift, data);
+    disassemble.SetOtherModeH(dis, len, shift, data);
   }
 
   state.rdpOtherModeH = (state.rdpOtherModeH & ~mask) | data;
@@ -2922,7 +2827,7 @@ function executeGBI2_SetOtherModeL(cmd0, cmd1, dis) {
   var mask = (0x80000000 >> len) >>> shift; // NB: only difference to GBI1 is how the mask is constructed
 
   if (dis) {
-    disassembleSetOtherModeL(dis, len, shift, data);
+    disassemble.SetOtherModeL(dis, len, shift, data);
   }
 
   state.rdpOtherModeL = (state.rdpOtherModeL & ~mask) | data;
@@ -2935,7 +2840,7 @@ function executeGBI2_SetOtherModeH(cmd0, cmd1, dis) {
   var mask = (0x80000000 >> len) >>> shift; // NB: only difference to GBI1 is how the mask is constructed
 
   if (dis) {
-    disassembleSetOtherModeH(dis, len, shift, data);
+    disassemble.SetOtherModeH(dis, len, shift, data);
   }
 
   state.rdpOtherModeH = (state.rdpOtherModeH & ~mask) | data;
