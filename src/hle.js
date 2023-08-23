@@ -1210,11 +1210,7 @@ function executeTri4_GBI0(cmd0, cmd1, dis) {
     var v01_idx = ((cmd1 >>> 0) & 0xf);
 
     if (dis) {
-      dis.text('gsSP1Triangle4(' +
-        v00_idx + ',' + v01_idx + ',' + v02_idx + ', ' +
-        v03_idx + ',' + v04_idx + ',' + v05_idx + ', ' +
-        v06_idx + ',' + v07_idx + ',' + v08_idx + ', ' +
-        v09_idx + ',' + v10_idx + ',' + v11_idx + ');');
+      dis.text(`gsSP1Triangle4(${v00_idx},${v01_idx},${v02_idx}, ${v03_idx},${v04_idx},${v05_idx}, ${v06_idx},${v07_idx},${v08_idx}, ${v09_idx},${v10_idx},${v11_idx});`);
     }
 
     if (v00_idx !== v01_idx) {
@@ -1264,8 +1260,7 @@ function executeGBI1_Tri2(cmd0, cmd1, dis) {
     var v5idx = ((cmd1 >>> 0) & 0xff) / stride;
 
     if (dis) {
-      dis.text('gsSP1Triangle2(' + v0idx + ',' + v1idx + ',' + v2idx + ', ' +
-        v3idx + ',' + v4idx + ',' + v5idx + ');');
+      dis.text(`gsSP1Triangle2(${v0idx},${v1idx},${v2idx}, ${v3idx},${v4idx},${v5idx});`);
     }
 
     triangleBuffer.pushTri(verts[v0idx], verts[v1idx], verts[v2idx], numTris + 0);
@@ -1302,7 +1297,7 @@ function executeGBI1_Line3D(cmd0, cmd1, dis) {
     var v2idx = ((cmd1 >>> 0) & 0xff) / stride;
 
     if (dis) {
-      dis.text('gsSPLine3D(' + v0idx + ', ' + v1idx + ', ' + v2idx + ', ' + v3idx + ');');
+      dis.text(`gsSPLine3D(${v0idx}, ${v1idx}, ${v2idx}, ${v3idx});`);
     }
 
     // Tamagotchi World 64 seems to trigger this. 
@@ -1360,8 +1355,7 @@ function executeSetScissor(cmd0, cmd1, dis) {
   var mode = (cmd1 >>> 24) & 0x2;
 
   if (dis) {
-    dis.text('gsDPSetScissor(' + gbi.ScissorMode.nameOf(mode) + ', ' + x0 + ', ' + y0 +
-      ', ' + x1 + ', ' + y1 + ');');
+    dis.text(`gsDPSetScissor(${gbi.ScissorMode.nameOf(mode)}, ${x0}, ${y0}, ${x1}, ${y1});`);
   }
 
   state.scissor.x0 = x0;
@@ -1377,7 +1371,7 @@ function executeSetPrimDepth(cmd0, cmd1, dis) {
   var z = (cmd1 >>> 16) & 0xffff;
   var dz = (cmd1) & 0xffff;
   if (dis) {
-    dis.text('gsDPSetPrimDepth(' + z + ',' + dz + ');');
+    dis.text(`gsDPSetPrimDepth(${z},${dz});`);
   }
 
   // FIXME
@@ -1434,7 +1428,7 @@ function executeLoadBlock(cmd0, cmd1, dis) {
 
   if (dis) {
     var tt = gbi.getTileText(tileIdx);
-    dis.text('gsDPLoadBlock(' + tt + ', ' + uls + ', ' + ult + ', ' + lrs + ', ' + dxt + ');');
+    dis.text(`gsDPLoadBlock(${tt}, ${uls}, ${ult}, ${lrs}, ${dxt});`);
   }
 
   // Docs reckon these are ignored for all loadBlocks
@@ -1507,12 +1501,7 @@ function executeLoadTile(cmd0, cmd1, dis) {
 
   if (dis) {
     var tt = gbi.getTileText(tileIdx);
-    dis.text('gsDPLoadTile(' + tt + ', ' +
-        (uls / 4) + ', ' + (ult / 4) + ', ' +
-        (lrs / 4) + ', ' + (lrt / 4) + '); ' +
-        '// ' +
-        '(' + (uls / 4) + ',' + (ult / 4) + '), (' +
-        ((lrs / 4) + 1) + ',' + ((lrt / 4) + 1) + ')');
+    dis.text(`gsDPLoadTile(${tt}, ${uls / 4}, ${ult / 4}, ${lrs / 4}, ${lrt / 4}); // (${uls / 4},${ult / 4}), (${(lrs / 4) + 1},${(lrt / 4) + 1})`);
   }
 
   var tile = state.tiles[tileIdx];
@@ -1580,9 +1569,8 @@ function executeLoadTLut(cmd0, cmd1, dis) {
   var lrt = (cmd1 >>> 0) & 0xfff;
 
   if (dis) {
-    var tt = gbi.getTileText(tileIdx);
-    dis.text('gsDPLoadTLUTCmd(' + tt + ', ' + count + '); //' +
-      uls + ', ' + ult + ', ' + lrs + ', ' + lrt);
+    const tt = gbi.getTileText(tileIdx);
+    dis.text(`gsDPLoadTLUTCmd(${tt}, ${count}); //${uls}, ${ult}, ${lrs}, ${lrt}`);
   }
 
   // Tlut fmt is sometimes wrong (in 007) and is set after tlut load, but
@@ -1629,16 +1617,13 @@ function executeSetTile(cmd0, cmd1, dis) {
   var shift_s = (cmd1 >>> 0) & 0xf;
 
   if (dis) {
-    var cm_s_text = gbi.getClampMirrorWrapText(cm_s);
-    var cm_t_text = gbi.getClampMirrorWrapText(cm_t);
+    const fmtText = gbi.ImageFormat.nameOf(format);
+    const sizeText = gbi.ImageSize.nameOf(size);
+    const tileText = gbi.getTileText(tileIdx);
+    const cmsText = gbi.getClampMirrorWrapText(cm_s);
+    const cmtText = gbi.getClampMirrorWrapText(cm_t);
 
-    dis.text('gsDPSetTile(' +
-      gbi.ImageFormat.nameOf(format) + ', ' +
-      gbi.ImageSize.nameOf(size) + ', ' +
-      line + ', ' + tmem + ', ' + gbi.getTileText(tileIdx) + ', ' +
-      palette + ', ' +
-      cm_t_text + ', ' + mask_t + ', ' + shift_t + ', ' +
-      cm_s_text + ', ' + mask_s + ', ' + shift_s + ');');
+    dis.text(`gsDPSetTile(${fmtText}, ${sizeText}, ${line}, ${tmem}, ${tileText}, ${palette}, ${cmtText}, ${mask_t}, ${shift_t}, ${cmsText}, ${mask_s}, ${shift_s});`);
   }
 
   var tile = state.tiles[tileIdx];
@@ -1665,11 +1650,7 @@ function executeSetTileSize(cmd0, cmd1, dis) {
 
   if (dis) {
     var tt = gbi.getTileText(tileIdx);
-    dis.text('gsDPSetTileSize(' + tt + ', ' +
-      uls + ', ' + ult + ', ' +
-      lrs + ', ' + lrt + '); // ' +
-      '(' + (uls / 4) + ',' + (ult / 4) + '), ' +
-      '(' + ((lrs / 4) + 1) + ',' + ((lrt / 4) + 1) + ')');
+    dis.text(`gsDPSetTileSize(${tt}, ${uls}, ${ult}, ${lrs}, ${lrt}); // (${uls / 4},${ult / 4}), (${(lrs / 4) + 1},${(lrt / 4) + 1})`);
   }
 
   var tile = state.tiles[tileIdx];
@@ -1688,7 +1669,7 @@ function executeFillRect(cmd0, cmd1, dis) {
   var y1 = ((cmd0 >>> 0) & 0xfff) >>> 2;
 
   if (dis) {
-    dis.text('gsDPFillRectangle(' + x0 + ', ' + y0 + ', ' + x1 + ', ' + y1 + ');');
+    dis.text(`gsDPFillRectangle(${x0}, ${y0}, ${x1}, ${y1});`);
   }
 
   if (state.depthImage.address == state.colorImage.address) {
@@ -1817,7 +1798,7 @@ function executeTexRectFlip(cmd0, cmd1) {
 function executeSetFillColor(cmd0, cmd1, dis) {
   if (dis) {
     // Can be 16 or 32 bit
-    dis.text('gsDPSetFillColor(' + makeColorTextRGBA(cmd1) + ');');
+    dis.text(`gsDPSetFillColor(${makeColorTextRGBA(cmd1)});`);
   }
   state.fillColor = cmd1;
 }
@@ -1829,7 +1810,7 @@ function executeSetFogColor(cmd0, cmd1, dis) {
     var b = (cmd1 >>> 8) & 0xff;
     var a = (cmd1 >>> 0) & 0xff;
 
-    dis.text('gsDPSetFogColor(' + makeColorTextRGBA(cmd1) + ');');
+    dis.text(`gsDPSetFogColor(${makeColorTextRGBA(cmd1)});`);
   }
   state.fogColor = cmd1;
 }
@@ -1841,7 +1822,7 @@ function executeSetBlendColor(cmd0, cmd1, dis) {
     var b = (cmd1 >>> 8) & 0xff;
     var a = (cmd1 >>> 0) & 0xff;
 
-    dis.text('gsDPSetBlendColor(' + makeColorTextRGBA(cmd1) + ');');
+    dis.text(`gsDPSetBlendColor(${makeColorTextRGBA(cmd1)});`);
   }
   state.blendColor = cmd1;
 }
@@ -1855,7 +1836,7 @@ function executeSetPrimColor(cmd0, cmd1, dis) {
     var b = (cmd1 >>> 8) & 0xff;
     var a = (cmd1 >>> 0) & 0xff;
 
-    dis.text('gsDPSetPrimColor(' + m + ', ' + l + ', ' + makeColorTextRGBA(cmd1) + ');');
+    dis.text(`gsDPSetPrimColor(${m}, ${l}, ${makeColorTextRGBA(cmd1)});`);
   }
   // minlevel, primlevel ignored!
   state.primColor = cmd1;
@@ -1868,7 +1849,7 @@ function executeSetEnvColor(cmd0, cmd1, dis) {
     var b = (cmd1 >>> 8) & 0xff;
     var a = (cmd1 >>> 0) & 0xff;
 
-    dis.text('gsDPSetEnvColor(' + makeColorTextRGBA(cmd1) + ');');
+    dis.text(`gsDPSetEnvColor(${makeColorTextRGBA(cmd1)});`);
   }
   state.envColor = cmd1;
 }
@@ -1880,8 +1861,7 @@ function executeSetCombine(cmd0, cmd1, dis) {
     var mux1 = cmd1;
     var decoded = shaders.getCombinerText(mux0, mux1);
 
-    dis.text('gsDPSetCombine(' + toString32(mux0) + ', ' + toString32(mux1) + ');' + '\n' +
-      decoded);
+    dis.text(`gsDPSetCombine(${toString32(mux0)}, ${toString32(mux1)});\n${decoded}`);
   }
 
   state.combine.hi = cmd0 & 0x00ffffff;
@@ -1895,8 +1875,7 @@ function executeSetTImg(cmd0, cmd1, dis) {
   var address = rdpSegmentAddress(cmd1);
 
   if (dis) {
-    dis.text('gsDPSetTextureImage(' + gbi.ImageFormat.nameOf(format) + ', ' +
-      gbi.ImageSize.nameOf(size) + ', ' + width + ', ' + toString32(address) + ');');
+    dis.text(`gsDPSetTextureImage(${gbi.ImageFormat.nameOf(format)}, ${gbi.ImageSize.nameOf(size)}, ${width}, ${toString32(address)});`);
   }
 
   state.textureImage = {
@@ -1911,7 +1890,7 @@ function executeSetZImg(cmd0, cmd1, dis) {
   var address = rdpSegmentAddress(cmd1);
 
   if (dis) {
-    dis.text('gsDPSetDepthImage(' + toString32(address) + ');');
+    dis.text(`gsDPSetDepthImage(${toString32(address)});`);
   }
 
   state.depthImage.address = address;
@@ -1924,10 +1903,7 @@ function executeSetCImg(cmd0, cmd1, dis) {
   var address = rdpSegmentAddress(cmd1);
 
   if (dis) {
-    dis.text('gsDPSetColorImage(' +
-      gbi.ImageFormat.nameOf(format) + ', ' +
-      gbi.ImageSize.nameOf(size) + ', ' +
-      width + ', ' + toString32(address) + ');');
+    dis.text(`gsDPSetColorImage(${gbi.ImageFormat.nameOf(format)}, ${gbi.ImageSize.nameOf(size)}, ${width}, ${toString32(address)});`);
   }
 
   state.colorImage = {
@@ -1945,7 +1921,7 @@ function executeGBI0_Vertex(cmd0, cmd1, dis) {
   var address = rdpSegmentAddress(cmd1);
 
   if (dis) {
-    dis.text('gsSPVertex(' + toString32(address) + ', ' + n + ', ' + v0 + ');');
+    dis.text(`gsSPVertex(${toString32(address)}, ${n}, ${v0});`);
   }
 
   executeVertexImpl(v0, n, address, dis);
@@ -1958,7 +1934,7 @@ function executeVertex_GBI0_WR(cmd0, cmd1, dis) {
   var address = rdpSegmentAddress(cmd1);
 
   if (dis) {
-    dis.text('gsSPVertex(' + toString32(address) + ', ' + n + ', ' + v0 + ');');
+    dis.text(`gsSPVertex(${toString32(address)}, ${n}, ${v0});`);
   }
 
   executeVertexImpl(v0, n, address, dis);
@@ -1971,7 +1947,7 @@ function executeGBI1_Vertex(cmd0, cmd1, dis) {
   var address = rdpSegmentAddress(cmd1);
 
   if (dis) {
-    dis.text('gsSPVertex(' + toString32(address) + ', ' + n + ', ' + v0 + ');');
+    dis.text(`gsSPVertex(${toString32(address)}, ${n}, ${v0});`);
   }
 
   executeVertexImpl(v0, n, address, dis);
