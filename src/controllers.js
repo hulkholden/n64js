@@ -21,25 +21,25 @@ const CONT_RTC_READ = 0x07;
 const CONT_RTC_WRITE = 0x08;
 const CONT_RESET = 0xff;
 
-const CONT_TX_SIZE_CHANSKIP = 0x00;         // Channel Skip
-const CONT_TX_SIZE_DUMMYDATA = 0xFF;         // Dummy Data
-const CONT_TX_SIZE_FORMAT_END = 0xFE;         // Format End
-const CONT_TX_SIZE_CHANRESET = 0xFD;         // Channel Reset
+const CONT_TX_SIZE_CHANSKIP = 0x00;  // Channel Skip
+const CONT_TX_SIZE_DUMMYDATA = 0xFF;  // Dummy Data
+const CONT_TX_SIZE_FORMAT_END = 0xFE;  // Format End
+const CONT_TX_SIZE_CHANRESET = 0xFD;  // Channel Reset
 
-const kButtonA      = 0x8000;
-const kButtonB      = 0x4000;
-const kButtonZ      = 0x2000;
-const kButtonStart  = 0x1000;
-const kButtonJUp    = 0x0800;
-const kButtonJDown  = 0x0400;
-const kButtonJLeft  = 0x0200;
+const kButtonA = 0x8000;
+const kButtonB = 0x4000;
+const kButtonZ = 0x2000;
+const kButtonStart = 0x1000;
+const kButtonJUp = 0x0800;
+const kButtonJDown = 0x0400;
+const kButtonJLeft = 0x0200;
 const kButtonJRight = 0x0100;
 
-const kButtonL      = 0x0020;
-const kButtonR      = 0x0010;
-const kButtonCUp    = 0x0008;
-const kButtonCDown  = 0x0004;
-const kButtonCLeft  = 0x0002;
+const kButtonL = 0x0020;
+const kButtonR = 0x0010;
+const kButtonCUp = 0x0008;
+const kButtonCDown = 0x0004;
+const kButtonCLeft = 0x0002;
 const kButtonCRight = 0x0001;
 
 export class Controllers {
@@ -53,11 +53,11 @@ export class Controllers {
       { buttons: 0, stick_x: 0, stick_y: 0, present: true, mempack: false },
     ];
 
-    this.mempack_memory = [
-      new Uint8Array(0x400 * 32),
-      new Uint8Array(0x400 * 32),
-      new Uint8Array(0x400 * 32),
-      new Uint8Array(0x400 * 32)
+    this.mempacks = [
+      new Uint8Array(32 * 1024),
+      new Uint8Array(32 * 1024),
+      new Uint8Array(32 * 1024),
+      new Uint8Array(32 * 1024)
     ];
 
     this.rumblePakActive = false;
@@ -138,7 +138,7 @@ export class Controllers {
       // 0-3: controller channels
       if (channel < PC_EEPROM) {
         // copy controller status
-        if (!this.processController(cmd, channel)) {
+        if (!this.processController(channel, cmd)) {
           count = 64;
           break;
         }
@@ -152,7 +152,6 @@ export class Controllers {
         n64js.halt('Trying to read from invalid controller channel ' + channel + '!');
         return;
       }
-
       channel++;
       count += cmd[0] + (cmd[1] & 0x3f) + 2;
     }
@@ -160,8 +159,9 @@ export class Controllers {
     pi_ram[63] = 0;
   }
 
-  processController(cmd, channel) {
-    if (!this.controllers[channel].present) {
+  processController(channel, cmd) {
+    const controller = this.controllers[channel];
+    if (!controller.present) {
       cmd[1] |= 0x80;
       cmd[3] = 0xff;
       cmd[4] = 0xff;
@@ -176,14 +176,13 @@ export class Controllers {
       case CONT_GET_STATUS:
         cmd[3] = 0x05;
         cmd[4] = 0x00;
-        cmd[5] = this.controllers[channel].mempack ? 0x01 : 0x00;
+        cmd[5] = controller.mempack ? 0x01 : 0x00;
         break;
 
       case CONT_READ_CONTROLLER:
-
-        buttons = this.controllers[channel].buttons;
-        stick_x = this.controllers[channel].stick_x;
-        stick_y = this.controllers[channel].stick_y;
+        buttons = controller.buttons;
+        stick_x = controller.stick_x;
+        stick_y = controller.stick_y;
 
         if (syncInput) {
           syncInput.sync32(0xbeeff00d, 'input');
@@ -202,14 +201,14 @@ export class Controllers {
         if (this.enableRumble) {
           this.commandReadRumblePack(cmd);
         } else {
-          this.commandReadMemPack(cmd, channel);
+          this.commandReadMemPack(channel, cmd);
         }
         return false;
       case CONT_WRITE_MEMPACK:
         if (this.enableRumble) {
           this.commandWriteRumblePack(cmd);
         } else {
-          this.commandWriteMemPack(cmd, channel);
+          this.commandWriteMemPack(channel, cmd);
         }
         return false;
       default:
@@ -232,20 +231,24 @@ export class Controllers {
         break;
 
       case CONT_READ_EEPROM:
-        offset = cmd[3] * 8;
-        logger.log('Reading from eeprom+' + offset);
-        for (i = 0; i < 8; ++i) {
-          cmd[4 + i] = this.hardware.eeprom.u8[offset + i];
+        {
+          const offset = cmd[3] * 8;
+          logger.log('Reading from eeprom+' + offset);
+          for (let i = 0; i < 8; ++i) {
+            cmd[4 + i] = this.hardware.eeprom.u8[offset + i];
+          }
         }
         break;
 
       case CONT_WRITE_EEPROM:
-        offset = cmd[3] * 8;
-        logger.log('Writing to eeprom+' + offset);
-        for (i = 0; i < 8; ++i) {
-          this.hardware.eeprom.u8[offset + i] = cmd[4 + i];
+        {
+          const offset = cmd[3] * 8;
+          logger.log('Writing to eeprom+' + offset);
+          for (let i = 0; i < 8; ++i) {
+            this.hardware.eeprom.u8[offset + i] = cmd[4 + i];
+          }
+          this.hardware.eepromDirty = true;
         }
-        this.hardware.eepromDirty = true;
         break;
 
       // RTC credit: Mupen64 source
@@ -295,12 +298,11 @@ export class Controllers {
     return c;
   }
 
-  commandReadMemPack(cmd, channel) {
-    var addr = ((cmd[3] << 8) | cmd[4]);
-    var i;
-
+  commandReadMemPack(channel, cmd) {
+    const mem = this.mempacks[channel];
+    let addr = ((cmd[3] << 8) | cmd[4]);
     if (addr === 0x8001) {
-      for (i = 0; i < 32; ++i) {
+      for (let i = 0; i < 32; ++i) {
         cmd[5 + i] = 0;
       }
     } else {
@@ -308,12 +310,12 @@ export class Controllers {
       addr &= 0xFFE0;
 
       if (addr <= 0x7FE0) {
-        for (i = 0; i < 32; ++i) {
-          cmd[5 + i] = this.mempack_memory[channel][addr + i];
+        for (let i = 0; i < 32; ++i) {
+          cmd[5 + i] = mem[addr + i];
         }
       } else {
         // RumblePak
-        for (i = 0; i < 32; ++i) {
+        for (let i = 0; i < 32; ++i) {
           cmd[5 + i] = 0;
         }
       }
@@ -322,22 +324,20 @@ export class Controllers {
     cmd[37] = this.calculateDataCrc(cmd, 5);
   }
 
-  commandWriteMemPack(cmd, channel) {
-    var addr = ((cmd[3] << 8) | cmd[4]);
-    var i;
-
+  commandWriteMemPack(channel, cmd) {
+    const mem = this.mempacks[channel];
+    let addr = ((cmd[3] << 8) | cmd[4]);
     if (addr !== 0x8001) {
       logger.log('Writing to mempack+' + addr);
       addr &= 0xFFE0;
 
       if (addr <= 0x7FE0) {
-        for (i = 0; i < 32; ++i) {
-          this.mempack_memory[channel][addr + i] = cmd[5 + i];
+        for (let i = 0; i < 32; ++i) {
+          mem[addr + i] = cmd[5 + i];
         }
       } else {
         // Do nothing, eventually enable rumblepak
       }
-
     }
 
     cmd[37] = this.calculateDataCrc(cmd, 5);
