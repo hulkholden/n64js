@@ -53,13 +53,6 @@ export class Controllers {
       { buttons: 0, stick_x: 0, stick_y: 0, present: true, mempack: false },
     ];
 
-    this.mempacks = [
-      new Uint8Array(32 * 1024),
-      new Uint8Array(32 * 1024),
-      new Uint8Array(32 * 1024),
-      new Uint8Array(32 * 1024)
-    ];
-
     this.rumblePakActive = false;
     this.enableRumble = false;
   }
@@ -220,8 +213,6 @@ export class Controllers {
   }
 
   processEeprom(cmd) {
-    var i, offset;
-
     switch (cmd[2]) {
       case CONT_RESET:
       case CONT_GET_STATUS:
@@ -299,7 +290,7 @@ export class Controllers {
   }
 
   commandReadMemPack(channel, cmd) {
-    const mem = this.mempacks[channel];
+    const mem = this.hardware.mempacks[channel];
     let addr = ((cmd[3] << 8) | cmd[4]);
     if (addr === 0x8001) {
       for (let i = 0; i < 32; ++i) {
@@ -325,7 +316,7 @@ export class Controllers {
   }
 
   commandWriteMemPack(channel, cmd) {
-    const mem = this.mempacks[channel];
+    const mem = this.hardware.mempacks[channel];
     let addr = ((cmd[3] << 8) | cmd[4]);
     if (addr !== 0x8001) {
       logger.log('Writing to mempack+' + addr);

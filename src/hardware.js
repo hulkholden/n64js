@@ -39,8 +39,17 @@ export class Hardware {
 
     this.eeprom = null;   // Initialised during reset, using correct size for this rom (may be null if eeprom isn't used)
     this.eepromDirty = false;
+
     // TODO: add a dirty flag and persist to local storage.
     this.sram = null;
+
+    // TODO: add a dirty flag and persist to local storage.
+    this.mempacks = [
+      new Uint8Array(32 * 1024),
+      new Uint8Array(32 * 1024),
+      new Uint8Array(32 * 1024),
+      new Uint8Array(32 * 1024)
+    ];
 
     // KUSEG, TLB mapped.
     this.mappedMemDevice = new MappedMemDevice(this, 0x00000000, 0x80000000);
@@ -145,7 +154,7 @@ export class Hardware {
   }
 
   verticalBlank() {
-    this.saveEeprom();
+    this.flushSaveData();
     this.viRegDevice.verticalBlank();
   };
 
@@ -184,11 +193,9 @@ export class Hardware {
     this.eepromDirty = false;
   }
 
-  saveEeprom() {
+  flushSaveData() {
     if (this.eeprom && this.eepromDirty) {
-
       var encoded = base64.encodeArray(this.eeprom.u8);
-
       // Store the name and id so that we can provide some kind of save management in the future
       var d = {
         name: this.rominfo.name,
