@@ -16,6 +16,24 @@ import { MemoryRegion } from './MemoryRegion.js';
 const kBootstrapOffset = 0x40;
 const kGameOffset = 0x1000;
 
+class Mempack {
+  constructor() {
+    this.data = new Uint8Array(32 * 1024);
+    this.dirty = false;
+  }
+
+  init(item) {
+    this.dirty = false;
+    for (let i = 0; i < this.data.length; i++) {
+      this.data[i] = 0;
+    }
+    // Restore from local storage if provided.
+    if (item && item.data) {
+      base64.decodeArray(item.data, this.data);
+    }
+  }
+}
+
 export class Hardware {
   constructor(rominfo) {
     // TODO: Not sure this belongs here.
@@ -43,12 +61,11 @@ export class Hardware {
     // TODO: add a dirty flag and persist to local storage.
     this.sram = null;
 
-    // TODO: add a dirty flag and persist to local storage.
     this.mempacks = [
-      new Uint8Array(32 * 1024),
-      new Uint8Array(32 * 1024),
-      new Uint8Array(32 * 1024),
-      new Uint8Array(32 * 1024)
+      new Mempack(),
+      new Mempack(),
+      new Mempack(),
+      new Mempack(),
     ];
 
     // KUSEG, TLB mapped.
@@ -163,6 +180,11 @@ export class Hardware {
     this.eeprom = null;
     this.eepromDirty = false;
 
+    for (let [i, mp] of this.mempacks.entries()) {
+      const item = n64js.getLocalStorageItem(`mempack${i}`);
+      mp.init(item);
+    }
+
     switch (this.saveType) {
       case 'Eeprom4k':
         this.initEeprom(4 * 1024, n64js.getLocalStorageItem('eeprom'));
@@ -195,17 +217,27 @@ export class Hardware {
 
   flushSaveData() {
     if (this.eeprom && this.eepromDirty) {
-      var encoded = base64.encodeArray(this.eeprom.u8);
-      // Store the name and id so that we can provide some kind of save management in the future
-      var d = {
-        name: this.rominfo.name,
-        id: this.rominfo.id,
-        data: encoded
-      };
-
-      n64js.setLocalStorageItem('eeprom', d);
+      this.saveU8Array('eeprom', this.eeprom.u8);
       this.eepromDirty = false;
     }
+
+    for (let [i, mp] of this.mempacks.entries()) {
+      if (mp.dirty) {
+        console.log(`save mempack`)
+        this.saveU8Array(`mempack${i}`, mp.data);
+        mp.dirty = false;
+      }
+    }
+  }
+
+  saveU8Array(name, u8arr) {
+    // Store the name and id so that we can provide some kind of save management in the future
+    var d = {
+      name: this.rominfo.name,
+      id: this.rominfo.id,
+      data: base64.encodeArray(u8arr),
+    };
+    n64js.setLocalStorageItem(name, d);
   }
 
   checkSIStatusConsistent() {
