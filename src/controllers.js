@@ -1,5 +1,5 @@
 import * as logger from './logger.js';
-import { toString8 } from './format.js';
+import { toString16, toString8 } from './format.js';
 import { syncInput } from './sync.js';
 
 const PC_CONTROLLER_0 = 0;
@@ -7,7 +7,6 @@ const PC_CONTROLLER_1 = 1;
 const PC_CONTROLLER_2 = 2;
 const PC_CONTROLLER_3 = 3;
 const PC_EEPROM = 4;
-const PC_UNKNOWN_1 = 5;
 const NUM_CHANNELS = 5;
 
 const CONT_GET_STATUS = 0x00;
@@ -22,9 +21,9 @@ const CONT_RTC_WRITE = 0x08;
 const CONT_RESET = 0xff;
 
 const CONT_TX_SIZE_CHANSKIP = 0x00;  // Channel Skip
-const CONT_TX_SIZE_DUMMYDATA = 0xFF;  // Dummy Data
-const CONT_TX_SIZE_FORMAT_END = 0xFE;  // Format End
 const CONT_TX_SIZE_CHANRESET = 0xFD;  // Channel Reset
+const CONT_TX_SIZE_FORMAT_END = 0xFE;  // Format End
+const CONT_TX_SIZE_DUMMYDATA = 0xFF;  // Dummy Data
 
 const kButtonA = 0x8000;
 const kButtonB = 0x4000;
@@ -42,19 +41,43 @@ const kButtonCDown = 0x0004;
 const kButtonCLeft = 0x0002;
 const kButtonCRight = 0x0001;
 
+const kAttachmentNone = 0;
+const kAttachmentControllerPak = 1;
+const kAttachmentRumblePak = 2;
+
+class Controller {
+  constructor() {
+    this.buttons = 0;
+    this.stick_x = 0;
+    this.stick_y = 0;
+    this.present = false;
+    this.attachment = kAttachmentNone;
+
+    // For kAttachmentControllerPak.
+    this.memory = null;
+
+    // For kAttachmentRumblePak.
+    this.rumbleActive = false;
+  }
+
+  attachControllerPack(memory) {
+    this.attachment = kAttachmentControllerPak;
+    this.memory = memory;
+  }
+}
+
 export class Controllers {
   constructor(hardware) {
     this.hardware = hardware;
 
     this.controllers = [
-      { buttons: 0, stick_x: 0, stick_y: 0, present: true, mempack: true },
-      { buttons: 0, stick_x: 0, stick_y: 0, present: true, mempack: false },
-      { buttons: 0, stick_x: 0, stick_y: 0, present: true, mempack: false },
-      { buttons: 0, stick_x: 0, stick_y: 0, present: true, mempack: false },
+      new Controller(),
+      new Controller(),
+      new Controller(),
+      new Controller(),
     ];
-
-    this.rumblePakActive = false;
-    this.enableRumble = false;
+    this.controllers[0].present = true;
+    this.controllers[0].attachControllerPack(hardware.mempacks[0]);
   }
 
   handleKey(idx, key, down) {
@@ -104,112 +127,179 @@ export class Controllers {
   }
 
   updateController() {
-    // read controllers
-    var pi_ram = new Uint8Array(this.hardware.pi_mem.arrayBuffer, 0x7c0, 0x040);
+    const pi_ram = new Uint8Array(this.hardware.pi_mem.arrayBuffer, 0x7c0, 0x040);
 
-    var count = 0;
-    var channel = 0;
-    while (count < 64) {
-      var cmd = pi_ram.subarray(count);
+    let offset = 0;
+    let channel = 0;
 
-      if (cmd[0] === CONT_TX_SIZE_FORMAT_END) {
-        count = 64;
-        break;
-      }
-
-      if ((cmd[0] === CONT_TX_SIZE_DUMMYDATA) || (cmd[0] === CONT_TX_SIZE_CHANRESET)) {
-        count++;
-        continue;
-      }
+    while (offset < 64 && channel < NUM_CHANNELS) {
+      const cmd = pi_ram.subarray(offset);
 
       if (cmd[0] === CONT_TX_SIZE_CHANSKIP) {
-        count++;
+        offset++;
         channel++;
-        continue;
-      }
-
-      // 0-3: controller channels
-      if (channel < PC_EEPROM) {
-        // copy controller status
-        if (!this.processController(channel, cmd)) {
-          count = 64;
-          break;
-        }
-      } else if (channel === PC_EEPROM) {
-        if (!this.processEeprom(cmd)) {
-          count = 64;
-          break;
-        }
-        break;
+      } else if (cmd[0] === CONT_TX_SIZE_CHANRESET) {
+        // TODO: should send reset command.
+        offset++;
+        channel++;
+      } else if (cmd[0] === CONT_TX_SIZE_FORMAT_END) {
+        offset = 64;
+        channel = NUM_CHANNELS;
+      } else if (cmd[0] === CONT_TX_SIZE_DUMMYDATA) {
+        offset++;
       } else {
-        n64js.halt('Trying to read from invalid controller channel ' + channel + '!');
-        return;
+        // Handle malformed channel command (tx seems valid but rx is 0xfe).
+        if (offset + 1 < 64 && cmd[1] == CONT_TX_SIZE_FORMAT_END) {
+          offset++;
+          continue;
+        }
+
+        const tx = cmd[0] & 0x3f;
+        const rx = cmd[1] & 0x3f;
+        const txBuf = cmd.subarray(2);
+        const rxBuf = cmd.subarray(2 + tx);
+
+        if (channel < PC_EEPROM) {
+          if (!this.processController(this.controllers[channel], cmd, tx, rx, txBuf, rxBuf)) {
+            // Set the invalid bit.
+            cmd[1] |= 0x80;
+          }
+        } else {
+          this.processEeprom(cmd);
+        }
+        channel++;
+        offset += 2 + tx + rx;
       }
-      channel++;
-      count += cmd[0] + (cmd[1] & 0x3f) + 2;
     }
 
     pi_ram[63] = 0;
   }
 
-  processController(channel, cmd) {
-    const controller = this.controllers[channel];
+  expectTxRx(cmdName, txGot, txExpect, rxGot, rxExpect) {
+    if (txGot != txExpect) {
+      logger.log(`${cmdName}: got tx ${txGot} but expect ${txExpect}`)
+    }
+    if (rxGot != rxExpect) {
+      logger.log(`${cmdName}: got rx ${rxGot} but expect ${rxExpect}`)
+    }
+  }
+
+  processController(controller, buf, tx, rx, txBuf, rxBuf) {
     if (!controller.present) {
-      cmd[1] |= 0x80;
-      cmd[3] = 0xff;
-      cmd[4] = 0xff;
-      cmd[5] = 0xff;
-      return true;
+      rxBuf[0] = 0xff;
+      rxBuf[1] = 0xff;
+      rxBuf[2] = 0xff;
+      return false;
     }
 
-    var buttons, stick_x, stick_y;
-
-    switch (cmd[2]) {
+    const command = txBuf[0];
+    switch (command) {
       case CONT_RESET:
+        // Reset behaves the same as CONT_GET_STATUS.
+        return this.commandGetStatus(controller, tx, rx, txBuf, rxBuf);
       case CONT_GET_STATUS:
-        cmd[3] = 0x05;
-        cmd[4] = 0x00;
-        cmd[5] = controller.mempack ? 0x01 : 0x00;
-        break;
-
+        return this.commandGetStatus(controller, tx, rx, txBuf, rxBuf);
       case CONT_READ_CONTROLLER:
-        buttons = controller.buttons;
-        stick_x = controller.stick_x;
-        stick_y = controller.stick_y;
-
-        if (syncInput) {
-          syncInput.sync32(0xbeeff00d, 'input');
-          buttons = syncInput.reflect32(buttons); // FIXME reflect16
-          stick_x = syncInput.reflect32(stick_x); // FIXME reflect8
-          stick_y = syncInput.reflect32(stick_y); // FIXME reflect8
-        }
-
-        cmd[3] = buttons >>> 8;
-        cmd[4] = buttons & 0xff;
-        cmd[5] = stick_x;
-        cmd[6] = stick_y;
-        break;
-
+        return this.commandReadController(controller, tx, rx, txBuf, rxBuf);
       case CONT_READ_MEMPACK:
-        if (this.enableRumble) {
-          this.commandReadRumblePack(cmd);
-        } else {
-          this.commandReadMemPack(channel, cmd);
-        }
-        return false;
+        return this.commandReadMemPack(controller, tx, rx, txBuf, rxBuf);
       case CONT_WRITE_MEMPACK:
-        if (this.enableRumble) {
-          this.commandWriteRumblePack(cmd);
-        } else {
-          this.commandWriteMemPack(channel, cmd);
-        }
-        return false;
-      default:
-        n64js.halt('Unknown controller command ' + cmd[2]);
-        break;
+        return this.commandWriteMemPack(controller, tx, rx, txBuf, rxBuf);
     }
 
+    n64js.halt('Unknown controller command ' + command);
+    return false;
+  }
+
+  commandGetStatus(controller, tx, rx, txBuf, rxBuf) {
+    this.expectTxRx('CONT_GET_STATUS', tx, 1, rx, 3);
+    rxBuf[0] = 0x05;
+    rxBuf[1] = 0x00;
+    rxBuf[2] = controller.attachment == kAttachmentNone ? 0x02 : 0x01;
     return true;
+  }
+
+  commandReadController(controller, tx, rx, txBuf, rxBuf) {
+    this.expectTxRx('CONT_READ_CONTROLLER', tx, 1, rx, 4);
+    let buttons = controller.buttons;
+    let stick_x = controller.stick_x;
+    let stick_y = controller.stick_y;
+
+    if (syncInput) {
+      syncInput.sync32(0xbeeff00d, 'input');
+      buttons = syncInput.reflect32(buttons); // FIXME reflect16
+      stick_x = syncInput.reflect32(stick_x); // FIXME reflect8
+      stick_y = syncInput.reflect32(stick_y); // FIXME reflect8
+    }
+
+    rxBuf[0] = buttons >>> 8;
+    rxBuf[1] = buttons & 0xff;
+    rxBuf[2] = stick_x;
+    rxBuf[3] = stick_y;
+
+    // TODO: if rx > expected then set over bit (0x40) in rx byte.
+    return true;
+  }
+
+  commandReadMemPack(controller, tx, rx, txBuf, rxBuf) {
+    this.expectTxRx('CONT_READ_MEMPACK', tx, 3, rx, 33);
+    const addr = (txBuf[1] << 8) | (txBuf[2] & 0xe0);
+    // const addrCRC = txBuf[2] & 0x1f;
+
+    let handled = false;
+    switch (controller.attachment) {
+      case kAttachmentControllerPak:
+        const data = controller.memory.data;
+        for (let i = 0, address = addr; i < (rx - 1); i++, address++) {
+          rxBuf[i] = address < data.length ? data[address] : 0;
+        }
+        handled = true;
+        break;
+      case kAttachmentRumblePak:
+        for (let i = 0, address = addr; i < (rx - 1); i++, address++) {
+          let val;
+          if (address < 0x8000) val = 0x00;
+          else if (address < 0x9000) val = 0x80;
+          else val = controller.rumbleActive ? 0xff : 0x00;
+          rxBuf[i] = val;
+        }
+        handled = true;
+        break;
+    }
+    if (handled) {
+      rxBuf[rx - 1] = this.calculateDataCrc(rxBuf, 0, rx - 1);
+    }
+    return handled;
+  }
+
+  commandWriteMemPack(controller, tx, rx, txBuf, rxBuf) {
+    this.expectTxRx('CONT_WRITE_MEMPACK', tx, 35, rx, 1);
+    const addr = (txBuf[1] << 8) | (txBuf[2] & 0xe0);
+    // const addrCRC = txBuf[2] & 0x1f;
+
+    let handled = false;
+    switch (controller.attachment) {
+      case kAttachmentControllerPak:
+        const data = controller.memory.data;
+        controller.memory.dirty = true;
+        for (let i = 0, address = addr; i < (tx - 3); i++, address++) {
+          if (address < data.length) {
+            data[address] = txBuf[3 + i];
+          }
+        }
+        handled = true;
+        break;
+      case kAttachmentRumblePak:
+        if (addr >= 0xC000) {
+          controller.rumbleActive = txBuf[3] & 1;
+        }
+        handled = true;
+        break;
+    }
+    if (handled) {
+      rxBuf[rx - 1] = this.calculateDataCrc(txBuf, 3, tx - 3);
+    }
+    return handled;
   }
 
   processEeprom(cmd) {
@@ -217,7 +307,7 @@ export class Controllers {
       case CONT_RESET:
       case CONT_GET_STATUS:
         cmd[3] = 0x00;
-        cmd[4] = 0x80; /// FIXME GetEepromContType();
+        cmd[4] = 0x80; /// FIXME this.hardware.eeprom.u8.length > 4k ? 0xc0 : 0x80.
         cmd[5] = 0x00;
         break;
 
@@ -267,9 +357,9 @@ export class Controllers {
     return false;
   }
 
-  calculateDataCrc(buf, offset) {
+  calculateDataCrc(buf, offset, bytes) {
     var c = 0, i;
-    for (i = 0; i < 32; i++) {
+    for (i = 0; i < bytes; i++) {
       var s = buf[offset + i];
 
       c = (((c << 1) | ((s >> 7) & 1))) ^ ((c & 0x80) ? 0x85 : 0);
@@ -286,72 +376,6 @@ export class Controllers {
       c = (c << 1) ^ ((c & 0x80) ? 0x85 : 0);
     }
 
-    return c;
-  }
-
-  commandReadMemPack(channel, cmd) {
-    const mem = this.hardware.mempacks[channel];
-    let addr = ((cmd[3] << 8) | cmd[4]);
-    if (addr === 0x8001) {
-      for (let i = 0; i < 32; ++i) {
-        cmd[5 + i] = 0;
-      }
-    } else {
-      // logger.log('Reading from mempack+' + addr);
-      addr &= 0xFFE0;
-
-      if (addr <= 0x7FE0) {
-        for (let i = 0; i < 32; ++i) {
-          cmd[5 + i] = mem[addr + i];
-        }
-      } else {
-        // RumblePak
-        for (let i = 0; i < 32; ++i) {
-          cmd[5 + i] = 0;
-        }
-      }
-    }
-
-    cmd[37] = this.calculateDataCrc(cmd, 5);
-  }
-
-  commandWriteMemPack(channel, cmd) {
-    const mem = this.hardware.mempacks[channel];
-    let addr = ((cmd[3] << 8) | cmd[4]);
-    if (addr !== 0x8001) {
-      logger.log('Writing to mempack+' + addr);
-      addr &= 0xFFE0;
-
-      if (addr <= 0x7FE0) {
-        for (let i = 0; i < 32; ++i) {
-          mem[addr + i] = cmd[5 + i];
-        }
-      } else {
-        // Do nothing, eventually enable rumblepak
-      }
-    }
-
-    cmd[37] = this.calculateDataCrc(cmd, 5);
-  }
-
-  commandReadRumblePack(cmd) {
-    var addr = ((cmd[3] << 8) | cmd[4]) & 0xFFE0;
-    var val = (addr === 0x8000) ? 0x80 : 0x00;
-    var i;
-    for (i = 0; i < 32; ++i) {
-      cmd[5 + i] = val;
-    }
-
-    cmd[37] = this.calculateDataCrc(cmd, 5);
-  }
-
-  commandWriteRumblePack(cmd) {
-    var addr = ((cmd[3] << 8) | cmd[4]) & 0xFFE0;
-
-    if (addr === 0xC000) {
-      this.rumblePakActive = cmd[5];
-    }
-
-    cmd[37] = this.calculateDataCrc(cmd, 5);
+    return c & 0xff;
   }
 }
