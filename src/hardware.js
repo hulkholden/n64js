@@ -223,7 +223,6 @@ export class Hardware {
 
     for (let [i, mp] of this.mempacks.entries()) {
       if (mp.dirty) {
-        console.log(`save mempack`)
         this.saveU8Array(`mempack${i}`, mp.data);
         mp.dirty = false;
       }

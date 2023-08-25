@@ -2,12 +2,12 @@ import * as logger from './logger.js';
 import { toString16, toString8 } from './format.js';
 import { syncInput } from './sync.js';
 
-const PC_CONTROLLER_0 = 0;
-const PC_CONTROLLER_1 = 1;
-const PC_CONTROLLER_2 = 2;
-const PC_CONTROLLER_3 = 3;
-const PC_EEPROM = 4;
-const NUM_CHANNELS = 5;
+const kChanController0 = 0;
+const kChanController1 = 1;
+const kChanController2 = 2;
+const kChanController3 = 3;
+const kChanCartridge = 4;
+const kNumChannels = 5;
 
 const CONT_GET_STATUS = 0x00;
 const CONT_READ_CONTROLLER = 0x01;
@@ -132,7 +132,7 @@ export class Controllers {
     let offset = 0;
     let channel = 0;
 
-    while (offset < 64 && channel < NUM_CHANNELS) {
+    while (offset < 64 && channel < kNumChannels) {
       const cmd = pi_ram.subarray(offset);
 
       if (cmd[0] === CONT_TX_SIZE_CHANSKIP) {
@@ -144,7 +144,7 @@ export class Controllers {
         channel++;
       } else if (cmd[0] === CONT_TX_SIZE_FORMAT_END) {
         offset = 64;
-        channel = NUM_CHANNELS;
+        channel = kNumChannels;
       } else if (cmd[0] === CONT_TX_SIZE_DUMMYDATA) {
         offset++;
       } else {
@@ -159,13 +159,15 @@ export class Controllers {
         const txBuf = cmd.subarray(2);
         const rxBuf = cmd.subarray(2 + tx);
 
-        if (channel < PC_EEPROM) {
-          if (!this.processController(this.controllers[channel], tx, rx, txBuf, rxBuf)) {
-            // Set the invalid bit.
-            cmd[1] |= 0x80;
-          }
+        let handled;
+        if (channel < kChanCartridge) {
+          handled = this.processController(this.controllers[channel], tx, rx, txBuf, rxBuf);
         } else {
-          this.processEeprom(cmd);
+          handled = this.processCartridge(tx, rx, txBuf, rxBuf)
+        }
+        if (!handled) {
+          // Set the invalid bit.
+          cmd[1] |= 0x80;
         }
         channel++;
         offset += 2 + tx + rx;
@@ -184,6 +186,12 @@ export class Controllers {
     }
   }
 
+  expectTx(cmdName, txGot, txExpect) {
+    if (txGot != txExpect) {
+      logger.log(`${cmdName}: got tx ${txGot} but expect ${txExpect}`)
+    }
+  }
+
   processController(controller, tx, rx, txBuf, rxBuf) {
     if (!controller.present) {
       rxBuf[0] = 0xff;
@@ -196,31 +204,33 @@ export class Controllers {
     switch (command) {
       case CONT_RESET:
         // Reset behaves the same as CONT_GET_STATUS.
-        return this.commandGetStatus(controller, tx, rx, txBuf, rxBuf);
+        return this.controllerGetStatus(controller, tx, rx, txBuf, rxBuf);
       case CONT_GET_STATUS:
-        return this.commandGetStatus(controller, tx, rx, txBuf, rxBuf);
+        return this.controllerGetStatus(controller, tx, rx, txBuf, rxBuf);
       case CONT_READ_CONTROLLER:
-        return this.commandReadController(controller, tx, rx, txBuf, rxBuf);
+        return this.controllerReadController(controller, tx, rx, txBuf, rxBuf);
       case CONT_READ_MEMPACK:
-        return this.commandReadMemPack(controller, tx, rx, txBuf, rxBuf);
+        return this.controllerReadMemPack(controller, tx, rx, txBuf, rxBuf);
       case CONT_WRITE_MEMPACK:
-        return this.commandWriteMemPack(controller, tx, rx, txBuf, rxBuf);
+        return this.controllerWriteMemPack(controller, tx, rx, txBuf, rxBuf);
+      default:
+        n64js.halt(`unhandled controller command: ${command}`);
     }
 
     n64js.halt('Unknown controller command ' + command);
     return false;
   }
 
-  commandGetStatus(controller, tx, rx, txBuf, rxBuf) {
+  controllerGetStatus(controller, tx, rx, txBuf, rxBuf) {
     this.expectTxRx('CONT_GET_STATUS', tx, 1, rx, 3);
-  
+
     rxBuf[0] = 0x05;
     rxBuf[1] = 0x00;
     rxBuf[2] = controller.attachment == kAttachmentNone ? 0x02 : 0x01;
     return true;
   }
 
-  commandReadController(controller, tx, rx, txBuf, rxBuf) {
+  controllerReadController(controller, tx, rx, txBuf, rxBuf) {
     this.expectTxRx('CONT_READ_CONTROLLER', tx, 1, rx, 4);
 
     let buttons = controller.buttons;
@@ -243,9 +253,9 @@ export class Controllers {
     return true;
   }
 
-  commandReadMemPack(controller, tx, rx, txBuf, rxBuf) {
-    this.expectTxRx('CONT_READ_MEMPACK', tx, 3, rx, 33);
-  
+  controllerReadMemPack(controller, tx, rx, txBuf, rxBuf) {
+    this.expectTx('CONT_READ_MEMPACK', tx, 3);
+
     const addr = (txBuf[1] << 8) | (txBuf[2] & 0xe0);
     const addrCRC = txBuf[2] & 0x1f;
     if (addrCRC != this.calculateAddressCrc(addr)) {
@@ -278,15 +288,15 @@ export class Controllers {
     return handled;
   }
 
-  commandWriteMemPack(controller, tx, rx, txBuf, rxBuf) {
+  controllerWriteMemPack(controller, tx, rx, txBuf, rxBuf) {
     this.expectTxRx('CONT_WRITE_MEMPACK', tx, 35, rx, 1);
-  
+
     const addr = (txBuf[1] << 8) | (txBuf[2] & 0xe0);
     const addrCRC = txBuf[2] & 0x1f;
     if (addrCRC != this.calculateAddressCrc(addr)) {
       return false;
     }
-  
+
     let handled = false;
     switch (controller.attachment) {
       case kAttachmentControllerPak:
@@ -312,42 +322,23 @@ export class Controllers {
     return handled;
   }
 
-  processEeprom(cmd) {
-    switch (cmd[2]) {
+  processCartridge(tx, rx, txBuf, rxBuf) {
+    const command = txBuf[0];
+    switch (command) {
       case CONT_RESET:
+        return this.cartridgeGetStatus(tx, rx, txBuf, rxBuf);
       case CONT_GET_STATUS:
-        cmd[3] = 0x00;
-        cmd[4] = 0x80; /// FIXME this.hardware.eeprom.u8.length > 4k ? 0xc0 : 0x80.
-        cmd[5] = 0x00;
-        break;
-
+        return this.cartridgeGetStatus(tx, rx, txBuf, rxBuf);
       case CONT_READ_EEPROM:
-        {
-          const offset = cmd[3] * 8;
-          logger.log('Reading from eeprom+' + offset);
-          for (let i = 0; i < 8; ++i) {
-            cmd[4 + i] = this.hardware.eeprom.u8[offset + i];
-          }
-        }
-        break;
-
+        return this.cartridgeReadEeprom(tx, rx, txBuf, rxBuf);
       case CONT_WRITE_EEPROM:
-        {
-          const offset = cmd[3] * 8;
-          logger.log('Writing to eeprom+' + offset);
-          for (let i = 0; i < 8; ++i) {
-            this.hardware.eeprom.u8[offset + i] = cmd[4 + i];
-          }
-          this.hardware.eepromDirty = true;
-        }
-        break;
+        return this.cartridgeWriteEeprom(tx, rx, txBuf, rxBuf);
 
       // RTC credit: Mupen64 source
-      //
       case CONT_RTC_STATUS: // RTC status query
-        cmd[3] = 0x00;
-        cmd[4] = 0x10;
-        cmd[5] = 0x00;
+        rxBuf[0] = 0x00;
+        rxBuf[1] = 0x10;
+        rxBuf[2] = 0x00;
         break;
 
       case CONT_RTC_READ: // read RTC block
@@ -360,11 +351,49 @@ export class Controllers {
         break;
 
       default:
-        n64js.halt('unknown eeprom command: ' + toString8(cmd[2]));
+        n64js.halt(`unhandled cartridge command: ${command}`);
         break;
     }
 
     return false;
+  }
+
+  cartridgeGetStatus(tx, rx, txBuf, rxBuf) {
+    this.expectTxRx('CONT_GET_STATUS', tx, 1, rx, 3);
+
+    const eeprom = this.hardware.eeprom;
+    if (!eeprom) {
+      console.log(`no eeprom`)
+      return false;
+    }
+
+    rxBuf[0] = 0x00;
+    rxBuf[1] = (eeprom.u8.length == 512) ? 0x80 : 0xc0;  // Check if 4k or 16k.
+    rxBuf[2] = 0x00;
+    return true;
+  }
+
+  cartridgeReadEeprom(tx, rx, txBuf, rxBuf) {
+    this.expectTx('CONT_READ_EEPROM', tx, 2);
+
+    const offset = txBuf[1] * 8;
+    for (let i = 0; i < rx; ++i) {
+      rxBuf[i] = this.hardware.eeprom.u8[offset + i];
+    }
+    return true;
+  }
+
+  cartridgeWriteEeprom(tx, rx, txBuf, rxBuf) {
+    this.expectTxRx('CONT_WRITE_EEPROM', tx, 10, rx, 1);
+
+    const offset = txBuf[1] * 8;
+    for (let i = 0; i < tx - 2; ++i) {
+      this.hardware.eeprom.u8[offset + i] = txBuf[2 + i];
+    }
+    this.hardware.eepromDirty = true;
+
+    rxBuf[0] = 0;
+    return true;
   }
 
   calculateDataCrc(buf, offset, bytes) {
@@ -379,7 +408,6 @@ export class Controllers {
     for (let i = 8; i !== 0; i--) {
       c = (c << 1) ^ ((c & 0x80) ? 0x85 : 0);
     }
-
     return c & 0xff;
   }
 
