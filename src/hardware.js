@@ -187,10 +187,10 @@ export class Hardware {
 
     switch (this.saveType) {
       case 'Eeprom4k':
-        this.initEeprom(4 * 1024, n64js.getLocalStorageItem('eeprom'));
+        this.initEeprom(4 * 1024 / 8, n64js.getLocalStorageItem('eeprom'));
         break;
       case 'Eeprom16k':
-        this.initEeprom(16 * 1024, n64js.getLocalStorageItem('eeprom'));
+        this.initEeprom(16 * 1024 / 8, n64js.getLocalStorageItem('eeprom'));
         break;
       case 'SRAM':
         this.sram = new MemoryRegion(new ArrayBuffer(32 * 1024));
