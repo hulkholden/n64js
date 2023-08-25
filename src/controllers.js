@@ -160,7 +160,7 @@ export class Controllers {
         const rxBuf = cmd.subarray(2 + tx);
 
         if (channel < PC_EEPROM) {
-          if (!this.processController(this.controllers[channel], cmd, tx, rx, txBuf, rxBuf)) {
+          if (!this.processController(this.controllers[channel], tx, rx, txBuf, rxBuf)) {
             // Set the invalid bit.
             cmd[1] |= 0x80;
           }
@@ -184,7 +184,7 @@ export class Controllers {
     }
   }
 
-  processController(controller, buf, tx, rx, txBuf, rxBuf) {
+  processController(controller, tx, rx, txBuf, rxBuf) {
     if (!controller.present) {
       rxBuf[0] = 0xff;
       rxBuf[1] = 0xff;
@@ -213,6 +213,7 @@ export class Controllers {
 
   commandGetStatus(controller, tx, rx, txBuf, rxBuf) {
     this.expectTxRx('CONT_GET_STATUS', tx, 1, rx, 3);
+  
     rxBuf[0] = 0x05;
     rxBuf[1] = 0x00;
     rxBuf[2] = controller.attachment == kAttachmentNone ? 0x02 : 0x01;
@@ -221,6 +222,7 @@ export class Controllers {
 
   commandReadController(controller, tx, rx, txBuf, rxBuf) {
     this.expectTxRx('CONT_READ_CONTROLLER', tx, 1, rx, 4);
+
     let buttons = controller.buttons;
     let stick_x = controller.stick_x;
     let stick_y = controller.stick_y;
@@ -243,8 +245,12 @@ export class Controllers {
 
   commandReadMemPack(controller, tx, rx, txBuf, rxBuf) {
     this.expectTxRx('CONT_READ_MEMPACK', tx, 3, rx, 33);
+  
     const addr = (txBuf[1] << 8) | (txBuf[2] & 0xe0);
-    // const addrCRC = txBuf[2] & 0x1f;
+    const addrCRC = txBuf[2] & 0x1f;
+    if (addrCRC != this.calculateAddressCrc(addr)) {
+      return false;
+    }
 
     let handled = false;
     switch (controller.attachment) {
@@ -274,9 +280,13 @@ export class Controllers {
 
   commandWriteMemPack(controller, tx, rx, txBuf, rxBuf) {
     this.expectTxRx('CONT_WRITE_MEMPACK', tx, 35, rx, 1);
+  
     const addr = (txBuf[1] << 8) | (txBuf[2] & 0xe0);
-    // const addrCRC = txBuf[2] & 0x1f;
-
+    const addrCRC = txBuf[2] & 0x1f;
+    if (addrCRC != this.calculateAddressCrc(addr)) {
+      return false;
+    }
+  
     let handled = false;
     switch (controller.attachment) {
       case kAttachmentControllerPak:
@@ -358,24 +368,26 @@ export class Controllers {
   }
 
   calculateDataCrc(buf, offset, bytes) {
-    var c = 0, i;
-    for (i = 0; i < bytes; i++) {
-      var s = buf[offset + i];
-
-      c = (((c << 1) | ((s >> 7) & 1))) ^ ((c & 0x80) ? 0x85 : 0);
-      c = (((c << 1) | ((s >> 6) & 1))) ^ ((c & 0x80) ? 0x85 : 0);
-      c = (((c << 1) | ((s >> 5) & 1))) ^ ((c & 0x80) ? 0x85 : 0);
-      c = (((c << 1) | ((s >> 4) & 1))) ^ ((c & 0x80) ? 0x85 : 0);
-      c = (((c << 1) | ((s >> 3) & 1))) ^ ((c & 0x80) ? 0x85 : 0);
-      c = (((c << 1) | ((s >> 2) & 1))) ^ ((c & 0x80) ? 0x85 : 0);
-      c = (((c << 1) | ((s >> 1) & 1))) ^ ((c & 0x80) ? 0x85 : 0);
-      c = (((c << 1) | ((s >> 0) & 1))) ^ ((c & 0x80) ? 0x85 : 0);
+    let c = 0;
+    for (let i = 0; i < bytes; i++) {
+      const s = buf[offset + i];
+      for (let b = 0; b < 8; b++) {
+        c = ((c << 1) | ((s >>> (7 - b)) & 1)) ^ ((c & 0x80) ? 0x85 : 0);
+      }
     }
 
-    for (i = 8; i !== 0; i--) {
+    for (let i = 8; i !== 0; i--) {
       c = (c << 1) ^ ((c & 0x80) ? 0x85 : 0);
     }
 
     return c & 0xff;
+  }
+
+  calculateAddressCrc(address) {
+    let c = 0;
+    for (let i = 0; i < 16; i++) {
+      c = ((c << 1) | ((address >>> (15 - i)) & 1)) ^ ((c & 0x10) ? 0x15 : 0);
+    }
+    return c & 0x1f;
   }
 }
