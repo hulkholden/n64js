@@ -36,7 +36,7 @@ const rominfo = {
 
 const hardware = new Hardware(rominfo);
 const controllers = new Controllers();
-const joybus = new Joybus(hardware, controllers);
+const joybus = new Joybus(hardware, controllers.inputs);
 const ui = new UI();
 let dbg = null; // FIXME: can't use debugger as a variable name - fix this when wrapping in a class.
 
