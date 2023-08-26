@@ -213,11 +213,32 @@ export class Controllers {
         return this.controllerReadMemPack(controller, tx, rx, txBuf, rxBuf);
       case CONT_WRITE_MEMPACK:
         return this.controllerWriteMemPack(controller, tx, rx, txBuf, rxBuf);
-      default:
-        n64js.halt(`unhandled controller command: ${command}`);
     }
 
     n64js.halt('Unknown controller command ' + command);
+    return false;
+  }
+
+  processCartridge(tx, rx, txBuf, rxBuf) {
+    const command = txBuf[0];
+    switch (command) {
+      case CONT_RESET:
+        return this.cartridgeGetStatus(tx, rx, txBuf, rxBuf);
+      case CONT_GET_STATUS:
+        return this.cartridgeGetStatus(tx, rx, txBuf, rxBuf);
+      case CONT_READ_EEPROM:
+        return this.cartridgeReadEeprom(tx, rx, txBuf, rxBuf);
+      case CONT_WRITE_EEPROM:
+        return this.cartridgeWriteEeprom(tx, rx, txBuf, rxBuf);
+      case CONT_RTC_STATUS:
+        return this.cartridgeRTCStatus(tx, rx, txBuf, rxBuf);
+      case CONT_RTC_READ:
+        return this.cartridgeRTCRead(tx, rx, txBuf, rxBuf);
+      case CONT_RTC_WRITE:
+        return this.cartridgeRTCWrite(tx, rx, txBuf, rxBuf);
+    }
+
+    n64js.halt(`Unknown cartridge command: ${command}`);
     return false;
   }
 
@@ -322,42 +343,6 @@ export class Controllers {
     return handled;
   }
 
-  processCartridge(tx, rx, txBuf, rxBuf) {
-    const command = txBuf[0];
-    switch (command) {
-      case CONT_RESET:
-        return this.cartridgeGetStatus(tx, rx, txBuf, rxBuf);
-      case CONT_GET_STATUS:
-        return this.cartridgeGetStatus(tx, rx, txBuf, rxBuf);
-      case CONT_READ_EEPROM:
-        return this.cartridgeReadEeprom(tx, rx, txBuf, rxBuf);
-      case CONT_WRITE_EEPROM:
-        return this.cartridgeWriteEeprom(tx, rx, txBuf, rxBuf);
-
-      // RTC credit: Mupen64 source
-      case CONT_RTC_STATUS: // RTC status query
-        rxBuf[0] = 0x00;
-        rxBuf[1] = 0x10;
-        rxBuf[2] = 0x00;
-        break;
-
-      case CONT_RTC_READ: // read RTC block
-        n64js.halt('rtc read unhandled');
-        //CommandReadRTC( cmd );
-        break;
-
-      case CONT_RTC_WRITE:  // write RTC block
-        n64js.halt('rtc write unhandled');
-        break;
-
-      default:
-        n64js.halt(`unhandled cartridge command: ${command}`);
-        break;
-    }
-
-    return false;
-  }
-
   cartridgeGetStatus(tx, rx, txBuf, rxBuf) {
     this.expectTxRx('CONT_GET_STATUS', tx, 1, rx, 3);
 
@@ -394,6 +379,24 @@ export class Controllers {
 
     rxBuf[0] = 0;
     return true;
+  }
+
+  cartridgeRTCStatus(tx, rx, txBuf, rxBuf) {
+    // Identifier.
+    rxBuf[0] = 0x00;
+    rxBuf[1] = 0x10;
+    // Status.
+    rxBuf[2] = 0x00;
+    return true;
+  }
+
+  cartridgeRTCRead(tx, rx, txBuf, rxBuf) {
+    n64js.warn('rtc read unhandled');
+    return false;
+  }
+  cartridgeRTCWrite(tx, rx, txBuf, rxBuf) {
+    n64js.warn('rtc write unhandled');
+    return false;
   }
 
   calculateDataCrc(buf, offset, bytes) {
