@@ -56,30 +56,14 @@ const kDeviceIDDisconnected = 0xffff;
 const kResponseOver = 0x40;  // Too many bytes returned.
 const kResponseUnder = 0x80;  // Too few bytes returned.
 
-export class Joybus {
+export class Controllers {
   constructor(hardware) {
-    this.hardware = hardware;
     this.inputs = [
       new ControllerInputs(),
       new ControllerInputs(),
       new ControllerInputs(),
       new ControllerInputs(),
     ];
-
-    const controller0 = new ControllerChannel(this.inputs[0]);
-    controller0.present = true;
-    controller0.attachControllerPack(hardware.mempacks[0]);
-
-    this.channels = [
-      controller0,
-      new ControllerChannel(this.inputs[1]),
-      new ControllerChannel(this.inputs[2]),
-      new ControllerChannel(this.inputs[3]),
-      new CartridgeChannel(hardware),
-    ];
-
-    // A buffer used to make it easier to handle truncated output.
-    this.tempOutput = new Uint8Array(64);
   }
 
   handleKey(idx, key, down) {
@@ -120,6 +104,27 @@ export class Joybus {
       buttons &= ~button;
     }
     this.inputs[idx].buttons = buttons;
+  }
+}
+
+export class Joybus {
+  constructor(hardware, controllers) {
+    this.hardware = hardware;
+
+    const controller0 = new ControllerChannel(controllers.inputs[0]);
+    controller0.present = true;
+    controller0.attachControllerPack(hardware.mempacks[0]);
+
+    this.channels = [
+      controller0,
+      new ControllerChannel(controllers.inputs[1]),
+      new ControllerChannel(controllers.inputs[2]),
+      new ControllerChannel(controllers.inputs[3]),
+      new CartridgeChannel(hardware),
+    ];
+
+    // A buffer used to make it easier to handle truncated output.
+    this.tempOutput = new Uint8Array(64);
   }
 
   execute() {
