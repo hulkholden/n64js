@@ -61,9 +61,6 @@ export class Joybus {
       new ControllerChannel(inputs[3]),
       new CartridgeChannel(hardware),
     ];
-
-    // A buffer used to make it easier to handle truncated output.
-    this.tempOutput = new Uint8Array(64);
   }
 
   execute() {
@@ -87,41 +84,34 @@ export class Joybus {
         case CONT_TX_SIZE_DUMMYDATA:
           break;
         default:
-          {
+          if (offset + 1 < piframSize) {
             const tx = cmd[0] & 0x3f;
-            const rx = cmd[1] & 0x3f; // At the end of the buffer this will be set to undefined.
-            const txBuf = cmd.subarray(2);
-            const rxBuf = cmd.subarray(2 + tx);
+            const rx = cmd[1] & 0x3f;
+            const txOff = 2;  // 2 bytes for tx and rx.
+            const txEnd = txOff + tx;
+            const rxOff = txEnd;
+            const rxEnd = rxOff + rx;
+            const txBuf = cmd.subarray(txOff, txEnd);
+            const rxBuf = cmd.subarray(rxOff, rxEnd);
 
             // Handle malformed channel command (tx seems valid but rx is 0xfe).
             if (cmd[1] == CONT_TX_SIZE_FORMAT_END) {
               offset++;
               break;
-            }  
-
-            // Provide a full sized output buffer so that commands don't need to handle
-            // truncated output in the handlers.
-            for (let i = 0; i < rx; i++) {
-              this.tempOutput[i] = 0;
             }
 
             // Perform the command and find out how many bytes were returned.        
             // If an unexpected number of bytes were received, set status bits in rx.
-            const rxLen = this.channels[channel].joybusCommand(tx, rx, txBuf, this.tempOutput);
+            const rxLen = this.channels[channel].joybusCommand(tx, rx, txBuf, rxBuf);
             if (rxLen < rx) {
               cmd[1] |= kResponseUnder;
             } else if (rxLen > rx) {
               cmd[1] |= kResponseOver;
-              rxLen = rx;
-            }
-            // Copy response bytes.
-            for (let i = 0; i < rxLen; i++) {
-              rxBuf[i] = this.tempOutput[i];
             }
 
-            // Skip past the data (one additional byte will be skipped in for loop).
-            offset += 1 + tx + rx;
-            // Move to the next channel.
+            // Skip past the data (one additional byte will be skipped in for loop) and
+            // move to the next channel.
+            offset += rxEnd - 1;
             channel++;
           }
           break;
