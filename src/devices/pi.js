@@ -246,9 +246,10 @@ export class PIRegDevice extends Device {
     n64js.cpu0.updateCause3();
   }
 }
-export class PIRamDevice extends Device {
+
+export class PIFMemDevice extends Device {
   constructor(hardware, rangeStart, rangeEnd) {
-    super("PIRAM", hardware, hardware.pi_mem, rangeStart, rangeEnd);
+    super("PIFMEM", hardware, hardware.pif_mem, rangeStart, rangeEnd);
   }
 
   readS32(address) {
@@ -264,7 +265,7 @@ export class PIRamDevice extends Device {
       switch (ramOffset) {
         case 0x24: logger.log(`Reading CIC values: ${toString32(v)}`); break;
         case 0x3c: logger.log(`Reading Control byte: ${toString32(v)}`); break;
-        default: logger.log(`Reading from PI ram [${toString32(address)}]. Got ${toString32(v)}`); break;
+        default: logger.log(`Reading from PIF ram [${toString32(address)}]. Got ${toString32(v)}`); break;
       }
     }
     return v;
@@ -284,7 +285,7 @@ export class PIRamDevice extends Device {
       switch (ramOffset) {
         case 0x24: logger.log(`Reading CIC values: ${toString8(v)}`); break;
         case 0x3c: logger.log(`Reading Control byte: ${toString8(v)}`); break;
-        default: logger.log(`Reading from PI ram [${toString32(address)}]. Got ${toString8(v)}`); break;
+        default: logger.log(`Reading from PIF ram [${toString32(address)}]. Got ${toString8(v)}`); break;
       }
     }
     return v;
@@ -306,7 +307,7 @@ export class PIRamDevice extends Device {
     switch (ramOffset) {
       case 0x24: logger.log(`Writing CIC values: ${toString32(value)}`); break;
       case 0x3c: logger.log(`Writing Control byte: ${toString32(value)}`); this.updateControl(); break;
-      default: logger.log(`Writing directly to PI ram [${toString32(address)}] <-- ${toString32(value)}`); break;
+      default: logger.log(`Writing directly to PIF ram [${toString32(address)}] <-- ${toString32(value)}`); break;
     }
   }
 
@@ -343,33 +344,33 @@ export class PIRamDevice extends Device {
 
     switch (command) {
       case 0x01:
-        logger.log('PI: execute block');
+        logger.log('PIF: execute block');
         break;
       case 0x08:
-        logger.log('PI: interrupt control');
+        logger.log('PIF: interrupt control');
         piRam[0x3f] = 0x00;
         this.hardware.si_reg.setBits32(si.SI_STATUS_REG, si.SI_STATUS_INTERRUPT);
         this.hardware.mi_reg.setBits32(mi.MI_INTR_REG, mi.MI_INTR_SI);
         n64js.cpu0.updateCause3();
         break;
       case 0x10:
-        logger.log('PI: clear rom');
+        logger.log('PIF: clear rom');
         for (let i = 0; i < piRom.length; ++i) {
           piRom[i] = 0;
         }
         break;
       case 0x30:
-        logger.log('PI: set 0x80 control ');
+        logger.log('PIF: set 0x80 control ');
         piRam[0x3f] = 0x80;
         break;
       case 0xc0:
-        logger.log('PI: clear ram');
+        logger.log('PIF: clear ram');
         for (let i = 0; i < piRam.length; ++i) {
           piRam[i] = 0;
         }
         break;
       default:
-        n64js.halt(`Unknown PI control value: ${toString8(command)}`);
+        n64js.halt(`Unknown PIF control value: ${toString8(command)}`);
         break;
     }
   }

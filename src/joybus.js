@@ -141,13 +141,13 @@ export class Joybus {
   }
 
   execute() {
-    const pi_ram = new Uint8Array(this.hardware.pi_mem.arrayBuffer, 0x7c0, 0x040);
+    const pifRam = new Uint8Array(this.hardware.pif_mem.arrayBuffer, 0x7c0, 0x040);
 
     let offset = 0;
     let channel = 0;
 
     while (offset < 64 && channel < kNumChannels) {
-      const cmd = pi_ram.subarray(offset);
+      const cmd = pifRam.subarray(offset);
 
       if (cmd[0] === CONT_TX_SIZE_CHANSKIP) {
         offset++;
@@ -205,7 +205,7 @@ export class Joybus {
       }
     }
 
-    pi_ram[63] = 0;
+    pifRam[63] = 0;
   }
 
   expectTx(cmdName, txGot, txExpect) {
