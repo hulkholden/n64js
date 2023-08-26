@@ -10,6 +10,8 @@ const kChanController3 = 3;
 const kChanCartridge = 4;
 const kNumChannels = 5;
 
+const kPIFRamSize = 64;
+
 const kCmdGetStatus = 0x00;
 const kCmdControllerRead = 0x01;
 const kCmdControllerAccessoryRead = 0x02;
@@ -67,53 +69,47 @@ export class Joybus {
   execute() {
     const pifRam = new Uint8Array(this.hardware.pif_mem.arrayBuffer, 0x7c0, 0x040);
 
+    let offset = 0;
     let channel = 0;
-    const piframSize = 64;
-    for (let offset = 0; offset < piframSize && channel < kNumChannels; offset++) {
-      const cmd = pifRam.subarray(offset);
-      switch (cmd[0]) {
-        case kJoybusTxChanSkip:
-          channel++;
-          break;
-        case kJoybusTxChanReset:
-          // TODO: should send reset command.
-          channel++;
-          break;
-        case kJoybusTxFormatEnd:
-          offset = piframSize;
-          break;
-        case kJoybusTxDummyData:
-          break;
-        default:
-          if (offset + 1 < piframSize) {
-            const tx = cmd[0] & 0x3f;
-            const rx = cmd[1] & 0x3f;
-            const txOff = 2;  // 2 bytes for tx and rx.
-            const txEnd = txOff + tx;
-            const rxOff = txEnd;
-            const rxEnd = rxOff + rx;
-            const txBuf = cmd.subarray(txOff, txEnd);
-            const rxBuf = cmd.subarray(rxOff, rxEnd);
+    while (offset < kPIFRamSize && channel < kNumChannels) {
+      const frame = pifRam.subarray(offset);
+      const txRaw = frame[0];
+      offset++;
 
-            // Handle malformed channel command (tx seems valid but rx is 0xfe).
-            if (cmd[1] == kJoybusTxFormatEnd) {
-              offset++;
-              break;
-            }
-
-            // Perform the command and find out how many bytes were returned.        
-            // If an unexpected number of bytes were received, set status bits in rx.
-            const rxLen = this.channels[channel].joybusCommand(tx, rx, txBuf, rxBuf);
-            if (rxLen < rx) { cmd[1] |= kResponseUnder; }
-            if (rxLen > rx) { cmd[1] |= kResponseOver; }
-
-            // Skip past the data (one additional byte will be skipped in for loop) and
-            // move to the next channel.
-            offset += rxEnd - 1;
-            channel++;
-          }
-          break;
+      // Joybus interpreset certain tx sizes in a special way.
+      if (txRaw == kJoybusTxFormatEnd) { break; }
+      if (txRaw == kJoybusTxDummyData) { continue; }
+      if (txRaw == kJoybusTxChanSkip) {
+        channel++;
+        continue;
       }
+      if (txRaw == kJoybusTxChanReset) {
+        // TODO: should send reset command.
+        channel++;
+        continue;
+      }
+
+      // Bail out if we can't read the rx value.
+      if (offset >= kPIFRamSize) { break; }
+      const rxRaw = frame[1];
+      offset++;
+      // Handle malformed channel command (tx seems valid but rx is 0xfe).
+      if (rxRaw == kJoybusTxFormatEnd) { break; }
+
+      const tx = txRaw & 0x3f;
+      const txBuf = pifRam.subarray(offset, offset + tx);
+      offset += tx;
+
+      const rx = rxRaw & 0x3f;
+      const rxBuf = pifRam.subarray(offset, offset + rx);
+      offset += rx;
+
+      // Perform the command and find out how many bytes were returned.        
+      // If an unexpected number of bytes were received, set status bits in rx.
+      const rxLen = this.channels[channel].joybusCommand(tx, rx, txBuf, rxBuf);
+      if (rxLen < rx) { frame[1] |= kResponseUnder; }
+      if (rxLen > rx) { frame[1] |= kResponseOver; }
+      channel++;
     }
 
     pifRam[63] = 0;
