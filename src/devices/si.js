@@ -100,7 +100,7 @@ export class SIRegDevice extends Device {
   }
 
   copyToRDRAM() {
-    n64js.controllers().updateController();
+    n64js.joybus().execute();
 
     const dramAddr = this.mem.getU32(SI_DRAM_ADDR_REG) & 0x1fffffff;
     const piRam = new Uint8Array(this.hardware.pi_mem.arrayBuffer, 0x7c0, 0x040);

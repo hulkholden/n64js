@@ -77,7 +77,7 @@ class Controller {
   }
 }
 
-export class Controllers {
+export class Joybus {
   constructor(hardware) {
     this.hardware = hardware;
 
@@ -140,7 +140,7 @@ export class Controllers {
     this.controllers[idx].buttons = buttons;
   }
 
-  updateController() {
+  execute() {
     const pi_ram = new Uint8Array(this.hardware.pi_mem.arrayBuffer, 0x7c0, 0x040);
 
     let offset = 0;
