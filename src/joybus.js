@@ -21,10 +21,11 @@ const kCmdRTCRead = 0x07;
 const kCmdRTCWrite = 0x08;
 const kCmdReset = 0xff;
 
-const CONT_TX_SIZE_CHANSKIP = 0x00;  // Channel Skip
-const CONT_TX_SIZE_CHANRESET = 0xFD;  // Channel Reset
-const CONT_TX_SIZE_FORMAT_END = 0xFE;  // Format End
-const CONT_TX_SIZE_DUMMYDATA = 0xFF;  // Dummy Data
+// Joybus interpreset certain tx sizes in a special way.
+const kJoybusTxChanSkip = 0x00;  // Channel Skip
+const kJoybusTxChanReset = 0xfd;  // Channel Reset
+const kJoybusTxFormatEnd = 0xfe;  // Format End
+const kJoybusTxDummyData = 0xff;  // Dummy Data
 
 const kAttachmentNone = 0;
 const kAttachmentControllerPak = 1;
@@ -71,17 +72,17 @@ export class Joybus {
     for (let offset = 0; offset < piframSize && channel < kNumChannels; offset++) {
       const cmd = pifRam.subarray(offset);
       switch (cmd[0]) {
-        case CONT_TX_SIZE_CHANSKIP:
+        case kJoybusTxChanSkip:
           channel++;
           break;
-        case CONT_TX_SIZE_CHANRESET:
+        case kJoybusTxChanReset:
           // TODO: should send reset command.
           channel++;
           break;
-        case CONT_TX_SIZE_FORMAT_END:
+        case kJoybusTxFormatEnd:
           offset = piframSize;
           break;
-        case CONT_TX_SIZE_DUMMYDATA:
+        case kJoybusTxDummyData:
           break;
         default:
           if (offset + 1 < piframSize) {
@@ -95,7 +96,7 @@ export class Joybus {
             const rxBuf = cmd.subarray(rxOff, rxEnd);
 
             // Handle malformed channel command (tx seems valid but rx is 0xfe).
-            if (cmd[1] == CONT_TX_SIZE_FORMAT_END) {
+            if (cmd[1] == kJoybusTxFormatEnd) {
               offset++;
               break;
             }
@@ -103,11 +104,8 @@ export class Joybus {
             // Perform the command and find out how many bytes were returned.        
             // If an unexpected number of bytes were received, set status bits in rx.
             const rxLen = this.channels[channel].joybusCommand(tx, rx, txBuf, rxBuf);
-            if (rxLen < rx) {
-              cmd[1] |= kResponseUnder;
-            } else if (rxLen > rx) {
-              cmd[1] |= kResponseOver;
-            }
+            if (rxLen < rx) { cmd[1] |= kResponseUnder; }
+            if (rxLen > rx) { cmd[1] |= kResponseOver; }
 
             // Skip past the data (one additional byte will be skipped in for loop) and
             // move to the next channel.
