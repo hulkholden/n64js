@@ -195,8 +195,8 @@ class ControllerChannel {
     this.expectTx('kCmdGetStatus', tx, 1);
 
     // Device ID.
-    rxBuf[0] = (kDeviceIDController >>> 8);
-    rxBuf[1] = (kDeviceIDController & 0xff);
+    rxBuf[0] = kDeviceIDController >>> 8;
+    rxBuf[1] = kDeviceIDController & 0xff;
     // Status.
     rxBuf[2] = this.attachment == kAttachmentNone ? 0x02 : 0x01;
     return 3;
@@ -336,8 +336,8 @@ class CartridgeChannel {
 
     // Device ID.
     const id = (eeprom.u8.length == 512) ? kDeviceIDEeprom4K : kDeviceIDEeprom16K;
-    rxBuf[0] = (id >>> 8);
-    rxBuf[1] = (id & 0xff);
+    rxBuf[0] = id >>> 8;
+    rxBuf[1] = id & 0xff;
     // Status.
     rxBuf[2] = 0x00;
     return 3;
@@ -371,8 +371,8 @@ class CartridgeChannel {
 
   rtcStatus(tx, rx, txBuf, rxBuf) {
     // Device ID.
-    rxBuf[0] = (kDeviceIDRTC >>> 8);
-    rxBuf[1] = (kDeviceIDRTC & 0xff);
+    rxBuf[0] = kDeviceIDRTC >>> 8;
+    rxBuf[1] = kDeviceIDRTC & 0xff;
     // Status.
     rxBuf[2] = 0x00;
     return 3;
