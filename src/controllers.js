@@ -9,16 +9,16 @@ const kChanController3 = 3;
 const kChanCartridge = 4;
 const kNumChannels = 5;
 
-const CONT_GET_STATUS = 0x00;
-const CONT_READ_CONTROLLER = 0x01;
-const CONT_READ_MEMPACK = 0x02;
-const CONT_WRITE_MEMPACK = 0x03;
-const CONT_READ_EEPROM = 0x04;
-const CONT_WRITE_EEPROM = 0x05;
-const CONT_RTC_STATUS = 0x06;
-const CONT_RTC_READ = 0x07;
-const CONT_RTC_WRITE = 0x08;
-const CONT_RESET = 0xff;
+const kCmdGetStatus = 0x00;
+const kCmdControllerRead = 0x01;
+const kCmdControllerAccessoryRead = 0x02;
+const kCmdControllerAccessoryWrite = 0x03;
+const kCmdEepromRead = 0x04;
+const kCmdEepromWrite = 0x05;
+const kCmdRTCInfo = 0x06;
+const kCmdRTCRead = 0x07;
+const kCmdRTCWrite = 0x08;
+const kCmdReset = 0xff;
 
 const CONT_TX_SIZE_CHANSKIP = 0x00;  // Channel Skip
 const CONT_TX_SIZE_CHANRESET = 0xFD;  // Channel Reset
@@ -44,6 +44,13 @@ const kButtonCRight = 0x0001;
 const kAttachmentNone = 0;
 const kAttachmentControllerPak = 1;
 const kAttachmentRumblePak = 2;
+
+// Device IDs returned in kCmdGetStatus status.
+const kDeviceIDRTC = 0x0010;
+const kDeviceIDEeprom4K = 0x0080;
+const kDeviceIDEeprom16K = 0x00c0;
+const kDeviceIDController = 0x0500;
+const kDeviceIDDisconnected = 0xffff;
 
 class Controller {
   constructor() {
@@ -194,24 +201,24 @@ export class Controllers {
 
   processController(controller, tx, rx, txBuf, rxBuf) {
     if (!controller.present) {
-      rxBuf[0] = 0xff;
-      rxBuf[1] = 0xff;
+      rxBuf[0] = 0xff;  // kDeviceIDDisconnected >> 8?
+      rxBuf[1] = 0xff;  // kDeviceIDDisconnected & 0xff?
       rxBuf[2] = 0xff;
       return false;
     }
 
     const command = txBuf[0];
     switch (command) {
-      case CONT_RESET:
-        // Reset behaves the same as CONT_GET_STATUS.
+      case kCmdReset:
+        // Reset behaves the same as kCmdGetStatus.
         return this.controllerGetStatus(controller, tx, rx, txBuf, rxBuf);
-      case CONT_GET_STATUS:
+      case kCmdGetStatus:
         return this.controllerGetStatus(controller, tx, rx, txBuf, rxBuf);
-      case CONT_READ_CONTROLLER:
+      case kCmdControllerRead:
         return this.controllerReadController(controller, tx, rx, txBuf, rxBuf);
-      case CONT_READ_MEMPACK:
+      case kCmdControllerAccessoryRead:
         return this.controllerReadMemPack(controller, tx, rx, txBuf, rxBuf);
-      case CONT_WRITE_MEMPACK:
+      case kCmdControllerAccessoryWrite:
         return this.controllerWriteMemPack(controller, tx, rx, txBuf, rxBuf);
     }
 
@@ -222,19 +229,19 @@ export class Controllers {
   processCartridge(tx, rx, txBuf, rxBuf) {
     const command = txBuf[0];
     switch (command) {
-      case CONT_RESET:
+      case kCmdReset:
         return this.cartridgeGetStatus(tx, rx, txBuf, rxBuf);
-      case CONT_GET_STATUS:
+      case kCmdGetStatus:
         return this.cartridgeGetStatus(tx, rx, txBuf, rxBuf);
-      case CONT_READ_EEPROM:
+      case kCmdEepromRead:
         return this.cartridgeReadEeprom(tx, rx, txBuf, rxBuf);
-      case CONT_WRITE_EEPROM:
+      case kCmdEepromWrite:
         return this.cartridgeWriteEeprom(tx, rx, txBuf, rxBuf);
-      case CONT_RTC_STATUS:
+      case kCmdRTCInfo:
         return this.cartridgeRTCStatus(tx, rx, txBuf, rxBuf);
-      case CONT_RTC_READ:
+      case kCmdRTCRead:
         return this.cartridgeRTCRead(tx, rx, txBuf, rxBuf);
-      case CONT_RTC_WRITE:
+      case kCmdRTCWrite:
         return this.cartridgeRTCWrite(tx, rx, txBuf, rxBuf);
     }
 
@@ -245,8 +252,10 @@ export class Controllers {
   controllerGetStatus(controller, tx, rx, txBuf, rxBuf) {
     this.expectTxRx('CONT_GET_STATUS', tx, 1, rx, 3);
 
-    rxBuf[0] = 0x05;
-    rxBuf[1] = 0x00;
+    // Device ID.
+    rxBuf[0] = (kDeviceIDController >>> 8);
+    rxBuf[1] = (kDeviceIDController & 0xff);
+    // Status.
     rxBuf[2] = controller.attachment == kAttachmentNone ? 0x02 : 0x01;
     return true;
   }
@@ -352,8 +361,11 @@ export class Controllers {
       return false;
     }
 
-    rxBuf[0] = 0x00;
-    rxBuf[1] = (eeprom.u8.length == 512) ? 0x80 : 0xc0;  // Check if 4k or 16k.
+    // Device ID.
+    const id = (eeprom.u8.length == 512) ? kDeviceIDEeprom4K : kDeviceIDEeprom16K;
+    rxBuf[0] = (id >>> 8);
+    rxBuf[1] = (id & 0xff);
+    // Status.
     rxBuf[2] = 0x00;
     return true;
   }
@@ -382,9 +394,9 @@ export class Controllers {
   }
 
   cartridgeRTCStatus(tx, rx, txBuf, rxBuf) {
-    // Identifier.
-    rxBuf[0] = 0x00;
-    rxBuf[1] = 0x10;
+    // Device ID.
+    rxBuf[0] = (kDeviceIDRTC >>> 8);
+    rxBuf[1] = (kDeviceIDRTC & 0xff);
     // Status.
     rxBuf[2] = 0x00;
     return true;
