@@ -52,6 +52,10 @@ const kDeviceIDEeprom16K = 0x00c0;
 const kDeviceIDController = 0x0500;
 const kDeviceIDDisconnected = 0xffff;
 
+// Responses returned in rx byte when unexpected number of bytes returned.
+const kResponseOver = 0x40;  // Too many bytes returned.
+const kResponseUnder = 0x80;  // Too few bytes returned.
+
 class Controller {
   constructor() {
     this.buttons = 0;
@@ -85,6 +89,9 @@ export class Controllers {
     ];
     this.controllers[0].present = true;
     this.controllers[0].attachControllerPack(hardware.mempacks[0]);
+
+    // A buffer used to make it easier to handle truncated output.
+    this.tempOutput = new Uint8Array(64);
   }
 
   handleKey(idx, key, down) {
@@ -166,31 +173,39 @@ export class Controllers {
         const txBuf = cmd.subarray(2);
         const rxBuf = cmd.subarray(2 + tx);
 
-        let handled;
+        // Provide a full sized output buffer so that commands don't need to handle
+        // truncated output in the handlers.
+        for (let i = 0; i < rx; i++) {
+          this.tempOutput[i] = 0;
+        }
+
+        // Handlers return how many bytes were written to tempOutput.
+        let rxLen;
         if (channel < kChanCartridge) {
-          handled = this.processController(this.controllers[channel], tx, rx, txBuf, rxBuf);
+          rxLen = this.processController(this.controllers[channel], tx, rx, txBuf, this.tempOutput);
         } else {
-          handled = this.processCartridge(tx, rx, txBuf, rxBuf)
+          rxLen = this.processCartridge(tx, rx, txBuf, this.tempOutput)
         }
-        if (!handled) {
-          // Set the invalid bit.
-          cmd[1] |= 0x80;
+
+        // If an unexpected number of bytes were received, set status bits in rx.
+        if (rxLen < rx) {
+          cmd[1] |= kResponseUnder;
+        } else if (rxLen > rx) {
+          cmd[1] |= kResponseOver;
+          rxLen = rx;
         }
+        // Copy response bytes.
+        for (let i = 0; i < rxLen; i++) {
+          rxBuf[i] = this.tempOutput[i];
+        }
+
+        // Move to the next channel.
         channel++;
         offset += 2 + tx + rx;
       }
     }
 
     pi_ram[63] = 0;
-  }
-
-  expectTxRx(cmdName, txGot, txExpect, rxGot, rxExpect) {
-    if (txGot != txExpect) {
-      logger.log(`${cmdName}: got tx ${txGot} but expect ${txExpect}`)
-    }
-    if (rxGot != rxExpect) {
-      logger.log(`${cmdName}: got rx ${rxGot} but expect ${rxExpect}`)
-    }
   }
 
   expectTx(cmdName, txGot, txExpect) {
@@ -201,10 +216,7 @@ export class Controllers {
 
   processController(controller, tx, rx, txBuf, rxBuf) {
     if (!controller.present) {
-      rxBuf[0] = 0xff;  // kDeviceIDDisconnected >> 8?
-      rxBuf[1] = 0xff;  // kDeviceIDDisconnected & 0xff?
-      rxBuf[2] = 0xff;
-      return false;
+      return 0;
     }
 
     const command = txBuf[0];
@@ -223,7 +235,7 @@ export class Controllers {
     }
 
     n64js.halt('Unknown controller command ' + command);
-    return false;
+    return 0;
   }
 
   processCartridge(tx, rx, txBuf, rxBuf) {
@@ -246,22 +258,22 @@ export class Controllers {
     }
 
     n64js.halt(`Unknown cartridge command: ${command}`);
-    return false;
+    return 0;
   }
 
   controllerGetStatus(controller, tx, rx, txBuf, rxBuf) {
-    this.expectTxRx('CONT_GET_STATUS', tx, 1, rx, 3);
+    this.expectTx('kCmdGetStatus', tx, 1);
 
     // Device ID.
     rxBuf[0] = (kDeviceIDController >>> 8);
     rxBuf[1] = (kDeviceIDController & 0xff);
     // Status.
     rxBuf[2] = controller.attachment == kAttachmentNone ? 0x02 : 0x01;
-    return true;
+    return 3;
   }
 
   controllerReadController(controller, tx, rx, txBuf, rxBuf) {
-    this.expectTxRx('CONT_READ_CONTROLLER', tx, 1, rx, 4);
+    this.expectTx('kCmdControllerRead', tx, 1);
 
     let buttons = controller.buttons;
     let stick_x = controller.stick_x;
@@ -280,26 +292,24 @@ export class Controllers {
     rxBuf[3] = stick_y;
 
     // TODO: if rx > expected then set over bit (0x40) in rx byte.
-    return true;
+    return 4;
   }
 
   controllerReadMemPack(controller, tx, rx, txBuf, rxBuf) {
-    this.expectTx('CONT_READ_MEMPACK', tx, 3);
+    this.expectTx('kCmdControllerAccessoryRead', tx, 3);
 
     const addr = (txBuf[1] << 8) | (txBuf[2] & 0xe0);
     const addrCRC = txBuf[2] & 0x1f;
     if (addrCRC != this.calculateAddressCrc(addr)) {
-      return false;
+      return 0;
     }
 
-    let handled = false;
     switch (controller.attachment) {
       case kAttachmentControllerPak:
         const data = controller.memory.data;
         for (let i = 0, address = addr; i < (rx - 1); i++, address++) {
           rxBuf[i] = address < data.length ? data[address] : 0;
         }
-        handled = true;
         break;
       case kAttachmentRumblePak:
         for (let i = 0, address = addr; i < (rx - 1); i++, address++) {
@@ -309,25 +319,24 @@ export class Controllers {
           else val = controller.rumbleActive ? 0xff : 0x00;
           rxBuf[i] = val;
         }
-        handled = true;
         break;
+
+      default:
+        return 0;
     }
-    if (handled) {
-      rxBuf[rx - 1] = this.calculateDataCrc(rxBuf, 0, rx - 1);
-    }
-    return handled;
+    rxBuf[rx - 1] = this.calculateDataCrc(rxBuf, 0, rx - 1);
+    return rx;
   }
 
   controllerWriteMemPack(controller, tx, rx, txBuf, rxBuf) {
-    this.expectTxRx('CONT_WRITE_MEMPACK', tx, 35, rx, 1);
+    this.expectTx('kCmdControllerAccessoryWrite', tx, 35);
 
     const addr = (txBuf[1] << 8) | (txBuf[2] & 0xe0);
     const addrCRC = txBuf[2] & 0x1f;
     if (addrCRC != this.calculateAddressCrc(addr)) {
-      return false;
+      return 0;
     }
 
-    let handled = false;
     switch (controller.attachment) {
       case kAttachmentControllerPak:
         const data = controller.memory.data;
@@ -337,28 +346,27 @@ export class Controllers {
             data[address] = txBuf[3 + i];
           }
         }
-        handled = true;
         break;
       case kAttachmentRumblePak:
         if (addr >= 0xC000) {
           controller.rumbleActive = txBuf[3] & 1;
         }
-        handled = true;
         break;
+
+      default:
+        return 0;
     }
-    if (handled) {
-      rxBuf[rx - 1] = this.calculateDataCrc(txBuf, 3, tx - 3);
-    }
-    return handled;
+    rxBuf[rx - 1] = this.calculateDataCrc(txBuf, 3, tx - 3);
+    return rx;
   }
 
   cartridgeGetStatus(tx, rx, txBuf, rxBuf) {
-    this.expectTxRx('CONT_GET_STATUS', tx, 1, rx, 3);
+    this.expectTx('kCmdGetStatus', tx, 1);
 
     const eeprom = this.hardware.eeprom;
     if (!eeprom) {
       console.log(`no eeprom`)
-      return false;
+      return 0;
     }
 
     // Device ID.
@@ -367,21 +375,23 @@ export class Controllers {
     rxBuf[1] = (id & 0xff);
     // Status.
     rxBuf[2] = 0x00;
-    return true;
+    return 3;
   }
 
   cartridgeReadEeprom(tx, rx, txBuf, rxBuf) {
-    this.expectTx('CONT_READ_EEPROM', tx, 2);
+    this.expectTx('kCmdEepromRead', tx, 2);
+
+    // TODO: In a 512 byte EEPROM, the top two bits of block number are ignored: blocks 64-255 are repeats of the first 64
 
     const offset = txBuf[1] * 8;
     for (let i = 0; i < rx; ++i) {
       rxBuf[i] = this.hardware.eeprom.u8[offset + i];
     }
-    return true;
+    return rx;
   }
 
   cartridgeWriteEeprom(tx, rx, txBuf, rxBuf) {
-    this.expectTxRx('CONT_WRITE_EEPROM', tx, 10, rx, 1);
+    this.expectTx('kCmdEepromWrite', tx, 10);
 
     const offset = txBuf[1] * 8;
     for (let i = 0; i < tx - 2; ++i) {
@@ -389,8 +399,9 @@ export class Controllers {
     }
     this.hardware.eepromDirty = true;
 
+    // Response byte. Could send 0x80 if busy.
     rxBuf[0] = 0;
-    return true;
+    return 1;
   }
 
   cartridgeRTCStatus(tx, rx, txBuf, rxBuf) {
@@ -399,16 +410,16 @@ export class Controllers {
     rxBuf[1] = (kDeviceIDRTC & 0xff);
     // Status.
     rxBuf[2] = 0x00;
-    return true;
+    return 3;
   }
 
   cartridgeRTCRead(tx, rx, txBuf, rxBuf) {
     n64js.warn('rtc read unhandled');
-    return false;
+    return 0;
   }
   cartridgeRTCWrite(tx, rx, txBuf, rxBuf) {
     n64js.warn('rtc write unhandled');
-    return false;
+    return 0;
   }
 
   calculateDataCrc(buf, offset, bytes) {
