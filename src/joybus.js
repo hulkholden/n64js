@@ -220,8 +220,6 @@ class ControllerChannel {
     rxBuf[1] = buttons & 0xff;
     rxBuf[2] = stick_x;
     rxBuf[3] = stick_y;
-
-    // TODO: if rx > expected then set over bit (0x40) in rx byte.
     return 4;
   }
 
