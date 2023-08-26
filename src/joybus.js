@@ -69,59 +69,62 @@ export class Joybus {
   execute() {
     const pifRam = new Uint8Array(this.hardware.pif_mem.arrayBuffer, 0x7c0, 0x040);
 
-    let offset = 0;
     let channel = 0;
-
-    while (offset < 64 && channel < kNumChannels) {
+    const piframSize = 64;
+    for (let offset = 0; offset < piframSize && channel < kNumChannels; offset++) {
       const cmd = pifRam.subarray(offset);
+      switch (cmd[0]) {
+        case CONT_TX_SIZE_CHANSKIP:
+          channel++;
+          break;
+        case CONT_TX_SIZE_CHANRESET:
+          // TODO: should send reset command.
+          channel++;
+          break;
+        case CONT_TX_SIZE_FORMAT_END:
+          offset = piframSize;
+          break;
+        case CONT_TX_SIZE_DUMMYDATA:
+          break;
+        default:
+          {
+            const tx = cmd[0] & 0x3f;
+            const rx = cmd[1] & 0x3f; // At the end of the buffer this will be set to undefined.
+            const txBuf = cmd.subarray(2);
+            const rxBuf = cmd.subarray(2 + tx);
 
-      if (cmd[0] === CONT_TX_SIZE_CHANSKIP) {
-        offset++;
-        channel++;
-      } else if (cmd[0] === CONT_TX_SIZE_CHANRESET) {
-        // TODO: should send reset command.
-        offset++;
-        channel++;
-      } else if (cmd[0] === CONT_TX_SIZE_FORMAT_END) {
-        offset = 64;
-        channel = kNumChannels;
-      } else if (cmd[0] === CONT_TX_SIZE_DUMMYDATA) {
-        offset++;
-      } else {
-        // Handle malformed channel command (tx seems valid but rx is 0xfe).
-        if (offset + 1 < 64 && cmd[1] == CONT_TX_SIZE_FORMAT_END) {
-          offset++;
-          continue;
-        }
+            // Handle malformed channel command (tx seems valid but rx is 0xfe).
+            if (cmd[1] == CONT_TX_SIZE_FORMAT_END) {
+              offset++;
+              break;
+            }  
 
-        const tx = cmd[0] & 0x3f;
-        const rx = cmd[1] & 0x3f;
-        const txBuf = cmd.subarray(2);
-        const rxBuf = cmd.subarray(2 + tx);
+            // Provide a full sized output buffer so that commands don't need to handle
+            // truncated output in the handlers.
+            for (let i = 0; i < rx; i++) {
+              this.tempOutput[i] = 0;
+            }
 
-        // Provide a full sized output buffer so that commands don't need to handle
-        // truncated output in the handlers.
-        for (let i = 0; i < rx; i++) {
-          this.tempOutput[i] = 0;
-        }
+            // Perform the command and find out how many bytes were returned.        
+            // If an unexpected number of bytes were received, set status bits in rx.
+            const rxLen = this.channels[channel].joybusCommand(tx, rx, txBuf, this.tempOutput);
+            if (rxLen < rx) {
+              cmd[1] |= kResponseUnder;
+            } else if (rxLen > rx) {
+              cmd[1] |= kResponseOver;
+              rxLen = rx;
+            }
+            // Copy response bytes.
+            for (let i = 0; i < rxLen; i++) {
+              rxBuf[i] = this.tempOutput[i];
+            }
 
-        // Perform the command and find out how many bytes were returned.        
-        // If an unexpected number of bytes were received, set status bits in rx.
-        const rxLen = this.channels[channel].joybusCommand(tx, rx, txBuf, this.tempOutput);
-        if (rxLen < rx) {
-          cmd[1] |= kResponseUnder;
-        } else if (rxLen > rx) {
-          cmd[1] |= kResponseOver;
-          rxLen = rx;
-        }
-        // Copy response bytes.
-        for (let i = 0; i < rxLen; i++) {
-          rxBuf[i] = this.tempOutput[i];
-        }
-
-        // Move to the next channel.
-        channel++;
-        offset += 2 + tx + rx;
+            // Skip past the data (one additional byte will be skipped in for loop).
+            offset += 1 + tx + rx;
+            // Move to the next channel.
+            channel++;
+          }
+          break;
       }
     }
 
