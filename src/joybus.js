@@ -108,18 +108,18 @@ export class Controllers {
 }
 
 export class Joybus {
-  constructor(hardware, controllers) {
+  constructor(hardware, inputs) {
     this.hardware = hardware;
 
-    const controller0 = new ControllerChannel(controllers.inputs[0]);
+    const controller0 = new ControllerChannel(inputs[0]);
     controller0.present = true;
     controller0.attachControllerPack(hardware.mempacks[0]);
 
     this.channels = [
       controller0,
-      new ControllerChannel(controllers.inputs[1]),
-      new ControllerChannel(controllers.inputs[2]),
-      new ControllerChannel(controllers.inputs[3]),
+      new ControllerChannel(inputs[1]),
+      new ControllerChannel(inputs[2]),
+      new ControllerChannel(inputs[3]),
       new CartridgeChannel(hardware),
     ];
 
