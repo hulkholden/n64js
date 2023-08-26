@@ -2,7 +2,7 @@
 /*global Stats:false */
 
 import { simulateBoot } from './boot.js';
-import { Joybus } from './joybus.js';
+import { Controllers, Joybus } from './joybus.js';
 import { Debugger } from './debugger.js';
 import { fixRomByteOrder } from './endian.js';
 import { toString32 } from './format.js';
@@ -35,7 +35,8 @@ const rominfo = {
 };
 
 const hardware = new Hardware(rominfo);
-const joybus = new Joybus(hardware);
+const controllers = new Controllers();
+const joybus = new Joybus(hardware, controllers);
 const ui = new UI();
 let dbg = null; // FIXME: can't use debugger as a variable name - fix this when wrapping in a class.
 
@@ -347,10 +348,10 @@ n64js.init = () => {
 
   const body = document.querySelector('body');
   body.addEventListener('keyup', (event) => {
-    joybus.handleKey(0, event.key, false);
+    controllers.handleKey(0, event.key, false);
   });
   body.addEventListener('keydown', (event) => {
-    joybus.handleKey(0, event.key, true);
+    controllers.handleKey(0, event.key, true);
   });
 
   ui.domLoaded();
