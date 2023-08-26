@@ -59,17 +59,24 @@ const kResponseUnder = 0x80;  // Too few bytes returned.
 export class Joybus {
   constructor(hardware) {
     this.hardware = hardware;
-
-    this.controllers = [
-      new Controller(),
-      new Controller(),
-      new Controller(),
-      new Controller(),
+    this.inputs = [
+      new ControllerInputs(),
+      new ControllerInputs(),
+      new ControllerInputs(),
+      new ControllerInputs(),
     ];
-    this.controllers[0].present = true;
-    this.controllers[0].attachControllerPack(hardware.mempacks[0]);
 
-    this.cartridge = new Cartridge(hardware);
+    const controller0 = new ControllerChannel(this.inputs[0]);
+    controller0.present = true;
+    controller0.attachControllerPack(hardware.mempacks[0]);
+
+    this.channels = [
+      controller0,
+      new ControllerChannel(this.inputs[1]),
+      new ControllerChannel(this.inputs[2]),
+      new ControllerChannel(this.inputs[3]),
+      new CartridgeChannel(hardware),
+    ];
 
     // A buffer used to make it easier to handle truncated output.
     this.tempOutput = new Uint8Array(64);
@@ -103,22 +110,16 @@ export class Joybus {
     }
   };
 
-  setStickX(idx, val) {
-    this.controllers[idx].stick_x = val;
-  }
-
-  setStickY(idx, val) {
-    this.controllers[idx].stick_y = val;
-  }
-
+  setStickX(idx, val) { this.inputs[idx].stick_x = val; }
+  setStickY(idx, val) { this.inputs[idx].stick_y = val; }
   setButton(idx, button, down) {
-    let buttons = this.controllers[idx].buttons;
+    let buttons = this.inputs[idx].buttons;
     if (down) {
       buttons |= button;
     } else {
       buttons &= ~button;
     }
-    this.controllers[idx].buttons = buttons;
+    this.inputs[idx].buttons = buttons;
   }
 
   execute() {
@@ -160,15 +161,9 @@ export class Joybus {
           this.tempOutput[i] = 0;
         }
 
-        // Handlers return how many bytes were written to tempOutput.
-        let rxLen;
-        if (channel < kChanCartridge) {
-          rxLen = this.controllers[channel].joybusCommand(tx, rx, txBuf, this.tempOutput);
-        } else {
-          rxLen = this.cartridge.joybusCommand(tx, rx, txBuf, this.tempOutput)
-        }
-
+        // Perform the command and find out how many bytes were returned.        
         // If an unexpected number of bytes were received, set status bits in rx.
+        const rxLen = this.channels[channel].joybusCommand(tx, rx, txBuf, this.tempOutput);
         if (rxLen < rx) {
           cmd[1] |= kResponseUnder;
         } else if (rxLen > rx) {
@@ -213,11 +208,17 @@ function calculateAddressCrc(address) {
   return c & 0x1f;
 }
 
-class Controller {
+class ControllerInputs {
   constructor() {
     this.buttons = 0;
     this.stick_x = 0;
     this.stick_y = 0;
+  }
+}
+
+class ControllerChannel {
+  constructor(inputs) {
+    this.inputs = inputs;
     this.present = false;
     this.attachment = kAttachmentNone;
 
@@ -277,9 +278,9 @@ class Controller {
   readController(tx, rx, txBuf, rxBuf) {
     this.expectTx('kCmdControllerRead', tx, 1);
 
-    let buttons = this.buttons;
-    let stick_x = this.stick_x;
-    let stick_y = this.stick_y;
+    let buttons = this.inputs.buttons;
+    let stick_x = this.inputs.stick_x;
+    let stick_y = this.inputs.stick_y;
 
     if (syncInput) {
       syncInput.sync32(0xbeeff00d, 'input');
@@ -363,7 +364,7 @@ class Controller {
   }
 }
 
-class Cartridge {
+class CartridgeChannel {
   constructor(hardware) {
     this.hardware = hardware
   }
