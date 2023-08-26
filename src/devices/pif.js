@@ -20,8 +20,8 @@ export class PIFMemDevice extends Device {
     } else {
       const ramOffset = ea - 0x7c0;
       switch (ramOffset) {
-        case 0x24: logger.log(`Reading CIC values: ${toString32(v)}`); break;
-        case 0x3c: logger.log(`Reading Control byte: ${toString32(v)}`); break;
+        case 0x24: logger.log(`Reading PIF CIC values: ${toString32(v)}`); break;
+        case 0x3c: logger.log(`Reading PIF Control byte: ${toString32(v)}`); break;
         default: logger.log(`Reading from PIF ram [${toString32(address)}]. Got ${toString32(v)}`); break;
       }
     }
@@ -40,8 +40,8 @@ export class PIFMemDevice extends Device {
     } else {
       const ramOffset = ea - 0x7c0;
       switch (ramOffset) {
-        case 0x24: logger.log(`Reading CIC values: ${toString8(v)}`); break;
-        case 0x3c: logger.log(`Reading Control byte: ${toString8(v)}`); break;
+        case 0x24: logger.log(`Reading PIF CIC values: ${toString8(v)}`); break;
+        case 0x3c: logger.log(`Reading PIF Control byte: ${toString8(v)}`); break;
         default: logger.log(`Reading from PIF ram [${toString32(address)}]. Got ${toString8(v)}`); break;
       }
     }
@@ -62,8 +62,8 @@ export class PIFMemDevice extends Device {
     this.mem.set32(ea, value);
     const ramOffset = ea - 0x7c0;
     switch (ramOffset) {
-      case 0x24: logger.log(`Writing CIC values: ${toString32(value)}`); break;
-      case 0x3c: logger.log(`Writing Control byte: ${toString32(value)}`); this.updateControl(); break;
+      case 0x24: logger.log(`Writing PIF CIC values: ${toString32(value)}`); break;
+      case 0x3c: logger.log(`Writing PIF Control byte: ${toString32(value)}`); this.updateControl(); break;
       default: logger.log(`Writing directly to PIF ram [${toString32(address)}] <-- ${toString32(value)}`); break;
     }
   }
