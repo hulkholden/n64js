@@ -15,8 +15,6 @@ export const SI_STATUS_RD_BUSY = 0x0002;
 export const SI_STATUS_DMA_ERROR = 0x0008;
 export const SI_STATUS_INTERRUPT = 0x1000;
 
-
-
 export class SIRegDevice extends Device {
   constructor(hardware, rangeStart, rangeEnd) {
     super("SIReg", hardware, hardware.si_reg, rangeStart, rangeEnd);
@@ -81,7 +79,7 @@ export class SIRegDevice extends Device {
 
   copyFromRDRAM() {
     const dramAddr = this.mem.getU32(SI_DRAM_ADDR_REG) & 0x1fffffff;
-    const pifRam = new Uint8Array(this.hardware.pi_mem.arrayBuffer, 0x7c0, 0x040);
+    const pifRam = new Uint8Array(this.hardware.pif_mem.arrayBuffer, 0x7c0, 0x040);
 
     if (!this.quiet) { logger.log(`SI: copying from ${toString32(dramAddr)} to PIF RAM`); }
 
@@ -103,12 +101,12 @@ export class SIRegDevice extends Device {
     n64js.joybus().execute();
 
     const dramAddr = this.mem.getU32(SI_DRAM_ADDR_REG) & 0x1fffffff;
-    const piRam = new Uint8Array(this.hardware.pi_mem.arrayBuffer, 0x7c0, 0x040);
+    const pifRam = new Uint8Array(this.hardware.pif_mem.arrayBuffer, 0x7c0, 0x040);
 
     if (!this.quiet) { logger.log(`SI: copying from PIF RAM to ${toString32(dramAddr)}`); }
 
     for (let i = 0; i < 64; ++i) {
-      this.hardware.ram.u8[dramAddr + i] = piRam[i];
+      this.hardware.ram.u8[dramAddr + i] = pifRam[i];
     }
 
     this.mem.setBits32(SI_STATUS_REG, SI_STATUS_INTERRUPT);

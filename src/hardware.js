@@ -3,7 +3,7 @@ import { AIRegDevice } from './devices/ai.js';
 import { DPCDevice } from './devices/dpc.js';
 import { DPSDevice } from './devices/dps.js';
 import { MIRegDevice } from './devices/mi.js';
-import { PIRegDevice, PIRamDevice } from './devices/pi.js';
+import { PIRegDevice, PIFMemDevice } from './devices/pi.js';
 import { MappedMemDevice, CachedMemDevice, UncachedMemDevice, InvalidMemDevice, RDRamRegDevice } from './devices/ram.js';
 import { RIRegDevice } from './devices/ri.js';
 import { ROMD1A1Device, ROMD1A2Device, ROMD1A3Device, ROMD2A1Device, ROMD2A2Device } from './devices/rom.js';
@@ -40,7 +40,7 @@ export class Hardware {
     this.rominfo = rominfo;
 
     this.rom = null;   // Will be memory, mapped at 0xb0000000
-    this.pi_mem = newMemoryRegion(0x7c0 + 0x40);   // rom+ram
+    this.pif_mem = newMemoryRegion(0x7c0 + 0x40);   // rom+ram
     this.ram = newMemoryRegion(8 * 1024 * 1024);
     this.sp_mem = newMemoryRegion(0x2000);
     this.sp_reg = newMemoryRegion(0x20);
@@ -92,7 +92,7 @@ export class Hardware {
     this.romD1A1Device = new ROMD1A1Device(this, 0xa6000000, 0xa8000000);
     this.romD2A2Device = new ROMD2A2Device(this, 0xa8000000, 0xb0000000);
     this.romD1A2Device = new ROMD1A2Device(this, 0xb0000000, 0xbfc00000);
-    this.piMemDevice = new PIRamDevice(this, 0xbfc00000, 0xbfc00800);
+    this.pifMemDevice = new PIFMemDevice(this, 0xbfc00000, 0xbfc00800);
     this.romD1A3Device = new ROMD1A3Device(this, 0xbfd00000, 0xc0000000);
     // KSSEG, TLB mapped.
     this.mappedMem2Device = new MappedMemDevice(this, 0xc0000000, 0xe0000000);
@@ -124,7 +124,7 @@ export class Hardware {
       this.romD1A1Device,
       this.romD2A2Device,
       this.romD1A2Device,
-      this.piMemDevice,
+      this.pifMemDevice,
       this.romD1A3Device,
       this.mappedMem2Device,
       this.mappedMem3Device,
@@ -133,7 +133,7 @@ export class Hardware {
   }
 
   reset() {
-    this.pi_mem.clear();
+    this.pif_mem.clear();
     this.ram.clear();
     this.sp_mem.clear();
     this.sp_reg.clear();
