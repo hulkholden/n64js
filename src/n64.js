@@ -2,7 +2,8 @@
 /*global Stats:false */
 
 import { simulateBoot } from './boot.js';
-import { Controllers, Joybus } from './joybus.js';
+import { Controllers } from './controllers.js';
+import { Joybus } from './joybus.js';
 import { Debugger } from './debugger.js';
 import { fixRomByteOrder } from './endian.js';
 import { toString32 } from './format.js';

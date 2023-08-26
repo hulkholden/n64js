@@ -1,6 +1,7 @@
 import * as logger from './logger.js';
 import { toString16, toString8 } from './format.js';
 import { syncInput } from './sync.js';
+import { ControllerInputs } from './controllers.js';
 
 const kChanController0 = 0;
 const kChanController1 = 1;
@@ -25,22 +26,6 @@ const CONT_TX_SIZE_CHANRESET = 0xFD;  // Channel Reset
 const CONT_TX_SIZE_FORMAT_END = 0xFE;  // Format End
 const CONT_TX_SIZE_DUMMYDATA = 0xFF;  // Dummy Data
 
-const kButtonA = 0x8000;
-const kButtonB = 0x4000;
-const kButtonZ = 0x2000;
-const kButtonStart = 0x1000;
-const kButtonJUp = 0x0800;
-const kButtonJDown = 0x0400;
-const kButtonJLeft = 0x0200;
-const kButtonJRight = 0x0100;
-
-const kButtonL = 0x0020;
-const kButtonR = 0x0010;
-const kButtonCUp = 0x0008;
-const kButtonCDown = 0x0004;
-const kButtonCLeft = 0x0002;
-const kButtonCRight = 0x0001;
-
 const kAttachmentNone = 0;
 const kAttachmentControllerPak = 1;
 const kAttachmentRumblePak = 2;
@@ -56,58 +41,12 @@ const kDeviceIDDisconnected = 0xffff;
 const kResponseOver = 0x40;  // Too many bytes returned.
 const kResponseUnder = 0x80;  // Too few bytes returned.
 
-export class Controllers {
-  constructor(hardware) {
-    this.inputs = [
-      new ControllerInputs(),
-      new ControllerInputs(),
-      new ControllerInputs(),
-      new ControllerInputs(),
-    ];
-  }
-
-  handleKey(idx, key, down) {
-    switch (key) {
-      case 'a': this.setButton(idx, kButtonStart, down); break;
-      case 's': this.setButton(idx, kButtonA, down); break;
-      case 'x': this.setButton(idx, kButtonB, down); break;
-      case 'z': this.setButton(idx, kButtonZ, down); break;
-      case 'y': this.setButton(idx, kButtonZ, down); break;
-      case 'c': this.setButton(idx, kButtonL, down); break;
-      case 'v': this.setButton(idx, kButtonR, down); break;
-
-      case 't': this.setButton(idx, kButtonJUp, down); break;
-      case 'g': this.setButton(idx, kButtonJDown, down); break;
-      case 'f': this.setButton(idx, kButtonJLeft, down); break;
-      case 'h': this.setButton(idx, kButtonJRight, down); break;
-
-      case 'i': this.setButton(idx, kButtonCUp, down); break;
-      case 'k': this.setButton(idx, kButtonCDown, down); break;
-      case 'j': this.setButton(idx, kButtonCLeft, down); break;
-      case 'l': this.setButton(idx, kButtonCRight, down); break;
-
-      case 'ArrowLeft': this.setStickX(idx, down ? -80 : 0); break;
-      case 'ArrowRight': this.setStickX(idx, down ? +80 : 0); break;
-      case 'ArrowDown': this.setStickY(idx, down ? -80 : 0); break;
-      case 'ArrowUp': this.setStickY(idx, down ? +80 : 0); break;
-      // default: console.log(`unhandled key: ${key}`);
-    }
-  };
-
-  setStickX(idx, val) { this.inputs[idx].stick_x = val; }
-  setStickY(idx, val) { this.inputs[idx].stick_y = val; }
-  setButton(idx, button, down) {
-    let buttons = this.inputs[idx].buttons;
-    if (down) {
-      buttons |= button;
-    } else {
-      buttons &= ~button;
-    }
-    this.inputs[idx].buttons = buttons;
-  }
-}
-
 export class Joybus {
+  /**
+   * Constructs a new Joybus instance.
+   * @param {Hardware} hardware An instance of Hardware.
+   * @param {Array<ControllerInputs>} inputs A list of ControllerInputs instances.
+   */
   constructor(hardware, inputs) {
     this.hardware = hardware;
 
@@ -213,15 +152,11 @@ function calculateAddressCrc(address) {
   return c & 0x1f;
 }
 
-class ControllerInputs {
-  constructor() {
-    this.buttons = 0;
-    this.stick_x = 0;
-    this.stick_y = 0;
-  }
-}
-
 class ControllerChannel {
+  /**
+   * Construct a new ControllerChannel instance.
+   * @param {ControllerInputs} inputs An instance of ControllerInputs.
+   */
   constructor(inputs) {
     this.inputs = inputs;
     this.present = false;
