@@ -81,17 +81,17 @@ export class SIRegDevice extends Device {
 
   copyFromRDRAM() {
     const dramAddr = this.mem.getU32(SI_DRAM_ADDR_REG) & 0x1fffffff;
-    const piRam = new Uint8Array(this.hardware.pi_mem.arrayBuffer, 0x7c0, 0x040);
+    const pifRam = new Uint8Array(this.hardware.pi_mem.arrayBuffer, 0x7c0, 0x040);
 
-    if (!this.quiet) { logger.log(`SI: copying from ${toString32(dramAddr)} to PI RAM`); }
+    if (!this.quiet) { logger.log(`SI: copying from ${toString32(dramAddr)} to PIF RAM`); }
 
     for (let i = 0; i < 64; ++i) {
-      piRam[i] = this.hardware.ram.u8[dramAddr + i];
+      pifRam[i] = this.hardware.ram.u8[dramAddr + i];
     }
 
-    const controlByte = piRam[0x3f];
-    if (controlByte > 0) {
-      if (!this.quiet) { logger.log('SI: wrote ' + controlByte + ' to the control byte'); }
+    const controlByte = pifRam[0x3f];
+    if (controlByte && controlByte != 1) {
+      logger.log(`SI: wrote ${controlByte} to the PIF RAM control byte`);
     }
 
     this.mem.setBits32(SI_STATUS_REG, SI_STATUS_INTERRUPT);
@@ -105,7 +105,7 @@ export class SIRegDevice extends Device {
     const dramAddr = this.mem.getU32(SI_DRAM_ADDR_REG) & 0x1fffffff;
     const piRam = new Uint8Array(this.hardware.pi_mem.arrayBuffer, 0x7c0, 0x040);
 
-    if (!this.quiet) { logger.log(`SI: copying from PI RAM to ${toString32(dramAddr)}`); }
+    if (!this.quiet) { logger.log(`SI: copying from PIF RAM to ${toString32(dramAddr)}`); }
 
     for (let i = 0; i < 64; ++i) {
       this.hardware.ram.u8[dramAddr + i] = piRam[i];
