@@ -56,27 +56,6 @@ const kDeviceIDDisconnected = 0xffff;
 const kResponseOver = 0x40;  // Too many bytes returned.
 const kResponseUnder = 0x80;  // Too few bytes returned.
 
-class Controller {
-  constructor() {
-    this.buttons = 0;
-    this.stick_x = 0;
-    this.stick_y = 0;
-    this.present = false;
-    this.attachment = kAttachmentNone;
-
-    // For kAttachmentControllerPak.
-    this.memory = null;
-
-    // For kAttachmentRumblePak.
-    this.rumbleActive = false;
-  }
-
-  attachControllerPack(memory) {
-    this.attachment = kAttachmentControllerPak;
-    this.memory = memory;
-  }
-}
-
 export class Joybus {
   constructor(hardware) {
     this.hardware = hardware;
@@ -89,6 +68,8 @@ export class Joybus {
     ];
     this.controllers[0].present = true;
     this.controllers[0].attachControllerPack(hardware.mempacks[0]);
+
+    this.cartridge = new Cartridge(hardware);
 
     // A buffer used to make it easier to handle truncated output.
     this.tempOutput = new Uint8Array(64);
@@ -182,9 +163,9 @@ export class Joybus {
         // Handlers return how many bytes were written to tempOutput.
         let rxLen;
         if (channel < kChanCartridge) {
-          rxLen = this.processController(this.controllers[channel], tx, rx, txBuf, this.tempOutput);
+          rxLen = this.controllers[channel].joybusCommand(tx, rx, txBuf, this.tempOutput);
         } else {
-          rxLen = this.processCartridge(tx, rx, txBuf, this.tempOutput)
+          rxLen = this.cartridge.joybusCommand(tx, rx, txBuf, this.tempOutput)
         }
 
         // If an unexpected number of bytes were received, set status bits in rx.
@@ -207,15 +188,53 @@ export class Joybus {
 
     pifRam[63] = 0;
   }
+}
 
-  expectTx(cmdName, txGot, txExpect) {
-    if (txGot != txExpect) {
-      logger.log(`${cmdName}: got tx ${txGot} but expect ${txExpect}`)
+function calculateDataCrc(buf, offset, bytes) {
+  let c = 0;
+  for (let i = 0; i < bytes; i++) {
+    const s = buf[offset + i];
+    for (let b = 0; b < 8; b++) {
+      c = ((c << 1) | ((s >>> (7 - b)) & 1)) ^ ((c & 0x80) ? 0x85 : 0);
     }
   }
 
-  processController(controller, tx, rx, txBuf, rxBuf) {
-    if (!controller.present) {
+  for (let i = 8; i !== 0; i--) {
+    c = (c << 1) ^ ((c & 0x80) ? 0x85 : 0);
+  }
+  return c & 0xff;
+}
+
+function calculateAddressCrc(address) {
+  let c = 0;
+  for (let i = 0; i < 16; i++) {
+    c = ((c << 1) | ((address >>> (15 - i)) & 1)) ^ ((c & 0x10) ? 0x15 : 0);
+  }
+  return c & 0x1f;
+}
+
+class Controller {
+  constructor() {
+    this.buttons = 0;
+    this.stick_x = 0;
+    this.stick_y = 0;
+    this.present = false;
+    this.attachment = kAttachmentNone;
+
+    // For kAttachmentControllerPak.
+    this.memory = null;
+
+    // For kAttachmentRumblePak.
+    this.rumbleActive = false;
+  }
+
+  attachControllerPack(memory) {
+    this.attachment = kAttachmentControllerPak;
+    this.memory = memory;
+  }
+
+  joybusCommand(tx, rx, txBuf, rxBuf) {
+    if (!this.present) {
       return 0;
     }
 
@@ -223,61 +242,44 @@ export class Joybus {
     switch (command) {
       case kCmdReset:
         // Reset behaves the same as kCmdGetStatus.
-        return this.controllerGetStatus(controller, tx, rx, txBuf, rxBuf);
+        return this.getStatus(tx, rx, txBuf, rxBuf);
       case kCmdGetStatus:
-        return this.controllerGetStatus(controller, tx, rx, txBuf, rxBuf);
+        return this.getStatus(tx, rx, txBuf, rxBuf);
       case kCmdControllerRead:
-        return this.controllerReadController(controller, tx, rx, txBuf, rxBuf);
+        return this.readController(tx, rx, txBuf, rxBuf);
       case kCmdControllerAccessoryRead:
-        return this.controllerReadMemPack(controller, tx, rx, txBuf, rxBuf);
+        return this.readAccessory(tx, rx, txBuf, rxBuf);
       case kCmdControllerAccessoryWrite:
-        return this.controllerWriteMemPack(controller, tx, rx, txBuf, rxBuf);
+        return this.writeAccessory(tx, rx, txBuf, rxBuf);
     }
 
     n64js.halt('Unknown controller command ' + command);
     return 0;
   }
 
-  processCartridge(tx, rx, txBuf, rxBuf) {
-    const command = txBuf[0];
-    switch (command) {
-      case kCmdReset:
-        return this.cartridgeGetStatus(tx, rx, txBuf, rxBuf);
-      case kCmdGetStatus:
-        return this.cartridgeGetStatus(tx, rx, txBuf, rxBuf);
-      case kCmdEepromRead:
-        return this.cartridgeReadEeprom(tx, rx, txBuf, rxBuf);
-      case kCmdEepromWrite:
-        return this.cartridgeWriteEeprom(tx, rx, txBuf, rxBuf);
-      case kCmdRTCInfo:
-        return this.cartridgeRTCStatus(tx, rx, txBuf, rxBuf);
-      case kCmdRTCRead:
-        return this.cartridgeRTCRead(tx, rx, txBuf, rxBuf);
-      case kCmdRTCWrite:
-        return this.cartridgeRTCWrite(tx, rx, txBuf, rxBuf);
+  expectTx(cmdName, txGot, txExpect) {
+    if (txGot != txExpect) {
+      logger.log(`${cmdName}: got tx ${txGot} but expect ${txExpect}`)
     }
-
-    n64js.halt(`Unknown cartridge command: ${command}`);
-    return 0;
   }
 
-  controllerGetStatus(controller, tx, rx, txBuf, rxBuf) {
+  getStatus(tx, rx, txBuf, rxBuf) {
     this.expectTx('kCmdGetStatus', tx, 1);
 
     // Device ID.
     rxBuf[0] = (kDeviceIDController >>> 8);
     rxBuf[1] = (kDeviceIDController & 0xff);
     // Status.
-    rxBuf[2] = controller.attachment == kAttachmentNone ? 0x02 : 0x01;
+    rxBuf[2] = this.attachment == kAttachmentNone ? 0x02 : 0x01;
     return 3;
   }
 
-  controllerReadController(controller, tx, rx, txBuf, rxBuf) {
+  readController(tx, rx, txBuf, rxBuf) {
     this.expectTx('kCmdControllerRead', tx, 1);
 
-    let buttons = controller.buttons;
-    let stick_x = controller.stick_x;
-    let stick_y = controller.stick_y;
+    let buttons = this.buttons;
+    let stick_x = this.stick_x;
+    let stick_y = this.stick_y;
 
     if (syncInput) {
       syncInput.sync32(0xbeeff00d, 'input');
@@ -295,18 +297,18 @@ export class Joybus {
     return 4;
   }
 
-  controllerReadMemPack(controller, tx, rx, txBuf, rxBuf) {
+  readAccessory(tx, rx, txBuf, rxBuf) {
     this.expectTx('kCmdControllerAccessoryRead', tx, 3);
 
     const addr = (txBuf[1] << 8) | (txBuf[2] & 0xe0);
     const addrCRC = txBuf[2] & 0x1f;
-    if (addrCRC != this.calculateAddressCrc(addr)) {
+    if (addrCRC != calculateAddressCrc(addr)) {
       return 0;
     }
 
-    switch (controller.attachment) {
+    switch (this.attachment) {
       case kAttachmentControllerPak:
-        const data = controller.memory.data;
+        const data = this.memory.data;
         for (let i = 0, address = addr; i < (rx - 1); i++, address++) {
           rxBuf[i] = address < data.length ? data[address] : 0;
         }
@@ -316,7 +318,7 @@ export class Joybus {
           let val;
           if (address < 0x8000) val = 0x00;
           else if (address < 0x9000) val = 0x80;
-          else val = controller.rumbleActive ? 0xff : 0x00;
+          else val = this.rumbleActive ? 0xff : 0x00;
           rxBuf[i] = val;
         }
         break;
@@ -324,23 +326,23 @@ export class Joybus {
       default:
         return 0;
     }
-    rxBuf[rx - 1] = this.calculateDataCrc(rxBuf, 0, rx - 1);
+    rxBuf[rx - 1] = calculateDataCrc(rxBuf, 0, rx - 1);
     return rx;
   }
 
-  controllerWriteMemPack(controller, tx, rx, txBuf, rxBuf) {
+  writeAccessory(tx, rx, txBuf, rxBuf) {
     this.expectTx('kCmdControllerAccessoryWrite', tx, 35);
 
     const addr = (txBuf[1] << 8) | (txBuf[2] & 0xe0);
     const addrCRC = txBuf[2] & 0x1f;
-    if (addrCRC != this.calculateAddressCrc(addr)) {
+    if (addrCRC != calculateAddressCrc(addr)) {
       return 0;
     }
 
-    switch (controller.attachment) {
+    switch (this.attachment) {
       case kAttachmentControllerPak:
-        const data = controller.memory.data;
-        controller.memory.dirty = true;
+        const data = this.memory.data;
+        this.memory.dirty = true;
         for (let i = 0, address = addr; i < (tx - 3); i++, address++) {
           if (address < data.length) {
             data[address] = txBuf[3 + i];
@@ -349,18 +351,53 @@ export class Joybus {
         break;
       case kAttachmentRumblePak:
         if (addr >= 0xC000) {
-          controller.rumbleActive = txBuf[3] & 1;
+          this.rumbleActive = txBuf[3] & 1;
         }
         break;
 
       default:
         return 0;
     }
-    rxBuf[rx - 1] = this.calculateDataCrc(txBuf, 3, tx - 3);
+    rxBuf[rx - 1] = calculateDataCrc(txBuf, 3, tx - 3);
     return rx;
   }
+}
 
-  cartridgeGetStatus(tx, rx, txBuf, rxBuf) {
+class Cartridge {
+  constructor(hardware) {
+    this.hardware = hardware
+  }
+
+  expectTx(cmdName, txGot, txExpect) {
+    if (txGot != txExpect) {
+      logger.log(`${cmdName}: got tx ${txGot} but expect ${txExpect}`)
+    }
+  }
+
+  joybusCommand(tx, rx, txBuf, rxBuf) {
+    const command = txBuf[0];
+    switch (command) {
+      case kCmdReset:
+        return this.getStatus(tx, rx, txBuf, rxBuf);
+      case kCmdGetStatus:
+        return this.getStatus(tx, rx, txBuf, rxBuf);
+      case kCmdEepromRead:
+        return this.readEeprom(tx, rx, txBuf, rxBuf);
+      case kCmdEepromWrite:
+        return this.writeEeprom(tx, rx, txBuf, rxBuf);
+      case kCmdRTCInfo:
+        return this.rtcStatus(tx, rx, txBuf, rxBuf);
+      case kCmdRTCRead:
+        return this.rtcRead(tx, rx, txBuf, rxBuf);
+      case kCmdRTCWrite:
+        return this.rtcWrite(tx, rx, txBuf, rxBuf);
+    }
+
+    n64js.halt(`Unknown cartridge command: ${command}`);
+    return 0;
+  }
+
+  getStatus(tx, rx, txBuf, rxBuf) {
     this.expectTx('kCmdGetStatus', tx, 1);
 
     const eeprom = this.hardware.eeprom;
@@ -378,7 +415,7 @@ export class Joybus {
     return 3;
   }
 
-  cartridgeReadEeprom(tx, rx, txBuf, rxBuf) {
+  readEeprom(tx, rx, txBuf, rxBuf) {
     this.expectTx('kCmdEepromRead', tx, 2);
 
     // TODO: In a 512 byte EEPROM, the top two bits of block number are ignored: blocks 64-255 are repeats of the first 64
@@ -390,7 +427,7 @@ export class Joybus {
     return rx;
   }
 
-  cartridgeWriteEeprom(tx, rx, txBuf, rxBuf) {
+  writeEeprom(tx, rx, txBuf, rxBuf) {
     this.expectTx('kCmdEepromWrite', tx, 10);
 
     const offset = txBuf[1] * 8;
@@ -404,7 +441,7 @@ export class Joybus {
     return 1;
   }
 
-  cartridgeRTCStatus(tx, rx, txBuf, rxBuf) {
+  rtcStatus(tx, rx, txBuf, rxBuf) {
     // Device ID.
     rxBuf[0] = (kDeviceIDRTC >>> 8);
     rxBuf[1] = (kDeviceIDRTC & 0xff);
@@ -413,35 +450,12 @@ export class Joybus {
     return 3;
   }
 
-  cartridgeRTCRead(tx, rx, txBuf, rxBuf) {
+  rtcRead(tx, rx, txBuf, rxBuf) {
     n64js.warn('rtc read unhandled');
     return 0;
   }
-  cartridgeRTCWrite(tx, rx, txBuf, rxBuf) {
+  rtcWrite(tx, rx, txBuf, rxBuf) {
     n64js.warn('rtc write unhandled');
     return 0;
-  }
-
-  calculateDataCrc(buf, offset, bytes) {
-    let c = 0;
-    for (let i = 0; i < bytes; i++) {
-      const s = buf[offset + i];
-      for (let b = 0; b < 8; b++) {
-        c = ((c << 1) | ((s >>> (7 - b)) & 1)) ^ ((c & 0x80) ? 0x85 : 0);
-      }
-    }
-
-    for (let i = 8; i !== 0; i--) {
-      c = (c << 1) ^ ((c & 0x80) ? 0x85 : 0);
-    }
-    return c & 0xff;
-  }
-
-  calculateAddressCrc(address) {
-    let c = 0;
-    for (let i = 0; i < 16; i++) {
-      c = ((c << 1) | ((address >>> (15 - i)) & 1)) ^ ((c & 0x10) ? 0x15 : 0);
-    }
-    return c & 0x1f;
   }
 }
