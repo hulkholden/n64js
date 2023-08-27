@@ -46,13 +46,6 @@ export function isDom1Addr3(address) { return address >= PI_DOM1_ADDR3 && addres
 
 function isFlashDomAddr(address) { return address >= PI_DOM2_ADDR2 && address <= PI_DOM2_ADDR2_END; }
 
-// TODO: dedupe.
-function memoryCopy(dst, dstOff, src, srcOff, len) {
-  for (let i = 0; i < len; ++i) {
-    dst.u8[dstOff + i] = src.u8[srcOff + i];
-  }
-}
-
 export class PIRegDevice extends Device {
   constructor(hardware, rangeStart, rangeEnd) {
     super("PIReg", hardware, hardware.pi_reg, rangeStart, rangeEnd);
@@ -169,7 +162,7 @@ export class PIRegDevice extends Device {
     }
 
     if (dst) {
-      memoryCopy(dst, dstOffset, this.hardware.ram, dramAddr, transferLen);
+      dst.copy(dstOffset, this.hardware.ram, dramAddr, transferLen);
       // TODO: mark save as dirty.
     }
 
@@ -195,7 +188,7 @@ export class PIRegDevice extends Device {
       transferLen++;
     }
     if (transferLen <= 0x80) {
-        transferLen -= dramAddr & 0x7;
+      transferLen -= dramAddr & 0x7;
     }
 
     let src;
@@ -228,7 +221,7 @@ export class PIRegDevice extends Device {
     }
 
     if (src) {
-      memoryCopy(this.hardware.ram, dramAddr, src, srcOffset, transferLen);
+      this.hardware.ram.copy(dramAddr, src, srcOffset, transferLen);
     }
 
     // If this is the first DMA write the ram size to 0x800003F0 (cic6105) or 0x80000318 (others)

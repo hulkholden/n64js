@@ -19,6 +19,20 @@ export class MemoryRegion {
   }
 
   /**
+   * Copy memory.
+   * @param {number} dstOff 
+   * @param {MemoryRegion} src 
+   * @param {number} srcOff 
+   * @param {number} len 
+   */
+  copy(dstOff, src, srcOff, len) {
+    // TODO: dedupe.
+    for (let i = 0; i < len; ++i) {
+      this.u8[dstOff + i] = src.u8[srcOff + i];
+    }
+  }
+
+  /**
    * Gets the value at the specified offset.
    * @param {number} offset
    * @return {bigint}

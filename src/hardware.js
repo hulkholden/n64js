@@ -167,7 +167,7 @@ export class Hardware {
 
   loadROM() {
     if (this.rom) {
-      memoryCopy(this.sp_mem, kBootstrapOffset, this.rom, kBootstrapOffset, kGameOffset - kBootstrapOffset);
+      this.sp_mem.copy(kBootstrapOffset, this.rom, kBootstrapOffset, kGameOffset - kBootstrapOffset);
     }
   }
 
@@ -247,11 +247,4 @@ export class Hardware {
 
 function newMemoryRegion(size) {
   return new MemoryRegion(new ArrayBuffer(size));
-}
-
-// TODO: dedupe.
-function memoryCopy(dst, dstOff, src, srcOff, len) {
-  for (let i = 0; i < len; ++i) {
-    dst.u8[dstOff + i] = src.u8[srcOff + i];
-  }
 }
