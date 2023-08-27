@@ -54,7 +54,7 @@ export class Joybus {
   constructor(hardware, inputs) {
     this.hardware = hardware;
 
-    this.pifRam = new Uint8Array(this.hardware.pif_mem.arrayBuffer, 0x7c0, 0x040);
+    this.pifRam = this.hardware.pif_mem.subRegion(0x7c0, 0x040);
 
     const controller0 = new ControllerChannel(inputs[0]);
     controller0.present = true;
@@ -69,8 +69,8 @@ export class Joybus {
     ];
   }
 
-  get controlByte() { return this.pifRam[kPIFRamControlByte]; }
-  set controlByte(v) { this.pifRam[kPIFRamControlByte] = v; }
+  get controlByte() { return this.pifRam.getU8(kPIFRamControlByte); }
+  set controlByte(v) { this.pifRam.set8(kPIFRamControlByte, v); }
 
   cpuRead(offset) {
     // TODO: handle reads from the control byte from the CPU here.
@@ -83,9 +83,7 @@ export class Joybus {
   }
 
   dmaWrite(src, srcOffset) {
-    for (let i = 0; i < kPIFRamSize; ++i) {
-      this.pifRam[i] = src.u8[srcOffset + i];
-    }
+    this.pifRam.copy(0, src, srcOffset, kPIFRamSize);
 
     if (this.controlByte & 1) {
       this.controlByte &= ~1;
@@ -97,12 +95,9 @@ export class Joybus {
     }
   }
 
-  dmaRead(dst, srcOffset) {
+  dmaRead(dst, dstOffset) {
     this.execute();
-
-    for (let i = 0; i < kPIFRamSize; ++i) {
-      dst.u8[srcOffset + i] = this.pifRam[i];
-    }
+    dst.copy(dstOffset, this.pifRam, 0, kPIFRamSize);
   }
 
   configure() {
@@ -113,7 +108,7 @@ export class Joybus {
     let offset = 0;
     let channel = 0;
     while (offset < kPIFRamSize && channel < kNumChannels) {
-      const frame = this.pifRam.subarray(offset);
+      const frame = this.pifRam.u8.subarray(offset);
       const txRaw = frame[0];
       offset++;
 
@@ -147,8 +142,8 @@ export class Joybus {
 
       if (offset >= kPIFRamSize) { break; }
 
-      const txBuf = this.pifRam.subarray(txOff, txOff + tx);
-      const rxBuf = this.pifRam.subarray(rxOff, rxOff + rx);
+      const txBuf = this.pifRam.u8.subarray(txOff, txOff + tx);
+      const rxBuf = this.pifRam.u8.subarray(rxOff, rxOff + rx);
       this.channels[channel].joybusConfigure(frame, tx, rx, txBuf, rxBuf);
       channel++;
     }
