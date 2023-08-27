@@ -92,8 +92,8 @@ class RSP {
   constructor() {
     const hw = n64js.hardware();
     this.hardware = hw;
-    this.dmem = hw.sp_mem.subDataView(0x0000, 0x1000);
-    this.imem = hw.sp_mem.subDataView(0x1000, 0x1000);
+    this.dmem = hw.sp_mem.subRegion(0x0000, 0x1000);
+    this.imem = hw.sp_mem.subRegion(0x1000, 0x1000);
 
     this.halted = true;
 
@@ -315,17 +315,17 @@ class RSP {
     return `V${r}: [${s.join(', ')}]`;
   }
 
-  loadU8(offset) { return this.dmem.getUint8(offset & 0xfff, false); }
-  loadU16(offset) { return (offset <= 0xffe) ? this.dmem.getUint16(offset, false) : this.loadU16Wrapped(offset); }
-  loadU32(offset) { return (offset <= 0xffc) ? this.dmem.getUint32(offset, false) : this.loadU32Wrapped(offset); }
+  loadU8(offset) { return this.dmem.getU8(offset & 0xfff); }
+  loadU16(offset) { return (offset <= 0xffe) ? this.dmem.getU16(offset) : this.loadU16Wrapped(offset); }
+  loadU32(offset) { return (offset <= 0xffc) ? this.dmem.getU32(offset) : this.loadU32Wrapped(offset); }
 
-  loadS8(offset) { return this.dmem.getInt8(offset & 0xfff, false); }
-  loadS16(offset) { return (offset <= 0xffe) ? this.dmem.getInt16(offset, false) : this.loadS16Wrapped(offset); }
-  loadS32(offset) { return (offset <= 0xffc) ? this.dmem.getInt32(offset, false) : this.loadS32Wrapped(offset); }
+  loadS8(offset) { return this.dmem.getS8(offset & 0xfff); }
+  loadS16(offset) { return (offset <= 0xffe) ? this.dmem.getS16(offset) : this.loadS16Wrapped(offset); }
+  loadS32(offset) { return (offset <= 0xffc) ? this.dmem.getS32(offset) : this.loadS32Wrapped(offset); }
 
-  store8(offset, value) { return this.dmem.setUint8(offset & 0xfff, value, false); }
-  store16(offset, value) { return (offset <= 0xffe) ? this.dmem.setUint16(offset, value, false) : this.store16Wrapped(offset, value); }
-  store32(offset, value) { return (offset <= 0xffc) ? this.dmem.setUint32(offset, value, false) : this.store32Wrapped(offset, value); }
+  store8(offset, value) { return this.dmem.set8(offset & 0xfff, value); }
+  store16(offset, value) { return (offset <= 0xffe) ? this.dmem.set16(offset, value) : this.store16Wrapped(offset, value); }
+  store32(offset, value) { return (offset <= 0xffc) ? this.dmem.set32(offset, value) : this.store32Wrapped(offset, value); }
   store32masked(offset, value, mask) {
     const orig = this.loadU32(offset, false);
     const result = (orig & ~mask) | (value & mask);
@@ -334,8 +334,8 @@ class RSP {
 
   loadU16Wrapped(offset) {
     return (
-      (this.dmem.getUint8((offset + 0) & 0xfff) << 8) |
-      (this.dmem.getUint8((offset + 1) & 0xfff) << 0)) >>> 0;
+      (this.loadU8(offset + 0) << 8) |
+      (this.loadU8(offset + 1) << 0)) >>> 0;
   }
 
   loadS16Wrapped(offset) {
@@ -344,10 +344,10 @@ class RSP {
 
   loadU32Wrapped(offset) {
     return (
-      (this.dmem.getUint8((offset + 0) & 0xfff) << 24) |
-      (this.dmem.getUint8((offset + 1) & 0xfff) << 16) |
-      (this.dmem.getUint8((offset + 2) & 0xfff) << 8) |
-      (this.dmem.getUint8((offset + 3) & 0xfff) << 0)) >>> 0;
+      (this.loadU8(offset + 0) << 24) |
+      (this.loadU8(offset + 1) << 16) |
+      (this.loadU8(offset + 2) << 8) |
+      (this.loadU8(offset + 3) << 0)) >>> 0;
   }
 
   loadS32Wrapped(offset) {
@@ -355,15 +355,15 @@ class RSP {
   }
 
   store16Wrapped(offset, value) {
-    this.dmem.setUint8((offset + 0) & 0xfff, value >>> 8);
-    this.dmem.setUint8((offset + 1) & 0xfff, value >>> 0);
+    this.store8(offset + 0, value >>> 8);
+    this.store8(offset + 1, value >>> 0);
   }
 
   store32Wrapped(offset, value) {
-    this.dmem.setUint8((offset + 0) & 0xfff, value >>> 24);
-    this.dmem.setUint8((offset + 1) & 0xfff, value >>> 16);
-    this.dmem.setUint8((offset + 2) & 0xfff, value >>> 8);
-    this.dmem.setUint8((offset + 3) & 0xfff, value >>> 0);
+    this.store8(offset + 0, value >>> 24);
+    this.store8(offset + 1, value >>> 16);
+    this.store8(offset + 2, value >>> 8);
+    this.store8(offset + 3, value >>> 0);
   }
 
   calcAddress(instr) {
@@ -398,7 +398,7 @@ class RSP {
     const pc = this.pc;
     this.nextPC = this.delayPC || ((this.pc + 4) & 0xffc);
 
-    const instr = this.imem.getUint32(this.pc, false);
+    const instr = this.imem.getU32(this.pc);
 
     this.branchTarget = 0;
     this.executeOp(instr);
