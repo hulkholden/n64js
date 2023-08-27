@@ -436,14 +436,19 @@ const M_VIDTASK = 3;
 const M_JPGTASK = 4;
 
 class RSPTask {
-  constructor(ram_u8, task_dv) {
+  /**
+   * Constructs a new RSPTask instance.
+   * @param {Uint8Array} ram_u8 Main memory.
+   * @param {MemoryRegion} taskMem RSP task memmory.
+   */
+  constructor(ram_u8, taskMem) {
     this.ram_u8 = ram_u8;
-    this.type = task_dv.getUint32(kOffset_type);
-    this.code = task_dv.getUint32(kOffset_ucode) & 0x1fffffff;
-    this.code_size = task_dv.getUint32(kOffset_ucode_size);
-    this.data = task_dv.getUint32(kOffset_ucode_data) & 0x1fffffff;
-    this.data_size = task_dv.getUint32(kOffset_ucode_data_size);
-    this.data_ptr = task_dv.getUint32(kOffset_data_ptr);
+    this.type = taskMem.getU32(kOffset_type);
+    this.code = taskMem.getU32(kOffset_ucode) & 0x1fffffff;
+    this.code_size = taskMem.getU32(kOffset_ucode_size);
+    this.data = taskMem.getU32(kOffset_ucode_data) & 0x1fffffff;
+    this.data_size = taskMem.getU32(kOffset_ucode_data_size);
+    this.data_ptr = taskMem.getU32(kOffset_data_ptr);
   }
 
   dataByte(offset) {
@@ -489,8 +494,12 @@ class RSPTask {
 }
 
 export function hleProcessRSPTask() {
+  const kTaskOffset = 0x0fc0;
+  const kTaskLength = 0x40;
+  const taskMem = n64js.hardware().sp_mem.subRegion(kTaskOffset, kTaskLength);
+
   const ramU8 = n64js.getRamU8Array();
-  var task = new RSPTask(ramU8, n64js.rsp_task_view);
+  var task = new RSPTask(ramU8, taskMem);
 
   let handled = false;
 
