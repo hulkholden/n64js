@@ -42,19 +42,6 @@ export class MemoryRegion {
   }
 
   /**
-   * Returns a new DataView with the provided offset and length.
-   * @param {number} offset 
-   * @param {number} length 
-   * @returns {DataView}
-   */
-  subDataView(offset, length) {
-    if (offset + length > this.length) {
-      throw `end is out of bounds`;
-    }
-    return new DataView(this.arrayBuffer, this.offset + offset, length);
-  }
-
-  /**
    * Copies memory.
    * @param {number} dstOff 
    * @param {MemoryRegion} src 
