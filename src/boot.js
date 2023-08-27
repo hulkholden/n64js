@@ -2,9 +2,9 @@ import * as cpu0_constants from './cpu0_constants.js';
 import { OS_TV_NTSC, OS_TV_PAL } from './system_constants.js';
 
 export function simulateBoot(cpu0, hardware, rominfo) {
-  // Create a DataView of IMEM so we can initialise it.
+  // Create a view of IMEM so we can initialise it.
   // TODO: should cache this somewhere.
-  const imem = hardware.sp_mem.subDataView(0x1000, 0x1000);
+  const imem = hardware.sp_mem.subRegion(0x1000, 0x1000);
 
   cpu0.setControlU64(cpu0_constants.controlStatus, 0x00000000_34000000n);
   cpu0.setControlU64(cpu0_constants.controlConfig, 0x00000000_7006e463n);
@@ -134,14 +134,14 @@ export function simulateBoot(cpu0, hardware, rominfo) {
       // IPL1 or IPL2 leaves this junk in imem which CIC x105 ends up XORing
       // to decrypt and executing on the RSP during IPL3.
       // See https://github.com/decompals/N64-IPL/blob/d93544681bfa822865fa8110d88f846b52293e23/src/ipl3.s#L63.
-      imem.setUint32(0x00, 0x3c0dbfc0);
-      imem.setUint32(0x04, rominfo.tvType == OS_TV_PAL ? 0xbda807fc : 0x8da807fc);
-      imem.setUint32(0x08, 0x25ad07c0);
-      imem.setUint32(0x0c, 0x31080080);
-      imem.setUint32(0x10, 0x5500fffc);
-      imem.setUint32(0x14, 0x3c0dbfc0);
-      imem.setUint32(0x18, 0x8da80024);
-      imem.setUint32(0x1c, 0x3c0bb000);
+      imem.set32(0x00, 0x3c0dbfc0);
+      imem.set32(0x04, rominfo.tvType == OS_TV_PAL ? 0xbda807fc : 0x8da807fc);
+      imem.set32(0x08, 0x25ad07c0);
+      imem.set32(0x0c, 0x31080080);
+      imem.set32(0x10, 0x5500fffc);
+      imem.set32(0x14, 0x3c0dbfc0);
+      imem.set32(0x18, 0x8da80024);
+      imem.set32(0x1c, 0x3c0bb000);
 
       cpu0.setRegU64(1, zero);
       cpu0.setRegU64(2, 0xffffffff_f58b0fbfn);
