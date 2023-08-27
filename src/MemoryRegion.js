@@ -42,6 +42,14 @@ export class MemoryRegion {
   }
 
   /**
+   * Returns an Int32Array view of this MemoryRegion.
+   * @returns {Int32Array}
+   */
+  s32Array() {
+    return new Int32Array(this.arrayBuffer, this.offset, this.length / 4);
+  }
+
+  /**
    * Copies memory.
    * @param {number} dstOff 
    * @param {MemoryRegion} src 
