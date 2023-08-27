@@ -126,6 +126,16 @@ export class PIRegDevice extends Device {
           n64js.cpu0.updateCause3();
         }
         break;
+      case PI_BSD_DOM1_LAT_REG:
+      case PI_BSD_DOM1_PWD_REG:
+      case PI_BSD_DOM1_PGS_REG:
+      case PI_BSD_DOM1_RLS_REG:
+      case PI_BSD_DOM2_LAT_REG:
+      case PI_BSD_DOM2_PWD_REG:
+      case PI_BSD_DOM2_PGS_REG:
+      case PI_BSD_DOM2_RLS_REG:
+        this.mem.set32(ea, value);
+        break;
       default:
         logger.log(`Unhandled write to PIReg: ${toString32(value)} -> [${toString32(address)}]`);
         this.mem.set32(ea, value);
