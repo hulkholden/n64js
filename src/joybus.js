@@ -408,17 +408,34 @@ class CartridgeChannel extends Channel {
     return 0;
   }
 
+  getEepromID() {
+    switch (this.hardware.saveType) {
+      case 'Eeprom4k':
+        return kDeviceIDEeprom4K;
+      case 'Eeprom16k':
+        return kDeviceIDEeprom16K;
+    }
+    return 0;
+  }
+
+  getEeprom() {
+    switch (this.hardware.saveType) {
+      case 'Eeprom4k':
+      case 'Eeprom16k':
+        return this.hardware.saveMem;
+    }
+    return null;
+  }
+
   getStatus(tx, rx, txBuf, rxBuf) {
     this.expectTx('kCmdGetStatus', tx, 1);
 
-    const eeprom = this.hardware.eeprom;
-    if (!eeprom) {
-      console.log(`no eeprom`)
+    const id = this.getEepromID();
+    if (!id) {
       return 0;
     }
 
     // Device ID.
-    const id = (eeprom.u8.length == 512) ? kDeviceIDEeprom4K : kDeviceIDEeprom16K;
     rxBuf[0] = id >>> 8;
     rxBuf[1] = id & 0xff;
     // Status.
@@ -431,9 +448,14 @@ class CartridgeChannel extends Channel {
 
     // TODO: In a 512 byte EEPROM, the top two bits of block number are ignored: blocks 64-255 are repeats of the first 64
 
+    const eeprom = this.getEeprom();
+    if (!eeprom) {
+      return 0;
+    }
+
     const offset = txBuf[1] * 8;
     for (let i = 0; i < rx; ++i) {
-      rxBuf[i] = this.hardware.eeprom.u8[offset + i];
+      rxBuf[i] = eeprom.u8[offset + i];
     }
     return rx;
   }
@@ -441,11 +463,16 @@ class CartridgeChannel extends Channel {
   writeEeprom(tx, rx, txBuf, rxBuf) {
     this.expectTx('kCmdEepromWrite', tx, 10);
 
+    const eeprom = this.getEeprom();
+    if (!eeprom) {
+      return 0;
+    }
+  
     const offset = txBuf[1] * 8;
     for (let i = 0; i < tx - 2; ++i) {
-      this.hardware.eeprom.u8[offset + i] = txBuf[2 + i];
+      eeprom.u8[offset + i] = txBuf[2 + i];
     }
-    this.hardware.eepromDirty = true;
+    this.hardware.saveDirty = true;
 
     // Response byte. Could send 0x80 if busy.
     rxBuf[0] = 0;
