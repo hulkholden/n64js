@@ -24,6 +24,7 @@ export class PIFMemDevice extends Device {
         case 0x3c: logger.log(`Reading PIF Control byte: ${toString32(v)}`); break;
         default: logger.log(`Reading from PIF ram [${toString32(address)}]. Got ${toString32(v)}`); break;
       }
+      n64js.joybus().cpuRead(ramOffset);
     }
     return v;
   }
@@ -44,6 +45,7 @@ export class PIFMemDevice extends Device {
         case 0x3c: logger.log(`Reading PIF Control byte: ${toString8(v)}`); break;
         default: logger.log(`Reading from PIF ram [${toString32(address)}]. Got ${toString8(v)}`); break;
       }
+      n64js.joybus().cpuRead(ramOffset);
     }
     return v;
   }
@@ -66,6 +68,8 @@ export class PIFMemDevice extends Device {
       case 0x3c: logger.log(`Writing PIF Control byte: ${toString32(value)}`); this.updateControl(); break;
       default: logger.log(`Writing directly to PIF ram [${toString32(address)}] <-- ${toString32(value)}`); break;
     }
+
+    n64js.joybus().cpuWrite(ramOffset);
   }
 
   write16(address, value) {

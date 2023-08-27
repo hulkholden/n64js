@@ -11,6 +11,7 @@ const kChanCartridge = 4;
 const kNumChannels = 5;
 
 const kPIFRamSize = 64;
+const kPIFRamControlByte = 63;
 
 const kCmdGetStatus = 0x00;
 const kCmdControllerRead = 0x01;
@@ -53,6 +54,8 @@ export class Joybus {
   constructor(hardware, inputs) {
     this.hardware = hardware;
 
+    this.pifRam = new Uint8Array(this.hardware.pif_mem.arrayBuffer, 0x7c0, 0x040);
+
     const controller0 = new ControllerChannel(inputs[0]);
     controller0.present = true;
     controller0.attachControllerPack(hardware.mempacks[0]);
@@ -66,13 +69,51 @@ export class Joybus {
     ];
   }
 
-  execute() {
-    const pifRam = new Uint8Array(this.hardware.pif_mem.arrayBuffer, 0x7c0, 0x040);
+  get controlByte() { return this.pifRam[kPIFRamControlByte]; }
+  set controlByte(v) { this.pifRam[kPIFRamControlByte] = v; }
+
+  cpuRead(offset) {
+    // TODO: handle reads from the control byte from the CPU here.
+    // console.log(`cpuRead, at ${offset}, command is ${this.controlByte}`)
+  }
+
+  cpuWrite(offset) {
+    // TODO: handle writes to the control byte from the CPU here.
+    // console.log(`cpuWrite, at ${offset}, command is ${this.controlByte}`)
+  }
+
+  dmaWrite(src, srcOffset) {
+    for (let i = 0; i < kPIFRamSize; ++i) {
+      this.pifRam[i] = src.u8[srcOffset + i];
+    }
+
+    if (this.controlByte & 1) {
+      this.controlByte &= ~1;
+      this.configure();
+    }
+
+    if (this.controlByte) {
+      n64js.warn(`PIF: DMA of ${this.controlByte} to the PIF RAM control byte is unhandled`);
+    }
+  }
+
+  dmaRead(dst, srcOffset) {
+    this.execute();
+
+    for (let i = 0; i < kPIFRamSize; ++i) {
+      dst.u8[srcOffset + i] = this.pifRam[i];
+    }
+  }
+
+  configure() {
+    for (let chan of this.channels) {
+      chan.init();
+    }
 
     let offset = 0;
     let channel = 0;
     while (offset < kPIFRamSize && channel < kNumChannels) {
-      const frame = pifRam.subarray(offset);
+      const frame = this.pifRam.subarray(offset);
       const txRaw = frame[0];
       offset++;
 
@@ -84,7 +125,7 @@ export class Joybus {
         continue;
       }
       if (txRaw == kJoybusTxChanReset) {
-        // TODO: should send reset command.
+        this.channels[channel].reset = true;
         channel++;
         continue;
       }
@@ -97,22 +138,50 @@ export class Joybus {
       if (rxRaw == kJoybusTxFormatEnd) { break; }
 
       const tx = txRaw & 0x3f;
-      const txBuf = pifRam.subarray(offset, offset + tx);
+      const txOff = offset;
       offset += tx;
 
       const rx = rxRaw & 0x3f;
-      const rxBuf = pifRam.subarray(offset, offset + rx);
+      const rxOff = offset;
       offset += rx;
 
-      // Perform the command and find out how many bytes were returned.        
-      // If an unexpected number of bytes were received, set status bits in rx.
-      const rxLen = this.channels[channel].joybusCommand(tx, rx, txBuf, rxBuf);
-      if (rxLen < rx) { frame[1] |= kResponseUnder; }
-      if (rxLen > rx) { frame[1] |= kResponseOver; }
+      if (offset >= kPIFRamSize) { break; }
+
+      const txBuf = this.pifRam.subarray(txOff, txOff + tx);
+      const rxBuf = this.pifRam.subarray(rxOff, rxOff + rx);
+      this.channels[channel].joybusConfigure(frame, tx, rx, txBuf, rxBuf);
       channel++;
     }
+  }
 
-    pifRam[63] = 0;
+  execute() {
+    for (let chan of this.channels) {
+      if (chan.reset) {
+        // TODO: implement reset.
+        continue;
+      }
+      if (chan.skip) {
+        continue;
+      }
+
+      const txRaw = chan.frame[0];
+      const rxRaw = chan.frame[1];
+      if (txRaw & 0x80) {
+        continue;
+      }
+      if (txRaw & 0x40) {
+        // TODO: implement reset.
+        continue;
+      }
+
+      const tx = txRaw & 0x3f;
+      const rx = rxRaw & 0x3f;
+      // Perform the command and find out how many bytes were returned.        
+      // If an unexpected number of bytes were received, set status bits in rx.
+      const rxLen = chan.joybusCommand(tx, rx, chan.txBuf, chan.rxBuf);
+      if (rxLen < rx) { chan.frame[1] |= kResponseUnder; }
+      if (rxLen > rx) { chan.frame[1] |= kResponseOver; }
+    }
   }
 }
 
@@ -139,12 +208,44 @@ function calculateAddressCrc(address) {
   return c & 0x1f;
 }
 
-class ControllerChannel {
+class Channel {
+  constructor() {
+    this.init();
+  }
+
+  expectTx(cmdName, txGot, txExpect) {
+    if (txGot != txExpect) {
+      logger.log(`${cmdName}: got tx ${txGot} but expect ${txExpect}`)
+    }
+  }
+
+  init() {
+    this.frame = 0;
+    this.tx = 0;
+    this.rx = 0;
+    this.txBuf = null;
+    this.rxBuf = null;
+    this.skip = true;
+    this.reset = false;
+  }
+
+  joybusConfigure(frame, tx, rx, txBuf, rxBuf) {
+    this.frame = frame;
+    this.tx = tx;
+    this.rx = rx;
+    this.txBuf = txBuf;
+    this.rxBuf = rxBuf;
+    this.skip = false;
+  }
+}
+
+class ControllerChannel extends Channel {
   /**
    * Construct a new ControllerChannel instance.
    * @param {ControllerInputs} inputs An instance of ControllerInputs.
    */
   constructor(inputs) {
+    super();
     this.inputs = inputs;
     this.present = false;
     this.attachment = kAttachmentNone;
@@ -183,12 +284,6 @@ class ControllerChannel {
 
     n64js.halt('Unknown controller command ' + command);
     return 0;
-  }
-
-  expectTx(cmdName, txGot, txExpect) {
-    if (txGot != txExpect) {
-      logger.log(`${cmdName}: got tx ${txGot} but expect ${txExpect}`)
-    }
   }
 
   getStatus(tx, rx, txBuf, rxBuf) {
@@ -289,15 +384,10 @@ class ControllerChannel {
   }
 }
 
-class CartridgeChannel {
+class CartridgeChannel extends Channel {
   constructor(hardware) {
-    this.hardware = hardware
-  }
-
-  expectTx(cmdName, txGot, txExpect) {
-    if (txGot != txExpect) {
-      logger.log(`${cmdName}: got tx ${txGot} but expect ${txExpect}`)
-    }
+    super();
+    this.hardware = hardware;
   }
 
   joybusCommand(tx, rx, txBuf, rxBuf) {
