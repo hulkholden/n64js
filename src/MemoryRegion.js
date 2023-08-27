@@ -19,7 +19,17 @@ export class MemoryRegion {
   }
 
   /**
-   * Copy memory.
+   * Returns a new DataView with the provided offset and length.
+   * @param {number} offset 
+   * @param {number} length 
+   * @returns {DataView}
+   */
+  subDataView(offset, length) {
+    return new DataView(this.arrayBuffer, offset, length);
+  }
+
+  /**
+   * Copies memory.
    * @param {number} dstOff 
    * @param {MemoryRegion} src 
    * @param {number} srcOff 

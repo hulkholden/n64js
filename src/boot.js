@@ -4,7 +4,7 @@ import { OS_TV_NTSC, OS_TV_PAL } from './system_constants.js';
 export function simulateBoot(cpu0, hardware, rominfo) {
   // Create a DataView of IMEM so we can initialise it.
   // TODO: should cache this somewhere.
-  const imem = new DataView(hardware.sp_mem.arrayBuffer, 0x1000, 0x1000);
+  const imem = hardware.sp_mem.subDataView(0x1000, 0x1000);
 
   cpu0.setControlU64(cpu0_constants.controlStatus, 0x00000000_34000000n);
   cpu0.setControlU64(cpu0_constants.controlConfig, 0x00000000_7006e463n);
