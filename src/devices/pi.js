@@ -158,10 +158,11 @@ export class PIRegDevice extends Device {
 
     if (isDom2Addr2(cartAddr)) {
       if (isFlashDomAddr(cartAddr)) {
+        dstOffset = cartAddr - PI_DOM2_ADDR2;
         switch (this.hardware.saveType) {
           case 'SRAM':
             dst = this.hardware.saveMem;
-            dstOffset = cartAddr - PI_DOM2_ADDR2;
+            this.hardware.saveDirty = true;
             break;
         }
       } else {
