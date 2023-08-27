@@ -99,9 +99,9 @@ export class PIFMemDevice extends Device {
   }
 
   updateControl() {
-    const piRom = new Uint8Array(this.mem.arrayBuffer, 0x000, 0x7c0);
-    const piRam = new Uint8Array(this.mem.arrayBuffer, 0x7c0, 0x040);
-    const command = piRam[0x3f];
+    const piRom = this.mem.subRegion(0x000, 0x7c0);
+    const piRam = this.mem.subRegion(0x7c0, 0x040);
+    const command = piRam.getU8(0x3f);
 
     switch (command) {
       case 0x01:
@@ -109,26 +109,22 @@ export class PIFMemDevice extends Device {
         break;
       case 0x08:
         logger.log('PIF: interrupt control');
-        piRam[0x3f] = 0x00;
+        piRam.set8(0x3f, 0x00);
         this.hardware.si_reg.setBits32(si.SI_STATUS_REG, si.SI_STATUS_INTERRUPT);
         this.hardware.mi_reg.setBits32(mi.MI_INTR_REG, mi.MI_INTR_SI);
         n64js.cpu0.updateCause3();
         break;
       case 0x10:
         logger.log('PIF: clear rom');
-        for (let i = 0; i < piRom.length; ++i) {
-          piRom[i] = 0;
-        }
+        piRom.clear();
         break;
       case 0x30:
         logger.log('PIF: set 0x80 control ');
-        piRam[0x3f] = 0x80;
+        piRam.set8(0x3f, 0x80);
         break;
       case 0xc0:
         logger.log('PIF: clear ram');
-        for (let i = 0; i < piRam.length; ++i) {
-          piRam[i] = 0;
-        }
+        piRam.clear();
         break;
       default:
         n64js.halt(`Unknown PIF control value: ${toString8(command)}`);
