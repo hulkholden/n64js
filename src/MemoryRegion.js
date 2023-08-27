@@ -4,12 +4,22 @@
 export class MemoryRegion {
   /**
    * @param {!ArrayBuffer} arrayBuffer
+   * @param {number} offset is the byte offset into arrayBuffer (defaults to zero).
+   * @param {number} length is the length of the region (defaults to arrayBuffer.byteLength - offset).
    */
-  constructor(arrayBuffer) {
+  constructor(arrayBuffer, offset, length) {
+    if (offset === undefined) {
+      offset = 0;
+    }
+    if (length === undefined) {
+      length = arrayBuffer.byteLength - offset;
+    }
+
     this.arrayBuffer = arrayBuffer;
-    this.length = arrayBuffer.byteLength;
-    this.u8 = new Uint8Array(arrayBuffer);
-    this.dataView = new DataView(arrayBuffer);
+    this.offset = offset;
+    this.length = length;
+    this.u8 = new Uint8Array(arrayBuffer, offset, length);
+    this.dataView = new DataView(arrayBuffer, offset, length);
   }
 
   clear() {
@@ -19,13 +29,29 @@ export class MemoryRegion {
   }
 
   /**
+   * Returns a new MemoryRegion with the provided offset and length.
+   * @param {number} offset 
+   * @param {number} length 
+   * @returns {DataView}
+   */
+  subRegion(offset, length) {
+    if (offset + length > this.length) {
+      throw `end is out of bounds`;
+    }
+    return new MemoryRegion(this.arrayBuffer, this.offset + offset, length);
+  }
+
+  /**
    * Returns a new DataView with the provided offset and length.
    * @param {number} offset 
    * @param {number} length 
    * @returns {DataView}
    */
   subDataView(offset, length) {
-    return new DataView(this.arrayBuffer, offset, length);
+    if (offset + length > this.length) {
+      throw `end is out of bounds`;
+    }
+    return new DataView(this.arrayBuffer, this.offset + offset, length);
   }
 
   /**
@@ -36,7 +62,12 @@ export class MemoryRegion {
    * @param {number} len 
    */
   copy(dstOff, src, srcOff, len) {
-    // TODO: dedupe.
+    if ((dstOff + length) > this.u8.length) {
+      throw `overflow dst`;
+    }
+    if ((srcOff + length) > src.u8.length) {
+      throw `overflow src`;
+    }
     for (let i = 0; i < len; ++i) {
       this.u8[dstOff + i] = src.u8[srcOff + i];
     }
