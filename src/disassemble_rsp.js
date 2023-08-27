@@ -415,13 +415,13 @@ export function disassembleInstruction(address, instruction) {
 
 export function disassembleRange(beginAddr, endAddr) {
   const hw = n64js.hardware();
-  const imem = hw.sp_mem.subDataView(0x1000, 0x1000);
+  const imem = hw.sp_mem.subRegion(0x1000, 0x1000);
 
   const disassembly = [];
   const targets = new Set();
 
   for (let addr = beginAddr; addr < endAddr; addr += 4) {
-    const instruction = imem.getUint32(addr);
+    const instruction = imem.getU32(addr);
     const d = disassembleInstruction(addr, instruction);
     if (d.instruction.target) {
       targets.add(d.instruction.target);
