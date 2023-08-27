@@ -115,7 +115,8 @@ n64js.debugger = () => dbg;
 // Keep a DataView around as a view onto the RSP task
 // FIXME - encapsulate this better.
 const kTaskOffset = 0x0fc0;
-n64js.rsp_task_view = new DataView(hardware.sp_mem.arrayBuffer, kTaskOffset, 0x40);
+const kTaskLength = 0x40;
+n64js.rsp_task_view = hardware.sp_mem.subDataView(kTaskOffset, kTaskLength);
 
 n64js.loadRomAndStartRunning = (arrayBuffer) => {
   loadRom(arrayBuffer);
