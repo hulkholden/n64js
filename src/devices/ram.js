@@ -33,7 +33,7 @@ export class CachedMemDevice extends Device {
 
     // Used by n64js.getRamS32Array.
     this.dataView = this.mem.dataView;
-    this.s32 = new Int32Array(this.mem.arrayBuffer);
+    this.s32 = this.mem.s32Array();
   }
 
   // Provide specialised implementations for some hot functions - hard-code some calcuations for performance.
