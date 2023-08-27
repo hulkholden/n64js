@@ -415,7 +415,7 @@ export function disassembleInstruction(address, instruction) {
 
 export function disassembleRange(beginAddr, endAddr) {
   const hw = n64js.hardware();
-  const imem = new DataView(hw.sp_mem.arrayBuffer, 0x1000, 0x1000);
+  const imem = hw.sp_mem.subDataView(0x1000, 0x1000);
 
   const disassembly = [];
   const targets = new Set();

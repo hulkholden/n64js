@@ -92,8 +92,8 @@ class RSP {
   constructor() {
     const hw = n64js.hardware();
     this.hardware = hw;
-    this.dmem = new DataView(hw.sp_mem.arrayBuffer, 0x0000, 0x1000);
-    this.imem = new DataView(hw.sp_mem.arrayBuffer, 0x1000, 0x1000);
+    this.dmem = hw.sp_mem.subDataView(0x0000, 0x1000);
+    this.imem = hw.sp_mem.subDataView(0x1000, 0x1000);
 
     this.halted = true;
 
