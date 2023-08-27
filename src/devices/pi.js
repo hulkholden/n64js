@@ -160,7 +160,7 @@ export class PIRegDevice extends Device {
       if (isFlashDomAddr(cartAddr)) {
         switch (this.hardware.saveType) {
           case 'SRAM':
-            dst = this.hardware.sram;
+            dst = this.hardware.saveMem;
             dstOffset = cartAddr - PI_DOM2_ADDR2;
             break;
         }
@@ -217,10 +217,10 @@ export class PIRegDevice extends Device {
       n64js.halt('PI: dom2addr1 transfer is unhandled (save)');
     } else if (isDom2Addr2(cartAddr)) {
       if (isFlashDomAddr(cartAddr)) {
+        srcOffset = cartAddr - PI_DOM2_ADDR2;
         switch (this.hardware.saveType) {
           case 'SRAM':
-            src = this.hardware.sram;
-            srcOffset = cartAddr - PI_DOM2_ADDR2;
+            src = this.hardware.saveMem;
             break;
         }
       } else {

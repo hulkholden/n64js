@@ -56,11 +56,10 @@ export class Hardware {
     this.ri_reg = newMemoryRegion(0x20);
     this.si_reg = newMemoryRegion(0x1c);
 
-    this.eeprom = null;   // Initialised during reset, using correct size for this rom (may be null if eeprom isn't used)
-    this.eepromDirty = false;
-
+    // Initialised during reset, using correct size for this rom (may be null if eeprom/sram/flash isn't used)
     // TODO: add a dirty flag and persist to local storage.
-    this.sram = null;
+    this.saveMem = null;
+    this.saveDirty = false;
 
     this.mempacks = [
       new Mempack(),
@@ -177,49 +176,44 @@ export class Hardware {
   };
 
   initSaveGame() {
-    this.sram = null;
-    this.eeprom = null;
-    this.eepromDirty = false;
-
     for (let [i, mp] of this.mempacks.entries()) {
       const item = n64js.getLocalStorageItem(`mempack${i}`);
       mp.init(item);
     }
 
-    switch (this.saveType) {
-      case 'Eeprom4k':
-        this.initEeprom(4 * 1024 / 8, n64js.getLocalStorageItem('eeprom'));
-        break;
-      case 'Eeprom16k':
-        this.initEeprom(16 * 1024 / 8, n64js.getLocalStorageItem('eeprom'));
-        break;
-      case 'SRAM':
-        this.sram = new MemoryRegion(new ArrayBuffer(32 * 1024));
-        // TODO: restore contents from local storage.
-        break;
-
-      default:
-        if (this.saveType) {
-          n64js.ui().displayWarning(`Unhandled savegame type: ${this.saveType}.`);
-        }
+    const saveSize = this.saveSizeBytes();
+    if (saveSize) {
+      const memory = new MemoryRegion(new ArrayBuffer(saveSize));
+      const saveItem = n64js.getLocalStorageItem('save');
+      if (saveItem && saveItem.data) {
+        base64.decodeArray(saveItem.data, memory.u8);
+      }
+      this.saveMem = memory;
+    } else {
+      this.saveMem = null;
     }
+    this.saveDirty = false;
+  }
+
+  saveSizeBytes() {
+    switch (this.saveType) {
+      case 'Eeprom4k': return 4 * 1024 / 8;
+      case 'Eeprom16k': return 16 * 1024 / 8;
+      case 'SRAM': return 32 * 1024;
+      case 'FlashRam': return 128 * 1024;
+    }
+    if (this.saveType) {
+      n64js.ui().displayWarning(`Unhandled savegame type: ${this.saveType}.`);
+    }
+    return 0;
   }
 
   get saveType() { return this.rominfo.save; }
 
-  initEeprom(size, eeprom_data) {
-    var memory = new MemoryRegion(new ArrayBuffer(size));
-    if (eeprom_data && eeprom_data.data) {
-      base64.decodeArray(eeprom_data.data, memory.u8);
-    }
-    this.eeprom = memory;
-    this.eepromDirty = false;
-  }
-
   flushSaveData() {
-    if (this.eeprom && this.eepromDirty) {
-      this.saveU8Array('eeprom', this.eeprom.u8);
-      this.eepromDirty = false;
+    if (this.saveMem && this.saveDirty) {
+      this.saveU8Array('save', this.saveMem.u8);
+      this.saveDirty = false;
     }
 
     for (let [i, mp] of this.mempacks.entries()) {
