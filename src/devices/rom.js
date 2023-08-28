@@ -3,16 +3,12 @@ import { toString32, toString16, toString8 } from '../format.js';
 import * as logger from '../logger.js';
 import { MemoryRegion } from '../MemoryRegion.js';
 
-const flashReadEA = 0x0000_0000;
-const flashReadEAEnd = 0x0000_0008;
-const flashWriteEA = 0x0001_0000;
-
 const dbgOutWriteLen = 0xb3ff0014
 const dbgOutBufStart = 0xb3ff0020;
 const dbgOutBufLen = 512;
 const dbgOutBufEnd = dbgOutBufStart + dbgOutBufLen;
 
-
+// Flash control command IDs.
 const kFlashramCmdSetEraseOffset = 0x4b;
 const kFlashramCmdErase = 0x78;
 const kFlashramCmdSetWriteOffset = 0xa5;
@@ -21,6 +17,7 @@ const kFlashramCmdExecute = 0xd2;
 const kFlashramCmdStatus = 0xe1;
 const kFlashramCmdRead = 0xf0;
 
+// Flash control modes.
 const kFlashramModeIdle = 0;
 const kFlashramModeErase = 1;
 const kFlashramModeWrite = 2;
@@ -236,9 +233,9 @@ export class ROMD2A2Device extends Device {
         if (ea >= 0x88000) {
             return unmappedAddressValue(value);
         }
-        if (this.hasFlashRam() && ea + 4 <= flashReadEAEnd) {
-            // Only reading the high 32 bits of the status register seem to be supported?
-            return this.flashStatus.getS32(ea);
+        if (this.hasFlashRam()) {
+            const wrapped = ea & 4; // Load from either low or high word.
+            return this.flashStatus.getS32(wrapped);
         }
         throw `Reading s32 from rom d2a2 [${toString32(address)}]`;
     }
@@ -249,14 +246,11 @@ export class ROMD2A2Device extends Device {
     write32(address, value) {
         const ea = this.calcWriteEA(address);
         if (this.hasFlashRam()) {
-            if (ea == 0) {
-                // Ignore writes to the status register.
-                return;
-            } else if (ea == flashWriteEA) {
+            // Ignore writes to the status register.
+            if (ea != 0) {
                 this.flashCommand(value);
-                return;
             }
-            throw `Unhandled write to flash address ${toString32(value)} -> [${toString32(address)}, ea ${toString32(ea)}]`;
+            return;
         }
         throw `Writing s32 to rom ${toString32(value)} -> [${toString32(address)}]`;
     }
