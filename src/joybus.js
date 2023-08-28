@@ -1,7 +1,7 @@
 import * as logger from './logger.js';
-import { toString16, toString8 } from './format.js';
 import { syncInput } from './sync.js';
 import { ControllerInputs } from './controllers.js';
+import { n64_cic_nus_6105 } from './devices/cic.js';
 
 const kChanController0 = 0;
 const kChanController1 = 1;
@@ -89,15 +89,38 @@ export class Joybus {
       this.controlByte &= ~1;
       this.configure();
     }
-
-    if (this.controlByte) {
-      n64js.warn(`PIF: DMA of ${this.controlByte} to the PIF RAM control byte is unhandled`);
-    }
   }
 
   dmaRead(dst, dstOffset) {
-    this.execute();
+    if (this.controlByte & 2) {
+      this.processCICChallenge();
+    } else {
+      this.execute();
+    }
     dst.copy(dstOffset, this.pifRam, 0, kPIFRamSize);
+  }
+
+  processCICChallenge() {
+    const challenge = new Uint8Array(30);
+    const response = new Uint8Array(30);
+
+    // TODO: this should depend on which CIC chip is present.
+
+    // Convert challenge bytes into nibbles.
+    for (let i = 0; i < 15; ++i) {
+      challenge[i * 2 + 0] = (this.pifRam.u8[0x30 + i] >>> 4) & 0x0f;
+      challenge[i * 2 + 1] = (this.pifRam.u8[0x30 + i] >>> 0) & 0x0f;
+    }
+
+    // Compute the response.
+    n64_cic_nus_6105(challenge, response, 30);
+
+    // Convert response nibbles into bytes.
+    for (let i = 0; i < 15; ++i) {
+      this.pifRam.u8[0x30 + i] = (response[i * 2] << 4) + response[i * 2 + 1];
+    }
+    this.pifRam.u8[0x2e] = 0;
+    this.pifRam.u8[0x2f] = 0;
   }
 
   configure() {
