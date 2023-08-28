@@ -190,7 +190,7 @@ export const romdb = {
   'd47cd67e6d5e41b4': {name:"Dark Rift"                                                                     },
   '493336f51bd2f9db': {name:"Deadly Arts"                                                                   },
   'd9a9663f005bcb9b': {name:"Defi au Tetris Magique"                                                        },
-  'e167f6a51fbd1fda': {name:"Derby Stallion 64",                                          save:'SRAM'       },
+  'e167f6a51fbd1fda': {name:"Derby Stallion 64",                                          save:'FlashRam'   },
   '614ac517e7f2834a': {name:"Densha de GO! 64",                                           save:'SRAM'       },
   'a284e5de8711160f': {name:"Destruction Derby 64"                                                          },
   '7da30a63dbd76b89': {name:"Destruction Derby 64"                                                          },
