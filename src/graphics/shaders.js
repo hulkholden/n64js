@@ -318,7 +318,7 @@ export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, alphaThreshold) 
   }
 
   if (alphaThreshold >= 0.0) {
-    body += 'if(col.a < ' + alphaThreshold.toFixed(3) + ') discard;\n';
+    body += 'if(col.a <= ' + alphaThreshold.toFixed(3) + ') discard;\n';
   }
 
   let shaderSource = fragmentSource.replace('{{body}}', body);
