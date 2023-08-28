@@ -1404,15 +1404,21 @@ function executeLoadBlock(cmd0, cmd1, dis) {
   invalidateTileHashes();
 }
 
-function copyLine(tmem, tmem_offset, ram, ram_offset, bytes) {
-  for (let x = 0; x < bytes; ++x) {
-    tmem[tmem_offset + x] = ram[ram_offset + x];
+function copyLine(tmem, tmemOffset, ram, ramOffset, bytesPerLine, bytesPerTmemLine ) {
+  for (let x = 0; x < bytesPerLine; ++x) {
+    tmem[tmemOffset + x] = ram[ramOffset + x];
+  }
+  for (let x = bytesPerLine; x < bytesPerTmemLine; ++x) {
+    tmem[tmemOffset + x] = 0;
   }
 }
 
-function copyLineSwap(tmem, tmem_offset, ram, ram_offset, bytes) {
-  for (let x = 0; x < bytes; ++x) {
-    tmem[(tmem_offset + x) ^ 0x4] = ram[(ram_offset + x)];
+function copyLineSwap(tmem, tmemOffset, ram, ramOffset, bytesPerLine, bytesPerTmemLine) {
+  for (let x = 0; x < bytesPerLine; ++x) {
+    tmem[(tmemOffset + x) ^ 0x4] = ram[(ramOffset + x)];
+  }
+  for (let x = bytesPerLine; x < bytesPerTmemLine; ++x) {
+    tmem[(tmemOffset + x) ^ 0x4] = 0;
   }
 }
 
@@ -1464,16 +1470,10 @@ function executeLoadTile(cmd0, cmd1, dis) {
   var x, y;
   for (y = 0; y < h; ++y) {
     if (y & 1) {
-      copyLineSwap(tmem_data, tmem_offset, ram_u8, ram_offset, bytes_per_tmem_line);
+      copyLineSwap(tmem_data, tmem_offset, ram_u8, ram_offset, bytes_per_line, bytes_per_tmem_line);
     } else {
-      copyLine(tmem_data, tmem_offset, ram_u8, ram_offset, bytes_per_tmem_line);
+      copyLine(tmem_data, tmem_offset, ram_u8, ram_offset, bytes_per_line, bytes_per_tmem_line);
     }
-
-    // Pad lines to a quadword
-    for (x = bytes_per_line; x < bytes_per_tmem_line; ++x) {
-      tmem_data[tmem_offset + x] = 0;
-    }
-
     tmem_offset += bytes_per_tmem_line;
     ram_offset += pitch;
   }
