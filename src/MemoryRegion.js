@@ -28,6 +28,12 @@ export class MemoryRegion {
     }
   }
 
+  set(offset, length, value) {
+    for (let i = 0; i < length; ++i) {
+      this.u8[offset + i] = value;
+    }
+  }
+
   /**
    * Returns a new MemoryRegion with the provided offset and length.
    * @param {number} offset 
