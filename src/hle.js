@@ -1973,16 +1973,8 @@ function setProgramState(positions, colours, coords, texture, tex_gen_enabled) {
   var alpha_threshold = -1.0;
 
   if ((getAlphaCompareType() === gbi.AlphaCompare.G_AC_THRESHOLD)) {
-    // If using cvg, then there's no alpha value to work with
-    const alpha_cvg_sel = getAlphaCoverageSelect();
-    if (!alpha_cvg_sel) {
-      alpha_threshold = ((state.blendColor >>> 0) & 0xff) / 255.0;
-    }
-    // } else if (cvg_x_alpha) {
-    // Going over 0x70 brakes OOT, but going lesser than that makes lines on games visible...ex: Paper Mario.
-    // Also going over 0x30 breaks the birds in Tarzan :(. Need to find a better way to leverage this.
-    // sceGuAlphaFunc(GU_GREATER, 0x70, 0xff);
-    // sceGuEnable(GU_ALPHA_TEST);
+    // TODO: it's unclear if this depends on CVG_X_ALPHA and ALPHA_CVG_SEL.
+    alpha_threshold = ((state.blendColor >>> 0) & 0xff) / 255.0;
   }
 
   var cycleType = getCycleType();
