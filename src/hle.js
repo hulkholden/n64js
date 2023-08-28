@@ -445,10 +445,19 @@ class RSPTask {
     this.ram_u8 = ram_u8;
     this.type = taskMem.getU32(kOffset_type);
     this.code = taskMem.getU32(kOffset_ucode) & 0x1fffffff;
-    this.code_size = taskMem.getU32(kOffset_ucode_size);
+    this.code_size = this.clampCodeSize(taskMem.getU32(kOffset_ucode_size));
     this.data = taskMem.getU32(kOffset_ucode_data) & 0x1fffffff;
     this.data_size = taskMem.getU32(kOffset_ucode_data_size);
     this.data_ptr = taskMem.getU32(kOffset_data_ptr);
+  }
+
+  clampCodeSize(val) {
+    // Some roms don't seem to set this, or set to large/negative values 
+    // that look suspiciously like addresses (like 0x80130000).
+    if (val == 0 || val > 0x1000) {
+      return 0x1000;
+    }
+    return val;
   }
 
   dataByte(offset) {
@@ -482,10 +491,8 @@ class RSPTask {
   }
 
   computeMicrocodeHash() {
-    // Some roms don't seem to set this.
-    const len = this.code_size || 0x1000;
     let c = 0;
-    for (let i = 0; i < len; ++i) {
+    for (let i = 0; i < this.code_size; ++i) {
       // Best hash ever!
       c = ((c * 17) + this.codeByte(i)) >>> 0;
     }
