@@ -443,7 +443,7 @@
       uniform vec2 uTexOffset;
       uniform vec2 uTexScale;
 
-      varying       vec4 vColor;
+      varying         vec4 vColor;
       varying mediump vec2 vTextureCoord;
 
       void main(void) {
@@ -460,6 +460,7 @@
       uniform sampler2D uSampler;
       uniform       vec4 uPrimColor;
       uniform       vec4 uEnvColor;
+      uniform       float uAlphaThreshold;
 
       void main(void) {
         vec4 shade = vColor;

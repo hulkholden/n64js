@@ -243,6 +243,7 @@ class N64Shader {
     this.uEnvColorUniform        = gl.getUniformLocation(program, "uEnvColor");
     this.uTexScaleUniform        = gl.getUniformLocation(program, "uTexScale");
     this.uTexOffsetUniform       = gl.getUniformLocation(program, "uTexOffset");
+    this.uAlphaThresholdUniform  = gl.getUniformLocation(program, "uAlphaThresholdUniform");
   }
 }
 
@@ -252,14 +253,14 @@ class N64Shader {
  * @param {number} mux0
  * @param {number} mux1
  * @param {number} cycleType A CycleType value.
- * @param {number} alphaThreshold The current alpha threshold.
+ * @param {boolean} enableAlphaThreshold Whether to enable alpha thresholding.
  * @return {!N64Shader}
  */
-export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, alphaThreshold) {
+export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, enableAlphaThreshold) {
   // Check if this shader already exists. Copy/Fill are fixed-function so ignore mux for these.
-  let stateText = (cycleType < gbi.CycleType.G_CYC_COPY) ? (mux0.toString(16) + mux1.toString(16) + '_' + cycleType) : cycleType.toString();
-  if (alphaThreshold >= 0.0) {
-    stateText += alphaThreshold;
+  let stateText = (cycleType < gbi.CycleType.G_CYC_COPY) ? (`${mux0.toString(16) + mux1.toString(16)}_${cycleType}`) : cycleType.toString();
+  if (enableAlphaThreshold) {
+    stateText += `_alphaThreshold`;
   }
 
   let shader = shaderCache.get(stateText);
@@ -317,8 +318,8 @@ export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, alphaThreshold) 
     body += 'col.a = ('   + alphaParams8[  aA1] + ' - ' + alphaParams8[  bA1] + ') * ' + alphaParams8[  cA1] + ' + ' + alphaParams8[  dA1] + ';\n';
   }
 
-  if (alphaThreshold >= 0.0) {
-    body += 'if(col.a <= ' + alphaThreshold.toFixed(3) + ') discard;\n';
+  if (enableAlphaThreshold) {
+    body += 'if(col.a <= uAlphaThreshold) discard;\n';
   }
 
   let shaderSource = fragmentSource.replace('{{body}}', body);
