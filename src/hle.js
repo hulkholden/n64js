@@ -1970,15 +1970,17 @@ const kBlendModeFade = 2;
 function setProgramState(positions, colours, coords, texture, tex_gen_enabled) {
   setGLBlendMode();
 
-  var alpha_threshold = -1.0;
+  let enableAlphaThreshold = false;
+  let alphaThreshold = -1.0;
 
   if ((getAlphaCompareType() === gbi.AlphaCompare.G_AC_THRESHOLD)) {
     // TODO: it's unclear if this depends on CVG_X_ALPHA and ALPHA_CVG_SEL.
-    alpha_threshold = ((state.blendColor >>> 0) & 0xff) / 255.0;
+    alphaThreshold = ((state.blendColor >>> 0) & 0xff) / 255.0;
+    enableAlphaThreshold = true;
   }
 
   var cycleType = getCycleType();
-  var shader = getCurrentN64Shader(cycleType, alpha_threshold);
+  var shader = getCurrentN64Shader(cycleType, enableAlphaThreshold);
   gl.useProgram(shader.program);
 
   // aVertexPosition
@@ -2038,6 +2040,8 @@ function setProgramState(positions, colours, coords, texture, tex_gen_enabled) {
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
     }
   }
+
+  gl.uniform1f(shader.uAlphaThresholdUniform, alphaThreshold);
 
   gl.uniform4f(shader.uPrimColorUniform,
     ((state.primColor >>> 24) & 0xff) / 255.0,
@@ -3688,11 +3692,11 @@ export function resetRenderer() {
   ram_dv = n64js.getRamDataView();
 }
 
-function getCurrentN64Shader(cycle_type, alpha_threshold) {
+function getCurrentN64Shader(cycle_type, enableAlphaThreshold) {
   var mux0 = state.combine.hi;
   var mux1 = state.combine.lo;
 
-  return shaders.getOrCreateN64Shader(gl, mux0, mux1, cycle_type, alpha_threshold);
+  return shaders.getOrCreateN64Shader(gl, mux0, mux1, cycle_type, enableAlphaThreshold);
 }
 
 function hashTmem(tmem32, offset, len, hash) {
