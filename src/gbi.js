@@ -6,14 +6,17 @@ export const RenderMode = {
   Z_UPD:               0x0020,
   IM_RD:               0x0040,
   CLR_ON_CVG:          0x0080,
-  CVG_DST_CLAMP:       0,
+
+  CVG_DST_CLAMP:       0x0000,
   CVG_DST_WRAP:        0x0100,
   CVG_DST_FULL:        0x0200,
   CVG_DST_SAVE:        0x0300,
-  ZMODE_OPA:           0,
+
+  ZMODE_OPA:           0x0000,
   ZMODE_INTER:         0x0400,
   ZMODE_XLU:           0x0800,
   ZMODE_DEC:           0x0c00,
+
   CVG_X_ALPHA:         0x1000,
   ALPHA_CVG_SEL:       0x2000,
   FORCE_BL:            0x4000,
@@ -60,19 +63,9 @@ export const G_MDSFT_ZSRCSEL      = 2;
 export const G_MDSFT_RENDERMODE   = 3;
 export const G_MDSFT_BLENDER      = 16;
 
-export const G_AC_MASK = 3 << G_MDSFT_ALPHACOMPARE;
-export const G_ZS_MASK = 1 << G_MDSFT_ZSRCSEL;
-
-export function getOtherModeLShiftCountName(value) {
-  switch (value) {
-    case G_MDSFT_ALPHACOMPARE: return 'G_MDSFT_ALPHACOMPARE';
-    case G_MDSFT_ZSRCSEL:      return 'G_MDSFT_ZSRCSEL';
-    case G_MDSFT_RENDERMODE:   return 'G_MDSFT_RENDERMODE';
-    case G_MDSFT_BLENDER:      return 'G_MDSFT_BLENDER';
-  }
-
-  return format.toString8(value);
-}
+export const G_AC_MASK = 0x3;
+export const G_ZS_MASK = 0x4;
+export const G_RM_MASK = 0xffff_fff8;
 
 //G_SETOTHERMODE_H shift count
 export const G_MDSFT_BLENDMASK   = 0;
@@ -88,26 +81,6 @@ export const G_MDSFT_TEXTPERSP   = 19;
 export const G_MDSFT_CYCLETYPE   = 20;
 export const G_MDSFT_COLORDITHER = 22;
 export const G_MDSFT_PIPELINE    = 23;
-
-export function getOtherModeHShiftCountName(value) {
-  switch (value) {
-    case G_MDSFT_BLENDMASK:   return 'G_MDSFT_BLENDMASK';
-    case G_MDSFT_ALPHADITHER: return 'G_MDSFT_ALPHADITHER';
-    case G_MDSFT_RGBDITHER:   return 'G_MDSFT_RGBDITHER';
-    case G_MDSFT_COMBKEY:     return 'G_MDSFT_COMBKEY';
-    case G_MDSFT_TEXTCONV:    return 'G_MDSFT_TEXTCONV';
-    case G_MDSFT_TEXTFILT:    return 'G_MDSFT_TEXTFILT';
-    case G_MDSFT_TEXTLUT:     return 'G_MDSFT_TEXTLUT';
-    case G_MDSFT_TEXTLOD:     return 'G_MDSFT_TEXTLOD';
-    case G_MDSFT_TEXTDETAIL:  return 'G_MDSFT_TEXTDETAIL';
-    case G_MDSFT_TEXTPERSP:   return 'G_MDSFT_TEXTPERSP';
-    case G_MDSFT_CYCLETYPE:   return 'G_MDSFT_CYCLETYPE';
-    case G_MDSFT_COLORDITHER: return 'G_MDSFT_COLORDITHER';
-    case G_MDSFT_PIPELINE:    return 'G_MDSFT_PIPELINE';
-  }
-
-  return format.toString8(value);
-}
 
 export const MoveMemGBI2 = makeEnum({
   G_GBI2_MV_VIEWPORT: 8,
