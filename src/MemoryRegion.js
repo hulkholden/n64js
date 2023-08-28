@@ -57,19 +57,19 @@ export class MemoryRegion {
 
   /**
    * Copies memory.
-   * @param {number} dstOff 
-   * @param {MemoryRegion} src 
-   * @param {number} srcOff 
-   * @param {number} len 
+   * @param {number} dstOff  Offset to start copying to.
+   * @param {MemoryRegion} src Source to copy from.
+   * @param {number} srcOff Offset within src to start copying from.
+   * @param {number} length Number of bytes to copy.
    */
-  copy(dstOff, src, srcOff, len) {
+  copy(dstOff, src, srcOff, length) {
     if ((dstOff + length) > this.u8.length) {
       throw `overflow dst`;
     }
     if ((srcOff + length) > src.u8.length) {
       throw `overflow src`;
     }
-    for (let i = 0; i < len; ++i) {
+    for (let i = 0; i < length; ++i) {
       this.u8[dstOff + i] = src.u8[srcOff + i];
     }
   }
