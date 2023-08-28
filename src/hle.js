@@ -3133,7 +3133,7 @@ class Disassembler {
 
 
 function buildStateTab() {
-  var $table = $('<table class="table table-condensed dl-geometrymode-table" style="width: auto;"></table>');
+  var $table = $('<table class="table table-condensed dl-debug-table" style="width: auto;"></table>');
   var $tr = $('<tr />');
 
   for (let i in state.geometryMode) {
@@ -3171,7 +3171,7 @@ function buildRDPTab() {
     ['pipelineMode', gbi.PipelineMode.nameOf(h & gbi.G_PM_MASK)],
   ]);
 
-  var $table = $('<table class="table table-condensed" style="width: auto;"></table>');
+  var $table = $('<table class="table table-condensed dl-debug-table" style="width: auto;"></table>');
   for (let [name, value] of vals) {
     let $tr = $(`<tr><td>${name}</td><td>${value}</td></tr>`);
     $table.append($tr);
@@ -3188,7 +3188,7 @@ function buildColorsTable() {
     'fogColor',
   ];
 
-  var $table = $('<table class="table table-condensed" style="width: auto;"></table>');
+  var $table = $('<table class="table table-condensed dl-debug-table" style="width: auto;"></table>');
   for (let color of colors) {
     let row = $(`<tr><td>${color}</td><td>${makeColorTextRGBA(state[color])}</td></tr>`);
     $table.append(row);
@@ -3244,7 +3244,7 @@ function buildTilesTable() {
     'bottom'
   ];
 
-  var $table = $('<table class="table table-condensed" style="width: auto"></table>');
+  var $table = $('<table class="table table-condensed dl-debug-table" style="width: auto"></table>');
   var $tr = $(`<tr><th>${tile_fields.join('</th><th>')}</th></tr>`);
   $table.append($tr);
 
@@ -3296,7 +3296,7 @@ function buildVerticesTab() {
     'v'
   ];
 
-  var $table = $('<table class="table table-condensed dl-vertices-table" style="width: auto"></table>');
+  var $table = $('<table class="table table-condensed dl-debug-table" style="width: auto"></table>');
   var $tr = $(`<tr><th>${vtx_fields.join('</th><th>')}</th></tr>`);
   $table.append($tr);
 
