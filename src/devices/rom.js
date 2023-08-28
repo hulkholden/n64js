@@ -1,11 +1,38 @@
 import { Device } from './device.js';
 import { toString32, toString16, toString8 } from '../format.js';
 import * as logger from '../logger.js';
+import { MemoryRegion } from '../MemoryRegion.js';
+
+const flashReadEA = 0x0000_0000;
+const flashReadEAEnd = 0x0000_0008;
+const flashWriteEA = 0x0001_0000;
 
 const dbgOutWriteLen = 0xb3ff0014
 const dbgOutBufStart = 0xb3ff0020;
 const dbgOutBufLen = 512;
 const dbgOutBufEnd = dbgOutBufStart + dbgOutBufLen;
+
+
+const kFlashramCmdSetEraseOffset = 0x4b;
+const kFlashramCmdErase = 0x78;
+const kFlashramCmdSetWriteOffset = 0xa5;
+const kFlashramCmdWrite = 0xb4;
+const kFlashramCmdExecute = 0xd2;
+const kFlashramCmdStatus = 0xe1;
+const kFlashramCmdRead = 0xf0;
+
+const kFlashramModeIdle = 0;
+const kFlashramModeErase = 1;
+const kFlashramModeWrite = 2;
+const kFlashramModeRead = 3;
+const kFlashramModeStatus = 4;
+
+// Returns the value read from bus for reads with no receiver ("open-bus" behaviour).
+// See https://n64brew.dev/wiki/Peripheral_Interface.
+function unmappedAddressValue(address) {
+    return ((address << 16) | (address & 0xffff)) >>> 0;
+}
+
 
 export class ROMD1A1Device extends Device {
     constructor(hardware, rangeStart, rangeEnd) {
@@ -13,9 +40,9 @@ export class ROMD1A1Device extends Device {
         super("ROMd1a1", hardware, hardware.rom, rangeStart, rangeEnd);
     }
 
-    write32(address, value) { throw `Writing to rom d1a1 ${toString32(value)} -> [${toString32(address)}]`; };
-    write16(address, value) { throw `Writing to rom d1a1 ${toString16(value)} -> [${toString32(address)}]`; };
-    write8(address, value) { throw `Writing to rom d1a1 ${toString8(value)} -> [${toString32(address)}]`; };
+    write32(address, value) { throw `Writing to rom d1a1 ${toString32(value)} -> [${toString32(address)}]`; }
+    write16(address, value) { throw `Writing to rom d1a1 ${toString16(value)} -> [${toString32(address)}]`; }
+    write8(address, value) { throw `Writing to rom d1a1 ${toString8(value)} -> [${toString32(address)}]`; }
 }
 
 export class ROMD1A2Device extends Device {
@@ -155,9 +182,9 @@ export class ROMD1A3Device extends Device {
         super("ROMd1a3", hardware, hardware.rom, rangeStart, rangeEnd);
     }
 
-    write32(address, value) { throw `Writing to rom d1a3 ${toString32(value)} -> [${toString32(address)}]`; };
-    write16(address, value) { throw `Writing to rom d1a3 ${toString16(value)} -> [${toString32(address)}]`; };
-    write8(address, value) { throw `Writing to rom d1a3 ${toString8(value)} -> [${toString32(address)}]`; };
+    write32(address, value) { throw `Writing to rom d1a3 ${toString32(value)} -> [${toString32(address)}]`; }
+    write16(address, value) { throw `Writing to rom d1a3 ${toString16(value)} -> [${toString32(address)}]`; }
+    write8(address, value) { throw `Writing to rom d1a3 ${toString8(value)} -> [${toString32(address)}]`; }
 }
 
 export class ROMD2A1Device extends Device {
@@ -176,30 +203,131 @@ export class ROMD2A1Device extends Device {
     }
 
     readU32(address) { return this.read(address) >>> 0; }
-    readU16(address) { return this.read(address) & 0xffff; };
-    readU8(address) { return this.read(address) & 0xff; };
+    readU16(address) { return this.read(address) & 0xffff; }
+    readU8(address) { return this.read(address) & 0xff; }
 
     readS32(address) { return this.read(address) >> 0; }
-    readS16(address) { return this.read(address) & 0xffff; };
-    readS8(address) { return this.read(address) & 0xff; };
+    readS16(address) { return this.read(address) & 0xffff; }
+    readS8(address) { return this.read(address) & 0xff; }
 
-    write32(address, value) { throw `Writing to rom ${toString32(value)} -> [${toString32(address)}]`; };
-    write16(address, value) { throw `Writing to rom ${toString16(value)} -> [${toString32(address)}]`; };
-    write8(address, value) { throw `Writing to rom ${toString8(value)} -> [${toString32(address)}]`; };
+    write32(address, value) { throw `Writing to rom ${toString32(value)} -> [${toString32(address)}]`; }
+    write16(address, value) { throw `Writing to rom ${toString16(value)} -> [${toString32(address)}]`; }
+    write8(address, value) { throw `Writing to rom ${toString8(value)} -> [${toString32(address)}]`; }
 }
 
 export class ROMD2A2Device extends Device {
     constructor(hardware, rangeStart, rangeEnd) {
         super("ROMd2a2", hardware, null, rangeStart, rangeEnd);
+
+        this.flashMode = kFlashramModeIdle;
+        this.flashStatus = new MemoryRegion(new ArrayBuffer(8));
+        this.flashBuffer = new MemoryRegion(new ArrayBuffer(128));
+        this.flashOffset = 0;
     }
 
-    readU32(address) { throw `Reading u32 from rom d2a2 [${toString32(address)}]`; };
-    readU16(address) { throw `Reading u16 from rom d2a2 [${toString32(address)}]`; };
-    readU8(address) { throw `Reading u8 from rom d2a2 [${toString32(address)}]`; };
-    readS32(address) { throw `Reading s32 from rom d2a2 [${toString32(address)}]`; };
-    readS16(address) { throw `Reading s16 from rom d2a2 [${toString32(address)}]`; };
-    readS8(address) { throw `Reading s8 from rom d2a2 [${toString32(address)}]`; };
-    write32(address, value) { throw `Writing to rom ${toString32(value)} -> [${toString32(address)}]`; };
-    write16(address, value) { throw `Writing to rom ${toString16(value)} -> [${toString32(address)}]`; };
-    write8(address, value) { throw `Writing to rom ${toString8(value)} -> [${toString32(address)}]`; };
+    hasFlashRam() { return this.hardware.saveType == 'FlashRam'; }
+
+    readU32(address) { return this.readS32(address) >>> 0; }
+    readU16(address) { return this.readS16(address) >>> 0; }
+    readU8(address) { return this.readS8(address) >>> 0; }
+
+    readS32(address) {
+        const ea = this.calcWriteEA(address);
+        if (ea >= 0x88000) {
+            return unmappedAddressValue(value);
+        }
+        if (this.hasFlashRam() && ea + 4 <= flashReadEAEnd) {
+            // Only reading the high 32 bits of the status register seem to be supported?
+            return this.flashStatus.getS32(ea);
+        }
+        throw `Reading s32 from rom d2a2 [${toString32(address)}]`;
+    }
+    // TODO: short reads should probably behave like 32 bit read and byte selection done on CPU.
+    readS16(address) { throw `Reading s16 from rom d2a2 [${toString32(address)}]`; }
+    readS8(address) { throw `Reading s8 from rom d2a2 [${toString32(address)}]`; }
+
+    write32(address, value) {
+        const ea = this.calcWriteEA(address);
+        if (this.hasFlashRam()) {
+            if (ea == 0) {
+                // Ignore writes to the status register.
+                return;
+            } else if (ea == flashWriteEA) {
+                this.flashCommand(value);
+                return;
+            }
+            throw `Unhandled write to flash address ${toString32(value)} -> [${toString32(address)}, ea ${toString32(ea)}]`;
+        }
+        throw `Writing s32 to rom ${toString32(value)} -> [${toString32(address)}]`;
+    }
+    write16(address, value) { throw `Writing s16 to rom ${toString16(value)} -> [${toString32(address)}]`; }
+    write8(address, value) { throw `Writing s8 to rom ${toString8(value)} -> [${toString32(address)}]`; }
+
+    flashDMASource() {
+        switch (this.flashMode) {
+            case kFlashramModeRead:
+                return this.hardware.saveMem;
+            case kFlashramModeStatus:
+                return this.flashStatus;
+        }
+        n64js.warn(`Unexpected mode for flash DMA: ${this.flashMode}`)
+        return null;
+    }
+
+    flashCommand(value) {
+        const command = (value >>> 24) & 0xff;
+        switch (command) {
+            case kFlashramCmdSetEraseOffset:
+                this.flashOffset = (value & 0xffff) * 128;
+                if (!this.quiet) { logger.log(`set erase offset: ${toString32(this.flashOffset)}`); }
+                break;
+            case kFlashramCmdErase:
+                if (!this.quiet) { logger.log(`set mode ERASE`); }
+                this.flashMode = kFlashramModeErase;
+                this.flashStatus.set64(0, 0x1111_8008_00c2_001dn);
+                break;
+            case kFlashramCmdSetWriteOffset:
+                this.flashOffset = (value & 0xffff) * 128;
+                if (!this.quiet) { logger.log(`set write offset: ${toString32(this.flashOffset)}`); }
+                this.flashStatus.set64(0, 0x1111_8004_00c2_001dn);
+                break;
+            case kFlashramCmdWrite:
+                if (!this.quiet) { logger.log(`setting mode WRITE`); }
+                this.flashMode = kFlashramModeWrite;
+                break;
+            case kFlashramCmdExecute:
+                switch (this.flashMode) {
+                    case kFlashramModeIdle:
+                        if (!this.quiet) { logger.log(`execute IDLE (ignored)`); }
+                        break;
+                    case kFlashramModeErase:
+                        if (!this.quiet) { logger.log(`execute ERASE flash @ ${toString32(this.flashOffset)} (set saveMem to 0xff)`); }
+                        this.hardware.saveMem.set(this.flashOffset, 128, 0xff);
+                        this.hardware.saveDirty = true;
+                        break;
+                    case kFlashramModeWrite:
+                        if (!this.quiet) { logger.log(`execute WRITE flash @ ${toString32(this.flashOffset)} (copy flashBuffer to saveMem)`); }
+                        this.hardware.saveMem.copy(this.flashOffset, this.flashBuffer, 0, 128);
+                        this.hardware.saveDirty = true;
+                        break;
+                    default:
+                        logger.log(`execute (${toString32(value)}) with unhandled mode: ${this.flashMode}`);
+                        break;
+                }
+                //this.flashMode = kFlashramModeIdle;
+                break;
+            case kFlashramCmdStatus:
+                if (!this.quiet) { logger.log(`setting mode STATUS`); }
+                this.flashMode = kFlashramModeStatus;
+                this.flashStatus.set64(0, 0x1111_8001_00c2_001dn);
+                break;
+            case kFlashramCmdRead:
+                if (!this.quiet) { logger.log(`setting mode READ`); }
+                this.flashMode = kFlashramModeRead;
+                this.flashStatus.set64(0, 0x1111_8004_f000_001dn);
+                break;
+            default:
+                if (!this.quiet) { logger.log(`execute with unknown command ${toString32(command)}`); }
+        }
+    }
 }

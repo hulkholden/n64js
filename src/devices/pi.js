@@ -32,7 +32,7 @@ export const PI_STATUS_CLR_INTR = 0x02;
 export const PI_DOM2_ADDR1 = 0x05000000; // 64DD Registers
 export const PI_DOM1_ADDR1 = 0x06000000; // 64DD ROM
 export const PI_DOM2_ADDR2 = 0x08000000; // SRAM
-export const PI_DOM2_ADDR2_END = 0x0800ffff;
+export const PI_DOM2_ADDR2_END = 0x0801ffff;
 export const PI_DOM1_ADDR2 = 0x10000000; // ROM
 export const PI_DOM1_ADDR2_END = 0x1FBFFFFF;
 export const PI_DOM1_ADDR3 = 0x1FD00000;
@@ -164,17 +164,20 @@ export class PIRegDevice extends Device {
             dst = this.hardware.saveMem;
             this.hardware.saveDirty = true;
             break;
+          case 'FlashRam':
+            dst = this.hardware.romD2A2Device.flashBuffer;
+            // Don't set dirty as this is only committed when executing a write operation.
+            break;
         }
       } else {
-        n64js.halt(`PI: unknown dom2addr2 address: ${toString32(cartAddr)}`);
+        n64js.halt(`PI: unknown dom2addr2 address for ram->cart DMA: ${toString32(cartAddr)}`);
       }
     } else {
-      n64js.halt(`PI: unknown cart address: ${toString32(cartAddr)}`);
+      n64js.halt(`PI: unknown cart address for ram->cart DMA: ${toString32(cartAddr)}`);
     }
 
     if (dst) {
       dst.copy(dstOffset, this.hardware.ram, dramAddr, transferLen);
-      // TODO: mark save as dirty.
     }
 
     // TODO: Update address registers?
@@ -223,12 +226,15 @@ export class PIRegDevice extends Device {
           case 'SRAM':
             src = this.hardware.saveMem;
             break;
+          case 'FlashRam':
+            src = this.hardware.romD2A2Device.flashDMASource();
+            break;
         }
       } else {
-        n64js.halt(`PI: unknown dom2addr2 address: ${toString32(cartAddr)}`);
+        n64js.halt(`PI: unknown dom2addr2 address for cart->ram DMA: ${toString32(cartAddr)}`);
       }
     } else {
-      n64js.halt(`PI: unknown cart address: ${toString32(cartAddr)}`);
+      n64js.halt(`PI: unknown cart address for cart->ram DMA: ${toString32(cartAddr)}`);
     }
 
     if (src) {
