@@ -158,14 +158,20 @@ export class PIRegDevice extends Device {
 
     if (isDom2Addr2(cartAddr)) {
       if (isFlashDomAddr(cartAddr)) {
-        dstOffset = cartAddr - PI_DOM2_ADDR2;
         switch (this.hardware.saveType) {
           case 'SRAM':
             dst = this.hardware.saveMem;
+            dstOffset = cartAddr - PI_DOM2_ADDR2;
             this.hardware.saveDirty = true;
             break;
           case 'FlashRam':
+            // DMAs to flash actually write to a.
             dst = this.hardware.romD2A2Device.flashBuffer;
+            dstOffset = 0;
+            if (transferLen > dst.length) {
+              n64js.warn(`PI DMA to FlashRam exceeds buffer length (${transferLen} > ${dst.length})`);
+              transferLen = dst.length;
+            }
             // Don't set dirty as this is only committed when executing a write operation.
             break;
         }
