@@ -1011,12 +1011,10 @@ function executeGBI1_SetOtherModeL(cmd0, cmd1, dis) {
   var shift = (cmd0 >>> 8) & 0xff;
   var len = (cmd0 >>> 0) & 0xff;
   var data = cmd1;
-  var mask = ((1 << len) - 1) << shift;
-
+  var mask = (((1 << len) - 1) << shift) >>> 0;
   if (dis) {
-    disassemble.SetOtherModeL(dis, len, shift, data);
+    disassemble.SetOtherModeL(dis, mask, data);
   }
-
   state.rdpOtherModeL = (state.rdpOtherModeL & ~mask) | data;
 }
 
@@ -1024,12 +1022,10 @@ function executeGBI1_SetOtherModeH(cmd0, cmd1, dis) {
   var shift = (cmd0 >>> 8) & 0xff;
   var len = (cmd0 >>> 0) & 0xff;
   var data = cmd1;
-  var mask = ((1 << len) - 1) << shift;
-
+  var mask = (((1 << len) - 1) << shift) >>> 0;
   if (dis) {
-    disassemble.SetOtherModeH(dis, len, shift, data);
+    disassemble.SetOtherModeH(dis, mask, len, shift, data);
   }
-
   state.rdpOtherModeH = (state.rdpOtherModeH & ~mask) | data;
 }
 
@@ -2917,12 +2913,10 @@ function executeGBI2_SetOtherModeL(cmd0, cmd1, dis) {
   var shift = (cmd0 >>> 8) & 0xff;
   var len = (cmd0 >>> 0) & 0xff;
   var data = cmd1;
-  var mask = (0x80000000 >> len) >>> shift; // NB: only difference to GBI1 is how the mask is constructed
-
+  var mask = (0x80000000 >> len) >>> shift;
   if (dis) {
-    disassemble.SetOtherModeL(dis, len, shift, data);
+    disassemble.SetOtherModeL(dis, mask, data);
   }
-
   state.rdpOtherModeL = (state.rdpOtherModeL & ~mask) | data;
 }
 
@@ -2930,12 +2924,10 @@ function executeGBI2_SetOtherModeH(cmd0, cmd1, dis) {
   var shift = (cmd0 >>> 8) & 0xff;
   var len = (cmd0 >>> 0) & 0xff;
   var data = cmd1;
-  var mask = (0x80000000 >> len) >>> shift; // NB: only difference to GBI1 is how the mask is constructed
-
+  var mask = (0x80000000 >> len) >>> shift;
   if (dis) {
-    disassemble.SetOtherModeH(dis, len, shift, data);
+    disassemble.SetOtherModeH(dis, mask, len, shift, data);
   }
-
   state.rdpOtherModeH = (state.rdpOtherModeH & ~mask) | data;
 }
 
