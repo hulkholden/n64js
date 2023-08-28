@@ -162,16 +162,7 @@ table .impl100 {
   clear: both;
 }
 
-.dl-geometrymode-table th,
-.dl-geometrymode-table td {
+.dl-debug-table th,
+.dl-debug-table td {
   padding: 2px 10px;
-
-  text-align: center;
-}
-
-.dl-vertices-table th,
-.dl-vertices-table td {
-  padding: 2px 10px;
-
-  text-align: center;
 }
