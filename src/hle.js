@@ -3259,8 +3259,8 @@ function buildTilesTable() {
   var $tr = $(`<tr><th>${tile_fields.join('</th><th>')}</th></tr>`);
   $table.append($tr);
 
-  for (let i = 0; i < state.tiles.length; ++i) {
-    var tile = state.tiles[i];
+  for (let tileIdx = 0; tileIdx < state.tiles.length; ++tileIdx) {
+    var tile = state.tiles[tileIdx];
 
     // Ignore any tiles that haven't been set up.
     if (tile.format === -1) {
@@ -3268,7 +3268,7 @@ function buildTilesTable() {
     }
 
     var vals = [];
-    vals.push(i);
+    vals.push(gbi.getTileText(tileIdx));
     vals.push(gbi.ImageFormat.nameOf(tile.format));
     vals.push(gbi.ImageSize.nameOf(tile.size));
     vals.push(tile.line);
