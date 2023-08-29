@@ -1322,9 +1322,7 @@ function executeSetRDPOtherMode(cmd0, cmd1, dis) {
 }
 
 function calcTextureAddress(uls, ult, address, width, size) {
-  return state.textureImage.address +
-      (ult * ((state.textureImage.width << size) >>> 1)) +
-      ((uls << size) >>> 1);
+  return address + (ult * texelsToBytes(width, size)) + texelsToBytes(uls, size);
 }
 
 // tmem/ram should be Int32Array
@@ -1376,7 +1374,7 @@ function executeLoadBlock(cmd0, cmd1, dis) {
                                         state.textureImage.width,
                                         state.textureImage.size);
 
-  var bytes = ((lrs + 1) << state.textureImage.size) >>> 1;
+  var bytes = texelsToBytes(lrs + 1, state.textureImage.size);
   var qwords = (bytes + 7) >>> 3;
 
   var tmem_data = state.tmemData32;
@@ -1415,78 +1413,77 @@ function executeLoadBlock(cmd0, cmd1, dis) {
   invalidateTileHashes();
 }
 
-function copyLine(tmem, tmemOffset, ram, ramOffset, bytesPerLine, bytesPerTmemLine ) {
-  for (let x = 0; x < bytesPerLine; ++x) {
+function copyLine(tmem, tmemOffset, ram, ramOffset, texelBytes, rowBytes) {
+  for (let x = 0; x < texelBytes; ++x) {
     tmem[tmemOffset + x] = ram[ramOffset + x];
   }
-  for (let x = bytesPerLine; x < bytesPerTmemLine; ++x) {
+  for (let x = texelBytes; x < rowBytes; ++x) {
     tmem[tmemOffset + x] = 0;
   }
 }
 
-function copyLineSwap(tmem, tmemOffset, ram, ramOffset, bytesPerLine, bytesPerTmemLine) {
-  for (let x = 0; x < bytesPerLine; ++x) {
+function copyLineSwap(tmem, tmemOffset, ram, ramOffset, texelBytes, rowBytes) {
+  for (let x = 0; x < texelBytes; ++x) {
     tmem[(tmemOffset + x) ^ 0x4] = ram[(ramOffset + x)];
   }
-  for (let x = bytesPerLine; x < bytesPerTmemLine; ++x) {
+  for (let x = texelBytes; x < rowBytes; ++x) {
     tmem[(tmemOffset + x) ^ 0x4] = 0;
   }
 }
 
+function texelsToBytes(texels, size) {
+  return (texels << size) >>> 1;
+}
+
 function executeLoadTile(cmd0, cmd1, dis) {
-  var uls = (cmd0 >>> 12) & 0xfff;
-  var ult = (cmd0 >>> 0) & 0xfff;
-  var tileIdx = (cmd1 >>> 24) & 0x7;
-  var lrs = (cmd1 >>> 12) & 0xfff;
-  var lrt = (cmd1 >>> 0) & 0xfff;
+  const tileIdx = (cmd1 >>> 24) & 0x7;
+  const lrs = (cmd1 >>> 12) & 0xfff;
+  const lrt = (cmd1 >>> 0) & 0xfff;
+  const uls = (cmd0 >>> 12) & 0xfff;
+  const ult = (cmd0 >>> 0) & 0xfff;
+
+  const tileX1 = lrs >>> 2;
+  const tileY1 = lrt >>> 2;
+  const tileX0 = uls >>> 2;
+  const tileY0 = ult >>> 2;
+
+  const tile = state.tiles[tileIdx];
+  const ramAddress = calcTextureAddress(tileX0, tileY0, state.textureImage.address, state.textureImage.width, state.textureImage.size);
+
+  const h = (tileY1 + 1) - tileY0;
+  const w = (tileX1 + 1) - tileX0;
+
+  // loadTile pads rows to 8 bytes.
+  const tmemData = state.tmemData;
+
+  let ramOffset = ramAddress;
+  const ramStride = texelsToBytes(state.textureImage.width, state.textureImage.size);
+  const rowBytes = texelsToBytes(w, state.textureImage.size);
+
+  let tmemOffset = tile.tmem << 3;
+  const tmemStride = (state.textureImage.size == gbi.ImageSize.G_IM_SIZ_32b) ? tile.line << 4 : tile.line << 3;
+
+  // TODO: Limit the load to fetchedQWords?
+  // TODO: should be limited to 2048 texels, not 512 qwords.
+  const bytes = h * rowBytes;
+  const reqQWords = (bytes + 7) >>> 3;
+  const fetchedQWords = (reqQWords > 512) ? 512 : reqQWords;
 
   if (dis) {
     var tt = gbi.getTileText(tileIdx);
-    dis.text(`gsDPLoadTile(${tt}, ${uls / 4}, ${ult / 4}, ${lrs / 4}, ${lrt / 4}); // (${uls / 4},${ult / 4}), (${(lrs / 4) + 1},${(lrt / 4) + 1})`);
+    dis.text(`gsDPLoadTile(${tt}, ${uls / 4}, ${ult / 4}, ${lrs / 4}, ${lrt / 4});`);
+    dis.tip(`size = (${w} x ${h}), rowBytes ${rowBytes}, ramStride ${ramStride}, tmemStride ${tmemStride}`);
   }
-
-  var tile = state.tiles[tileIdx];
-  var ram_address = calcTextureAddress(uls >>> 2, ult >>> 2,
-                                        state.textureImage.address,
-                                        state.textureImage.width,
-                                        state.textureImage.size);
-  var pitch = (state.textureImage.width << state.textureImage.size) >>> 1;
-
-  var h = ((lrt - ult) >>> 2) + 1;
-  var w = ((lrs - uls) >>> 2) + 1;
-  var bytes = ((h * w) << state.textureImage.size) >>> 1;
-  var qwords = (bytes + 7) >>> 3;
-
-  if (qwords > 512)
-    qwords = 512;
-
-  // loadTile pads rows to 8 bytes.
-  var tmem_data = state.tmemData;
-  var tmem_offset = tile.tmem << 3;
-
-  var ram_offset = ram_address;
-
-  var bytes_per_line = (w << state.textureImage.size) >>> 1;
-  var bytes_per_tmem_line = tile.line << 3;
-
-  if (state.textureImage.size == gbi.ImageSize.G_IM_SIZ_32b) {
-    bytes_per_tmem_line = bytes_per_tmem_line * 2;
-  }
-  // if (bytes_per_tmem_line < roundUpMultiple8(bytes_per_line)) {
-  //   hleHalt('line is shorter than texel count');
-  // }
 
   const ram_u8 = n64js.getRamU8Array();
-
-  var x, y;
-  for (y = 0; y < h; ++y) {
+  for (let y = 0; y < h; ++y) {
     if (y & 1) {
-      copyLineSwap(tmem_data, tmem_offset, ram_u8, ram_offset, bytes_per_line, bytes_per_tmem_line);
+      copyLineSwap(tmemData, tmemOffset, ram_u8, ramOffset, rowBytes, tmemStride);
     } else {
-      copyLine(tmem_data, tmem_offset, ram_u8, ram_offset, bytes_per_line, bytes_per_tmem_line);
+      copyLine(tmemData, tmemOffset, ram_u8, ramOffset, rowBytes, tmemStride);
     }
-    tmem_offset += bytes_per_tmem_line;
-    ram_offset += pitch;
+    tmemOffset += tmemStride;
+    ramOffset += ramStride;
   }
 
   invalidateTileHashes();
@@ -1517,8 +1514,7 @@ function executeLoadTLut(cmd0, cmd1, dis) {
   var ram_offset = calcTextureAddress(uls >>> 2, ult >>> 2,
                                       state.textureImage.address,
                                       state.textureImage.width,
-                                      gbi.ImageSize.G_IM_SIZ_16b);
-  var pitch = (state.textureImage.width << gbi.ImageSize.G_IM_SIZ_16b) >>> 1;
+    gbi.ImageSize.G_IM_SIZ_16b);
 
   var tile = state.tiles[tileIdx];
   var texels = ((lrs - uls) >>> 2) + 1;
@@ -1602,7 +1598,8 @@ function executeSetTileSize(cmd0, cmd1, dis) {
 
   if (dis) {
     var tt = gbi.getTileText(tileIdx);
-    dis.text(`gsDPSetTileSize(${tt}, ${uls}, ${ult}, ${lrs}, ${lrt}); // (${uls / 4},${ult / 4}), (${(lrs / 4) + 1},${(lrt / 4) + 1})`);
+    dis.text(`gsDPSetTileSize(${tt}, ${uls / 4}, ${ult / 4}, ${lrs / 4}, ${lrt / 4});`);
+    dis.tip(`size (${((lrs - uls) / 4) + 1} x ${((lrt - ult) / 4) + 1})`);
   }
 
   var tile = state.tiles[tileIdx];
