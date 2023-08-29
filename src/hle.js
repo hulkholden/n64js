@@ -1974,7 +1974,7 @@ const kBlendModeOpaque = 0;
 const kBlendModeAlphaTrans = 1;
 const kBlendModeFade = 2;
 
-function setProgramState(positions, colours, coords, texture, tex_gen_enabled) {
+function setProgramState(positions, colours, coords, texture0, texGenEnabled) {
   setGLBlendMode();
 
   let enableAlphaThreshold = false;
@@ -2009,23 +2009,23 @@ function setProgramState(positions, colours, coords, texture, tex_gen_enabled) {
   gl.vertexAttribPointer(shader.texCoordAttribute, 2, gl.FLOAT, false, 0, 0);
 
   // uSampler
-  if (texture) {
-    var uv_offset_u = texture.left;
-    var uv_offset_v = texture.top;
-    var uv_scale_u = 1.0 / texture.nativeWidth;
-    var uv_scale_v = 1.0 / texture.nativeHeight;
+  if (texture0) {
+    var uv_offset_u = texture0.left;
+    var uv_offset_v = texture0.top;
+    var uv_scale_u = 1.0 / texture0.nativeWidth;
+    var uv_scale_v = 1.0 / texture0.nativeHeight;
 
     // Horrible hack for wetrix. For some reason uvs come out 2x what they
     // should be. Current guess is that it's getting G_TX_CLAMP with a shift
     // of 0 which is causing this
-    if (texture.width === 56 && texture.height === 29) {
+    if (texture0.width === 56 && texture0.height === 29) {
       uv_scale_u *= 0.5;
       uv_scale_v *= 0.5;
     }
 
     // When texture coordinates are generated, they're already correctly
     // scaled. Maybe they should be generated in this coord space?
-    if (tex_gen_enabled) {
+    if (texGenEnabled) {
       uv_scale_u = 1;
       uv_scale_v = 1;
       uv_offset_u = 0;
@@ -2033,7 +2033,7 @@ function setProgramState(positions, colours, coords, texture, tex_gen_enabled) {
     }
 
     gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, texture.texture);
+    gl.bindTexture(gl.TEXTURE_2D, texture0.texture);
     gl.uniform1i(shader.uSamplerUniform, 0);
 
     gl.uniform2f(shader.uTexScaleUniform, uv_scale_u, uv_scale_v);
@@ -2128,20 +2128,19 @@ function setGLBlendMode() {
 }
 
 function flushTris(numTris) {
-  var texture;
-  var tex_gen_enabled = false;
+  let texture0;
+  let texGenEnabled = false;
 
   if (state.geometryMode.texture) {
-    texture = lookupTexture(state.texture.tile);
-    tex_gen_enabled = state.geometryMode.lighting &&
-      state.geometryMode.textureGen;
+    texture0 = lookupTexture(state.texture.tile);
+    texGenEnabled = state.geometryMode.lighting && state.geometryMode.textureGen;
   }
 
   setProgramState(triangleBuffer.positions,
     triangleBuffer.colours,
     triangleBuffer.coords,
-    texture,
-    tex_gen_enabled);
+    texture0,
+    texGenEnabled);
 
   initDepth();
 
@@ -2149,7 +2148,7 @@ function flushTris(numTris) {
 
   if (state.geometryMode.cullFront || state.geometryMode.cullBack) {
     gl.enable(gl.CULL_FACE);
-    var mode = (state.geometryMode.cullFront) ? gl.FRONT : gl.BACK;
+    const mode = (state.geometryMode.cullFront) ? gl.FRONT : gl.BACK;
     gl.cullFace(mode);
   } else {
     gl.disable(gl.CULL_FACE);
@@ -2197,7 +2196,7 @@ function fillRect(x0, y0, x1, y1, color) {
 
 function texRect(tileIdx, x0, y0, x1, y1, s0, t0, s1, t1, flip) {
   // TODO: check scissor
-  var texture = lookupTexture(tileIdx);
+  var texture0 = lookupTexture(tileIdx);
 
   // multiply by state.viewport.trans/scale
   var screen0 = canvasTransform.convertN64ToDisplay([x0, y0]);
@@ -2234,7 +2233,7 @@ function texRect(tileIdx, x0, y0, x1, y1, s0, t0, s1, t1, flip) {
 
   setProgramState(new Float32Array(vertices),
                   new Uint32Array(colours),
-                  new Float32Array(uvs), texture, false /*tex_gen_enabled*/ );
+                  new Float32Array(uvs), texture0, false /*texGenEnabled*/ );
 
   gl.disable(gl.CULL_FACE);
 
