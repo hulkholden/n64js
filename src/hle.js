@@ -1353,61 +1353,62 @@ function invalidateTileHashes() {
 }
 
 function executeLoadBlock(cmd0, cmd1, dis) {
-  var uls = (cmd0 >>> 12) & 0xfff;
-  var ult = (cmd0 >>> 0) & 0xfff;
-  var tileIdx = (cmd1 >>> 24) & 0x7;
-  var lrs = (cmd1 >>> 12) & 0xfff;
-  var dxt = (cmd1 >>> 0) & 0xfff;
-
-  if (dis) {
-    var tt = gbi.getTileText(tileIdx);
-    dis.text(`gsDPLoadBlock(${tt}, ${uls}, ${ult}, ${lrs}, ${dxt});`);
-  }
+  const tileIdx = (cmd1 >>> 24) & 0x7;
+  const lrs = (cmd1 >>> 12) & 0xfff;
+  const dxt = (cmd1 >>> 0) & 0xfff;
+  const uls = (cmd0 >>> 12) & 0xfff;
+  const ult = (cmd0 >>> 0) & 0xfff;
 
   // Docs reckon these are ignored for all loadBlocks
   if (uls !== 0) { hleHalt('Unexpected non-zero uls in load block'); }
   if (ult !== 0) { hleHalt('Unexpected non-zero ult in load block'); }
 
-  var tile = state.tiles[tileIdx];
-  var ram_address = calcTextureAddress(uls, ult,
-                                        state.textureImage.address,
-                                        state.textureImage.width,
-                                        state.textureImage.size);
+  const tile = state.tiles[tileIdx];
+  const tileX0 = uls >>> 2;
+  const tileY0 = ult >>> 2;
 
-  var bytes = texelsToBytes(lrs + 1, state.textureImage.size);
-  var qwords = (bytes + 7) >>> 3;
+  const ramAddress = calcTextureAddress(tileX0, tileY0, state.textureImage.address, state.textureImage.width, state.textureImage.size);
 
-  var tmem_data = state.tmemData32;
+  const bytes = texelsToBytes(lrs + 1, state.textureImage.size);
+  const qwords = (bytes + 7) >>> 3;
+
+  if (dis) {
+    const tt = gbi.getTileText(tileIdx);
+    dis.text(`gsDPLoadBlock(${tt}, ${uls}, ${ult}, ${lrs}, ${dxt});`);
+    dis.tip(`bytes ${bytes}, qwords ${qwords}`);
+  }
+
+  const tmemData = state.tmemData32;
 
   // Offsets in 32 bit words.
-  var ram_offset = ram_address >>> 2;
-  var tmem_offset = (tile.tmem << 3) >>> 2;
+  let ramOffset = ramAddress >>> 2;
+  let tmemOffset = (tile.tmem << 3) >>> 2;
 
   const ram_s32 = n64js.getRamS32Array();
 
   // Slight fast path for dxt == 0
   if (dxt === 0) {
-    copyLineQwords(tmem_data, tmem_offset, ram_s32, ram_offset, qwords);
+    copyLineQwords(tmemData, tmemOffset, ram_s32, ramOffset, qwords);
   } else {
-    var qwords_per_line = Math.ceil(2048 / dxt);
-    var row_swizzle = 0;
+    const qwordsPerLine = Math.ceil(2048 / dxt);
+    let rowSwizzle = 0;
     for (let i = 0; i < qwords;) {
-      var qwords_to_copy = Math.min(qwords - i, qwords_per_line);
+      const qwordsToCopy = Math.min(qwords - i, qwordsPerLine);
 
-      if (row_swizzle) {
-        copyLineQwordsSwap(tmem_data, tmem_offset, ram_s32, ram_offset, qwords_to_copy);
+      if (rowSwizzle) {
+        copyLineQwordsSwap(tmemData, tmemOffset, ram_s32, ramOffset, qwordsToCopy);
       } else {
-        copyLineQwords(tmem_data, tmem_offset, ram_s32, ram_offset, qwords_to_copy);
+        copyLineQwords(tmemData, tmemOffset, ram_s32, ramOffset, qwordsToCopy);
       }
 
-      i += qwords_to_copy;
+      i += qwordsToCopy;
 
       // 2 words per quadword copied
-      tmem_offset += qwords_to_copy * 2;
-      ram_offset += qwords_to_copy * 2;
+      tmemOffset += qwordsToCopy * 2;
+      ramOffset += qwordsToCopy * 2;
 
       // All odd lines are swapped
-      row_swizzle ^= 0x1;
+      rowSwizzle ^= 0x1;
     }
   }
   invalidateTileHashes();
@@ -1442,24 +1443,22 @@ function executeLoadTile(cmd0, cmd1, dis) {
   const uls = (cmd0 >>> 12) & 0xfff;
   const ult = (cmd0 >>> 0) & 0xfff;
 
+  const tile = state.tiles[tileIdx]; 
   const tileX1 = lrs >>> 2;
   const tileY1 = lrt >>> 2;
   const tileX0 = uls >>> 2;
   const tileY0 = ult >>> 2;
 
-  const tile = state.tiles[tileIdx];
-  const ramAddress = calcTextureAddress(tileX0, tileY0, state.textureImage.address, state.textureImage.width, state.textureImage.size);
-
   const h = (tileY1 + 1) - tileY0;
   const w = (tileX1 + 1) - tileX0;
-
-  // loadTile pads rows to 8 bytes.
-  const tmemData = state.tmemData;
-
+  
+  const ramAddress = calcTextureAddress(tileX0, tileY0, state.textureImage.address, state.textureImage.width, state.textureImage.size);
   let ramOffset = ramAddress;
   const ramStride = texelsToBytes(state.textureImage.width, state.textureImage.size);
   const rowBytes = texelsToBytes(w, state.textureImage.size);
-
+  
+  // loadTile pads rows to 8 bytes.
+  const tmemData = state.tmemData;
   let tmemOffset = tile.tmem << 3;
   const tmemStride = (state.textureImage.size == gbi.ImageSize.G_IM_SIZ_32b) ? tile.line << 4 : tile.line << 3;
 
