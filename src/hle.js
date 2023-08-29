@@ -547,6 +547,17 @@ function logUnimplemented(name) {
   n64js.warn(`${name} unimplemented`);
 }
 
+// Map to keep track of which unimplemented blend modes we've already warned about.
+const loggedBlendModes = new Map();
+
+function logUnhandledBlendMode(activeBlendMode) {
+  if (loggedBlendModes.get(activeBlendMode)) {
+    return;
+  }
+  loggedBlendModes.set(activeBlendMode, true);
+  n64js.warn(`Unhandled blend mode: ${toString16(activeBlendMode)} = ${gbi.blendOpText(activeBlendMode)}`);
+}
+
 function executeUnknown(cmd0, cmd1) {
   hleHalt(`Unknown display list op ${toString8(cmd0 >>> 24)}`);
   state.pc = 0;
@@ -2099,7 +2110,7 @@ function setGLBlendMode() {
       break;
 
     default:
-      logger.log(`${toString16(activeBlendMode)} : ${gbi.blendOpText(activeBlendMode)}, alphaCvgSel:${alphaCvgSel}, cvgXAlpha:${cvgXAlpha}`);
+      logUnhandledBlendMode(activeBlendMode, alphaCvgSel, cvgXAlpha);
       mode = kBlendModeOpaque;
       break;
   }
