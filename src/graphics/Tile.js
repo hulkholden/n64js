@@ -21,32 +21,22 @@ export class Tile {
     this.hash = 0;
   }
 
-  get left() {
-    return this.uls / 4;
-  }
+  get left() { return this.uls / 4; }
+  get top() { return this.ult / 4; }
+  get right() { return this.lrs / 4; }
+  get bottom() { return this.lrt / 4; }
 
-  get top() {
-    return this.ult / 4;
-  }
+  get unmaskedWidth() { return calcTileDimension(this.lrs, this.uls) & 0xfff; }
+  get unmaskedHeight() { return calcTileDimension(this.lrt, this.ult) & 0xfff; }
 
-  get right() {
-    return this.lrs / 4;
-  }
-
-  get bottom() {
-    return this.lrt / 4;
-  }
-
-  get width() {
-    return getTextureDimension(this.uls, this.lrs, this.mask_s);
-  }
-
-  get height() {
-    return getTextureDimension(this.ult, this.lrt, this.mask_t);
-  }
+  get width() { return getTextureDimension(this.unmaskedWidth, this.mask_s); }
+  get height() { return getTextureDimension(this.unmaskedHeight, this.mask_t); }
 }
 
-function getTextureDimension(ul, lr, mask) {
-  var dim = ((lr - ul) / 4) + 1;
+function calcTileDimension(lr, ul) {
+  return ((lr >>> 2) - (ul >>> 2) + 1) & 0xfff
+}
+
+function getTextureDimension(dim, mask) {
   return mask ? Math.min(1 << mask, dim) : dim;
 }
