@@ -1589,24 +1589,24 @@ function executeSetTile(cmd0, cmd1, dis) {
 }
 
 function executeSetTileSize(cmd0, cmd1, dis) {
-  var uls = (cmd0 >>> 12) & 0xfff;
-  var ult = (cmd0 >>> 0) & 0xfff;
-  var tileIdx = (cmd1 >>> 24) & 0x7;
-  var lrs = (cmd1 >>> 12) & 0xfff;
-  var lrt = (cmd1 >>> 0) & 0xfff;
+  const uls = (cmd0 >>> 12) & 0xfff;
+  const ult = (cmd0 >>> 0) & 0xfff;
+  const tileIdx = (cmd1 >>> 24) & 0x7;
+  const lrs = (cmd1 >>> 12) & 0xfff;
+  const lrt = (cmd1 >>> 0) & 0xfff;
 
-  if (dis) {
-    var tt = gbi.getTileText(tileIdx);
-    dis.text(`gsDPSetTileSize(${tt}, ${uls / 4}, ${ult / 4}, ${lrs / 4}, ${lrt / 4});`);
-    dis.tip(`size (${((lrs - uls) / 4) + 1} x ${((lrt - ult) / 4) + 1})`);
-  }
-
-  var tile = state.tiles[tileIdx];
+  const tile = state.tiles[tileIdx];
   tile.uls = uls;
   tile.ult = ult;
   tile.lrs = lrs;
   tile.lrt = lrt;
   tile.hash = 0;
+
+  if (dis) {
+    const tt = gbi.getTileText(tileIdx);
+    dis.text(`gsDPSetTileSize(${tt}, ${tile.left}, ${tile.top}, ${tile.right}, ${tile.bottom});`);
+    dis.tip(`size (${tile.width} x ${tile.height}), unmasked (${tile.unmaskedWidth} x ${tile.unmaskedHeight})`);
+  }
 }
 
 function executeFillRect(cmd0, cmd1, dis) {
@@ -3247,7 +3247,11 @@ function buildTilesTable() {
     'left',
     'top',
     'right',
-    'bottom'
+    'bottom',
+    'width',
+    'height',
+    'unmasked w',
+    'unmasked h',
   ];
 
   var $table = $('<table class="table table-condensed dl-debug-table" style="width: auto"></table>');
@@ -3279,6 +3283,10 @@ function buildTilesTable() {
     vals.push(tile.top);
     vals.push(tile.right);
     vals.push(tile.bottom);
+    vals.push(tile.width);
+    vals.push(tile.height);
+    vals.push(tile.unmaskedWidth);
+    vals.push(tile.unmaskedHeight);
 
     $tr = $(`<tr><td>${vals.join('</td><td>')}</td></tr>`);
     $table.append($tr);
