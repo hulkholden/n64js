@@ -2023,10 +2023,10 @@ function setProgramState(positions, colours, coords, textureEnabled, texGenEnabl
   gl.vertexAttribPointer(shader.texCoordAttribute, 2, gl.FLOAT, false, 0, 0);
 
   if (texture0) {
-    bindTexture(0, gl.TEXTURE0, tile0, texture0, texGenEnabled, shader.uSampler0Uniform, shader.uTexScaleUniform0, shader.uTexOffsetUniform0);
+    bindTexture(0, gl.TEXTURE0, tile0, texture0, texGenEnabled, shader.uSamplerUniform0, shader.uTexScaleUniform0, shader.uTexOffsetUniform0);
   }
   if (texture1) {
-    bindTexture(1, gl.TEXTURE1, tile1, texture1, texGenEnabled, shader.uSampler1Uniform, shader.uTexScaleUniform1, shader.uTexOffsetUniform1);
+    bindTexture(1, gl.TEXTURE1, tile1, texture1, texGenEnabled, shader.uSamplerUniform1, shader.uTexScaleUniform1, shader.uTexOffsetUniform1);
   }
 
   gl.uniform1f(shader.uAlphaThresholdUniform, alphaThreshold);
