@@ -3771,16 +3771,13 @@ function lookupTexture(tileIdx) {
   const hash = calculateTmemCrc(tile);
 
   // Check if the texture is already cached.
-  // FIXME: we also need to check other properties (mirror, clamp etc), and recreate every frame (or when underlying data changes)
-  const cacheID = `${toString32(hash) + tile.lrs}-${tile.lrt}`;
-
-  let texture;
+  // The cacheID should include all the state that can affect how the texture is constructed.
+  const cacheID = `${toString32(hash)}_${tile.format}_${tile.size}_${tile.width}_${tile.height}_${tile.palette}`;
   if (textureCache.has(cacheID)) {
-    texture = textureCache.get(cacheID);
-  } else {
-    texture = decodeTexture(tile, getTextureLUTType());
-    textureCache.set(cacheID, texture);
+    return textureCache.get(cacheID);
   }
+  const texture = decodeTexture(tile, getTextureLUTType());
+  textureCache.set(cacheID, texture);
   return texture;
 }
 
