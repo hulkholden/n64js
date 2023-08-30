@@ -256,14 +256,15 @@ class N64Shader {
     this.vertexColorAttribute    = gl.getAttribLocation(program,  "aVertexColor");
     this.texCoordAttribute       = gl.getAttribLocation(program,  "aTextureCoord");
 
-    this.uSampler0Uniform        = gl.getUniformLocation(program, "uSampler0");
-    this.uSampler1Uniform        = gl.getUniformLocation(program, "uSampler1");
-    this.uPrimColorUniform       = gl.getUniformLocation(program, "uPrimColor");
-    this.uEnvColorUniform        = gl.getUniformLocation(program, "uEnvColor");
+    this.uSamplerUniform0        = gl.getUniformLocation(program, "uSampler0");
+    this.uSamplerUniform1        = gl.getUniformLocation(program, "uSampler1");
     this.uTexScaleUniform0       = gl.getUniformLocation(program, "uTexScale0");
     this.uTexScaleUniform1       = gl.getUniformLocation(program, "uTexScale1");
     this.uTexOffsetUniform0      = gl.getUniformLocation(program, "uTexOffset0");
     this.uTexOffsetUniform1      = gl.getUniformLocation(program, "uTexOffset1");
+
+    this.uPrimColorUniform       = gl.getUniformLocation(program, "uPrimColor");
+    this.uEnvColorUniform        = gl.getUniformLocation(program, "uEnvColor");
     this.uAlphaThresholdUniform  = gl.getUniformLocation(program, "uAlphaThresholdUniform");
   }
 }
