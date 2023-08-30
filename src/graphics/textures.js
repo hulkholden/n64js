@@ -1,7 +1,5 @@
 export class Texture {
-  constructor(gl, left, top, width, height) {
-    this.left = left;
-    this.top = top;
+  constructor(gl, width, height) {
     this.width = width;
     this.height = height;
 

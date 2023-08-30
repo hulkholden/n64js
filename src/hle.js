@@ -1977,11 +1977,20 @@ const kBlendModeFade = 2;
 function setProgramState(positions, colours, coords, textureEnabled, texGenEnabled, tileIdx) {
   setGLBlendMode();
 
+  const cycleType = getCycleType();
+
   // TODO: I think it would make more sense to check if the texture is referenced in the combiner.
+  let tile0, tile1;
   let texture0, texture1;
   if (textureEnabled) {
-    texture0 = lookupTexture((tileIdx + 0) & 7);
-    texture1 = lookupTexture((tileIdx + 1) & 7);
+    const tileIdx0 = (tileIdx + 0) & 7;
+    const tileIdx1 = (tileIdx + 1) & 7;
+
+    tile0 = state.tiles[tileIdx0];
+    tile1 = state.tiles[tileIdx1];
+
+    texture0 = lookupTexture(tileIdx0);
+    texture1 = (cycleType == gbi.CycleType.G_CYC_2CYCLE) ? lookupTexture(tileIdx1) : texture0;
   }
   let enableAlphaThreshold = false;
   let alphaThreshold = -1.0;
@@ -1992,7 +2001,6 @@ function setProgramState(positions, colours, coords, textureEnabled, texGenEnabl
     enableAlphaThreshold = true;
   }
 
-  var cycleType = getCycleType();
   var shader = getCurrentN64Shader(cycleType, enableAlphaThreshold);
   gl.useProgram(shader.program);
 
@@ -2014,44 +2022,11 @@ function setProgramState(positions, colours, coords, textureEnabled, texGenEnabl
   gl.bufferData(gl.ARRAY_BUFFER, coords, gl.STATIC_DRAW);
   gl.vertexAttribPointer(shader.texCoordAttribute, 2, gl.FLOAT, false, 0, 0);
 
-  // uSampler
   if (texture0) {
-    var uv_offset_u = texture0.left;
-    var uv_offset_v = texture0.top;
-    var uv_scale_u = 1.0 / texture0.nativeWidth;
-    var uv_scale_v = 1.0 / texture0.nativeHeight;
-
-    // Horrible hack for wetrix. For some reason uvs come out 2x what they
-    // should be. Current guess is that it's getting G_TX_CLAMP with a shift
-    // of 0 which is causing this
-    if (texture0.width === 56 && texture0.height === 29) {
-      uv_scale_u *= 0.5;
-      uv_scale_v *= 0.5;
-    }
-
-    // When texture coordinates are generated, they're already correctly
-    // scaled. Maybe they should be generated in this coord space?
-    if (texGenEnabled) {
-      uv_scale_u = 1;
-      uv_scale_v = 1;
-      uv_offset_u = 0;
-      uv_offset_v = 0;
-    }
-
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, texture0.texture);
-    gl.uniform1i(shader.uSamplerUniform, 0);
-
-    gl.uniform2f(shader.uTexScaleUniform, uv_scale_u, uv_scale_v);
-    gl.uniform2f(shader.uTexOffsetUniform, uv_offset_u, uv_offset_v);
-
-    if (getTextureFilterType() == gbi.TextureFilter.G_TF_POINT) {
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST_MIPMAP_NEAREST);
-    } else {
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
-    }
+    bindTexture(0, gl.TEXTURE0, tile0, texture0, texGenEnabled, shader.uSampler0Uniform, shader.uTexScaleUniform0, shader.uTexOffsetUniform0);
+  }
+  if (texture1) {
+    bindTexture(1, gl.TEXTURE1, tile1, texture1, texGenEnabled, shader.uSampler1Uniform, shader.uTexScaleUniform1, shader.uTexOffsetUniform1);
   }
 
   gl.uniform1f(shader.uAlphaThresholdUniform, alphaThreshold);
@@ -2066,6 +2041,45 @@ function setProgramState(positions, colours, coords, textureEnabled, texGenEnabl
     ((state.envColor >>> 16) & 0xff) / 255.0,
     ((state.envColor >>> 8) & 0xff) / 255.0,
     ((state.envColor >>> 0) & 0xff) / 255.0);
+}
+
+function bindTexture(slot, glTextureId, tile, texture, texGenEnabled, sampleUniform, texScaleUniform, texOffsetUniform) {
+  let uvOffsetU = tile.left;
+  let uvOffsetV = tile.top;
+  let uvScaleU = 1.0 / texture.nativeWidth;
+  let uvScaleV = 1.0 / texture.nativeHeight;
+
+  // Horrible hack for wetrix. For some reason uvs come out 2x what they
+  // should be. Current guess is that it's getting G_TX_CLAMP with a shift
+  // of 0 which is causing this
+  if (texture.width === 56 && texture.height === 29) {
+    uvScaleU *= 0.5;
+    uvScaleV *= 0.5;
+  }
+
+  // When texture coordinates are generated, they're already correctly
+  // scaled. Maybe they should be generated in this coord space?
+  if (texGenEnabled) {
+    uvScaleU = 1;
+    uvScaleV = 1;
+    uvOffsetU = 0;
+    uvOffsetV = 0;
+  }
+
+  gl.activeTexture(glTextureId);
+  gl.bindTexture(gl.TEXTURE_2D, texture.texture);
+  gl.uniform1i(sampleUniform, slot);
+
+  gl.uniform2f(texScaleUniform, uvScaleU, uvScaleV);
+  gl.uniform2f(texOffsetUniform, uvOffsetU, uvOffsetV);
+
+  if (getTextureFilterType() == gbi.TextureFilter.G_TF_POINT) {
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST_MIPMAP_NEAREST);
+  } else {
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
+  }
 }
 
 function setGLBlendMode() {
@@ -3796,7 +3810,7 @@ function lookupTexture(tileIdx) {
  * @return {?Texture}
  */
 function decodeTexture(tile, tlutFormat) {
-  var texture = new Texture(gl, tile.left, tile.top, tile.width, tile.height);
+  var texture = new Texture(gl, tile.width, tile.height);
   if (!texture.$canvas[0].getContext) {
     return null;
   }

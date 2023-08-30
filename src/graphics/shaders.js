@@ -27,14 +27,25 @@ let fragmentSource = null;
 let genericVertexShader = null;
 
 const rgbParams32 = [
-  'combined.rgb', 'tex0.rgb',
-  'tex1.rgb',     'prim.rgb',
-  'shade.rgb',    'env.rgb',
-  'one.rgb',      'combined.a',
-  'tex0.a',       'tex1.a',
-  'prim.a',       'shade.a',
-  'env.a',        'lod_frac',
-  'prim_lod_frac','k5',
+  'combined.rgb', 'tex0.rgb', 'tex1.rgb', 'prim.rgb', 'shade.rgb', 'env.rgb', 'one.rgb',   
+  'combined.a',   'tex0.a',   'tex1.a',   'prim.a',   'shade.a',   'env.a',
+  'lod_frac', 'prim_lod_frac','k5',
+  '?           ', '?           ',
+  '?           ', '?           ',
+  '?           ', '?           ',
+  '?           ', '?           ',
+  '?           ', '?           ',
+  '?           ', '?           ',
+  '?           ', '?           ',
+  '?           ', 'zero.rgb'
+];
+
+// Tex0 and Tex1 are swapped in the second cycle.
+// TODO: is there an easier way to do this without duplicating the table?
+const rgbParams32C2 = [
+  'combined.rgb', 'tex1.rgb', 'tex0.rgb', 'prim.rgb', 'shade.rgb', 'env.rgb', 'one.rgb',    
+  'combined.a',   'tex1.a',   'tex0.a',   'prim.a',   'shade.a',   'env.a',
+  'lod_frac', 'prim_lod_frac', 'k5',
   '?           ', '?           ',
   '?           ', '?           ',
   '?           ', '?           ',
@@ -46,28 +57,35 @@ const rgbParams32 = [
 ];
 
 const rgbParams16 = [
-  'combined.rgb', 'tex0.rgb',
-  'tex1.rgb',     'prim.rgb',
-  'shade.rgb',    'env.rgb',
-  'one.rgb',      'combined.a',
-  'tex0.a',       'tex1.a',
-  'prim.a',       'shade.a',
-  'env.a',        'lod_frac',
-  'prim_lod_frac', 'zero.rgb'
+  'combined.rgb', 'tex0.rgb', 'tex1.rgb', 'prim.rgb', 'shade.rgb', 'env.rgb', 'one.rgb',   
+  'combined.a',   'tex0.a',   'tex1.a',   'prim.a',   'shade.a',   'env.a',
+  'lod_frac', 'prim_lod_frac', 'zero.rgb'
+];
+
+const rgbParams16C2 = [
+  'combined.rgb', 'tex1.rgb', 'tex0.rgb', 'prim.rgb', 'shade.rgb', 'env.rgb', 'one.rgb', 
+   'combined.a',  'tex1.a',   'tex0.a',   'prim.a',   'shade.a',   'env.a',
+   'lod_frac', 'prim_lod_frac', 'zero.rgb'
 ];
 
 const rgbParams8 = [
-  'combined.rgb', 'tex0.rgb',
-  'tex1.rgb',     'prim.rgb',
-  'shade.rgb',    'env.rgb',
-  'one.rgb',      'zero.rgb'
+  'combined.rgb', 'tex0.rgb', 'tex1.rgb', 'prim.rgb', 'shade.rgb', 'env.rgb',
+  'one.rgb', 'zero.rgb'
+];
+
+const rgbParams8C2 = [
+  'combined.rgb', 'tex1.rgb', 'tex0.rgb', 'prim.rgb', 'shade.rgb', 'env.rgb',
+  'one.rgb', 'zero.rgb'
 ];
 
 const alphaParams8 = [
-  'combined.a', 'tex0.a',
-  'tex1.a',     'prim.a',
-  'shade.a',    'env.a',
-  'one.a',      'zero.a'
+  'combined.a', 'tex0.a', 'tex1.a', 'prim.a', 'shade.a', 'env.a',
+  'one.a', 'zero.a'
+];
+
+const alphaParams8C2 = [
+  'combined.a', 'tex1.a', 'tex0.a', 'prim.a', 'shade.a', 'env.a',
+  'one.a', 'zero.a'
 ];
 
 const kMulInputRGB = [
@@ -238,11 +256,14 @@ class N64Shader {
     this.vertexColorAttribute    = gl.getAttribLocation(program,  "aVertexColor");
     this.texCoordAttribute       = gl.getAttribLocation(program,  "aTextureCoord");
 
-    this.uSamplerUniform         = gl.getUniformLocation(program, "uSampler");
+    this.uSampler0Uniform        = gl.getUniformLocation(program, "uSampler0");
+    this.uSampler1Uniform        = gl.getUniformLocation(program, "uSampler1");
     this.uPrimColorUniform       = gl.getUniformLocation(program, "uPrimColor");
     this.uEnvColorUniform        = gl.getUniformLocation(program, "uEnvColor");
-    this.uTexScaleUniform        = gl.getUniformLocation(program, "uTexScale");
-    this.uTexOffsetUniform       = gl.getUniformLocation(program, "uTexOffset");
+    this.uTexScaleUniform0       = gl.getUniformLocation(program, "uTexScale0");
+    this.uTexScaleUniform1       = gl.getUniformLocation(program, "uTexScale1");
+    this.uTexOffsetUniform0      = gl.getUniformLocation(program, "uTexOffset0");
+    this.uTexOffsetUniform1      = gl.getUniformLocation(program, "uTexOffset1");
     this.uAlphaThresholdUniform  = gl.getUniformLocation(program, "uAlphaThresholdUniform");
   }
 }
@@ -314,8 +335,8 @@ export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, enableAlphaThres
     body += 'col.rgb = (' + rgbParams16 [aRGB0] + ' - ' + rgbParams16 [bRGB0] + ') * ' + rgbParams32 [cRGB0] + ' + ' + rgbParams8  [dRGB0] + ';\n';
     body += 'col.a = ('   + alphaParams8[  aA0] + ' - ' + alphaParams8[  bA0] + ') * ' + alphaParams8[  cA0] + ' + ' + alphaParams8[  dA0] + ';\n';
     body += 'combined = vec4(col.rgb, col.a);\n';
-    body += 'col.rgb = (' + rgbParams16 [aRGB1] + ' - ' + rgbParams16 [bRGB1] + ') * ' + rgbParams32 [cRGB1] + ' + ' + rgbParams8  [dRGB1] + ';\n';
-    body += 'col.a = ('   + alphaParams8[  aA1] + ' - ' + alphaParams8[  bA1] + ') * ' + alphaParams8[  cA1] + ' + ' + alphaParams8[  dA1] + ';\n';
+    body += 'col.rgb = (' + rgbParams16C2 [aRGB1] + ' - ' + rgbParams16C2 [bRGB1] + ') * ' + rgbParams32C2 [cRGB1] + ' + ' + rgbParams8C2  [dRGB1] + ';\n';
+    body += 'col.a = ('   + alphaParams8C2[  aA1] + ' - ' + alphaParams8C2[  bA1] + ') * ' + alphaParams8C2[  cA1] + ' + ' + alphaParams8C2[  dA1] + ';\n';
   }
 
   if (enableAlphaThreshold) {
