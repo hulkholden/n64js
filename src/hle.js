@@ -1974,9 +1974,15 @@ const kBlendModeOpaque = 0;
 const kBlendModeAlphaTrans = 1;
 const kBlendModeFade = 2;
 
-function setProgramState(positions, colours, coords, texture0, texGenEnabled) {
+function setProgramState(positions, colours, coords, textureEnabled, texGenEnabled, tileIdx) {
   setGLBlendMode();
 
+  // TODO: I think it would make more sense to check if the texture is referenced in the combiner.
+  let texture0, texture1;
+  if (textureEnabled) {
+    texture0 = lookupTexture((tileIdx + 0) & 7);
+    texture1 = lookupTexture((tileIdx + 1) & 7);
+  }
   let enableAlphaThreshold = false;
   let alphaThreshold = -1.0;
 
@@ -2128,19 +2134,14 @@ function setGLBlendMode() {
 }
 
 function flushTris(numTris) {
-  let texture0;
-  let texGenEnabled = false;
-
-  if (state.geometryMode.texture) {
-    texture0 = lookupTexture(state.texture.tile);
-    texGenEnabled = state.geometryMode.lighting && state.geometryMode.textureGen;
-  }
-
+  const textureEnabled = state.geometryMode.texture;
+  const texGenEnabled = state.geometryMode.lighting && state.geometryMode.textureGen;
   setProgramState(triangleBuffer.positions,
     triangleBuffer.colours,
     triangleBuffer.coords,
-    texture0,
-    texGenEnabled);
+    textureEnabled,
+    texGenEnabled,
+    state.texture.tile);
 
   initDepth();
 
@@ -2196,7 +2197,6 @@ function fillRect(x0, y0, x1, y1, color) {
 
 function texRect(tileIdx, x0, y0, x1, y1, s0, t0, s1, t1, flip) {
   // TODO: check scissor
-  var texture0 = lookupTexture(tileIdx);
 
   // multiply by state.viewport.trans/scale
   var screen0 = canvasTransform.convertN64ToDisplay([x0, y0]);
@@ -2233,7 +2233,7 @@ function texRect(tileIdx, x0, y0, x1, y1, s0, t0, s1, t1, flip) {
 
   setProgramState(new Float32Array(vertices),
                   new Uint32Array(colours),
-                  new Float32Array(uvs), texture0, false /*texGenEnabled*/ );
+    new Float32Array(uvs), true /* textureEnabled */, false /*texGenEnabled*/, tileIdx);
 
   gl.disable(gl.CULL_FACE);
 
@@ -3743,11 +3743,11 @@ function calculateTmemCrc(tile) {
   if (tile.format === gbi.ImageFormat.G_IM_FMT_CI ||
     tile.format === gbi.ImageFormat.G_IM_FMT_RGBA) { // NB RGBA check is for extreme-g, which specifies RGBA/4 and RGBA/8 instead of CI/4 and CI/8
 
+    // Palettes are "quadricated", so there are 8 bytes per entry.
     if (tile.size === gbi.ImageSize.G_IM_SIZ_8b) {
-      hash = hashTmem(src, 0x100 << 3, 256 * 2, hash);
+      hash = hashTmem(src, 0x800, 256 * 8, hash);
     } else if (tile.size === gbi.ImageSize.G_IM_SIZ_4b) {
-      // Palette is "quadricated", so it's 8 bytes per entry.
-      hash = hashTmem(src, (0x100 << 3) + (tile.palette * 16 * 2), 16 * 8, hash);
+      hash = hashTmem(src, 0x800 + (tile.palette * 16 * 2), 16 * 8, hash);
     }
   }
 
