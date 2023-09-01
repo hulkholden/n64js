@@ -375,19 +375,21 @@ function rdpSegmentAddress(addr) {
   return (state.segments[segment] & 0x007fffff) + (addr & 0x007fffff);
 }
 
-function makeRGBFromRGBA16(col) {
+function makeRGBAFromRGBA16(col) {
   return {
     'r': ((col >>> 11) & 0x1f) / 31.0,
     'g': ((col >>> 6) & 0x1f) / 31.0,
     'b': ((col >>> 1) & 0x1f) / 31.0,
+    'a': ((col >>> 0) & 0x1) / 1.0,
   };
 }
 
-function makeRGBFromRGBA32(col) {
+function makeRGBAFromRGBA32(col) {
   return {
     'r': ((col >>> 24) & 0xff) / 255.0,
     'g': ((col >>> 16) & 0xff) / 255.0,
     'b': ((col >>> 8) & 0xff) / 255.0,
+    'a': ((col >>> 0) & 0xff) / 1.0,
   };
 }
 
@@ -428,6 +430,10 @@ function makeColorTextABGR(abgr) {
   var a = (abgr >>> 24) & 0xff;
 
   return makeColourText(r, g, b, a);
+}
+
+function makeColorTextRGBA16(col) {
+  return makeColorTextRGBA(convertRGBA16Pixel(col));
 }
 
 const M_GFXTASK = 1;
@@ -1637,14 +1643,14 @@ function executeFillRect(cmd0, cmd1, dis) {
     y1 += 1;
 
     if (state.colorImage.size === gbi.ImageSize.G_IM_SIZ_16b) {
-      color = makeRGBFromRGBA16(state.fillColor & 0xffff);
+      color = makeRGBAFromRGBA16(state.fillColor & 0xffff);
     } else {
-      color = makeRGBFromRGBA32(state.fillColor);
+      color = makeRGBAFromRGBA32(state.fillColor);
     }
 
     // Clear whole screen in one?
     if (viWidth === (x1 - x0) && viHeight === (y1 - y0)) {
-      gl.clearColor(color.r, color.g, color.b, 1.0);
+      gl.clearColor(color.r, color.g, color.b, color.a);
       gl.clear(gl.COLOR_BUFFER_BIT);
       return;
     }
@@ -1740,11 +1746,10 @@ function executeTexRectFlip(cmd0, cmd1) {
   texRect(tileIdx, xl, yl, xh, yh, s0, t0, s1, t1, true);
 }
 
-
 function executeSetFillColor(cmd0, cmd1, dis) {
   if (dis) {
     // Can be 16 or 32 bit
-    dis.text(`gsDPSetFillColor(${makeColorTextRGBA(cmd1)});`);
+    dis.text(`gsDPSetFillColor(${makeColorTextRGBA(cmd1)}); // hi as 5551 = ${makeColorTextRGBA16(cmd1 >>> 16)}, lo as 5551 = ${makeColorTextRGBA16(cmd1 & 0xffff)} `);
   }
   state.fillColor = cmd1;
 }
