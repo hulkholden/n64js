@@ -2093,6 +2093,18 @@ function bindTexture(slot, glTextureId, tile, texture, texGenEnabled, sampleUnif
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
   }
+
+  // When not masking, Clamp S,T is ignored and clamping is implicitly enabled
+  var clampS = tile.cm_s === gbi.G_TX_CLAMP || (tile.mask_s === 0);
+  var clampT = tile.cm_t === gbi.G_TX_CLAMP || (tile.mask_t === 0);
+  var mirrorS = tile.cm_s === gbi.G_TX_MIRROR;
+  var mirrorT = tile.cm_t === gbi.G_TX_MIRROR;
+
+  var mode_s = clampS ? gl.CLAMP_TO_EDGE : (mirrorS ? gl.MIRRORED_REPEAT : gl.REPEAT);
+  var mode_t = clampT ? gl.CLAMP_TO_EDGE : (mirrorT ? gl.MIRRORED_REPEAT : gl.REPEAT);
+
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, mode_s);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, mode_t);
 }
 
 function setGLBlendMode() {
@@ -3852,19 +3864,6 @@ function decodeTexture(tile, tlutFormat, cacheID) {
   gl.activeTexture(gl.TEXTURE0);
   gl.bindTexture(gl.TEXTURE_2D, texture.texture);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texture.$canvas[0]);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
-
-  var clampS = tile.cm_s === gbi.G_TX_CLAMP || (tile.mask_s === 0);
-  var clampT = tile.cm_t === gbi.G_TX_CLAMP || (tile.mask_t === 0);
-  var mirrorS = tile.cm_s === gbi.G_TX_MIRROR;
-  var mirrorT = tile.cm_t === gbi.G_TX_MIRROR;
-
-  var mode_s = clampS ? gl.CLAMP_TO_EDGE : (mirrorS ? gl.MIRRORED_REPEAT : gl.REPEAT);
-  var mode_t = clampT ? gl.CLAMP_TO_EDGE : (mirrorT ? gl.MIRRORED_REPEAT : gl.REPEAT);
-
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, mode_s);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, mode_t);
 
   gl.generateMipmap(gl.TEXTURE_2D);
   gl.bindTexture(gl.TEXTURE_2D, null);
