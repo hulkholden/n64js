@@ -2079,7 +2079,9 @@ function bindTexture(slot, glTextureId, tile, texture, texGenEnabled, sampleUnif
     uvOffsetV = 0;
   }
 
-  gl.activeTexture(glTextureId);
+  uvScaleU *= shiftFactor(tile.shift_s);
+  uvScaleV *= shiftFactor(tile.shift_t);
+
   gl.bindTexture(gl.TEXTURE_2D, texture.texture);
   gl.uniform1i(sampleUniform, slot);
 
@@ -2105,6 +2107,13 @@ function bindTexture(slot, glTextureId, tile, texture, texGenEnabled, sampleUnif
 
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, mode_s);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, mode_t);
+}
+
+function shiftFactor(shift) {
+  if (shift <= 10) {
+    return 1 / (1 << shift);
+  }
+  return 1 << (16 - shift);
 }
 
 function setGLBlendMode() {
