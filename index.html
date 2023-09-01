@@ -440,42 +440,45 @@
       attribute vec4 aVertexColor;
       attribute vec2 aTextureCoord;
       //uniform mat4 uPMatrix;
-      uniform vec2 uTexOffset0;
-      uniform vec2 uTexOffset1;
-      uniform vec2 uTexScale0;
-      uniform vec2 uTexScale1;
 
       varying         vec4 vColor;
-      varying mediump vec2 vTextureCoord0;
-      varying mediump vec2 vTextureCoord1;
+      varying mediump vec2 vTextureCoord;
 
       void main(void) {
         gl_Position   = /*uPMatrix **/ aVertexPosition;
         vColor        = aVertexColor;
-        vTextureCoord0 = (aTextureCoord - uTexOffset0) * uTexScale0;
-        vTextureCoord1 = (aTextureCoord - uTexOffset1) * uTexScale1;
+        vTextureCoord = aTextureCoord;
       }
     </script>
   <script id="n64-shader-fs" type="x-shader/x-fragment">
       precision mediump float;
       varying         vec4 vColor;
-      varying mediump vec2 vTextureCoord0;
-      varying mediump vec2 vTextureCoord1;
+      varying mediump vec2 vTextureCoord;
 
       uniform sampler2D uSampler0;
       uniform sampler2D uSampler1;
+
+      uniform vec2 uTexOffset0;
+      uniform vec2 uTexOffset1;
+      uniform vec2 uTexScale0;
+      uniform vec2 uTexScale1;
+
       uniform vec4      uPrimColor;
       uniform vec4      uEnvColor;
       uniform float     uAlphaThreshold;
 
       void main(void) {
+        vec2 textureCoord0 = (vTextureCoord - uTexOffset0) * uTexScale0;
+        vec2 textureCoord1 = (vTextureCoord - uTexOffset1) * uTexScale1;
+
         vec4 shade = vColor;
         vec4 prim  = uPrimColor;
         vec4 env   = uEnvColor;
         vec4 one   = vec4(1,1,1,1);
         vec4 zero  = vec4(0,0,0,0);
-        vec4 tex0  = texture2D(uSampler0, vTextureCoord0);
-        vec4 tex1  = texture2D(uSampler1, vTextureCoord1);
+        // TODO: consider doing the shift/mask/clamp here.
+        vec4 tex0  = texture2D(uSampler0, textureCoord0);
+        vec4 tex1  = texture2D(uSampler1, textureCoord1);
         vec4 col;
         vec4 combined = vec4(0,0,0,1);
         float lod_frac      = 0.0;    // FIXME
