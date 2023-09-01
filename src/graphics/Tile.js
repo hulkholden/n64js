@@ -26,15 +26,19 @@ export class Tile {
   get right() { return this.lrs / 4; }
   get bottom() { return this.lrt / 4; }
 
-  get unmaskedWidth() { return calcTileDimension(this.lrs, this.uls) & 0xfff; }
-  get unmaskedHeight() { return calcTileDimension(this.lrt, this.ult) & 0xfff; }
+  // Return the dimensions before applying mask_s/mask_t.
+  get unmaskedWidth() { return calcTileDimension(this.lrs, this.uls); }
+  get unmaskedHeight() { return calcTileDimension(this.lrt, this.ult); }
 
+  // Return the dimensions after applying mask_s/mask_t.
   get width() { return getTextureDimension(this.unmaskedWidth, this.mask_s); }
   get height() { return getTextureDimension(this.unmaskedHeight, this.mask_t); }
 }
 
 function calcTileDimension(lr, ul) {
-  return ((lr >>> 2) - (ul >>> 2) + 1) & 0xfff
+  // TODO: confirm if the limit is 0x3ff or 0xfff.
+  // 1024 pixels seems more plausible than 4096.
+  return ((lr >>> 2) - (ul >>> 2) + 1) & 0x3ff;
 }
 
 function getTextureDimension(dim, mask) {
