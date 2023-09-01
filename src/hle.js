@@ -1681,11 +1681,6 @@ function executeTexRect(cmd0, cmd1, dis) {
   var dsdx = ((cmd3 | 0) >> 16) / 1024.0;
   var dtdy = ((cmd3 << 16) >> 16) / 1024.0;
 
-  if (dis) {
-    var tt = gbi.getTileText(tileIdx);
-    dis.text(`gsSPTextureRectangle(${xl},${yl},${xh},${yh},${tt},${s0},${t0},${dsdx},${dtdy});`);
-  }
-
   var cycle_type = getCycleType();
 
   // In copy mode 4 pixels are copied at once.
@@ -1703,10 +1698,16 @@ function executeTexRect(cmd0, cmd1, dis) {
   var s1 = s0 + dsdx * (xh - xl);
   var t1 = t0 + dtdy * (yh - yl);
 
+  if (dis) {
+    var tt = gbi.getTileText(tileIdx);
+    dis.text(`gsSPTextureRectangle(${xl},${yl},${xh},${yh},${tt},${s0},${t0},${dsdx},${dtdy});`);
+    dis.tip(`st0 = (${s0}, ${t0}) st1 = (${s1}, ${t1})`)
+  }
+
   texRect(tileIdx, xl, yl, xh, yh, s0, t0, s1, t1, false);
 }
 
-function executeTexRectFlip(cmd0, cmd1) {
+function executeTexRectFlip(cmd0, cmd1, dis) {
   // The following 2 commands contain additional info
   // TODO: check op code matches what we expect?
   var pc = state.pc;
@@ -1742,6 +1743,12 @@ function executeTexRectFlip(cmd0, cmd1) {
   // NB x/y are flipped
   var s1 = s0 + dsdx * (yh - yl);
   var t1 = t0 + dtdy * (xh - xl);
+
+  if (dis) {
+    var tt = gbi.getTileText(tileIdx);
+    dis.text(`gsSPTextureRectangleFlip(${xl},${yl},${xh},${yh},${tt},${s0},${t0},${dsdx},${dtdy});`);
+    dis.tip(`st0 = (${s0}, ${t0}) st1 = (${s1}, ${t1})`)
+  }
 
   texRect(tileIdx, xl, yl, xh, yh, s0, t0, s1, t1, true);
 }
