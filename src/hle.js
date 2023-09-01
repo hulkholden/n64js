@@ -2003,7 +2003,7 @@ function setProgramState(positions, colours, coords, textureEnabled, texGenEnabl
     tile1 = state.tiles[tileIdx1];
 
     texture0 = lookupTexture(tileIdx0);
-    texture1 = (cycleType == gbi.CycleType.G_CYC_2CYCLE) ? lookupTexture(tileIdx1) : texture0;
+    texture1 = (cycleType == gbi.CycleType.G_CYC_2CYCLE) ? lookupTexture(tileIdx1) : null;
   }
   let enableAlphaThreshold = false;
   let alphaThreshold = -1.0;
@@ -2035,12 +2035,8 @@ function setProgramState(positions, colours, coords, textureEnabled, texGenEnabl
   gl.bufferData(gl.ARRAY_BUFFER, coords, gl.STATIC_DRAW);
   gl.vertexAttribPointer(shader.texCoordAttribute, 2, gl.FLOAT, false, 0, 0);
 
-  if (texture0) {
-    bindTexture(0, gl.TEXTURE0, tile0, texture0, texGenEnabled, shader.uSamplerUniform0, shader.uTexScaleUniform0, shader.uTexOffsetUniform0);
-  }
-  if (texture1) {
-    bindTexture(1, gl.TEXTURE1, tile1, texture1, texGenEnabled, shader.uSamplerUniform1, shader.uTexScaleUniform1, shader.uTexOffsetUniform1);
-  }
+  bindTexture(0, gl.TEXTURE0, tile0, texture0, texGenEnabled, shader.uSamplerUniform0, shader.uTexScaleUniform0, shader.uTexOffsetUniform0);
+  bindTexture(1, gl.TEXTURE1, tile1, texture1, texGenEnabled, shader.uSamplerUniform1, shader.uTexScaleUniform1, shader.uTexOffsetUniform1);
 
   gl.uniform1f(shader.uAlphaThresholdUniform, alphaThreshold);
 
@@ -2057,6 +2053,13 @@ function setProgramState(positions, colours, coords, textureEnabled, texGenEnabl
 }
 
 function bindTexture(slot, glTextureId, tile, texture, texGenEnabled, sampleUniform, texScaleUniform, texOffsetUniform) {
+  gl.activeTexture(glTextureId);
+
+  if (!texture) {
+    gl.bindTexture(gl.TEXTURE_2D, null);
+    return;
+  }
+
   let uvOffsetU = tile.left;
   let uvOffsetV = tile.top;
   let uvScaleU = 1.0 / texture.nativeWidth;
