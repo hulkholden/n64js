@@ -2062,9 +2062,7 @@ function bindTexture(slot, glTextureId, tile, texture, texGenEnabled, sampleUnif
   let uvScaleU = 1.0 / texture.nativeWidth;
   let uvScaleV = 1.0 / texture.nativeHeight;
 
-  // Horrible hack for wetrix. For some reason uvs come out 2x what they
-  // should be. Current guess is that it's getting G_TX_CLAMP with a shift
-  // of 0 which is causing this
+  // Horrible hack for wetrix. For some reason uvs come out 2x what they should be.
   if (texture.width === 56 && texture.height === 29) {
     uvScaleU *= 0.5;
     uvScaleV *= 0.5;
