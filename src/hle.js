@@ -1048,22 +1048,23 @@ function calcTextureScale(v) {
 }
 
 function executeGBI1_Texture(cmd0, cmd1, dis) {
-  var xparam = (cmd0 >>> 16) & 0xff;
-  var level = (cmd0 >>> 11) & 0x3;
-  var tileIdx = (cmd0 >>> 8) & 0x7;
-  var on = (cmd0 >>> 0) & 0xff;
-  var s = calcTextureScale(((cmd1 >>> 16) & 0xffff));
-  var t = calcTextureScale(((cmd1 >>> 0) & 0xffff));
+  const xparam = (cmd0 >>> 16) & 0xff;
+  const level = (cmd0 >>> 11) & 0x3;
+  const tileIdx = (cmd0 >>> 8) & 0x7;
+  const on = (cmd0 >>> 0) & 0xff;
+  const s = calcTextureScale(((cmd1 >>> 16) & 0xffff));
+  const t = calcTextureScale(((cmd1 >>> 0) & 0xffff));
 
   if (dis) {
-    var s_text = s.toString();
-    var t_text = t.toString();
-    var tile_text = gbi.getTileText(tileIdx);
+    const s_text = s.toString();
+    const t_text = t.toString();
+    const tile_text = gbi.getTileText(tileIdx);
+    const on_text = on ? 'G_ON' : 'G_OFF';
 
     if (xparam !== 0) {
-      dis.text(`gsSPTextureL(${s_text}, ${t_text}, ${level}, ${xparam}, ${tile_text}, ${on});`);
+      dis.text(`gsSPTextureL(${s_text}, ${t_text}, ${level}, ${xparam}, ${tile_text}, ${on_text});`);
     } else {
-      dis.text(`gsSPTexture(${s_text}, ${t_text}, ${level}, ${tile_text}, ${on});`);
+      dis.text(`gsSPTexture(${s_text}, ${t_text}, ${level}, ${tile_text}, ${on_text});`);
     }
   }
 
