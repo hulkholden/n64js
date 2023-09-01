@@ -3804,7 +3804,7 @@ function lookupTexture(tileIdx) {
   if (textureCache.has(cacheID)) {
     return textureCache.get(cacheID);
   }
-  const texture = decodeTexture(tile, getTextureLUTType());
+  const texture = decodeTexture(tile, getTextureLUTType(), cacheID);
   textureCache.set(cacheID, texture);
   return texture;
 }
@@ -3815,14 +3815,14 @@ function lookupTexture(tileIdx) {
  * @param {number} tlutFormat
  * @return {?Texture}
  */
-function decodeTexture(tile, tlutFormat) {
+function decodeTexture(tile, tlutFormat, cacheID) {
   var texture = new Texture(gl, tile.width, tile.height);
   if (!texture.$canvas[0].getContext) {
     return null;
   }
 
   $textureOutput.append(
-    `${gbi.ImageFormat.nameOf(tile.format)}, ${gbi.ImageSize.nameOf(tile.size)},${tile.width}x${tile.height}, <br>`);
+    `${cacheID}: ${gbi.ImageFormat.nameOf(tile.format)}, ${gbi.ImageSize.nameOf(tile.size)},${tile.width}x${tile.height}, <br>`);
 
   var ctx = texture.$canvas[0].getContext('2d');
   var imgData = ctx.createImageData(texture.nativeWidth, texture.nativeHeight);
