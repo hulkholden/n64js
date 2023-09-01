@@ -67,7 +67,7 @@ let tempPal = new Uint32Array(256);
  * @param {number} value An IA16 value
  * @return {number}
  */
-function convertIA16Pixel(value) {
+export function convertIA16Pixel(value) {
   var i = (value >>> 8) & 0xff;
   let a = (value) & 0xff;
 
@@ -79,7 +79,7 @@ function convertIA16Pixel(value) {
  * @param {number} value An IA16 value
  * @return {number}
  */
-function convertRGBA16Pixel(value) {
+export function convertRGBA16Pixel(value) {
   let r = kFiveToEight[(value >>> 11) & 0x1f];
   let g = kFiveToEight[(value >>> 6) & 0x1f];
   let b = kFiveToEight[(value >>> 1) & 0x1f];
