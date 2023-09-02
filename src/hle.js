@@ -556,12 +556,12 @@ function logUnimplemented(name) {
 // Map to keep track of which unimplemented blend modes we've already warned about.
 const loggedBlendModes = new Map();
 
-function logUnhandledBlendMode(activeBlendMode) {
+function logUnhandledBlendMode(activeBlendMode, alphaCvgSel, cvgXAlpha) {
   if (loggedBlendModes.get(activeBlendMode)) {
     return;
   }
   loggedBlendModes.set(activeBlendMode, true);
-  n64js.warn(`Unhandled blend mode: ${toString16(activeBlendMode)} = ${gbi.blendOpText(activeBlendMode)}`);
+  n64js.warn(`Unhandled blend mode: ${toString16(activeBlendMode)} = ${gbi.blendOpText(activeBlendMode)}, alphaCvgSel ${alphaCvgSel}, cvgXAlpha ${cvgXAlpha}`);
 }
 
 function executeUnknown(cmd0, cmd1) {
