@@ -8,7 +8,7 @@ import { Tile } from './graphics/Tile.js';
 import { ProjectedVertex, TriangleBuffer } from './graphics/TriangleBuffer.js';
 import { Vector3 } from './graphics/Vector3.js';
 import { Vector4 } from './graphics/Vector4.js';
-import { convertTexels } from './graphics/convert.js';
+import { convertTexels, convertRGBA16Pixel } from './graphics/convert.js';
 import * as shaders from './graphics/shaders.js';
 import { Texture, clampTexture } from './graphics/textures.js';
 import * as disassemble from './hle/disassemble.js';
