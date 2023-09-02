@@ -2297,6 +2297,7 @@ function texRect(tileIdx, x0, y0, x1, y1, s0, t0, s1, t1, flip) {
 }
 
 function copyBackBufferToFrontBuffer(texture) {
+  // Passing null binds the framebuffer to the canvas.
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
   var vertices = [
@@ -2341,9 +2342,8 @@ function copyBackBufferToFrontBuffer(texture) {
 }
 
 function initDepth() {
-
-  // Fixes Zfighting issues we have on the PSP.
-  //if (gRDPOtherMode.zmode == 3) ...
+  // TODO: decal mode.
+  //if (gRDPOtherMode.zmode == ZMODE_DEC) ...
 
   // Disable depth testing
   var zgeom_mode = (state.geometryMode.zbuffer) !== 0;
@@ -2352,6 +2352,7 @@ function initDepth() {
 
   if ((zgeom_mode && zcmp_rendermode) || zupd_rendermode) {
     gl.enable(gl.DEPTH_TEST);
+    gl.depthFunc(gl.LEQUAL);
   } else {
     gl.disable(gl.DEPTH_TEST);
   }
@@ -3684,69 +3685,60 @@ export function initialiseRenderer($canvas) {
   initWebGL(canvas); // Initialize the GL context
 
   // Only continue if WebGL is available and working
-  if (gl) {
-    frameBufferTexture2D = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D, frameBufferTexture2D);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    // We call texImage2D to initialise frameBufferTexture2D when it's used
-
-    frameBuffer = gl.createFramebuffer();
-    gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
-    frameBuffer.width = 640;
-    frameBuffer.height = 480;
-
-    frameBufferTexture3D = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D, frameBufferTexture3D);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, frameBuffer.width, frameBuffer.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-
-    var renderbuffer = gl.createRenderbuffer();
-    gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer);
-    gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, frameBuffer.width, frameBuffer.height);
-
-    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, frameBufferTexture3D, 0);
-    gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, renderbuffer);
-
-    gl.bindTexture(gl.TEXTURE_2D, null);
-    gl.bindRenderbuffer(gl.RENDERBUFFER, null);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-
-    // Clear to black, fully opaque
-    gl.clearColor(0.0, 0.0, 0.0, 1.0);
-
-    // Clear everything
-    gl.clearDepth(1.0);
-
-    // Enable depth testing
-    gl.disable(gl.DEPTH_TEST);
-    gl.disable(gl.BLEND);
-
-    // Near things obscure far things
-    gl.depthFunc(gl.LEQUAL);
-
-    fillShaderProgram = shaders.createShaderProgram(gl, "fill-shader-vs", "fill-shader-fs");
-    fill_vertexPositionAttribute = gl.getAttribLocation(fillShaderProgram, "aVertexPosition");
-    fill_uPMatrix = gl.getUniformLocation(fillShaderProgram, "uPMatrix");
-    fill_uFillColor = gl.getUniformLocation(fillShaderProgram, "uFillColor");
-
-    blitShaderProgram = shaders.createShaderProgram(gl, "blit-shader-vs", "blit-shader-fs");
-    blit_vertexPositionAttribute = gl.getAttribLocation(blitShaderProgram, "aVertexPosition");
-    blit_texCoordAttribute = gl.getAttribLocation(blitShaderProgram, "aTextureCoord");
-    blit_uSampler = gl.getUniformLocation(blitShaderProgram, "uSampler");
-
-    rectVerticesBuffer = gl.createBuffer();
-    n64PositionsBuffer = gl.createBuffer();
-    n64ColorsBuffer = gl.createBuffer();
-    n64UVBuffer = gl.createBuffer();
-
-    setCanvasViewport(canvas.clientWidth, canvas.clientHeight);
+  if (!gl) {
+    return;
   }
+
+  frameBufferTexture2D = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, frameBufferTexture2D);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  // We call texImage2D to initialise frameBufferTexture2D with the correct dimensions when it's used.
+
+  frameBuffer = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
+  frameBuffer.width = 640;
+  frameBuffer.height = 480;
+
+  // Create a texture for color data and attach to the framebuffer.
+  frameBufferTexture3D = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, frameBufferTexture3D);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, frameBuffer.width, frameBuffer.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, frameBufferTexture3D, 0);
+  gl.bindTexture(gl.TEXTURE_2D, null);
+
+  // Create a render buffer and attach to the framebuffer.
+  var renderbuffer = gl.createRenderbuffer();
+  gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer);
+  gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, frameBuffer.width, frameBuffer.height);
+  gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, renderbuffer);
+  gl.bindRenderbuffer(gl.RENDERBUFFER, null);
+
+  // Passing null binds the framebuffer to the canvas.
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+  fillShaderProgram = shaders.createShaderProgram(gl, "fill-shader-vs", "fill-shader-fs");
+  fill_vertexPositionAttribute = gl.getAttribLocation(fillShaderProgram, "aVertexPosition");
+  fill_uPMatrix = gl.getUniformLocation(fillShaderProgram, "uPMatrix");
+  fill_uFillColor = gl.getUniformLocation(fillShaderProgram, "uFillColor");
+
+  blitShaderProgram = shaders.createShaderProgram(gl, "blit-shader-vs", "blit-shader-fs");
+  blit_vertexPositionAttribute = gl.getAttribLocation(blitShaderProgram, "aVertexPosition");
+  blit_texCoordAttribute = gl.getAttribLocation(blitShaderProgram, "aTextureCoord");
+  blit_uSampler = gl.getUniformLocation(blitShaderProgram, "uSampler");
+
+  rectVerticesBuffer = gl.createBuffer();
+  n64PositionsBuffer = gl.createBuffer();
+  n64ColorsBuffer = gl.createBuffer();
+  n64UVBuffer = gl.createBuffer();
+
+  setCanvasViewport(canvas.clientWidth, canvas.clientHeight);
 }
 
 export function resetRenderer() {
