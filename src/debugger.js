@@ -12,7 +12,7 @@ window.n64js = window.n64js || {};
 export class Debugger {
   constructor() {
     /** @type {?jQuery} */
-    this.$debugContent = $('#debug-content');
+    this.$cpuContent = $('#cpu-content');
 
     /** @type {?jQuery} */
     this.$status = $('#status');
@@ -745,7 +745,7 @@ export class Debugger {
       this.updateDynarec();
     }
 
-    if (this.$debugContent.hasClass('active')) {
+    if (this.$cpuContent.hasClass('active')) {
       this.updateDebug();
     }
 

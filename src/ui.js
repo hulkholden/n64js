@@ -8,7 +8,7 @@ export class UI {
     // body.addEventListener('keypress', (event) => {
     //   switch (event.key) {
     //     case 'o': $('#output-tab').tab('show'); break;
-    //     case 'd': $( '#debug-tab').tab('show'); break;
+    //     case 'd': $('#cpu-tab').tab('show'); break;
     //     case 'm': $('#memory-tab').tab('show'); break;
     //     case 'l': n64js.ui().triggerLoad();     break;
     //     case 'g': n64js.toggleRun();            break;
