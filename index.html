@@ -262,6 +262,7 @@
             <ul class="nav nav-tabs">
               <li class="active"><a href="#output-content" id="output-tab" data-toggle="tab">Output</a></li>
               <li><a href="#cpu-content" id="cpu-tab" data-toggle="tab">CPU</a></li>
+              <li><a href="#rsp-content" id="rsp-tab" data-toggle="tab">RSP</a></li>
               <li><a href="#memory-content" id="memory-tab" data-toggle="tab">Memory</a></li>
               <li><a href="#dynarec-content" id="dynarec-tab" data-toggle="tab">Dynarec</a></li>
               <li><a href="#dlist-content" id="dlist-tab" data-toggle="tab">DisplayList</a></li>
@@ -269,8 +270,8 @@
             </ul>
             <div class="tab-content">
               <div class="tab-pane active" id="output-content"></div>
-              <div class="tab-pane" id="cpu-content">
 
+              <div class="tab-pane" id="cpu-content">
                 <div id="cpu">
                   <div class="cpu-display">
                     <div class="cpu-details">
@@ -306,8 +307,50 @@
                     </div>
                   </div>
                 </div>
-
               </div>
+
+              <div class="tab-pane" id="rsp-content">
+                <div id="rsp">
+                  <div class="rsp-display">
+                    <div class="rsp-details">
+                      <div id="rsp-status"></div>
+
+                      <div class="tabbable tabs-left">
+                        <ul class="nav nav-tabs">
+                          <li class="active">
+                            <a href="#rsp-scalar-content" id="rsp-scalar-tab" data-toggle="tab">Scalar</a>
+                          </li>
+                          <li>
+                            <a href="#rsp-vector-content" id="rsp-vector-tab" data-toggle="tab">Vector</a>
+                          </li>
+                        </ul>
+                        <div class="tab-content">
+                          <div id="rsp-scalar-content" class="tab-pane active"></div>
+                          <div id="rsp-vector-content" class="tab-pane"></div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="rsp-details">
+                      <div class="control-group">
+                        <label class="control-label" for="rsp-address">Address</label>
+                        <div class="controls">
+                          <input class="input-small" id="rsp-address" type="text" placeholder="address" />
+                          <select id="rsp-labels">
+                          </select>
+                        </div>
+                      </div>
+                      <div id="rsp-disasm" class="fixed">
+                        <div class="dis">
+                          <div class="dis-gutter"></div>
+                          <div class="dis-view"></div>
+                        </div>
+                        <div class="dis-recent-memory"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div class="tab-pane" id="memory-content">
                 <input type="text" placeholder="address" />
                 <pre />

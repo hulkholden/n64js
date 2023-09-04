@@ -24,6 +24,9 @@ export class Debugger {
     this.$disassembly = $('#disasm');
 
     /** @type {?jQuery} */
+    this.$rspContent = $('#rsp-content');
+
+    /** @type {?jQuery} */
     this.$dynarecContent = $('#dynarec-content');
 
     /** @type {?jQuery} */
@@ -535,6 +538,9 @@ export class Debugger {
     this.$registers[1].empty().append(this.makeCop1RegistersTable(registerColours));
   }
 
+  updateRSP() {
+  }
+
   /**
    * Makes a map of colours keyed by register name.
    * @param {?Object} instruction The instruction to produce colours for.
@@ -748,6 +754,10 @@ export class Debugger {
 
     if (this.$cpuContent.hasClass('active')) {
       this.updateCPU();
+    }
+
+    if (this.$rspContent.hasClass('active')) {
+      this.updateRSP();
     }
 
     if (this.$memoryContent.hasClass('active')) {
