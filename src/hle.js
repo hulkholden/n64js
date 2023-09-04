@@ -2135,11 +2135,12 @@ function setGLBlendMode() {
   let mode = kBlendModeOpaque;
 
   switch (activeBlendMode) {
-    case 0x0000: //G_BL_CLR_IN,G_BL_A_IN,G_BL_CLR_IN,G_BL_1MA
+    case 0x0000: // G_BL_CLR_IN, G_BL_A_IN, G_BL_CLR_IN, G_BL_1MA
+    case 0x0302: // G_BL_CLR_IN, G_BL_0, G_BL_CLR_IN, G_BL_1
       mode = kBlendModeOpaque;
       break;
-    case 0x0010: //G_BL_CLR_IN,G_BL_A_IN,G_BL_CLR_MEM,G_BL_1MA
-    case 0x0011: //G_BL_CLR_IN,G_BL_A_IN,G_BL_CLR_MEM,G_BL_A_MEM
+    case 0x0010: // G_BL_CLR_IN, G_BL_A_IN, G_BL_CLR_MEM, G_BL_1MA
+    case 0x0011: // G_BL_CLR_IN, G_BL_A_IN, G_BL_CLR_MEM, G_BL_A_MEM
       // These modes either do a weighted sum of coverage (or coverage and alpha) or a plain alpha blend
       // If alpha_cvg_sel is 0, or if we're multiplying by fragment alpha, then we have alpha to blend with.
       if (!alphaCvgSel || cvgXAlpha) {
@@ -2147,16 +2148,13 @@ function setGLBlendMode() {
       }
       break;
 
-    case 0x0110: //G_BL_CLR_IN,G_BL_A_FOG,G_BL_CLR_MEM,G_BL_1MA, alpha_cvg_sel:false cvg_x_alpha:false
+    case 0x0110: // G_BL_CLR_IN, G_BL_A_FOG, G_BL_CLR_MEM, G_BL_1MA, alpha_cvg_sel:false cvg_x_alpha:false
       // FIXME: this needs to blend the input colour with the fog alpha, but we don't compute this yet.
       mode = kBlendModeOpaque;
       break;
 
-    case 0x0302: //G_BL_CLR_IN,G_BL_0,G_BL_CLR_IN,G_BL_1
-      // This blend mode doesn't use the alpha value
-      mode = kBlendModeOpaque;
-      break;
-    case 0x0310: //G_BL_CLR_IN,G_BL_0,G_BL_CLR_MEM,G_BL_1MA, alpha_cvg_sel:false cvg_x_alpha:false
+    case 0x0310: // G_BL_CLR_IN, G_BL_0, G_BL_CLR_MEM, G_BL_1MA, alpha_cvg_sel:false cvg_x_alpha:false
+    case 0x1310: // G_BL_CLR_MEM, G_BL_0, G_BL_CLR_MEM, G_BL_1MA
       mode = kBlendModeFade;
       break;
 
