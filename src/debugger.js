@@ -9,6 +9,18 @@ import { toggleDebugDisplayList } from './hle.js';
 
 window.n64js = window.n64js || {};
 
+class CPUDebugState {
+  constructor() {
+    /** @type {number} The address to disassemble. */
+    this.disasmAddress = 0;
+  }
+
+  scroll(offset) {
+    this.disasmAddress += offset * 4;
+    // TODO: trigger redraw from here.
+  }
+}
+
 export class Debugger {
   constructor() {
     /** @type {?jQuery} */
@@ -32,8 +44,8 @@ export class Debugger {
     /** @type {?jQuery} */
     this.$memoryContent = $('#memory-content');
 
-    /** @type {number} The address to disassemble. */
-    this.disasmAddress = 0;
+    /** @type {CPUDebugState} */
+    this.cpu0state = new CPUDebugState();
 
     /** @type {number} The number of cycles executed the last time the display was updated. */
     this.lastCycles;
@@ -135,7 +147,7 @@ export class Debugger {
 
     $select.change(() => {
       let contents = $select.find('option:selected').data('address');
-      that.disasmAddress = /** @type {number} */(contents) >>> 0;
+      that.cpu0state.disasmAddress = /** @type {number} */(contents) >>> 0;
       that.updateCPU();
     });
   }
@@ -443,7 +455,7 @@ export class Debugger {
     const cpu0 = n64js.cpu0;
     // If the pc has changed since the last update, recenter the display (e.g. when we take a branch)
     if (cpu0.pc !== this.lastPC) {
-      this.disasmAddress = cpu0.pc;
+      this.cpu0state.disasmAddress = cpu0.pc;
       this.lastPC = cpu0.pc;
     }
 
@@ -453,7 +465,7 @@ export class Debugger {
     this.lastCycles = cpuCount;
 
     let fragmentMap = getFragmentMap();
-    let disassembly = disassembleRange(this.disasmAddress - 64, this.disasmAddress + 64, true);
+    let disassembly = disassembleRange(this.cpu0state.disasmAddress - 64, this.cpu0state.disasmAddress + 64, true);
 
     let $disGutter = $('<pre/>');
     let $disText = $('<pre/>');
@@ -517,7 +529,7 @@ export class Debugger {
       this.setLabelColor($(this), address);
 
       $(this).click(function () {
-        this.disasmAddress = address;
+        this.cpu0state.disasmAddress = address;
         this.redraw();
       });
     }.bind(this));
@@ -728,22 +740,22 @@ export class Debugger {
   }
 
   disassemblerDown() {
-    this.disasmAddress += 4;
+    this.cpu0state.scroll(+1);
     this.redraw();
   }
 
   disassemblerUp() {
-    this.disasmAddress -= 4;
+    this.cpu0state.scroll(-1);
     this.redraw();
   }
 
   disassemblerPageDown() {
-    this.disasmAddress += 64;
+    this.cpu0state.scroll(+16);
     this.redraw();
   }
 
   disassemblerPageUp() {
-    this.disasmAddress -= 64;
+    this.cpu0state.scroll(+16);
     this.redraw();
   }
 
