@@ -13,6 +13,17 @@ class CPUDebugState {
   constructor() {
     /** @type {number} The address to disassemble. */
     this.disasmAddress = 0;
+
+    /** @type {number} The program counter the last time the display was updated. */
+    this.lastPC = -1;
+  }
+
+  setPC(newPC) {
+    // If the pc has changed since the last update, recenter the display (e.g. when we take a branch)
+    if (newPC !== this.lastPC) {
+      this.disasmAddress = newPC;
+      this.lastPC = newPC;
+    }
   }
 
   scroll(offset) {
@@ -39,7 +50,7 @@ export class Debugger {
     this.$registers = [$('#cpu0-content'), $('#cpu1-content')];
 
     /** @type {?jQuery} */
-    this.$disassembly = $('#disasm');
+    this.$cpu0Disassembly = $('#cpu-disasm');
 
     /** @type {?jQuery} */
     this.$rspContent = $('#rsp-content');
@@ -51,13 +62,10 @@ export class Debugger {
     this.$memoryContent = $('#memory-content');
 
     /** @type {R4300DebugState} */
-    this.cpu0state = new R4300DebugState();
+    this.cpu0State = new R4300DebugState();
 
     /** @type {number} The number of cycles executed the last time the display was updated. */
     this.lastCycles;
-
-    /** @type {number} The program counter the last time the display was updated. */
-    this.lastPC = -1;
 
     /** @type {!Array<!Object>} A list of recent memory accesses. */
     this.recentMemoryAccesses = [];
@@ -153,7 +161,7 @@ export class Debugger {
 
     $select.change(() => {
       let contents = $select.find('option:selected').data('address');
-      that.cpu0state.disasmAddress = /** @type {number} */(contents) >>> 0;
+      that.cpu0State.disasmAddress = /** @type {number} */(contents) >>> 0;
       that.updateCPU();
     });
   }
@@ -459,11 +467,7 @@ export class Debugger {
 
   updateCPU() {
     const cpu0 = n64js.cpu0;
-    // If the pc has changed since the last update, recenter the display (e.g. when we take a branch)
-    if (cpu0.pc !== this.lastPC) {
-      this.cpu0state.disasmAddress = cpu0.pc;
-      this.lastPC = cpu0.pc;
-    }
+    this.cpu0State.setPC(cpu0.pc);
 
     // Figure out if we've just stepped by a single instruction. Ergh.
     let cpuCount = cpu0.getCount();
@@ -471,7 +475,7 @@ export class Debugger {
     this.lastCycles = cpuCount;
 
     let fragmentMap = getFragmentMap();
-    let disassembly = this.cpu0state.disassembleRange();
+    let disassembly = this.cpu0State.disassembleRange();
 
     let $disGutter = $('<pre/>');
     let $disText = $('<pre/>');
@@ -545,10 +549,10 @@ export class Debugger {
       $disText.find('.dis-reg-' + reg).css('background-color', colour);
     }
 
-    this.$disassembly.find('.dis-recent-memory').html(this.makeRecentMemoryAccesses(isSingleStep, currentInstruction));
+    this.$cpu0Disassembly.find('.dis-recent-memory').html(this.makeRecentMemoryAccesses(isSingleStep, currentInstruction));
 
-    this.$disassembly.find('.dis-gutter').empty().append($disGutter);
-    this.$disassembly.find('.dis-view').empty().append($disText);
+    this.$cpu0Disassembly.find('.dis-gutter').empty().append($disGutter);
+    this.$cpu0Disassembly.find('.dis-view').empty().append($disText);
 
     this.$status.empty().append(this.makeStatusTable());
 
@@ -746,22 +750,22 @@ export class Debugger {
   }
 
   disassemblerDown() {
-    this.cpu0state.scroll(+1);
+    this.cpu0State.scroll(+1);
     this.redraw();
   }
 
   disassemblerUp() {
-    this.cpu0state.scroll(-1);
+    this.cpu0State.scroll(-1);
     this.redraw();
   }
 
   disassemblerPageDown() {
-    this.cpu0state.scroll(+16);
+    this.cpu0State.scroll(+16);
     this.redraw();
   }
 
   disassemblerPageUp() {
-    this.cpu0state.scroll(+16);
+    this.cpu0State.scroll(+16);
     this.redraw();
   }
 
