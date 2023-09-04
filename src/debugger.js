@@ -3,7 +3,7 @@
 import * as cpu0_constants from './cpu0_constants.js';
 import { disassembleRange, cop0gprNames, cop1RegisterNames } from './disassemble.js';
 import * as disassemble_rsp from "./disassemble_rsp.js";
-import { toHex, toString8, toString32, toString64_bigint } from './format.js';
+import { toHex, toString8, toString32, toString64 } from './format.js';
 import * as logger from './logger.js';
 import { getFragmentMap, consumeFragmentInvalidationEvents } from './fragments.js';
 import { toggleDebugDisplayList } from './hle.js';
@@ -51,8 +51,8 @@ class R4300DebugState extends CPUDebugState {
     $body.append(`<tr><td>Ops</td><td class="fixed">${cpu0.opsExecuted}</td></tr>`);
     $body.append(`<tr><td>PC</td><td class="fixed">${toString32(cpu0.pc)}</td><td>delayPC</td><td class="fixed">${toString32(cpu0.delayPC)}</td></tr>`);
     $body.append(`<tr><td>EPC</td><td class="fixed">${toString32(cpu0.getControlU32(cpu0_constants.controlEPC))}</td></tr>`);
-    $body.append(`<tr><td>MultHi</td><td class="fixed">${toString64_bigint(cpu0.getMultHiU64())}</td><td>Cause</td><td class="fixed">${toString32(cpu0.getControlU32(cpu0_constants.controlCause))}</td></tr>`);
-    $body.append(`<tr><td>MultLo</td><td class="fixed">${toString64_bigint(cpu0.getMultLoU64())}</td><td>Count</td><td class="fixed">${toString32(cpu0.getControlU32(cpu0_constants.controlCount))}</td></tr>`);
+    $body.append(`<tr><td>MultHi</td><td class="fixed">${toString64(cpu0.getMultHiU64())}</td><td>Cause</td><td class="fixed">${toString32(cpu0.getControlU32(cpu0_constants.controlCause))}</td></tr>`);
+    $body.append(`<tr><td>MultLo</td><td class="fixed">${toString64(cpu0.getMultLoU64())}</td><td>Count</td><td class="fixed">${toString32(cpu0.getControlU32(cpu0_constants.controlCount))}</td></tr>`);
     $body.append(`<tr><td></td><td class="fixed"></td><td>Compare</td><td class="fixed">${toString32(cpu0.getControlU32(cpu0_constants.controlCompare))}</td></tr>`);
 
     for (let i = 0; i < cpu0.events.length; ++i) {
@@ -137,7 +137,7 @@ class R4300DebugState extends CPUDebugState {
       let $tr = $('<tr />');
       for (let r = 0; r < kRegistersPerRow; ++r) {
         let name = cop0gprNames[i + r];
-        let $td = $('<td>' + name + '</td><td class="fixed">' + toString64_bigint(cpu0.getRegU64(i + r)) + '</td>');
+        let $td = $('<td>' + name + '</td><td class="fixed">' + toString64(cpu0.getRegU64(i + r)) + '</td>');
 
         if (registerColours.has(name)) {
           $td.attr('bgcolor', registerColours.get(name));

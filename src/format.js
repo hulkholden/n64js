@@ -31,4 +31,4 @@ export function toStringN(v, bits) { return '0x' + toHex(v, bits); }
 export function toString8(v) { return '0x' + toHex(v, 8); }
 export function toString16(v) { return '0x' + toHex(v, 16); }
 export function toString32(v) { return '0x' + toHex(v, 32); }
-export function toString64_bigint(v) { return '0x' + toHex(v, 64); }
+export function toString64(v) { return '0x' + toHex(v, 64); }

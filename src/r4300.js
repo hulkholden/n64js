@@ -3,7 +3,7 @@
 import * as cpu0_constants from './cpu0_constants.js';
 import { CPU1, convertModeCeil, convertModeFloor, convertModeRound, convertModeTrunc } from './cpu1.js';
 import { disassembleInstruction, cop0ControlRegisterNames } from './disassemble.js';
-import { toString8, toString32, toString64_bigint } from './format.js';
+import { toString8, toString32, toString64 } from './format.js';
 import { lookupFragment, resetFragments } from './fragments.js';
 import { assert } from './assert.js';
 import * as logger from './logger.js';
@@ -273,7 +273,7 @@ class TLBEntry {
    */
   update(index, pagemask, hi, entrylo0, entrylo1) {
     if (kDebugTLB) {
-      logger.log(`TLB update: index=${index}, pagemask=${toString32(pagemask)}, entryhi=${toString64_bigint(hi)}, entrylo0=${toString32(entrylo0)}, entrylo1=${toString32(entrylo1)}`);
+      logger.log(`TLB update: index=${index}, pagemask=${toString32(pagemask)}, entryhi=${toString64(hi)}, entrylo0=${toString32(entrylo0)}, entrylo1=${toString32(entrylo1)}`);
       logger.log(`       ${pageMaskName(pagemask)} Pagesize`);
     }
 
@@ -679,7 +679,7 @@ class CPU0 {
 
       default:
         this.setControlU64(controlReg, newValue);
-        logger.log(`Write to cpu0 control register. ${toString64_bigint(newValue)} --> ${cop0ControlRegisterNames[controlReg]}`);
+        logger.log(`Write to cpu0 control register. ${toString64(newValue)} --> ${cop0ControlRegisterNames[controlReg]}`);
         break;
     }
   }
@@ -1041,7 +1041,7 @@ class CPU0 {
     if (kDebugTLB) {
       logger.log('TLB Read Index ' + toString8(index) + '.');
       logger.log('  PageMask: ' + toString32(this.getControlU32(cpu0_constants.controlPageMask)));
-      logger.log('  EntryHi:  ' + toString64_bigint(this.getControlU64(cpu0_constants.controlEntryHi)));
+      logger.log('  EntryHi:  ' + toString64(this.getControlU64(cpu0_constants.controlEntryHi)));
       logger.log('  EntryLo0: ' + toString32(this.getControlU32(cpu0_constants.controlEntryLo0)));
       logger.log('  EntryLo1: ' + toString32(this.getControlU32(cpu0_constants.controlEntryLo1)));
     }
