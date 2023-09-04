@@ -32,9 +32,3 @@ export function toString8(v) { return '0x' + toHex(v, 8); }
 export function toString16(v) { return '0x' + toHex(v, 16); }
 export function toString32(v) { return '0x' + toHex(v, 32); }
 export function toString64_bigint(v) { return '0x' + toHex(v, 64); }
-
-export function toString64(hi, lo) {
-  var t = toHex(lo, 32);
-  var u = toHex(hi, 32);
-  return '0x' + u + t;
-}

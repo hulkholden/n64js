@@ -47,11 +47,11 @@ describe('format', () => {
       assert.equal('0xffffffff', format.toString32(0xffffffff));
     });
   });
-  describe('toString64', () => {
+  describe('toString64_bigint', () => {
     it('should return correctly formatted strings', () => {
-      assert.equal('0x0000000000000000', format.toString64(0, 0));
-      assert.equal('0x00000000000000ff', format.toString64(0, 0xff));
-      assert.equal('0xffffffffffffffff', format.toString64(0xffffffff, 0xffffffff));
+      assert.equal('0x0000000000000000', format.toString64_bigint(0n));
+      assert.equal('0x00000000000000ff', format.toString64_bigint(0xffn));
+      assert.equal('0xffffffffffffffff', format.toString64_bigint(0xffffffff_ffffffffn));
     });
   });
 });
