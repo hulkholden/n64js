@@ -1,4 +1,4 @@
-import { toString32, toString64_bigint } from "./format.js";
+import { toString32 } from "./format.js";
 import * as logger from './logger.js';
 
 const FPCSR_RM_RN = 0x00000000;
