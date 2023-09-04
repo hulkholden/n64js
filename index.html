@@ -69,7 +69,8 @@
       <div class="col-xs-8" id="info" style="display:none">
 
         <h2>Status</h2>
-        <p>Many games run at full speed on a M2 Macbook Pro but there are lots of graphical issues. Here's a rough feature matirx showing what's been implemented:</p>
+        <p>Many games run at full speed on a M2 Macbook Pro but there are lots of graphical issues. Here's a rough
+          feature matirx showing what's been implemented:</p>
 
         <table class="table table-condensed">
           <tr>
@@ -272,80 +273,80 @@
               <div class="tab-pane active" id="output-content"></div>
 
               <div class="tab-pane" id="cpu-content">
-                <div id="cpu">
-                  <div class="cpu-display">
-                    <div class="cpu-details">
-                      <div id="status"></div>
+                <div id="cpu" class="processor-display">
+                  <div class="processor-details">
+                    <div id="cpu0-status"></div>
 
-                      <div class="tabbable tabs-left">
-                        <ul class="nav nav-tabs">
-                          <li class="active"><a href="#cpu0-content" id="cpu0-tab" data-toggle="tab">cpu0</a></li>
-                          <li><a href="#cpu1-content" id="cpu1-tab" data-toggle="tab">cpu1</a></li>
-                        </ul>
-                        <div class="tab-content">
-                          <div id="cpu0-content" class="tab-pane active"></div>
-                          <div id="cpu1-content" class="tab-pane"></div>
-                        </div>
+                    <div class="tabbable tabs-left">
+                      <ul class="nav nav-tabs">
+                        <li class="active">
+                          <a href="#cpu0-content" id="cpu0-tab" data-toggle="tab">cpu0</a>
+                        </li>
+                        <li>
+                          <a href="#cpu1-content" id="cpu1-tab" data-toggle="tab">cpu1</a>
+                        </li>
+                      </ul>
+                      <div class="tab-content">
+                        <div id="cpu0-content" class="tab-pane active"></div>
+                        <div id="cpu1-content" class="tab-pane"></div>
                       </div>
                     </div>
-                    <div class="cpu-details">
-                      <div class="control-group">
-                        <label class="control-label" for="address">Address</label>
-                        <div class="controls">
-                          <input class="input-small" id="address" type="text" placeholder="address" />
-                          <select id="labels">
-                          </select>
-                        </div>
+                  </div>
+                  <div class="processor-details">
+                    <div class="control-group">
+                      <label class="control-label" for="address">Address</label>
+                      <div class="controls">
+                        <input class="input-small" id="address" type="text" placeholder="address" />
+                        <select id="labels">
+                        </select>
                       </div>
-                      <div id="cpu-disasm" class="fixed">
-                        <div class="dis">
-                          <div class="dis-gutter"></div>
-                          <div class="dis-view"></div>
-                        </div>
-                        <div class="dis-recent-memory"></div>
+                    </div>
+                    <div id="cpu-disasm" class="fixed">
+                      <div class="dis">
+                        <div class="dis-gutter"></div>
+                        <div class="dis-view"></div>
                       </div>
+                      <div class="dis-recent-memory"></div>
                     </div>
                   </div>
                 </div>
               </div>
 
               <div class="tab-pane" id="rsp-content">
-                <div id="rsp">
-                  <div class="rsp-display">
-                    <div class="rsp-details">
-                      <div id="rsp-status"></div>
+                <div id="rsp" class="processor-display">
+                  <div class="processor-details">
+                    <div id="rsp-status"></div>
 
-                      <div class="tabbable tabs-left">
-                        <ul class="nav nav-tabs">
-                          <li class="active">
-                            <a href="#rsp-scalar-content" id="rsp-scalar-tab" data-toggle="tab">Scalar</a>
-                          </li>
-                          <li>
-                            <a href="#rsp-vector-content" id="rsp-vector-tab" data-toggle="tab">Vector</a>
-                          </li>
-                        </ul>
-                        <div class="tab-content">
-                          <div id="rsp-scalar-content" class="tab-pane active"></div>
-                          <div id="rsp-vector-content" class="tab-pane"></div>
-                        </div>
+                    <div class="tabbable tabs-left">
+                      <ul class="nav nav-tabs">
+                        <li class="active">
+                          <a href="#rsp-scalar-content" id="rsp-scalar-tab" data-toggle="tab">Scalar</a>
+                        </li>
+                        <li>
+                          <a href="#rsp-vector-content" id="rsp-vector-tab" data-toggle="tab">Vector</a>
+                        </li>
+                      </ul>
+                      <div class="tab-content">
+                        <div id="rsp-scalar-content" class="tab-pane active"></div>
+                        <div id="rsp-vector-content" class="tab-pane"></div>
                       </div>
                     </div>
-                    <div class="rsp-details">
-                      <div class="control-group">
-                        <label class="control-label" for="rsp-address">Address</label>
-                        <div class="controls">
-                          <input class="input-small" id="rsp-address" type="text" placeholder="address" />
-                          <select id="rsp-labels">
-                          </select>
-                        </div>
+                  </div>
+                  <div class="processor-details">
+                    <div class="control-group">
+                      <label class="control-label" for="rsp-address">Address</label>
+                      <div class="controls">
+                        <input class="input-small" id="rsp-address" type="text" placeholder="address" />
+                        <select id="rsp-labels">
+                        </select>
                       </div>
-                      <div id="rsp-disasm" class="fixed">
-                        <div class="dis">
-                          <div class="dis-gutter"></div>
-                          <div class="dis-view"></div>
-                        </div>
-                        <div class="dis-recent-memory"></div>
+                    </div>
+                    <div id="rsp-disasm" class="fixed">
+                      <div class="dis">
+                        <div class="dis-gutter"></div>
+                        <div class="dis-view"></div>
                       </div>
+                      <div class="dis-recent-memory"></div>
                     </div>
                   </div>
                 </div>
