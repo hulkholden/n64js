@@ -21,6 +21,12 @@ class CPUDebugState {
   }
 }
 
+class R4300DebugState extends CPUDebugState {
+  disassembleRange() {
+    return disassembleRange(this.disasmAddress - 64, this.disasmAddress + 64, true);
+  }
+}
+
 export class Debugger {
   constructor() {
     /** @type {?jQuery} */
@@ -44,8 +50,8 @@ export class Debugger {
     /** @type {?jQuery} */
     this.$memoryContent = $('#memory-content');
 
-    /** @type {CPUDebugState} */
-    this.cpu0state = new CPUDebugState();
+    /** @type {R4300DebugState} */
+    this.cpu0state = new R4300DebugState();
 
     /** @type {number} The number of cycles executed the last time the display was updated. */
     this.lastCycles;
@@ -465,7 +471,7 @@ export class Debugger {
     this.lastCycles = cpuCount;
 
     let fragmentMap = getFragmentMap();
-    let disassembly = disassembleRange(this.cpu0state.disasmAddress - 64, this.cpu0state.disasmAddress + 64, true);
+    let disassembly = this.cpu0state.disassembleRange();
 
     let $disGutter = $('<pre/>');
     let $disText = $('<pre/>');
