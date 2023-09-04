@@ -76,7 +76,7 @@ export class Debugger {
 
     $('#cpu').find('#address').change(function () {
       that.disasmAddress = parseInt($(this).val(), 16);
-      that.updateDebug();
+      that.updateCPU();
     });
     this.refreshLabelSelect();
 
@@ -133,7 +133,7 @@ export class Debugger {
     $select.change(() => {
       let contents = $select.find('option:selected').data('address');
       that.disasmAddress = /** @type {number} */(contents) >>> 0;
-      that.updateDebug();
+      that.updateCPU();
     });
   }
 
@@ -144,7 +144,7 @@ export class Debugger {
   restoreLabelMap() {
     this.labelMap = n64js.getLocalStorageItem('debugLabelMap') || new Map();
     this.refreshLabelSelect();
-    this.updateDebug();
+    this.updateCPU();
   }
 
   storeLabelMap() {
@@ -411,7 +411,7 @@ export class Debugger {
         }
         that.storeLabelMap();
         that.refreshLabelSelect();
-        this.updateDebug();
+        this.updateCPU();
       }
     });
     $input.blur(() => {
@@ -431,10 +431,10 @@ export class Debugger {
     let $elem = $(e.delegateTarget);
     let address = /** @type {number} */($elem.data('address')) >>> 0;
     n64js.toggleBreakpoint(address);
-    this.updateDebug();
+    this.updateCPU();
   }
 
-  updateDebug() {
+  updateCPU() {
     // If the pc has changed since the last update, recenter the display (e.g. when we take a branch)
     if (n64js.cpu0.pc !== this.lastPC) {
       this.disasmAddress = n64js.cpu0.pc;
@@ -741,16 +741,16 @@ export class Debugger {
       return;
     }
 
-    if (this.$dynarecContent.hasClass('active')) {
-      this.updateDynarec();
-    }
-
     if (this.$cpuContent.hasClass('active')) {
-      this.updateDebug();
+      this.updateCPU();
     }
 
     if (this.$memoryContent.hasClass('active')) {
       this.updateMemoryView();
+    }
+
+    if (this.$dynarecContent.hasClass('active')) {
+      this.updateDynarec();
     }
   };
 }
