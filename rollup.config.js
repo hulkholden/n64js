@@ -1,16 +1,15 @@
 export default {
-  entry: 'src/n64.js',
-  indent: '\t',
+  input: 'src/n64.js',
   plugins: [],
-  targets: [
+  output: [
     {
       format: 'umd',
-      moduleName: 'N64JS',
-      dest: 'build/n64.js'
+      name: 'N64JS',
+      file: 'build/n64.js'
     },
     {
       format: 'es',
-      dest: 'build/n64.modules.js'
+      file: 'build/n64.modules.js'
     }
   ]
 };
