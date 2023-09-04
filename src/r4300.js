@@ -1428,6 +1428,10 @@ class CPU0 {
   addrS32(base, imms) { return (this.getRegS32Lo(base) + imms) >> 0; }
   addrU32(base, imms) { return (this.getRegS32Lo(base) + imms) >>> 0; }
 
+  calcDebuggerAddress(inst) {
+    return this.addrS32(base(inst), imms(inst));
+  }
+
   execLB(rt, base, imms) {
     const value = memaccess.loadS8fast(this.addrS32(base, imms));
     this.setRegS32Extend(rt, value);
