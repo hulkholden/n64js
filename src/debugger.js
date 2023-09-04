@@ -224,7 +224,7 @@ export class Debugger {
    * @return {!jQuery}
    */
   makeCop0RegistersTable(registerColours) {
-    let cpu0 = n64js.cpu0;
+    const cpu0 = n64js.cpu0;
     let $table = $('<table class="register-table"><tbody></tbody></table>');
     let $body = $table.find('tbody');
 
@@ -299,7 +299,7 @@ export class Debugger {
    * @return {!jQuery}
    */
   makeStatusTable() {
-    let cpu0 = n64js.cpu0;
+    const cpu0 = n64js.cpu0;
 
     let $table = $('<table class="register-table"><tbody></tbody></table>');
     let $body = $table.find('tbody');
@@ -321,12 +321,14 @@ export class Debugger {
   }
 
   makeStatusRegisterRow() {
+    const cpu0 = n64js.cpu0;
+
     let $tr = $('<tr />');
     $tr.append('<td>SR</td>');
 
     const flagNames = ['IE', 'EXL', 'ERL'];//, '', '', 'UX', 'SX', 'KX' ];
 
-    let sr = n64js.cpu0.getControlU32(cpu0_constants.controlStatus);
+    let sr = cpu0.getControlU32(cpu0_constants.controlStatus);
 
     let $td = $('<td class="fixed" />');
     $td.append(toString32(sr));
@@ -435,14 +437,15 @@ export class Debugger {
   }
 
   updateCPU() {
+    const cpu0 = n64js.cpu0;
     // If the pc has changed since the last update, recenter the display (e.g. when we take a branch)
-    if (n64js.cpu0.pc !== this.lastPC) {
-      this.disasmAddress = n64js.cpu0.pc;
-      this.lastPC = n64js.cpu0.pc;
+    if (cpu0.pc !== this.lastPC) {
+      this.disasmAddress = cpu0.pc;
+      this.lastPC = cpu0.pc;
     }
 
     // Figure out if we've just stepped by a single instruction. Ergh.
-    let cpuCount = n64js.cpu0.getCount();
+    let cpuCount = cpu0.getCount();
     let isSingleStep = this.lastCycles === (cpuCount - 1);
     this.lastCycles = cpuCount;
 
@@ -480,7 +483,7 @@ export class Debugger {
       }
 
       // Keep track of the current instruction (for register formatting) and highlight.
-      if (address === n64js.cpu0.pc) {
+      if (address === cpu0.pc) {
         currentInstruction = a.instruction;
         $line.addClass('dis-line-cur');
       }
@@ -562,11 +565,13 @@ export class Debugger {
   }
 
   makeRecentMemoryAccesses(isSingleStep, currentInstruction) {
+    const cpu0 = n64js.cpu0;
+
     // Keep a small queue showing recent memory accesses
     if (isSingleStep) {
       // Check if we've just stepped over a previous write op, and update the result
       if (this.lastStore) {
-        if ((this.lastStore.cycle + 1) === n64js.cpu0.opsExecuted) {
+        if ((this.lastStore.cycle + 1) === cpu0.opsExecuted) {
           let updatedElement = this.addRecentMemoryAccess(this.lastStore.address, 'update');
           this.lastStore.element.append(updatedElement);
         }
@@ -575,13 +580,13 @@ export class Debugger {
 
       if (currentInstruction.memory) {
         let access = currentInstruction.memory;
-        let newAddress = n64js.cpu0.getRegU32Lo(access.reg) + access.offset;
+        let newAddress = cpu0.getRegU32Lo(access.reg) + access.offset;
         let element = this.addRecentMemoryAccess(newAddress, access.mode);
 
         if (access.mode === 'store') {
           this.lastStore = {
             address: newAddress,
-            cycle: n64js.cpu0.opsExecuted,
+            cycle: cpu0.opsExecuted,
             element: element,
           };
         }
