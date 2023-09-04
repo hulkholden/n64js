@@ -414,7 +414,7 @@ class RSP {
   disassembleAll() {
     const disassembly = disassemble_rsp.disassembleRange(0x0000, 0x1000);
     for (let d of disassembly) {
-      console.log(d.disassembly)
+      console.log(`${toHex(d.address, 16)} ${d.disassembly}`);
     }
   }
 
