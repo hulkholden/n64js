@@ -421,7 +421,7 @@ export function disassembleRange(beginAddr, endAddr) {
   const targets = new Set();
 
   for (let addr = beginAddr; addr < endAddr; addr += 4) {
-    const instruction = imem.getU32(addr);
+    const instruction = imem.getU32(addr & 0xfff);
     const d = disassembleInstruction(addr, instruction);
     if (d.instruction.target) {
       targets.add(d.instruction.target);
