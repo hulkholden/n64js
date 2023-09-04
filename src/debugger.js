@@ -2,6 +2,7 @@
 
 import * as cpu0_constants from './cpu0_constants.js';
 import { disassembleRange, cop0gprNames, cop1RegisterNames } from './disassemble.js';
+import * as disassemble_rsp from "./disassemble_rsp.js";
 import { toString32, toString64, toHex, toString64_bigint } from './format.js';
 import * as logger from './logger.js';
 import { getFragmentMap, consumeFragmentInvalidationEvents } from './fragments.js';
@@ -38,6 +39,12 @@ class R4300DebugState extends CPUDebugState {
   }
 }
 
+class RSPDebugState extends CPUDebugState {
+  disassembleRange() {
+    return disassemble_rsp.disassembleRange(this.disasmAddress - 64, this.disasmAddress + 64, true);
+  }
+}
+
 export class Debugger {
   constructor() {
     /** @type {?jQuery} */
@@ -56,6 +63,9 @@ export class Debugger {
     this.$rspContent = $('#rsp-content');
 
     /** @type {?jQuery} */
+    this.$rspDisassembly = $('#rsp-disasm');
+
+    /** @type {?jQuery} */
     this.$dynarecContent = $('#dynarec-content');
 
     /** @type {?jQuery} */
@@ -63,6 +73,9 @@ export class Debugger {
 
     /** @type {R4300DebugState} */
     this.cpu0State = new R4300DebugState();
+
+    /** @type {RSPDebugState} */
+    this.rspState = new RSPDebugState();
 
     /** @type {number} The number of cycles executed the last time the display was updated. */
     this.lastCycles;
@@ -561,6 +574,90 @@ export class Debugger {
   }
 
   updateRSP() {
+    const rsp = n64js.rsp;
+    this.rspState.setPC(rsp.pc);
+
+    // Figure out if we've just stepped by a single instruction. Ergh.
+    // let cpuCount = rsp.getCount();
+    // let isSingleStep = this.lastCycles === (cpuCount - 1);
+    // this.lastCycles = cpuCount;
+    const isSingleStep = true;
+
+    // let fragmentMap = getFragmentMap();
+    let disassembly = this.rspState.disassembleRange();
+
+    let $disGutter = $('<pre/>');
+    let $disText = $('<pre/>');
+    let currentInstruction;
+
+    for (let i = 0; i < disassembly.length; ++i) {
+      let a = disassembly[i];
+      let address = a.instruction.address;
+      // TODO: figure out if we want a separate labelMap for RSP.
+      let isTarget = a.isJumpTarget || this.labelMap.has(address);
+      let addressStr = (isTarget ? '<span class="dis-address-target">' : '<span class="dis-address">') + toHex(address, 32) + ':</span>';
+      let label = `<span class="dis-label">${this.makeLabelText(address)}</span>`;
+      let t = addressStr + '  ' + toHex(a.instruction.opcode, 32) + '  ' + label + a.disassembly;
+
+      let $line = $(`<span class="dis-line">${t}</span>`);
+      $line.find('.dis-label')
+        .data('address', address)
+        .css('color', this.makeLabelColor(address))
+        .click(this.onLabelClicked.bind(this)); // FIXME: needs to be RSP labels.
+
+      // Keep track of the current instruction (for register formatting) and highlight.
+      if (address === rsp.pc) {
+        currentInstruction = a.instruction;
+        $line.addClass('dis-line-cur');
+      }
+      if (isTarget) {
+        $line.addClass('dis-line-target');
+
+        this.setLabelColor($line.find('.dis-address-target'), address);
+      }
+
+      $disText.append($line);
+      $disText.append('<br>');
+
+      // FIXME: Add breakpoint support for RSP.
+      let bpText = '&nbsp;';
+      if (n64js.isBreakpoint(address)) {
+        bpText = '&bull;';
+      }
+      let $bp = $(`<span>${bpText}</span>`).data('address', address).click(this.onClickBreakpoint.bind(this));
+
+      $disGutter.append($bp);
+      $disGutter.append('<br>');
+    }
+
+    // Links for branches, jumps etc should jump to the target address.
+    $disText.find('.dis-address-jump').each(function () {
+      let address = parseInt($(this).text(), 16);
+
+      this.setLabelText($(this), address);
+      this.setLabelColor($(this), address);
+
+      $(this).click(function () {
+        this.rspstate.disasmAddress = address;
+        this.redraw();
+      });
+    }.bind(this));
+
+    let registerColours = this.makeRegisterColours(currentInstruction);
+    for (let [reg, colour] of registerColours) {
+      $disText.find('.dis-reg-' + reg).css('background-color', colour);
+    }
+
+    this.$rspDisassembly.find('.dis-recent-memory').html(this.makeRecentMemoryAccesses(isSingleStep, currentInstruction, rsp.calcDebuggerAddress.bind(rsp)));
+
+    this.$rspDisassembly.find('.dis-gutter').empty().append($disGutter);
+    this.$rspDisassembly.find('.dis-view').empty().append($disText);
+
+    //TODO
+    //this.$status.empty().append(this.makeStatusTable());
+
+    //this.$registers[0].empty().append(this.makeCop0RegistersTable(registerColours));
+    //this.$registers[1].empty().append(this.makeCop1RegistersTable(registerColours));
   }
 
   /**
