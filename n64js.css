@@ -83,11 +83,6 @@ pre .dis-line-cur {
   background-color: #444;
 }
 
-div #cpu {
-  display: inline-block;
-
-  vertical-align: top;
-}
 div #disasm {
   display: inline-block;
 
@@ -145,10 +140,13 @@ table .impl100 {
   display: inline-block;
 }
 
-.cpu-display {
+.processor-display {
+  display: inline-block;
+  vertical-align: top;
   white-space: nowrap;
 }
-.cpu-details {
+
+.processor-details {
   display: inline-block;
 
   vertical-align: top;
