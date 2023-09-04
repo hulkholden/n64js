@@ -690,13 +690,13 @@ export class Debugger {
   }
 
   makeRecentMemoryAccesses(isSingleStep, currentInstruction, resolveAccessAddr) {
-    const cpu0 = n64js.cpu0;
+    const opsExecuted = n64js.cpu0.opsExecuted;
 
     // Keep a small queue showing recent memory accesses
     if (isSingleStep) {
       // Check if we've just stepped over a previous write op, and update the result
       if (this.lastStore) {
-        if ((this.lastStore.cycle + 1) === cpu0.opsExecuted) {
+        if ((this.lastStore.cycle + 1) === opsExecuted) {
           let updatedElement = this.makeRecentMemoryAccessRow(this.lastStore.address, 'update');
           this.lastStore.element.append(updatedElement);
         }
@@ -711,7 +711,7 @@ export class Debugger {
         if (access.mode === 'store') {
           this.lastStore = {
             address: accessAddr,
-            cycle: cpu0.opsExecuted,
+            cycle: opsExecuted,
             element: element,
           };
         }
