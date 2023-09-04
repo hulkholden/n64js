@@ -136,7 +136,7 @@ export class Debugger {
   updateMemoryView() {
     const addr = this.lastMemoryAccessAddress || 0x80000000;
     const $pre = this.$memoryContent.find('pre');
-    $pre.empty().append(this.makeMemoryTable(addr, 1024));
+    $pre.empty().append(this.makeMemoryAccessRow(addr, 1024));
   }
 
   refreshLabelSelect() {
@@ -181,14 +181,14 @@ export class Debugger {
   }
 
   /**
-   * Constructs HTML for a table of memory values.
+   * Constructs HTML for a row of memory values.
    * @param {number} focusAddress The address to focus on.
    * @param {number} contextBytes The number of bytes of context.
    * @param {number=} bytesPerRow The number of bytes per row. Should be a power of two.
    * @param {Map<number,string>=} highlights Colours to highlight addresses with.
    * @return {!jQuery}
    */
-  makeMemoryTable(focusAddress, contextBytes, bytesPerRow = 64, highlights = null) {
+  makeMemoryAccessRow(focusAddress, contextBytes, bytesPerRow = 64, highlights = null) {
     let s = roundDown(focusAddress, bytesPerRow) - roundDown(contextBytes / 2, bytesPerRow);
     let e = s + contextBytes;
 
@@ -214,7 +214,7 @@ export class Debugger {
   }
 
   // access is {reg,offset,mode}
-  addRecentMemoryAccess(address, mode) {
+  makeRecentMemoryAccessRow(address, mode) {
     let col = (mode === 'store') ? '#faa' : '#ffa';
     if (mode === 'update') {
       col = '#afa';
@@ -223,7 +223,7 @@ export class Debugger {
     let highlights = new Map();
     let alignedAddress = (address & ~3) >>> 0;
     highlights.set(alignedAddress, col);
-    return this.makeMemoryTable(address, 32, 32, highlights);
+    return this.makeMemoryAccessRow(address, 32, 32, highlights);
   }
 
   makeLabelColor(address) {
@@ -549,7 +549,7 @@ export class Debugger {
       $disText.find('.dis-reg-' + reg).css('background-color', colour);
     }
 
-    this.$cpu0Disassembly.find('.dis-recent-memory').html(this.makeRecentMemoryAccesses(isSingleStep, currentInstruction));
+    this.$cpu0Disassembly.find('.dis-recent-memory').html(this.makeRecentMemoryAccesses(isSingleStep, currentInstruction, cpu0.calcDebuggerAddress.bind(cpu0)));
 
     this.$cpu0Disassembly.find('.dis-gutter').empty().append($disGutter);
     this.$cpu0Disassembly.find('.dis-view').empty().append($disText);
@@ -592,7 +592,7 @@ export class Debugger {
     return registerColours;
   }
 
-  makeRecentMemoryAccesses(isSingleStep, currentInstruction) {
+  makeRecentMemoryAccesses(isSingleStep, currentInstruction, resolveAccessAddr) {
     const cpu0 = n64js.cpu0;
 
     // Keep a small queue showing recent memory accesses
@@ -600,20 +600,20 @@ export class Debugger {
       // Check if we've just stepped over a previous write op, and update the result
       if (this.lastStore) {
         if ((this.lastStore.cycle + 1) === cpu0.opsExecuted) {
-          let updatedElement = this.addRecentMemoryAccess(this.lastStore.address, 'update');
+          let updatedElement = this.makeRecentMemoryAccessRow(this.lastStore.address, 'update');
           this.lastStore.element.append(updatedElement);
         }
         this.lastStore = null;
       }
 
-      if (currentInstruction.memory) {
-        let access = currentInstruction.memory;
-        let newAddress = cpu0.getRegU32Lo(access.reg) + access.offset;
-        let element = this.addRecentMemoryAccess(newAddress, access.mode);
+      const access = currentInstruction.memory;
+      if (access) {
+        const accessAddr = resolveAccessAddr(currentInstruction.opcode);
+        let element = this.makeRecentMemoryAccessRow(accessAddr, access.mode);
 
         if (access.mode === 'store') {
           this.lastStore = {
-            address: newAddress,
+            address: accessAddr,
             cycle: cpu0.opsExecuted,
             element: element,
           };
@@ -627,7 +627,7 @@ export class Debugger {
           this.recentMemoryAccesses.splice(0, 1);
         }
 
-        this.lastMemoryAccessAddress = newAddress;
+        this.lastMemoryAccessAddress = accessAddr;
       }
     } else {
       // Clear the recent memory accesses when running.

@@ -366,6 +366,10 @@ class RSP {
     this.store8(offset + 3, value >>> 0);
   }
 
+  calcDebuggerAddress(instr) {
+    return this.calcAddress(instr) + 0xa400_0000;
+  }
+
   calcAddress(instr) {
     return (this.getRegS32(base(instr)) + imms(instr)) & 0xfff;
   }
