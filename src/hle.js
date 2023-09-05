@@ -537,7 +537,7 @@ export function hleProcessRSPTask() {
   }
 
   return handled;
-};
+}
 
 function haltUnimplemented(cmd0, cmd1) {
   hleHalt(`Unimplemented display list op ${toString8(cmd0 >>> 24)}`);
@@ -3431,7 +3431,7 @@ export function toggleDebugDisplayList() {
     showDebugDisplayListUI();
     debugDisplayListRequested = true;
   }
-};
+}
 
 // This is called repeatedly so that we can update the UI.
 // We can return false if we don't render anything, but it's useful to keep re-rendering so that we can plot a framerate graph
