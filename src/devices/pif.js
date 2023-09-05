@@ -78,6 +78,9 @@ export class PIFMemDevice extends Device {
       logger.log('Attempting to write to PIF ROM');
       return;
     }
+
+    // FIXME: this should handle writes to the control register too.
+
     // SH is broken - it writes a 32-bit value.
     // It also uses 32 bits from the source register (i.e. value is not masked to 16 bits).
     const aligned = ea & ~3;
@@ -91,6 +94,9 @@ export class PIFMemDevice extends Device {
       logger.log('Attempting to write to PIF ROM');
       return;
     }
+
+    // FIXME: this should handle writes to the control register too.
+
     // SB is broken - it writes a 32-bit value.
     // It also uses 32 bits from the source register (i.e. value is not masked to 8 bits).
     const aligned = ea & ~3;
