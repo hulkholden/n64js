@@ -290,6 +290,44 @@ class RSPDebugState extends CPUDebugState {
     }
     return $table;
   }
+
+  /**
+   * Makes a table of the RSP task state.
+   * @return {!jQuery}
+   */
+  makeTaskTable() {
+    const kTaskOffset = 0x0fc0;
+    const kTaskLength = 0x40;
+    const taskMem = n64js.hardware().sp_mem.subRegion(kTaskOffset, kTaskLength);
+
+    let $table = $('<table class="register-table"><tbody></tbody></table>');
+    let $body = $table.find('tbody');
+
+    const names = [
+      "type",             // 0x00; // u32
+      "flags",            // 0x04; // u32
+      "ucode_boot",       // 0x08; // u64*
+      "ucode_boot_size",  // 0x0c; // u32
+      "ucode",            // 0x10; // u64*
+      "ucode_size",       // 0x14; // u32
+      "ucode_data",       // 0x18; // u64*
+      "ucode_data_size",  // 0x1c; // u32
+      "dram_stack",       // 0x20; // u64*
+      "dram_stack_size",  // 0x24; // u32
+      "output_buff",      // 0x28; // u64*
+      "output_buff_size", // 0x2c; // u64*
+      "data_ptr",         // 0x30; // u64*
+      "data_size",        // 0x34; // u32
+      "yield_data_ptr",   // 0x38; // u64*
+      "yield_data_size",  // 0x3c; // u32
+    ];
+
+    for (let i = 0; i < kTaskLength / 4; i++) {
+      const $tr = $(`<tr><td>${names[i]}</td><td class="fixed">${toHex(taskMem.getU32(i * 4), 32)}</td></tr>`);
+      $body.append($tr);
+    }
+    return $table;
+  }
 }
 
 export class Debugger {
@@ -301,7 +339,7 @@ export class Debugger {
     this.$cpu0Status = $('#cpu0-status');
 
     /** @type {?Array<?jQuery>} */
-    this.$cpuRegisters = [$('#cpu0-content'), $('#cpu1-content')];
+    this.cpuTabs = [$('#cpu0-content'), $('#cpu1-content')];
 
     /** @type {?jQuery} */
     this.$cpu0Disassembly = $('#cpu-disasm');
@@ -313,7 +351,7 @@ export class Debugger {
     this.$rspStatus = $('#rsp-status');
 
     /** @type {?Array<?jQuery>} */
-    this.$rspRegisters = [$('#rsp-scalar-content'), $('#rsp-vector-content')];
+    this.rspTabs = [$('#rsp-scalar-content'), $('#rsp-vector-content'), $('#rsp-task-content')];
 
     /** @type {?jQuery} */
     this.$rspDisassembly = $('#rsp-disasm');
@@ -663,8 +701,8 @@ export class Debugger {
 
     this.$cpu0Status.empty().append(this.cpu0State.makeStatusTable());
 
-    this.$cpuRegisters[0].empty().append(this.cpu0State.makeCop0RegistersTable(registerColours));
-    this.$cpuRegisters[1].empty().append(this.cpu0State.makeCop1RegistersTable(registerColours));
+    this.cpuTabs[0].empty().append(this.cpu0State.makeCop0RegistersTable(registerColours));
+    this.cpuTabs[1].empty().append(this.cpu0State.makeCop1RegistersTable(registerColours));
   }
 
   updateRSP() {
@@ -749,8 +787,9 @@ export class Debugger {
 
     this.$rspStatus.empty().append(this.rspState.makeStatusTable());
 
-    this.$rspRegisters[0].empty().append(this.rspState.makeScalarRegistersTable(registerColours));
-    this.$rspRegisters[1].empty().append(this.rspState.makeVectorRegistersTable(registerColours));
+    this.rspTabs[0].empty().append(this.rspState.makeScalarRegistersTable(registerColours));
+    this.rspTabs[1].empty().append(this.rspState.makeVectorRegistersTable(registerColours));
+    this.rspTabs[2].empty().append(this.rspState.makeTaskTable());
   }
 
   /**
