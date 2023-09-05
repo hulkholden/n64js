@@ -19,7 +19,7 @@ import { initSync, syncActive, syncTick, syncInput } from './sync.js';
 window.n64js = window.n64js || {};
 
 const kOpBreakpoint = 28;
-const kCyclesPerUpdate = 100000000;
+const kCyclesPerUpdate = 100_000_000;
 
 let stats = null;
 let running = false;

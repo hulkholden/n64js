@@ -201,9 +201,8 @@ const kStuffToDoHalt            = 1<<0;
 const kStuffToDoCheckInterrupts = 1<<1;
 const kStuffToDoBreakout        = 1<<2;
 
-const kEventVbl          = 0;
-const kEventCompare      = 1;
-const kEventRunForCycles = 2;
+const kEventCompare = 'Compare';
+const kEventRunForCycles = 'Run For Cycles';
 
 // TODO: figure out what masking and shifting constants this should use.
 function getAddress32VPN2(address) { return (address >>> 13);}
@@ -924,27 +923,6 @@ class CPU0 {
       this.addCompareEvent(delta);
       this.setControlU32(cpu0_constants.controlCompare, value);
     }
-  }
-
-  // TODO: refector this so event types are accessible.
-  addVblEvent(countdown) {
-    const that = this;
-    this.addEvent(kEventVbl, countdown, () => {
-      n64js.verticalBlank();
-      this.stuffToDo |= kStuffToDoBreakout;
-    });
-  }
-
-  hasVblEvent() {
-    return this.hasEvent(kEventVbl);
-  }
-
-  getVblCount() {
-    const event = this.getEvent(kEventVbl);
-    if (event) {
-      return event.countdown;
-    }
-    return 0;
   }
 
   addCompareEvent(cycles) {
@@ -1903,15 +1881,7 @@ class SystemEvent {
     this.handler = handler;
   }
 
-  getName() {
-    switch (this.type) {
-      case kEventVbl: return 'Vbl';
-      case kEventCompare: return 'Compare';
-      case kEventRunForCycles: return 'Run';
-    }
-
-    return '?';
-  }
+  getName() { return this.type; }
 }
 
 // EmulatedException interrupts processing of an instruction
