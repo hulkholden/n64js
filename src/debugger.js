@@ -55,12 +55,16 @@ class R4300DebugState extends CPUDebugState {
     $body.append(`<tr><td>MultLo</td><td class="fixed">${toString64(cpu0.getMultLoU64())}</td><td>Count</td><td class="fixed">${toString32(cpu0.getControlU32(cpu0_constants.controlCount))}</td></tr>`);
     $body.append(`<tr><td></td><td class="fixed"></td><td>Compare</td><td class="fixed">${toString32(cpu0.getControlU32(cpu0_constants.controlCompare))}</td></tr>`);
 
-    for (let i = 0; i < cpu0.events.length; ++i) {
-      $body.append(`<tr><td>Event${i}</td><td class="fixed">${cpu0.events[i].countdown}, ${cpu0.events[i].getName()}</td></tr>`);
-    }
-
+    $body.append(`<tr><td>&nbsp;</td></tr>`);
     $body.append(this.makeStatusRegisterRow());
     $body.append(this.makeMipsInterruptsRow());
+
+    $body.append(`<tr><td>&nbsp;</td></tr>`);
+    $body.append(`<tr><td>Events</td></tr>`);
+    for (let i = 0; i < cpu0.events.length; ++i) {
+      $body.append(`<tr><td>${cpu0.events[i].getName()}</td><td class="fixed">${cpu0.events[i].countdown}</td></tr>`);
+    }
+
     return $table;
   }
 
