@@ -36,6 +36,8 @@ const VI_PAL_CLOCK = 49656530;
 const VI_NTSC_CLOCK = 48681812;
 const VI_MPAL_CLOCK = 48628316;
 
+const kVIInterrupt = 'VI Interrupt';
+
 function videoClockForTVType(tvType) {
   switch (tvType) {
     case OS_TV_PAL: return VI_PAL_CLOCK; break;
@@ -115,7 +117,7 @@ export class VIRegDevice extends Device {
     this.field ^= interlaced;
 
     // TODO: compensate for over/under cycles.
-    n64js.cpu0.addVblEvent(this.countPerVbl);
+    this.addInterruptEvent();
 
     this.hardware.mi_reg.setBits32(mi.MI_INTR_REG, mi.MI_INTR_VI);
     n64js.cpu0.updateCause3();
@@ -125,7 +127,7 @@ export class VIRegDevice extends Device {
   }
 
   initInterrupt() {
-    if (n64js.cpu0.hasVblEvent()) {
+    if (n64js.cpu0.hasEvent(kVIInterrupt)) {
       return;
     }
     const intr = this.mem.getU32(VI_V_INTR_REG);
@@ -134,7 +136,18 @@ export class VIRegDevice extends Device {
       logger.log(`not setting VI interrupt - intr ${intr} >= sync ${sync}`);
       return;
     }
-    n64js.cpu0.addVblEvent(this.countPerVbl);
+    this.addInterruptEvent();
+  }
+
+  addInterruptEvent() {
+    n64js.cpu0.addEvent(kVIInterrupt, this.countPerVbl, () => {
+      n64js.verticalBlank();
+    });
+  }
+
+  getVblCount() {
+    const event = n64js.cpu0.getEvent(kVIInterrupt);
+    return event ? event.countdown : 0;
   }
 
   write32(address, value) {
@@ -198,7 +211,7 @@ export class VIRegDevice extends Device {
 
     if (ea === VI_V_CURRENT_LINE_REG) {
       // Figure out the current scanline based on how many cycles to the next interrupt.
-      const cyclesToNextVbl = n64js.cpu0.getVblCount();
+      const cyclesToNextVbl = this.getVblCount();
       const countExecuted = (this.countPerVbl - cyclesToNextVbl);
       const scanline = (countExecuted / this.countPerScanline) >> 0;
 
