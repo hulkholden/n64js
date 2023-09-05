@@ -306,6 +306,7 @@ function updateViewport() {
 
   canvasTransform = new CanvasTransform(canvasMin, canvasMax);
 
+  // TODO: this seems to shift previously-rendered content. It should probably just affect future stuff.
   gl.viewport(vpX, vpY, vpWidth, vpHeight);
 }
 
@@ -1397,6 +1398,12 @@ function executeLoadBlock(cmd0, cmd1, dis) {
   if (dxt === 0) {
     copyLineQwords(tmemData, tmemOffset, ram_s32, ramOffset, qwords);
   } else {
+    // TODO: Emulate by incrementing a counter by dxt each frame, and emitting a new
+    // line when it overflows 2048.
+    // The LoadBlock command uses the parameter dxt to indicate when it should start the next line.
+    // Dxt is basically the reciprocal of the number of words (64-bits) in a line.
+    // The texture coordinate unit increments a counter by dxt for each word transferred to Tmem.
+    // When this counter rolls over into the next integer value, the line count is incremented. 
     const qwordsPerLine = Math.ceil(2048 / dxt);
     let rowSwizzle = 0;
     for (let i = 0; i < qwords;) {
@@ -1628,6 +1635,9 @@ function executeFillRect(cmd0, cmd1, dis) {
   }
 
   if (state.depthImage.address == state.colorImage.address) {
+    // TODO: should use depth source.
+    // const depthSourcePrim = (state.rdpOtherModeL & gbi.DepthSource.G_ZS_PRIM) !== 0;
+    // const depth = depthSourcePrim ? state.primDepth : 0.0;
     gl.clearDepth(1.0);
     gl.depthMask(true);
     gl.clear(gl.DEPTH_BUFFER_BIT);
@@ -1658,6 +1668,8 @@ function executeFillRect(cmd0, cmd1, dis) {
     x1 += 1;
     y1 += 1;
   }
+
+  // TODO: Apply scissor.
 
   fillRect(x0, y0, x1, y1, color);
 }
