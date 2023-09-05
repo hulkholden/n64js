@@ -737,7 +737,7 @@ class CPU0 {
 
         // Re-add the kEventRunForCycles event
         if (runCountdown) {
-          this.addEvent(kEventRunForCycles, runCountdown);
+          this.addRunForCyclesEvent(runCountdown);
         }
       } else {
         logger.log('no events');
@@ -921,14 +921,18 @@ class CPU0 {
       const count = this.getControlU32(cpu0_constants.controlCount);
       const delta = (value - count) >>> 0;
       this.removeEventsOfType(kEventCompare);
-      this.addEvent(kEventCompare, delta);
+      this.addCompareEvent(delta);
       this.setControlU32(cpu0_constants.controlCompare, value);
     }
   }
 
   // TODO: refector this so event types are accessible.
   addVblEvent(countdown) {
-    this.addEvent(kEventVbl, countdown);
+    const that = this;
+    this.addEvent(kEventVbl, countdown, () => {
+      n64js.verticalBlank();
+      this.stuffToDo |= kStuffToDoBreakout;
+    });
   }
 
   hasVblEvent() {
@@ -943,20 +947,37 @@ class CPU0 {
     return 0;
   }
 
-  addEvent(type, countdown) {
+  addCompareEvent(cycles) {
+    const that = this;
+    this.addEvent(kEventCompare, cycles, () => {
+      that.setControlBits32(cpu0_constants.controlCause, CAUSE_IP8);
+      that.updateStuffToDoForInterrupts();
+    });
+  }
+
+  addRunForCyclesEvent(cycles) {
+    const that = this;
+    this.addEvent(kEventRunForCycles, cycles, () => {
+      that.stuffToDo |= kStuffToDoBreakout;
+    }); 
+  }
+  
+  addEvent(type, countdown, handler) {
     assert(!this.hasEvent(type), `Already has event of type ${type}`);
     assert(countdown > 0, `Countdown must be positive`);
+
+    const newEvent = new SystemEvent(type, countdown, handler);
 
     for (let i = 0; i < this.events.length; ++i) {
       const event = this.events[i];
       if (countdown <= event.countdown) {
         event.countdown -= countdown;
-        this.events.splice(i, 0, new SystemEvent(type, countdown));
+        this.events.splice(i, 0, newEvent);
         return;
       }
       countdown -= event.countdown;
     }
-    this.events.push(new SystemEvent(type, countdown));
+    this.events.push(newEvent);
   }
 
   removeEventsOfType(type) {
@@ -1876,9 +1897,10 @@ class CPU2 {
 }
 
 class SystemEvent {
-  constructor(type, countdown) {
+  constructor(type, countdown, handler) {
     this.type = type;
     this.countdown = countdown;
+    this.handler = handler;
   }
 
   getName() {
@@ -3856,19 +3878,7 @@ function handleCounter() {
   while (cpu0.events.length > 0 && cpu0.events[0].countdown <= 0) {
     const evt = cpu0.events[0];
     cpu0.events.splice(0, 1);
-
-    // if it's our cycles event then just bail
-    if (evt.type === kEventRunForCycles) {
-      cpu0.stuffToDo |= kStuffToDoBreakout;
-    } else if (evt.type === kEventCompare) {
-      cpu0.setControlBits32(cpu0_constants.controlCause, CAUSE_IP8);
-      cpu0.updateStuffToDoForInterrupts();
-    } else if (evt.type === kEventVbl) {
-      n64js.verticalBlank();
-      cpu0.stuffToDo |= kStuffToDoBreakout;
-    } else {
-      n64js.halt('unhandled event!');
-    }
+    evt.handler();
   }
 }
 
@@ -3892,7 +3902,7 @@ n64js.run = function (cycles) {
   checkCauseIP3Consistent();
   n64js.checkSIStatusConsistent();
 
-  cpu0.addEvent(kEventRunForCycles, cycles);
+  cpu0.addRunForCyclesEvent(cycles);
 
   while (cpu0.hasEvent(kEventRunForCycles)) {
     try {
