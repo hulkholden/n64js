@@ -12,7 +12,7 @@ export function toHex(r, bits) {
     const mask = bits ? ((1n << BigInt(bits)) - 1n) : 0xffff_ffff_ffff_ffffn;
     unsigned = r & mask;
   } else {
-    const mask = bits ? ((1 << bits) - 1) : 0xffff_ffff;
+    const mask = (bits && bits < 32) ? ((1 << bits) - 1) : 0xffff_ffff;
     unsigned = (Number(r) & mask) >>> 0;
   }
 
