@@ -46,6 +46,8 @@ export function isDom1Addr3(address) { return address >= PI_DOM1_ADDR3 && addres
 
 function isFlashDomAddr(address) { return address >= PI_DOM2_ADDR2 && address <= PI_DOM2_ADDR2_END; }
 
+const kPIInterrupt = 'PI Interrupt';
+
 export class PIRegDevice extends Device {
   constructor(hardware, rangeStart, rangeEnd) {
     super("PIReg", hardware, hardware.pi_reg, rangeStart, rangeEnd);
@@ -101,6 +103,13 @@ export class PIRegDevice extends Device {
     }
     if (!this.quiet) { logger.log(`Writing to PIReg: ${toString32(value)} -> [${toString32(address)}]`); }
 
+    // Attempts to write to any register except the status reg results in an error bit being set.
+    if (this.busy() && ea != PI_STATUS_REG) {
+      n64js.warn(`Write to PI registers while DMA or IO busy`);
+      this.mem.setBits32(PI_STATUS_REG, PI_STATUS_ERROR);
+      return;
+    }
+
     switch (ea) {
       case PI_DRAM_ADDR_REG:
       case PI_CART_ADDR_REG:
@@ -118,6 +127,9 @@ export class PIRegDevice extends Device {
         if (value & PI_STATUS_RESET) {
           if (!this.quiet) { logger.log('PI_STATUS_REG reset'); }
           this.mem.set32(PI_STATUS_REG, 0);
+          // Cancel any pending transfers.
+          // This just removes the interrupt but in theory we should stop DMA mid-flight.
+          this.removePIInterrupt();
         }
         if (value & PI_STATUS_CLR_INTR) {
           if (!this.quiet) { logger.log('PI interrupt cleared'); }
@@ -143,6 +155,10 @@ export class PIRegDevice extends Device {
     }
   }
 
+  busy() {
+    return this.mem.getBits32(PI_STATUS_REG, PI_STATUS_DMA_BUSY) != 0;
+  }
+
   copyFromRDRAM() {
     const dramAddr = this.mem.getU32(PI_DRAM_ADDR_REG) & 0x00fffffe;
     const cartAddr = this.mem.getU32(PI_CART_ADDR_REG) & 0xfffffffe;
@@ -150,6 +166,8 @@ export class PIRegDevice extends Device {
 
     let dst;
     let dstOffset = 0;
+    // TODO: better estimate for this.
+    let cycles = 0x1000;
 
     // Short transfers are handled differently (see https://n64brew.dev/wiki/Peripheral_Interface)
     if (transferLen >= 0x7f && (transferLen & 1)) {
@@ -188,10 +206,9 @@ export class PIRegDevice extends Device {
 
     // TODO: Update address registers?
 
-    this.mem.clearBits32(PI_STATUS_REG, PI_STATUS_DMA_BUSY);
-    this.mem.setBits32(PI_STATUS_REG, PI_STATUS_INTERRUPT);
-    this.hardware.mi_reg.setBits32(mi.MI_INTR_REG, mi.MI_INTR_PI);
-    n64js.cpu0.updateCause3();
+    this.mem.setBits32(PI_STATUS_REG, PI_STATUS_DMA_BUSY);
+
+    this.addPIInterrupt(cycles);
   }
 
   copyToRDRAM() {
@@ -213,6 +230,7 @@ export class PIRegDevice extends Device {
 
     let src;
     let srcOffset = 0;
+    let cycles = this.estimateDMACyclesFromLength(transferLen);
 
     if (isDom1Addr1(cartAddr)) {
       src = this.hardware.rom;
@@ -236,6 +254,8 @@ export class PIRegDevice extends Device {
             src = this.hardware.romD2A2Device.flashDMASource();
             break;
         }
+        // TODO: better estimate for this.
+        cycles = 0x1000;
       } else {
         n64js.halt(`PI: unknown dom2addr2 address for cart->ram DMA: ${toString32(cartAddr)}`);
       }
@@ -251,10 +271,34 @@ export class PIRegDevice extends Device {
     this.setMemorySize();
 
     // Address registers are updated when the transfer completes.
+    this.mem.setBits32(PI_STATUS_REG, PI_STATUS_DMA_BUSY);
     this.mem.set32(PI_DRAM_ADDR_REG, (this.mem.getU32(PI_DRAM_ADDR_REG) + transferLen + 7) & ~7);
     this.mem.set32(PI_CART_ADDR_REG, (this.mem.getU32(PI_CART_ADDR_REG) + transferLen + 1) & ~1);
 
-    // TODO: figure out how many cycles the transfer should take, and schedule an interrupt.
+    this.addPIInterrupt(cycles);
+  }
+
+  estimateDMACyclesFromLength(length) {
+    // TODO: this should be affected by how the PI_BSD registers are set.
+    const cycles = length >>> 3;
+    if (cycles) {
+      return cycles;
+    }
+    return 16;
+  }
+  
+  removePIInterrupt() {
+    n64js.cpu0.removeEventsOfType(kPIInterrupt);
+  }
+
+  addPIInterrupt(cycles) {
+    const that = this;
+    n64js.cpu0.addEvent(kPIInterrupt, cycles, () => {
+      that.dmaComplete();
+    });
+  }
+
+  dmaComplete() {
     this.mem.clearBits32(PI_STATUS_REG, PI_STATUS_DMA_BUSY);
     this.mem.setBits32(PI_STATUS_REG, PI_STATUS_INTERRUPT);
     this.hardware.mi_reg.setBits32(mi.MI_INTR_REG, mi.MI_INTR_PI);
