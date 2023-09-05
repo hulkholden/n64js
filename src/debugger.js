@@ -3,7 +3,7 @@
 import * as cpu0_constants from './cpu0_constants.js';
 import { disassembleRange, cop0gprNames, cop1RegisterNames } from './disassemble.js';
 import * as disassemble_rsp from "./disassemble_rsp.js";
-import { toHex, toString8, toString32, toString64 } from './format.js';
+import { toHex, toString8, toString16, toString32, toString64 } from './format.js';
 import * as logger from './logger.js';
 import { getFragmentMap, consumeFragmentInvalidationEvents } from './fragments.js';
 import { toggleDebugDisplayList } from './hle.js';
@@ -221,12 +221,10 @@ class RSPDebugState extends CPUDebugState {
     </tr>`);
 
     $body.append(`<tr>
-      <td>VCO Hi</td><td class="fixed">${toString8(rsp.VCOHi)}</td>
-      <td>VCO Lo</td><td class="fixed">${toString8(rsp.VCOLo)}</td>
+      <td>VCO</td><td class="fixed">${toString16(rsp.VCO)}</td>
     </tr>`);
     $body.append(`<tr>
-      <td>VCC Hi</td><td class="fixed">${toString8(rsp.VCCHi)}</td>
-      <td>VCC Lo</td><td class="fixed">${toString8(rsp.VCCLo)}</td>
+      <td>VCC</td><td class="fixed">${toString16(rsp.VCC)}</td>
     </tr>`);
 
     $body.append(`<tr>
