@@ -1985,9 +1985,11 @@ var n64PositionsBuffer;
 var n64ColorsBuffer;
 var n64UVBuffer;
 
-const kBlendModeOpaque = 0;
-const kBlendModeAlphaTrans = 1;
-const kBlendModeFade = 2;
+const kBlendModeUnknown = 0;
+const kBlendModeOpaque = 1;
+const kBlendModeAlphaTrans = 2;
+const kBlendModeFade = 3;
+const kBlendModeFog = 4;
 
 function setProgramState(positions, colours, coords, textureEnabled, texGenEnabled, tileIdx) {
   setGLBlendMode();
@@ -2134,13 +2136,15 @@ function setGLBlendMode() {
 
   const blendMode = state.rdpOtherModeL >> gbi.G_MDSFT_BLENDER;
   const activeBlendMode = (cycleType === gbi.CycleType.G_CYC_2CYCLE ? blendMode : (blendMode >>> 2)) & 0x3333;
-  let mode = kBlendModeOpaque;
 
+  let mode = kBlendModeUnknown;
   switch (activeBlendMode) {
     case 0x0000: // G_BL_CLR_IN, G_BL_A_IN, G_BL_CLR_IN, G_BL_1MA
     case 0x0302: // G_BL_CLR_IN, G_BL_0, G_BL_CLR_IN, G_BL_1
       mode = kBlendModeOpaque;
       break;
+    // case 0x0321 = G_BL_CLR_IN, G_BL_0, G_BL_CLR_BL, G_BL_A_MEM - blend*alpha.
+    
     case 0x0010: // G_BL_CLR_IN, G_BL_A_IN, G_BL_CLR_MEM, G_BL_1MA
     case 0x0011: // G_BL_CLR_IN, G_BL_A_IN, G_BL_CLR_MEM, G_BL_A_MEM
       // These modes either do a weighted sum of coverage (or coverage and alpha) or a plain alpha blend
@@ -2160,13 +2164,16 @@ function setGLBlendMode() {
       mode = kBlendModeFade;
       break;
 
-    default:
-      logUnhandledBlendMode(activeBlendMode, alphaCvgSel, cvgXAlpha);
-      mode = kBlendModeOpaque;
+    case 0x3110: // G_BL_CLR_FOG, G_BL_A_FOG, G_BL_CLR_MEM, G_BL_1MA
+      mode = kBlendModeFog;
       break;
   }
 
+  let logUnhandled = false;
   switch (mode) {
+    case kBlendModeOpaque:
+      gl.disable(gl.BLEND);
+      break;
     case kBlendModeAlphaTrans:
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
       gl.blendEquation(gl.FUNC_ADD);
@@ -2177,8 +2184,20 @@ function setGLBlendMode() {
       gl.blendEquation(gl.FUNC_ADD);
       gl.enable(gl.BLEND);
       break;
-    default:
+    case kBlendModeFog:
+      // TODO: figure out how to emulate this.
+      // For now just render as opaque.
+      logUnhandled = true;
       gl.disable(gl.BLEND);
+      break;
+    case kBlendModeUnknown:
+      logUnhandled = true;
+      gl.disable(gl.BLEND);
+      break;
+  }
+
+  if (logUnhandled) {
+    logUnhandledBlendMode(activeBlendMode, alphaCvgSel, cvgXAlpha);
   }
 }
 
