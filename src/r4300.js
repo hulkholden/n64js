@@ -1,4 +1,5 @@
 /*jshint jquery:true, devel:true */
+/*global n64js*/
 
 import * as cpu0_constants from './cpu0_constants.js';
 import { CPU1, convertModeCeil, convertModeFloor, convertModeRound, convertModeTrunc } from './cpu1.js';
@@ -3853,7 +3854,7 @@ function handleCounter() {
 }
 
 n64js.singleStep = function () {
-  const restore_breakpoint_address = 0;
+  let restore_breakpoint_address = 0;
   if (n64js.isBreakpoint(cpu0.pc)) {
     restore_breakpoint_address = cpu0.pc;
     n64js.toggleBreakpoint(restore_breakpoint_address);
@@ -4176,7 +4177,7 @@ function generateCodeForOp(ctx) {
     `);
   }
 
-  const fn_code = preflight + generateOp(ctx);
+  let fn_code = preflight + generateOp(ctx);
 
   if (ctx.dump) {
     console.log(fn_code);

@@ -1,3 +1,5 @@
+/*global n64js*/
+
 import * as base64 from './base64.js';
 import { AIRegDevice } from './devices/ai.js';
 import { DPCDevice } from './devices/dpc.js';
@@ -179,7 +181,7 @@ export class Hardware {
   verticalBlank() {
     this.flushSaveData();
     this.viRegDevice.verticalBlank();
-  };
+  }
 
   initSaveGame() {
     for (let [i, mp] of this.mempacks.entries()) {

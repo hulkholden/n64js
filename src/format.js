@@ -4,7 +4,7 @@ export function padString(v, len) {
     t = '0' + t;
   }
   return t;
-};
+}
 
 export function toHex(r, bits) {
   let unsigned;

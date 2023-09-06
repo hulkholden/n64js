@@ -1,3 +1,5 @@
+/*global n64js*/
+
 import { Device } from './device.js';
 import * as mi from './mi.js';
 import * as logger from '../logger.js';
@@ -40,9 +42,9 @@ const kVIInterrupt = 'VI Interrupt';
 
 function videoClockForTVType(tvType) {
   switch (tvType) {
-    case OS_TV_PAL: return VI_PAL_CLOCK; break;
-    case OS_TV_NTSC: return VI_NTSC_CLOCK; break;
-    case OS_TV_MPAL: return VI_MPAL_CLOCK; break;
+    case OS_TV_PAL: return VI_PAL_CLOCK;
+    case OS_TV_NTSC: return VI_NTSC_CLOCK;
+    case OS_TV_MPAL: return VI_MPAL_CLOCK;
   }
   return VI_NTSC_CLOCK;
 }
@@ -185,14 +187,16 @@ export class VIRegDevice extends Device {
         break;
 
       case VI_V_SYNC_REG:
-        const lastSync = this.mem.getU32(ea);
-        if (lastSync != value) {
-          const scanlines = value + 1;
-          this.countPerScanline = ((this.clock / this.refreshRate) / scanlines) >> 0;
-          this.countPerVbl = scanlines * this.countPerScanline;
-          logger.log(`VI_V_SYNC_REG set to ${value}, cycles per scanline = ${this.countPerScanline}, cycles per vbl = ${this.countPerVbl}`);
-          this.mem.set32(ea, value);
-          this.initInterrupt();
+        {
+          const lastSync = this.mem.getU32(ea);
+          if (lastSync != value) {
+            const scanlines = value + 1;
+            this.countPerScanline = ((this.clock / this.refreshRate) / scanlines) >> 0;
+            this.countPerVbl = scanlines * this.countPerScanline;
+            logger.log(`VI_V_SYNC_REG set to ${value}, cycles per scanline = ${this.countPerScanline}, cycles per vbl = ${this.countPerVbl}`);
+            this.mem.set32(ea, value);
+            this.initInterrupt();
+          }
         }
         break;
 

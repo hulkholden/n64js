@@ -782,13 +782,13 @@ function executeGBI1_MoveWord(cmd0, cmd1, dis) {
     switch (type) {
       case gbi.MoveWord.G_MW_NUMLIGHT:
         if (offset === gbi.G_MWO_NUMLIGHT) {
-          var v = ((value - 0x80000000) >>> 5) - 1;
+          let v = ((value - 0x80000000) >>> 5) - 1;
           text = `gsSPNumLights(${gbi.NumLights.nameOf(v)});`;
         }
         break;
       case gbi.MoveWord.G_MW_SEGMENT:
         {
-          var v = value === 0 ? '0' : toString32(value);
+          let v = value === 0 ? '0' : toString32(value);
           text = `gsSPSegment(${(offset >>> 2) & 0xf}, ${v});`;
         }
         break;
@@ -1677,7 +1677,6 @@ function executeFillRect(cmd0, cmd1, dis) {
 function executeTexRect(cmd0, cmd1, dis) {
   // The following 2 commands contain additional info
   // TODO: check op code matches what we expect?
-  var pc = state.pc;
   var cmd2 = ram_dv.getUint32(state.pc + 4);
   var cmd3 = ram_dv.getUint32(state.pc + 12);
   state.pc += 16;
@@ -1722,7 +1721,6 @@ function executeTexRect(cmd0, cmd1, dis) {
 function executeTexRectFlip(cmd0, cmd1, dis) {
   // The following 2 commands contain additional info
   // TODO: check op code matches what we expect?
-  var pc = state.pc;
   var cmd2 = ram_dv.getUint32(state.pc + 4);
   var cmd3 = ram_dv.getUint32(state.pc + 12);
   state.pc += 16;
@@ -1775,11 +1773,6 @@ function executeSetFillColor(cmd0, cmd1, dis) {
 
 function executeSetFogColor(cmd0, cmd1, dis) {
   if (dis) {
-    var r = (cmd1 >>> 24) & 0xff;
-    var g = (cmd1 >>> 16) & 0xff;
-    var b = (cmd1 >>> 8) & 0xff;
-    var a = (cmd1 >>> 0) & 0xff;
-
     dis.text(`gsDPSetFogColor(${makeColorTextRGBA(cmd1)});`);
   }
   state.fogColor = cmd1;
@@ -1787,11 +1780,6 @@ function executeSetFogColor(cmd0, cmd1, dis) {
 
 function executeSetBlendColor(cmd0, cmd1, dis) {
   if (dis) {
-    var r = (cmd1 >>> 24) & 0xff;
-    var g = (cmd1 >>> 16) & 0xff;
-    var b = (cmd1 >>> 8) & 0xff;
-    var a = (cmd1 >>> 0) & 0xff;
-
     dis.text(`gsDPSetBlendColor(${makeColorTextRGBA(cmd1)});`);
   }
   state.blendColor = cmd1;
@@ -1801,11 +1789,6 @@ function executeSetPrimColor(cmd0, cmd1, dis) {
   if (dis) {
     var m = (cmd0 >>> 8) & 0xff;
     var l = (cmd0 >>> 0) & 0xff;
-    var r = (cmd1 >>> 24) & 0xff;
-    var g = (cmd1 >>> 16) & 0xff;
-    var b = (cmd1 >>> 8) & 0xff;
-    var a = (cmd1 >>> 0) & 0xff;
-
     dis.text(`gsDPSetPrimColor(${m}, ${l}, ${makeColorTextRGBA(cmd1)});`);
   }
   // minlevel, primlevel ignored!
@@ -1814,11 +1797,6 @@ function executeSetPrimColor(cmd0, cmd1, dis) {
 
 function executeSetEnvColor(cmd0, cmd1, dis) {
   if (dis) {
-    var r = (cmd1 >>> 24) & 0xff;
-    var g = (cmd1 >>> 16) & 0xff;
-    var b = (cmd1 >>> 8) & 0xff;
-    var a = (cmd1 >>> 0) & 0xff;
-
     dis.text(`gsDPSetEnvColor(${makeColorTextRGBA(cmd1)});`);
   }
   state.envColor = cmd1;
@@ -2816,12 +2794,14 @@ function executeGBI2_MoveWord(cmd0, cmd1, dis) {
 
     switch (type) {
       case gbi.MoveWord.G_MW_NUMLIGHT:
-        var v = Math.floor(value / 24);
-        text = `gsSPNumLights(${gbi.NumLights.nameOf(v)});`;
+        {
+          let v = Math.floor(value / 24);
+          text = `gsSPNumLights(${gbi.NumLights.nameOf(v)});`;
+        }
         break;
       case gbi.MoveWord.G_MW_SEGMENT:
         {
-          var v = value === 0 ? '0' : toString32(value);
+          let v = value === 0 ? '0' : toString32(value);
           text = `gsSPSegment(${(offset >>> 2) & 0xf}, ${v});`;
         }
         break;
@@ -2936,7 +2916,7 @@ function executeGBI2_MoveMem(cmd0, cmd1, dis) {
       break;
 
     default:
-      hleHalt(`unknown movemen: ${type.toString(16)}`);
+      hleHalt(`unknown movemem: ${type.toString(16)}`);
   }
 }
 
