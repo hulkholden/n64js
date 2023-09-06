@@ -36,6 +36,9 @@ let graphicsTaskCount = 0;
 
 const textureCache = new Map();
 
+const kDebugColorImages = true;
+let colorImages = new Map();
+
 let gl = null; // WebGL context for the canvas.
 
 let frameBuffer;
@@ -1860,6 +1863,13 @@ function executeSetCImg(cmd0, cmd1, dis) {
     width: width,
     address: address
   };
+
+  // TODO: Banjo Tooie and Pokemon Stadium render to multiple buffers in each display list.
+  // Need to set these up as separate framebuffers somehow
+  if (kDebugColorImages && !colorImages.get(address)) {
+    logger.log(`Setting colorImage to ${toString32(address)}, ${width}, size ${gbi.ImageSize.nameOf(size)}, format ${gbi.ImageFormat.nameOf(format)}`);
+    colorImages.set(address, true);
+  }
 }
 
 function executeGBI0_Vertex(cmd0, cmd1, dis) {
