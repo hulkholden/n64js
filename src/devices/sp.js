@@ -79,9 +79,27 @@ export const SPIBIST_PC_REG = 0x00;
 
 const pcWritableBits = 0xffc;
 
+const kSPDMAEvent = 'SP DMA';
+
+// Used with pushDMA to indicate the direction of the DMA.
+const kDMADirRead = 1;
+const kDMADirWrite = 2;
+
+class DMA {
+  constructor(isRead, spMemAddr, rdRamAddr, len) {
+    this.isRead = isRead;
+    this.spMemAddr = spMemAddr;
+    this.rdRamAddr = rdRamAddr;
+    this.len = len;
+  }
+}
+
 export class SPMemDevice extends Device {
   constructor(hardware, rangeStart, rangeEnd) {
     super("SPMem", hardware, hardware.sp_mem, rangeStart, rangeEnd);
+
+    this.pendingSPMemAddr = 0;
+    this.pendingDRAMAddr = 0;
   }
 
   calcEA(address) {
@@ -137,6 +155,8 @@ export class SPIBISTDevice extends Device {
 export class SPRegDevice extends Device {
   constructor(hardware, rangeStart, rangeEnd) {
     super("SPReg", hardware, hardware.sp_reg, rangeStart, rangeEnd);
+
+    this.dmaQueue = [];
   }
 
   write32(address, value) {
@@ -149,20 +169,20 @@ export class SPRegDevice extends Device {
     }
     switch (ea) {
       case SP_MEM_ADDR_REG:
-        // TODO: register is latched and shouldn't return this value immediately.
-        this.mem.set32(ea, value & memAddrWritableBits);
+        // Register is latched and written values only become readable when the double-buffered DMA starts.
+        this.pendingSPMemAddr = value & memAddrWritableBits;
         break;
       case SP_DRAM_ADDR_REG:
-        // TODO: register is latched and shouldn't return this value immediately.
-        this.mem.set32(ea, value & dramAddrWritableBits);
+        // Register is latched and written values only become readable when the double-buffered DMA starts.
+        this.pendingDRAMAddr = value & dramAddrWritableBits;
         break;
       case SP_RD_LEN_REG:
         this.mem.set32(ea, value & readLenWritableBits);
-        this.spCopyFromRDRAM();
+        this.pushDMA(kDMADirRead, value & readLenWritableBits);
         break;
       case SP_WR_LEN_REG:
         this.mem.set32(ea, value & writeLenWritableBits);
-        this.spCopyToRDRAM();
+        this.pushDMA(kDMADirWrite, value & writeLenWritableBits);
         break;
       case SP_STATUS_REG:
         this.spUpdateStatus(value);
@@ -288,10 +308,51 @@ export class SPRegDevice extends Device {
     }
   }
 
-  spCopyFromRDRAM() {
-    const spMemAddr = this.mem.getU32(SP_MEM_ADDR_REG) & 0x1fff;
-    const rdRamAddr = this.mem.getU32(SP_DRAM_ADDR_REG) & 0x00ff_ffff;
-    const lenReg = this.mem.getU32(SP_RD_LEN_REG);
+  pushDMA(dmaDir, lenReg) {
+    if (this.dmaQueue.length >= 2) {
+      n64js.warn(`RSP DMA is full`)
+      return;
+    }
+    
+    const isRead = dmaDir == kDMADirRead;
+    const dma = new DMA(isRead, this.pendingSPMemAddr, this.pendingDRAMAddr, lenReg);
+    this.dmaQueue.push(dma);
+    this.setDMAStatus();
+
+    // If there wasn't already a DMA in progress, start it.
+    if (this.dmaQueue.length == 1) {
+      this.startDMA(dma);
+    }
+  }
+
+  startDMA(dma) {
+    if (dma.isRead) {
+      this.spCopyFromRDRAM(dma.spMemAddr, dma.rdRamAddr, dma.len);
+    } else {
+      this.spCopyToRDRAM(dma.spMemAddr, dma.rdRamAddr, dma.len);
+    }
+  }
+
+  dmaComplete() {
+    this.dmaQueue.shift();
+    if (this.dmaQueue.length > 0) {
+      this.startDMA(this.dmaQueue[0]);
+    }
+    this.setDMAStatus();
+  }
+
+  setDMAStatus() {
+    const fullBit = this.dmaQueue.length >= 2 ? SP_STATUS_DMA_FULL : 0;
+    const busyBit = this.dmaQueue.length >= 1 ? SP_STATUS_DMA_BUSY : 0;
+
+    this.mem.set32(SP_DMA_FULL_REG, fullBit ? 1 : 0);
+    this.mem.set32(SP_DMA_BUSY_REG, busyBit ? 1 : 0);
+    this.mem.set32masked(SP_STATUS_REG, fullBit | busyBit, SP_STATUS_DMA_FULL | SP_STATUS_DMA_BUSY);
+  }
+
+  spCopyFromRDRAM(spMemAddrReg, rdRamAddrReg, lenReg) {
+    const spMemAddr = spMemAddrReg & 0x1fff;
+    const rdRamAddr = rdRamAddrReg & 0x00ff_ffff;
 
     const len = (((lenReg & lenRegLenMask) >>> lenRegLenShift) | 7) + 1; // Add 1 then round to next multiple of 8.
     const count = ((lenReg & lenRegCountMask) >>> lenRegCountShift) + 1;
@@ -315,6 +376,7 @@ export class SPRegDevice extends Device {
       ramOffset += skip;
     }
 
+    // Update registers at the end of the transfer (this should really be done as the transfer proceeds).
     // Update registers at the end of the transfer.
     // Address regs get set to the next memory address.
     // Len reg has count set to zero and len set to 0xff8 (-8, counting down). Skip is unchanged.
@@ -323,14 +385,13 @@ export class SPRegDevice extends Device {
     this.mem.set32masked(SP_RD_LEN_REG, 0xff8 << lenRegLenShift, lenRegCountMask | lenRegLenMask);
     this.mem.set32masked(SP_WR_LEN_REG, 0xff8 << lenRegLenShift, lenRegCountMask | lenRegLenMask);
 
-    this.mem.setBits32(SP_DMA_BUSY_REG, 0);
-    this.mem.clearBits32(SP_STATUS_REG, SP_STATUS_DMA_BUSY);
+    const cycles = this.estimateDMACyclesFromLength(count, len)
+    this.addSPDMAEvent(cycles);
   }
 
-  spCopyToRDRAM() {
-    const spMemAddr = this.mem.getU32(SP_MEM_ADDR_REG) & 0x1fff;
-    const rdRamAddr = this.mem.getU32(SP_DRAM_ADDR_REG) & 0x00ff_ffff;
-    const lenReg = this.mem.getU32(SP_WR_LEN_REG);
+  spCopyToRDRAM(spMemAddrReg, rdRamAddrReg, lenReg) {
+    const spMemAddr = spMemAddrReg & 0x1fff;
+    const rdRamAddr = rdRamAddrReg & 0x00ff_ffff;
 
     const len = (((lenReg & lenRegLenMask) >>> lenRegLenShift) | 7) + 1; // Add 1 then round to next multiple of 8.
     const count = ((lenReg & lenRegCountMask) >>> lenRegCountShift) + 1;
@@ -354,7 +415,7 @@ export class SPRegDevice extends Device {
       ramOffset += skip;
     }
 
-    // Update registers at the end of the transfer.
+    // Update registers at the end of the transfer (this should really be done as the transfer proceeds).
     // Address regs get set to the next memory address.
     // Len reg has count set to zero and len set to 0xff8 (-8, counting down). Skip is unchanged.
     this.mem.set32(SP_MEM_ADDR_REG, (bankBit | (memOffset) & 0xfff));
@@ -362,7 +423,23 @@ export class SPRegDevice extends Device {
     this.mem.set32masked(SP_RD_LEN_REG, 0xff8 << lenRegLenShift, lenRegCountMask | lenRegLenMask);
     this.mem.set32masked(SP_WR_LEN_REG, 0xff8 << lenRegLenShift, lenRegCountMask | lenRegLenMask);
 
-    this.mem.setBits32(SP_DMA_BUSY_REG, 0);
-    this.mem.clearBits32(SP_STATUS_REG, SP_STATUS_DMA_BUSY);
+    const cycles = this.estimateDMACyclesFromLength(count, len)
+    this.addSPDMAEvent(cycles);
+  }
+
+  estimateDMACyclesFromLength(count, len) {
+    const totalLen = count * len;
+    const cycles = totalLen >>> 3;
+    if (cycles) {
+      return cycles;
+    }
+    return 16;
+  }
+
+  addSPDMAEvent(cycles) {
+    const that = this;
+    n64js.cpu0.addEvent(kSPDMAEvent, cycles, () => {
+      that.dmaComplete();
+    });
   }
 }
