@@ -119,6 +119,10 @@ class RSP {
 
     const vAccMem = new ArrayBuffer(8 * 8); // Actually 48 bits, not 64. 
     this.vAcc = new BigInt64Array(vAccMem);
+    this.vAccS32 = new Int32Array(vAccMem);
+    this.vAccU32 = new Uint32Array(vAccMem);
+    this.vAccS16 = new Int16Array(vAccMem);
+    this.vAccU16 = new Uint16Array(vAccMem);
 
     this.vuVCOReg = new Uint16Array(new ArrayBuffer(2));
     this.vuVCCReg = new Uint16Array(new ArrayBuffer(2));
@@ -202,9 +206,15 @@ class RSP {
     this.setAccS48(el, v + inc);
   }
 
-  setAccLow(el, v) {
-    this.vAcc[el] = (this.vAcc[el] & ~0xffffn) | (BigInt(v) & 0xffffn);
-  }
+  setAccLow(el, v) { this.vAccS16[(el * 4) + 0] = v; }
+  getAccLow(el) { return this.vAccS16[(el * 4) + 0]; }
+
+  setAccMid(el, v) { this.vAccS16[(el * 4) + 1] = v; }
+  getAccMid(el) { return this.vAccS16[(el * 4) + 1]; }
+
+  setAccHigh(el, v) { this.vAccS16[(el * 4) + 2] = v; }
+  getAccHigh(el) { return this.vAccS16[(el * 4) + 2]; }
+
 
   setVecFromAccSignedMid(r) {
     for (let el = 0; el < 8; el++) {
@@ -232,13 +242,13 @@ class RSP {
 
   setVecFromAccMid(r) {
     for (let el = 0; el < 8; el++) {
-      this.setVecS16(r, el, Number((this.vAcc[el] >> 16n) & 0xffffn));
+      this.setVecS16(r, el, this.getAccMid(el));
     }
   }
 
   setVecFromAccLow(r) {
     for (let el = 0; el < 8; el++) {
-      this.setVecS16(r, el, Number(this.vAcc[el] & 0xffffn));
+      this.setVecS16(r, el, this.getAccLow(el));
     }
   }
 
