@@ -1,3 +1,5 @@
+/*global n64js*/
+
 import * as disassemble_rsp from "./disassemble_rsp.js";
 import { toString16, toString32, toHex } from "./format.js";
 import { rcp16, rsq16 } from "./rsp_recip.js";
@@ -491,144 +493,144 @@ const rsp = new RSP();
 n64js.rsp = rsp;
 
 const specialTable = (() => {
-  let tbl = [];
+  let specialTbl = [];
   for (let i = 0; i < 64; i++) {
-    tbl[i] = executedUnknown;
+    specialTbl[i] = executedUnknown;
   }
 
-  tbl[0] = i => executeSLL(i);
-  tbl[2] = i => executeSRL(i);
-  tbl[3] = i => executeSRA(i);
-  tbl[4] = i => executeSLLV(i);
-  tbl[6] = i => executeSRLV(i);
-  tbl[7] = i => executeSRAV(i);
-  tbl[8] = i => executeJR(i);
-  tbl[9] = i => executeJALR(i);
-  tbl[13] = i => executeBREAK(i);
-  tbl[32] = i => executeADD(i);
-  tbl[33] = i => executeADDU(i);
-  tbl[34] = i => executeSUB(i);
-  tbl[35] = i => executeSUBU(i);
-  tbl[36] = i => executeAND(i);
-  tbl[37] = i => executeOR(i);
-  tbl[38] = i => executeXOR(i);
-  tbl[39] = i => executeNOR(i);
-  tbl[42] = i => executeSLT(i);
-  tbl[43] = i => executeSLTU(i);
-  return tbl;
+  specialTbl[0] = executeSLL;
+  specialTbl[2] = executeSRL;
+  specialTbl[3] = executeSRA;
+  specialTbl[4] = executeSLLV;
+  specialTbl[6] = executeSRLV;
+  specialTbl[7] = executeSRAV;
+  specialTbl[8] = executeJR;
+  specialTbl[9] = executeJALR;
+  specialTbl[13] = executeBREAK;
+  specialTbl[32] = executeADD;
+  specialTbl[33] = executeADDU;
+  specialTbl[34] = executeSUB;
+  specialTbl[35] = executeSUBU;
+  specialTbl[36] = executeAND;
+  specialTbl[37] = executeOR;
+  specialTbl[38] = executeXOR;
+  specialTbl[39] = executeNOR;
+  specialTbl[42] = executeSLT;
+  specialTbl[43] = executeSLTU;
+  return specialTbl;
 })();
 
 const regImmTable = (() => {
-  let tbl = [];
+  let regImmTbl = [];
   for (let i = 0; i < 32; i++) {
-    tbl.push(executedUnknown);
+    regImmTbl.push(executedUnknown);
   }
 
-  tbl[0] = i => executeBLTZ(i);
-  tbl[1] = i => executeBGEZ(i);
-  tbl[16] = i => executeBLTZAL(i);
-  tbl[17] = i => executeBGEZAL(i);
-  return tbl;
+  regImmTbl[0] = executeBLTZ;
+  regImmTbl[1] = executeBGEZ;
+  regImmTbl[16] = executeBLTZAL;
+  regImmTbl[17] = executeBGEZAL;
+  return regImmTbl;
 })();
 
 const cop0Table = (() => {
-  let tbl = [];
+  let cop0Tbl = [];
   for (let i = 0; i < 32; i++) {
-    tbl.push(executedUnknown);
+    cop0Tbl.push(executedUnknown);
   }
-  tbl[0] = i => executeMFC0(i);
-  tbl[4] = i => executeMTC0(i);
-  return tbl;
+  cop0Tbl[0] = executeMFC0;
+  cop0Tbl[4] = executeMTC0;
+  return cop0Tbl;
 })();
 
 const cop2Table = (() => {
-  let tbl = [];
+  let cop2Tbl = [];
   for (let i = 0; i < 32; i++) {
-    tbl.push(executedUnknown);
+    cop2Tbl.push(executedUnknown);
   }
-  tbl[0] = i => executeMFC2(i);
-  tbl[2] = i => executeCFC2(i);
-  tbl[4] = i => executeMTC2(i);
-  tbl[6] = i => executeCTC2(i);
+  cop2Tbl[0] = executeMFC2;
+  cop2Tbl[2] = executeCFC2;
+  cop2Tbl[4] = executeMTC2;
+  cop2Tbl[6] = executeCTC2;
 
   for (let i = 16; i < 32; i++) {
-    tbl[i] = executeVector;
+    cop2Tbl[i] = executeVector;
   }
-  return tbl;
+  return cop2Tbl;
 })();
 
 const vectorTable = (() => {
-  let tbl = [];
+  let vectorTbl = [];
   for (let i = 0; i < 64; i++) {
-    tbl.push(executedUnknown);
+    vectorTbl.push(executedUnknown);
   }
 
   // TODO: flesh these out.
-  tbl[0] = i => executeVMULF(i);
-  tbl[1] = i => executeVMULU(i);
-  tbl[2] = i => executeVRNDP(i);
-  tbl[3] = i => executeVMULQ(i);
-  tbl[4] = i => executeVMUDL(i);
-  tbl[5] = i => executeVMUDM(i);
-  tbl[6] = i => executeVMUDN(i);
-  tbl[7] = i => executeVMUDH(i);
-  tbl[8] = i => executeVMACF(i);
-  tbl[9] = i => executeVMACU(i);
-  tbl[10] = i => executeVRNDN(i);
-  tbl[11] = i => executeVMACQ(i);
-  tbl[12] = i => executeVMADL(i);
-  tbl[13] = i => executeVMADM(i);
-  tbl[14] = i => executeVMADN(i);
-  tbl[15] = i => executeVMADH(i);
-  tbl[16] = i => executeVADD(i);
-  tbl[17] = i => executeVSUB(i);
-  tbl[18] = i => executeVSUT(i);
-  tbl[19] = i => executeVABS(i);
-  tbl[20] = i => executeVADDC(i);
-  tbl[21] = i => executeVSUBC(i);
-  tbl[22] = i => executeVADDB(i);
-  tbl[23] = i => executeVSUBB(i);
-  tbl[24] = i => executeVACCB(i);
-  tbl[25] = i => executeVSUCB(i);
-  tbl[26] = i => executeVSAD(i);
-  tbl[27] = i => executeVSAC(i);
-  tbl[28] = i => executeVSUM(i);
-  tbl[29] = i => executeVSAR(i);
-  tbl[30] = i => executeV30(i);
-  tbl[31] = i => executeV31(i);
-  tbl[32] = i => executeVLT(i);
-  tbl[33] = i => executeVEQ(i);
-  tbl[34] = i => executeVNE(i);
-  tbl[35] = i => executeVGE(i);
-  tbl[36] = i => executeVCL(i);
-  tbl[37] = i => executeVCH(i);
-  tbl[38] = i => executeVCR(i);
-  tbl[39] = i => executeVMRG(i);
-  tbl[40] = i => executeVAND(i);
-  tbl[41] = i => executeVNAND(i);
-  tbl[42] = i => executeVOR(i);
-  tbl[43] = i => executeVNOR(i);
-  tbl[44] = i => executeVXOR(i);
-  tbl[45] = i => executeVNXOR(i);
-  tbl[46] = i => executeV46(i);
-  tbl[47] = i => executeV47(i);
-  tbl[48] = i => executeVRCP(i);
-  tbl[49] = i => executeVRCPL(i);
-  tbl[50] = i => executeVRCPH(i);
-  tbl[51] = i => executeVMOV(i);
-  tbl[52] = i => executeVRSQ(i);
-  tbl[53] = i => executeVRSQL(i);
-  tbl[54] = i => executeVRSQH(i);
-  tbl[55] = i => executeVNOP(i);
-  tbl[56] = i => executeVEXTT(i);
-  tbl[57] = i => executeVEXTQ(i);
-  tbl[58] = i => executeVEXTN(i);
-  tbl[59] = i => executeV59(i);
-  tbl[60] = i => executeVINST(i);
-  tbl[61] = i => executeVINSQ(i);
-  tbl[62] = i => executeVINSN(i);
-  tbl[63] = i => executeVNULL(i);
-  return tbl;
+  vectorTbl[0] = executeVMULF;
+  vectorTbl[1] = executeVMULU;
+  vectorTbl[2] = executeVRNDP;
+  vectorTbl[3] = executeVMULQ;
+  vectorTbl[4] = executeVMUDL;
+  vectorTbl[5] = executeVMUDM;
+  vectorTbl[6] = executeVMUDN;
+  vectorTbl[7] = executeVMUDH;
+  vectorTbl[8] = executeVMACF;
+  vectorTbl[9] = executeVMACU;
+  vectorTbl[10] = executeVRNDN;
+  vectorTbl[11] = executeVMACQ;
+  vectorTbl[12] = executeVMADL;
+  vectorTbl[13] = executeVMADM;
+  vectorTbl[14] = executeVMADN;
+  vectorTbl[15] = executeVMADH;
+  vectorTbl[16] = executeVADD;
+  vectorTbl[17] = executeVSUB;
+  vectorTbl[18] = executeVSUT;
+  vectorTbl[19] = executeVABS;
+  vectorTbl[20] = executeVADDC;
+  vectorTbl[21] = executeVSUBC;
+  vectorTbl[22] = executeVADDB;
+  vectorTbl[23] = executeVSUBB;
+  vectorTbl[24] = executeVACCB;
+  vectorTbl[25] = executeVSUCB;
+  vectorTbl[26] = executeVSAD;
+  vectorTbl[27] = executeVSAC;
+  vectorTbl[28] = executeVSUM;
+  vectorTbl[29] = executeVSAR;
+  vectorTbl[30] = executeV30;
+  vectorTbl[31] = executeV31;
+  vectorTbl[32] = executeVLT;
+  vectorTbl[33] = executeVEQ;
+  vectorTbl[34] = executeVNE;
+  vectorTbl[35] = executeVGE;
+  vectorTbl[36] = executeVCL;
+  vectorTbl[37] = executeVCH;
+  vectorTbl[38] = executeVCR;
+  vectorTbl[39] = executeVMRG;
+  vectorTbl[40] = executeVAND;
+  vectorTbl[41] = executeVNAND;
+  vectorTbl[42] = executeVOR;
+  vectorTbl[43] = executeVNOR;
+  vectorTbl[44] = executeVXOR;
+  vectorTbl[45] = executeVNXOR;
+  vectorTbl[46] = executeV46;
+  vectorTbl[47] = executeV47;
+  vectorTbl[48] = executeVRCP;
+  vectorTbl[49] = executeVRCPL;
+  vectorTbl[50] = executeVRCPH;
+  vectorTbl[51] = executeVMOV;
+  vectorTbl[52] = executeVRSQ;
+  vectorTbl[53] = executeVRSQL;
+  vectorTbl[54] = executeVRSQH;
+  vectorTbl[55] = executeVNOP;
+  vectorTbl[56] = executeVEXTT;
+  vectorTbl[57] = executeVEXTQ;
+  vectorTbl[58] = executeVEXTN;
+  vectorTbl[59] = executeV59;
+  vectorTbl[60] = executeVINST;
+  vectorTbl[61] = executeVINSQ;
+  vectorTbl[62] = executeVINSN;
+  vectorTbl[63] = executeVNULL;
+  return vectorTbl;
 })();
 
 function executeVector(i) {
@@ -636,85 +638,85 @@ function executeVector(i) {
 }
 
 const lc2Table = (() => {
-  let tbl = [];
+  let lc2Tbl = [];
   for (let i = 0; i < 32; i++) {
-    tbl.push(executedUnknown);
+    lc2Tbl.push(executedUnknown);
   }
 
-  tbl[0] = i => executeLBV(i);
-  tbl[1] = i => executeLSV(i);
-  tbl[2] = i => executeLLV(i);
-  tbl[3] = i => executeLDV(i);
-  tbl[4] = i => executeLQV(i);
-  tbl[5] = i => executeLRV(i);
-  tbl[6] = i => executeLPV(i);
-  tbl[7] = i => executeLUV(i);
-  tbl[8] = i => executeLHV(i);
-  tbl[9] = i => executeLFV(i);
-  tbl[10] = i => executeLWV(i);
-  tbl[11] = i => executeLTV(i);
+  lc2Tbl[0] = executeLBV;
+  lc2Tbl[1] = executeLSV;
+  lc2Tbl[2] = executeLLV;
+  lc2Tbl[3] = executeLDV;
+  lc2Tbl[4] = executeLQV;
+  lc2Tbl[5] = executeLRV;
+  lc2Tbl[6] = executeLPV;
+  lc2Tbl[7] = executeLUV;
+  lc2Tbl[8] = executeLHV;
+  lc2Tbl[9] = executeLFV;
+  lc2Tbl[10] = executeLWV;
+  lc2Tbl[11] = executeLTV;
 
-  return tbl;
+  return lc2Tbl;
 })();
 
 const sc2Table = (() => {
-  let tbl = [];
+  let sc2Tbl = [];
   for (let i = 0; i < 32; i++) {
-    tbl.push(executedUnknown);
+    sc2Tbl.push(executedUnknown);
   }
 
-  tbl[0] = i => executeSBV(i);
-  tbl[1] = i => executeSSV(i);
-  tbl[2] = i => executeSLV(i);
-  tbl[3] = i => executeSDV(i);
-  tbl[4] = i => executeSQV(i);
-  tbl[5] = i => executeSRV(i);
-  tbl[6] = i => executeSPV(i);
-  tbl[7] = i => executeSUV(i);
-  tbl[8] = i => executeSHV(i);
-  tbl[9] = i => executeSFV(i);
-  tbl[10] = i => executeSWV(i);
-  tbl[11] = i => executeSTV(i);
+  sc2Tbl[0] = executeSBV;
+  sc2Tbl[1] = executeSSV;
+  sc2Tbl[2] = executeSLV;
+  sc2Tbl[3] = executeSDV;
+  sc2Tbl[4] = executeSQV;
+  sc2Tbl[5] = executeSRV;
+  sc2Tbl[6] = executeSPV;
+  sc2Tbl[7] = executeSUV;
+  sc2Tbl[8] = executeSHV;
+  sc2Tbl[9] = executeSFV;
+  sc2Tbl[10] = executeSWV;
+  sc2Tbl[11] = executeSTV;
 
-  return tbl;
+  return sc2Tbl;
 })();
 
 const simpleTable = (() => {
-  let tbl = [];
+  let simpleTbl = [];
   for (let i = 0; i < 64; i++) {
-    tbl.push(executedUnknown);
+    simpleTbl.push(executedUnknown);
   }
 
-  tbl[0] = i => specialTable[funct(i)](i);
-  tbl[1] = i => regImmTable[rt(i)](i);
-  tbl[2] = i => executeJ(i);
-  tbl[3] = i => executeJAL(i);
-  tbl[4] = i => executeBEQ(i);
-  tbl[5] = i => executeBNE(i);
-  tbl[6] = i => executeBLEZ(i);
-  tbl[7] = i => executeBGTZ(i);
-  tbl[8] = i => executeADDI(i);
-  tbl[9] = i => executeADDIU(i);
-  tbl[10] = i => executeSLTI(i);
-  tbl[11] = i => executeSLTIU(i);
-  tbl[12] = i => executeANDI(i);
-  tbl[13] = i => executeORI(i);
-  tbl[14] = i => executeXORI(i);
-  tbl[15] = i => executeLUI(i);
-  tbl[16] = i => cop0Table[rs(i)](i);
-  tbl[18] = i => cop2Table[rs(i)](i);
-  tbl[32] = i => executeLB(i);
-  tbl[33] = i => executeLH(i);
-  tbl[35] = i => executeLW(i);
-  tbl[36] = i => executeLBU(i);
-  tbl[37] = i => executeLHU(i);
-  tbl[39] = i => executeLWU(i);
-  tbl[40] = i => executeSB(i);
-  tbl[41] = i => executeSH(i);
-  tbl[43] = i => executeSW(i);
-  tbl[50] = i => lc2Table[rd(i)](i);
-  tbl[58] = i => sc2Table[rd(i)](i);
-  return tbl;
+  simpleTbl[0] = i => specialTable[funct(i)](i);
+  simpleTbl[1] = i => regImmTable[rt(i)](i);
+  simpleTbl[2] = executeJ;
+  simpleTbl[3] = executeJAL;
+  simpleTbl[4] = executeBEQ;
+  simpleTbl[5] = executeBNE;
+  simpleTbl[6] = executeBLEZ;
+  simpleTbl[7] = executeBGTZ;
+  simpleTbl[8] = executeADDI;
+  simpleTbl[9] = executeADDIU;
+  simpleTbl[10] = executeSLTI;
+  simpleTbl[11] = executeSLTIU;
+  simpleTbl[12] = executeANDI;
+  simpleTbl[13] = executeORI;
+  simpleTbl[14] = executeXORI;
+  simpleTbl[15] = executeLUI;
+  simpleTbl[16] = i => cop0Table[rs(i)](i);
+  simpleTbl[18] = i => cop2Table[rs(i)](i);
+  simpleTbl[32] = executeLB;
+  simpleTbl[33] = executeLH;
+  simpleTbl[35] = executeLW;
+  simpleTbl[36] = executeLBU;
+  simpleTbl[37] = executeLHU;
+  simpleTbl[39] = executeLWU;
+  simpleTbl[40] = executeSB;
+  simpleTbl[41] = executeSH;
+  simpleTbl[43] = executeSW;
+  simpleTbl[50] = i => lc2Table[rd(i)](i);
+  simpleTbl[58] = i => sc2Table[rd(i)](i);
+  return simpleTbl;
 })();
 
 
