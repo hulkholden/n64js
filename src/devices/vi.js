@@ -148,8 +148,8 @@ export class VIRegDevice extends Device {
   }
 
   getVblCount() {
-    const event = n64js.cpu0.getEvent(kVIInterrupt);
-    return event ? event.countdown : 0;
+    const cycles = n64js.cpu0.getCyclesUntilEvent(kVIInterrupt);
+    return cycles >= 0 ? cycles : 0;
   }
 
   write32(address, value) {

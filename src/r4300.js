@@ -945,18 +945,18 @@ class CPU0 {
     assert(!this.hasEvent(type), `Already has event of type ${type}`);
     assert(countdown > 0, `Countdown must be positive`);
 
-    const newEvent = new SystemEvent(type, countdown, handler);
-
+    // Insert the event into the list. 
+    // Update the countdown to reflect the number of cycles relative to the previous event.
     for (let i = 0; i < this.events.length; ++i) {
       const event = this.events[i];
       if (countdown <= event.countdown) {
         event.countdown -= countdown;
-        this.events.splice(i, 0, newEvent);
+        this.events.splice(i, 0, new SystemEvent(type, countdown, handler));
         return;
       }
       countdown -= event.countdown;
     }
-    this.events.push(newEvent);
+    this.events.push(new SystemEvent(type, countdown, handler));
   }
 
   removeEventsOfType(type) {
@@ -986,6 +986,22 @@ class CPU0 {
       }
     }
     return null;
+  }
+
+  /**
+   * Returns the number of cycles to the provided event, or <0 if not found.
+   * @param {string} type 
+   * @returns {number}
+   */
+  getCyclesUntilEvent(type) {
+    let countdown = 0;
+    for (let event of this.events) {
+      countdown += event.countdown;
+      if (event.type == type) {
+        return countdown;
+      }
+    }
+    return -1;
   }
 
   hasEvent(type) {
