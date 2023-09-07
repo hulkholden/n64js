@@ -1,3 +1,5 @@
+/*global n64js*/
+
 import { Device } from './device.js';
 import * as mi from './mi.js';
 import * as logger from '../logger.js';
@@ -310,7 +312,7 @@ export class SPRegDevice extends Device {
 
   pushDMA(dmaDir, lenReg) {
     if (this.dmaQueue.length >= 2) {
-      n64js.warn(`RSP DMA is full`)
+      n64js.warn(`RSP DMA FIFO is full`);
       return;
     }
     
