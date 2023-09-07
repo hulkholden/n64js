@@ -718,32 +718,33 @@ class CPU0 {
 
   speedHack() {
     const nextInstruction = n64js.hardware().memMap.readMemoryInternal32(this.pc + 4);
-    if (nextInstruction === 0) {
-      if (this.events.length > 0) {
-        // Ignore the kEventRunForCycles event
-        let runCountdown = 0;
-        if (this.events[0].type === kEventRunForCycles && this.events.length > 1) {
-          runCountdown += this.events[0].countdown;
-          this.events.splice(0, 1);
-        }
+    if (nextInstruction !== 0) {
+      return;
+    }
 
-        const toSkip = runCountdown + this.events[0].countdown - 1;
+    // We should always have at least one event, but double-check this.
+    if (this.events.length <= 0) {
+      return;
+    }
 
-        // logger.log('speedhack: skipping ' + toSkip + ' cycles');
+    // Ignore the kEventRunForCycles event
+    let runCountdown = 0;
+    if (this.events[0].type === kEventRunForCycles && this.events.length > 1) {
+      runCountdown += this.events[0].countdown;
+      this.events.splice(0, 1);
+    }
 
-        const curCount = this.getControlU32(cpu0_constants.controlCount);
-        this.setControlU32(cpu0_constants.controlCount, curCount + toSkip);
-        this.events[0].countdown = 1;
+    const toSkip = runCountdown + this.events[0].countdown - 1;
 
-        // Re-add the kEventRunForCycles event
-        if (runCountdown) {
-          this.addRunForCyclesEvent(runCountdown);
-        }
-      } else {
-        logger.log('no events');
-      }
-    } else {
-      // logger.log('next instruction does something');
+    // logger.log(`speedhack: skipping ${toSkip} cycles`);
+
+    const curCount = this.getControlU32(cpu0_constants.controlCount);
+    this.setControlU32(cpu0_constants.controlCount, curCount + toSkip);
+    this.events[0].countdown = 1;
+
+    // Re-add the kEventRunForCycles event
+    if (runCountdown) {
+      this.addRunForCyclesEvent(runCountdown);
     }
   }
 
