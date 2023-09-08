@@ -199,7 +199,7 @@ export class SPRegDevice extends Device {
         break;
 
       default:
-        logger.log(`Unhandled write to SPReg: ${toString32(value)} -> [${toString32(address)}]`);
+        logger.log(`Unhandled write to SPReg: ${toString32(value)} -> [${toString32(ea)}]`);
         this.mem.set32(ea, value);
     }
   }
