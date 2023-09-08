@@ -1,4 +1,5 @@
 /*jshint jquery:true */
+/*global $, n64js*/
 
 import * as cpu0_constants from './cpu0_constants.js';
 import { disassembleRange, cop0gprNames, cop1RegisterNames } from './disassemble.js';
@@ -371,7 +372,7 @@ export class Debugger {
     this.rspState = new RSPDebugState();
 
     /** @type {number} The number of cycles executed the last time the display was updated. */
-    this.lastCycles;
+    this.lastOpExecuted;
 
     /** @type {!Array<!Object>} A list of recent memory accesses. */
     this.recentMemoryAccesses = [];
@@ -617,9 +618,9 @@ export class Debugger {
     this.cpu0State.setPC(cpu0.pc);
 
     // Figure out if we've just stepped by a single instruction. Ergh.
-    let cpuCount = cpu0.getCount();
-    let isSingleStep = this.lastCycles === (cpuCount - 1);
-    this.lastCycles = cpuCount;
+    let opsExecuted = cpu0.getOpsExecuted();
+    let isSingleStep = this.lastOpExecuted === (opsExecuted - 1);
+    this.lastOpExecuted = opsExecuted;
 
     let fragmentMap = getFragmentMap();
     let disassembly = this.cpu0State.disassembleRange();
@@ -712,9 +713,9 @@ export class Debugger {
     this.rspState.setPC(rsp.pc);
 
     // Figure out if we've just stepped by a single instruction. Ergh.
-    // let cpuCount = rsp.getCount();
-    // let isSingleStep = this.lastCycles === (cpuCount - 1);
-    // this.lastCycles = cpuCount;
+    // let opsExecuted = rsp.getOpsExecuted();
+    // let isSingleStep = this.lastOpExecuted === (opsExecuted - 1);
+    // this.lastOpExecuted = opsExecuted;
     const isSingleStep = true;
 
     // let fragmentMap = getFragmentMap();
@@ -1020,7 +1021,7 @@ export class Debugger {
     if (this.$dynarecContent.hasClass('active')) {
       this.updateDynarec();
     }
-  };
+  }
 }
 
 n64js.toggleDebugger = () => {
