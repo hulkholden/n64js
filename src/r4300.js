@@ -437,7 +437,7 @@ class CPU0 {
     this.branchTarget = pc;
   }
 
-  getCount() {
+  getOpsExecuted() {
     return this.getControlU32(cpu0_constants.controlCount);
   }
 
