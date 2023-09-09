@@ -3804,20 +3804,15 @@ function checkSyncState(sync, pc) {
   if (!sync.sync32(pc, 'pc'))
     return false;
 
-  // let next_vbl = 0;
-  // for (let i = 0; i < cpu0.events.length; ++i) {
-  //   const event = cpu0.events[i];
-  //   next_vbl += event.countdown;
-  //   if (event.type === kEventVbl) {
-  //     next_vbl = next_vbl*2+1;
-  //     break;
-  //   } else if (event.type == kEventCompare) {
-  //     next_vbl = next_vbl*2;
+  // let nextEvent = 0;
+  // for (let event of this.events) {
+  //   nextEvent += event.countdown;
+  //   if (event.type === kEventVbl || event.type == kEventCompare) {
   //     break;
   //   }
   // }
 
-  // if (!sync.sync32(next_vbl, 'event'))
+  // if (!sync.sync32(nextEvent, 'event'))
   //   return false;
 
   if (1) {
