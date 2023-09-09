@@ -9,11 +9,25 @@ export class EventQueue {
     this.events = [];
   }
 
+  nextEventCountdown() {
+    const evt = this.events[0];
+    return evt.countdown;
+  }
+
   incrementCount(count) {
+    // TODO: store the countdown as a separate value so we don't need to defererence events.
     const evt = this.events[0];
     evt.countdown -= count;
     if (evt.countdown <= 0) {
       this.onEventCountdownReached();
+    }
+  }
+
+  onEventCountdownReached() {
+    while (this.events.length > 0 && this.events[0].countdown <= 0) {
+      const evt = this.events[0];
+      this.events.splice(0, 1);
+      evt.handler();
     }
   }
 
@@ -88,14 +102,6 @@ export class EventQueue {
 
   hasEvent(type) {
     return Boolean(this.getEvent(type));
-  }
-
-  onEventCountdownReached() {
-    while (this.events.length > 0 && this.events[0].countdown <= 0) {
-      const evt = this.events[0];
-      this.events.splice(0, 1);
-      evt.handler();
-    }
   }
 }
 
