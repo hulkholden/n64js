@@ -18,6 +18,10 @@ window.n64js = window.n64js || {};
 const $textureOutput = $('#texture-content');
 const $dlistContent = $('#dlist-content');
 
+// Whether to skip audio task emulator or run it on the RSP.
+// Set this to false to enable audio in most games.
+export let skipAudioTaskEmulation = false;
+
 // Initialised in initDebugUI.
 let $dlistOutput;
 let $dlistState;
@@ -529,7 +533,7 @@ export function hleProcessRSPTask() {
       break;
     case M_AUDTASK:
       // Ignore for now (pretend we handled it to avoid running RSP).
-      handled = true;
+      handled = skipAudioTaskEmulation;
       break;
     case M_VIDTASK:
       // Run on the RSP.
