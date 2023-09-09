@@ -3809,13 +3809,11 @@ function mix(a, b, c) {
 }
 
 function checkSyncState(sync, pc) {
-  let i;
-
   if (!sync.sync32(pc, 'pc'))
     return false;
 
   // let next_vbl = 0;
-  // for (i = 0; i < cpu0.events.length; ++i) {
+  // for (let i = 0; i < cpu0.events.length; ++i) {
   //   const event = cpu0.events[i];
   //   next_vbl += event.countdown;
   //   if (event.type === kEventVbl) {
@@ -3832,7 +3830,7 @@ function checkSyncState(sync, pc) {
 
   if (1) {
     let a = 0;
-    for (i = 0; i < 32; ++i) {
+    for (let i = 0; i < 32; ++i) {
       a = mix(a, cpu0.getRegU32Lo(i), 0);
     }
     a = a >>> 0;
