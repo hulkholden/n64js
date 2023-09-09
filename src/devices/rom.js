@@ -231,7 +231,7 @@ export class ROMD2A2Device extends Device {
     readS32(address) {
         const ea = this.calcWriteEA(address);
         if (ea >= 0x88000) {
-            return unmappedAddressValue(value);
+            return unmappedAddressValue(address);
         }
         if (this.hasFlashRam()) {
             const wrapped = ea & 4; // Load from either low or high word.
