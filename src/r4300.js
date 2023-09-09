@@ -725,6 +725,46 @@ class CPU0 {
     this.stuffToDo |= kStuffToDoHalt;
   }
 
+  run(cycles) {
+    cpu0.stuffToDo &= ~kStuffToDoHalt;
+  
+    checkCauseIP3Consistent();
+    n64js.checkSIStatusConsistent();
+  
+    this.addRunForCyclesEvent(cycles);
+  
+    while (this.hasEvent(kEventRunForCycles)) {
+      try {
+        // NB: the bulk of run() is implemented as a separate function.
+        // v8 won't optimise code with try/catch blocks, so structuring the code in this way allows runImpl to be optimised.
+        this.runImpl();
+        break;
+      } catch (e) {
+        if (e instanceof EmulatedException) {
+          // If we hit an emulated exception we apply the nextPC (which should have been set to an exception vector) and continue looping.
+          this.handleEmulatedException();
+        } else if (e instanceof BreakpointException) {
+          n64js.stopForBreakpoint();
+        } else {
+          // Other exceptions are bad news, so display an error and bail out.
+          n64js.halt('Exception :' + e);
+          break;
+        }
+      }
+    }
+  
+    // Clean up any kEventRunForCycles events before we bail out
+    let cycles_remaining = this.removeEventsOfType(kEventRunForCycles);
+  
+    // If the event no longer exists, assume we've executed all the cycles
+    if (cycles_remaining < 0) {
+      cycles_remaining = 0;
+    }
+    if (cycles_remaining < cycles) {
+      this.opsExecuted += cycles - cycles_remaining;
+    }
+  }
+
   runImpl() {
     const rsp = n64js.rsp;
     const events = this.events;
@@ -912,7 +952,7 @@ class CPU0 {
   }
 
   checkCopXUsable(copIdx) {
-    // TODO: this probably needs to throw a JS exception which is caught in n64js.run
+    // TODO: this probably needs to throw a JS exception which is caught in `run`.
     // to ensure bookkeeping (like updating the delayPC) isn't run.
     const bit = 1 << (SR_CUSHIFT + copIdx);
     const usable = (this.getControlU32(cpu0_constants.controlStatus) & bit) != 0;
@@ -3962,50 +4002,10 @@ n64js.singleStep = function () {
     n64js.toggleBreakpoint(restore_breakpoint_address);
   }
 
-  n64js.run(1);
+  cpu0.run(1);
 
   if (restore_breakpoint_address) {
     n64js.toggleBreakpoint(restore_breakpoint_address);
-  }
-};
-
-n64js.run = function (cycles) {
-  cpu0.stuffToDo &= ~kStuffToDoHalt;
-
-  checkCauseIP3Consistent();
-  n64js.checkSIStatusConsistent();
-
-  cpu0.addRunForCyclesEvent(cycles);
-
-  while (cpu0.hasEvent(kEventRunForCycles)) {
-    try {
-      // NB: the bulk of run() is implemented as a separate function.
-      // v8 won't optimise code with try/catch blocks, so structuring the code in this way allows runImpl to be optimised.
-      cpu0.runImpl();
-      break;
-    } catch (e) {
-      if (e instanceof EmulatedException) {
-        // If we hit an emulated exception we apply the nextPC (which should have been set to an exception vector) and continue looping.
-        cpu0.handleEmulatedException();
-      } else if (e instanceof BreakpointException) {
-        n64js.stopForBreakpoint();
-      } else {
-        // Other exceptions are bad news, so display an error and bail out.
-        n64js.halt('Exception :' + e);
-        break;
-      }
-    }
-  }
-
-  // Clean up any kEventRunForCycles events before we bail out
-  let cycles_remaining = cpu0.removeEventsOfType(kEventRunForCycles);
-
-  // If the event no longer exists, assume we've executed all the cycles
-  if (cycles_remaining < 0) {
-    cycles_remaining = 0;
-  }
-  if (cycles_remaining < cycles) {
-    cpu0.opsExecuted += cycles - cycles_remaining;
   }
 };
 
