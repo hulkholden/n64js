@@ -364,6 +364,10 @@ class CPU0 {
     this.controlRegS32 = new Int32Array(controlMem);
     this.controlRegU64 = new BigUint64Array(controlMem);
     this.controlRegS64 = new BigInt64Array(controlMem);
+    // This tracks the number of instructions executed.
+    // Reads from the COUNT register return half this value
+    // (i.e. COUNT increments by 1 for every 2 instructions executed).
+    this.controlCountValue = 0;
 
     // Reads from invalid control registers will use the value last written to any control register.
     this.lastControlRegWrite = 0n;
@@ -438,12 +442,12 @@ class CPU0 {
   }
 
   getOpsExecuted() {
-    return this.getControlU32(cpu0_constants.controlCount);
+    // Return the raw value (COUNT increments every 2 ops).
+    return this.controlCountValue;
   }
 
   incrementCount(val) {
-    const curCount = this.getControlS32(cpu0_constants.controlCount);
-    this.setControlS32(cpu0_constants.controlCount, curCount + val);
+    this.controlCountValue += val;
   }
 
   getRegS32Lo(r) { return this.gprS32[r * 2 + 0]; }
@@ -638,7 +642,7 @@ class CPU0 {
         this.statusRegisterChanged();
         break;
       case cpu0_constants.controlCount:
-        this.setControlU64(controlReg, newValue);
+        this.controlCountValue = Number(newValue) * 2;
         break;
       case cpu0_constants.controlCompare:
         this.setCompare(Number(newValue & 0xffff_ffffn));
@@ -707,6 +711,9 @@ class CPU0 {
       case cpu0_constants.controlInvalid31:
         // Reads from invalid control registers will use the value last written to any control register.
         return this.lastControlRegWrite;
+      case cpu0_constants.controlCount:
+        // COUNT increments by 1 for every 2 ops executed.
+        return BigInt(this.controlCountValue) >> 1n;
       default:
         return this.getControlU64(controlReg);
     }
@@ -738,8 +745,7 @@ class CPU0 {
 
     // logger.log(`speedhack: skipping ${toSkip} cycles`);
 
-    const curCount = this.getControlU32(cpu0_constants.controlCount);
-    this.setControlU32(cpu0_constants.controlCount, curCount + toSkip);
+    this.controlCountValue += toSkip;
     this.events[0].countdown = 1;
 
     // Re-add the kEventRunForCycles event
@@ -919,7 +925,8 @@ class CPU0 {
       // Just clear the IP8 flag if the same value is being written back
       // (don't update the events).
     } else {
-      const count = this.getControlU32(cpu0_constants.controlCount);
+      // NB: divide by two rather than shifting to preserve bit 32 (discarded with a shift).
+      const count = (this.controlCountValue / 2) >> 0;
       const delta = (value - count) >>> 0;
       this.removeEventsOfType(kEventCompare);
       this.addCompareEvent(delta);
@@ -3840,7 +3847,7 @@ function checkSyncState(sync, pc) {
   // }
 
   // if(0) {
-  //   if (!sync.sync32(cpu0.getControlU32(cpu0_constants.controlCount), 'count'))
+  //   if (!sync.sync32(cpu0.controlCountValue, 'count'))
   //     return false;
   //   if (!sync.sync32(cpu0.getControlU32(cpu0_constants.controlCompare), 'compare'))
   //     return false;

@@ -50,10 +50,13 @@ class R4300DebugState extends CPUDebugState {
     let $body = $table.find('tbody');
 
     $body.append(`<tr><td>Ops</td><td class="fixed">${cpu0.opsExecuted}</td></tr>`);
-    $body.append(`<tr><td>PC</td><td class="fixed">${toString32(cpu0.pc)}</td><td>delayPC</td><td class="fixed">${toString32(cpu0.delayPC)}</td></tr>`);
+    $body.append(`<tr><td>PC</td><td class="fixed">${toString32(cpu0.pc)}</td><td>delayPC</td>
+                                 <td class="fixed">${toString32(cpu0.delayPC)}</td></tr>`);
     $body.append(`<tr><td>EPC</td><td class="fixed">${toString32(cpu0.getControlU32(cpu0_constants.controlEPC))}</td></tr>`);
-    $body.append(`<tr><td>MultHi</td><td class="fixed">${toString64(cpu0.getMultHiU64())}</td><td>Cause</td><td class="fixed">${toString32(cpu0.getControlU32(cpu0_constants.controlCause))}</td></tr>`);
-    $body.append(`<tr><td>MultLo</td><td class="fixed">${toString64(cpu0.getMultLoU64())}</td><td>Count</td><td class="fixed">${toString32(cpu0.getControlU32(cpu0_constants.controlCount))}</td></tr>`);
+    $body.append(`<tr><td>MultHi</td><td class="fixed">${toString64(cpu0.getMultHiU64())}</td>
+                      <td>Cause</td><td class="fixed">${toString32(Number(cpu0.moveFromControl(cpu0_constants.controlCause) & 0xffff_ffffn))}</td></tr>`);
+    $body.append(`<tr><td>MultLo</td><td class="fixed">${toString64(cpu0.getMultLoU64())}</td>
+                      <td>Count</td><td class="fixed">${toString32(Number(cpu0.moveFromControl(cpu0_constants.controlCount) & 0xffff_ffffn))}</td></tr>`);
     $body.append(`<tr><td></td><td class="fixed"></td><td>Compare</td><td class="fixed">${toString32(cpu0.getControlU32(cpu0_constants.controlCompare))}</td></tr>`);
 
     $body.append(`<tr><td>&nbsp;</td></tr>`);
@@ -372,7 +375,7 @@ export class Debugger {
     this.rspState = new RSPDebugState();
 
     /** @type {number} The number of cycles executed the last time the display was updated. */
-    this.lastOpExecuted;
+    this.lastOpExecuted = 0;
 
     /** @type {!Array<!Object>} A list of recent memory accesses. */
     this.recentMemoryAccesses = [];
