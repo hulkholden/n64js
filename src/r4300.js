@@ -3852,11 +3852,11 @@ function handleEmulatedException() {
   const evt = cpu0.events[0];
   evt.countdown -= COUNTER_INCREMENT_PER_OP;
   if (evt.countdown <= 0) {
-    handleCounter();
+    onEventCountdownReached();
   }
 }
 
-function handleCounter() {
+function onEventCountdownReached() {
   while (cpu0.events.length > 0 && cpu0.events[0].countdown <= 0) {
     const evt = cpu0.events[0];
     cpu0.events.splice(0, 1);
@@ -3980,7 +3980,7 @@ function runImpl() {
         let evt = events[0];
         evt.countdown -= COUNTER_INCREMENT_PER_OP;
         if (evt.countdown <= 0) {
-          handleCounter();
+          onEventCountdownReached();
         }
 
         // If we have a fragment, we're assembling code as we go
@@ -4083,7 +4083,7 @@ function executeFragment(fragment, cpu0, rsp, events) {
 
   //assert(fragment.bailedOut || evt.countdown >= 0, "Executed too many ops. Possibly didn't bail out of trace when new event was set up?");
   if (evt.countdown <= 0) {
-    handleCounter();
+    onEventCountdownReached();
   }
 
   return fragment.getNextFragment(cpu0.pc, opsExecuted);
