@@ -725,6 +725,97 @@ class CPU0 {
     this.stuffToDo |= kStuffToDoHalt;
   }
 
+  runImpl() {
+    const rsp = n64js.rsp;
+    const events = this.events;
+    const ramDV = this.ramDV;
+
+    while (this.hasEvent(kEventRunForCycles)) {
+      let fragment = lookupFragment(this.pc);
+
+      while (!this.stuffToDo) {
+
+        if (fragment && fragment.func) {
+          fragment = executeFragment(fragment, this, rsp, events);
+        } else {
+          // if (syncFlow) {
+          //   if (!checkSyncState(syncFlow, this.pc)) {
+          //     n64js.halt('sync error');
+          //     break;
+          //   }
+          // }
+
+          // TODO: this should also be called from dynarec.
+          rsp.step();
+          if (this.stuffToDo) {
+            // RSP can generate interrupt which can be cleared by CPU.
+            // TODO: for performance we should throw an exception when
+            // an interrupt is raised and avoid testing this every instruction.
+            break;
+          }
+
+          const pc = this.pc | 0;   // take a copy of this, so we can refer to it later
+
+          // NB: set nextPC before the call to readMemoryS32. If this throws an exception, we need nextPC to be set up correctly.
+          this.nextPC = this.delayPC || this.pc + 4;
+
+          // NB: load instruction using normal memory access routines - this means that we throw a tlb miss/refill approptiately
+          // let instruction = memaccess.loadS32fast(pc);
+          let instruction;
+          if ((pc & 3) != 0) {
+            this.raiseAdELException(pc);
+            this.pc = this.nextPC;
+            fragment = lookupFragment(this.pc);
+            continue;
+          } else if (pc < -2139095040) {
+            const phys = (pc + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
+            instruction = ramDV.getInt32(phys, false);
+          } else {
+            instruction = memaccess.loadS32slow(pc >>> 0);
+          }
+
+          this.branchTarget = 0;
+          executeOp(instruction);
+
+          this.pc = this.nextPC;
+          this.delayPC = this.branchTarget;
+          this.incrementCount(COUNTER_INCREMENT_PER_OP);
+          //checkCauseIP3Consistent();
+          //n64js.checkSIStatusConsistent();
+
+          // TODO: store the countdown as a separate value so we don't need to defererence events.
+          let evt = events[0];
+          evt.countdown -= COUNTER_INCREMENT_PER_OP;
+          if (evt.countdown <= 0) {
+            this.onEventCountdownReached();
+          }
+
+          // If we have a fragment, we're assembling code as we go
+          if (fragment) {
+            fragment = addOpToFragment(fragment, pc >>> 0, instruction, this);
+          } else {
+            // If there's no current fragment and we branch backwards, this is possibly a new loop
+            if (this.pc < pc) {
+              fragment = lookupFragment(this.pc);
+            }
+          }
+        }
+      }
+
+      this.stuffToDo &= ~kStuffToDoBreakout;
+
+      if (this.stuffToDo & kStuffToDoCheckInterrupts) {
+        this.stuffToDo &= ~kStuffToDoCheckInterrupts;
+        this.handleInterrupt();
+      } else if (this.stuffToDo & kStuffToDoHalt) {
+        break;
+      } else if (this.stuffToDo) {
+        n64js.warn("Don't know how to handle this event!");
+        break;
+      }
+    }
+  }
+
   handleEmulatedException() {
     this.pc = this.nextPC;
     this.delayPC = 0;
@@ -3890,7 +3981,7 @@ n64js.run = function (cycles) {
     try {
       // NB: the bulk of run() is implemented as a separate function.
       // v8 won't optimise code with try/catch blocks, so structuring the code in this way allows runImpl to be optimised.
-      runImpl();
+      cpu0.runImpl();
       break;
     } catch (e) {
       if (e instanceof EmulatedException) {
@@ -3917,97 +4008,6 @@ n64js.run = function (cycles) {
     cpu0.opsExecuted += cycles - cycles_remaining;
   }
 };
-
-function runImpl() {
-  const rsp = n64js.rsp;
-  const events = cpu0.events;
-  const ramDV = cpu0.ramDV;
-
-  while (cpu0.hasEvent(kEventRunForCycles)) {
-    let fragment = lookupFragment(cpu0.pc);
-
-    while (!cpu0.stuffToDo) {
-
-      if (fragment && fragment.func) {
-        fragment = executeFragment(fragment, cpu0, rsp, events);
-      } else {
-        // if (syncFlow) {
-        //   if (!checkSyncState(syncFlow, cpu0.pc)) {
-        //     n64js.halt('sync error');
-        //     break;
-        //   }
-        // }
-
-        // TODO: this should also be called from dynarec.
-        rsp.step();
-        if (cpu0.stuffToDo) {
-          // RSP can generate interrupt which can be cleared by CPU.
-          // TODO: for performance we should throw an exception when
-          // an interrupt is raised and avoid testing this every instruction.
-          break;
-        }
-
-        const pc = cpu0.pc | 0;   // take a copy of this, so we can refer to it later
-
-        // NB: set nextPC before the call to readMemoryS32. If this throws an exception, we need nextPC to be set up correctly.
-        cpu0.nextPC = cpu0.delayPC || cpu0.pc + 4;
-
-        // NB: load instruction using normal memory access routines - this means that we throw a tlb miss/refill approptiately
-        // let instruction = memaccess.loadS32fast(pc);
-        let instruction;
-        if ((pc & 3) != 0) {
-          cpu0.raiseAdELException(pc);
-          cpu0.pc = cpu0.nextPC;
-          fragment = lookupFragment(cpu0.pc);
-          continue;
-        } else if (pc < -2139095040) {
-          const phys = (pc + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
-          instruction = ramDV.getInt32(phys, false);
-        } else {
-          instruction = memaccess.loadS32slow(pc >>> 0);
-        }
-
-        cpu0.branchTarget = 0;
-        executeOp(instruction);
-
-        cpu0.pc = cpu0.nextPC;
-        cpu0.delayPC = cpu0.branchTarget;
-        cpu0.incrementCount(COUNTER_INCREMENT_PER_OP);
-        //checkCauseIP3Consistent();
-        //n64js.checkSIStatusConsistent();
-
-        // TODO: store the countdown as a separate value so we don't need to defererence events.
-        let evt = events[0];
-        evt.countdown -= COUNTER_INCREMENT_PER_OP;
-        if (evt.countdown <= 0) {
-          cpu0.onEventCountdownReached();
-        }
-
-        // If we have a fragment, we're assembling code as we go
-        if (fragment) {
-          fragment = addOpToFragment(fragment, pc >>> 0, instruction, cpu0);
-        } else {
-          // If there's no current fragment and we branch backwards, this is possibly a new loop
-          if (cpu0.pc < pc) {
-            fragment = lookupFragment(cpu0.pc);
-          }
-        }
-      }
-    }
-
-    cpu0.stuffToDo &= ~kStuffToDoBreakout;
-
-    if (cpu0.stuffToDo & kStuffToDoCheckInterrupts) {
-      cpu0.stuffToDo &= ~kStuffToDoCheckInterrupts;
-      cpu0.handleInterrupt();
-    } else if (cpu0.stuffToDo & kStuffToDoHalt) {
-      break;
-    } else if (cpu0.stuffToDo) {
-      n64js.warn("Don't know how to handle this event!");
-      break;
-    }
-  }
-}
 
 class FragmentMap {
   constructor() {
