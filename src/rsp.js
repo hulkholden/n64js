@@ -319,24 +319,12 @@ class RSP {
   setVCCHiLo(hi, lo) { this.vuVCCReg[0] = (hi << 8) | lo; }
 
   // Vector Unit (Cop2) General Purpose Registers.
-  // TODO: Remove this once finished implementing.
-  assertElIdx(e) {
-    if (e < 0 || e > 15) {
-      throw `e out of range: ${e}`
-    }
-  }
-  assertElIdxRange(start, count) {
-    const end = start + count;
-    if (start < 0 || end > 16) {
-      throw `e out of range: ${start}..${end}`
-    }
-  }
 
   // TODO: need to make it clearer these are 2-byte aligned and e is in the range 0..8.
-  getVecS16(r, e) { this.assertElIdxRange(e * 2, 2); return this.vpr.getInt16((16 * r) + (e * 2), false); }
-  getVecU16(r, e) { this.assertElIdxRange(e * 2, 2); return this.vpr.getUint16((16 * r) + (e * 2), false); }
-  getVecS8(r, e) { this.assertElIdx(e); return this.vpr.getInt8((16 * r) + e, false); }
-  getVecU8(r, e) { this.assertElIdx(e); return this.vpr.getUint8((16 * r) + e, false); }
+  getVecS16(r, e) { return this.vpr.getInt16((16 * r) + (e * 2), false); }
+  getVecU16(r, e) { return this.vpr.getUint16((16 * r) + (e * 2), false); }
+  getVecS8(r, e) { return this.vpr.getInt8((16 * r) + e, false); }
+  getVecU8(r, e) { return this.vpr.getUint8((16 * r) + e, false); }
 
   setVecZero(r) {
     this.vprU64[(r * 2) + 0] = 0n;
@@ -348,8 +336,8 @@ class RSP {
     this.vprU64[(r * 2) + 1] = this.vecTempU64[1];
   }
 
-  setVecS16(r, e, v) { this.assertElIdxRange(e * 2, 2); this.vpr.setInt16((16 * r) + (e * 2), v, false); }
-  setVecS8(r, e, v) { this.assertElIdx(e); this.vpr.setInt8((16 * r) + e, v, false); }
+  setVecS16(r, e, v) { this.vpr.setInt16((16 * r) + (e * 2), v, false); }
+  setVecS8(r, e, v) { this.vpr.setInt8((16 * r) + e, v, false); }
 
   // Gets an unaligned 16 bit vector register with wraparound (reading from element 15 uses element 0 for low bits).
   getVecU16UnalignedWrap(r, e) {
