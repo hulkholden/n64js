@@ -67,8 +67,10 @@ class R4300DebugState extends CPUDebugState {
     $body.append(`<tr><td>Events</td></tr>`);
 
     const eq = cpu0.eventQueue;
-    for (let i = 0; i < eq.events.length; ++i) {
-      $body.append(`<tr><td>${eq.events[i].getName()}</td><td class="fixed">${eq.events[i].countdown}</td></tr>`);
+    let cycles = eq.cyclesToFirstEvent;
+    for (let event = eq.firstEvent; event; event = event.next) {
+      $body.append(`<tr><td>${event.getName()}</td><td class="fixed">${cycles}</td></tr>`);
+      cycles += event.cyclesToNextEvent;
     }
 
     return $table;

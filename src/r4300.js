@@ -755,7 +755,7 @@ class CPU0 {
     }
   
     // Clean up any kEventRunForCycles events before we bail out
-    let cycles_remaining = this.removeEventsOfType(kEventRunForCycles);
+    let cycles_remaining = this.removeEvent(kEventRunForCycles);
   
     // If the event no longer exists, assume we've executed all the cycles
     if (cycles_remaining < 0) {
@@ -870,7 +870,7 @@ class CPU0 {
     }
 
     // Ignore the kEventRunForCycles event.
-    const runCountdown = this.removeEventsOfType(kEventRunForCycles);
+    const runCountdown = this.removeEvent(kEventRunForCycles);
 
     // We should always have at least one event, but double-check this.
     const toSkip = this.eventQueue.skipToNextEvent(1);
@@ -1057,7 +1057,7 @@ class CPU0 {
       // NB: divide by two rather than shifting to preserve bit 32 (discarded with a shift).
       const count = (this.controlCountValue / 2) >> 0;
       const delta = (value - count) >>> 0;
-      this.removeEventsOfType(kEventCompare);
+      this.removeEvent(kEventCompare);
       this.addCompareEvent(delta);
       this.setControlU32(cpu0_constants.controlCompare, value);
     }
@@ -1065,7 +1065,7 @@ class CPU0 {
 
   // Provide some wrappers to the event queue.
   addEvent(type, cycles, handler) { return this.eventQueue.addEvent(type, cycles, handler); }
-  removeEventsOfType(type) { return this.eventQueue.removeEventsOfType(type); }
+  removeEvent(type) { return this.eventQueue.removeEvent(type); }
   getCyclesUntilEvent(type) { this.eventQueue.getCyclesUntilEvent(type); }
   hasEvent(type) { return this.eventQueue.hasEvent(type); }
   
@@ -3868,12 +3868,12 @@ function checkSyncState(sync, pc) {
   if (!sync.sync32(pc, 'pc'))
     return false;
 
-  // let nextEvent = 0;
-  // for (let event of this.eventQueue.events) {
-  //   nextEvent += event.countdown;
+  // let nextEvent = this.eventQueue.cyclesToFirstEvent;
+  // for (let event = eventQueue.firstEvent; event; event = event.next) {
   //   if (event.type === kEventVbl || event.type == kEventCompare) {
   //     break;
   //   }
+  //   nextEvent += event.cyclesToNextEvent;
   // }
 
   // if (!sync.sync32(nextEvent, 'event'))

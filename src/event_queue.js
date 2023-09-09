@@ -2,73 +2,109 @@ import { assert } from './assert.js';
 
 export class EventQueue {
   constructor() {
-    this.events = [];
+    this.cyclesToFirstEvent = 0;
+    this.firstEvent = null;
   }
 
   reset() {
-    this.events = [];
+    this.cyclesToFirstEvent = 0;
+    this.firstEvent = null;
   }
 
   nextEventCountdown() {
-    const evt = this.events[0];
-    return evt.countdown;
+    return this.cyclesToFirstEvent;
   }
 
   incrementCount(count) {
-    // TODO: store the countdown as a separate value so we don't need to defererence events.
-    const evt = this.events[0];
-    evt.countdown -= count;
-    if (evt.countdown <= 0) {
-      this.onEventCountdownReached();
-    }
-  }
-
-  onEventCountdownReached() {
-    while (this.events.length > 0 && this.events[0].countdown <= 0) {
-      const evt = this.events[0];
-      this.events.splice(0, 1);
+    this.cyclesToFirstEvent -= count;
+    while (this.cyclesToFirstEvent <= 0) {
+      const evt = this.firstEvent;
+      assert(evt, `no events!`)
+      this.unlink(evt);
       evt.handler();
     }
   }
 
+  unlink(node) {
+    if (node.prev) {
+      node.prev.cyclesToNextEvent = node.next ? (node.prev.cyclesToNextEvent + node.cyclesToNextEvent) : 0;
+      node.prev.next = node.next;
+    } else {
+      this.cyclesToFirstEvent = node.next ? (this.cyclesToFirstEvent + node.cyclesToNextEvent) : 0;
+      this.firstEvent = node.next;
+    }
+
+    if (node.next) {
+      node.next.prev = node.prev;
+    }
+
+    node.prev = null;
+    node.next = null;
+  }
+
+  insertAfter(prevNode, cyclesToNextEvent, newNode, cycles) {
+    const nextNode = prevNode ? prevNode.next : this.firstEvent;
+    newNode.cyclesToNextEvent = nextNode ? cyclesToNextEvent - cycles : 0;
+    assert(newNode.cyclesToNextEvent >= 0, `cyclesToNextEvent must be positive or zero`);
+
+    newNode.next = nextNode;
+    newNode.prev = prevNode;
+    if (nextNode) {
+      nextNode.prev = newNode;
+    }
+
+    if (prevNode) {
+      prevNode.cyclesToNextEvent = cycles;
+      prevNode.next = newNode;
+    } else {
+      this.cyclesToFirstEvent = cycles;
+      this.firstEvent = newNode;
+    }
+  }
+
   skipToNextEvent(remain) {
-    if (this.events.length == 0 || this.events[0].countdown < remain) {
+    if (!this.firstEvent || this.cyclesToFirstEvent < remain) {
       return 0;
     }
-    const toSkip = this.events[0].countdown - remain;
-    this.events[0].countdown = remain;
+    const toSkip = this.cyclesToFirstEvent - remain;
+    this.cyclesToFirstEvent = remain;
     return toSkip;
   }
 
   addEvent(type, cycles, handler) {
     assert(!this.hasEvent(type), `Already has event of type ${type}`);
-    assert(cycles > 0, `Countdown must be positive`);
+    assert(cycles > 0, `cycles must be positive`);
 
-    // Insert the event into the list. 
-    // Update the countdown to reflect the number of cycles relative to the previous event.
-    for (let [i, event] of this.events.entries()) {
-      if (cycles <= event.countdown) {
-        event.countdown -= cycles;
-        this.events.splice(i, 0, new SystemEvent(type, cycles, handler));
+    const newEvent = new SystemEvent(type, handler);
+
+    // Update the cycles counters to reflect the number of cycles relative to the previous event.
+    let lastEvent = null;
+    let cyclesToEvent = this.cyclesToFirstEvent;
+    for (let event = this.firstEvent; event; event = event.next) {
+      if (cycles <= cyclesToEvent) {
+        this.insertAfter(lastEvent, cyclesToEvent, newEvent, cycles);
         return;
       }
-      cycles -= event.countdown;
+      cycles -= cyclesToEvent;
+      cyclesToEvent = event.cyclesToNextEvent;
+      lastEvent = event;
     }
-    this.events.push(new SystemEvent(type, cycles, handler));
+    this.insertAfter(lastEvent, cyclesToEvent, newEvent, cycles);
   }
 
-  removeEventsOfType(type) {
-    let count = 0;
-    for (let [i, event] of this.events.entries()) {
-      count += event.countdown;
+  /**
+   * Removes the first event of the given type from the queue
+   * @param {string} type 
+   * @returns {number} The number of cycles to the event if found, else -1.
+   */
+  removeEvent(type) {
+    let count = this.cyclesToFirstEvent;
+    for (let event = this.firstEvent; event; event = event.next) {
       if (event.type == type) {
-        // Add this countdown on to the subsequent event
-        if ((i + 1) < this.events.length) {
-          this.events[i + 1].countdown += event.countdown;
-        }
-        this.events.splice(i, 1);
+        this.unlink(event);
         return count;
       }
+      count += event.cyclesToNextEvent;
     }
 
     // Not found.
@@ -76,7 +112,7 @@ export class EventQueue {
   }
 
   getEvent(type) {
-    for (let event of this.events) {
+    for (let event = this.firstEvent; event; event = event.next) {
       if (event.type == type) {
         return event;
       }
@@ -90,12 +126,12 @@ export class EventQueue {
    * @returns {number}
    */
   getCyclesUntilEvent(type) {
-    let countdown = 0;
-    for (let event of this.events) {
-      countdown += event.countdown;
+    let cycles = this.cyclesToFirstEvent;
+    for (let event = this.firstEvent; event; event = event.next) {
       if (event.type == type) {
-        return countdown;
+        return cycles;
       }
+      cycles += event.cyclesToNextEvent;
     }
     return -1;
   }
@@ -106,10 +142,12 @@ export class EventQueue {
 }
 
 class SystemEvent {
-  constructor(type, countdown, handler) {
+  constructor(type, handler) {
     this.type = type;
-    this.countdown = countdown;
+    this.cyclesToNextEvent = 0;
     this.handler = handler;
+    this.prev = null;
+    this.next = null;
   }
 
   getName() { return this.type; }
