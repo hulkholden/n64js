@@ -1064,7 +1064,7 @@ class CPU0 {
   }
 
   // Provide some wrappers to the event queue.
-  addEvent(type, countdown, handler) { return this.eventQueue.addEvent(type, countdown, handler); }
+  addEvent(type, cycles, handler) { return this.eventQueue.addEvent(type, cycles, handler); }
   removeEventsOfType(type) { return this.eventQueue.removeEventsOfType(type); }
   getCyclesUntilEvent(type) { this.eventQueue.getCyclesUntilEvent(type); }
   hasEvent(type) { return this.eventQueue.hasEvent(type); }

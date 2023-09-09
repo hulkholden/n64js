@@ -40,21 +40,21 @@ export class EventQueue {
     return toSkip;
   }
 
-  addEvent(type, countdown, handler) {
+  addEvent(type, cycles, handler) {
     assert(!this.hasEvent(type), `Already has event of type ${type}`);
-    assert(countdown > 0, `Countdown must be positive`);
+    assert(cycles > 0, `Countdown must be positive`);
 
     // Insert the event into the list. 
     // Update the countdown to reflect the number of cycles relative to the previous event.
     for (let [i, event] of this.events.entries()) {
-      if (countdown <= event.countdown) {
-        event.countdown -= countdown;
-        this.events.splice(i, 0, new SystemEvent(type, countdown, handler));
+      if (cycles <= event.countdown) {
+        event.countdown -= cycles;
+        this.events.splice(i, 0, new SystemEvent(type, cycles, handler));
         return;
       }
-      countdown -= event.countdown;
+      cycles -= event.countdown;
     }
-    this.events.push(new SystemEvent(type, countdown, handler));
+    this.events.push(new SystemEvent(type, cycles, handler));
   }
 
   removeEventsOfType(type) {
