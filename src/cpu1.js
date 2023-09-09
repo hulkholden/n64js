@@ -1,3 +1,4 @@
+import { assert } from "./assert.js";
 import { toString32 } from "./format.js";
 import * as logger from './logger.js';
 
@@ -1035,14 +1036,15 @@ export class CPU1 {
       case FPCSR_RM_RM: return convertModeFloor;
     }
     assert('unknown rounding mode');
+    return convertModeRound;
   }
 
   convertUsingMode(x, mode) {
     switch (mode) {
-      case convertModeRound: return this.round(x); break;
-      case convertModeTrunc: return this.trunc(x); break;
-      case convertModeCeil: return Math.ceil(x); break;
-      case convertModeFloor: return Math.floor(x); break;
+      case convertModeRound: return this.round(x);
+      case convertModeTrunc: return this.trunc(x);
+      case convertModeCeil: return Math.ceil(x);
+      case convertModeFloor: return Math.floor(x);
     }
     assert('unknown rounding mode');
   }

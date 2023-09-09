@@ -1,4 +1,5 @@
 import { Device } from './device.js';
+import { toString32 } from '../format.js';
 import * as logger from '../logger.js';
 
 // DP Command

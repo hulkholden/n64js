@@ -1,3 +1,5 @@
+/*global n64js*/
+
 import { assert } from './assert.js';
 import * as cpu0_constants from './cpu0_constants.js';
 import { toHex } from './format.js';

@@ -58,7 +58,7 @@ export class Controllers {
       case 'ArrowUp': this.setStickY(idx, down ? +80 : 0); break;
       // default: console.log(`unhandled key: ${key}`);
     }
-  };
+  }
 
   setStickX(idx, val) { this.inputs[idx].stick_x = val; }
   setStickY(idx, val) { this.inputs[idx].stick_y = val; }

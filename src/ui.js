@@ -1,4 +1,4 @@
-
+/*global $, n64js*/
 
 export class UI {
   domLoaded() {

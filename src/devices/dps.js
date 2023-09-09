@@ -25,7 +25,7 @@ export class DPSDevice extends Device {
     }
     throw 'DPS writes are unhandled';
     //this.mem.set32(ea, value);
-  };
+  }
 
   readS32(address) {
     this.logRead(address);
@@ -36,9 +36,9 @@ export class DPSDevice extends Device {
     }
     throw 'DPS reads are unhandled';
     //return this.mem.getS32(ea);
-  };
+  }
 
   readU32(address) {
     return this.readS32(address) >>> 0;
-  };
+  }
 }

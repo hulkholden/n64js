@@ -1,3 +1,5 @@
+/*global n64js*/
+
 import { Device } from './device.js';
 import * as logger from '../logger.js';
 import { toString32 } from '../format.js';
@@ -149,11 +151,8 @@ export class MIRegDevice extends Device {
     set |= (value & MI_INTR_MASK_SET_DP) >>> 6;
 
     let mask = this.mem.getU32(MI_INTR_MASK_REG);
-    let intr = this.mem.getU32(MI_INTR_REG);
-
     mask &= ~clr;
     mask |= set;
-
     this.mem.set32(MI_INTR_MASK_REG, mask);
 
     // Check if any interrupts are enabled now, and immediately trigger an interrupt

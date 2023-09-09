@@ -1,3 +1,4 @@
+/*global n64js*/
 
 // An exception thrown when an assert fails.
 export class AssertException {
