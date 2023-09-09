@@ -10,6 +10,7 @@ import { assert } from './assert.js';
 import * as logger from './logger.js';
 import * as memaccess from './memaccess.js';
 import { syncFlow } from './sync.js';
+import { EventQueue } from './event_queue.js';
 
 window.n64js = window.n64js || {};
 
@@ -383,7 +384,7 @@ class CPU0 {
 
     this.stuffToDo = 0; // used to flag r4300 to cease execution
 
-    this.events = [];
+    this.eventQueue = new EventQueue();
 
     const multHiMem = new ArrayBuffer(2 * 4);
     this.multHiU32 = new Uint32Array(multHiMem);
@@ -575,7 +576,7 @@ class CPU0 {
 
     this.stuffToDo = 0;
 
-    this.events = [];
+    this.eventQueue.reset();
 
     this.multLoU32[0] = this.multLoU32[1] = 0;
     this.multHiU32[0] = this.multHiU32[1] = 0;
@@ -767,7 +768,7 @@ class CPU0 {
 
   runImpl() {
     const rsp = n64js.rsp;
-    const events = this.events;
+    const events = this.eventQueue.events;
     const ramDV = this.ramDV;
 
     while (this.hasEvent(kEventRunForCycles)) {
@@ -861,12 +862,7 @@ class CPU0 {
     this.delayPC = 0;
     this.branchTarget = 0;
     this.incrementCount(COUNTER_INCREMENT_PER_OP);
-  
-    const evt = this.events[0];
-    evt.countdown -= COUNTER_INCREMENT_PER_OP;
-    if (evt.countdown <= 0) {
-      this.onEventCountdownReached();
-    }
+    this.eventQueue.incrementCount(COUNTER_INCREMENT_PER_OP);
   }
 
   speedHack() {
@@ -882,12 +878,9 @@ class CPU0 {
     const runCountdown = this.removeEventsOfType(kEventRunForCycles);
 
     // We should always have at least one event, but double-check this.
-    if (this.events.length > 0) {
-      const toSkip = this.events[0].countdown - 1;
-      // logger.log(`speedhack: skipping ${toSkip} cycles - run is ${runCountdown}`);
-      this.controlCountValue += toSkip;
-      this.events[0].countdown = 1;
-    }
+    const toSkip = this.eventQueue.skipToNextEvent(1);
+    this.controlCountValue += toSkip;
+    // logger.log(`speedhack: skipping ${toSkip} cycles - run is ${runCountdown}`);
   
     // Re-add the kEventRunForCycles event
     if (runCountdown >= 0) {
@@ -1075,6 +1068,13 @@ class CPU0 {
     }
   }
 
+  // Provide some wrappers to the event queue.
+  addEvent(type, countdown, handler) { return this.eventQueue.addEvent(type, countdown, handler); }
+  removeEventsOfType(type) { return this.eventQueue.removeEventsOfType(type); }
+  getCyclesUntilEvent(type) { this.eventQueue.getCyclesUntilEvent(type); }
+  hasEvent(type) { return this.eventQueue.hasEvent(type); }
+  onEventCountdownReached() { return this.eventQueue.onEventCountdownReached(); }
+  
   addCompareEvent(cycles) {
     const that = this;
     this.addEvent(kEventCompare, cycles, () => {
@@ -1089,79 +1089,7 @@ class CPU0 {
       that.stuffToDo |= kStuffToDoBreakout;
     }); 
   }
-  
-  addEvent(type, countdown, handler) {
-    assert(!this.hasEvent(type), `Already has event of type ${type}`);
-    assert(countdown > 0, `Countdown must be positive`);
-
-    // Insert the event into the list. 
-    // Update the countdown to reflect the number of cycles relative to the previous event.
-    for (let [i, event] of this.events.entries()) {
-      if (countdown <= event.countdown) {
-        event.countdown -= countdown;
-        this.events.splice(i, 0, new SystemEvent(type, countdown, handler));
-        return;
-      }
-      countdown -= event.countdown;
-    }
-    this.events.push(new SystemEvent(type, countdown, handler));
-  }
-
-  removeEventsOfType(type) {
-    let count = 0;
-    for (let [i, event] of this.events.entries()) {
-      count += event.countdown;
-      if (event.type == type) {
-        // Add this countdown on to the subsequent event
-        if ((i + 1) < this.events.length) {
-          this.events[i + 1].countdown += event.countdown;
-        }
-        this.events.splice(i, 1);
-        return count;
-      }
-    }
-
-    // Not found.
-    return -1;
-  }
-
-  getEvent(type) {
-    for (let event of this.events) {
-      if (event.type == type) {
-        return event;
-      }
-    }
-    return null;
-  }
-
-  /**
-   * Returns the number of cycles to the provided event, or <0 if not found.
-   * @param {string} type 
-   * @returns {number}
-   */
-  getCyclesUntilEvent(type) {
-    let countdown = 0;
-    for (let event of this.events) {
-      countdown += event.countdown;
-      if (event.type == type) {
-        return countdown;
-      }
-    }
-    return -1;
-  }
-
-  hasEvent(type) {
-    return Boolean(this.getEvent(type));
-  }
-
-  onEventCountdownReached() {
-    while (this.events.length > 0 && this.events[0].countdown <= 0) {
-      const evt = this.events[0];
-      this.events.splice(0, 1);
-      evt.handler();
-    }
-  }
-  
+ 
   getRandom() {
     // If wired >=32 values in the range [0,64) are returned, else [wired, 32)
     const wired = this.getControlU32(cpu0_constants.controlWired);
@@ -2043,16 +1971,6 @@ class CPU2 {
   getReg64() {
     return this.regU64[0];
   }
-}
-
-class SystemEvent {
-  constructor(type, countdown, handler) {
-    this.type = type;
-    this.countdown = countdown;
-    this.handler = handler;
-  }
-
-  getName() { return this.type; }
 }
 
 // EmulatedException interrupts processing of an instruction
@@ -3957,7 +3875,7 @@ function checkSyncState(sync, pc) {
     return false;
 
   // let nextEvent = 0;
-  // for (let event of this.events) {
+  // for (let event of this.eventQueue.events) {
   //   nextEvent += event.countdown;
   //   if (event.type === kEventVbl || event.type == kEventCompare) {
   //     break;
@@ -4093,7 +4011,7 @@ function executeFragment(fragment, cpu0, rsp, events) {
 const fragmentContext = new FragmentContext();
 
 function addOpToFragment(fragment, entry_pc, instruction, c) {
-  n64js.assert(!fragment.func, `attempting to append op to already-compiled fragment ${toString32(fragment.entryPC)}`);
+  assert(!fragment.func, `attempting to append op to already-compiled fragment ${toString32(fragment.entryPC)}`);
   if (fragment.opsCompiled === 0) {
     fragmentContext.newFragment();
   }  
