@@ -768,7 +768,7 @@ class CPU0 {
 
   runImpl() {
     const rsp = n64js.rsp;
-    const events = this.eventQueue.events;
+    const eventQueue = this.eventQueue;
     const ramDV = this.ramDV;
 
     while (this.hasEvent(kEventRunForCycles)) {
@@ -777,7 +777,7 @@ class CPU0 {
       while (!this.stuffToDo) {
 
         if (fragment && fragment.func) {
-          fragment = executeFragment(fragment, this, rsp, events);
+          fragment = executeFragment(fragment, this, rsp, eventQueue);
         } else {
           // if (syncFlow) {
           //   if (!checkSyncState(syncFlow, this.pc)) {
@@ -824,12 +824,7 @@ class CPU0 {
           //checkCauseIP3Consistent();
           //n64js.checkSIStatusConsistent();
 
-          // TODO: store the countdown as a separate value so we don't need to defererence events.
-          let evt = events[0];
-          evt.countdown -= COUNTER_INCREMENT_PER_OP;
-          if (evt.countdown <= 0) {
-            this.onEventCountdownReached();
-          }
+          eventQueue.incrementCount(COUNTER_INCREMENT_PER_OP);
 
           // If we have a fragment, we're assembling code as we go
           if (fragment) {
@@ -1073,7 +1068,6 @@ class CPU0 {
   removeEventsOfType(type) { return this.eventQueue.removeEventsOfType(type); }
   getCyclesUntilEvent(type) { this.eventQueue.getCyclesUntilEvent(type); }
   hasEvent(type) { return this.eventQueue.hasEvent(type); }
-  onEventCountdownReached() { return this.eventQueue.onEventCountdownReached(); }
   
   addCompareEvent(cycles) {
     const that = this;
@@ -3982,27 +3976,20 @@ class FragmentMap {
 
 const fragmentMap = new FragmentMap();
 
-function executeFragment(fragment, cpu0, rsp, events) {
-  let evt = events[0];
-  if (evt.countdown < fragment.opsCompiled * COUNTER_INCREMENT_PER_OP) {
+function executeFragment(fragment, cpu0, rsp, eventQueue) {
+  if (eventQueue.nextEventCountdown() < fragment.opsCompiled * COUNTER_INCREMENT_PER_OP) {
     // We're close to another event: drop to the interpreter.
     return null;
   }
   fragment.executionCount++;
   const opsExecuted = fragment.func(cpu0, rsp);   // Absolute value is number of ops executed.
 
-  // refresh latest event - may have changed
-  evt = events[0];
-  evt.countdown -= opsExecuted * COUNTER_INCREMENT_PER_OP;
-
+  const counterIncrement = opsExecuted * COUNTER_INCREMENT_PER_OP;
   if (!accurateCountUpdating) {
-    cpu0.incrementCount(opsExecuted * COUNTER_INCREMENT_PER_OP);
+    cpu0.incrementCount(counterIncrement);
   }
-
-  //assert(fragment.bailedOut || evt.countdown >= 0, "Executed too many ops. Possibly didn't bail out of trace when new event was set up?");
-  if (evt.countdown <= 0) {
-    cpu0.onEventCountdownReached();
-  }
+  // refresh latest event - may have changed
+  eventQueue.incrementCount(counterIncrement);
 
   return fragment.getNextFragment(cpu0.pc, opsExecuted);
 }
