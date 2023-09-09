@@ -290,7 +290,7 @@ export class PIRegDevice extends Device {
   }
   
   removePIInterrupt() {
-    n64js.cpu0.removeEventsOfType(kPIInterrupt);
+    n64js.cpu0.removeEvent(kPIInterrupt);
   }
 
   addPIInterrupt(cycles) {
