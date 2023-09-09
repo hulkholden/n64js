@@ -23,6 +23,8 @@ const kUseOptimisedDynarecHandlers = true;
 const accurateCountUpdating = false;
 const COUNTER_INCREMENT_PER_OP = 1;
 
+const kSpeedHackEnabled = true;
+
 const UT_VEC          = 0x80000000;
 const XUT_VEC         = 0x80000080;
 const ECC_VEC         = 0x80000100;
@@ -724,6 +726,9 @@ class CPU0 {
   }
 
   speedHack() {
+    if (!n64js.rsp.halted) {
+      return;
+    }
     const nextInstruction = n64js.hardware().memMap.readMemoryInternal32(this.pc + 4);
     if (nextInstruction !== 0) {
       return;
@@ -1702,7 +1707,7 @@ class CPU0 {
     const cond = this.getRegU64(rs) === this.getRegU64(rt);
     this.conditionalBranch(cond, offset);
 
-    if (cond && offset === -1) {
+    if (kSpeedHackEnabled && cond && offset === -1) {
       this.speedHack();
     }
   }
@@ -2415,14 +2420,14 @@ function generateBEQ(ctx) {
   let impl = '';
 
   if (s === t) {
-    if (off === -1) {
+    if (kSpeedHackEnabled && off === -1) {
       impl += 'c.speedHack();\n';
       ctx.bailOut = true;
     }
     impl += `c.delayPC = ${toString32(addr)};\n`;
   } else {
     impl += `if (${genSrcRegU64(s)} === ${genSrcRegU64(t)}) {\n`;
-    if (off === -1) {
+    if (kSpeedHackEnabled && off === -1) {
       impl += '  c.speedHack();\n';
       ctx.bailOut = true;
     }
@@ -2458,7 +2463,7 @@ function generateBNE(ctx) {
 
   let impl = '';
   impl += `if (${genSrcRegU64(s)} !== ${genSrcRegU64(t)}) {\n`;
-  if (off === -1) {
+  if (kSpeedHackEnabled && off === -1) {
     impl += '  c.speedHack();\n';
     ctx.bailOut = true;
   }
