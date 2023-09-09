@@ -1010,6 +1010,14 @@ class CPU0 {
     return Boolean(this.getEvent(type));
   }
 
+  onEventCountdownReached() {
+    while (this.events.length > 0 && this.events[0].countdown <= 0) {
+      const evt = this.events[0];
+      this.events.splice(0, 1);
+      evt.handler();
+    }
+  }
+  
   getRandom() {
     // If wired >=32 values in the range [0,64) are returned, else [wired, 32)
     const wired = this.getControlU32(cpu0_constants.controlWired);
@@ -3852,15 +3860,7 @@ function handleEmulatedException() {
   const evt = cpu0.events[0];
   evt.countdown -= COUNTER_INCREMENT_PER_OP;
   if (evt.countdown <= 0) {
-    onEventCountdownReached();
-  }
-}
-
-function onEventCountdownReached() {
-  while (cpu0.events.length > 0 && cpu0.events[0].countdown <= 0) {
-    const evt = cpu0.events[0];
-    cpu0.events.splice(0, 1);
-    evt.handler();
+    cpu0.onEventCountdownReached();
   }
 }
 
@@ -3980,7 +3980,7 @@ function runImpl() {
         let evt = events[0];
         evt.countdown -= COUNTER_INCREMENT_PER_OP;
         if (evt.countdown <= 0) {
-          onEventCountdownReached();
+          cpu0.onEventCountdownReached();
         }
 
         // If we have a fragment, we're assembling code as we go
@@ -4083,7 +4083,7 @@ function executeFragment(fragment, cpu0, rsp, events) {
 
   //assert(fragment.bailedOut || evt.countdown >= 0, "Executed too many ops. Possibly didn't bail out of trace when new event was set up?");
   if (evt.countdown <= 0) {
-    onEventCountdownReached();
+    cpu0.onEventCountdownReached();
   }
 
   return fragment.getNextFragment(cpu0.pc, opsExecuted);
