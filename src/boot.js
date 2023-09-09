@@ -1,5 +1,7 @@
+/*global n64js*/
+
 import * as cpu0_constants from './cpu0_constants.js';
-import { OS_TV_NTSC, OS_TV_PAL } from './system_constants.js';
+import { OS_TV_PAL } from './system_constants.js';
 
 export function simulateBoot(cpu0, hardware, rominfo) {
   // Create a view of IMEM so we can initialise it.

@@ -1,3 +1,5 @@
+/*global n64js*/
+
 import { toString32, toHex } from "./format.js";
 
 function _funct(i) { return i & 0x3f; }

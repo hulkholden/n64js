@@ -1,3 +1,5 @@
+/*global $*/
+
 export class Texture {
   constructor(gl, width, height) {
     this.width = width;

@@ -1,3 +1,5 @@
+/*global n64js*/
+
 //
 // Memory access routines.
 //

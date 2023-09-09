@@ -1,3 +1,5 @@
+/*global n64js*/
+
 import { Device } from './device.js';
 import { toString32, toString16, toString8 } from '../format.js';
 import * as logger from '../logger.js';

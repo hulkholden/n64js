@@ -1,3 +1,4 @@
+/*global n64js*/
 
 import { Device } from './device.js';
 import * as mi from './mi.js';

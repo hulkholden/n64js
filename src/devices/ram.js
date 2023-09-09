@@ -1,3 +1,5 @@
+/*global n64js*/
+
 import { Device } from './device.js';
 import { toString32 } from '../format.js';
 import * as logger from '../logger.js';
@@ -74,16 +76,16 @@ export class InvalidMemDevice extends Device {
   }
 
   readU32(address) { return this.read(address) >>> 0; }
-  readU16(address) { return this.read(address) & 0xffff; };
-  readU8(address) { return this.read(address) & 0xff; };
+  readU16(address) { return this.read(address) & 0xffff; }
+  readU8(address) { return this.read(address) & 0xff; }
 
   readS32(address) { return this.read(address) >> 0; }
-  readS16(address) { return this.read(address) & 0xffff; };
-  readS8(address) { return this.read(address) & 0xff; };
+  readS16(address) { return this.read(address) & 0xffff; }
+  readS8(address) { return this.read(address) & 0xff; }
 
-  write32(address, value) { this.write(address, value); };
-  write16(address, value) { this.write(address, value); };
-  write8(address, value) { this.write(address, value); };
+  write32(address, value) { this.write(address, value); }
+  write16(address, value) { this.write(address, value); }
+  write8(address, value) { this.write(address, value); }
 }
 
 export class RDRamRegDevice extends Device {

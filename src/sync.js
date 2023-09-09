@@ -1,3 +1,4 @@
+/*global n64js*/
 /*jshint browser:true, devel:true */
 
 import { toString32 } from './format.js';
@@ -96,7 +97,7 @@ class BinaryRequest {
     }
     this.alwaysCallbacks.push(callback);
     return this;
-  };
+  }
 }
 
 class SyncReader {
@@ -203,7 +204,7 @@ class SyncWriter {
       this.syncBuffer = new Uint32Array(this.kBufferLength);
       this.syncBufferIdx = 0;
     }
-  };
+  }
 
   tick() {
     if (!this.curRequest && this.syncBufferIdx > 0) {
@@ -230,12 +231,12 @@ class SyncWriter {
     }
 
     return this.buffers.length === 0;
-  };
+  }
 
   getAvailableBytes() {
     // NB we can always handle full buffers, so return a large number here.
     return 1000000000;
-  };
+  }
 
   sync32(val, name) {
     if (this.syncBufferIdx >= this.syncBuffer.length) {
@@ -245,7 +246,7 @@ class SyncWriter {
     this.syncBuffer[this.syncBufferIdx] = val;
     this.syncBufferIdx++;
     return true;
-  };
+  }
 
   reflect32(val) {
     if (this.syncBufferIdx >= this.syncBuffer.length) {
@@ -255,5 +256,5 @@ class SyncWriter {
     this.syncBuffer[this.syncBufferIdx] = val;
     this.syncBufferIdx++;
     return val;
-  };
+  }
 }

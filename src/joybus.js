@@ -1,3 +1,5 @@
+/*global n64js*/
+
 import * as logger from './logger.js';
 import { syncInput } from './sync.js';
 import { ControllerInputs } from './controllers.js';
