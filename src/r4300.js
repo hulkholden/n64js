@@ -960,8 +960,7 @@ class CPU0 {
 
     // Insert the event into the list. 
     // Update the countdown to reflect the number of cycles relative to the previous event.
-    for (let i = 0; i < this.events.length; ++i) {
-      const event = this.events[i];
+    for (let [i, event] of this.events.entries()) {
       if (countdown <= event.countdown) {
         event.countdown -= countdown;
         this.events.splice(i, 0, new SystemEvent(type, countdown, handler));
@@ -974,14 +973,12 @@ class CPU0 {
 
   removeEventsOfType(type) {
     let count = 0;
-    for (let i = 0; i < this.events.length; ++i) {
-      const event = this.events[i];
+    for (let [i, event] of this.events.entries()) {
       count += event.countdown;
-
       if (event.type == type) {
         // Add this countdown on to the subsequent event
         if ((i + 1) < this.events.length) {
-          this.events[i + 1].countdown += this.events[i].countdown;
+          this.events[i + 1].countdown += event.countdown;
         }
         this.events.splice(i, 1);
         return count;
@@ -3994,6 +3991,7 @@ function runImpl() {
         //checkCauseIP3Consistent();
         //n64js.checkSIStatusConsistent();
 
+        // TODO: store the countdown as a separate value so we don't need to defererence events.
         let evt = events[0];
         evt.countdown -= COUNTER_INCREMENT_PER_OP;
         if (evt.countdown <= 0) {
