@@ -198,12 +198,41 @@ class RSP {
 
   setRegS16SignExtend(r, v) { if (r != 0) { this.gprS32[r] = (v << 16) >> 16; } }
 
-  setAccS48(el, v) { this.vAcc[el] = BigInt.asIntN(48, v); }
-  getAccS48(el) { return BigInt.asIntN(48, this.vAcc[el]); }    // TODO: ensure this is correctly signed.
+  // For performance we assume the accumulator is stored as a S48 so we can avoid this check when reading.
+  getAccS48(el) { return this.vAcc[el]; }
 
-  updateAccS48(el, v, acculumate) {
-    const inc = acculumate ? this.getAccS48(el) : 0n;
-    this.setAccS48(el, v + inc);
+  setAccS48(el, v) { this.vAcc[el] = BigInt.asIntN(48, v); }
+
+  // Optimised accessors when we are dealing with 32 bit values.
+  // Update the accumulator, v is a signed 32 bit value.
+  updateAcc32Signed(el, v, accumulate) {
+    if (accumulate) {
+      this.setAccS48(el, this.vAcc[el] + BigInt(v));
+    } else {
+      // Note we can't just use v>>31 as we can have 32 bit unsigned values.
+      this.vAccS32[(el * 2) + 1] = (v >= 0) ? 0 : 0xffff_ffff;
+      this.vAccS32[(el * 2) + 0] = v;
+    }
+  }
+
+  // Update the accumulator, v is an unsigned 32 bit value.
+  updateAccU32(el, v, accumulate) {
+    if (accumulate) {
+      this.setAccS48(el, this.vAcc[el] + BigInt(v));
+    } else {
+      this.vAccU32[(el * 2) + 1] = 0;
+      this.vAccU32[(el * 2) + 0] = v;
+    }
+  }
+
+  // Update the accumulator, v is a signed 32 bit value and shifted left by 16 bits before storing.
+  updateAcc32SignedShift16(el, v, accumulate) {
+    if (accumulate) {
+      this.setAccS48(el, this.vAcc[el] + (BigInt(v) << 16n));
+    } else {
+      this.vAccS32[(el * 2) + 1] = v >> 16;
+      this.vAccS32[(el * 2) + 0] = v << 16;
+    }
   }
 
   setAccLow(el, v) { this.vAccS16[(el * 4) + 0] = v; }
@@ -215,16 +244,34 @@ class RSP {
   setAccHigh(el, v) { this.vAccS16[(el * 4) + 2] = v; }
   getAccHigh(el) { return this.vAccS16[(el * 4) + 2]; }
 
+  // Return the high and mid halfwords as a signed 32 bit value.
+  getAccHighMid(el) { return (this.vAccS16[(el * 4) + 2] << 16) | this.vAccU16[(el * 4) + 1]; }
 
   setVecFromAccSignedMid(r) {
     for (let el = 0; el < 8; el++) {
-      this.setVecS16(r, el, saturateSigned(this.vAcc[el], 16n, 0x8000, 0x7fff));
+      const himid = this.getAccHighMid(el);
+      let res;
+      if (himid >= 0) {
+        res = (himid & 0xffff_8000) ? 0x7fff : himid;
+      } else {
+        res = (~himid & 0xffff_8000) ? 0x8000 : himid;
+      }
+      this.setVecS16(r, el, res);
     }
   }
 
   setVecFromAccSignedLow(r) {
     for (let el = 0; el < 8; el++) {
-      this.setVecS16(r, el, saturateSigned(this.vAcc[el], 0n, 0x0000, 0xffff));
+      const himid = this.getAccHighMid(el);
+      const lo = this.getAccLow(el);
+      
+      let res;
+      if (himid >= 0) {
+        res = (himid & 0xffff_8000) ? 0xffff : lo;
+      } else {
+        res = (~himid & 0xffff_8000) ? 0x0000 : lo;
+      }
+      this.setVecS16(r, el, res);
     }
   }
 
@@ -889,7 +936,8 @@ function vectorMulFractions(vs, vt, vte, accumulate, roundVal) {
   for (let el = 0, select = rsp.vecSelectU32[vte]; el < 8; el++, select >>= 4) {
     const s = rsp.getVecS16(vs, el);
     const t = rsp.getVecS16(vt, select & 0x7);
-    rsp.updateAccS48(el, (BigInt(s * t) << 1n) + roundVal, accumulate);
+    const r = ((s * t) * 2) + roundVal;
+    rsp.updateAcc32Signed(el, r, accumulate);
   }
 }
 
@@ -897,7 +945,8 @@ function vectorMulPartialLow(vs, vt, vte, accumulate) {
   for (let el = 0, select = rsp.vecSelectU32[vte]; el < 8; el++, select >>= 4) {
     const s = rsp.getVecU16(vs, el);
     const t = rsp.getVecU16(vt, select & 0x7);
-    rsp.updateAccS48(el, BigInt(s * t) >> 16n, accumulate)
+    const r = (s * t) >>> 16;
+    rsp.updateAccU32(el, r, accumulate)
   }
 }
 
@@ -905,7 +954,7 @@ function vectorMulPartialMidM(vs, vt, vte, accumulate) {
   for (let el = 0, select = rsp.vecSelectU32[vte]; el < 8; el++, select >>= 4) {
     const s = rsp.getVecS16(vs, el);
     const t = rsp.getVecU16(vt, select & 0x7);
-    rsp.updateAccS48(el, BigInt(s * t), accumulate)
+    rsp.updateAcc32Signed(el, s * t, accumulate)
   }
 }
 
@@ -913,7 +962,7 @@ function vectorMulPartialMidN(vs, vt, vte, accumulate) {
   for (let el = 0, select = rsp.vecSelectU32[vte]; el < 8; el++, select >>= 4) {
     const s = rsp.getVecU16(vs, el);
     const t = rsp.getVecS16(vt, select & 0x7);
-    rsp.updateAccS48(el, BigInt(s * t), accumulate)
+    rsp.updateAcc32Signed(el, s * t, accumulate)
   }
 }
 
@@ -921,7 +970,7 @@ function vectorMulPartialHigh(vs, vt, vte, accumulate) {
   for (let el = 0, select = rsp.vecSelectU32[vte]; el < 8; el++, select >>= 4) {
     const s = rsp.getVecS16(vs, el);
     const t = rsp.getVecS16(vt, select & 0x7);
-    rsp.updateAccS48(el, BigInt(s * t) << 16n, accumulate)
+    rsp.updateAcc32SignedShift16(el, s * t, accumulate)
   }
 }
 
@@ -937,25 +986,25 @@ function vectorRound(vs, vt, vte, ifGTE) {
 
 // Vector Multiply of Signed Fractions.
 function executeVMULF(i) {
-  vectorMulFractions(cop2VS(i), cop2VT(i), cop2E(i), false, 0x8000n);
+  vectorMulFractions(cop2VS(i), cop2VT(i), cop2E(i), false, 0x8000);
   rsp.setVecFromAccSignedMid(cop2VD(i));
 }
 
 // Vector Multiply of Unsigned Fractions.
 function executeVMULU(i) {
-  vectorMulFractions(cop2VS(i), cop2VT(i), cop2E(i), false, 0x8000n);
+  vectorMulFractions(cop2VS(i), cop2VT(i), cop2E(i), false, 0x8000);
   rsp.setVecFromAccUnsignedMid(cop2VD(i));
 }
 
 // Vector Multiply-Accumulate of Signed Fractions.
 function executeVMACF(i) {
-  vectorMulFractions(cop2VS(i), cop2VT(i), cop2E(i), true, 0n);
+  vectorMulFractions(cop2VS(i), cop2VT(i), cop2E(i), true, 0);
   rsp.setVecFromAccSignedMid(cop2VD(i));
 }
 
 // Vector Multiply-Accumulate of Unsigned Fractions.
 function executeVMACU(i) {
-  vectorMulFractions(cop2VS(i), cop2VT(i), cop2E(i), true, 0n);
+  vectorMulFractions(cop2VS(i), cop2VT(i), cop2E(i), true, 0);
   rsp.setVecFromAccUnsignedMid(cop2VD(i));
 }
 
