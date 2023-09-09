@@ -1,5 +1,5 @@
 /*jshint jquery:true, browser:true, devel:true */
-/*global Stats:false */
+/*global $, n64js, Stats, md5*/
 
 import { simulateBoot } from './boot.js';
 import { Controllers } from './controllers.js';
@@ -163,7 +163,7 @@ function updateLoopAnimframe() {
     }
 
     if (maxCycles > 0) {
-      n64js.run(maxCycles);
+      n64js.cpu0.run(maxCycles);
       dbg.redraw();
     }
   } else if (debugDisplayListRunning) {
