@@ -725,6 +725,19 @@ class CPU0 {
     this.stuffToDo |= kStuffToDoHalt;
   }
 
+  handleEmulatedException() {
+    this.pc = this.nextPC;
+    this.delayPC = 0;
+    this.branchTarget = 0;
+    this.incrementCount(COUNTER_INCREMENT_PER_OP);
+  
+    const evt = this.events[0];
+    evt.countdown -= COUNTER_INCREMENT_PER_OP;
+    if (evt.countdown <= 0) {
+      this.onEventCountdownReached();
+    }
+  }
+
   speedHack() {
     if (!n64js.rsp.halted) {
       return;
@@ -3851,19 +3864,6 @@ function checkSyncState(sync, pc) {
   return true;
 }
 
-function handleEmulatedException() {
-  cpu0.pc = cpu0.nextPC;
-  cpu0.delayPC = 0;
-  cpu0.branchTarget = 0;
-  cpu0.incrementCount(COUNTER_INCREMENT_PER_OP);
-
-  const evt = cpu0.events[0];
-  evt.countdown -= COUNTER_INCREMENT_PER_OP;
-  if (evt.countdown <= 0) {
-    cpu0.onEventCountdownReached();
-  }
-}
-
 n64js.singleStep = function () {
   let restore_breakpoint_address = 0;
   if (n64js.isBreakpoint(cpu0.pc)) {
@@ -3895,7 +3895,7 @@ n64js.run = function (cycles) {
     } catch (e) {
       if (e instanceof EmulatedException) {
         // If we hit an emulated exception we apply the nextPC (which should have been set to an exception vector) and continue looping.
-        handleEmulatedException();
+        cpu0.handleEmulatedException();
       } else if (e instanceof BreakpointException) {
         n64js.stopForBreakpoint();
       } else {
