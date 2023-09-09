@@ -734,27 +734,19 @@ class CPU0 {
       return;
     }
 
+    // Ignore the kEventRunForCycles event.
+    const runCountdown = this.removeEventsOfType(kEventRunForCycles);
+
     // We should always have at least one event, but double-check this.
-    if (this.events.length <= 0) {
-      return;
+    if (this.events.length > 0) {
+      const toSkip = this.events[0].countdown - 1;
+      // logger.log(`speedhack: skipping ${toSkip} cycles - run is ${runCountdown}`);
+      this.controlCountValue += toSkip;
+      this.events[0].countdown = 1;
     }
-
-    // Ignore the kEventRunForCycles event
-    let runCountdown = 0;
-    if (this.events[0].type === kEventRunForCycles && this.events.length > 1) {
-      runCountdown += this.events[0].countdown;
-      this.events.splice(0, 1);
-    }
-
-    const toSkip = runCountdown + this.events[0].countdown - 1;
-
-    // logger.log(`speedhack: skipping ${toSkip} cycles`);
-
-    this.controlCountValue += toSkip;
-    this.events[0].countdown = 1;
-
+  
     // Re-add the kEventRunForCycles event
-    if (runCountdown) {
+    if (runCountdown >= 0) {
       this.addRunForCyclesEvent(runCountdown);
     }
   }
