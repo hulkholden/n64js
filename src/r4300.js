@@ -697,7 +697,7 @@ class CPU0 {
   moveFromControl(controlReg) {
     // Check consistency
     if (controlReg === cpu0_constants.controlCause) {
-      checkCauseIP3Consistent();
+      this.checkCauseIP3Consistent();
     }
 
     switch (controlReg) {
@@ -727,7 +727,7 @@ class CPU0 {
   run(cycles) {
     this.stuffToDo &= ~kStuffToDoHalt;
   
-    checkCauseIP3Consistent();
+    this.checkCauseIP3Consistent();
     n64js.hardware().checkSIStatusConsistent();
   
     this.addRunForCyclesEvent(cycles);
@@ -819,7 +819,7 @@ class CPU0 {
           this.pc = this.nextPC;
           this.delayPC = this.branchTarget;
           this.incrementCount(COUNTER_INCREMENT_PER_OP);
-          //checkCauseIP3Consistent();
+          //this.checkCauseIP3Consistent();
           //n64js.hardware().checkSIStatusConsistent();
 
           eventQueue.incrementCount(COUNTER_INCREMENT_PER_OP);
@@ -890,7 +890,14 @@ class CPU0 {
       this.clearControlBits32(cpu0_constants.controlCause, CAUSE_IP3);
     }
 
-    checkCauseIP3Consistent();
+    this.checkCauseIP3Consistent();
+  }
+
+  checkCauseIP3Consistent() {
+    const miRegDevice = n64js.hardware().miRegDevice;
+    const miIntr = miRegDevice.interruptsUnmasked();
+    const causeIP3 = (this.getControlU32(cpu0_constants.controlCause) & CAUSE_IP3) !== 0;
+    assert(miIntr === causeIP3, `CAUSE_IP3 ${causeIP3} inconsistent with MI_INTR_REG ${miIntr}`);
   }
 
   statusRegisterChanged() {
@@ -2537,13 +2544,6 @@ const simpleTable = validateSimpleOpTable([
   i => cpu0.execSDC2(rt(i), base(i), imms(i)),
   i => cpu0.execSD(rt(i), base(i), imms(i)),
 ]);
-
-function checkCauseIP3Consistent() {
-  const miRegDevice = n64js.hardware().miRegDevice;
-  const miIntr = miRegDevice.interruptsUnmasked();
-  const causeIP3 = (cpu0.getControlU32(cpu0_constants.controlCause) & CAUSE_IP3) !== 0;
-  assert(miIntr === causeIP3, `CAUSE_IP3 ${causeIP3} inconsistent with MI_INTR_REG ${miIntr}`);
-}
 
 function mix(a, b, c) {
   a -= b; a -= c; a ^= (c >>> 13);
