@@ -33,8 +33,8 @@ export class CachedMemDevice extends Device {
   constructor(hardware, rangeStart, rangeEnd) {
     super("RAM", hardware, hardware.ram, rangeStart, rangeEnd);
 
-    // Used by n64js.getRamS32Array.
     this.dataView = this.mem.dataView;
+    // Used by hle getRamS32Array.
     this.s32 = this.mem.s32Array();
   }
 

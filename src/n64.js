@@ -183,7 +183,6 @@ function updateLoopAnimframe() {
   }
 }
 
-n64js.getRamS32Array = () => hardware.cachedMemDevice.s32;
 n64js.getRamDataView = () => hardware.cachedMemDevice.mem.dataView;
 
 n64js.getInstruction = address => {

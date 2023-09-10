@@ -223,9 +223,9 @@ var state = {
 };
 
 
-function getRamU8Array() {
-  return n64js.hardware().cachedMemDevice.u8;
-}
+// TODO: provide a HLE object and instantiate these in the constructor.
+function getRamU8Array() { return n64js.hardware().cachedMemDevice.u8; }
+function getRamS32Array() { return n64js.hardware().cachedMemDevice.s32; }
 
 function hleHalt(msg) {
   if (!debugDisplayListRunning) {
@@ -1404,7 +1404,7 @@ function executeLoadBlock(cmd0, cmd1, dis) {
   let ramOffset = ramAddress >>> 2;
   let tmemOffset = (tile.tmem << 3) >>> 2;
 
-  const ram_s32 = n64js.getRamS32Array();
+  const ram_s32 = getRamS32Array();
 
   // Slight fast path for dxt == 0
   if (dxt === 0) {
