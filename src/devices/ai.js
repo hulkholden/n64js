@@ -129,7 +129,7 @@ export class AIRegDevice extends Device {
   }
 
   get viClock() {
-    return this.hardware.viRegDevice.clock;
+    return this.hardware.viRegDevice.videoClock;
   }
 
   pushDMA(length) {
