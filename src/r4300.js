@@ -13,6 +13,7 @@ import { syncFlow } from './sync.js';
 import { EventQueue } from './event_queue.js';
 import { FragmentContext, generateCodeForOp } from './recompiler.js';
 import { kAccurateCountUpdating, kSpeedHackEnabled } from './options.js';
+import { fd, fs, ft, copop, offset, sa, rd, rt, rs, op, tlbop, cop1_func, cop1_bc, target, imm, imms, base, branchAddress, jumpAddress } from './decode.js';
 
 window.n64js = window.n64js || {};
 
@@ -1975,32 +1976,6 @@ const cpu2 = new CPU2();
 n64js.cpu0 = cpu0;
 n64js.cpu1 = cpu1;
 n64js.cpu2 = cpu2;
-
-
-function fd(i) { return (i >>> 6) & 0x1f; }
-function fs(i) { return (i >>> 11) & 0x1f; }
-function ft(i) { return (i >>> 16) & 0x1f; }
-function copop(i) { return (i >>> 21) & 0x1f; }
-
-function offset(i) { return ((i & 0xffff) << 16) >> 16; }
-function sa(i) { return (i >>> 6) & 0x1f; }
-function rd(i) { return (i >>> 11) & 0x1f; }
-function rt(i) { return (i >>> 16) & 0x1f; }
-function rs(i) { return (i >>> 21) & 0x1f; }
-function op(i) { return (i >>> 26) & 0x1f; }
-
-function tlbop(i) { return i & 0x3f; }
-function cop1_func(i) { return i & 0x3f; }
-function cop1_bc(i) { return (i >>> 16) & 0x3; }
-
-function target(i) { return (i) & 0x3ffffff; }
-function imm(i) { return (i) & 0xffff; }
-function imms(i) { return ((i & 0xffff) << 16) >> 16; }   // treat immediate value as signed
-function base(i) { return (i >>> 21) & 0x1f; }
-
-function branchAddress(pc, i) { return ((pc + 4) + (offset(i) * 4)) >>> 0; }
-//function branchAddress(pc,i) { return (((pc>>>2)+1) + offset(i))<<2; }  // NB: convoluted calculation to avoid >>>0 (deopt)
-function jumpAddress(pc, i) { return ((pc & 0xf0000000) | (target(i) * 4)) >>> 0; }
 
 
 function unimplemented(pc, i) {

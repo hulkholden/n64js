@@ -3,35 +3,12 @@
 import { assert } from './assert.js';
 import * as cpu0_constants from './cpu0_constants.js';
 import { toHex } from './format.js';
+import { fd, fs, ft, offset, sa, rd, rt, rs, op, tlbop, cop1_func, cop1_bc, imm, base, branchAddress, jumpAddress } from './decode.js';
 
 window.n64js = window.n64js || {};
 
-function _fd(i) { return (i >>> 6) & 0x1f; }
-function _fs(i) { return (i >>> 11) & 0x1f; }
-function _ft(i) { return (i >>> 16) & 0x1f; }
-function _copop(i) { return (i >>> 21) & 0x1f; }
-
-function _sa(i) { return (i >>> 6) & 0x1f; }
-function _rd(i) { return (i >>> 11) & 0x1f; }
-function _rt(i) { return (i >>> 16) & 0x1f; }
-function _rs(i) { return (i >>> 21) & 0x1f; }
-function _op(i) { return (i >>> 26) & 0x3f; }
-
-function _tlbop(i) { return i & 0x3f; }
-function _cop1_func(i) { return i & 0x3f; }
-function _cop1_bc(i) { return (i >>> 16) & 0x3; }
-
-function _target(i) { return (i) & 0x3ffffff; }
-function _imm(i) { return (i) & 0xffff; }
-function _imms(i) { return (_imm(i) << 16) >> 16; }   // treat immediate value as signed
-
-function _base(i) { return (i >>> 21) & 0x1f; }
-function _offsetU16(i) { return i & 0xffff; }
-function _offsetS16(i) { return (_imm(i) << 16) >> 16; }   // treat immediate value as signed
-
-function _branchAddress(a, i) { return (a + 4) + (_imms(i) * 4); }
-function _jumpAddress(a, i) { return (a & 0xf0000000) | (_target(i) * 4); }
-
+function offsetU16(i) { return offset(i) & 0xffff; }
+function offsetS16(i) { return (offset(i) << 16) >> 16; }   // treat immediate value as signed
 
 export const cop0gprNames = [
   'r0', 'at', 'v0', 'v1', 'a0', 'a1', 'a2', 'a3',
@@ -72,12 +49,12 @@ class Instruction {
     this.outputHTML = outputHTML;
   }
 
-  get rt_d() { const reg = this.cop0RegName(_rt); this.dstRegs[reg] = 1; return this.makeRegSpan(reg); }
-  get rd() { const reg = this.cop0RegName(_rd); this.dstRegs[reg] = 1; return this.makeRegSpan(reg); }
-  get rt() { const reg = this.cop0RegName(_rt); this.srcRegs[reg] = 1; return this.makeRegSpan(reg); }
-  get rs() { const reg = this.cop0RegName(_rs); this.srcRegs[reg] = 1; return this.makeRegSpan(reg); }
+  get rt_d() { const reg = this.cop0RegName(rt); this.dstRegs[reg] = 1; return this.makeRegSpan(reg); }
+  get rd() { const reg = this.cop0RegName(rd); this.dstRegs[reg] = 1; return this.makeRegSpan(reg); }
+  get rt() { const reg = this.cop0RegName(rt); this.srcRegs[reg] = 1; return this.makeRegSpan(reg); }
+  get rs() { const reg = this.cop0RegName(rs); this.srcRegs[reg] = 1; return this.makeRegSpan(reg); }
 
-  get sa() { return _sa(this.opcode); }
+  get sa() { return sa(this.opcode); }
 
   cop0RegName(opFn) {
     return cop0gprNames[opFn(this.opcode)];
@@ -87,11 +64,11 @@ class Instruction {
   writesRA() { this.dstRegs[cpu0_constants.RA] = 1; return ''; }
 
   // cop1 regs
-  ft_d(fmt) { const reg = this.cop1RegName(_ft, fmt); this.dstRegs[reg] = 1; return this.makeFPRegSpan(reg); }
-  fs_d(fmt) { const reg = this.cop1RegName(_fs, fmt); this.dstRegs[reg] = 1; return this.makeFPRegSpan(reg); }
-  fd(fmt) { const reg = this.cop1RegName(_fd, fmt); this.dstRegs[reg] = 1; return this.makeFPRegSpan(reg); }
-  ft(fmt) { const reg = this.cop1RegName(_ft, fmt); this.srcRegs[reg] = 1; return this.makeFPRegSpan(reg); }
-  fs(fmt) { const reg = this.cop1RegName(_fs, fmt); this.srcRegs[reg] = 1; return this.makeFPRegSpan(reg); }
+  ft_d(fmt) { const reg = this.cop1RegName(ft, fmt); this.dstRegs[reg] = 1; return this.makeFPRegSpan(reg); }
+  fs_d(fmt) { const reg = this.cop1RegName(fs, fmt); this.dstRegs[reg] = 1; return this.makeFPRegSpan(reg); }
+  fd(fmt) { const reg = this.cop1RegName(fd, fmt); this.dstRegs[reg] = 1; return this.makeFPRegSpan(reg); }
+  ft(fmt) { const reg = this.cop1RegName(ft, fmt); this.srcRegs[reg] = 1; return this.makeFPRegSpan(reg); }
+  fs(fmt) { const reg = this.cop1RegName(fs, fmt); this.srcRegs[reg] = 1; return this.makeFPRegSpan(reg); }
 
   cop1RegName(opFn, fmt) {
     const regIdx = opFn(this.opcode);
@@ -100,25 +77,25 @@ class Instruction {
   }
 
   // cop2 regs
-  get gt_d() { const reg = this.cop2RegName(_rt); this.dstRegs[reg] = 1; return this.makeRegSpan(reg); }
-  get gd() { const reg = this.cop2RegName(_rd); this.dstRegs[reg] = 1; return this.makeRegSpan(reg); }
-  get gt() { const reg = this.cop2RegName(_rt); this.srcRegs[reg] = 1; return this.makeRegSpan(reg); }
-  get gs() { const reg = this.cop2RegName(_rs); this.srcRegs[reg] = 1; return this.makeRegSpan(reg); }
+  get gt_d() { const reg = this.cop2RegName(rt); this.dstRegs[reg] = 1; return this.makeRegSpan(reg); }
+  get gd() { const reg = this.cop2RegName(rd); this.dstRegs[reg] = 1; return this.makeRegSpan(reg); }
+  get gt() { const reg = this.cop2RegName(rt); this.srcRegs[reg] = 1; return this.makeRegSpan(reg); }
+  get gs() { const reg = this.cop2RegName(rs); this.srcRegs[reg] = 1; return this.makeRegSpan(reg); }
 
   cop2RegName(opFn) {
     return cop2RegisterNames[opFn(this.opcode)];
   }
 
-  get imm() { return `0x${toHex(_imm(this.opcode), 16)}`; }
+  get imm() { return `0x${toHex(imm(this.opcode), 16)}`; }
 
-  get branchAddress() { this.target = _branchAddress(this.address, this.opcode); return this.makeLabelText(this.target); }
-  get jumpAddress() { this.target = _jumpAddress(this.address, this.opcode); return this.makeLabelText(this.target); }
+  get branchAddress() { this.target = branchAddress(this.address, this.opcode); return this.makeLabelText(this.target); }
+  get jumpAddress() { this.target = jumpAddress(this.address, this.opcode); return this.makeLabelText(this.target); }
 
-  get base() { const reg = this.cop0RegName(_base); this.srcRegs[reg] = 1; return this.makeRegSpan(reg); }
-  get offsetU16() { return `0x${toHex(_offsetU16(this.opcode), 16)}`; }
-  get offsetS16() { return `0x${toHex(_offsetS16(this.opcode), 16)}`; }
+  get base() { const reg = this.cop0RegName(base); this.srcRegs[reg] = 1; return this.makeRegSpan(reg); }
+  get offsetU16() { return `0x${toHex(offsetU16(this.opcode), 16)}`; }
+  get offsetS16() { return `0x${toHex(offsetS16(this.opcode), 16)}`; }
   memaccess(mode) {
-    this.memory = { reg: _base(this.opcode), offset: _offsetS16(this.opcode), mode: mode };
+    this.memory = { reg: base(this.opcode), offset: offsetS16(this.opcode), mode: mode };
     return `[${this.base}+${this.offsetU16}]`;
   }
 
@@ -193,8 +170,8 @@ const specialTable = [
   i => `SUBU      ${i.rd} = ${i.rs} - ${i.rt}`,
   i => `AND       ${i.rd} = ${i.rs} & ${i.rt}`,
   i => {
-    if (_rt(i.opcode) === 0) {
-      if (_rs(i.opcode) === 0) {
+    if (rt(i.opcode) === 0) {
+      if (rs(i.opcode) === 0) {
         return `CLEAR     ${i.rd} = 0`;
       } else {
         return `MOV       ${i.rd} = ${i.rs}`;
@@ -239,12 +216,12 @@ function disassembleSpecial(i) {
 }
 
 const cop0Table = [
-  i => `MFC0      ${i.rt} <- ${cop0ControlRegisterNames[_fs(i.opcode)]}`,
-  i => `DMFC0     ${i.rt} <- ${cop0ControlRegisterNames[_fs(i.opcode)]}`,
+  i => `MFC0      ${i.rt} <- ${cop0ControlRegisterNames[fs(i.opcode)]}`,
+  i => `DMFC0     ${i.rt} <- ${cop0ControlRegisterNames[fs(i.opcode)]}`,
   i => 'Unk',
   i => 'Unk',
-  i => `MTC0      ${i.rt} -> ${cop0ControlRegisterNames[_fs(i.opcode)]}`,
-  i => `DMTC0     ${i.rt} -> ${cop0ControlRegisterNames[_fs(i.opcode)]}`,
+  i => `MTC0      ${i.rt} -> ${cop0ControlRegisterNames[fs(i.opcode)]}`,
+  i => `DMTC0     ${i.rt} -> ${cop0ControlRegisterNames[fs(i.opcode)]}`,
   i => 'Unk',
   i => 'Unk',
   i => 'Unk',
@@ -284,7 +261,7 @@ function disassembleCop0(i) {
 function disassembleBCInstr(i) {
   assert(((i.opcode >>> 18) & 0x7) === 0, "cc bit is not 0");
 
-  switch (_cop1_bc(i.opcode)) {
+  switch (cop1_bc(i.opcode)) {
     case 0: return `BC1F      !c ? --> ${i.branchAddress}`;
     case 1: return `BC1T      c ? --> ${i.branchAddress}`;
     case 2: return `BC1FL     !c ? --> ${i.branchAddress}`;
@@ -297,7 +274,7 @@ function disassembleBCInstr(i) {
 function disassembleCop1Instr(i, fmt) {
   var fmt_u = fmt.toUpperCase();
 
-  switch (_cop1_func(i.opcode)) {
+  switch (cop1_func(i.opcode)) {
     case 0x00: return `ADD.${fmt_u}     ${i.fd(fmt)} = ${i.fs(fmt)} + ${i.ft(fmt)}`;
     case 0x01: return `SUB.${fmt_u}     ${i.fd(fmt)} = ${i.fs(fmt)} - ${i.ft(fmt)}`;
     case 0x02: return `MUL.${fmt_u}     ${i.fd(fmt)} = ${i.fs(fmt)} * ${i.ft(fmt)}`;
@@ -338,7 +315,7 @@ function disassembleCop1Instr(i, fmt) {
     case 0x3f: return `C.NGT.${fmt_u}   c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
   }
 
-  return `Cop1.${fmt}${toHex(_cop1_func(i.opcode), 8)}?`;
+  return `Cop1.${fmt}${toHex(cop1_func(i.opcode), 8)}?`;
 }
 function disassembleCop1SInstr(i) {
   return disassembleCop1Instr(i, 's');
@@ -357,12 +334,12 @@ function disassembleCop1LInstr(i) {
 const cop1Table = [
   i => `MFC1      ${i.rt_d} = ${i.fs()}`,
   i => `DMFC1     ${i.rt_d} = ${i.fs()}`,
-  i => `CFC1      ${i.rt_d} = CCR${_rd(i.opcode)}`,
-  i => `DCFC1     ${i.rt_d} = CCR${_rd(i.opcode)}`,
+  i => `CFC1      ${i.rt_d} = CCR${rd(i.opcode)}`,
+  i => `DCFC1     ${i.rt_d} = CCR${rd(i.opcode)}`,
   i => `MTC1      ${i.fs_d()} = ${i.rt}`,
   i => `DMTC1     ${i.fs_d()} = ${i.rt}`,
-  i => `CTC1      CCR${_rd(i.opcode)} = ${i.rt}`,
-  i => `DCTC1     CCR${_rd(i.opcode)} = ${i.rt}`,
+  i => `CTC1      CCR${rd(i.opcode)} = ${i.rt}`,
+  i => `DCTC1     CCR${rd(i.opcode)} = ${i.rt}`,
   disassembleBCInstr,
   i => 'Unk',
   i => 'Unk',
@@ -401,12 +378,12 @@ function disassembleCop1(i) {
 const cop2Table = [
   i => `MFC2      ${i.rt_d} = ${i.fs()}`,
   i => `DMFC2     ${i.rt_d} = ${i.fs()}`,
-  i => `CFC2      ${i.rt_d} = CCR${_rd(i.opcode)}`,
-  i => `DCFC2     ${i.rt_d} = CCR${_rd(i.opcode)}`,
+  i => `CFC2      ${i.rt_d} = CCR${rd(i.opcode)}`,
+  i => `DCFC2     ${i.rt_d} = CCR${rd(i.opcode)}`,
   i => `MTC2      ${i.fs_d()} = ${i.rt}`,
   i => `DMTC2     ${i.fs_d()} = ${i.rt}`,
-  i => `CTC2      CCR${_rd(i.opcode)} = ${i.rt}`,
-  i => `DCTC2     CCR${_rd(i.opcode)} = ${i.rt}`,
+  i => `CTC2      CCR${rd(i.opcode)} = ${i.rt}`,
+  i => `DCTC2     CCR${rd(i.opcode)} = ${i.rt}`,
   i => 'Unk',
   i => 'Unk',
   i => 'Unk',
@@ -444,12 +421,12 @@ function disassembleCop2(i) {
 const cop3Table = [
   i => `MFC3      ${i.rt_d} = ${i.fs()}`,
   i => `DMFC3     ${i.rt_d} = ${i.fs()}`,
-  i => `CFC3      ${i.rt_d} = CCR${_rd(i.opcode)}`,
-  i => `DCFC3     ${i.rt_d} = CCR${_rd(i.opcode)}`,
+  i => `CFC3      ${i.rt_d} = CCR${rd(i.opcode)}`,
+  i => `DCFC3     ${i.rt_d} = CCR${rd(i.opcode)}`,
   i => `MTC3      ${i.fs_d()} = ${i.rt}`,
   i => `DMTC3     ${i.fs_d()} = ${i.rt}`,
-  i => `CTC3      CCR${_rd(i.opcode)} = ${i.rt}`,
-  i => `DCTC3     CCR${_rd(i.opcode)} = ${i.rt}`,
+  i => `CTC3      CCR${rd(i.opcode)} = ${i.rt}`,
+  i => `DCTC3     CCR${rd(i.opcode)} = ${i.rt}`,
   i => 'Unk',
   i => 'Unk',
   i => 'Unk',
@@ -485,7 +462,7 @@ function disassembleCop3(i) {
 }
 
 function disassembleTLB(i) {
-  switch (_tlbop(i.opcode)) {
+  switch (tlbop(i.opcode)) {
     case 0x01: return 'TLBR';
     case 0x02: return 'TLBWI';
     case 0x06: return 'TLBWR';
@@ -547,7 +524,7 @@ const simpleTable = [
   i => `J         --> ${i.jumpAddress}`,
   i => `JAL       --> ${i.jumpAddress}${i.writesRA()}`,
   i => {
-    if (_rs(i.opcode) == _rt(i.opcode)) {
+    if (rs(i.opcode) == rt(i.opcode)) {
       return `B         --> ${i.branchAddress}`;
     }
     return `BEQ       ${i.rs} == ${i.rt} --> ${i.branchAddress}`;
@@ -594,7 +571,7 @@ const simpleTable = [
   i => `SDL       ${i.rt} -> ${i.memstore()}`,
   i => `SDR       ${i.rt} -> ${i.memstore()}`,
   i => `SWR       ${i.rt} -> ${i.memstore()}`,
-  i => `CACHE     ${toHex(_rt(i.opcode), 8)}, ${i.memaccess()}`,
+  i => `CACHE     ${toHex(rt(i.opcode), 8)}, ${i.memaccess()}`,
   i => `LL        ${i.rt_d} <- ${i.memload()}`,
   i => `LWC1      ${i.ft_d()} <- ${i.memload()}`,
   i => 'Unk',
@@ -618,7 +595,7 @@ if (simpleTable.length != 64) {
 
 export function disassembleInstruction(address, instruction, outputHTML) {
   const i = new Instruction(address, instruction, outputHTML);
-  const disassembly = simpleTable[_op(instruction)](i);
+  const disassembly = simpleTable[op(instruction)](i);
   return {
     instruction: i,
     disassembly: disassembly,

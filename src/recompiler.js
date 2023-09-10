@@ -6,6 +6,7 @@ import { disassembleInstruction } from './disassemble.js';
 import { toString32 } from './format.js';
 import { assert } from './assert.js';
 import { kAccurateCountUpdating, kSpeedHackEnabled } from './options.js';
+import { fd, fs, ft, offset, sa, rd, rt, rs, tlbop, cop1_func, imm, imms, base, branchAddress, jumpAddress } from './decode.js';
 
 const kDebugDynarec = false;
 const kValidateDynarecPCs = false;
@@ -32,32 +33,6 @@ const cop1CVT_S = 0x20;
 const cop1CVT_D = 0x21;
 const cop1CVT_W = 0x24;
 const cop1CVT_L = 0x25;
-
-// TODO: dedupe
-function fd(i) { return (i >>> 6) & 0x1f; }
-function fs(i) { return (i >>> 11) & 0x1f; }
-function ft(i) { return (i >>> 16) & 0x1f; }
-function copop(i) { return (i >>> 21) & 0x1f; }
-
-function offset(i) { return ((i & 0xffff) << 16) >> 16; }
-function sa(i) { return (i >>> 6) & 0x1f; }
-function rd(i) { return (i >>> 11) & 0x1f; }
-function rt(i) { return (i >>> 16) & 0x1f; }
-function rs(i) { return (i >>> 21) & 0x1f; }
-function op(i) { return (i >>> 26) & 0x1f; }
-
-function tlbop(i) { return i & 0x3f; }
-function cop1_func(i) { return i & 0x3f; }
-function cop1_bc(i) { return (i >>> 16) & 0x3; }
-
-function target(i) { return (i) & 0x3ffffff; }
-function imm(i) { return (i) & 0xffff; }
-function imms(i) { return ((i & 0xffff) << 16) >> 16; }   // treat immediate value as signed
-function base(i) { return (i >>> 21) & 0x1f; }
-
-function branchAddress(pc, i) { return ((pc + 4) + (offset(i) * 4)) >>> 0; }
-//function branchAddress(pc,i) { return (((pc>>>2)+1) + offset(i))<<2; }  // NB: convoluted calculation to avoid >>>0 (deopt)
-function jumpAddress(pc, i) { return ((pc & 0xf0000000) | (target(i) * 4)) >>> 0; }
 
 
 export class FragmentContext {
