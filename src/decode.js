@@ -1,11 +1,15 @@
 // Helpers for decoding R4300 instructions.
 
 export function simpleOp(i) { return (i >>> 26) & 0x3f; }
+export function regImmOp(i) { return (i >>> 16) & 0x1f; }
+export function specialOp(i) { return i & 0x3f; }
+export function copOp(i) { return (i >>> 21) & 0x1f; }
+export function cop1BCOp(i) { return (i >>> 16) & 0x3; }
+export function copFmtFuncOp(i) { return i & 0x3f; }
 
 export function fd(i) { return (i >>> 6) & 0x1f; }
 export function fs(i) { return (i >>> 11) & 0x1f; }
 export function ft(i) { return (i >>> 16) & 0x1f; }
-export function copop(i) { return (i >>> 21) & 0x1f; }
 
 export function offset(i) { return ((i & 0xffff) << 16) >> 16; }
 
@@ -15,8 +19,6 @@ export function rt(i) { return (i >>> 16) & 0x1f; }
 export function rs(i) { return (i >>> 21) & 0x1f; }
 
 export function tlbop(i) { return i & 0x3f; }
-export function cop1_func(i) { return i & 0x3f; }
-export function cop1_bc(i) { return (i >>> 16) & 0x3; }
 
 export function target(i) { return (i) & 0x3ffffff; }
 export function imm(i) { return (i) & 0xffff; }

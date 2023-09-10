@@ -3,7 +3,7 @@
 import { assert } from './assert.js';
 import * as cpu0_constants from './cpu0_constants.js';
 import { toHex } from './format.js';
-import { simpleOp, fd, fs, ft, offset, sa, rd, rt, rs, tlbop, cop1_func, cop1_bc, imm, base, branchAddress, jumpAddress } from './decode.js';
+import { simpleOp, regImmOp, specialOp, copOp, cop1BCOp, copFmtFuncOp, fd, fs, ft, offset, sa, rd, rt, rs, tlbop, imm, base, branchAddress, jumpAddress } from './decode.js';
 
 window.n64js = window.n64js || {};
 
@@ -211,8 +211,7 @@ if (specialTable.length != 64) {
 }
 
 function disassembleSpecial(i) {
-  var fn = i.opcode & 0x3f;
-  return specialTable[fn](i);
+  return specialTable[specialOp(i.opcode)](i);
 }
 
 const cop0Table = [
@@ -254,14 +253,13 @@ if (cop0Table.length != 32) {
   throw "Oops, didn't build the cop0 table correctly";
 }
 function disassembleCop0(i) {
-  var fmt = (i.opcode >> 21) & 0x1f;
-  return cop0Table[fmt](i);
+  return cop0Table[copOp(i.opcode)](i);
 }
 
 function disassembleBCInstr(i) {
   assert(((i.opcode >>> 18) & 0x7) === 0, "cc bit is not 0");
 
-  switch (cop1_bc(i.opcode)) {
+  switch (cop1BCOp(i.opcode)) {
     case 0: return `BC1F      !c ? --> ${i.branchAddress}`;
     case 1: return `BC1T      c ? --> ${i.branchAddress}`;
     case 2: return `BC1FL     !c ? --> ${i.branchAddress}`;
@@ -274,7 +272,7 @@ function disassembleBCInstr(i) {
 function disassembleCop1Instr(i, fmt) {
   var fmt_u = fmt.toUpperCase();
 
-  switch (cop1_func(i.opcode)) {
+  switch (copFmtFuncOp(i.opcode)) {
     case 0x00: return `ADD.${fmt_u}     ${i.fd(fmt)} = ${i.fs(fmt)} + ${i.ft(fmt)}`;
     case 0x01: return `SUB.${fmt_u}     ${i.fd(fmt)} = ${i.fs(fmt)} - ${i.ft(fmt)}`;
     case 0x02: return `MUL.${fmt_u}     ${i.fd(fmt)} = ${i.fs(fmt)} * ${i.ft(fmt)}`;
@@ -315,7 +313,7 @@ function disassembleCop1Instr(i, fmt) {
     case 0x3f: return `C.NGT.${fmt_u}   c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
   }
 
-  return `Cop1.${fmt}${toHex(cop1_func(i.opcode), 8)}?`;
+  return `Cop1.${fmt}${toHex(copFmtFuncOp(i.opcode), 8)}?`;
 }
 function disassembleCop1SInstr(i) {
   return disassembleCop1Instr(i, 's');
@@ -329,7 +327,6 @@ function disassembleCop1WInstr(i) {
 function disassembleCop1LInstr(i) {
   return disassembleCop1Instr(i, 'l');
 }
-
 
 const cop1Table = [
   i => `MFC1      ${i.rt_d} = ${i.fs()}`,
@@ -370,10 +367,8 @@ if (cop1Table.length != 32) {
   throw "Oops, didn't build the cop1 table correctly";
 }
 function disassembleCop1(i) {
-  var fmt = (i.opcode >> 21) & 0x1f;
-  return cop1Table[fmt](i);
+  return cop1Table[copOp(i.opcode)](i);
 }
-
 
 const cop2Table = [
   i => `MFC2      ${i.rt_d} = ${i.fs()}`,
@@ -413,9 +408,8 @@ const cop2Table = [
 if (cop2Table.length != 32) {
   throw "Oops, didn't build the cop2 table correctly";
 }
-function disassembleCop2(i) {
-  var fmt = (i.opcode >> 21) & 0x1f;
-  return cop2Table[fmt](i);
+function disassembleCop2(i) {f;
+  return cop2Table[copOp(i.opcode)](i);
 }
 
 const cop3Table = [
@@ -457,8 +451,7 @@ if (cop3Table.length != 32) {
   throw "Oops, didn't build the cop3 table correctly";
 }
 function disassembleCop3(i) {
-  var fmt = (i.opcode >> 21) & 0x1f;
-  return cop3Table[fmt](i);
+  return cop3Table[copOp(i.opcode)](i);
 }
 
 function disassembleTLB(i) {
@@ -514,8 +507,7 @@ if (regImmTable.length != 32) {
 }
 
 function disassembleRegImm(i) {
-  var rt = (i.opcode >> 16) & 0x1f;
-  return regImmTable[rt](i);
+  return regImmTable[regImmOp(i.opcode)](i);
 }
 
 const simpleTable = [
