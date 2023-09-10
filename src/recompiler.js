@@ -6,7 +6,7 @@ import { disassembleInstruction } from './disassemble.js';
 import { toString32 } from './format.js';
 import { assert } from './assert.js';
 import { kAccurateCountUpdating, kSpeedHackEnabled } from './options.js';
-import { fd, fs, ft, offset, sa, rd, rt, rs, tlbop, cop1_func, imm, imms, base, branchAddress, jumpAddress, simpleOp } from './decode.js';
+import { simpleOp, regImmOp, specialOp, copOp, copFmtFuncOp, fd, fs, ft, offset, sa, rd, rt, rs, tlbop, imm, imms, base, branchAddress, jumpAddress } from './decode.js';
 
 const kDebugDynarec = false;
 const kValidateDynarecPCs = false;
@@ -1322,8 +1322,7 @@ function generateSInstrStub(ctx) {
   ctx.fragment.usesCop1 = true;
   ctx.isTrivial = false;  // Can raise FPE.
 
-  const op = cop1_func(ctx.instruction);
-
+  const op = copFmtFuncOp(ctx.instruction);
   if (op < 0x30) {
     switch (op) {
       case cop1ADD: return `cpu1.ADD_S(${d}, ${s}, ${t});`;
@@ -1362,8 +1361,7 @@ function generateDInstrStub(ctx) {
   ctx.fragment.usesCop1 = true;
   ctx.isTrivial = false;  // Can raise FPE.
 
-  const op = cop1_func(ctx.instruction);
-
+  const op = copFmtFuncOp(ctx.instruction);
   if (op < 0x30) {
     switch (op) {
       case cop1ADD: return `cpu1.ADD_D(${d}, ${s}, ${t});`;
@@ -1393,14 +1391,13 @@ function generateDInstrStub(ctx) {
   return `cpu1.handleFloatCompareDouble(${op}, ${s}, ${t});`;
 }
 
-
 function generateWInstrStub(ctx) {
   const s = ctx.instr_fs();
   const d = ctx.instr_fd();
 
   ctx.fragment.usesCop1 = true;
   ctx.isTrivial = false;  // Can raise FPE.
-  switch (cop1_func(ctx.instruction)) {
+  switch (copFmtFuncOp(ctx.instruction)) {
     case cop1ROUND_L: return `cpu1.raiseUnimplemented();`;
     case cop1TRUNC_L: return `cpu1.raiseUnimplemented();`;
     case cop1CEIL_L: return `cpu1.raiseUnimplemented();`;
@@ -1417,14 +1414,13 @@ function generateWInstrStub(ctx) {
   return `unimplemented(${toString32(ctx.pc)},${toString32(ctx.instruction)});`;
 }
 
-
 function generateLInstrStub(ctx) {
   const s = ctx.instr_fs();
   const d = ctx.instr_fd();
 
   ctx.fragment.usesCop1 = true;
   ctx.isTrivial = false;  // Can raise FPE.
-  switch (cop1_func(ctx.instruction)) {
+  switch (copFmtFuncOp(ctx.instruction)) {
     case cop1ROUND_L: return `cpu1.raiseUnimplemented();`;
     case cop1TRUNC_L: return `cpu1.raiseUnimplemented();`;
     case cop1CEIL_L: return `cpu1.raiseUnimplemented();`;
@@ -1441,10 +1437,8 @@ function generateLInstrStub(ctx) {
   return `unimplemented(${toString32(ctx.pc)},${toString32(ctx.instruction)});`;
 }
 
-
 function generateCop1(ctx) {
-  const fmt = (ctx.instruction >>> 21) & 0x1f;
-  const fn = cop1TableGen[fmt];
+  const fn = cop1TableGen[copOp(ctx.instruction)];
 
   const opImpl = fn(ctx);
 
@@ -1474,13 +1468,10 @@ function generateCop1(ctx) {
   return generateGenericOpBoilerplate(impl, ctx);
 }
 
-
-
 function generateBreakpoint(ctx) {
   const impl = `c.execBreakpoint();`;
   return generateGenericOpBoilerplate(impl, ctx);
 }
-
 
 function validateSpecialOpTable(cases) {
   if (cases.length != 64) {
@@ -1606,23 +1597,19 @@ function generateOp(ctx) {
 }
 
 function generateSpecial(ctx) {
-  const special_fn = ctx.instruction & 0x3f;
-  return specialTableGen[special_fn](ctx);
+  return specialTableGen[specialOp(ctx.instruction)](ctx);
 }
 
 function generateRegImm(ctx) {
-  const rt = (ctx.instruction >>> 16) & 0x1f;
-  return regImmTableGen[rt](ctx);
+  return regImmTableGen[regImmOp(ctx.instruction)](ctx);
 }
 
 function generateCop0(ctx) {
-  const fmt = (ctx.instruction >>> 21) & 0x1f;
-  return cop0TableGen[fmt](ctx);
+  return cop0TableGen[copOp(ctx.instruction)](ctx);
 }
 
 function generateCop2(ctx) {
-  const fmt = (ctx.instruction >>> 21) & 0x1f;
-  return cop2TableGen[fmt](ctx);
+  return cop2TableGen[copOp(ctx.instruction)](ctx);
 }
 
 function generateCop3(ctx) {

@@ -13,7 +13,7 @@ import { syncFlow } from './sync.js';
 import { EventQueue } from './event_queue.js';
 import { FragmentContext, generateCodeForOp } from './recompiler.js';
 import { kAccurateCountUpdating, kSpeedHackEnabled } from './options.js';
-import { simpleOp, fd, fs, ft, offset, sa, rd, rt, rs, tlbop, cop1_func, imm, imms, base, jumpAddress } from './decode.js';
+import { simpleOp, regImmOp, specialOp, copOp, copFmtFuncOp, fd, fs, ft, offset, sa, rd, rt, rs, tlbop, imm, imms, base, jumpAddress } from './decode.js';
 
 window.n64js = window.n64js || {};
 
@@ -2108,8 +2108,7 @@ const specialTable = validateSpecialOpTable([
 ]);
 
 function executeSpecial(i) {
-  const fn = i & 0x3f;
-  specialTable[fn](i);
+  specialTable[specialOp(i)](i);
 }
 
 // Expose all the functions that we don't yet generate
@@ -2161,8 +2160,7 @@ const cop0Table = validateCopOpTable([
 ]);
 
 function executeCop0(i) {
-  const fmt = (i >>> 21) & 0x1f;
-  cop0Table[fmt](i);
+  cop0Table[copOp(i)](i);
 }
 
 const cop1Table = validateCopOpTable([
@@ -2184,12 +2182,12 @@ const cop1Table = validateCopOpTable([
   executeUnknown,
   executeUnknown,
 
-  i => cpu1.execSInstr(cop1_func(i), fd(i), fs(i), ft(i)),
-  i => cpu1.execDInstr(cop1_func(i), fd(i), fs(i), ft(i)),
+  i => cpu1.execSInstr(copFmtFuncOp(i), fd(i), fs(i), ft(i)),
+  i => cpu1.execDInstr(copFmtFuncOp(i), fd(i), fs(i), ft(i)),
   executeUnknown,
   executeUnknown,
-  i => cpu1.execWInstr(cop1_func(i), fd(i), fs(i), ft(i)),
-  i => cpu1.execLInstr(cop1_func(i), fd(i), fs(i), ft(i)),
+  i => cpu1.execWInstr(copFmtFuncOp(i), fd(i), fs(i), ft(i)),
+  i => cpu1.execLInstr(copFmtFuncOp(i), fd(i), fs(i), ft(i)),
   executeUnknown,
   executeUnknown,
 
@@ -2205,9 +2203,7 @@ const cop1Table = validateCopOpTable([
 
 function executeCop1(i) {
   //assert( (cpu0.getControlU32(cpu0_constants.controlSR) & SR_CU1) !== 0, "SR_CU1 in inconsistent state" );
-
-  const fmt = (i >>> 21) & 0x1f;
-  cop1Table[fmt](i);
+  cop1Table[copOp(i)](i);
 }
 
 const cop2Table = validateCopOpTable([
@@ -2249,8 +2245,7 @@ const cop2Table = validateCopOpTable([
 ]);
 
 function executeCop2(i) {
-  const fmt = (i >>> 21) & 0x1f;
-  cop2Table[fmt](i);
+  cop2Table[copOp(i)](i);
 }
 
 function executeCop3(i) {
@@ -2319,8 +2314,7 @@ const regImmTable = validateRegImmOpTable([
 ]);
 
 function executeRegImm(i) {
-  const rt = (i >>> 16) & 0x1f;
-  return regImmTable[rt](i);
+  return regImmTable[regImmOp(i)](i);
 }
 
 function validateSimpleOpTable(cases) {
