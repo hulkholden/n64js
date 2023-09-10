@@ -57,4 +57,20 @@ export function tvTypeFromCountry(countryId) {
   return OS_TV_NTSC;
 }
 
+// See https://n64brew.dev/wiki/ROM_Header.
+export const categoryCodes = new Map([
+  ['N', 'Game Pak'],
+  ['D', '64DD Disk'],
+  ['C', 'Expandable Game: Game Pak Part'],
+  ['E', 'Expandable Game: 64DD Disk Part'],
+  ['Z', 'Aleck64 Game Pak'],
+]);
 
+export function categoryCodeDescriptionFromU8(u8) {
+  const code = String.fromCharCode(u8);
+  const desc = categoryCodes.get(code);
+  if (desc) {
+    return desc;
+  }
+  return `unknown code ${code}`;
+}

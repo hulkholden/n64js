@@ -12,7 +12,7 @@ import { debugDisplayList, debugDisplayListRequested, debugDisplayListRunning, p
 import * as json from './json.js';
 import * as logger from './logger.js';
 import { romdb, generateRomId, generateCICType, uint8ArrayReadString } from './romdb.js';
-import { countryNorthAmerica, OS_TV_NTSC, tvTypeFromCountry } from './system_constants.js';
+import { categoryCodeDescriptionFromU8, countryNorthAmerica, OS_TV_NTSC, tvTypeFromCountry } from './system_constants.js';
 import { UI } from './ui.js';
 import { initSync, syncActive, syncTick, syncInput } from './sync.js';
 
@@ -62,7 +62,7 @@ function loadRom(arrayBuffer) {
     header: rom.getU32(0),
     clock: rom.getU32(4),
     bootAddress: rom.getU32(8),
-    release: rom.getU32(12),
+    release: rom.getU32(12),  // libultra version
     crclo: rom.getU32(16),   // or hi?
     crchi: rom.getU32(20),   // or lo?
     unk0: rom.getU32(24),
@@ -71,11 +71,12 @@ function loadRom(arrayBuffer) {
     unk2: rom.getU32(52),
     unk3: rom.getU16(56),
     unk4: rom.getU8(58),
-    manufacturer: rom.getU8(59),
-    cartId: rom.getU16(60),
+    categoryCode: categoryCodeDescriptionFromU8(rom.getU8(59)),
+    cartId: rom.getU16(60),     // unique id for the cart
     countryId: rom.getU8(62),  // char
-    unk5: rom.getU8(63)
+    romVersion: rom.getU8(63),  // or homebrew savetype - see https://n64brew.dev/wiki/ROM_Header
   };
+  console.log(hdr);
 
   const $table = $('<table class="register-table"><tbody></tbody></table>');
   const $tb = $table.find('tbody');
