@@ -100,30 +100,8 @@ const CAUSE_IPSHIFT   = 8;
 
 const CAUSE_EXCMASK   = 0x0000007C;
 
-const CAUSE_EXCSHIFT  = 2;
-
 // Only the software interrupt values are writeable.
 const causeWritableBits = BigInt(CAUSE_SW1 | CAUSE_SW2);
-
-const causeExcCodeInt = 0 << 2;  // Interrupt
-const causeExcCodeMod = 1 << 2;  // TLB Modification
-const causeExcCodeTLBL = 2 << 2;  // TLB Miss (load or instruction fetch)
-const causeExcCodeTLBS = 3 << 2;  // TLB Miss (store)
-const causeExcCodeAdEL = 4 << 2;  // Address Error (load or instruction fetch)
-const causeExcCodeAdES = 5 << 2;  // Address Error (store)
-const causeExcCodeIBE = 6 << 2;  // Bus Error (instruction fetch)
-const causeExcCodeDBE = 7 << 2;  // Bus Error (data reference: load or store)
-const causeExcCodeSys = 8 << 2;  // Syscall
-const causeExcCodeBp = 9 << 2;  // Breakpoint
-const causeExcCodeRI = 10 << 2;  // Reserved Instruction
-const causeExcCodeCpU = 11 << 2;  // Coprocessor Unusable
-const causeExcCodeOv = 12 << 2;  // Arithmetic Overflow
-const causeExcCodeTr = 13 << 2;  // Trap
-const causeExcCodeVCEI = 14 << 2;  // ?
-const causeExcCodeFPE = 15 << 2;  // Floating-Point
-const causeExcCodeWATCH = 23 << 2;  // Watch
-const causeExcCodeVCED = 31 << 2; // ?
-
 
 const FPCSR_RM_RN     = 0x00000000;
 const FPCSR_RM_RZ     = 0x00000001;
@@ -959,24 +937,24 @@ class CPU0 {
   throwCopXUnusable(copIdx) {
     // XXXX check we're not inside exception handler before snuffing CAUSE reg?
     const ce = copIdx << CAUSE_CESHIFT;
-    this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, causeExcCodeCpU | ce);
+    this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, cpu0_constants.causeExcCodeCpU | ce);
   }
 
   raiseSYSCALLException() {
-    this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, causeExcCodeSys);
+    this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, cpu0_constants.causeExcCodeSys);
   }
 
   raiseBREAKException() {
-    this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, causeExcCodeBp);
+    this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, cpu0_constants.causeExcCodeBp);
   }
 
   raiseRESERVEDException(copIdx) {
     const ce = copIdx << CAUSE_CESHIFT;
-    this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, causeExcCodeRI | ce);
+    this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, cpu0_constants.causeExcCodeRI | ce);
   }
 
   raiseTRAPException() {
-    this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, causeExcCodeTr);
+    this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, cpu0_constants.causeExcCodeTr);
   }
 
   maybeRaiseTRAPException(cond) {
@@ -986,11 +964,11 @@ class CPU0 {
   }
 
   raiseOverflowException() {
-    this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, causeExcCodeOv);
+    this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, cpu0_constants.causeExcCodeOv);
   }
 
   raiseFPE() {
-    this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, causeExcCodeFPE);
+    this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, cpu0_constants.causeExcCodeFPE);
   }
 
   raiseTLBException(address32, exc_code, vec) {
@@ -1006,11 +984,11 @@ class CPU0 {
   }
 
   raiseAdELException(address32) {
-    this.raiseAddressException(address32, causeExcCodeAdEL);
+    this.raiseAddressException(address32, cpu0_constants.causeExcCodeAdEL);
   }
 
   raiseAdESException(address32) {
-    this.raiseAddressException(address32, causeExcCodeAdES);
+    this.raiseAddressException(address32, cpu0_constants.causeExcCodeAdES);
   }
 
   raiseAddressException(address32, code) {
@@ -1024,7 +1002,7 @@ class CPU0 {
 
   handleInterrupt() {
     if (this.checkForUnmaskedInterrupts()) {
-      this.raiseGeneralException(CAUSE_EXCMASK, causeExcCodeInt);
+      this.raiseGeneralException(CAUSE_EXCMASK, cpu0_constants.causeExcCodeInt);
       // This is handled outside of the main dispatch loop, so need to update pc directly.
       this.pc = E_VEC;
       this.delayPC = 0;
@@ -1219,14 +1197,14 @@ class CPU0 {
   translateRead(address) {
     const tlb = this.tlbFindEntry(address);
     if (!tlb) {
-      this.raiseTLBException(address, causeExcCodeTLBL, UT_VEC);
+      this.raiseTLBException(address, cpu0_constants.causeExcCodeTLBL, UT_VEC);
       throw new EmulatedException();
     }
 
     const odd = address & tlb.checkbit;
     const entryLo = odd ? tlb.pfno : tlb.pfne;
     if ((entryLo & TLBLO_V) === 0) {
-      this.raiseTLBException(address, causeExcCodeTLBL, E_VEC)
+      this.raiseTLBException(address, cpu0_constants.causeExcCodeTLBL, E_VEC)
       throw new EmulatedException();
     }
 
@@ -1238,18 +1216,18 @@ class CPU0 {
   translateWrite(address) {
     const tlb = this.tlbFindEntry(address);
     if (!tlb) {
-      this.raiseTLBException(address, causeExcCodeTLBS, UT_VEC);
+      this.raiseTLBException(address, cpu0_constants.causeExcCodeTLBS, UT_VEC);
       throw new EmulatedException();
     }
 
     const odd = address & tlb.checkbit;
     const entryLo = odd ? tlb.pfno : tlb.pfne;
     if ((entryLo & TLBLO_V) === 0) {
-      this.raiseTLBException(address, causeExcCodeTLBS, E_VEC);
+      this.raiseTLBException(address, cpu0_constants.causeExcCodeTLBS, E_VEC);
       throw new EmulatedException();
     }
     if ((entryLo & TLBLO_D) === 0) {
-      this.raiseTLBException(address, causeExcCodeMod, E_VEC);
+      this.raiseTLBException(address, cpu0_constants.causeExcCodeMod, E_VEC);
       throw new EmulatedException();
     }
 
