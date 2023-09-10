@@ -2,7 +2,7 @@
 /*global n64js*/
 
 import * as cpu0_constants from './cpu0_constants.js';
-import { CPU1, convertModeCeil, convertModeFloor, convertModeRound, convertModeTrunc } from './cpu1.js';
+import { CPU1 } from './cpu1.js';
 import { disassembleInstruction, cop0ControlRegisterNames } from './disassemble.js';
 import { toString8, toString32, toString64 } from './format.js';
 import { lookupFragment, resetFragments } from './fragments.js';
