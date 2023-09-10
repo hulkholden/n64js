@@ -183,8 +183,6 @@ function updateLoopAnimframe() {
   }
 }
 
-n64js.getRamDataView = () => hardware.cachedMemDevice.mem.dataView;
-
 n64js.getInstruction = address => {
   const instr = hardware.memMap.readMemoryInternal32(address);
   if (isBreakpointInstruction(instr)) {
