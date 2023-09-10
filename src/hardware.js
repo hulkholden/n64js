@@ -19,6 +19,8 @@ import { MemoryRegion } from './MemoryRegion.js';
 const kBootstrapOffset = 0x40;
 const kGameOffset = 0x1000;
 
+const systemFrequency = 93_750_000;
+
 class Mempack {
   constructor() {
     this.data = new Uint8Array(32 * 1024);
@@ -41,6 +43,8 @@ export class Hardware {
   constructor(rominfo) {
     // TODO: Not sure this belongs here.
     this.rominfo = rominfo;
+
+    this.systemFrequency = systemFrequency;
 
     this.rom = null;   // Will be memory, mapped at 0xb0000000
     this.pif_mem = newMemoryRegion(0x7c0 + 0x40);   // rom+ram
