@@ -80,7 +80,6 @@ const SR_CUSHIFT      = 28;
 // Only bit 19 is unwritable.
 const statusWritableBits = 0xfff7_ffffn;
 
-const CAUSE_BD_BIT    = 31;           // NB: Closure Compiler doesn't like 32 bit constants.
 const CAUSE_BD        = 0x80000000;
 const CAUSE_CEMASK    = 0x30000000;
 const CAUSE_CESHIFT   = 28;
@@ -95,7 +94,6 @@ const CAUSE_IP7       = 0x00004000;
 const CAUSE_IP8       = 0x00008000;
 
 const CAUSE_IPMASK    = 0x0000FF00;
-
 const CAUSE_IPSHIFT   = 8;
 
 const CAUSE_EXCMASK   = 0x0000007C;
@@ -928,33 +926,10 @@ class CPU0 {
     const bit = 1 << (SR_CUSHIFT + copIdx);
     const usable = (this.getControlU32(cpu0_constants.controlStatus) & bit) != 0;
     if (!usable) {
-      this.throwCopXUnusable(copIdx);
+      this.raiseCopXUnusable(copIdx);
       return false;
     }
     return true;
-  }
-
-  throwCopXUnusable(copIdx) {
-    // XXXX check we're not inside exception handler before snuffing CAUSE reg?
-    const ce = copIdx << CAUSE_CESHIFT;
-    this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, cpu0_constants.causeExcCodeCpU | ce);
-  }
-
-  raiseSYSCALLException() {
-    this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, cpu0_constants.causeExcCodeSys);
-  }
-
-  raiseBREAKException() {
-    this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, cpu0_constants.causeExcCodeBp);
-  }
-
-  raiseRESERVEDException(copIdx) {
-    const ce = copIdx << CAUSE_CESHIFT;
-    this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, cpu0_constants.causeExcCodeRI | ce);
-  }
-
-  raiseTRAPException() {
-    this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, cpu0_constants.causeExcCodeTr);
   }
 
   maybeRaiseTRAPException(cond) {
@@ -963,53 +938,41 @@ class CPU0 {
     }
   }
 
-  raiseOverflowException() {
-    this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, cpu0_constants.causeExcCodeOv);
-  }
+  raiseCopXUnusable(copIdx) { this.raiseExceptionCopCode(E_VEC, copIdx, cpu0_constants.causeExcCodeCpU); }
+  raiseSYSCALLException() { this.raiseExceptionCopCode(E_VEC, 0, cpu0_constants.causeExcCodeSys); }
+  raiseBREAKException() { this.raiseExceptionCopCode(E_VEC, 0, cpu0_constants.causeExcCodeBp); }
+  raiseRESERVEDException(copIdx) { this.raiseExceptionCopCode(E_VEC, copIdx, cpu0_constants.causeExcCodeRI); }
+  raiseTRAPException() { this.raiseExceptionCopCode(E_VEC, 0, cpu0_constants.causeExcCodeTr); }
+  raiseOverflowException() { this.raiseExceptionCopCode(E_VEC, 0, cpu0_constants.causeExcCodeOv); }
+  raiseFPE() { this.raiseExceptionCopCode(E_VEC, 0, cpu0_constants.causeExcCodeFPE); }
 
-  raiseFPE() {
-    this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, cpu0_constants.causeExcCodeFPE);
-  }
+  raiseAdELException(address32) { this.raiseAddressException(E_VEC, cpu0_constants.causeExcCodeAdEL, address32); }
+  raiseAdESException(address32) { this.raiseAddressException(E_VEC, cpu0_constants.causeExcCodeAdES, address32); }
 
-  raiseTLBException(address32, exc_code, vec) {
+  raiseTLBException(vec, excCode, address32) {
     // TODO: plumb 64 bit addresses everywhere.
     const address64 = BigInt(address32 >> 0);
     this.setBadVAddr(address64);
     this.setContext(address64);
     this.setXContext(address64);
     this.maskControlBits64(cpu0_constants.controlEntryHi, TLBHI_VPN2MASK, address64);
-
-    // XXXX check we're not inside exception handler before snuffing CAUSE reg?
-    this.raiseException(CAUSE_EXCMASK | CAUSE_CEMASK, exc_code, vec);
+    this.raiseExceptionCopCode(vec, 0, excCode);
   }
 
-  raiseAdELException(address32) {
-    this.raiseAddressException(address32, cpu0_constants.causeExcCodeAdEL);
-  }
-
-  raiseAdESException(address32) {
-    this.raiseAddressException(address32, cpu0_constants.causeExcCodeAdES);
-  }
-
-  raiseAddressException(address32, code) {
+  raiseAddressException(vec, code, address32) {
     // TODO: plumb 64 bit addresses everywhere.
     const address64 = BigInt(address32 >> 0);
     this.setBadVAddr(address64);
     this.setContext(address64);
     this.setXContext(address64);
-    this.raiseGeneralException(CAUSE_EXCMASK | CAUSE_CEMASK, code);
+    this.raiseExceptionCopCode(vec, 0, code);
   }
 
-  handleInterrupt() {
-    if (this.checkForUnmaskedInterrupts()) {
-      this.raiseGeneralException(CAUSE_EXCMASK, cpu0_constants.causeExcCodeInt);
-      // This is handled outside of the main dispatch loop, so need to update pc directly.
-      this.pc = E_VEC;
-      this.delayPC = 0;
-
-    } else {
-      assert(false, "Was expecting an unmasked interrupt - something wrong with kStuffToDoCheckInterrupts?");
-    }
+  raiseExceptionCopCode(vec, copIdx, excCode) {
+    const mask = CAUSE_EXCMASK | CAUSE_CEMASK;
+    const code = excCode << cpu0_constants.causeExcShift;
+    const ce = copIdx << CAUSE_CESHIFT;
+    this.raiseException(mask, code | ce, vec);
   }
 
   raiseException(mask, exception, excVec) {
@@ -1026,8 +989,16 @@ class CPU0 {
     this.nextPC = excVec;
   }
 
-  raiseGeneralException(mask, exception) {
-    this.raiseException(mask, exception, E_VEC);
+  handleInterrupt() {
+    if (this.checkForUnmaskedInterrupts()) {
+      this.raiseException(CAUSE_EXCMASK, cpu0_constants.causeExcCodeInt << cpu0_constants.causeExcShift, E_VEC);
+      // This is handled outside of the main dispatch loop, so need to update pc directly.
+      this.pc = E_VEC;
+      this.delayPC = 0;
+
+    } else {
+      assert(false, "Was expecting an unmasked interrupt - something wrong with kStuffToDoCheckInterrupts?");
+    }
   }
 
   setCompare(value) {
@@ -1197,14 +1168,14 @@ class CPU0 {
   translateRead(address) {
     const tlb = this.tlbFindEntry(address);
     if (!tlb) {
-      this.raiseTLBException(address, cpu0_constants.causeExcCodeTLBL, UT_VEC);
+      this.raiseTLBException(UT_VEC, cpu0_constants.causeExcCodeTLBL, address);
       throw new EmulatedException();
     }
 
     const odd = address & tlb.checkbit;
     const entryLo = odd ? tlb.pfno : tlb.pfne;
     if ((entryLo & TLBLO_V) === 0) {
-      this.raiseTLBException(address, cpu0_constants.causeExcCodeTLBL, E_VEC)
+      this.raiseTLBException(E_VEC, cpu0_constants.causeExcCodeTLBL, address);
       throw new EmulatedException();
     }
 
@@ -1216,18 +1187,18 @@ class CPU0 {
   translateWrite(address) {
     const tlb = this.tlbFindEntry(address);
     if (!tlb) {
-      this.raiseTLBException(address, cpu0_constants.causeExcCodeTLBS, UT_VEC);
+      this.raiseTLBException(UT_VEC, cpu0_constants.causeExcCodeTLBS, address);
       throw new EmulatedException();
     }
 
     const odd = address & tlb.checkbit;
     const entryLo = odd ? tlb.pfno : tlb.pfne;
     if ((entryLo & TLBLO_V) === 0) {
-      this.raiseTLBException(address, cpu0_constants.causeExcCodeTLBS, E_VEC);
+      this.raiseTLBException(E_VEC, cpu0_constants.causeExcCodeTLBS, address);
       throw new EmulatedException();
     }
     if ((entryLo & TLBLO_D) === 0) {
-      this.raiseTLBException(address, cpu0_constants.causeExcCodeMod, E_VEC);
+      this.raiseTLBException(E_VEC, address, cpu0_constants.causeExcCodeMod, address);
       throw new EmulatedException();
     }
 
@@ -2233,7 +2204,7 @@ function executeCop3(i) {
 function executeCop1_disabled(i) {
   assert((cpu0.getControlU32(cpu0_constants.controlStatus) & SR_CU1) === 0, "SR_CU1 in inconsistent state");
 
-  cpu0.throwCopXUnusable(1);
+  cpu0.raiseCopXUnusable(1);
 }
 n64js.executeCop1_disabled = executeCop1_disabled;
 
