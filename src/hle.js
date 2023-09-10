@@ -222,6 +222,11 @@ var state = {
   screenContext2d: null // canvas context
 };
 
+
+function getRamU8Array() {
+  return n64js.hardware().cachedMemDevice.u8;
+}
+
 function hleHalt(msg) {
   if (!debugDisplayListRunning) {
     n64js.ui().displayWarning(msg);
@@ -519,7 +524,7 @@ export function hleProcessRSPTask() {
   const kTaskLength = 0x40;
   const taskMem = n64js.hardware().sp_mem.subRegion(kTaskOffset, kTaskLength);
 
-  const ramU8 = n64js.getRamU8Array();
+  const ramU8 = getRamU8Array();
   var task = new RSPTask(ramU8, taskMem);
 
   let handled = false;
@@ -1495,7 +1500,7 @@ function executeLoadTile(cmd0, cmd1, dis) {
     dis.tip(`size = (${w} x ${h}), rowBytes ${rowBytes}, ramStride ${ramStride}, tmemStride ${tmemStride}`);
   }
 
-  const ram_u8 = n64js.getRamU8Array();
+  const ram_u8 = getRamU8Array();
   for (let y = 0; y < h; ++y) {
     if (y & 1) {
       copyLineSwap(tmemData, tmemOffset, ram_u8, ramOffset, rowBytes, tmemStride);
@@ -1539,7 +1544,7 @@ function executeLoadTLut(cmd0, cmd1, dis) {
   var tile = state.tiles[tileIdx];
   var texels = ((lrs - uls) >>> 2) + 1;
 
-  const ram_u8 = n64js.getRamU8Array();
+  const ram_u8 = getRamU8Array();
   var tmem_offset = tile.tmem << 3;
 
   copyLineTLUT(state.tmemData, tmem_offset, ram_u8, ram_offset, texels);
@@ -3090,7 +3095,8 @@ function buildUCodeTables(ucode) {
 var last_ucode_str = '';
 let numDisplayListsRendered = 0;
 
-export function presentBackBuffer(ram) {
+export function presentBackBuffer() {
+  const ram = getRamU8Array();
   n64js.onPresent();
 
   if (numDisplayListsRendered !== 0) {

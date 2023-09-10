@@ -124,7 +124,7 @@ export class VIRegDevice extends Device {
     this.hardware.mi_reg.setBits32(mi.MI_INTR_REG, mi.MI_INTR_VI);
     n64js.cpu0.updateCause3();
 
-    presentBackBuffer(n64js.getRamU8Array());
+    presentBackBuffer();
     n64js.returnControlToSystem();
   }
 

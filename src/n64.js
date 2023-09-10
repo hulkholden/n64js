@@ -174,7 +174,7 @@ function updateLoopAnimframe() {
   } else if (debugDisplayListRunning) {
     requestAnimationFrame(updateLoopAnimframe);
     if (debugDisplayList()) {
-      presentBackBuffer(n64js.getRamU8Array());
+      presentBackBuffer();
     }
   }
 
@@ -183,7 +183,6 @@ function updateLoopAnimframe() {
   }
 }
 
-n64js.getRamU8Array = () => hardware.cachedMemDevice.u8;
 n64js.getRamS32Array = () => hardware.cachedMemDevice.s32;
 n64js.getRamDataView = () => hardware.cachedMemDevice.mem.dataView;
 
