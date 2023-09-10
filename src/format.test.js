@@ -1,4 +1,4 @@
-import * as format from "../src/format.js";
+import * as format from "./format.js";
 
 const assert = require('chai').assert;
 
