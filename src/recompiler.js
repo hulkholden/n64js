@@ -343,12 +343,6 @@ function generateNOPBoilerplate(comment, ctx) {
   return generateTrivialOpBoilerplate(`// ${comment}\n`, ctx);
 }
 
-function genSrcRegS32Lo(i) {
-  if (i === 0)
-    return '0';
-  return `c.getRegS32Lo(${i})`;
-}
-
 function genSrcRegU32Lo(i) {
   if (i === 0)
     return '0';

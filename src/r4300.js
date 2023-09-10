@@ -13,7 +13,7 @@ import { syncFlow } from './sync.js';
 import { EventQueue } from './event_queue.js';
 import { FragmentContext, generateCodeForOp } from './recompiler.js';
 import { kAccurateCountUpdating, kSpeedHackEnabled } from './options.js';
-import { fd, fs, ft, copop, offset, sa, rd, rt, rs, op, tlbop, cop1_func, cop1_bc, target, imm, imms, base, branchAddress, jumpAddress } from './decode.js';
+import { fd, fs, ft, offset, sa, rd, rt, rs, tlbop, cop1_func, imm, imms, base, jumpAddress } from './decode.js';
 
 window.n64js = window.n64js || {};
 
@@ -2762,16 +2762,6 @@ function compileFragment(fragment) {
   for (let i = 0; i < fragment.opsCompiled; i++) {
     fragment.nextFragments.push(undefined);
   }
-}
-
-function checkEqual(a, b, m) {
-  if (a !== b) {
-    const msg = `${toString32(a)} !== ${toString32(b)} : ${m}`;
-    console.assert(false, msg);
-    n64js.halt(msg);
-    return false;
-  }
-  return true;
 }
 
 n64js.checkSyncState = checkSyncState;    // Needs to be callable from dynarec
