@@ -14,7 +14,7 @@
 // TODO: Figure out how to explicitly add a dependency on this - it's brittle to depend
 // on n64js.hardware() being initialized before this module is loaded.
 const getMemoryHandler = n64js.hardware().memMap.getMemoryHandler.bind(n64js.hardware().memMap);
-const ramDV = n64js.getRamDataView();
+const ramDV = n64js.hardware().cachedMemDevice.mem.dataView;
 
 export function loadU64slow(addr) {
   if (addr & 7) { n64js.cpu0.unalignedLoad(addr); }

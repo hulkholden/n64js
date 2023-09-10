@@ -559,7 +559,8 @@ class CPU0 {
   reset() {
     resetFragments();
 
-    this.ramDV = n64js.getRamDataView();
+    // TODO: pass Hardware into the constructor.
+    this.ramDV = n64js.hardware().cachedMemDevice.mem.dataView;
 
     for (let i = 0; i < 32; ++i) {
       this.gprU64[i] = 0n;

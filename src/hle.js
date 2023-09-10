@@ -226,6 +226,7 @@ var state = {
 // TODO: provide a HLE object and instantiate these in the constructor.
 function getRamU8Array() { return n64js.hardware().cachedMemDevice.u8; }
 function getRamS32Array() { return n64js.hardware().cachedMemDevice.s32; }
+function getRamDataView() { return n64js.hardware().cachedMemDevice.mem.dataView; }
 
 function hleHalt(msg) {
   if (!debugDisplayListRunning) {
@@ -3557,7 +3558,7 @@ function processDList(task, disassembler, bail_after) {
   }
   last_ucode_str = str;
 
-  var ram = n64js.getRamDataView();
+  var ram = getRamDataView();
 
   resetState(ucode, ram, task.data_ptr);
   var ucode_table = buildUCodeTables(ucode);
@@ -3775,7 +3776,7 @@ export function initialiseRenderer($canvas) {
 export function resetRenderer() {
   textureCache.clear();
   $textureOutput.html('');
-  ram_dv = n64js.getRamDataView();
+  ram_dv = getRamDataView();
 }
 
 function getCurrentN64Shader(cycle_type, enableAlphaThreshold) {
