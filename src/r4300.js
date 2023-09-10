@@ -13,7 +13,7 @@ import { syncFlow } from './sync.js';
 import { EventQueue } from './event_queue.js';
 import { FragmentContext, generateCodeForOp } from './recompiler.js';
 import { kAccurateCountUpdating, kSpeedHackEnabled } from './options.js';
-import { fd, fs, ft, offset, sa, rd, rt, rs, tlbop, cop1_func, imm, imms, base, jumpAddress } from './decode.js';
+import { simpleOp, fd, fs, ft, offset, sa, rd, rt, rs, tlbop, cop1_func, imm, imms, base, jumpAddress } from './decode.js';
 
 window.n64js = window.n64js || {};
 
@@ -2331,8 +2331,7 @@ function validateSimpleOpTable(cases) {
 }
 
 function executeOp(i) {
-  const opcode = (i >>> 26) & 0x3f;
-  return simpleTable[opcode](i);
+  return simpleTable[simpleOp(i)](i);
 }
 
 const simpleTable = validateSimpleOpTable([
