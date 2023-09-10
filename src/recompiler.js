@@ -6,7 +6,7 @@ import { disassembleInstruction } from './disassemble.js';
 import { toString32 } from './format.js';
 import { assert } from './assert.js';
 import { kAccurateCountUpdating, kSpeedHackEnabled } from './options.js';
-import { fd, fs, ft, offset, sa, rd, rt, rs, tlbop, cop1_func, imm, imms, base, branchAddress, jumpAddress } from './decode.js';
+import { fd, fs, ft, offset, sa, rd, rt, rs, tlbop, cop1_func, imm, imms, base, branchAddress, jumpAddress, simpleOp } from './decode.js';
 
 const kDebugDynarec = false;
 const kValidateDynarecPCs = false;
@@ -1599,8 +1599,7 @@ const simpleTableGen = validateSimpleOpTable([
 
 function generateOp(ctx) {
   if (kUseOptimisedDynarecHandlers) {
-    const opcode = (ctx.instruction >>> 26) & 0x3f;
-    return simpleTableGen[opcode](ctx);
+    return simpleTableGen[simpleOp(ctx.instruction)](ctx);
   }
   const impl = `n64js.executeOp(${ctx.instruction});`
   return generateGenericOpBoilerplate(impl, ctx);

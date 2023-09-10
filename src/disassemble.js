@@ -3,7 +3,7 @@
 import { assert } from './assert.js';
 import * as cpu0_constants from './cpu0_constants.js';
 import { toHex } from './format.js';
-import { fd, fs, ft, offset, sa, rd, rt, rs, op, tlbop, cop1_func, cop1_bc, imm, base, branchAddress, jumpAddress } from './decode.js';
+import { simpleOp, fd, fs, ft, offset, sa, rd, rt, rs, tlbop, cop1_func, cop1_bc, imm, base, branchAddress, jumpAddress } from './decode.js';
 
 window.n64js = window.n64js || {};
 
@@ -595,7 +595,7 @@ if (simpleTable.length != 64) {
 
 export function disassembleInstruction(address, instruction, outputHTML) {
   const i = new Instruction(address, instruction, outputHTML);
-  const disassembly = simpleTable[op(instruction)](i);
+  const disassembly = simpleTable[simpleOp(instruction)](i);
   return {
     instruction: i,
     disassembly: disassembly,

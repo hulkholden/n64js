@@ -1,5 +1,7 @@
 // Helpers for decoding R4300 instructions.
 
+export function simpleOp(i) { return (i >>> 26) & 0x3f; }
+
 export function fd(i) { return (i >>> 6) & 0x1f; }
 export function fs(i) { return (i >>> 11) & 0x1f; }
 export function ft(i) { return (i >>> 16) & 0x1f; }
@@ -11,7 +13,6 @@ export function sa(i) { return (i >>> 6) & 0x1f; }
 export function rd(i) { return (i >>> 11) & 0x1f; }
 export function rt(i) { return (i >>> 16) & 0x1f; }
 export function rs(i) { return (i >>> 21) & 0x1f; }
-export function op(i) { return (i >>> 26) & 0x1f; }
 
 export function tlbop(i) { return i & 0x3f; }
 export function cop1_func(i) { return i & 0x3f; }
