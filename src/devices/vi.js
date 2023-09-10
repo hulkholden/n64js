@@ -34,9 +34,11 @@ const VI_CTRL_DITHER_FILTER_ON = 0x10000;
 
 const controlTypeMask = 0x3;
 
-const VI_PAL_CLOCK = 49656530;
-const VI_NTSC_CLOCK = 48681812;
-const VI_MPAL_CLOCK = 48628316;
+const systemFrequency = 93_750_000;
+
+const VI_PAL_CLOCK = 49_656_530;
+const VI_NTSC_CLOCK = 48_681_812;
+const VI_MPAL_CLOCK = 48_628_316;
 
 const kVIInterrupt = 'VI Interrupt';
 
@@ -58,7 +60,8 @@ export class VIRegDevice extends Device {
     super("VIReg", hardware, hardware.vi_reg, rangeStart, rangeEnd);
 
     this.field = 0;
-    this.clock = 0;
+    this.systemClock = systemFrequency;
+    this.videoClock = 0;
     this.refreshRate = 0;
     this.countPerScanline = 0;
     this.countPerVbl = 0;
@@ -67,7 +70,8 @@ export class VIRegDevice extends Device {
   }
 
   reset() {
-    this.clock = videoClockForTVType(this.hardware.rominfo.tvType);
+    this.systemClock = systemFrequency;
+    this.videoClock = videoClockForTVType(this.hardware.rominfo.tvType);
     this.refreshRate = refreshRateForTVType(this.hardware.rominfo.tvType);
     this.countPerScanline = 0;
     this.countPerVbl = 0;
@@ -191,7 +195,7 @@ export class VIRegDevice extends Device {
           const lastSync = this.mem.getU32(ea);
           if (lastSync != value) {
             const scanlines = value + 1;
-            this.countPerScanline = ((this.clock / this.refreshRate) / scanlines) >> 0;
+            this.countPerScanline = ((this.systemClock / this.refreshRate) / scanlines) >> 0;
             this.countPerVbl = scanlines * this.countPerScanline;
             logger.log(`VI_V_SYNC_REG set to ${value}, cycles per scanline = ${this.countPerScanline}, cycles per vbl = ${this.countPerVbl}`);
             this.mem.set32(ea, value);
