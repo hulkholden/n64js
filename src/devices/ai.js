@@ -34,6 +34,9 @@ const kMaxSampleRate = 96000;
 // If we exceed this we start skipping frames to allow the world to catch up.
 const kMaxAudioLead = 0.100;
 
+// How often to log sync status, in seconds. Zero to disable.
+const kLogInterval = 5;
+
 function clampSampleRate(r) {
   if (r < kMinSampleRate) { return kMinSampleRate; }
   if (r > kMaxSampleRate) { return kMaxSampleRate; }
@@ -64,6 +67,8 @@ export class AIRegDevice extends Device {
     // State for managing audio playback.
     this.time = 0;
     this.dynamicRate = 1.0;
+
+    this.lastLogTime = 0;
   }
 
   readU32(address) {
@@ -200,12 +205,16 @@ export class AIRegDevice extends Device {
 
     // Apply dynamic rate control.
     // TOOD: implement this as described in https://github.com/libretro/libretro.github.com/raw/master/documents/ratecontrol.pdf.
-    const timeDiff = this.time - this.audioContext.currentTime;
+    const currentTime = this.audioContext.currentTime;
+    const timeDiff = this.time - currentTime;
     this.dynamicRate = (timeDiff > 0) ? +kDynamicRateMax : -kDynamicRateMax;
     const sampleRate = clampSampleRate(this.frequency * (1 + this.dynamicRate));
 
-    // const leadOrLag = timeDiff > 0 ? 'leading' : 'lagging';
-    // console.log(`timeDelta ${timeDiff}, ${leadOrLag}, dynamic ${this.dynamicRate}, ${this.frequency} -> ${sampleRate}`);
+    if (kLogInterval > 0 && (currentTime - this.lastLogTime) > kLogInterval) {
+      const leadOrLag = timeDiff > 0 ? 'leading' : 'lagging';
+      console.log(`AI sync: timeDelta ${timeDiff}, ${leadOrLag}, dynamic ${this.dynamicRate}, ${this.frequency} -> ${sampleRate}`);
+      this.lastLogTime = currentTime;
+    }
 
     const ab = new AudioBuffer({ length: numSamples, sampleRate: sampleRate, numberOfChannels: 2 });
     ab.copyToChannel(lSamples, 0);
@@ -215,7 +224,7 @@ export class AIRegDevice extends Device {
     source.connect(this.audioContext.destination);
     source.start(this.time);
     if (timeDiff < 0) {
-      this.time = this.audioContext.currentTime;
+      this.time = currentTime;
     }
     this.time += ab.duration;
 
