@@ -1156,7 +1156,7 @@ export class CPU1 {
       case FPCSR_RM_RP: return convertModeCeil;
       case FPCSR_RM_RM: return convertModeFloor;
     }
-    assert('unknown rounding mode');
+    assert(false, 'unknown rounding mode');
     return convertModeRound;
   }
 
@@ -1167,7 +1167,7 @@ export class CPU1 {
       case convertModeCeil: return Math.ceil(x);
       case convertModeFloor: return Math.floor(x);
     }
-    assert('unknown rounding mode');
+    assert(false, 'unknown rounding mode');
   }
 
   // n64 round is a different to Math.round.
