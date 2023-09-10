@@ -2,6 +2,27 @@ import { assert } from "./assert.js";
 import { toString32 } from "./format.js";
 import * as logger from './logger.js';
 
+const cop1ADD = 0x00;
+const cop1SUB = 0x01;
+const cop1MUL = 0x02;
+const cop1DIV = 0x03;
+const cop1SQRT = 0x04;
+const cop1ABS = 0x05;
+const cop1MOV = 0x06;
+const cop1NEG = 0x07;
+const cop1ROUND_L = 0x08;
+const cop1TRUNC_L = 0x09;
+const cop1CEIL_L = 0x0a;
+const cop1FLOOR_L = 0x0b;
+const cop1ROUND_W = 0x0c;
+const cop1TRUNC_W = 0x0d;
+const cop1CEIL_W = 0x0e;
+const cop1FLOOR_W = 0x0f;
+const cop1CVT_S = 0x20;
+const cop1CVT_D = 0x21;
+const cop1CVT_W = 0x24;
+const cop1CVT_L = 0x25;
+
 const FPCSR_RM_RN = 0x00000000;
 const FPCSR_RM_RZ = 0x00000001;
 const FPCSR_RM_RP = 0x00000002;
@@ -354,6 +375,106 @@ export class CPU1 {
       }
     }
   }
+
+  execSInstr(op, d, s, t) {
+    if (op < 0x30) {
+      switch (op) {
+        case cop1ADD: this.ADD_S(d, s, t); return;
+        case cop1SUB: this.SUB_S(d, s, t); return;
+        case cop1MUL: this.MUL_S(d, s, t); return;
+        case cop1DIV: this.DIV_S(d, s, t); return;
+        case cop1SQRT: this.SQRT_S(d, s); return;
+        case cop1ABS: this.ABS_S(d, s); return;
+        case cop1MOV: this.MOV_S(d, s); return;
+        case cop1NEG: this.NEG_S(d, s); return;
+        case cop1ROUND_L: this.ConvertSToL(d, s, convertModeRound); return;
+        case cop1TRUNC_L: this.ConvertSToL(d, s, convertModeTrunc); return;
+        case cop1CEIL_L: this.ConvertSToL(d, s, convertModeCeil); return;
+        case cop1FLOOR_L: this.ConvertSToL(d, s, convertModeFloor); return;
+        case cop1ROUND_W: this.ConvertSToW(d, s, convertModeRound); return;
+        case cop1TRUNC_W: this.ConvertSToW(d, s, convertModeTrunc); return;
+        case cop1CEIL_W: this.ConvertSToW(d, s, convertModeCeil); return;
+        case cop1FLOOR_W: this.ConvertSToW(d, s, convertModeFloor); return;
+        case cop1CVT_S: this.raiseUnimplemented(); return;
+        case cop1CVT_D: this.CVT_D_S(d, s); return;
+        case cop1CVT_W: this.ConvertSToW(d, s, this.roundingMode); return;
+        case cop1CVT_L: this.ConvertSToL(d, s, this.roundingMode); return;
+      }
+      assert(false, 'unhandled S instruction');
+      this.raiseUnimplemented();
+    } else {
+      this.handleFloatCompareSingle(op, s, t);
+    }
+  }
+  
+  execDInstr(op, d, s, t) {
+    if (op < 0x30) {
+      switch (op) {
+        case cop1ADD: this.ADD_D(d, s, t); return;
+        case cop1SUB: this.SUB_D(d, s, t); return;
+        case cop1MUL: this.MUL_D(d, s, t); return;
+        case cop1DIV: this.DIV_D(d, s, t); return;
+        case cop1SQRT: this.SQRT_D(d, s); return;
+        case cop1ABS: this.ABS_D(d, s); return;
+        case cop1MOV: this.MOV_D(d, s); return;
+        case cop1NEG: this.NEG_D(d, s); return;
+        case cop1ROUND_L: this.ConvertDToL(d, s, convertModeRound); return;
+        case cop1TRUNC_L: this.ConvertDToL(d, s, convertModeTrunc); return;
+        case cop1CEIL_L: this.ConvertDToL(d, s, convertModeCeil); return;
+        case cop1FLOOR_L: this.ConvertDToL(d, s, convertModeFloor); return;
+        case cop1ROUND_W: this.ConvertDToW(d, s, convertModeRound); return;
+        case cop1TRUNC_W: this.ConvertDToW(d, s, convertModeTrunc); return;
+        case cop1CEIL_W: this.ConvertDToW(d, s, convertModeCeil); return;
+        case cop1FLOOR_W: this.ConvertDToW(d, s, convertModeFloor); return;
+        case cop1CVT_S: this.CVT_S_D(d, s); return;
+        case cop1CVT_D: this.raiseUnimplemented(); return;
+        case cop1CVT_W: this.ConvertDToW(d, s, this.roundingMode); return;
+        case cop1CVT_L: this.ConvertDToL(d, s, this.roundingMode); return;
+      }
+      assert(false, 'unhandled D instruction');
+      this.raiseUnimplemented();
+    } else {
+      this.handleFloatCompareDouble(op, s, t);
+    }
+  }
+  
+  execWInstr(op, d, s, t) {
+    switch (op) {
+      case cop1ROUND_L: this.raiseUnimplemented(); return;
+      case cop1TRUNC_L: this.raiseUnimplemented(); return;
+      case cop1CEIL_L: this.raiseUnimplemented(); return;
+      case cop1FLOOR_L: this.raiseUnimplemented(); return;
+      case cop1ROUND_W: this.raiseUnimplemented(); return;
+      case cop1TRUNC_W: this.raiseUnimplemented(); return;
+      case cop1CEIL_W: this.raiseUnimplemented(); return;
+      case cop1FLOOR_W: this.raiseUnimplemented(); return;
+      case cop1CVT_S: this.CVT_S_W(d, s); return;
+      case cop1CVT_D: this.CVT_D_W(d, s); return;
+      case cop1CVT_W: this.raiseUnimplemented(); return;
+      case cop1CVT_L: this.raiseUnimplemented(); return;
+    }
+    assert(false, 'unhandled W instruction');
+    this.raiseUnimplemented();
+  }
+
+  execLInstr(op, d, s, t) {
+    switch (op) {
+      case cop1ROUND_L: this.raiseUnimplemented(); return;
+      case cop1TRUNC_L: this.raiseUnimplemented(); return;
+      case cop1CEIL_L: this.raiseUnimplemented(); return;
+      case cop1FLOOR_L: this.raiseUnimplemented(); return;
+      case cop1ROUND_W: this.raiseUnimplemented(); return;
+      case cop1TRUNC_W: this.raiseUnimplemented(); return;
+      case cop1CEIL_W: this.raiseUnimplemented(); return;
+      case cop1FLOOR_W: this.raiseUnimplemented(); return;
+      case cop1CVT_S: this.CVT_S_L(d, s); return;
+      case cop1CVT_D: this.CVT_D_L(d, s); return;
+      case cop1CVT_W: this.raiseUnimplemented(); return;
+      case cop1CVT_L: this.raiseUnimplemented(); return;
+    }
+    assert(false, 'unhandled L instruction');
+    this.raiseUnimplemented();
+  }  
 
   handleFloatCompareSingle(op, s, t) {
     const fsType = f32Classify(this.loadU32(this.fsRegIdx32(s)));

@@ -2011,7 +2011,6 @@ function makeLLAddr(sAddr) {
   return physicalAddress(sAddr >>> 0) >>> 4;
 }
 
-
 function executeBCInstr(i) {
   assert(((i >>> 18) & 0x7) === 0, "cc bit is not 0");
 
@@ -2025,141 +2024,6 @@ function executeBCInstr(i) {
   } else {
     cpu0.conditionalBranch(cond, offset(i));
   }
-}
-
-const cop1ADD = 0x00;
-const cop1SUB = 0x01;
-const cop1MUL = 0x02;
-const cop1DIV = 0x03;
-const cop1SQRT = 0x04;
-const cop1ABS = 0x05;
-const cop1MOV = 0x06;
-const cop1NEG = 0x07;
-const cop1ROUND_L = 0x08;
-const cop1TRUNC_L = 0x09;
-const cop1CEIL_L = 0x0a;
-const cop1FLOOR_L = 0x0b;
-const cop1ROUND_W = 0x0c;
-const cop1TRUNC_W = 0x0d;
-const cop1CEIL_W = 0x0e;
-const cop1FLOOR_W = 0x0f;
-const cop1CVT_S = 0x20;
-const cop1CVT_D = 0x21;
-const cop1CVT_W = 0x24;
-const cop1CVT_L = 0x25;
-
-function executeSInstr(i) {
-  const s = fs(i);
-  const t = ft(i);
-  const d = fd(i);
-
-  const op = cop1_func(i);
-
-  if (op < 0x30) {
-    switch (op) {
-      case cop1ADD: cpu1.ADD_S(d, s, t); return;
-      case cop1SUB: cpu1.SUB_S(d, s, t); return;
-      case cop1MUL: cpu1.MUL_S(d, s, t); return;
-      case cop1DIV: cpu1.DIV_S(d, s, t); return;
-      case cop1SQRT: cpu1.SQRT_S(d, s); return;
-      case cop1ABS: cpu1.ABS_S(d, s); return;
-      case cop1MOV: cpu1.MOV_S(d, s); return;
-      case cop1NEG: cpu1.NEG_S(d, s); return;
-      case cop1ROUND_L: cpu1.ConvertSToL(d, s, convertModeRound); return;
-      case cop1TRUNC_L: cpu1.ConvertSToL(d, s, convertModeTrunc); return;
-      case cop1CEIL_L: cpu1.ConvertSToL(d, s, convertModeCeil); return;
-      case cop1FLOOR_L: cpu1.ConvertSToL(d, s, convertModeFloor); return;
-      case cop1ROUND_W: cpu1.ConvertSToW(d, s, convertModeRound); return;
-      case cop1TRUNC_W: cpu1.ConvertSToW(d, s, convertModeTrunc); return;
-      case cop1CEIL_W: cpu1.ConvertSToW(d, s, convertModeCeil); return;
-      case cop1FLOOR_W: cpu1.ConvertSToW(d, s, convertModeFloor); return;
-      case cop1CVT_S: cpu1.raiseUnimplemented(); return;
-      case cop1CVT_D: cpu1.CVT_D_S(d, s); return;
-      case cop1CVT_W: cpu1.ConvertSToW(d, s, cpu1.roundingMode); return;
-      case cop1CVT_L: cpu1.ConvertSToL(d, s, cpu1.roundingMode); return;
-    }
-    unimplemented(cpu0.pc, i);
-  } else {
-    cpu1.handleFloatCompareSingle(op, s, t);
-  }
-}
-
-function executeDInstr(i) {
-  const s = fs(i);
-  const t = ft(i);
-  const d = fd(i);
-
-  const op = cop1_func(i);
-
-  if (op < 0x30) {
-    switch (op) {
-      case cop1ADD: cpu1.ADD_D(d, s, t); return;
-      case cop1SUB: cpu1.SUB_D(d, s, t); return;
-      case cop1MUL: cpu1.MUL_D(d, s, t); return;
-      case cop1DIV: cpu1.DIV_D(d, s, t); return;
-      case cop1SQRT: cpu1.SQRT_D(d, s); return;
-      case cop1ABS: cpu1.ABS_D(d, s); return;
-      case cop1MOV: cpu1.MOV_D(d, s); return;
-      case cop1NEG: cpu1.NEG_D(d, s); return;
-      case cop1ROUND_L: cpu1.ConvertDToL(d, s, convertModeRound); return;
-      case cop1TRUNC_L: cpu1.ConvertDToL(d, s, convertModeTrunc); return;
-      case cop1CEIL_L: cpu1.ConvertDToL(d, s, convertModeCeil); return;
-      case cop1FLOOR_L: cpu1.ConvertDToL(d, s, convertModeFloor); return;
-      case cop1ROUND_W: cpu1.ConvertDToW(d, s, convertModeRound); return;
-      case cop1TRUNC_W: cpu1.ConvertDToW(d, s, convertModeTrunc); return;
-      case cop1CEIL_W: cpu1.ConvertDToW(d, s, convertModeCeil); return;
-      case cop1FLOOR_W: cpu1.ConvertDToW(d, s, convertModeFloor); return;
-      case cop1CVT_S: cpu1.CVT_S_D(d, s); return;
-      case cop1CVT_D: cpu1.raiseUnimplemented(); return;
-      case cop1CVT_W: cpu1.ConvertDToW(d, s, cpu1.roundingMode); return;
-      case cop1CVT_L: cpu1.ConvertDToL(d, s, cpu1.roundingMode); return;
-    }
-    unimplemented(cpu0.pc, i);
-  } else {
-    cpu1.handleFloatCompareDouble(op, s, t);
-  }
-}
-
-function executeWInstr(i) {
-  const s = fs(i);
-  const d = fd(i);
-
-  switch (cop1_func(i)) {
-    case cop1ROUND_L: cpu1.raiseUnimplemented(); return;
-    case cop1TRUNC_L: cpu1.raiseUnimplemented(); return;
-    case cop1CEIL_L: cpu1.raiseUnimplemented(); return;
-    case cop1FLOOR_L: cpu1.raiseUnimplemented(); return;
-    case cop1ROUND_W: cpu1.raiseUnimplemented(); return;
-    case cop1TRUNC_W: cpu1.raiseUnimplemented(); return;
-    case cop1CEIL_W: cpu1.raiseUnimplemented(); return;
-    case cop1FLOOR_W: cpu1.raiseUnimplemented(); return;
-    case cop1CVT_S: cpu1.CVT_S_W(d, s); return;
-    case cop1CVT_D: cpu1.CVT_D_W(d, s); return;
-    case cop1CVT_W: cpu1.raiseUnimplemented(); return;
-    case cop1CVT_L: cpu1.raiseUnimplemented(); return;
-  }
-  unimplemented(cpu0.pc, i);
-}
-
-function executeLInstr(i) {
-  const s = fs(i);
-  const d = fd(i);
-
-  switch (cop1_func(i)) {
-    case cop1ROUND_L: cpu1.raiseUnimplemented(); return;
-    case cop1TRUNC_L: cpu1.raiseUnimplemented(); return;
-    case cop1CEIL_L: cpu1.raiseUnimplemented(); return;
-    case cop1FLOOR_L: cpu1.raiseUnimplemented(); return;
-    case cop1ROUND_W: cpu1.raiseUnimplemented(); return;
-    case cop1TRUNC_W: cpu1.raiseUnimplemented(); return;
-    case cop1CEIL_W: cpu1.raiseUnimplemented(); return;
-    case cop1FLOOR_W: cpu1.raiseUnimplemented(); return;
-    case cop1CVT_S: cpu1.CVT_S_L(d, s); return;
-    case cop1CVT_D: cpu1.CVT_D_L(d, s); return;
-    case cop1CVT_W: cpu1.raiseUnimplemented(); return;
-    case cop1CVT_L: cpu1.raiseUnimplemented(); return;
-  }
-  unimplemented(cpu0.pc, i);
 }
 
 function validateSpecialOpTable(cases) {
@@ -2320,12 +2184,12 @@ const cop1Table = validateCopOpTable([
   executeUnknown,
   executeUnknown,
 
-  executeSInstr,
-  executeDInstr,
+  i => cpu1.execSInstr(cop1_func(i), fd(i), fs(i), ft(i)),
+  i => cpu1.execDInstr(cop1_func(i), fd(i), fs(i), ft(i)),
   executeUnknown,
   executeUnknown,
-  executeWInstr,
-  executeLInstr,
+  i => cpu1.execWInstr(cop1_func(i), fd(i), fs(i), ft(i)),
+  i => cpu1.execLInstr(cop1_func(i), fd(i), fs(i), ft(i)),
   executeUnknown,
   executeUnknown,
 
