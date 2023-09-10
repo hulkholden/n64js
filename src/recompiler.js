@@ -52,11 +52,11 @@ export class FragmentContext {
 
   genAssert(test, msg) {
     if (kDebugDynarec) {
-      return 'n64js.assert(' + test + ', "' + msg + '");\n';
+      return 'window.n64jsAssert(' + test + ', "' + msg + '");\n';
     }
     return '';
   }
-
+  
   newFragment() {
     this.delayedPCUpdate = 0;
   }
@@ -94,7 +94,6 @@ export class FragmentContext {
 
   instr_tlbop() { return tlbop(this.instruction); }
 }
-
 
 export function generateCodeForOp(ctx) {
   ctx.needsDelayCheck = ctx.fragment.needsDelayCheck;
@@ -1616,3 +1615,9 @@ function generateCop3(ctx) {
   const impl = `c.execRESERVED(0);`;
   return generateGenericOpBoilerplate(impl, ctx); // Generic as raises RESERVED exception.
 }
+
+// Expose functions to dynarec.
+// TODO: consider sticking all these in a single namespace.
+window.n64jsAssert = (cond, msg) => {
+  assert(cond, msg);
+};
