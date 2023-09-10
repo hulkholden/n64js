@@ -19,7 +19,10 @@ export class EventQueue {
     this.cyclesToFirstEvent -= count;
     while (this.cyclesToFirstEvent <= 0) {
       const evt = this.firstEvent;
-      assert(evt, `no events!`)
+      if (!evt) {
+        // TODO: add a check somewhere that there is >1 event.
+        break;
+      }
       this.unlink(evt);
       evt.handler();
     }
