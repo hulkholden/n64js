@@ -1719,12 +1719,18 @@ function executeTexRect(cmd0, cmd1, dis) {
     yh += 1.0;
   }
 
+  // If the texture coords are inverted, start from the end of the texel (?).
+  // Fixes California Speed.
+  if (dsdx < 0) { s0++; }
+  if (dtdy < 0) { t0++; }
+
   var s1 = s0 + dsdx * (xh - xl);
   var t1 = t0 + dtdy * (yh - yl);
 
   if (dis) {
     var tt = gbi.getTileText(tileIdx);
     dis.text(`gsSPTextureRectangle(${xl},${yl},${xh},${yh},${tt},${s0},${t0},${dsdx},${dtdy});`);
+    dis.tip(`cmd2 = ${toString32(cmd2)}, cmd3 = ${toString32(cmd3)}`)
     dis.tip(`st0 = (${s0}, ${t0}) st1 = (${s1}, ${t1})`)
   }
 
@@ -1763,6 +1769,10 @@ function executeTexRectFlip(cmd0, cmd1, dis) {
     yh += 1.0;
   }
 
+  // If the texture coords are inverted, start from the end of the texel (?).
+  if (dsdx < 0) { s0++; }
+  if (dtdy < 0) { t0++; }
+
   // NB x/y are flipped
   var s1 = s0 + dsdx * (yh - yl);
   var t1 = t0 + dtdy * (xh - xl);
@@ -1770,6 +1780,7 @@ function executeTexRectFlip(cmd0, cmd1, dis) {
   if (dis) {
     var tt = gbi.getTileText(tileIdx);
     dis.text(`gsSPTextureRectangleFlip(${xl},${yl},${xh},${yh},${tt},${s0},${t0},${dsdx},${dtdy});`);
+    dis.tip(`cmd2 = ${toString32(cmd2)}, cmd3 = ${toString32(cmd3)}`)
     dis.tip(`st0 = (${s0}, ${t0}) st1 = (${s1}, ${t1})`)
   }
 
