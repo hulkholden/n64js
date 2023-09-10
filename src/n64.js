@@ -187,8 +187,6 @@ n64js.getRamU8Array = () => hardware.cachedMemDevice.u8;
 n64js.getRamS32Array = () => hardware.cachedMemDevice.s32;
 n64js.getRamDataView = () => hardware.cachedMemDevice.mem.dataView;
 
-n64js.checkSIStatusConsistent = () => { hardware.checkSIStatusConsistent(); };
-
 n64js.getInstruction = address => {
   const instr = hardware.memMap.readMemoryInternal32(address);
   if (isBreakpointInstruction(instr)) {

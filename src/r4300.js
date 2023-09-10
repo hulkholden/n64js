@@ -730,7 +730,7 @@ class CPU0 {
     cpu0.stuffToDo &= ~kStuffToDoHalt;
   
     checkCauseIP3Consistent();
-    n64js.checkSIStatusConsistent();
+    n64js.hardware().checkSIStatusConsistent();
   
     this.addRunForCyclesEvent(cycles);
   
@@ -822,7 +822,7 @@ class CPU0 {
           this.delayPC = this.branchTarget;
           this.incrementCount(COUNTER_INCREMENT_PER_OP);
           //checkCauseIP3Consistent();
-          //n64js.checkSIStatusConsistent();
+          //n64js.hardware().checkSIStatusConsistent();
 
           eventQueue.incrementCount(COUNTER_INCREMENT_PER_OP);
 
