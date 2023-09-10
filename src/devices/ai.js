@@ -30,6 +30,10 @@ const kDynamicRateMax = 0.005;
 const kMinSampleRate = 3000
 const kMaxSampleRate = 96000;
 
+// The maximum amount of time audio can lead realtime, in seconds.
+// If we exceed this we start skipping frames to allow the world to catch up.
+const kMaxAudioLead = 0.100;
+
 function clampSampleRate(r) {
   if (r < kMinSampleRate) { return kMinSampleRate; }
   if (r > kMaxSampleRate) { return kMaxSampleRate; }
@@ -218,6 +222,11 @@ export class AIRegDevice extends Device {
     // An AI interrupt is triggered as soon as playback starts.
     this.raiseAI();
     this.addAIDMAEvent(duration);
+  }
+
+  shouldSkipFrame() {
+    const timeDiff = this.time - this.audioContext.currentTime;
+    return timeDiff > kMaxAudioLead;
   }
 
   dmaLengthRemaining() {

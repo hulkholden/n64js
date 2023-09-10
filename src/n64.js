@@ -150,6 +150,10 @@ function updateLoopAnimframe() {
   if (running) {
     requestAnimationFrame(updateLoopAnimframe);
 
+    if (n64js.hardware().aiRegDevice.shouldSkipFrame()) {
+      return;
+    }
+
     let maxCycles = kCyclesPerUpdate;
 
     // Don't slow down debugger if we're waiting for a display list to be debugged.
