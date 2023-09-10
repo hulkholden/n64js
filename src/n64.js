@@ -187,17 +187,6 @@ n64js.getRamU8Array = () => hardware.cachedMemDevice.u8;
 n64js.getRamS32Array = () => hardware.cachedMemDevice.s32;
 n64js.getRamDataView = () => hardware.cachedMemDevice.mem.dataView;
 
-// Should read noise?
-n64js.getRandomU32 = () => {
-  const hi = Math.floor(Math.random() * 0xffff) & 0xffff;
-  const lo = Math.floor(Math.random() * 0xffff) & 0xffff;
-  const v = (hi << 16) | lo;
-  if (syncInput) {
-    return syncInput.reflect32(v);
-  }
-  return v;
-}
-
 n64js.checkSIStatusConsistent = () => { hardware.checkSIStatusConsistent(); };
 
 n64js.getInstruction = address => {
