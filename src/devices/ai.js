@@ -197,7 +197,7 @@ export class AIRegDevice extends Device {
 
     const lSamples = new Float32Array(numSamples);
     const rSamples = new Float32Array(numSamples);
-    const u8s = n64js.getRamU8Array();
+    const u8s = this.hardware.cachedMemDevice.u8;
     const dv = new DataView(u8s.buffer, address, length);
     for (let i = 0; i < numSamples; i++) {
       lSamples[i] = dv.getInt16(i * 4 + 0) / 0x8000;
