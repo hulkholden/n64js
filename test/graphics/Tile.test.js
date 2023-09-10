@@ -54,8 +54,8 @@ describe('Tile', () => {
       tile.ult = 102;
       tile.lrs = 9;
       tile.lrt = 108;
-      assert.equal(2.0, tile.width);
-      assert.equal(2.5, tile.height);
+      assert.equal(2, tile.width);
+      assert.equal(3, tile.height);
     });
     it('should use mask_s to compute width', () => {
       tile.uls = 0;
