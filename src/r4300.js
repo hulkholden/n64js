@@ -728,7 +728,7 @@ class CPU0 {
   }
 
   run(cycles) {
-    cpu0.stuffToDo &= ~kStuffToDoHalt;
+    this.stuffToDo &= ~kStuffToDoHalt;
   
     checkCauseIP3Consistent();
     n64js.hardware().checkSIStatusConsistent();
