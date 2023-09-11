@@ -67,7 +67,7 @@ export const G_AC_MASK = 0x3;
 export const G_ZS_MASK = 0x4;
 export const G_RM_MASK = 0xffff_fff8;
 
-//G_SETOTHERMODE_H shift count
+// G_SETOTHERMODE_H shift count
 export const G_MDSFT_BLENDMASK   = 0;
 export const G_MDSFT_ALPHADITHER = 4;
 export const G_MDSFT_RGBDITHER   = 6;
@@ -83,10 +83,12 @@ export const G_MDSFT_COLORDITHER = 22;
 export const G_MDSFT_PIPELINE    = 23;
 
 export const MoveMemGBI2 = makeEnum({
+  // Type.
   G_GBI2_MV_VIEWPORT: 8,
   G_GBI2_MV_LIGHT:    10,
   G_GBI2_MV_POINT:    12,
   G_GBI2_MV_MATRIX:   14,    // NOTE: this is in moveword table
+  // Offset.
   G_GBI2_MVO_LOOKATX: 0 * 24,
   G_GBI2_MVO_LOOKATY: 1 * 24,
   G_GBI2_MVO_L0:      2 * 24,
