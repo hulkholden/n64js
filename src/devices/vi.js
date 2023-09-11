@@ -276,13 +276,14 @@ export class VIRegDevice extends Device {
     const viHeight = (vFudge * vDelta * scaleY) >> 10;
     
     // logger.log(`w/h = ${viWidth}, ${viHeight} - scale_x/y ${this.xScale}, ${this.yScale} - h/v start/end (${hStart}, ${hEnd}) = ${hDelta}, (${vStart}, ${vEnd}) = ${vDelta}`);
-    return new Dimensions(viWidth, viHeight);
+    return new Dimensions(viWidth, viHeight, this.hWidthReg);
   }
 }
 
 class Dimensions {
-  constructor(w, h) {
+  constructor(w, h, pitch) {
     this.width = w;
     this.height = h;
+    this.pitch = pitch;
   }
 }
