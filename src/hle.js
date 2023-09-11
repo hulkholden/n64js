@@ -756,8 +756,9 @@ function executeGBI1_MoveMem(cmd0, cmd1, dis) {
 
     switch (type) {
       case gbi.MoveMemGBI1.G_MV_VIEWPORT:
-        if (length === 16)
+        if (length === 16) {
           text = `gsSPViewport(${address_str});`;
+        }
         break;
     }
 
@@ -1966,11 +1967,6 @@ function getTextureLUTType() {
   return state.rdpOtherModeH & gbi.G_TT_MASK;
 }
 
-function logGLCall(functionName, args) {
-  console.log("gl." + functionName + "(" +
-    WebGLDebugUtils.glFunctionArgsToString(functionName, args) + ")");
-}
-
 function initWebGL(canvas) {
   if (gl) {
     return;
@@ -1979,8 +1975,6 @@ function initWebGL(canvas) {
   try {
     // Try to grab the standard context. If it fails, fallback to experimental.
     gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
-
-    //gl = WebGLDebugUtils.makeDebugContext(gl, undefined, logGLCall);
   } catch (e) {
     // Ignore errors.
   }
