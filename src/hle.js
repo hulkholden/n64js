@@ -358,7 +358,8 @@ function moveMemViewport(address) {
 
 function previewLight(address) {
   var result = '';
-  result += `color = ${toHex(ram_dv.getUint32(address + 0), 32)} `;
+  result += `color = ${makeColorTextRGBA(ram_dv.getUint32(address + 0))} `;
+  result += `colorCopy = ${makeColorTextRGBA(ram_dv.getUint32(address + 4))} `;
   var dir = Vector3.create([
     ram_dv.getInt8(address + 8),
     ram_dv.getInt8(address + 9),
@@ -2879,26 +2880,17 @@ function executeGBI2_MoveWord(cmd0, cmd1, dis) {
 }
 
 function previewGBI2_MoveMem(type, length, address, dis) {
-  var tip = '';
-  for (var i = 0; i < length; ++i) {
-    tip += toHex(ram_dv.getUint8(address + i), 8) + ' ';
+  let tip = '';
+  for (let i = 0; i < length; i += 4) {
+    tip += toHex(ram_dv.getUint32(address + i), 32) + ' ';
   }
   tip += '<br>';
 
   switch (type) {
-    // TODO(hulkholden): MoveMemGBI2?
-    case gbi.MoveMemGBI1.G_MV_VIEWPORT:
+    case gbi.MoveMemGBI2.G_GBI2_MV_VIEWPORT:
       tip += previewViewport(address);
       break;
-
-    case gbi.MoveMemGBI1.G_MV_L0:
-    case gbi.MoveMemGBI1.G_MV_L1:
-    case gbi.MoveMemGBI1.G_MV_L2:
-    case gbi.MoveMemGBI1.G_MV_L3:
-    case gbi.MoveMemGBI1.G_MV_L4:
-    case gbi.MoveMemGBI1.G_MV_L5:
-    case gbi.MoveMemGBI1.G_MV_L6:
-    case gbi.MoveMemGBI1.G_MV_L7:
+    case gbi.MoveMemGBI2.G_GBI2_MV_LIGHT:
       tip += previewLight(address);
       break;
   }
@@ -2907,62 +2899,52 @@ function previewGBI2_MoveMem(type, length, address, dis) {
 }
 
 function executeGBI2_MoveMem(cmd0, cmd1, dis) {
-  var type = cmd0 & 0xfe;
-  //var length = (cmd0>>> 8) & 0xffff;
-  var address = rdpSegmentAddress(cmd1);
-  var length = 0; // FIXME
+  const address = rdpSegmentAddress(cmd1);
+  const length = ((cmd0 >>> 16) & 0xff) << 1;
+  const offset = ((cmd0 >>> 8) & 0xff) << 3;
+  const type = cmd0 & 0xfe;
 
+  let text;
   if (dis) {
-    var address_str = toString32(address);
-
-    var type_str = gbi.MoveMemGBI2.nameOf(type);
-    var text = `gsDma1p(G_MOVEMEM, ${address_str}, ${length}, ${type_str});`;
-
-    switch (type) {
-      case gbi.MoveMemGBI2.G_GBI2_MV_VIEWPORT:
-        text = `gsSPViewport(${address_str});`;
-        break;
-      case gbi.MoveMemGBI2.G_GBI2_MV_LIGHT:
-        var offset2 = (cmd0 >>> 5) & 0x3fff;
-        switch (offset2) {
-          case 0x00:
-          case 0x18:
-            // lookat?
-            break;
-          default:
-            //
-            var light_idx = Math.floor((offset2 - 0x30) / 0x18);
-            text += ` // (light ${light_idx})`;
-            break;
-        }
-        break;
-    }
-
-    dis.text(text);
-    length = 32; // FIXME: Just show some data
-    previewGBI2_MoveMem(type, length, address, dis);
+    text = `gsDma1p(G_MOVEMEM, ${toString32(address)}, ${length}, ${offset}, ${gbi.MoveMemGBI2.nameOf(type)});`;
   }
 
   switch (type) {
     case gbi.MoveMemGBI2.G_GBI2_MV_VIEWPORT:
+      if (dis) { text = `gsSPViewport(${toString32(address)});`; }
       moveMemViewport(address);
       break;
     case gbi.MoveMemGBI2.G_GBI2_MV_LIGHT:
-      var offset2 = (cmd0 >>> 5) & 0x3fff;
-      switch (offset2) {
-        case 0x00:
-        case 0x18:
-          // lookat?
-          break;
-        default:
-          var light_idx = Math.floor((offset2 - 0x30) / 0x18);
-          moveMemLight(light_idx, address);
-          break;
+      {
+        if (offset == gbi.MoveMemGBI2.G_GBI2_MVO_LOOKATX) {
+          if (dis) { text = `gSPLookAtX(${toString32(address)});`; }
+          // TODO
+        } else if (offset == gbi.MoveMemGBI2.G_GBI2_MVO_LOOKATY) {
+          if (dis) { text = `gSPLookAtY(${toString32(address)});`; }
+          // TODO
+        } else if (offset >= gbi.MoveMemGBI2.G_GBI2_MVO_L0 && offset <= gbi.MoveMemGBI2.G_GBI2_MVO_L7) {
+          let lightIdx = ((offset - gbi.MoveMemGBI2.G_GBI2_MVO_L0) / 24) >>> 0;
+          if (dis) { text = `gsSPLight(${toString32(address)}, ${lightIdx})`; }
+          moveMemLight(lightIdx, address);
+        } else {
+          if (dis) { text += ` // (unknown offset ${toString16(offset)})`; }
+        }
       }
       break;
+    case gbi.MoveMemGBI2.G_GBI2_MV_POINT:
+      hleHalt(`unhandled movemem G_GBI2_MV_POINT: ${type.toString(16)}`);
+      break;
+    case gbi.MoveMemGBI2.G_GBI2_MV_MATRIX:
+      hleHalt(`unhandled movemem G_GBI2_MV_MATRIX: ${type.toString(16)}`);
+        break;
 
     default:
       hleHalt(`unknown movemem: ${type.toString(16)}`);
+  }
+
+  if (dis) {
+    dis.text(text);
+    previewGBI2_MoveMem(type, length, address, dis);
   }
 }
 
