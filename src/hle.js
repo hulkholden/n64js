@@ -3084,7 +3084,6 @@ var last_ucode_str = '';
 let numDisplayListsRendered = 0;
 
 export function presentBackBuffer() {
-  const ram = getRamU8Array();
   n64js.onPresent();
 
   if (numDisplayListsRendered !== 0) {
@@ -3094,73 +3093,30 @@ export function presentBackBuffer() {
   
   // If no display lists executed, interpret framebuffer as bytes
   const vi = n64js.hardware().viRegDevice;
-  const dramAddr = vi.dramAddrReg & 0x00fffffe; // Clear top bit to make address physical. Clear bottom bit (sometimes odd valued addresses are passed through)
-  if (!dramAddr) {
-    return;
-  }
-
-  const dims = vi.computeDimensions();
-  if (!dims) {
+  const pixels = vi.renderBackBuffer();
+  if (!pixels) {
     return;
   }
   gl.activeTexture(gl.TEXTURE0);
   gl.bindTexture(gl.TEXTURE_2D, frameBufferTexture2D);
 
   if (vi.is32BitMode) {
-    renderBackBuffer32(dims, dramAddr, ram);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, vi.screenWidth, vi.screenHeight, 0, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+  } else if (vi.is16BitMode) {
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, vi.screenWidth, vi.screenHeight, 0, gl.RGBA, gl.UNSIGNED_SHORT_5_5_5_1, pixels);
   } else {
-    renderBackBuffer16(dims, dramAddr, ram);
+    // Invalid mode.
   }
 
   copyBackBufferToFrontBuffer(frameBufferTexture2D);
-}
-
-function renderBackBuffer32(dims, dramAddr, ram) {
-  // TODO: cache this.
-  const pixels = new Uint8Array(dims.width * dims.height * 4);
-  for (let y = 0; y < dims.height; ++y) {
-    const srcRowOffset = dramAddr + (y * dims.pitch * 4);
-    const dstRowOffset = (dims.height - 1 - y) * (dims.width * 4);
-
-    let srcOffset = srcRowOffset;
-    let dstOffset = dstRowOffset;
-    for (let x = 0; x < dims.width; ++x) {
-      pixels[dstOffset + 0] = ram[srcOffset + 0];
-      pixels[dstOffset + 1] = ram[srcOffset + 1];
-      pixels[dstOffset + 2] = ram[srcOffset + 2];
-      pixels[dstOffset + 3] = 0xff;
-      srcOffset += 4;
-      dstOffset += 4;
-    }
-  }
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, dims.width, dims.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-}
-
-function renderBackBuffer16(dims, dramAddr, ram) {
-  // TODO: cache this.
-  const pixels = new Uint16Array(dims.width * dims.height);
-  for (let y = 0; y < dims.height; ++y) {
-    const srcRowOffset = dramAddr + (y * dims.pitch * 2);
-    const dstRowOffset = (dims.height - 1 - y) * (dims.width * 1);
-    
-    let srcOffset = srcRowOffset;
-    let dstOffset = dstRowOffset;
-    for (let x = 0; x < dims.width; ++x) {
-      // Or 1 to ensure we have alpha
-      pixels[dstOffset] = (ram[srcOffset] << 8) | ram[srcOffset + 1] | 1;
-      srcOffset += 2;
-      dstOffset += 1;
-    }
-  }
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, dims.width, dims.height, 0, gl.RGBA, gl.UNSIGNED_SHORT_5_5_5_1, pixels);
 }
 
 function setViScales() {
   const vi = n64js.hardware().viRegDevice;
   const dims = vi.computeDimensions();
   if (dims) {
-    viWidth = dims.width;
-    viHeight = dims.height;
+    viWidth = dims.srcWidth;
+    viHeight = dims.srcHeight;
   }
 }
 
