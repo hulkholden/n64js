@@ -67,10 +67,19 @@ export class VIRegDevice extends Device {
   }
 
   reset() {
-    this.videoClock = videoClockForTVType(this.hardware.rominfo.tvType);
-    this.refreshRate = refreshRateForTVType(this.hardware.rominfo.tvType);
+    const ntsc = this.hardware.rominfo.tvType == OS_TV_NTSC;
+    this.videoClock = videoClockForTVType(ntsc);
+    this.refreshRate = refreshRateForTVType(ntsc);
     this.countPerScanline = 0;
     this.countPerVbl = 0;
+
+    this.screenWidth = 640;
+    this.screenHeight = ntsc ? 480 : 576;
+    this.hScanMin = ntsc ? 108 : 128;
+    this.hScanMax = this.hScanMin + this.screenWidth;
+    this.vScanMin = ntsc ? 34 : 44;
+    this.vScanMax = this.vScanMin + this.screenHeight;
+    this.dims = new Dimensions(this.screenWidth, this.screenHeight);
   }
 
   // Raw register values.
@@ -93,6 +102,7 @@ export class VIRegDevice extends Device {
   get interlaced() { return (this.controlReg & VI_CTRL_SERRATE_ON) != 0; }
   get modeType() { return this.controlReg & controlTypeMask; }
   get is32BitMode() { return this.modeType == VI_CTRL_TYPE_32; }
+  get is16BitMode() { return this.modeType == VI_CTRL_TYPE_16; }
   get xScale() { return (this.xScaleReg & 0xfff) / 1024; }
   get yScale() { return (this.yScaleReg & 0xfff) / 1024; }
 
@@ -114,9 +124,7 @@ export class VIRegDevice extends Device {
   }
 
   verticalBlank() {
-    const control = this.mem.getU32(VI_CONTROL_REG);
-    const interlaced = (control & VI_CTRL_SERRATE_ON) ? 1 : 0;
-    this.field ^= interlaced;
+    this.field ^= (this.interlaced ? 1 : 0);
 
     // TODO: compensate for over/under cycles.
     this.addInterruptEvent();
@@ -245,45 +253,178 @@ export class VIRegDevice extends Device {
       return null;
     }
   
-    // Some games don't seem to set VI_X_SCALE, so default this.
-    const scaleX = (this.xScaleReg & 0xfff) || 0x200;
-    const scaleY = (this.yScaleReg & 0xfff) || 0x400;
-  
     const hStartReg = this.hVideoReg;
     const hStart = (hStartReg >> 16) & 0x03ff;
     const hEnd = hStartReg & 0x03ff;
-  
+
+    let x0 = Math.max(hStart, this.hScanMin);
+    let x1 = Math.min(hEnd, this.hScanMax);
+
     const vStartReg = this.vVideoReg;
     const vStart = (vStartReg >> 16) & 0x03ff;
     const vEnd = vStartReg & 0x03ff;
 
-    // Sometimes hStartReg can be zero.. e.g. PD, Lode Runner, Cyber Tiger.
-    // This might just be to avoid displaying garbage while the game is booting.
-    if (hEnd <= hStart || vEnd <= vStart) {
-      // logger.log(`got bad h or v start/end: h: (${hStart}, ${hEnd}), v (${vStart}, ${vEnd})`);
-      return null;
-    }
-  
-    // The extra shift for vDelta is to convert half lines to lines.
-    const hDelta = hEnd - hStart;
-    const vDelta = (vEnd - vStart) >> 1;
-  
-    // Apply scale and shift to divide by 2.10 fixed point denominator.
-    const viWidth = (hDelta * scaleX) >> 10;
+    let y0 = Math.max(vStart, this.vScanMin);
+    let y1 = vEnd < vStart ? this.vScanMax : Math.min(vEnd, this.vScanMax);
+
+    // Implement VI guard band (hardware bug?)
+    // https://github.com/ares-emu/parallel-rdp/blob/0097af2f4d1f880d403c150f5fc4d55d825cd799/parallel-rdp/video_interface.cpp#L660s
+    if (x0 >= this.hScanMin) x0 += 8;
+    if (x1 < this.hScanMax) x1 -= 7;
+
+    const dims = this.dims;
+    dims.interlaced = this.interlaced;
+    dims.field = this.field;
+
+    dims.xSubpixel = (this.xScaleReg >> 16) & 0xfff;
+    dims.ySubpixel = (this.yScaleReg >> 16) & 0xfff;
+
+    dims.xScale = this.xScaleReg & 0xfff;
+    dims.yScale = this.yScaleReg & 0xfff;
+
+    // Offset relative to source image
+    dims.sx0 = x0 - hStart;
+    dims.sy0 = y0 - vStart;
+
+    // Offset relative to PAL/NTSC bounds.
+    dims.dx0 = x0 - this.hScanMin;
+    dims.dy0 = y0 - this.vScanMin;
+
+    dims.dstWidth = x1 - x0;
+    dims.dstHeight = y1 - y0;
+
+    dims.srcPitch = this.hWidthReg;
+
+    // Matches srcWidth/srcHeight except vFudge?
+    const sEndX = ((dims.sx0 + dims.dstWidth) * dims.xScale) >> 10;
+    const sEndY = ((dims.sy0 + dims.dstHeight) * dims.yScale) >> 11;
+    
     // Double the y resolution in certain (interlaced?) modes.
     // This corrects height in various games ex : Megaman 64, CyberTiger
-    const vFudge = (this.hWidthReg > 0x300 || this.hWidthReg >= (viWidth * 2)) ? 2 : 1;
-    const viHeight = (vFudge * vDelta * scaleY) >> 10;
-    
-    // logger.log(`w/h = ${viWidth}, ${viHeight} - scale_x/y ${this.xScale}, ${this.yScale} - h/v start/end (${hStart}, ${hEnd}) = ${hDelta}, (${vStart}, ${vEnd}) = ${vDelta}`);
-    return new Dimensions(viWidth, viHeight, this.hWidthReg);
+    const vFudge = (dims.srcPitch > 0x300 || dims.srcPitch >= (sEndX * 2)) ? 2 : 1;
+
+    dims.srcWidth = sEndX;
+    dims.srcHeight = sEndY * vFudge;
+
+    // ECW Hardcore Revolution - stretched horizontally.
+    // logger.log(`screen w/h = ${dims.screenWidth}, ${dims.screenHeight}${this.interlaced ? 'i' : 'p'}, pitch ${dims.srcPitch}, srcW/H = ${dims.srcWidth}, ${dims.srcHeight}, , dstW/H = ${dims.dstWidth}, ${dims.dstHeight}`);
+    return dims;
+  }
+
+  renderBackBuffer() {
+    const dramAddr = this.dramAddrReg & 0x00fffffe; // Clear top bit to make address physical. Clear bottom bit (sometimes odd valued addresses are passed through)
+    if (!dramAddr) {
+      return null;
+    }
+    const ramDV = this.hardware.cachedMemDevice.mem.dataView;
+  
+    const dims = this.computeDimensions();
+    if (!dims) {
+      return null;
+    }
+    if (this.is32BitMode) {
+      return dims.renderBackBuffer32(ramDV, dramAddr);
+    }
+    if (this.is16BitMode) {
+      return dims.renderBackBuffer16(ramDV, dramAddr);
+    }
+    return null
   }
 }
 
 class Dimensions {
-  constructor(w, h, pitch) {
-    this.width = w;
-    this.height = h;
-    this.pitch = pitch;
+  constructor(screenW, screenH) {
+    // Display output resolution.
+    this.screenWidth = 640;
+    this.screenHeight = 480;
+
+    // Buffers to use in renderBackBuffer32/16.
+    this.pixels32bpp = new Uint8Array(screenW * screenH * 4);
+    this.pixels16bpp = new Uint16Array(screenW * screenH);
+
+    // Interlaced mode and field number.
+    this.interlaced = false;
+    this.field = 0;
+
+    // Output resolution.
+    this.dstWidth = 640;
+    this.dstHeight = 480;
+
+    // Input resolution.
+    this.srcPitch = 320;
+    this.srcWidth = 320;
+    this.srcHeight = 240;
+
+    // 10.2 subpixel offset and scale factor.
+    this.xSubpixel = 0;
+    this.ySubpixel = 0;
+    this.xScale = 0x200;
+    this.yScale = 0x400;
+
+    // Offset relative to source image
+    this.sx0 = 0;
+    this.sy0 = 0;
+  
+    // Offset relative to PAL/NTSC bounds.
+    this.dx0 = 0;
+    this.dy0 = 0;
   }
+
+  renderBackBuffer32(ramDV, dramAddr) {
+    const pixels = this.pixels32bpp;
+  
+    // We need to flip Y-axis for the texture's coordinate system so start at the bottom and work upwards.
+    const dstPitch = -this.screenWidth;
+    let dstRow = (this.screenHeight - 1 - this.dy0) * this.screenWidth;
+  
+    const alpha = 0xff;
+  
+    let sy = (this.sy0 * this.yScale) + this.ySubpixel;
+    for (let y = 0; y < this.dstHeight; y++) {
+      if (!this.interlaced || ((this.dy0 + y) & 1) != this.field) {
+        const srcOff = dramAddr + ((sy >>> 11) * this.srcPitch * 4);
+        let dstOff = dstRow + this.dx0;
+        let sx = (this.sx0 * this.xScale) + this.xSubpixel;
+        for (let x = 0; x < this.dstWidth; x++) {
+          const pixel = ramDV.getInt32(srcOff + (sx >>> 10) * 4, false);
+          pixels[dstOff * 4 + 0] = pixel >>> 24;
+          pixels[dstOff * 4 + 1] = pixel >>> 16;
+          pixels[dstOff * 4 + 2] = pixel >>> 8;
+          pixels[dstOff * 4 + 3] = alpha;
+          dstOff++;
+          sx += this.xScale;
+        }
+      }
+      sy += this.yScale;
+      dstRow += dstPitch;
+    }
+    return pixels;
+  }
+  
+  renderBackBuffer16(ramDV, dramAddr) {
+    const pixels = this.pixels16bpp;
+  
+    // We need to flip Y-axis for the texture's coordinate system so start at the bottom and work upwards.
+    const dstPitch = -this.screenWidth;
+    let dstRow = (this.screenHeight - 1 - this.dy0) * this.screenWidth;
+  
+    const alpha = 0x0001;
+  
+    let sy = (this.sy0 * this.yScale) + this.ySubpixel;
+    for (let y = 0; y < this.dstHeight; y++) {
+      if (!this.interlaced || ((this.dy0 + y) & 1) != this.field) {
+        const srcOff = dramAddr + ((sy >>> 11) * this.srcPitch * 2);
+        let dstOff = dstRow + this.dx0;
+        let sx = (this.sx0 * this.xScale) + this.xSubpixel;
+        for (let x = 0; x < this.dstWidth; x++) {
+          pixels[dstOff++] = ramDV.getInt16(srcOff + (sx >>> 10) * 2, false) | alpha;
+          sx += this.xScale;
+        }
+      }
+      sy += this.yScale;
+      dstRow += dstPitch;
+    }
+    return pixels;
+  }
+  
 }
