@@ -1,4 +1,4 @@
-export class Matrix {
+export class Matrix4x4 {
   /**
    * @param {Float32Array=} opt_elems
    */
@@ -7,8 +7,8 @@ export class Matrix {
   }
 
   /**
-   * @param {!Matrix} other The matrix to multiply with.
-   * @return {!Matrix}
+   * @param {!Matrix4x4} other The matrix to multiply with.
+   * @return {!Matrix4x4}
    */
   multiply(other) {
     let a = this.elems;
@@ -24,7 +24,7 @@ export class Matrix {
       }
     }
 
-    return new Matrix(out);
+    return new Matrix4x4(out);
   }
 
   /**
@@ -66,7 +66,7 @@ export class Matrix {
 
   /**
    * Makes an identity matrix.
-   * @return {!Matrix}
+   * @return {!Matrix4x4}
    */
   static identity() {
     let elems = new Float32Array(16);
@@ -74,7 +74,7 @@ export class Matrix {
     elems[5]  = 1;
     elems[10] = 1;
     elems[15] = 1;
-    return new Matrix(elems);
+    return new Matrix4x4(elems);
   }
 
   /**
@@ -85,7 +85,7 @@ export class Matrix {
    * @param {number} top
    * @param {number} znear
    * @param {number} zfar
-   * @return {!Matrix}
+   * @return {!Matrix4x4}
    */
   static makeOrtho(left, right, bottom, top, znear, zfar) {
       let tx = - (right + left) / (right - left);
@@ -114,6 +114,6 @@ export class Matrix {
       elems[14] = tz;
       elems[15] = 1;
 
-      return new Matrix(elems);
+      return new Matrix4x4(elems);
   }
 }
