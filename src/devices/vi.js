@@ -312,16 +312,17 @@ export class VIRegDevice extends Device {
   }
 
   renderBackBuffer() {
-    const dramAddr = this.dramAddrReg & 0x00fffffe; // Clear top bit to make address physical. Clear bottom bit (sometimes odd valued addresses are passed through)
-    if (!dramAddr) {
-      return null;
-    }
-    const ramDV = this.hardware.cachedMemDevice.mem.dataView;
-  
     const dims = this.computeDimensions();
     if (!dims) {
       return null;
     }
+
+    const dramAddr = this.dramAddrReg & 0x00fffffe; // Clear top bit to make address physical. Clear bottom bit (sometimes odd valued addresses are passed through)
+    if (!dramAddr) {
+      return null;
+    }  
+    
+    const ramDV = this.hardware.cachedMemDevice.mem.dataView;
     if (this.is32BitMode) {
       return dims.renderBackBuffer32(ramDV, dramAddr);
     }
