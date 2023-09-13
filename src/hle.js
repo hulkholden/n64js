@@ -4,7 +4,7 @@
 import { padString, toHex, toString8, toString16, toString32 } from './format.js';
 import * as gbi from './gbi.js';
 import * as logger from './logger.js';
-import { Matrix } from './graphics/Matrix.js';
+import { Matrix4x4 } from './graphics/Matrix4x4.js';
 import { Tile } from './graphics/Tile.js';
 import { ProjectedVertex, TriangleBuffer } from './graphics/TriangleBuffer.js';
 import { Vector3 } from './graphics/Vector3.js';
@@ -253,7 +253,7 @@ var triangleBuffer = new TriangleBuffer(kMaxTris);
 
 class CanvasTransform {
   constructor(p0, p1) {
-    this.canvasToDisplay = Matrix.makeOrtho(p0[0], p1[0], p1[1], p0[1], 0, 1);
+    this.canvasToDisplay = Matrix4x4.makeOrtho(p0[0], p1[0], p1[1], p0[1], 0, 1);
   }
 
   convertN64ToCanvas(n64Vec2) {
@@ -335,7 +335,7 @@ function loadMatrix(address) {
     elements[4 * 3 + i] = (dv.getInt16(i * 8 + 6) << 16 | dv.getUint16(i * 8 + 6 + 32)) * recip;
   }
 
-  return new Matrix(elements);
+  return new Matrix4x4(elements);
 }
 
 function previewViewport(address) {
@@ -3558,8 +3558,8 @@ function resetState(ucode, ram, pc) {
   state.rdpOtherModeL = 0x00500001;
   state.rdpOtherModeH = 0x00000000;
 
-  state.projection = [Matrix.identity()];
-  state.modelview = [Matrix.identity()];
+  state.projection = [Matrix4x4.identity()];
+  state.modelview = [Matrix4x4.identity()];
 
   state.geometryModeBits = 0;
   state.geometryMode.zbuffer = 0;
