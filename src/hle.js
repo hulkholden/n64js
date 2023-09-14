@@ -8,12 +8,12 @@ import { convertTexels, convertRGBA16Pixel } from './graphics/convert.js';
 import * as shaders from './graphics/shaders.js';
 import { Texture, clampTexture } from './graphics/textures.js';
 import { Matrix4x4 } from './graphics/Matrix4x4.js';
-import { Tile } from './graphics/Tile.js';
 import { Transform2D } from './graphics/Transform2D.js';
-import { ProjectedVertex, TriangleBuffer } from './graphics/TriangleBuffer.js';
+import { TriangleBuffer } from './graphics/TriangleBuffer.js';
 import { Vector2 } from './graphics/Vector2.js';
 import { Vector3 } from './graphics/Vector3.js';
 import * as disassemble from './hle/disassemble.js';
+import { RSPState } from './hle/rps_state.js';
 
 window.n64js = window.n64js || {};
 
@@ -61,105 +61,12 @@ var config = {
   vertexStride: 10
 };
 
-var tmemBuffer = new ArrayBuffer(4096);
-
 const kMaxTris = 64;
 var triangleBuffer = new TriangleBuffer(kMaxTris);
 
 var ram_dv;
 
-var state = {
-  pc: 0,
-  dlistStack: [],
-  segments: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  tiles: new Array(8),
-  lights: new Array(8),
-  numLights: 0,
-  geometryModeBits: 0, // raw geometry mode, GBI specific
-  geometryMode: { // unpacked geometry mode
-    zbuffer: 0,
-    texture: 0,
-    shade: 0,
-    shadeSmooth: 0,
-    cullFront: 0,
-    cullBack: 0,
-    fog: 0,
-    lighting: 0,
-    textureGen: 0,
-    textureGenLinear: 0,
-    lod: 0
-  },
-  rdpOtherModeL: 0,
-  rdpOtherModeH: 0,
-
-  rdpHalf1: 0,
-  rdpHalf2: 0,
-
-  viewport: {
-    scale: new Vector2(160.0, 120.0),
-    trans: new Vector2(160.0, 120.0),
-  },
-
-  // matrix stacks
-  projection: [],
-  modelview: [],
-
-  /**
-   * @type {!Array<!ProjectedVertex>}
-   */
-  projectedVertices: new Array(64),
-
-  scissor: {
-    mode: 0,
-    x0: 0,
-    y0: 0,
-    x1: 320,
-    y1: 240,
-  },
-
-  texture: {
-    tile: 0,
-    level: 0,
-    scaleS: 1.0,
-    scaleT: 1.0
-  },
-
-  combine: {
-    lo: 0,
-    hi: 0
-  },
-
-  fillColor: 0,
-  envColor: 0,
-  primColor: 0,
-  blendColor: 0,
-  fogColor: 0,
-
-  primDepth: 0.0,
-
-  colorImage: {
-    format: 0,
-    size: 0,
-    width: 0,
-    address: 0
-  },
-
-  textureImage: {
-    format: 0,
-    size: 0,
-    width: 0,
-    address: 0
-  },
-
-  depthImage: {
-    address: 0
-  },
-
-  tmemData32: new Int32Array(tmemBuffer),
-  tmemData: new Uint8Array(tmemBuffer),
-
-  screenContext2d: null // canvas context
-};
+var state = new RSPState();
 
 const kOffset_type             = 0x00; // u32
 const kOffset_flags            = 0x04; // u32
@@ -3499,50 +3406,8 @@ function processDList(task, disassembler, bail_after) {
 
 function resetState(ucode, ram, pc) {
   config.vertexStride = kUcodeStrides[ucode];
-
   ram_dv = ram; // FIXME: remove DataView
-  state.rdpOtherModeL = 0x00500001;
-  state.rdpOtherModeH = 0x00000000;
-
-  state.projection = [Matrix4x4.identity()];
-  state.modelview = [Matrix4x4.identity()];
-
-  state.geometryModeBits = 0;
-  state.geometryMode.zbuffer = 0;
-  state.geometryMode.texture = 0;
-  state.geometryMode.shade = 0;
-  state.geometryMode.shadeSmooth = 0;
-  state.geometryMode.cullFront = 0;
-  state.geometryMode.cullBack = 0;
-  state.geometryMode.fog = 0;
-  state.geometryMode.lighting = 0;
-  state.geometryMode.textureGen = 0;
-  state.geometryMode.textureGenLinear = 0;
-  state.geometryMode.lod = 0;
-
-  state.pc = pc;
-  state.dlistStack = [];
-  for (let i = 0; i < state.segments.length; ++i) {
-    state.segments[i] = 0;
-  }
-
-  for (let i = 0; i < state.tiles.length; ++i) {
-    state.tiles[i] = new Tile();
-  }
-
-  state.numLights = 0;
-  for (let i = 0; i < state.lights.length; ++i) {
-    state.lights[i] = { color: { r: 0, g: 0, b: 0, a: 0 }, dir: Vector3.create([1, 0, 0]) };
-  }
-
-  for (let i = 0; i < state.projectedVertices.length; ++i) {
-    state.projectedVertices[i] = new ProjectedVertex();
-  }
-
-  state.viewport = {
-    scale: new Vector2(160, 120),
-    trans: new Vector2(160, 120),
-  };
+  state.reset(pc);
 }
 
 function setScrubText(x, max) {
