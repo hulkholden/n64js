@@ -56,75 +56,15 @@ let nativeTransform;
 // TODO: expose this on the UI somewhere.
 let canvasScale = 1;
 
-const kOffset_type             = 0x00; // u32
-const kOffset_flags            = 0x04; // u32
-const kOffset_ucode_boot       = 0x08; // u64*
-const kOffset_ucode_boot_size  = 0x0c; // u32
-const kOffset_ucode            = 0x10; // u64*
-const kOffset_ucode_size       = 0x14; // u32
-const kOffset_ucode_data       = 0x18; // u64*
-const kOffset_ucode_data_size  = 0x1c; // u32
-const kOffset_dram_stack       = 0x20; // u64*
-const kOffset_dram_stack_size  = 0x24; // u32
-const kOffset_output_buff      = 0x28; // u64*
-const kOffset_output_buff_size = 0x2c; // u64*
-const kOffset_data_ptr         = 0x30; // u64*
-const kOffset_data_size        = 0x34; // u32
-const kOffset_yield_data_ptr   = 0x38; // u64*
-const kOffset_yield_data_size  = 0x3c; // u32
-
-function updateGeometryModeFromBits(flags) {
-  var gm = state.geometryMode;
-  var bits = state.geometryModeBits;
-
-  gm.zbuffer          = (bits & flags.G_ZBUFFER) ? 1 : 0;
-  gm.texture          = (bits & flags.G_TEXTURE_ENABLE) ? 1 : 0;
-  gm.shade            = (bits & flags.G_SHADE) ? 1 : 0;
-  gm.shadeSmooth      = (bits & flags.G_SHADING_SMOOTH) ? 1 : 0;
-  gm.cullFront        = (bits & flags.G_CULL_FRONT) ? 1 : 0;
-  gm.cullBack         = (bits & flags.G_CULL_BACK) ? 1 : 0;
-  gm.fog              = (bits & flags.G_FOG) ? 1 : 0;
-  gm.lighting         = (bits & flags.G_LIGHTING) ? 1 : 0;
-  gm.textureGen       = (bits & flags.G_TEXTURE_GEN) ? 1 : 0;
-  gm.textureGenLinear = (bits & flags.G_TEXTURE_GEN_LINEAR) ? 1 : 0;
-  gm.lod              = (bits & flags.G_LOD) ? 1 : 0;
-}
-
-//
-const kUCode_GBI0 = 0;
-const kUCode_GBI1 = 1;
-const kUCode_GBI2 = 2;
-const kUCode_GBI1_SDEX = 3;
-const kUCode_GBI2_SDEX = 4;
-const kUCode_GBI0_WR = 5;
-const kUCode_GBI0_DKR = 6;
-const kUCode_GBI1_LL = 7;
-const kUCode_GBI0_SE = 8;
-const kUCode_GBI0_GE = 9;
-const kUCode_GBI2_CONKER = 10;
-const kUCode_GBI0_PD = 11;
-
-const kUcodeStrides = [
-  10, // Super Mario 64, Tetrisphere, Demos
-  2, // Mario Kart, Star Fox
-  2, // Zelda, and newer games
-  2, // Yoshi's Story, Pokemon Puzzle League
-  2, // Neon Evangelion, Kirby
-  5, // Wave Racer USA
-  10, // Diddy Kong Racing, Gemini, and Mickey
-  2, // Last Legion, Toukon, Toukon 2
-  5, // Shadows of the Empire (SOTE)
-  10, // Golden Eye
-  2, // Conker BFD
-  10, // Perfect Dark
-];
-
 // Configured:
 var config = {
   vertexStride: 10
 };
 
 var tmemBuffer = new ArrayBuffer(4096);
+
+const kMaxTris = 64;
+var triangleBuffer = new TriangleBuffer(kMaxTris);
 
 var ram_dv;
 
@@ -221,34 +161,56 @@ var state = {
   screenContext2d: null // canvas context
 };
 
+const kOffset_type             = 0x00; // u32
+const kOffset_flags            = 0x04; // u32
+const kOffset_ucode_boot       = 0x08; // u64*
+const kOffset_ucode_boot_size  = 0x0c; // u32
+const kOffset_ucode            = 0x10; // u64*
+const kOffset_ucode_size       = 0x14; // u32
+const kOffset_ucode_data       = 0x18; // u64*
+const kOffset_ucode_data_size  = 0x1c; // u32
+const kOffset_dram_stack       = 0x20; // u64*
+const kOffset_dram_stack_size  = 0x24; // u32
+const kOffset_output_buff      = 0x28; // u64*
+const kOffset_output_buff_size = 0x2c; // u64*
+const kOffset_data_ptr         = 0x30; // u64*
+const kOffset_data_size        = 0x34; // u32
+const kOffset_yield_data_ptr   = 0x38; // u64*
+const kOffset_yield_data_size  = 0x3c; // u32
+
+//
+const kUCode_GBI0 = 0;
+const kUCode_GBI1 = 1;
+const kUCode_GBI2 = 2;
+const kUCode_GBI1_SDEX = 3;
+const kUCode_GBI2_SDEX = 4;
+const kUCode_GBI0_WR = 5;
+const kUCode_GBI0_DKR = 6;
+const kUCode_GBI1_LL = 7;
+const kUCode_GBI0_SE = 8;
+const kUCode_GBI0_GE = 9;
+const kUCode_GBI2_CONKER = 10;
+const kUCode_GBI0_PD = 11;
+
+const kUcodeStrides = [
+  10, // Super Mario 64, Tetrisphere, Demos
+  2, // Mario Kart, Star Fox
+  2, // Zelda, and newer games
+  2, // Yoshi's Story, Pokemon Puzzle League
+  2, // Neon Evangelion, Kirby
+  5, // Wave Racer USA
+  10, // Diddy Kong Racing, Gemini, and Mickey
+  2, // Last Legion, Toukon, Toukon 2
+  5, // Shadows of the Empire (SOTE)
+  10, // Golden Eye
+  2, // Conker BFD
+  10, // Perfect Dark
+];
 
 // TODO: provide a HLE object and instantiate these in the constructor.
 function getRamU8Array() { return n64js.hardware().cachedMemDevice.u8; }
 function getRamS32Array() { return n64js.hardware().cachedMemDevice.s32; }
 function getRamDataView() { return n64js.hardware().cachedMemDevice.mem.dataView; }
-
-function hleHalt(msg) {
-  if (!debugDisplayListRunning) {
-    n64js.ui().displayWarning(msg);
-
-    // Ensure the CPU emulation stops immediately
-    n64js.breakEmulationForDisplayListDebug();
-
-    // Ensure the ui is visible
-    showDebugDisplayListUI();
-
-    // We're already executing a display list, so clear the Requested flag, set Running
-    debugDisplayListRequested = false;
-    debugDisplayListRunning = true;
-
-    // End set up the context
-    debugBailAfter = debugCurrentOp;
-    debugStateTimeShown = -1;
-  }
-}
-
-const kMaxTris = 64;
-var triangleBuffer = new TriangleBuffer(kMaxTris);
 
 class NativeTransform {
   constructor() {
@@ -273,6 +235,23 @@ class NativeTransform {
   convertN64ToDisplay(n64Vec2) {
     return this.n64FramebufferToDevice.transform(n64Vec2);
   }
+}
+
+function updateGeometryModeFromBits(flags) {
+  var gm = state.geometryMode;
+  var bits = state.geometryModeBits;
+
+  gm.zbuffer          = (bits & flags.G_ZBUFFER) ? 1 : 0;
+  gm.texture          = (bits & flags.G_TEXTURE_ENABLE) ? 1 : 0;
+  gm.shade            = (bits & flags.G_SHADE) ? 1 : 0;
+  gm.shadeSmooth      = (bits & flags.G_SHADING_SMOOTH) ? 1 : 0;
+  gm.cullFront        = (bits & flags.G_CULL_FRONT) ? 1 : 0;
+  gm.cullBack         = (bits & flags.G_CULL_BACK) ? 1 : 0;
+  gm.fog              = (bits & flags.G_FOG) ? 1 : 0;
+  gm.lighting         = (bits & flags.G_LIGHTING) ? 1 : 0;
+  gm.textureGen       = (bits & flags.G_TEXTURE_GEN) ? 1 : 0;
+  gm.textureGenLinear = (bits & flags.G_TEXTURE_GEN_LINEAR) ? 1 : 0;
+  gm.lod              = (bits & flags.G_LOD) ? 1 : 0;
 }
 
 function loadMatrix(address) {
@@ -3815,4 +3794,24 @@ function decodeTexture(tile, tlutFormat, cacheID) {
   gl.generateMipmap(gl.TEXTURE_2D);
   gl.bindTexture(gl.TEXTURE_2D, null);
   return texture;
+}
+
+function hleHalt(msg) {
+  if (!debugDisplayListRunning) {
+    n64js.ui().displayWarning(msg);
+
+    // Ensure the CPU emulation stops immediately
+    n64js.breakEmulationForDisplayListDebug();
+
+    // Ensure the ui is visible
+    showDebugDisplayListUI();
+
+    // We're already executing a display list, so clear the Requested flag, set Running
+    debugDisplayListRequested = false;
+    debugDisplayListRunning = true;
+
+    // End set up the context
+    debugBailAfter = debugCurrentOp;
+    debugStateTimeShown = -1;
+  }
 }
