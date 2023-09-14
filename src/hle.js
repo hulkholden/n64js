@@ -258,18 +258,15 @@ class NativeTransform {
   initDimensions(viWidth, viHeight) {
     this.viWidth = viWidth;
     this.viHeight = viHeight;
-    this.n64FramebufferToDevice = this.makeN64FramebufferToDeviceMatrix(viWidth, viHeight);
+    // Convert n64 framebuffer coordinates into normalised device coordinates (-1 to +1).
+    this.n64FramebufferToDevice = new Transform2D(new Vector2(2 / viWidth, -2 / viHeight), new Vector2(-1, +1));
+    // Displaylist-defined viewport.
     this.n64ViewportTransform = new Transform2D(new Vector2(this.viWidth, this.viHeight), new Vector2(0, 0));
   }
 
   setN64Viewport(t2d) {
     // TODO: is this affected by VI sx0/sy0 etc?
     this.n64ViewportTransform = t2d;
-  }
-
-  makeN64FramebufferToDeviceMatrix(w, h) {
-    // Convert n64 framebuffer coordinates into normalised device coordinates (-1 to +1).
-    return new Transform2D(new Vector2(2 / w, -2 / h), new Vector2(-1, +1));
   }
 
   // Used by fillRec/texRect - ignores viewport.
