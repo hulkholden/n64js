@@ -252,7 +252,7 @@ var triangleBuffer = new TriangleBuffer(kMaxTris);
 
 class NativeTransform {
   constructor() {
-    this.initDimensions(320, 240, this.scale * 320, this.scale * 240);
+    this.initDimensions(320, 240);
   }
 
   initDimensions(viWidth, viHeight) {
