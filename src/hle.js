@@ -252,10 +252,10 @@ var triangleBuffer = new TriangleBuffer(kMaxTris);
 
 class NativeTransform {
   constructor() {
-    this.setDimensions(320, 240, this.scale * 320, this.scale * 240);
+    this.initDimensions(320, 240, this.scale * 320, this.scale * 240);
   }
 
-  setDimensions(viWidth, viHeight) {
+  initDimensions(viWidth, viHeight) {
     this.viWidth = viWidth;
     this.viHeight = viHeight;
     this.n64FramebufferToDevice = this.makeN64FramebufferToDeviceMatrix(viWidth, viHeight);
@@ -3083,7 +3083,7 @@ function initViScales() {
     return;
   }
 
-  nativeTransform.setDimensions(dims.srcWidth, dims.srcHeight);
+  nativeTransform.initDimensions(dims.srcWidth, dims.srcHeight);
 
   const canvas = document.getElementById('display');
   canvas.width = dims.screenWidth * canvasScale;
