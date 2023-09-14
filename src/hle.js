@@ -1485,7 +1485,7 @@ function executeFillRect(cmd0, cmd1, dis) {
     return;
   }
 
-  var cycle_type = getCycleType();
+  var cycle_type = state.getCycleType();
 
   var color = { r: 0, g: 0, b: 0, a: 0 };
 
@@ -1535,7 +1535,7 @@ function executeTexRect(cmd0, cmd1, dis) {
   var dsdx = ((cmd3 | 0) >> 16) / 1024.0;
   var dtdy = ((cmd3 << 16) >> 16) / 1024.0;
 
-  var cycle_type = getCycleType();
+  var cycle_type = state.getCycleType();
 
   // In copy mode 4 pixels are copied at once.
   if (cycle_type === gbi.CycleType.G_CYC_COPY) {
@@ -1585,7 +1585,7 @@ function executeTexRectFlip(cmd0, cmd1, dis) {
   var dsdx = ((cmd3 | 0) >> 16) / 1024.0;
   var dtdy = ((cmd3 << 16) >> 16) / 1024.0;
 
-  var cycle_type = getCycleType();
+  var cycle_type = state.getCycleType();
 
   // In copy mode 4 pixels are copied at once.
   if (cycle_type === gbi.CycleType.G_CYC_COPY) {
@@ -1770,31 +1770,6 @@ function executeGBI1_ModifyVtx(cmd0, cmd1, dis) {
   // FIXME!
 }
 
-function getAlphaCompareType() {
-  return state.rdpOtherModeL & gbi.G_AC_MASK;
-}
-
-function getCoverageTimesAlpha() {
-  // fragment coverage (0) or alpha (1)?
-  return (state.rdpOtherModeL & gbi.RenderMode.CVG_X_ALPHA) !== 0;
-}
-
-function getAlphaCoverageSelect() {
-  // use fragment coverage * fragment alpha
-  return (state.rdpOtherModeL & gbi.RenderMode.ALPHA_CVG_SEL) !== 0;
-}
-
-function getCycleType() {
-  return state.rdpOtherModeH & gbi.G_CYC_MASK;
-}
-
-function getTextureFilterType() {
-  return state.rdpOtherModeH & gbi.G_TF_MASK;
-}
-
-function getTextureLUTType() {
-  return state.rdpOtherModeH & gbi.G_TT_MASK;
-}
 
 function initWebGL(canvas) {
   if (gl) {
@@ -1837,7 +1812,7 @@ const kBlendModeFog = 4;
 function setProgramState(positions, colours, coords, textureEnabled, texGenEnabled, tileIdx) {
   setGLBlendMode();
 
-  const cycleType = getCycleType();
+  const cycleType = state.getCycleType();
 
   // TODO: I think it would make more sense to check if the texture is referenced in the combiner.
   let tile0, tile1;
@@ -1855,7 +1830,7 @@ function setProgramState(positions, colours, coords, textureEnabled, texGenEnabl
   let enableAlphaThreshold = false;
   let alphaThreshold = -1.0;
 
-  if ((getAlphaCompareType() === gbi.AlphaCompare.G_AC_THRESHOLD)) {
+  if ((state.getAlphaCompareType() === gbi.AlphaCompare.G_AC_THRESHOLD)) {
     // TODO: it's unclear if this depends on CVG_X_ALPHA and ALPHA_CVG_SEL.
     alphaThreshold = ((state.blendColor >>> 0) & 0xff) / 255.0;
     enableAlphaThreshold = true;
@@ -1936,7 +1911,7 @@ function bindTexture(slot, glTextureId, tile, texture, texGenEnabled, sampleUnif
   gl.uniform2f(texScaleUniform, uvScaleU, uvScaleV);
   gl.uniform2f(texOffsetUniform, uvOffsetU, uvOffsetV);
 
-  if (getTextureFilterType() == gbi.TextureFilter.G_TF_POINT) {
+  if (state.getTextureFilterType() == gbi.TextureFilter.G_TF_POINT) {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST_MIPMAP_NEAREST);
   } else {
@@ -1966,11 +1941,11 @@ function shiftFactor(shift) {
 
 function setGLBlendMode() {
   // fragment coverage (0) or alpha (1)?
-  const cvgXAlpha = getCoverageTimesAlpha();
+  const cvgXAlpha = state.getCoverageTimesAlpha();
   // use fragment coverage * fragment alpha
-  const alphaCvgSel = getAlphaCoverageSelect();
+  const alphaCvgSel = state.getAlphaCoverageSelect();
 
-  const cycleType = getCycleType();
+  const cycleType = state.getCycleType();
   if (cycleType == gbi.CycleType.G_CYC_FILL || cycleType == gbi.CycleType.G_CYC_COPY) {
     // No blending in copy/fill modes, although they may set up alpha thresholding in the shader.
     gl.disable(gl.BLEND);
@@ -3056,7 +3031,7 @@ function buildColorsTable() {
 
 function buildCombinerTab() {
   var $p = $('<pre class="combine"></pre>');
-  $p.append(gbi.CycleType.nameOf(getCycleType()) + '\n');
+  $p.append(gbi.CycleType.nameOf(state.getCycleType()) + '\n');
   $p.append(buildColorsTable());
   $p.append(shaders.getCombinerText(state.combine.hi, state.combine.lo));
   return $p;
@@ -3589,7 +3564,7 @@ function lookupTexture(tileIdx) {
   if (textureCache.has(cacheID)) {
     return textureCache.get(cacheID);
   }
-  const texture = decodeTexture(tile, getTextureLUTType(), cacheID);
+  const texture = decodeTexture(tile, state.getTextureLUTType(), cacheID);
   textureCache.set(cacheID, texture);
   return texture;
 }

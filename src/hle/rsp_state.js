@@ -1,3 +1,4 @@
+import * as gbi from '../gbi.js';
 import { Matrix4x4 } from "../graphics/Matrix4x4.js";
 import { Tile } from "../graphics/Tile.js";
 import { ProjectedVertex } from "../graphics/TriangleBuffer.js";
@@ -154,17 +155,26 @@ export class RSPState {
   updateGeometryModeFromBits(flags) {
     var gm = this.geometryMode;
     var bits = this.geometryModeBits;
-  
-    gm.zbuffer          = (bits & flags.G_ZBUFFER) ? 1 : 0;
-    gm.texture          = (bits & flags.G_TEXTURE_ENABLE) ? 1 : 0;
-    gm.shade            = (bits & flags.G_SHADE) ? 1 : 0;
-    gm.shadeSmooth      = (bits & flags.G_SHADING_SMOOTH) ? 1 : 0;
-    gm.cullFront        = (bits & flags.G_CULL_FRONT) ? 1 : 0;
-    gm.cullBack         = (bits & flags.G_CULL_BACK) ? 1 : 0;
-    gm.fog              = (bits & flags.G_FOG) ? 1 : 0;
-    gm.lighting         = (bits & flags.G_LIGHTING) ? 1 : 0;
-    gm.textureGen       = (bits & flags.G_TEXTURE_GEN) ? 1 : 0;
+
+    gm.zbuffer = (bits & flags.G_ZBUFFER) ? 1 : 0;
+    gm.texture = (bits & flags.G_TEXTURE_ENABLE) ? 1 : 0;
+    gm.shade = (bits & flags.G_SHADE) ? 1 : 0;
+    gm.shadeSmooth = (bits & flags.G_SHADING_SMOOTH) ? 1 : 0;
+    gm.cullFront = (bits & flags.G_CULL_FRONT) ? 1 : 0;
+    gm.cullBack = (bits & flags.G_CULL_BACK) ? 1 : 0;
+    gm.fog = (bits & flags.G_FOG) ? 1 : 0;
+    gm.lighting = (bits & flags.G_LIGHTING) ? 1 : 0;
+    gm.textureGen = (bits & flags.G_TEXTURE_GEN) ? 1 : 0;
     gm.textureGenLinear = (bits & flags.G_TEXTURE_GEN_LINEAR) ? 1 : 0;
-    gm.lod              = (bits & flags.G_LOD) ? 1 : 0;
+    gm.lod = (bits & flags.G_LOD) ? 1 : 0;
   }
+
+  getCycleType() { return this.rdpOtherModeH & gbi.G_CYC_MASK; }
+  getTextureFilterType() { return this.rdpOtherModeH & gbi.G_TF_MASK; }
+  getTextureLUTType() { return this.rdpOtherModeH & gbi.G_TT_MASK; }
+  getAlphaCompareType() { return this.rdpOtherModeL & gbi.G_AC_MASK; }
+  // fragment coverage (0) or alpha (1)?
+  getCoverageTimesAlpha() { return (this.rdpOtherModeL & gbi.RenderMode.CVG_X_ALPHA) !== 0; }
+  // use fragment coverage * fragment alpha
+  getAlphaCoverageSelect() { return (this.rdpOtherModeL & gbi.RenderMode.ALPHA_CVG_SEL) !== 0; }
 }
