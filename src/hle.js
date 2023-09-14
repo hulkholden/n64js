@@ -4,13 +4,15 @@
 import { padString, toHex, toString8, toString16, toString32 } from './format.js';
 import * as gbi from './gbi.js';
 import * as logger from './logger.js';
-import { Matrix4x4 } from './graphics/Matrix4x4.js';
-import { Tile } from './graphics/Tile.js';
-import { ProjectedVertex, TriangleBuffer } from './graphics/TriangleBuffer.js';
-import { Vector3 } from './graphics/Vector3.js';
 import { convertTexels, convertRGBA16Pixel } from './graphics/convert.js';
 import * as shaders from './graphics/shaders.js';
 import { Texture, clampTexture } from './graphics/textures.js';
+import { Matrix4x4 } from './graphics/Matrix4x4.js';
+import { Tile } from './graphics/Tile.js';
+import { Transform2D } from './graphics/Transform2D.js';
+import { ProjectedVertex, TriangleBuffer } from './graphics/TriangleBuffer.js';
+import { Vector2 } from './graphics/Vector2.js';
+import { Vector3 } from './graphics/Vector3.js';
 import * as disassemble from './hle/disassemble.js';
 
 window.n64js = window.n64js || {};
@@ -48,14 +50,11 @@ let gl = null; // WebGL context for the canvas.
 let frameBuffer;
 let frameBufferTexture3D;  // For roms using display lists
 let frameBufferTexture2D;  // For roms writing directly to the frame buffer
+let nativeTransform;
 
-// n64's display resolution
-let viWidth = 320;
-let viHeight = 240;
-
-// canvas dimension
-let canvasWidth = 640;
-let canvasHeight = 480;
+// Scale factor to apply to the canvas.
+// TODO: expose this on the UI somewhere.
+let canvasScale = 1;
 
 const kOffset_type             = 0x00; // u32
 const kOffset_flags            = 0x04; // u32
@@ -174,8 +173,8 @@ var state = {
     mode: 0,
     x0: 0,
     y0: 0,
-    x1: viWidth,
-    y1: viHeight
+    x1: 320,
+    y1: 240,
   },
 
   texture: {
@@ -251,76 +250,32 @@ function hleHalt(msg) {
 const kMaxTris = 64;
 var triangleBuffer = new TriangleBuffer(kMaxTris);
 
-class CanvasTransform {
-  constructor(p0, p1) {
-    this.canvasToDisplay = Matrix4x4.makeOrtho(p0[0], p1[0], p1[1], p0[1], 0, 1);
+class NativeTransform {
+  constructor() {
+    this.setDimensions(320, 240, this.scale * 320, this.scale * 240);
   }
 
-  convertN64ToCanvas(n64Vec2) {
-    const scale = [canvasWidth / viWidth, canvasHeight / viHeight];
-    const translate = [0.0, 0.0];
-
-    return [
-      Math.round(Math.round(n64Vec2[0]) * scale[0] + translate[0]),
-      Math.round(Math.round(n64Vec2[1]) * scale[1] + translate[1]),
-    ];
+  setDimensions(viWidth, viHeight) {
+    this.viWidth = viWidth;
+    this.viHeight = viHeight;
+    this.n64FramebufferToDevice = this.makeN64FramebufferToDeviceMatrix(viWidth, viHeight);
+    this.n64ViewportTransform = new Transform2D(new Vector2(this.viWidth, this.viHeight), new Vector2(0, 0));
   }
-  
+
+  setN64Viewport(t2d) {
+    // TODO: is this affected by VI sx0/sy0 etc?
+    this.n64ViewportTransform = t2d;
+  }
+
+  makeN64FramebufferToDeviceMatrix(w, h) {
+    // Convert n64 framebuffer coordinates into normalised device coordinates (-1 to +1).
+    return new Transform2D(new Vector2(2 / w, -2 / h), new Vector2(-1, +1));
+  }
+
+  // Used by fillRec/texRect - ignores viewport.
   convertN64ToDisplay(n64Vec2) {
-    const n64ToCanvas = this.convertN64ToCanvas(n64Vec2);
-    const canvasToDisplay = this.canvasToDisplay.elems;
-    return [
-      n64ToCanvas[0] * canvasToDisplay[0] + canvasToDisplay[12],
-      n64ToCanvas[1] * canvasToDisplay[5] + canvasToDisplay[13],
-    ];
+    return this.n64FramebufferToDevice.transform(n64Vec2);
   }
-}
-
-let canvasTransform = new CanvasTransform([0, 0], [canvasWidth, canvasHeight]);
-
-function setCanvasViewport(w, h) {
-  canvasWidth = w;
-  canvasHeight = h;
-  updateViewport();
-}
-
-function setN64Viewport(scale, trans) {
-  //logger.log(`Viewport: scale=${scale[0]},${scale[1]} trans=${trans[0]},${trans[1]}` );
-
-  if (scale[0] === state.viewport.scale[0] &&
-    scale[1] === state.viewport.scale[1] &&
-    trans[0] === state.viewport.trans[0] &&
-    trans[1] === state.viewport.trans[1]) {
-    return;
-  }
-
-  state.viewport.scale = scale;
-  state.viewport.trans = trans;
-  updateViewport();
-}
-
-function updateViewport() {
-  const n64Min = [
-    state.viewport.trans[0] - state.viewport.scale[0],
-    state.viewport.trans[1] - state.viewport.scale[1],
-  ];
-  const n64Max = [
-    state.viewport.trans[0] + state.viewport.scale[0],
-    state.viewport.trans[1] + state.viewport.scale[1],
-  ];
-
-  const canvasMin = canvasTransform.convertN64ToCanvas(n64Min);
-  const canvasMax = canvasTransform.convertN64ToCanvas(n64Max);
-
-  const vpX = canvasMin[0];
-  const vpY = canvasMin[1];
-  const vpWidth = canvasMax[0] - canvasMin[0];
-  const vpHeight = canvasMax[1] - canvasMin[1];
-
-  canvasTransform = new CanvasTransform(canvasMin, canvasMax);
-
-  // TODO: this seems to shift previously-rendered content. It should probably just affect future stuff.
-  gl.viewport(vpX, vpY, vpWidth, vpHeight);
 }
 
 function loadMatrix(address) {
@@ -346,14 +301,25 @@ function previewViewport(address) {
 }
 
 function moveMemViewport(address) {
-  var scale = new Array(2);
-  var trans = new Array(2);
-  scale[0] = ram_dv.getInt16(address + 0) / 4.0;
-  scale[1] = ram_dv.getInt16(address + 2) / 4.0;
+  const scale = [
+    ram_dv.getInt16(address + 0) / 4.0,
+    ram_dv.getInt16(address + 2) / 4.0,
+  ];
+  const trans = [
+    ram_dv.getInt16(address + 8) / 4.0,
+    ram_dv.getInt16(address + 10) / 4.0,
+  ];
 
-  trans[0] = ram_dv.getInt16(address + 8) / 4.0;
-  trans[1] = ram_dv.getInt16(address + 10) / 4.0;
-  setN64Viewport(scale, trans);
+  //logger.log(`Viewport: scale=${scale[0]},${scale[1]} trans=${trans[0]},${trans[1]}` );
+  state.viewport.scale = scale;
+  state.viewport.trans = trans;
+
+  const sx = 2 * scale[0];
+  const sy = 2 * scale[1];
+  const tx = trans[0] - scale[0];
+  const ty = trans[1] - scale[1];
+  const t2d = new Transform2D(new Vector2(sx, sy), new Vector2(tx, ty));
+  nativeTransform.setN64Viewport(t2d);
 }
 
 function previewLight(address) {
@@ -1674,7 +1640,9 @@ function executeFillRect(cmd0, cmd1, dis) {
     }
 
     // Clear whole screen in one?
-    if (viWidth === (x1 - x0) && viHeight === (y1 - y0)) {
+    const w = x1 - x0;
+    const h = y1 - y0;
+    if (w === nativeTransform.viWidth && h === nativeTransform.viHeight) {
       gl.clearColor(color.r, color.g, color.b, color.a);
       gl.clear(gl.COLOR_BUFFER_BIT);
       return;
@@ -1988,7 +1956,6 @@ function initWebGL(canvas) {
 
 var fillShaderProgram;
 var fill_vertexPositionAttribute;
-var fill_uPMatrix;
 var fill_uFillColor;
 
 var blitShaderProgram;
@@ -2246,15 +2213,14 @@ function flushTris(numTris) {
 function fillRect(x0, y0, x1, y1, color) {
   setGLBlendMode();
 
-  // multiply by state.viewport.trans/scale
-  var screen0 = canvasTransform.convertN64ToCanvas([x0, y0]);
-  var screen1 = canvasTransform.convertN64ToCanvas([x1, y1]);
+  var display0 = nativeTransform.convertN64ToDisplay(new Vector2(x0, y0));
+  var display1 = nativeTransform.convertN64ToDisplay(new Vector2(x1, y1));
 
   var vertices = [
-    screen1[0], screen1[1], 0.0,
-    screen0[0], screen1[1], 0.0,
-    screen1[0], screen0[1], 0.0,
-    screen0[0], screen0[1], 0.0
+    display1.x, display1.y, 0.0, 1.0,
+    display0.x, display1.y, 0.0, 1.0,
+    display1.x, display0.y, 0.0, 1.0,
+    display0.x, display0.y, 0.0, 1.0,
   ];
 
   gl.useProgram(fillShaderProgram);
@@ -2263,10 +2229,7 @@ function fillRect(x0, y0, x1, y1, color) {
   gl.enableVertexAttribArray(fill_vertexPositionAttribute);
   gl.bindBuffer(gl.ARRAY_BUFFER, rectVerticesBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-  gl.vertexAttribPointer(fill_vertexPositionAttribute, 3, gl.FLOAT, false, 0, 0);
-
-  // uPMatrix
-  gl.uniformMatrix4fv(fill_uPMatrix, false, canvasTransform.canvasToDisplay.elems);
+  gl.vertexAttribPointer(fill_vertexPositionAttribute, 4, gl.FLOAT, false, 0, 0);
 
   // uFillColor
   gl.uniform4f(fill_uFillColor, color.r, color.g, color.b, color.a);
@@ -2282,17 +2245,16 @@ function fillRect(x0, y0, x1, y1, color) {
 function texRect(tileIdx, x0, y0, x1, y1, s0, t0, s1, t1, flip) {
   // TODO: check scissor
 
-  // multiply by state.viewport.trans/scale
-  var screen0 = canvasTransform.convertN64ToDisplay([x0, y0]);
-  var screen1 = canvasTransform.convertN64ToDisplay([x1, y1]);
+  var display0 = nativeTransform.convertN64ToDisplay(new Vector2(x0, y0));
+  var display1 = nativeTransform.convertN64ToDisplay(new Vector2(x1, y1));
   var depth_source_prim = (state.rdpOtherModeL & gbi.DepthSource.G_ZS_PRIM) !== 0;
   var depth = depth_source_prim ? state.primDepth : 0.0;
 
   var vertices = [
-    screen0[0], screen0[1], depth, 1.0,
-    screen1[0], screen0[1], depth, 1.0,
-    screen0[0], screen1[1], depth, 1.0,
-    screen1[0], screen1[1], depth, 1.0
+    display0.x, display0.y, depth, 1.0,
+    display1.x, display0.y, depth, 1.0,
+    display0.x, display1.y, depth, 1.0,
+    display1.x, display1.y, depth, 1.0
   ];
 
   var uvs;
@@ -2350,6 +2312,9 @@ function copyBackBufferToFrontBuffer(texture) {
   ];
 
   gl.useProgram(blitShaderProgram);
+
+  const canvas = document.getElementById('display');
+  gl.viewport(0, 0, canvas.width, canvas.height);
 
   // aVertexPosition
   gl.enableVertexAttribArray(blit_vertexPositionAttribute);
@@ -3090,8 +3055,10 @@ export function presentBackBuffer() {
     copyBackBufferToFrontBuffer(frameBufferTexture3D);
     return;
   }
-  
+
   // If no display lists executed, interpret framebuffer as bytes
+  initViScales();    // resize canvas to match VI res.
+
   const vi = n64js.hardware().viRegDevice;
   const pixels = vi.renderBackBuffer();
   if (!pixels) {
@@ -3111,13 +3078,18 @@ export function presentBackBuffer() {
   copyBackBufferToFrontBuffer(frameBufferTexture2D);
 }
 
-function setViScales() {
+function initViScales() {
   const vi = n64js.hardware().viRegDevice;
   const dims = vi.computeDimensions();
-  if (dims) {
-    viWidth = dims.srcWidth;
-    viHeight = dims.srcHeight;
+  if (!dims) {
+    return;
   }
+
+  nativeTransform.setDimensions(dims.srcWidth, dims.srcHeight);
+
+  const canvas = document.getElementById('display');
+  canvas.width = dims.screenWidth * canvasScale;
+  canvas.height = dims.screenHeight * canvasScale;
 }
 
 class Disassembler {
@@ -3509,10 +3481,10 @@ function processDList(task, disassembler, bail_after) {
   // if due to webgl clearing our context between updates.
   gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
 
-  setViScales();
+  initViScales();
 
-  var canvas = document.getElementById('display');
-  setCanvasViewport(canvas.clientWidth, canvas.clientHeight);
+  // Set the viewport to match the framebuffer dimensions.
+  gl.viewport(0, 0, frameBuffer.width, frameBuffer.height);
 
   var pc, cmd0, cmd1;
 
@@ -3592,6 +3564,11 @@ function resetState(ucode, ram, pc) {
   for (let i = 0; i < state.projectedVertices.length; ++i) {
     state.projectedVertices[i] = new ProjectedVertex();
   }
+
+  state.viewport = {
+    scale: [160.0, 120.0],
+    trans: [160.0, 120.0]
+  };
 }
 
 function setScrubText(x, max) {
@@ -3699,7 +3676,6 @@ export function initialiseRenderer($canvas) {
 
   fillShaderProgram = shaders.createShaderProgram(gl, "fill-shader-vs", "fill-shader-fs");
   fill_vertexPositionAttribute = gl.getAttribLocation(fillShaderProgram, "aVertexPosition");
-  fill_uPMatrix = gl.getUniformLocation(fillShaderProgram, "uPMatrix");
   fill_uFillColor = gl.getUniformLocation(fillShaderProgram, "uFillColor");
 
   blitShaderProgram = shaders.createShaderProgram(gl, "blit-shader-vs", "blit-shader-fs");
@@ -3712,7 +3688,7 @@ export function initialiseRenderer($canvas) {
   n64ColorsBuffer = gl.createBuffer();
   n64UVBuffer = gl.createBuffer();
 
-  setCanvasViewport(canvas.clientWidth, canvas.clientHeight);
+  nativeTransform = new NativeTransform();
 }
 
 export function resetRenderer() {
