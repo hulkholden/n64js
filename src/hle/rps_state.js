@@ -143,4 +143,21 @@ export class RSPState {
       trans: new Vector2(160, 120),
     };
   }
+
+  updateGeometryModeFromBits(flags) {
+    var gm = this.geometryMode;
+    var bits = this.geometryModeBits;
+  
+    gm.zbuffer          = (bits & flags.G_ZBUFFER) ? 1 : 0;
+    gm.texture          = (bits & flags.G_TEXTURE_ENABLE) ? 1 : 0;
+    gm.shade            = (bits & flags.G_SHADE) ? 1 : 0;
+    gm.shadeSmooth      = (bits & flags.G_SHADING_SMOOTH) ? 1 : 0;
+    gm.cullFront        = (bits & flags.G_CULL_FRONT) ? 1 : 0;
+    gm.cullBack         = (bits & flags.G_CULL_BACK) ? 1 : 0;
+    gm.fog              = (bits & flags.G_FOG) ? 1 : 0;
+    gm.lighting         = (bits & flags.G_LIGHTING) ? 1 : 0;
+    gm.textureGen       = (bits & flags.G_TEXTURE_GEN) ? 1 : 0;
+    gm.textureGenLinear = (bits & flags.G_TEXTURE_GEN_LINEAR) ? 1 : 0;
+    gm.lod              = (bits & flags.G_LOD) ? 1 : 0;
+  }
 }
