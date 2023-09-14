@@ -260,8 +260,8 @@ class NativeTransform {
     this.viHeight = viHeight;
     // Convert n64 framebuffer coordinates into normalised device coordinates (-1 to +1).
     this.n64FramebufferToDevice = new Transform2D(new Vector2(2 / viWidth, -2 / viHeight), new Vector2(-1, +1));
-    // Displaylist-defined viewport.
-    this.n64ViewportTransform = new Transform2D(new Vector2(this.viWidth, this.viHeight), new Vector2(0, 0));
+    // Displaylist-defined viewport - defaults to the entire screen.
+    this.n64ViewportTransform = new Transform2D(new Vector2(viWidth, viHeight), new Vector2(0, 0));
   }
 
   setN64Viewport(t2d) {
