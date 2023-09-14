@@ -442,12 +442,10 @@
   <script type="module" src="src/rsp.js"></script>
 
   <script id="fill-shader-vs" type="x-shader/x-vertex">
-      attribute vec3 aVertexPosition;
-
-      uniform mat4 uPMatrix;
+      attribute vec4 aVertexPosition;
 
       void main(void) {
-        gl_Position = uPMatrix * vec4(aVertexPosition, 1.0);
+        gl_Position = aVertexPosition;
       }
     </script>
   <script id="fill-shader-fs" type="x-shader/x-fragment">
@@ -487,13 +485,12 @@
       attribute vec4 aVertexPosition;
       attribute vec4 aVertexColor;
       attribute vec2 aTextureCoord;
-      //uniform mat4 uPMatrix;
 
       varying         vec4 vColor;
       varying mediump vec2 vTextureCoord;
 
       void main(void) {
-        gl_Position   = /*uPMatrix **/ aVertexPosition;
+        gl_Position   = aVertexPosition;
         vColor        = aVertexColor;
         vTextureCoord = aTextureCoord;
       }
