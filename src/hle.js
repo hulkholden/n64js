@@ -156,8 +156,8 @@ var state = {
   rdpHalf2: 0,
 
   viewport: {
-    scale: [160.0, 120.0],
-    trans: [160.0, 120.0]
+    scale: new Vector2(160.0, 120.0),
+    trans: new Vector2(160.0, 120.0),
   },
 
   // matrix stacks
@@ -301,24 +301,22 @@ function previewViewport(address) {
 }
 
 function moveMemViewport(address) {
-  const scale = [
+  const scale = new Vector2(
     ram_dv.getInt16(address + 0) / 4.0,
     ram_dv.getInt16(address + 2) / 4.0,
-  ];
-  const trans = [
+  );
+  const trans = new Vector2(
     ram_dv.getInt16(address + 8) / 4.0,
     ram_dv.getInt16(address + 10) / 4.0,
-  ];
+  );
 
-  //logger.log(`Viewport: scale=${scale[0]},${scale[1]} trans=${trans[0]},${trans[1]}` );
+  //logger.log(`Viewport: scale=${scale.x},${scale.y} trans=${trans.x},${trans.y}` );
   state.viewport.scale = scale;
   state.viewport.trans = trans;
 
-  const sx = 2 * scale[0];
-  const sy = 2 * scale[1];
-  const tx = trans[0] - scale[0];
-  const ty = trans[1] - scale[1];
-  const t2d = new Transform2D(new Vector2(sx, sy), new Vector2(tx, ty));
+  // N64 provides the center point and distance to each edge,
+  // but we want the width/height and translate to bottom left.
+  const t2d = new Transform2D(scale.scale(2), trans.sub(scale));
   nativeTransform.setN64Viewport(t2d);
 }
 
@@ -3566,8 +3564,8 @@ function resetState(ucode, ram, pc) {
   }
 
   state.viewport = {
-    scale: [160.0, 120.0],
-    trans: [160.0, 120.0]
+    scale: new Vector2(160, 120),
+    trans: new Vector2(160, 120),
   };
 }
 
