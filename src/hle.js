@@ -144,23 +144,6 @@ class NativeTransform {
   }
 }
 
-function updateGeometryModeFromBits(flags) {
-  var gm = state.geometryMode;
-  var bits = state.geometryModeBits;
-
-  gm.zbuffer          = (bits & flags.G_ZBUFFER) ? 1 : 0;
-  gm.texture          = (bits & flags.G_TEXTURE_ENABLE) ? 1 : 0;
-  gm.shade            = (bits & flags.G_SHADE) ? 1 : 0;
-  gm.shadeSmooth      = (bits & flags.G_SHADING_SMOOTH) ? 1 : 0;
-  gm.cullFront        = (bits & flags.G_CULL_FRONT) ? 1 : 0;
-  gm.cullBack         = (bits & flags.G_CULL_BACK) ? 1 : 0;
-  gm.fog              = (bits & flags.G_FOG) ? 1 : 0;
-  gm.lighting         = (bits & flags.G_LIGHTING) ? 1 : 0;
-  gm.textureGen       = (bits & flags.G_TEXTURE_GEN) ? 1 : 0;
-  gm.textureGenLinear = (bits & flags.G_TEXTURE_GEN_LINEAR) ? 1 : 0;
-  gm.lod              = (bits & flags.G_LOD) ? 1 : 0;
-}
-
 function loadMatrix(address) {
   const recip = 1.0 / 65536.0;
   var dv = new DataView(ram_dv.buffer, address);
@@ -876,7 +859,7 @@ function executeGBI1_ClrGeometryMode(cmd0, cmd1, dis) {
     dis.text(`gsSPClearGeometryMode(${gbi.getGeometryModeFlagsText(gbi.GeometryModeGBI1, cmd1)});`);
   }
   state.geometryModeBits &= ~cmd1;
-  updateGeometryModeFromBits(gbi.GeometryModeGBI1);
+  state.updateGeometryModeFromBits(gbi.GeometryModeGBI1);
 }
 
 function executeGBI1_SetGeometryMode(cmd0, cmd1, dis) {
@@ -884,7 +867,7 @@ function executeGBI1_SetGeometryMode(cmd0, cmd1, dis) {
     dis.text(`gsSPSetGeometryMode(${gbi.getGeometryModeFlagsText(gbi.GeometryModeGBI1, cmd1)});`);
   }
   state.geometryModeBits |= cmd1;
-  updateGeometryModeFromBits(gbi.GeometryModeGBI1);
+  state.updateGeometryModeFromBits(gbi.GeometryModeGBI1);
 }
 
 function executeGBI1_SetOtherModeL(cmd0, cmd1, dis) {
@@ -947,7 +930,7 @@ function executeGBI1_Texture(cmd0, cmd1, dis) {
   } else {
     state.geometryModeBits &= ~gbi.GeometryModeGBI1.G_TEXTURE_ENABLE;
   }
-  updateGeometryModeFromBits(gbi.GeometryModeGBI1);
+  state.updateGeometryModeFromBits(gbi.GeometryModeGBI1);
 }
 
 function executeGBI1_CullDL(cmd0, cmd1, dis) {
@@ -2610,7 +2593,7 @@ function executeGBI2_Texture(cmd0, cmd1, dis) {
   } else {
     state.geometryModeBits &= ~gbi.GeometryModeGBI2.G_TEXTURE_ENABLE;
   }
-  updateGeometryModeFromBits(gbi.GeometryModeGBI2);
+  state.updateGeometryModeFromBits(gbi.GeometryModeGBI2);
 }
 
 function executeGBI2_GeometryMode(cmd0, cmd1, dis) {
@@ -2627,7 +2610,7 @@ function executeGBI2_GeometryMode(cmd0, cmd1, dis) {
   state.geometryModeBits &= (arg0 | gbi.GeometryModeGBI2.G_TEXTURE_ENABLE);
   state.geometryModeBits |= (arg1 & ~gbi.GeometryModeGBI2.G_TEXTURE_ENABLE);
 
-  updateGeometryModeFromBits(gbi.GeometryModeGBI2);
+  state.updateGeometryModeFromBits(gbi.GeometryModeGBI2);
 }
 
 function executeGBI2_Matrix(cmd0, cmd1, dis) {
