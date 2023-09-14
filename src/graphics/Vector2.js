@@ -30,6 +30,33 @@ export class Vector2 {
   }
 
   /**
+    * Adds the provided vector and returns the result.
+    * @param {Vector2} other 
+    * @returns {Vector2}
+    */
+  add(other) {
+    return new Vector2(this.x + other.x, this.y + other.y);
+  }
+
+  /**
+    * Subtracts the provided vector and returns the result.
+    * @param {Vector2} other 
+    * @returns {Vector2}
+    */
+  sub(other) {
+    return new Vector2(this.x - other.x, this.y - other.y);
+  }
+
+  /**
+    * Scales the vector by the provided value and returns the result.
+    * @param {number} s 
+    * @returns {Vector2}
+    */
+  scale(s) {
+    return new Vector2(this.x * s, this.y * s);
+  }
+
+  /**
    * Normalises the vector.
    * @return {!Vector2}
    */
