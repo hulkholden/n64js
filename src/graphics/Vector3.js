@@ -6,6 +6,14 @@ export class Vector3 {
     this.elems = opt_elems || new Float32Array(3);
   }
 
+  get x() { return this.elems[0]; }
+  get y() { return this.elems[1]; }
+  get z() { return this.elems[2]; }
+
+  set x(v) { this.elems[0] = v; }
+  set y(v) { this.elems[1] = v; }
+  set z(v) { this.elems[2] = v; }
+
   /**
    * Return the dot product.
    * @param {!Vector3} other
@@ -14,7 +22,7 @@ export class Vector3 {
   dot(other) {
     let t = 0;
     for (let i = 0; i < this.elems.length; ++i)
-      t += this.elems[i]*other.elems[i];
+      t += this.elems[i] * other.elems[i];
     return t;
   }
 
