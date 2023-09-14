@@ -329,7 +329,7 @@ function previewLight(address) {
     ram_dv.getInt8(address + 9),
     ram_dv.getInt8(address + 10)
   ]).normaliseInPlace();
-  result += `norm = (${dir.elems[0]}, ${dir.elems[1]}, ${dir.elems[2]})`;
+  result += `norm = (${dir.x}, ${dir.y}, ${dir.z})`;
   return result;
 }
 
@@ -897,9 +897,9 @@ function executeVertexImpl(v0, n, address, dis) {
 
     vertex.set = true;
 
-    xyz.elems[0] = dv.getInt16(vtx_base + 0);
-    xyz.elems[1] = dv.getInt16(vtx_base + 2);
-    xyz.elems[2] = dv.getInt16(vtx_base + 4);
+    xyz.x = dv.getInt16(vtx_base + 0);
+    xyz.y = dv.getInt16(vtx_base + 2);
+    xyz.z = dv.getInt16(vtx_base + 4);
     //var w = dv.getInt16(vtx_base + 6);
     var u = dv.getInt16(vtx_base + 8);
     var v = dv.getInt16(vtx_base + 10);
@@ -907,7 +907,7 @@ function executeVertexImpl(v0, n, address, dis) {
     var projected = vertex.pos;
     wvp.transformPoint(xyz, projected);
 
-    //hleHalt(`${x},${y},${z}-&gt;${projected.elems[0]},${projected.elems[1]},${projected.elems[2]}`);
+    //hleHalt(`${x},${y},${z}-&gt;${projected.x},${projected.y},${projected.z}`);
 
     // var clip_flags = 0;
     //      if (projected[0] < -projected[3]) clip_flags |= X_POS;
@@ -921,9 +921,9 @@ function executeVertexImpl(v0, n, address, dis) {
     // state.projectedVertices.clipFlags = clip_flags;
 
     if (light) {
-      normal.elems[0] = dv.getInt8(vtx_base + 12);
-      normal.elems[1] = dv.getInt8(vtx_base + 13);
-      normal.elems[2] = dv.getInt8(vtx_base + 14);
+      normal.x = dv.getInt8(vtx_base + 12);
+      normal.y = dv.getInt8(vtx_base + 13);
+      normal.z = dv.getInt8(vtx_base + 14);
 
       // calculate transformed normal
       mvmtx.transformNormal(normal, transformedNormal);
@@ -937,11 +937,11 @@ function executeVertexImpl(v0, n, address, dis) {
         // transformedNormal.normaliseInPlace();
 
         if (texgenlin) {
-          vertex.u = 0.5 * (1.0 + transformedNormal.elems[0]);
-          vertex.v = 0.5 * (1.0 + transformedNormal.elems[1]); // 1-y?
+          vertex.u = 0.5 * (1.0 + transformedNormal.x);
+          vertex.v = 0.5 * (1.0 + transformedNormal.y); // 1-y?
         } else {
-          vertex.u = Math.acos(transformedNormal.elems[0]) / 3.141;
-          vertex.v = Math.acos(transformedNormal.elems[1]) / 3.141;
+          vertex.u = Math.acos(transformedNormal.x) / 3.141;
+          vertex.v = Math.acos(transformedNormal.y) / 3.141;
         }
       } else {
         vertex.u = u * scale_s;
@@ -3314,19 +3314,19 @@ function buildVerticesTab() {
       continue;
     }
 
-    var x = vtx.pos.elems[0] / vtx.pos.elems[3];
-    var y = vtx.pos.elems[1] / vtx.pos.elems[3];
-    var z = vtx.pos.elems[2] / vtx.pos.elems[3];
+    var x = vtx.pos.x / vtx.pos.w;
+    var y = vtx.pos.y / vtx.pos.w;
+    var z = vtx.pos.z / vtx.pos.w;
 
     var vals = [];
     vals.push(i);
     vals.push(x.toFixed(3));
     vals.push(y.toFixed(3));
     vals.push(z.toFixed(3));
-    vals.push(vtx.pos.elems[0].toFixed(3));
-    vals.push(vtx.pos.elems[1].toFixed(3));
-    vals.push(vtx.pos.elems[2].toFixed(3));
-    vals.push(vtx.pos.elems[3].toFixed(3));
+    vals.push(vtx.pos.x.toFixed(3));
+    vals.push(vtx.pos.y.toFixed(3));
+    vals.push(vtx.pos.z.toFixed(3));
+    vals.push(vtx.pos.w.toFixed(3));
     vals.push(makeColorTextABGR(vtx.color));
     vals.push(vtx.u.toFixed(3));
     vals.push(vtx.v.toFixed(3));
