@@ -1438,7 +1438,7 @@ function executeLoadTile(cmd0, cmd1, dis) {
   const uls = (cmd0 >>> 12) & 0xfff;
   const ult = (cmd0 >>> 0) & 0xfff;
 
-  const tile = state.tiles[tileIdx]; 
+  const tile = state.tiles[tileIdx];
   const tileX1 = lrs >>> 2;
   const tileY1 = lrt >>> 2;
   const tileX0 = uls >>> 2;
@@ -1446,12 +1446,12 @@ function executeLoadTile(cmd0, cmd1, dis) {
 
   const h = (tileY1 + 1) - tileY0;
   const w = (tileX1 + 1) - tileX0;
-  
+
   const ramAddress = calcTextureAddress(tileX0, tileY0, state.textureImage.address, state.textureImage.width, state.textureImage.size);
   let ramOffset = ramAddress;
   const ramStride = texelsToBytes(state.textureImage.width, state.textureImage.size);
   const rowBytes = texelsToBytes(w, state.textureImage.size);
-  
+
   // loadTile pads rows to 8 bytes.
   const tmemData = state.tmemData;
   let tmemOffset = tile.tmem << 3;
@@ -2127,7 +2127,7 @@ function setGLBlendMode() {
       mode = kBlendModeOpaque;
       break;
     // case 0x0321 = G_BL_CLR_IN, G_BL_0, G_BL_CLR_BL, G_BL_A_MEM - blend*alpha.
-    
+
     case 0x0010: // G_BL_CLR_IN, G_BL_A_IN, G_BL_CLR_MEM, G_BL_1MA
     case 0x0011: // G_BL_CLR_IN, G_BL_A_IN, G_BL_CLR_MEM, G_BL_A_MEM
       // These modes either do a weighted sum of coverage (or coverage and alpha) or a plain alpha blend
@@ -2456,8 +2456,8 @@ const ucode_gbi2 = {
   0x06: executeGBI2_Tri2,
   0x07: executeGBI2_Quad,
   0x08: executeGBI2_Line3D,
-  0x09: executeGBI2_BgRect1Cyc,		
-  0x0a: executeGBI2_BgRectCopy,	
+  0x09: executeGBI2_BgRect1Cyc,
+  0x0a: executeGBI2_BgRectCopy,
   0x0b: executeGBI2_ObjRenderMode,
 
   // 0xd3: executeGBI2_Special1,
@@ -2835,7 +2835,7 @@ function executeGBI2_MoveWord(cmd0, cmd1, dis) {
       /*unimplemented(cmd0,cmd1);*/ break;
     case gbi.MoveWord.G_MW_LIGHTCOL:
       /*unimplemented(cmd0,cmd1);*/ break;
-      // case gbi.MoveWord.G_MW_POINTS:    unimplemented(cmd0,cmd1); break;
+    // case gbi.MoveWord.G_MW_POINTS:    unimplemented(cmd0,cmd1); break;
     case gbi.MoveWord.G_MW_PERSPNORM:
       /*unimplemented(cmd0,cmd1);*/ break;
     default:
@@ -2901,7 +2901,7 @@ function executeGBI2_MoveMem(cmd0, cmd1, dis) {
       break;
     case gbi.MoveMemGBI2.G_GBI2_MV_MATRIX:
       hleHalt(`unhandled movemem G_GBI2_MV_MATRIX: ${type.toString(16)}`);
-        break;
+      break;
 
     default:
       hleHalt(`unknown movemem: ${type.toString(16)}`);
@@ -3603,22 +3603,22 @@ function initDebugUI() {
   debugBailAfter = -1;
   debugNumOps = 0;
 
-  $dlistControls.find('#rwd').click(function() {
+  $dlistControls.find('#rwd').click(() => {
     if (debugDisplayListRunning && debugBailAfter > 0) {
       setScrubTime(debugBailAfter - 1);
     }
   });
-  $dlistControls.find('#fwd').click(function() {
+  $dlistControls.find('#fwd').click(() => {
     if (debugDisplayListRunning && debugBailAfter < debugNumOps) {
       setScrubTime(debugBailAfter + 1);
     }
   });
-  $dlistControls.find('#stop').click(function() {
+  $dlistControls.find('#stop').click(() => {
     toggleDebugDisplayList();
   });
 
   $dlistScrub = $dlistControls.find('.scrub');
-  $dlistScrub.find('input').change(function() {
+  $dlistScrub.find('input').change(function () {
     setScrubTime($(this).val() | 0);
   });
   setScrubRange(0);
