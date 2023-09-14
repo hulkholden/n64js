@@ -13,7 +13,7 @@ import { TriangleBuffer } from './graphics/TriangleBuffer.js';
 import { Vector2 } from './graphics/Vector2.js';
 import { Vector3 } from './graphics/Vector3.js';
 import * as disassemble from './hle/disassemble.js';
-import { RSPState } from './hle/rps_state.js';
+import { RSPState } from './hle/rsp_state.js';
 
 window.n64js = window.n64js || {};
 
