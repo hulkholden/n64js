@@ -144,6 +144,13 @@ export class RSPState {
     };
   }
 
+  setTexture(s, t, level, tileIdx) {
+    this.texture.scaleS = s;
+    this.texture.scaleT = t;
+    this.texture.level = level;
+    this.texture.tile = tileIdx;
+  }
+
   updateGeometryModeFromBits(flags) {
     var gm = this.geometryMode;
     var bits = this.geometryModeBits;

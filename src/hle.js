@@ -920,11 +920,7 @@ function executeGBI1_Texture(cmd0, cmd1, dis) {
     }
   }
 
-  state.texture.level = level;
-  state.texture.tile = tileIdx;
-  state.texture.scaleS = s;
-  state.texture.scaleT = t;
-
+  state.setTexture(s, t, level, tileIdx);
   if (on) {
     state.geometryModeBits |= gbi.GeometryModeGBI1.G_TEXTURE_ENABLE;
   } else {
@@ -2583,11 +2579,7 @@ function executeGBI2_Texture(cmd0, cmd1, dis) {
     }
   }
 
-  state.texture.level = level;
-  state.texture.tile = tileIdx;
-  state.texture.scaleS = s;
-  state.texture.scaleT = t;
-
+  state.setTexture(s, t, level, tileIdx);
   if (on) {
     state.geometryModeBits |= gbi.GeometryModeGBI2.G_TEXTURE_ENABLE;
   } else {
