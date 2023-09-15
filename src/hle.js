@@ -2,7 +2,7 @@
 /*global $, n64js*/
 
 import { padString, toHex, toString8, toString16, toString32 } from './format.js';
-import * as gbi from './gbi.js';
+import * as gbi from './hle/gbi.js';
 import * as logger from './logger.js';
 import { convertTexels, convertRGBA16Pixel } from './graphics/convert.js';
 import * as shaders from './graphics/shaders.js';

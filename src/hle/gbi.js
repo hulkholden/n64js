@@ -1,4 +1,4 @@
-import * as format from './format.js';
+import * as format from '../format.js';
 
 export const RenderMode = {
   AA_EN:               0x0008,

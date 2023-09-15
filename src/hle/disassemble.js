@@ -1,5 +1,5 @@
 import { toString32 } from '../format.js';
-import * as gbi from '../gbi.js';
+import * as gbi from './gbi.js';
 
 
 export function SetOtherModeL(dis, mask, data) {
