@@ -4,6 +4,7 @@ import { Tile } from "./tile.js";
 import { ProjectedVertex } from "./triangle_buffer.js";
 import { Vector2 } from "../graphics/Vector2.js";
 import { Vector3 } from "../graphics/Vector3.js";
+import { TMEM } from './tmem.js';
 
 export class RSPState {
   constructor() {
@@ -93,9 +94,7 @@ export class RSPState {
       address: 0
     };
 
-    const tmemBuffer = new ArrayBuffer(4096);
-    this.tmemData32 = new Int32Array(tmemBuffer);
-    this.tmemData = new Uint8Array(tmemBuffer);
+    this.tmem = new TMEM();
 
     this.screenContext2d = null; // canvas context
   }
