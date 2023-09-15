@@ -93,7 +93,6 @@ const kUcodeStrides = [
 
 // TODO: provide a HLE object and instantiate these in the constructor.
 function getRamU8Array() { return n64js.hardware().cachedMemDevice.u8; }
-function getRamS32Array() { return n64js.hardware().cachedMemDevice.s32; }
 function getRamDataView() { return n64js.hardware().cachedMemDevice.mem.dataView; }
 
 class NativeTransform {
@@ -1059,27 +1058,7 @@ function calcTextureAddress(uls, ult, address, width, size) {
   return address + (ult * texelsToBytes(width, size)) + texelsToBytes(uls, size);
 }
 
-// tmem/ram should be Int32Array
-function copyLineQwords(tmem, tmem_offset, ram, ram_offset, qwords) {
-  for (let i = 0; i < qwords; ++i) {
-    tmem[tmem_offset + 0] = ram[ram_offset + 0];
-    tmem[tmem_offset + 1] = ram[ram_offset + 1];
-    tmem_offset += 2;
-    ram_offset += 2;
-  }
-}
-// tmem/ram should be Int32Array
-function copyLineQwordsSwap(tmem, tmem_offset, ram, ram_offset, qwords) {
-  if (tmem_offset & 1) { hleHalt("oops, tmem isn't qword aligned"); }
-
-  for (let i = 0; i < qwords; ++i) {
-    tmem[(tmem_offset + 0) ^ 0x1] = ram[ram_offset + 0];
-    tmem[(tmem_offset + 1) ^ 0x1] = ram[ram_offset + 1];
-    tmem_offset += 2;
-    ram_offset += 2;
-  }
-}
-
+// TODO: why is this needed if we check the hash as it's needed?
 function invalidateTileHashes() {
   for (let i = 0; i < 8; ++i) {
     state.tiles[i].hash = 0;
@@ -1112,64 +1091,8 @@ function executeLoadBlock(cmd0, cmd1, dis) {
     dis.tip(`bytes ${bytes}, qwords ${qwords}`);
   }
 
-  const tmemData = state.tmemData32;
-
-  // Offsets in 32 bit words.
-  let ramOffset = ramAddress >>> 2;
-  let tmemOffset = (tile.tmem << 3) >>> 2;
-
-  const ram_s32 = getRamS32Array();
-
-  // Slight fast path for dxt == 0
-  if (dxt === 0) {
-    copyLineQwords(tmemData, tmemOffset, ram_s32, ramOffset, qwords);
-  } else {
-    // TODO: Emulate by incrementing a counter by dxt each frame, and emitting a new
-    // line when it overflows 2048.
-    // The LoadBlock command uses the parameter dxt to indicate when it should start the next line.
-    // Dxt is basically the reciprocal of the number of words (64-bits) in a line.
-    // The texture coordinate unit increments a counter by dxt for each word transferred to Tmem.
-    // When this counter rolls over into the next integer value, the line count is incremented. 
-    const qwordsPerLine = Math.ceil(2048 / dxt);
-    let rowSwizzle = 0;
-    for (let i = 0; i < qwords;) {
-      const qwordsToCopy = Math.min(qwords - i, qwordsPerLine);
-
-      if (rowSwizzle) {
-        copyLineQwordsSwap(tmemData, tmemOffset, ram_s32, ramOffset, qwordsToCopy);
-      } else {
-        copyLineQwords(tmemData, tmemOffset, ram_s32, ramOffset, qwordsToCopy);
-      }
-
-      i += qwordsToCopy;
-
-      // 2 words per quadword copied
-      tmemOffset += qwordsToCopy * 2;
-      ramOffset += qwordsToCopy * 2;
-
-      // All odd lines are swapped
-      rowSwizzle ^= 0x1;
-    }
-  }
+  state.tmem.loadBlock(tile, ramAddress, dxt, qwords);
   invalidateTileHashes();
-}
-
-function copyLine(tmem, tmemOffset, ram, ramOffset, texelBytes, rowBytes) {
-  for (let x = 0; x < texelBytes; ++x) {
-    tmem[tmemOffset + x] = ram[ramOffset + x];
-  }
-  for (let x = texelBytes; x < rowBytes; ++x) {
-    tmem[tmemOffset + x] = 0;
-  }
-}
-
-function copyLineSwap(tmem, tmemOffset, ram, ramOffset, texelBytes, rowBytes) {
-  for (let x = 0; x < texelBytes; ++x) {
-    tmem[(tmemOffset + x) ^ 0x4] = ram[(ramOffset + x)];
-  }
-  for (let x = texelBytes; x < rowBytes; ++x) {
-    tmem[(tmemOffset + x) ^ 0x4] = 0;
-  }
 }
 
 function texelsToBytes(texels, size) {
@@ -1193,13 +1116,10 @@ function executeLoadTile(cmd0, cmd1, dis) {
   const w = (tileX1 + 1) - tileX0;
 
   const ramAddress = calcTextureAddress(tileX0, tileY0, state.textureImage.address, state.textureImage.width, state.textureImage.size);
-  let ramOffset = ramAddress;
   const ramStride = texelsToBytes(state.textureImage.width, state.textureImage.size);
   const rowBytes = texelsToBytes(w, state.textureImage.size);
 
   // loadTile pads rows to 8 bytes.
-  const tmemData = state.tmemData;
-  let tmemOffset = tile.tmem << 3;
   const tmemStride = (state.textureImage.size == gbi.ImageSize.G_IM_SIZ_32b) ? tile.line << 4 : tile.line << 3;
 
   // TODO: Limit the load to fetchedQWords?
@@ -1214,17 +1134,7 @@ function executeLoadTile(cmd0, cmd1, dis) {
     dis.tip(`size = (${w} x ${h}), rowBytes ${rowBytes}, ramStride ${ramStride}, tmemStride ${tmemStride}`);
   }
 
-  const ram_u8 = getRamU8Array();
-  for (let y = 0; y < h; ++y) {
-    if (y & 1) {
-      copyLineSwap(tmemData, tmemOffset, ram_u8, ramOffset, rowBytes, tmemStride);
-    } else {
-      copyLine(tmemData, tmemOffset, ram_u8, ramOffset, rowBytes, tmemStride);
-    }
-    tmemOffset += tmemStride;
-    ramOffset += ramStride;
-  }
-
+  state.tmem.loadTile(tile, ramAddress, h, ramStride, rowBytes, tmemStride);
   invalidateTileHashes();
 }
 
@@ -1261,7 +1171,7 @@ function executeLoadTLut(cmd0, cmd1, dis) {
   const ram_u8 = getRamU8Array();
   var tmem_offset = tile.tmem << 3;
 
-  copyLineTLUT(state.tmemData, tmem_offset, ram_u8, ram_offset, texels);
+  copyLineTLUT(state.tmem.tmemData, tmem_offset, ram_u8, ram_offset, texels);
 
   invalidateTileHashes();
 }
@@ -3377,56 +3287,6 @@ function getCurrentN64Shader(cycle_type, enableAlphaThreshold) {
   return shaders.getOrCreateN64Shader(gl, mux0, mux1, cycle_type, enableAlphaThreshold);
 }
 
-function hashTmem(tmem32, offset, len, hash) {
-  let i = offset >> 2;
-  let e = (offset + len) >> 2;
-  while (i < e) {
-    hash = ((hash * 17) + tmem32[i]) >>> 0;
-    ++i;
-  }
-  return hash;
-}
-
-function calculateTmemCrc(tile) {
-  if (tile.hash) {
-    return tile.hash;
-  }
-
-  //var width = tile.width;
-  var height = tile.height;
-
-  var src = state.tmemData32;
-  var tmem_offset = tile.tmem << 3;
-  var bytes_per_line = tile.line << 3;
-
-  // NB! RGBA/32 line needs to be doubled.
-  if (tile.format == gbi.ImageFormat.G_IM_FMT_RGBA &&
-    tile.size == gbi.ImageSize.G_IM_SIZ_32b) {
-    bytes_per_line *= 2;
-  }
-
-  // TODO: not sure what happens when width != tile.line. Maybe we should hash rows separately?
-
-  var len = height * bytes_per_line;
-
-  var hash = hashTmem(src, tmem_offset, len, 0);
-
-  // For palettised textures, check the palette entries too
-  if (tile.format === gbi.ImageFormat.G_IM_FMT_CI ||
-    tile.format === gbi.ImageFormat.G_IM_FMT_RGBA) { // NB RGBA check is for extreme-g, which specifies RGBA/4 and RGBA/8 instead of CI/4 and CI/8
-
-    // Palettes are "quadricated", so there are 8 bytes per entry.
-    if (tile.size === gbi.ImageSize.G_IM_SIZ_8b) {
-      hash = hashTmem(src, 0x800, 256 * 8, hash);
-    } else if (tile.size === gbi.ImageSize.G_IM_SIZ_4b) {
-      hash = hashTmem(src, 0x800 + (tile.palette * 16 * 2), 16 * 8, hash);
-    }
-  }
-
-  tile.hash = hash;
-  return hash;
-}
-
 /**
  * Looks up the texture defined at the specified tile index.
  * @param {number} tileIdx
@@ -3440,7 +3300,7 @@ function lookupTexture(tileIdx) {
   }
 
   // FIXME: we can cache this if tile/tmem state hasn't changed since the last draw call.
-  const hash = calculateTmemCrc(tile);
+  const hash = state.tmem.calculateCRC(tile);
 
   // Check if the texture is already cached.
   // The cacheID should include all the state that can affect how the texture is constructed.
@@ -3471,7 +3331,7 @@ function decodeTexture(tile, tlutFormat, cacheID) {
   var ctx = texture.$canvas[0].getContext('2d');
   var imgData = ctx.createImageData(texture.nativeWidth, texture.nativeHeight);
 
-  var handled = convertTexels(imgData, state.tmemData, tile, tlutFormat);
+  var handled = convertTexels(imgData, state.tmem.tmemData, tile, tlutFormat);
   if (handled) {
     clampTexture(imgData, tile.width, tile.height);
 
