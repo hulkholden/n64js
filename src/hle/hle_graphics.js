@@ -1053,10 +1053,6 @@ function executeSetRDPOtherMode(cmd0, cmd1, dis) {
   state.rdpOtherModeL = cmd1;
 }
 
-function calcTextureAddress(uls, ult, address, width, size) {
-  return address + (ult * texelsToBytes(width, size)) + texelsToBytes(uls, size);
-}
-
 // TODO: why is this needed if we check the hash as it's needed?
 function invalidateTileHashes() {
   for (let i = 0; i < 8; ++i) {
@@ -1079,9 +1075,8 @@ function executeLoadBlock(cmd0, cmd1, dis) {
   const tileX0 = uls >>> 2;
   const tileY0 = ult >>> 2;
 
-  const ramAddress = calcTextureAddress(tileX0, tileY0, state.textureImage.address, state.textureImage.width, state.textureImage.size);
-
-  const bytes = texelsToBytes(lrs + 1, state.textureImage.size);
+  const ramAddress = state.textureImage.calcAddress(tileX0, tileY0);
+  const bytes = state.textureImage.texelsToBytes(lrs + 1);
   const qwords = (bytes + 7) >>> 3;
 
   if (dis) {
@@ -1092,10 +1087,6 @@ function executeLoadBlock(cmd0, cmd1, dis) {
 
   state.tmem.loadBlock(tile, ramAddress, dxt, qwords);
   invalidateTileHashes();
-}
-
-function texelsToBytes(texels, size) {
-  return (texels << size) >>> 1;
 }
 
 function executeLoadTile(cmd0, cmd1, dis) {
@@ -1114,9 +1105,9 @@ function executeLoadTile(cmd0, cmd1, dis) {
   const h = (tileY1 + 1) - tileY0;
   const w = (tileX1 + 1) - tileX0;
 
-  const ramAddress = calcTextureAddress(tileX0, tileY0, state.textureImage.address, state.textureImage.width, state.textureImage.size);
-  const ramStride = texelsToBytes(state.textureImage.width, state.textureImage.size);
-  const rowBytes = texelsToBytes(w, state.textureImage.size);
+  const ramAddress = state.textureImage.calcAddress(tileX0, tileY0);
+  const ramStride = state.textureImage.stride();
+  const rowBytes = state.textureImage.texelsToBytes(w);
 
   // loadTile pads rows to 8 bytes.
   const tmemStride = (state.textureImage.size == gbi.ImageSize.G_IM_SIZ_32b) ? tile.line << 4 : tile.line << 3;
@@ -1155,11 +1146,7 @@ function executeLoadTLut(cmd0, cmd1, dis) {
 
   // Tlut fmt is sometimes wrong (in 007) and is set after tlut load, but
   // before tile load. Format is always 16bpp - RGBA16 or IA16:
-  // var address = calcTextureAddress(uls >>> 2, ult >>> 2,
-  //                                  state.textureImage.address,
-  //                                  åstate.textureImage.width,
-  //                                  åstate.textureImage.size);
-  var ramAddress = calcTextureAddress(uls >>> 2, ult >>> 2, state.textureImage.address, state.textureImage.width, gbi.ImageSize.G_IM_SIZ_16b);
+  var ramAddress = state.textureImage.calcAddress(uls >>> 2, ult >>> 2, gbi.ImageSize.G_IM_SIZ_16b);
 
   var tile = state.tiles[tileIdx];
   var texels = ((lrs - uls) >>> 2) + 1;
@@ -1449,12 +1436,7 @@ function executeSetTImg(cmd0, cmd1, dis) {
     dis.text(`gsDPSetTextureImage(${gbi.ImageFormat.nameOf(format)}, ${gbi.ImageSize.nameOf(size)}, ${width}, ${toString32(address)});`);
   }
 
-  state.textureImage = {
-    format: format,
-    size: size,
-    width: width,
-    address: address
-  };
+  state.textureImage.set(format, size, width, address)
 }
 
 function executeSetZImg(cmd0, cmd1, dis) {
