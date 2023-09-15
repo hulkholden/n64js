@@ -83,12 +83,7 @@ export class RSPState {
       address: 0
     };
 
-    this.textureImage = {
-      format: 0,
-      size: 0,
-      width: 0,
-      address: 0
-    };
+    this.textureImage = new TextureImage();
 
     this.depthImage = {
       address: 0
@@ -176,4 +171,37 @@ export class RSPState {
   getCoverageTimesAlpha() { return (this.rdpOtherModeL & gbi.RenderMode.CVG_X_ALPHA) !== 0; }
   // use fragment coverage * fragment alpha
   getAlphaCoverageSelect() { return (this.rdpOtherModeL & gbi.RenderMode.ALPHA_CVG_SEL) !== 0; }
+}
+
+class TextureImage {
+  constructor() {
+    this.format = 0;
+    this.size = 0;
+    this.width = 0;
+    this.address = 0;
+  }
+
+  set(format, size, width, address) {
+    this.format = format;
+    this.size = size;
+    this.width = width;
+    this.address = address;
+  }
+
+  calcAddress(uls, ult, sizeOverride) {
+    const size = (sizeOverride === undefined) ? this.size : sizeOverride;
+    return this.address + (ult * texelsToBytes(this.width, size)) + texelsToBytes(uls, size);
+  }
+
+  texelsToBytes(texels) {
+    return texelsToBytes(texels, this.size);
+  }
+
+  stride() {
+    return this.texelsToBytes(this.width);
+  }
+}
+
+function texelsToBytes(texels, size) {
+  return (texels << size) >>> 1;
 }
