@@ -58,7 +58,7 @@ var config = {
 const kMaxTris = 64;
 var triangleBuffer = new TriangleBuffer(kMaxTris);
 
-var ram_dv;
+var ramDV;
 
 var state = new RSPState();
 
@@ -121,7 +121,7 @@ class NativeTransform {
 
 function loadMatrix(address) {
   const recip = 1.0 / 65536.0;
-  var dv = new DataView(ram_dv.buffer, address);
+  var dv = new DataView(ramDV.buffer, address);
 
   var elements = new Float32Array(16);
   for (var i = 0; i < 4; ++i) {
@@ -136,19 +136,19 @@ function loadMatrix(address) {
 
 function previewViewport(address) {
   var result = '';
-  result += `scale = (${ram_dv.getInt16(address + 0) / 4.0}, ${ram_dv.getInt16(address + 2) / 4.0}) `;
-  result += `trans = (${ram_dv.getInt16(address + 8) / 4.0}, ${ram_dv.getInt16(address + 10) / 4.0}) `;
+  result += `scale = (${ramDV.getInt16(address + 0) / 4.0}, ${ramDV.getInt16(address + 2) / 4.0}) `;
+  result += `trans = (${ramDV.getInt16(address + 8) / 4.0}, ${ramDV.getInt16(address + 10) / 4.0}) `;
   return result;
 }
 
 function moveMemViewport(address) {
   const scale = new Vector2(
-    ram_dv.getInt16(address + 0) / 4.0,
-    ram_dv.getInt16(address + 2) / 4.0,
+    ramDV.getInt16(address + 0) / 4.0,
+    ramDV.getInt16(address + 2) / 4.0,
   );
   const trans = new Vector2(
-    ram_dv.getInt16(address + 8) / 4.0,
-    ram_dv.getInt16(address + 10) / 4.0,
+    ramDV.getInt16(address + 8) / 4.0,
+    ramDV.getInt16(address + 10) / 4.0,
   );
 
   //logger.log(`Viewport: scale=${scale.x},${scale.y} trans=${trans.x},${trans.y}` );
@@ -163,12 +163,12 @@ function moveMemViewport(address) {
 
 function previewLight(address) {
   var result = '';
-  result += `color = ${makeColorTextRGBA(ram_dv.getUint32(address + 0))} `;
-  result += `colorCopy = ${makeColorTextRGBA(ram_dv.getUint32(address + 4))} `;
+  result += `color = ${makeColorTextRGBA(ramDV.getUint32(address + 0))} `;
+  result += `colorCopy = ${makeColorTextRGBA(ramDV.getUint32(address + 4))} `;
   var dir = Vector3.create([
-    ram_dv.getInt8(address + 8),
-    ram_dv.getInt8(address + 9),
-    ram_dv.getInt8(address + 10)
+    ramDV.getInt8(address + 8),
+    ramDV.getInt8(address + 9),
+    ramDV.getInt8(address + 10)
   ]).normaliseInPlace();
   result += `norm = (${dir.x}, ${dir.y}, ${dir.z})`;
   return result;
@@ -179,11 +179,11 @@ function moveMemLight(lightIdx, address) {
     logger.log(`light index ${lightIdx} out of range`);
     return;
   }
-  state.lights[lightIdx].color = unpackRGBAToColor(ram_dv.getUint32(address + 0));
+  state.lights[lightIdx].color = unpackRGBAToColor(ramDV.getUint32(address + 0));
   state.lights[lightIdx].dir = Vector3.create([
-    ram_dv.getInt8(address + 8),
-    ram_dv.getInt8(address + 9),
-    ram_dv.getInt8(address + 10)
+    ramDV.getInt8(address + 8),
+    ramDV.getInt8(address + 9),
+    ramDV.getInt8(address + 10)
   ]).normaliseInPlace();
 }
 
@@ -433,7 +433,7 @@ function previewGBI1_MoveMem(type, length, address, dis) {
   var tip = '';
 
   for (var i = 0; i < length; ++i) {
-    tip += toHex(ram_dv.getUint8(address + i), 8) + ' ';
+    tip += toHex(ramDV.getUint8(address + i), 8) + ' ';
   }
   tip += '<br>';
 
@@ -458,20 +458,20 @@ function previewGBI1_MoveMem(type, length, address, dis) {
 }
 
 function executeGBI1_MoveMem(cmd0, cmd1, dis) {
-  var type = (cmd0 >>> 16) & 0xff;
-  var length = (cmd0 >>> 0) & 0xffff;
-  var address = rdpSegmentAddress(cmd1);
+  const type = (cmd0 >>> 16) & 0xff;
+  const length = (cmd0 >>> 0) & 0xffff;
+  const address = rdpSegmentAddress(cmd1);
 
   if (dis) {
-    var address_str = toString32(address);
+    const addressStr = toString32(address);
 
-    var type_str = gbi.MoveMemGBI1.nameOf(type);
-    var text = `gsDma1p(G_MOVEMEM, ${address_str}, ${length}, ${type_str});`;
+    const typeStr = gbi.MoveMemGBI1.nameOf(type);
+    let text = `gsDma1p(G_MOVEMEM, ${addressStr}, ${length}, ${typeStr});`;
 
     switch (type) {
       case gbi.MoveMemGBI1.G_MV_VIEWPORT:
         if (length === 16) {
-          text = `gsSPViewport(${address_str});`;
+          text = `gsSPViewport(${addressStr});`;
         }
         break;
     }
@@ -493,19 +493,21 @@ function executeGBI1_MoveMem(cmd0, cmd1, dis) {
     case gbi.MoveMemGBI1.G_MV_L5:
     case gbi.MoveMemGBI1.G_MV_L6:
     case gbi.MoveMemGBI1.G_MV_L7:
-      var light_idx = (type - gbi.MoveMemGBI1.G_MV_L0) / 2;
-      moveMemLight(light_idx, address);
+      {
+        const lightIdx = (type - gbi.MoveMemGBI1.G_MV_L0) / 2;
+        moveMemLight(lightIdx, address);
+      }
       break;
   }
 }
 
 function executeGBI1_MoveWord(cmd0, cmd1, dis) {
-  var type = (cmd0) & 0xff;
-  var offset = (cmd0 >>> 8) & 0xffff;
-  var value = cmd1;
+  const type = (cmd0) & 0xff;
+  const offset = (cmd0 >>> 8) & 0xffff;
+  const value = cmd1;
 
   if (dis) {
-    var text = `gMoveWd(${gbi.MoveWord.nameOf(type)}, ${toString16(offset)}, ${toString32(value)});`;
+    let text = `gMoveWd(${gbi.MoveWord.nameOf(type)}, ${toString16(offset)}, ${toString32(value)});`;
 
     switch (type) {
       case gbi.MoveWord.G_MW_NUMLIGHT:
@@ -560,14 +562,14 @@ const Y_POS = 0x10; //top
 const Z_POS = 0x20; //near
 
 function calculateLighting(normal) {
-  var num_lights = state.numLights;
-  var r = state.lights[num_lights].color.r;
-  var g = state.lights[num_lights].color.g;
-  var b = state.lights[num_lights].color.b;
+  const numLights = state.numLights;
+  let r = state.lights[numLights].color.r;
+  let g = state.lights[numLights].color.g;
+  let b = state.lights[numLights].color.b;
 
-  for (var l = 0; l < num_lights; ++l) {
-    var light = state.lights[l];
-    var d = normal.dot(light.dir);
+  for (let l = 0; l < numLights; ++l) {
+    const light = state.lights[l];
+    const d = normal.dot(light.dir);
     if (d > 0.0) {
       r += light.color.r * d;
       g += light.color.g * d;
@@ -578,7 +580,7 @@ function calculateLighting(normal) {
   r = Math.min(r, 1.0) * 255.0;
   g = Math.min(g, 1.0) * 255.0;
   b = Math.min(b, 1.0) * 255.0;
-  let a = 255;
+  const a = 255;
 
   return (a << 24) | (b << 16) | (g << 8) | r;
 }
@@ -590,11 +592,11 @@ function previewVertexImpl(v0, n, dv, dis, light) {
   tip += '<table class="vertex-table">';
   tip += `<tr><th>${cols.join('</th><th>')}</th></tr>\n`;
 
-  for (var i = 0; i < n; ++i) {
+  for (let i = 0; i < n; ++i) {
     const base = i * 16;
     const normOrCol = light ? `${dv.getInt8(base + 12)},${dv.getInt8(base + 13)},${dv.getInt8(base + 14)}` : makeColorTextRGBA(dv.getUint32(base + 12));
 
-    var v = [
+    const v = [
       v0 + i,
       dv.getInt16(base + 0), // x
       dv.getInt16(base + 2), // y
@@ -615,7 +617,7 @@ function executeVertexImpl(v0, n, address, dis) {
   var light = state.geometryMode.lighting;
   var texgen = state.geometryMode.textureGen;
   var texgenlin = state.geometryMode.textureGenLinear;
-  var dv = new DataView(ram_dv.buffer, address);
+  var dv = new DataView(ramDV.buffer, address);
 
   if (dis) {
     previewVertexImpl(v0, n, dv, dis, light);
@@ -633,46 +635,46 @@ function executeVertexImpl(v0, n, address, dis) {
   var wvp = pmtx.multiply(mvmtx);
 
   // Texture coords are provided in 11.5 fixed point format, so divide by 32 here to normalise
-  var scale_s = state.texture.scaleS / 32.0;
-  var scale_t = state.texture.scaleT / 32.0;
+  var scaleS = state.texture.scaleS / 32.0;
+  var scaleT = state.texture.scaleT / 32.0;
 
   var xyz = new Vector3();
   var normal = new Vector3();
   var transformedNormal = new Vector3();
 
-  for (var i = 0; i < n; ++i) {
-    var vtx_base = i * 16;
+  for (let i = 0; i < n; ++i) {
+    var vtxBase = i * 16;
     var vertex = state.projectedVertices[v0 + i];
 
     vertex.set = true;
 
-    xyz.x = dv.getInt16(vtx_base + 0);
-    xyz.y = dv.getInt16(vtx_base + 2);
-    xyz.z = dv.getInt16(vtx_base + 4);
-    //var w = dv.getInt16(vtx_base + 6);
-    var u = dv.getInt16(vtx_base + 8);
-    var v = dv.getInt16(vtx_base + 10);
+    xyz.x = dv.getInt16(vtxBase + 0);
+    xyz.y = dv.getInt16(vtxBase + 2);
+    xyz.z = dv.getInt16(vtxBase + 4);
+    //var w = dv.getInt16(vtxBase + 6);
+    var u = dv.getInt16(vtxBase + 8);
+    var v = dv.getInt16(vtxBase + 10);
 
     var projected = vertex.pos;
     wvp.transformPoint(xyz, projected);
 
     //hleHalt(`${x},${y},${z}-&gt;${projected.x},${projected.y},${projected.z}`);
 
-    // var clip_flags = 0;
-    //      if (projected[0] < -projected[3]) clip_flags |= X_POS;
-    // else if (projected[0] >  projected[3]) clip_flags |= X_NEG;
+    // var clipFlags = 0;
+    //      if (projected[0] < -projected[3]) clipFlags |= X_POS;
+    // else if (projected[0] >  projected[3]) clipFlags |= X_NEG;
 
-    //      if (projected[1] < -projected[3]) clip_flags |= Y_POS;
-    // else if (projected[1] >  projected[3]) clip_flags |= Y_NEG;
+    //      if (projected[1] < -projected[3]) clipFlags |= Y_POS;
+    // else if (projected[1] >  projected[3]) clipFlags |= Y_NEG;
 
-    //      if (projected[2] < -projected[3]) clip_flags |= Z_POS;
-    // else if (projected[2] >  projected[3]) clip_flags |= Z_NEG;
-    // state.projectedVertices.clipFlags = clip_flags;
+    //      if (projected[2] < -projected[3]) clipFlags |= Z_POS;
+    // else if (projected[2] >  projected[3]) clipFlags |= Z_NEG;
+    // state.projectedVertices.clipFlags = clipFlags;
 
     if (light) {
-      normal.x = dv.getInt8(vtx_base + 12);
-      normal.y = dv.getInt8(vtx_base + 13);
-      normal.z = dv.getInt8(vtx_base + 14);
+      normal.x = dv.getInt8(vtxBase + 12);
+      normal.y = dv.getInt8(vtxBase + 13);
+      normal.z = dv.getInt8(vtxBase + 14);
 
       // calculate transformed normal
       mvmtx.transformNormal(normal, transformedNormal);
@@ -693,25 +695,25 @@ function executeVertexImpl(v0, n, address, dis) {
           vertex.v = Math.acos(transformedNormal.y) / 3.141;
         }
       } else {
-        vertex.u = u * scale_s;
-        vertex.v = v * scale_t;
+        vertex.u = u * scaleS;
+        vertex.v = v * scaleT;
       }
     } else {
-      vertex.u = u * scale_s;
-      vertex.v = v * scale_t;
+      vertex.u = u * scaleS;
+      vertex.v = v * scaleT;
 
-      var r = dv.getUint8(vtx_base + 12);
-      var g = dv.getUint8(vtx_base + 13);
-      var b = dv.getUint8(vtx_base + 14);
-      var a = dv.getUint8(vtx_base + 15);
+      const r = dv.getUint8(vtxBase + 12);
+      const g = dv.getUint8(vtxBase + 13);
+      const b = dv.getUint8(vtxBase + 14);
+      const a = dv.getUint8(vtxBase + 15);
 
       vertex.color = (a << 24) | (b << 16) | (g << 8) | r;
     }
 
-    //var flag = dv.getUint16(vtx_base + 6);
-    //var tu = dv.getInt16(vtx_base + 8);
-    //var tv = dv.getInt16(vtx_base + 10);
-    //var rgba = dv.getInt16(vtx_base + 12);    // nx/ny/nz/a
+    //const flag = dv.getUint16(vtxBase + 6);
+    //const tu = dv.getInt16(vtxBase + 8);
+    //const tv = dv.getInt16(vtxBase + 10);
+    //const rgba = dv.getInt16(vtxBase + 12);    // nx/ny/nz/a
   }
 }
 
@@ -754,10 +756,10 @@ function executeGBI1_SetGeometryMode(cmd0, cmd1, dis) {
 }
 
 function executeGBI1_SetOtherModeL(cmd0, cmd1, dis) {
-  var shift = (cmd0 >>> 8) & 0xff;
-  var len = (cmd0 >>> 0) & 0xff;
-  var data = cmd1;
-  var mask = (((1 << len) - 1) << shift) >>> 0;
+  const shift = (cmd0 >>> 8) & 0xff;
+  const len = (cmd0 >>> 0) & 0xff;
+  const data = cmd1;
+  const mask = (((1 << len) - 1) << shift) >>> 0;
   if (dis) {
     disassemble.SetOtherModeL(dis, mask, data);
   }
@@ -765,10 +767,10 @@ function executeGBI1_SetOtherModeL(cmd0, cmd1, dis) {
 }
 
 function executeGBI1_SetOtherModeH(cmd0, cmd1, dis) {
-  var shift = (cmd0 >>> 8) & 0xff;
-  var len = (cmd0 >>> 0) & 0xff;
-  var data = cmd1;
-  var mask = (((1 << len) - 1) << shift) >>> 0;
+  const shift = (cmd0 >>> 8) & 0xff;
+  const len = (cmd0 >>> 0) & 0xff;
+  const data = cmd1;
+  const mask = (((1 << len) - 1) << shift) >>> 0;
   if (dis) {
     disassemble.SetOtherModeH(dis, mask, len, shift, data);
   }
@@ -791,15 +793,15 @@ function executeGBI1_Texture(cmd0, cmd1, dis) {
   const t = calcTextureScale(((cmd1 >>> 0) & 0xffff));
 
   if (dis) {
-    const s_text = s.toString();
-    const t_text = t.toString();
-    const tile_text = gbi.getTileText(tileIdx);
-    const on_text = on ? 'G_ON' : 'G_OFF';
+    const sText = s.toString();
+    const tText = t.toString();
+    const tileText = gbi.getTileText(tileIdx);
+    const onText = on ? 'G_ON' : 'G_OFF';
 
     if (xparam !== 0) {
-      dis.text(`gsSPTextureL(${s_text}, ${t_text}, ${level}, ${xparam}, ${tile_text}, ${on_text});`);
+      dis.text(`gsSPTextureL(${sText}, ${tText}, ${level}, ${xparam}, ${tileText}, ${onText});`);
     } else {
-      dis.text(`gsSPTexture(${s_text}, ${t_text}, ${level}, ${tile_text}, ${on_text});`);
+      dis.text(`gsSPTexture(${sText}, ${tText}, ${level}, ${tileText}, ${onText});`);
     }
   }
 
@@ -840,8 +842,8 @@ function executeGBI1_Tri1(cmd0, cmd1, dis) {
     triangleBuffer.pushTri(verts[v0idx], verts[v1idx], verts[v2idx], numTris);
     numTris++;
 
-    cmd0 = ram_dv.getUint32(pc + 0);
-    cmd1 = ram_dv.getUint32(pc + 4);
+    cmd0 = ramDV.getUint32(pc + 0);
+    cmd1 = ramDV.getUint32(pc + 4);
     ++debugCurrentOp;
     pc += 8;
 
@@ -863,42 +865,42 @@ function executeTri4_GBI0(cmd0, cmd1, dis) {
 
   var pc = state.pc;
   do {
-    var v09_idx = ((cmd0 >>> 12) & 0xf);
-    var v06_idx = ((cmd0 >>> 8) & 0xf);
-    var v03_idx = ((cmd0 >>> 4) & 0xf);
-    var v00_idx = ((cmd0 >>> 0) & 0xf);
-    var v11_idx = ((cmd1 >>> 28) & 0xf);
-    var v10_idx = ((cmd1 >>> 24) & 0xf);
-    var v08_idx = ((cmd1 >>> 20) & 0xf);
-    var v07_idx = ((cmd1 >>> 16) & 0xf);
-    var v05_idx = ((cmd1 >>> 12) & 0xf);
-    var v04_idx = ((cmd1 >>> 8) & 0xf);
-    var v02_idx = ((cmd1 >>> 4) & 0xf);
-    var v01_idx = ((cmd1 >>> 0) & 0xf);
+    var idx09 = ((cmd0 >>> 12) & 0xf);
+    var idx06 = ((cmd0 >>> 8) & 0xf);
+    var idx03 = ((cmd0 >>> 4) & 0xf);
+    var idx00 = ((cmd0 >>> 0) & 0xf);
+    var idx11 = ((cmd1 >>> 28) & 0xf);
+    var idx10 = ((cmd1 >>> 24) & 0xf);
+    var idx08 = ((cmd1 >>> 20) & 0xf);
+    var idx07 = ((cmd1 >>> 16) & 0xf);
+    var idx05 = ((cmd1 >>> 12) & 0xf);
+    var idx04 = ((cmd1 >>> 8) & 0xf);
+    var idx02 = ((cmd1 >>> 4) & 0xf);
+    var idx01 = ((cmd1 >>> 0) & 0xf);
 
     if (dis) {
-      dis.text(`gsSP1Triangle4(${v00_idx},${v01_idx},${v02_idx}, ${v03_idx},${v04_idx},${v05_idx}, ${v06_idx},${v07_idx},${v08_idx}, ${v09_idx},${v10_idx},${v11_idx});`);
+      dis.text(`gsSP1Triangle4(${idx00},${idx01},${idx02}, ${idx03},${idx04},${idx05}, ${idx06},${idx07},${idx08}, ${idx09},${idx10},${idx11});`);
     }
 
-    if (v00_idx !== v01_idx) {
-      triangleBuffer.pushTri(verts[v00_idx], verts[v01_idx], verts[v02_idx], numTris);
+    if (idx00 !== idx01) {
+      triangleBuffer.pushTri(verts[idx00], verts[idx01], verts[idx02], numTris);
       numTris++;
     }
-    if (v03_idx !== v04_idx) {
-      triangleBuffer.pushTri(verts[v03_idx], verts[v04_idx], verts[v05_idx], numTris);
+    if (idx03 !== idx04) {
+      triangleBuffer.pushTri(verts[idx03], verts[idx04], verts[idx05], numTris);
       numTris++;
     }
-    if (v06_idx !== v07_idx) {
-      triangleBuffer.pushTri(verts[v06_idx], verts[v07_idx], verts[v08_idx], numTris);
+    if (idx06 !== idx07) {
+      triangleBuffer.pushTri(verts[idx06], verts[idx07], verts[idx08], numTris);
       numTris++;
     }
-    if (v09_idx !== v10_idx) {
-      triangleBuffer.pushTri(verts[v09_idx], verts[v10_idx], verts[v11_idx], numTris);
+    if (idx09 !== idx10) {
+      triangleBuffer.pushTri(verts[idx09], verts[idx10], verts[idx11], numTris);
       numTris++;
     }
 
-    cmd0 = ram_dv.getUint32(pc + 0);
-    cmd1 = ram_dv.getUint32(pc + 4);
+    cmd0 = ramDV.getUint32(pc + 0);
+    cmd1 = ramDV.getUint32(pc + 4);
     ++debugCurrentOp;
     pc += 8;
     // NB: process triangles individually when disassembling
@@ -919,23 +921,23 @@ function executeGBI1_Tri2(cmd0, cmd1, dis) {
 
   var pc = state.pc;
   do {
-    var v0idx = ((cmd0 >>> 16) & 0xff) / stride;
-    var v1idx = ((cmd0 >>> 8) & 0xff) / stride;
-    var v2idx = ((cmd0 >>> 0) & 0xff) / stride;
-    var v3idx = ((cmd1 >>> 16) & 0xff) / stride;
-    var v4idx = ((cmd1 >>> 8) & 0xff) / stride;
-    var v5idx = ((cmd1 >>> 0) & 0xff) / stride;
+    var idx0 = ((cmd0 >>> 16) & 0xff) / stride;
+    var idx1 = ((cmd0 >>> 8) & 0xff) / stride;
+    var idx2 = ((cmd0 >>> 0) & 0xff) / stride;
+    var idx3 = ((cmd1 >>> 16) & 0xff) / stride;
+    var idx4 = ((cmd1 >>> 8) & 0xff) / stride;
+    var idx5 = ((cmd1 >>> 0) & 0xff) / stride;
 
     if (dis) {
-      dis.text(`gsSP1Triangle2(${v0idx},${v1idx},${v2idx}, ${v3idx},${v4idx},${v5idx});`);
+      dis.text(`gsSP1Triangle2(${idx0},${idx1},${idx2}, ${idx3},${idx4},${idx5});`);
     }
 
-    triangleBuffer.pushTri(verts[v0idx], verts[v1idx], verts[v2idx], numTris + 0);
-    triangleBuffer.pushTri(verts[v3idx], verts[v4idx], verts[v5idx], numTris + 1);
+    triangleBuffer.pushTri(verts[idx0], verts[idx1], verts[idx2], numTris + 0);
+    triangleBuffer.pushTri(verts[idx3], verts[idx4], verts[idx5], numTris + 1);
     numTris += 2;
 
-    cmd0 = ram_dv.getUint32(pc + 0);
-    cmd1 = ram_dv.getUint32(pc + 4);
+    cmd0 = ramDV.getUint32(pc + 0);
+    cmd1 = ramDV.getUint32(pc + 4);
     ++debugCurrentOp;
     pc += 8;
     // NB: process triangles individually when disassembling
@@ -958,33 +960,33 @@ function executeGBI1_Line3D(cmd0, cmd1, dis) {
 
   var pc = state.pc;
   do {
-    var v3idx = ((cmd1 >>> 24) & 0xff) / stride;
-    var v0idx = ((cmd1 >>> 16) & 0xff) / stride;
-    var v1idx = ((cmd1 >>> 8) & 0xff) / stride;
-    var v2idx = ((cmd1 >>> 0) & 0xff) / stride;
+    var idx3 = ((cmd1 >>> 24) & 0xff) / stride;
+    var idx0 = ((cmd1 >>> 16) & 0xff) / stride;
+    var idx1 = ((cmd1 >>> 8) & 0xff) / stride;
+    var idx2 = ((cmd1 >>> 0) & 0xff) / stride;
 
     if (dis) {
-      dis.text(`gsSPLine3D(${v0idx}, ${v1idx}, ${v2idx}, ${v3idx});`);
+      dis.text(`gsSPLine3D(${idx0}, ${idx1}, ${idx2}, ${idx3});`);
     }
 
     // Tamagotchi World 64 seems to trigger this. 
-    if (v0idx < verts.length && v1idx < verts.length && v2idx < verts.length) {
-      triangleBuffer.pushTri(verts[v0idx], verts[v1idx], verts[v2idx], numTris);
+    if (idx0 < verts.length && idx1 < verts.length && idx2 < verts.length) {
+      triangleBuffer.pushTri(verts[idx0], verts[idx1], verts[idx2], numTris);
       numTris++;
     } else if (!executeGBI1_Line3D_Warned) {
-      console.log(`verts out of bounds, ignoring: ${v0idx}, ${v1idx}, ${v2idx} vs ${verts.length}, stride ${stride}`);
+      console.log(`verts out of bounds, ignoring: ${idx0}, ${idx1}, ${idx2} vs ${verts.length}, stride ${stride}`);
       executeGBI1_Line3D_Warned = true;
     }
-    if (v2idx < verts.length && v3idx < verts.length && v0idx < verts.length) {
-      triangleBuffer.pushTri(verts[v2idx], verts[v3idx], verts[v0idx], numTris);
+    if (idx2 < verts.length && idx3 < verts.length && idx0 < verts.length) {
+      triangleBuffer.pushTri(verts[idx2], verts[idx3], verts[idx0], numTris);
       numTris++;
     } else if (!executeGBI1_Line3D_Warned) {
-      console.log(`verts out of bounds, ignoring: ${v2idx}, ${v3idx}, ${v0idx} vs ${verts.length}, stride ${stride}`);
+      console.log(`verts out of bounds, ignoring: ${idx2}, ${idx3}, ${idx0} vs ${verts.length}, stride ${stride}`);
       executeGBI1_Line3D_Warned = true;
     }
 
-    cmd0 = ram_dv.getUint32(pc + 0);
-    cmd1 = ram_dv.getUint32(pc + 4);
+    cmd0 = ramDV.getUint32(pc + 0);
+    cmd1 = ramDV.getUint32(pc + 4);
     ++debugCurrentOp;
     pc += 8;
     // NB: process triangles individually when disassembling
@@ -1241,11 +1243,10 @@ function executeFillRect(cmd0, cmd1, dis) {
     return;
   }
 
-  var cycle_type = state.getCycleType();
+  const cycleType = state.getCycleType();
+  let color = { r: 0, g: 0, b: 0, a: 0 };
 
-  var color = { r: 0, g: 0, b: 0, a: 0 };
-
-  if (cycle_type === gbi.CycleType.G_CYC_FILL) {
+  if (cycleType === gbi.CycleType.G_CYC_FILL) {
     x1 += 1;
     y1 += 1;
 
@@ -1263,7 +1264,7 @@ function executeFillRect(cmd0, cmd1, dis) {
       gl.clear(gl.COLOR_BUFFER_BIT);
       return;
     }
-  } else if (cycle_type === gbi.CycleType.G_CYC_COPY) {
+  } else if (cycleType === gbi.CycleType.G_CYC_COPY) {
     x1 += 1;
     y1 += 1;
   }
@@ -1276,8 +1277,8 @@ function executeFillRect(cmd0, cmd1, dis) {
 function executeTexRect(cmd0, cmd1, dis) {
   // The following 2 commands contain additional info
   // TODO: check op code matches what we expect?
-  var cmd2 = ram_dv.getUint32(state.pc + 4);
-  var cmd3 = ram_dv.getUint32(state.pc + 12);
+  var cmd2 = ramDV.getUint32(state.pc + 4);
+  var cmd3 = ramDV.getUint32(state.pc + 12);
   state.pc += 16;
 
   var xh = ((cmd0 >>> 12) & 0xfff) / 4.0;
@@ -1291,16 +1292,16 @@ function executeTexRect(cmd0, cmd1, dis) {
   var dsdx = ((cmd3 | 0) >> 16) / 1024.0;
   var dtdy = ((cmd3 << 16) >> 16) / 1024.0;
 
-  var cycle_type = state.getCycleType();
+  var cycleType = state.getCycleType();
 
   // In copy mode 4 pixels are copied at once.
-  if (cycle_type === gbi.CycleType.G_CYC_COPY) {
+  if (cycleType === gbi.CycleType.G_CYC_COPY) {
     dsdx *= 0.25;
   }
 
   // In Fill/Copy mode the coordinates are inclusive (i.e. add 1.0f to the w/h)
-  if (cycle_type === gbi.CycleType.G_CYC_COPY ||
-    cycle_type === gbi.CycleType.G_CYC_FILL) {
+  if (cycleType === gbi.CycleType.G_CYC_COPY ||
+    cycleType === gbi.CycleType.G_CYC_FILL) {
     xh += 1.0;
     yh += 1.0;
   }
@@ -1326,8 +1327,8 @@ function executeTexRect(cmd0, cmd1, dis) {
 function executeTexRectFlip(cmd0, cmd1, dis) {
   // The following 2 commands contain additional info
   // TODO: check op code matches what we expect?
-  var cmd2 = ram_dv.getUint32(state.pc + 4);
-  var cmd3 = ram_dv.getUint32(state.pc + 12);
+  var cmd2 = ramDV.getUint32(state.pc + 4);
+  var cmd3 = ramDV.getUint32(state.pc + 12);
   state.pc += 16;
 
   var xh = ((cmd0 >>> 12) & 0xfff) / 4.0;
@@ -1341,16 +1342,16 @@ function executeTexRectFlip(cmd0, cmd1, dis) {
   var dsdx = ((cmd3 | 0) >> 16) / 1024.0;
   var dtdy = ((cmd3 << 16) >> 16) / 1024.0;
 
-  var cycle_type = state.getCycleType();
+  var cycleType = state.getCycleType();
 
   // In copy mode 4 pixels are copied at once.
-  if (cycle_type === gbi.CycleType.G_CYC_COPY) {
+  if (cycleType === gbi.CycleType.G_CYC_COPY) {
     dsdx *= 0.25;
   }
 
   // In Fill/Copy mode the coordinates are inclusive (i.e. add 1.0f to the w/h)
-  if (cycle_type === gbi.CycleType.G_CYC_COPY ||
-    cycle_type === gbi.CycleType.G_CYC_FILL) {
+  if (cycleType === gbi.CycleType.G_CYC_COPY ||
+    cycleType === gbi.CycleType.G_CYC_FILL) {
     xh += 1.0;
     yh += 1.0;
   }
@@ -1540,13 +1541,13 @@ function initWebGL(canvas) {
 }
 
 var fillShaderProgram;
-var fill_vertexPositionAttribute;
-var fill_uFillColor;
+var fillVertexPositionAttribute;
+var fillFillColorUniform;
 
 var blitShaderProgram;
-var blit_vertexPositionAttribute;
-var blit_texCoordAttribute;
-var blit_uSampler;
+var blitVertexPositionAttribute;
+var blitTexCoordAttribute;
+var blitSamplerUniform;
 
 var rectVerticesBuffer;
 var n64PositionsBuffer;
@@ -1716,18 +1717,18 @@ function setGLBlendMode() {
     case 0x0010: // G_BL_CLR_IN, G_BL_A_IN, G_BL_CLR_MEM, G_BL_1MA
     case 0x0011: // G_BL_CLR_IN, G_BL_A_IN, G_BL_CLR_MEM, G_BL_A_MEM
       // These modes either do a weighted sum of coverage (or coverage and alpha) or a plain alpha blend
-      // If alpha_cvg_sel is 0, or if we're multiplying by fragment alpha, then we have alpha to blend with.
+      // If alphaCvgSel is 0, or if we're multiplying by fragment alpha, then we have alpha to blend with.
       if (!alphaCvgSel || cvgXAlpha) {
         mode = kBlendModeAlphaTrans;
       }
       break;
 
-    case 0x0110: // G_BL_CLR_IN, G_BL_A_FOG, G_BL_CLR_MEM, G_BL_1MA, alpha_cvg_sel:false cvg_x_alpha:false
+    case 0x0110: // G_BL_CLR_IN, G_BL_A_FOG, G_BL_CLR_MEM, G_BL_1MA, alphaCvgSel:false cvgXAlpha:false
       // FIXME: this needs to blend the input colour with the fog alpha, but we don't compute this yet.
       mode = kBlendModeOpaque;
       break;
 
-    case 0x0310: // G_BL_CLR_IN, G_BL_0, G_BL_CLR_MEM, G_BL_1MA, alpha_cvg_sel:false cvg_x_alpha:false
+    case 0x0310: // G_BL_CLR_IN, G_BL_0, G_BL_CLR_MEM, G_BL_1MA, alphaCvgSel:false cvgXAlpha:false
     case 0x1310: // G_BL_CLR_MEM, G_BL_0, G_BL_CLR_MEM, G_BL_1MA
       mode = kBlendModeFade;
       break;
@@ -1811,13 +1812,13 @@ function fillRect(x0, y0, x1, y1, color) {
   gl.useProgram(fillShaderProgram);
 
   // aVertexPosition
-  gl.enableVertexAttribArray(fill_vertexPositionAttribute);
+  gl.enableVertexAttribArray(fillVertexPositionAttribute);
   gl.bindBuffer(gl.ARRAY_BUFFER, rectVerticesBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-  gl.vertexAttribPointer(fill_vertexPositionAttribute, 4, gl.FLOAT, false, 0, 0);
+  gl.vertexAttribPointer(fillVertexPositionAttribute, 4, gl.FLOAT, false, 0, 0);
 
   // uFillColor
-  gl.uniform4f(fill_uFillColor, color.r, color.g, color.b, color.a);
+  gl.uniform4f(fillFillColorUniform, color.r, color.g, color.b, color.a);
 
   // Disable culling and depth testing.
   gl.disable(gl.CULL_FACE);
@@ -1832,8 +1833,8 @@ function texRect(tileIdx, x0, y0, x1, y1, s0, t0, s1, t1, flip) {
 
   var display0 = nativeTransform.convertN64ToDisplay(new Vector2(x0, y0));
   var display1 = nativeTransform.convertN64ToDisplay(new Vector2(x1, y1));
-  var depth_source_prim = (state.rdpOtherModeL & gbi.DepthSource.G_ZS_PRIM) !== 0;
-  var depth = depth_source_prim ? state.primDepth : 0.0;
+  var depthSourcePrim = (state.rdpOtherModeL & gbi.DepthSource.G_ZS_PRIM) !== 0;
+  var depth = depthSourcePrim ? state.primDepth : 0.0;
 
   var vertices = [
     display0.x, display0.y, depth, 1.0,
@@ -1868,8 +1869,8 @@ function texRect(tileIdx, x0, y0, x1, y1, s0, t0, s1, t1, flip) {
 
   gl.disable(gl.CULL_FACE);
 
-  var depth_enabled = depth_source_prim ? true : false;
-  if (depth_enabled) {
+  var depthEnabled = depthSourcePrim ? true : false;
+  if (depthEnabled) {
     initDepth();
   } else {
     gl.disable(gl.DEPTH_TEST);
@@ -1902,21 +1903,21 @@ function copyBackBufferToFrontBuffer(texture) {
   gl.viewport(0, 0, canvas.width, canvas.height);
 
   // aVertexPosition
-  gl.enableVertexAttribArray(blit_vertexPositionAttribute);
+  gl.enableVertexAttribArray(blitVertexPositionAttribute);
   gl.bindBuffer(gl.ARRAY_BUFFER, n64PositionsBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-  gl.vertexAttribPointer(blit_vertexPositionAttribute, 4, gl.FLOAT, false, 0, 0);
+  gl.vertexAttribPointer(blitVertexPositionAttribute, 4, gl.FLOAT, false, 0, 0);
 
   // aTextureCoord
-  gl.enableVertexAttribArray(blit_texCoordAttribute);
+  gl.enableVertexAttribArray(blitTexCoordAttribute);
   gl.bindBuffer(gl.ARRAY_BUFFER, n64UVBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uvs), gl.STATIC_DRAW);
-  gl.vertexAttribPointer(blit_texCoordAttribute, 2, gl.FLOAT, false, 0, 0);
+  gl.vertexAttribPointer(blitTexCoordAttribute, 2, gl.FLOAT, false, 0, 0);
 
   // uSampler
   gl.activeTexture(gl.TEXTURE0);
   gl.bindTexture(gl.TEXTURE_2D, texture);
-  gl.uniform1i(blit_uSampler, 0);
+  gl.uniform1i(blitSamplerUniform, 0);
 
   gl.disable(gl.CULL_FACE);
   gl.disable(gl.BLEND);
@@ -1931,23 +1932,23 @@ function initDepth() {
   //if (gRDPOtherMode.zmode == ZMODE_DEC) ...
 
   // Disable depth testing
-  var zgeom_mode = (state.geometryMode.zbuffer) !== 0;
-  var zcmp_rendermode = (state.rdpOtherModeL & gbi.RenderMode.Z_CMP) !== 0;
-  var zupd_rendermode = (state.rdpOtherModeL & gbi.RenderMode.Z_UPD) !== 0;
+  var zGeomMode = (state.geometryMode.zbuffer) !== 0;
+  var zCmpRenderMode = (state.rdpOtherModeL & gbi.RenderMode.Z_CMP) !== 0;
+  var zUpdRenderMode = (state.rdpOtherModeL & gbi.RenderMode.Z_UPD) !== 0;
 
-  if ((zgeom_mode && zcmp_rendermode) || zupd_rendermode) {
+  if ((zGeomMode && zCmpRenderMode) || zUpdRenderMode) {
     gl.enable(gl.DEPTH_TEST);
     gl.depthFunc(gl.LEQUAL);
   } else {
     gl.disable(gl.DEPTH_TEST);
   }
 
-  gl.depthMask(zupd_rendermode);
+  gl.depthMask(zUpdRenderMode);
 }
 
 // A lot of functions are common between all ucodes
 // TOOD(hulkholden): Make this a Map?
-const ucode_common = {
+const ucodeCommon = {
   0xe4: executeTexRect,
   0xe5: executeTexRectFlip,
   0xe6: executeRDPLoadSync,
@@ -1977,7 +1978,7 @@ const ucode_common = {
   0xff: executeSetCImg
 };
 
-const ucode_gbi0 = {
+const ucodeGBI0 = {
   0x00: executeGBI1_SpNoop,
   0x01: executeGBI1_Matrix,
   0x03: executeGBI1_MoveMem,
@@ -2004,7 +2005,7 @@ const ucode_gbi0 = {
   0xc0: executeGBI1_Noop
 };
 
-const ucode_gbi1 = {
+const ucodeGBI1 = {
   0x00: executeGBI1_SpNoop,
   0x01: executeGBI1_Matrix,
   0x03: executeGBI1_MoveMem,
@@ -2031,7 +2032,7 @@ const ucode_gbi1 = {
   0xc0: executeGBI1_Noop
 };
 
-const ucode_gbi2 = {
+const ucodeGBI2 = {
   0x00: executeGBI2_Noop,
   0x01: executeGBI2_Vertex,
   0x02: executeGBI2_ModifyVtx,
@@ -2159,8 +2160,8 @@ function executeGBI2_Tri1(cmd0, cmd1, dis) {
     triangleBuffer.pushTri(verts[v0idx], verts[v1idx], verts[v2idx], numTris);
     numTris++;
 
-    cmd0 = ram_dv.getUint32(pc + 0);
-    cmd1 = ram_dv.getUint32(pc + 4);
+    cmd0 = ramDV.getUint32(pc + 0);
+    cmd1 = ramDV.getUint32(pc + 4);
     ++debugCurrentOp;
     pc += 8;
 
@@ -2195,8 +2196,8 @@ function executeGBI2_Tri2(cmd0, cmd1, dis) {
     triangleBuffer.pushTri(verts[v10idx], verts[v11idx], verts[v12idx], numTris + 1);
     numTris += 2;
 
-    cmd0 = ram_dv.getUint32(pc + 0);
-    cmd1 = ram_dv.getUint32(pc + 4);
+    cmd0 = ramDV.getUint32(pc + 0);
+    cmd1 = ramDV.getUint32(pc + 4);
     ++debugCurrentOp;
     pc += 8;
     // NB: process triangles individually when disassembling
@@ -2231,8 +2232,8 @@ function executeGBI2_Quad(cmd0, cmd1, dis) {
     triangleBuffer.pushTri(verts[v10idx], verts[v11idx], verts[v12idx], numTris + 1);
     numTris += 2;
 
-    cmd0 = ram_dv.getUint32(pc + 0);
-    cmd1 = ram_dv.getUint32(pc + 4);
+    cmd0 = ramDV.getUint32(pc + 0);
+    cmd1 = ramDV.getUint32(pc + 4);
     ++debugCurrentOp;
     pc += 8;
     // NB: process triangles individually when disassembling
@@ -2285,22 +2286,22 @@ function executeGBI2_DmaIo(cmd0, cmd1, dis) {
 }
 
 function executeGBI2_Texture(cmd0, cmd1, dis) {
-  var xparam = (cmd0 >>> 16) & 0xff;
-  var level = (cmd0 >>> 11) & 0x3;
-  var tileIdx = (cmd0 >>> 8) & 0x7;
-  var on = (cmd0 >>> 1) & 0x01; // NB: uses bit 1
-  var s = calcTextureScale(((cmd1 >>> 16) & 0xffff));
-  var t = calcTextureScale(((cmd1 >>> 0) & 0xffff));
+  const xparam = (cmd0 >>> 16) & 0xff;
+  const level = (cmd0 >>> 11) & 0x3;
+  const tileIdx = (cmd0 >>> 8) & 0x7;
+  const on = (cmd0 >>> 1) & 0x01; // NB: uses bit 1
+  const s = calcTextureScale(((cmd1 >>> 16) & 0xffff));
+  const t = calcTextureScale(((cmd1 >>> 0) & 0xffff));
 
   if (dis) {
-    var s_text = s.toString();
-    var t_text = t.toString();
-    var tt = gbi.getTileText(tileIdx);
+    const sText = s.toString();
+    const tText = t.toString();
+    const tt = gbi.getTileText(tileIdx);
 
     if (xparam !== 0) {
-      dis.text(`gsSPTextureL(${s_text}, ${t_text}, ${level}, ${xparam}, ${tt}, ${on});`);
+      dis.text(`gsSPTextureL(${sText}, ${tText}, ${level}, ${xparam}, ${tt}, ${on});`);
     } else {
-      dis.text(`gsSPTexture(${s_text}, ${t_text}, ${level}, ${tt}, ${on});`);
+      dis.text(`gsSPTexture(${sText}, ${tText}, ${level}, ${tt}, ${on});`);
     }
   }
 
@@ -2314,8 +2315,8 @@ function executeGBI2_Texture(cmd0, cmd1, dis) {
 }
 
 function executeGBI2_GeometryMode(cmd0, cmd1, dis) {
-  var arg0 = cmd0 & 0x00ffffff;
-  var arg1 = cmd1;
+  const arg0 = cmd0 & 0x00ffffff;
+  const arg1 = cmd1;
 
   if (dis) {
     const clr = gbi.getGeometryModeFlagsText(gbi.GeometryModeGBI2, ~arg0)
@@ -2331,15 +2332,15 @@ function executeGBI2_GeometryMode(cmd0, cmd1, dis) {
 }
 
 function executeGBI2_Matrix(cmd0, cmd1, dis) {
-  var address = rdpSegmentAddress(cmd1);
-  var push = ((cmd0) & 0x1) === 0;
-  var replace = (cmd0 >>> 1) & 0x1;
-  var projection = (cmd0 >>> 2) & 0x1;
+  const address = rdpSegmentAddress(cmd1);
+  const push = ((cmd0) & 0x1) === 0;
+  const replace = (cmd0 >>> 1) & 0x1;
+  const projection = (cmd0 >>> 2) & 0x1;
 
-  var matrix = loadMatrix(address);
+  let matrix = loadMatrix(address);
 
   if (dis) {
-    var t = '';
+    let t = '';
     t += projection ? 'G_MTX_PROJECTION' : 'G_MTX_MODELVIEW';
     t += replace ? '|G_MTX_LOAD' : '|G_MTX_MUL';
     t += push ? '|G_MTX_PUSH' : ''; //'|G_MTX_NOPUSH';
@@ -2348,7 +2349,7 @@ function executeGBI2_Matrix(cmd0, cmd1, dis) {
     dis.tip(previewMatrix(matrix));
   }
 
-  var stack = projection ? state.projection : state.modelview;
+  const stack = projection ? state.projection : state.modelview;
 
   if (!replace) {
     matrix = stack[stack.length - 1].multiply(matrix);
@@ -2428,7 +2429,7 @@ function executeGBI2_MoveWord(cmd0, cmd1, dis) {
 function previewGBI2_MoveMem(type, length, address, dis) {
   let tip = '';
   for (let i = 0; i < length; i += 4) {
-    tip += toHex(ram_dv.getUint32(address + i), 32) + ' ';
+    tip += toHex(ramDV.getUint32(address + i), 32) + ' ';
   }
   tip += '<br>';
 
@@ -2568,18 +2569,18 @@ function executeGBI2_RDPHalf_2(cmd0, cmd1, dis) {
   state.rdpHalf2 = cmd1;
 }
 
-// var ucode_sprite2d = {
+// var ucodeSprite2d = {
 //   0xbe: executeSprite2dScaleFlip,
 //   0xbd: executeSprite2dDraw
 // };
 
-// var ucode_dkr = {
+// var ucodeDKR = {
 //   0x05:  executeDMATri,
 //   0x07:  executeGBI1_DLInMem,
 // };
 
 function buildUCodeTables(ucode) {
-  var ucode_table = ucode_gbi0;
+  var ucodeTable = ucodeGBI0;
 
   switch (ucode) {
     case kUCode_GBI0:
@@ -2588,15 +2589,15 @@ function buildUCodeTables(ucode) {
     case kUCode_GBI0_SE:
     case kUCode_GBI0_GE:
     case kUCode_GBI0_PD:
-      ucode_table = ucode_gbi0;
+      ucodeTable = ucodeGBI0;
       break;
     case kUCode_GBI1:
     case kUCode_GBI1_LL:
-      ucode_table = ucode_gbi1;
+      ucodeTable = ucodeGBI1;
       break;
     case kUCode_GBI2:
     case kUCode_GBI2_CONKER:
-      ucode_table = ucode_gbi2;
+      ucodeTable = ucodeGBI2;
       break;
     default:
       logger.log(`unhandled ucode during table init: ${ucode}`);
@@ -2606,10 +2607,10 @@ function buildUCodeTables(ucode) {
   var table = [];
   for (var i = 0; i < 256; ++i) {
     var fn = executeUnknown;
-    if (ucode_table.hasOwnProperty(i)) {
-      fn = ucode_table[i];
-    } else if (ucode_common.hasOwnProperty(i)) {
-      fn = ucode_common[i];
+    if (ucodeTable.hasOwnProperty(i)) {
+      fn = ucodeTable[i];
+    } else if (ucodeCommon.hasOwnProperty(i)) {
+      fn = ucodeCommon[i];
     }
     table.push(fn);
   }
@@ -2684,10 +2685,10 @@ class Disassembler {
 
   begin(pc, cmd0, cmd1, depth) {
     const indent = (new Array(depth + 1)).join('  ');
-    const pc_str = ' '; //  ` [${toHex(pc, 32)}] `
+    const pcStr = ' '; //  ` [${toHex(pc, 32)}] `
 
     this.$span = $(`<span class="hle-instr" id="I${this.numOps}" />`);
-    this.$span.append(`${padString(this.numOps, 5)}${pc_str}${toHex(cmd0, 32)}${toHex(cmd1, 32)} ${indent}`);
+    this.$span.append(`${padString(this.numOps, 5)}${pcStr}${toHex(cmd0, 32)}${toHex(cmd1, 32)} ${indent}`);
     this.$currentDis.append(this.$span);
   }
 
@@ -2810,7 +2811,7 @@ function buildTexturesTab() {
 }
 
 function buildTilesTable() {
-  const tile_fields = [
+  const tileFields = [
     'tile #',
     'format',
     'size',
@@ -2834,7 +2835,7 @@ function buildTilesTable() {
   ];
 
   var $table = $('<table class="table table-condensed dl-debug-table" style="width: auto"></table>');
-  var $tr = $(`<tr><th>${tile_fields.join('</th><th>')}</th></tr>`);
+  var $tr = $(`<tr><th>${tileFields.join('</th><th>')}</th></tr>`);
   $table.append($tr);
 
   for (let tileIdx = 0; tileIdx < state.tiles.length; ++tileIdx) {
@@ -2875,7 +2876,7 @@ function buildTilesTable() {
 }
 
 function buildVerticesTab() {
-  const vtx_fields = [
+  const vtxFields = [
     'vtx #',
     'x',
     'y',
@@ -2890,7 +2891,7 @@ function buildVerticesTab() {
   ];
 
   var $table = $('<table class="table table-condensed dl-debug-table" style="width: auto"></table>');
-  var $tr = $(`<tr><th>${vtx_fields.join('</th><th>')}</th></tr>`);
+  var $tr = $(`<tr><th>${vtxFields.join('</th><th>')}</th></tr>`);
   $table.append($tr);
 
   for (let i = 0; i < state.projectedVertices.length; ++i) {
@@ -2957,7 +2958,7 @@ export function toggleDebugDisplayList() {
 export function debugDisplayList() {
   if (debugStateTimeShown == -1) {
     // Build some disassembly for this display list
-    var disassembler = new Disassembler();
+    const disassembler = new Disassembler();
     processDList(debugLastTask, disassembler, -1);
     disassembler.finalise();
 
@@ -2966,8 +2967,8 @@ export function debugDisplayList() {
     setScrubRange(debugNumOps);
 
     // If debugBailAfter hasn't been set (e.g. by hleHalt), stop at the end of the list
-    var time_to_show = (debugBailAfter == -1) ? debugNumOps : debugBailAfter;
-    setScrubTime(time_to_show);
+    const timeToShow = (debugBailAfter == -1) ? debugNumOps : debugBailAfter;
+    setScrubTime(timeToShow);
   }
 
   // Replay the last display list using the captured task/ram
@@ -3019,7 +3020,7 @@ const ucodeOverrides = new Map([
   [0x313f038b, kUCode_GBI0], // Pilotwings
 ]);
 
-function processDList(task, disassembler, bail_after) {
+function processDList(task, disassembler, bailAfter) {
   // Update a counter to tell the video code that we've rendered something.
   numDisplayListsRendered++;
   if (!gl) {
@@ -3052,10 +3053,10 @@ function processDList(task, disassembler, bail_after) {
 
   logMicrocode(str, ucode);
 
-  var ram = getRamDataView();
+  const ram = getRamDataView();
 
   resetState(ucode, ram, task.data_ptr);
-  var ucode_table = buildUCodeTables(ucode);
+  const ucodeTable = buildUCodeTables(ucode);
 
   // Render everything to the back buffer. This prevents horrible flickering
   // if due to webgl clearing our context between updates.
@@ -3078,7 +3079,7 @@ function processDList(task, disassembler, bail_after) {
       state.pc += 8;
 
       disassembler.begin(pc, cmd0, cmd1, state.dlistStack.length);
-      ucode_table[cmd0 >>> 24](cmd0, cmd1, disassembler);
+      ucodeTable[cmd0 >>> 24](cmd0, cmd1, disassembler);
       disassembler.end();
       debugCurrentOp++;
     }
@@ -3091,9 +3092,9 @@ function processDList(task, disassembler, bail_after) {
       cmd1 = ram.getUint32(pc + 4);
       state.pc += 8;
 
-      ucode_table[cmd0 >>> 24](cmd0, cmd1);
+      ucodeTable[cmd0 >>> 24](cmd0, cmd1);
 
-      if (bail_after > -1 && debugCurrentOp >= bail_after) {
+      if (bailAfter > -1 && debugCurrentOp >= bailAfter) {
         break;
       }
       debugCurrentOp++;
@@ -3105,7 +3106,7 @@ function processDList(task, disassembler, bail_after) {
 
 function resetState(ucode, ram, pc) {
   config.vertexStride = kUcodeStrides[ucode];
-  ram_dv = ram; // FIXME: remove DataView
+  ramDV = ram; // FIXME: remove DataView
   state.reset(pc);
 }
 
@@ -3213,13 +3214,13 @@ export function initialiseRenderer($canvas) {
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
   fillShaderProgram = shaders.createShaderProgram(gl, "fill-shader-vs", "fill-shader-fs");
-  fill_vertexPositionAttribute = gl.getAttribLocation(fillShaderProgram, "aVertexPosition");
-  fill_uFillColor = gl.getUniformLocation(fillShaderProgram, "uFillColor");
+  fillVertexPositionAttribute = gl.getAttribLocation(fillShaderProgram, "aVertexPosition");
+  fillFillColorUniform = gl.getUniformLocation(fillShaderProgram, "uFillColor");
 
   blitShaderProgram = shaders.createShaderProgram(gl, "blit-shader-vs", "blit-shader-fs");
-  blit_vertexPositionAttribute = gl.getAttribLocation(blitShaderProgram, "aVertexPosition");
-  blit_texCoordAttribute = gl.getAttribLocation(blitShaderProgram, "aTextureCoord");
-  blit_uSampler = gl.getUniformLocation(blitShaderProgram, "uSampler");
+  blitVertexPositionAttribute = gl.getAttribLocation(blitShaderProgram, "aVertexPosition");
+  blitTexCoordAttribute = gl.getAttribLocation(blitShaderProgram, "aTextureCoord");
+  blitSamplerUniform = gl.getUniformLocation(blitShaderProgram, "uSampler");
 
   rectVerticesBuffer = gl.createBuffer();
   n64PositionsBuffer = gl.createBuffer();
@@ -3232,14 +3233,14 @@ export function initialiseRenderer($canvas) {
 export function resetRenderer() {
   textureCache.clear();
   $textureOutput.html('');
-  ram_dv = getRamDataView();
+  ramDV = getRamDataView();
 }
 
-function getCurrentN64Shader(cycle_type, enableAlphaThreshold) {
+function getCurrentN64Shader(cycleType, enableAlphaThreshold) {
   var mux0 = state.combine.hi;
   var mux1 = state.combine.lo;
 
-  return shaders.getOrCreateN64Shader(gl, mux0, mux1, cycle_type, enableAlphaThreshold);
+  return shaders.getOrCreateN64Shader(gl, mux0, mux1, cycleType, enableAlphaThreshold);
 }
 
 /**
