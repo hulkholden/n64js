@@ -1,6 +1,7 @@
 /*global n64js*/
 
 import { assert } from '../assert.js';
+import { convertTexels } from './convert.js';
 import * as gbi from './gbi.js';
 
 // TODO: provide a HLE object and instantiate these in the constructor/reset.
@@ -78,6 +79,10 @@ export class TMEM {
     var tmem_offset = tile.tmem << 3;
 
     copyLineTLUT(this.tmemData, tmem_offset, ram_u8, ramAddress, texels);
+  }
+
+  convertTexels(tile, tlutFormat, imgData) {
+    return convertTexels(imgData, this.tmemData, tile, tlutFormat);
   }
 
   calculateCRC(tile) {

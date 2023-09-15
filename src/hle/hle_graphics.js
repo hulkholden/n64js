@@ -4,7 +4,7 @@
 import { padString, toHex, toString8, toString16, toString32 } from '../format.js';
 import * as gbi from './gbi.js';
 import * as logger from '../logger.js';
-import { convertTexels, convertRGBA16Pixel } from './convert.js';
+import { convertRGBA16Pixel } from './convert.js';
 import * as shaders from './shaders.js';
 import { Texture, clampTexture } from './textures.js';
 import { Matrix4x4 } from '../graphics/Matrix4x4.js';
@@ -3305,7 +3305,7 @@ function decodeTexture(tile, tlutFormat, cacheID) {
   var ctx = texture.$canvas[0].getContext('2d');
   var imgData = ctx.createImageData(texture.nativeWidth, texture.nativeHeight);
 
-  var handled = convertTexels(imgData, state.tmem.tmemData, tile, tlutFormat);
+  var handled = state.tmem.convertTexels(tile, tlutFormat, imgData);
   if (handled) {
     clampTexture(imgData, tile.width, tile.height);
 
