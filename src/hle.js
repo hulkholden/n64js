@@ -2722,6 +2722,9 @@ function executeGBI2_MoveMem(cmd0, cmd1, dis) {
           let lightIdx = ((offset - gbi.MoveMemGBI2.G_GBI2_MVO_L0) / 24) >>> 0;
           if (dis) { text = `gsSPLight(${toString32(address)}, ${lightIdx})`; }
           moveMemLight(lightIdx, address);
+          if (length != 16) {
+            console.log(`unexpected gsSPLight length ${length}. Is this setting multiple lights?`);
+          }
         } else {
           if (dis) { text += ` // (unknown offset ${toString16(offset)})`; }
         }
