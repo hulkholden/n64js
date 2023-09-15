@@ -1,4 +1,4 @@
-import { Tile } from "./Tile.js";
+import { Tile } from "./tile.js";
 
 const assert = require('chai').assert;
 
