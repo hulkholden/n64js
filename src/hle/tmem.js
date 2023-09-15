@@ -71,7 +71,13 @@ export class TMEM {
       tmemOffset += tmemStride;
       ramOffset += ramStride;
     }
+  }
 
+  loadTLUT(tile, ramAddress, texels) {
+    const ram_u8 = getRamU8Array();
+    var tmem_offset = tile.tmem << 3;
+
+    copyLineTLUT(this.tmemData, tmem_offset, ram_u8, ramAddress, texels);
   }
 
   calculateCRC(tile) {
@@ -162,5 +168,23 @@ function copyLineSwap(tmem, tmemOffset, ram, ramOffset, texelBytes, rowBytes) {
   }
   for (let x = texelBytes; x < rowBytes; ++x) {
     tmem[(tmemOffset + x) ^ 0x4] = 0;
+  }
+}
+
+function copyLineTLUT(tmem, tmemOffset, ram, ramOffset, texels) {
+  // TLUT entries are "quadricated" across banks.
+  // TODO: optimise this.
+  for (let texel = 0; texel < texels; texel++) {
+    const lo = ram[ramOffset + (texel * 2) + 0];
+    const hi = ram[ramOffset + (texel * 2) + 1];
+
+    tmem[tmemOffset + (texel * 8) + 0] = lo;
+    tmem[tmemOffset + (texel * 8) + 1] = hi;
+    tmem[tmemOffset + (texel * 8) + 2] = lo;
+    tmem[tmemOffset + (texel * 8) + 3] = hi;
+    tmem[tmemOffset + (texel * 8) + 4] = lo;
+    tmem[tmemOffset + (texel * 8) + 5] = hi;
+    tmem[tmemOffset + (texel * 8) + 6] = lo;
+    tmem[tmemOffset + (texel * 8) + 7] = hi;
   }
 }
