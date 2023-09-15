@@ -9,7 +9,7 @@ import * as shaders from './graphics/shaders.js';
 import { Texture, clampTexture } from './graphics/textures.js';
 import { Matrix4x4 } from './graphics/Matrix4x4.js';
 import { Transform2D } from './graphics/Transform2D.js';
-import { TriangleBuffer } from './graphics/TriangleBuffer.js';
+import { TriangleBuffer } from './hle/triangle_buffer.js';
 import { Vector2 } from './graphics/Vector2.js';
 import { Vector3 } from './graphics/Vector3.js';
 import * as disassemble from './hle/disassemble.js';
