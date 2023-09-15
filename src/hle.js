@@ -4,9 +4,9 @@
 import { padString, toHex, toString8, toString16, toString32 } from './format.js';
 import * as gbi from './hle/gbi.js';
 import * as logger from './logger.js';
-import { convertTexels, convertRGBA16Pixel } from './graphics/convert.js';
-import * as shaders from './graphics/shaders.js';
-import { Texture, clampTexture } from './graphics/textures.js';
+import { convertTexels, convertRGBA16Pixel } from './hle/convert.js';
+import * as shaders from './hle/shaders.js';
+import { Texture, clampTexture } from './hle/textures.js';
 import { Matrix4x4 } from './graphics/Matrix4x4.js';
 import { Transform2D } from './graphics/Transform2D.js';
 import { TriangleBuffer } from './hle/triangle_buffer.js';
