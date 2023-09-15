@@ -1,19 +1,19 @@
 /*jshint jquery:true browser:true */
 /*global $, n64js*/
 
-import { padString, toHex, toString8, toString16, toString32 } from './format.js';
-import * as gbi from './hle/gbi.js';
-import * as logger from './logger.js';
-import { convertTexels, convertRGBA16Pixel } from './hle/convert.js';
-import * as shaders from './hle/shaders.js';
-import { Texture, clampTexture } from './hle/textures.js';
-import { Matrix4x4 } from './graphics/Matrix4x4.js';
-import { Transform2D } from './graphics/Transform2D.js';
-import { TriangleBuffer } from './hle/triangle_buffer.js';
-import { Vector2 } from './graphics/Vector2.js';
-import { Vector3 } from './graphics/Vector3.js';
-import * as disassemble from './hle/disassemble.js';
-import { RSPState } from './hle/rsp_state.js';
+import { padString, toHex, toString8, toString16, toString32 } from '../format.js';
+import * as gbi from './gbi.js';
+import * as logger from '../logger.js';
+import { convertTexels, convertRGBA16Pixel } from './convert.js';
+import * as shaders from './shaders.js';
+import { Texture, clampTexture } from './textures.js';
+import { Matrix4x4 } from '../graphics/Matrix4x4.js';
+import { Transform2D } from '../graphics/Transform2D.js';
+import { TriangleBuffer } from './triangle_buffer.js';
+import { Vector2 } from '../graphics/Vector2.js';
+import { Vector3 } from '../graphics/Vector3.js';
+import * as disassemble from './disassemble.js';
+import { RSPState } from './rsp_state.js';
 
 window.n64js = window.n64js || {};
 
