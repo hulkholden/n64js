@@ -8,7 +8,7 @@ import { Debugger } from './debugger.js';
 import { fixRomByteOrder } from './endian.js';
 import { toString32 } from './format.js';
 import { Hardware } from './hardware.js';
-import { debugDisplayList, debugDisplayListRequested, debugDisplayListRunning, presentBackBuffer, initialiseRenderer, resetRenderer } from './hle.js';
+import { debugDisplayList, debugDisplayListRequested, debugDisplayListRunning, presentBackBuffer, initialiseRenderer, resetRenderer } from './hle/hle.js';
 import * as json from './json.js';
 import * as logger from './logger.js';
 import { romdb, generateRomId, generateCICType, uint8ArrayReadString } from './romdb.js';

@@ -4,7 +4,7 @@ import { Device } from './device.js';
 import * as mi from './mi.js';
 import * as logger from '../logger.js';
 import { toString16, toString32 } from '../format.js';
-import { hleProcessRSPTask } from '../hle.js';
+import { hleProcessRSPTask } from '../hle/hle.js';
 
 const emulateRSP = true;
 
