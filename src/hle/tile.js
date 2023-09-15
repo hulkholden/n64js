@@ -5,12 +5,12 @@ export class Tile {
     this.line = 0;
     this.tmem = 0;
     this.palette = 0;
-    this.cm_t = 0;
-    this.mask_t = 0;
-    this.shift_t = 0;
-    this.cm_s = 0;
-    this.mask_s = 0;
-    this.shift_s = 0;
+    this.cmT = 0;
+    this.maskT = 0;
+    this.shiftT = 0;
+    this.cmS = 0;
+    this.maskS = 0;
+    this.shiftS = 0;
     this.uls = 0;
     this.ult = 0;
     this.lrs = 0;
@@ -26,13 +26,13 @@ export class Tile {
   get right() { return this.lrs / 4; }
   get bottom() { return this.lrt / 4; }
 
-  // Return the dimensions before applying mask_s/mask_t.
+  // Return the dimensions before applying maskS/maskT.
   get unmaskedWidth() { return calcTileDimension(this.lrs, this.uls); }
   get unmaskedHeight() { return calcTileDimension(this.lrt, this.ult); }
 
-  // Return the dimensions after applying mask_s/mask_t.
-  get width() { return getTextureDimension(this.unmaskedWidth, this.mask_s); }
-  get height() { return getTextureDimension(this.unmaskedHeight, this.mask_t); }
+  // Return the dimensions after applying maskS/maskT.
+  get width() { return getTextureDimension(this.unmaskedWidth, this.maskS); }
+  get height() { return getTextureDimension(this.unmaskedHeight, this.maskT); }
 }
 
 function calcTileDimension(lr, ul) {
