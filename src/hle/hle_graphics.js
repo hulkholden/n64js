@@ -51,16 +51,16 @@ let nativeTransform;
 let canvasScale = 1;
 
 // Configured:
-var config = {
+const config = {
   vertexStride: 10
 };
 
 const kMaxTris = 64;
-var triangleBuffer = new TriangleBuffer(kMaxTris);
+const triangleBuffer = new TriangleBuffer(kMaxTris);
 
-var ramDV;
+let ramDV;
 
-var state = new RSPState();
+const state = new RSPState();
 
 //
 const kUCode_GBI0 = 0;
@@ -121,10 +121,10 @@ class NativeTransform {
 
 function loadMatrix(address) {
   const recip = 1.0 / 65536.0;
-  var dv = new DataView(ramDV.buffer, address);
+  const dv = new DataView(ramDV.buffer, address);
 
-  var elements = new Float32Array(16);
-  for (var i = 0; i < 4; ++i) {
+  const elements = new Float32Array(16);
+  for (let i = 0; i < 4; ++i) {
     elements[4 * 0 + i] = (dv.getInt16(i * 8 + 0) << 16 | dv.getUint16(i * 8 + 0 + 32)) * recip;
     elements[4 * 1 + i] = (dv.getInt16(i * 8 + 2) << 16 | dv.getUint16(i * 8 + 2 + 32)) * recip;
     elements[4 * 2 + i] = (dv.getInt16(i * 8 + 4) << 16 | dv.getUint16(i * 8 + 4 + 32)) * recip;
@@ -135,7 +135,7 @@ function loadMatrix(address) {
 }
 
 function previewViewport(address) {
-  var result = '';
+  let result = '';
   result += `scale = (${ramDV.getInt16(address + 0) / 4.0}, ${ramDV.getInt16(address + 2) / 4.0}) `;
   result += `trans = (${ramDV.getInt16(address + 8) / 4.0}, ${ramDV.getInt16(address + 10) / 4.0}) `;
   return result;
@@ -162,10 +162,10 @@ function moveMemViewport(address) {
 }
 
 function previewLight(address) {
-  var result = '';
+  let result = '';
   result += `color = ${makeColorTextRGBA(ramDV.getUint32(address + 0))} `;
   result += `colorCopy = ${makeColorTextRGBA(ramDV.getUint32(address + 4))} `;
-  var dir = Vector3.create([
+  const dir = Vector3.create([
     ramDV.getInt8(address + 8),
     ramDV.getInt8(address + 9),
     ramDV.getInt8(address + 10)
@@ -188,7 +188,7 @@ function moveMemLight(lightIdx, address) {
 }
 
 function rdpSegmentAddress(addr) {
-  var segment = (addr >>> 24) & 0xf;
+  const segment = (addr >>> 24) & 0xf;
   // TODO: this should probably mask against 0x00ff_ffff (same as SP_DRAM_ADDR_REG)
   // but that can result in out of bounds accesses in some DataViews (e.g. Wetrix)
   // which tries to load from 0x00f000ff. Really we should try to emulate SP DMA more accurately.
@@ -235,19 +235,19 @@ function makeColourText(r, g, b, a) {
 }
 
 function makeColorTextRGBA(rgba) {
-  var r = (rgba >>> 24) & 0xff;
-  var g = (rgba >>> 16) & 0xff;
-  var b = (rgba >>> 8) & 0xff;
-  var a = (rgba) & 0xff;
+  const r = (rgba >>> 24) & 0xff;
+  const g = (rgba >>> 16) & 0xff;
+  const b = (rgba >>> 8) & 0xff;
+  const a = (rgba) & 0xff;
 
   return makeColourText(r, g, b, a);
 }
 
 function makeColorTextABGR(abgr) {
-  var r = abgr & 0xff;
-  var g = (abgr >>> 8) & 0xff;
-  var b = (abgr >>> 16) & 0xff;
-  var a = (abgr >>> 24) & 0xff;
+  const r = abgr & 0xff;
+  const g = (abgr >>> 8) & 0xff;
+  const b = (abgr >>> 16) & 0xff;
+  const a = (abgr >>> 24) & 0xff;
 
   return makeColourText(r, g, b, a);
 }
@@ -334,11 +334,11 @@ function executeRDPFullSync(cmd0, cmd1, dis) {
 }
 
 function executeGBI1_DL(cmd0, cmd1, dis) {
-  var param = ((cmd0 >>> 16) & 0xff);
-  var address = rdpSegmentAddress(cmd1);
+  const param = ((cmd0 >>> 16) & 0xff);
+  const address = rdpSegmentAddress(cmd1);
 
   if (dis) {
-    var fn = (param === gbi.G_DL_PUSH) ? 'gsSPDisplayList' : 'gsSPBranchList';
+    const fn = (param === gbi.G_DL_PUSH) ? 'gsSPDisplayList' : 'gsSPBranchList';
     dis.text(`${fn}(<span class="dl-branch">${toString32(address)}</span>);`);
   }
 
@@ -361,7 +361,7 @@ function executeGBI1_EndDL(cmd0, cmd1, dis) {
 }
 
 function executeGBI1_BranchZ(cmd0, cmd1) {
-  var address = rdpSegmentAddress(state.rdpHalf1);
+  const address = rdpSegmentAddress(state.rdpHalf1);
   // FIXME
   // Just branch all the time for now
   //if (vtxDepth(cmd.vtx) <= cmd.branchzvalue)
@@ -369,12 +369,12 @@ function executeGBI1_BranchZ(cmd0, cmd1) {
 }
 
 function previewMatrix(matrix) {
-  var m = matrix.elems;
+  const m = matrix.elems;
 
-  var a = [m[0], m[1], m[2], m[3]];
-  var b = [m[4], m[5], m[6], m[7]];
-  var c = [m[8], m[9], m[10], m[11]];
-  var d = [m[12], m[13], m[14], m[15]];
+  const a = [m[0], m[1], m[2], m[3]];
+  const b = [m[4], m[5], m[6], m[7]];
+  const c = [m[8], m[9], m[10], m[11]];
+  const d = [m[12], m[13], m[14], m[15]];
 
   return `<div><table class="matrix-table">
     <tr><td>${a.join('</td><td>')}</td></tr>
@@ -385,14 +385,14 @@ function previewMatrix(matrix) {
 }
 
 function executeGBI1_Matrix(cmd0, cmd1, dis) {
-  var flags = (cmd0 >>> 16) & 0xff;
-  var length = (cmd0 >>> 0) & 0xffff;
-  var address = rdpSegmentAddress(cmd1);
+  const flags = (cmd0 >>> 16) & 0xff;
+  const length = (cmd0 >>> 0) & 0xffff;
+  const address = rdpSegmentAddress(cmd1);
 
-  var matrix = loadMatrix(address);
+  let matrix = loadMatrix(address);
 
   if (dis) {
-    var t = '';
+    let t = '';
     t += (flags & gbi.G_MTX_PROJECTION) ? 'G_MTX_PROJECTION' : 'G_MTX_MODELVIEW';
     t += (flags & gbi.G_MTX_LOAD) ? '|G_MTX_LOAD' : '|G_MTX_MUL';
     t += (flags & gbi.G_MTX_PUSH) ? '|G_MTX_PUSH' : ''; //'|G_MTX_NOPUSH';
@@ -401,7 +401,7 @@ function executeGBI1_Matrix(cmd0, cmd1, dis) {
     dis.tip(previewMatrix(matrix));
   }
 
-  var stack = (flags & gbi.G_MTX_PROJECTION) ? state.projection : state.modelview;
+  const stack = (flags & gbi.G_MTX_PROJECTION) ? state.projection : state.modelview;
 
   if ((flags & gbi.G_MTX_LOAD) == 0) {
     matrix = stack[stack.length - 1].multiply(matrix);
@@ -415,10 +415,10 @@ function executeGBI1_Matrix(cmd0, cmd1, dis) {
 }
 
 function executeGBI1_PopMatrix(cmd0, cmd1, dis) {
-  var flags = (cmd1 >>> 0) & 0xff;
+  const flags = (cmd1 >>> 0) & 0xff;
 
   if (dis) {
-    var t = '';
+    let t = '';
     t += (flags & gbi.G_MTX_PROJECTION) ? 'G_MTX_PROJECTION' : 'G_MTX_MODELVIEW';
     dis.text(`gsSPPopMatrix(${t});`);
   }
@@ -430,9 +430,9 @@ function executeGBI1_PopMatrix(cmd0, cmd1, dis) {
 }
 
 function previewGBI1_MoveMem(type, length, address, dis) {
-  var tip = '';
+  let tip = '';
 
-  for (var i = 0; i < length; ++i) {
+  for (let i = 0; i < length; ++i) {
     tip += toHex(ramDV.getUint8(address + i), 8) + ' ';
   }
   tip += '<br>';
@@ -614,10 +614,10 @@ function previewVertexImpl(v0, n, dv, dis, light) {
 }
 
 function executeVertexImpl(v0, n, address, dis) {
-  var light = state.geometryMode.lighting;
-  var texgen = state.geometryMode.textureGen;
-  var texgenlin = state.geometryMode.textureGenLinear;
-  var dv = new DataView(ramDV.buffer, address);
+  const light = state.geometryMode.lighting;
+  const texgen = state.geometryMode.textureGen;
+  const texgenlin = state.geometryMode.textureGenLinear;
+  const dv = new DataView(ramDV.buffer, address);
 
   if (dis) {
     previewVertexImpl(v0, n, dv, dis, light);
@@ -629,38 +629,38 @@ function executeVertexImpl(v0, n, address, dis) {
     return;
   }
 
-  var mvmtx = state.modelview[state.modelview.length - 1];
-  var pmtx = state.projection[state.projection.length - 1];
+  const mvmtx = state.modelview[state.modelview.length - 1];
+  const pmtx = state.projection[state.projection.length - 1];
 
-  var wvp = pmtx.multiply(mvmtx);
+  const wvp = pmtx.multiply(mvmtx);
 
   // Texture coords are provided in 11.5 fixed point format, so divide by 32 here to normalise
-  var scaleS = state.texture.scaleS / 32.0;
-  var scaleT = state.texture.scaleT / 32.0;
+  const scaleS = state.texture.scaleS / 32.0;
+  const scaleT = state.texture.scaleT / 32.0;
 
-  var xyz = new Vector3();
-  var normal = new Vector3();
-  var transformedNormal = new Vector3();
+  const xyz = new Vector3();
+  const normal = new Vector3();
+  const transformedNormal = new Vector3();
 
   for (let i = 0; i < n; ++i) {
-    var vtxBase = i * 16;
-    var vertex = state.projectedVertices[v0 + i];
+    const vtxBase = i * 16;
+    const vertex = state.projectedVertices[v0 + i];
 
     vertex.set = true;
 
     xyz.x = dv.getInt16(vtxBase + 0);
     xyz.y = dv.getInt16(vtxBase + 2);
     xyz.z = dv.getInt16(vtxBase + 4);
-    //var w = dv.getInt16(vtxBase + 6);
-    var u = dv.getInt16(vtxBase + 8);
-    var v = dv.getInt16(vtxBase + 10);
+    //const w = dv.getInt16(vtxBase + 6);
+    const u = dv.getInt16(vtxBase + 8);
+    const v = dv.getInt16(vtxBase + 10);
 
-    var projected = vertex.pos;
+    const projected = vertex.pos;
     wvp.transformPoint(xyz, projected);
 
     //hleHalt(`${x},${y},${z}-&gt;${projected.x},${projected.y},${projected.z}`);
 
-    // var clipFlags = 0;
+    // let clipFlags = 0;
     //      if (projected[0] < -projected[3]) clipFlags |= X_POS;
     // else if (projected[0] >  projected[3]) clipFlags |= X_NEG;
 
@@ -822,24 +822,24 @@ function executeGBI1_CullDL(cmd0, cmd1, dis) {
 }
 
 function executeGBI1_Tri1(cmd0, cmd1, dis) {
-  var kTri1 = cmd0 >>> 24;
-  var stride = config.vertexStride;
-  var verts = state.projectedVertices;
+  const kCommand = cmd0 >>> 24;
+  const stride = config.vertexStride;
+  const verts = state.projectedVertices;
 
-  var numTris = 0;
+  let numTris = 0;
 
-  var pc = state.pc;
+  let pc = state.pc;
   do {
-    var flag = (cmd1 >>> 24) & 0xff;
-    var v0idx = ((cmd1 >>> 16) & 0xff) / stride;
-    var v1idx = ((cmd1 >>> 8) & 0xff) / stride;
-    var v2idx = ((cmd1 >>> 0) & 0xff) / stride;
+    const flag = (cmd1 >>> 24) & 0xff;
+    const idx0 = ((cmd1 >>> 16) & 0xff) / stride;
+    const idx1 = ((cmd1 >>> 8) & 0xff) / stride;
+    const idx2 = ((cmd1 >>> 0) & 0xff) / stride;
 
     if (dis) {
-      dis.text(`gsSP1Triangle(${v0idx}, ${v1idx}, ${v2idx}, ${flag});`);
+      dis.text(`gsSP1Triangle(${idx0}, ${idx1}, ${idx2}, ${flag});`);
     }
 
-    triangleBuffer.pushTri(verts[v0idx], verts[v1idx], verts[v2idx], numTris);
+    triangleBuffer.pushTri(verts[idx0], verts[idx1], verts[idx2], numTris);
     numTris++;
 
     cmd0 = ramDV.getUint32(pc + 0);
@@ -848,7 +848,7 @@ function executeGBI1_Tri1(cmd0, cmd1, dis) {
     pc += 8;
 
     // NB: process triangles individually when disassembling
-  } while ((cmd0 >>> 24) === kTri1 && numTris < kMaxTris && !dis);
+  } while ((cmd0 >>> 24) === kCommand && numTris < kMaxTris && !dis);
 
   state.pc = pc - 8;
   --debugCurrentOp;
@@ -857,26 +857,26 @@ function executeGBI1_Tri1(cmd0, cmd1, dis) {
 }
 
 function executeTri4_GBI0(cmd0, cmd1, dis) {
-  var kTriCommand = cmd0 >>> 24;
-  var stride = config.vertexStride;
-  var verts = state.projectedVertices;
+  const kCommand = cmd0 >>> 24;
+  const stride = config.vertexStride;
+  const verts = state.projectedVertices;
 
-  var numTris = 0;
+  let numTris = 0;
 
-  var pc = state.pc;
+  let pc = state.pc;
   do {
-    var idx09 = ((cmd0 >>> 12) & 0xf);
-    var idx06 = ((cmd0 >>> 8) & 0xf);
-    var idx03 = ((cmd0 >>> 4) & 0xf);
-    var idx00 = ((cmd0 >>> 0) & 0xf);
-    var idx11 = ((cmd1 >>> 28) & 0xf);
-    var idx10 = ((cmd1 >>> 24) & 0xf);
-    var idx08 = ((cmd1 >>> 20) & 0xf);
-    var idx07 = ((cmd1 >>> 16) & 0xf);
-    var idx05 = ((cmd1 >>> 12) & 0xf);
-    var idx04 = ((cmd1 >>> 8) & 0xf);
-    var idx02 = ((cmd1 >>> 4) & 0xf);
-    var idx01 = ((cmd1 >>> 0) & 0xf);
+    const idx09 = ((cmd0 >>> 12) & 0xf);
+    const idx06 = ((cmd0 >>> 8) & 0xf);
+    const idx03 = ((cmd0 >>> 4) & 0xf);
+    const idx00 = ((cmd0 >>> 0) & 0xf);
+    const idx11 = ((cmd1 >>> 28) & 0xf);
+    const idx10 = ((cmd1 >>> 24) & 0xf);
+    const idx08 = ((cmd1 >>> 20) & 0xf);
+    const idx07 = ((cmd1 >>> 16) & 0xf);
+    const idx05 = ((cmd1 >>> 12) & 0xf);
+    const idx04 = ((cmd1 >>> 8) & 0xf);
+    const idx02 = ((cmd1 >>> 4) & 0xf);
+    const idx01 = ((cmd1 >>> 0) & 0xf);
 
     if (dis) {
       dis.text(`gsSP1Triangle4(${idx00},${idx01},${idx02}, ${idx03},${idx04},${idx05}, ${idx06},${idx07},${idx08}, ${idx09},${idx10},${idx11});`);
@@ -904,7 +904,7 @@ function executeTri4_GBI0(cmd0, cmd1, dis) {
     ++debugCurrentOp;
     pc += 8;
     // NB: process triangles individually when disassembling
-  } while ((cmd0 >>> 24) === kTriCommand && numTris < kMaxTris && !dis);
+  } while ((cmd0 >>> 24) === kCommand && numTris < kMaxTris && !dis);
 
   state.pc = pc - 8;
   --debugCurrentOp;
@@ -913,20 +913,20 @@ function executeTri4_GBI0(cmd0, cmd1, dis) {
 }
 
 function executeGBI1_Tri2(cmd0, cmd1, dis) {
-  var kTriCommand = cmd0 >>> 24;
-  var stride = config.vertexStride;
-  var verts = state.projectedVertices;
+  const kCommand = cmd0 >>> 24;
+  const stride = config.vertexStride;
+  const verts = state.projectedVertices;
 
-  var numTris = 0;
+  let numTris = 0;
 
-  var pc = state.pc;
+  let pc = state.pc;
   do {
-    var idx0 = ((cmd0 >>> 16) & 0xff) / stride;
-    var idx1 = ((cmd0 >>> 8) & 0xff) / stride;
-    var idx2 = ((cmd0 >>> 0) & 0xff) / stride;
-    var idx3 = ((cmd1 >>> 16) & 0xff) / stride;
-    var idx4 = ((cmd1 >>> 8) & 0xff) / stride;
-    var idx5 = ((cmd1 >>> 0) & 0xff) / stride;
+    const idx0 = ((cmd0 >>> 16) & 0xff) / stride;
+    const idx1 = ((cmd0 >>> 8) & 0xff) / stride;
+    const idx2 = ((cmd0 >>> 0) & 0xff) / stride;
+    const idx3 = ((cmd1 >>> 16) & 0xff) / stride;
+    const idx4 = ((cmd1 >>> 8) & 0xff) / stride;
+    const idx5 = ((cmd1 >>> 0) & 0xff) / stride;
 
     if (dis) {
       dis.text(`gsSP1Triangle2(${idx0},${idx1},${idx2}, ${idx3},${idx4},${idx5});`);
@@ -941,7 +941,7 @@ function executeGBI1_Tri2(cmd0, cmd1, dis) {
     ++debugCurrentOp;
     pc += 8;
     // NB: process triangles individually when disassembling
-  } while ((cmd0 >>> 24) === kTriCommand && numTris < kMaxTris && !dis);
+  } while ((cmd0 >>> 24) === kCommand && numTris < kMaxTris && !dis);
 
   state.pc = pc - 8;
   --debugCurrentOp;
@@ -952,18 +952,18 @@ function executeGBI1_Tri2(cmd0, cmd1, dis) {
 let executeGBI1_Line3D_Warned = false;
 
 function executeGBI1_Line3D(cmd0, cmd1, dis) {
-  var kLineCommand = cmd0 >>> 24;
-  var stride = config.vertexStride;
-  var verts = state.projectedVertices;
+  const kCommand = cmd0 >>> 24;
+  const stride = config.vertexStride;
+  const verts = state.projectedVertices;
 
-  var numTris = 0;
+  let numTris = 0;
 
-  var pc = state.pc;
+  let pc = state.pc;
   do {
-    var idx3 = ((cmd1 >>> 24) & 0xff) / stride;
-    var idx0 = ((cmd1 >>> 16) & 0xff) / stride;
-    var idx1 = ((cmd1 >>> 8) & 0xff) / stride;
-    var idx2 = ((cmd1 >>> 0) & 0xff) / stride;
+    const idx3 = ((cmd1 >>> 24) & 0xff) / stride;
+    const idx0 = ((cmd1 >>> 16) & 0xff) / stride;
+    const idx1 = ((cmd1 >>> 8) & 0xff) / stride;
+    const idx2 = ((cmd1 >>> 0) & 0xff) / stride;
 
     if (dis) {
       dis.text(`gsSPLine3D(${idx0}, ${idx1}, ${idx2}, ${idx3});`);
@@ -990,7 +990,7 @@ function executeGBI1_Line3D(cmd0, cmd1, dis) {
     ++debugCurrentOp;
     pc += 8;
     // NB: process triangles individually when disassembling
-  } while ((cmd0 >>> 24) === kLineCommand && numTris + 1 < kMaxTris && !dis);
+  } while ((cmd0 >>> 24) === kCommand && numTris + 1 < kMaxTris && !dis);
 
   state.pc = pc - 8;
   --debugCurrentOp;
@@ -1017,11 +1017,11 @@ function executeSetConvert(cmd0, cmd1, dis) {
 }
 
 function executeSetScissor(cmd0, cmd1, dis) {
-  var x0 = ((cmd0 >>> 12) & 0xfff) / 4.0;
-  var y0 = ((cmd0 >>> 0) & 0xfff) / 4.0;
-  var x1 = ((cmd1 >>> 12) & 0xfff) / 4.0;
-  var y1 = ((cmd1 >>> 0) & 0xfff) / 4.0;
-  var mode = (cmd1 >>> 24) & 0x2;
+  const x0 = ((cmd0 >>> 12) & 0xfff) / 4.0;
+  const y0 = ((cmd0 >>> 0) & 0xfff) / 4.0;
+  const x1 = ((cmd1 >>> 12) & 0xfff) / 4.0;
+  const y1 = ((cmd1 >>> 0) & 0xfff) / 4.0;
+  const mode = (cmd1 >>> 24) & 0x2;
 
   if (dis) {
     dis.text(`gsDPSetScissor(${gbi.ScissorMode.nameOf(mode)}, ${x0}, ${y0}, ${x1}, ${y1});`);
@@ -1037,8 +1037,8 @@ function executeSetScissor(cmd0, cmd1, dis) {
 }
 
 function executeSetPrimDepth(cmd0, cmd1, dis) {
-  var z = (cmd1 >>> 16) & 0xffff;
-  var dz = (cmd1) & 0xffff;
+  const z = (cmd1 >>> 16) & 0xffff;
+  const dz = (cmd1) & 0xffff;
   if (dis) {
     dis.text(`gsDPSetPrimDepth(${z},${dz});`);
   }
@@ -1121,7 +1121,7 @@ function executeLoadTile(cmd0, cmd1, dis) {
   const fetchedQWords = (reqQWords > 512) ? 512 : reqQWords;
 
   if (dis) {
-    var tt = gbi.getTileText(tileIdx);
+    const tt = gbi.getTileText(tileIdx);
     dis.text(`gsDPLoadTile(${tt}, ${uls / 4}, ${ult / 4}, ${lrs / 4}, ${lrt / 4});`);
     dis.tip(`size = (${w} x ${h}), rowBytes ${rowBytes}, ramStride ${ramStride}, tmemStride ${tmemStride}`);
   }
@@ -1131,15 +1131,15 @@ function executeLoadTile(cmd0, cmd1, dis) {
 }
 
 function executeLoadTLut(cmd0, cmd1, dis) {
-  var tileIdx = (cmd1 >>> 24) & 0x7;
-  var count = (cmd1 >>> 14) & 0x3ff;
+  const tileIdx = (cmd1 >>> 24) & 0x7;
+  const count = (cmd1 >>> 14) & 0x3ff;
 
   // NB, in Daedalus, we interpret this similarly to a loadtile command,
   // but in other places it's defined as a simple count parameter.
-  var uls = (cmd0 >>> 12) & 0xfff;
-  var ult = (cmd0 >>> 0) & 0xfff;
-  var lrs = (cmd1 >>> 12) & 0xfff;
-  var lrt = (cmd1 >>> 0) & 0xfff;
+  const uls = (cmd0 >>> 12) & 0xfff;
+  const ult = (cmd0 >>> 0) & 0xfff;
+  const lrs = (cmd1 >>> 12) & 0xfff;
+  const lrt = (cmd1 >>> 0) & 0xfff;
 
   if (dis) {
     const tt = gbi.getTileText(tileIdx);
@@ -1148,33 +1148,33 @@ function executeLoadTLut(cmd0, cmd1, dis) {
 
   // Tlut fmt is sometimes wrong (in 007) and is set after tlut load, but
   // before tile load. Format is always 16bpp - RGBA16 or IA16:
-  var ramAddress = state.textureImage.calcAddress(uls >>> 2, ult >>> 2, gbi.ImageSize.G_IM_SIZ_16b);
+  const ramAddress = state.textureImage.calcAddress(uls >>> 2, ult >>> 2, gbi.ImageSize.G_IM_SIZ_16b);
 
-  var tile = state.tiles[tileIdx];
-  var texels = ((lrs - uls) >>> 2) + 1;
+  const tile = state.tiles[tileIdx];
+  const texels = ((lrs - uls) >>> 2) + 1;
 
   state.tmem.loadTLUT(tile, ramAddress, texels);
   invalidateTileHashes();
 }
 
 function executeSetTile(cmd0, cmd1, dis) {
-  var format = (cmd0 >>> 21) & 0x7;
-  var size = (cmd0 >>> 19) & 0x3;
-  //var pad0 = (cmd0 >>> 18) & 0x1;
-  var line = (cmd0 >>> 9) & 0x1ff;
-  var tmem = (cmd0 >>> 0) & 0x1ff;
+  const format = (cmd0 >>> 21) & 0x7;
+  const size = (cmd0 >>> 19) & 0x3;
+  //const pad0 = (cmd0 >>> 18) & 0x1;
+  const line = (cmd0 >>> 9) & 0x1ff;
+  const tmem = (cmd0 >>> 0) & 0x1ff;
 
-  //var pad1 = (cmd1 >>> 27) & 0x1f;
-  var tileIdx = (cmd1 >>> 24) & 0x7;
-  var palette = (cmd1 >>> 20) & 0xf;
+  //const pad1 = (cmd1 >>> 27) & 0x1f;
+  const tileIdx = (cmd1 >>> 24) & 0x7;
+  const palette = (cmd1 >>> 20) & 0xf;
 
-  var cmT = (cmd1 >>> 18) & 0x3;
-  var maskT = (cmd1 >>> 14) & 0xf;
-  var shiftT = (cmd1 >>> 10) & 0xf;
+  const cmT = (cmd1 >>> 18) & 0x3;
+  const maskT = (cmd1 >>> 14) & 0xf;
+  const shiftT = (cmd1 >>> 10) & 0xf;
 
-  var cmS = (cmd1 >>> 8) & 0x3;
-  var maskS = (cmd1 >>> 4) & 0xf;
-  var shiftS = (cmd1 >>> 0) & 0xf;
+  const cmS = (cmd1 >>> 8) & 0x3;
+  const maskS = (cmd1 >>> 4) & 0xf;
+  const shiftS = (cmd1 >>> 0) & 0xf;
 
   if (dis) {
     const fmtText = gbi.ImageFormat.nameOf(format);
@@ -1186,7 +1186,7 @@ function executeSetTile(cmd0, cmd1, dis) {
     dis.text(`gsDPSetTile(${fmtText}, ${sizeText}, ${line}, ${tmem}, ${tileText}, ${palette}, ${cmtText}, ${maskT}, ${shiftT}, ${cmsText}, ${maskS}, ${shiftS});`);
   }
 
-  var tile = state.tiles[tileIdx];
+  const tile = state.tiles[tileIdx];
   tile.format = format;
   tile.size = size;
   tile.line = line;
@@ -1224,10 +1224,10 @@ function executeSetTileSize(cmd0, cmd1, dis) {
 
 function executeFillRect(cmd0, cmd1, dis) {
   // NB: fraction is ignored
-  var x0 = ((cmd1 >>> 12) & 0xfff) >>> 2;
-  var y0 = ((cmd1 >>> 0) & 0xfff) >>> 2;
-  var x1 = ((cmd0 >>> 12) & 0xfff) >>> 2;
-  var y1 = ((cmd0 >>> 0) & 0xfff) >>> 2;
+  const x0 = ((cmd1 >>> 12) & 0xfff) >>> 2;
+  const y0 = ((cmd1 >>> 0) & 0xfff) >>> 2;
+  let x1 = ((cmd0 >>> 12) & 0xfff) >>> 2;
+  let y1 = ((cmd0 >>> 0) & 0xfff) >>> 2;
 
   if (dis) {
     dis.text(`gsDPFillRectangle(${x0}, ${y0}, ${x1}, ${y1});`);
@@ -1277,22 +1277,22 @@ function executeFillRect(cmd0, cmd1, dis) {
 function executeTexRect(cmd0, cmd1, dis) {
   // The following 2 commands contain additional info
   // TODO: check op code matches what we expect?
-  var cmd2 = ramDV.getUint32(state.pc + 4);
-  var cmd3 = ramDV.getUint32(state.pc + 12);
+  const cmd2 = ramDV.getUint32(state.pc + 4);
+  const cmd3 = ramDV.getUint32(state.pc + 12);
   state.pc += 16;
 
-  var xh = ((cmd0 >>> 12) & 0xfff) / 4.0;
-  var yh = ((cmd0 >>> 0) & 0xfff) / 4.0;
-  var tileIdx = (cmd1 >>> 24) & 0x7;
-  var xl = ((cmd1 >>> 12) & 0xfff) / 4.0;
-  var yl = ((cmd1 >>> 0) & 0xfff) / 4.0;
-  var s0 = ((cmd2 >>> 16) & 0xffff) / 32.0;
-  var t0 = ((cmd2 >>> 0) & 0xffff) / 32.0;
+  let xh = ((cmd0 >>> 12) & 0xfff) / 4.0;
+  let yh = ((cmd0 >>> 0) & 0xfff) / 4.0;
+  const tileIdx = (cmd1 >>> 24) & 0x7;
+  const xl = ((cmd1 >>> 12) & 0xfff) / 4.0;
+  const yl = ((cmd1 >>> 0) & 0xfff) / 4.0;
+  let s0 = ((cmd2 >>> 16) & 0xffff) / 32.0;
+  let t0 = ((cmd2 >>> 0) & 0xffff) / 32.0;
   // NB - signed value
-  var dsdx = ((cmd3 | 0) >> 16) / 1024.0;
-  var dtdy = ((cmd3 << 16) >> 16) / 1024.0;
+  let dsdx = ((cmd3 | 0) >> 16) / 1024.0;
+  const dtdy = ((cmd3 << 16) >> 16) / 1024.0;
 
-  var cycleType = state.getCycleType();
+  const cycleType = state.getCycleType();
 
   // In copy mode 4 pixels are copied at once.
   if (cycleType === gbi.CycleType.G_CYC_COPY) {
@@ -1311,11 +1311,11 @@ function executeTexRect(cmd0, cmd1, dis) {
   if (dsdx < 0) { s0++; }
   if (dtdy < 0) { t0++; }
 
-  var s1 = s0 + dsdx * (xh - xl);
-  var t1 = t0 + dtdy * (yh - yl);
+  const s1 = s0 + dsdx * (xh - xl);
+  const t1 = t0 + dtdy * (yh - yl);
 
   if (dis) {
-    var tt = gbi.getTileText(tileIdx);
+    const tt = gbi.getTileText(tileIdx);
     dis.text(`gsSPTextureRectangle(${xl},${yl},${xh},${yh},${tt},${s0},${t0},${dsdx},${dtdy});`);
     dis.tip(`cmd2 = ${toString32(cmd2)}, cmd3 = ${toString32(cmd3)}`)
     dis.tip(`st0 = (${s0}, ${t0}) st1 = (${s1}, ${t1})`)
@@ -1327,22 +1327,22 @@ function executeTexRect(cmd0, cmd1, dis) {
 function executeTexRectFlip(cmd0, cmd1, dis) {
   // The following 2 commands contain additional info
   // TODO: check op code matches what we expect?
-  var cmd2 = ramDV.getUint32(state.pc + 4);
-  var cmd3 = ramDV.getUint32(state.pc + 12);
+  const cmd2 = ramDV.getUint32(state.pc + 4);
+  const cmd3 = ramDV.getUint32(state.pc + 12);
   state.pc += 16;
 
-  var xh = ((cmd0 >>> 12) & 0xfff) / 4.0;
-  var yh = ((cmd0 >>> 0) & 0xfff) / 4.0;
-  var tileIdx = (cmd1 >>> 24) & 0x7;
-  var xl = ((cmd1 >>> 12) & 0xfff) / 4.0;
-  var yl = ((cmd1 >>> 0) & 0xfff) / 4.0;
-  var s0 = ((cmd2 >>> 16) & 0xffff) / 32.0;
-  var t0 = ((cmd2 >>> 0) & 0xffff) / 32.0;
+  let xh = ((cmd0 >>> 12) & 0xfff) / 4.0;
+  let yh = ((cmd0 >>> 0) & 0xfff) / 4.0;
+  const tileIdx = (cmd1 >>> 24) & 0x7;
+  const xl = ((cmd1 >>> 12) & 0xfff) / 4.0;
+  const yl = ((cmd1 >>> 0) & 0xfff) / 4.0;
+  let s0 = ((cmd2 >>> 16) & 0xffff) / 32.0;
+  let t0 = ((cmd2 >>> 0) & 0xffff) / 32.0;
   // NB - signed value
-  var dsdx = ((cmd3 | 0) >> 16) / 1024.0;
-  var dtdy = ((cmd3 << 16) >> 16) / 1024.0;
+  let dsdx = ((cmd3 | 0) >> 16) / 1024.0;
+  const dtdy = ((cmd3 << 16) >> 16) / 1024.0;
 
-  var cycleType = state.getCycleType();
+  const cycleType = state.getCycleType();
 
   // In copy mode 4 pixels are copied at once.
   if (cycleType === gbi.CycleType.G_CYC_COPY) {
@@ -1361,11 +1361,11 @@ function executeTexRectFlip(cmd0, cmd1, dis) {
   if (dtdy < 0) { t0++; }
 
   // NB x/y are flipped
-  var s1 = s0 + dsdx * (yh - yl);
-  var t1 = t0 + dtdy * (xh - xl);
+  const s1 = s0 + dsdx * (yh - yl);
+  const t1 = t0 + dtdy * (xh - xl);
 
   if (dis) {
-    var tt = gbi.getTileText(tileIdx);
+    const tt = gbi.getTileText(tileIdx);
     dis.text(`gsSPTextureRectangleFlip(${xl},${yl},${xh},${yh},${tt},${s0},${t0},${dsdx},${dtdy});`);
     dis.tip(`cmd2 = ${toString32(cmd2)}, cmd3 = ${toString32(cmd3)}`)
     dis.tip(`st0 = (${s0}, ${t0}) st1 = (${s1}, ${t1})`)
@@ -1398,8 +1398,8 @@ function executeSetBlendColor(cmd0, cmd1, dis) {
 
 function executeSetPrimColor(cmd0, cmd1, dis) {
   if (dis) {
-    var m = (cmd0 >>> 8) & 0xff;
-    var l = (cmd0 >>> 0) & 0xff;
+    const m = (cmd0 >>> 8) & 0xff;
+    const l = (cmd0 >>> 0) & 0xff;
     dis.text(`gsDPSetPrimColor(${m}, ${l}, ${makeColorTextRGBA(cmd1)});`);
   }
   // minlevel, primlevel ignored!
@@ -1415,9 +1415,9 @@ function executeSetEnvColor(cmd0, cmd1, dis) {
 
 function executeSetCombine(cmd0, cmd1, dis) {
   if (dis) {
-    var mux0 = cmd0 & 0x00ffffff;
-    var mux1 = cmd1;
-    var decoded = shaders.getCombinerText(mux0, mux1);
+    const mux0 = cmd0 & 0x00ffffff;
+    const mux1 = cmd1;
+    const decoded = shaders.getCombinerText(mux0, mux1);
 
     dis.text(`gsDPSetCombine(${toString32(mux0)}, ${toString32(mux1)});\n${decoded}`);
   }
@@ -1427,10 +1427,10 @@ function executeSetCombine(cmd0, cmd1, dis) {
 }
 
 function executeSetTImg(cmd0, cmd1, dis) {
-  var format = (cmd0 >>> 21) & 0x7;
-  var size = (cmd0 >>> 19) & 0x3;
-  var width = ((cmd0 >>> 0) & 0xfff) + 1;
-  var address = rdpSegmentAddress(cmd1);
+  const format = (cmd0 >>> 21) & 0x7;
+  const size = (cmd0 >>> 19) & 0x3;
+  const width = ((cmd0 >>> 0) & 0xfff) + 1;
+  const address = rdpSegmentAddress(cmd1);
 
   if (dis) {
     dis.text(`gsDPSetTextureImage(${gbi.ImageFormat.nameOf(format)}, ${gbi.ImageSize.nameOf(size)}, ${width}, ${toString32(address)});`);
@@ -1440,7 +1440,7 @@ function executeSetTImg(cmd0, cmd1, dis) {
 }
 
 function executeSetZImg(cmd0, cmd1, dis) {
-  var address = rdpSegmentAddress(cmd1);
+  const address = rdpSegmentAddress(cmd1);
 
   if (dis) {
     dis.text(`gsDPSetDepthImage(${toString32(address)});`);
@@ -1450,10 +1450,10 @@ function executeSetZImg(cmd0, cmd1, dis) {
 }
 
 function executeSetCImg(cmd0, cmd1, dis) {
-  var format = (cmd0 >>> 21) & 0x7;
-  var size = (cmd0 >>> 19) & 0x3;
-  var width = ((cmd0 >>> 0) & 0xfff) + 1;
-  var address = rdpSegmentAddress(cmd1);
+  const format = (cmd0 >>> 21) & 0x7;
+  const size = (cmd0 >>> 19) & 0x3;
+  const width = ((cmd0 >>> 0) & 0xfff) + 1;
+  const address = rdpSegmentAddress(cmd1);
 
   if (dis) {
     dis.text(`gsDPSetColorImage(${gbi.ImageFormat.nameOf(format)}, ${gbi.ImageSize.nameOf(size)}, ${width}, ${toString32(address)});`);
@@ -1475,10 +1475,10 @@ function executeSetCImg(cmd0, cmd1, dis) {
 }
 
 function executeGBI0_Vertex(cmd0, cmd1, dis) {
-  var n = ((cmd0 >>> 20) & 0xf) + 1;
-  var v0 = (cmd0 >>> 16) & 0xf;
-  //var length = (cmd0 >>>  0) & 0xffff;
-  var address = rdpSegmentAddress(cmd1);
+  const n = ((cmd0 >>> 20) & 0xf) + 1;
+  const v0 = (cmd0 >>> 16) & 0xf;
+  //const length = (cmd0 >>>  0) & 0xffff;
+  const address = rdpSegmentAddress(cmd1);
 
   if (dis) {
     dis.text(`gsSPVertex(${toString32(address)}, ${n}, ${v0});`);
@@ -1488,10 +1488,10 @@ function executeGBI0_Vertex(cmd0, cmd1, dis) {
 }
 
 function executeVertex_GBI0_WR(cmd0, cmd1, dis) {
-  var n = ((cmd0 >>> 9) & 0x7f);
-  var v0 = ((cmd0 >>> 16) & 0xff) / 5;
-  //var length = (cmd0 >>> 0) & 0x1ff;
-  var address = rdpSegmentAddress(cmd1);
+  const n = ((cmd0 >>> 9) & 0x7f);
+  const v0 = ((cmd0 >>> 16) & 0xff) / 5;
+  //const length = (cmd0 >>> 0) & 0x1ff;
+  const address = rdpSegmentAddress(cmd1);
 
   if (dis) {
     dis.text(`gsSPVertex(${toString32(address)}, ${n}, ${v0});`);
@@ -1501,10 +1501,10 @@ function executeVertex_GBI0_WR(cmd0, cmd1, dis) {
 }
 
 function executeGBI1_Vertex(cmd0, cmd1, dis) {
-  var v0 = ((cmd0 >>> 16) & 0xff) / config.vertexStride;
-  var n = ((cmd0 >>> 10) & 0x3f);
-  //var length = (cmd0 >>>  0) & 0x3ff;
-  var address = rdpSegmentAddress(cmd1);
+  const v0 = ((cmd0 >>> 16) & 0xff) / config.vertexStride;
+  const n = ((cmd0 >>> 10) & 0x3f);
+  //const length = (cmd0 >>>  0) & 0x3ff;
+  const address = rdpSegmentAddress(cmd1);
 
   if (dis) {
     dis.text(`gsSPVertex(${toString32(address)}, ${n}, ${v0});`);
@@ -1540,19 +1540,19 @@ function initWebGL(canvas) {
   }
 }
 
-var fillShaderProgram;
-var fillVertexPositionAttribute;
-var fillFillColorUniform;
+let fillShaderProgram;
+let fillVertexPositionAttribute;
+let fillFillColorUniform;
 
-var blitShaderProgram;
-var blitVertexPositionAttribute;
-var blitTexCoordAttribute;
-var blitSamplerUniform;
+let blitShaderProgram;
+let blitVertexPositionAttribute;
+let blitTexCoordAttribute;
+let blitSamplerUniform;
 
-var rectVerticesBuffer;
-var n64PositionsBuffer;
-var n64ColorsBuffer;
-var n64UVBuffer;
+let rectVerticesBuffer;
+let n64PositionsBuffer;
+let n64ColorsBuffer;
+let n64UVBuffer;
 
 const kBlendModeUnknown = 0;
 const kBlendModeOpaque = 1;
@@ -1587,7 +1587,7 @@ function setProgramState(positions, colours, coords, textureEnabled, texGenEnabl
     enableAlphaThreshold = true;
   }
 
-  var shader = getCurrentN64Shader(cycleType, enableAlphaThreshold);
+  const shader = getCurrentN64Shader(cycleType, enableAlphaThreshold);
   gl.useProgram(shader.program);
 
   // aVertexPosition
@@ -1671,13 +1671,13 @@ function bindTexture(slot, glTextureId, tile, texture, texGenEnabled, sampleUnif
   }
 
   // When not masking, Clamp S,T is ignored and clamping is implicitly enabled
-  var clampS = tile.cmS === gbi.G_TX_CLAMP || (tile.maskS === 0);
-  var clampT = tile.cmT === gbi.G_TX_CLAMP || (tile.maskT === 0);
-  var mirrorS = tile.cmS === gbi.G_TX_MIRROR;
-  var mirrorT = tile.cmT === gbi.G_TX_MIRROR;
+  const clampS = tile.cmS === gbi.G_TX_CLAMP || (tile.maskS === 0);
+  const clampT = tile.cmT === gbi.G_TX_CLAMP || (tile.maskT === 0);
+  const mirrorS = tile.cmS === gbi.G_TX_MIRROR;
+  const mirrorT = tile.cmT === gbi.G_TX_MIRROR;
 
-  var modeS = clampS ? gl.CLAMP_TO_EDGE : (mirrorS ? gl.MIRRORED_REPEAT : gl.REPEAT);
-  var modeT = clampT ? gl.CLAMP_TO_EDGE : (mirrorT ? gl.MIRRORED_REPEAT : gl.REPEAT);
+  const modeS = clampS ? gl.CLAMP_TO_EDGE : (mirrorS ? gl.MIRRORED_REPEAT : gl.REPEAT);
+  const modeT = clampT ? gl.CLAMP_TO_EDGE : (mirrorT ? gl.MIRRORED_REPEAT : gl.REPEAT);
 
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, modeS);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, modeT);
@@ -1799,10 +1799,10 @@ function flushTris(numTris) {
 function fillRect(x0, y0, x1, y1, color) {
   setGLBlendMode();
 
-  var display0 = nativeTransform.convertN64ToDisplay(new Vector2(x0, y0));
-  var display1 = nativeTransform.convertN64ToDisplay(new Vector2(x1, y1));
+  const display0 = nativeTransform.convertN64ToDisplay(new Vector2(x0, y0));
+  const display1 = nativeTransform.convertN64ToDisplay(new Vector2(x1, y1));
 
-  var vertices = [
+  const vertices = [
     display1.x, display1.y, 0.0, 1.0,
     display0.x, display1.y, 0.0, 1.0,
     display1.x, display0.y, 0.0, 1.0,
@@ -1831,19 +1831,19 @@ function fillRect(x0, y0, x1, y1, color) {
 function texRect(tileIdx, x0, y0, x1, y1, s0, t0, s1, t1, flip) {
   // TODO: check scissor
 
-  var display0 = nativeTransform.convertN64ToDisplay(new Vector2(x0, y0));
-  var display1 = nativeTransform.convertN64ToDisplay(new Vector2(x1, y1));
-  var depthSourcePrim = (state.rdpOtherModeL & gbi.DepthSource.G_ZS_PRIM) !== 0;
-  var depth = depthSourcePrim ? state.primDepth : 0.0;
+  const display0 = nativeTransform.convertN64ToDisplay(new Vector2(x0, y0));
+  const display1 = nativeTransform.convertN64ToDisplay(new Vector2(x1, y1));
+  const depthSourcePrim = (state.rdpOtherModeL & gbi.DepthSource.G_ZS_PRIM) !== 0;
+  const depth = depthSourcePrim ? state.primDepth : 0.0;
 
-  var vertices = [
+  const vertices = [
     display0.x, display0.y, depth, 1.0,
     display1.x, display0.y, depth, 1.0,
     display0.x, display1.y, depth, 1.0,
     display1.x, display1.y, depth, 1.0
   ];
 
-  var uvs;
+  let uvs;
 
   if (flip) {
     uvs = [
@@ -1861,7 +1861,7 @@ function texRect(tileIdx, x0, y0, x1, y1, s0, t0, s1, t1, flip) {
     ];
   }
 
-  var colours = [0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff];
+  const colours = [0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff];
 
   setProgramState(new Float32Array(vertices),
                   new Uint32Array(colours),
@@ -1869,7 +1869,7 @@ function texRect(tileIdx, x0, y0, x1, y1, s0, t0, s1, t1, flip) {
 
   gl.disable(gl.CULL_FACE);
 
-  var depthEnabled = depthSourcePrim ? true : false;
+  const depthEnabled = depthSourcePrim ? true : false;
   if (depthEnabled) {
     initDepth();
   } else {
@@ -1883,14 +1883,14 @@ function copyBackBufferToFrontBuffer(texture) {
   // Passing null binds the framebuffer to the canvas.
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-  var vertices = [
+  const vertices = [
     -1.0, -1.0, 0.0, 1.0,
     1.0, -1.0, 0.0, 1.0,
     -1.0, 1.0, 0.0, 1.0,
     1.0, 1.0, 0.0, 1.0
   ];
 
-  var uvs = [
+  const uvs = [
     0.0, 0.0,
     1.0, 0.0,
     0.0, 1.0,
@@ -1932,9 +1932,9 @@ function initDepth() {
   //if (gRDPOtherMode.zmode == ZMODE_DEC) ...
 
   // Disable depth testing
-  var zGeomMode = (state.geometryMode.zbuffer) !== 0;
-  var zCmpRenderMode = (state.rdpOtherModeL & gbi.RenderMode.Z_CMP) !== 0;
-  var zUpdRenderMode = (state.rdpOtherModeL & gbi.RenderMode.Z_UPD) !== 0;
+  const zGeomMode = (state.geometryMode.zbuffer) !== 0;
+  const zCmpRenderMode = (state.rdpOtherModeL & gbi.RenderMode.Z_CMP) !== 0;
+  const zUpdRenderMode = (state.rdpOtherModeL & gbi.RenderMode.Z_UPD) !== 0;
 
   if ((zGeomMode && zCmpRenderMode) || zUpdRenderMode) {
     gl.enable(gl.DEPTH_TEST);
@@ -2075,10 +2075,10 @@ function executeGBI2_Noop(cmd0, cmd1, dis) {
 }
 
 function executeGBI2_Vertex(cmd0, cmd1, dis) {
-  var vend = ((cmd0) & 0xff) >> 1;
-  var n = (cmd0 >>> 12) & 0xff;
-  var v0 = vend - n;
-  var address = rdpSegmentAddress(cmd1);
+  const vend = ((cmd0) & 0xff) >> 1;
+  const n = (cmd0 >>> 12) & 0xff;
+  const v0 = vend - n;
+  const address = rdpSegmentAddress(cmd1);
 
   if (dis) {
     dis.text(`gsSPVertex(${toString32(address)}, ${n}, ${v0});`);
@@ -2088,9 +2088,9 @@ function executeGBI2_Vertex(cmd0, cmd1, dis) {
 }
 
 function executeGBI2_ModifyVtx(cmd0, cmd1, dis) {
-  var vtx = (cmd0 >>> 1) & 0x7fff;
-  var offset = (cmd0 >>> 16) & 0xff;
-  var value = cmd1;
+  const vtx = (cmd0 >>> 1) & 0x7fff;
+  const offset = (cmd0 >>> 16) & 0xff;
+  const value = cmd1;
 
   if (dis) {
     dis.text(`gsSPModifyVertex(${vtx},${gbi.ModifyVtx.nameOf(offset)},${toString32(value)});`);
@@ -2102,7 +2102,7 @@ function executeGBI2_ModifyVtx(cmd0, cmd1, dis) {
     return;
   }
 
-  var vertex = state.projectedVertices[vtx];
+  const vertex = state.projectedVertices[vtx];
 
   switch (offset) {
     case gbi.ModifyVtx.G_MWO_POINT_RGBA:
@@ -2110,12 +2110,14 @@ function executeGBI2_ModifyVtx(cmd0, cmd1, dis) {
       break;
 
     case gbi.ModifyVtx.G_MWO_POINT_ST:
-      // u/v are signed
-      var u = (value >> 16);
-      var v = ((value & 0xffff) << 16) >> 16;
-      vertex.set = true;
-      vertex.u = u * state.texture.scaleS / 32.0;
-      vertex.v = v * state.texture.scaleT / 32.0;
+      {
+        // u/v are signed
+        const u = (value >> 16);
+        const v = ((value & 0xffff) << 16) >> 16;
+        vertex.set = true;
+        vertex.u = u * state.texture.scaleS / 32.0;
+        vertex.v = v * state.texture.scaleT / 32.0;
+      }
       break;
 
     case gbi.ModifyVtx.G_MWO_POINT_XYSCREEN:
@@ -2364,27 +2366,27 @@ function executeGBI2_Matrix(cmd0, cmd1, dis) {
 
 function executeGBI2_PopMatrix(cmd0, cmd1, dis) {
   // FIXME: not sure what bit this is
-  //var projection =  ??;
-  var projection = 0;
+  //const projection =  ??;
+  const projection = 0;
 
   if (dis) {
     const t = projection ? 'G_MTX_PROJECTION' : 'G_MTX_MODELVIEW';
     dis.text(`gsSPPopMatrix(${t});`);
   }
 
-  var stack = projection ? state.projection : state.modelview;
+  const stack = projection ? state.projection : state.modelview;
   if (stack.length > 0) {
     stack.pop();
   }
 }
 
 function executeGBI2_MoveWord(cmd0, cmd1, dis) {
-  var type = (cmd0 >>> 16) & 0xff;
-  var offset = (cmd0) & 0xffff;
-  var value = cmd1;
+  const type = (cmd0 >>> 16) & 0xff;
+  const offset = (cmd0) & 0xffff;
+  const value = cmd1;
 
   if (dis) {
-    var text = `gMoveWd(${gbi.MoveWord.nameOf(type)}, ${toString16(offset)}, ${toString32(value)});`;
+    let text = `gMoveWd(${gbi.MoveWord.nameOf(type)}, ${toString16(offset)}, ${toString32(value)});`;
 
     switch (type) {
       case gbi.MoveWord.G_MW_NUMLIGHT:
@@ -2503,11 +2505,11 @@ function executeGBI2_LoadUcode(cmd0, cmd1, dis) {
 }
 
 function executeGBI2_DL(cmd0, cmd1, dis) {
-  var param = (cmd0 >>> 16) & 0xff;
-  var address = rdpSegmentAddress(cmd1);
+  const param = (cmd0 >>> 16) & 0xff;
+  const address = rdpSegmentAddress(cmd1);
 
   if (dis) {
-    var fn = (param === gbi.G_DL_PUSH) ? 'gsSPDisplayList' : 'gsSPBranchList';
+    const fn = (param === gbi.G_DL_PUSH) ? 'gsSPDisplayList' : 'gsSPBranchList';
     dis.text(`${fn}(<span class="dl-branch">${toString32(address)}</span>);`);
   }
 
@@ -2530,10 +2532,10 @@ function executeGBI2_EndDL(cmd0, cmd1, dis) {
 }
 
 function executeGBI2_SetOtherModeL(cmd0, cmd1, dis) {
-  var shift = (cmd0 >>> 8) & 0xff;
-  var len = (cmd0 >>> 0) & 0xff;
-  var data = cmd1;
-  var mask = (0x80000000 >> len) >>> shift;
+  const shift = (cmd0 >>> 8) & 0xff;
+  const len = (cmd0 >>> 0) & 0xff;
+  const data = cmd1;
+  const mask = (0x80000000 >> len) >>> shift;
   if (dis) {
     disassemble.SetOtherModeL(dis, mask, data);
   }
@@ -2541,10 +2543,10 @@ function executeGBI2_SetOtherModeL(cmd0, cmd1, dis) {
 }
 
 function executeGBI2_SetOtherModeH(cmd0, cmd1, dis) {
-  var shift = (cmd0 >>> 8) & 0xff;
-  var len = (cmd0 >>> 0) & 0xff;
-  var data = cmd1;
-  var mask = (0x80000000 >> len) >>> shift;
+  const shift = (cmd0 >>> 8) & 0xff;
+  const len = (cmd0 >>> 0) & 0xff;
+  const data = cmd1;
+  const mask = (0x80000000 >> len) >>> shift;
   if (dis) {
     disassemble.SetOtherModeH(dis, mask, len, shift, data);
   }
@@ -2569,18 +2571,18 @@ function executeGBI2_RDPHalf_2(cmd0, cmd1, dis) {
   state.rdpHalf2 = cmd1;
 }
 
-// var ucodeSprite2d = {
+// const ucodeSprite2d = {
 //   0xbe: executeSprite2dScaleFlip,
 //   0xbd: executeSprite2dDraw
 // };
 
-// var ucodeDKR = {
+// const ucodeDKR = {
 //   0x05:  executeDMATri,
 //   0x07:  executeGBI1_DLInMem,
 // };
 
 function buildUCodeTables(ucode) {
-  var ucodeTable = ucodeGBI0;
+  let ucodeTable = ucodeGBI0;
 
   switch (ucode) {
     case kUCode_GBI0:
@@ -2604,9 +2606,9 @@ function buildUCodeTables(ucode) {
   }
 
   // Build a copy of the table as an array
-  var table = [];
-  for (var i = 0; i < 256; ++i) {
-    var fn = executeUnknown;
+  const table = [];
+  for (let i = 0; i < 256; ++i) {
+    let fn = executeUnknown;
     if (ucodeTable.hasOwnProperty(i)) {
       fn = ucodeTable[i];
     } else if (ucodeCommon.hasOwnProperty(i)) {
@@ -2719,12 +2721,12 @@ class Disassembler {
 
 
 function buildStateTab() {
-  var $table = $('<table class="table table-condensed dl-debug-table" style="width: auto;"></table>');
-  var $tr = $('<tr />');
+  const $table = $('<table class="table table-condensed dl-debug-table" style="width: auto;"></table>');
+  const $tr = $('<tr />');
 
   for (let i in state.geometryMode) {
     if (state.geometryMode.hasOwnProperty(i)) {
-      var $td = $(`<td>${i}</td>`);
+      const $td = $(`<td>${i}</td>`);
       if (state.geometryMode[i]) {
         $td.css('background-color', '#AFF4BB');
       }
@@ -2737,10 +2739,9 @@ function buildStateTab() {
 }
 
 function buildRDPTab() {
-  var l = state.rdpOtherModeL;
-  var h = state.rdpOtherModeH;
+  const l = state.rdpOtherModeL;
+  const h = state.rdpOtherModeH;
   const vals = new Map([
-    //var G_MDSFT_BLENDMASK = 0;
     ['alphaCompare', gbi.AlphaCompare.nameOf(l & gbi.G_AC_MASK)],
     ['depthSource', gbi.DepthSource.nameOf(l & gbi.G_ZS_MASK)],
     ['renderMode', gbi.getRenderModeText(l)],
@@ -2757,7 +2758,7 @@ function buildRDPTab() {
     ['pipelineMode', gbi.PipelineMode.nameOf(h & gbi.G_PM_MASK)],
   ]);
 
-  var $table = $('<table class="table table-condensed dl-debug-table" style="width: auto;"></table>');
+  const $table = $('<table class="table table-condensed dl-debug-table" style="width: auto;"></table>');
   for (let [name, value] of vals) {
     let $tr = $(`<tr><td>${name}</td><td>${value}</td></tr>`);
     $table.append($tr);
@@ -2774,7 +2775,7 @@ function buildColorsTable() {
     'fogColor',
   ];
 
-  var $table = $('<table class="table table-condensed dl-debug-table" style="width: auto;"></table>');
+  const $table = $('<table class="table table-condensed dl-debug-table" style="width: auto;"></table>');
   for (let color of colors) {
     let row = $(`<tr><td>${color}</td><td>${makeColorTextRGBA(state[color])}</td></tr>`);
     $table.append(row);
@@ -2783,7 +2784,7 @@ function buildColorsTable() {
 }
 
 function buildCombinerTab() {
-  var $p = $('<pre class="combine"></pre>');
+  const $p = $('<pre class="combine"></pre>');
   $p.append(gbi.CycleType.nameOf(state.getCycleType()) + '\n');
   $p.append(buildColorsTable());
   $p.append(shaders.getCombinerText(state.combine.hi, state.combine.lo));
@@ -2791,7 +2792,7 @@ function buildCombinerTab() {
 }
 
 function buildTexture(tileIdx) {
-  var texture = lookupTexture(tileIdx);
+  const texture = lookupTexture(tileIdx);
   if (texture) {
     const kScale = 8;
     return texture.createScaledCanvas(kScale);
@@ -2799,7 +2800,7 @@ function buildTexture(tileIdx) {
 }
 
 function buildTexturesTab() {
-  var $d = $('<div />');
+  const $d = $('<div />');
   $d.append(buildTilesTable());
   for (let i = 0; i < 8; ++i) {
     let $t = buildTexture(i);
@@ -2834,19 +2835,19 @@ function buildTilesTable() {
     'unmasked h',
   ];
 
-  var $table = $('<table class="table table-condensed dl-debug-table" style="width: auto"></table>');
-  var $tr = $(`<tr><th>${tileFields.join('</th><th>')}</th></tr>`);
-  $table.append($tr);
+  const $table = $('<table class="table table-condensed dl-debug-table" style="width: auto"></table>');
+  const $headingTR = $(`<tr><th>${tileFields.join('</th><th>')}</th></tr>`);
+  $table.append($headingTR);
 
   for (let tileIdx = 0; tileIdx < state.tiles.length; ++tileIdx) {
-    var tile = state.tiles[tileIdx];
+    const tile = state.tiles[tileIdx];
 
     // Ignore any tiles that haven't been set up.
     if (tile.format === -1) {
       continue;
     }
 
-    var vals = [];
+    const vals = [];
     vals.push(gbi.getTileText(tileIdx));
     vals.push(gbi.ImageFormat.nameOf(tile.format));
     vals.push(gbi.ImageSize.nameOf(tile.size));
@@ -2868,8 +2869,8 @@ function buildTilesTable() {
     vals.push(tile.unmaskedWidth);
     vals.push(tile.unmaskedHeight);
 
-    $tr = $(`<tr><td>${vals.join('</td><td>')}</td></tr>`);
-    $table.append($tr);
+    const tr = $(`<tr><td>${vals.join('</td><td>')}</td></tr>`);
+    $table.append(tr);
   }
 
   return $table;
@@ -2890,21 +2891,21 @@ function buildVerticesTab() {
     'v'
   ];
 
-  var $table = $('<table class="table table-condensed dl-debug-table" style="width: auto"></table>');
-  var $tr = $(`<tr><th>${vtxFields.join('</th><th>')}</th></tr>`);
-  $table.append($tr);
+  const $table = $('<table class="table table-condensed dl-debug-table" style="width: auto"></table>');
+  const headingTR = $(`<tr><th>${vtxFields.join('</th><th>')}</th></tr>`);
+  $table.append(headingTR);
 
   for (let i = 0; i < state.projectedVertices.length; ++i) {
-    var vtx = state.projectedVertices[i];
+    const vtx = state.projectedVertices[i];
     if (!vtx.set) {
       continue;
     }
 
-    var x = vtx.pos.x / vtx.pos.w;
-    var y = vtx.pos.y / vtx.pos.w;
-    var z = vtx.pos.z / vtx.pos.w;
+    const x = vtx.pos.x / vtx.pos.w;
+    const y = vtx.pos.y / vtx.pos.w;
+    const z = vtx.pos.z / vtx.pos.w;
 
-    var vals = [];
+    const vals = [];
     vals.push(i);
     vals.push(x.toFixed(3));
     vals.push(y.toFixed(3));
@@ -2917,8 +2918,8 @@ function buildVerticesTab() {
     vals.push(vtx.u.toFixed(3));
     vals.push(vtx.v.toFixed(3));
 
-    $tr = $(`<tr><td>${vals.join('</td><td>')}</td></tr>`);
-    $table.append($tr);
+    const tr = $(`<tr><td>${vals.join('</td><td>')}</td></tr>`);
+    $table.append(tr);
   }
 
   return $table;
@@ -3067,15 +3068,13 @@ function processDList(task, disassembler, bailAfter) {
   // Set the viewport to match the framebuffer dimensions.
   gl.viewport(0, 0, frameBuffer.width, frameBuffer.height);
 
-  var pc, cmd0, cmd1;
-
   if (disassembler) {
     debugCurrentOp = 0;
 
     while (state.pc !== 0) {
-      pc = state.pc;
-      cmd0 = ram.getUint32(pc + 0);
-      cmd1 = ram.getUint32(pc + 4);
+      const pc = state.pc;
+      const cmd0 = ram.getUint32(pc + 0);
+      const cmd1 = ram.getUint32(pc + 4);
       state.pc += 8;
 
       disassembler.begin(pc, cmd0, cmd1, state.dlistStack.length);
@@ -3087,9 +3086,9 @@ function processDList(task, disassembler, bailAfter) {
     // Vanilla loop, no disassembler to worry about
     debugCurrentOp = 0;
     while (state.pc !== 0) {
-      pc = state.pc;
-      cmd0 = ram.getUint32(pc + 0);
-      cmd1 = ram.getUint32(pc + 4);
+      const pc = state.pc;
+      const cmd0 = ram.getUint32(pc + 0);
+      const cmd1 = ram.getUint32(pc + 4);
       state.pc += 8;
 
       ucodeTable[cmd0 >>> 24](cmd0, cmd1);
@@ -3127,7 +3126,7 @@ function setScrubTime(t) {
   debugBailAfter = t;
   setScrubText(debugBailAfter, debugNumOps);
 
-  var $instr = $dlistOutput.find(`#I${debugBailAfter}`);
+  const $instr = $dlistOutput.find(`#I${debugBailAfter}`);
 
   $dlistOutput.scrollTop($dlistOutput.scrollTop() + $instr.position().top -
     $dlistOutput.height() / 2 + $instr.height() / 2);
@@ -3137,7 +3136,7 @@ function setScrubTime(t) {
 }
 
 function initDebugUI() {
-  var $dlistControls = $dlistContent.find('#controls');
+  const $dlistControls = $dlistContent.find('#controls');
 
   debugBailAfter = -1;
   debugNumOps = 0;
@@ -3204,7 +3203,7 @@ export function initialiseRenderer($canvas) {
   gl.bindTexture(gl.TEXTURE_2D, null);
 
   // Create a render buffer and attach to the framebuffer.
-  var renderbuffer = gl.createRenderbuffer();
+  const renderbuffer = gl.createRenderbuffer();
   gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer);
   gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, frameBuffer.width, frameBuffer.height);
   gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, renderbuffer);
@@ -3237,8 +3236,8 @@ export function resetRenderer() {
 }
 
 function getCurrentN64Shader(cycleType, enableAlphaThreshold) {
-  var mux0 = state.combine.hi;
-  var mux1 = state.combine.lo;
+  const mux0 = state.combine.hi;
+  const mux1 = state.combine.lo;
 
   return shaders.getOrCreateN64Shader(gl, mux0, mux1, cycleType, enableAlphaThreshold);
 }
@@ -3276,7 +3275,7 @@ function lookupTexture(tileIdx) {
  * @return {?Texture}
  */
 function decodeTexture(tile, tlutFormat, cacheID) {
-  var texture = new Texture(gl, tile.width, tile.height);
+  const texture = new Texture(gl, tile.width, tile.height);
   if (!texture.$canvas[0].getContext) {
     return null;
   }
@@ -3284,10 +3283,10 @@ function decodeTexture(tile, tlutFormat, cacheID) {
   $textureOutput.append(
     `${cacheID}: ${gbi.ImageFormat.nameOf(tile.format)}, ${gbi.ImageSize.nameOf(tile.size)},${tile.width}x${tile.height}, <br>`);
 
-  var ctx = texture.$canvas[0].getContext('2d');
-  var imgData = ctx.createImageData(texture.nativeWidth, texture.nativeHeight);
+  const ctx = texture.$canvas[0].getContext('2d');
+  const imgData = ctx.createImageData(texture.nativeWidth, texture.nativeHeight);
 
-  var handled = state.tmem.convertTexels(tile, tlutFormat, imgData);
+  const handled = state.tmem.convertTexels(tile, tlutFormat, imgData);
   if (handled) {
     clampTexture(imgData, tile.width, tile.height);
 
@@ -3296,7 +3295,7 @@ function decodeTexture(tile, tlutFormat, cacheID) {
     $textureOutput.append(texture.$canvas);
     $textureOutput.append('<br>');
   } else {
-    var msg = `${gbi.ImageFormat.nameOf(tile.format)}/${gbi.ImageSize.nameOf(tile.size)} is unhandled`;
+    const msg = `${gbi.ImageFormat.nameOf(tile.format)}/${gbi.ImageSize.nameOf(tile.size)} is unhandled`;
     $textureOutput.append(msg);
     // FIXME: fill with placeholder texture
     hleHalt(msg);
