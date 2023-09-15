@@ -1,6 +1,6 @@
 /*global n64js*/
 
-import { hleGraphics } from "./hle.js";
+import { hleGraphics } from "./hle_graphics.js";
 
 // Whether to skip audio task emulator or run it on the RSP.
 // Set this to false to enable audio in most games.
