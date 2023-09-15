@@ -1,4 +1,4 @@
-import { Vector4 } from './Vector4.js';
+import { Vector4 } from '../graphics/Vector4.js';
 
 export class ProjectedVertex {
   constructor() {
