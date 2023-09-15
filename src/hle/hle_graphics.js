@@ -1166,22 +1166,22 @@ function executeSetTile(cmd0, cmd1, dis) {
   var tileIdx = (cmd1 >>> 24) & 0x7;
   var palette = (cmd1 >>> 20) & 0xf;
 
-  var cm_t = (cmd1 >>> 18) & 0x3;
-  var mask_t = (cmd1 >>> 14) & 0xf;
-  var shift_t = (cmd1 >>> 10) & 0xf;
+  var cmT = (cmd1 >>> 18) & 0x3;
+  var maskT = (cmd1 >>> 14) & 0xf;
+  var shiftT = (cmd1 >>> 10) & 0xf;
 
-  var cm_s = (cmd1 >>> 8) & 0x3;
-  var mask_s = (cmd1 >>> 4) & 0xf;
-  var shift_s = (cmd1 >>> 0) & 0xf;
+  var cmS = (cmd1 >>> 8) & 0x3;
+  var maskS = (cmd1 >>> 4) & 0xf;
+  var shiftS = (cmd1 >>> 0) & 0xf;
 
   if (dis) {
     const fmtText = gbi.ImageFormat.nameOf(format);
     const sizeText = gbi.ImageSize.nameOf(size);
     const tileText = gbi.getTileText(tileIdx);
-    const cmsText = gbi.getClampMirrorWrapText(cm_s);
-    const cmtText = gbi.getClampMirrorWrapText(cm_t);
+    const cmsText = gbi.getClampMirrorWrapText(cmS);
+    const cmtText = gbi.getClampMirrorWrapText(cmT);
 
-    dis.text(`gsDPSetTile(${fmtText}, ${sizeText}, ${line}, ${tmem}, ${tileText}, ${palette}, ${cmtText}, ${mask_t}, ${shift_t}, ${cmsText}, ${mask_s}, ${shift_s});`);
+    dis.text(`gsDPSetTile(${fmtText}, ${sizeText}, ${line}, ${tmem}, ${tileText}, ${palette}, ${cmtText}, ${maskT}, ${shiftT}, ${cmsText}, ${maskS}, ${shiftS});`);
   }
 
   var tile = state.tiles[tileIdx];
@@ -1190,12 +1190,12 @@ function executeSetTile(cmd0, cmd1, dis) {
   tile.line = line;
   tile.tmem = tmem;
   tile.palette = palette;
-  tile.cm_t = cm_t;
-  tile.mask_t = mask_t;
-  tile.shift_t = shift_t;
-  tile.cm_s = cm_s;
-  tile.mask_s = mask_s;
-  tile.shift_s = shift_s;
+  tile.cmT = cmT;
+  tile.maskT = maskT;
+  tile.shiftT = shiftT;
+  tile.cmS = cmS;
+  tile.maskS = maskS;
+  tile.shiftS = shiftS;
   tile.hash = 0;
 }
 
@@ -1413,7 +1413,6 @@ function executeSetEnvColor(cmd0, cmd1, dis) {
 }
 
 function executeSetCombine(cmd0, cmd1, dis) {
-
   if (dis) {
     var mux0 = cmd0 & 0x00ffffff;
     var mux1 = cmd1;
@@ -1653,8 +1652,8 @@ function bindTexture(slot, glTextureId, tile, texture, texGenEnabled, sampleUnif
     uvOffsetV = 0;
   }
 
-  uvScaleU *= shiftFactor(tile.shift_s);
-  uvScaleV *= shiftFactor(tile.shift_t);
+  uvScaleU *= shiftFactor(tile.shiftS);
+  uvScaleV *= shiftFactor(tile.shiftT);
 
   gl.bindTexture(gl.TEXTURE_2D, texture.texture);
   gl.uniform1i(sampleUniform, slot);
@@ -1671,16 +1670,16 @@ function bindTexture(slot, glTextureId, tile, texture, texGenEnabled, sampleUnif
   }
 
   // When not masking, Clamp S,T is ignored and clamping is implicitly enabled
-  var clampS = tile.cm_s === gbi.G_TX_CLAMP || (tile.mask_s === 0);
-  var clampT = tile.cm_t === gbi.G_TX_CLAMP || (tile.mask_t === 0);
-  var mirrorS = tile.cm_s === gbi.G_TX_MIRROR;
-  var mirrorT = tile.cm_t === gbi.G_TX_MIRROR;
+  var clampS = tile.cmS === gbi.G_TX_CLAMP || (tile.maskS === 0);
+  var clampT = tile.cmT === gbi.G_TX_CLAMP || (tile.maskT === 0);
+  var mirrorS = tile.cmS === gbi.G_TX_MIRROR;
+  var mirrorT = tile.cmT === gbi.G_TX_MIRROR;
 
-  var mode_s = clampS ? gl.CLAMP_TO_EDGE : (mirrorS ? gl.MIRRORED_REPEAT : gl.REPEAT);
-  var mode_t = clampT ? gl.CLAMP_TO_EDGE : (mirrorT ? gl.MIRRORED_REPEAT : gl.REPEAT);
+  var modeS = clampS ? gl.CLAMP_TO_EDGE : (mirrorS ? gl.MIRRORED_REPEAT : gl.REPEAT);
+  var modeT = clampT ? gl.CLAMP_TO_EDGE : (mirrorT ? gl.MIRRORED_REPEAT : gl.REPEAT);
 
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, mode_s);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, mode_t);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, modeS);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, modeT);
 }
 
 function shiftFactor(shift) {
@@ -2818,12 +2817,12 @@ function buildTilesTable() {
     'line',
     'tmem',
     'palette',
-    'cm_s',
-    'mask_s',
-    'shift_s',
-    'cm_t',
-    'mask_t',
-    'shift_t',
+    'cmS',
+    'maskS',
+    'shiftS',
+    'cmT',
+    'maskT',
+    'shiftT',
     'left',
     'top',
     'right',
@@ -2853,12 +2852,12 @@ function buildTilesTable() {
     vals.push(tile.line);
     vals.push(tile.tmem);
     vals.push(tile.palette);
-    vals.push(gbi.getClampMirrorWrapText(tile.cm_s));
-    vals.push(tile.mask_s);
-    vals.push(tile.shift_s);
-    vals.push(gbi.getClampMirrorWrapText(tile.cm_t));
-    vals.push(tile.mask_t);
-    vals.push(tile.shift_t);
+    vals.push(gbi.getClampMirrorWrapText(tile.cmS));
+    vals.push(tile.maskS);
+    vals.push(tile.shiftS);
+    vals.push(gbi.getClampMirrorWrapText(tile.cmT));
+    vals.push(tile.maskT);
+    vals.push(tile.shiftT);
     vals.push(tile.left);
     vals.push(tile.top);
     vals.push(tile.right);
