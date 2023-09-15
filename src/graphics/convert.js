@@ -1,4 +1,4 @@
-import * as gbi from '../gbi.js';
+import * as gbi from '../hle/gbi.js';
 
 const kOneToEight = [
   0x00, // 0 -> 00 00 00 00

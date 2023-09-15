@@ -1,4 +1,4 @@
-import * as gbi from '../gbi.js';
+import * as gbi from './gbi.js';
 import { Matrix4x4 } from "../graphics/Matrix4x4.js";
 import { Tile } from "./tile.js";
 import { ProjectedVertex } from "../graphics/TriangleBuffer.js";
