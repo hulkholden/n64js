@@ -7,7 +7,7 @@ import * as disassemble_rsp from "./disassemble_rsp.js";
 import { toHex, toString8, toString16, toString32, toString64 } from './format.js';
 import * as logger from './logger.js';
 import { getFragmentMap, consumeFragmentInvalidationEvents } from './fragments.js';
-import { toggleDebugDisplayList } from './hle/hle.js';
+import { toggleDebugDisplayList } from './hle/hle_graphics.js';
 
 window.n64js = window.n64js || {};
 

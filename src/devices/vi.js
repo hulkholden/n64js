@@ -4,7 +4,7 @@ import { Device } from './device.js';
 import * as mi from './mi.js';
 import * as logger from '../logger.js';
 import { toString32 } from '../format.js';
-import { presentBackBuffer } from '../hle/hle.js';
+import { presentBackBuffer } from '../hle/hle_graphics.js';
 import { OS_TV_PAL, OS_TV_NTSC, OS_TV_MPAL } from '../system_constants.js';
 
 // Video Interface
