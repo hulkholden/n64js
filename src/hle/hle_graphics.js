@@ -92,7 +92,6 @@ const kUcodeStrides = [
 ];
 
 // TODO: provide a HLE object and instantiate these in the constructor.
-function getRamU8Array() { return n64js.hardware().cachedMemDevice.u8; }
 function getRamDataView() { return n64js.hardware().cachedMemDevice.mem.dataView; }
 
 class NativeTransform {
@@ -1160,38 +1159,13 @@ function executeLoadTLut(cmd0, cmd1, dis) {
   //                                  state.textureImage.address,
   //                                  åstate.textureImage.width,
   //                                  åstate.textureImage.size);
-  var ram_offset = calcTextureAddress(uls >>> 2, ult >>> 2,
-                                      state.textureImage.address,
-                                      state.textureImage.width,
-    gbi.ImageSize.G_IM_SIZ_16b);
+  var ramAddress = calcTextureAddress(uls >>> 2, ult >>> 2, state.textureImage.address, state.textureImage.width, gbi.ImageSize.G_IM_SIZ_16b);
 
   var tile = state.tiles[tileIdx];
   var texels = ((lrs - uls) >>> 2) + 1;
 
-  const ram_u8 = getRamU8Array();
-  var tmem_offset = tile.tmem << 3;
-
-  copyLineTLUT(state.tmem.tmemData, tmem_offset, ram_u8, ram_offset, texels);
-
+  state.tmem.loadTLUT(tile, ramAddress, texels);
   invalidateTileHashes();
-}
-
-function copyLineTLUT(tmem, tmem_offset, ram, ram_offset, texels) {
-  // TLUT entries are "quadricated" across banks.
-  // TODO: optimise this.
-  for (let texel = 0; texel < texels; texel++) {
-    const lo = ram[ram_offset + (texel * 2) + 0];
-    const hi = ram[ram_offset + (texel * 2) + 1];
-
-    tmem[tmem_offset + (texel * 8) + 0] = lo;
-    tmem[tmem_offset + (texel * 8) + 1] = hi;
-    tmem[tmem_offset + (texel * 8) + 2] = lo;
-    tmem[tmem_offset + (texel * 8) + 3] = hi;
-    tmem[tmem_offset + (texel * 8) + 4] = lo;
-    tmem[tmem_offset + (texel * 8) + 5] = hi;
-    tmem[tmem_offset + (texel * 8) + 6] = lo;
-    tmem[tmem_offset + (texel * 8) + 7] = hi;
-  }
 }
 
 function executeSetTile(cmd0, cmd1, dis) {
