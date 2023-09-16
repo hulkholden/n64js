@@ -345,42 +345,6 @@ function setGLBlendMode() {
   }
 }
 
-/**
- * Flushes the contents of a TriangleBuffer.
- * @param {TriangleBuffer} tb 
- * @returns 
- */
-function flushTris(tb) {
-  if (tb.empty()) {
-    return;
-  }
-
-  const textureEnabled = state.geometryMode.texture;
-  const texGenEnabled = state.geometryMode.lighting && state.geometryMode.textureGen;
-  setProgramState(tb.positions,
-    tb.colours,
-    tb.coords,
-    textureEnabled,
-    texGenEnabled,
-    state.texture.tile);
-
-  initDepth();
-
-  // texture filter
-
-  if (state.geometryMode.cullFront || state.geometryMode.cullBack) {
-    gl.enable(gl.CULL_FACE);
-    const mode = (state.geometryMode.cullFront) ? gl.FRONT : gl.BACK;
-    gl.cullFace(mode);
-  } else {
-    gl.disable(gl.CULL_FACE);
-  }
-
-  gl.drawArrays(gl.TRIANGLES, 0, tb.numTris * 3);
-  //gl.drawArrays(gl.LINE_STRIP, 0, numTris * 3);
-  tb.reset();
-}
-
 function copyBackBufferToFrontBuffer(texture) {
   // Passing null binds the framebuffer to the canvas.
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -461,7 +425,6 @@ function initDepth() {
 function buildUCodeTables(ucode) {
   const microcode = createMicrocode(ucode);
   // TODO: pass rendering object to microcode constructor.
-  microcode.flushTris = flushTris;
   microcode.debugController = debugController;
   microcode.hleHalt = hleHalt;
   microcode.nativeTransform = nativeTransform;
