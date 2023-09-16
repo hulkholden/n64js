@@ -158,7 +158,7 @@ function updateLoopAnimframe() {
     let maxCycles = kCyclesPerUpdate;
 
     // Don't slow down debugger if we're waiting for a display list to be debugged.
-    if (n64js.debuggerVisible() && !debugDisplayListRequested) {
+    if (n64js.debuggerVisible() && !debugDisplayListRequested()) {
       maxCycles = dbg.debugCycles;
     }
 
@@ -171,7 +171,7 @@ function updateLoopAnimframe() {
       n64js.cpu0.run(maxCycles);
       dbg.redraw();
     }
-  } else if (debugDisplayListRunning) {
+  } else if (debugDisplayListRunning()) {
     requestAnimationFrame(updateLoopAnimframe);
     if (debugDisplayList()) {
       presentBackBuffer();
