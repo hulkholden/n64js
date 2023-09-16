@@ -173,6 +173,12 @@ export class GBIMicrocode {
     return result;
   }
 
+  executeNoop(cmd0, cmd1, dis) {
+    if (dis) {
+      dis.text('gsDPNoOp();');
+    }
+  }
+
   executeSpNoop(cmd0, cmd1, dis) {
     if (dis) {
       dis.text('gsSPNoOp();');

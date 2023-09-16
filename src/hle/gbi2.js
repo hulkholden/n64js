@@ -52,18 +52,6 @@ export class GBI2 extends GBIMicrocode {
     return super.getHandler(command);
   }
 
-  executeNoop(cmd0, cmd1, dis) {
-    if (dis) {
-      dis.text('gsDPNoOp();');
-    }
-  }
-
-  executeSpNoop(cmd0, cmd1, dis) {
-    if (dis) {
-      dis.text('gsSPNoOp();');
-    }
-  }
-    
   executeDL(cmd0, cmd1, dis) {
     const param = (cmd0 >>> 16) & 0xff;
     const address = this.state.rdpSegmentAddress(cmd1);
