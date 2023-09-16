@@ -15,9 +15,35 @@ export class TriangleBuffer {
    * @param {number} maxTris
    */
   constructor(maxTris) {
+    this.numTris = 0;
+    this.maxTris = maxTris;
     this.positions = new Float32Array(maxTris*3*4);
     this.colours = new  Uint32Array(maxTris*3*1);
     this.coords = new Float32Array(maxTris*3*2);
+  }
+
+  /**
+   * Reset the buffer.
+   */
+  reset() {
+    this.numTris = 0;
+  }
+
+  /**
+   * Returns whether the buffer is empty.
+   * @returns {boolean}
+   */
+  empty() {
+    return this.numTris == 0;
+  }
+
+  /**
+   * Returns whether the buffer has space for N more triangles.
+   * @param {number} num 
+   * @returns {boolean}
+   */
+  hasCapacity(num) {
+    return this.numTris + num < this.maxTris;
   }
 
   /**
@@ -27,10 +53,14 @@ export class TriangleBuffer {
    * @param {!ProjectedVertex} v2
    * @param {number} idx
    */
-  pushTri(v0, v1, v2, idx) {
-    var vtx_pos_idx = idx * 3*4;
-    var vtx_col_idx = idx * 3*1;
-    var vtx_uv_idx  = idx * 3*2;
+  pushTri(v0, v1, v2) {
+    if (this.numTris >= this.maxTris) {
+      return false;
+    }
+
+    var vtx_pos_idx = this.numTris * 3*4;
+    var vtx_col_idx = this.numTris * 3*1;
+    var vtx_uv_idx  = this.numTris * 3*2;
 
     var vp0 = v0.pos;
     var vp1 = v1.pos;
@@ -59,5 +89,8 @@ export class TriangleBuffer {
     this.coords[vtx_uv_idx+ 3] = v1.v;
     this.coords[vtx_uv_idx+ 4] = v2.u;
     this.coords[vtx_uv_idx+ 5] = v2.v;
+
+    this.numTris++;
+    return true;
   }
 }
