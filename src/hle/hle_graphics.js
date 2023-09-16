@@ -7,7 +7,6 @@ import { Transform2D } from '../graphics/Transform2D.js';
 import { Vector2 } from '../graphics/Vector2.js';
 import { Vector3 } from '../graphics/Vector3.js';
 import { makeColorTextRGBA16, makeColorTextRGBA, makeColorTextABGR } from './disassemble.js';
-import * as disassemble from './disassemble.js';
 import * as gbi from './gbi.js';
 import * as gbiMicrocode from './gbi_microcode.js';
 import * as gbi0 from './gbi0.js';
@@ -497,58 +496,6 @@ function executeVertexImpl(v0, n, address, dis) {
   }
 }
 
-function executeGBI1_RDPHalf_2(cmd0, cmd1, dis) {
-  if (dis) {
-    dis.text(`gsImmp1(G_RDPHALF_2, ${toString32(cmd1)});`);
-  }
-  state.rdpHalf2 = cmd1;
-}
-
-function executeGBI1_RDPHalf_1(cmd0, cmd1, dis) {
-  if (dis) {
-    dis.text(`gsImmp1(G_RDPHALF_1, ${toString32(cmd1)});`);
-  }
-  state.rdpHalf1 = cmd1;
-}
-
-function executeGBI1_ClrGeometryMode(cmd0, cmd1, dis) {
-  if (dis) {
-    dis.text(`gsSPClearGeometryMode(${gbi.getGeometryModeFlagsText(gbi.GeometryModeGBI1, cmd1)});`);
-  }
-  state.geometryModeBits &= ~cmd1;
-  state.updateGeometryModeFromBits(gbi.GeometryModeGBI1);
-}
-
-function executeGBI1_SetGeometryMode(cmd0, cmd1, dis) {
-  if (dis) {
-    dis.text(`gsSPSetGeometryMode(${gbi.getGeometryModeFlagsText(gbi.GeometryModeGBI1, cmd1)});`);
-  }
-  state.geometryModeBits |= cmd1;
-  state.updateGeometryModeFromBits(gbi.GeometryModeGBI1);
-}
-
-function executeGBI1_SetOtherModeL(cmd0, cmd1, dis) {
-  const shift = (cmd0 >>> 8) & 0xff;
-  const len = (cmd0 >>> 0) & 0xff;
-  const data = cmd1;
-  const mask = (((1 << len) - 1) << shift) >>> 0;
-  if (dis) {
-    disassemble.SetOtherModeL(dis, mask, data);
-  }
-  state.rdpOtherModeL = (state.rdpOtherModeL & ~mask) | data;
-}
-
-function executeGBI1_SetOtherModeH(cmd0, cmd1, dis) {
-  const shift = (cmd0 >>> 8) & 0xff;
-  const len = (cmd0 >>> 0) & 0xff;
-  const data = cmd1;
-  const mask = (((1 << len) - 1) << shift) >>> 0;
-  if (dis) {
-    disassemble.SetOtherModeH(dis, mask, len, shift, data);
-  }
-  state.rdpOtherModeH = (state.rdpOtherModeH & ~mask) | data;
-}
-
 function calcTextureScale(v) {
   if (v === 0 || v === 0xffff) {
     return 1.0;
@@ -1030,12 +977,6 @@ function initDepth() {
 // TODO: move all these to microcode classes.
 const ucodeGBI0 = {
   0x03: executeGBI1_MoveMem,
-  0xb3: executeGBI1_RDPHalf_2,
-  0xb4: executeGBI1_RDPHalf_1,
-  0xb6: executeGBI1_ClrGeometryMode,
-  0xb7: executeGBI1_SetGeometryMode,
-  0xb9: executeGBI1_SetOtherModeL,
-  0xba: executeGBI1_SetOtherModeH,
   0xbb: executeGBI1_Texture,
   0xbc: executeGBI1_MoveWord,
 };
@@ -1043,12 +984,6 @@ const ucodeGBI0 = {
 const ucodeGBI1 = {
   0x03: executeGBI1_MoveMem,
   0xb2: executeGBI1_ModifyVtx,
-  0xb3: executeGBI1_RDPHalf_2,
-  0xb4: executeGBI1_RDPHalf_1,
-  0xb6: executeGBI1_ClrGeometryMode,
-  0xb7: executeGBI1_SetGeometryMode,
-  0xb9: executeGBI1_SetOtherModeL,
-  0xba: executeGBI1_SetOtherModeH,
   0xbb: executeGBI1_Texture,
   0xbc: executeGBI1_MoveWord,
 };
