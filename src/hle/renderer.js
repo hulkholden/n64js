@@ -17,12 +17,17 @@ const kBlendModeFog = 4;
 const loggedBlendModes = new Map();
 
 export class Renderer {
-  constructor(gl, state) {
+  constructor(gl, state, width, height) {
     this.gl = gl;
     this.state = state;
     this.nativeTransform = new NativeTransform();
 
     this.textureCache = new Map();
+
+    this.frameBuffer = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.frameBuffer);
+    this.frameBuffer.width = width;
+    this.frameBuffer.height = height;
 
     this.frameBufferTexture2D = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, this.frameBufferTexture2D);
@@ -31,7 +36,28 @@ export class Renderer {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     // We call texImage2D to initialise frameBufferTexture2D with the correct dimensions when it's used.
- 
+
+    // Create a texture for color data and attach to the framebuffer.
+    this.frameBufferTexture3D = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, this.frameBufferTexture3D);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.frameBufferTexture3D, 0);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+
+    // Create a render buffer and attach to the framebuffer.
+    const renderbuffer = gl.createRenderbuffer();
+    gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer);
+    gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, width, height);
+    gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, renderbuffer);
+    gl.bindRenderbuffer(gl.RENDERBUFFER, null);
+
+    // Passing null binds the framebuffer to the canvas.
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
     this.blitShaderProgram = shaders.createShaderProgram(gl, "blit-shader-vs", "blit-shader-fs");
     this.blitVertexPositionAttribute = gl.getAttribLocation(this.blitShaderProgram, "aVertexPosition");
     this.blitTexCoordAttribute = gl.getAttribLocation(this.blitShaderProgram, "aTextureCoord");
@@ -54,7 +80,17 @@ export class Renderer {
     this.$textureOutput.html('');
   }
 
-  copyBackBufferToFrontBuffer(texture) {
+  newFrame() {
+    const gl = this.gl;
+    // Render everything to the back buffer. This prevents horrible flickering
+    // if due to webgl clearing our context between updates.
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.frameBuffer);
+    // Set the viewport to match the framebuffer dimensions.
+    gl.viewport(0, 0, this.frameBuffer.width, this.frameBuffer.height);
+
+  }
+
+  copyTextureToFrontBuffer(texture) {
     const gl = this.gl;
     // Passing null binds the framebuffer to the canvas.
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -103,6 +139,10 @@ export class Renderer {
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
 
+  copyBackBufferToFrontBuffer() {
+    this.copyTextureToFrontBuffer(this.frameBufferTexture3D);
+  }
+
   copyPixelsToFrontBuffer(pixels, width, height, bitDepth) {
     const gl = this.gl;
     gl.activeTexture(gl.TEXTURE0);
@@ -116,7 +156,7 @@ export class Renderer {
       // Invalid mode.
     }
 
-    this.copyBackBufferToFrontBuffer(this.frameBufferTexture2D);
+    this.copyTextureToFrontBuffer(this.frameBufferTexture2D);
   }
 
   /**
