@@ -3,8 +3,6 @@
 
 import { padString, toHex } from '../format.js';
 import * as logger from '../logger.js';
-import { Transform2D } from '../graphics/Transform2D.js';
-import { Vector2 } from '../graphics/Vector2.js';
 import { detect } from './microcodes.js';
 import { makeColorTextRGBA16, makeColorTextRGBA, makeColorTextABGR } from './disassemble.js';
 import * as gbi from './gbi.js';
@@ -48,7 +46,6 @@ let gl = null; // WebGL context for the canvas.
 let frameBuffer;
 let frameBufferTexture3D;  // For roms using display lists
 let frameBufferTexture2D;  // For roms writing directly to the frame buffer
-let nativeTransform;
 
 let renderer;
 
@@ -60,31 +57,6 @@ const state = new RSPState();
 
 // TODO: provide a HLE object and instantiate these in the constructor.
 function getRamDataView() { return n64js.hardware().cachedMemDevice.mem.dataView; }
-
-class NativeTransform {
-  constructor() {
-    this.initDimensions(320, 240);
-  }
-
-  initDimensions(viWidth, viHeight) {
-    this.viWidth = viWidth;
-    this.viHeight = viHeight;
-    // Convert n64 framebuffer coordinates into normalised device coordinates (-1 to +1).
-    this.n64FramebufferToDevice = new Transform2D(new Vector2(2 / viWidth, -2 / viHeight), new Vector2(-1, +1));
-    // Displaylist-defined viewport - defaults to the entire screen.
-    this.n64ViewportTransform = new Transform2D(new Vector2(viWidth, viHeight), new Vector2(0, 0));
-  }
-
-  setN64Viewport(t2d) {
-    // TODO: is this affected by VI sx0/sy0 etc?
-    this.n64ViewportTransform = t2d;
-  }
-
-  // Used by fillRec/texRect - ignores viewport.
-  convertN64ToDisplay(n64Vec2) {
-    return this.n64FramebufferToDevice.transform(n64Vec2);
-  }
-}
 
 function initWebGL(canvas) {
   if (gl) {
@@ -119,7 +91,6 @@ function buildUCodeTables(ucode, ramDV) {
   // TODO: pass rendering object to microcode constructor.
   microcode.debugController = debugController;
   microcode.hleHalt = hleHalt;
-  microcode.nativeTransform = nativeTransform;
   microcode.gl = gl;
   microcode.renderer = renderer;
 
@@ -185,7 +156,7 @@ function initViScales() {
     return;
   }
 
-  nativeTransform.initDimensions(dims.srcWidth, dims.srcHeight);
+  renderer.nativeTransform.initDimensions(dims.srcWidth, dims.srcHeight);
 
   const canvas = document.getElementById('display');
   canvas.width = dims.screenWidth * canvasScale;
@@ -647,9 +618,7 @@ export function initialiseRenderer($canvas) {
   // Passing null binds the framebuffer to the canvas.
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-  nativeTransform = new NativeTransform();
-
-  renderer = new Renderer(gl, state, nativeTransform);
+  renderer = new Renderer(gl, state);
   renderer.hleHalt = hleHalt;
 }
 
