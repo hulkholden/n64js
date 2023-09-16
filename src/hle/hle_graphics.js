@@ -1290,45 +1290,6 @@ function executeTexRectFlip(cmd0, cmd1, dis) {
   texRect(tileIdx, xl, yl, xh, yh, s0, t0, s1, t1, true);
 }
 
-function executeSetFillColor(cmd0, cmd1, dis) {
-  if (dis) {
-    // Can be 16 or 32 bit
-    dis.text(`gsDPSetFillColor(${makeColorTextRGBA(cmd1)}); // hi as 5551 = ${makeColorTextRGBA16(cmd1 >>> 16)}, lo as 5551 = ${makeColorTextRGBA16(cmd1 & 0xffff)} `);
-  }
-  state.fillColor = cmd1;
-}
-
-function executeSetFogColor(cmd0, cmd1, dis) {
-  if (dis) {
-    dis.text(`gsDPSetFogColor(${makeColorTextRGBA(cmd1)});`);
-  }
-  state.fogColor = cmd1;
-}
-
-function executeSetBlendColor(cmd0, cmd1, dis) {
-  if (dis) {
-    dis.text(`gsDPSetBlendColor(${makeColorTextRGBA(cmd1)});`);
-  }
-  state.blendColor = cmd1;
-}
-
-function executeSetPrimColor(cmd0, cmd1, dis) {
-  if (dis) {
-    const m = (cmd0 >>> 8) & 0xff;
-    const l = (cmd0 >>> 0) & 0xff;
-    dis.text(`gsDPSetPrimColor(${m}, ${l}, ${makeColorTextRGBA(cmd1)});`);
-  }
-  // minlevel, primlevel ignored!
-  state.primColor = cmd1;
-}
-
-function executeSetEnvColor(cmd0, cmd1, dis) {
-  if (dis) {
-    dis.text(`gsDPSetEnvColor(${makeColorTextRGBA(cmd1)});`);
-  }
-  state.envColor = cmd1;
-}
-
 function executeSetCombine(cmd0, cmd1, dis) {
   if (dis) {
     const mux0 = cmd0 & 0x00ffffff;
@@ -1866,11 +1827,6 @@ const ucodeCommon = {
   0xf4: executeLoadTile,
   0xf5: executeSetTile,
   0xf6: executeFillRect,
-  0xf7: executeSetFillColor,
-  0xf8: executeSetFogColor,
-  0xf9: executeSetBlendColor,
-  0xfa: executeSetPrimColor,
-  0xfb: executeSetEnvColor,
   0xfc: executeSetCombine,
   0xfd: executeSetTImg,
   0xfe: executeSetZImg,
@@ -2627,6 +2583,9 @@ class Disassembler {
     // this.$currentDis.find('.dl-branch').click(function () {
     // });
   }
+
+  rgba8888(col) { return makeColorTextRGBA(col); }
+  rgba5551(col) { return makeColorTextRGBA16(col); }
 }
 
 
