@@ -300,51 +300,6 @@ function executeVertexImpl(v0, n, address, dis) {
   }
 }
 
-function calcTextureScale(v) {
-  if (v === 0 || v === 0xffff) {
-    return 1.0;
-  }
-  return v / 65536.0;
-}
-
-function executeGBI1_Texture(cmd0, cmd1, dis) {
-  const xparam = (cmd0 >>> 16) & 0xff;
-  const level = (cmd0 >>> 11) & 0x3;
-  const tileIdx = (cmd0 >>> 8) & 0x7;
-  const on = (cmd0 >>> 0) & 0xff;
-  const s = calcTextureScale(((cmd1 >>> 16) & 0xffff));
-  const t = calcTextureScale(((cmd1 >>> 0) & 0xffff));
-
-  if (dis) {
-    const sText = s.toString();
-    const tText = t.toString();
-    const tileText = gbi.getTileText(tileIdx);
-    const onText = on ? 'G_ON' : 'G_OFF';
-
-    if (xparam !== 0) {
-      dis.text(`gsSPTextureL(${sText}, ${tText}, ${level}, ${xparam}, ${tileText}, ${onText});`);
-    } else {
-      dis.text(`gsSPTexture(${sText}, ${tText}, ${level}, ${tileText}, ${onText});`);
-    }
-  }
-
-  state.setTexture(s, t, level, tileIdx);
-  if (on) {
-    state.geometryModeBits |= gbi.GeometryModeGBI1.G_TEXTURE_ENABLE;
-  } else {
-    state.geometryModeBits &= ~gbi.GeometryModeGBI1.G_TEXTURE_ENABLE;
-  }
-  state.updateGeometryModeFromBits(gbi.GeometryModeGBI1);
-}
-
-function executeGBI1_ModifyVtx(cmd0, cmd1, dis) {
-  if (dis) {
-    dis.text('gsSPModifyVertex(???);');
-  }
-
-  // FIXME!
-}
-
 function initWebGL(canvas) {
   if (gl) {
     return;
@@ -778,16 +733,6 @@ function initDepth() {
   gl.depthMask(zUpdRenderMode);
 }
 
-// TODO: move all these to microcode classes.
-const ucodeGBI0 = {
-  0xbb: executeGBI1_Texture,
-};
-
-const ucodeGBI1 = {
-  0xb2: executeGBI1_ModifyVtx,
-  0xbb: executeGBI1_Texture,
-};
-
 // const ucodeSprite2d = {
 //   0xbe: executeSprite2dScaleFlip,
 //   0xbd: executeSprite2dDraw
@@ -801,36 +746,29 @@ const ucodeGBI1 = {
 function buildUCodeTables(ucode) {
   microcode = null;
 
-  let ucodeTable;
   switch (ucode) {
     case gbiMicrocode.kUCode_GBI0:
     case gbiMicrocode.kUCode_GBI0_DKR:
     case gbiMicrocode.kUCode_GBI0_SE:
     case gbiMicrocode.kUCode_GBI0_PD:
-      ucodeTable = ucodeGBI0;
       microcode = new gbi0.GBI0(state, ramDV, kUcodeStrides[ucode]);
       break;
     case gbiMicrocode.kUCode_GBI0_GE:
-      ucodeTable = ucodeGBI0;
       microcode = new gbi0.GBI0GE(state, ramDV, kUcodeStrides[ucode]);
       break;
     case gbiMicrocode.kUCode_GBI0_WR:
-      ucodeTable = ucodeGBI0;
       microcode = new gbi0.GBI0WR(state, ramDV, kUcodeStrides[ucode]);
       break;
     case gbiMicrocode.kUCode_GBI1:
     case gbiMicrocode.kUCode_GBI1_LL:
-      ucodeTable = ucodeGBI1;
       microcode = new gbi1.GBI1(state, ramDV, kUcodeStrides[ucode]);
       break;
     case gbiMicrocode.kUCode_GBI2:
     case gbiMicrocode.kUCode_GBI2_CONKER:
-      ucodeTable = {};
       microcode = new gbi2.GBI2(state, ramDV, kUcodeStrides[ucode]);
       break;
     default:
       logger.log(`unhandled ucode during table init: ${ucode}`);
-      ucodeTable = ucodeGBI0;
       microcode = new gbi0.GBI0(state, ramDV, kUcodeStrides[ucode]);
   }
 
@@ -841,12 +779,7 @@ function buildUCodeTables(ucode) {
     if (fn) {
       fn = fn.bind(microcode);
     } else {
-      if (ucodeTable.hasOwnProperty(i)) {
-        fn = ucodeTable[i];
-      }
-      if (!fn) {
-        fn = executeUnknown;
-      }
+      fn = executeUnknown;
     }
     table.push(fn);
   }
@@ -955,7 +888,6 @@ class Disassembler {
   rgba8888(col) { return makeColorTextRGBA(col); }
   rgba5551(col) { return makeColorTextRGBA16(col); }
 }
-
 
 function buildStateTab() {
   const $table = $('<table class="table table-condensed dl-debug-table" style="width: auto;"></table>');
