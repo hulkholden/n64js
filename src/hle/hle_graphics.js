@@ -1,7 +1,7 @@
 /*jshint jquery:true browser:true */
 /*global $, n64js*/
 
-import { padString, toHex, toString32 } from '../format.js';
+import { padString, toHex } from '../format.js';
 import * as logger from '../logger.js';
 import { Transform2D } from '../graphics/Transform2D.js';
 import { Vector2 } from '../graphics/Vector2.js';
@@ -14,12 +14,10 @@ import * as gbi1 from './gbi1.js';
 import * as gbi2 from './gbi2.js';
 import { RSPState } from './rsp_state.js';
 import * as shaders from './shaders.js';
-import { Texture, clampTexture } from './textures.js';
 import { Renderer } from './renderer.js';
 
 window.n64js = window.n64js || {};
 
-const $textureOutput = $('#texture-content');
 const $dlistContent = $('#dlist-content');
 
 // Initialised in initDebugUI.
@@ -44,8 +42,6 @@ class DebugController {
   }
 }
 const debugController = new DebugController();
-
-const textureCache = new Map();
 
 let gl = null; // WebGL context for the canvas.
 
@@ -306,7 +302,7 @@ function buildCombinerTab() {
 }
 
 function buildTexture(tileIdx) {
-  const texture = lookupTexture(tileIdx);
+  const texture = renderer.lookupTexture(tileIdx);
   if (texture) {
     const kScale = 8;
     return texture.createScaledCanvas(kScale);
@@ -654,80 +650,13 @@ export function initialiseRenderer($canvas) {
   nativeTransform = new NativeTransform();
 
   renderer = new Renderer(gl, state, nativeTransform);
-  renderer.lookupTexture = lookupTexture;
+  renderer.hleHalt = hleHalt;
 }
 
 export function resetRenderer() {
-  textureCache.clear();
-  $textureOutput.html('');
-}
-
-/**
- * Looks up the texture defined at the specified tile index.
- * @param {number} tileIdx
- * @return {?Texture}
- */
-function lookupTexture(tileIdx) {
-  const tile = state.tiles[tileIdx];
-  // Skip empty tiles - this is primarily for the debug ui.
-  if (tile.line === 0) {
-    return null;
+  if (renderer) {
+    renderer.reset();
   }
-
-  // FIXME: we can cache this if tile/tmem state hasn't changed since the last draw call.
-  const hash = state.tmem.calculateCRC(tile);
-
-  // Check if the texture is already cached.
-  // The cacheID should include all the state that can affect how the texture is constructed.
-  const cacheID = `${toString32(hash)}_${tile.format}_${tile.size}_${tile.width}_${tile.height}_${tile.palette}`;
-  if (textureCache.has(cacheID)) {
-    return textureCache.get(cacheID);
-  }
-  const texture = decodeTexture(tile, state.getTextureLUTType(), cacheID);
-  textureCache.set(cacheID, texture);
-  return texture;
-}
-
-/**
- * Decodes the texture defined by the specified tile.
- * @param {!Tile} tile
- * @param {number} tlutFormat
- * @return {?Texture}
- */
-function decodeTexture(tile, tlutFormat, cacheID) {
-  const texture = new Texture(gl, tile.width, tile.height);
-  if (!texture.$canvas[0].getContext) {
-    return null;
-  }
-
-  $textureOutput.append(
-    `${cacheID}: ${gbi.ImageFormat.nameOf(tile.format)}, ${gbi.ImageSize.nameOf(tile.size)},${tile.width}x${tile.height}, <br>`);
-
-  const ctx = texture.$canvas[0].getContext('2d');
-  const imgData = ctx.createImageData(texture.nativeWidth, texture.nativeHeight);
-
-  const handled = state.tmem.convertTexels(tile, tlutFormat, imgData);
-  if (handled) {
-    clampTexture(imgData, tile.width, tile.height);
-
-    ctx.putImageData(imgData, 0, 0);
-
-    $textureOutput.append(texture.$canvas);
-    $textureOutput.append('<br>');
-  } else {
-    const msg = `${gbi.ImageFormat.nameOf(tile.format)}/${gbi.ImageSize.nameOf(tile.size)} is unhandled`;
-    $textureOutput.append(msg);
-    // FIXME: fill with placeholder texture
-    hleHalt(msg);
-  }
-
-  gl.activeTexture(gl.TEXTURE0);
-  gl.bindTexture(gl.TEXTURE_2D, texture.texture);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texture.$canvas[0]);
-
-  gl.generateMipmap(gl.TEXTURE_2D);
-  gl.bindTexture(gl.TEXTURE_2D, null);
-  return texture;
 }
 
 function hleHalt(msg) {
