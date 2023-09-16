@@ -686,123 +686,6 @@ function executeGBI1_CullDL(cmd0, cmd1, dis) {
   }
 }
 
-function executeGBI1_Tri1(cmd0, cmd1, dis) {
-  const kCommand = cmd0 >>> 24;
-  const stride = config.vertexStride;
-  const verts = state.projectedVertices;
-  const tb = triangleBuffer;
-  tb.reset();
-
-  let pc = state.pc;
-  do {
-    const flag = (cmd1 >>> 24) & 0xff;
-    const idx0 = ((cmd1 >>> 16) & 0xff) / stride;
-    const idx1 = ((cmd1 >>> 8) & 0xff) / stride;
-    const idx2 = ((cmd1 >>> 0) & 0xff) / stride;
-
-    if (dis) {
-      dis.text(`gsSP1Triangle(${idx0}, ${idx1}, ${idx2}, ${flag});`);
-    }
-
-    tb.pushTri(verts[idx0], verts[idx1], verts[idx2]);
-
-    cmd0 = ramDV.getUint32(pc + 0);
-    cmd1 = ramDV.getUint32(pc + 4);
-    ++debugController.currentOp;
-    pc += 8;
-
-    // NB: process triangles individually when disassembling
-  } while ((cmd0 >>> 24) === kCommand && tb.hasCapacity(1) && !dis);
-
-  state.pc = pc - 8;
-  --debugController.currentOp;
-
-  flushTris(tb);
-}
-
-function executeGBI1_Tri2(cmd0, cmd1, dis) {
-  const kCommand = cmd0 >>> 24;
-  const stride = config.vertexStride;
-  const verts = state.projectedVertices;
-  const tb = triangleBuffer;
-  tb.reset();
-
-  let pc = state.pc;
-  do {
-    const idx0 = ((cmd0 >>> 16) & 0xff) / stride;
-    const idx1 = ((cmd0 >>> 8) & 0xff) / stride;
-    const idx2 = ((cmd0 >>> 0) & 0xff) / stride;
-    const idx3 = ((cmd1 >>> 16) & 0xff) / stride;
-    const idx4 = ((cmd1 >>> 8) & 0xff) / stride;
-    const idx5 = ((cmd1 >>> 0) & 0xff) / stride;
-
-    if (dis) {
-      dis.text(`gsSP1Triangle2(${idx0},${idx1},${idx2}, ${idx3},${idx4},${idx5});`);
-    }
-
-    tb.pushTri(verts[idx0], verts[idx1], verts[idx2]);
-    tb.pushTri(verts[idx3], verts[idx4], verts[idx5]);
-
-    cmd0 = ramDV.getUint32(pc + 0);
-    cmd1 = ramDV.getUint32(pc + 4);
-    ++debugController.currentOp;
-    pc += 8;
-    // NB: process triangles individually when disassembling
-  } while ((cmd0 >>> 24) === kCommand && tb.hasCapacity(2) && !dis);
-
-  state.pc = pc - 8;
-  --debugController.currentOp;
-
-  flushTris(tb);
-}
-
-let executeGBI1_Line3D_Warned = false;
-
-function executeGBI1_Line3D(cmd0, cmd1, dis) {
-  const kCommand = cmd0 >>> 24;
-  const stride = config.vertexStride;
-  const verts = state.projectedVertices;
-  const tb = triangleBuffer;
-  tb.reset();
-
-  let pc = state.pc;
-  do {
-    const idx3 = ((cmd1 >>> 24) & 0xff) / stride;
-    const idx0 = ((cmd1 >>> 16) & 0xff) / stride;
-    const idx1 = ((cmd1 >>> 8) & 0xff) / stride;
-    const idx2 = ((cmd1 >>> 0) & 0xff) / stride;
-
-    if (dis) {
-      dis.text(`gsSPLine3D(${idx0}, ${idx1}, ${idx2}, ${idx3});`);
-    }
-
-    // Tamagotchi World 64 seems to trigger this. 
-    if (idx0 < verts.length && idx1 < verts.length && idx2 < verts.length) {
-      tb.pushTri(verts[idx0], verts[idx1], verts[idx2]);
-    } else if (!executeGBI1_Line3D_Warned) {
-      console.log(`verts out of bounds, ignoring: ${idx0}, ${idx1}, ${idx2} vs ${verts.length}, stride ${stride}`);
-      executeGBI1_Line3D_Warned = true;
-    }
-    if (idx2 < verts.length && idx3 < verts.length && idx0 < verts.length) {
-      tb.pushTri(verts[idx2], verts[idx3], verts[idx0]);
-    } else if (!executeGBI1_Line3D_Warned) {
-      console.log(`verts out of bounds, ignoring: ${idx2}, ${idx3}, ${idx0} vs ${verts.length}, stride ${stride}`);
-      executeGBI1_Line3D_Warned = true;
-    }
-
-    cmd0 = ramDV.getUint32(pc + 0);
-    cmd1 = ramDV.getUint32(pc + 4);
-    ++debugController.currentOp;
-    pc += 8;
-    // NB: process triangles individually when disassembling
-  } while ((cmd0 >>> 24) === kCommand && tb.hasCapacity(2) && !dis);
-
-  state.pc = pc - 8;
-  --debugController.currentOp;
-
-  flushTris(tb);
-}
-
 function executeGBI1_ModifyVtx(cmd0, cmd1, dis) {
   if (dis) {
     dis.text('gsSPModifyVertex(???);');
@@ -1250,10 +1133,8 @@ const ucodeGBI0 = {
   0x06: executeGBI1_DL,
 
   0xb0: executeGBI1_BranchZ, // GBI1 only?
-  0xb1: executeGBI1_Tri2, // GBI1 only?
   0xb3: executeGBI1_RDPHalf_2,
   0xb4: executeGBI1_RDPHalf_1,
-  0xb5: executeGBI1_Line3D,
   0xb6: executeGBI1_ClrGeometryMode,
   0xb7: executeGBI1_SetGeometryMode,
   0xb8: executeGBI1_EndDL,
@@ -1263,7 +1144,6 @@ const ucodeGBI0 = {
   0xbc: executeGBI1_MoveWord,
   0xbd: executeGBI1_PopMatrix,
   0xbe: executeGBI1_CullDL,
-  0xbf: executeGBI1_Tri1,
   0xc0: executeGBI1_Noop
 };
 
@@ -1272,11 +1152,9 @@ const ucodeGBI1 = {
   0x06: executeGBI1_DL,
 
   0xb0: executeGBI1_BranchZ,
-  0xb1: executeGBI1_Tri2,
   0xb2: executeGBI1_ModifyVtx,
   0xb3: executeGBI1_RDPHalf_2,
   0xb4: executeGBI1_RDPHalf_1,
-  0xb5: executeGBI1_Line3D,
   0xb6: executeGBI1_ClrGeometryMode,
   0xb7: executeGBI1_SetGeometryMode,
   0xb8: executeGBI1_EndDL,
@@ -1286,16 +1164,12 @@ const ucodeGBI1 = {
   0xbc: executeGBI1_MoveWord,
   0xbd: executeGBI1_PopMatrix,
   0xbe: executeGBI1_CullDL,
-  0xbf: executeGBI1_Tri1,
   0xc0: executeGBI1_Noop
 };
 
 const ucodeGBI2 = {
   0x02: executeGBI2_ModifyVtx,
   0x03: executeGBI2_CullDL,
-  0x05: executeGBI2_Tri1,
-  0x06: executeGBI2_Tri2,
-  0x07: executeGBI2_Quad,
 
   // 0xd3: executeGBI2_Special1,
   // 0xd4: executeGBI2_Special2,
@@ -1366,110 +1240,6 @@ function executeGBI2_ModifyVtx(cmd0, cmd1, dis) {
 function executeGBI2_CullDL(cmd0, cmd1, dis) {
   // Same imple as GBI1.
   executeGBI1_CullDL(cmd0, cmd1, dis);
-}
-
-function executeGBI2_Tri1(cmd0, cmd1, dis) {
-  const kTriCommand = cmd0 >>> 24;
-  const verts = state.projectedVertices;
-  const tb = triangleBuffer;
-  tb.reset();
-
-  let pc = state.pc;
-  do {
-    const v0idx = (cmd0 >>> 1) & 0x7f;
-    const v1idx = (cmd0 >>> 9) & 0x7f;
-    const v2idx = (cmd0 >>> 17) & 0x7f;
-    const flag = (cmd1 >>> 24) & 0xff;
-
-    if (dis) {
-      dis.text(`gsSP1Triangle(${v0idx},${v1idx},${v2idx}, ${flag});`);
-    }
-
-    tb.pushTri(verts[v0idx], verts[v1idx], verts[v2idx]);
-
-    cmd0 = ramDV.getUint32(pc + 0);
-    cmd1 = ramDV.getUint32(pc + 4);
-    ++debugController.currentOp;
-    pc += 8;
-
-    // NB: process triangles individually when disassembling
-  } while ((cmd0 >>> 24) === kTriCommand && tb.hasCapacity(1) && !dis);
-
-  state.pc = pc - 8;
-  --debugController.currentOp;
-
-  flushTris(tb);
-}
-
-function executeGBI2_Tri2(cmd0, cmd1, dis) {
-  const kTriCommand = cmd0 >>> 24;
-  const verts = state.projectedVertices;
-  const tb = triangleBuffer;
-  tb.reset();
-
-  let pc = state.pc;
-  do {
-    const v00idx = (cmd1 >>> 1) & 0x7f;
-    const v01idx = (cmd1 >>> 9) & 0x7f;
-    const v02idx = (cmd1 >>> 17) & 0x7f;
-    const v10idx = (cmd0 >>> 1) & 0x7f;
-    const v11idx = (cmd0 >>> 9) & 0x7f;
-    const v12idx = (cmd0 >>> 17) & 0x7f;
-
-    if (dis) {
-      dis.text(`gsSP2Triangles(${v00idx},${v01idx},${v02idx}, ${v10idx},${v11idx},${v12idx});`);
-    }
-
-    tb.pushTri(verts[v00idx], verts[v01idx], verts[v02idx]);
-    tb.pushTri(verts[v10idx], verts[v11idx], verts[v12idx]);
-
-    cmd0 = ramDV.getUint32(pc + 0);
-    cmd1 = ramDV.getUint32(pc + 4);
-    ++debugController.currentOp;
-    pc += 8;
-    // NB: process triangles individually when disassembling
-  } while ((cmd0 >>> 24) === kTriCommand && tb.hasCapacity(2) && !dis);
-
-  state.pc = pc - 8;
-  --debugController.currentOp;
-
-  flushTris(tb);
-}
-
-// TODO: this is effectively the same as executeGBI2_Tri2, just different disassembly.
-function executeGBI2_Quad(cmd0, cmd1, dis) {
-  const kTriCommand = cmd0 >>> 24;
-  const verts = state.projectedVertices;
-  const tb = triangleBuffer;
-  tb.reset();
-
-  let pc = state.pc;
-  do {
-    const v00idx = (cmd1 >>> 1) & 0x7f;
-    const v01idx = (cmd1 >>> 9) & 0x7f;
-    const v02idx = (cmd1 >>> 17) & 0x7f;
-    const v10idx = (cmd0 >>> 1) & 0x7f;
-    const v11idx = (cmd0 >>> 9) & 0x7f;
-    const v12idx = (cmd0 >>> 17) & 0x7f;
-
-    if (dis) {
-      dis.text(`gSP1Quadrangle(${v00idx},${v01idx},${v02idx}, ${v10idx},${v11idx},${v12idx});`);
-    }
-
-    tb.pushTri(verts[v00idx], verts[v01idx], verts[v02idx]);
-    tb.pushTri(verts[v10idx], verts[v11idx], verts[v12idx]);
-
-    cmd0 = ramDV.getUint32(pc + 0);
-    cmd1 = ramDV.getUint32(pc + 4);
-    ++debugController.currentOp;
-    pc += 8;
-    // NB: process triangles individually when disassembling
-  } while ((cmd0 >>> 24) === kTriCommand && tb.hasCapacity(2) && !dis);
-
-  state.pc = pc - 8;
-  --debugController.currentOp;
-
-  flushTris(tb);
 }
 
 function executeGBI2_Texture(cmd0, cmd1, dis) {
