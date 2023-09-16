@@ -111,77 +111,6 @@ class NativeTransform {
   }
 }
 
-function previewViewport(address) {
-  let result = '';
-  result += `scale = (${ramDV.getInt16(address + 0) / 4.0}, ${ramDV.getInt16(address + 2) / 4.0}) `;
-  result += `trans = (${ramDV.getInt16(address + 8) / 4.0}, ${ramDV.getInt16(address + 10) / 4.0}) `;
-  return result;
-}
-
-function moveMemViewport(address) {
-  const scale = new Vector2(
-    ramDV.getInt16(address + 0) / 4.0,
-    ramDV.getInt16(address + 2) / 4.0,
-  );
-  const trans = new Vector2(
-    ramDV.getInt16(address + 8) / 4.0,
-    ramDV.getInt16(address + 10) / 4.0,
-  );
-
-  //logger.log(`Viewport: scale=${scale.x},${scale.y} trans=${trans.x},${trans.y}` );
-  state.viewport.scale = scale;
-  state.viewport.trans = trans;
-
-  // N64 provides the center point and distance to each edge,
-  // but we want the width/height and translate to bottom left.
-  const t2d = new Transform2D(scale.scale(2), trans.sub(scale));
-  nativeTransform.setN64Viewport(t2d);
-}
-
-function previewLight(address) {
-  let result = '';
-  result += `color = ${makeColorTextRGBA(ramDV.getUint32(address + 0))} `;
-  result += `colorCopy = ${makeColorTextRGBA(ramDV.getUint32(address + 4))} `;
-  const dir = Vector3.create([
-    ramDV.getInt8(address + 8),
-    ramDV.getInt8(address + 9),
-    ramDV.getInt8(address + 10)
-  ]).normaliseInPlace();
-  result += `norm = (${dir.x}, ${dir.y}, ${dir.z})`;
-  return result;
-}
-
-function moveMemLight(lightIdx, address) {
-  if (lightIdx >= state.lights.length) {
-    logger.log(`light index ${lightIdx} out of range`);
-    return;
-  }
-  state.lights[lightIdx].color = unpackRGBAToColor(ramDV.getUint32(address + 0));
-  state.lights[lightIdx].dir = Vector3.create([
-    ramDV.getInt8(address + 8),
-    ramDV.getInt8(address + 9),
-    ramDV.getInt8(address + 10)
-  ]).normaliseInPlace();
-}
-
-// TODO: replace with direct calls.
-function rdpSegmentAddress(addr) {
-  return state.rdpSegmentAddress(addr);
-}
-
-function unpackRGBAToColor(col) {
-  return {
-    'r': ((col >>> 24) & 0xff) / 255.0,
-    'g': ((col >>> 16) & 0xff) / 255.0,
-    'b': ((col >>> 8) & 0xff) / 255.0,
-    'a': ((col >>> 0) & 0xff) / 255.0,
-  };
-}
-
-function haltUnimplemented(cmd0, cmd1) {
-  hleHalt(`Unimplemented display list op ${toString8(cmd0 >>> 24)}`);
-}
-
 // Map to keep track of which unimplemented blend modes we've already warned about.
 const loggedBlendModes = new Map();
 
@@ -206,131 +135,6 @@ function logMicrocode(str, ucode) {
 function executeUnknown(cmd0, cmd1) {
   hleHalt(`Unknown display list op ${toString8(cmd0 >>> 24)}`);
   state.pc = 0;
-}
-
-function previewGBI1_MoveMem(type, length, address, dis) {
-  let tip = '';
-
-  for (let i = 0; i < length; ++i) {
-    tip += toHex(ramDV.getUint8(address + i), 8) + ' ';
-  }
-  tip += '<br>';
-
-  switch (type) {
-    case gbi.MoveMemGBI1.G_MV_VIEWPORT:
-      tip += previewViewport(address);
-      break;
-
-    case gbi.MoveMemGBI1.G_MV_L0:
-    case gbi.MoveMemGBI1.G_MV_L1:
-    case gbi.MoveMemGBI1.G_MV_L2:
-    case gbi.MoveMemGBI1.G_MV_L3:
-    case gbi.MoveMemGBI1.G_MV_L4:
-    case gbi.MoveMemGBI1.G_MV_L5:
-    case gbi.MoveMemGBI1.G_MV_L6:
-    case gbi.MoveMemGBI1.G_MV_L7:
-      tip += previewLight(address);
-      break;
-  }
-
-  dis.tip(tip);
-}
-
-function executeGBI1_MoveMem(cmd0, cmd1, dis) {
-  const type = (cmd0 >>> 16) & 0xff;
-  const length = (cmd0 >>> 0) & 0xffff;
-  const address = rdpSegmentAddress(cmd1);
-
-  if (dis) {
-    const addressStr = toString32(address);
-
-    const typeStr = gbi.MoveMemGBI1.nameOf(type);
-    let text = `gsDma1p(G_MOVEMEM, ${addressStr}, ${length}, ${typeStr});`;
-
-    switch (type) {
-      case gbi.MoveMemGBI1.G_MV_VIEWPORT:
-        if (length === 16) {
-          text = `gsSPViewport(${addressStr});`;
-        }
-        break;
-    }
-
-    dis.text(text);
-    previewGBI1_MoveMem(type, length, address, dis);
-  }
-
-  switch (type) {
-    case gbi.MoveMemGBI1.G_MV_VIEWPORT:
-      moveMemViewport(address);
-      break;
-
-    case gbi.MoveMemGBI1.G_MV_L0:
-    case gbi.MoveMemGBI1.G_MV_L1:
-    case gbi.MoveMemGBI1.G_MV_L2:
-    case gbi.MoveMemGBI1.G_MV_L3:
-    case gbi.MoveMemGBI1.G_MV_L4:
-    case gbi.MoveMemGBI1.G_MV_L5:
-    case gbi.MoveMemGBI1.G_MV_L6:
-    case gbi.MoveMemGBI1.G_MV_L7:
-      {
-        const lightIdx = (type - gbi.MoveMemGBI1.G_MV_L0) / 2;
-        moveMemLight(lightIdx, address);
-      }
-      break;
-  }
-}
-
-function executeGBI1_MoveWord(cmd0, cmd1, dis) {
-  const type = (cmd0) & 0xff;
-  const offset = (cmd0 >>> 8) & 0xffff;
-  const value = cmd1;
-
-  if (dis) {
-    let text = `gMoveWd(${gbi.MoveWord.nameOf(type)}, ${toString16(offset)}, ${toString32(value)});`;
-
-    switch (type) {
-      case gbi.MoveWord.G_MW_NUMLIGHT:
-        if (offset === gbi.G_MWO_NUMLIGHT) {
-          let v = ((value - 0x80000000) >>> 5) - 1;
-          text = `gsSPNumLights(${gbi.NumLights.nameOf(v)});`;
-        }
-        break;
-      case gbi.MoveWord.G_MW_SEGMENT:
-        {
-          let v = value === 0 ? '0' : toString32(value);
-          text = `gsSPSegment(${(offset >>> 2) & 0xf}, ${v});`;
-        }
-        break;
-    }
-    dis.text(text);
-  }
-
-  switch (type) {
-    case gbi.MoveWord.G_MW_MATRIX:
-      haltUnimplemented(cmd0, cmd1);
-      break;
-    case gbi.MoveWord.G_MW_NUMLIGHT:
-      state.numLights = ((value - 0x80000000) >>> 5) - 1;
-      break;
-    case gbi.MoveWord.G_MW_CLIP:
-      /*unimplemented(cmd0,cmd1);*/ break;
-    case gbi.MoveWord.G_MW_SEGMENT:
-      state.segments[((offset >>> 2) & 0xf)] = value;
-      break;
-    case gbi.MoveWord.G_MW_FOG:
-      /*unimplemented(cmd0,cmd1);*/ break;
-    case gbi.MoveWord.G_MW_LIGHTCOL:
-      haltUnimplemented(cmd0, cmd1);
-      break;
-    case gbi.MoveWord.G_MW_POINTS:
-      haltUnimplemented(cmd0, cmd1);
-      break;
-    case gbi.MoveWord.G_MW_PERSPNORM:
-      /*unimplemented(cmd0,cmd1);*/ break;
-    default:
-      haltUnimplemented(cmd0, cmd1);
-      break;
-  }
 }
 
 const X_NEG = 0x01; //left
@@ -976,16 +780,12 @@ function initDepth() {
 
 // TODO: move all these to microcode classes.
 const ucodeGBI0 = {
-  0x03: executeGBI1_MoveMem,
   0xbb: executeGBI1_Texture,
-  0xbc: executeGBI1_MoveWord,
 };
 
 const ucodeGBI1 = {
-  0x03: executeGBI1_MoveMem,
   0xb2: executeGBI1_ModifyVtx,
   0xbb: executeGBI1_Texture,
-  0xbc: executeGBI1_MoveWord,
 };
 
 // const ucodeSprite2d = {
