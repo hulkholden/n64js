@@ -131,10 +131,10 @@ class DebugController {
   }
 
   setScrubTime(t) {
-    debugController.bailAfter = t;
-    this.setScrubText(debugController.bailAfter, debugController.numOps);
+    this.bailAfter = t;
+    this.setScrubText(this.bailAfter, this.numOps);
 
-    const $instr = $dlistOutput.find(`#I${debugController.bailAfter}`);
+    const $instr = $dlistOutput.find(`#I${this.bailAfter}`);
 
     $dlistOutput.scrollTop($dlistOutput.scrollTop() + $instr.position().top -
       $dlistOutput.height() / 2 + $instr.height() / 2);
