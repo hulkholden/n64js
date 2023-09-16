@@ -47,9 +47,6 @@ const debugController = new DebugController();
 
 const textureCache = new Map();
 
-const kDebugColorImages = true;
-let colorImages = new Map();
-
 let gl = null; // WebGL context for the canvas.
 
 let frameBuffer;
@@ -297,30 +294,6 @@ function executeUnknown(cmd0, cmd1) {
 function executeGBI1_Noop(cmd0, cmd1, dis) {
   if (dis) {
     dis.text('gsDPNoOp();');
-  }
-}
-
-function executeRDPLoadSync(cmd0, cmd1, dis) {
-  if (dis) {
-    dis.text('gsDPLoadSync();');
-  }
-}
-
-function executeRDPPipeSync(cmd0, cmd1, dis) {
-  if (dis) {
-    dis.text('gsDPPipeSync();');
-  }
-}
-
-function executeRDPTileSync(cmd0, cmd1, dis) {
-  if (dis) {
-    dis.text('gsDPTileSync();');
-  }
-}
-
-function executeRDPFullSync(cmd0, cmd1, dis) {
-  if (dis) {
-    dis.text('gsDPFullSync();');
   }
 }
 
@@ -929,63 +902,6 @@ function executeGBI1_Line3D(cmd0, cmd1, dis) {
   flushTris(tb);
 }
 
-function executeSetKeyGB(cmd0, cmd1, dis) {
-  if (dis) {
-    dis.text('gsDPSetKeyGB(???);');
-  }
-}
-
-function executeSetKeyR(cmd0, cmd1, dis) {
-  if (dis) {
-    dis.text('gsDPSetKeyR(???);');
-  }
-}
-
-function executeSetConvert(cmd0, cmd1, dis) {
-  if (dis) {
-    dis.text('gsDPSetConvert(???);');
-  }
-}
-
-function executeSetScissor(cmd0, cmd1, dis) {
-  const x0 = ((cmd0 >>> 12) & 0xfff) / 4.0;
-  const y0 = ((cmd0 >>> 0) & 0xfff) / 4.0;
-  const x1 = ((cmd1 >>> 12) & 0xfff) / 4.0;
-  const y1 = ((cmd1 >>> 0) & 0xfff) / 4.0;
-  const mode = (cmd1 >>> 24) & 0x2;
-
-  if (dis) {
-    dis.text(`gsDPSetScissor(${gbi.ScissorMode.nameOf(mode)}, ${x0}, ${y0}, ${x1}, ${y1});`);
-  }
-
-  state.scissor.x0 = x0;
-  state.scissor.y0 = y0;
-  state.scissor.x1 = x1;
-  state.scissor.y1 = y1;
-  state.scissor.mode = mode;
-
-  // FIXME: actually set this
-}
-
-function executeSetPrimDepth(cmd0, cmd1, dis) {
-  const z = (cmd1 >>> 16) & 0xffff;
-  const dz = (cmd1) & 0xffff;
-  if (dis) {
-    dis.text(`gsDPSetPrimDepth(${z},${dz});`);
-  }
-
-  // FIXME
-}
-
-function executeSetRDPOtherMode(cmd0, cmd1, dis) {
-  if (dis) {
-    dis.text(`gsDPSetOtherMode(${toString32(cmd0)}, ${toString32(cmd1)}); // TODO: fix formatting`);
-  }
-
-  state.rdpOtherModeH = cmd0;
-  state.rdpOtherModeL = cmd1;
-}
-
 // TODO: why is this needed if we check the hash as it's needed?
 function invalidateTileHashes() {
   for (let i = 0; i < 8; ++i) {
@@ -1238,67 +1154,6 @@ function executeTexRectFlip(cmd0, cmd1, dis) {
   }
 
   texRect(tileIdx, xl, yl, xh, yh, s0, t0, s1, t1, true);
-}
-
-function executeSetCombine(cmd0, cmd1, dis) {
-  if (dis) {
-    const mux0 = cmd0 & 0x00ffffff;
-    const mux1 = cmd1;
-    const decoded = shaders.getCombinerText(mux0, mux1);
-
-    dis.text(`gsDPSetCombine(${toString32(mux0)}, ${toString32(mux1)});\n${decoded}`);
-  }
-
-  state.combine.hi = cmd0 & 0x00ffffff;
-  state.combine.lo = cmd1;
-}
-
-function executeSetTImg(cmd0, cmd1, dis) {
-  const format = (cmd0 >>> 21) & 0x7;
-  const size = (cmd0 >>> 19) & 0x3;
-  const width = ((cmd0 >>> 0) & 0xfff) + 1;
-  const address = rdpSegmentAddress(cmd1);
-
-  if (dis) {
-    dis.text(`gsDPSetTextureImage(${gbi.ImageFormat.nameOf(format)}, ${gbi.ImageSize.nameOf(size)}, ${width}, ${toString32(address)});`);
-  }
-
-  state.textureImage.set(format, size, width, address)
-}
-
-function executeSetZImg(cmd0, cmd1, dis) {
-  const address = rdpSegmentAddress(cmd1);
-
-  if (dis) {
-    dis.text(`gsDPSetDepthImage(${toString32(address)});`);
-  }
-
-  state.depthImage.address = address;
-}
-
-function executeSetCImg(cmd0, cmd1, dis) {
-  const format = (cmd0 >>> 21) & 0x7;
-  const size = (cmd0 >>> 19) & 0x3;
-  const width = ((cmd0 >>> 0) & 0xfff) + 1;
-  const address = rdpSegmentAddress(cmd1);
-
-  if (dis) {
-    dis.text(`gsDPSetColorImage(${gbi.ImageFormat.nameOf(format)}, ${gbi.ImageSize.nameOf(size)}, ${width}, ${toString32(address)});`);
-  }
-
-  state.colorImage = {
-    format: format,
-    size: size,
-    width: width,
-    address: address
-  };
-
-  // TODO: Banjo Tooie and Pokemon Stadium render to multiple buffers in each display list.
-  // Need to set these up as separate framebuffers somehow
-  if (kDebugColorImages && !colorImages.get(address)) {
-    logger.log(`Setting colorImage to ${toString32(address)}, ${width}, size ${gbi.ImageSize.nameOf(size)}, format ${gbi.ImageFormat.nameOf(format)}`);
-    colorImages.set(address, true);
-  }
 }
 
 function executeGBI1_Vertex(cmd0, cmd1, dis) {
@@ -1761,24 +1616,10 @@ function initDepth() {
 const ucodeCommon = {
   0xe4: executeTexRect,
   0xe5: executeTexRectFlip,
-  0xe6: executeRDPLoadSync,
-  0xe7: executeRDPPipeSync,
-  0xe8: executeRDPTileSync,
-  0xe9: executeRDPFullSync,
-  0xea: executeSetKeyGB,
-  0xeb: executeSetKeyR,
-  0xec: executeSetConvert,
-  0xed: executeSetScissor,
-  0xee: executeSetPrimDepth,
-  0xef: executeSetRDPOtherMode,
   0xf0: executeLoadTLut,
   0xf3: executeLoadBlock,
   0xf4: executeLoadTile,
   0xf6: executeFillRect,
-  0xfc: executeSetCombine,
-  0xfd: executeSetTImg,
-  0xfe: executeSetZImg,
-  0xff: executeSetCImg
 };
 
 const ucodeGBI0 = {
