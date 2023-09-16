@@ -42,10 +42,10 @@ export class GBIMicrocode {
       [0xed, this.executeSetScissor],
       [0xee, this.executeSetPrimDepth],
       [0xef, this.executeSetRDPOtherMode],
-      // [0xf0, executeLoadTLut],
+      [0xf0, this.executeLoadTLut],
       [0xf2, this.executeSetTileSize],
-      // [0xf3, executeLoadBlock],
-      // [0xf4, executeLoadTile],
+      [0xf3, this.executeLoadBlock],
+      [0xf4, this.executeLoadTile],
       [0xf5, this.executeSetTile],
       // [0xf6, executeFillRect],
       [0xf7, this.executeSetFillColor],
@@ -304,5 +304,99 @@ export class GBIMicrocode {
       colorImages.set(address, true);
     }
   }
+ 
+  executeLoadBlock(cmd0, cmd1, dis) {
+    const tileIdx = (cmd1 >>> 24) & 0x7;
+    const lrs = (cmd1 >>> 12) & 0xfff;
+    const dxt = (cmd1 >>> 0) & 0xfff;
+    const uls = (cmd0 >>> 12) & 0xfff;
+    const ult = (cmd0 >>> 0) & 0xfff;
   
+    // Docs reckon these are ignored for all loadBlocks
+    if (uls !== 0) { this.hleHalt('Unexpected non-zero uls in load block'); }
+    if (ult !== 0) { this.hleHalt('Unexpected non-zero ult in load block'); }
+  
+    const tile = this.state.tiles[tileIdx];
+    const tileX0 = uls >>> 2;
+    const tileY0 = ult >>> 2;
+  
+    const ramAddress = this.state.textureImage.calcAddress(tileX0, tileY0);
+    const bytes = this.state.textureImage.texelsToBytes(lrs + 1);
+    const qwords = (bytes + 7) >>> 3;
+  
+    if (dis) {
+      const tt = gbi.getTileText(tileIdx);
+      dis.text(`gsDPLoadBlock(${tt}, ${uls}, ${ult}, ${lrs}, ${dxt});`);
+      dis.tip(`bytes ${bytes}, qwords ${qwords}`);
+    }
+  
+    this.state.tmem.loadBlock(tile, ramAddress, dxt, qwords);
+    this.state.invalidateTileHashes();
+  }
+  
+  executeLoadTile(cmd0, cmd1, dis) {
+    const tileIdx = (cmd1 >>> 24) & 0x7;
+    const lrs = (cmd1 >>> 12) & 0xfff;
+    const lrt = (cmd1 >>> 0) & 0xfff;
+    const uls = (cmd0 >>> 12) & 0xfff;
+    const ult = (cmd0 >>> 0) & 0xfff;
+  
+    const tile = this.state.tiles[tileIdx];
+    const tileX1 = lrs >>> 2;
+    const tileY1 = lrt >>> 2;
+    const tileX0 = uls >>> 2;
+    const tileY0 = ult >>> 2;
+  
+    const h = (tileY1 + 1) - tileY0;
+    const w = (tileX1 + 1) - tileX0;
+  
+    const ramAddress = this.state.textureImage.calcAddress(tileX0, tileY0);
+    const ramStride = this.state.textureImage.stride();
+    const rowBytes = this.state.textureImage.texelsToBytes(w);
+  
+    // loadTile pads rows to 8 bytes.
+    const tmemStride = (this.state.textureImage.size == gbi.ImageSize.G_IM_SIZ_32b) ? tile.line << 4 : tile.line << 3;
+  
+    // TODO: Limit the load to fetchedQWords?
+    // TODO: should be limited to 2048 texels, not 512 qwords.
+    const bytes = h * rowBytes;
+    const reqQWords = (bytes + 7) >>> 3;
+    const fetchedQWords = (reqQWords > 512) ? 512 : reqQWords;
+  
+    if (dis) {
+      const tt = gbi.getTileText(tileIdx);
+      dis.text(`gsDPLoadTile(${tt}, ${uls / 4}, ${ult / 4}, ${lrs / 4}, ${lrt / 4});`);
+      dis.tip(`size = (${w} x ${h}), rowBytes ${rowBytes}, ramStride ${ramStride}, tmemStride ${tmemStride}`);
+    }
+  
+    this.state.tmem.loadTile(tile, ramAddress, h, ramStride, rowBytes, tmemStride);
+    this.state.invalidateTileHashes();
+  }
+  
+  executeLoadTLut(cmd0, cmd1, dis) {
+    const tileIdx = (cmd1 >>> 24) & 0x7;
+    const count = (cmd1 >>> 14) & 0x3ff;
+  
+    // NB, in Daedalus, we interpret this similarly to a loadtile command,
+    // but in other places it's defined as a simple count parameter.
+    const uls = (cmd0 >>> 12) & 0xfff;
+    const ult = (cmd0 >>> 0) & 0xfff;
+    const lrs = (cmd1 >>> 12) & 0xfff;
+    const lrt = (cmd1 >>> 0) & 0xfff;
+  
+    if (dis) {
+      const tt = gbi.getTileText(tileIdx);
+      dis.text(`gsDPLoadTLUTCmd(${tt}, ${count}); //${uls}, ${ult}, ${lrs}, ${lrt}`);
+    }
+  
+    // Tlut fmt is sometimes wrong (in 007) and is set after tlut load, but
+    // before tile load. Format is always 16bpp - RGBA16 or IA16:
+    const ramAddress = this.state.textureImage.calcAddress(uls >>> 2, ult >>> 2, gbi.ImageSize.G_IM_SIZ_16b);
+  
+    const tile = this.state.tiles[tileIdx];
+    const texels = ((lrs - uls) >>> 2) + 1;
+  
+    this.state.tmem.loadTLUT(tile, ramAddress, texels);
+    this.state.invalidateTileHashes();
+  }
 }
