@@ -63,13 +63,6 @@ let canvasScale = 1;
 let ramDV;
 
 const state = new RSPState();
-let blitShaderProgram;
-let blitVertexPositionAttribute;
-let blitTexCoordAttribute;
-let blitSamplerUniform;
-
-let n64PositionsBuffer;
-let n64UVBuffer;
 
 // TODO: provide a HLE object and instantiate these in the constructor.
 function getRamDataView() { return n64js.hardware().cachedMemDevice.mem.dataView; }
@@ -115,54 +108,6 @@ function initWebGL(canvas) {
   if (!gl) {
     alert("Unable to initialize WebGL. Your browser may not support it.");
   }
-}
-
-function copyBackBufferToFrontBuffer(texture) {
-  // Passing null binds the framebuffer to the canvas.
-  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-
-  const vertices = [
-    -1.0, -1.0, 0.0, 1.0,
-    1.0, -1.0, 0.0, 1.0,
-    -1.0, 1.0, 0.0, 1.0,
-    1.0, 1.0, 0.0, 1.0
-  ];
-
-  const uvs = [
-    0.0, 0.0,
-    1.0, 0.0,
-    0.0, 1.0,
-    1.0, 1.0
-  ];
-
-  gl.useProgram(blitShaderProgram);
-
-  const canvas = document.getElementById('display');
-  gl.viewport(0, 0, canvas.width, canvas.height);
-
-  // aVertexPosition
-  gl.enableVertexAttribArray(blitVertexPositionAttribute);
-  gl.bindBuffer(gl.ARRAY_BUFFER, n64PositionsBuffer);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-  gl.vertexAttribPointer(blitVertexPositionAttribute, 4, gl.FLOAT, false, 0, 0);
-
-  // aTextureCoord
-  gl.enableVertexAttribArray(blitTexCoordAttribute);
-  gl.bindBuffer(gl.ARRAY_BUFFER, n64UVBuffer);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uvs), gl.STATIC_DRAW);
-  gl.vertexAttribPointer(blitTexCoordAttribute, 2, gl.FLOAT, false, 0, 0);
-
-  // uSampler
-  gl.activeTexture(gl.TEXTURE0);
-  gl.bindTexture(gl.TEXTURE_2D, texture);
-  gl.uniform1i(blitSamplerUniform, 0);
-
-  gl.disable(gl.CULL_FACE);
-  gl.disable(gl.BLEND);
-  gl.disable(gl.DEPTH_TEST);
-  gl.depthMask(false);
-
-  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 }
 
 // const ucodeSprite2d = {
@@ -213,7 +158,7 @@ export function presentBackBuffer() {
   n64js.onPresent();
 
   if (numDisplayListsRendered !== 0) {
-    copyBackBufferToFrontBuffer(frameBufferTexture3D);
+    renderer.copyBackBufferToFrontBuffer(frameBufferTexture3D);
     return;
   }
 
@@ -236,7 +181,7 @@ export function presentBackBuffer() {
     // Invalid mode.
   }
 
-  copyBackBufferToFrontBuffer(frameBufferTexture2D);
+  renderer.copyBackBufferToFrontBuffer(frameBufferTexture2D);
 }
 
 function initViScales() {
@@ -745,14 +690,6 @@ export function initialiseRenderer($canvas) {
 
   // Passing null binds the framebuffer to the canvas.
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-
-  blitShaderProgram = shaders.createShaderProgram(gl, "blit-shader-vs", "blit-shader-fs");
-  blitVertexPositionAttribute = gl.getAttribLocation(blitShaderProgram, "aVertexPosition");
-  blitTexCoordAttribute = gl.getAttribLocation(blitShaderProgram, "aTextureCoord");
-  blitSamplerUniform = gl.getUniformLocation(blitShaderProgram, "uSampler");
-
-  n64PositionsBuffer = gl.createBuffer();
-  n64UVBuffer = gl.createBuffer();
 
   nativeTransform = new NativeTransform();
 
