@@ -24,7 +24,8 @@ export class GBIMicrocode {
     this.triangleBuffer = new TriangleBuffer(64);
   }
 
-  patchTable(tbl, ucode) {
+  getHandler(command) {
+    return null;
   }
 
   executeSpNoop(cmd0, cmd1, dis) {

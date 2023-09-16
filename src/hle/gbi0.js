@@ -1,25 +1,70 @@
 import { toString32 } from "../format.js";
-import { GBIMicrocode, kUCode_GBI0_GE, kUCode_GBI0_WR } from "./gbi_microcode.js";
+import { GBI1 } from "./gbi1.js";
 
-export class GBI0 extends GBIMicrocode {
+// GBI0 is very similar to GBI1 with a few small differences, so we extend that instead of GBIMicrocode.
+export class GBI0 extends GBI1 {
   constructor(state, ramDV, vertexStride) {
     super(state, ramDV, vertexStride);
   }
 
-  patchTable(tbl, ucode) {
-    switch (ucode) {
-      case kUCode_GBI0_WR:
-        tbl[0x04] = this.executeVertexWR.bind(this);
-        break;
-      case kUCode_GBI0_GE:
-        tbl[0xb1] = this.executeTri4.bind(this);
-        tbl[0xb2] = this.executeSpNoop.bind(this); // FIXME
-        tbl[0xb4] = this.executeSpNoop.bind(this); // FIXME - DLParser_RDPHalf1_GoldenEye;
-        break;
-    }  
+  getHandler(command) {
+    switch (command) {
+      case 0x00: return this.executeSpNoop;
+      // 0x01: executeGBI1_Matrix,
+      // 0x03: executeGBI1_MoveMem,
+      case 0x04: return this.executeVertex;
+      // 0x06: executeGBI1_DL,
+      // 0x09: executeGBI1_Sprite2DBase,
+      // 0xb0: executeGBI1_BranchZ, // GBI1 only?
+      // 0xb1: executeGBI1_Tri2, // GBI1 only?
+      // 0xb2: executeGBI1_RDPHalf_Cont;
+      // 0xb3: executeGBI1_RDPHalf_2;
+      // 0xb4: executeGBI1_RDPHalf_1,
+      // 0xb5: executeGBI1_Line3D,
+      // 0xb6: executeGBI1_ClrGeometryMode,
+      // 0xb7: executeGBI1_SetGeometryMode,
+      // 0xb8: executeGBI1_EndDL,
+      // 0xb9: executeGBI1_SetOtherModeL,
+      // 0xba: executeGBI1_SetOtherModeH,
+      // 0xbb: executeGBI1_Texture,
+      // 0xbc: executeGBI1_MoveWord,
+      // 0xbd: executeGBI1_PopMatrix,
+      // 0xbe: executeGBI1_CullDL,
+      // 0xbf: executeGBI1_Tri1,
+      // 0xc0: executeGBI1_Noop,
+    }
+    return super.getHandler(command);
   }
 
-  executeTri4(cmd0, cmd1, dis) {
+  executeVertex(cmd0, cmd1, dis) {
+    const n = ((cmd0 >>> 20) & 0xf) + 1;
+    const v0 = (cmd0 >>> 16) & 0xf;
+    //const length = (cmd0 >>>  0) & 0xffff;
+    const address = this.state.rdpSegmentAddress(cmd1);
+
+    if (dis) {
+      dis.text(`gsSPVertex(${toString32(address)}, ${n}, ${v0});`);
+    }
+
+    this.executeVertexImpl(v0, n, address, dis);
+  }
+}
+
+export class GBI0GE extends GBI0 {
+  constructor(state, ramDV, vertexStride) {
+    super(state, ramDV, vertexStride);
+  }
+
+  getHandler(command, ucode) {
+    switch (command) {
+      case 0xb1: return this.executeTri4GE;
+      case 0xb2: return this.executeSpNoop; // FIXME
+      case 0xb3: return this.executeSpNoop; // FIXME - DLParser_RDPHalf1_GoldenEye;
+    }
+    return super.getHandler(command, ucode);
+  }
+
+  executeTri4GE(cmd0, cmd1, dis) {
     const kCommand = cmd0 >>> 24;
     const stride = this.vertexStride;
     const verts = this.state.projectedVertices;
@@ -70,18 +115,31 @@ export class GBI0 extends GBIMicrocode {
 
     this.flushTris(tb);
   }
+}
+
+
+export class GBI0WR extends GBI0 {
+  constructor(state, ramDV, vertexStride) {
+    super(state, ramDV, vertexStride);
+  }
+
+  getHandler(command) {
+    switch (command) {
+      case 0x04: return this.executeVertexWR;
+    }
+    return super.getHandler(command);
+  }
 
   executeVertexWR(cmd0, cmd1, dis) {
     const n = ((cmd0 >>> 9) & 0x7f);
     const v0 = ((cmd0 >>> 16) & 0xff) / 5;
     //const length = (cmd0 >>> 0) & 0x1ff;
     const address = this.state.rdpSegmentAddress(cmd1);
-  
+
     if (dis) {
       dis.text(`gsSPVertex(${toString32(address)}, ${n}, ${v0});`);
     }
-  
+
     this.executeVertexImpl(v0, n, address, dis);
   }
-  
 }
