@@ -390,7 +390,7 @@ export class GBI1 extends GBIMicrocode {
     this.state.pc = pc - 8;
     --this.debugController.currentOp;
 
-    this.flushTris(tb);
+    this.renderer.flushTris(tb);
   }
 
   executeTri2(cmd0, cmd1, dis) {
@@ -426,7 +426,7 @@ export class GBI1 extends GBIMicrocode {
     this.state.pc = pc - 8;
     --this.debugController.currentOp;
 
-    this.flushTris(tb);
+    this.renderer.flushTris(tb);
   }
 
   executeLine3D(cmd0, cmd1, dis) {
@@ -471,6 +471,6 @@ export class GBI1 extends GBIMicrocode {
     this.state.pc = pc - 8;
     --this.debugController.currentOp;
 
-    this.flushTris(tb);
+    this.renderer.flushTris(tb);
   }
 }

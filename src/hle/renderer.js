@@ -14,6 +14,43 @@ export class Renderer {
     this.fillVerticesBuffer = gl.createBuffer();
   }
 
+  /**
+   * Flushes the contents of a TriangleBuffer.
+   * @param {TriangleBuffer} tb 
+   * @returns 
+   */
+  flushTris(tb) {
+    const gl = this.gl;
+    if (tb.empty()) {
+      return;
+    }
+
+    const textureEnabled = this.state.geometryMode.texture;
+    const texGenEnabled = this.state.geometryMode.lighting && this.state.geometryMode.textureGen;
+    this.setProgramState(tb.positions,
+      tb.colours,
+      tb.coords,
+      textureEnabled,
+      texGenEnabled,
+      this.state.texture.tile);
+
+    this.initDepth();
+
+    // texture filter
+
+    if (this.state.geometryMode.cullFront || this.state.geometryMode.cullBack) {
+      gl.enable(gl.CULL_FACE);
+      const mode = (this.state.geometryMode.cullFront) ? gl.FRONT : gl.BACK;
+      gl.cullFace(mode);
+    } else {
+      gl.disable(gl.CULL_FACE);
+    }
+
+    gl.drawArrays(gl.TRIANGLES, 0, tb.numTris * 3);
+    //gl.drawArrays(gl.LINE_STRIP, 0, numTris * 3);
+    tb.reset();
+  }
+
   fillRect(x0, y0, x1, y1, color) {
     const gl = this.gl;
 

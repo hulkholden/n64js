@@ -245,7 +245,7 @@ export class GBI2 extends GBIMicrocode {
     this.state.pc = pc - 8;
     --this.debugController.currentOp;
   
-    this.flushTris(tb);
+    this.renderer.flushTris(tb);
   }
   
   executeTri2(cmd0, cmd1, dis) {
@@ -280,7 +280,7 @@ export class GBI2 extends GBIMicrocode {
     this.state.pc = pc - 8;
     --this.debugController.currentOp;
   
-    this.flushTris(tb);
+    this.renderer.flushTris(tb);
   }
   
   // TODO: this is effectively the same as executeTri2, just different disassembly.
@@ -316,7 +316,7 @@ export class GBI2 extends GBIMicrocode {
     this.state.pc = pc - 8;
     --this.debugController.currentOp;
   
-    this.flushTris(tb);
+    this.renderer.flushTris(tb);
   }
   
   executeModifyVtx(cmd0, cmd1, dis) {

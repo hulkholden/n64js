@@ -103,7 +103,7 @@ export class GBI0GE extends GBI0 {
     this.state.pc = pc - 8;
     --this.debugController.currentOp;
 
-    this.flushTris(tb);
+    this.renderer.flushTris(tb);
   }
 }
 
