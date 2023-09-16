@@ -28,6 +28,11 @@ export function debugDisplayListRequested() {
   return debugController.requested;
 }
 
+export function toggleDebugDisplayList() {
+  debugController.toggle();
+}
+
+
 class DebugController {
   constructor() {
     // This is updated as we're executing, so that we know which instruction to halt on.
@@ -38,6 +43,68 @@ class DebugController {
     this.stateTimeShown = -1;
     this.running = false;
     this.requested = false;
+  }
+
+  onNewTask(task) {
+    // Bodgily track these parameters so that we can call again with the same params.
+    this.lastTask = task;
+
+    // Force the cpu to stop at the point that we render the display list.
+    if (this.requested) {
+      this.requested = false;
+
+      // Finally, break execution so we can keep replaying the display list
+      // before any other state changes.
+      n64js.breakEmulationForDisplayListDebug();
+
+      this.stateTimeShown = -1;
+      this.running = true;
+    }
+  }
+
+  toggle() {
+    if (this.running) {
+      hideDebugDisplayListUI();
+      this.bailAfter = -1;
+      this.running = false;
+      n64js.toggleRun();
+    } else {
+      showDebugDisplayListUI();
+      this.requested = true;
+    }
+  }
+
+  initUI() {
+    const $dlistControls = $dlistContent.find('#controls');
+
+    this.bailAfter = -1;
+    this.numOps = 0;
+
+    $dlistControls.find('#rwd').click(() => {
+      if (this.running && this.bailAfter > 0) {
+        setScrubTime(this.bailAfter - 1);
+      }
+    });
+    $dlistControls.find('#fwd').click(() => {
+      if (this.running && this.bailAfter < this.numOps) {
+        setScrubTime(this.bailAfter + 1);
+      }
+    });
+    $dlistControls.find('#stop').click(() => {
+      toggleDebugDisplayList();
+    });
+
+    $dlistScrub = $dlistControls.find('.scrub');
+    $dlistScrub.find('input').change(function () {
+      setScrubTime($(this).val() | 0);
+    });
+    setScrubRange(0);
+
+    $dlistState = $dlistContent.find('.hle-state');
+
+    $dlistOutput = $('<div class="hle-disasm"></div>');
+    $('#adjacent-debug').empty().append($dlistOutput);
+
   }
 }
 const debugController = new DebugController();
@@ -358,18 +425,6 @@ function hideDebugDisplayListUI() {
   $('.debug').hide();
 }
 
-export function toggleDebugDisplayList() {
-  if (debugController.running) {
-    hideDebugDisplayListUI();
-    debugController.bailAfter = -1;
-    debugController.running = false;
-    n64js.toggleRun();
-  } else {
-    showDebugDisplayListUI();
-    debugController.requested = true;
-  }
-}
-
 // This is called repeatedly so that we can update the UI.
 // We can return false if we don't render anything, but it's useful to keep re-rendering so that we can plot a framerate graph
 export function debugDisplayList() {
@@ -402,21 +457,7 @@ export function debugDisplayList() {
 }
 
 export function hleGraphics(task) {
-  // Bodgily track these parameters so that we can call again with the same params.
-  debugController.lastTask = task;
-
-  // Force the cpu to stop at the point that we render the display list.
-  if (debugController.requested) {
-    debugController.requested = false;
-
-    // Finally, break execution so we can keep replaying the display list
-    // before any other state changes.
-    n64js.breakEmulationForDisplayListDebug();
-
-    debugController.stateTimeShown = -1;
-    debugController.running = true;
-  }
-
+  debugController.onNewTask(task)
   processDList(task, null, -1);
 }
 
@@ -496,40 +537,8 @@ function setScrubTime(t) {
   $instr.css('background-color', 'rgb(255,255,204)');
 }
 
-function initDebugUI() {
-  const $dlistControls = $dlistContent.find('#controls');
-
-  debugController.bailAfter = -1;
-  debugController.numOps = 0;
-
-  $dlistControls.find('#rwd').click(() => {
-    if (debugController.running && debugController.bailAfter > 0) {
-      setScrubTime(debugController.bailAfter - 1);
-    }
-  });
-  $dlistControls.find('#fwd').click(() => {
-    if (debugController.running && debugController.bailAfter < debugController.numOps) {
-      setScrubTime(debugController.bailAfter + 1);
-    }
-  });
-  $dlistControls.find('#stop').click(() => {
-    toggleDebugDisplayList();
-  });
-
-  $dlistScrub = $dlistControls.find('.scrub');
-  $dlistScrub.find('input').change(function () {
-    setScrubTime($(this).val() | 0);
-  });
-  setScrubRange(0);
-
-  $dlistState = $dlistContent.find('.hle-state');
-
-  $dlistOutput = $('<div class="hle-disasm"></div>');
-  $('#adjacent-debug').empty().append($dlistOutput);
-}
-
 export function initialiseRenderer($canvas) {
-  initDebugUI();
+  debugController.initUI();
 
   const canvas = $canvas[0];
   initWebGL(canvas); // Initialize the GL context
