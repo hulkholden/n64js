@@ -32,6 +32,9 @@ export function toggleDebugDisplayList() {
   debugController.toggle();
 }
 
+export function debugDisplayList() {
+  debugController.debugDisplayList();
+}
 
 class DebugController {
   constructor() {
@@ -85,6 +88,33 @@ class DebugController {
     // End set up the context
     this.bailAfter = this.currentOp;
     this.stateTimeShown = -1;
+  }
+
+  debugDisplayList() {
+    if (this.stateTimeShown == -1) {
+      // Build some disassembly for this display list
+      const disassembler = new Disassembler();
+      processDList(this.lastTask, disassembler, -1);
+      disassembler.finalise();
+  
+      // Update the scrubber based on the new length of disassembly
+      this.numOps = disassembler.numOps > 0 ? (disassembler.numOps - 1) : 0;
+      setScrubRange(this.numOps);
+  
+      // If this.bailAfter hasn't been set (e.g. by hleHalt), stop at the end of the list
+      const timeToShow = (this.bailAfter == -1) ? this.numOps : this.bailAfter;
+      setScrubTime(timeToShow);
+    }
+  
+    // Replay the last display list using the captured task/ram
+    processDList(this.lastTask, null, this.bailAfter);
+  
+    // Only update the state display when needed, otherwise it's impossible to
+    // debug the dom in Chrome
+    if (this.stateTimeShown !== this.bailAfter) {
+      updateStateUI();
+      this.stateTimeShown = this.bailAfter;
+    }
   }
 
   initUI() {
@@ -435,37 +465,6 @@ function updateStateUI() {
   $dlistState.find('#dl-textures-content').html(buildTexturesTab());
   $dlistState.find('#dl-combiner-content').html(buildCombinerTab());
   $dlistState.find('#dl-rdp-content').html(buildRDPTab());
-}
-
-// This is called repeatedly so that we can update the UI.
-// We can return false if we don't render anything, but it's useful to keep re-rendering so that we can plot a framerate graph
-export function debugDisplayList() {
-  if (debugController.stateTimeShown == -1) {
-    // Build some disassembly for this display list
-    const disassembler = new Disassembler();
-    processDList(debugController.lastTask, disassembler, -1);
-    disassembler.finalise();
-
-    // Update the scrubber based on the new length of disassembly
-    debugController.numOps = disassembler.numOps > 0 ? (disassembler.numOps - 1) : 0;
-    setScrubRange(debugController.numOps);
-
-    // If debugController.bailAfter hasn't been set (e.g. by hleHalt), stop at the end of the list
-    const timeToShow = (debugController.bailAfter == -1) ? debugController.numOps : debugController.bailAfter;
-    setScrubTime(timeToShow);
-  }
-
-  // Replay the last display list using the captured task/ram
-  processDList(debugController.lastTask, null, debugController.bailAfter);
-
-  // Only update the state display when needed, otherwise it's impossible to
-  // debug the dom in Chrome
-  if (debugController.stateTimeShown !== debugController.bailAfter) {
-    updateStateUI();
-    debugController.stateTimeShown = debugController.bailAfter;
-  }
-
-  return true;
 }
 
 export function hleGraphics(task) {
