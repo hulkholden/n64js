@@ -287,13 +287,7 @@ function buildRDPTab() {
 }
 
 function buildColorsTable() {
-  const colors = [
-    'fillColor',
-    'envColor',
-    'primColor',
-    'blendColor',
-    'fogColor',
-  ];
+  const colors = ['fillColor', 'envColor', 'primColor', 'blendColor', 'fogColor'];
 
   const $table = $('<table class="table table-condensed dl-debug-table" style="width: auto;"></table>');
   for (let color of colors) {
@@ -334,25 +328,11 @@ function buildTexturesTab() {
 function buildTilesTable() {
   const tileFields = [
     'tile #',
-    'format',
-    'size',
-    'line',
-    'tmem',
-    'palette',
-    'cmS',
-    'maskS',
-    'shiftS',
-    'cmT',
-    'maskT',
-    'shiftT',
-    'left',
-    'top',
-    'right',
-    'bottom',
-    'width',
-    'height',
-    'unmasked w',
-    'unmasked h',
+    'format', 'size', 'line', 'tmem', 'palette',
+    'cmS', 'maskS', 'shiftS',
+    'cmT', 'maskT', 'shiftT',
+    'left', 'top', 'right', 'bottom',
+    'width', 'height', 'unmasked w', 'unmasked h',
   ];
 
   const $table = $('<table class="table table-condensed dl-debug-table" style="width: auto"></table>');
@@ -397,19 +377,7 @@ function buildTilesTable() {
 }
 
 function buildVerticesTab() {
-  const vtxFields = [
-    'vtx #',
-    'x',
-    'y',
-    'z',
-    'px',
-    'py',
-    'pz',
-    'pw',
-    'color',
-    'u',
-    'v'
-  ];
+  const vtxFields = ['vtx #', 'x', 'y', 'z', 'px', 'py', 'pz', 'pw', 'color', 'u', 'v'];
 
   const $table = $('<table class="table table-condensed dl-debug-table" style="width: auto"></table>');
   const headingTR = $(`<tr><th>${vtxFields.join('</th><th>')}</th></tr>`);
@@ -523,7 +491,6 @@ export function hleGraphics(task) {
 
   processDList(task, null, -1);
 }
-
 
 function processDList(task, disassembler, bailAfter) {
   // Update a counter to tell the video code that we've rendered something.
