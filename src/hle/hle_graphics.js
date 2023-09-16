@@ -60,8 +60,6 @@ let renderer;
 // TODO: expose this on the UI somewhere.
 let canvasScale = 1;
 
-let ramDV;
-
 const state = new RSPState();
 
 // TODO: provide a HLE object and instantiate these in the constructor.
@@ -120,8 +118,8 @@ function initWebGL(canvas) {
 //   0x07:  executeGBI1_DLInMem,
 // };
 
-function buildUCodeTables(ucode) {
-  const microcode = createMicrocode(ucode);
+function buildUCodeTables(ucode, ramDV) {
+  const microcode = createMicrocode(ucode, ramDV);
   // TODO: pass rendering object to microcode constructor.
   microcode.debugController = debugController;
   microcode.hleHalt = hleHalt;
@@ -132,7 +130,7 @@ function buildUCodeTables(ucode) {
   return microcode.buildCommandTable();
 }
 
-function createMicrocode(ucode) {
+function createMicrocode(ucode, ramDV) {
   switch (ucode) {
     case microcodes.kUCode_GBI0:
     case microcodes.kUCode_GBI0_DKR:
@@ -536,7 +534,8 @@ function processDList(task, disassembler, bailAfter) {
 
   let ucode = detect(task);
   const ram = getRamDataView();
-  const ucodeTable = resetState(ucode, ram, task.data_ptr);
+  state.reset(task.data_ptr);
+  const ucodeTable = buildUCodeTables(ucode, ram);
 
   // Render everything to the back buffer. This prevents horrible flickering
   // if due to webgl clearing our context between updates.
@@ -580,12 +579,6 @@ function processDList(task, disassembler, bailAfter) {
   }
 
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-}
-
-function resetState(ucode, ram, pc) {
-  ramDV = ram;
-  state.reset(pc);
-  return buildUCodeTables(ucode, ramDV);
 }
 
 function setScrubText(x, max) {
@@ -700,7 +693,6 @@ export function initialiseRenderer($canvas) {
 export function resetRenderer() {
   textureCache.clear();
   $textureOutput.html('');
-  ramDV = getRamDataView();
 }
 
 /**
