@@ -93,6 +93,14 @@ export class DebugController {
     }
   }
 
+  postOp(bailAfter) {
+    if (bailAfter > -1 && this.currentOp >= bailAfter) {
+      return true;
+    }
+    this.currentOp++;
+    return false;
+  }
+
   updateStateUI() {
     $dlistState.find('#dl-geometrymode-content').html(this.buildStateTab());
     $dlistState.find('#dl-vertices-content').html(this.buildVerticesTab());
