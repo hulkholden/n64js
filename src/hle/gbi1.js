@@ -12,7 +12,7 @@ export class GBI1 extends GBIMicrocode {
       // [0x03, executeGBI1_MoveMem],
       [0x04, this.executeVertex],
       // [0x06, executeGBI1_DL],
-      // [0x09, executeGBI1_Sprite2DBase],
+      [0x09, this.executeSprite2DBase],
     
       // [0xb0, executeGBI1_BranchZ],
       // [0xb1, executeGBI1_Tri2],
@@ -85,4 +85,8 @@ export class GBI1 extends GBIMicrocode {
     this.executeVertexImpl(v0, n, address, dis);
   }
   
+  executeSprite2DBase(cmd0, cmd1) {
+    this.logUnimplemented('Sprite2DBase');
+  }
+
 }

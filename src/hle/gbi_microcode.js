@@ -1,3 +1,5 @@
+/*global n64js*/
+
 import { toString32 } from '../format.js';
 import { Matrix4x4 } from '../graphics/Matrix4x4.js';
 import * as logger from '../logger.js';
@@ -19,8 +21,12 @@ export const kUCode_GBI0_GE = 9;
 export const kUCode_GBI2_CONKER = 10;
 export const kUCode_GBI0_PD = 11;
 
+// Map to keep track of which render targets we've seen.
 const kDebugColorImages = true;
 let colorImages = new Map();
+
+// Map to keep track of which unimplemented ops we've already warned about.
+const loggedUnimplemented = new Map();
 
 export class GBIMicrocode {
   constructor(state, ramDV, vertexStride) {
@@ -67,6 +73,14 @@ export class GBIMicrocode {
       return fn;
     }
     return null;
+  }
+
+  logUnimplemented(name) {
+    if (loggedUnimplemented.get(name)) {
+      return;
+    }
+    loggedUnimplemented.set(name, true);
+    n64js.warn(`${name} unimplemented`);
   }
 
   loadMatrix(address) {
