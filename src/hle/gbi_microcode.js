@@ -87,6 +87,18 @@ export class GBIMicrocode {
     ]);
   }
 
+  buildCommandTable() {
+    const table = [];
+    for (let i = 0; i < 256; ++i) {
+      let fn = this.getHandler(i);
+      if (!fn) {
+        fn = this.executeUnknown;
+      }
+      table.push(fn.bind(this));
+    }
+    return table;
+  }
+
   getHandler(command) {
     const fn = this.gbiCommonCommands.get(command);
     if (fn) {
@@ -101,6 +113,11 @@ export class GBIMicrocode {
     }
     loggedUnimplemented.set(name, true);
     n64js.warn(`${name} unimplemented`);
+  }
+
+  executeUnknown(cmd0, cmd1) {
+    this.hleHalt(`Unknown display list op ${toString8(cmd0 >>> 24)}`);
+    this.state.pc = 0;
   }
 
   haltUnimplemented(cmd0, cmd1) {
