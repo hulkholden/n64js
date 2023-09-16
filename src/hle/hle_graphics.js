@@ -45,7 +45,6 @@ let gl = null; // WebGL context for the canvas.
 
 let frameBuffer;
 let frameBufferTexture3D;  // For roms using display lists
-let frameBufferTexture2D;  // For roms writing directly to the frame buffer
 
 let renderer;
 
@@ -135,18 +134,7 @@ export function presentBackBuffer() {
   if (!pixels) {
     return;
   }
-  gl.activeTexture(gl.TEXTURE0);
-  gl.bindTexture(gl.TEXTURE_2D, frameBufferTexture2D);
-
-  if (vi.is32BitMode) {
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, vi.screenWidth, vi.screenHeight, 0, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-  } else if (vi.is16BitMode) {
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, vi.screenWidth, vi.screenHeight, 0, gl.RGBA, gl.UNSIGNED_SHORT_5_5_5_1, pixels);
-  } else {
-    // Invalid mode.
-  }
-
-  renderer.copyBackBufferToFrontBuffer(frameBufferTexture2D);
+  renderer.copyPixelsToFrontBuffer(pixels, vi.screenWidth, vi.screenHeight, vi.bitDepth);
 }
 
 function initViScales() {
@@ -583,14 +571,6 @@ export function initialiseRenderer($canvas) {
   if (!gl) {
     return;
   }
-
-  frameBufferTexture2D = gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D, frameBufferTexture2D);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-  // We call texImage2D to initialise frameBufferTexture2D with the correct dimensions when it's used.
 
   frameBuffer = gl.createFramebuffer();
   gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);

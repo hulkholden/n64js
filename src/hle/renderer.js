@@ -24,6 +24,14 @@ export class Renderer {
 
     this.textureCache = new Map();
 
+    this.frameBufferTexture2D = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, this.frameBufferTexture2D);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    // We call texImage2D to initialise frameBufferTexture2D with the correct dimensions when it's used.
+ 
     this.blitShaderProgram = shaders.createShaderProgram(gl, "blit-shader-vs", "blit-shader-fs");
     this.blitVertexPositionAttribute = gl.getAttribLocation(this.blitShaderProgram, "aVertexPosition");
     this.blitTexCoordAttribute = gl.getAttribLocation(this.blitShaderProgram, "aTextureCoord");
@@ -93,6 +101,22 @@ export class Renderer {
     gl.depthMask(false);
 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+
+  copyPixelsToFrontBuffer(pixels, width, height, bitDepth) {
+    const gl = this.gl;
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, this.frameBufferTexture2D);
+
+    if (bitDepth == 32) {
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+    } else if (bitDepth == 16) {
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_SHORT_5_5_5_1, pixels);
+    } else {
+      // Invalid mode.
+    }
+
+    this.copyBackBufferToFrontBuffer(this.frameBufferTexture2D);
   }
 
   /**
