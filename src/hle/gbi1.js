@@ -87,8 +87,12 @@ export class GBI1 extends GBIMicrocode {
     this.executeVertexImpl(v0, n, address, dis);
   }
   
-  executeSprite2DBase(cmd0, cmd1) {
+  executeSprite2DBase(cmd0, cmd1, dis) {
     this.logUnimplemented('Sprite2DBase');
+
+    if (dis) {
+      dis.text(`gsSPSprite2DBase(/* TODO */);`);
+    }
   }
 
   executeTri1(cmd0, cmd1, dis) {
