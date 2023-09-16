@@ -3,7 +3,6 @@
 
 import { padString, toHex, toString8, toString16, toString32 } from '../format.js';
 import * as logger from '../logger.js';
-import { Matrix4x4 } from '../graphics/Matrix4x4.js';
 import { Transform2D } from '../graphics/Transform2D.js';
 import { Vector2 } from '../graphics/Vector2.js';
 import { Vector3 } from '../graphics/Vector3.js';
@@ -219,17 +218,6 @@ function makeColorTextRGBA16(col) {
 
 function haltUnimplemented(cmd0, cmd1) {
   hleHalt(`Unimplemented display list op ${toString8(cmd0 >>> 24)}`);
-}
-
-// Map to keep track of which unimplemented ops we've already warned about.
-const loggedUnimplemented = new Map();
-
-function logUnimplemented(name) {
-  if (loggedUnimplemented.get(name)) {
-    return;
-  }
-  loggedUnimplemented.set(name, true);
-  n64js.warn(`${name} unimplemented`);
 }
 
 // Map to keep track of which unimplemented blend modes we've already warned about.
@@ -600,14 +588,6 @@ function executeVertexImpl(v0, n, address, dis) {
     //const tv = dv.getInt16(vtxBase + 10);
     //const rgba = dv.getInt16(vtxBase + 12);    // nx/ny/nz/a
   }
-}
-
-function executeGBI1_Sprite2DBase(cmd0, cmd1) {
-  logUnimplemented('executeGBI1_Sprite2DBase');
-}
-
-function executeGBI1_RDPHalf_Cont(cmd0, cmd1) {
-  logUnimplemented('executeGBI1_RDPHalf_Cont');
 }
 
 function executeGBI1_RDPHalf_2(cmd0, cmd1, dis) {
@@ -1268,11 +1248,9 @@ function initDepth() {
 const ucodeGBI0 = {
   0x03: executeGBI1_MoveMem,
   0x06: executeGBI1_DL,
-  0x09: executeGBI1_Sprite2DBase,
 
   0xb0: executeGBI1_BranchZ, // GBI1 only?
   0xb1: executeGBI1_Tri2, // GBI1 only?
-  0xb2: executeGBI1_RDPHalf_Cont,
   0xb3: executeGBI1_RDPHalf_2,
   0xb4: executeGBI1_RDPHalf_1,
   0xb5: executeGBI1_Line3D,
@@ -1292,7 +1270,6 @@ const ucodeGBI0 = {
 const ucodeGBI1 = {
   0x03: executeGBI1_MoveMem,
   0x06: executeGBI1_DL,
-  0x09: executeGBI1_Sprite2DBase,
 
   0xb0: executeGBI1_BranchZ,
   0xb1: executeGBI1_Tri2,
@@ -1314,28 +1291,20 @@ const ucodeGBI1 = {
 };
 
 const ucodeGBI2 = {
-  0x00: executeGBI2_Noop,
   0x02: executeGBI2_ModifyVtx,
   0x03: executeGBI2_CullDL,
-  0x04: executeGBI2_BranchZ,
   0x05: executeGBI2_Tri1,
   0x06: executeGBI2_Tri2,
   0x07: executeGBI2_Quad,
-  0x08: executeGBI2_Line3D,
-  0x09: executeGBI2_BgRect1Cyc,
-  0x0a: executeGBI2_BgRectCopy,
-  0x0b: executeGBI2_ObjRenderMode,
 
   // 0xd3: executeGBI2_Special1,
   // 0xd4: executeGBI2_Special2,
   // 0xd5: executeGBI2_Special3,
-  0xd6: executeGBI2_DmaIo,
   0xd7: executeGBI2_Texture,
   0xd8: executeGBI2_PopMatrix,
   0xd9: executeGBI2_GeometryMode,
   0xdb: executeGBI2_MoveWord,
   0xdc: executeGBI2_MoveMem,
-  0xdd: executeGBI2_LoadUcode,
   0xde: executeGBI2_DL,
   0xdf: executeGBI2_EndDL,
 
@@ -1346,12 +1315,6 @@ const ucodeGBI2 = {
 
   0xf1: executeGBI2_RDPHalf_2
 };
-
-function executeGBI2_Noop(cmd0, cmd1, dis) {
-  if (dis) {
-    dis.text('gsDPNoOp();');
-  }
-}
 
 function executeGBI2_ModifyVtx(cmd0, cmd1, dis) {
   const vtx = (cmd0 >>> 1) & 0x7fff;
@@ -1403,10 +1366,6 @@ function executeGBI2_ModifyVtx(cmd0, cmd1, dis) {
 function executeGBI2_CullDL(cmd0, cmd1, dis) {
   // Same imple as GBI1.
   executeGBI1_CullDL(cmd0, cmd1, dis);
-}
-
-function executeGBI2_BranchZ(cmd0, cmd1, dis) {
-  logUnimplemented('executeGBI2_BranchZ')
 }
 
 function executeGBI2_Tri1(cmd0, cmd1, dis) {
@@ -1511,46 +1470,6 @@ function executeGBI2_Quad(cmd0, cmd1, dis) {
   --debugController.currentOp;
 
   flushTris(tb);
-}
-
-function executeGBI2_Line3D(cmd0, cmd1, dis) {
-  logUnimplemented('executeGBI2_Line3D');
-
-  if (dis) {
-    dis.text(`gsSPLine3D(/* TODO */);`);
-  }
-}
-
-function executeGBI2_BgRect1Cyc(cmd0, cmd1, dis) {
-  logUnimplemented('executeGBI2_BgRect1Cyc');
-
-  if (dis) {
-    dis.text(`gsSPBgRect1Cyc(/* TODO */);`);
-  }
-}
-
-function executeGBI2_BgRectCopy(cmd0, cmd1, dis) {
-  logUnimplemented('executeGBI2_BgRectCopy');
-
-  if (dis) {
-    dis.text(`gsSPBgRectCopy(/* TODO */);`);
-  }
-}
-
-function executeGBI2_ObjRenderMode(cmd0, cmd1, dis) {
-  logUnimplemented('executeGBI2_ObjRenderMode');
-
-  if (dis) {
-    dis.text(`gsSPObjRenderMode(/* TODO */);`);
-  }
-}
-
-function executeGBI2_DmaIo(cmd0, cmd1, dis) {
-  // No-op?
-
-  if (dis) {
-    dis.text(`DmaIo(/* TODO */);`);
-  }
 }
 
 function executeGBI2_Texture(cmd0, cmd1, dis) {
@@ -1733,10 +1652,6 @@ function executeGBI2_MoveMem(cmd0, cmd1, dis) {
     dis.text(text);
     previewGBI2_MoveMem(type, length, address, dis);
   }
-}
-
-function executeGBI2_LoadUcode(cmd0, cmd1, dis) {
-  logUnimplemented('executeGBI2_LoadUcode');
 }
 
 function executeGBI2_DL(cmd0, cmd1, dis) {

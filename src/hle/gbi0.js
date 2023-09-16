@@ -10,7 +10,7 @@ export class GBI0 extends GBI1 {
       // TODO: check if we need to handle these differently.
       // [0xb0, executeGBI1_BranchZ], // GBI1 only?
       // [0xb1, executeGBI1_Tri2], // GBI1 only?
-      // [0xb2, executeGBI1_RDPHalf_Cont],
+      [0xb2, this.executeRDPHalf_Cont],
     ]);
   }
 
@@ -33,6 +33,10 @@ export class GBI0 extends GBI1 {
     }
 
     this.executeVertexImpl(v0, n, address, dis);
+  }
+
+  executeRDPHalf_Cont(cmd0, cmd1) {
+    this.logUnimplemented('RDPHalf_Cont');
   }
 }
 
