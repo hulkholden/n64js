@@ -1176,6 +1176,9 @@ function executeSetTile(cmd0, cmd1, dis) {
   const maskS = (cmd1 >>> 4) & 0xf;
   const shiftS = (cmd1 >>> 0) & 0xf;
 
+  const tile = state.tiles[tileIdx];
+  tile.set(format, size, line, tmem, palette, cmS, maskS, shiftS, cmT, maskT, shiftT);
+
   if (dis) {
     const fmtText = gbi.ImageFormat.nameOf(format);
     const sizeText = gbi.ImageSize.nameOf(size);
@@ -1185,20 +1188,6 @@ function executeSetTile(cmd0, cmd1, dis) {
 
     dis.text(`gsDPSetTile(${fmtText}, ${sizeText}, ${line}, ${tmem}, ${tileText}, ${palette}, ${cmtText}, ${maskT}, ${shiftT}, ${cmsText}, ${maskS}, ${shiftS});`);
   }
-
-  const tile = state.tiles[tileIdx];
-  tile.format = format;
-  tile.size = size;
-  tile.line = line;
-  tile.tmem = tmem;
-  tile.palette = palette;
-  tile.cmT = cmT;
-  tile.maskT = maskT;
-  tile.shiftT = shiftT;
-  tile.cmS = cmS;
-  tile.maskS = maskS;
-  tile.shiftS = shiftS;
-  tile.hash = 0;
 }
 
 function executeSetTileSize(cmd0, cmd1, dis) {
@@ -1209,11 +1198,7 @@ function executeSetTileSize(cmd0, cmd1, dis) {
   const lrt = (cmd1 >>> 0) & 0xfff;
 
   const tile = state.tiles[tileIdx];
-  tile.uls = uls;
-  tile.ult = ult;
-  tile.lrs = lrs;
-  tile.lrt = lrt;
-  tile.hash = 0;
+  tile.setSize(uls, ult, lrs, lrt);
 
   if (dis) {
     const tt = gbi.getTileText(tileIdx);

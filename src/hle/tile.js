@@ -33,6 +33,29 @@ export class Tile {
   // Return the dimensions after applying maskS/maskT.
   get width() { return getTextureDimension(this.unmaskedWidth, this.maskS); }
   get height() { return getTextureDimension(this.unmaskedHeight, this.maskT); }
+
+  set(format, size, line, tmem, palette, cmS, maskS, shiftS, cmT, maskT, shiftT) {
+    this.format = format;
+    this.size = size;
+    this.line = line;
+    this.tmem = tmem;
+    this.palette = palette;
+    this.cmS = cmS;
+    this.maskS = maskS;
+    this.shiftS = shiftS;
+    this.cmT = cmT;
+    this.maskT = maskT;
+    this.shiftT = shiftT;
+    this.hash = 0;
+  }
+
+  setSize(uls, ult, lrs, lrt) {
+    this.uls = uls;
+    this.ult = ult;
+    this.lrs = lrs;
+    this.lrt = lrt;
+    this.hash = 0;
+  }
 }
 
 function calcTileDimension(lr, ul) {
