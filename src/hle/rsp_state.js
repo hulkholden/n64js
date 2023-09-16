@@ -139,6 +139,13 @@ export class RSPState {
     };
   }
 
+  // TODO: why is this needed if we check the hash as it's needed?
+  invalidateTileHashes() {
+    for (let i = 0; i < 8; ++i) {
+      this.tiles[i].hash = 0;
+    }
+  }
+
   rdpSegmentAddress(addr) {
     const segment = (addr >>> 24) & 0xf;
     // TODO: this should probably mask against 0x00ff_ffff (same as SP_DRAM_ADDR_REG)
@@ -146,7 +153,6 @@ export class RSPState {
     // which tries to load from 0x00f000ff. Really we should try to emulate SP DMA more accurately.
     return (this.segments[segment] & 0x007fffff) + (addr & 0x007fffff);
   }
- 
 
   setTexture(s, t, level, tileIdx) {
     this.texture.scaleS = s;
