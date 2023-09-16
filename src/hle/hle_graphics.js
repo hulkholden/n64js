@@ -60,16 +60,9 @@ let canvasScale = 1;
 // An instance of GBIMicrocode.
 let microcode;
 
-// Configured:
-const config = {
-  vertexStride: 10
-};
-
 let ramDV;
 
 const state = new RSPState();
-
-
 
 let fillShaderProgram;
 let fillVertexPositionAttribute;
@@ -1274,7 +1267,6 @@ function processDList(task, disassembler, bailAfter) {
 }
 
 function resetState(ucode, ram, pc) {
-  config.vertexStride = kUcodeStrides[ucode];
   ramDV = ram;
   state.reset(pc);
   return buildUCodeTables(ucode, ramDV);
