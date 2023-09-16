@@ -36,6 +36,11 @@ export function debugDisplayList() {
   debugController.debugDisplayList();
 }
 
+export function hleGraphics(task) {
+  debugController.onNewTask(task)
+  processDList(task, null, -1);
+}
+
 class DebugController {
   constructor() {
     // This is updated as we're executing, so that we know which instruction to halt on.
@@ -493,11 +498,6 @@ function updateStateUI() {
   $dlistState.find('#dl-textures-content').html(buildTexturesTab());
   $dlistState.find('#dl-combiner-content').html(buildCombinerTab());
   $dlistState.find('#dl-rdp-content').html(buildRDPTab());
-}
-
-export function hleGraphics(task) {
-  debugController.onNewTask(task)
-  processDList(task, null, -1);
 }
 
 function processDList(task, disassembler, bailAfter) {
