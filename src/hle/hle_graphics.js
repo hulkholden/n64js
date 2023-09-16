@@ -23,15 +23,15 @@ let numDisplayListsRendered = 0;
 export let debugDisplayListRequested = false;
 export let debugDisplayListRunning = false;
 
-let debugNumOps = 0;
-let debugBailAfter = -1;
-let debugLastTask;  // The last task that we executed.
-let debugStateTimeShown = -1;
 
 class DebugController {
   constructor() {
     // This is updated as we're executing, so that we know which instruction to halt on.
     this.currentOp = 0;
+    this.numOps = 0;
+    this.bailAfter = -1;
+    this.lastTask;  // The last task that we executed.
+    this.stateTimeShown = -1;
   }
 }
 const debugController = new DebugController();
@@ -355,7 +355,7 @@ function hideDebugDisplayListUI() {
 export function toggleDebugDisplayList() {
   if (debugDisplayListRunning) {
     hideDebugDisplayListUI();
-    debugBailAfter = -1;
+    debugController.bailAfter = -1;
     debugDisplayListRunning = false;
     n64js.toggleRun();
   } else {
@@ -367,29 +367,29 @@ export function toggleDebugDisplayList() {
 // This is called repeatedly so that we can update the UI.
 // We can return false if we don't render anything, but it's useful to keep re-rendering so that we can plot a framerate graph
 export function debugDisplayList() {
-  if (debugStateTimeShown == -1) {
+  if (debugController.stateTimeShown == -1) {
     // Build some disassembly for this display list
     const disassembler = new Disassembler();
-    processDList(debugLastTask, disassembler, -1);
+    processDList(debugController.lastTask, disassembler, -1);
     disassembler.finalise();
 
     // Update the scrubber based on the new length of disassembly
-    debugNumOps = disassembler.numOps > 0 ? (disassembler.numOps - 1) : 0;
-    setScrubRange(debugNumOps);
+    debugController.numOps = disassembler.numOps > 0 ? (disassembler.numOps - 1) : 0;
+    setScrubRange(debugController.numOps);
 
-    // If debugBailAfter hasn't been set (e.g. by hleHalt), stop at the end of the list
-    const timeToShow = (debugBailAfter == -1) ? debugNumOps : debugBailAfter;
+    // If debugController.bailAfter hasn't been set (e.g. by hleHalt), stop at the end of the list
+    const timeToShow = (debugController.bailAfter == -1) ? debugController.numOps : debugController.bailAfter;
     setScrubTime(timeToShow);
   }
 
   // Replay the last display list using the captured task/ram
-  processDList(debugLastTask, null, debugBailAfter);
+  processDList(debugController.lastTask, null, debugController.bailAfter);
 
   // Only update the state display when needed, otherwise it's impossible to
   // debug the dom in Chrome
-  if (debugStateTimeShown !== debugBailAfter) {
+  if (debugController.stateTimeShown !== debugController.bailAfter) {
     updateStateUI();
-    debugStateTimeShown = debugBailAfter;
+    debugController.stateTimeShown = debugController.bailAfter;
   }
 
   return true;
@@ -397,7 +397,7 @@ export function debugDisplayList() {
 
 export function hleGraphics(task) {
   // Bodgily track these parameters so that we can call again with the same params.
-  debugLastTask = task;
+  debugController.lastTask = task;
 
   // Force the cpu to stop at the point that we render the display list.
   if (debugDisplayListRequested) {
@@ -407,7 +407,7 @@ export function hleGraphics(task) {
     // before any other state changes.
     n64js.breakEmulationForDisplayListDebug();
 
-    debugStateTimeShown = -1;
+    debugController.stateTimeShown = -1;
     debugDisplayListRunning = true;
   }
 
@@ -478,10 +478,10 @@ function setScrubRange(max) {
 }
 
 function setScrubTime(t) {
-  debugBailAfter = t;
-  setScrubText(debugBailAfter, debugNumOps);
+  debugController.bailAfter = t;
+  setScrubText(debugController.bailAfter, debugController.numOps);
 
-  const $instr = $dlistOutput.find(`#I${debugBailAfter}`);
+  const $instr = $dlistOutput.find(`#I${debugController.bailAfter}`);
 
   $dlistOutput.scrollTop($dlistOutput.scrollTop() + $instr.position().top -
     $dlistOutput.height() / 2 + $instr.height() / 2);
@@ -493,17 +493,17 @@ function setScrubTime(t) {
 function initDebugUI() {
   const $dlistControls = $dlistContent.find('#controls');
 
-  debugBailAfter = -1;
-  debugNumOps = 0;
+  debugController.bailAfter = -1;
+  debugController.numOps = 0;
 
   $dlistControls.find('#rwd').click(() => {
-    if (debugDisplayListRunning && debugBailAfter > 0) {
-      setScrubTime(debugBailAfter - 1);
+    if (debugDisplayListRunning && debugController.bailAfter > 0) {
+      setScrubTime(debugController.bailAfter - 1);
     }
   });
   $dlistControls.find('#fwd').click(() => {
-    if (debugDisplayListRunning && debugBailAfter < debugNumOps) {
-      setScrubTime(debugBailAfter + 1);
+    if (debugDisplayListRunning && debugController.bailAfter < debugController.numOps) {
+      setScrubTime(debugController.bailAfter + 1);
     }
   });
   $dlistControls.find('#stop').click(() => {
@@ -558,7 +558,7 @@ function hleHalt(msg) {
     debugDisplayListRunning = true;
 
     // End set up the context
-    debugBailAfter = debugController.currentOp;
-    debugStateTimeShown = -1;
+    debugController.bailAfter = debugController.currentOp;
+    debugController.stateTimeShown = -1;
   }
 }
