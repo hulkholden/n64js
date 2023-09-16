@@ -10,7 +10,7 @@ export class GBI1 extends GBIMicrocode {
       [0x00, this.executeSpNoop],
       [0x01, this.executeMatrix],
       // [0x03, executeGBI1_MoveMem],
-      // [0x04, executeGBI1_Vertex],
+      [0x04, this.executeVertex],
       // [0x06, executeGBI1_DL],
       // [0x09, executeGBI1_Sprite2DBase],
     
@@ -70,6 +70,19 @@ export class GBI1 extends GBIMicrocode {
     } else {
       stack[stack.length - 1] = matrix;
     }
+  }
+
+  executeVertex(cmd0, cmd1, dis) {
+    const v0 = ((cmd0 >>> 16) & 0xff) / this.vertexStride;
+    const n = ((cmd0 >>> 10) & 0x3f);
+    //const length = (cmd0 >>>  0) & 0x3ff;
+    const address = this.state.rdpSegmentAddress(cmd1);
+  
+    if (dis) {
+      dis.text(`gsSPVertex(${toString32(address)}, ${n}, ${v0});`);
+    }
+  
+    this.executeVertexImpl(v0, n, address, dis);
   }
   
 }

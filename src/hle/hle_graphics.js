@@ -823,19 +823,6 @@ function executeGBI1_Line3D(cmd0, cmd1, dis) {
   flushTris(tb);
 }
 
-function executeGBI1_Vertex(cmd0, cmd1, dis) {
-  const v0 = ((cmd0 >>> 16) & 0xff) / config.vertexStride;
-  const n = ((cmd0 >>> 10) & 0x3f);
-  //const length = (cmd0 >>>  0) & 0x3ff;
-  const address = rdpSegmentAddress(cmd1);
-
-  if (dis) {
-    dis.text(`gsSPVertex(${toString32(address)}, ${n}, ${v0});`);
-  }
-
-  executeVertexImpl(v0, n, address, dis);
-}
-
 function executeGBI1_ModifyVtx(cmd0, cmd1, dis) {
   if (dis) {
     dis.text('gsSPModifyVertex(???);');
@@ -1304,7 +1291,6 @@ const ucodeGBI0 = {
 
 const ucodeGBI1 = {
   0x03: executeGBI1_MoveMem,
-  0x04: executeGBI1_Vertex,
   0x06: executeGBI1_DL,
   0x09: executeGBI1_Sprite2DBase,
 
@@ -1329,7 +1315,6 @@ const ucodeGBI1 = {
 
 const ucodeGBI2 = {
   0x00: executeGBI2_Noop,
-  0x01: executeGBI2_Vertex,
   0x02: executeGBI2_ModifyVtx,
   0x03: executeGBI2_CullDL,
   0x04: executeGBI2_BranchZ,
@@ -1366,19 +1351,6 @@ function executeGBI2_Noop(cmd0, cmd1, dis) {
   if (dis) {
     dis.text('gsDPNoOp();');
   }
-}
-
-function executeGBI2_Vertex(cmd0, cmd1, dis) {
-  const vend = ((cmd0) & 0xff) >> 1;
-  const n = (cmd0 >>> 12) & 0xff;
-  const v0 = vend - n;
-  const address = rdpSegmentAddress(cmd1);
-
-  if (dis) {
-    dis.text(`gsSPVertex(${toString32(address)}, ${n}, ${v0});`);
-  }
-
-  executeVertexImpl(v0, n, address, dis);
 }
 
 function executeGBI2_ModifyVtx(cmd0, cmd1, dis) {

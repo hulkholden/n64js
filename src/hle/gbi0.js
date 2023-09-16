@@ -7,7 +7,6 @@ export class GBI0 extends GBI1 {
     super(state, ramDV, vertexStride);
 
     this.gbi0Commands = new Map([
-      [0x04, this.executeVertex],
       // TODO: check if we need to handle these differently.
       // [0xb0, executeGBI1_BranchZ], // GBI1 only?
       // [0xb1, executeGBI1_Tri2], // GBI1 only?
@@ -110,14 +109,7 @@ export class GBI0WR extends GBI0 {
     super(state, ramDV, vertexStride);
   }
 
-  getHandler(command) {
-    switch (command) {
-      case 0x04: return this.executeVertexWR;
-    }
-    return super.getHandler(command);
-  }
-
-  executeVertexWR(cmd0, cmd1, dis) {
+  executeVertex(cmd0, cmd1, dis) {
     const n = ((cmd0 >>> 9) & 0x7f);
     const v0 = ((cmd0 >>> 16) & 0xff) / 5;
     //const length = (cmd0 >>> 0) & 0x1ff;
