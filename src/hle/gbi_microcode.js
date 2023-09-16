@@ -25,6 +25,22 @@ export const kUCode_GBI0_GE = 9;
 export const kUCode_GBI2_CONKER = 10;
 export const kUCode_GBI0_PD = 11;
 
+// TODO: eventually we should just hard-code this in the subclass constructor.
+const kVertexStrides = [
+  10, // Super Mario 64, Tetrisphere, Demos
+  2, // Mario Kart, Star Fox
+  2, // Zelda, and newer games
+  2, // Yoshi's Story, Pokemon Puzzle League
+  2, // Neon Evangelion, Kirby
+  5, // Wave Racer USA
+  10, // Diddy Kong Racing, Gemini, and Mickey
+  2, // Last Legion, Toukon, Toukon 2
+  5, // Shadows of the Empire (SOTE)
+  10, // Golden Eye
+  2, // Conker BFD
+  10, // Perfect Dark
+];
+
 // Map to keep track of which render targets we've seen.
 const kDebugColorImages = true;
 let colorImages = new Map();
@@ -33,10 +49,10 @@ let colorImages = new Map();
 const loggedUnimplemented = new Map();
 
 export class GBIMicrocode {
-  constructor(state, ramDV, vertexStride) {
+  constructor(ucode, state, ramDV) {
     this.state = state;
     this.ramDV = ramDV;
-    this.vertexStride = vertexStride;
+    this.vertexStride = kVertexStrides[ucode];
 
     this.triangleBuffer = new TriangleBuffer(64);
 

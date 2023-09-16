@@ -4,8 +4,8 @@ import * as gbi from './gbi.js';
 import { GBIMicrocode } from "./gbi_microcode.js";
 
 export class GBI2 extends GBIMicrocode {
-  constructor(state, ramDV, vertexStride) {
-    super(state, ramDV, vertexStride);
+  constructor(ucode, state, ramDV) {
+    super(ucode, state, ramDV);
 
     this.gbi2Commands = new Map([
       [0x00, this.executeNoop],
