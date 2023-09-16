@@ -2,18 +2,22 @@
 /*global $, n64js*/
 
 import { padString, toHex, toString8, toString16, toString32 } from '../format.js';
-import * as gbi from './gbi.js';
 import * as logger from '../logger.js';
-import { convertRGBA16Pixel } from './convert.js';
-import * as shaders from './shaders.js';
-import { Texture, clampTexture } from './textures.js';
 import { Matrix4x4 } from '../graphics/Matrix4x4.js';
 import { Transform2D } from '../graphics/Transform2D.js';
-import { TriangleBuffer } from './triangle_buffer.js';
 import { Vector2 } from '../graphics/Vector2.js';
 import { Vector3 } from '../graphics/Vector3.js';
+import { convertRGBA16Pixel } from './convert.js';
 import * as disassemble from './disassemble.js';
+import * as gbi from './gbi.js';
+import * as gbiMicrocode from './gbi_microcode.js';
+import * as gbi0 from './gbi0.js';
+import * as gbi1 from './gbi1.js';
+import * as gbi2 from './gbi2.js';
 import { RSPState } from './rsp_state.js';
+import * as shaders from './shaders.js';
+import { Texture, clampTexture } from './textures.js';
+import { TriangleBuffer } from './triangle_buffer.js';
 
 window.n64js = window.n64js || {};
 
@@ -32,7 +36,14 @@ let debugNumOps = 0;
 let debugBailAfter = -1;
 let debugLastTask;  // The last task that we executed.
 let debugStateTimeShown = -1;
-let debugCurrentOp = 0; // This is updated as we're executing, so that we know which instruction to halt on.
+
+class DebugController {
+  constructor() {
+    // This is updated as we're executing, so that we know which instruction to halt on.
+    this.currentOp = 0;
+  }
+}
+const debugController = new DebugController();
 
 const textureCache = new Map();
 
@@ -50,6 +61,9 @@ let nativeTransform;
 // TODO: expose this on the UI somewhere.
 let canvasScale = 1;
 
+// An instance of GBIMicrocode.
+let microcode;
+
 // Configured:
 const config = {
   vertexStride: 10
@@ -61,19 +75,6 @@ let ramDV;
 
 const state = new RSPState();
 
-//
-const kUCode_GBI0 = 0;
-const kUCode_GBI1 = 1;
-const kUCode_GBI2 = 2;
-const kUCode_GBI1_SDEX = 3;
-const kUCode_GBI2_SDEX = 4;
-const kUCode_GBI0_WR = 5;
-const kUCode_GBI0_DKR = 6;
-const kUCode_GBI1_LL = 7;
-const kUCode_GBI0_SE = 8;
-const kUCode_GBI0_GE = 9;
-const kUCode_GBI2_CONKER = 10;
-const kUCode_GBI0_PD = 11;
 
 const kUcodeStrides = [
   10, // Super Mario 64, Tetrisphere, Demos
@@ -186,12 +187,9 @@ function moveMemLight(lightIdx, address) {
   ]).normaliseInPlace();
 }
 
+// TODO: replace with direct calls.
 function rdpSegmentAddress(addr) {
-  const segment = (addr >>> 24) & 0xf;
-  // TODO: this should probably mask against 0x00ff_ffff (same as SP_DRAM_ADDR_REG)
-  // but that can result in out of bounds accesses in some DataViews (e.g. Wetrix)
-  // which tries to load from 0x00f000ff. Really we should try to emulate SP DMA more accurately.
-  return (state.segments[segment] & 0x007fffff) + (addr & 0x007fffff);
+  return state.rdpSegmentAddress(addr);
 }
 
 function makeRGBAFromRGBA16(col) {
@@ -842,66 +840,14 @@ function executeGBI1_Tri1(cmd0, cmd1, dis) {
 
     cmd0 = ramDV.getUint32(pc + 0);
     cmd1 = ramDV.getUint32(pc + 4);
-    ++debugCurrentOp;
+    ++debugController.currentOp;
     pc += 8;
 
     // NB: process triangles individually when disassembling
   } while ((cmd0 >>> 24) === kCommand && tb.hasCapacity(1) && !dis);
 
   state.pc = pc - 8;
-  --debugCurrentOp;
-
-  flushTris(tb);
-}
-
-function executeTri4_GBI0(cmd0, cmd1, dis) {
-  const kCommand = cmd0 >>> 24;
-  const stride = config.vertexStride;
-  const verts = state.projectedVertices;
-  const tb = triangleBuffer;
-  tb.reset();
-
-  let pc = state.pc;
-  do {
-    const idx09 = ((cmd0 >>> 12) & 0xf);
-    const idx06 = ((cmd0 >>> 8) & 0xf);
-    const idx03 = ((cmd0 >>> 4) & 0xf);
-    const idx00 = ((cmd0 >>> 0) & 0xf);
-    const idx11 = ((cmd1 >>> 28) & 0xf);
-    const idx10 = ((cmd1 >>> 24) & 0xf);
-    const idx08 = ((cmd1 >>> 20) & 0xf);
-    const idx07 = ((cmd1 >>> 16) & 0xf);
-    const idx05 = ((cmd1 >>> 12) & 0xf);
-    const idx04 = ((cmd1 >>> 8) & 0xf);
-    const idx02 = ((cmd1 >>> 4) & 0xf);
-    const idx01 = ((cmd1 >>> 0) & 0xf);
-
-    if (dis) {
-      dis.text(`gsSP1Triangle4(${idx00},${idx01},${idx02}, ${idx03},${idx04},${idx05}, ${idx06},${idx07},${idx08}, ${idx09},${idx10},${idx11});`);
-    }
-
-    if (idx00 !== idx01) {
-      tb.pushTri(verts[idx00], verts[idx01], verts[idx02]);
-    }
-    if (idx03 !== idx04) {
-      tb.pushTri(verts[idx03], verts[idx04], verts[idx05]);
-    }
-    if (idx06 !== idx07) {
-      tb.pushTri(verts[idx06], verts[idx07], verts[idx08]);
-    }
-    if (idx09 !== idx10) {
-      tb.pushTri(verts[idx09], verts[idx10], verts[idx11]);
-    }
-
-    cmd0 = ramDV.getUint32(pc + 0);
-    cmd1 = ramDV.getUint32(pc + 4);
-    ++debugCurrentOp;
-    pc += 8;
-    // NB: process triangles individually when disassembling
-  } while ((cmd0 >>> 24) === kCommand && tb.hasCapacity(4) && !dis);
-
-  state.pc = pc - 8;
-  --debugCurrentOp;
+  --debugController.currentOp;
 
   flushTris(tb);
 }
@@ -931,13 +877,13 @@ function executeGBI1_Tri2(cmd0, cmd1, dis) {
 
     cmd0 = ramDV.getUint32(pc + 0);
     cmd1 = ramDV.getUint32(pc + 4);
-    ++debugCurrentOp;
+    ++debugController.currentOp;
     pc += 8;
     // NB: process triangles individually when disassembling
   } while ((cmd0 >>> 24) === kCommand && tb.hasCapacity(2) && !dis);
 
   state.pc = pc - 8;
-  --debugCurrentOp;
+  --debugController.currentOp;
 
   flushTris(tb);
 }
@@ -978,13 +924,13 @@ function executeGBI1_Line3D(cmd0, cmd1, dis) {
 
     cmd0 = ramDV.getUint32(pc + 0);
     cmd1 = ramDV.getUint32(pc + 4);
-    ++debugCurrentOp;
+    ++debugController.currentOp;
     pc += 8;
     // NB: process triangles individually when disassembling
   } while ((cmd0 >>> 24) === kCommand && tb.hasCapacity(2) && !dis);
 
   state.pc = pc - 8;
-  --debugCurrentOp;
+  --debugController.currentOp;
 
   flushTris(tb);
 }
@@ -1454,19 +1400,6 @@ function executeGBI0_Vertex(cmd0, cmd1, dis) {
   const n = ((cmd0 >>> 20) & 0xf) + 1;
   const v0 = (cmd0 >>> 16) & 0xf;
   //const length = (cmd0 >>>  0) & 0xffff;
-  const address = rdpSegmentAddress(cmd1);
-
-  if (dis) {
-    dis.text(`gsSPVertex(${toString32(address)}, ${n}, ${v0});`);
-  }
-
-  executeVertexImpl(v0, n, address, dis);
-}
-
-function executeVertex_GBI0_WR(cmd0, cmd1, dis) {
-  const n = ((cmd0 >>> 9) & 0x7f);
-  const v0 = ((cmd0 >>> 16) & 0xff) / 5;
-  //const length = (cmd0 >>> 0) & 0x1ff;
   const address = rdpSegmentAddress(cmd1);
 
   if (dis) {
@@ -2150,14 +2083,14 @@ function executeGBI2_Tri1(cmd0, cmd1, dis) {
 
     cmd0 = ramDV.getUint32(pc + 0);
     cmd1 = ramDV.getUint32(pc + 4);
-    ++debugCurrentOp;
+    ++debugController.currentOp;
     pc += 8;
 
     // NB: process triangles individually when disassembling
   } while ((cmd0 >>> 24) === kTriCommand && tb.hasCapacity(1) && !dis);
 
   state.pc = pc - 8;
-  --debugCurrentOp;
+  --debugController.currentOp;
 
   flushTris(tb);
 }
@@ -2186,13 +2119,13 @@ function executeGBI2_Tri2(cmd0, cmd1, dis) {
 
     cmd0 = ramDV.getUint32(pc + 0);
     cmd1 = ramDV.getUint32(pc + 4);
-    ++debugCurrentOp;
+    ++debugController.currentOp;
     pc += 8;
     // NB: process triangles individually when disassembling
   } while ((cmd0 >>> 24) === kTriCommand && tb.hasCapacity(2) && !dis);
 
   state.pc = pc - 8;
-  --debugCurrentOp;
+  --debugController.currentOp;
 
   flushTris(tb);
 }
@@ -2222,13 +2155,13 @@ function executeGBI2_Quad(cmd0, cmd1, dis) {
 
     cmd0 = ramDV.getUint32(pc + 0);
     cmd1 = ramDV.getUint32(pc + 4);
-    ++debugCurrentOp;
+    ++debugController.currentOp;
     pc += 8;
     // NB: process triangles individually when disassembling
   } while ((cmd0 >>> 24) === kTriCommand && tb.hasCapacity(2) && !dis);
 
   state.pc = pc - 8;
-  --debugCurrentOp;
+  --debugController.currentOp;
 
   flushTris(tb);
 }
@@ -2568,24 +2501,28 @@ function executeGBI2_RDPHalf_2(cmd0, cmd1, dis) {
 // };
 
 function buildUCodeTables(ucode) {
+  microcode = null;
   let ucodeTable = ucodeGBI0;
 
   switch (ucode) {
-    case kUCode_GBI0:
-    case kUCode_GBI0_WR:
-    case kUCode_GBI0_DKR:
-    case kUCode_GBI0_SE:
-    case kUCode_GBI0_GE:
-    case kUCode_GBI0_PD:
+    case gbiMicrocode.kUCode_GBI0:
+    case gbiMicrocode.kUCode_GBI0_WR:
+    case gbiMicrocode.kUCode_GBI0_DKR:
+    case gbiMicrocode.kUCode_GBI0_SE:
+    case gbiMicrocode.kUCode_GBI0_GE:
+    case gbiMicrocode.kUCode_GBI0_PD:
       ucodeTable = ucodeGBI0;
+      microcode = new gbi0.GBI0(state, ramDV, kUcodeStrides[ucode]);
       break;
-    case kUCode_GBI1:
-    case kUCode_GBI1_LL:
+    case gbiMicrocode.kUCode_GBI1:
+    case gbiMicrocode.kUCode_GBI1_LL:
       ucodeTable = ucodeGBI1;
+      microcode = new gbi1.GBI1(state, ramDV, kUcodeStrides[ucode]);
       break;
-    case kUCode_GBI2:
-    case kUCode_GBI2_CONKER:
+    case gbiMicrocode.kUCode_GBI2:
+    case gbiMicrocode.kUCode_GBI2_CONKER:
       ucodeTable = ucodeGBI2;
+      microcode = new gbi2.GBI2(state, ramDV, kUcodeStrides[ucode]);
       break;
     default:
       logger.log(`unhandled ucode during table init: ${ucode}`);
@@ -2604,17 +2541,14 @@ function buildUCodeTables(ucode) {
   }
 
   // Patch in specific overrides
-  switch (ucode) {
-    case kUCode_GBI0_WR:
-      table[0x04] = executeVertex_GBI0_WR;
-      break;
-    case kUCode_GBI0_GE:
-      table[0xb1] = executeTri4_GBI0;
-      table[0xb2] = executeGBI1_SpNoop; // FIXME
-      table[0xb4] = executeGBI1_SpNoop; // FIXME - DLParser_RDPHalf1_GoldenEye;
-      break;
-  }
+  if (microcode) {
+    microcode.patchTable(table, ucode);
 
+    // TODO: pass rendering object to microcode constructor.
+    microcode.flushTris = flushTris;
+    microcode.executeVertexImpl = executeVertexImpl;
+    microcode.debugController = debugController;
+  }
   return table;
 }
 
@@ -2991,20 +2925,20 @@ export function hleGraphics(task) {
 }
 
 const ucodeOverrides = new Map([
-  [0x60256efc, kUCode_GBI2_CONKER],	// "RSP Gfx ucode F3DEXBG.NoN fifo 2.08  Yoshitaka Yasumoto 1999 Nintendo.", "Conker's Bad Fur Day"
-  [0x6d8bec3e, kUCode_GBI1_LL],	// "Dark Rift"
-  [0x0c10181a, kUCode_GBI0_DKR],	// "Diddy Kong Racing (v1.0)"
-  [0x713311dc, kUCode_GBI0_DKR],	// "Diddy Kong Racing (v1.1)"
-  [0x23f92542, kUCode_GBI0_GE],	// "RSP SW Version: 2.0G, 09-30-96", "GoldenEye 007"
-  [0x169dcc9d, kUCode_GBI0_DKR],	// "Jet Force Gemini"											
-  [0x26da8a4c, kUCode_GBI1_LL],	// "Last Legion UX"				
-  [0xcac47dc4, kUCode_GBI0_PD],	// "Perfect Dark (v1.1)"
-  [0x6cbb521d, kUCode_GBI0_SE],	// "RSP SW Version: 2.0D, 04-01-96", "Star Wars - Shadows of the Empire (v1.0)"
-  [0xdd560323, kUCode_GBI1_LL],	// "Toukon Road - Brave Spirits"				
-  [0x64cc729d, kUCode_GBI0_WR],	// "RSP SW Version: 2.0D, 04-01-96", "Wave Race 64"
+  [0x60256efc, gbiMicrocode.kUCode_GBI2_CONKER],	// "RSP Gfx ucode F3DEXBG.NoN fifo 2.08  Yoshitaka Yasumoto 1999 Nintendo.", "Conker's Bad Fur Day"
+  [0x6d8bec3e, gbiMicrocode.kUCode_GBI1_LL],	// "Dark Rift"
+  [0x0c10181a, gbiMicrocode.kUCode_GBI0_DKR],	// "Diddy Kong Racing (v1.0)"
+  [0x713311dc, gbiMicrocode.kUCode_GBI0_DKR],	// "Diddy Kong Racing (v1.1)"
+  [0x23f92542, gbiMicrocode.kUCode_GBI0_GE],	// "RSP SW Version: 2.0G, 09-30-96", "GoldenEye 007"
+  [0x169dcc9d, gbiMicrocode.kUCode_GBI0_DKR],	// "Jet Force Gemini"											
+  [0x26da8a4c, gbiMicrocode.kUCode_GBI1_LL],	// "Last Legion UX"				
+  [0xcac47dc4, gbiMicrocode.kUCode_GBI0_PD],	// "Perfect Dark (v1.1)"
+  [0x6cbb521d, gbiMicrocode.kUCode_GBI0_SE],	// "RSP SW Version: 2.0D, 04-01-96", "Star Wars - Shadows of the Empire (v1.0)"
+  [0xdd560323, gbiMicrocode.kUCode_GBI1_LL],	// "Toukon Road - Brave Spirits"				
+  [0x64cc729d, gbiMicrocode.kUCode_GBI0_WR],	// "RSP SW Version: 2.0D, 04-01-96", "Wave Race 64"
 
-  [0xd73a12c4, kUCode_GBI0], // Fish demo
-  [0x313f038b, kUCode_GBI0], // Pilotwings
+  [0xd73a12c4, gbiMicrocode.kUCode_GBI0], // Fish demo
+  [0x313f038b, gbiMicrocode.kUCode_GBI0], // Pilotwings
 ]);
 
 function processDList(task, disassembler, bailAfter) {
@@ -3028,12 +2962,12 @@ function processDList(task, disassembler, bailAfter) {
     }
 
     // Assume this is GBI0 unless we get a better match.
-    ucode = kUCode_GBI0;
+    ucode = gbiMicrocode.kUCode_GBI0;
     if (index >= 0) {
       if (str.indexOf('fifo', index) >= 0 || str.indexOf('xbux', index) >= 0) {
-        ucode = (str.indexOf('S2DEX') >= 0) ? kUCode_GBI2_SDEX : kUCode_GBI2;
+        ucode = (str.indexOf('S2DEX') >= 0) ? gbiMicrocode.kUCode_GBI2_SDEX : gbiMicrocode.kUCode_GBI2;
       } else {
-        ucode = (str.indexOf('S2DEX') >= 0) ? kUCode_GBI1_SDEX : kUCode_GBI1;
+        ucode = (str.indexOf('S2DEX') >= 0) ? gbiMicrocode.kUCode_GBI1_SDEX : gbiMicrocode.kUCode_GBI1;
       }
     }
   }
@@ -3041,9 +2975,7 @@ function processDList(task, disassembler, bailAfter) {
   logMicrocode(str, ucode);
 
   const ram = getRamDataView();
-
-  resetState(ucode, ram, task.data_ptr);
-  const ucodeTable = buildUCodeTables(ucode);
+  const ucodeTable = resetState(ucode, ram, task.data_ptr);
 
   // Render everything to the back buffer. This prevents horrible flickering
   // if due to webgl clearing our context between updates.
@@ -3055,7 +2987,7 @@ function processDList(task, disassembler, bailAfter) {
   gl.viewport(0, 0, frameBuffer.width, frameBuffer.height);
 
   if (disassembler) {
-    debugCurrentOp = 0;
+    debugController.currentOp = 0;
 
     while (state.pc !== 0) {
       const pc = state.pc;
@@ -3066,11 +2998,11 @@ function processDList(task, disassembler, bailAfter) {
       disassembler.begin(pc, cmd0, cmd1, state.dlistStack.length);
       ucodeTable[cmd0 >>> 24](cmd0, cmd1, disassembler);
       disassembler.end();
-      debugCurrentOp++;
+      debugController.currentOp++;
     }
   } else {
     // Vanilla loop, no disassembler to worry about
-    debugCurrentOp = 0;
+    debugController.currentOp = 0;
     while (state.pc !== 0) {
       const pc = state.pc;
       const cmd0 = ram.getUint32(pc + 0);
@@ -3079,10 +3011,10 @@ function processDList(task, disassembler, bailAfter) {
 
       ucodeTable[cmd0 >>> 24](cmd0, cmd1);
 
-      if (bailAfter > -1 && debugCurrentOp >= bailAfter) {
+      if (bailAfter > -1 && debugController.currentOp >= bailAfter) {
         break;
       }
-      debugCurrentOp++;
+      debugController.currentOp++;
     }
   }
 
@@ -3091,8 +3023,9 @@ function processDList(task, disassembler, bailAfter) {
 
 function resetState(ucode, ram, pc) {
   config.vertexStride = kUcodeStrides[ucode];
-  ramDV = ram; // FIXME: remove DataView
+  ramDV = ram;
   state.reset(pc);
+  return buildUCodeTables(ucode, ramDV);
 }
 
 function setScrubText(x, max) {
@@ -3311,7 +3244,7 @@ function hleHalt(msg) {
     debugDisplayListRunning = true;
 
     // End set up the context
-    debugBailAfter = debugCurrentOp;
+    debugBailAfter = debugController.currentOp;
     debugStateTimeShown = -1;
   }
 }
