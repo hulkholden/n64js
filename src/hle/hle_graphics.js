@@ -43,9 +43,6 @@ const debugController = new DebugController();
 
 let gl = null; // WebGL context for the canvas.
 
-let frameBuffer;
-let frameBufferTexture3D;  // For roms using display lists
-
 let renderer;
 
 // Scale factor to apply to the canvas.
@@ -122,7 +119,7 @@ export function presentBackBuffer() {
   n64js.onPresent();
 
   if (numDisplayListsRendered !== 0) {
-    renderer.copyBackBufferToFrontBuffer(frameBufferTexture3D);
+    renderer.copyBackBufferToFrontBuffer();
     return;
   }
 
@@ -459,14 +456,9 @@ function processDList(task, disassembler, bailAfter) {
   state.reset(task.data_ptr);
   const ucodeTable = buildUCodeTables(ucode, ram);
 
-  // Render everything to the back buffer. This prevents horrible flickering
-  // if due to webgl clearing our context between updates.
-  gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
-
   initViScales();
 
-  // Set the viewport to match the framebuffer dimensions.
-  gl.viewport(0, 0, frameBuffer.width, frameBuffer.height);
+  renderer.newFrame();
 
   if (disassembler) {
     debugController.currentOp = 0;
@@ -572,33 +564,7 @@ export function initialiseRenderer($canvas) {
     return;
   }
 
-  frameBuffer = gl.createFramebuffer();
-  gl.bindFramebuffer(gl.FRAMEBUFFER, frameBuffer);
-  frameBuffer.width = 640;
-  frameBuffer.height = 480;
-
-  // Create a texture for color data and attach to the framebuffer.
-  frameBufferTexture3D = gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D, frameBufferTexture3D);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, frameBuffer.width, frameBuffer.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, frameBufferTexture3D, 0);
-  gl.bindTexture(gl.TEXTURE_2D, null);
-
-  // Create a render buffer and attach to the framebuffer.
-  const renderbuffer = gl.createRenderbuffer();
-  gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer);
-  gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, frameBuffer.width, frameBuffer.height);
-  gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, renderbuffer);
-  gl.bindRenderbuffer(gl.RENDERBUFFER, null);
-
-  // Passing null binds the framebuffer to the canvas.
-  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-
-  renderer = new Renderer(gl, state);
+  renderer = new Renderer(gl, state, 640, 480);
   renderer.hleHalt = hleHalt;
 }
 
