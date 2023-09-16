@@ -20,6 +20,11 @@ export class Renderer {
     this.state = state;
     this.nativeTransform = nativeTransform;
 
+    this.blitShaderProgram = shaders.createShaderProgram(gl, "blit-shader-vs", "blit-shader-fs");
+    this.blitVertexPositionAttribute = gl.getAttribLocation(this.blitShaderProgram, "aVertexPosition");
+    this.blitTexCoordAttribute = gl.getAttribLocation(this.blitShaderProgram, "aTextureCoord");
+    this.blitSamplerUniform = gl.getUniformLocation(this.blitShaderProgram, "uSampler");
+
     this.fillShaderProgram = shaders.createShaderProgram(gl, "fill-shader-vs", "fill-shader-fs");
     this.fillVertexPositionAttribute = gl.getAttribLocation(this.fillShaderProgram, "aVertexPosition");
     this.fillFillColorUniform = gl.getUniformLocation(this.fillShaderProgram, "uFillColor");
@@ -28,6 +33,55 @@ export class Renderer {
     this.n64PositionsBuffer = gl.createBuffer();
     this.n64ColorsBuffer = gl.createBuffer();
     this.n64UVBuffer = gl.createBuffer();
+  }
+
+  copyBackBufferToFrontBuffer(texture) {
+    const gl = this.gl;
+    // Passing null binds the framebuffer to the canvas.
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+    const vertices = [
+      -1.0, -1.0, 0.0, 1.0,
+      1.0, -1.0, 0.0, 1.0,
+      -1.0, 1.0, 0.0, 1.0,
+      1.0, 1.0, 0.0, 1.0
+    ];
+
+    const uvs = [
+      0.0, 0.0,
+      1.0, 0.0,
+      0.0, 1.0,
+      1.0, 1.0
+    ];
+
+    gl.useProgram(this.blitShaderProgram);
+
+    const canvas = document.getElementById('display');
+    gl.viewport(0, 0, canvas.width, canvas.height);
+
+    // aVertexPosition
+    gl.enableVertexAttribArray(this.blitVertexPositionAttribute);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.n64PositionsBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+    gl.vertexAttribPointer(this.blitVertexPositionAttribute, 4, gl.FLOAT, false, 0, 0);
+
+    // aTextureCoord
+    gl.enableVertexAttribArray(this.blitTexCoordAttribute);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.n64UVBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uvs), gl.STATIC_DRAW);
+    gl.vertexAttribPointer(this.blitTexCoordAttribute, 2, gl.FLOAT, false, 0, 0);
+
+    // uSampler
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.uniform1i(this.blitSamplerUniform, 0);
+
+    gl.disable(gl.CULL_FACE);
+    gl.disable(gl.BLEND);
+    gl.disable(gl.DEPTH_TEST);
+    gl.depthMask(false);
+
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
 
   /**
