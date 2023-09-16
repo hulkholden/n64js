@@ -1,5 +1,5 @@
+import * as gbi from './gbi.js';
 import { TriangleBuffer } from "./triangle_buffer.js";
-
 
 // TODO: See if we can split this up and move to gbi0.js etc.
 export const kUCode_GBI0 = 0;
@@ -37,10 +37,10 @@ export class GBIMicrocode {
       // [0xee, executeSetPrimDepth],
       // [0xef, executeSetRDPOtherMode],
       // [0xf0, executeLoadTLut],
-      // [0xf2, executeSetTileSize],
+      [0xf2, this.executeSetTileSize],
       // [0xf3, executeLoadBlock],
       // [0xf4, executeLoadTile],
-      // [0xf5, executeSetTile],
+      [0xf5, this.executeSetTile],
       // [0xf6, executeFillRect],
       [0xf7, this.executeSetFillColor],
       [0xf8, this.executeSetFogColor],
@@ -65,6 +65,56 @@ export class GBIMicrocode {
   executeSpNoop(cmd0, cmd1, dis) {
     if (dis) {
       dis.text('gsSPNoOp();');
+    }
+  }
+
+  executeSetTile(cmd0, cmd1, dis) {
+    const format = (cmd0 >>> 21) & 0x7;
+    const size = (cmd0 >>> 19) & 0x3;
+    //const pad0 = (cmd0 >>> 18) & 0x1;
+    const line = (cmd0 >>> 9) & 0x1ff;
+    const tmem = (cmd0 >>> 0) & 0x1ff;
+  
+    //const pad1 = (cmd1 >>> 27) & 0x1f;
+    const tileIdx = (cmd1 >>> 24) & 0x7;
+    const palette = (cmd1 >>> 20) & 0xf;
+  
+    const cmT = (cmd1 >>> 18) & 0x3;
+    const maskT = (cmd1 >>> 14) & 0xf;
+    const shiftT = (cmd1 >>> 10) & 0xf;
+  
+    const cmS = (cmd1 >>> 8) & 0x3;
+    const maskS = (cmd1 >>> 4) & 0xf;
+    const shiftS = (cmd1 >>> 0) & 0xf;
+  
+    const tile = this.state.tiles[tileIdx];
+    tile.set(format, size, line, tmem, palette, cmS, maskS, shiftS, cmT, maskT, shiftT);
+  
+    if (dis) {
+      const fmtText = gbi.ImageFormat.nameOf(format);
+      const sizeText = gbi.ImageSize.nameOf(size);
+      const tileText = gbi.getTileText(tileIdx);
+      const cmsText = gbi.getClampMirrorWrapText(cmS);
+      const cmtText = gbi.getClampMirrorWrapText(cmT);
+  
+      dis.text(`gsDPSetTile(${fmtText}, ${sizeText}, ${line}, ${tmem}, ${tileText}, ${palette}, ${cmtText}, ${maskT}, ${shiftT}, ${cmsText}, ${maskS}, ${shiftS});`);
+    }
+  }
+  
+  executeSetTileSize(cmd0, cmd1, dis) {
+    const uls = (cmd0 >>> 12) & 0xfff;
+    const ult = (cmd0 >>> 0) & 0xfff;
+    const tileIdx = (cmd1 >>> 24) & 0x7;
+    const lrs = (cmd1 >>> 12) & 0xfff;
+    const lrt = (cmd1 >>> 0) & 0xfff;
+  
+    const tile = this.state.tiles[tileIdx];
+    tile.setSize(uls, ult, lrs, lrt);
+  
+    if (dis) {
+      const tt = gbi.getTileText(tileIdx);
+      dis.text(`gsDPSetTileSize(${tt}, ${tile.left}, ${tile.top}, ${tile.right}, ${tile.bottom});`);
+      dis.tip(`size (${tile.width} x ${tile.height}), unmasked (${tile.unmaskedWidth} x ${tile.unmaskedHeight})`);
     }
   }
 
