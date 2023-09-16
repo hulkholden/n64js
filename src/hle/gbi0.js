@@ -3,8 +3,8 @@ import { GBI1 } from "./gbi1.js";
 
 // GBI0 is very similar to GBI1 with a few small differences, so we extend that instead of GBIMicrocode.
 export class GBI0 extends GBI1 {
-  constructor(state, ramDV, vertexStride) {
-    super(state, ramDV, vertexStride);
+  constructor(ucode, state, ramDV) {
+    super(ucode, state, ramDV);
 
     this.gbi0Commands = new Map([
       // TODO: check if we need to handle these differently.
@@ -41,8 +41,8 @@ export class GBI0 extends GBI1 {
 }
 
 export class GBI0GE extends GBI0 {
-  constructor(state, ramDV, vertexStride) {
-    super(state, ramDV, vertexStride);
+  constructor(ucode, state, ramDV) {
+    super(ucode, state, ramDV);
   }
 
   getHandler(command, ucode) {
@@ -109,8 +109,8 @@ export class GBI0GE extends GBI0 {
 
 
 export class GBI0WR extends GBI0 {
-  constructor(state, ramDV, vertexStride) {
-    super(state, ramDV, vertexStride);
+  constructor(ucode, state, ramDV) {
+    super(ucode, state, ramDV);
   }
 
   executeVertex(cmd0, cmd1, dis) {

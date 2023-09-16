@@ -6,8 +6,8 @@ import { GBIMicrocode } from "./gbi_microcode.js";
 let executeLine3D_Warned = false;
 
 export class GBI1 extends GBIMicrocode {
-  constructor(state, ramDV, vertexStride) {
-    super(state, ramDV, vertexStride);
+  constructor(ucode, state, ramDV) {
+    super(ucode, state, ramDV);
 
     this.gbi1Commands = new Map([
       [0x00, this.executeSpNoop],

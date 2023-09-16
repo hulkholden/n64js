@@ -84,23 +84,6 @@ const kBlendModeAlphaTrans = 2;
 const kBlendModeFade = 3;
 const kBlendModeFog = 4;
 
-
-
-const kUcodeStrides = [
-  10, // Super Mario 64, Tetrisphere, Demos
-  2, // Mario Kart, Star Fox
-  2, // Zelda, and newer games
-  2, // Yoshi's Story, Pokemon Puzzle League
-  2, // Neon Evangelion, Kirby
-  5, // Wave Racer USA
-  10, // Diddy Kong Racing, Gemini, and Mickey
-  2, // Last Legion, Toukon, Toukon 2
-  5, // Shadows of the Empire (SOTE)
-  10, // Golden Eye
-  2, // Conker BFD
-  10, // Perfect Dark
-];
-
 // TODO: provide a HLE object and instantiate these in the constructor.
 function getRamDataView() { return n64js.hardware().cachedMemDevice.mem.dataView; }
 
@@ -744,25 +727,25 @@ function buildUCodeTables(ucode) {
     case gbiMicrocode.kUCode_GBI0_DKR:
     case gbiMicrocode.kUCode_GBI0_SE:
     case gbiMicrocode.kUCode_GBI0_PD:
-      microcode = new gbi0.GBI0(state, ramDV, kUcodeStrides[ucode]);
+      microcode = new gbi0.GBI0(ucode, state, ramDV);
       break;
     case gbiMicrocode.kUCode_GBI0_GE:
-      microcode = new gbi0.GBI0GE(state, ramDV, kUcodeStrides[ucode]);
+      microcode = new gbi0.GBI0GE(ucode, state, ramDV);
       break;
     case gbiMicrocode.kUCode_GBI0_WR:
-      microcode = new gbi0.GBI0WR(state, ramDV, kUcodeStrides[ucode]);
+      microcode = new gbi0.GBI0WR(ucode, state, ramDV);
       break;
     case gbiMicrocode.kUCode_GBI1:
     case gbiMicrocode.kUCode_GBI1_LL:
-      microcode = new gbi1.GBI1(state, ramDV, kUcodeStrides[ucode]);
+      microcode = new gbi1.GBI1(ucode, state, ramDV);
       break;
     case gbiMicrocode.kUCode_GBI2:
     case gbiMicrocode.kUCode_GBI2_CONKER:
-      microcode = new gbi2.GBI2(state, ramDV, kUcodeStrides[ucode]);
+      microcode = new gbi2.GBI2(ucode, state, ramDV);
       break;
     default:
       logger.log(`unhandled ucode during table init: ${ucode}`);
-      microcode = new gbi0.GBI0(state, ramDV, kUcodeStrides[ucode]);
+      microcode = new gbi0.GBI0(ucode, state, ramDV);
   }
 
   // Build a copy of the table as an array
