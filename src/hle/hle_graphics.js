@@ -1179,15 +1179,6 @@ const ucodeGBI2 = {
   0xd9: executeGBI2_GeometryMode,
   0xdb: executeGBI2_MoveWord,
   0xdc: executeGBI2_MoveMem,
-  0xde: executeGBI2_DL,
-  0xdf: executeGBI2_EndDL,
-
-  0xe0: executeGBI2_SpNoop,
-  0xe1: executeGBI2_RDPHalf_1,
-  0xe2: executeGBI2_SetOtherModeL,
-  0xe3: executeGBI2_SetOtherModeH,
-
-  0xf1: executeGBI2_RDPHalf_2
 };
 
 function executeGBI2_ModifyVtx(cmd0, cmd1, dis) {
@@ -1422,75 +1413,6 @@ function executeGBI2_MoveMem(cmd0, cmd1, dis) {
     dis.text(text);
     previewGBI2_MoveMem(type, length, address, dis);
   }
-}
-
-function executeGBI2_DL(cmd0, cmd1, dis) {
-  const param = (cmd0 >>> 16) & 0xff;
-  const address = rdpSegmentAddress(cmd1);
-
-  if (dis) {
-    const fn = (param === gbi.G_DL_PUSH) ? 'gsSPDisplayList' : 'gsSPBranchList';
-    dis.text(`${fn}(<span class="dl-branch">${toString32(address)}</span>);`);
-  }
-
-  if (param === gbi.G_DL_PUSH) {
-    state.dlistStack.push({ pc: state.pc });
-  }
-  state.pc = address;
-}
-
-function executeGBI2_EndDL(cmd0, cmd1, dis) {
-  if (dis) {
-    dis.text('gsSPEndDisplayList();');
-  }
-
-  if (state.dlistStack.length > 0) {
-    state.pc = state.dlistStack.pop().pc;
-  } else {
-    state.pc = 0;
-  }
-}
-
-function executeGBI2_SetOtherModeL(cmd0, cmd1, dis) {
-  const shift = (cmd0 >>> 8) & 0xff;
-  const len = (cmd0 >>> 0) & 0xff;
-  const data = cmd1;
-  const mask = (0x80000000 >> len) >>> shift;
-  if (dis) {
-    disassemble.SetOtherModeL(dis, mask, data);
-  }
-  state.rdpOtherModeL = (state.rdpOtherModeL & ~mask) | data;
-}
-
-function executeGBI2_SetOtherModeH(cmd0, cmd1, dis) {
-  const shift = (cmd0 >>> 8) & 0xff;
-  const len = (cmd0 >>> 0) & 0xff;
-  const data = cmd1;
-  const mask = (0x80000000 >> len) >>> shift;
-  if (dis) {
-    disassemble.SetOtherModeH(dis, mask, len, shift, data);
-  }
-  state.rdpOtherModeH = (state.rdpOtherModeH & ~mask) | data;
-}
-
-function executeGBI2_SpNoop(cmd0, cmd1, dis) {
-  if (dis) {
-    dis.text('gsSPNoOp();');
-  }
-}
-
-function executeGBI2_RDPHalf_1(cmd0, cmd1, dis) {
-  if (dis) {
-    dis.text(`gsImmp1(G_RDPHALF_1, ${toString32(cmd1)});`);
-  }
-  state.rdpHalf1 = cmd1;
-}
-
-function executeGBI2_RDPHalf_2(cmd0, cmd1, dis) {
-  if (dis) {
-    dis.text(`gsImmp1(G_RDPHALF_2, ${toString32(cmd1)});`);
-  }
-  state.rdpHalf2 = cmd1;
 }
 
 // const ucodeSprite2d = {

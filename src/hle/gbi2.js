@@ -1,4 +1,6 @@
 import { toString32 } from "../format.js";
+import * as disassemble from './disassemble.js';
+import * as gbi from './gbi.js';
 import { GBIMicrocode } from "./gbi_microcode.js";
 
 export class GBI2 extends GBIMicrocode {
@@ -29,16 +31,16 @@ export class GBI2 extends GBIMicrocode {
       [0xda, this.executeMatrix],
       // [0xdb, executeGBI2_MoveWord],
       // [0xdc, executeGBI2_MoveMem],
-      [0xdd, this.executeGLoadUcode],
-      // [0xde, executeGBI2_DL],
-      // [0xdf, executeGBI2_EndDL],
+      [0xdd, this.executeLoadUcode],
+      [0xde, this.executeDL],
+      [0xdf, this.executeEndDL],
     
-      // [0xe0, executeGBI2_SpNoop],
-      // [0xe1, executeGBI2_RDPHalf_1],
-      // [0xe2, executeGBI2_SetOtherModeL],
-      // [0xe3, executeGBI2_SetOtherModeH],
+      [0xe0, this.executeSpNoop],
+      [0xe1, this.executeRDPHalf1],
+      [0xe2, this.executeSetOtherModeL],
+      [0xe3, this.executeSetOtherModeH],
     
-      // [0xf1, executeGBI2_RDPHalf_2],
+      [0xf1, this.executeRDPHalf2],
     ]);
   }
 
@@ -54,6 +56,75 @@ export class GBI2 extends GBIMicrocode {
     if (dis) {
       dis.text('gsDPNoOp();');
     }
+  }
+
+  executeSpNoop(cmd0, cmd1, dis) {
+    if (dis) {
+      dis.text('gsSPNoOp();');
+    }
+  }
+    
+  executeDL(cmd0, cmd1, dis) {
+    const param = (cmd0 >>> 16) & 0xff;
+    const address = this.state.rdpSegmentAddress(cmd1);
+  
+    if (dis) {
+      const fn = (param === gbi.G_DL_PUSH) ? 'gsSPDisplayList' : 'gsSPBranchList';
+      dis.text(`${fn}(<span class="dl-branch">${toString32(address)}</span>);`);
+    }
+  
+    if (param === gbi.G_DL_PUSH) {
+      this.state.dlistStack.push({ pc: this.state.pc });
+    }
+    this.state.pc = address;
+  }
+  
+  executeEndDL(cmd0, cmd1, dis) {
+    if (dis) {
+      dis.text('gsSPEndDisplayList();');
+    }
+  
+    if (this.state.dlistStack.length > 0) {
+      this.state.pc = this.state.dlistStack.pop().pc;
+    } else {
+      this.state.pc = 0;
+    }
+  }
+  
+  executeSetOtherModeL(cmd0, cmd1, dis) {
+    const shift = (cmd0 >>> 8) & 0xff;
+    const len = (cmd0 >>> 0) & 0xff;
+    const data = cmd1;
+    const mask = (0x80000000 >> len) >>> shift;
+    if (dis) {
+      disassemble.SetOtherModeL(dis, mask, data);
+    }
+    this.state.rdpOtherModeL = (this.state.rdpOtherModeL & ~mask) | data;
+  }
+  
+  executeSetOtherModeH(cmd0, cmd1, dis) {
+    const shift = (cmd0 >>> 8) & 0xff;
+    const len = (cmd0 >>> 0) & 0xff;
+    const data = cmd1;
+    const mask = (0x80000000 >> len) >>> shift;
+    if (dis) {
+      disassemble.SetOtherModeH(dis, mask, len, shift, data);
+    }
+    this.state.rdpOtherModeH = (this.state.rdpOtherModeH & ~mask) | data;
+  }
+  
+  executeRDPHalf1(cmd0, cmd1, dis) {
+    if (dis) {
+      dis.text(`gsImmp1(G_RDPHALF_1, ${toString32(cmd1)});`);
+    }
+    this.state.rdpHalf1 = cmd1;
+  }
+  
+  executeRDPHalf2(cmd0, cmd1, dis) {
+    if (dis) {
+      dis.text(`gsImmp1(G_RDPHALF_2, ${toString32(cmd1)});`);
+    }
+    this.state.rdpHalf2 = cmd1;
   }
   
   executeMatrix(cmd0, cmd1, dis) {
@@ -100,7 +171,7 @@ export class GBI2 extends GBIMicrocode {
     this.executeVertexImpl(v0, n, address, dis);
   }
   
-  executeGLoadUcode(cmd0, cmd1, dis) {
+  executeLoadUcode(cmd0, cmd1, dis) {
     this.logUnimplemented('LoadUcode');
 
     if (dis) {
