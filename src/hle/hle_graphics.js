@@ -224,8 +224,8 @@ function makeColourText(r, g, b, a) {
   const rgba = `${rgb}, ${a}`;
 
   if ((r < 128 && g < 128) ||
-    (g < 128 && b < 128) ||
-    (b < 128 && r < 128)) {
+      (g < 128 && b < 128) ||
+      (b < 128 && r < 128)) {
     return `<span style="color: white; background-color: rgb(${rgb})">${rgba}</span>`;
   }
   return `<span style="background-color: rgb(${rgb})">${rgba}</span>`;
@@ -292,12 +292,6 @@ function logMicrocode(str, ucode) {
 function executeUnknown(cmd0, cmd1) {
   hleHalt(`Unknown display list op ${toString8(cmd0 >>> 24)}`);
   state.pc = 0;
-}
-
-function executeGBI1_SpNoop(cmd0, cmd1, dis) {
-  if (dis) {
-    dis.text('gsSPNoOp();');
-  }
 }
 
 function executeGBI1_Noop(cmd0, cmd1, dis) {
@@ -1909,7 +1903,6 @@ const ucodeGBI0 = {
 };
 
 const ucodeGBI1 = {
-  0x00: executeGBI1_SpNoop,
   0x01: executeGBI1_Matrix,
   0x03: executeGBI1_MoveMem,
   0x04: executeGBI1_Vertex,
