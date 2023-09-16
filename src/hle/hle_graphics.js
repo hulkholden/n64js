@@ -64,14 +64,27 @@ class DebugController {
 
   toggle() {
     if (this.running) {
-      hideDebugDisplayListUI();
+      this.hideUI();
       this.bailAfter = -1;
       this.running = false;
       n64js.toggleRun();
     } else {
-      showDebugDisplayListUI();
+      this.showUI();
       this.requested = true;
     }
+  }
+
+  halt() {
+    // Ensure the ui is visible
+    this.showUI();
+
+    // We're already executing a display list, so clear the Requested flag, set Running
+    this.requested = false;
+    this.running = true;
+
+    // End set up the context
+    this.bailAfter = this.currentOp;
+    this.stateTimeShown = -1;
   }
 
   initUI() {
@@ -104,7 +117,15 @@ class DebugController {
 
     $dlistOutput = $('<div class="hle-disasm"></div>');
     $('#adjacent-debug').empty().append($dlistOutput);
+  }
 
+  showUI() {
+    $('.debug').show();
+    $('#dlist-tab').tab('show');
+  }
+  
+  hideUI() {
+    $('.debug').hide();
   }
 }
 const debugController = new DebugController();
@@ -416,15 +437,6 @@ function updateStateUI() {
   $dlistState.find('#dl-rdp-content').html(buildRDPTab());
 }
 
-function showDebugDisplayListUI() {
-  $('.debug').show();
-  $('#dlist-tab').tab('show');
-}
-
-function hideDebugDisplayListUI() {
-  $('.debug').hide();
-}
-
 // This is called repeatedly so that we can update the UI.
 // We can return false if we don't render anything, but it's useful to keep re-rendering so that we can plot a framerate graph
 export function debugDisplayList() {
@@ -560,20 +572,12 @@ export function resetRenderer() {
 
 function hleHalt(msg) {
   if (!debugController.running) {
-    n64js.ui().displayWarning(msg);
-
-    // Ensure the CPU emulation stops immediately
-    n64js.breakEmulationForDisplayListDebug();
-
-    // Ensure the ui is visible
-    showDebugDisplayListUI();
-
-    // We're already executing a display list, so clear the Requested flag, set Running
-    debugController.requested = false;
-    debugController.running = true;
-
-    // End set up the context
-    debugController.bailAfter = debugController.currentOp;
-    debugController.stateTimeShown = -1;
+    return;
   }
+  n64js.ui().displayWarning(msg);
+
+  // Ensure the CPU emulation stops immediately
+  n64js.breakEmulationForDisplayListDebug();
+
+  debugController.halt();
 }
