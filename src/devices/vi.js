@@ -106,6 +106,14 @@ export class VIRegDevice extends Device {
   get xScale() { return (this.xScaleReg & 0xfff) / 1024; }
   get yScale() { return (this.yScaleReg & 0xfff) / 1024; }
 
+  get bitDepth() {
+    switch (this.modeType) {
+      case VI_CTRL_TYPE_32: return 32;
+      case VI_CTRL_TYPE_16: return 16;
+    }
+    return 0;
+  }
+
   dump() {
     console.log(`VI_CONTROL = ${toString32(this.controlReg)}`);
     console.log(`VI_DRAM_ADDR = ${toString32(this.dramAddrReg)}`);
