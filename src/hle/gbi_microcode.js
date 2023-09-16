@@ -149,7 +149,7 @@ export class GBIMicrocode {
     // N64 provides the center point and distance to each edge,
     // but we want the width/height and translate to bottom left.
     const t2d = new Transform2D(scale.scale(2), trans.sub(scale));
-    this.nativeTransform.setN64Viewport(t2d);
+    this.renderer.nativeTransform.setN64Viewport(t2d);
   }
 
   previewViewport(address) {
@@ -719,7 +719,7 @@ export class GBIMicrocode {
       // Clear whole screen in one?
       const w = x1 - x0;
       const h = y1 - y0;
-      if (w === this.nativeTransform.viWidth && h === this.nativeTransform.viHeight) {
+      if (w === this.renderer.nativeTransform.viWidth && h === this.renderer.nativeTransform.viHeight) {
         gl.clearColor(color.r, color.g, color.b, color.a);
         gl.clear(gl.COLOR_BUFFER_BIT);
         return;

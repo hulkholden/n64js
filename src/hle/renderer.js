@@ -1,6 +1,7 @@
 /*global $, n64js*/
 
 import { toString16, toString32 } from "../format.js";
+import { Transform2D } from '../graphics/Transform2D.js';
 import { Vector2 } from "../graphics/Vector2.js";
 import * as gbi from './gbi.js';
 import * as shaders from './shaders.js';
@@ -16,10 +17,10 @@ const kBlendModeFog = 4;
 const loggedBlendModes = new Map();
 
 export class Renderer {
-  constructor(gl, state, nativeTransform) {
+  constructor(gl, state) {
     this.gl = gl;
     this.state = state;
-    this.nativeTransform = nativeTransform;
+    this.nativeTransform = new NativeTransform();
 
     this.textureCache = new Map();
 
@@ -531,6 +532,32 @@ export class Renderer {
     }
     loggedBlendModes.set(activeBlendMode, true);
     n64js.warn(`Unhandled blend mode: ${toString16(activeBlendMode)} = ${gbi.blendOpText(activeBlendMode)}, alphaCvgSel ${alphaCvgSel}, cvgXAlpha ${cvgXAlpha}`);
+  }
+}
+
+
+class NativeTransform {
+  constructor() {
+    this.initDimensions(320, 240);
+  }
+
+  initDimensions(viWidth, viHeight) {
+    this.viWidth = viWidth;
+    this.viHeight = viHeight;
+    // Convert n64 framebuffer coordinates into normalised device coordinates (-1 to +1).
+    this.n64FramebufferToDevice = new Transform2D(new Vector2(2 / viWidth, -2 / viHeight), new Vector2(-1, +1));
+    // Displaylist-defined viewport - defaults to the entire screen.
+    this.n64ViewportTransform = new Transform2D(new Vector2(viWidth, viHeight), new Vector2(0, 0));
+  }
+
+  setN64Viewport(t2d) {
+    // TODO: is this affected by VI sx0/sy0 etc?
+    this.n64ViewportTransform = t2d;
+  }
+
+  // Used by fillRec/texRect - ignores viewport.
+  convertN64ToDisplay(n64Vec2) {
+    return this.n64FramebufferToDevice.transform(n64Vec2);
   }
 }
 
