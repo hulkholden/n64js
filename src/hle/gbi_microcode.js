@@ -1,4 +1,7 @@
+import { toString32 } from '../format.js';
+import * as logger from '../logger.js';
 import * as gbi from './gbi.js';
+import * as shaders from './shaders.js';
 import { TriangleBuffer } from "./triangle_buffer.js";
 
 // TODO: See if we can split this up and move to gbi0.js etc.
@@ -15,6 +18,9 @@ export const kUCode_GBI0_GE = 9;
 export const kUCode_GBI2_CONKER = 10;
 export const kUCode_GBI0_PD = 11;
 
+const kDebugColorImages = true;
+let colorImages = new Map();
+
 export class GBIMicrocode {
   constructor(state, ramDV, vertexStride) {
     this.state = state;
@@ -26,16 +32,16 @@ export class GBIMicrocode {
     this.gbiCommonCommands = new Map([
       // [0xe4, executeTexRect],
       // [0xe5, executeTexRectFlip],
-      // [0xe6, executeRDPLoadSync],
-      // [0xe7, executeRDPPipeSync],
-      // [0xe8, executeRDPTileSync],
-      // [0xe9, executeRDPFullSync],
-      // [0xea, executeSetKeyGB],
-      // [0xeb, executeSetKeyR],
-      // [0xec, executeSetConvert],
-      // [0xed, executeSetScissor],
-      // [0xee, executeSetPrimDepth],
-      // [0xef, executeSetRDPOtherMode],
+      [0xe6, this.executeRDPLoadSync],
+      [0xe7, this.executeRDPPipeSync],
+      [0xe8, this.executeRDPTileSync],
+      [0xe9, this.executeRDPFullSync],
+      [0xea, this.executeSetKeyGB],
+      [0xeb, this.executeSetKeyR],
+      [0xec, this.executeSetConvert],
+      [0xed, this.executeSetScissor],
+      [0xee, this.executeSetPrimDepth],
+      [0xef, this.executeSetRDPOtherMode],
       // [0xf0, executeLoadTLut],
       [0xf2, this.executeSetTileSize],
       // [0xf3, executeLoadBlock],
@@ -47,10 +53,10 @@ export class GBIMicrocode {
       [0xf9, this.executeSetBlendColor],
       [0xfa, this.executeSetPrimColor],
       [0xfb, this.executeSetEnvColor],
-      // [0xfc, executeSetCombine],
-      // [0xfd, executeSetTImg],
-      // [0xfe, executeSetZImg],
-      // [0xff, executeSetCImg],
+      [0xfc, this.executeSetCombine],
+      [0xfd, this.executeSetTImg],
+      [0xfe, this.executeSetZImg],
+      [0xff, this.executeSetCImg],
     ]);
   }
 
@@ -66,6 +72,77 @@ export class GBIMicrocode {
     if (dis) {
       dis.text('gsSPNoOp();');
     }
+  }
+
+  executeRDPLoadSync(cmd0, cmd1, dis) {
+    if (dis) {
+      dis.text('gsDPLoadSync();');
+    }
+  }
+  
+  executeRDPPipeSync(cmd0, cmd1, dis) {
+    if (dis) {
+      dis.text('gsDPPipeSync();');
+    }
+  }
+  
+  executeRDPTileSync(cmd0, cmd1, dis) {
+    if (dis) {
+      dis.text('gsDPTileSync();');
+    }
+  }
+  
+  executeRDPFullSync(cmd0, cmd1, dis) {
+    if (dis) {
+      dis.text('gsDPFullSync();');
+    }
+  }
+  
+  executeSetKeyGB(cmd0, cmd1, dis) {
+    if (dis) {
+      dis.text('gsDPSetKeyGB(???);');
+    }
+  }
+  
+  executeSetKeyR(cmd0, cmd1, dis) {
+    if (dis) {
+      dis.text('gsDPSetKeyR(???);');
+    }
+  }
+  
+  executeSetConvert(cmd0, cmd1, dis) {
+    if (dis) {
+      dis.text('gsDPSetConvert(???);');
+    }
+  }
+  
+  executeSetScissor(cmd0, cmd1, dis) {
+    const x0 = ((cmd0 >>> 12) & 0xfff) / 4.0;
+    const y0 = ((cmd0 >>> 0) & 0xfff) / 4.0;
+    const x1 = ((cmd1 >>> 12) & 0xfff) / 4.0;
+    const y1 = ((cmd1 >>> 0) & 0xfff) / 4.0;
+    const mode = (cmd1 >>> 24) & 0x2;
+
+    if (dis) {
+      dis.text(`gsDPSetScissor(${gbi.ScissorMode.nameOf(mode)}, ${x0}, ${y0}, ${x1}, ${y1});`);
+    }
+
+    this.state.scissor.x0 = x0;
+    this.state.scissor.y0 = y0;
+    this.state.scissor.x1 = x1;
+    this.state.scissor.y1 = y1;
+    this.state.scissor.mode = mode;
+
+    // FIXME: actually set this
+  }
+
+  executeSetRDPOtherMode(cmd0, cmd1, dis) {
+    if (dis) {
+      dis.text(`gsDPSetOtherMode(${toString32(cmd0)}, ${toString32(cmd1)}); // TODO: fix formatting`);
+    }
+
+    this.state.rdpOtherModeH = cmd0;
+    this.state.rdpOtherModeL = cmd1;
   }
 
   executeSetTile(cmd0, cmd1, dis) {
@@ -150,6 +227,16 @@ export class GBIMicrocode {
     this.state.primColor = cmd1;
   }
 
+  executeSetPrimDepth(cmd0, cmd1, dis) {
+    const z = (cmd1 >>> 16) & 0xffff;
+    const dz = (cmd1) & 0xffff;
+    if (dis) {
+      dis.text(`gsDPSetPrimDepth(${z},${dz});`);
+    }
+
+    // FIXME
+  }
+
   executeSetEnvColor(cmd0, cmd1, dis) {
     if (dis) {
       dis.text(`gsDPSetEnvColor(${dis.rgba8888(cmd1)});`);
@@ -157,4 +244,65 @@ export class GBIMicrocode {
     this.state.envColor = cmd1;
   }
 
+  executeSetCombine(cmd0, cmd1, dis) {
+    if (dis) {
+      const mux0 = cmd0 & 0x00ffffff;
+      const mux1 = cmd1;
+      const decoded = shaders.getCombinerText(mux0, mux1);
+  
+      dis.text(`gsDPSetCombine(${toString32(mux0)}, ${toString32(mux1)});\n${decoded}`);
+    }
+  
+    this.state.combine.hi = cmd0 & 0x00ffffff;
+    this.state.combine.lo = cmd1;
+  }
+  
+  executeSetTImg(cmd0, cmd1, dis) {
+    const format = (cmd0 >>> 21) & 0x7;
+    const size = (cmd0 >>> 19) & 0x3;
+    const width = ((cmd0 >>> 0) & 0xfff) + 1;
+    const address = this.state.rdpSegmentAddress(cmd1);
+  
+    if (dis) {
+      dis.text(`gsDPSetTextureImage(${gbi.ImageFormat.nameOf(format)}, ${gbi.ImageSize.nameOf(size)}, ${width}, ${toString32(address)});`);
+    }
+  
+    this.state.textureImage.set(format, size, width, address)
+  }
+  
+  executeSetZImg(cmd0, cmd1, dis) {
+    const address = this.state.rdpSegmentAddress(cmd1);
+  
+    if (dis) {
+      dis.text(`gsDPSetDepthImage(${toString32(address)});`);
+    }
+  
+    this.state.depthImage.address = address;
+  }
+  
+  executeSetCImg(cmd0, cmd1, dis) {
+    const format = (cmd0 >>> 21) & 0x7;
+    const size = (cmd0 >>> 19) & 0x3;
+    const width = ((cmd0 >>> 0) & 0xfff) + 1;
+    const address = this.state.rdpSegmentAddress(cmd1);
+  
+    if (dis) {
+      dis.text(`gsDPSetColorImage(${gbi.ImageFormat.nameOf(format)}, ${gbi.ImageSize.nameOf(size)}, ${width}, ${toString32(address)});`);
+    }
+  
+    this.state.colorImage = {
+      format: format,
+      size: size,
+      width: width,
+      address: address
+    };
+  
+    // TODO: Banjo Tooie and Pokemon Stadium render to multiple buffers in each display list.
+    // Need to set these up as separate framebuffers somehow
+    if (kDebugColorImages && !colorImages.get(address)) {
+      logger.log(`Setting colorImage to ${toString32(address)}, ${width}, size ${gbi.ImageSize.nameOf(size)}, format ${gbi.ImageFormat.nameOf(format)}`);
+      colorImages.set(address, true);
+    }
+  }
+  
 }
