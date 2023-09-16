@@ -96,19 +96,19 @@ class DebugController {
       const disassembler = new Disassembler();
       processDList(this.lastTask, disassembler, -1);
       disassembler.finalise();
-  
+
       // Update the scrubber based on the new length of disassembly
       this.numOps = disassembler.numOps > 0 ? (disassembler.numOps - 1) : 0;
-      setScrubRange(this.numOps);
-  
+      this.setScrubRange(this.numOps);
+
       // If this.bailAfter hasn't been set (e.g. by hleHalt), stop at the end of the list
       const timeToShow = (this.bailAfter == -1) ? this.numOps : this.bailAfter;
-      setScrubTime(timeToShow);
+      this.setScrubTime(timeToShow);
     }
-  
+
     // Replay the last display list using the captured task/ram
     processDList(this.lastTask, null, this.bailAfter);
-  
+
     // Only update the state display when needed, otherwise it's impossible to
     // debug the dom in Chrome
     if (this.stateTimeShown !== this.bailAfter) {
@@ -117,20 +117,48 @@ class DebugController {
     }
   }
 
+  setScrubText(x, max) {
+    $dlistScrub.find('.scrub-text').html(`uCode op ${x}/${max}.`);
+  }
+
+  setScrubRange(max) {
+    $dlistScrub.find('input').attr({
+      min: 0,
+      max: max,
+      value: max
+    });
+    this.setScrubText(max, max);
+  }
+
+  setScrubTime(t) {
+    debugController.bailAfter = t;
+    this.setScrubText(debugController.bailAfter, debugController.numOps);
+
+    const $instr = $dlistOutput.find(`#I${debugController.bailAfter}`);
+
+    $dlistOutput.scrollTop($dlistOutput.scrollTop() + $instr.position().top -
+      $dlistOutput.height() / 2 + $instr.height() / 2);
+
+    $dlistOutput.find('.hle-instr').removeAttr('style');
+    $instr.css('background-color', 'rgb(255,255,204)');
+  }
+
   initUI() {
     const $dlistControls = $dlistContent.find('#controls');
 
     this.bailAfter = -1;
     this.numOps = 0;
 
+    const that = this;
+
     $dlistControls.find('#rwd').click(() => {
-      if (this.running && this.bailAfter > 0) {
-        setScrubTime(this.bailAfter - 1);
+      if (that.running && that.bailAfter > 0) {
+        that.setScrubTime(that.bailAfter - 1);
       }
     });
     $dlistControls.find('#fwd').click(() => {
-      if (this.running && this.bailAfter < this.numOps) {
-        setScrubTime(this.bailAfter + 1);
+      if (that.running && that.bailAfter < that.numOps) {
+        that.setScrubTime(that.bailAfter + 1);
       }
     });
     $dlistControls.find('#stop').click(() => {
@@ -139,9 +167,9 @@ class DebugController {
 
     $dlistScrub = $dlistControls.find('.scrub');
     $dlistScrub.find('input').change(function () {
-      setScrubTime($(this).val() | 0);
+      that.setScrubTime($(this).val() | 0);
     });
-    setScrubRange(0);
+    this.setScrubRange(0);
 
     $dlistState = $dlistContent.find('.hle-state');
 
@@ -153,7 +181,7 @@ class DebugController {
     $('.debug').show();
     $('#dlist-tab').tab('show');
   }
-  
+
   hideUI() {
     $('.debug').hide();
   }
@@ -520,32 +548,6 @@ function processDList(task, disassembler, bailAfter) {
   }
 
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-}
-
-function setScrubText(x, max) {
-  $dlistScrub.find('.scrub-text').html(`uCode op ${x}/${max}.`);
-}
-
-function setScrubRange(max) {
-  $dlistScrub.find('input').attr({
-    min: 0,
-    max: max,
-    value: max
-  });
-  setScrubText(max, max);
-}
-
-function setScrubTime(t) {
-  debugController.bailAfter = t;
-  setScrubText(debugController.bailAfter, debugController.numOps);
-
-  const $instr = $dlistOutput.find(`#I${debugController.bailAfter}`);
-
-  $dlistOutput.scrollTop($dlistOutput.scrollTop() + $instr.position().top -
-    $dlistOutput.height() / 2 + $instr.height() / 2);
-
-  $dlistOutput.find('.hle-instr').removeAttr('style');
-  $instr.css('background-color', 'rgb(255,255,204)');
 }
 
 export function initialiseRenderer($canvas) {
