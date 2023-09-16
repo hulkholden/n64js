@@ -12,8 +12,10 @@ let $dlistOutput;
 const $dlistContent = $('#dlist-content');
 
 export class DebugController {
-  constructor(state) {
+  constructor(state, processDList) {
     this.state = state;
+    this.processDList = processDList;
+
     // This is updated as we're executing, so that we know which instruction to halt on.
     this.currentOp = 0;
     this.numOps = 0;
