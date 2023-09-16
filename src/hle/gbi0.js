@@ -5,33 +5,20 @@ import { GBI1 } from "./gbi1.js";
 export class GBI0 extends GBI1 {
   constructor(state, ramDV, vertexStride) {
     super(state, ramDV, vertexStride);
+
+    this.gbi0Commands = new Map([
+      [0x04, this.executeVertex],
+      // TODO: check if we need to handle these differently.
+      // [0xb0, executeGBI1_BranchZ], // GBI1 only?
+      // [0xb1, executeGBI1_Tri2], // GBI1 only?
+      // [0xb2, executeGBI1_RDPHalf_Cont],
+    ]);
   }
 
   getHandler(command) {
-    switch (command) {
-      case 0x00: return this.executeSpNoop;
-      // 0x01: executeGBI1_Matrix,
-      // 0x03: executeGBI1_MoveMem,
-      case 0x04: return this.executeVertex;
-      // 0x06: executeGBI1_DL,
-      // 0x09: executeGBI1_Sprite2DBase,
-      // 0xb0: executeGBI1_BranchZ, // GBI1 only?
-      // 0xb1: executeGBI1_Tri2, // GBI1 only?
-      // 0xb2: executeGBI1_RDPHalf_Cont;
-      // 0xb3: executeGBI1_RDPHalf_2;
-      // 0xb4: executeGBI1_RDPHalf_1,
-      // 0xb5: executeGBI1_Line3D,
-      // 0xb6: executeGBI1_ClrGeometryMode,
-      // 0xb7: executeGBI1_SetGeometryMode,
-      // 0xb8: executeGBI1_EndDL,
-      // 0xb9: executeGBI1_SetOtherModeL,
-      // 0xba: executeGBI1_SetOtherModeH,
-      // 0xbb: executeGBI1_Texture,
-      // 0xbc: executeGBI1_MoveWord,
-      // 0xbd: executeGBI1_PopMatrix,
-      // 0xbe: executeGBI1_CullDL,
-      // 0xbf: executeGBI1_Tri1,
-      // 0xc0: executeGBI1_Noop,
+    const fn = this.gbi0Commands.get(command);
+    if (fn) {
+      return fn;
     }
     return super.getHandler(command);
   }

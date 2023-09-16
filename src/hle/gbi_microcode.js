@@ -22,9 +22,43 @@ export class GBIMicrocode {
     this.vertexStride = vertexStride;
 
     this.triangleBuffer = new TriangleBuffer(64);
+
+    this.gbiCommonCommands = new Map([
+      // [0xe4, executeTexRect],
+      // [0xe5, executeTexRectFlip],
+      // [0xe6, executeRDPLoadSync],
+      // [0xe7, executeRDPPipeSync],
+      // [0xe8, executeRDPTileSync],
+      // [0xe9, executeRDPFullSync],
+      // [0xea, executeSetKeyGB],
+      // [0xeb, executeSetKeyR],
+      // [0xec, executeSetConvert],
+      // [0xed, executeSetScissor],
+      // [0xee, executeSetPrimDepth],
+      // [0xef, executeSetRDPOtherMode],
+      // [0xf0, executeLoadTLut],
+      // [0xf2, executeSetTileSize],
+      // [0xf3, executeLoadBlock],
+      // [0xf4, executeLoadTile],
+      // [0xf5, executeSetTile],
+      // [0xf6, executeFillRect],
+      // [0xf7, executeSetFillColor],
+      // [0xf8, executeSetFogColor],
+      // [0xf9, executeSetBlendColor],
+      // [0xfa, executeSetPrimColor],
+      // [0xfb, executeSetEnvColor],
+      // [0xfc, executeSetCombine],
+      // [0xfd, executeSetTImg],
+      // [0xfe, executeSetZImg],
+      // [0xff, executeSetCImg],
+    ]);
   }
 
   getHandler(command) {
+    const fn = this.gbiCommonCommands.get(command);
+    if (fn) {
+      return fn;
+    }
     return null;
   }
 
