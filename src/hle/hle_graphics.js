@@ -20,9 +20,13 @@ let $dlistScrub;
 
 let numDisplayListsRendered = 0;
 
-export let debugDisplayListRequested = false;
-export let debugDisplayListRunning = false;
+export function debugDisplayListRunning() {
+  return debugController.running;
+}
 
+export function debugDisplayListRequested() {
+  return debugController.requested;
+}
 
 class DebugController {
   constructor() {
@@ -32,6 +36,8 @@ class DebugController {
     this.bailAfter = -1;
     this.lastTask;  // The last task that we executed.
     this.stateTimeShown = -1;
+    this.running = false;
+    this.requested = false;
   }
 }
 const debugController = new DebugController();
@@ -353,14 +359,14 @@ function hideDebugDisplayListUI() {
 }
 
 export function toggleDebugDisplayList() {
-  if (debugDisplayListRunning) {
+  if (debugController.running) {
     hideDebugDisplayListUI();
     debugController.bailAfter = -1;
-    debugDisplayListRunning = false;
+    debugController.running = false;
     n64js.toggleRun();
   } else {
     showDebugDisplayListUI();
-    debugDisplayListRequested = true;
+    debugController.requested = true;
   }
 }
 
@@ -400,15 +406,15 @@ export function hleGraphics(task) {
   debugController.lastTask = task;
 
   // Force the cpu to stop at the point that we render the display list.
-  if (debugDisplayListRequested) {
-    debugDisplayListRequested = false;
+  if (debugController.requested) {
+    debugController.requested = false;
 
     // Finally, break execution so we can keep replaying the display list
     // before any other state changes.
     n64js.breakEmulationForDisplayListDebug();
 
     debugController.stateTimeShown = -1;
-    debugDisplayListRunning = true;
+    debugController.running = true;
   }
 
   processDList(task, null, -1);
@@ -497,12 +503,12 @@ function initDebugUI() {
   debugController.numOps = 0;
 
   $dlistControls.find('#rwd').click(() => {
-    if (debugDisplayListRunning && debugController.bailAfter > 0) {
+    if (debugController.running && debugController.bailAfter > 0) {
       setScrubTime(debugController.bailAfter - 1);
     }
   });
   $dlistControls.find('#fwd').click(() => {
-    if (debugDisplayListRunning && debugController.bailAfter < debugController.numOps) {
+    if (debugController.running && debugController.bailAfter < debugController.numOps) {
       setScrubTime(debugController.bailAfter + 1);
     }
   });
@@ -544,7 +550,7 @@ export function resetRenderer() {
 }
 
 function hleHalt(msg) {
-  if (!debugDisplayListRunning) {
+  if (!debugController.running) {
     n64js.ui().displayWarning(msg);
 
     // Ensure the CPU emulation stops immediately
@@ -554,8 +560,8 @@ function hleHalt(msg) {
     showDebugDisplayListUI();
 
     // We're already executing a display list, so clear the Requested flag, set Running
-    debugDisplayListRequested = false;
-    debugDisplayListRunning = true;
+    debugController.requested = false;
+    debugController.running = true;
 
     // End set up the context
     debugController.bailAfter = debugController.currentOp;
