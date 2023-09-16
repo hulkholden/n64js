@@ -5,6 +5,7 @@ import { GBI1 } from "./gbi1.js";
 export class GBI0 extends GBI1 {
   constructor(ucode, state, ramDV) {
     super(ucode, state, ramDV);
+    this.vertexStride = 10;
 
     this.gbi0Commands = new Map([
       // TODO: check if we need to handle these differently.
@@ -40,9 +41,31 @@ export class GBI0 extends GBI1 {
   }
 }
 
+export class GBI0DKR extends GBI0 {
+  constructor(ucode, state, ramDV) {
+    super(ucode, state, ramDV);
+    this.vertexStride = 10;
+  }
+}
+
+export class GBI0SE extends GBI0 {
+  constructor(ucode, state, ramDV) {
+    super(ucode, state, ramDV);
+    this.vertexStride = 5;
+  }
+}
+
+export class GBI0PD extends GBI0 {
+  constructor(ucode, state, ramDV) {
+    super(ucode, state, ramDV);
+    this.vertexStride = 10;
+  }
+}
+
 export class GBI0GE extends GBI0 {
   constructor(ucode, state, ramDV) {
     super(ucode, state, ramDV);
+    this.vertexStride = 10;
   }
 
   getHandler(command, ucode) {
@@ -107,10 +130,10 @@ export class GBI0GE extends GBI0 {
   }
 }
 
-
 export class GBI0WR extends GBI0 {
   constructor(ucode, state, ramDV) {
     super(ucode, state, ramDV);
+    this.vertexStride = 5;
   }
 
   executeVertex(cmd0, cmd1, dis) {

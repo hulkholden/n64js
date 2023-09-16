@@ -93,20 +93,29 @@ function buildUCodeTables(ucode, ramDV) {
 function createMicrocode(ucode, ramDV) {
   switch (ucode) {
     case microcodes.kUCode_GBI0:
-    case microcodes.kUCode_GBI0_DKR:
-    case microcodes.kUCode_GBI0_SE:
-    case microcodes.kUCode_GBI0_PD:
       return new gbi0.GBI0(ucode, state, ramDV);
+    case microcodes.kUCode_GBI0_DKR:
+      return new gbi0.GBI0DKR(ucode, state, ramDV);
+    case microcodes.kUCode_GBI0_SE:
+      return new gbi0.GBI0SE(ucode, state, ramDV);
+    case microcodes.kUCode_GBI0_PD:
+      return new gbi0.GBI0PD(ucode, state, ramDV);
     case microcodes.kUCode_GBI0_GE:
       return new gbi0.GBI0GE(ucode, state, ramDV);
     case microcodes.kUCode_GBI0_WR:
       return new gbi0.GBI0WR(ucode, state, ramDV);
     case microcodes.kUCode_GBI1:
-    case microcodes.kUCode_GBI1_LL:
       return new gbi1.GBI1(ucode, state, ramDV);
+    case microcodes.kUCode_GBI1_LL:
+      return new gbi1.GBI1LL(ucode, state, ramDV);
+    case microcodes.kUCode_GBI1_SDEX:
+      return new gbi1.GBI1SDEX(ucode, state, ramDV);
     case microcodes.kUCode_GBI2:
-    case microcodes.kUCode_GBI2_CONKER:
       return new gbi2.GBI2(ucode, state, ramDV);
+    case microcodes.kUCode_GBI2_CONKER:
+      return new gbi2.GBI2Conker(ucode, state, ramDV);
+    case microcodes.kUCode_GBI2_SDEX:
+      return new gbi2.GBI2SDEX(ucode, state, ramDV);
   }
   logger.log(`unhandled ucode during table init: ${ucode}`);
   return new gbi0.GBI0(ucode, state, ramDV);

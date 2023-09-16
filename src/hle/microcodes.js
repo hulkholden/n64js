@@ -14,37 +14,20 @@ export const kUCode_GBI0_GE = 9;      // Golden Eye
 export const kUCode_GBI2_CONKER = 10; // Conker BFD
 export const kUCode_GBI0_PD = 11;     // Perfect Dark
 
-// TODO: eventually we should just hard-code this in the subclass constructor.
-export const VertexStrides = [
-  10, // kUCode_GBI0
-  2,  // kUCode_GBI1
-  2,  // kUCode_GBI2
-  2,  // kUCode_GBI1_SDEX
-  2,  // kUCode_GBI2_SDEX
-  5,  // kUCode_GBI0_WR
-  10, // kUCode_GBI0_DKR
-  2,  // kUCode_GBI1_LL
-  5,  // kUCode_GBI0_SE
-  10, // kUCode_GBI0_GE
-  2,  // kUCode_GBI2_CONKER
-  10, // kUCode_GBI0_PD
-];
-
 const ucodeOverrides = new Map([
   [0x60256efc, kUCode_GBI2_CONKER],	// "RSP Gfx ucode F3DEXBG.NoN fifo 2.08  Yoshitaka Yasumoto 1999 Nintendo.", "Conker's Bad Fur Day"
-  [0x6d8bec3e, kUCode_GBI1_LL],	// "Dark Rift"
-  [0x0c10181a, kUCode_GBI0_DKR],	// "Diddy Kong Racing (v1.0)"
-  [0x713311dc, kUCode_GBI0_DKR],	// "Diddy Kong Racing (v1.1)"
-  [0x23f92542, kUCode_GBI0_GE],	// "RSP SW Version: 2.0G, 09-30-96", "GoldenEye 007"
-  [0x169dcc9d, kUCode_GBI0_DKR],	// "Jet Force Gemini"											
-  [0x26da8a4c, kUCode_GBI1_LL],	// "Last Legion UX"				
-  [0xcac47dc4, kUCode_GBI0_PD],	// "Perfect Dark (v1.1)"
-  [0x6cbb521d, kUCode_GBI0_SE],	// "RSP SW Version: 2.0D, 04-01-96", "Star Wars - Shadows of the Empire (v1.0)"
-  [0xdd560323, kUCode_GBI1_LL],	// "Toukon Road - Brave Spirits"				
-  [0x64cc729d, kUCode_GBI0_WR],	// "RSP SW Version: 2.0D, 04-01-96", "Wave Race 64"
-
-  [0xd73a12c4, kUCode_GBI0], // Fish demo
-  [0x313f038b, kUCode_GBI0], // Pilotwings
+  [0x6d8bec3e, kUCode_GBI1_LL],	    // "Dark Rift"
+  [0x0c10181a, kUCode_GBI0_DKR],	  // "Diddy Kong Racing (v1.0)"
+  [0x713311dc, kUCode_GBI0_DKR],	  // "Diddy Kong Racing (v1.1)"
+  [0x23f92542, kUCode_GBI0_GE],	    // "RSP SW Version: 2.0G, 09-30-96", "GoldenEye 007"
+  [0x169dcc9d, kUCode_GBI0_DKR],	  // "Jet Force Gemini"											
+  [0x26da8a4c, kUCode_GBI1_LL],	    // "Last Legion UX"				
+  [0xcac47dc4, kUCode_GBI0_PD],	    // "Perfect Dark (v1.1)"
+  [0x6cbb521d, kUCode_GBI0_SE],	    // "RSP SW Version: 2.0D, 04-01-96", "Star Wars - Shadows of the Empire (v1.0)"
+  [0xdd560323, kUCode_GBI1_LL],	    // "Toukon Road - Brave Spirits"				
+  [0x64cc729d, kUCode_GBI0_WR],	    // "RSP SW Version: 2.0D, 04-01-96", "Wave Race 64"
+  [0xd73a12c4, kUCode_GBI0],        // Fish demo
+  [0x313f038b, kUCode_GBI0],        // Pilotwings
 ]);
 
 export function detect(task) {

@@ -6,6 +6,7 @@ import { GBIMicrocode } from "./gbi_microcode.js";
 export class GBI2 extends GBIMicrocode {
   constructor(ucode, state, ramDV) {
     super(ucode, state, ramDV);
+    this.vertexStride = 2;
 
     this.gbi2Commands = new Map([
       [0x00, this.executeNoop],
@@ -546,5 +547,19 @@ export class GBI2 extends GBIMicrocode {
     }
   
     dis.tip(tip);
+  }
+}
+
+export class GBI2Conker extends GBI2 {
+  constructor(ucode, state, ramDV) {
+    super(ucode, state, ramDV);
+    this.vertexStride = 2;
+  }
+}
+
+export class GBI2SDEX extends GBI2 {
+  constructor(ucode, state, ramDV) {
+    super(ucode, state, ramDV);
+    this.vertexStride = 2;
   }
 }
