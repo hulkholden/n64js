@@ -139,6 +139,15 @@ export class RSPState {
     };
   }
 
+  rdpSegmentAddress(addr) {
+    const segment = (addr >>> 24) & 0xf;
+    // TODO: this should probably mask against 0x00ff_ffff (same as SP_DRAM_ADDR_REG)
+    // but that can result in out of bounds accesses in some DataViews (e.g. Wetrix)
+    // which tries to load from 0x00f000ff. Really we should try to emulate SP DMA more accurately.
+    return (this.segments[segment] & 0x007fffff) + (addr & 0x007fffff);
+  }
+ 
+
   setTexture(s, t, level, tileIdx) {
     this.texture.scaleS = s;
     this.texture.scaleT = t;
