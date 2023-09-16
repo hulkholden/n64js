@@ -1,3 +1,5 @@
+import { toString32 } from "../format.js";
+import * as gbi from './gbi.js';
 import { GBIMicrocode } from "./gbi_microcode.js";
 
 export class GBI1 extends GBIMicrocode {
@@ -6,7 +8,7 @@ export class GBI1 extends GBIMicrocode {
 
     this.gbi1Commands = new Map([
       [0x00, this.executeSpNoop],
-      // [0x01, executeGBI1_Matrix],
+      [0x01, this.executeMatrix],
       // [0x03, executeGBI1_MoveMem],
       // [0x04, executeGBI1_Vertex],
       // [0x06, executeGBI1_DL],
@@ -40,4 +42,34 @@ export class GBI1 extends GBIMicrocode {
     return super.getHandler(command);
   }
 
+  executeMatrix(cmd0, cmd1, dis) {
+    const flags = (cmd0 >>> 16) & 0xff;
+    const length = (cmd0 >>> 0) & 0xffff;
+    const address = this.state.rdpSegmentAddress(cmd1);
+  
+    let matrix = this.loadMatrix(address);
+  
+    if (dis) {
+      let t = '';
+      t += (flags & gbi.G_MTX_PROJECTION) ? 'G_MTX_PROJECTION' : 'G_MTX_MODELVIEW';
+      t += (flags & gbi.G_MTX_LOAD) ? '|G_MTX_LOAD' : '|G_MTX_MUL';
+      t += (flags & gbi.G_MTX_PUSH) ? '|G_MTX_PUSH' : ''; //'|G_MTX_NOPUSH';
+  
+      dis.text(`gsSPMatrix(${toString32(address)}, ${t});`);
+      dis.tip(this.previewMatrix(matrix));
+    }
+  
+    const stack = (flags & gbi.G_MTX_PROJECTION) ? this.state.projection : this.state.modelview;
+  
+    if ((flags & gbi.G_MTX_LOAD) == 0) {
+      matrix = stack[stack.length - 1].multiply(matrix);
+    }
+  
+    if (flags & gbi.G_MTX_PUSH) {
+      stack.push(matrix);
+    } else {
+      stack[stack.length - 1] = matrix;
+    }
+  }
+  
 }

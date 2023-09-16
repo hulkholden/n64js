@@ -116,21 +116,6 @@ class NativeTransform {
   }
 }
 
-function loadMatrix(address) {
-  const recip = 1.0 / 65536.0;
-  const dv = new DataView(ramDV.buffer, address);
-
-  const elements = new Float32Array(16);
-  for (let i = 0; i < 4; ++i) {
-    elements[4 * 0 + i] = (dv.getInt16(i * 8 + 0) << 16 | dv.getUint16(i * 8 + 0 + 32)) * recip;
-    elements[4 * 1 + i] = (dv.getInt16(i * 8 + 2) << 16 | dv.getUint16(i * 8 + 2 + 32)) * recip;
-    elements[4 * 2 + i] = (dv.getInt16(i * 8 + 4) << 16 | dv.getUint16(i * 8 + 4 + 32)) * recip;
-    elements[4 * 3 + i] = (dv.getInt16(i * 8 + 6) << 16 | dv.getUint16(i * 8 + 6 + 32)) * recip;
-  }
-
-  return new Matrix4x4(elements);
-}
-
 function previewViewport(address) {
   let result = '';
   result += `scale = (${ramDV.getInt16(address + 0) / 4.0}, ${ramDV.getInt16(address + 2) / 4.0}) `;
@@ -312,52 +297,6 @@ function executeGBI1_BranchZ(cmd0, cmd1) {
   // Just branch all the time for now
   //if (vtxDepth(cmd.vtx) <= cmd.branchzvalue)
   state.pc = address;
-}
-
-function previewMatrix(matrix) {
-  const m = matrix.elems;
-
-  const a = [m[0], m[1], m[2], m[3]];
-  const b = [m[4], m[5], m[6], m[7]];
-  const c = [m[8], m[9], m[10], m[11]];
-  const d = [m[12], m[13], m[14], m[15]];
-
-  return `<div><table class="matrix-table">
-    <tr><td>${a.join('</td><td>')}</td></tr>
-    <tr><td>${b.join('</td><td>')}</td></tr>
-    <tr><td>${c.join('</td><td>')}</td></tr>
-    <tr><td>${d.join('</td><td>')}</td></tr>
-  </table></div>`;
-}
-
-function executeGBI1_Matrix(cmd0, cmd1, dis) {
-  const flags = (cmd0 >>> 16) & 0xff;
-  const length = (cmd0 >>> 0) & 0xffff;
-  const address = rdpSegmentAddress(cmd1);
-
-  let matrix = loadMatrix(address);
-
-  if (dis) {
-    let t = '';
-    t += (flags & gbi.G_MTX_PROJECTION) ? 'G_MTX_PROJECTION' : 'G_MTX_MODELVIEW';
-    t += (flags & gbi.G_MTX_LOAD) ? '|G_MTX_LOAD' : '|G_MTX_MUL';
-    t += (flags & gbi.G_MTX_PUSH) ? '|G_MTX_PUSH' : ''; //'|G_MTX_NOPUSH';
-
-    dis.text(`gsSPMatrix(${toString32(address)}, ${t});`);
-    dis.tip(previewMatrix(matrix));
-  }
-
-  const stack = (flags & gbi.G_MTX_PROJECTION) ? state.projection : state.modelview;
-
-  if ((flags & gbi.G_MTX_LOAD) == 0) {
-    matrix = stack[stack.length - 1].multiply(matrix);
-  }
-
-  if (flags & gbi.G_MTX_PUSH) {
-    stack.push(matrix);
-  } else {
-    stack[stack.length - 1] = matrix;
-  }
 }
 
 function executeGBI1_PopMatrix(cmd0, cmd1, dis) {
@@ -1340,7 +1279,6 @@ function initDepth() {
 
 // TODO: move all these to microcode classes.
 const ucodeGBI0 = {
-  0x01: executeGBI1_Matrix,
   0x03: executeGBI1_MoveMem,
   0x06: executeGBI1_DL,
   0x09: executeGBI1_Sprite2DBase,
@@ -1365,7 +1303,6 @@ const ucodeGBI0 = {
 };
 
 const ucodeGBI1 = {
-  0x01: executeGBI1_Matrix,
   0x03: executeGBI1_MoveMem,
   0x04: executeGBI1_Vertex,
   0x06: executeGBI1_DL,
@@ -1411,7 +1348,6 @@ const ucodeGBI2 = {
   0xd7: executeGBI2_Texture,
   0xd8: executeGBI2_PopMatrix,
   0xd9: executeGBI2_GeometryMode,
-  0xda: executeGBI2_Matrix,
   0xdb: executeGBI2_MoveWord,
   0xdc: executeGBI2_MoveMem,
   0xdd: executeGBI2_LoadUcode,
@@ -1689,37 +1625,6 @@ function executeGBI2_GeometryMode(cmd0, cmd1, dis) {
   state.geometryModeBits |= (arg1 & ~gbi.GeometryModeGBI2.G_TEXTURE_ENABLE);
 
   state.updateGeometryModeFromBits(gbi.GeometryModeGBI2);
-}
-
-function executeGBI2_Matrix(cmd0, cmd1, dis) {
-  const address = rdpSegmentAddress(cmd1);
-  const push = ((cmd0) & 0x1) === 0;
-  const replace = (cmd0 >>> 1) & 0x1;
-  const projection = (cmd0 >>> 2) & 0x1;
-
-  let matrix = loadMatrix(address);
-
-  if (dis) {
-    let t = '';
-    t += projection ? 'G_MTX_PROJECTION' : 'G_MTX_MODELVIEW';
-    t += replace ? '|G_MTX_LOAD' : '|G_MTX_MUL';
-    t += push ? '|G_MTX_PUSH' : ''; //'|G_MTX_NOPUSH';
-
-    dis.text(`gsSPMatrix(${toString32(address)}, ${t});`);
-    dis.tip(previewMatrix(matrix));
-  }
-
-  const stack = projection ? state.projection : state.modelview;
-
-  if (!replace) {
-    matrix = stack[stack.length - 1].multiply(matrix);
-  }
-
-  if (push) {
-    stack.push(matrix);
-  } else {
-    stack[stack.length - 1] = matrix;
-  }
 }
 
 function executeGBI2_PopMatrix(cmd0, cmd1, dis) {
