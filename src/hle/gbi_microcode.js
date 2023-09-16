@@ -1,4 +1,5 @@
 import { toString32 } from '../format.js';
+import { Matrix4x4 } from '../graphics/Matrix4x4.js';
 import * as logger from '../logger.js';
 import * as gbi from './gbi.js';
 import * as shaders from './shaders.js';
@@ -66,6 +67,35 @@ export class GBIMicrocode {
       return fn;
     }
     return null;
+  }
+
+  loadMatrix(address) {
+    const recip = 1.0 / 65536.0;
+    const dv = new DataView(this.ramDV.buffer, address);
+  
+    const elements = new Float32Array(16);
+    for (let i = 0; i < 4; ++i) {
+      elements[4 * 0 + i] = (dv.getInt16(i * 8 + 0) << 16 | dv.getUint16(i * 8 + 0 + 32)) * recip;
+      elements[4 * 1 + i] = (dv.getInt16(i * 8 + 2) << 16 | dv.getUint16(i * 8 + 2 + 32)) * recip;
+      elements[4 * 2 + i] = (dv.getInt16(i * 8 + 4) << 16 | dv.getUint16(i * 8 + 4 + 32)) * recip;
+      elements[4 * 3 + i] = (dv.getInt16(i * 8 + 6) << 16 | dv.getUint16(i * 8 + 6 + 32)) * recip;
+    }
+  
+    return new Matrix4x4(elements);
+  }
+  
+  previewMatrix(matrix) {
+    const m = matrix.elems;
+    const a = [m[0], m[1], m[2], m[3]];
+    const b = [m[4], m[5], m[6], m[7]];
+    const c = [m[8], m[9], m[10], m[11]];
+    const d = [m[12], m[13], m[14], m[15]];
+    return `<div><table class="matrix-table">
+      <tr><td>${a.join('</td><td>')}</td></tr>
+      <tr><td>${b.join('</td><td>')}</td></tr>
+      <tr><td>${c.join('</td><td>')}</td></tr>
+      <tr><td>${d.join('</td><td>')}</td></tr>
+    </table></div>`;
   }
 
   executeSpNoop(cmd0, cmd1, dis) {
