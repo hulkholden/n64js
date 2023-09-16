@@ -57,9 +57,6 @@ let nativeTransform;
 // TODO: expose this on the UI somewhere.
 let canvasScale = 1;
 
-// An instance of GBIMicrocode.
-let microcode;
-
 let ramDV;
 
 const state = new RSPState();
@@ -720,64 +717,40 @@ function initDepth() {
 // };
 
 function buildUCodeTables(ucode) {
-  microcode = null;
+  const microcode = createMicrocode(ucode);
+  // TODO: pass rendering object to microcode constructor.
+  microcode.flushTris = flushTris;
+  microcode.executeVertexImpl = executeVertexImpl;
+  microcode.debugController = debugController;
+  microcode.hleHalt = hleHalt;
+  microcode.fillRect = fillRect;
+  microcode.texRect = texRect;
+  microcode.nativeTransform = nativeTransform;
+  microcode.gl = gl;
 
+  return microcode.buildCommandTable();
+}
+
+function createMicrocode(ucode) {
   switch (ucode) {
     case gbiMicrocode.kUCode_GBI0:
     case gbiMicrocode.kUCode_GBI0_DKR:
     case gbiMicrocode.kUCode_GBI0_SE:
     case gbiMicrocode.kUCode_GBI0_PD:
-      microcode = new gbi0.GBI0(ucode, state, ramDV);
-      break;
+      return new gbi0.GBI0(ucode, state, ramDV);
     case gbiMicrocode.kUCode_GBI0_GE:
-      microcode = new gbi0.GBI0GE(ucode, state, ramDV);
-      break;
+      return new gbi0.GBI0GE(ucode, state, ramDV);
     case gbiMicrocode.kUCode_GBI0_WR:
-      microcode = new gbi0.GBI0WR(ucode, state, ramDV);
-      break;
+      return new gbi0.GBI0WR(ucode, state, ramDV);
     case gbiMicrocode.kUCode_GBI1:
     case gbiMicrocode.kUCode_GBI1_LL:
-      microcode = new gbi1.GBI1(ucode, state, ramDV);
-      break;
+      return new gbi1.GBI1(ucode, state, ramDV);
     case gbiMicrocode.kUCode_GBI2:
     case gbiMicrocode.kUCode_GBI2_CONKER:
-      microcode = new gbi2.GBI2(ucode, state, ramDV);
-      break;
-    default:
-      logger.log(`unhandled ucode during table init: ${ucode}`);
-      microcode = new gbi0.GBI0(ucode, state, ramDV);
+      return new gbi2.GBI2(ucode, state, ramDV);
   }
-
-  // Build a copy of the table as an array
-  const table = [];
-  for (let i = 0; i < 256; ++i) {
-    let fn = microcode.getHandler(i);
-    if (fn) {
-      fn = fn.bind(microcode);
-    } else {
-      fn = executeUnknown;
-    }
-    table.push(fn);
-  }
-
-  // Patch in specific overrides
-  if (microcode) {
-    // TODO: pass rendering object to microcode constructor.
-    microcode.flushTris = flushTris;
-    microcode.executeVertexImpl = executeVertexImpl;
-    microcode.debugController = debugController;
-    microcode.hleHalt = hleHalt;
-    microcode.fillRect = fillRect;
-    microcode.texRect = texRect;
-    microcode.nativeTransform = nativeTransform;
-    microcode.gl = gl;
-  }
-  return table;
-}
-
-function executeUnknown(cmd0, cmd1) {
-  hleHalt(`Unknown display list op ${toString8(cmd0 >>> 24)}`);
-  state.pc = 0;
+  logger.log(`unhandled ucode during table init: ${ucode}`);
+  return new gbi0.GBI0(ucode, state, ramDV);
 }
 
 export function presentBackBuffer() {
