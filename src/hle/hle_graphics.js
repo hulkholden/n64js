@@ -15,6 +15,7 @@ import * as gbi2 from './gbi2.js';
 import { RSPState } from './rsp_state.js';
 import * as shaders from './shaders.js';
 import { Texture, clampTexture } from './textures.js';
+import { Renderer } from './renderer.js';
 
 window.n64js = window.n64js || {};
 
@@ -53,6 +54,8 @@ let frameBufferTexture3D;  // For roms using display lists
 let frameBufferTexture2D;  // For roms writing directly to the frame buffer
 let nativeTransform;
 
+let renderer;
+
 // Scale factor to apply to the canvas.
 // TODO: expose this on the UI somewhere.
 let canvasScale = 1;
@@ -60,17 +63,11 @@ let canvasScale = 1;
 let ramDV;
 
 const state = new RSPState();
-
-let fillShaderProgram;
-let fillVertexPositionAttribute;
-let fillFillColorUniform;
-
 let blitShaderProgram;
 let blitVertexPositionAttribute;
 let blitTexCoordAttribute;
 let blitSamplerUniform;
 
-let rectVerticesBuffer;
 let n64PositionsBuffer;
 let n64ColorsBuffer;
 let n64UVBuffer;
@@ -384,88 +381,6 @@ function flushTris(tb) {
   tb.reset();
 }
 
-function fillRect(x0, y0, x1, y1, color) {
-  setGLBlendMode();
-
-  const display0 = nativeTransform.convertN64ToDisplay(new Vector2(x0, y0));
-  const display1 = nativeTransform.convertN64ToDisplay(new Vector2(x1, y1));
-
-  const vertices = [
-    display1.x, display1.y, 0.0, 1.0,
-    display0.x, display1.y, 0.0, 1.0,
-    display1.x, display0.y, 0.0, 1.0,
-    display0.x, display0.y, 0.0, 1.0,
-  ];
-
-  gl.useProgram(fillShaderProgram);
-
-  // aVertexPosition
-  gl.enableVertexAttribArray(fillVertexPositionAttribute);
-  gl.bindBuffer(gl.ARRAY_BUFFER, rectVerticesBuffer);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-  gl.vertexAttribPointer(fillVertexPositionAttribute, 4, gl.FLOAT, false, 0, 0);
-
-  // uFillColor
-  gl.uniform4f(fillFillColorUniform, color.r, color.g, color.b, color.a);
-
-  // Disable culling and depth testing.
-  gl.disable(gl.CULL_FACE);
-  gl.disable(gl.DEPTH_TEST);
-  gl.depthMask(false);
-
-  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-}
-
-function texRect(tileIdx, x0, y0, x1, y1, s0, t0, s1, t1, flip) {
-  // TODO: check scissor
-
-  const display0 = nativeTransform.convertN64ToDisplay(new Vector2(x0, y0));
-  const display1 = nativeTransform.convertN64ToDisplay(new Vector2(x1, y1));
-  const depthSourcePrim = (state.rdpOtherModeL & gbi.DepthSource.G_ZS_PRIM) !== 0;
-  const depth = depthSourcePrim ? state.primDepth : 0.0;
-
-  const vertices = [
-    display0.x, display0.y, depth, 1.0,
-    display1.x, display0.y, depth, 1.0,
-    display0.x, display1.y, depth, 1.0,
-    display1.x, display1.y, depth, 1.0
-  ];
-
-  let uvs;
-
-  if (flip) {
-    uvs = [
-      s0, t0,
-      s0, t1,
-      s1, t0,
-      s1, t1,
-    ];
-  } else {
-    uvs = [
-      s0, t0,
-      s1, t0,
-      s0, t1,
-      s1, t1,
-    ];
-  }
-
-  const colours = [0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff];
-
-  setProgramState(new Float32Array(vertices), new Uint32Array(colours), new Float32Array(uvs),
-    true /* textureEnabled */, false /*texGenEnabled*/, tileIdx);
-
-  gl.disable(gl.CULL_FACE);
-
-  const depthEnabled = depthSourcePrim ? true : false;
-  if (depthEnabled) {
-    initDepth();
-  } else {
-    gl.disable(gl.DEPTH_TEST);
-    gl.depthMask(false);
-  }
-  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-}
-
 function copyBackBufferToFrontBuffer(texture) {
   // Passing null binds the framebuffer to the canvas.
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -549,10 +464,9 @@ function buildUCodeTables(ucode) {
   microcode.flushTris = flushTris;
   microcode.debugController = debugController;
   microcode.hleHalt = hleHalt;
-  microcode.fillRect = fillRect;
-  microcode.texRect = texRect;
   microcode.nativeTransform = nativeTransform;
   microcode.gl = gl;
+  microcode.renderer = renderer;
 
   return microcode.buildCommandTable();
 }
@@ -1116,21 +1030,21 @@ export function initialiseRenderer($canvas) {
   // Passing null binds the framebuffer to the canvas.
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-  fillShaderProgram = shaders.createShaderProgram(gl, "fill-shader-vs", "fill-shader-fs");
-  fillVertexPositionAttribute = gl.getAttribLocation(fillShaderProgram, "aVertexPosition");
-  fillFillColorUniform = gl.getUniformLocation(fillShaderProgram, "uFillColor");
-
   blitShaderProgram = shaders.createShaderProgram(gl, "blit-shader-vs", "blit-shader-fs");
   blitVertexPositionAttribute = gl.getAttribLocation(blitShaderProgram, "aVertexPosition");
   blitTexCoordAttribute = gl.getAttribLocation(blitShaderProgram, "aTextureCoord");
   blitSamplerUniform = gl.getUniformLocation(blitShaderProgram, "uSampler");
 
-  rectVerticesBuffer = gl.createBuffer();
   n64PositionsBuffer = gl.createBuffer();
   n64ColorsBuffer = gl.createBuffer();
   n64UVBuffer = gl.createBuffer();
 
   nativeTransform = new NativeTransform();
+
+  renderer = new Renderer(gl, state, nativeTransform);
+  renderer.setGLBlendMode = setGLBlendMode;
+  renderer.setProgramState = setProgramState;
+  renderer.initDepth = initDepth;
 }
 
 export function resetRenderer() {

@@ -731,7 +731,7 @@ export class GBIMicrocode {
 
     // TODO: Apply scissor.
 
-    this.fillRect(x0, y0, x1, y1, color);
+    this.renderer.fillRect(x0, y0, x1, y1, color);
   }
 
   executeTexRect(cmd0, cmd1, dis) {
@@ -781,7 +781,7 @@ export class GBIMicrocode {
       dis.tip(`st0 = (${s0}, ${t0}) st1 = (${s1}, ${t1})`)
     }
 
-    this.texRect(tileIdx, xl, yl, xh, yh, s0, t0, s1, t1, false);
+    this.renderer.texRect(tileIdx, xl, yl, xh, yh, s0, t0, s1, t1, false);
   }
 
   executeTexRectFlip(cmd0, cmd1, dis) {
@@ -831,7 +831,7 @@ export class GBIMicrocode {
       dis.tip(`st0 = (${s0}, ${t0}) st1 = (${s1}, ${t1})`)
     }
 
-    this.texRect(tileIdx, xl, yl, xh, yh, s0, t0, s1, t1, true);
+    this.renderer.texRect(tileIdx, xl, yl, xh, yh, s0, t0, s1, t1, true);
   }
 
   executeCullDL(cmd0, cmd1, dis) {
