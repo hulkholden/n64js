@@ -26,6 +26,8 @@ let $dlistOutput;
 let $dlistState;
 let $dlistScrub;
 
+let numDisplayListsRendered = 0;
+
 export let debugDisplayListRequested = false;
 export let debugDisplayListRunning = false;
 
@@ -66,6 +68,29 @@ const config = {
 let ramDV;
 
 const state = new RSPState();
+
+
+
+let fillShaderProgram;
+let fillVertexPositionAttribute;
+let fillFillColorUniform;
+
+let blitShaderProgram;
+let blitVertexPositionAttribute;
+let blitTexCoordAttribute;
+let blitSamplerUniform;
+
+let rectVerticesBuffer;
+let n64PositionsBuffer;
+let n64ColorsBuffer;
+let n64UVBuffer;
+
+const kBlendModeUnknown = 0;
+const kBlendModeOpaque = 1;
+const kBlendModeAlphaTrans = 2;
+const kBlendModeFade = 3;
+const kBlendModeFog = 4;
+
 
 
 const kUcodeStrides = [
@@ -130,11 +155,6 @@ function logMicrocode(str, ucode) {
   }
   loggedMicrocodes.set(str, true);
   logger.log(`New RSP graphics ucode seen: ${str} = ucode ${ucode}`);
-}
-
-function executeUnknown(cmd0, cmd1) {
-  hleHalt(`Unknown display list op ${toString8(cmd0 >>> 24)}`);
-  state.pc = 0;
 }
 
 const X_NEG = 0x01; //left
@@ -317,26 +337,6 @@ function initWebGL(canvas) {
     alert("Unable to initialize WebGL. Your browser may not support it.");
   }
 }
-
-let fillShaderProgram;
-let fillVertexPositionAttribute;
-let fillFillColorUniform;
-
-let blitShaderProgram;
-let blitVertexPositionAttribute;
-let blitTexCoordAttribute;
-let blitSamplerUniform;
-
-let rectVerticesBuffer;
-let n64PositionsBuffer;
-let n64ColorsBuffer;
-let n64UVBuffer;
-
-const kBlendModeUnknown = 0;
-const kBlendModeOpaque = 1;
-const kBlendModeAlphaTrans = 2;
-const kBlendModeFade = 3;
-const kBlendModeFog = 4;
 
 function setProgramState(positions, colours, coords, textureEnabled, texGenEnabled, tileIdx) {
   setGLBlendMode();
@@ -799,7 +799,10 @@ function buildUCodeTables(ucode) {
   return table;
 }
 
-let numDisplayListsRendered = 0;
+function executeUnknown(cmd0, cmd1) {
+  hleHalt(`Unknown display list op ${toString8(cmd0 >>> 24)}`);
+  state.pc = 0;
+}
 
 export function presentBackBuffer() {
   n64js.onPresent();
