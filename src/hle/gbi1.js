@@ -1,4 +1,5 @@
 import { toString32 } from "../format.js";
+import * as disassemble from './disassemble.js';
 import * as gbi from './gbi.js';
 import { GBIMicrocode } from "./gbi_microcode.js";
 
@@ -19,14 +20,14 @@ export class GBI1 extends GBIMicrocode {
       [0xb0, this.executeBranchZ],
       [0xb1, this.executeTri2],
       // [0xb2, executeGBI1_ModifyVtx],
-      // [0xb3, executeGBI1_RDPHalf_2],
-      // [0xb4, executeGBI1_RDPHalf_1],
+      [0xb3, this.executeRDPHalf2],
+      [0xb4, this.executeRDPHalf1],
       [0xb5, this.executeLine3D],
-      // [0xb6, executeGBI1_ClrGeometryMode],
-      // [0xb7, executeGBI1_SetGeometryMode],
+      [0xb6, this.executeClearGeometryMode],
+      [0xb7, this.executeSetGeometryMode],
       [0xb8, this.executeEndDL],
-      // [0xb9, executeGBI1_SetOtherModeL],
-      // [0xba, executeGBI1_SetOtherModeH],
+      [0xb9, this.executeSetOtherModeL],
+      [0xba, this.executeSetOtherModeH],
       // [0xbb, executeGBI1_Texture],
       // [0xbc, executeGBI1_MoveWord],
       [0xbd, this.executePopMatrix],
@@ -77,6 +78,58 @@ export class GBI1 extends GBIMicrocode {
     // Just branch all the time for now
     //if (vtxDepth(cmd.vtx) <= cmd.branchzvalue)
     this.state.pc = address;
+  }
+
+  executeRDPHalf1(cmd0, cmd1, dis) {
+    if (dis) {
+      dis.text(`gsImmp1(G_RDPHALF_1, ${toString32(cmd1)});`);
+    }
+    this.state.rdpHalf1 = cmd1;
+  }
+  
+  executeRDPHalf2(cmd0, cmd1, dis) {
+    if (dis) {
+      dis.text(`gsImmp1(G_RDPHALF_2, ${toString32(cmd1)});`);
+    }
+    this.state.rdpHalf2 = cmd1;
+  }
+  
+  executeClearGeometryMode(cmd0, cmd1, dis) {
+    if (dis) {
+      dis.text(`gsSPClearGeometryMode(${gbi.getGeometryModeFlagsText(gbi.GeometryModeGBI1, cmd1)});`);
+    }
+    this.state.geometryModeBits &= ~cmd1;
+    this.state.updateGeometryModeFromBits(gbi.GeometryModeGBI1);
+  }
+  
+  executeSetGeometryMode(cmd0, cmd1, dis) {
+    if (dis) {
+      dis.text(`gsSPSetGeometryMode(${gbi.getGeometryModeFlagsText(gbi.GeometryModeGBI1, cmd1)});`);
+    }
+    this.state.geometryModeBits |= cmd1;
+    this.state.updateGeometryModeFromBits(gbi.GeometryModeGBI1);
+  }
+  
+  executeSetOtherModeL(cmd0, cmd1, dis) {
+    const shift = (cmd0 >>> 8) & 0xff;
+    const len = (cmd0 >>> 0) & 0xff;
+    const data = cmd1;
+    const mask = (((1 << len) - 1) << shift) >>> 0;
+    if (dis) {
+      disassemble.SetOtherModeL(dis, mask, data);
+    }
+    this.state.rdpOtherModeL = (this.state.rdpOtherModeL & ~mask) | data;
+  }
+  
+  executeSetOtherModeH(cmd0, cmd1, dis) {
+    const shift = (cmd0 >>> 8) & 0xff;
+    const len = (cmd0 >>> 0) & 0xff;
+    const data = cmd1;
+    const mask = (((1 << len) - 1) << shift) >>> 0;
+    if (dis) {
+      disassemble.SetOtherModeH(dis, mask, len, shift, data);
+    }
+    this.state.rdpOtherModeH = (this.state.rdpOtherModeH & ~mask) | data;
   }
 
   executeMatrix(cmd0, cmd1, dis) {
