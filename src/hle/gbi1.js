@@ -19,7 +19,7 @@ export class GBI1 extends GBIMicrocode {
 
       [0xb0, this.executeBranchZ],
       [0xb1, this.executeTri2],
-      // [0xb2, executeGBI1_ModifyVtx],
+      [0xb2, this.executeModifyVertex],
       [0xb3, this.executeRDPHalf2],
       [0xb4, this.executeRDPHalf1],
       [0xb5, this.executeLine3D],
@@ -28,7 +28,7 @@ export class GBI1 extends GBIMicrocode {
       [0xb8, this.executeEndDL],
       [0xb9, this.executeSetOtherModeL],
       [0xba, this.executeSetOtherModeH],
-      // [0xbb, executeGBI1_Texture],
+      [0xbb, this.executeTexture],
       [0xbc, this.executeMoveWord],
       [0xbd, this.executePopMatrix],
       [0xbe, this.executeCullDL],
@@ -132,6 +132,36 @@ export class GBI1 extends GBIMicrocode {
     this.state.rdpOtherModeH = (this.state.rdpOtherModeH & ~mask) | data;
   }
 
+  executeTexture(cmd0, cmd1, dis) {
+    const xparam = (cmd0 >>> 16) & 0xff;
+    const level = (cmd0 >>> 11) & 0x3;
+    const tileIdx = (cmd0 >>> 8) & 0x7;
+    const on = (cmd0 >>> 0) & 0xff;
+    const s = this.calcTextureScale(((cmd1 >>> 16) & 0xffff));
+    const t = this.calcTextureScale(((cmd1 >>> 0) & 0xffff));
+  
+    if (dis) {
+      const sText = s.toString();
+      const tText = t.toString();
+      const tileText = gbi.getTileText(tileIdx);
+      const onText = on ? 'G_ON' : 'G_OFF';
+  
+      if (xparam !== 0) {
+        dis.text(`gsSPTextureL(${sText}, ${tText}, ${level}, ${xparam}, ${tileText}, ${onText});`);
+      } else {
+        dis.text(`gsSPTexture(${sText}, ${tText}, ${level}, ${tileText}, ${onText});`);
+      }
+    }
+  
+    this.state.setTexture(s, t, level, tileIdx);
+    if (on) {
+      this.state.geometryModeBits |= gbi.GeometryModeGBI1.G_TEXTURE_ENABLE;
+    } else {
+      this.state.geometryModeBits &= ~gbi.GeometryModeGBI1.G_TEXTURE_ENABLE;
+    }
+    this.state.updateGeometryModeFromBits(gbi.GeometryModeGBI1);
+  }
+
   executeMatrix(cmd0, cmd1, dis) {
     const flags = (cmd0 >>> 16) & 0xff;
     const length = (cmd0 >>> 0) & 0xffff;
@@ -190,9 +220,15 @@ export class GBI1 extends GBIMicrocode {
     this.executeVertexImpl(v0, n, address, dis);
   }
 
+  executeModifyVertex(cmd0, cmd1, dis) {
+    this.logUnimplemented('ModifyVertex');
+    if (dis) {
+      dis.text('gsSPModifyVertex(???);');
+    }
+  } 
+
   executeSprite2DBase(cmd0, cmd1, dis) {
     this.logUnimplemented('Sprite2DBase');
-
     if (dis) {
       dis.text(`gsSPSprite2DBase(/* TODO */);`);
     }
