@@ -173,9 +173,8 @@ function updateLoopAnimframe() {
     }
   } else if (debugDisplayListRunning()) {
     requestAnimationFrame(updateLoopAnimframe);
-    if (debugDisplayList()) {
-      presentBackBuffer();
-    }
+    debugDisplayList();
+    presentBackBuffer();
   }
 
   if (stats) {
