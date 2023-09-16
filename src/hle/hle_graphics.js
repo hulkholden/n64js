@@ -224,8 +224,8 @@ function makeColourText(r, g, b, a) {
   const rgba = `${rgb}, ${a}`;
 
   if ((r < 128 && g < 128) ||
-      (g < 128 && b < 128) ||
-      (b < 128 && r < 128)) {
+    (g < 128 && b < 128) ||
+    (b < 128 && r < 128)) {
     return `<span style="color: white; background-color: rgb(${rgb})">${rgba}</span>`;
   }
   return `<span style="background-color: rgb(${rgb})">${rgba}</span>`;
@@ -1396,19 +1396,6 @@ function executeSetCImg(cmd0, cmd1, dis) {
   }
 }
 
-function executeGBI0_Vertex(cmd0, cmd1, dis) {
-  const n = ((cmd0 >>> 20) & 0xf) + 1;
-  const v0 = (cmd0 >>> 16) & 0xf;
-  //const length = (cmd0 >>>  0) & 0xffff;
-  const address = rdpSegmentAddress(cmd1);
-
-  if (dis) {
-    dis.text(`gsSPVertex(${toString32(address)}, ${n}, ${v0});`);
-  }
-
-  executeVertexImpl(v0, n, address, dis);
-}
-
 function executeGBI1_Vertex(cmd0, cmd1, dis) {
   const v0 = ((cmd0 >>> 16) & 0xff) / config.vertexStride;
   const n = ((cmd0 >>> 10) & 0x3f);
@@ -1782,9 +1769,8 @@ function texRect(tileIdx, x0, y0, x1, y1, s0, t0, s1, t1, flip) {
 
   const colours = [0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff];
 
-  setProgramState(new Float32Array(vertices),
-                  new Uint32Array(colours),
-    new Float32Array(uvs), true /* textureEnabled */, false /*texGenEnabled*/, tileIdx);
+  setProgramState(new Float32Array(vertices), new Uint32Array(colours), new Float32Array(uvs),
+    true /* textureEnabled */, false /*texGenEnabled*/, tileIdx);
 
   gl.disable(gl.CULL_FACE);
 
@@ -1898,10 +1884,8 @@ const ucodeCommon = {
 };
 
 const ucodeGBI0 = {
-  0x00: executeGBI1_SpNoop,
   0x01: executeGBI1_Matrix,
   0x03: executeGBI1_MoveMem,
-  0x04: executeGBI0_Vertex,
   0x06: executeGBI1_DL,
   0x09: executeGBI1_Sprite2DBase,
 
@@ -2502,17 +2486,23 @@ function executeGBI2_RDPHalf_2(cmd0, cmd1, dis) {
 
 function buildUCodeTables(ucode) {
   microcode = null;
-  let ucodeTable = ucodeGBI0;
 
+  let ucodeTable;
   switch (ucode) {
     case gbiMicrocode.kUCode_GBI0:
-    case gbiMicrocode.kUCode_GBI0_WR:
     case gbiMicrocode.kUCode_GBI0_DKR:
     case gbiMicrocode.kUCode_GBI0_SE:
-    case gbiMicrocode.kUCode_GBI0_GE:
     case gbiMicrocode.kUCode_GBI0_PD:
       ucodeTable = ucodeGBI0;
       microcode = new gbi0.GBI0(state, ramDV, kUcodeStrides[ucode]);
+      break;
+    case gbiMicrocode.kUCode_GBI0_GE:
+      ucodeTable = ucodeGBI0;
+      microcode = new gbi0.GBI0GE(state, ramDV, kUcodeStrides[ucode]);
+      break;
+    case gbiMicrocode.kUCode_GBI0_WR:
+      ucodeTable = ucodeGBI0;
+      microcode = new gbi0.GBI0WR(state, ramDV, kUcodeStrides[ucode]);
       break;
     case gbiMicrocode.kUCode_GBI1:
     case gbiMicrocode.kUCode_GBI1_LL:
@@ -2526,24 +2516,31 @@ function buildUCodeTables(ucode) {
       break;
     default:
       logger.log(`unhandled ucode during table init: ${ucode}`);
+      ucodeTable = ucodeGBI0;
+      microcode = new gbi0.GBI0(state, ramDV, kUcodeStrides[ucode]);
   }
 
   // Build a copy of the table as an array
   const table = [];
   for (let i = 0; i < 256; ++i) {
-    let fn = executeUnknown;
-    if (ucodeTable.hasOwnProperty(i)) {
-      fn = ucodeTable[i];
-    } else if (ucodeCommon.hasOwnProperty(i)) {
-      fn = ucodeCommon[i];
+    let fn = microcode.getHandler(i);
+    if (fn) {
+      fn = fn.bind(microcode);
+    } else {
+      if (ucodeTable.hasOwnProperty(i)) {
+        fn = ucodeTable[i];
+      } else if (ucodeCommon.hasOwnProperty(i)) {
+        fn = ucodeCommon[i];
+      }
+      if (!fn) {
+        fn = executeUnknown;
+      }
     }
     table.push(fn);
   }
 
   // Patch in specific overrides
   if (microcode) {
-    microcode.patchTable(table, ucode);
-
     // TODO: pass rendering object to microcode constructor.
     microcode.flushTris = flushTris;
     microcode.executeVertexImpl = executeVertexImpl;
