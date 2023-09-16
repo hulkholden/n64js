@@ -2,6 +2,8 @@ import { toString32 } from "../format.js";
 import * as gbi from './gbi.js';
 import { GBIMicrocode } from "./gbi_microcode.js";
 
+let executeLine3D_Warned = false;
+
 export class GBI1 extends GBIMicrocode {
   constructor(state, ramDV, vertexStride) {
     super(state, ramDV, vertexStride);
@@ -15,11 +17,11 @@ export class GBI1 extends GBIMicrocode {
       [0x09, this.executeSprite2DBase],
     
       // [0xb0, executeGBI1_BranchZ],
-      // [0xb1, executeGBI1_Tri2],
+      [0xb1, this.executeTri2],
       // [0xb2, executeGBI1_ModifyVtx],
       // [0xb3, executeGBI1_RDPHalf_2],
       // [0xb4, executeGBI1_RDPHalf_1],
-      // [0xb5, executeGBI1_Line3D],
+      [0xb5, this.executeLine3D],
       // [0xb6, executeGBI1_ClrGeometryMode],
       // [0xb7, executeGBI1_SetGeometryMode],
       // [0xb8, executeGBI1_EndDL],
@@ -29,7 +31,7 @@ export class GBI1 extends GBIMicrocode {
       // [0xbc, executeGBI1_MoveWord],
       // [0xbd, executeGBI1_PopMatrix],
       // [0xbe, executeGBI1_CullDL],
-      // [0xbf, executeGBI1_Tri1],
+      [0xbf, this.executeTri1],
       // [0xc0, executeGBI1_Noop],
     ]);
   }
@@ -89,4 +91,118 @@ export class GBI1 extends GBIMicrocode {
     this.logUnimplemented('Sprite2DBase');
   }
 
+  executeTri1(cmd0, cmd1, dis) {
+    const kCommand = cmd0 >>> 24;
+    const stride = this.vertexStride;
+    const verts = this.state.projectedVertices;
+    const tb = this.triangleBuffer;
+    tb.reset();
+  
+    let pc = this.state.pc;
+    do {
+      const flag = (cmd1 >>> 24) & 0xff;
+      const idx0 = ((cmd1 >>> 16) & 0xff) / stride;
+      const idx1 = ((cmd1 >>> 8) & 0xff) / stride;
+      const idx2 = ((cmd1 >>> 0) & 0xff) / stride;
+  
+      if (dis) {
+        dis.text(`gsSP1Triangle(${idx0}, ${idx1}, ${idx2}, ${flag});`);
+      }
+  
+      tb.pushTri(verts[idx0], verts[idx1], verts[idx2]);
+  
+      cmd0 = this.ramDV.getUint32(pc + 0);
+      cmd1 = this.ramDV.getUint32(pc + 4);
+      ++this.debugController.currentOp;
+      pc += 8;
+  
+      // NB: process triangles individually when disassembling
+    } while ((cmd0 >>> 24) === kCommand && tb.hasCapacity(1) && !dis);
+  
+    this.state.pc = pc - 8;
+    --this.debugController.currentOp;
+  
+    this.flushTris(tb);
+  }
+  
+  executeTri2(cmd0, cmd1, dis) {
+    const kCommand = cmd0 >>> 24;
+    const stride = this.vertexStride;
+    const verts = this.state.projectedVertices;
+    const tb = this.triangleBuffer;
+    tb.reset();
+  
+    let pc = this.state.pc;
+    do {
+      const idx0 = ((cmd0 >>> 16) & 0xff) / stride;
+      const idx1 = ((cmd0 >>> 8) & 0xff) / stride;
+      const idx2 = ((cmd0 >>> 0) & 0xff) / stride;
+      const idx3 = ((cmd1 >>> 16) & 0xff) / stride;
+      const idx4 = ((cmd1 >>> 8) & 0xff) / stride;
+      const idx5 = ((cmd1 >>> 0) & 0xff) / stride;
+  
+      if (dis) {
+        dis.text(`gsSP1Triangle2(${idx0},${idx1},${idx2}, ${idx3},${idx4},${idx5});`);
+      }
+  
+      tb.pushTri(verts[idx0], verts[idx1], verts[idx2]);
+      tb.pushTri(verts[idx3], verts[idx4], verts[idx5]);
+  
+      cmd0 = this.ramDV.getUint32(pc + 0);
+      cmd1 = this.ramDV.getUint32(pc + 4);
+      ++this.debugController.currentOp;
+      pc += 8;
+      // NB: process triangles individually when disassembling
+    } while ((cmd0 >>> 24) === kCommand && tb.hasCapacity(2) && !dis);
+  
+    this.state.pc = pc - 8;
+    --this.debugController.currentOp;
+  
+    this.flushTris(tb);
+  }
+    
+  executeLine3D(cmd0, cmd1, dis) {
+    const kCommand = cmd0 >>> 24;
+    const stride = this.vertexStride;
+    const verts = this.state.projectedVertices;
+    const tb = this.triangleBuffer;
+    tb.reset();
+  
+    let pc = this.state.pc;
+    do {
+      const idx3 = ((cmd1 >>> 24) & 0xff) / stride;
+      const idx0 = ((cmd1 >>> 16) & 0xff) / stride;
+      const idx1 = ((cmd1 >>> 8) & 0xff) / stride;
+      const idx2 = ((cmd1 >>> 0) & 0xff) / stride;
+  
+      if (dis) {
+        dis.text(`gsSPLine3D(${idx0}, ${idx1}, ${idx2}, ${idx3});`);
+      }
+  
+      // Tamagotchi World 64 seems to trigger this. 
+      if (idx0 < verts.length && idx1 < verts.length && idx2 < verts.length) {
+        tb.pushTri(verts[idx0], verts[idx1], verts[idx2]);
+      } else if (!executeLine3D_Warned) {
+        console.log(`verts out of bounds, ignoring: ${idx0}, ${idx1}, ${idx2} vs ${verts.length}, stride ${stride}`);
+        executeLine3D_Warned = true;
+      }
+      if (idx2 < verts.length && idx3 < verts.length && idx0 < verts.length) {
+        tb.pushTri(verts[idx2], verts[idx3], verts[idx0]);
+      } else if (!executeLine3D_Warned) {
+        console.log(`verts out of bounds, ignoring: ${idx2}, ${idx3}, ${idx0} vs ${verts.length}, stride ${stride}`);
+        executeLine3D_Warned = true;
+      }
+  
+      cmd0 = this.ramDV.getUint32(pc + 0);
+      cmd1 = this.ramDV.getUint32(pc + 4);
+      ++this.debugController.currentOp;
+      pc += 8;
+      // NB: process triangles individually when disassembling
+    } while ((cmd0 >>> 24) === kCommand && tb.hasCapacity(2) && !dis);
+  
+    this.state.pc = pc - 8;
+    --this.debugController.currentOp;
+  
+    this.flushTris(tb);
+  }
 }
