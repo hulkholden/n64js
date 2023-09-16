@@ -1,4 +1,5 @@
 import { toString32 } from '../format.js';
+import { convertRGBA16Pixel } from './convert.js';
 import * as gbi from './gbi.js';
 
 
@@ -64,4 +65,38 @@ export function SetOtherModeH(dis, mask, len, shift, data) {
       break;
   }
   dis.text(text);
+}
+
+function makeColourText(r, g, b, a) {
+  const rgb = `${r}, ${g}, ${b}`;
+  const rgba = `${rgb}, ${a}`;
+
+  if ((r < 128 && g < 128) ||
+      (g < 128 && b < 128) ||
+      (b < 128 && r < 128)) {
+    return `<span style="color: white; background-color: rgb(${rgb})">${rgba}</span>`;
+  }
+  return `<span style="background-color: rgb(${rgb})">${rgba}</span>`;
+}
+
+export function makeColorTextRGBA(rgba) {
+  const r = (rgba >>> 24) & 0xff;
+  const g = (rgba >>> 16) & 0xff;
+  const b = (rgba >>> 8) & 0xff;
+  const a = (rgba) & 0xff;
+
+  return makeColourText(r, g, b, a);
+}
+
+export function makeColorTextABGR(abgr) {
+  const r = abgr & 0xff;
+  const g = (abgr >>> 8) & 0xff;
+  const b = (abgr >>> 16) & 0xff;
+  const a = (abgr >>> 24) & 0xff;
+
+  return makeColourText(r, g, b, a);
+}
+
+export function makeColorTextRGBA16(col) {
+  return makeColorTextRGBA(convertRGBA16Pixel(col));
 }

@@ -6,7 +6,7 @@ import * as logger from '../logger.js';
 import { Transform2D } from '../graphics/Transform2D.js';
 import { Vector2 } from '../graphics/Vector2.js';
 import { Vector3 } from '../graphics/Vector3.js';
-import { convertRGBA16Pixel } from './convert.js';
+import { makeColorTextRGBA16, makeColorTextRGBA, makeColorTextABGR } from './disassemble.js';
 import * as disassemble from './disassemble.js';
 import * as gbi from './gbi.js';
 import * as gbiMicrocode from './gbi_microcode.js';
@@ -16,7 +16,6 @@ import * as gbi2 from './gbi2.js';
 import { RSPState } from './rsp_state.js';
 import * as shaders from './shaders.js';
 import { Texture, clampTexture } from './textures.js';
-import { TriangleBuffer } from './triangle_buffer.js';
 
 window.n64js = window.n64js || {};
 
@@ -178,40 +177,6 @@ function unpackRGBAToColor(col) {
     'b': ((col >>> 8) & 0xff) / 255.0,
     'a': ((col >>> 0) & 0xff) / 255.0,
   };
-}
-
-function makeColourText(r, g, b, a) {
-  const rgb = `${r}, ${g}, ${b}`;
-  const rgba = `${rgb}, ${a}`;
-
-  if ((r < 128 && g < 128) ||
-      (g < 128 && b < 128) ||
-      (b < 128 && r < 128)) {
-    return `<span style="color: white; background-color: rgb(${rgb})">${rgba}</span>`;
-  }
-  return `<span style="background-color: rgb(${rgb})">${rgba}</span>`;
-}
-
-function makeColorTextRGBA(rgba) {
-  const r = (rgba >>> 24) & 0xff;
-  const g = (rgba >>> 16) & 0xff;
-  const b = (rgba >>> 8) & 0xff;
-  const a = (rgba) & 0xff;
-
-  return makeColourText(r, g, b, a);
-}
-
-function makeColorTextABGR(abgr) {
-  const r = abgr & 0xff;
-  const g = (abgr >>> 8) & 0xff;
-  const b = (abgr >>> 16) & 0xff;
-  const a = (abgr >>> 24) & 0xff;
-
-  return makeColourText(r, g, b, a);
-}
-
-function makeColorTextRGBA16(col) {
-  return makeColorTextRGBA(convertRGBA16Pixel(col));
 }
 
 function haltUnimplemented(cmd0, cmd1) {
@@ -677,13 +642,6 @@ function executeGBI1_Texture(cmd0, cmd1, dis) {
   state.updateGeometryModeFromBits(gbi.GeometryModeGBI1);
 }
 
-function executeGBI1_CullDL(cmd0, cmd1, dis) {
-  // FIXME: culldl
-  if (dis) {
-    dis.text(`gSPCullDisplayList(/* TODO */); // TODO: implement`);
-  }
-}
-
 function executeGBI1_ModifyVtx(cmd0, cmd1, dis) {
   if (dis) {
     dis.text('gsSPModifyVertex(???);');
@@ -1141,7 +1099,6 @@ const ucodeGBI0 = {
   0xbb: executeGBI1_Texture,
   0xbc: executeGBI1_MoveWord,
   0xbd: executeGBI1_PopMatrix,
-  0xbe: executeGBI1_CullDL,
   0xc0: executeGBI1_Noop
 };
 
@@ -1161,257 +1118,8 @@ const ucodeGBI1 = {
   0xbb: executeGBI1_Texture,
   0xbc: executeGBI1_MoveWord,
   0xbd: executeGBI1_PopMatrix,
-  0xbe: executeGBI1_CullDL,
   0xc0: executeGBI1_Noop
 };
-
-const ucodeGBI2 = {
-  0x02: executeGBI2_ModifyVtx,
-  0x03: executeGBI2_CullDL,
-
-  // 0xd3: executeGBI2_Special1,
-  // 0xd4: executeGBI2_Special2,
-  // 0xd5: executeGBI2_Special3,
-  0xd7: executeGBI2_Texture,
-  0xd8: executeGBI2_PopMatrix,
-  0xd9: executeGBI2_GeometryMode,
-  0xdb: executeGBI2_MoveWord,
-  0xdc: executeGBI2_MoveMem,
-};
-
-function executeGBI2_ModifyVtx(cmd0, cmd1, dis) {
-  const vtx = (cmd0 >>> 1) & 0x7fff;
-  const offset = (cmd0 >>> 16) & 0xff;
-  const value = cmd1;
-
-  if (dis) {
-    dis.text(`gsSPModifyVertex(${vtx},${gbi.ModifyVtx.nameOf(offset)},${toString32(value)});`);
-  }
-
-  // Cures crash after swinging in Mario Golf
-  if (vtx >= state.projectedVertices.length) {
-    hleHalt('crazy vertex index');
-    return;
-  }
-
-  const vertex = state.projectedVertices[vtx];
-
-  switch (offset) {
-    case gbi.ModifyVtx.G_MWO_POINT_RGBA:
-      hleHalt('unhandled modifyVtx');
-      break;
-
-    case gbi.ModifyVtx.G_MWO_POINT_ST:
-      {
-        // u/v are signed
-        const u = (value >> 16);
-        const v = ((value & 0xffff) << 16) >> 16;
-        vertex.set = true;
-        vertex.u = u * state.texture.scaleS / 32.0;
-        vertex.v = v * state.texture.scaleT / 32.0;
-      }
-      break;
-
-    case gbi.ModifyVtx.G_MWO_POINT_XYSCREEN:
-      hleHalt('unhandled modifyVtx');
-      break;
-
-    case gbi.ModifyVtx.G_MWO_POINT_ZSCREEN:
-      hleHalt('unhandled modifyVtx');
-      break;
-
-    default:
-      hleHalt('unhandled modifyVtx');
-      break;
-  }
-}
-
-function executeGBI2_CullDL(cmd0, cmd1, dis) {
-  // Same imple as GBI1.
-  executeGBI1_CullDL(cmd0, cmd1, dis);
-}
-
-function executeGBI2_Texture(cmd0, cmd1, dis) {
-  const xparam = (cmd0 >>> 16) & 0xff;
-  const level = (cmd0 >>> 11) & 0x3;
-  const tileIdx = (cmd0 >>> 8) & 0x7;
-  const on = (cmd0 >>> 1) & 0x01; // NB: uses bit 1
-  const s = calcTextureScale(((cmd1 >>> 16) & 0xffff));
-  const t = calcTextureScale(((cmd1 >>> 0) & 0xffff));
-
-  if (dis) {
-    const sText = s.toString();
-    const tText = t.toString();
-    const tt = gbi.getTileText(tileIdx);
-
-    if (xparam !== 0) {
-      dis.text(`gsSPTextureL(${sText}, ${tText}, ${level}, ${xparam}, ${tt}, ${on});`);
-    } else {
-      dis.text(`gsSPTexture(${sText}, ${tText}, ${level}, ${tt}, ${on});`);
-    }
-  }
-
-  state.setTexture(s, t, level, tileIdx);
-  if (on) {
-    state.geometryModeBits |= gbi.GeometryModeGBI2.G_TEXTURE_ENABLE;
-  } else {
-    state.geometryModeBits &= ~gbi.GeometryModeGBI2.G_TEXTURE_ENABLE;
-  }
-  state.updateGeometryModeFromBits(gbi.GeometryModeGBI2);
-}
-
-function executeGBI2_GeometryMode(cmd0, cmd1, dis) {
-  const arg0 = cmd0 & 0x00ffffff;
-  const arg1 = cmd1;
-
-  if (dis) {
-    const clr = gbi.getGeometryModeFlagsText(gbi.GeometryModeGBI2, ~arg0)
-    const set = gbi.getGeometryModeFlagsText(gbi.GeometryModeGBI2, arg1);
-    dis.text(`gsSPGeometryMode(~(${clr}),${set});`);
-  }
-
-  // Texture enablement is controlled via gsSPTexture, so ignore this.
-  state.geometryModeBits &= (arg0 | gbi.GeometryModeGBI2.G_TEXTURE_ENABLE);
-  state.geometryModeBits |= (arg1 & ~gbi.GeometryModeGBI2.G_TEXTURE_ENABLE);
-
-  state.updateGeometryModeFromBits(gbi.GeometryModeGBI2);
-}
-
-function executeGBI2_PopMatrix(cmd0, cmd1, dis) {
-  // FIXME: not sure what bit this is
-  //const projection =  ??;
-  const projection = 0;
-
-  if (dis) {
-    const t = projection ? 'G_MTX_PROJECTION' : 'G_MTX_MODELVIEW';
-    dis.text(`gsSPPopMatrix(${t});`);
-  }
-
-  const stack = projection ? state.projection : state.modelview;
-  if (stack.length > 0) {
-    stack.pop();
-  }
-}
-
-function executeGBI2_MoveWord(cmd0, cmd1, dis) {
-  const type = (cmd0 >>> 16) & 0xff;
-  const offset = (cmd0) & 0xffff;
-  const value = cmd1;
-
-  if (dis) {
-    let text = `gMoveWd(${gbi.MoveWord.nameOf(type)}, ${toString16(offset)}, ${toString32(value)});`;
-
-    switch (type) {
-      case gbi.MoveWord.G_MW_NUMLIGHT:
-        {
-          let v = Math.floor(value / 24);
-          text = `gsSPNumLights(${gbi.NumLights.nameOf(v)});`;
-        }
-        break;
-      case gbi.MoveWord.G_MW_SEGMENT:
-        {
-          let v = value === 0 ? '0' : toString32(value);
-          text = `gsSPSegment(${(offset >>> 2) & 0xf}, ${v});`;
-        }
-        break;
-    }
-    dis.text(text);
-  }
-
-  switch (type) {
-    // case gbi.MoveWord.G_MW_MATRIX:  unimplemented(cmd0,cmd1); break;
-    case gbi.MoveWord.G_MW_NUMLIGHT:
-      state.numLights = Math.floor(value / 24);
-      break;
-    case gbi.MoveWord.G_MW_CLIP:
-      /*unimplemented(cmd0,cmd1);*/ break;
-    case gbi.MoveWord.G_MW_SEGMENT:
-      state.segments[((offset >>> 2) & 0xf)] = value;
-      break;
-    case gbi.MoveWord.G_MW_FOG:
-      /*unimplemented(cmd0,cmd1);*/ break;
-    case gbi.MoveWord.G_MW_LIGHTCOL:
-      /*unimplemented(cmd0,cmd1);*/ break;
-    // case gbi.MoveWord.G_MW_POINTS:    unimplemented(cmd0,cmd1); break;
-    case gbi.MoveWord.G_MW_PERSPNORM:
-      /*unimplemented(cmd0,cmd1);*/ break;
-    default:
-      haltUnimplemented(cmd0, cmd1);
-      break;
-  }
-}
-
-function previewGBI2_MoveMem(type, length, address, dis) {
-  let tip = '';
-  for (let i = 0; i < length; i += 4) {
-    tip += toHex(ramDV.getUint32(address + i), 32) + ' ';
-  }
-  tip += '<br>';
-
-  switch (type) {
-    case gbi.MoveMemGBI2.G_GBI2_MV_VIEWPORT:
-      tip += previewViewport(address);
-      break;
-    case gbi.MoveMemGBI2.G_GBI2_MV_LIGHT:
-      tip += previewLight(address);
-      break;
-  }
-
-  dis.tip(tip);
-}
-
-function executeGBI2_MoveMem(cmd0, cmd1, dis) {
-  const address = rdpSegmentAddress(cmd1);
-  const length = ((cmd0 >>> 16) & 0xff) << 1;
-  const offset = ((cmd0 >>> 8) & 0xff) << 3;
-  const type = cmd0 & 0xfe;
-
-  let text;
-  if (dis) {
-    text = `gsDma1p(G_MOVEMEM, ${toString32(address)}, ${length}, ${offset}, ${gbi.MoveMemGBI2.nameOf(type)});`;
-  }
-
-  switch (type) {
-    case gbi.MoveMemGBI2.G_GBI2_MV_VIEWPORT:
-      if (dis) { text = `gsSPViewport(${toString32(address)});`; }
-      moveMemViewport(address);
-      break;
-    case gbi.MoveMemGBI2.G_GBI2_MV_LIGHT:
-      {
-        if (offset == gbi.MoveMemGBI2.G_GBI2_MVO_LOOKATX) {
-          if (dis) { text = `gSPLookAtX(${toString32(address)});`; }
-          // TODO
-        } else if (offset == gbi.MoveMemGBI2.G_GBI2_MVO_LOOKATY) {
-          if (dis) { text = `gSPLookAtY(${toString32(address)});`; }
-          // TODO
-        } else if (offset >= gbi.MoveMemGBI2.G_GBI2_MVO_L0 && offset <= gbi.MoveMemGBI2.G_GBI2_MVO_L7) {
-          let lightIdx = ((offset - gbi.MoveMemGBI2.G_GBI2_MVO_L0) / 24) >>> 0;
-          if (dis) { text = `gsSPLight(${toString32(address)}, ${lightIdx})`; }
-          moveMemLight(lightIdx, address);
-          if (length != 16) {
-            console.log(`unexpected gsSPLight length ${length}. Is this setting multiple lights?`);
-          }
-        } else {
-          if (dis) { text += ` // (unknown offset ${toString16(offset)})`; }
-        }
-      }
-      break;
-    case gbi.MoveMemGBI2.G_GBI2_MV_POINT:
-      hleHalt(`unhandled movemem G_GBI2_MV_POINT: ${type.toString(16)}`);
-      break;
-    case gbi.MoveMemGBI2.G_GBI2_MV_MATRIX:
-      hleHalt(`unhandled movemem G_GBI2_MV_MATRIX: ${type.toString(16)}`);
-      break;
-
-    default:
-      hleHalt(`unknown movemem: ${type.toString(16)}`);
-  }
-
-  if (dis) {
-    dis.text(text);
-    previewGBI2_MoveMem(type, length, address, dis);
-  }
-}
 
 // const ucodeSprite2d = {
 //   0xbe: executeSprite2dScaleFlip,
@@ -1450,7 +1158,7 @@ function buildUCodeTables(ucode) {
       break;
     case gbiMicrocode.kUCode_GBI2:
     case gbiMicrocode.kUCode_GBI2_CONKER:
-      ucodeTable = ucodeGBI2;
+      ucodeTable = {};
       microcode = new gbi2.GBI2(state, ramDV, kUcodeStrides[ucode]);
       break;
     default:

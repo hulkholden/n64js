@@ -30,7 +30,7 @@ export class GBI1 extends GBIMicrocode {
       // [0xbb, executeGBI1_Texture],
       // [0xbc, executeGBI1_MoveWord],
       // [0xbd, executeGBI1_PopMatrix],
-      // [0xbe, executeGBI1_CullDL],
+      [0xbe, this.executeCullDL],
       [0xbf, this.executeTri1],
       // [0xc0, executeGBI1_Noop],
     ]);

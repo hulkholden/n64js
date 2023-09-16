@@ -1,8 +1,12 @@
 /*global n64js*/
 
-import { toString32 } from '../format.js';
+import { toString8, toString32 } from '../format.js';
 import { Matrix4x4 } from '../graphics/Matrix4x4.js';
+import { Transform2D } from '../graphics/Transform2D.js';
+import { Vector2 } from '../graphics/Vector2.js';
+import { Vector3 } from '../graphics/Vector3.js';
 import * as logger from '../logger.js';
+import { makeColorTextRGBA } from './disassemble.js';
 import * as gbi from './gbi.js';
 import * as shaders from './shaders.js';
 import { TriangleBuffer } from "./triangle_buffer.js";
@@ -83,6 +87,10 @@ export class GBIMicrocode {
     n64js.warn(`${name} unimplemented`);
   }
 
+  haltUnimplemented(cmd0, cmd1) {
+    this.hleHalt(`Unimplemented display list op ${toString8(cmd0 >>> 24)}`);
+  }
+
   loadMatrix(address) {
     const recip = 1.0 / 65536.0;
     const dv = new DataView(this.ramDV.buffer, address);
@@ -110,6 +118,59 @@ export class GBIMicrocode {
       <tr><td>${c.join('</td><td>')}</td></tr>
       <tr><td>${d.join('</td><td>')}</td></tr>
     </table></div>`;
+  }
+
+   loadViewport(address) {
+    const scale = new Vector2(
+      this.ramDV.getInt16(address + 0) / 4.0,
+      this.ramDV.getInt16(address + 2) / 4.0,
+    );
+    const trans = new Vector2(
+      this.ramDV.getInt16(address + 8) / 4.0,
+      this.ramDV.getInt16(address + 10) / 4.0,
+    );
+  
+    //logger.log(`Viewport: scale=${scale.x},${scale.y} trans=${trans.x},${trans.y}` );
+    this.state.viewport.scale = scale;
+    this.state.viewport.trans = trans;
+  
+    // N64 provides the center point and distance to each edge,
+    // but we want the width/height and translate to bottom left.
+    const t2d = new Transform2D(scale.scale(2), trans.sub(scale));
+    this.nativeTransform.setN64Viewport(t2d);
+  }
+
+  previewViewport(address) {
+    let result = '';
+    result += `scale = (${this.ramDV.getInt16(address + 0) / 4.0}, ${this.ramDV.getInt16(address + 2) / 4.0}) `;
+    result += `trans = (${this.ramDV.getInt16(address + 8) / 4.0}, ${this.ramDV.getInt16(address + 10) / 4.0}) `;
+    return result;
+  }
+ 
+  loadLight(lightIdx, address) {
+    if (lightIdx >= this.state.lights.length) {
+      logger.log(`light index ${lightIdx} out of range`);
+      return;
+    }
+    this.state.lights[lightIdx].color = makeRGBAFromRGBA32(this.ramDV.getUint32(address + 0));
+    this.state.lights[lightIdx].dir = Vector3.create([
+      this.ramDV.getInt8(address + 8),
+      this.ramDV.getInt8(address + 9),
+      this.ramDV.getInt8(address + 10)
+    ]).normaliseInPlace();
+  }
+  
+  previewLight(address) {
+    let result = '';
+    result += `color = ${makeColorTextRGBA(this.ramDV.getUint32(address + 0))} `;
+    result += `colorCopy = ${makeColorTextRGBA(this.ramDV.getUint32(address + 4))} `;
+    const dir = Vector3.create([
+      this.ramDV.getInt8(address + 8),
+      this.ramDV.getInt8(address + 9),
+      this.ramDV.getInt8(address + 10)
+    ]).normaliseInPlace();
+    result += `norm = (${dir.x}, ${dir.y}, ${dir.z})`;
+    return result;
   }
 
   executeSpNoop(cmd0, cmd1, dis) {
@@ -597,6 +658,20 @@ export class GBIMicrocode {
   
     this.texRect(tileIdx, xl, yl, xh, yh, s0, t0, s1, t1, true);
   }
+
+  executeCullDL(cmd0, cmd1, dis) {
+    this.logUnimplemented('CullDisplayList')
+    if (dis) {
+      dis.text(`gSPCullDisplayList(/* TODO */); // TODO: implement`);
+    }
+  }  
+
+  calcTextureScale(v) {
+    if (v === 0 || v === 0xffff) {
+      return 1.0;
+    }
+    return v / 65536.0;
+  }
 }
 
 function makeRGBAFromRGBA16(col) {
@@ -613,6 +688,6 @@ function makeRGBAFromRGBA32(col) {
     'r': ((col >>> 24) & 0xff) / 255.0,
     'g': ((col >>> 16) & 0xff) / 255.0,
     'b': ((col >>> 8) & 0xff) / 255.0,
-    'a': ((col >>> 0) & 0xff) / 1.0,
+    'a': ((col >>> 0) & 0xff) / 255.0,
   };
 }
