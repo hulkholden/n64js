@@ -8,6 +8,7 @@ let executeLine3D_Warned = false;
 export class GBI1 extends GBIMicrocode {
   constructor(ucode, state, ramDV) {
     super(ucode, state, ramDV);
+    this.vertexStride = 2;
 
     this.gbi1Commands = new Map([
       [0x00, this.executeSpNoop],
@@ -472,5 +473,19 @@ export class GBI1 extends GBIMicrocode {
     --this.debugController.currentOp;
 
     this.renderer.flushTris(tb);
+  }
+}
+
+export class GBI1LL extends GBI1 {
+  constructor(ucode, state, ramDV) {
+    super(ucode, state, ramDV);
+    this.vertexStride = 2;
+  }
+}
+
+export class GBI1SDEX extends GBI1 {
+  constructor(ucode, state, ramDV) {
+    super(ucode, state, ramDV);
+    this.vertexStride = 2;
   }
 }

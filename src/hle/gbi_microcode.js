@@ -8,7 +8,6 @@ import { Vector3 } from '../graphics/Vector3.js';
 import * as logger from '../logger.js';
 import { makeColorTextRGBA } from './disassemble.js';
 import * as gbi from './gbi.js';
-import { VertexStrides } from './microcodes.js';
 import * as shaders from './shaders.js';
 import { TriangleBuffer } from "./triangle_buffer.js";
 
@@ -31,7 +30,7 @@ export class GBIMicrocode {
   constructor(ucode, state, ramDV) {
     this.state = state;
     this.ramDV = ramDV;
-    this.vertexStride = VertexStrides[ucode];
+    this.vertexStride = 2;
 
     this.triangleBuffer = new TriangleBuffer(64);
 
