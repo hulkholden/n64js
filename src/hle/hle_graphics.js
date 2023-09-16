@@ -40,10 +40,7 @@ let renderer;
 let canvasScale = 1;
 
 const state = new RSPState();
-const debugController = new DebugController(state);
-// FIXME.
-debugController.processDList = processDList;
-
+const debugController = new DebugController(state, processDList);
 
 function initWebGL(canvas) {
   if (gl) {
