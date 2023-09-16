@@ -209,62 +209,6 @@ function executeUnknown(cmd0, cmd1) {
   state.pc = 0;
 }
 
-function executeGBI1_Noop(cmd0, cmd1, dis) {
-  if (dis) {
-    dis.text('gsDPNoOp();');
-  }
-}
-
-function executeGBI1_DL(cmd0, cmd1, dis) {
-  const param = ((cmd0 >>> 16) & 0xff);
-  const address = rdpSegmentAddress(cmd1);
-
-  if (dis) {
-    const fn = (param === gbi.G_DL_PUSH) ? 'gsSPDisplayList' : 'gsSPBranchList';
-    dis.text(`${fn}(<span class="dl-branch">${toString32(address)}</span>);`);
-  }
-
-  if (param === gbi.G_DL_PUSH) {
-    state.dlistStack.push({ pc: state.pc });
-  }
-  state.pc = address;
-}
-
-function executeGBI1_EndDL(cmd0, cmd1, dis) {
-  if (dis) {
-    dis.text('gsSPEndDisplayList();');
-  }
-
-  if (state.dlistStack.length > 0) {
-    state.pc = state.dlistStack.pop().pc;
-  } else {
-    state.pc = 0;
-  }
-}
-
-function executeGBI1_BranchZ(cmd0, cmd1) {
-  const address = rdpSegmentAddress(state.rdpHalf1);
-  // FIXME
-  // Just branch all the time for now
-  //if (vtxDepth(cmd.vtx) <= cmd.branchzvalue)
-  state.pc = address;
-}
-
-function executeGBI1_PopMatrix(cmd0, cmd1, dis) {
-  const flags = (cmd1 >>> 0) & 0xff;
-
-  if (dis) {
-    let t = '';
-    t += (flags & gbi.G_MTX_PROJECTION) ? 'G_MTX_PROJECTION' : 'G_MTX_MODELVIEW';
-    dis.text(`gsSPPopMatrix(${t});`);
-  }
-
-  // FIXME: pop is always modelview?
-  if (state.modelview.length > 0) {
-    state.modelview.pop();
-  }
-}
-
 function previewGBI1_MoveMem(type, length, address, dis) {
   let tip = '';
 
@@ -1086,39 +1030,27 @@ function initDepth() {
 // TODO: move all these to microcode classes.
 const ucodeGBI0 = {
   0x03: executeGBI1_MoveMem,
-  0x06: executeGBI1_DL,
-
-  0xb0: executeGBI1_BranchZ, // GBI1 only?
   0xb3: executeGBI1_RDPHalf_2,
   0xb4: executeGBI1_RDPHalf_1,
   0xb6: executeGBI1_ClrGeometryMode,
   0xb7: executeGBI1_SetGeometryMode,
-  0xb8: executeGBI1_EndDL,
   0xb9: executeGBI1_SetOtherModeL,
   0xba: executeGBI1_SetOtherModeH,
   0xbb: executeGBI1_Texture,
   0xbc: executeGBI1_MoveWord,
-  0xbd: executeGBI1_PopMatrix,
-  0xc0: executeGBI1_Noop
 };
 
 const ucodeGBI1 = {
   0x03: executeGBI1_MoveMem,
-  0x06: executeGBI1_DL,
-
-  0xb0: executeGBI1_BranchZ,
   0xb2: executeGBI1_ModifyVtx,
   0xb3: executeGBI1_RDPHalf_2,
   0xb4: executeGBI1_RDPHalf_1,
   0xb6: executeGBI1_ClrGeometryMode,
   0xb7: executeGBI1_SetGeometryMode,
-  0xb8: executeGBI1_EndDL,
   0xb9: executeGBI1_SetOtherModeL,
   0xba: executeGBI1_SetOtherModeH,
   0xbb: executeGBI1_Texture,
   0xbc: executeGBI1_MoveWord,
-  0xbd: executeGBI1_PopMatrix,
-  0xc0: executeGBI1_Noop
 };
 
 // const ucodeSprite2d = {

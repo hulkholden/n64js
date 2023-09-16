@@ -13,10 +13,10 @@ export class GBI1 extends GBIMicrocode {
       [0x01, this.executeMatrix],
       // [0x03, executeGBI1_MoveMem],
       [0x04, this.executeVertex],
-      // [0x06, executeGBI1_DL],
+      [0x06, this.executeDL],
       [0x09, this.executeSprite2DBase],
     
-      // [0xb0, executeGBI1_BranchZ],
+      [0xb0, this.executeBranchZ],
       [0xb1, this.executeTri2],
       // [0xb2, executeGBI1_ModifyVtx],
       // [0xb3, executeGBI1_RDPHalf_2],
@@ -24,15 +24,15 @@ export class GBI1 extends GBIMicrocode {
       [0xb5, this.executeLine3D],
       // [0xb6, executeGBI1_ClrGeometryMode],
       // [0xb7, executeGBI1_SetGeometryMode],
-      // [0xb8, executeGBI1_EndDL],
+      [0xb8, this.executeEndDL],
       // [0xb9, executeGBI1_SetOtherModeL],
       // [0xba, executeGBI1_SetOtherModeH],
       // [0xbb, executeGBI1_Texture],
       // [0xbc, executeGBI1_MoveWord],
-      // [0xbd, executeGBI1_PopMatrix],
+      [0xbd, this.executePopMatrix],
       [0xbe, this.executeCullDL],
       [0xbf, this.executeTri1],
-      // [0xc0, executeGBI1_Noop],
+      [0xc0, this.executeNoop],
     ]);
   }
 
@@ -42,6 +42,41 @@ export class GBI1 extends GBIMicrocode {
       return fn;
     }
     return super.getHandler(command);
+  }
+
+  executeDL(cmd0, cmd1, dis) {
+    const param = ((cmd0 >>> 16) & 0xff);
+    const address = this.state.rdpSegmentAddress(cmd1);
+  
+    if (dis) {
+      const fn = (param === gbi.G_DL_PUSH) ? 'gsSPDisplayList' : 'gsSPBranchList';
+      dis.text(`${fn}(<span class="dl-branch">${toString32(address)}</span>);`);
+    }
+  
+    if (param === gbi.G_DL_PUSH) {
+      this.state.dlistStack.push({ pc: this.state.pc });
+    }
+    this.state.pc = address;
+  }
+  
+  executeEndDL(cmd0, cmd1, dis) {
+    if (dis) {
+      dis.text('gsSPEndDisplayList();');
+    }
+  
+    if (this.state.dlistStack.length > 0) {
+      this.state.pc = this.state.dlistStack.pop().pc;
+    } else {
+      this.state.pc = 0;
+    }
+  }
+  
+  executeBranchZ(cmd0, cmd1) {
+    const address = this.state.rdpSegmentAddress(this.state.rdpHalf1);
+    // FIXME
+    // Just branch all the time for now
+    //if (vtxDepth(cmd.vtx) <= cmd.branchzvalue)
+    this.state.pc = address;
   }
 
   executeMatrix(cmd0, cmd1, dis) {
@@ -71,6 +106,21 @@ export class GBI1 extends GBIMicrocode {
       stack.push(matrix);
     } else {
       stack[stack.length - 1] = matrix;
+    }
+  }
+
+  executePopMatrix(cmd0, cmd1, dis) {
+    const flags = (cmd1 >>> 0) & 0xff;
+  
+    if (dis) {
+      let t = '';
+      t += (flags & gbi.G_MTX_PROJECTION) ? 'G_MTX_PROJECTION' : 'G_MTX_MODELVIEW';
+      dis.text(`gsSPPopMatrix(${t});`);
+    }
+  
+    // FIXME: pop is always modelview?
+    if (this.state.modelview.length > 0) {
+      this.state.modelview.pop();
     }
   }
 
