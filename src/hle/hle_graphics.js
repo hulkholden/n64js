@@ -51,9 +51,6 @@ let canvasScale = 1;
 
 const state = new RSPState();
 
-// TODO: provide a HLE object and instantiate these in the constructor.
-function getRamDataView() { return n64js.hardware().cachedMemDevice.mem.dataView; }
-
 function initWebGL(canvas) {
   if (gl) {
     return;
@@ -452,9 +449,9 @@ function processDList(task, disassembler, bailAfter) {
   }
 
   let ucode = detect(task);
-  const ram = getRamDataView();
+  const ramDV = n64js.hardware().cachedMemDevice.mem.dataView
   state.reset(task.data_ptr);
-  const ucodeTable = buildUCodeTables(ucode, ram);
+  const ucodeTable = buildUCodeTables(ucode, ramDV);
 
   initViScales();
 
@@ -465,8 +462,8 @@ function processDList(task, disassembler, bailAfter) {
 
     while (state.pc !== 0) {
       const pc = state.pc;
-      const cmd0 = ram.getUint32(pc + 0);
-      const cmd1 = ram.getUint32(pc + 4);
+      const cmd0 = ramDV.getUint32(pc + 0);
+      const cmd1 = ramDV.getUint32(pc + 4);
       state.pc += 8;
 
       disassembler.begin(pc, cmd0, cmd1, state.dlistStack.length);
@@ -479,8 +476,8 @@ function processDList(task, disassembler, bailAfter) {
     debugController.currentOp = 0;
     while (state.pc !== 0) {
       const pc = state.pc;
-      const cmd0 = ram.getUint32(pc + 0);
-      const cmd1 = ram.getUint32(pc + 4);
+      const cmd0 = ramDV.getUint32(pc + 0);
+      const cmd1 = ramDV.getUint32(pc + 4);
       state.pc += 8;
 
       ucodeTable[cmd0 >>> 24](cmd0, cmd1);
