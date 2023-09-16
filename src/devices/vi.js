@@ -252,7 +252,7 @@ export class VIRegDevice extends Device {
       logger.log('mode type is 0 - not rendering');
       return null;
     }
-  
+
     const hStartReg = this.hVideoReg;
     const hStart = (hStartReg >> 16) & 0x03ff;
     const hEnd = hStartReg & 0x03ff;
@@ -298,7 +298,7 @@ export class VIRegDevice extends Device {
     // Matches srcWidth/srcHeight except vFudge?
     const sEndX = ((dims.sx0 + dims.dstWidth) * dims.xScale) >> 10;
     const sEndY = ((dims.sy0 + dims.dstHeight) * dims.yScale) >> 11;
-    
+
     // Double the y resolution in certain (interlaced?) modes.
     // This corrects height in various games ex : Megaman 64, CyberTiger
     const vFudge = (dims.srcPitch > 0x300 || dims.srcPitch >= (sEndX * 2)) ? 2 : 1;
@@ -320,8 +320,8 @@ export class VIRegDevice extends Device {
     const dramAddr = this.dramAddrReg & 0x00fffffe; // Clear top bit to make address physical. Clear bottom bit (sometimes odd valued addresses are passed through)
     if (!dramAddr) {
       return null;
-    }  
-    
+    }
+
     const ramDV = this.hardware.cachedMemDevice.mem.dataView;
     if (this.is32BitMode) {
       return dims.renderBackBuffer32(ramDV, dramAddr);
@@ -365,7 +365,7 @@ class Dimensions {
     // Offset relative to source image
     this.sx0 = 0;
     this.sy0 = 0;
-  
+
     // Offset relative to PAL/NTSC bounds.
     this.dx0 = 0;
     this.dy0 = 0;
@@ -373,13 +373,13 @@ class Dimensions {
 
   renderBackBuffer32(ramDV, dramAddr) {
     const pixels = this.pixels32bpp;
-  
+
     // We need to flip Y-axis for the texture's coordinate system so start at the bottom and work upwards.
     const dstPitch = -this.screenWidth;
     let dstRow = (this.screenHeight - 1 - this.dy0) * this.screenWidth;
-  
+
     const alpha = 0xff;
-  
+
     let sy = (this.sy0 * this.yScale) + this.ySubpixel;
     for (let y = 0; y < this.dstHeight; y++) {
       if (!this.interlaced || ((this.dy0 + y) & 1) != this.field) {
@@ -401,16 +401,16 @@ class Dimensions {
     }
     return pixels;
   }
-  
+
   renderBackBuffer16(ramDV, dramAddr) {
     const pixels = this.pixels16bpp;
-  
+
     // We need to flip Y-axis for the texture's coordinate system so start at the bottom and work upwards.
     const dstPitch = -this.screenWidth;
     let dstRow = (this.screenHeight - 1 - this.dy0) * this.screenWidth;
-  
+
     const alpha = 0x0001;
-  
+
     let sy = (this.sy0 * this.yScale) + this.ySubpixel;
     for (let y = 0; y < this.dstHeight; y++) {
       if (!this.interlaced || ((this.dy0 + y) & 1) != this.field) {
@@ -427,5 +427,5 @@ class Dimensions {
     }
     return pixels;
   }
-  
+
 }
