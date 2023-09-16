@@ -135,7 +135,7 @@ export class GBIMicrocode {
   loadMatrix(address) {
     const recip = 1.0 / 65536.0;
     const dv = new DataView(this.ramDV.buffer, address);
-  
+
     const elements = new Float32Array(16);
     for (let i = 0; i < 4; ++i) {
       elements[4 * 0 + i] = (dv.getInt16(i * 8 + 0) << 16 | dv.getUint16(i * 8 + 0 + 32)) * recip;
@@ -143,10 +143,10 @@ export class GBIMicrocode {
       elements[4 * 2 + i] = (dv.getInt16(i * 8 + 4) << 16 | dv.getUint16(i * 8 + 4 + 32)) * recip;
       elements[4 * 3 + i] = (dv.getInt16(i * 8 + 6) << 16 | dv.getUint16(i * 8 + 6 + 32)) * recip;
     }
-  
+
     return new Matrix4x4(elements);
   }
-  
+
   previewMatrix(matrix) {
     const m = matrix.elems;
     const a = [m[0], m[1], m[2], m[3]];
@@ -161,7 +161,7 @@ export class GBIMicrocode {
     </table></div>`;
   }
 
-   loadViewport(address) {
+  loadViewport(address) {
     const scale = new Vector2(
       this.ramDV.getInt16(address + 0) / 4.0,
       this.ramDV.getInt16(address + 2) / 4.0,
@@ -170,11 +170,11 @@ export class GBIMicrocode {
       this.ramDV.getInt16(address + 8) / 4.0,
       this.ramDV.getInt16(address + 10) / 4.0,
     );
-  
+
     //logger.log(`Viewport: scale=${scale.x},${scale.y} trans=${trans.x},${trans.y}` );
     this.state.viewport.scale = scale;
     this.state.viewport.trans = trans;
-  
+
     // N64 provides the center point and distance to each edge,
     // but we want the width/height and translate to bottom left.
     const t2d = new Transform2D(scale.scale(2), trans.sub(scale));
@@ -187,7 +187,7 @@ export class GBIMicrocode {
     result += `trans = (${this.ramDV.getInt16(address + 8) / 4.0}, ${this.ramDV.getInt16(address + 10) / 4.0}) `;
     return result;
   }
- 
+
   loadLight(lightIdx, address) {
     if (lightIdx >= this.state.lights.length) {
       logger.log(`light index ${lightIdx} out of range`);
@@ -200,7 +200,7 @@ export class GBIMicrocode {
       this.ramDV.getInt8(address + 10)
     ]).normaliseInPlace();
   }
-  
+
   previewLight(address) {
     let result = '';
     result += `color = ${makeColorTextRGBA(this.ramDV.getUint32(address + 0))} `;
@@ -323,7 +323,7 @@ export class GBIMicrocode {
     let r = this.state.lights[numLights].color.r;
     let g = this.state.lights[numLights].color.g;
     let b = this.state.lights[numLights].color.b;
-  
+
     for (let l = 0; l < numLights; ++l) {
       const light = this.state.lights[l];
       const d = normal.dot(light.dir);
@@ -333,26 +333,26 @@ export class GBIMicrocode {
         b += light.color.b * d;
       }
     }
-  
+
     r = Math.min(r, 1.0) * 255.0;
     g = Math.min(g, 1.0) * 255.0;
     b = Math.min(b, 1.0) * 255.0;
     const a = 255;
-  
+
     return (a << 24) | (b << 16) | (g << 8) | r;
   }
- 
+
   previewVertex(v0, n, dv, dis, light) {
     const cols = ['#', 'x', 'y', 'z', '?', 'u', 'v', light ? 'norm' : 'rgba'];
-  
+
     let tip = '';
     tip += '<table class="vertex-table">';
     tip += `<tr><th>${cols.join('</th><th>')}</th></tr>\n`;
-  
+
     for (let i = 0; i < n; ++i) {
       const base = i * 16;
       const normOrCol = light ? `${dv.getInt8(base + 12)},${dv.getInt8(base + 13)},${dv.getInt8(base + 14)}` : makeColorTextRGBA(dv.getUint32(base + 12));
-  
+
       const v = [
         v0 + i,
         dv.getInt16(base + 0), // x
@@ -363,13 +363,13 @@ export class GBIMicrocode {
         dv.getInt16(base + 10), // v
         normOrCol, // norm or rgba
       ];
-  
+
       tip += `<tr><td>${v.join('</td><td>')}</td></tr>\n`;
     }
     tip += '</table>';
     dis.tip(tip);
   }
-  
+
 
   executeNoop(cmd0, cmd1, dis) {
     if (dis) {
@@ -388,43 +388,43 @@ export class GBIMicrocode {
       dis.text('gsDPLoadSync();');
     }
   }
-  
+
   executeRDPPipeSync(cmd0, cmd1, dis) {
     if (dis) {
       dis.text('gsDPPipeSync();');
     }
   }
-  
+
   executeRDPTileSync(cmd0, cmd1, dis) {
     if (dis) {
       dis.text('gsDPTileSync();');
     }
   }
-  
+
   executeRDPFullSync(cmd0, cmd1, dis) {
     if (dis) {
       dis.text('gsDPFullSync();');
     }
   }
-  
+
   executeSetKeyGB(cmd0, cmd1, dis) {
     if (dis) {
       dis.text('gsDPSetKeyGB(???);');
     }
   }
-  
+
   executeSetKeyR(cmd0, cmd1, dis) {
     if (dis) {
       dis.text('gsDPSetKeyR(???);');
     }
   }
-  
+
   executeSetConvert(cmd0, cmd1, dis) {
     if (dis) {
       dis.text('gsDPSetConvert(???);');
     }
   }
-  
+
   executeSetScissor(cmd0, cmd1, dis) {
     const x0 = ((cmd0 >>> 12) & 0xfff) / 4.0;
     const y0 = ((cmd0 >>> 0) & 0xfff) / 4.0;
@@ -460,43 +460,43 @@ export class GBIMicrocode {
     //const pad0 = (cmd0 >>> 18) & 0x1;
     const line = (cmd0 >>> 9) & 0x1ff;
     const tmem = (cmd0 >>> 0) & 0x1ff;
-  
+
     //const pad1 = (cmd1 >>> 27) & 0x1f;
     const tileIdx = (cmd1 >>> 24) & 0x7;
     const palette = (cmd1 >>> 20) & 0xf;
-  
+
     const cmT = (cmd1 >>> 18) & 0x3;
     const maskT = (cmd1 >>> 14) & 0xf;
     const shiftT = (cmd1 >>> 10) & 0xf;
-  
+
     const cmS = (cmd1 >>> 8) & 0x3;
     const maskS = (cmd1 >>> 4) & 0xf;
     const shiftS = (cmd1 >>> 0) & 0xf;
-  
+
     const tile = this.state.tiles[tileIdx];
     tile.set(format, size, line, tmem, palette, cmS, maskS, shiftS, cmT, maskT, shiftT);
-  
+
     if (dis) {
       const fmtText = gbi.ImageFormat.nameOf(format);
       const sizeText = gbi.ImageSize.nameOf(size);
       const tileText = gbi.getTileText(tileIdx);
       const cmsText = gbi.getClampMirrorWrapText(cmS);
       const cmtText = gbi.getClampMirrorWrapText(cmT);
-  
+
       dis.text(`gsDPSetTile(${fmtText}, ${sizeText}, ${line}, ${tmem}, ${tileText}, ${palette}, ${cmtText}, ${maskT}, ${shiftT}, ${cmsText}, ${maskS}, ${shiftS});`);
     }
   }
-  
+
   executeSetTileSize(cmd0, cmd1, dis) {
     const uls = (cmd0 >>> 12) & 0xfff;
     const ult = (cmd0 >>> 0) & 0xfff;
     const tileIdx = (cmd1 >>> 24) & 0x7;
     const lrs = (cmd1 >>> 12) & 0xfff;
     const lrt = (cmd1 >>> 0) & 0xfff;
-  
+
     const tile = this.state.tiles[tileIdx];
     tile.setSize(uls, ult, lrs, lrt);
-  
+
     if (dis) {
       const tt = gbi.getTileText(tileIdx);
       dis.text(`gsDPSetTileSize(${tt}, ${tile.left}, ${tile.top}, ${tile.right}, ${tile.bottom});`);
@@ -558,54 +558,54 @@ export class GBIMicrocode {
       const mux0 = cmd0 & 0x00ffffff;
       const mux1 = cmd1;
       const decoded = shaders.getCombinerText(mux0, mux1);
-  
+
       dis.text(`gsDPSetCombine(${toString32(mux0)}, ${toString32(mux1)});\n${decoded}`);
     }
-  
+
     this.state.combine.hi = cmd0 & 0x00ffffff;
     this.state.combine.lo = cmd1;
   }
-  
+
   executeSetTImg(cmd0, cmd1, dis) {
     const format = (cmd0 >>> 21) & 0x7;
     const size = (cmd0 >>> 19) & 0x3;
     const width = ((cmd0 >>> 0) & 0xfff) + 1;
     const address = this.state.rdpSegmentAddress(cmd1);
-  
+
     if (dis) {
       dis.text(`gsDPSetTextureImage(${gbi.ImageFormat.nameOf(format)}, ${gbi.ImageSize.nameOf(size)}, ${width}, ${toString32(address)});`);
     }
-  
+
     this.state.textureImage.set(format, size, width, address)
   }
-  
+
   executeSetZImg(cmd0, cmd1, dis) {
     const address = this.state.rdpSegmentAddress(cmd1);
-  
+
     if (dis) {
       dis.text(`gsDPSetDepthImage(${toString32(address)});`);
     }
-  
+
     this.state.depthImage.address = address;
   }
-  
+
   executeSetCImg(cmd0, cmd1, dis) {
     const format = (cmd0 >>> 21) & 0x7;
     const size = (cmd0 >>> 19) & 0x3;
     const width = ((cmd0 >>> 0) & 0xfff) + 1;
     const address = this.state.rdpSegmentAddress(cmd1);
-  
+
     if (dis) {
       dis.text(`gsDPSetColorImage(${gbi.ImageFormat.nameOf(format)}, ${gbi.ImageSize.nameOf(size)}, ${width}, ${toString32(address)});`);
     }
-  
+
     this.state.colorImage = {
       format: format,
       size: size,
       width: width,
       address: address
     };
-  
+
     // TODO: Banjo Tooie and Pokemon Stadium render to multiple buffers in each display list.
     // Need to set these up as separate framebuffers somehow
     if (kDebugColorImages && !colorImages.get(address)) {
@@ -613,98 +613,98 @@ export class GBIMicrocode {
       colorImages.set(address, true);
     }
   }
- 
+
   executeLoadBlock(cmd0, cmd1, dis) {
     const tileIdx = (cmd1 >>> 24) & 0x7;
     const lrs = (cmd1 >>> 12) & 0xfff;
     const dxt = (cmd1 >>> 0) & 0xfff;
     const uls = (cmd0 >>> 12) & 0xfff;
     const ult = (cmd0 >>> 0) & 0xfff;
-  
+
     // Docs reckon these are ignored for all loadBlocks
     if (uls !== 0) { this.hleHalt('Unexpected non-zero uls in load block'); }
     if (ult !== 0) { this.hleHalt('Unexpected non-zero ult in load block'); }
-  
+
     const tile = this.state.tiles[tileIdx];
     const tileX0 = uls >>> 2;
     const tileY0 = ult >>> 2;
-  
+
     const ramAddress = this.state.textureImage.calcAddress(tileX0, tileY0);
     const bytes = this.state.textureImage.texelsToBytes(lrs + 1);
     const qwords = (bytes + 7) >>> 3;
-  
+
     if (dis) {
       const tt = gbi.getTileText(tileIdx);
       dis.text(`gsDPLoadBlock(${tt}, ${uls}, ${ult}, ${lrs}, ${dxt});`);
       dis.tip(`bytes ${bytes}, qwords ${qwords}`);
     }
-  
+
     this.state.tmem.loadBlock(tile, ramAddress, dxt, qwords);
     this.state.invalidateTileHashes();
   }
-  
+
   executeLoadTile(cmd0, cmd1, dis) {
     const tileIdx = (cmd1 >>> 24) & 0x7;
     const lrs = (cmd1 >>> 12) & 0xfff;
     const lrt = (cmd1 >>> 0) & 0xfff;
     const uls = (cmd0 >>> 12) & 0xfff;
     const ult = (cmd0 >>> 0) & 0xfff;
-  
+
     const tile = this.state.tiles[tileIdx];
     const tileX1 = lrs >>> 2;
     const tileY1 = lrt >>> 2;
     const tileX0 = uls >>> 2;
     const tileY0 = ult >>> 2;
-  
+
     const h = (tileY1 + 1) - tileY0;
     const w = (tileX1 + 1) - tileX0;
-  
+
     const ramAddress = this.state.textureImage.calcAddress(tileX0, tileY0);
     const ramStride = this.state.textureImage.stride();
     const rowBytes = this.state.textureImage.texelsToBytes(w);
-  
+
     // loadTile pads rows to 8 bytes.
     const tmemStride = (this.state.textureImage.size == gbi.ImageSize.G_IM_SIZ_32b) ? tile.line << 4 : tile.line << 3;
-  
+
     // TODO: Limit the load to fetchedQWords?
     // TODO: should be limited to 2048 texels, not 512 qwords.
     // const bytes = h * rowBytes;
     // const reqQWords = (bytes + 7) >>> 3;
     // const fetchedQWords = (reqQWords > 512) ? 512 : reqQWords;
-  
+
     if (dis) {
       const tt = gbi.getTileText(tileIdx);
       dis.text(`gsDPLoadTile(${tt}, ${uls / 4}, ${ult / 4}, ${lrs / 4}, ${lrt / 4});`);
       dis.tip(`size = (${w} x ${h}), rowBytes ${rowBytes}, ramStride ${ramStride}, tmemStride ${tmemStride}`);
     }
-  
+
     this.state.tmem.loadTile(tile, ramAddress, h, ramStride, rowBytes, tmemStride);
     this.state.invalidateTileHashes();
   }
-  
+
   executeLoadTLut(cmd0, cmd1, dis) {
     const tileIdx = (cmd1 >>> 24) & 0x7;
     const count = (cmd1 >>> 14) & 0x3ff;
-  
+
     // NB, in Daedalus, we interpret this similarly to a loadtile command,
     // but in other places it's defined as a simple count parameter.
     const uls = (cmd0 >>> 12) & 0xfff;
     const ult = (cmd0 >>> 0) & 0xfff;
     const lrs = (cmd1 >>> 12) & 0xfff;
     const lrt = (cmd1 >>> 0) & 0xfff;
-  
+
     if (dis) {
       const tt = gbi.getTileText(tileIdx);
       dis.text(`gsDPLoadTLUTCmd(${tt}, ${count}); //${uls}, ${ult}, ${lrs}, ${lrt}`);
     }
-  
+
     // Tlut fmt is sometimes wrong (in 007) and is set after tlut load, but
     // before tile load. Format is always 16bpp - RGBA16 or IA16:
     const ramAddress = this.state.textureImage.calcAddress(uls >>> 2, ult >>> 2, gbi.ImageSize.G_IM_SIZ_16b);
-  
+
     const tile = this.state.tiles[tileIdx];
     const texels = ((lrs - uls) >>> 2) + 1;
-  
+
     this.state.tmem.loadTLUT(tile, ramAddress, texels);
     this.state.invalidateTileHashes();
   }
@@ -717,11 +717,11 @@ export class GBIMicrocode {
     let y1 = ((cmd0 >>> 0) & 0xfff) >>> 2;
 
     const gl = this.gl;
-  
+
     if (dis) {
       dis.text(`gsDPFillRectangle(${x0}, ${y0}, ${x1}, ${y1});`);
     }
-  
+
     if (this.state.depthImage.address == this.state.colorImage.address) {
       // TODO: should use depth source.
       // const depthSourcePrim = (this.state.rdpOtherModeL & gbi.DepthSource.G_ZS_PRIM) !== 0;
@@ -731,20 +731,20 @@ export class GBIMicrocode {
       gl.clear(gl.DEPTH_BUFFER_BIT);
       return;
     }
-  
+
     const cycleType = this.state.getCycleType();
     let color = { r: 0, g: 0, b: 0, a: 0 };
-  
+
     if (cycleType === gbi.CycleType.G_CYC_FILL) {
       x1 += 1;
       y1 += 1;
-  
+
       if (this.state.colorImage.size === gbi.ImageSize.G_IM_SIZ_16b) {
         color = makeRGBAFromRGBA16(this.state.fillColor & 0xffff);
       } else {
         color = makeRGBAFromRGBA32(this.state.fillColor);
       }
-  
+
       // Clear whole screen in one?
       const w = x1 - x0;
       const h = y1 - y0;
@@ -757,19 +757,19 @@ export class GBIMicrocode {
       x1 += 1;
       y1 += 1;
     }
-  
+
     // TODO: Apply scissor.
-  
+
     this.fillRect(x0, y0, x1, y1, color);
   }
-  
+
   executeTexRect(cmd0, cmd1, dis) {
     // The following 2 commands contain additional info
     // TODO: check op code matches what we expect?
     const cmd2 = this.ramDV.getUint32(this.state.pc + 4);
     const cmd3 = this.ramDV.getUint32(this.state.pc + 12);
     this.state.pc += 16;
-  
+
     let xh = ((cmd0 >>> 12) & 0xfff) / 4.0;
     let yh = ((cmd0 >>> 0) & 0xfff) / 4.0;
     const tileIdx = (cmd1 >>> 24) & 0x7;
@@ -780,46 +780,46 @@ export class GBIMicrocode {
     // NB - signed value
     let dsdx = ((cmd3 | 0) >> 16) / 1024.0;
     const dtdy = ((cmd3 << 16) >> 16) / 1024.0;
-  
+
     const cycleType = this.state.getCycleType();
-  
+
     // In copy mode 4 pixels are copied at once.
     if (cycleType === gbi.CycleType.G_CYC_COPY) {
       dsdx *= 0.25;
     }
-  
+
     // In Fill/Copy mode the coordinates are inclusive (i.e. add 1.0f to the w/h)
     if (cycleType === gbi.CycleType.G_CYC_COPY ||
       cycleType === gbi.CycleType.G_CYC_FILL) {
       xh += 1.0;
       yh += 1.0;
     }
-  
+
     // If the texture coords are inverted, start from the end of the texel (?).
     // Fixes California Speed.
     if (dsdx < 0) { s0++; }
     if (dtdy < 0) { t0++; }
-  
+
     const s1 = s0 + dsdx * (xh - xl);
     const t1 = t0 + dtdy * (yh - yl);
-  
+
     if (dis) {
       const tt = gbi.getTileText(tileIdx);
       dis.text(`gsSPTextureRectangle(${xl},${yl},${xh},${yh},${tt},${s0},${t0},${dsdx},${dtdy});`);
       dis.tip(`cmd2 = ${toString32(cmd2)}, cmd3 = ${toString32(cmd3)}`)
       dis.tip(`st0 = (${s0}, ${t0}) st1 = (${s1}, ${t1})`)
     }
-  
+
     this.texRect(tileIdx, xl, yl, xh, yh, s0, t0, s1, t1, false);
   }
-  
+
   executeTexRectFlip(cmd0, cmd1, dis) {
     // The following 2 commands contain additional info
     // TODO: check op code matches what we expect?
     const cmd2 = this.ramDV.getUint32(this.state.pc + 4);
     const cmd3 = this.ramDV.getUint32(this.state.pc + 12);
     this.state.pc += 16;
-  
+
     let xh = ((cmd0 >>> 12) & 0xfff) / 4.0;
     let yh = ((cmd0 >>> 0) & 0xfff) / 4.0;
     const tileIdx = (cmd1 >>> 24) & 0x7;
@@ -830,36 +830,36 @@ export class GBIMicrocode {
     // NB - signed value
     let dsdx = ((cmd3 | 0) >> 16) / 1024.0;
     const dtdy = ((cmd3 << 16) >> 16) / 1024.0;
-  
+
     const cycleType = this.state.getCycleType();
-  
+
     // In copy mode 4 pixels are copied at once.
     if (cycleType === gbi.CycleType.G_CYC_COPY) {
       dsdx *= 0.25;
     }
-  
+
     // In Fill/Copy mode the coordinates are inclusive (i.e. add 1.0f to the w/h)
     if (cycleType === gbi.CycleType.G_CYC_COPY ||
       cycleType === gbi.CycleType.G_CYC_FILL) {
       xh += 1.0;
       yh += 1.0;
     }
-  
+
     // If the texture coords are inverted, start from the end of the texel (?).
     if (dsdx < 0) { s0++; }
     if (dtdy < 0) { t0++; }
-  
+
     // NB x/y are flipped
     const s1 = s0 + dsdx * (yh - yl);
     const t1 = t0 + dtdy * (xh - xl);
-  
+
     if (dis) {
       const tt = gbi.getTileText(tileIdx);
       dis.text(`gsSPTextureRectangleFlip(${xl},${yl},${xh},${yh},${tt},${s0},${t0},${dsdx},${dtdy});`);
       dis.tip(`cmd2 = ${toString32(cmd2)}, cmd3 = ${toString32(cmd3)}`)
       dis.tip(`st0 = (${s0}, ${t0}) st1 = (${s1}, ${t1})`)
     }
-  
+
     this.texRect(tileIdx, xl, yl, xh, yh, s0, t0, s1, t1, true);
   }
 
@@ -868,7 +868,7 @@ export class GBIMicrocode {
     if (dis) {
       dis.text(`gSPCullDisplayList(/* TODO */); // TODO: implement`);
     }
-  }  
+  }
 
   calcTextureScale(v) {
     if (v === 0 || v === 0xffff) {
