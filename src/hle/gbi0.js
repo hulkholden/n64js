@@ -32,7 +32,7 @@ export class GBI0 extends GBI1 {
       dis.text(`gsSPVertex(${toString32(address)}, ${n}, ${v0});`);
     }
 
-    this.executeVertexImpl(v0, n, address, dis);
+    this.loadVertices(v0, n, address, dis);
   }
 
   executeRDPHalf_Cont(cmd0, cmd1) {
@@ -123,6 +123,6 @@ export class GBI0WR extends GBI0 {
       dis.text(`gsSPVertex(${toString32(address)}, ${n}, ${v0});`);
     }
 
-    this.executeVertexImpl(v0, n, address, dis);
+    this.loadVertices(v0, n, address, dis);
   }
 }

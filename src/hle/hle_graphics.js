@@ -1,11 +1,10 @@
 /*jshint jquery:true browser:true */
 /*global $, n64js*/
 
-import { padString, toHex, toString8, toString16, toString32 } from '../format.js';
+import { padString, toHex, toString16, toString32 } from '../format.js';
 import * as logger from '../logger.js';
 import { Transform2D } from '../graphics/Transform2D.js';
 import { Vector2 } from '../graphics/Vector2.js';
-import { Vector3 } from '../graphics/Vector3.js';
 import { makeColorTextRGBA16, makeColorTextRGBA, makeColorTextABGR } from './disassemble.js';
 import * as gbi from './gbi.js';
 import * as gbiMicrocode from './gbi_microcode.js';
@@ -128,169 +127,6 @@ function logMicrocode(str, ucode) {
   }
   loggedMicrocodes.set(str, true);
   logger.log(`New RSP graphics ucode seen: ${str} = ucode ${ucode}`);
-}
-
-const X_NEG = 0x01; //left
-const Y_NEG = 0x02; //bottom
-const Z_NEG = 0x04; //far
-const X_POS = 0x08; //right
-const Y_POS = 0x10; //top
-const Z_POS = 0x20; //near
-
-function calculateLighting(normal) {
-  const numLights = state.numLights;
-  let r = state.lights[numLights].color.r;
-  let g = state.lights[numLights].color.g;
-  let b = state.lights[numLights].color.b;
-
-  for (let l = 0; l < numLights; ++l) {
-    const light = state.lights[l];
-    const d = normal.dot(light.dir);
-    if (d > 0.0) {
-      r += light.color.r * d;
-      g += light.color.g * d;
-      b += light.color.b * d;
-    }
-  }
-
-  r = Math.min(r, 1.0) * 255.0;
-  g = Math.min(g, 1.0) * 255.0;
-  b = Math.min(b, 1.0) * 255.0;
-  const a = 255;
-
-  return (a << 24) | (b << 16) | (g << 8) | r;
-}
-
-function previewVertexImpl(v0, n, dv, dis, light) {
-  const cols = ['#', 'x', 'y', 'z', '?', 'u', 'v', light ? 'norm' : 'rgba'];
-
-  let tip = '';
-  tip += '<table class="vertex-table">';
-  tip += `<tr><th>${cols.join('</th><th>')}</th></tr>\n`;
-
-  for (let i = 0; i < n; ++i) {
-    const base = i * 16;
-    const normOrCol = light ? `${dv.getInt8(base + 12)},${dv.getInt8(base + 13)},${dv.getInt8(base + 14)}` : makeColorTextRGBA(dv.getUint32(base + 12));
-
-    const v = [
-      v0 + i,
-      dv.getInt16(base + 0), // x
-      dv.getInt16(base + 2), // y
-      dv.getInt16(base + 4), // z
-      dv.getInt16(base + 6), // ?
-      dv.getInt16(base + 8), // u
-      dv.getInt16(base + 10), // v
-      normOrCol, // norm or rgba
-    ];
-
-    tip += `<tr><td>${v.join('</td><td>')}</td></tr>\n`;
-  }
-  tip += '</table>';
-  dis.tip(tip);
-}
-
-function executeVertexImpl(v0, n, address, dis) {
-  const light = state.geometryMode.lighting;
-  const texgen = state.geometryMode.textureGen;
-  const texgenlin = state.geometryMode.textureGenLinear;
-  const dv = new DataView(ramDV.buffer, address);
-
-  if (dis) {
-    previewVertexImpl(v0, n, dv, dis, light);
-  }
-
-  if (v0 + n >= 64) { // FIXME or 80 for later GBI
-    hleHalt('Too many verts');
-    state.pc = 0;
-    return;
-  }
-
-  const mvmtx = state.modelview[state.modelview.length - 1];
-  const pmtx = state.projection[state.projection.length - 1];
-
-  const wvp = pmtx.multiply(mvmtx);
-
-  // Texture coords are provided in 11.5 fixed point format, so divide by 32 here to normalise
-  const scaleS = state.texture.scaleS / 32.0;
-  const scaleT = state.texture.scaleT / 32.0;
-
-  const xyz = new Vector3();
-  const normal = new Vector3();
-  const transformedNormal = new Vector3();
-
-  for (let i = 0; i < n; ++i) {
-    const vtxBase = i * 16;
-    const vertex = state.projectedVertices[v0 + i];
-
-    vertex.set = true;
-
-    xyz.x = dv.getInt16(vtxBase + 0);
-    xyz.y = dv.getInt16(vtxBase + 2);
-    xyz.z = dv.getInt16(vtxBase + 4);
-    //const w = dv.getInt16(vtxBase + 6);
-    const u = dv.getInt16(vtxBase + 8);
-    const v = dv.getInt16(vtxBase + 10);
-
-    const projected = vertex.pos;
-    wvp.transformPoint(xyz, projected);
-
-    //hleHalt(`${x},${y},${z}-&gt;${projected.x},${projected.y},${projected.z}`);
-
-    // let clipFlags = 0;
-    //      if (projected[0] < -projected[3]) clipFlags |= X_POS;
-    // else if (projected[0] >  projected[3]) clipFlags |= X_NEG;
-
-    //      if (projected[1] < -projected[3]) clipFlags |= Y_POS;
-    // else if (projected[1] >  projected[3]) clipFlags |= Y_NEG;
-
-    //      if (projected[2] < -projected[3]) clipFlags |= Z_POS;
-    // else if (projected[2] >  projected[3]) clipFlags |= Z_NEG;
-    // state.projectedVertices.clipFlags = clipFlags;
-
-    if (light) {
-      normal.x = dv.getInt8(vtxBase + 12);
-      normal.y = dv.getInt8(vtxBase + 13);
-      normal.z = dv.getInt8(vtxBase + 14);
-
-      // calculate transformed normal
-      mvmtx.transformNormal(normal, transformedNormal);
-      transformedNormal.normaliseInPlace();
-
-      vertex.color = calculateLighting(transformedNormal);
-
-      if (texgen) {
-        // retransform using wvp
-        // wvp.transformNormal(normal, transformedNormal);
-        // transformedNormal.normaliseInPlace();
-
-        if (texgenlin) {
-          vertex.u = 0.5 * (1.0 + transformedNormal.x);
-          vertex.v = 0.5 * (1.0 + transformedNormal.y); // 1-y?
-        } else {
-          vertex.u = Math.acos(transformedNormal.x) / 3.141;
-          vertex.v = Math.acos(transformedNormal.y) / 3.141;
-        }
-      } else {
-        vertex.u = u * scaleS;
-        vertex.v = v * scaleT;
-      }
-    } else {
-      vertex.u = u * scaleS;
-      vertex.v = v * scaleT;
-
-      const r = dv.getUint8(vtxBase + 12);
-      const g = dv.getUint8(vtxBase + 13);
-      const b = dv.getUint8(vtxBase + 14);
-      const a = dv.getUint8(vtxBase + 15);
-
-      vertex.color = (a << 24) | (b << 16) | (g << 8) | r;
-    }
-
-    //const flag = dv.getUint16(vtxBase + 6);
-    //const tu = dv.getInt16(vtxBase + 8);
-    //const tv = dv.getInt16(vtxBase + 10);
-    //const rgba = dv.getInt16(vtxBase + 12);    // nx/ny/nz/a
-  }
 }
 
 function initWebGL(canvas) {
@@ -720,7 +556,6 @@ function buildUCodeTables(ucode) {
   const microcode = createMicrocode(ucode);
   // TODO: pass rendering object to microcode constructor.
   microcode.flushTris = flushTris;
-  microcode.executeVertexImpl = executeVertexImpl;
   microcode.debugController = debugController;
   microcode.hleHalt = hleHalt;
   microcode.fillRect = fillRect;
