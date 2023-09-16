@@ -5,9 +5,10 @@ import { padString, toHex, toString16, toString32 } from '../format.js';
 import * as logger from '../logger.js';
 import { Transform2D } from '../graphics/Transform2D.js';
 import { Vector2 } from '../graphics/Vector2.js';
+import { detect } from './microcodes.js';
 import { makeColorTextRGBA16, makeColorTextRGBA, makeColorTextABGR } from './disassemble.js';
 import * as gbi from './gbi.js';
-import * as gbiMicrocode from './gbi_microcode.js';
+import * as microcodes from './microcodes.js';
 import * as gbi0 from './gbi0.js';
 import * as gbi1 from './gbi1.js';
 import * as gbi2 from './gbi2.js';
@@ -117,16 +118,6 @@ function logUnhandledBlendMode(activeBlendMode, alphaCvgSel, cvgXAlpha) {
   }
   loggedBlendModes.set(activeBlendMode, true);
   n64js.warn(`Unhandled blend mode: ${toString16(activeBlendMode)} = ${gbi.blendOpText(activeBlendMode)}, alphaCvgSel ${alphaCvgSel}, cvgXAlpha ${cvgXAlpha}`);
-}
-
-const loggedMicrocodes = new Map();
-
-function logMicrocode(str, ucode) {
-  if (loggedMicrocodes.get(str)) {
-    return;
-  }
-  loggedMicrocodes.set(str, true);
-  logger.log(`New RSP graphics ucode seen: ${str} = ucode ${ucode}`);
 }
 
 function initWebGL(canvas) {
@@ -568,20 +559,20 @@ function buildUCodeTables(ucode) {
 
 function createMicrocode(ucode) {
   switch (ucode) {
-    case gbiMicrocode.kUCode_GBI0:
-    case gbiMicrocode.kUCode_GBI0_DKR:
-    case gbiMicrocode.kUCode_GBI0_SE:
-    case gbiMicrocode.kUCode_GBI0_PD:
+    case microcodes.kUCode_GBI0:
+    case microcodes.kUCode_GBI0_DKR:
+    case microcodes.kUCode_GBI0_SE:
+    case microcodes.kUCode_GBI0_PD:
       return new gbi0.GBI0(ucode, state, ramDV);
-    case gbiMicrocode.kUCode_GBI0_GE:
+    case microcodes.kUCode_GBI0_GE:
       return new gbi0.GBI0GE(ucode, state, ramDV);
-    case gbiMicrocode.kUCode_GBI0_WR:
+    case microcodes.kUCode_GBI0_WR:
       return new gbi0.GBI0WR(ucode, state, ramDV);
-    case gbiMicrocode.kUCode_GBI1:
-    case gbiMicrocode.kUCode_GBI1_LL:
+    case microcodes.kUCode_GBI1:
+    case microcodes.kUCode_GBI1_LL:
       return new gbi1.GBI1(ucode, state, ramDV);
-    case gbiMicrocode.kUCode_GBI2:
-    case gbiMicrocode.kUCode_GBI2_CONKER:
+    case microcodes.kUCode_GBI2:
+    case microcodes.kUCode_GBI2_CONKER:
       return new gbi2.GBI2(ucode, state, ramDV);
   }
   logger.log(`unhandled ucode during table init: ${ucode}`);
@@ -960,22 +951,6 @@ export function hleGraphics(task) {
   processDList(task, null, -1);
 }
 
-const ucodeOverrides = new Map([
-  [0x60256efc, gbiMicrocode.kUCode_GBI2_CONKER],	// "RSP Gfx ucode F3DEXBG.NoN fifo 2.08  Yoshitaka Yasumoto 1999 Nintendo.", "Conker's Bad Fur Day"
-  [0x6d8bec3e, gbiMicrocode.kUCode_GBI1_LL],	// "Dark Rift"
-  [0x0c10181a, gbiMicrocode.kUCode_GBI0_DKR],	// "Diddy Kong Racing (v1.0)"
-  [0x713311dc, gbiMicrocode.kUCode_GBI0_DKR],	// "Diddy Kong Racing (v1.1)"
-  [0x23f92542, gbiMicrocode.kUCode_GBI0_GE],	// "RSP SW Version: 2.0G, 09-30-96", "GoldenEye 007"
-  [0x169dcc9d, gbiMicrocode.kUCode_GBI0_DKR],	// "Jet Force Gemini"											
-  [0x26da8a4c, gbiMicrocode.kUCode_GBI1_LL],	// "Last Legion UX"				
-  [0xcac47dc4, gbiMicrocode.kUCode_GBI0_PD],	// "Perfect Dark (v1.1)"
-  [0x6cbb521d, gbiMicrocode.kUCode_GBI0_SE],	// "RSP SW Version: 2.0D, 04-01-96", "Star Wars - Shadows of the Empire (v1.0)"
-  [0xdd560323, gbiMicrocode.kUCode_GBI1_LL],	// "Toukon Road - Brave Spirits"				
-  [0x64cc729d, gbiMicrocode.kUCode_GBI0_WR],	// "RSP SW Version: 2.0D, 04-01-96", "Wave Race 64"
-
-  [0xd73a12c4, gbiMicrocode.kUCode_GBI0], // Fish demo
-  [0x313f038b, gbiMicrocode.kUCode_GBI0], // Pilotwings
-]);
 
 function processDList(task, disassembler, bailAfter) {
   // Update a counter to tell the video code that we've rendered something.
@@ -984,32 +959,7 @@ function processDList(task, disassembler, bailAfter) {
     return;
   }
 
-  const str = task.detectVersionString();
-  const hash = task.computeMicrocodeHash();
-  let ucode = ucodeOverrides.get(hash);
-  if (ucode === undefined) {
-    const prefixes = ['F3', 'L3', 'S2DEX'];
-    let index = -1;
-    for (let prefix of prefixes) {
-      index = str.indexOf(prefix);
-      if (index >= 0) {
-        break;
-      }
-    }
-
-    // Assume this is GBI0 unless we get a better match.
-    ucode = gbiMicrocode.kUCode_GBI0;
-    if (index >= 0) {
-      if (str.indexOf('fifo', index) >= 0 || str.indexOf('xbux', index) >= 0) {
-        ucode = (str.indexOf('S2DEX') >= 0) ? gbiMicrocode.kUCode_GBI2_SDEX : gbiMicrocode.kUCode_GBI2;
-      } else {
-        ucode = (str.indexOf('S2DEX') >= 0) ? gbiMicrocode.kUCode_GBI1_SDEX : gbiMicrocode.kUCode_GBI1;
-      }
-    }
-  }
-
-  logMicrocode(str, ucode);
-
+  let ucode = detect(task);
   const ram = getRamDataView();
   const ucodeTable = resetState(ucode, ram, task.data_ptr);
 
