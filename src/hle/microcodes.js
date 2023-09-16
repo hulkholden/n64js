@@ -1,18 +1,20 @@
 import * as logger from '../logger.js';
+import * as gbi0 from './gbi0.js';
+import * as gbi1 from './gbi1.js';
+import * as gbi2 from './gbi2.js';
 
-// TODO: See if we can split this up and move to gbi0.js etc.
-export const kUCode_GBI0 = 0;         // Super Mario 64, Tetrisphere, Demos
-export const kUCode_GBI1 = 1;         // Mario Kart, Star Fox
-export const kUCode_GBI2 = 2;         // Zelda, and newer games
-export const kUCode_GBI1_SDEX = 3;    // Yoshi's Story, Pokemon Puzzle League
-export const kUCode_GBI2_SDEX = 4;    // Neon Evangelion, Kirby
-export const kUCode_GBI0_WR = 5;      // Wave Racer USA
-export const kUCode_GBI0_DKR = 6;     // Diddy Kong Racing, Gemini, and Mickey
-export const kUCode_GBI1_LL = 7;      // Last Legion, Toukon, Toukon 2
-export const kUCode_GBI0_SE = 8;      // Shadows of the Empire (SOTE)
-export const kUCode_GBI0_GE = 9;      // Golden Eye
-export const kUCode_GBI2_CONKER = 10; // Conker BFD
-export const kUCode_GBI0_PD = 11;     // Perfect Dark
+const kUCode_GBI0 = 0;         // Super Mario 64, Tetrisphere, Demos
+const kUCode_GBI1 = 1;         // Mario Kart, Star Fox
+const kUCode_GBI2 = 2;         // Zelda, and newer games
+const kUCode_GBI1_SDEX = 3;    // Yoshi's Story, Pokemon Puzzle League
+const kUCode_GBI2_SDEX = 4;    // Neon Evangelion, Kirby
+const kUCode_GBI0_WR = 5;      // Wave Racer USA
+const kUCode_GBI0_DKR = 6;     // Diddy Kong Racing, Gemini, and Mickey
+const kUCode_GBI1_LL = 7;      // Last Legion, Toukon, Toukon 2
+const kUCode_GBI0_SE = 8;      // Shadows of the Empire (SOTE)
+const kUCode_GBI0_GE = 9;      // Golden Eye
+const kUCode_GBI2_CONKER = 10; // Conker BFD
+const kUCode_GBI0_PD = 11;     // Perfect Dark
 
 const ucodeOverrides = new Map([
   [0x60256efc, kUCode_GBI2_CONKER],	// "RSP Gfx ucode F3DEXBG.NoN fifo 2.08  Yoshitaka Yasumoto 1999 Nintendo.", "Conker's Bad Fur Day"
@@ -30,7 +32,39 @@ const ucodeOverrides = new Map([
   [0x313f038b, kUCode_GBI0],        // Pilotwings
 ]);
 
-export function detect(task) {
+export function create(task, state, ramDV) {
+  const ucode = detect(task);
+  switch (ucode) {
+    case kUCode_GBI0:
+      return new gbi0.GBI0(ucode, state, ramDV);
+    case kUCode_GBI0_DKR:
+      return new gbi0.GBI0DKR(ucode, state, ramDV);
+    case kUCode_GBI0_SE:
+      return new gbi0.GBI0SE(ucode, state, ramDV);
+    case kUCode_GBI0_PD:
+      return new gbi0.GBI0PD(ucode, state, ramDV);
+    case kUCode_GBI0_GE:
+      return new gbi0.GBI0GE(ucode, state, ramDV);
+    case kUCode_GBI0_WR:
+      return new gbi0.GBI0WR(ucode, state, ramDV);
+    case kUCode_GBI1:
+      return new gbi1.GBI1(ucode, state, ramDV);
+    case kUCode_GBI1_LL:
+      return new gbi1.GBI1LL(ucode, state, ramDV);
+    case kUCode_GBI1_SDEX:
+      return new gbi1.GBI1SDEX(ucode, state, ramDV);
+    case kUCode_GBI2:
+      return new gbi2.GBI2(ucode, state, ramDV);
+    case kUCode_GBI2_CONKER:
+      return new gbi2.GBI2Conker(ucode, state, ramDV);
+    case kUCode_GBI2_SDEX:
+      return new gbi2.GBI2SDEX(ucode, state, ramDV);
+  }
+  logger.log(`unhandled ucode during table init: ${ucode}`);
+  return new gbi0.GBI0(ucode, state, ramDV);
+}
+
+function detect(task) {
   const str = task.detectVersionString();
   const hash = task.computeMicrocodeHash();
   let ucode = ucodeOverrides.get(hash);
