@@ -157,10 +157,9 @@ function processDList(task, disassembler, bailAfter) {
 
       ucodeTable[cmd0 >>> 24](cmd0, cmd1);
 
-      if (bailAfter > -1 && debugController.currentOp >= bailAfter) {
+      if (debugController.postOp(bailAfter)) {
         break;
       }
-      debugController.currentOp++;
     }
   }
 
