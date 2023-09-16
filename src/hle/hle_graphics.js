@@ -65,8 +65,6 @@ const config = {
   vertexStride: 10
 };
 
-const triangleBuffer = new TriangleBuffer(64);
-
 let ramDV;
 
 const state = new RSPState();
