@@ -189,24 +189,6 @@ function rdpSegmentAddress(addr) {
   return state.rdpSegmentAddress(addr);
 }
 
-function makeRGBAFromRGBA16(col) {
-  return {
-    'r': ((col >>> 11) & 0x1f) / 31.0,
-    'g': ((col >>> 6) & 0x1f) / 31.0,
-    'b': ((col >>> 1) & 0x1f) / 31.0,
-    'a': ((col >>> 0) & 0x1) / 1.0,
-  };
-}
-
-function makeRGBAFromRGBA32(col) {
-  return {
-    'r': ((col >>> 24) & 0xff) / 255.0,
-    'g': ((col >>> 16) & 0xff) / 255.0,
-    'b': ((col >>> 8) & 0xff) / 255.0,
-    'a': ((col >>> 0) & 0xff) / 1.0,
-  };
-}
-
 function unpackRGBAToColor(col) {
   return {
     'r': ((col >>> 24) & 0xff) / 255.0,
@@ -902,158 +884,6 @@ function executeGBI1_Line3D(cmd0, cmd1, dis) {
   flushTris(tb);
 }
 
-function executeFillRect(cmd0, cmd1, dis) {
-  // NB: fraction is ignored
-  const x0 = ((cmd1 >>> 12) & 0xfff) >>> 2;
-  const y0 = ((cmd1 >>> 0) & 0xfff) >>> 2;
-  let x1 = ((cmd0 >>> 12) & 0xfff) >>> 2;
-  let y1 = ((cmd0 >>> 0) & 0xfff) >>> 2;
-
-  if (dis) {
-    dis.text(`gsDPFillRectangle(${x0}, ${y0}, ${x1}, ${y1});`);
-  }
-
-  if (state.depthImage.address == state.colorImage.address) {
-    // TODO: should use depth source.
-    // const depthSourcePrim = (state.rdpOtherModeL & gbi.DepthSource.G_ZS_PRIM) !== 0;
-    // const depth = depthSourcePrim ? state.primDepth : 0.0;
-    gl.clearDepth(1.0);
-    gl.depthMask(true);
-    gl.clear(gl.DEPTH_BUFFER_BIT);
-    return;
-  }
-
-  const cycleType = state.getCycleType();
-  let color = { r: 0, g: 0, b: 0, a: 0 };
-
-  if (cycleType === gbi.CycleType.G_CYC_FILL) {
-    x1 += 1;
-    y1 += 1;
-
-    if (state.colorImage.size === gbi.ImageSize.G_IM_SIZ_16b) {
-      color = makeRGBAFromRGBA16(state.fillColor & 0xffff);
-    } else {
-      color = makeRGBAFromRGBA32(state.fillColor);
-    }
-
-    // Clear whole screen in one?
-    const w = x1 - x0;
-    const h = y1 - y0;
-    if (w === nativeTransform.viWidth && h === nativeTransform.viHeight) {
-      gl.clearColor(color.r, color.g, color.b, color.a);
-      gl.clear(gl.COLOR_BUFFER_BIT);
-      return;
-    }
-  } else if (cycleType === gbi.CycleType.G_CYC_COPY) {
-    x1 += 1;
-    y1 += 1;
-  }
-
-  // TODO: Apply scissor.
-
-  fillRect(x0, y0, x1, y1, color);
-}
-
-function executeTexRect(cmd0, cmd1, dis) {
-  // The following 2 commands contain additional info
-  // TODO: check op code matches what we expect?
-  const cmd2 = ramDV.getUint32(state.pc + 4);
-  const cmd3 = ramDV.getUint32(state.pc + 12);
-  state.pc += 16;
-
-  let xh = ((cmd0 >>> 12) & 0xfff) / 4.0;
-  let yh = ((cmd0 >>> 0) & 0xfff) / 4.0;
-  const tileIdx = (cmd1 >>> 24) & 0x7;
-  const xl = ((cmd1 >>> 12) & 0xfff) / 4.0;
-  const yl = ((cmd1 >>> 0) & 0xfff) / 4.0;
-  let s0 = ((cmd2 >>> 16) & 0xffff) / 32.0;
-  let t0 = ((cmd2 >>> 0) & 0xffff) / 32.0;
-  // NB - signed value
-  let dsdx = ((cmd3 | 0) >> 16) / 1024.0;
-  const dtdy = ((cmd3 << 16) >> 16) / 1024.0;
-
-  const cycleType = state.getCycleType();
-
-  // In copy mode 4 pixels are copied at once.
-  if (cycleType === gbi.CycleType.G_CYC_COPY) {
-    dsdx *= 0.25;
-  }
-
-  // In Fill/Copy mode the coordinates are inclusive (i.e. add 1.0f to the w/h)
-  if (cycleType === gbi.CycleType.G_CYC_COPY ||
-    cycleType === gbi.CycleType.G_CYC_FILL) {
-    xh += 1.0;
-    yh += 1.0;
-  }
-
-  // If the texture coords are inverted, start from the end of the texel (?).
-  // Fixes California Speed.
-  if (dsdx < 0) { s0++; }
-  if (dtdy < 0) { t0++; }
-
-  const s1 = s0 + dsdx * (xh - xl);
-  const t1 = t0 + dtdy * (yh - yl);
-
-  if (dis) {
-    const tt = gbi.getTileText(tileIdx);
-    dis.text(`gsSPTextureRectangle(${xl},${yl},${xh},${yh},${tt},${s0},${t0},${dsdx},${dtdy});`);
-    dis.tip(`cmd2 = ${toString32(cmd2)}, cmd3 = ${toString32(cmd3)}`)
-    dis.tip(`st0 = (${s0}, ${t0}) st1 = (${s1}, ${t1})`)
-  }
-
-  texRect(tileIdx, xl, yl, xh, yh, s0, t0, s1, t1, false);
-}
-
-function executeTexRectFlip(cmd0, cmd1, dis) {
-  // The following 2 commands contain additional info
-  // TODO: check op code matches what we expect?
-  const cmd2 = ramDV.getUint32(state.pc + 4);
-  const cmd3 = ramDV.getUint32(state.pc + 12);
-  state.pc += 16;
-
-  let xh = ((cmd0 >>> 12) & 0xfff) / 4.0;
-  let yh = ((cmd0 >>> 0) & 0xfff) / 4.0;
-  const tileIdx = (cmd1 >>> 24) & 0x7;
-  const xl = ((cmd1 >>> 12) & 0xfff) / 4.0;
-  const yl = ((cmd1 >>> 0) & 0xfff) / 4.0;
-  let s0 = ((cmd2 >>> 16) & 0xffff) / 32.0;
-  let t0 = ((cmd2 >>> 0) & 0xffff) / 32.0;
-  // NB - signed value
-  let dsdx = ((cmd3 | 0) >> 16) / 1024.0;
-  const dtdy = ((cmd3 << 16) >> 16) / 1024.0;
-
-  const cycleType = state.getCycleType();
-
-  // In copy mode 4 pixels are copied at once.
-  if (cycleType === gbi.CycleType.G_CYC_COPY) {
-    dsdx *= 0.25;
-  }
-
-  // In Fill/Copy mode the coordinates are inclusive (i.e. add 1.0f to the w/h)
-  if (cycleType === gbi.CycleType.G_CYC_COPY ||
-    cycleType === gbi.CycleType.G_CYC_FILL) {
-    xh += 1.0;
-    yh += 1.0;
-  }
-
-  // If the texture coords are inverted, start from the end of the texel (?).
-  if (dsdx < 0) { s0++; }
-  if (dtdy < 0) { t0++; }
-
-  // NB x/y are flipped
-  const s1 = s0 + dsdx * (yh - yl);
-  const t1 = t0 + dtdy * (xh - xl);
-
-  if (dis) {
-    const tt = gbi.getTileText(tileIdx);
-    dis.text(`gsSPTextureRectangleFlip(${xl},${yl},${xh},${yh},${tt},${s0},${t0},${dsdx},${dtdy});`);
-    dis.tip(`cmd2 = ${toString32(cmd2)}, cmd3 = ${toString32(cmd3)}`)
-    dis.tip(`st0 = (${s0}, ${t0}) st1 = (${s1}, ${t1})`)
-  }
-
-  texRect(tileIdx, xl, yl, xh, yh, s0, t0, s1, t1, true);
-}
-
 function executeGBI1_Vertex(cmd0, cmd1, dis) {
   const v0 = ((cmd0 >>> 16) & 0xff) / config.vertexStride;
   const n = ((cmd0 >>> 10) & 0x3f);
@@ -1074,7 +904,6 @@ function executeGBI1_ModifyVtx(cmd0, cmd1, dis) {
 
   // FIXME!
 }
-
 
 function initWebGL(canvas) {
   if (gl) {
@@ -1509,14 +1338,7 @@ function initDepth() {
   gl.depthMask(zUpdRenderMode);
 }
 
-// A lot of functions are common between all ucodes
-// TOOD(hulkholden): Make this a Map?
-const ucodeCommon = {
-  0xe4: executeTexRect,
-  0xe5: executeTexRectFlip,
-  0xf6: executeFillRect,
-};
-
+// TODO: move all these to microcode classes.
 const ucodeGBI0 = {
   0x01: executeGBI1_Matrix,
   0x03: executeGBI1_MoveMem,
@@ -2164,8 +1986,6 @@ function buildUCodeTables(ucode) {
     } else {
       if (ucodeTable.hasOwnProperty(i)) {
         fn = ucodeTable[i];
-      } else if (ucodeCommon.hasOwnProperty(i)) {
-        fn = ucodeCommon[i];
       }
       if (!fn) {
         fn = executeUnknown;
@@ -2181,6 +2001,10 @@ function buildUCodeTables(ucode) {
     microcode.executeVertexImpl = executeVertexImpl;
     microcode.debugController = debugController;
     microcode.hleHalt = hleHalt;
+    microcode.fillRect = fillRect;
+    microcode.texRect = texRect;
+    microcode.nativeTransform = nativeTransform;
+    microcode.gl = gl;
   }
   return table;
 }
