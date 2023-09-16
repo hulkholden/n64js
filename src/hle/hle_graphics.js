@@ -2090,7 +2090,9 @@ function executeGBI2_SetOtherModeH(cmd0, cmd1, dis) {
 }
 
 function executeGBI2_SpNoop(cmd0, cmd1, dis) {
-  // No-op.
+  if (dis) {
+    dis.text('gsSPNoOp();');
+  }
 }
 
 function executeGBI2_RDPHalf_1(cmd0, cmd1, dis) {
