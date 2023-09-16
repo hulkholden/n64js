@@ -1,9 +1,10 @@
-/*global n64js*/
+/*global $, n64js*/
 
-import { toString16 } from "../format.js";
+import { toString16, toString32 } from "../format.js";
 import { Vector2 } from "../graphics/Vector2.js";
 import * as gbi from './gbi.js';
 import * as shaders from './shaders.js';
+import { Texture, clampTexture } from './textures.js';
 
 const kBlendModeUnknown = 0;
 const kBlendModeOpaque = 1;
@@ -20,6 +21,8 @@ export class Renderer {
     this.state = state;
     this.nativeTransform = nativeTransform;
 
+    this.textureCache = new Map();
+
     this.blitShaderProgram = shaders.createShaderProgram(gl, "blit-shader-vs", "blit-shader-fs");
     this.blitVertexPositionAttribute = gl.getAttribLocation(this.blitShaderProgram, "aVertexPosition");
     this.blitTexCoordAttribute = gl.getAttribLocation(this.blitShaderProgram, "aTextureCoord");
@@ -33,6 +36,13 @@ export class Renderer {
     this.n64PositionsBuffer = gl.createBuffer();
     this.n64ColorsBuffer = gl.createBuffer();
     this.n64UVBuffer = gl.createBuffer();
+
+    this.$textureOutput = $('#texture-content');
+  }
+
+  reset() {
+    this.textureCache.clear();
+    this.$textureOutput.html('');
   }
 
   copyBackBufferToFrontBuffer(texture) {
@@ -207,7 +217,6 @@ export class Renderer {
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
 
-
   initDepth() {
     const gl = this.gl;
 
@@ -302,6 +311,77 @@ export class Renderer {
 
     return shaders.getOrCreateN64Shader(this.gl, mux0, mux1, cycleType, enableAlphaThreshold);
   }
+
+  /**
+   * Looks up the texture defined at the specified tile index.
+   * @param {number} tileIdx
+   * @return {?Texture}
+   */
+  lookupTexture(tileIdx) {
+    const tile = this.state.tiles[tileIdx];
+    // Skip empty tiles - this is primarily for the debug ui.
+    if (tile.line === 0) {
+      return null;
+    }
+
+    // FIXME: we can cache this if tile/tmem state hasn't changed since the last draw call.
+    const hash = this.state.tmem.calculateCRC(tile);
+
+    // Check if the texture is already cached.
+    // The cacheID should include all the state that can affect how the texture is constructed.
+    const cacheID = `${toString32(hash)}_${tile.format}_${tile.size}_${tile.width}_${tile.height}_${tile.palette}`;
+    if (this.textureCache.has(cacheID)) {
+      return this.textureCache.get(cacheID);
+    }
+    const texture = this.decodeTexture(tile, this.state.getTextureLUTType(), cacheID);
+    this.textureCache.set(cacheID, texture);
+    return texture;
+  }
+
+  /**
+   * Decodes the texture defined by the specified tile.
+   * @param {!Tile} tile
+   * @param {number} tlutFormat
+   * @return {?Texture}
+   */
+  decodeTexture(tile, tlutFormat, cacheID) {
+    const gl = this.gl;
+
+    const texture = new Texture(gl, tile.width, tile.height);
+    if (!texture.$canvas[0].getContext) {
+      return null;
+    }
+
+    this.$textureOutput.append(
+      `${cacheID}: ${gbi.ImageFormat.nameOf(tile.format)}, ${gbi.ImageSize.nameOf(tile.size)},${tile.width}x${tile.height}, <br>`);
+
+    const ctx = texture.$canvas[0].getContext('2d');
+    const imgData = ctx.createImageData(texture.nativeWidth, texture.nativeHeight);
+
+    const handled = this.state.tmem.convertTexels(tile, tlutFormat, imgData);
+    if (handled) {
+      clampTexture(imgData, tile.width, tile.height);
+
+      ctx.putImageData(imgData, 0, 0);
+
+      this.$textureOutput.append(texture.$canvas);
+      this.$textureOutput.append('<br>');
+    } else {
+      const msg = `${gbi.ImageFormat.nameOf(tile.format)}/${gbi.ImageSize.nameOf(tile.size)} is unhandled`;
+      this.$textureOutput.append(msg);
+      // FIXME: fill with placeholder texture
+      this.hleHalt(msg);
+    }
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, texture.texture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texture.$canvas[0]);
+
+    gl.generateMipmap(gl.TEXTURE_2D);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+    return texture;
+  }
+
 
   bindTexture(slot, glTextureId, tile, texture, texGenEnabled, sampleUniform, texScaleUniform, texOffsetUniform) {
     const gl = this.gl;
