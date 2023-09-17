@@ -453,6 +453,9 @@ export class GBI2 extends GBIMicrocode {
             text = `gsSPSegment(${(offset >>> 2) & 0xf}, ${v});`;
           }
           break;
+        case gbi.MoveWord.G_MW_PERSPNORM:
+          text = `gSPPerspNormalize(${value});`;
+          break;
       }
       dis.text(text);
     }
@@ -480,7 +483,7 @@ export class GBI2 extends GBIMicrocode {
         this.warnUnimplemented('MoveWord Points');
         break;
       case gbi.MoveWord.G_MW_PERSPNORM:
-        this.warnUnimplemented('MoveWord PerspNorm');
+        // Ignored - this is to improve precision for integer divides but we're using floats.
         break;
       default:
         this.warnUnimplemented('MoveWord Unknown');
