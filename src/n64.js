@@ -300,7 +300,7 @@ n64js.check = (e, m) => {
 };
 
 n64js.warn = (m) => {
-  logger.log(m);
+  logger.warn(m);
 };
 
 n64js.stopForBreakpoint = () => { stop("Breakpoint", false); };

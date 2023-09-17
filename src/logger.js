@@ -45,6 +45,21 @@ export function log(str) {
 }
 
 /**
+ * Logs a string as a warning.
+ * @param {string} str
+ */
+export function warn(str) {
+  if (getPrefixFn) {
+    str = `${getPrefixFn()}: ${str}`;
+  }
+  console.warn(str);
+  if (outputElement) {
+    outputElement.append(`<font color="yellow">${str}</font><br>`);
+    outputElement.scrollTop(outputElement[0].scrollHeight);
+  }
+}
+
+/**
  * Appends an HTML element to the log.
  * @param {jQuery} html
  */
