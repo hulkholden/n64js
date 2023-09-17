@@ -77,7 +77,7 @@ export class GBI1 extends GBIMicrocode {
     const address = this.state.rdpSegmentAddress(this.state.rdpHalf1);
     
     // Examples: AeroGauge.
-    this.logUnimplemented('BranchLessZ')
+    this.warnUnimplemented('BranchLessZ')
     if (dis) {
       dis.text(`gsSPBranchLessZ(/* TODO */);`);
     }
@@ -229,14 +229,14 @@ export class GBI1 extends GBIMicrocode {
   }
 
   executeModifyVertex(cmd0, cmd1, dis) {
-    this.logUnimplemented('ModifyVertex');
+    this.warnUnimplemented('ModifyVertex');
     if (dis) {
       dis.text('gsSPModifyVertex(???);');
     }
   } 
 
   executeSprite2DBase(cmd0, cmd1, dis) {
-    this.logUnimplemented('Sprite2DBase');
+    this.warnUnimplemented('Sprite2DBase');
     if (dis) {
       dis.text(`gsSPSprite2DBase(/* TODO */);`);
     }
@@ -341,28 +341,31 @@ export class GBI1 extends GBIMicrocode {
 
     switch (type) {
       case gbi.MoveWord.G_MW_MATRIX:
-        this.haltUnimplemented('MoveWord Matrix', cmd0, cmd1);
+        this.warnUnimplemented('MoveWord Matrix');
         break;
       case gbi.MoveWord.G_MW_NUMLIGHT:
         this.state.numLights = ((value - 0x80000000) >>> 5) - 1;
         break;
       case gbi.MoveWord.G_MW_CLIP:
-        /*unimplemented(cmd0,cmd1);*/ break;
+        this.warnUnimplemented('MoveWord Clip');
+        break;
       case gbi.MoveWord.G_MW_SEGMENT:
         this.state.segments[((offset >>> 2) & 0xf)] = value;
         break;
       case gbi.MoveWord.G_MW_FOG:
-        /*unimplemented(cmd0,cmd1);*/ break;
+        this.warnUnimplemented('MoveWord Fog');
+        break;
       case gbi.MoveWord.G_MW_LIGHTCOL:
-        this.haltUnimplemented('MoveWord LightCol', cmd0, cmd1);
+        this.warnUnimplemented('MoveWord LightCol');
         break;
       case gbi.MoveWord.G_MW_POINTS:
-        this.haltUnimplemented('MoveWord Points', cmd0, cmd1);
+        this.warnUnimplemented('MoveWord Points');
         break;
       case gbi.MoveWord.G_MW_PERSPNORM:
-        /*unimplemented(cmd0,cmd1);*/ break;
+        this.warnUnimplemented('MoveWord PerspNorm');
+        break;
       default:
-        this.haltUnimplemented('MoveWord Unknown', cmd0, cmd1);
+        this.warnUnimplemented('MoveWord Unknown');
         break;
     }
   }

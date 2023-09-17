@@ -26,6 +26,9 @@ let colorImages = new Map();
 // Map to keep track of which warnings we've already shown.
 const loggedWarnings = new Map();
 
+// Whether to halt on unimplemented commands or just log a warning.
+const haltOnWarning = false;
+
 export class GBIMicrocode {
   constructor(ucode, state, ramDV) {
     this.state = state;
@@ -85,24 +88,32 @@ export class GBIMicrocode {
     return null;
   }
 
-  logUnimplemented(name) {
-    this.logWarning(`${name} unimplemented`);
+  executeUnknown(cmd0, cmd1) {
+    this.warn(`Unknown display list op ${toString8(cmd0 >>> 24)}`, `cmd0 ${toString32(cmd0)}, cmd1 ${toString32(cmd1)}`);
+  }
+  
+  warnUnimplemented(name) {
+    this.warn(name, 'unimplemented');
   }
 
-  logWarning(msg) {
+  /**
+   * Logs a warning.
+   * @param {string} msg A short string with the type of warning. This should be
+   *    relative low cardinality so duplicates can be skipped.
+   * @param {string} extra Extra information to display. This can be high cardinality.
+   */
+  warn(msg, extra) {
     if (loggedWarnings.get(msg)) {
       return;
     }
     loggedWarnings.set(msg, true);
-    n64js.warn(msg);    
-  }
 
-  executeUnknown(cmd0, cmd1) {
-    this.hleHalt(`Unknown display list op ${toString8(cmd0 >>> 24)} - cmd0 ${toString32(cmd0)}, cmd1 ${toString32(cmd1)}`);
-  }
-
-  haltUnimplemented(msg, cmd0, cmd1) {
-    this.hleHalt(`${msg} is unimplemented for op ${toString8(cmd0 >>> 24)} - cmd0 ${toString32(cmd0)}, cmd1 ${toString32(cmd1)}`);
+    const fullMsg = (extra !== undefined) ? `${msg}: ${extra}` : msg;
+    if (haltOnWarning) {
+      this.hleHalt(fullMsg);
+    } else {
+      n64js.warn(fullMsg);
+    }
   }
 
   loadMatrix(address, length) {
@@ -110,7 +121,7 @@ export class GBIMicrocode {
     const dv = new DataView(this.ramDV.buffer, address);
 
     if (length != 64) {
-      this.logWarning(`Unusual matrix length ${length}`);
+      this.warn('Unusual matrix length', `${length}`);
     }
 
     const elements = new Float32Array(16);
@@ -202,7 +213,7 @@ export class GBIMicrocode {
     }
 
     if (v0 + n >= 64) { // FIXME or 80 for later GBI
-      this.hleHalt('Too many verts');
+      this.warn('Too many verts');
       this.state.pc = 0;
       return;
     }
@@ -599,8 +610,8 @@ export class GBIMicrocode {
     const ult = (cmd0 >>> 0) & 0xfff;
 
     // Docs reckon these are ignored for all loadBlocks
-    if (uls !== 0) { this.hleHalt('Unexpected non-zero uls in load block'); }
-    if (ult !== 0) { this.hleHalt('Unexpected non-zero ult in load block'); }
+    if (uls !== 0) { this.warn('Unexpected non-zero uls in load block'); }
+    if (ult !== 0) { this.warn('Unexpected non-zero ult in load block'); }
 
     const tile = this.state.tiles[tileIdx];
     const tileX0 = uls >>> 2;
@@ -841,7 +852,7 @@ export class GBIMicrocode {
   }
 
   executeCullDL(cmd0, cmd1, dis) {
-    this.logUnimplemented('CullDisplayList')
+    this.warnUnimplemented('CullDisplayList');
     if (dis) {
       dis.text(`gSPCullDisplayList(/* TODO */); // TODO: implement`);
     }
