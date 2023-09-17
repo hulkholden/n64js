@@ -1,9 +1,18 @@
 export class Vector3 {
   /**
-   * @param {Float32Array=} opt_elems
+   * @param {Float32Array=|number} opt_elems_or_x
+   * @param {number=} opt_y
+   * @param {number=} opt_z
    */
-  constructor(opt_elems) {
-    this.elems = opt_elems || new Float32Array(3);
+  constructor(opt_elems_or_x, opt_y, opt_z) {
+    if (opt_z !== undefined) {
+      this.elems = new Float32Array(3);
+      this.elems[0] = opt_elems_or_x;
+      this.elems[1] = opt_y;
+      this.elems[2] = opt_z;
+    } else {
+      this.elems = opt_elems_or_x || new Float32Array(3);
+    }
   }
 
   get x() { return this.elems[0]; }

@@ -2,10 +2,21 @@ import { Vector3 } from './Vector3.js';
 
 export class Vector4 {
   /**
-   * @param {Float32Array=} opt_elems
+   * @param {Float32Array=|number} opt_elems_or_x
+   * @param {number=} opt_y
+   * @param {number=} opt_z
+   * @param {number=} opt_w
    */
-  constructor(opt_elems) {
-    this.elems = opt_elems || new Float32Array(4);
+  constructor(opt_elems_or_x, opt_y, opt_z, opt_w) {
+    if (opt_w !== undefined) {
+      this.elems = new Float32Array(4);
+      this.elems[0] = opt_elems_or_x;
+      this.elems[1] = opt_y;
+      this.elems[2] = opt_z;
+      this.elems[3] = opt_w;
+    } else {
+      this.elems = opt_elems_or_x || new Float32Array(4);
+    }
   }
 
   get x() { return this.elems[0]; }
