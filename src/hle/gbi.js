@@ -177,22 +177,25 @@ export const FrustRatio = makeEnum({
   FR_POS_FRUSTRATIO_6: 0x0000fffa,
 });
 
-export const G_MWO_SEGMENT_0      = 0x00;
-export const G_MWO_SEGMENT_1      = 0x01;
-export const G_MWO_SEGMENT_2      = 0x02;
-export const G_MWO_SEGMENT_3      = 0x03;
-export const G_MWO_SEGMENT_4      = 0x04;
-export const G_MWO_SEGMENT_5      = 0x05;
-export const G_MWO_SEGMENT_6      = 0x06;
-export const G_MWO_SEGMENT_7      = 0x07;
-export const G_MWO_SEGMENT_8      = 0x08;
-export const G_MWO_SEGMENT_9      = 0x09;
-export const G_MWO_SEGMENT_A      = 0x0a;
-export const G_MWO_SEGMENT_B      = 0x0b;
-export const G_MWO_SEGMENT_C      = 0x0c;
-export const G_MWO_SEGMENT_D      = 0x0d;
-export const G_MWO_SEGMENT_E      = 0x0e;
-export const G_MWO_SEGMENT_F      = 0x0f;
+export const Segments = makeEnum({
+  G_MWO_SEGMENT_0: 0x00,
+  G_MWO_SEGMENT_1: 0x01,
+  G_MWO_SEGMENT_2: 0x02,
+  G_MWO_SEGMENT_3: 0x03,
+  G_MWO_SEGMENT_4: 0x04,
+  G_MWO_SEGMENT_5: 0x05,
+  G_MWO_SEGMENT_6: 0x06,
+  G_MWO_SEGMENT_7: 0x07,
+  G_MWO_SEGMENT_8: 0x08,
+  G_MWO_SEGMENT_9: 0x09,
+  G_MWO_SEGMENT_A: 0x0a,
+  G_MWO_SEGMENT_B: 0x0b,
+  G_MWO_SEGMENT_C: 0x0c,
+  G_MWO_SEGMENT_D: 0x0d,
+  G_MWO_SEGMENT_E: 0x0e,
+  G_MWO_SEGMENT_F: 0x0f,
+});
+
 export const G_MWO_FOG            = 0x00;
 export const G_MWO_aLIGHT_1       = 0x00;
 export const G_MWO_bLIGHT_1       = 0x04;

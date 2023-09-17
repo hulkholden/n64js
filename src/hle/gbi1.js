@@ -319,57 +319,46 @@ export class GBI1 extends GBIMicrocode {
     const offset = (cmd0 >>> 8) & 0xffff;
     const value = cmd1;
 
-    if (dis) {
-      let text = `gMoveWd(${gbi.MoveWord.nameOf(type)}, ${toString16(offset)}, ${toString32(value)});`;
-
-      switch (type) {
-        case gbi.MoveWord.G_MW_NUMLIGHT:
-          if (offset === gbi.G_MWO_NUMLIGHT) {
-            let v = ((value - 0x80000000) >>> 5) - 1;
-            text = `gsSPNumLights(${gbi.NumLights.nameOf(v)});`;
-          }
-          break;
-        case gbi.MoveWord.G_MW_CLIP:
-          text = `gSPClipRatio(${gbi.MoveWordClip.nameOf(offset)}, ${gbi.FrustRatio.nameOf(value)});`;
-          break;
-        case gbi.MoveWord.G_MW_SEGMENT:
-          {
-            let v = value === 0 ? '0' : toString32(value);
-            text = `gsSPSegment(${(offset >>> 2) & 0xf}, ${v});`;
-          }
-          break;
-        case gbi.MoveWord.G_MW_FOG:
-          {
-            const multiplier = cmd1 >> 16;
-            const offset = cmd1 & 0xffff;
-            // This is provided as min/max but we show the derived multiplier and offset.
-            text = `gSPFogPosition(${multiplier}, ${offset});`;
-          }
-          break;
-        case gbi.MoveWord.G_MW_PERSPNORM:
-          text = `gSPPerspNormalize(${value});`;
-          break;
-      }
-      dis.text(text);
-    }
+    let text = '';
 
     switch (type) {
       case gbi.MoveWord.G_MW_MATRIX:
         this.warnUnimplemented('MoveWord Matrix');
         break;
       case gbi.MoveWord.G_MW_NUMLIGHT:
-        this.state.numLights = ((value - 0x80000000) >>> 5) - 1;
+        {
+          let numLights = ((value - 0x80000000) >>> 5) - 1;
+          if (dis) {
+            if (offset === gbi.G_MWO_NUMLIGHT) {
+              text = `gsSPNumLights(${gbi.NumLights.nameOf(numLights)});`;
+            }
+          }
+          this.state.numLights = numLights;
+        }
         break;
       case gbi.MoveWord.G_MW_CLIP:
+        if (dis) {
+          text = `gSPClipRatio(${gbi.MoveWordClip.nameOf(offset)}, ${gbi.FrustRatio.nameOf(value)});`;
+        }
         // Ignored - we just let the GPU handle clipping/scissoring.
         break;
       case gbi.MoveWord.G_MW_SEGMENT:
-        this.state.segments[((offset >>> 2) & 0xf)] = value;
+        {
+          const segment = (offset >>> 2) & 0xf;
+          if (dis) {
+            text = `gsSPSegment(${gbi.Segments.nameOf(segment)}, ${toString32(value)});`;
+          }
+          this.state.segments[segment] = value;
+        }
         break;
       case gbi.MoveWord.G_MW_FOG:
         {
           const multiplier = cmd1 >> 16;
           const offset = cmd1 & 0xffff;
+          if (dis) {
+            // This is provided as min/max but we show the derived multiplier and offset.
+            text = `gSPFogPosition(${multiplier}, ${offset});`;
+          }
           this.state.fogParameters.set(multiplier, offset);
         }
         break;
@@ -380,12 +369,23 @@ export class GBI1 extends GBIMicrocode {
         this.warnUnimplemented('MoveWord Points');
         break;
       case gbi.MoveWord.G_MW_PERSPNORM:
+        if (dis) {
+          text = `gSPPerspNormalize(${value});`;
+        }
         // Ignored - this is to improve precision for integer divides but we're using floats.
         break;
       default:
         this.warnUnimplemented('MoveWord Unknown');
         break;
     }
+
+    if (dis) {
+      if (!text) {
+        text = `gMoveWd(${gbi.MoveWord.nameOf(type)}, ${toString16(offset)}, ${toString32(value)});`;
+      }
+      dis.text(text);
+    }
+
   }
 
   executeTri1(cmd0, cmd1, dis) {
