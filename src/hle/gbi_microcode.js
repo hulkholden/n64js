@@ -150,29 +150,43 @@ export class GBIMicrocode {
   }
 
   loadViewport(address) {
-    const scale = new Vector2(
+    const scale3 = new Vector3(
       this.ramDV.getInt16(address + 0) / 4.0,
       this.ramDV.getInt16(address + 2) / 4.0,
+      this.ramDV.getInt16(address + 6),
     );
-    const trans = new Vector2(
+    const trans3 = new Vector3(
       this.ramDV.getInt16(address + 8) / 4.0,
       this.ramDV.getInt16(address + 10) / 4.0,
+      this.ramDV.getInt16(address + 12),
     );
 
     //logger.log(`Viewport: scale=${scale.x},${scale.y} trans=${trans.x},${trans.y}` );
-    this.state.viewport.scale = scale;
-    this.state.viewport.trans = trans;
+    this.state.viewport.set(scale3, trans3);
 
     // N64 provides the center point and distance to each edge,
     // but we want the width/height and translate to bottom left.
-    const t2d = new Transform2D(scale.scale(2), trans.sub(scale));
+    const scale2 = new Vector2(scale3.x, scale3.y);
+    const trans2 = new Vector2(trans3.x, trans3.y);
+    const t2d = new Transform2D(scale2.scale(2), trans2.sub(scale3));
     this.renderer.nativeTransform.setN64Viewport(t2d);
   }
 
   previewViewport(address) {
+    const scale = new Vector3(
+      this.ramDV.getInt16(address + 0) / 4.0,
+      this.ramDV.getInt16(address + 2) / 4.0,
+      this.ramDV.getInt16(address + 6),
+    );
+    const trans = new Vector3(
+      this.ramDV.getInt16(address + 8) / 4.0,
+      this.ramDV.getInt16(address + 10) / 4.0,
+      this.ramDV.getInt16(address + 12),
+    );
+
     let result = '';
-    result += `scale = (${this.ramDV.getInt16(address + 0) / 4.0}, ${this.ramDV.getInt16(address + 2) / 4.0}) `;
-    result += `trans = (${this.ramDV.getInt16(address + 8) / 4.0}, ${this.ramDV.getInt16(address + 10) / 4.0}) `;
+    result += `scale = (${scale.x}, ${scale.y}, ${scale.z}) `;
+    result += `trans = (${trans.x}, ${trans.y}, ${trans.z}) `;
     return result;
   }
 

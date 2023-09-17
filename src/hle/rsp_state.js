@@ -34,10 +34,7 @@ export class RSPState {
     this.rdpHalf1 = 0;
     this.rdpHalf2 = 0;
 
-    this.viewport = {
-      scale: new Vector2(160.0, 120.0),
-      trans: new Vector2(160.0, 120.0),
-    };
+    this.viewport = new Viewport();
 
     // matrix stacks
     this.projection = [];
@@ -135,11 +132,7 @@ export class RSPState {
       this.projectedVertices[i] = new ProjectedVertex();
     }
 
-    this.viewport = {
-      scale: new Vector2(160, 120),
-      trans: new Vector2(160, 120),
-    };
-
+    this.viewport.reset();
     this.fogParameters.reset();
   }
 
@@ -190,6 +183,22 @@ export class RSPState {
   getCoverageTimesAlpha() { return (this.rdpOtherModeL & gbi.RenderMode.CVG_X_ALPHA) !== 0; }
   // use fragment coverage * fragment alpha
   getAlphaCoverageSelect() { return (this.rdpOtherModeL & gbi.RenderMode.ALPHA_CVG_SEL) !== 0; }
+}
+
+class Viewport {
+  constructor() {
+    this.reset();
+  }
+
+  reset() {
+    this.scale = new Vector3(160.0, 120.0, 1);
+    this.trans = new Vector3(160.0, 120.0, 0);
+  }
+
+  set(scale, trans) {
+    this.scale = scale;
+    this.trans = trans;
+  }
 }
 
 class FogParameters {
