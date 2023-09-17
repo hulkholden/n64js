@@ -9,6 +9,57 @@ import { Renderer } from './renderer.js';
 window.n64js = window.n64js || {};
 
 let numDisplayListsRendered = 0;
+let gl = null; // WebGL context for the canvas.
+let renderer;
+
+// Scale factor to apply to the canvas.
+// TODO: expose this on the UI somewhere.
+let canvasScale = 1;
+
+const state = new RSPState();
+const debugController = new DebugController(state, processDList);
+
+export function initialiseRenderer($canvas) {
+  debugController.initUI();
+
+  const canvas = $canvas[0];
+  initWebGL(canvas); // Initialize the GL context
+
+  // Only continue if WebGL is available and working
+  if (!gl) {
+    return;
+  }
+
+  renderer = new Renderer(gl, state, 640, 480);
+  renderer.hleHalt = hleHalt;
+
+  // FIXME - needed for buildTexture.
+  debugController.renderer = renderer;
+}
+
+export function resetRenderer() {
+  if (renderer) {
+    renderer.reset();
+  }
+}
+
+function initWebGL(canvas) {
+  if (gl) {
+    return;
+  }
+
+  try {
+    // Try to grab the standard context. If it fails, fallback to experimental.
+    gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+  } catch (e) {
+    // Ignore errors.
+  }
+
+  // If we don't have a GL context, give up now
+  if (!gl) {
+    alert("Unable to initialize WebGL. Your browser may not support it.");
+  }
+}
 
 export function debugDisplayListRunning() {
   return debugController.running;
@@ -31,56 +82,6 @@ export function hleGraphics(task) {
   processDList(task, null, -1);
 }
 
-let gl = null; // WebGL context for the canvas.
-
-let renderer;
-
-// Scale factor to apply to the canvas.
-// TODO: expose this on the UI somewhere.
-let canvasScale = 1;
-
-const state = new RSPState();
-const debugController = new DebugController(state, processDList);
-
-function initWebGL(canvas) {
-  if (gl) {
-    return;
-  }
-
-  try {
-    // Try to grab the standard context. If it fails, fallback to experimental.
-    gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
-  } catch (e) {
-    // Ignore errors.
-  }
-
-  // If we don't have a GL context, give up now
-  if (!gl) {
-    alert("Unable to initialize WebGL. Your browser may not support it.");
-  }
-}
-
-// const ucodeSprite2d = {
-//   0xbe: executeSprite2dScaleFlip,
-//   0xbd: executeSprite2dDraw
-// };
-
-// const ucodeDKR = {
-//   0x05:  executeDMATri,
-//   0x07:  executeGBI1_DLInMem,
-// };
-
-function buildUCodeTable(task, ramDV) {
-  const microcode = microcodes.create(task, state, ramDV);
-  // TODO: pass rendering object to microcode constructor.
-  microcode.debugController = debugController;
-  microcode.hleHalt = hleHalt;
-  microcode.gl = gl;
-  microcode.renderer = renderer;
-
-  return microcode.buildCommandTable();
-}
-
 export function presentBackBuffer() {
   n64js.onPresent();
 
@@ -90,7 +91,7 @@ export function presentBackBuffer() {
   }
 
   // If no display lists executed, interpret framebuffer as bytes
-  initViScales();    // resize canvas to match VI res.
+  initDimensionsFromVI();    // resize canvas to match VI res.
 
   const vi = n64js.hardware().viRegDevice;
   const pixels = vi.renderBackBuffer();
@@ -98,20 +99,6 @@ export function presentBackBuffer() {
     return;
   }
   renderer.copyPixelsToFrontBuffer(pixels, vi.screenWidth, vi.screenHeight, vi.bitDepth);
-}
-
-function initViScales() {
-  const vi = n64js.hardware().viRegDevice;
-  const dims = vi.computeDimensions();
-  if (!dims) {
-    return;
-  }
-
-  renderer.nativeTransform.initDimensions(dims.srcWidth, dims.srcHeight);
-
-  const canvas = document.getElementById('display');
-  canvas.width = dims.screenWidth * canvasScale;
-  canvas.height = dims.screenHeight * canvasScale;
 }
 
 function processDList(task, disassembler, bailAfter) {
@@ -125,7 +112,7 @@ function processDList(task, disassembler, bailAfter) {
   state.reset(task.data_ptr);
   const ucodeTable = buildUCodeTable(task, ramDV);
 
-  initViScales();
+  initDimensionsFromVI();
 
   renderer.newFrame();
 
@@ -163,28 +150,39 @@ function processDList(task, disassembler, bailAfter) {
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 }
 
-export function initialiseRenderer($canvas) {
-  debugController.initUI();
-
-  const canvas = $canvas[0];
-  initWebGL(canvas); // Initialize the GL context
-
-  // Only continue if WebGL is available and working
-  if (!gl) {
+function initDimensionsFromVI() {
+  const vi = n64js.hardware().viRegDevice;
+  const dims = vi.computeDimensions();
+  if (!dims) {
     return;
   }
 
-  renderer = new Renderer(gl, state, 640, 480);
-  renderer.hleHalt = hleHalt;
+  renderer.nativeTransform.initDimensions(dims.srcWidth, dims.srcHeight);
 
-  // FIXME - needed for buildTexture.
-  debugController.renderer = renderer;
+  const canvas = document.getElementById('display');
+  canvas.width = dims.screenWidth * canvasScale;
+  canvas.height = dims.screenHeight * canvasScale;
 }
 
-export function resetRenderer() {
-  if (renderer) {
-    renderer.reset();
-  }
+// const ucodeSprite2d = {
+//   0xbe: executeSprite2dScaleFlip,
+//   0xbd: executeSprite2dDraw
+// };
+
+// const ucodeDKR = {
+//   0x05:  executeDMATri,
+//   0x07:  executeGBI1_DLInMem,
+// };
+
+function buildUCodeTable(task, ramDV) {
+  const microcode = microcodes.create(task, state, ramDV);
+  // TODO: pass rendering object to microcode constructor.
+  microcode.debugController = debugController;
+  microcode.hleHalt = hleHalt;
+  microcode.gl = gl;
+  microcode.renderer = renderer;
+
+  return microcode.buildCommandTable();
 }
 
 function hleHalt(msg) {
