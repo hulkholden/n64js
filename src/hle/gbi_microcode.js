@@ -94,12 +94,11 @@ export class GBIMicrocode {
   }
 
   executeUnknown(cmd0, cmd1) {
-    this.hleHalt(`Unknown display list op ${toString8(cmd0 >>> 24)}`);
-    this.state.pc = 0;
+    this.hleHalt(`Unknown display list op ${toString8(cmd0 >>> 24)} - cmd0 ${toString32(cmd0)}, cmd1 ${toString32(cmd1)}`);
   }
 
-  haltUnimplemented(cmd0, cmd1) {
-    this.hleHalt(`Unimplemented display list op ${toString8(cmd0 >>> 24)}`);
+  haltUnimplemented(msg, cmd0, cmd1) {
+    this.hleHalt(`${msg} is unimplemented for op ${toString8(cmd0 >>> 24)} - cmd0 ${toString32(cmd0)}, cmd1 ${toString32(cmd1)}`);
   }
 
   loadMatrix(address) {

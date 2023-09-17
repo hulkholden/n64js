@@ -341,7 +341,7 @@ export class GBI1 extends GBIMicrocode {
 
     switch (type) {
       case gbi.MoveWord.G_MW_MATRIX:
-        this.haltUnimplemented(cmd0, cmd1);
+        this.haltUnimplemented('MoveWord Matrix', cmd0, cmd1);
         break;
       case gbi.MoveWord.G_MW_NUMLIGHT:
         this.state.numLights = ((value - 0x80000000) >>> 5) - 1;
@@ -354,15 +354,15 @@ export class GBI1 extends GBIMicrocode {
       case gbi.MoveWord.G_MW_FOG:
         /*unimplemented(cmd0,cmd1);*/ break;
       case gbi.MoveWord.G_MW_LIGHTCOL:
-        this.haltUnimplemented(cmd0, cmd1);
+        this.haltUnimplemented('MoveWord LightCol', cmd0, cmd1);
         break;
       case gbi.MoveWord.G_MW_POINTS:
-        this.haltUnimplemented(cmd0, cmd1);
+        this.haltUnimplemented('MoveWord Points', cmd0, cmd1);
         break;
       case gbi.MoveWord.G_MW_PERSPNORM:
         /*unimplemented(cmd0,cmd1);*/ break;
       default:
-        this.haltUnimplemented(cmd0, cmd1);
+        this.haltUnimplemented('MoveWord Unknown', cmd0, cmd1);
         break;
     }
   }

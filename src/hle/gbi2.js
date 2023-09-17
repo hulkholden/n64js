@@ -455,24 +455,32 @@ export class GBI2 extends GBIMicrocode {
     }
   
     switch (type) {
-      // case gbi.MoveWord.G_MW_MATRIX:  unimplemented(cmd0,cmd1); break;
+      case gbi.MoveWord.G_MW_MATRIX:
+        this.haltUnimplemented('MoveWord Matrix', cmd0, cmd1);
+        break;
       case gbi.MoveWord.G_MW_NUMLIGHT:
         this.state.numLights = Math.floor(value / 24);
         break;
       case gbi.MoveWord.G_MW_CLIP:
-        /*unimplemented(cmd0,cmd1);*/ break;
+        this.haltUnimplemented('MoveWord Clip', cmd0, cmd1);
+        break;
       case gbi.MoveWord.G_MW_SEGMENT:
         this.state.segments[((offset >>> 2) & 0xf)] = value;
         break;
       case gbi.MoveWord.G_MW_FOG:
-        /*unimplemented(cmd0,cmd1);*/ break;
+        this.haltUnimplemented('MoveWord Fog', cmd0, cmd1);
+        break;
       case gbi.MoveWord.G_MW_LIGHTCOL:
-        /*unimplemented(cmd0,cmd1);*/ break;
-      // case gbi.MoveWord.G_MW_POINTS:    unimplemented(cmd0,cmd1); break;
+        this.haltUnimplemented('MoveWord LightCol', cmd0, cmd1);
+        break;
+      case gbi.MoveWord.G_MW_POINTS:
+        this.haltUnimplemented('MoveWord Points', cmd0, cmd1);
+        break;
       case gbi.MoveWord.G_MW_PERSPNORM:
-        /*unimplemented(cmd0,cmd1);*/ break;
+        this.haltUnimplemented('MoveWord PerspNorm', cmd0, cmd1);
+        break;
       default:
-        this.haltUnimplemented(cmd0, cmd1);
+        this.haltUnimplemented('MoveWord Unknown', cmd0, cmd1);
         break;
     }
   }
