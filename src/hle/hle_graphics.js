@@ -186,7 +186,7 @@ function buildUCodeTable(task, ramDV) {
 }
 
 function hleHalt(msg) {
-  if (!debugController.running) {
+  if (debugController.running) {
     return;
   }
   n64js.ui().displayWarning(msg);
