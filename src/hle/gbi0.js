@@ -82,7 +82,6 @@ export class GBI0GE extends GBI0 {
 
   executeTri4GE(cmd0, cmd1, dis) {
     const kCommand = cmd0 >>> 24;
-    const stride = this.vertexStride;
     const verts = this.state.projectedVertices;
     const tb = this.triangleBuffer;
     tb.reset();
