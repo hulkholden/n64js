@@ -73,8 +73,15 @@ export class GBI1 extends GBIMicrocode {
     }
   }
 
-  executeBranchZ(cmd0, cmd1) {
+  executeBranchZ(cmd0, cmd1, dis) {
     const address = this.state.rdpSegmentAddress(this.state.rdpHalf1);
+    
+    // Examples: AeroGauge.
+    this.logUnimplemented('BranchLessZ')
+    if (dis) {
+      dis.text(`gsSPBranchLessZ(/* TODO */);`);
+    }
+    
     // FIXME
     // Just branch all the time for now
     //if (vtxDepth(cmd.vtx) <= cmd.branchzvalue)
