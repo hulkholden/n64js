@@ -75,13 +75,13 @@ export class GBI1 extends GBIMicrocode {
 
   executeBranchZ(cmd0, cmd1, dis) {
     const address = this.state.rdpSegmentAddress(this.state.rdpHalf1);
-    
+
     // Examples: AeroGauge.
     this.warnUnimplemented('BranchLessZ')
     if (dis) {
       dis.text(`gsSPBranchLessZ(/* TODO */);`);
     }
-    
+
     // FIXME
     // Just branch all the time for now
     //if (vtxDepth(cmd.vtx) <= cmd.branchzvalue)
@@ -147,20 +147,20 @@ export class GBI1 extends GBIMicrocode {
     const on = (cmd0 >>> 0) & 0xff;
     const s = this.calcTextureScale(((cmd1 >>> 16) & 0xffff));
     const t = this.calcTextureScale(((cmd1 >>> 0) & 0xffff));
-  
+
     if (dis) {
       const sText = s.toString();
       const tText = t.toString();
       const tileText = gbi.getTileText(tileIdx);
       const onText = on ? 'G_ON' : 'G_OFF';
-  
+
       if (xparam !== 0) {
         dis.text(`gsSPTextureL(${sText}, ${tText}, ${level}, ${xparam}, ${tileText}, ${onText});`);
       } else {
         dis.text(`gsSPTexture(${sText}, ${tText}, ${level}, ${tileText}, ${onText});`);
       }
     }
-  
+
     this.state.setTexture(s, t, level, tileIdx);
     if (on) {
       this.state.geometryModeBits |= gbi.GeometryModeGBI1.G_TEXTURE_ENABLE;
@@ -233,7 +233,7 @@ export class GBI1 extends GBIMicrocode {
     if (dis) {
       dis.text('gsSPModifyVertex(???);');
     }
-  } 
+  }
 
   executeSprite2DBase(cmd0, cmd1, dis) {
     this.warnUnimplemented('Sprite2DBase');
@@ -385,7 +385,6 @@ export class GBI1 extends GBIMicrocode {
       }
       dis.text(text);
     }
-
   }
 
   executeTri1(cmd0, cmd1, dis) {
