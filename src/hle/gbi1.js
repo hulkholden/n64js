@@ -329,6 +329,9 @@ export class GBI1 extends GBIMicrocode {
             text = `gsSPNumLights(${gbi.NumLights.nameOf(v)});`;
           }
           break;
+        case gbi.MoveWord.G_MW_CLIP:
+          text = `gSPClipRatio(${gbi.MoveWordClip.nameOf(offset)}, ${gbi.FrustRatio.nameOf(value)});`;
+          break;
         case gbi.MoveWord.G_MW_SEGMENT:
           {
             let v = value === 0 ? '0' : toString32(value);
@@ -347,7 +350,7 @@ export class GBI1 extends GBIMicrocode {
         this.state.numLights = ((value - 0x80000000) >>> 5) - 1;
         break;
       case gbi.MoveWord.G_MW_CLIP:
-        this.warnUnimplemented('MoveWord Clip');
+        // Ignored - we just let the GPU handle clipping/scissoring.
         break;
       case gbi.MoveWord.G_MW_SEGMENT:
         this.state.segments[((offset >>> 2) & 0xf)] = value;

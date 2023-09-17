@@ -154,10 +154,29 @@ export const MoveMemGBI1 = makeEnum({
 });
 
 export const G_MWO_NUMLIGHT       = 0x00;
-export const G_MWO_CLIP_RNX       = 0x04;
-export const G_MWO_CLIP_RNY       = 0x0c;
-export const G_MWO_CLIP_RPX       = 0x14;
-export const G_MWO_CLIP_RPY       = 0x1c;
+
+export const MoveWordClip = makeEnum({
+  G_MWO_CLIP_RNX: 0x04,
+  G_MWO_CLIP_RNY: 0x0c,
+  G_MWO_CLIP_RPX: 0x14,
+  G_MWO_CLIP_RPY: 0x1c,
+});
+
+export const FrustRatio = makeEnum({
+  FR_NEG_FRUSTRATIO_1: 0x00000001,
+  FR_POS_FRUSTRATIO_1: 0x0000ffff,
+  FR_NEG_FRUSTRATIO_2: 0x00000002,
+  FR_POS_FRUSTRATIO_2: 0x0000fffe,
+  FR_NEG_FRUSTRATIO_3: 0x00000003,
+  FR_POS_FRUSTRATIO_3: 0x0000fffd,
+  FR_NEG_FRUSTRATIO_4: 0x00000004,
+  FR_POS_FRUSTRATIO_4: 0x0000fffc,
+  FR_NEG_FRUSTRATIO_5: 0x00000005,
+  FR_POS_FRUSTRATIO_5: 0x0000fffb,
+  FR_NEG_FRUSTRATIO_6: 0x00000006,
+  FR_POS_FRUSTRATIO_6: 0x0000fffa,
+});
+
 export const G_MWO_SEGMENT_0      = 0x00;
 export const G_MWO_SEGMENT_1      = 0x01;
 export const G_MWO_SEGMENT_2      = 0x02;
