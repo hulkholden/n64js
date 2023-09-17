@@ -23,8 +23,8 @@ const Z_POS = 0x20; //near
 const kDebugColorImages = true;
 let colorImages = new Map();
 
-// Map to keep track of which unimplemented ops we've already warned about.
-const loggedUnimplemented = new Map();
+// Map to keep track of which warnings we've already shown.
+const loggedWarnings = new Map();
 
 export class GBIMicrocode {
   constructor(ucode, state, ramDV) {
@@ -86,11 +86,15 @@ export class GBIMicrocode {
   }
 
   logUnimplemented(name) {
-    if (loggedUnimplemented.get(name)) {
+    this.logWarning(`${name} unimplemented`);
+  }
+
+  logWarning(msg) {
+    if (loggedWarnings.get(msg)) {
       return;
     }
-    loggedUnimplemented.set(name, true);
-    n64js.warn(`${name} unimplemented`);
+    loggedWarnings.set(msg, true);
+    n64js.warn(msg);    
   }
 
   executeUnknown(cmd0, cmd1) {
@@ -101,9 +105,13 @@ export class GBIMicrocode {
     this.hleHalt(`${msg} is unimplemented for op ${toString8(cmd0 >>> 24)} - cmd0 ${toString32(cmd0)}, cmd1 ${toString32(cmd1)}`);
   }
 
-  loadMatrix(address) {
+  loadMatrix(address, length) {
     const recip = 1.0 / 65536.0;
     const dv = new DataView(this.ramDV.buffer, address);
+
+    if (length != 64) {
+      this.logWarning(`Unusual matrix length ${length}`);
+    }
 
     const elements = new Float32Array(16);
     for (let i = 0; i < 4; ++i) {
