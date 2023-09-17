@@ -76,6 +76,8 @@ export class RSPState {
 
     this.primDepth = 0.0;
 
+    this.fogParameters = new FogParameters();
+
     this.colorImage = {
       format: 0,
       size: 0,
@@ -137,6 +139,8 @@ export class RSPState {
       scale: new Vector2(160, 120),
       trans: new Vector2(160, 120),
     };
+
+    this.fogParameters.reset();
   }
 
   // TODO: why is this needed if we check the hash as it's needed?
@@ -186,6 +190,22 @@ export class RSPState {
   getCoverageTimesAlpha() { return (this.rdpOtherModeL & gbi.RenderMode.CVG_X_ALPHA) !== 0; }
   // use fragment coverage * fragment alpha
   getAlphaCoverageSelect() { return (this.rdpOtherModeL & gbi.RenderMode.ALPHA_CVG_SEL) !== 0; }
+}
+
+class FogParameters {
+  constructor() {
+    this.reset();
+  }
+
+  reset() {
+    this.multiplier = 0;
+    this.offset = 0;
+  }
+
+  set(multiplier, offset) {
+    this.multiplier = multiplier;
+    this.offset = offset;
+  }
 }
 
 class TextureImage {

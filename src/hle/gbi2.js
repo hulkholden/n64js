@@ -453,6 +453,14 @@ export class GBI2 extends GBIMicrocode {
             text = `gsSPSegment(${(offset >>> 2) & 0xf}, ${v});`;
           }
           break;
+        case gbi.MoveWord.G_MW_FOG:
+          {
+            const multiplier = cmd1 >> 16;
+            const offset = cmd1 & 0xffff;
+            // This is provided as min/max but we show the derived multiplier and offset.
+            text = `gSPFogPosition(${multiplier}, ${offset});`;
+          }
+          break;
         case gbi.MoveWord.G_MW_PERSPNORM:
           text = `gSPPerspNormalize(${value});`;
           break;
@@ -474,7 +482,11 @@ export class GBI2 extends GBIMicrocode {
         this.state.segments[((offset >>> 2) & 0xf)] = value;
         break;
       case gbi.MoveWord.G_MW_FOG:
-        this.warnUnimplemented('MoveWord Fog');
+        {
+          const multiplier = cmd1 >> 16;
+          const offset = cmd1 & 0xffff;
+          this.state.fogParameters.set(multiplier, offset);
+        }
         break;
       case gbi.MoveWord.G_MW_LIGHTCOL:
         this.warnUnimplemented('MoveWord LightCol');
