@@ -161,7 +161,7 @@ export class GBI2 extends GBIMicrocode {
   }
   
   executeLoadUcode(cmd0, cmd1, dis) {
-    this.logUnimplemented('LoadUcode');
+    this.warnUnimplemented('LoadUcode');
 
     if (dis) {
       dis.text(`gsSPLoadUCode(/* TODO */);`);
@@ -169,7 +169,7 @@ export class GBI2 extends GBIMicrocode {
   }
   
   executeBranchZ(cmd0, cmd1, dis) {
-    this.logUnimplemented('BranchZ')
+    this.warnUnimplemented('BranchZ')
 
     if (dis) {
       dis.text(`gsSPBranchZ(/* TODO */);`);
@@ -177,7 +177,7 @@ export class GBI2 extends GBIMicrocode {
   }
 
   executeLine3D(cmd0, cmd1, dis) {
-    this.logUnimplemented('Line3D');
+    this.warnUnimplemented('Line3D');
   
     if (dis) {
       dis.text(`gsSPLine3D(/* TODO */);`);
@@ -185,7 +185,7 @@ export class GBI2 extends GBIMicrocode {
   }
   
   executeBgRect1Cyc(cmd0, cmd1, dis) {
-    this.logUnimplemented('BgRect1Cyc');
+    this.warnUnimplemented('BgRect1Cyc');
   
     if (dis) {
       dis.text(`gsSPBgRect1Cyc(/* TODO */);`);
@@ -193,7 +193,7 @@ export class GBI2 extends GBIMicrocode {
   }
   
   executeBgRectCopy(cmd0, cmd1, dis) {
-    this.logUnimplemented('BgRectCopy');
+    this.warnUnimplemented('BgRectCopy');
   
     if (dis) {
       dis.text(`gsSPBgRectCopy(/* TODO */);`);
@@ -201,7 +201,7 @@ export class GBI2 extends GBIMicrocode {
   }
   
   executeObjRenderMode(cmd0, cmd1, dis) {
-    this.logUnimplemented('ObjRenderMode');
+    this.warnUnimplemented('ObjRenderMode');
   
     if (dis) {
       dis.text(`gsSPObjRenderMode(/* TODO */);`);
@@ -331,7 +331,7 @@ export class GBI2 extends GBIMicrocode {
   
     // Cures crash after swinging in Mario Golf
     if (vtx >= this.state.projectedVertices.length) {
-      this.hleHalt('crazy vertex index');
+      this.warn('crazy vertex index', vtx);
       return;
     }
   
@@ -339,7 +339,7 @@ export class GBI2 extends GBIMicrocode {
   
     switch (offset) {
       case gbi.ModifyVtx.G_MWO_POINT_RGBA:
-        this.hleHalt('unhandled modifyVtx');
+        this.warnUnimplemented('modifyVtx RGBA');
         break;
   
       case gbi.ModifyVtx.G_MWO_POINT_ST:
@@ -354,15 +354,15 @@ export class GBI2 extends GBIMicrocode {
         break;
   
       case gbi.ModifyVtx.G_MWO_POINT_XYSCREEN:
-        this.hleHalt('unhandled modifyVtx');
+        this.warnUnimplemented('modifyVtx XYSCREEN');
         break;
   
       case gbi.ModifyVtx.G_MWO_POINT_ZSCREEN:
-        this.hleHalt('unhandled modifyVtx');
+        this.warnUnimplemented('modifyVtx ZSCREEN');
         break;
   
       default:
-        this.hleHalt('unhandled modifyVtx');
+        this.warnUnimplemented('modifyVtx');
         break;
     }
   }
@@ -456,31 +456,31 @@ export class GBI2 extends GBIMicrocode {
   
     switch (type) {
       case gbi.MoveWord.G_MW_MATRIX:
-        this.haltUnimplemented('MoveWord Matrix', cmd0, cmd1);
+        this.warnUnimplemented('MoveWord Matrix');
         break;
       case gbi.MoveWord.G_MW_NUMLIGHT:
         this.state.numLights = Math.floor(value / 24);
         break;
       case gbi.MoveWord.G_MW_CLIP:
-        this.haltUnimplemented('MoveWord Clip', cmd0, cmd1);
+        this.warnUnimplemented('MoveWord Clip');
         break;
       case gbi.MoveWord.G_MW_SEGMENT:
         this.state.segments[((offset >>> 2) & 0xf)] = value;
         break;
       case gbi.MoveWord.G_MW_FOG:
-        this.haltUnimplemented('MoveWord Fog', cmd0, cmd1);
+        this.warnUnimplemented('MoveWord Fog');
         break;
       case gbi.MoveWord.G_MW_LIGHTCOL:
-        this.haltUnimplemented('MoveWord LightCol', cmd0, cmd1);
+        this.warnUnimplemented('MoveWord LightCol');
         break;
       case gbi.MoveWord.G_MW_POINTS:
-        this.haltUnimplemented('MoveWord Points', cmd0, cmd1);
+        this.warnUnimplemented('MoveWord Points');
         break;
       case gbi.MoveWord.G_MW_PERSPNORM:
-        this.haltUnimplemented('MoveWord PerspNorm', cmd0, cmd1);
+        this.warnUnimplemented('MoveWord PerspNorm');
         break;
       default:
-        this.haltUnimplemented('MoveWord Unknown', cmd0, cmd1);
+        this.warnUnimplemented('MoveWord Unknown');
         break;
     }
   }
@@ -522,14 +522,14 @@ export class GBI2 extends GBIMicrocode {
         }
         break;
       case gbi.MoveMemGBI2.G_GBI2_MV_POINT:
-        this.hleHalt(`unhandled movemem G_GBI2_MV_POINT: ${type.toString(16)}`);
+        this.warnUnimplemented('MoveMem G_GBI2_MV_POINT');
         break;
       case gbi.MoveMemGBI2.G_GBI2_MV_MATRIX:
-        this.hleHalt(`unhandled movemem G_GBI2_MV_MATRIX: ${type.toString(16)}`);
+        this.warnUnimplemented('MoveMem G_GBI2_MV_MATRIX');
         break;
   
       default:
-        this.hleHalt(`unknown movemem: ${type.toString(16)}`);
+        this.warnUnimplemented(`MoveMem ${type.toString(16)}`);
     }
   
     if (dis) {

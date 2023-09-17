@@ -37,7 +37,7 @@ export class GBI0 extends GBI1 {
   }
 
   executeRDPHalf_Cont(cmd0, cmd1, dis) {
-    this.logUnimplemented('RDPHalf_Cont');
+    this.warnUnimplemented('RDPHalf_Cont');
     if (dis) {
       dis.text(`gsDPHalf_Cont(/* TODO */);`);
     }
