@@ -172,7 +172,7 @@ export class GBI1 extends GBIMicrocode {
 
   executeMatrix(cmd0, cmd1, dis) {
     const flags = (cmd0 >>> 16) & 0xff;
-    const length = (cmd0 >>> 0) & 0xffff;
+    // const length = (cmd0 >>> 0) & 0xffff;
     const address = this.state.rdpSegmentAddress(cmd1);
 
     let matrix = this.loadMatrix(address);
