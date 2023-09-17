@@ -122,7 +122,7 @@ export class GBI2 extends GBIMicrocode {
     const replace = (cmd0 >>> 1) & 0x1;
     const projection = (cmd0 >>> 2) & 0x1;
   
-    let matrix = this.loadMatrix(address);
+    let matrix = this.loadMatrix(address, 64);
   
     if (dis) {
       let t = '';
