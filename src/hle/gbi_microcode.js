@@ -2,9 +2,7 @@
 
 import { toString8, toString32 } from '../format.js';
 import { Matrix4x4 } from '../graphics/Matrix4x4.js';
-import { Transform4D } from '../graphics/Transform4D.js';
 import { Vector3 } from '../graphics/Vector3.js';
-import { Vector4 } from '../graphics/Vector4.js';
 import * as logger from '../logger.js';
 import { makeColorTextRGBA } from './disassemble.js';
 import * as gbi from './gbi.js';
