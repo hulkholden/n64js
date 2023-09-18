@@ -52,14 +52,24 @@ export class Vector3 {
   }
 
   /**
+   * Scales the vector in place.
+   * @param {number} s The scale factor to apply.
+   * @return {!Vector3}
+   */
+  scaleInPlace(s) {
+    for (var i = 0; i < this.elems.length; ++i)
+      this.elems[i] *= s;
+    return this;
+  }
+
+  /**
    * Normalises the vector.
    * @return {!Vector3}
    */
   normaliseInPlace() {
-    let len = this.length();
+    var len = this.length();
     if (len > 0.0) {
-      for (let i = 0; i < this.elems.length; ++i)
-        this.elems[i] /= len;
+      return this.scaleInPlace(1 / len);
     }
     return this;
   }
