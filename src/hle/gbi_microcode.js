@@ -299,13 +299,7 @@ export class GBIMicrocode {
       } else {
         vertex.u = u * scaleS;
         vertex.v = v * scaleT;
-
-        const r = dv.getUint8(vtxBase + 12);
-        const g = dv.getUint8(vtxBase + 13);
-        const b = dv.getUint8(vtxBase + 14);
-        const a = dv.getUint8(vtxBase + 15);
-
-        vertex.color = (a << 24) | (b << 16) | (g << 8) | r;
+        vertex.color = this.loadABGR(dv, vtxBase + 12);
       }
     }
   }
@@ -323,6 +317,11 @@ export class GBIMicrocode {
     else if (projected.z > projected.w) flags |= Z_NEG;
 
     return flags;
+  }
+
+  loadABGR(dv, offset) {
+    // N64 stores RGBA big endian, and we want ABGR.
+    return dv.getUint32(offset, true);
   }
 
   calculateLighting(normal) {
