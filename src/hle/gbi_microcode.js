@@ -151,26 +151,21 @@ export class GBIMicrocode {
   }
 
   loadViewport(address) {
+    // Invert scale.y so that t.x + (y * s.x) produces a coord
+    // at the bottom rather than the top of the viewport.
+    // TODO: It's not clear to me if this is also done in microcode or if
+    // it's specific to OpenGL screen space coords being different.
     const scale3 = new Vector3(
-      this.ramDV.getInt16(address + 0) / 4.0,
-      this.ramDV.getInt16(address + 2) / 4.0,
-      this.ramDV.getInt16(address + 4),
+      +this.ramDV.getInt16(address + 0) / 4.0,
+      -this.ramDV.getInt16(address + 2) / 4.0,
+      +this.ramDV.getInt16(address + 4),
     );
     const trans3 = new Vector3(
       this.ramDV.getInt16(address + 8) / 4.0,
       this.ramDV.getInt16(address + 10) / 4.0,
       this.ramDV.getInt16(address + 12),
     );
-
-    //logger.log(`Viewport: scale=${scale.x},${scale.y} trans=${trans.x},${trans.y}` );
     this.state.viewport.set(scale3, trans3);
-
-    // N64 provides the center point and distance to each edge,
-    // but we want the width/height and translate to bottom left.
-    const scale2 = new Vector2(scale3.x, scale3.y);
-    const trans2 = new Vector2(trans3.x, trans3.y);
-    const t2d = new Transform2D(scale2.scale(2), trans2.sub(scale3));
-    this.renderer.nativeTransform.setN64Viewport(t2d);
   }
 
   previewViewport(address) {
@@ -277,9 +272,9 @@ export class GBIMicrocode {
       // here and when rescaling.
       const w = projTemp.w;
       const rw = 1 / w;
-      const sx = vpTrans.x + projTemp.x * +vpScale.x * rw;
-      const sy = vpTrans.y + projTemp.y * -vpScale.y * rw;
-      const sz = vpTrans.z + projTemp.z * +vpScale.z * rw;
+      const sx = vpTrans.x + projTemp.x * vpScale.x * rw;
+      const sy = vpTrans.y + projTemp.y * vpScale.y * rw;
+      const sz = vpTrans.z + projTemp.z * vpScale.z * rw;
 
       // Translate back to OpenGL normalized device coords.
       const dx = (sx - viX) / viX;
