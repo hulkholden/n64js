@@ -240,20 +240,8 @@ export class GBIMicrocode {
     const normal = new Vector3();
     const transformedNormal = new Vector3();
 
-    // TODO: cache this whenever the viewport is updated.
-    const vpScale = new Vector4().setV3(this.state.viewport.scale, 1);
-    const vpTrans = new Vector4().setV3(this.state.viewport.trans, 0);
-    const vpTransform = new Transform4D(vpScale, vpTrans);
-
-    // TODO: cache this whenever nativeTransform is updated.
-    // TODO: confirm these. viZ is almost certainly wrong.
-    const viX = this.renderer.nativeTransform.viWidth / 2;
-    const viY = this.renderer.nativeTransform.viHeight / 2;
-    const viZ = 511;
-    // Note scale.y is flipped.
-    const viScale = new Vector4(viX, -viY, viZ, 1);
-    const viTrans = new Vector4(viX, +viY, viZ, 0);
-    const viTransform = new Transform4D(viScale, viTrans);
+    const viTransform = this.renderer.nativeTransform.viTransform;
+    const vpTransform = this.state.viewport.transform;
 
     for (let i = 0; i < n; ++i) {
       const vtxBase = i * 16;
