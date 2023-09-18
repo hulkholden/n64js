@@ -153,7 +153,7 @@ export class GBIMicrocode {
     const scale3 = new Vector3(
       this.ramDV.getInt16(address + 0) / 4.0,
       this.ramDV.getInt16(address + 2) / 4.0,
-      this.ramDV.getInt16(address + 6),
+      this.ramDV.getInt16(address + 4),
     );
     const trans3 = new Vector3(
       this.ramDV.getInt16(address + 8) / 4.0,
@@ -176,7 +176,7 @@ export class GBIMicrocode {
     const scale = new Vector3(
       this.ramDV.getInt16(address + 0) / 4.0,
       this.ramDV.getInt16(address + 2) / 4.0,
-      this.ramDV.getInt16(address + 6),
+      this.ramDV.getInt16(address + 4),
     );
     const trans = new Vector3(
       this.ramDV.getInt16(address + 8) / 4.0,
