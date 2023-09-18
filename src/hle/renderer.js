@@ -2,7 +2,9 @@
 
 import { toString16, toString32 } from "../format.js";
 import { Transform2D } from '../graphics/Transform2D.js';
+import { Transform4D } from "../graphics/Transform4D.js";
 import { Vector2 } from "../graphics/Vector2.js";
+import { Vector4 } from "../graphics/Vector4.js";
 import * as gbi from './gbi.js';
 import * as shaders from './shaders.js';
 import { Texture, clampTexture } from './textures.js';
@@ -610,6 +612,16 @@ class NativeTransform {
     this.viHeight = viHeight;
     // Convert n64 framebuffer coordinates into normalised device coordinates (-1 to +1).
     this.n64FramebufferToDevice = new Transform2D(new Vector2(2 / viWidth, -2 / viHeight), new Vector2(-1, +1));
+
+    // TODO: confirm these. viZ is almost certainly wrong.
+    const viX = viWidth / 2;
+    const viY = viHeight / 2;
+    const viZ = 511;
+
+    // Note scale.y is flipped.
+    const viScale = new Vector4(viX, -viY, viZ, 1);
+    const viTrans = new Vector4(viX, +viY, viZ, 0);
+    this.viTransform = new Transform4D(viScale, viTrans);
   }
 
   // Used by fillRec/texRect - ignores viewport.

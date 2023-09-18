@@ -2,8 +2,9 @@ import * as gbi from './gbi.js';
 import { Matrix4x4 } from "../graphics/Matrix4x4.js";
 import { Tile } from "./tile.js";
 import { ProjectedVertex } from "./triangle_buffer.js";
-import { Vector2 } from "../graphics/Vector2.js";
+import { Transform4D } from '../graphics/Transform4D.js';
 import { Vector3 } from "../graphics/Vector3.js";
+import { Vector4 } from '../graphics/Vector4.js';
 import { TMEM } from './tmem.js';
 
 export class RSPState {
@@ -195,13 +196,18 @@ class Viewport {
     // at the bottom rather than the top of the viewport.
     // TODO: It's not clear to me if this is also done in microcode or if
     // it's specific to OpenGL screen space coords being different.
-    this.scale = new Vector3(160.0, -120.0, 1);
-    this.trans = new Vector3(160.0, +120.0, 0);
+    const scale = new Vector3(160.0, -120.0, 1);
+    const trans = new Vector3(160.0, +120.0, 0);
+    this.set(scale, trans);
   }
 
   set(scale, trans) {
     this.scale = scale;
     this.trans = trans;
+
+    const vpScale = new Vector4().setV3(scale, 1);
+    const vpTrans = new Vector4().setV3(trans, 0);
+    this.transform = new Transform4D(vpScale, vpTrans);
   }
 }
 
