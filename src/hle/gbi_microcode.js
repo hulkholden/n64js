@@ -2,8 +2,7 @@
 
 import { toString8, toString32 } from '../format.js';
 import { Matrix4x4 } from '../graphics/Matrix4x4.js';
-import { Transform2D } from '../graphics/Transform2D.js';
-import { Vector2 } from '../graphics/Vector2.js';
+import { Transform4D } from '../graphics/Transform4D.js';
 import { Vector3 } from '../graphics/Vector3.js';
 import { Vector4 } from '../graphics/Vector4.js';
 import * as logger from '../logger.js';
@@ -92,7 +91,7 @@ export class GBIMicrocode {
   executeUnknown(cmd0, cmd1) {
     this.warn(`Unknown display list op ${toString8(cmd0 >>> 24)}`, `cmd0 ${toString32(cmd0)}, cmd1 ${toString32(cmd1)}`);
   }
-  
+
   warnUnimplemented(name) {
     this.warn(name, 'unimplemented');
   }
@@ -241,15 +240,20 @@ export class GBIMicrocode {
     const normal = new Vector3();
     const transformedNormal = new Vector3();
 
-    const vpScale = this.state.viewport.scale;
-    const vpTrans = this.state.viewport.trans;
+    // TODO: cache this whenever the viewport is updated.
+    const vpScale = new Vector4().setV3(this.state.viewport.scale, 1);
+    const vpTrans = new Vector4().setV3(this.state.viewport.trans, 0);
+    const vpTransform = new Transform4D(vpScale, vpTrans);
 
+    // TODO: cache this whenever nativeTransform is updated.
     // TODO: confirm these. viZ is almost certainly wrong.
     const viX = this.renderer.nativeTransform.viWidth / 2;
     const viY = this.renderer.nativeTransform.viHeight / 2;
     const viZ = 511;
-
-    const projTemp = new Vector4();
+    // Note scale.y is flipped.
+    const viScale = new Vector4(viX, -viY, viZ, 1);
+    const viTrans = new Vector4(viX, +viY, viZ, 0);
+    const viTransform = new Transform4D(viScale, viTrans);
 
     for (let i = 0; i < n; ++i) {
       const vtxBase = i * 16;
@@ -265,27 +269,15 @@ export class GBIMicrocode {
       const v = dv.getInt16(vtxBase + 10);
 
       // Project.
-      wvp.transformPoint(xyz, projTemp);
+      const pos = vertex.pos;
+      wvp.transformPoint(xyz, pos);
 
-      // Scale to n64 screen coords.
-      // TODO: figure out if there's a nicer way to handle flipping Y direction
-      // here and when rescaling.
-      const w = projTemp.w;
-      const rw = 1 / w;
-      const sx = vpTrans.x + projTemp.x * vpScale.x * rw;
-      const sy = vpTrans.y + projTemp.y * vpScale.y * rw;
-      const sz = vpTrans.z + projTemp.z * vpScale.z * rw;
-
-      // Translate back to OpenGL normalized device coords.
-      const dx = (sx - viX) / viX;
-      const dy = (sy - viY) / viY;
-      const dz = (sz - viZ) / viZ;
-
-      // Rescale by w.
-      vertex.pos.x = +dx * w;
-      vertex.pos.y = -dy * w;
-      vertex.pos.z = +dz * w;
-      vertex.pos.w = w;
+      // Divide out W.
+      const w = pos.w;
+      pos.scaleInPlace(1 / w);
+      vpTransform.transformInPlace(pos);  // Translate into screen coords using the viewport.
+      viTransform.invTransformInPlace(pos);  // Translate back to OpenGL normalized device coords.
+      pos.scaleInPlace(w);
 
       //hleHalt(`${x},${y},${z}-&gt;${projected.x},${projected.y},${projected.z}`);
 
