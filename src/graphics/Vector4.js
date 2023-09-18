@@ -58,14 +58,24 @@ export class Vector4 {
   }
 
   /**
+   * Scales the vector in place.
+   * @param {number} s The scale factor to apply.
+   * @return {!Vector4}
+   */
+  scaleInPlace(s) {
+    for (var i = 0; i < this.elems.length; ++i)
+      this.elems[i] *= s;
+    return this;
+  }
+
+  /**
    * Normalises the vector.
    * @return {!Vector4}
    */
   normaliseInPlace() {
     var len = this.length();
     if (len > 0.0) {
-      for (var i = 0; i < this.elems.length; ++i)
-        this.elems[i] /= len;
+      return this.scaleInPlace(1 / len);
     }
     return this;
   }
