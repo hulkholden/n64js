@@ -24,6 +24,20 @@ export class Vector3 {
   set z(v) { this.elems[2] = v; }
 
   /**
+   * Sets the vector.
+   * @param {number} x 
+   * @param {number} y 
+   * @param {number} z 
+   * @return {!Vector3}
+   */
+  set(x, y, z) {
+    this.x = x;
+    this.y = y;
+    this.z = z;
+    return this;
+  }
+
+  /**
    * Return the dot product.
    * @param {!Vector3} other
    * @return {number}
@@ -52,13 +66,57 @@ export class Vector3 {
   }
 
   /**
-   * Scales the vector in place.
+   * Adds the vector in place.
+   * @param {Vector3} v The vector to subtract.
+   * @return {!Vector3}
+   */
+  addInPlace(v) {
+    for (var i = 0; i < this.elems.length; ++i)
+      this.elems[i] += v.elems[i];
+    return this;
+  }
+
+  /**
+   * Subtracts the vector in place.
+   * @param {Vector3} v The vector to subtract.
+   * @return {!Vector3}
+   */
+  subInPlace(v) {
+    for (var i = 0; i < this.elems.length; ++i)
+      this.elems[i] -= v.elems[i];
+    return this;
+  }
+
+  /**
+   * Scales the vector in place by a scalar.
    * @param {number} s The scale factor to apply.
    * @return {!Vector3}
    */
   scaleInPlace(s) {
     for (var i = 0; i < this.elems.length; ++i)
       this.elems[i] *= s;
+    return this;
+  }
+
+  /**
+   * Scales the vector in place by a vector.
+   * @param {Vector3} s The scale factor to apply.
+   * @return {!Vector3}
+   */
+  vecScaleInPlace(s) {
+    for (var i = 0; i < this.elems.length; ++i)
+      this.elems[i] *= s.elems[i];
+    return this;
+  }
+
+  /**
+   * Scales the vector in place by 1 / vector.
+   * @param {Vector3} s The scale factor to apply.
+   * @return {!Vector4}
+   */
+  invVecScaleInPlace(s) {
+    for (var i = 0; i < this.elems.length; ++i)
+      this.elems[i] /= s.elems[i];
     return this;
   }
 

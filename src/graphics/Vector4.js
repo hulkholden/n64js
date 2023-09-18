@@ -30,6 +30,36 @@ export class Vector4 {
   set w(v) { this.elems[3] = v; }
 
   /**
+   * Sets the vector.
+   * @param {number} x 
+   * @param {number} y 
+   * @param {number} z 
+   * @param {number} w 
+   * @return {!Vector4}
+   */
+  set(x, y, z, w) {
+    this.x = x;
+    this.y = y;
+    this.z = z;
+    this.w = w;
+    return this;
+  }
+
+  /**
+   * Sets the vector from a Vector3.
+   * @param {Vector3} xyz
+   * @param {number} w 
+   * @return {!Vector4}
+   */
+  setV3(xyz, w) {
+    this.x = xyz.x;
+    this.y = xyz.y;
+    this.z = xyz.z;
+    this.w = w;
+    return this;
+  }
+
+  /**
    * Return the dot product.
    * @param {!Vector4} other
    * @return {number}
@@ -58,13 +88,57 @@ export class Vector4 {
   }
 
   /**
-   * Scales the vector in place.
+   * Adds the vector in place.
+   * @param {Vector4} v The vector to subtract.
+   * @return {!Vector4}
+   */
+  addInPlace(v) {
+    for (var i = 0; i < this.elems.length; ++i)
+      this.elems[i] += v.elems[i];
+    return this;
+  }
+
+  /**
+   * Subtracts the vector in place.
+   * @param {Vector4} v The vector to subtract.
+   * @return {!Vector4}
+   */
+  subInPlace(v) {
+    for (var i = 0; i < this.elems.length; ++i)
+      this.elems[i] -= v.elems[i];
+    return this;
+  }
+
+  /**
+   * Scales the vector in place by a scalar.
    * @param {number} s The scale factor to apply.
    * @return {!Vector4}
    */
   scaleInPlace(s) {
     for (var i = 0; i < this.elems.length; ++i)
       this.elems[i] *= s;
+    return this;
+  }
+
+  /**
+   * Scales the vector in place by a vector.
+   * @param {Vector3} s The scale factor to apply.
+   * @return {!Vector4}
+   */
+  vecScaleInPlace(s) {
+    for (var i = 0; i < this.elems.length; ++i)
+      this.elems[i] *= s.elems[i];
+    return this;
+  }
+
+  /**
+   * Scales the vector in place by 1 / vector.
+   * @param {Vector3} s The scale factor to apply.
+   * @return {!Vector4}
+   */
+  invVecScaleInPlace(s) {
+    for (var i = 0; i < this.elems.length; ++i)
+      this.elems[i] /= s.elems[i];
     return this;
   }
 
