@@ -191,8 +191,12 @@ class Viewport {
   }
 
   reset() {
-    this.scale = new Vector3(160.0, 120.0, 1);
-    this.trans = new Vector3(160.0, 120.0, 0);
+    // Invert scale.y so that t.x + (y * s.x) produces a coord
+    // at the bottom rather than the top of the viewport.
+    // TODO: It's not clear to me if this is also done in microcode or if
+    // it's specific to OpenGL screen space coords being different.
+    this.scale = new Vector3(160.0, -120.0, 1);
+    this.trans = new Vector3(160.0, +120.0, 0);
   }
 
   set(scale, trans) {
