@@ -267,18 +267,7 @@ export class GBIMicrocode {
       viTransform.invTransformInPlace(pos);  // Translate back to OpenGL normalized device coords.
       pos.scaleInPlace(w);
 
-      //hleHalt(`${x},${y},${z}-&gt;${projected.x},${projected.y},${projected.z}`);
-
-      // let clipFlags = 0;
-      //      if (projected[0] < -projected[3]) clipFlags |= X_POS;
-      // else if (projected[0] >  projected[3]) clipFlags |= X_NEG;
-
-      //      if (projected[1] < -projected[3]) clipFlags |= Y_POS;
-      // else if (projected[1] >  projected[3]) clipFlags |= Y_NEG;
-
-      //      if (projected[2] < -projected[3]) clipFlags |= Z_POS;
-      // else if (projected[2] >  projected[3]) clipFlags |= Z_NEG;
-      // this.state.projectedVertices.clipFlags = clipFlags;
+      // this.state.projectedVertices.clipFlags = this.calculateClipFlags(projected);
 
       if (light) {
         normal.x = dv.getInt8(vtxBase + 12);
@@ -318,12 +307,22 @@ export class GBIMicrocode {
 
         vertex.color = (a << 24) | (b << 16) | (g << 8) | r;
       }
-
-      //const flag = dv.getUint16(vtxBase + 6);
-      //const tu = dv.getInt16(vtxBase + 8);
-      //const tv = dv.getInt16(vtxBase + 10);
-      //const rgba = dv.getInt16(vtxBase + 12);    // nx/ny/nz/a
     }
+  }
+
+  calculateClipFlags(projected) {
+    let flags = 0;
+
+    if (projected.x < -projected.w) flags |= X_POS;
+    else if (projected.x > projected.w) flags |= X_NEG;
+
+    if (projected.y < -projected.w) flags |= Y_POS;
+    else if (projected.y > projected.w) flags |= Y_NEG;
+
+    if (projected.z < -projected.w) flags |= Z_POS;
+    else if (projected.z > projected.w) flags |= Z_NEG;
+
+    return flags;
   }
 
   calculateLighting(normal) {
