@@ -5,6 +5,7 @@ import { Matrix4x4 } from '../graphics/Matrix4x4.js';
 import { Transform2D } from '../graphics/Transform2D.js';
 import { Vector2 } from '../graphics/Vector2.js';
 import { Vector3 } from '../graphics/Vector3.js';
+import { Vector4 } from '../graphics/Vector4.js';
 import * as logger from '../logger.js';
 import { makeColorTextRGBA } from './disassemble.js';
 import * as gbi from './gbi.js';
@@ -245,6 +246,16 @@ export class GBIMicrocode {
     const normal = new Vector3();
     const transformedNormal = new Vector3();
 
+    const vpScale = this.state.viewport.scale;
+    const vpTrans = this.state.viewport.trans;
+
+    // TODO: confirm these. viZ is almost certainly wrong.
+    const viX = this.renderer.nativeTransform.viWidth / 2;
+    const viY = this.renderer.nativeTransform.viHeight / 2;
+    const viZ = 511;
+
+    const projTemp = new Vector4();
+
     for (let i = 0; i < n; ++i) {
       const vtxBase = i * 16;
       const vertex = this.state.projectedVertices[v0 + i];
@@ -258,8 +269,28 @@ export class GBIMicrocode {
       const u = dv.getInt16(vtxBase + 8);
       const v = dv.getInt16(vtxBase + 10);
 
-      const projected = vertex.pos;
-      wvp.transformPoint(xyz, projected);
+      // Project.
+      wvp.transformPoint(xyz, projTemp);
+
+      // Scale to n64 screen coords.
+      // TODO: figure out if there's a nicer way to handle flipping Y direction
+      // here and when rescaling.
+      const w = projTemp.w;
+      const rw = 1 / w;
+      const sx = vpTrans.x + projTemp.x * +vpScale.x * rw;
+      const sy = vpTrans.y + projTemp.y * -vpScale.y * rw;
+      const sz = vpTrans.z + projTemp.z * +vpScale.z * rw;
+
+      // Translate back to OpenGL normalized device coords.
+      const dx = (sx - viX) / viX;
+      const dy = (sy - viY) / viY;
+      const dz = (sz - viZ) / viZ;
+
+      // Rescale by w.
+      vertex.pos.x = +dx * w;
+      vertex.pos.y = -dy * w;
+      vertex.pos.z = +dz * w;
+      vertex.pos.w = w;
 
       //hleHalt(`${x},${y},${z}-&gt;${projected.x},${projected.y},${projected.z}`);
 
