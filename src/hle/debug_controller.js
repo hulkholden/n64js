@@ -194,7 +194,7 @@ export class DebugController {
     const $tr = $('<tr />');
 
     for (let i in this.state.geometryMode) {
-      if (this.state.geometryMode.hasOwnProperty(i)) {
+      if (Object.prototype.hasOwnProperty.call(this.state.geometryMode, i)) {
         const $td = $(`<td>${i}</td>`);
         if (this.state.geometryMode[i]) {
           $td.css('background-color', '#AFF4BB');

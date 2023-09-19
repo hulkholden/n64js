@@ -818,12 +818,12 @@ export class Debugger {
     if (instruction) {
       let nextColIdx = 0;
       for (let i in instruction.srcRegs) {
-        if (!registerColours.hasOwnProperty(i)) {
+        if (!Object.prototype.hasOwnProperty.call(registerColours, i)) {
           registerColours.set(i, availColours[nextColIdx++]);
         }
       }
       for (let i in instruction.dstRegs) {
-        if (!registerColours.hasOwnProperty(i)) {
+        if (!Object.prototype.hasOwnProperty.call(registerColours, i)) {
           registerColours.set(i, availColours[nextColIdx++]);
         }
       }
