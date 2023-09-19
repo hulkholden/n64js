@@ -1,17 +1,18 @@
 import { toString32 } from "../format.js";
+import { Vector3 } from "../graphics/Vector3.js";
 import { GBI1 } from "./gbi1.js";
 
-// GBI0 is very similar to GBI1 with a few small differences, so we extend that instead of GBIMicrocode.
+// GBI0 is very similar to GBI1 with a few small differences,
+// so we extend that instead of GBIMicrocode.
 export class GBI0 extends GBI1 {
   constructor(ucode, state, ramDV) {
     super(ucode, state, ramDV);
     this.vertexStride = 10;
 
     this.gbi0Commands = new Map([
-      // TODO: check if we need to handle these differently.
-      // [0xb0, executeGBI1_BranchZ], // GBI1 only?
-      // [0xb1, executeGBI1_Tri2], // GBI1 only?
-      [0xb2, this.executeRDPHalf_Cont],
+      [0xb0, this.executeUnknown],      // Defined as executeBranchZ for GBI1.
+      [0xb1, this.executeTri4],         // Defined as executeTri2 for GBI1.
+      [0xb2, this.executeRDPHalf_Cont], // Defined as executeModifyVertex for GBI1.
     ]);
   }
 
@@ -42,45 +43,19 @@ export class GBI0 extends GBI1 {
       dis.text(`gsDPHalf_Cont(/* TODO */);`);
     }
   }
-}
 
-export class GBI0DKR extends GBI0 {
-  constructor(ucode, state, ramDV) {
-    super(ucode, state, ramDV);
-    this.vertexStride = 10;
-  }
-}
-
-export class GBI0SE extends GBI0 {
-  constructor(ucode, state, ramDV) {
-    super(ucode, state, ramDV);
-    this.vertexStride = 5;
-  }
-}
-
-export class GBI0PD extends GBI0 {
-  constructor(ucode, state, ramDV) {
-    super(ucode, state, ramDV);
-    this.vertexStride = 10;
-  }
-}
-
-export class GBI0GE extends GBI0 {
-  constructor(ucode, state, ramDV) {
-    super(ucode, state, ramDV);
-    this.vertexStride = 10;
-  }
-
-  getHandler(command, ucode) {
-    switch (command) {
-      case 0xb1: return this.executeTri4GE;
-      case 0xb2: return this.executeSpNoop; // FIXME
-      case 0xb3: return this.executeSpNoop; // FIXME - DLParser_RDPHalf1_GoldenEye;
+  // Shared between Goldeneye and Perfect Dark.
+  executeRDPHalf1Goldeneye(cmd0, cmd1, dis) {
+    // These are RDP commands, baked into the display list.
+    // They seem to alternatein pairs of 0xb4 and 0xb3
+    this.warnUnimplemented('executeRDPHalf1')
+    if (dis) {
+      dis.text(`gsSPRDPHalf();`);
     }
-    return super.getHandler(command, ucode);
   }
 
-  executeTri4GE(cmd0, cmd1, dis) {
+  // Should this be registered for all GBI0 microcodes?
+  executeTri4(cmd0, cmd1, dis) {
     const kCommand = cmd0 >>> 24;
     const verts = this.state.projectedVertices;
     const tb = this.triangleBuffer;
@@ -131,6 +106,127 @@ export class GBI0GE extends GBI0 {
     this.renderer.flushTris(tb);
   }
 }
+export class GBI0GE extends GBI0 {
+  constructor(ucode, state, ramDV) {
+    super(ucode, state, ramDV);
+    this.vertexStride = 10;
+  }
+
+  getHandler(command, ucode) {
+    switch (command) {
+      case 0xb4: return this.executeRDPHalf1Goldeneye;
+    }
+    return super.getHandler(command, ucode);
+  }
+}
+
+export class GBI0PD extends GBI0 {
+  constructor(ucode, state, ramDV) {
+    super(ucode, state, ramDV);
+    this.vertexStride = 10;
+    this.auxAddress = 0;
+  }
+
+  getHandler(command, ucode) {
+    switch (command) {
+      // 0x04 - executeVertex is different from GBI0, but handled by overriding loadVertices.
+      case 0x07: return this.executeSetVertexColorIndex;
+      case 0xb4: return this.executeRDPHalf1Goldeneye;
+    }
+    return super.getHandler(command, ucode);
+  }
+
+  executeSetVertexColorIndex(cmd0, cmd1, dis) {
+    const address = this.state.rdpSegmentAddress(cmd1);
+    if (dis) {
+      dis.text(`gsSPSetVertexColorIndex(${toString32(address)});`);
+    }
+    this.auxAddress = address;
+  }
+
+  // Perfect Dark loads in a different format - this is called from executeVertex.
+  loadVertices(v0, n, address, dis) {
+    const light = this.state.geometryMode.lighting;
+    const texgen = this.state.geometryMode.textureGen;
+    const texgenlin = this.state.geometryMode.textureGenLinear;
+    const dv = new DataView(this.ramDV.buffer, address);
+
+    // Additional address for normal and color data.
+    const auxDV = new DataView(this.ramDV.buffer, this.auxAddress);
+
+    if (dis) {
+      this.previewVertex(v0, n, dv, dis, light);
+    }
+
+    if (v0 + n >= 64) { // FIXME or 80 for later GBI
+      this.warn('Too many verts');
+      this.state.pc = 0;
+      return;
+    }
+
+    const vtxStride = 12;
+
+    const mvmtx = this.state.modelview[this.state.modelview.length - 1];
+    const pmtx = this.state.projection[this.state.projection.length - 1];
+
+    const wvp = pmtx.multiply(mvmtx);
+
+    // Texture coords are provided in 11.5 fixed point format, so divide by 32 here to normalise
+    const scaleS = this.state.texture.scaleS / 32.0;
+    const scaleT = this.state.texture.scaleT / 32.0;
+
+    const xyz = new Vector3();
+    const normal = new Vector3();
+    const transformedNormal = new Vector3();
+
+    const viTransform = this.renderer.nativeTransform.viTransform;
+    const vpTransform = this.state.viewport.transform;
+
+    for (let i = 0; i < n; ++i) {
+      const vtxBase = i * vtxStride;
+      const vertex = this.state.projectedVertices[v0 + i];
+
+      vertex.set = true;
+
+      xyz.x = dv.getInt16(vtxBase + 0);
+      xyz.y = dv.getInt16(vtxBase + 2);
+      xyz.z = dv.getInt16(vtxBase + 4);
+      // const pad = dv.getUint8(vtxBase + 6);
+      const cIdx = dv.getUint8(vtxBase + 7);
+      vertex.u = dv.getInt16(vtxBase + 8) * scaleS;
+      vertex.v = dv.getInt16(vtxBase + 10) * scaleT;
+      // Load as little-endian (ABGR) for convenience.
+      vertex.color = auxDV.getUint32(cIdx + 0, true);
+
+      // Project.
+      const pos = vertex.pos;
+      wvp.transformPoint(xyz, pos);
+
+      // Divide out W.
+      const w = pos.w;
+      pos.scaleInPlace(1 / w);
+      vpTransform.transformInPlace(pos);  // Translate into screen coords using the viewport.
+      viTransform.invTransformInPlace(pos);  // Translate back to OpenGL normalized device coords.
+      pos.scaleInPlace(w);
+
+      // this.state.projectedVertices.clipFlags = this.calculateClipFlags(projected);
+
+      if (light) {
+        const alpha = vertex.color & 0xff;
+        this.unpackNormal(normal, vertex.color);
+        mvmtx.transformNormal(normal, transformedNormal);
+        transformedNormal.normaliseInPlace();
+
+        vertex.color = this.calculateLighting(transformedNormal, alpha);
+        if (texgenlin) {
+          vertex.calculateLinearUV(transformedNormal);
+        } else if (texgen) {
+          vertex.calculateSphericalUV(transformedNormal);
+        }
+      }
+    }
+  }
+}
 
 export class GBI0WR extends GBI0 {
   constructor(ucode, state, ramDV) {
@@ -149,5 +245,19 @@ export class GBI0WR extends GBI0 {
     }
 
     this.loadVertices(v0, n, address, dis);
+  }
+}
+
+export class GBI0DKR extends GBI0 {
+  constructor(ucode, state, ramDV) {
+    super(ucode, state, ramDV);
+    this.vertexStride = 10;
+  }
+}
+
+export class GBI0SE extends GBI0 {
+  constructor(ucode, state, ramDV) {
+    super(ucode, state, ramDV);
+    this.vertexStride = 5;
   }
 }
