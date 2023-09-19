@@ -8,6 +8,16 @@ export class ProjectedVertex {
     this.v     = 0;
     this.set   = false;
   }
+
+  calculateLinearUV(norm) {
+    this.u = 0.5 * (1.0 + norm.x);
+    this.v = 0.5 * (1.0 + norm.y);
+  }
+
+  calculateSphericalUV(norm) {
+    this.u = Math.acos(norm.x) / Math.PI;
+    this.v = Math.acos(norm.y) / Math.PI;
+  }
 }
 
 export class TriangleBuffer {

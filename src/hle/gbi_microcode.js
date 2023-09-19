@@ -241,8 +241,10 @@ export class GBIMicrocode {
     const viTransform = this.renderer.nativeTransform.viTransform;
     const vpTransform = this.state.viewport.transform;
 
+    const vtxStride = 16;
+
     for (let i = 0; i < n; ++i) {
-      const vtxBase = i * 16;
+      const vtxBase = i * vtxStride;
       const vertex = this.state.projectedVertices[v0 + i];
 
       vertex.set = true;
@@ -251,8 +253,10 @@ export class GBIMicrocode {
       xyz.y = dv.getInt16(vtxBase + 2);
       xyz.z = dv.getInt16(vtxBase + 4);
       //const w = dv.getInt16(vtxBase + 6);
-      const u = dv.getInt16(vtxBase + 8);
-      const v = dv.getInt16(vtxBase + 10);
+      vertex.u = dv.getInt16(vtxBase + 8) * scaleS;
+      vertex.v = dv.getInt16(vtxBase + 10) * scaleT;
+      // Load as little-endian (ABGR) for convenience.
+      vertex.color = dv.getUint32(vtxBase + 12, true);
 
       // Project.
       const pos = vertex.pos;
@@ -268,36 +272,18 @@ export class GBIMicrocode {
       // this.state.projectedVertices.clipFlags = this.calculateClipFlags(projected);
 
       if (light) {
-        normal.x = dv.getInt8(vtxBase + 12);
-        normal.y = dv.getInt8(vtxBase + 13);
-        normal.z = dv.getInt8(vtxBase + 14);
-
-        // calculate transformed normal
+        this.unpackNormal(normal, vertex.color);
         mvmtx.transformNormal(normal, transformedNormal);
         transformedNormal.normaliseInPlace();
 
-        vertex.color = this.calculateLighting(transformedNormal);
-
+        vertex.color = this.calculateLighting(transformedNormal, 255);
         if (texgen) {
-          // retransform using wvp
-          // wvp.transformNormal(normal, transformedNormal);
-          // transformedNormal.normaliseInPlace();
-
-          if (texgenlin) {
-            vertex.u = 0.5 * (1.0 + transformedNormal.x);
-            vertex.v = 0.5 * (1.0 + transformedNormal.y); // 1-y?
+          if (texgenlin) {          
+            vertex.calculateLinearUV(transformedNormal);
           } else {
-            vertex.u = Math.acos(transformedNormal.x) / 3.141;
-            vertex.v = Math.acos(transformedNormal.y) / 3.141;
+            vertex.calculateSphericalUV(transformedNormal);
           }
-        } else {
-          vertex.u = u * scaleS;
-          vertex.v = v * scaleT;
         }
-      } else {
-        vertex.u = u * scaleS;
-        vertex.v = v * scaleT;
-        vertex.color = this.loadABGR(dv, vtxBase + 12);
       }
     }
   }
@@ -317,12 +303,14 @@ export class GBIMicrocode {
     return flags;
   }
 
-  loadABGR(dv, offset) {
-    // N64 stores RGBA big endian, and we want ABGR.
-    return dv.getUint32(offset, true);
+  unpackNormal(normal, packedNorm) {
+    // Extract as s8.
+    normal.x = (packedNorm << 24) >> 24;
+    normal.y = (packedNorm << 16) >> 24;
+    normal.z = (packedNorm << 8) >> 24;
   }
 
-  calculateLighting(normal) {
+  calculateLighting(normal, alpha) {
     const numLights = this.state.numLights;
     let r = this.state.lights[numLights].color.r;
     let g = this.state.lights[numLights].color.g;
@@ -341,9 +329,8 @@ export class GBIMicrocode {
     r = Math.min(r, 1.0) * 255.0;
     g = Math.min(g, 1.0) * 255.0;
     b = Math.min(b, 1.0) * 255.0;
-    const a = 255;
 
-    return (a << 24) | (b << 16) | (g << 8) | r;
+    return (alpha << 24) | (b << 16) | (g << 8) | r;
   }
 
   previewVertex(v0, n, dv, dis, light) {
