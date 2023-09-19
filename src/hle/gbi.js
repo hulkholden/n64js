@@ -342,7 +342,7 @@ export function getGeometryModeFlagsText(flags, data) {
 function makeEnum(values) {
   values.nameOf = (value) => {
     for (var name in values) {
-      if (values.hasOwnProperty(name) && values[name] === value) {
+      if (Object.prototype.hasOwnProperty.call(values, name) && values[name] === value) {
         return name;
       }
     }

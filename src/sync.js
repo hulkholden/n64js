@@ -47,7 +47,7 @@ class BinaryRequest {
     if (args) {
       let argStr = '';
       for (let i in args) {
-        if (args.hasOwnProperty(i)) {
+        if (Object.prototype.hasOwnProperty.call(args, i)) {
           if (argStr) {
             argStr += '&';
           }
