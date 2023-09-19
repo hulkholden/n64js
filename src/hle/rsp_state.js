@@ -153,6 +153,42 @@ export class RSPState {
     this.pc += 8;
   }
 
+  /**
+   * Speculatively advance to the next command.
+   * This is useful for triangle processing where we want to batch as many triangles as possible.
+   * @param {DataView} ramDV 
+   * @param {number} wantCommand 
+   * @returns Whether the next command is the wanted command.
+   */
+  advanceIfCommand(ramDV, wantCommand) {
+    const nextCmd0 = ramDV.getUint32(this.pc + 0);
+    if ((nextCmd0 >>> 24) !== wantCommand) {
+      return false;
+    }
+    this.cmd0 = nextCmd0;
+    this.cmd1 = ramDV.getUint32(this.pc + 4);
+    this.pc += 8;
+    return true;
+  }
+
+  executeBatch(limit, ramDV, fn) {
+    const kCommand = this.cmd0 >>> 24;
+    const unlimited = limit <= 0;
+
+    let count = 0;
+    do {
+      count++;
+      // Execute if the callback returns false.
+      if (!fn(this.cmd0, this.cmd1)) {
+        break;
+      }
+      // Keep going until we hit the limit and the next command if of the same time.
+    } while ((unlimited || count < limit) && this.advanceIfCommand(ramDV, kCommand));
+
+    return count;
+  }
+
+
   pushDisplayList(address) {
     this.dlistStack.push({ pc: this.pc });
     this.pc = address;

@@ -55,13 +55,13 @@ export class GBI0 extends GBI1 {
   }
 
   executeTri4(cmd0, cmd1, dis) {
-    const kCommand = cmd0 >>> 24;
     const verts = this.state.projectedVertices;
     const tb = this.triangleBuffer;
     tb.reset();
 
-    let pc = this.state.pc;
-    do {
+    // Process triangles individually when disassembling
+    let limit = dis ? 1 : 0;
+    let commandsExecuted = this.state.executeBatch(limit, this.ramDV, (cmd0, cmd1) => {
       const idx09 = ((cmd0 >>> 12) & 0xf);
       const idx06 = ((cmd0 >>> 8) & 0xf);
       const idx03 = ((cmd0 >>> 4) & 0xf);
@@ -91,17 +91,9 @@ export class GBI0 extends GBI1 {
       if (idx09 !== idx10) {
         tb.pushTri(verts[idx09], verts[idx10], verts[idx11]);
       }
-
-      cmd0 = this.ramDV.getUint32(pc + 0);
-      cmd1 = this.ramDV.getUint32(pc + 4);
-      ++this.debugController.currentOp;
-      pc += 8;
-      // NB: process triangles individually when disassembling
-    } while ((cmd0 >>> 24) === kCommand && tb.hasCapacity(4) && !dis);
-
-    this.state.pc = pc - 8;
-    --this.debugController.currentOp;
-
+      return tb.hasCapacity(4);
+    });
+    this.debugController.currentOp += commandsExecuted - 1;
     this.renderer.flushTris(tb);
   }
 }

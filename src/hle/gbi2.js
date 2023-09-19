@@ -213,13 +213,13 @@ export class GBI2 extends GBIMicrocode {
   }
 
   executeTri1(cmd0, cmd1, dis) {
-    const kTriCommand = cmd0 >>> 24;
     const verts = this.state.projectedVertices;
     const tb = this.triangleBuffer;
     tb.reset();
 
-    let pc = this.state.pc;
-    do {
+    // Process triangles individually when disassembling
+    let limit = dis ? 1 : 0;
+    let commandsExecuted = this.state.executeBatch(limit, this.ramDV, (cmd0, cmd1) => {
       const idx0 = (cmd0 >>> 1) & 0x7f;
       const idx1 = (cmd0 >>> 9) & 0x7f;
       const idx2 = (cmd0 >>> 17) & 0x7f;
@@ -230,29 +230,20 @@ export class GBI2 extends GBIMicrocode {
       }
 
       tb.pushTri(verts[idx0], verts[idx1], verts[idx2]);
-
-      cmd0 = this.ramDV.getUint32(pc + 0);
-      cmd1 = this.ramDV.getUint32(pc + 4);
-      ++this.debugController.currentOp;
-      pc += 8;
-
-      // NB: process triangles individually when disassembling
-    } while ((cmd0 >>> 24) === kTriCommand && tb.hasCapacity(1) && !dis);
-
-    this.state.pc = pc - 8;
-    --this.debugController.currentOp;
-
+      return tb.hasCapacity(1);
+    });
+    this.debugController.currentOp += commandsExecuted - 1;
     this.renderer.flushTris(tb);
   }
 
   executeTri2(cmd0, cmd1, dis) {
-    const kTriCommand = cmd0 >>> 24;
     const verts = this.state.projectedVertices;
     const tb = this.triangleBuffer;
     tb.reset();
 
-    let pc = this.state.pc;
-    do {
+    // Process triangles individually when disassembling
+    let limit = dis ? 1 : 0;
+    let commandsExecuted = this.state.executeBatch(limit, this.ramDV, (cmd0, cmd1) => {
       const idx00 = (cmd1 >>> 1) & 0x7f;
       const idx01 = (cmd1 >>> 9) & 0x7f;
       const idx02 = (cmd1 >>> 17) & 0x7f;
@@ -266,29 +257,21 @@ export class GBI2 extends GBIMicrocode {
 
       tb.pushTri(verts[idx00], verts[idx01], verts[idx02]);
       tb.pushTri(verts[idx10], verts[idx11], verts[idx12]);
-
-      cmd0 = this.ramDV.getUint32(pc + 0);
-      cmd1 = this.ramDV.getUint32(pc + 4);
-      ++this.debugController.currentOp;
-      pc += 8;
-      // NB: process triangles individually when disassembling
-    } while ((cmd0 >>> 24) === kTriCommand && tb.hasCapacity(2) && !dis);
-
-    this.state.pc = pc - 8;
-    --this.debugController.currentOp;
-
+      return tb.hasCapacity(2);
+    });
+    this.debugController.currentOp += commandsExecuted - 1;
     this.renderer.flushTris(tb);
   }
 
   // TODO: this is effectively the same as executeTri2, just different disassembly.
   executeQuad(cmd0, cmd1, dis) {
-    const kTriCommand = cmd0 >>> 24;
     const verts = this.state.projectedVertices;
     const tb = this.triangleBuffer;
     tb.reset();
 
-    let pc = this.state.pc;
-    do {
+    // Process triangles individually when disassembling
+    let limit = dis ? 1 : 0;
+    let commandsExecuted = this.state.executeBatch(limit, this.ramDV, (cmd0, cmd1) => {
       const idx00 = (cmd1 >>> 1) & 0x7f;
       const idx01 = (cmd1 >>> 9) & 0x7f;
       const idx02 = (cmd1 >>> 17) & 0x7f;
@@ -302,17 +285,9 @@ export class GBI2 extends GBIMicrocode {
 
       tb.pushTri(verts[idx00], verts[idx01], verts[idx02]);
       tb.pushTri(verts[idx10], verts[idx11], verts[idx12]);
-
-      cmd0 = this.ramDV.getUint32(pc + 0);
-      cmd1 = this.ramDV.getUint32(pc + 4);
-      ++this.debugController.currentOp;
-      pc += 8;
-      // NB: process triangles individually when disassembling
-    } while ((cmd0 >>> 24) === kTriCommand && tb.hasCapacity(2) && !dis);
-
-    this.state.pc = pc - 8;
-    --this.debugController.currentOp;
-
+      return tb.hasCapacity(2);
+    });
+    this.debugController.currentOp += commandsExecuted - 1;
     this.renderer.flushTris(tb);
   }
 
