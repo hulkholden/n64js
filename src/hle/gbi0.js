@@ -54,7 +54,6 @@ export class GBI0 extends GBI1 {
     }
   }
 
-  // Should this be registered for all GBI0 microcodes?
   executeTri4(cmd0, cmd1, dis) {
     const kCommand = cmd0 >>> 24;
     const verts = this.state.projectedVertices;
