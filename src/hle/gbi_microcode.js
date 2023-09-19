@@ -221,7 +221,6 @@ export class GBIMicrocode {
 
     if (v0 + n >= 64) { // FIXME or 80 for later GBI
       this.warn('Too many verts');
-      this.state.pc = 0;
       return;
     }
 
