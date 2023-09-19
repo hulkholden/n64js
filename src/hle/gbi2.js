@@ -63,21 +63,17 @@ export class GBI2 extends GBIMicrocode {
     }
 
     if (param === gbi.G_DL_PUSH) {
-      this.state.dlistStack.push({ pc: this.state.pc });
+      this.state.pushDisplayList(address);
+    } else {
+      this.state.branchDisplayList(address);
     }
-    this.state.pc = address;
   }
 
   executeEndDL(cmd0, cmd1, dis) {
     if (dis) {
       dis.text('gsSPEndDisplayList();');
     }
-
-    if (this.state.dlistStack.length > 0) {
-      this.state.pc = this.state.dlistStack.pop().pc;
-    } else {
-      this.state.pc = 0;
-    }
+    this.state.endDisplayList();
   }
 
   executeSetOtherModeL(cmd0, cmd1, dis) {
