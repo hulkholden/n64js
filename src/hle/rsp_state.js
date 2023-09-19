@@ -9,6 +9,8 @@ import { TMEM } from './tmem.js';
 
 export class RSPState {
   constructor() {
+    this.ramDV = null;
+
     this.pc = 0;
     this.dlistStack = [];
     this.cmd0 = 0;
@@ -97,7 +99,9 @@ export class RSPState {
     this.screenContext2d = null; // canvas context
   }
 
-  reset(pc) {
+  reset(ramDV, pc) {
+    this.ramDV = ramDV;
+  
     this.pc = pc;
     this.dlistStack = [];
     this.cmd0 = 0;
@@ -147,31 +151,30 @@ export class RSPState {
     return this.pc == 0;
   }
 
-  nextCommand(ramDV) {
-    this.cmd0 = ramDV.getUint32(this.pc + 0);
-    this.cmd1 = ramDV.getUint32(this.pc + 4);
+  nextCommand() {
+    this.cmd0 = this.ramDV.getUint32(this.pc + 0);
+    this.cmd1 = this.ramDV.getUint32(this.pc + 4);
     this.pc += 8;
   }
 
   /**
    * Speculatively advance to the next command.
    * This is useful for triangle processing where we want to batch as many triangles as possible.
-   * @param {DataView} ramDV 
-   * @param {number} wantCommand 
+   * @param {number} wantCommand
    * @returns Whether the next command is the wanted command.
    */
-  advanceIfCommand(ramDV, wantCommand) {
-    const nextCmd0 = ramDV.getUint32(this.pc + 0);
+  advanceIfCommand(wantCommand) {
+    const nextCmd0 = this.ramDV.getUint32(this.pc + 0);
     if ((nextCmd0 >>> 24) !== wantCommand) {
       return false;
     }
     this.cmd0 = nextCmd0;
-    this.cmd1 = ramDV.getUint32(this.pc + 4);
+    this.cmd1 = this.ramDV.getUint32(this.pc + 4);
     this.pc += 8;
     return true;
   }
 
-  executeBatch(limit, ramDV, fn) {
+  executeBatch(limit, fn) {
     const kCommand = this.cmd0 >>> 24;
     const unlimited = limit <= 0;
 
@@ -183,11 +186,10 @@ export class RSPState {
         break;
       }
       // Keep going until we hit the limit and the next command if of the same time.
-    } while ((unlimited || count < limit) && this.advanceIfCommand(ramDV, kCommand));
+    } while ((unlimited || count < limit) && this.advanceIfCommand(kCommand));
 
     return count;
   }
-
 
   pushDisplayList(address) {
     this.dlistStack.push({ pc: this.pc });

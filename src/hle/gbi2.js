@@ -219,7 +219,7 @@ export class GBI2 extends GBIMicrocode {
 
     // Process triangles individually when disassembling
     let limit = dis ? 1 : 0;
-    let commandsExecuted = this.state.executeBatch(limit, this.ramDV, (cmd0, cmd1) => {
+    let commandsExecuted = this.state.executeBatch(limit, (cmd0, cmd1) => {
       const idx0 = (cmd0 >>> 1) & 0x7f;
       const idx1 = (cmd0 >>> 9) & 0x7f;
       const idx2 = (cmd0 >>> 17) & 0x7f;
@@ -243,7 +243,7 @@ export class GBI2 extends GBIMicrocode {
 
     // Process triangles individually when disassembling
     let limit = dis ? 1 : 0;
-    let commandsExecuted = this.state.executeBatch(limit, this.ramDV, (cmd0, cmd1) => {
+    let commandsExecuted = this.state.executeBatch(limit, (cmd0, cmd1) => {
       const idx00 = (cmd1 >>> 1) & 0x7f;
       const idx01 = (cmd1 >>> 9) & 0x7f;
       const idx02 = (cmd1 >>> 17) & 0x7f;
@@ -271,7 +271,7 @@ export class GBI2 extends GBIMicrocode {
 
     // Process triangles individually when disassembling
     let limit = dis ? 1 : 0;
-    let commandsExecuted = this.state.executeBatch(limit, this.ramDV, (cmd0, cmd1) => {
+    let commandsExecuted = this.state.executeBatch(limit, (cmd0, cmd1) => {
       const idx00 = (cmd1 >>> 1) & 0x7f;
       const idx01 = (cmd1 >>> 9) & 0x7f;
       const idx02 = (cmd1 >>> 17) & 0x7f;

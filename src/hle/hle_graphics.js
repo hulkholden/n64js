@@ -109,7 +109,7 @@ function processDList(task, disassembler, bailAfter) {
   }
 
   const ramDV = n64js.hardware().cachedMemDevice.mem.dataView
-  state.reset(task.data_ptr);
+  state.reset(ramDV, task.data_ptr);
   const ucodeTable = buildUCodeTable(task, ramDV);
 
   initDimensionsFromVI();
@@ -121,7 +121,7 @@ function processDList(task, disassembler, bailAfter) {
 
     while (!state.dlistFinished()) {
       const pc = state.pc;
-      state.nextCommand(ramDV);
+      state.nextCommand();
       disassembler.begin(pc, state.cmd0, state.cmd1, state.dlistStack.length);
       ucodeTable[state.cmd0 >>> 24](state.cmd0, state.cmd1, disassembler);
       disassembler.end();
@@ -131,7 +131,7 @@ function processDList(task, disassembler, bailAfter) {
     // Vanilla loop, no disassembler to worry about
     debugController.currentOp = 0;
     while (!state.dlistFinished()) {
-      state.nextCommand(ramDV);
+      state.nextCommand();
       ucodeTable[state.cmd0 >>> 24](state.cmd0, state.cmd1);
       if (debugController.postOp(bailAfter)) {
         break;
