@@ -61,7 +61,7 @@ export class GBI0 extends GBI1 {
 
     // Process triangles individually when disassembling
     let limit = dis ? 1 : 0;
-    let commandsExecuted = this.state.executeBatch(limit, this.ramDV, (cmd0, cmd1) => {
+    let commandsExecuted = this.state.executeBatch(limit, (cmd0, cmd1) => {
       const idx09 = ((cmd0 >>> 12) & 0xf);
       const idx06 = ((cmd0 >>> 8) & 0xf);
       const idx03 = ((cmd0 >>> 4) & 0xf);

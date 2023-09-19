@@ -756,9 +756,9 @@ export class GBIMicrocode {
   executeTexRect(cmd0, cmd1, dis) {
     // The following 2 commands (RDPHalf1, RDPHalf2) contain additional parameters.
     // We ignore errors but in theory this could run past the end of the displaylist.
-    this.state.nextCommand(this.ramDV);
+    this.state.nextCommand();
     const cmd2 = this.state.cmd1;
-    this.state.nextCommand(this.ramDV);
+    this.state.nextCommand();
     const cmd3 = this.state.cmd1;
     
     let xh = ((cmd0 >>> 12) & 0xfff) / 4.0;
@@ -807,9 +807,9 @@ export class GBIMicrocode {
   executeTexRectFlip(cmd0, cmd1, dis) {
     // The following 2 commands (RDPHalf1, RDPHalf2) contain additional parameters.
     // We ignore errors but in theory this could run past the end of the displaylist.
-    this.state.nextCommand(this.ramDV);
+    this.state.nextCommand();
     const cmd2 = this.state.cmd1;
-    this.state.nextCommand(this.ramDV);
+    this.state.nextCommand();
     const cmd3 = this.state.cmd1;
 
     let xh = ((cmd0 >>> 12) & 0xfff) / 4.0;
