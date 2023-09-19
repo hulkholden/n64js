@@ -754,12 +754,13 @@ export class GBIMicrocode {
   }
 
   executeTexRect(cmd0, cmd1, dis) {
-    // The following 2 commands contain additional info
-    // TODO: check op code matches what we expect?
-    const cmd2 = this.ramDV.getUint32(this.state.pc + 4);
-    const cmd3 = this.ramDV.getUint32(this.state.pc + 12);
-    this.state.pc += 16;
-
+    // The following 2 commands (RDPHalf1, RDPHalf2) contain additional parameters.
+    // We ignore errors but in theory this could run past the end of the displaylist.
+    this.state.nextCommand(this.ramDV);
+    const cmd2 = this.state.cmd1;
+    this.state.nextCommand(this.ramDV);
+    const cmd3 = this.state.cmd1;
+    
     let xh = ((cmd0 >>> 12) & 0xfff) / 4.0;
     let yh = ((cmd0 >>> 0) & 0xfff) / 4.0;
     const tileIdx = (cmd1 >>> 24) & 0x7;
@@ -804,11 +805,12 @@ export class GBIMicrocode {
   }
 
   executeTexRectFlip(cmd0, cmd1, dis) {
-    // The following 2 commands contain additional info
-    // TODO: check op code matches what we expect?
-    const cmd2 = this.ramDV.getUint32(this.state.pc + 4);
-    const cmd3 = this.ramDV.getUint32(this.state.pc + 12);
-    this.state.pc += 16;
+    // The following 2 commands (RDPHalf1, RDPHalf2) contain additional parameters.
+    // We ignore errors but in theory this could run past the end of the displaylist.
+    this.state.nextCommand(this.ramDV);
+    const cmd2 = this.state.cmd1;
+    this.state.nextCommand(this.ramDV);
+    const cmd3 = this.state.cmd1;
 
     let xh = ((cmd0 >>> 12) & 0xfff) / 4.0;
     let yh = ((cmd0 >>> 0) & 0xfff) / 4.0;
