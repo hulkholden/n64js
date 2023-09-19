@@ -11,6 +11,9 @@ export class RSPState {
   constructor() {
     this.pc = 0;
     this.dlistStack = [];
+    this.cmd0 = 0;
+    this.cmd1 = 0;
+
     this.segments = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     this.tiles = new Array(8);
     this.lights = new Array(8);
@@ -95,6 +98,15 @@ export class RSPState {
   }
 
   reset(pc) {
+    this.pc = pc;
+    this.dlistStack = [];
+    this.cmd0 = 0;
+    this.cmd1 = 0;
+
+    for (let i = 0; i < this.segments.length; ++i) {
+      this.segments[i] = 0;
+    }
+
     this.rdpOtherModeL = 0x00500001;
     this.rdpOtherModeH = 0x00000000;
 
@@ -114,12 +126,6 @@ export class RSPState {
     this.geometryMode.textureGenLinear = 0;
     this.geometryMode.lod = 0;
 
-    this.pc = pc;
-    this.dlistStack = [];
-    for (let i = 0; i < this.segments.length; ++i) {
-      this.segments[i] = 0;
-    }
-
     for (let i = 0; i < this.tiles.length; ++i) {
       this.tiles[i] = new Tile();
     }
@@ -135,6 +141,33 @@ export class RSPState {
 
     this.viewport.reset();
     this.fogParameters.reset();
+  }
+
+  dlistFinished() {
+    return this.pc == 0;
+  }
+
+  nextCommand(ramDV) {
+    this.cmd0 = ramDV.getUint32(this.pc + 0);
+    this.cmd1 = ramDV.getUint32(this.pc + 4);
+    this.pc += 8;
+  }
+
+  pushDisplayList(address) {
+    this.dlistStack.push({ pc: this.pc });
+    this.pc = address;
+  }
+
+  branchDisplayList(address) {
+    this.pc = address;
+  }
+
+  endDisplayList() {
+    if (this.dlistStack.length > 0) {
+      this.pc = this.dlistStack.pop().pc;
+    } else {
+      this.pc = 0;
+    }
   }
 
   // TODO: why is this needed if we check the hash as it's needed?

@@ -119,28 +119,20 @@ function processDList(task, disassembler, bailAfter) {
   if (disassembler) {
     debugController.currentOp = 0;
 
-    while (state.pc !== 0) {
+    while (!state.dlistFinished()) {
       const pc = state.pc;
-      const cmd0 = ramDV.getUint32(pc + 0);
-      const cmd1 = ramDV.getUint32(pc + 4);
-      state.pc += 8;
-
-      disassembler.begin(pc, cmd0, cmd1, state.dlistStack.length);
-      ucodeTable[cmd0 >>> 24](cmd0, cmd1, disassembler);
+      state.nextCommand(ramDV);
+      disassembler.begin(pc, state.cmd0, state.cmd1, state.dlistStack.length);
+      ucodeTable[state.cmd0 >>> 24](state.cmd0, state.cmd1, disassembler);
       disassembler.end();
       debugController.currentOp++;
     }
   } else {
     // Vanilla loop, no disassembler to worry about
     debugController.currentOp = 0;
-    while (state.pc !== 0) {
-      const pc = state.pc;
-      const cmd0 = ramDV.getUint32(pc + 0);
-      const cmd1 = ramDV.getUint32(pc + 4);
-      state.pc += 8;
-
-      ucodeTable[cmd0 >>> 24](cmd0, cmd1);
-
+    while (!state.dlistFinished()) {
+      state.nextCommand(ramDV);
+      ucodeTable[state.cmd0 >>> 24](state.cmd0, state.cmd1);
       if (debugController.postOp(bailAfter)) {
         break;
       }
