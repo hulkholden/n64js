@@ -31,7 +31,7 @@ export class GBI0 extends GBI1 {
     const address = this.state.rdpSegmentAddress(cmd1);
 
     if (dis) {
-      dis.text(`gsSPVertex(${toString32(address)}, ${n}, ${v0});`);
+      dis.text(`gsSPVertex(${toString32(address)}, ${v0}, ${n});`);
     }
 
     this.loadVertices(v0, n, address, dis);
@@ -231,7 +231,7 @@ export class GBI0WR extends GBI0 {
     const address = this.state.rdpSegmentAddress(cmd1);
 
     if (dis) {
-      dis.text(`gsSPVertex(${toString32(address)}, ${n}, ${v0});`);
+      dis.text(`gsSPVertex(${toString32(address)}, ${v0}, ${n});`);
     }
 
     this.loadVertices(v0, n, address, dis);
