@@ -158,7 +158,7 @@ export class RSPState {
    */
   nextCommand() {
     // If this displaylist is limited, check whether we've reached the end.
-    if (this.pcEnd && this.pc > this.pcEnd) {
+    if (this.pcEnd && this.pc >= this.pcEnd) {
       this.endDisplayList();
     }
     if (this.pc == 0) {
@@ -219,7 +219,7 @@ export class RSPState {
   }
 
   pushDisplayList(address, opt_limit) {
-    const pcEnd = opt_limit == undefined ? 0 : address + (opt_limit * 4);
+    const pcEnd = opt_limit == undefined ? 0 : address + (opt_limit * 8);
     this.dlistStack.push({ pc: this.pc, pcEnd: this.pcEnd });
     this.pc = address;
     this.pcEnd = pcEnd;
