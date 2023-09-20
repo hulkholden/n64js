@@ -119,10 +119,8 @@ function processDList(task, disassembler, bailAfter) {
   if (disassembler) {
     debugController.currentOp = 0;
 
-    while (!state.dlistFinished()) {
-      const pc = state.pc;
-      state.nextCommand();
-      disassembler.begin(pc, state.cmd0, state.cmd1, state.dlistStack.length);
+    while (state.nextCommand()) {
+      disassembler.begin(state.cmd0, state.cmd1, state.dlistStack.length);
       ucodeTable[state.cmd0 >>> 24](state.cmd0, state.cmd1, disassembler);
       disassembler.end();
       debugController.currentOp++;
@@ -130,8 +128,7 @@ function processDList(task, disassembler, bailAfter) {
   } else {
     // Vanilla loop, no disassembler to worry about
     debugController.currentOp = 0;
-    while (!state.dlistFinished()) {
-      state.nextCommand();
+    while (state.nextCommand()) {
       ucodeTable[state.cmd0 >>> 24](state.cmd0, state.cmd1);
       if (debugController.postOp(bailAfter)) {
         break;

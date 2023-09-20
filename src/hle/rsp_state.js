@@ -11,7 +11,11 @@ export class RSPState {
   constructor() {
     this.ramDV = null;
 
+    // The current "program counter" and end of the current display list (if this
+    // is zero then the display list executes until it hits an "end" instruction).
     this.pc = 0;
+    this.pcEnd = 0;
+
     this.dlistStack = [];
     this.cmd0 = 0;
     this.cmd1 = 0;
@@ -103,6 +107,7 @@ export class RSPState {
     this.ramDV = ramDV;
   
     this.pc = pc;
+    this.pcEnd = 0;
     this.dlistStack = [];
     this.cmd0 = 0;
     this.cmd1 = 0;
@@ -147,14 +152,23 @@ export class RSPState {
     this.fogParameters.reset();
   }
 
-  dlistFinished() {
-    return this.pc == 0;
-  }
-
+  /**
+   * Loads the next command values from the displaylist and advances the PC.
+   * @returns {boolean} Whether the display list is finished.
+   */
   nextCommand() {
+    // If this displaylist is limited, check whether we've reached the end.
+    if (this.pcEnd && this.pc > this.pcEnd) {
+      this.endDisplayList();
+    }
+    if (this.pc == 0) {
+      return false;
+    }
+
     this.cmd0 = this.ramDV.getUint32(this.pc + 0);
     this.cmd1 = this.ramDV.getUint32(this.pc + 4);
     this.pc += 8;
+    return true;
   }
 
   /**
@@ -164,6 +178,13 @@ export class RSPState {
    * @returns Whether the next command is the wanted command.
    */
   advanceIfCommand(wantCommand) {
+    // Abort if we're at the end of the display list.
+    // It's unlikely a batch continues across a display list boundary so don't
+    // try and handle this (we'll just pick it up the next time around the main lop).
+     if (this.pc == 0 || (this.pcEnd && this.pc > this.pcEnd)) {
+        return false;
+     }
+
     const nextCmd0 = this.ramDV.getUint32(this.pc + 0);
     if ((nextCmd0 >>> 24) !== wantCommand) {
       return false;
@@ -174,6 +195,12 @@ export class RSPState {
     return true;
   }
 
+  /**
+   * Executes a batch of sequential commands of the same type (typically triangle commands).
+   * @param {number} limit A limit on the number of commands to batch.
+   * @param {function(number, number): boolean} fn A function to call for each command in the batch.
+   * @returns 
+   */
   executeBatch(limit, fn) {
     const kCommand = this.cmd0 >>> 24;
     const unlimited = limit <= 0;
@@ -191,9 +218,11 @@ export class RSPState {
     return count;
   }
 
-  pushDisplayList(address) {
-    this.dlistStack.push({ pc: this.pc });
+  pushDisplayList(address, opt_limit) {
+    const pcEnd = opt_limit == undefined ? 0 : address + (opt_limit * 4);
+    this.dlistStack.push({ pc: this.pc, pcEnd: this.pcEnd });
     this.pc = address;
+    this.pcEnd = pcEnd;
   }
 
   branchDisplayList(address) {
@@ -201,11 +230,14 @@ export class RSPState {
   }
 
   endDisplayList() {
-    if (this.dlistStack.length > 0) {
-      this.pc = this.dlistStack.pop().pc;
-    } else {
+    if (this.dlistStack.length <= 0) {
       this.pc = 0;
+      this.pcEnd = 0;
+      return;
     }
+    const dl = this.dlistStack.pop();
+    this.pc = dl.pc;
+    this.pcEnd = dl.pcEnd;
   }
 
   // TODO: why is this needed if we check the hash as it's needed?

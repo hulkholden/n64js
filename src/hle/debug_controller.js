@@ -371,7 +371,7 @@ class Disassembler {
     this.numOps = 0;
   }
 
-  begin(pc, cmd0, cmd1, depth) {
+  begin(cmd0, cmd1, depth) {
     const indent = (new Array(depth + 1)).join('  ');
     const pcStr = ' '; //  ` [${toHex(pc, 32)}] `
 

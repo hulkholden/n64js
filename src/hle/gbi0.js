@@ -243,6 +243,22 @@ export class GBI0DKR extends GBI0 {
     super(ucode, state, ramDV);
     this.vertexStride = 10;
   }
+
+  getHandler(command, ucode) {
+    switch (command) {
+      case 0x07: return this.executeDisplayListLen;
+    }
+    return super.getHandler(command, ucode);
+  }
+
+  executeDisplayListLen(cmd0, cmd1, dis) {
+    const limit = (cmd0 >>> 16) & 0xff;
+    const address = this.state.rdpSegmentAddress(cmd1);
+    if (dis) {
+      dis.text(`gsSPDisplayListLen(<span class="dl-branch">${toString32(address)}</span>, ${limit});`);
+    }
+    this.state.pushDisplayList(address, limit);
+  }
 }
 
 export class GBI0SE extends GBI0 {
