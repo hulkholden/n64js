@@ -231,17 +231,17 @@ export class GBI0DKR extends GBI0 {
     for (let i = 0; i < count && tb.hasCapacity(1); ++i) {
       const triBase = i * triStride;
 
-      const idx2 = dv.getUint8(triBase + 3);
-      const idx1 = dv.getUint8(triBase + 2);
-      const idx0 = dv.getUint8(triBase + 1);
       const flag = dv.getUint8(triBase + 0);
+      const idx0 = dv.getUint8(triBase + 1);
+      const idx1 = dv.getUint8(triBase + 2);
+      const idx2 = dv.getUint8(triBase + 3);
 
-      const t0 = dv.getInt16(triBase + 4) / 32.0;
-      const s0 = dv.getInt16(triBase + 6) / 32.0;
-      const t1 = dv.getInt16(triBase + 8) / 32.0;
-      const s1 = dv.getInt16(triBase + 10) / 32.0;
-      const t2 = dv.getInt16(triBase + 12) / 32.0;
-      const s2 = dv.getInt16(triBase + 14) / 32.0;
+      const s0 = dv.getInt16(triBase + 4) / 32.0;
+      const t0 = dv.getInt16(triBase + 6) / 32.0;
+      const s1 = dv.getInt16(triBase + 8) / 32.0;
+      const t1 = dv.getInt16(triBase + 10) / 32.0;
+      const s2 = dv.getInt16(triBase + 12) / 32.0;
+      const t2 = dv.getInt16(triBase + 14) / 32.0;
       tb.pushTriWithUV(verts[idx0], verts[idx1], verts[idx2], s0, t0, s1, t1, s2, t2);
 
       if (dis) {
