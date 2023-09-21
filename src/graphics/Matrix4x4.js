@@ -78,6 +78,18 @@ export class Matrix4x4 {
   }
 
   /**
+   * Copies this matrix.
+   * @return {!Matrix4x4}
+   */
+  copy() {
+    let elems = new Float32Array(16);
+    for (let i = 0; i < 16; i++) {
+      elems[i] = this.elems[i];
+    }
+    return new Matrix4x4(elems);
+  }
+
+  /**
    * Make an orthographic projection matrix.
    * @param {number} left
    * @param {number} right
