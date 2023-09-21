@@ -53,7 +53,7 @@ export class RSPState {
     /**
      * @type {!Array<!ProjectedVertex>}
      */
-    this.projectedVertices = new Array(64);
+    this.projectedVertices = new Array(64);  // FIXME or 80 for later GBI?
 
     this.scissor = {
       mode: 0,

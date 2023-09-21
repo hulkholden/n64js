@@ -219,7 +219,7 @@ export class GBIMicrocode {
       this.previewVertex(v0, n, dv, dis, light);
     }
 
-    if (v0 + n >= 64) { // FIXME or 80 for later GBI
+    if (v0 + n >= this.state.projectedVertices.length) {
       this.warn('Too many verts');
       return;
     }
@@ -362,7 +362,6 @@ export class GBIMicrocode {
     tip += '</table>';
     dis.tip(tip);
   }
-
 
   executeNoop(cmd0, cmd1, dis) {
     if (dis) {
