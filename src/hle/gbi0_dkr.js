@@ -134,7 +134,7 @@ export class GBI0DKR extends GBI0 {
     // In normal operation it seems to select between appening to the vert buffer or starting from 0.
     if (this.billboardMode) {
       this.vertexOffset = flag ? 1 : 0;
-    } else if (flag) {
+    } else if (!flag) {
       this.vertexOffset = 0;
     }
     const v0 = this.vertexOffset + v0Base;
