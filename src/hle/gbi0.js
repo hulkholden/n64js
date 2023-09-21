@@ -189,15 +189,7 @@ export class GBI0PD extends GBI0 {
       vertex.color = auxDV.getUint32(cIdx + 0, true);
 
       // Project.
-      const pos = vertex.pos;
-      wvp.transformPoint(xyz, pos);
-
-      // Divide out W.
-      const w = pos.w;
-      pos.scaleInPlace(1 / w);
-      vpTransform.transformInPlace(pos);  // Translate into screen coords using the viewport.
-      viTransform.invTransformInPlace(pos);  // Translate back to OpenGL normalized device coords.
-      pos.scaleInPlace(w);
+      this.projectInPlace(vertex.pos, xyz, wvp, vpTransform, viTransform);
 
       // this.state.projectedVertices.clipFlags = this.calculateClipFlags(projected);
 
