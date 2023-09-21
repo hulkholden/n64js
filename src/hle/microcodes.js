@@ -1,7 +1,8 @@
 import * as logger from '../logger.js';
-import * as gbi0 from './gbi0.js';
-import * as gbi1 from './gbi1.js';
-import * as gbi2 from './gbi2.js';
+import { GBI0, GBI0GE, GBI0PD, GBI0SE, GBI0WR } from './gbi0.js';
+import { GBI0DKR } from './gbi0_dkr.js';
+import { GBI1, GBI1LL, GBI1SDEX } from './gbi1.js';
+import { GBI2, GBI2Conker, GBI2SDEX } from './gbi2.js';
 
 const kUCode_GBI0 = 0;         // Super Mario 64, Tetrisphere, Demos
 const kUCode_GBI1 = 1;         // Mario Kart, Star Fox
@@ -36,32 +37,32 @@ export function create(task, state, ramDV) {
   const ucode = detect(task);
   switch (ucode) {
     case kUCode_GBI0:
-      return new gbi0.GBI0(ucode, state, ramDV);
+      return new GBI0(ucode, state, ramDV);
     case kUCode_GBI0_DKR:
-      return new gbi0.GBI0DKR(ucode, state, ramDV);
+      return new GBI0DKR(ucode, state, ramDV);
     case kUCode_GBI0_SE:
-      return new gbi0.GBI0SE(ucode, state, ramDV);
+      return new GBI0SE(ucode, state, ramDV);
     case kUCode_GBI0_PD:
-      return new gbi0.GBI0PD(ucode, state, ramDV);
+      return new GBI0PD(ucode, state, ramDV);
     case kUCode_GBI0_GE:
-      return new gbi0.GBI0GE(ucode, state, ramDV);
+      return new GBI0GE(ucode, state, ramDV);
     case kUCode_GBI0_WR:
-      return new gbi0.GBI0WR(ucode, state, ramDV);
+      return new GBI0WR(ucode, state, ramDV);
     case kUCode_GBI1:
-      return new gbi1.GBI1(ucode, state, ramDV);
+      return new GBI1(ucode, state, ramDV);
     case kUCode_GBI1_LL:
-      return new gbi1.GBI1LL(ucode, state, ramDV);
+      return new GBI1LL(ucode, state, ramDV);
     case kUCode_GBI1_SDEX:
-      return new gbi1.GBI1SDEX(ucode, state, ramDV);
+      return new GBI1SDEX(ucode, state, ramDV);
     case kUCode_GBI2:
-      return new gbi2.GBI2(ucode, state, ramDV);
+      return new GBI2(ucode, state, ramDV);
     case kUCode_GBI2_CONKER:
-      return new gbi2.GBI2Conker(ucode, state, ramDV);
+      return new GBI2Conker(ucode, state, ramDV);
     case kUCode_GBI2_SDEX:
-      return new gbi2.GBI2SDEX(ucode, state, ramDV);
+      return new GBI2SDEX(ucode, state, ramDV);
   }
   logger.log(`unhandled ucode during table init: ${ucode}`);
-  return new gbi0.GBI0(ucode, state, ramDV);
+  return new GBI0(ucode, state, ramDV);
 }
 
 function detect(task) {
