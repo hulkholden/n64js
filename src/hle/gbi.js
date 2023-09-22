@@ -162,6 +162,14 @@ export const MoveWordClip = makeEnum({
   G_MWO_CLIP_RPY: 0x1c,
 });
 
+// Clip codes.
+export const X_NEG = 0x01; //left
+export const Y_NEG = 0x02; //bottom
+export const Z_NEG = 0x04; //far
+export const X_POS = 0x08; //right
+export const Y_POS = 0x10; //top
+export const Z_POS = 0x20; //near
+
 export const FrustRatio = makeEnum({
   FR_NEG_FRUSTRATIO_1: 0x00000001,
   FR_POS_FRUSTRATIO_1: 0x0000ffff,

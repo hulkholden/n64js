@@ -189,9 +189,7 @@ export class GBI0DKR extends GBI0 {
       vertex.color = dv.getUint32(offset + 6, true);
 
       // Project.
-      this.projectInPlace(vertex.pos, posTemp, wvp, vpTransform, viTransform);
-
-      // this.state.projectedVertices.clipFlags = this.calculateClipFlags(projected);
+      this.projectInPlace(vertex, posTemp, wvp, vpTransform, viTransform);
 
       if (dis) {
         const v = [
