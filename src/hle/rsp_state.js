@@ -1,7 +1,7 @@
 import * as gbi from './gbi.js';
 import { Matrix4x4 } from "../graphics/Matrix4x4.js";
 import { Tile } from "./tile.js";
-import { ProjectedVertex } from "./triangle_buffer.js";
+import { ProjectedVertex } from "./projected_vertex.js";
 import { Transform4D } from '../graphics/Transform4D.js';
 import { Vector3 } from "../graphics/Vector3.js";
 import { Vector4 } from '../graphics/Vector4.js';
