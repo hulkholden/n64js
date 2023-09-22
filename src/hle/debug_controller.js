@@ -326,7 +326,7 @@ export class DebugController {
   }
 
   buildVerticesTab() {
-    const vtxFields = ['vtx #', 'x', 'y', 'z', 'px', 'py', 'pz', 'pw', 'color', 'u', 'v'];
+    const vtxFields = ['vtx #', 'x', 'y', 'z', 'px', 'py', 'pz', 'pw', 'color', 'u', 'v', 'clip'];
 
     const $table = $('<table class="table table-condensed dl-debug-table" style="width: auto"></table>');
     const headingTR = $(`<tr><th>${vtxFields.join('</th><th>')}</th></tr>`);
@@ -354,6 +354,7 @@ export class DebugController {
       vals.push(makeColorTextABGR(vtx.color));
       vals.push(vtx.u.toFixed(3));
       vals.push(vtx.v.toFixed(3));
+      vals.push(makeClipFlagsText(vtx.clipFlags));
 
       const tr = $(`<tr><td>${vals.join('</td><td>')}</td></tr>`);
       $table.append(tr);
@@ -403,3 +404,23 @@ class Disassembler {
   rgba5551(col) { return makeColorTextRGBA16(col); }
 }
 
+function makeClipFlagsText(flags) {
+  const x = makeFlagText('x', flags, gbi.X_POS, gbi.X_NEG);
+  const y = makeFlagText('y', flags, gbi.Y_POS, gbi.Y_NEG);
+  const z = makeFlagText('z', flags, gbi.Z_POS, gbi.Z_NEG);
+
+  return `${x} ${y} ${z}`;
+}
+
+function makeFlagText(dim, flags, pos, neg) {
+  const p = flags & pos;
+  const n = flags & neg;
+
+  let cls = '';
+  let t = '';
+  if (p && n) { cls = 'clip-err'; t = '!'; }
+  else if (p) { cls = 'clip-pos'; t = '>'; }
+  else if (n) { cls = 'clip-neg'; t = '<'; }
+  else { cls = 'clip-none'; t = '0'; }
+  return `<span class="${cls}">${dim}${t}</span>`
+}

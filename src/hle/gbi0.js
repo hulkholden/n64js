@@ -189,9 +189,7 @@ export class GBI0PD extends GBI0 {
       vertex.color = auxDV.getUint32(cIdx + 0, true);
 
       // Project.
-      this.projectInPlace(vertex.pos, xyz, wvp, vpTransform, viTransform);
-
-      // this.state.projectedVertices.clipFlags = this.calculateClipFlags(projected);
+      this.projectInPlace(vertex, xyz, wvp, vpTransform, viTransform);
 
       if (light) {
         const alpha = vertex.color & 0xff;

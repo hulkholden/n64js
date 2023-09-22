@@ -6,6 +6,7 @@ export class ProjectedVertex {
     this.color = 0;
     this.u = 0;
     this.v = 0;
+    this.clipFlags = 0;
     this.set = false;
   }
 

@@ -9,14 +9,6 @@ import * as gbi from './gbi.js';
 import * as shaders from './shaders.js';
 import { TriangleBuffer } from "./triangle_buffer.js";
 
-// Clip codes.
-const X_NEG = 0x01; //left
-const Y_NEG = 0x02; //bottom
-const Z_NEG = 0x04; //far
-const X_POS = 0x08; //right
-const Y_POS = 0x10; //top
-const Z_POS = 0x20; //near
-
 // Map to keep track of which render targets we've seen.
 const kDebugColorImages = true;
 let colorImages = new Map();
@@ -258,9 +250,7 @@ export class GBIMicrocode {
       vertex.color = dv.getUint32(vtxBase + 12, true);
 
       // Project.
-      this.projectInPlace(vertex.pos, xyz, wvp, vpTransform, viTransform);
-
-      // this.state.projectedVertices.clipFlags = this.calculateClipFlags(projected);
+      this.projectInPlace(vertex, xyz, wvp, vpTransform, viTransform);
 
       if (light) {
         this.unpackNormal(normal, vertex.color);
@@ -279,8 +269,11 @@ export class GBIMicrocode {
     }
   }
 
-  projectInPlace(pos, xyz, wvp, vpTransform, viTransform) {
+  projectInPlace(vertex, xyz, wvp, vpTransform, viTransform) {
+    const pos = vertex.pos;
     wvp.transformPoint(xyz, pos);
+
+    vertex.clipFlags = this.calculateClipFlags(pos);
 
     const w = pos.w;
     pos.scaleInPlace(1 / w);
@@ -293,14 +286,14 @@ export class GBIMicrocode {
   calculateClipFlags(projected) {
     let flags = 0;
 
-    if (projected.x < -projected.w) flags |= X_POS;
-    else if (projected.x > projected.w) flags |= X_NEG;
+    if (projected.x < -projected.w) flags |= gbi.X_POS;
+    else if (projected.x > projected.w) flags |= gbi.X_NEG;
 
-    if (projected.y < -projected.w) flags |= Y_POS;
-    else if (projected.y > projected.w) flags |= Y_NEG;
+    if (projected.y < -projected.w) flags |= gbi.Y_POS;
+    else if (projected.y > projected.w) flags |= gbi.Y_NEG;
 
-    if (projected.z < -projected.w) flags |= Z_POS;
-    else if (projected.z > projected.w) flags |= Z_NEG;
+    if (projected.z < -projected.w) flags |= gbi.Z_POS;
+    else if (projected.z > projected.w) flags |= gbi.Z_NEG;
 
     return flags;
   }

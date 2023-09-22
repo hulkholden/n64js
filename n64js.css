@@ -164,3 +164,18 @@ table .impl100 {
 .dl-debug-table td {
   padding: 2px 10px;
 }
+
+.clip-pos {
+  background-color: rgb(68, 219, 83);
+}
+
+.clip-neg {
+  background-color: rgb(66, 135, 245);
+}
+
+.clip-none {
+}
+
+.clip-err {
+  background-color: red;
+}
