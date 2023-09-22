@@ -95,15 +95,13 @@ export function convertRGBA16Pixel(value) {
  * @param {!Tile} tile
  */
 function convertRGBA32(dstData, src, tile) {
-  let dst = dstData.data;
-  let dstRowStride = dstData.width * 4; // Might not be the same as width, due to power of 2
+  const dst = dstData.data;
+  const dstRowStride = dstData.width * 4;
   let dstRowOffset = 0;
 
-  let srcRowStride = tile.line << 3;
+  // For RGBA/32 line is multiplied by 16, not 8.
+  const srcRowStride = tile.line << 4;
   let srcRowOffset = tile.tmem << 3;
-
-  // NB! RGBA/32 line needs to be doubled.
-  srcRowStride *= 2;
 
   let rowSwizzle = 0;
   for (let y = 0; y < tile.height; ++y) {
@@ -111,9 +109,9 @@ function convertRGBA32(dstData, src, tile) {
     let dstOffset = dstRowOffset;
 
     for (let x = 0; x < tile.width; ++x) {
-      let index = srcOffset ^ rowSwizzle;
+      const index = srcOffset ^ rowSwizzle;
 
-      dst[dstOffset + 0] = src[index];
+      dst[dstOffset + 0] = src[index + 0];
       dst[dstOffset + 1] = src[index + 1];
       dst[dstOffset + 2] = src[index + 2];
       dst[dstOffset + 3] = src[index + 3];
@@ -124,7 +122,8 @@ function convertRGBA32(dstData, src, tile) {
     srcRowOffset += srcRowStride;
     dstRowOffset += dstRowStride;
 
-    rowSwizzle ^= 0x4; // Alternate lines are word-swapped
+    // For RGBA/32 swapping happens on 8 byte boundary, not 4.
+    rowSwizzle ^= 0x8;
   }
 }
 

@@ -24,6 +24,9 @@ export class TMEM {
 
     const ram_s32 = getRamS32Array();
 
+    // RGBA/32 swaps on 8 byte boundary, not 4.
+    const wordSwapBit = (tile.size == gbi.ImageSize.G_IM_SIZ_32b) ? 2 : 1;
+
     // Slight fast path for dxt == 0
     if (dxt === 0) {
       copyLineQwords(tmemData, tmemOffset, ram_s32, ramOffset, qwords);
@@ -35,12 +38,12 @@ export class TMEM {
       // The texture coordinate unit increments a counter by dxt for each word transferred to Tmem.
       // When this counter rolls over into the next integer value, the line count is incremented. 
       const qwordsPerLine = Math.ceil(2048 / dxt);
-      let rowSwizzle = 0;
+      let oddRow = 0;
       for (let i = 0; i < qwords;) {
         const qwordsToCopy = Math.min(qwords - i, qwordsPerLine);
 
-        if (rowSwizzle) {
-          copyLineQwordsSwap(tmemData, tmemOffset, ram_s32, ramOffset, qwordsToCopy);
+        if (oddRow) {
+          copyLineQwordsSwap(tmemData, tmemOffset, ram_s32, ramOffset, qwordsToCopy, wordSwapBit);
         } else {
           copyLineQwords(tmemData, tmemOffset, ram_s32, ramOffset, qwordsToCopy);
         }
@@ -52,7 +55,7 @@ export class TMEM {
         ramOffset += qwordsToCopy * 2;
 
         // All odd lines are swapped
-        rowSwizzle ^= 0x1;
+        oddRow ^= 1;
       }
     }
   }
@@ -62,10 +65,13 @@ export class TMEM {
     let tmemOffset = tile.tmem << 3;
     let ramOffset = ramAddress;
 
+    // RGBA/32 swaps on 8 byte boundary, not 4.
+    const byteSwapBit = (tile.size == gbi.ImageSize.G_IM_SIZ_32b) ? 8 : 4;
+
     const ram_u8 = getRamU8Array();
     for (let y = 0; y < h; ++y) {
       if (y & 1) {
-        copyLineSwap(tmemData, tmemOffset, ram_u8, ramOffset, rowBytes, tmemStride);
+        copyLineSwap(tmemData, tmemOffset, ram_u8, ramOffset, rowBytes, tmemStride, byteSwapBit);
       } else {
         copyLine(tmemData, tmemOffset, ram_u8, ramOffset, rowBytes, tmemStride);
       }
@@ -147,12 +153,12 @@ function copyLineQwords(tmem, tmem_offset, ram, ram_offset, qwords) {
 }
 
 // tmem/ram should be Int32Array
-function copyLineQwordsSwap(tmem, tmem_offset, ram, ram_offset, qwords) {
+function copyLineQwordsSwap(tmem, tmem_offset, ram, ram_offset, qwords, wordSwapBit) {
   assert((tmem_offset & 1) == 0, "tmem isn't qword aligned");
 
   for (let i = 0; i < qwords; ++i) {
-    tmem[(tmem_offset + 0) ^ 0x1] = ram[ram_offset + 0];
-    tmem[(tmem_offset + 1) ^ 0x1] = ram[ram_offset + 1];
+    tmem[(tmem_offset + 0) ^ wordSwapBit] = ram[ram_offset + 0];
+    tmem[(tmem_offset + 1) ^ wordSwapBit] = ram[ram_offset + 1];
     tmem_offset += 2;
     ram_offset += 2;
   }
@@ -167,12 +173,12 @@ function copyLine(tmem, tmemOffset, ram, ramOffset, texelBytes, rowBytes) {
   }
 }
 
-function copyLineSwap(tmem, tmemOffset, ram, ramOffset, texelBytes, rowBytes) {
+function copyLineSwap(tmem, tmemOffset, ram, ramOffset, texelBytes, rowBytes, byteSwapBit) {
   for (let x = 0; x < texelBytes; ++x) {
-    tmem[(tmemOffset + x) ^ 0x4] = ram[(ramOffset + x)];
+    tmem[(tmemOffset + x) ^ byteSwapBit] = ram[(ramOffset + x)];
   }
   for (let x = texelBytes; x < rowBytes; ++x) {
-    tmem[(tmemOffset + x) ^ 0x4] = 0;
+    tmem[(tmemOffset + x) ^ byteSwapBit] = 0;
   }
 }
 
