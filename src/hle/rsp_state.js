@@ -105,7 +105,7 @@ export class RSPState {
 
   reset(ramDV, pc) {
     this.ramDV = ramDV;
-  
+
     this.pc = pc;
     this.pcEnd = 0;
     this.dlistStack = [];
@@ -181,9 +181,9 @@ export class RSPState {
     // Abort if we're at the end of the display list.
     // It's unlikely a batch continues across a display list boundary so don't
     // try and handle this (we'll just pick it up the next time around the main lop).
-     if (this.pc == 0 || (this.pcEnd && this.pc > this.pcEnd)) {
-        return false;
-     }
+    if (this.pc == 0 || (this.pcEnd && this.pc > this.pcEnd)) {
+      return false;
+    }
 
     const nextCmd0 = this.ramDV.getUint32(this.pc + 0);
     if ((nextCmd0 >>> 24) !== wantCommand) {
