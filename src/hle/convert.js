@@ -552,8 +552,7 @@ function convertCI4(dstData, src, tile, palette, palConv) {
  */
 export function convertTexels(dstData, tmem, tile, tlutFormat) {
   // NB: assume RGBA16 for G_TT_NONE
-  var convFn = (tlutFormat === gbi.TextureLUT.G_TT_IA16) ?
-                convertIA16Pixel : convertRGBA16Pixel;
+  var convFn = (tlutFormat === gbi.TextureLUT.G_TT_IA16) ? convertIA16Pixel : convertRGBA16Pixel;
 
   switch (tile.format) {
     case gbi.ImageFormat.G_IM_FMT_RGBA:
@@ -565,8 +564,8 @@ export function convertTexels(dstData, tmem, tile, tlutFormat) {
           convertRGBA16(dstData, tmem, tile);
           return true;
 
-          // Hack - Extreme-G specifies RGBA/8 RGBA/4 textures, but they're
-          // really CI
+        // Hack - Extreme-G specifies RGBA/8 RGBA/4 textures, but they're
+        // really CI
         case gbi.ImageSize.G_IM_SIZ_8b:
           convertCI8(dstData, tmem, tile, convFn);
           return true;
