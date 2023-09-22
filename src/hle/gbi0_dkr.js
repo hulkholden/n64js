@@ -131,7 +131,7 @@ export class GBI0DKR extends GBI0 {
     const v0Base = (cmd0 >>> 9) & 0x1f;
 
     // In billboard mode the flag selects between index 0 or index 1. Index 0 is used for the billboard center.
-    // In normal operation it seems to select between appening to the vert buffer or starting from 0.
+    // In normal operation it seems to select between appending to the vert buffer or starting from 0.
     if (this.billboardMode) {
       this.vertexOffset = flag ? 1 : 0;
     } else if (!flag) {
