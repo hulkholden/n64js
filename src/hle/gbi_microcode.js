@@ -851,10 +851,29 @@ export class GBIMicrocode {
   }
 
   executeCullDL(cmd0, cmd1, dis) {
-    this.warnUnimplemented('CullDisplayList');
+    const first = (cmd0 >> 1) & 0x7fff;
+    const end = (cmd1 >> 1) & 0x7fff;
+    const result = this.testClipFlags(first, end);
+
     if (dis) {
-      dis.text(`gSPCullDisplayList(/* TODO */); // TODO: implement`);
+      dis.text(`gSPCullDisplayList(${first}, ${end}); // ${result ? 'continue' : 'end'}`);
     }
+
+    if (!result) {
+      this.state.endDisplayList();
+    }
+  }
+
+  testClipFlags(begin, end) {
+    if (end <= begin) {
+      return false;
+    }
+
+    let f = this.state.projectedVertices[begin].clipFlags;
+    for (let i = begin + 1; i <= end; i++) {
+      f &= this.state.projectedVertices[i].clipFlags;
+    }
+    return f == 0;
   }
 
   calcTextureScale(v) {
