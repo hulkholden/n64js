@@ -7,6 +7,7 @@ import * as logger from '../logger.js';
 import { makeColorTextRGBA } from './disassemble.js';
 import * as gbi from './gbi.js';
 import * as shaders from './shaders.js';
+import { calcTileDimension } from './tile.js';
 import { TriangleBuffer } from "./triangle_buffer.js";
 
 // Map to keep track of which render targets we've seen.
@@ -688,7 +689,7 @@ export class GBIMicrocode {
     const ramAddress = this.state.textureImage.calcAddress(uls >>> 2, ult >>> 2, gbi.ImageSize.G_IM_SIZ_16b);
 
     const tile = this.state.tiles[tileIdx];
-    const texels = ((lrs - uls) >>> 2) + 1;
+    const texels = calcTileDimension(lrs, uls);
 
     this.state.tmem.loadTLUT(tile, ramAddress, texels);
     this.state.invalidateTileHashes();

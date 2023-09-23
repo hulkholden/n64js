@@ -58,7 +58,7 @@ export class Tile {
   }
 }
 
-function calcTileDimension(lr, ul) {
+export function calcTileDimension(lr, ul) {
   // TODO: confirm if the limit is 0x3ff or 0xfff.
   // 1024 pixels seems more plausible than 4096.
   return ((lr >>> 2) - (ul >>> 2) + 1) & 0x3ff;
