@@ -1,5 +1,6 @@
 import * as gbi from './gbi.js';
 import * as logger from '../logger.js';
+import { assert } from '../assert.js';
 
 /**
  * Whether to log shaders as they're compiled.
@@ -175,7 +176,7 @@ export function createShaderProgram(gl, vs_name, fs_name) {
 
   // If creating the shader program failed, alert
   if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-    alert("Unable to initialize the shader program.");
+    assert(false, "Unable to initialize the shader program.");
   }
   return program;
 }
@@ -237,7 +238,7 @@ function createShader(gl, source, type) {
 
   // See if it compiled successfully
   if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-    alert("An error occurred compiling the shaders: " + gl.getShaderInfoLog(shader));
+    assert(false, "An error occurred compiling the shaders: " + gl.getShaderInfoLog(shader));
     return null;
   }
   return shader;
@@ -358,6 +359,9 @@ export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, enableAlphaThres
   }
 
   let fragmentShader = createShader(gl, shaderSource, gl.FRAGMENT_SHADER);
+  if (!fragmentShader) {
+    return null;
+  }
 
   let glProgram = gl.createProgram();
   gl.attachShader(glProgram, genericVertexShader);
@@ -366,7 +370,7 @@ export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, enableAlphaThres
 
   // If creating the shader program failed, alert
   if (!gl.getProgramParameter(glProgram, gl.LINK_STATUS)) {
-    alert('Unable to initialize the shader program.');
+    assert(false, 'Unable to initialize the shader program.');
   }
 
   shader = new N64Shader(gl, glProgram);
