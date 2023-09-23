@@ -549,6 +549,8 @@ export class GBI2Conker extends GBI2 {
     super(ucode, state, ramDV);
     this.vertexStride = 2;
   }
+
+  // TODO: executeVertex, executeTri4, executeMoveWord, executeMoveMem.
 }
 
 export class GBI2SDEX extends GBI2 {
