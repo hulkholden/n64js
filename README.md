@@ -1,6 +1,6 @@
 # n64js
 
-n64js is am n64 emulator written in (mostly) pure ES6 JavaScript. It runs many roms at full framerate.
+n64js is an n64 emulator written in (mostly) pure ES6 JavaScript. It runs many roms at full framerate.
 
 ## Why?
 
