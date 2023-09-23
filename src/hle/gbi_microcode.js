@@ -852,12 +852,12 @@ export class GBIMicrocode {
   }
 
   executeCullDL(cmd0, cmd1, dis) {
-    const first = (cmd0 >> 1) & 0x7fff;
-    const end = (cmd1 >> 1) & 0x7fff;
-    const result = this.testClipFlags(first, end);
+    const begin = (cmd0 & 0xffff) >>> 1;
+    const end = (cmd1 & 0xffff) >>> 1;
+    const result = this.testClipFlags(begin, end);
 
     if (dis) {
-      dis.text(`gSPCullDisplayList(${first}, ${end}); // ${result ? 'continue' : 'end'}`);
+      dis.text(`gSPCullDisplayList(${begin}, ${end}); // ${result ? 'continue' : 'end'}`);
     }
 
     if (!result) {
@@ -865,16 +865,30 @@ export class GBIMicrocode {
     }
   }
 
+  /**
+   * Tests clip flags in the specified range.
+   * @param {number} begin The first vertex to test.
+   * @param {number} end The last vertex to test.
+   * @returns {boolean} Whether the test passed and the current display list should continue.
+   */
   testClipFlags(begin, end) {
     if (end <= begin) {
-      return false;
+      this.warn('begin and end vertices for testClipFlags are inverted or empty');
+      return true;
     }
 
-    let f = this.state.projectedVertices[begin].clipFlags;
-    for (let i = begin + 1; i <= end; i++) {
-      f &= this.state.projectedVertices[i].clipFlags;
+    if (end >= this.state.projectedVertices.length) {
+      this.warn('end vertex for testClipFlags is out of bounds');
+      return true;
     }
-    return f == 0;
+
+    // And all the flags together.
+    let flags = ~0;
+    for (let i = begin; i <= end; i++) {
+      flags &= this.state.projectedVertices[i].clipFlags;
+    }
+    // If any bit is still set it means all the verts were on the same side of the frustum.
+    return flags == 0;
   }
 
   calcTextureScale(v) {
