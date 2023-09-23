@@ -233,7 +233,6 @@ export class GBI0WR extends GBI0 {
   executeVertex(cmd0, cmd1, dis) {
     const n = ((cmd0 >>> 9) & 0x7f);
     const v0 = ((cmd0 >>> 16) & 0xff) / 5;
-    //const length = (cmd0 >>> 0) & 0x1ff;
     const address = this.state.rdpSegmentAddress(cmd1);
 
     if (dis) {
@@ -248,5 +247,17 @@ export class GBI0SE extends GBI0 {
   constructor(ucode, state, ramDV) {
     super(ucode, state, ramDV);
     this.vertexStride = 5;
+  }
+
+  executeVertex(cmd0, cmd1, dis) {
+    const n = (((cmd0 >>> 4) & 0xfff) / 33) + 1;
+    const v0 = 0;
+    const address = this.state.rdpSegmentAddress(cmd1);
+
+    if (dis) {
+      dis.text(`gsSPVertex(${toString32(address)}, ${v0}, ${n});`);
+    }
+
+    this.loadVertices(v0, n, address, dis);
   }
 }
