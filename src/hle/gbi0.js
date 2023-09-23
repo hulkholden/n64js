@@ -24,6 +24,22 @@ export class GBI0 extends GBI1 {
     return super.getHandler(command);
   }
 
+  executeCullDL(cmd0, cmd1, dis) {
+    // This differs from GBI1 and GBI2.
+    const begin = ((cmd0 & 0x00ffffff) / 40) & 0xf;
+    const end = (cmd1 / 40) & 0xf;
+
+    const result = this.testClipFlags(begin, end);
+
+    if (dis) {
+      dis.text(`gSPCullDisplayList(${begin}, ${end}); // ${result ? 'continue' : 'end'}`);
+    }
+
+    if (!result) {
+      this.state.endDisplayList();
+    }
+  }
+
   executeVertex(cmd0, cmd1, dis) {
     const n = ((cmd0 >>> 20) & 0xf) + 1;
     const v0 = (cmd0 >>> 16) & 0xf;
