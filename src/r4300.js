@@ -1198,7 +1198,7 @@ class CPU0 {
       throw new EmulatedException();
     }
     if ((entryLo & TLBLO_D) === 0) {
-      this.raiseTLBException(E_VEC, address, cpu0_constants.causeExcCodeMod, address);
+      this.raiseTLBException(E_VEC, cpu0_constants.causeExcCodeMod, address);
       throw new EmulatedException();
     }
 
