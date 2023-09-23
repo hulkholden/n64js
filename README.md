@@ -61,4 +61,4 @@ Here's some things I'd like to get around to:
 ## History
 
 n6js is derived from [Daedalus](https://github.com/hulkholden/daedalus), an emulator I started working on around 1999 and continued working on periodically for many years.
-Around 2012 I made a bet with @mmalex that I could write a port in JavaScript, and n64js was born!
+Around 2012 I made a bet with [@mmalex](https://github.com/mmalex) that I could write a port in JavaScript, and n64js was born!
