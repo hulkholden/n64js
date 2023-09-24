@@ -128,6 +128,15 @@ n64js.toggleRun = () => {
   }
 };
 
+n64js.toggleFullscreen = () => {
+  const canvas = document.getElementById('display');
+  canvas.requestFullscreen().catch((err) => {
+    console.log(
+      `Error attempting to enable fullscreen mode: ${err.message} (${err.name})`,
+    );
+  });
+};
+
 n64js.breakEmulationForDisplayListDebug = () => {
   if (running) {
     n64js.toggleRun();
