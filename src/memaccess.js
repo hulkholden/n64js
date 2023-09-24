@@ -1,6 +1,3 @@
-/*global n64js*/
-
-//
 // Memory access routines.
 //
 // These helpers are structured to provide a fast path for accesses to unmapped physical memory, with the
@@ -11,45 +8,50 @@
 // in bounds for ram (0x8000_0000 <= x < 0x8080_0000). The constant is derived from interpreting 0x80800000
 // as a 32-bit signed value.
 
-// TODO: Figure out how to explicitly add a dependency on this - it's brittle to depend
-// on n64js.hardware() being initialized before this module is loaded.
-const getMemoryHandler = n64js.hardware().memMap.getMemoryHandler.bind(n64js.hardware().memMap);
-const ramDV = n64js.hardware().cachedMemDevice.mem.dataView;
+let getMemoryHandler;
+let ramDV;
+let cpu0;
+
+export function reset(hardware, c0) {
+  getMemoryHandler = hardware.memMap.getMemoryHandler.bind(hardware.memMap);
+  ramDV = hardware.cachedMemDevice.mem.dataView;
+  cpu0 = c0;
+}
 
 export function loadU64slow(addr) {
-  if (addr & 7) { n64js.cpu0.unalignedLoad(addr); }
+  if (addr & 7) { cpu0.unalignedLoad(addr); }
   return getMemoryHandler(addr).readU64(addr);
 }
 export function loadU16slow(addr) {
-  if (addr & 1) { n64js.cpu0.unalignedLoad(addr); }
+  if (addr & 1) { cpu0.unalignedLoad(addr); }
   return getMemoryHandler(addr).readU16(addr);
 }
 export function loadU32slow(addr) {
-  if (addr & 3) { n64js.cpu0.unalignedLoad(addr); }
+  if (addr & 3) { cpu0.unalignedLoad(addr); }
   return getMemoryHandler(addr).readU32(addr);
 }
 export function loadU8slow(addr) { return getMemoryHandler(addr).readU8(addr); }
 
 export function loadS32slow(addr) {
-  if (addr & 3) { n64js.cpu0.unalignedLoad(addr); }
+  if (addr & 3) { cpu0.unalignedLoad(addr); }
   return getMemoryHandler(addr).readS32(addr);
 }
 export function loadS16slow(addr) {
-  if (addr & 1) { n64js.cpu0.unalignedLoad(addr); }
+  if (addr & 1) { cpu0.unalignedLoad(addr); }
   return getMemoryHandler(addr).readS16(addr);
 }
 export function loadS8slow(addr) { return getMemoryHandler(addr).readS8(addr); }
 
 export function store64slow(addr, value) {
-  if (addr & 7) { n64js.cpu0.unalignedStore(addr); }
+  if (addr & 7) { cpu0.unalignedStore(addr); }
   getMemoryHandler(addr).write64(addr, value);
 }
 export function store32slow(addr, value) {
-  if (addr & 3) { n64js.cpu0.unalignedStore(addr); }
+  if (addr & 3) { cpu0.unalignedStore(addr); }
   getMemoryHandler(addr).write32(addr, value);
 }
 export function store16slow(addr, value) {
-  if (addr & 1) { n64js.cpu0.unalignedStore(addr); }
+  if (addr & 1) { cpu0.unalignedStore(addr); }
   getMemoryHandler(addr).write16(addr, value);
 }
 export function store8slow(addr, value) { getMemoryHandler(addr).write8(addr, value); }

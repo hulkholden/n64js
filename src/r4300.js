@@ -17,6 +17,27 @@ import { simpleOp, regImmOp, specialOp, copOp, copFmtFuncOp, fd, fs, ft, offset,
 
 window.n64js = window.n64js || {};
 
+// Expose the cpu state
+export let cpu0;
+export let cpu1;
+export let cpu2;
+
+export function initCPU(hardware) {
+  cpu0 = new CPU0(hardware);
+  cpu1 = new CPU1(cpu0);
+  cpu2 = new CPU2();
+  memaccess.reset(hardware, cpu0);
+
+  // TODO: find a nicer way to do this - cpu0 and cpu1 must both exist
+  // so we can't do this in the constructor.
+  cop1ControlChanged();
+
+  // TODO: just use the exported values.
+  n64js.cpu0 = cpu0;
+  n64js.cpu1 = cpu1;
+  n64js.cpu2 = cpu2;
+}
+
 const kDebugTLB = false;
 
 const kFragmentLengthLimit = 250;
@@ -324,10 +345,11 @@ function pageMaskName(pageMask) {
 }
 
 class CPU0 {
-  constructor() {
+  constructor(hardware) {
+    this.hardware = hardware;
     this.opsExecuted = 0; // Approximate...
 
-    this.ramDV = undefined; // Bound in reset().
+    this.ramDV = hardware.cachedMemDevice.mem.dataView;
 
     const gprMem = new ArrayBuffer(32 * 8);
     this.gprU32 = new Uint32Array(gprMem);
@@ -394,6 +416,8 @@ class CPU0 {
 
     this.store32masked = memaccess.store32masked;
     this.store64masked = memaccess.store64masked;
+
+    this.reset();
   }
 
   conditionalBranch(cond, offset) {
@@ -532,9 +556,6 @@ class CPU0 {
   reset() {
     resetFragments();
 
-    // TODO: pass Hardware into the constructor.
-    this.ramDV = n64js.hardware().cachedMemDevice.mem.dataView;
-
     for (let i = 0; i < 32; ++i) {
       this.gprU64[i] = 0n;
       this.controlRegU64[i] = 0n;
@@ -558,7 +579,6 @@ class CPU0 {
     this.setControlU32(cpu0_constants.controlRand, 32 - 1);
     this.setControlU32(cpu0_constants.controlStatus, 0x70400004);
     this.setControlU32(cpu0_constants.controlConfig, 0x7006e463);
-    cop1ControlChanged();
   }
 
   /**
@@ -1924,15 +1944,6 @@ class CPU2 {
 // EmulatedException interrupts processing of an instruction
 // and prevents state (such as memory or registers) being updated.
 class EmulatedException { }
-
-// Expose the cpu state
-const cpu0 = new CPU0();
-const cpu1 = new CPU1(cpu0);
-const cpu2 = new CPU2();
-n64js.cpu0 = cpu0;
-n64js.cpu1 = cpu1;
-n64js.cpu2 = cpu2;
-
 
 function unimplemented(pc, i) {
   const r = disassembleInstruction(pc, i, false);

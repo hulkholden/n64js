@@ -329,6 +329,8 @@ export class CPU1 {
 
     this._fullMode = true;
     this.fullMode = true;
+
+    this.reset();
   }
 
   reset() {
