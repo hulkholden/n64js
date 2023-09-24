@@ -249,9 +249,11 @@ class N64Shader {
    * Constructs an N64Shader.
    * @param {!WebGLRenderingContext} gl The rendering context to use.
    * @param {!WebGLProgram} program The program to use.
+   * @param {string} source The fragment shader source (for debugging).
    */
-  constructor(gl, program) {
+  constructor(gl, program, shaderSource) {
     this.program = program;
+    this.shaderSource = shaderSource;
 
     this.vertexPositionAttribute = gl.getAttribLocation(program,  "aVertexPosition");
     this.vertexColorAttribute    = gl.getAttribLocation(program,  "aVertexColor");
@@ -373,7 +375,7 @@ export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, enableAlphaThres
     assert(false, 'Unable to initialize the shader program.');
   }
 
-  shader = new N64Shader(gl, glProgram);
+  shader = new N64Shader(gl, glProgram, shaderSource);
   shaderCache.set(stateText, shader);
   return shader;
 }

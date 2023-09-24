@@ -325,16 +325,14 @@ export class Renderer {
       texture0 = this.lookupTexture(tileIdx0);
       texture1 = (cycleType == gbi.CycleType.G_CYC_2CYCLE) ? this.lookupTexture(tileIdx1) : null;
     }
-    let enableAlphaThreshold = false;
     let alphaThreshold = -1.0;
 
     if ((this.state.getAlphaCompareType() === gbi.AlphaCompare.G_AC_THRESHOLD)) {
       // TODO: it's unclear if this depends on CVG_X_ALPHA and ALPHA_CVG_SEL.
       alphaThreshold = ((this.state.blendColor >>> 0) & 0xff) / 255.0;
-      enableAlphaThreshold = true;
     }
 
-    const shader = this.getCurrentN64Shader(cycleType, enableAlphaThreshold);
+    const shader = this.getCurrentN64Shader();
     gl.useProgram(shader.program);
 
     // aVertexPosition
@@ -372,10 +370,11 @@ export class Renderer {
       ((this.state.envColor >>> 0) & 0xff) / 255.0);
   }
 
-  getCurrentN64Shader(cycleType, enableAlphaThreshold) {
+  getCurrentN64Shader() {
     const mux0 = this.state.combine.hi;
     const mux1 = this.state.combine.lo;
-
+    const cycleType = this.state.getCycleType();
+    const enableAlphaThreshold = this.state.getAlphaCompareType() === gbi.AlphaCompare.G_AC_THRESHOLD;
     return shaders.getOrCreateN64Shader(this.gl, mux0, mux1, cycleType, enableAlphaThreshold);
   }
 
