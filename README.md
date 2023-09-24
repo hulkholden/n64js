@@ -56,7 +56,6 @@ Here's some things I'd like to get around to:
 * Save game import/export
 * Savestates
 * [Gamepad](https://developer.mozilla.org/en-US/docs/Web/API/Gamepad_API/Using_the_Gamepad_API) support.
-* [Fullscreen](https://developer.mozilla.org/en-US/docs/Web/API/Fullscreen_API) support.
 
 ## History
 
