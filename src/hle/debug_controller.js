@@ -251,6 +251,10 @@ export class DebugController {
     $p.append(gbi.CycleType.nameOf(this.state.getCycleType()) + '\n');
     $p.append(this.buildColorsTable());
     $p.append(shaders.getCombinerText(this.state.combine.hi, this.state.combine.lo));
+    const shader = this.renderer.getCurrentN64Shader();
+    if (shader) {
+      $p.append(shader.shaderSource);
+    }
     return $p;
   }
 
@@ -265,12 +269,20 @@ export class DebugController {
   buildTexturesTab() {
     const $d = $('<div />');
     $d.append(this.buildTilesTable());
+
+    const headings = [];
+    const $textures = $('<tr />');
     for (let i = 0; i < 8; ++i) {
       let $t = this.buildTexture(i);
-      if ($t) {
-        $d.append($t);
-      }
+      headings.push(gbi.getTileText(i));
+      let $td = $('<td />')
+      $td.append($t ? $t : '');
+      $textures.append($td);
     }
+    const $table = $('<table class="table table-condensed dl-debug-table" style="width: auto"></table>');
+    $table.append($(`<tr><th>${headings.join('</th><th>')}</th></tr>`));
+    $table.append($textures);
+    $d.append($table)
     return $d;
   }
 
