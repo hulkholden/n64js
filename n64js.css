@@ -1,3 +1,7 @@
+canvas {
+  cursor: none;
+}
+
 .toolbar {
   margin-bottom: 15px;
 }
