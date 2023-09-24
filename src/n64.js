@@ -11,7 +11,9 @@ import { Hardware } from './hardware.js';
 import { debugDisplayList, debugDisplayListRequested, debugDisplayListRunning, presentBackBuffer, initialiseRenderer, resetRenderer } from './hle/hle_graphics.js';
 import * as json from './json.js';
 import * as logger from './logger.js';
+import { initCPU } from './r4300.js';
 import { romdb, generateRomId, generateCICType, uint8ArrayReadString } from './romdb.js';
+import { initRSP } from './rsp.js';
 import { categoryCodeDescriptionFromU8, countryNorthAmerica, OS_TV_NTSC, tvTypeFromCountry } from './system_constants.js';
 import { UI } from './ui.js';
 import { initSync, syncActive, syncTick, syncInput } from './sync.js';
@@ -278,9 +280,8 @@ n64js.reset = () => {
 
   hardware.reset();
 
-  n64js.cpu0.reset();
-  n64js.cpu1.reset();
-  n64js.rsp.reset();
+  initCPU(hardware);
+  initRSP(hardware);
 
   resetRenderer();
 

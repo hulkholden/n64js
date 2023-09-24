@@ -6,6 +6,15 @@ import { rcp16, rsq16 } from "./rsp_recip.js";
 
 window.n64js = window.n64js || {};
 
+// The RSP instance, initialised via init(). 
+export let rsp;
+
+export function initRSP(hardware) {
+  rsp = new RSP(hardware);
+  // TODO: just use the exported value.
+  n64js.rsp = rsp;
+}
+
 function funct(i) { return i & 0x3f; }
 
 function offset(i) { return ((i & 0xffff) << 16) >> 16; }
@@ -91,16 +100,15 @@ const SP_STATUS_YIELDED = SP_STATUS_SIG1;
 const SP_STATUS_TASKDONE = SP_STATUS_SIG2;
 
 class RSP {
-  constructor() {
-    const hw = n64js.hardware();
-    this.hardware = hw;
-    this.dmem = hw.sp_mem.subRegion(0x0000, 0x1000);
-    this.imem = hw.sp_mem.subRegion(0x1000, 0x1000);
+  constructor(hardware) {
+    this.hardware = hardware;
+    this.dmem = hardware.sp_mem.subRegion(0x0000, 0x1000);
+    this.imem = hardware.sp_mem.subRegion(0x1000, 0x1000);
 
     this.halted = true;
 
     // Take a deep reference to the SPIBIST registers to access the program counter.
-    this.pcDataView = this.hardware.sp_ibist_mem.dataView;
+    this.pcDataView = hardware.sp_ibist_mem.dataView;
 
     this.pc = 0;
     this.delayPC = 0;
@@ -341,8 +349,8 @@ class RSP {
 
   // Gets an unaligned 16 bit vector register with wraparound (reading from element 15 uses element 0 for low bits).
   getVecU16UnalignedWrap(r, e) {
-    const hi = rsp.getVecU8(r, e & 15);
-    const lo = rsp.getVecU8(r, (e + 1) & 15);
+    const hi = this.getVecU8(r, e & 15);
+    const lo = this.getVecU8(r, (e + 1) & 15);
     return (hi << 8) | lo;
   }
 
@@ -532,10 +540,6 @@ class RSP {
     }
   }
 }
-
-
-const rsp = new RSP();
-n64js.rsp = rsp;
 
 const specialTable = (() => {
   let specialTbl = [];
@@ -764,14 +768,9 @@ const simpleTable = (() => {
   return simpleTbl;
 })();
 
-
 function executedUnknown(i) {
   rsp.disassembleAll();
   n64js.halt(`RSP: unknown op, pc: ${toString16(rsp.pc)}, instruction: ${toString32(i)}`);
-}
-
-function executeUnhandled(name, i) {
-  rsp.disassembleOp(rsp.pc, i);
 }
 
 // Special Ops.
