@@ -6,8 +6,8 @@ export class Transform4D {
    * @param {Vector4=} opt_trans
    */
   constructor(scale, trans) {
-    this.scale = scale || new Vector4(1, 1);
-    this.trans = trans || new Vector4(0, 0);
+    this.scale = scale || new Vector4(1, 1, 1, 1);
+    this.trans = trans || new Vector4(0, 0, 0, 0);
   }
 
   /**
