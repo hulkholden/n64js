@@ -612,14 +612,17 @@ class NativeTransform {
     // Convert n64 framebuffer coordinates into normalised device coordinates (-1 to +1).
     this.n64FramebufferToDevice = new Transform2D(new Vector2(2 / viWidth, -2 / viHeight), new Vector2(-1, +1));
 
-    // TODO: confirm these. viZ is almost certainly wrong.
+    // TODO: confirm these. I'm not sure where the z scale/trans should come from.
     const viX = viWidth / 2;
     const viY = viHeight / 2;
-    const viZ = 511;
+    // Scale by slightly more than the translate.
+    // This fixes the menu in StarFox which was rendering these at z=-1.002.
+    const zScale = 512;
+    const zTrans = 511;
 
     // Note scale.y is flipped.
-    const viScale = new Vector4(viX, -viY, viZ, 1);
-    const viTrans = new Vector4(viX, +viY, viZ, 0);
+    const viScale = new Vector4(viX, -viY, zScale, 1);
+    const viTrans = new Vector4(viX, +viY, zTrans, 0);
     this.viTransform = new Transform4D(viScale, viTrans);
   }
 
