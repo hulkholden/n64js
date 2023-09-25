@@ -1,4 +1,12 @@
-const kEnableDynarec = true;
+import { dbgGUI } from "./dbg_ui.js";
+
+const debugOptions = {
+  enableDynarec: true,
+};
+
+const perfFolder = dbgGUI.addFolder('Performance');
+perfFolder.add(debugOptions, 'enableDynarec').name('Dynamic Recompilation');
+
 const kHotFragmentThreshold = 500;
 
 /**
@@ -113,7 +121,7 @@ export function getFragmentMap() {
 export function lookupFragment(pc) {
   let fragment = fragmentMap.get(pc);
   if (!fragment) {
-    if (!kEnableDynarec) {
+    if (!debugOptions.enableDynarec) {
       return null;
     }
 

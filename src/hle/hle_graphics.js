@@ -5,6 +5,7 @@ import { DebugController } from './debug_controller.js';
 import * as microcodes from './microcodes.js';
 import { RSPState } from './rsp_state.js';
 import { Renderer } from './renderer.js';
+import { dbgGUI } from '../dbg_ui.js';
 
 window.n64js = window.n64js || {};
 
@@ -13,8 +14,12 @@ let gl = null; // WebGL context for the canvas.
 let renderer;
 
 // Scale factor to apply to the canvas.
-// TODO: expose this on the UI somewhere.
-let canvasScale = 1;
+const graphicsOptions = {
+  canvasScale: 1,
+};
+const graphicsFolder = dbgGUI.addFolder('Graphics');
+graphicsFolder.add(graphicsOptions, 'canvasScale').name('Canvas Scale').min(1).max(4).step(0.25);
+
 
 const state = new RSPState();
 const debugController = new DebugController(state, processDList);
@@ -149,8 +154,8 @@ function initDimensionsFromVI() {
   renderer.nativeTransform.initDimensions(dims.srcWidth, dims.srcHeight);
 
   const canvas = document.getElementById('display');
-  canvas.width = dims.screenWidth * canvasScale;
-  canvas.height = dims.screenHeight * canvasScale;
+  canvas.width = dims.screenWidth * graphicsOptions.canvasScale;
+  canvas.height = dims.screenHeight * graphicsOptions.canvasScale;
 }
 
 // const ucodeSprite2d = {
