@@ -2546,27 +2546,30 @@ function addOpToFragment(fragment, entry_pc, instruction, c) {
 }
 
 function compileFragment(fragment) {
-  // Check if the last op has a delayed pc update, and do it now.
-  if (fragmentContext.delayedPCUpdate !== 0) {
-    fragment.bodyCode += 'c.pc = ' + toString32(fragmentContext.delayedPCUpdate) + ';\n';
-    fragmentContext.delayedPCUpdate = 0;
-  }
-
-  fragment.bodyCode += 'return ' + fragment.opsCompiled + ';\n'; // Return the number of ops exected
-
+  let header = '';
   const sync = n64js.getSyncFlow();
   if (sync) {
-    fragment.bodyCode = 'const sync = n64js.getSyncFlow();\n' + fragment.bodyCode;
+    header += 'const sync = n64js.getSyncFlow();\n';
   }
 
   if (fragment.usesCop1) {
-    let cpu1consts = '';
-    cpu1consts += 'const SR_CU1 = ' + toString32(SR_CU1) + ';\n';
-    cpu1consts += 'const FPCSR_C = ' + toString32(FPCSR_C) + ';\n';
-    fragment.bodyCode = cpu1consts + '\n\n' + fragment.bodyCode;
+    header += `const SR_CU1 = ${toString32(SR_CU1)};\n`;
+    header += `const FPCSR_C = ${toString32(FPCSR_C)};\n`;
   }
 
-  const code = 'return function fragment_' + toString32(fragment.entryPC) + '_' + fragment.opsCompiled + '(c, cpu1, rsp) {\n' + fragment.bodyCode + '}\n';
+  // Check if the last op has a delayed pc update, and do it now.
+  if (fragmentContext.delayedPCUpdate !== 0) {
+    fragment.bodyCode += `c.pc = ${toString32(fragmentContext.delayedPCUpdate)};\n`;
+    fragmentContext.delayedPCUpdate = 0;
+  }
+
+  // Return the number of ops exected
+  fragment.bodyCode += `return ${fragment.opsCompiled};\n`;
+
+  const code = `return function fragment_${toString32(fragment.entryPC)}_${fragment.opsCompiled}(c, cpu1, rsp) {
+  ${header}
+  ${fragment.bodyCode}
+}`;
 
   // Clear these strings to reduce garbage
   fragment.bodyCode = '';
