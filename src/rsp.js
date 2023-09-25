@@ -6,7 +6,7 @@ import { rcp16, rsq16 } from "./rsp_recip.js";
 
 window.n64js = window.n64js || {};
 
-// The RSP instance, initialised via init(). 
+// The RSP instance, initialised via initRSP(). 
 export let rsp;
 
 export function initRSP(hardware) {
