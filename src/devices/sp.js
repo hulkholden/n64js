@@ -5,6 +5,7 @@ import * as mi from './mi.js';
 import * as logger from '../logger.js';
 import { toString16, toString32 } from '../format.js';
 import { hleProcessRSPTask } from '../hle/rsp_task.js';
+import { rsp } from '../rsp.js';
 
 const emulateRSP = true;
 
@@ -303,10 +304,10 @@ export class SPRegDevice extends Device {
       if (hleProcessRSPTask() || !emulateRSP) {
         this.hardware.spRegDevice.setStatusBits(SP_STATUS_TASKDONE | SP_STATUS_BROKE | SP_STATUS_HALT);
       } else {
-        n64js.rsp.unhalt();
+        rsp.unhalt();
       }
     } else if (stopRsp) {
-      n64js.rsp.halt(0);
+      rsp.halt(0);
     }
   }
 

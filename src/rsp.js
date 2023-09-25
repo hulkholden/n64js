@@ -11,8 +11,6 @@ export let rsp;
 
 export function initRSP(hardware) {
   rsp = new RSP(hardware);
-  // TODO: just use the exported value.
-  n64js.rsp = rsp;
 }
 
 function funct(i) { return i & 0x3f; }
