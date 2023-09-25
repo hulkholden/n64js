@@ -1,10 +1,16 @@
 /*global n64js*/
 
+import { dbgGUI } from "../dbg_ui.js";
 import { hleGraphics } from "./hle_graphics.js";
 
 // Whether to skip audio task emulator or run it on the RSP.
 // Set this to false to enable audio in most games.
-export let skipAudioTaskEmulation = false;
+const audioOptions = {
+  enableAudioLLE: true,
+};
+
+const audioFolder = dbgGUI.addFolder('Audio');
+audioFolder.add(audioOptions, 'enableAudioLLE').name('Audio LLE');
 
 // Task offset in dmem.
 const kTaskOffset = 0x0fc0;
@@ -113,8 +119,8 @@ export function hleProcessRSPTask() {
         handled = true;
         break;
       case M_AUDTASK:
-        // Ignore for now (pretend we handled it to avoid running RSP).
-        handled = skipAudioTaskEmulation;
+        // If enableAudioLLE is clear, pretend we handled the task (we'll play silence).
+        handled = !audioOptions.enableAudioLLE;
         break;
       case M_VIDTASK:
         // Run on the RSP.
