@@ -4,10 +4,11 @@
 import * as cpu0_constants from './cpu0_constants.js';
 import { disassembleRange, cop0gprNames, cop1RegisterNames } from './disassemble.js';
 import * as disassemble_rsp from "./disassemble_rsp.js";
-import { toHex, toString8, toString16, toString32, toString64 } from './format.js';
-import * as logger from './logger.js';
 import { getFragmentMap, consumeFragmentInvalidationEvents } from './fragments.js';
 import { toggleDebugDisplayList } from './hle/hle_graphics.js';
+import { toHex, toString8, toString16, toString32, toString64 } from './format.js';
+import * as logger from './logger.js';
+import { rsp } from './rsp.js';
 
 window.n64js = window.n64js || {};
 
@@ -216,8 +217,6 @@ class RSPDebugState extends CPUDebugState {
   }
 
   makeStatusTable() {
-    const rsp = n64js.rsp;
-
     let $table = $('<table class="register-table"><tbody></tbody></table>');
     let $body = $table.find('tbody');
     $body.append(`<tr>
@@ -251,7 +250,6 @@ class RSPDebugState extends CPUDebugState {
    * @return {!jQuery}
    */
   makeScalarRegistersTable(registerColours) {
-    const rsp = n64js.rsp;
     let $table = $('<table class="register-table"><tbody></tbody></table>');
     let $body = $table.find('tbody');
 
@@ -280,7 +278,6 @@ class RSPDebugState extends CPUDebugState {
    * @return {!jQuery}
    */
   makeVectorRegistersTable(registerColours) {
-    const rsp = n64js.rsp;
     let $table = $('<table class="register-table"><tbody></tbody></table>');
     let $body = $table.find('tbody');
 
@@ -716,7 +713,6 @@ export class Debugger {
   }
 
   updateRSP() {
-    const rsp = n64js.rsp;
     this.rspState.setPC(rsp.pc);
 
     // Figure out if we've just stepped by a single instruction. Ergh.

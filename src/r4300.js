@@ -14,6 +14,7 @@ import { EventQueue } from './event_queue.js';
 import { FragmentContext, generateCodeForOp } from './recompiler.js';
 import { kAccurateCountUpdating, kSpeedHackEnabled } from './options.js';
 import { simpleOp, regImmOp, specialOp, copOp, copFmtFuncOp, fd, fs, ft, offset, sa, rd, rt, rs, tlbop, imm, imms, base, jumpAddress } from './decode.js';
+import { rsp } from './rsp.js';
 
 window.n64js = window.n64js || {};
 
@@ -761,7 +762,6 @@ class CPU0 {
   }
 
   runImpl() {
-    const rsp = n64js.rsp;
     const eventQueue = this.eventQueue;
     const ramDV = this.ramDV;
 
@@ -855,7 +855,7 @@ class CPU0 {
   }
 
   speedHack() {
-    if (!n64js.rsp.halted) {
+    if (!rsp.halted) {
       return;
     }
     const nextInstruction = n64js.hardware().memMap.readMemoryInternal32(this.pc + 4);
