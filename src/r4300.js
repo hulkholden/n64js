@@ -33,9 +33,8 @@ export function initCPU(hardware) {
   // so we can't do this in the constructor.
   cop1ControlChanged();
 
-  // TODO: just use the exported values.
+  // TODO: just use the exported value.
   n64js.cpu0 = cpu0;
-  n64js.cpu1 = cpu1;
 }
 
 const kDebugTLB = false;
@@ -770,7 +769,7 @@ class CPU0 {
       while (!this.stuffToDo) {
 
         if (fragment && fragment.func) {
-          fragment = executeFragment(fragment, this, rsp, eventQueue);
+          fragment = executeFragment(fragment, this, cpu1, rsp, eventQueue);
         } else {
           // if (syncFlow) {
           //   if (!checkSyncState(syncFlow, this.pc)) {
@@ -2487,13 +2486,13 @@ class FragmentMap {
 
 const fragmentMap = new FragmentMap();
 
-function executeFragment(fragment, cpu0, rsp, eventQueue) {
+function executeFragment(fragment, cpu0, cpu1, rsp, eventQueue) {
   if (eventQueue.nextEventCountdown() < fragment.opsCompiled * COUNTER_INCREMENT_PER_OP) {
     // We're close to another event: drop to the interpreter.
     return null;
   }
   fragment.executionCount++;
-  const opsExecuted = fragment.func(cpu0, rsp);   // Absolute value is number of ops executed.
+  const opsExecuted = fragment.func(cpu0, cpu1, rsp);   // Absolute value is number of ops executed.
 
   const counterIncrement = opsExecuted * COUNTER_INCREMENT_PER_OP;
   if (!kAccurateCountUpdating) {
@@ -2562,13 +2561,12 @@ function compileFragment(fragment) {
 
   if (fragment.usesCop1) {
     let cpu1consts = '';
-    cpu1consts += 'const cpu1 = n64js.cpu1;\n';
     cpu1consts += 'const SR_CU1 = ' + toString32(SR_CU1) + ';\n';
     cpu1consts += 'const FPCSR_C = ' + toString32(FPCSR_C) + ';\n';
     fragment.bodyCode = cpu1consts + '\n\n' + fragment.bodyCode;
   }
 
-  const code = 'return function fragment_' + toString32(fragment.entryPC) + '_' + fragment.opsCompiled + '(c, rsp) {\n' + fragment.bodyCode + '}\n';
+  const code = 'return function fragment_' + toString32(fragment.entryPC) + '_' + fragment.opsCompiled + '(c, cpu1, rsp) {\n' + fragment.bodyCode + '}\n';
 
   // Clear these strings to reduce garbage
   fragment.bodyCode = '';
