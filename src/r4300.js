@@ -769,7 +769,7 @@ class CPU0 {
       while (!this.stuffToDo) {
 
         if (fragment && fragment.func) {
-          fragment = executeFragment(fragment, this, cpu1, rsp, eventQueue);
+          fragment = executeFragment(fragment, this, eventQueue);
         } else {
           // if (syncFlow) {
           //   if (!checkSyncState(syncFlow, this.pc)) {
@@ -2486,13 +2486,13 @@ class FragmentMap {
 
 const fragmentMap = new FragmentMap();
 
-function executeFragment(fragment, cpu0, cpu1, rsp, eventQueue) {
+function executeFragment(fragment, cpu0, eventQueue) {
   if (eventQueue.nextEventCountdown() < fragment.opsCompiled * COUNTER_INCREMENT_PER_OP) {
     // We're close to another event: drop to the interpreter.
     return null;
   }
   fragment.executionCount++;
-  const opsExecuted = fragment.func(cpu0, cpu1, rsp);   // Absolute value is number of ops executed.
+  const opsExecuted = fragment.func();
 
   const counterIncrement = opsExecuted * COUNTER_INCREMENT_PER_OP;
   if (!kAccurateCountUpdating) {
@@ -2566,7 +2566,8 @@ function compileFragment(fragment) {
   // Return the number of ops exected
   fragment.bodyCode += `return ${fragment.opsCompiled};\n`;
 
-  const code = `return function fragment_${toString32(fragment.entryPC)}_${fragment.opsCompiled}(c, cpu1, rsp) {
+  const code = `
+  return function fragment_${toString32(fragment.entryPC)}_${fragment.opsCompiled}() {
   ${header}
   ${fragment.bodyCode}
 }`;
@@ -2574,7 +2575,7 @@ function compileFragment(fragment) {
   // Clear these strings to reduce garbage
   fragment.bodyCode = '';
 
-  fragment.func = new Function(code)();
+  fragment.func = new Function("c", "cpu1", "rsp", code)(cpu0, cpu1, rsp);
   fragment.nextFragments = [];
   for (let i = 0; i < fragment.opsCompiled; i++) {
     fragment.nextFragments.push(undefined);
