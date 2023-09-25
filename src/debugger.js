@@ -8,6 +8,7 @@ import { getFragmentMap, consumeFragmentInvalidationEvents } from './fragments.j
 import { toggleDebugDisplayList } from './hle/hle_graphics.js';
 import { toHex, toString8, toString16, toString32, toString64 } from './format.js';
 import * as logger from './logger.js';
+import { cpu0, cpu1 } from './r4300.js';
 import { rsp } from './rsp.js';
 
 window.n64js = window.n64js || {};
@@ -45,8 +46,6 @@ class R4300DebugState extends CPUDebugState {
    * @return {!jQuery}
    */
   makeStatusTable() {
-    const cpu0 = n64js.cpu0;
-
     let $table = $('<table class="register-table"><tbody></tbody></table>');
     let $body = $table.find('tbody');
 
@@ -78,8 +77,6 @@ class R4300DebugState extends CPUDebugState {
   }
 
   makeStatusRegisterRow() {
-    const cpu0 = n64js.cpu0;
-
     let $tr = $('<tr />');
     $tr.append('<td>SR</td>');
 
@@ -140,7 +137,6 @@ class R4300DebugState extends CPUDebugState {
    * @return {!jQuery}
    */
   makeCop0RegistersTable(registerColours) {
-    const cpu0 = n64js.cpu0;
     let $table = $('<table class="register-table"><tbody></tbody></table>');
     let $body = $table.find('tbody');
 
@@ -171,7 +167,6 @@ class R4300DebugState extends CPUDebugState {
   makeCop1RegistersTable(registerColours) {
     let $table = $('<table class="register-table"><tbody></tbody></table>');
     let $body = $table.find('tbody');
-    let cpu1 = n64js.cpu1;
 
     for (let i = 0; i < 32; ++i) {
       let name = cop1RegisterNames[i];
@@ -398,7 +393,7 @@ export class Debugger {
     this.debugCycles = Math.pow(10, 0);
 
     logger.initialise($('.output'), () => {
-      return toString32(n64js.cpu0.pc);
+      return toString32(cpu0.pc);
     });
 
     n64js.addResetCallback(this.onReset.bind(this));
@@ -618,7 +613,6 @@ export class Debugger {
   }
 
   updateCPU() {
-    const cpu0 = n64js.cpu0;
     this.cpu0State.setPC(cpu0.pc);
 
     // Figure out if we've just stepped by a single instruction. Ergh.
@@ -828,7 +822,7 @@ export class Debugger {
   }
 
   makeRecentMemoryAccesses(isSingleStep, currentInstruction, resolveAccessAddr) {
-    const opsExecuted = n64js.cpu0.opsExecuted;
+    const opsExecuted = cpu0.opsExecuted;
 
     // Keep a small queue showing recent memory accesses
     if (isSingleStep) {

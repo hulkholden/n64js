@@ -36,7 +36,6 @@ export function initCPU(hardware) {
   // TODO: just use the exported values.
   n64js.cpu0 = cpu0;
   n64js.cpu1 = cpu1;
-  n64js.cpu2 = cpu2;
 }
 
 const kDebugTLB = false;
