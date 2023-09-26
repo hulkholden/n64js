@@ -1,9 +1,5 @@
 .DS_Store
-build/
 bun.lockb
 local-notes.md
-n64.min.js
-n64.min.js.map
-n64js.sublime-workspace
 node_modules/
 package-lock.json

@@ -10,7 +10,25 @@ Mostly for the challenge. I've spent ~25 years (on and off) working on N64 emula
 
 A hosted version is available on GitHub pages at https://hulkholden.github.io/n64js/.
 
-If you want to run it locally, just run `python3 -m http.server` or equivalent in the root directory and navigate to http://localhost:8000/.
+## Development
+
+Install `bun`': https://bun.sh/.
+
+Compile sources (pass --watch to automatically recompile on any change):
+
+```
+bun run build --watch
+```
+
+Run a local webserver in the root directory:
+
+```
+python3 -m http.server
+```
+
+Navigate to http://localhost:8000/.
+
+If you want to run without installing bun, you can change the importmap in index.html to point at src/n64.js instead of build/n64.min.js.
 
 ## Compatibility
 

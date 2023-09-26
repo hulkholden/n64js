@@ -5,8 +5,8 @@
   "main": "n64.min.js",
   "type": "module",
   "scripts": {
-    "build": "bun build ./src/n64.js --outfile=n64.js",
-    "build-minify": "bun build --minify ./src/n64.min.js --outfile=n64.min.js --sourcemap"
+    "build": "bun build ./src/n64.js --outfile=build/n64.min.js --minify",
+    "build-debug": "bun build ./src/n64.js --outfile=build/n64.min.js --sourcemap --minify"
   },
   "repository": {
     "type": "git",
