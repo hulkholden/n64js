@@ -145,7 +145,7 @@ table .impl100 {
 }
 
 .hle-cur-instr {
-  background-color: var(--bs-success);
+  background-color: #198754;
 }
 
 .combine {
@@ -175,6 +175,14 @@ table .impl100 {
 .dl-debug-table th,
 .dl-debug-table td {
   padding: 2px 10px;
+}
+
+.dl-debug-geommode-enabled {
+  background-color: #198754;
+}
+
+.dl-debug-geommode-disabled {
+  background-color: #dc3545;
 }
 
 .clip-pos {
