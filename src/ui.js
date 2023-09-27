@@ -61,7 +61,7 @@ export class UI {
   }
 
   setRunning(running) {
-    const html = running ? '<i class="glyphicon glyphicon-pause"></i> Pause' : '<i class="glyphicon glyphicon-play"></i> Run';
+    const html = running ? '<i class="bi-pause"></i> Pause' : '<i class="bi-play"></i> Run';
     $('#runbutton').html(html);
   }
 }
