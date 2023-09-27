@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-bs-theme="light">
 
 <head>
   <!-- Google tag (gtag.js) -->
@@ -16,7 +16,9 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <link rel="stylesheet" href="css/bootstrap.css">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
   <link rel="stylesheet" href="n64js.css">
 
   <title>n64js - An N64 Emulator in Javascript</title>
@@ -25,32 +27,32 @@
 <body>
   <div class="container-fluid">
     <div class="row">
-      <div class="col-xs-12">
+      <div class="col col-sm-12">
         <h1 id="title">n64js</a></h1>
         <p>A work-in-progress n64 emulator. <a onclick="$('#info').toggle()">Info</a></p>
       </div>
     </div>
 
     <div class="row toolbar">
-      <div class="col-xs-12">
+      <div class="col col-sm-12">
         <div class="btn-toolbar">
           <div class="btn-group">
-            <button type="button" class="btn btn-default" onclick="n64js.ui().triggerLoad()">
-              <i class="glyphicon glyphicon-file"></i> Load</button>
+            <button type="button" class="btn" onclick="n64js.ui().triggerLoad()">
+              <i class="bi-file-earmark-binary"></i> Load</button>
           </div>
           <div class="btn-group">
-            <button type="button" class="btn btn-default" onclick="n64js.toggleRun()" id="runbutton">
-              <i class="glyphicon glyphicon-play"></i> Run</button>
+            <button type="button" class="btn" onclick="n64js.toggleRun()" id="runbutton">
+              <i class="bi-play"></i> Run</button>
           </div>
           <div class="btn-group">
-            <button type="button" class="btn btn-default" onclick="n64js.toggleFullscreen()">
-              <i class="glyphicon glyphicon-fullscreen"></i> Fullscreen</button>
+            <button type="button" class="btn" onclick="n64js.toggleFullscreen()">
+              <i class="bi-fullscreen"></i> Fullscreen</button>
           </div>
           <div class="btn-group">
-            <button type="button" class="btn btn-default" onclick="n64js.toggleDebugger()">
-              <i class="glyphicon glyphicon-fire"></i> Debug</button>
-            <button type="button" class="btn btn-default" onclick="n64js.togglePerformance()">
-              <i class="glyphicon glyphicon-signal"></i> Perf</button>
+            <button type="button" class="btn" onclick="n64js.toggleDebugger()">
+              <i class="bi-bug"></i> Debug</button>
+            <button type="button" class="btn" onclick="n64js.togglePerformance()">
+              <i class="bi-graph-up"></i> Perf</button>
           </div>
           <input style="visibility:hidden; display:inline-block;" id="fileInput" name="fileInput" type="file"
             onchange="n64js.ui().loadFile()" />
@@ -59,18 +61,18 @@
     </div>
 
     <div class="row">
-      <div class="col-xs-12" id="alerts"></div>
+      <div class="col col-sm-12" id="alerts"></div>
     </div>
 
     <div class="row">
-      <div style="white-space:nowrap;" class="col-xs-8">
+      <div style="white-space:nowrap;" class="col col-sm-8">
         <canvas id="display" width="640" height="480" style="display:inline-block; background-color:#000;"></canvas>
-        <div id="adjacent-debug" class="col-xs-10 debug" style="display:inline-block; float:none;"></div>
+        <div id="adjacent-debug" class="col col-sm-10 debug" style="display:inline-block; float:none;"></div>
       </div>
-      <div class="col-xs-2" id="performance"></div>
+      <div class="col col-sm-2" id="performance"></div>
     </div>
     <div class="row">
-      <div class="col-xs-8" id="info" style="display:none">
+      <div class="col col-sm-8" id="info" style="display:none">
 
         <h2>Status</h2>
         <p>Many games run at close to full speed on a M2 Macbook Pro but there are plenty of graphical issues. Here's a rough
@@ -245,33 +247,51 @@
 
     <div class="debug" style="display:none">
       <div class="row">
-        <div class="col-xs-4">
-          <div id="cpu-controls" class="cpu-controls">
-            <div class="control-group">
-              <button type="button" class="btn btn-default" onclick="n64js.step()">
-                <i class="glyphicon glyphicon-step-forward"></i> Step</button>
+        <div class="col col-sm-4">
+          <form>
+            <div class="input-group">
+              <button type="button" class="btn" onclick="n64js.step()"><i class="bi-skip-end"></i> Step</button>
             </div>
-            <div class="control-group">
-              <label class="control-label" for="speed">Speed</label>
-              <div class="controls">
-                <input id="speed" type="range" min="0" max="8" value="0" />
-              </div>
+            <div class="input-group">
+              <label class="form-label" for="speed">Speed</label>
+              <input class="form-range" type="range" min="0" max="8" value="0" id="cpu-speed" />
             </div>
-          </div>
+          </form>
         </div>
       </div>
 
       <div class="row">
-        <div class="col-xs-12">
+        <div class="col col-sm-12">
           <div class="tabbable">
-            <ul class="nav nav-tabs">
-              <li class="active"><a href="#output-content" id="output-tab" data-toggle="tab">Output</a></li>
-              <li><a href="#cpu-content" id="cpu-tab" data-toggle="tab">CPU</a></li>
-              <li><a href="#rsp-content" id="rsp-tab" data-toggle="tab">RSP</a></li>
-              <li><a href="#memory-content" id="memory-tab" data-toggle="tab">Memory</a></li>
-              <li><a href="#dynarec-content" id="dynarec-tab" data-toggle="tab">Dynarec</a></li>
-              <li><a href="#dlist-content" id="dlist-tab" data-toggle="tab">DisplayList</a></li>
-              <li><a href="#texture-content" id="texture-tab" data-toggle="tab">Textures</a></li>
+            <ul class="nav nav-underline">
+              <li class="nav-item">
+                <button class="nav-link active" id="output-tab" data-bs-toggle="tab" data-bs-target="#output-content" type="button"
+                  role="tab">Output</button>
+              </li>
+              <li class="nav-item">
+                <button class="nav-link" id="cpu-tab" data-bs-toggle="tab" data-bs-target="#cpu-content" type="button"
+                  role="tab">CPU</button>
+              </li>
+              <li class="nav-item">
+                <button class="nav-link" id="rsp-tab" data-bs-toggle="tab" data-bs-target="#rsp-content" type="button"
+                  role="tab">RSP</button>
+              </li>
+              <li class="nav-item">
+                <button class="nav-link" id="memory-tab" data-bs-toggle="tab" data-bs-target="#memory-content" type="button"
+                  role="tab">Memory</button>
+              </li>
+              <li class="nav-item">
+                <button class="nav-link" id="dynarec-tab" data-bs-toggle="tab" data-bs-target="#dynarec-content" type="button"
+                  role="tab">Dynarec</button>
+              </li>
+              <li class="nav-item">
+                <button class="nav-link" id="dlist-tab" data-bs-toggle="tab" data-bs-target="#dlist-content" type="button"
+                  role="tab">DisplayList</button>
+              </li>
+              <li class="nav-item">
+                <button class="nav-link" id="texture-tab" data-bs-toggle="tab" data-bs-target="#texture-content" type="button"
+                  role="tab">Textures</button>
+              </li>
             </ul>
             <div class="tab-content">
               <div class="tab-pane active" id="output-content"></div>
@@ -282,12 +302,14 @@
                     <div id="cpu0-status"></div>
 
                     <div class="tabbable tabs-left">
-                      <ul class="nav nav-tabs">
-                        <li class="active">
-                          <a href="#cpu0-content" id="cpu0-tab" data-toggle="tab">cpu0</a>
+                      <ul class="nav nav-underline">
+                        <li class="nav-item">
+                          <button class="nav-link active" id="cpu0-tab" data-bs-toggle="tab" data-bs-target="#cpu0-content" type="button"
+                            role="tab">cpu0</button>
                         </li>
-                        <li>
-                          <a href="#cpu1-content" id="cpu1-tab" data-toggle="tab">cpu1</a>
+                        <li class="nav-item">
+                          <button class="nav-link" id="cpu1-tab" data-bs-toggle="tab" data-bs-target="#cpu1-content" type="button"
+                            role="tab">cpu1</button>
                         </li>
                       </ul>
                       <div class="tab-content">
@@ -368,12 +390,12 @@
                 <div id="controls">
                   <div class="btn-toolbar">
                     <div class="btn-group">
-                      <button type="button" class="btn btn-default" id="rwd">
-                        <i class="glyphicon glyphicon-step-backward"></i></button>
-                      <button type="button" class="btn btn-default" id="stop">
-                        <i class="glyphicon glyphicon-pause"></i></button>
-                      <button type="button" class="btn btn-default" id="fwd">
-                        <i class="glyphicon glyphicon-step-forward"></i></button>
+                      <button type="button" class="btn" id="rwd">
+                        <i class="bi-skip-start"></i></button>
+                      <button type="button" class="btn" id="stop">
+                        <i class="bi-pause"></i></button>
+                      <button type="button" class="btn" id="fwd">
+                        <i class="bi-skip-end"></i></button>
                     </div>
                   </div>
                   <div class="scrub">
@@ -385,13 +407,21 @@
 
                     <div class="tabbable">
                       <ul class="nav nav-tabs">
-                        <li><a href="#dl-geometrymode-content" id="dl-geometrymode-tab" data-toggle="tab">
-                            Geometry Mode</a></li>
-                        <li><a href="#dl-vertices-content" id="dl-vertices-tab" data-toggle="tab">Vertices</a></li>
-                        <li class="active"><a href="#dl-textures-content" id="dl-textures-tab"
-                            data-toggle="tab">Textures</a></li>
-                        <li><a href="#dl-combiner-content" id="dl-combiner-tab" data-toggle="tab">Combiner</a></li>
-                        <li><a href="#dl-rdp-content" id="dl-rdp-tab" data-toggle="tab">RDP</a></li>
+                        <li class="nav-item">
+                          <a href="#dl-geometrymode-content" id="dl-geometrymode-tab" data-toggle="tab">Geometry Mode</a>
+                        </li>
+                        <li class="nav-item">
+                          <a href="#dl-vertices-content" id="dl-vertices-tab" data-toggle="tab">Vertices</a>
+                        </li>
+                        <li class="nav-item active">
+                          <a href="#dl-textures-content" id="dl-textures-tab" data-toggle="tab">Textures</a>
+                        </li>
+                        <li class="nav-item">
+                          <a href="#dl-combiner-content" id="dl-combiner-tab" data-toggle="tab">Combiner</a>
+                        </li>
+                        <li class="nav-item">
+                          <a href="#dl-rdp-content" id="dl-rdp-tab" data-toggle="tab">RDP</a>
+                        </li>
                       </ul>
                       <div class="tab-content">
                         <div class="tab-pane" id="dl-geometrymode-content"></div>
@@ -418,9 +448,9 @@
       </div>
 
       <div class="row">
-        <div class="col-xs-12" id="output">
-          <button type="button" class="btn btn-default" id="clear">
-            <i class="glyphicon glyphicon-trash"></i>
+        <div class="col col-sm-12" id="output">
+          <button type="button" class="btn" id="clear">
+            <i class="bi-trash"></i>
             Clear</button>
           <div class="output fixed"></div>
         </div>
@@ -428,7 +458,7 @@
     </div>
 
     <div class="row">
-      <div class="col-xs-12">
+      <div class="col col-sm-12">
         <p>By <a href="https://twitter.com/#!/hulkholden">@HulkHolden</a>. <a
             href="http://n64js.blogspot.co.uk/">Blog</a>. <a href="https://github.com/hulkholden/n64js">Code</a>. <a
             href="http://www.youtube.com/user/n64js">Videos</a>.</p>
@@ -444,7 +474,9 @@
     }
   </script>
   <script src="js/jquery.min.js"></script>
-  <script src="js/bootstrap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
+    integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+  <script src="js/bootstrap-color-mode-toggler.js"></script>
   <script src="js/md5.js"></script>
   <script src="js/stats.js"></script>
   <script src="js/webgl-debug.js"></script>

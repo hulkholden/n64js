@@ -404,7 +404,7 @@ export class Debugger {
 
     const that = this;
 
-    $('#cpu-controls').find('#speed').change(function () {
+    $('#cpu-speed').change(function () {
       that.debugCycles = Math.pow(10, $(this).val() | 0);
       logger.log('Speed is now ' + that.debugCycles);
     });
@@ -690,6 +690,7 @@ export class Debugger {
       });
     }.bind(this));
 
+    // TODO: apply a class rather than a colour.
     let registerColours = this.makeRegisterColours(currentInstruction);
     for (let [reg, colour] of registerColours) {
       $disText.find('.dis-reg-' + reg).css('background-color', colour);
@@ -799,9 +800,9 @@ export class Debugger {
    */
   makeRegisterColours(instruction) {
     const availColours = [
-      '#F4EEAF', // yellow
-      '#AFF4BB', // green
-      '#F4AFBE'  // blue
+      '#fd7e14', // yellow
+      '#198754', // green
+      '#0d6efd'  // blue
     ];
 
     let registerColours = new Map();

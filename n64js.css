@@ -2,6 +2,11 @@ canvas {
   cursor: none;
 }
 
+pre {
+  font-family: Menlo,Monaco,'Courier New',monospace;
+  font-size: 12px;
+}
+
 .toolbar {
   margin-bottom: 15px;
 }
@@ -51,12 +56,12 @@ canvas {
   color: red;
   border: 0;
   border-radius: 0;
-  background-color: #ccc;
+  background-color: var(--bs-secondary-bg);
 }
 .dis-view pre {
   border: 0;
   border-radius: 0;
-  background-color: whiteSmoke;
+  background-color: var(--bs-body-bg);
 }
 
 pre .dis-address-jump {
@@ -72,10 +77,10 @@ pre .dis-address {
   color: #999;
 }
 pre .dis-line-target {
-  background-color: #eee;
+  background-color: var(--bs-tertiary-bg);
 }
 pre .dis-line-cur {
-  background-color: #ffa;
+  background-color: var(--bs-secondary-bg);
 }
 
 .output {
@@ -83,13 +88,12 @@ pre .dis-line-cur {
 
   height: 360px;
 
-  color: #fff;
-  background-color: #444;
+  color: var(--bs-body-color);
+  background-color: var(--bs-secondary-bg);
 }
 
 div #disasm {
   display: inline-block;
-
   vertical-align: top;
 }
 
@@ -136,8 +140,12 @@ table .impl100 {
 
   height: 480px;
 
-  color: #fff;
-  background-color: whiteSmoke;
+  color: var(--bs-body-color);
+  background-color: var(--bs-body-bg);
+}
+
+.hle-cur-instr {
+  background-color: var(--bs-success);
 }
 
 .combine {
