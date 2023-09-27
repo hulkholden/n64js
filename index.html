@@ -54,6 +54,27 @@
             <button type="button" class="btn" onclick="n64js.togglePerformance()">
               <i class="bi-graph-up"></i> Perf</button>
           </div>
+          <div class="btn-group">
+            <div class="dropdown">
+              <button class="btn dropdown-toggle" id="bd-theme"
+                type="button" data-bs-toggle="dropdown" data-bs-display="static">
+                <span class="theme-icon-active"><i class="bi-brightness-high"></i></span>
+                <span id="bd-theme-text">Theme</span>
+              </button>
+          
+              <ul class="dropdown-menu">
+                <li>
+                  <button class="dropdown-item" type="button" data-bs-theme-value="light"><i class="bi-brightness-high"></i>
+                    Light</button>
+                  <button class="dropdown-item" type="button" data-bs-theme-value="dark"><i class="bi-moon-stars"></i>
+                    Dark</button>
+                  <button class="dropdown-item" type="button" data-bs-theme-value="auto"><i class="bi-circle-half"></i>
+                    Auto</button>
+                </li>
+              </ul>
+            </div>
+          </div>
+
           <input style="visibility:hidden; display:inline-block;" id="fileInput" name="fileInput" type="file"
             onchange="n64js.ui().loadFile()" />
         </div>
