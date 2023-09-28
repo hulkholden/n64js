@@ -146,7 +146,7 @@ class R4300DebugState extends CPUDebugState {
       let $tr = $('<tr />');
       for (let r = 0; r < kRegistersPerRow; ++r) {
         let name = cop0gprNames[i + r];
-        let $td = $('<td>' + name + '</td><td class="fixed">' + toString64(cpu0.getRegU64(i + r)) + '</td>');
+        let $td = $(`<td>${name}</td><td class="fixed">${toString64(cpu0.getRegU64(i + r))}</td>`);
 
         if (registerColours.has(name)) {
           $td.attr('bgcolor', registerColours.get(name));
@@ -173,17 +173,15 @@ class R4300DebugState extends CPUDebugState {
 
       let $td;
       if ((i & 1) === 0) {
-        $td = $('<td>' + name +
-          '</td><td class="fixed fp-w">' + toString32(cpu1.regU32[i]) +
-          '</td><td class="fixed fp-s">' + cpu1.regF32[i] +
-          '</td><td class="fixed fp-d">' + cpu1.regF64[i / 2] +
-          '</td>');
+        $td = $(`<td>${name}</td>
+                 <td class="fixed fp-w">${toString32(cpu1.regU32[i])}</td>
+                 <td class="fixed fp-s">${cpu1.regF32[i]}</td>
+                 <td class="fixed fp-d">${cpu1.regF64[i / 2]}</td>`);
       } else {
-        $td = $('<td>' + name +
-          '</td><td class="fixed fp-w">' + toString32(cpu1.regU32[i]) +
-          '</td><td class="fixed fp-s">' + cpu1.regF32[i] +
-          '</td><td>' +
-          '</td>');
+        $td = $(`<td>${name}</td>
+                 <td class="fixed fp-w">${toString32(cpu1.regU32[i])}</td>
+                 <td class="fixed fp-s">${cpu1.regF32[i]}</td>
+                 <td></td>`);
       }
 
       let $tr = $('<tr />');
@@ -215,27 +213,25 @@ class RSPDebugState extends CPUDebugState {
     let $table = $('<table class="register-table"><tbody></tbody></table>');
     let $body = $table.find('tbody');
     $body.append(`<tr>
-      <td>Halted</td><td class="fixed">${rsp.halted}</td>
-    </tr>`);
+                    <td>Halted</td><td class="fixed">${rsp.halted}</td>
+                  </tr>`);
     $body.append(`<tr>
-      <td>PC</td><td class="fixed">${toString32(rsp.pc)}</td>
-      <td>delayPC</td><td class="fixed">${toString32(rsp.delayPC)}</td>
-    </tr>`);
+                    <td>PC</td><td class="fixed">${toString32(rsp.pc)}</td>
+                    <td>delayPC</td><td class="fixed">${toString32(rsp.delayPC)}</td>
+                  </tr>`);
     $body.append(`<tr>
-      <td>nextPC</td><td class="fixed">${toString32(rsp.nextPC)}</td>
-      <td>branchTarget</td><td class="fixed">${toString32(rsp.branchTarget)}</td>
-    </tr>`);
-
+                    <td>nextPC</td><td class="fixed">${toString32(rsp.nextPC)}</td>
+                    <td>branchTarget</td><td class="fixed">${toString32(rsp.branchTarget)}</td>
+                  </tr>`);
     $body.append(`<tr>
-      <td>VCO</td><td class="fixed">${toString16(rsp.VCO)}</td>
-    </tr>`);
+                    <td>VCO</td><td class="fixed">${toString16(rsp.VCO)}</td>
+                  </tr>`);
     $body.append(`<tr>
-      <td>VCC</td><td class="fixed">${toString16(rsp.VCC)}</td>
-    </tr>`);
-
+                    <td>VCC</td><td class="fixed">${toString16(rsp.VCC)}</td>
+                  </tr>`);
     $body.append(`<tr>
-      <td>VCE</td><td class="fixed">${toString8(rsp.VCE)}</td>
-    </tr>`);    
+                    <td>VCE</td><td class="fixed">${toString8(rsp.VCE)}</td>
+                  </tr>`);    
     return $table;
   }
 
@@ -507,16 +503,16 @@ export class Debugger {
         let mem = n64js.hardware().memMap.readMemoryInternal32(curAddress);
         let style = '';
         if (highlights && highlights.has(curAddress)) {
-          style = ' style="background-color: ' + highlights.get(curAddress) + '"';
+          style = ` style="background-color: ${highlights.get(curAddress)}"`;
         }
-        r += ' <span id="mem-' + toHex(curAddress, 32) + '"' + style + '>' + toHex(mem, 32) + '</span>';
+        r += ` <span id="mem-${toHex(curAddress, 32)}"${style}>${toHex(mem, 32)}</span>`;
       }
 
       r += '\n';
       t += r;
     }
 
-    return $('<span>' + t + '</span>');
+    return $(`<span>${t}</span>`);
   }
 
   // access is {reg,offset,mode}
@@ -575,7 +571,7 @@ export class Debugger {
     let $label = $(e.delegateTarget);
     let address = /** @type {number} */($label.data('address')) >>> 0;
     let existing = this.labelMap.get(address) || '';
-    let $input = $('<input class="input-mini" value="' + existing + '" />');
+    let $input = $(`<input class="input-mini" value="${existing}" />`);
 
     const that = this;
 
@@ -633,7 +629,7 @@ export class Debugger {
       let isTarget = a.isJumpTarget || this.labelMap.has(address);
       let addressStr = (isTarget ? '<span class="dis-address-target">' : '<span class="dis-address">') + toHex(address, 32) + ':</span>';
       let label = `<span class="dis-label">${this.makeLabelText(address)}</span>`;
-      let t = addressStr + '  ' + toHex(a.instruction.opcode, 32) + '  ' + label + a.disassembly;
+      let t = `${addressStr}  ${toHex(a.instruction.opcode, 32)}  ${label}${a.disassembly}`;
 
       let fragment = fragmentMap.get(address);
       if (fragment) {
@@ -730,7 +726,7 @@ export class Debugger {
       let isTarget = a.isJumpTarget || this.labelMap.has(address);
       let addressStr = (isTarget ? '<span class="dis-address-target">' : '<span class="dis-address">') + toHex(address, 32) + ':</span>';
       let label = `<span class="dis-label">${this.makeLabelText(address)}</span>`;
-      let t = addressStr + '  ' + toHex(a.instruction.opcode, 32) + '  ' + label + a.disassembly;
+      let t = `${addressStr}  ${toHex(a.instruction.opcode, 32)}  ${label}${a.disassembly}`;
 
       let $line = $(`<span class="dis-line">${t}</span>`);
       $line.find('.dis-label')
@@ -904,8 +900,8 @@ export class Debugger {
     t += '<table class="table table-condensed table-nonfluid"><tr><th>Execution Count</th><th>Frequency</th></tr>';
     for (let i = 0; i <= maxBucket; i++) {
       let count = histogram.get(i) || 0;
-      let range = '< ' + Math.pow(10, i + 1);
-      t += '<tr><td>' + range + '</td><td>' + count + '</td></tr>';
+      let range = `< ${Math.pow(10, i + 1)}`;
+      t += `<tr><td>${range}</td><td>${count}</td></tr>`;
     }
     t += '</table>';
     t += '</div>';
@@ -937,7 +933,7 @@ export class Debugger {
           invals[i].system,
           invals[i].fragmentsRemoved,
         ];
-        t += '<tr><td>' + vals.join('</td><td>') + '</td></tr>';
+        t += `<tr><td>${vals.join('</td><td>')}</td></tr>`;
       }
       t += '</table>';
       t += '</div>';
@@ -953,7 +949,7 @@ export class Debugger {
     let $table = $('<table class="table table-condensed" />');
     let columns = ['Address', 'Execution Count', 'Length', 'ExecCount * Length'];
 
-    $table.append('<tr><th>' + columns.join('</th><th>') + '</th></tr>');
+    $table.append(`<tr><th>${columns.join('</th><th>')}</th></tr>`);
     for (let i = 0; i < fragmentsList.length && i < 20; ++i) {
       let fragment = fragmentsList[i];
       let vals = [
@@ -962,20 +958,20 @@ export class Debugger {
         fragment.opsCompiled,
         fragment.executionCount * fragment.opsCompiled
       ];
-      let $tr = $('<tr><td>' + vals.join('</td><td>') + '</td></tr>');
+      let $tr = $(`<tr><td>${vals.join('</td><td>')}</td></tr>`);
       this.initFragmentRow($tr, fragment, $code);
       $table.append($tr);
     }
     $fragmentDiv.find('#fragments').append($table);
 
     if (fragmentsList.length > 0) {
-      $code.append('<pre>' + fragmentsList[0].func.toString() + '</pre>');
+      $code.append(`<pre>${fragmentsList[0].func.toString()}</pre>`);
     }
   }
 
   initFragmentRow($tr, fragment, $code) {
     $tr.click(() => {
-      $code.html('<pre>' + fragment.func.toString() + '</pre>');
+      $code.html(`<pre>${fragment.func.toString()}</pre>`);
     });
   }
 
