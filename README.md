@@ -66,6 +66,36 @@ Graphics are rendered using high-level emulation and there are still a lot of TO
 I've been testing on an Apple M2 Max and most roms run at full framerate *most* of the time.
 LLE audio emulation seems to be the biggest performance hit. To date I've mostly been focussed compatibility so there are likely a lot of improvements to be made here. 
 
+## Implementation Status
+
+* [ ] CPU
+  * [x] cop0 instructions
+  * [x] cop1 instructions
+  * [x] TLB
+  * [ ] Cycle accuracy
+* [x] RSP
+* [ ] Controller
+  * [x] Static key bindings
+  * [ ] Configurable bindings
+  * [ ] Gamepad API
+* [ ] Graphics
+  * [ ] HLE
+    * [ ] GBI0 - mostly implemented
+    * [ ] GBI1 - partially implemented
+    * [ ] GIB2 - partically immplemented
+  * [ ] LLE - not implemented
+* [ ] Audio
+  * [ ] HLE - not implemented
+  * [x] LLE - implemented
+* [ ] Save
+  * [x] Persistance (via localStorage)
+  * [ ] Import/Export
+  * [x] Mempack
+  * [x] Eeprom 4k
+  * [x] Eeprom 16k
+  * [x] SRAM
+  * [x] FlashRAM
+
 ## TODOs
 
 Here's some things I'd like to get around to:
