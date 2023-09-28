@@ -96,63 +96,9 @@
       <div class="col col-sm-8" id="info" style="display:none">
 
         <h2>Status</h2>
-        <p>Many games run at close to full speed on a M2 Macbook Pro but there are plenty of graphical issues. Here's a rough
-          feature matirx showing what's been implemented:</p>
-
-        <table class="table table-condensed">
-          <tr>
-            <td>CPU</td>
-            <td class="impl100">Implemented</td>
-          </tr>
-          <tr>
-            <td>TLB</td>
-            <td class="impl100">Implemented</td>
-          </tr>
-          <tr>
-            <td>RSP</td>
-            <td class="impl100">Implemented</td>
-          </tr>
-          <tr>
-            <td>Controller</td>
-            <td class="impl80">Mostly implemented</td>
-          </tr>
-          <tr>
-            <td>Graphics - GBI0</td>
-            <td class="impl80">Mostly implemented</td>
-          </tr>
-          <tr>
-            <td>Graphics - GBI1</td>
-            <td class="impl40">Partially implemented</td>
-          </tr>
-          <tr>
-            <td>Graphics - GBI2</td>
-            <td class="impl40">Partially implemented</td>
-          </tr>
-          <tr>
-            <td>Audio (LLE)</td>
-            <td class="impl100">Implemented</td>
-          </tr>
-          <tr>
-            <td>Save - Eeprom4k</td>
-            <td class="impl100">Implemented</td>
-          </tr>
-          <tr>
-            <td>Save - Eeprom4k</td>
-            <td class="impl100">Implemented</td>
-          </tr>
-          <tr>
-            <td>Save - SRAM</td>
-            <td class="impl100">Implemented</td>
-          </tr>
-          <tr>
-            <td>Save - FlashRAM</td>
-            <td class="impl100">Implemented</td>
-          </tr>
-          <tr>
-            <td>Save - Mempack</td>
-            <td class="impl100">Implemented</td>
-          </tr>
-        </table>
+        <p>Many games run at close to full speed on a M2 Macbook Pro but there are plenty of graphical issues.
+          See <a href="https://github.com/hulkholden/n64js">github</a> for the latest status.
+        </p>
 
         <h2>Supported Browsers</h2>
 
@@ -179,20 +125,22 @@
 
         <p>WebGL is required, which places certain restrictions on which GPUs the emulator will work with.</p>
 
-        <p><a href="https://twitter.com/#!/hulkholden">Tweet me</a> if you have any additional info.</p>
+        <p>Get in touch via <a href="https://twitter.com/#!/hulkholden">twitter</a> if you have any additional info.</p>
 
         <h2>Known Issues</h2>
 
-        <p>There's lots of issues right now with slow performance, graphics glitches, unsupported opcodes, emulation
-          bugs. It's probably easier just to list stuff that actually works right now :)
-        </p>
+        <p>See <a href="https://github.com/hulkholden/n64js/issues">github</a>.</p>
 
         <h2>Controls</h2>
-        <table class="table table-condensed">
+        <table class="table table-sm">
+          <thead>
+
           <tr>
             <th>N64</th>
             <th>Keyboard</th>
           </tr>
+        </thead>
+        <tbody class="table-group-divider">
           <tr>
             <td>Start</td>
             <td>A</td>
@@ -249,6 +197,7 @@
             <td>C Right</td>
             <td>L</td>
           </tr>
+        </tbody>
         </table>
 
         <h2>Origins</h2>
