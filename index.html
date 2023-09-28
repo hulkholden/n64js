@@ -17,7 +17,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"
-    integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+        integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
   <link rel="stylesheet" href="n64js.css">
 
@@ -56,15 +56,16 @@
           </div>
           <div class="btn-group">
             <div class="dropdown">
-              <button class="btn dropdown-toggle" id="bd-theme"
-                type="button" data-bs-toggle="dropdown" data-bs-display="static">
+              <button class="btn dropdown-toggle" id="bd-theme" type="button" data-bs-toggle="dropdown"
+                      data-bs-display="static">
                 <span class="theme-icon-active"><i class="bi-brightness-high"></i></span>
                 <span id="bd-theme-text">Theme</span>
               </button>
-          
+
               <ul class="dropdown-menu">
                 <li>
-                  <button class="dropdown-item" type="button" data-bs-theme-value="light"><i class="bi-brightness-high"></i>
+                  <button class="dropdown-item" type="button" data-bs-theme-value="light"><i
+                       class="bi-brightness-high"></i>
                     Light</button>
                   <button class="dropdown-item" type="button" data-bs-theme-value="dark"><i class="bi-moon-stars"></i>
                     Dark</button>
@@ -76,7 +77,7 @@
           </div>
 
           <input style="visibility:hidden; display:inline-block;" id="fileInput" name="fileInput" type="file"
-            onchange="n64js.ui().loadFile()" />
+                 onchange="n64js.ui().loadFile()" />
         </div>
       </div>
     </div>
@@ -134,75 +135,74 @@
         <h2>Controls</h2>
         <table class="table table-sm">
           <thead>
-
-          <tr>
-            <th>N64</th>
-            <th>Keyboard</th>
-          </tr>
-        </thead>
-        <tbody class="table-group-divider">
-          <tr>
-            <td>Start</td>
-            <td>A</td>
-          </tr>
-          <tr>
-            <td>A</td>
-            <td>S</td>
-          </tr>
-          <tr>
-            <td>B</td>
-            <td>X</td>
-          </tr>
-          <tr>
-            <td>Z</td>
-            <td>Z</td>
-          </tr>
-          <tr>
-            <td>L</td>
-            <td>C</td>
-          </tr>
-          <tr>
-            <td>R</td>
-            <td>V</td>
-          </tr>
-          <tr>
-            <td>DPad Up</td>
-            <td>T</td>
-          </tr>
-          <tr>
-            <td>DPad Down</td>
-            <td>G</td>
-          </tr>
-          <tr>
-            <td>DPad Left</td>
-            <td>F</td>
-          </tr>
-          <tr>
-            <td>DPad Right</td>
-            <td>H</td>
-          </tr>
-          <tr>
-            <td>C Up</td>
-            <td>I</td>
-          </tr>
-          <tr>
-            <td>C Down</td>
-            <td>K</td>
-          </tr>
-          <tr>
-            <td>C Left</td>
-            <td>J</td>
-          </tr>
-          <tr>
-            <td>C Right</td>
-            <td>L</td>
-          </tr>
-        </tbody>
+            <tr>
+              <th>N64</th>
+              <th>Keyboard</th>
+            </tr>
+          </thead>
+          <tbody class="table-group-divider">
+            <tr>
+              <td>Start</td>
+              <td>A</td>
+            </tr>
+            <tr>
+              <td>A</td>
+              <td>S</td>
+            </tr>
+            <tr>
+              <td>B</td>
+              <td>X</td>
+            </tr>
+            <tr>
+              <td>Z</td>
+              <td>Z</td>
+            </tr>
+            <tr>
+              <td>L</td>
+              <td>C</td>
+            </tr>
+            <tr>
+              <td>R</td>
+              <td>V</td>
+            </tr>
+            <tr>
+              <td>DPad Up</td>
+              <td>T</td>
+            </tr>
+            <tr>
+              <td>DPad Down</td>
+              <td>G</td>
+            </tr>
+            <tr>
+              <td>DPad Left</td>
+              <td>F</td>
+            </tr>
+            <tr>
+              <td>DPad Right</td>
+              <td>H</td>
+            </tr>
+            <tr>
+              <td>C Up</td>
+              <td>I</td>
+            </tr>
+            <tr>
+              <td>C Down</td>
+              <td>K</td>
+            </tr>
+            <tr>
+              <td>C Left</td>
+              <td>J</td>
+            </tr>
+            <tr>
+              <td>C Right</td>
+              <td>L</td>
+            </tr>
+          </tbody>
         </table>
 
         <h2>Origins</h2>
         <p>n64js is based on Daedalus, an emulator I started writing while I was at university under a pseudonym of <a
-            href="http://strmnnrmn.blogspot.co.uk/">StrmnNrmn</a>.
+             href="http://strmnnrmn.blogspot.co.uk/">StrmnNrmn</a>.
           I've worked on Daedalus intermittantly ever since, but life and work have limited the time I've been able to
           spend on the project in the past few years. The project
           lives on due to the excellent work of everyone at <a href="http://forums.daedalusx64.com/">DaedalusX</a>. In
@@ -235,32 +235,32 @@
           <div class="tabbable">
             <ul class="nav nav-underline">
               <li class="nav-item">
-                <button class="nav-link active" id="output-tab" data-bs-toggle="tab" data-bs-target="#output-content" type="button"
-                  role="tab">Output</button>
+                <button class="nav-link active" id="output-tab" data-bs-toggle="tab" data-bs-target="#output-content"
+                        type="button" role="tab">Output</button>
               </li>
               <li class="nav-item">
                 <button class="nav-link" id="cpu-tab" data-bs-toggle="tab" data-bs-target="#cpu-content" type="button"
-                  role="tab">CPU</button>
+                        role="tab">CPU</button>
               </li>
               <li class="nav-item">
                 <button class="nav-link" id="rsp-tab" data-bs-toggle="tab" data-bs-target="#rsp-content" type="button"
-                  role="tab">RSP</button>
+                        role="tab">RSP</button>
               </li>
               <li class="nav-item">
-                <button class="nav-link" id="memory-tab" data-bs-toggle="tab" data-bs-target="#memory-content" type="button"
-                  role="tab">Memory</button>
+                <button class="nav-link" id="memory-tab" data-bs-toggle="tab" data-bs-target="#memory-content"
+                        type="button" role="tab">Memory</button>
               </li>
               <li class="nav-item">
-                <button class="nav-link" id="dynarec-tab" data-bs-toggle="tab" data-bs-target="#dynarec-content" type="button"
-                  role="tab">Dynarec</button>
+                <button class="nav-link" id="dynarec-tab" data-bs-toggle="tab" data-bs-target="#dynarec-content"
+                        type="button" role="tab">Dynarec</button>
               </li>
               <li class="nav-item">
-                <button class="nav-link" id="dlist-tab" data-bs-toggle="tab" data-bs-target="#dlist-content" type="button"
-                  role="tab">DisplayList</button>
+                <button class="nav-link" id="dlist-tab" data-bs-toggle="tab" data-bs-target="#dlist-content"
+                        type="button" role="tab">DisplayList</button>
               </li>
               <li class="nav-item">
-                <button class="nav-link" id="texture-tab" data-bs-toggle="tab" data-bs-target="#texture-content" type="button"
-                  role="tab">Textures</button>
+                <button class="nav-link" id="texture-tab" data-bs-toggle="tab" data-bs-target="#texture-content"
+                        type="button" role="tab">Textures</button>
               </li>
             </ul>
             <div class="tab-content">
@@ -274,12 +274,12 @@
                     <div class="tabbable tabs-left">
                       <ul class="nav nav-underline">
                         <li class="nav-item">
-                          <button class="nav-link active" id="cpu0-tab" data-bs-toggle="tab" data-bs-target="#cpu0-content" type="button"
-                            role="tab">cpu0</button>
+                          <button class="nav-link active" id="cpu0-tab" data-bs-toggle="tab"
+                                  data-bs-target="#cpu0-content" type="button" role="tab">cpu0</button>
                         </li>
                         <li class="nav-item">
-                          <button class="nav-link" id="cpu1-tab" data-bs-toggle="tab" data-bs-target="#cpu1-content" type="button"
-                            role="tab">cpu1</button>
+                          <button class="nav-link" id="cpu1-tab" data-bs-toggle="tab" data-bs-target="#cpu1-content"
+                                  type="button" role="tab">cpu1</button>
                         </li>
                       </ul>
                       <div class="tab-content">
@@ -378,24 +378,25 @@
                     <div class="tabbable">
                       <ul class="nav nav-underline">
                         <li class="nav-item">
-                          <button class="nav-link" id="dl-geometrymode-tab" data-bs-toggle="tab" data-bs-target="#dl-geometrymode-content"
-                            type="button" role="tab">Geometry Mode</button>
+                          <button class="nav-link" id="dl-geometrymode-tab" data-bs-toggle="tab"
+                                  data-bs-target="#dl-geometrymode-content" type="button" role="tab">Geometry
+                            Mode</button>
                         </li>
                         <li class="nav-item">
-                          <button class="nav-link" id="dl-vertices-tab" data-bs-toggle="tab" data-bs-target="#dl-vertices-content" type="button"
-                            role="tab">Vertices</button>
+                          <button class="nav-link" id="dl-vertices-tab" data-bs-toggle="tab"
+                                  data-bs-target="#dl-vertices-content" type="button" role="tab">Vertices</button>
                         </li>
                         <li class="nav-item">
-                          <button class="nav-link active" id="dl-textures-tab" data-bs-toggle="tab" data-bs-target="#dl-textures-content"
-                            type="button" role="tab">Textures</button>
+                          <button class="nav-link active" id="dl-textures-tab" data-bs-toggle="tab"
+                                  data-bs-target="#dl-textures-content" type="button" role="tab">Textures</button>
                         </li>
                         <li class="nav-item">
-                          <button class="nav-link" id="dl-combiner-tab" data-bs-toggle="tab" data-bs-target="#dl-combiner-content" type="button"
-                            role="tab">Combiner</button>
+                          <button class="nav-link" id="dl-combiner-tab" data-bs-toggle="tab"
+                                  data-bs-target="#dl-combiner-content" type="button" role="tab">Combiner</button>
                         </li>
                         <li class="nav-item">
-                          <button class="nav-link" id="dl-rdp-tab" data-bs-toggle="tab" data-bs-target="#dl-rdp-content" type="button"
-                            role="tab">RDP</button>
+                          <button class="nav-link" id="dl-rdp-tab" data-bs-toggle="tab" data-bs-target="#dl-rdp-content"
+                                  type="button" role="tab">RDP</button>
                         </li>
                       </ul>
                       <div class="tab-content">
@@ -435,8 +436,9 @@
     <div class="row">
       <div class="col col-sm-12">
         <p>By <a href="https://twitter.com/#!/hulkholden">@HulkHolden</a>. <a
-            href="http://n64js.blogspot.co.uk/">Blog</a>. <a href="https://github.com/hulkholden/n64js">Code</a>. <a
-            href="http://www.youtube.com/user/n64js">Videos</a>.</p>
+             href="http://n64js.blogspot.co.uk/">Blog</a>. <a href="https://github.com/hulkholden/n64js">Code</a>.
+          <a href="http://www.youtube.com/user/n64js">Videos</a>.
+        </p>
       </div>
     </div>
   </div>
@@ -450,7 +452,8 @@
   </script>
   <script src="js/jquery.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"
-    integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+          integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL"
+          crossorigin="anonymous"></script>
   <script src="js/bootstrap-color-mode-toggler.js"></script>
   <script src="js/md5.js"></script>
   <script src="js/stats.js"></script>
