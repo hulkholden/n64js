@@ -313,7 +313,40 @@
               <div class="tab-pane" id="rsp-content">
                 <div id="rsp" class="processor-display">
                   <div class="processor-details">
-                    <div id="rsp-status"></div>
+                    <div id="rsp-status">
+                      <table class="register-table">
+                        <tbody>
+                          <tr>
+                            <td>Halted</td>
+                            <td class="fixed" id="rsp-status-halted"></td>
+                          </tr>
+                          <tr>
+                            <td>PC</td>
+                            <td class="fixed" id="rsp-status-pc"></td>
+                            <td>delayPC</td>
+                            <td class="fixed" id="rsp-status-delaypc"></td>
+                          </tr>
+                          <tr>
+                            <td>nextPC</td>
+                            <td class="fixed" id="rsp-status-nextpc"></td>
+                            <td>branchTarget</td>
+                            <td class="fixed" id="rsp-status-branchtarget"></td>
+                          </tr>
+                          <tr>
+                            <td>VCO</td>
+                            <td class="fixed" id="rsp-status-vco"></td>
+                          </tr>
+                          <tr>
+                            <td>VCC</td>
+                            <td class="fixed" id="rsp-status-vcc"></td>
+                          </tr>
+                          <tr>
+                            <td>VCE</td>
+                            <td class="fixed" id="rsp-status-vce"></td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
 
                     <div class="tabbable tabs-left">
                       <ul class="nav nav-tabs">

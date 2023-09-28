@@ -209,30 +209,15 @@ class RSPDebugState extends CPUDebugState {
     return disassemble_rsp.disassembleRange(this.disasmAddress - 64, this.disasmAddress + 64, true);
   }
 
-  makeStatusTable() {
-    let $table = $('<table class="register-table"><tbody></tbody></table>');
-    let $body = $table.find('tbody');
-    $body.append(`<tr>
-                    <td>Halted</td><td class="fixed">${rsp.halted}</td>
-                  </tr>`);
-    $body.append(`<tr>
-                    <td>PC</td><td class="fixed">${toString32(rsp.pc)}</td>
-                    <td>delayPC</td><td class="fixed">${toString32(rsp.delayPC)}</td>
-                  </tr>`);
-    $body.append(`<tr>
-                    <td>nextPC</td><td class="fixed">${toString32(rsp.nextPC)}</td>
-                    <td>branchTarget</td><td class="fixed">${toString32(rsp.branchTarget)}</td>
-                  </tr>`);
-    $body.append(`<tr>
-                    <td>VCO</td><td class="fixed">${toString16(rsp.VCO)}</td>
-                  </tr>`);
-    $body.append(`<tr>
-                    <td>VCC</td><td class="fixed">${toString16(rsp.VCC)}</td>
-                  </tr>`);
-    $body.append(`<tr>
-                    <td>VCE</td><td class="fixed">${toString8(rsp.VCE)}</td>
-                  </tr>`);    
-    return $table;
+  updateStatusTable() {
+    setTextContent('#rsp-status-halted', rsp.halted);
+    setTextContent('#rsp-status-pc', toString32(rsp.pc));
+    setTextContent('#rsp-status-delaypc', toString32(rsp.delayPC));
+    setTextContent('#rsp-status-nextpc', toString32(rsp.nextPC));
+    setTextContent('#rsp-status-branchtarget', toString32(rsp.branchTarget));
+    setTextContent('#rsp-status-vco', toString16(rsp.VCO));
+    setTextContent('#rsp-status-vcc', toString16(rsp.VCC));
+    setTextContent('#rsp-status-vce', toString8(rsp.VCE));
   }
 
   /**
@@ -782,7 +767,7 @@ export class Debugger {
     this.$rspDisassembly.find('.dis-gutter').empty().append($disGutter);
     this.$rspDisassembly.find('.dis-view').empty().append($disText);
 
-    this.$rspStatus.empty().append(this.rspState.makeStatusTable());
+    this.rspState.updateStatusTable();
 
     this.rspTabs[0].empty().append(this.rspState.makeScalarRegistersTable(registerColours));
     this.rspTabs[1].empty().append(this.rspState.makeVectorRegistersTable(registerColours));
@@ -1034,4 +1019,11 @@ n64js.hideDebugger = () => {
 
 function roundDown(x, a) {
   return x & ~(a - 1);
+}
+
+function setTextContent(id, text) {
+  const elem = document.querySelector(id);
+  if (elem) {
+    elem.textContent = text;
+  }
 }
