@@ -114,15 +114,19 @@ div #disasm {
 }
 
 table .impl0 {
+  color: #000;
   background-color: #c44;
 }
 table .impl40 {
+  color: #000;
   background-color: #cc4;
 }
 table .impl80 {
+  color: #000;
   background-color: #8c4;
 }
 table .impl100 {
+  color: #000;
   background-color: #4f4;
 }
 
