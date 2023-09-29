@@ -9,7 +9,9 @@ import { toggleDebugDisplayList } from './hle/hle_graphics.js';
 import { toHex, toString8, toString16, toString32, toString64 } from './format.js';
 import * as logger from './logger.js';
 import { cpu0, cpu1 } from './r4300.js';
+import * as r4300 from './r4300.js';
 import { rsp } from './rsp.js';
+import * as mi from './devices/mi.js';
 
 window.n64js = window.n64js || {};
 
@@ -45,24 +47,22 @@ class R4300DebugState extends CPUDebugState {
    * Makes a table showing the status register contents.
    * @return {!jQuery}
    */
-  makeStatusTable() {
-    let $table = $('<table class="register-table"><tbody></tbody></table>');
-    let $body = $table.find('tbody');
+  updateStatusTable() {
+    setTextContent('#cpu0-status-opsexecuted', cpu0.opsExecuted);
+    setTextContent('#cpu0-status-pc', toString32(cpu0.pc));
+    setTextContent('#cpu0-status-delaypc', toString32(cpu0.delayPC));
+    setTextContent('#cpu0-status-epc', toString32(cpu0.getControlU32(cpu0_constants.controlEPC)));
+    setTextContent('#cpu0-status-cause', toString32(Number(cpu0.moveFromControl(cpu0_constants.controlCause) & 0xffff_ffffn)));
+    setTextContent('#cpu0-status-count', toString32(Number(cpu0.moveFromControl(cpu0_constants.controlCount) & 0xffff_ffffn)));
+    setTextContent('#cpu0-status-compare', toString32(cpu0.getControlU32(cpu0_constants.controlCompare)));
+    setTextContent('#cpu0-status-multhi', toString64(cpu0.getMultHiU64()));
+    setTextContent('#cpu0-status-multlo', toString64(cpu0.getMultLoU64()));
 
-    $body.append(`<tr><td>Ops</td><td class="fixed">${cpu0.opsExecuted}</td></tr>`);
-    $body.append(`<tr><td>PC</td><td class="fixed">${toString32(cpu0.pc)}</td><td>delayPC</td>
-                                 <td class="fixed">${toString32(cpu0.delayPC)}</td></tr>`);
-    $body.append(`<tr><td>EPC</td><td class="fixed">${toString32(cpu0.getControlU32(cpu0_constants.controlEPC))}</td></tr>`);
-    $body.append(`<tr><td>MultHi</td><td class="fixed">${toString64(cpu0.getMultHiU64())}</td>
-                      <td>Cause</td><td class="fixed">${toString32(Number(cpu0.moveFromControl(cpu0_constants.controlCause) & 0xffff_ffffn))}</td></tr>`);
-    $body.append(`<tr><td>MultLo</td><td class="fixed">${toString64(cpu0.getMultLoU64())}</td>
-                      <td>Count</td><td class="fixed">${toString32(Number(cpu0.moveFromControl(cpu0_constants.controlCount) & 0xffff_ffffn))}</td></tr>`);
-    $body.append(`<tr><td></td><td class="fixed"></td><td>Compare</td><td class="fixed">${toString32(cpu0.getControlU32(cpu0_constants.controlCompare))}</td></tr>`);
+    this.updateStatusRegisterRow();
+    this.updateMipsInterruptsRow();
 
-    $body.append(`<tr><td>&nbsp;</td></tr>`);
-    $body.append(this.makeStatusRegisterRow());
-    $body.append(this.makeMipsInterruptsRow());
-
+    let $body = $('#cpu0-status-events').find('tbody');
+    $body.empty();
     $body.append(`<tr><td>&nbsp;</td></tr>`);
     $body.append(`<tr><td>Events</td></tr>`);
 
@@ -72,63 +72,56 @@ class R4300DebugState extends CPUDebugState {
       $body.append(`<tr><td>${event.getName()}</td><td class="fixed">${cycles}</td></tr>`);
       cycles += event.cyclesToNextEvent;
     }
-
-    return $table;
   }
 
-  makeStatusRegisterRow() {
-    let $tr = $('<tr />');
-    $tr.append('<td>SR</td>');
-
-    const flagNames = ['IE', 'EXL', 'ERL'];//, '', '', 'UX', 'SX', 'KX' ];
-
+  updateStatusRegisterRow() {
     let sr = cpu0.getControlU32(cpu0_constants.controlStatus);
 
-    let $td = $('<td class="fixed" />');
-    $td.append(toString32(sr));
-    $td.append('&nbsp;');
+    setTextContent('#cpu0-status-sr', toString32(sr));
 
-    for (let i = flagNames.length - 1; i >= 0; --i) {
-      if (flagNames[i]) {
-        let isSet = (sr & (1 << i)) !== 0;
-        let $b = $(`<span>${flagNames[i]}</span>`);
-        if (isSet) {
-          $b.css('font-weight', 'bold');
-        }
-        $td.append($b);
-        $td.append('&nbsp;');
+    const ids = {
+      '#cpu0-status-sr-ie': r4300.SR_IE,
+      '#cpu0-status-sr-exl': r4300.SR_EXL,
+      '#cpu0-status-sr-erl': r4300.SR_ERL,
+      // ux
+      // sx
+      // kx
+    };
+
+    for (let [id, mask] of Object.entries(ids)) {
+      const elem = document.querySelector(id);
+      if (!elem) {
+        continue;
       }
+      let set = (sr & mask) !== 0;
+      elem.classList.toggle('cpu0-status-bit-set', set);
     }
-
-    $tr.append($td);
-    return $tr;
   }
 
-  makeMipsInterruptsRow() {
-    const miIntrNames = ['SP', 'SI', 'AI', 'VI', 'PI', 'DP'];
+  updateMipsInterruptsRow() {
+    const miDev = n64js.hardware().miRegDevice;
+    const setBits = miDev.intrReg();
+    const enabledBits = miDev.intrMaskReg();
 
-    const miRegDevice = n64js.hardware().miRegDevice;
-    const miIntrLive = miRegDevice.intrReg();
-    const miIntrMask = miRegDevice.intrMaskReg();
-
-    const $tr = $('<tr />');
-    $tr.append('<td>MI Intr</td>');
-    const $td = $('<td class="fixed" />');
-    for (let i = 0; i < miIntrNames.length; ++i) {
-      const isSet = (miIntrLive & (1 << i)) !== 0;
-      const isEnabled = (miIntrMask & (1 << i)) !== 0;
-      const $b = $(`<span>${miIntrNames[i]}</span>`);
-      if (isSet) {
-        $b.css('font-weight', 'bold');
-      }
-      if (isEnabled) {
-        $b.css('background-color', '#AFF4BB');
-      }
-      $td.append($b);
-      $td.append('&nbsp;');
+    const ids = {
+      '#cpu0-status-mi-sp': mi.MI_INTR_SP,
+      '#cpu0-status-mi-si': mi.MI_INTR_SI,
+      '#cpu0-status-mi-ai': mi.MI_INTR_AI,
+      '#cpu0-status-mi-vi': mi.MI_INTR_VI,
+      '#cpu0-status-mi-pi': mi.MI_INTR_PI,
+      '#cpu0-status-mi-dp': mi.MI_INTR_DP,
     }
-    $tr.append($td);
-    return $tr;
+
+    for (let [id, mask] of Object.entries(ids)) {
+      const elem = document.querySelector(id);
+      if (!elem) {
+        continue;
+      }
+      const set = (setBits & mask) !== 0;
+      const enabled = (enabledBits & mask) !== 0;
+      elem.classList.toggle('cpu0-status-bit-enabled', enabled);
+      elem.classList.toggle('cpu0-status-bit-set', set);
+    }
   }
 
   /**
@@ -682,7 +675,7 @@ export class Debugger {
     this.$cpu0Disassembly.find('.dis-gutter').empty().append($disGutter);
     this.$cpu0Disassembly.find('.dis-view').empty().append($disText);
 
-    this.$cpu0Status.empty().append(this.cpu0State.makeStatusTable());
+    this.cpu0State.updateStatusTable();
 
     this.cpuTabs[0].empty().append(this.cpu0State.makeCop0RegistersTable(registerColours));
     this.cpuTabs[1].empty().append(this.cpu0State.makeCop1RegistersTable(registerColours));
