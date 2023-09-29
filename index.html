@@ -271,76 +271,72 @@
               <div class="tab-pane" id="cpu-content">
                 <div id="cpu" class="processor-display">
                   <div class="processor-details">
-                    <div id="cpu0-status">
-                      <table class="register-table">
-                        <tbody>
-                          <tr>
-                            <td>Ops</td>
-                            <td class="fixed" id="cpu0-status-opsexecuted">${cpu0.opsExecuted}</td>
-                          </tr>
-                          <tr>
-                            <td>PC</td>
-                            <td class="fixed" id="cpu0-status-pc">${toString32(cpu0.pc)}</td>
-                            <td>delayPC</td>
-                            <td class="fixed" id="cpu0-status-delaypc">${toString32(cpu0.delayPC)}</td>
-                          </tr>
-                          <tr>
-                            <td>EPC</td>
-                            <td class="fixed" id="cpu0-status-epc">${toString32(cpu0.getControlU32(cpu0_constants.controlEPC))}</td>
-                          </tr>
-                          <tr>
-                            <td>MultHi</td>
-                            <td class="fixed" id="cpu0-status-multhi">${toString64(cpu0.getMultHiU64())}</td>
-                            <td>Cause</td>
-                            <td class="fixed" id="cpu0-status-cause">${toString32(Number(cpu0.moveFromControl(cpu0_constants.controlCause) &
-                              0xffff_ffffn))}</td>
-                          </tr>
-                          <tr>
-                            <td>MultLo</td>
-                            <td class="fixed" id="cpu0-status-multlo">${toString64(cpu0.getMultLoU64())}</td>
-                            <td>Count</td>
-                            <td class="fixed" id="cpu0-status-count">${toString32(Number(cpu0.moveFromControl(cpu0_constants.controlCount) &
-                              0xffff_ffffn))}</td>
-                          </tr>
-                          <tr>
-                            <td></td>
-                            <td class="fixed"></td>
-                            <td>Compare</td>
-                            <td class="fixed" id="cpu0-status-compare">${toString32(cpu0.getControlU32(cpu0_constants.controlCompare))}</td>
-                          </tr>
-                    
-                          <tr>
-                            <td>&nbsp;</td>
-                          </tr>
-                    
-                          <tr>
-                            <td>SR</td>
-                            <td class="fixed">
-                              <span id="cpu0-status-sr"></span>&nbsp;
-                              <span id="cpu0-status-sr-ie">IE</span>&nbsp;
-                              <span id="cpu0-status-sr-exl">EXL</span>&nbsp;
-                              <span id="cpu0-status-sr-erl">ERL</span>&nbsp;
-                            </td>
-                          </tr>
-                          <tr>
-                            <td>MI Intr</td>
-                            <td class="fixed">
-                              <span id="cpu0-status-mi-sp">SP</span>&nbsp;
-                              <span id="cpu0-status-mi-si">SI</span>&nbsp;
-                              <span id="cpu0-status-mi-ai">AI</span>&nbsp;
-                              <span id="cpu0-status-mi-vi">VI</span>&nbsp;
-                              <span id="cpu0-status-mi-pi">PI</span>&nbsp;
-                              <span id="cpu0-status-mi-dp">DP</span>&nbsp;
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
+                    <table class="register-table">
+                      <tbody>
+                        <tr>
+                          <td>Ops</td>
+                          <td class="fixed" id="cpu0-status-opsexecuted"></td>
+                        </tr>
+                        <tr>
+                          <td>PC</td>
+                          <td class="fixed" id="cpu0-status-pc"></td>
+                          <td>delayPC</td>
+                          <td class="fixed" id="cpu0-status-delaypc"></td>
+                        </tr>
+                        <tr>
+                          <td>EPC</td>
+                          <td class="fixed" id="cpu0-status-epc"></td>
+                        </tr>
+                        <tr>
+                          <td>MultHi</td>
+                          <td class="fixed" id="cpu0-status-multhi"></td>
+                          <td>Cause</td>
+                          <td class="fixed" id="cpu0-status-cause"></td>
+                        </tr>
+                        <tr>
+                          <td>MultLo</td>
+                          <td class="fixed" id="cpu0-status-multlo"></td>
+                          <td>Count</td>
+                          <td class="fixed" id="cpu0-status-count"></td>
+                        </tr>
+                        <tr>
+                          <td></td>
+                          <td class="fixed"></td>
+                          <td>Compare</td>
+                          <td class="fixed" id="cpu0-status-compare"></td>
+                        </tr>
 
-                      <table class="register-table" id="cpu0-status-events">
-                        <tbody>
-                        </tbody>
-                      </table>
-                    </div>
+                        <tr>
+                          <td>&nbsp;</td>
+                        </tr>
+
+                        <tr>
+                          <td>SR</td>
+                          <td class="fixed">
+                            <span id="cpu0-status-sr"></span>&nbsp;
+                            <span id="cpu0-status-sr-ie">IE</span>&nbsp;
+                            <span id="cpu0-status-sr-exl">EXL</span>&nbsp;
+                            <span id="cpu0-status-sr-erl">ERL</span>&nbsp;
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>MI Intr</td>
+                          <td class="fixed">
+                            <span id="cpu0-status-mi-sp">SP</span>&nbsp;
+                            <span id="cpu0-status-mi-si">SI</span>&nbsp;
+                            <span id="cpu0-status-mi-ai">AI</span>&nbsp;
+                            <span id="cpu0-status-mi-vi">VI</span>&nbsp;
+                            <span id="cpu0-status-mi-pi">PI</span>&nbsp;
+                            <span id="cpu0-status-mi-dp">DP</span>&nbsp;
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+
+                    <table class="register-table" id="cpu0-status-events">
+                      <tbody>
+                      </tbody>
+                    </table>
 
                     <div class="tabbable tabs-left">
                       <ul class="nav nav-underline">
@@ -382,40 +378,38 @@
               <div class="tab-pane" id="rsp-content">
                 <div id="rsp" class="processor-display">
                   <div class="processor-details">
-                    <div id="rsp-status">
-                      <table class="register-table">
-                        <tbody>
-                          <tr>
-                            <td>Halted</td>
-                            <td class="fixed" id="rsp-status-halted"></td>
-                          </tr>
-                          <tr>
-                            <td>PC</td>
-                            <td class="fixed" id="rsp-status-pc"></td>
-                            <td>delayPC</td>
-                            <td class="fixed" id="rsp-status-delaypc"></td>
-                          </tr>
-                          <tr>
-                            <td>nextPC</td>
-                            <td class="fixed" id="rsp-status-nextpc"></td>
-                            <td>branchTarget</td>
-                            <td class="fixed" id="rsp-status-branchtarget"></td>
-                          </tr>
-                          <tr>
-                            <td>VCO</td>
-                            <td class="fixed" id="rsp-status-vco"></td>
-                          </tr>
-                          <tr>
-                            <td>VCC</td>
-                            <td class="fixed" id="rsp-status-vcc"></td>
-                          </tr>
-                          <tr>
-                            <td>VCE</td>
-                            <td class="fixed" id="rsp-status-vce"></td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
+                    <table class="register-table">
+                      <tbody>
+                        <tr>
+                          <td>Halted</td>
+                          <td class="fixed" id="rsp-status-halted"></td>
+                        </tr>
+                        <tr>
+                          <td>PC</td>
+                          <td class="fixed" id="rsp-status-pc"></td>
+                          <td>delayPC</td>
+                          <td class="fixed" id="rsp-status-delaypc"></td>
+                        </tr>
+                        <tr>
+                          <td>nextPC</td>
+                          <td class="fixed" id="rsp-status-nextpc"></td>
+                          <td>branchTarget</td>
+                          <td class="fixed" id="rsp-status-branchtarget"></td>
+                        </tr>
+                        <tr>
+                          <td>VCO</td>
+                          <td class="fixed" id="rsp-status-vco"></td>
+                        </tr>
+                        <tr>
+                          <td>VCC</td>
+                          <td class="fixed" id="rsp-status-vcc"></td>
+                        </tr>
+                        <tr>
+                          <td>VCE</td>
+                          <td class="fixed" id="rsp-status-vce"></td>
+                        </tr>
+                      </tbody>
+                    </table>
 
                     <div class="tabbable tabs-left">
                       <ul class="nav nav-tabs">

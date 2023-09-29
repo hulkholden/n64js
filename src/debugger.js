@@ -75,8 +75,7 @@ class R4300DebugState extends CPUDebugState {
   }
 
   updateStatusRegisterRow() {
-    let sr = cpu0.getControlU32(cpu0_constants.controlStatus);
-
+    const sr = cpu0.getControlU32(cpu0_constants.controlStatus);
     setTextContent('#cpu0-status-sr', toString32(sr));
 
     const ids = {
@@ -87,13 +86,12 @@ class R4300DebugState extends CPUDebugState {
       // sx
       // kx
     };
-
     for (let [id, mask] of Object.entries(ids)) {
       const elem = document.querySelector(id);
       if (!elem) {
         continue;
       }
-      let set = (sr & mask) !== 0;
+      const set = (sr & mask) !== 0;
       elem.classList.toggle('cpu0-status-bit-set', set);
     }
   }
@@ -311,9 +309,6 @@ export class Debugger {
     /** @type {?jQuery} */
     this.$cpuContent = $('#cpu-content');
 
-    /** @type {?jQuery} */
-    this.$cpu0Status = $('#cpu0-status');
-
     /** @type {?Array<?jQuery>} */
     this.cpuTabs = [$('#cpu0-content'), $('#cpu1-content')];
 
@@ -322,9 +317,6 @@ export class Debugger {
 
     /** @type {?jQuery} */
     this.$rspContent = $('#rsp-content');
-
-    /** @type {?jQuery} */
-    this.$rspStatus = $('#rsp-status');
 
     /** @type {?Array<?jQuery>} */
     this.rspTabs = [$('#rsp-scalar-content'), $('#rsp-vector-content'), $('#rsp-task-content')];
