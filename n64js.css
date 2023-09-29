@@ -203,3 +203,11 @@ table .impl100 {
 .clip-err {
   background-color: red;
 }
+
+.cpu0-status-bit-set {
+  background-color: #dc3545;
+}
+
+.cpu0-status-bit-enabled {
+  font-weight: bold;
+}

@@ -48,16 +48,16 @@ const XUT_VEC         = 0x80000080;
 const ECC_VEC         = 0x80000100;
 const E_VEC           = 0x80000180;
 
-const SR_IE           = 0x00000001;
-const SR_EXL          = 0x00000002;
-const SR_ERL          = 0x00000004;
-const SR_KSU_KER      = 0x00000000;
-const SR_KSU_SUP      = 0x00000008;
-const SR_KSU_USR      = 0x00000010;
-const SR_KSU_MASK     = 0x00000018;
-const SR_UX           = 0x00000020;
-const SR_SX           = 0x00000040;
-const SR_KX           = 0x00000080;
+export const SR_IE           = 0x00000001;
+export const SR_EXL          = 0x00000002;
+export const SR_ERL          = 0x00000004;
+export const SR_KSU_KER      = 0x00000000;
+export const SR_KSU_SUP      = 0x00000008;
+export const SR_KSU_USR      = 0x00000010;
+export const SR_KSU_MASK     = 0x00000018;
+export const SR_UX           = 0x00000020;
+export const SR_SX           = 0x00000040;
+export const SR_KX           = 0x00000080;
 
 const SR_IBIT1        = 0x00000100;
 const SR_IBIT2        = 0x00000200;
