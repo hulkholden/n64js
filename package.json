@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "build": "bun build ./src/n64.js --outfile=build/n64.min.js --minify",
-    "build-debug": "bun build ./src/n64.js --outfile=build/n64.min.js --sourcemap --minify"
+    "build-debug": "bun build ./src/n64.js --outfile=build/n64.min.js"
   },
   "repository": {
     "type": "git",
