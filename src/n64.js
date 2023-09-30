@@ -17,6 +17,7 @@ import { initRSP } from './rsp.js';
 import { categoryCodeDescriptionFromU8, countryNorthAmerica, OS_TV_NTSC, tvTypeFromCountry } from './system_constants.js';
 import { UI } from './ui.js';
 import { initSync, syncActive, syncTick, syncInput } from './sync.js';
+import { dbgGUI } from './dbg_ui.js';
 
 window.n64js = window.n64js || {};
 
@@ -27,6 +28,11 @@ let stats = null;
 let running = false;
 const breakpoints = new Map();     // address -> original op
 const resetCallbacks = [];
+
+const testOptions = {
+  runTest: () => { runTest(); },
+};
+dbgGUI.add(testOptions, 'runTest').name('Run n64-systemtest');
 
 const rominfo = {
   id: '',
@@ -122,6 +128,25 @@ n64js.loadRomAndStartRunning = (arrayBuffer) => {
   setRunning(false);
   n64js.toggleRun();
 };
+
+function runTest() {
+  const byteArray = [];
+  const req = new XMLHttpRequest();
+  req.open('GET', 'roms/n64-systemtest-all.z64', true);
+  req.responseType = "arraybuffer";
+  req.onload = (event) => {
+    const arrayBuffer = req.response; // Note: not req.responseText
+    if (arrayBuffer) {
+      n64js.loadRomAndStartRunning(arrayBuffer);
+    }
+  };
+  req.send(null);
+
+  if (req.status != 200) return;
+  for (let i = 0; i < req.responseText.length; ++i) {
+    byteArray.push(req.responseText.charCodeAt(i) & 0xff)
+  }
+}
 
 n64js.toggleRun = () => {
   setRunning(!running);
