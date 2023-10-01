@@ -5,21 +5,13 @@ import { DebugController } from './debug_controller.js';
 import * as microcodes from './microcodes.js';
 import { RSPState } from './rsp_state.js';
 import { Renderer } from './renderer.js';
-import { dbgGUI } from '../dbg_ui.js';
+import { graphicsOptions } from './graphics_options.js';
 
 window.n64js = window.n64js || {};
 
 let numDisplayListsRendered = 0;
 let gl = null; // WebGL context for the canvas.
 let renderer;
-
-// Scale factor to apply to the canvas.
-const graphicsOptions = {
-  canvasScale: 1,
-};
-const graphicsFolder = dbgGUI.addFolder('Graphics');
-graphicsFolder.add(graphicsOptions, 'canvasScale').name('Canvas Scale').min(1).max(4).step(0.25);
-
 
 const state = new RSPState();
 const debugController = new DebugController(state, processDList);

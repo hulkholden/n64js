@@ -6,6 +6,7 @@ import { Vector3 } from '../graphics/Vector3.js';
 import * as logger from '../logger.js';
 import { makeColorTextRGBA } from './disassemble.js';
 import * as gbi from './gbi.js';
+import { graphicsOptions } from './graphics_options.js';
 import * as shaders from './shaders.js';
 import { calcTileDimension } from './tile.js';
 import { TriangleBuffer } from "./triangle_buffer.js";
@@ -16,9 +17,6 @@ let colorImages = new Map();
 
 // Map to keep track of which warnings we've already shown.
 const loggedWarnings = new Map();
-
-// Whether to halt on unimplemented commands or just log a warning.
-const haltOnWarning = false;
 
 export class GBIMicrocode {
   constructor(state, ramDV) {
