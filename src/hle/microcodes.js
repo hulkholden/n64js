@@ -1,8 +1,9 @@
 import * as logger from '../logger.js';
 import { GBI0, GBI0GE, GBI0PD, GBI0SE, GBI0WR } from './gbi0.js';
 import { GBI0DKR } from './gbi0_dkr.js';
-import { GBI1, GBI1LL, GBI1SDEX } from './gbi1.js';
-import { GBI2, GBI2Conker, GBI2SDEX } from './gbi2.js';
+import { GBI1, GBI1LL } from './gbi1.js';
+import { GBI2, GBI2Conker } from './gbi2.js';
+import { GBI1SDEX, GBI2SDEX } from './gbi_sdex.js';
 
 const kUCode_GBI0 = 0;         // Super Mario 64, Tetrisphere, Demos
 const kUCode_GBI1 = 1;         // Mario Kart, Star Fox

@@ -544,10 +544,3 @@ export class GBI2Conker extends GBI2 {
 
   // TODO: executeVertex, executeTri4, executeMoveWord, executeMoveMem.
 }
-
-export class GBI2SDEX extends GBI2 {
-  constructor(state, ramDV) {
-    super(state, ramDV);
-    this.vertexStride = 2;
-  }
-}
