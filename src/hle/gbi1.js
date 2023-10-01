@@ -484,9 +484,3 @@ export class GBI1LL extends GBI1 {
   }
 }
 
-export class GBI1SDEX extends GBI1 {
-  constructor(state, ramDV) {
-    super(state, ramDV);
-    this.vertexStride = 2;
-  }
-}
