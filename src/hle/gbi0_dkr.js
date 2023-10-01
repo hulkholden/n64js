@@ -6,8 +6,8 @@ import * as gbi from './gbi.js';
 import { GBI0 } from "./gbi0.js";
 
 export class GBI0DKR extends GBI0 {
-  constructor(ucode, state, ramDV) {
-    super(ucode, state, ramDV);
+  constructor(state, ramDV) {
+    super(state, ramDV);
     this.vertexStride = 10;
 
     // DKR maintains an array of worldview-projection matrices, indexed using matrixIndex.
@@ -28,15 +28,20 @@ export class GBI0DKR extends GBI0 {
     // Billboard mode projects vertices differently. It uses vertex 0 as the
     // center for the billboard and treats the vertex position as a normal.
     this.billboardMode = false;
+
+    this.dkrCommands = new Map([
+      [0x05, this.executeTriDMA.bind(this)],
+      [0x07, this.executeDisplayListLen.bind(this)],
+      [0xbf, this.executeSetAddresses.bind(this)],
+    ]);
   }
 
-  getHandler(command, ucode) {
-    switch (command) {
-      case 0x05: return this.executeTriDMA;
-      case 0x07: return this.executeDisplayListLen;
-      case 0xbf: return this.executeSetAddresses;
+  getHandler(command) {
+    const fn = this.dkrCommands.get(command);
+    if (fn) {
+      return fn;
     }
-    return super.getHandler(command, ucode);
+    return super.getHandler(command);
   }
 
   executeDisplayListLen(cmd0, cmd1, dis) {

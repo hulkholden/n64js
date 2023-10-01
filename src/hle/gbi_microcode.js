@@ -21,7 +21,7 @@ const loggedWarnings = new Map();
 const haltOnWarning = false;
 
 export class GBIMicrocode {
-  constructor(ucode, state, ramDV) {
+  constructor(state, ramDV) {
     this.state = state;
     this.ramDV = ramDV;
     this.vertexStride = 2;
@@ -29,33 +29,33 @@ export class GBIMicrocode {
     this.triangleBuffer = new TriangleBuffer(64);
 
     this.gbiCommonCommands = new Map([
-      [0xe4, this.executeTexRect],
-      [0xe5, this.executeTexRectFlip],
-      [0xe6, this.executeRDPLoadSync],
-      [0xe7, this.executeRDPPipeSync],
-      [0xe8, this.executeRDPTileSync],
-      [0xe9, this.executeRDPFullSync],
-      [0xea, this.executeSetKeyGB],
-      [0xeb, this.executeSetKeyR],
-      [0xec, this.executeSetConvert],
-      [0xed, this.executeSetScissor],
-      [0xee, this.executeSetPrimDepth],
-      [0xef, this.executeSetRDPOtherMode],
-      [0xf0, this.executeLoadTLut],
-      [0xf2, this.executeSetTileSize],
-      [0xf3, this.executeLoadBlock],
-      [0xf4, this.executeLoadTile],
-      [0xf5, this.executeSetTile],
-      [0xf6, this.executeFillRect],
-      [0xf7, this.executeSetFillColor],
-      [0xf8, this.executeSetFogColor],
-      [0xf9, this.executeSetBlendColor],
-      [0xfa, this.executeSetPrimColor],
-      [0xfb, this.executeSetEnvColor],
-      [0xfc, this.executeSetCombine],
-      [0xfd, this.executeSetTImg],
-      [0xfe, this.executeSetZImg],
-      [0xff, this.executeSetCImg],
+      [0xe4, this.executeTexRect.bind(this)],
+      [0xe5, this.executeTexRectFlip.bind(this)],
+      [0xe6, this.executeRDPLoadSync.bind(this)],
+      [0xe7, this.executeRDPPipeSync.bind(this)],
+      [0xe8, this.executeRDPTileSync.bind(this)],
+      [0xe9, this.executeRDPFullSync.bind(this)],
+      [0xea, this.executeSetKeyGB.bind(this)],
+      [0xeb, this.executeSetKeyR.bind(this)],
+      [0xec, this.executeSetConvert.bind(this)],
+      [0xed, this.executeSetScissor.bind(this)],
+      [0xee, this.executeSetPrimDepth.bind(this)],
+      [0xef, this.executeSetRDPOtherMode.bind(this)],
+      [0xf0, this.executeLoadTLut.bind(this)],
+      [0xf2, this.executeSetTileSize.bind(this)],
+      [0xf3, this.executeLoadBlock.bind(this)],
+      [0xf4, this.executeLoadTile.bind(this)],
+      [0xf5, this.executeSetTile.bind(this)],
+      [0xf6, this.executeFillRect.bind(this)],
+      [0xf7, this.executeSetFillColor.bind(this)],
+      [0xf8, this.executeSetFogColor.bind(this)],
+      [0xf9, this.executeSetBlendColor.bind(this)],
+      [0xfa, this.executeSetPrimColor.bind(this)],
+      [0xfb, this.executeSetEnvColor.bind(this)],
+      [0xfc, this.executeSetCombine.bind(this)],
+      [0xfd, this.executeSetTImg.bind(this)],
+      [0xfe, this.executeSetZImg.bind(this)],
+      [0xff, this.executeSetCImg.bind(this)],
     ]);
   }
 
@@ -64,9 +64,9 @@ export class GBIMicrocode {
     for (let i = 0; i < 256; ++i) {
       let fn = this.getHandler(i);
       if (!fn) {
-        fn = this.executeUnknown;
+        fn = this.executeUnknown.bind(this);
       }
-      table.push(fn.bind(this));
+      table.push(fn);
     }
     return table;
   }
