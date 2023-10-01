@@ -114,9 +114,16 @@ function processDList(task, disassembler, bailAfter) {
   }
 
   const ramDV = n64js.hardware().cachedMemDevice.mem.dataView
-  state.reset(ramDV, task.data_ptr);
-  const microcode = initMicrocode(task, ramDV);
-  const ucodeTable = microcode.buildCommandTable();
+  state.reset(ramDV, task.dataPtr);
+  let microcode = initMicrocode(task, ramDV);
+  let ucodeTable = microcode.buildCommandTable();
+
+  microcode.onLoadUcode((codeAddr, codeSize, codeDataAddr, codeDataSize) => {
+    task.loadUcode(codeAddr, codeSize, codeDataAddr, codeDataSize);
+    microcode = initMicrocode(task, ramDV);
+    ucodeTable = microcode.buildCommandTable();
+    return microcode;
+  });
 
   initDimensionsFromVI();
 

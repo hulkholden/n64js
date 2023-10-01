@@ -49,11 +49,21 @@ class RSPTask {
   constructor(ram_u8, taskMem) {
     this.ram_u8 = ram_u8;
     this.type = taskMem.getU32(kOffset_type);
-    this.code = taskMem.getU32(kOffset_ucode) & 0x1fffffff;
-    this.code_size = this.clampCodeSize(taskMem.getU32(kOffset_ucode_size));
-    this.data = taskMem.getU32(kOffset_ucode_data) & 0x1fffffff;
-    this.data_size = taskMem.getU32(kOffset_ucode_data_size);
-    this.data_ptr = taskMem.getU32(kOffset_data_ptr);
+
+    this.codeAddr = taskMem.getU32(kOffset_ucode) & 0x1fffffff;
+    this.codeSize = this.clampCodeSize(taskMem.getU32(kOffset_ucode_size));
+
+    this.codeDataAddr = taskMem.getU32(kOffset_ucode_data) & 0x1fffffff;
+    this.codeDataSize = taskMem.getU32(kOffset_ucode_data_size);
+
+    this.dataPtr = taskMem.getU32(kOffset_data_ptr);
+  }
+
+  loadUcode(codeAddr, codeSize, codeDataAddr, codeDataSize) {
+    this.codeAddr = codeAddr & 0x1fffffff;
+    this.codeSize = this.clampCodeSize(codeSize);
+    this.codeDataAddr = codeDataAddr & 0x1fffffff;
+    this.codeDataSize = codeDataSize;
   }
 
   clampCodeSize(val) {
@@ -66,11 +76,11 @@ class RSPTask {
   }
 
   dataByte(offset) {
-    return this.ram_u8[this.data + offset]
+    return this.ram_u8[this.codeDataAddr + offset]
   }
 
   codeByte(offset) {
-    return this.ram_u8[this.code + offset];
+    return this.ram_u8[this.codeAddr + offset];
   }
 
   detectVersionString() {
@@ -78,12 +88,12 @@ class RSPTask {
     const s = 'S'.charCodeAt(0);
     const p = 'P'.charCodeAt(0);
 
-    for (let i = 0; i + 2 < this.data_size; ++i) {
+    for (let i = 0; i + 2 < this.codeDataSize; ++i) {
       if (this.dataByte(i + 0) === r &&
         this.dataByte(i + 1) === s &&
         this.dataByte(i + 2) === p) {
         let str = '';
-        for (let j = i; j < this.data_size; ++j) {
+        for (let j = i; j < this.codeDataSize; ++j) {
           const c = this.dataByte(j);
           if (c === 0) {
             return str;
@@ -97,7 +107,7 @@ class RSPTask {
 
   computeMicrocodeHash() {
     let c = 0;
-    for (let i = 0; i < this.code_size; ++i) {
+    for (let i = 0; i < this.codeSize; ++i) {
       // Best hash ever!
       c = ((c * 17) + this.codeByte(i)) >>> 0;
     }
@@ -132,4 +142,3 @@ export function hleProcessRSPTask() {
   
     return handled;
   }
-  

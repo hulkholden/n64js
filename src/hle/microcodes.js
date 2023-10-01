@@ -35,7 +35,18 @@ const ucodeOverrides = new Map([
 ]);
 
 export function create(task, state, ramDV) {
-  const ucode = detect(task);
+  const version = task.detectVersionString();
+  const hash = task.computeMicrocodeHash();
+  const ucode = detect(version, hash);
+
+  console.log(`detected ucode ${ucode}`);
+
+  const microcode = createMicrocode(ucode, state, ramDV);
+  microcode.version = version;
+  return microcode;
+}
+
+function createMicrocode(ucode, state, ramDV) {
   switch (ucode) {
     case kUCode_GBI0:
       return new GBI0(state, ramDV);
@@ -66,26 +77,24 @@ export function create(task, state, ramDV) {
   return new GBI0(state, ramDV);
 }
 
-function detect(task) {
-  const str = task.detectVersionString();
-  const hash = task.computeMicrocodeHash();
+function detect(version, hash) {
   let ucode = ucodeOverrides.get(hash);
   if (ucode === undefined) {
-    ucode = inferUcodeFromString(str)
+    ucode = inferUcodeFromString(version)
   }
 
-  logMicrocode(str, ucode);
+  logMicrocode(version, ucode);
   return ucode;
 }
 
 const loggedMicrocodes = new Map();
 
-function logMicrocode(str, ucode) {
-  if (loggedMicrocodes.get(str)) {
+function logMicrocode(version, ucode) {
+  if (loggedMicrocodes.get(version)) {
     return;
   }
-  loggedMicrocodes.set(str, true);
-  logger.log(`New RSP graphics ucode seen: ${str} = ucode ${ucode}`);
+  loggedMicrocodes.set(version, true);
+  logger.log(`New RSP graphics ucode seen: ${version} = ucode ${ucode}`);
 }
 
 function inferUcodeFromString(str) {
