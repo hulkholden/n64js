@@ -115,7 +115,8 @@ function processDList(task, disassembler, bailAfter) {
 
   const ramDV = n64js.hardware().cachedMemDevice.mem.dataView
   state.reset(ramDV, task.data_ptr);
-  const ucodeTable = buildUCodeTable(task, ramDV);
+  const microcode = initMicrocode(task, ramDV);
+  const ucodeTable = microcode.buildCommandTable();
 
   initDimensionsFromVI();
 
@@ -158,15 +159,14 @@ function initDimensionsFromVI() {
   canvas.height = dims.screenHeight * graphicsOptions.canvasScale;
 }
 
-function buildUCodeTable(task, ramDV) {
+function initMicrocode(task, ramDV) {
   const microcode = microcodes.create(task, state, ramDV);
   // TODO: pass rendering object to microcode constructor.
   microcode.debugController = debugController;
   microcode.hleHalt = hleHalt;
   microcode.gl = gl;
   microcode.renderer = renderer;
-
-  return microcode.buildCommandTable();
+  return microcode;
 }
 
 function hleHalt(msg) {
