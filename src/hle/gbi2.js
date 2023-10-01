@@ -156,14 +156,6 @@ export class GBI2 extends GBIMicrocode {
     this.loadVertices(v0, n, address, dis);
   }
 
-  executeLoadUcode(cmd0, cmd1, dis) {
-    this.warnUnimplemented('LoadUcode');
-
-    if (dis) {
-      dis.text(`gsSPLoadUCode(/* TODO */);`);
-    }
-  }
-
   executeBranchZ(cmd0, cmd1, dis) {
     this.warnUnimplemented('BranchZ')
 

@@ -369,6 +369,22 @@ export class GBIMicrocode {
     }
   }
 
+  executeLoadUcode(cmd0, cmd1, dis) {
+    this.warnUnimplemented('LoadUcode');
+
+    const codeAddr = cmd1 & 0x1fffffff;
+    const codeSize = 0x1000;
+    const dataAddr = this.state.rdpHalf1 & 0x1fffffff;
+    const dataSize = (cmd0 & 0xFFFF) + 1;
+
+    if (dis) {
+      dis.text(`gsSPLoadUCode(${toString32(codeAddr)}, ${codeSize}, ${toString32(dataAddr)} ${dataSize});`);
+    }
+
+    // TODO: 
+    // initMicrocode(codeAddr, codeSize, dataAddr, dataSize);
+  }
+
   executeRDPLoadSync(cmd0, cmd1, dis) {
     if (dis) {
       dis.text('gsDPLoadSync();');

@@ -6,35 +6,37 @@ import { GBIMicrocode } from "./gbi_microcode.js";
 let executeLine3D_Warned = false;
 
 export class GBI1 extends GBIMicrocode {
-  constructor(ucode, state, ramDV) {
-    super(ucode, state, ramDV);
+  constructor(state, ramDV) {
+    super(state, ramDV);
     this.vertexStride = 2;
 
     this.gbi1Commands = new Map([
-      [0x00, this.executeSpNoop],
-      [0x01, this.executeMatrix],
-      [0x03, this.executeMoveMem],
-      [0x04, this.executeVertex],
-      [0x06, this.executeDL],
-      [0x09, this.executeSprite2DBase],
+      [0x00, this.executeSpNoop.bind(this)],
+      [0x01, this.executeMatrix.bind(this)],
+      [0x03, this.executeMoveMem.bind(this)],
+      [0x04, this.executeVertex.bind(this)],
+      [0x06, this.executeDL.bind(this)],
+      // DLParser_GBI1_Reserved
+      [0x09, this.executeSprite2DBase.bind(this)],
 
-      [0xb0, this.executeBranchZ],
-      [0xb1, this.executeTri2],
-      [0xb2, this.executeModifyVertex],
-      [0xb3, this.executeRDPHalf2],
-      [0xb4, this.executeRDPHalf1],
-      [0xb5, this.executeLine3D],
-      [0xb6, this.executeClearGeometryMode],
-      [0xb7, this.executeSetGeometryMode],
-      [0xb8, this.executeEndDL],
-      [0xb9, this.executeSetOtherModeL],
-      [0xba, this.executeSetOtherModeH],
-      [0xbb, this.executeTexture],
-      [0xbc, this.executeMoveWord],
-      [0xbd, this.executePopMatrix],
-      [0xbe, this.executeCullDL],
-      [0xbf, this.executeTri1],
-      [0xc0, this.executeNoop],
+      [0xaf, this.executeLoadUcode.bind(this)],
+      [0xb0, this.executeBranchZ.bind(this)],
+      [0xb1, this.executeTri2.bind(this)],
+      [0xb2, this.executeModifyVertex.bind(this)],
+      [0xb3, this.executeRDPHalf2.bind(this)],
+      [0xb4, this.executeRDPHalf1.bind(this)],
+      [0xb5, this.executeLine3D.bind(this)],
+      [0xb6, this.executeClearGeometryMode.bind(this)],
+      [0xb7, this.executeSetGeometryMode.bind(this)],
+      [0xb8, this.executeEndDL.bind(this)],
+      [0xb9, this.executeSetOtherModeL.bind(this)],
+      [0xba, this.executeSetOtherModeH.bind(this)],
+      [0xbb, this.executeTexture.bind(this)],
+      [0xbc, this.executeMoveWord.bind(this)],
+      [0xbd, this.executePopMatrix.bind(this)],
+      [0xbe, this.executeCullDL.bind(this)],
+      [0xbf, this.executeTri1.bind(this)],
+      [0xc0, this.executeNoop.bind(this)],
     ]);
   }
 
