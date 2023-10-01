@@ -158,16 +158,6 @@ function initDimensionsFromVI() {
   canvas.height = dims.screenHeight * graphicsOptions.canvasScale;
 }
 
-// const ucodeSprite2d = {
-//   0xbe: executeSprite2dScaleFlip,
-//   0xbd: executeSprite2dDraw
-// };
-
-// const ucodeDKR = {
-//   0x05:  executeDMATri,
-//   0x07:  executeGBI1_DLInMem,
-// };
-
 function buildUCodeTable(task, ramDV) {
   const microcode = microcodes.create(task, state, ramDV);
   // TODO: pass rendering object to microcode constructor.
