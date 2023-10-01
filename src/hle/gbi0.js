@@ -5,14 +5,14 @@ import { GBI1 } from "./gbi1.js";
 // GBI0 is very similar to GBI1 with a few small differences,
 // so we extend that instead of GBIMicrocode.
 export class GBI0 extends GBI1 {
-  constructor(ucode, state, ramDV) {
-    super(ucode, state, ramDV);
+  constructor(state, ramDV) {
+    super(state, ramDV);
     this.vertexStride = 10;
 
     this.gbi0Commands = new Map([
-      [0xb0, this.executeUnknown],      // Defined as executeBranchZ for GBI1.
-      [0xb1, this.executeTri4],         // Defined as executeTri2 for GBI1.
-      [0xb2, this.executeRDPHalf_Cont], // Defined as executeModifyVertex for GBI1.
+      [0xb0, this.executeUnknown.bind(this)],      // Defined as executeBranchZ for GBI1.
+      [0xb1, this.executeTri4.bind(this)],         // Defined as executeTri2 for GBI1.
+      [0xb2, this.executeRDPHalf_Cont.bind(this)], // Defined as executeModifyVertex for GBI1.
     ]);
   }
 
@@ -114,33 +114,43 @@ export class GBI0 extends GBI1 {
   }
 }
 export class GBI0GE extends GBI0 {
-  constructor(ucode, state, ramDV) {
-    super(ucode, state, ramDV);
+  constructor(state, ramDV) {
+    super(state, ramDV);
     this.vertexStride = 10;
+
+    this.geCommands = new Map([
+      [0xb4, this.executeRDPHalf1Goldeneye.bind(this)],
+    ]);
   }
 
-  getHandler(command, ucode) {
-    switch (command) {
-      case 0xb4: return this.executeRDPHalf1Goldeneye;
+  getHandler(command) {
+    const fn = this.geCommands.get(command);
+    if (fn) {
+      return fn;
     }
-    return super.getHandler(command, ucode);
+    return super.getHandler(command);
   }
 }
 
 export class GBI0PD extends GBI0 {
-  constructor(ucode, state, ramDV) {
-    super(ucode, state, ramDV);
+  constructor(state, ramDV) {
+    super(state, ramDV);
     this.vertexStride = 10;
     this.auxAddress = 0;
+
+    this.pdCommands = new Map([
+      // 0x04 - executeVertex is different from GBI0, but handled by overriding loadVertices.
+      [0x07, this.executeSetVertexColorIndex.bind(this)],
+      [0xb4, this.executeRDPHalf1Goldeneye.bind(this)],
+    ]);
   }
 
-  getHandler(command, ucode) {
-    switch (command) {
-      // 0x04 - executeVertex is different from GBI0, but handled by overriding loadVertices.
-      case 0x07: return this.executeSetVertexColorIndex;
-      case 0xb4: return this.executeRDPHalf1Goldeneye;
+  getHandler(command) {
+    const fn = this.pdCommands.get(command);
+    if (fn) {
+      return fn;
     }
-    return super.getHandler(command, ucode);
+    return super.getHandler(command);
   }
 
   executeSetVertexColorIndex(cmd0, cmd1, dis) {
@@ -225,8 +235,8 @@ export class GBI0PD extends GBI0 {
 }
 
 export class GBI0WR extends GBI0 {
-  constructor(ucode, state, ramDV) {
-    super(ucode, state, ramDV);
+  constructor(state, ramDV) {
+    super(state, ramDV);
     this.vertexStride = 5;
   }
 
@@ -244,8 +254,8 @@ export class GBI0WR extends GBI0 {
 }
 
 export class GBI0SE extends GBI0 {
-  constructor(ucode, state, ramDV) {
-    super(ucode, state, ramDV);
+  constructor(state, ramDV) {
+    super(state, ramDV);
     this.vertexStride = 5;
   }
 

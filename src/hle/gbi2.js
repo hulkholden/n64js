@@ -4,44 +4,44 @@ import * as gbi from './gbi.js';
 import { GBIMicrocode } from "./gbi_microcode.js";
 
 export class GBI2 extends GBIMicrocode {
-  constructor(ucode, state, ramDV) {
-    super(ucode, state, ramDV);
+  constructor(state, ramDV) {
+    super(state, ramDV);
     this.vertexStride = 2;
 
     this.gbi2Commands = new Map([
-      [0x00, this.executeNoop],
-      [0x01, this.executeVertex],
-      [0x02, this.executeModifyVtx],
-      [0x03, this.executeCullDL],
-      [0x04, this.executeBranchZ],
-      [0x05, this.executeTri1],
-      [0x06, this.executeTri2],
-      [0x07, this.executeQuad],
-      [0x08, this.executeLine3D],
-      [0x09, this.executeBgRect1Cyc],
-      [0x0a, this.executeBgRectCopy],
-      [0x0b, this.executeObjRenderMode],
+      [0x00, this.executeNoop.bind(this)],
+      [0x01, this.executeVertex.bind(this)],
+      [0x02, this.executeModifyVtx.bind(this)],
+      [0x03, this.executeCullDL.bind(this)],
+      [0x04, this.executeBranchZ.bind(this)],
+      [0x05, this.executeTri1.bind(this)],
+      [0x06, this.executeTri2.bind(this)],
+      [0x07, this.executeQuad.bind(this)],
+      [0x08, this.executeLine3D.bind(this)],
+      [0x09, this.executeBgRect1Cyc.bind(this)],
+      [0x0a, this.executeBgRectCopy.bind(this)],
+      [0x0b, this.executeObjRenderMode.bind(this)],
 
-      // // [0xd3, executeGBI2_Special1],
-      // // [0xd4, executeGBI2_Special2],
-      // // [0xd5, executeGBI2_Special3],
-      [0xd6, this.executeDmaIo],
-      [0xd7, this.executeTexture],
-      [0xd8, this.executePopMatrix],
-      [0xd9, this.executeGeometryMode],
-      [0xda, this.executeMatrix],
-      [0xdb, this.executeMoveWord],
-      [0xdc, this.executeMoveMem],
-      [0xdd, this.executeLoadUcode],
-      [0xde, this.executeDL],
-      [0xdf, this.executeEndDL],
+      // // [0xd3, executeGBI2_Special1.bind(this)],
+      // // [0xd4, executeGBI2_Special2.bind(this)],
+      // // [0xd5, executeGBI2_Special3.bind(this)],
+      [0xd6, this.executeDmaIo.bind(this)],
+      [0xd7, this.executeTexture.bind(this)],
+      [0xd8, this.executePopMatrix.bind(this)],
+      [0xd9, this.executeGeometryMode.bind(this)],
+      [0xda, this.executeMatrix.bind(this)],
+      [0xdb, this.executeMoveWord.bind(this)],
+      [0xdc, this.executeMoveMem.bind(this)],
+      [0xdd, this.executeLoadUcode.bind(this)],
+      [0xde, this.executeDL.bind(this)],
+      [0xdf, this.executeEndDL.bind(this)],
 
-      [0xe0, this.executeSpNoop],
-      [0xe1, this.executeRDPHalf1],
-      [0xe2, this.executeSetOtherModeL],
-      [0xe3, this.executeSetOtherModeH],
+      [0xe0, this.executeSpNoop.bind(this)],
+      [0xe1, this.executeRDPHalf1.bind(this)],
+      [0xe2, this.executeSetOtherModeL.bind(this)],
+      [0xe3, this.executeSetOtherModeH.bind(this)],
 
-      [0xf1, this.executeRDPHalf2],
+      [0xf1, this.executeRDPHalf2.bind(this)],
     ]);
   }
 
@@ -545,8 +545,8 @@ export class GBI2 extends GBIMicrocode {
 }
 
 export class GBI2Conker extends GBI2 {
-  constructor(ucode, state, ramDV) {
-    super(ucode, state, ramDV);
+  constructor(state, ramDV) {
+    super(state, ramDV);
     this.vertexStride = 2;
   }
 
@@ -554,8 +554,8 @@ export class GBI2Conker extends GBI2 {
 }
 
 export class GBI2SDEX extends GBI2 {
-  constructor(ucode, state, ramDV) {
-    super(ucode, state, ramDV);
+  constructor(state, ramDV) {
+    super(state, ramDV);
     this.vertexStride = 2;
   }
 }

@@ -37,32 +37,32 @@ export function create(task, state, ramDV) {
   const ucode = detect(task);
   switch (ucode) {
     case kUCode_GBI0:
-      return new GBI0(ucode, state, ramDV);
+      return new GBI0(state, ramDV);
     case kUCode_GBI0_DKR:
-      return new GBI0DKR(ucode, state, ramDV);
+      return new GBI0DKR(state, ramDV);
     case kUCode_GBI0_SE:
-      return new GBI0SE(ucode, state, ramDV);
+      return new GBI0SE(state, ramDV);
     case kUCode_GBI0_PD:
-      return new GBI0PD(ucode, state, ramDV);
+      return new GBI0PD(state, ramDV);
     case kUCode_GBI0_GE:
-      return new GBI0GE(ucode, state, ramDV);
+      return new GBI0GE(state, ramDV);
     case kUCode_GBI0_WR:
-      return new GBI0WR(ucode, state, ramDV);
+      return new GBI0WR(state, ramDV);
     case kUCode_GBI1:
-      return new GBI1(ucode, state, ramDV);
+      return new GBI1(state, ramDV);
     case kUCode_GBI1_LL:
-      return new GBI1LL(ucode, state, ramDV);
+      return new GBI1LL(state, ramDV);
     case kUCode_GBI1_SDEX:
-      return new GBI1SDEX(ucode, state, ramDV);
+      return new GBI1SDEX(state, ramDV);
     case kUCode_GBI2:
-      return new GBI2(ucode, state, ramDV);
+      return new GBI2(state, ramDV);
     case kUCode_GBI2_CONKER:
-      return new GBI2Conker(ucode, state, ramDV);
+      return new GBI2Conker(state, ramDV);
     case kUCode_GBI2_SDEX:
-      return new GBI2SDEX(ucode, state, ramDV);
+      return new GBI2SDEX(state, ramDV);
   }
   logger.log(`unhandled ucode during table init: ${ucode}`);
-  return new GBI0(ucode, state, ramDV);
+  return new GBI0(state, ramDV);
 }
 
 function detect(task) {

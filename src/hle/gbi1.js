@@ -476,15 +476,15 @@ export class GBI1 extends GBIMicrocode {
 }
 
 export class GBI1LL extends GBI1 {
-  constructor(ucode, state, ramDV) {
-    super(ucode, state, ramDV);
+  constructor(state, ramDV) {
+    super(state, ramDV);
     this.vertexStride = 2;
   }
 }
 
 export class GBI1SDEX extends GBI1 {
-  constructor(ucode, state, ramDV) {
-    super(ucode, state, ramDV);
+  constructor(state, ramDV) {
+    super(state, ramDV);
     this.vertexStride = 2;
   }
 }
