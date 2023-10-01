@@ -38,9 +38,6 @@ export function create(task, state, ramDV) {
   const version = task.detectVersionString();
   const hash = task.computeMicrocodeHash();
   const ucode = detect(version, hash);
-
-  console.log(`detected ucode ${ucode}`);
-
   const microcode = createMicrocode(ucode, state, ramDV);
   microcode.version = version;
   return microcode;
