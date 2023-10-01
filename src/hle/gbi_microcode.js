@@ -26,7 +26,14 @@ export class GBIMicrocode {
     this.ramDV = ramDV;
     this.vertexStride = 2;
 
+    // Version string for this microcode.
+    // Set after creation.
+    this.version = '';
+
     this.triangleBuffer = new TriangleBuffer(64);
+
+    // A callback for when a loadUcode command is executed.
+    this.onLoadUcodeHandler = null;
 
     this.gbiCommonCommands = new Map([
       [0xe4, this.executeTexRect.bind(this)],
@@ -77,6 +84,10 @@ export class GBIMicrocode {
       return fn;
     }
     return null;
+  }
+
+  onLoadUcode(fn) {
+    this.onLoadUcodeHandler = fn;
   }
 
   executeUnknown(cmd0, cmd1) {
@@ -370,19 +381,39 @@ export class GBIMicrocode {
   }
 
   executeLoadUcode(cmd0, cmd1, dis) {
-    this.warnUnimplemented('LoadUcode');
-
-    const codeAddr = cmd1 & 0x1fffffff;
+    const codeAddr = cmd1 & 0x00ff_fffff;
     const codeSize = 0x1000;
-    const dataAddr = this.state.rdpHalf1 & 0x1fffffff;
-    const dataSize = (cmd0 & 0xFFFF) + 1;
+    const codeDataAddr = this.state.rdpHalf1;
+    const codeDataSize = (cmd0 & 0xFFFF) + 1;
 
-    if (dis) {
-      dis.text(`gsSPLoadUCode(${toString32(codeAddr)}, ${codeSize}, ${toString32(dataAddr)} ${dataSize});`);
+    let name = '?';
+    if (this.onLoadUcodeHandler) {
+      const microcode = this.onLoadUcodeHandler(codeAddr, codeSize, codeDataAddr, codeDataSize);
+      // Ensure the new microcode instance has the same handler.
+      // TODO: is there a less hacky way to do this?
+      microcode.onLoadUcode(this.onLoadUcodeHandler);
+      name = microcode.version;
+    } else {
+      this.warn('No loadUcodeHandler set!');
     }
 
-    // TODO: 
-    // initMicrocode(codeAddr, codeSize, dataAddr, dataSize);
+    if (dis) {
+      dis.text(`gsSPLoadUCode(${toString32(codeAddr)}, ${codeSize}, ${toString32(codeDataAddr)} ${codeDataSize}); // ${name}`);
+    }
+  }
+
+  executeRDPHalf1(cmd0, cmd1, dis) {
+    if (dis) {
+      dis.text(`gsImmp1(G_RDPHALF_1, ${toString32(cmd1)});`);
+    }
+    this.state.rdpHalf1 = cmd1;
+  }
+
+  executeRDPHalf2(cmd0, cmd1, dis) {
+    if (dis) {
+      dis.text(`gsImmp1(G_RDPHALF_2, ${toString32(cmd1)});`);
+    }
+    this.state.rdpHalf2 = cmd1;
   }
 
   executeRDPLoadSync(cmd0, cmd1, dis) {

@@ -98,20 +98,6 @@ export class GBI2 extends GBIMicrocode {
     this.state.rdpOtherModeH = (this.state.rdpOtherModeH & ~mask) | data;
   }
 
-  executeRDPHalf1(cmd0, cmd1, dis) {
-    if (dis) {
-      dis.text(`gsImmp1(G_RDPHALF_1, ${toString32(cmd1)});`);
-    }
-    this.state.rdpHalf1 = cmd1;
-  }
-
-  executeRDPHalf2(cmd0, cmd1, dis) {
-    if (dis) {
-      dis.text(`gsImmp1(G_RDPHALF_2, ${toString32(cmd1)});`);
-    }
-    this.state.rdpHalf2 = cmd1;
-  }
-
   executeMatrix(cmd0, cmd1, dis) {
     const address = this.state.rdpSegmentAddress(cmd1);
     const push = ((cmd0) & 0x1) === 0;

@@ -86,20 +86,6 @@ export class GBI1 extends GBIMicrocode {
     this.state.branchDisplayList(address);
   }
 
-  executeRDPHalf1(cmd0, cmd1, dis) {
-    if (dis) {
-      dis.text(`gsImmp1(G_RDPHALF_1, ${toString32(cmd1)});`);
-    }
-    this.state.rdpHalf1 = cmd1;
-  }
-
-  executeRDPHalf2(cmd0, cmd1, dis) {
-    if (dis) {
-      dis.text(`gsImmp1(G_RDPHALF_2, ${toString32(cmd1)});`);
-    }
-    this.state.rdpHalf2 = cmd1;
-  }
-
   executeClearGeometryMode(cmd0, cmd1, dis) {
     if (dis) {
       dis.text(`gsSPClearGeometryMode(${gbi.getGeometryModeFlagsText(gbi.GeometryModeGBI1, cmd1)});`);
