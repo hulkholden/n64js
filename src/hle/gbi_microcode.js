@@ -109,7 +109,7 @@ export class GBIMicrocode {
     loggedWarnings.set(msg, true);
 
     const fullMsg = (extra !== undefined) ? `${msg}: ${extra}` : msg;
-    if (haltOnWarning) {
+    if (graphicsOptions.haltOnWarning) {
       this.hleHalt(fullMsg);
     } else {
       n64js.warn(fullMsg);
