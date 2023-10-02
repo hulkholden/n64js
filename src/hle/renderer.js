@@ -236,6 +236,7 @@ export class Renderer {
     const gl = this.gl;
 
     // TODO: check scissor
+    // TODO: is it possible to implement texRect in terms of texRectRot?
 
     const display0 = this.nativeTransform.convertN64ToDisplay(new Vector2(x0, y0));
     const display1 = this.nativeTransform.convertN64ToDisplay(new Vector2(x1, y1));
