@@ -106,7 +106,7 @@ export class DebugController {
   updateStateUI() {
     $dlistState.find('#dl-geometrymode-content').html(this.buildStateTab());
     $dlistState.find('#dl-vertices-content').html(this.buildVerticesTab());
-    $dlistState.find('#dl-textures-content').html(this.buildTexturesTab());
+    $dlistState.find('#dl-tiles-content').html(this.buildTilesTab());
     $dlistState.find('#dl-combiner-content').html(this.buildCombinerTab());
     $dlistState.find('#dl-rdp-content').html(this.buildRDPTab());
   }
@@ -265,7 +265,7 @@ export class DebugController {
     }
   }
 
-  buildTexturesTab() {
+  buildTilesTab() {
     const $d = $('<div />');
     $d.append(this.buildTilesTable());
 
