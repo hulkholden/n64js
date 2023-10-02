@@ -8,7 +8,12 @@ import { GBI2 } from "./gbi2";
 //   0xbe: executeSprite2dScaleFlip,
 //   0xbd: executeSprite2dDraw
 // };
-class uObjScaleBg {
+
+const kFullTransform = 0;
+const kPartialTransform = 1;
+const kNoRotation = 2;
+
+class ObjScaleBg {
   constructor() {
     this.imageX = 0;
     this.imageW = 0;
@@ -39,7 +44,7 @@ class uObjScaleBg {
     this.frameW = dv.getUint16(offset + 6, false) / 4;
 
     this.imageY = dv.getUint16(offset + 8, false) / 32;
-    this.imageH = dv.getUint16(offset + 10, false) / 4;   
+    this.imageH = dv.getUint16(offset + 10, false) / 4;
     this.frameY = dv.getInt16(offset + 12, false) / 4;
     this.frameH = dv.getUint16(offset + 14, false) / 4;
 
@@ -224,59 +229,76 @@ export class S2DEXCommon {
     this.state = state;
     this.ramDV = ramDV;
     this.gbi = gbi;
+
+    // Helper instances to avoid reallocation when rendering.
+    this.scaleBg = new ObjScaleBg();
+    this.matrix = new ObjMatrix();
+    this.sprite = new ObjSprite();
+    this.texture = new ObjTexture();
   }
 
   executeBg1cyc(cmd0, cmd1, dis) {
-    this.gbi.warnUnimplemented('executeBg1cyc')
+    const address = this.state.rdpSegmentAddress(cmd1);
+    const dv = new DataView(this.ramDV.buffer, address);
+    this.scaleBg.load(dv, 0);
+
+    this.gbi.warnUnimplemented('gSPBgRect1Cyc')
     if (dis) {
-      dis.text(`gSPBgRect1Cyc(/* TODO */);`);
+      dis.text(`gSPBgRect1Cyc(${toString32(address)});`);
+      dis.tip(this.scaleBg.toString());
     }
   }
 
   executeBgCopy(cmd0, cmd1, dis) {
-    this.gbi.warnUnimplemented('executeBgCopy')
+    this.gbi.warnUnimplemented('gSPBgRectCopy')
     if (dis) {
       dis.text(`gSPBgRectCopy(/* TODO */);`);
     }
   }
 
   executeObjRectangle(cmd0, cmd1, dis) {
-    this.gbi.warnUnimplemented('executeObjRectangle')
+    this.gbi.warnUnimplemented('gSPObjRectangle')
     if (dis) {
       dis.text(`gSPObjRectangle(/* TODO */);`);
     }
   }
 
   executeObjRectangleR(cmd0, cmd1, dis) {
-    this.gbi.warnUnimplemented('executeObjRectangleR')
+    this.gbi.warnUnimplemented('gSPObjRectangleR')
     if (dis) {
       dis.text(`gSPObjRectangleR(/* TODO */);`);
     }
   }
 
   executeObjSprite(cmd0, cmd1, dis) {
-    this.gbi.warnUnimplemented('executeObjSprite')
+    const address = this.state.rdpSegmentAddress(cmd1);
+    const dv = new DataView(this.ramDV.buffer, address);
+    this.sprite.load(dv);
+
     if (dis) {
-      dis.text(`gSPObjSprite(/* TODO */);`);
+      dis.text(`gSPObjSprite(${toString32(address)});`);
+      dis.tip(this.sprite.toString());
     }
+
+    this.renderSprite(kFullTransform);
   }
 
   executeObjMoveMem(cmd0, cmd1, dis) {
     const address = this.state.rdpSegmentAddress(cmd1);
     const index = cmd0 & 0xffff;
 
-    this.gbi.warnUnimplemented('executeObjMoveMem')
-
     switch (index) {
       case 0:
         if (dis) {
           dis.text(`gSPObjMatrix(${toString32(address)});`);
         }
+        this.setObjMatrix(address, dis);
         break;
       case 2:
         if (dis) {
           dis.text(`gSPObjSubMatrix(${toString32(address)});`);
         }
+        this.setObjSubMatrix(address, dis);
         break;
       default:
         if (dis) {
@@ -285,46 +307,83 @@ export class S2DEXCommon {
     }
   }
 
+  setObjMatrix(address, dis) {
+    const dv = new DataView(this.ramDV.buffer, address);
+    this.matrix.loadFullMatrix(dv, 0);
+    if (dis) {
+      dis.tip(this.matrix.toString());
+    }
+  }
+
+  setObjSubMatrix(address, dis) {
+    const dv = new DataView(this.ramDV.buffer, address);
+    this.matrix.loadSubMatrix(dv, 0);
+
+    if (dis) {
+      dis.tip(this.matrix.toString());
+    }
+  }
+
   executeSelectDL(cmd0, cmd1, dis) {
-    this.gbi.warnUnimplemented('executeSelectDL')
+    this.gbi.warnUnimplemented('gSPSelectDL')
     if (dis) {
       dis.text(`gSPSelectDL(/* TODO */);`);
     }
   }
 
   executeObjRendermode(cmd0, cmd1, dis) {
-    this.gbi.warnUnimplemented('executeObjRendermode')
     if (dis) {
-      dis.text(`gSPObjRenderMode(/* TODO */);`);
+      dis.text(`gSPObjRenderMode(/* ignored */);`);
     }
   }
 
   executeObjLoadTxtr(cmd0, cmd1, dis) {
-    this.gbi.warnUnimplemented('executeObjLoadTxtr')
+    const address = this.state.rdpSegmentAddress(cmd1);
+    const dv = new DataView(this.ramDV.buffer, address);
+    this.texture.load(dv, 0);
+
     if (dis) {
-      dis.text(`gSPObjLoadTxtr(/* TODO */);`);
+      dis.text(`gSPObjLoadTxtr(${toString32(address)});`);
+      dis.tip(`${this.texture.toString()}`);
     }
+
+    this.loadTexture();
   }
 
-  executeObjLdtxSprite(cmd0, cmd1, dis) {
-    this.gbi.warnUnimplemented('executeObjLdtxSprite')
+  executeObjLoadTxSprite(cmd0, cmd1, dis) {
+    const address = this.state.rdpSegmentAddress(cmd1);
+    const dv = new DataView(this.ramDV.buffer, address);
+    this.texture.load(dv, 0);
+    this.sprite.load(dv, 24);
+
     if (dis) {
-      dis.text(`gSPObjLoadTxSprite(/* TODO */);`);
+      dis.text(`gSPObjLoadTxSprite(${toString32(address)});`);
+      dis.tip(`${this.texture.toString()}\n${this.sprite.toString()}`);
     }
+
+    this.loadTexture();
+    this.renderSprite(kFullTransform);
   }
 
-  executeObjLdtxRect(cmd0, cmd1, dis) {
-    this.gbi.warnUnimplemented('executeObjLdtxRect')
+  executeObjLoadTxRect(cmd0, cmd1, dis) {
+    this.gbi.warnUnimplemented('gSPObjLoadTxRect')
     if (dis) {
       dis.text(`gSPObjLoadTxRect(/* TODO */);`);
     }
   }
 
-  executeObjLdtxRectR(cmd0, cmd1, dis) {
-    this.gbi.warnUnimplemented('executeObjLdtxRectR')
+  executeObjLoadTxRectR(cmd0, cmd1, dis) {
+    const address = this.state.rdpSegmentAddress(cmd1);
+    const dv = new DataView(this.ramDV.buffer, address);
+    this.texture.load(dv, 0);
+    this.sprite.load(dv, 24);
+
     if (dis) {
-      dis.text(`gSPObjLoadTxRectR(/* TODO */);`);
+      dis.text(`gSPObjLoadTxRectR(${toString32(address)});`);
+      dis.tip(`${this.texture.toString()}\n${this.sprite.toString()}`);
     }
+    this.loadTexture();
+    this.renderSprite(kPartialTransform);
   }
 
   executeTriRSP(cmd0, cmd1, dis) {
@@ -340,6 +399,125 @@ export class S2DEXCommon {
     this.gbi.warnUnimplemented('executeRDPHalf0')
     if (dis) {
       dis.text(`gsImmp1(G_RDPHALF_0, ${toString32(cmd1)});`);
+    }
+  }
+
+  loadTexture() {
+    const tileIdx = this.state.texture.tile;
+    const lTile = this.state.tiles[gbi.G_TX_LOADTILE];
+    const rTile = this.state.tiles[tileIdx];
+    const spr = this.sprite;
+    const tex = this.texture;
+
+    // TODO: check sid, flag and mask to figure out if the texture is already loaded.
+
+    if (spr.imageAdrs != 0) {
+      // TODO: imageAdrs is the position in TMEM. Added to tex.tmem after loading?
+      this.gbi.warnUnimplemented('non-zero spr.imageAdrs');
+    }
+    const ramAddress = this.state.rdpSegmentAddress(tex.image);
+
+    // TODO: Is it ok to use this or should we maintain our own TextureImage?
+    this.state.textureImage.set(spr.imageFmt, spr.imageSiz, spr.imageW, ramAddress);
+
+    // FIXME - is this necessary? It it always RGBA16?
+    this.state.rdpOtherModeH &= ~gbi.G_TT_MASK;
+    this.state.rdpOtherModeH |= gbi.TextureLUT.G_TT_RGBA16;
+
+    switch (tex.type) {
+      case G_OBJLT_TXTRBLOCK:
+        {
+          const line = this.state.textureImage.texelsToBytes(spr.imageW) >>> 3;
+          // Load the texture.
+          lTile.set(spr.imageFmt, spr.imageSiz, line, tex.tmem, spr.imagePal, 0, 0, 0, 0, 0, 0);
+          lTile.setSize(0, 0, ((spr.imageW - 1) * 4) >> 0, ((spr.imageH - 1) * 4) >> 0);
+          this.state.tmem.loadBlock(lTile, ramAddress, tex.tline, tex.tsize + 1);
+
+          // Set up the rendertile.
+          rTile.set(spr.imageFmt, spr.imageSiz, line, tex.tmem, spr.imagePal, 0, 0, 0, 0, 0, 0);
+          rTile.setSize(0, 0, ((spr.imageW - 1) * 4) >> 0, ((spr.imageH - 1) * 4) >> 0);
+        }
+        break;
+      case G_OBJLT_TXTRTILE:
+        {
+          this.gbi.warnUnimplemented('load tile');
+          const line = 8; // FIXME
+
+          // Load the texture.
+          lTile.set(spr.imageFmt, spr.imageSiz, line, tex.tmem, spr.imagePal, 0, 0, 0, 0, 0, 0);
+          lTile.setSize(0, 0, tex.twidth, tex.theight);
+          const ramStride = this.state.textureImage.stride();
+          const rowBytes = this.state.textureImage.texelsToBytes(tex.twidth);
+          const tmemStride = (this.state.textureImage.size == gbi.ImageSize.G_IM_SIZ_32b) ? lTile.line << 4 : lTile.line << 3;
+          this.state.tmem.loadTile(lTile, ramAddress, spr.imageH, ramStride, rowBytes, tmemStride);
+
+          // Set up the rendertile.
+          rTile.set(spr.imageFmt, spr.imageSiz, line, tex.tmem, spr.imagePal, 0, 0, 0, 0, 0, 0);
+          rTile.setSize(0, 0, tex.twidth, tex.theight);
+        }
+        break;
+      case G_OBJLT_TLUT:
+        {
+          // Load the tlut.
+          const line = 0;
+          // TODO: is the image format correct?
+          lTile.set(spr.imageFmt, spr.imageSiz, line, tex.phead, 0, 0, 0, 0, 0, 0, 0);
+          // TODO: set tile size so LRT comes out as the count. 
+          // lTile.setSize(0, 0, ((spr.imageW - 1) * 4) >> 0, ((spr.imageH - 1) * 4) >> 0);
+          this.state.tmem.loadTLUT(lTile, ramAddress, tex.pnum + 1);
+        }
+        break;
+      default:
+        this.gbi.warnUnimplemented(`load texture type ${tex.type}`);
+        break;
+    }
+    this.state.invalidateTileHashes();
+  }
+
+  renderSprite(rotType) {
+    const tileIdx = this.state.texture.tile;
+    const m = this.matrix;
+    const objX0 = this.sprite.objX;
+    const objY0 = this.sprite.objY;
+    const objX1 = this.sprite.objW + objX0;
+    const objY1 = this.sprite.objH + objY0;
+  
+    // Used by Worms
+    const swapX = this.sprite.imageFlags & 0x01;  // G_OBJ_FLAG_FLIPS
+    const swapY = this.sprite.imageFlags & 0x10;  // G_OBJ_FLAG_FLIPT
+    if (swapX || swapY) {
+      this.gbi.warnUnimplemented("swapX/Y");
+    }
+    const s0 = 0;
+    const t0 = 0;
+    const s1 = this.sprite.imageW;
+    const t1 = this.sprite.imageH;
+
+    if (rotType == kFullTransform) {
+      const x0 = m.x + (m.a * objX0) + (m.b * objY0);
+      const y0 = m.y + (m.c * objX0) + (m.d * objY0);
+      const x1 = m.x + (m.a * objX1) + (m.b * objY0);
+      const y1 = m.y + (m.c * objX1) + (m.d * objY0);
+      const x2 = m.x + (m.a * objX0) + (m.b * objY1);
+      const y2 = m.y + (m.c * objX0) + (m.d * objY1);
+      const x3 = m.x + (m.a * objX1) + (m.b * objY1);
+      const y3 = m.y + (m.c * objX1) + (m.d * objY1);
+      this.gbi.renderer.texRectRot(tileIdx, x0, y0, x1, y1, x2, y2, x3, y3, s0, t0, s1, t1);
+    } else if (rotType == kPartialTransform) {
+      // TODO: is x1/y1 decremented by 1?
+      const x0 = m.x + (objX0 / m.sx);
+      const y0 = m.y + (objY0 / m.sy);
+      const x1 = m.x + (objX1 / m.sx);
+      const y1 = m.y + (objY1 / m.sy);
+      this.gbi.renderer.texRect(tileIdx, x0, y0, x1, y1, s0, t0, s1, t1, false);
+    } else if (rotType == kNoRotation) {
+      // TODO: verify.
+      this.gbi.warnUnimplemented('no rotation is untested');
+      const x0 = objX0;
+      const x1 = objX1;
+      const y0 = objY0;
+      const y1 = objY1;
+      this.gbi.renderer.texRect(tileIdx, x0, y0, x1, y1, s0, t0, s1, t1, false);
     }
   }
 }
@@ -365,9 +543,9 @@ export class GBI1SDEX extends GBI1 {
       [0xb1, this.s2dex.executeObjRendermode.bind(this.s2dex)],
       [0xb2, this.s2dex.executeObjRectangleR.bind(this.s2dex)],
       [0xc1, this.s2dex.executeObjLoadTxtr.bind(this.s2dex)],
-      [0xc2, this.s2dex.executeObjLdtxSprite.bind(this.s2dex)],
-      [0xc3, this.s2dex.executeObjLdtxRect.bind(this.s2dex)],
-      [0xc4, this.s2dex.executeObjLdtxRectR.bind(this.s2dex)],
+      [0xc2, this.s2dex.executeObjLoadTxSprite.bind(this.s2dex)],
+      [0xc3, this.s2dex.executeObjLoadTxRect.bind(this.s2dex)],
+      [0xc4, this.s2dex.executeObjLoadTxRectR.bind(this.s2dex)],
 
       [0xc8, this.s2dex.executeTriRSP.bind(this.s2dex)],
       [0xc9, this.s2dex.executeTriRSP.bind(this.s2dex)],
@@ -389,7 +567,6 @@ export class GBI1SDEX extends GBI1 {
     }
     return super.getHandler(command);
   }
-
 }
 
 export class GBI2SDEX extends GBI2 {
@@ -404,9 +581,9 @@ export class GBI2SDEX extends GBI2 {
       [0x02, this.s2dex.executeObjSprite.bind(this.s2dex)],
       [0x04, this.s2dex.executeSelectDL.bind(this.s2dex)],
       [0x05, this.s2dex.executeObjLoadTxtr.bind(this.s2dex)],
-      [0x06, this.s2dex.executeObjLdtxSprite.bind(this.s2dex)],
-      [0x07, this.s2dex.executeObjLdtxRect.bind(this.s2dex)],
-      [0x08, this.s2dex.executeObjLdtxRectR.bind(this.s2dex)],
+      [0x06, this.s2dex.executeObjLoadTxSprite.bind(this.s2dex)],
+      [0x07, this.s2dex.executeObjLoadTxRect.bind(this.s2dex)],
+      [0x08, this.s2dex.executeObjLoadTxRectR.bind(this.s2dex)],
       [0x09, this.s2dex.executeBg1cyc.bind(this.s2dex)],
       [0x0a, this.s2dex.executeBgCopy.bind(this.s2dex)],
       [0x0b, this.s2dex.executeObjRendermode.bind(this.s2dex)],
@@ -438,5 +615,25 @@ export class GBI2SDEX extends GBI2 {
     if (dis) {
       dis.text(`executeDL_Count(/* TODO */);`);
     }
+  }
+
+  executeMoveMem(cmd0, cmd1, dis) {
+    const type = cmd0 & 0xfe;
+    if (type == 0) {
+      const address = this.state.rdpSegmentAddress(cmd1);
+      if (dis) {
+        dis.text(`gSPObjMatrix(${toString32(address)});`);
+      }
+      this.s2dex.setObjMatrix(address, dis);
+      return;
+    } else if (type == 2) {
+      const address = this.state.rdpSegmentAddress(cmd1);
+      if (dis) {
+        dis.text(`gSPObjSubMatrix(${toString32(address)});`);
+      }
+      this.s2dex.setObjSubMatrix(address, dis);
+      return;
+    }
+    super.executeMoveMem(cmd0, cmd1, dis);
   }
 }
