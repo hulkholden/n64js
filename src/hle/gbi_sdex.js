@@ -351,39 +351,29 @@ export class S2DEXCommon {
   }
 
   executeObjLoadTxSprite(cmd0, cmd1, dis) {
-    const address = this.state.rdpSegmentAddress(cmd1);
-    const dv = new DataView(this.ramDV.buffer, address);
-    this.texture.load(dv, 0);
-    this.sprite.load(dv, 24);
-
-    if (dis) {
-      dis.text(`gSPObjLoadTxSprite(${toString32(address)});`);
-      dis.tip(`${this.texture.toString()}\n${this.sprite.toString()}`);
-    }
-
-    this.loadTexture();
-    this.renderSprite(kFullTransform);
+    this.loadTextureRenderSprite('gSPObjLoadTxSprite', kFullTransform, cmd1, dis);
   }
 
   executeObjLoadTxRect(cmd0, cmd1, dis) {
-    this.gbi.warnUnimplemented('gSPObjLoadTxRect')
-    if (dis) {
-      dis.text(`gSPObjLoadTxRect(/* TODO */);`);
-    }
+    this.loadTextureRenderSprite('gSPObjLoadTxRect', kNoRotation, cmd1, dis);
   }
 
   executeObjLoadTxRectR(cmd0, cmd1, dis) {
+    this.loadTextureRenderSprite('gSPObjLoadTxRectR', kPartialTransform, cmd1, dis);
+  }
+
+  loadTextureRenderSprite(method, rotType, cmd1, dis) {
     const address = this.state.rdpSegmentAddress(cmd1);
     const dv = new DataView(this.ramDV.buffer, address);
     this.texture.load(dv, 0);
     this.sprite.load(dv, 24);
 
     if (dis) {
-      dis.text(`gSPObjLoadTxRectR(${toString32(address)});`);
+      dis.text(`${method}(${toString32(address)});`);
       dis.tip(`${this.texture.toString()}\n${this.sprite.toString()}`);
     }
     this.loadTexture();
-    this.renderSprite(kPartialTransform);
+    this.renderSprite(rotType);
   }
 
   executeTriRSP(cmd0, cmd1, dis) {
