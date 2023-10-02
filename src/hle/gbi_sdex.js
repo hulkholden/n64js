@@ -257,30 +257,27 @@ export class S2DEXCommon {
   }
 
   executeObjRectangle(cmd0, cmd1, dis) {
-    this.gbi.warnUnimplemented('gSPObjRectangle')
-    if (dis) {
-      dis.text(`gSPObjRectangle(/* TODO */);`);
-    }
+    this.execRenderObj('gSPObjRectangle', kNoRotation, cmd1, dis);
   }
 
   executeObjRectangleR(cmd0, cmd1, dis) {
-    this.gbi.warnUnimplemented('gSPObjRectangleR')
-    if (dis) {
-      dis.text(`gSPObjRectangleR(/* TODO */);`);
-    }
+    this.execRenderObj('gSPObjRectangleR', kPartialTransform, cmd1, dis);
   }
 
   executeObjSprite(cmd0, cmd1, dis) {
-    const address = this.state.rdpSegmentAddress(cmd1);
-    const dv = new DataView(this.ramDV.buffer, address);
-    this.sprite.load(dv);
+    this.execRenderObj('gSPObjSprite', kFullTransform, cmd1, dis);
+  }
 
-    if (dis) {
-      dis.text(`gSPObjSprite(${toString32(address)});`);
-      dis.tip(this.sprite.toString());
-    }
+  executeObjLoadTxRect(cmd0, cmd1, dis) {
+    this.execLoadTxRenderObj('gSPObjLoadTxRect', kNoRotation, cmd1, dis);
+  }
 
-    this.renderSprite(kFullTransform);
+  executeObjLoadTxRectR(cmd0, cmd1, dis) {
+    this.execLoadTxRenderObj('gSPObjLoadTxRectR', kPartialTransform, cmd1, dis);
+  }
+
+  executeObjLoadTxSprite(cmd0, cmd1, dis) {
+    this.execLoadTxRenderObj('gSPObjLoadTxSprite', kFullTransform, cmd1, dis);
   }
 
   executeObjLoadTxtr(cmd0, cmd1, dis) {
@@ -296,19 +293,20 @@ export class S2DEXCommon {
     this.loadTexture();
   }
 
-  executeObjLoadTxSprite(cmd0, cmd1, dis) {
-    this.loadTextureRenderSprite('gSPObjLoadTxSprite', kFullTransform, cmd1, dis);
+  execRenderObj(method, rotType, cmd1, dis) {
+    const address = this.state.rdpSegmentAddress(cmd1);
+    const dv = new DataView(this.ramDV.buffer, address);
+    this.sprite.load(dv);
+
+    if (dis) {
+      dis.text(`${method}(${toString32(address)});`);
+      dis.tip(this.sprite.toString());
+    }
+
+    this.renderSprite(rotType);
   }
 
-  executeObjLoadTxRect(cmd0, cmd1, dis) {
-    this.loadTextureRenderSprite('gSPObjLoadTxRect', kNoRotation, cmd1, dis);
-  }
-
-  executeObjLoadTxRectR(cmd0, cmd1, dis) {
-    this.loadTextureRenderSprite('gSPObjLoadTxRectR', kPartialTransform, cmd1, dis);
-  }
-
-  loadTextureRenderSprite(method, rotType, cmd1, dis) {
+  execLoadTxRenderObj(method, rotType, cmd1, dis) {
     const address = this.state.rdpSegmentAddress(cmd1);
     const dv = new DataView(this.ramDV.buffer, address);
     this.texture.load(dv, 0);
