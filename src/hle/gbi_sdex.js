@@ -9,9 +9,10 @@ import { GBI2 } from "./gbi2";
 //   0xbd: executeSprite2dDraw
 // };
 
-const kFullTransform = 0;
-const kPartialTransform = 1;
-const kNoRotation = 2;
+const kRenderNone = 0;
+const kRenderFullTransform = 1;
+const kRenderPartialTransform = 2;
+const kRenderNoRotation = 3;
 
 class ObjScaleBg {
   constructor() {
@@ -257,67 +258,63 @@ export class S2DEXCommon {
   }
 
   executeObjRectangle(cmd0, cmd1, dis) {
-    this.execRenderObj('gSPObjRectangle', kNoRotation, cmd1, dis);
+    this.execLoadTxRenderObj('gSPObjRectangle', false, kRenderNoRotation, cmd1, dis);
   }
 
   executeObjRectangleR(cmd0, cmd1, dis) {
-    this.execRenderObj('gSPObjRectangleR', kPartialTransform, cmd1, dis);
+    this.execLoadTxRenderObj('gSPObjRectangleR', false, kRenderPartialTransform, cmd1, dis);
   }
 
   executeObjSprite(cmd0, cmd1, dis) {
-    this.execRenderObj('gSPObjSprite', kFullTransform, cmd1, dis);
+    this.execLoadTxRenderObj('gSPObjSprite', false, kRenderFullTransform, cmd1, dis);
   }
 
   executeObjLoadTxRect(cmd0, cmd1, dis) {
-    this.execLoadTxRenderObj('gSPObjLoadTxRect', kNoRotation, cmd1, dis);
+    this.execLoadTxRenderObj('gSPObjLoadTxRect', true, kRenderNoRotation, cmd1, dis);
   }
 
   executeObjLoadTxRectR(cmd0, cmd1, dis) {
-    this.execLoadTxRenderObj('gSPObjLoadTxRectR', kPartialTransform, cmd1, dis);
+    this.execLoadTxRenderObj('gSPObjLoadTxRectR', true, kRenderPartialTransform, cmd1, dis);
   }
 
   executeObjLoadTxSprite(cmd0, cmd1, dis) {
-    this.execLoadTxRenderObj('gSPObjLoadTxSprite', kFullTransform, cmd1, dis);
+    this.execLoadTxRenderObj('gSPObjLoadTxSprite', true, kRenderFullTransform, cmd1, dis);
   }
 
   executeObjLoadTxtr(cmd0, cmd1, dis) {
-    const address = this.state.rdpSegmentAddress(cmd1);
-    const dv = new DataView(this.ramDV.buffer, address);
-    this.texture.load(dv, 0);
-
-    if (dis) {
-      dis.text(`gSPObjLoadTxtr(${toString32(address)});`);
-      dis.tip(`${this.texture.toString()}`);
-    }
-
-    this.loadTexture();
+    this.execLoadTxRenderObj('gSPObjLoadTxtr', true, kRenderNone, cmd1, dis);
   }
 
-  execRenderObj(method, rotType, cmd1, dis) {
+  execLoadTxRenderObj(method, loadTex, renderMode, cmd1, dis) {
     const address = this.state.rdpSegmentAddress(cmd1);
-    const dv = new DataView(this.ramDV.buffer, address);
-    this.sprite.load(dv);
+    let offset = address;
 
-    if (dis) {
-      dis.text(`${method}(${toString32(address)});`);
-      dis.tip(this.sprite.toString());
+    if (loadTex) {
+      this.texture.load(this.ramDV, offset);
+      offset += 24;
     }
 
-    this.renderSprite(rotType);
-  }
+    if (renderMode != kRenderNone) {
+      this.sprite.load(this.ramDV, offset);
+      offset += 24;
+    }
 
-  execLoadTxRenderObj(method, rotType, cmd1, dis) {
-    const address = this.state.rdpSegmentAddress(cmd1);
-    const dv = new DataView(this.ramDV.buffer, address);
-    this.texture.load(dv, 0);
-    this.sprite.load(dv, 24);
+    if (loadTex) {
+      // This also depends on sprite being initialised.
+      this.loadTexture();
+    }
 
+    if (renderMode != kRenderNone) {
+      this.renderSprite(renderMode);
+    }
+
+    let tip = '';
     if (dis) {
       dis.text(`${method}(${toString32(address)});`);
-      dis.tip(`${this.texture.toString()}\n${this.sprite.toString()}`);
+      if (loadTex) { tip += this.texture.toString() + '\n'; }
+      if (renderMode != kRenderNone) { tip += this.sprite.toString() + '\n'; }
+      dis.tip(tip);
     }
-    this.loadTexture();
-    this.renderSprite(rotType);
   }
 
   executeObjMoveMem(cmd0, cmd1, dis) {
@@ -391,11 +388,12 @@ export class S2DEXCommon {
   }
 
   loadTexture() {
+    const spr = this.sprite
+    const tex = this.texture;
+
     const tileIdx = this.state.texture.tile;
     const lTile = this.state.tiles[gbi.G_TX_LOADTILE];
     const rTile = this.state.tiles[tileIdx];
-    const spr = this.sprite;
-    const tex = this.texture;
 
     // TODO: check sid, flag and mask to figure out if the texture is already loaded.
 
@@ -463,25 +461,27 @@ export class S2DEXCommon {
   }
 
   renderSprite(rotType) {
-    const tileIdx = this.state.texture.tile;
+    const spr = this.sprite;
     const m = this.matrix;
-    const objX0 = this.sprite.objX;
-    const objY0 = this.sprite.objY;
-    const objX1 = this.sprite.objW + objX0;
-    const objY1 = this.sprite.objH + objY0;
+  
+    const tileIdx = this.state.texture.tile;
+    const objX0 = spr.objX;
+    const objY0 = spr.objY;
+    const objX1 = spr.objW + objX0;
+    const objY1 = spr.objH + objY0;
   
     // Used by Worms
-    const swapX = this.sprite.imageFlags & 0x01;  // G_OBJ_FLAG_FLIPS
-    const swapY = this.sprite.imageFlags & 0x10;  // G_OBJ_FLAG_FLIPT
+    const swapX = spr.imageFlags & 0x01;  // G_OBJ_FLAG_FLIPS
+    const swapY = spr.imageFlags & 0x10;  // G_OBJ_FLAG_FLIPT
     if (swapX || swapY) {
       this.gbi.warnUnimplemented("swapX/Y");
     }
     const s0 = 0;
     const t0 = 0;
-    const s1 = this.sprite.imageW;
-    const t1 = this.sprite.imageH;
+    const s1 = spr.imageW;
+    const t1 = spr.imageH;
 
-    if (rotType == kFullTransform) {
+    if (rotType == kRenderFullTransform) {
       const x0 = m.x + (m.a * objX0) + (m.b * objY0);
       const y0 = m.y + (m.c * objX0) + (m.d * objY0);
       const x1 = m.x + (m.a * objX1) + (m.b * objY0);
@@ -491,14 +491,14 @@ export class S2DEXCommon {
       const x3 = m.x + (m.a * objX1) + (m.b * objY1);
       const y3 = m.y + (m.c * objX1) + (m.d * objY1);
       this.gbi.renderer.texRectRot(tileIdx, x0, y0, x1, y1, x2, y2, x3, y3, s0, t0, s1, t1);
-    } else if (rotType == kPartialTransform) {
+    } else if (rotType == kRenderPartialTransform) {
       // TODO: is x1/y1 decremented by 1?
       const x0 = m.x + (objX0 / m.sx);
       const y0 = m.y + (objY0 / m.sy);
       const x1 = m.x + (objX1 / m.sx);
       const y1 = m.y + (objY1 / m.sy);
       this.gbi.renderer.texRect(tileIdx, x0, y0, x1, y1, s0, t0, s1, t1, false);
-    } else if (rotType == kNoRotation) {
+    } else if (rotType == kRenderNoRotation) {
       // TODO: verify.
       this.gbi.warnUnimplemented('no rotation is untested');
       const x0 = objX0;
