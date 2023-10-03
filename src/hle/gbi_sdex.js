@@ -349,7 +349,6 @@ export class S2DEXCommon {
 
   setObjSubMatrix(address, dis) {
     this.matrix.loadSubMatrix(this.ramDV, address);
-
     if (dis) {
       dis.tip(this.matrix.toString());
     }
