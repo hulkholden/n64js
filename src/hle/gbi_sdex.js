@@ -240,8 +240,7 @@ export class S2DEXCommon {
 
   executeBg1cyc(cmd0, cmd1, dis) {
     const address = this.state.rdpSegmentAddress(cmd1);
-    const dv = new DataView(this.ramDV.buffer, address);
-    this.scaleBg.load(dv, 0);
+    this.scaleBg.load(this.ramDV, address);
 
     this.gbi.warnUnimplemented('gSPBgRect1Cyc')
     if (dis) {
@@ -342,16 +341,14 @@ export class S2DEXCommon {
   }
 
   setObjMatrix(address, dis) {
-    const dv = new DataView(this.ramDV.buffer, address);
-    this.matrix.loadFullMatrix(dv, 0);
+    this.matrix.loadFullMatrix(this.ramDV, address);
     if (dis) {
       dis.tip(this.matrix.toString());
     }
   }
 
   setObjSubMatrix(address, dis) {
-    const dv = new DataView(this.ramDV.buffer, address);
-    this.matrix.loadSubMatrix(dv, 0);
+    this.matrix.loadSubMatrix(this.ramDV, address);
 
     if (dis) {
       dis.tip(this.matrix.toString());
