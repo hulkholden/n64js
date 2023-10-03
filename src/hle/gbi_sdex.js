@@ -495,8 +495,7 @@ export class S2DEXCommon {
       const y1 = m.y + (objY1 / m.sy);
       this.gbi.renderer.texRect(tileIdx, x0, y0, x1, y1, s0, t0, s1, t1, false);
     } else if (rotType == kRenderNoRotation) {
-      // TODO: verify.
-      this.gbi.warnUnimplemented('no rotation is untested');
+      // TODO: is x1/y1 decremented by 1?
       const x0 = objX0;
       const x1 = objX1;
       const y0 = objY0;
