@@ -36,8 +36,8 @@ function _jumpAddress(a, i) { return (a & 0xf0000000) | (_target(i) * 4); }
 
 
 function makeLabelText(address) {
-  //return `<span class="dis-address-jump">${toHex(address, 32)}</span>`;
-  return toHex(address, 32);
+  //return `<span class="dis-address-jump">${toHex(address, 16)}</span>`;
+  return toHex(address, 16);
 }
 
 export const gprNames = [
@@ -418,13 +418,16 @@ export function disassembleInstruction(address, instruction) {
 export function disassembleRange(beginAddr, endAddr) {
   const hw = n64js.hardware();
   const imem = hw.sp_mem.subRegion(0x1000, 0x1000);
+  return disassembleMemoryRegionRange(imem, 0x0000, beginAddr, endAddr - beginAddr);
+}
 
+export function disassembleMemoryRegionRange(mem, baseAddr, offset, length) {
   const disassembly = [];
   const targets = new Set();
 
-  for (let addr = beginAddr; addr < endAddr; addr += 4) {
-    const instruction = imem.getU32(addr & 0xfff);
-    const d = disassembleInstruction(addr, instruction);
+  for (let i = 0; i < length; i += 4) {
+    const instruction = mem.getU32(offset + i);
+    const d = disassembleInstruction(baseAddr + i, instruction);
     if (d.instruction.target) {
       targets.add(d.instruction.target);
     }
@@ -439,4 +442,12 @@ export function disassembleRange(beginAddr, endAddr) {
   }
 
   return disassembly;
+}
+
+export function dumpDMEM(mem, baseAddr, offset, length) {
+  let text = '';
+  for (let i = 0; i < length; i += 4) {
+    text += `${toHex(baseAddr + i, 16)}: ${toHex(mem.getU32(offset + i), 32)}\n`;
+  }
+  return text;
 }
