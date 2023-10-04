@@ -1,6 +1,8 @@
 /*global n64js*/
 
 import { dbgGUI } from "../dbg_ui.js";
+import { disassembleMemoryRegionRange, dumpDMEM } from "../disassemble_rsp.js";
+import { toHex } from "../format.js";
 import { hleGraphics } from "./hle_graphics.js";
 
 // Whether to skip audio task emulator or run it on the RSP.
@@ -57,6 +59,19 @@ class RSPTask {
     this.codeDataSize = taskMem.getU32(kOffset_ucode_data_size);
 
     this.dataPtr = taskMem.getU32(kOffset_data_ptr);
+  }
+
+  dumpCode() {
+    const mem = n64js.hardware().cachedMemDevice.mem;
+
+    const disassembly = disassembleMemoryRegionRange(mem, 0x0000, this.codeAddr, this.codeSize);
+    let text = `${this.detectVersionString()}\n`;
+    for (let d of disassembly) {
+      text += `${toHex(d.address, 16)} ${d.disassembly}\n`;
+    }
+    text += '\nDMEM\n';
+    text += dumpDMEM(mem, 0x0000, this.codeDataAddr, this.codeDataSize);
+    console.log(text);
   }
 
   loadUcode(codeAddr, codeSize, codeDataAddr, codeDataSize) {
