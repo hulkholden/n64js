@@ -946,23 +946,40 @@ export class Debugger {
   }
 
   disassemblerDown() {
-    this.cpu0State.scroll(+1);
+    this.scrollActiveDisassemblyWindow(+1);
     this.redraw();
   }
 
   disassemblerUp() {
-    this.cpu0State.scroll(-1);
+    this.scrollActiveDisassemblyWindow(-1);
     this.redraw();
   }
 
   disassemblerPageDown() {
-    this.cpu0State.scroll(+16);
+    this.scrollActiveDisassemblyWindow(+16);
     this.redraw();
   }
 
   disassemblerPageUp() {
-    this.cpu0State.scroll(+16);
+    this.scrollActiveDisassemblyWindow(-16);
     this.redraw();
+  }
+
+  scrollActiveDisassemblyWindow(amount) {
+    const dis = this.activeDisassemblyWindow();
+    if (dis) {
+      dis.scroll(amount);
+    }
+  }
+
+  activeDisassemblyWindow() {
+    if (this.$cpuContent.hasClass('active')) {
+      return this.cpu0State;
+    }
+    if (this.$rspContent.hasClass('active')) {
+      return this.rspState;
+    }
+    return null;
   }
 
   redraw() {
