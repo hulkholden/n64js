@@ -418,7 +418,7 @@ export function disassembleInstruction(address, instruction) {
 export function disassembleRange(beginAddr, endAddr) {
   const hw = n64js.hardware();
   const imem = hw.sp_mem.subRegion(0x1000, 0x1000);
-  return disassembleMemoryRegionRange(imem, 0x0000, beginAddr, endAddr - beginAddr);
+  return disassembleMemoryRegionRange(imem, 0x1000, beginAddr, endAddr - beginAddr);
 }
 
 export function disassembleMemoryRegionRange(mem, baseAddr, offset, length) {

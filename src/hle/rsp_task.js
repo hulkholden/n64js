@@ -64,7 +64,7 @@ class RSPTask {
   dumpCode() {
     const mem = n64js.hardware().cachedMemDevice.mem;
 
-    const disassembly = disassembleMemoryRegionRange(mem, 0x0000, this.codeAddr, this.codeSize);
+    const disassembly = disassembleMemoryRegionRange(mem, 0x1000, this.codeAddr, this.codeSize);
     let text = `${this.detectVersionString()}\n`;
     for (let d of disassembly) {
       text += `${toHex(d.address, 16)} ${d.disassembly}\n`;
