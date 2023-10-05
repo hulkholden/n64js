@@ -63,7 +63,8 @@ class RSPTask {
 
   dumpCode() {
     const mem = n64js.hardware().cachedMemDevice.mem;
-
+    // Set baseAddr to 0x1000 so we translate everything from the location in
+    // RAM to where it will be loaded in IMEM.
     const disassembly = disassembleMemoryRegionRange(mem, 0x1000, this.codeAddr, this.codeSize);
     let text = `${this.detectVersionString()}\n`;
     for (let d of disassembly) {

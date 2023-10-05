@@ -80,7 +80,7 @@ pre .dis-line-target {
   background-color: var(--bs-tertiary-bg);
 }
 pre .dis-line-cur {
-  background-color: var(--bs-secondary-bg);
+  background-color: #0d6efd;
 }
 
 .output {
