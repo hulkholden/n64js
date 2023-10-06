@@ -147,6 +147,7 @@ class Instruction {
 
   // LWC2 and SWC2 operations.
   get vmemEl() { return `E${_vmemEl(this.opcode)}`; }
+  vmemEls(num) { return `[${_vmemEl(this.opcode)}..${(_vmemEl(this.opcode) + num - 1) & 15}]` }
   get vmemVT() { return `V${_vmemVT(this.opcode)}`; }
   get vmemBase() { const reg = this.gprName(_vmemBase); this.srcRegs[reg] = 1; return makeRegSpan(reg); }
 
@@ -318,10 +319,10 @@ const lc2Table = (() => {
   }
 
   // TODO: flesh these out.
-  tbl[0] = i => `LBV       ${i.vmemVT} <- ${i.vmemload(1)}`;
-  tbl[1] = i => `LSV       ${i.vmemVT} <- ${i.vmemload(2)}`;
-  tbl[2] = i => `LLV       ${i.vmemVT} <- ${i.vmemload(4)}`;
-  tbl[3] = i => `LDV       ${i.vmemVT} <- ${i.vmemload(8)}`;
+  tbl[0] = i => `LBV       ${i.vmemVT}${i.vmemEls(1)} <- ${i.vmemload(1)}`;
+  tbl[1] = i => `LSV       ${i.vmemVT}${i.vmemEls(2)} <- ${i.vmemload(2)}`;
+  tbl[2] = i => `LLV       ${i.vmemVT}${i.vmemEls(3)} <- ${i.vmemload(4)}`;
+  tbl[3] = i => `LDV       ${i.vmemVT}${i.vmemEls(4)} <- ${i.vmemload(8)}`;
   tbl[4] = i => `LQV       ${i.vmemVT} <- ${i.vmemload(16)}`;
   tbl[5] = i => `LRV       ${i.vmemVT} <- ${i.vmemload(16)}`;
   tbl[6] = i => `LPV       ${i.vmemVT} <- ${i.vmemload(8)}`;
@@ -341,10 +342,10 @@ const sc2Table = (() => {
   }
 
   // TODO: flesh these out.
-  tbl[0] = i => `SBV       ${i.vmemVT} -> ${i.vmemstore(1)}`;
-  tbl[1] = i => `SSV       ${i.vmemVT} -> ${i.vmemstore(2)}`;
-  tbl[2] = i => `SLV       ${i.vmemVT} -> ${i.vmemstore(4)}`;
-  tbl[3] = i => `SDV       ${i.vmemVT} -> ${i.vmemstore(8)}`;
+  tbl[0] = i => `SBV       ${i.vmemVT}${i.vmemEls(1)} -> ${i.vmemstore(1)}`;
+  tbl[1] = i => `SSV       ${i.vmemVT}${i.vmemEls(2)} -> ${i.vmemstore(2)}`;
+  tbl[2] = i => `SLV       ${i.vmemVT}${i.vmemEls(4)} -> ${i.vmemstore(4)}`;
+  tbl[3] = i => `SDV       ${i.vmemVT}${i.vmemEls(8)} -> ${i.vmemstore(8)}`;
   tbl[4] = i => `SQV       ${i.vmemVT} -> ${i.vmemstore(16)}`;
   tbl[5] = i => `SRV       ${i.vmemVT} -> ${i.vmemstore(16)}`;
   tbl[6] = i => `SPV       ${i.vmemVT} -> ${i.vmemstore(8)}`;
