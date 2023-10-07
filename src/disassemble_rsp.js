@@ -416,18 +416,30 @@ export function disassembleInstruction(address, instruction) {
   };
 }
 
-export function disassembleRange(beginAddr, endAddr) {
-  const hw = n64js.hardware();
-  const imem = hw.sp_mem.subRegion(0x1000, 0x1000);
-  return disassembleMemoryRegionRange(imem, beginAddr, 0x0000, endAddr - beginAddr);
+export function disassembleRange(imem, beginAddr, endAddr) {
+  return disassembleRemappedRange(imem, beginAddr, beginAddr, endAddr - beginAddr);
 }
 
-export function disassembleMemoryRegionRange(mem, baseAddr, offset, length) {
+/**
+ * Returns dissassembly for the specified range.
+ * Instructions are read from the specified offset and mapped relative to baseAddress.
+ * This is useful for disassembly RSP microcode from RAM using the address it would be loaded at.
+ * @param {MemoryRegion} mem The memory region containing the instructions.
+ * @param {number} baseAddr The address of the first instruction.
+ * @param {number} memOffset The offset into mem to start disassembling from.
+ * @param {number} length The number of bytes to disassemble.
+ * @returns 
+ */
+export function disassembleRemappedRange(mem, baseAddr, memOffset, length) {
   const disassembly = [];
   const targets = new Set();
 
+  // Wrap instruction loads around the memory region.
+  // This is primarily for IMEM.
+  const mask = mem.length - 1;
+
   for (let i = 0; i < length; i += 4) {
-    const instruction = mem.getU32(offset + i);
+    const instruction = mem.getU32((memOffset + i) & mask);
     const d = disassembleInstruction(baseAddr + i, instruction);
     if (d.instruction.target) {
       targets.add(d.instruction.target);
