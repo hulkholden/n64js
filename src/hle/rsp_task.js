@@ -1,7 +1,7 @@
 /*global n64js*/
 
 import { dbgGUI } from "../dbg_ui.js";
-import { disassembleMemoryRegionRange, dumpDMEM } from "../disassemble_rsp.js";
+import { disassembleRemappedRange, dumpDMEM } from "../disassemble_rsp.js";
 import { toHex } from "../format.js";
 import { hleGraphics } from "./hle_graphics.js";
 
@@ -65,7 +65,10 @@ class RSPTask {
     const mem = n64js.hardware().cachedMemDevice.mem;
     // Set baseAddr to 0x1000 so we translate everything from the location in
     // RAM to where it will be loaded in IMEM.
-    const disassembly = disassembleMemoryRegionRange(mem, 0x1000, this.codeAddr, this.codeSize);
+    // TODO: Is there any way to figure this out automatically?
+    // This value is for S2DEX 1.06.
+    const loadAddress = 0x1080;
+    const disassembly = disassembleRemappedRange(mem, loadAddress, this.codeAddr, this.codeSize);
     let text = `${this.detectVersionString()}\n`;
     for (let d of disassembly) {
       text += `${toHex(d.address, 16)} ${d.disassembly}\n`;

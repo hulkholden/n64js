@@ -197,7 +197,7 @@ class R4300DebugState extends CPUDebugState {
 
 class RSPDebugState extends CPUDebugState {
   disassembleRange() {
-    return disassemble_rsp.disassembleRange(this.disasmAddress - 64, this.disasmAddress + 64, true);
+    return disassemble_rsp.disassembleRange(rsp.imem, this.disasmAddress - 64, this.disasmAddress + 64, true);
   }
 
   updateStatusTable() {
@@ -687,7 +687,6 @@ export class Debugger {
 
     let $disGutter = $('<pre/>');
     let $disText = $('<pre/>');
-    let currentInstruction;
 
     for (let i = 0; i < disassembly.length; ++i) {
       let a = disassembly[i];
@@ -704,14 +703,11 @@ export class Debugger {
         .css('color', this.makeLabelColor(address))
         .click(this.onLabelClicked.bind(this)); // FIXME: needs to be RSP labels.
 
-      // Keep track of the current instruction (for register formatting) and highlight.
       if (address === rsp.pc) {
-        currentInstruction = a.instruction;
         $line.addClass('dis-line-cur');
       }
       if (isTarget) {
         $line.addClass('dis-line-target');
-
         this.setLabelColor($line.find('.dis-address-target'), address);
       }
 
@@ -742,12 +738,14 @@ export class Debugger {
       });
     }.bind(this));
 
-    let registerColours = this.makeRegisterColours(currentInstruction);
+    const curInstrDis = disassemble_rsp.disassembleInstruction(rsp.pc, rsp.imem.getU32(rsp.pc));
+    const curInstruction = curInstrDis.instruction;
+    let registerColours = this.makeRegisterColours(curInstruction);
     for (let [reg, colour] of registerColours) {
       $disText.find('.dis-reg-' + reg).css('background-color', colour);
     }
 
-    this.$rspDisassembly.find('.dis-recent-memory').html(this.makeRecentMemoryAccesses(isSingleStep, currentInstruction, rsp.calcDebuggerAddress.bind(rsp)));
+    this.$rspDisassembly.find('.dis-recent-memory').html(this.makeRecentMemoryAccesses(isSingleStep, curInstruction, rsp.calcDebuggerAddress.bind(rsp)));
 
     this.$rspDisassembly.find('.dis-gutter').empty().append($disGutter);
     this.$rspDisassembly.find('.dis-view').empty().append($disText);
