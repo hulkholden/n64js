@@ -452,7 +452,6 @@ class RSP {
     if (this.halted) {
       return;
     }
-    const pc = this.pc;
     this.nextPC = this.delayPC || ((this.pc + 4) & 0xffc);
 
     const instr = this.imem.getU32(this.pc);
