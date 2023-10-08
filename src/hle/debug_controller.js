@@ -1,5 +1,5 @@
 /*global $, n64js*/
-import { padString, toHex } from '../format.js';
+import { padString, toHex, toString32 } from '../format.js';
 import { makeColorTextRGBA16, makeColorTextRGBA, makeColorTextABGR } from './disassemble.js';
 import * as gbi from './gbi.js';
 import * as shaders from './shaders.js';
@@ -209,6 +209,8 @@ export class DebugController {
   buildRDPTab() {
     const l = this.state.rdpOtherModeL;
     const h = this.state.rdpOtherModeH;
+    const ti = this.state.textureImage;
+
     const vals = new Map([
       ['alphaCompare', gbi.AlphaCompare.nameOf(l & gbi.G_AC_MASK)],
       ['depthSource', gbi.DepthSource.nameOf(l & gbi.G_ZS_MASK)],
@@ -224,6 +226,11 @@ export class DebugController {
       ['textureDetail', gbi.TextureDetail.nameOf(h & gbi.G_TD_MASK)],
       ['cycleType', gbi.CycleType.nameOf(h & gbi.G_CYC_MASK)],
       ['pipelineMode', gbi.PipelineMode.nameOf(h & gbi.G_PM_MASK)],
+      ['', '&nbsp'],
+      ['TI.format', gbi.ImageFormat.nameOf(ti.format)],
+      ['TI.size', gbi.ImageSize.nameOf(ti.size)],
+      ['TI.width', ti.width],
+      ['TI.address', toString32(ti.address)],
     ]);
 
     const $table = $('<table class="table table-condensed dl-debug-table" style="width: auto;"></table>');
