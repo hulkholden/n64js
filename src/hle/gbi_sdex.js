@@ -435,7 +435,7 @@ export class S2DEXCommon {
 
     // SetTextureImage - textures are always loaded as RGBA/16.
     const ti = this.state.textureImage;
-    ti.set(gbi.ImageFormat.G_IM_FMT_RGBA, gbi.ImageFormat.G_IM_SIZ_16b, tex.texLoadSize + 1, ramAddress);
+    ti.set(gbi.ImageFormat.G_IM_FMT_RGBA, gbi.ImageSize.G_IM_SIZ_16b, tex.texLoadSize + 1, ramAddress);
 
     // SetTile - some of the parameters are embedded in the "type" field.
     const fmtSiz = (tex.type >>> 8) & 0xff;
