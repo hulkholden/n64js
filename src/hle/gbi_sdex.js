@@ -152,14 +152,55 @@ paletteIdx = ${this.imagePal}, flags = ${this.imageFlags}`
   }
 }
 
-const G_OBJLT_TXTRBLOCK = 0x00001033;
-const G_OBJLT_TXTRTILE = 0x00fc1034;
-const G_OBJLT_TLUT = 0x00000030;
+// These odd looking constants are [zero, len mask?, ??, rdp_command]
+const G_OBJLT_TXTRBLOCK = 0x00_00_10_33;    // 0x33 = LoadBlock
+const G_OBJLT_TXTRTILE = 0x00_fc_10_34;     // 0x34 = LoadTile
+const G_OBJLT_TLUT = 0x00_00_00_30;         // 0x30 = LoadTLut
+
+// TODO: move to rdp_constants.js.
+export const FillTriangle = 0x08;
+export const FillZBufferTriangle = 0x09;
+export const TextureTriangle = 0x0a;
+export const TextureZBufferTriangle = 0x0b;
+export const ShadeTriangle = 0x0c;
+export const ShadeZBufferTriangle = 0x0d;
+export const ShadeTextureTriangle = 0x0e;
+export const ShadeTextureZBufferTriangle = 0x0f;
+export const TextureRectangle = 0x24;
+export const TextureRectangleFlip = 0x25;
+export const SyncLoad = 0x26;
+export const SyncPipe = 0x27;
+export const SyncTile = 0x28;
+export const SyncFull = 0x29;
+export const SetKeyGB = 0x2a;
+export const SetKeyR = 0x2b;
+export const SetConvert = 0x2c;
+export const SetScissor = 0x2d;
+export const SetPrimDepth = 0x2e;
+export const SetOtherModes = 0x2f;
+export const LoadTLUT = 0x30;
+export const SetTileSize = 0x32;
+export const LoadBlock = 0x33;
+export const LoadTile = 0x34;
+export const SetTile = 0x35;
+export const FillRectangle = 0x36;
+export const SetFillColor = 0x37;
+export const SetFogColor = 0x38;
+export const SetBlendColor = 0x39;
+export const SetPrimColor = 0x3a;
+export const SetEnvColor = 0x3b;
+export const SetCombine = 0x3c;
+export const SetTextureImage = 0x3d;
+export const SetMaskImage = 0x3e;
+export const SetColorImage = 0x3f;
 
 class ObjTexture {
   constructor() {
     this.type = 0;
     this.image = 0;
+    this.texLoadSize = 0;
+    this.tileTMEM = 0;
+
     this.tmem = 0;
     this.tsize = 0;
     this.tline = 0;
@@ -167,6 +208,7 @@ class ObjTexture {
     this.theight = 0;
     this.phead = 0;
     this.pnum = 0;
+
     this.sid = 0;
     this.flag = 0;
     this.mask = 0;
@@ -184,20 +226,25 @@ class ObjTexture {
     this.phead = 0;
     this.pnum = 0;
 
+    // Value assigned to TextureImage width.
+    this.texLoadSize = dv.getUint16(offset + 10, false);
+    // Value assigned to Tile
+    this.tileTMEM = dv.getUint16(offset + 8, false);
+
     switch (this.type) {
       case G_OBJLT_TXTRBLOCK:
-        this.tmem = dv.getUint16(offset + 8, false);
-        this.tsize = dv.getUint16(offset + 10, false);
+        this.tmem = this.tileTMEM;
+        this.tsize = this.texLoadSize;
         this.tline = dv.getUint16(offset + 12, false);
         break;
       case G_OBJLT_TXTRTILE:
-        this.tmem = dv.getUint16(offset + 8, false);
-        this.twidth = dv.getUint16(offset + 10, false);
+        this.tmem = this.tileTMEM;
+        this.twidth = this.texLoadSize;
         this.theight = dv.getUint16(offset + 12, false);
         break;
       case G_OBJLT_TLUT:
-        this.phead = dv.getUint16(offset + 8, false);
-        this.pnum = dv.getUint16(offset + 10, false);
+        this.phead = this.tileTMEM;
+        this.pnum = this.texLoadSize;
         break;
     }
 
@@ -290,21 +337,14 @@ export class S2DEXCommon {
 
     if (loadTex) {
       this.texture.load(this.ramDV, offset);
+      this.loadTexture();
       offset += 24;
     }
 
     if (renderMode != kRenderNone) {
       this.sprite.load(this.ramDV, offset);
-      offset += 24;
-    }
-
-    if (loadTex) {
-      // This also depends on sprite being initialised.
-      this.loadTexture();
-    }
-
-    if (renderMode != kRenderNone) {
       this.renderSprite(renderMode);
+      offset += 24;
     }
 
     let tip = '';
@@ -384,70 +424,56 @@ export class S2DEXCommon {
   }
 
   loadTexture() {
-    const spr = this.sprite
+    // S2DEX "load texture" issues the following RDP commands:
+    // SetTextureImage, SetTile, [SyncLoad], [LoadBlock, LoadTile, LoadTLUT]
     const tex = this.texture;
-
-    const tileIdx = this.state.texture.tile;
     const lTile = this.state.tiles[gbi.G_TX_LOADTILE];
-    const rTile = this.state.tiles[tileIdx];
 
     // TODO: check sid, flag and mask to figure out if the texture is already loaded.
 
-    if (spr.imageAdrs != 0) {
-      // TODO: imageAdrs is the position in TMEM. Added to tex.tmem after loading?
-      this.gbi.warnUnimplemented('non-zero spr.imageAdrs');
-    }
     const ramAddress = this.state.rdpSegmentAddress(tex.image);
 
-    // TODO: Is it ok to use this or should we maintain our own TextureImage?
-    this.state.textureImage.set(spr.imageFmt, spr.imageSiz, spr.imageW, ramAddress);
+    // SetTextureImage - textures are always loaded as RGBA/16.
+    const ti = this.state.textureImage;
+    ti.set(gbi.ImageFormat.G_IM_FMT_RGBA, gbi.ImageFormat.G_IM_SIZ_16b, tex.texLoadSize + 1, ramAddress);
 
-    // FIXME - is this necessary? It it always RGBA16?
-    this.state.rdpOtherModeH &= ~gbi.G_TT_MASK;
-    this.state.rdpOtherModeH |= gbi.TextureLUT.G_TT_RGBA16;
+    // SetTile - some of the parameters are embedded in the "type" field.
+    const fmtSiz = (tex.type >>> 8) & 0xff;
+    const fmt = (fmtSiz >>> 5) & 0x7;   // RGBA
+    const siz = (fmtSiz >>> 3) & 0x3;   // 16 for loadBlock/loadTile or 4 for TLUT
+    // The mask is either 0xfc (for LoadTile) or 0x00 (LoadBlock and LoadTLUT).
+    const lineMask = ((tex.type << 8) >> 24);
+    const line = ((tex.texLoadSize + 1) & lineMask) >>> 2;
 
-    switch (tex.type) {
-      case G_OBJLT_TXTRBLOCK:
+    const palIdx = 0;
+    lTile.set(fmt, siz, line, tex.tileTMEM, palIdx, 0, 0, 0, 0, 0, 0);
+
+    const command = (tex.type >>> 0) & 0xff;
+    switch (command) {
+      case LoadBlock:
         {
-          const line = this.state.textureImage.texelsToBytes(spr.imageW) >>> 3;
-          // Load the texture.
-          lTile.set(spr.imageFmt, spr.imageSiz, line, tex.tmem, spr.imagePal, 0, 0, 0, 0, 0, 0);
-          lTile.setSize(0, 0, ((spr.imageW - 1) * 4) >> 0, ((spr.imageH - 1) * 4) >> 0);
-          this.state.tmem.loadBlock(lTile, ramAddress, tex.tline, tex.tsize + 1);
-
-          // Set up the rendertile.
-          rTile.set(spr.imageFmt, spr.imageSiz, line, tex.tmem, spr.imagePal, 0, 0, 0, 0, 0, 0);
-          rTile.setSize(0, 0, ((spr.imageW - 1) * 4) >> 0, ((spr.imageH - 1) * 4) >> 0);
+          // Yoshi's Story.
+          const dxt = tex.tline;
+          // TODO: is this correct or should it depend on the tile or textureImage size?
+          const qwords = tex.texLoadSize + 1;
+          // TODO: adjust upload.width = (upload.width + 3) & ~3;
+          this.state.tmem.loadBlock(lTile, ramAddress, dxt, qwords);
         }
         break;
-      case G_OBJLT_TXTRTILE:
+      case LoadTile:
         {
-          this.gbi.warnUnimplemented('load tile');
-          const line = 8; // FIXME
-
+          // Neon Genesis Evangelion.
           // Load the texture.
-          lTile.set(spr.imageFmt, spr.imageSiz, line, tex.tmem, spr.imagePal, 0, 0, 0, 0, 0, 0);
-          lTile.setSize(0, 0, tex.twidth, tex.theight);
-          const ramStride = this.state.textureImage.stride();
-          const rowBytes = this.state.textureImage.texelsToBytes(tex.twidth);
-          const tmemStride = (this.state.textureImage.size == gbi.ImageSize.G_IM_SIZ_32b) ? lTile.line << 4 : lTile.line << 3;
-          this.state.tmem.loadTile(lTile, ramAddress, spr.imageH, ramStride, rowBytes, tmemStride);
-
-          // Set up the rendertile.
-          rTile.set(spr.imageFmt, spr.imageSiz, line, tex.tmem, spr.imagePal, 0, 0, 0, 0, 0, 0);
-          rTile.setSize(0, 0, tex.twidth, tex.theight);
+          const w = tex.twidth + 1;
+          const h = tex.theight + 1;
+          const ramStride = ti.stride();
+          const rowBytes = ti.texelsToBytes(w);
+          const tmemStride = line << 3;
+          this.state.tmem.loadTile(lTile, ramAddress, h, ramStride, rowBytes, tmemStride);
         }
         break;
-      case G_OBJLT_TLUT:
-        {
-          // Load the tlut.
-          const line = 0;
-          // TODO: is the image format correct?
-          lTile.set(spr.imageFmt, spr.imageSiz, line, tex.phead, 0, 0, 0, 0, 0, 0, 0);
-          // TODO: set tile size so LRT comes out as the count. 
-          // lTile.setSize(0, 0, ((spr.imageW - 1) * 4) >> 0, ((spr.imageH - 1) * 4) >> 0);
-          this.state.tmem.loadTLUT(lTile, ramAddress, tex.pnum + 1);
-        }
+      case LoadTLUT:
+        this.state.tmem.loadTLUT(lTile, ramAddress, tex.pnum + 1);
         break;
       default:
         this.gbi.warnUnimplemented(`load texture type ${tex.type}`);
@@ -459,13 +485,18 @@ export class S2DEXCommon {
   renderSprite(rotType) {
     const spr = this.sprite;
     const m = this.matrix;
-  
-    const tileIdx = this.state.texture.tile;
+
+    // In theory this should toggle between 0 and 2 for each call.
+    const tileIdx = 0;
     const objX0 = spr.objX;
     const objY0 = spr.objY;
     const objX1 = spr.objW + objX0;
     const objY1 = spr.objH + objY0;
-  
+
+    const rTile = this.state.tiles[tileIdx];
+    rTile.set(spr.imageFmt, spr.imageSiz, spr.imageStride, spr.imageAdrs, spr.imagePal, gbi.G_TX_CLAMP, 0, 0, gbi.G_TX_CLAMP, 0, 0);
+    rTile.setSize(0, 0, (spr.imageW - 1) << 2, (spr.imageH - 1) << 2);
+
     // Used by Worms
     const swapX = spr.imageFlags & 0x01;  // G_OBJ_FLAG_FLIPS
     const swapY = spr.imageFlags & 0x10;  // G_OBJ_FLAG_FLIPT
