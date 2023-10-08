@@ -263,7 +263,7 @@ class ObjTexture {
         text += `Tile: tmem = ${toString16(this.tmem)}, twidth = ${toString16(this.twidth)}, theight = ${toString16(this.theight)}`;
         break;
       case G_OBJLT_TLUT:
-        text += `TLUT: pnum = ${toString16(this.phead)}, pnum = ${toString16(this.pnum)}`;
+        text += `TLUT: phead = ${toString16(this.phead)}, pnum = ${toString16(this.pnum)}`;
         break;
       default:
         text += `UNKNOWN`;
