@@ -403,6 +403,19 @@ export class Debugger {
         event.preventDefault();
       }
     });
+
+    document.querySelector('#cpu-tab').addEventListener('click', () => {
+      this.updateCPU();
+    })
+    document.querySelector('#rsp-tab').addEventListener('click', () => {
+      this.updateRSP();
+    })
+    document.querySelector('#memory-tab').addEventListener('click', () => {
+      this.updateMemoryView();
+    })
+    document.querySelector('#dynarec-tab').addEventListener('click', () => {
+      this.updateDynarec();
+    })
   }
 
   updateMemoryView() {
@@ -440,12 +453,13 @@ export class Debugger {
 
   onReset() {
     this.restoreLabelMap();
+    this.updateCPU();
+    this.updateRSP();
   }
 
   restoreLabelMap() {
     this.labelMap = n64js.getLocalStorageItem('debugLabelMap') || new Map();
     this.refreshLabelSelect();
-    this.updateCPU();
   }
 
   storeLabelMap() {
