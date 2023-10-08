@@ -4,6 +4,7 @@ import { GBI0DKR } from './gbi0_dkr.js';
 import { GBI1, GBI1LL } from './gbi1.js';
 import { GBI2, GBI2Conker } from './gbi2.js';
 import { GBI1SDEX, GBI2SDEX } from './gbi_sdex.js';
+import { graphicsOptions } from './graphics_options.js';
 
 const kUCode_GBI0 = 0;         // Super Mario 64, Tetrisphere, Demos
 const kUCode_GBI1 = 1;         // Mario Kart, Star Fox
@@ -34,8 +35,17 @@ const ucodeOverrides = new Map([
   [0x313f038b, kUCode_GBI0],        // Pilotwings
 ]);
 
+let dumped = false;
+
 export function create(task, state, ramDV) {
   const version = task.detectVersionString();
+
+  const dumpStr = graphicsOptions.dumpMicrocodeSubstring
+  if (dumpStr != '' && !dumped && version.includes(dumpStr)) {
+    task.dumpCode();
+    dumped = true;
+  }
+
   const hash = task.computeMicrocodeHash();
   const ucode = detect(version, hash);
   const microcode = createMicrocode(ucode, state, ramDV);
