@@ -198,16 +198,10 @@ class ObjTexture {
   constructor() {
     this.type = 0;
     this.image = 0;
-    this.texLoadSize = 0;
-    this.tileTMEM = 0;
 
-    this.tmem = 0;
-    this.tsize = 0;
-    this.tline = 0;
-    this.twidth = 0
-    this.theight = 0;
-    this.phead = 0;
-    this.pnum = 0;
+    this.tileTMEM = 0;
+    this.texLoadSize = 0;
+    this.texLoadRows = 0;
 
     this.sid = 0;
     this.flag = 0;
@@ -218,35 +212,12 @@ class ObjTexture {
     this.type = dv.getUint32(offset + 0, false);
     this.image = dv.getUint32(offset + 4, false);
 
-    this.tmem = 0;
-    this.tsize = 0;
-    this.tline = 0;
-    this.twidth = 0
-    this.theight = 0;
-    this.phead = 0;
-    this.pnum = 0;
-
-    // Value assigned to TextureImage width.
-    this.texLoadSize = dv.getUint16(offset + 10, false);
-    // Value assigned to Tile
+    // Value assigned to Tile tmem parameter.
     this.tileTMEM = dv.getUint16(offset + 8, false);
-
-    switch (this.type) {
-      case G_OBJLT_TXTRBLOCK:
-        this.tmem = this.tileTMEM;
-        this.tsize = this.texLoadSize;
-        this.tline = dv.getUint16(offset + 12, false);
-        break;
-      case G_OBJLT_TXTRTILE:
-        this.tmem = this.tileTMEM;
-        this.twidth = this.texLoadSize;
-        this.theight = dv.getUint16(offset + 12, false);
-        break;
-      case G_OBJLT_TLUT:
-        this.phead = this.tileTMEM;
-        this.pnum = this.texLoadSize;
-        break;
-    }
+    // Value assigned to TextureImage width and lrs argument of load commands.
+    this.texLoadSize = dv.getUint16(offset + 10, false);
+    // Value assigned to lrt argument of loads commands.
+    this.texLoadRows = dv.getUint16(offset + 12, false);
 
     this.sid = dv.getUint16(offset + 14, false);
     this.flag = dv.getUint32(offset + 16, false);
@@ -255,19 +226,7 @@ class ObjTexture {
 
   toString() {
     let text = `type = ${toString32(this.type)}, image = ${toString32(this.image)}\n`;
-    switch (this.type) {
-      case G_OBJLT_TXTRBLOCK:
-        text += `Block: tmem = ${toString16(this.tmem)}, tsize = ${toString16(this.tsize)}, tline = ${toString16(this.tline)}`;
-        break;
-      case G_OBJLT_TXTRTILE:
-        text += `Tile: tmem = ${toString16(this.tmem)}, twidth = ${toString16(this.twidth)}, theight = ${toString16(this.theight)}`;
-        break;
-      case G_OBJLT_TLUT:
-        text += `TLUT: phead = ${toString16(this.phead)}, pnum = ${toString16(this.pnum)}`;
-        break;
-      default:
-        text += `UNKNOWN`;
-    }
+    text += `tmem = ${toString16(this.tileTMEM)}, size (qwords) = ${toString16(this.texLoadSize)}, rows (texels) = ${this.texLoadRows}`;
     return text;
   }
 }
@@ -453,7 +412,7 @@ export class S2DEXCommon {
     const palIdx = 0;
     tile.set(fmt, siz, line, tex.tileTMEM, palIdx, 0, 0, 0, 0, 0, 0);
 
-    // twidth/tsize is stored as qwords, so the *4 converts qwords into 16bpp texels
+    // texLoadSize is stored as qwords, so the *4 converts qwords into 16bpp texels
     // (there are 4 per qword), which ti.size is configured with.
     const texelsShift = 2;
     const loadSize = tex.texLoadSize << texelsShift;
@@ -461,13 +420,13 @@ export class S2DEXCommon {
     const command = (tex.type >>> 0) & 0xff;
     switch (command) {
       case LoadBlock:
-        this.state.tmem.loadBlock(ti, tile, 0, 0, loadSize, tex.tline);
+        this.state.tmem.loadBlock(ti, tile, 0, 0, loadSize, tex.texLoadRows);
         break;
       case LoadTile:
-        this.state.tmem.loadTile(ti, tile, 0, 0, loadSize, tex.theight);
+        this.state.tmem.loadTile(ti, tile, 0, 0, loadSize, tex.texLoadRows);
         break;
       case LoadTLUT:
-        this.state.tmem.loadTLUT(ti, tile, 0, 0, loadSize, 0);
+        this.state.tmem.loadTLUT(ti, tile, 0, 0, loadSize, tex.texLoadRows);
         break;
       default:
         this.gbi.warnUnimplemented(`load texture type ${tex.type}`);
