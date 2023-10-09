@@ -65,10 +65,11 @@ export class TMEM {
    * @param {TextureImage} ti RDP texture image. 
    * @param {Tile} tile Tile being loaded.
    * @param {number} ramAddress Address to load from.
+   * @param {number} rowTexels Length of each row in texels.
    * @param {number} rows Number of rows to load.
-   * @param {number} rowBytes Length of each row in bytes.
    */
-  loadTile(ti, tile, ramAddress, rows, rowBytes) {
+  loadTile(ti, tile, ramAddress, rowTexels, rows) {
+    const rowBytes = ti.texelsToBytes(rowTexels);
     const ramStride = ti.stride();
     const tmemData = this.tmemData;
     let tmemOffset = tile.tmem << 3;

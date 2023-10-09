@@ -698,7 +698,6 @@ export class GBIMicrocode {
 
     const ti = this.state.textureImage;
     const ramAddress = ti.calcAddress(tileX0, tileY0);
-    const rowBytes = ti.texelsToBytes(w);
 
     // TODO: Limit the load to fetchedQWords?
     // TODO: should be limited to 2048 texels, not 512 qwords.
@@ -709,10 +708,10 @@ export class GBIMicrocode {
     if (dis) {
       const tt = gbi.getTileText(tileIdx);
       dis.text(`gsDPLoadTile(${tt}, ${uls / 4}, ${ult / 4}, ${lrs / 4}, ${lrt / 4});`);
-      dis.tip(`size = (${w} x ${h}), rowBytes ${rowBytes}`);
+      dis.tip(`size = (${w} x ${h})`);
     }
 
-    this.state.tmem.loadTile(ti, tile, ramAddress, h, rowBytes);
+    this.state.tmem.loadTile(ti, tile, ramAddress, w, h);
     this.state.invalidateTileHashes();
   }
 
