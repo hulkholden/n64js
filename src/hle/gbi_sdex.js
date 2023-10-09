@@ -470,10 +470,9 @@ export class S2DEXCommon {
           // Neon Genesis Evangelion.
           const qwords = (tex.twidth + 1) >> 2;
           const rows = (tex.theight + 1) >> 2;
-          const ramStride = ti.stride();
           const rowBytes = qwords << 3;
           const tmemStride = line << 3;
-          this.state.tmem.loadTile(lTile, ramAddress, rows, ramStride, rowBytes, tmemStride);
+          this.state.tmem.loadTile(ti, lTile, ramAddress, rows, rowBytes, tmemStride);
         }
         break;
       case LoadTLUT:
