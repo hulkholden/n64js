@@ -456,17 +456,18 @@ export class S2DEXCommon {
     // twidth/tsize is stored as qwords, so the *4 converts qwords into 16bpp texels
     // (there are 4 per qword), which ti.size is configured with.
     const texelsShift = 2;
+    const loadSize = tex.texLoadSize << texelsShift;
 
     const command = (tex.type >>> 0) & 0xff;
     switch (command) {
       case LoadBlock:
-        this.state.tmem.loadBlock(ti, tile, 0, 0, tex.tsize << texelsShift, tex.tline);
+        this.state.tmem.loadBlock(ti, tile, 0, 0, loadSize, tex.tline);
         break;
       case LoadTile:
-        this.state.tmem.loadTile(ti, tile, 0, 0, tex.twidth << texelsShift, tex.theight);
+        this.state.tmem.loadTile(ti, tile, 0, 0, loadSize, tex.theight);
         break;
       case LoadTLUT:
-        this.state.tmem.loadTLUT(tile, ramAddress, tex.pnum + 1);
+        this.state.tmem.loadTLUT(ti, tile, 0, 0, loadSize, 0);
         break;
       default:
         this.gbi.warnUnimplemented(`load texture type ${tex.type}`);

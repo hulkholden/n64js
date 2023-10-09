@@ -687,10 +687,6 @@ export class GBIMicrocode {
 
   executeLoadTLut(cmd0, cmd1, dis) {
     const tileIdx = (cmd1 >>> 24) & 0x7;
-    const count = (cmd1 >>> 14) & 0x3ff;
-
-    // NB, in Daedalus, we interpret this similarly to a loadtile command,
-    // but in other places it's defined as a simple count parameter.
     const uls = (cmd0 >>> 12) & 0xfff;
     const ult = (cmd0 >>> 0) & 0xfff;
     const lrs = (cmd1 >>> 12) & 0xfff;
@@ -698,17 +694,12 @@ export class GBIMicrocode {
 
     if (dis) {
       const tt = gbi.getTileText(tileIdx);
-      dis.text(`gsDPLoadTLUTCmd(${tt}, ${count}); //${uls}, ${ult}, ${lrs}, ${lrt}`);
+      dis.text(`gsDPLoadTLUTCmd(${tt}, ${calcTileDimension(lrs, uls)}); //${uls}, ${ult}, ${lrs}, ${lrt}`);
     }
 
-    // Tlut fmt is sometimes wrong (in 007) and is set after tlut load, but
-    // before tile load. Format is always 16bpp - RGBA16 or IA16:
-    const ramAddress = this.state.textureImage.calcAddress(uls >>> 2, ult >>> 2, gbi.ImageSize.G_IM_SIZ_16b);
-
+    const ti = this.state.textureImage;
     const tile = this.state.tiles[tileIdx];
-    const texels = calcTileDimension(lrs, uls);
-
-    this.state.tmem.loadTLUT(tile, ramAddress, texels);
+    this.state.tmem.loadTLUT(ti, tile, uls, ult, lrs, lrt, dis);
     this.state.invalidateTileHashes();
   }
 
