@@ -4,6 +4,7 @@ import { assert } from '../assert.js';
 import { toString16, toString32 } from '../format.js';
 import { convertTexels } from './convert.js';
 import * as gbi from './gbi.js';
+import { calcTileDimension } from './tile.js';
 
 // TODO: provide a HLE object and instantiate these in the constructor/reset.
 function getRamS32Array() { return n64js.hardware().cachedMemDevice.s32; }
@@ -143,11 +144,33 @@ export class TMEM {
     }
   }
 
-  loadTLUT(tile, ramAddress, texels) {
-    const ram_u8 = getRamU8Array();
-    var tmem_offset = tile.tmem << 3;
+  /**
+   * Loads a TLUT into TMEM.
+   * @param {TextureImage} ti RDP texture image. 
+   * @param {Tile} tile Tile being loaded.
+   * @param {number} uls Upper-left S coordinate to load, in 10.2 format. Typically zero.
+   * @param {number} ult Upper-left T coordinate to load, in 10.2 format. Typically zero.
+   * @param {number} lrs Lower-right S coordinate to load, in 10.2 format. This is essentially the palette size.
+   * @param {number} lrt Lower-right T coordinate to load, in 10.2 format. Ignored.
+   * @param {DebugController?} dc An optional debug controller for displaying tooltips.
+   */
+  loadTLUT(ti, tile, uls, ult, lrs, lrt, dc) {
+    const s0 = uls >>> 2;
+    const t0 = ult >>> 2;
 
-    copyLineTLUT(this.tmemData, tmem_offset, ram_u8, ramAddress, texels);
+    // Tlut fmt is sometimes wrong (in 007) and is set after tlut load, but
+    // before tile load. Format is always 16bpp - RGBA16 or IA16:
+    const ramAddress = ti.calcAddress(s0, t0, gbi.ImageSize.G_IM_SIZ_16b);
+    const texels = calcTileDimension(lrs, uls);
+
+    const ram_u8 = getRamU8Array();
+    var tmemOffset = tile.tmem << 3;
+
+    if (dc) {
+      dc.tip(`count ${texels}, tmemOffset ${toString16(tmemOffset)}`);
+    }
+  
+    copyLineTLUT(this.tmemData, tmemOffset, ram_u8, ramAddress, texels);
   }
 
   convertTexels(tile, tlutFormat, imgData) {
