@@ -60,7 +60,17 @@ export class TMEM {
     }
   }
 
-  loadTile(tile, ramAddress, h, ramStride, rowBytes, tmemStride) {
+  /**
+   * Loads a tile to TMEM.
+   * @param {TextureImage} ti RDP texture image. 
+   * @param {Tile} tile Tile being loaded.
+   * @param {number} ramAddress Address to load from.
+   * @param {number} rows Number of rows to load.
+   * @param {number} rowBytes Length of each row in bytes.
+   * @param {number} tmemStride Bytes between each row in tmem.
+   */
+  loadTile(ti, tile, ramAddress, rows, rowBytes, tmemStride) {
+    const ramStride = ti.stride();
     const tmemData = this.tmemData;
     let tmemOffset = tile.tmem << 3;
     let ramOffset = ramAddress;
@@ -69,7 +79,7 @@ export class TMEM {
     const byteSwapBit = (tile.size == gbi.ImageSize.G_IM_SIZ_32b) ? 8 : 4;
 
     const ram_u8 = getRamU8Array();
-    for (let y = 0; y < h; ++y) {
+    for (let y = 0; y < rows; ++y) {
       if (y & 1) {
         copyLineSwap(tmemData, tmemOffset, ram_u8, ramOffset, rowBytes, tmemStride, byteSwapBit);
       } else {
