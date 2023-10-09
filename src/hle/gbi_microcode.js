@@ -269,7 +269,7 @@ export class GBIMicrocode {
 
         vertex.color = this.calculateLighting(transformedNormal, 255);
         if (texgen) {
-          if (texgenlin) {          
+          if (texgenlin) {
             vertex.calculateLinearUV(transformedNormal);
           } else {
             vertex.calculateSphericalUV(transformedNormal);
@@ -647,7 +647,6 @@ export class GBIMicrocode {
 
   executeLoadBlock(cmd0, cmd1, dis) {
     const tileIdx = (cmd1 >>> 24) & 0x7;
-
     const uls = (cmd0 >>> 12) & 0xfff;
     const ult = (cmd0 >>> 0) & 0xfff;
     const lrs = (cmd1 >>> 12) & 0xfff;
@@ -657,34 +656,31 @@ export class GBIMicrocode {
     if (uls !== 0) { this.warn('Unexpected non-zero uls in load block'); }
     if (ult !== 0) { this.warn('Unexpected non-zero ult in load block'); }
 
-    const ti = this.state.textureImage;
-    const tile = this.state.tiles[tileIdx];
-
     if (dis) {
       const tt = gbi.getTileText(tileIdx);
       dis.text(`gsDPLoadBlock(${tt}, ${uls}, ${ult}, ${lrs}, ${dxt});`);
     }
 
+    const ti = this.state.textureImage;
+    const tile = this.state.tiles[tileIdx];
     this.state.tmem.loadBlock(ti, tile, uls, ult, lrs, dxt, dis);
     this.state.invalidateTileHashes();
   }
 
   executeLoadTile(cmd0, cmd1, dis) {
     const tileIdx = (cmd1 >>> 24) & 0x7;
-
     const uls = (cmd0 >>> 12) & 0xfff;
     const ult = (cmd0 >>> 0) & 0xfff;
     const lrs = (cmd1 >>> 12) & 0xfff;
     const lrt = (cmd1 >>> 0) & 0xfff;
-
-    const tile = this.state.tiles[tileIdx];
-    const ti = this.state.textureImage;
 
     if (dis) {
       const tt = gbi.getTileText(tileIdx);
       dis.text(`gsDPLoadTile(${tt}, ${uls / 4}, ${ult / 4}, ${lrs / 4}, ${lrt / 4});`);
     }
 
+    const ti = this.state.textureImage;
+    const tile = this.state.tiles[tileIdx];
     this.state.tmem.loadTile(ti, tile, uls, ult, lrs, lrt, dis);
     this.state.invalidateTileHashes();
   }
@@ -777,7 +773,7 @@ export class GBIMicrocode {
     const cmd2 = this.state.cmd1;
     this.state.nextCommand();
     const cmd3 = this.state.cmd1;
-    
+
     let xh = ((cmd0 >>> 12) & 0xfff) / 4.0;
     let yh = ((cmd0 >>> 0) & 0xfff) / 4.0;
     const tileIdx = (cmd1 >>> 24) & 0x7;
