@@ -16,7 +16,26 @@ export class TMEM {
     this.tmemData = new Uint8Array(tmemBuffer);
   }
 
-  loadBlock(tile, ramAddress, dxt, qwords) {
+  /**
+   * Loads a block to TMEM.
+   * @param {TextureImage} ti RDP texture image.
+   * @param {Tile} tile Tile being loaded.
+   * @param {number} uls Upper-left S coordinate to load, in 10.2 format.
+   * @param {number} ult Upper-left T coordinate to load, in 10.2 format.
+   * @param {number} lrs Lower-right S coordinate to load, in 10.2 format.
+   * @param {number} dxt Reciprocal of number of words in a line, in 1.11 fixed point.
+   * @param {DebugController?} dc An optional debug controller for displaying tooltips.
+   */
+  loadBlock(ti, tile, uls, ult, lrs, dxt, dc) {
+    const s0 = uls >>> 2;
+    const t0 = ult >>> 2;
+
+    const ramAddress = ti.calcAddress(s0, t0);
+    const texels = (lrs - uls + 1) & 0xfff;
+    const bytes = ti.texelsToBytes(texels);
+    // TODO: rounding seems to be done before converting texels to bytes.
+    const qwords = (bytes + 7) >>> 3;
+
     const tmemData = this.tmemData32;
 
     // Offsets in 32 bit words.
@@ -27,6 +46,15 @@ export class TMEM {
 
     // RGBA/32 swaps on 8 byte boundary, not 4.
     const wordSwapBit = (tile.size == gbi.ImageSize.G_IM_SIZ_32b) ? 2 : 1;
+
+    if (dc) {
+      dc.tip(`bytes ${bytes}, qwords ${qwords}`);
+    }
+
+    // TODO: from the Programming Manual:
+    //   Note: The RDP commands LoadTile, LoadBlock, and LoadTLUT set the tile parameters SL,TL,SH,TH when they are executed.
+    //   After the load command, it may be necessary to use the SetTileSize command to restore these parameters if you want parameters other than were used in the Load command.
+    //   In the gbi.h texture load macros, the SetTileSize command is always used following a Load command.
 
     // Slight fast path for dxt == 0
     if (dxt === 0) {
@@ -68,7 +96,7 @@ export class TMEM {
    * @param {number} uls Upper-left S coordinate to load, in 10.2 format.
    * @param {number} ult Upper-left T coordinate to load, in 10.2 format.
    * @param {number} lrs Lower-right S coordinate to load, in 10.2 format.
-   * @param {number} lrs Lower-right T coordinate to load, in 10.2 format.
+   * @param {number} lrt Lower-right T coordinate to load, in 10.2 format.
    * @param {DebugController?} dc An optional debug controller for displaying tooltips.
    */
   loadTile(ti, tile, uls, ult, lrs, lrt, dc) {

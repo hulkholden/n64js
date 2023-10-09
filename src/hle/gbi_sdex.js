@@ -432,7 +432,7 @@ export class S2DEXCommon {
     // S2DEX "load texture" issues the following RDP commands:
     // SetTextureImage, SetTile, [SyncLoad], [LoadBlock, LoadTile, LoadTLUT]
     const tex = this.texture;
-    const lTile = this.state.tiles[gbi.G_TX_LOADTILE];
+    const tile = this.state.tiles[gbi.G_TX_LOADTILE];
 
     // TODO: check sid, flag and mask to figure out if the texture is already loaded.
 
@@ -451,26 +451,22 @@ export class S2DEXCommon {
     const line = ((tex.texLoadSize + 1) & lineMask) >>> 2;
 
     const palIdx = 0;
-    lTile.set(fmt, siz, line, tex.tileTMEM, palIdx, 0, 0, 0, 0, 0, 0);
+    tile.set(fmt, siz, line, tex.tileTMEM, palIdx, 0, 0, 0, 0, 0, 0);
+
+    // twidth/tsize is stored as qwords, so the *4 converts qwords into 16bpp texels
+    // (there are 4 per qword), which ti.size is configured with.
+    const texelsShift = 2;
 
     const command = (tex.type >>> 0) & 0xff;
     switch (command) {
       case LoadBlock:
-        {
-          const dxt = tex.tline;
-          // TODO: is this correct or should it depend on the tile or textureImage size?
-          const qwords = tex.texLoadSize + 1;
-          // TODO: adjust upload.width = (upload.width + 3) & ~3;
-          this.state.tmem.loadBlock(lTile, ramAddress, dxt, qwords);
-        }
+        this.state.tmem.loadBlock(ti, tile, 0, 0, tex.tsize << texelsShift, tex.tline);
         break;
       case LoadTile:
-        // twidth is stored as qwords, so the *4 converts qwords into 16bpp texels
-        // (there are 4 per qword), which ti.size is configured with.
-        this.state.tmem.loadTile(ti, lTile, 0, 0, tex.twidth << 2, tex.theight);
+        this.state.tmem.loadTile(ti, tile, 0, 0, tex.twidth << texelsShift, tex.theight);
         break;
       case LoadTLUT:
-        this.state.tmem.loadTLUT(lTile, ramAddress, tex.pnum + 1);
+        this.state.tmem.loadTLUT(tile, ramAddress, tex.pnum + 1);
         break;
       default:
         this.gbi.warnUnimplemented(`load texture type ${tex.type}`);
