@@ -11,6 +11,11 @@ let $dlistOutput;
 
 const $dlistContent = $('#dlist-content');
 
+// Which displaylist in the frame to stop on.
+let dlFocusIndex = 0;
+// Which type of displaylsit to focus on, e.g. S2DEX.
+let dlFocusSubstr = '';
+
 export class DebugController {
   constructor(state, processDList) {
     this.state = state;
@@ -23,7 +28,13 @@ export class DebugController {
     this.lastTask;  // The last task that we executed.
     this.stateTimeShown = -1;
     this.running = false;
+
+    // Whether displaylist debugging has been requested.
     this.requested = false;
+
+    // A counter that's incremented for every matching displaylist that's
+    // rendered after being requested.
+    this.dlFocusCounter = 0;
   }
 
   onNewTask(task) {
@@ -32,15 +43,21 @@ export class DebugController {
 
     // Force the cpu to stop at the point that we render the display list.
     if (this.requested) {
-      this.requested = false;
+      if (dlFocusSubstr == '' || task.detectVersionString().includes(dlFocusSubstr)) {
+        if (this.dlFocusCounter == dlFocusIndex) {
+          this.requested = false;
 
-      // Finally, break execution so we can keep replaying the display list
-      // before any other state changes.
-      n64js.breakEmulationForDisplayListDebug();
+          // Finally, break execution so we can keep replaying the display list
+          // before any other state changes.
+          n64js.breakEmulationForDisplayListDebug();
 
-      this.stateTimeShown = -1;
-      this.running = true;
-    }
+          this.stateTimeShown = -1;
+          this.running = true;
+        }
+        this.dlFocusCounter++;
+      }
+    } else {
+      this.dlFocusCounter = 0;
   }
 
   toggle() {
