@@ -417,6 +417,11 @@ export class S2DEXCommon {
   }
 
   executeRDPHalf0(cmd0, cmd1, dis) {
+    // Triggers "memrect" (yoshi) or texrect.
+    // TODO: it's not clear to me how yoshi's command differs from texRect.
+    // e404008000000040 gsImmp1(G_RDPHALF_0, 0x00000040);
+    // b400000000000000 gsImmp1(G_RDPHALF_1, 0x00000000);
+    // b300000004000400 gsImmp1(G_RDPHALF_2, 0x04000400);
     this.gbi.warnUnimplemented('executeRDPHalf0')
     if (dis) {
       dis.text(`gsImmp1(G_RDPHALF_0, ${toString32(cmd1)});`);
