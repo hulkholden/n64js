@@ -647,36 +647,25 @@ export class GBIMicrocode {
 
   executeLoadBlock(cmd0, cmd1, dis) {
     const tileIdx = (cmd1 >>> 24) & 0x7;
-    const lrs = (cmd1 >>> 12) & 0xfff;
-    const dxt = (cmd1 >>> 0) & 0xfff;
+
     const uls = (cmd0 >>> 12) & 0xfff;
     const ult = (cmd0 >>> 0) & 0xfff;
+    const lrs = (cmd1 >>> 12) & 0xfff;
+    const dxt = (cmd1 >>> 0) & 0xfff;
 
     // Docs reckon these are ignored for all loadBlocks
     if (uls !== 0) { this.warn('Unexpected non-zero uls in load block'); }
     if (ult !== 0) { this.warn('Unexpected non-zero ult in load block'); }
 
+    const ti = this.state.textureImage;
     const tile = this.state.tiles[tileIdx];
-    const tileX0 = uls >>> 2;
-    const tileY0 = ult >>> 2;
 
-    const ramAddress = this.state.textureImage.calcAddress(tileX0, tileY0);
-    const texels = (lrs - uls + 1) & 0xfff;
-    const bytes = this.state.textureImage.texelsToBytes(texels);
-    // TODO: rounding seems to be done before converting texels to bytes.
-    const qwords = (bytes + 7) >>> 3;
-
-    // TODO: from the Programming Manual:
-    //   Note: The RDP commands LoadTile, LoadBlock, and LoadTLUT set the tile parameters SL,TL,SH,TH when they are executed.
-    //   After the load command, it may be necessary to use the SetTileSize command to restore these parameters if you want parameters other than were used in the Load command.
-    //   In the gbi.h texture load macros, the SetTileSize command is always used following a Load command.
     if (dis) {
       const tt = gbi.getTileText(tileIdx);
       dis.text(`gsDPLoadBlock(${tt}, ${uls}, ${ult}, ${lrs}, ${dxt});`);
-      dis.tip(`bytes ${bytes}, qwords ${qwords}`);
     }
 
-    this.state.tmem.loadBlock(tile, ramAddress, dxt, qwords);
+    this.state.tmem.loadBlock(ti, tile, uls, ult, lrs, dxt, dis);
     this.state.invalidateTileHashes();
   }
 
