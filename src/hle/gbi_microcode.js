@@ -682,28 +682,14 @@ export class GBIMicrocode {
 
   executeLoadTile(cmd0, cmd1, dis) {
     const tileIdx = (cmd1 >>> 24) & 0x7;
-    const lrs = (cmd1 >>> 12) & 0xfff;
-    const lrt = (cmd1 >>> 0) & 0xfff;
+
     const uls = (cmd0 >>> 12) & 0xfff;
     const ult = (cmd0 >>> 0) & 0xfff;
+    const lrs = (cmd1 >>> 12) & 0xfff;
+    const lrt = (cmd1 >>> 0) & 0xfff;
 
     const tile = this.state.tiles[tileIdx];
-    const tileX1 = lrs >>> 2;
-    const tileY1 = lrt >>> 2;
-    const tileX0 = uls >>> 2;
-    const tileY0 = ult >>> 2;
-
-    const h = (tileY1 + 1) - tileY0;
-    const w = (tileX1 + 1) - tileX0;
-
     const ti = this.state.textureImage;
-    const ramAddress = ti.calcAddress(tileX0, tileY0);
-
-    // TODO: Limit the load to fetchedQWords?
-    // TODO: should be limited to 2048 texels, not 512 qwords.
-    // const bytes = h * rowBytes;
-    // const reqQWords = (bytes + 7) >>> 3;
-    // const fetchedQWords = (reqQWords > 512) ? 512 : reqQWords;
 
     if (dis) {
       const tt = gbi.getTileText(tileIdx);
@@ -711,7 +697,7 @@ export class GBIMicrocode {
       dis.tip(`size = (${w} x ${h})`);
     }
 
-    this.state.tmem.loadTile(ti, tile, ramAddress, w, h);
+    this.state.tmem.loadTile(ti, tile, uls, ult, lrs, lrt);
     this.state.invalidateTileHashes();
   }
 

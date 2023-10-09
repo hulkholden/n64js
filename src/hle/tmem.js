@@ -64,13 +64,24 @@ export class TMEM {
    * Loads a tile to TMEM.
    * @param {TextureImage} ti RDP texture image. 
    * @param {Tile} tile Tile being loaded.
-   * @param {number} ramAddress Address to load from.
-   * @param {number} rowTexels Length of each row in texels.
-   * @param {number} rows Number of rows to load.
+   * @param {number} uls Upper-left S coordinate to load, in 10.2 format.
+   * @param {number} ult Upper-left T coordinate to load, in 10.2 format.
+   * @param {number} lrs Lower-right S coordinate to load, in 10.2 format.
+   * @param {number} lrs Lower-right T coordinate to load, in 10.2 format.
    */
-  loadTile(ti, tile, ramAddress, rowTexels, rows) {
-    const rowBytes = ti.texelsToBytes(rowTexels);
+  loadTile(ti, tile, uls, ult, lrs, lrt) {
+    const s0 = uls >>> 2;
+    const t0 = ult >>> 2;
+    const s1 = lrs >>> 2;
+    const t1 = lrt >>> 2;
+
+    const w = (s1 + 1) - s0;
+    const h = (t1 + 1) - t0;
+    
+    const ramAddress = ti.calcAddress(s0, t0);
+    const rowBytes = ti.texelsToBytes(w);
     const ramStride = ti.stride();
+  
     const tmemData = this.tmemData;
     let tmemOffset = tile.tmem << 3;
     let ramOffset = ramAddress;
@@ -80,8 +91,14 @@ export class TMEM {
     const tmemStride = (ti.size == gbi.ImageSize.G_IM_SIZ_32b) ? tile.line << 4 : tile.line << 3;
     const byteSwapBit = (tile.size == gbi.ImageSize.G_IM_SIZ_32b) ? 8 : 4;
 
+    // TODO: Limit the load to fetchedQWords?
+    // TODO: should be limited to 2048 texels, not 512 qwords.
+    // const bytes = h * rowBytes;
+    // const reqQWords = (bytes + 7) >>> 3;
+    // const fetchedQWords = (reqQWords > 512) ? 512 : reqQWords;
+
     const ram_u8 = getRamU8Array();
-    for (let y = 0; y < rows; ++y) {
+    for (let y = 0; y < h; ++y) {
       if (y & 1) {
         copyLineSwap(tmemData, tmemOffset, ram_u8, ramOffset, rowBytes, tmemStride, byteSwapBit);
       } else {

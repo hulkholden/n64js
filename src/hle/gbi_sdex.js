@@ -457,7 +457,6 @@ export class S2DEXCommon {
     switch (command) {
       case LoadBlock:
         {
-          // Yoshi's Story.
           const dxt = tex.tline;
           // TODO: is this correct or should it depend on the tile or textureImage size?
           const qwords = tex.texLoadSize + 1;
@@ -466,14 +465,9 @@ export class S2DEXCommon {
         }
         break;
       case LoadTile:
-        {
-          // Neon Genesis Evangelion.
-          const qwords = (tex.twidth + 1) >> 2;
-          const rows = (tex.theight + 1) >> 2;
-          // * 4 as there are 4 16bpp texels per qword.
-          const texels = qwords << 2;
-          this.state.tmem.loadTile(ti, lTile, ramAddress, texels, rows);
-        }
+        // twidth is stored as qwords, so the *4 converts qwords into 16bpp texels
+        // (there are 4 per qword), which ti.size is configured with.
+        this.state.tmem.loadTile(ti, lTile, 0, 0, tex.twidth << 2, tex.theight);
         break;
       case LoadTLUT:
         this.state.tmem.loadTLUT(lTile, ramAddress, tex.pnum + 1);
