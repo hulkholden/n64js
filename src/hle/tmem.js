@@ -1,6 +1,7 @@
 /*global n64js*/
 
 import { assert } from '../assert.js';
+import { toString16, toString32 } from '../format.js';
 import { convertTexels } from './convert.js';
 import * as gbi from './gbi.js';
 
@@ -68,8 +69,9 @@ export class TMEM {
    * @param {number} ult Upper-left T coordinate to load, in 10.2 format.
    * @param {number} lrs Lower-right S coordinate to load, in 10.2 format.
    * @param {number} lrs Lower-right T coordinate to load, in 10.2 format.
+   * @param {DebugController?} dc An optional debug controller for displaying tooltips.
    */
-  loadTile(ti, tile, uls, ult, lrs, lrt) {
+  loadTile(ti, tile, uls, ult, lrs, lrt, dc) {
     const s0 = uls >>> 2;
     const t0 = ult >>> 2;
     const s1 = lrs >>> 2;
@@ -90,6 +92,10 @@ export class TMEM {
     // TODO: confirm if these should use ti.size or tile.size. Currently they're different.
     const tmemStride = (ti.size == gbi.ImageSize.G_IM_SIZ_32b) ? tile.line << 4 : tile.line << 3;
     const byteSwapBit = (tile.size == gbi.ImageSize.G_IM_SIZ_32b) ? 8 : 4;
+
+    if (dc) {
+      dc.tip(`size (${w} x ${h}), rowBytes ${rowBytes}, ramStride ${ramStride}, tmemStride ${tmemStride}, ramOffset ${toString32(ramOffset)}, tmemOffset ${toString16(tmemOffset)}`);
+    }
 
     // TODO: Limit the load to fetchedQWords?
     // TODO: should be limited to 2048 texels, not 512 qwords.

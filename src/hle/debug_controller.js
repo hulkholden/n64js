@@ -58,6 +58,7 @@ export class DebugController {
       }
     } else {
       this.dlFocusCounter = 0;
+    }
   }
 
   toggle() {

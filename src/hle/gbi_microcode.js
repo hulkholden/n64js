@@ -694,10 +694,9 @@ export class GBIMicrocode {
     if (dis) {
       const tt = gbi.getTileText(tileIdx);
       dis.text(`gsDPLoadTile(${tt}, ${uls / 4}, ${ult / 4}, ${lrs / 4}, ${lrt / 4});`);
-      dis.tip(`size = (${w} x ${h})`);
     }
 
-    this.state.tmem.loadTile(ti, tile, uls, ult, lrs, lrt);
+    this.state.tmem.loadTile(ti, tile, uls, ult, lrs, lrt, dis);
     this.state.invalidateTileHashes();
   }
 
