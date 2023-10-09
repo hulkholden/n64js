@@ -67,15 +67,16 @@ export class TMEM {
    * @param {number} ramAddress Address to load from.
    * @param {number} rows Number of rows to load.
    * @param {number} rowBytes Length of each row in bytes.
-   * @param {number} tmemStride Bytes between each row in tmem.
    */
-  loadTile(ti, tile, ramAddress, rows, rowBytes, tmemStride) {
+  loadTile(ti, tile, ramAddress, rows, rowBytes) {
     const ramStride = ti.stride();
     const tmemData = this.tmemData;
     let tmemOffset = tile.tmem << 3;
     let ramOffset = ramAddress;
 
-    // RGBA/32 swaps on 8 byte boundary, not 4.
+    // 32bpp loads 8 bytes at a time, not 4.
+    // TODO: confirm if these should use ti.size or tile.size. Currently they're different.
+    const tmemStride = (ti.size == gbi.ImageSize.G_IM_SIZ_32b) ? tile.line << 4 : tile.line << 3;
     const byteSwapBit = (tile.size == gbi.ImageSize.G_IM_SIZ_32b) ? 8 : 4;
 
     const ram_u8 = getRamU8Array();
