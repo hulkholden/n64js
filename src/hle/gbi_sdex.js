@@ -468,13 +468,12 @@ export class S2DEXCommon {
       case LoadTile:
         {
           // Neon Genesis Evangelion.
-          // Load the texture.
-          const w = tex.twidth + 1;
-          const h = tex.theight + 1;
+          const qwords = (tex.twidth + 1) >> 2;
+          const rows = (tex.theight + 1) >> 2;
           const ramStride = ti.stride();
-          const rowBytes = ti.texelsToBytes(w);
+          const rowBytes = qwords << 3;
           const tmemStride = line << 3;
-          this.state.tmem.loadTile(lTile, ramAddress, h, ramStride, rowBytes, tmemStride);
+          this.state.tmem.loadTile(lTile, ramAddress, rows, ramStride, rowBytes, tmemStride);
         }
         break;
       case LoadTLUT:
