@@ -471,8 +471,7 @@ export class S2DEXCommon {
           const qwords = (tex.twidth + 1) >> 2;
           const rows = (tex.theight + 1) >> 2;
           const rowBytes = qwords << 3;
-          const tmemStride = line << 3;
-          this.state.tmem.loadTile(ti, lTile, ramAddress, rows, rowBytes, tmemStride);
+          this.state.tmem.loadTile(ti, lTile, ramAddress, rows, rowBytes);
         }
         break;
       case LoadTLUT:
