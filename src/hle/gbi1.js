@@ -72,7 +72,7 @@ export class GBI1 extends GBIMicrocode {
   }
 
   executeBranchZ(cmd0, cmd1, dis) {
-    const address = this.state.rdpSegmentAddress(this.state.rdpHalf1);
+    const address = this.state.rdpSegmentAddress(this.state.rdpHalf1Cmd1);
 
     // Examples: AeroGauge.
     this.warnUnimplemented('BranchLessZ')

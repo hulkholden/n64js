@@ -41,8 +41,10 @@ export class RSPState {
     this.rdpOtherModeL = 0;
     this.rdpOtherModeH = 0;
 
-    this.rdpHalf1 = 0;
-    this.rdpHalf2 = 0;
+    this.rdpHalf0Cmd0 = 0;
+    this.rdpHalf0Cmd1 = 0;
+    this.rdpHalf1Cmd1 = 0;
+    this.rdpHalf2Cmd1 = 0;
 
     this.viewport = new Viewport();
 
