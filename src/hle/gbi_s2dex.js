@@ -375,18 +375,6 @@ export class S2DEXCommon {
     // Is this ever called during HLE?
   }
 
-  executeRDPHalf0(cmd0, cmd1, dis) {
-    // Triggers "memrect" (yoshi) or texrect.
-    // TODO: it's not clear to me how yoshi's command differs from texRect.
-    // e404008000000040 gsImmp1(G_RDPHALF_0, 0x00000040);
-    // b400000000000000 gsImmp1(G_RDPHALF_1, 0x00000000);
-    // b300000004000400 gsImmp1(G_RDPHALF_2, 0x04000400);
-    this.gbi.warnUnimplemented('executeRDPHalf0')
-    if (dis) {
-      dis.text(`gsImmp1(G_RDPHALF_0, ${toString32(cmd1)});`);
-    }
-  }
-
   loadTexture() {
     // S2DEX "load texture" issues the following RDP commands:
     // SetTextureImage, SetTile, [SyncLoad], [LoadBlock, LoadTile, LoadTLUT]
@@ -523,7 +511,13 @@ export class GBI1SDEX extends GBI1 {
       [0xce, this.s2dex.executeTriRSP.bind(this.s2dex)],
       [0xcf, this.s2dex.executeTriRSP.bind(this.s2dex)],
 
-      [0xe4, this.s2dex.executeRDPHalf0.bind(this.s2dex)],
+      // This variant of the microcode implements texrect slightly differently.
+      // 0xe4 replaces base executeTexRect but 0xb3 triggers it.
+      // TODO: I don't understand how this was different.
+      // e404008000000040 gsImmp1(G_RDPHALF_0, 0x00000040);
+      // b400000000000000 gsImmp1(G_RDPHALF_1, 0x00000000);
+      // b300000004000400 gsImmp1(G_RDPHALF_2, 0x04000400);
+      [0xe4, this.executeRDPHalf0.bind(this.s2dex)],
     ]);
   }
 
@@ -533,6 +527,22 @@ export class GBI1SDEX extends GBI1 {
       return fn;
     }
     return super.getHandler(command);
+  }
+
+  executeRDPHalf0(cmd0, cmd1, dis) {
+    if (dis) {
+      dis.text(`gsImmp1(G_RDPHALF_0, ${toString32(cmd0)}, ${toString32(cmd1)});`);
+    }
+    this.state.rdpHalf0Cmd0 = cmd0;
+    this.state.rdpHalf0Cmd1 = cmd1;
+  }
+
+  // 0xb3 - replaced base executeRDPHalf2 which 
+  executeRDPHalf2(cmd0, cmd1, dis) {
+    if (dis) {
+      dis.text(`gsImmp1(G_RDPHALF_2, ${toString32(cmd1)});`);
+    }
+    this.rdpTexRect(this.state.rdpHalf0Cmd0, this.state.rdpHalf0Cmd1, this.state.rdpHalf1Cmd1, cmd1, dis);
   }
 }
 

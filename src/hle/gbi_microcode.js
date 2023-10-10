@@ -381,7 +381,7 @@ export class GBIMicrocode {
   executeLoadUcode(cmd0, cmd1, dis) {
     const codeAddr = cmd1 & 0x00ff_fffff;
     const codeSize = 0x1000;
-    const codeDataAddr = this.state.rdpHalf1;
+    const codeDataAddr = this.state.rdpHalf1Cmd1;
     const codeDataSize = (cmd0 & 0xFFFF) + 1;
 
     let name = '?';
@@ -404,14 +404,14 @@ export class GBIMicrocode {
     if (dis) {
       dis.text(`gsImmp1(G_RDPHALF_1, ${toString32(cmd1)});`);
     }
-    this.state.rdpHalf1 = cmd1;
+    this.state.rdpHalf1Cmd1 = cmd1;
   }
 
   executeRDPHalf2(cmd0, cmd1, dis) {
     if (dis) {
       dis.text(`gsImmp1(G_RDPHALF_2, ${toString32(cmd1)});`);
     }
-    this.state.rdpHalf2 = cmd1;
+    this.state.rdpHalf2Cmd1 = cmd1;
   }
 
   executeRDPLoadSync(cmd0, cmd1, dis) {
@@ -765,6 +765,10 @@ export class GBIMicrocode {
     this.state.nextCommand();
     const cmd3 = this.state.cmd1;
 
+    this.rdpTexRect(cmd0, cmd1, cmd2, cmd3, dis);
+  }
+
+  rdpTexRect(cmd0, cmd1, cmd2, cmd3, dis) {
     let xh = ((cmd0 >>> 12) & 0xfff) / 4.0;
     let yh = ((cmd0 >>> 0) & 0xfff) / 4.0;
     const tileIdx = (cmd1 >>> 24) & 0x7;
@@ -816,6 +820,10 @@ export class GBIMicrocode {
     this.state.nextCommand();
     const cmd3 = this.state.cmd1;
 
+    this.rdpTexRectFlip(cmd0, cmd1, cmd2, cmd3, dis);
+  }
+
+  rdpTexRectFlip(cmd0, cmd1, cmd2, cmd3, dis) {
     let xh = ((cmd0 >>> 12) & 0xfff) / 4.0;
     let yh = ((cmd0 >>> 0) & 0xfff) / 4.0;
     const tileIdx = (cmd1 >>> 24) & 0x7;
