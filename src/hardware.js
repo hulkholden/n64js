@@ -184,7 +184,6 @@ export class Hardware {
 
   verticalBlank() {
     this.flushSaveData();
-    this.viRegDevice.verticalBlank();
   }
 
   initSaveGame() {
