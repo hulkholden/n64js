@@ -159,7 +159,7 @@ export class VIRegDevice extends Device {
 
   addInterruptEvent() {
     n64js.cpu0.addEvent(kVIInterrupt, this.countPerVbl, () => {
-      n64js.verticalBlank();
+      this.hardware.verticalBlank();
     });
   }
 
