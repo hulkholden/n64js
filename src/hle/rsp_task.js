@@ -115,10 +115,13 @@ class RSPTask {
         for (let j = i; j < this.codeDataSize; ++j) {
           const c = this.dataByte(j);
           if (c === 0) {
-            return str;
+            break;
           }
-          str += String.fromCharCode(c);
+          if (c >= 32) {
+            str += String.fromCharCode(c);
+          }
         }
+        return str;
       }
     }
     return '';
