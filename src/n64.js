@@ -323,11 +323,6 @@ n64js.reset = () => {
   }
 };
 
-n64js.verticalBlank = () => {
-  // FIXME: framerate limit etc
-  hardware.verticalBlank();
-};
-
 n64js.check = (e, m) => {
   if (!e) {
     logger.log(m);
