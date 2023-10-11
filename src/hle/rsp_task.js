@@ -138,29 +138,30 @@ class RSPTask {
 }
 
 export function hleProcessRSPTask() {
-    const ramU8 = n64js.hardware().cachedMemDevice.u8;
-    const taskMem = n64js.hardware().sp_mem.subRegion(kTaskOffset, kTaskLength);
-    var task = new RSPTask(ramU8, taskMem);
-  
-    let handled = false;
-  
-    switch (task.type) {
-      case M_GFXTASK:
-        hleGraphics(task);
-        n64js.hardware().miRegDevice.interruptDP();
-        handled = true;
-        break;
-      case M_AUDTASK:
-        // If enableAudioLLE is clear, pretend we handled the task (we'll play silence).
-        handled = !audioOptions.enableAudioLLE;
-        break;
-      case M_VIDTASK:
-        // Run on the RSP.
-        break;
-      case M_JPGTASK:
-        // Run on the RSP.
-        break;
-    }
-  
-    return handled;
+  const hardware = n64js.hardware();
+  const ramU8 = hardware.cachedMemDevice.u8;
+  const taskMem = hardware.sp_mem.subRegion(kTaskOffset, kTaskLength);
+  var task = new RSPTask(ramU8, taskMem);
+
+  let handled = false;
+
+  switch (task.type) {
+    case M_GFXTASK:
+      hleGraphics(task);
+      hardware.miRegDevice.interruptDP();
+      handled = true;
+      break;
+    case M_AUDTASK:
+      // If enableAudioLLE is clear, pretend we handled the task (we'll play silence).
+      handled = !audioOptions.enableAudioLLE;
+      break;
+    case M_VIDTASK:
+      // Run on the RSP.
+      break;
+    case M_JPGTASK:
+      // Run on the RSP.
+      break;
   }
+
+  return handled;
+}
