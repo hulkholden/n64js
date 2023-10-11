@@ -132,6 +132,8 @@ export class VIRegDevice extends Device {
   }
 
   verticalBlank() {
+    this.hardware.verticalBlank();
+
     this.field ^= (this.interlaced ? 1 : 0);
 
     // TODO: compensate for over/under cycles.
@@ -159,7 +161,7 @@ export class VIRegDevice extends Device {
 
   addInterruptEvent() {
     n64js.cpu0.addEvent(kVIInterrupt, this.countPerVbl, () => {
-      this.hardware.verticalBlank();
+      this.verticalBlank();
     });
   }
 
