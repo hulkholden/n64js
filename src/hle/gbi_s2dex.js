@@ -513,7 +513,10 @@ export class GBI1SDEX extends GBI1 {
 
       // This variant of the microcode implements texrect slightly differently.
       // 0xe4 replaces base executeTexRect but 0xb3 triggers it.
-      // TODO: I don't understand how this was different.
+      // TODO: I think this is essentially the same as the base microcode, so
+      // we should unify the behaviours. For Yoshi the difference seems to be
+      // that it's used to render to a temp surface (the background?) which is
+      // then used in executeBg1cyc/Copy.
       // e404008000000040 gsImmp1(G_RDPHALF_0, 0x00000040);
       // b400000000000000 gsImmp1(G_RDPHALF_1, 0x00000000);
       // b300000004000400 gsImmp1(G_RDPHALF_2, 0x04000400);
