@@ -30,9 +30,11 @@ const breakpoints = new Map();     // address -> original op
 const resetCallbacks = [];
 
 const testOptions = {
-  runTest: () => { runTest(); },
+  runTest: runTest,
+  recordTimeline: recordTimeline,
 };
 dbgGUI.add(testOptions, 'runTest').name('Run n64-systemtest');
+dbgGUI.add(testOptions, 'recordTimeline').name('Record Timeline');
 
 const rominfo = {
   id: '',
@@ -146,6 +148,10 @@ function runTest() {
   for (let i = 0; i < req.responseText.length; ++i) {
     byteArray.push(req.responseText.charCodeAt(i) & 0xff)
   }
+}
+
+function recordTimeline() {
+  hardware.timeline.startRecording();
 }
 
 n64js.toggleRun = () => {
