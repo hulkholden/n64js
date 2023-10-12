@@ -141,7 +141,7 @@ export function hleProcessRSPTask() {
   const hardware = n64js.hardware();
   const ramU8 = hardware.cachedMemDevice.u8;
   const taskMem = hardware.sp_mem.subRegion(kTaskOffset, kTaskLength);
-  var task = new RSPTask(ramU8, taskMem);
+  const task = new RSPTask(ramU8, taskMem);
 
   let handled = false;
 
@@ -163,5 +163,9 @@ export function hleProcessRSPTask() {
       break;
   }
 
+  // TODO: if not handled then track start?
+  if (handled) {
+    hardware.timeline.addEvent(`HLE Task ${task.detectVersionString()}`);
+  }
   return handled;
 }

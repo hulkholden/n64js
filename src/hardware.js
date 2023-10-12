@@ -17,6 +17,7 @@ import { VIRegDevice } from './devices/vi.js';
 import { MemoryMap } from './memmap.js';
 import { MemoryRegion } from './MemoryRegion.js';
 import { CPU0, CPU2 } from './r4300.js';
+import { Timeline } from './timeline.js';
 
 const kBootstrapOffset = 0x40;
 const kGameOffset = 0x1000;
@@ -45,6 +46,9 @@ export class Hardware {
   constructor(rominfo) {
     // TODO: Not sure this belongs here.
     this.rominfo = rominfo;
+
+    this.timeline = new Timeline(this.getOpsExecuted.bind(this));
+    this.lastVblEvent = null;
 
     this.systemFrequency = systemFrequency;
 
@@ -170,6 +174,10 @@ export class Hardware {
     }
   }
 
+  getOpsExecuted() {
+    return this.cpu0.getOpsExecuted();
+  }
+
   createROM(arrayBuffer) {
     // Ensure the rom array buffer is at least 8MB.
     // This helps ensure MemoryRegion.copy won't assert when DMAing from short roms.
@@ -193,6 +201,11 @@ export class Hardware {
 
   verticalBlank() {
     this.flushSaveData();
+
+    if (this.lastVblEvent) {
+      this.lastVblEvent.stop();
+    }
+    this.lastVblEvent = this.timeline.addEvent('Vbl');
   }
 
   initSaveGame() {
