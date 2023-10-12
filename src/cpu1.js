@@ -296,8 +296,8 @@ export const convertModeCeil = 2;
 export const convertModeFloor = 3;
 
 export class CPU1 {
-  constructor(cpu0) {
-    this.cpu0 = cpu0;
+  constructor(hardware) {
+    this.hardware = hardware;
     this.control = new Uint32Array(32);
 
     this.mem     = new ArrayBuffer(32 * 8);   // 32 64-bit regs
@@ -1243,14 +1243,14 @@ export class CPU1 {
 
   raiseUnimplemented(msg) {
     this.control[31] |= FPCSR_CE;
-    this.cpu0.raiseFPE();
+    this.hardware.cpu0.raiseFPE();
     return true;
   }
 
   setStatusBits(enable, cause, flag) {
     if (this.control[31] & enable) {
       this.control[31] |= cause;
-      this.cpu0.raiseFPE();
+      this.hardware.cpu0.raiseFPE();
       return true;
     }
     this.control[31] |= flag | cause;
@@ -1262,7 +1262,7 @@ export class CPU1 {
     const enable = (value & enableMask) >> enableShift;
     const cause = (value & causeMask) >> causeShift;
     if ((enable & cause) || (value & FPCSR_CE)) {
-      this.cpu0.raiseFPE();
+      this.hardware.cpu0.raiseFPE();
       return true;
     }
     return false;

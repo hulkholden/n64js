@@ -24,14 +24,10 @@ export let cpu1;
 export let cpu2;
 
 export function initCPU(hardware) {
-  cpu0 = new CPU0(hardware);
-  cpu1 = new CPU1(cpu0);
-  cpu2 = new CPU2();
+  cpu0 = hardware.cpu0;
+  cpu1 = hardware.cpu1;
+  cpu2 = hardware.cpu2;
   memaccess.reset(hardware, cpu0);
-
-  // TODO: find a nicer way to do this - cpu0 and cpu1 must both exist
-  // so we can't do this in the constructor.
-  cop1ControlChanged();
 
   // TODO: just use the exported value.
   n64js.cpu0 = cpu0;
@@ -343,7 +339,7 @@ function pageMaskName(pageMask) {
   return `Unknown(${bits.toString(2)})`;
 }
 
-class CPU0 {
+export class CPU0 {
   constructor(hardware) {
     this.hardware = hardware;
     this.opsExecuted = 0; // Approximate...
@@ -578,6 +574,19 @@ class CPU0 {
     this.setControlU32(cpu0_constants.controlRand, 32 - 1);
     this.setControlU32(cpu0_constants.controlStatus, 0x70400004);
     this.setControlU32(cpu0_constants.controlConfig, 0x7006e463);
+
+    this.cop1ControlChanged();
+  }
+
+  cop1ControlChanged() {
+    const control = this.getControlU32(cpu0_constants.controlStatus);
+    const enable = (control & SR_CU1) !== 0;
+    simpleTable[0x11] = enable ? executeCop1 : executeCop1_disabled;
+  
+    // TODO: this is a bit gross. Maybe there could be a shared register set and both CPU0 and CPU1 have a view?
+    if (this.hardware.cpu1) {
+      this.hardware.cpu1.fullMode = (control & SR_FR) !== 0;
+    }
   }
 
   /**
@@ -895,7 +904,7 @@ class CPU0 {
   }
 
   statusRegisterChanged() {
-    cop1ControlChanged();
+    this.cop1ControlChanged();
     this.updateStuffToDoForInterrupts();
   }
 
@@ -1897,12 +1906,17 @@ class CPU0 {
 }
 
 
-class CPU2 {
-  constructor() {
+export class CPU2 {
+  constructor(hardware) {
     // Provide state for a single 64 bit register.
+    this.hardware = hardware;
     const buf = new ArrayBuffer(8);
     this.regU32 = new Uint32Array(buf);
     this.regU64 = new BigUint64Array(buf);
+  }
+
+  reset() {
+    this.regU64[0] = 0n;
   }
 
   /**
@@ -2216,15 +2230,6 @@ function executeCop1_disabled(i) {
   cpu0.raiseCopXUnusable(1);
 }
 n64js.executeCop1_disabled = executeCop1_disabled;
-
-function cop1ControlChanged() {
-  const control = cpu0.getControlU32(cpu0_constants.controlStatus);
-  const enable = (control & SR_CU1) !== 0;
-  simpleTable[0x11] = enable ? executeCop1 : executeCop1_disabled;
-
-  cpu1.fullMode = (control & SR_FR) !== 0;
-}
-n64js.cop1ControlChanged = cop1ControlChanged;
 
 function validateRegImmOpTable(cases) {
   if (cases.length != 32) {

@@ -1,6 +1,7 @@
 /*global n64js*/
 
 import * as base64 from './base64.js';
+import { CPU1 } from './cpu1.js';
 import { AIRegDevice } from './devices/ai.js';
 import { DPCDevice } from './devices/dpc.js';
 import { DPSDevice } from './devices/dps.js';
@@ -15,6 +16,7 @@ import { SPMemDevice, SPIBISTDevice, SPRegDevice } from './devices/sp.js';
 import { VIRegDevice } from './devices/vi.js';
 import { MemoryMap } from './memmap.js';
 import { MemoryRegion } from './MemoryRegion.js';
+import { CPU0, CPU2 } from './r4300.js';
 
 const kBootstrapOffset = 0x40;
 const kGameOffset = 0x1000;
@@ -105,7 +107,6 @@ export class Hardware {
     // KSEG3, TLB mapped.
     this.mappedMem3Device = new MappedMemDevice(this, 0xe0000000, 0x1_00000000);
 
-
     this.devices = [
       this.mappedMemDevice,
       // Register the invalid memory device before all the other KSEG0 devices.
@@ -136,9 +137,17 @@ export class Hardware {
       this.mappedMem3Device,
     ];
     this.memMap = new MemoryMap(this.devices);
+
+    this.cpu0 = new CPU0(this);
+    this.cpu1 = new CPU1(this);
+    this.cpu2 = new CPU2(this);
   }
 
   reset() {
+    this.cpu0.reset();
+    this.cpu1.reset();
+    this.cpu2.reset();
+ 
     this.pif_mem.clear();
     this.ram.clear();
     this.sp_mem.clear();
