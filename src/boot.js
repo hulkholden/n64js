@@ -17,7 +17,7 @@ export function simulateBoot(cpu0, hardware, rominfo) {
   cpu0.setControlU64(cpu0_constants.controlEPC, 0xffffffff_ffffffffn);
   cpu0.setControlU64(cpu0_constants.controlBadVAddr, 0xffffffff_ffffffffn);
   cpu0.setControlU64(cpu0_constants.controlErrorEPC, 0xffffffff_ffffffffn);
-  n64js.cop1ControlChanged();
+  cpu0.cop1ControlChanged();
 
   const zero = 0x00000000_00000000n;
   cpu0.setRegU64(0, zero);
