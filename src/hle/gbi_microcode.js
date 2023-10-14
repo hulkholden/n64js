@@ -637,6 +637,9 @@ export class GBIMicrocode {
       address: address
     };
 
+    const hardware = n64js.hardware();
+    hardware.timeline.addEvent(`SetColorImage ${toString32(address)}`);
+
     // TODO: Banjo Tooie and Pokemon Stadium render to multiple buffers in each display list.
     // Need to set these up as separate framebuffers somehow
     if (kDebugColorImages && !colorImages.get(address)) {

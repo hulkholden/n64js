@@ -971,14 +971,15 @@ export class Debugger {
 
     let minTime = Number.MAX_VALUE;
     let maxTime = 0;
-
-    timeline.events.forEach(e => {
-      if (e.start < minTime) {
-        minTime = e.start;
-      }
-      if (e.end > maxTime) {
-        maxTime = e.end;
-      }
+    timeline.tracks.forEach(track => {
+      track.events.forEach(e => {
+        if (e.start < minTime) {
+          minTime = e.start;
+        }
+        if (e.end > maxTime) {
+          maxTime = e.end;
+        }
+      });
     });
 
     const duration = maxTime - minTime;
@@ -986,21 +987,32 @@ export class Debugger {
       return;
     }
 
-    const timelineWidth = 16000;
+    const timelineWidth = 4000;
+    const rowHeight = 30;
 
-    timeline.events.forEach(e => {
-      const left = timelineWidth * (e.start - minTime) / duration;
-      const width = (e.end <= e.start) ? 40 : timelineWidth * (e.end - e.start) / duration;
+    let baseDepth = 0;
+    timeline.tracks.forEach(track => {
+      let maxDepth = 0;
+      track.events.forEach(e => {
+        const left = timelineWidth * (e.start - minTime) / duration;
+        const pixels = timelineWidth * (e.end - e.start) / duration;
+        const width = (pixels < 1) ? 1 : pixels;
 
-      const top = 0;
-      const height = 30;
-      const name = e.name;
+        const top = (baseDepth + e.depth) * rowHeight;
+        const height = rowHeight;
+        const name = e.name;
 
-      let t = '';
-      t += `<div class="timeline-block" style="left: ${left}px; top: ${top}px; width ${width}px; height ${height}px>`;
-      t += `div class="timeline-name">${name}</div>`;
-      t += '</div>';
-      $tl.append(t);
+        let t = '';
+        t += `<div class="timeline-block" style="left: ${left.toFixed(0)}px; top: ${top.toFixed(0)}px; width: ${width.toFixed(0)}px; height: ${height.toFixed(0)}px">`;
+        t += `<div class="timeline-name">${name}</div>`;
+        t += '</div>';
+        $tl.append(t);
+
+        if (e.depth > maxDepth) {
+          maxDepth = e.depth;
+        }
+      });
+      baseDepth += maxDepth + 1;
     });
   }
 
@@ -1065,6 +1077,12 @@ export class Debugger {
     // The timeline doesn't change while the debugger is active
     // so there's no need to redraw it.
   }
+
+  showTimeline() {
+    this.updateTimeline();
+    $('.debug').show();
+    $('#timeline-tab').tab('show');
+  }  
 }
 
 n64js.toggleDebugger = () => {

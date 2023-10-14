@@ -105,6 +105,9 @@ class RSP {
 
     this.halted = true;
 
+    // A Timeline event when running.
+    this.runEvent = null;
+
     // Take a deep reference to the SPIBIST registers to access the program counter.
     this.pcDataView = hardware.sp_ibist_mem.dataView;
 
@@ -173,6 +176,7 @@ class RSP {
 
   reset() {
     this.halted = true;
+    this.runEvent = null;
 
     this.pc = 0;
     this.delayPC = 0;
@@ -446,6 +450,11 @@ class RSP {
   unhalt() {
     // TODO: should this just check the status bits?
     this.halted = false;
+
+    if (this.runEvent) {
+      this.runEvent.stop();
+    }
+    this.runEvent = this.hardware.timeline.startEvent("RSP");
   }
 
   step() {
@@ -465,6 +474,10 @@ class RSP {
   halt(statusBits) {
     this.hardware.spRegDevice.setStatusBits(statusBits | SP_STATUS_HALT);
     this.halted = true;
+    if (this.runEvent) {
+      this.runEvent.stop();
+      this.runEvent = null
+    } 
   }
 
   disassembleAll() {

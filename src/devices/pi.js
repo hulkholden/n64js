@@ -294,9 +294,13 @@ export class PIRegDevice extends Device {
   }
 
   addPIInterrupt(cycles) {
+    const ev = n64js.hardware().timeline.startEvent(`PI DMA`);
     const that = this;
     n64js.cpu0.addEvent(kPIInterrupt, cycles, () => {
       that.dmaComplete();
+      if (ev) {
+        ev.stop();
+      }
     });
   }
 

@@ -4,6 +4,7 @@ import { Device } from './device.js';
 import * as mi from './mi.js';
 import * as logger from '../logger.js';
 import { toString32 } from '../format.js';
+import { TrackAudio } from '../timeline.js';
 
 // Audio Interface
 const AI_DRAM_ADDR_REG = 0x00;
@@ -254,9 +255,13 @@ export class AIRegDevice extends Device {
   }
 
   addAIDMAEvent(cycles) {
+    const ev = n64js.hardware().timeline.startEvent(`AI DMA`, TrackAudio);
     const that = this;
     n64js.cpu0.addEvent(kAIDMAEvent, cycles, () => {
       that.dmaComplete();
+      if (ev) {
+        ev.stop();
+      }
     });
   }
 
