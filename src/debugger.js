@@ -330,6 +330,9 @@ export class Debugger {
     /** @type {?jQuery} */
     this.$memoryContent = $('#memory-content');
 
+    /** @type {?jQuery} */
+    this.$timelineContent = $('#timeline-content');
+
     /** @type {R4300DebugState} */
     this.cpu0State = new R4300DebugState();
 
@@ -415,6 +418,9 @@ export class Debugger {
     })
     document.querySelector('#dynarec-tab').addEventListener('click', () => {
       this.updateDynarec();
+    })
+    document.querySelector('#timeline-tab').addEventListener('click', () => {
+      this.updateTimeline();
     })
   }
 
@@ -957,6 +963,47 @@ export class Debugger {
     });
   }
 
+  updateTimeline() {
+    const timeline = n64js.hardware().timeline;
+
+    const $tl = this.$timelineContent.find('.timeline-panel');
+    $tl.empty();
+
+    let minTime = Number.MAX_VALUE;
+    let maxTime = 0;
+
+    timeline.events.forEach(e => {
+      if (e.start < minTime) {
+        minTime = e.start;
+      }
+      if (e.end > maxTime) {
+        maxTime = e.end;
+      }
+    });
+
+    const duration = maxTime - minTime;
+    if (duration <= 0) {
+      return;
+    }
+
+    const timelineWidth = 16000;
+
+    timeline.events.forEach(e => {
+      const left = timelineWidth * (e.start - minTime) / duration;
+      const width = (e.end <= e.start) ? 40 : timelineWidth * (e.end - e.start) / duration;
+
+      const top = 0;
+      const height = 30;
+      const name = e.name;
+
+      let t = '';
+      t += `<div class="timeline-block" style="left: ${left}px; top: ${top}px; width ${width}px; height ${height}px>`;
+      t += `div class="timeline-name">${name}</div>`;
+      t += '</div>';
+      $tl.append(t);
+    });
+  }
+
   disassemblerDown() {
     this.scrollActiveDisassemblyWindow(+1);
     this.redraw();
@@ -1014,6 +1061,9 @@ export class Debugger {
     if (this.$dynarecContent.hasClass('active')) {
       this.updateDynarec();
     }
+
+    // The timeline doesn't change while the debugger is active
+    // so there's no need to redraw it.
   }
 }
 

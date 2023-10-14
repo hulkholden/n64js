@@ -211,3 +211,30 @@ table .impl100 {
 .cpu0-status-bit-enabled {
   font-weight: bold;
 }
+
+.timeline-panel {
+  position: relative;
+  height: 100px;
+  width: 8000px;
+}
+
+.timeline-block {
+  position: absolute;
+
+  /* Should be overridden in element style */
+  width: 50px;
+  height: 30px;
+  background-color: #3b86f6;
+
+  box-shadow: inset 0 0 2px #000;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.timeline-name {
+  position: absolute;
+  margin: 7px 10px;
+  font-size: 12px;
+  color: rgb(0, 0, 0, 0.8);
+  white-space: nowrap;
+}
