@@ -48,7 +48,6 @@ export class Hardware {
     this.rominfo = rominfo;
 
     this.timeline = new Timeline(this.getOpsExecuted.bind(this));
-    this.lastVblEvent = null;
 
     this.systemFrequency = systemFrequency;
 
@@ -202,10 +201,7 @@ export class Hardware {
   verticalBlank() {
     this.flushSaveData();
 
-    if (this.lastVblEvent) {
-      this.lastVblEvent.stop();
-    }
-    this.lastVblEvent = this.timeline.addEvent('Vbl');
+    this.timeline.newFrame();
   }
 
   initSaveGame() {

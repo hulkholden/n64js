@@ -147,9 +147,15 @@ export function hleProcessRSPTask() {
 
   switch (task.type) {
     case M_GFXTASK:
-      hleGraphics(task);
-      hardware.miRegDevice.interruptDP();
-      handled = true;
+      {
+        const ev = hardware.timeline.startEvent(`HLE Task ${task.detectVersionString()}`);
+        hleGraphics(task);
+        hardware.miRegDevice.interruptDP();
+        if (ev) {
+          ev.stop();
+        }
+        handled = true;
+      }
       break;
     case M_AUDTASK:
       // If enableAudioLLE is clear, pretend we handled the task (we'll play silence).
@@ -163,9 +169,5 @@ export function hleProcessRSPTask() {
       break;
   }
 
-  // TODO: if not handled then track start?
-  if (handled) {
-    hardware.timeline.addEvent(`HLE Task ${task.detectVersionString()}`);
-  }
   return handled;
 }

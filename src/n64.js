@@ -388,3 +388,7 @@ n64js.togglePerformance = () => {
     parent.appendChild(stats.dom);
   }
 };
+
+n64js.showTimeline = () => {
+  dbg.showTimeline();
+}

@@ -6,6 +6,7 @@ import * as microcodes from './microcodes.js';
 import { RSPState } from './rsp_state.js';
 import { Renderer } from './renderer.js';
 import { graphicsOptions } from './graphics_options.js';
+import { toString32 } from '../format.js';
 
 window.n64js = window.n64js || {};
 
@@ -82,15 +83,19 @@ export function hleGraphics(task) {
 export function presentBackBuffer() {
   n64js.onPresent();
 
+  const hardware = n64js.hardware();
+  const vi = hardware.viRegDevice;
+
+  hardware.timeline.addEvent(`Present ${toString32(vi.dramAddrReg)}`);
+
   if (numDisplayListsRendered !== 0) {
     renderer.copyBackBufferToFrontBuffer();
     return;
   }
 
   // If no display lists executed, interpret framebuffer as bytes
-  initDimensionsFromVI();    // resize canvas to match VI res.
+  initDimensionsFromVI(vi);    // resize canvas to match VI res.
 
-  const vi = n64js.hardware().viRegDevice;
   const pixels = vi.renderBackBuffer();
   if (!pixels) {
     return;
@@ -105,7 +110,8 @@ function processDList(task, disassembler, bailAfter) {
     return;
   }
 
-  const ramDV = n64js.hardware().cachedMemDevice.mem.dataView
+  const hardware = n64js.hardware();
+  const ramDV = hardware.cachedMemDevice.mem.dataView
   state.reset(ramDV, task.dataPtr);
   let microcode = initMicrocode(task, ramDV);
   let ucodeTable = microcode.buildCommandTable();
@@ -117,7 +123,7 @@ function processDList(task, disassembler, bailAfter) {
     return microcode;
   });
 
-  initDimensionsFromVI();
+  initDimensionsFromVI(hardware.viRegDevice);
 
   renderer.newFrame();
 
@@ -144,8 +150,7 @@ function processDList(task, disassembler, bailAfter) {
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 }
 
-function initDimensionsFromVI() {
-  const vi = n64js.hardware().viRegDevice;
+function initDimensionsFromVI(vi) {
   const dims = vi.computeDimensions();
   if (!dims) {
     return;
