@@ -1,5 +1,3 @@
-/*global n64js*/
-
 import * as cpu0_constants from './cpu0_constants.js';
 import { OS_TV_PAL } from './system_constants.js';
 
