@@ -47,7 +47,7 @@ export class Timeline {
     if (this.eventCount >= kMaxEvents || this.frameCount >= kMaxFrames) {
       this.recording = false;
       this.curFrameEvent = null;
-      n64js.showTimeline();
+      n64js.debugger().showTimeline();
     }
   }
 

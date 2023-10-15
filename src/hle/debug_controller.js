@@ -191,12 +191,12 @@ export class DebugController {
   }
 
   showUI() {
-    $('.debug').show();
+    n64js.debugger().show();
     $('#dlist-tab').tab('show');
   }
 
   hideUI() {
-    $('.debug').hide();
+    n64js.debugger().hide();
   }
 
   setDisplayListOutput(output) {
