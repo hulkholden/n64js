@@ -82,7 +82,7 @@ LLE audio emulation seems to be the biggest performance hit. To date I've mostly
   * [ ] HLE
     * [ ] GBI0 - mostly implemented
     * [ ] GBI1 - partially implemented
-    * [ ] GIB2 - partically immplemented
+    * [ ] GIB2 - partially immplemented
   * [ ] LLE - not implemented
 * [ ] Audio
   * [ ] HLE - not implemented
