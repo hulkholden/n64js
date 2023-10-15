@@ -2,7 +2,7 @@
 
 export class UI {
   domLoaded() {
-    n64js.hideDebugger();
+    const dbg = n64js.debugger();
 
     // const body = document.querySelector('body');
     // body.addEventListener('keypress', (event) => {
@@ -17,9 +17,9 @@ export class UI {
     // });
 
     // Make sure that the tabs refresh when clicked
-    $('.tabbable a').on('shown.bs.tab', (e) => { n64js.debugger().redraw(); });
+    $('.tabbable a').on('shown.bs.tab', (e) => { dbg.redraw(); });
 
-    n64js.debugger().redraw();
+    dbg.redraw();
   }
 
   triggerLoad() {

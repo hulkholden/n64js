@@ -20,6 +20,15 @@ pre {
    width: auto !important;
 }
 
+.debug.hidden {
+  display: none;
+}
+
+.debug-adjacent {
+  display: inline-block;
+  float: none;
+}
+
 .register-table th,
 .register-table td {
   padding: 2px 10px;

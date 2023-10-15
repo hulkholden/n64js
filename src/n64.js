@@ -200,7 +200,7 @@ function updateLoopAnimframe() {
     let maxCycles = kCyclesPerUpdate;
 
     // Don't slow down debugger if we're waiting for a display list to be debugged.
-    if (n64js.debuggerVisible() && !debugDisplayListRequested()) {
+    if (dbg.active && !debugDisplayListRequested()) {
       maxCycles = dbg.debugCycles;
     }
 
@@ -388,7 +388,3 @@ n64js.togglePerformance = () => {
     parent.appendChild(stats.dom);
   }
 };
-
-n64js.showTimeline = () => {
-  dbg.showTimeline();
-}

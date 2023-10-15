@@ -12,6 +12,7 @@ import { cpu0, cpu1 } from './r4300.js';
 import * as r4300 from './r4300.js';
 import { rsp } from './rsp.js';
 import * as mi from './devices/mi.js';
+import * as dbgUI from './dbg_ui.js';
 
 window.n64js = window.n64js || {};
 
@@ -306,6 +307,9 @@ class RSPDebugState extends CPUDebugState {
 
 export class Debugger {
   constructor() {
+    /** @type {boolean} Whether the debugger is active. */
+    this.active = false;
+
     /** @type {?jQuery} */
     this.$cpuContent = $('#cpu-content');
 
@@ -422,6 +426,26 @@ export class Debugger {
     document.querySelector('#timeline-tab').addEventListener('click', () => {
       this.updateTimeline();
     })
+  }
+
+  visible() { return this.active; }
+  show() { this.setVisible(true); }
+  hide() { this.setVisible(false); }
+  toggle() { this.setVisible(!this.active); }
+
+  setVisible(value) {
+    this.active = value;
+
+    document.querySelectorAll('.debug').forEach(e => {
+      e.classList.toggle('hidden', !value);
+    });
+    dbgUI.setVisible(value);
+  }
+
+  showTimeline() {
+    this.updateTimeline();
+    this.show();
+    $('#timeline-tab').tab('show');
   }
 
   updateMemoryView() {
@@ -1054,7 +1078,7 @@ export class Debugger {
   }
 
   redraw() {
-    if (!n64js.debuggerVisible()) {
+    if (!this.active) {
       return;
     }
 
@@ -1077,26 +1101,6 @@ export class Debugger {
     // The timeline doesn't change while the debugger is active
     // so there's no need to redraw it.
   }
-
-  showTimeline() {
-    this.updateTimeline();
-    $('.debug').show();
-    $('#timeline-tab').tab('show');
-  }  
-}
-
-n64js.toggleDebugger = () => {
-  // This toggles both the display list debugger (#adjacent-debug) and the main debugger (no id).
-  // TODO: explicitly toggle panels.
-  $('.debug').toggle();
-};
-
-n64js.debuggerVisible = () => {
-  return $('.debug').is(':visible');
-};
-
-n64js.hideDebugger = () => {
-  $('.debug').hide();
 }
 
 function roundDown(x, a) {

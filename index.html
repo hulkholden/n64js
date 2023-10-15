@@ -49,7 +49,7 @@
               <i class="bi bi-fullscreen"></i> Fullscreen</button>
           </div>
           <div class="btn-group">
-            <button type="button" class="btn" onclick="n64js.toggleDebugger()">
+            <button type="button" class="btn" onclick="n64js.debugger().toggle()">
               <i class="bi bi-bug"></i> Debug</button>
             <button type="button" class="btn" onclick="n64js.togglePerformance()">
               <i class="bi bi-graph-up"></i> Perf</button>
@@ -91,7 +91,7 @@
     <div class="row">
       <div style="white-space:nowrap;" class="col col-sm-8">
         <canvas id="display" width="640" height="480" style="display:inline-block; background-color:#000;"></canvas>
-        <div id="adjacent-debug" class="col col-sm-10 debug" style="display:inline-block; float:none;"></div>
+        <div id="adjacent-debug" class="col col-sm-10 debug debug-adjacent hidden"></div>
       </div>
       <div class="col col-sm-2" id="performance"></div>
     </div>
@@ -219,7 +219,7 @@
       </div>
     </div>
 
-    <div class="debug" style="display:none">
+    <div class="debug hidden">
       <div class="row">
         <div class="col col-sm-4">
           <form>
