@@ -127,6 +127,10 @@ function processDList(task, disassembler, bailAfter) {
 
   renderer.newFrame();
 
+  if (debugController.running) {
+    renderer.debugClear();
+  }
+
   if (disassembler) {
     debugController.currentOp = 0;
 

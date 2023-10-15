@@ -89,7 +89,6 @@ export class Renderer {
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.frameBuffer);
     // Set the viewport to match the framebuffer dimensions.
     gl.viewport(0, 0, this.frameBuffer.width, this.frameBuffer.height);
-
   }
 
   copyTextureToFrontBuffer(texture) {
@@ -196,6 +195,36 @@ export class Renderer {
     gl.drawArrays(gl.TRIANGLES, 0, tb.numTris * 3);
     //gl.drawArrays(gl.LINE_STRIP, 0, numTris * 3);
     tb.reset();
+  }
+
+  debugClear() {
+    const gl = this.gl;
+
+    const vertices = [
+      +1, +1, 0, 1,
+      -1, +1, 0, 1,
+      +1, -1, 0, 1,
+      -1, -1, 0, 1,
+    ];
+
+    gl.useProgram(this.fillShaderProgram);
+
+    // aVertexPosition
+    gl.enableVertexAttribArray(this.fillVertexPositionAttribute);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.fillVerticesBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+    gl.vertexAttribPointer(this.fillVertexPositionAttribute, 4, gl.FLOAT, false, 0, 0);
+
+    // uFillColor
+    gl.uniform4f(this.fillFillColorUniform, 1, 0, 1, 1);
+
+    // Disable blending, culling and depth testing.
+    gl.disable(gl.BLEND);
+    gl.disable(gl.CULL_FACE);
+    gl.disable(gl.DEPTH_TEST);
+    gl.depthMask(false);
+
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
 
   fillRect(x0, y0, x1, y1, color) {
