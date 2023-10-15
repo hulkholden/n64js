@@ -25,7 +25,7 @@ function byteSwap(buffer, i0, i1, i2, i3) {
   var i;
   for (i = 0; i < u8.length; i += 4) {
     var a = u8[i + i0], b = u8[i + i1], c = u8[i + i2], d = u8[i + i3];
-    u8[i] = a;
+    u8[i + 0] = a;
     u8[i + 1] = b;
     u8[i + 2] = c;
     u8[i + 3] = d;
