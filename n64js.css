@@ -3,7 +3,7 @@ canvas {
 }
 
 pre {
-  font-family: Menlo,Monaco,'Courier New',monospace;
+  font-family: Menlo, Monaco, 'Courier New', monospace;
   font-size: 12px;
 }
 
@@ -12,12 +12,12 @@ pre {
 }
 
 .fixed {
-  font-family: Menlo,Monaco,'Courier New',monospace;
+  font-family: Menlo, Monaco, 'Courier New', monospace;
   font-size: 12px;
 }
 
 .table-nonfluid {
-   width: auto !important;
+  width: auto !important;
 }
 
 .debug.hidden {
@@ -42,6 +42,7 @@ pre {
 
   text-align: right;
 }
+
 .disasm-table th.op,
 .disasm-table td.op {
   text-align: left;
@@ -50,11 +51,13 @@ pre {
 .dis {
   position: relative;
 }
+
 .dis-gutter {
   float: left;
 
   width: 30px;
 }
+
 .dis-view {
   width: 1000px;
 }
@@ -67,6 +70,7 @@ pre {
   border-radius: 0;
   background-color: var(--bs-secondary-bg);
 }
+
 .dis-view pre {
   border: 0;
   border-radius: 0;
@@ -76,18 +80,23 @@ pre {
 pre .dis-address-jump {
   font-weight: bold;
 }
+
 pre .dis-address-target {
   font-weight: bold;
 }
+
 pre .dis-label {
   font-weight: bold;
 }
+
 pre .dis-address {
   color: #999;
 }
+
 pre .dis-line-target {
   background-color: var(--bs-tertiary-bg);
 }
+
 pre .dis-line-cur {
   background-color: #0d6efd;
 }
@@ -126,14 +135,17 @@ table .impl0 {
   color: #000;
   background-color: #c44;
 }
+
 table .impl40 {
   color: #000;
   background-color: #cc4;
 }
+
 table .impl80 {
   color: #000;
   background-color: #8c4;
 }
+
 table .impl100 {
   color: #000;
   background-color: #4f4;
@@ -142,6 +154,7 @@ table .impl100 {
 .scrub {
   width: 640px;
 }
+
 .scrub input {
   width: 100%;
 }
@@ -206,8 +219,7 @@ table .impl100 {
   background-color: rgb(66, 135, 245);
 }
 
-.clip-none {
-}
+.clip-none {}
 
 .clip-err {
   background-color: red;
