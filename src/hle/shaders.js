@@ -344,6 +344,7 @@ export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, enableAlphaThres
   }
 
   if (enableAlphaThreshold) {
+    // TODO: should this be <?
     body += 'if(col.a <= uAlphaThreshold) discard;\n';
   }
 
