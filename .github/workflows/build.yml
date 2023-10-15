@@ -11,5 +11,6 @@ jobs:
       - run: |
           git config --global user.name 'Paul Holden'
           git config --global user.email 'hulkholden@users.noreply.github.com'
-          git commit -am "Automated build"
+          git add -A
+          git diff-index --quiet HEAD || git commit -m 'Automated build'
           git push
