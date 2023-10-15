@@ -21,5 +21,8 @@
   "bugs": {
     "url": "https://github.com/hulkholden/n64js/issues"
   },
-  "homepage": "https://github.com/hulkholden/n64js"
+  "homepage": "https://github.com/hulkholden/n64js",
+  "dependencies": {
+    "lil-gui": "^0.18.2"
+  }
 }
