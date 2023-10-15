@@ -12,13 +12,20 @@ export const RenderMode = {
   CVG_DST_FULL:        0x0200,
   CVG_DST_SAVE:        0x0300,
 
-  ZMODE_OPA:           0x0000,
-  ZMODE_INTER:         0x0400,
-  ZMODE_XLU:           0x0800,
-  ZMODE_DEC:           0x0c00,
+  ZMODE_OPA:           0x0000,    // Opaque
+  ZMODE_INTER:         0x0400,    // Interpenetrating
+  ZMODE_XLU:           0x0800,    // Transparent
+  ZMODE_DEC:           0x0c00,    // Decal
 
+  // Coverage Times Alpha. If this is set and anti-aliasing is enabled then
+  // the coverage value will be multiplied by the combiner alpha value.
+  // If the coverage value comes out as zero then the pixel will be discarded.
   CVG_X_ALPHA:         0x1000,
+
+  // If this is set the alpha comes from the coverage value (which depends on CVG_X_ALPHA).
+  // If it's unset the alpha comes through directly, with some dithering.
   ALPHA_CVG_SEL:       0x2000,
+
   FORCE_BL:            0x4000,
   TEX_EDGE:            0x0000 /* used to be 0x8000 */
 };

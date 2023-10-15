@@ -285,6 +285,7 @@ export class RSPState {
   getTextureFilterType() { return this.rdpOtherModeH & gbi.G_TF_MASK; }
   getTextureLUTType() { return this.rdpOtherModeH & gbi.G_TT_MASK; }
   getAlphaCompareType() { return this.rdpOtherModeL & gbi.G_AC_MASK; }
+  getAntiAliasEnabled() { return (this.rdpOtherModeL & gbi.RenderMode.AA_EN) !== 0; }
   // fragment coverage (0) or alpha (1)?
   getCoverageTimesAlpha() { return (this.rdpOtherModeL & gbi.RenderMode.CVG_X_ALPHA) !== 0; }
   // use fragment coverage * fragment alpha
