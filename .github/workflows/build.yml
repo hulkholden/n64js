@@ -8,3 +8,8 @@ jobs:
       - uses: oven-sh/setup-bun@v1
       - run: bun install
       - run: bun run build
+      - run: |
+          git config --global user.name 'Paul Holden'
+          git config --global user.email 'hulkholden@users.noreply.github.com'
+          git commit -am "Automated build"
+          git push
