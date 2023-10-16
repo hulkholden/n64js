@@ -30,6 +30,13 @@ export class Controllers {
       new ControllerInputs(),
       new ControllerInputs(),
     ];
+    const body = document.querySelector('body');
+    body.addEventListener('keyup', (event) => {
+      this.handleKey(0, event.key, false);
+    });
+    body.addEventListener('keydown', (event) => {
+      this.handleKey(0, event.key, true);
+    });
   }
 
   handleKey(idx, key, down) {

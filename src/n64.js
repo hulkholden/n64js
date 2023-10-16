@@ -364,15 +364,6 @@ n64js.init = () => {
   n64js.reset();
   dbg = new Debugger();
   initialiseRenderer($('#display'));
-
-  const body = document.querySelector('body');
-  body.addEventListener('keyup', (event) => {
-    controllers.handleKey(0, event.key, false);
-  });
-  body.addEventListener('keydown', (event) => {
-    controllers.handleKey(0, event.key, true);
-  });
-
   ui.domLoaded();
 };
 
