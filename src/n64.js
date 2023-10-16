@@ -197,6 +197,9 @@ function updateLoopAnimframe() {
       return;
     }
 
+    // Poll for input changes.
+    controllers.updateInput();
+
     let maxCycles = kCyclesPerUpdate;
 
     // Don't slow down debugger if we're waiting for a display list to be debugged.
