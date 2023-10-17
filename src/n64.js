@@ -170,6 +170,10 @@ n64js.toggleFullscreen = () => {
   });
 };
 
+n64js.toggleController = () => {
+  // TODO: Toggle the controller UI.
+};
+
 n64js.breakEmulationForDisplayListDebug = () => {
   if (running) {
     n64js.toggleRun();
