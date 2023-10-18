@@ -23,6 +23,8 @@
   },
   "homepage": "https://github.com/hulkholden/n64js",
   "dependencies": {
+    "@popperjs/core": "^2.11.8",
+    "bootstrap": "^5.3.2",
     "lil-gui": "^0.18.2"
   }
 }
