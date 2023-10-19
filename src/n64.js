@@ -1,7 +1,6 @@
 /*jshint jquery:true, browser:true, devel:true */
 /*global $, n64js, Stats, md5*/
 
-import * as bootstrap from 'bootstrap';
 import { simulateBoot } from './boot.js';
 import { Controllers } from './controllers.js';
 import { Joybus } from './joybus.js';
@@ -169,11 +168,6 @@ n64js.toggleFullscreen = () => {
       `Error attempting to enable fullscreen mode: ${err.message} (${err.name})`,
     );
   });
-};
-
-n64js.toggleController = () => {
-  const controllerModal = new bootstrap.Modal('#controller', {});
-  controllerModal.show();
 };
 
 n64js.breakEmulationForDisplayListDebug = () => {

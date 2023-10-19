@@ -1,7 +1,15 @@
 /*global $, n64js*/
 
+import { ControllerConfig } from "./ui/controller_config.js";
+
 export class UI {
+  constructor() {
+    this.controllerConfig = null;
+  }
+
   domLoaded() {
+    this.controllerConfig = new ControllerConfig();
+
     const dbg = n64js.debugger();
 
     // const body = document.querySelector('body');
@@ -20,6 +28,10 @@ export class UI {
     $('.tabbable a').on('shown.bs.tab', (e) => { dbg.redraw(); });
 
     dbg.redraw();
+  }
+
+  toggleControllerConfig() {
+    this.controllerConfig.show();
   }
 
   triggerLoad() {
