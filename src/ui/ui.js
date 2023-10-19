@@ -1,6 +1,6 @@
 /*global $, n64js*/
 
-import { ControllerConfig } from "./ui/controller_config.js";
+import { ControllerConfig } from "./controller_config.js";
 
 export class UI {
   constructor() {

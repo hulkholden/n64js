@@ -15,7 +15,7 @@ import { initCPU } from './r4300.js';
 import { romdb, generateRomId, generateCICType, uint8ArrayReadString } from './romdb.js';
 import { initRSP } from './rsp.js';
 import { categoryCodeDescriptionFromU8, countryNorthAmerica, OS_TV_NTSC, tvTypeFromCountry } from './system_constants.js';
-import { UI } from './ui.js';
+import { UI } from './ui/ui.js';
 import { initSync, syncActive, syncTick, syncInput } from './sync.js';
 import { dbgGUI } from './dbg_ui.js';
 
