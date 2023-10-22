@@ -79,6 +79,8 @@ export class Controllers {
     this.activeGamepadidx = -1;
     window.addEventListener("gamepadconnected", e => { this.connectGamepad(e) }, false);
     window.addEventListener("gamepaddisconnected", e => { this.disconnectGamepad(e) }, false);
+
+    this.controllerMapping = new ControllerMapping();
   }
 
   handleKey(idx, key, down) {
@@ -175,27 +177,48 @@ export class Controllers {
     }
 
     const btns = gp.buttons;
-    // If the ltrigger is pressed interpret the face buttons as CButtons.
-    if (btns[kGamepadAPIBottomLeft].pressed) {
-      this.setButton(0, kButtonCUp, btns[kGamepadAPIRightTop].pressed);
-      this.setButton(0, kButtonCDown, btns[kGamepadAPIRightBottom].pressed);
-      this.setButton(0, kButtonCLeft, btns[kGamepadAPIRightLeft].pressed);
-      this.setButton(0, kButtonCRight, btns[kGamepadAPIRightRight].pressed);
-    } else {
-      this.setButton(0, kButtonA, btns[kGamepadAPIRightBottom].pressed);
-      this.setButton(0, kButtonB, btns[kGamepadAPIRightRight].pressed);
-    }
-    this.setButton(0, kButtonL, btns[kGamepadAPITopLeft].pressed);
-    this.setButton(0, kButtonR, btns[kGamepadAPITopRight].pressed);
-    this.setButton(0, kButtonStart, btns[kGamepadAPICenterRight].pressed);
-    this.setButton(0, kButtonZ, btns[kGamepadAPIBottomRight].pressed);
-
-    this.setButton(0, kButtonJUp, btns[kGamepadAPILeftTop].pressed);
-    this.setButton(0, kButtonJDown, btns[kGamepadAPILeftBottom].pressed);
-    this.setButton(0, kButtonJLeft, btns[kGamepadAPILeftLeft].pressed);
-    this.setButton(0, kButtonJRight, btns[kGamepadAPILeftRight].pressed);
+    this.controllerMapping.mappings.forEach((mapping, n64button) => {
+      const mod = mapping.gpModifier === undefined ? true : btns[mapping.gpModifier].pressed == mapping.gpModifierDown;
+      if (mod) {
+        this.setButton(0, n64button, btns[mapping.gpButton].pressed);
+      }
+    });
 
     this.setStickX(0, gp.axes[kGamepadAPIAxisLeftX] * 80);
     this.setStickY(0, gp.axes[kGamepadAPIAxisLeftY] * -80);
+  }
+}
+
+class ControllerMapping {
+  constructor() {
+    const m = new Map();
+    this.mappings = m;
+
+    // If the ltrigger is pressed interpret the face buttons as CButtons.
+    m.set(kButtonCUp, new ButtonMapping(kGamepadAPIRightTop, kGamepadAPIBottomLeft, true));
+    m.set(kButtonCDown, new ButtonMapping(kGamepadAPIRightBottom, kGamepadAPIBottomLeft, true));
+    m.set(kButtonCLeft, new ButtonMapping(kGamepadAPIRightLeft, kGamepadAPIBottomLeft, true));
+    m.set(kButtonCRight, new ButtonMapping(kGamepadAPIRightRight, kGamepadAPIBottomLeft, true));
+    // Default commands when the ltrigger is not pressed.
+    m.set(kButtonA, new ButtonMapping(kGamepadAPIRightBottom, kGamepadAPIBottomLeft, false));
+    m.set(kButtonB, new ButtonMapping(kGamepadAPIRightRight, kGamepadAPIBottomLeft, false));
+
+    m.set(kButtonL, new ButtonMapping(kGamepadAPITopLeft));
+    m.set(kButtonR, new ButtonMapping(kGamepadAPITopRight));
+    m.set(kButtonStart, new ButtonMapping(kGamepadAPICenterRight));
+    m.set(kButtonZ, new ButtonMapping(kGamepadAPIBottomRight));
+
+    m.set(kButtonJUp, new ButtonMapping(kGamepadAPILeftTop));
+    m.set(kButtonJDown, new ButtonMapping(kGamepadAPILeftBottom));
+    m.set(kButtonJLeft, new ButtonMapping(kGamepadAPILeftLeft));
+    m.set(kButtonJRight, new ButtonMapping(kGamepadAPILeftRight));
+  }
+}
+
+class ButtonMapping {
+  constructor(gpButton, opt_gpModifier, opt_gpModifierDown) {
+    this.gpButton = gpButton;
+    this.gpModifier = opt_gpModifier;
+    this.gpModifierDown = opt_gpModifierDown;
   }
 }
