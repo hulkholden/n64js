@@ -1,3 +1,4 @@
+import { makeEnum } from "./enum";
 
 // N64 Controller button values.
 const kButtonA = 0x8000;
@@ -17,39 +18,43 @@ const kButtonCLeft = 0x0002;
 const kButtonCRight = 0x0001;
 
 // Gamepad API button values.
-// Right cluster.
-const kGamepadAPIRightBottom = 0;
-const kGamepadAPIRightRight = 1;
-const kGamepadAPIRightLeft = 2;
-const kGamepadAPIRightTop = 3;
-// Top cluster.
-const kGamepadAPITopLeft = 4;
-const kGamepadAPITopRight = 5;
-const kGamepadAPIBottomLeft = 6;
-const kGamepadAPIBottomRight = 7;
-// Center cluster.
-const kGamepadAPICenterLeft = 8;
-const kGamepadAPICenterRight = 9;
-// Sticks.
-const kGamepadAPILeftStick = 10;
-const kGamepadAPIRightStick = 11;
-// Left cluster.
-const kGamepadAPILeftTop = 12;
-const kGamepadAPILeftBottom = 13;
-const kGamepadAPILeftLeft = 14;
-const kGamepadAPILeftRight = 15;
-// Center cluster (again).
-const kGamepadAPICenterCenter = 16;
+const GamepadButtons = makeEnum({
+  // Right cluster.
+  RightBottom: 0,
+  RightRight: 1,
+  RightLeft: 2,
+  RightTop: 3,
+  // Top cluster.
+  TopLeft: 4,
+  TopRight: 5,
+  BottomLeft: 6,
+  BottomRight: 7,
+  // Center cluster.
+  CenterLeft: 8,
+  CenterRight: 9,
+  // Sticks.
+  LeftStick: 10,
+  RightStick: 11,
+  // Left cluster.
+  LeftTop: 12,
+  LeftBottom: 13,
+  LeftLeft: 14,
+  LeftRight: 15,
+  // Center cluster (again).
+  CenterCenter: 16,
+});
 
-const kGamepadAPINumButtons = 17;
+const GamepadButtonsCount = 17;
 
 // Gamepad API axes values.
-const kGamepadAPIAxisLeftX = 0; // neg left, pos right.
-const kGamepadAPIAxisLeftY = 1; // neg up, pos down.
-const kGamepadAPIAxisRightX = 2; // neg left, pos right.
-const kGamepadAPIAxisRightY = 3; // neg up, pos down.
+const GamepadAxes = makeEnum({
+  AxisLeftX: 0, // neg left, pos right.
+  AxisLeftY: 1, // neg up, pos down.
+  AxisRightX: 2, // neg left, pos right.
+  AxisRightY: 3, // neg up, pos down.  
+});
 
-const kGamepadAPINumAxes = 4;
+const GamepadAxesCount = 4;
 
 export class ControllerInputs {
   constructor() {
@@ -151,12 +156,12 @@ export class Controllers {
       console.log(`gamepad mapping is unhandled: (${gp.mapping})`);
       return false;
     }
-    if (gp.axes.length < kGamepadAPINumAxes) {
-      console.log(`gamepad has too few axes: ${gp.axes.length} < ${kGamepadAPINumAxes}`);
+    if (gp.axes.length < GamepadAxesCount) {
+      console.log(`gamepad has too few axes: ${gp.axes.length} < ${GamepadAxesCount}`);
       return false;
     }
-    if (gp.buttons.length < kGamepadAPINumButtons) {
-      console.log(`gamepad has too few buttons: ${gp.buttons.length} < ${kGamepadAPINumButtons}`);
+    if (gp.buttons.length < GamepadButtonsCount) {
+      console.log(`gamepad has too few buttons: ${gp.buttons.length} < ${GamepadButtonsCount}`);
       return false;
     }
     if (typeof gp.buttons[0] !== "object") {
@@ -184,8 +189,8 @@ export class Controllers {
       }
     });
 
-    this.setStickX(0, gp.axes[kGamepadAPIAxisLeftX] * 80);
-    this.setStickY(0, gp.axes[kGamepadAPIAxisLeftY] * -80);
+    this.setStickX(0, gp.axes[GamepadAxes.AxisLeftX] * 80);
+    this.setStickY(0, gp.axes[GamepadAxes.AxisLeftY] * -80);
   }
 }
 
@@ -195,23 +200,23 @@ class ControllerMapping {
     this.mappings = m;
 
     // If the ltrigger is pressed interpret the face buttons as CButtons.
-    m.set(kButtonCUp, new ButtonMapping(kGamepadAPIRightTop, kGamepadAPIBottomLeft, true));
-    m.set(kButtonCDown, new ButtonMapping(kGamepadAPIRightBottom, kGamepadAPIBottomLeft, true));
-    m.set(kButtonCLeft, new ButtonMapping(kGamepadAPIRightLeft, kGamepadAPIBottomLeft, true));
-    m.set(kButtonCRight, new ButtonMapping(kGamepadAPIRightRight, kGamepadAPIBottomLeft, true));
+    m.set(kButtonCUp, new ButtonMapping(GamepadButtons.RightTop, GamepadButtons.BottomLeft, true));
+    m.set(kButtonCDown, new ButtonMapping(GamepadButtons.RightBottom, GamepadButtons.BottomLeft, true));
+    m.set(kButtonCLeft, new ButtonMapping(GamepadButtons.RightLeft, GamepadButtons.BottomLeft, true));
+    m.set(kButtonCRight, new ButtonMapping(GamepadButtons.RightRight, GamepadButtons.BottomLeft, true));
     // Default commands when the ltrigger is not pressed.
-    m.set(kButtonA, new ButtonMapping(kGamepadAPIRightBottom, kGamepadAPIBottomLeft, false));
-    m.set(kButtonB, new ButtonMapping(kGamepadAPIRightRight, kGamepadAPIBottomLeft, false));
+    m.set(kButtonA, new ButtonMapping(GamepadButtons.RightBottom, GamepadButtons.BottomLeft, false));
+    m.set(kButtonB, new ButtonMapping(GamepadButtons.RightRight, GamepadButtons.BottomLeft, false));
 
-    m.set(kButtonL, new ButtonMapping(kGamepadAPITopLeft));
-    m.set(kButtonR, new ButtonMapping(kGamepadAPITopRight));
-    m.set(kButtonStart, new ButtonMapping(kGamepadAPICenterRight));
-    m.set(kButtonZ, new ButtonMapping(kGamepadAPIBottomRight));
+    m.set(kButtonL, new ButtonMapping(GamepadButtons.TopLeft));
+    m.set(kButtonR, new ButtonMapping(GamepadButtons.TopRight));
+    m.set(kButtonStart, new ButtonMapping(GamepadButtons.CenterRight));
+    m.set(kButtonZ, new ButtonMapping(GamepadButtons.BottomRight));
 
-    m.set(kButtonJUp, new ButtonMapping(kGamepadAPILeftTop));
-    m.set(kButtonJDown, new ButtonMapping(kGamepadAPILeftBottom));
-    m.set(kButtonJLeft, new ButtonMapping(kGamepadAPILeftLeft));
-    m.set(kButtonJRight, new ButtonMapping(kGamepadAPILeftRight));
+    m.set(kButtonJUp, new ButtonMapping(GamepadButtons.LeftTop));
+    m.set(kButtonJDown, new ButtonMapping(GamepadButtons.LeftBottom));
+    m.set(kButtonJLeft, new ButtonMapping(GamepadButtons.LeftLeft));
+    m.set(kButtonJRight, new ButtonMapping(GamepadButtons.LeftRight));
   }
 }
 
