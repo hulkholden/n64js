@@ -1,3 +1,4 @@
+import { makeEnum } from '../enum.js';
 import * as format from '../format.js';
 
 export const RenderMode = {
@@ -345,26 +346,6 @@ export function getGeometryModeFlagsText(flags, data) {
   if (data & flags.G_LOD)                   t += '|G_LOD';
 
   return t.length > 0 ? t.substr(1) : '0';
-}
-
-/**
- * Adds a nameOf function to the provided Object so that we can easily find the
- * name for a given value. e.g.:
- *     var name = gbi.Foo.nameOf(fooValue);
- * @param {!Object<string, number>} values
- * @return {!Object<string, number>}
- */
-function makeEnum(values) {
-  values.nameOf = (value) => {
-    for (var name in values) {
-      if (Object.prototype.hasOwnProperty.call(values, name) && values[name] === value) {
-        return name;
-      }
-    }
-    return format.toString32(value);
-  };
-
-  return Object.freeze(values);
 }
 
 export const ImageFormat = makeEnum({
