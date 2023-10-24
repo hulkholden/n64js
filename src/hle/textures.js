@@ -5,6 +5,7 @@ export class Texture {
     this.width = width;
     this.height = height;
 
+    // TODO: with WebGL 2 non-power of 2 textures are supported.
     var nativeWidth = nextPow2(width);
     var nativeHeight = nextPow2(height);
 

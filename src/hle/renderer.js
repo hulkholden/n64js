@@ -115,6 +115,7 @@ export class Renderer {
     const canvas = document.getElementById('display');
     gl.viewport(0, 0, canvas.width, canvas.height);
 
+    // TODO: use createVertexArray.
     // aVertexPosition
     gl.enableVertexAttribArray(this.blitVertexPositionAttribute);
     gl.bindBuffer(gl.ARRAY_BUFFER, this.n64PositionsBuffer);
