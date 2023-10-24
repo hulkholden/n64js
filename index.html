@@ -590,54 +590,55 @@
   <script src="js/webgl-debug.js"></script>
   <script type="module" src="build/n64.min.js"></script>
 
-  <script id="fill-shader-vs" type="x-shader/x-vertex">
-      attribute vec4 aVertexPosition;
+  <script id="fill-shader-vs" type="x-shader/x-vertex">#version 300 es
+      in vec4 aVertexPosition;
 
       void main(void) {
         gl_Position = aVertexPosition;
       }
     </script>
-  <script id="fill-shader-fs" type="x-shader/x-fragment">
+  <script id="fill-shader-fs" type="x-shader/x-fragment">#version 300 es
       precision mediump float;
       uniform vec4 uFillColor;
 
-      varying mediump vec2 vTextureCoord;
+      out vec4 outCol;
 
       void main(void) {
-        gl_FragColor = uFillColor;
+        outCol = uFillColor;
       }
     </script>
 
-  <script id="blit-shader-vs" type="x-shader/x-vertex">
-      attribute vec4 aVertexPosition;
-      attribute vec2 aTextureCoord;
+  <script id="blit-shader-vs" type="x-shader/x-vertex">#version 300 es
+      in vec4 aVertexPosition;
+      in vec2 aTextureCoord;
 
-      varying mediump vec2 vTextureCoord;
+      out mediump vec2 vTextureCoord;
 
       void main(void) {
         gl_Position   = aVertexPosition;
         vTextureCoord = aTextureCoord;
       }
     </script>
-  <script id="blit-shader-fs" type="x-shader/x-fragment">
+  <script id="blit-shader-fs" type="x-shader/x-fragment">#version 300 es
       precision mediump float;
-      varying mediump vec2 vTextureCoord;
+      in mediump vec2 vTextureCoord;
+      out vec4 outCol;
 
       uniform sampler2D uSampler0;
 
       void main(void) {
-        vec4 col = texture2D(uSampler0, vTextureCoord);
-        gl_FragColor = vec4(col.rgb, 1);
+        vec4 col = texture(uSampler0, vTextureCoord);
+        outCol = vec4(col.rgb, 1);
       }
     </script>
 
-  <script id="n64-shader-vs" type="x-shader/x-vertex">
-      attribute vec4 aVertexPosition;
-      attribute vec4 aVertexColor;
-      attribute vec2 aTextureCoord;
+  <script id="n64-shader-vs" type="x-shader/x-vertex">#version 300 es
+      in vec4 aVertexPosition;
+      in vec4 aVertexColor;
+      in vec2 aTextureCoord;
 
-      varying         vec4 vColor;
-      varying mediump vec2 vTextureCoord;
+      out         vec4 vColor;
+      out mediump vec2 vTextureCoord;
 
       void main(void) {
         gl_Position   = aVertexPosition;
@@ -645,10 +646,11 @@
         vTextureCoord = aTextureCoord;
       }
     </script>
-  <script id="n64-shader-fs" type="x-shader/x-fragment">
+  <script id="n64-shader-fs" type="x-shader/x-fragment">#version 300 es
       precision mediump float;
-      varying         vec4 vColor;
-      varying mediump vec2 vTextureCoord;
+      in         vec4 vColor;
+      in mediump vec2 vTextureCoord;
+      out vec4 outCol;
 
       uniform sampler2D uSampler0;
       uniform sampler2D uSampler1;
@@ -672,15 +674,15 @@
         vec4 one   = vec4(1,1,1,1);
         vec4 zero  = vec4(0,0,0,0);
         // TODO: consider doing the shift/mask/clamp here.
-        vec4 tex0  = texture2D(uSampler0, textureCoord0);
-        vec4 tex1  = texture2D(uSampler1, textureCoord1);
+        vec4 tex0  = texture(uSampler0, textureCoord0);
+        vec4 tex1  = texture(uSampler1, textureCoord1);
         vec4 col;
         vec4 combined = vec4(0,0,0,1);
         float lod_frac      = 0.0;    // FIXME
         float prim_lod_frac = 0.0;    // FIXME
         float k5            = 0.0;    // FIXME
         {{body}}
-        gl_FragColor = col;
+        outCol = col;
       }
     </script>
 
