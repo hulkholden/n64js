@@ -61,9 +61,8 @@ export class Renderer {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
     this.blitShaderProgram = shaders.createShaderProgram(gl, "blit-shader-vs", "blit-shader-fs");
-    this.blitVertexPositionAttribute = gl.getAttribLocation(this.blitShaderProgram, "aVertexPosition");
-    this.blitTexCoordAttribute = gl.getAttribLocation(this.blitShaderProgram, "aTextureCoord");
     this.blitSamplerUniform = gl.getUniformLocation(this.blitShaderProgram, "uSampler");
+    this.blitVAO = this.initBlitVAO(this.blitShaderProgram);
 
     this.fillShaderProgram = shaders.createShaderProgram(gl, "fill-shader-vs", "fill-shader-fs");
     this.fillVertexPositionAttribute = gl.getAttribLocation(this.fillShaderProgram, "aVertexPosition");
@@ -91,42 +90,53 @@ export class Renderer {
     gl.viewport(0, 0, this.frameBuffer.width, this.frameBuffer.height);
   }
 
+  initBlitVAO(program) {
+    const gl = this.gl;
+    const vao = gl.createVertexArray();
+    gl.bindVertexArray(vao);
+
+    // aVertexPosition
+    const vertices = [
+      -1, -1, 0, 1,
+      1, -1, 0, 1,
+      -1, 1, 0, 1,
+      1, 1, 0, 1,
+    ];
+    const blitPosAttr = gl.getAttribLocation(program, "aVertexPosition");
+    const posBuffer = gl.createBuffer();
+    gl.enableVertexAttribArray(blitPosAttr);
+    gl.bindBuffer(gl.ARRAY_BUFFER, posBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+    gl.vertexAttribPointer(blitPosAttr, 4, gl.FLOAT, false, 0, 0);
+
+    // aTextureCoord
+    const uvs = [
+      0, 0,
+      1, 0,
+      0, 1,
+      1, 1,
+    ];
+    const blitUVAttr = gl.getAttribLocation(program, "aTextureCoord");
+    const uvBuffer = gl.createBuffer();
+    gl.enableVertexAttribArray(blitUVAttr);
+    gl.bindBuffer(gl.ARRAY_BUFFER, uvBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uvs), gl.STATIC_DRAW);
+    gl.vertexAttribPointer(blitUVAttr, 2, gl.FLOAT, false, 0, 0); 
+
+    gl.bindVertexArray(null);
+    return vao;
+  }
+
   copyTextureToFrontBuffer(texture) {
     const gl = this.gl;
     // Passing null binds the framebuffer to the canvas.
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-
-    const vertices = [
-      -1.0, -1.0, 0.0, 1.0,
-      1.0, -1.0, 0.0, 1.0,
-      -1.0, 1.0, 0.0, 1.0,
-      1.0, 1.0, 0.0, 1.0
-    ];
-
-    const uvs = [
-      0.0, 0.0,
-      1.0, 0.0,
-      0.0, 1.0,
-      1.0, 1.0
-    ];
-
     gl.useProgram(this.blitShaderProgram);
 
     const canvas = document.getElementById('display');
     gl.viewport(0, 0, canvas.width, canvas.height);
 
-    // TODO: use createVertexArray.
-    // aVertexPosition
-    gl.enableVertexAttribArray(this.blitVertexPositionAttribute);
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.n64PositionsBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-    gl.vertexAttribPointer(this.blitVertexPositionAttribute, 4, gl.FLOAT, false, 0, 0);
-
-    // aTextureCoord
-    gl.enableVertexAttribArray(this.blitTexCoordAttribute);
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.n64UVBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uvs), gl.STATIC_DRAW);
-    gl.vertexAttribPointer(this.blitTexCoordAttribute, 2, gl.FLOAT, false, 0, 0);
+    gl.bindVertexArray(this.blitVAO);
 
     // uSampler
     gl.activeTexture(gl.TEXTURE0);
@@ -139,6 +149,7 @@ export class Renderer {
     gl.depthMask(false);
 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    gl.bindVertexArray(null);
   }
 
   copyBackBufferToFrontBuffer() {
