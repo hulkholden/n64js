@@ -1,6 +1,7 @@
 import * as gbi from './gbi.js';
 import * as logger from '../logger.js';
 import { assert } from '../assert.js';
+import { VertexArray } from './vertex_array.js';
 
 /**
  * Whether to log shaders as they're compiled.
@@ -255,9 +256,10 @@ class N64Shader {
     this.program = program;
     this.shaderSource = shaderSource;
 
-    this.vertexPositionAttribute = gl.getAttribLocation(program,  "aVertexPosition");
-    this.vertexColorAttribute    = gl.getAttribLocation(program,  "aVertexColor");
-    this.texCoordAttribute       = gl.getAttribLocation(program,  "aTextureCoord");
+    this.vertexArray = new VertexArray(gl);
+    this.vertexArray.initPosAttr(program, "aVertexPosition");
+    this.vertexArray.initUVsAttr(program, "aTextureCoord");
+    this.vertexArray.initColorAttr(program, "aVertexColor");
 
     this.uSamplerUniform0        = gl.getUniformLocation(program, "uSampler0");
     this.uSamplerUniform1        = gl.getUniformLocation(program, "uSampler1");

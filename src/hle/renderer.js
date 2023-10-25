@@ -8,6 +8,7 @@ import { Vector4 } from "../graphics/Vector4.js";
 import * as gbi from './gbi.js';
 import * as shaders from './shaders.js';
 import { Texture, clampTexture } from './textures.js';
+import { VertexArray } from "./vertex_array.js";
 
 const kBlendModeUnknown = 0;
 const kBlendModeOpaque = 1;
@@ -68,10 +69,6 @@ export class Renderer {
     this.fillFillColorUniform = gl.getUniformLocation(this.fillShaderProgram, "uFillColor");
     this.fillRectVA = this.initFillRectVA(this.fillShaderProgram);
     this.debugClearVA = this.initClearVA(this.fillShaderProgram);
-
-    this.n64PositionsBuffer = gl.createBuffer();
-    this.n64ColorsBuffer = gl.createBuffer();
-    this.n64UVBuffer = gl.createBuffer();
 
     this.$textureOutput = $('#texture-content');
   }
@@ -197,6 +194,7 @@ export class Renderer {
     gl.drawArrays(gl.TRIANGLES, 0, tb.numTris * 3);
     //gl.drawArrays(gl.LINE_STRIP, 0, numTris * 3);
     tb.reset();
+    gl.bindVertexArray(null);
   }
 
   initClearVA(program) {
@@ -323,6 +321,7 @@ export class Renderer {
       gl.depthMask(false);
     }
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    gl.bindVertexArray(null);
   }
 
   texRectRot(tileIdx, x0, y0, x1, y1, x2, y2, x3, y3, s0, t0, s1, t1) {
@@ -366,6 +365,7 @@ export class Renderer {
       gl.depthMask(false);
     }
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    gl.bindVertexArray(null);
   }
 
   initDepth() {
@@ -427,23 +427,11 @@ export class Renderer {
     const shader = this.getCurrentN64Shader();
     gl.useProgram(shader.program);
 
-    // aVertexPosition
-    gl.enableVertexAttribArray(shader.vertexPositionAttribute);
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.n64PositionsBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
-    gl.vertexAttribPointer(shader.vertexPositionAttribute, 4, gl.FLOAT, false, 0, 0);
-
-    // aVertexColor
-    gl.enableVertexAttribArray(shader.vertexColorAttribute);
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.n64ColorsBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, colours, gl.STATIC_DRAW);
-    gl.vertexAttribPointer(shader.vertexColorAttribute, 4, gl.UNSIGNED_BYTE, true, 0, 0);
-
-    // aTextureCoord
-    gl.enableVertexAttribArray(shader.texCoordAttribute);
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.n64UVBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, coords, gl.STATIC_DRAW);
-    gl.vertexAttribPointer(shader.texCoordAttribute, 2, gl.FLOAT, false, 0, 0);
+    // TODO: just return the shader and do the binding at the call site?
+    shader.vertexArray.bind();
+    shader.vertexArray.setPosData(positions, gl.DYNAMIC_DRAW);
+    shader.vertexArray.setColorData(colours, gl.DYNAMIC_DRAW);
+    shader.vertexArray.setUVData(coords, gl.DYNAMIC_DRAW);
 
     this.bindTexture(0, gl.TEXTURE0, tile0, texture0, texGenEnabled, shader.uSamplerUniform0, shader.uTexScaleUniform0, shader.uTexOffsetUniform0);
     this.bindTexture(1, gl.TEXTURE1, tile1, texture1, texGenEnabled, shader.uSamplerUniform1, shader.uTexScaleUniform1, shader.uTexOffsetUniform1);
@@ -734,59 +722,3 @@ function shiftFactor(shift) {
   return 1 << (16 - shift);
 }
 
-class VertexArray {
-  constructor(gl) {
-    this.gl = gl;
-    this.vao = gl.createVertexArray();
-
-    this.posBuffer = null;
-    this.uvBuffer = null;
-    this.colBuffer = null;
-  }
-
-  bind() {
-    this.gl.bindVertexArray(this.vao);
-  }
-
-  unbind() {
-    this.gl.bindVertexArray(null);
-  }
-
-  initPosAttr(program, attrName) {
-    const gl = this.gl;
-    this.bind();
-    const attrLoc = gl.getAttribLocation(program, attrName);
-    const buffer = gl.createBuffer();
-    gl.enableVertexAttribArray(attrLoc);
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-    gl.vertexAttribPointer(attrLoc, 4, gl.FLOAT, false, 0, 0);
-    this.unbind();
-
-    this.posBuffer = buffer;
-  }
-
-  setPosData(data, usage) {
-    const gl = this.gl;
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.posBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, data, usage);
-  }
-
-  initUVsAttr(program, attrName) {
-    const gl = this.gl;
-    this.bind();
-    const attrLoc = gl.getAttribLocation(program, attrName);
-    const buffer = gl.createBuffer();
-    gl.enableVertexAttribArray(attrLoc);
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-    gl.vertexAttribPointer(attrLoc, 2, gl.FLOAT, false, 0, 0);
-    this.unbind();
-
-    this.uvBuffer = buffer;
-  }
-
-  setUVData(data, usage) {
-    const gl = this.gl;
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.uvBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, data, usage);
-  }
-}
