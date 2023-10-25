@@ -7,7 +7,7 @@ import { Vector2 } from "../graphics/Vector2.js";
 import { Vector4 } from "../graphics/Vector4.js";
 import * as gbi from './gbi.js';
 import * as shaders from './shaders.js';
-import { Texture, clampTexture } from './textures.js';
+import { Texture } from './textures.js';
 import { VertexArray } from "./vertex_array.js";
 
 const kBlendModeUnknown = 0;
@@ -503,12 +503,10 @@ export class Renderer {
       `${cacheID}: ${gbi.ImageFormat.nameOf(tile.format)}, ${gbi.ImageSize.nameOf(tile.size)},${tile.width}x${tile.height}, <br>`);
 
     const ctx = texture.$canvas[0].getContext('2d');
-    const imgData = ctx.createImageData(texture.nativeWidth, texture.nativeHeight);
+    const imgData = ctx.createImageData(texture.width, texture.height);
 
     const handled = this.state.tmem.convertTexels(tile, tlutFormat, imgData);
     if (handled) {
-      clampTexture(imgData, tile.width, tile.height);
-
       ctx.putImageData(imgData, 0, 0);
 
       this.$textureOutput.append(texture.$canvas);
@@ -542,8 +540,8 @@ export class Renderer {
 
     let uvOffsetU = tile.left;
     let uvOffsetV = tile.top;
-    let uvScaleU = 1.0 / texture.nativeWidth;
-    let uvScaleV = 1.0 / texture.nativeHeight;
+    let uvScaleU = 1.0 / texture.width;
+    let uvScaleV = 1.0 / texture.height;
 
     // Horrible hack for wetrix. For some reason uvs come out 2x what they should be.
     if (texture.width === 56 && texture.height === 29) {
