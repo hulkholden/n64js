@@ -93,7 +93,6 @@ export class Renderer {
   initBlitVA(program) {
     const gl = this.gl;
     const va = new VertexArray(gl);
-    va.bind();
 
     // aVertexPosition
     const positions = [
@@ -115,7 +114,6 @@ export class Renderer {
     va.initUVsAttr(program, "aTextureCoord");
     va.setUVData(new Float32Array(uvs), gl.STATIC_DRAW);
 
-    va.unbind();
     return va;
   }
 
@@ -204,7 +202,6 @@ export class Renderer {
   initClearVA(program) {
     const gl = this.gl;
     const va = new VertexArray(gl);
-    va.bind();
 
     const positions = [
       +1, +1, 0, 1,
@@ -214,8 +211,6 @@ export class Renderer {
     ];
     va.initPosAttr(program, "aVertexPosition");
     va.setPosData(new Float32Array(positions), gl.STATIC_DRAW);
-
-    va.unbind();
     return va;
   }
 
@@ -241,12 +236,8 @@ export class Renderer {
   initFillRectVA(program) {
     const gl = this.gl;
     const va = new VertexArray(gl);
-    va.bind();
-
     va.initPosAttr(program, "aVertexPosition");
     va.setPosData(new Float32Array(4 * 4), gl.DYNAMIC_DRAW);
-
-    va.unbind();
     return va;
   }
 
@@ -763,11 +754,13 @@ class VertexArray {
 
   initPosAttr(program, attrName) {
     const gl = this.gl;
+    this.bind();
     const attrLoc = gl.getAttribLocation(program, attrName);
     const buffer = gl.createBuffer();
     gl.enableVertexAttribArray(attrLoc);
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
     gl.vertexAttribPointer(attrLoc, 4, gl.FLOAT, false, 0, 0);
+    this.unbind();
 
     this.posBuffer = buffer;
   }
@@ -780,11 +773,13 @@ class VertexArray {
 
   initUVsAttr(program, attrName) {
     const gl = this.gl;
+    this.bind();
     const attrLoc = gl.getAttribLocation(program, attrName);
     const buffer = gl.createBuffer();
     gl.enableVertexAttribArray(attrLoc);
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
     gl.vertexAttribPointer(attrLoc, 2, gl.FLOAT, false, 0, 0);
+    this.unbind();
 
     this.uvBuffer = buffer;
   }
