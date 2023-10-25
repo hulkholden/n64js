@@ -62,14 +62,14 @@ export class Renderer {
 
     this.blitShaderProgram = shaders.createShaderProgram(gl, "blit-shader-vs", "blit-shader-fs");
     this.blitSamplerUniform = gl.getUniformLocation(this.blitShaderProgram, "uSampler");
-    this.blitVAO = this.initBlitVAO(this.blitShaderProgram);
+    this.blitVA = this.initBlitVA(this.blitShaderProgram);
 
     this.fillShaderProgram = shaders.createShaderProgram(gl, "fill-shader-vs", "fill-shader-fs");
     this.fillVertexPositionAttribute = gl.getAttribLocation(this.fillShaderProgram, "aVertexPosition");
     this.fillFillColorUniform = gl.getUniformLocation(this.fillShaderProgram, "uFillColor");
     this.fillVerticesBuffer = gl.createBuffer();
 
-    this.debugClearVAO = this.initClearVAO(this.fillShaderProgram);
+    this.debugClearVA = this.initClearVA(this.fillShaderProgram);
 
     this.n64PositionsBuffer = gl.createBuffer();
     this.n64ColorsBuffer = gl.createBuffer();
@@ -92,10 +92,10 @@ export class Renderer {
     gl.viewport(0, 0, this.frameBuffer.width, this.frameBuffer.height);
   }
 
-  initBlitVAO(program) {
+  initBlitVA(program) {
     const gl = this.gl;
-    const vao = gl.createVertexArray();
-    gl.bindVertexArray(vao);
+    const va = new VertexArray(gl);
+    va.bind();
 
     // aVertexPosition
     const vertices = [
@@ -104,12 +104,7 @@ export class Renderer {
       -1, 1, 0, 1,
       1, 1, 0, 1,
     ];
-    const blitPosAttr = gl.getAttribLocation(program, "aVertexPosition");
-    const posBuffer = gl.createBuffer();
-    gl.enableVertexAttribArray(blitPosAttr);
-    gl.bindBuffer(gl.ARRAY_BUFFER, posBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-    gl.vertexAttribPointer(blitPosAttr, 4, gl.FLOAT, false, 0, 0);
+    va.initPosAttr(program, "aVertexPosition", new Float32Array(vertices));
 
     // aTextureCoord
     const uvs = [
@@ -118,15 +113,10 @@ export class Renderer {
       0, 1,
       1, 1,
     ];
-    const blitUVAttr = gl.getAttribLocation(program, "aTextureCoord");
-    const uvBuffer = gl.createBuffer();
-    gl.enableVertexAttribArray(blitUVAttr);
-    gl.bindBuffer(gl.ARRAY_BUFFER, uvBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uvs), gl.STATIC_DRAW);
-    gl.vertexAttribPointer(blitUVAttr, 2, gl.FLOAT, false, 0, 0); 
+    va.initUVsAttr(program, "aTextureCoord", new Float32Array(uvs));
 
-    gl.bindVertexArray(null);
-    return vao;
+    va.unbind();
+    return va;
   }
 
   copyTextureToFrontBuffer(texture) {
@@ -138,7 +128,7 @@ export class Renderer {
     const canvas = document.getElementById('display');
     gl.viewport(0, 0, canvas.width, canvas.height);
 
-    gl.bindVertexArray(this.blitVAO);
+    this.blitVA.bind();
 
     // uSampler
     gl.activeTexture(gl.TEXTURE0);
@@ -151,7 +141,7 @@ export class Renderer {
     gl.depthMask(false);
 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-    gl.bindVertexArray(null);
+    this.blitVA.unbind();
   }
 
   copyBackBufferToFrontBuffer() {
@@ -211,10 +201,10 @@ export class Renderer {
     tb.reset();
   }
 
-  initClearVAO(program) {
+  initClearVA(program) {
     const gl = this.gl;
-    const vao = gl.createVertexArray();
-    gl.bindVertexArray(vao);
+    const va = new VertexArray(gl);
+    va.bind();
 
     // aVertexPosition
     const vertices = [
@@ -223,22 +213,17 @@ export class Renderer {
       +1, -1, 0, 1,
       -1, -1, 0, 1,
     ];
-    const posAttr = gl.getAttribLocation(program, "aVertexPosition");
-    const buffer = gl.createBuffer();
-    gl.enableVertexAttribArray(posAttr);
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-    gl.vertexAttribPointer(posAttr, 4, gl.FLOAT, false, 0, 0);
+    va.initPosAttr(program, "aVertexPosition", new Float32Array(vertices));
 
-    gl.bindVertexArray(null);
-    return vao;
+    va.unbind();
+    return va;
   }
 
   debugClear() {
     const gl = this.gl;
 
     gl.useProgram(this.fillShaderProgram);
-    gl.bindVertexArray(this.debugClearVAO);
+    this.debugClearVA.bind();
 
     // uFillColor
     gl.uniform4f(this.fillFillColorUniform, 1, 0, 1, 1);
@@ -250,7 +235,7 @@ export class Renderer {
     gl.depthMask(false);
 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-    gl.bindVertexArray(null);
+    this.debugClearVA.unbind();
   }
 
   fillRect(x0, y0, x1, y1, color) {
@@ -747,4 +732,47 @@ function shiftFactor(shift) {
     return 1 / (1 << shift);
   }
   return 1 << (16 - shift);
+}
+
+class VertexArray {
+  constructor(gl) {
+    this.gl = gl;
+    this.vao = gl.createVertexArray();
+
+    this.posBuffer = null;
+    this.uvBuffer = null;
+    this.colBuffer = null;
+  }
+
+  bind() {
+    this.gl.bindVertexArray(this.vao);
+  }
+
+  unbind() {
+    this.gl.bindVertexArray(null);
+  }
+
+  initPosAttr(program, attrName, data) {
+    const gl = this.gl;
+    const attrLoc = gl.getAttribLocation(program, attrName);
+    const buffer = gl.createBuffer();
+    gl.enableVertexAttribArray(attrLoc);
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+    gl.vertexAttribPointer(attrLoc, 4, gl.FLOAT, false, 0, 0);
+
+    this.posBuffer = buffer;
+  }
+
+  initUVsAttr(program, attrName, data) {
+    const gl = this.gl;
+    const attrLoc = gl.getAttribLocation(program, attrName);
+    const buffer = gl.createBuffer();
+    gl.enableVertexAttribArray(attrLoc);
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+    gl.vertexAttribPointer(attrLoc, 2, gl.FLOAT, false, 0, 0);
+
+    this.uvBuffer = buffer;
+  }
 }
