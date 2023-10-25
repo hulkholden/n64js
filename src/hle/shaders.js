@@ -257,9 +257,9 @@ class N64Shader {
     this.shaderSource = shaderSource;
 
     this.vertexArray = new VertexArray(gl);
-    this.vertexArray.initPosAttr(program, "aVertexPosition");
-    this.vertexArray.initUVsAttr(program, "aTextureCoord");
-    this.vertexArray.initColorAttr(program, "aVertexColor");
+    this.vertexArray.initPosAttr(program, "aPosition");
+    this.vertexArray.initUVsAttr(program, "aUV");
+    this.vertexArray.initColorAttr(program, "aColor");
 
     this.uSamplerUniform0        = gl.getUniformLocation(program, "uSampler0");
     this.uSamplerUniform1        = gl.getUniformLocation(program, "uSampler1");

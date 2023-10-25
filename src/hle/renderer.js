@@ -91,24 +91,22 @@ export class Renderer {
     const gl = this.gl;
     const va = new VertexArray(gl);
 
-    // aVertexPosition
     const positions = [
       -1, -1, 0, 1,
       1, -1, 0, 1,
       -1, 1, 0, 1,
       1, 1, 0, 1,
     ];
-    va.initPosAttr(program, "aVertexPosition");
+    va.initPosAttr(program, "aPosition");
     va.setPosData(new Float32Array(positions), gl.STATIC_DRAW);
 
-    // aTextureCoord
     const uvs = [
       0, 0,
       1, 0,
       0, 1,
       1, 1,
     ];
-    va.initUVsAttr(program, "aTextureCoord");
+    va.initUVsAttr(program, "aUV");
     va.setUVData(new Float32Array(uvs), gl.STATIC_DRAW);
 
     return va;
@@ -207,7 +205,7 @@ export class Renderer {
       +1, -1, 0, 1,
       -1, -1, 0, 1,
     ];
-    va.initPosAttr(program, "aVertexPosition");
+    va.initPosAttr(program, "aPosition");
     va.setPosData(new Float32Array(positions), gl.STATIC_DRAW);
     return va;
   }
@@ -234,7 +232,7 @@ export class Renderer {
   initFillRectVA(program) {
     const gl = this.gl;
     const va = new VertexArray(gl);
-    va.initPosAttr(program, "aVertexPosition");
+    va.initPosAttr(program, "aPosition");
     va.setPosData(new Float32Array(4 * 4), gl.DYNAMIC_DRAW);
     return va;
   }

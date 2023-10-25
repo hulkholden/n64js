@@ -591,10 +591,10 @@
   <script type="module" src="build/n64.min.js"></script>
 
   <script id="fill-shader-vs" type="x-shader/x-vertex">#version 300 es
-      in vec4 aVertexPosition;
+      in vec4 aPosition;
 
       void main(void) {
-        gl_Position = aVertexPosition;
+        gl_Position = aPosition;
       }
     </script>
   <script id="fill-shader-fs" type="x-shader/x-fragment">#version 300 es
@@ -609,47 +609,47 @@
     </script>
 
   <script id="blit-shader-vs" type="x-shader/x-vertex">#version 300 es
-      in vec4 aVertexPosition;
-      in vec2 aTextureCoord;
+      in vec4 aPosition;
+      in vec2 aUV;
 
-      out mediump vec2 vTextureCoord;
+      out mediump vec2 vUV;
 
       void main(void) {
-        gl_Position   = aVertexPosition;
-        vTextureCoord = aTextureCoord;
+        gl_Position   = aPosition;
+        vUV = aUV;
       }
     </script>
   <script id="blit-shader-fs" type="x-shader/x-fragment">#version 300 es
       precision mediump float;
-      in mediump vec2 vTextureCoord;
+      in mediump vec2 vUV;
       out vec4 outCol;
 
       uniform sampler2D uSampler0;
 
       void main(void) {
-        vec4 col = texture(uSampler0, vTextureCoord);
+        vec4 col = texture(uSampler0, vUV);
         outCol = vec4(col.rgb, 1);
       }
     </script>
 
   <script id="n64-shader-vs" type="x-shader/x-vertex">#version 300 es
-      in vec4 aVertexPosition;
-      in vec4 aVertexColor;
-      in vec2 aTextureCoord;
+      in vec4 aPosition;
+      in vec4 aColor;
+      in vec2 aUV;
 
       out         vec4 vColor;
-      out mediump vec2 vTextureCoord;
+      out mediump vec2 vUV;
 
       void main(void) {
-        gl_Position   = aVertexPosition;
-        vColor        = aVertexColor;
-        vTextureCoord = aTextureCoord;
+        gl_Position = aPosition;
+        vColor = aColor;
+        vUV = aUV;
       }
     </script>
   <script id="n64-shader-fs" type="x-shader/x-fragment">#version 300 es
       precision mediump float;
       in         vec4 vColor;
-      in mediump vec2 vTextureCoord;
+      in mediump vec2 vUV;
       out vec4 outCol;
 
       uniform sampler2D uSampler0;
@@ -660,13 +660,13 @@
       uniform vec2 uTexScale0;
       uniform vec2 uTexScale1;
 
-      uniform vec4      uPrimColor;
-      uniform vec4      uEnvColor;
-      uniform float     uAlphaThreshold;
+      uniform vec4  uPrimColor;
+      uniform vec4  uEnvColor;
+      uniform float uAlphaThreshold;
 
       void main(void) {
-        vec2 textureCoord0 = (vTextureCoord - uTexOffset0) * uTexScale0;
-        vec2 textureCoord1 = (vTextureCoord - uTexOffset1) * uTexScale1;
+        vec2 uv0 = (vUV - uTexOffset0) * uTexScale0;
+        vec2 uv1 = (vUV - uTexOffset1) * uTexScale1;
 
         vec4 shade = vColor;
         vec4 prim  = uPrimColor;
@@ -674,8 +674,8 @@
         vec4 one   = vec4(1,1,1,1);
         vec4 zero  = vec4(0,0,0,0);
         // TODO: consider doing the shift/mask/clamp here.
-        vec4 tex0  = texture(uSampler0, textureCoord0);
-        vec4 tex1  = texture(uSampler1, textureCoord1);
+        vec4 tex0  = texture(uSampler0, uv0);
+        vec4 tex1  = texture(uSampler1, uv1);
         vec4 col;
         vec4 combined = vec4(0,0,0,1);
         float lod_frac      = 0.0;    // FIXME
