@@ -494,6 +494,10 @@ export class Renderer {
   decodeTexture(tile, tlutFormat, cacheID) {
     const gl = this.gl;
 
+    if (tile.width == 0 || tile.height == 0) {
+      return null;
+    }
+
     const texture = new Texture(gl, tile.width, tile.height);
     if (!texture.$canvas[0].getContext) {
       return null;
