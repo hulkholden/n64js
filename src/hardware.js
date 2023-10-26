@@ -37,7 +37,10 @@ class Mempack {
     }
     // Restore from local storage if provided.
     if (item && item.data) {
-      base64.decodeArray(item.data, this.data);
+      const arr = base64.decodeArray(item.data);
+      for (let i = 0; i < arr.length && i < this.data.length; i++) {
+        this.data[i] = arr[i];
+      }
     }
   }
 }
@@ -215,7 +218,10 @@ export class Hardware {
       const memory = new MemoryRegion(new ArrayBuffer(saveSize));
       const saveItem = n64js.getLocalStorageItem('save');
       if (saveItem && saveItem.data) {
-        base64.decodeArray(saveItem.data, memory.u8);
+        const arr = base64.decodeArray(saveItem.data);
+        for (let i = 0; i < arr.length && i < memory.u8.length; i++) {
+          memory.u8[i] = arr[i];
+        }
       }
       this.saveMem = memory;
     } else {
