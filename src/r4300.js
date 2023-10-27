@@ -1957,13 +1957,6 @@ export class CPU2 {
 // and prevents state (such as memory or registers) being updated.
 class EmulatedException { }
 
-function unimplemented(pc, i) {
-  const r = disassembleInstruction(pc, i, false);
-  const e = `Unimplemented op ${toString32(i)} : ${r.disassembly}`;
-  logger.log(e);
-  throw e;
-}
-
 function executeUnknown(i) {
   throw `CPU: unknown op, pc: ${toString32(cpu0.pc)}, instruction: ${toString32(i)}`;
 }
