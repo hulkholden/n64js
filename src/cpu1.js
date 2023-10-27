@@ -27,22 +27,26 @@ const FPCSR_RM_RN = 0x00000000;
 const FPCSR_RM_RZ = 0x00000001;
 const FPCSR_RM_RP = 0x00000002;
 const FPCSR_RM_RM = 0x00000003;
+
 const FPCSR_FI = 0x00000004;  // Flag, Inexact
 const FPCSR_FU = 0x00000008;  // Flag, Underflow
 const FPCSR_FO = 0x00000010;  // Flag, Overflow
 const FPCSR_FZ = 0x00000020;  // Flag, Division by Zero
 const FPCSR_FV = 0x00000040;  // Flag, Invalid
+
 const FPCSR_EI = 0x00000080;  // Enable, Inexact
 const FPCSR_EU = 0x00000100;  // Enable, Underflow
 const FPCSR_EO = 0x00000200;  // Enable, Overflow
 const FPCSR_EZ = 0x00000400;  // Enable, Division by Zero
 const FPCSR_EV = 0x00000800;  // Enable, Invalid
+
 const FPCSR_CI = 0x00001000;  // Cause, Inexact
 const FPCSR_CU = 0x00002000;  // Cause, Underflow
 const FPCSR_CO = 0x00004000;  // Cause, Overflow
 const FPCSR_CZ = 0x00008000;  // Cause, Division by Zero
 const FPCSR_CV = 0x00010000;  // Cause, Invalid
 const FPCSR_CE = 0x00020000;  // Cause, Unimplemented
+
 const FPCSR_C = 0x00800000;  // Condition
 const FPCSR_FS = 0x01000000;  // Flush Subnormals
 
@@ -1253,7 +1257,7 @@ export class CPU1 {
     return this.setStatusBits(enable, cause, flag);
   }
 
-  raiseUnimplemented(msg) {
+  raiseUnimplemented() {
     this.control[31] |= FPCSR_CE;
     this.hardware.cpu0.raiseFPE();
     return true;
