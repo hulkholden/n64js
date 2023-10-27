@@ -2,14 +2,9 @@
 
 import * as logger from './logger.js';
 import { syncInput } from './sync.js';
-import { ControllerInputs } from './controllers.js';
 import { n64_cic_nus_6105 } from './devices/cic.js';
 
-const kChanController0 = 0;
-const kChanController1 = 1;
-const kChanController2 = 2;
-const kChanController3 = 3;
-const kChanCartridge = 4;
+// Channels 0..3 are for controllers and channel 4 is for the cart.
 const kNumChannels = 5;
 
 const kPIFRamSize = 64;
