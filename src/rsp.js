@@ -84,18 +84,14 @@ const SP_STATUS_DMA_FULL = 0x0008;
 const SP_STATUS_IO_FULL = 0x0010;
 const SP_STATUS_SSTEP = 0x0020;
 const SP_STATUS_INTR_BREAK = 0x0040;
-const SP_STATUS_SIG0 = 0x0080;
-const SP_STATUS_SIG1 = 0x0100;
-const SP_STATUS_SIG2 = 0x0200;
+const SP_STATUS_SIG0 = 0x0080;    // a.k.a. Yield
+const SP_STATUS_SIG1 = 0x0100;    // a.k.a. Yielded
+const SP_STATUS_SIG2 = 0x0200;    // a.k.a. TaskDone
 const SP_STATUS_SIG3 = 0x0400;
 const SP_STATUS_SIG4 = 0x0800;
 const SP_STATUS_SIG5 = 0x1000;
 const SP_STATUS_SIG6 = 0x2000;
 const SP_STATUS_SIG7 = 0x4000;
-
-const SP_STATUS_YIELD = SP_STATUS_SIG0;
-const SP_STATUS_YIELDED = SP_STATUS_SIG1;
-const SP_STATUS_TASKDONE = SP_STATUS_SIG2;
 
 class RSP {
   constructor(hardware) {
