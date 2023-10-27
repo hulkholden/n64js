@@ -152,11 +152,6 @@ paletteIdx = ${this.imagePal}, flags = ${this.imageFlags}`
   }
 }
 
-// These odd looking constants are [zero, len mask?, ??, rdp_command]
-const G_OBJLT_TXTRBLOCK = 0x00_00_10_33;    // 0x33 = LoadBlock
-const G_OBJLT_TXTRTILE = 0x00_fc_10_34;     // 0x34 = LoadTile
-const G_OBJLT_TLUT = 0x00_00_00_30;         // 0x30 = LoadTLut
-
 // TODO: move to rdp_constants.js.
 export const FillTriangle = 0x08;
 export const FillZBufferTriangle = 0x09;
