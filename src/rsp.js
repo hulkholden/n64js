@@ -41,7 +41,6 @@ function imms(i) { return (imm(i) << 16) >> 16; }   // treat immediate value as 
 
 function base(i) { return (i >>> 21) & 0x1f; }
 
-function branchAddress(a, i) { return (a + 4) + (imms(i) * 4); }
 function jumpAddress(a, i) { return (a & 0xf0000000) | (target(i) * 4); }
 
 
