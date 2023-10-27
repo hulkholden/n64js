@@ -576,25 +576,27 @@ export class CPU1 {
         this.tempU32[0] = f32NegInfinityBits;
         break;
       default:
-        const sValue = this.loadF64(this.fsRegIdx64(s));
-        this.tempF32[0] = sValue;
-        const rType = f32Classify(this.tempU32[0]);
+        {
+          const sValue = this.loadF64(this.fsRegIdx64(s));
+          this.tempF32[0] = sValue;
+          const rType = f32Classify(this.tempU32[0]);
 
-        if (sValue != this.tempF32[0]) {
-          exceptionBits |= exceptionInexactBit;
-        }
+          if (sValue != this.tempF32[0]) {
+            exceptionBits |= exceptionInexactBit;
+          }
 
-        // Check for underflow (non-zero result became denormal or zero).
-        if ((rType == floatTypeDenormal || floatTypeZero(rType)) && sValue != 0) {
-          exceptionBits |= exceptionInexactBit | exceptionUnderflowBit;
+          // Check for underflow (non-zero result became denormal or zero).
+          if ((rType == floatTypeDenormal || floatTypeZero(rType)) && sValue != 0) {
+            exceptionBits |= exceptionInexactBit | exceptionUnderflowBit;
 
-          // Set the output based on the rounding mode.
-          this.tempU32[0] = getUnderflowValue(f32UnderflowResults, this.control[31] & FPCSR_RM_MASK, sValue > 0);
-        }  
-      
-        // TODO: this is really this.tempF32[0] > float32 max value
-        if (!isFinite(this.tempF32[0])) {
-          exceptionBits |= exceptionOverflowBit;
+            // Set the output based on the rounding mode.
+            this.tempU32[0] = getUnderflowValue(f32UnderflowResults, this.control[31] & FPCSR_RM_MASK, sValue > 0);
+          }  
+        
+          // TODO: this is really this.tempF32[0] > float32 max value
+          if (!isFinite(this.tempF32[0])) {
+            exceptionBits |= exceptionOverflowBit;
+          }
         }
         break;
     }
@@ -821,8 +823,10 @@ export class CPU1 {
         this.tempU64[0] = f64NegInfinityBits;
         break;
       default:
-        const sValue = this.loadF32(this.fsRegIdx32(s));
-        this.tempF64[0] = sValue;
+        {
+          const sValue = this.loadF32(this.fsRegIdx32(s));
+          this.tempF64[0] = sValue;
+        }
         break;
     }
 
@@ -1030,15 +1034,17 @@ export class CPU1 {
         this.raiseUnimplemented();
         return;
       default:
-        const sValue = this.loadF32(this.fsRegIdx32(s));
-        const rounded = this.convertUsingMode(sValue, mode);
-        if (rounded > maxSafeS64 || rounded < minSafeS64) {
-          this.raiseUnimplemented();
-          return;
-        }
-        this.tempS64[0] = BigInt(rounded);
-        if (sValue != this.tempS64[0]) {
-          exceptionBits |= exceptionInexactBit;
+        {
+          const sValue = this.loadF32(this.fsRegIdx32(s));
+          const rounded = this.convertUsingMode(sValue, mode);
+          if (rounded > maxSafeS64 || rounded < minSafeS64) {
+            this.raiseUnimplemented();
+            return;
+          }
+          this.tempS64[0] = BigInt(rounded);
+          if (sValue != this.tempS64[0]) {
+            exceptionBits |= exceptionInexactBit;
+          }
         }
         break;
     }
@@ -1064,15 +1070,17 @@ export class CPU1 {
         this.raiseUnimplemented();
         return;
       default:
-        const sValue = this.loadF64(this.fsRegIdx64(s));
-        const rounded = this.convertUsingMode(sValue, mode);
-        if (rounded > maxSafeS64 || rounded < minSafeS64) {
-          this.raiseUnimplemented();
-          return;
-        }
-        this.tempS64[0] = BigInt(rounded);
-        if (sValue != this.tempS64[0]) {
-          exceptionBits |= exceptionInexactBit;
+        {
+          const sValue = this.loadF64(this.fsRegIdx64(s));
+          const rounded = this.convertUsingMode(sValue, mode);
+          if (rounded > maxSafeS64 || rounded < minSafeS64) {
+            this.raiseUnimplemented();
+            return;
+          }
+          this.tempS64[0] = BigInt(rounded);
+          if (sValue != this.tempS64[0]) {
+            exceptionBits |= exceptionInexactBit;
+          }
         }
         break;
     }
@@ -1098,15 +1106,17 @@ export class CPU1 {
         this.raiseUnimplemented();
         return;
       default:
-        const sValue = this.loadF32(this.fsRegIdx32(s));
-        const rounded = this.convertUsingMode(sValue, mode);
-        if (rounded > maxSafeS32 || rounded < minSafeS32) {
-          this.raiseUnimplemented();
-          return;
-        }
-        this.tempS32[0] = rounded;
-        if (sValue != this.tempS32[0]) {
-          exceptionBits |= exceptionInexactBit;
+        {
+          const sValue = this.loadF32(this.fsRegIdx32(s));
+          const rounded = this.convertUsingMode(sValue, mode);
+          if (rounded > maxSafeS32 || rounded < minSafeS32) {
+            this.raiseUnimplemented();
+            return;
+          }
+          this.tempS32[0] = rounded;
+          if (sValue != this.tempS32[0]) {
+            exceptionBits |= exceptionInexactBit;
+          }
         }
         break;
     }
@@ -1132,15 +1142,17 @@ export class CPU1 {
         this.raiseUnimplemented();
         return;
       default:
-        const sValue = this.loadF64(this.fsRegIdx64(s));
-        const rounded =  this.convertUsingMode(sValue, mode);
-        if (rounded > maxSafeS32 || rounded < minSafeS32) {
-          this.raiseUnimplemented();
-          return;
-        }
-        this.tempS32[0] = rounded;
-        if (sValue != this.tempS32[0]) {
-          exceptionBits |= exceptionInexactBit;
+        {
+          const sValue = this.loadF64(this.fsRegIdx64(s));
+          const rounded =  this.convertUsingMode(sValue, mode);
+          if (rounded > maxSafeS32 || rounded < minSafeS32) {
+            this.raiseUnimplemented();
+            return;
+          }
+          this.tempS32[0] = rounded;
+          if (sValue != this.tempS32[0]) {
+            exceptionBits |= exceptionInexactBit;
+          }
         }
         break;
     }
