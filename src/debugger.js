@@ -4,7 +4,7 @@
 import * as cpu0_constants from './cpu0_constants.js';
 import { disassembleRange, cop0gprNames, cop1RegisterNames } from './disassemble.js';
 import * as disassemble_rsp from "./disassemble_rsp.js";
-import { getFragmentMap, consumeFragmentInvalidationEvents } from './fragments.js';
+import { getFragmentMap } from './fragments.js';
 import { toggleDebugDisplayList } from './hle/hle_graphics.js';
 import { toHex, toString8, toString16, toString32, toString64 } from './format.js';
 import * as logger from './logger.js';
@@ -887,7 +887,6 @@ export class Debugger {
   }
 
   updateDynarec() {
-    let invals = consumeFragmentInvalidationEvents();
     let histogram = new Map();
     let maxBucket = 0;
 
@@ -930,28 +929,6 @@ export class Debugger {
     this.createHotFragmentsTable($fragmentDiv, fragmentsList);
 
     $t.append($fragmentDiv);
-
-    // Evictions
-    if (invals.length > 0) {
-      t = '';
-      t += '<div class="row">';
-      t += '<div class="col-lg-6">';
-      t += '<table class="table table-condensed">';
-      t += '<tr><th>Address</th><th>Length</th><th>System</th><th>Fragments Removed</th></tr>';
-      for (let i = 0; i < invals.length; ++i) {
-        let vals = [
-          toString32(invals[i].address),
-          invals[i].length,
-          invals[i].system,
-          invals[i].fragmentsRemoved,
-        ];
-        t += `<tr><td>${vals.join('</td><td>')}</td></tr>`;
-      }
-      t += '</table>';
-      t += '</div>';
-      t += '</div>';
-      $t.append(t);
-    }
 
     this.$dynarecContent.empty().append($t);
   }

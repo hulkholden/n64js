@@ -21,16 +21,6 @@ let fragmentMap = new Map();
  */
 let hitCounts = new Map();
 
-/**
- * An array of invalidation events.
- * @type {!Array<{address: number,
- *                length: number,
- *                system: string,
- *                fragmentsRemoved: boolean}>}
- */
-let fragmentInvalidationEvents = [];
-
-
 export class Fragment {
   constructor(pc) {
     this.entryPC          = pc;
@@ -102,7 +92,6 @@ export class Fragment {
 export function resetFragments() {
   hitCounts = new Map();
   fragmentMap = new Map();
-  fragmentInvalidationEvents = [];
 }
 
 /**
@@ -144,10 +133,4 @@ export function lookupFragment(pc) {
   }
 
   return fragment;
-}
-
-export function consumeFragmentInvalidationEvents() {
-  let t = fragmentInvalidationEvents;
-  fragmentInvalidationEvents = [];
-  return t;
 }

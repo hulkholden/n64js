@@ -2460,7 +2460,6 @@ class FragmentMap {
 
   invalidateEntry(address) {
     const entry = this.lookupEntry(address);
-    let removed = 0;
 
     // TODO: should this really be translating virtual -> physical?
     // Example 'invalidate 0x800000c0 not removing 0xa40000c4 - min/max 0xa40000c4/0xa40000c8'
@@ -2472,13 +2471,10 @@ class FragmentMap {
         this.addressToCacheLineRoundUp(fragment.maxPC) >= cacheLine) {
         fragment.invalidate();
         entry.delete(fragment);
-        removed++;
       } else {
         // logger.log(`invalidate ${toString32(address)} not removing ${toString32(fragment.entryPC)} - min/max ${toString32(fragment.minPC)}/${toString32(fragment.maxPC)}`)
       }
     }
-
-    // fragmentInvalidationEvents.push({'address': address, 'length': 0x20, 'system': 'CACHE', 'fragmentsRemoved': removed});
   }
 }
 
