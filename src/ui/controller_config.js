@@ -17,7 +17,7 @@ export class ControllerConfig {
           return false;
         }
       });
-      elem.addEventListener('input', event => {
+      elem.addEventListener('input', () => {
         // TODO: figure out what to do here (copy, paste, etc).
       });
     })

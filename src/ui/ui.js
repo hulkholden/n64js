@@ -25,7 +25,7 @@ export class UI {
     // });
 
     // Make sure that the tabs refresh when clicked
-    $('.tabbable a').on('shown.bs.tab', (e) => { dbg.redraw(); });
+    $('.tabbable a').on('shown.bs.tab', () => { dbg.redraw(); });
 
     dbg.redraw();
   }
@@ -47,7 +47,7 @@ export class UI {
       const file = fileInput.files[0];
       const reader = new FileReader();
 
-      reader.onerror = e => {
+      reader.onerror = () => {
         this.displayError('loading file');
       };
       reader.onload = e => {
