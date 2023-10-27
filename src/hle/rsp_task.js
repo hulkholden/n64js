@@ -2,6 +2,7 @@
 
 import { dbgGUI } from "../dbg_ui.js";
 import { disassembleRemappedRange, dumpDMEM } from "../disassemble_rsp.js";
+import { makeEnum } from "../enum.js";
 import { toHex } from "../format.js";
 import { hleGraphics } from "./hle_graphics.js";
 
@@ -20,22 +21,24 @@ const kTaskOffset = 0x0fc0;
 // Task length in dmem.
 const kTaskLength = 0x40;
 
-const kOffset_type             = 0x00; // u32
-const kOffset_flags            = 0x04; // u32
-const kOffset_ucode_boot       = 0x08; // u64*
-const kOffset_ucode_boot_size  = 0x0c; // u32
-const kOffset_ucode            = 0x10; // u64*
-const kOffset_ucode_size       = 0x14; // u32
-const kOffset_ucode_data       = 0x18; // u64*
-const kOffset_ucode_data_size  = 0x1c; // u32
-const kOffset_dram_stack       = 0x20; // u64*
-const kOffset_dram_stack_size  = 0x24; // u32
-const kOffset_output_buff      = 0x28; // u64*
-const kOffset_output_buff_size = 0x2c; // u64*
-const kOffset_data_ptr         = 0x30; // u64*
-const kOffset_data_size        = 0x34; // u32
-const kOffset_yield_data_ptr   = 0x38; // u64*
-const kOffset_yield_data_size  = 0x3c; // u32
+var TaskOffsets = makeEnum({
+  type: 0x00,
+  flags: 0x04,
+  ucodeBootPtr: 0x08,
+  ucodeBootSize: 0x0c,
+  ucodePtr: 0x10,
+  ucodeSize: 0x14,
+  ucodeDataPtr: 0x18,
+  ucodeDataSize: 0x1c,
+  dramStackPtr: 0x20,
+  dramStackSize: 0x24,
+  outputBuffPtr: 0x28,
+  outputBuffSize: 0x2c,
+  dataPtr: 0x30,
+  dataSize: 0x34,
+  yieldDataPtr: 0x38,
+  yieldDataSize: 0x3c,
+})
 
 const M_GFXTASK = 1;
 const M_AUDTASK = 2;
@@ -50,15 +53,15 @@ class RSPTask {
    */
   constructor(ram_u8, taskMem) {
     this.ram_u8 = ram_u8;
-    this.type = taskMem.getU32(kOffset_type);
+    this.type = taskMem.getU32(TaskOffsets.type);
 
-    this.codeAddr = taskMem.getU32(kOffset_ucode) & 0x1fffffff;
-    this.codeSize = this.clampCodeSize(taskMem.getU32(kOffset_ucode_size));
+    this.codeAddr = taskMem.getU32(TaskOffsets.ucodePtr) & 0x1fffffff;
+    this.codeSize = this.clampCodeSize(taskMem.getU32(TaskOffsets.ucodeSize));
 
-    this.codeDataAddr = taskMem.getU32(kOffset_ucode_data) & 0x1fffffff;
-    this.codeDataSize = taskMem.getU32(kOffset_ucode_data_size);
+    this.codeDataAddr = taskMem.getU32(TaskOffsets.ucodeDataPtr) & 0x1fffffff;
+    this.codeDataSize = taskMem.getU32(TaskOffsets.ucodeDataSize);
 
-    this.dataPtr = taskMem.getU32(kOffset_data_ptr);
+    this.dataPtr = taskMem.getU32(TaskOffsets.dataPtr);
   }
 
   dumpCode() {
