@@ -16,7 +16,7 @@ import { romdb, generateRomId, generateCICType, uint8ArrayReadString } from './r
 import { initRSP } from './rsp.js';
 import { categoryCodeDescriptionFromU8, countryNorthAmerica, OS_TV_NTSC, tvTypeFromCountry } from './system_constants.js';
 import { UI } from './ui/ui.js';
-import { initSync, syncActive, syncTick, syncInput } from './sync.js';
+import { initSync, syncActive, syncTick } from './sync.js';
 import { dbgGUI } from './dbg_ui.js';
 
 window.n64js = window.n64js || {};
@@ -136,7 +136,7 @@ function runTest() {
   const req = new XMLHttpRequest();
   req.open('GET', 'roms/n64-systemtest-all.z64', true);
   req.responseType = "arraybuffer";
-  req.onload = (event) => {
+  req.onload = () => {
     const arrayBuffer = req.response; // Note: not req.responseText
     if (arrayBuffer) {
       n64js.loadRomAndStartRunning(arrayBuffer);
