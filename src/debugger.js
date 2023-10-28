@@ -892,12 +892,12 @@ export class Debugger {
 
     // Build a flattened list of all fragments
     let fragmentsList = [];
-    for (let [pc, fragment] of getFragmentMap()) {
+    getFragmentMap().forEach((fragment) => {
       let i = fragment.executionCount > 0 ? Math.floor(Math.log10(fragment.executionCount)) : 0;
       histogram.set(i, (histogram.get(i) || 0) + 1);
       fragmentsList.push(fragment);
       maxBucket = Math.max(maxBucket, i);
-    }
+    });
 
     fragmentsList.sort((a, b) => {
       return b.opsCompiled * b.executionCount - a.opsCompiled * a.executionCount;
