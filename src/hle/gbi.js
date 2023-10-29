@@ -32,7 +32,7 @@ export const RenderMode = {
 };
 
 export function getRenderModeText(data) {
-  var t = '';
+  let t = '';
 
   if (data & RenderMode.AA_EN)               t += '|AA_EN';
   if (data & RenderMode.Z_CMP)               t += '|Z_CMP';
@@ -40,13 +40,13 @@ export function getRenderModeText(data) {
   if (data & RenderMode.IM_RD)               t += '|IM_RD';
   if (data & RenderMode.CLR_ON_CVG)          t += '|CLR_ON_CVG';
 
-  var cvg = data & 0x0300;
+  const cvg = data & 0x0300;
        if (cvg === RenderMode.CVG_DST_CLAMP) t += '|CVG_DST_CLAMP';
   else if (cvg === RenderMode.CVG_DST_WRAP)  t += '|CVG_DST_WRAP';
   else if (cvg === RenderMode.CVG_DST_FULL)  t += '|CVG_DST_FULL';
   else if (cvg === RenderMode.CVG_DST_SAVE)  t += '|CVG_DST_SAVE';
 
-  var zmode = data & 0x0c00;
+  const zmode = data & 0x0c00;
        if (zmode === RenderMode.ZMODE_OPA)   t += '|ZMODE_OPA';
   else if (zmode === RenderMode.ZMODE_INTER) t += '|ZMODE_INTER';
   else if (zmode === RenderMode.ZMODE_XLU)   t += '|ZMODE_XLU';
@@ -56,12 +56,9 @@ export function getRenderModeText(data) {
   if (data & RenderMode.ALPHA_CVG_SEL)       t += '|ALPHA_CVG_SEL';
   if (data & RenderMode.FORCE_BL)            t += '|FORCE_BL';
 
-  var c0 = t.length > 0 ? t.substr(1) : '0';
-
-  var blend = data >>> G_MDSFT_BLENDER;
-
-  var c1 = 'GBL_c1(' + blendOpText(blend>>>2) + ') | GBL_c2(' + blendOpText(blend) + ') /*' + format.toString16(blend) + '*/';
-
+  const blend = data >>> G_MDSFT_BLENDER;
+  const c0 = t.length > 0 ? t.substr(1) : '0';
+  const c1 = 'GBL_c1(' + blendOpText(blend>>>2) + ') | GBL_c2(' + blendOpText(blend) + ') /*' + format.toString16(blend) + '*/';
   return c0 + ', ' + c1;
 }
 
