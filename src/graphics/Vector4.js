@@ -1,5 +1,3 @@
-import { Vector3 } from './Vector3.js';
-
 export class Vector4 {
   /**
    * @param {Float32Array=|number} opt_elems_or_x
@@ -158,10 +156,10 @@ export class Vector4 {
   /**
    * Create a vector using the provided array of elements.
    * @param {!Array<number>} elems
-   * @return {!Vector3}
+   * @return {!Vector4}
    */
   static create(elems) {
-    var v = new Vector3();
+    const v = new Vector4();
     v.elems[0] = elems[0];
     v.elems[1] = elems[1];
     v.elems[2] = elems[2];
