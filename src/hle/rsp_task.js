@@ -21,7 +21,7 @@ const kTaskOffset = 0x0fc0;
 // Task length in dmem.
 const kTaskLength = 0x40;
 
-var TaskOffsets = makeEnum({
+const TaskOffsets = makeEnum({
   type: 0x00,
   flags: 0x04,
   ucodeBootPtr: 0x08,

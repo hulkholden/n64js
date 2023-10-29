@@ -31,7 +31,7 @@ export class MemoryMap {
 
   getMemoryHandler(address) {
     //assert(address>=0, "Address is negative");
-    var handler = this.map[address >>> 18];
+    const handler = this.map[address >>> 18];
     if (handler) {
       return handler;
     }

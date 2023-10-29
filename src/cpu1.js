@@ -338,7 +338,7 @@ export class CPU1 {
   }
 
   reset() {
-    for (var i = 0; i < 32; ++i) {
+    for (let i = 0; i < 32; ++i) {
       this.control[i] = 0;
       this.regS64[i] = 0n;
     }

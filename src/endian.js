@@ -1,6 +1,6 @@
 
 export function fixRomByteOrder(arrayBuffer) {
-  var dataView = new DataView(arrayBuffer);
+  const dataView = new DataView(arrayBuffer);
 
   switch (dataView.getUint32(0)) {
     case 0x80371240:
@@ -21,10 +21,9 @@ export function fixRomByteOrder(arrayBuffer) {
 }
 
 function byteSwap(buffer, i0, i1, i2, i3) {
-  var u8 = new Uint8Array(buffer);
-  var i;
-  for (i = 0; i < u8.length; i += 4) {
-    var a = u8[i + i0], b = u8[i + i1], c = u8[i + i2], d = u8[i + i3];
+  const u8 = new Uint8Array(buffer);
+  for (let i = 0; i < u8.length; i += 4) {
+    const a = u8[i + i0], b = u8[i + i1], c = u8[i + i2], d = u8[i + i3];
     u8[i + 0] = a;
     u8[i + 1] = b;
     u8[i + 2] = c;

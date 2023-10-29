@@ -68,8 +68,8 @@ let tempPal = new Uint32Array(256);
  * @return {number}
  */
 export function convertIA16Pixel(value) {
-  var i = (value >>> 8) & 0xff;
-  let a = (value) & 0xff;
+  const i = (value >>> 8) & 0xff;
+  const a = (value) & 0xff;
 
   return (i << 24) | (i << 16) | (i << 8) | a;
 }
@@ -80,10 +80,10 @@ export function convertIA16Pixel(value) {
  * @return {number}
  */
 export function convertRGBA16Pixel(value) {
-  let r = kFiveToEight[(value >>> 11) & 0x1f];
-  let g = kFiveToEight[(value >>> 6) & 0x1f];
-  let b = kFiveToEight[(value >>> 1) & 0x1f];
-  let a = (value & 0x01) ? 255 : 0;
+  const r = kFiveToEight[(value >>> 11) & 0x1f];
+  const g = kFiveToEight[(value >>> 6) & 0x1f];
+  const b = kFiveToEight[(value >>> 1) & 0x1f];
+  const a = (value & 0x01) ? 255 : 0;
 
   return (r << 24) | (g << 16) | (b << 8) | a;
 }
@@ -551,7 +551,7 @@ function convertCI4(dstData, src, tile, palette, palConv) {
  */
 export function convertTexels(dstData, tmem, tile, tlutFormat) {
   // NB: assume RGBA16 for G_TT_NONE
-  var convFn = (tlutFormat === gbi.TextureLUT.G_TT_IA16) ? convertIA16Pixel : convertRGBA16Pixel;
+  const convFn = (tlutFormat === gbi.TextureLUT.G_TT_IA16) ? convertIA16Pixel : convertRGBA16Pixel;
 
   switch (tile.format) {
     case gbi.ImageFormat.G_IM_FMT_RGBA:

@@ -270,47 +270,47 @@ function disassembleBCInstr(i) {
 }
 
 function disassembleCop1Instr(i, fmt) {
-  var fmt_u = fmt.toUpperCase();
+  const fmtU = fmt.toUpperCase();
 
   switch (copFmtFuncOp(i.opcode)) {
-    case 0x00: return `ADD.${fmt_u}     ${i.fd(fmt)} = ${i.fs(fmt)} + ${i.ft(fmt)}`;
-    case 0x01: return `SUB.${fmt_u}     ${i.fd(fmt)} = ${i.fs(fmt)} - ${i.ft(fmt)}`;
-    case 0x02: return `MUL.${fmt_u}     ${i.fd(fmt)} = ${i.fs(fmt)} * ${i.ft(fmt)}`;
-    case 0x03: return `DIV.${fmt_u}     ${i.fd(fmt)} = ${i.fs(fmt)} / ${i.ft(fmt)}`;
-    case 0x04: return `SQRT.${fmt_u}    ${i.fd(fmt)} = sqrt(${i.fs(fmt)})`;
-    case 0x05: return `ABS.${fmt_u}     ${i.fd(fmt)} = abs(${i.fs(fmt)})`;
-    case 0x06: return `MOV.${fmt_u}     ${i.fd(fmt)} = ${i.fs(fmt)}`;
-    case 0x07: return `NEG.${fmt_u}     ${i.fd(fmt)} = -${i.fs(fmt)}`;
-    case 0x08: return `ROUND.L.${fmt_u} ${i.fd('l')} = round.l(${i.fs(fmt)})`;
-    case 0x09: return `TRUNC.L.${fmt_u} ${i.fd('l')} = trunc.l(${i.fs(fmt)})`;
-    case 0x0a: return `CEIL.L.${fmt_u}  ${i.fd('l')} = ceil.l(${i.fs(fmt)})`;
-    case 0x0b: return `FLOOR.L.${fmt_u} ${i.fd('l')} = floor.l(${i.fs(fmt)})`;
-    case 0x0c: return `ROUND.W.${fmt_u} ${i.fd('w')} = round.w(${i.fs(fmt)})`;
-    case 0x0d: return `TRUNC.W.${fmt_u} ${i.fd('w')} = trunc.w(${i.fs(fmt)})`;
-    case 0x0e: return `CEIL.W.${fmt_u}  ${i.fd('w')} = ceil.w(${i.fs(fmt)})`;
-    case 0x0f: return `FLOOR.W.${fmt_u} ${i.fd('w')} = floor.w(${i.fs(fmt)})`;
+    case 0x00: return `ADD.${fmtU}     ${i.fd(fmt)} = ${i.fs(fmt)} + ${i.ft(fmt)}`;
+    case 0x01: return `SUB.${fmtU}     ${i.fd(fmt)} = ${i.fs(fmt)} - ${i.ft(fmt)}`;
+    case 0x02: return `MUL.${fmtU}     ${i.fd(fmt)} = ${i.fs(fmt)} * ${i.ft(fmt)}`;
+    case 0x03: return `DIV.${fmtU}     ${i.fd(fmt)} = ${i.fs(fmt)} / ${i.ft(fmt)}`;
+    case 0x04: return `SQRT.${fmtU}    ${i.fd(fmt)} = sqrt(${i.fs(fmt)})`;
+    case 0x05: return `ABS.${fmtU}     ${i.fd(fmt)} = abs(${i.fs(fmt)})`;
+    case 0x06: return `MOV.${fmtU}     ${i.fd(fmt)} = ${i.fs(fmt)}`;
+    case 0x07: return `NEG.${fmtU}     ${i.fd(fmt)} = -${i.fs(fmt)}`;
+    case 0x08: return `ROUND.L.${fmtU} ${i.fd('l')} = round.l(${i.fs(fmt)})`;
+    case 0x09: return `TRUNC.L.${fmtU} ${i.fd('l')} = trunc.l(${i.fs(fmt)})`;
+    case 0x0a: return `CEIL.L.${fmtU}  ${i.fd('l')} = ceil.l(${i.fs(fmt)})`;
+    case 0x0b: return `FLOOR.L.${fmtU} ${i.fd('l')} = floor.l(${i.fs(fmt)})`;
+    case 0x0c: return `ROUND.W.${fmtU} ${i.fd('w')} = round.w(${i.fs(fmt)})`;
+    case 0x0d: return `TRUNC.W.${fmtU} ${i.fd('w')} = trunc.w(${i.fs(fmt)})`;
+    case 0x0e: return `CEIL.W.${fmtU}  ${i.fd('w')} = ceil.w(${i.fs(fmt)})`;
+    case 0x0f: return `FLOOR.W.${fmtU} ${i.fd('w')} = floor.w(${i.fs(fmt)})`;
 
-    case 0x20: return `CVT.S.${fmt_u}   ${i.fd('s')} = (s)${i.fs(fmt)}`;
-    case 0x21: return `CVT.D.${fmt_u}   ${i.fd('d')} = (d)${i.fs(fmt)}`;
-    case 0x24: return `CVT.W.${fmt_u}   ${i.fd('w')} = (w)${i.fs(fmt)}`;
-    case 0x25: return `CVT.L.${fmt_u}   ${i.fd('l')} = (l)${i.fs(fmt)}`;
+    case 0x20: return `CVT.S.${fmtU}   ${i.fd('s')} = (s)${i.fs(fmt)}`;
+    case 0x21: return `CVT.D.${fmtU}   ${i.fd('d')} = (d)${i.fs(fmt)}`;
+    case 0x24: return `CVT.W.${fmtU}   ${i.fd('w')} = (w)${i.fs(fmt)}`;
+    case 0x25: return `CVT.L.${fmtU}   ${i.fd('l')} = (l)${i.fs(fmt)}`;
 
-    case 0x30: return `C.F.${fmt_u}     c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
-    case 0x31: return `C.UN.${fmt_u}    c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
-    case 0x32: return `C.EQ.${fmt_u}    c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
-    case 0x33: return `C.UEQ.${fmt_u}   c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
-    case 0x34: return `C.OLT.${fmt_u}   c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
-    case 0x35: return `C.ULT.${fmt_u}   c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
-    case 0x36: return `C.OLE.${fmt_u}   c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
-    case 0x37: return `C.ULE.${fmt_u}   c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
-    case 0x38: return `C.SF.${fmt_u}    c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
-    case 0x39: return `C.NGLE.${fmt_u}  c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
-    case 0x3a: return `C.SEQ.${fmt_u}   c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
-    case 0x3b: return `C.NGL.${fmt_u}   c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
-    case 0x3c: return `C.LT.${fmt_u}    c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
-    case 0x3d: return `C.NGE.${fmt_u}   c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
-    case 0x3e: return `C.LE.${fmt_u}    c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
-    case 0x3f: return `C.NGT.${fmt_u}   c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
+    case 0x30: return `C.F.${fmtU}     c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
+    case 0x31: return `C.UN.${fmtU}    c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
+    case 0x32: return `C.EQ.${fmtU}    c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
+    case 0x33: return `C.UEQ.${fmtU}   c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
+    case 0x34: return `C.OLT.${fmtU}   c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
+    case 0x35: return `C.ULT.${fmtU}   c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
+    case 0x36: return `C.OLE.${fmtU}   c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
+    case 0x37: return `C.ULE.${fmtU}   c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
+    case 0x38: return `C.SF.${fmtU}    c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
+    case 0x39: return `C.NGLE.${fmtU}  c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
+    case 0x3a: return `C.SEQ.${fmtU}   c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
+    case 0x3b: return `C.NGL.${fmtU}   c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
+    case 0x3c: return `C.LT.${fmtU}    c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
+    case 0x3d: return `C.NGE.${fmtU}   c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
+    case 0x3e: return `C.LE.${fmtU}    c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
+    case 0x3f: return `C.NGT.${fmtU}   c = ${i.fs(fmt)} cmp ${i.ft(fmt)}`;
   }
 
   return `Cop1.${fmt}${toHex(copFmtFuncOp(i.opcode), 8)}?`;

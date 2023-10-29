@@ -261,7 +261,7 @@ export class Hardware {
 
   saveU8Array(name, u8arr) {
     // Store the name and id so that we can provide some kind of save management in the future
-    var d = {
+    const d = {
       name: this.rominfo.name,
       id: this.rominfo.id,
       data: base64.encodeArray(u8arr),

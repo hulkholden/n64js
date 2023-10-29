@@ -265,8 +265,8 @@ export class RSPState {
   }
 
   updateGeometryModeFromBits(flags) {
-    var gm = this.geometryMode;
-    var bits = this.geometryModeBits;
+    const gm = this.geometryMode;
+    const bits = this.geometryModeBits;
 
     gm.zbuffer = (bits & flags.G_ZBUFFER) ? 1 : 0;
     gm.texture = (bits & flags.G_TEXTURE_ENABLE) ? 1 : 0;

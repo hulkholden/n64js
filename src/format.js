@@ -1,5 +1,5 @@
 export function padString(v, len) {
-  var t = v.toString();
+  let t = v.toString();
   while (t.length < len) {
     t = '0' + t;
   }
