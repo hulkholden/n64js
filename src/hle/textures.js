@@ -17,29 +17,29 @@ export class Texture {
    * @return {!jQuery}
    */
   createScaledCanvas(scale) {
-    var w = this.width * scale;
-    var h = this.height * scale;
-    var $canvas = $('<canvas width="' + w +
+    const w = this.width * scale;
+    const h = this.height * scale;
+    const $canvas = $('<canvas width="' + w +
                     '" height="' + h +
                     '" style="background-color: black" />',
                     { 'width': w, 'height': h });
-    var srcCtx = this.$canvas[0].getContext('2d');
-    var dstCtx = $canvas[0].getContext('2d');
+    const srcCtx = this.$canvas[0].getContext('2d');
+    const dstCtx = $canvas[0].getContext('2d');
 
-    var srcImgData = srcCtx.getImageData(0, 0, this.width, this.height);
-    var dstImgData = dstCtx.createImageData(w, h);
+    const srcImgData = srcCtx.getImageData(0, 0, this.width, this.height);
+    const dstImgData = dstCtx.createImageData(w, h);
 
-    var src = srcImgData.data;
-    var dst = dstImgData.data;
-    var srcRowStride = srcImgData.width * 4;
-    var dstRowStride = dstImgData.width * 4;
+    const src = srcImgData.data;
+    const dst = dstImgData.data;
+    const srcRowStride = srcImgData.width * 4;
+    const dstRowStride = dstImgData.width * 4;
 
     for (let y = 0; y < h; ++y) {
-      var srcOffset = srcRowStride * Math.floor(y / scale);
-      var dstOffset = dstRowStride * y;
+      const srcOffset = srcRowStride * Math.floor(y / scale);
+      let dstOffset = dstRowStride * y;
 
       for (let x = 0; x < w; ++x) {
-        var o = srcOffset + Math.floor(x / scale) * 4;
+        const o = srcOffset + Math.floor(x / scale) * 4;
         dst[dstOffset + 0] = src[o + 0];
         dst[dstOffset + 1] = src[o + 1];
         dst[dstOffset + 2] = src[o + 2];
