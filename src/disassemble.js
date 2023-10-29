@@ -1,7 +1,7 @@
 /*global n64js*/
 
 import { assert } from './assert.js';
-import * as cpu0_constants from './cpu0_constants.js';
+import * as cpu0reg from './cpu0reg.js';
 import { toHex } from './format.js';
 import { simpleOp, regImmOp, specialOp, copOp, cop1BCOp, copFmtFuncOp, fd, fs, ft, offset, sa, rd, rt, rs, tlbop, imm, base, branchAddress, jumpAddress } from './decode.js';
 
@@ -61,7 +61,7 @@ class Instruction {
   }
 
   // dummy operand - just marks ra as being a dest reg
-  writesRA() { this.dstRegs[cpu0_constants.RA] = 1; return ''; }
+  writesRA() { this.dstRegs[cpu0reg.RA] = 1; return ''; }
 
   // cop1 regs
   ft_d(fmt) { const reg = this.cop1RegName(ft, fmt); this.dstRegs[reg] = 1; return this.makeFPRegSpan(reg); }

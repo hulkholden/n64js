@@ -1,7 +1,7 @@
 /*jshint jquery:true */
 /*global $, n64js*/
 
-import * as cpu0_constants from './cpu0_constants.js';
+import * as cpu0reg from './cpu0reg.js';
 import { disassembleRange, cop0gprNames, cop1RegisterNames } from './disassemble.js';
 import * as disassemble_rsp from "./disassemble_rsp.js";
 import { getFragmentMap } from './fragments.js';
@@ -52,10 +52,10 @@ class R4300DebugState extends CPUDebugState {
     setTextContent('#cpu0-status-opsexecuted', cpu0.opsExecuted);
     setTextContent('#cpu0-status-pc', toString32(cpu0.pc));
     setTextContent('#cpu0-status-delaypc', toString32(cpu0.delayPC));
-    setTextContent('#cpu0-status-epc', toString32(cpu0.getControlU32(cpu0_constants.controlEPC)));
-    setTextContent('#cpu0-status-cause', toString32(Number(cpu0.moveFromControl(cpu0_constants.controlCause) & 0xffff_ffffn)));
-    setTextContent('#cpu0-status-count', toString32(Number(cpu0.moveFromControl(cpu0_constants.controlCount) & 0xffff_ffffn)));
-    setTextContent('#cpu0-status-compare', toString32(cpu0.getControlU32(cpu0_constants.controlCompare)));
+    setTextContent('#cpu0-status-epc', toString32(cpu0.getControlU32(cpu0reg.controlEPC)));
+    setTextContent('#cpu0-status-cause', toString32(Number(cpu0.moveFromControl(cpu0reg.controlCause) & 0xffff_ffffn)));
+    setTextContent('#cpu0-status-count', toString32(Number(cpu0.moveFromControl(cpu0reg.controlCount) & 0xffff_ffffn)));
+    setTextContent('#cpu0-status-compare', toString32(cpu0.getControlU32(cpu0reg.controlCompare)));
     setTextContent('#cpu0-status-multhi', toString64(cpu0.getMultHiU64()));
     setTextContent('#cpu0-status-multlo', toString64(cpu0.getMultLoU64()));
 
@@ -76,7 +76,7 @@ class R4300DebugState extends CPUDebugState {
   }
 
   updateStatusRegisterRow() {
-    const sr = cpu0.getControlU32(cpu0_constants.controlStatus);
+    const sr = cpu0.getControlU32(cpu0reg.controlStatus);
     setTextContent('#cpu0-status-sr', toString32(sr));
 
     const ids = {

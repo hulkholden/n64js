@@ -1,4 +1,4 @@
-import * as cpu0_constants from './cpu0_constants.js';
+import * as cpu0reg from './cpu0reg.js';
 import { OS_TV_PAL } from './system_constants.js';
 
 export function simulateBoot(cpu0, hardware, rominfo) {
@@ -6,15 +6,15 @@ export function simulateBoot(cpu0, hardware, rominfo) {
   // TODO: should cache this somewhere.
   const imem = hardware.sp_mem.subRegion(0x1000, 0x1000);
 
-  cpu0.setControlU64(cpu0_constants.controlStatus, 0x00000000_34000000n);
-  cpu0.setControlU64(cpu0_constants.controlConfig, 0x00000000_7006e463n);
-  cpu0.setControlU64(cpu0_constants.controlCount, 0x00000000_00005000n);
-  cpu0.setControlU64(cpu0_constants.controlCause, 0x00000000_0000005cn);
-  cpu0.setControlU64(cpu0_constants.controlPRId, 0x00000000_00000b22n);
-  cpu0.setControlU64(cpu0_constants.controlContext, 0x00000000_007ffff0n);
-  cpu0.setControlU64(cpu0_constants.controlEPC, 0xffffffff_ffffffffn);
-  cpu0.setControlU64(cpu0_constants.controlBadVAddr, 0xffffffff_ffffffffn);
-  cpu0.setControlU64(cpu0_constants.controlErrorEPC, 0xffffffff_ffffffffn);
+  cpu0.setControlU64(cpu0reg.controlStatus, 0x00000000_34000000n);
+  cpu0.setControlU64(cpu0reg.controlConfig, 0x00000000_7006e463n);
+  cpu0.setControlU64(cpu0reg.controlCount, 0x00000000_00005000n);
+  cpu0.setControlU64(cpu0reg.controlCause, 0x00000000_0000005cn);
+  cpu0.setControlU64(cpu0reg.controlPRId, 0x00000000_00000b22n);
+  cpu0.setControlU64(cpu0reg.controlContext, 0x00000000_007ffff0n);
+  cpu0.setControlU64(cpu0reg.controlEPC, 0xffffffff_ffffffffn);
+  cpu0.setControlU64(cpu0reg.controlBadVAddr, 0xffffffff_ffffffffn);
+  cpu0.setControlU64(cpu0reg.controlErrorEPC, 0xffffffff_ffffffffn);
   cpu0.cop1ControlChanged();
 
   const zero = 0x00000000_00000000n;
