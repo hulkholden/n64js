@@ -264,11 +264,11 @@ export const NumLights = makeEnum({
 export const G_TX_LOADTILE   = 7;
 export const G_TX_RENDERTILE = 0;
 
-export function getTileText(tile_idx) {
-  var tile_text = tile_idx;
-  if (tile_idx === G_TX_LOADTILE)   tile_text = 'G_TX_LOADTILE';
-  if (tile_idx === G_TX_RENDERTILE) tile_text = 'G_TX_RENDERTILE';
-  return tile_text;
+export function getTileText(tileIdx) {
+  let t = tileIdx;
+  if (tileIdx === G_TX_LOADTILE)   t = 'G_TX_LOADTILE';
+  if (tileIdx === G_TX_RENDERTILE) t = 'G_TX_RENDERTILE';
+  return t;
 }
 
 export const G_TX_WRAP       = 0x0;
@@ -324,14 +324,14 @@ export const GeometryModeGBI2 = {
 };
 
 export function getGeometryModeFlagsText(flags, data) {
-  var t = '';
+  let t = '';
 
   if (data & flags.G_ZBUFFER)               t += '|G_ZBUFFER';
   if (data & flags.G_TEXTURE_ENABLE)        t += '|G_TEXTURE_ENABLE';
   if (data & flags.G_SHADE)                 t += '|G_SHADE';
   if (data & flags.G_SHADING_SMOOTH)        t += '|G_SHADING_SMOOTH';
 
-  var cull = data & flags.G_CULL_BOTH;
+  const cull = data & flags.G_CULL_BOTH;
        if (cull === flags.G_CULL_FRONT)     t += '|G_CULL_FRONT';
   else if (cull === flags.G_CULL_BACK)      t += '|G_CULL_BACK';
   else if (cull === flags.G_CULL_BOTH)      t += '|G_CULL_BOTH';
@@ -458,10 +458,10 @@ const blendDestFactors = [
 ];
 
 export function blendOpText(v) {
-  var m1a = (v>>>12)&0x3;
-  var m1b = (v>>> 8)&0x3;
-  var m2a = (v>>> 4)&0x3;
-  var m2b = (v>>> 0)&0x3;
+  const m1a = (v>>>12)&0x3;
+  const m1b = (v>>> 8)&0x3;
+  const m2a = (v>>> 4)&0x3;
+  const m2b = (v>>> 0)&0x3;
 
   return blendColourSources[m1a] + ',' + blendSourceFactors[m1b] + ',' + blendColourSources[m2a] + ',' + blendDestFactors[m2b];
 }
