@@ -757,14 +757,14 @@ export class CPU0 {
     }
   
     // Clean up any kEventRunForCycles events before we bail out
-    let cycles_remaining = this.removeEvent(kEventRunForCycles);
+    let cyclesRemaining = this.removeEvent(kEventRunForCycles);
   
     // If the event no longer exists, assume we've executed all the cycles
-    if (cycles_remaining < 0) {
-      cycles_remaining = 0;
+    if (cyclesRemaining < 0) {
+      cyclesRemaining = 0;
     }
-    if (cycles_remaining < cycles) {
-      this.opsExecuted += cycles - cycles_remaining;
+    if (cyclesRemaining < cycles) {
+      this.opsExecuted += cycles - cyclesRemaining;
     }
   }
 
