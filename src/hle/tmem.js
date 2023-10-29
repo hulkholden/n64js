@@ -43,7 +43,7 @@ export class TMEM {
     let ramOffset = ramAddress >>> 2;
     let tmemOffset = (tile.tmem << 3) >>> 2;
 
-    const ram_s32 = getRamS32Array();
+    const ram = getRamS32Array();
 
     // RGBA/32 swaps on 8 byte boundary, not 4.
     const wordSwapBit = (tile.size == gbi.ImageSize.G_IM_SIZ_32b) ? 2 : 1;
@@ -59,7 +59,7 @@ export class TMEM {
 
     // Slight fast path for dxt == 0
     if (dxt === 0) {
-      copyLineQwords(tmemData, tmemOffset, ram_s32, ramOffset, qwords);
+      copyLineQwords(tmemData, tmemOffset, ram, ramOffset, qwords);
     } else {
       // TODO: Emulate by incrementing a counter by dxt each frame, and emitting a new
       // line when it overflows 2048.
@@ -73,9 +73,9 @@ export class TMEM {
         const qwordsToCopy = Math.min(qwords - i, qwordsPerLine);
 
         if (oddRow) {
-          copyLineQwordsSwap(tmemData, tmemOffset, ram_s32, ramOffset, qwordsToCopy, wordSwapBit);
+          copyLineQwordsSwap(tmemData, tmemOffset, ram, ramOffset, qwordsToCopy, wordSwapBit);
         } else {
-          copyLineQwords(tmemData, tmemOffset, ram_s32, ramOffset, qwordsToCopy);
+          copyLineQwords(tmemData, tmemOffset, ram, ramOffset, qwordsToCopy);
         }
 
         i += qwordsToCopy;
@@ -132,12 +132,12 @@ export class TMEM {
     // const reqQWords = (bytes + 7) >>> 3;
     // const fetchedQWords = (reqQWords > 512) ? 512 : reqQWords;
 
-    const ram_u8 = getRamU8Array();
+    const ram = getRamU8Array();
     for (let y = 0; y < h; ++y) {
       if (y & 1) {
-        copyLineSwap(tmemData, tmemOffset, ram_u8, ramOffset, rowBytes, tmemStride, byteSwapBit);
+        copyLineSwap(tmemData, tmemOffset, ram, ramOffset, rowBytes, tmemStride, byteSwapBit);
       } else {
-        copyLine(tmemData, tmemOffset, ram_u8, ramOffset, rowBytes, tmemStride);
+        copyLine(tmemData, tmemOffset, ram, ramOffset, rowBytes, tmemStride);
       }
       tmemOffset += tmemStride;
       ramOffset += ramStride;
@@ -163,14 +163,14 @@ export class TMEM {
     const ramAddress = ti.calcAddress(s0, t0, gbi.ImageSize.G_IM_SIZ_16b);
     const texels = calcTileDimension(lrs, uls);
 
-    const ram_u8 = getRamU8Array();
-    var tmemOffset = tile.tmem << 3;
+    const ram = getRamU8Array();
+    const tmemOffset = tile.tmem << 3;
 
     if (dc) {
       dc.tip(`count ${texels}, tmemOffset ${toString16(tmemOffset)}`);
     }
   
-    copyLineTLUT(this.tmemData, tmemOffset, ram_u8, ramAddress, texels);
+    copyLineTLUT(this.tmemData, tmemOffset, ram, ramAddress, texels);
   }
 
   convertTexels(tile, tlutFormat, imgData) {
@@ -182,24 +182,24 @@ export class TMEM {
       return tile.hash;
     }
 
-    //var width = tile.width;
-    var height = tile.height;
+    //const width = tile.width;
+    const height = tile.height;
 
-    var src = this.tmemData32;
-    var tmem_offset = tile.tmem << 3;
-    var bytes_per_line = tile.line << 3;
+    const src = this.tmemData32;
+    const tmemOffset = tile.tmem << 3;
+    let bytesPerLine = tile.line << 3;
 
     // NB! RGBA/32 line needs to be doubled.
     if (tile.format == gbi.ImageFormat.G_IM_FMT_RGBA &&
       tile.size == gbi.ImageSize.G_IM_SIZ_32b) {
-      bytes_per_line *= 2;
+      bytesPerLine *= 2;
     }
 
     // TODO: not sure what happens when width != tile.line. Maybe we should hash rows separately?
 
-    var len = height * bytes_per_line;
+    const len = height * bytesPerLine;
 
-    var hash = hashTmem(src, tmem_offset, len, 0);
+    let hash = hashTmem(src, tmemOffset, len, 0);
 
     // For palettised textures, check the palette entries too
     if (tile.format === gbi.ImageFormat.G_IM_FMT_CI ||
@@ -220,7 +220,7 @@ export class TMEM {
 
 function hashTmem(tmem32, offset, len, hash) {
   let i = offset >> 2;
-  let e = (offset + len) >> 2;
+  const e = (offset + len) >> 2;
   while (i < e) {
     hash = ((hash * 17) + tmem32[i]) >>> 0;
     ++i;
