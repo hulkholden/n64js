@@ -63,9 +63,10 @@ export class Vector4 {
    * @return {number}
    */
   dot(other) {
-    var t = 0;
-    for (var i = 0; i < this.elems.length; ++i)
+    let t = 0;
+    for (let i = 0; i < this.elems.length; ++i) {
       t += this.elems[i] * other.elems[i];
+    }
     return t;
   }
 
@@ -91,8 +92,9 @@ export class Vector4 {
    * @return {!Vector4}
    */
   addInPlace(v) {
-    for (var i = 0; i < this.elems.length; ++i)
+    for (let i = 0; i < this.elems.length; ++i) {
       this.elems[i] += v.elems[i];
+    }
     return this;
   }
 
@@ -102,8 +104,9 @@ export class Vector4 {
    * @return {!Vector4}
    */
   subInPlace(v) {
-    for (var i = 0; i < this.elems.length; ++i)
+    for (let i = 0; i < this.elems.length; ++i) {
       this.elems[i] -= v.elems[i];
+    }
     return this;
   }
 
@@ -113,8 +116,9 @@ export class Vector4 {
    * @return {!Vector4}
    */
   scaleInPlace(s) {
-    for (var i = 0; i < this.elems.length; ++i)
+    for (let i = 0; i < this.elems.length; ++i) {
       this.elems[i] *= s;
+    }
     return this;
   }
 
@@ -124,8 +128,9 @@ export class Vector4 {
    * @return {!Vector4}
    */
   vecScaleInPlace(s) {
-    for (var i = 0; i < this.elems.length; ++i)
+    for (let i = 0; i < this.elems.length; ++i) {
       this.elems[i] *= s.elems[i];
+    }
     return this;
   }
 
@@ -135,8 +140,9 @@ export class Vector4 {
    * @return {!Vector4}
    */
   invVecScaleInPlace(s) {
-    for (var i = 0; i < this.elems.length; ++i)
+    for (let i = 0; i < this.elems.length; ++i){
       this.elems[i] /= s.elems[i];
+    }
     return this;
   }
 
@@ -145,7 +151,7 @@ export class Vector4 {
    * @return {!Vector4}
    */
   normaliseInPlace() {
-    var len = this.length();
+    let len = this.length();
     if (len > 0.0) {
       return this.scaleInPlace(1 / len);
     }

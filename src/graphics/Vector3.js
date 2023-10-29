@@ -71,8 +71,9 @@ export class Vector3 {
    * @return {!Vector3}
    */
   addInPlace(v) {
-    for (var i = 0; i < this.elems.length; ++i)
+    for (let i = 0; i < this.elems.length; ++i) {
       this.elems[i] += v.elems[i];
+    }
     return this;
   }
 
@@ -82,8 +83,9 @@ export class Vector3 {
    * @return {!Vector3}
    */
   subInPlace(v) {
-    for (var i = 0; i < this.elems.length; ++i)
+    for (let i = 0; i < this.elems.length; ++i) {
       this.elems[i] -= v.elems[i];
+    }
     return this;
   }
 
@@ -93,8 +95,9 @@ export class Vector3 {
    * @return {!Vector3}
    */
   scaleInPlace(s) {
-    for (var i = 0; i < this.elems.length; ++i)
+    for (let i = 0; i < this.elems.length; ++i) {
       this.elems[i] *= s;
+    }
     return this;
   }
 
@@ -104,8 +107,9 @@ export class Vector3 {
    * @return {!Vector3}
    */
   vecScaleInPlace(s) {
-    for (var i = 0; i < this.elems.length; ++i)
+    for (let i = 0; i < this.elems.length; ++i) {
       this.elems[i] *= s.elems[i];
+    }
     return this;
   }
 
@@ -115,8 +119,9 @@ export class Vector3 {
    * @return {!Vector4}
    */
   invVecScaleInPlace(s) {
-    for (var i = 0; i < this.elems.length; ++i)
+    for (let i = 0; i < this.elems.length; ++i) {
       this.elems[i] /= s.elems[i];
+    }
     return this;
   }
 
@@ -125,7 +130,7 @@ export class Vector3 {
    * @return {!Vector3}
    */
   normaliseInPlace() {
-    var len = this.length();
+    let len = this.length();
     if (len > 0.0) {
       return this.scaleInPlace(1 / len);
     }
@@ -138,7 +143,7 @@ export class Vector3 {
    * @return {!Vector3}
    */
   static create(elems) {
-    let v = new Vector3();
+    const v = new Vector3();
     v.elems[0] = elems[0];
     v.elems[1] = elems[1];
     v.elems[2] = elems[2];
