@@ -1,3 +1,0 @@
-
-/** @type {Object} */
-var localStorage = {};
