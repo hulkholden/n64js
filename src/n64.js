@@ -279,15 +279,7 @@ n64js.setLocalStorageItem = (name, data) => {
 //
 // Performance
 //
-let startTime;
 let lastPresentTime;
-
-n64js.emitRunningTime = (msg) => {
-  const curTime = new Date();
-  const elapsed = curTime.getTime() - startTime.getTime();
-  const elapsedStr = elapsed.toString();
-  n64js.ui().displayWarning(`Time to ${msg} ${elapsedStr}`);
-};
 
 function setFrameTime(t) {
   const titleText = rominfo.name ? `n64js - ${rominfo.name} - ${t}mspf` : `n64js - ${t}mspf`;
@@ -324,7 +316,6 @@ n64js.reset = () => {
 
   simulateBoot(n64js.cpu0, hardware, rominfo);
 
-  startTime = new Date();
   lastPresentTime = undefined;
 
   for (let callback of resetCallbacks) {
