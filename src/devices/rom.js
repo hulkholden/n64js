@@ -3,7 +3,7 @@
 import { Device } from './device.js';
 import { toString32, toString16, toString8 } from '../format.js';
 import * as logger from '../logger.js';
-import { MemoryRegion } from '../MemoryRegion.js';
+import { MemoryRegion } from '../memory_region.js';
 
 const dbgOutWriteLen = 0xb3ff0014
 const dbgOutBufStart = 0xb3ff0020;

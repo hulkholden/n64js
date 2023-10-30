@@ -15,7 +15,7 @@ import { SIRegDevice } from './devices/si.js';
 import { SPMemDevice, SPIBISTDevice, SPRegDevice } from './devices/sp.js';
 import { VIRegDevice } from './devices/vi.js';
 import { MemoryMap } from './memmap.js';
-import { MemoryRegion } from './MemoryRegion.js';
+import { MemoryRegion } from './memory_region.js';
 import { CPU0, CPU2 } from './r4300.js';
 import { Timeline } from './timeline.js';
 
