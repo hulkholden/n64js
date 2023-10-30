@@ -2416,16 +2416,18 @@ function checkSyncState(sync, pc) {
 }
 
 n64js.singleStep = function () {
-  let restore_breakpoint_address = 0;
-  if (n64js.isBreakpoint(cpu0.pc)) {
-    restore_breakpoint_address = cpu0.pc;
-    n64js.toggleBreakpoint(restore_breakpoint_address);
+  const breakpoints = n64js.breakpoints();
+
+  let restoreAddress = 0;
+  if (breakpoints.isBreakpoint(cpu0.pc)) {
+    restoreAddress = cpu0.pc;
+    breakpoints.toggle(restoreAddress);
   }
 
   cpu0.run(1);
 
-  if (restore_breakpoint_address) {
-    n64js.toggleBreakpoint(restore_breakpoint_address);
+  if (restoreAddress) {
+    breakpoints.toggle(restoreAddress);
   }
 };
 

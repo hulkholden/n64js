@@ -596,11 +596,12 @@ export function disassembleInstruction(address, instruction, outputHTML) {
 }
 
 export function disassembleRange(beginAddr, endAddr, outputHTML) {
+  const breakpoints = n64js.breakpoints();
   const disassembly = [];
   const targets = new Set();
 
   for (let addr = beginAddr; addr < endAddr; addr += 4) {
-    const instruction = n64js.getInstruction(addr);
+    const instruction = breakpoints.getInstruction(addr);
     const d = disassembleInstruction(addr, instruction, outputHTML);
     if (d.instruction.target) {
       targets.add(d.instruction.target);

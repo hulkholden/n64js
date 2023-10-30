@@ -618,7 +618,7 @@ export class Debugger {
   onClickBreakpoint(e) {
     let $elem = $(e.delegateTarget);
     let address = /** @type {number} */($elem.data('address')) >>> 0;
-    n64js.toggleBreakpoint(address);
+    n64js.breakpoints().toggle(address);
     this.updateCPU();
   }
 
@@ -678,7 +678,7 @@ export class Debugger {
       $disText.append('<br>');
 
       let bpText = '&nbsp;';
-      if (n64js.isBreakpoint(address)) {
+      if (n64js.breakpoints().isBreakpoint(address)) {
         bpText = '&bull;';
       }
       let $bp = $(`<span>${bpText}</span>`).data('address', address).click(this.onClickBreakpoint.bind(this));
@@ -760,7 +760,7 @@ export class Debugger {
 
       // FIXME: Add breakpoint support for RSP.
       let bpText = '&nbsp;';
-      if (n64js.isBreakpoint(address)) {
+      if (n64js.breakpoints().isBreakpoint(address)) {
         bpText = '&bull;';
       }
       let $bp = $(`<span>${bpText}</span>`).data('address', address).click(this.onClickBreakpoint.bind(this));

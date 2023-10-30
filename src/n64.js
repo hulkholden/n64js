@@ -2,6 +2,7 @@
 /*global $, n64js, Stats, md5*/
 
 import { simulateBoot } from './boot.js';
+import { Breakpoints } from './breakpoints.js';
 import { Controllers } from './controllers.js';
 import { Joybus } from './joybus.js';
 import { Debugger } from './debugger.js';
@@ -21,12 +22,10 @@ import { dbgGUI } from './dbg_ui.js';
 
 window.n64js = window.n64js || {};
 
-const kOpBreakpoint = 28;
 const kCyclesPerUpdate = 100_000_000;
 
 let stats = null;
 let running = false;
-const breakpoints = new Map();     // address -> original op
 const resetCallbacks = [];
 
 const testOptions = {
@@ -46,6 +45,7 @@ const rominfo = {
 };
 
 const hardware = new Hardware(rominfo);
+const breakpoints = new Breakpoints(hardware);
 const controllers = new Controllers();
 const joybus = new Joybus(hardware, controllers.inputs);
 const ui = new UI();
@@ -227,37 +227,8 @@ function updateLoopAnimframe() {
   }
 }
 
-n64js.getInstruction = address => {
-  const instr = hardware.memMap.readMemoryInternal32(address);
-  if (isBreakpointInstruction(instr)) {
-    return breakpoints[address] || 0;
-  }
-  return instr;
-};
-
-n64js.isBreakpoint = address => {
-  const instr = hardware.memMap.readMemoryInternal32(address);
-  return isBreakpointInstruction(instr);
-};
-
-n64js.toggleBreakpoint = address => {
-  const origInstr = hardware.memMap.readMemoryInternal32(address);
-
-  let newInstr;
-  if (isBreakpointInstruction(origInstr)) {
-    // breakpoint is already set
-    newInstr = breakpoints[address] || 0;
-    delete breakpoints[address];
-  } else {
-    newInstr = (kOpBreakpoint << 26);
-    breakpoints[address] = origInstr;
-  }
-
-  hardware.memMap.writeMemoryInternal32(address, newInstr);
-};
-
-function isBreakpointInstruction(instr) {
-  return ((instr >> 26) & 0x3f) === kOpBreakpoint;
+n64js.breakpoints = () => {
+  return breakpoints;
 }
 
 function getLocalStorageName(item) {
@@ -300,7 +271,7 @@ n64js.addResetCallback = (fn) => {
 };
 
 n64js.reset = () => {
-  breakpoints.clear();
+  breakpoints.reset();
 
   initSync();
 
