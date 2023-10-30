@@ -126,7 +126,8 @@ n64js.debugger = () => dbg;
 n64js.loadRomAndStartRunning = (arrayBuffer) => {
   loadRom(arrayBuffer);
   n64js.reset();
-  dbg.redraw();
+  dbg.hide();
+  // TODO: this seems a bit hacky.
   setRunning(false);
   n64js.toggleRun();
 };
