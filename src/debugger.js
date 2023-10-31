@@ -6,6 +6,7 @@ import { disassembleRange, cop0gprNames, cop1RegisterNames } from './disassemble
 import * as disassemble_rsp from "./disassemble_rsp.js";
 import { getFragmentMap } from './fragments.js';
 import { toggleDebugDisplayList } from './hle/hle_graphics.js';
+import { TaskOffsets } from './hle/rsp_task.js';
 import { toHex, toString8, toString16, toString32, toString64 } from './format.js';
 import * as logger from './logger.js';
 import { cpu0, cpu1 } from './r4300.js';
@@ -1054,27 +1055,8 @@ class RSPDebugState extends CPUDebugState {
     let $table = $('<table class="register-table"><tbody></tbody></table>');
     let $body = $table.find('tbody');
 
-    const names = [
-      "type",             // 0x00; // u32
-      "flags",            // 0x04; // u32
-      "ucode_boot",       // 0x08; // u64*
-      "ucode_boot_size",  // 0x0c; // u32
-      "ucode",            // 0x10; // u64*
-      "ucode_size",       // 0x14; // u32
-      "ucode_data",       // 0x18; // u64*
-      "ucode_data_size",  // 0x1c; // u32
-      "dram_stack",       // 0x20; // u64*
-      "dram_stack_size",  // 0x24; // u32
-      "output_buff",      // 0x28; // u64*
-      "output_buff_size", // 0x2c; // u64*
-      "data_ptr",         // 0x30; // u64*
-      "data_size",        // 0x34; // u32
-      "yield_data_ptr",   // 0x38; // u64*
-      "yield_data_size",  // 0x3c; // u32
-    ];
-
-    for (let i = 0; i < kTaskLength / 4; i++) {
-      const $tr = $(`<tr><td>${names[i]}</td><td class="fixed">${toHex(taskMem.getU32(i * 4), 32)}</td></tr>`);
+    for (let i = 0; i < kTaskLength; i += 4) {
+      const $tr = $(`<tr><td>${TaskOffsets.nameOf(i)}</td><td class="fixed">${toHex(taskMem.getU32(i), 32)}</td></tr>`);
       $body.append($tr);
     }
     return $table;
