@@ -63,7 +63,8 @@ export class GBI0 extends GBI1 {
   // Shared between Goldeneye and Perfect Dark.
   executeRDPHalf1Goldeneye(cmd0, cmd1, dis) {
     // These are RDP commands, baked into the display list.
-    // They seem to alternatein pairs of 0xb4 and 0xb3
+    // They seem to alternate in pairs of 0xb4 and 0xb2, and end in 0xb3.
+    // The low parts of the words for an RDP command stream.
     this.warnUnimplemented('executeRDPHalf1')
     if (dis) {
       dis.text(`gsSPRDPHalf();`);
