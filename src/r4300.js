@@ -2,8 +2,7 @@
 /*global n64js*/
 
 import * as cpu0reg from './cpu0reg.js';
-import { CPU1 } from './cpu1.js';
-import { disassembleInstruction, cop0ControlRegisterNames } from './disassemble.js';
+import { cop0ControlRegisterNames } from './disassemble.js';
 import { toString8, toString32, toString64 } from './format.js';
 import { lookupFragment, resetFragments } from './fragments.js';
 import { assert } from './assert.js';
@@ -2528,11 +2527,11 @@ function addOpToFragment(fragment, entry_pc, instruction, c) {
   generateCodeForOp(fragmentContext);
 
   // Break out of the trace as soon as we branch, or too many ops, or last op generated an interrupt (stuffToDo set)
-  // TODO: what is long_fragment for? This allows short busy loops to be expanded out but it's not clear if that's desirable.
+  // TODO: what is longFragment for? This allows short busy loops to be expanded out but it's not clear if that's desirable.
   // TODO: the stuffToDo check won't work for fragments interrupted via exceptions. 
   //       would it be better to just always check if the control flow is as expected?
-  const long_fragment = fragment.opsCompiled > 8;
-  if ((long_fragment && c.pc !== entry_pc + 4) || fragment.opsCompiled >= kFragmentLengthLimit || c.stuffToDo) {
+  const longFragment = fragment.opsCompiled > 8;
+  if ((longFragment && c.pc !== entry_pc + 4) || fragment.opsCompiled >= kFragmentLengthLimit || c.stuffToDo) {
     compileFragment(fragment);
     fragment = lookupFragment(c.pc);
   } else {
