@@ -1,5 +1,6 @@
 import { toString32 } from "../format.js";
 import { Vector3 } from "../graphics/Vector3.js";
+import * as rdp from "./disassemble_rdp.js";
 import { GBI1 } from "./gbi1.js";
 
 // GBI0 is very similar to GBI1 with a few small differences,
@@ -87,13 +88,10 @@ export class GBI0 extends GBI1 {
     }
 
     this.rdpCommandBuffer.push(cmd1);
+    const commands = new Uint32Array(this.rdpCommandBuffer);
 
     if (dis) {
-      let t = '';
-      this.rdpCommandBuffer.forEach((value, index) => {
-        t += `${index}: ${toString32(value)}\n`;
-      })
-      dis.tip(t);
+      dis.tip(rdp.disassemble(commands));
     }
 
     this.rdpCommandBuffer = [];
