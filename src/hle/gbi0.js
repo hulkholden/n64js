@@ -9,6 +9,8 @@ export class GBI0 extends GBI1 {
     super(state, ramDV);
     this.vertexStride = 10;
 
+    this.rdpCommandBuffer = [];
+
     this.gbi0Commands = new Map([
       [0xb0, this.executeUnknown.bind(this)],      // Defined as executeBranchZ for GBI1.
       [0xb1, this.executeTri4.bind(this)],         // Defined as executeTri2 for GBI1.
@@ -60,16 +62,43 @@ export class GBI0 extends GBI1 {
     }
   }
 
-  // Shared between Goldeneye and Perfect Dark.
-  executeRDPHalf1Goldeneye(cmd0, cmd1, dis) {
-    // These are RDP commands, baked into the display list.
-    // They seem to alternate in pairs of 0xb4 and 0xb2, and end in 0xb3.
-    // The low parts of the words for an RDP command stream.
-    this.warnUnimplemented('executeRDPHalf1')
+  // "RDP Command" insturctions are shared between Goldeneye and Perfect Dark.
+  // These are RDP commands for drawing triangles, baked into the display list.
+  // They seem to alternate in pairs of 0xb4 and 0xb2, and end in 0xb3.
+  // The cmd1 parts of the commands form an RDP command stream.
+  executeRDPCommandHalf1(cmd0, cmd1, dis) {
     if (dis) {
-      dis.text(`gsSPRDPHalf();`);
+      dis.text(`gsSPRDPCommandHalf1(${toString32(cmd1)});`);
     }
+    this.rdpCommandBuffer.push(cmd1);
   }
+
+  executeRDPCommandHalf2(cmd0, cmd1, dis) {
+    if (dis) {
+      dis.text(`gsSPRDPCommandHalf2(${toString32(cmd1)});`);
+    }
+    this.rdpCommandBuffer.push(cmd1);
+  }
+
+  executeRDPCommandHalf22Final(cmd0, cmd1, dis) {
+    this.warnUnimplemented('executeRDPCommandHalf22Final')
+    if (dis) {
+      dis.text(`gsSPRDPCommandHalf2Final(${toString32(cmd1)});`);
+    }
+
+    this.rdpCommandBuffer.push(cmd1);
+
+    if (dis) {
+      let t = '';
+      this.rdpCommandBuffer.forEach((value, index) => {
+        t += `${index}: ${toString32(value)}\n`;
+      })
+      dis.tip(t);
+    }
+
+    this.rdpCommandBuffer = [];
+  }
+
 
   executeTri4(cmd0, cmd1, dis) {
     const verts = this.state.projectedVertices;
@@ -120,7 +149,10 @@ export class GBI0GE extends GBI0 {
     this.vertexStride = 10;
 
     this.geCommands = new Map([
-      [0xb4, this.executeRDPHalf1Goldeneye.bind(this)],
+
+      [0xb2, this.executeRDPCommandHalf2.bind(this)],
+      [0xb3, this.executeRDPCommandHalf22Final.bind(this)],
+      [0xb4, this.executeRDPCommandHalf1.bind(this)],
     ]);
   }
 
@@ -142,7 +174,10 @@ export class GBI0PD extends GBI0 {
     this.pdCommands = new Map([
       // 0x04 - executeVertex is different from GBI0, but handled by overriding loadVertices.
       [0x07, this.executeSetVertexColorIndex.bind(this)],
-      [0xb4, this.executeRDPHalf1Goldeneye.bind(this)],
+
+      [0xb2, this.executeRDPCommandHalf2.bind(this)],
+      [0xb3, this.executeRDPCommandHalf22Final.bind(this)],
+      [0xb4, this.executeRDPCommandHalf1.bind(this)],
     ]);
   }
 
