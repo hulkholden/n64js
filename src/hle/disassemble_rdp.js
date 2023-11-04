@@ -43,11 +43,209 @@ var RDPComamnds = makeEnum({
 
 
 const commandLengths = [
-  1, 1, 1, 1, 1, 1, 1, 1, 4, 6,12,14,12,14,20,22,
+  1, 1, 1, 1, 1, 1, 1, 1, 4, 6, 12, 14, 12, 14, 20, 22,
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
   1, 1, 1, 1, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 ];
+
+// X is represented in 12.16 format (28 bits).
+const X_FRAC_BITS = 16;
+const X_SUBPIXELS = 1 << X_FRAC_BITS;
+
+// Y is represented in 12.2 format (14 bits).
+const Y_FRAC_BITS = 2;
+const Y_SUBPIXELS = 1 << Y_FRAC_BITS;
+
+const RGBA_PRECISION_BITS = 16;
+
+const UV_PRECISION_BITS = 16;
+
+class IVec4 {
+  constructor(precisionBits) {
+    this.precisionBits = precisionBits;
+    this.elems = [0, 0, 0, 0];
+  }
+
+  loadHiLo(data, offset) {
+    this.elems[0] = makeHi(data, offset, 0, 4);
+    this.elems[1] = makeLo(data, offset, 0, 4);
+    this.elems[2] = makeHi(data, offset, 1, 5);
+    this.elems[3] = makeLo(data, offset, 1, 5);
+  }
+
+  toString() {
+    const scale = 1 / (1 << this.precisionBits);
+    return `[${this.elems[0] * scale}, ${this.elems[1] * scale}, ${this.elems[2] * scale}, ${this.elems[3] * scale}]`;
+  }
+}
+
+function makeHi(commands, offset, a, b) {
+  return (commands[offset + a] & 0xffff0000) | ((commands[offset + b] >>> 16) & 0xffff);
+}
+
+function makeLo(commands, offset, a, b) {
+  return (commands[offset + a] << 16) | (commands[offset + b] & 0xffff);
+}
+
+
+class Triangle {
+  constructor() {
+    this.tile = 0;
+
+    this.flip = false;
+
+    // 16 bit
+    this.yh = 0;
+    this.ym = 0;
+    this.yl = 0;
+
+    // 32 bit
+    this.xh = 0;
+    this.xm = 0;
+    this.xl = 0;
+
+    // 32 bit
+    this.dxhdy = 0;
+    this.dxmdy = 0;
+    this.dxldy = 0;
+
+    // RBGA
+    this.rgba = new IVec4(RGBA_PRECISION_BITS);
+    this.drgba_dx = new IVec4(RGBA_PRECISION_BITS);
+    this.drgba_de = new IVec4(RGBA_PRECISION_BITS);
+    this.drgba_dy = new IVec4(RGBA_PRECISION_BITS);
+
+    // Texture
+    this.stw = new IVec4(UV_PRECISION_BITS);
+    this.dstw_dx = new IVec4(UV_PRECISION_BITS);
+    this.dstw_de = new IVec4(UV_PRECISION_BITS);
+    this.dstw_dy = new IVec4(UV_PRECISION_BITS);
+  }
+
+  loadTriangle(data, offset) {
+    this.tile = (data[offset + 0] >> 16) & 7;
+
+    // Whether the triangle is left (0) or right (1) major.
+    this.flip = (data[offset + 0] & 0x80_0000) != 0;
+
+    // signed 14 bit.
+    this.yl = signExtend14(data[offset + 0] >> 0);
+    this.ym = signExtend14(data[offset + 1] >> 16);
+    this.yh = signExtend14(data[offset + 1] >> 0);
+
+    // signed 28 bit 
+    this.xl = signExtend28(data[offset + 2]);
+    this.xh = signExtend28(data[offset + 4]);
+    this.xm = signExtend28(data[offset + 6]);
+
+    // signed 28 bit 
+    this.dxldy = signExtend28(data[offset + 3]);
+    this.dxhdy = signExtend28(data[offset + 5]);
+    this.dxmdy = signExtend28(data[offset + 7]);
+  }
+
+  loadRGBA(data, offset) {
+    this.rgba.loadHiLo(data, offset + 0);
+    this.drgba_dx.loadHiLo(data, offset + 2);
+    this.drgba_de.loadHiLo(data, offset + 8);
+    this.drgba_dy.loadHiLo(data, offset + 10);
+  }
+
+  loadTexture(data, offset) {
+    this.stw.loadHiLo(data, offset + 0);
+    this.dstw_dx.loadHiLo(data, offset + 2);
+    this.dstw_de.loadHiLo(data, offset + 8);
+    this.dstw_dy.loadHiLo(data, offset + 10);
+  }
+
+  interpolateX(y) {
+    let yhBase = this.yh & ~(Y_SUBPIXELS - 1);
+    let ymBase = this.ym;
+
+    let x1 = this.xh + (y - yhBase) * this.dxhdy;
+    let x0;
+    if (y < this.ym) {
+      x0 = this.xm + (y - yhBase) * this.dxmdy;
+    } else {     
+      x0 = this.xl + (y - ymBase) * this.dxldy;
+    }
+
+    const xleft = this.flip ? x1 : x0;
+    const xright = this.flip ? x0 : x1;
+    return [xleft >> X_FRAC_BITS, xright >> X_FRAC_BITS];
+  }
+
+  interpolate(x, y, base, dpde, dpdx) {
+    let yhBase = this.yh & ~(Y_SUBPIXELS - 1);
+    const dy = (y - yhBase) / Y_SUBPIXELS;
+    
+    let xh = this.xh + (dy * this.dxhdy);
+    const xBase = xh >> X_FRAC_BITS;
+    const dx = x - xBase;
+
+    console.log(`dx ${dx}, dy ${dy}`)
+
+    const out = new IVec4(base.precisionBits);
+    for (let i = 0; i < 4; i++) {
+      out.elems[i] = base.elems[i] + (dpde.elems[i] * dy) + ((dpdx.elems[i] & ~0x1f) * dx);
+    }
+    return out;
+  }
+
+  interpolateRGBA(x, y) {
+    return this.interpolate(x, y, this.rgba, this.drgba_de, this.drgba_dx);
+  }
+
+  toString() {
+    const startY = this.yh & ~(Y_SUBPIXELS - 1);
+    const endY = this.yl & ~(Y_SUBPIXELS - 1);
+
+    let xspan0 = this.interpolateX(startY);
+    let xspan1 = this.interpolateX(endY);
+
+    let rgba00 = this.interpolateRGBA(xspan0[0], startY);
+    let rgba01 = this.interpolateRGBA(xspan0[1], startY);
+    let rgba10 = this.interpolateRGBA(xspan1[0], endY);
+    let rgba11 = this.interpolateRGBA(xspan1[1], endY);
+
+    const xscale = 1 / X_SUBPIXELS;
+    const yscale = 1 / Y_SUBPIXELS;
+
+    return `Triangle: start (${xspan0[0]}, ${startY * yscale}) -> (${xspan0[1]}, ${startY * yscale}), end (${xspan1[0]}, ${endY * yscale}) -> (${xspan1[1]}, ${endY * yscale})
+
+    rgba00 ${rgba00}
+    rgba01 ${rgba01}
+    rgba10 ${rgba10}
+    rgba11 ${rgba11}
+
+tile ${this.tile}
+yl ${this.yl * yscale}, ym ${this.ym * yscale}, yh ${this.yh * yscale}
+xl ${this.xl * xscale}, xm ${this.xm * xscale}, xh ${this.xh * xscale}
+dxldy ${this.dxldy * xscale}, dxmdy ${this.dxmdy * xscale}, dxhdy ${this.dxhdy * xscale}
+
+rgba ${this.rgba.toString()}
+drgba_dx ${this.drgba_dx.toString()}
+drgba_de ${this.drgba_de.toString()}
+drgba_dy ${this.drgba_dy.toString()}
+
+stw ${this.stw.toString()}
+dstw_dx ${this.dstw_dx.toString()}
+dstw_de ${this.dstw_de.toString()}
+dstw_dy ${this.dstw_dy.toString()}
+`;
+  }
+}
+
+function signExtend14(x) {
+  return (x << 18) >> 18;
+}
+
+function signExtend28(x) {
+  return (x << 4) >> 4;
+}
+
+const triangle = new Triangle();
 
 export function disassemble(commands) {
   let t = '';
@@ -56,7 +254,12 @@ export function disassemble(commands) {
   }
   const cmdType = (commands[0] >> 24) & 63;
 
-  t += `command: ${RDPComamnds.nameOf(cmdType)}`;
+  triangle.loadTriangle(commands, 0);
+  triangle.loadRGBA(commands, 8);
+  triangle.loadTexture(commands, 8 + 16);
+
+  t += `command: ${RDPComamnds.nameOf(cmdType)}\n`;
+  t += triangle.toString() + '\n';
 
   commands.forEach((value, index) => {
     t += `${index}: ${toString32(value)}\n`;
