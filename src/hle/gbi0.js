@@ -1,6 +1,7 @@
 import { toString32 } from "../format.js";
 import { Vector3 } from "../graphics/Vector3.js";
-import * as rdp from "./disassemble_rdp.js";
+import * as rdp from "../lle/rdp.js";
+import * as rdpdis from "./disassemble_rdp.js";
 import { GBI1 } from "./gbi1.js";
 
 // GBI0 is very similar to GBI1 with a few small differences,
@@ -11,6 +12,7 @@ export class GBI0 extends GBI1 {
     this.vertexStride = 10;
 
     this.rdpCommandBuffer = [];
+    this.rdpTriangle = new rdp.Triangle();
 
     this.gbi0Commands = new Map([
       [0xb0, this.executeUnknown.bind(this)],      // Defined as executeBranchZ for GBI1.
@@ -90,13 +92,32 @@ export class GBI0 extends GBI1 {
     this.rdpCommandBuffer.push(cmd1);
     const commands = new Uint32Array(this.rdpCommandBuffer);
 
-    if (dis) {
-      dis.tip(rdp.disassemble(commands));
-    }
-
+    this.rdpTriangle.load(commands, 0);
     this.rdpCommandBuffer = [];
-  }
 
+    // TODO: this hackily assumes GE is always rendering a screen space rectangle
+    // but ideally this should be generalised.
+    const tri = this.rdpTriangle;
+    const tileIdx = tri.tile;
+    const y0 = tri.yh;
+    const y1 = tri.ym;
+
+    const yhSpan = tri.interpolateX(tri.yh);
+    const ymSpan = tri.interpolateX(tri.ym);
+    const x0 = Math.min(yhSpan[0], ymSpan[0]);
+    const x1 = Math.max(yhSpan[1], ymSpan[1]);
+  
+    const vertices = this.renderer.calculateRectVertices(x0, y0 / 4, x1, y1 / 4);
+    const uvs = tri.calculateRectUVs();
+    const colours = [0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff];
+    this.renderer.lleRect(tileIdx, vertices, uvs, colours);
+
+    if (dis) {
+      let t = rdpdis.disassemble(commands);
+      t += `lleRect(${tileIdx}, [${vertices}], [${uvs}], [${colours}])`;
+      dis.tip(t);
+    }
+  }
 
   executeTri4(cmd0, cmd1, dis) {
     const verts = this.state.projectedVertices;
