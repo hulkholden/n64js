@@ -5,15 +5,8 @@ import { disassembleRemappedRange, dumpDMEM } from "../disassemble_rsp.js";
 import { makeEnum } from "../enum.js";
 import { toHex } from "../format.js";
 import { hleGraphics } from "./hle_graphics.js";
-
-// Whether to skip audio task emulator or run it on the RSP.
-// Set this to false to enable audio in most games.
-const audioOptions = {
-  enableAudioLLE: true,
-};
-
-const audioFolder = dbgGUI.addFolder('Audio');
-audioFolder.add(audioOptions, 'enableAudioLLE').name('Audio LLE');
+import { audioOptions } from './audio_options.js';
+import { graphicsOptions } from './graphics_options.js';
 
 // Task offset in dmem.
 const kTaskOffset = 0x0fc0;
@@ -150,7 +143,7 @@ export function hleProcessRSPTask() {
 
   switch (task.type) {
     case M_GFXTASK:
-      {
+      if (graphicsOptions.emulationMode == 'HLE') {
         const ev = hardware.timeline.startEvent(`HLE Task ${task.detectVersionString()}`);
         hleGraphics(task);
         hardware.miRegDevice.interruptDP();
@@ -161,8 +154,11 @@ export function hleProcessRSPTask() {
       }
       break;
     case M_AUDTASK:
-      // If enableAudioLLE is clear, pretend we handled the task (we'll play silence).
-      handled = !audioOptions.enableAudioLLE;
+      // There's no HLE support yet, but if emulation is disabled pretend we
+      // handled the task (we'll play silence).
+      if (audioOptions.emulationMode == 'Disabled') {
+        handled = true;
+      }
       break;
     case M_VIDTASK:
       // Run on the RSP.

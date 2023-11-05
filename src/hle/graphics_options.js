@@ -9,8 +9,12 @@ export const graphicsOptions = {
 
   // If set, dump microcodes containing this string to the console.
   dumpMicrocodeSubstring: '',
+
+  // Whether to use high or low level emulation.
+  emulationMode: 'HLE',
 };
 const folder = dbgGUI.addFolder('Graphics');
+folder.add(graphicsOptions, 'emulationMode', { HLE: 'HLE', LLE: 'LLE' }).name('Emulation Mode');
 folder.add(graphicsOptions, 'canvasScale').name('Canvas Scale').min(1).max(4).step(0.25);
 folder.add(graphicsOptions, 'haltOnWarning').name('Halt on Warning');
 folder.add(graphicsOptions, 'dumpMicrocodeSubstring').name('Dump Microcode');
