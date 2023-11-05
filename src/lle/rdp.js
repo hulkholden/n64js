@@ -60,8 +60,8 @@ const RGBA_PRECISION_BITS = 16;
 const UV_PRECISION_BITS = 16;
 
 class IVec4 {
-  constructor(precisionBits) {
-    this.precisionBits = precisionBits;
+  constructor(displayPrecisionBits) {
+    this.displayPrecisionBits = displayPrecisionBits;
     this.elems = [0, 0, 0, 0];
   }
 
@@ -73,7 +73,7 @@ class IVec4 {
   }
 
   toString() {
-    const scale = 1 / (1 << this.precisionBits);
+    const scale = 1 / (1 << this.displayPrecisionBits);
     return `[${this.elems[0] * scale}, ${this.elems[1] * scale}, ${this.elems[2] * scale}, ${this.elems[3] * scale}]`;
   }
 }
@@ -89,39 +89,66 @@ function makeLo(commands, offset, a, b) {
 
 export class Triangle {
   constructor() {
+    this.type = 0;
     this.tile = 0;
 
     this.flip = false;
 
-    // 16 bit
+    this.shade = false;
+    this.texture = false;
+    this.zbuffer = false;
+
+    // Edge coefficients.
+    // s12.2
     this.yh = 0;
     this.ym = 0;
     this.yl = 0;
 
-    // 32 bit
+    // s12.16
     this.xh = 0;
     this.xm = 0;
     this.xl = 0;
 
-    // 32 bit
+    // s12.16
     this.dxhdy = 0;
     this.dxmdy = 0;
     this.dxldy = 0;
 
-    // RBGA
+    // Shade coefficients.
     this.rgba = new IVec4(RGBA_PRECISION_BITS);
     this.drgba_dx = new IVec4(RGBA_PRECISION_BITS);
     this.drgba_de = new IVec4(RGBA_PRECISION_BITS);
     this.drgba_dy = new IVec4(RGBA_PRECISION_BITS);
 
-    // Texture
-    this.stw = new IVec4(UV_PRECISION_BITS);
-    this.dstw_dx = new IVec4(UV_PRECISION_BITS);
-    this.dstw_de = new IVec4(UV_PRECISION_BITS);
-    this.dstw_dy = new IVec4(UV_PRECISION_BITS);
+    // Texture coefficients (+5 bits as texture coords have 5 bits precision too).
+    this.stw = new IVec4(UV_PRECISION_BITS + 5);
+    this.dstw_dx = new IVec4(UV_PRECISION_BITS + 5);
+    this.dstw_de = new IVec4(UV_PRECISION_BITS + 5);
+    this.dstw_dy = new IVec4(UV_PRECISION_BITS + 5);
   }
 
-  loadTriangle(data, offset) {
+  load(data, offset) {
+    const cmdType = (data[0] >> 24) & 63;
+
+    this.type = cmdType;
+    this.shade = (cmdType & 4) != 0;
+    this.texture = (cmdType & 2) != 0;
+    this.zbuffer = (cmdType & 1) != 0;
+    
+    this.loadEdge(data, offset);
+    offset += 8;
+  
+    if (this.shade) {
+      this.loadShade(data, offset);
+      offset += 16;
+    }
+    if (this.texture) {
+      this.loadTexture(data, offset);
+      offset += 16;
+    }
+  }
+
+  loadEdge(data, offset) {
     this.tile = (data[offset + 0] >> 16) & 7;
 
     // Whether the triangle is left (0) or right (1) major.
@@ -143,7 +170,7 @@ export class Triangle {
     this.dxmdy = signExtend28(data[offset + 7]);
   }
 
-  loadRGBA(data, offset) {
+  loadShade(data, offset) {
     this.rgba.loadHiLo(data, offset + 0);
     this.drgba_dx.loadHiLo(data, offset + 2);
     this.drgba_de.loadHiLo(data, offset + 8);
@@ -175,14 +202,12 @@ export class Triangle {
   }
 
   interpolate(x, y, base, dpde, dpdx) {
-    let yhBase = this.yh & ~(Y_SUBPIXELS - 1);
+    const yhBase = this.yh & ~(Y_SUBPIXELS - 1);
     const dy = (y - yhBase) / Y_SUBPIXELS;
 
-    let xh = this.xh + (dy * this.dxhdy);
+    const xh = this.xh + (dy * this.dxhdy);
     const xBase = xh >> X_FRAC_BITS;
     const dx = x - xBase;
-
-    console.log(`dx ${dx}, dy ${dy}`)
 
     const out = new IVec4(base.precisionBits);
     for (let i = 0; i < 4; i++) {
@@ -191,47 +216,72 @@ export class Triangle {
     return out;
   }
 
-  interpolateRGBA(x, y) {
+  interpolateShade(x, y) {
     return this.interpolate(x, y, this.rgba, this.drgba_de, this.drgba_dx);
   }
 
+  interpolateTexture(x, y) {
+    const stw = this.interpolate(x, y, this.stw, this.dstw_de, this.dstw_dx);
+
+    // TODO: Perspective divide
+    // const w = stw.elems[2] / (1 << UV_PRECISION_BITS);
+    // stw.elems[0] = stw.elems[0] / w;
+    // stw.elems[1] = stw.elems[1] / w;
+    return stw;
+  }
+
+  calculateRectUVs() {
+    const y0 = this.yh;
+    const y1 = this.ym;
+
+    const yhSpan = this.interpolateX(this.yh);
+    const ymSpan = this.interpolateX(this.ym);
+    const x0 = Math.min(yhSpan[0], ymSpan[0]);
+    const x1 = Math.max(yhSpan[1], ymSpan[1]);
+  
+    const uv00 = this.interpolateTexture(x0, y0);
+    const uv10 = this.interpolateTexture(x1, y0);
+    const uv01 = this.interpolateTexture(x0, y1);
+    const uv11 = this.interpolateTexture(x1, y1);
+    const uvScale = 1 / (1 << 16) / 32;
+    // s0,t0 -> s1,t0 -> s0,t1 -> s1,t1
+    return [
+      uv00.elems[0] * uvScale, uv00.elems[1] * uvScale,
+      uv10.elems[0] * uvScale, uv10.elems[1] * uvScale,
+      uv01.elems[0] * uvScale, uv01.elems[1] * uvScale,
+      uv11.elems[0] * uvScale, uv11.elems[1] * uvScale,
+    ]; 
+  }
+
   toString() {
-    const startY = this.yh & ~(Y_SUBPIXELS - 1);
-    const endY = this.yl & ~(Y_SUBPIXELS - 1);
-
-    let xspan0 = this.interpolateX(startY);
-    let xspan1 = this.interpolateX(endY);
-
-    let rgba00 = this.interpolateRGBA(xspan0[0], startY);
-    let rgba01 = this.interpolateRGBA(xspan0[1], startY);
-    let rgba10 = this.interpolateRGBA(xspan1[0], endY);
-    let rgba11 = this.interpolateRGBA(xspan1[1], endY);
-
     const xscale = 1 / X_SUBPIXELS;
     const yscale = 1 / Y_SUBPIXELS;
 
-    return `Triangle: start (${xspan0[0]}, ${startY * yscale}) -> (${xspan0[1]}, ${startY * yscale}), end (${xspan1[0]}, ${endY * yscale}) -> (${xspan1[1]}, ${endY * yscale})
-
-    rgba00 ${rgba00}
-    rgba01 ${rgba01}
-    rgba10 ${rgba10}
-    rgba11 ${rgba11}
-
-tile ${this.tile}
-yl ${this.yl * yscale}, ym ${this.ym * yscale}, yh ${this.yh * yscale}
-xl ${this.xl * xscale}, xm ${this.xm * xscale}, xh ${this.xh * xscale}
-dxldy ${this.dxldy * xscale}, dxmdy ${this.dxmdy * xscale}, dxhdy ${this.dxhdy * xscale}
-
-rgba ${this.rgba.toString()}
-drgba_dx ${this.drgba_dx.toString()}
-drgba_de ${this.drgba_de.toString()}
-drgba_dy ${this.drgba_dy.toString()}
-
-stw ${this.stw.toString()}
-dstw_dx ${this.dstw_dx.toString()}
-dstw_de ${this.dstw_de.toString()}
-dstw_dy ${this.dstw_dy.toString()}
+    let t = `${Comamnds.nameOf(this.type)}`;
+    t += `\nEdge:
+  tile ${this.tile}
+  yl ${this.yl * yscale}, ym ${this.ym * yscale}, yh ${this.yh * yscale}
+  xl ${this.xl * xscale}, xm ${this.xm * xscale}, xh ${this.xh * xscale}
+  dxldy ${this.dxldy * xscale}, dxmdy ${this.dxmdy * xscale}, dxhdy ${this.dxhdy * xscale}
 `;
+    if (this.shade) {
+      t += `\nShade:
+  rgba ${this.rgba.toString()}
+  drgba_dx ${this.drgba_dx.toString()}
+  drgba_de ${this.drgba_de.toString()}
+  drgba_dy ${this.drgba_dy.toString()}
+`;
+    }
+
+    if (this.texture) {
+      t += `Texture:
+  stw ${this.stw.toString()}
+  dstw_dx ${this.dstw_dx.toString()}
+  dstw_de ${this.dstw_de.toString()}
+  dstw_dy ${this.dstw_dy.toString()}
+`;
+    }
+    return t;
   }
 }
 

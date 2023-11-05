@@ -8,24 +8,10 @@ export function disassemble(commands) {
   if (commands.length < 1) {
     return t;
   }
-  const cmdType = (commands[0] >> 24) & 63;
 
-  let offset = 0;
-  triangle.loadTriangle(commands, offset);
-  offset += 8;
-
-  triangle.loadRGBA(commands, offset);
-  offset += 16;
-
-  triangle.loadTexture(commands, offset);
-  offset += 16;
-
-  t += `command: ${rdp.Comamnds.nameOf(cmdType)}\n`;
-  t += triangle.toString() + '\n';
-
-  commands.forEach((value, index) => {
-    t += `${index}: ${toString32(value)}\n`;
-  })
-
+  triangle.load(commands, 0);
+  t += triangle.toString();
+  t += '\n';
+  t += commands.toString();
   return t;
 }
