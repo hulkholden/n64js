@@ -1,6 +1,6 @@
 import { makeEnum } from "../enum.js";
 
-export var Comamnds = makeEnum({
+export var Commands = makeEnum({
   Nop: 0,
   FillTriangle: 0x08,
   FillZBufferTriangle: 0x09,
@@ -257,7 +257,7 @@ export class Triangle {
     const xscale = 1 / X_SUBPIXELS;
     const yscale = 1 / Y_SUBPIXELS;
 
-    let t = `${Comamnds.nameOf(this.type)}`;
+    let t = `${Commands.nameOf(this.type)}`;
     t += `\nEdge:
   tile ${this.tile}
   yl ${this.yl * yscale}, ym ${this.ym * yscale}, yh ${this.yh * yscale}
