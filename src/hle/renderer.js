@@ -286,7 +286,6 @@ export class Renderer {
     const gl = this.gl;
 
     // TODO: check scissor
-    // TODO: is it possible to implement texRect in terms of texRectRot?
 
     this.setProgramState(new Float32Array(vertices), new Uint32Array(colours), new Float32Array(uvs),
       true /* textureEnabled */, false /*texGenEnabled*/, tileIdx);
@@ -348,7 +347,6 @@ export class Renderer {
       s1, t1,
     ];
     const colours = [0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff];
-
     this.lleRect(tileIdx, vertices, uvs, colours);
   }
 
