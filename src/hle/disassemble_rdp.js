@@ -3,15 +3,20 @@ import * as rdp from "../lle/rdp.js";
 
 const triangle = new rdp.Triangle();
 
-export function disassemble(commands) {
+export function disassemble(dv) {
   let t = '';
-  if (commands.length < 1) {
+  if (dv.byteLength < 4) {
     return t;
   }
 
-  triangle.load(commands, 0);
+  triangle.load(dv, 0);
   t += triangle.toString();
   t += '\n';
+  
+  const commands = [];
+  for (let i = 0; i < dv.byteLength; i += 4) {
+    commands.push(dv.getUint32(i, false));
+  }
   t += commands.toString();
   return t;
 }

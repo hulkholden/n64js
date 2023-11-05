@@ -8,13 +8,13 @@ describe('Texture', () => {
   });
 
   describe('load tri1', () => {
-    const commands = [
+    const commands = makeCommandDataView([
       0xce0001a9, 0x01a80028, 0x00000000, 0x03f6ff6c, 0x013fc000, 0x00000000, 0x00000000, 0x00000000,
       0x00c400cc, 0x00d800ff, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x006d005e, 0x00480000,
       0xfffefffe, 0xfffe0000, 0xfffefffe, 0xfffe0000, 0x2270621d, 0xc1a00000, 0x2270621d, 0xc1a00000,
       0x01a3059e, 0x3fff03fd, 0xfffffffd, 0x00000000, 0x350ab6c8, 0x7fc0d160, 0x67278613, 0x2ad00000,
       0xfff6ffee, 0xff5d0000, 0xfff6ffee, 0xff5d0000, 0x292ceb24, 0x70470154, 0x292ceb24, 0x70470154,
-    ];
+    ]);
     beforeEach(function () {
       triangle.load(commands, 0);
     });
@@ -59,13 +59,13 @@ describe('Texture', () => {
   });
 
   describe('load tri2', () => {
-    const commands = [
+    const commands = makeCommandDataView([
       0xce800397, 0x00280028, 0x013fc000, 0x00000000, 0x00000000, 0x0001747e, 0x00000000, 0x07550000,
       0x00ff00ff, 0x00ff00ff, 0x00000000, 0x00000000, 0x80008000, 0x80008000, 0x00000000, 0x00000000,
       0xffffffff, 0xffff0000, 0xffffffff, 0xffff0000, 0xefb1f206, 0xf5840000, 0xefb1f206, 0xf5840000,
       0x03ef0499, 0x3f7d0000, 0x0000fffe, 0x00000000, 0x8c14f430, 0x2b400000, 0x082ae7ea, 0x68580000,
       0xfffcfffc, 0xffdd0000, 0xfffcfffd, 0xffdc0000, 0xe2483af8, 0x420a0000, 0xd666d284, 0xaa360000,
-    ];
+    ]);
     beforeEach(function () {
       triangle.load(commands, 0);
     });
@@ -110,13 +110,13 @@ describe('Texture', () => {
   });
 
   describe('load tri3', () => {
-    const commands = [
+    const commands = makeCommandDataView([
       0xce800397, 0x03970028, 0x013fc000, 0xf8aa0000, 0x00000000, 0x00000000, 0x00000000, 0x0001747e,
       0x00ff00ff, 0x00ff00ff, 0x00000000, 0x00000000, 0x80008000, 0x80008000, 0x03330333, 0x02660000,
       0xffffffff, 0xffff0000, 0xffffffff, 0xffff0000, 0xeb08ed5d, 0xf2060000, 0xeb08ed5d, 0xf2060000,
       0x03f704a3, 0x3fff0000, 0x0000fffe, 0x00000000, 0xa0646650, 0x80000000, 0x083be5ab, 0x692f0000,
       0xfffcfffd, 0xffdc0000, 0xfffcfffd, 0xffdc0000, 0xcfe8ce0b, 0x61ac0000, 0xcfe8ce0b, 0x61ac0000,
-    ];
+    ]);
     beforeEach(function () {
       triangle.load(commands, 0);
     });
@@ -160,3 +160,11 @@ describe('Texture', () => {
     });
   });
 });
+
+function makeCommandDataView(commands) {
+  const dv = new DataView(new ArrayBuffer(commands.length * 4));
+  commands.forEach((value, index) => {
+    dv.setUint32(index * 4, value, false);
+  });
+  return dv;
+}

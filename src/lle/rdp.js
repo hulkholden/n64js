@@ -65,11 +65,11 @@ class IVec4 {
     this.elems = [0, 0, 0, 0];
   }
 
-  loadHiLo(data, offset) {
-    this.elems[0] = makeHi(data, offset, 0, 4);
-    this.elems[1] = makeLo(data, offset, 0, 4);
-    this.elems[2] = makeHi(data, offset, 1, 5);
-    this.elems[3] = makeLo(data, offset, 1, 5);
+  loadHiLo(dv, offset) {
+    this.elems[0] = makeHi(dv, offset, 0, 16);
+    this.elems[1] = makeLo(dv, offset, 0, 16);
+    this.elems[2] = makeHi(dv, offset, 4, 20);
+    this.elems[3] = makeLo(dv, offset, 4, 20);
   }
 
   toString() {
@@ -78,14 +78,13 @@ class IVec4 {
   }
 }
 
-function makeHi(commands, offset, a, b) {
-  return (commands[offset + a] & 0xffff0000) | ((commands[offset + b] >>> 16) & 0xffff);
+function makeHi(dv, offset, a, b) {
+  return (dv.getUint32(offset + a, false) & 0xffff0000) | ((dv.getUint32(offset + b, false) >>> 16) & 0xffff);
 }
 
-function makeLo(commands, offset, a, b) {
-  return (commands[offset + a] << 16) | (commands[offset + b] & 0xffff);
+function makeLo(dv, offset, a, b) {
+  return (dv.getUint32(offset + a, false) << 16) | (dv.getUint32(offset + b, false) & 0xffff);
 }
-
 
 export class Triangle {
   constructor() {
@@ -127,61 +126,61 @@ export class Triangle {
     this.dstw_dy = new IVec4(UV_PRECISION_BITS + 5);
   }
 
-  load(data, offset) {
-    const cmdType = (data[0] >> 24) & 63;
+  load(dv, offset) {
+    const cmdType = (dv.getUint32(offset + 0) >> 24) & 63;
 
     this.type = cmdType;
     this.shade = (cmdType & 4) != 0;
     this.texture = (cmdType & 2) != 0;
     this.zbuffer = (cmdType & 1) != 0;
     
-    this.loadEdge(data, offset);
-    offset += 8;
+    this.loadEdge(dv, offset);
+    offset += 32;
   
     if (this.shade) {
-      this.loadShade(data, offset);
-      offset += 16;
+      this.loadShade(dv, offset);
+      offset += 64;
     }
     if (this.texture) {
-      this.loadTexture(data, offset);
-      offset += 16;
+      this.loadTexture(dv, offset);
+      offset += 64;
     }
   }
 
-  loadEdge(data, offset) {
-    this.tile = (data[offset + 0] >> 16) & 7;
+  loadEdge(dv, offset) {
+    this.tile = (dv.getUint32(offset + 0, false) >> 16) & 7;
 
     // Whether the triangle is left (0) or right (1) major.
-    this.flip = (data[offset + 0] & 0x80_0000) != 0;
+    this.flip = (dv.getUint32(offset + 0, false) & 0x80_0000) != 0;
 
     // signed 14 bit.
-    this.yl = signExtend14(data[offset + 0] >> 0);
-    this.ym = signExtend14(data[offset + 1] >> 16);
-    this.yh = signExtend14(data[offset + 1] >> 0);
+    this.yl = signExtend14(dv.getUint32(offset + 0, false) >> 0);
+    this.ym = signExtend14(dv.getUint32(offset + 4, false) >> 16);
+    this.yh = signExtend14(dv.getUint32(offset + 4, false) >> 0);
 
     // signed 28 bit 
-    this.xl = signExtend28(data[offset + 2]);
-    this.xh = signExtend28(data[offset + 4]);
-    this.xm = signExtend28(data[offset + 6]);
+    this.xl = signExtend28(dv.getUint32(offset + 8, false));
+    this.xh = signExtend28(dv.getUint32(offset + 16, false));
+    this.xm = signExtend28(dv.getUint32(offset + 24, false));
 
     // signed 28 bit 
-    this.dxldy = signExtend28(data[offset + 3]);
-    this.dxhdy = signExtend28(data[offset + 5]);
-    this.dxmdy = signExtend28(data[offset + 7]);
+    this.dxldy = signExtend28(dv.getUint32(offset + 12, false));
+    this.dxhdy = signExtend28(dv.getUint32(offset + 20, false));
+    this.dxmdy = signExtend28(dv.getUint32(offset + 28, false));
   }
 
-  loadShade(data, offset) {
-    this.rgba.loadHiLo(data, offset + 0);
-    this.drgba_dx.loadHiLo(data, offset + 2);
-    this.drgba_de.loadHiLo(data, offset + 8);
-    this.drgba_dy.loadHiLo(data, offset + 10);
+  loadShade(dv, offset) {
+    this.rgba.loadHiLo(dv, offset + 0);
+    this.drgba_dx.loadHiLo(dv, offset + 8);
+    this.drgba_de.loadHiLo(dv, offset + 32);
+    this.drgba_dy.loadHiLo(dv, offset + 40);
   }
 
-  loadTexture(data, offset) {
-    this.stw.loadHiLo(data, offset + 0);
-    this.dstw_dx.loadHiLo(data, offset + 2);
-    this.dstw_de.loadHiLo(data, offset + 8);
-    this.dstw_dy.loadHiLo(data, offset + 10);
+  loadTexture(dv, offset) {
+    this.stw.loadHiLo(dv, offset + 0);
+    this.dstw_dx.loadHiLo(dv, offset + 8);
+    this.dstw_de.loadHiLo(dv, offset + 32);
+    this.dstw_dy.loadHiLo(dv, offset + 40);
   }
 
   interpolateX(y) {

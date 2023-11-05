@@ -11,7 +11,8 @@ export class GBI0 extends GBI1 {
     super(state, ramDV);
     this.vertexStride = 10;
 
-    this.rdpCommandBuffer = [];
+    this.rdpCommandBuffer = new ArrayBuffer(0, { maxByteLength: 16 * 1024 });
+    this.rdpCommandDV = new DataView(this.rdpCommandBuffer);
     this.rdpTriangle = new rdp.Triangle();
 
     this.gbi0Commands = new Map([
@@ -65,6 +66,12 @@ export class GBI0 extends GBI1 {
     }
   }
 
+  pushRDPCommandU32(value) {
+    const bufLen = this.rdpCommandBuffer.byteLength;
+    this.rdpCommandBuffer.resize(bufLen + 4);
+    this.rdpCommandDV.setUint32(bufLen, value, false);
+  }
+
   // "RDP Command" insturctions are shared between Goldeneye and Perfect Dark.
   // These are RDP commands for drawing triangles, baked into the display list.
   // They seem to alternate in pairs of 0xb4 and 0xb2, and end in 0xb3.
@@ -73,14 +80,14 @@ export class GBI0 extends GBI1 {
     if (dis) {
       dis.text(`gsSPRDPCommandHalf1(${toString32(cmd1)});`);
     }
-    this.rdpCommandBuffer.push(cmd1);
+    this.pushRDPCommandU32(cmd1);
   }
 
   executeRDPCommandHalf2(cmd0, cmd1, dis) {
     if (dis) {
       dis.text(`gsSPRDPCommandHalf2(${toString32(cmd1)});`);
     }
-    this.rdpCommandBuffer.push(cmd1);
+    this.pushRDPCommandU32(cmd1);
   }
 
   executeRDPCommandHalf22Final(cmd0, cmd1, dis) {
@@ -89,11 +96,8 @@ export class GBI0 extends GBI1 {
       dis.text(`gsSPRDPCommandHalf2Final(${toString32(cmd1)});`);
     }
 
-    this.rdpCommandBuffer.push(cmd1);
-    const commands = new Uint32Array(this.rdpCommandBuffer);
-
-    this.rdpTriangle.load(commands, 0);
-    this.rdpCommandBuffer = [];
+    this.pushRDPCommandU32(cmd1);
+    this.rdpTriangle.load(this.rdpCommandDV, 0);
 
     // TODO: this hackily assumes GE is always rendering a screen space rectangle
     // but ideally this should be generalised.
@@ -113,10 +117,12 @@ export class GBI0 extends GBI1 {
     this.renderer.lleRect(tileIdx, vertices, uvs, colours);
 
     if (dis) {
-      let t = rdpdis.disassemble(commands);
+      let t = rdpdis.disassemble(this.rdpCommandDV);
       t += `lleRect(${tileIdx}, [${vertices}], [${uvs}], [${colours}])`;
       dis.tip(t);
     }
+
+    this.rdpCommandBuffer.resize(0);
   }
 
   executeTri4(cmd0, cmd1, dis) {
