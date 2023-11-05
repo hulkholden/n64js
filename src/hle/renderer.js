@@ -268,26 +268,46 @@ export class Renderer {
     this.fillRectVA.unbind();
   }
 
-  texRect(tileIdx, x0, y0, x1, y1, s0, t0, s1, t1, flip) {
-    const gl = this.gl;
-
-    // TODO: check scissor
-    // TODO: is it possible to implement texRect in terms of texRectRot?
-
+  calculateRectVertices(x0, y0, x1, y1) {
     const display0 = this.nativeTransform.convertN64ToDisplay(new Vector2(x0, y0));
     const display1 = this.nativeTransform.convertN64ToDisplay(new Vector2(x1, y1));
     const depthSourcePrim = (this.state.rdpOtherModeL & gbi.DepthSource.G_ZS_PRIM) !== 0;
     const depth = depthSourcePrim ? this.state.primDepth : 0.0;
 
-    const vertices = [
+    return [
       display0.x, display0.y, depth, 1.0,
       display1.x, display0.y, depth, 1.0,
       display0.x, display1.y, depth, 1.0,
       display1.x, display1.y, depth, 1.0
     ];
+  }
 
+  lleRect(tileIdx, vertices, uvs, colours) {
+    const gl = this.gl;
+
+    // TODO: check scissor
+    // TODO: is it possible to implement texRect in terms of texRectRot?
+
+    this.setProgramState(new Float32Array(vertices), new Uint32Array(colours), new Float32Array(uvs),
+      true /* textureEnabled */, false /*texGenEnabled*/, tileIdx);
+
+    gl.disable(gl.CULL_FACE);
+
+    const depthSourcePrim = (this.state.rdpOtherModeL & gbi.DepthSource.G_ZS_PRIM) !== 0;
+    const depthEnabled = depthSourcePrim ? true : false;
+    if (depthEnabled) {
+      this.initDepth();
+    } else {
+      gl.disable(gl.DEPTH_TEST);
+      gl.depthMask(false);
+    }
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    gl.bindVertexArray(null);
+  }
+
+  texRect(tileIdx, x0, y0, x1, y1, s0, t0, s1, t1, flip) {
+    const vertices = this.calculateRectVertices(x0, y0, x1, y1);
     let uvs;
-
     if (flip) {
       uvs = [
         s0, t0,
@@ -303,30 +323,11 @@ export class Renderer {
         s1, t1,
       ];
     }
-
     const colours = [0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff];
-
-    this.setProgramState(new Float32Array(vertices), new Uint32Array(colours), new Float32Array(uvs),
-      true /* textureEnabled */, false /*texGenEnabled*/, tileIdx);
-
-    gl.disable(gl.CULL_FACE);
-
-    const depthEnabled = depthSourcePrim ? true : false;
-    if (depthEnabled) {
-      this.initDepth();
-    } else {
-      gl.disable(gl.DEPTH_TEST);
-      gl.depthMask(false);
-    }
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-    gl.bindVertexArray(null);
+    this.lleRect(tileIdx, vertices, uvs, colours);
   }
 
   texRectRot(tileIdx, x0, y0, x1, y1, x2, y2, x3, y3, s0, t0, s1, t1) {
-    const gl = this.gl;
-
-    // TODO: check scissor
-
     const display0 = this.nativeTransform.convertN64ToDisplay(new Vector2(x0, y0));
     const display1 = this.nativeTransform.convertN64ToDisplay(new Vector2(x1, y1));
     const display2 = this.nativeTransform.convertN64ToDisplay(new Vector2(x2, y2));
@@ -340,30 +341,15 @@ export class Renderer {
       display2.x, display2.y, depth, 1.0,
       display3.x, display3.y, depth, 1.0
     ];
-
-    let uvs = [
+    const uvs = [
       s0, t0,
       s1, t0,
       s0, t1,
       s1, t1,
     ];
-
     const colours = [0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff];
 
-    this.setProgramState(new Float32Array(vertices), new Uint32Array(colours), new Float32Array(uvs),
-      true /* textureEnabled */, false /*texGenEnabled*/, tileIdx);
-
-    gl.disable(gl.CULL_FACE);
-
-    const depthEnabled = depthSourcePrim ? true : false;
-    if (depthEnabled) {
-      this.initDepth();
-    } else {
-      gl.disable(gl.DEPTH_TEST);
-      gl.depthMask(false);
-    }
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-    gl.bindVertexArray(null);
+    this.lleRect(tileIdx, vertices, uvs, colours);
   }
 
   initDepth() {
