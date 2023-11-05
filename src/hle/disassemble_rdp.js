@@ -1,22 +1,22 @@
-import { toString32 } from "../format.js";
 import * as rdp from "../lle/rdp.js";
 
 const triangle = new rdp.Triangle();
 
-export function disassemble(dv) {
+export function disassembleCommand(dv, beginAddr, endAddr) {
+  const offset = beginAddr;
+
   let t = '';
-  if (dv.byteLength < 4) {
+  if (offset + 4 > endAddr) {
     return t;
   }
 
-  triangle.load(dv, 0);
-  t += triangle.toString();
-  t += '\n';
-  
-  const commands = [];
-  for (let i = 0; i < dv.byteLength; i += 4) {
-    commands.push(dv.getUint32(i, false));
+  const cmdType = (dv.getUint32(offset + 0) >> 24) & 63;
+  const cmdLen = rdp.CommandLengths[cmdType];
+  if (offset + cmdLen > endAddr) {
+    return t;
   }
-  t += commands.toString();
+
+  triangle.load(dv, offset);
+  t += triangle.toString();
   return t;
 }

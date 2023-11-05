@@ -117,8 +117,9 @@ export class GBI0 extends GBI1 {
     this.renderer.lleRect(tileIdx, vertices, uvs, colours);
 
     if (dis) {
-      let t = rdpdis.disassemble(this.rdpCommandDV);
-      t += `lleRect(${tileIdx}, [${vertices}], [${uvs}], [${colours}])`;
+      const dv = this.rdpCommandDV;
+      let t = `lleRect(${tileIdx}, [${vertices}], [${uvs}], [${colours}])`;
+      t += rdpdis.disassembleCommand(dv, 0, dv.byteLength);
       dis.tip(t);
     }
 
