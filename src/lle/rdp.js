@@ -256,7 +256,7 @@ export class Triangle {
     const xscale = 1 / X_SUBPIXELS;
     const yscale = 1 / Y_SUBPIXELS;
 
-    let t = `${Commands.nameOf(this.type)}`;
+    let t = '';
     t += `\nEdge:
   tile ${this.tile}
   yl ${this.yl * yscale}, ym ${this.ym * yscale}, yh ${this.yh * yscale}
