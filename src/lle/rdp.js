@@ -404,19 +404,19 @@ export class RDP {
   }
 
   executeTriangle(cmdType, buf) {
-    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+    this.executeUnhandled(cmdType, buf);
   }
 
   executeSyncLoad(cmdType, buf) {
-    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+    this.executeUnhandled(cmdType, buf);
   }
 
   executeSyncPipe(cmdType, buf) {
-    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+    this.executeUnhandled(cmdType, buf);
   }
 
   executeSyncTile(cmdType, buf) {
-    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+    this.executeUnhandled(cmdType, buf);
   }
 
   executeSyncFull(cmdType, buf) {
@@ -424,86 +424,86 @@ export class RDP {
   }
 
   executeSetKeyGB(cmdType, buf) {
-    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+    this.executeUnhandled(cmdType, buf);
   }
 
   executeSetKeyR(cmdType, buf) {
-    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+    this.executeUnhandled(cmdType, buf);
   }
 
   executeSetConvert(cmdType, buf) {
-    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+    this.executeUnhandled(cmdType, buf);
   }
 
   executeSetScissor(cmdType, buf) {
-    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+    this.executeUnhandled(cmdType, buf);
   }
 
   executeSetPrimDepth(cmdType, buf) {
-    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+    this.executeUnhandled(cmdType, buf);
   }
 
   executeSetOtherModes(cmdType, buf) {
-    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+    this.executeUnhandled(cmdType, buf);
   }
 
   executeLoadTLut(cmdType, buf) {
-    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+    this.executeUnhandled(cmdType, buf);
   }
 
   executeSetTileSize(cmdType, buf) {
-    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+    this.executeUnhandled(cmdType, buf);
   }
 
   executeLoadBlock(cmdType, buf) {
-    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+    this.executeUnhandled(cmdType, buf);
   }
 
   executeLoadTile(cmdType, buf) {
-    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+    this.executeUnhandled(cmdType, buf);
   }
 
   executeSetTile(cmdType, buf) {
-    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+    this.executeUnhandled(cmdType, buf);
   }
 
   executeFillRectangle(cmdType, buf) {
-    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+    this.executeUnhandled(cmdType, buf);
   }
 
   executeSetFillColor(cmdType, buf) {
-    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+    this.executeUnhandled(cmdType, buf);
   }
 
   executeSetFogColor(cmdType, buf) {
-    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+    this.executeUnhandled(cmdType, buf);
   }
 
   executeSetBlendColor(cmdType, buf) {
-    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+    this.executeUnhandled(cmdType, buf);
   }
 
   executeSetPrimColor(cmdType, buf) {
-    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+    this.executeUnhandled(cmdType, buf);
   }
 
   executeSetEnvColor(cmdType, buf) {
-    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+    this.executeUnhandled(cmdType, buf);
   }
 
   executeSetCombine(cmdType, buf) {
-    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+    this.executeUnhandled(cmdType, buf);
   }
 
   executeSetTextureImage(cmdType, buf) {
-    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+    this.executeUnhandled(cmdType, buf);
   }
 
   executeSetMaskImage(cmdType, buf) {
-    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+    this.executeUnhandled(cmdType, buf);
   }
 
   executeSetColorImage(cmdType, buf) {
-    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+    this.executeUnhandled(cmdType, buf);
   }
 }
