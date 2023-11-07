@@ -97,7 +97,8 @@ export class GBI0 extends GBI1 {
     }
 
     this.pushRDPCommandU32(cmd1);
-    this.rdpTriangle.load(this.rdpCommandDV, 0);
+    const rdpBuf = new rdp.RDPBuffer(this.rdpCommandDV, 0, this.rdpCommandDV.byteLength);
+    this.rdpTriangle.load(rdpBuf);
 
     // TODO: this hackily assumes GE is always rendering a screen space rectangle
     // but ideally this should be generalised.
@@ -118,7 +119,6 @@ export class GBI0 extends GBI1 {
 
     if (dis) {
       let t = `lleRect(${tileIdx}, [${vertices}], [${uvs}], [${colours}])`;
-      const rdpBuf = new RDPBuffer(this.rdpCommandDV, 0, this.rdpCommandDV.byteLength);
       const dasm = rdpdis.disassembleCommand(rdpBuf);
       if (dasm) {
         t += dasm.disassembly;
