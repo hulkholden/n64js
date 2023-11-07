@@ -49,29 +49,29 @@ const commandTable = (() => {
   return tbl;
 })();
 
-function commandBytes(cmdType, dv, offset) {
+function commandBytes(cmdType, buf) {
   let t = [];
   const len = rdp.CommandLengths[cmdType] * 8;
   for (let i = 0; i < len; i += 8) {
-    t.push(toHex(dv.getBigUint64(offset + i, false), 64));
+    t.push(toHex(buf.getU64(i), 64));
   }
   return t.join(' ');
 }
 
-function disassembleUnknown(cmdType, dv, offset) {
+function disassembleUnknown(cmdType, buf) {
   return 'Unknown';
 }
 
-function disassembleUnhandled(cmdType, dv, offset) {
+function disassembleUnhandled(cmdType, buf) {
   return ''
 }
 
-function disassembleNop(cmdType, dv, offset) {
+function disassembleNop(cmdType, buf) {
   return '';
 }
 
-function disassembleTriangle(cmdType, dv, offset) {
-  triangle.load(dv, offset);
+function disassembleTriangle(cmdType, buf) {
+  triangle.load(buf);
   return '\n' + triangle.toString();
 }
 
@@ -82,38 +82,43 @@ function padString(t, len) {
   return t;
 }
 
-export function disassembleCommand(dv, beginAddr, endAddr) {
-  const offset = beginAddr;
-  if (offset + 4 > endAddr) {
+export function disassembleCommand(buf) {
+  buf = buf.clone();
+
+  if (buf.bytesRemaining() < 4) {
     return null;
   }
 
-  const cmd = dv.getUint32(offset, false);
+  const beginAddr = buf.curAddr;
+  const cmd = buf.getU32(0);
   const cmdType = (cmd >> 24) & 63;
   const cmdLen = rdp.CommandLengths[cmdType] * 8;
-  if (offset + cmdLen > endAddr) {
+  if (buf.bytesRemaining() < cmdLen) {
     return null;
   }
 
   const name = padString(rdp.Commands.nameOf(cmdType), 24);
-  let disassembly = `${name}${commandBytes(cmdType, dv, offset)}`;
-  disassembly += commandTable[cmdType](cmdType, dv, offset);
+  let disassembly = `${name}${commandBytes(cmdType, buf)}`;
+  disassembly += commandTable[cmdType](cmdType, buf);
   return {
     address: beginAddr,
     disassembly: disassembly,
   };
 }
 
-export function disassembleRange(dv, beginAddr, endAddr, addrMask) {
+export function disassembleRange(buf) {
+  buf = buf.clone();
+
   const disassembly = [];
-  let addr = beginAddr;
-  while (addr < endAddr) {
-    const cmd = dv.getUint32(addr & addrMask, false);
+  while (!buf.empty()) {
+    const cmd = buf.getU32(0);
     const cmdType = (cmd >> 24) & 63;
     const cmdLen = rdp.CommandLengths[cmdType] * 8;
-    const d = disassembleCommand(dv, addr, endAddr);
+
+    const d = disassembleCommand(buf);
     disassembly.push(d);
-    addr += cmdLen;
+
+    buf.advance(cmdLen);
   }
   return disassembly;
 }

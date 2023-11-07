@@ -59,6 +59,43 @@ const RGBA_PRECISION_BITS = 16;
 
 const UV_PRECISION_BITS = 16;
 
+export class RDPBuffer {
+  constructor(dv, curAddr, endAddr, addrMask) {
+    addrMask = addrMask || 0xffff_ffff;
+
+    this.dv = dv;
+    this.curAddr = curAddr;
+    this.endAddr = endAddr;
+    this.addrMask = addrMask;
+  }
+
+  clone() {
+    return new RDPBuffer(this.dv, this.curAddr, this.endAddr, this.addrMask);
+  }
+
+  getU32(offset) {
+    return this.dv.getUint32((this.curAddr + offset) & this.addrMask, false);
+  }
+
+  getU64(offset) {
+    return this.dv.getBigUint64((this.curAddr + offset) & this.addrMask, false);
+  }
+
+  advance(offset) {
+    this.curAddr += offset;
+  }
+
+  bytesRemaining() {
+    // FIXME: this needs to handle wrapping around DMEM.
+    return this.endAddr - this.curAddr;
+  }
+
+  empty() {
+    // FIXME: this needs to handle wrapping around DMEM.
+    return this.curAddr >= this.endAddr;
+  }
+}
+
 class IVec4 {
   constructor(displayPrecisionBits) {
     this.displayPrecisionBits = displayPrecisionBits;
@@ -66,10 +103,10 @@ class IVec4 {
   }
 
   loadHiLo(dv, offset) {
-    this.elems[0] = makeHi(dv, offset, 0, 16);
-    this.elems[1] = makeLo(dv, offset, 0, 16);
-    this.elems[2] = makeHi(dv, offset, 4, 20);
-    this.elems[3] = makeLo(dv, offset, 4, 20);
+    this.elems[0] = makeHi(dv, offset + 0, offset + 16);
+    this.elems[1] = makeLo(dv, offset + 0, offset + 16);
+    this.elems[2] = makeHi(dv, offset + 4, offset + 20);
+    this.elems[3] = makeLo(dv, offset + 4, offset + 20);
   }
 
   toString() {
@@ -78,12 +115,12 @@ class IVec4 {
   }
 }
 
-function makeHi(dv, offset, a, b) {
-  return (dv.getUint32(offset + a, false) & 0xffff0000) | ((dv.getUint32(offset + b, false) >>> 16) & 0xffff);
+function makeHi(buf, a, b) {
+  return (buf.getU32(a) & 0xffff0000) | ((buf.getU32(b) >>> 16) & 0xffff);
 }
 
-function makeLo(dv, offset, a, b) {
-  return (dv.getUint32(offset + a, false) << 16) | (dv.getUint32(offset + b, false) & 0xffff);
+function makeLo(buf, a, b) {
+  return (buf.getU32(a) << 16) | (buf.getU32(b) & 0xffff);
 }
 
 export class Triangle {
@@ -126,61 +163,61 @@ export class Triangle {
     this.dstw_dy = new IVec4(UV_PRECISION_BITS + 5);
   }
 
-  load(dv, offset) {
-    const cmdType = (dv.getUint32(offset + 0) >> 24) & 63;
+  load(buf) {
+    const cmdType = (buf.getU32(0) >> 24) & 63;
 
     this.type = cmdType;
     this.shade = (cmdType & 4) != 0;
     this.texture = (cmdType & 2) != 0;
     this.zbuffer = (cmdType & 1) != 0;
-    
-    this.loadEdge(dv, offset);
-    offset += 32;
-  
+
+    this.loadEdge(buf);
+    buf.advance(32);
+
     if (this.shade) {
-      this.loadShade(dv, offset);
-      offset += 64;
+      this.loadShade(buf);
+      buf.advance(64);
     }
     if (this.texture) {
-      this.loadTexture(dv, offset);
-      offset += 64;
+      this.loadTexture(buf);
+      buf.advance(64);
     }
   }
 
-  loadEdge(dv, offset) {
-    this.tile = (dv.getUint32(offset + 0, false) >> 16) & 7;
+  loadEdge(buf) {
+    this.tile = (buf.getU32(0) >> 16) & 7;
 
     // Whether the triangle is left (0) or right (1) major.
-    this.flip = (dv.getUint32(offset + 0, false) & 0x80_0000) != 0;
+    this.flip = (buf.getU32(0) & 0x80_0000) != 0;
 
     // signed 14 bit.
-    this.yl = signExtend14(dv.getUint32(offset + 0, false) >> 0);
-    this.ym = signExtend14(dv.getUint32(offset + 4, false) >> 16);
-    this.yh = signExtend14(dv.getUint32(offset + 4, false) >> 0);
+    this.yl = signExtend14(buf.getU32(0) >> 0);
+    this.ym = signExtend14(buf.getU32(4) >> 16);
+    this.yh = signExtend14(buf.getU32(4) >> 0);
 
     // signed 28 bit 
-    this.xl = signExtend28(dv.getUint32(offset + 8, false));
-    this.xh = signExtend28(dv.getUint32(offset + 16, false));
-    this.xm = signExtend28(dv.getUint32(offset + 24, false));
+    this.xl = signExtend28(buf.getU32(8));
+    this.xh = signExtend28(buf.getU32(16));
+    this.xm = signExtend28(buf.getU32(24));
 
     // signed 28 bit 
-    this.dxldy = signExtend28(dv.getUint32(offset + 12, false));
-    this.dxhdy = signExtend28(dv.getUint32(offset + 20, false));
-    this.dxmdy = signExtend28(dv.getUint32(offset + 28, false));
+    this.dxldy = signExtend28(buf.getU32(12));
+    this.dxhdy = signExtend28(buf.getU32(20));
+    this.dxmdy = signExtend28(buf.getU32(28));
   }
 
-  loadShade(dv, offset) {
-    this.rgba.loadHiLo(dv, offset + 0);
-    this.drgba_dx.loadHiLo(dv, offset + 8);
-    this.drgba_de.loadHiLo(dv, offset + 32);
-    this.drgba_dy.loadHiLo(dv, offset + 40);
+  loadShade(buf) {
+    this.rgba.loadHiLo(buf, 0);
+    this.drgba_dx.loadHiLo(buf, 8);
+    this.drgba_de.loadHiLo(buf, 32);
+    this.drgba_dy.loadHiLo(buf, 40);
   }
 
-  loadTexture(dv, offset) {
-    this.stw.loadHiLo(dv, offset + 0);
-    this.dstw_dx.loadHiLo(dv, offset + 8);
-    this.dstw_de.loadHiLo(dv, offset + 32);
-    this.dstw_dy.loadHiLo(dv, offset + 40);
+  loadTexture(buf) {
+    this.stw.loadHiLo(buf, 0);
+    this.dstw_dx.loadHiLo(buf, 8);
+    this.dstw_de.loadHiLo(buf, 32);
+    this.dstw_dy.loadHiLo(buf, 40);
   }
 
   interpolateX(y) {
@@ -237,7 +274,7 @@ export class Triangle {
     const ymSpan = this.interpolateX(this.ym);
     const x0 = Math.min(yhSpan[0], ymSpan[0]);
     const x1 = Math.max(yhSpan[1], ymSpan[1]);
-  
+
     const uv00 = this.interpolateTexture(x0, y0);
     const uv10 = this.interpolateTexture(x1, y0);
     const uv01 = this.interpolateTexture(x0, y1);
@@ -249,7 +286,7 @@ export class Triangle {
       uv10.elems[0] * uvScale, uv10.elems[1] * uvScale,
       uv01.elems[0] * uvScale, uv01.elems[1] * uvScale,
       uv11.elems[0] * uvScale, uv11.elems[1] * uvScale,
-    ]; 
+    ];
   }
 
   toString() {

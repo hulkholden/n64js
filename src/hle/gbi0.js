@@ -118,7 +118,8 @@ export class GBI0 extends GBI1 {
 
     if (dis) {
       let t = `lleRect(${tileIdx}, [${vertices}], [${uvs}], [${colours}])`;
-      const dasm = rdpdis.disassembleCommand(this.rdpCommandDV, 0, this.rdpCommandDV.byteLength);
+      const rdpBuf = new RDPBuffer(this.rdpCommandDV, 0, this.rdpCommandDV.byteLength);
+      const dasm = rdpdis.disassembleCommand(rdpBuf);
       if (dasm) {
         t += dasm.disassembly;
       }

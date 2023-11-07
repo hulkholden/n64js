@@ -16,7 +16,8 @@ describe('Texture', () => {
       0xfff6ffee, 0xff5d0000, 0xfff6ffee, 0xff5d0000, 0x292ceb24, 0x70470154, 0x292ceb24, 0x70470154,
     ]);
     beforeEach(function () {
-      triangle.load(commands, 0);
+      const buf = new rdp.RDPBuffer(commands, 0, commands.byteLength, 0xffff_ffff);
+      triangle.load(buf);
     });
 
     test('initialize members', () => {
@@ -67,7 +68,8 @@ describe('Texture', () => {
       0xfffcfffc, 0xffdd0000, 0xfffcfffd, 0xffdc0000, 0xe2483af8, 0x420a0000, 0xd666d284, 0xaa360000,
     ]);
     beforeEach(function () {
-      triangle.load(commands, 0);
+      const buf = new rdp.RDPBuffer(commands, 0, commands.byteLength, 0xffff_ffff);
+      triangle.load(buf);
     });
 
     test('initialize members', () => {
@@ -118,7 +120,8 @@ describe('Texture', () => {
       0xfffcfffd, 0xffdc0000, 0xfffcfffd, 0xffdc0000, 0xcfe8ce0b, 0x61ac0000, 0xcfe8ce0b, 0x61ac0000,
     ]);
     beforeEach(function () {
-      triangle.load(commands, 0);
+      const buf = new rdp.RDPBuffer(commands, 0, commands.byteLength, 0xffff_ffff);
+      triangle.load(buf);
     });
 
     test('initialize members', () => {
