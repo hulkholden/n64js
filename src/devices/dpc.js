@@ -35,10 +35,33 @@ const DPC_STATUS_DMA_BUSY = 0x100;
 const DPC_STATUS_END_VALID = 0x200;
 const DPC_STATUS_START_VALID = 0x400;
 
+const addressWritableBits = 0x00ff_fff8;
+const statusWritableBits = 0x7ff;
+
 export class DPCDevice extends Device {
   constructor(hardware, rangeStart, rangeEnd) {
     super("DPC", hardware, hardware.dpc_mem, rangeStart, rangeEnd);
   }
+
+  // Raw register values.
+  get startReg() { return this.mem.getU32(DPC_START_REG); }
+  get endReg() { return this.mem.getU32(DPC_END_REG); }
+  get currentReg() { return this.mem.getU32(DPC_CURRENT_REG); }
+  get statusReg() { return this.mem.getU32(DPC_STATUS_REG); }
+
+  set startReg(val) { this.mem.set32(DPC_START_REG, val & addressWritableBits); }
+  set endReg(val) { this.mem.set32(DPC_END_REG, val & addressWritableBits); }
+  set currentReg(val) { this.mem.set32(DPC_CURRENT_REG, val & addressWritableBits); }
+  set statusReg(val) { this.mem.set32(DPC_STATUS_REG, val & statusWritableBits); }
+
+  setStatusBits(bits, enabled) {
+    this.mem.set32masked(DPC_STATUS_REG, enabled ? bits : 0, bits);
+  }
+
+  // Values derived from the registers.
+  get xbusDmemDMA() { return (this.statusReg & DPC_STATUS_XBUS_DMEM_DMA) != 0; }
+  get startValid() { return (this.statusReg & DPC_STATUS_START_VALID) != 0; }
+  set startValid(val) { this.setStatusBits(DPC_STATUS_START_VALID, val); }
 
   write32(address, value) {
     this.writeReg32(this.calcWriteEA(address), value);
@@ -51,14 +74,29 @@ export class DPCDevice extends Device {
     switch (ea) {
       case DPC_START_REG:
         if (!this.quiet) { logger.log(`DPC start set to: ${toString32(value)}`); }
-        this.mem.set32(ea, value);
-        this.mem.set32(DPC_CURRENT_REG, value);
+
+        if (this.startValid) {
+          // Subsequent writes to startReg are ignored.
+        } else {
+          this.startReg = value;
+          this.startValid = true;
+        }
         break;
       case DPC_END_REG:
         if (!this.quiet) { logger.log(`DPC end set to: ${toString32(value)}`); }
-        this.mem.set32(ea, value);
-        //mi_reg.setBits32(MI_INTR_REG, MI_INTR_DP);
-        //n64js.cpu0.updateCause3();
+
+        this.currentReg = this.startReg;
+        this.endReg = value;
+        if (this.startValid) {
+          // No transfer in progress? Set end, start running
+          // Transfer in progress? Set end pending
+        } else {
+          // Incremental transfer.
+        }
+
+        this.startValid = false;
+        this.setStatusBits(DPC_STATUS_CBUF_READY | DPC_STATUS_PIPE_BUSY | DPC_STATUS_START_GCLK, true);
+        this.processBuffer();
         break;
       case DPC_STATUS_REG:
         //if (!this.quiet) { logger.log(`DPC status set to: ${toString32(value)}` ); }
@@ -102,7 +140,7 @@ export class DPCDevice extends Device {
     if (value & DPC_CLR_XBUS_DMEM_DMA) { dpcStatus &= ~DPC_STATUS_XBUS_DMEM_DMA; }
     if (value & DPC_SET_XBUS_DMEM_DMA) { dpcStatus |= DPC_STATUS_XBUS_DMEM_DMA; }
     if (value & DPC_CLR_FREEZE) { dpcStatus &= ~DPC_STATUS_FREEZE; }
-    //if (value & DPC_SET_FREEZE) { dpc_status |=  DPC_STATUS_FREEZE; }  // Thanks Lemmy! <= what's wrong with this? ~ Salvy
+    if (value & DPC_SET_FREEZE) { dpcStatus |= DPC_STATUS_FREEZE; }
     if (value & DPC_CLR_FLUSH) { dpcStatus &= ~DPC_STATUS_FLUSH; }
     if (value & DPC_SET_FLUSH) { dpcStatus |= DPC_STATUS_FLUSH; }
 
@@ -114,19 +152,26 @@ export class DPCDevice extends Device {
     if (value & DPC_CLR_CLOCK_CTR)         { this.mem.set32(DPC_CLOCK_REG, 0); }
     */
 
-    // if (value & DPC_CLR_XBUS_DMEM_DMA)  { logger.log('DPC_CLR_XBUS_DMEM_DMA'); }
-    // if (value & DPC_SET_XBUS_DMEM_DMA)  { logger.log('DPC_SET_XBUS_DMEM_DMA'); }
-    // if (value & DPC_CLR_FREEZE)         { logger.log('DPC_CLR_FREEZE'); }
-    // if (value & DPC_SET_FREEZE)         { logger.log('DPC_SET_FREEZE'); }
-    // if (value & DPC_CLR_FLUSH)          { logger.log('DPC_CLR_FLUSH'); }
-    // if (value & DPC_SET_FLUSH)          { logger.log('DPC_SET_FLUSH'); }
-    // if (value & DPC_CLR_TMEM_CTR)       { logger.log('DPC_CLR_TMEM_CTR'); }
-    // if (value & DPC_CLR_PIPE_CTR)       { logger.log('DPC_CLR_PIPE_CTR'); }
-    // if (value & DPC_CLR_CMD_CTR)        { logger.log('DPC_CLR_CMD_CTR'); }
-    // if (value & DPC_CLR_CLOCK_CTR)      { logger.log('DPC_CLR_CLOCK_CTR'); }
-
-    //logger.log( `Modified DPC_STATUS_REG - now ${toString32(dpc_status)}` );
-
     this.mem.set32(DPC_STATUS_REG, dpcStatus);
+  }
+
+  processBuffer() {
+    let rdpBuf
+    if (this.xbusDmemDMA) {
+      const dv = this.hardware.sp_mem.subRegion(0x0000, 0x1000).dataView;
+      rdpBuf = new RDPBuffer(dv, this.currentReg, this.endReg, 0xfff);
+    } else {
+      const dv = this.hardware.cachedMemDevice.mem.dataView;
+      rdpBuf = new RDPBuffer(dv, this.currentReg, this.endReg);
+    }
+
+    this.hardware.rdp.run(rdpBuf);
+    this.currentReg = rdpBuf.curAddr;
+  }
+
+  syncFull() {
+    this.setStatusBits(DPC_STATUS_PIPE_BUSY | DPC_STATUS_START_GCLK, false);
+    this.hardware.mi_reg.setBits32(mi.MI_INTR_REG, mi.MI_INTR_DP);
+    n64js.cpu0.updateCause3();
   }
 }
