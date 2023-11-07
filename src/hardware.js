@@ -14,6 +14,7 @@ import { ROMD1A1Device, ROMD1A2Device, ROMD1A3Device, ROMD2A1Device, ROMD2A2Devi
 import { SIRegDevice } from './devices/si.js';
 import { SPMemDevice, SPIBISTDevice, SPRegDevice } from './devices/sp.js';
 import { VIRegDevice } from './devices/vi.js';
+import { RDP } from './lle/rdp.js';
 import { MemoryMap } from './memmap.js';
 import { MemoryRegion } from './memory_region.js';
 import { CPU0, CPU2 } from './r4300.js';
@@ -147,6 +148,7 @@ export class Hardware {
     this.cpu0 = new CPU0(this);
     this.cpu1 = new CPU1(this);
     this.cpu2 = new CPU2(this);
+    this.rdp = new RDP(this);
   }
 
   reset() {

@@ -328,3 +328,182 @@ function signExtend14(x) {
 function signExtend28(x) {
   return (x << 4) >> 4;
 }
+
+export class RDP {
+  constructor(hardware) {
+    this.hardware = hardware;
+    this.commandTable = this.makeCommandTable();
+  }
+
+  makeCommandTable() {
+    let tbl = [];
+    for (let i = 0; i < 64; i++) {
+      tbl.push(this.executeUnknown.bind(this));
+    }
+
+    tbl[Commands.Nop] = this.executeNop.bind(this);
+    tbl[Commands.FillTriangle] = this.executeTriangle.bind(this);
+    tbl[Commands.FillZBufferTriangle] = this.executeTriangle.bind(this);
+    tbl[Commands.TextureTriangle] = this.executeTriangle.bind(this);
+    tbl[Commands.TextureZBufferTriangle] = this.executeTriangle.bind(this);
+    tbl[Commands.ShadeTriangle] = this.executeTriangle.bind(this);
+    tbl[Commands.ShadeZBufferTriangle] = this.executeTriangle.bind(this);
+    tbl[Commands.ShadeTextureTriangle] = this.executeTriangle.bind(this);
+    tbl[Commands.ShadeTextureZBufferTriangle] = this.executeTriangle.bind(this);
+    tbl[Commands.TextureRectangle] = this.executeUnhandled.bind(this);
+    tbl[Commands.TextureRectangleFlip] = this.executeUnhandled.bind(this);
+    tbl[Commands.SyncLoad] = this.executeSyncLoad.bind(this);
+    tbl[Commands.SyncPipe] = this.executeSyncPipe.bind(this);
+    tbl[Commands.SyncTile] = this.executeSyncTile.bind(this);
+    tbl[Commands.SyncFull] = this.executeSyncFull.bind(this);
+    tbl[Commands.SetKeyGB] = this.executeSetKeyGB.bind(this);
+    tbl[Commands.SetKeyR] = this.executeSetKeyR.bind(this);
+    tbl[Commands.SetConvert] = this.executeSetConvert.bind(this);
+    tbl[Commands.SetScissor] = this.executeSetScissor.bind(this);
+    tbl[Commands.SetPrimDepth] = this.executeSetPrimDepth.bind(this);
+    tbl[Commands.SetOtherModes] = this.executeSetOtherModes.bind(this);
+    tbl[Commands.LoadTLut] = this.executeLoadTLut.bind(this);
+    tbl[Commands.SetTileSize] = this.executeSetTileSize.bind(this);
+    tbl[Commands.LoadBlock] = this.executeLoadBlock.bind(this);
+    tbl[Commands.LoadTile] = this.executeLoadTile.bind(this);
+    tbl[Commands.SetTile] = this.executeSetTile.bind(this);
+    tbl[Commands.FillRectangle] = this.executeFillRectangle.bind(this);
+    tbl[Commands.SetFillColor] = this.executeSetFillColor.bind(this);
+    tbl[Commands.SetFogColor] = this.executeSetFogColor.bind(this);
+    tbl[Commands.SetBlendColor] = this.executeSetBlendColor.bind(this);
+    tbl[Commands.SetPrimColor] = this.executeSetPrimColor.bind(this);
+    tbl[Commands.SetEnvColor] = this.executeSetEnvColor.bind(this);
+    tbl[Commands.SetCombine] = this.executeSetCombine.bind(this);
+    tbl[Commands.SetTextureImage] = this.executeSetTextureImage.bind(this);
+    tbl[Commands.SetMaskImage] = this.executeSetMaskImage.bind(this);
+    tbl[Commands.SetColorImage] = this.executeSetColorImage.bind(this);
+
+    return tbl;
+  }
+
+  run(buf) {
+    while (!buf.empty()) {
+      const cmd = buf.getU32(0);
+      const cmdType = (cmd >> 24) & 63;
+      const cmdLen = CommandLengths[cmdType] * 8;
+      const nextAddr = buf.curAddr + cmdLen;
+      this.commandTable[cmdType](cmdType, buf);
+      buf.curAddr = nextAddr;
+    }
+  }
+
+  executeNop(cmdType, buf) {
+  }
+
+  executeUnknown(cmdType, buf) {
+    console.log(`Unknown RDP command: ${Commands.nameOf(cmdType)}`);
+  }
+
+  executeUnhandled(cmdType, buf) {
+    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+  }
+
+  executeTriangle(cmdType, buf) {
+    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+  }
+
+  executeSyncLoad(cmdType, buf) {
+    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+  }
+
+  executeSyncPipe(cmdType, buf) {
+    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+  }
+
+  executeSyncTile(cmdType, buf) {
+    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+  }
+
+  executeSyncFull(cmdType, buf) {
+    this.hardware.dpcDevice.syncFull();
+  }
+
+  executeSetKeyGB(cmdType, buf) {
+    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+  }
+
+  executeSetKeyR(cmdType, buf) {
+    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+  }
+
+  executeSetConvert(cmdType, buf) {
+    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+  }
+
+  executeSetScissor(cmdType, buf) {
+    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+  }
+
+  executeSetPrimDepth(cmdType, buf) {
+    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+  }
+
+  executeSetOtherModes(cmdType, buf) {
+    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+  }
+
+  executeLoadTLut(cmdType, buf) {
+    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+  }
+
+  executeSetTileSize(cmdType, buf) {
+    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+  }
+
+  executeLoadBlock(cmdType, buf) {
+    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+  }
+
+  executeLoadTile(cmdType, buf) {
+    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+  }
+
+  executeSetTile(cmdType, buf) {
+    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+  }
+
+  executeFillRectangle(cmdType, buf) {
+    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+  }
+
+  executeSetFillColor(cmdType, buf) {
+    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+  }
+
+  executeSetFogColor(cmdType, buf) {
+    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+  }
+
+  executeSetBlendColor(cmdType, buf) {
+    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+  }
+
+  executeSetPrimColor(cmdType, buf) {
+    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+  }
+
+  executeSetEnvColor(cmdType, buf) {
+    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+  }
+
+  executeSetCombine(cmdType, buf) {
+    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+  }
+
+  executeSetTextureImage(cmdType, buf) {
+    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+  }
+
+  executeSetMaskImage(cmdType, buf) {
+    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+  }
+
+  executeSetColorImage(cmdType, buf) {
+    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+  }
+}
