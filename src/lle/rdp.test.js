@@ -23,7 +23,7 @@ describe('Texture', () => {
     test('initialize members', () => {
       expect(triangle.type).toEqual(14);
       expect(triangle.tile).toEqual(0);
-      expect(triangle.flip).toEqual(false);
+      expect(triangle.rightMajor).toEqual(false);
       expect(triangle.shade).toEqual(true);
       expect(triangle.texture).toEqual(true);
       expect(triangle.zbuffer).toEqual(false);
@@ -75,7 +75,7 @@ describe('Texture', () => {
     test('initialize members', () => {
       expect(triangle.type).toEqual(14);
       expect(triangle.tile).toEqual(0);
-      expect(triangle.flip).toEqual(true);
+      expect(triangle.rightMajor).toEqual(true);
       expect(triangle.shade).toEqual(true);
       expect(triangle.texture).toEqual(true);
       expect(triangle.zbuffer).toEqual(false);
@@ -127,7 +127,7 @@ describe('Texture', () => {
     test('initialize members', () => {
       expect(triangle.type).toEqual(14);
       expect(triangle.tile).toEqual(0);
-      expect(triangle.flip).toEqual(true);
+      expect(triangle.rightMajor).toEqual(true);
       expect(triangle.shade).toEqual(true);
       expect(triangle.texture).toEqual(true);
       expect(triangle.zbuffer).toEqual(false);

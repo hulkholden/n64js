@@ -128,7 +128,7 @@ export class Triangle {
     this.type = 0;
     this.tile = 0;
 
-    this.flip = false;
+    this.rightMajor = false;
 
     this.shade = false;
     this.texture = false;
@@ -188,7 +188,7 @@ export class Triangle {
     this.tile = (buf.getU32(0) >> 16) & 7;
 
     // Whether the triangle is left (0) or right (1) major.
-    this.flip = (buf.getU32(0) & 0x80_0000) != 0;
+    this.rightMajor = (buf.getU32(0) & 0x80_0000) != 0;
 
     // signed 14 bit.
     this.yl = signExtend14(buf.getU32(0) >> 0);
@@ -232,8 +232,8 @@ export class Triangle {
       x0 = this.xl + (y - ymBase) * this.dxldy;
     }
 
-    const xleft = this.flip ? x1 : x0;
-    const xright = this.flip ? x0 : x1;
+    const xleft = this.rightMajor ? x1 : x0;
+    const xright = this.rightMajor ? x0 : x1;
     return [xleft >> X_FRAC_BITS, xright >> X_FRAC_BITS];
   }
 
