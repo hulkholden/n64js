@@ -12,9 +12,13 @@ export const graphicsOptions = {
 
   // Whether to use high or low level emulation.
   emulationMode: 'HLE',
+
+  // Whether to dump RDP commands.
+  dumpRDP: false,
 };
 const folder = dbgGUI.addFolder('Graphics');
-folder.add(graphicsOptions, 'emulationMode', { HLE: 'HLE', LLE: 'LLE' }).name('Emulation Mode');
 folder.add(graphicsOptions, 'canvasScale').name('Canvas Scale').min(1).max(4).step(0.25);
 folder.add(graphicsOptions, 'haltOnWarning').name('Halt on Warning');
 folder.add(graphicsOptions, 'dumpMicrocodeSubstring').name('Dump Microcode');
+folder.add(graphicsOptions, 'emulationMode', { HLE: 'HLE', LLE: 'LLE' }).name('Emulation Mode');
+folder.add(graphicsOptions, 'dumpRDP').name('Dump RDP');

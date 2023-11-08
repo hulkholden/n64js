@@ -116,7 +116,9 @@ export function disassembleRange(buf) {
     const cmdLen = rdp.CommandLengths[cmdType] * 8;
 
     const d = disassembleCommand(buf);
-    disassembly.push(d);
+    if (d != null) {
+      disassembly.push(d);
+    }
 
     buf.advance(cmdLen);
   }

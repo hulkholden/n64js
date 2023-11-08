@@ -165,6 +165,15 @@ export class DPCDevice extends Device {
       rdpBuf = new RDPBuffer(dv, this.currentReg, this.endReg);
     }
 
+    if (graphicsOptions.dumpRDP) {
+      console.log(`Processing RDP buffer: start ${toString32(this.startReg)}, current ${toString32(this.currentReg)}, end ${toString32(this.endReg)}, xbus ${this.xbusDmemDMA}`);
+      const dasm = disassembleRange(rdpBuf);
+      dasm.forEach(d => {
+        console.log(`${toHex(d.address, 24)}: ${d.disassembly}`);
+      });
+      graphicsOptions.dumpRDP = false;
+    }
+
     this.hardware.rdp.run(rdpBuf);
     this.currentReg = rdpBuf.curAddr;
   }
