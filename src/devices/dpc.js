@@ -1,6 +1,12 @@
+/*global n64js*/
+
 import { Device } from './device.js';
-import { toString32 } from '../format.js';
+import { toHex, toString32 } from '../format.js';
 import * as logger from '../logger.js';
+import * as mi from './mi.js';
+import { RDPBuffer } from '../lle/rdp.js';
+import { disassembleRange } from '../hle/disassemble_rdp.js';
+import { graphicsOptions } from '../hle/graphics_options.js';
 
 // DP Command
 const DPC_START_REG = 0x00;
