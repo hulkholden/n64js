@@ -1046,7 +1046,7 @@ export class CPU0 {
   // Provide some wrappers to the event queue.
   addEvent(type, cycles, handler) { return this.eventQueue.addEvent(type, cycles, handler); }
   removeEvent(type) { return this.eventQueue.removeEvent(type); }
-  getCyclesUntilEvent(type) { this.eventQueue.getCyclesUntilEvent(type); }
+  getCyclesUntilEvent(type) { return this.eventQueue.getCyclesUntilEvent(type); }
   hasEvent(type) { return this.eventQueue.hasEvent(type); }
   
   addCompareEvent(cycles) {
