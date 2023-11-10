@@ -1199,18 +1199,31 @@ const vsarLow = 10;
 
 // Vector Accumulator Read (and Write).
 function executeVSAR(i) {
-  // Default to a shift of 64 to produce zeros.
-  let shift = 64n;
-  switch (cop2E(i)) {
-    case vsarHigh: shift = 32n; break;
-    case vsarMid: shift = 16n; break;
-    case vsarLow: shift = 0n; break;
-  }
-
   const d = cop2VD(i);
-  for (let el = 0; el < 8; el++) {
-    rsp.setVecS16(d, el, Number(rsp.vAcc[el] >> shift));
-    // TODO: Set vAcc from VS register value.
+
+  // TODO: The docs suggest we need to set vAcc from VS register value.
+
+  switch (cop2E(i)) {
+    case vsarHigh:
+      for (let el = 0; el < 8; el++) {
+        rsp.setVecS16(d, el, rsp.getAccHigh(el));
+      }
+      break;
+    case vsarMid:
+      for (let el = 0; el < 8; el++) {
+        rsp.setVecS16(d, el, rsp.getAccMid(el));
+      }
+      break;
+    case vsarLow:
+      for (let el = 0; el < 8; el++) {
+        rsp.setVecS16(d, el, rsp.getAccLow(el));
+      }
+      break;
+    default:
+      for (let el = 0; el < 8; el++) {
+        rsp.setVecS16(d, el, 0);
+      }
+      break;
   }
 }
 
