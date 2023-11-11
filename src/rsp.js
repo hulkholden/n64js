@@ -269,7 +269,7 @@ class RSP {
     for (let el = 0; el < 8; el++) {
       const himid = this.getAccHighMid(el);
       const lo = this.getAccLow(el);
-      
+
       let res;
       if (himid >= 0) {
         res = (himid & 0xffff_8000) ? 0xffff : lo;
@@ -472,7 +472,7 @@ class RSP {
     if (this.runEvent) {
       this.runEvent.stop();
       this.runEvent = null
-    } 
+    }
   }
 
   disassembleAll() {
