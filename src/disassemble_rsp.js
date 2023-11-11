@@ -321,8 +321,8 @@ const lc2Table = (() => {
   // TODO: flesh these out.
   tbl[0] = i => `LBV       ${i.vmemVT}${i.vmemEls(1)} <- ${i.vmemload(1)}`;
   tbl[1] = i => `LSV       ${i.vmemVT}${i.vmemEls(2)} <- ${i.vmemload(2)}`;
-  tbl[2] = i => `LLV       ${i.vmemVT}${i.vmemEls(3)} <- ${i.vmemload(4)}`;
-  tbl[3] = i => `LDV       ${i.vmemVT}${i.vmemEls(4)} <- ${i.vmemload(8)}`;
+  tbl[2] = i => `LLV       ${i.vmemVT}${i.vmemEls(4)} <- ${i.vmemload(4)}`;
+  tbl[3] = i => `LDV       ${i.vmemVT}${i.vmemEls(8)} <- ${i.vmemload(8)}`;
   tbl[4] = i => `LQV       ${i.vmemVT} <- ${i.vmemload(16)}`;
   tbl[5] = i => `LRV       ${i.vmemVT} <- ${i.vmemload(16)}`;
   tbl[6] = i => `LPV       ${i.vmemVT} <- ${i.vmemload(8)}`;
