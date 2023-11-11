@@ -7,7 +7,9 @@ export const graphicsOptions = {
   // Whether to halt on unimplemented commands or just log a warning.
   haltOnWarning: false,
 
-  // If set, dump microcodes containing this string to the console.
+  // If set, dump the next RSP microcode to the console.
+  dumpMicrocode: false,
+  // If set, only dump microcodes containing this string.
   dumpMicrocodeSubstring: '',
 
   // Whether to use high or low level emulation.
@@ -19,6 +21,7 @@ export const graphicsOptions = {
 const folder = dbgGUI.addFolder('Graphics');
 folder.add(graphicsOptions, 'canvasScale').name('Canvas Scale').min(1).max(4).step(0.25);
 folder.add(graphicsOptions, 'haltOnWarning').name('Halt on Warning');
-folder.add(graphicsOptions, 'dumpMicrocodeSubstring').name('Dump Microcode');
+folder.add(graphicsOptions, 'dumpMicrocode').name('Dump Microcode');
+folder.add(graphicsOptions, 'dumpMicrocodeSubstring').name('Dump Microcode Substring');
 folder.add(graphicsOptions, 'emulationMode', { HLE: 'HLE', LLE: 'LLE' }).name('Emulation Mode');
 folder.add(graphicsOptions, 'dumpRDP').name('Dump RDP');

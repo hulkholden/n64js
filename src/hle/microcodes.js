@@ -35,15 +35,13 @@ const ucodeOverrides = new Map([
   [0x313f038b, kUCode_GBI0],        // Pilotwings
 ]);
 
-let dumped = false;
-
 export function create(task, state, ramDV) {
   const version = task.detectVersionString();
 
-  const dumpStr = graphicsOptions.dumpMicrocodeSubstring
-  if (dumpStr != '' && !dumped && version.includes(dumpStr)) {
+  const dumpStr = graphicsOptions.dumpMicrocodeSubstring;
+  if (graphicsOptions.dumpMicrocode && (dumpStr == '' || version.includes(dumpStr))) {
     task.dumpCode();
-    dumped = true;
+    graphicsOptions.dumpMicrocode = false;
   }
 
   const hash = task.computeMicrocodeHash();
