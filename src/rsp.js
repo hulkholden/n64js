@@ -432,11 +432,11 @@ class RSP {
 
   conditionalBranch(cond, offset) {
     const effectiveOffset = cond ? (offset * 4) : 4;
-    this.branchTarget = (this.pc + 4 + effectiveOffset) & 0xffc;
+    this.branchTarget = (this.pc + 4 + effectiveOffset) | 0x1000;
   }
 
   jump(pc) {
-    this.branchTarget = (pc >>> 0) & 0xffc;
+    this.branchTarget = (pc >>> 0) | 0x1000;
   }
 
   get pc() { return this.pcDataView.getInt32(0, false); }
@@ -456,7 +456,7 @@ class RSP {
     if (this.halted) {
       return;
     }
-    this.nextPC = this.delayPC || ((this.pc + 4) & 0xffc);
+    this.nextPC = (this.delayPC || (this.pc + 4)) & 0xffc;
 
     const instr = this.imem.getU32(this.pc);
 
