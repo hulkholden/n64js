@@ -304,6 +304,58 @@ class RSP {
     }
   }
 
+  vectorMulFractions(vs, vt, vte, accumulate, roundVal) {
+    for (let el = 0, select = this.vecSelectU32[vte]; el < 8; el++, select >>= 4) {
+      const s = this.getVecS16(vs, el);
+      const t = this.getVecS16(vt, select & 0x7);
+      const r = ((s * t) * 2) + roundVal;
+      this.updateAcc32Signed(el, r, accumulate);
+    }
+  }
+  
+  vectorMulPartialLow(vs, vt, vte, accumulate) {
+    for (let el = 0, select = this.vecSelectU32[vte]; el < 8; el++, select >>= 4) {
+      const s = this.getVecU16(vs, el);
+      const t = this.getVecU16(vt, select & 0x7);
+      const r = (s * t) >>> 16;
+      this.updateAccU32(el, r, accumulate)
+    }
+  }
+  
+  vectorMulPartialMidM(vs, vt, vte, accumulate) {
+    for (let el = 0, select = this.vecSelectU32[vte]; el < 8; el++, select >>= 4) {
+      const s = this.getVecS16(vs, el);
+      const t = this.getVecU16(vt, select & 0x7);
+      this.updateAcc32Signed(el, s * t, accumulate)
+    }
+  }
+  
+  vectorMulPartialMidN(vs, vt, vte, accumulate) {
+    for (let el = 0, select = this.vecSelectU32[vte]; el < 8; el++, select >>= 4) {
+      const s = this.getVecU16(vs, el);
+      const t = this.getVecS16(vt, select & 0x7);
+      this.updateAcc32Signed(el, s * t, accumulate)
+    }
+  }
+  
+  vectorMulPartialHigh(vs, vt, vte, accumulate) {
+    for (let el = 0, select = this.vecSelectU32[vte]; el < 8; el++, select >>= 4) {
+      const s = this.getVecS16(vs, el);
+      const t = this.getVecS16(vt, select & 0x7);
+      this.updateAcc32SignedShift16(el, s * t, accumulate)
+    }
+  }
+  
+  vectorRound(vs, vt, vte, ifGTE) {
+    const shift = (vs & 1) ? 16 : 0;
+    for (let el = 0, select = this.vecSelectU32[vte]; el < 8; el++, select >>= 4) {
+      const acc = this.getAccS48(el);
+      const incr = this.getVecS16(vt, select & 0x7) << shift;
+      const cond = ifGTE ? (acc >= 0) : (acc < 0);
+      this.setAccS48(el, acc + (cond ? BigInt(incr) : 0n));
+    }
+  }
+  
   // Vector Unit (Cop2) Control Registers.
   // VCO = Vector Carry Out, 16 bits.
   // VCC = Vector Compare Code, 16 bits.
@@ -924,139 +976,87 @@ function executeVINST(i) { vectorZero(i); }
 function executeVINSQ(i) { vectorZero(i); }
 function executeVINSN(i) { vectorZero(i); }
 
-function vectorMulFractions(vs, vt, vte, accumulate, roundVal) {
-  for (let el = 0, select = rsp.vecSelectU32[vte]; el < 8; el++, select >>= 4) {
-    const s = rsp.getVecS16(vs, el);
-    const t = rsp.getVecS16(vt, select & 0x7);
-    const r = ((s * t) * 2) + roundVal;
-    rsp.updateAcc32Signed(el, r, accumulate);
-  }
-}
-
-function vectorMulPartialLow(vs, vt, vte, accumulate) {
-  for (let el = 0, select = rsp.vecSelectU32[vte]; el < 8; el++, select >>= 4) {
-    const s = rsp.getVecU16(vs, el);
-    const t = rsp.getVecU16(vt, select & 0x7);
-    const r = (s * t) >>> 16;
-    rsp.updateAccU32(el, r, accumulate)
-  }
-}
-
-function vectorMulPartialMidM(vs, vt, vte, accumulate) {
-  for (let el = 0, select = rsp.vecSelectU32[vte]; el < 8; el++, select >>= 4) {
-    const s = rsp.getVecS16(vs, el);
-    const t = rsp.getVecU16(vt, select & 0x7);
-    rsp.updateAcc32Signed(el, s * t, accumulate)
-  }
-}
-
-function vectorMulPartialMidN(vs, vt, vte, accumulate) {
-  for (let el = 0, select = rsp.vecSelectU32[vte]; el < 8; el++, select >>= 4) {
-    const s = rsp.getVecU16(vs, el);
-    const t = rsp.getVecS16(vt, select & 0x7);
-    rsp.updateAcc32Signed(el, s * t, accumulate)
-  }
-}
-
-function vectorMulPartialHigh(vs, vt, vte, accumulate) {
-  for (let el = 0, select = rsp.vecSelectU32[vte]; el < 8; el++, select >>= 4) {
-    const s = rsp.getVecS16(vs, el);
-    const t = rsp.getVecS16(vt, select & 0x7);
-    rsp.updateAcc32SignedShift16(el, s * t, accumulate)
-  }
-}
-
-function vectorRound(vs, vt, vte, ifGTE) {
-  const shift = (vs & 1) ? 16 : 0;
-  for (let el = 0, select = rsp.vecSelectU32[vte]; el < 8; el++, select >>= 4) {
-    const acc = rsp.getAccS48(el);
-    const incr = rsp.getVecS16(vt, select & 0x7) << shift;
-    const cond = ifGTE ? (acc >= 0) : (acc < 0);
-    rsp.setAccS48(el, acc + (cond ? BigInt(incr) : 0n));
-  }
-}
-
 // Vector Multiply of Signed Fractions.
 function executeVMULF(i) {
-  vectorMulFractions(cop2VS(i), cop2VT(i), cop2E(i), false, 0x8000);
+  rsp.vectorMulFractions(cop2VS(i), cop2VT(i), cop2E(i), false, 0x8000);
   rsp.setVecFromAccSignedMid(cop2VD(i));
 }
 
 // Vector Multiply of Unsigned Fractions.
 function executeVMULU(i) {
-  vectorMulFractions(cop2VS(i), cop2VT(i), cop2E(i), false, 0x8000);
+  rsp.vectorMulFractions(cop2VS(i), cop2VT(i), cop2E(i), false, 0x8000);
   rsp.setVecFromAccUnsignedMid(cop2VD(i));
 }
 
 // Vector Multiply-Accumulate of Signed Fractions.
 function executeVMACF(i) {
-  vectorMulFractions(cop2VS(i), cop2VT(i), cop2E(i), true, 0);
+  rsp.vectorMulFractions(cop2VS(i), cop2VT(i), cop2E(i), true, 0);
   rsp.setVecFromAccSignedMid(cop2VD(i));
 }
 
 // Vector Multiply-Accumulate of Unsigned Fractions.
 function executeVMACU(i) {
-  vectorMulFractions(cop2VS(i), cop2VT(i), cop2E(i), true, 0);
+  rsp.vectorMulFractions(cop2VS(i), cop2VT(i), cop2E(i), true, 0);
   rsp.setVecFromAccUnsignedMid(cop2VD(i));
 }
 
 // Vector Accumulator DCT Rounding (Negative).
 function executeVRNDN(i) {
-  vectorRound(cop2VS(i), cop2VT(i), cop2E(i), false);
+  rsp.vectorRound(cop2VS(i), cop2VT(i), cop2E(i), false);
   rsp.setVecFromAccSignedMid(cop2VD(i));
 }
 
 // Vector Accumulator DCT Rounding (Positive).
 function executeVRNDP(i) {
-  vectorRound(cop2VS(i), cop2VT(i), cop2E(i), true);
+  rsp.vectorRound(cop2VS(i), cop2VT(i), cop2E(i), true);
   rsp.setVecFromAccSignedMid(cop2VD(i));
 }
 
 // Vector Multiply of Low Partial Products.
 function executeVMUDL(i) {
-  vectorMulPartialLow(cop2VS(i), cop2VT(i), cop2E(i), false);
+  rsp.vectorMulPartialLow(cop2VS(i), cop2VT(i), cop2E(i), false);
   rsp.setVecFromAccLow(cop2VD(i));
 }
 
 // Vector Multiply-Accumulate of Low Partial Products.
 function executeVMADL(i) {
-  vectorMulPartialLow(cop2VS(i), cop2VT(i), cop2E(i), true);
+  rsp.vectorMulPartialLow(cop2VS(i), cop2VT(i), cop2E(i), true);
   rsp.setVecFromAccSignedLow(cop2VD(i));
 }
 
 // Vector Multiply of Mid Partial Products.
 function executeVMUDM(i) {
-  vectorMulPartialMidM(cop2VS(i), cop2VT(i), cop2E(i), false);
+  rsp.vectorMulPartialMidM(cop2VS(i), cop2VT(i), cop2E(i), false);
   rsp.setVecFromAccMid(cop2VD(i));
 }
 
 // Vector Multiply-Accumulate of Mid Partial Products.
 function executeVMADM(i) {
-  vectorMulPartialMidM(cop2VS(i), cop2VT(i), cop2E(i), true);
+  rsp.vectorMulPartialMidM(cop2VS(i), cop2VT(i), cop2E(i), true);
   rsp.setVecFromAccSignedMid(cop2VD(i));
 }
 
 // Vector Multiply of Mid Partial Products.
 function executeVMUDN(i) {
-  vectorMulPartialMidN(cop2VS(i), cop2VT(i), cop2E(i), false);
+  rsp.vectorMulPartialMidN(cop2VS(i), cop2VT(i), cop2E(i), false);
   rsp.setVecFromAccLow(cop2VD(i));
 }
 
 // Vector Multiply-Accumulate of Mid Partial Products.
 function executeVMADN(i) {
-  vectorMulPartialMidN(cop2VS(i), cop2VT(i), cop2E(i), true);
+  rsp.vectorMulPartialMidN(cop2VS(i), cop2VT(i), cop2E(i), true);
   rsp.setVecFromAccSignedLow(cop2VD(i));
 }
 
 // Vector Multiply of High Partial Products.
 function executeVMUDH(i) {
-  vectorMulPartialHigh(cop2VS(i), cop2VT(i), cop2E(i), false);
+  rsp.vectorMulPartialHigh(cop2VS(i), cop2VT(i), cop2E(i), false);
   rsp.setVecFromAccSignedMid(cop2VD(i));
 }
 
 // Vector Multiply-Accumulate of High Partial Products.
 function executeVMADH(i) {
-  vectorMulPartialHigh(cop2VS(i), cop2VT(i), cop2E(i), true);
+  rsp.vectorMulPartialHigh(cop2VS(i), cop2VT(i), cop2E(i), true);
   rsp.setVecFromAccSignedMid(cop2VD(i));
 }
 
