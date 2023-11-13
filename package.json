@@ -25,6 +25,7 @@
   "dependencies": {
     "@popperjs/core": "^2.11.8",
     "bootstrap": "^5.3.2",
-    "lil-gui": "^0.18.2"
+    "lil-gui": "^0.18.2",
+    "mitata": "^0.1.6"
   }
 }
