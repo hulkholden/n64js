@@ -208,35 +208,40 @@ class RSP {
 
   setAccS48(el, v) { this.vAcc[el] = BigInt.asIntN(48, v); }
 
-  // Optimised accessors when we are dealing with 32 bit values.
-  // Update the accumulator, v is a signed 32 bit value.
-  updateAcc32Signed(el, v, accumulate) {
-    if (accumulate) {
-      this.setAccS48(el, this.vAcc[el] + BigInt(v));
-    } else {
-      // Note we can't just use v>>31 as we can have 32 bit unsigned values.
-      this.vAccS32[(el * 2) + 1] = (v >= 0) ? 0 : 0xffff_ffff;
-      this.vAccS32[(el * 2) + 0] = v;
-    }
+  // Update the accumulator, v is an unsigned 32 bit value.
+  updateAccLow32(el, v, accumulate) {
+    this.updateAccHiLo(el, 0, v, accumulate);
   }
 
-  // Update the accumulator, v is an unsigned 32 bit value.
-  updateAccU32(el, v, accumulate) {
-    if (accumulate) {
-      this.setAccS48(el, this.vAcc[el] + BigInt(v));
-    } else {
-      this.vAccU32[(el * 2) + 1] = 0;
-      this.vAccU32[(el * 2) + 0] = v;
-    }
+  // Update the accumulator, v is a signed 32 bit value.
+  updateAccMid32(el, v, accumulate) {
+    // Note we can't just use v>>31 as we can have 32 bit unsigned values.
+    const v1 = (v >= 0) ? 0 : -1;
+    const v0 = v | 0;
+    this.updateAccHiLo(el, v1, v0, accumulate);
   }
 
   // Update the accumulator, v is a signed 32 bit value and shifted left by 16 bits before storing.
-  updateAcc32SignedShift16(el, v, accumulate) {
+  updateAccHigh32(el, v, accumulate) {
+    this.updateAccHiLo(el, v >> 16, v << 16, accumulate);
+  }
+
+  updateAccHiLo(el, y1, y0, accumulate) {
     if (accumulate) {
-      this.setAccS48(el, this.vAcc[el] + (BigInt(v) << 16n));
+      const x1 = this.vAccS32[(el * 2) + 1];
+      const x0 = this.vAccU32[(el * 2) + 0];
+
+      // 64-bit addition.
+      const z0 = x0 + y0;
+      const c = ((x0 & y0) | ((x0 | y0) & ~z0)) >>> 31;
+      const z1 = x1 + y1 + c;
+
+      // Truncate to s48 and sign extend.
+      this.vAccS32[(el * 2) + 1] = (z1 << 16) >> 16;
+      this.vAccU32[(el * 2) + 0] = z0;
     } else {
-      this.vAccS32[(el * 2) + 1] = v >> 16;
-      this.vAccS32[(el * 2) + 0] = v << 16;
+      this.vAccU32[(el * 2) + 1] = y1;
+      this.vAccU32[(el * 2) + 0] = y0;
     }
   }
 
@@ -309,43 +314,43 @@ class RSP {
       const s = this.getVecS16(vs, el);
       const t = this.getVecS16(vt, select & 0x7);
       const r = ((s * t) * 2) + roundVal;
-      this.updateAcc32Signed(el, r, accumulate);
+      this.updateAccMid32(el, r, accumulate);
     }
   }
-  
+
   vectorMulPartialLow(vs, vt, vte, accumulate) {
     for (let el = 0, select = this.vecSelectU32[vte]; el < 8; el++, select >>= 4) {
       const s = this.getVecU16(vs, el);
       const t = this.getVecU16(vt, select & 0x7);
       const r = (s * t) >>> 16;
-      this.updateAccU32(el, r, accumulate)
+      this.updateAccLow32(el, r, accumulate)
     }
   }
-  
+
   vectorMulPartialMidM(vs, vt, vte, accumulate) {
     for (let el = 0, select = this.vecSelectU32[vte]; el < 8; el++, select >>= 4) {
       const s = this.getVecS16(vs, el);
       const t = this.getVecU16(vt, select & 0x7);
-      this.updateAcc32Signed(el, s * t, accumulate)
+      this.updateAccMid32(el, s * t, accumulate)
     }
   }
-  
+
   vectorMulPartialMidN(vs, vt, vte, accumulate) {
     for (let el = 0, select = this.vecSelectU32[vte]; el < 8; el++, select >>= 4) {
       const s = this.getVecU16(vs, el);
       const t = this.getVecS16(vt, select & 0x7);
-      this.updateAcc32Signed(el, s * t, accumulate)
+      this.updateAccMid32(el, s * t, accumulate)
     }
   }
-  
+
   vectorMulPartialHigh(vs, vt, vte, accumulate) {
     for (let el = 0, select = this.vecSelectU32[vte]; el < 8; el++, select >>= 4) {
       const s = this.getVecS16(vs, el);
       const t = this.getVecS16(vt, select & 0x7);
-      this.updateAcc32SignedShift16(el, s * t, accumulate)
+      this.updateAccHigh32(el, s * t, accumulate)
     }
   }
-  
+
   vectorRound(vs, vt, vte, ifGTE) {
     const shift = (vs & 1) ? 16 : 0;
     for (let el = 0, select = this.vecSelectU32[vte]; el < 8; el++, select >>= 4) {
@@ -355,7 +360,7 @@ class RSP {
       this.setAccS48(el, acc + (cond ? BigInt(incr) : 0n));
     }
   }
-  
+
   // Vector Unit (Cop2) Control Registers.
   // VCO = Vector Carry Out, 16 bits.
   // VCC = Vector Compare Code, 16 bits.
