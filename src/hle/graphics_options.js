@@ -23,5 +23,5 @@ folder.add(graphicsOptions, 'canvasScale').name('Canvas Scale').min(1).max(4).st
 folder.add(graphicsOptions, 'haltOnWarning').name('Halt on Warning');
 folder.add(graphicsOptions, 'dumpMicrocode').name('Dump Microcode');
 folder.add(graphicsOptions, 'dumpMicrocodeSubstring').name('Dump Microcode Substring');
-folder.add(graphicsOptions, 'emulationMode', { HLE: 'HLE', LLE: 'LLE' }).name('Emulation Mode');
+folder.add(graphicsOptions, 'emulationMode', { 'HLE (Recommended)': 'HLE', 'LLE (Experimental, Slow)': 'LLE' }).name('Emulation Mode');
 folder.add(graphicsOptions, 'dumpRDP').name('Dump RDP');
