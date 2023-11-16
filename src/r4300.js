@@ -2516,8 +2516,9 @@ function addOpToFragment(fragment, entry_pc, instruction, c) {
   fragmentMap.addInstructionToFragment(fragment, entry_pc);
 
   // TODO: can we avoid the stuffToDo check? Throw exception?
+  // TODO: we shouldn't need to set pc for every instruction - this is just to ensure delayedPCUpdate is flushed.
   fragment.bodyCode += 'rsp.step();\n';
-  fragment.bodyCode += `if (c.stuffToDo) { return ${fragment.opsCompiled - 1}; }\n`;
+  fragment.bodyCode += `if (c.stuffToDo) { c.pc = ${entry_pc}; return ${fragment.opsCompiled - 1}; }\n`;
   fragment.bodyCode += `\n`;
 
   const curPC = entry_pc;
