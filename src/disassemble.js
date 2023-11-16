@@ -412,7 +412,7 @@ const cop2Table = [
 if (cop2Table.length != 32) {
   throw "Oops, didn't build the cop2 table correctly";
 }
-function disassembleCop2(i) {f;
+function disassembleCop2(i) {
   return cop2Table[copOp(i.opcode)](i);
 }
 
