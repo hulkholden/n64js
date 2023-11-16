@@ -197,9 +197,9 @@ const kEventCompare = 'Compare';
 const kEventRunForCycles = 'Run For Cycles';
 
 // TODO: figure out what masking and shifting constants this should use.
-function getAddress32VPN2(address) { return (address >>> 13);}
-function getAddress64VPN2(address) { return (address & TLBHI_VPN2MASK) >> TLBHI_VPN2SHIFT;}
-function getAddress64R(address) { return (address & TLBHI_RMASK) >> TLBHI_RSHIFT;}
+function getAddress32VPN2(address) { return (address >>> 13); }
+function getAddress64VPN2(address) { return (address & TLBHI_VPN2MASK) >> TLBHI_VPN2SHIFT; }
+function getAddress64R(address) { return (address & TLBHI_RMASK) >> TLBHI_RSHIFT; }
 
 // Needs to be callable from dynarec.
 n64js.getSyncFlow = () => syncFlow;
@@ -581,7 +581,7 @@ export class CPU0 {
     const control = this.getControlU32(cpu0reg.controlStatus);
     const enable = (control & SR_CU1) !== 0;
     simpleTable[0x11] = enable ? executeCop1 : executeCop1_disabled;
-  
+
     // TODO: this is a bit gross. Maybe there could be a shared register set and both CPU0 and CPU1 have a view?
     if (this.hardware.cpu1) {
       this.hardware.cpu1.fullMode = (control & SR_FR) !== 0;
@@ -729,12 +729,12 @@ export class CPU0 {
 
   run(cycles) {
     this.stuffToDo &= ~kStuffToDoHalt;
-  
+
     this.checkCauseIP3Consistent();
     n64js.hardware().checkSIStatusConsistent();
-  
+
     this.addRunForCyclesEvent(cycles);
-  
+
     while (this.hasEvent(kEventRunForCycles)) {
       try {
         // NB: the bulk of run() is implemented as a separate function.
@@ -754,10 +754,10 @@ export class CPU0 {
         }
       }
     }
-  
+
     // Clean up any kEventRunForCycles events before we bail out
     let cyclesRemaining = this.removeEvent(kEventRunForCycles);
-  
+
     // If the event no longer exists, assume we've executed all the cycles
     if (cyclesRemaining < 0) {
       cyclesRemaining = 0;
@@ -876,7 +876,7 @@ export class CPU0 {
     const toSkip = this.eventQueue.skipToNextEvent(1);
     this.controlCountValue += toSkip;
     // logger.log(`speedhack: skipping ${toSkip} cycles - run is ${runCountdown}`);
-  
+
     // Re-add the kEventRunForCycles event
     if (runCountdown >= 0) {
       this.addRunForCyclesEvent(runCountdown);
@@ -1048,7 +1048,7 @@ export class CPU0 {
   removeEvent(type) { return this.eventQueue.removeEvent(type); }
   getCyclesUntilEvent(type) { return this.eventQueue.getCyclesUntilEvent(type); }
   hasEvent(type) { return this.eventQueue.hasEvent(type); }
-  
+
   addCompareEvent(cycles) {
     const that = this;
     this.addEvent(kEventCompare, cycles, () => {
@@ -1061,9 +1061,9 @@ export class CPU0 {
     const that = this;
     this.addEvent(kEventRunForCycles, cycles, () => {
       that.stuffToDo |= kStuffToDoBreakout;
-    }); 
+    });
   }
- 
+
   getRandom() {
     // If wired >=32 values in the range [0,64) are returned, else [wired, 32)
     const wired = this.getControlU32(cpu0reg.controlWired);
@@ -1390,7 +1390,7 @@ export class CPU0 {
     }
     this.setRegU64(rd, result);
   }
-  
+
   execADDU(rd, rt, rs) {
     const s = this.getRegS32Lo(rs);
     const t = this.getRegS32Lo(rt);
@@ -1404,7 +1404,7 @@ export class CPU0 {
     const result = s + t;
     this.setRegU64(rd, result);
   }
-  
+
   execSUB(rd, rt, rs) {
     const s = this.getRegS32Lo(rs);
     const t = this.getRegS32Lo(rt);
@@ -1426,7 +1426,7 @@ export class CPU0 {
     }
     this.setRegU64(rd, result);
   }
-  
+
   execSUBU(rd, rt, rs) {
     const s = this.getRegS32Lo(rs);
     const t = this.getRegS32Lo(rt);
@@ -1454,7 +1454,7 @@ export class CPU0 {
     const r = this.getRegS64(rs) < this.getRegS64(rt) ? 1 : 0;
     this.setRegU32Extend(rd, r);
   }
-  
+
   execSLTU(rd, rt, rs) {
     const r = this.getRegU64(rs) < this.getRegU64(rt) ? 1 : 0;
     this.setRegU32Extend(rd, r);
@@ -2179,7 +2179,7 @@ const cop2Table = validateCopOpTable([
   i => cpu0.execDMTC2(rt(i)),
   i => cpu0.execCTC2(rt(i)),
   i => cpu0.execDCTC2(rt(i)),
-  
+
   executeUnknown,
   executeUnknown,
   executeUnknown,
@@ -2506,7 +2506,7 @@ function addOpToFragment(fragment, entry_pc, instruction, c) {
   assert(!fragment.func, `attempting to append op to already-compiled fragment ${toString32(fragment.entryPC)}`);
   if (fragment.opsCompiled === 0) {
     fragmentContext.newFragment();
-  }  
+  }
 
   // FIXME: this fires for loops to self.
   // if (fragment.opsCompiled > 0 && entry_pc == fragment.entryPC) {
