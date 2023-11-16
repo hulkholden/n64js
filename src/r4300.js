@@ -786,7 +786,6 @@ export class CPU0 {
           //   }
           // }
 
-          // TODO: this should also be called from dynarec.
           rsp.step();
           if (this.stuffToDo) {
             // RSP can generate interrupt which can be cleared by CPU.
