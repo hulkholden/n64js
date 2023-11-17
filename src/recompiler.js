@@ -880,7 +880,7 @@ function generateBLEZL(ctx) {
         c.nextPC += 4;
       }`);
 
-  return generateBranchOpBoilerplate(impl, ctx, false);
+  return generateBranchOpBoilerplate(impl, ctx, true /* might_adjust_next_pc*/);
 }
 
 // Branch Greater Than Zero
@@ -910,7 +910,7 @@ function generateBGTZL(ctx) {
         c.nextPC += 4;
       }`);
 
-  return generateBranchOpBoilerplate(impl, ctx, false);
+  return generateBranchOpBoilerplate(impl, ctx, true /* might_adjust_next_pc*/);
 }
 
 // Branch Less Than Zero
