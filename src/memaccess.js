@@ -18,43 +18,43 @@ export function reset(hardware, c0) {
   cpu0 = c0;
 }
 
-export function loadU64slow(addr) {
+function loadU64slow(addr) {
   if (addr & 7) { cpu0.unalignedLoad(addr); }
   return getMemoryHandler(addr).readU64(addr);
 }
-export function loadU16slow(addr) {
+function loadU16slow(addr) {
   if (addr & 1) { cpu0.unalignedLoad(addr); }
   return getMemoryHandler(addr).readU16(addr);
 }
-export function loadU32slow(addr) {
+function loadU32slow(addr) {
   if (addr & 3) { cpu0.unalignedLoad(addr); }
   return getMemoryHandler(addr).readU32(addr);
 }
-export function loadU8slow(addr) { return getMemoryHandler(addr).readU8(addr); }
+function loadU8slow(addr) { return getMemoryHandler(addr).readU8(addr); }
 
 export function loadS32slow(addr) {
   if (addr & 3) { cpu0.unalignedLoad(addr); }
   return getMemoryHandler(addr).readS32(addr);
 }
-export function loadS16slow(addr) {
+function loadS16slow(addr) {
   if (addr & 1) { cpu0.unalignedLoad(addr); }
   return getMemoryHandler(addr).readS16(addr);
 }
-export function loadS8slow(addr) { return getMemoryHandler(addr).readS8(addr); }
+function loadS8slow(addr) { return getMemoryHandler(addr).readS8(addr); }
 
-export function store64slow(addr, value) {
+function store64slow(addr, value) {
   if (addr & 7) { cpu0.unalignedStore(addr); }
   getMemoryHandler(addr).write64(addr, value);
 }
-export function store32slow(addr, value) {
+function store32slow(addr, value) {
   if (addr & 3) { cpu0.unalignedStore(addr); }
   getMemoryHandler(addr).write32(addr, value);
 }
-export function store16slow(addr, value) {
+function store16slow(addr, value) {
   if (addr & 1) { cpu0.unalignedStore(addr); }
   getMemoryHandler(addr).write16(addr, value);
 }
-export function store8slow(addr, value) { getMemoryHandler(addr).write8(addr, value); }
+function store8slow(addr, value) { getMemoryHandler(addr).write8(addr, value); }
 
 export function store32masked(addr, value, mask) { getMemoryHandler(addr).write32masked(addr, value, mask); }
 export function store64masked(addr, value, mask) { getMemoryHandler(addr).write64masked(addr, value, mask); }
