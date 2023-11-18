@@ -37,8 +37,6 @@ const kDebugTLB = false;
 
 const kFragmentLengthLimit = 250;
 
-const COUNTER_INCREMENT_PER_OP = 1;
-
 const UT_VEC          = 0x80000000;
 const XUT_VEC         = 0x80000080;
 const ECC_VEC         = 0x80000100;
@@ -812,11 +810,11 @@ export class CPU0 {
 
           this.pc = this.nextPC;
           this.delayPC = this.branchTarget;
-          this.incrementCount(COUNTER_INCREMENT_PER_OP);
+          this.incrementCount(1);
           //this.checkCauseIP3Consistent();
           //n64js.hardware().checkSIStatusConsistent();
 
-          eventQueue.incrementCount(COUNTER_INCREMENT_PER_OP);
+          eventQueue.incrementCount(1);
 
           // If we have a fragment, we're assembling code as we go
           if (fragment) {
@@ -848,8 +846,8 @@ export class CPU0 {
     this.pc = this.nextPC;
     this.delayPC = 0;
     this.branchTarget = 0;
-    this.incrementCount(COUNTER_INCREMENT_PER_OP);
-    this.eventQueue.incrementCount(COUNTER_INCREMENT_PER_OP);
+    this.incrementCount(1);
+    this.eventQueue.incrementCount(1);
   }
 
   speedHack() {
@@ -2470,19 +2468,18 @@ class FragmentMap {
 const fragmentMap = new FragmentMap();
 
 function executeFragment(fragment, cpu0, eventQueue) {
-  if (eventQueue.nextEventCountdown() < fragment.opsCompiled * COUNTER_INCREMENT_PER_OP) {
+  if (eventQueue.nextEventCountdown() < fragment.opsCompiled) {
     // We're close to another event: drop to the interpreter.
     return null;
   }
   fragment.executionCount++;
   const opsExecuted = fragment.func();
 
-  const counterIncrement = opsExecuted * COUNTER_INCREMENT_PER_OP;
   if (!kAccurateCountUpdating) {
-    cpu0.incrementCount(counterIncrement);
+    cpu0.incrementCount(opsExecuted);
   }
   // refresh latest event - may have changed
-  eventQueue.incrementCount(counterIncrement);
+  eventQueue.incrementCount(opsExecuted);
 
   return fragment.getNextFragment(cpu0.pc, opsExecuted);
 }
