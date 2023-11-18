@@ -8,6 +8,8 @@
 // in bounds for ram (0x8000_0000 <= x < 0x8080_0000). The constant is derived from interpreting 0x80800000
 // as a 32-bit signed value.
 
+import { EmulatedException } from "./emulated_exception";
+
 let getMemoryHandler;
 let ramDV;
 let cpu0;
@@ -22,34 +24,53 @@ function loadU64slow(addr) {
   if (addr & 7) { cpu0.unalignedLoad(addr); }
   return getMemoryHandler(addr).readU64(addr);
 }
-function loadU16slow(addr) {
-  if (addr & 1) { cpu0.unalignedLoad(addr); }
-  return getMemoryHandler(addr).readU16(addr);
-}
+
 function loadU32slow(addr) {
   if (addr & 3) { cpu0.unalignedLoad(addr); }
   return getMemoryHandler(addr).readU32(addr);
 }
-function loadU8slow(addr) { return getMemoryHandler(addr).readU8(addr); }
+
+function loadU16slow(addr) {
+  if (addr & 1) { cpu0.unalignedLoad(addr); }
+  return getMemoryHandler(addr).readU16(addr);
+}
+
+function loadU8slow(addr) {
+  return getMemoryHandler(addr).readU8(addr);
+}
 
 export function loadS32slow(addr) {
   if (addr & 3) { cpu0.unalignedLoad(addr); }
   return getMemoryHandler(addr).readS32(addr);
 }
+
 function loadS16slow(addr) {
   if (addr & 1) { cpu0.unalignedLoad(addr); }
   return getMemoryHandler(addr).readS16(addr);
 }
-function loadS8slow(addr) { return getMemoryHandler(addr).readS8(addr); }
+
+function loadS8slow(addr) {
+  return getMemoryHandler(addr).readS8(addr);
+}
+
+function loadInstructionSlow(addr) {
+  if (addr & 3) {
+    cpu0.raiseAdELException(addr);
+    throw new EmulatedException();
+  }
+  return getMemoryHandler(addr).readS32(addr);
+}
 
 function store64slow(addr, value) {
   if (addr & 7) { cpu0.unalignedStore(addr); }
   getMemoryHandler(addr).write64(addr, value);
 }
+
 function store32slow(addr, value) {
   if (addr & 3) { cpu0.unalignedStore(addr); }
   getMemoryHandler(addr).write32(addr, value);
 }
+
 function store16slow(addr, value) {
   if (addr & 1) { cpu0.unalignedStore(addr); }
   getMemoryHandler(addr).write16(addr, value);
@@ -113,6 +134,14 @@ export function loadU64fast(sAddr) {
     return ramDV.getBigUint64(phys, false);
   }
   return loadU64slow(sAddr >>> 0);
+}
+
+export function loadInstructionFast(sAddr) {
+  if ((sAddr & 3) == 0 && sAddr < -2139095040) {
+    const phys = (sAddr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
+    return ramDV.getInt32(phys, false);
+  }
+  return loadInstructionSlow(sAddr >>> 0);
 }
 
 export function store8fast(sAddr, value) {

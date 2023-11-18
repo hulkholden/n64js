@@ -803,18 +803,9 @@ export class CPU0 {
           // NB: set nextPC before the call to readMemoryS32. If this throws an exception, we need nextPC to be set up correctly.
           this.nextPC = this.delayPC || this.pc + 4;
 
-          // NB: load instruction using normal memory access routines - this means that we throw a tlb miss/refill approptiately
-          // let instruction = memaccess.loadS32fast(pc);
-          let instruction;
-          if ((pc & 3) != 0) {
-            this.raiseAdELException(pc);
-            throw new EmulatedException();
-          } else if (signedPC < -2139095040) {
-            const phys = (signedPC + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
-            instruction = ramDV.getInt32(phys, false);
-          } else {
-            instruction = memaccess.loadS32slow(pc);
-          }
+          // The load may raise an EmulatedException either via alignment or TLB exceptions.
+          let instruction = memaccess.loadInstructionFast(signedPC);
+
 
           this.branchTarget = 0;
           executeOp(instruction);
@@ -1952,10 +1943,6 @@ export class CPU2 {
     return this.regU64[0];
   }
 }
-
-// EmulatedException interrupts processing of an instruction
-// and prevents state (such as memory or registers) being updated.
-class EmulatedException { }
 
 function executeUnknown(i) {
   throw `CPU: unknown op, pc: ${toString32(cpu0.pc)}, instruction: ${toString32(i)}`;
