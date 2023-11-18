@@ -1183,14 +1183,14 @@ export class CPU0 {
     const tlb = this.tlbFindEntry(address);
     if (!tlb) {
       this.raiseTLBException(UT_VEC, cpu0reg.causeExcCodeTLBL, address);
-      throw new EmulatedException();
+      throw new EmulatedException('TLBL UT_VEC');
     }
 
     const odd = address & tlb.checkbit;
     const entryLo = odd ? tlb.pfno : tlb.pfne;
     if ((entryLo & TLBLO_V) === 0) {
       this.raiseTLBException(E_VEC, cpu0reg.causeExcCodeTLBL, address);
-      throw new EmulatedException();
+      throw new EmulatedException('TLBL E_VEC');
     }
 
     const phys = odd ? tlb.physOdd : tlb.physEven;
@@ -1202,18 +1202,18 @@ export class CPU0 {
     const tlb = this.tlbFindEntry(address);
     if (!tlb) {
       this.raiseTLBException(UT_VEC, cpu0reg.causeExcCodeTLBS, address);
-      throw new EmulatedException();
+      throw new EmulatedException('TLBS UT_VEC');
     }
 
     const odd = address & tlb.checkbit;
     const entryLo = odd ? tlb.pfno : tlb.pfne;
     if ((entryLo & TLBLO_V) === 0) {
       this.raiseTLBException(E_VEC, cpu0reg.causeExcCodeTLBS, address);
-      throw new EmulatedException();
+      throw new EmulatedException('TLBS E_VEC');
     }
     if ((entryLo & TLBLO_D) === 0) {
       this.raiseTLBException(E_VEC, cpu0reg.causeExcCodeMod, address);
-      throw new EmulatedException();
+      throw new EmulatedException('Mod E_VEC');
     }
 
     const phys = odd ? tlb.physOdd : tlb.physEven;
@@ -1223,12 +1223,12 @@ export class CPU0 {
 
   unalignedLoad(address) {
     this.raiseAdELException(address);
-    throw new EmulatedException();
+    throw new EmulatedException('AdEL load');
   }
 
   unalignedStore(address) {
     this.raiseAdESException(address);
-    throw new EmulatedException();
+    throw new EmulatedException('AdES store');
   }
 
   execBreakpoint() {
