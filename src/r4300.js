@@ -768,7 +768,6 @@ export class CPU0 {
 
   runImpl() {
     const eventQueue = this.eventQueue;
-    const ramDV = this.ramDV;
 
     while (this.hasEvent(kEventRunForCycles)) {
       let fragment = lookupFragment(this.pc);
