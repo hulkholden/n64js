@@ -807,9 +807,7 @@ export class CPU0 {
           let instruction;
           if ((pc & 3) != 0) {
             this.raiseAdELException(pc);
-            this.pc = this.nextPC;
-            fragment = lookupFragment(this.pc);
-            continue;
+            throw new EmulatedException();
           } else if (signedPC < -2139095040) {
             const phys = (signedPC + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
             instruction = ramDV.getInt32(phys, false);
