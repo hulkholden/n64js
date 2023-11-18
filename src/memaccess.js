@@ -82,7 +82,7 @@ export function loadU64fast(sAddr) {
 export function loadInstructionFast(sAddr) {
   if ((sAddr & 3) == 0 && sAddr < -2139095040) {
     const phys = (sAddr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
-    return ramDV.getInt32(phys, false);
+    return ramDV.getUint32(phys, false);
   }
   return loadInstructionSlow(sAddr >>> 0);
 }
@@ -143,6 +143,14 @@ function loadU64slow(addr) {
   return getMemoryHandler(addr).readU64(addr);
 }
 
+function loadInstructionSlow(addr) {
+  if (addr & 3) {
+    cpu0.raiseAdELException(addr);
+    throw new EmulatedException();
+  }
+  return getMemoryHandler(addr).readU32(addr);
+}
+
 // Signed loads.
 function loadS8slow(addr) {
   return getMemoryHandler(addr).readS8(addr);
@@ -155,14 +163,6 @@ function loadS16slow(addr) {
 
 export function loadS32slow(addr) {
   if (addr & 3) { cpu0.unalignedLoad(addr); }
-  return getMemoryHandler(addr).readS32(addr);
-}
-
-function loadInstructionSlow(addr) {
-  if (addr & 3) {
-    cpu0.raiseAdELException(addr);
-    throw new EmulatedException();
-  }
   return getMemoryHandler(addr).readS32(addr);
 }
 
