@@ -18,6 +18,7 @@ import { RDP } from './lle/rdp.js';
 import { MemoryMap } from './memmap.js';
 import { MemoryRegion } from './memory_region.js';
 import { CPU0, CPU2 } from './r4300.js';
+import { RSP } from './rsp.js';
 import { Timeline } from './timeline.js';
 
 const kBootstrapOffset = 0x40;
@@ -148,6 +149,7 @@ export class Hardware {
     this.cpu0 = new CPU0(this);
     this.cpu1 = new CPU1(this);
     this.cpu2 = new CPU2(this);
+    this.rsp = new RSP(this);
     this.rdp = new RDP(this);
   }
 

@@ -10,7 +10,7 @@ window.n64js = window.n64js || {};
 export let rsp;
 
 export function initRSP(hardware) {
-  rsp = new RSP(hardware);
+  rsp = hardware.rsp;
 }
 
 function funct(i) { return i & 0x3f; }
@@ -92,7 +92,7 @@ const SP_STATUS_SIG5 = 0x1000;
 const SP_STATUS_SIG6 = 0x2000;
 const SP_STATUS_SIG7 = 0x4000;
 
-class RSP {
+export class RSP {
   constructor(hardware) {
     this.hardware = hardware;
     this.dmem = hardware.sp_mem.subRegion(0x0000, 0x1000);
