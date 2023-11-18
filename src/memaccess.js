@@ -153,17 +153,17 @@ function loadInstructionSlow(addr) {
 
 // Signed loads.
 function loadS8slow(addr) {
-  return getMemoryHandler(addr).readS8(addr);
+  return (getMemoryHandler(addr).readU8(addr) << 24) >> 24;
 }
 
 function loadS16slow(addr) {
   if (addr & 1) { cpu0.unalignedLoad(addr); }
-  return getMemoryHandler(addr).readS16(addr);
+  return (getMemoryHandler(addr).readU16(addr) << 16) >> 16;
 }
 
 export function loadS32slow(addr) {
   if (addr & 3) { cpu0.unalignedLoad(addr); }
-  return getMemoryHandler(addr).readS32(addr);
+  return getMemoryHandler(addr).readU32(addr) >> 0;
 }
 
 // Stores.

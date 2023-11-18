@@ -103,13 +103,6 @@ export class ROMD1A2Device extends Device {
         return super.readU32(address);
     }
 
-    readS32(address) {
-        if (this.hasLastWrite) {
-            return this.consumeLastWrite() >> 0;
-        }
-        return super.readS32(address);
-    }
-
     readU16(address) {
         if (this.hasLastWrite) {
             return this.consumeLastWrite() >>> 16;
@@ -117,25 +110,11 @@ export class ROMD1A2Device extends Device {
         return super.readU16(address);
     }
 
-    readS16(address) {
-        if (this.hasLastWrite) {
-            return this.consumeLastWrite() >> 16;
-        }
-        return super.readS16(address);
-    }
-
     readU8(address) {
         if (this.hasLastWrite) {
             return this.consumeLastWrite() >>> 24;
         }
         return super.readU8(address);
-    }
-
-    readS8(address) {
-        if (this.hasLastWrite) {
-            return this.consumeLastWrite() >> 24;
-        }
-        return super.readS8(address);
     }
 
     cacheLastWrite(value) {
@@ -205,10 +184,6 @@ export class ROMD2A1Device extends Device {
     readU16(address) { return this.read(address) & 0xffff; }
     readU8(address) { return this.read(address) & 0xff; }
 
-    readS32(address) { return this.read(address) >> 0; }
-    readS16(address) { return this.read(address) & 0xffff; }
-    readS8(address) { return this.read(address) & 0xff; }
-
     write32(address, value) { throw `Writing to rom ${toString32(value)} -> [${toString32(address)}]`; }
     write16(address, value) { throw `Writing to rom ${toString16(value)} -> [${toString32(address)}]`; }
     write8(address, value) { throw `Writing to rom ${toString8(value)} -> [${toString32(address)}]`; }
@@ -226,24 +201,20 @@ export class ROMD2A2Device extends Device {
 
     hasFlashRam() { return this.hardware.saveType == 'FlashRam'; }
 
-    readU32(address) { return this.readS32(address) >>> 0; }
-    readU16(address) { return this.readS16(address) >>> 0; }
-    readU8(address) { return this.readS8(address) >>> 0; }
-
-    readS32(address) {
+    readU32(address) {
         const ea = this.calcWriteEA(address);
         if (ea >= 0x88000) {
             return unmappedAddressValue(address);
         }
         if (this.hasFlashRam()) {
             const wrapped = ea & 4; // Load from either low or high word.
-            return this.flashStatus.getS32(wrapped);
+            return this.flashStatus.getU32(wrapped);
         }
         throw `Reading s32 from rom d2a2 [${toString32(address)}]`;
     }
     // TODO: short reads should probably behave like 32 bit read and byte selection done on CPU.
-    readS16(address) { throw `Reading s16 from rom d2a2 [${toString32(address)}]`; }
-    readS8(address) { throw `Reading s8 from rom d2a2 [${toString32(address)}]`; }
+    readU16(address) { throw `Reading 16 bits from rom d2a2 [${toString32(address)}]`; }
+    readU8(address) { throw `Reading 8 bits from rom d2a2 [${toString32(address)}]`; }
 
     write32(address, value) {
         const ea = this.calcWriteEA(address);

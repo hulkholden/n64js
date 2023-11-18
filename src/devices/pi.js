@@ -69,7 +69,7 @@ export class PIRegDevice extends Device {
     }
   }
 
-  readS32(address) {
+  readU32(address) {
     const ea = this.calcReadEA(address);
     if (ea + 4 > this.u8.length) {
       throw 'Read is out of range';
@@ -91,11 +91,7 @@ export class PIRegDevice extends Device {
 
     if (!this.quiet) { logger.log(`Reading from PIReg: [${toString32(address)}] -> ${toString32(v)}`); }
 
-    return v;
-  }
-
-  readU32(address) {
-    return this.readS32(address) >>> 0;
+    return v >>> 0;
   }
 
   write32(address, value) {

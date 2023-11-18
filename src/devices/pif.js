@@ -11,12 +11,12 @@ export class PIFMemDevice extends Device {
     super("PIFMEM", hardware, hardware.pif_mem, rangeStart, rangeEnd);
   }
 
-  readS32(address) {
+  readU32(address) {
     const ea = this.calcReadEA(address);
     if (ea + 4 > this.u8.length) {
       throw 'Read is out of range';
     }
-    const v = this.mem.getS32(ea);
+    const v = this.mem.getU32(ea);
     if (ea < 0x7c0) {
       logger.log(`Reading from PIF rom (${toString32(address)}). Got ${toString32(v)}`);
     } else {
@@ -31,11 +31,7 @@ export class PIFMemDevice extends Device {
     return v;
   }
 
-  readU32(address) {
-    return this.readS32(address) >>> 0;
-  }
-
-  readS8(address) {
+  readU8(address) {
     const ea = this.calcReadEA(address);
     const v = this.mem.getU8(ea);
     if (ea < 0x7c0) {
@@ -50,10 +46,6 @@ export class PIFMemDevice extends Device {
       n64js.joybus().cpuRead(ramOffset);
     }
     return v;
-  }
-
-  readU8(address) {
-    return this.readS8(address) >>> 0;
   }
 
   write32(address, value) {

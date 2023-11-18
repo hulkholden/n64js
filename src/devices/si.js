@@ -21,7 +21,7 @@ export class SIRegDevice extends Device {
     super("SIReg", hardware, hardware.si_reg, rangeStart, rangeEnd);
   }
 
-  readS32(address) {
+  readU32(address) {
     this.logRead(address);
     const ea = this.calcReadEA(address);
 
@@ -31,11 +31,7 @@ export class SIRegDevice extends Device {
     if (ea === SI_STATUS_REG) {
       this.checkStatusConsistent();
     }
-    return this.mem.getS32(ea);
-  }
-
-  readU32(address) {
-    return this.readS32(address) >>> 0;
+    return this.mem.getU32(ea);
   }
 
   write32(address, value) {

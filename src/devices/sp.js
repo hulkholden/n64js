@@ -209,10 +209,6 @@ export class SPRegDevice extends Device {
     this.logRead(address);
     return this.readRegU32(this.calcReadEA(address));
   }
-  readS32(address) {
-    this.logRead(address);
-    return this.readRegU32(this.calcReadEA(address)) >> 0;
-  }
 
   readRegU32(ea) {
     if (ea + 4 > this.u8.length) {

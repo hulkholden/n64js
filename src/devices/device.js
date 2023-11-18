@@ -161,45 +161,6 @@ export class Device {
   }
 
   /**
-   * Reads signed 32 bit data at the specified address.
-   * @param {number} address
-   * @return {number}
-   */
-  readS32(address) {
-    const ea = this.calcReadEA(address);
-    if (ea + 4 > this.u8.length) {
-      return 0;
-    }
-    return this.mem.getS32(ea);
-  }
-
-  /**
-   * Reads signed 16 bit data at the specified address.
-   * @param {number} address
-   * @return {number}
-   */
-  readS16(address) {
-    const ea = this.calcReadEA(address);
-    if (ea + 2 > this.u8.length) {
-      return 0;
-    }
-    return this.mem.getS16(ea);
-  }
-
-  /**
-   * Reads signed 8 bit data at the specified address.
-   * @param {number} address
-   * @return {number}
-   */
-  readS8(address) {
-    const ea = this.calcReadEA(address);
-    if (ea + 1 > this.u8.length) {
-      return 0;
-    }
-    return this.mem.getS8(ea);
-  }
-
-  /**
    * Writes 64 bit data using a mask to the specified address.
    * @param {number} address Address to write to - will be 64 bit aligned.
    * @param {bigint} value Value to write.
@@ -331,21 +292,6 @@ export class LoggingDevice extends Device {
   readU8(address) {
     this.logRead(address);
     return super.readU8(address);
-  }
-
-  readS32(address) {
-    this.logRead(address);
-    return super.readS32(address);
-  }
-
-  readS16(address) {
-    this.logRead(address);
-    return super.readS16(address);
-  }
-
-  readS8(address) {
-    this.logRead(address);
-    return super.readS8(address);
   }
 
   write64masked(address, value, mask) {

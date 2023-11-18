@@ -224,7 +224,7 @@ export class VIRegDevice extends Device {
     }
   }
 
-  readS32(address) {
+  readU32(address) {
     this.logRead(address);
     const ea = this.calcReadEA(address);
     if (ea + 4 > this.u8.length) {
@@ -249,11 +249,7 @@ export class VIRegDevice extends Device {
 
       this.mem.set32(ea, value);
     }
-    return this.mem.getS32(ea);
-  }
-
-  readU32(address) {
-    return this.readS32(address) >>> 0;
+    return this.mem.getU32(ea);
   }
 
   computeDimensions() {

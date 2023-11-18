@@ -44,11 +44,6 @@ export class CachedMemDevice extends Device {
     return this.dataView.getUint32(off, false); 
   }
 
-  readS32(address) {
-    const off = address - 0x80000000;
-    return this.dataView.getInt32(off, false); 
-  }
-
   write32(address, value) {
     const off = address - 0x80000000;
     this.dataView.setUint32(off, value, false); 
@@ -78,10 +73,6 @@ export class InvalidMemDevice extends Device {
   readU32(address) { return this.read(address) >>> 0; }
   readU16(address) { return this.read(address) & 0xffff; }
   readU8(address) { return this.read(address) & 0xff; }
-
-  readS32(address) { return this.read(address) >> 0; }
-  readS16(address) { return this.read(address) & 0xffff; }
-  readS8(address) { return this.read(address) & 0xff; }
 
   write32(address, value) { this.write(address, value); }
   write16(address, value) { this.write(address, value); }
