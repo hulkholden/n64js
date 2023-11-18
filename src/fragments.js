@@ -109,28 +109,29 @@ export function getFragmentMap() {
  */
 export function lookupFragment(pc) {
   let fragment = fragmentMap.get(pc);
-  if (!fragment) {
-    if (!debugOptions.enableDynarec) {
-      return null;
+  if (fragment) {
+    // If we failed to complete the fragment for any reason, reset it
+    if (fragment.opsCompiled > 0 && !fragment.func) {
+      // console.log(`fragment ${toString32(fragment.entryPC)} partially compiled ${fragment.opsCompiled} ops, invalidating and starting over`);
+      fragment.invalidate();
     }
-
-    // Check if this pc is hot enough yet
-    let hc = hitCounts.get(pc) || 0;
-    hc++;
-    hitCounts.set(pc, hc);
-
-    if (hc < kHotFragmentThreshold) {
-      return null;
-    }
-
-    fragment = new Fragment(pc);
-    fragmentMap.set(pc, fragment);
+    return fragment;
   }
 
-  // If we failed to complete the fragment for any reason, reset it
-  if (!fragment.func) {
-    fragment.invalidate();
+  if (!debugOptions.enableDynarec) {
+    return null;
   }
 
+  // Check if this pc is hot enough yet
+  let hc = hitCounts.get(pc) || 0;
+  hc++;
+  hitCounts.set(pc, hc);
+
+  if (hc < kHotFragmentThreshold) {
+    return null;
+  }
+
+  fragment = new Fragment(pc);
+  fragmentMap.set(pc, fragment);
   return fragment;
 }
