@@ -802,8 +802,7 @@ export class CPU0 {
           this.nextPC = this.delayPC || this.pc + 4;
 
           // The load may raise an EmulatedException either via alignment or TLB exceptions.
-          let instruction = memaccess.loadInstructionFast(signedPC);
-
+          let instruction = memaccess.loadU32fast(signedPC);
 
           this.branchTarget = 0;
           executeOp(instruction);
