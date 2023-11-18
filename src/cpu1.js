@@ -312,15 +312,15 @@ export class CPU1 {
     this.regS64 = new BigInt64Array(this.mem);
     this.regU64 = new BigUint64Array(this.mem);
 
-    this.regIdx32_cop = new Uint32Array(new ArrayBuffer(32 * 4));
-    this.regIdx32_d = new Uint32Array(new ArrayBuffer(32 * 4));
-    this.regIdx32_s = new Uint32Array(new ArrayBuffer(32 * 4));
-    this.regIdx32_t = new Uint32Array(new ArrayBuffer(32 * 4));
+    this.regIdx32_cop = new Uint8Array(new ArrayBuffer(32));
+    this.regIdx32_d = new Uint8Array(new ArrayBuffer(32));
+    this.regIdx32_s = new Uint8Array(new ArrayBuffer(32));
+    this.regIdx32_t = new Uint8Array(new ArrayBuffer(32));
 
-    this.regIdx64_cop = new Uint32Array(new ArrayBuffer(32 * 4));
-    this.regIdx64_d = new Uint32Array(new ArrayBuffer(32 * 4));
-    this.regIdx64_s = new Uint32Array(new ArrayBuffer(32 * 4));
-    this.regIdx64_t = new Uint32Array(new ArrayBuffer(32 * 4));
+    this.regIdx64_cop = new Uint8Array(new ArrayBuffer(32));
+    this.regIdx64_d = new Uint8Array(new ArrayBuffer(32));
+    this.regIdx64_s = new Uint8Array(new ArrayBuffer(32));
+    this.regIdx64_t = new Uint8Array(new ArrayBuffer(32));
 
     // A single register for conversions.
     this.tempBuf = new ArrayBuffer(8);
