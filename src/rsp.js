@@ -496,9 +496,6 @@ export class RSP {
     this.branchTarget = (pc >>> 0) | 0x1000;
   }
 
-  get pc() { return this.pcDataView.getInt32(0, false); }
-  set pc(value) { this.pcDataView.setUint32(0, value, false); }
-
   unhalt() {
     // TODO: should this just check the status bits?
     this.halted = false;

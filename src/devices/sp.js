@@ -144,7 +144,7 @@ export class SPIBISTDevice extends Device {
     const ea = this.calcWriteEA(address);
     switch (ea) {
       case SPIBIST_PC_REG:
-        this.mem.set32(ea, value & pcWritableBits);
+        this.hardware.rsp.pc = value & pcWritableBits;
         break;
 
       default:
@@ -152,6 +152,25 @@ export class SPIBISTDevice extends Device {
     }
 
     // TODO: return random bits if read while the RSP is running.
+  }
+
+  readU32(address) {
+    const ea = this.calcReadEA(address);
+    if (ea + 4 > this.u8.length) {
+      throw 'Read is out of range';
+    }
+
+    let value = 0;
+    switch (ea) {
+      case SPIBIST_PC_REG:
+        value = this.hardware.rsp.pc;
+        console.log(`value is ${toString32(value)}`)
+        break;
+
+      default:
+        logger.log(`Unhandled read from SPIBISTReg: [${toString32(address)}]`);
+    }
+    return value;
   }
 }
 
