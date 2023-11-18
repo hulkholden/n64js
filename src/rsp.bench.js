@@ -1,4 +1,5 @@
 import { run, bench, group } from 'mitata';
+import { MemoryRegion } from './memory_region';
 
 const vAccMem = new ArrayBuffer(8 * 8); // Actually 48 bits, not 64. 
 const vAcc = new BigInt64Array(vAccMem);
@@ -6,6 +7,35 @@ const vAccS32 = new Int32Array(vAccMem);
 const vAccU32 = new Uint32Array(vAccMem);
 const vAccS16 = new Int16Array(vAccMem);
 const vAccU16 = new Uint16Array(vAccMem);
+
+class PCAsMember {
+  constructor() {
+    this.pc = 0;
+  }
+}
+const pcAsMember = new PCAsMember();
+
+class PCAsDataView {
+  constructor() {
+    const ab = new ArrayBuffer(4);
+    this.dv = new DataView(ab);
+  }
+
+  get pc() { return this.dv.getInt32(0, false); }
+  set pc(value) { this.dv.setUint32(0, value, false); }
+}
+const pcAsDataView = new PCAsDataView();
+
+group('updatePC', () => {
+  bench('usingMember', () => {
+    const nextPC = pcAsMember.pc + 4;
+    pcAsMember.pc = nextPC;
+  });
+  bench('usingDataView', () => {
+    const nextPC = pcAsDataView.pc + 4;
+    pcAsDataView.pc = nextPC;
+  });
+});
 
 group('updateAccU32', () => {
   bench('updateAccU32Orig', () => {
