@@ -97,6 +97,7 @@ export class RSP {
     this.hardware = hardware;
     this.dmem = hardware.sp_mem.subRegion(0x0000, 0x1000);
     this.imem = hardware.sp_mem.subRegion(0x1000, 0x1000);
+    this.imemDV = this.imem.dataView;
 
     this.halted = true;
 
@@ -512,7 +513,7 @@ export class RSP {
     }
     this.nextPC = (this.delayPC || (this.pc + 4)) & 0xffc;
 
-    const instr = this.imem.getU32(this.pc);
+    const instr = this.imemDV.getUint32(this.pc, false);
 
     this.branchTarget = 0;
     this.executeOp(instr);
