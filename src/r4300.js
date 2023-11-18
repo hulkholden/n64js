@@ -794,7 +794,10 @@ export class CPU0 {
             break;
           }
 
-          const pc = this.pc | 0;   // take a copy of this, so we can refer to it later
+          // Take a copy of this, so we can refer to it later.
+          const pc = this.pc;
+          // Signed copy of the program counter so we can do fast memory lookups.
+          const signedPC = this.pc | 0;   
 
           // NB: set nextPC before the call to readMemoryS32. If this throws an exception, we need nextPC to be set up correctly.
           this.nextPC = this.delayPC || this.pc + 4;
@@ -807,11 +810,11 @@ export class CPU0 {
             this.pc = this.nextPC;
             fragment = lookupFragment(this.pc);
             continue;
-          } else if (pc < -2139095040) {
-            const phys = (pc + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
+          } else if (signedPC < -2139095040) {
+            const phys = (signedPC + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
             instruction = ramDV.getInt32(phys, false);
           } else {
-            instruction = memaccess.loadS32slow(pc >>> 0);
+            instruction = memaccess.loadS32slow(pc);
           }
 
           this.branchTarget = 0;
@@ -827,7 +830,7 @@ export class CPU0 {
 
           // If we have a fragment, we're assembling code as we go
           if (fragment) {
-            fragment = addOpToFragment(fragment, pc >>> 0, instruction, this);
+            fragment = addOpToFragment(fragment, pc, instruction, this);
           } else {
             // If there's no current fragment and we branch backwards, this is possibly a new loop
             if (this.pc < pc) {
