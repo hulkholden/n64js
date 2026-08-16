@@ -191,6 +191,7 @@ export class AIRegDevice extends Device {
     const duration = this.dmaDurations[0];
 
     if (this.hardware.headless) {
+      // Preserve AI timing and interrupt behaviour without producing audio.
       this.raiseAI();
       this.addAIDMAEvent(duration);
       return;
