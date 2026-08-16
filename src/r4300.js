@@ -991,9 +991,8 @@ export class CPU0 {
     this.raiseExceptionCopCode(vec, 0, excCode);
   }
 
-  raiseAddressException(vec, code, address32) {
-    // TODO: plumb 64 bit addresses everywhere.
-    const address64 = BigInt(address32 >> 0);
+  raiseAddressException(vec, code, address) {
+    const address64 = typeof address === 'bigint' ? address : BigInt(address >> 0);
     this.setBadVAddr(address64);
     this.setContext(address64);
     this.setXContext(address64);
@@ -1504,9 +1503,25 @@ export class CPU0 {
   execXORI(rt, rs, imm) { this.setRegU64(rt, this.getRegU64(rs) ^ BigInt(imm)); }
   execLUI(rt, imm) { this.setRegS32Extend(rt, imm << 16); }
 
-  // Helpers for load and store instructions.
-  addrS32(base, imms) { return (this.getRegS32Lo(base) + imms) >> 0; }
-  addrU32(base, imms) { return (this.getRegS32Lo(base) + imms) >>> 0; }
+  // The VR4300 only supports 32-bit virtual addresses. Effective addresses
+  // must therefore be a sign-extension of bit 31 even though GPRs are 64-bit.
+  effectiveAddress(base, imms, store) {
+    const address = BigInt.asIntN(64, this.getRegU64(base) + BigInt(imms));
+    if (address !== BigInt.asIntN(32, address)) {
+      if (store) {
+        this.raiseAdESException(address);
+      } else {
+        this.raiseAdELException(address);
+      }
+      throw new EmulatedException(store ? 'AdES address' : 'AdEL address');
+    }
+    return Number(BigInt.asIntN(32, address));
+  }
+
+  addrS32(base, imms) { return this.effectiveAddress(base, imms, false); }
+  addrU32(base, imms) { return this.effectiveAddress(base, imms, false) >>> 0; }
+  storeAddrS32(base, imms) { return this.effectiveAddress(base, imms, true); }
+  storeAddrU32(base, imms) { return this.effectiveAddress(base, imms, true) >>> 0; }
 
   calcDebuggerAddress(inst) {
     return this.addrS32(base(inst), imms(inst));
@@ -1613,20 +1628,20 @@ export class CPU0 {
   }
 
   execSB(rt, base, imms) {
-    memaccess.store8fast(this.addrS32(base, imms), this.getRegS32Lo(rt) /*& 0xff*/);
+    memaccess.store8fast(this.storeAddrS32(base, imms), this.getRegS32Lo(rt) /*& 0xff*/);
   }
   execSH(rt, base, imms) {
-    memaccess.store16fast(this.addrS32(base, imms), this.getRegS32Lo(rt) /*& 0xffff*/);
+    memaccess.store16fast(this.storeAddrS32(base, imms), this.getRegS32Lo(rt) /*& 0xffff*/);
   }
   execSW(rt, base, imms) {
-    memaccess.store32fast(this.addrS32(base, imms), this.getRegS32Lo(rt));
+    memaccess.store32fast(this.storeAddrS32(base, imms), this.getRegS32Lo(rt));
   }
   execSD(rt, base, imms) {
-    memaccess.store64fast(this.addrS32(base, imms), this.getRegU64(rt));
+    memaccess.store64fast(this.storeAddrS32(base, imms), this.getRegU64(rt));
   }
 
   execSWL(rt, base, imms) {
-    const addr = this.addrU32(base, imms);
+    const addr = this.storeAddrU32(base, imms);
     const shift = 8 * (addr & 3);
     const reg = this.getRegU32Lo(rt);
 
@@ -1634,7 +1649,7 @@ export class CPU0 {
   }
 
   execSWR(rt, base, imms) {
-    const addr = this.addrU32(base, imms);
+    const addr = this.storeAddrU32(base, imms);
     const shift = 8 * (3 - (addr & 3));
     const reg = this.getRegU32Lo(rt);
 
@@ -1642,7 +1657,7 @@ export class CPU0 {
   }
 
   execSDL(rt, base, imms) {
-    const addr = this.addrU32(base, imms);
+    const addr = this.storeAddrU32(base, imms);
     const shift = BigInt(8 * (addr & 7));
     const reg = this.getRegU64(rt);
 
@@ -1650,7 +1665,7 @@ export class CPU0 {
   }
 
   execSDR(rt, base, imms) {
-    const addr = this.addrU32(base, imms);
+    const addr = this.storeAddrU32(base, imms);
     const reg = this.getRegU64(rt);
     const shift = BigInt(8 * (7 - (addr & 7)));
 
@@ -1659,7 +1674,7 @@ export class CPU0 {
 
   execSWC1(rt, base, imms) {
     if (!this.checkCopXUsable(1)) { return; }
-    memaccess.store32fast(this.addrS32(base, imms), cpu1.loadU32(cpu1.copRegIdx32(rt)));
+    memaccess.store32fast(this.storeAddrS32(base, imms), cpu1.loadU32(cpu1.copRegIdx32(rt)));
   }
 
   execSWC2(rt, base, imms) {
@@ -1674,7 +1689,7 @@ export class CPU0 {
 
   execSDC1(rt, base, imms) {
     if (!this.checkCopXUsable(1)) { return; }
-    memaccess.store64fast(this.addrS32(base, imms), cpu1.loadU64(cpu1.copRegIdx64(rt)));
+    memaccess.store64fast(this.storeAddrS32(base, imms), cpu1.loadU64(cpu1.copRegIdx64(rt)));
   }
 
   execSDC2(rt, base, imms) {
@@ -1707,7 +1722,7 @@ export class CPU0 {
   execSC(rt, base, imms) {
     let result = 0;
     if (this.llBit) {
-      memaccess.store32fast(this.addrS32(base, imms), this.getRegS32Lo(rt));
+      memaccess.store32fast(this.storeAddrS32(base, imms), this.getRegS32Lo(rt));
       this.llBit = 0;
       result = 1;
     }
@@ -1717,7 +1732,7 @@ export class CPU0 {
   execSCD(rt, base, imms) {
     let result = 0;
     if (this.llBit) {
-      memaccess.store64fast(this.addrS32(base, imms), this.getRegU64(rt));
+      memaccess.store64fast(this.storeAddrS32(base, imms), this.getRegU64(rt));
       this.llBit = 0;
       result = 1;
     }
@@ -1725,8 +1740,12 @@ export class CPU0 {
   }
 
   execCACHE(rt, base, imms) {
+    const address = this.addrU32(base, imms);
+    if (address & 3) {
+      this.unalignedLoad(address);
+    }
     if (!this.ignoreCacheOp(rt)) {
-      fragmentMap.invalidateEntry(this.addrU32(base, imms));
+      fragmentMap.invalidateEntry(address);
     }
   }
 
