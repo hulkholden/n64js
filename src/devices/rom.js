@@ -10,6 +10,9 @@ const dbgOutBufStart = 0xb3ff0020;
 const dbgOutBufLen = 512;
 const dbgOutBufEnd = dbgOutBufStart + dbgOutBufLen;
 
+const kCartWriteDecayEvent = 'Cart write decay';
+const kCartWriteDecayCycles = 256;
+
 // Flash control command IDs.
 const kFlashramCmdSetEraseOffset = 0x4b;
 const kFlashramCmdErase = 0x78;
@@ -60,6 +63,12 @@ export class ROMD1A2Device extends Device {
         // The accumulated debug output.
         // Complete lines (upto and including a newline) are flushed to the debug console.
         this.output = ''
+    }
+
+    reset() {
+        this.lastWrite = 0;
+        this.hasLastWrite = false;
+        this.output = '';
     }
 
     // LH and LB are broken -every other 16 bit word is unreachable.
@@ -145,12 +154,23 @@ export class ROMD1A2Device extends Device {
         if (!this.hasLastWrite) {
             this.lastWrite = value;
             this.hasLastWrite = true;
+            this.hardware.piRegDevice.setIOBusy(true);
+            this.hardware.cpu0.addEvent(kCartWriteDecayEvent, kCartWriteDecayCycles, () => {
+                this.expireLastWrite();
+            });
         }
     }
 
     consumeLastWrite() {
+        const value = this.lastWrite;
+        this.hardware.cpu0.removeEvent(kCartWriteDecayEvent);
+        this.expireLastWrite();
+        return value;
+    }
+
+    expireLastWrite() {
         this.hasLastWrite = false;
-        return this.lastWrite;
+        this.hardware.piRegDevice.setIOBusy(false);
     }
 
     writeDebugBufferLen(value) {
