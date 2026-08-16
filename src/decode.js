@@ -4,6 +4,9 @@ export function simpleOp(i) { return (i >>> 26) & 0x3f; }
 export function regImmOp(i) { return (i >>> 16) & 0x1f; }
 export function specialOp(i) { return i & 0x3f; }
 export function copOp(i) { return (i >>> 21) & 0x1f; }
+// WAIT has an implementation-dependent code in bits 24..6. Only the COP0
+// opcode, CO bit and function field are significant when decoding it.
+export function isWait(i) { return (i & 0xfe00_003f) === 0x4200_0020; }
 export function cop1BCOp(i) { return (i >>> 16) & 0x3; }
 export function copFmtFuncOp(i) { return i & 0x3f; }
 

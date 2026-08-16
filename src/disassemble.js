@@ -3,7 +3,7 @@
 import { assert } from './assert.js';
 import * as cpu0reg from './cpu0reg.js';
 import { toHex } from './format.js';
-import { simpleOp, regImmOp, specialOp, copOp, cop1BCOp, copFmtFuncOp, fd, fs, ft, offset, sa, rd, rt, rs, tlbop, imm, base, branchAddress, jumpAddress } from './decode.js';
+import { simpleOp, regImmOp, specialOp, copOp, isWait, cop1BCOp, copFmtFuncOp, fd, fs, ft, offset, sa, rd, rt, rs, tlbop, imm, base, branchAddress, jumpAddress } from './decode.js';
 
 window.n64js = window.n64js || {};
 
@@ -257,6 +257,9 @@ if (cop0Table.length != 32) {
   throw "Oops, didn't build the cop0 table correctly";
 }
 function disassembleCop0(i) {
+  if (isWait(i.opcode)) {
+    return 'WAIT';
+  }
   return cop0Table[copOp(i.opcode)](i);
 }
 

@@ -3,7 +3,7 @@
 
 import { assert } from './assert.js';
 import * as cpu0reg from './cpu0reg.js';
-import { simpleOp, regImmOp, specialOp, copOp, copFmtFuncOp, fd, fs, ft, offset, sa, rd, rt, rs, tlbop, imm, imms, base, jumpAddress } from './decode.js';
+import { simpleOp, regImmOp, specialOp, copOp, isWait, copFmtFuncOp, fd, fs, ft, offset, sa, rd, rt, rs, tlbop, imm, imms, base, jumpAddress } from './decode.js';
 import { cop0ControlRegisterNames } from './disassemble.js';
 import { EmulatedException } from './emulated_exception.js';
 import { EventQueue } from './event_queue.js';
@@ -2131,6 +2131,13 @@ const cop0Table = validateCopOpTable([
 ]);
 
 function executeCop0(i) {
+  // WAIT's implementation-dependent code overlaps the copOp field, so it
+  // must be recognised before dispatching on that field. Treat WAIT as a
+  // no-op: function 0x20 is reserved and inert on the VR4300, while newer
+  // MIPS implementations define this encoding as a power-saving hint.
+  if (isWait(i)) {
+    return;
+  }
   cop0Table[copOp(i)](i);
 }
 
