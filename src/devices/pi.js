@@ -157,6 +157,14 @@ export class PIRegDevice extends Device {
     return this.mem.getBits32(PI_STATUS_REG, PI_STATUS_DMA_BUSY) != 0;
   }
 
+  setIOBusy(busy) {
+    if (busy) {
+      this.mem.setBits32(PI_STATUS_REG, PI_STATUS_IO_BUSY);
+    } else {
+      this.mem.clearBits32(PI_STATUS_REG, PI_STATUS_IO_BUSY);
+    }
+  }
+
   copyFromRDRAM() {
     const dramAddr = this.mem.getU32(PI_DRAM_ADDR_REG) & 0x00fffffe;
     const cartAddr = this.mem.getU32(PI_CART_ADDR_REG) & 0xfffffffe;
