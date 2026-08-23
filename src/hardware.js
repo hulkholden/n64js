@@ -48,9 +48,10 @@ class Mempack {
 }
 
 export class Hardware {
-  constructor(rominfo) {
+  constructor(rominfo, { headless = false } = {}) {
     // TODO: Not sure this belongs here.
     this.rominfo = rominfo;
+    this.headless = headless;
 
     this.timeline = new Timeline(this.getOpsExecuted.bind(this));
 

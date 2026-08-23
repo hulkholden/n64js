@@ -1,6 +1,18 @@
 import GUI from 'lil-gui';
 
-export const dbgGUI = new GUI();
+class HeadlessGUI {
+  addFolder() { return this; }
+  add() { return this; }
+  name() { return this; }
+  min() { return this; }
+  max() { return this; }
+  step() { return this; }
+  title() {}
+  hide() {}
+  show() {}
+}
+
+export const dbgGUI = typeof document === 'undefined' ? new HeadlessGUI() : new GUI();
 dbgGUI.title('Options');
 
 dbgGUI.hide();

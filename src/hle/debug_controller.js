@@ -9,7 +9,7 @@ let $dlistScrub;
 let $dlistState;
 let $dlistOutput;
 
-const $dlistContent = $('#dlist-content');
+const $dlistContent = typeof $ === 'function' ? $('#dlist-content') : null;
 
 // Which displaylist in the frame to stop on.
 let dlFocusIndex = 0;
