@@ -52,6 +52,7 @@ export class Hardware {
     // TODO: Not sure this belongs here.
     this.rominfo = rominfo;
     this.headless = headless;
+    this.verticalBlankCount = 0;
 
     this.timeline = new Timeline(this.getOpsExecuted.bind(this));
 
@@ -155,6 +156,7 @@ export class Hardware {
   }
 
   reset() {
+    this.verticalBlankCount = 0;
     this.cpu0.reset();
     this.cpu1.reset();
     this.cpu2.reset();
@@ -207,6 +209,7 @@ export class Hardware {
   }
 
   verticalBlank() {
+    this.verticalBlankCount++;
     this.flushSaveData();
 
     this.timeline.newFrame();

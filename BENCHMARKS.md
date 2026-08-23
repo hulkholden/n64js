@@ -12,7 +12,13 @@ Multiple ROMs can be measured in one invocation:
 bun run benchmark --rom /path/to/first.z64 --rom /path/to/second.z64
 ```
 
-Each sample creates and boots a fresh emulator, runs an unmeasured warm-up, then measures a fixed number of emulated CPU cycles. ROM loading and emulator initialization are excluded from timing. Human-readable output includes every sample, the median throughput, median absolute deviation, and a final CPU-state fingerprint.
+The default `game` mode keeps idle-loop skipping enabled and measures a fixed number of VI retraces, with a cycle ceiling to catch ROMs which fail to initialize the VI. Each sample creates and boots a fresh emulator, runs an unmeasured 120-retrace warm-up, then measures 600 retraces. ROM loading and emulator initialization are excluded from timing. Human-readable output includes every sample, median VI throughput, median absolute deviation, emulated cycle throughput, and a final CPU-state fingerprint.
+
+Use `cpu` mode for a fixed-cycle CPU-core measurement:
+
+```sh
+bun run benchmark --rom /path/to/rom.z64 --mode cpu
+```
 
 Use JSON output for comparisons or CI artifacts:
 

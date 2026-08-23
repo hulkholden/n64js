@@ -1,8 +1,12 @@
 #!/usr/bin/env bun
 
-import { createHeadlessEmulator, loadROMFile, runCycles } from './headless_env.js';
+import { createHeadlessEmulator, loadROMFile, runCycles, runFrames } from './headless_env.js';
 
 const defaults = {
+  mode: 'game',
+  warmupFrames: 120,
+  frames: 600,
+  maxCycles: 5_000_000_000,
   warmupCycles: 25_000_000,
   cycles: 250_000_000,
   samples: 7,
@@ -14,8 +18,12 @@ function usage() {
   return `Usage: bun run benchmark --rom <path> [--rom <path> ...] [options]
 
 Options:
-  --warmup-cycles <n>  Emulated cycles before each sample (default: ${defaults.warmupCycles})
-  --cycles <n>         Timed emulated cycles per sample (default: ${defaults.cycles})
+  --mode <game|cpu>     Benchmark mode (default: ${defaults.mode})
+  --warmup-frames <n>  VI retraces before each game sample (default: ${defaults.warmupFrames})
+  --frames <n>         Timed VI retraces per game sample (default: ${defaults.frames})
+  --max-cycles <n>     Cycle safety ceiling per frame phase (default: ${defaults.maxCycles})
+  --warmup-cycles <n>  Emulated cycles before each CPU sample (default: ${defaults.warmupCycles})
+  --cycles <n>         Timed emulated cycles per CPU sample (default: ${defaults.cycles})
   --samples <n>        Number of fresh-emulator samples (default: ${defaults.samples})
   --chunk-cycles <n>   Maximum cycles passed to cpu.run at once (default: ${defaults.chunkCycles})
   --json               Emit machine-readable JSON
@@ -40,6 +48,21 @@ export function parseArgs(args) {
       case '--rom':
         if (!args[i + 1]) throw new Error('--rom requires a path');
         options.roms.push(args[++i]);
+        break;
+      case '--mode':
+        options.mode = args[++i];
+        if (options.mode !== 'game' && options.mode !== 'cpu') {
+          throw new Error(`--mode must be game or cpu, got: ${options.mode}`);
+        }
+        break;
+      case '--warmup-frames':
+        options.warmupFrames = parsePositiveInteger(args[++i], arg);
+        break;
+      case '--frames':
+        options.frames = parsePositiveInteger(args[++i], arg);
+        break;
+      case '--max-cycles':
+        options.maxCycles = parsePositiveInteger(args[++i], arg);
         break;
       case '--warmup-cycles':
         options.warmupCycles = parsePositiveInteger(args[++i], arg);
@@ -98,32 +121,48 @@ async function benchmarkROM(romPath, options) {
 
   for (let index = 0; index < options.samples; ++index) {
     const emulator = await createHeadlessEmulator(loadedROM);
-    runCycles(emulator, options.warmupCycles, options.chunkCycles);
+    if (options.mode === 'game') {
+      runFrames(emulator, options.warmupFrames, options.maxCycles, options.chunkCycles);
+    } else {
+      runCycles(emulator, options.warmupCycles, options.chunkCycles);
+    }
 
     const startCycles = emulator.cpu0.getOpsExecuted();
+    const startFrames = emulator.hardware.verticalBlankCount;
     const start = Bun.nanoseconds();
-    runCycles(emulator, options.cycles, options.chunkCycles);
+    if (options.mode === 'game') {
+      runFrames(emulator, options.frames, options.maxCycles, options.chunkCycles);
+    } else {
+      runCycles(emulator, options.cycles, options.chunkCycles);
+    }
     const elapsedNanoseconds = Bun.nanoseconds() - start;
     const executedCycles = emulator.cpu0.getOpsExecuted() - startCycles;
+    const executedFrames = emulator.hardware.verticalBlankCount - startFrames;
     const seconds = elapsedNanoseconds / 1_000_000_000;
     samples.push({
       index: index + 1,
       seconds,
       cycles: executedCycles,
+      frames: executedFrames,
       cyclesPerSecond: executedCycles / seconds,
+      framesPerSecond: executedFrames / seconds,
       state: stateFingerprint(emulator.cpu0),
     });
   }
 
-  const rates = samples.map(sample => sample.cyclesPerSecond);
+  const rates = samples.map(sample => options.mode === 'game' ? sample.framesPerSecond : sample.cyclesPerSecond);
   const states = new Set(samples.map(sample => sample.state));
   return {
     rom: romPath,
     name: loadedROM.rominfo.name,
     cic: loadedROM.rominfo.cic,
-    warmupCycles: options.warmupCycles,
-    measuredCycles: options.cycles,
-    medianCyclesPerSecond: median(rates),
+    mode: options.mode,
+    warmupFrames: options.mode === 'game' ? options.warmupFrames : undefined,
+    measuredFrames: options.mode === 'game' ? options.frames : undefined,
+    warmupCycles: options.mode === 'cpu' ? options.warmupCycles : undefined,
+    measuredCycles: options.mode === 'cpu' ? options.cycles : undefined,
+    medianFramesPerSecond: options.mode === 'game' ? median(rates) : undefined,
+    medianCyclesPerSecond: options.mode === 'cpu' ? median(rates) : undefined,
     medianAbsoluteDeviation: medianAbsoluteDeviation(rates),
     deterministicState: states.size === 1,
     samples,
@@ -132,6 +171,10 @@ async function benchmarkROM(romPath, options) {
 
 function formatRate(value) {
   return `${(value / 1_000_000).toFixed(2)} Mcycles/s`;
+}
+
+function formatFrames(value) {
+  return `${value.toFixed(2)} VI/s`;
 }
 
 async function main() {
@@ -174,12 +217,15 @@ async function main() {
   }
 
   for (const result of results) {
-    console.log(`${result.name || result.rom}: ${formatRate(result.medianCyclesPerSecond)} (MAD ${formatRate(result.medianAbsoluteDeviation)})`);
+    const format = result.mode === 'game' ? formatFrames : formatRate;
+    const medianRate = result.mode === 'game' ? result.medianFramesPerSecond : result.medianCyclesPerSecond;
+    console.log(`${result.name || result.rom}: ${format(medianRate)} (MAD ${format(result.medianAbsoluteDeviation)})`);
     if (!result.deterministicState) {
       console.log('  warning: final CPU state differs between samples');
     }
     for (const sample of result.samples) {
-      console.log(`  #${sample.index}: ${formatRate(sample.cyclesPerSecond)}, ${sample.seconds.toFixed(3)}s, state ${sample.state}`);
+      const rate = result.mode === 'game' ? sample.framesPerSecond : sample.cyclesPerSecond;
+      console.log(`  #${sample.index}: ${format(rate)}, ${sample.seconds.toFixed(3)}s, ${formatRate(sample.cyclesPerSecond)}, state ${sample.state}`);
     }
   }
 }

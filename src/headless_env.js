@@ -104,3 +104,21 @@ export function runCycles(emulator, cycles, chunkCycles = 10_000_000) {
   }
   return cpu0.getOpsExecuted();
 }
+
+export function runFrames(emulator, frames, maxCycles, chunkCycles = 10_000_000) {
+  const { cpu0, hardware } = emulator;
+  const targetFrames = hardware.verticalBlankCount + frames;
+  const cycleLimit = cpu0.getOpsExecuted() + maxCycles;
+  while (hardware.verticalBlankCount < targetFrames) {
+    const cyclesRemaining = cycleLimit - cpu0.getOpsExecuted();
+    if (cyclesRemaining <= 0) {
+      throw new Error(`Cycle limit reached before ${frames} VI retraces`);
+    }
+    cpu0.run(Math.min(chunkCycles, cyclesRemaining));
+    const fatalError = emulator.fatalError();
+    if (fatalError) {
+      throw new Error(fatalError);
+    }
+  }
+  return hardware.verticalBlankCount;
+}
