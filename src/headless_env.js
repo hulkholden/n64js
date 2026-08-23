@@ -74,8 +74,9 @@ export async function createHeadlessEmulator(loadedROM) {
   n64js.onPresent = () => {};
   n64js.breakpoints = () => ({ isBreakpoint: () => false, toggle() {} });
 
-  // createROM does not mutate the supplied bytes, so samples can share them.
-  hardware.createROM(loadedROM.romBuffer);
+  // Short ROMs are expanded with ArrayBuffer.transfer, which detaches the
+  // supplied buffer. Give every fresh emulator its own copy.
+  hardware.createROM(loadedROM.romBuffer.slice(0));
   hardware.reset();
   initCPU(hardware);
   initRSP(hardware);
