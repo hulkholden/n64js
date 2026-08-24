@@ -26,4 +26,12 @@ Use JSON output for comparisons or CI artifacts:
 bun run benchmark --rom /path/to/rom.z64 --json > benchmark.json
 ```
 
+Use profiling output to diagnose where emulation time is being spent:
+
+```sh
+bun run benchmark --rom /path/to/rom.z64 --profile
+```
+
+Profiling reports interpreted and recompiled CPU operations, fragment compilation and invalidation, speedhack attempts and skipped cycles, and RSP instructions and tasks for each measured sample. Counter collection adds overhead, so use ordinary non-profiled runs for performance comparisons.
+
 Run `bun run benchmark --help` for cycle, sample, and chunk-size options. For meaningful comparisons, use the same ROMs and arguments, close unrelated CPU-intensive applications, keep the machine on AC power, and record the Bun version and machine type reported in the JSON output.
