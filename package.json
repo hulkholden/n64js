@@ -1,12 +1,14 @@
 {
   "name": "n64js",
   "version": "1.0.0",
+  "packageManager": "bun@1.3.14",
   "description": "An JavaScript N64 emulator.",
   "main": "n64.min.js",
   "type": "module",
   "scripts": {
     "build": "bun build ./src/n64.js --outfile=build/n64.min.js --minify",
-    "build-debug": "bun build ./src/n64.js --outfile=build/n64.min.js"
+    "build-debug": "bun build ./src/n64.js --outfile=build/n64.min.js",
+    "check:build": "bun run build && git diff --exit-code -- build/n64.min.js"
   },
   "repository": {
     "type": "git",

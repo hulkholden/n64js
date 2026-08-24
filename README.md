@@ -20,6 +20,13 @@ Compile sources (pass --watch to automatically recompile on any change):
 bun run build --watch
 ```
 
+The generated `build/n64.min.js` file is committed to the repository. Before
+submitting changes, verify that it is up to date:
+
+```
+bun run check:build
+```
+
 Run a local webserver in the root directory:
 
 ```
