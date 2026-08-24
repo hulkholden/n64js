@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 
 import { createHeadlessEmulator, loadROMFile, runCycles, runFrames } from './headless_env.js';
+import { getPerformanceProfile, performanceProfileDelta, setPerformanceProfiling } from './performance_profile.js';
 
 const defaults = {
   mode: 'game',
@@ -12,6 +13,7 @@ const defaults = {
   samples: 7,
   chunkCycles: 10_000_000,
   json: false,
+  profile: false,
 };
 
 function usage() {
@@ -27,6 +29,7 @@ Options:
   --samples <n>        Number of fresh-emulator samples (default: ${defaults.samples})
   --chunk-cycles <n>   Maximum cycles passed to cpu.run at once (default: ${defaults.chunkCycles})
   --json               Emit machine-readable JSON
+  --profile            Include emulation profiling counters for each timed sample
   --help                Show this help
 
 ROM paths are runtime inputs and are never stored by the benchmark harness.`;
@@ -79,6 +82,9 @@ export function parseArgs(args) {
       case '--json':
         options.json = true;
         break;
+      case '--profile':
+        options.profile = true;
+        break;
       case '--help':
         options.help = true;
         break;
@@ -121,6 +127,7 @@ async function benchmarkROM(romPath, options) {
 
   for (let index = 0; index < options.samples; ++index) {
     const emulator = await createHeadlessEmulator(loadedROM);
+    setPerformanceProfiling(options.profile);
     if (options.mode === 'game') {
       runFrames(emulator, options.warmupFrames, options.maxCycles, options.chunkCycles);
     } else {
@@ -129,6 +136,7 @@ async function benchmarkROM(romPath, options) {
 
     const startCycles = emulator.cpu0.getOpsExecuted();
     const startFrames = emulator.hardware.verticalBlankCount;
+    const startProfile = options.profile ? getPerformanceProfile() : undefined;
     const start = Bun.nanoseconds();
     if (options.mode === 'game') {
       runFrames(emulator, options.frames, options.maxCycles, options.chunkCycles);
@@ -139,7 +147,7 @@ async function benchmarkROM(romPath, options) {
     const executedCycles = emulator.cpu0.getOpsExecuted() - startCycles;
     const executedFrames = emulator.hardware.verticalBlankCount - startFrames;
     const seconds = elapsedNanoseconds / 1_000_000_000;
-    samples.push({
+    const sample = {
       index: index + 1,
       seconds,
       cycles: executedCycles,
@@ -147,7 +155,11 @@ async function benchmarkROM(romPath, options) {
       cyclesPerSecond: executedCycles / seconds,
       framesPerSecond: executedFrames / seconds,
       state: stateFingerprint(emulator.cpu0),
-    });
+    };
+    if (startProfile) {
+      sample.profile = performanceProfileDelta(startProfile);
+    }
+    samples.push(sample);
   }
 
   const rates = samples.map(sample => options.mode === 'game' ? sample.framesPerSecond : sample.cyclesPerSecond);
@@ -226,6 +238,13 @@ async function main() {
     for (const sample of result.samples) {
       const rate = result.mode === 'game' ? sample.framesPerSecond : sample.cyclesPerSecond;
       console.log(`  #${sample.index}: ${format(rate)}, ${sample.seconds.toFixed(3)}s, ${formatRate(sample.cyclesPerSecond)}, state ${sample.state}`);
+      if (sample.profile) {
+        const p = sample.profile;
+        console.log(`    CPU: ${p.compiledOps} compiled ops, ${p.interpretedOps} interpreted ops, ${p.fragmentRuns} fragment runs`);
+        console.log(`    fragments: ${p.fragmentCompilations} compiled, ${p.fragmentInvalidations} invalidated`);
+        console.log(`    speedhack: ${p.speedHackActivations}/${p.speedHackAttempts} activated, ${p.speedHackSkippedCycles} cycles skipped (${p.speedHackRSPActive} RSP-active, ${p.speedHackNonNopDelay} non-NOP delay-slot rejections)`);
+        console.log(`    RSP: ${p.rspInstructions} instructions, ${p.rspTasks} tasks`);
+      }
     }
   }
 }

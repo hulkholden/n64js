@@ -3,6 +3,7 @@
 import * as disassemble_rsp from "./disassemble_rsp.js";
 import { toString16, toString32, toHex } from "./format.js";
 import { rcp16, rsq16 } from "./rsp_recip.js";
+import { performanceProfile } from './performance_profile.js';
 
 window.n64js = window.n64js || {};
 
@@ -510,6 +511,9 @@ export class RSP {
   step() {
     if (this.halted) {
       return;
+    }
+    if (performanceProfile.enabled) {
+      performanceProfile.counters.rspInstructions++;
     }
     this.nextPC = (this.delayPC || (this.pc + 4)) & 0xffc;
 

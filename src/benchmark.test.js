@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { median, medianAbsoluteDeviation, parseArgs } from './benchmark.js';
+import { getPerformanceProfile, performanceProfile, performanceProfileDelta, setPerformanceProfiling } from './performance_profile.js';
 
 describe('benchmark argument parsing', () => {
   test('requires a ROM', () => {
@@ -15,6 +16,7 @@ describe('benchmark argument parsing', () => {
       '--warmup-cycles', '100',
       '--samples', '3',
       '--json',
+      '--profile',
     ])).toMatchObject({
       roms: ['one.z64', 'two.v64'],
       mode: 'cpu',
@@ -22,6 +24,7 @@ describe('benchmark argument parsing', () => {
       warmupCycles: 100,
       samples: 3,
       json: true,
+      profile: true,
     });
   });
 
@@ -50,5 +53,23 @@ describe('benchmark statistics', () => {
 
   test('calculates median absolute deviation', () => {
     expect(medianAbsoluteDeviation([1, 2, 3, 100, 101])).toBe(2);
+  });
+});
+
+describe('performance profiling', () => {
+  test('is opt-in and reports counter deltas', () => {
+    setPerformanceProfiling(true);
+    const start = getPerformanceProfile();
+    performanceProfile.counters.compiledOps += 12;
+    performanceProfile.counters.rspTasks += 2;
+
+    expect(performanceProfileDelta(start)).toMatchObject({
+      compiledOps: 12,
+      rspTasks: 2,
+      speedHackAttempts: 0,
+    });
+
+    setPerformanceProfiling(false);
+    expect(performanceProfile.enabled).toBe(false);
   });
 });
