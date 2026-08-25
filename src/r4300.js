@@ -1740,7 +1740,12 @@ export class CPU0 {
   execTEQI(rs, imms) { this.maybeRaiseTRAPException(this.getRegS64(rs) == BigInt(imms)); }
   execTNEI(rs, imms) { this.maybeRaiseTRAPException(this.getRegS64(rs) != BigInt(imms)); }
 
-  execJ(address) { this.jump(address); }
+  execJ(address) {
+    if (kSpeedHackEnabled && address === this.pc) {
+      this.speedHack();
+    }
+    this.jump(address);
+  }
   execJR(rs) { this.jump(this.getRegU32Lo(rs)); }
   execJAL(address) {
     this.setRegS32Extend(cpu0reg.RA, this.nextPC + 4);
