@@ -1,4 +1,5 @@
 import { dbgGUI } from "./dbg_ui.js";
+import { performanceProfile } from './performance_profile.js';
 
 const debugOptions = {
   enableDynarec: true,
@@ -41,6 +42,9 @@ export class Fragment {
   }
 
   invalidate() {
+    if (performanceProfile.enabled) {
+      performanceProfile.counters.fragmentInvalidations++;
+    }
     // reset all but entryPC
     this.minPC            = this.entryPC;
     this.maxPC            = this.entryPC+4;

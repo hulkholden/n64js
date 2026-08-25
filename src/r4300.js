@@ -12,6 +12,7 @@ import { lookupFragment, resetFragments } from './fragments.js';
 import * as logger from './logger.js';
 import * as memaccess from './memaccess.js';
 import { kAccurateCountUpdating, kSpeedHackEnabled } from './options.js';
+import { performanceProfile } from './performance_profile.js';
 import { FragmentContext, generateCodeForOp } from './recompiler.js';
 import { rsp } from './rsp.js';
 import { syncFlow } from './sync.js';
@@ -768,6 +769,7 @@ export class CPU0 {
 
   runImpl() {
     const eventQueue = this.eventQueue;
+    const runFragment = performanceProfile.enabled ? executeFragmentProfiled : executeFragment;
 
     while (this.hasEvent(kEventRunForCycles)) {
       let fragment = lookupFragment(this.pc);
@@ -775,8 +777,11 @@ export class CPU0 {
       while (!this.stuffToDo) {
 
         if (fragment && fragment.func) {
-          fragment = executeFragment(fragment, this, eventQueue);
+          fragment = runFragment(fragment, this, eventQueue);
         } else {
+          if (performanceProfile.enabled) {
+            performanceProfile.counters.interpretedOps++;
+          }
           // if (syncFlow) {
           //   if (!checkSyncState(syncFlow, this.pc)) {
           //     n64js.halt('sync error');
@@ -849,11 +854,20 @@ export class CPU0 {
   }
 
   speedHack() {
+    if (performanceProfile.enabled) {
+      performanceProfile.counters.speedHackAttempts++;
+    }
     if (!rsp.halted) {
+      if (performanceProfile.enabled) {
+        performanceProfile.counters.speedHackRSPActive++;
+      }
       return;
     }
     const nextInstruction = n64js.hardware().memMap.readMemoryInternal32(this.pc + 4);
     if (nextInstruction !== 0) {
+      if (performanceProfile.enabled) {
+        performanceProfile.counters.speedHackNonNopDelay++;
+      }
       return;
     }
 
@@ -862,6 +876,10 @@ export class CPU0 {
 
     // We should always have at least one event, but double-check this.
     const toSkip = this.eventQueue.skipToNextEvent(1);
+    if (performanceProfile.enabled) {
+      performanceProfile.counters.speedHackActivations++;
+      performanceProfile.counters.speedHackSkippedCycles += toSkip;
+    }
     this.controlCountValue += toSkip;
     // logger.log(`speedhack: skipping ${toSkip} cycles - run is ${runCountdown}`);
 
@@ -2482,6 +2500,25 @@ function executeFragment(fragment, cpu0, eventQueue) {
   return fragment.getNextFragment(cpu0.pc, opsExecuted);
 }
 
+function executeFragmentProfiled(fragment, cpu0, eventQueue) {
+  if (eventQueue.nextEventCountdown() < fragment.opsCompiled) {
+    // We're close to another event: drop to the interpreter.
+    return null;
+  }
+  fragment.executionCount++;
+  const opsExecuted = fragment.func();
+  performanceProfile.counters.fragmentRuns++;
+  performanceProfile.counters.compiledOps += opsExecuted;
+
+  if (!kAccurateCountUpdating) {
+    cpu0.incrementCount(opsExecuted);
+  }
+  // refresh latest event - may have changed
+  eventQueue.incrementCount(opsExecuted);
+
+  return fragment.getNextFragment(cpu0.pc, opsExecuted);
+}
+
 // We need just one of these - declare at global scope to avoid generating garbage
 const fragmentContext = new FragmentContext();
 
@@ -2525,6 +2562,9 @@ function addOpToFragment(fragment, entry_pc, instruction, c) {
 }
 
 function compileFragment(fragment) {
+  if (performanceProfile.enabled) {
+    performanceProfile.counters.fragmentCompilations++;
+  }
   let header = '';
   const sync = n64js.getSyncFlow();
   if (sync) {
@@ -2563,4 +2603,3 @@ function compileFragment(fragment) {
 
 n64js.checkSyncState = checkSyncState;    // Needs to be callable from dynarec
 n64js.executeOp = executeOp;
-

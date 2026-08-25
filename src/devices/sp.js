@@ -5,6 +5,7 @@ import * as mi from './mi.js';
 import * as logger from '../logger.js';
 import { toString16, toString32 } from '../format.js';
 import { hleProcessRSPTask } from '../hle/rsp_task.js';
+import { performanceProfile } from '../performance_profile.js';
 import { rsp } from '../rsp.js';
 
 const emulateRSP = true;
@@ -316,6 +317,9 @@ export class SPRegDevice extends Device {
     this.mem.set32(SP_STATUS_REG, statusBits);
 
     if (startRsp) {
+      if (performanceProfile.enabled) {
+        performanceProfile.counters.rspTasks++;
+      }
       if (hleProcessRSPTask() || !emulateRSP) {
         this.hardware.spRegDevice.setStatusBits(SP_STATUS_TASKDONE | SP_STATUS_BROKE | SP_STATUS_HALT);
       } else {

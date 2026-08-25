@@ -3,6 +3,7 @@
 import * as disassemble_rsp from "./disassemble_rsp.js";
 import { toString16, toString32, toHex } from "./format.js";
 import { rcp16, rsq16 } from "./rsp_recip.js";
+import { performanceProfile } from './performance_profile.js';
 
 window.n64js = window.n64js || {};
 
@@ -507,10 +508,33 @@ export class RSP {
     this.runEvent = this.hardware.timeline.startEvent("RSP");
   }
 
+  setPerformanceProfiling(enabled) {
+    if (enabled) {
+      this.step = this.stepProfiled;
+    } else if (Object.hasOwn(this, 'step')) {
+      delete this.step;
+    }
+  }
+
   step() {
     if (this.halted) {
       return;
     }
+    this.nextPC = (this.delayPC || (this.pc + 4)) & 0xffc;
+
+    const instr = this.imemDV.getUint32(this.pc, false);
+
+    this.branchTarget = 0;
+    this.executeOp(instr);
+    this.pc = this.nextPC;
+    this.delayPC = this.branchTarget;
+  }
+
+  stepProfiled() {
+    if (this.halted) {
+      return;
+    }
+    performanceProfile.counters.rspInstructions++;
     this.nextPC = (this.delayPC || (this.pc + 4)) & 0xffc;
 
     const instr = this.imemDV.getUint32(this.pc, false);

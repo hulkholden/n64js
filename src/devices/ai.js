@@ -47,7 +47,7 @@ function clampSampleRate(r) {
 export class AIRegDevice extends Device {
   constructor(hardware, rangeStart, rangeEnd) {
     super("AIReg", hardware, hardware.ai_reg, rangeStart, rangeEnd);
-    this.audioContext = new window.AudioContext();
+    this.audioContext = hardware.headless ? null : new window.AudioContext();
 
     // Writes to the address register are latched until a subsequent write to the length reg.
     this.pendingAddress = 0;
@@ -190,6 +190,12 @@ export class AIRegDevice extends Device {
     const length = this.dmaLengths[0];
     const duration = this.dmaDurations[0];
 
+    if (this.hardware.headless) {
+      this.raiseAI();
+      this.addAIDMAEvent(duration);
+      return;
+    }
+
     const numSamples = length / 4;
 
     const lSamples = new Float32Array(numSamples);
@@ -232,6 +238,9 @@ export class AIRegDevice extends Device {
   }
 
   shouldSkipFrame() {
+    if (this.hardware.headless) {
+      return false;
+    }
     const timeDiff = this.time - this.audioContext.currentTime;
     return timeDiff > kMaxAudioLead;
   }
