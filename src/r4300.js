@@ -769,6 +769,7 @@ export class CPU0 {
 
   runImpl() {
     const eventQueue = this.eventQueue;
+    const runFragment = performanceProfile.enabled ? executeFragmentProfiled : executeFragment;
 
     while (this.hasEvent(kEventRunForCycles)) {
       let fragment = lookupFragment(this.pc);
@@ -776,7 +777,7 @@ export class CPU0 {
       while (!this.stuffToDo) {
 
         if (fragment && fragment.func) {
-          fragment = executeFragment(fragment, this, eventQueue);
+          fragment = runFragment(fragment, this, eventQueue);
         } else {
           if (performanceProfile.enabled) {
             performanceProfile.counters.interpretedOps++;
@@ -2489,10 +2490,25 @@ function executeFragment(fragment, cpu0, eventQueue) {
   }
   fragment.executionCount++;
   const opsExecuted = fragment.func();
-  if (performanceProfile.enabled) {
-    performanceProfile.counters.fragmentRuns++;
-    performanceProfile.counters.compiledOps += opsExecuted;
+
+  if (!kAccurateCountUpdating) {
+    cpu0.incrementCount(opsExecuted);
   }
+  // refresh latest event - may have changed
+  eventQueue.incrementCount(opsExecuted);
+
+  return fragment.getNextFragment(cpu0.pc, opsExecuted);
+}
+
+function executeFragmentProfiled(fragment, cpu0, eventQueue) {
+  if (eventQueue.nextEventCountdown() < fragment.opsCompiled) {
+    // We're close to another event: drop to the interpreter.
+    return null;
+  }
+  fragment.executionCount++;
+  const opsExecuted = fragment.func();
+  performanceProfile.counters.fragmentRuns++;
+  performanceProfile.counters.compiledOps += opsExecuted;
 
   if (!kAccurateCountUpdating) {
     cpu0.incrementCount(opsExecuted);

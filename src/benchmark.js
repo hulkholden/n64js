@@ -128,6 +128,7 @@ async function benchmarkROM(romPath, options) {
   for (let index = 0; index < options.samples; ++index) {
     const emulator = await createHeadlessEmulator(loadedROM);
     setPerformanceProfiling(options.profile);
+    emulator.hardware.rsp.setPerformanceProfiling(options.profile);
     if (options.mode === 'game') {
       runFrames(emulator, options.warmupFrames, options.maxCycles, options.chunkCycles);
     } else {
