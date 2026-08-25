@@ -734,7 +734,12 @@ function generateDCTC2(ctx) {
 function generateJ(ctx) {
   // TODO: can this call execJ? It would need reworking to use branchTarget.
   const addr = jumpAddress(ctx.pc, ctx.instruction);
-  const impl = 'c.delayPC = ' + toString32(addr) + ';';
+  let impl = '';
+  if (kSpeedHackEnabled && addr === ctx.pc) {
+    impl += 'c.speedHack();\n';
+    ctx.bailOut = true;
+  }
+  impl += 'c.delayPC = ' + toString32(addr) + ';';
   return generateBranchOpBoilerplate(impl, ctx, false);
 }
 
