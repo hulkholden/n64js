@@ -42,7 +42,11 @@ export async function loadROMFile(romPath) {
   return { romBuffer, rominfo };
 }
 
-export async function createHeadlessEmulator(loadedROM) {
+export async function createHeadlessEmulator(loadedROM, {
+  onHalt = () => {},
+  onWarning = () => {},
+  onCheckFailure = () => {},
+} = {}) {
   const [
     { simulateBoot },
     { ControllerInputs },,
@@ -62,12 +66,15 @@ export async function createHeadlessEmulator(loadedROM) {
   n64js.joybus = () => joybus;
   n64js.getLocalStorageItem = () => undefined;
   n64js.setLocalStorageItem = () => {};
-  n64js.ui = () => ({ displayError() {}, displayWarning() {} });
-  n64js.check = () => {};
-  n64js.warn = () => {};
+  n64js.ui = () => ({ displayError() {}, displayWarning: onWarning });
+  n64js.check = (condition, message) => {
+    if (!condition) onCheckFailure(message);
+  };
+  n64js.warn = onWarning;
   n64js.stopForBreakpoint = () => cpu0?.breakExecution();
   n64js.halt = message => {
     fatalError = String(message);
+    onHalt(fatalError);
     cpu0?.breakExecution();
   };
   n64js.returnControlToSystem = () => cpu0?.breakExecution();
