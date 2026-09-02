@@ -9,7 +9,8 @@
     "build": "bun build ./src/n64.js --outfile=build/n64.min.js --minify",
     "build-debug": "bun build ./src/n64.js --outfile=build/n64.min.js",
     "check:build": "bun run build && git diff --exit-code -- build/n64.min.js",
-    "benchmark": "bun run ./src/benchmark.js"
+    "benchmark": "bun run ./src/benchmark.js",
+    "headless": "bun run ./src/headless.js"
   },
   "repository": {
     "type": "git",
