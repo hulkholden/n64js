@@ -56,9 +56,7 @@ export class ROMD1A2Device extends Device {
 
         // A buffer for storing debug output, mapped to dbgOutBufStart.
         // This is flushed on writes to dbgOutWriteLen.
-        this.debugBuffer = new ArrayBuffer(dbgOutBufLen);
-        this.debugBufferU32 = new Uint32Array(this.debugBuffer);
-        this.debugBufferU8 = new Uint8Array(this.debugBuffer);
+        this.debugBuffer = new MemoryRegion(new ArrayBuffer(dbgOutBufLen));
         // The accumulated debug output.
         // Complete lines (upto and including a newline) are flushed to the debug console.
         this.output = ''
@@ -72,6 +70,10 @@ export class ROMD1A2Device extends Device {
     // 64-bit reads from the rom crash the n64, so no need to define these.
 
     write64(address, value) {
+        if (this.isDebugBufferAddress(address, 8)) {
+            this.debugBuffer.set64(address - dbgOutBufStart, value);
+            return;
+        }
         // Only the upper 32 bits are used.
         this.cacheLastWrite(Number(value >> 32n));
     }
@@ -80,23 +82,35 @@ export class ROMD1A2Device extends Device {
         if (address == dbgOutWriteLen) {
             return this.writeDebugBufferLen(value);
         }
-        if (address >= dbgOutBufStart && address < dbgOutBufEnd) {
-            return this.writeDebugBuffer32(address - dbgOutBufStart, value);
+        if (this.isDebugBufferAddress(address, 4)) {
+            this.debugBuffer.set32(address - dbgOutBufStart, value);
+            return;
         }
 
         this.cacheLastWrite(value >>> 0);
     }
 
     write16(address, value) {
+        if (this.isDebugBufferAddress(address, 2)) {
+            this.debugBuffer.set16(address - dbgOutBufStart, value);
+            return;
+        }
         const shift = 8 * (2 - (address & 2));
         this.cacheLastWrite((value << shift) & 0xffffffff);
     }
     write8(address, value) {
+        if (this.isDebugBufferAddress(address, 1)) {
+            this.debugBuffer.set8(address - dbgOutBufStart, value);
+            return;
+        }
         const shift = 8 * (3 - (address & 3));
         this.cacheLastWrite((value << shift) & 0xffffffff);
     }
 
     readU32(address) {
+        if (this.isDebugBufferAddress(address, 4)) {
+            return this.debugBuffer.getU32(address - dbgOutBufStart);
+        }
         if (this.hasLastWrite) {
             return this.consumeLastWrite() >>> 0;
         }
@@ -104,6 +118,9 @@ export class ROMD1A2Device extends Device {
     }
 
     readU16(address) {
+        if (this.isDebugBufferAddress(address, 2)) {
+            return this.debugBuffer.getU16(address - dbgOutBufStart);
+        }
         if (this.hasLastWrite) {
             return this.consumeLastWrite() >>> 16;
         }
@@ -111,10 +128,17 @@ export class ROMD1A2Device extends Device {
     }
 
     readU8(address) {
+        if (this.isDebugBufferAddress(address, 1)) {
+            return this.debugBuffer.getU8(address - dbgOutBufStart);
+        }
         if (this.hasLastWrite) {
             return this.consumeLastWrite() >>> 24;
         }
         return super.readU8(address);
+    }
+
+    isDebugBufferAddress(address, accessSize) {
+        return address >= dbgOutBufStart && address + accessSize <= dbgOutBufEnd;
     }
 
     cacheLastWrite(value) {
@@ -135,20 +159,20 @@ export class ROMD1A2Device extends Device {
             value = dbgOutBufLen;
         }
         for (let i = 0; i < value; i++) {
-            this.output += String.fromCharCode(this.debugBufferU8[i ^ 0x3]);
+            this.output += String.fromCharCode(this.debugBuffer.getU8(i));
         }
         this.flushDebugOutput();
-    }
-
-    writeDebugBuffer32(address, value) {
-        const wordIdx = address >>> 2;
-        this.debugBufferU32[wordIdx] = value;
     }
 
     flushDebugOutput() {
         const idx = this.output.lastIndexOf('\n');
         if (idx >= 0) {
-            console.log(this.output.substring(0, idx + 1));
+            const completeLines = this.output.substring(0, idx).split('\n');
+            for (const line of completeLines) {
+                // logger.log writes to both the browser console and n64js's
+                // in-page debug output.
+                logger.log(line);
+            }
             this.output = this.output.substring(idx + 1);
         }
     }
@@ -160,9 +184,12 @@ export class ROMD1A3Device extends Device {
         super("ROMd1a3", hardware, hardware.rom, rangeStart, rangeEnd);
     }
 
-    write32(address, value) { throw `Writing to rom d1a3 ${toString32(value)} -> [${toString32(address)}]`; }
-    write16(address, value) { throw `Writing to rom d1a3 ${toString16(value)} -> [${toString32(address)}]`; }
-    write8(address, value) { throw `Writing to rom d1a3 ${toString8(value)} -> [${toString32(address)}]`; }
+    // Domain 1 Address 3 is used by cartridge hardware such as the SC64. If
+    // no such hardware is present, writes used to probe for it have no effect.
+    write64(address, value) {}
+    write32(address, value) {}
+    write16(address, value) {}
+    write8(address, value) {}
 }
 
 export class ROMD2A1Device extends Device {
