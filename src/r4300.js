@@ -1282,9 +1282,11 @@ export class CPU0 {
   execMTLO(rs) { this.setMultLoU64(this.getRegU64(rs)); }
 
   execMULT(rt, rs) {
-    const result = BigInt(this.getRegS32Lo(rs)) * BigInt(this.getRegS32Lo(rt));
-    // TODO: verify if these results should be sign extended or not.
-    // n64-systemtest doesn't seem to cover MULT.
+    // The VR4300 has unusual asymmetric operand widths for MULT: rs uses the
+    // full signed 64-bit value while rt is truncated to a signed 35-bit value.
+    const lhs = this.getRegS64(rs);
+    const rhs = BigInt.asIntN(35, this.getRegU64(rt));
+    const result = BigInt.asIntN(64, lhs * rhs);
     this.setMultLoS32Extend(result & u32MaxBigInt);
     this.setMultHiS32Extend(result >> 32n);
   }
