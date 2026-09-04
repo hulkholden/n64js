@@ -212,23 +212,39 @@ export class PIRegDevice extends Device {
   copyToRDRAM() {
     const dramAddr = this.mem.getU32(PI_DRAM_ADDR_REG) & 0x00fffffe;
     const cartAddr = this.mem.getU32(PI_CART_ADDR_REG) & 0xfffffffe;
-    let transferLen = (this.mem.getU32(PI_WR_LEN_REG) & 0x00ffffff) + 1;
+    let cartTransferLen = (this.mem.getU32(PI_WR_LEN_REG) & 0x00ffffff) + 1;
 
     if (!this.quiet) {
-      logger.log(`PI: copying ${transferLen} bytes of data from ${toString32(cartAddr)} to ${toString32(dramAddr)}`);
+      logger.log(`PI: copying ${cartTransferLen} bytes of data from ${toString32(cartAddr)} to ${toString32(dramAddr)}`);
     }
 
-    // Short transfers are handled differently (see https://n64brew.dev/wiki/Peripheral_Interface)
-    if (transferLen >= 0x7f && (transferLen & 1)) {
-      transferLen++;
+    const misalignment = dramAddr & 7;
+    const alignedPageOffset = (dramAddr - misalignment) & 0x7ff;
+    const firstBlockSize = Math.min(128, 0x800 - alignedPageOffset);
+    const firstCartBlockSize = firstBlockSize - misalignment;
+
+    // The PI rounds transfers which reach the end of its first burst up to an
+    // even number of cartridge bytes. Tiny bursts at the end of an RDRAM page
+    // do not get the usual two-byte lookahead.
+    const roundThreshold = firstBlockSize <= 8 ? firstCartBlockSize : firstCartBlockSize - 2;
+    if (cartTransferLen >= roundThreshold && (cartTransferLen & 1)) {
+      cartTransferLen++;
     }
-    if (transferLen <= 0x80) {
-      transferLen -= dramAddr & 0x7;
+
+    let rdramTransferLen;
+    if (cartTransferLen < firstCartBlockSize) {
+      rdramTransferLen = Math.max(0, cartTransferLen - misalignment);
+    } else {
+      rdramTransferLen = cartTransferLen;
+      const secondHoleStart = firstCartBlockSize + 128 - misalignment;
+      if (firstBlockSize <= 8 && rdramTransferLen > secondHoleStart) {
+        rdramTransferLen += misalignment;
+      }
     }
 
     let src;
     let srcOffset = 0;
-    let cycles = this.estimateDMACyclesFromLength(transferLen);
+    let cycles = this.estimateDMACyclesFromLength(cartTransferLen);
 
     if (isDom1Addr1(cartAddr)) {
       src = this.hardware.rom;
@@ -262,7 +278,20 @@ export class PIRegDevice extends Device {
     }
 
     if (src) {
-      this.hardware.ram.copy(dramAddr, src, srcOffset, transferLen);
+      const firstHoleStart = Math.max(0, firstCartBlockSize - misalignment);
+      const secondHoleStart = firstCartBlockSize + 128 - misalignment;
+      for (let i = 0; i < rdramTransferLen; ++i) {
+        if (i >= firstHoleStart && i < firstCartBlockSize) {
+          continue;
+        }
+        if (firstBlockSize <= 8 && i >= secondHoleStart && i < secondHoleStart + misalignment) {
+          continue;
+        }
+        const sourceIndex = firstBlockSize <= 8 && i >= secondHoleStart + misalignment
+          ? i - misalignment
+          : i;
+        this.hardware.ram.u8[dramAddr + i] = src.u8[srcOffset + sourceIndex];
+      }
     }
 
     // If this is the first DMA write the ram size to 0x800003F0 (cic6105) or 0x80000318 (others)
@@ -270,8 +299,8 @@ export class PIRegDevice extends Device {
 
     // Address registers are updated when the transfer completes.
     this.mem.setBits32(PI_STATUS_REG, PI_STATUS_DMA_BUSY);
-    this.mem.set32(PI_DRAM_ADDR_REG, (this.mem.getU32(PI_DRAM_ADDR_REG) + transferLen + 7) & ~7);
-    this.mem.set32(PI_CART_ADDR_REG, (this.mem.getU32(PI_CART_ADDR_REG) + transferLen + 1) & ~1);
+    this.mem.set32(PI_DRAM_ADDR_REG, (dramAddr + rdramTransferLen + 7) & ~7);
+    this.mem.set32(PI_CART_ADDR_REG, (cartAddr + cartTransferLen + 1) & ~1);
 
     this.addPIInterrupt(cycles);
   }
