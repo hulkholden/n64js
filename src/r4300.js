@@ -1682,16 +1682,24 @@ export class CPU0 {
 
   execLL(rt, base, imms) {
     const addr = this.addrS32(base, imms);
-    this.setControlU32(cpu0reg.controlLLAddr, makeLLAddr(addr));
+    this.setControlU32(cpu0reg.controlLLAddr, makeLLAddr(this.physicalAddressForLoad(addr)));
     this.setRegS32Extend(rt, memaccess.loadS32fast(addr));
     this.llBit = 1;
   }
 
   execLLD(rt, base, imms) {
     const addr = this.addrS32(base, imms);
-    this.setControlU32(cpu0reg.controlLLAddr, makeLLAddr(addr));
+    this.setControlU32(cpu0reg.controlLLAddr, makeLLAddr(this.physicalAddressForLoad(addr)));
     this.setRegU64(rt, memaccess.loadU64fast(addr));
     this.llBit = 1;
+  }
+
+  physicalAddressForLoad(address) {
+    const uAddress = address >>> 0;
+    if (uAddress >= 0x8000_0000 && uAddress < 0xc000_0000) {
+      return physicalAddress(uAddress);
+    }
+    return this.translateRead(address);
   }
 
   execSC(rt, base, imms) {
@@ -1978,8 +1986,8 @@ function physicalAddress(addr) {
   return addr & (~0xe0000000)
 }
 
-function makeLLAddr(sAddr) {
-  return physicalAddress(sAddr >>> 0) >>> 4;
+function makeLLAddr(physAddr) {
+  return (physAddr >>> 4) & 0x01ff_ffff;
 }
 
 function executeBCInstr(i) {
