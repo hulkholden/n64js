@@ -6,7 +6,7 @@ import { disassembleInstruction } from './disassemble.js';
 import { toString32 } from './format.js';
 import { assert } from './assert.js';
 import { kAccurateCountUpdating, kSpeedHackEnabled } from './options.js';
-import { simpleOp, regImmOp, specialOp, copOp, copFmtFuncOp, fd, fs, ft, offset, sa, rd, rt, rs, tlbop, imm, imms, base, branchAddress, jumpAddress } from './decode.js';
+import { simpleOp, regImmOp, specialOp, copOp, isWait, copFmtFuncOp, fd, fs, ft, offset, sa, rd, rt, rs, tlbop, imm, imms, base, branchAddress, jumpAddress } from './decode.js';
 
 const kDebugDynarec = false;
 const kValidateDynarecPCs = false;
@@ -1609,6 +1609,10 @@ function generateRegImm(ctx) {
 }
 
 function generateCop0(ctx) {
+  // WAIT's implementation-dependent code overlaps the copOp field.
+  if (isWait(ctx.instruction)) {
+    return generateNOPBoilerplate('WAIT', ctx);
+  }
   return cop0TableGen[copOp(ctx.instruction)](ctx);
 }
 
