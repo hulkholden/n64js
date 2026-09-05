@@ -1,6 +1,5 @@
 /*global n64js*/
 
-import { assert } from './assert.js';
 import * as cpu0reg from './cpu0reg.js';
 import { toHex } from './format.js';
 import { simpleOp, regImmOp, specialOp, copOp, isWait, cop1BCOp, copFmtFuncOp, fd, fs, ft, offset, sa, rd, rt, rs, tlbop, imm, base, branchAddress, jumpAddress } from './decode.js';
@@ -264,7 +263,7 @@ function disassembleCop0(i) {
 }
 
 function disassembleBCInstr(i) {
-  assert(((i.opcode >>> 18) & 0x7) === 0, "cc bit is not 0");
+  if (((i.opcode >>> 18) & 0x7) !== 0) return 'COP1 reserved branch condition';
 
   switch (cop1BCOp(i.opcode)) {
     case 0: return `BC1F      !c ? --> ${i.branchAddress}`;

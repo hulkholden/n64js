@@ -406,7 +406,7 @@ export class CPU1 {
         case cop1CVT_W: this.ConvertSToW(d, s, this.roundingMode); return;
         case cop1CVT_L: this.ConvertSToL(d, s, this.roundingMode); return;
       }
-      assert(false, 'unhandled S instruction');
+
       this.raiseUnimplemented();
     } else {
       this.handleFloatCompareSingle(op, s, t);
@@ -437,7 +437,7 @@ export class CPU1 {
         case cop1CVT_W: this.ConvertDToW(d, s, this.roundingMode); return;
         case cop1CVT_L: this.ConvertDToL(d, s, this.roundingMode); return;
       }
-      assert(false, 'unhandled D instruction');
+
       this.raiseUnimplemented();
     } else {
       this.handleFloatCompareDouble(op, s, t);
@@ -459,7 +459,7 @@ export class CPU1 {
       case cop1CVT_W: this.raiseUnimplemented(); return;
       case cop1CVT_L: this.raiseUnimplemented(); return;
     }
-    assert(false, 'unhandled W instruction');
+
     this.raiseUnimplemented();
   }
 
@@ -478,7 +478,7 @@ export class CPU1 {
       case cop1CVT_W: this.raiseUnimplemented(); return;
       case cop1CVT_L: this.raiseUnimplemented(); return;
     }
-    assert(false, 'unhandled L instruction');
+
     this.raiseUnimplemented();
   }  
 

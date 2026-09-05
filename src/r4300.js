@@ -1987,8 +1987,15 @@ function makeLLAddr(physAddr) {
   return (physAddr >>> 4) & 0x01ff_ffff;
 }
 
+function executeCop1Reserved() {
+  cpu1.raiseUnimplemented();
+}
+
 function executeBCInstr(i) {
-  assert(((i >>> 18) & 0x7) === 0, "cc bit is not 0");
+  if (((i >>> 18) & 0x7) !== 0) {
+    cpu1.raiseUnimplemented();
+    return;
+  }
 
   const condition = (i & 0x10000) !== 0;
   const likely = (i & 0x20000) !== 0;
@@ -2125,31 +2132,31 @@ const cop1Table = validateCopOpTable([
   i => cpu0.execDCTC1(rt(i), fs(i)),
 
   executeBCInstr,
-  executeUnknown,
-  executeUnknown,
-  executeUnknown,
-  executeUnknown,
-  executeUnknown,
-  executeUnknown,
-  executeUnknown,
+  executeCop1Reserved,
+  executeCop1Reserved,
+  executeCop1Reserved,
+  executeCop1Reserved,
+  executeCop1Reserved,
+  executeCop1Reserved,
+  executeCop1Reserved,
 
   i => cpu1.execSInstr(copFmtFuncOp(i), fd(i), fs(i), ft(i)),
   i => cpu1.execDInstr(copFmtFuncOp(i), fd(i), fs(i), ft(i)),
-  executeUnknown,
-  executeUnknown,
+  executeCop1Reserved,
+  executeCop1Reserved,
   i => cpu1.execWInstr(copFmtFuncOp(i), fd(i), fs(i), ft(i)),
   i => cpu1.execLInstr(copFmtFuncOp(i), fd(i), fs(i), ft(i)),
-  executeUnknown,
-  executeUnknown,
+  executeCop1Reserved,
+  executeCop1Reserved,
 
-  executeUnknown,
-  executeUnknown,
-  executeUnknown,
-  executeUnknown,
-  executeUnknown,
-  executeUnknown,
-  executeUnknown,
-  executeUnknown,
+  executeCop1Reserved,
+  executeCop1Reserved,
+  executeCop1Reserved,
+  executeCop1Reserved,
+  executeCop1Reserved,
+  executeCop1Reserved,
+  executeCop1Reserved,
+  executeCop1Reserved,
 ]);
 
 function executeCop1(i) {
