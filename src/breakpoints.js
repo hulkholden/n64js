@@ -1,9 +1,11 @@
 
 const kOpBreakpoint = 28;
+const kBreakpointInstruction = kOpBreakpoint << 26;
 
 export class Breakpoints {
-  constructor(hardware) {
+  constructor(hardware, invalidateCode = () => {}) {
     this.hardware = hardware;
+    this.invalidateCode = invalidateCode;
     this.breakpoints = new Map();     // address -> original op
   }
 
@@ -12,36 +14,33 @@ export class Breakpoints {
   }
 
   toggle(address) {
+    address >>>= 0;
     const origInstr = this.hardware.memMap.readMemoryInternal32(address);
-  
+
     let newInstr;
-    if (isBreakpointInstruction(origInstr)) {
+    if (this.breakpoints.has(address)) {
       // breakpoint is already set
-      newInstr = this.breakpoints[address] || 0;
-      delete this.breakpoints[address];
+      newInstr = this.breakpoints.get(address);
+      this.breakpoints.delete(address);
     } else {
-      newInstr = (kOpBreakpoint << 26);
-      this.breakpoints[address] = origInstr;
+      newInstr = kBreakpointInstruction;
+      this.breakpoints.set(address, origInstr);
     }
-  
+
     this.hardware.memMap.writeMemoryInternal32(address, newInstr);
+    this.invalidateCode(address);
   }
 
   isBreakpoint(address) {
-    const instr = this.hardware.memMap.readMemoryInternal32(address);
-    return isBreakpointInstruction(instr);
+    return this.breakpoints.has(address >>> 0);
   }
 
   getInstruction(address) {
-    const instr = this.hardware.memMap.readMemoryInternal32(address);
-    if (isBreakpointInstruction(instr)) {
-      return this.breakpoints[address] || 0;
+    address >>>= 0;
+    if (this.breakpoints.has(address)) {
+      return this.breakpoints.get(address);
     }
+    const instr = this.hardware.memMap.readMemoryInternal32(address);
     return instr;
   }
 }
-
-function isBreakpointInstruction(instr) {
-  return ((instr >> 26) & 0x3f) === kOpBreakpoint;
-}
-

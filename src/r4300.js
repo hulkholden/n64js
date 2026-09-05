@@ -2307,6 +2307,14 @@ function executeOp(i) {
   return simpleTable[simpleOp(i)](i);
 }
 
+function executeBreakpointOrReserved(i) {
+  if (n64js.breakpoints().isBreakpoint(cpu0.pc)) {
+    cpu0.execBreakpoint();
+  } else {
+    cpu0.execRESERVED(0);
+  }
+}
+
 const simpleTable = validateSimpleOpTable([
   executeSpecial,
   executeRegImm,
@@ -2339,7 +2347,7 @@ const simpleTable = validateSimpleOpTable([
   i => cpu0.execDADDIU(rt(i), rs(i), imms(i)),
   i => cpu0.execLDL(rt(i), base(i), imms(i)),
   i => cpu0.execLDR(rt(i), base(i), imms(i)),
-  i => cpu0.execBreakpoint(),
+  executeBreakpointOrReserved,
   executeUnknown,
   executeUnknown,
   i => cpu0.execRESERVED(0),
@@ -2504,6 +2512,10 @@ class FragmentMap {
 }
 
 const fragmentMap = new FragmentMap();
+
+export function invalidateCode(address) {
+  fragmentMap.invalidateEntry(address);
+}
 
 function executeFragment(fragment, cpu0, eventQueue) {
   if (eventQueue.nextEventCountdown() < fragment.opsCompiled) {

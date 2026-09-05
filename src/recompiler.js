@@ -1473,7 +1473,7 @@ function generateCop1(ctx) {
 }
 
 function generateBreakpoint(ctx) {
-  const impl = `c.execBreakpoint();`;
+  const impl = `n64js.breakpoints().isBreakpoint(c.pc) ? c.execBreakpoint() : c.execRESERVED(0);`;
   return generateGenericOpBoilerplate(impl, ctx);
 }
 
