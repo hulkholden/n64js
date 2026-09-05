@@ -1596,11 +1596,6 @@ export class CPU0 {
     this.unimplemented(this.pc, 'LWC2');
   }
 
-  execLWC3(rt, base, imms) {
-    if (!this.checkCopXUsable(3)) { return; }
-    this.unimplemented(this.pc, 'LWC3');
-  }
-
   execLDC1(rt, base, imms) {
     if (!this.checkCopXUsable(1)) { return; }
     const value = memaccess.loadU64fast(this.addrS32(base, imms));
@@ -1665,11 +1660,6 @@ export class CPU0 {
   execSWC2(rt, base, imms) {
     if (!this.checkCopXUsable(2)) { return; }
     this.unimplemented(this.pc, 'SWC2');
-  }
-
-  execSWC3(rt, base, imms) {
-    if (!this.checkCopXUsable(3)) { return; }
-    this.unimplemented(this.pc, 'SWC3');
   }
 
   execSDC1(rt, base, imms) {
@@ -1977,6 +1967,10 @@ function executeUnknown(i) {
   throw `CPU: unknown op, pc: ${toString32(cpu0.pc)}, instruction: ${toString32(i)}`;
 }
 
+function executeReserved(i) {
+  cpu0.execRESERVED(0);
+}
+
 /**
  * @constructor
  */
@@ -2016,21 +2010,21 @@ function validateSpecialOpTable(cases) {
 
 const specialTable = validateSpecialOpTable([
   i => cpu0.execSLL(rd(i), rt(i), sa(i)),
-  executeUnknown,
+  executeReserved,
   i => cpu0.execSRL(rd(i), rt(i), sa(i)),
   i => cpu0.execSRA(rd(i), rt(i), sa(i)),
   i => cpu0.execSLLV(rd(i), rt(i), rs(i)),
-  executeUnknown,
+  executeReserved,
   i => cpu0.execSRLV(rd(i), rt(i), rs(i)),
   i => cpu0.execSRAV(rd(i), rt(i), rs(i)),
 
   i => cpu0.execJR(rs(i)),
   i => cpu0.execJALR(rd(i), rs(i)),
-  executeUnknown,
-  executeUnknown,
+  executeReserved,
+  executeReserved,
   i => cpu0.execSYSCALL(),
   i => cpu0.execBREAK(),
-  executeUnknown,
+  executeReserved,
   i => cpu0.execSYNC(),
 
   i => cpu0.execMFHI(rd(i)),
@@ -2038,7 +2032,7 @@ const specialTable = validateSpecialOpTable([
   i => cpu0.execMFLO(rd(i)),
   i => cpu0.execMTLO(rs(i)),
   i => cpu0.execDSLLV(rd(i), rt(i), rs(i)),
-  executeUnknown,
+  executeReserved,
   i => cpu0.execDSRLV(rd(i), rt(i), rs(i)),
   i => cpu0.execDSRAV(rd(i), rt(i), rs(i)),
 
@@ -2060,8 +2054,8 @@ const specialTable = validateSpecialOpTable([
   i => cpu0.execXOR(rd(i), rt(i), rs(i)),
   i => cpu0.execNOR(rd(i), rt(i), rs(i)),
 
-  executeUnknown,
-  executeUnknown,
+  executeReserved,
+  executeReserved,
   i => cpu0.execSLT(rd(i), rt(i), rs(i)),
   i => cpu0.execSLTU(rd(i), rt(i), rs(i)),
   i => cpu0.execDADD(rd(i), rt(i), rs(i)),
@@ -2074,16 +2068,16 @@ const specialTable = validateSpecialOpTable([
   i => cpu0.execTLT(rt(i), rs(i)),
   i => cpu0.execTLTU(rt(i), rs(i)),
   i => cpu0.execTEQ(rt(i), rs(i)),
-  executeUnknown,
+  executeReserved,
   i => cpu0.execTNE(rt(i), rs(i)),
-  executeUnknown,
+  executeReserved,
 
   i => cpu0.execDSLL(rd(i), rt(i), sa(i)),
-  executeUnknown,
+  executeReserved,
   i => cpu0.execDSRL(rd(i), rt(i), sa(i)),
   i => cpu0.execDSRA(rd(i), rt(i), sa(i)),
   i => cpu0.execDSLL32(rd(i), rt(i), sa(i)),
-  executeUnknown,
+  executeReserved,
   i => cpu0.execDSRL32(rd(i), rt(i), sa(i)),
   i => cpu0.execDSRA32(rd(i), rt(i), sa(i)),
 ]);
@@ -2259,37 +2253,37 @@ const regImmTable = validateRegImmOpTable([
   i => cpu0.execBGEZ(rs(i), offset(i)),
   i => cpu0.execBLTZL(rs(i), offset(i)),
   i => cpu0.execBGEZL(rs(i), offset(i)),
-  executeUnknown,
-  executeUnknown,
-  executeUnknown,
-  executeUnknown,
+  executeReserved,
+  executeReserved,
+  executeReserved,
+  executeReserved,
 
   i => cpu0.execTGEI(rs(i), imms(i)),
   i => cpu0.execTGEIU(rs(i), imms(i)),
   i => cpu0.execTLTI(rs(i), imms(i)),
   i => cpu0.execTLTIU(rs(i), imms(i)),
   i => cpu0.execTEQI(rs(i), imms(i)),
-  executeUnknown,
+  executeReserved,
   i => cpu0.execTNEI(rs(i), imms(i)),
-  executeUnknown,
+  executeReserved,
 
   i => cpu0.execBLTZAL(rs(i), offset(i)),
   i => cpu0.execBGEZAL(rs(i), offset(i)),
   i => cpu0.execBLTZALL(rs(i), offset(i)),
   i => cpu0.execBGEZALL(rs(i), offset(i)),
-  executeUnknown,
-  executeUnknown,
-  executeUnknown,
-  executeUnknown,
+  executeReserved,
+  executeReserved,
+  executeReserved,
+  executeReserved,
 
-  executeUnknown,
-  executeUnknown,
-  executeUnknown,
-  executeUnknown,
-  executeUnknown,
-  executeUnknown,
-  executeUnknown,
-  executeUnknown,
+  executeReserved,
+  executeReserved,
+  executeReserved,
+  executeReserved,
+  executeReserved,
+  executeReserved,
+  executeReserved,
+  executeReserved,
 ]);
 
 function executeRegImm(i) {
@@ -2348,8 +2342,8 @@ const simpleTable = validateSimpleOpTable([
   i => cpu0.execLDL(rt(i), base(i), imms(i)),
   i => cpu0.execLDR(rt(i), base(i), imms(i)),
   executeBreakpointOrReserved,
-  executeUnknown,
-  executeUnknown,
+  executeReserved,
+  executeReserved,
   i => cpu0.execRESERVED(0),
 
   i => cpu0.execLB(rt(i), base(i), imms(i)),
@@ -2373,7 +2367,7 @@ const simpleTable = validateSimpleOpTable([
   i => cpu0.execLL(rt(i), base(i), imms(i)),
   i => cpu0.execLWC1(rt(i), base(i), imms(i)),
   i => cpu0.execLWC2(rt(i), base(i), imms(i)),
-  i => cpu0.execLWC3(rt(i), base(i), imms(i)),
+  executeReserved,
   i => cpu0.execLLD(rt(i), base(i), imms(i)),
   i => cpu0.execLDC1(rt(i), base(i), imms(i)),
   i => cpu0.execLDC2(rt(i), base(i), imms(i)),
@@ -2382,7 +2376,7 @@ const simpleTable = validateSimpleOpTable([
   i => cpu0.execSC(rt(i), base(i), imms(i)),
   i => cpu0.execSWC1(rt(i), base(i), imms(i)),
   i => cpu0.execSWC2(rt(i), base(i), imms(i)),
-  i => cpu0.execSWC3(rt(i), base(i), imms(i)),
+  executeReserved,
   i => cpu0.execSCD(rt(i), base(i), imms(i)),
   i => cpu0.execSDC1(rt(i), base(i), imms(i)),
   i => cpu0.execSDC2(rt(i), base(i), imms(i)),
