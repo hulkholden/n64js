@@ -190,6 +190,134 @@ const f64UnderflowResults = validateRoundingModeTable([
   f64MinNegNumberBits, f64PosZeroBits, // FPCSR_RM_RM
 ]);
 
+const f32MaxNumberBits = f32PosInfinityBits - 1;
+const f32NegMaxNumberBits = f32SignBit | f32MaxNumberBits;
+const f64MaxNumberBits = f64PosInfinityBits - 1n;
+const f64NegMaxNumberBits = f64SignBit | f64MaxNumberBits;
+
+// See page 239 of VR4300-Users-Manual.pdf.
+const f32OverflowResults = validateRoundingModeTable([
+  // Negative, Positive
+  f32NegInfinityBits, f32PosInfinityBits, // FPCSR_RM_RN
+  f32NegMaxNumberBits, f32MaxNumberBits, // FPCSR_RM_RZ
+  f32NegMaxNumberBits, f32PosInfinityBits, // FPCSR_RM_RP
+  f32NegInfinityBits, f32MaxNumberBits, // FPCSR_RM_RM
+]);
+
+// See page 239 of VR4300-Users-Manual.pdf.
+const f64OverflowResults = validateRoundingModeTable([
+  // Negative, Positive
+  f64NegInfinityBits, f64PosInfinityBits, // FPCSR_RM_RN
+  f64NegMaxNumberBits, f64MaxNumberBits, // FPCSR_RM_RZ
+  f64NegMaxNumberBits, f64PosInfinityBits, // FPCSR_RM_RP
+  f64NegInfinityBits, f64MaxNumberBits, // FPCSR_RM_RM
+]);
+
+function getOverflowValue(cases, roundingMode, negative) {
+  return cases[(roundingMode * 2) + (negative ? 1 : 0)];
+}
+
+// Scratch buffers for the conversion helpers below.
+const cvtF64 = new Float64Array(1);
+const cvtU64 = new BigUint64Array(cvtF64.buffer);
+const cvtF32 = new Float32Array(cvtF64.buffer, 0, 1);
+const cvtU32 = new Uint32Array(cvtF64.buffer, 0, 1);
+
+function f32NextUp(bits) {
+  return (bits & f32SignBit) ? (bits - 1) : (bits + 1);
+}
+
+function f32NextDown(bits) {
+  return (bits & f32SignBit) ? (bits + 1) : (bits - 1);
+}
+
+function f64NextUp(bits) {
+  return (bits & f64SignBit) ? (bits - 1n) : (bits + 1n);
+}
+
+function f64NextDown(bits) {
+  return (bits & f64SignBit) ? (bits + 1n) : (bits - 1n);
+}
+
+/**
+ * Adjusts an inexact round-to-nearest result to honour a directed rounding
+ * mode. `bits` holds the nearest representable value; `trueAbove` indicates
+ * that the exact value lies between it and its next-up neighbour.
+ */
+function applyRoundingBits32(bits, rm, trueAbove) {
+  const negative = (bits & f32SignBit) != 0;
+  switch (rm) {
+    case FPCSR_RM_RN: return bits;
+    case FPCSR_RM_RP: return trueAbove ? f32NextUp(bits) : bits;
+    case FPCSR_RM_RM: return trueAbove ? bits : f32NextDown(bits);
+    case FPCSR_RM_RZ:
+      if (trueAbove) { return negative ? f32NextUp(bits) : bits; }
+      return negative ? bits : f32NextDown(bits);
+  }
+  assert(false, 'unknown rounding mode');
+  return bits;
+}
+
+function applyRoundingBits64(bits, rm, trueAbove) {
+  const negative = (bits & f64SignBit) != 0n;
+  switch (rm) {
+    case FPCSR_RM_RN: return bits;
+    case FPCSR_RM_RP: return trueAbove ? f64NextUp(bits) : bits;
+    case FPCSR_RM_RM: return trueAbove ? bits : f64NextDown(bits);
+    case FPCSR_RM_RZ:
+      if (trueAbove) { return negative ? f64NextUp(bits) : bits; }
+      return negative ? bits : f64NextDown(bits);
+  }
+  assert(false, 'unknown rounding mode');
+  return bits;
+}
+
+/**
+ * Rounds a value that is exactly representable as a float64 (ie. a float64
+ * source, or a 32 bit integer) to float32 bits, honouring the rounding mode.
+ * @return {{bits: number, inexact: boolean}}
+ */
+function roundNumberToF32Bits(value, rm) {
+  cvtF32[0] = value; // Round-to-nearest-even.
+  const bits = cvtU32[0];
+  const inexact = cvtF32[0] !== value;
+  if (rm == FPCSR_RM_RN || !inexact) {
+    return { bits, inexact };
+  }
+  return { bits: applyRoundingBits32(bits, rm, value > cvtF32[0]), inexact: true };
+}
+
+/**
+ * Rounds an exact integer held as a bigint to float32 bits, honouring the
+ * rounding mode. The comparison against the nearest value is exact.
+ * @return {{bits: number, inexact: boolean}}
+ */
+function roundBigIntToF32Bits(source, rm) {
+  cvtF64[0] = Number(source); // Nearest float64.
+  cvtF32[0] = cvtF64[0]; // Nearest float32.
+  const bits = cvtU32[0];
+  const rounded = BigInt(cvtF32[0]);
+  if (rounded === source) {
+    return { bits, inexact: false };
+  }
+  return { bits: applyRoundingBits32(bits, rm, source > rounded), inexact: true };
+}
+
+/**
+ * Rounds an exact integer held as a bigint to float64 bits, honouring the
+ * rounding mode. The comparison against the nearest value is exact.
+ * @return {{bits: bigint, inexact: boolean}}
+ */
+function roundBigIntToF64Bits(source, rm) {
+  cvtF64[0] = Number(source); // Nearest float64.
+  const bits = cvtU64[0];
+  const rounded = BigInt(cvtF64[0]);
+  if (rounded === source) {
+    return { bits, inexact: false };
+  }
+  return { bits: applyRoundingBits64(bits, rm, source > rounded), inexact: true };
+}
+
 // Operation types.
 const opInvalid = 0;
 const opUnimplm = 1;
@@ -582,24 +710,34 @@ export class CPU1 {
       default:
         {
           const sValue = this.loadF64(this.fsRegIdx64(s));
-          this.tempF32[0] = sValue;
-          const rType = f32Classify(this.tempU32[0]);
+          const rm = this.control[31] & FPCSR_RM_MASK;
 
-          if (sValue != this.tempF32[0]) {
-            exceptionBits |= exceptionInexactBit;
-          }
+          cvtF32[0] = sValue; // Round-to-nearest-even, to test the result class.
+          if (!isFinite(cvtF32[0])) {
+            // Overflow: see page 239 of VR4300-Users-Manual.pdf. The VR4300
+            // always raises inexact alongside overflow.
+            exceptionBits |= exceptionInexactBit | exceptionOverflowBit;
+            this.tempU32[0] = getOverflowValue(f32OverflowResults, rm, sValue > 0);
+          } else {
+            const rType = f32Classify(cvtU32[0]);
 
-          // Check for underflow (non-zero result became denormal or zero).
-          if ((rType == floatTypeDenormal || floatTypeZero(rType)) && sValue != 0) {
-            exceptionBits |= exceptionInexactBit | exceptionUnderflowBit;
+            // Check for underflow (non-zero result became denormal or zero).
+            if ((rType == floatTypeDenormal || floatTypeZero(rType)) && sValue != 0) {
+              exceptionBits |= exceptionInexactBit | exceptionUnderflowBit;
 
-            // Set the output based on the rounding mode.
-            this.tempU32[0] = getUnderflowValue(f32UnderflowResults, this.control[31] & FPCSR_RM_MASK, sValue > 0);
-          }  
-        
-          // TODO: this is really this.tempF32[0] > float32 max value
-          if (!isFinite(this.tempF32[0])) {
-            exceptionBits |= exceptionOverflowBit;
+              // Set the output based on the rounding mode.
+              this.tempU32[0] = getUnderflowValue(f32UnderflowResults, rm, sValue > 0);
+            } else {
+              const { bits, inexact } = roundNumberToF32Bits(sValue, rm);
+              if (bits == f32PosInfinityBits || bits == f32NegInfinityBits) {
+                // The rounding mode pushed the result out of range; overflow is
+                // determined by the rounded result (IEEE754 post-rounding).
+                exceptionBits |= exceptionInexactBit | exceptionOverflowBit;
+              } else if (inexact) {
+                exceptionBits |= exceptionInexactBit;
+              }
+              this.tempU32[0] = bits;
+            }
           }
         }
         break;
@@ -613,39 +751,40 @@ export class CPU1 {
 
   CVT_S_W(d, s) {
     this.clearCause();
-    const sValue = this.loadS32(this.fsRegIdx32(s));
-    this.tempF32[0] = sValue;
+    const { bits, inexact } = roundNumberToF32Bits(this.loadS32(this.fsRegIdx32(s)), this.control[31] & FPCSR_RM_MASK);
 
     let exceptionBits = 0;
-    if (sValue != this.tempF32[0]) {
+    if (inexact) {
       exceptionBits |= exceptionInexactBit;
     }
 
     if (this.raiseException(exceptionBits)) {
       return;
     }
-    this.store32ZeroExtend(this.fdRegIdx32(d), this.tempU32[0]);
+    this.store32ZeroExtend(this.fdRegIdx32(d), bits);
   }
 
   CVT_S_L(d, s) {
     this.clearCause();
-
-    const sValue = this.loadS64(this.fsRegIdx64(s));
-    if (sValue >= (1n << 55n) || sValue < -(1n << 55n)) {
+    const source = this.loadS64(this.fsRegIdx64(s));
+    // Sources with more than 55 significant bits raise the FPU unimplemented
+    // exception on real hardware (see n64-systemtest CvtS cases for 1i64 << 55).
+    if (source >= (1n << 55n) || source < -(1n << 55n)) {
       this.raiseUnimplemented();
       return;
     }
-    
-    this.tempF32[0] = Number(sValue);
+
+    const { bits, inexact } = roundBigIntToF32Bits(source, this.control[31] & FPCSR_RM_MASK);
+
     let exceptionBits = 0;
-    if (sValue != this.tempF32[0]) {
+    if (inexact) {
       exceptionBits |= exceptionInexactBit;
     }
 
     if (this.raiseException(exceptionBits)) {
       return;
     }
-    this.store32ZeroExtend(this.fdRegIdx32(d), this.tempU32[0]);
+    this.store32ZeroExtend(this.fdRegIdx32(d), bits);
   }
 
   f32UnaryOp(d, s, cases) {
@@ -848,20 +987,26 @@ export class CPU1 {
 
   CVT_D_L(d, s) {
     this.clearCause();
-    
+
     const source = this.loadS64(this.fsRegIdx64(s));
+    // Sources with more than 55 significant bits raise the FPU unimplemented
+    // exception on real hardware (see n64-systemtest CvtD cases for 1i64 << 55).
     if (source >= (1n << 55n) || source < -(1n << 55n)) {
       this.raiseUnimplemented();
       return;
     }
 
+    const { bits, inexact } = roundBigIntToF64Bits(source, this.control[31] & FPCSR_RM_MASK);
+
     let exceptionBits = 0;
-    this.tempF64[0] = Number(source);
-  
+    if (inexact) {
+      exceptionBits |= exceptionInexactBit;
+    }
+
     if (this.raiseException(exceptionBits)) {
       return;
     }
-    this.store64(this.fdRegIdx64(d), this.tempU64[0]);
+    this.store64(this.fdRegIdx64(d), bits);
   }
 
   f64UnaryOp(d, s, cases) {
