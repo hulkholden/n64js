@@ -1278,9 +1278,14 @@ function generateDCTC1(ctx) {
   return `c.execDCTC1(${ctx.instr_rt()}, ${ctx.instr_fs()});`;
 }
 
+function generateCop1Reserved(ctx) {
+  ctx.isTrivial = false;
+  return `cpu1.raiseUnimplemented();`;
+}
+
 function generateBCInstrStub(ctx) {
   const i = ctx.instruction;
-  assert(((i >>> 18) & 0x7) === 0, "cc bit is not 0");
+  if (((i >>> 18) & 0x7) !== 0) return generateCop1Reserved(ctx);
 
   const condition = (i & 0x10000) !== 0;
   const likely = (i & 0x20000) !== 0;
@@ -1341,7 +1346,7 @@ function generateSInstrStub(ctx) {
       case cop1CVT_L: return `cpu1.ConvertSToL(${d}, ${s}, cpu1.roundingMode);`;
     }
 
-    return `unimplemented(${toString32(ctx.pc)},${toString32(ctx.instruction)});`;
+    return `cpu1.raiseUnimplemented();`;
   }
 
   return `cpu1.handleFloatCompareSingle(${op}, ${s}, ${t});`;
@@ -1379,7 +1384,7 @@ function generateDInstrStub(ctx) {
       case cop1CVT_W: return `cpu1.ConvertDToW(${d}, ${s}, cpu1.roundingMode);`;
       case cop1CVT_L: return `cpu1.ConvertDToL(${d}, ${s}, cpu1.roundingMode);`;
     }
-    return `unimplemented(${toString32(ctx.pc)},${toString32(ctx.instruction)});`;
+    return `cpu1.raiseUnimplemented();`;
   }
 
   return `cpu1.handleFloatCompareDouble(${op}, ${s}, ${t});`;
@@ -1405,7 +1410,7 @@ function generateWInstrStub(ctx) {
     case cop1CVT_W: return `cpu1.raiseUnimplemented();`;
     case cop1CVT_L: return `cpu1.raiseUnimplemented();`;
   }
-  return `unimplemented(${toString32(ctx.pc)},${toString32(ctx.instruction)});`;
+  return `cpu1.raiseUnimplemented();`;
 }
 
 function generateLInstrStub(ctx) {
@@ -1428,7 +1433,7 @@ function generateLInstrStub(ctx) {
     case cop1CVT_W: return `cpu1.raiseUnimplemented();`;
     case cop1CVT_L: return `cpu1.raiseUnimplemented();`;
   }
-  return `unimplemented(${toString32(ctx.pc)},${toString32(ctx.instruction)});`;
+  return `cpu1.raiseUnimplemented();`;
 }
 
 function generateCop1(ctx) {
@@ -1514,14 +1519,14 @@ const specialTableGen = validateSpecialOpTable([
   generateDSLL32,    generateRESERVED,  generateDSRL32,  generateDSRA32,
  ]);
 const cop1TableGen = validateCopOpTable([
-  generateMFC1,        generateDMFC1,      generateCFC1,    generateDCFC1,
-  generateMTC1,        generateDMTC1,      generateCTC1,    generateDCTC1,
-  generateBCInstrStub, generateUnknown,    generateUnknown, generateUnknown,
-  generateUnknown,     generateUnknown,    generateUnknown, generateUnknown,
-  generateSInstrStub,  generateDInstrStub, generateUnknown, generateUnknown,
-  generateWInstrStub,  generateLInstrStub, generateUnknown, generateUnknown,
-  generateUnknown,     generateUnknown,    generateUnknown, generateUnknown,
-  generateUnknown,     generateUnknown,    generateUnknown, generateUnknown,
+  generateMFC1,         generateDMFC1,       generateCFC1,         generateDCFC1,
+  generateMTC1,         generateDMTC1,       generateCTC1,         generateDCTC1,
+  generateBCInstrStub,  generateCop1Reserved, generateCop1Reserved, generateCop1Reserved,
+  generateCop1Reserved, generateCop1Reserved, generateCop1Reserved, generateCop1Reserved,
+  generateSInstrStub,   generateDInstrStub,  generateCop1Reserved, generateCop1Reserved,
+  generateWInstrStub,   generateLInstrStub,  generateCop1Reserved, generateCop1Reserved,
+  generateCop1Reserved, generateCop1Reserved, generateCop1Reserved, generateCop1Reserved,
+  generateCop1Reserved, generateCop1Reserved, generateCop1Reserved, generateCop1Reserved,
 ]);
 
 const cop2TableGen = validateCopOpTable([
