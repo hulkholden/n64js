@@ -1132,11 +1132,6 @@ function generateLWC2(ctx) {
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
 
-function generateLWC3(ctx) {
-  const impl = `c.execLWC3(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx);
-}
-
 function generateLDC2(ctx) {
   const impl = `c.execLDC2(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
   return generateMemoryAccessBoilerplate(impl, ctx);
@@ -1196,11 +1191,6 @@ function generateSDC1(ctx) {
 
 function generateSWC2(ctx) {
   const impl = `c.execSWC2(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx);
-}
-
-function generateSWC3(ctx) {
-  const impl = `c.execSWC3(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
 
@@ -1506,22 +1496,22 @@ function validateSimpleOpTable(cases) {
 }
 
 const specialTableGen = validateSpecialOpTable([
-  generateSLL,       generateUnknown,   generateSRL,     generateSRA,
-  generateSLLV,      generateUnknown,   generateSRLV,    generateSRAV,
-  generateJR,        generateJALR,      generateUnknown, generateUnknown,
-  generateSYSCALL,   generateBREAK,     generateUnknown, generateSYNC,
+  generateSLL,       generateRESERVED,  generateSRL,     generateSRA,
+  generateSLLV,      generateRESERVED,  generateSRLV,    generateSRAV,
+  generateJR,        generateJALR,      generateRESERVED, generateRESERVED,
+  generateSYSCALL,   generateBREAK,     generateRESERVED, generateSYNC,
   generateMFHI,      generateMTHI,      generateMFLO,    generateMTLO,
-  generateDSLLV,     generateUnknown,   generateDSRLV,   generateDSRAV,
+  generateDSLLV,     generateRESERVED,  generateDSRLV,   generateDSRAV,
   generateMULT,      generateMULTU,     generateDIV,     generateDIVU,
   generateDMULT,     generateDMULTU,    generateDDIV,    generateDDIVU,
   generateADD,       generateADDU,      generateSUB,     generateSUBU,
   generateAND,       generateOR,        generateXOR,     generateNOR,
-  generateUnknown,   generateUnknown,   generateSLT,     generateSLTU,
+  generateRESERVED,  generateRESERVED,  generateSLT,     generateSLTU,
   generateDADD,      generateDADDU,     generateDSUB,    generateDSUBU,
   generateTGE,       generateTGEU,      generateTLT,     generateTLTU,
-  generateTEQ,       generateUnknown,   generateTNE,     generateUnknown,
-  generateDSLL,      generateUnknown,   generateDSRL,    generateDSRA,
-  generateDSLL32,    generateUnknown,   generateDSRL32,  generateDSRA32,
+  generateTEQ,       generateRESERVED,  generateTNE,     generateRESERVED,
+  generateDSLL,      generateRESERVED,  generateDSRL,    generateDSRA,
+  generateDSLL32,    generateRESERVED,  generateDSRL32,  generateDSRA32,
  ]);
 
 
@@ -1560,14 +1550,14 @@ const cop2TableGen = validateCopOpTable([
 
 
 const regImmTableGen = validateRegImmOpTable([
-  generateBLTZ,    generateBGEZ,    generateBLTZL,   generateBGEZL,
-  generateUnknown, generateUnknown, generateUnknown, generateUnknown,
+  generateBLTZ,     generateBGEZ,     generateBLTZL,    generateBGEZL,
+  generateRESERVED, generateRESERVED, generateRESERVED, generateRESERVED,
   generateTGEI,    generateTGEIU,   generateTLTI,    generateTLTIU,
-  generateTEQI,    generateUnknown, generateTNEI,    generateUnknown,
+  generateTEQI,     generateRESERVED, generateTNEI,     generateRESERVED,
   generateBLTZAL,  generateBGEZAL,  generateBLTZALL, generateBGEZALL,
-  generateUnknown, generateUnknown, generateUnknown, generateUnknown,
-  generateUnknown, generateUnknown, generateUnknown, generateUnknown,
-  generateUnknown, generateUnknown, generateUnknown, generateUnknown,
+  generateRESERVED, generateRESERVED, generateRESERVED, generateRESERVED,
+  generateRESERVED, generateRESERVED, generateRESERVED, generateRESERVED,
+  generateRESERVED, generateRESERVED, generateRESERVED, generateRESERVED,
 ]);
 
 
@@ -1579,14 +1569,14 @@ const simpleTableGen = validateSimpleOpTable([
   generateCop0,       generateCop1,    generateCop2,    generateCop3,
   generateBEQL,       generateBNEL,    generateBLEZL,   generateBGTZL,
   generateDADDI,      generateDADDIU,  generateLDL,     generateLDR,
-  generateBreakpoint, generateUnknown, generateUnknown, generateRESERVED,
+  generateBreakpoint, generateRESERVED, generateRESERVED, generateRESERVED,
   generateLB,         generateLH,      generateLWL,     generateLW,
   generateLBU,        generateLHU,     generateLWR,     generateLWU,
   generateSB,         generateSH,      generateSWL,     generateSW,
   generateSDL,        generateSDR,     generateSWR,     generateCACHE,
-  generateLL,         generateLWC1,    generateLWC2,    generateLWC3,
+  generateLL,         generateLWC1,    generateLWC2,    generateRESERVED,
   generateLLD,        generateLDC1,    generateLDC2,    generateLD,
-  generateSC,         generateSWC1,    generateSWC2,    generateSWC3,
+  generateSC,         generateSWC1,    generateSWC2,    generateRESERVED,
   generateSCD,        generateSDC1,    generateSDC2,    generateSD
 ]);
 
