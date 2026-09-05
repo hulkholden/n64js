@@ -70,10 +70,19 @@ export class InvalidMemDevice extends Device {
     logger.log(`Writing to invalid address ${toString32(address)}`);
   }
 
+  // No backing memory: keep all access widths on the invalid-access path.
+  // Debugger accesses must remain side-effect free, as on an unmapped page.
+  readInternal32(address) { return 0xdddddddd; }
+  writeInternal32(address, value) {}
+
+  readU64(address) { return BigInt(this.read(address)); }
   readU32(address) { return this.read(address) >>> 0; }
   readU16(address) { return this.read(address) & 0xffff; }
   readU8(address) { return this.read(address) & 0xff; }
 
+  write64masked(address, value, mask) { this.write(address, value); }
+  write32masked(address, value, mask) { this.write(address, value); }
+  write64(address, value) { this.write(address, value); }
   write32(address, value) { this.write(address, value); }
   write16(address, value) { this.write(address, value); }
   write8(address, value) { this.write(address, value); }
