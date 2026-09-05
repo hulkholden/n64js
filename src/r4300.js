@@ -3,7 +3,7 @@
 
 import { assert } from './assert.js';
 import * as cpu0reg from './cpu0reg.js';
-import { simpleOp, regImmOp, specialOp, copOp, isWait, copFmtFuncOp, fd, fs, ft, offset, sa, rd, rt, rs, tlbop, imm, imms, base, jumpAddress } from './decode.js';
+import { simpleOp, regImmOp, specialOp, copOp, copFmtFuncOp, fd, fs, ft, offset, sa, rd, rt, rs, tlbop, imm, imms, base, jumpAddress } from './decode.js';
 import { cop0ControlRegisterNames } from './disassemble.js';
 import { EmulatedException } from './emulated_exception.js';
 import { EventQueue } from './event_queue.js';
@@ -1827,9 +1827,10 @@ export class CPU0 {
       case 0x02: this.tlbWriteIndex(); return;
       case 0x06: this.tlbWriteRandom(); return;
       case 0x08: this.tlbProbe(); return;
+      case 0x10: this.execRESERVED(0); return; // Obsolete RFE encoding.
       case 0x18: this.execERET(); return;
     }
-    n64js.warn(`CPU: unknown TLB op, pc: ${toString32(this.pc)}, op: ${toString32(op)}`);
+    // Other reserved CO=1 functions are silent no-ops on the VR4300.
   }
 
   execERET() {
@@ -2096,53 +2097,21 @@ function validateCopOpTable(cases) {
   return cases;
 }
 
-const cop0Table = validateCopOpTable([
-  i => cpu0.execMFC0(rt(i), fs(i)),
-  i => cpu0.execDMFC0(rt(i), fs(i)),
-  executeUnknown,
-  executeUnknown,
-  i => cpu0.execMTC0(rt(i), fs(i)),
-  i => cpu0.execDMTC0(rt(i), fs(i)),
-  executeUnknown,
-  executeUnknown,
-
-  executeUnknown,
-  executeUnknown,
-  executeUnknown,
-  executeUnknown,
-  executeUnknown,
-  executeUnknown,
-  executeUnknown,
-  executeUnknown,
-
-  i => cpu0.execTLB(tlbop(i)),
-  executeUnknown,
-  executeUnknown,
-  executeUnknown,
-  executeUnknown,
-  executeUnknown,
-  executeUnknown,
-  executeUnknown,
-
-  executeUnknown,
-  executeUnknown,
-  executeUnknown,
-  executeUnknown,
-  executeUnknown,
-  executeUnknown,
-  executeUnknown,
-  executeUnknown
-]);
-
 function executeCop0(i) {
-  // WAIT's implementation-dependent code overlaps the copOp field, so it
-  // must be recognised before dispatching on that field. Treat WAIT as a
-  // no-op: function 0x20 is reserved and inert on the VR4300, while newer
-  // MIPS implementations define this encoding as a power-saving hint.
-  if (isWait(i)) {
+  // CO=1 operations decode only the function field; operand bits are ignored.
+  if (i & 0x02000000) {
+    cpu0.execTLB(tlbop(i));
     return;
   }
-  cop0Table[copOp(i)](i);
+  switch (copOp(i)) {
+    case 0: cpu0.execMFC0(rt(i), fs(i)); return;
+    case 1: cpu0.execDMFC0(rt(i), fs(i)); return;
+    case 4: cpu0.execMTC0(rt(i), fs(i)); return;
+    case 5: cpu0.execDMTC0(rt(i), fs(i)); return;
+    // CFC0, CTC0 and BC0 are recognized but inert on the VR4300.
+    case 2: case 6: case 8: return;
+    default: cpu0.execRESERVED(0); return;
+  }
 }
 
 const cop1Table = validateCopOpTable([

@@ -1513,19 +1513,6 @@ const specialTableGen = validateSpecialOpTable([
   generateDSLL,      generateRESERVED,  generateDSRL,    generateDSRA,
   generateDSLL32,    generateRESERVED,  generateDSRL32,  generateDSRA32,
  ]);
-
-
- const cop0TableGen = validateCopOpTable([
-  generateMFC0,    generateDMFC0,   generateUnknown, generateUnknown,
-  generateMTC0,    generateDMTC0,   generateUnknown, generateUnknown,
-  generateUnknown, generateUnknown, generateUnknown, generateUnknown,
-  generateUnknown, generateUnknown, generateUnknown, generateUnknown,
-  generateTLB,     generateUnknown, generateUnknown, generateUnknown,
-  generateUnknown, generateUnknown, generateUnknown, generateUnknown,
-  generateUnknown, generateUnknown, generateUnknown, generateUnknown,
-  generateUnknown, generateUnknown, generateUnknown, generateUnknown,
-]); 
-
 const cop1TableGen = validateCopOpTable([
   generateMFC1,        generateDMFC1,      generateCFC1,    generateDCFC1,
   generateMTC1,        generateDMTC1,      generateCTC1,    generateDCTC1,
@@ -1599,11 +1586,22 @@ function generateRegImm(ctx) {
 }
 
 function generateCop0(ctx) {
-  // WAIT's implementation-dependent code overlaps the copOp field.
+  // Retain the trivial WAIT path; all other CO=1 encodings use funct alone.
   if (isWait(ctx.instruction)) {
     return generateNOPBoilerplate('WAIT', ctx);
   }
-  return cop0TableGen[copOp(ctx.instruction)](ctx);
+  if (ctx.instruction & 0x02000000) {
+    return generateTLB(ctx);
+  }
+  switch (copOp(ctx.instruction)) {
+    case 0: return generateMFC0(ctx);
+    case 1: return generateDMFC0(ctx);
+    case 4: return generateMTC0(ctx);
+    case 5: return generateDMTC0(ctx);
+    case 2: case 6: case 8:
+      return generateNOPBoilerplate('Inert COP0 instruction', ctx);
+    default: return generateRESERVED(ctx);
+  }
 }
 
 function generateCop2(ctx) {
