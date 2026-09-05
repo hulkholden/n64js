@@ -766,16 +766,25 @@ function generateJALR(ctx) {
   // NB needs to be unsigned
   const impl = dedent(`
       c.delayPC = ${genSrcRegU32Lo(s)};
+      if (c.gprS32[${s * 2 + 1}] !== (c.delayPC >> 31)) {
+        c.prepareWideJump(${s}, ${ctx.needsDelayCheck ? 'c.nextPC' : toString32(ctx.pc + 4)});
+      }
       c.setRegS64LoHi(${d}, ${toString32(ra)}, ${ra_hi});
       `);
-  return generateBranchOpBoilerplate(impl, ctx, false);
+  return generateBranchOpBoilerplate(impl, ctx, false) + `if (c.wideState) { return ${ctx.fragment.opsCompiled}; }\n`;
 }
 
 function generateJR(ctx) {
   // TODO: can this call execJR? It would need reworking to use branchTarget.
   // NB needs to be unsigned
-  const impl = `c.delayPC = ${genSrcRegU32Lo(ctx.instr_rs())};`;
-  return generateBranchOpBoilerplate(impl, ctx, false);
+  const s = ctx.instr_rs();
+  const impl = dedent(`
+      c.delayPC = ${genSrcRegU32Lo(s)};
+      if (c.gprS32[${s * 2 + 1}] !== (c.delayPC >> 31)) {
+        c.prepareWideJump(${s}, ${ctx.needsDelayCheck ? 'c.nextPC' : toString32(ctx.pc + 4)});
+      }
+      `);
+  return generateBranchOpBoilerplate(impl, ctx, false) + `if (c.wideState) { return ${ctx.fragment.opsCompiled}; }\n`;
 }
 
 function generateBEQ(ctx) {
