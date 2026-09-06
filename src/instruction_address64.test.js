@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import './headless_env.js';
 import * as regs from './cpu0reg.js';
+import { needsWideInstruction } from './decode.js';
 
 const { Hardware } = await import('./hardware.js');
 const { initCPU } = await import('./r4300.js');
@@ -54,6 +55,73 @@ function executeEntry(word, compiled, needsDelayCheck = true) {
 }
 
 describe('64-bit instruction addresses', () => {
+  test('outer dispatch consumes a handoff once and preserves state across events', () => {
+    for (const compiled of [false, true]) {
+      reset();
+      c.setRegU64(3, base);
+      hardware.ram.set32(0x1004, 0x24020001);
+      write(0, 0x24420002);
+      executeEntry((3 << 21) | 8, compiled);
+      const count = c.getOpsExecuted();
+      c.addRunForCyclesEvent(1);
+      c.runImpl();
+      expect(c.getRegU64(2)).toBe(1n);
+      expect(c.wideState.pc).toBe(base);
+      expect(c.getOpsExecuted() - count).toBe(1);
+      c.addRunForCyclesEvent(1);
+      c.runImpl();
+      expect(c.getRegU64(2)).toBe(3n);
+      expect(c.getOpsExecuted() - count).toBe(2);
+    }
+  });
+
+  test('sequential execution retains a zero-extended PC when crossing bit 31', () => {
+    reset();
+    c.tlbEntries[0].update(0, 0, 0x7fffe000n, (2 << 6) | 7, (4 << 6) | 7);
+    c.tlbEntries[1].update(1, 0, 0x80000000n, (6 << 6) | 7, (8 << 6) | 7);
+    hardware.ram.set32(0x4ff8, 0x24020001);
+    hardware.ram.set32(0x4ffc, 0x24420002);
+    hardware.ram.set32(0x6000, 0x24420004);
+    c.pc = 0x7ffffff8;
+    const count = c.getOpsExecuted();
+    c.addRunForCyclesEvent(3);
+    c.runImpl();
+    expect(c.getRegU64(2)).toBe(7n);
+    expect(c.wideState.pc).toBe(0x80000004n);
+    expect(c.getOpsExecuted() - count).toBe(3);
+  });
+
+  test('relative branches crossing below sign-extended bit 31 do not alias low memory', () => {
+    reset();
+    hardware.ram.set32(0, 0x1000fffe); // beq zero, zero, -2
+    hardware.ram.set32(4, 0x24020001);
+    c.pc = 0x80000000;
+    c.addRunForCyclesEvent(3);
+    expect(() => c.runImpl()).toThrow();
+    expect(c.getRegU64(2)).toBe(1n);
+    expect(c.getControlU64(regs.controlBadVAddr)).toBe(0xffffffff7ffffffcn);
+    expect(c.getControlU64(regs.controlEPC)).toBe(0xffffffff7ffffffcn);
+  });
+
+  test('compiled boundary instructions hand off before executing or charging the instruction', () => {
+    for (const [pc, word] of [[0x7ffffffc, 0], [0x7ffffff0, 0x10000004], [0x80000000, 0x1000fffe], [0xfffffffc, 0]]) {
+      reset();
+      expect(needsWideInstruction(pc, word)).toBe(true);
+      c.pc = pc;
+      const fragment = new Fragment(pc);
+      fragment.opsCompiled = 1;
+      const ctx = new FragmentContext();
+      ctx.set(fragment, pc, word, pc + 4, pc + 4);
+      generateCodeForOp(ctx);
+      const count = c.getOpsExecuted();
+      expect(new Function('c', fragment.bodyCode)(c)).toBe(0);
+      expect(c.pc).toBe(pc);
+      expect(c.getOpsExecuted()).toBe(count);
+      expect(c.stuffToDo & 4).toBe(4);
+    }
+    expect(needsWideInstruction(0x80001000, 0x1000ffff)).toBe(false);
+  });
+
   for (const compiled of [false, true]) {
     for (const link of [false, true]) {
       test(`${compiled ? 'compiled' : 'interpreted'} ${link ? 'JALR' : 'JR'} enters wide code after its delay slot`, () => {
@@ -66,6 +134,8 @@ describe('64-bit instruction addresses', () => {
         expect(c.wideState.delayPC).toBe(base);
         expect(c.getRegU64(10)).toBe(0n);
         if (link) expect(c.getRegU64(4)).toBe(0xffffffff80001008n);
+        expect(c.stuffToDo & 4).toBe(4);
+        c.stuffToDo &= ~4; // Outer dispatcher consumes the handoff flag.
         c.stepWide();
         expect(c.wideState.pc).toBe(base);
         expect(c.getRegU64(2)).toBe(1n);
@@ -196,12 +266,12 @@ describe('64-bit instruction addresses', () => {
   test('wide TLB lookup honors ASIDs and global mappings', () => {
     reset();
     c.tlbEntries[0].update(0, 0, base | 7n, (2 << 6) | 6, (4 << 6) | 6);
-    expect(c.tlbFindEntry(base)).toBeNull();
+    expect(c.tlbFindEntry64(base)).toBeNull();
     c.setControlU64(regs.controlEntryHi, 7n);
-    expect(c.tlbFindEntry(base)).toBe(c.tlbEntries[0]);
+    expect(c.tlbFindEntry64(base)).toBe(c.tlbEntries[0]);
     c.setControlU64(regs.controlEntryHi, 9n);
     c.tlbEntries[0].update(0, 0, base | 7n, (2 << 6) | 7, (4 << 6) | 7);
-    expect(c.tlbFindEntry(base)).toBe(c.tlbEntries[0]);
+    expect(c.tlbFindEntry64(base)).toBe(c.tlbEntries[0]);
   });
 
   test('compiled ERET exits the fragment before entering wide code', () => {

@@ -4,7 +4,7 @@
 import { assert } from '../assert.js';
 import * as cpu0reg from './cpu0reg.js';
 import { getInstructionPatches, patchInstruction } from '../compatibility.js';
-import { simpleOp, regImmOp, specialOp, copOp, copFmtFuncOp, fd, fs, ft, offset, sa, rd, rt, rs, tlbop, imm, imms, base, jumpAddress } from './decode.js';
+import { simpleOp, regImmOp, specialOp, copOp, copFmtFuncOp, fd, fs, ft, offset, sa, rd, rt, rs, tlbop, imm, imms, base, jumpAddress, needsWideInstruction } from './decode.js';
 import { cop0ControlRegisterNames } from './disassemble.js';
 import { EmulatedException } from './emulated_exception.js';
 import { EventQueue } from '../event_queue.js';
@@ -452,6 +452,7 @@ export class CPU0 {
     const lo = this.getRegU32Lo(rs);
     if (this.gprS32[rs * 2 + 1] !== (lo >> 31)) {
       this.wideState = { pc: BigInt.asUintN(64, BigInt(nextPC | 0)), delayPC: this.getRegU64(rs) };
+      this.stuffToDo |= kStuffToDoBreakout;
     }
     return lo;
   }
@@ -482,7 +483,7 @@ export class CPU0 {
       throw new EmulatedException('AdEL instruction fetch');
     }
     if (region === 2) return this.fetchPhysicalInstruction(Number(address & 0xffffffffn));
-    const tlb = this.tlbFindEntry(address);
+    const tlb = this.tlbFindEntry64(address);
     if (!tlb || !((Number(address & 0xffffffffn) & tlb.checkbit ? tlb.pfno : tlb.pfne) & TLBLO_V)) {
       const vector = !tlb && !(status & SR_EXL) ? XUT_VEC : E_VEC;
       this.raiseTLBException(vector, cpu0reg.causeExcCodeTLBL, address);
@@ -504,12 +505,24 @@ export class CPU0 {
     rsp.step();
     if (this.stuffToDo) return;
     if (performanceProfile.enabled) performanceProfile.counters.interpretedOps++;
+    this.executeWideInstruction();
+  }
+
+  enterWideInstruction() {
+    this.wideState = {
+      pc: BigInt.asUintN(64, BigInt(this.pc | 0)),
+      delayPC: this.delayPC ? BigInt.asUintN(64, BigInt(this.delayPC | 0)) : null,
+    };
+    this.stuffToDo |= kStuffToDoBreakout;
+  }
+
+  executeWideInstruction(instruction) {
     const state = this.wideState;
     state.nextPC = state.delayPC ?? BigInt.asUintN(64, state.pc + 4n);
     state.branchTarget = null;
     this.nextPC = Number(state.nextPC & 0xffffffffn);
     this.branchTarget = 0;
-    const instruction = this.fetchWideInstruction(state.pc);
+    if (instruction === undefined) instruction = this.fetchWideInstruction(state.pc);
     executeOp(instruction);
     state.pc = state.nextPC;
     state.delayPC = state.branchTarget;
@@ -888,15 +901,12 @@ export class CPU0 {
     const runFragment = performanceProfile.enabled ? executeFragmentProfiled : executeFragment;
 
     while (this.hasEvent(kEventRunForCycles)) {
+      // Mode handoffs break out of the ordinary loop. Only the outer dispatcher
+      // selects the wide interpreter; ordinary fragments need no mode check.
+      while (this.wideState && !this.stuffToDo) this.stepWide();
       let fragment = lookupFragment(this.pc);
 
       while (!this.stuffToDo) {
-
-        if (this.wideState) {
-          this.stepWide();
-          fragment = null;
-          continue;
-        }
 
         if (fragment && fragment.func) {
           fragment = runFragment(fragment, this, eventQueue);
@@ -943,6 +953,15 @@ export class CPU0 {
               instruction = patched;
             }
             if (this.instructionPatches.size === 0) this.instructionPatches = null;
+          }
+
+          if (needsWideInstruction(pc, instruction)) {
+            // The instruction fetch and RSP step are already done. Execute
+            // with a wide PC, then leave through the ordinary breakout path.
+            this.enterWideInstruction();
+            this.executeWideInstruction(instruction);
+            fragment = null;
+            continue;
           }
 
           this.branchTarget = null;
@@ -1314,10 +1333,22 @@ export class CPU0 {
   tlbFindEntry(address) {
     const entryHi = this.getControlU64(cpu0reg.controlEntryHi);
     const entryHiPID = entryHi & TLBHI_PIDMASK;
+    // Sign-extend ordinary addresses to preserve the upper VPN bits.
+    const address64 = BigInt(address | 0);
 
-    // Wide fetches preserve the full address; ordinary accesses sign-extend.
-    const wide = typeof address === 'bigint';
-    const address64 = wide ? address : BigInt(address | 0);
+    // Keep wide-address type and region checks out of this hot data path.
+    for (let i = 0; i < 32; ++i) {
+      const tlb = this.tlbEntries[i];
+      if ((address64 & tlb.vpnmask64) !== tlb.vpn2bits) continue;
+      if (!tlb.global && ((tlb.hi & TLBHI_PIDMASK) !== entryHiPID)) continue;
+      return tlb;
+    }
+    return null;
+  }
+
+  tlbFindEntry64(address64) {
+    const entryHi = this.getControlU64(cpu0reg.controlEntryHi);
+    const entryHiPID = entryHi & TLBHI_PIDMASK;
 
     for (let i = 0; i < 32; ++i) {
       // TODO: use MRU cache here.
@@ -1328,7 +1359,7 @@ export class CPU0 {
       if ((address64 & tlb.vpnmask64) !== tlb.vpn2bits) {
         continue;
       }
-      if (wide && (address64 & TLBHI_RMASK) !== (tlb.hi & TLBHI_RMASK)) continue;
+      if ((address64 & TLBHI_RMASK) !== (tlb.hi & TLBHI_RMASK)) continue;
       if (!tlb.global && ((tlb.hi & TLBHI_PIDMASK) !== entryHiPID)) {
         // ASID should match, or should be global.
         continue;
