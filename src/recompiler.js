@@ -6,7 +6,7 @@ import { disassembleInstruction } from './disassemble.js';
 import { toString32 } from './format.js';
 import { assert } from './assert.js';
 import { kAccurateCountUpdating, kSpeedHackEnabled } from './options.js';
-import { simpleOp, regImmOp, specialOp, copOp, isWait, copFmtFuncOp, fd, fs, ft, offset, sa, rd, rt, rs, tlbop, imm, imms, base, branchAddress, jumpAddress } from './decode.js';
+import { simpleOp, regImmOp, specialOp, copOp, isWait, copFmtFuncOp, fd, fs, ft, offset, sa, rd, rt, rs, tlbop, imm, imms, base, branchAddress, jumpAddress, needsWideInstruction } from './decode.js';
 
 const kDebugDynarec = false;
 const kValidateDynarecPCs = false;
@@ -768,10 +768,14 @@ function generateJALR(ctx) {
       c.delayPC = ${genSrcRegU32Lo(s)};
       if (c.gprS32[${s * 2 + 1}] !== (c.delayPC >> 31)) {
         c.prepareWideJump(${s}, ${ctx.needsDelayCheck ? 'c.nextPC' : toString32(ctx.pc + 4)});
+        c.setRegS64LoHi(${d}, ${toString32(ra)}, ${ra_hi});
+        c.pc = ${ctx.needsDelayCheck ? 'c.nextPC' : toString32(ctx.pc + 4)};
+        ${kAccurateCountUpdating ? 'c.incrementCount(1);' : ''}
+        return ${ctx.fragment.opsCompiled};
       }
       c.setRegS64LoHi(${d}, ${toString32(ra)}, ${ra_hi});
       `);
-  return generateBranchOpBoilerplate(impl, ctx, false) + `if (c.wideState) { return ${ctx.fragment.opsCompiled}; }\n`;
+  return generateBranchOpBoilerplate(impl, ctx, false);
 }
 
 function generateJR(ctx) {
@@ -782,9 +786,12 @@ function generateJR(ctx) {
       c.delayPC = ${genSrcRegU32Lo(s)};
       if (c.gprS32[${s * 2 + 1}] !== (c.delayPC >> 31)) {
         c.prepareWideJump(${s}, ${ctx.needsDelayCheck ? 'c.nextPC' : toString32(ctx.pc + 4)});
+        c.pc = ${ctx.needsDelayCheck ? 'c.nextPC' : toString32(ctx.pc + 4)};
+        ${kAccurateCountUpdating ? 'c.incrementCount(1);' : ''}
+        return ${ctx.fragment.opsCompiled};
       }
       `);
-  return generateBranchOpBoilerplate(impl, ctx, false) + `if (c.wideState) { return ${ctx.fragment.opsCompiled}; }\n`;
+  return generateBranchOpBoilerplate(impl, ctx, false);
 }
 
 function generateBEQ(ctx) {
@@ -1584,6 +1591,12 @@ const simpleTableGen = validateSimpleOpTable([
 
 
 function generateOp(ctx) {
+  if (needsWideInstruction(ctx.pc, ctx.instruction)) {
+    ctx.bailOut = true;
+    // Resume at this instruction in the interpreter; only preceding compiled
+    // operations have executed and should be charged to the event queue.
+    return `c.pc = ${toString32(ctx.pc)}; c.enterWideInstruction(); return ${ctx.fragment.opsCompiled - 1};\n`;
+  }
   if (kUseOptimisedDynarecHandlers) {
     return simpleTableGen[simpleOp(ctx.instruction)](ctx);
   }

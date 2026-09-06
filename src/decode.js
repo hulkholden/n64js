@@ -16,6 +16,20 @@ export function ft(i) { return (i >>> 16) & 0x1f; }
 
 export function offset(i) { return ((i & 0xffff) << 16) >> 16; }
 
+// These rare instructions can leave the sign-extended 32-bit PC range without
+// a register jump. Recompilation resolves this test at compile time.
+export function needsWideInstruction(pc, i) {
+  if (pc === 0x7ffffff8 || pc === 0x7ffffffc || pc >= 0xfffffff8) return true;
+  if (((pc - 0x7ffe0000) >>> 0) >= 0x40000) return false;
+  const op = simpleOp(i);
+  const relative = (op >= 4 && op <= 7) || (op >= 20 && op <= 23) ||
+    (op === 1 && [0, 1, 2, 3, 16, 17, 18, 19].includes(regImmOp(i))) ||
+    (op === 17 && copOp(i) === 8);
+  if (!relative) return false;
+  const target = (pc | 0) + 4 + offset(i) * 4;
+  return target < -0x80000000 || target > 0x7fffffff;
+}
+
 export function sa(i) { return (i >>> 6) & 0x1f; }
 export function rd(i) { return (i >>> 11) & 0x1f; }
 export function rt(i) { return (i >>> 16) & 0x1f; }
