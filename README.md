@@ -26,12 +26,8 @@ Compile sources (add `--watch` to automatically recompile on any change):
 bun run build
 ```
 
-The generated `build/n64.min.js` file is committed to the repository. Before
-submitting changes, verify that it is up to date:
-
-```
-bun run check:build
-```
+The generated `build/` directory is ignored by Git. Build locally before running
+the site; CI checks that pull requests and pushes to `master` build successfully.
 
 Run a local webserver in the root directory:
 
@@ -41,7 +37,22 @@ python3 -m http.server
 
 Navigate to http://localhost:8000/.
 
-To run the committed build without installing Bun, start the local webserver as above; no build step is required.
+## Publishing
+
+Push a new `v*` tag (for example, `v1.2.3`) to publish that commit to GitHub Pages.
+The tagged commit must include the Pages workflow. It installs dependencies using
+the pinned Bun version, builds the bundle, and deploys the site files directly as
+a Pages artifact. Generated files do not need to be committed, and ordinary
+branch pushes do not update the published site.
+
+One-time repository setup when migrating from branch-based Pages publishing:
+
+1. In **Settings > Pages**, set the build and deployment source to **GitHub Actions**.
+2. In **Settings > Environments > github-pages**, allow deployment tags matching
+   `v*` (the existing `gh-pages` branch rule does not allow tags).
+
+The deployment includes `index.html`, `n64js.css`, `js/`, `roms/`, and the generated
+`build/` directory. Each deployment replaces the site at the existing Pages URL.
 
 ## Compatibility
 
