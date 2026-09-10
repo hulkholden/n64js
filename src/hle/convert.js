@@ -302,9 +302,6 @@ function convertIA4(dstData, src, tile) {
       dst[dstOffset + 1] = i0;
       dst[dstOffset + 2] = i0;
       dst[dstOffset + 3] = a0;
-
-      srcOffset += 1;
-      dstOffset += 4;
     }
 
     srcRowOffset += srcRowStride;
@@ -400,9 +397,6 @@ function convertI4(dstData, src, tile) {
       dst[dstOffset + 1] = i0;
       dst[dstOffset + 2] = i0;
       dst[dstOffset + 3] = i0;
-
-      srcOffset += 1;
-      dstOffset += 4;
     }
 
     srcRowOffset += srcRowStride;
@@ -531,9 +525,6 @@ function convertCI4(dstData, src, tile, palette, palConv) {
       dst[dstOffset + 1] = (c0 >> 16) & 0xff;
       dst[dstOffset + 2] = (c0 >> 8) & 0xff;
       dst[dstOffset + 3] = c0 & 0xff;
-
-      srcOffset += 1;
-      dstOffset += 4;
     }
 
     srcRowOffset += srcRowStride;

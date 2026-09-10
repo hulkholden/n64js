@@ -75,7 +75,7 @@ class BinaryRequest {
     });
 
     xhr.addEventListener('load', (event) => {
-      if (ArrayBuffer.prototype.isPrototypeOf(xhr.response)) {
+      if (Object.prototype.isPrototypeOf.call(ArrayBuffer.prototype, xhr.response)) {
         cb(xhr.response);
       } else {
         alert("wasn't arraybuffer, was " + typeof (xhr.response) + JSON.stringify(xhr.response));

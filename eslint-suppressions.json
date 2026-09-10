@@ -1,0 +1,117 @@
+{
+  "src/cpu1.bench.js": {
+    "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/cpu1.js": {
+    "no-unused-vars": {
+      "count": 21
+    }
+  },
+  "src/devices/device.js": {
+    "no-unused-vars": {
+      "count": 4
+    }
+  },
+  "src/devices/dpc.js": {
+    "no-unused-vars": {
+      "count": 8
+    }
+  },
+  "src/devices/dps.js": {
+    "no-unused-vars": {
+      "count": 10
+    }
+  },
+  "src/devices/ram.js": {
+    "no-unused-vars": {
+      "count": 5
+    }
+  },
+  "src/devices/ri.js": {
+    "no-unused-vars": {
+      "count": 7
+    }
+  },
+  "src/devices/rom.js": {
+    "no-unused-vars": {
+      "count": 8
+    }
+  },
+  "src/devices/vi.js": {
+    "no-unused-vars": {
+      "count": 5
+    }
+  },
+  "src/disassemble.js": {
+    "no-unused-vars": {
+      "count": 2
+    }
+  },
+  "src/disassemble_rsp.js": {
+    "no-unused-vars": {
+      "count": 3
+    }
+  },
+  "src/hle/disassemble_rdp.js": {
+    "no-unused-vars": {
+      "count": 6
+    }
+  },
+  "src/hle/hle_graphics.js": {
+    "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/hle/rsp_task.js": {
+    "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/joybus.js": {
+    "no-unused-vars": {
+      "count": 11
+    }
+  },
+  "src/lle/rdp.js": {
+    "no-unused-vars": {
+      "count": 6
+    }
+  },
+  "src/memaccess.bench.js": {
+    "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/memaccess.js": {
+    "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/r4300.js": {
+    "no-unused-vars": {
+      "count": 81
+    }
+  },
+  "src/rsp.bench.js": {
+    "no-unused-vars": {
+      "count": 3
+    }
+  },
+  "src/rsp.js": {
+    "no-unused-vars": {
+      "count": 25
+    }
+  },
+  "src/sync.js": {
+    "no-unused-vars": {
+      "count": 6
+    }
+  },
+  "tools/syncserver.js": {
+    "no-unused-vars": {
+      "count": 1
+    }
+  }
+}

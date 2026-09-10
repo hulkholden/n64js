@@ -57,7 +57,6 @@ function readSyncLog(offset, length, request, response) {
 
 function writeSyncLog(offset, length, request, response) {
   offset = parseInt(offset, 10) || 0;
-  length = parseInt(length, 10) || 1024;
 
   var data = [], dataLen = 0;
 

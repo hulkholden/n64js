@@ -6,6 +6,8 @@
   "main": "n64.min.js",
   "type": "module",
   "scripts": {
+    "lint": "bun --bun eslint src tools eslint.config.js --max-warnings 0",
+    "lint:fix": "bun run lint --fix",
     "build": "bun build ./src/n64.js --outfile=build/n64.min.js --minify",
     "build-debug": "bun build ./src/n64.js --outfile=build/n64.min.js",
     "benchmark": "bun run ./src/benchmark.js",
@@ -30,5 +32,10 @@
     "bootstrap": "^5.3.8",
     "lil-gui": "^0.18.2",
     "mitata": "^0.1.14"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.10.0",
+    "globals": "^17.12.0"
   }
 }

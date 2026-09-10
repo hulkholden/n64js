@@ -298,7 +298,6 @@ export class S2DEXCommon {
     if (renderMode != kRenderNone) {
       this.sprite.load(this.ramDV, offset);
       this.renderSprite(renderMode);
-      offset += 24;
     }
 
     let tip = '';

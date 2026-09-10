@@ -66,12 +66,12 @@ export class TriangleBuffer {
     this.positions[posIdx++] = vp2.x;
     this.positions[posIdx++] = vp2.y;
     this.positions[posIdx++] = vp2.z;
-    this.positions[posIdx++] = vp2.w;
+    this.positions[posIdx] = vp2.w;
 
     let colIdx = this.numTris * 3 * 1;
     this.colours[colIdx++] = v0.color;
     this.colours[colIdx++] = v1.color;
-    this.colours[colIdx++] = v2.color;
+    this.colours[colIdx] = v2.color;
 
     let uvIdx = this.numTris * 3 * 2;
     this.coords[uvIdx++] = s0;
@@ -79,7 +79,7 @@ export class TriangleBuffer {
     this.coords[uvIdx++] = s1;
     this.coords[uvIdx++] = t1;
     this.coords[uvIdx++] = s2;
-    this.coords[uvIdx++] = t2;
+    this.coords[uvIdx] = t2;
 
     this.numTris++;
     return true;
