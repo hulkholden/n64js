@@ -290,7 +290,8 @@ function convertIA4(dstData, src, tile) {
       dstOffset += 8;
     }
 
-    // Handle trailing pixel, if odd width
+    // For odd widths, read 1 source byte (high nibble only) and write 4 RGBA bytes.
+    // Row strides below advance to the next row; these pixel offsets are finished.
     if (tile.width & 1) {
       let index = srcOffset ^ rowSwizzle;
       let srcPixel = src[index];
@@ -388,7 +389,8 @@ function convertI4(dstData, src, tile) {
       dstOffset += 8;
     }
 
-    // Handle trailing pixel, if odd width
+    // For odd widths, read 1 source byte (high nibble only) and write 4 RGBA bytes.
+    // Row strides below advance to the next row; these pixel offsets are finished.
     if (tile.width & 1) {
       let srcPixel = src[srcOffset ^ rowSwizzle];
       let i0 = kFourToEight[(srcPixel & 0xf0) >>> 4];
@@ -516,7 +518,8 @@ function convertCI4(dstData, src, tile, palette, palConv) {
       dstOffset += 8;
     }
 
-    // Handle trailing pixel, if odd width
+    // For odd widths, read 1 source byte (high nibble only) and write 4 RGBA bytes.
+    // Row strides below advance to the next row; these pixel offsets are finished.
     if (tile.width & 1) {
       let srcPixel = src[srcOffset ^ rowSwizzle];
       let c0 = tempPal[(srcPixel & 0xf0) >>> 4];
