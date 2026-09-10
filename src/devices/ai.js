@@ -180,8 +180,8 @@ export class AIRegDevice extends Device {
   estimateDMACyclesFromLength(length) {
     const bytesPerSample = ((this.bitRate + 1) << 1) / 8;
     const bytesPerSec = bytesPerSample * this.frequency;
-    // TODO: is this VI clock or system clock?
-    return (length * this.viClock / bytesPerSec) >>> 0;
+    // The CPU event queue counts system-clock cycles, not video-clock ticks.
+    return (length * this.hardware.systemFrequency / bytesPerSec) >>> 0;
   }
 
   startPlayback() {
