@@ -8,8 +8,6 @@
 // in bounds for ram (0x8000_0000 <= x < 0x8080_0000). The constant is derived from interpreting 0x80800000
 // as a 32-bit signed value.
 
-import { EmulatedException } from "./emulated_exception";
-
 let getMemoryHandler;
 let ramDV;
 let cpu0;

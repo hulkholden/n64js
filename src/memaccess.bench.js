@@ -8,7 +8,10 @@ const u8 = new Uint8Array(ab);
 const u16 = new Uint16Array(ab);
 const u32 = new Uint32Array(ab);
 
-let sum;
+// Exercise the sign bit in all three integer widths instead of converting zeros.
+u32[0] = 0x8080_8080;
+
+let sum = 0;
 
 group('u32', () => {
   bench('signed to unsigned shift', () => {
@@ -36,8 +39,11 @@ group('u8', () => {
     sum += s8[0] & 0xff;
   });
   bench('unsigned to signed shift', () => {
-    sum += (u8[0] << 24) >> 25;
+    sum += (u8[0] << 24) >> 24;
   });
 });
 
 await run({});
+
+// Consume the accumulated results outside the timed callbacks.
+console.log('Memory conversion checksum:', sum);
