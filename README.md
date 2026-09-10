@@ -14,10 +14,16 @@ A hosted version is available on GitHub pages at https://hulkholden.github.io/n6
 
 Install `bun`: https://bun.sh/.
 
-Compile sources (pass --watch to automatically recompile on any change):
+Install dependencies from the repository root:
 
 ```
-bun run build --watch
+bun install
+```
+
+Compile sources (add `--watch` to automatically recompile on any change):
+
+```
+bun run build
 ```
 
 The generated `build/n64.min.js` file is committed to the repository. Before
@@ -35,7 +41,7 @@ python3 -m http.server
 
 Navigate to http://localhost:8000/.
 
-If you want to run without installing bun, you can change the importmap in index.html to point at src/n64.js instead of build/n64.min.js.
+To run the committed build without installing Bun, start the local webserver as above; no build step is required.
 
 ## Compatibility
 
@@ -71,7 +77,7 @@ Graphics are rendered using high-level emulation and there are still a lot of TO
 ## Performance
 
 I've been testing on an Apple M2 Max and most roms run at full framerate *most* of the time.
-LLE audio emulation seems to be the biggest performance hit. To date I've mostly been focussed compatibility so there are likely a lot of improvements to be made here. 
+LLE audio emulation seems to be the biggest performance hit. To date I've mostly been focused on compatibility so there are likely a lot of improvements to be made here.
 
 ## Implementation Status
 
@@ -89,13 +95,13 @@ LLE audio emulation seems to be the biggest performance hit. To date I've mostly
   * [ ] HLE
     * [ ] GBI0 - mostly implemented
     * [ ] GBI1 - partially implemented
-    * [ ] GIB2 - partially immplemented
+    * [ ] GBI2 - partially implemented
   * [ ] LLE - not implemented
 * [ ] Audio
   * [ ] HLE - not implemented
   * [x] LLE - implemented
 * [ ] Save
-  * [x] Persistance (via localStorage)
+  * [x] Persistence (via localStorage)
   * [ ] Import/Export
   * [x] Mempack
   * [x] Eeprom 4k
@@ -105,7 +111,7 @@ LLE audio emulation seems to be the biggest performance hit. To date I've mostly
 
 ## TODOs
 
-Here's some things I'd like to get around to:
+Here are some things I'd like to get around to:
 
 * Fix graphics issues
 * Save game import/export
@@ -114,5 +120,5 @@ Here's some things I'd like to get around to:
 
 ## History
 
-n6js is derived from [Daedalus](https://github.com/hulkholden/daedalus), an emulator I started working on around 1999 and continued working on periodically for many years.
+n64js is derived from [Daedalus](https://github.com/hulkholden/daedalus), an emulator I started working on around 1999 and continued working on periodically for many years.
 Around 2012 I made a bet with [@mmalex](https://github.com/mmalex) that I could write a port in JavaScript, and n64js was born!
