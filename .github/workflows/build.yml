@@ -16,4 +16,5 @@ jobs:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
       - run: bun ci
+      - run: bun test
       - run: bun run build
