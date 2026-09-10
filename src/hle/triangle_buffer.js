@@ -31,7 +31,7 @@ export class TriangleBuffer {
    * @returns {boolean}
    */
   hasCapacity(num) {
-    return this.numTris + num < this.maxTris;
+    return this.numTris + num <= this.maxTris;
   }
 
   /**
@@ -50,36 +50,39 @@ export class TriangleBuffer {
       return false;
     }
 
+    const positions = this.positions;
+    const colours = this.colours;
+    const coords = this.coords;
     const vp0 = v0.pos;
     const vp1 = v1.pos;
     const vp2 = v2.pos;
 
     let posIdx = this.numTris * 3 * 4;
-    this.positions[posIdx++] = vp0.x;
-    this.positions[posIdx++] = vp0.y;
-    this.positions[posIdx++] = vp0.z;
-    this.positions[posIdx++] = vp0.w;
-    this.positions[posIdx++] = vp1.x;
-    this.positions[posIdx++] = vp1.y;
-    this.positions[posIdx++] = vp1.z;
-    this.positions[posIdx++] = vp1.w;
-    this.positions[posIdx++] = vp2.x;
-    this.positions[posIdx++] = vp2.y;
-    this.positions[posIdx++] = vp2.z;
-    this.positions[posIdx] = vp2.w;
+    positions[posIdx++] = vp0.x;
+    positions[posIdx++] = vp0.y;
+    positions[posIdx++] = vp0.z;
+    positions[posIdx++] = vp0.w;
+    positions[posIdx++] = vp1.x;
+    positions[posIdx++] = vp1.y;
+    positions[posIdx++] = vp1.z;
+    positions[posIdx++] = vp1.w;
+    positions[posIdx++] = vp2.x;
+    positions[posIdx++] = vp2.y;
+    positions[posIdx++] = vp2.z;
+    positions[posIdx] = vp2.w;
 
     let colIdx = this.numTris * 3 * 1;
-    this.colours[colIdx++] = v0.color;
-    this.colours[colIdx++] = v1.color;
-    this.colours[colIdx] = v2.color;
+    colours[colIdx++] = v0.color;
+    colours[colIdx++] = v1.color;
+    colours[colIdx] = v2.color;
 
     let uvIdx = this.numTris * 3 * 2;
-    this.coords[uvIdx++] = s0;
-    this.coords[uvIdx++] = t0;
-    this.coords[uvIdx++] = s1;
-    this.coords[uvIdx++] = t1;
-    this.coords[uvIdx++] = s2;
-    this.coords[uvIdx] = t2;
+    coords[uvIdx++] = s0;
+    coords[uvIdx++] = t0;
+    coords[uvIdx++] = s1;
+    coords[uvIdx++] = t1;
+    coords[uvIdx++] = s2;
+    coords[uvIdx] = t2;
 
     this.numTris++;
     return true;
