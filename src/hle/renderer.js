@@ -175,7 +175,8 @@ export class Renderer {
       tb.coords,
       textureEnabled,
       texGenEnabled,
-      this.state.texture.tile);
+      this.state.texture.tile,
+      tb.numTris * 3);
 
     this.initDepth();
 
@@ -371,7 +372,7 @@ export class Renderer {
     gl.depthMask(zUpdRenderMode);
   }
 
-  setProgramState(positions, colours, coords, textureEnabled, texGenEnabled, tileIdx) {
+  setProgramState(positions, colours, coords, textureEnabled, texGenEnabled, tileIdx, numVertices = positions.length / 4) {
     const gl = this.gl;
 
     this.setGLBlendMode();
@@ -411,9 +412,9 @@ export class Renderer {
 
     // TODO: just return the shader and do the binding at the call site?
     shader.vertexArray.bind();
-    shader.vertexArray.setPosData(positions, gl.DYNAMIC_DRAW);
-    shader.vertexArray.setColorData(colours, gl.DYNAMIC_DRAW);
-    shader.vertexArray.setUVData(coords, gl.DYNAMIC_DRAW);
+    shader.vertexArray.setPosData(positions, gl.DYNAMIC_DRAW, numVertices * 4);
+    shader.vertexArray.setColorData(colours, gl.DYNAMIC_DRAW, numVertices);
+    shader.vertexArray.setUVData(coords, gl.DYNAMIC_DRAW, numVertices * 2);
 
     this.bindTexture(0, gl.TEXTURE0, tile0, texture0, texGenEnabled, shader.uSamplerUniform0, shader.uTexScaleUniform0, shader.uTexOffsetUniform0);
     this.bindTexture(1, gl.TEXTURE1, tile1, texture1, texGenEnabled, shader.uSamplerUniform1, shader.uTexScaleUniform1, shader.uTexOffsetUniform1);

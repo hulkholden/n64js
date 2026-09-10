@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Triangle upload benchmark</title>
+<style>
+  body { font: 15px system-ui; margin: 32px; max-width: 1100px; }
+  canvas { border: 1px solid #888; width: 256px; height: 256px; }
+  button { font: inherit; padding: 8px 16px; }
+  pre { white-space: pre-wrap; }
+  table { border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th, td { padding: 6px 12px; border-bottom: 1px solid #ccc; text-align: right; }
+  th:first-child, td:first-child { text-align: left; }
+</style>
+<h1>Triangle upload benchmark</h1>
+<p>Compares three attribute uploads per flush using real WebGL2 buffers, with and without drawing.
+  Timings exclude vertex packing and the emulator's other rendering state changes.</p>
+<p>Serve the repository root with <code>python3 -m http.server</code>, then open
+  <a href="http://localhost:8000/benchmarks/triangle_upload.html">the benchmark over HTTP</a>.
+  Opening this file directly does not load its JavaScript modules.</p>
+<p><button id="run">Run benchmark</button> <span id="status">Ready</span></p>
+<canvas id="canvas" width="256" height="256"></canvas>
+<pre id="environment"></pre>
+<div id="summary"></div>
+<details><summary>Raw results</summary><pre id="results"></pre></details>
+<script type="module" src="../src/hle/triangle_upload.bench.js"></script>
+</html>

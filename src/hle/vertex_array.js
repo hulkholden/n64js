@@ -56,13 +56,14 @@ export class VertexArray {
     this.uvBuffer = buffer;
   }
 
-  setPosData(data, usage) { this.setData(this.posBuffer, data, usage); }
-  setColorData(data, usage) { this.setData(this.colBuffer, data, usage); }
-  setUVData(data, usage) { this.setData(this.uvBuffer, data, usage); }
+  setPosData(data, usage, length = 0) { this.setData(this.posBuffer, data, usage, length); }
+  setColorData(data, usage, length = 0) { this.setData(this.colBuffer, data, usage, length); }
+  setUVData(data, usage, length = 0) { this.setData(this.uvBuffer, data, usage, length); }
 
-  setData(buffer, data, usage) {
+  // WebGL2 counts typed-array elements; length 0 uploads the entire array.
+  setData(buffer, data, usage, length = 0) {
     const gl = this.gl;
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-    gl.bufferData(gl.ARRAY_BUFFER, data, usage);
+    gl.bufferData(gl.ARRAY_BUFFER, data, usage, 0, length);
   }
 }
