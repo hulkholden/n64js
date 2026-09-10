@@ -47,3 +47,6 @@ group('register index', () => {
 });
 
 await run({});
+
+// Consume the accumulated results outside the timed callbacks.
+console.log('Register index checksum:', sum);

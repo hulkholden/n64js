@@ -1,7 +1,6 @@
 var http = require('http');
 var fs   = require('fs');
 var path = require('path');
-var tty  = require("tty");
 var url  = require("url");
 
 var sync_fd = fs.openSync('./sync.bin', 'a+');

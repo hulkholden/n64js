@@ -1,6 +1,5 @@
 /*global n64js*/
 
-import { dbgGUI } from "../dbg_ui.js";
 import { disassembleRemappedRange, dumpDMEM } from "../disassemble_rsp.js";
 import { makeEnum } from "../enum.js";
 import { toHex } from "../format.js";

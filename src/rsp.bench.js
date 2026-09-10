@@ -1,12 +1,9 @@
 import { run, bench, group } from 'mitata';
-import { MemoryRegion } from './memory_region';
 
 const vAccMem = new ArrayBuffer(8 * 8); // Actually 48 bits, not 64. 
 const vAcc = new BigInt64Array(vAccMem);
 const vAccS32 = new Int32Array(vAccMem);
 const vAccU32 = new Uint32Array(vAccMem);
-const vAccS16 = new Int16Array(vAccMem);
-const vAccU16 = new Uint16Array(vAccMem);
 
 class PCAsMember {
   constructor() {
