@@ -290,7 +290,8 @@ function convertIA4(dstData, src, tile) {
       dstOffset += 8;
     }
 
-    // Handle trailing pixel, if odd width
+    // For odd widths, read 1 source byte (high nibble only) and write 4 RGBA bytes.
+    // Row strides below advance to the next row; these pixel offsets are finished.
     if (tile.width & 1) {
       let index = srcOffset ^ rowSwizzle;
       let srcPixel = src[index];
@@ -302,9 +303,6 @@ function convertIA4(dstData, src, tile) {
       dst[dstOffset + 1] = i0;
       dst[dstOffset + 2] = i0;
       dst[dstOffset + 3] = a0;
-
-      srcOffset += 1;
-      dstOffset += 4;
     }
 
     srcRowOffset += srcRowStride;
@@ -391,7 +389,8 @@ function convertI4(dstData, src, tile) {
       dstOffset += 8;
     }
 
-    // Handle trailing pixel, if odd width
+    // For odd widths, read 1 source byte (high nibble only) and write 4 RGBA bytes.
+    // Row strides below advance to the next row; these pixel offsets are finished.
     if (tile.width & 1) {
       let srcPixel = src[srcOffset ^ rowSwizzle];
       let i0 = kFourToEight[(srcPixel & 0xf0) >>> 4];
@@ -400,9 +399,6 @@ function convertI4(dstData, src, tile) {
       dst[dstOffset + 1] = i0;
       dst[dstOffset + 2] = i0;
       dst[dstOffset + 3] = i0;
-
-      srcOffset += 1;
-      dstOffset += 4;
     }
 
     srcRowOffset += srcRowStride;
@@ -522,7 +518,8 @@ function convertCI4(dstData, src, tile, palette, palConv) {
       dstOffset += 8;
     }
 
-    // Handle trailing pixel, if odd width
+    // For odd widths, read 1 source byte (high nibble only) and write 4 RGBA bytes.
+    // Row strides below advance to the next row; these pixel offsets are finished.
     if (tile.width & 1) {
       let srcPixel = src[srcOffset ^ rowSwizzle];
       let c0 = tempPal[(srcPixel & 0xf0) >>> 4];
@@ -531,9 +528,6 @@ function convertCI4(dstData, src, tile, palette, palConv) {
       dst[dstOffset + 1] = (c0 >> 16) & 0xff;
       dst[dstOffset + 2] = (c0 >> 8) & 0xff;
       dst[dstOffset + 3] = c0 & 0xff;
-
-      srcOffset += 1;
-      dstOffset += 4;
     }
 
     srcRowOffset += srcRowStride;

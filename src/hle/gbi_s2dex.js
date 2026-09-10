@@ -296,9 +296,9 @@ export class S2DEXCommon {
     }
 
     if (renderMode != kRenderNone) {
+      // Read the 24-byte sprite record; this is the final record in the command.
       this.sprite.load(this.ramDV, offset);
       this.renderSprite(renderMode);
-      offset += 24;
     }
 
     let tip = '';

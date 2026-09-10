@@ -343,12 +343,13 @@ class ControllerChannel extends Channel {
     }
 
     switch (this.attachment) {
-      case kAttachmentControllerPak:
+      case kAttachmentControllerPak: {
         const data = this.memory.data;
         for (let i = 0, address = addr; i < (rx - 1); i++, address++) {
           rxBuf[i] = address < data.length ? data[address] : 0;
         }
         break;
+      }
       case kAttachmentRumblePak:
         for (let i = 0, address = addr; i < (rx - 1); i++, address++) {
           let val;
@@ -376,7 +377,7 @@ class ControllerChannel extends Channel {
     }
 
     switch (this.attachment) {
-      case kAttachmentControllerPak:
+      case kAttachmentControllerPak: {
         const data = this.memory.data;
         this.memory.dirty = true;
         for (let i = 0, address = addr; i < (tx - 3); i++, address++) {
@@ -385,6 +386,7 @@ class ControllerChannel extends Channel {
           }
         }
         break;
+      }
       case kAttachmentRumblePak:
         if (addr >= 0xC000) {
           this.rumbleActive = txBuf[3] & 1;

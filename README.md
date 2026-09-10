@@ -27,7 +27,22 @@ bun run build
 ```
 
 The generated `build/` directory is ignored by Git. Build locally before running
-the site; CI checks that pull requests and pushes to `master` build successfully.
+the site; CI checks that pull requests and pushes to `master` pass linting and build
+successfully.
+
+Run ESLint (using Bun) or apply its automatic fixes:
+
+```
+bun run lint
+bun run lint:fix
+```
+
+Linting covers `src/`, including tests and benchmarks, `tools/`, and the ESLint
+config. It uses ESLint's recommended rules and fails on warnings as well as errors.
+Existing `no-unused-vars` findings are recorded in `eslint-suppressions.json` as
+a baseline of counts per file; increases fail CI. Other recommended rules remain
+fully enforced. When cleaning up existing unused variables, run
+`bun run lint --prune-suppressions` and commit the reduced baseline with the fix.
 
 Run a local webserver in the root directory:
 

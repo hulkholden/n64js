@@ -452,8 +452,8 @@ function makeFlagText(dim, flags, pos, neg) {
   const p = flags & pos;
   const n = flags & neg;
 
-  let cls = '';
-  let t = '';
+  let cls;
+  let t;
   if (p && n) { cls = 'clip-err'; t = '!'; }
   else if (p) { cls = 'clip-pos'; t = '>'; }
   else if (n) { cls = 'clip-neg'; t = '<'; }

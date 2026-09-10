@@ -2368,6 +2368,8 @@ function mix(a, b, c) {
   c -= a; c -= b; c ^= (b >>> 5);
   a -= b; a -= c; a ^= (c >>> 3);
   b -= c; b -= a; b ^= (a << 10);
+  // Keep the complete mixing sequence, even though this caller only uses a.
+  // eslint-disable-next-line no-useless-assignment
   c -= a; c -= b; c ^= (b >>> 15);
 
   return a;
@@ -2388,7 +2390,7 @@ function checkSyncState(sync, pc) {
   // if (!sync.sync32(nextEvent, 'event'))
   //   return false;
 
-  if (1) {
+  {
     let a = 0;
     for (let i = 0; i < 32; ++i) {
       a = mix(a, cpu0.getRegU32Lo(i), 0);
