@@ -199,11 +199,15 @@ export class TMEM {
 
     const len = height * bytesPerLine;
 
-    let hash = hashTmem(src, tmemOffset, len, 0);
+    // Include the RGBA/4 and RGBA/8 aliases used by Extreme-G.
+    const hasPalette = (tile.format === gbi.ImageFormat.G_IM_FMT_CI ||
+      tile.format === gbi.ImageFormat.G_IM_FMT_RGBA) &&
+      (tile.size === gbi.ImageSize.G_IM_SIZ_4b || tile.size === gbi.ImageSize.G_IM_SIZ_8b);
+    // Match conversion: CI indices wrap within the lower half of TMEM.
+    let hash = hashTmem(src, tmemOffset, len, 0, hasPalette ? 0x7ff : 0xfff);
 
     // For palettised textures, check the palette entries too
-    if (tile.format === gbi.ImageFormat.G_IM_FMT_CI ||
-      tile.format === gbi.ImageFormat.G_IM_FMT_RGBA) { // NB RGBA check is for extreme-g, which specifies RGBA/4 and RGBA/8 instead of CI/4 and CI/8
+    if (hasPalette) {
 
       // Palettes are "quadricated", so there are 8 bytes per entry.
       if (tile.size === gbi.ImageSize.G_IM_SIZ_8b) {
@@ -218,11 +222,12 @@ export class TMEM {
   }
 }
 
-function hashTmem(tmem32, offset, len, hash) {
+function hashTmem(tmem32, offset, len, hash, addressMask = 0xfff) {
   let i = offset >> 2;
   const e = (offset + len) >> 2;
+  const wordMask = addressMask >> 2;
   while (i < e) {
-    hash = ((hash * 17) + tmem32[i]) >>> 0;
+    hash = ((hash * 17) + tmem32[i & wordMask]) >>> 0;
     ++i;
   }
   return hash;

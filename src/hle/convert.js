@@ -1,5 +1,9 @@
 import * as gbi from './gbi.js';
 
+const kTMEMAddressMask = 0xfff;
+// CI indices occupy the lower half of TMEM; the upper half contains the TLUT.
+const kCIAddressMask = 0x7ff;
+
 const kOneToEight = [
   0x00, // 0 -> 00 00 00 00
   0xff, // 1 -> 11 11 11 11
@@ -109,7 +113,7 @@ function convertRGBA32(dstData, src, tile) {
     let dstOffset = dstRowOffset;
 
     for (let x = 0; x < tile.width; ++x) {
-      const index = srcOffset ^ rowSwizzle;
+      const index = (srcOffset ^ rowSwizzle) & kTMEMAddressMask;
 
       dst[dstOffset + 0] = src[index + 0];
       dst[dstOffset + 1] = src[index + 1];
@@ -147,7 +151,7 @@ function convertRGBA16(dstData, src, tile) {
     let dstOffset = dstRowOffset;
 
     for (let x = 0; x < tile.width; ++x) {
-      let index = srcOffset ^ rowSwizzle;
+      let index = (srcOffset ^ rowSwizzle) & kTMEMAddressMask;
       let srcPixel = (src[index] << 8) | src[index + 1];
 
       dst[dstOffset + 0] = kFiveToEight[(srcPixel >>> 11) & 0x1f];
@@ -185,7 +189,7 @@ function convertIA16(dstData, src, tile) {
     let dstOffset = dstRowOffset;
 
     for (let x = 0; x < tile.width; ++x) {
-      let index = srcOffset ^ rowSwizzle;
+      let index = (srcOffset ^ rowSwizzle) & kTMEMAddressMask;
       let i = src[index];
       let a = src[index + 1];
 
@@ -224,7 +228,7 @@ function convertIA8(dstData, src, tile) {
     let dstOffset = dstRowOffset;
 
     for (let x = 0; x < tile.width; ++x) {
-      let index = srcOffset ^ rowSwizzle;
+      let index = (srcOffset ^ rowSwizzle) & kTMEMAddressMask;
       let srcPixel = src[index];
 
       let i = kFourToEight[(srcPixel >>> 4) & 0xf];
@@ -267,7 +271,7 @@ function convertIA4(dstData, src, tile) {
 
     // Process 2 pixels at a time
     for (let x = 0; x + 1 < tile.width; x += 2) {
-      let index = srcOffset ^ rowSwizzle;
+      let index = (srcOffset ^ rowSwizzle) & kTMEMAddressMask;
       let srcPixel = src[index];
 
       let i0 = kThreeToEight[(srcPixel & 0xe0) >>> 5];
@@ -293,7 +297,7 @@ function convertIA4(dstData, src, tile) {
     // For odd widths, read 1 source byte (high nibble only) and write 4 RGBA bytes.
     // Row strides below advance to the next row; these pixel offsets are finished.
     if (tile.width & 1) {
-      let index = srcOffset ^ rowSwizzle;
+      let index = (srcOffset ^ rowSwizzle) & kTMEMAddressMask;
       let srcPixel = src[index];
 
       let i0 = kThreeToEight[(srcPixel & 0xe0) >>> 5];
@@ -332,7 +336,7 @@ function convertI8(dstData, src, tile) {
     let dstOffset = dstRowOffset;
 
     for (let x = 0; x < tile.width; ++x) {
-      let i = src[srcOffset ^ rowSwizzle];
+      let i = src[(srcOffset ^ rowSwizzle) & kTMEMAddressMask];
 
       dst[dstOffset + 0] = i;
       dst[dstOffset + 1] = i;
@@ -371,7 +375,7 @@ function convertI4(dstData, src, tile) {
 
     // Process 2 pixels at a time
     for (let x = 0; x + 1 < tile.width; x += 2) {
-      let srcPixel = src[srcOffset ^ rowSwizzle];
+      let srcPixel = src[(srcOffset ^ rowSwizzle) & kTMEMAddressMask];
       let i0 = kFourToEight[(srcPixel & 0xf0) >>> 4];
       let i1 = kFourToEight[(srcPixel & 0x0f) >>> 0];
 
@@ -392,7 +396,7 @@ function convertI4(dstData, src, tile) {
     // For odd widths, read 1 source byte (high nibble only) and write 4 RGBA bytes.
     // Row strides below advance to the next row; these pixel offsets are finished.
     if (tile.width & 1) {
-      let srcPixel = src[srcOffset ^ rowSwizzle];
+      let srcPixel = src[(srcOffset ^ rowSwizzle) & kTMEMAddressMask];
       let i0 = kFourToEight[(srcPixel & 0xf0) >>> 4];
 
       dst[dstOffset + 0] = i0;
@@ -445,7 +449,7 @@ function convertCI8(dstData, src, tile, palConv) {
     let dstOffset = dstRowOffset;
 
     for (let x = 0; x < tile.width; ++x) {
-      const srcPixel = tempPal[src[srcOffset ^ rowSwizzle]];
+      const srcPixel = tempPal[src[(srcOffset ^ rowSwizzle) & kCIAddressMask]];
 
       dst[dstOffset + 0] = (srcPixel >> 24) & 0xff;
       dst[dstOffset + 1] = (srcPixel >> 16) & 0xff;
@@ -500,7 +504,7 @@ function convertCI4(dstData, src, tile, palette, palConv) {
 
     // Process 2 pixels at a time
     for (let x = 0; x + 1 < tile.width; x += 2) {
-      let srcPixel = src[srcOffset ^ rowSwizzle];
+      let srcPixel = src[(srcOffset ^ rowSwizzle) & kCIAddressMask];
       let c0 = tempPal[(srcPixel & 0xf0) >>> 4];
       let c1 = tempPal[(srcPixel & 0x0f) >>> 0];
 
@@ -521,7 +525,7 @@ function convertCI4(dstData, src, tile, palette, palConv) {
     // For odd widths, read 1 source byte (high nibble only) and write 4 RGBA bytes.
     // Row strides below advance to the next row; these pixel offsets are finished.
     if (tile.width & 1) {
-      let srcPixel = src[srcOffset ^ rowSwizzle];
+      let srcPixel = src[(srcOffset ^ rowSwizzle) & kCIAddressMask];
       let c0 = tempPal[(srcPixel & 0xf0) >>> 4];
 
       dst[dstOffset + 0] = (c0 >> 24) & 0xff;
