@@ -52,6 +52,30 @@ python3 -m http.server
 
 Navigate to http://localhost:8000/.
 
+### Headless controller input
+
+Bun scripts can set controller input through the live `inputs` array returned by
+`createHeadlessEmulator`. For example, from a script in the repository root:
+
+```js
+import { createHeadlessEmulator, loadROMFile, runCycles } from './src/headless_env.js';
+
+const emulator = await createHeadlessEmulator(await loadROMFile('path/to/game.z64'));
+const controller = emulator.inputs[0];
+controller.buttons = 0x1000; // Hold Start.
+controller.stick_x = -80;
+controller.stick_y = 0;
+runCycles(emulator, 10_000_000);
+controller.buttons = 0; // Release Start and centre the stick.
+controller.stick_x = 0;
+runCycles(emulator, 10_000_000);
+```
+
+`buttons` is a 16-bit button mask; `stick_x` and `stick_y` are signed 8-bit values.
+Update fields on the existing objects rather than replacing array entries. Each
+fresh emulator has four independent, neutral input states; only port 0 is
+connected by default. Changing input state does not connect another port.
+
 ## Publishing
 
 Push a new `v*` tag (for example, `v1.2.3`) to publish that commit to GitHub Pages.

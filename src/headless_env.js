@@ -94,6 +94,9 @@ export async function createHeadlessEmulator(loadedROM, {
   return {
     cpu0,
     hardware,
+    // Live controller state shared with Joybus. Update fields on these objects
+    // before running emulation; replacing an array entry won't rebind Joybus.
+    inputs,
     fatalError: () => fatalError,
   };
 }
