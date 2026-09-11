@@ -145,6 +145,7 @@ export class VIRegDevice extends Device {
     if (!this.hardware.headless) {
       presentBackBuffer();
     }
+    this.hardware.onVerticalBlank?.(this.hardware.verticalBlankCount);
     n64js.returnControlToSystem();
   }
 

@@ -48,11 +48,14 @@ class Mempack {
 }
 
 export class Hardware {
-  constructor(rominfo, { headless = false } = {}) {
+  constructor(rominfo, { headless = false, onVerticalBlank = null } = {}) {
     // TODO: Not sure this belongs here.
     this.rominfo = rominfo;
     this.headless = headless;
     this.verticalBlankCount = 0;
+    // Called synchronously after each VI interrupt with the count since reset.
+    // Resets preserve the callback. It must not re-enter emulation.
+    this.onVerticalBlank = onVerticalBlank;
 
     this.timeline = new Timeline(this.getOpsExecuted.bind(this));
 
