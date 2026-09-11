@@ -209,7 +209,7 @@ export class TMEM {
       if (tile.size === gbi.ImageSize.G_IM_SIZ_8b) {
         hash = hashTmem(src, 0x800, 256 * 8, hash);
       } else if (tile.size === gbi.ImageSize.G_IM_SIZ_4b) {
-        hash = hashTmem(src, 0x800 + (tile.palette * 16 * 2), 16 * 8, hash);
+        hash = hashTmem(src, 0x800 + (tile.palette * 16 * 8), 16 * 8, hash);
       }
     }
 
