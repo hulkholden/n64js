@@ -16,6 +16,7 @@ import { SPMemDevice, SPIBISTDevice, SPRegDevice } from './devices/sp.js';
 import { VIRegDevice } from './devices/vi.js';
 import { RDP } from './lle/rdp.js';
 import { MemoryMap } from './memmap.js';
+import { Mempack } from './mempack.js';
 import { MemoryRegion } from './memory_region.js';
 import { CPU0, CPU2 } from './r4300.js';
 import { RSP } from './rsp.js';
@@ -25,27 +26,6 @@ const kBootstrapOffset = 0x40;
 const kGameOffset = 0x1000;
 
 const systemFrequency = 93_750_000;
-
-class Mempack {
-  constructor() {
-    this.data = new Uint8Array(32 * 1024);
-    this.dirty = false;
-  }
-
-  init(item) {
-    this.dirty = false;
-    for (let i = 0; i < this.data.length; i++) {
-      this.data[i] = 0;
-    }
-    // Restore from local storage if provided.
-    if (item && item.data) {
-      const arr = base64.decodeArray(item.data);
-      for (let i = 0; i < arr.length && i < this.data.length; i++) {
-        this.data[i] = arr[i];
-      }
-    }
-  }
-}
 
 export class Hardware {
   constructor(rominfo, { headless = false } = {}) {
