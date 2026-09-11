@@ -20,7 +20,6 @@ export class Mempack {
 }
 
 // Write an empty Controller Pak filesystem into zero-filled memory.
-// Layout: https://github.com/mupen64plus/mupen64plus-core/blob/master/src/device/controllers/paks/mempak.c
 function formatMempack(data) {
   // Page 0 contains four copies of the 32-byte ID block. Use a stable zero
   // serial, device ID 1 (writable), one 32 KiB bank, and version 0.
