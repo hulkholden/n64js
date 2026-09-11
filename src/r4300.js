@@ -342,6 +342,7 @@ export class CPU0 {
   constructor(hardware) {
     this.hardware = hardware;
     this.opsExecuted = 0; // Approximate...
+    this.randomSource = Math.random;
 
     this.ramDV = hardware.cachedMemDevice.mem.dataView;
 
@@ -1070,13 +1071,22 @@ export class CPU0 {
     });
   }
 
+  /**
+   * Sets this CPU's random source. Omit the source to restore Math.random.
+   * CPU resets preserve the source; callers manage any seed or sequence state.
+   * @param {function(): number} [randomSource=Math.random] Returns a value in [0, 1).
+   */
+  setRandomSource(randomSource = Math.random) {
+    this.randomSource = randomSource;
+  }
+
   getRandom() {
     // If wired >=32 values in the range [0,64) are returned, else [wired, 32)
     const wired = this.getControlU32(cpu0reg.controlWired);
     const min = wired >= 32 ? 0 : (wired & 31);
     const max = wired >= 32 ? 64 : 32;
 
-    let random = Math.floor(Math.random() * (max - min)) + min;
+    let random = Math.floor(this.randomSource() * (max - min)) + min;
     assert(random >= min && random < max, `Ooops - random should be in range [${min},${max}), but got ${random}`);
     if (syncFlow) {
       random = syncFlow.reflect32(random);
