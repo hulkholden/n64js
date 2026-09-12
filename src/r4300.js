@@ -647,7 +647,8 @@ export class CPU0 {
         this.statusRegisterChanged();
         break;
       case cpu0reg.controlCount:
-        this.controlCountValue = Number(newValue) * 2;
+        this.controlCountValue = Number(newValue & 0xffff_ffffn) * 2;
+        this.updateCompareEvent();
         break;
       case cpu0reg.controlCompare:
         this.setCompare(Number(newValue & 0xffff_ffffn));
@@ -1036,18 +1037,21 @@ export class CPU0 {
 
   setCompare(value) {
     this.clearControlBits32(cpu0reg.controlCause, CAUSE_IP8);
+    this.updateStuffToDoForInterrupts();
+    this.setControlU32(cpu0reg.controlCompare, value);
+    this.updateCompareEvent();
+  }
 
-    if (value === this.getControlU32(cpu0reg.controlCompare)) {
-      // Just clear the IP8 flag if the same value is being written back
-      // (don't update the events).
-    } else {
-      // NB: divide by two rather than shifting to preserve bit 32 (discarded with a shift).
-      const count = (this.controlCountValue / 2) >> 0;
-      const delta = (value - count) >>> 0;
-      this.removeEvent(kEventCompare);
-      this.addCompareEvent(delta);
-      this.setControlU32(cpu0reg.controlCompare, value);
-    }
+  updateCompareEvent() {
+    // COUNT increments every two CPU cycles and wraps at 32 bits. If it
+    // already equals COMPARE, the next match is a full COUNT period away.
+    const count = Math.floor(this.controlCountValue / 2) >>> 0;
+    const compare = this.getControlU32(cpu0reg.controlCompare);
+    const ticks = ((compare - count) >>> 0) || 0x1_0000_0000;
+    // Keep the current half-tick phase and don't truncate the 33-bit delay.
+    const cycles = ticks * 2 - (this.controlCountValue & 1);
+    this.removeEvent(kEventCompare);
+    this.addCompareEvent(cycles);
   }
 
   // Provide some wrappers to the event queue.
