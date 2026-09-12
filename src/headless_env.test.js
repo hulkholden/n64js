@@ -1,8 +1,12 @@
 import { describe, expect, test } from 'bun:test';
 import { createHeadlessEmulator, runCycles, runFrames } from './headless_env.js';
 import { controlCause, controlStatus } from './cpu0reg.js';
-import { MI_INTR_MASK_REG, MI_INTR_REG, MI_INTR_VI } from './devices/mi.js';
+import { MI_INTR_DP, MI_INTR_MASK_REG, MI_INTR_REG, MI_INTR_VI } from './devices/mi.js';
 import { SI_DRAM_ADDR_REG, SI_PIF_ADDR_RD64B_REG, SI_PIF_ADDR_WR64B_REG, SI_STATUS_REG } from './devices/si.js';
+import { SP_CLR_BROKE, SP_CLR_HALT, SP_CLR_SIG2, SP_SET_HALT, SP_STATUS_REG, SP_STATUS_TASKDONE } from './devices/sp.js';
+import { graphicsOptions } from './hle/graphics_options.js';
+import { MicrocodeId } from './hle/microcode_identifier.js';
+import { TaskOffsets } from './hle/rsp_task.js';
 import { OS_TV_NTSC } from './system_constants.js';
 
 function createEmulator(options) {
@@ -179,5 +183,101 @@ describe('VI boundary callback', () => {
     prepareVIEmulation(second);
     expect(runFrames(second, 2, 16)).toBe(2);
     expect(seen).toEqual([1]);
+  });
+});
+
+function prepareGraphicsTask(emulator) {
+  const { hardware } = emulator;
+  const version = 'RSP Gfx ucode F3DEX fifo 2.0';
+  hardware.ram.u8.set([1, 2, 3], 0x1000);
+  const data = new TextEncoder().encode(version + '\0');
+  hardware.ram.u8.set(data, 0x2000);
+  const task = hardware.sp_mem.subRegion(0xfc0, 0x40);
+  task.set32(TaskOffsets.ucodePtr, 0x80001000);
+  task.set32(TaskOffsets.ucodeSize, 3);
+  task.set32(TaskOffsets.ucodeDataPtr, 0x80002000);
+  task.set32(TaskOffsets.ucodeDataSize, data.length);
+}
+
+function startRSPTask(emulator, type = 1) {
+  const { hardware } = emulator;
+  hardware.sp_mem.set32(0xfc0 + TaskOffsets.type, type);
+  const spStatusAddress = 0xa4040000 + SP_STATUS_REG;
+  hardware.spRegDevice.write32(spStatusAddress, SP_SET_HALT | SP_CLR_BROKE | SP_CLR_SIG2);
+  hardware.mi_reg.clearBits32(MI_INTR_REG, MI_INTR_DP);
+  hardware.spRegDevice.write32(spStatusAddress, SP_CLR_HALT);
+}
+
+describe('graphics task callback', () => {
+  test('reports graphics starts before dispatch in both HLE and LLE without a renderer', async () => {
+    const previousMode = graphicsOptions.emulationMode;
+    try {
+      for (const mode of ['HLE', 'LLE']) {
+        graphicsOptions.emulationMode = mode;
+        const seen = [];
+        const emulator = await createEmulator({
+          onGraphicsTask: info => {
+            seen.push(info);
+            expect(emulator.hardware.rsp.halted).toBe(true);
+            expect(emulator.hardware.mi_reg.getU32(MI_INTR_REG) & MI_INTR_DP).toBe(0);
+            return true; // Observers cannot claim a task was handled.
+          },
+        });
+        const { hardware } = emulator;
+        prepareGraphicsTask(emulator);
+        startRSPTask(emulator);
+        expect(seen).toEqual([{
+          id: MicrocodeId.GBI2, family: 'GBI2', variant: null,
+          version: 'RSP Gfx ucode F3DEX fifo 2.0', hash: 326, detection: 'string',
+        }]);
+        expect(hardware.rsp.halted).toBe(mode === 'HLE');
+        expect(hardware.sp_reg.getU32(SP_STATUS_REG) & SP_STATUS_TASKDONE).toBe(mode === 'HLE' ? SP_STATUS_TASKDONE : 0);
+        expect(hardware.mi_reg.getU32(MI_INTR_REG) & MI_INTR_DP).toBe(mode === 'HLE' ? MI_INTR_DP : 0);
+
+        startRSPTask(emulator, 2); // Audio tasks are not graphics observations.
+        expect(seen).toHaveLength(1);
+      }
+    } finally {
+      graphicsOptions.emulationMode = previousMode;
+    }
+  });
+
+  test('delivers independent snapshots on repeated starts and preserves the observer across reset', async () => {
+    const seen = [];
+    const emulator = await createEmulator({ onGraphicsTask: info => seen.push(info) });
+    prepareGraphicsTask(emulator);
+    startRSPTask(emulator);
+    startRSPTask(emulator);
+    expect(seen).toHaveLength(2);
+    expect(seen[0]).toEqual(seen[1]);
+    expect(seen[0]).not.toBe(seen[1]);
+    const original = { ...seen[1] };
+    seen[0].family = 'changed by observer';
+
+    // Guest memory changes must not change previously collected observations.
+    emulator.hardware.ram.u8.fill(0, 0x1000, 0x2040);
+    startRSPTask(emulator);
+    expect(seen[2]).toMatchObject({ version: '', hash: 0, detection: 'fallback' });
+    expect(seen[1]).toEqual(original);
+
+    emulator.hardware.reset();
+    prepareGraphicsTask(emulator);
+    startRSPTask(emulator);
+    expect(seen).toHaveLength(4);
+    expect(seen[3]).toEqual(original);
+  });
+
+  test('keeps observation optional and scoped to the hardware instance', async () => {
+    const seen = [];
+    const first = await createEmulator({ onGraphicsTask: info => seen.push(info) });
+    prepareGraphicsTask(first);
+    startRSPTask(first);
+
+    const second = await createEmulator();
+    prepareGraphicsTask(second);
+    startRSPTask(second);
+    expect(seen).toHaveLength(1);
+    expect(second.hardware.sp_reg.getU32(SP_STATUS_REG) & SP_STATUS_TASKDONE).toBe(SP_STATUS_TASKDONE);
+    expect(second.hardware.mi_reg.getU32(MI_INTR_REG) & MI_INTR_DP).toBe(MI_INTR_DP);
   });
 });
