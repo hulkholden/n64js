@@ -3,7 +3,7 @@
 import { toString16, toString32 } from "../format.js";
 import { Vector2 } from "../graphics/Vector2.js";
 import * as gbi from './gbi.js';
-import { NativeTransform } from './native_transform.js';
+import { RendererBase } from './renderer_base.js';
 import * as shaders from './shaders.js';
 import { Texture } from './textures.js';
 import { VertexArray } from "./vertex_array.js";
@@ -17,11 +17,10 @@ const kBlendModeFog = 4;
 // Map to keep track of which unimplemented blend modes we've already warned about.
 const loggedBlendModes = new Map();
 
-export class Renderer {
+export class Renderer extends RendererBase {
   constructor(gl, state, width, height) {
+    super(state);
     this.gl = gl;
-    this.state = state;
-    this.nativeTransform = new NativeTransform();
 
     this.textureCache = new Map();
 
@@ -278,12 +277,6 @@ export class Renderer {
 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     this.fillRectVA.unbind();
-  }
-
-  calculateRectVertices(x0, y0, x1, y1) {
-    const depthSourcePrim = (this.state.rdpOtherModeL & gbi.DepthSource.G_ZS_PRIM) !== 0;
-    const depth = depthSourcePrim ? this.state.primDepth : 0.0;
-    return this.nativeTransform.calculateRectVertices(x0, y0, x1, y1, depth);
   }
 
   lleRect(tileIdx, vertices, uvs, colours) {
