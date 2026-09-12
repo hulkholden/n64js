@@ -2,6 +2,7 @@
 /*global n64js*/
 
 import { DebugController } from './debug_controller.js';
+import { executeDisplayList } from './display_list.js';
 import * as microcodes from './microcodes.js';
 import { RSPState } from './rsp_state.js';
 import { Renderer } from './renderer.js';
@@ -113,15 +114,7 @@ function processDList(task, disassembler, bailAfter) {
   const hardware = n64js.hardware();
   const ramDV = hardware.cachedMemDevice.mem.dataView
   state.reset(ramDV, task.dataPtr);
-  let microcode = initMicrocode(task, ramDV);
-  let ucodeTable = microcode.buildCommandTable();
-
-  microcode.onLoadUcode((codeAddr, codeSize, codeDataAddr, codeDataSize) => {
-    task.loadUcode(codeAddr, codeSize, codeDataAddr, codeDataSize);
-    microcode = initMicrocode(task, ramDV);
-    ucodeTable = microcode.buildCommandTable();
-    return microcode;
-  });
+  const microcode = initMicrocode(task, ramDV);
 
   initDimensionsFromVI(hardware.viRegDevice);
 
@@ -131,22 +124,14 @@ function processDList(task, disassembler, bailAfter) {
     renderer.debugClear();
   }
 
-  if (disassembler) {
-    while (state.nextCommand()) {
-      disassembler.begin(state.cmd0, state.cmd1, state.dlistStack.length);
-      ucodeTable[state.cmd0 >>> 24](state.cmd0, state.cmd1, disassembler);
-      disassembler.end();
-      state.currentOp++;
-    }
-  } else {
-    // Vanilla loop, no disassembler to worry about
-    while (state.nextCommand()) {
-      ucodeTable[state.cmd0 >>> 24](state.cmd0, state.cmd1);
-      if (state.postOp(bailAfter)) {
-        break;
-      }
-    }
-  }
+  executeDisplayList(state, microcode, {
+    loadMicrocode: (codeAddr, codeSize, codeDataAddr, codeDataSize) => {
+      task.loadUcode(codeAddr, codeSize, codeDataAddr, codeDataSize);
+      return initMicrocode(task, ramDV);
+    },
+    disassembler,
+    bailAfter,
+  });
 
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 }

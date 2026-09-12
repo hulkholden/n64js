@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { executeDisplayList } from './display_list.js';
 import { GBI1 } from './gbi1.js';
 import { RSPState } from './rsp_state.js';
 
@@ -21,17 +22,11 @@ function createDisplayList() {
   const microcode = new GBI1(state, ramDV);
   const triangles = [];
   microcode.renderer = { flushTris: buffer => triangles.push(buffer.numTris) };
-  const table = microcode.buildCommandTable();
 
   return {
     state, ramDV, triangles,
     run(disassembler = null, bailAfter = -1) {
-      while (state.nextCommand()) {
-        table[state.cmd0 >>> 24](state.cmd0, state.cmd1, disassembler);
-        if (state.postOp(bailAfter)) {
-          break;
-        }
-      }
+      executeDisplayList(state, microcode, { disassembler, bailAfter });
     },
   };
 }
@@ -39,7 +34,7 @@ function createDisplayList() {
 describe('display-list operation progress', () => {
   test('counts batched and individual operations consistently without a debugger', () => {
     const list = createDisplayList();
-    for (const disassembler of [null, { text() {} }]) {
+    for (const disassembler of [null, { begin() {}, text() {}, end() {} }]) {
       list.state.reset(list.ramDV, 8);
       list.triangles.length = 0;
       list.run(disassembler);
