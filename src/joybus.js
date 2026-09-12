@@ -199,7 +199,9 @@ export class Joybus {
       const rxBuf = chan.frame.subarray(2 + tx, 2 + tx + rx);
       // Perform the command and find out how many bytes were returned.        
       // If an unexpected number of bytes were received, set status bits in rx.
-      const rxLen = chan.joybusCommand(tx, rx, txBuf, rxBuf);
+      // A reused frame can have no command bytes (for example after a DMA of
+      // zeroes). Keep its cached position, but do not decode an empty command.
+      const rxLen = tx === 0 ? 0 : chan.joybusCommand(tx, rx, txBuf, rxBuf);
       if (rxLen < rx) { chan.frame[1] |= kResponseUnder; }
       if (rxLen > rx) { chan.frame[1] |= kResponseOver; }
     }
