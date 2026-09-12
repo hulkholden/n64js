@@ -33,7 +33,6 @@ const kAttachmentControllerPak = 1;
 const kAttachmentRumblePak = 2;
 
 // Device IDs returned in kCmdGetStatus status.
-const kDeviceIDRTC = 0x0010;
 const kDeviceIDEeprom4K = 0x0080;
 const kDeviceIDEeprom16K = 0x00c0;
 const kDeviceIDController = 0x0500;
@@ -416,7 +415,8 @@ class CartridgeChannel extends Channel {
       case kCmdEepromWrite:
         return this.writeEeprom(tx, rx, txBuf, rxBuf);
       case kCmdRTCInfo:
-        return this.rtcStatus(tx, rx, txBuf, rxBuf);
+        // Do not advertise an RTC until reads and writes are implemented.
+        return 0;
       case kCmdRTCRead:
         return this.rtcRead(tx, rx, txBuf, rxBuf);
       case kCmdRTCWrite:
@@ -495,15 +495,6 @@ class CartridgeChannel extends Channel {
     // Response byte. Could send 0x80 if busy.
     rxBuf[0] = 0;
     return 1;
-  }
-
-  rtcStatus(tx, rx, txBuf, rxBuf) {
-    // Device ID.
-    rxBuf[0] = kDeviceIDRTC >>> 8;
-    rxBuf[1] = kDeviceIDRTC & 0xff;
-    // Status.
-    rxBuf[2] = 0x00;
-    return 3;
   }
 
   rtcRead(tx, rx, txBuf, rxBuf) {

@@ -208,3 +208,30 @@ describe('EEPROM addressing', () => {
     expect(hardware.saveDirty).toBe(false);
   });
 });
+
+describe('cartridge RTC detection', () => {
+  for (const [saveType, size, eepromID] of [
+    ['Eeprom4k', 512, 0x80],
+    ['Eeprom16k', 2048, 0xc0],
+    ['SRAM', 32768, null],
+    ['FlashRam', 131072, null],
+    ['', 0, null],
+  ]) {
+    test(`${saveType || 'no save memory'} reports no RTC and preserves EEPROM detection`, () => {
+      hardware.saveType = saveType;
+      hardware.saveMem = size ? new MemoryRegion(new ArrayBuffer(size)) : null;
+      writeFrame([0x06], 3, { channel: 4 });
+
+      const rtc = readFrame();
+      expect(rtc[5]).toBe(0x83);
+      expect([...rtc.slice(7, 10)]).toEqual([0xcc, 0xcc, 0xcc]);
+      expect(hardware.saveDirty).toBe(false);
+
+      writeFrame([0x00], 3, { channel: 4, configure: false });
+      const status = readFrame();
+      expect(status[5]).toBe(eepromID === null ? 0x83 : 3);
+      expect([...status.slice(7, 10)]).toEqual(
+        eepromID === null ? [0xcc, 0xcc, 0xcc] : [0x00, eepromID, 0x00]);
+    });
+  }
+});
