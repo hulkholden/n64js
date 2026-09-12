@@ -13,6 +13,7 @@ beforeEach(() => {
     mempacks: [{ data: new Uint8Array(0x8000) }],
     saveType: 'Eeprom4k',
     saveMem: new MemoryRegion(new ArrayBuffer(512)),
+    saveDirty: false,
   };
   inputs = Array.from({ length: 4 }, () => new ControllerInputs());
   Object.assign(inputs[0], { buttons: 0x1234, stick_x: 0x56, stick_y: 0x78 });
@@ -134,5 +135,76 @@ describe('reused Joybus frames', () => {
     const output = readFrame();
     expect([...output.slice(58, 63)]).toEqual([1, 2, 3, 4, 5]);
     expect(output[63]).toBe(0);
+  });
+});
+
+describe('EEPROM addressing', () => {
+  const data = [1, 2, 3, 4, 5, 6, 7, 8];
+
+  for (const [alias, block] of [[64, 0], [128, 0], [192, 0], [255, 63]]) {
+    test(`4K EEPROM reads block ${alias} as block ${block}`, () => {
+      hardware.saveMem.u8.set(data, block * 8);
+      writeFrame([0x04, alias], 8, { channel: 4 });
+
+      const output = readFrame();
+      expect(output[5]).toBe(8);
+      expect([...output.slice(8, 16)]).toEqual(data);
+      expect(hardware.saveDirty).toBe(false);
+    });
+
+    test(`4K EEPROM writes block ${alias} to block ${block}`, () => {
+      hardware.saveMem.u8.fill(0xa5);
+      const expected = hardware.saveMem.u8.slice();
+      expected.set(data, block * 8);
+      writeFrame([0x05, alias, ...data], 1, { channel: 4 });
+
+      const output = readFrame();
+      expect(output[5]).toBe(1);
+      expect(output[16]).toBe(0);
+      expect(hardware.saveMem.u8).toEqual(expected);
+      expect(hardware.saveDirty).toBe(true);
+
+      writeFrame([0x04, block], 8, { channel: 4 });
+      expect([...readFrame().slice(8, 16)]).toEqual(data);
+    });
+  }
+
+  test('16K EEPROM keeps all eight block-address bits for reads and writes', () => {
+    hardware.saveType = 'Eeprom16k';
+    hardware.saveMem = new MemoryRegion(new ArrayBuffer(2048));
+    const blocks = [0, 63, 64, 128, 192, 255];
+
+    for (const block of blocks) {
+      const blockData = Array.from({ length: 8 }, (_, i) => (block + i) & 0xff);
+      writeFrame([0x05, block, ...blockData], 1, { channel: 4 });
+      const output = readFrame();
+      expect(output[5]).toBe(1);
+      expect(output[16]).toBe(0);
+      expect([...hardware.saveMem.u8.slice(block * 8, block * 8 + 8)]).toEqual(blockData);
+    }
+
+    for (const block of blocks) {
+      writeFrame([0x04, block], 8, { channel: 4 });
+      const output = readFrame();
+      expect(output[5]).toBe(8);
+      expect([...output.slice(8, 16)]).toEqual(
+        Array.from({ length: 8 }, (_, i) => (block + i) & 0xff));
+    }
+    expect(hardware.saveDirty).toBe(true);
+  });
+
+  test('a cartridge without EEPROM still returns no response', () => {
+    hardware.saveType = '';
+    hardware.saveMem = null;
+    writeFrame([0x04, 64], 8, { channel: 4 });
+    const read = readFrame();
+    expect(read[5]).toBe(0x88);
+    expect([...read.slice(8, 16)]).toEqual(Array(8).fill(0xcc));
+
+    writeFrame([0x05, 64, ...data], 1, { channel: 4 });
+    const written = readFrame();
+    expect(written[5]).toBe(0x81);
+    expect(written[16]).toBe(0xcc);
+    expect(hardware.saveDirty).toBe(false);
   });
 });
