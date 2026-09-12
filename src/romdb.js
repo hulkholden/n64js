@@ -12,6 +12,14 @@ export function generateRomId(crclo, crchi) {
   return toHex(byteswap(crclo), 32) + toHex(byteswap(crchi), 32);
 }
 
+export function romHasRTC(bytes) {
+  const gameCode = uint8ArrayReadString(bytes, 0x3b, 3);
+  // Doubutsu no Mori, including translations retaining the original game code.
+  if (gameCode === 'NAF') { return true; }
+  // libdragon/EverDrive homebrew declares RTC presence in header flag bit 0.
+  return bytes[0x3c] === 0x45 && bytes[0x3d] === 0x44 && (bytes[0x3f] & 1) !== 0;
+}
+
 export function generateCICType(u8array) {
   let cic = 0;
   for (let i = 0; i < 0xFC0; i++) {

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, test } from 'bun:test';
+import { CartridgeRTC } from './cartridge_rtc.js';
 import { ControllerInputs } from './controllers.js';
 import { Joybus } from './joybus.js';
 import { MemoryRegion } from './memory_region.js';
@@ -234,4 +235,81 @@ describe('cartridge RTC detection', () => {
         eepromID === null ? [0xcc, 0xcc, 0xcc] : [0x00, eepromID, 0x00]);
     });
   }
+});
+
+describe('cartridge RTC commands', () => {
+  let now;
+
+  beforeEach(() => {
+    now = new Date(2024, 1, 29, 23, 59, 59).getTime();
+    hardware.rtc = new CartridgeRTC(() => now);
+  });
+
+  function command(bytes, rx) {
+    writeFrame(bytes, rx, { channel: 4 });
+    const output = readFrame();
+    const start = 6 + bytes.length;
+    return { status: output[5], data: [...output.slice(start, start + rx)] };
+  }
+
+  test('supports the libdragon stop, set, resume, and read sequence', () => {
+    expect(command([0x06], 3)).toEqual({ status: 3, data: [0, 0x10, 0] });
+    expect(command([0x07, 2], 9)).toEqual({ status: 9, data: [0x59, 0x59, 0xa3, 0x29, 4, 2, 0x24, 1, 0] });
+
+    const control = [0, 4, 0, 0, 0x12, 0x34, 0x56, 0x78];
+    expect(command([0x08, 0, ...control], 1)).toEqual({ status: 1, data: [0x80] });
+    expect(command([0x06], 3)).toEqual({ status: 3, data: [0, 0x10, 0x80] });
+    const time = [0x03, 0x02, 0x81, 0x03, 1, 0x11, 0x03, 1];
+    expect(command([0x08, 2, ...time], 1)).toEqual({ status: 1, data: [0x80] });
+    now += 60_000;
+    expect(command([0x07, 2], 9)).toEqual({ status: 9, data: [...time, 0x80] });
+    expect(command([0x07, 0], 9)).toEqual({ status: 9, data: [...control, 0x80] });
+
+    control[0] = 3;
+    control[1] = 0;
+    expect(command([0x08, 0, ...control], 1)).toEqual({ status: 1, data: [0] });
+    now += 2000;
+    expect(command([0x07, 2], 9)).toEqual({ status: 9, data: [0x05, ...time.slice(1), 0] });
+    // Block 2 is protected again, but writes still receive the normal status.
+    expect(command([0x08, 2, ...time], 1)).toEqual({ status: 1, data: [0] });
+    expect(command([0x07, 2], 9).data[0]).toBe(0x05);
+  });
+
+  test('keeps RTC scratch storage separate from EEPROM', () => {
+    const data = [1, 2, 3, 4, 5, 6, 7, 8];
+    command([0x08, 0, 0, 4, 0, 0, 0, 0, 0, 0], 1);
+    expect(command([0x08, 1, ...data], 1)).toEqual({ status: 1, data: [0x80] });
+    expect(command([0x07, 1], 9)).toEqual({ status: 9, data: [...data, 0x80] });
+    expect(hardware.saveDirty).toBe(false);
+    data.reverse();
+    expect(command([0x05, 1, ...data], 1)).toEqual({ status: 1, data: [0] });
+    expect(command([0x04, 1], 8)).toEqual({ status: 8, data });
+    expect(command([0x07, 1], 9).data.slice(0, 8)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    expect(hardware.saveDirty).toBe(true);
+  });
+
+  test('reports RTC presence without requiring EEPROM', () => {
+    hardware.saveType = 'FlashRam';
+    expect(command([0x06], 3)).toEqual({ status: 3, data: [0, 0x10, 0] });
+    expect(command([0x00], 3).status).toBe(0x83);
+  });
+
+  test('returns no response to all RTC commands when absent', () => {
+    hardware.rtc = null;
+    for (const [bytes, rx] of [[[0x06], 3], [[0x07, 2], 9], [[0x08, 0, ...Array(8).fill(0)], 1]]) {
+      expect(command(bytes, rx)).toEqual({ status: 0x80 | rx, data: Array(rx).fill(0xcc) });
+    }
+  });
+
+  test('rejects incomplete commands and unsupported blocks without writes', () => {
+    const before = hardware.rtc.save();
+    for (const [bytes, rx] of [
+      [[0x06], 2], [[0x07], 9], [[0x07, 2], 8], [[0x07, 3], 9],
+      [[0x08, 0, ...Array(7).fill(0)], 1], [[0x08, 3, ...Array(8).fill(0)], 1],
+      [[0x08, 0, ...Array(8).fill(0)], 0],
+    ]) {
+      expect(command(bytes, rx).data).toEqual(Array(rx).fill(0xcc));
+      expect(hardware.rtc.save()).toEqual(before);
+    }
+  });
 });

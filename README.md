@@ -76,6 +76,23 @@ Update fields on the existing objects rather than replacing array entries. Each
 fresh emulator has four independent, neutral input states; only port 0 is
 connected by default. Changing input state does not connect another port.
 
+### Cartridge RTC
+
+Joybus RTC commands are available for Doubutsu no Mori (`NAF` game code) and
+libdragon/EverDrive homebrew with the `ED` cartridge ID and RTC header flag set.
+RTC presence is independent of the cartridge's save-memory type.
+
+The clock starts at local host time and advances with elapsed wall time, including
+while emulation is paused. Programmed time, control/calibration bytes, and scratch
+data persist in per-ROM browser storage. Console resets preserve the live clock;
+reloading a ROM restores it and advances a running clock by the time spent unloaded.
+Stopped clocks remain stopped. Later host timezone/DST changes do not adjust the
+programmed calendar. Reads use BCD and 24-hour time; writes finish immediately and
+calibration bytes are retained without changing the clock rate.
+
+For deterministic headless tests, pass `rtcNow: () => millisecondsSinceEpoch` to
+`createHeadlessEmulator`. The headless environment does not persist browser saves.
+
 ## Publishing
 
 Push a new `v*` tag (for example, `v1.2.3`) to publish that commit to GitHub Pages.

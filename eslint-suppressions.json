@@ -61,7 +61,7 @@
   },
   "src/joybus.js": {
     "no-unused-vars": {
-      "count": 11
+      "count": 3
     }
   },
   "src/lle/rdp.js": {

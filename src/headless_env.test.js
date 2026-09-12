@@ -86,6 +86,105 @@ describe('headless controller input', () => {
   });
 });
 
+function rtcROM(gameCode = 'NAF', flags = 0) {
+  const romBuffer = new ArrayBuffer(0x1000);
+  const bytes = new Uint8Array(romBuffer);
+  bytes.set(new TextEncoder().encode(gameCode), 0x3b);
+  bytes[0x3f] = flags;
+  return { romBuffer, rominfo: { cic: '6102', tvType: OS_TV_NTSC, save: 'FlashRam' } };
+}
+
+function rtcCommand(emulator, command, rx) {
+  const { hardware } = emulator;
+  const frame = hardware.ram.u8.subarray(0x1000, 0x1040);
+  frame.fill(0);
+  // Match libdragon's status packet padding so its response is 8-byte aligned.
+  const channel = command[0] === 0x06 ? 5 : 4;
+  if (channel === 5) { frame[4] = 0xff; }
+  frame.set([command.length, rx, ...command], channel);
+  const start = channel + 2 + command.length;
+  frame.fill(0xff, start, start + rx);
+  frame[start + rx] = 0xfe;
+  frame[63] = 1;
+
+  const si = hardware.siRegDevice;
+  si.write32(0xa4800000 + SI_DRAM_ADDR_REG, 0x1000);
+  si.write32(0xa4800000 + SI_PIF_ADDR_WR64B_REG, 0x1fc007c0);
+  si.write32(0xa4800000 + SI_STATUS_REG, 0);
+  si.write32(0xa4800000 + SI_PIF_ADDR_RD64B_REG, 0x1fc007c0);
+  si.write32(0xa4800000 + SI_STATUS_REG, 0);
+  return { status: frame[channel + 1], data: [...frame.slice(start, start + rx)] };
+}
+
+describe('cartridge RTC hardware integration', () => {
+  for (const [code, flags, present] of [
+    ['NAF', 0, true], ['NED', 1, true], ['NED', 0x11, true],
+    ['NED', 0x10, false], ['NSM', 1, false],
+  ]) {
+    test(`header ${code} flags ${flags} reports RTC presence ${present} through SI DMA`, async () => {
+      const emulator = await createHeadlessEmulator(rtcROM(code, flags));
+      expect(rtcCommand(emulator, [0x06], 3)).toEqual(present ?
+        { status: 3, data: [0, 0x10, 0] } : { status: 0x83, data: [0xff, 0xff, 0xff] });
+    });
+  }
+
+  test('uses the injected clock, preserves it across reset, and detaches it on cartridge change', async () => {
+    let now = new Date(2024, 0, 1).getTime();
+    const emulator = await createHeadlessEmulator(rtcROM(), { rtcNow: () => now });
+    expect(rtcCommand(emulator, [0x07, 2], 9).data).toEqual([0, 0, 0x80, 1, 1, 1, 0x24, 1, 0]);
+    rtcCommand(emulator, [0x08, 0, 0, 4, 0, 0, 0, 0, 0, 0], 1);
+    const time = [0x03, 0x02, 0x81, 0x03, 1, 0x11, 0x03, 1];
+    expect(rtcCommand(emulator, [0x08, 2, ...time], 1)).toEqual({ status: 1, data: [0x80] });
+    emulator.hardware.reset();
+    now += 60_000;
+    expect(rtcCommand(emulator, [0x07, 2], 9).data).toEqual([...time, 0x80]);
+    rtcCommand(emulator, [0x08, 0, 3, 0, 0, 0, 0, 0, 0, 0], 1);
+    now += 1000;
+    expect(rtcCommand(emulator, [0x07, 2], 9).data).toEqual([0x04, ...time.slice(1), 0]);
+
+    emulator.hardware.createROM(rtcROM('NSM').romBuffer);
+    emulator.hardware.reset();
+    expect(emulator.hardware.rtc).toBeNull();
+    expect(rtcCommand(emulator, [0x06], 3).status).toBe(0x83);
+  });
+
+  test('flushes RTC writes to separate storage and restores them when the ROM is reloaded', async () => {
+    let now = new Date(2024, 0, 1).getTime();
+    const emulator = await createHeadlessEmulator(rtcROM(), { rtcNow: () => now });
+    const items = new Map();
+    let rtcSaves = 0;
+    const originalGet = n64js.getLocalStorageItem;
+    const originalSet = n64js.setLocalStorageItem;
+    n64js.getLocalStorageItem = name => items.get(name);
+    n64js.setLocalStorageItem = (name, item) => {
+      items.set(name, JSON.parse(JSON.stringify(item)));
+      if (name === 'rtc') { rtcSaves++; }
+    };
+    try {
+      rtcCommand(emulator, [0x08, 0, 0, 4, 0, 0, 0, 0, 0, 0], 1);
+      const time = [0x03, 0x02, 0x81, 0x03, 1, 0x11, 0x03, 1];
+      rtcCommand(emulator, [0x08, 2, ...time], 1);
+      rtcCommand(emulator, [0x08, 0, 3, 0, 0, 0, 0, 0, 0, 0], 1);
+      emulator.hardware.flushSaveData();
+      expect(items.has('rtc')).toBe(true);
+      expect(items.has('save')).toBe(false);
+      expect(rtcSaves).toBe(1);
+      now += 1000;
+      rtcCommand(emulator, [0x07, 2], 9);
+      emulator.hardware.flushSaveData();
+      expect(rtcSaves).toBe(1);
+
+      now += 1000;
+      emulator.hardware.createROM(rtcROM().romBuffer);
+      emulator.hardware.reset();
+      expect(rtcCommand(emulator, [0x07, 2], 9).data).toEqual([0x05, ...time.slice(1), 0]);
+    } finally {
+      n64js.getLocalStorageItem = originalGet;
+      n64js.setLocalStorageItem = originalSet;
+    }
+  });
+});
+
 function prepareVIEmulation(emulator) {
   const { cpu0, hardware } = emulator;
   // Execute NOPs from cleared RAM, with guest interrupts disabled. Use a short

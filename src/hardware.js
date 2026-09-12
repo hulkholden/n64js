@@ -1,6 +1,7 @@
 /*global n64js*/
 
 import * as base64 from './base64.js';
+import { CartridgeRTC } from './cartridge_rtc.js';
 import { CPU1 } from './cpu1.js';
 import { AIRegDevice } from './devices/ai.js';
 import { DPCDevice } from './devices/dpc.js';
@@ -19,6 +20,7 @@ import { MemoryMap } from './memmap.js';
 import { Mempack } from './mempack.js';
 import { MemoryRegion } from './memory_region.js';
 import { CPU0, CPU2 } from './r4300.js';
+import { romHasRTC } from './romdb.js';
 import { RSP } from './rsp.js';
 import { Timeline } from './timeline.js';
 
@@ -28,7 +30,7 @@ const kGameOffset = 0x1000;
 const systemFrequency = 93_750_000;
 
 export class Hardware {
-  constructor(rominfo, { headless = false, onVerticalBlank = null } = {}) {
+  constructor(rominfo, { headless = false, onVerticalBlank = null, rtcNow = Date.now } = {}) {
     // TODO: Not sure this belongs here.
     this.rominfo = rominfo;
     this.headless = headless;
@@ -61,6 +63,8 @@ export class Hardware {
     // TODO: add a dirty flag and persist to local storage.
     this.saveMem = null;
     this.saveDirty = false;
+    this.rtc = null;
+    this.rtcNow = rtcNow;
 
     this.mempacks = [
       new Mempack(),
@@ -179,6 +183,7 @@ export class Hardware {
     }
     const rom = new MemoryRegion(arrayBuffer);
     this.rom = rom;
+    this.rtc = null;
     this.romD1A1Device.setMem(rom);
     this.romD1A2Device.setMem(rom);
     this.romD1A3Device.setMem(rom);
@@ -199,6 +204,13 @@ export class Hardware {
   }
 
   initSaveGame() {
+    // Load once per cartridge, after ROM metadata is available for storage keys.
+    // The battery-backed clock keeps its current state across console resets.
+    if (!this.rtc && this.rom && romHasRTC(this.rom.u8)) {
+      const item = n64js.getLocalStorageItem('rtc');
+      this.rtc = new CartridgeRTC(this.rtcNow, item?.data);
+    }
+
     for (let [i, mp] of this.mempacks.entries()) {
       const item = n64js.getLocalStorageItem(`mempack${i}`);
       mp.init(item);
@@ -237,6 +249,15 @@ export class Hardware {
   get saveType() { return this.rominfo.save; }
 
   flushSaveData() {
+    if (this.rtc?.dirty) {
+      n64js.setLocalStorageItem('rtc', {
+        name: this.rominfo.name,
+        id: this.rominfo.id,
+        data: this.rtc.save(),
+      });
+      this.rtc.dirty = false;
+    }
+
     if (this.saveMem && this.saveDirty) {
       this.saveU8Array('save', this.saveMem.u8);
       this.saveDirty = false;
