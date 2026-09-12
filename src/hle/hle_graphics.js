@@ -132,20 +132,17 @@ function processDList(task, disassembler, bailAfter) {
   }
 
   if (disassembler) {
-    debugController.currentOp = 0;
-
     while (state.nextCommand()) {
       disassembler.begin(state.cmd0, state.cmd1, state.dlistStack.length);
       ucodeTable[state.cmd0 >>> 24](state.cmd0, state.cmd1, disassembler);
       disassembler.end();
-      debugController.currentOp++;
+      state.currentOp++;
     }
   } else {
     // Vanilla loop, no disassembler to worry about
-    debugController.currentOp = 0;
     while (state.nextCommand()) {
       ucodeTable[state.cmd0 >>> 24](state.cmd0, state.cmd1);
-      if (debugController.postOp(bailAfter)) {
+      if (state.postOp(bailAfter)) {
         break;
       }
     }
@@ -170,7 +167,6 @@ function initDimensionsFromVI(vi) {
 function initMicrocode(task, ramDV) {
   const microcode = microcodes.create(task, state, ramDV);
   // TODO: pass rendering object to microcode constructor.
-  microcode.debugController = debugController;
   microcode.hleHalt = hleHalt;
   microcode.renderer = renderer;
   return microcode;

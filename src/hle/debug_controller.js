@@ -21,8 +21,6 @@ export class DebugController {
     this.state = state;
     this.processDList = processDList;
 
-    // This is updated as we're executing, so that we know which instruction to halt on.
-    this.currentOp = 0;
     this.numOps = 0;
     this.bailAfter = -1;
     this.lastTask;  // The last task that we executed.
@@ -82,7 +80,7 @@ export class DebugController {
     this.running = true;
 
     // End set up the context
-    this.bailAfter = this.currentOp;
+    this.bailAfter = this.state.currentOp;
     this.stateTimeShown = -1;
   }
 
@@ -111,14 +109,6 @@ export class DebugController {
       this.updateStateUI();
       this.stateTimeShown = this.bailAfter;
     }
-  }
-
-  postOp(bailAfter) {
-    if (bailAfter > -1 && this.currentOp >= bailAfter) {
-      return true;
-    }
-    this.currentOp++;
-    return false;
   }
 
   updateStateUI() {
