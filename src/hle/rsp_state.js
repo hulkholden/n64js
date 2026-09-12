@@ -20,6 +20,10 @@ export class RSPState {
     this.cmd0 = 0;
     this.cmd1 = 0;
 
+    // Current display-list operation index. Batched handlers advance this to
+    // the last operation in the batch; postOp advances it unless stopping.
+    this.currentOp = 0;
+
     this.segments = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     this.tiles = new Array(8);
     this.lights = new Array(8);
@@ -113,6 +117,7 @@ export class RSPState {
     this.dlistStack = [];
     this.cmd0 = 0;
     this.cmd1 = 0;
+    this.currentOp = 0;
 
     for (let i = 0; i < this.segments.length; ++i) {
       this.segments[i] = 0;
@@ -152,6 +157,20 @@ export class RSPState {
 
     this.viewport.reset();
     this.fogParameters.reset();
+  }
+
+  /**
+   * Completes a dispatch, optionally stopping at a zero-based operation index.
+   * Batches finish before checking the limit. A negative limit runs to the end.
+   * @param {number} bailAfter The last operation to execute, or -1 for no limit.
+   * @returns {boolean} Whether execution should stop.
+   */
+  postOp(bailAfter) {
+    if (bailAfter > -1 && this.currentOp >= bailAfter) {
+      return true;
+    }
+    this.currentOp++;
+    return false;
   }
 
   /**

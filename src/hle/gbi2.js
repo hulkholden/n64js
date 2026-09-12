@@ -210,7 +210,7 @@ export class GBI2 extends GBIMicrocode {
       tb.pushTri(verts[idx0], verts[idx1], verts[idx2]);
       return tb.hasCapacity(1);
     });
-    this.debugController.currentOp += commandsExecuted - 1;
+    this.state.currentOp += commandsExecuted - 1;
     this.renderer.flushTris(tb);
   }
 
@@ -237,7 +237,7 @@ export class GBI2 extends GBIMicrocode {
       tb.pushTri(verts[idx10], verts[idx11], verts[idx12]);
       return tb.hasCapacity(2);
     });
-    this.debugController.currentOp += commandsExecuted - 1;
+    this.state.currentOp += commandsExecuted - 1;
     this.renderer.flushTris(tb);
   }
 
@@ -265,7 +265,7 @@ export class GBI2 extends GBIMicrocode {
       tb.pushTri(verts[idx10], verts[idx11], verts[idx12]);
       return tb.hasCapacity(2);
     });
-    this.debugController.currentOp += commandsExecuted - 1;
+    this.state.currentOp += commandsExecuted - 1;
     this.renderer.flushTris(tb);
   }
 

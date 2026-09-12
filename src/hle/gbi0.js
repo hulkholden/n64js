@@ -168,7 +168,7 @@ export class GBI0 extends GBI1 {
       }
       return tb.hasCapacity(4);
     });
-    this.debugController.currentOp += commandsExecuted - 1;
+    this.state.currentOp += commandsExecuted - 1;
     this.renderer.flushTris(tb);
   }
 }
