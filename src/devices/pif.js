@@ -73,13 +73,14 @@ export class PIFMemDevice extends Device {
       return;
     }
 
-    // FIXME: this should handle writes to the control register too.
+    // TODO: handle other PIF control commands for subword writes.
 
     // SH is broken - it writes a 32-bit value.
     // It also uses 32 bits from the source register (i.e. value is not masked to 16 bits).
     const aligned = ea & ~3;
     const shift = 8 * (2 - (ea & 2));
     this.mem.set32(aligned, value << shift);
+    n64js.joybus().cpuWrite(aligned - 0x7c0);
   }
 
   write8(address, value) {
@@ -89,13 +90,14 @@ export class PIFMemDevice extends Device {
       return;
     }
 
-    // FIXME: this should handle writes to the control register too.
+    // TODO: handle other PIF control commands for subword writes.
 
     // SB is broken - it writes a 32-bit value.
     // It also uses 32 bits from the source register (i.e. value is not masked to 8 bits).
     const aligned = ea & ~3;
     const shift = 8 * (3 - (ea & 3));
     this.mem.set32(aligned, value << shift);
+    n64js.joybus().cpuWrite(aligned - 0x7c0);
   }
 
   updateControl() {
@@ -103,9 +105,14 @@ export class PIFMemDevice extends Device {
     const piRam = this.mem.subRegion(0x7c0, 0x040);
     const command = piRam.getU8(0x3f);
 
+    // Joybus handles configuration after this write, preserving the other bits.
+    if (command & 0x01) {
+      logger.log('PIF: configure channels');
+      return;
+    }
+
     switch (command) {
-      case 0x01:
-        logger.log('PIF: execute block');
+      case 0x00:
         break;
       case 0x08:
         logger.log('PIF: interrupt control');

@@ -75,13 +75,15 @@ export class Joybus {
   }
 
   cpuWrite(offset) {
-    // TODO: handle writes to the control byte from the CPU here.
-    // console.log(`cpuWrite, at ${offset}, command is ${this.controlByte}`)
+    this.configureIfRequested();
   }
 
   dmaWrite(src, srcOffset) {
     this.pifRam.copy(0, src, srcOffset, kPIFRamSize);
+    this.configureIfRequested();
+  }
 
+  configureIfRequested() {
     if (this.controlByte & 1) {
       this.controlByte &= ~1;
       this.configure();
