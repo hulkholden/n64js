@@ -8,6 +8,7 @@ import { MI_INTR_DP, MI_INTR_MASK_REG, MI_INTR_REG, MI_INTR_VI } from './devices
 import { SI_DRAM_ADDR_REG, SI_PIF_ADDR_RD64B_REG, SI_PIF_ADDR_WR64B_REG, SI_STATUS_REG } from './devices/si.js';
 import { SP_CLR_BROKE, SP_CLR_HALT, SP_CLR_SIG2, SP_SET_HALT, SP_STATUS_REG, SP_STATUS_TASKDONE } from './devices/sp.js';
 import { graphicsOptions } from './hle/graphics_options.js';
+import { ImageFormat, ImageSize } from './hle/gbi.js';
 import { MicrocodeId } from './hle/microcode_identifier.js';
 import { TaskOffsets } from './hle/rsp_task.js';
 import { OS_TV_NTSC } from './system_constants.js';
@@ -245,6 +246,145 @@ function startRSPTask(emulator, type = 1) {
   hardware.mi_reg.clearBits32(MI_INTR_REG, MI_INTR_DP);
   hardware.spRegDevice.write32(spStatusAddress, SP_CLR_HALT);
 }
+
+function setGraphicsCommands(emulator, commands) {
+  const { hardware } = emulator;
+  hardware.sp_mem.set32(0xfc0 + TaskOffsets.dataPtr, 0x3000);
+  commands.forEach(([cmd0, cmd1], index) => {
+    hardware.ram.set32(0x3000 + index * 8, cmd0);
+    hardware.ram.set32(0x3004 + index * 8, cmd1);
+  });
+}
+
+describe('headless graphics execution', () => {
+  test('executes drawing commands and in-list microcode switches through SP dispatch', async () => {
+    const seen = [];
+    const emulator = await createEmulator({ executeGraphics: true, onGraphicsTask: info => seen.push(info) });
+    const { hardware } = emulator;
+    prepareGraphicsTask(emulator);
+
+    // Use a 640x480 source image to exercise VI setup independently of the
+    // native transform's default dimensions, without creating a canvas.
+    hardware.vi_reg.set32(0x00, 2);
+    hardware.vi_reg.set32(0x08, 640);
+    hardware.vi_reg.set32(0x24, (108 << 16) | 748);
+    hardware.vi_reg.set32(0x28, (34 << 16) | 514);
+    hardware.vi_reg.set32(0x30, 0x400);
+    hardware.vi_reg.set32(0x34, 0x800);
+
+    const gbi1Data = new TextEncoder().encode('RSP Gfx ucode F3DEX 1.23\0');
+    hardware.ram.u8.set(gbi1Data, 0x5000);
+    for (let index = 0; index < 3; index++) {
+      hardware.ram.dataView.setInt16(0x6000 + index * 16, index === 1 ? 1 : 0);
+      hardware.ram.dataView.setInt16(0x6002 + index * 16, index === 2 ? 1 : 0);
+      hardware.ram.set32(0x600c + index * 16, 0xffffffff);
+    }
+    const gbi2DataSize = hardware.sp_mem.getU32(0xfc0 + TaskOffsets.ucodeDataSize);
+    setGraphicsCommands(emulator, [
+      [0xf5000000 | (ImageFormat.G_IM_FMT_CI << 21) | (1 << 9), 0], // CI4 tile.
+      [0x01003006, 0x6000], // GBI2: load vertices 0–2.
+      [0x05000204, 0], // GBI2: draw a triangle.
+      [0xe1000000, 0x80005000],
+      [0xdd000000 | (gbi1Data.length - 1), 0x80004000], // Switch to GBI1.
+      [0xbf000000, 0x00000204], // The replacement also needs the renderer.
+      [0xb4000000, 0x80002000],
+      [0xaf000000 | (gbi2DataSize - 1), 0x80001000], // Switch back to GBI2.
+      [0x05000204, 0],
+      [0xfa000000, 0x12345678],
+      [0xdf000000, 0],
+    ]);
+    startRSPTask(emulator);
+
+    const { state, renderer } = hardware.headlessGraphics;
+    expect(state.projectedVertices.slice(0, 3).every(vertex => vertex.set)).toBe(true);
+    expect(state.tiles[0]).toMatchObject({ format: ImageFormat.G_IM_FMT_CI, size: ImageSize.G_IM_SIZ_4b });
+    expect(state.primColor).toBe(0x12345678);
+    expect(state.pc).toBe(0);
+    expect(renderer.nativeTransform).toMatchObject({ viWidth: 640, viHeight: 480 });
+    expect(seen).toHaveLength(1); // The observer still reports only task starts.
+    expect(seen[0].family).toBe('GBI2');
+    expect(hardware.rsp.halted).toBe(true);
+    expect(hardware.sp_reg.getU32(SP_STATUS_REG) & SP_STATUS_TASKDONE).toBe(SP_STATUS_TASKDONE);
+    expect(hardware.mi_reg.getU32(MI_INTR_REG) & MI_INTR_DP).toBe(MI_INTR_DP);
+  });
+
+  test('starts each task afresh while preserving RDP state until hardware reset', async () => {
+    const emulator = await createEmulator({ executeGraphics: true });
+    prepareGraphicsTask(emulator);
+    setGraphicsCommands(emulator, [[0xfa000000, 0x12345678], [0xdf000000, 0]]);
+    startRSPTask(emulator);
+    setGraphicsCommands(emulator, [[0xfb000000, 0xabcdef01], [0xdf000000, 0]]);
+    startRSPTask(emulator);
+    expect(emulator.hardware.headlessGraphics.state).toMatchObject({ primColor: 0x12345678, envColor: 0xabcdef01, pc: 0 });
+
+    emulator.hardware.reset();
+    prepareGraphicsTask(emulator);
+    setGraphicsCommands(emulator, [[0xdf000000, 0]]);
+    startRSPTask(emulator);
+    expect(emulator.hardware.headlessGraphics.state).toMatchObject({ primColor: 0, envColor: 0, pc: 0 });
+
+    setGraphicsCommands(emulator, [[0xfa000000, 0x87654321], [0xdf000000, 0]]);
+    startRSPTask(emulator);
+    const fresh = await createEmulator({ executeGraphics: true });
+    expect(fresh.hardware.headlessGraphics.state.primColor).toBe(0);
+    expect(emulator.hardware.headlessGraphics.state.primColor).toBe(0x87654321);
+  });
+
+  test('keeps default, LLE, and audio tasks out of headless HLE execution', async () => {
+    const previousMode = graphicsOptions.emulationMode;
+    try {
+      for (const [options, mode, taskType] of [
+        [{}, 'HLE', 1],
+        [{ executeGraphics: true }, 'LLE', 1],
+        [{ executeGraphics: true }, 'HLE', 2],
+      ]) {
+        graphicsOptions.emulationMode = mode;
+        const emulator = await createEmulator(options);
+        prepareGraphicsTask(emulator);
+        // This would throw if the display-list runner tried to read it.
+        emulator.hardware.sp_mem.set32(0xfc0 + TaskOffsets.dataPtr, 0x1000000);
+        expect(() => startRSPTask(emulator, taskType)).not.toThrow();
+        if (taskType === 1) {
+          expect(emulator.hardware.rsp.halted).toBe(mode === 'HLE');
+          expect(emulator.hardware.mi_reg.getU32(MI_INTR_REG) & MI_INTR_DP).toBe(mode === 'HLE' ? MI_INTR_DP : 0);
+        }
+      }
+    } finally {
+      graphicsOptions.emulationMode = previousMode;
+    }
+  });
+
+  test('aborts a fatal HLE warning through the CPU halt path without completing the task', async () => {
+    const previousHaltOnWarning = graphicsOptions.haltOnWarning;
+    try {
+      graphicsOptions.haltOnWarning = true;
+      const halted = [];
+      const emulator = await createEmulator({ executeGraphics: true, onHalt: message => halted.push(message) });
+      const { cpu0, hardware } = emulator;
+      prepareGraphicsTask(emulator);
+      setGraphicsCommands(emulator, [[0x81000000, 0], [0xfa000000, 0x12345678], [0xdf000000, 0]]);
+      hardware.sp_mem.set32(0xfc0 + TaskOffsets.type, 1);
+
+      // Let guest code start the task so the actual CPU exception/halt handling
+      // is exercised, rather than calling the processor directly.
+      cpu0.pc = 0x80007000;
+      cpu0.setControlU32(controlStatus, 0);
+      cpu0.cop1ControlChanged();
+      hardware.ram.set32(0x7000, 0x3c08a404); // lui t0, 0xa404
+      hardware.ram.set32(0x7004, 0x24090000 | SP_CLR_HALT); // addiu t1, zero, SP_CLR_HALT
+      hardware.ram.set32(0x7008, 0xad090000 | SP_STATUS_REG); // sw t1, SP_STATUS_REG(t0)
+
+      expect(() => runCycles(emulator, 10)).toThrow(/Unknown display list op/);
+      expect(halted).toHaveLength(1);
+      expect(emulator.fatalError()).toBe(halted[0]);
+      expect(hardware.headlessGraphics.state.primColor).toBe(0);
+      expect(hardware.sp_reg.getU32(SP_STATUS_REG) & SP_STATUS_TASKDONE).toBe(0);
+      expect(hardware.mi_reg.getU32(MI_INTR_REG) & MI_INTR_DP).toBe(0);
+    } finally {
+      graphicsOptions.haltOnWarning = previousHaltOnWarning;
+    }
+  });
+});
 
 describe('graphics task callback', () => {
   test('reports graphics starts before dispatch in both HLE and LLE without a renderer', async () => {

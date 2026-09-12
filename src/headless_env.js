@@ -46,6 +46,9 @@ export async function loadROMFile(romPath) {
 }
 
 export async function createHeadlessEmulator(loadedROM, {
+  // Execute graphics display lists with NullRenderer when using HLE mode.
+  // This updates HLE state without producing pixels; the default skips lists.
+  executeGraphics = false,
   onHalt = () => {},
   onWarning = () => {},
   onCheckFailure = () => {},
@@ -63,7 +66,7 @@ export async function createHeadlessEmulator(loadedROM, {
 
   let cpu0 = null;
   let fatalError = null;
-  const hardware = new Hardware(loadedROM.rominfo, { headless: true, onVerticalBlank, onGraphicsTask });
+  const hardware = new Hardware(loadedROM.rominfo, { headless: true, executeGraphics, onVerticalBlank, onGraphicsTask });
   const inputs = Array.from({ length: 4 }, () => new ControllerInputs());
   const joybus = new Joybus(hardware, inputs);
 
