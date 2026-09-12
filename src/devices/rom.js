@@ -248,10 +248,27 @@ export class ROMD2A2Device extends Device {
 
     hasFlashRam() { return this.hardware.saveType == 'FlashRam'; }
 
+    sramOffset(offset, length) {
+        if (offset < 0) { return -1; }
+        if (this.hardware.saveType === 'SRAM') {
+            return offset + length <= this.hardware.saveMem.length ? offset : -1;
+        }
+        if (this.hardware.saveType === 'SRAM96k') {
+            // Dezaemon 3D has three 32 KiB banks spaced 256 KiB apart.
+            const bank = offset >>> 18;
+            const inBank = offset & 0x3ffff;
+            if (bank < 3 && inBank + length <= 0x8000) {
+                return bank * 0x8000 + inBank;
+            }
+        }
+        return -1;
+    }
+
     readU32(address) {
         const ea = this.calcWriteEA(address);
-        if (this.hardware.saveType === 'SRAM' && ea + 4 <= this.hardware.saveMem.length) {
-            return this.hardware.saveMem.getU32(ea);
+        const sramOffset = this.sramOffset(ea, 4);
+        if (sramOffset >= 0) {
+            return this.hardware.saveMem.getU32(sramOffset);
         }
         if (ea >= 0x88000) {
             return unmappedAddressValue(address);
@@ -268,8 +285,9 @@ export class ROMD2A2Device extends Device {
 
     write32(address, value) {
         const ea = this.calcWriteEA(address);
-        if (this.hardware.saveType === 'SRAM' && ea + 4 <= this.hardware.saveMem.length) {
-            this.hardware.saveMem.set32(ea, value);
+        const sramOffset = this.sramOffset(ea, 4);
+        if (sramOffset >= 0) {
+            this.hardware.saveMem.set32(sramOffset, value);
             this.hardware.saveDirty = true;
             return;
         }
