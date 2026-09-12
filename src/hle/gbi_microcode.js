@@ -713,8 +713,6 @@ export class GBIMicrocode {
     let x1 = ((cmd0 >>> 12) & 0xfff) >>> 2;
     let y1 = ((cmd0 >>> 0) & 0xfff) >>> 2;
 
-    const gl = this.gl;
-
     if (dis) {
       dis.text(`gsDPFillRectangle(${x0}, ${y0}, ${x1}, ${y1});`);
     }
@@ -723,9 +721,7 @@ export class GBIMicrocode {
       // TODO: should use depth source.
       // const depthSourcePrim = (this.state.rdpOtherModeL & gbi.DepthSource.G_ZS_PRIM) !== 0;
       // const depth = depthSourcePrim ? this.state.primDepth : 0.0;
-      gl.clearDepth(1.0);
-      gl.depthMask(true);
-      gl.clear(gl.DEPTH_BUFFER_BIT);
+      this.renderer.clearDepth(1.0);
       return;
     }
 
@@ -746,8 +742,7 @@ export class GBIMicrocode {
       const w = x1 - x0;
       const h = y1 - y0;
       if (w === this.renderer.nativeTransform.viWidth && h === this.renderer.nativeTransform.viHeight) {
-        gl.clearColor(color.r, color.g, color.b, color.a);
-        gl.clear(gl.COLOR_BUFFER_BIT);
+        this.renderer.clearColor(color);
         return;
       }
     } else if (cycleType === gbi.CycleType.G_CYC_COPY) {

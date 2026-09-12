@@ -172,7 +172,6 @@ function initMicrocode(task, ramDV) {
   // TODO: pass rendering object to microcode constructor.
   microcode.debugController = debugController;
   microcode.hleHalt = hleHalt;
-  microcode.gl = gl;
   microcode.renderer = renderer;
   return microcode;
 }
