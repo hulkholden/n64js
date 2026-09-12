@@ -32,7 +32,9 @@ const kAttachmentNone = 0;
 const kAttachmentControllerPak = 1;
 const kAttachmentRumblePak = 2;
 
-// Device IDs returned in kCmdGetStatus status.
+// Device IDs returned by status commands.
+// eslint-disable-next-line no-unused-vars -- Documents the RTC device ID until RTC support is implemented.
+const kDeviceIDRTC = 0x0010;
 const kDeviceIDEeprom4K = 0x0080;
 const kDeviceIDEeprom16K = 0x00c0;
 const kDeviceIDController = 0x0500;
