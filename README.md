@@ -76,28 +76,6 @@ Update fields on the existing objects rather than replacing array entries. Each
 fresh emulator has four independent, neutral input states; only port 0 is
 connected by default. Changing input state does not connect another port.
 
-To update inputs at emulated VI boundaries, pass an `onVerticalBlank` callback:
-
-```js
-import { createHeadlessEmulator, loadROMFile, runFrames } from './src/headless_env.js';
-
-const emulator = await createHeadlessEmulator(await loadROMFile('path/to/game.z64'), {
-  onVerticalBlank: count => {
-    // Press Start at VI 120 and release it at VI 122.
-    emulator.inputs[0].buttons = count >= 120 && count < 122 ? 0x1000 : 0;
-  },
-});
-runFrames(emulator, 600, 5_000_000_000);
-```
-
-The callback runs once per emulated VI with a one-based count, after the VI
-counter, field, and interrupt state are updated and before guest execution
-resumes. It works with both `runCycles` and `runFrames`, independently of their
-chunk sizes. It runs synchronously inside emulation; do not use an async callback
-or call the run functions from it. Set any initial input before starting the run.
-Hardware resets preserve the callback and restart the count. The callback is
-also available as `hardware.onVerticalBlank` outside the headless harness.
-
 ## Publishing
 
 Push a new `v*` tag (for example, `v1.2.3`) to publish that commit to GitHub Pages.
