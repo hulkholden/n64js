@@ -462,14 +462,13 @@ class CartridgeChannel extends Channel {
   readEeprom(tx, rx, txBuf, rxBuf) {
     this.expectTx('kCmdEepromRead', tx, 2);
 
-    // TODO: In a 512 byte EEPROM, the top two bits of block number are ignored: blocks 64-255 are repeats of the first 64
-
     const eeprom = this.getEeprom();
     if (!eeprom) {
       return 0;
     }
 
-    const offset = txBuf[1] * 8;
+    // 4K EEPROM ignores the top two block bits; 16K EEPROM decodes all eight.
+    const offset = (txBuf[1] * 8) & (eeprom.length - 1);
     for (let i = 0; i < rx; ++i) {
       rxBuf[i] = eeprom.u8[offset + i];
     }
@@ -484,7 +483,7 @@ class CartridgeChannel extends Channel {
       return 0;
     }
   
-    const offset = txBuf[1] * 8;
+    const offset = (txBuf[1] * 8) & (eeprom.length - 1);
     for (let i = 0; i < tx - 2; ++i) {
       eeprom.u8[offset + i] = txBuf[2 + i];
     }
