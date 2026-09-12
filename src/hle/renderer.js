@@ -238,6 +238,19 @@ export class Renderer {
     return va;
   }
 
+  clearDepth(depth) {
+    const gl = this.gl;
+    gl.clearDepth(depth);
+    gl.depthMask(true);
+    gl.clear(gl.DEPTH_BUFFER_BIT);
+  }
+
+  clearColor(color) {
+    const gl = this.gl;
+    gl.clearColor(color.r, color.g, color.b, color.a);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+  }
+
   fillRect(x0, y0, x1, y1, color) {
     const gl = this.gl;
 
