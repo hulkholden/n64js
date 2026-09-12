@@ -1,5 +1,8 @@
 import { describe, expect, test } from 'bun:test';
-import { createHeadlessEmulator, runCycles, runFrames } from './headless_env.js';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { createHeadlessEmulator, loadROMFile, runCycles, runFrames } from './headless_env.js';
 import { controlCause, controlStatus } from './cpu0reg.js';
 import { MI_INTR_DP, MI_INTR_MASK_REG, MI_INTR_REG, MI_INTR_VI } from './devices/mi.js';
 import { SI_DRAM_ADDR_REG, SI_PIF_ADDR_RD64B_REG, SI_PIF_ADDR_WR64B_REG, SI_STATUS_REG } from './devices/si.js';
@@ -17,6 +20,41 @@ function createEmulator(options) {
     rominfo: { cic: '6102', tvType: OS_TV_NTSC, save: 'Eeprom4k' },
   }, options);
 }
+
+describe('headless ROM metadata', () => {
+  test('loads cartridge save types from the database and accepts Doubutsu no Mori FlashRAM startup', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'n64js-rom-metadata-'));
+    try {
+      for (const [crc1, crc2, expected] of [
+        [0xbd8e206d, 0x98c35e1c, { id: '6d208ebd1c5ec398', name: 'Doubutsu No Mori', save: 'FlashRam' }],
+        [0xb9ae9002, 0xc1b6a367, { id: '0290aeb967a3b6c1', name: 'Animal Forest', save: 'FlashRam' }],
+        // A known cartridge with no save memory must retain that distinction.
+        [0xdff227d9, 0x0d4d8169, { id: 'd927f2df69814d0d', name: "A Bug's Life", save: undefined }],
+        [0, 0, { id: '0000000000000000', name: 'TEST', save: 'Eeprom4k' }],
+      ]) {
+        const bytes = new Uint8Array(0x1000);
+        const header = new DataView(bytes.buffer);
+        header.setUint32(0, 0x80371240);
+        header.setUint32(16, crc1);
+        header.setUint32(20, crc2);
+        bytes.set(new TextEncoder().encode('TEST'), 32);
+        bytes.set(new TextEncoder().encode('NAFJ'), 0x3b);
+        const path = join(directory, 'synthetic.z64');
+        await Bun.write(path, bytes);
+        const loaded = await loadROMFile(path);
+        expect(loaded.rominfo).toMatchObject(expected);
+        if (expected.save === 'FlashRam') {
+          const { hardware } = await createHeadlessEmulator(loaded);
+          expect(hardware.saveMem.length).toBe(128 * 1024);
+          // The game's first flash command previously threw "Writing s32 to rom".
+          expect(() => hardware.romD2A2Device.write32(0xa8010000, 0xd2000000)).not.toThrow();
+        }
+      }
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+});
 
 function readController(emulator, port = 0) {
   const { hardware } = emulator;

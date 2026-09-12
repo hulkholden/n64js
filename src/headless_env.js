@@ -21,7 +21,7 @@ function loadModules() {
 }
 
 export async function loadROMFile(romPath) {
-  const [,, { fixRomByteOrder },,,, { generateCICType, uint8ArrayReadString },, constants] = await loadModules();
+  const [,, { fixRomByteOrder },,,, { generateCICType, generateRomId, romdb, uint8ArrayReadString },, constants] = await loadModules();
   const romFile = Bun.file(romPath);
   if (!await romFile.exists()) {
     throw new Error(`ROM not found: ${romPath}`);
@@ -30,14 +30,17 @@ export async function loadROMFile(romPath) {
   const romBuffer = await romFile.arrayBuffer();
   fixRomByteOrder(romBuffer);
   const bytes = new Uint8Array(romBuffer);
-  const country = new DataView(romBuffer).getUint8(62);
+  const header = new DataView(romBuffer);
+  const country = header.getUint8(62);
+  const id = generateRomId(header.getUint32(16), header.getUint32(20));
+  const info = romdb[id];
   const rominfo = {
-    id: '',
-    name: uint8ArrayReadString(bytes, 32, 20),
+    id,
+    name: info ? info.name : uint8ArrayReadString(bytes, 32, 20),
     cic: generateCICType(bytes),
     country: country || constants.countryNorthAmerica,
     tvType: country ? constants.tvTypeFromCountry(country) : constants.OS_TV_NTSC,
-    save: 'Eeprom4k',
+    save: info ? info.save : 'Eeprom4k',
   };
   return { romBuffer, rominfo };
 }
