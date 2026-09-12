@@ -7,7 +7,7 @@ import { DPCDevice } from './devices/dpc.js';
 import { DPSDevice } from './devices/dps.js';
 import { MIRegDevice } from './devices/mi.js';
 import { PIRegDevice } from './devices/pi.js';
-import { PIFMemDevice } from './devices/pif.js';
+import { PIFMemDevice, PIF_RAM_OFFSET } from './devices/pif.js';
 import { MappedMemDevice, CachedMemDevice, UncachedMemDevice, InvalidMemDevice, RDRamRegDevice } from './devices/ram.js';
 import { RIRegDevice } from './devices/ri.js';
 import { ROMD1A1Device, ROMD1A2Device, ROMD1A3Device, ROMD2A1Device, ROMD2A2Device } from './devices/rom.js';
@@ -42,7 +42,7 @@ export class Hardware {
     this.systemFrequency = systemFrequency;
 
     this.rom = null;   // Will be memory, mapped at 0xb0000000
-    this.pif_mem = newMemoryRegion(0x7c0 + 0x40);   // rom+ram
+    this.pif_mem = newMemoryRegion(PIF_RAM_OFFSET + 0x40);   // rom+ram
     this.ram = newMemoryRegion(8 * 1024 * 1024);
     this.sp_mem = newMemoryRegion(0x2000);
     this.sp_reg = newMemoryRegion(0x20);

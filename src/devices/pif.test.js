@@ -3,11 +3,11 @@ import { ControllerInputs } from '../controllers.js';
 import { Joybus } from '../joybus.js';
 import { MemoryRegion } from '../memory_region.js';
 import { MI_INTR_REG, MI_INTR_SI } from './mi.js';
-import { PIFMemDevice } from './pif.js';
+import { PIFMemDevice, PIF_RAM_OFFSET } from './pif.js';
 import { SI_STATUS_REG, SI_STATUS_INTERRUPT } from './si.js';
 
 const base = 0xbfc00000;
-const ramBase = base + 0x7c0;
+const ramBase = base + PIF_RAM_OFFSET;
 const controlStores = [['write32', 0x3c], ['write16', 0x3e], ['write8', 0x3f]];
 let previousN64js;
 let hardware;

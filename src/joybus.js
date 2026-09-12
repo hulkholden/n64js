@@ -3,6 +3,7 @@
 import * as logger from './logger.js';
 import { syncInput } from './sync.js';
 import { n64_cic_nus_6105 } from './devices/cic.js';
+import { PIF_RAM_OFFSET } from './devices/pif.js';
 
 // Channels 0..3 are for controllers and channel 4 is for the cart.
 const kNumChannels = 5;
@@ -51,7 +52,7 @@ export class Joybus {
   constructor(hardware, inputs) {
     this.hardware = hardware;
 
-    this.pifRam = this.hardware.pif_mem.subRegion(0x7c0, 0x040);
+    this.pifRam = this.hardware.pif_mem.subRegion(PIF_RAM_OFFSET, 0x040);
 
     const controller0 = new ControllerChannel(inputs[0]);
     controller0.present = true;
