@@ -237,7 +237,7 @@ class Channel {
   }
 
   init() {
-    this.frame = 0;
+    this.frame = null;
     this.skip = true;
     this.reset = false;
   }
