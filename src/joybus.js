@@ -128,7 +128,8 @@ export class Joybus {
     let offset = 0;
     let channel = 0;
     while (offset < kPIFRamSize && channel < kNumChannels) {
-      const frame = this.pifRam.u8.subarray(offset);
+      // Keep payload views before the control byte, even if live lengths grow.
+      const frame = this.pifRam.u8.subarray(offset, kPIFRamControlByte);
       const txRaw = frame[0];
       offset++;
 
@@ -153,18 +154,14 @@ export class Joybus {
       if (rxRaw == kJoybusTxFormatEnd) { break; }
 
       const tx = txRaw & 0x3f;
-      const txOff = offset;
       offset += tx;
 
       const rx = rxRaw & 0x3f;
-      const rxOff = offset;
       offset += rx;
 
       if (offset >= kPIFRamSize) { break; }
 
-      const txBuf = this.pifRam.u8.subarray(txOff, txOff + tx);
-      const rxBuf = this.pifRam.u8.subarray(rxOff, rxOff + rx);
-      this.channels[channel].joybusConfigure(frame, tx, rx, txBuf, rxBuf);
+      this.channels[channel].joybusConfigure(frame);
       channel++;
     }
   }
@@ -191,9 +188,14 @@ export class Joybus {
 
       const tx = txRaw & 0x3f;
       const rx = rxRaw & 0x3f;
+      chan.frame[1] = rx;
+
+      // Only the channel position is cached; lengths can change between reads.
+      const txBuf = chan.frame.subarray(2, 2 + tx);
+      const rxBuf = chan.frame.subarray(2 + tx, 2 + tx + rx);
       // Perform the command and find out how many bytes were returned.        
       // If an unexpected number of bytes were received, set status bits in rx.
-      const rxLen = chan.joybusCommand(tx, rx, chan.txBuf, chan.rxBuf);
+      const rxLen = chan.joybusCommand(tx, rx, txBuf, rxBuf);
       if (rxLen < rx) { chan.frame[1] |= kResponseUnder; }
       if (rxLen > rx) { chan.frame[1] |= kResponseOver; }
     }
@@ -236,20 +238,12 @@ class Channel {
 
   init() {
     this.frame = 0;
-    this.tx = 0;
-    this.rx = 0;
-    this.txBuf = null;
-    this.rxBuf = null;
     this.skip = true;
     this.reset = false;
   }
 
-  joybusConfigure(frame, tx, rx, txBuf, rxBuf) {
+  joybusConfigure(frame) {
     this.frame = frame;
-    this.tx = tx;
-    this.rx = rx;
-    this.txBuf = txBuf;
-    this.rxBuf = rxBuf;
     this.skip = false;
   }
 }
