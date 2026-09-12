@@ -6,6 +6,7 @@ import { toHex } from "../format.js";
 import { hleGraphics } from "./hle_graphics.js";
 import { audioOptions } from './audio_options.js';
 import { graphicsOptions } from './graphics_options.js';
+import { identifyMicrocode } from './microcode_identifier.js';
 
 // Task offset in dmem.
 const kTaskOffset = 0x0fc0;
@@ -142,6 +143,8 @@ export function hleProcessRSPTask() {
 
   switch (task.type) {
     case M_GFXTASK:
+      hardware.onGraphicsTask?.(identifyMicrocode(
+        task.detectVersionString(), task.computeMicrocodeHash()));
       if (graphicsOptions.emulationMode == 'HLE') {
         const ev = hardware.timeline.startEvent(`HLE Task ${task.detectVersionString()}`);
         hleGraphics(task);

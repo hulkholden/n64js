@@ -28,7 +28,7 @@ const kGameOffset = 0x1000;
 const systemFrequency = 93_750_000;
 
 export class Hardware {
-  constructor(rominfo, { headless = false, onVerticalBlank = null } = {}) {
+  constructor(rominfo, { headless = false, onVerticalBlank = null, onGraphicsTask = null } = {}) {
     // TODO: Not sure this belongs here.
     this.rominfo = rominfo;
     this.headless = headless;
@@ -36,6 +36,12 @@ export class Hardware {
     // Called synchronously after each VI interrupt with the count since reset.
     // Resets preserve the callback. It must not re-enter emulation.
     this.onVerticalBlank = onVerticalBlank;
+    // Called synchronously at each graphics-task start, before HLE/LLE dispatch,
+    // including in headless mode. Receives a fresh identifyMicrocode() snapshot
+    // of the initial microcode; in-list switches are not reported. Repeated
+    // starts are reported separately. Resets preserve the callback, which must
+    // not re-enter emulation. Its return value is ignored.
+    this.onGraphicsTask = onGraphicsTask;
 
     this.timeline = new Timeline(this.getOpsExecuted.bind(this));
 

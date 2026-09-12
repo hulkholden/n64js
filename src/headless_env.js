@@ -47,6 +47,7 @@ export async function createHeadlessEmulator(loadedROM, {
   onWarning = () => {},
   onCheckFailure = () => {},
   onVerticalBlank = null,
+  onGraphicsTask = null,
 } = {}) {
   const [
     { simulateBoot },
@@ -59,7 +60,7 @@ export async function createHeadlessEmulator(loadedROM, {
 
   let cpu0 = null;
   let fatalError = null;
-  const hardware = new Hardware(loadedROM.rominfo, { headless: true, onVerticalBlank });
+  const hardware = new Hardware(loadedROM.rominfo, { headless: true, onVerticalBlank, onGraphicsTask });
   const inputs = Array.from({ length: 4 }, () => new ControllerInputs());
   const joybus = new Joybus(hardware, inputs);
 
