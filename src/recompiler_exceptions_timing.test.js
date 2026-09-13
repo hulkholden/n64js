@@ -44,6 +44,7 @@ async function compareExecutions(instructions, prepare = () => {}, train = () =>
       badVAddr: cpu.getControlU32(regs.controlBadVAddr),
       status: cpu.getControlU32(regs.controlStatus),
       fcsr: hardware.cpu1.control[31],
+      fpr: Array.from({ length: 32 }, (_, i) => hardware.cpu1.loadU32(hardware.cpu1.fdRegIdx32(i))),
       countCycles: cpu.controlCountValue,
       compareCycles: cpu.getCyclesUntilEvent('Compare'),
     };
@@ -122,6 +123,34 @@ for (const profiled of [false, true]) {
       expect(result.gpr[3]).toBe(119n);
       expect(result.cause).toBe(0);
     });
+
+    // FIFA's startup sequence (#109). n64-systemtest's CvtW cases establish
+    // that converting infinity is Unimplemented, even with Invalid disabled:
+    // https://github.com/lemmy-64/n64-systemtest/blob/main/src/tests/cop1/mod.rs
+    for (const invalidEnabled of [false, true]) {
+      for (const negativeZero of [false, true]) {
+        test(`TRUNC.W.S after DIV.S by ${negativeZero ? '-0' : '+0'}, Invalid ${invalidEnabled ? 'enabled' : 'disabled'}`, async () => {
+          const fcsr = 0x01000004 | (invalidEnabled ? 0x800 : 0);
+          const setup = (c, h, divisor) => {
+            const f = h.cpu1;
+            f.control[31] = fcsr;
+            f.store32(f.fsRegIdx32(18), 0x46ac3e00); // 22047.0f
+            f.store32(f.fsRegIdx32(8), divisor);
+            f.store32(f.fdRegIdx32(10), 0x12345678);
+          };
+          const result = await compare(
+            [0x46089003, 0x4600028d, 0x44035000], // DIV.S; TRUNC.W.S; MFC1
+            (c, h) => setup(c, h, negativeZero ? 0x80000000 : 0),
+            (c, h) => setup(c, h, 0x42700000)); // Train with 60.0f.
+          expect(result.cause).toBe(0x3c);
+          expect(result.epc).toBe(pc + 4);
+          expect(result.fcsr).toBe(fcsr | 0x20020); // Unimplemented cause + sticky Divide-by-zero.
+          expect(result.fpr[0]).toBe(negativeZero ? 0xff800000 : 0x7f800000);
+          expect(result.fpr[10]).toBe(0x12345678); // Faulting conversion does not write fd.
+          expect(result.gpr[3]).toBe(0n); // The dependent MFC1 must not execute.
+        });
+      }
+    }
 
     for (const [name, read, write] of [
       ['32-bit', 0x40024800, 0x40844800],
