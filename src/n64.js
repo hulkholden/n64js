@@ -9,7 +9,7 @@ import { Debugger } from './debugger.js';
 import { fixRomByteOrder } from './endian.js';
 import { toString32 } from './format.js';
 import { Hardware } from './hardware.js';
-import { debugDisplayList, debugDisplayListRequested, debugDisplayListRunning, presentBackBuffer, initialiseRenderer, resetRenderer } from './hle/hle_graphics.js';
+import { debugDisplayList, debugDisplayListRequested, debugDisplayListRunning, presentBackBuffer, initialiseRenderer, graphics } from './hle/hle_graphics.js';
 import * as json from './json.js';
 import * as logger from './logger.js';
 import { initCPU, invalidateCode } from './r4300.js';
@@ -44,7 +44,7 @@ const rominfo = {
   save: 'Eeprom4k'
 };
 
-const hardware = new Hardware(rominfo);
+const hardware = new Hardware(rominfo, { graphics });
 const breakpoints = new Breakpoints(hardware, invalidateCode);
 const controllers = new Controllers();
 const joybus = new Joybus(hardware, controllers.inputs);
@@ -280,8 +280,6 @@ n64js.reset = () => {
 
   initCPU(hardware);
   initRSP(hardware);
-
-  resetRenderer();
 
   // Simulate boot
   hardware.loadROM();

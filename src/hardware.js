@@ -14,7 +14,6 @@ import { ROMD1A1Device, ROMD1A2Device, ROMD1A3Device, ROMD2A1Device, ROMD2A2Devi
 import { SIRegDevice } from './devices/si.js';
 import { SPMemDevice, SPIBISTDevice, SPRegDevice } from './devices/sp.js';
 import { VIRegDevice } from './devices/vi.js';
-import { HeadlessGraphics } from './hle/headless_graphics.js';
 import { RDP } from './lle/rdp.js';
 import { MemoryMap } from './memmap.js';
 import { Mempack } from './mempack.js';
@@ -29,10 +28,18 @@ const kGameOffset = 0x1000;
 const systemFrequency = 93_750_000;
 
 export class Hardware {
-  constructor(rominfo, { headless = false, executeGraphics = false, onVerticalBlank = null, onGraphicsTask = null } = {}) {
+  constructor(rominfo, {
+    headless = false,
+    graphics = { processTask() {}, reset() {} },
+    onVerticalBlank = null,
+    onGraphicsTask = null,
+  } = {}) {
     // TODO: Not sure this belongs here.
     this.rominfo = rominfo;
     this.headless = headless;
+    // The environment supplies a synchronous graphics processor with
+    // processTask(task) and reset(). The default skips HLE display lists.
+    this.graphics = graphics;
     this.verticalBlankCount = 0;
     // Called synchronously after each VI interrupt with the count since reset.
     // Resets preserve the callback. It must not re-enter emulation.
@@ -143,14 +150,11 @@ export class Hardware {
     this.cpu2 = new CPU2(this);
     this.rsp = new RSP(this);
     this.rdp = new RDP(this);
-    // Opt-in HLE command execution for headless runs. With no processor,
-    // graphics tasks still complete but their display lists are skipped.
-    this.headlessGraphics = headless && executeGraphics ? new HeadlessGraphics(this) : null;
   }
 
   reset() {
     this.verticalBlankCount = 0;
-    this.headlessGraphics?.reset();
+    this.graphics.reset();
     this.cpu0.reset();
     this.cpu1.reset();
     this.cpu2.reset();

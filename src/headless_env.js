@@ -16,6 +16,7 @@ function loadModules() {
     import('./romdb.js'),
     import('./rsp.js'),
     import('./system_constants.js'),
+    import('./hle/headless_graphics.js'),
   ]);
   return modulesPromise;
 }
@@ -61,12 +62,16 @@ export async function createHeadlessEmulator(loadedROM, {
     { Hardware },
     { Joybus },
     { initCPU },,
-    { initRSP },
+    { initRSP },,
+    { HeadlessGraphics },
   ] = await loadModules();
 
   let cpu0 = null;
   let fatalError = null;
-  const hardware = new Hardware(loadedROM.rominfo, { headless: true, executeGraphics, onVerticalBlank, onGraphicsTask });
+  const hardware = new Hardware(loadedROM.rominfo, { headless: true, onVerticalBlank, onGraphicsTask });
+  if (executeGraphics) {
+    hardware.graphics = new HeadlessGraphics(hardware);
+  }
   const inputs = Array.from({ length: 4 }, () => new ControllerInputs());
   const joybus = new Joybus(hardware, inputs);
 

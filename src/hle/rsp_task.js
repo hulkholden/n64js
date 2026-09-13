@@ -3,7 +3,6 @@
 import { disassembleRemappedRange, dumpDMEM } from "../disassemble_rsp.js";
 import { makeEnum } from "../enum.js";
 import { toHex } from "../format.js";
-import { hleGraphics } from "./hle_graphics.js";
 import { audioOptions } from './audio_options.js';
 import { graphicsOptions } from './graphics_options.js';
 import { identifyMicrocode } from './microcode_identifier.js';
@@ -147,11 +146,7 @@ export function hleProcessRSPTask() {
         task.detectVersionString(), task.computeMicrocodeHash()));
       if (graphicsOptions.emulationMode == 'HLE') {
         const ev = hardware.timeline.startEvent(`HLE Task ${task.detectVersionString()}`);
-        if (hardware.headless) {
-          hardware.headlessGraphics?.processTask(task);
-        } else {
-          hleGraphics(task);
-        }
+        hardware.graphics.processTask(task);
         hardware.miRegDevice.interruptDP();
         if (ev) {
           ev.stop();
