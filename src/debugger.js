@@ -828,7 +828,7 @@ class R4300DebugState extends CPUDebugState {
   updateStatusTable() {
     setTextContent('#cpu0-status-opsexecuted', cpu0.opsExecuted);
     setTextContent('#cpu0-status-pc', toString32(cpu0.pc));
-    setTextContent('#cpu0-status-delaypc', toString32(cpu0.delayPC));
+    setTextContent('#cpu0-status-delaypc', cpu0.delayPC === null ? '-' : toString32(cpu0.delayPC));
     setTextContent('#cpu0-status-epc', toString32(cpu0.getControlU32(cpu0reg.controlEPC)));
     setTextContent('#cpu0-status-cause', toString32(Number(cpu0.moveFromControl(cpu0reg.controlCause) & 0xffff_ffffn)));
     setTextContent('#cpu0-status-count', toString32(Number(cpu0.moveFromControl(cpu0reg.controlCount) & 0xffff_ffffn)));
