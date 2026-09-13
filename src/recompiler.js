@@ -648,7 +648,7 @@ function generateDADDI(ctx) {
 }
 
 function generateADDIU(ctx) {
-  const impl = `c.execADDI(${ctx.instr_rt()}, ${ctx.instr_rs()}, ${ctx.instr_imms()});`;
+  const impl = `c.execADDIU(${ctx.instr_rt()}, ${ctx.instr_rs()}, ${ctx.instr_imms()});`;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
