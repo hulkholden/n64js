@@ -11,7 +11,7 @@ export default [
     languageOptions: { globals: globals.browser },
   },
   {
-    files: ['src/**/*.test.js', 'src/**/*.bench.js', 'src/benchmark.js', 'src/headless*.js'],
+    files: ['src/**/*.test.js', 'src/**/*.bench.js', 'src/benchmark.js', 'src/headless*.js', 'src/inventory*.js'],
     languageOptions: { globals: { ...globals.nodeBuiltin, ...globals.bunBuiltin } },
   },
   {
