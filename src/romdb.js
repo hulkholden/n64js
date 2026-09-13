@@ -435,7 +435,7 @@ export const romdb = {
   '9ddeb6c376ded265': {name:"Mario Kart 64 (v1.0)",                                       save:'Eeprom4k'   },
   '87a9c3c94c341058': {name:"Mario Kart 64 (v1.1)",                                       save:'Eeprom4k'   },
   'd4c77725aeaa8fd1': {name:"Mario Kart 64 (v1.1)",                                       save:'Eeprom4k'   },
-  'ac90989adf13c3f0': {name:"Mario No Photopie"                                                             },
+  'ac90989adf13c3f0': {name:"Mario No Photopie",                              cartridge:'Photopie'           },
   '7e652928771862a0': {name:"Mario Party",                                                save:'Eeprom4k'   },
   'be15a8ad2f622860': {name:"Mario Party",                                                save:'Eeprom4k'   },
   '6930669c804af280': {name:"Mario Party",                                                save:'Eeprom4k'   },
