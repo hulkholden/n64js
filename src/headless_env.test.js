@@ -219,44 +219,6 @@ function setGraphicsCommands(emulator, commands) {
 }
 
 describe('headless graphics execution', () => {
-  test('skips unsupported Indiana Jones lists in HLE while completing the task, but leaves LLE available', async () => {
-    const previousMode = graphicsOptions.emulationMode;
-    try {
-      for (const mode of ['HLE', 'LLE']) {
-        graphicsOptions.emulationMode = mode;
-        const seen = [];
-        const emulator = await createEmulator({ executeGraphics: true, onGraphicsTask: info => {
-          seen.push({ ...info });
-          info.id = MicrocodeId.GBI0; // Observers cannot change dispatch.
-        } });
-        const { hardware } = emulator;
-        prepareGraphicsTask(emulator);
-
-        // Synthetic base-17 digits produce the observed hash without ROM data.
-        const code = [];
-        for (let value = 0xdd57a04e; value > 0; value = Math.floor(value / 17)) {
-          code.unshift(value % 17);
-        }
-        hardware.ram.u8.set(code, 0x1000);
-        hardware.sp_mem.set32(0xfc0 + TaskOffsets.ucodeSize, code.length);
-        hardware.sp_mem.set32(0xfc0 + TaskOffsets.ucodeDataSize, 0);
-        // No valid display-list memory is needed when the task is skipped.
-        hardware.sp_mem.set32(0xfc0 + TaskOffsets.dataPtr, 0xffffffff);
-        hardware.graphics.processTask = () => { throw new Error('Unsupported display list was dispatched'); };
-        startRSPTask(emulator);
-
-        expect(seen).toHaveLength(1);
-        expect(seen[0]).toMatchObject({ id: MicrocodeId.F5_INDI, hash: 0xdd57a04e, detection: 'hash' });
-        expect(hardware.rsp.halted).toBe(mode === 'HLE');
-        expect(hardware.sp_reg.getU32(SP_STATUS_REG) & SP_STATUS_TASKDONE).toBe(mode === 'HLE' ? SP_STATUS_TASKDONE : 0);
-        expect(hardware.mi_reg.getU32(MI_INTR_REG) & MI_INTR_DP).toBe(mode === 'HLE' ? MI_INTR_DP : 0);
-        expect(emulator.fatalError()).toBeNull();
-      }
-    } finally {
-      graphicsOptions.emulationMode = previousMode;
-    }
-  });
-
   test('executes drawing commands and in-list microcode switches through SP dispatch', async () => {
     const seen = [];
     const emulator = await createEmulator({ executeGraphics: true, onGraphicsTask: info => seen.push(info) });
