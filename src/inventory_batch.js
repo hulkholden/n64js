@@ -8,6 +8,10 @@ import { isDeepStrictEqual, parseArgs } from 'node:util';
 import { fixRomByteOrder } from './endian.js';
 import { emulatorVersion, inventoryOptions, inventorySettings, runInventory } from './inventory_runner.js';
 
+// Conventional shell exit statuses: 128 + signal number (SIGINT = 2, SIGTERM = 15).
+const EXIT_CODE_SIGINT = 130;
+const EXIT_CODE_SIGTERM = 143;
+
 const usage = `Usage: bun run inventory-batch <rom-or-directory>... --output-dir <directory> [options]
        bun run inventory-batch --resume <scan-directory>
 
@@ -31,7 +35,7 @@ save progress and stop the active worker. After an ungraceful termination, remov
 the scan's .lock file only after confirming no batch process is still using it.
 
 Exit codes: 0 all ROMs completed; 1 scan finished with ROM failures; 2 command or
-storage error; 130 interrupted by SIGINT; 143 interrupted by SIGTERM.`;
+storage error; ${EXIT_CODE_SIGINT} interrupted by SIGINT; ${EXIT_CODE_SIGTERM} interrupted by SIGTERM.`;
 
 const terminal = new Set(['completed', 'cycle-limit', 'timeout', 'halted', 'error']);
 
@@ -142,6 +146,39 @@ function validateManifest(manifest) {
   }
 }
 
+async function prepareEntry(scanDirectory, manifest, index) {
+  const entry = manifest.entries[index];
+  await checkSource(manifest);
+  const sha256 = await romHash(entry.path).catch(() => null);
+  if (entry.sha256 && sha256 !== entry.sha256) {
+    throw new Error(`ROM changed since this scan started: ${entry.path}`);
+  }
+  entry.sha256 = sha256;
+  entry.report = `${sha256 ?? `error-${index}`}.json`;
+  entry.status = 'pending';
+  await writeJSON(join(scanDirectory, 'manifest.json'), manifest);
+}
+
+async function collectEntry(scanDirectory, manifest, index, signal) {
+  const entry = manifest.entries[index];
+  let report = await savedReport(scanDirectory, manifest, entry);
+  if (terminal.has(report?.result.status)) return report;
+
+  await prepareEntry(scanDirectory, manifest, index);
+  // Other paths or byte orders of the same ROM reuse its first result.
+  report = await savedReport(scanDirectory, manifest, entry);
+  if (terminal.has(report?.result.status)) return report;
+
+  console.error(`[${index + 1}/${manifest.entries.length}] Running ${entry.path}`);
+  report = await runInventory(entry.path, manifest.settings, signal);
+  await checkSource(manifest);
+  if (report.rom?.sha256 && report.rom.sha256 !== entry.sha256) {
+    throw new Error(`ROM changed while being inventoried: ${entry.path}`);
+  }
+  await writeJSON(join(scanDirectory, entry.report), report);
+  return report;
+}
+
 async function scan(scanDirectory, initialManifest) {
   const lockPath = join(scanDirectory, '.lock');
   const lock = await open(lockPath, 'wx').catch(error => {
@@ -149,9 +186,9 @@ async function scan(scanDirectory, initialManifest) {
     throw error;
   });
   const controller = new AbortController();
-  let interruptCode = 130;
+  let interruptCode = EXIT_CODE_SIGINT;
   const onInterrupt = () => controller.abort();
-  const onTerminate = () => { interruptCode = 143; controller.abort(); };
+  const onTerminate = () => { interruptCode = EXIT_CODE_SIGTERM; controller.abort(); };
   process.on('SIGINT', onInterrupt);
   process.on('SIGTERM', onTerminate);
   try {
@@ -166,29 +203,7 @@ async function scan(scanDirectory, initialManifest) {
 
     for (const [index, entry] of manifest.entries.entries()) {
       if (controller.signal.aborted) break;
-      let report = await savedReport(scanDirectory, manifest, entry);
-      if (!terminal.has(report?.result.status)) {
-        await checkSource(manifest);
-        const sha256 = await romHash(entry.path).catch(() => null);
-        if (entry.sha256 && sha256 !== entry.sha256) {
-          throw new Error(`ROM changed since this scan started: ${entry.path}`);
-        }
-        entry.sha256 = sha256;
-        entry.report = `${sha256 ?? `error-${index}`}.json`;
-        entry.status = 'pending';
-        await writeJSON(manifestPath, manifest);
-        // Other paths or byte orders of the same ROM reuse its first result.
-        report = await savedReport(scanDirectory, manifest, entry);
-        if (!terminal.has(report?.result.status)) {
-          console.error(`[${index + 1}/${manifest.entries.length}] Running ${entry.path}`);
-          report = await runInventory(entry.path, manifest.settings, controller.signal);
-          await checkSource(manifest);
-          if (report.rom?.sha256 && report.rom.sha256 !== entry.sha256) {
-            throw new Error(`ROM changed while being inventoried: ${entry.path}`);
-          }
-          await writeJSON(join(scanDirectory, entry.report), report);
-        }
-      }
+      const report = await collectEntry(scanDirectory, manifest, index, controller.signal);
       entry.status = report.result.status;
       await writeJSON(manifestPath, manifest);
       console.error(`[${index + 1}/${manifest.entries.length}] ${entry.status}: ${entry.path}`);
