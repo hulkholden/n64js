@@ -6,7 +6,7 @@ import { dirname, extname, isAbsolute, join, relative, resolve } from 'node:path
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual, parseArgs } from 'node:util';
 import { fixRomByteOrder } from '../endian.js';
-import { emulatorVersion, inventoryOptions, inventorySettings, loadInputScript, runInventory } from './inventory_runner.js';
+import { emulatorVersion, inventoryOptions, inventorySettings, loadInputScript, restoreInventorySettings, runInventory } from './inventory_runner.js';
 import { inputScriptHelp } from './inventory_input.js';
 
 // Conventional shell exit statuses: 128 + signal number (SIGINT = 2, SIGTERM = 15).
@@ -140,12 +140,7 @@ function validateManifest(manifest) {
   if (manifest.schemaVersion !== 1 || !Array.isArray(manifest.entries) || !manifest.settings) {
     throw new Error('Invalid scan manifest');
   }
-  const settings = manifest.settings;
-  const expected = inventorySettings({
-    seed: String(settings.seed), frames: String(settings.frames),
-    'max-cycles': String(settings.maxCycles), 'timeout-ms': String(settings.timeoutMs),
-  }, settings.inputPolicy?.script);
-  if (!isDeepStrictEqual(settings, expected)) throw new Error('Scan settings or input policy changed; start a new scan');
+  restoreInventorySettings(manifest.settings);
   for (const [index, entry] of manifest.entries.entries()) {
     if (typeof entry.path !== 'string' || !isAbsolute(entry.path) ||
         (entry.sha256 !== null && !/^[a-f0-9]{64}$/.test(entry.sha256)) ||
@@ -179,7 +174,7 @@ async function collectEntry(scanDirectory, manifest, index, signal) {
   if (terminal.has(report?.result.status)) return report;
 
   console.error(`[${index + 1}/${manifest.entries.length}] Running ${entry.path}`);
-  report = await runInventory(entry.path, manifest.settings, signal);
+  report = await runInventory(entry.path, manifest.settings, { signal });
   await checkSource(manifest);
   if (report.rom?.sha256 && report.rom.sha256 !== entry.sha256) {
     throw new Error(`ROM changed while being inventoried: ${entry.path}`);

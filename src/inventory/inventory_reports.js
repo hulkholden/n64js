@@ -81,7 +81,7 @@ function isObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
-function validateReport(report, source) {
+export function validateReport(report, source = {}) {
   if (!isObject(report.collectors) || !isObject(report.result) || !isObject(report.settings) || !isObject(report.emulator) ||
       typeof report.result.status !== 'string' || typeof report.result.checkpointOnly !== 'boolean' ||
       (report.rom !== null && (typeof report.rom?.name !== 'string' || !/^[a-f0-9]{64}$/.test(report.rom?.sha256)))) {
@@ -101,6 +101,7 @@ function resultRow(source, report) {
     emulator: report?.emulator ?? source.manifest?.emulator ?? null,
     settings: report?.settings ?? source.manifest?.settings ?? null,
     result: report?.result ?? null,
+    ...(report?.replayOf ? { replayOf: report.replayOf } : {}),
   };
 }
 

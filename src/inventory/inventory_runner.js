@@ -1,6 +1,7 @@
 import { fork, spawnSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
+import { isDeepStrictEqual } from 'node:util';
 import { inputPolicy, parseInputScript } from './inventory_input.js';
 
 export const inventoryOptions = {
@@ -29,6 +30,17 @@ export function inventorySettings(values, script) {
   };
 }
 
+// Reject settings this version cannot reproduce, including changed input policies.
+export function restoreInventorySettings(settings) {
+  if (!settings || typeof settings !== 'object' || Array.isArray(settings)) throw new Error('Invalid inventory settings');
+  const expected = inventorySettings({
+    seed: String(settings.seed), frames: String(settings.frames),
+    'max-cycles': String(settings.maxCycles), 'timeout-ms': String(settings.timeoutMs),
+  }, settings.inputPolicy?.script);
+  if (!isDeepStrictEqual(settings, expected)) throw new Error('Unsupported inventory settings or input policy');
+  return expected;
+}
+
 function integer(value, name, minimum, maximum = Number.MAX_SAFE_INTEGER) {
   const number = Number(value);
   if (!/^\d+$/.test(value) || !Number.isSafeInteger(number) || number < minimum || number > maximum) {
@@ -50,19 +62,20 @@ export function emulatorVersion() {
   };
 }
 
-export async function runInventory(romPath, settings, signal) {
+export async function runInventory(romPath, settings, { signal, replayOf } = {}) {
   const report = {
     schemaVersion: 1,
     rom: null,
     emulator: emulatorVersion(),
     settings,
+    ...(replayOf ? { replayOf } : {}),
     result: { status: 'error', frames: 0, cycles: 0, checkpointOnly: true, message: null },
     // Missing collector = not run. An empty list means no matching
     // events were observed during this run, not that the ROM never uses graphics.
     collectors: {},
   };
   return new Promise(resolveReport => {
-    const child = fork(fileURLToPath(new URL('./inventory_worker.js', import.meta.url)), [JSON.stringify({ romPath, settings })], {
+    const child = fork(fileURLToPath(new URL('./inventory_worker.js', import.meta.url)), [JSON.stringify({ romPath, settings, expectedRomSha256: replayOf?.romSha256 })], {
       execArgv: [],
       stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
     });
