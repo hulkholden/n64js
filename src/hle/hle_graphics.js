@@ -18,6 +18,12 @@ let renderer;
 const state = new RSPState();
 const debugController = new DebugController(state, processDList);
 
+// Graphics processor backed by the shared browser renderer and debugger.
+export const graphics = {
+  processTask: hleGraphics,
+  reset: resetRenderer,
+};
+
 export function initialiseRenderer($canvas) {
   debugController.initUI();
 
@@ -36,7 +42,7 @@ export function initialiseRenderer($canvas) {
   debugController.renderer = renderer;
 }
 
-export function resetRenderer() {
+function resetRenderer() {
   if (renderer) {
     renderer.reset();
   }
@@ -76,7 +82,7 @@ export function debugDisplayList() {
   debugController.debugDisplayList();
 }
 
-export function hleGraphics(task) {
+function hleGraphics(task) {
   debugController.onNewTask(task)
   processDList(task, null, -1);
 }

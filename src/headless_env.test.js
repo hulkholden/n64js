@@ -257,7 +257,7 @@ describe('headless graphics execution', () => {
     ]);
     startRSPTask(emulator);
 
-    const { state, renderer } = hardware.headlessGraphics;
+    const { state, renderer } = hardware.graphics;
     expect(state.projectedVertices.slice(0, 3).every(vertex => vertex.set)).toBe(true);
     expect(state.tiles[0]).toMatchObject({ format: ImageFormat.G_IM_FMT_CI, size: ImageSize.G_IM_SIZ_4b });
     expect(state.primColor).toBe(0x12345678);
@@ -277,19 +277,19 @@ describe('headless graphics execution', () => {
     startRSPTask(emulator);
     setGraphicsCommands(emulator, [[0xfb000000, 0xabcdef01], [0xdf000000, 0]]);
     startRSPTask(emulator);
-    expect(emulator.hardware.headlessGraphics.state).toMatchObject({ primColor: 0x12345678, envColor: 0xabcdef01, pc: 0 });
+    expect(emulator.hardware.graphics.state).toMatchObject({ primColor: 0x12345678, envColor: 0xabcdef01, pc: 0 });
 
     emulator.hardware.reset();
     prepareGraphicsTask(emulator);
     setGraphicsCommands(emulator, [[0xdf000000, 0]]);
     startRSPTask(emulator);
-    expect(emulator.hardware.headlessGraphics.state).toMatchObject({ primColor: 0, envColor: 0, pc: 0 });
+    expect(emulator.hardware.graphics.state).toMatchObject({ primColor: 0, envColor: 0, pc: 0 });
 
     setGraphicsCommands(emulator, [[0xfa000000, 0x87654321], [0xdf000000, 0]]);
     startRSPTask(emulator);
     const fresh = await createEmulator({ executeGraphics: true });
-    expect(fresh.hardware.headlessGraphics.state.primColor).toBe(0);
-    expect(emulator.hardware.headlessGraphics.state.primColor).toBe(0x87654321);
+    expect(fresh.hardware.graphics.state.primColor).toBe(0);
+    expect(emulator.hardware.graphics.state.primColor).toBe(0x87654321);
   });
 
   test('keeps default, LLE, and audio tasks out of headless HLE execution', async () => {
@@ -339,7 +339,7 @@ describe('headless graphics execution', () => {
       expect(() => runCycles(emulator, 10)).toThrow(/Unknown display list op/);
       expect(halted).toHaveLength(1);
       expect(emulator.fatalError()).toBe(halted[0]);
-      expect(hardware.headlessGraphics.state.primColor).toBe(0);
+      expect(hardware.graphics.state.primColor).toBe(0);
       expect(hardware.sp_reg.getU32(SP_STATUS_REG) & SP_STATUS_TASKDONE).toBe(0);
       expect(hardware.mi_reg.getU32(MI_INTR_REG) & MI_INTR_DP).toBe(0);
     } finally {
