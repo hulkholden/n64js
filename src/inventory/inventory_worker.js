@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
-import { createHeadlessEmulator, loadROMFile } from './headless_env.js';
+import { createHeadlessEmulator, loadROMFile } from '../headless_env.js';
 import { createInputDriver, createRandom } from './inventory_input.js';
-import { ImageFormat } from './hle/gbi.js';
+import { ImageFormat } from '../hle/gbi.js';
 
 // This process may block inside emulation. The CLI owns the wall-clock timeout
 // and retains the last checkpoint received before terminating this process.

@@ -5,7 +5,7 @@ import { mkdir, open, readFile, readdir, rename, stat, unlink } from 'node:fs/pr
 import { dirname, extname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual, parseArgs } from 'node:util';
-import { fixRomByteOrder } from './endian.js';
+import { fixRomByteOrder } from '../endian.js';
 import { emulatorVersion, inventoryOptions, inventorySettings, runInventory } from './inventory_runner.js';
 
 // Conventional shell exit statuses: 128 + signal number (SIGINT = 2, SIGTERM = 15).
@@ -84,7 +84,7 @@ async function discover(inputs) {
 }
 
 async function sourceHash() {
-  const root = fileURLToPath(new URL('../', import.meta.url));
+  const root = fileURLToPath(new URL('../../', import.meta.url));
   const files = (await directoryFiles(join(root, 'src'))).filter(path => path.endsWith('.js') && !path.endsWith('.test.js'));
   files.push(join(root, 'package.json'), join(root, 'bun.lock'));
   const hash = createHash('sha256');
