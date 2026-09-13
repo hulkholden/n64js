@@ -16,8 +16,8 @@ function execute(word, compiled, delay = false) {
   cpu.reset();
   cpu.setControlU32(regs.controlStatus, 0);
   cpu.pc = pc;
-  cpu.delayPC = delay ? pc + 0x80 : 0;
-  cpu.nextPC = cpu.delayPC || pc + 4;
+  cpu.delayPC = delay ? pc + 0x80 : null;
+  cpu.nextPC = cpu.delayPC ?? pc + 4;
   cpu.setRegU64(2, 0x123456789abcdef0n);
   cpu.setControlU32(regs.controlEPC, pc + 0x100);
   n64js.getSyncFlow = () => null;

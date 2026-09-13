@@ -366,9 +366,10 @@ export class CPU0 {
     this.lastControlRegWrite = 0n;
 
     this.pc = 0;
-    this.delayPC = 0;
+    // Null means no pending branch; virtual address zero is a valid target.
+    this.delayPC = null;
     this.nextPC = 0; // Set to the next expected PC before an op executes. Ops can update this to change control flow without branch delay (e.g. likely branches, ERET)
-    this.branchTarget = 0; // Set to indicate a branch has been taken. Sets the delayPC for the subsequent op.
+    this.branchTarget = null; // Set to indicate a branch has been taken. Sets the delayPC for the subsequent op.
 
     this.llBit = 0;  // Load Linked bit.
 
@@ -560,9 +561,9 @@ export class CPU0 {
     }
 
     this.pc = 0;
-    this.delayPC = 0;
+    this.delayPC = null;
     this.nextPC = 0;
-    this.branchTarget = 0;
+    this.branchTarget = null;
 
     this.stuffToDo = 0;
 
@@ -805,12 +806,12 @@ export class CPU0 {
           const signedPC = this.pc | 0;   
 
           // NB: set nextPC before the call to readMemoryS32. If this throws an exception, we need nextPC to be set up correctly.
-          this.nextPC = this.delayPC || this.pc + 4;
+          this.nextPC = this.delayPC ?? this.pc + 4;
 
           // The load may raise an EmulatedException either via alignment or TLB exceptions.
           let instruction = memaccess.loadU32fast(signedPC);
 
-          this.branchTarget = 0;
+          this.branchTarget = null;
           executeOp(instruction);
 
           this.pc = this.nextPC;
@@ -849,8 +850,8 @@ export class CPU0 {
 
   handleEmulatedException() {
     this.pc = this.nextPC;
-    this.delayPC = 0;
-    this.branchTarget = 0;
+    this.delayPC = null;
+    this.branchTarget = null;
     this.incrementCount(1);
     this.eventQueue.incrementCount(1);
   }
@@ -1013,7 +1014,7 @@ export class CPU0 {
     this.maskControlBits32(cpu0reg.controlCause, mask, exception);
     this.setControlBits32(cpu0reg.controlStatus, SR_EXL);
 
-    if (this.delayPC) {
+    if (this.delayPC !== null) {
       this.setControlBits32(cpu0reg.controlCause, CAUSE_BD);
       this.setControlS32Extend(cpu0reg.controlEPC, this.pc - 4);
     } else {
@@ -1028,7 +1029,7 @@ export class CPU0 {
       this.raiseException(CAUSE_EXCMASK, cpu0reg.causeExcCodeInt << cpu0reg.causeExcShift, E_VEC);
       // This is handled outside of the main dispatch loop, so need to update pc directly.
       this.pc = E_VEC;
-      this.delayPC = 0;
+      this.delayPC = null;
 
     } else {
       assert(false, "Was expecting an unmasked interrupt - something wrong with kStuffToDoCheckInterrupts?");

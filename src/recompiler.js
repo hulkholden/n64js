@@ -180,17 +180,17 @@ function generateStandardPCUpdate(fn, ctx, might_adjust_next_pc) {
 
   if (ctx.needsDelayCheck) {
     // We should probably assert on this - two branch instructions back-to-back is weird, but the flag could just be set because of a generic op
-    code += `if (c.delayPC) { c.nextPC = c.delayPC; c.delayPC = 0; } else { c.nextPC = ${toString32(ctx.pc + 4)}; }\n`;
+    code += `if (c.delayPC !== null) { c.nextPC = c.delayPC; c.delayPC = null; } else { c.nextPC = ${toString32(ctx.pc + 4)}; }\n`;
     code += addNewlines(fn);
     code += 'c.pc = c.nextPC;\n';
   } else if (might_adjust_next_pc) {
     // If the branch op might manipulate nextPC, we need to ensure that it's set to the correct value
-    code += ctx.genAssert('c.delayPC === 0', 'delay pc should be zero');
+    code += ctx.genAssert('c.delayPC === null', 'delay pc should be null');
     code += `c.nextPC = ${toString32(ctx.pc + 4)};\n`;
     code += addNewlines(fn);
     code += 'c.pc = c.nextPC;\n';
   } else {
-    code += ctx.genAssert('c.delayPC === 0', 'delay pc should be zero');
+    code += ctx.genAssert('c.delayPC === null', 'delay pc should be null');
     code += addNewlines(fn);
     code += `c.pc = ${toString32(ctx.pc + 4)};\n`;
   }
@@ -203,12 +203,12 @@ function generateGenericOpBoilerplate(fn, ctx) {
   code += ctx.genAssert(`c.pc === ${toString32(ctx.pc)}`, 'pc mismatch');
 
   if (ctx.needsDelayCheck) {
-    code += `c.nextPC = c.delayPC || ${toString32(ctx.pc + 4)};\n`;
+    code += `c.nextPC = c.delayPC ?? ${toString32(ctx.pc + 4)};\n`;
   } else {
-    code += ctx.genAssert('c.delayPC === 0', 'delay pc should be zero');
+    code += ctx.genAssert('c.delayPC === null', 'delay pc should be null');
     code += `c.nextPC = ${toString32(ctx.pc + 4)};\n`;
   }
-  code += 'c.branchTarget = 0;\n';
+  code += 'c.branchTarget = null;\n';
   code += addNewlines(fn);
   code += 'c.pc = c.nextPC;\n';
   code += 'c.delayPC = c.branchTarget;\n';
@@ -239,7 +239,7 @@ function generateMemoryAccessBoilerplate(fn, ctx) {
   code += generateStandardPCUpdate(fn, ctx, might_adjust_next_pc);
 
   // Memory instructions never cause a branch delay
-  code += ctx.genAssert('c.delayPC === 0', 'delay pc should be zero');
+  code += ctx.genAssert('c.delayPC === null', 'delay pc should be null');
   ctx.needsDelayCheck = false;
 
   if (kAccurateCountUpdating) {
@@ -307,11 +307,11 @@ function generateTrivialOpBoilerplate(fn, ctx) {
 
   // NB: do delay handler after executing op, so we can set pc directly
   if (ctx.needsDelayCheck) {
-    code += `if (c.delayPC) { c.pc = c.delayPC; c.delayPC = 0; } else { c.pc = ${toString32(ctx.pc + 4)}; }\n`;
+    code += `if (c.delayPC !== null) { c.pc = c.delayPC; c.delayPC = null; } else { c.pc = ${toString32(ctx.pc + 4)}; }\n`;
     // Might happen: delay op from previous instruction takes effect
     code += `if (c.pc !== ${toString32(ctx.postPC)}) { return ${ctx.fragment.opsCompiled}; }\n`;
   } else {
-    code += ctx.genAssert('c.delayPC === 0', 'delay pc should be zero');
+    code += ctx.genAssert('c.delayPC === null', 'delay pc should be null');
 
     // We can avoid off-branch checks in this case.
     const expectedPC = ctx.pc + 4;
@@ -329,7 +329,7 @@ function generateTrivialOpBoilerplate(fn, ctx) {
   }
 
   // Trivial instructions never cause a branch delay
-  code += ctx.genAssert('c.delayPC === 0', 'delay pc should be zero');
+  code += ctx.genAssert('c.delayPC === null', 'delay pc should be null');
   ctx.needsDelayCheck = false;
 
   // Trivial instructions never cause stuffToDo to be set

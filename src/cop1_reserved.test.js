@@ -31,8 +31,8 @@ function execute(word, compiled, usable, delay) {
   c.setControlU32(regs.controlStatus, usable ? 0x20000000 : 0);
   c.cop1ControlChanged();
   c.pc = pc;
-  c.delayPC = delay ? pc + 0x80 : 0;
-  c.nextPC = c.delayPC || pc + 4;
+  c.delayPC = delay ? pc + 0x80 : null;
+  c.nextPC = c.delayPC ?? pc + 4;
   fpu.control[31] = 0;
   n64js.getSyncFlow = () => null;
   if (compiled) {
