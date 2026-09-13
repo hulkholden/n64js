@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { createHeadlessEmulator, loadROMFile } from './headless_env.js';
 import { createInputDriver, createRandom } from './inventory_input.js';
+import { ImageFormat } from './hle/gbi.js';
 
 // This process may block inside emulation. The CLI owns the wall-clock timeout
 // and retains the last checkpoint received before terminating this process.
@@ -14,6 +15,7 @@ let tasks = 0;
 const taskMicrocodes = new Map();
 let loads = 0;
 const loadedMicrocodes = new Map();
+const textureFormats = new Map();
 
 function cyclesExecuted() {
   if (!collecting) return 0;
@@ -41,6 +43,11 @@ function snapshot() {
         scope: 'hle-load',
         loads,
         microcodes: [...loadedMicrocodes.values()],
+      },
+      'graphics.textureFormats': {
+        version: 1,
+        scope: 'hle-draw',
+        formats: [...textureFormats.values()],
       },
     } : {},
   };
@@ -83,6 +90,13 @@ try {
         record.loads++;
       } else {
         loadedMicrocodes.set(key, { ...info, loads: 1 });
+      }
+    },
+    onTextureUse: info => {
+      const key = `${info.format}:${info.size}`;
+      if (!textureFormats.has(key)) {
+        const format = ImageFormat.nameOf(info.format).replace('G_IM_FMT_', '');
+        textureFormats.set(key, { ...info, name: `${format}${4 << info.size}` });
       }
     },
     onWarning: message => console.error(message),

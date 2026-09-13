@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createInputDriver, createRandom } from './inventory_input.js';
+import { CycleType, ImageFormat, ImageSize } from './hle/gbi.js';
 
 const cli = fileURLToPath(new URL('./inventory.js', import.meta.url));
 
@@ -57,6 +58,22 @@ function makeROM({ vi = false, graphics = 'end', rewriteCount = false } = {}) {
       [0xdd000000 | (gbi1Size - 1), 0x80004000], // GBI2 -> GBI1.
       [0xb4000000, 0x80002000],
       [0xaf000000 | (versionSize - 1), 0x80001000], // GBI1 -> GBI2.
+      [0xdf000000, 0],
+    ];
+  }
+  if (graphics === 'textures') {
+    const tile = (index, format, size, line = 1) => [0xf5000000 | (format << 21) | (size << 19) | (line << 9), index << 24];
+    commands = [
+      tile(0, ImageFormat.G_IM_FMT_CI, ImageSize.G_IM_SIZ_8b), // Replaced before drawing.
+      tile(0, ImageFormat.G_IM_FMT_CI, ImageSize.G_IM_SIZ_4b),
+      tile(1, ImageFormat.G_IM_FMT_RGBA, ImageSize.G_IM_SIZ_16b),
+      tile(2, ImageFormat.G_IM_FMT_I, ImageSize.G_IM_SIZ_8b), // Never selected.
+      tile(3, ImageFormat.G_IM_FMT_IA, ImageSize.G_IM_SIZ_8b, 0), // Empty tile.
+      [0xef000000 | CycleType.G_CYC_2CYCLE, 0],
+      [0xe4020020, 0], [0xe1000000, 0], [0xf1000000, 0x04000400],
+      [0xe5020020, 0], [0xe1000000, 0], [0xf1000000, 0x04000400],
+      [0xef000000 | CycleType.G_CYC_1CYCLE, 0],
+      [0xe4020020, 3 << 24], [0xe1000000, 0], [0xf1000000, 0x04000400],
       [0xdf000000, 0],
     ];
   }
@@ -165,6 +182,24 @@ describe('inventory command', () => {
     });
   });
 
+  test('collects distinct formats used by draws, excluding unused and empty tiles', async () => {
+    await withDirectory(async directory => {
+      await Bun.write(join(directory, 'textures.z64'), makeROM({ vi: true, graphics: 'textures' }));
+      for (let run = 0; run < 2; run++) {
+        const result = await invoke(directory, ['textures.z64', '--frames', '1']);
+        expect(result.code).toBe(0);
+        expect(JSON.parse(result.stdout).collectors['graphics.textureFormats']).toEqual({
+          version: 1,
+          scope: 'hle-draw',
+          formats: [
+            { format: ImageFormat.G_IM_FMT_CI, size: ImageSize.G_IM_SIZ_4b, name: 'CI4' },
+            { format: ImageFormat.G_IM_FMT_RGBA, size: ImageSize.G_IM_SIZ_16b, name: 'RGBA16' },
+          ],
+        });
+      }
+    });
+  });
+
   test('enforces the cycle limit through guest COUNT writes and skipped idle loops', async () => {
     await withDirectory(async directory => {
       for (const options of [{ rewriteCount: true }, { vi: true }]) {
@@ -200,6 +235,7 @@ describe('inventory command', () => {
       expect(empty.code).toBe(0);
       expect(JSON.parse(empty.stdout).collectors['graphics.taskMicrocodes']).toMatchObject({ version: 1, tasks: 0, microcodes: [] });
       expect(JSON.parse(empty.stdout).collectors['graphics.microcodeLoads']).toMatchObject({ version: 1, loads: 0, microcodes: [] });
+      expect(JSON.parse(empty.stdout).collectors['graphics.textureFormats']).toEqual({ version: 1, scope: 'hle-draw', formats: [] });
       await Bun.write(join(directory, 'test.z64'), makeROM({ graphics: 'invalid' }));
       const halted = await invoke(directory, ['test.z64']);
       expect(halted.code).toBe(2);
@@ -208,6 +244,7 @@ describe('inventory command', () => {
       expect(report.result.message).toBeTruthy();
       expect(report.collectors['graphics.taskMicrocodes'].tasks).toBe(1);
       expect(report.collectors['graphics.microcodeLoads'].loads).toBe(1);
+      expect(report.collectors['graphics.textureFormats'].formats).toEqual([]);
     });
   });
 

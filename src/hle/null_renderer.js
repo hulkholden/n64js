@@ -13,11 +13,14 @@ export class NullRenderer extends RendererBase {
   clearDepth() {}
   clearColor() {}
   fillRect() {}
-  texRect() {}
-  texRectRot() {}
-  lleRect() {}
+  texRect(tileIdx) { this.observeTextureUse(tileIdx); }
+  texRectRot(tileIdx) { this.observeTextureUse(tileIdx); }
+  lleRect(tileIdx) { this.observeTextureUse(tileIdx); }
 
   flushTris(buffer) {
+    if (!buffer.empty() && this.state.geometryMode.texture) {
+      this.observeTextureUse(this.state.texture.tile);
+    }
     buffer.reset();
   }
 }

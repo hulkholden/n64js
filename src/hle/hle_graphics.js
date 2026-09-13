@@ -119,6 +119,7 @@ function processDList(task, disassembler, bailAfter) {
 
   const hardware = n64js.hardware();
   const ramDV = hardware.cachedMemDevice.mem.dataView
+  renderer.onTextureUse = hardware.onTextureUse;
   state.reset(ramDV, task.dataPtr);
   const microcode = initMicrocode(task, ramDV, hardware.onMicrocodeLoad);
 
