@@ -68,7 +68,7 @@ try {
     bytes: loadedROM.romBuffer.byteLength,
   };
   checkpoint();
-  const updateInput = createInputDriver(settings.seed);
+  const updateInput = createInputDriver(settings.seed, settings.inputPolicy.script);
   emulator = await createHeadlessEmulator(loadedROM, {
     executeGraphics: true,
     onVerticalBlank: frame => updateInput(frame, emulator.inputs[0]),

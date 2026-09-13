@@ -6,7 +6,8 @@ import { dirname, extname, isAbsolute, join, relative, resolve } from 'node:path
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual, parseArgs } from 'node:util';
 import { fixRomByteOrder } from '../endian.js';
-import { emulatorVersion, inventoryOptions, inventorySettings, runInventory } from './inventory_runner.js';
+import { emulatorVersion, inventoryOptions, inventorySettings, loadInputScript, runInventory } from './inventory_runner.js';
+import { inputScriptHelp } from './inventory_input.js';
 
 // Conventional shell exit statuses: 128 + signal number (SIGINT = 2, SIGTERM = 15).
 const EXIT_CODE_SIGINT = 130;
@@ -21,6 +22,7 @@ const usage = `Usage: bun run inventory-batch <rom-or-directory>... --output-dir
   --frames <count>     VI retraces per ROM (default: 600)
   --max-cycles <n>     CPU cycle limit per ROM (default: 5000000000)
   --timeout-ms <ms>    Wall-clock limit per emulator run (default: 60000)
+  --input-script <path> JSON menu sequence applied to every ROM and seed
   --help              Show this help
 
 Directories are searched recursively for .z64, .v64 and .n64 files. Directory
@@ -39,7 +41,10 @@ save progress and stop the active worker. After an ungraceful termination, remov
 the scan's .lock file only after confirming no batch process is still using it.
 
 Exit codes: 0 all ROMs completed; 1 scan finished with ROM failures; 2 command or
-storage error; ${EXIT_CODE_SIGINT} interrupted by SIGINT; ${EXIT_CODE_SIGTERM} interrupted by SIGTERM.`;
+storage error; ${EXIT_CODE_SIGINT} interrupted by SIGINT; ${EXIT_CODE_SIGTERM} interrupted by SIGTERM.
+
+${inputScriptHelp}
+Batch manifests embed the script; --resume does not read the original file.`;
 
 const terminal = new Set(['completed', 'cycle-limit', 'timeout', 'halted', 'error']);
 
@@ -139,7 +144,7 @@ function validateManifest(manifest) {
   const expected = inventorySettings({
     seed: String(settings.seed), frames: String(settings.frames),
     'max-cycles': String(settings.maxCycles), 'timeout-ms': String(settings.timeoutMs),
-  });
+  }, settings.inputPolicy?.script);
   if (!isDeepStrictEqual(settings, expected)) throw new Error('Scan settings or input policy changed; start a new scan');
   for (const [index, entry] of manifest.entries.entries()) {
     if (typeof entry.path !== 'string' || !isAbsolute(entry.path) ||
@@ -276,7 +281,8 @@ try {
     process.exitCode = await scanAll([...new Set(values.resume.map(path => resolve(path)))]);
   } else {
     if (!values['output-dir'] || !positionals.length) throw new Error('Expected ROM paths/directories and --output-dir');
-    const settings = (values.seed ?? ['1']).map(seed => inventorySettings({ ...values, seed }));
+    const script = await loadInputScript(values['input-script']);
+    const settings = (values.seed ?? ['1']).map(seed => inventorySettings({ ...values, seed }, script));
     const uniqueSettings = [...new Map(settings.map(value => [value.seed, value])).values()];
     const paths = await discover(positionals);
     const directories = await createScans(values['output-dir'], paths, uniqueSettings);
