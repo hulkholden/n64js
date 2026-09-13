@@ -147,7 +147,11 @@ export function hleProcessRSPTask() {
         task.detectVersionString(), task.computeMicrocodeHash()));
       if (graphicsOptions.emulationMode == 'HLE') {
         const ev = hardware.timeline.startEvent(`HLE Task ${task.detectVersionString()}`);
-        hleGraphics(task);
+        if (hardware.headless) {
+          hardware.headlessGraphics?.processTask(task);
+        } else {
+          hleGraphics(task);
+        }
         hardware.miRegDevice.interruptDP();
         if (ev) {
           ev.stop();
