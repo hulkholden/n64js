@@ -250,6 +250,9 @@ export class ROMD2A2Device extends Device {
 
     readU32(address) {
         const ea = this.calcWriteEA(address);
+        if (this.hardware.saveType === 'SRAM' && ea + 4 <= this.hardware.saveMem.length) {
+            return this.hardware.saveMem.getU32(ea);
+        }
         if (ea >= 0x88000) {
             return unmappedAddressValue(address);
         }
@@ -265,6 +268,11 @@ export class ROMD2A2Device extends Device {
 
     write32(address, value) {
         const ea = this.calcWriteEA(address);
+        if (this.hardware.saveType === 'SRAM' && ea + 4 <= this.hardware.saveMem.length) {
+            this.hardware.saveMem.set32(ea, value);
+            this.hardware.saveDirty = true;
+            return;
+        }
         if (this.hasFlashRam()) {
             // Ignore writes to the status register.
             if (ea != 0) {
