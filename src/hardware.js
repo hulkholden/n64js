@@ -232,6 +232,7 @@ export class Hardware {
       case 'Eeprom4k': return 4 * 1024 / 8;
       case 'Eeprom16k': return 16 * 1024 / 8;
       case 'SRAM': return 32 * 1024;
+      case 'SRAM96k': return 96 * 1024;
       case 'FlashRam': return 128 * 1024;
     }
     if (this.saveType) {

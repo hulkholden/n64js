@@ -181,8 +181,17 @@ export class PIRegDevice extends Device {
     }
 
     if (isDom2Addr2(cartAddr)) {
-      if (isFlashDomAddr(cartAddr)) {
+      if (isFlashDomAddr(cartAddr) || this.hardware.saveType === 'SRAM96k') {
         switch (this.hardware.saveType) {
+          case 'SRAM96k':
+            dstOffset = this.hardware.romD2A2Device.sramOffset(cartAddr - PI_DOM2_ADDR2, transferLen);
+            if (dstOffset < 0) {
+              n64js.halt(`PI: ram->cart DMA outside SRAM bank: ${toString32(cartAddr)}`);
+              return;
+            }
+            dst = this.hardware.saveMem;
+            this.hardware.saveDirty = true;
+            break;
           case 'SRAM':
             dst = this.hardware.saveMem;
             dstOffset = cartAddr - PI_DOM2_ADDR2;
@@ -266,9 +275,17 @@ export class PIRegDevice extends Device {
     } else if (isDom2Addr1(cartAddr)) {
       n64js.halt('PI: dom2addr1 transfer is unhandled (save)');
     } else if (isDom2Addr2(cartAddr)) {
-      if (isFlashDomAddr(cartAddr)) {
+      if (isFlashDomAddr(cartAddr) || this.hardware.saveType === 'SRAM96k') {
         srcOffset = cartAddr - PI_DOM2_ADDR2;
         switch (this.hardware.saveType) {
+          case 'SRAM96k':
+            srcOffset = this.hardware.romD2A2Device.sramOffset(srcOffset, cartTransferLen);
+            if (srcOffset < 0) {
+              n64js.halt(`PI: cart->ram DMA outside SRAM bank: ${toString32(cartAddr)}`);
+              return;
+            }
+            src = this.hardware.saveMem;
+            break;
           case 'SRAM':
             src = this.hardware.saveMem;
             break;

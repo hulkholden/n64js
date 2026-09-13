@@ -194,7 +194,7 @@ export const romdb = {
   '614ac517e7f2834a': {name:"Densha de GO! 64",                                           save:'SRAM'       },
   'a284e5de8711160f': {name:"Destruction Derby 64"                                                          },
   '7da30a63dbd76b89': {name:"Destruction Derby 64"                                                          },
-  '9c167989a0f689f1': {name:"Dezaemon 3D",                                                save:'SRAM'       },
+  '9c167989a0f689f1': {name:"Dezaemon 3D",                                                save:'SRAM96k'    },
   '725629d51570b59c': {name:"Diddy Kong CRACKED",                                         save:'Eeprom4k'   },
   '5aa389f362557817': {name:"Diddy Kong Racing",                                          save:'Eeprom4k'   },
   'e740d45311b01975': {name:"Diddy Kong Racing (v1.0)",                                   save:'Eeprom4k'   },
