@@ -14,7 +14,8 @@
     "headless": "bun run ./src/headless.js",
     "inventory": "bun run ./src/inventory/inventory.js",
     "inventory-batch": "bun run ./src/inventory/inventory_batch.js",
-    "inventory-query": "bun run ./src/inventory/inventory_query.js"
+    "inventory-query": "bun run ./src/inventory/inventory_query.js",
+    "inventory-summary": "bun run ./src/inventory/inventory_summary.js"
   },
   "repository": {
     "type": "git",
