@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createInputDriver, createRandom } from './inventory_input.js';
-import { CycleType, ImageFormat, ImageSize } from './hle/gbi.js';
+import { CycleType, ImageFormat, ImageSize } from '../hle/gbi.js';
 
 const cli = fileURLToPath(new URL('./inventory.js', import.meta.url));
 const batchCLI = fileURLToPath(new URL('./inventory_batch.js', import.meta.url));

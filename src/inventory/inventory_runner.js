@@ -28,7 +28,7 @@ function integer(value, name, minimum, maximum = Number.MAX_SAFE_INTEGER) {
 }
 
 export function emulatorVersion() {
-  const cwd = fileURLToPath(new URL('../', import.meta.url));
+  const cwd = fileURLToPath(new URL('../../', import.meta.url));
   const git = args => spawnSync('git', args, { cwd, encoding: 'utf8' });
   const revision = git(['rev-parse', 'HEAD']);
   const changes = git(['status', '--porcelain']);
