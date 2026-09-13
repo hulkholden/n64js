@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, readdir, realpath, rm, stat, symlink } from 'node:fs/promises';
+import { link, mkdtemp, readFile, readdir, realpath, rm, stat, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -409,6 +409,114 @@ describe('inventory batch command', () => {
 });
 
 describe('inventory command', () => {
+  test('replays saved settings from boot across ROM byte orders and retains original provenance', async () => {
+    await withDirectory(async directory => {
+      const rom = makeROM({ vi: true, waitForInput: true });
+      await Bun.write(join(directory, 'test.z64'), rom);
+      const script = { version: 1, steps: [{ frames: 2 }, { frames: 3, buttons: ['START'], stickX: 80, stickY: -48 }] };
+      await Bun.write(join(directory, 'menu.json'), JSON.stringify(script));
+      const first = await invoke(directory, ['test.z64', '--seed', '123', '--frames', '5', '--max-cycles', '10000000', '--timeout-ms', '5000', '--input-script', 'menu.json']);
+      expect(first.code).toBe(0);
+      const expected = JSON.parse(first.stdout);
+      const original = structuredClone(expected);
+      original.emulator = { revision: 'a'.repeat(40), dirty: false, runtime: 'bun', runtimeVersion: 'old-runtime' };
+      original.result = { ...original.result, status: 'timeout', frames: 2, checkpointOnly: true };
+      const saved = JSON.stringify(original, null, 2) + '\n';
+      await Bun.write(join(directory, 'original.json'), saved);
+      await rm(join(directory, 'menu.json'));
+      await rm(join(directory, 'test.z64'));
+      const swapped = rom.slice();
+      for (let offset = 0; offset < swapped.length; offset += 2) {
+        [swapped[offset], swapped[offset + 1]] = [swapped[offset + 1], swapped[offset]];
+      }
+      await Bun.write(join(directory, 'moved.v64'), swapped);
+
+      const result = await invoke(directory, ['moved.v64', '--replay', 'original.json', '--output', 'replayed.json']);
+      expect(result.code).toBe(0);
+      expect(result.stdout).toBe('');
+      const report = await Bun.file(join(directory, 'replayed.json')).json();
+      expect(report).toMatchObject({ rom: expected.rom, settings: expected.settings, result: expected.result, collectors: expected.collectors });
+      expect(report.emulator).toEqual(expected.emulator);
+      expect(report.collectors['graphics.taskMicrocodes'].tasks).toBe(2);
+      expect(report.replayOf).toEqual({
+        reportSha256: createHash('sha256').update(saved).digest('hex'),
+        romSha256: original.rom.sha256, emulator: original.emulator,
+      });
+      expect(await readFile(join(directory, 'original.json'), 'utf8')).toBe(saved);
+      const query = await invoke(directory, ['replayed.json', '--microcode', 'GBI2'], queryCLI);
+      expect(JSON.parse(query.stdout).matches[0].replayOf).toEqual(report.replayOf);
+    });
+  });
+
+  test('rejects a different ROM before executing its code', async () => {
+    await withDirectory(async directory => {
+      await Bun.write(join(directory, 'test.z64'), makeROM({ vi: true }));
+      const first = await invoke(directory, ['test.z64', '--frames', '1', '--output', 'original.json']);
+      expect(first.code).toBe(0);
+      const original = await Bun.file(join(directory, 'original.json')).json();
+      const other = makeROM({ vi: true, graphics: 'textures' });
+      await Bun.write(join(directory, 'other.z64'), other);
+      const result = await invoke(directory, ['other.z64', '--replay', 'original.json']);
+      expect(result.code).toBe(2);
+      const report = JSON.parse(result.stdout);
+      expect(report.result).toMatchObject({ status: 'error', frames: 0, cycles: 0, message: 'ROM SHA-256 does not match the replay report' });
+      expect(report.collectors).toEqual({});
+      expect(report.rom.sha256).toBe(createHash('sha256').update(other).digest('hex'));
+      expect(report.replayOf.romSha256).toBe(original.rom.sha256);
+    });
+  });
+
+  test('rejects unsupported replay settings and conflicting overrides before running', async () => {
+    await withDirectory(async directory => {
+      await Bun.write(join(directory, 'test.z64'), makeROM({ vi: true }));
+      const first = await invoke(directory, ['test.z64', '--frames', '1']);
+      expect(first.code).toBe(0);
+      const original = JSON.parse(first.stdout);
+      for (const change of [
+        report => { report.schemaVersion = 2; },
+        report => { report.rom = null; },
+        report => { report.settings.randomAlgorithm = 'unknown'; },
+        report => { report.settings.inputPolicy.version = 2; },
+        report => { report.settings.timeoutMs = 0; },
+        report => { report.settings.newOption = true; },
+      ]) {
+        const report = structuredClone(original);
+        change(report);
+        await Bun.write(join(directory, 'original.json'), JSON.stringify(report));
+        const result = await invoke(directory, ['test.z64', '--replay', 'original.json']);
+        expect(result.code).toBe(2);
+        expect(result.stdout).toBe('');
+      }
+      await Bun.write(join(directory, 'original.json'), first.stdout);
+      for (const option of ['--seed', '--frames', '--max-cycles', '--timeout-ms', '--input-script']) {
+        const result = await invoke(directory, ['test.z64', '--replay', 'original.json', option, '1']);
+        expect(result.code).toBe(2);
+        expect(result.stderr).toContain('--replay cannot be combined');
+        expect(result.stdout).toBe('');
+      }
+      expect(await readFile(join(directory, 'original.json'), 'utf8')).toBe(first.stdout);
+    });
+  });
+
+  test('protects replay reports from output paths that name or alias them', async () => {
+    await withDirectory(async directory => {
+      await Bun.write(join(directory, 'test.z64'), makeROM({ vi: true }));
+      const first = await invoke(directory, ['test.z64', '--frames', '1', '--output', 'original.json']);
+      expect(first.code).toBe(0);
+      const originalPath = join(directory, 'original.json');
+      const original = await readFile(originalPath, 'utf8');
+      await symlink(originalPath, join(directory, 'symlink.json'));
+      await link(originalPath, join(directory, 'hardlink.json'));
+      for (const output of ['original.json', 'symlink.json', 'hardlink.json']) {
+        const result = await invoke(directory, ['test.z64', '--replay', 'original.json', '--output', output]);
+        expect(result.code).toBe(2);
+        expect(result.stderr).toContain('must not overwrite the replay report');
+        expect(result.stdout).toBe('');
+        expect(await readFile(originalPath, 'utf8')).toBe(original);
+      }
+    });
+  });
+
   test('uses scripted controller input to reach graphics and honors the total frame limit', async () => {
     await withDirectory(async directory => {
       await Bun.write(join(directory, 'test.z64'), makeROM({ vi: true, waitForInput: true }));

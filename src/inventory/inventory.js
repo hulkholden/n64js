@@ -5,13 +5,16 @@ import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { inventoryOptions, inventorySettings, loadInputScript, runInventory } from './inventory_runner.js';
 import { inputScriptHelp } from './inventory_input.js';
+import { loadReplayReport } from './inventory_replay.js';
 
 const usage = `Usage: bun run inventory <rom-path> [options]
+       bun run inventory <rom-path> --replay <report.json> [--output <path>]
   --seed <uint32>       Random seed (default: 1)
   --frames <count>      VI retraces to run (default: 600)
   --max-cycles <count>  CPU cycle limit (default: 5000000000)
   --timeout-ms <ms>     Wall-clock limit including ROM startup (default: 60000)
   --input-script <path> JSON menu sequence before seeded random input
+  --replay <path>       Replay saved settings with the current emulator code
   --output <path>       JSON report destination (default: stdout; '-' also works)
   --help               Show this help
 
@@ -20,7 +23,26 @@ Exit codes: 0 completed; 2 invalid arguments or emulation error; 3 cycle limit;
 collectors report task starts and HLE loads, including in-list switches.
 Texture formats describe tiles selected by HLE draws, not visible pixels.
 
+Replay starts from boot using the report's seed, limits and embedded input script.
+The supplied ROM must have the same canonical SHA-256 (other byte orders work).
+Settings options cannot be combined with --replay. Unsupported settings/policies
+are rejected. The new report records current emulator provenance and replayOf
+identifies the original report bytes and emulator. Code/runtime changes and
+wall-clock limits can change the outcome. The original report is never overwritten.
+
 ${inputScriptHelp}`;
+
+async function checkOutput(output, inputs) {
+  if (!output) throw new Error('Output path must not be empty');
+  if (output === '-') return;
+  const destination = await stat(output).catch(() => null);
+  for (const [path, label] of inputs) {
+    const source = await stat(path).catch(() => null);
+    if (resolve(output) === resolve(path) || (source && destination && source.dev === destination.dev && source.ino === destination.ino)) {
+      throw new Error(`Output path must not overwrite the ${label}`);
+    }
+  }
+}
 
 try {
   const { values, positionals } = parseArgs({
@@ -28,6 +50,7 @@ try {
     allowPositionals: true,
     options: {
       ...inventoryOptions,
+      replay: { type: 'string' },
       output: { type: 'string', default: '-' },
       help: { type: 'boolean' },
     },
@@ -36,19 +59,16 @@ try {
     console.log(usage);
   } else {
     if (positionals.length !== 1) throw new Error('Expected one ROM path');
-    const settings = inventorySettings(values, await loadInputScript(values['input-script']));
-    if (!values.output) throw new Error('Output path must not be empty');
-    const romPath = resolve(positionals[0]);
-    if (values.output !== '-') {
-      const [source, destination] = await Promise.all([
-        stat(romPath).catch(() => null),
-        stat(values.output).catch(() => null),
-      ]);
-      if (resolve(values.output) === romPath || (source && destination && source.dev === destination.dev && source.ino === destination.ino)) {
-        throw new Error('Output path must not overwrite the ROM');
-      }
+    if (values.replay !== undefined && Object.keys(inventoryOptions).some(key => values[key] !== undefined)) {
+      throw new Error('--replay cannot be combined with inventory settings options');
     }
-    const report = await runInventory(romPath, settings);
+    const replay = values.replay === undefined ? null : await loadReplayReport(values.replay);
+    const settings = replay?.settings ?? inventorySettings(values, await loadInputScript(values['input-script']));
+    const romPath = resolve(positionals[0]);
+    const inputs = [[romPath, 'ROM']];
+    if (replay) inputs.push([values.replay, 'replay report']);
+    await checkOutput(values.output, inputs);
+    const report = await runInventory(romPath, settings, { replayOf: replay?.replayOf });
     const json = JSON.stringify(report, null, 2) + '\n';
     if (values.output === '-') {
       process.stdout.write(json);

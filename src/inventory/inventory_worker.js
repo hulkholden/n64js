@@ -5,7 +5,7 @@ import { ImageFormat } from '../hle/gbi.js';
 
 // This process may block inside emulation. The CLI owns the wall-clock timeout
 // and retains the last checkpoint received before terminating this process.
-const { romPath, settings } = JSON.parse(process.argv[2]);
+const { romPath, settings, expectedRomSha256 } = JSON.parse(process.argv[2]);
 let rom = null;
 let emulator = null;
 let collecting = false;
@@ -67,6 +67,10 @@ try {
     sha256: createHash('sha256').update(new Uint8Array(loadedROM.romBuffer)).digest('hex'),
     bytes: loadedROM.romBuffer.byteLength,
   };
+  // Compare the same canonical bytes that will be used to create the emulator.
+  if (expectedRomSha256 !== undefined && rom.sha256 !== expectedRomSha256) {
+    throw new Error('ROM SHA-256 does not match the replay report');
+  }
   checkpoint();
   const updateInput = createInputDriver(settings.seed, settings.inputPolicy.script);
   emulator = await createHeadlessEmulator(loadedROM, {
