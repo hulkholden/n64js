@@ -9,6 +9,7 @@ import { CycleType, ImageFormat, ImageSize } from '../hle/gbi.js';
 
 const cli = fileURLToPath(new URL('./inventory.js', import.meta.url));
 const batchCLI = fileURLToPath(new URL('./inventory_batch.js', import.meta.url));
+const queryCLI = fileURLToPath(new URL('./inventory_query.js', import.meta.url));
 
 async function invoke(directory, args, command = cli) {
   const child = Bun.spawn([process.execPath, command, ...args], { cwd: directory, stdout: 'pipe', stderr: 'pipe' });
@@ -163,6 +164,13 @@ describe('inventory batch command', () => {
       expect(report.settings).toEqual(manifest.settings);
       expect(report.rom.sha256).toBe(hash);
       expect(report.collectors['graphics.taskMicrocodes'].tasks).toBe(2);
+      const queried = await invoke(directory, [scanDirectory, '--microcode', 'GBI2'], queryCLI);
+      expect(queried.code).toBe(0);
+      const query = JSON.parse(queried.stdout);
+      expect(query.summary).toEqual({ matched: 1, notObserved: 0, unknown: 2, errors: 0 });
+      expect(query.matches[0]).toMatchObject({
+        rom: report.rom, paths: good.map(entry => entry.path), settings: report.settings,
+      });
       for (const entry of bad) {
         expect(await Bun.file(join(scanDirectory, entry.report)).json()).toMatchObject({
           rom: null, collectors: {}, result: { status: 'error' },
