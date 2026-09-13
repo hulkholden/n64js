@@ -1,5 +1,11 @@
 export function encodeArray(bytes) {
-  const binString = String.fromCodePoint(...bytes);
+  // Large saves (128 KiB FlashRAM) exceed browser function argument limits.
+  const chunkSize = 0x8000;
+  let binString = '';
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binString += String.fromCodePoint(...bytes.subarray(i, i + chunkSize));
+  }
+  // Encode once so padding is only added at the end, not between chunks.
   return btoa(binString);
 }
 
