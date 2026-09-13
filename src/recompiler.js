@@ -121,6 +121,16 @@ export function generateCodeForOp(ctx) {
     ctx.delayedPCUpdate = 0;
   }
 
+  // Timer-changing operations, including idle-loop skips, need current event time.
+  if (ctx.bailOut) {
+    fn_code = `c.syncFragmentCycles(${ctx.fragment.opsCompiled - 1});\n${fn_code}`;
+  }
+
+  // If this operation throws, run() must still charge the preceding instructions.
+  if (!ctx.isTrivial) {
+    fn_code = `c.fragmentOps = ${ctx.fragment.opsCompiled - 1};\n${fn_code}`;
+  }
+
   ctx.fragment.needsDelayCheck = ctx.needsDelayCheck;
 
   // code += `if (!checkEqual( loadS32slow(cpu0.pc >>> 0), ${toString32(instruction)}, "unexpected instruction (need to flush icache?)")) { return false; }\n`;
@@ -234,9 +244,15 @@ function generateGenericOpBoilerplate(fn, ctx) {
 // Memory access does not adjust branchTarget, but nextPC may be adjusted if they cause an exception.
 function generateMemoryAccessBoilerplate(fn, ctx) {
   let code = '';
-
-  const might_adjust_next_pc = true;
-  code += generateStandardPCUpdate(fn, ctx, might_adjust_next_pc);
+  code += ctx.genAssert(`c.pc === ${toString32(ctx.pc)}`, 'pc mismatch');
+  if (ctx.needsDelayCheck) {
+    code += `c.nextPC = c.delayPC ?? ${toString32(ctx.pc + 4)};\n`;
+  } else {
+    code += `c.nextPC = ${toString32(ctx.pc + 4)};\n`;
+  }
+  // Keep delayPC until after the access: exceptions use it to set EPC and Cause.BD.
+  code += addNewlines(fn);
+  code += 'c.pc = c.nextPC;\nc.delayPC = null;\n';
 
   // Memory instructions never cause a branch delay
   code += ctx.genAssert('c.delayPC === null', 'delay pc should be null');
@@ -659,12 +675,12 @@ function generateDADDIU(ctx) {
 
 // Cop0
 function generateMFC0(ctx) {
-  const impl = `c.execMFC0(${ctx.instr_rt()}, ${ctx.instr_fs()});`;
+  const impl = generateCop0TimingSync(ctx, false) + `c.execMFC0(${ctx.instr_rt()}, ${ctx.instr_fs()});`;
   return generateGenericOpBoilerplate(impl, ctx);
 }
 
 function generateDMFC0(ctx) {
-  const impl = `c.execDMFC0(${ctx.instr_rt()}, ${ctx.instr_fs()});`;
+  const impl = generateCop0TimingSync(ctx, false) + `c.execDMFC0(${ctx.instr_rt()}, ${ctx.instr_fs()});`;
   return generateGenericOpBoilerplate(impl, ctx);
 }
 
@@ -672,7 +688,7 @@ function generateMTC0(ctx) {
   if (ctx.instr_fs() === cpu0reg.controlStatus) {
     ctx.fragment.cop1statusKnown = false;
   }
-  const impl = `c.execMTC0(${ctx.instr_rt()}, ${ctx.instr_fs()});`;
+  const impl = generateCop0TimingSync(ctx, true) + `c.execMTC0(${ctx.instr_rt()}, ${ctx.instr_fs()});`;
   return generateGenericOpBoilerplate(impl, ctx);
 }
 
@@ -680,8 +696,23 @@ function generateDMTC0(ctx) {
   if (ctx.instr_fs() === cpu0reg.controlStatus) {
     ctx.fragment.cop1statusKnown = false;
   }
-  const impl = `c.execDMTC0(${ctx.instr_rt()}, ${ctx.instr_fs()});`;
+  const impl = generateCop0TimingSync(ctx, true) + `c.execDMTC0(${ctx.instr_rt()}, ${ctx.instr_fs()});`;
   return generateGenericOpBoilerplate(impl, ctx);
+}
+
+function generateCop0TimingSync(ctx, write) {
+  const reg = ctx.instr_fs();
+  if (reg !== cpu0reg.controlCount && !(write && reg === cpu0reg.controlCompare)) {
+    return '';
+  }
+  // Count must include the preceding instructions before it is read or replaced.
+  // Writes can schedule an event inside the remainder of this fragment, so return
+  // after the write and recheck the event deadline before executing more code.
+  if (write) {
+    ctx.bailOut = true;
+    return ''; // The bailout preflight synchronizes both Count and event time.
+  }
+  return `c.syncFragmentCycles(${ctx.fragment.opsCompiled - 1});\n`;
 }
 
 function generateTLB(ctx) {
@@ -1262,7 +1293,7 @@ function generateCFC1(ctx) {
 
 function generateCTC1(ctx) {
   ctx.fragment.usesCop1 = true;
-  ctx.isTrivial = true;
+  ctx.isTrivial = false; // Writing FCSR can raise FPE.
   return `c.execCTC1(${ctx.instr_rt()}, ${ctx.instr_fs()});`;
 }
 

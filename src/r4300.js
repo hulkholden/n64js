@@ -362,6 +362,11 @@ export class CPU0 {
     // (i.e. COUNT increments by 1 for every 2 instructions executed).
     this.controlCountValue = 0;
 
+    // Completed instructions before a potentially throwing compiled operation.
+    // Null means execution is outside a compiled fragment.
+    this.fragmentOps = null;
+    this.fragmentCycles = 0; // Instructions whose Count/event updates were flushed.
+
     // Reads from invalid control registers will use the value last written to any control register.
     this.lastControlRegWrite = 0n;
 
@@ -444,6 +449,22 @@ export class CPU0 {
 
   incrementCount(val) {
     this.controlCountValue += val;
+  }
+
+  syncFragmentCycles(opsExecuted) {
+    const cycles = opsExecuted - this.fragmentCycles;
+    this.fragmentOps = opsExecuted;
+    this.fragmentCycles = opsExecuted;
+    if (!kAccurateCountUpdating) {
+      this.incrementCount(cycles);
+    }
+    this.eventQueue.incrementCount(cycles);
+  }
+
+  finishFragment(opsExecuted) {
+    this.syncFragmentCycles(opsExecuted);
+    this.fragmentOps = null;
+    this.fragmentCycles = 0;
   }
 
   getRegS32Lo(r) { return this.gprS32[r * 2 + 0]; }
@@ -551,6 +572,8 @@ export class CPU0 {
 
   reset() {
     resetFragments();
+    this.fragmentOps = null;
+    this.fragmentCycles = 0;
 
     for (let i = 0; i < 32; ++i) {
       this.gprU64[i] = 0n;
@@ -745,6 +768,14 @@ export class CPU0 {
         this.runImpl();
         break;
       } catch (e) {
+        if (this.fragmentOps !== null) {
+          const completedOps = this.fragmentOps;
+          this.finishFragment(completedOps);
+          if (performanceProfile.enabled) {
+            performanceProfile.counters.fragmentRuns++;
+            performanceProfile.counters.compiledOps += completedOps + (e instanceof EmulatedException ? 1 : 0);
+          }
+        }
         if (e instanceof EmulatedException) {
           // If we hit an emulated exception we apply the nextPC (which should have been set to an exception vector) and continue looping.
           this.handleEmulatedException();
@@ -2512,13 +2543,9 @@ function executeFragment(fragment, cpu0, eventQueue) {
     return null;
   }
   fragment.executionCount++;
+  cpu0.fragmentOps = 0;
   const opsExecuted = fragment.func();
-
-  if (!kAccurateCountUpdating) {
-    cpu0.incrementCount(opsExecuted);
-  }
-  // refresh latest event - may have changed
-  eventQueue.incrementCount(opsExecuted);
+  cpu0.finishFragment(opsExecuted);
 
   return fragment.getNextFragment(cpu0.pc, opsExecuted);
 }
@@ -2529,15 +2556,12 @@ function executeFragmentProfiled(fragment, cpu0, eventQueue) {
     return null;
   }
   fragment.executionCount++;
+  cpu0.fragmentOps = 0;
   const opsExecuted = fragment.func();
   performanceProfile.counters.fragmentRuns++;
   performanceProfile.counters.compiledOps += opsExecuted;
 
-  if (!kAccurateCountUpdating) {
-    cpu0.incrementCount(opsExecuted);
-  }
-  // refresh latest event - may have changed
-  eventQueue.incrementCount(opsExecuted);
+  cpu0.finishFragment(opsExecuted);
 
   return fragment.getNextFragment(cpu0.pc, opsExecuted);
 }
@@ -2575,7 +2599,7 @@ function addOpToFragment(fragment, entry_pc, instruction, c) {
   // TODO: the stuffToDo check won't work for fragments interrupted via exceptions. 
   //       would it be better to just always check if the control flow is as expected?
   const longFragment = fragment.opsCompiled > 8;
-  if ((longFragment && c.pc !== entry_pc + 4) || fragment.opsCompiled >= kFragmentLengthLimit || c.stuffToDo) {
+  if ((longFragment && c.pc !== entry_pc + 4) || fragment.opsCompiled >= kFragmentLengthLimit || c.stuffToDo || fragment.bailedOut) {
     compileFragment(fragment);
     fragment = lookupFragment(c.pc);
   } else {
