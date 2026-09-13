@@ -33,6 +33,7 @@ export class Hardware {
     onVerticalBlank = null,
     onGraphicsTask = null,
     onMicrocodeLoad = null,
+    onTextureUse = null,
   } = {}) {
     // TODO: Not sure this belongs here.
     this.rominfo = rominfo;
@@ -56,6 +57,13 @@ export class Hardware {
     // construct HLE handlers. Resets preserve the callback; it must not re-enter
     // emulation, and its return value is ignored.
     this.onMicrocodeLoad = onMicrocodeLoad;
+    // Called synchronously for each nonempty tile selected by an HLE textured
+    // draw (once per triangle batch or rectangle), including debugger replays.
+    // Receives a fresh { format, size } snapshot using the GBI enum values.
+    // This observes renderer inputs, not visible pixels or successful decoding.
+    // Resets preserve the callback; it must not re-enter emulation. Its return
+    // value is ignored, and skipped/LLE tasks do not report texture use.
+    this.onTextureUse = onTextureUse;
 
     this.timeline = new Timeline(this.getOpsExecuted.bind(this));
 

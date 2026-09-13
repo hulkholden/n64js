@@ -282,24 +282,38 @@ describe('headless graphics execution', () => {
     expect(hardware.mi_reg.getU32(MI_INTR_REG) & MI_INTR_DP).toBe(MI_INTR_DP);
   });
 
-  test('preserves the load observer across reset and keeps its snapshots and instances independent', async () => {
+  test('preserves graphics observers across reset and keeps their snapshots and instances independent', async () => {
     const loaded = [];
-    const emulator = await createEmulator({ executeGraphics: true, onMicrocodeLoad: info => loaded.push(info) });
+    const textures = [];
+    const emulator = await createEmulator({
+      executeGraphics: true,
+      onMicrocodeLoad: info => loaded.push(info),
+      onTextureUse: info => textures.push(info),
+    });
+    const commands = [
+      [0xf5000000 | (ImageFormat.G_IM_FMT_CI << 21) | (1 << 9), 0],
+      [0xe4020020, 0], [0xe1000000, 0], [0xf1000000, 0x04000400],
+      [0xdf000000, 0],
+    ];
     for (let run = 0; run < 2; run++) {
       emulator.hardware.reset();
       prepareGraphicsTask(emulator);
-      setGraphicsCommands(emulator, [[0xdf000000, 0]]);
+      setGraphicsCommands(emulator, commands);
       startRSPTask(emulator);
     }
     expect(loaded).toHaveLength(2);
+    expect(textures).toHaveLength(2);
     loaded[0].family = 'changed by observer';
+    textures[0].format = ImageFormat.G_IM_FMT_IA;
     expect(loaded[1].family).toBe('GBI2');
+    expect(textures[1]).toEqual({ format: ImageFormat.G_IM_FMT_CI, size: ImageSize.G_IM_SIZ_4b });
 
     const fresh = await createEmulator({ executeGraphics: true });
     prepareGraphicsTask(fresh);
-    setGraphicsCommands(fresh, [[0xdf000000, 0]]);
+    setGraphicsCommands(fresh, commands);
     startRSPTask(fresh);
     expect(loaded).toHaveLength(2);
+    expect(textures).toHaveLength(2);
   });
 
   test('starts each task afresh while preserving RDP state until hardware reset', async () => {
@@ -334,12 +348,16 @@ describe('headless graphics execution', () => {
       ]) {
         graphicsOptions.emulationMode = mode;
         const loaded = [];
-        const emulator = await createEmulator({ ...options, onMicrocodeLoad: info => loaded.push(info) });
+        const textures = [];
+        const emulator = await createEmulator({
+          ...options, onMicrocodeLoad: info => loaded.push(info), onTextureUse: info => textures.push(info),
+        });
         prepareGraphicsTask(emulator);
         // This would throw if the display-list runner tried to read it.
         emulator.hardware.sp_mem.set32(0xfc0 + TaskOffsets.dataPtr, 0x1000000);
         expect(() => startRSPTask(emulator, taskType)).not.toThrow();
         expect(loaded).toEqual([]);
+        expect(textures).toEqual([]);
         if (taskType === 1) {
           expect(emulator.hardware.rsp.halted).toBe(mode === 'HLE');
           expect(emulator.hardware.mi_reg.getU32(MI_INTR_REG) & MI_INTR_DP).toBe(mode === 'HLE' ? MI_INTR_DP : 0);

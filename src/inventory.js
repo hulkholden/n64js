@@ -17,7 +17,8 @@ const usage = `Usage: bun run inventory <rom-path> [options]
 
 Exit codes: 0 completed; 2 invalid arguments or emulation error; 3 cycle limit;
 124 timeout. Timeouts contain only the last received checkpoint. Microcode
-collectors report task starts and HLE loads, including in-list switches.`;
+collectors report task starts and HLE loads, including in-list switches.
+Texture formats describe tiles selected by HLE draws, not visible pixels.`;
 
 function integer(value, name, minimum, maximum = Number.MAX_SAFE_INTEGER) {
   const number = Number(value);
@@ -47,7 +48,7 @@ async function runInventory(romPath, settings) {
     emulator: emulatorVersion(),
     settings: { ...settings, randomAlgorithm: 'mulberry32', inputPolicy, graphics: 'HLE' },
     result: { status: 'error', frames: 0, cycles: 0, checkpointOnly: true, message: null },
-    // Missing collector = not run. An empty microcode list means no matching
+    // Missing collector = not run. An empty list means no matching
     // events were observed during this run, not that the ROM never uses graphics.
     collectors: {},
   };

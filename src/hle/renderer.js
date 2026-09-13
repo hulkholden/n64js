@@ -373,12 +373,11 @@ export class Renderer extends RendererBase {
 
     this.setGLBlendMode();
 
-    const cycleType = this.state.getCycleType();
-
     // TODO: I think it would make more sense to check if the texture is referenced in the combiner.
     let tile0, tile1;
     let texture0, texture1;
     if (textureEnabled) {
+      this.observeTextureUse(tileIdx);
       const tileIdx0 = (tileIdx + 0) & 7;
       const tileIdx1 = (tileIdx + 1) & 7;
 
@@ -386,7 +385,7 @@ export class Renderer extends RendererBase {
       tile1 = this.state.tiles[tileIdx1];
 
       texture0 = this.lookupTexture(tileIdx0);
-      texture1 = (cycleType == gbi.CycleType.G_CYC_2CYCLE) ? this.lookupTexture(tileIdx1) : null;
+      texture1 = this.getTextureTileCount() === 2 ? this.lookupTexture(tileIdx1) : null;
     }
 
     const enableAlphaThreshold = (this.state.getAlphaCompareType() & gbi.AlphaCompare.G_AC_THRESHOLD) != 0;
