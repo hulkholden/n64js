@@ -5,10 +5,30 @@ import { toString32 } from './format.js';
 import * as logger from './logger.js';
 
 export function getInstructionPatches(romId) {
+  return getOverrides(romId, 'instructionPatches');
+}
+
+export function getInstructionDelays(romId) {
+  return getOverrides(romId, 'instructionDelays');
+}
+
+function getOverrides(romId, kind) {
   const config = compatibilityHacks[romId];
-  if (!config?.enabled || !config.instructionPatches?.length) return null;
+  if (!config?.enabled || !config[kind]?.length) return null;
   // Each CPU/reset owns its pending set; never consume the shared config.
-  return new Map(config.instructionPatches.map(patch => [patch.address, { ...patch, name: config.name }]));
+  return new Map(config[kind].map(patch => [patch.address, { ...patch, name: config.name }]));
+}
+
+export function takeInstructionDelay(pending, address, instruction) {
+  const delay = pending.get(address);
+  if (!delay || n64js.breakpoints().isBreakpoint(address)) return 0;
+  pending.delete(address);
+  if (instruction !== delay.expected) {
+    logger.warn(`Skipped compatibility delay for ${delay.name} at ${toString32(address)}: expected ${toString32(delay.expected)}, found ${toString32(instruction)}`);
+    return 0;
+  }
+  logger.log(`Applied compatibility delay for ${delay.name} at ${toString32(address)}: ${delay.cycles} CPU cycles`);
+  return delay.cycles;
 }
 
 export function patchInstruction(pending, ram, address, instruction) {
