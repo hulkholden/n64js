@@ -37,6 +37,34 @@ function readFrame() {
 }
 
 describe('reused Joybus frames', () => {
+  test('accepts a cleared DMA buffer and can reuse the channel positions afterward', () => {
+    const source = new MemoryRegion(new ArrayBuffer(64));
+    source.u8.set([0xff, 1, 4, 1, 0, 0, 0, 0, 0xfe]);
+    source.u8[63] = 1;
+    joybus.dmaWrite(source, 0);
+    expect([...readFrame().slice(4, 8)]).toEqual([0x12, 0x34, 0x56, 0x78]);
+
+    joybus.dmaWrite(new MemoryRegion(new ArrayBuffer(64)), 0);
+    expect([...readFrame()]).toEqual(Array(64).fill(0));
+
+    source.u8[63] = 0;
+    inputs[0].buttons = 0x8000;
+    joybus.dmaWrite(source, 0);
+    expect([...readFrame().slice(4, 8)]).toEqual([0x80, 0x00, 0x56, 0x78]);
+  });
+
+  test('reports no response to an empty command without decoding stale payload bytes', () => {
+    writeFrame([0x01], 4);
+    const source = new MemoryRegion(readFrame().buffer);
+    source.u8[0] = 0;
+    source.u8[1] = 0xc4;
+    joybus.dmaWrite(source, 0);
+
+    const output = readFrame();
+    expect(output[1]).toBe(0x84);
+    expect(output.slice(2)).toEqual(source.u8.slice(2));
+  });
+
   test('clears a no-response error after a controller becomes present', () => {
     joybus.channels[0].present = false;
     writeFrame([0x01], 4);
