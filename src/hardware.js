@@ -1,6 +1,5 @@
 /*global n64js*/
 
-import * as base64 from './base64.js';
 import { CPU1 } from './cpu1.js';
 import { AIRegDevice } from './devices/ai.js';
 import { DPCDevice } from './devices/dpc.js';
@@ -224,7 +223,7 @@ export class Hardware {
       const memory = new MemoryRegion(new ArrayBuffer(saveSize));
       const saveItem = n64js.getLocalStorageItem('save');
       if (saveItem && saveItem.data) {
-        const arr = base64.decodeArray(saveItem.data);
+        const arr = Uint8Array.fromBase64(saveItem.data);
         for (let i = 0; i < arr.length && i < memory.u8.length; i++) {
           memory.u8[i] = arr[i];
         }
@@ -271,7 +270,7 @@ export class Hardware {
     const d = {
       name: this.rominfo.name,
       id: this.rominfo.id,
-      data: base64.encodeArray(u8arr),
+      data: u8arr.toBase64(),
     };
     n64js.setLocalStorageItem(name, d);
   }

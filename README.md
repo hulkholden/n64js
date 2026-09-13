@@ -119,10 +119,10 @@ Graphics are rendered using high-level emulation and there are still a lot of TO
 
 ## Browser Compatibility
 
-* Chrome 116.0.5845.140 - I've been doing most of my development in Chrome so this is the preferred option
-* Firefox 117.0 - runs, but is slower than Chrome.
-* Safari 16.6 - runs, but is slower than Chrome.
-* Edge - untested. Please let me know how you get on.
+Saving and loading require native `Uint8Array.prototype.toBase64()` and
+`Uint8Array.fromBase64()` support: Chrome/Edge 140+, Firefox 133+, or Safari 18.2+
+(including iOS). See [browser compatibility](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array/toBase64#browser_compatibility).
+Chrome is the preferred development browser.
 
 ## Performance
 

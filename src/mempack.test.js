@@ -1,5 +1,4 @@
 import { describe, expect, test } from 'bun:test';
-import * as base64 from './base64.js';
 import { Mempack } from './mempack.js';
 
 function createMempack(item) {
@@ -74,25 +73,25 @@ describe('saved Controller Paks', () => {
     const saved = Uint8Array.from({ length: 0x8000 }, (_, i) => (i * 17 + 3) & 0xff);
     const mempack = createMempack();
     mempack.dirty = true;
-    mempack.init({ data: base64.encodeArray(saved) });
+    mempack.init({ data: saved.toBase64() });
     expect(mempack.data).toEqual(saved);
     expect(mempack.dirty).toBe(false);
   });
 
   test('preserves an existing all-zero pak instead of silently formatting it', () => {
     const saved = new Uint8Array(0x8000);
-    expect(createMempack({ data: base64.encodeArray(saved) }).data).toEqual(saved);
+    expect(createMempack({ data: saved.toBase64() }).data).toEqual(saved);
   });
 
   test('pads short saves with zeroes and truncates oversized saves', () => {
     const short = new Uint8Array([1, 2, 3]);
     const mempack = createMempack();
-    mempack.init({ data: base64.encodeArray(short) });
+    mempack.init({ data: short.toBase64() });
     expect(mempack.data.subarray(0, 3)).toEqual(short);
     expect(mempack.data.subarray(3).every(byte => byte === 0)).toBe(true);
 
     const oversized = new Uint8Array(0x8020).fill(0x5a);
-    mempack.init({ data: base64.encodeArray(oversized) });
+    mempack.init({ data: oversized.toBase64() });
     expect(mempack.data.length).toBe(0x8000);
     expect(mempack.data).toEqual(oversized.subarray(0, 0x8000));
   });
