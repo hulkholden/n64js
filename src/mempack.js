@@ -21,8 +21,6 @@
  * first data page. A freshly formatted pak has no notes and 123 free pages.
  */
 
-import * as base64 from './base64.js';
-
 const kMempackSize = 32 * 1024;
 const kDeviceIDWritable = 0x0001;
 const kNumBanks = 1;
@@ -44,7 +42,7 @@ export class Mempack {
     this.data.fill(0);
     // Restore from local storage if provided.
     if (item && item.data) {
-      const arr = base64.decodeArray(item.data);
+      const arr = Uint8Array.fromBase64(item.data);
       this.data.set(arr.subarray(0, this.data.length));
     } else {
       formatMempack(this.data);
