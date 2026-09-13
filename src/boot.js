@@ -1,11 +1,29 @@
 import * as cpu0reg from './cpu0reg.js';
-import { OS_TV_PAL } from './system_constants.js';
+import { calculateIPL3BootState } from './boot_checksum.js';
+import { PI_BSD_DOM1_LAT_REG, PI_BSD_DOM1_PWD_REG, PI_BSD_DOM1_PGS_REG, PI_BSD_DOM1_RLS_REG } from './devices/pi.js';
+import { SP_STATUS_REG, SP_STATUS_HALT } from './devices/sp.js';
+import { OS_TV_NTSC, OS_TV_PAL, OS_TV_MPAL } from './system_constants.js';
+
+// PIF RAM boot words: bit 18 is the CIC version flag, bits 8..15 are the
+// seed passed to IPL3, and bits 0..7 seed IPL2's checksum of the boot code.
+// See https://github.com/n64dev/cen64/blob/master/si/cic.c#L11-L23.
+const cicBootWords = new Map([
+  ['6101', 0x00043f3f],
+  ['6102', 0x00003f3f],
+  ['6103', 0x0000783f],
+  ['6105', 0x0000913f],
+  ['6106', 0x0000853f],
+]);
 
 export function simulateBoot(cpu0, hardware, rominfo) {
-  // Create a view of IMEM so we can initialise it.
-  // TODO: should cache this somewhere.
-  const imem = hardware.sp_mem.subRegion(0x1000, 0x1000);
+  // Both callers reset the hardware and copy IPL3 to DMEM before this call.
+  // This simulates a cold cartridge boot; it does not perform CIC verification.
+  const bootWord = cicBootWords.get(rominfo.cic) ?? cicBootWords.get('6102');
+  const regionVersion = rominfo.tvType === OS_TV_PAL ? 6 : rominfo.tvType === OS_TV_MPAL ? 4 : 0;
+  const boot = calculateIPL3BootState(hardware.sp_mem.subRegion(0x40, 0xfc0), bootWord & 0xff);
 
+  // Preserve the existing CP0 snapshot assumptions for registers IPL1/2 do not
+  // initialize. Config includes the hardware's read-only clock-ratio bits.
   cpu0.setControlU64(cpu0reg.controlStatus, 0x00000000_34000000n);
   cpu0.setControlU64(cpu0reg.controlConfig, 0x00000000_7006e463n);
   cpu0.setControlU64(cpu0reg.controlCount, 0x00000000_00005000n);
@@ -17,156 +35,56 @@ export function simulateBoot(cpu0, hardware, rominfo) {
   cpu0.setControlU64(cpu0reg.controlErrorEPC, 0xffffffff_ffffffffn);
   cpu0.cop1ControlChanged();
 
-  const zero = 0x00000000_00000000n;
-  cpu0.setRegU64(0, zero);
-  cpu0.setRegU64(1, zero);
-  cpu0.setRegU64(2, 0xffffffff_d1731be9n);
-  cpu0.setRegU64(3, 0xffffffff_d1731be9n);
-  cpu0.setRegU64(4, 0x00000000_00001be9n);
-  cpu0.setRegU64(5, 0xffffffff_f45231e5n);
-  cpu0.setRegU64(6, 0xffffffff_a4001f0cn);
-  cpu0.setRegU64(7, 0xffffffff_a4001f08n);
-  cpu0.setRegU64(8, 0x00000000_000000c0n);
-  cpu0.setRegU64(9, zero);
-  cpu0.setRegU64(10, 0x00000000_00000040n);
-  cpu0.setRegU64(11, 0xffffffff_a4000040n);
-  // 12 - 15
-  cpu0.setRegU64(16, zero);
-  cpu0.setRegU64(17, zero);
-  cpu0.setRegU64(18, zero);
-  cpu0.setRegU64(19, zero);
-  cpu0.setRegU64(20, BigInt(rominfo.tvType));
-  cpu0.setRegU64(21, zero);
-  // 22
-  cpu0.setRegU64(23, 0x00000000_00000006n);
-  cpu0.setRegU64(24, zero);
-  cpu0.setRegU64(25, 0xffffffff_d73f2993n);
-  cpu0.setRegU64(26, zero);
-  cpu0.setRegU64(27, zero);
-  cpu0.setRegU64(28, zero);
-  cpu0.setRegU64(29, 0xffffffff_a4001ff0n);
-  cpu0.setRegU64(30, zero);
-  cpu0.setRegU64(31, 0xffffffff_a4001554n);
+  for (let reg = 1; reg < 32; ++reg) cpu0.setRegU64(reg, 0n);
+  cpu0.setRegS32Extend(cpu0reg.AT, boot.at);
+  cpu0.setRegS32Extend(cpu0reg.V0, boot.v0);
+  cpu0.setRegS32Extend(cpu0reg.V1, boot.v0);
+  cpu0.setRegS32Extend(cpu0reg.A0, boot.a0);
+  cpu0.setRegS32Extend(cpu0reg.A1, boot.a1);
+  cpu0.setRegS32Extend(cpu0reg.A2, 0xa4001f0c);
+  cpu0.setRegS32Extend(cpu0reg.A3, 0xa4001f08);
+  cpu0.setRegS32Extend(cpu0reg.T0, 0xc0); // Checksum acknowledged, PIF RAM clear requested.
+  cpu0.setRegS32Extend(cpu0reg.T2, 0x40);
+  cpu0.setRegS32Extend(cpu0reg.T3, 0xa4000040);
+  cpu0.setRegS32Extend(cpu0reg.T4, boot.t4);
+  cpu0.setRegS32Extend(cpu0reg.T5, boot.t5);
+  cpu0.setRegS32Extend(cpu0reg.T6, boot.t6);
+  cpu0.setRegS32Extend(cpu0reg.T7, boot.t7);
+  cpu0.setRegS32Extend(cpu0reg.S3, (bootWord >>> 19) & 1);
+  cpu0.setRegS32Extend(cpu0reg.S4, rominfo.tvType);
+  cpu0.setRegS32Extend(cpu0reg.S5, (bootWord >>> 17) & 1);
+  cpu0.setRegS32Extend(cpu0reg.S6, (bootWord >>> 8) & 0xff);
+  cpu0.setRegS32Extend(cpu0reg.S7, ((bootWord >>> 18) & 1) | regionVersion);
+  cpu0.setRegS32Extend(cpu0reg.T8, boot.t8);
+  cpu0.setRegS32Extend(cpu0reg.T9, boot.t9);
+  cpu0.setRegS32Extend(cpu0reg.SP, 0xa4001ff0);
+  // PAL and PAL-M insert one instruction to add the regional version bits.
+  cpu0.setRegS32Extend(cpu0reg.RA, rominfo.tvType === OS_TV_NTSC ? 0xa4001550 : 0xa4001554);
+  cpu0.setMultHiS32Extend(BigInt(boot.hi));
+  cpu0.setMultLoS32Extend(BigInt(boot.lo));
 
-  if (rominfo.tvType == OS_TV_PAL) {
-    switch (rominfo.cic) {
-      case '6102':
-        cpu0.setRegU64(5, 0xffffffff_c0f1d859n);
-        cpu0.setRegU64(14, 0x00000000_2de108ean);
-        cpu0.setRegU64(24, zero);
-        break;
-      case '6103':
-        cpu0.setRegU64(5, 0xffffffff_d4646273n);
-        cpu0.setRegU64(14, 0x00000000_1af99984n);
-        cpu0.setRegU64(24, zero);
-        break;
-      case '6105':
-        cpu0.setRegU64(5, 0xffffffff_decaaad1n);
-        cpu0.setRegU64(14, 0x00000000_0cf85c13n);
-        cpu0.setRegU64(24, 0x00000000_00000002n);
-        break;
-      case '6106':
-        cpu0.setRegU64(5, 0xffffffff_b04dc903n);
-        cpu0.setRegU64(14, 0x00000000_1af99984n);
-        cpu0.setRegU64(24, 0x00000000_00000002n);
-        break;
-      default:
-        break;
-    }
-
-    cpu0.setRegU64(20, zero);
-    cpu0.setRegU64(23, 0x00000000_00000006n);
-    cpu0.setRegU64(31, 0xffffffff_a4001554n);
-  } else {
-    switch (rominfo.cic) {
-      case '6102':
-        cpu0.setRegU64(5, 0xffffffff_c95973d5n);
-        cpu0.setRegU64(14, 0x00000000_2449a366n);
-        break;
-      case '6103':
-        cpu0.setRegU64(5, 0xffffffff_95315a28n);
-        cpu0.setRegU64(14, 0x00000000_5baca1dfn);
-        break;
-      case '6105':
-        cpu0.setRegU64(5, 0x00000000_5493fb9an);
-        cpu0.setRegU64(14, 0xffffffff_c2c20384n);
-        break;
-      case '6106':
-        cpu0.setRegU64(5, 0xffffffff_e067221fn);
-        cpu0.setRegU64(14, 0x00000000_5cd2b70fn);
-        break;
-      default:
-        break;
-    }
-    cpu0.setRegU64(20, 0x00000000_00000001n);
-    cpu0.setRegU64(23, zero);
-    cpu0.setRegU64(24, 0x00000000_00000003n);
-    cpu0.setRegU64(31, 0xffffffff_a4001550n);
+  // IPL1/2 leave the RSP halted and VI disabled. PIF RAM is cleared at handoff.
+  hardware.sp_reg.set32(SP_STATUS_REG, SP_STATUS_HALT);
+  hardware.vi_reg.set32(0x0c, 0x3ff); // VI_INTR, from PIF ROM offset 0x05c.
+  hardware.pif_mem.subRegion(0x7c0, 0x40).clear();
+  if (hardware.rom) {
+    const header = hardware.rom.getU32(0);
+    hardware.pi_reg.set32(PI_BSD_DOM1_LAT_REG, header & 0xff);
+    hardware.pi_reg.set32(PI_BSD_DOM1_PWD_REG, (header >>> 8) & 0xff);
+    hardware.pi_reg.set32(PI_BSD_DOM1_PGS_REG, (header >>> 16) & 0xf);
+    hardware.pi_reg.set32(PI_BSD_DOM1_RLS_REG, (header >>> 20) & 3);
   }
 
-  switch (rominfo.cic) {
-    case '6101':
-      cpu0.setRegU64(22, 0x00000000_0000003fn);
-      break;
-    case '6102':
-      cpu0.setRegU64(1, 0x00000000_00000001n);
-      cpu0.setRegU64(2, 0x00000000_0ebda536n);
-      cpu0.setRegU64(3, 0x00000000_0ebda536n);
-      cpu0.setRegU64(4, 0x00000000_0000a536n);
-      cpu0.setRegU64(12, 0xffffffff_ed10d0b3n);
-      cpu0.setRegU64(13, 0x00000000_1402a4ccn);
-      cpu0.setRegU64(15, 0x00000000_3103e121n);
-      cpu0.setRegU64(22, 0x00000000_0000003fn);
-      cpu0.setRegU64(25, 0xffffffff_9debb54fn);
-      break;
-    case '6103':
-      cpu0.setRegU64(1, 0x00000000_00000001n);
-      cpu0.setRegU64(2, 0x00000000_49a5ee96n);
-      cpu0.setRegU64(3, 0x00000000_49a5ee96n);
-      cpu0.setRegU64(4, 0x00000000_0000ee96n);
-      cpu0.setRegU64(12, 0xffffffff_ce9dfbf7n);
-      cpu0.setRegU64(13, 0xffffffff_ce9dfbf7n);
-      cpu0.setRegU64(15, 0x00000000_18b63d28n);
-      cpu0.setRegU64(22, 0x00000000_00000078n);
-      cpu0.setRegU64(25, 0xffffffff_825b21c9n);
-      break;
-    case '6105':
-      // IPL1 or IPL2 leaves this junk in imem which CIC x105 ends up XORing
-      // to decrypt and executing on the RSP during IPL3.
-      // See https://github.com/decompals/N64-IPL/blob/d93544681bfa822865fa8110d88f846b52293e23/src/ipl3.s#L63.
-      imem.set32(0x00, 0x3c0dbfc0);
-      imem.set32(0x04, rominfo.tvType == OS_TV_PAL ? 0xbda807fc : 0x8da807fc);
-      imem.set32(0x08, 0x25ad07c0);
-      imem.set32(0x0c, 0x31080080);
-      imem.set32(0x10, 0x5500fffc);
-      imem.set32(0x14, 0x3c0dbfc0);
-      imem.set32(0x18, 0x8da80024);
-      imem.set32(0x1c, 0x3c0bb000);
+  // Start of the relocated IPL2, identical in all three regional variants.
+  // CIC x105's IPL3 XORs these words to build an RSP program. In particular,
+  // the second word is LW in PAL too, not the CACHE instruction 0xbda807fc.
+  // Only the prefix used by IPL3 is reproduced; this is not a full PIF ROM.
+  const imem = hardware.sp_mem.subRegion(0x1000, 0x1000);
+  const ipl2Prefix = [
+    0x3c0dbfc0, 0x8da807fc, 0x25ad07c0, 0x31080080,
+    0x5500fffc, 0x3c0dbfc0, 0x8da80024, 0x3c0bb000,
+  ];
+  for (let i = 0; i < ipl2Prefix.length; ++i) imem.set32(i * 4, ipl2Prefix[i]);
 
-      cpu0.setRegU64(1, zero);
-      cpu0.setRegU64(2, 0xffffffff_f58b0fbfn);
-      cpu0.setRegU64(3, 0xffffffff_f58b0fbfn);
-      cpu0.setRegU64(4, 0x00000000_00000fbfn);
-      cpu0.setRegU64(12, 0xffffffff_9651f81en);
-      cpu0.setRegU64(13, 0x00000000_2d42aac5n);
-      cpu0.setRegU64(15, 0x00000000_56584d60n);
-      cpu0.setRegU64(22, 0x00000000_00000091n);
-      cpu0.setRegU64(25, 0xffffffff_cdce565fn);
-      break;
-    case '6106':
-      cpu0.setRegU64(1, zero);
-      cpu0.setRegU64(2, 0xffffffff_a95930a4n);
-      cpu0.setRegU64(3, 0xffffffff_a95930a4n);
-      cpu0.setRegU64(4, 0x00000000_000030a4n);
-      cpu0.setRegU64(12, 0xffffffff_bcb59510n);
-      cpu0.setRegU64(13, 0xffffffff_bcb59510n);
-      cpu0.setRegU64(15, 0x00000000_7a3c07f4n);
-      cpu0.setRegU64(22, 0x00000000_00000085n);
-      cpu0.setRegU64(25, 0x00000000_465e3f72n);
-      break;
-    default:
-      break;
-  }
-
-  cpu0.pc = 0xA4000040;
+  cpu0.pc = 0xa4000040;
 }

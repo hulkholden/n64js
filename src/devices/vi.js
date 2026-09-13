@@ -67,17 +67,18 @@ export class VIRegDevice extends Device {
   }
 
   reset() {
-    const ntsc = this.hardware.rominfo.tvType == OS_TV_NTSC;
-    this.videoClock = videoClockForTVType(ntsc);
-    this.refreshRate = refreshRateForTVType(ntsc);
+    const tvType = this.hardware.rominfo.tvType;
+    const pal = tvType === OS_TV_PAL;
+    this.videoClock = videoClockForTVType(tvType);
+    this.refreshRate = refreshRateForTVType(tvType);
     this.countPerScanline = 0;
     this.countPerVbl = 0;
 
     this.screenWidth = 640;
-    this.screenHeight = ntsc ? 480 : 576;
-    this.hScanMin = ntsc ? 108 : 128;
+    this.screenHeight = pal ? 576 : 480;
+    this.hScanMin = pal ? 128 : 108;
     this.hScanMax = this.hScanMin + this.screenWidth;
-    this.vScanMin = ntsc ? 34 : 44;
+    this.vScanMin = pal ? 44 : 34;
     this.vScanMax = this.vScanMin + this.screenHeight;
     this.dims = new Dimensions(this.screenWidth, this.screenHeight);
   }
