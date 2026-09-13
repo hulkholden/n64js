@@ -3,9 +3,10 @@
 import { disassembleRemappedRange, dumpDMEM } from "../disassemble_rsp.js";
 import { makeEnum } from "../enum.js";
 import { toHex } from "../format.js";
+import * as logger from '../logger.js';
 import { audioOptions } from './audio_options.js';
 import { graphicsOptions } from './graphics_options.js';
-import { identifyMicrocode } from './microcode_identifier.js';
+import { identifyMicrocode, MicrocodeId } from './microcode_identifier.js';
 
 // Task offset in dmem.
 const kTaskOffset = 0x0fc0;
@@ -36,6 +37,8 @@ const M_GFXTASK = 1;
 const M_AUDTASK = 2;
 const M_VIDTASK = 3;
 const M_JPGTASK = 4;
+
+let warnedF5Indi = false;
 
 class RSPTask {
   /**
@@ -141,12 +144,22 @@ export function hleProcessRSPTask() {
   let handled = false;
 
   switch (task.type) {
-    case M_GFXTASK:
-      hardware.onGraphicsTask?.(identifyMicrocode(
-        task.detectVersionString(), task.computeMicrocodeHash()));
+    case M_GFXTASK: {
+      const microcode = identifyMicrocode(task.detectVersionString(), task.computeMicrocodeHash());
+      hardware.onGraphicsTask?.({ ...microcode });
       if (graphicsOptions.emulationMode == 'HLE') {
         const ev = hardware.timeline.startEvent(`HLE Task ${task.detectVersionString()}`);
-        hardware.graphics.processTask(task);
+        // TODO: implement Factor 5's Indiana Jones microcode. Its linked display
+        // lists loop indefinitely in the GBI0 fallback. Skip parsing them while
+        // preserving normal task completion and interrupts for the guest.
+        if (microcode.id === MicrocodeId.F5_INDI) {
+          if (!warnedF5Indi) {
+            logger.log('Skipping unsupported Factor 5 Indiana Jones graphics microcode');
+            warnedF5Indi = true;
+          }
+        } else {
+          hardware.graphics.processTask(task);
+        }
         hardware.miRegDevice.interruptDP();
         if (ev) {
           ev.stop();
@@ -154,6 +167,7 @@ export function hleProcessRSPTask() {
         handled = true;
       }
       break;
+    }
     case M_AUDTASK:
       // There's no HLE support yet, but if emulation is disabled pretend we
       // handled the task (we'll play silence).
