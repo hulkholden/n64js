@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm, stat, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -8,9 +8,10 @@ import { createInputDriver, createRandom } from './inventory_input.js';
 import { CycleType, ImageFormat, ImageSize } from './hle/gbi.js';
 
 const cli = fileURLToPath(new URL('./inventory.js', import.meta.url));
+const batchCLI = fileURLToPath(new URL('./inventory_batch.js', import.meta.url));
 
-async function invoke(directory, args) {
-  const child = Bun.spawn([process.execPath, cli, ...args], { cwd: directory, stdout: 'pipe', stderr: 'pipe' });
+async function invoke(directory, args, command = cli) {
+  const child = Bun.spawn([process.execPath, command, ...args], { cwd: directory, stdout: 'pipe', stderr: 'pipe' });
   const [code, stdout, stderr] = await Promise.all([
     child.exited, new Response(child.stdout).text(), new Response(child.stderr).text(),
   ]);
@@ -129,6 +130,148 @@ describe('inventory input', () => {
     expect(replay.every(input => Math.abs(input.stick_x) <= 80 && Math.abs(input.stick_y) <= 80)).toBe(true);
     expect(replay.some((input, index) => input.buttons && input.buttons === replay[index + 1]?.buttons)).toBe(true);
     expect(replay.some((input, index) => index > 0 && replay[index - 1].buttons && input.buttons === 0 && input.stick_x === 0 && input.stick_y === 0)).toBe(true);
+  });
+});
+
+describe('inventory batch command', () => {
+  test('scans nested directories, shares reports across ROM byte orders, and continues after failures', async () => {
+    await withDirectory(async directory => {
+      const rom = makeROM({ vi: true });
+      const swapped = rom.slice();
+      for (let offset = 0; offset < swapped.length; offset += 2) {
+        [swapped[offset], swapped[offset + 1]] = [swapped[offset + 1], swapped[offset]];
+      }
+      await Bun.write(join(directory, 'roms/a-bad.n64'), 'invalid');
+      await Bun.write(join(directory, 'roms/b-good.z64'), rom);
+      await Bun.write(join(directory, 'roms/sub/c-copy.V64'), swapped);
+      await Bun.write(join(directory, 'roms/ignored.txt'), 'not a ROM');
+      await symlink('.', join(directory, 'roms/directory-loop'));
+      const result = await invoke(directory, ['roms', 'missing.z64', '--output-dir', 'inventory', '--frames', '1'], batchCLI);
+      expect(result.code).toBe(1);
+      const scanDirectory = result.stdout.trim();
+      const manifestPath = join(scanDirectory, 'manifest.json');
+      const manifest = await Bun.file(manifestPath).json();
+      expect(manifest.status).toBe('completed');
+      expect(manifest.entries).toHaveLength(4);
+      const good = manifest.entries.filter(entry => entry.status === 'completed');
+      const bad = manifest.entries.filter(entry => entry.status === 'error');
+      expect(good).toHaveLength(2);
+      expect(bad).toHaveLength(2);
+      const hash = createHash('sha256').update(rom).digest('hex');
+      expect(good.every(entry => entry.sha256 === hash && entry.report === `${hash}.json`)).toBe(true);
+      const report = await Bun.file(join(scanDirectory, good[0].report)).json();
+      expect(report.settings).toEqual(manifest.settings);
+      expect(report.rom.sha256).toBe(hash);
+      expect(report.collectors['graphics.taskMicrocodes'].tasks).toBe(2);
+      for (const entry of bad) {
+        expect(await Bun.file(join(scanDirectory, entry.report)).json()).toMatchObject({
+          rom: null, collectors: {}, result: { status: 'error' },
+        });
+      }
+
+      // Recover a published report whose manifest update did not finish.
+      good[0].status = 'pending';
+      await Bun.write(manifestPath, JSON.stringify(manifest));
+      const files = [...new Set(manifest.entries.map(entry => entry.report))];
+      const inodes = await Promise.all(files.map(file => stat(join(scanDirectory, file)).then(info => info.ino)));
+      const resumed = await invoke(directory, ['--resume', scanDirectory], batchCLI);
+      expect(resumed.code).toBe(1);
+      expect((await Bun.file(manifestPath).json()).entries.every(entry => entry.status !== 'pending')).toBe(true);
+      expect(await Promise.all(files.map(file => stat(join(scanDirectory, file)).then(info => info.ino)))).toEqual(inodes);
+
+      const second = await invoke(directory, ['roms/b-good.z64', '--output-dir', 'inventory', '--frames', '1', '--seed', '2'], batchCLI);
+      expect(second.code).toBe(0);
+      expect(second.stdout.trim()).not.toBe(scanDirectory);
+      expect((await Bun.file(join(second.stdout.trim(), `${hash}.json`)).json()).settings.seed).toBe(2);
+      expect(await Bun.file(join(scanDirectory, `${hash}.json`)).json()).toEqual(report);
+    });
+  });
+
+  test('saves interruption, resumes unfinished ROMs, and repairs missing reports', async () => {
+    await withDirectory(async directory => {
+      await Bun.write(join(directory, 'roms/a-good.z64'), makeROM({ vi: true }));
+      await Bun.write(join(directory, 'roms/b-loop.z64'), makeROM({ graphics: 'loop' }));
+      await Bun.write(join(directory, 'roms/c-textures.z64'), makeROM({ vi: true, graphics: 'textures' }));
+      const child = Bun.spawn([process.execPath, batchCLI, 'roms', '--output-dir', 'inventory', '--frames', '1', '--timeout-ms', '2000'], {
+        cwd: directory, stdout: 'pipe', stderr: 'pipe',
+      });
+      const stdout = new Response(child.stdout).text();
+      const stderr = new Response(child.stderr).text();
+      let scanDirectory;
+      try {
+        let ready = false;
+        const deadline = Date.now() + 8000;
+        while (Date.now() < deadline) {
+          const runs = await readdir(join(directory, 'inventory/runs')).catch(() => []);
+          if (runs.length) {
+            scanDirectory = join(directory, 'inventory/runs', runs[0]);
+            const manifest = await Bun.file(join(scanDirectory, 'manifest.json')).json().catch(() => null);
+            if (manifest?.entries[0].status === 'completed' && manifest.entries[1].report) {
+              ready = true;
+              break;
+            }
+          }
+          await Bun.sleep(10);
+        }
+        expect(ready).toBe(true);
+        child.kill('SIGTERM');
+        expect(await child.exited).toBe(143);
+        const manifestPath = join(scanDirectory, 'manifest.json');
+        const stopped = await Bun.file(manifestPath).json();
+        expect(stopped.status).toBe('interrupted');
+        expect(stopped.entries.map(entry => entry.status)).toEqual(['completed', 'interrupted', 'pending']);
+        const goodPath = join(scanDirectory, stopped.entries[0].report);
+        const before = await stat(goodPath);
+        const resumed = await invoke(directory, ['--resume', scanDirectory], batchCLI);
+        expect(resumed.code).toBe(1);
+        expect((await stat(goodPath)).ino).toBe(before.ino);
+        expect((await Bun.file(manifestPath).json()).entries.map(entry => entry.status)).toEqual(['completed', 'timeout', 'completed']);
+
+        await rm(goodPath);
+        const repaired = await invoke(directory, ['--resume', scanDirectory], batchCLI);
+        expect(repaired.code).toBe(1);
+        expect((await Bun.file(goodPath).json()).result.status).toBe('completed');
+      } finally {
+        child.kill();
+        await child.exited;
+        await Promise.all([stdout, stderr]);
+      }
+    });
+  }, 15000);
+
+  test('rejects conflicting resumes and changed provenance without altering saved results', async () => {
+    await withDirectory(async directory => {
+      await Bun.write(join(directory, 'test.z64'), makeROM({ vi: true }));
+      const result = await invoke(directory, ['test.z64', '--output-dir', 'inventory', '--frames', '1'], batchCLI);
+      expect(result.code).toBe(0);
+      const scanDirectory = result.stdout.trim();
+      const manifestPath = join(scanDirectory, 'manifest.json');
+      const original = await readFile(manifestPath, 'utf8');
+      const manifest = JSON.parse(original);
+      const reportPath = join(scanDirectory, manifest.entries[0].report);
+      const report = await readFile(reportPath, 'utf8');
+
+      await Bun.write(join(scanDirectory, '.lock'), 'another scanner');
+      const locked = await invoke(directory, ['--resume', scanDirectory], batchCLI);
+      expect(locked.code).toBe(2);
+      expect(locked.stderr).toContain('Scan is locked');
+      await rm(join(scanDirectory, '.lock'));
+      const settings = await invoke(directory, ['--resume', scanDirectory, '--seed', '2'], batchCLI);
+      expect(settings.code).toBe(2);
+      expect(await readFile(manifestPath, 'utf8')).toBe(original);
+
+      manifest.sourceSha256 = '0'.repeat(64);
+      await Bun.write(manifestPath, JSON.stringify(manifest));
+      const changed = await invoke(directory, ['--resume', scanDirectory], batchCLI);
+      expect(changed.code).toBe(2);
+      expect(changed.stderr).toContain('Emulator source, revision or runtime changed');
+      manifest.entries[0].report = '../outside.json';
+      await Bun.write(manifestPath, JSON.stringify(manifest));
+      const invalid = await invoke(directory, ['--resume', scanDirectory], batchCLI);
+      expect(invalid.code).toBe(2);
+      expect(invalid.stderr).toContain('Invalid ROM entry');
+      expect(await readFile(reportPath, 'utf8')).toBe(report);
+    });
   });
 });
 

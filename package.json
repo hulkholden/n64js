@@ -12,7 +12,8 @@
     "build-debug": "bun build ./src/n64.js --outfile=build/n64.min.js",
     "benchmark": "bun run ./src/benchmark.js",
     "headless": "bun run ./src/headless.js",
-    "inventory": "bun run ./src/inventory.js"
+    "inventory": "bun run ./src/inventory.js",
+    "inventory-batch": "bun run ./src/inventory_batch.js"
   },
   "repository": {
     "type": "git",
