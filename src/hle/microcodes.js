@@ -7,7 +7,9 @@ import { GBI1SDEX, GBI2SDEX } from './gbi_s2dex.js';
 import { graphicsOptions } from './graphics_options.js';
 import { identifyMicrocode, MicrocodeId } from './microcode_identifier.js';
 
-export function create(task, state, ramDV) {
+// The optional observer receives the already-computed classification after
+// construction, so changing its snapshot cannot affect handler selection.
+export function create(task, state, ramDV, onMicrocodeLoad = null) {
   const version = task.detectVersionString();
 
   const dumpStr = graphicsOptions.dumpMicrocodeSubstring;
@@ -21,6 +23,7 @@ export function create(task, state, ramDV) {
   logMicrocode(version, info.id);
   const microcode = createMicrocode(info.id, state, ramDV);
   microcode.version = version;
+  onMicrocodeLoad?.(info);
   return microcode;
 }
 
