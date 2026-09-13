@@ -47,6 +47,7 @@ export async function loadROMFile(romPath) {
 }
 
 export async function createHeadlessEmulator(loadedROM, {
+  enableCompatibilityHacks = true,
   // Execute graphics display lists with NullRenderer when using HLE mode.
   // This updates HLE state without producing pixels; the default skips lists.
   executeGraphics = false,
@@ -70,7 +71,7 @@ export async function createHeadlessEmulator(loadedROM, {
 
   let cpu0 = null;
   let fatalError = null;
-  const hardware = new Hardware(loadedROM.rominfo, { headless: true, onVerticalBlank, onGraphicsTask, onMicrocodeLoad, onTextureUse });
+  const hardware = new Hardware(loadedROM.rominfo, { headless: true, enableCompatibilityHacks, onVerticalBlank, onGraphicsTask, onMicrocodeLoad, onTextureUse });
   if (executeGraphics) {
     hardware.graphics = new HeadlessGraphics(hardware);
   }

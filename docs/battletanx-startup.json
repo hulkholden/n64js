@@ -1,0 +1,879 @@
+{
+  "issue": "https://github.com/hulkholden/n64js/issues/103",
+  "date": "2026-09-13",
+  "sourceRevision": "2094ccf20c8803451152e34b687d801c7a1102f5",
+  "runtime": "Bun 1.3.14",
+  "settings": {
+    "freshSaves": true,
+    "rngSeed": 1,
+    "graphics": "HLE task counting, no rasterization",
+    "audio": "LLE"
+  },
+  "scope": "Investigation only. diagnosticTimeTicks replaces one osGetTime return inside osContInit; it is not a production fix.",
+  "runs": [
+    {
+      "name": "BattleTanx (USA)",
+      "sha256": "c5b7cf3523de025e3f18e2c8df2deb0eced5613e7c46cb8c6c5a4f22644ead3f",
+      "seconds": 30,
+      "input": false,
+      "steppedStartup": false,
+      "diagnosticTimeTicks": null,
+      "controllerTime": {
+        "pc": "0x8011101c",
+        "elapsedCycles": 27284297,
+        "count": 13642148,
+        "ticks": 13642129,
+        "pointer": "0x803c7620",
+        "next": "0x00000000",
+        "prev": "0x00000000"
+      },
+      "milestones": [
+        {
+          "name": "osContInit",
+          "pc": "0x80110fe0",
+          "elapsedCycles": 27284233,
+          "count": 13642116,
+          "pointer": "0x803c7620",
+          "next": "0x00000000",
+          "prev": "0x00000000"
+        }
+      ],
+      "linkWrites": [
+        {
+          "address": "0x803c7620",
+          "value": "0x00000000",
+          "elapsedCycles": 26700296,
+          "count": 13350147
+        },
+        {
+          "address": "0x803c7624",
+          "value": "0x00000000",
+          "elapsedCycles": 26700296,
+          "count": 13350147
+        }
+      ],
+      "firstFault": {
+        "pc": "0x80121854",
+        "address": "0x00000010",
+        "code": 2,
+        "elapsedCycles": 27284482,
+        "count": 13642240,
+        "pointer": "0x803c7620",
+        "next": "0x00000000",
+        "prev": "0x00000000"
+      },
+      "graphics": 0,
+      "audio": 0,
+      "controllerCommands": 0,
+      "viRetraces": 0,
+      "pc": "0x80077ab4",
+      "epc": "0x80077ab0",
+      "badVAddr": "0x00000010",
+      "cause": "0x00000008",
+      "error": null
+    },
+    {
+      "name": "BattleTanx (USA)",
+      "sha256": "c5b7cf3523de025e3f18e2c8df2deb0eced5613e7c46cb8c6c5a4f22644ead3f",
+      "seconds": 30,
+      "input": true,
+      "steppedStartup": false,
+      "diagnosticTimeTicks": null,
+      "controllerTime": {
+        "pc": "0x8011101c",
+        "elapsedCycles": 27284297,
+        "count": 13642148,
+        "ticks": 13642129,
+        "pointer": "0x803c7620",
+        "next": "0x00000000",
+        "prev": "0x00000000"
+      },
+      "milestones": [
+        {
+          "name": "osContInit",
+          "pc": "0x80110fe0",
+          "elapsedCycles": 27284233,
+          "count": 13642116,
+          "pointer": "0x803c7620",
+          "next": "0x00000000",
+          "prev": "0x00000000"
+        }
+      ],
+      "linkWrites": [
+        {
+          "address": "0x803c7620",
+          "value": "0x00000000",
+          "elapsedCycles": 26700296,
+          "count": 13350147
+        },
+        {
+          "address": "0x803c7624",
+          "value": "0x00000000",
+          "elapsedCycles": 26700296,
+          "count": 13350147
+        }
+      ],
+      "firstFault": {
+        "pc": "0x80121854",
+        "address": "0x00000010",
+        "code": 2,
+        "elapsedCycles": 27284482,
+        "count": 13642240,
+        "pointer": "0x803c7620",
+        "next": "0x00000000",
+        "prev": "0x00000000"
+      },
+      "graphics": 0,
+      "audio": 0,
+      "controllerCommands": 0,
+      "viRetraces": 0,
+      "pc": "0x80077ab4",
+      "epc": "0x80077ab0",
+      "badVAddr": "0x00000010",
+      "cause": "0x00000008",
+      "error": null
+    },
+    {
+      "name": "BattleTanx - Global Assault (USA)",
+      "sha256": "88268ce770ff39f2ca839848b842c87866df6c5ddaf775f180b2522c18ff6221",
+      "seconds": 30,
+      "input": false,
+      "steppedStartup": false,
+      "diagnosticTimeTicks": null,
+      "controllerTime": {
+        "pc": "0x8010342c",
+        "elapsedCycles": 29092445,
+        "count": 14546222,
+        "ticks": 14546203,
+        "pointer": "0x803b0550",
+        "next": "0x00000000",
+        "prev": "0x00000000"
+      },
+      "milestones": [
+        {
+          "name": "osContInit",
+          "pc": "0x801033f0",
+          "elapsedCycles": 29092381,
+          "count": 14546190,
+          "pointer": "0x803b0550",
+          "next": "0x00000000",
+          "prev": "0x00000000"
+        }
+      ],
+      "linkWrites": [
+        {
+          "address": "0x803b0550",
+          "value": "0x00000000",
+          "elapsedCycles": 26739166,
+          "count": 13369582
+        },
+        {
+          "address": "0x803b0554",
+          "value": "0x00000000",
+          "elapsedCycles": 26739166,
+          "count": 13369582
+        }
+      ],
+      "firstFault": {
+        "pc": "0x801111d4",
+        "address": "0x00000010",
+        "code": 2,
+        "elapsedCycles": 29092630,
+        "count": 14546314,
+        "pointer": "0x803b0550",
+        "next": "0x00000000",
+        "prev": "0x00000000"
+      },
+      "graphics": 0,
+      "audio": 0,
+      "controllerCommands": 0,
+      "viRetraces": 0,
+      "pc": "0x8009ee84",
+      "epc": "0x8009ee80",
+      "badVAddr": "0x00000010",
+      "cause": "0x00000008",
+      "error": null
+    },
+    {
+      "name": "BattleTanx - Global Assault (USA)",
+      "sha256": "88268ce770ff39f2ca839848b842c87866df6c5ddaf775f180b2522c18ff6221",
+      "seconds": 30,
+      "input": true,
+      "steppedStartup": false,
+      "diagnosticTimeTicks": null,
+      "controllerTime": {
+        "pc": "0x8010342c",
+        "elapsedCycles": 29092445,
+        "count": 14546222,
+        "ticks": 14546203,
+        "pointer": "0x803b0550",
+        "next": "0x00000000",
+        "prev": "0x00000000"
+      },
+      "milestones": [
+        {
+          "name": "osContInit",
+          "pc": "0x801033f0",
+          "elapsedCycles": 29092381,
+          "count": 14546190,
+          "pointer": "0x803b0550",
+          "next": "0x00000000",
+          "prev": "0x00000000"
+        }
+      ],
+      "linkWrites": [
+        {
+          "address": "0x803b0550",
+          "value": "0x00000000",
+          "elapsedCycles": 26739166,
+          "count": 13369582
+        },
+        {
+          "address": "0x803b0554",
+          "value": "0x00000000",
+          "elapsedCycles": 26739166,
+          "count": 13369582
+        }
+      ],
+      "firstFault": {
+        "pc": "0x801111d4",
+        "address": "0x00000010",
+        "code": 2,
+        "elapsedCycles": 29092630,
+        "count": 14546314,
+        "pointer": "0x803b0550",
+        "next": "0x00000000",
+        "prev": "0x00000000"
+      },
+      "graphics": 0,
+      "audio": 0,
+      "controllerCommands": 0,
+      "viRetraces": 0,
+      "pc": "0x8009ee84",
+      "epc": "0x8009ee80",
+      "badVAddr": "0x00000010",
+      "cause": "0x00000008",
+      "error": null
+    },
+    {
+      "name": "BattleTanx - Global Assault (Europe) (En,Fr,De)",
+      "sha256": "8c0f538d32243d7d230ff28432326fbb17ea59bec2e2d9815dc04317dbe70db0",
+      "seconds": 30,
+      "input": false,
+      "steppedStartup": false,
+      "diagnosticTimeTicks": null,
+      "controllerTime": {
+        "pc": "0x801003fc",
+        "elapsedCycles": 29746345,
+        "count": 14873172,
+        "ticks": 14873153,
+        "pointer": "0x803cbc00",
+        "next": "0x803cbc00",
+        "prev": "0x803cbc00"
+      },
+      "milestones": [
+        {
+          "name": "osCreateViManager",
+          "pc": "0x8010e600",
+          "elapsedCycles": 26997533,
+          "count": 13498766,
+          "pointer": "0x803cbc00",
+          "next": "0x00000000",
+          "prev": "0x00000000"
+        },
+        {
+          "name": "__osTimerServicesInit",
+          "pc": "0x8010dfc0",
+          "elapsedCycles": 26997541,
+          "count": 13498770,
+          "pointer": "0x803cbc00",
+          "next": "0x00000000",
+          "prev": "0x00000000"
+        },
+        {
+          "name": "osContInit",
+          "pc": "0x801003c0",
+          "elapsedCycles": 29746281,
+          "count": 14873140,
+          "pointer": "0x803cbc00",
+          "next": "0x803cbc00",
+          "prev": "0x803cbc00"
+        }
+      ],
+      "linkWrites": [
+        {
+          "address": "0x803cbc00",
+          "value": "0x00000000",
+          "elapsedCycles": 26843985,
+          "count": 13421992
+        },
+        {
+          "address": "0x803cbc04",
+          "value": "0x00000000",
+          "elapsedCycles": 26843985,
+          "count": 13421992
+        },
+        {
+          "address": "0x803cbc04",
+          "value": "0x803cbc00",
+          "elapsedCycles": 26997553,
+          "count": 13498776
+        },
+        {
+          "address": "0x803cbc00",
+          "value": "0x803cbc00",
+          "elapsedCycles": 26997560,
+          "count": 13498779
+        },
+        {
+          "address": "0x803cbc00",
+          "value": "0x8022f960",
+          "elapsedCycles": 29746550,
+          "count": 14873274
+        },
+        {
+          "address": "0x803cbc04",
+          "value": "0x8022f960",
+          "elapsedCycles": 29746553,
+          "count": 14873276
+        },
+        {
+          "address": "0x803cbc00",
+          "value": "0x803cbc00",
+          "elapsedCycles": 46875704,
+          "count": 23437851
+        },
+        {
+          "address": "0x803cbc04",
+          "value": "0x803cbc00",
+          "elapsedCycles": 46875708,
+          "count": 23437853
+        }
+      ],
+      "firstFault": null,
+      "graphics": 733,
+      "audio": 736,
+      "controllerCommands": 3035,
+      "viRetraces": 1485,
+      "pc": "0x80079ac0",
+      "epc": "0x80079b10",
+      "badVAddr": "0xffffffff",
+      "cause": "0x10000000",
+      "error": null
+    },
+    {
+      "name": "BattleTanx (USA)",
+      "sha256": "c5b7cf3523de025e3f18e2c8df2deb0eced5613e7c46cb8c6c5a4f22644ead3f",
+      "seconds": 1,
+      "input": false,
+      "steppedStartup": true,
+      "diagnosticTimeTicks": null,
+      "controllerTime": {
+        "pc": "0x8011101c",
+        "elapsedCycles": 27284297,
+        "count": 13642148,
+        "ticks": 13642129,
+        "pointer": "0x803c7620",
+        "next": "0x00000000",
+        "prev": "0x00000000"
+      },
+      "milestones": [
+        {
+          "name": "osContInit",
+          "pc": "0x80110fe0",
+          "elapsedCycles": 27284233,
+          "count": 13642116,
+          "pointer": "0x803c7620",
+          "next": "0x00000000",
+          "prev": "0x00000000"
+        }
+      ],
+      "linkWrites": [
+        {
+          "address": "0x803c7620",
+          "value": "0x00000000",
+          "elapsedCycles": 26700299,
+          "count": 13350149
+        },
+        {
+          "address": "0x803c7624",
+          "value": "0x00000000",
+          "elapsedCycles": 26700303,
+          "count": 13350151
+        }
+      ],
+      "firstFault": {
+        "pc": "0x80121854",
+        "address": "0x00000010",
+        "code": 2,
+        "elapsedCycles": 27284482,
+        "count": 13642240,
+        "pointer": "0x803c7620",
+        "next": "0x00000000",
+        "prev": "0x00000000"
+      },
+      "graphics": 0,
+      "audio": 0,
+      "controllerCommands": 0,
+      "viRetraces": 0,
+      "pc": "0x80077ab4",
+      "epc": "0x80077ab0",
+      "badVAddr": "0x00000010",
+      "cause": "0x00000008",
+      "error": null
+    },
+    {
+      "name": "BattleTanx - Global Assault (USA)",
+      "sha256": "88268ce770ff39f2ca839848b842c87866df6c5ddaf775f180b2522c18ff6221",
+      "seconds": 1,
+      "input": false,
+      "steppedStartup": true,
+      "diagnosticTimeTicks": null,
+      "controllerTime": {
+        "pc": "0x8010342c",
+        "elapsedCycles": 29092445,
+        "count": 14546222,
+        "ticks": 14546203,
+        "pointer": "0x803b0550",
+        "next": "0x00000000",
+        "prev": "0x00000000"
+      },
+      "milestones": [
+        {
+          "name": "osContInit",
+          "pc": "0x801033f0",
+          "elapsedCycles": 29092381,
+          "count": 14546190,
+          "pointer": "0x803b0550",
+          "next": "0x00000000",
+          "prev": "0x00000000"
+        }
+      ],
+      "linkWrites": [
+        {
+          "address": "0x803b0550",
+          "value": "0x00000000",
+          "elapsedCycles": 26739173,
+          "count": 13369586
+        },
+        {
+          "address": "0x803b0554",
+          "value": "0x00000000",
+          "elapsedCycles": 26739177,
+          "count": 13369588
+        }
+      ],
+      "firstFault": {
+        "pc": "0x801111d4",
+        "address": "0x00000010",
+        "code": 2,
+        "elapsedCycles": 29092630,
+        "count": 14546314,
+        "pointer": "0x803b0550",
+        "next": "0x00000000",
+        "prev": "0x00000000"
+      },
+      "graphics": 0,
+      "audio": 0,
+      "controllerCommands": 0,
+      "viRetraces": 0,
+      "pc": "0x8009ee84",
+      "epc": "0x8009ee80",
+      "badVAddr": "0x00000010",
+      "cause": "0x00000008",
+      "error": null
+    },
+    {
+      "name": "BattleTanx - Global Assault (Europe) (En,Fr,De)",
+      "sha256": "8c0f538d32243d7d230ff28432326fbb17ea59bec2e2d9815dc04317dbe70db0",
+      "seconds": 1,
+      "input": false,
+      "steppedStartup": true,
+      "diagnosticTimeTicks": null,
+      "controllerTime": {
+        "pc": "0x801003fc",
+        "elapsedCycles": 29746345,
+        "count": 14873172,
+        "ticks": 14873153,
+        "pointer": "0x803cbc00",
+        "next": "0x803cbc00",
+        "prev": "0x803cbc00"
+      },
+      "milestones": [
+        {
+          "name": "osCreateViManager",
+          "pc": "0x8010e600",
+          "elapsedCycles": 26997533,
+          "count": 13498766,
+          "pointer": "0x803cbc00",
+          "next": "0x00000000",
+          "prev": "0x00000000"
+        },
+        {
+          "name": "__osTimerServicesInit",
+          "pc": "0x8010dfc0",
+          "elapsedCycles": 26997541,
+          "count": 13498770,
+          "pointer": "0x803cbc00",
+          "next": "0x00000000",
+          "prev": "0x00000000"
+        },
+        {
+          "name": "osContInit",
+          "pc": "0x801003c0",
+          "elapsedCycles": 29746281,
+          "count": 14873140,
+          "pointer": "0x803cbc00",
+          "next": "0x803cbc00",
+          "prev": "0x803cbc00"
+        }
+      ],
+      "linkWrites": [
+        {
+          "address": "0x803cbc00",
+          "value": "0x00000000",
+          "elapsedCycles": 26843992,
+          "count": 13421995
+        },
+        {
+          "address": "0x803cbc04",
+          "value": "0x00000000",
+          "elapsedCycles": 26843996,
+          "count": 13421997
+        },
+        {
+          "address": "0x803cbc04",
+          "value": "0x803cbc00",
+          "elapsedCycles": 26997553,
+          "count": 13498776
+        },
+        {
+          "address": "0x803cbc00",
+          "value": "0x803cbc00",
+          "elapsedCycles": 26997560,
+          "count": 13498779
+        },
+        {
+          "address": "0x803cbc00",
+          "value": "0x8022f960",
+          "elapsedCycles": 29746550,
+          "count": 14873274
+        },
+        {
+          "address": "0x803cbc04",
+          "value": "0x8022f960",
+          "elapsedCycles": 29746553,
+          "count": 14873276
+        },
+        {
+          "address": "0x803cbc00",
+          "value": "0x803cbc00",
+          "elapsedCycles": 46875704,
+          "count": 23437851
+        },
+        {
+          "address": "0x803cbc04",
+          "value": "0x803cbc00",
+          "elapsedCycles": 46875708,
+          "count": 23437853
+        }
+      ],
+      "firstFault": null,
+      "graphics": 9,
+      "audio": 11,
+      "controllerCommands": 139,
+      "viRetraces": 35,
+      "pc": "0x80079af8",
+      "epc": "0x80079adc",
+      "badVAddr": "0xffffffff",
+      "cause": "0x10000000",
+      "error": null
+    },
+    {
+      "name": "BattleTanx (USA)",
+      "sha256": "c5b7cf3523de025e3f18e2c8df2deb0eced5613e7c46cb8c6c5a4f22644ead3f",
+      "seconds": 1,
+      "input": false,
+      "steppedStartup": false,
+      "diagnosticTimeTicks": 23437499,
+      "controllerTime": {
+        "pc": "0x8011101c",
+        "elapsedCycles": 27284297,
+        "count": 13642148,
+        "ticks": 13642129,
+        "pointer": "0x803c7620",
+        "next": "0x00000000",
+        "prev": "0x00000000"
+      },
+      "milestones": [
+        {
+          "name": "osContInit",
+          "pc": "0x80110fe0",
+          "elapsedCycles": 27284233,
+          "count": 13642116,
+          "pointer": "0x803c7620",
+          "next": "0x00000000",
+          "prev": "0x00000000"
+        }
+      ],
+      "linkWrites": [
+        {
+          "address": "0x803c7620",
+          "value": "0x00000000",
+          "elapsedCycles": 26700296,
+          "count": 13350147
+        },
+        {
+          "address": "0x803c7624",
+          "value": "0x00000000",
+          "elapsedCycles": 26700296,
+          "count": 13350147
+        }
+      ],
+      "firstFault": {
+        "pc": "0x80121854",
+        "address": "0x00000010",
+        "code": 2,
+        "elapsedCycles": 27284482,
+        "count": 13642240,
+        "pointer": "0x803c7620",
+        "next": "0x00000000",
+        "prev": "0x00000000"
+      },
+      "graphics": 0,
+      "audio": 0,
+      "controllerCommands": 0,
+      "viRetraces": 0,
+      "pc": "0x80077ab4",
+      "epc": "0x80077ab0",
+      "badVAddr": "0x00000010",
+      "cause": "0x00000008",
+      "error": null
+    },
+    {
+      "name": "BattleTanx - Global Assault (USA)",
+      "sha256": "88268ce770ff39f2ca839848b842c87866df6c5ddaf775f180b2522c18ff6221",
+      "seconds": 1,
+      "input": false,
+      "steppedStartup": false,
+      "diagnosticTimeTicks": 23437499,
+      "controllerTime": {
+        "pc": "0x8010342c",
+        "elapsedCycles": 29092445,
+        "count": 14546222,
+        "ticks": 14546203,
+        "pointer": "0x803b0550",
+        "next": "0x00000000",
+        "prev": "0x00000000"
+      },
+      "milestones": [
+        {
+          "name": "osContInit",
+          "pc": "0x801033f0",
+          "elapsedCycles": 29092381,
+          "count": 14546190,
+          "pointer": "0x803b0550",
+          "next": "0x00000000",
+          "prev": "0x00000000"
+        }
+      ],
+      "linkWrites": [
+        {
+          "address": "0x803b0550",
+          "value": "0x00000000",
+          "elapsedCycles": 26739166,
+          "count": 13369582
+        },
+        {
+          "address": "0x803b0554",
+          "value": "0x00000000",
+          "elapsedCycles": 26739166,
+          "count": 13369582
+        }
+      ],
+      "firstFault": {
+        "pc": "0x801111d4",
+        "address": "0x00000010",
+        "code": 2,
+        "elapsedCycles": 29092630,
+        "count": 14546314,
+        "pointer": "0x803b0550",
+        "next": "0x00000000",
+        "prev": "0x00000000"
+      },
+      "graphics": 0,
+      "audio": 0,
+      "controllerCommands": 0,
+      "viRetraces": 0,
+      "pc": "0x8009ee84",
+      "epc": "0x8009ee80",
+      "badVAddr": "0x00000010",
+      "cause": "0x00000008",
+      "error": null
+    },
+    {
+      "name": "BattleTanx (USA)",
+      "sha256": "c5b7cf3523de025e3f18e2c8df2deb0eced5613e7c46cb8c6c5a4f22644ead3f",
+      "seconds": 30,
+      "input": true,
+      "steppedStartup": false,
+      "diagnosticTimeTicks": 23437500,
+      "controllerTime": {
+        "pc": "0x8011101c",
+        "elapsedCycles": 27284297,
+        "count": 13642148,
+        "ticks": 13642129,
+        "pointer": "0x803c7620",
+        "next": "0x00000000",
+        "prev": "0x00000000"
+      },
+      "milestones": [
+        {
+          "name": "osContInit",
+          "pc": "0x80110fe0",
+          "elapsedCycles": 27284233,
+          "count": 13642116,
+          "pointer": "0x803c7620",
+          "next": "0x00000000",
+          "prev": "0x00000000"
+        },
+        {
+          "name": "osCreateViManager",
+          "pc": "0x80121ba0",
+          "elapsedCycles": 28250149,
+          "count": 14125074,
+          "pointer": "0x803c7620",
+          "next": "0x00000000",
+          "prev": "0x00000000"
+        },
+        {
+          "name": "__osTimerServicesInit",
+          "pc": "0x801215a0",
+          "elapsedCycles": 28250157,
+          "count": 14125078,
+          "pointer": "0x803c7620",
+          "next": "0x00000000",
+          "prev": "0x00000000"
+        }
+      ],
+      "linkWrites": [
+        {
+          "address": "0x803c7620",
+          "value": "0x00000000",
+          "elapsedCycles": 26700296,
+          "count": 13350147
+        },
+        {
+          "address": "0x803c7624",
+          "value": "0x00000000",
+          "elapsedCycles": 26700296,
+          "count": 13350147
+        },
+        {
+          "address": "0x803c7624",
+          "value": "0x803c7620",
+          "elapsedCycles": 28250169,
+          "count": 14125084
+        },
+        {
+          "address": "0x803c7620",
+          "value": "0x803c7620",
+          "elapsedCycles": 28250176,
+          "count": 14125087
+        }
+      ],
+      "firstFault": null,
+      "graphics": 780,
+      "audio": 890,
+      "controllerCommands": 3765,
+      "viRetraces": 1782,
+      "pc": "0x8007e2a0",
+      "epc": "0x8007e26c",
+      "badVAddr": "0xffffffff",
+      "cause": "0x10000000",
+      "error": null
+    },
+    {
+      "name": "BattleTanx - Global Assault (USA)",
+      "sha256": "88268ce770ff39f2ca839848b842c87866df6c5ddaf775f180b2522c18ff6221",
+      "seconds": 30,
+      "input": true,
+      "steppedStartup": false,
+      "diagnosticTimeTicks": 23437500,
+      "controllerTime": {
+        "pc": "0x8010342c",
+        "elapsedCycles": 29092445,
+        "count": 14546222,
+        "ticks": 14546203,
+        "pointer": "0x803b0550",
+        "next": "0x00000000",
+        "prev": "0x00000000"
+      },
+      "milestones": [
+        {
+          "name": "osContInit",
+          "pc": "0x801033f0",
+          "elapsedCycles": 29092381,
+          "count": 14546190,
+          "pointer": "0x803b0550",
+          "next": "0x00000000",
+          "prev": "0x00000000"
+        },
+        {
+          "name": "osCreateViManager",
+          "pc": "0x80111560",
+          "elapsedCycles": 30058299,
+          "count": 15029149,
+          "pointer": "0x803b0550",
+          "next": "0x00000000",
+          "prev": "0x00000000"
+        },
+        {
+          "name": "__osTimerServicesInit",
+          "pc": "0x80110f20",
+          "elapsedCycles": 30058307,
+          "count": 15029153,
+          "pointer": "0x803b0550",
+          "next": "0x00000000",
+          "prev": "0x00000000"
+        }
+      ],
+      "linkWrites": [
+        {
+          "address": "0x803b0550",
+          "value": "0x00000000",
+          "elapsedCycles": 26739166,
+          "count": 13369582
+        },
+        {
+          "address": "0x803b0554",
+          "value": "0x00000000",
+          "elapsedCycles": 26739166,
+          "count": 13369582
+        },
+        {
+          "address": "0x803b0554",
+          "value": "0x803b0550",
+          "elapsedCycles": 30058319,
+          "count": 15029159
+        },
+        {
+          "address": "0x803b0550",
+          "value": "0x803b0550",
+          "elapsedCycles": 30058326,
+          "count": 15029162
+        }
+      ],
+      "firstFault": null,
+      "graphics": 720,
+      "audio": 889,
+      "controllerCommands": 3347,
+      "viRetraces": 1781,
+      "pc": "0x8007a854",
+      "epc": "0x8007a844",
+      "badVAddr": "0xffffffff",
+      "cause": "0x10000000",
+      "error": null
+    }
+  ]
+}

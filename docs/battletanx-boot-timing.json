@@ -1,0 +1,1083 @@
+{
+  "date": "2026-09-13",
+  "n64jsRevision": "2094ccf20c8803451152e34b687d801c7a1102f5",
+  "aresRevision": "b15d4d378c0ae59628d914efba1dfac81b07f88f",
+  "settings": {
+    "n64jsCpuHz": 93750000,
+    "countHz": 46875000,
+    "aresHalfCycleHz": 187500000,
+    "ramBytes": 8388608,
+    "n64jsSteppedStartup": true,
+    "n64jsRngSeed": 1,
+    "aresDeterministicEntropy": true,
+    "aresRecompiler": false
+  },
+  "note": "Reference-emulator measurements, not physical-console timings. No production timing change.",
+  "images": [
+    {
+      "name": "BattleTanx (USA)",
+      "sha256": "c5b7cf3523de025e3f18e2c8df2deb0eced5613e7c46cb8c6c5a4f22644ead3f",
+      "n64js": {
+        "controllerTime": {
+          "pc": "0x8011101c",
+          "elapsedCycles": 27284297,
+          "count": 13642148,
+          "ticks": 13642129,
+          "pointer": "0x803c7620",
+          "next": "0x00000000",
+          "prev": "0x00000000"
+        },
+        "bootStages": [
+          {
+            "name": "ipl3Entry",
+            "pc": "0xa4000040",
+            "elapsedCycles": 0,
+            "count": 0
+          },
+          {
+            "name": "rdramInitSkipped",
+            "pc": "0xa4000410",
+            "elapsedCycles": 8,
+            "count": 3
+          },
+          {
+            "name": "afterRdramInit",
+            "pc": "0xa4000458",
+            "elapsedCycles": 4114,
+            "count": 2056
+          },
+          {
+            "name": "relocatedIpl3",
+            "pc": "0x80000000",
+            "elapsedCycles": 5172,
+            "count": 2585
+          },
+          {
+            "name": "bootDmaStart",
+            "pc": "0x80000050",
+            "elapsedCycles": 5191,
+            "count": 2595
+          },
+          {
+            "name": "bootDmaComplete",
+            "pc": "0x800000d8",
+            "elapsedCycles": 18351179,
+            "count": 9175589
+          },
+          {
+            "name": "gameEntry",
+            "pc": "0x80071000",
+            "elapsedCycles": 24077344,
+            "count": 12038671
+          },
+          {
+            "name": "bssCleared",
+            "pc": "0x80071030",
+            "elapsedCycles": 26705000,
+            "count": 13352499
+          }
+        ],
+        "firstFault": {
+          "pc": "0x80121854",
+          "address": "0x00000010",
+          "code": 2,
+          "elapsedCycles": 27284482,
+          "count": 13642240,
+          "pointer": "0x803c7620",
+          "next": "0x00000000",
+          "prev": "0x00000000"
+        }
+      },
+      "ares": {
+        "initializationDeltaHalfCycles": 18183686,
+        "full": [
+          {
+            "mode": "full",
+            "name": "ipl3Entry",
+            "pc": "0xa4000040",
+            "halfCycles": 20082832,
+            "count": 5020708,
+            "instructions": 410078,
+            "v0": 247309622,
+            "v1": 247309622,
+            "icacheMisses": 0,
+            "dcacheMisses": 0,
+            "dcacheWritebacks": 0
+          },
+          {
+            "mode": "full",
+            "name": "rdramInit",
+            "pc": "0xa4000060",
+            "halfCycles": 20083208,
+            "count": 73,
+            "instructions": 410086,
+            "v0": 247309622,
+            "v1": 247309622,
+            "icacheMisses": 0,
+            "dcacheMisses": 0,
+            "dcacheWritebacks": 0
+          },
+          {
+            "mode": "full",
+            "name": "afterRdramInit",
+            "pc": "0xa4000458",
+            "halfCycles": 38439346,
+            "count": 4589107,
+            "instructions": 842387,
+            "v0": 0,
+            "v1": 4,
+            "icacheMisses": 0,
+            "dcacheMisses": 0,
+            "dcacheWritebacks": 0
+          },
+          {
+            "mode": "full",
+            "name": "relocatedIpl3",
+            "pc": "0x80000000",
+            "halfCycles": 38490702,
+            "count": 4601946,
+            "instructions": 843445,
+            "v0": 0,
+            "v1": 4,
+            "icacheMisses": 0,
+            "dcacheMisses": 0,
+            "dcacheWritebacks": 0
+          },
+          {
+            "mode": "full",
+            "name": "bootDmaStart",
+            "pc": "0x80000050",
+            "halfCycles": 38491608,
+            "count": 4602173,
+            "instructions": 843464,
+            "v0": 0,
+            "v1": 4,
+            "icacheMisses": 3,
+            "dcacheMisses": 0,
+            "dcacheWritebacks": 0
+          },
+          {
+            "mode": "full",
+            "name": "bootDmaComplete",
+            "pc": "0x800000d8",
+            "halfCycles": 75840564,
+            "count": 13939412,
+            "instructions": 12470850,
+            "v0": 0,
+            "v1": 4,
+            "icacheMisses": 7,
+            "dcacheMisses": 0,
+            "dcacheWritebacks": 0
+          },
+          {
+            "mode": "full",
+            "name": "gameEntry",
+            "pc": "0x80071000",
+            "halfCycles": 92932718,
+            "count": 18212450,
+            "instructions": 18197015,
+            "v0": 3848326834,
+            "v1": 18,
+            "icacheMisses": 22,
+            "dcacheMisses": 65536,
+            "dcacheWritebacks": 0
+          },
+          {
+            "mode": "full",
+            "name": "bssCleared",
+            "pc": "0x80071030",
+            "halfCycles": 125409110,
+            "count": 26331548,
+            "instructions": 20824671,
+            "v0": 3848326834,
+            "v1": 18,
+            "icacheMisses": 24,
+            "dcacheMisses": 229764,
+            "dcacheWritebacks": 163716
+          },
+          {
+            "mode": "full",
+            "name": "osContInit",
+            "pc": "0x80110fe0",
+            "halfCycles": 132005254,
+            "count": 27980584,
+            "instructions": 21404752,
+            "v0": 0,
+            "v1": 16,
+            "icacheMisses": 801,
+            "dcacheMisses": 261760,
+            "dcacheWritebacks": 195554
+          },
+          {
+            "mode": "full",
+            "name": "controllerTime",
+            "pc": "0x8011101c",
+            "halfCycles": 132006334,
+            "count": 27980854,
+            "instructions": 21404816,
+            "v0": 0,
+            "v1": 27980738,
+            "icacheMisses": 808,
+            "dcacheMisses": 261762,
+            "dcacheWritebacks": 195555
+          }
+        ],
+        "skippedInitialization": [
+          {
+            "mode": "skip-rdram-init",
+            "name": "ipl3Entry",
+            "pc": "0xa4000040",
+            "halfCycles": 20082832,
+            "count": 5020708,
+            "instructions": 410078,
+            "v0": 247309622,
+            "v1": 247309622,
+            "icacheMisses": 0,
+            "dcacheMisses": 0,
+            "dcacheWritebacks": 0
+          },
+          {
+            "mode": "skip-rdram-init",
+            "name": "rdramInitSkipped",
+            "pc": "0xa4000410",
+            "halfCycles": 20083208,
+            "count": 73,
+            "instructions": 410086,
+            "v0": 247309622,
+            "v1": 247309622,
+            "icacheMisses": 0,
+            "dcacheMisses": 0,
+            "dcacheWritebacks": 0
+          },
+          {
+            "mode": "skip-rdram-init",
+            "name": "afterRdramInit",
+            "pc": "0xa4000458",
+            "halfCycles": 20255660,
+            "count": 43186,
+            "instructions": 414192,
+            "v0": 247309622,
+            "v1": 247309622,
+            "icacheMisses": 0,
+            "dcacheMisses": 0,
+            "dcacheWritebacks": 0
+          },
+          {
+            "mode": "skip-rdram-init",
+            "name": "relocatedIpl3",
+            "pc": "0x80000000",
+            "halfCycles": 20307016,
+            "count": 56025,
+            "instructions": 415250,
+            "v0": 247309622,
+            "v1": 247309622,
+            "icacheMisses": 0,
+            "dcacheMisses": 0,
+            "dcacheWritebacks": 0
+          },
+          {
+            "mode": "skip-rdram-init",
+            "name": "bootDmaStart",
+            "pc": "0x80000050",
+            "halfCycles": 20307922,
+            "count": 56251,
+            "instructions": 415269,
+            "v0": 247309622,
+            "v1": 247309622,
+            "icacheMisses": 3,
+            "dcacheMisses": 0,
+            "dcacheWritebacks": 0
+          },
+          {
+            "mode": "skip-rdram-init",
+            "name": "bootDmaComplete",
+            "pc": "0x800000d8",
+            "halfCycles": 57656878,
+            "count": 9393490,
+            "instructions": 12042655,
+            "v0": 247309622,
+            "v1": 247309622,
+            "icacheMisses": 7,
+            "dcacheMisses": 0,
+            "dcacheWritebacks": 0
+          },
+          {
+            "mode": "skip-rdram-init",
+            "name": "gameEntry",
+            "pc": "0x80071000",
+            "halfCycles": 74749032,
+            "count": 13666529,
+            "instructions": 17768820,
+            "v0": 3848326834,
+            "v1": 18,
+            "icacheMisses": 22,
+            "dcacheMisses": 65536,
+            "dcacheWritebacks": 0
+          },
+          {
+            "mode": "skip-rdram-init",
+            "name": "bssCleared",
+            "pc": "0x80071030",
+            "halfCycles": 107225424,
+            "count": 21785627,
+            "instructions": 20396476,
+            "v0": 3848326834,
+            "v1": 18,
+            "icacheMisses": 24,
+            "dcacheMisses": 229764,
+            "dcacheWritebacks": 163716
+          },
+          {
+            "mode": "skip-rdram-init",
+            "name": "osContInit",
+            "pc": "0x80110fe0",
+            "halfCycles": 113821568,
+            "count": 23434663,
+            "instructions": 20976557,
+            "v0": 0,
+            "v1": 16,
+            "icacheMisses": 801,
+            "dcacheMisses": 261760,
+            "dcacheWritebacks": 195554
+          },
+          {
+            "mode": "skip-rdram-init",
+            "name": "controllerTime",
+            "pc": "0x8011101c",
+            "halfCycles": 113822648,
+            "count": 23434933,
+            "instructions": 20976621,
+            "v0": 0,
+            "v1": 23434817,
+            "icacheMisses": 808,
+            "dcacheMisses": 261762,
+            "dcacheWritebacks": 195555
+          }
+        ]
+      },
+      "returnedTimeOnlyDiagnostic": {
+        "diagnosticTimeTicks": 18188050,
+        "controllerTime": {
+          "pc": "0x8011101c",
+          "elapsedCycles": 27284297,
+          "count": 13642148,
+          "ticks": 13642129,
+          "pointer": "0x803c7620",
+          "next": "0x00000000",
+          "prev": "0x00000000"
+        },
+        "firstFault": {
+          "pc": "0x80121854",
+          "address": "0x00000010",
+          "code": 2,
+          "elapsedCycles": 27284482,
+          "count": 13642240,
+          "pointer": "0x803c7620",
+          "next": "0x00000000",
+          "prev": "0x00000000"
+        },
+        "graphics": 0,
+        "audio": 0
+      }
+    },
+    {
+      "name": "BattleTanx - Global Assault (USA)",
+      "sha256": "88268ce770ff39f2ca839848b842c87866df6c5ddaf775f180b2522c18ff6221",
+      "n64js": {
+        "controllerTime": {
+          "pc": "0x8010342c",
+          "elapsedCycles": 29092445,
+          "count": 14546222,
+          "ticks": 14546203,
+          "pointer": "0x803b0550",
+          "next": "0x00000000",
+          "prev": "0x00000000"
+        },
+        "bootStages": [
+          {
+            "name": "ipl3Entry",
+            "pc": "0xa4000040",
+            "elapsedCycles": 0,
+            "count": 0
+          },
+          {
+            "name": "rdramInitSkipped",
+            "pc": "0xa4000410",
+            "elapsedCycles": 8,
+            "count": 3
+          },
+          {
+            "name": "afterRdramInit",
+            "pc": "0xa4000458",
+            "elapsedCycles": 4114,
+            "count": 2056
+          },
+          {
+            "name": "relocatedIpl3",
+            "pc": "0x80000000",
+            "elapsedCycles": 5172,
+            "count": 2585
+          },
+          {
+            "name": "bootDmaStart",
+            "pc": "0x80000050",
+            "elapsedCycles": 5191,
+            "count": 2595
+          },
+          {
+            "name": "bootDmaComplete",
+            "pc": "0x800000d8",
+            "elapsedCycles": 18351179,
+            "count": 9175589
+          },
+          {
+            "name": "gameEntry",
+            "pc": "0x80071000",
+            "elapsedCycles": 24083130,
+            "count": 12041564
+          },
+          {
+            "name": "bssCleared",
+            "pc": "0x80071030",
+            "elapsedCycles": 26743874,
+            "count": 13371936
+          }
+        ],
+        "firstFault": {
+          "pc": "0x801111d4",
+          "address": "0x00000010",
+          "code": 2,
+          "elapsedCycles": 29092630,
+          "count": 14546314,
+          "pointer": "0x803b0550",
+          "next": "0x00000000",
+          "prev": "0x00000000"
+        }
+      },
+      "ares": {
+        "initializationDeltaHalfCycles": 18183686,
+        "full": [
+          {
+            "mode": "full",
+            "name": "ipl3Entry",
+            "pc": "0xa4000040",
+            "halfCycles": 20082832,
+            "count": 5020708,
+            "instructions": 410078,
+            "v0": 247309622,
+            "v1": 247309622,
+            "icacheMisses": 0,
+            "dcacheMisses": 0,
+            "dcacheWritebacks": 0
+          },
+          {
+            "mode": "full",
+            "name": "rdramInit",
+            "pc": "0xa4000060",
+            "halfCycles": 20083208,
+            "count": 73,
+            "instructions": 410086,
+            "v0": 247309622,
+            "v1": 247309622,
+            "icacheMisses": 0,
+            "dcacheMisses": 0,
+            "dcacheWritebacks": 0
+          },
+          {
+            "mode": "full",
+            "name": "afterRdramInit",
+            "pc": "0xa4000458",
+            "halfCycles": 38439346,
+            "count": 4589107,
+            "instructions": 842387,
+            "v0": 0,
+            "v1": 4,
+            "icacheMisses": 0,
+            "dcacheMisses": 0,
+            "dcacheWritebacks": 0
+          },
+          {
+            "mode": "full",
+            "name": "relocatedIpl3",
+            "pc": "0x80000000",
+            "halfCycles": 38490702,
+            "count": 4601946,
+            "instructions": 843445,
+            "v0": 0,
+            "v1": 4,
+            "icacheMisses": 0,
+            "dcacheMisses": 0,
+            "dcacheWritebacks": 0
+          },
+          {
+            "mode": "full",
+            "name": "bootDmaStart",
+            "pc": "0x80000050",
+            "halfCycles": 38491608,
+            "count": 4602173,
+            "instructions": 843464,
+            "v0": 0,
+            "v1": 4,
+            "icacheMisses": 3,
+            "dcacheMisses": 0,
+            "dcacheWritebacks": 0
+          },
+          {
+            "mode": "full",
+            "name": "bootDmaComplete",
+            "pc": "0x800000d8",
+            "halfCycles": 75840564,
+            "count": 13939412,
+            "instructions": 12470850,
+            "v0": 0,
+            "v1": 4,
+            "icacheMisses": 7,
+            "dcacheMisses": 0,
+            "dcacheWritebacks": 0
+          },
+          {
+            "mode": "full",
+            "name": "gameEntry",
+            "pc": "0x80071000",
+            "halfCycles": 92944290,
+            "count": 18215343,
+            "instructions": 18202801,
+            "v0": 495101730,
+            "v1": 2,
+            "icacheMisses": 22,
+            "dcacheMisses": 65536,
+            "dcacheWritebacks": 0
+          },
+          {
+            "mode": "full",
+            "name": "bssCleared",
+            "pc": "0x80071030",
+            "halfCycles": 125830146,
+            "count": 26436807,
+            "instructions": 20863545,
+            "v0": 495101730,
+            "v1": 2,
+            "icacheMisses": 24,
+            "dcacheMisses": 231832,
+            "dcacheWritebacks": 165784
+          },
+          {
+            "mode": "full",
+            "name": "osContInit",
+            "pc": "0x801033f0",
+            "halfCycles": 139241186,
+            "count": 29789567,
+            "instructions": 23222746,
+            "v0": 0,
+            "v1": 2149290496,
+            "icacheMisses": 1020,
+            "dcacheMisses": 280682,
+            "dcacheWritebacks": 214358
+          },
+          {
+            "mode": "full",
+            "name": "controllerTime",
+            "pc": "0x8010342c",
+            "halfCycles": 139242598,
+            "count": 29789920,
+            "instructions": 23222810,
+            "v0": 0,
+            "v1": 29789765,
+            "icacheMisses": 1028,
+            "dcacheMisses": 280686,
+            "dcacheWritebacks": 214360
+          }
+        ],
+        "skippedInitialization": [
+          {
+            "mode": "skip-rdram-init",
+            "name": "ipl3Entry",
+            "pc": "0xa4000040",
+            "halfCycles": 20082832,
+            "count": 5020708,
+            "instructions": 410078,
+            "v0": 247309622,
+            "v1": 247309622,
+            "icacheMisses": 0,
+            "dcacheMisses": 0,
+            "dcacheWritebacks": 0
+          },
+          {
+            "mode": "skip-rdram-init",
+            "name": "rdramInitSkipped",
+            "pc": "0xa4000410",
+            "halfCycles": 20083208,
+            "count": 73,
+            "instructions": 410086,
+            "v0": 247309622,
+            "v1": 247309622,
+            "icacheMisses": 0,
+            "dcacheMisses": 0,
+            "dcacheWritebacks": 0
+          },
+          {
+            "mode": "skip-rdram-init",
+            "name": "afterRdramInit",
+            "pc": "0xa4000458",
+            "halfCycles": 20255660,
+            "count": 43186,
+            "instructions": 414192,
+            "v0": 247309622,
+            "v1": 247309622,
+            "icacheMisses": 0,
+            "dcacheMisses": 0,
+            "dcacheWritebacks": 0
+          },
+          {
+            "mode": "skip-rdram-init",
+            "name": "relocatedIpl3",
+            "pc": "0x80000000",
+            "halfCycles": 20307016,
+            "count": 56025,
+            "instructions": 415250,
+            "v0": 247309622,
+            "v1": 247309622,
+            "icacheMisses": 0,
+            "dcacheMisses": 0,
+            "dcacheWritebacks": 0
+          },
+          {
+            "mode": "skip-rdram-init",
+            "name": "bootDmaStart",
+            "pc": "0x80000050",
+            "halfCycles": 20307922,
+            "count": 56251,
+            "instructions": 415269,
+            "v0": 247309622,
+            "v1": 247309622,
+            "icacheMisses": 3,
+            "dcacheMisses": 0,
+            "dcacheWritebacks": 0
+          },
+          {
+            "mode": "skip-rdram-init",
+            "name": "bootDmaComplete",
+            "pc": "0x800000d8",
+            "halfCycles": 57656878,
+            "count": 9393490,
+            "instructions": 12042655,
+            "v0": 247309622,
+            "v1": 247309622,
+            "icacheMisses": 7,
+            "dcacheMisses": 0,
+            "dcacheWritebacks": 0
+          },
+          {
+            "mode": "skip-rdram-init",
+            "name": "gameEntry",
+            "pc": "0x80071000",
+            "halfCycles": 74760604,
+            "count": 13669422,
+            "instructions": 17774606,
+            "v0": 495101730,
+            "v1": 2,
+            "icacheMisses": 22,
+            "dcacheMisses": 65536,
+            "dcacheWritebacks": 0
+          },
+          {
+            "mode": "skip-rdram-init",
+            "name": "bssCleared",
+            "pc": "0x80071030",
+            "halfCycles": 107646460,
+            "count": 21890886,
+            "instructions": 20435350,
+            "v0": 495101730,
+            "v1": 2,
+            "icacheMisses": 24,
+            "dcacheMisses": 231832,
+            "dcacheWritebacks": 165784
+          },
+          {
+            "mode": "skip-rdram-init",
+            "name": "osContInit",
+            "pc": "0x801033f0",
+            "halfCycles": 121057500,
+            "count": 25243646,
+            "instructions": 22794551,
+            "v0": 0,
+            "v1": 2149290496,
+            "icacheMisses": 1020,
+            "dcacheMisses": 280682,
+            "dcacheWritebacks": 214358
+          },
+          {
+            "mode": "skip-rdram-init",
+            "name": "controllerTime",
+            "pc": "0x8010342c",
+            "halfCycles": 121058912,
+            "count": 25243999,
+            "instructions": 22794615,
+            "v0": 0,
+            "v1": 25243843,
+            "icacheMisses": 1028,
+            "dcacheMisses": 280686,
+            "dcacheWritebacks": 214360
+          }
+        ]
+      },
+      "returnedTimeOnlyDiagnostic": {
+        "diagnosticTimeTicks": 19092124,
+        "controllerTime": {
+          "pc": "0x8010342c",
+          "elapsedCycles": 29092445,
+          "count": 14546222,
+          "ticks": 14546203,
+          "pointer": "0x803b0550",
+          "next": "0x00000000",
+          "prev": "0x00000000"
+        },
+        "firstFault": {
+          "pc": "0x801111d4",
+          "address": "0x00000010",
+          "code": 2,
+          "elapsedCycles": 29092630,
+          "count": 14546314,
+          "pointer": "0x803b0550",
+          "next": "0x00000000",
+          "prev": "0x00000000"
+        },
+        "graphics": 0,
+        "audio": 0
+      }
+    },
+    {
+      "name": "BattleTanx - Global Assault (Europe) (En,Fr,De)",
+      "sha256": "8c0f538d32243d7d230ff28432326fbb17ea59bec2e2d9815dc04317dbe70db0",
+      "n64js": {
+        "controllerTime": {
+          "pc": "0x801003fc",
+          "elapsedCycles": 29746345,
+          "count": 14873172,
+          "ticks": 14873153,
+          "pointer": "0x803cbc00",
+          "next": "0x803cbc00",
+          "prev": "0x803cbc00"
+        },
+        "bootStages": [
+          {
+            "name": "ipl3Entry",
+            "pc": "0xa4000040",
+            "elapsedCycles": 0,
+            "count": 0
+          },
+          {
+            "name": "rdramInitSkipped",
+            "pc": "0xa4000410",
+            "elapsedCycles": 8,
+            "count": 3
+          },
+          {
+            "name": "afterRdramInit",
+            "pc": "0xa4000458",
+            "elapsedCycles": 4114,
+            "count": 2056
+          },
+          {
+            "name": "relocatedIpl3",
+            "pc": "0x80000000",
+            "elapsedCycles": 5172,
+            "count": 2585
+          },
+          {
+            "name": "bootDmaStart",
+            "pc": "0x80000050",
+            "elapsedCycles": 5191,
+            "count": 2595
+          },
+          {
+            "name": "bootDmaComplete",
+            "pc": "0x800000d8",
+            "elapsedCycles": 18351179,
+            "count": 9175589
+          },
+          {
+            "name": "gameEntry",
+            "pc": "0x80071000",
+            "elapsedCycles": 24057629,
+            "count": 12028814
+          },
+          {
+            "name": "bssCleared",
+            "pc": "0x80071030",
+            "elapsedCycles": 26848693,
+            "count": 13424346
+          }
+        ],
+        "firstFault": null
+      },
+      "ares": {
+        "initializationDeltaHalfCycles": 18183686,
+        "full": [
+          {
+            "mode": "full",
+            "name": "ipl3Entry",
+            "pc": "0xa4000040",
+            "halfCycles": 20083124,
+            "count": 5020781,
+            "instructions": 410084,
+            "v0": 247309622,
+            "v1": 247309622,
+            "icacheMisses": 0,
+            "dcacheMisses": 0,
+            "dcacheWritebacks": 0
+          },
+          {
+            "mode": "full",
+            "name": "rdramInit",
+            "pc": "0xa4000060",
+            "halfCycles": 20083500,
+            "count": 73,
+            "instructions": 410092,
+            "v0": 247309622,
+            "v1": 247309622,
+            "icacheMisses": 0,
+            "dcacheMisses": 0,
+            "dcacheWritebacks": 0
+          },
+          {
+            "mode": "full",
+            "name": "afterRdramInit",
+            "pc": "0xa4000458",
+            "halfCycles": 38439638,
+            "count": 4589107,
+            "instructions": 842393,
+            "v0": 0,
+            "v1": 4,
+            "icacheMisses": 0,
+            "dcacheMisses": 0,
+            "dcacheWritebacks": 0
+          },
+          {
+            "mode": "full",
+            "name": "relocatedIpl3",
+            "pc": "0x80000000",
+            "halfCycles": 38490994,
+            "count": 4601946,
+            "instructions": 843451,
+            "v0": 0,
+            "v1": 4,
+            "icacheMisses": 0,
+            "dcacheMisses": 0,
+            "dcacheWritebacks": 0
+          },
+          {
+            "mode": "full",
+            "name": "bootDmaStart",
+            "pc": "0x80000050",
+            "halfCycles": 38491900,
+            "count": 4602173,
+            "instructions": 843470,
+            "v0": 0,
+            "v1": 4,
+            "icacheMisses": 3,
+            "dcacheMisses": 0,
+            "dcacheWritebacks": 0
+          },
+          {
+            "mode": "full",
+            "name": "bootDmaComplete",
+            "pc": "0x800000d8",
+            "halfCycles": 75840856,
+            "count": 13939412,
+            "instructions": 12470856,
+            "v0": 0,
+            "v1": 4,
+            "icacheMisses": 7,
+            "dcacheMisses": 0,
+            "dcacheWritebacks": 0
+          },
+          {
+            "mode": "full",
+            "name": "gameEntry",
+            "pc": "0x80071000",
+            "halfCycles": 92893580,
+            "count": 18202593,
+            "instructions": 18177306,
+            "v0": 495101730,
+            "v1": 2,
+            "icacheMisses": 22,
+            "dcacheMisses": 65536,
+            "dcacheWritebacks": 0
+          },
+          {
+            "mode": "full",
+            "name": "bssCleared",
+            "pc": "0x80071030",
+            "halfCycles": 127392146,
+            "count": 26827234,
+            "instructions": 20968370,
+            "v0": 495101730,
+            "v1": 2,
+            "icacheMisses": 24,
+            "dcacheMisses": 239977,
+            "dcacheWritebacks": 173929
+          },
+          {
+            "mode": "full",
+            "name": "osContInit",
+            "pc": "0x801003c0",
+            "halfCycles": 147976572,
+            "count": 31973341,
+            "instructions": 23880530,
+            "v0": 0,
+            "v1": 0,
+            "icacheMisses": 1322,
+            "dcacheMisses": 324323,
+            "dcacheWritebacks": 257906
+          },
+          {
+            "mode": "full",
+            "name": "controllerTime",
+            "pc": "0x801003fc",
+            "halfCycles": 147977810,
+            "count": 31973650,
+            "instructions": 23880594,
+            "v0": 0,
+            "v1": 31973475,
+            "icacheMisses": 1329,
+            "dcacheMisses": 324326,
+            "dcacheWritebacks": 257908
+          }
+        ],
+        "skippedInitialization": [
+          {
+            "mode": "skip-rdram-init",
+            "name": "ipl3Entry",
+            "pc": "0xa4000040",
+            "halfCycles": 20083124,
+            "count": 5020781,
+            "instructions": 410084,
+            "v0": 247309622,
+            "v1": 247309622,
+            "icacheMisses": 0,
+            "dcacheMisses": 0,
+            "dcacheWritebacks": 0
+          },
+          {
+            "mode": "skip-rdram-init",
+            "name": "rdramInitSkipped",
+            "pc": "0xa4000410",
+            "halfCycles": 20083500,
+            "count": 73,
+            "instructions": 410092,
+            "v0": 247309622,
+            "v1": 247309622,
+            "icacheMisses": 0,
+            "dcacheMisses": 0,
+            "dcacheWritebacks": 0
+          },
+          {
+            "mode": "skip-rdram-init",
+            "name": "afterRdramInit",
+            "pc": "0xa4000458",
+            "halfCycles": 20255952,
+            "count": 43186,
+            "instructions": 414198,
+            "v0": 247309622,
+            "v1": 247309622,
+            "icacheMisses": 0,
+            "dcacheMisses": 0,
+            "dcacheWritebacks": 0
+          },
+          {
+            "mode": "skip-rdram-init",
+            "name": "relocatedIpl3",
+            "pc": "0x80000000",
+            "halfCycles": 20307308,
+            "count": 56025,
+            "instructions": 415256,
+            "v0": 247309622,
+            "v1": 247309622,
+            "icacheMisses": 0,
+            "dcacheMisses": 0,
+            "dcacheWritebacks": 0
+          },
+          {
+            "mode": "skip-rdram-init",
+            "name": "bootDmaStart",
+            "pc": "0x80000050",
+            "halfCycles": 20308214,
+            "count": 56251,
+            "instructions": 415275,
+            "v0": 247309622,
+            "v1": 247309622,
+            "icacheMisses": 3,
+            "dcacheMisses": 0,
+            "dcacheWritebacks": 0
+          },
+          {
+            "mode": "skip-rdram-init",
+            "name": "bootDmaComplete",
+            "pc": "0x800000d8",
+            "halfCycles": 57657170,
+            "count": 9393490,
+            "instructions": 12042661,
+            "v0": 247309622,
+            "v1": 247309622,
+            "icacheMisses": 7,
+            "dcacheMisses": 0,
+            "dcacheWritebacks": 0
+          },
+          {
+            "mode": "skip-rdram-init",
+            "name": "gameEntry",
+            "pc": "0x80071000",
+            "halfCycles": 74709894,
+            "count": 13656671,
+            "instructions": 17749111,
+            "v0": 495101730,
+            "v1": 2,
+            "icacheMisses": 22,
+            "dcacheMisses": 65536,
+            "dcacheWritebacks": 0
+          },
+          {
+            "mode": "skip-rdram-init",
+            "name": "bssCleared",
+            "pc": "0x80071030",
+            "halfCycles": 109208460,
+            "count": 22281313,
+            "instructions": 20540175,
+            "v0": 495101730,
+            "v1": 2,
+            "icacheMisses": 24,
+            "dcacheMisses": 239977,
+            "dcacheWritebacks": 173929
+          },
+          {
+            "mode": "skip-rdram-init",
+            "name": "osContInit",
+            "pc": "0x801003c0",
+            "halfCycles": 129792410,
+            "count": 27427300,
+            "instructions": 23452335,
+            "v0": 0,
+            "v1": 0,
+            "icacheMisses": 1322,
+            "dcacheMisses": 324321,
+            "dcacheWritebacks": 257902
+          },
+          {
+            "mode": "skip-rdram-init",
+            "name": "controllerTime",
+            "pc": "0x801003fc",
+            "halfCycles": 129793648,
+            "count": 27427610,
+            "instructions": 23452399,
+            "v0": 0,
+            "v1": 27427434,
+            "icacheMisses": 1329,
+            "dcacheMisses": 324324,
+            "dcacheWritebacks": 257904
+          }
+        ]
+      }
+    }
+  ]
+}
