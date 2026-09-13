@@ -279,9 +279,23 @@ export class ROMD2A2Device extends Device {
         }
         throw `Reading s32 from rom d2a2 [${toString32(address)}]`;
     }
-    // TODO: short reads should probably behave like 32 bit read and byte selection done on CPU.
-    readU16(address) { throw `Reading 16 bits from rom d2a2 [${toString32(address)}]`; }
-    readU8(address) { throw `Reading 8 bits from rom d2a2 [${toString32(address)}]`; }
+    readU16(address) {
+        if (this.calcWriteEA(address) >= 0x88000) {
+            const word = unmappedAddressValue(address & ~3);
+            return (word >>> (8 * (2 - (address & 2)))) & 0xffff;
+        }
+        throw `Reading 16 bits from rom d2a2 [${toString32(address)}]`;
+    }
+
+    readU8(address) {
+        if (this.calcWriteEA(address) >= 0x88000) {
+            // The CPU selects a byte from the aligned open-bus word. F1 Racing
+            // Championship reads flags at 0xAAAAB1F6 during its initial cleanup.
+            const word = unmappedAddressValue(address & ~3);
+            return (word >>> (8 * (3 - (address & 3)))) & 0xff;
+        }
+        throw `Reading 8 bits from rom d2a2 [${toString32(address)}]`;
+    }
 
     write32(address, value) {
         const ea = this.calcWriteEA(address);
