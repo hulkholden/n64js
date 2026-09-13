@@ -13,11 +13,11 @@ const EXIT_CODE_SIGINT = 130;
 const EXIT_CODE_SIGTERM = 143;
 
 const usage = `Usage: bun run inventory-batch <rom-or-directory>... --output-dir <directory> [options]
-       bun run inventory-batch --resume <scan-directory>
+       bun run inventory-batch --resume <scan-directory> [--resume <scan-directory>...]
 
   --output-dir <path>  Inventory root; creates runs/<scan-id>/manifest.json
-  --resume <path>      Resume a scan with its saved inputs and settings
-  --seed <uint32>      Random seed (default: 1)
+  --resume <path>      Resume saved inputs/settings; repeat for multiple scans
+  --seed <uint32>      Random seed (default: 1); repeat for multiple seeds
   --frames <count>     VI retraces per ROM (default: 600)
   --max-cycles <n>     CPU cycle limit per ROM (default: 5000000000)
   --timeout-ms <ms>    Wall-clock limit per emulator run (default: 60000)
@@ -25,8 +25,12 @@ const usage = `Usage: bun run inventory-batch <rom-or-directory>... --output-dir
 
 Directories are searched recursively for .z64, .v64 and .n64 files. Directory
 symlinks are not followed. ROMs run sequentially; errors and timeouts are saved
-and do not stop the scan. Duplicate ROM contents share a canonical SHA-256 report.
-The scan directory is printed on stdout; diagnostics and progress go to stderr.
+and do not stop later ROMs or seeds. Each seed gets a separate scan directory;
+duplicate ROM contents share a canonical SHA-256 report within each scan.
+Seeds run in argument order; repeated seed values are ignored. All manifests are
+saved before emulation starts, so seeds not yet started can also be resumed.
+Scan directories are printed one per line on stdout before emulation starts;
+diagnostics and progress go to stderr. Repeat --resume to resume them together.
 
 Resume skips saved terminal results (including failures) and retries interrupted
 or missing results. It requires the same emulator source, revision, runtime and
@@ -179,31 +183,24 @@ async function collectEntry(scanDirectory, manifest, index, signal) {
   return report;
 }
 
-async function scan(scanDirectory, initialManifest) {
+async function scan(scanDirectory, signal) {
   const lockPath = join(scanDirectory, '.lock');
   const lock = await open(lockPath, 'wx').catch(error => {
     if (error.code === 'EEXIST') throw new Error(`Scan is locked: ${lockPath}. See --help for recovery.`);
     throw error;
   });
-  const controller = new AbortController();
-  let interruptCode = EXIT_CODE_SIGINT;
-  const onInterrupt = () => controller.abort();
-  const onTerminate = () => { interruptCode = EXIT_CODE_SIGTERM; controller.abort(); };
-  process.on('SIGINT', onInterrupt);
-  process.on('SIGTERM', onTerminate);
   try {
     await lock.writeFile(`${process.pid}\n`);
     const manifestPath = join(scanDirectory, 'manifest.json');
-    const manifest = initialManifest ?? JSON.parse(await readFile(manifestPath, 'utf8'));
+    const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
     validateManifest(manifest);
     await checkSource(manifest);
     manifest.status = 'running';
     await writeJSON(manifestPath, manifest);
-    console.log(scanDirectory);
 
     for (const [index, entry] of manifest.entries.entries()) {
-      if (controller.signal.aborted) break;
-      const report = await collectEntry(scanDirectory, manifest, index, controller.signal);
+      if (signal.aborted) break;
+      const report = await collectEntry(scanDirectory, manifest, index, signal);
       entry.status = report.result.status;
       await writeJSON(manifestPath, manifest);
       console.error(`[${index + 1}/${manifest.entries.length}] ${entry.status}: ${entry.path}`);
@@ -211,43 +208,79 @@ async function scan(scanDirectory, initialManifest) {
 
     manifest.status = manifest.entries.every(entry => terminal.has(entry.status)) ? 'completed' : 'interrupted';
     await writeJSON(manifestPath, manifest);
-    if (manifest.status === 'interrupted') return interruptCode;
     return manifest.entries.every(entry => entry.status === 'completed') ? 0 : 1;
   } finally {
-    process.off('SIGINT', onInterrupt);
-    process.off('SIGTERM', onTerminate);
     await lock.close();
     await unlink(lockPath);
   }
 }
 
+async function scanAll(scanDirectories) {
+  const controller = new AbortController();
+  let interruptCode = EXIT_CODE_SIGINT;
+  const onInterrupt = () => controller.abort();
+  const onTerminate = () => { interruptCode = EXIT_CODE_SIGTERM; controller.abort(); };
+  process.on('SIGINT', onInterrupt);
+  process.on('SIGTERM', onTerminate);
+  try {
+    for (const directory of scanDirectories) console.log(directory);
+    let exitCode = 0;
+    for (const directory of scanDirectories) {
+      if (controller.signal.aborted) break;
+      console.error(`Scanning ${directory}`);
+      const code = await scan(directory, controller.signal);
+      if (code !== 0) exitCode = code;
+    }
+    return controller.signal.aborted ? interruptCode : exitCode;
+  } finally {
+    process.off('SIGINT', onInterrupt);
+    process.off('SIGTERM', onTerminate);
+  }
+}
+
+async function createScans(outputDirectory, paths, settingsList) {
+  const emulator = emulatorVersion();
+  const sourceSha256 = await sourceHash();
+  const directories = [];
+  for (const settings of settingsList) {
+    const id = randomUUID();
+    const directory = resolve(outputDirectory, 'runs', id);
+    const manifest = {
+      schemaVersion: 1, id, createdAt: new Date().toISOString(),
+      emulator, sourceSha256, settings,
+      status: 'pending',
+      entries: paths.map(path => ({ path, sha256: null, report: null, status: 'pending' })),
+    };
+    await mkdir(dirname(directory), { recursive: true });
+    await mkdir(directory);
+    await writeJSON(join(directory, 'manifest.json'), manifest);
+    directories.push(directory);
+  }
+  return directories;
+}
+
 try {
   const { values, positionals } = parseArgs({
     args: Bun.argv.slice(2), allowPositionals: true,
-    options: { ...inventoryOptions, 'output-dir': { type: 'string' }, resume: { type: 'string' }, help: { type: 'boolean' } },
+    options: {
+      ...inventoryOptions, seed: { type: 'string', multiple: true },
+      'output-dir': { type: 'string' }, resume: { type: 'string', multiple: true }, help: { type: 'boolean' },
+    },
   });
   if (values.help) {
     console.log(usage);
   } else if (values.resume !== undefined) {
-    if (!values.resume || positionals.length || Object.keys(values).some(key => key !== 'resume')) {
-      throw new Error('--resume takes only a scan directory; inputs and settings come from its manifest');
+    if (values.resume.some(path => !path) || positionals.length || Object.keys(values).some(key => key !== 'resume')) {
+      throw new Error('--resume takes only scan directories; inputs and settings come from their manifests');
     }
-    process.exitCode = await scan(resolve(values.resume));
+    process.exitCode = await scanAll([...new Set(values.resume.map(path => resolve(path)))]);
   } else {
     if (!values['output-dir'] || !positionals.length) throw new Error('Expected ROM paths/directories and --output-dir');
-    const settings = inventorySettings(values);
+    const settings = (values.seed ?? ['1']).map(seed => inventorySettings({ ...values, seed }));
+    const uniqueSettings = [...new Map(settings.map(value => [value.seed, value])).values()];
     const paths = await discover(positionals);
-    const id = randomUUID();
-    const scanDirectory = resolve(values['output-dir'], 'runs', id);
-    const manifest = {
-      schemaVersion: 1, id, createdAt: new Date().toISOString(),
-      emulator: emulatorVersion(), sourceSha256: await sourceHash(), settings,
-      status: 'running',
-      entries: paths.map(path => ({ path, sha256: null, report: null, status: 'pending' })),
-    };
-    await mkdir(dirname(scanDirectory), { recursive: true });
-    await mkdir(scanDirectory);
-    process.exitCode = await scan(scanDirectory, manifest);
+    const directories = await createScans(values['output-dir'], paths, uniqueSettings);
+    process.exitCode = await scanAll(directories);
   }
 } catch (error) {
   console.error(`${error?.message ?? error}\n${usage}`);
