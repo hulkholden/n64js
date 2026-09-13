@@ -1173,8 +1173,10 @@ export class CPU0 {
     const entryHi = this.getControlU64(cpu0reg.controlEntryHi);
     const entryHiPID = entryHi & TLBHI_PIDMASK;
 
-    // TODO: plumb through 64 bit addresses.
-    const address64 = BigInt(address >>> 0);
+    // Memory handlers pass 32-bit addresses. Sign-extend them to match the
+    // VPN of a sign-extended guest pointer, including bits 39:32 for kseg2/kseg3.
+    // TODO: plumb through full 64-bit effective addresses.
+    const address64 = BigInt(address | 0);
 
     for (let i = 0; i < 32; ++i) {
       // TODO: use MRU cache here.
