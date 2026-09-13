@@ -2,7 +2,7 @@
 
 On 2026-09-13, 12 of the 20 images from [issue #92](https://github.com/hulkholden/n64js/issues/92) already produced graphics and audio at revision `9f19b9b3ab58b6508e98e043e9e32a9d742f7891`. Fixing CPU branches to virtual address zero restores activity for the three Bomberman images. The remaining five images have reproducible startup failures, grouped below into BattleTanx and Gauntlet paths.
 
-Activity is not a claim of playability. Browser checks found outstanding rendering problems in Bomberman, Tetris 64, and Virtual Pool 64. Issue #92 should remain open until the remaining failures have their own linked tracking issues.
+Activity is not a claim of playability. Browser checks found outstanding rendering problems in Bomberman, Tetris 64, and Virtual Pool 64. The five remaining boot failures are tracked in [BattleTanx #103](https://github.com/hulkholden/n64js/issues/103) and [Gauntlet #104](https://github.com/hulkholden/n64js/issues/104). Issue #92 remains open while the CPU fix is reviewed and the remaining rendering/startup-progress observations are followed up.
 
 ## Reproduction and identities
 
@@ -56,6 +56,8 @@ Browser rendering still needs investigation: US shows a cutscene with repeated/s
 
 ## BattleTanx US: startup fault before VI initialization
 
+Tracked in [issue #103](https://github.com/hulkholden/n64js/issues/103).
+
 Affected images: BattleTanx U and BattleTanx: Global Assault U. Both reproduce with neutral and scheduled input, and display black in the browser. At 30 seconds both have zero VI retraces, no controller commands, RSP PC `0`, SP_STATUS `1` (halted), MI pending `0`, MI mask `0x3f`, and no VI/AI event. The final idle PCs are `0x80077ab4` and `0x8009ee84`; BadVAddr is `0x10` in both. Input and a pending device interrupt do not explain these stalls.
 
 Tracing BattleTanx U past startup identifies a TLB read fault at `0x80121854`: `LW t2, 0x10(t7)` with `t7 = 0`, during timer-list insertion. The sentinel pointer at `0x80146110` contains `0x803c7620`, but that object's next link is zero. The trace enters the fault-reporting path afterward; the final EPC `0x80077800` belongs to that path, not the first fault. The earlier COP1 unusable exception at `0x80110498` is normal lazy FPU initialization: the handler enables CU1 and ERET successfully returns to that instruction.
@@ -63,6 +65,8 @@ Tracing BattleTanx U past startup identifies a TLB read fault at `0x80121854`: `
 Global Assault E (M3) is a useful working regional control: `733 / 736`, 1485 VI retraces, and a visible language menu in the browser. Global Assault U has the same null-address/fault-idle signature, but its first fault and the cause of the missing list initialization still need tracing. Do not initialize the list artificially or treat the final idle address as the root cause. The next focused investigation is to trace writes to the timer sentinel and compare startup ordering with the European revision.
 
 ## Gauntlet Legends: reload checksum includes stack saves
+
+Tracked in [issue #104](https://github.com/hulkholden/n64js/issues/104).
 
 All E/J/U images reproduce the same checksum-rejection path and black browser output. They have zero VI retraces and controller commands, a halted RSP, MI pending `0x10` (PI) with mask `0`, and no VI/AI event. The pending PI interrupt is masked. The CPU loops at `0x800001c8` (the US sample lands on its delay slot at `0x800001cc`).
 
