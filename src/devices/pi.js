@@ -138,13 +138,17 @@ export class PIRegDevice extends Device {
         break;
       case PI_BSD_DOM1_LAT_REG:
       case PI_BSD_DOM1_PWD_REG:
-      case PI_BSD_DOM1_PGS_REG:
-      case PI_BSD_DOM1_RLS_REG:
       case PI_BSD_DOM2_LAT_REG:
       case PI_BSD_DOM2_PWD_REG:
+        this.mem.set32(ea, value & 0xff);
+        break;
+      case PI_BSD_DOM1_PGS_REG:
       case PI_BSD_DOM2_PGS_REG:
+        this.mem.set32(ea, value & 0x0f);
+        break;
+      case PI_BSD_DOM1_RLS_REG:
       case PI_BSD_DOM2_RLS_REG:
-        this.mem.set32(ea, value);
+        this.mem.set32(ea, value & 0x03);
         break;
       default:
         logger.log(`Unhandled write to PIReg: ${toString32(value)} -> [${toString32(address)}]`);
@@ -261,7 +265,7 @@ export class PIRegDevice extends Device {
 
     let src;
     let srcOffset = 0;
-    let cycles = this.estimateDMACyclesFromLength(cartTransferLen);
+    let cycles = this.estimateDMACyclesFromLength(cartTransferLen, cartAddr);
 
     if (isDom1Addr1(cartAddr)) {
       src = this.hardware.rom;
@@ -330,13 +334,23 @@ export class PIRegDevice extends Device {
     this.addPIInterrupt(cycles);
   }
 
-  estimateDMACyclesFromLength(length) {
-    // TODO: this should be affected by how the PI_BSD registers are set.
-    const cycles = length >>> 3;
-    if (cycles) {
-      return cycles;
-    }
-    return 16;
+  estimateDMACyclesFromLength(length, cartAddr) {
+    const domain2 = isDom2Addr1(cartAddr) || isDom2Addr2(cartAddr);
+    const base = domain2 ? PI_BSD_DOM2_LAT_REG : PI_BSD_DOM1_LAT_REG;
+    const latency = (this.mem.getU32(base) & 0xff) + 1;
+    const pulseWidth = (this.mem.getU32(base + 4) & 0xff) + 1;
+    const pageSize = 2 ** ((this.mem.getU32(base + 8) & 0x0f) + 2);
+    const release = (this.mem.getU32(base + 12) & 0x03) + 1;
+    const halfwords = Math.ceil(length / 2);
+    const pages = Math.ceil(((cartAddr & (pageSize - 1)) + halfwords * 2) / pageSize);
+
+    // Charge address overhead for each page and pulse/release time for each
+    // halfword. This is still an estimate: RDRAM contention
+    // and the PI's internal buffer timing are not modeled.
+    // https://github.com/gopher64/gopher64/blob/main/src/device/pi.rs
+    const rcpCycles = (14 + latency + 5) * pages + (pulseWidth + release) * halfwords;
+    // PI runs at 62.5 MHz; the CPU event queue uses 93.75 MHz cycles.
+    return Math.max(1, Math.ceil(rcpCycles * 1.5));
   }
   
   removePIInterrupt() {
