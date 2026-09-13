@@ -3,20 +3,24 @@
 import { stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-import { inventoryOptions, inventorySettings, runInventory } from './inventory_runner.js';
+import { inventoryOptions, inventorySettings, loadInputScript, runInventory } from './inventory_runner.js';
+import { inputScriptHelp } from './inventory_input.js';
 
 const usage = `Usage: bun run inventory <rom-path> [options]
   --seed <uint32>       Random seed (default: 1)
   --frames <count>      VI retraces to run (default: 600)
   --max-cycles <count>  CPU cycle limit (default: 5000000000)
   --timeout-ms <ms>     Wall-clock limit including ROM startup (default: 60000)
+  --input-script <path> JSON menu sequence before seeded random input
   --output <path>       JSON report destination (default: stdout; '-' also works)
   --help               Show this help
 
 Exit codes: 0 completed; 2 invalid arguments or emulation error; 3 cycle limit;
 124 timeout. Timeouts contain only the last received checkpoint. Microcode
 collectors report task starts and HLE loads, including in-list switches.
-Texture formats describe tiles selected by HLE draws, not visible pixels.`;
+Texture formats describe tiles selected by HLE draws, not visible pixels.
+
+${inputScriptHelp}`;
 
 try {
   const { values, positionals } = parseArgs({
@@ -32,7 +36,7 @@ try {
     console.log(usage);
   } else {
     if (positionals.length !== 1) throw new Error('Expected one ROM path');
-    const settings = inventorySettings(values);
+    const settings = inventorySettings(values, await loadInputScript(values['input-script']));
     if (!values.output) throw new Error('Output path must not be empty');
     const romPath = resolve(positionals[0]);
     if (values.output !== '-') {

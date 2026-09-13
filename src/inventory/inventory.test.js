@@ -4,7 +4,7 @@ import { mkdtemp, readFile, readdir, realpath, rm, stat, symlink } from 'node:fs
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createInputDriver, createRandom } from './inventory_input.js';
+import { createInputDriver, createRandom, parseInputScript } from './inventory_input.js';
 import { CycleType, ImageFormat, ImageSize } from '../hle/gbi.js';
 
 const cli = fileURLToPath(new URL('./inventory.js', import.meta.url));
@@ -30,7 +30,7 @@ async function withDirectory(fn) {
 
 // A synthetic bootstrap starts real HLE tasks, then spins with optional VI
 // interrupts. No copyrighted ROM or emulator mocks are needed by the CLI tests.
-function makeROM({ vi = false, graphics = 'end', rewriteCount = false } = {}) {
+function makeROM({ vi = false, graphics = 'end', rewriteCount = false, waitForInput = false } = {}) {
   const bytes = new Uint8Array(0x1000);
   const view = new DataView(bytes.buffer);
   view.setUint32(0, 0x80371240);
@@ -90,15 +90,30 @@ function makeROM({ vi = false, graphics = 'end', rewriteCount = false } = {}) {
     [0x18, 0x80002000], [0x1c, versionSize],
     [0x30, graphics === 'invalid' ? 0x1000000 : 0x3000],
   ]) view.setUint32(0xfc0 + offset, value);
-  if (graphics !== 'none') {
-    code.push(0x3c08a404); // t0 = SP registers.
-    store(0x10, 1); // Clear HALT to dispatch the task.
-    store(0x10, 1); // Start the same task again to exercise aggregation.
-  }
   if (vi) {
     code.push(0x3c08a440); // t0 = VI registers.
     store(0x0c, 0); // Select an interrupt line independently of boot defaults.
     store(0x18, 525); // Start VI interrupts.
+  }
+  if (waitForInput) {
+    code.push(0x3c08a000); // Set up a controller-1 read with an aligned response.
+    store(0x6000, 0xff010401);
+    store(0x6008, 0xfe000000);
+    store(0x603c, 1);
+    code.push(0x3c08a480); // SI registers: configure Joybus using a DMA write.
+    store(0x00, 0x6000);
+    store(0x10, 0x1fc007c0);
+    code.push(0x3c10a430, 0x3c11a440, 0x3c12a480, 0x3c13a000); // MI, VI, SI, RAM bases.
+    code.push(0x3c141000, 0x369450d0); // s4 = START, stick X=80, Y=-48.
+    const poll = code.length;
+    code.push(0x8e0a0008, 0x314a0008, 0x1140fffd, 0); // Wait for the next VI interrupt.
+    code.push(0xae200010, 0xae400004, 0x8e6a6004); // Acknowledge VI; DMA/read controller response.
+    code.push(0x15540000 | ((poll - code.length - 1) & 0xffff), 0); // Repeat until input matches.
+  }
+  if (graphics !== 'none') {
+    code.push(0x3c08a404); // t0 = SP registers.
+    store(0x10, 1); // Clear HALT to dispatch the task.
+    store(0x10, 1); // Start the same task again to exercise aggregation.
   }
   if (rewriteCount) {
     code.push(0x40804800, 0x1000fffe, 0); // Repeatedly write CP0 COUNT=0.
@@ -110,6 +125,42 @@ function makeROM({ vi = false, graphics = 'end', rewriteCount = false } = {}) {
 }
 
 describe('inventory input', () => {
+  test('holds complete scripted states for exact VI durations before starting the seeded sequence', () => {
+    const script = parseInputScript({ version: 1, steps: [
+      { frames: 2 }, { frames: 2, buttons: ['start'] }, { frames: 1 },
+      { frames: 2, buttons: ['A', 'Z'], stickX: 80, stickY: -48 },
+    ] });
+    const drive = (seed, prefix, frames) => {
+      const update = createInputDriver(seed, prefix);
+      const input = { buttons: 0, stick_x: 0, stick_y: 0 };
+      return Array.from({ length: frames }, (_, index) => {
+        update(index + 1, input);
+        return { ...input };
+      });
+    };
+    const sequence = drive(123, script, 127);
+    const neutral = { buttons: 0, stick_x: 0, stick_y: 0 };
+    const start = { ...neutral, buttons: 0x1000 };
+    const action = { buttons: 0xa000, stick_x: 80, stick_y: -48 };
+    expect(sequence.slice(0, 7)).toEqual([neutral, neutral, start, start, neutral, action, action]);
+    expect(sequence.slice(7)).toEqual(drive(123, undefined, 120));
+    expect(drive(124, script, 127).slice(0, 7)).toEqual(sequence.slice(0, 7));
+    expect(drive(124, script, 127).slice(7)).not.toEqual(sequence.slice(7));
+  });
+
+  test('rejects ambiguous or invalid scripts instead of silently changing their meaning', () => {
+    for (const invalid of [
+      null, { version: 2, steps: [{ frames: 1 }] }, { version: 1, steps: [] },
+      { version: 1, steps: [{ frames: 1 }], loop: true },
+      ...[null, { frames: 0 }, { frames: 1.5 }, { frames: '1' },
+        { frames: 1, button: 'A' }, { frames: 1, buttons: ['STRAT'] },
+        { frames: 1, buttons: null }, { frames: 1, stickX: 128 },
+        { frames: 1, stickY: -129 }, { frames: 1, stickY: null },
+      ].map(step => ({ version: 1, steps: [step] })),
+      { version: 1, steps: [{ frames: Number.MAX_SAFE_INTEGER }, { frames: 1 }] },
+    ]) expect(() => parseInputScript(invalid)).toThrow();
+  });
+
   test('replays holds and releases independently of CPU random consumption', () => {
     function sequence(seed, cpuReads) {
       const random = createRandom(seed);
@@ -197,12 +248,14 @@ describe('inventory batch command', () => {
 
   test('keeps seed scans independent, continues after failures, and resumes them together', async () => {
     await withDirectory(async directory => {
-      const rom = makeROM({ vi: true });
+      const rom = makeROM({ vi: true, waitForInput: true });
       await Bun.write(join(directory, 'roms/a.z64'), rom);
       await Bun.write(join(directory, 'roms/b.z64'), rom);
+      const script = { version: 1, steps: [{ frames: 2 }, { frames: 3, buttons: ['START'], stickX: 80, stickY: -48 }] };
+      await Bun.write(join(directory, 'menu.json'), JSON.stringify(script));
       const result = await invoke(directory, [
-        'roms', 'missing.z64', '--output-dir', 'inventory', '--frames', '1',
-        '--seed', '2', '--seed', '0', '--seed', '02',
+        'roms', 'missing.z64', '--output-dir', 'inventory', '--frames', '5',
+        '--seed', '2', '--seed', '0', '--seed', '02', '--input-script', 'menu.json',
       ], batchCLI);
       expect(result.code).toBe(1);
       const directories = result.stdout.trim().split('\n');
@@ -218,7 +271,10 @@ describe('inventory batch command', () => {
         expect(manifest.entries.filter(entry => entry.status === 'error')).toHaveLength(1);
         const path = join(directories[index], good[0].report);
         reportPaths.push(path);
-        expect((await Bun.file(path).json()).settings).toEqual(manifest.settings);
+        const report = await Bun.file(path).json();
+        expect(report.settings).toEqual(manifest.settings);
+        expect(report.settings.inputPolicy.script).toEqual(parseInputScript(script));
+        expect(report.collectors['graphics.taskMicrocodes'].tasks).toBe(2);
       }
       const queried = await invoke(directory, ['inventory', '--microcode', 'GBI2'], queryCLI);
       expect(queried.code).toBe(0);
@@ -227,11 +283,16 @@ describe('inventory batch command', () => {
       expect(query.matches.map(match => match.settings.seed).sort()).toEqual([0, 2]);
       expect(query.matches.every(match => match.paths.length === 2)).toBe(true);
 
-      const before = await Promise.all(reportPaths.map(path => stat(path).then(info => info.ino)));
+      // Force a worker to replay the embedded script after its source file is gone.
+      const original = await Bun.file(reportPaths[0]).json();
+      await rm(reportPaths[0]);
+      await rm(join(directory, 'menu.json'));
+      const before = await stat(reportPaths[1]);
       const resumed = await invoke(directory, [...directories, directories[0]].flatMap(path => ['--resume', path]), batchCLI);
       expect(resumed.code).toBe(1);
       expect(resumed.stdout.trim().split('\n')).toEqual(directories);
-      expect(await Promise.all(reportPaths.map(path => stat(path).then(info => info.ino)))).toEqual(before);
+      expect(await Bun.file(reportPaths[0]).json()).toEqual(original);
+      expect((await stat(reportPaths[1])).ino).toBe(before.ino);
     });
   });
 
@@ -348,6 +409,44 @@ describe('inventory batch command', () => {
 });
 
 describe('inventory command', () => {
+  test('uses scripted controller input to reach graphics and honors the total frame limit', async () => {
+    await withDirectory(async directory => {
+      await Bun.write(join(directory, 'test.z64'), makeROM({ vi: true, waitForInput: true }));
+      for (const [script, tasks] of [
+        [{ version: 1, steps: [{ frames: 10 }] }, 0],
+        [{ version: 1, steps: [{ frames: 2 }, { frames: 3, buttons: ['START'], stickX: 80, stickY: -48 }] }, 2],
+      ]) {
+        await Bun.write(join(directory, 'menu.json'), JSON.stringify(script));
+        const result = await invoke(directory, ['test.z64', '--frames', '5', '--input-script', 'menu.json']);
+        expect(result.code).toBe(0);
+        const report = JSON.parse(result.stdout);
+        expect(report.result).toMatchObject({ status: 'completed', frames: 5 });
+        expect(report.collectors['graphics.taskMicrocodes'].tasks).toBe(tasks);
+        expect(report.settings.inputPolicy).toEqual({
+          name: 'scripted-prefix', version: 1, script: parseInputScript(script),
+          after: { name: 'random-controller', version: 1 },
+        });
+      }
+    });
+  });
+
+  test('rejects missing, malformed and invalid scripts before running or creating scans', async () => {
+    await withDirectory(async directory => {
+      await Bun.write(join(directory, 'malformed.json'), '{');
+      await Bun.write(join(directory, 'invalid.json'), JSON.stringify({ version: 1, steps: [{ frames: 0 }] }));
+      for (const path of ['missing.json', 'malformed.json', 'invalid.json']) {
+        for (const command of [cli, batchCLI]) {
+          const args = ['missing.z64', '--input-script', path];
+          if (command === batchCLI) args.push('--output-dir', 'inventory');
+          const result = await invoke(directory, args, command);
+          expect(result.code).toBe(2);
+          expect(result.stdout).toBe('');
+        }
+      }
+      expect((await readdir(directory)).sort()).toEqual(['invalid.json', 'malformed.json']);
+    });
+  });
+
   test('produces replayable reports, aggregates task starts, and normalizes ROM byte order', async () => {
     await withDirectory(async directory => {
       const rom = makeROM({ vi: true });

@@ -1,21 +1,31 @@
 import { fork, spawnSync } from 'node:child_process';
+import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { inputPolicy } from './inventory_input.js';
+import { inputPolicy, parseInputScript } from './inventory_input.js';
 
 export const inventoryOptions = {
   seed: { type: 'string' },
   frames: { type: 'string' },
   'max-cycles': { type: 'string' },
   'timeout-ms': { type: 'string' },
+  'input-script': { type: 'string' },
 };
 
-export function inventorySettings(values) {
+export async function loadInputScript(path) {
+  return path === undefined ? undefined : JSON.parse(await readFile(path, 'utf8'));
+}
+
+export function inventorySettings(values, script) {
   return {
     seed: integer(values.seed ?? '1', 'seed', 0, 0xffffffff),
     frames: integer(values.frames ?? '600', 'frames', 1),
     maxCycles: integer(values['max-cycles'] ?? '5000000000', 'max-cycles', 1),
     timeoutMs: integer(values['timeout-ms'] ?? '60000', 'timeout-ms', 1, 0x7fffffff),
-    randomAlgorithm: 'mulberry32', inputPolicy, graphics: 'HLE',
+    randomAlgorithm: 'mulberry32',
+    inputPolicy: script === undefined ? inputPolicy : {
+      name: 'scripted-prefix', version: 1, script: parseInputScript(script), after: inputPolicy,
+    },
+    graphics: 'HLE',
   };
 }
 
