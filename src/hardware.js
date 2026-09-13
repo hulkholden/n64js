@@ -29,6 +29,7 @@ const systemFrequency = 93_750_000;
 export class Hardware {
   constructor(rominfo, {
     headless = false,
+    enableCompatibilityHacks = true,
     graphics = { processTask() {}, reset() {} },
     onVerticalBlank = null,
     onGraphicsTask = null,
@@ -38,6 +39,7 @@ export class Hardware {
     // TODO: Not sure this belongs here.
     this.rominfo = rominfo;
     this.headless = headless;
+    this.enableCompatibilityHacks = enableCompatibilityHacks;
     // The environment supplies a synchronous graphics processor with
     // processTask(task) and reset(). The default skips HLE display lists.
     this.graphics = graphics;
