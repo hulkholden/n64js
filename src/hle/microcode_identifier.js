@@ -11,6 +11,7 @@ export const MicrocodeId = Object.freeze({
   GBI0_GE: 9,      // Golden Eye
   GBI2_CONKER: 10, // Conker BFD
   GBI0_PD: 11,     // Perfect Dark
+  F5_INDI: 12,     // Indiana Jones (recognized, but HLE is not implemented)
 });
 
 const microcodeProfiles = new Map([
@@ -26,6 +27,7 @@ const microcodeProfiles = new Map([
   [MicrocodeId.GBI0_GE, { family: 'GBI0', variant: 'GE' }],
   [MicrocodeId.GBI2_CONKER, { family: 'GBI2', variant: 'CONKER' }],
   [MicrocodeId.GBI0_PD, { family: 'GBI0', variant: 'PD' }],
+  [MicrocodeId.F5_INDI, { family: 'F5', variant: 'INDI' }],
 ]);
 
 const ucodeOverrides = new Map([
@@ -42,10 +44,12 @@ const ucodeOverrides = new Map([
   [0x64cc729d, MicrocodeId.GBI0_WR],     // "RSP SW Version: 2.0D, 04-01-96", "Wave Race 64"
   [0xd73a12c4, MicrocodeId.GBI0],       // Fish demo
   [0x313f038b, MicrocodeId.GBI0],       // Pilotwings
+  [0xdd57a04e, MicrocodeId.F5_INDI],    // Indiana Jones and the Infernal Machine (USA)
 ]);
 
 /**
- * Identifies the HLE handler without constructing it or producing side effects.
+ * Identifies the microcode without constructing a handler or producing side effects.
+ * F5_INDI is recognized but has no HLE handler; its graphics tasks are skipped.
  * Family and variant describe the selected handler; detection='fallback' means
  * GBI0 was assumed, not positively identified. A null variant selects the base
  * family handler. Hash overrides take precedence over version-string inference.

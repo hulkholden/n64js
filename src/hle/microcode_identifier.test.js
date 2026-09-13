@@ -30,4 +30,10 @@ describe('microcode identification', () => {
       });
     }
   });
+
+  test('recognizes Indiana Jones without falling back to a supported GBI family', () => {
+    expect(identifyMicrocode('', 0xdd57a04e)).toMatchObject({
+      id: MicrocodeId.F5_INDI, family: 'F5', variant: 'INDI', detection: 'hash',
+    });
+  });
 });
