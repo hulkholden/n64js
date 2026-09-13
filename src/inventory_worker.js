@@ -11,7 +11,9 @@ let collecting = false;
 const cycleLimitEvent = 'Inventory cycle limit';
 let cycleLimitReached = false;
 let tasks = 0;
-const microcodes = new Map();
+const taskMicrocodes = new Map();
+let loads = 0;
+const loadedMicrocodes = new Map();
 
 function cyclesExecuted() {
   if (!collecting) return 0;
@@ -32,7 +34,13 @@ function snapshot() {
         version: 1,
         scope: 'task-start',
         tasks,
-        microcodes: [...microcodes.values()],
+        microcodes: [...taskMicrocodes.values()],
+      },
+      'graphics.microcodeLoads': {
+        version: 1,
+        scope: 'hle-load',
+        loads,
+        microcodes: [...loadedMicrocodes.values()],
       },
     } : {},
   };
@@ -60,11 +68,21 @@ try {
     onGraphicsTask: info => {
       tasks++;
       const key = JSON.stringify(info);
-      const record = microcodes.get(key);
+      const record = taskMicrocodes.get(key);
       if (record) {
         record.tasks++;
       } else {
-        microcodes.set(key, { ...info, tasks: 1 });
+        taskMicrocodes.set(key, { ...info, tasks: 1 });
+      }
+    },
+    onMicrocodeLoad: info => {
+      loads++;
+      const key = JSON.stringify(info);
+      const record = loadedMicrocodes.get(key);
+      if (record) {
+        record.loads++;
+      } else {
+        loadedMicrocodes.set(key, { ...info, loads: 1 });
       }
     },
     onWarning: message => console.error(message),

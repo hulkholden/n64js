@@ -27,7 +27,7 @@ export class HeadlessGraphics {
     this.renderer.newFrame();
 
     const initMicrocode = () => {
-      const microcode = microcodes.create(task, this.state, ramDV);
+      const microcode = microcodes.create(task, this.state, ramDV, this.hardware.onMicrocodeLoad);
       microcode.renderer = this.renderer;
       // Unwind the display list on a fatal HLE warning. CPU0.run reports the
       // exception through the headless environment's normal halt callback.

@@ -120,7 +120,7 @@ function processDList(task, disassembler, bailAfter) {
   const hardware = n64js.hardware();
   const ramDV = hardware.cachedMemDevice.mem.dataView
   state.reset(ramDV, task.dataPtr);
-  const microcode = initMicrocode(task, ramDV);
+  const microcode = initMicrocode(task, ramDV, hardware.onMicrocodeLoad);
 
   initDimensionsFromVI(hardware.viRegDevice);
 
@@ -133,7 +133,7 @@ function processDList(task, disassembler, bailAfter) {
   executeDisplayList(state, microcode, {
     loadMicrocode: (codeAddr, codeSize, codeDataAddr, codeDataSize) => {
       task.loadUcode(codeAddr, codeSize, codeDataAddr, codeDataSize);
-      return initMicrocode(task, ramDV);
+      return initMicrocode(task, ramDV, hardware.onMicrocodeLoad);
     },
     disassembler,
     bailAfter,
@@ -155,8 +155,8 @@ function initDimensionsFromVI(vi) {
   canvas.height = dims.screenHeight * graphicsOptions.canvasScale;
 }
 
-function initMicrocode(task, ramDV) {
-  const microcode = microcodes.create(task, state, ramDV);
+function initMicrocode(task, ramDV, onMicrocodeLoad) {
+  const microcode = microcodes.create(task, state, ramDV, onMicrocodeLoad);
   // TODO: pass rendering object to microcode constructor.
   microcode.hleHalt = hleHalt;
   microcode.renderer = renderer;

@@ -32,6 +32,7 @@ export class Hardware {
     graphics = { processTask() {}, reset() {} },
     onVerticalBlank = null,
     onGraphicsTask = null,
+    onMicrocodeLoad = null,
   } = {}) {
     // TODO: Not sure this belongs here.
     this.rominfo = rominfo;
@@ -49,6 +50,12 @@ export class Hardware {
     // starts are reported separately. Resets preserve the callback, which must
     // not re-enter emulation. Its return value is ignored.
     this.onGraphicsTask = onGraphicsTask;
+    // Called synchronously after each HLE graphics microcode handler is constructed,
+    // including initial loads, in-list loads, and browser debugger replays.
+    // Receives a fresh identifyMicrocode() snapshot. Skipped/LLE tasks do not
+    // construct HLE handlers. Resets preserve the callback; it must not re-enter
+    // emulation, and its return value is ignored.
+    this.onMicrocodeLoad = onMicrocodeLoad;
 
     this.timeline = new Timeline(this.getOpsExecuted.bind(this));
 

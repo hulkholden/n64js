@@ -38,20 +38,37 @@ function makeROM({ vi = false, graphics = 'end', rewriteCount = false } = {}) {
     code.push(0x3c090000 | (value >>> 16), 0x35290000 | (value & 0xffff), 0xad090000 | offset);
   };
   code.push(0x3c08a000); // t0 = uncached RDRAM base.
-  const version = new TextEncoder().encode('RSP Gfx ucode F3DEX fifo 2.0\0');
-  const paddedVersion = new Uint8Array((version.length + 3) & ~3);
-  paddedVersion.set(version);
-  const versionWords = new DataView(paddedVersion.buffer);
-  for (let offset = 0; offset < paddedVersion.length; offset += 4) {
-    store(0x2000 + offset, versionWords.getUint32(offset));
+  const writeVersion = (address, text) => {
+    const version = new TextEncoder().encode(text + '\0');
+    const padded = new Uint8Array((version.length + 3) & ~3);
+    padded.set(version);
+    const words = new DataView(padded.buffer);
+    for (let offset = 0; offset < padded.length; offset += 4) {
+      store(address + offset, words.getUint32(offset));
+    }
+    return version.length;
+  };
+  const versionSize = writeVersion(0x2000, 'RSP Gfx ucode F3DEX fifo 2.0');
+  let commands = [[graphics === 'loop' ? 0xde010000 : 0xdf000000, graphics === 'loop' ? 0x3000 : 0]];
+  if (graphics === 'switch') {
+    const gbi1Size = writeVersion(0x5000, 'RSP Gfx ucode F3DEX 1.23');
+    commands = [
+      [0xe1000000, 0x80005000],
+      [0xdd000000 | (gbi1Size - 1), 0x80004000], // GBI2 -> GBI1.
+      [0xb4000000, 0x80002000],
+      [0xaf000000 | (versionSize - 1), 0x80001000], // GBI1 -> GBI2.
+      [0xdf000000, 0],
+    ];
   }
-  store(0x3000, graphics === 'loop' ? 0xde010000 : 0xdf000000);
-  store(0x3004, graphics === 'loop' ? 0x3000 : 0);
+  commands.forEach(([cmd0, cmd1], index) => {
+    store(0x3000 + index * 8, cmd0);
+    store(0x3004 + index * 8, cmd1);
+  });
 
   // This task header is copied into RSP DMEM along with the bootstrap code.
   for (const [offset, value] of [
     [0x00, 1], [0x10, 0x80001000], [0x14, 4],
-    [0x18, 0x80002000], [0x1c, version.length],
+    [0x18, 0x80002000], [0x1c, versionSize],
     [0x30, graphics === 'invalid' ? 0x1000000 : 0x3000],
   ]) view.setUint32(0xfc0 + offset, value);
   if (graphics !== 'none') {
@@ -61,6 +78,7 @@ function makeROM({ vi = false, graphics = 'end', rewriteCount = false } = {}) {
   }
   if (vi) {
     code.push(0x3c08a440); // t0 = VI registers.
+    store(0x0c, 0); // Select an interrupt line independently of boot defaults.
     store(0x18, 525); // Start VI interrupts.
   }
   if (rewriteCount) {
@@ -130,6 +148,23 @@ describe('inventory command', () => {
     });
   });
 
+  test('counts initial and in-list loads separately from task starts across repeated tasks', async () => {
+    await withDirectory(async directory => {
+      await Bun.write(join(directory, 'switch.z64'), makeROM({ vi: true, graphics: 'switch' }));
+      const result = await invoke(directory, ['switch.z64', '--frames', '1']);
+      expect(result.code).toBe(0);
+      const report = JSON.parse(result.stdout);
+      expect(report.collectors['graphics.taskMicrocodes']).toMatchObject({
+        version: 1, scope: 'task-start', tasks: 2,
+        microcodes: [{ family: 'GBI2', tasks: 2 }],
+      });
+      expect(report.collectors['graphics.microcodeLoads']).toMatchObject({
+        version: 1, scope: 'hle-load', loads: 6,
+        microcodes: [{ family: 'GBI2', loads: 4 }, { family: 'GBI1', loads: 2 }],
+      });
+    });
+  });
+
   test('enforces the cycle limit through guest COUNT writes and skipped idle loops', async () => {
     await withDirectory(async directory => {
       for (const options of [{ rewriteCount: true }, { vi: true }]) {
@@ -164,6 +199,7 @@ describe('inventory command', () => {
       const empty = await invoke(directory, ['test.z64', '--frames', '1']);
       expect(empty.code).toBe(0);
       expect(JSON.parse(empty.stdout).collectors['graphics.taskMicrocodes']).toMatchObject({ version: 1, tasks: 0, microcodes: [] });
+      expect(JSON.parse(empty.stdout).collectors['graphics.microcodeLoads']).toMatchObject({ version: 1, loads: 0, microcodes: [] });
       await Bun.write(join(directory, 'test.z64'), makeROM({ graphics: 'invalid' }));
       const halted = await invoke(directory, ['test.z64']);
       expect(halted.code).toBe(2);
@@ -171,6 +207,7 @@ describe('inventory command', () => {
       expect(report.result).toMatchObject({ status: 'halted', checkpointOnly: false });
       expect(report.result.message).toBeTruthy();
       expect(report.collectors['graphics.taskMicrocodes'].tasks).toBe(1);
+      expect(report.collectors['graphics.microcodeLoads'].loads).toBe(1);
     });
   });
 

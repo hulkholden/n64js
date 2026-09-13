@@ -221,7 +221,18 @@ function setGraphicsCommands(emulator, commands) {
 describe('headless graphics execution', () => {
   test('executes drawing commands and in-list microcode switches through SP dispatch', async () => {
     const seen = [];
-    const emulator = await createEmulator({ executeGraphics: true, onGraphicsTask: info => seen.push(info) });
+    const loaded = [];
+    const emulator = await createEmulator({
+      executeGraphics: true,
+      onGraphicsTask: info => seen.push(info),
+      onMicrocodeLoad: info => {
+        loaded.push({ ...info });
+        // Observers cannot change which handler executes the following commands.
+        info.id = MicrocodeId.GBI0;
+        info.version = 'changed by observer';
+        return MicrocodeId.GBI0;
+      },
+    });
     const { hardware } = emulator;
     prepareGraphicsTask(emulator);
 
@@ -265,9 +276,30 @@ describe('headless graphics execution', () => {
     expect(renderer.nativeTransform).toMatchObject({ viWidth: 640, viHeight: 480 });
     expect(seen).toHaveLength(1); // The observer still reports only task starts.
     expect(seen[0].family).toBe('GBI2');
+    expect(loaded.map(info => info.family)).toEqual(['GBI2', 'GBI1', 'GBI2']);
     expect(hardware.rsp.halted).toBe(true);
     expect(hardware.sp_reg.getU32(SP_STATUS_REG) & SP_STATUS_TASKDONE).toBe(SP_STATUS_TASKDONE);
     expect(hardware.mi_reg.getU32(MI_INTR_REG) & MI_INTR_DP).toBe(MI_INTR_DP);
+  });
+
+  test('preserves the load observer across reset and keeps its snapshots and instances independent', async () => {
+    const loaded = [];
+    const emulator = await createEmulator({ executeGraphics: true, onMicrocodeLoad: info => loaded.push(info) });
+    for (let run = 0; run < 2; run++) {
+      emulator.hardware.reset();
+      prepareGraphicsTask(emulator);
+      setGraphicsCommands(emulator, [[0xdf000000, 0]]);
+      startRSPTask(emulator);
+    }
+    expect(loaded).toHaveLength(2);
+    loaded[0].family = 'changed by observer';
+    expect(loaded[1].family).toBe('GBI2');
+
+    const fresh = await createEmulator({ executeGraphics: true });
+    prepareGraphicsTask(fresh);
+    setGraphicsCommands(fresh, [[0xdf000000, 0]]);
+    startRSPTask(fresh);
+    expect(loaded).toHaveLength(2);
   });
 
   test('starts each task afresh while preserving RDP state until hardware reset', async () => {
@@ -301,11 +333,13 @@ describe('headless graphics execution', () => {
         [{ executeGraphics: true }, 'HLE', 2],
       ]) {
         graphicsOptions.emulationMode = mode;
-        const emulator = await createEmulator(options);
+        const loaded = [];
+        const emulator = await createEmulator({ ...options, onMicrocodeLoad: info => loaded.push(info) });
         prepareGraphicsTask(emulator);
         // This would throw if the display-list runner tried to read it.
         emulator.hardware.sp_mem.set32(0xfc0 + TaskOffsets.dataPtr, 0x1000000);
         expect(() => startRSPTask(emulator, taskType)).not.toThrow();
+        expect(loaded).toEqual([]);
         if (taskType === 1) {
           expect(emulator.hardware.rsp.halted).toBe(mode === 'HLE');
           expect(emulator.hardware.mi_reg.getU32(MI_INTR_REG) & MI_INTR_DP).toBe(mode === 'HLE' ? MI_INTR_DP : 0);
