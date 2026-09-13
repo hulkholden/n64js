@@ -25,4 +25,16 @@ export const compatibilityHacks = {
       { address: 0x80103480, expected: 0x14200031, replacement: 0x10000031 }, // BNE at, zero -> B
     ],
   },
+  '5991f1c35abcd265': {
+    name: 'FIFA 64 (Europe) / FIFA Soccer 64 (USA)',
+    enabled: true,
+    issue: 'https://github.com/hulkholden/n64js/issues/109',
+    // During osContInit's 500 ms wait, VI callbacks increment the counter that
+    // FIFA also uses to guard video initialization. It then skips setting the
+    // refresh rate, leaving a zero divisor for audio startup. Skip only the wait.
+    // Both regional images share this CRC ID and the same instruction address.
+    instructionPatches: [
+      { address: 0x800d4b00, expected: 0x14200031, replacement: 0x10000031 }, // BNE at, zero -> B
+    ],
+  },
 };

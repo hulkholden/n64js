@@ -8,9 +8,10 @@ import { createHeadlessEmulator } from './headless_env.js';
 const { getFragmentMap } = await import('./fragments.js');
 const { invalidateCode } = await import('./r4300.js');
 
-const usRoms = [
+const patchedRoms = [
   { id: 'e7dda46ae7f4e2e3', address: 0x80111070 },
   { id: '47e2a4753d960860', address: 0x80103480 },
+  { id: '5991f1c35abcd265', address: 0x800d4b00 }, // FIFA Europe and USA share a CRC ID.
 ];
 const original = 0x14200031; // BNE at, zero, +0x31
 const replacement = 0x10000031; // B +0x31
@@ -35,7 +36,7 @@ function putBranch(hardware, address, instruction = original) {
 }
 
 describe('ROM compatibility instruction patches', () => {
-  for (const { id, address } of usRoms) {
+  for (const { id, address } of patchedRoms) {
     test(`${id} patches on execution, preserving delay-slot and cycle behavior`, async () => {
       const { cpu0: cpu, hardware } = await fixture(id);
       putBranch(hardware, address);
@@ -68,13 +69,13 @@ describe('ROM compatibility instruction patches', () => {
     });
   }
 
-  test('leaves Europe, unknown IDs and explicitly disabled runs unchanged', async () => {
+  test('leaves BattleTanx Europe, unknown IDs and explicitly disabled runs unchanged', async () => {
     for (const [id, options] of [
       ['e617ad0c97b7a571', {}], ['unknown', {}], [undefined, {}],
-      [usRoms[0].id, { enableCompatibilityHacks: false }],
+      ...patchedRoms.map(({ id }) => [id, { enableCompatibilityHacks: false }]),
     ]) {
       const { cpu0: cpu, hardware } = await fixture(id, options);
-      const address = usRoms[0].address;
+      const address = patchedRoms.find(rom => rom.id === id)?.address ?? patchedRoms[0].address;
       putBranch(hardware, address);
       cpu.pc = address;
       cpu.run(2);
@@ -87,7 +88,7 @@ describe('ROM compatibility instruction patches', () => {
   });
 
   test('a changed instruction is left intact and warned about only once', async () => {
-    const { id, address } = usRoms[0];
+    const { id, address } = patchedRoms[0];
     const { cpu0: cpu, hardware } = await fixture(id);
     const warning = spyOn(console, 'warn').mockImplementation(() => {});
     try {
@@ -110,7 +111,7 @@ describe('ROM compatibility instruction patches', () => {
   });
 
   test('reset rearms patches and changing the loaded ROM discards the old selection', async () => {
-    const { id, address } = usRoms[0];
+    const { id, address } = patchedRoms[0];
     const { cpu0: cpu, hardware } = await fixture(id);
     for (let boot = 0; boot < 2; boot++) {
       hardware.reset();
@@ -126,7 +127,7 @@ describe('ROM compatibility instruction patches', () => {
   });
 
   test('config can disable a hack and pending sets are independent', () => {
-    const { id, address } = usRoms[0];
+    const { id, address } = patchedRoms[0];
     const first = getInstructionPatches(id);
     const second = getInstructionPatches(id);
     first.delete(address);
@@ -143,7 +144,7 @@ describe('ROM compatibility instruction patches', () => {
   });
 
   test('a debugger breakpoint still stops and single-step patches the restored instruction', async () => {
-    const { id, address } = usRoms[0];
+    const { id, address } = patchedRoms[0];
     const { cpu0: cpu, hardware } = await fixture(id);
     putBranch(hardware, address);
     const breakpoints = new Breakpoints(hardware, invalidateCode);
@@ -170,7 +171,7 @@ describe('ROM compatibility instruction patches', () => {
   });
 
   test('hot code compiles and executes the replacement without a compatibility hook', async () => {
-    const { id, address } = usRoms[0];
+    const { id, address } = patchedRoms[0];
     const { cpu0: cpu, hardware } = await fixture(id);
     putBranch(hardware, address);
     hardware.ram.set32(address - 0x80000000 + 0xc8, 0x03e00008); // JR ra
@@ -189,7 +190,7 @@ describe('ROM compatibility instruction patches', () => {
   });
 
   test('patching RAM discards code previously compiled through its uncached alias', async () => {
-    const { id, address } = usRoms[0];
+    const { id, address } = patchedRoms[0];
     const alias = address + 0x20000000;
     const offset = address - 0x80000000;
     const { cpu0: cpu, hardware } = await fixture(id);
