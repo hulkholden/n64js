@@ -15,7 +15,7 @@ describe('base64 byte arrays', () => {
 
   // Include the 128 KiB FlashRAM size and a larger buffer that exceeds Bun's
   // argument limit too; Chromium overflows already at the FlashRAM size.
-  test.each([256, 32767, 32768, 32769, 128 * 1024, 1024 * 1024])(
+  test.each([256, 32 * 1024, 96 * 1024, 128 * 1024, 128 * 1024 + 1, 1024 * 1024])(
     'encodes and restores all bytes of a %i-byte view', size => {
       const backing = Uint8Array.from({ length: size + 32 }, (_, i) => (i * 17 + 3) & 0xff);
       const bytes = backing.subarray(13, 13 + size);
