@@ -4,48 +4,54 @@ import { compatibilityHacks } from './compatibility_hacks.js';
 import { toString32 } from './format.js';
 import * as logger from './logger.js';
 
-export function getInstructionPatches(romId) {
-  return getOverrides(romId, 'instructionPatches');
-}
-
-export function getInstructionDelays(romId) {
-  return getOverrides(romId, 'instructionDelays');
-}
-
-function getOverrides(romId, kind) {
+export function getCompatibilityHacks(romId) {
   const config = compatibilityHacks[romId];
-  if (!config?.enabled || !config[kind]?.length) return null;
-  // Each CPU/reset owns its pending set; never consume the shared config.
-  return new Map(config[kind].map(patch => [patch.address, { ...patch, name: config.name }]));
-}
+  if (!config?.enabled) return null;
 
-export function takeInstructionDelay(pending, address, instruction) {
-  const delay = pending.get(address);
-  if (!delay || n64js.breakpoints().isBreakpoint(address)) return 0;
-  pending.delete(address);
-  if (instruction !== delay.expected) {
-    logger.warn(`Skipped compatibility delay for ${delay.name} at ${toString32(address)}: expected ${toString32(delay.expected)}, found ${toString32(instruction)}`);
-    return 0;
+  // Each CPU/reset owns one pending map. Group entries by address so a delay
+  // and patch at the same site are both checked against the original word.
+  const pending = new Map();
+  for (const [type, entries] of [['delay', config.instructionDelays], ['patch', config.instructionPatches]]) {
+    for (const entry of entries ?? []) {
+      let hacks = pending.get(entry.address);
+      if (!hacks) {
+        hacks = [];
+        pending.set(entry.address, hacks);
+      }
+      hacks.push({ ...entry, type, name: config.name });
+    }
   }
-  logger.log(`Applied compatibility delay for ${delay.name} at ${toString32(address)}: ${delay.cycles} CPU cycles`);
-  return delay.cycles;
+  return pending.size ? pending : null;
 }
 
-export function patchInstruction(pending, ram, address, instruction) {
-  const patch = pending.get(address);
-  if (!patch) return instruction;
+export function applyCompatibilityHacks(pending, ram, address, instruction) {
+  const hacks = pending.get(address);
+  if (!hacks) return null;
 
   // Let the debugger stop normally. Single-stepping/removing the breakpoint
-  // restores the original instruction, so the pending patch can be checked then.
-  if (n64js.breakpoints().isBreakpoint(address)) return instruction;
+  // restores the original instruction, so pending hacks can be checked then.
+  if (n64js.breakpoints().isBreakpoint(address)) return null;
 
   pending.delete(address);
-  if (instruction !== patch.expected) {
-    logger.warn(`Skipped compatibility patch for ${patch.name} at ${toString32(address)}: expected ${toString32(patch.expected)}, found ${toString32(instruction)}`);
-    return instruction;
-  }
+  let patchedInstruction = instruction;
+  let cycles = 0;
+  for (const hack of hacks) {
+    if (instruction !== hack.expected) {
+      logger.warn(`Skipped compatibility ${hack.type} for ${hack.name} at ${toString32(address)}: expected ${toString32(hack.expected)}, found ${toString32(instruction)}`);
+      continue;
+    }
 
-  ram.set32(address - 0x80000000, patch.replacement);
-  logger.log(`Applied compatibility patch for ${patch.name} at ${toString32(address)}`);
-  return patch.replacement;
+    switch (hack.type) {
+      case 'delay':
+        cycles += hack.cycles;
+        logger.log(`Applied compatibility delay for ${hack.name} at ${toString32(address)}: ${hack.cycles} CPU cycles`);
+        break;
+      case 'patch':
+        ram.set32(address - 0x80000000, hack.replacement);
+        patchedInstruction = hack.replacement;
+        logger.log(`Applied compatibility patch for ${hack.name} at ${toString32(address)}`);
+        break;
+    }
+  }
+  return { instruction: patchedInstruction, cycles };
 }
