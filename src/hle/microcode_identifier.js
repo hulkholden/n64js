@@ -79,8 +79,7 @@ function inferUcodeFromString(str) {
     }
   }
   if (index >= 0) {
-    // Preserve the existing matching rules, including the "xbux" spelling.
-    if (str.indexOf('fifo', index) >= 0 || str.indexOf('xbux', index) >= 0) {
+    if (str.indexOf('fifo', index) >= 0 || str.indexOf('xbus', index) >= 0) {
       return (str.indexOf('S2DEX') >= 0) ? MicrocodeId.GBI2_SDEX : MicrocodeId.GBI2;
     }
     return (str.indexOf('S2DEX') >= 0) ? MicrocodeId.GBI1_SDEX : MicrocodeId.GBI1;
