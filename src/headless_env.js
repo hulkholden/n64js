@@ -88,9 +88,11 @@ export async function createHeadlessEmulator(loadedROM, {
   };
   n64js.warn = onWarning;
   n64js.stopForBreakpoint = () => cpu0?.breakExecution();
-  n64js.halt = message => {
+  n64js.halt = (message, details) => {
     fatalError = String(message);
-    onHalt(fatalError);
+    // Preserve the original thrown value for diagnostics without changing the
+    // message consumed by existing headless callers.
+    onHalt(fatalError, details);
     cpu0?.breakExecution();
   };
   n64js.returnControlToSystem = () => cpu0?.breakExecution();

@@ -373,7 +373,7 @@ describe('headless graphics execution', () => {
     try {
       graphicsOptions.haltOnWarning = true;
       const halted = [];
-      const emulator = await createEmulator({ executeGraphics: true, onHalt: message => halted.push(message) });
+      const emulator = await createEmulator({ executeGraphics: true, onHalt: (message, details) => halted.push({ message, details }) });
       const { cpu0, hardware } = emulator;
       prepareGraphicsTask(emulator);
       setGraphicsCommands(emulator, [[0x81000000, 0], [0xfa000000, 0x12345678], [0xdf000000, 0]]);
@@ -390,7 +390,9 @@ describe('headless graphics execution', () => {
 
       expect(() => runCycles(emulator, 10)).toThrow(/Unknown display list op/);
       expect(halted).toHaveLength(1);
-      expect(emulator.fatalError()).toBe(halted[0]);
+      expect(emulator.fatalError()).toBe(halted[0].message);
+      expect(halted[0].details.error).toBeInstanceOf(Error);
+      expect(halted[0].details.error.message).toContain('Unknown display list op');
       expect(hardware.graphics.state.primColor).toBe(0);
       expect(hardware.sp_reg.getU32(SP_STATUS_REG) & SP_STATUS_TASKDONE).toBe(0);
       expect(hardware.mi_reg.getU32(MI_INTR_REG) & MI_INTR_DP).toBe(0);
