@@ -13,6 +13,7 @@ export const MicrocodeId = Object.freeze({
   GBI0_PD: 11,     // Perfect Dark
   F5_INDI: 12,     // Indiana Jones (recognized, but HLE is not implemented)
   ZSORTP: 13,      // Mia Hamm / World League Soccer (recognized, but HLE is not implemented)
+  TURBO3D: 14,     // Dark Rift (object lists, not GBI commands)
 });
 
 const microcodeProfiles = new Map([
@@ -30,11 +31,12 @@ const microcodeProfiles = new Map([
   [MicrocodeId.GBI0_PD, { family: 'GBI0', variant: 'PD' }],
   [MicrocodeId.F5_INDI, { family: 'F5', variant: 'INDI' }],
   [MicrocodeId.ZSORTP, { family: 'ZSortp', variant: null }],
+  [MicrocodeId.TURBO3D, { family: 'Turbo3D', variant: null }],
 ]);
 
 const ucodeOverrides = new Map([
   [0x60256efc, MicrocodeId.GBI2_CONKER], // "RSP Gfx ucode F3DEXBG.NoN fifo 2.08  Yoshitaka Yasumoto 1999 Nintendo.", "Conker's Bad Fur Day"
-  [0x6d8bec3e, MicrocodeId.GBI1_LL],     // "Dark Rift"
+  [0x6d8bec3e, MicrocodeId.TURBO3D],     // "Dark Rift"
   [0x0c10181a, MicrocodeId.GBI0_DKR],    // "Diddy Kong Racing (v1.0)"
   [0x713311dc, MicrocodeId.GBI0_DKR],    // "Diddy Kong Racing (v1.1)"
   [0x23f92542, MicrocodeId.GBI0_GE],     // "RSP SW Version: 2.0G, 09-30-96", "GoldenEye 007"

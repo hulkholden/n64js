@@ -10,6 +10,10 @@ export function executeDisplayList(state, microcode, {
   disassembler = null,
   bailAfter = -1,
 } = {}) {
+  // Object-list microcodes have their own record layout and termination rules.
+  if (microcode.executeDisplayList) {
+    return microcode.executeDisplayList({ disassembler, bailAfter });
+  }
   let ucodeTable = microcode.buildCommandTable();
 
   if (loadMicrocode) {
