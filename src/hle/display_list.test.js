@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { executeDisplayList } from './display_list.js';
+import { GBI0SE } from './gbi0.js';
 import { GBI1 } from './gbi1.js';
 import { GBI2 } from './gbi2.js';
 import { RSPState } from './rsp_state.js';
@@ -12,6 +13,32 @@ function writeCommands(ramDV, address, commands) {
 }
 
 describe('display-list execution', () => {
+  test('calls and returns from a list relocated by a negative segment base', () => {
+    const ramDV = new DataView(new ArrayBuffer(8 * 1024 * 1024));
+    writeCommands(ramDV, 8, [
+      // Shadows of the Empire uses this relocation and segmented call.
+      [0xbc001006, 0xffde1ec0], // Segment 4 = -0x21e140.
+      [0x06000000, 0x8440aa58], // Child at 0x001ec918.
+      [0xb3000000, 0xcafe],
+      [0xb8000000, 0],
+    ]);
+    writeCommands(ramDV, 0x001ec918, [
+      [0xb4000000, 0xbeef],
+      [0xb8000000, 0],
+    ]);
+
+    for (const disassembler of [null, { begin() {}, text() {}, end() {} }]) {
+      const state = new RSPState();
+      state.reset(ramDV, 8);
+      executeDisplayList(state, new GBI0SE(state, ramDV), { disassembler });
+      expect(state.rdpHalf1Cmd1).toBe(0xbeef);
+      expect(state.rdpHalf2Cmd1).toBe(0xcafe);
+      expect(state.dlistStack).toEqual([]);
+      expect(state.currentOp).toBe(6);
+      expect(state.pc).toBe(0);
+    }
+  });
+
   test('returns from nested lists and disassembles commands at their correct stack depth', () => {
     const ramDV = new DataView(new ArrayBuffer(0x100));
     writeCommands(ramDV, 8, [
