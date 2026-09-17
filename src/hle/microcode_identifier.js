@@ -73,7 +73,7 @@ export function identifyMicrocode(version, hash) {
 }
 
 function inferUcodeFromString(str) {
-  if (/^RSP Gfx ucode ZSortp(?:\s|$)/.test(str)) {
+  if (str.includes('ZSortp')) {
     return MicrocodeId.ZSORTP;
   }
   const prefixes = ['F3', 'L3', 'S2DEX'];

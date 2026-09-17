@@ -10,12 +10,13 @@ describe('microcode identification', () => {
     });
   });
 
-  test('uses the version string to identify base families and S2DEX when the hash is unknown', () => {
+  test('uses version fragments to identify families when the hash is unknown', () => {
     for (const [version, id, family, variant] of [
       ['RSP Gfx ucode F3DEX 1.0', MicrocodeId.GBI1, 'GBI1', null],
       ['RSP Gfx ucode F3DEX fifo 2.0', MicrocodeId.GBI2, 'GBI2', null],
       ['RSP Gfx ucode S2DEX 1.0', MicrocodeId.GBI1_SDEX, 'GBI1', 'S2DEX'],
       ['RSP Gfx ucode S2DEX fifo 2.0', MicrocodeId.GBI2_SDEX, 'GBI2', 'S2DEX'],
+      ['RSP ZSortp 0.33', MicrocodeId.ZSORTP, 'ZSortp', null],
     ]) {
       expect(identifyMicrocode(version, 0x12345678)).toMatchObject({
         id, family, variant, detection: 'string',
