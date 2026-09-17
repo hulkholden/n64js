@@ -12,6 +12,7 @@ export const MicrocodeId = Object.freeze({
   GBI2_CONKER: 10, // Conker BFD
   GBI0_PD: 11,     // Perfect Dark
   F5_INDI: 12,     // Indiana Jones (recognized, but HLE is not implemented)
+  ZSORTP: 13,      // Mia Hamm / World League Soccer (recognized, but HLE is not implemented)
 });
 
 const microcodeProfiles = new Map([
@@ -28,6 +29,7 @@ const microcodeProfiles = new Map([
   [MicrocodeId.GBI2_CONKER, { family: 'GBI2', variant: 'CONKER' }],
   [MicrocodeId.GBI0_PD, { family: 'GBI0', variant: 'PD' }],
   [MicrocodeId.F5_INDI, { family: 'F5', variant: 'INDI' }],
+  [MicrocodeId.ZSORTP, { family: 'ZSortp', variant: null }],
 ]);
 
 const ucodeOverrides = new Map([
@@ -50,7 +52,8 @@ const ucodeOverrides = new Map([
 /**
  * Identifies the microcode without constructing a handler or producing side effects.
  * F5_INDI is recognized but has no HLE handler; its graphics tasks are skipped.
- * Family and variant describe the selected handler; detection='fallback' means
+ * ZSORTP is recognized but rejected when attempting to create an HLE handler.
+ * Family and variant describe the microcode; detection='fallback' means
  * GBI0 was assumed, not positively identified. A null variant selects the base
  * family handler. Hash overrides take precedence over version-string inference.
  * @param {string} version The unmodified microcode version string.
@@ -70,6 +73,9 @@ export function identifyMicrocode(version, hash) {
 }
 
 function inferUcodeFromString(str) {
+  if (str.includes('ZSortp')) {
+    return MicrocodeId.ZSORTP;
+  }
   const prefixes = ['F3', 'L3', 'S2DEX'];
   let index = -1;
   for (let prefix of prefixes) {

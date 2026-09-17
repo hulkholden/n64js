@@ -187,9 +187,8 @@ describe('VI boundary callback', () => {
   });
 });
 
-function prepareGraphicsTask(emulator) {
+function prepareGraphicsTask(emulator, version = 'RSP Gfx ucode F3DEX fifo 2.0') {
   const { hardware } = emulator;
-  const version = 'RSP Gfx ucode F3DEX fifo 2.0';
   hardware.ram.u8.set([1, 2, 3], 0x1000);
   const data = new TextEncoder().encode(version + '\0');
   hardware.ram.u8.set(data, 0x2000);
@@ -219,6 +218,87 @@ function setGraphicsCommands(emulator, commands) {
 }
 
 describe('headless graphics execution', () => {
+  test('rejects ZSortp tasks and in-list loads through the CPU halt path before parsing their commands', async () => {
+    const version = 'RSP Gfx ucode ZSortp 0.33 Yoshitaka Yasumoto Nintendo.';
+    const previousHaltOnWarning = graphicsOptions.haltOnWarning;
+    try {
+      // Unsupported execution must stop even when ordinary warnings are ignored.
+      graphicsOptions.haltOnWarning = false;
+      for (const inList of [false, true]) {
+        const seen = [];
+        const loaded = [];
+        const halted = [];
+        const emulator = await createEmulator({
+          executeGraphics: true,
+          onGraphicsTask: info => seen.push(info),
+          onMicrocodeLoad: info => loaded.push(info),
+          onHalt: (message, details) => halted.push({ message, details }),
+        });
+        const { cpu0, hardware } = emulator;
+        prepareGraphicsTask(emulator, inList ? undefined : version);
+        const data = new TextEncoder().encode(version + '\0');
+        hardware.ram.u8.set(data, 0x5000);
+        hardware.ram.u8.set([1, 2, 3], 0x4000);
+        setGraphicsCommands(emulator, [
+          ...(inList ? [[0xe1000000, 0x80005000], [0xdd000000 | (data.length - 1), 0x80004000]] : []),
+          // The observed ZSortp startup sequence. GBI0 ignores even its end.
+          [0xdb000806, 0x80008000],
+          [0x81000000, 0x80006000],
+          [0x81000000, 0x80006008],
+          [0xdf000000, 0],
+          // A canary past the end: the fallback would continue and execute it.
+          [0xfa000000, 0x12345678],
+          [0xb8000000, 0],
+        ]);
+        hardware.sp_mem.set32(0xfc0 + TaskOffsets.type, 1);
+        cpu0.pc = 0x80007000;
+        cpu0.setControlU32(controlStatus, 0);
+        cpu0.cop1ControlChanged();
+        hardware.ram.set32(0x7000, 0x3c08a404); // lui t0, 0xa404
+        hardware.ram.set32(0x7004, 0x24090000 | SP_CLR_HALT);
+        hardware.ram.set32(0x7008, 0xad090000 | SP_STATUS_REG);
+
+        expect(() => runCycles(emulator, 10)).toThrow(/Unsupported graphics microcode: ZSortp/);
+        expect(halted).toHaveLength(1);
+        expect(halted[0].details.error).toMatchObject({ name: 'UnsupportedMicrocodeError' });
+        expect(halted[0].details.error.message).toContain(version);
+        expect(halted[0].details.error.message).toContain('hash');
+        expect(halted[0].details.error.message).toContain('HLE is not implemented');
+        expect(seen.map(info => info.family)).toEqual([inList ? 'GBI2' : 'ZSortp']);
+        expect(seen[0].detection).toBe('string');
+        expect(loaded.map(info => info.family)).toEqual(inList ? ['GBI2'] : []);
+        expect(hardware.graphics.state.primColor).toBe(0);
+        expect(hardware.graphics.state.currentOp).toBe(inList ? 1 : 0);
+        expect(hardware.sp_reg.getU32(SP_STATUS_REG) & SP_STATUS_TASKDONE).toBe(0);
+        expect(hardware.mi_reg.getU32(MI_INTR_REG) & MI_INTR_DP).toBe(0);
+      }
+    } finally {
+      graphicsOptions.haltOnWarning = previousHaltOnWarning;
+    }
+  });
+
+  test('leaves ZSortp available to explicit LLE without claiming HLE execution', async () => {
+    const previousMode = graphicsOptions.emulationMode;
+    try {
+      graphicsOptions.emulationMode = 'LLE';
+      const seen = [];
+      const loaded = [];
+      const emulator = await createEmulator({
+        executeGraphics: true, onGraphicsTask: info => seen.push(info), onMicrocodeLoad: info => loaded.push(info),
+      });
+      prepareGraphicsTask(emulator, 'RSP Gfx ucode ZSortp 0.33 Yoshitaka Yasumoto Nintendo.');
+      emulator.hardware.sp_mem.set32(0xfc0 + TaskOffsets.dataPtr, 0x1000000);
+      expect(() => startRSPTask(emulator)).not.toThrow();
+      expect(seen[0]).toMatchObject({ family: 'ZSortp', detection: 'string' });
+      expect(loaded).toEqual([]);
+      expect(emulator.hardware.rsp.halted).toBe(false);
+      expect(emulator.hardware.sp_reg.getU32(SP_STATUS_REG) & SP_STATUS_TASKDONE).toBe(0);
+      expect(emulator.hardware.mi_reg.getU32(MI_INTR_REG) & MI_INTR_DP).toBe(0);
+    } finally {
+      graphicsOptions.emulationMode = previousMode;
+    }
+  });
+
   test('executes drawing commands and in-list microcode switches through SP dispatch', async () => {
     const seen = [];
     const loaded = [];

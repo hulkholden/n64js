@@ -1,4 +1,5 @@
 import * as logger from '../logger.js';
+import { toString32 } from '../format.js';
 import { GBI0, GBI0GE, GBI0PD, GBI0SE, GBI0WR } from './gbi0.js';
 import { GBI0DKR } from './gbi0_dkr.js';
 import { GBI1, GBI1LL } from './gbi1.js';
@@ -6,6 +7,13 @@ import { GBI2, GBI2Conker } from './gbi2.js';
 import { GBI1SDEX, GBI2SDEX } from './gbi_s2dex.js';
 import { graphicsOptions } from './graphics_options.js';
 import { identifyMicrocode, MicrocodeId } from './microcode_identifier.js';
+
+class UnsupportedMicrocodeError extends Error {
+  constructor(info) {
+    super(`Unsupported graphics microcode: ${info.family} (version "${info.version}", hash ${toString32(info.hash)}); HLE is not implemented`);
+    this.name = 'UnsupportedMicrocodeError';
+  }
+}
 
 // The optional observer receives the already-computed classification after
 // construction, so changing its snapshot cannot affect handler selection.
@@ -21,6 +29,12 @@ export function create(task, state, ramDV, onMicrocodeLoad = null) {
   const hash = task.computeMicrocodeHash();
   const info = identifyMicrocode(version, hash);
   logMicrocode(version, info.id);
+  // ZSortp has its own command formats, including linked objects and RDP lists.
+  // The GBI0 fallback ignores its end command and reads past the display list.
+  // Reject both task-start and in-list loads before executing any of its commands.
+  if (info.id === MicrocodeId.ZSORTP) {
+    throw new UnsupportedMicrocodeError(info);
+  }
   const microcode = createMicrocode(info.id, state, ramDV);
   microcode.version = version;
   onMicrocodeLoad?.(info);
