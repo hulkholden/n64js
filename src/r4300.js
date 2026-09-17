@@ -785,7 +785,7 @@ export class CPU0 {
           n64js.stopForBreakpoint();
         } else {
           // Other exceptions are bad news, so display an error and bail out.
-          n64js.halt('Exception :' + e);
+          n64js.halt('Exception :' + e, { error: e });
           break;
         }
       }

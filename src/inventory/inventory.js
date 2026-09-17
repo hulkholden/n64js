@@ -22,6 +22,9 @@ Exit codes: 0 completed; 2 invalid arguments or emulation error; 3 cycle limit;
 124 timeout. Timeouts contain only the last received checkpoint. Microcode
 collectors report task starts and HLE loads, including in-list switches.
 Texture formats describe tiles selected by HLE draws, not visible pixels.
+Terminal exceptions/halts include versioned result.failure details. Exceptions
+retain their original type, message and stack; halt context records CPU/RSP
+state. Timeouts retain only the last checkpoint and have no exception stack.
 
 Replay starts from boot using the report's seed, limits and embedded input script.
 The supplied ROM must have the same canonical SHA-256 (other byte orders work).

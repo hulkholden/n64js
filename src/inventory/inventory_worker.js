@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { createHeadlessEmulator, loadROMFile } from '../headless_env.js';
 import { createInputDriver, createRandom } from './inventory_input.js';
 import { ImageFormat } from '../hle/gbi.js';
+import { captureFailure } from './inventory_failure.js';
 
 // This process may block inside emulation. The CLI owns the wall-clock timeout
 // and retains the last checkpoint received before terminating this process.
@@ -59,6 +60,7 @@ function checkpoint() {
 
 let status;
 let message = null;
+let failure = null;
 try {
   const loadedROM = await loadROMFile(romPath);
   rom = {
@@ -103,6 +105,9 @@ try {
         textureFormats.set(key, { ...info, name: `${format}${4 << info.size}` });
       }
     },
+    onHalt: (_message, details) => {
+      failure = captureFailure(details ? 'exception' : 'halt', details?.error, emulator);
+    },
     onWarning: message => console.error(message),
     onCheckFailure: message => console.error(message),
   });
@@ -131,7 +136,8 @@ try {
 } catch (error) {
   status = 'error';
   message = String(error?.message ?? error);
+  failure = captureFailure('exception', error, emulator);
 }
 
-process.send({ type: 'result', ...snapshot(), status, message });
+process.send({ type: 'result', ...snapshot(), status, message, ...(failure ? { failure } : {}) });
 process.disconnect();

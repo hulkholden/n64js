@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
 import { inputPolicy, parseInputScript } from './inventory_input.js';
+import { captureFailure } from './inventory_failure.js';
 
 export const inventoryOptions = {
   seed: { type: 'string' },
@@ -104,16 +105,23 @@ export async function runInventory(romPath, settings, { signal, replayOf } = {})
         finished = true;
         report.result.status = update.status;
         report.result.message = update.message;
+        if (update.failure) report.result.failure = update.failure;
         report.result.checkpointOnly = false;
       }
     });
-    child.on('error', error => { report.result.message = error.message; });
+    child.on('error', error => {
+      report.result.message = error.message;
+      report.result.failure = captureFailure('exception', error);
+    });
     child.on('close', (code, exitSignal) => {
       clearTimeout(timer);
       signal?.removeEventListener('abort', interrupt);
       if (!finished) {
         report.result.status = interrupted ? 'interrupted' : timedOut ? 'timeout' : 'error';
         report.result.message ??= interrupted ? 'Inventory interrupted' : timedOut ? `Wall-clock limit of ${settings.timeoutMs} ms reached` : `Emulator exited without a result (${exitSignal ?? code})`;
+        if (!interrupted && !timedOut) {
+          report.result.failure ??= { version: 1, kind: 'worker-exit', code, signal: exitSignal };
+        }
       }
       resolveReport(report);
     });

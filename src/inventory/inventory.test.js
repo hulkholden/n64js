@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createInputDriver, createRandom, parseInputScript } from './inventory_input.js';
+import { captureFailure } from './inventory_failure.js';
 import { CycleType, ImageFormat, ImageSize } from '../hle/gbi.js';
 
 const cli = fileURLToPath(new URL('./inventory.js', import.meta.url));
@@ -182,6 +183,19 @@ describe('inventory input', () => {
     expect(replay.every(input => Math.abs(input.stick_x) <= 80 && Math.abs(input.stick_y) <= 80)).toBe(true);
     expect(replay.some((input, index) => input.buttons && input.buttons === replay[index + 1]?.buttons)).toBe(true);
     expect(replay.some((input, index) => index > 0 && replay[index - 1].buttons && input.buttons === 0 && input.stick_x === 0 && input.stick_y === 0)).toBe(true);
+  });
+});
+
+test('failure evidence serializes non-Error throws without inventing a stack or leaking error properties', () => {
+  for (const thrown of ['Read is out of range', null, undefined]) {
+    expect(JSON.parse(JSON.stringify(captureFailure('exception', thrown))).exception).toEqual({
+      name: null, message: String(thrown), stack: null,
+    });
+  }
+  const error = new RangeError('outside buffer');
+  error.circular = error;
+  expect(JSON.parse(JSON.stringify(captureFailure('exception', error))).exception).toEqual({
+    name: 'RangeError', message: error.message, stack: error.stack,
   });
 });
 
@@ -652,9 +666,14 @@ describe('inventory command', () => {
       const missing = await invoke(directory, ['missing.z64']);
       expect(missing.code).toBe(2);
       expect(JSON.parse(missing.stdout)).toMatchObject({ rom: null, collectors: {}, result: { status: 'error' } });
+      const startupFailure = JSON.parse(missing.stdout).result.failure;
+      expect(startupFailure).toMatchObject({ version: 1, kind: 'exception', exception: { name: 'Error', message: 'ROM not found: ' + join(directory, 'missing.z64') } });
+      expect(startupFailure.exception.stack).toContain('loadROMFile');
+      expect(startupFailure.context).toBeUndefined();
       await Bun.write(join(directory, 'test.z64'), makeROM({ graphics: 'none', vi: true }));
       const empty = await invoke(directory, ['test.z64', '--frames', '1']);
       expect(empty.code).toBe(0);
+      expect(JSON.parse(empty.stdout).result.failure).toBeUndefined();
       expect(JSON.parse(empty.stdout).collectors['graphics.taskMicrocodes']).toMatchObject({ version: 1, tasks: 0, microcodes: [] });
       expect(JSON.parse(empty.stdout).collectors['graphics.microcodeLoads']).toMatchObject({ version: 1, loads: 0, microcodes: [] });
       expect(JSON.parse(empty.stdout).collectors['graphics.textureFormats']).toEqual({ version: 1, scope: 'hle-draw', formats: [] });
@@ -664,6 +683,21 @@ describe('inventory command', () => {
       const report = JSON.parse(halted.stdout);
       expect(report.result).toMatchObject({ status: 'halted', checkpointOnly: false });
       expect(report.result.message).toBeTruthy();
+      expect(report.result.failure).toMatchObject({
+        version: 1, kind: 'exception', exception: { name: 'RangeError' },
+      });
+      expect(typeof report.result.failure.exception.message).toBe('string');
+      const { cpu, rsp } = report.result.failure.context;
+      for (const pc of [cpu.pc, cpu.nextPC, cpu.delayPC, rsp.pc]) expect(Number.isInteger(pc)).toBe(true);
+      expect(typeof rsp.halted).toBe('boolean');
+      // An actual invalid display-list read must retain its original stack
+      // across CPU halt handling and worker IPC, not a stack from serialization.
+      expect(report.result.failure.exception.stack).toContain('nextCommand');
+      expect(report.result.failure.exception.stack).toContain('rsp_state.js');
+      await Bun.write(join(directory, 'failure.json'), JSON.stringify(report));
+      const queried = await invoke(directory, ['failure.json', '--microcode', 'GBI2'], queryCLI);
+      expect(queried.code).toBe(0);
+      expect(JSON.parse(queried.stdout).matches[0].result.failure).toEqual(report.result.failure);
       expect(report.collectors['graphics.taskMicrocodes'].tasks).toBe(1);
       expect(report.collectors['graphics.microcodeLoads'].loads).toBe(1);
       expect(report.collectors['graphics.textureFormats'].formats).toEqual([]);
