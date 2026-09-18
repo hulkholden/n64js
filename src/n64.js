@@ -8,6 +8,7 @@ import { Joybus } from './joybus.js';
 import { Debugger } from './debugger.js';
 import { fixRomByteOrder } from './endian.js';
 import { toString32 } from './format.js';
+import { FramePacer } from './frame_pacer.js';
 import { Hardware } from './hardware.js';
 import { debugDisplayList, debugDisplayListRequested, debugDisplayListRunning, presentBackBuffer, initialiseRenderer, graphics } from './hle/hle_graphics.js';
 import * as json from './json.js';
@@ -26,6 +27,8 @@ const kCyclesPerUpdate = 100_000_000;
 
 let stats = null;
 let running = false;
+let animationFrame = null;
+const framePacer = new FramePacer();
 const resetCallbacks = [];
 
 const testOptions = {
@@ -53,7 +56,15 @@ let dbg = null; // FIXME: can't use debugger as a variable name - fix this when 
 
 function setRunning(value) {
   resetFrameTime();
+  if (animationFrame !== null) {
+    cancelAnimationFrame(animationFrame);
+    animationFrame = null;
+  }
+  framePacer.reset();
   running = value;
+  if (running) {
+    hardware.aiRegDevice.audioContext.resume().catch(err => console.warn('Unable to resume audio:', err));
+  }
   ui.setRunning(value);
 }
 
@@ -176,7 +187,9 @@ n64js.breakEmulationForDisplayListDebug = () => {
   if (running) {
     n64js.toggleRun();
     breakAllExecution();
-    //updateLoopAnimframe();
+    // Pausing cancels the emulation callback, but display-list replay still
+    // needs its own animation loop while CPU execution is stopped.
+    animationFrame = requestAnimationFrame(updateLoopAnimframe);
   }
 };
 
@@ -187,39 +200,43 @@ n64js.step = () => {
   }
 };
 
-function updateLoopAnimframe() {
+function updateLoopAnimframe(now = performance.now()) {
+  animationFrame = null;
   if (stats) {
     stats.begin();
   }
 
   if (running) {
-    requestAnimationFrame(updateLoopAnimframe);
-
-    if (n64js.hardware().aiRegDevice.shouldSkipFrame()) {
-      return;
-    }
+    animationFrame = requestAnimationFrame(updateLoopAnimframe);
 
     // Poll for input changes.
     controllers.updateInput();
 
-    let maxCycles = kCyclesPerUpdate;
-
     // Don't slow down debugger if we're waiting for a display list to be debugged.
-    if (dbg.active && !debugDisplayListRequested()) {
-      maxCycles = dbg.debugCycles;
+    const debugging = dbg.active && !debugDisplayListRequested();
+    let frames = framePacer.framesDue(now, hardware.viRegDevice.refreshRate);
+    if (debugging || syncActive()) {
+      framePacer.reset();
+      frames = 1;
     }
 
-    if (syncActive()) {
-      // Check how many cycles we can safely execute
-      maxCycles = syncTick(maxCycles);
-    }
-
-    if (maxCycles > 0) {
+    for (let i = 0; i < frames && running; i++) {
+      if (hardware.aiRegDevice.shouldSkipFrame()) {
+        break;
+      }
+      let maxCycles = debugging ? dbg.debugCycles : kCyclesPerUpdate;
+      if (syncActive()) {
+        // Check how many cycles we can safely execute.
+        maxCycles = syncTick(maxCycles);
+      }
+      if (maxCycles <= 0) {
+        break;
+      }
       n64js.cpu0.run(maxCycles);
-      dbg.redraw();
     }
+    dbg.redraw();
   } else if (debugDisplayListRunning()) {
-    requestAnimationFrame(updateLoopAnimframe);
+    animationFrame = requestAnimationFrame(updateLoopAnimframe);
     debugDisplayList();
     presentBackBuffer();
   }
@@ -287,6 +304,7 @@ n64js.addResetCallback = (fn) => {
 };
 
 n64js.reset = () => {
+  framePacer.reset();
   breakpoints.reset();
 
   initSync();
