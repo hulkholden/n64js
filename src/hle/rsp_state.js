@@ -59,7 +59,8 @@ export class RSPState {
     /**
      * @type {!Array<!ProjectedVertex>}
      */
-    this.projectedVertices = new Array(64);  // FIXME or 80 for later GBI?
+    // Reserve the largest F3DEX-family cache: F3DLP.Rej uses slots 0..79.
+    this.projectedVertices = new Array(80);
 
     this.scissor = {
       mode: 0,
