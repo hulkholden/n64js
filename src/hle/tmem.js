@@ -21,17 +21,16 @@ export class TMEM {
    * Loads a block to TMEM.
    * @param {TextureImage} ti RDP texture image.
    * @param {Tile} tile Tile being loaded.
-   * @param {number} uls Upper-left S coordinate to load, in 10.2 format.
-   * @param {number} ult Upper-left T coordinate to load, in 10.2 format.
-   * @param {number} lrs Lower-right S coordinate to load, in 10.2 format.
+   * @param {number} uls Upper-left S coordinate to load, in whole texels.
+   * @param {number} ult Upper-left T coordinate to load, in whole texels.
+   * @param {number} lrs Inclusive end of the texel span, in whole texels.
    * @param {number} dxt Reciprocal of number of words in a line, in 1.11 fixed point.
    * @param {DebugController?} dc An optional debug controller for displaying tooltips.
    */
   loadBlock(ti, tile, uls, ult, lrs, dxt, dc) {
-    const s0 = uls >>> 2;
-    const t0 = ult >>> 2;
-
-    const ramAddress = ti.calcAddress(s0, t0);
+    // LoadBlock uses integer source coordinates, unlike LoadTile's 10.2
+    // coordinates. F-Zero X uses nonzero ult to upload successive image strips.
+    const ramAddress = ti.calcAddress(uls, ult);
     const texels = (lrs - uls + 1) & 0xfff;
     const bytes = ti.texelsToBytes(texels);
     // TODO: rounding seems to be done before converting texels to bytes.
