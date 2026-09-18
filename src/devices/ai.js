@@ -27,8 +27,11 @@ const kAIDMAEvent = 'AI DMA';
 
 const kDynamicRateMax = 0.005;
 
+// Keep enough audio queued to absorb callback jitter and a missed video frame.
+const kTargetAudioLead = 0.050;
+
 // https://developer.mozilla.org/en-US/docs/Web/API/AudioBuffer/AudioBuffer
-const kMinSampleRate = 3000
+const kMinSampleRate = 3000;
 const kMaxSampleRate = 96000;
 
 // The maximum amount of time audio can lead realtime, in seconds.
@@ -48,14 +51,21 @@ export class AIRegDevice extends Device {
   constructor(hardware, rangeStart, rangeEnd) {
     super("AIReg", hardware, hardware.ai_reg, rangeStart, rangeEnd);
     this.audioContext = hardware.headless ? null : new window.AudioContext();
-
-    // Writes to the address register are latched until a subsequent write to the length reg.
-    this.pendingAddress = 0;
+    this.sources = new Set();
 
     // DMAs are double-buffered.
     this.dmaAddresses = new Uint32Array(2);
     this.dmaLengths = new Uint32Array(2);
     this.dmaDurations = new Uint32Array(2);
+    this.reset();
+  }
+
+  reset() {
+    // Writes to the address register are latched until a subsequent length write.
+    this.pendingAddress = 0;
+    this.dmaAddresses.fill(0);
+    this.dmaLengths.fill(0);
+    this.dmaDurations.fill(0);
     this.dmaCount = 0;
 
     // Values derived from the AI registers.
@@ -65,11 +75,18 @@ export class AIRegDevice extends Device {
     this.precision = 16;
     this.frequency = 32000;
 
-    // State for managing audio playback.
-    this.time = 0;
-    this.dynamicRate = 1.0;
-
+    this.resetPlayback();
     this.lastLogTime = 0;
+  }
+
+  resetPlayback() {
+    for (const source of this.sources) {
+      source.stop();
+      source.disconnect();
+    }
+    this.sources.clear();
+    this.time = 0;
+    this.dynamicRate = 0;
   }
 
   readU32(address) {
@@ -190,8 +207,11 @@ export class AIRegDevice extends Device {
     const length = this.dmaLengths[0];
     const duration = this.dmaDurations[0];
 
-    if (this.hardware.headless) {
+    if (!this.audioContext || this.audioContext.state !== 'running') {
       // Preserve AI timing and interrupt behaviour without producing audio.
+      // A suspended browser clock cannot drain the queue. Discard that output
+      // and start with fresh audio once playback is allowed again.
+      this.resetPlayback();
       this.raiseAI();
       this.addAIDMAEvent(duration);
       return;
@@ -208,11 +228,16 @@ export class AIRegDevice extends Device {
       rSamples[i] = dv.getInt16(i * 4 + 2) / 0x8000;
     }
 
-    // Apply dynamic rate control.
-    // TOOD: implement this as described in https://github.com/libretro/libretro.github.com/raw/master/documents/ratecontrol.pdf.
     const currentTime = this.audioContext.currentTime;
+    if (this.time <= currentTime) {
+      // Startup or underrun: rebuild the cushion before starting a new stream.
+      this.time = currentTime + kTargetAudioLead;
+    }
     const timeDiff = this.time - currentTime;
-    this.dynamicRate = (timeDiff > 0) ? +kDynamicRateMax : -kDynamicRateMax;
+    // Correct small clock differences around a nonzero queue target. Speeding
+    // up whenever *any* audio remains would continually drain the cushion.
+    const error = (timeDiff - kTargetAudioLead) / kTargetAudioLead;
+    this.dynamicRate = Math.max(-1, Math.min(1, error)) * kDynamicRateMax;
     const sampleRate = clampSampleRate(this.frequency * (1 + this.dynamicRate));
 
     if (kLogInterval > 0 && (currentTime - this.lastLogTime) > kLogInterval) {
@@ -227,10 +252,12 @@ export class AIRegDevice extends Device {
 
     const source = new AudioBufferSourceNode(this.audioContext, { buffer: ab });
     source.connect(this.audioContext.destination);
+    this.sources.add(source);
+    source.onended = () => {
+      source.disconnect();
+      this.sources.delete(source);
+    };
     source.start(this.time);
-    if (timeDiff < 0) {
-      this.time = currentTime;
-    }
     this.time += ab.duration;
 
     // An AI interrupt is triggered as soon as playback starts.
@@ -239,7 +266,7 @@ export class AIRegDevice extends Device {
   }
 
   shouldSkipFrame() {
-    if (this.hardware.headless) {
+    if (!this.audioContext || this.audioContext.state !== 'running') {
       return false;
     }
     const timeDiff = this.time - this.audioContext.currentTime;
