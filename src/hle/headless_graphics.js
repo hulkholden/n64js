@@ -36,7 +36,7 @@ export class HeadlessGraphics {
       return microcode;
     };
 
-    executeDisplayList(this.state, initMicrocode(), {
+    return executeDisplayList(this.state, initMicrocode(), {
       loadMicrocode: (codeAddr, codeSize, codeDataAddr, codeDataSize) => {
         task.loadUcode(codeAddr, codeSize, codeDataAddr, codeDataSize);
         return initMicrocode();
