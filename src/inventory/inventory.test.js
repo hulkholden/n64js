@@ -53,7 +53,12 @@ function makeROM({ vi = false, graphics = 'end', audio = false, rewriteCount = f
     return version.length;
   };
   const versionSize = writeVersion(0x2000, 'RSP Gfx ucode F3DEX fifo 2.0');
-  let commands = [[graphics === 'loop' ? 0xde010000 : 0xdf000000, graphics === 'loop' ? 0x3000 : 0]];
+  let commands = [[0xdf000000, 0]];
+  if (graphics === 'loop') {
+    // A multi-command cycle still exercises the supervisor's wall-clock guard.
+    commands = [[0xde010000, 0x3008], [0xde010000, 0x3000]];
+  }
+  if (graphics === 'wait') commands = [[0xde010000, 0x3000]];
   if (graphics === 'switch') {
     const gbi1Size = writeVersion(0x5000, 'RSP Gfx ucode F3DEX 1.23');
     commands = [
@@ -680,6 +685,17 @@ describe('inventory command', () => {
         expect(report.result).toMatchObject({ status: 'cycle-limit', frames: 0, cycles: 10000, checkpointOnly: false });
         expect(report.collectors['graphics.taskMicrocodes'].tasks).toBe(2);
       }
+    });
+  });
+
+  test('enforces the emulated cycle budget while HLE waits for a CPU patch', async () => {
+    await withDirectory(async directory => {
+      await Bun.write(join(directory, 'test.z64'), makeROM({ graphics: 'wait' }));
+      const result = await invoke(directory, ['test.z64', '--max-cycles', '10000']);
+      expect(result.code).toBe(3);
+      expect(JSON.parse(result.stdout).result).toMatchObject({
+        status: 'cycle-limit', cycles: 10000, checkpointOnly: false,
+      });
     });
   });
 

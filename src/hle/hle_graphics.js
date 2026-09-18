@@ -84,7 +84,7 @@ export function debugDisplayList() {
 
 function hleGraphics(task) {
   debugController.onNewTask(task)
-  processDList(task, null, -1);
+  return processDList(task, null, -1);
 }
 
 export function presentBackBuffer() {
@@ -131,7 +131,7 @@ function processDList(task, disassembler, bailAfter) {
     renderer.debugClear();
   }
 
-  executeDisplayList(state, microcode, {
+  let continuation = executeDisplayList(state, microcode, {
     loadMicrocode: (codeAddr, codeSize, codeDataAddr, codeDataSize) => {
       task.loadUcode(codeAddr, codeSize, codeDataAddr, codeDataSize);
       return initMicrocode(task, ramDV, hardware.onMicrocodeLoad);
@@ -141,6 +141,14 @@ function processDList(task, disassembler, bailAfter) {
   });
 
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  return continuation ? resume : null;
+
+  function resume() {
+    renderer.newFrame();
+    continuation = continuation();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    return continuation ? resume : null;
+  }
 }
 
 function initDimensionsFromVI(vi) {
