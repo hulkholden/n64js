@@ -1909,6 +1909,9 @@ export class CPU0 {
       //logger.log(`ERET from interrupt/exception ${toString32(this.nextPC)}`);
     }
     this.llBit = 0;
+    // Clearing EXL/ERL can expose an interrupt that arrived while exceptions
+    // were masked. Deliver it before resuming the guest, even without a new event.
+    this.updateStuffToDoForInterrupts();
   }
 
   // Cop1
