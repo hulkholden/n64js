@@ -52,6 +52,7 @@ const ui = new UI();
 let dbg = null; // FIXME: can't use debugger as a variable name - fix this when wrapping in a class.
 
 function setRunning(value) {
+  resetFrameTime();
   running = value;
   ui.setRunning(value);
 }
@@ -252,6 +253,14 @@ n64js.setLocalStorageItem = (name, data) => {
 // Performance
 //
 let lastPresentTime;
+let frameTimeTotal = 0;
+let frameTimeCount = 0;
+
+function resetFrameTime() {
+  lastPresentTime = undefined;
+  frameTimeTotal = 0;
+  frameTimeCount = 0;
+}
 
 function setFrameTime(t) {
   const titleText = rominfo.name ? `n64js - ${rominfo.name} - ${t}mspf` : `n64js - ${t}mspf`;
@@ -259,10 +268,16 @@ function setFrameTime(t) {
 }
 
 n64js.onPresent = () => {
-  const curTime = new Date();
-  if (lastPresentTime) {
-    const elapsed = curTime.getTime() - lastPresentTime.getTime();
-    setFrameTime(elapsed);
+  const curTime = performance.now();
+  if (lastPresentTime !== undefined) {
+    frameTimeTotal += curTime - lastPresentTime;
+    frameTimeCount++;
+    // Average over a quarter second and limit how often the counter changes.
+    if (frameTimeTotal >= 250) {
+      setFrameTime((frameTimeTotal / frameTimeCount).toFixed(1));
+      frameTimeTotal = 0;
+      frameTimeCount = 0;
+    }
   }
   lastPresentTime = curTime;
 };
@@ -286,7 +301,7 @@ n64js.reset = () => {
 
   simulateBoot(n64js.cpu0, hardware, rominfo);
 
-  lastPresentTime = undefined;
+  resetFrameTime();
 
   for (let callback of resetCallbacks) {
     callback();
