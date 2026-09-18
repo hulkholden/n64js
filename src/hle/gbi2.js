@@ -122,7 +122,8 @@ export class GBI2 extends GBIMicrocode {
       matrix = stack[stack.length - 1].multiply(matrix);
     }
 
-    if (push) {
+    // The projection matrix has only one entry; PUSH only applies to modelview.
+    if (push && !projection) {
       stack.push(matrix);
     } else {
       stack[stack.length - 1] = matrix;
@@ -363,19 +364,17 @@ export class GBI2 extends GBIMicrocode {
   }
 
   executePopMatrix(cmd0, cmd1, dis) {
-    // FIXME: not sure what bit this is
-    //const projection =  ??;
-    const projection = 0;
+    // F3DEX2 encodes a byte count, with no projection/modelview selector.
+    const count = cmd1 >>> 6;
 
     if (dis) {
-      const t = projection ? 'G_MTX_PROJECTION' : 'G_MTX_MODELVIEW';
-      dis.text(`gsSPPopMatrix(${t});`);
+      dis.text(`gsSPPopMatrixN(G_MTX_MODELVIEW, ${count});`);
     }
 
-    const stack = projection ? this.state.projection : this.state.modelview;
-    if (stack.length > 0) {
-      stack.pop();
-    }
+    // Clamp to the base matrix, as the microcode clamps its saved-stack pointer.
+    // Keeping that matrix preserves the transform, including for excess pops.
+    const stack = this.state.modelview;
+    stack.length = Math.max(1, stack.length - count);
   }
 
   executeMoveWord(cmd0, cmd1, dis) {

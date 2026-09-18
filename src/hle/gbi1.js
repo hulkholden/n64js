@@ -171,13 +171,15 @@ export class GBI1 extends GBIMicrocode {
       dis.tip(this.previewMatrix(matrix));
     }
 
-    const stack = (flags & gbi.G_MTX_PROJECTION) ? this.state.projection : this.state.modelview;
+    const projection = (flags & gbi.G_MTX_PROJECTION) !== 0;
+    const stack = projection ? this.state.projection : this.state.modelview;
 
     if ((flags & gbi.G_MTX_LOAD) == 0) {
       matrix = stack[stack.length - 1].multiply(matrix);
     }
 
-    if (flags & gbi.G_MTX_PUSH) {
+    // The projection matrix has only one entry; PUSH only applies to modelview.
+    if (!projection && (flags & gbi.G_MTX_PUSH)) {
       stack.push(matrix);
     } else {
       stack[stack.length - 1] = matrix;
@@ -193,8 +195,9 @@ export class GBI1 extends GBIMicrocode {
       dis.text(`gsSPPopMatrix(${t});`);
     }
 
-    // FIXME: pop is always modelview?
-    if (this.state.modelview.length > 0) {
+    // Projection cannot be popped. The modelview array includes the current
+    // base matrix, which must survive a pop when there are no saved matrices.
+    if (!(flags & gbi.G_MTX_PROJECTION) && this.state.modelview.length > 1) {
       this.state.modelview.pop();
     }
   }
