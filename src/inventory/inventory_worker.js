@@ -3,6 +3,7 @@ import { createHeadlessEmulator, loadROMFile } from '../headless_env.js';
 import { createInputDriver, createRandom } from './inventory_input.js';
 import { ImageFormat } from '../hle/gbi.js';
 import { captureFailure } from './inventory_failure.js';
+import { sendInventoryUpdate } from './inventory_ipc.js';
 
 // This process may block inside emulation. The CLI owns the wall-clock timeout
 // and retains the last checkpoint received before terminating this process.
@@ -55,7 +56,7 @@ function snapshot() {
 }
 
 function checkpoint() {
-  process.send({ type: 'checkpoint', ...snapshot() });
+  return sendInventoryUpdate({ type: 'checkpoint', ...snapshot() });
 }
 
 let status;
@@ -73,7 +74,7 @@ try {
   if (expectedRomSha256 !== undefined && rom.sha256 !== expectedRomSha256) {
     throw new Error('ROM SHA-256 does not match the replay report');
   }
-  checkpoint();
+  await checkpoint();
   const updateInput = createInputDriver(settings.seed, settings.inputPolicy.script);
   emulator = await createHeadlessEmulator(loadedROM, {
     executeGraphics: true,
@@ -117,9 +118,7 @@ try {
     emulator.cpu0.breakExecution();
   });
   collecting = true;
-  checkpoint();
-  // Flush the initial checkpoint before entering potentially blocking code.
-  await Bun.sleep(0);
+  await checkpoint();
 
   while (emulator.hardware.verticalBlankCount < settings.frames && !cycleLimitReached) {
     emulator.cpu0.run(10_000_000);
@@ -129,8 +128,7 @@ try {
       message = fatalError;
       break;
     }
-    checkpoint();
-    await Bun.sleep(0);
+    await checkpoint();
   }
   status ??= emulator.hardware.verticalBlankCount >= settings.frames ? 'completed' : 'cycle-limit';
 } catch (error) {
@@ -139,5 +137,13 @@ try {
   failure = captureFailure('exception', error, emulator);
 }
 
-process.send({ type: 'result', ...snapshot(), status, message, ...(failure ? { failure } : {}) });
-process.disconnect();
+try {
+  await sendInventoryUpdate({ type: 'result', ...snapshot(), status, message, ...(failure ? { failure } : {}) });
+} catch (error) {
+  // The parent still has the last delivered checkpoint. Keep transport failures
+  // visible on stderr and distinguish them from a successful worker exit.
+  console.error('Failed to deliver terminal inventory report:', error);
+  process.exitCode = 1;
+} finally {
+  if (process.connected) process.disconnect();
+}
