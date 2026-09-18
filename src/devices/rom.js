@@ -4,6 +4,7 @@ import { Device } from './device.js';
 import { toString32, toString16, toString8 } from '../format.js';
 import * as logger from '../logger.js';
 import { MemoryRegion } from '../memory_region.js';
+import { Photopie } from './photopie.js';
 
 const dbgOutWriteLen = 0xb3ff0014
 const dbgOutBufStart = 0xb3ff0020;
@@ -244,6 +245,11 @@ export class ROMD2A2Device extends Device {
         this.flashStatus = new MemoryRegion(new ArrayBuffer(8));
         this.flashBuffer = new MemoryRegion(new ArrayBuffer(128));
         this.flashOffset = 0;
+        this.photopie = null;
+    }
+
+    reset() {
+        this.photopie = this.hardware.rominfo.cartridge === 'Photopie' ? new Photopie() : null;
     }
 
     hasFlashRam() { return this.hardware.saveType == 'FlashRam'; }
@@ -265,6 +271,9 @@ export class ROMD2A2Device extends Device {
     }
 
     readU32(address) {
+        if (this.photopie?.handlesAddress(address)) {
+            return this.photopie.readU32(address);
+        }
         const ea = this.calcWriteEA(address);
         const sramOffset = this.sramOffset(ea, 4);
         if (sramOffset >= 0) {
@@ -298,6 +307,10 @@ export class ROMD2A2Device extends Device {
     }
 
     write32(address, value) {
+        if (this.photopie?.handlesAddress(address)) {
+            this.photopie.write32(address, value);
+            return;
+        }
         const ea = this.calcWriteEA(address);
         const sramOffset = this.sramOffset(ea, 4);
         if (sramOffset >= 0) {

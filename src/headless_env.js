@@ -42,6 +42,7 @@ export async function loadROMFile(romPath) {
     country: country || constants.countryNorthAmerica,
     tvType: country ? constants.tvTypeFromCountry(country) : constants.OS_TV_NTSC,
     save: info ? info.save : 'Eeprom4k',
+    cartridge: info?.cartridge,
   };
   return { romBuffer, rominfo };
 }

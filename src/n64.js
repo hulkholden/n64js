@@ -103,6 +103,7 @@ function loadRom(arrayBuffer) {
   rominfo.tvType = tvTypeFromCountry(hdr.countryId);
 
   const info = romdb[rominfo.id];
+  rominfo.cartridge = info?.cartridge;
   if (info) {
     logger.log(`Loaded info for ${rominfo.id} from db`);
     rominfo.name = info.name;
