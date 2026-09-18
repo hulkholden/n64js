@@ -655,10 +655,6 @@ export class GBIMicrocode {
     const lrs = (cmd1 >>> 12) & 0xfff;
     const dxt = (cmd1 >>> 0) & 0xfff;
 
-    // Docs reckon these are ignored for all loadBlocks
-    if (uls !== 0) { this.warn('Unexpected non-zero uls in load block'); }
-    if (ult !== 0) { this.warn('Unexpected non-zero ult in load block'); }
-
     if (dis) {
       const tt = gbi.getTileText(tileIdx);
       dis.text(`gsDPLoadBlock(${tt}, ${uls}, ${ult}, ${lrs}, ${dxt});`);
