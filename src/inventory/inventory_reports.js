@@ -3,6 +3,7 @@ import { isAbsolute, join } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 
 export const collectorSpecs = {
+  audioMicrocode: [{ name: 'audio.taskMicrocodes', scope: 'task-start', records: 'microcodes', count: 'tasks' }],
   microcode: [
     { name: 'graphics.taskMicrocodes', scope: 'task-start', records: 'microcodes', count: 'tasks' },
     { name: 'graphics.microcodeLoads', scope: 'hle-load', records: 'microcodes', count: 'loads' },
