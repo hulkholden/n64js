@@ -89,4 +89,25 @@ export const compatibilityHacks = {
       { address: 0x800cc6c0, expected: 0x14200031, replacement: 0x10000031 }, // BNE at, zero -> B
     ],
   },
+  '9dae5305c1e0d8ea': {
+    name: 'Xena - Warrior Princess - The Talisman of Fate (USA)',
+    enabled: true,
+    issue: 'https://github.com/hulkholden/n64js/issues/114',
+    // The scheduler initializes its frame pointer on the first VI callback,
+    // but a worker can consume it before our first (full-frame-delayed) VI.
+    // Wait just over one PAL/NTSC frame after creating the scheduler threads,
+    // before starting the producers. This is a startup timing workaround;
+    // changing initial VI timing globally exposes other games' startup races.
+    instructionDelays: [
+      { address: 0x80002934, expected: 0x0c00e852, cycles: 2_000_000 },
+    ],
+  },
+  'c767160aa6463329': {
+    name: 'Xena - Warrior Princess - The Talisman of Fate (Europe)',
+    enabled: true,
+    issue: 'https://github.com/hulkholden/n64js/issues/114',
+    instructionDelays: [
+      { address: 0x80002990, expected: 0x0c00e8ce, cycles: 2_000_000 },
+    ],
+  },
 };
