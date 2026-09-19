@@ -3,7 +3,7 @@
 
 import { assert } from '../assert.js';
 import * as cpu0reg from './cpu0reg.js';
-import { getInstructionPatches, patchInstruction } from '../compatibility.js';
+import { applyCompatibilityHacks, getCompatibilityHacks } from '../compatibility.js';
 import { simpleOp, regImmOp, specialOp, copOp, copFmtFuncOp, fd, fs, ft, offset, sa, rd, rt, rs, tlbop, imm, imms, base, jumpAddress } from './decode.js';
 import { cop0ControlRegisterNames } from './disassemble.js';
 import { EmulatedException } from './emulated_exception.js';
@@ -575,7 +575,7 @@ export class CPU0 {
     resetFragments();
     this.fragmentOps = null;
     this.fragmentCycles = 0;
-    this.instructionPatches = this.hardware.enableCompatibilityHacks ? getInstructionPatches(this.hardware.rominfo.id) : null;
+    this.compatibilityHacks = this.hardware.enableCompatibilityHacks ? getCompatibilityHacks(this.hardware.rominfo.id) : null;
 
     for (let i = 0; i < 32; ++i) {
       this.gprU64[i] = 0n;
@@ -844,19 +844,23 @@ export class CPU0 {
           // The load may raise an EmulatedException either via alignment or TLB exceptions.
           let instruction = memaccess.loadU32fast(signedPC);
 
-          // Patch only on first execution, after the guest has loaded/checked its
-          // code. Fragments are built from interpreted instructions below, so
-          // they compile the replacement too; compiled execution needs no hook.
-          if (this.instructionPatches) {
-            const patched = patchInstruction(this.instructionPatches, this.hardware.ram, pc, instruction);
-            if (patched !== instruction) {
-              // A different virtual alias could already have compiled this RAM.
-              // Flush once at patch time, including the trace being assembled.
-              resetFragments();
-              fragment = null;
-              instruction = patched;
+          // Consume all startup hacks through one check, before instructions
+          // enter compiled fragments. Delays are charged after execution so
+          // events see the completed PC/delay-slot state.
+          let cycles = 1;
+          if (this.compatibilityHacks) {
+            const result = applyCompatibilityHacks(this.compatibilityHacks, this.hardware.ram, pc, instruction);
+            if (result) {
+              cycles += result.cycles;
+              if (result.instruction !== instruction) {
+                // A different virtual alias could already have compiled this RAM.
+                // Flush once at patch time, including the trace being assembled.
+                resetFragments();
+                fragment = null;
+                instruction = result.instruction;
+              }
             }
-            if (this.instructionPatches.size === 0) this.instructionPatches = null;
+            if (this.compatibilityHacks.size === 0) this.compatibilityHacks = null;
           }
 
           this.branchTarget = null;
@@ -864,11 +868,11 @@ export class CPU0 {
 
           this.pc = this.nextPC;
           this.delayPC = this.branchTarget;
-          this.incrementCount(1);
+          this.incrementCount(cycles);
           //this.checkCauseIP3Consistent();
           //n64js.hardware().checkSIStatusConsistent();
 
-          eventQueue.incrementCount(1);
+          eventQueue.incrementCount(cycles);
 
           // If we have a fragment, we're assembling code as we go
           if (fragment) {
