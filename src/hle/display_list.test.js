@@ -107,3 +107,50 @@ describe('display-list execution', () => {
     expect(state.nextCommand()).toBe(false);
   });
 });
+
+
+test('resumes a CPU-patched self-branch with nested state and the replacement microcode', () => {
+  const ramDV = new DataView(new ArrayBuffer(0x100));
+  writeCommands(ramDV, 8, [
+    [0xb4000000, 0x2000],
+    [0xaf00000f, 0x1000], // Switch from GBI1 to GBI2.
+    [0xde000000, 0x40],
+    [0xf1000000, 0xcafe],
+    [0xdf000000, 0],
+  ]);
+  writeCommands(ramDV, 0x40, [
+    [0xe1000000, 0xbeef],
+    [0xde010000, 0x48], // CPU producer's wait marker.
+    [0xdf000000, 0],
+  ]);
+  const state = new RSPState();
+  state.reset(ramDV, 8);
+  let loads = 0;
+  const resume = executeDisplayList(state, new GBI1(state, ramDV), {
+    loadMicrocode: () => { loads++; return new GBI2(state, ramDV); },
+  });
+  expect(typeof resume).toBe('function');
+  expect(state.pc).toBe(0x48);
+  expect(state.dlistStack).toHaveLength(1);
+  expect(state.rdpHalf1Cmd1).toBe(0xbeef);
+  expect(resume()).toBe(resume); // Still waiting; no false completion.
+  ramDV.setUint32(0x48, 0); // CPU replaces the branch with a no-op.
+  expect(resume()).toBeNull();
+  expect(loads).toBe(1);
+  expect(state.rdpHalf2Cmd1).toBe(0xcafe);
+  expect(state.dlistStack).toEqual([]);
+  expect(state.pc).toBe(0);
+});
+
+test('disassembly stops at a self-branch without hanging or reading unfinished commands', () => {
+  const ramDV = new DataView(new ArrayBuffer(32));
+  writeCommands(ramDV, 8, [[0xde010000, 8], [0xe1000000, 0xbeef]]);
+  const state = new RSPState();
+  state.reset(ramDV, 8);
+  const seen = [];
+  executeDisplayList(state, new GBI2(state, ramDV), {
+    disassembler: { begin: cmd => seen.push(cmd), text() {}, end() {} },
+  });
+  expect(seen).toEqual([0xde010000]);
+  expect(state.rdpHalf1Cmd1).toBe(0);
+});

@@ -84,6 +84,9 @@ export const SPIBIST_PC_REG = 0x00;
 const pcWritableBits = 0xffc;
 
 const kSPDMAEvent = 'SP DMA';
+const kHLETaskEvent = 'HLE graphics wait';
+// Poll in emulated time so CPU producers and inventory cycle limits can run.
+const hleWaitCycles = 1000;
 
 // Used with pushDMA to indicate the direction of the DMA.
 const kDMADirRead = 1;
@@ -180,6 +183,25 @@ export class SPRegDevice extends Device {
     super("SPReg", hardware, hardware.sp_reg, rangeStart, rangeEnd);
 
     this.dmaQueue = [];
+    this.hleTask = null;
+  }
+
+  reset() {
+    this.hleTask = null;
+    this.hardware.cpu0.removeEvent(kHLETaskEvent);
+  }
+
+  scheduleHLETask() {
+    const cpu = this.hardware.cpu0;
+    if (cpu.hasEvent(kHLETaskEvent)) return;
+    cpu.addEvent(kHLETaskEvent, hleWaitCycles, () => {
+      this.hleTask = this.hleTask();
+      if (this.hleTask) {
+        this.scheduleHLETask();
+      } else {
+        this.setStatusBits(SP_STATUS_TASKDONE | SP_STATUS_BROKE | SP_STATUS_HALT);
+      }
+    });
   }
 
   write32(address, value) {
@@ -317,15 +339,24 @@ export class SPRegDevice extends Device {
     this.mem.set32(SP_STATUS_REG, statusBits);
 
     if (startRsp) {
+      if (this.hleTask) {
+        this.scheduleHLETask();
+        return;
+      }
       if (performanceProfile.enabled) {
         performanceProfile.counters.rspTasks++;
       }
-      if (hleProcessRSPTask() || !emulateRSP) {
+      const handled = hleProcessRSPTask();
+      if (typeof handled === 'function') {
+        this.hleTask = handled;
+        this.scheduleHLETask();
+      } else if (handled || !emulateRSP) {
         this.hardware.spRegDevice.setStatusBits(SP_STATUS_TASKDONE | SP_STATUS_BROKE | SP_STATUS_HALT);
       } else {
         rsp.unhalt();
       }
     } else if (stopRsp) {
+      this.hardware.cpu0.removeEvent(kHLETaskEvent);
       rsp.halt(0);
     }
   }

@@ -41,7 +41,8 @@ export class Hardware {
     this.headless = headless;
     this.enableCompatibilityHacks = enableCompatibilityHacks;
     // The environment supplies a synchronous graphics processor with
-    // processTask(task) and reset(). The default skips HLE display lists.
+    // processTask(task) and reset(). processTask may return a continuation for
+    // a CPU producer wait. The default skips HLE display lists.
     this.graphics = graphics;
     this.verticalBlankCount = 0;
     // Called synchronously after each VI interrupt with the count since reset.
