@@ -28,8 +28,8 @@ async function executeReturn(compiled, status, pending = true) {
     hardware.mi_reg.clear();
     cpu.pc = pc;
     cpu.setControlU32(regs.controlStatus, status);
-    cpu.setControlU32(regs.controlEPC, resumePC);
-    cpu.setControlU32(regs.controlErrorEPC, resumePC);
+    cpu.setControlS32Extend(regs.controlEPC, resumePC);
+    cpu.setControlS32Extend(regs.controlErrorEPC, resumePC);
     cpu.llBit = 1;
     hardware.mi_reg.set32(MI_INTR_MASK_REG, MI_INTR_PI);
     if (pending) hardware.miRegDevice.setInterruptBit(MI_INTR_PI);

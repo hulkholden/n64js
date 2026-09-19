@@ -4,7 +4,7 @@
 import { assert } from '../assert.js';
 import * as cpu0reg from './cpu0reg.js';
 import { getInstructionPatches, patchInstruction } from '../compatibility.js';
-import { simpleOp, regImmOp, specialOp, copOp, copFmtFuncOp, fd, fs, ft, offset, sa, rd, rt, rs, tlbop, imm, imms, base, jumpAddress } from './decode.js';
+import { simpleOp, regImmOp, specialOp, copOp, copFmtFuncOp, fd, fs, ft, offset, sa, rd, rt, rs, tlbop, imm, imms, base, jumpAddress, needsWideInstruction } from './decode.js';
 import { cop0ControlRegisterNames } from './disassemble.js';
 import { EmulatedException } from './emulated_exception.js';
 import { EventQueue } from '../event_queue.js';
@@ -425,14 +425,23 @@ export class CPU0 {
   conditionalBranch(cond, offset) {
     const effectiveOffset = cond ? (offset * 4) : 4;
     this.branchTarget = this.pc + 4 + effectiveOffset;
+    if (this.wideState) this.setWideBranchTarget(effectiveOffset);
   }
 
   conditionalBranchLikely(cond, offset) {
     if (cond) {
       this.branchTarget = this.pc + 4 + (offset * 4);
+      if (this.wideState) this.setWideBranchTarget(offset * 4);
     } else {
       this.nextPC += 4;  // Skip the next instruction
+      if (this.wideState) this.wideState.nextPC = BigInt.asUintN(64, this.wideState.nextPC + 4n);
     }
+  }
+
+  setWideBranchTarget(byteOffset) {
+    // Relative branches are based on PC+4, with unsigned 64-bit wraparound.
+    const state = this.wideState;
+    state.branchTarget = BigInt.asUintN(64, state.pc + 4n + BigInt(byteOffset));
   }
 
   jump(pc) {
@@ -441,6 +450,143 @@ export class CPU0 {
     //  throw 'Oops, branching to negative address: ' + pc;
     //}
     this.branchTarget = pc;
+  }
+
+  // Keep the usual Number PCs and recompiler for sign-extended 32-bit code.
+  // Wide instruction addresses run separately, never aliasing a fragment's low PC.
+  prepareWideJump(rs, nextPC) {
+    const lo = this.getRegU32Lo(rs);
+    if (this.gprS32[rs * 2 + 1] !== (lo >> 31)) {
+      this.wideState = { pc: BigInt.asUintN(64, BigInt(nextPC | 0)), delayPC: this.getRegU64(rs) };
+      this.stuffToDo |= kStuffToDoBreakout;
+    }
+    return lo;
+  }
+
+  setLinkRegister(reg) {
+    if (this.wideState) {
+      this.setRegU64(reg, BigInt.asUintN(64, this.wideState.nextPC + 4n));
+    } else {
+      this.setRegS32Extend(reg, this.nextPC + 4);
+    }
+  }
+
+  fetchWideInstruction(address) {
+    // A wide jump can still have a delay slot at an ordinary address. Reuse
+    // the existing fetch path whenever sign extension reproduces all 64 bits.
+    const signed32 = BigInt.asUintN(64, BigInt(Number(address & 0xffffffffn) | 0));
+    if (address === signed32) {
+      return memaccess.loadU32fast(Number(address & 0xffffffffn) | 0);
+    }
+
+    // Exceptions force kernel mode; otherwise KSU selects which address-size
+    // enable bit (UX, SX or KX) and segment permissions apply to this fetch.
+    const status = this.getControlU32(cpu0reg.controlStatus);
+    const mode = status & (SR_EXL | SR_ERL) ? SR_KSU_KER : status & SR_KSU_MASK;
+    const enabled = status & (mode === SR_KSU_USR ? SR_UX : mode === SR_KSU_SUP ? SR_SX : SR_KX);
+
+    // The top two bits select XUSEG, XSSEG, XKPHYS or XKSEG respectively.
+    const region = Number(address >> 62n);
+    // VR4300 manual, table 5-4: mapped segments have 40-bit offsets;
+    // XKPHYS has a 32-bit physical address plus its cache attribute bits.
+    const reserved = region === 2 ? address & 0x07ffffff00000000n : address & 0x3fffff0000000000n;
+
+    if (!enabled || (address & 3n) || reserved ||
+        // XKSEG ends before the sign-extended 32-bit kernel segments.
+        (region === 3 && (address & 0xffffffffffn) > 0xff7fffffffn) ||
+        // User mode can fetch only XUSEG; supervisor can also fetch XSSEG.
+        (mode === SR_KSU_USR && region !== 0) || (mode === SR_KSU_SUP && region > 1)) {
+      this.raiseAddressException(E_VEC, cpu0reg.causeExcCodeAdEL, address);
+      throw new EmulatedException('AdEL instruction fetch');
+    }
+
+    // XKPHYS bypasses the TLB; its low word is the physical address.
+    if (region === 2) {
+      return this.fetchPhysicalInstruction(Number(address & 0xffffffffn));
+    }
+
+    // Mapped segments need the full VPN and region, plus ASID/global matching.
+    // The page-size check bit selects the even or odd half of the TLB entry.
+    const tlb = this.tlbFindEntry64(address);
+    const low = Number(address & 0xffffffffn);
+    const oddPage = tlb && (low & tlb.checkbit) !== 0;
+    const validPage = tlb && ((oddPage ? tlb.pfno : tlb.pfne) & TLBLO_V) !== 0;
+    if (!validPage) {
+      // A miss outside exception level uses the extended refill vector.
+      // Invalid entries and misses during exception handling use the general one.
+      const vector = !tlb && !(status & SR_EXL) ? XUT_VEC : E_VEC;
+      this.raiseTLBException(vector, cpu0reg.causeExcCodeTLBL, address);
+      throw new EmulatedException('TLBL instruction fetch');
+    }
+
+    // Combine the selected physical page base with the offset within that page.
+    const phys = (oddPage ? tlb.physOdd : tlb.physEven) | (low & tlb.offsetMask);
+    return this.fetchPhysicalInstruction(phys >>> 0);
+  }
+
+  fetchPhysicalInstruction(address) {
+    // The existing device map covers the low 512 MiB of physical space.
+    // Do not wrap higher PFNs into that window.
+    if (address >= 0x20000000) return this.hardware.invalidUnachedMemDevice.readU32(address);
+    return memaccess.loadU32fast((address | 0xa0000000) | 0);
+  }
+
+  stepWide() {
+    rsp.step();
+    if (this.stuffToDo) return;
+    if (performanceProfile.enabled) performanceProfile.counters.interpretedOps++;
+    this.executeWideInstruction();
+  }
+
+  enterWideInstruction() {
+    this.wideState = {
+      pc: BigInt.asUintN(64, BigInt(this.pc | 0)),
+      delayPC: this.delayPC === null ? null : BigInt.asUintN(64, BigInt(this.delayPC | 0)),
+    };
+    this.stuffToDo |= kStuffToDoBreakout;
+  }
+
+  executeWideInstruction(instruction) {
+    const state = this.wideState;
+
+    // In a delay slot, the pending branch supplies the next PC. Otherwise
+    // advance sequentially. A branch executed below can schedule a new target;
+    // null means no branch, since zero is a valid full-width branch target.
+    state.nextPC = state.delayPC ?? BigInt.asUintN(64, state.pc + 4n);
+    state.branchTarget = null;
+
+    // Existing instruction handlers still use the Number fields. Mirror their
+    // low words while wide-aware control-flow handlers update state in full.
+    this.nextPC = Number(state.nextPC & 0xffffffffn);
+    this.branchTarget = null;
+
+    // Boundary handoffs may supply an instruction already fetched by dispatch.
+    // Keep the current PC and delay state intact until execution completes so
+    // fetch/execution exceptions can record the correct EPC and BD flag.
+    if (instruction === undefined) {
+      instruction = this.fetchWideInstruction(state.pc);
+    }
+    executeOp(instruction);
+
+    // Commit the next PC and any newly scheduled branch, including changes
+    // made by exception handlers or ERET during execution.
+    state.pc = state.nextPC;
+    state.delayPC = state.branchTarget;
+    this.pc = Number(state.pc & 0xffffffffn);
+    // The ordinary path also uses null for no branch, so zero remains a valid target.
+    this.delayPC = state.delayPC === null ? null : Number(state.delayPC & 0xffffffffn);
+
+    // Return to ordinary execution only when both the next instruction and
+    // any pending target can be represented by sign-extended 32-bit PCs.
+    const canonical = address => address === BigInt.asUintN(64, BigInt(Number(address & 0xffffffffn) | 0));
+    const ordinaryDelay = state.delayPC === null || canonical(state.delayPC);
+    if (canonical(state.pc) && ordinaryDelay) {
+      this.wideState = null;
+    }
+
+    // Charge the completed instruction once, regardless of the execution mode.
+    this.incrementCount(1);
+    this.eventQueue.incrementCount(1);
   }
 
   getOpsExecuted() {
@@ -589,6 +735,7 @@ export class CPU0 {
     this.delayPC = null;
     this.nextPC = 0;
     this.branchTarget = null;
+    this.wideState = null;
 
     this.stuffToDo = 0;
 
@@ -808,6 +955,9 @@ export class CPU0 {
     const runFragment = performanceProfile.enabled ? executeFragmentProfiled : executeFragment;
 
     while (this.hasEvent(kEventRunForCycles)) {
+      // Mode handoffs break out of the ordinary loop. Only the outer dispatcher
+      // selects the wide interpreter; ordinary fragments need no mode check.
+      while (this.wideState && !this.stuffToDo) this.stepWide();
       let fragment = lookupFragment(this.pc);
 
       while (!this.stuffToDo) {
@@ -859,6 +1009,15 @@ export class CPU0 {
             if (this.instructionPatches.size === 0) this.instructionPatches = null;
           }
 
+          if (needsWideInstruction(pc, instruction)) {
+            // The instruction fetch and RSP step are already done. Execute
+            // with a wide PC, then leave through the ordinary breakout path.
+            this.enterWideInstruction();
+            this.executeWideInstruction(instruction);
+            fragment = null;
+            continue;
+          }
+
           this.branchTarget = null;
           executeOp(instruction);
 
@@ -898,6 +1057,7 @@ export class CPU0 {
 
   handleEmulatedException() {
     this.pc = this.nextPC;
+    this.wideState = null;
     this.delayPC = null;
     this.branchTarget = null;
     this.incrementCount(1);
@@ -1033,18 +1193,18 @@ export class CPU0 {
   raiseAdESException(address32) { this.raiseAddressException(E_VEC, cpu0reg.causeExcCodeAdES, address32); }
 
   raiseTLBException(vec, excCode, address32) {
-    // TODO: plumb 64 bit addresses everywhere.
-    const address64 = BigInt(address32 >> 0);
+    // Wide instruction fetches supply a BigInt; data accesses still supply a Number.
+    const address64 = typeof address32 === 'bigint' ? address32 : BigInt(address32 >> 0);
     this.setBadVAddr(address64);
     this.setContext(address64);
     this.setXContext(address64);
-    this.maskControlBits64(cpu0reg.controlEntryHi, TLBHI_VPN2MASK, address64);
+    this.maskControlBits64(cpu0reg.controlEntryHi, TLBHI_VPN2MASK | TLBHI_RMASK, address64);
     this.raiseExceptionCopCode(vec, 0, excCode);
   }
 
   raiseAddressException(vec, code, address32) {
-    // TODO: plumb 64 bit addresses everywhere.
-    const address64 = BigInt(address32 >> 0);
+    // Wide instruction fetches supply a BigInt; data accesses still supply a Number.
+    const address64 = typeof address32 === 'bigint' ? address32 : BigInt(address32 >> 0);
     this.setBadVAddr(address64);
     this.setContext(address64);
     this.setXContext(address64);
@@ -1062,7 +1222,7 @@ export class CPU0 {
     this.maskControlBits32(cpu0reg.controlCause, mask, exception);
     this.setControlBits32(cpu0reg.controlStatus, SR_EXL);
 
-    if (this.delayPC !== null) {
+    if (this.wideState ? this.wideState.delayPC !== null : this.delayPC !== null) {
       this.setControlBits32(cpu0reg.controlCause, CAUSE_BD);
       this.setControlS32Extend(cpu0reg.controlEPC, this.pc - 4);
     } else {
@@ -1070,6 +1230,12 @@ export class CPU0 {
       this.setControlS32Extend(cpu0reg.controlEPC, this.pc);
     }
     this.nextPC = excVec;
+    if (this.wideState) {
+      const state = this.wideState;
+      this.setControlU64(cpu0reg.controlEPC, BigInt.asUintN(64, state.pc - (state.delayPC !== null ? 4n : 0n)));
+      state.nextPC = BigInt.asUintN(64, BigInt(excVec | 0));
+      state.branchTarget = null;
+    }
   }
 
   handleInterrupt() {
@@ -1078,6 +1244,7 @@ export class CPU0 {
       // This is handled outside of the main dispatch loop, so need to update pc directly.
       this.pc = E_VEC;
       this.delayPC = null;
+      this.wideState = null;
 
     } else {
       assert(false, "Was expecting an unmasked interrupt - something wrong with kStuffToDoCheckInterrupts?");
@@ -1220,11 +1387,22 @@ export class CPU0 {
   tlbFindEntry(address) {
     const entryHi = this.getControlU64(cpu0reg.controlEntryHi);
     const entryHiPID = entryHi & TLBHI_PIDMASK;
-
-    // Memory handlers pass 32-bit addresses. Sign-extend them to match the
-    // VPN of a sign-extended guest pointer, including bits 39:32 for kseg2/kseg3.
-    // TODO: plumb through full 64-bit effective addresses.
+    // Sign-extend ordinary addresses to preserve the upper VPN bits.
     const address64 = BigInt(address | 0);
+
+    // Keep wide-address type and region checks out of this hot data path.
+    for (let i = 0; i < 32; ++i) {
+      const tlb = this.tlbEntries[i];
+      if ((address64 & tlb.vpnmask64) !== tlb.vpn2bits) continue;
+      if (!tlb.global && ((tlb.hi & TLBHI_PIDMASK) !== entryHiPID)) continue;
+      return tlb;
+    }
+    return null;
+  }
+
+  tlbFindEntry64(address64) {
+    const entryHi = this.getControlU64(cpu0reg.controlEntryHi);
+    const entryHiPID = entryHi & TLBHI_PIDMASK;
 
     for (let i = 0; i < 32; ++i) {
       // TODO: use MRU cache here.
@@ -1235,6 +1413,7 @@ export class CPU0 {
       if ((address64 & tlb.vpnmask64) !== tlb.vpn2bits) {
         continue;
       }
+      if ((address64 & TLBHI_RMASK) !== (tlb.hi & TLBHI_RMASK)) continue;
       if (!tlb.global && ((tlb.hi & TLBHI_PIDMASK) !== entryHiPID)) {
         // ASID should match, or should be global.
         continue;
@@ -1810,15 +1989,30 @@ export class CPU0 {
       this.speedHack();
     }
     this.jump(address);
+    if (this.wideState) this.wideState.branchTarget = ((this.wideState.pc + 4n) & 0xfffffffff0000000n) | BigInt(address & 0x0fffffff);
   }
-  execJR(rs) { this.jump(this.getRegU32Lo(rs)); }
+  execJR(rs) {
+    if (this.wideState) {
+      this.wideState.branchTarget = this.getRegU64(rs);
+      this.jump(this.getRegU32Lo(rs));
+    } else {
+      this.jump(this.prepareWideJump(rs, this.nextPC));
+    }
+  }
   execJAL(address) {
-    this.setRegS32Extend(cpu0reg.RA, this.nextPC + 4);
+    this.setLinkRegister(cpu0reg.RA);
     this.jump(address);
+    if (this.wideState) this.wideState.branchTarget = ((this.wideState.pc + 4n) & 0xfffffffff0000000n) | BigInt(address & 0x0fffffff);
   }
   execJALR(rd, rs) {
     const newPC = this.getRegU32Lo(rs);
-    this.setRegS32Extend(rd, this.nextPC + 4);
+    const target = this.getRegU64(rs);
+    const wide = this.wideState;
+    if (!wide) this.prepareWideJump(rs, this.nextPC);
+    // prepareWideJump describes the next instruction, not the current link PC.
+    if (wide) this.setLinkRegister(rd);
+    else this.setRegS32Extend(rd, this.nextPC + 4);
+    if (wide) wide.branchTarget = target;
     this.jump(newPC);
   }
 
@@ -1847,25 +2041,25 @@ export class CPU0 {
 
   execBLTZAL(rs, offset) {
     const cond = this.getRegS64(rs) < 0n;
-    this.setRegS32Extend(cpu0reg.RA, this.nextPC + 4);
+    this.setLinkRegister(cpu0reg.RA);
     this.conditionalBranch(cond, offset);
   }
 
   execBGEZAL(rs, offset) {
     const cond = this.getRegS64(rs) >= 0n;
-    this.setRegS32Extend(cpu0reg.RA, this.nextPC + 4);
+    this.setLinkRegister(cpu0reg.RA);
     this.conditionalBranch(cond, offset);
   }
 
   execBLTZALL(rs, offset) {
     const cond = this.getRegS64(rs) < 0n;
-    this.setRegS32Extend(cpu0reg.RA, this.nextPC + 4);
+    this.setLinkRegister(cpu0reg.RA);
     this.conditionalBranchLikely(cond, offset);
   }
 
   execBGEZALL(rs, offset) {
     const cond = this.getRegS64(rs) >= 0n;
-    this.setRegS32Extend(cpu0reg.RA, this.nextPC + 4);
+    this.setLinkRegister(cpu0reg.RA);
     this.conditionalBranchLikely(cond, offset);
   }
 
@@ -1899,14 +2093,23 @@ export class CPU0 {
   }
 
   execERET() {
+    let target;
     if (this.getControlU32(cpu0reg.controlStatus) & SR_ERL) {
-      this.nextPC = this.getControlU32(cpu0reg.controlErrorEPC);
+      target = this.getControlU64(cpu0reg.controlErrorEPC);
       this.clearControlBits32(cpu0reg.controlStatus, SR_ERL);
-      logger.log(`ERET from error trap - ${toString32(this.nextPC)}`);
+      logger.log(`ERET from error trap - ${toString64(target)}`);
     } else {
-      this.nextPC = this.getControlU32(cpu0reg.controlEPC);
+      target = this.getControlU64(cpu0reg.controlEPC);
       this.clearControlBits32(cpu0reg.controlStatus, SR_EXL);
       //logger.log(`ERET from interrupt/exception ${toString32(this.nextPC)}`);
+    }
+    this.nextPC = Number(target & 0xffffffffn);
+    if (this.wideState) {
+      this.wideState.nextPC = target;
+      this.wideState.branchTarget = null;
+    } else if (target !== BigInt.asUintN(64, BigInt(this.nextPC | 0))) {
+      this.wideState = { pc: target, delayPC: null };
+      this.stuffToDo |= kStuffToDoBreakout;
     }
     this.llBit = 0;
     // Clearing EXL/ERL can expose an interrupt that arrived while exceptions
