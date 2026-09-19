@@ -18,6 +18,8 @@ const taskMicrocodes = new Map();
 let loads = 0;
 const loadedMicrocodes = new Map();
 const textureFormats = new Map();
+let audioTasks = 0;
+const audioMicrocodes = new Map();
 
 function cyclesExecuted() {
   if (!collecting) return 0;
@@ -34,6 +36,12 @@ function snapshot() {
     frames: emulator?.hardware.verticalBlankCount ?? 0,
     cycles: cyclesExecuted(),
     collectors: collecting ? {
+      'audio.taskMicrocodes': {
+        version: 1,
+        scope: 'task-start',
+        tasks: audioTasks,
+        microcodes: [...audioMicrocodes.values()],
+      },
       'graphics.taskMicrocodes': {
         version: 1,
         scope: 'task-start',
@@ -79,6 +87,16 @@ try {
   emulator = await createHeadlessEmulator(loadedROM, {
     executeGraphics: true,
     onVerticalBlank: frame => updateInput(frame, emulator.inputs[0]),
+    onAudioTask: info => {
+      audioTasks++;
+      const key = JSON.stringify(info);
+      const record = audioMicrocodes.get(key);
+      if (record) {
+        record.tasks++;
+      } else {
+        audioMicrocodes.set(key, { ...info, tasks: 1 });
+      }
+    },
     onGraphicsTask: info => {
       tasks++;
       const key = JSON.stringify(info);

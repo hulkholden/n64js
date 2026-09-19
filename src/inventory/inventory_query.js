@@ -7,14 +7,18 @@ import { ImageFormat, ImageSize } from '../hle/gbi.js';
 
 const usage = `Usage: bun run inventory-query <inventory-root|scan-directory|report.json> [filters]
   --microcode <family>  Match a handler family, e.g. GBI2 (case insensitive)
+  --audio-microcode <family>  Match an audio family (currently always Unknown)
   --texture <format>    Match a texture format, e.g. CI4 or RGBA16
   --help                Show this help
 
-Specify at least one filter. Both filters must be observed in the same report;
-observations from different runs are not combined. Microcode searches include
-task starts and HLE loads, including in-list switches. Texture searches use the
-numeric format/size fields from HLE draws. Microcode fallback classifications
-are included, with their detection method retained in the evidence.
+Specify at least one filter. All filters must be observed in the same report;
+observations from different runs are not combined. Graphics microcode searches
+include task starts and HLE loads, including in-list switches. Texture searches
+use the numeric format/size fields from HLE draws. Microcode fallback
+classifications are included, with their detection method retained in the evidence.
+Audio searches use task starts; the placeholder classifier reports Unknown for
+every audio task. An observed Unknown family is distinct from missing collector
+data. Audio microcode detection and HLE execution are not implemented yet.
 
 JSON output contains matching reports, a count of reports where the requested
 combination was not observed, and unknown results when collector data is missing
@@ -29,6 +33,10 @@ Exit codes: 0 matches found; 1 no confirmed matches; 2 argument or data error.`;
 
 function parseFilters(values) {
   const filters = {};
+  if (values['audio-microcode'] !== undefined) {
+    if (!values['audio-microcode'].trim()) throw new Error('Expected an audio microcode family');
+    filters.audioMicrocode = values['audio-microcode'].trim().toUpperCase();
+  }
   if (values.microcode !== undefined) {
     if (!values.microcode.trim()) throw new Error('Expected a microcode family');
     filters.microcode = values.microcode.trim().toUpperCase();
@@ -41,14 +49,14 @@ function parseFilters(values) {
       name, format: ImageFormat[`G_IM_FMT_${match[1]}`], size: ImageSize[`G_IM_SIZ_${match[2]}b`],
     };
   }
-  if (!Object.keys(filters).length) throw new Error('Specify --microcode or --texture');
+  if (!Object.keys(filters).length) throw new Error('Specify --microcode, --audio-microcode or --texture');
   return filters;
 }
 
 function assess(report, filters) {
   const checks = {};
   for (const [feature, value] of Object.entries(filters)) {
-    const predicate = feature === 'microcode'
+    const predicate = feature !== 'texture'
       ? record => record.family.toUpperCase() === value
       : record => record.format === value.format && record.size === value.size;
     const collectors = collectorSpecs[feature].map(spec => inspectCollector(report, spec, predicate));
@@ -91,7 +99,7 @@ async function query(input, filters) {
 try {
   const { values, positionals } = parseArgs({
     args: Bun.argv.slice(2), allowPositionals: true,
-    options: { microcode: { type: 'string' }, texture: { type: 'string' }, help: { type: 'boolean' } },
+    options: { microcode: { type: 'string' }, 'audio-microcode': { type: 'string' }, texture: { type: 'string' }, help: { type: 'boolean' } },
   });
   if (values.help) {
     console.log(usage);

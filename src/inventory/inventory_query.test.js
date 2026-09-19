@@ -50,6 +50,25 @@ async function withDirectory(fn) {
 }
 
 describe('inventory query', () => {
+  test('queries audio independently, retaining legacy absence, empty runs and unidentified observations', async () => {
+    await withDirectory(async root => {
+      const reports = Array.from({ length: 4 }, (_, i) => makeReport(String(i + 1), { family: i === 2 ? 'GBI1' : 'GBI2' }));
+      reports[0].collectors['audio.taskMicrocodes'] = { version: 1, scope: 'task-start', tasks: 2, microcodes: [{ family: 'Unknown', detection: 'unknown', tasks: 2 }] };
+      reports[1].collectors['audio.taskMicrocodes'] = { version: 1, scope: 'task-start', tasks: 0, microcodes: [] };
+      reports[2].collectors['audio.taskMicrocodes'] = { version: 1, scope: 'task-start', tasks: 1, microcodes: [{ family: 'Unknown', detection: 'unknown', tasks: 1 }] };
+      await writeScan(root, 'audio', reports);
+      const result = await invoke([root, '--audio-microcode', 'unknown', '--microcode', 'gbi2']);
+      expect(result.code).toBe(0);
+      expect(result.output.summary).toEqual({ matched: 1, notObserved: 2, unknown: 1, errors: 0 });
+      expect(result.output.matches[0].checks.audioMicrocode.collectors[0].matches).toEqual([{ family: 'Unknown', detection: 'unknown', tasks: 2 }]);
+      const unknown = await invoke([root, '--audio-microcode', 'Unknown']);
+      expect(unknown.output.matches.map(x => x.rom.name)).toEqual(['ROM 1', 'ROM 3']);
+      expect(unknown.output.unknown.map(x => x.rom.name)).toEqual(['ROM 4']);
+      const summary = await invoke([root], summaryCLI);
+      expect(summary.output.summary.collectors['audio.taskMicrocodes']).toEqual({ observed: 2, notObserved: 1, unknown: 1 });
+    });
+  });
+
   test('matches in-list switches and numeric texture formats while retaining partial-run evidence and ROM aliases', async () => {
     await withDirectory(async root => {
       const switched = makeReport('1', { family: 'GBI1', loaded: ['GBI1', 'GBI2'], formats: [{ ...ci4, name: 'legacy label' }] });
@@ -194,6 +213,7 @@ describe('inventory summary', () => {
       expect(result.output.summary).toEqual({
         runs: 4, roms: 3, unidentifiedRuns: 0, statuses: { completed: 3, timeout: 1 }, errors: 0,
         collectors: {
+          'audio.taskMicrocodes': { observed: 0, notObserved: 0, unknown: 4 },
           'graphics.taskMicrocodes': { observed: 3, notObserved: 1, unknown: 0 },
           'graphics.microcodeLoads': { observed: 3, notObserved: 1, unknown: 0 },
           'graphics.textureFormats': { observed: 2, notObserved: 2, unknown: 0 },
@@ -248,7 +268,7 @@ describe('inventory summary', () => {
         },
       });
       expect(result.output.runs[0].collectors['graphics.textureFormats'].reason).toBe('missing-collector');
-      expect(Object.values(result.output.runs[1].collectors).map(item => item.reason)).toEqual(['unsupported-version', 'unsupported-scope', 'invalid-records']);
+      expect(Object.values(result.output.runs[1].collectors).map(item => item.reason)).toEqual(['missing-collector', 'unsupported-version', 'unsupported-scope', 'invalid-records']);
       expect(result.output.runs[2]).toMatchObject({ reportVersion: 2, result: null, rom: { sha256: future.rom.sha256, name: null } });
       expect(result.output.runs[2].collectors['graphics.taskMicrocodes'].reason).toBe('unsupported-report-version');
       expect(result.output.runs.slice(3).every(row => row.collectors['graphics.taskMicrocodes'].reason === 'missing-report')).toBe(true);

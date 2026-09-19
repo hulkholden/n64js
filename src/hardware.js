@@ -33,6 +33,7 @@ export class Hardware {
     graphics = { processTask() {}, reset() {} },
     onVerticalBlank = null,
     onGraphicsTask = null,
+    onAudioTask = null,
     onMicrocodeLoad = null,
     onTextureUse = null,
   } = {}) {
@@ -53,6 +54,10 @@ export class Hardware {
     // starts are reported separately. Resets preserve the callback, which must
     // not re-enter emulation. Its return value is ignored.
     this.onGraphicsTask = onGraphicsTask;
+    // Called synchronously before LLE/Disabled audio dispatch with a fresh
+    // identifyAudioMicrocode() snapshot. Resets preserve the callback, which
+    // must not re-enter emulation. Its return value is ignored.
+    this.onAudioTask = onAudioTask;
     // Called synchronously after each HLE graphics microcode handler is constructed,
     // including initial loads, in-list loads, and browser debugger replays.
     // Receives a fresh identifyMicrocode() snapshot. Skipped/LLE tasks do not

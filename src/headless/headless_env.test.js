@@ -4,6 +4,7 @@ import { controlCause, controlStatus } from '../cpu/cpu0reg.js';
 import { MI_INTR_DP, MI_INTR_MASK_REG, MI_INTR_REG, MI_INTR_VI } from '../devices/mi.js';
 import { SI_DRAM_ADDR_REG, SI_PIF_ADDR_RD64B_REG, SI_PIF_ADDR_WR64B_REG, SI_STATUS_REG } from '../devices/si.js';
 import { SP_CLR_BROKE, SP_CLR_HALT, SP_CLR_SIG2, SP_SET_HALT, SP_STATUS_REG, SP_STATUS_TASKDONE } from '../devices/sp.js';
+import { audioOptions } from '../hle/audio_options.js';
 import { graphicsOptions } from '../hle/graphics_options.js';
 import { ImageFormat, ImageSize } from '../hle/gbi.js';
 import { MicrocodeId } from '../hle/microcode_identifier.js';
@@ -553,5 +554,37 @@ describe('graphics task callback', () => {
     expect(seen).toHaveLength(1);
     expect(second.hardware.sp_reg.getU32(SP_STATUS_REG) & SP_STATUS_TASKDONE).toBe(SP_STATUS_TASKDONE);
     expect(second.hardware.mi_reg.getU32(MI_INTR_REG) & MI_INTR_DP).toBe(MI_INTR_DP);
+  });
+});
+
+describe('audio task callback', () => {
+  test('reports unknown audio starts in LLE and Disabled modes without handling the task', async () => {
+    const previous = audioOptions.emulationMode;
+    try {
+      for (const mode of ['LLE', 'Disabled']) {
+        audioOptions.emulationMode = mode;
+        const seen = [];
+        const emulator = await createEmulator({ onAudioTask: info => { seen.push(info); return true; } });
+        prepareGraphicsTask(emulator);
+        startRSPTask(emulator, 1);
+        expect(seen).toEqual([]);
+        emulator.hardware.rsp.halt(0);
+        startRSPTask(emulator, 2);
+        expect(seen).toEqual([{ family: 'Unknown', detection: 'unknown' }]);
+        expect(emulator.hardware.rsp.halted).toBe(mode === 'Disabled');
+        seen[0].family = 'changed by observer';
+        startRSPTask(emulator, 2);
+        expect(seen).toHaveLength(2);
+        expect(seen[1]).toEqual({ family: 'Unknown', detection: 'unknown' });
+        expect(seen[1]).not.toBe(seen[0]);
+        emulator.hardware.reset();
+        prepareGraphicsTask(emulator);
+        startRSPTask(emulator, 2);
+        expect(seen).toHaveLength(3);
+        expect(seen[2]).toEqual({ family: 'Unknown', detection: 'unknown' });
+      }
+    } finally {
+      audioOptions.emulationMode = previous;
+    }
   });
 });
