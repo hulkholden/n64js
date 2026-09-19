@@ -644,11 +644,11 @@ export class GBIMicrocode {
       address: address
     };
 
+    this.renderer?.setColorImage?.(this.state.colorImage);
+
     const hardware = n64js.hardware();
     hardware.timeline.addEvent(`SetColorImage ${toString32(address)}`);
 
-    // TODO: Banjo Tooie and Pokemon Stadium render to multiple buffers in each display list.
-    // Need to set these up as separate framebuffers somehow
     if (kDebugColorImages && !colorImages.get(address)) {
       logger.log(`Setting colorImage to ${toString32(address)}, ${width}, size ${gbi.ImageSize.nameOf(size)}, format ${gbi.ImageFormat.nameOf(format)}`);
       colorImages.set(address, true);
@@ -669,6 +669,7 @@ export class GBIMicrocode {
 
     const ti = this.state.textureImage;
     const tile = this.state.tiles[tileIdx];
+    this.renderer?.syncFramebufferToRAM?.(ti.calcAddress(uls, ult), this.ramDV);
     this.state.tmem.loadBlock(ti, tile, uls, ult, lrs, dxt, dis);
     this.state.invalidateTileHashes();
   }
@@ -687,6 +688,7 @@ export class GBIMicrocode {
 
     const ti = this.state.textureImage;
     const tile = this.state.tiles[tileIdx];
+    this.renderer?.syncFramebufferToRAM?.(ti.calcAddress(uls >>> 2, ult >>> 2), this.ramDV);
     this.state.tmem.loadTile(ti, tile, uls, ult, lrs, lrt, dis);
     this.state.invalidateTileHashes();
   }
@@ -705,6 +707,7 @@ export class GBIMicrocode {
 
     const ti = this.state.textureImage;
     const tile = this.state.tiles[tileIdx];
+    this.renderer?.syncFramebufferToRAM?.(ti.calcAddress(uls >>> 2, ult >>> 2), this.ramDV);
     this.state.tmem.loadTLUT(ti, tile, uls, ult, lrs, lrt, dis);
     this.state.invalidateTileHashes();
   }

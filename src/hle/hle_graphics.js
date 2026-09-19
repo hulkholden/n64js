@@ -96,7 +96,7 @@ export function presentBackBuffer() {
   hardware.timeline.addEvent(`Present ${toString32(vi.dramAddrReg)}`);
 
   if (numDisplayListsRendered !== 0) {
-    renderer.copyBackBufferToFrontBuffer();
+    renderer.copyBackBufferToFrontBuffer(vi.dramAddrReg & 0x00fffffe);
     return;
   }
 
