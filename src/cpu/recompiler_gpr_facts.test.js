@@ -217,6 +217,24 @@ describe('mixed-width compiled/interpreted comparisons', () => {
     }
   });
 
+  test('word immediates and move/clear specializations preserve comparison facts', async () => {
+    for (const load of [0x23, 0x27, 0x37]) { // Signed word, unsigned word, full width.
+      for (const move of [special(0x25, 4, 0, 6), special(0x25, 0, 4, 6),
+        special(0x25, 4, 0, 4), special(0x25, 0, 0, 6), special(0x25, 4, 0, 0)]) {
+        const f = await fixture([iop(load, 20, 4), move,
+          iop(0x0d, 6, 6, 0xffff), iop(0x0e, 6, 6, 0x8000),
+          special(0x2a, 4, 6, 8), special(0x2b, 4, 6, 9),
+          iop(0x0c, 4, 4, 0xffff), special(0x2a, 4, 6, 10), special(0x2b, 4, 6, 11),
+          iop(5, 11, 0, 1), iop(0x2b, 20, 6, 16)]);
+        const fragment = f.train();
+        for (const value of values) f.compare(fragment, (c, h) => {
+          c.setRegU64(6, value ^ 0xffff000080000000n);
+          h.ram.set64(0x3000, value);
+        });
+      }
+    }
+  });
+
   for (const branch of [4, 5, 0x14, 0x15]) {
     for (const reversed of [false, true]) {
       test(`branch ${branch.toString(16)}, zero ${reversed ? 'first' : 'second'}: off-trace exits, annulment and active RSP`, async () => {

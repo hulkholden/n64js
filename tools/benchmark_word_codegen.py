@@ -24,7 +24,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--rom', action='append', required=True)
     parser.add_argument('--output', type=Path, required=True)
-    parser.add_argument('--baseline', default='c4aec6e62072d9d9a367c277bee1cc53503caa84')
+    parser.add_argument('--baseline', default='c880ee9d3389c75708fedb19394f202ca557c2bc')
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     dependencies = root / 'node_modules'
