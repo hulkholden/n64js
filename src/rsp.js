@@ -4,6 +4,12 @@ import * as disassemble_rsp from "./disassemble_rsp.js";
 import { toString16, toString32, toHex } from "./format.js";
 import { rcp16, rsq16 } from "./rsp_recip.js";
 import { performanceProfile } from './performance_profile.js';
+import {
+  simpleOp as op, specialOp as funct, offset, sa, rd, rt, rs, imm, imms, base, jumpAddress,
+  vmemBase, vmemVT, vmemEl, vmemOffset, cop2E, cop2DE, cop2VT, cop2VS, cop2VD,
+  GPR_RA as RA, COP0_REG_SP_MEM_ADDR as controlRegSPMemAddr,
+  COP0_REG_SP_DRAM_ADDR as controlRegSPRamAddr, COP0_REG_SP_RD_LEN as controlRegSPReadLen,
+} from './decode_rsp.js';
 
 window.n64js = window.n64js || {};
 
@@ -14,42 +20,6 @@ export function initRSP(hardware) {
   rsp = hardware.rsp;
 }
 
-function funct(i) { return i & 0x3f; }
-
-function offset(i) { return ((i & 0xffff) << 16) >> 16; }
-function sa(i) { return (i >>> 6) & 0x1f; }
-function rd(i) { return (i >>> 11) & 0x1f; }
-function rt(i) { return (i >>> 16) & 0x1f; }
-function rs(i) { return (i >>> 21) & 0x1f; }
-function op(i) { return (i >>> 26) & 0x3f; }
-
-// LWC2 and SWC2 instructions.
-function vmemBase(i) { return (i >>> 21) & 0x1f; }
-function vmemVT(i) { return (i >>> 16) & 0x1f; }
-function vmemEl(i) { return (i >>> 7) & 0xf; }
-function vmemOffset(i) { return ((i & 0x7f) << 25) >> 25; }
-
-// COP2 instructions
-function cop2E(i) { return (i >>> 21) & 0xf; }
-function cop2DE(i) { return (i >>> 11) & 0x1f; }
-function cop2VT(i) { return (i >>> 16) & 0x1f; }
-function cop2VS(i) { return (i >>> 11) & 0x1f; }
-function cop2VD(i) { return (i >>> 6) & 0x1f; }
-
-function target(i) { return i & 0x3ffffff; }
-function imm(i) { return i & 0xffff; }
-function imms(i) { return (imm(i) << 16) >> 16; }   // treat immediate value as signed
-
-function base(i) { return (i >>> 21) & 0x1f; }
-
-function jumpAddress(a, i) { return (a & 0xf0000000) | (target(i) * 4); }
-
-
-const RA = 0x1f;
-
-const controlRegSPMemAddr = 0;
-const controlRegSPRamAddr = 1;
-const controlRegSPReadLen = 2;
 const controlRegSPWriteLen = 3;
 const controlRegSPStatus = 4;
 const controlRegSPDmaFull = 5;
