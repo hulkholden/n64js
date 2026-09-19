@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from 'bun:test';
-import { Breakpoints } from './breakpoints.js';
+import { Breakpoints } from './debug/breakpoints.js';
 import { compatibilityHacks } from './compatibility_hacks.js';
 import { controlStatus } from './cpu/cpu0reg.js';
 import { createHeadlessEmulator } from './headless_env.js';

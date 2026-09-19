@@ -1,18 +1,18 @@
 /*jshint jquery:true */
 /*global $, n64js*/
 
-import * as cpu0reg from './cpu/cpu0reg.js';
-import { disassembleRange, cop0gprNames, cop1RegisterNames } from './cpu/disassemble.js';
-import * as disassemble_rsp from "./rsp/disassemble_rsp.js";
-import { getFragmentMap } from './cpu/fragments.js';
-import { toggleDebugDisplayList } from './hle/hle_graphics.js';
-import { TaskOffsets } from './hle/rsp_task.js';
-import { toHex, toString8, toString16, toString32, toString64 } from './format.js';
-import * as logger from './logger.js';
-import { cpu0, cpu1 } from './cpu/r4300.js';
-import * as r4300 from './cpu/r4300.js';
-import { rsp } from './rsp/rsp.js';
-import * as mi from './devices/mi.js';
+import * as cpu0reg from '../cpu/cpu0reg.js';
+import { disassembleRange, cop0gprNames, cop1RegisterNames } from '../cpu/disassemble.js';
+import * as disassemble_rsp from "../rsp/disassemble_rsp.js";
+import { getFragmentMap } from '../cpu/fragments.js';
+import { toggleDebugDisplayList } from '../hle/hle_graphics.js';
+import { TaskOffsets } from '../hle/rsp_task.js';
+import { toHex, toString8, toString16, toString32, toString64 } from '../format.js';
+import * as logger from '../logger.js';
+import { cpu0, cpu1 } from '../cpu/r4300.js';
+import * as r4300 from '../cpu/r4300.js';
+import { rsp } from '../rsp/rsp.js';
+import * as mi from '../devices/mi.js';
 import * as dbgUI from './dbg_ui.js';
 
 window.n64js = window.n64js || {};

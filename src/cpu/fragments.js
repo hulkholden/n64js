@@ -1,5 +1,5 @@
-import { dbgGUI } from "../dbg_ui.js";
-import { performanceProfile } from '../performance_profile.js';
+import { dbgGUI } from "../debug/dbg_ui.js";
+import { performanceProfile } from '../debug/performance_profile.js';
 
 const debugOptions = {
   enableDynarec: true,

@@ -1,4 +1,4 @@
-import { dbgGUI } from '../dbg_ui.js';
+import { dbgGUI } from '../debug/dbg_ui.js';
 
 export const graphicsOptions = {
   // Scale factor to apply to the canvas.

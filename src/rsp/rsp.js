@@ -3,7 +3,7 @@
 import * as disassemble_rsp from "./disassemble_rsp.js";
 import { toString16, toString32, toHex } from "../format.js";
 import { rcp16, rsq16 } from "./rsp_recip.js";
-import { performanceProfile } from '../performance_profile.js';
+import { performanceProfile } from '../debug/performance_profile.js';
 import {
   simpleOp as op, specialOp as funct, offset, sa, rd, rt, rs, imm, imms, base, jumpAddress,
   vmemBase, vmemVT, vmemEl, vmemOffset, cop2E, cop2DE, cop2VT, cop2VS, cop2VD,
