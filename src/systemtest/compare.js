@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
-import { RunStatus } from './status.js';
 import { appendFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { RunStatus } from './status.js';
 
 const categories = ['main', 'tlb', 'tlb64'];
 

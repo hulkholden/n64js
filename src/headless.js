@@ -51,10 +51,12 @@ export async function runHeadless(romPath, {
 }
 
 async function main() {
-  const [romPath, cycleArg = '5000000000'] = Bun.argv.slice(2);
+  const [romPath, cycleArg] = Bun.argv.slice(2);
   if (!romPath) throw new Error('Usage: bun run headless <rom-path> [max-cycles]');
 
-  const result = await runHeadless(romPath, { maxCycles: Number(cycleArg) });
+  const result = await runHeadless(romPath, {
+    maxCycles: cycleArg === undefined ? undefined : Number(cycleArg),
+  });
   if (result.fatalError) {
     console.error(result.fatalError);
     process.exitCode = 2;

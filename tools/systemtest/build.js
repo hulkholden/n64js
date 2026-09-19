@@ -19,7 +19,7 @@ const usage = 'Usage: bun tools/systemtest/build.js <source> <output> --revision
  */
 
 /** @param {string[]} argv @returns {BuildArgs | null} Null requests help. */
-export function parseArgs(argv) {
+function parseArgs(argv) {
   const { values, positionals } = parseCliArgs({
     args: argv,
     allowPositionals: true,
@@ -73,7 +73,7 @@ function readOriginal(source, path) {
 }
 
 /** @param {string} cargo @returns {string} */
-export function rewriteCargo(cargo) {
+function rewriteCargo(cargo) {
   const features = categories.map(category => `ci-${category} = []`).join('\n');
   return cargo.replace('[features]', `[features]\n${features}`);
 }
