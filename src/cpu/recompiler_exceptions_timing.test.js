@@ -13,6 +13,12 @@ async function compareExecutions(instructions, prepare = () => {}, train = () =>
     rominfo: { cic: '6102', tvType: 1, save: 'Eeprom4k' },
   });
   const { cpu0: cpu, hardware } = emulator;
+  let cop1Checks = 0;
+  const checkCopXUsable = cpu.checkCopXUsable;
+  cpu.checkCopXUsable = function (copIdx) {
+    if (copIdx === 1) cop1Checks++;
+    return checkCopXUsable.call(this, copIdx);
+  };
   n64js.getSyncFlow = () => null;
   const words = [...instructions];
   while (words.length < runCycles) words.push(0);
@@ -31,6 +37,7 @@ async function compareExecutions(instructions, prepare = () => {}, train = () =>
     words.forEach((word, i) => hardware.ram.set32(0x1000 + i * 4, word));
     cpu.setRegS32Extend(4, 0x80003000);
     prepareState(cpu, hardware);
+    cop1Checks = 0;
   }
 
   function snapshot() {
@@ -45,6 +52,8 @@ async function compareExecutions(instructions, prepare = () => {}, train = () =>
       status: cpu.getControlU32(regs.controlStatus),
       fcsr: hardware.cpu1.control[31],
       fpr: Array.from({ length: 32 }, (_, i) => hardware.cpu1.loadU32(hardware.cpu1.fdRegIdx32(i))),
+      rawFpr: [...hardware.cpu1.regU32],
+      memory: [...hardware.ram.u8.slice(0x3000, 0x3020)],
       countCycles: cpu.controlCountValue,
       compareCycles: cpu.getCyclesUntilEvent('Compare'),
     };
@@ -55,6 +64,7 @@ async function compareExecutions(instructions, prepare = () => {}, train = () =>
     setup(prepare);
     cpu.run(runCycles);
     const interpreted = snapshot();
+    const interpretedCop1Checks = cop1Checks;
 
     // Use the production tracer/compiler, with safe inputs so a memory exception
     // does not prevent the training trace from completing.
@@ -70,7 +80,7 @@ async function compareExecutions(instructions, prepare = () => {}, train = () =>
     cpu.run(runCycles);
     expect(fragment.executionCount).toBe(1);
     expect(snapshot()).toEqual(interpreted);
-    return { ...interpreted, profile: getPerformanceProfile() };
+    return { ...interpreted, profile: getPerformanceProfile(), interpretedCop1Checks, compiledCop1Checks: cop1Checks };
   } finally {
     setPerformanceProfiling(false);
   }
@@ -95,6 +105,98 @@ for (const profiled of [false, true]) {
         expect(result.badVAddr).toBe(address);
         if (profiled) expect(result.profile.compiledOps).toBe(2);
       });
+    }
+
+    test('four COP1 memory operations share one usability check', async () => {
+      const result = await compare([0xc4820000, 0xe4820004, 0xd4820000, 0xf4820008]);
+      expect(result.interpretedCop1Checks).toBe(4);
+      expect(result.compiledCop1Checks).toBe(1);
+    });
+
+    test('COP1 memory operations reuse an earlier arithmetic usability check', async () => {
+      const result = await compare([0x46000000, 0xc4820000, 0xe4820004]);
+      expect(result.interpretedCop1Checks).toBe(2);
+      expect(result.compiledCop1Checks).toBe(0);
+    });
+
+    test('a Status write forces a new COP1 memory usability check', async () => {
+      const setup = c => c.setRegS32Extend(5, 0x20000000);
+      const result = await compare([0xc4820000, 0x40856000, 0xe4820004], setup, setup);
+      expect(result.interpretedCop1Checks).toBe(2);
+      expect(result.compiledCop1Checks).toBe(2);
+    });
+
+    for (const [name, opcode, store, wide] of [
+      ['LWC1', 0xc4000000, false, false], ['LDC1', 0xd4000000, false, true],
+      ['SWC1', 0xe4000000, true, false], ['SDC1', 0xf4000000, true, true],
+    ]) {
+      for (const fullMode of [false, true]) {
+        for (const ft of [0, 3, 4, 31]) {
+          test(`${name} FR=${Number(fullMode)} f${ft} preserves raw bits`, async () => {
+            const setup = (c, h) => {
+              c.setControlU32(regs.controlStatus, 0x20000000 | (fullMode ? 0x04000000 : 0));
+              c.statusRegisterChanged();
+              c.setRegS32Extend(4, 0x80003010);
+              h.ram.set32(0x3000, 0x7fa12345);
+              h.ram.set32(0x3004, 0x89abcdef);
+              h.cpu1.store64(h.cpu1.copRegIdx64(ft), 0xfff123456789abcdn);
+            };
+            const word = opcode | (4 << 21) | (ft << 16) | 0xfff0;
+            // Repeat after the first COP1 check, including a taken delay slot.
+            const result = await compare([word, 0x10000001, word], setup, setup);
+            expect(result.cause).toBe(0);
+            if (store) {
+              expect(result.memory.slice(0, wide ? 8 : 4)).not.toEqual(Array(wide ? 8 : 4).fill(0));
+            }
+          });
+        }
+      }
+      for (const delay of [false, true]) {
+        for (const known of [false, true]) {
+          for (const [fault, address, cause] of [
+            ['alignment', 0x80003001, store ? 0x14 : 0x10],
+            ['TLB miss', 0x00400000, store ? 0x0c : 0x08],
+          ]) {
+            test(`${name} ${fault}, delay=${delay}, COP1 checked=${known}`, async () => {
+              const result = await compare(
+                [known ? 0x44020000 : 0, delay ? 0x10000001 : 0, opcode | (4 << 21) | (3 << 16)],
+                c => c.setRegS32Extend(4, address));
+              expect(result.cause).toBe((cause | (delay ? 0x80000000 : 0)) >>> 0);
+              expect(result.epc).toBe(pc + (delay ? 4 : 8));
+              expect(result.badVAddr).toBe(address);
+            });
+          }
+        }
+        test(`${name} disabled COP1 precedes memory faults, delay=${delay}`, async () => {
+          const result = await compare([delay ? 0x10000001 : 0, opcode | (4 << 21)], c => {
+            c.setControlU32(regs.controlStatus, 0);
+            c.cop1ControlChanged();
+            c.setRegS32Extend(4, 0x80003001);
+          });
+          expect(result.cause).toBe((0x1000002c | (delay ? 0x80000000 : 0)) >>> 0);
+          expect(result.epc).toBe(pc + (delay ? 0 : 4));
+        });
+      }
+      for (const write of [0x40856000, 0x40a56000]) {
+        test(`${name} remaps odd registers after FR changes ${write.toString(16)}`, async () => {
+          const setup = (c, h) => {
+            c.setRegS32Extend(5, 0x24000000);
+            h.cpu1.regU32.forEach((_, i, regs) => { regs[i] = 0x12345600 + i; });
+            h.ram.set32(0x3000, 0x89abcdef);
+            h.ram.set32(0x3004, 0xfedcba98);
+          };
+          const word = opcode | (4 << 21) | (3 << 16);
+          const result = await compare([word, write, word | 8], setup, setup);
+          expect(result.cause).toBe(0);
+        });
+        test(`${name} rechecks COP1 after Status write ${write.toString(16)}`, async () => {
+          const setup = c => c.setRegS32Extend(5, 0);
+          const result = await compare([opcode | (4 << 21), write, opcode | (4 << 21)],
+            setup, c => c.setRegS32Extend(5, 0x20000000));
+          expect(result.cause).toBe(0x1000002c);
+          expect(result.epc).toBe(pc + 8);
+        });
+      }
     }
 
     test('a successful delay-slot load clears the delay before a later fault', async () => {

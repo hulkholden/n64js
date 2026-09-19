@@ -1146,16 +1146,22 @@ function generateLDR(ctx) {
   return generateMemoryAccessBoilerplate(impl, ctx);
 }
 
-function generateLWC1(ctx) {
+// Status writes invalidate cop1statusKnown. Keep the shared instruction helpers
+// and only skip their usability check once COP1 is known to be enabled.
+function generateCop1MemoryAccess(op, ctx) {
   ctx.fragment.usesCop1 = true;
-  const impl = `c.execLWC1(${ctx.instr_ft()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateGenericOpBoilerplate(impl, ctx); // Can generate cop1 unusable so needs PC set correctly.
+  const suffix = ctx.fragment.cop1statusKnown ? 'Unchecked' : '';
+  const impl = `c.exec${op}${suffix}(${ctx.instr_ft()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
+  ctx.fragment.cop1statusKnown = true;
+  return generateGenericOpBoilerplate(impl, ctx);
+}
+
+function generateLWC1(ctx) {
+  return generateCop1MemoryAccess('LWC1', ctx);
 }
 
 function generateLDC1(ctx) {
-  ctx.fragment.usesCop1 = true;
-  const impl = `c.execLDC1(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateGenericOpBoilerplate(impl, ctx); // Can generate cop1 unusable so needs PC set correctly.
+  return generateCop1MemoryAccess('LDC1', ctx);
 }
 
 function generateLWC2(ctx) {
@@ -1209,15 +1215,11 @@ function generateSDR(ctx) {
 }
 
 function generateSWC1(ctx) {
-  ctx.fragment.usesCop1 = true;
-  const impl = `c.execSWC1(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateGenericOpBoilerplate(impl, ctx); // Can generate cop1 unusable so needs PC set correctly.
+  return generateCop1MemoryAccess('SWC1', ctx);
 }
 
 function generateSDC1(ctx) {
-  ctx.fragment.usesCop1 = true;
-  const impl = `c.execSDC1(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateGenericOpBoilerplate(impl, ctx); // Can generate cop1 unusable so needs PC set correctly.
+  return generateCop1MemoryAccess('SDC1', ctx);
 }
 
 function generateSWC2(ctx) {
