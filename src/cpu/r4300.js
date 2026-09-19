@@ -1110,17 +1110,15 @@ export class CPU0 {
   hasEvent(type) { return this.eventQueue.hasEvent(type); }
 
   addCompareEvent(cycles) {
-    const that = this;
     this.addEvent(kEventCompare, cycles, () => {
-      that.setControlBits32(cpu0reg.controlCause, CAUSE_IP8);
-      that.updateStuffToDoForInterrupts();
+      this.setControlBits32(cpu0reg.controlCause, CAUSE_IP8);
+      this.updateStuffToDoForInterrupts();
     });
   }
 
   addRunForCyclesEvent(cycles) {
-    const that = this;
     this.addEvent(kEventRunForCycles, cycles, () => {
-      that.stuffToDo |= kStuffToDoBreakout;
+      this.stuffToDo |= kStuffToDoBreakout;
     });
   }
 

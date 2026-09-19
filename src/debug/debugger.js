@@ -170,10 +170,9 @@ export class Debugger {
     const $select = $('#cpu').find('#labels');
     const arr = Array.from(this.labelMap.keys());
 
-    const that = this;
     arr.sort((a, b) => {
-      const aVal = that.labelMap.get(a);
-      const bVal = that.labelMap.get(b);
+      const aVal = this.labelMap.get(a);
+      const bVal = this.labelMap.get(b);
       return aVal.localeCompare(bVal);
     });
 
@@ -188,8 +187,8 @@ export class Debugger {
 
     $select.change(() => {
       let contents = $select.find('option:selected').data('address');
-      that.cpu0State.disasmAddress = /** @type {number} */(contents) >>> 0;
-      that.updateCPU();
+      this.cpu0State.disasmAddress = /** @type {number} */(contents) >>> 0;
+      this.updateCPU();
     });
   }
 
@@ -299,23 +298,21 @@ export class Debugger {
     let existing = this.labelMap.get(address) || '';
     let $input = $(`<input class="input-mini" value="${existing}" />`);
 
-    const that = this;
-
     $input.keypress((event) => {
       if (event.which == 13) {
         const newVal = $input.val();
         if (newVal) {
-          that.labelMap.set(address, newVal.toString());
+          this.labelMap.set(address, newVal.toString());
         } else {
-          that.labelMap.delete(address);
+          this.labelMap.delete(address);
         }
-        that.storeLabelMap();
-        that.refreshLabelSelect();
+        this.storeLabelMap();
+        this.refreshLabelSelect();
         this.updateCPU();
       }
     });
     $input.blur(() => {
-      $label.html(that.makeLabelText(address));
+      $label.html(this.makeLabelText(address));
     });
     $label.empty().append($input);
     $input.focus();

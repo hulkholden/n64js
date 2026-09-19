@@ -461,9 +461,8 @@ export class SPRegDevice extends Device {
   addSPDMAEvent(cycles) {
     // SP DMA events are a bit too noisy to record.
     //const ev = n64js.hardware().timeline.startEvent(`SP DMA`);
-    const that = this;
     n64js.cpu0.addEvent(kSPDMAEvent, cycles, () => {
-      that.dmaComplete();
+      this.dmaComplete();
       // if (ev) {
       //   ev.stop();
       // }

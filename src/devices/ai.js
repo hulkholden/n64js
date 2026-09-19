@@ -289,9 +289,8 @@ export class AIRegDevice extends Device {
 
   addAIDMAEvent(cycles) {
     const ev = n64js.hardware().timeline.startEvent(`AI DMA`, TrackAudio);
-    const that = this;
     n64js.cpu0.addEvent(kAIDMAEvent, cycles, () => {
-      that.dmaComplete();
+      this.dmaComplete();
       if (ev) {
         ev.stop();
       }
