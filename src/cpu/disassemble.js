@@ -1,7 +1,7 @@
 /*global n64js*/
 
 import * as cpu0reg from './cpu0reg.js';
-import { toHex } from './format.js';
+import { toHex } from '../format.js';
 import { simpleOp, regImmOp, specialOp, copOp, isWait, cop1BCOp, copFmtFuncOp, fd, fs, ft, offset, sa, rd, rt, rs, tlbop, imm, base, branchAddress, jumpAddress } from './decode.js';
 
 window.n64js = window.n64js || {};

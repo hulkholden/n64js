@@ -1,4 +1,4 @@
-import * as cpu0reg from './cpu0reg.js';
+import * as cpu0reg from './cpu/cpu0reg.js';
 import { calculateIPL3BootState } from './boot_checksum.js';
 import { PI_BSD_DOM1_LAT_REG, PI_BSD_DOM1_PWD_REG, PI_BSD_DOM1_PGS_REG, PI_BSD_DOM1_RLS_REG } from './devices/pi.js';
 import { SP_STATUS_REG, SP_STATUS_HALT } from './devices/sp.js';

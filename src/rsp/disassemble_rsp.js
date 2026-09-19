@@ -1,6 +1,6 @@
 /*global n64js*/
 
-import { toString32, toHex } from "./format.js";
+import { toString32, toHex } from "../format.js";
 import {
   simpleOp, specialOp, regImmOp, copOp, sa, rd, rt, rs, imm, base, offset,
   branchAddress, jumpAddress, vmemBase, vmemVT, vmemEl, vmemOffset,

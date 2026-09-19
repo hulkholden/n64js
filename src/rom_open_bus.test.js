@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test';
 import { createHeadlessEmulator } from './headless_env.js';
 import { OS_TV_NTSC } from './system_constants.js';
-import { Fragment } from './fragments.js';
-import { FragmentContext, generateCodeForOp } from './recompiler.js';
+import { Fragment } from './cpu/fragments.js';
+import { FragmentContext, generateCodeForOp } from './cpu/recompiler.js';
 
 function createEmulator(save = 'Eeprom4k') {
   return createHeadlessEmulator({

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { createHeadlessEmulator } from './headless_env.js';
+import { createHeadlessEmulator } from '../headless_env.js';
 import { controlCause, controlEPC, controlStatus } from './cpu0reg.js';
 
 const { Fragment } = await import('./fragments.js');

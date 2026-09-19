@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { createHeadlessEmulator } from './headless_env.js';
+import { createHeadlessEmulator } from '../headless_env.js';
 import { controlCause, controlCompare, controlCount, controlStatus } from './cpu0reg.js';
 
 const timerInterrupt = 0x8000;

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { createHeadlessEmulator } from './headless_env.js';
 import { simulateBoot } from './boot.js';
-import * as regs from './cpu0reg.js';
+import * as regs from './cpu/cpu0reg.js';
 import { OS_TV_NTSC, OS_TV_PAL, OS_TV_MPAL } from './system_constants.js';
 
 const regions = [

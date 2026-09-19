@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, test } from 'bun:test';
-import './headless_env.js';
-import { MemoryRegion } from './memory_region.js';
+import '../headless_env.js';
+import { MemoryRegion } from '../memory_region.js';
 import { initRSP, RSP } from './rsp.js';
 
 let rsp;

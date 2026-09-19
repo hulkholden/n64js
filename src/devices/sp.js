@@ -6,7 +6,7 @@ import * as logger from '../logger.js';
 import { toString16, toString32 } from '../format.js';
 import { hleProcessRSPTask } from '../hle/rsp_task.js';
 import { performanceProfile } from '../performance_profile.js';
-import { rsp } from '../rsp.js';
+import { rsp } from '../rsp/rsp.js';
 
 const emulateRSP = true;
 

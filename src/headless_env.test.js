@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { createHeadlessEmulator, runCycles, runFrames } from './headless_env.js';
-import { controlCause, controlStatus } from './cpu0reg.js';
+import { controlCause, controlStatus } from './cpu/cpu0reg.js';
 import { MI_INTR_DP, MI_INTR_MASK_REG, MI_INTR_REG, MI_INTR_VI } from './devices/mi.js';
 import { SI_DRAM_ADDR_REG, SI_PIF_ADDR_RD64B_REG, SI_PIF_ADDR_WR64B_REG, SI_STATUS_REG } from './devices/si.js';
 import { SP_CLR_BROKE, SP_CLR_HALT, SP_CLR_SIG2, SP_SET_HALT, SP_STATUS_REG, SP_STATUS_TASKDONE } from './devices/sp.js';
