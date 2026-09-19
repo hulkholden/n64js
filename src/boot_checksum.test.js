@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { calculateIPL3BootState } from './boot_checksum.js';
-import { MemoryRegion } from './memory_region.js';
+import { MemoryRegion } from './memory/memory_region.js';
 
 // Captured by executing the original PIF MIPS instructions, including delay
 // slots, on synthetic IPL3 buffers. No original ROM is needed to run these tests.

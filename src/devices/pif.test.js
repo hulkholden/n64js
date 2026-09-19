@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { ControllerInputs } from '../controllers.js';
 import { Joybus } from '../joybus.js';
-import { MemoryRegion } from '../memory_region.js';
+import { MemoryRegion } from '../memory/memory_region.js';
 import { MI_INTR_REG, MI_INTR_SI } from './mi.js';
 import { PIFMemDevice, PIF_RAM_OFFSET } from './pif.js';
 import { SI_STATUS_REG, SI_STATUS_INTERRUPT } from './si.js';

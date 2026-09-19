@@ -11,7 +11,7 @@ import { EventQueue } from '../event_queue.js';
 import { toString8, toString32, toString64 } from '../format.js';
 import { lookupFragment, resetFragments } from './fragments.js';
 import * as logger from '../logger.js';
-import * as memaccess from '../memaccess.js';
+import * as memaccess from '../memory/memaccess.js';
 import { kAccurateCountUpdating, kSpeedHackEnabled } from '../options.js';
 import { performanceProfile } from '../debug/performance_profile.js';
 import { FragmentContext, generateCodeForOp } from './recompiler.js';
