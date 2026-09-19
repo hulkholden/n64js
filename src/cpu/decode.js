@@ -15,6 +15,8 @@ export const OP_ANDI = 0x0c;
 export const OP_ORI = 0x0d;
 export const OP_XORI = 0x0e;
 export const OP_LUI = 0x0f;
+export const OP_COP0 = 0x10;
+export const OP_COP1 = 0x11;
 export const OP_BEQL = 0x14;
 export const OP_BNEL = 0x15;
 export const OP_BLEZL = 0x16;
@@ -38,10 +40,18 @@ export const OP_SDL = 0x2c;
 export const OP_SDR = 0x2d;
 export const OP_SWR = 0x2e;
 export const OP_LL = 0x30;
+export const OP_LWC1 = 0x31;
+export const OP_LWC2 = 0x32;
 export const OP_LLD = 0x34;
+export const OP_LDC1 = 0x35;
+export const OP_LDC2 = 0x36;
 export const OP_LD = 0x37;
 export const OP_SC = 0x38;
+export const OP_SWC1 = 0x39;
+export const OP_SWC2 = 0x3a;
 export const OP_SCD = 0x3c;
+export const OP_SDC1 = 0x3d;
+export const OP_SDC2 = 0x3e;
 export const OP_SD = 0x3f;
 
 // SPECIAL function codes (bits 5..0), distinct from primary opcodes.
@@ -84,6 +94,19 @@ export const SPECIAL_DSRA = 0x3b;
 export const SPECIAL_DSLL32 = 0x3c;
 export const SPECIAL_DSRL32 = 0x3e;
 export const SPECIAL_DSRA32 = 0x3f;
+
+// Coprocessor transfer sub-opcodes (bits 25..21).
+export const COP_MF = 0x00;
+export const COP_DMF = 0x01;
+export const COP_MT = 0x04;
+export const COP_DMT = 0x05;
+export const COP_CT = 0x06;
+
+// COP1 arithmetic format (bits 25..21) and function (bits 5..0).
+export const COP1_FMT_S = 0x10;
+export const COP1_FUNC_ADD = 0x00;
+export const COP1_FUNC_DIV = 0x03;
+export const COP1_FUNC_TRUNC_W = 0x0d;
 
 export function simpleOp(i) { return (i >>> 26) & 0x3f; }
 export function regImmOp(i) { return (i >>> 16) & 0x1f; }

@@ -1,11 +1,19 @@
 import { describe, expect, test } from 'bun:test';
 import { createHeadlessEmulator } from '../headless/headless_env.js';
 import * as regs from './cpu0reg.js';
+import * as decode from './decode.js';
 import { getPerformanceProfile, setPerformanceProfiling } from '../debug/performance_profile.js';
 
 const { getFragmentMap, lookupFragment } = await import('./fragments.js');
 const pc = 0x80001000;
 const runCycles = 12;
+const iop = (op, s, t, immediate = 0) => ((op << 26) | (s << 21) | (t << 16) | (immediate & 0xffff)) >>> 0;
+const special = (op, s, t, d) => ((decode.OP_SPECIAL << 26) | (s << 21) | (t << 16) | (d << 11) | op) >>> 0;
+const copMove = (op, transfer, t, d) => ((op << 26) | (transfer << 21) | (t << 16) | (d << 11)) >>> 0;
+const cop1 = (format, op, d, s, t = 0) => ((decode.OP_COP1 << 26) | (format << 21) | (t << 16) | (s << 11) | (d << 6) | op) >>> 0;
+const jump = target => ((decode.OP_J << 26) | ((target >>> 2) & 0x03ffffff)) >>> 0;
+// Emulator breakpoint marker, not a native MIPS instruction.
+const breakpointInstruction = 0x70000000;
 
 async function compareExecutions(instructions, prepare = () => {}, train = () => {}, profiled = false) {
   const emulator = await createHeadlessEmulator({
@@ -14,6 +22,12 @@ async function compareExecutions(instructions, prepare = () => {}, train = () =>
   });
   const { cpu0: cpu, hardware } = emulator;
   let cop1Checks = 0;
+  let interruptRSPPCs = [];
+  const handleInterrupt = cpu.handleInterrupt;
+  cpu.handleInterrupt = function () {
+    interruptRSPPCs.push(hardware.rsp.pc);
+    return handleInterrupt.call(this);
+  };
   const checkCopXUsable = cpu.checkCopXUsable;
   cpu.checkCopXUsable = function (copIdx) {
     if (copIdx === 1) cop1Checks++;
@@ -33,6 +47,10 @@ async function compareExecutions(instructions, prepare = () => {}, train = () =>
     cpu.cop1ControlChanged();
     hardware.cpu1.reset();
     hardware.rsp.reset();
+    hardware.sp_mem.clear();
+    hardware.sp_reg.clear();
+    hardware.mi_reg.clear();
+    interruptRSPPCs = [];
     cpu.pc = pc;
     hardware.ram.u8.fill(0);
     words.forEach((word, i) => hardware.ram.set32(0x1000 + i * 4, word));
@@ -45,6 +63,14 @@ async function compareExecutions(instructions, prepare = () => {}, train = () =>
     expect(emulator.fatalError()).toBeNull();
     return {
       pc: cpu.pc,
+      llBit: cpu.llBit,
+      llAddr: cpu.getControlU32(regs.controlLLAddr),
+      rspPC: hardware.rsp.pc,
+      rspGPR: [...hardware.rsp.gprU32],
+      rspHalted: hardware.rsp.halted,
+      interruptRSPPCs: [...interruptRSPPCs],
+      mi: [...hardware.mi_reg.u8],
+      sp: [...hardware.sp_reg.u8],
       delayPC: cpu.delayPC,
       gpr: [...cpu.gprU64],
       cause: cpu.getControlU32(regs.controlCause),
@@ -99,18 +125,18 @@ for (const profiled of [false, true]) {
     const compare = (words, prepare, train) => compareExecutions(words, prepare, train, profiled);
 
     for (const [name, opcode, operation] of [
-      ['ANDI', 0x30000000, (s, i) => s & i],
-      ['ORI', 0x34000000, (s, i) => s | i],
-      ['XORI', 0x38000000, (s, i) => s ^ i],
+      ['ANDI', decode.OP_ANDI, (s, i) => s & i],
+      ['ORI', decode.OP_ORI, (s, i) => s | i],
+      ['XORI', decode.OP_XORI, (s, i) => s ^ i],
     ]) {
       for (const value of [0n, 0xffffffffffffffffn, 0x800000007fffffffn, 0x7fffffff80000000n, 0xffffffff00000000n]) {
         for (const imm of [0, 0xffff]) {
           for (const [source, destination] of [[1, 2], [1, 1], [0, 2], [1, 0], [0, 0]]) {
             test(`${name} ${value.toString(16)} imm=${imm} r${source}->r${destination}`, async () => {
               const setup = c => c.setRegU64(1, value);
-              const word = opcode | (source << 21) | (destination << 16) | imm;
+              const word = iop(opcode, source, destination, imm);
               // Exercise the operation in a taken branch delay slot as well.
-              const result = await compare([0x10000001, word], setup, setup);
+              const result = await compare([iop(decode.OP_BEQ, 0, 0, 1), word], setup, setup);
               const expected = operation(source === 0 ? 0n : value, BigInt(imm));
               expect(result.gpr[destination]).toBe(destination === 0 ? 0n : expected);
               expect(result.code).not.toContain(`exec${name}`);
@@ -128,7 +154,7 @@ for (const profiled of [false, true]) {
             c.setRegU64(1, value);
             c.setRegU64(2, 0x123456789abcdef0n);
           };
-          const result = await compare([0x10000001, (s << 21) | (t << 16) | (d << 11) | 0x25], setup, setup);
+          const result = await compare([iop(decode.OP_BEQ, 0, 0, 1), special(decode.SPECIAL_OR, s, t, d)], setup, setup);
           expect(result.gpr[d]).toBe(d === 0 || (s === 0 && t === 0) ? 0n : value);
           expect(result.code).not.toMatch(/exec(MOV|CLEAR|OR)\(/);
           if (profiled) expect(result.profile.compiledOps).toBe(runCycles);
@@ -140,9 +166,9 @@ for (const profiled of [false, true]) {
       const setup = (c, h) => {
         c.setRegU64(1, 0xffffffff80000000n);
         h.rsp.imem.u8.fill(0);
-        h.rsp.imem.set32(0, 0x24210001); // ADDIU r1,r1,1
-        h.rsp.imem.set32(4, 0x08000000); // J 0
-        h.rsp.imem.set32(8, 0xac010000); // SW r1,0(r0), delay slot
+        h.rsp.imem.set32(0, iop(decode.OP_ADDIU, 1, 1, 1)); // ADDIU r1,r1,1
+        h.rsp.imem.set32(4, jump(0)); // J 0
+        h.rsp.imem.set32(8, iop(decode.OP_SW, 0, 1)); // SW r1,0(r0), delay slot
         h.rsp.unhalt();
         c.addEvent('Observe word operations', runCycles, () => {
           h.ram.set32(0x3000, c.getRegU32Lo(3));
@@ -150,7 +176,15 @@ for (const profiled of [false, true]) {
         });
       };
       // Include elided self-copy and register-zero writes while the RSP runs.
-      const result = await compare([0x3422ffff, 0x38428000, 0x00401825, 0x00601825, 0x3420ffff, 0x3064ffff, 0x00001025], setup, setup);
+      const result = await compare([
+        iop(decode.OP_ORI, 1, 2, 0xffff),
+        iop(decode.OP_XORI, 2, 2, 0x8000),
+        special(decode.SPECIAL_OR, 2, 0, 3),
+        special(decode.SPECIAL_OR, 3, 0, 3),
+        iop(decode.OP_ORI, 1, 0, 0xffff),
+        iop(decode.OP_ANDI, 3, 4, 0xffff),
+        special(decode.SPECIAL_OR, 0, 0, 2),
+      ], setup, setup);
       expect(result.rsp.gpr[1]).toBeGreaterThan(0);
       expect(result.memory.slice(4, 8)).not.toEqual([0, 0, 0, 0]);
       expect(result.countCycles).toBe(runCycles);
@@ -161,7 +195,15 @@ for (const profiled of [false, true]) {
         c.setRegU64(1, 0xffffffff80000000n);
         c.setRegS32Extend(4, 0x80003001);
       };
-      const result = await compare([0x3422ffff, 0x38428000, 0x00401825, 0x3065ffff, 0x00003025, 0x10000001, 0x8c870000], setup);
+      const result = await compare([
+        iop(decode.OP_ORI, 1, 2, 0xffff),
+        iop(decode.OP_XORI, 2, 2, 0x8000),
+        special(decode.SPECIAL_OR, 2, 0, 3),
+        iop(decode.OP_ANDI, 3, 5, 0xffff),
+        special(decode.SPECIAL_OR, 0, 0, 6),
+        iop(decode.OP_BEQ, 0, 0, 1),
+        iop(decode.OP_LW, 4, 7),
+      ], setup);
       expect(result.gpr[3]).toBe(0xffffffff80007fffn);
       expect(result.gpr[5]).toBe(0x7fffn);
       expect(result.gpr[6]).toBe(0n);
@@ -170,15 +212,15 @@ for (const profiled of [false, true]) {
     });
 
     for (const [name, word, address, cause] of [
-      ['LW alignment', 0x8c820000, 0x80003001, 0x10],
-      ['SW alignment', 0xac820000, 0x80003001, 0x14],
-      ['LL alignment', 0xc0820000, 0x80003001, 0x10],
-      ['LW TLB miss', 0x8c820000, 0x00400000, 0x08],
-      ['SW TLB miss', 0xac820000, 0x00400000, 0x0c],
-      ['LWC1 TLB miss', 0xc4820000, 0x00400000, 0x08],
+      ['LW alignment', iop(decode.OP_LW, 4, 2), 0x80003001, 0x10],
+      ['SW alignment', iop(decode.OP_SW, 4, 2), 0x80003001, 0x14],
+      ['LL alignment', iop(decode.OP_LL, 4, 2), 0x80003001, 0x10],
+      ['LW TLB miss', iop(decode.OP_LW, 4, 2), 0x00400000, 0x08],
+      ['SW TLB miss', iop(decode.OP_SW, 4, 2), 0x00400000, 0x0c],
+      ['LWC1 TLB miss', iop(decode.OP_LWC1, 4, 2), 0x00400000, 0x08],
     ]) {
       test(`${name} preserves the branch EPC and BD`, async () => {
-        const result = await compare([0x10000001, word], c => c.setRegS32Extend(4, address));
+        const result = await compare([iop(decode.OP_BEQ, 0, 0, 1), word], c => c.setRegS32Extend(4, address));
         expect(result.cause).toBe((0x80000000 | cause) >>> 0);
         expect(result.epc).toBe(pc);
         expect(result.badVAddr).toBe(address);
@@ -186,28 +228,106 @@ for (const profiled of [false, true]) {
       });
     }
 
+    for (const opcode of [
+      decode.OP_LB, decode.OP_LBU, decode.OP_LH, decode.OP_LHU, decode.OP_LW, decode.OP_LWU,
+      decode.OP_LD, decode.OP_LWL, decode.OP_LWR, decode.OP_LDL, decode.OP_LDR,
+      decode.OP_SB, decode.OP_SH, decode.OP_SW, decode.OP_SD, decode.OP_SWL, decode.OP_SWR,
+      decode.OP_SDL, decode.OP_SDR, decode.OP_LL, decode.OP_LLD, decode.OP_SC, decode.OP_SCD,
+    ]) {
+      for (const address of [0x80003000, 0xa0003000]) {
+        test(`sequential integer memory ${opcode.toString(16)} at ${address.toString(16)} matches interpreter`, async () => {
+          const setup = (c, h) => {
+            c.setRegS32Extend(4, address);
+            c.setRegU64(2, 0x123456789abcdef0n);
+            c.llBit = 1;
+            h.ram.set32(0x3000, 0xfedcba98);
+            h.ram.set32(0x3004, 0x76543210);
+          };
+          const result = await compare([0, 0, iop(opcode, 4, 2)], setup, setup);
+          expect(result.code).not.toContain('if (c.pc !== 0x8000100c)');
+        });
+      }
+    }
+
+    for (const taken of [false, true]) {
+      for (const word of [iop(decode.OP_LW, 4, 2), iop(decode.OP_SW, 4, 2)]) {
+        test(`integer memory delay slot exits when branch differs from training, taken=${taken}, op=${word.toString(16)}`, async () => {
+          const setup = (c, h, branchTaken) => {
+            c.setRegS32Extend(5, branchTaken ? 0 : 1);
+            c.setRegS32Extend(2, 0x1234);
+            h.ram.set32(0x3000, 0x5678);
+          };
+          const result = await compare([iop(decode.OP_BEQ, 5, 0, 2), word, iop(decode.OP_ADDIU, 3, 3, 1), iop(decode.OP_ADDIU, 3, 3, 2)],
+            (c, h) => setup(c, h, taken), (c, h) => setup(c, h, !taken));
+          expect(result.gpr[3]).toBe(taken ? 2n : 3n);
+          expect(result.code).toContain(`if (c.pc !== 0x800010${taken ? '08' : '0c'})`);
+        });
+      }
+    }
+
+    test('sequential MMIO interrupt is serviced before another active RSP step', async () => {
+      const setup = (c, h) => {
+        c.setControlU32(regs.controlStatus, 0x20000401);
+        c.statusRegisterChanged();
+        c.setRegS32Extend(4, 0xa430000c); // MI interrupt mask.
+        c.setRegS32Extend(2, 2); // Enable pending SP interrupt.
+        h.mi_reg.set32(8, 1);
+        for (let i = 0; i < runCycles; i++) h.sp_mem.set32(0x1000 + i * 4, iop(decode.OP_ADDIU, 1, 1, 1));
+        h.rsp.unhalt();
+      };
+      const result = await compare([0, 0, iop(decode.OP_SW, 4, 2), iop(decode.OP_ORI, 0, 3, 0x77)], setup,
+        (c, h) => { setup(c, h); h.mi_reg.set32(8, 0); });
+      expect(result.epc).toBe(pc + 12);
+      expect(result.gpr[3]).toBe(0n);
+      expect(result.interruptRSPPCs).toEqual([12]);
+      expect(result.code).not.toContain('if (c.pc !== 0x8000100c)');
+      expect(result.code).toContain('if (c.stuffToDo) { return 3; }');
+    });
+
+    test('sequential store can start the RSP through MMIO', async () => {
+      const setup = (c, h) => {
+        c.setRegS32Extend(4, 0xa4040010); // SP status.
+        c.setRegS32Extend(2, 1); // Clear HALT.
+        for (let i = 0; i < runCycles; i++) h.sp_mem.set32(0x1000 + i * 4, iop(decode.OP_ADDIU, 1, 1, 1));
+      };
+      const result = await compare([0, 0, iop(decode.OP_SW, 4, 2), iop(decode.OP_LW, 5, 6)],
+        (c, h) => { setup(c, h); c.setRegS32Extend(5, 0x80003000); },
+        (c, h) => { setup(c, h); c.setRegS32Extend(5, 0x80003000); });
+      expect(result.rspHalted).toBe(false);
+      expect(result.rspGPR[1]).toBe(9);
+    });
+
     test('four COP1 memory operations share one usability check', async () => {
-      const result = await compare([0xc4820000, 0xe4820004, 0xd4820000, 0xf4820008]);
+      const result = await compare([
+        iop(decode.OP_LWC1, 4, 2),
+        iop(decode.OP_SWC1, 4, 2, 4),
+        iop(decode.OP_LDC1, 4, 2),
+        iop(decode.OP_SDC1, 4, 2, 8),
+      ]);
       expect(result.interpretedCop1Checks).toBe(4);
       expect(result.compiledCop1Checks).toBe(1);
     });
 
     test('COP1 memory operations reuse an earlier arithmetic usability check', async () => {
-      const result = await compare([0x46000000, 0xc4820000, 0xe4820004]);
+      const result = await compare([cop1(decode.COP1_FMT_S, decode.COP1_FUNC_ADD, 0, 0, 0), iop(decode.OP_LWC1, 4, 2), iop(decode.OP_SWC1, 4, 2, 4)]);
       expect(result.interpretedCop1Checks).toBe(2);
       expect(result.compiledCop1Checks).toBe(0);
     });
 
     test('a Status write forces a new COP1 memory usability check', async () => {
       const setup = c => c.setRegS32Extend(5, 0x20000000);
-      const result = await compare([0xc4820000, 0x40856000, 0xe4820004], setup, setup);
+      const result = await compare([
+        iop(decode.OP_LWC1, 4, 2),
+        copMove(decode.OP_COP0, decode.COP_MT, 5, regs.controlStatus),
+        iop(decode.OP_SWC1, 4, 2, 4),
+      ], setup, setup);
       expect(result.interpretedCop1Checks).toBe(2);
       expect(result.compiledCop1Checks).toBe(2);
     });
 
     for (const [name, opcode, store, wide] of [
-      ['LWC1', 0xc4000000, false, false], ['LDC1', 0xd4000000, false, true],
-      ['SWC1', 0xe4000000, true, false], ['SDC1', 0xf4000000, true, true],
+      ['LWC1', decode.OP_LWC1, false, false], ['LDC1', decode.OP_LDC1, false, true],
+      ['SWC1', decode.OP_SWC1, true, false], ['SDC1', decode.OP_SDC1, true, true],
     ]) {
       for (const fullMode of [false, true]) {
         for (const ft of [0, 3, 4, 31]) {
@@ -220,9 +340,9 @@ for (const profiled of [false, true]) {
               h.ram.set32(0x3004, 0x89abcdef);
               h.cpu1.store64(h.cpu1.copRegIdx64(ft), 0xfff123456789abcdn);
             };
-            const word = opcode | (4 << 21) | (ft << 16) | 0xfff0;
+            const word = iop(opcode, 4, ft, -16);
             // Repeat after the first COP1 check, including a taken delay slot.
-            const result = await compare([word, 0x10000001, word], setup, setup);
+            const result = await compare([word, iop(decode.OP_BEQ, 0, 0, 1), word], setup, setup);
             expect(result.cause).toBe(0);
             if (store) {
               expect(result.memory.slice(0, wide ? 8 : 4)).not.toEqual(Array(wide ? 8 : 4).fill(0));
@@ -238,7 +358,7 @@ for (const profiled of [false, true]) {
           ]) {
             test(`${name} ${fault}, delay=${delay}, COP1 checked=${known}`, async () => {
               const result = await compare(
-                [known ? 0x44020000 : 0, delay ? 0x10000001 : 0, opcode | (4 << 21) | (3 << 16)],
+                [known ? copMove(decode.OP_COP1, decode.COP_MF, 2, 0) : 0, delay ? iop(decode.OP_BEQ, 0, 0, 1) : 0, iop(opcode, 4, 3)],
                 c => c.setRegS32Extend(4, address));
               expect(result.cause).toBe((cause | (delay ? 0x80000000 : 0)) >>> 0);
               expect(result.epc).toBe(pc + (delay ? 4 : 8));
@@ -247,7 +367,7 @@ for (const profiled of [false, true]) {
           }
         }
         test(`${name} disabled COP1 precedes memory faults, delay=${delay}`, async () => {
-          const result = await compare([delay ? 0x10000001 : 0, opcode | (4 << 21)], c => {
+          const result = await compare([delay ? iop(decode.OP_BEQ, 0, 0, 1) : 0, iop(opcode, 4, 0)], c => {
             c.setControlU32(regs.controlStatus, 0);
             c.cop1ControlChanged();
             c.setRegS32Extend(4, 0x80003001);
@@ -256,7 +376,7 @@ for (const profiled of [false, true]) {
           expect(result.epc).toBe(pc + (delay ? 0 : 4));
         });
       }
-      for (const write of [0x40856000, 0x40a56000]) {
+      for (const write of [copMove(decode.OP_COP0, decode.COP_MT, 5, regs.controlStatus), copMove(decode.OP_COP0, decode.COP_DMT, 5, regs.controlStatus)]) {
         test(`${name} remaps odd registers after FR changes ${write.toString(16)}`, async () => {
           const setup = (c, h) => {
             c.setRegS32Extend(5, 0x24000000);
@@ -264,13 +384,13 @@ for (const profiled of [false, true]) {
             h.ram.set32(0x3000, 0x89abcdef);
             h.ram.set32(0x3004, 0xfedcba98);
           };
-          const word = opcode | (4 << 21) | (3 << 16);
+          const word = iop(opcode, 4, 3);
           const result = await compare([word, write, word | 8], setup, setup);
           expect(result.cause).toBe(0);
         });
         test(`${name} rechecks COP1 after Status write ${write.toString(16)}`, async () => {
           const setup = c => c.setRegS32Extend(5, 0);
-          const result = await compare([opcode | (4 << 21), write, opcode | (4 << 21)],
+          const result = await compare([iop(opcode, 4, 0), write, iop(opcode, 4, 0)],
             setup, c => c.setRegS32Extend(5, 0x20000000));
           expect(result.cause).toBe(0x1000002c);
           expect(result.epc).toBe(pc + 8);
@@ -279,7 +399,7 @@ for (const profiled of [false, true]) {
     }
 
     test('a successful delay-slot load clears the delay before a later fault', async () => {
-      const result = await compare([0x10000001, 0x8c820000, 0x8ca30000],
+      const result = await compare([iop(decode.OP_BEQ, 0, 0, 1), iop(decode.OP_LW, 4, 2), iop(decode.OP_LW, 5, 3)],
         c => c.setRegS32Extend(5, 0x80003001), c => c.setRegS32Extend(5, 0x80003004));
       expect(result.cause).toBe(0x10);
       expect(result.epc).toBe(pc + 8);
@@ -290,7 +410,7 @@ for (const profiled of [false, true]) {
       for (const delay of [false, true]) {
         test(`CTC1 raises FPE for FCSR=${fcsr.toString(16)}${delay ? ' in a delay slot' : ''}`, async () => {
           const result = await compare(
-            [0x44020000, 0, delay ? 0x10000001 : 0, 0x44c4f800, 0x34030077],
+            [copMove(decode.OP_COP1, decode.COP_MF, 2, 0), 0, delay ? iop(decode.OP_BEQ, 0, 0, 1) : 0, copMove(decode.OP_COP1, decode.COP_CT, 4, 31), iop(decode.OP_ORI, 0, 3, 0x77)],
             c => c.setRegS32Extend(4, fcsr), noFPE);
           expect(result.cause).toBe(delay ? 0x8000003c : 0x3c);
           expect(result.epc).toBe(pc + (delay ? 8 : 12));
@@ -300,7 +420,12 @@ for (const profiled of [false, true]) {
     }
 
     test('a nontrapping CTC1 continues through the fragment', async () => {
-      const result = await compare([0x44020000, 0, 0x44c4f800, 0x34030077], noFPE, noFPE);
+      const result = await compare([
+        copMove(decode.OP_COP1, decode.COP_MF, 2, 0),
+        0,
+        copMove(decode.OP_COP1, decode.COP_CT, 4, 31),
+        iop(decode.OP_ORI, 0, 3, 0x77),
+      ], noFPE, noFPE);
       expect(result.gpr[3]).toBe(119n);
       expect(result.cause).toBe(0);
     });
@@ -320,7 +445,7 @@ for (const profiled of [false, true]) {
             f.store32(f.fdRegIdx32(10), 0x12345678);
           };
           const result = await compare(
-            [0x46089003, 0x4600028d, 0x44035000], // DIV.S; TRUNC.W.S; MFC1
+            [cop1(decode.COP1_FMT_S, decode.COP1_FUNC_DIV, 0, 18, 8), cop1(decode.COP1_FMT_S, decode.COP1_FUNC_TRUNC_W, 10, 0, 0), copMove(decode.OP_COP1, decode.COP_MF, 3, 10)], // DIV.S; TRUNC.W.S; MFC1
             (c, h) => setup(c, h, negativeZero ? 0x80000000 : 0),
             (c, h) => setup(c, h, 0x42700000)); // Train with 60.0f.
           expect(result.cause).toBe(0x3c);
@@ -334,8 +459,8 @@ for (const profiled of [false, true]) {
     }
 
     for (const [name, read, write] of [
-      ['32-bit', 0x40024800, 0x40844800],
-      ['64-bit', 0x40224800, 0x40a44800],
+      ['32-bit', copMove(decode.OP_COP0, decode.COP_MF, 2, regs.controlCount), copMove(decode.OP_COP0, decode.COP_MT, 4, regs.controlCount)],
+      ['64-bit', copMove(decode.OP_COP0, decode.COP_DMF, 2, regs.controlCount), copMove(decode.OP_COP0, decode.COP_DMT, 4, regs.controlCount)],
     ]) {
       for (const phase of [0, 1]) {
         test(`${name} Count reads include preceding instructions, phase ${phase}`, async () => {
@@ -357,10 +482,10 @@ for (const profiled of [false, true]) {
     }
 
     for (const [name, word, initialCompare, value] of [
-      ['MTC0 Compare', 0x40845800, null, 2],
-      ['DMTC0 Compare', 0x40a45800, null, 2],
-      ['MTC0 Count', 0x40844800, 102, 100],
-      ['DMTC0 Count', 0x40a44800, 102, 100],
+      ['MTC0 Compare', copMove(decode.OP_COP0, decode.COP_MT, 4, regs.controlCompare), null, 2],
+      ['DMTC0 Compare', copMove(decode.OP_COP0, decode.COP_DMT, 4, regs.controlCompare), null, 2],
+      ['MTC0 Count', copMove(decode.OP_COP0, decode.COP_MT, 4, regs.controlCount), 102, 100],
+      ['DMTC0 Count', copMove(decode.OP_COP0, decode.COP_DMT, 4, regs.controlCount), 102, 100],
     ]) {
       test(`${name} respects a newly shortened timer deadline`, async () => {
         const setup = c => {
@@ -369,7 +494,7 @@ for (const profiled of [false, true]) {
           c.statusRegisterChanged();
           if (initialCompare !== null) c.setCompare(initialCompare);
         };
-        const words = [0, 0, word, 0, ...(initialCompare === null ? [] : [0, 0]), 0x34030077];
+        const words = [0, 0, word, 0, ...(initialCompare === null ? [] : [0, 0]), iop(decode.OP_ORI, 0, 3, 0x77)];
         const result = await compare(words, setup, c => c.setRegS32Extend(4, 1000));
         expect(result.gpr[3]).toBe(0n);
         expect(result.epc).toBe(pc + (initialCompare === null ? 16 : 24));
@@ -379,10 +504,10 @@ for (const profiled of [false, true]) {
 
     for (const prefix of [0, 2, 11]) {
       test(`a memory fault charges ${prefix} completed fragment instructions`, async () => {
-        const words = [...Array(prefix).fill(0), 0x8c820000];
+        const words = [...Array(prefix).fill(0), iop(decode.OP_LW, 4, 2)];
         const result = await compare(words, (c, hardware) => {
           c.setRegS32Extend(4, 0x80003001);
-          for (let i = 0; i < runCycles; i++) hardware.ram.set32(0x180 + 4 * i, 0x64630001);
+          for (let i = 0; i < runCycles; i++) hardware.ram.set32(0x180 + 4 * i, iop(decode.OP_DADDIU, 3, 3, 1));
         });
         expect(result.gpr[3]).toBe(BigInt(runCycles - prefix - 1));
         expect(result.countCycles).toBe(runCycles);
@@ -391,9 +516,15 @@ for (const profiled of [false, true]) {
     }
 
     test('a fault after a Count read does not charge synchronized cycles twice', async () => {
-      const result = await compare([0, 0, 0x40024800, 0, 0x8c830000], (c, hardware) => {
+      const result = await compare([
+        0,
+        0,
+        copMove(decode.OP_COP0, decode.COP_MF, 2, regs.controlCount),
+        0,
+        iop(decode.OP_LW, 4, 3),
+      ], (c, hardware) => {
         c.setRegS32Extend(4, 0x80003001);
-        for (let i = 0; i < runCycles; i++) hardware.ram.set32(0x180 + 4 * i, 0x65080001);
+        for (let i = 0; i < runCycles; i++) hardware.ram.set32(0x180 + 4 * i, iop(decode.OP_DADDIU, 8, 8, 1));
       });
       expect(result.gpr[2]).toBe(1n);
       expect(result.gpr[8]).toBe(7n);
@@ -401,7 +532,7 @@ for (const profiled of [false, true]) {
     });
 
     test('a breakpoint charges preceding instructions without charging the stopped instruction', async () => {
-      const result = await compare([0, 0, 0x70000000],
+      const result = await compare([0, 0, breakpointInstruction],
         () => { n64js.breakpoints = () => ({ isBreakpoint: () => true }); },
         () => { n64js.breakpoints = () => ({ isBreakpoint: () => false }); });
       expect(result.pc).toBe(pc + 8);
@@ -409,7 +540,7 @@ for (const profiled of [false, true]) {
       if (profiled) expect(result.profile.compiledOps).toBe(2);
     });
 
-    for (const [name, branch] of [['BEQ', 0x1000ffff], ['J', 0x08000403]]) {
+    for (const [name, branch] of [['BEQ', iop(decode.OP_BEQ, 0, 0, -1)], ['J', jump(0x100c)]]) {
       test(`${name} idle-loop skipping uses the current event countdown`, async () => {
         const setup = c => c.addEvent('Stop idle loop', 100, () => c.breakExecution());
         const result = await compare([0, 0, 0, branch, 0], setup, setup);

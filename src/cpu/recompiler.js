@@ -252,8 +252,30 @@ function generateGenericOpBoilerplate(fn, ctx) {
   return code;
 }
 
-// Memory access does not adjust branchTarget, but nextPC may be adjusted if they cause an exception.
-function generateMemoryAccessBoilerplate(fn, ctx) {
+// Helper effects audited through r4300.js, memaccess.js and the device
+// handlers. mayChangeNextPC describes normal return only. Integer alignment/TLB
+// exceptions change nextPC but throw;
+// MMIO may request interrupt service or start the RSP, without changing nextPC.
+// Keep exception PC/fragmentOps materialization and the post-access stuffToDo
+// check: servicing an interrupt must precede the following rsp.step().
+const integerMemoryEffects = Object.freeze({
+  mayThrow: true,
+  mayChangeNextPC: false,
+  maySetStuffToDo: true,
+  mayStartRSP: true,
+});
+
+// Unknown helpers (including COP2 usability exceptions) may redirect and return.
+const conservativeMemoryEffects = Object.freeze({
+  ...integerMemoryEffects,
+  mayChangeNextPC: true,
+});
+
+// Memory access does not adjust branchTarget.
+function generateMemoryAccessBoilerplate(fn, ctx, effects = conservativeMemoryEffects) {
+  // Capture entry knowledge before clearing needsDelayCheck below. A pending
+  // delay target is dynamic even when the training trace happened to fall through.
+  const needsPCGuard = ctx.needsDelayCheck || effects.mayChangeNextPC || ctx.postPC !== ctx.pc + 4;
   let code = '';
   code += ctx.genAssert(`c.pc === ${toString32(ctx.pc)}`, 'pc mismatch');
   if (ctx.needsDelayCheck) {
@@ -276,7 +298,9 @@ function generateMemoryAccessBoilerplate(fn, ctx) {
   // If bailOut is set, always return immediately
   assert(!ctx.bailOut, "Not expecting bailOut to be set for memory access");
   code += `if (c.stuffToDo) { return ${ctx.fragment.opsCompiled}; }\n`;
-  code += `if (c.pc !== ${toString32(ctx.postPC)}) { return ${ctx.fragment.opsCompiled}; }\n`;
+  if (needsPCGuard) {
+    code += `if (c.pc !== ${toString32(ctx.postPC)}) { return ${ctx.fragment.opsCompiled}; }\n`;
+  }
   return code;
 }
 
@@ -1161,57 +1185,57 @@ function generateLUI(ctx) {
 
 function generateLB(ctx) {
   const impl = `c.execLB(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
 }
 
 function generateLBU(ctx) {
   const impl = `c.execLBU(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
 }
 
 function generateLH(ctx) {
   const impl = `c.execLH(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
 }
 
 function generateLHU(ctx) {
   const impl = `c.execLHU(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
 }
 
 function generateLW(ctx) {
   const impl = `c.execLW(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
 }
 
 function generateLWU(ctx) {
   const impl = `c.execLWU(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
 }
 
 function generateLD(ctx) {
   const impl = `c.execLD(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
 }
 
 function generateLWL(ctx) {
   const impl = `c.execLWL(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
 }
 
 function generateLWR(ctx) {
   const impl = `c.execLWR(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
 }
 
 function generateLDL(ctx) {
   const impl = `c.execLDL(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
 }
 
 function generateLDR(ctx) {
   const impl = `c.execLDR(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
 }
 
 // Status writes invalidate cop1statusKnown. Keep the shared instruction helpers
@@ -1244,42 +1268,42 @@ function generateLDC2(ctx) {
 
 function generateSB(ctx) {
   const impl = `c.execSB(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
 }
 
 function generateSH(ctx) {
   const impl = `c.execSH(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
 }
 
 function generateSW(ctx) {
   const impl = `c.execSW(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
 }
 
 function generateSD(ctx) {
   const impl = `c.execSD(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
 }
 
 function generateSWL(ctx) {
   const impl = `c.execSWL(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
 }
 
 function generateSWR(ctx) {
   const impl = `c.execSWR(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
 }
 
 function generateSDL(ctx) {
   const impl = `c.execSDL(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
 }
 
 function generateSDR(ctx) {
   const impl = `c.execSDR(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
 }
 
 function generateSWC1(ctx) {
@@ -1302,22 +1326,22 @@ function generateSDC2(ctx) {
 
 function generateLL(ctx) {
   const impl = `c.execLL(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
 }
 
 function generateLLD(ctx) {
   const impl = `c.execLLD(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
 }
 
 function generateSC(ctx) {
   const impl = `c.execSC(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
 }
 
 function generateSCD(ctx) {
   const impl = `c.execSCD(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx);
+  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
 }
 
 function generateCACHE(ctx) {
