@@ -7,16 +7,16 @@ let modulesPromise;
 
 function loadModules() {
   modulesPromise ??= Promise.all([
-    import('./boot.js'),
-    import('./controllers.js'),
-    import('./endian.js'),
-    import('./hardware.js'),
-    import('./joybus.js'),
-    import('./cpu/r4300.js'),
-    import('./romdb.js'),
-    import('./rsp/rsp.js'),
-    import('./system_constants.js'),
-    import('./hle/headless_graphics.js'),
+    import('../boot.js'),
+    import('../controllers.js'),
+    import('../endian.js'),
+    import('../hardware.js'),
+    import('../joybus.js'),
+    import('../cpu/r4300.js'),
+    import('../romdb.js'),
+    import('../rsp/rsp.js'),
+    import('../system_constants.js'),
+    import('../hle/headless_graphics.js'),
   ]);
   return modulesPromise;
 }

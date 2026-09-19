@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { createHeadlessEmulator } from './headless_env.js';
+import { createHeadlessEmulator } from './headless/headless_env.js';
 import { PI_CART_ADDR_REG, PI_DRAM_ADDR_REG, PI_RD_LEN_REG, PI_WR_LEN_REG } from './devices/pi.js';
 import { OS_TV_NTSC } from './system_constants.js';
 

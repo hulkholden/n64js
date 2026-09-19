@@ -1,5 +1,5 @@
 import { describe, expect, test, spyOn } from 'bun:test';
-import '../headless_env.js';
+import '../headless/headless_env.js';
 import { InvalidMemDevice } from '../devices/ram.js';
 import * as memory from './memaccess.js';
 

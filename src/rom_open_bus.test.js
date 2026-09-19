@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { createHeadlessEmulator } from './headless_env.js';
+import { createHeadlessEmulator } from './headless/headless_env.js';
 import { OS_TV_NTSC } from './system_constants.js';
 import { Fragment } from './cpu/fragments.js';
 import { FragmentContext, generateCodeForOp } from './cpu/recompiler.js';

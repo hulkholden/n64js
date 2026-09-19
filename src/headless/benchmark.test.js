@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { median, medianAbsoluteDeviation, parseArgs } from './benchmark.js';
-import { getPerformanceProfile, performanceProfile, performanceProfileDelta, setPerformanceProfiling } from './debug/performance_profile.js';
+import { getPerformanceProfile, performanceProfile, performanceProfileDelta, setPerformanceProfiling } from '../debug/performance_profile.js';
 
 describe('benchmark argument parsing', () => {
   test('requires a ROM', () => {

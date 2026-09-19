@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, spyOn, test } from 'bun:test';
 import { Breakpoints } from './debug/breakpoints.js';
 import { compatibilityHacks } from './compatibility_hacks.js';
 import { controlStatus } from './cpu/cpu0reg.js';
-import { createHeadlessEmulator } from './headless_env.js';
+import { createHeadlessEmulator } from './headless/headless_env.js';
 
 const { getFragmentMap } = await import('./cpu/fragments.js');
 const { invalidateCode } = await import('./cpu/r4300.js');

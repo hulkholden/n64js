@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { createHeadlessEmulator } from '../headless_env.js';
+import { createHeadlessEmulator } from '../headless/headless_env.js';
 import * as regs from './cpu0reg.js';
 import { getPerformanceProfile, setPerformanceProfiling } from '../debug/performance_profile.js';
 
