@@ -67,10 +67,9 @@ class BinaryRequest {
     xhr.open(getOrPost, url, true);
     xhr.responseType = "arraybuffer";
 
-    const that = this;
     xhr.addEventListener('readystatechange', (event) => {
       if (xhr.readyState === 4) {
-        that.invokeCallbacks();
+        this.invokeCallbacks();
       }
     });
 
