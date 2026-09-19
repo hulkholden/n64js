@@ -116,9 +116,10 @@ export class TMEM {
     let tmemOffset = tile.tmem << 3;
     let ramOffset = ramAddress;
 
-    // 32bpp loads 8 bytes at a time, not 4.
+    // Packed RGBA32 and YUV16 use twice the tile line stride.
     // TODO: confirm if these should use ti.size or tile.size. Currently they're different.
-    const tmemStride = (ti.size == gbi.ImageSize.G_IM_SIZ_32b) ? tile.line << 4 : tile.line << 3;
+    const doubleStride = ti.size == gbi.ImageSize.G_IM_SIZ_32b || tile.format == gbi.ImageFormat.G_IM_FMT_YUV;
+    const tmemStride = tile.line << (doubleStride ? 4 : 3);
     const byteSwapBit = (tile.size == gbi.ImageSize.G_IM_SIZ_32b) ? 8 : 4;
 
     if (dc) {
@@ -188,9 +189,9 @@ export class TMEM {
     const tmemOffset = tile.tmem << 3;
     let bytesPerLine = tile.line << 3;
 
-    // NB! RGBA/32 line needs to be doubled.
-    if (tile.format == gbi.ImageFormat.G_IM_FMT_RGBA &&
-      tile.size == gbi.ImageSize.G_IM_SIZ_32b) {
+    // HLE stores packed RGBA32 and YUV16 rather than separate TMEM banks.
+    if ((tile.format == gbi.ImageFormat.G_IM_FMT_RGBA && tile.size == gbi.ImageSize.G_IM_SIZ_32b) ||
+      tile.format == gbi.ImageFormat.G_IM_FMT_YUV) {
       bytesPerLine *= 2;
     }
 

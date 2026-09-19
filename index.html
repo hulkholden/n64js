@@ -663,6 +663,20 @@
       uniform vec4  uPrimColor;
       uniform vec4  uEnvColor;
       uniform float uAlphaThreshold;
+      uniform highp vec4 uConvert;
+      uniform vec2 uConvertK45;
+      uniform int uTextureConvert;
+      uniform bvec2 uTextureYUV;
+
+      vec4 convertYUV(vec4 texel) {
+        highp vec2 chroma = texel.rg * 255.0 - 128.0;
+        highp vec3 rgb = vec3(texel.b * 255.0) + floor(vec3(
+          uConvert.x * chroma.y,
+          uConvert.y * chroma.x + uConvert.z * chroma.y,
+          uConvert.w * chroma.x) + 0.5);
+        // Keep the signed intermediate range until the color combiner runs.
+        return vec4(rgb / 255.0, texel.b);
+      }
 
       void main(void) {
         vec2 uv0 = (vUV - uTexOffset0) * uTexScale0;
@@ -676,11 +690,19 @@
         // TODO: consider doing the shift/mask/clamp here.
         vec4 tex0  = texture(uSampler0, uv0);
         vec4 tex1  = texture(uSampler1, uv1);
+        if (uTextureYUV.y) {
+          tex1 = uTextureConvert == 0 ? convertYUV(tex1) : vec4(tex1.rg - 128.0 / 255.0, tex1.b, tex1.b);
+        }
+        if (uTextureYUV.x) {
+          // FILTCONV uses the first cycle's filtered YUV sample in cycle two.
+          if (uTextureConvert == 5) tex1 = convertYUV(tex0);
+          tex0 = uTextureConvert == 0 ? convertYUV(tex0) : vec4(tex0.rg - 128.0 / 255.0, tex0.b, tex0.b);
+        }
         vec4 col;
         vec4 combined = vec4(0,0,0,1);
         float lod_frac      = 0.0;    // FIXME
         float prim_lod_frac = 0.0;    // FIXME
-        float k5            = 0.0;    // FIXME
+        float k5            = uConvertK45.y;
         {{body}}
         outCol = col;
       }

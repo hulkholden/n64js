@@ -88,6 +88,9 @@ export class RSPState {
     this.blendColor = 0;
     this.fogColor = 0;
 
+    // RDP conversion coefficients persist across RSP tasks, like combiner state.
+    this.convert = new Int32Array(6);
+
     this.primDepth = 0.0;
 
     this.fogParameters = new FogParameters();
