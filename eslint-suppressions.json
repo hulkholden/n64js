@@ -71,7 +71,7 @@
   },
   "src/cpu/r4300.js": {
     "no-unused-vars": {
-      "count": 81
+      "count": 80
     }
   },
   "src/rsp/rsp.js": {

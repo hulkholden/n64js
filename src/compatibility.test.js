@@ -156,7 +156,7 @@ describe('ROM compatibility instruction patches', () => {
     const { cpu0: cpu, hardware } = await fixture(id);
     putBranch(hardware, address);
     hardware.ram.set32(address - 0x80000000 + 0xc8, 0x03e00008); // JR ra
-    cpu.setRegU64(31, BigInt(address));
+    cpu.setRegS32Extend(31, address);
     cpu.pc = address;
     const count = cpu.controlCountValue;
     cpu.run(16000); // 4,000 trips through B / delay slot / JR / delay slot.
@@ -176,7 +176,7 @@ describe('ROM compatibility instruction patches', () => {
     hardware.ram.set32(offset + 0xc8, 0x25290001); // ADDIU t1, t1, 1 on the patched path
     hardware.ram.set32(offset + 0xcc, 0x03e00008); // JR ra
     cpu.setRegU64(9, 0n);
-    cpu.setRegU64(31, BigInt(alias));
+    cpu.setRegS32Extend(31, alias);
     cpu.pc = alias;
     cpu.run(16000);
     expect(cpu.getRegU64(9)).toBe(0n);

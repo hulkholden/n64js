@@ -28,7 +28,7 @@ function reset() {
 function start(address, delayPC = null) {
   c.wideState = { pc: address, delayPC };
   c.pc = low(address);
-  c.delayPC = delayPC === null ? 0 : low(delayPC) || 1;
+  c.delayPC = delayPC === null ? null : low(delayPC);
 }
 
 function write(offset, word) {
@@ -55,6 +55,25 @@ function executeEntry(word, compiled, needsDelayCheck = true) {
 }
 
 describe('64-bit instruction addresses', () => {
+  test('wide handoffs preserve a pending branch to zero using the null sentinel', () => {
+    reset();
+    c.pc = 0x80001000;
+    c.delayPC = 0;
+    c.enterWideInstruction();
+    expect(c.wideState.delayPC).toBe(0n);
+    c.executeWideInstruction(0); // NOP in the pending branch's delay slot.
+    expect(c.pc).toBe(0);
+    expect(c.delayPC).toBeNull();
+    expect(c.wideState).toBeNull();
+
+    // A wide branch can also hand back to ordinary code before its delay slot.
+    start(0xffffffff80001000n);
+    c.executeWideInstruction(0x00600008); // JR v1, initially zero.
+    expect(c.wideState).toBeNull();
+    expect(c.pc).toBe(0x80001004);
+    expect(c.delayPC).toBe(0);
+  });
+
   test('outer dispatch consumes a handoff once and preserves state across events', () => {
     for (const compiled of [false, true]) {
       reset();

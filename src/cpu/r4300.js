@@ -541,7 +541,7 @@ export class CPU0 {
   enterWideInstruction() {
     this.wideState = {
       pc: BigInt.asUintN(64, BigInt(this.pc | 0)),
-      delayPC: this.delayPC ? BigInt.asUintN(64, BigInt(this.delayPC | 0)) : null,
+      delayPC: this.delayPC === null ? null : BigInt.asUintN(64, BigInt(this.delayPC | 0)),
     };
     this.stuffToDo |= kStuffToDoBreakout;
   }
@@ -558,7 +558,7 @@ export class CPU0 {
     // Existing instruction handlers still use the Number fields. Mirror their
     // low words while wide-aware control-flow handlers update state in full.
     this.nextPC = Number(state.nextPC & 0xffffffffn);
-    this.branchTarget = 0;
+    this.branchTarget = null;
 
     // Boundary handoffs may supply an instruction already fetched by dispatch.
     // Keep the current PC and delay state intact until execution completes so
@@ -573,14 +573,13 @@ export class CPU0 {
     state.pc = state.nextPC;
     state.delayPC = state.branchTarget;
     this.pc = Number(state.pc & 0xffffffffn);
-    // Preserve a nonzero delay marker even when the target's low word is zero.
-    this.delayPC = state.delayPC === null ? 0 : Number(state.delayPC & 0xffffffffn) || 1;
+    // The ordinary path also uses null for no branch, so zero remains a valid target.
+    this.delayPC = state.delayPC === null ? null : Number(state.delayPC & 0xffffffffn);
 
     // Return to ordinary execution only when both the next instruction and
     // any pending target can be represented by sign-extended 32-bit PCs.
     const canonical = address => address === BigInt.asUintN(64, BigInt(Number(address & 0xffffffffn) | 0));
-    // Zero is the fast path's no-delay sentinel, so consume a branch to zero here.
-    const ordinaryDelay = state.delayPC === null || (state.delayPC !== 0n && canonical(state.delayPC));
+    const ordinaryDelay = state.delayPC === null || canonical(state.delayPC);
     if (canonical(state.pc) && ordinaryDelay) {
       this.wideState = null;
     }
