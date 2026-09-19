@@ -4,6 +4,7 @@ import { toString16, toString32 } from "../format.js";
 import { Vector2 } from "../graphics/Vector2.js";
 import * as gbi from './gbi.js';
 import { RendererBase } from './renderer_base.js';
+import { RenderTargets } from './render_targets.js';
 import * as shaders from './shaders.js';
 import { Texture } from './textures.js';
 import { VertexArray } from "./vertex_array.js";
@@ -24,10 +25,7 @@ export class Renderer extends RendererBase {
 
     this.textureCache = new Map();
 
-    this.frameBuffer = gl.createFramebuffer();
-    gl.bindFramebuffer(gl.FRAMEBUFFER, this.frameBuffer);
-    this.frameBuffer.width = width;
-    this.frameBuffer.height = height;
+    this.renderTargets = new RenderTargets(gl, width, height);
 
     this.frameBufferTexture2D = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, this.frameBufferTexture2D);
@@ -36,27 +34,6 @@ export class Renderer extends RendererBase {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     // We call texImage2D to initialise frameBufferTexture2D with the correct dimensions when it's used.
-
-    // Create a texture for color data and attach to the framebuffer.
-    this.frameBufferTexture3D = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D, this.frameBufferTexture3D);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.frameBufferTexture3D, 0);
-    gl.bindTexture(gl.TEXTURE_2D, null);
-
-    // Create a render buffer and attach to the framebuffer.
-    const renderbuffer = gl.createRenderbuffer();
-    gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer);
-    gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, width, height);
-    gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, renderbuffer);
-    gl.bindRenderbuffer(gl.RENDERBUFFER, null);
-
-    // Passing null binds the framebuffer to the canvas.
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
     this.blitShaderProgram = shaders.createShaderProgram(gl, "blit-shader-vs", "blit-shader-fs");
     this.blitSamplerUniform = gl.getUniformLocation(this.blitShaderProgram, "uSampler");
@@ -70,7 +47,34 @@ export class Renderer extends RendererBase {
     this.$textureOutput = $('#texture-content');
   }
 
+  get frameBuffer() { return this.renderTargets.current.framebuffer; }
+
+  setColorImage(image) {
+    this.renderTargets.bindColorImage(image, this.nativeTransform.viWidth, this.nativeTransform.viHeight);
+  }
+
+  syncFramebufferToRAM(address, ramDV) {
+    this.renderTargets.syncToRAM(address, ramDV);
+  }
+
+  markFramebufferDirty(positions, numVertices = positions.length / 4) {
+    let maxY = 0;
+    for (let i = 0; i < numVertices; i++) {
+      const w = positions[i * 4 + 3];
+      // Primitives crossing the near plane can extend beyond their projected
+      // vertices. In that case use the scissor limit conservatively.
+      if (w <= 0) {
+        maxY = this.state.scissor.y1;
+        break;
+      }
+      const y = (1 - positions[i * 4 + 1] / w) * this.nativeTransform.viHeight / 2;
+      maxY = Math.max(maxY, y);
+    }
+    this.renderTargets.markDirty(this.state.scissor, maxY);
+  }
+
   reset() {
+    this.renderTargets.reset();
     this.textureCache.clear();
     this.$textureOutput.html('');
   }
@@ -134,8 +138,8 @@ export class Renderer extends RendererBase {
     this.blitVA.unbind();
   }
 
-  copyBackBufferToFrontBuffer() {
-    this.copyTextureToFrontBuffer(this.frameBufferTexture3D);
+  copyBackBufferToFrontBuffer(address) {
+    this.copyTextureToFrontBuffer(this.renderTargets.textureForVI(address));
   }
 
   copyPixelsToFrontBuffer(pixels, width, height, bitDepth) {
@@ -187,6 +191,7 @@ export class Renderer extends RendererBase {
       gl.disable(gl.CULL_FACE);
     }
 
+    this.markFramebufferDirty(tb.positions, tb.numTris * 3);
     gl.drawArrays(gl.TRIANGLES, 0, tb.numTris * 3);
     //gl.drawArrays(gl.LINE_STRIP, 0, numTris * 3);
     tb.reset();
@@ -245,6 +250,7 @@ export class Renderer extends RendererBase {
   clearColor(color) {
     const gl = this.gl;
     gl.clearColor(color.r, color.g, color.b, color.a);
+    this.renderTargets.markDirty(this.state.scissor);
     gl.clear(gl.COLOR_BUFFER_BIT);
   }
 
@@ -275,6 +281,7 @@ export class Renderer extends RendererBase {
     gl.disable(gl.DEPTH_TEST);
     gl.depthMask(false);
 
+    this.renderTargets.markDirty(this.state.scissor, y1);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     this.fillRectVA.unbind();
   }
@@ -297,6 +304,7 @@ export class Renderer extends RendererBase {
       gl.disable(gl.DEPTH_TEST);
       gl.depthMask(false);
     }
+    this.markFramebufferDirty(vertices);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     gl.bindVertexArray(null);
   }
@@ -669,4 +677,3 @@ function shiftFactor(shift) {
   }
   return 1 << (16 - shift);
 }
-
