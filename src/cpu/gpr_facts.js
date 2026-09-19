@@ -16,6 +16,7 @@ const unknown64 = Object.freeze({ kind: 'unknown64' });
 const signExtended32 = Object.freeze({ kind: 'signExtended32' });
 const zeroExtended32 = Object.freeze({ kind: 'zeroExtended32' });
 const boolean32 = Object.freeze({ kind: 'zeroExtended32', boolean: true });
+const zero64 = Object.freeze(constant64(0n));
 
 export function constant64(value) {
   return { kind: 'constant64', value: BigInt.asIntN(64, value) };
@@ -45,7 +46,7 @@ export class GPRFacts {
 
   reset() {
     this.regs.fill(unknown64);
-    this.regs[0] = constant64(0n);
+    this.regs[0] = zero64;
   }
 
   get(reg) { return this.regs[reg]; }
