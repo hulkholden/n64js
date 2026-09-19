@@ -16,6 +16,15 @@ class UnsupportedMicrocodeError extends Error {
   }
 }
 
+export function assertHLESupported(info) {
+  // These families have their own command formats and SP signal protocols.
+  // Falling back to GBI0 reads unrelated data as commands; skipping execution
+  // and signalling task completion cannot satisfy their CPU/RSP handshake.
+  if (info.id === MicrocodeId.ZSORTP || info.id === MicrocodeId.ZSORT_BOSS) {
+    throw new UnsupportedMicrocodeError(info);
+  }
+}
+
 // The optional observer receives the already-computed classification after
 // construction, so changing its snapshot cannot affect handler selection.
 export function create(task, state, ramDV, onMicrocodeLoad = null) {
@@ -30,12 +39,8 @@ export function create(task, state, ramDV, onMicrocodeLoad = null) {
   const hash = task.computeMicrocodeHash();
   const info = identifyMicrocode(version, hash);
   logMicrocode(version, info.id);
-  // ZSortp has its own command formats, including linked objects and RDP lists.
-  // The GBI0 fallback ignores its end command and reads past the display list.
-  // Reject both task-start and in-list loads before executing any of its commands.
-  if (info.id === MicrocodeId.ZSORTP) {
-    throw new UnsupportedMicrocodeError(info);
-  }
+  // Check in-list loads as well as the initial task dispatch.
+  assertHLESupported(info);
   const microcode = createMicrocode(info.id, state, ramDV);
   microcode.version = version;
   onMicrocodeLoad?.(info);

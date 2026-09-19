@@ -31,4 +31,13 @@ describe('microcode identification', () => {
       });
     }
   });
+
+  test('identifies BOSS ZSort by hash without confusing it with Nintendo ZSortp', () => {
+    const hash = 0xe281945c;
+    for (const version of ['', 'RSP ZSortp 0.33', 'RSP Gfx ucode F3DEX fifo 2.0']) {
+      expect(identifyMicrocode(version, hash)).toEqual({
+        id: MicrocodeId.ZSORT_BOSS, family: 'ZSortBOSS', variant: null, version, hash, detection: 'hash',
+      });
+    }
+  });
 });

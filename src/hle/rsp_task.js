@@ -7,6 +7,7 @@ import * as logger from '../logger.js';
 import { audioOptions } from './audio_options.js';
 import { graphicsOptions } from './graphics_options.js';
 import { identifyMicrocode, MicrocodeId } from './microcode_identifier.js';
+import { assertHLESupported } from './microcodes.js';
 import { identifyAudioMicrocode } from './audio_microcode.js';
 
 // Task offset in dmem.
@@ -151,6 +152,10 @@ export function hleProcessRSPTask() {
       const microcode = identifyMicrocode(task.detectVersionString(), task.computeMicrocodeHash());
       hardware.onGraphicsTask?.({ ...microcode });
       if (graphicsOptions.emulationMode == 'HLE') {
+        // Reject unsupported protocols even when headless graphics are skipped.
+        // In particular, BOSS ZSort needs CPU/RSP signal exchanges before a
+        // task can complete; fabricating DP/SP completion leaves the CPU stuck.
+        assertHLESupported(microcode);
         const ev = hardware.timeline.startEvent(`HLE Task ${task.detectVersionString()}`);
         let continuation = null;
         // TODO: implement Factor 5's Indiana Jones microcode. Its linked display
