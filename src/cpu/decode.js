@@ -1,5 +1,26 @@
 // Helpers for decoding R4300 instructions.
 
+// Primary opcodes (bits 31..26) used to recognize relative branches.
+const OP_REGIMM = 0x01;
+const OP_BEQ = 0x04;
+const OP_BGTZ = 0x07;
+const OP_COP1 = 0x11;
+const OP_BEQL = 0x14;
+const OP_BGTZL = 0x17;
+
+// REGIMM subopcodes (bits 20..16).
+const REGIMM_BLTZ = 0x00;
+const REGIMM_BGEZ = 0x01;
+const REGIMM_BLTZL = 0x02;
+const REGIMM_BGEZL = 0x03;
+const REGIMM_BLTZAL = 0x10;
+const REGIMM_BGEZAL = 0x11;
+const REGIMM_BLTZALL = 0x12;
+const REGIMM_BGEZALL = 0x13;
+
+// COP1 subopcode (bits 25..21) shared by all COP1 condition branches.
+const COP1_BC = 0x08;
+
 export function simpleOp(i) { return (i >>> 26) & 0x3f; }
 export function regImmOp(i) { return (i >>> 16) & 0x1f; }
 export function specialOp(i) { return i & 0x3f; }
@@ -32,12 +53,15 @@ export function needsWideInstruction(pc, i) {
   const op = simpleOp(i);
   const relative =
     // BEQ, BNE, BLEZ, BGTZ and their likely variants.
-    (op >= 4 && op <= 7) || (op >= 20 && op <= 23) ||
+    (op >= OP_BEQ && op <= OP_BGTZ) || (op >= OP_BEQL && op <= OP_BGTZL) ||
     // REGIMM branches: BLTZ/BGEZ, including likely and link variants.
     // Other REGIMM instructions (such as immediate traps) do not branch.
-    (op === 1 && [0, 1, 2, 3, 16, 17, 18, 19].includes(regImmOp(i))) ||
+    (op === OP_REGIMM && [
+      REGIMM_BLTZ, REGIMM_BGEZ, REGIMM_BLTZL, REGIMM_BGEZL,
+      REGIMM_BLTZAL, REGIMM_BGEZAL, REGIMM_BLTZALL, REGIMM_BGEZALL,
+    ].includes(regImmOp(i))) ||
     // COP1 condition branches (BC1F/T and their likely variants).
-    (op === 17 && copOp(i) === 8);
+    (op === OP_COP1 && copOp(i) === COP1_BC);
   if (!relative) return false;
 
   // Keep the sum as a Number without truncating it to 32 bits: crossing
