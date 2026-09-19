@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, test } from 'bun:test';
 import { ControllerInputs } from './controllers.js';
 import { Joybus } from './joybus.js';
-import { MemoryRegion } from './memory_region.js';
+import { MemoryRegion } from './memory/memory_region.js';
 
 let hardware;
 let inputs;

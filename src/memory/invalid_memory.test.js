@@ -1,9 +1,9 @@
 import { describe, expect, test, spyOn } from 'bun:test';
-import './headless_env.js';
-import { InvalidMemDevice } from './devices/ram.js';
+import '../headless_env.js';
+import { InvalidMemDevice } from '../devices/ram.js';
 import * as memory from './memaccess.js';
 
-const { Hardware } = await import('./hardware.js');
+const { Hardware } = await import('../hardware.js');
 const hardware = new Hardware({ save: 'Eeprom4k' }, { headless: true });
 
 describe('invalid memory', () => {

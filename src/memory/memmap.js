@@ -1,6 +1,6 @@
 
-import { toString32 } from './format.js';
-import * as logger from './logger.js';
+import { toString32 } from '../format.js';
+import * as logger from '../logger.js';
 
 export class MemoryMap {
   constructor(devices) {
