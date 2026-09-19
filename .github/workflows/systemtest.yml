@@ -75,12 +75,10 @@ jobs:
       - name: Compare results
         if: always()
         run: bun pr/src/systemtest/compare.js results "$ROM_REVISION"
-      - name: Upload results and ROMs
+      - name: Upload results
         if: always()
         uses: actions/upload-artifact@v6
         with:
           name: n64-systemtest
-          path: |
-            results/
-            roms/
+          path: results/
           if-no-files-found: warn
