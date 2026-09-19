@@ -37,4 +37,15 @@ export const compatibilityHacks = {
       { address: 0x800d4b00, expected: 0x14200031, replacement: 0x10000031 }, // BNE at, zero -> B
     ],
   },
+  'e2f35d53f1899760': {
+    name: 'Wave Race 64 Shindou Edition (Japan)',
+    enabled: true,
+    issue: 'https://github.com/hulkholden/n64js/issues/113',
+    // Another thread starts osEepromLongRead while osContInit is still in its
+    // 500 ms wait. The EEPROM timer queue is initialized only after that wait,
+    // so osRecvMesg dereferences a null thread-list head. Skip only the wait.
+    instructionPatches: [
+      { address: 0x800cc6c0, expected: 0x14200031, replacement: 0x10000031 }, // BNE at, zero -> B
+    ],
+  },
 };
