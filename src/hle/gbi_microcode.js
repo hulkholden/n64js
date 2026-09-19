@@ -451,8 +451,15 @@ export class GBIMicrocode {
   }
 
   executeSetConvert(cmd0, cmd1, dis) {
+    const k = this.state.convert;
+    k[0] = (cmd0 << 10) >> 23;
+    k[1] = (cmd0 << 19) >> 23;
+    k[2] = (((cmd0 & 15) << 5 | (cmd1 >>> 27)) << 23) >> 23;
+    k[3] = (cmd1 << 5) >> 23;
+    k[4] = (cmd1 << 14) >> 23;
+    k[5] = (cmd1 << 23) >> 23;
     if (dis) {
-      dis.text('gsDPSetConvert(???);');
+      dis.text(`gsDPSetConvert(${k.join(', ')});`);
     }
   }
 

@@ -169,6 +169,27 @@ function convertRGBA16(dstData, src, tile) {
   }
 }
 
+// Keep YUV samples as U,V,Y,255 in the host texture. The shader applies SetConvert
+// after sampling, so changing coefficients does not require decoding it again.
+// HLE TMEM keeps the packed UYVY layout instead of splitting Y and UV banks.
+// Alpha must be opaque here: canvas premultiplication would destroy chroma at
+// low luminance. The shader restores the YUV alpha (Y) after sampling.
+function convertYUV16(dstData, src, tile) {
+  for (let y = 0; y < tile.height; y++) {
+    const row = (tile.tmem << 3) + y * (tile.line << 4);
+    const swizzle = (y & 1) ? 4 : 0;
+    for (let x = 0; x < tile.width; x++) {
+      const pair = ((row + (x & ~1) * 2) ^ swizzle) & kTMEMAddressMask;
+      const luma = src[(pair + (x & 1) * 2 + 1) & kTMEMAddressMask];
+      const dst = (y * dstData.width + x) * 4;
+      dstData.data[dst + 0] = src[pair];
+      dstData.data[dst + 1] = src[(pair + 2) & kTMEMAddressMask];
+      dstData.data[dst + 2] = luma;
+      dstData.data[dst + 3] = 255;
+    }
+  }
+}
+
 /**
  * Converts N64 IA16 texels to the native RGBA format.
  * @param {!ImageData} dstData
@@ -552,6 +573,12 @@ export function convertTexels(dstData, tmem, tile, tlutFormat) {
   const convFn = (tlutFormat === gbi.TextureLUT.G_TT_IA16) ? convertIA16Pixel : convertRGBA16Pixel;
 
   switch (tile.format) {
+    case gbi.ImageFormat.G_IM_FMT_YUV:
+      if (tile.size === gbi.ImageSize.G_IM_SIZ_16b) {
+        convertYUV16(dstData, tmem, tile);
+        return true;
+      }
+      break;
     case gbi.ImageFormat.G_IM_FMT_RGBA:
       switch (tile.size) {
         case gbi.ImageSize.G_IM_SIZ_32b:

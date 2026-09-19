@@ -416,6 +416,15 @@ export class Renderer extends RendererBase {
 
     gl.uniform1f(shader.uAlphaThresholdUniform, alphaThreshold);
 
+    const k = this.state.convert;
+    gl.uniform4f(shader.uConvertUniform, (k[0] * 2 + 1) / 256, (k[1] * 2 + 1) / 256,
+      (k[2] * 2 + 1) / 256, (k[3] * 2 + 1) / 256);
+    gl.uniform2f(shader.uConvertK45Uniform, k[4] / 255, k[5] / 256);
+    gl.uniform1i(shader.uTextureConvertUniform, (this.state.rdpOtherModeH & gbi.G_TC_MASK) >>> gbi.G_MDSFT_TEXTCONV);
+    gl.uniform2i(shader.uTextureYUVUniform,
+      texture0 && tile0?.format === gbi.ImageFormat.G_IM_FMT_YUV ? 1 : 0,
+      texture1 && tile1?.format === gbi.ImageFormat.G_IM_FMT_YUV ? 1 : 0);
+
     gl.uniform4f(shader.uPrimColorUniform,
       ((this.state.primColor >>> 24) & 0xff) / 255.0,
       ((this.state.primColor >>> 16) & 0xff) / 255.0,

@@ -4,6 +4,7 @@ import { TMEM } from './tmem.js';
 
 describe('TMEM hash wrapping', () => {
   const formats = [
+    ['YUV16', gbi.ImageFormat.G_IM_FMT_YUV, gbi.ImageSize.G_IM_SIZ_16b, 4096],
     ['RGBA16', gbi.ImageFormat.G_IM_FMT_RGBA, gbi.ImageSize.G_IM_SIZ_16b, 4096],
     ['RGBA32', gbi.ImageFormat.G_IM_FMT_RGBA, gbi.ImageSize.G_IM_SIZ_32b, 4096],
     ['IA8', gbi.ImageFormat.G_IM_FMT_IA, gbi.ImageSize.G_IM_SIZ_8b, 4096],
