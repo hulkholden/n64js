@@ -425,17 +425,23 @@ export class CPU0 {
   conditionalBranch(cond, offset) {
     const effectiveOffset = cond ? (offset * 4) : 4;
     this.branchTarget = this.pc + 4 + effectiveOffset;
-    if (this.wideState) this.wideState.branchTarget = BigInt.asUintN(64, this.wideState.pc + 4n + BigInt(effectiveOffset));
+    if (this.wideState) this.setWideBranchTarget(effectiveOffset);
   }
 
   conditionalBranchLikely(cond, offset) {
     if (cond) {
       this.branchTarget = this.pc + 4 + (offset * 4);
-      if (this.wideState) this.wideState.branchTarget = BigInt.asUintN(64, this.wideState.pc + 4n + BigInt(offset * 4));
+      if (this.wideState) this.setWideBranchTarget(offset * 4);
     } else {
       this.nextPC += 4;  // Skip the next instruction
       if (this.wideState) this.wideState.nextPC = BigInt.asUintN(64, this.wideState.nextPC + 4n);
     }
+  }
+
+  setWideBranchTarget(byteOffset) {
+    // Relative branches are based on PC+4, with unsigned 64-bit wraparound.
+    const state = this.wideState;
+    state.branchTarget = BigInt.asUintN(64, state.pc + 4n + BigInt(byteOffset));
   }
 
   jump(pc) {
@@ -466,31 +472,55 @@ export class CPU0 {
   }
 
   fetchWideInstruction(address) {
+    // A wide jump can still have a delay slot at an ordinary address. Reuse
+    // the existing fetch path whenever sign extension reproduces all 64 bits.
     const signed32 = BigInt.asUintN(64, BigInt(Number(address & 0xffffffffn) | 0));
-    if (address === signed32) return memaccess.loadU32fast(Number(address & 0xffffffffn) | 0);
+    if (address === signed32) {
+      return memaccess.loadU32fast(Number(address & 0xffffffffn) | 0);
+    }
 
+    // Exceptions force kernel mode; otherwise KSU selects which address-size
+    // enable bit (UX, SX or KX) and segment permissions apply to this fetch.
     const status = this.getControlU32(cpu0reg.controlStatus);
     const mode = status & (SR_EXL | SR_ERL) ? SR_KSU_KER : status & SR_KSU_MASK;
     const enabled = status & (mode === SR_KSU_USR ? SR_UX : mode === SR_KSU_SUP ? SR_SX : SR_KX);
+
+    // The top two bits select XUSEG, XSSEG, XKPHYS or XKSEG respectively.
     const region = Number(address >> 62n);
     // VR4300 manual, table 5-4: mapped segments have 40-bit offsets;
     // XKPHYS has a 32-bit physical address plus its cache attribute bits.
     const reserved = region === 2 ? address & 0x07ffffff00000000n : address & 0x3fffff0000000000n;
+
     if (!enabled || (address & 3n) || reserved ||
+        // XKSEG ends before the sign-extended 32-bit kernel segments.
         (region === 3 && (address & 0xffffffffffn) > 0xff7fffffffn) ||
+        // User mode can fetch only XUSEG; supervisor can also fetch XSSEG.
         (mode === SR_KSU_USR && region !== 0) || (mode === SR_KSU_SUP && region > 1)) {
       this.raiseAddressException(E_VEC, cpu0reg.causeExcCodeAdEL, address);
       throw new EmulatedException('AdEL instruction fetch');
     }
-    if (region === 2) return this.fetchPhysicalInstruction(Number(address & 0xffffffffn));
+
+    // XKPHYS bypasses the TLB; its low word is the physical address.
+    if (region === 2) {
+      return this.fetchPhysicalInstruction(Number(address & 0xffffffffn));
+    }
+
+    // Mapped segments need the full VPN and region, plus ASID/global matching.
+    // The page-size check bit selects the even or odd half of the TLB entry.
     const tlb = this.tlbFindEntry64(address);
-    if (!tlb || !((Number(address & 0xffffffffn) & tlb.checkbit ? tlb.pfno : tlb.pfne) & TLBLO_V)) {
+    const low = Number(address & 0xffffffffn);
+    const oddPage = tlb && (low & tlb.checkbit) !== 0;
+    const validPage = tlb && ((oddPage ? tlb.pfno : tlb.pfne) & TLBLO_V) !== 0;
+    if (!validPage) {
+      // A miss outside exception level uses the extended refill vector.
+      // Invalid entries and misses during exception handling use the general one.
       const vector = !tlb && !(status & SR_EXL) ? XUT_VEC : E_VEC;
       this.raiseTLBException(vector, cpu0reg.causeExcCodeTLBL, address);
       throw new EmulatedException('TLBL instruction fetch');
     }
-    const low = Number(address & 0xffffffffn);
-    const phys = (low & tlb.checkbit ? tlb.physOdd : tlb.physEven) | (low & tlb.offsetMask);
+
+    // Combine the selected physical page base with the offset within that page.
+    const phys = (oddPage ? tlb.physOdd : tlb.physEven) | (low & tlb.offsetMask);
     return this.fetchPhysicalInstruction(phys >>> 0);
   }
 
@@ -518,19 +548,44 @@ export class CPU0 {
 
   executeWideInstruction(instruction) {
     const state = this.wideState;
+
+    // In a delay slot, the pending branch supplies the next PC. Otherwise
+    // advance sequentially. A branch executed below can schedule a new target;
+    // null means no branch, since zero is a valid full-width branch target.
     state.nextPC = state.delayPC ?? BigInt.asUintN(64, state.pc + 4n);
     state.branchTarget = null;
+
+    // Existing instruction handlers still use the Number fields. Mirror their
+    // low words while wide-aware control-flow handlers update state in full.
     this.nextPC = Number(state.nextPC & 0xffffffffn);
     this.branchTarget = 0;
-    if (instruction === undefined) instruction = this.fetchWideInstruction(state.pc);
+
+    // Boundary handoffs may supply an instruction already fetched by dispatch.
+    // Keep the current PC and delay state intact until execution completes so
+    // fetch/execution exceptions can record the correct EPC and BD flag.
+    if (instruction === undefined) {
+      instruction = this.fetchWideInstruction(state.pc);
+    }
     executeOp(instruction);
+
+    // Commit the next PC and any newly scheduled branch, including changes
+    // made by exception handlers or ERET during execution.
     state.pc = state.nextPC;
     state.delayPC = state.branchTarget;
     this.pc = Number(state.pc & 0xffffffffn);
+    // Preserve a nonzero delay marker even when the target's low word is zero.
     this.delayPC = state.delayPC === null ? 0 : Number(state.delayPC & 0xffffffffn) || 1;
+
+    // Return to ordinary execution only when both the next instruction and
+    // any pending target can be represented by sign-extended 32-bit PCs.
     const canonical = address => address === BigInt.asUintN(64, BigInt(Number(address & 0xffffffffn) | 0));
     // Zero is the fast path's no-delay sentinel, so consume a branch to zero here.
-    if (canonical(state.pc) && (state.delayPC === null || (state.delayPC !== 0n && canonical(state.delayPC)))) this.wideState = null;
+    const ordinaryDelay = state.delayPC === null || (state.delayPC !== 0n && canonical(state.delayPC));
+    if (canonical(state.pc) && ordinaryDelay) {
+      this.wideState = null;
+    }
+
+    // Charge the completed instruction once, regardless of the execution mode.
     this.incrementCount(1);
     this.eventQueue.incrementCount(1);
   }

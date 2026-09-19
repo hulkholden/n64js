@@ -19,13 +19,30 @@ export function offset(i) { return ((i & 0xffff) << 16) >> 16; }
 // These rare instructions can leave the sign-extended 32-bit PC range without
 // a register jump. Recompilation resolves this test at compile time.
 export function needsWideInstruction(pc, i) {
+  // PC+4 (sequential execution) or PC+8 (a link address / annulled delay slot)
+  // can cross bit 31 or wrap the low word here. Hand off before either value
+  // is calculated so the wide interpreter preserves the full address.
   if (pc === 0x7ffffff8 || pc === 0x7ffffffc || pc >= 0xfffffff8) return true;
+
+  // A signed 16-bit branch displacement, scaled by four, can only cross the
+  // signed 32-bit boundary from this window: 0x7ffe0000 through 0x8001ffff.
+  // The unsigned subtraction rejects all other PCs without decoding the op.
   if (((pc - 0x7ffe0000) >>> 0) >= 0x40000) return false;
+
   const op = simpleOp(i);
-  const relative = (op >= 4 && op <= 7) || (op >= 20 && op <= 23) ||
+  const relative =
+    // BEQ, BNE, BLEZ, BGTZ and their likely variants.
+    (op >= 4 && op <= 7) || (op >= 20 && op <= 23) ||
+    // REGIMM branches: BLTZ/BGEZ, including likely and link variants.
+    // Other REGIMM instructions (such as immediate traps) do not branch.
     (op === 1 && [0, 1, 2, 3, 16, 17, 18, 19].includes(regImmOp(i))) ||
+    // COP1 condition branches (BC1F/T and their likely variants).
     (op === 17 && copOp(i) === 8);
   if (!relative) return false;
+
+  // Keep the sum as a Number without truncating it to 32 bits: crossing
+  // either signed limit means the target cannot use the ordinary PC path.
+  // This is conservative; the branch condition is evaluated at execution.
   const target = (pc | 0) + 4 + offset(i) * 4;
   return target < -0x80000000 || target > 0x7fffffff;
 }
