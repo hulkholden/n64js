@@ -8,6 +8,7 @@ import { GBI1SDEX, GBI2SDEX } from './gbi_s2dex.js';
 import { graphicsOptions } from './graphics_options.js';
 import { identifyMicrocode, MicrocodeId } from './microcode_identifier.js';
 import { Turbo3D } from './turbo3d.js';
+import { T3DUX } from './t3dux.js';
 
 class UnsupportedMicrocodeError extends Error {
   constructor(info) {
@@ -65,6 +66,10 @@ function createMicrocode(ucode, state, ramDV) {
       return new GBI1(state, ramDV);
     case MicrocodeId.GBI1_LL:
       return new GBI1LL(state, ramDV);
+    case MicrocodeId.T3DUX:
+      return new T3DUX(state, ramDV, false);
+    case MicrocodeId.T3DUX_BRAVE:
+      return new T3DUX(state, ramDV, true);
     case MicrocodeId.TURBO3D:
       return new Turbo3D(state, ramDV);
     case MicrocodeId.GBI1_SDEX:

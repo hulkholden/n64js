@@ -2,7 +2,7 @@ import { toString32 } from '../format.js';
 import { Matrix4x4 } from '../graphics/Matrix4x4.js';
 import { Vector3 } from '../graphics/Vector3.js';
 import * as gbi from './gbi.js';
-import { GBIMicrocode } from './gbi_microcode.js';
+import { ObjectMicrocode } from './object_microcode.js';
 
 const GT_FLAG_NOMTX = 0x01;
 const GT_FLAG_NO_XFM = 0x02;
@@ -10,7 +10,7 @@ const GT_FLAG_XFM_ONLY = 0x04;
 
 // Turbo3D uses gtGfx objects (four segmented pointers), not GBI opcodes.
 // Layouts: SDK PR/gt.h and the gspTurbo3D programming reference.
-export class Turbo3D extends GBIMicrocode {
+export class Turbo3D extends ObjectMicrocode {
   constructor(state, ramDV) {
     super(state, ramDV);
     this.transform = Matrix4x4.identity();
@@ -33,26 +33,13 @@ export class Turbo3D extends GBIMicrocode {
         const vertices = dv.getUint32(pc + 8);
         const triangles = dv.getUint32(pc + 12);
         state.pc += 16;
-        if (global) this.loadGlobalState(global, dis);
+        if (global) this.loadGlobalState(global, dis, 1);
         this.loadObject(object, vertices, triangles, dis);
       }
       if (dis) dis.end();
       // Each object, including its RDP blocks and triangles, is one debug op.
       if (state.postOp(dis ? -1 : bailAfter)) break;
     }
-  }
-
-  loadGlobalState(pointer, dis) {
-    const address = this.state.rdpSegmentAddress(pointer);
-    const dv = this.ramDV;
-    this.executeSetRDPOtherMode(dv.getUint32(address + 8), dv.getUint32(address + 12), dis);
-    // Segment zero is reserved for physical addresses in Turbo3D.
-    this.state.segments[0] = 0;
-    for (let i = 1; i < 16; i++) {
-      this.state.segments[i] = dv.getUint32(address + 16 + i * 4);
-    }
-    this.loadViewport(address + 80);
-    this.processRDP(dv.getUint32(address + 96), dis);
   }
 
   loadObject(pointer, vertices, triangles, dis) {
@@ -132,31 +119,5 @@ export class Turbo3D extends GBIMicrocode {
       }
     }
     this.renderer.flushTris(tb);
-  }
-
-  processRDP(pointer, dis) {
-    if (!pointer) return;
-    const dv = this.ramDV;
-    let pc = this.state.rdpSegmentAddress(pointer);
-    for (;;) {
-      const cmd0 = dv.getUint32(pc);
-      const cmd1 = dv.getUint32(pc + 4);
-      pc += 8;
-      // gDPEndDisplayList is a zero pair; it is not a GBI SPNoOp.
-      if (cmd0 === 0 && cmd1 === 0) return;
-      const opcode = cmd0 >>> 24;
-      if (opcode === 0xe4 || opcode === 0xe5) {
-        // Raw RDP rectangles have one extra 64-bit word, without RDPHalf opcodes.
-        const cmd2 = dv.getUint32(pc);
-        const cmd3 = dv.getUint32(pc + 4);
-        pc += 8;
-        if (opcode === 0xe4) this.rdpTexRect(cmd0, cmd1, cmd2, cmd3, dis);
-        else this.rdpTexRectFlip(cmd0, cmd1, cmd2, cmd3, dis);
-      } else {
-        const handler = this.getHandler(opcode);
-        if (!handler) throw new Error(`Unsupported Turbo3D RDP command ${toString32(cmd0)}`);
-        handler(cmd0, cmd1, dis);
-      }
-    }
   }
 }
