@@ -10,7 +10,7 @@ import { toString32 } from "./format.js";
 export function makeEnum(values) {
   values.nameOf = value => {
     for (let name in values) {
-      if (Object.prototype.hasOwnProperty.call(values, name) && values[name] === value) {
+      if (Object.hasOwn(values, name) && values[name] === value) {
         return name;
       }
     }

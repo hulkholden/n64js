@@ -203,7 +203,7 @@ export class DebugController {
     const $tr = $('<tr />');
 
     for (let i in this.state.geometryMode) {
-      if (Object.prototype.hasOwnProperty.call(this.state.geometryMode, i)) {
+      if (Object.hasOwn(this.state.geometryMode, i)) {
         const $td = $(`<td>${i}</td>`);
         $td.addClass(this.state.geometryMode[i] ? 'dl-debug-geommode-enabled' : 'dl-debug-geommode-disabled');
         $tr.append($td);
