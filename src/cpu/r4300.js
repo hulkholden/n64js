@@ -1653,6 +1653,11 @@ export class CPU0 {
 
   execLWC1(rt, base, imms) {
     if (!this.checkCopXUsable(1)) { return; }
+    this.execLWC1Unchecked(rt, base, imms);
+  }
+
+  // Caller must have established that COP1 is usable.
+  execLWC1Unchecked(rt, base, imms) {
     cpu1.store32(cpu1.copRegIdx32(rt), memaccess.loadS32fast(this.addrS32(base, imms)));
   }
 
@@ -1663,6 +1668,11 @@ export class CPU0 {
 
   execLDC1(rt, base, imms) {
     if (!this.checkCopXUsable(1)) { return; }
+    this.execLDC1Unchecked(rt, base, imms);
+  }
+
+  // Caller must have established that COP1 is usable.
+  execLDC1Unchecked(rt, base, imms) {
     const value = memaccess.loadU64fast(this.addrS32(base, imms));
     cpu1.store64(cpu1.copRegIdx64(rt), value);
   }
@@ -1719,6 +1729,11 @@ export class CPU0 {
 
   execSWC1(rt, base, imms) {
     if (!this.checkCopXUsable(1)) { return; }
+    this.execSWC1Unchecked(rt, base, imms);
+  }
+
+  // Caller must have established that COP1 is usable.
+  execSWC1Unchecked(rt, base, imms) {
     memaccess.store32fast(this.addrS32(base, imms), cpu1.loadU32(cpu1.copRegIdx32(rt)));
   }
 
@@ -1729,6 +1744,11 @@ export class CPU0 {
 
   execSDC1(rt, base, imms) {
     if (!this.checkCopXUsable(1)) { return; }
+    this.execSDC1Unchecked(rt, base, imms);
+  }
+
+  // Caller must have established that COP1 is usable.
+  execSDC1Unchecked(rt, base, imms) {
     memaccess.store64fast(this.addrS32(base, imms), cpu1.loadU64(cpu1.copRegIdx64(rt)));
   }
 
