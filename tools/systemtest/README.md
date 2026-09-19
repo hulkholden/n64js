@@ -63,7 +63,7 @@ bun src/systemtest/run.js . /tmp/systemtest-roms/main.z64 /tmp/main.json
 
 The runner exits 0 for a clean completed run, 1 for completed runs with failures,
 and 2 for incomplete/error runs. To opt into upstream categories or build fewer
-groups, use e.g. `--features base,timing --categories main tlb`. The default CI
+groups, use e.g. `--features base,timing --categories main,tlb`. The default CI
 comparison expects all three groups; keep its group list and workflow loop in
 sync if changing that policy.
 

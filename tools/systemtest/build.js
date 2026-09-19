@@ -2,11 +2,12 @@
 // Build isolated ROMs without changing test bodies or upstream's default selection.
 import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { parseArgs as parseCliArgs } from 'node:util';
 
 const categories = ['main', 'tlb', 'tlb64'];
 const romPath = 'target/mips-nintendo64-none/release/n64-systemtest.z64';
 const usage = 'Usage: bun tools/systemtest/build.js <source> <output> --revision <sha>\n' +
-  '  [--categories main tlb tlb64] [--features base,timing]';
+  '  [--categories main,tlb,tlb64] [--features base,timing]';
 
 /**
  * @typedef {Object} BuildArgs
@@ -17,36 +18,35 @@ const usage = 'Usage: bun tools/systemtest/build.js <source> <output> --revision
  * @property {string} features
  */
 
-/** @param {string[]} argv @returns {BuildArgs} */
+/** @param {string[]} argv @returns {BuildArgs | null} Null requests help. */
 export function parseArgs(argv) {
-  const positionals = [];
-  const args = { revision: '', categories: [...categories], features: 'base' };
-  for (let i = 0; i < argv.length; i++) {
-    const arg = argv[i];
-    if (arg === '--categories') {
-      args.categories = [];
-      while (i + 1 < argv.length && !argv[i + 1].startsWith('--')) {
-        args.categories.push(argv[++i]);
-      }
-      if (!args.categories.length || args.categories.some(value => !categories.includes(value))) {
-        throw new Error(`--categories requires one or more of: ${categories.join(', ')}`);
-      }
-    } else if (arg === '--revision' || arg === '--features') {
-      const value = argv[++i];
-      if (!value || value.startsWith('--')) throw new Error(`${arg} requires a value`);
-      if (arg === '--revision') args.revision = value;
-      else args.features = value;
-    } else if (arg.startsWith('-')) {
-      throw new Error(`Unknown option: ${arg}`);
-    } else {
-      positionals.push(arg);
-    }
+  const { values, positionals } = parseCliArgs({
+    args: argv,
+    allowPositionals: true,
+    options: {
+      revision: { type: 'string' },
+      categories: { type: 'string', default: categories.join(',') },
+      features: { type: 'string', default: 'base' },
+      help: { type: 'boolean', short: 'h' },
+    },
+  });
+  if (values.help) return null;
+  if (positionals.length !== 2 || !values.revision) throw new Error(usage);
+
+  const selectedCategories = values.categories.split(',');
+  if (selectedCategories.some(value => !categories.includes(value))) {
+    throw new Error(`--categories requires one or more of: ${categories.join(', ')}`);
   }
-  if (positionals.length !== 2 || !args.revision) throw new Error(usage);
-  if (args.features.split(',').some(feature => !feature || feature.startsWith('ci-'))) {
+  if (values.features.split(',').some(feature => !feature || feature.startsWith('ci-'))) {
     throw new Error('--features must contain upstream feature names only');
   }
-  return { ...args, source: resolve(positionals[0]), output: resolve(positionals[1]) };
+  return {
+    source: resolve(positionals[0]),
+    output: resolve(positionals[1]),
+    revision: values.revision,
+    categories: selectedCategories,
+    features: values.features,
+  };
 }
 
 /** @param {string} source @param {string[]} args @returns {string} */
@@ -141,12 +141,11 @@ async function buildRom(source, output, category, features) {
 
 /** @returns {Promise<void>} */
 async function main() {
-  const argv = Bun.argv.slice(2);
-  if (argv.includes('--help') || argv.includes('-h')) {
+  const args = parseArgs(Bun.argv.slice(2));
+  if (!args) {
     console.log(usage);
     return;
   }
-  const args = parseArgs(argv);
   const revision = validateRevision(args.source, args.revision);
   const counts = await prepareSource(args.source);
   await mkdir(args.output, { recursive: true });

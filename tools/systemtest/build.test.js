@@ -7,16 +7,25 @@ test('build arguments default to all groups and accept explicit categories/featu
   expect(parseArgs(requiredArgs)).toMatchObject({
     revision: 'abc123', categories: ['main', 'tlb', 'tlb64'], features: 'base',
   });
-  expect(parseArgs([...requiredArgs, '--categories', 'main', 'tlb', '--features', 'base,timing']))
+  expect(parseArgs([...requiredArgs, '--categories', 'main,tlb', '--features', 'base,timing']))
     .toMatchObject({ categories: ['main', 'tlb'], features: 'base,timing' });
+});
+
+test('build arguments support standard equals syntax and help', () => {
+  expect(parseArgs(['source', 'output', '--revision=abc123', '--categories=tlb,tlb64']))
+    .toMatchObject({ revision: 'abc123', categories: ['tlb', 'tlb64'] });
+  expect(parseArgs(['--help'])).toBeNull();
+  expect(parseArgs(['-h'])).toBeNull();
 });
 
 test('invalid build selections fail before touching the checkout', () => {
   expect(() => parseArgs(['source', 'output'])).toThrow('Usage:');
   expect(() => parseArgs([...requiredArgs, '--categories'])).toThrow('--categories');
+  expect(() => parseArgs([...requiredArgs, '--categories', ''])).toThrow('--categories');
+  expect(() => parseArgs([...requiredArgs, '--unknown'])).toThrow();
   expect(() => parseArgs([...requiredArgs, '--categories', 'typo'])).toThrow('--categories');
   expect(() => parseArgs([...requiredArgs, '--features', 'ci-main'])).toThrow('upstream');
-  expect(() => parseArgs([...requiredArgs, '--features'])).toThrow('requires a value');
+  expect(() => parseArgs([...requiredArgs, '--features'])).toThrow('--features');
 });
 
 test('registry rewrite fails closed when upstream boundaries or registrations change', () => {
