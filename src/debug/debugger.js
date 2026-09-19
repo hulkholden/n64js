@@ -75,7 +75,7 @@ export class Debugger {
     this.labelMap = new Map();
 
     /** @type {number} How many cycles to execute before updating the debugger. */
-    this.debugCycles = Math.pow(10, 0);
+    this.debugCycles = 10 ** 0;
 
     logger.initialise($('.output'), () => {
       return toString32(cpu0.pc);
@@ -90,8 +90,8 @@ export class Debugger {
     const that = this;
 
     $('#cpu-speed').change(function () {
-      that.debugCycles = Math.pow(10, $(this).val() | 0);
-      logger.log('Speed is now ' + that.debugCycles);
+      that.debugCycles = 10 ** ($(this).val() | 0);
+      logger.log(`Speed is now ${that.debugCycles}`);
     });
 
     $('#cpu').find('#address').change(function () {
@@ -623,7 +623,7 @@ export class Debugger {
     t += '<table class="table table-condensed table-nonfluid"><tr><th>Execution Count</th><th>Frequency</th></tr>';
     for (let i = 0; i <= maxBucket; i++) {
       let count = histogram.get(i) || 0;
-      let range = `< ${Math.pow(10, i + 1)}`;
+      let range = `< ${10 ** (i + 1)}`;
       t += `<tr><td>${range}</td><td>${count}</td></tr>`;
     }
     t += '</table>';
