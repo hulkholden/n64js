@@ -1,6 +1,7 @@
 /*global n64js*/
 
 import * as cpu0reg from './cpu0reg.js';
+import { GPRFacts, constant64, isSigned32, isUnsigned32, isKnown32 } from './gpr_facts.js';
 import { convertModeCeil, convertModeFloor, convertModeRound, convertModeTrunc } from './cpu1.js';
 import { disassembleInstruction } from './disassemble.js';
 import { toString32 } from '../format.js';
@@ -48,6 +49,9 @@ export class FragmentContext {
     this.isTrivial = false; // Set by the code generation handler if the op is considered trivial.
     this.delayedPCUpdate = 0; // Trivial ops can try to delay setting the pc so that back-to-back trivial ops can emit them entirely.
     this.dump = false; // Display this op when finished.
+    this.gprFacts = new GPRFacts();
+    this.forwardedComparison = null;
+    this.pendingComparison = null;
   }
 
   genAssert(test, msg) {
@@ -59,9 +63,13 @@ export class FragmentContext {
   
   newFragment() {
     this.delayedPCUpdate = 0;
+    this.gprFacts.reset();
+    this.forwardedComparison = null;
   }
 
   set(fragment, pc, instruction, postPC, nextPC) {
+    // Also cover direct code-generation callers and invalidated/rebuilt traces.
+    if (this.fragment !== fragment || fragment.opsCompiled <= 1) this.newFragment();
     this.fragment = fragment;
     this.pc = pc;
     this.instruction = instruction;
@@ -71,6 +79,7 @@ export class FragmentContext {
 
     this.needsDelayCheck = true;
     this.isTrivial = false;
+    this.pendingComparison = null;
 
     this.dump = false;
 
@@ -109,6 +118,8 @@ export function generateCodeForOp(ctx) {
   }
 
   let fn_code = preflight + generateOp(ctx);
+  ctx.gprFacts.update(ctx.instruction);
+  ctx.forwardedComparison = ctx.pendingComparison;
 
   if (ctx.dump) {
     console.log(fn_code);
@@ -374,6 +385,55 @@ function genSrcRegU64(i) {
   if (i === 0)
     return '0n';
   return `c.getRegU64(${i})`;
+}
+
+function genKnownNumber(reg, fact) {
+  if (fact.kind === 'constant64') return `${Number(fact.value)}`;
+  return `c.getReg${isSigned32(fact) ? 'S' : 'U'}32Lo(${reg})`;
+}
+
+function genLessThan(ctx, s, t, unsigned, immediate = null) {
+  const sf = ctx.gprFacts.get(s);
+  const tf = immediate === null ? ctx.gprFacts.get(t) : constant64(BigInt(immediate));
+  if (unsigned) {
+    // Unsigned ordering of two sign-extended words matches their unsigned low
+    // words. A mixed signed/zero-extended pair does NOT have this property.
+    if ((isSigned32(sf) && isSigned32(tf)) || (isUnsigned32(sf) && isUnsigned32(tf))) {
+      const rhs = immediate === null ? genSrcRegU32Lo(t) : `${immediate >>> 0}`;
+      return `${genSrcRegU32Lo(s)} < ${rhs}`;
+    }
+    const rhs = immediate === null ? genSrcRegU64(t) : `${BigInt.asUintN(64, BigInt(immediate))}n`;
+    return `${genSrcRegU64(s)} < ${rhs}`;
+  }
+  if (isKnown32(sf) && isKnown32(tf)) {
+    return `${genKnownNumber(s, sf)} < ${genKnownNumber(t, tf)}`;
+  }
+  return `${genSrcRegS64(s)} < ${immediate === null ? genSrcRegS64(t) : `${immediate}n`}`;
+}
+
+function generateComparison(ctx, d, s, t, unsigned, immediate = null) {
+  const name = `compare_${ctx.fragment.opsCompiled}`;
+  if (d !== 0) ctx.pendingComparison = { reg: d, name, index: ctx.fragment.opsCompiled };
+  // var spans the per-instruction blocks, but is local to this invocation.
+  // Materialize the architectural result before any intervening RSP step/exit.
+  const impl = `var ${name} = ${genLessThan(ctx, s, t, unsigned, immediate)};\n` +
+    `c.setRegU32Extend(${d}, ${name} ? 1 : 0);`;
+  return generateTrivialOpBoilerplate(impl, ctx);
+}
+
+function genEquality(ctx, s, t, equal) {
+  const forwarded = ctx.forwardedComparison;
+  if (forwarded && forwarded.index + 1 === ctx.fragment.opsCompiled &&
+      ((s === forwarded.reg && t === 0) || (t === forwarded.reg && s === 0))) {
+    return `${equal ? '!' : ''}${forwarded.name}`;
+  }
+  const op = equal ? '===' : '!==';
+  const sf = ctx.gprFacts.get(s);
+  const tf = ctx.gprFacts.get(t);
+  if (isKnown32(sf) && isKnown32(tf)) {
+    return `${genKnownNumber(s, sf)} ${op} ${genKnownNumber(t, tf)}`;
+  }
+  return `${genSrcRegU64(s)} ${op} ${genSrcRegU64(t)}`;
 }
 
 function generateUnknown(ctx) {
@@ -644,13 +704,11 @@ function generateNOR(ctx) {
 }
 
 function generateSLT(ctx) {
-  const impl = `c.execSLT(${ctx.instr_rd()}, ${ctx.instr_rt()}, ${ctx.instr_rs()});`;
-  return generateTrivialOpBoilerplate(impl, ctx);
+  return generateComparison(ctx, ctx.instr_rd(), ctx.instr_rs(), ctx.instr_rt(), false);
 }
 
 function generateSLTU(ctx) {
-  const impl = `c.execSLTU(${ctx.instr_rd()}, ${ctx.instr_rt()}, ${ctx.instr_rs()});`;
-  return generateTrivialOpBoilerplate(impl, ctx);
+  return generateComparison(ctx, ctx.instr_rd(), ctx.instr_rs(), ctx.instr_rt(), true);
 }
 
 function generateADDI(ctx) {
@@ -824,7 +882,7 @@ function generateBEQ(ctx) {
     }
     impl += `c.delayPC = ${toString32(addr)};\n`;
   } else {
-    impl += `if (${genSrcRegU64(s)} === ${genSrcRegU64(t)}) {\n`;
+    impl += `if (${genEquality(ctx, s, t, true)}) {\n`;
     if (kSpeedHackEnabled && off === -1) {
       impl += '  c.speedHack();\n';
       ctx.bailOut = true;
@@ -844,7 +902,7 @@ function generateBEQL(ctx) {
   const addr = branchAddress(ctx.pc, ctx.instruction);
 
   const impl = dedent(`
-      if (${genSrcRegU64(s)} === ${genSrcRegU64(t)}) {
+      if (${genEquality(ctx, s, t, true)}) {
         c.delayPC = ${toString32(addr)};
       } else {
         c.nextPC += 4;
@@ -860,7 +918,7 @@ function generateBNE(ctx) {
   const addr = branchAddress(ctx.pc, ctx.instruction);
 
   let impl = '';
-  impl += `if (${genSrcRegU64(s)} !== ${genSrcRegU64(t)}) {\n`;
+  impl += `if (${genEquality(ctx, s, t, false)}) {\n`;
   if (kSpeedHackEnabled && off === -1) {
     impl += '  c.speedHack();\n';
     ctx.bailOut = true;
@@ -879,7 +937,7 @@ function generateBNEL(ctx) {
   const addr = branchAddress(ctx.pc, ctx.instruction);
 
   const impl = dedent(`
-      if (${genSrcRegU64(s)} !== ${genSrcRegU64(t)}) {
+      if (${genEquality(ctx, s, t, false)}) {
         c.delayPC = ${toString32(addr)};
       } else {
         c.nextPC += 4;
@@ -1062,13 +1120,11 @@ function generateTNEI(ctx) {
 }
 
 function generateSLTI(ctx) {
-  const impl = `c.execSLTI(${ctx.instr_rt()}, ${ctx.instr_rs()}, ${ctx.instr_imms()});`;
-  return generateTrivialOpBoilerplate(impl, ctx);
+  return generateComparison(ctx, ctx.instr_rt(), ctx.instr_rs(), 0, false, ctx.instr_imms());
 }
 
 function generateSLTIU(ctx) {
-  const impl = `c.execSLTIU(${ctx.instr_rt()}, ${ctx.instr_rs()}, ${ctx.instr_imms()});`;
-  return generateTrivialOpBoilerplate(impl, ctx);
+  return generateComparison(ctx, ctx.instr_rt(), ctx.instr_rs(), 0, true, ctx.instr_imms());
 }
 
 function generateANDI(ctx) {
