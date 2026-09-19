@@ -719,30 +719,30 @@ describe('graphics task callback', () => {
 });
 
 describe('audio task callback', () => {
-  test('reports unknown audio starts in LLE and Disabled modes without handling the task', async () => {
+  test('reports copied images in LLE and Disabled modes without handling the task', async () => {
     const previous = audioOptions.emulationMode;
     try {
       for (const mode of ['LLE', 'Disabled']) {
         audioOptions.emulationMode = mode;
         const seen = [];
-        const emulator = await createEmulator({ onAudioTask: info => { seen.push(info); return true; } });
+        const emulator = await createEmulator({ onAudioTask: image => { seen.push(image); return true; } });
         prepareGraphicsTask(emulator);
         startRSPTask(emulator, 1);
         expect(seen).toEqual([]);
         emulator.hardware.rsp.halt(0);
         startRSPTask(emulator, 2);
-        expect(seen).toEqual([{ family: 'Unknown', detection: 'unknown' }]);
+        expect(seen).toHaveLength(1);
         expect(emulator.hardware.rsp.halted).toBe(mode === 'Disabled');
-        seen[0].family = 'changed by observer';
+        const firstCode = seen[0].code.slice();
+        emulator.hardware.ram.u8.fill(123, 0x1000, 0x1040);
+        expect(seen[0].code).toEqual(firstCode);
         startRSPTask(emulator, 2);
         expect(seen).toHaveLength(2);
-        expect(seen[1]).toEqual({ family: 'Unknown', detection: 'unknown' });
-        expect(seen[1]).not.toBe(seen[0]);
+        expect(seen[1].code).not.toBe(seen[0].code);
         emulator.hardware.reset();
         prepareGraphicsTask(emulator);
         startRSPTask(emulator, 2);
         expect(seen).toHaveLength(3);
-        expect(seen[2]).toEqual({ family: 'Unknown', detection: 'unknown' });
       }
     } finally {
       audioOptions.emulationMode = previous;

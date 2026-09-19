@@ -451,10 +451,11 @@ describe('inventory command', () => {
       const result = await invoke(directory, ['audio.z64', '--frames', '1', '--output', 'report.json']);
       expect(result.code).toBe(0);
       const report = JSON.parse(await readFile(join(directory, 'report.json'), 'utf8'));
-      expect(report.collectors['audio.taskMicrocodes']).toEqual({
+      expect(report.collectors['audio.taskMicrocodes']).toMatchObject({
         version: 1, scope: 'task-start', tasks: 2,
-        microcodes: [{ family: 'Unknown', detection: 'unknown', tasks: 2 }],
+        microcodes: [{ family: 'Unknown', detection: 'unknown', reason: 'no-command-dispatcher', loader: 'direct', tasks: 2 }],
       });
+      expect(report.collectors['audio.taskMicrocodes'].microcodes[0].fingerprint).toMatch(/^[a-f0-9]{64}$/);
       expect(report.collectors['graphics.taskMicrocodes'].tasks).toBe(0);
       const query = await invoke(directory, ['report.json', '--audio-microcode', 'unknown'], queryCLI);
       expect(query.code).toBe(0);
