@@ -1,8 +1,8 @@
 import { describe, expect, spyOn, test } from 'bun:test';
-import './headless_env.js';
+import '../headless_env.js';
 import * as regs from './cpu0reg.js';
 
-const { Hardware } = await import('./hardware.js');
+const { Hardware } = await import('../hardware.js');
 
 function createCPU() {
   return new Hardware({ save: 'Eeprom4k' }, { headless: true }).cpu0;

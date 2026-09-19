@@ -1,6 +1,6 @@
-import { assert } from "./assert.js";
-import { toString32 } from "./format.js";
-import * as logger from './logger.js';
+import { assert } from "../assert.js";
+import { toString32 } from "../format.js";
+import * as logger from '../logger.js';
 
 const cop1ADD = 0x00;
 const cop1SUB = 0x01;

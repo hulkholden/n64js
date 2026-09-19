@@ -1,6 +1,6 @@
 /*global n64js*/
 
-import { disassembleRemappedRange, dumpDMEM } from "../disassemble_rsp.js";
+import { disassembleRemappedRange, dumpDMEM } from "../rsp/disassemble_rsp.js";
 import { makeEnum } from "../enum.js";
 import { toHex } from "../format.js";
 import * as logger from '../logger.js';

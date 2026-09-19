@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from 'bun:test';
 import { Breakpoints } from './breakpoints.js';
 import { compatibilityHacks } from './compatibility_hacks.js';
-import { controlStatus } from './cpu0reg.js';
+import { controlStatus } from './cpu/cpu0reg.js';
 import { createHeadlessEmulator } from './headless_env.js';
 
-const { getFragmentMap } = await import('./fragments.js');
-const { invalidateCode } = await import('./r4300.js');
+const { getFragmentMap } = await import('./cpu/fragments.js');
+const { invalidateCode } = await import('./cpu/r4300.js');
 
 // Exercise the patch mechanism independently of the production ROM database.
 const id = 'compatibility-test';

@@ -1,6 +1,6 @@
 /*global n64js*/
 
-import { CPU1 } from './cpu1.js';
+import { CPU1 } from './cpu/cpu1.js';
 import { AIRegDevice } from './devices/ai.js';
 import { DPCDevice } from './devices/dpc.js';
 import { DPSDevice } from './devices/dps.js';
@@ -17,8 +17,8 @@ import { RDP } from './lle/rdp.js';
 import { MemoryMap } from './memmap.js';
 import { Mempack } from './mempack.js';
 import { MemoryRegion } from './memory_region.js';
-import { CPU0, CPU2 } from './r4300.js';
-import { RSP } from './rsp.js';
+import { CPU0, CPU2 } from './cpu/r4300.js';
+import { RSP } from './rsp/rsp.js';
 import { Timeline } from './timeline.js';
 
 const kBootstrapOffset = 0x40;

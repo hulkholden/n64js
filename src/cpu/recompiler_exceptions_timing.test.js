@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
-import { createHeadlessEmulator } from './headless_env.js';
+import { createHeadlessEmulator } from '../headless_env.js';
 import * as regs from './cpu0reg.js';
-import { getPerformanceProfile, setPerformanceProfiling } from './performance_profile.js';
+import { getPerformanceProfile, setPerformanceProfiling } from '../performance_profile.js';
 
 const { getFragmentMap, lookupFragment } = await import('./fragments.js');
 const pc = 0x80001000;

@@ -3,9 +3,9 @@
 import * as cpu0reg from './cpu0reg.js';
 import { convertModeCeil, convertModeFloor, convertModeRound, convertModeTrunc } from './cpu1.js';
 import { disassembleInstruction } from './disassemble.js';
-import { toString32 } from './format.js';
-import { assert } from './assert.js';
-import { kAccurateCountUpdating, kSpeedHackEnabled } from './options.js';
+import { toString32 } from '../format.js';
+import { assert } from '../assert.js';
+import { kAccurateCountUpdating, kSpeedHackEnabled } from '../options.js';
 import { simpleOp, regImmOp, specialOp, copOp, isWait, copFmtFuncOp, fd, fs, ft, offset, sa, rd, rt, rs, tlbop, imm, imms, base, branchAddress, jumpAddress } from './decode.js';
 
 const kDebugDynarec = false;

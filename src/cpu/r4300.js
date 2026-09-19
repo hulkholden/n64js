@@ -1,22 +1,22 @@
 /*jshint jquery:true, devel:true */
 /*global n64js*/
 
-import { assert } from './assert.js';
+import { assert } from '../assert.js';
 import * as cpu0reg from './cpu0reg.js';
-import { getInstructionPatches, patchInstruction } from './compatibility.js';
+import { getInstructionPatches, patchInstruction } from '../compatibility.js';
 import { simpleOp, regImmOp, specialOp, copOp, copFmtFuncOp, fd, fs, ft, offset, sa, rd, rt, rs, tlbop, imm, imms, base, jumpAddress } from './decode.js';
 import { cop0ControlRegisterNames } from './disassemble.js';
 import { EmulatedException } from './emulated_exception.js';
-import { EventQueue } from './event_queue.js';
-import { toString8, toString32, toString64 } from './format.js';
+import { EventQueue } from '../event_queue.js';
+import { toString8, toString32, toString64 } from '../format.js';
 import { lookupFragment, resetFragments } from './fragments.js';
-import * as logger from './logger.js';
-import * as memaccess from './memaccess.js';
-import { kAccurateCountUpdating, kSpeedHackEnabled } from './options.js';
-import { performanceProfile } from './performance_profile.js';
+import * as logger from '../logger.js';
+import * as memaccess from '../memaccess.js';
+import { kAccurateCountUpdating, kSpeedHackEnabled } from '../options.js';
+import { performanceProfile } from '../performance_profile.js';
 import { FragmentContext, generateCodeForOp } from './recompiler.js';
-import { rsp } from './rsp.js';
-import { syncFlow } from './sync.js';
+import { rsp } from '../rsp/rsp.js';
+import { syncFlow } from '../sync.js';
 
 window.n64js = window.n64js || {};
 

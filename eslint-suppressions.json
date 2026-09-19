@@ -1,5 +1,5 @@
 {
-  "src/cpu1.js": {
+  "src/cpu/cpu1.js": {
     "no-unused-vars": {
       "count": 21
     }
@@ -39,12 +39,12 @@
       "count": 5
     }
   },
-  "src/disassemble.js": {
+  "src/cpu/disassemble.js": {
     "no-unused-vars": {
       "count": 2
     }
   },
-  "src/disassemble_rsp.js": {
+  "src/rsp/disassemble_rsp.js": {
     "no-unused-vars": {
       "count": 3
     }
@@ -69,12 +69,12 @@
       "count": 6
     }
   },
-  "src/r4300.js": {
+  "src/cpu/r4300.js": {
     "no-unused-vars": {
       "count": 81
     }
   },
-  "src/rsp.js": {
+  "src/rsp/rsp.js": {
     "no-unused-vars": {
       "count": 25
     }
