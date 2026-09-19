@@ -303,7 +303,7 @@ export class VIRegDevice extends Device {
     dims.dstWidth = x1 - x0;
     dims.dstHeight = y1 - y0;
 
-    dims.srcPitch = this.hWidthReg;
+    dims.srcPitch = this.hWidthReg & 0xfff;
 
     // Matches srcWidth/srcHeight except vFudge?
     const sEndX = ((dims.sx0 + dims.dstWidth) * dims.xScale) >> 10;
@@ -327,7 +327,7 @@ export class VIRegDevice extends Device {
       return null;
     }
 
-    const dramAddr = this.dramAddrReg & 0x00fffffe; // Clear top bit to make address physical. Clear bottom bit (sometimes odd valued addresses are passed through)
+    const dramAddr = this.dramAddrReg & 0x00fffffe; // 24-bit RDRAM address, aligned to a halfword.
     if (!dramAddr) {
       return null;
     }
@@ -383,6 +383,7 @@ class Dimensions {
 
   renderBackBuffer32(ramDV, dramAddr) {
     const pixels = this.pixels32bpp;
+    const lastRead = ramDV.byteLength - 4;
 
     // We need to flip Y-axis for the texture's coordinate system so start at the bottom and work upwards.
     const dstPitch = -this.screenWidth;
@@ -397,7 +398,10 @@ class Dimensions {
         let dstOff = dstRow + this.dx0;
         let sx = (this.sx0 * this.xScale) + this.xSubpixel;
         for (let x = 0; x < this.dstWidth; x++) {
-          const pixel = ramDV.getInt32(srcOff + (sx >>> 10) * 4, false);
+          // VI fetches wrap at 24 bits, not at the installed RDRAM size.
+          // Unpopulated RDRAM reads as zero (black); never read past the view.
+          const address = (srcOff + (sx >>> 10) * 4) & 0x00fffffc;
+          const pixel = address <= lastRead ? ramDV.getInt32(address, false) : 0;
           pixels[dstOff * 4 + 0] = pixel >>> 24;
           pixels[dstOff * 4 + 1] = pixel >>> 16;
           pixels[dstOff * 4 + 2] = pixel >>> 8;
@@ -414,6 +418,7 @@ class Dimensions {
 
   renderBackBuffer16(ramDV, dramAddr) {
     const pixels = this.pixels16bpp;
+    const lastRead = ramDV.byteLength - 2;
 
     // We need to flip Y-axis for the texture's coordinate system so start at the bottom and work upwards.
     const dstPitch = -this.screenWidth;
@@ -428,7 +433,10 @@ class Dimensions {
         let dstOff = dstRow + this.dx0;
         let sx = (this.sx0 * this.xScale) + this.xSubpixel;
         for (let x = 0; x < this.dstWidth; x++) {
-          pixels[dstOff++] = ramDV.getInt16(srcOff + (sx >>> 10) * 2, false) | alpha;
+          // Keep the same 24-bit, unpopulated-RDRAM handling as 32-bit fetches.
+          const address = (srcOff + (sx >>> 10) * 2) & 0x00fffffe;
+          const pixel = address <= lastRead ? ramDV.getInt16(address, false) : 0;
+          pixels[dstOff++] = pixel | alpha;
           sx += this.xScale;
         }
       }
