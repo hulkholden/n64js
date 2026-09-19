@@ -1,11 +1,11 @@
 import { describe, expect, test } from 'bun:test';
-import './headless_env.js';
+import '../headless_env.js';
 import * as regs from './cpu0reg.js';
 import { needsWideInstruction } from './decode.js';
 
-const { Hardware } = await import('./hardware.js');
+const { Hardware } = await import('../hardware.js');
 const { initCPU } = await import('./r4300.js');
-const { initRSP } = await import('./rsp.js');
+const { initRSP } = await import('../rsp/rsp.js');
 const { Fragment } = await import('./fragments.js');
 const { FragmentContext, generateCodeForOp } = await import('./recompiler.js');
 const hardware = new Hardware({ save: 'Eeprom4k' }, { headless: true });
