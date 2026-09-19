@@ -3,7 +3,7 @@ import { createHeadlessEmulator, runCycles, runFrames } from './headless_env.js'
 import { controlCause, controlStatus } from '../cpu/cpu0reg.js';
 import { MI_INTR_DP, MI_INTR_MASK_REG, MI_INTR_REG, MI_INTR_VI } from '../devices/mi.js';
 import { SI_DRAM_ADDR_REG, SI_PIF_ADDR_RD64B_REG, SI_PIF_ADDR_WR64B_REG, SI_STATUS_REG } from '../devices/si.js';
-import { SP_CLR_BROKE, SP_CLR_HALT, SP_CLR_SIG2, SP_SET_HALT, SP_STATUS_REG, SP_STATUS_TASKDONE } from '../devices/sp.js';
+import { SP_CLR_BROKE, SP_CLR_HALT, SP_CLR_SIG2, SP_SET_HALT, SP_SET_INTR_BREAK, SP_STATUS_HALT, SP_STATUS_BROKE, SP_STATUS_REG, SP_STATUS_TASKDONE } from '../devices/sp.js';
 import { audioOptions } from '../hle/audio_options.js';
 import { graphicsOptions } from '../hle/graphics_options.js';
 import { ImageFormat, ImageSize } from '../hle/gbi.js';
@@ -586,5 +586,82 @@ describe('audio task callback', () => {
     } finally {
       audioOptions.emulationMode = previous;
     }
+  });
+});
+
+describe('HLE display-list producer waits', () => {
+  async function waitingTask() {
+    const tasks = [], loads = [];
+    const emulator = await createEmulator({
+      executeGraphics: true,
+      onGraphicsTask: info => tasks.push(info),
+      onMicrocodeLoad: info => loads.push(info),
+    });
+    const { cpu0, hardware } = emulator;
+    cpu0.pc = 0x80007000;
+    cpu0.setControlU32(controlStatus, 0);
+    cpu0.cop1ControlChanged();
+    prepareGraphicsTask(emulator);
+    setGraphicsCommands(emulator, [
+      [0xfa000000, 0x12345678],
+      [0xde010000, 0x3008],
+      [0xfa000000, 0xabcdef01],
+      [0xdf000000, 0],
+    ]);
+    hardware.spRegDevice.spUpdateStatus(SP_SET_INTR_BREAK);
+    startRSPTask(emulator);
+    return { emulator, tasks, loads };
+  }
+
+  test('allows the CPU to patch a live list and only then signals task completion', async () => {
+    const { emulator, tasks, loads } = await waitingTask();
+    const { cpu0, hardware } = emulator;
+    const completeBits = SP_STATUS_TASKDONE | SP_STATUS_BROKE | SP_STATUS_HALT;
+    let dp = 0, sp = 0;
+    const interruptDP = hardware.miRegDevice.interruptDP.bind(hardware.miRegDevice);
+    const interruptSP = hardware.miRegDevice.interruptSP.bind(hardware.miRegDevice);
+    hardware.miRegDevice.interruptDP = () => { dp++; interruptDP(); };
+    hardware.miRegDevice.interruptSP = () => { sp++; interruptSP(); };
+    runCycles(emulator, 2000);
+    expect(hardware.graphics.state.primColor).toBe(0x12345678);
+    expect(hardware.sp_reg.getU32(SP_STATUS_REG) & completeBits).toBe(0);
+    expect(hardware.mi_reg.getU32(MI_INTR_REG) & MI_INTR_DP).toBe(0);
+    expect([dp, sp]).toEqual([0, 0]);
+
+    // Real guest instructions publish more commands by clearing the wait marker.
+    cpu0.pc = 0x80007000;
+    hardware.ram.set32(0x7000, 0x3c088000); // lui t0, 0x8000
+    hardware.ram.set32(0x7004, 0x35083008); // ori t0, t0, 0x3008
+    hardware.ram.set32(0x7008, 0xad000000); // sw zero, 0(t0)
+    runCycles(emulator, 2000);
+    expect(hardware.graphics.state.primColor).toBe(0xabcdef01);
+    expect(hardware.sp_reg.getU32(SP_STATUS_REG) & completeBits).toBe(completeBits);
+    expect(hardware.mi_reg.getU32(MI_INTR_REG) & MI_INTR_DP).toBe(MI_INTR_DP);
+    expect([dp, sp]).toEqual([1, 1]);
+    expect(tasks).toHaveLength(1);
+    expect(loads).toHaveLength(1);
+    expect(hardware.spRegDevice.hleTask).toBeNull();
+  });
+
+  test('pauses a pending task on SP halt and resumes it without reloading', async () => {
+    const { emulator, tasks, loads } = await waitingTask();
+    const { hardware } = emulator;
+    hardware.spRegDevice.spUpdateStatus(SP_SET_HALT);
+    hardware.ram.set32(0x3008, 0);
+    runCycles(emulator, 2000);
+    expect(hardware.graphics.state.primColor).toBe(0x12345678);
+    expect(hardware.sp_reg.getU32(SP_STATUS_REG) & SP_STATUS_TASKDONE).toBe(0);
+    hardware.spRegDevice.spUpdateStatus(SP_CLR_HALT);
+    runCycles(emulator, 2000);
+    expect(hardware.graphics.state.primColor).toBe(0xabcdef01);
+    expect(tasks).toHaveLength(1);
+    expect(loads).toHaveLength(1);
+  });
+
+  test('reset discards a pending continuation and its event', async () => {
+    const { emulator } = await waitingTask();
+    emulator.hardware.reset();
+    expect(emulator.hardware.spRegDevice.hleTask).toBeNull();
+    expect(emulator.cpu0.hasEvent('HLE graphics wait')).toBe(false);
   });
 });

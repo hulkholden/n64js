@@ -136,6 +136,8 @@ class RSPTask {
   }
 }
 
+// Returns false for LLE, true for completed HLE, or a continuation for a waiting
+// HLE task. A continuation returns itself while waiting and null on completion.
 export function hleProcessRSPTask() {
   const hardware = n64js.hardware();
   const ramU8 = hardware.cachedMemDevice.u8;
@@ -150,6 +152,7 @@ export function hleProcessRSPTask() {
       hardware.onGraphicsTask?.({ ...microcode });
       if (graphicsOptions.emulationMode == 'HLE') {
         const ev = hardware.timeline.startEvent(`HLE Task ${task.detectVersionString()}`);
+        let continuation = null;
         // TODO: implement Factor 5's Indiana Jones microcode. Its linked display
         // lists loop indefinitely in the GBI0 fallback. Skip parsing them while
         // preserving normal task completion and interrupts for the guest.
@@ -159,12 +162,22 @@ export function hleProcessRSPTask() {
             warnedF5Indi = true;
           }
         } else {
-          hardware.graphics.processTask(task);
+          continuation = hardware.graphics.processTask(task);
         }
-        hardware.miRegDevice.interruptDP();
-        if (ev) {
-          ev.stop();
+        const complete = () => {
+          hardware.miRegDevice.interruptDP();
+          if (ev) ev.stop();
+        };
+        if (continuation) {
+          const resume = () => {
+            continuation = continuation();
+            if (continuation) return resume;
+            complete();
+            return null;
+          };
+          return resume;
         }
+        complete();
         handled = true;
       }
       break;
