@@ -1,5 +1,5 @@
 import { describe, expect, spyOn, test } from 'bun:test';
-import '../headless_env.js';
+import '../headless/headless_env.js';
 import * as regs from './cpu0reg.js';
 
 const { Hardware } = await import('../hardware.js');

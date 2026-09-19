@@ -11,11 +11,11 @@ export default [
     languageOptions: { globals: globals.browser },
   },
   {
-    files: ['src/**/*.test.js', 'src/**/*.bench.js', 'src/benchmark.js', 'src/headless*.js', 'src/systemtest/**/*.js', 'src/inventory/**/*.js'],
+    files: ['src/**/*.test.js', 'src/**/*.bench.js', 'src/headless/**/*.js', 'src/systemtest/**/*.js', 'src/inventory/**/*.js'],
     languageOptions: { globals: { ...globals.nodeBuiltin, ...globals.bunBuiltin } },
   },
   {
-    files: ['src/**/*.test.js', 'src/headless_env.js'],
+    files: ['src/**/*.test.js', 'src/headless/headless_env.js'],
     languageOptions: { globals: { n64js: 'readonly' } },
   },
   {

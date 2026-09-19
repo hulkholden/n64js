@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { SystemTestOutput } from './output.js';
 import { RunStatus } from './status.js';
-import { runHeadless } from '../headless.js';
+import { runHeadless } from '../headless/headless.js';
 
 const [checkout, rom, outputPath, cycleArg] = Bun.argv.slice(2);
 if (!checkout || !rom || !outputPath) {
@@ -12,7 +12,11 @@ if (!checkout || !rom || !outputPath) {
 }
 const result = new SystemTestOutput();
 try {
-  const runtimePath = pathToFileURL(resolve(checkout, 'src/headless_env.js')).href;
+  // Older comparison checkouts keep the runtime directly under src/.
+  const relocatedRuntime = resolve(checkout, 'src/headless/headless_env.js');
+  const runtimePath = pathToFileURL(await Bun.file(relocatedRuntime).exists()
+    ? relocatedRuntime
+    : resolve(checkout, 'src/headless_env.js')).href;
   const runtime = await import(runtimePath);
   const execution = await runHeadless(rom, {
     runtime,

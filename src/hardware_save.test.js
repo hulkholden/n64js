@@ -1,6 +1,6 @@
 import { Buffer } from 'node:buffer';
 import { describe, expect, spyOn, test } from 'bun:test';
-import { createHeadlessEmulator } from './headless_env.js';
+import { createHeadlessEmulator } from './headless/headless_env.js';
 import { OS_TV_NTSC } from './system_constants.js';
 
 async function createHardware() {

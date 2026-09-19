@@ -66,7 +66,7 @@ Bun scripts can set controller input through the live `inputs` array returned by
 `createHeadlessEmulator`. For example, from a script in the repository root:
 
 ```js
-import { createHeadlessEmulator, loadROMFile, runCycles } from './src/headless_env.js';
+import { createHeadlessEmulator, loadROMFile, runCycles } from './src/headless/headless_env.js';
 
 const emulator = await createHeadlessEmulator(await loadROMFile('path/to/game.z64'));
 const controller = emulator.inputs[0];

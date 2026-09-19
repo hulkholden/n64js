@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { createHeadlessEmulator, loadROMFile } from '../headless_env.js';
+import { createHeadlessEmulator, loadROMFile } from '../headless/headless_env.js';
 import { createInputDriver, createRandom } from './inventory_input.js';
 import { ImageFormat } from '../hle/gbi.js';
 import { captureFailure } from './inventory_failure.js';

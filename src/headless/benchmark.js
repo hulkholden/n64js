@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 import { createHeadlessEmulator, loadROMFile, runCycles, runFrames } from './headless_env.js';
-import { getPerformanceProfile, performanceProfileDelta, setPerformanceProfiling } from './debug/performance_profile.js';
+import { getPerformanceProfile, performanceProfileDelta, setPerformanceProfiling } from '../debug/performance_profile.js';
 
 const defaults = {
   mode: 'game',
