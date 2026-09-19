@@ -121,7 +121,7 @@ export class RSP {
     this.vpr = new DataView(vecMem);
     this.vprS16 = new Int16Array(vecMem);
     this.vprS8 = new Int8Array(vecMem);
-    this.vprU64 = new BigUint64Array(vecMem);
+    this.vprU32 = new Uint32Array(vecMem);
 
     const vAccMem = new ArrayBuffer(8 * 8); // Actually 48 bits, not 64. 
     this.vAcc = new BigInt64Array(vAccMem);
@@ -166,7 +166,7 @@ export class RSP {
     // Temporary vector for intermediate calculations.
     const vecTempMem = new ArrayBuffer(8 * 16);
     this.vecTemp = new DataView(vecTempMem);
-    this.vecTempU64 = new BigUint64Array(vecTempMem);
+    this.vecTempU32 = new Uint32Array(vecTempMem);
 
     this.reset();
   }
@@ -391,13 +391,18 @@ export class RSP {
   getVecU8(r, e) { return this.vpr.getUint8((16 * r) + e, false); }
 
   setVecZero(r) {
-    this.vprU64[(r * 2) + 0] = 0n;
-    this.vprU64[(r * 2) + 1] = 0n;
+    this.vprU32[(r * 4) + 0] = 0;
+    this.vprU32[(r * 4) + 1] = 0;
+    this.vprU32[(r * 4) + 2] = 0;
+    this.vprU32[(r * 4) + 3] = 0;
   }
 
   setVecFromTemp(r) {
-    this.vprU64[(r * 2) + 0] = this.vecTempU64[0];
-    this.vprU64[(r * 2) + 1] = this.vecTempU64[1];
+    // Copy the bytes without allocating BigInts for the two 64-bit halves.
+    this.vprU32[(r * 4) + 0] = this.vecTempU32[0];
+    this.vprU32[(r * 4) + 1] = this.vecTempU32[1];
+    this.vprU32[(r * 4) + 2] = this.vecTempU32[2];
+    this.vprU32[(r * 4) + 3] = this.vecTempU32[3];
   }
 
   setVecS16(r, e, v) { this.vpr.setInt16((16 * r) + (e * 2), v, false); }
@@ -568,7 +573,13 @@ export class RSP {
 
   executeOp(instr) {
     // if (instr != 0) this.disassembleOp(this.pc, instr);
-    simpleTable[op(instr)](instr);
+    // Vector instructions have the COP2 opcode and bit 25 set. Bypass the
+    // scalar and COP2 dispatch tables on this common path.
+    if ((instr & 0xfe00_0000) === 0x4a00_0000) {
+      executeVector(instr);
+    } else {
+      simpleTable[op(instr)](instr);
+    }
   }
 
   moveFromControl(controlReg) {
@@ -692,82 +703,73 @@ const cop2Table = (() => {
   return cop2Tbl;
 })();
 
-const vectorTable = (() => {
-  let vectorTbl = [];
-  for (let i = 0; i < 64; i++) {
-    vectorTbl.push(executedUnknown);
-  }
-
-  // TODO: flesh these out.
-  vectorTbl[0] = executeVMULF;
-  vectorTbl[1] = executeVMULU;
-  vectorTbl[2] = executeVRNDP;
-  vectorTbl[3] = executeVMULQ;
-  vectorTbl[4] = executeVMUDL;
-  vectorTbl[5] = executeVMUDM;
-  vectorTbl[6] = executeVMUDN;
-  vectorTbl[7] = executeVMUDH;
-  vectorTbl[8] = executeVMACF;
-  vectorTbl[9] = executeVMACU;
-  vectorTbl[10] = executeVRNDN;
-  vectorTbl[11] = executeVMACQ;
-  vectorTbl[12] = executeVMADL;
-  vectorTbl[13] = executeVMADM;
-  vectorTbl[14] = executeVMADN;
-  vectorTbl[15] = executeVMADH;
-  vectorTbl[16] = executeVADD;
-  vectorTbl[17] = executeVSUB;
-  vectorTbl[18] = executeVSUT;
-  vectorTbl[19] = executeVABS;
-  vectorTbl[20] = executeVADDC;
-  vectorTbl[21] = executeVSUBC;
-  vectorTbl[22] = executeVADDB;
-  vectorTbl[23] = executeVSUBB;
-  vectorTbl[24] = executeVACCB;
-  vectorTbl[25] = executeVSUCB;
-  vectorTbl[26] = executeVSAD;
-  vectorTbl[27] = executeVSAC;
-  vectorTbl[28] = executeVSUM;
-  vectorTbl[29] = executeVSAR;
-  vectorTbl[30] = executeV30;
-  vectorTbl[31] = executeV31;
-  vectorTbl[32] = executeVLT;
-  vectorTbl[33] = executeVEQ;
-  vectorTbl[34] = executeVNE;
-  vectorTbl[35] = executeVGE;
-  vectorTbl[36] = executeVCL;
-  vectorTbl[37] = executeVCH;
-  vectorTbl[38] = executeVCR;
-  vectorTbl[39] = executeVMRG;
-  vectorTbl[40] = executeVAND;
-  vectorTbl[41] = executeVNAND;
-  vectorTbl[42] = executeVOR;
-  vectorTbl[43] = executeVNOR;
-  vectorTbl[44] = executeVXOR;
-  vectorTbl[45] = executeVNXOR;
-  vectorTbl[46] = executeV46;
-  vectorTbl[47] = executeV47;
-  vectorTbl[48] = executeVRCP;
-  vectorTbl[49] = executeVRCPL;
-  vectorTbl[50] = executeVRCPH;
-  vectorTbl[51] = executeVMOV;
-  vectorTbl[52] = executeVRSQ;
-  vectorTbl[53] = executeVRSQL;
-  vectorTbl[54] = executeVRSQH;
-  vectorTbl[55] = executeVNOP;
-  vectorTbl[56] = executeVEXTT;
-  vectorTbl[57] = executeVEXTQ;
-  vectorTbl[58] = executeVEXTN;
-  vectorTbl[59] = executeV59;
-  vectorTbl[60] = executeVINST;
-  vectorTbl[61] = executeVINSQ;
-  vectorTbl[62] = executeVINSN;
-  vectorTbl[63] = executeVNULL;
-  return vectorTbl;
-})();
-
 function executeVector(i) {
-  return vectorTable[funct(i)](i);
+  switch (funct(i)) {
+    case 0x00: return executeVMULF(i);
+    case 0x01: return executeVMULU(i);
+    case 0x02: return executeVRNDP(i);
+    case 0x03: return executeVMULQ(i);
+    case 0x04: return executeVMUDL(i);
+    case 0x05: return executeVMUDM(i);
+    case 0x06: return executeVMUDN(i);
+    case 0x07: return executeVMUDH(i);
+    case 0x08: return executeVMACF(i);
+    case 0x09: return executeVMACU(i);
+    case 0x0a: return executeVRNDN(i);
+    case 0x0b: return executeVMACQ(i);
+    case 0x0c: return executeVMADL(i);
+    case 0x0d: return executeVMADM(i);
+    case 0x0e: return executeVMADN(i);
+    case 0x0f: return executeVMADH(i);
+    case 0x10: return executeVADD(i);
+    case 0x11: return executeVSUB(i);
+    case 0x12: return executeVSUT(i);
+    case 0x13: return executeVABS(i);
+    case 0x14: return executeVADDC(i);
+    case 0x15: return executeVSUBC(i);
+    case 0x16: return executeVADDB(i);
+    case 0x17: return executeVSUBB(i);
+    case 0x18: return executeVACCB(i);
+    case 0x19: return executeVSUCB(i);
+    case 0x1a: return executeVSAD(i);
+    case 0x1b: return executeVSAC(i);
+    case 0x1c: return executeVSUM(i);
+    case 0x1d: return executeVSAR(i);
+    case 0x1e: return executeV30(i);
+    case 0x1f: return executeV31(i);
+    case 0x20: return executeVLT(i);
+    case 0x21: return executeVEQ(i);
+    case 0x22: return executeVNE(i);
+    case 0x23: return executeVGE(i);
+    case 0x24: return executeVCL(i);
+    case 0x25: return executeVCH(i);
+    case 0x26: return executeVCR(i);
+    case 0x27: return executeVMRG(i);
+    case 0x28: return executeVAND(i);
+    case 0x29: return executeVNAND(i);
+    case 0x2a: return executeVOR(i);
+    case 0x2b: return executeVNOR(i);
+    case 0x2c: return executeVXOR(i);
+    case 0x2d: return executeVNXOR(i);
+    case 0x2e: return executeV46(i);
+    case 0x2f: return executeV47(i);
+    case 0x30: return executeVRCP(i);
+    case 0x31: return executeVRCPL(i);
+    case 0x32: return executeVRCPH(i);
+    case 0x33: return executeVMOV(i);
+    case 0x34: return executeVRSQ(i);
+    case 0x35: return executeVRSQL(i);
+    case 0x36: return executeVRSQH(i);
+    case 0x37: return executeVNOP(i);
+    case 0x38: return executeVEXTT(i);
+    case 0x39: return executeVEXTQ(i);
+    case 0x3a: return executeVEXTN(i);
+    case 0x3b: return executeV59(i);
+    case 0x3c: return executeVINST(i);
+    case 0x3d: return executeVINSQ(i);
+    case 0x3e: return executeVINSN(i);
+    case 0x3f: return executeVNULL(i);
+  }
 }
 
 const lc2Table = (() => {
