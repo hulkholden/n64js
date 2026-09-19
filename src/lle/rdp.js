@@ -1,6 +1,6 @@
 import { makeEnum } from "../enum.js";
 
-export var Commands = makeEnum({
+export const Commands = makeEnum({
   Nop: 0,
   FillTriangle: 0x08,
   FillZBufferTriangle: 0x09,
