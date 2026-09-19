@@ -52,17 +52,17 @@ async function withDirectory(fn) {
 describe('inventory query', () => {
   test('queries audio independently, retaining legacy absence, empty runs and unidentified observations', async () => {
     await withDirectory(async root => {
-      const reports = Array.from({ length: 4 }, (_, i) => makeReport(String(i + 1), { family: i === 2 ? 'GBI1' : 'GBI2' }));
-      reports[0].collectors['audio.taskMicrocodes'] = { version: 1, scope: 'task-start', tasks: 2, microcodes: [{ family: 'Unknown', detection: 'unknown', tasks: 2 }] };
+      const reports = Array.from({ length: 4 }, (_, i) => makeReport(String(i + 1)));
+      reports[0].collectors['audio.taskMicrocodes'] = { version: 1, scope: 'task-start', tasks: 2, microcodes: [{ family: 'ABI1', detection: 'structure', tasks: 2, fingerprint: 'f'.repeat(64) }] };
       reports[1].collectors['audio.taskMicrocodes'] = { version: 1, scope: 'task-start', tasks: 0, microcodes: [] };
       reports[2].collectors['audio.taskMicrocodes'] = { version: 1, scope: 'task-start', tasks: 1, microcodes: [{ family: 'Unknown', detection: 'unknown', tasks: 1 }] };
       await writeScan(root, 'audio', reports);
-      const result = await invoke([root, '--audio-microcode', 'unknown', '--microcode', 'gbi2']);
+      const result = await invoke([root, '--audio-microcode', 'abi1', '--microcode', 'gbi2']);
       expect(result.code).toBe(0);
       expect(result.output.summary).toEqual({ matched: 1, notObserved: 2, unknown: 1, errors: 0 });
-      expect(result.output.matches[0].checks.audioMicrocode.collectors[0].matches).toEqual([{ family: 'Unknown', detection: 'unknown', tasks: 2 }]);
+      expect(result.output.matches[0].checks.audioMicrocode.collectors[0].matches[0].fingerprint).toBe('f'.repeat(64));
       const unknown = await invoke([root, '--audio-microcode', 'Unknown']);
-      expect(unknown.output.matches.map(x => x.rom.name)).toEqual(['ROM 1', 'ROM 3']);
+      expect(unknown.output.matches.map(x => x.rom.name)).toEqual(['ROM 3']);
       expect(unknown.output.unknown.map(x => x.rom.name)).toEqual(['ROM 4']);
       const summary = await invoke([root], summaryCLI);
       expect(summary.output.summary.collectors['audio.taskMicrocodes']).toEqual({ observed: 2, notObserved: 1, unknown: 1 });

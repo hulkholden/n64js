@@ -7,7 +7,7 @@ import { ImageFormat, ImageSize } from '../hle/gbi.js';
 
 const usage = `Usage: bun run inventory-query <inventory-root|scan-directory|report.json> [filters]
   --microcode <family>  Match a handler family, e.g. GBI2 (case insensitive)
-  --audio-microcode <family>  Match an audio family (currently always Unknown)
+  --audio-microcode <family>  Match an audio family: ABI1, NAUDIO, NEAD, Unknown
   --texture <format>    Match a texture format, e.g. CI4 or RGBA16
   --help                Show this help
 
@@ -16,9 +16,9 @@ observations from different runs are not combined. Graphics microcode searches
 include task starts and HLE loads, including in-list switches. Texture searches
 use the numeric format/size fields from HLE draws. Microcode fallback
 classifications are included, with their detection method retained in the evidence.
-Audio searches use task starts; the placeholder classifier reports Unknown for
-every audio task. An observed Unknown family is distinct from missing collector
-data. Audio microcode detection and HLE execution are not implemented yet.
+Audio searches use task starts and identify task images and structural families,
+not HLE support. An observed Unknown family is distinct from missing collector
+data. Audio HLE execution is not implemented yet.
 
 JSON output contains matching reports, a count of reports where the requested
 combination was not observed, and unknown results when collector data is missing

@@ -4,6 +4,7 @@ import { createInputDriver, createRandom } from './inventory_input.js';
 import { ImageFormat } from '../hle/gbi.js';
 import { captureFailure } from './inventory_failure.js';
 import { sendInventoryUpdate } from './inventory_ipc.js';
+import { AudioMicrocodeCollector } from './audio_microcode_collector.js';
 
 // This process may block inside emulation. The CLI owns the wall-clock timeout
 // and retains the last checkpoint received before terminating this process.
@@ -18,8 +19,7 @@ const taskMicrocodes = new Map();
 let loads = 0;
 const loadedMicrocodes = new Map();
 const textureFormats = new Map();
-let audioTasks = 0;
-const audioMicrocodes = new Map();
+const audioMicrocodes = new AudioMicrocodeCollector();
 
 function cyclesExecuted() {
   if (!collecting) return 0;
@@ -36,12 +36,7 @@ function snapshot() {
     frames: emulator?.hardware.verticalBlankCount ?? 0,
     cycles: cyclesExecuted(),
     collectors: collecting ? {
-      'audio.taskMicrocodes': {
-        version: 1,
-        scope: 'task-start',
-        tasks: audioTasks,
-        microcodes: [...audioMicrocodes.values()],
-      },
+      'audio.taskMicrocodes': audioMicrocodes.snapshot(),
       'graphics.taskMicrocodes': {
         version: 1,
         scope: 'task-start',
@@ -87,16 +82,7 @@ try {
   emulator = await createHeadlessEmulator(loadedROM, {
     executeGraphics: true,
     onVerticalBlank: frame => updateInput(frame, emulator.inputs[0]),
-    onAudioTask: info => {
-      audioTasks++;
-      const key = JSON.stringify(info);
-      const record = audioMicrocodes.get(key);
-      if (record) {
-        record.tasks++;
-      } else {
-        audioMicrocodes.set(key, { ...info, tasks: 1 });
-      }
-    },
+    onAudioTask: image => audioMicrocodes.observe(image),
     onGraphicsTask: info => {
       tasks++;
       const key = JSON.stringify(info);
