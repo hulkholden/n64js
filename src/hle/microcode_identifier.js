@@ -14,6 +14,7 @@ export const MicrocodeId = Object.freeze({
   F5_INDI: 12,     // Indiana Jones (recognized, but HLE is not implemented)
   ZSORTP: 13,      // Mia Hamm / World League Soccer (recognized, but HLE is not implemented)
   TURBO3D: 14,     // Dark Rift (object lists, not GBI commands)
+  ZSORT_BOSS: 15,  // Stunt Racer / World Driver (recognized, but HLE is not implemented)
 });
 
 const microcodeProfiles = new Map([
@@ -32,6 +33,7 @@ const microcodeProfiles = new Map([
   [MicrocodeId.F5_INDI, { family: 'F5', variant: 'INDI' }],
   [MicrocodeId.ZSORTP, { family: 'ZSortp', variant: null }],
   [MicrocodeId.TURBO3D, { family: 'Turbo3D', variant: null }],
+  [MicrocodeId.ZSORT_BOSS, { family: 'ZSortBOSS', variant: null }],
 ]);
 
 const ucodeOverrides = new Map([
@@ -49,12 +51,13 @@ const ucodeOverrides = new Map([
   [0xd73a12c4, MicrocodeId.GBI0],       // Fish demo
   [0x313f038b, MicrocodeId.GBI0],       // Pilotwings
   [0xdd57a04e, MicrocodeId.F5_INDI],    // Indiana Jones and the Infernal Machine (USA)
+  [0xe281945c, MicrocodeId.ZSORT_BOSS], // Stunt Racer 64 / World Driver Championship (USA)
 ]);
 
 /**
  * Identifies the microcode without constructing a handler or producing side effects.
  * F5_INDI is recognized but has no HLE handler; its graphics tasks are skipped.
- * ZSORTP is recognized but rejected when attempting to create an HLE handler.
+ * ZSORTP and ZSORT_BOSS are recognized but rejected by HLE execution.
  * Family and variant describe the microcode; detection='fallback' means
  * GBI0 was assumed, not positively identified. A null variant selects the base
  * family handler. Hash overrides take precedence over version-string inference.

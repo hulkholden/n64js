@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { createHeadlessEmulator, runCycles, runFrames } from './headless_env.js';
 import { controlCause, controlStatus } from '../cpu/cpu0reg.js';
-import { MI_INTR_DP, MI_INTR_MASK_REG, MI_INTR_REG, MI_INTR_VI } from '../devices/mi.js';
+import { MI_INTR_DP, MI_INTR_MASK_REG, MI_INTR_REG, MI_INTR_SP, MI_INTR_VI } from '../devices/mi.js';
 import { SI_DRAM_ADDR_REG, SI_PIF_ADDR_RD64B_REG, SI_PIF_ADDR_WR64B_REG, SI_STATUS_REG } from '../devices/si.js';
 import { SP_CLR_BROKE, SP_CLR_HALT, SP_CLR_SIG2, SP_SET_HALT, SP_SET_INTR_BREAK, SP_STATUS_HALT, SP_STATUS_BROKE, SP_STATUS_REG, SP_STATUS_TASKDONE } from '../devices/sp.js';
 import { audioOptions } from '../hle/audio_options.js';
@@ -188,14 +188,14 @@ describe('VI boundary callback', () => {
   });
 });
 
-function prepareGraphicsTask(emulator, version = 'RSP Gfx ucode F3DEX fifo 2.0') {
+function prepareGraphicsTask(emulator, version = 'RSP Gfx ucode F3DEX fifo 2.0', code = [1, 2, 3]) {
   const { hardware } = emulator;
-  hardware.ram.u8.set([1, 2, 3], 0x1000);
+  hardware.ram.u8.set(code, 0x1000);
   const data = new TextEncoder().encode(version + '\0');
   hardware.ram.u8.set(data, 0x2000);
   const task = hardware.sp_mem.subRegion(0xfc0, 0x40);
   task.set32(TaskOffsets.ucodePtr, 0x80001000);
-  task.set32(TaskOffsets.ucodeSize, 3);
+  task.set32(TaskOffsets.ucodeSize, code.length);
   task.set32(TaskOffsets.ucodeDataPtr, 0x80002000);
   task.set32(TaskOffsets.ucodeDataSize, data.length);
 }
@@ -205,7 +205,8 @@ function startRSPTask(emulator, type = 1) {
   hardware.sp_mem.set32(0xfc0 + TaskOffsets.type, type);
   const spStatusAddress = 0xa4040000 + SP_STATUS_REG;
   hardware.spRegDevice.write32(spStatusAddress, SP_SET_HALT | SP_CLR_BROKE | SP_CLR_SIG2);
-  hardware.mi_reg.clearBits32(MI_INTR_REG, MI_INTR_DP);
+  // Discard any interrupt from halting the RSP during setup.
+  hardware.mi_reg.clearBits32(MI_INTR_REG, MI_INTR_DP | MI_INTR_SP);
   hardware.spRegDevice.write32(spStatusAddress, SP_CLR_HALT);
 }
 
@@ -218,9 +219,17 @@ function setGraphicsCommands(emulator, commands) {
   });
 }
 
+// Synthetic bytes with hash 0xe281945c, not game microcode. Leading zeros keep
+// the hash unchanged and exercise the 4 KiB size used by in-list microcode loads.
+const bossCode = new Uint8Array(0x1000);
+bossCode.set([9, 4, 7, 7, 4, 4, 9, 0], bossCode.length - 8);
+const unsupportedMicrocodes = [
+  { family: 'ZSortp', version: 'RSP Gfx ucode ZSortp 0.33 Yoshitaka Yasumoto Nintendo.', code: [1, 2, 3], detection: 'string' },
+  { family: 'ZSortBOSS', version: '', code: bossCode, detection: 'hash' },
+];
+
 describe('headless graphics execution', () => {
-  test('rejects ZSortp tasks and in-list loads through the CPU halt path before parsing their commands', async () => {
-    const version = 'RSP Gfx ucode ZSortp 0.33 Yoshitaka Yasumoto Nintendo.';
+  test.each(unsupportedMicrocodes)('rejects $family tasks and in-list loads before parsing their commands', async ({ family, version, code, detection }) => {
     const previousHaltOnWarning = graphicsOptions.haltOnWarning;
     try {
       // Unsupported execution must stop even when ordinary warnings are ignored.
@@ -236,10 +245,10 @@ describe('headless graphics execution', () => {
           onHalt: (message, details) => halted.push({ message, details }),
         });
         const { cpu0, hardware } = emulator;
-        prepareGraphicsTask(emulator, inList ? undefined : version);
+        prepareGraphicsTask(emulator, inList ? undefined : version, inList ? undefined : code);
         const data = new TextEncoder().encode(version + '\0');
         hardware.ram.u8.set(data, 0x5000);
-        hardware.ram.u8.set([1, 2, 3], 0x4000);
+        hardware.ram.u8.set(code, 0x4000);
         setGraphicsCommands(emulator, [
           ...(inList ? [[0xe1000000, 0x80005000], [0xdd000000 | (data.length - 1), 0x80004000]] : []),
           // The observed ZSortp startup sequence. GBI0 ignores even its end.
@@ -259,26 +268,41 @@ describe('headless graphics execution', () => {
         hardware.ram.set32(0x7004, 0x24090000 | SP_CLR_HALT);
         hardware.ram.set32(0x7008, 0xad090000 | SP_STATUS_REG);
 
-        expect(() => runCycles(emulator, 10)).toThrow(/Unsupported graphics microcode: ZSortp/);
+        expect(() => runCycles(emulator, 10)).toThrow(`Unsupported graphics microcode: ${family}`);
         expect(halted).toHaveLength(1);
         expect(halted[0].details.error).toMatchObject({ name: 'UnsupportedMicrocodeError' });
         expect(halted[0].details.error.message).toContain(version);
         expect(halted[0].details.error.message).toContain('hash');
         expect(halted[0].details.error.message).toContain('HLE is not implemented');
-        expect(seen.map(info => info.family)).toEqual([inList ? 'GBI2' : 'ZSortp']);
-        expect(seen[0].detection).toBe('string');
+        if (family === 'ZSortBOSS') expect(halted[0].details.error.message).toContain('0xe281945c');
+        expect(seen.map(info => info.family)).toEqual([inList ? 'GBI2' : family]);
+        expect(seen[0].detection).toBe(inList ? 'string' : detection);
         expect(loaded.map(info => info.family)).toEqual(inList ? ['GBI2'] : []);
         expect(hardware.graphics.state.primColor).toBe(0);
         expect(hardware.graphics.state.currentOp).toBe(inList ? 1 : 0);
-        expect(hardware.sp_reg.getU32(SP_STATUS_REG) & SP_STATUS_TASKDONE).toBe(0);
-        expect(hardware.mi_reg.getU32(MI_INTR_REG) & MI_INTR_DP).toBe(0);
+        expect(hardware.sp_reg.getU32(SP_STATUS_REG) & (SP_STATUS_TASKDONE | SP_STATUS_BROKE)).toBe(0);
+        expect(hardware.mi_reg.getU32(MI_INTR_REG) & (MI_INTR_DP | MI_INTR_SP)).toBe(0);
+        expect(hardware.spRegDevice.hleTask).toBeNull();
       }
     } finally {
       graphicsOptions.haltOnWarning = previousHaltOnWarning;
     }
   });
 
-  test('leaves ZSortp available to explicit LLE without claiming HLE execution', async () => {
+  test.each(unsupportedMicrocodes)('does not fabricate completion for $family when headless display lists are skipped', async ({ family, version, code, detection }) => {
+    const seen = [];
+    const emulator = await createEmulator({ onGraphicsTask: info => seen.push(info) });
+    prepareGraphicsTask(emulator, version, code);
+    // Interrupt-on-break makes an accidental HLE completion observable in MI.
+    emulator.hardware.spRegDevice.write32(0xa4040000 + SP_STATUS_REG, SP_SET_INTR_BREAK);
+    expect(() => startRSPTask(emulator)).toThrow(`Unsupported graphics microcode: ${family}`);
+    expect(seen[0]).toMatchObject({ family, detection });
+    expect(emulator.hardware.sp_reg.getU32(SP_STATUS_REG) & (SP_STATUS_TASKDONE | SP_STATUS_BROKE)).toBe(0);
+    expect(emulator.hardware.mi_reg.getU32(MI_INTR_REG) & (MI_INTR_DP | MI_INTR_SP)).toBe(0);
+    expect(emulator.hardware.spRegDevice.hleTask).toBeNull();
+  });
+
+  test.each(unsupportedMicrocodes)('leaves $family available to explicit LLE without claiming HLE execution', async ({ family, version, code, detection }) => {
     const previousMode = graphicsOptions.emulationMode;
     try {
       graphicsOptions.emulationMode = 'LLE';
@@ -287,10 +311,10 @@ describe('headless graphics execution', () => {
       const emulator = await createEmulator({
         executeGraphics: true, onGraphicsTask: info => seen.push(info), onMicrocodeLoad: info => loaded.push(info),
       });
-      prepareGraphicsTask(emulator, 'RSP Gfx ucode ZSortp 0.33 Yoshitaka Yasumoto Nintendo.');
+      prepareGraphicsTask(emulator, version, code);
       emulator.hardware.sp_mem.set32(0xfc0 + TaskOffsets.dataPtr, 0x1000000);
       expect(() => startRSPTask(emulator)).not.toThrow();
-      expect(seen[0]).toMatchObject({ family: 'ZSortp', detection: 'string' });
+      expect(seen[0]).toMatchObject({ family, detection });
       expect(loaded).toEqual([]);
       expect(emulator.hardware.rsp.halted).toBe(false);
       expect(emulator.hardware.sp_reg.getU32(SP_STATUS_REG) & SP_STATUS_TASKDONE).toBe(0);
