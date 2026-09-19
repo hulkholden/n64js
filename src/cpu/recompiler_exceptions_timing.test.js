@@ -14,6 +14,12 @@ async function compareExecutions(instructions, prepare = () => {}, train = () =>
   });
   const { cpu0: cpu, hardware } = emulator;
   let cop1Checks = 0;
+  let interruptRSPPCs = [];
+  const handleInterrupt = cpu.handleInterrupt;
+  cpu.handleInterrupt = function () {
+    interruptRSPPCs.push(hardware.rsp.pc);
+    return handleInterrupt.call(this);
+  };
   const checkCopXUsable = cpu.checkCopXUsable;
   cpu.checkCopXUsable = function (copIdx) {
     if (copIdx === 1) cop1Checks++;
@@ -33,6 +39,10 @@ async function compareExecutions(instructions, prepare = () => {}, train = () =>
     cpu.cop1ControlChanged();
     hardware.cpu1.reset();
     hardware.rsp.reset();
+    hardware.sp_mem.clear();
+    hardware.sp_reg.clear();
+    hardware.mi_reg.clear();
+    interruptRSPPCs = [];
     cpu.pc = pc;
     hardware.ram.u8.fill(0);
     words.forEach((word, i) => hardware.ram.set32(0x1000 + i * 4, word));
@@ -45,6 +55,14 @@ async function compareExecutions(instructions, prepare = () => {}, train = () =>
     expect(emulator.fatalError()).toBeNull();
     return {
       pc: cpu.pc,
+      llBit: cpu.llBit,
+      llAddr: cpu.getControlU32(regs.controlLLAddr),
+      rspPC: hardware.rsp.pc,
+      rspGPR: [...hardware.rsp.gprU32],
+      rspHalted: hardware.rsp.halted,
+      interruptRSPPCs: [...interruptRSPPCs],
+      mi: [...hardware.mi_reg.u8],
+      sp: [...hardware.sp_reg.u8],
       delayPC: cpu.delayPC,
       gpr: [...cpu.gprU64],
       cause: cpu.getControlU32(regs.controlCause),
@@ -185,6 +203,71 @@ for (const profiled of [false, true]) {
         if (profiled) expect(result.profile.compiledOps).toBe(2);
       });
     }
+
+    for (const opcode of [0x20, 0x24, 0x21, 0x25, 0x23, 0x27, 0x37, 0x22, 0x26, 0x1a, 0x1b,
+      0x28, 0x29, 0x2b, 0x3f, 0x2a, 0x2e, 0x2c, 0x2d, 0x30, 0x34, 0x38, 0x3c]) {
+      for (const address of [0x80003000, 0xa0003000]) {
+        test(`sequential integer memory ${opcode.toString(16)} at ${address.toString(16)} matches interpreter`, async () => {
+          const setup = (c, h) => {
+            c.setRegS32Extend(4, address);
+            c.setRegU64(2, 0x123456789abcdef0n);
+            c.llBit = 1;
+            h.ram.set32(0x3000, 0xfedcba98);
+            h.ram.set32(0x3004, 0x76543210);
+          };
+          const result = await compare([0, 0, (opcode << 26) | (4 << 21) | (2 << 16)], setup, setup);
+          expect(result.code).not.toContain('if (c.pc !== 0x8000100c)');
+        });
+      }
+    }
+
+    for (const taken of [false, true]) {
+      for (const word of [0x8c820000, 0xac820000]) {
+        test(`integer memory delay slot exits when branch differs from training, taken=${taken}, op=${word.toString(16)}`, async () => {
+          const setup = (c, h, branchTaken) => {
+            c.setRegS32Extend(5, branchTaken ? 0 : 1);
+            c.setRegS32Extend(2, 0x1234);
+            h.ram.set32(0x3000, 0x5678);
+          };
+          const result = await compare([0x10a00002, word, 0x24630001, 0x24630002],
+            (c, h) => setup(c, h, taken), (c, h) => setup(c, h, !taken));
+          expect(result.gpr[3]).toBe(taken ? 2n : 3n);
+          expect(result.code).toContain(`if (c.pc !== 0x800010${taken ? '08' : '0c'})`);
+        });
+      }
+    }
+
+    test('sequential MMIO interrupt is serviced before another active RSP step', async () => {
+      const setup = (c, h) => {
+        c.setControlU32(regs.controlStatus, 0x20000401);
+        c.statusRegisterChanged();
+        c.setRegS32Extend(4, 0xa430000c); // MI interrupt mask.
+        c.setRegS32Extend(2, 2); // Enable pending SP interrupt.
+        h.mi_reg.set32(8, 1);
+        for (let i = 0; i < runCycles; i++) h.sp_mem.set32(0x1000 + i * 4, 0x24210001);
+        h.rsp.unhalt();
+      };
+      const result = await compare([0, 0, 0xac820000, 0x34030077], setup,
+        (c, h) => { setup(c, h); h.mi_reg.set32(8, 0); });
+      expect(result.epc).toBe(pc + 12);
+      expect(result.gpr[3]).toBe(0n);
+      expect(result.interruptRSPPCs).toEqual([12]);
+      expect(result.code).not.toContain('if (c.pc !== 0x8000100c)');
+      expect(result.code).toContain('if (c.stuffToDo) { return 3; }');
+    });
+
+    test('sequential store can start the RSP through MMIO', async () => {
+      const setup = (c, h) => {
+        c.setRegS32Extend(4, 0xa4040010); // SP status.
+        c.setRegS32Extend(2, 1); // Clear HALT.
+        for (let i = 0; i < runCycles; i++) h.sp_mem.set32(0x1000 + i * 4, 0x24210001);
+      };
+      const result = await compare([0, 0, 0xac820000, 0x8ca60000],
+        (c, h) => { setup(c, h); c.setRegS32Extend(5, 0x80003000); },
+        (c, h) => { setup(c, h); c.setRegS32Extend(5, 0x80003000); });
+      expect(result.rspHalted).toBe(false);
+      expect(result.rspGPR[1]).toBe(9);
+    });
 
     test('four COP1 memory operations share one usability check', async () => {
       const result = await compare([0xc4820000, 0xe4820004, 0xd4820000, 0xf4820008]);
