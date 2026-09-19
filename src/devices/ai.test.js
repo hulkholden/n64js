@@ -3,7 +3,7 @@ import { AIRegDevice } from './ai.js';
 import { MI_INTR_AI, MI_INTR_REG } from './mi.js';
 import { EventQueue } from '../event_queue.js';
 import { MemoryRegion } from '../memory_region.js';
-import { Timeline } from '../timeline.js';
+import { Timeline } from '../debug/timeline.js';
 
 const base = 0xa4500000;
 const lengthReg = base + 0x04;

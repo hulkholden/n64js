@@ -19,7 +19,7 @@ import { Mempack } from './mempack.js';
 import { MemoryRegion } from './memory_region.js';
 import { CPU0, CPU2 } from './cpu/r4300.js';
 import { RSP } from './rsp/rsp.js';
-import { Timeline } from './timeline.js';
+import { Timeline } from './debug/timeline.js';
 
 const kBootstrapOffset = 0x40;
 const kGameOffset = 0x1000;

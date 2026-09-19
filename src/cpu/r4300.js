@@ -13,7 +13,7 @@ import { lookupFragment, resetFragments } from './fragments.js';
 import * as logger from '../logger.js';
 import * as memaccess from '../memaccess.js';
 import { kAccurateCountUpdating, kSpeedHackEnabled } from '../options.js';
-import { performanceProfile } from '../performance_profile.js';
+import { performanceProfile } from '../debug/performance_profile.js';
 import { FragmentContext, generateCodeForOp } from './recompiler.js';
 import { rsp } from '../rsp/rsp.js';
 import { syncFlow } from '../sync.js';

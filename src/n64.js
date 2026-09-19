@@ -2,10 +2,10 @@
 /*global $, n64js, Stats, md5*/
 
 import { simulateBoot } from './boot.js';
-import { Breakpoints } from './breakpoints.js';
+import { Breakpoints } from './debug/breakpoints.js';
 import { Controllers } from './controllers.js';
 import { Joybus } from './joybus.js';
-import { Debugger } from './debugger.js';
+import { Debugger } from './debug/debugger.js';
 import { fixRomByteOrder } from './endian.js';
 import { toString32 } from './format.js';
 import { FramePacer } from './frame_pacer.js';
@@ -19,7 +19,7 @@ import { initRSP } from './rsp/rsp.js';
 import { categoryCodeDescriptionFromU8, countryNorthAmerica, OS_TV_NTSC, tvTypeFromCountry } from './system_constants.js';
 import { UI } from './ui/ui.js';
 import { initSync, syncActive, syncTick } from './sync.js';
-import { dbgGUI } from './dbg_ui.js';
+import { dbgGUI } from './debug/dbg_ui.js';
 
 window.n64js = window.n64js || {};
 

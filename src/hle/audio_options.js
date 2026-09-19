@@ -1,4 +1,4 @@
-import { dbgGUI } from '../dbg_ui.js';
+import { dbgGUI } from '../debug/dbg_ui.js';
 
 // Whether to skip audio task emulator or run it on the RSP.
 // Set this to false to enable audio in most games.
