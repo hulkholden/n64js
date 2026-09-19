@@ -9,8 +9,8 @@ const usage = `Usage: bun run inventory-summary <inventory-root|scan-directory|r
 
 Read saved inventories without starting emulation or checking ROM availability.
 JSON output counts runs, distinct known ROM hashes, run outcomes, and runs with
-observations in each known graphics collector. Per-run rows retain recorded ROM
-paths, emulator/settings, completion status, and collector records.
+observations in each known graphics/audio collector. Per-run rows retain recorded
+ROM paths, emulator/settings, completion status, and collector records.
 
 ROM aliases in a scan share a row; different seeds/scans remain separate runs.
 Missing reports and pending entries are included. Missing, unsupported or invalid
