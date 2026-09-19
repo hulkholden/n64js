@@ -11,7 +11,7 @@ export default [
     languageOptions: { globals: globals.browser },
   },
   {
-    files: ['src/**/*.test.js', 'src/**/*.bench.js', 'src/benchmark.js', 'src/headless*.js', 'src/inventory/**/*.js'],
+    files: ['src/**/*.test.js', 'src/**/*.bench.js', 'src/benchmark.js', 'src/headless*.js', 'src/systemtest/**/*.js', 'src/inventory/**/*.js'],
     languageOptions: { globals: { ...globals.nodeBuiltin, ...globals.bunBuiltin } },
   },
   {
@@ -21,5 +21,12 @@ export default [
   {
     files: ['tools/**/*.js'],
     languageOptions: { sourceType: 'commonjs', globals: globals.node },
+  },
+  {
+    files: ['tools/systemtest/**/*.js'],
+    languageOptions: {
+      sourceType: 'module',
+      globals: { ...globals.nodeBuiltin, ...globals.bunBuiltin },
+    },
   },
 ];

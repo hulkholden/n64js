@@ -52,6 +52,14 @@ python3 -m http.server
 
 Navigate to http://localhost:8000/.
 
+### PR system-test coverage
+
+PRs build a pinned n64-systemtest ROM from source and compare isolated main,
+TLB, and 64-bit-addressing groups against the PR base. Existing failures and
+unchanged, explicitly reported storm blockers are tolerated; new failures,
+lost coverage, and unexpected incomplete runs fail the check. Logs and ROMs are
+available as Actions artifacts. See [system-test configuration and local use](tools/systemtest/README.md).
+
 ### Headless controller input
 
 Bun scripts can set controller input through the live `inputs` array returned by
