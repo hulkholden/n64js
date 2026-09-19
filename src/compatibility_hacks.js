@@ -10,6 +10,32 @@
 // instruction reached after IPL3; the expected word also guards against bad sites.
 // These approximate missing timing costs, not a cache or pipeline timing model.
 export const compatibilityHacks = {
+  '8c6d9311434b2c6f': {
+    name: 'Donkey Kong 64 (Europe)',
+    enabled: true,
+    // The CIC6105 RSP semaphore wait expires before our initial PI DMA ends,
+    // so its scatter DMA never leaves the boot word at RDRAM 0x2fe1c0.
+    // Skip the resulting startup trap after IPL3's checksum. This is a
+    // workaround for incomplete CPU/RSP timing, not a PI timing correction.
+    instructionPatches: [
+      { address: 0x80000aa4, expected: 0x1462ffff, replacement: 0x00000000 }, // BNE v1, v0, self -> NOP
+    ],
+  },
+  'a7893c05024306a5': {
+    name: 'Donkey Kong 64 (Japan)',
+    enabled: true,
+    // Same CIC6105 boot-word trap as Europe.
+    instructionPatches: [
+      { address: 0x80000aa4, expected: 0x1462ffff, replacement: 0x00000000 },
+    ],
+  },
+  'bfea58ec69717cad': {
+    name: 'Donkey Kong 64 (USA)',
+    enabled: true,
+    instructionPatches: [
+      { address: 0x80000a04, expected: 0x1462ffff, replacement: 0x00000000 },
+    ],
+  },
   '9276ce297985c571': {
     name: 'NHL Breakaway 98 (Europe)',
     enabled: true,
