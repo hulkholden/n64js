@@ -1799,7 +1799,12 @@ export class CPU0 {
 
   execCACHE(rt, base, imms) {
     if (!this.ignoreCacheOp(rt)) {
-      fragmentMap.invalidateEntry(this.addrU32(base, imms));
+      const address = this.addrU32(base, imms);
+      if (rt === 0) {
+        fragmentMap.invalidateIndex(address);
+      } else {
+        fragmentMap.invalidateEntry(address);
+      }
     }
   }
 
@@ -2547,6 +2552,23 @@ class FragmentMap {
   addInstructionToFragment(fragment, pc) {
     fragment.updateMinMax(pc);
     this.lookupEntry(pc).add(fragment);
+  }
+
+  invalidateIndex(address) {
+    // The VR4300's 16 KiB I-cache has 512 direct-mapped, 32-byte lines.
+    // Index Invalidate uses VA[13:5], without comparing the address tag.
+    // Our fragment buckets cover a larger address space and retain multiple
+    // tags, so discard every fragment using this hardware index. In particular,
+    // a sweep of 0x80000000..0x80003fe0 must invalidate loaded overlays too.
+    const numCacheLines = 512;
+    const index = this.addressToCacheLine(address) % numCacheLines;
+    for (let i = index; i < this.entries.length; i += numCacheLines) {
+      const entry = this.entries[i];
+      for (const fragment of entry) {
+        fragment.invalidate();
+      }
+      entry.clear();
+    }
   }
 
   invalidateEntry(address) {
