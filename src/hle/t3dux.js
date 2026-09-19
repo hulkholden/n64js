@@ -166,10 +166,15 @@ export class T3DUX extends ObjectMicrocode {
       const rejected = indices.some(index => this.rejected[index]) || area === 0 ||
         (state.geometryMode.cullBack && area < 0);
       if ((palette & 0x80) || (rejected && palette)) {
-        if (!this.setTile) throw new Error('T3DUX palette change without SetTile');
-        this.renderer.flushTris(tb);
-        tb.reset();
-        super.executeSetTile(this.setTile[0], this.setTile[1] | (palette << 20), dis);
+        if (this.setTile) {
+          this.renderer.flushTris(tb);
+          tb.reset();
+          super.executeSetTile(this.setTile[0], this.setTile[1] | (palette << 20), dis);
+        } else if (state.geometryMode.texture) {
+          throw new Error('T3DUX textured palette change without SetTile');
+        }
+        // Untextured objects also carry this flag. Before the first SetTile,
+        // the RSP's zero-initialized template emits an RDP no-op, not a tile.
       }
       if (rejected) continue;
       const colorIndex = dv.getInt8(address + 3);

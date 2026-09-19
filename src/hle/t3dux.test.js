@@ -161,6 +161,20 @@ describe('T3DUX object lists', () => {
     expect(rejected.state.tiles[0].palette).toBe(9);
   });
 
+  test('draws untextured objects with a palette flag before any SetTile', () => {
+    for (const hash of hashes) {
+      const dv = fixture();
+      dv.setUint8(0x1305, 1); // Untextured, depth enabled.
+      dv.setUint32(0x1920, 0); // No SetTile template has been loaded.
+      const { state, microcode, draws } = setup(dv, hash);
+      executeDisplayList(state, microcode);
+      expect(draws).toHaveLength(2);
+      expect(draws[0].colors).toEqual(Array(6).fill(0x44332211));
+      expect(draws[0].texture).toBe(false);
+      expect(draws[0].palette).toBe(0);
+    }
+  });
+
   test('rejects unsupported writeback and unloaded attributes or vertices explicitly', () => {
     for (const [offset, value, message] of [
       [0x1309, 4, 'transform-only RAM writeback'],
