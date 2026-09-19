@@ -65,6 +65,7 @@ source trees and performs the full sequence (120 fresh-process measurements for
 these two ROMs):
 
 ```sh
+bun install --frozen-lockfile
 python3 tools/benchmark_word_codegen.py \
   --rom "$MARIO_ROM" --rom "$GOLDENEYE_ROM" --output /tmp/word-codegen.jsonl
 ```
@@ -89,54 +90,73 @@ correctness run. Three separate variants are compared to the same baseline:
 - **Moves:** replace only `generateOR`, before `generateXOR`.
 - **Combined:** the full production patch.
 
-Baseline and variant source trees were exported into separate temporary directories;
-the combined generator was byte-compared with the working tree. Timed subprocesses
-were launched sequentially. Preliminary measurements that overlapped this task's
-tests were discarded. Another Codex task was observed running CPU benchmarks on
-the same machine, so background contention is a limitation. Variation and individual
-paired changes are reported rather than treating small differences as established
-wins. Browser-engine and verified-gameplay confirmation have not been performed;
-these measurements do not establish a general gameplay speedup.
+The rerun used the checked-in reproduction runner with all source variants in
+separate temporary directories. The runner now explicitly links each export to
+the checkout's installed dependencies; git archives do not include node_modules.
+This fixes standalone execution outside a temporary directory with shared packages
+and does not change the emulator or generated code. Initial dependency-resolution
+failures produced no timed samples and are excluded.
 
-## Results
+Timed subprocesses ran sequentially, with no builds or tests launched by this task
+during measurement. Process snapshots before and periodically during the rerun
+found no competing test/benchmark workers; the existing Bun test server was idle.
+This is a normal desktop session,
+not proof that all other sources of system load were absent. Browser-engine and
+verified-gameplay confirmation have not been performed.
 
-Median VI/s ± median absolute deviation (MAD). MAD is a variation measure, not a confidence interval. Each row has five samples per side. The change column compares medians; the last column compares each adjacent pair, in collection order.
+## Results: rerun after the concurrent tests stopped
+
+Median VI/s ± median absolute deviation (MAD). MAD measures variation, not a confidence interval. Each row has five samples per side. The change column compares medians; the last column compares each adjacent pair in collection order.
 
 | ROM | Window (VI) | Variant | Baseline VI/s ± MAD | Prototype VI/s ± MAD | Median change | Paired changes (%) |
 | --- | --- | --- | ---: | ---: | ---: | --- |
-| Mario | 120–720 | Immediates | 94.13 ± 4.21 | 95.71 ± 4.85 | +1.68% | +2.80, -5.63, +1.68, -2.71, +5.06 |
-| Mario | 120–720 | Moves | 95.47 ± 2.65 | 95.65 ± 2.99 | +0.19% | +4.36, +0.19, +0.77, +19.80, -7.22 |
-| Mario | 120–720 | Combined | 86.88 ± 4.02 | 84.94 ± 8.41 | -2.24% | -2.00, -1.59, -2.24, +6.98, +4.22 |
-| Mario | 1320–1920 | Immediates | 60.89 ± 1.57 | 60.83 ± 1.37 | -0.11% | -2.07, -0.37, +2.55, -2.35, +3.04 |
-| Mario | 1320–1920 | Moves | 64.00 ± 0.36 | 64.50 ± 0.66 | +0.79% | +1.82, -0.89, -0.34, +3.50, +2.43 |
-| Mario | 1320–1920 | Combined | 66.01 ± 0.13 | 68.13 ± 1.47 | +3.21% | +3.97, +4.54, +3.01, +3.82, +7.62 |
-| GoldenEye | 120–720 | Immediates | 150.86 ± 1.60 | 152.62 ± 4.99 | +1.16% | +6.18, +6.17, -0.27, -2.34, +1.06 |
-| GoldenEye | 120–720 | Moves | 148.16 ± 3.61 | 154.40 ± 1.36 | +4.21% | +2.99, -0.88, +6.03, +7.42, +7.97 |
-| GoldenEye | 120–720 | Combined | 147.76 ± 6.72 | 151.17 ± 1.73 | +2.31% | -2.18, +8.54, +4.24, +9.48, +0.63 |
-| GoldenEye | 1320–1920 | Immediates | 103.46 ± 4.65 | 107.52 ± 1.90 | +3.92% | +2.20, +1.43, -2.31, +35.17, +24.86 |
-| GoldenEye | 1320–1920 | Moves | 104.23 ± 0.54 | 106.26 ± 1.93 | +1.95% | +0.12, +8.02, -0.17, +5.23, +3.79 |
-| GoldenEye | 1320–1920 | Combined | 103.35 ± 1.18 | 110.67 ± 0.23 | +7.07% | +6.85, +8.53, +7.30, +3.21, +8.55 |
+| Mario | 120–720 | Immediates | 106.76 ± 1.52 | 109.32 ± 1.71 | +2.40% | +2.41, +3.94, +0.79, +2.55, +2.48 |
+| Mario | 120–720 | Moves | 104.39 ± 1.24 | 107.16 ± 0.62 | +2.65% | +0.58, +9.02, +4.35, +2.95, +2.60 |
+| Mario | 120–720 | Combined | 104.62 ± 0.44 | 109.49 ± 0.38 | +4.65% | +2.69, +5.93, +5.08, +4.65, +4.95 |
+| Mario | 1320–1920 | Immediates | 70.47 ± 0.73 | 71.52 ± 0.24 | +1.49% | +1.38, +3.12, +3.12, +0.45, +1.28 |
+| Mario | 1320–1920 | Moves | 71.20 ± 0.22 | 72.67 ± 0.11 | +2.07% | +2.41, +1.41, +1.75, +2.29, +1.92 |
+| Mario | 1320–1920 | Combined | 71.35 ± 0.26 | 73.72 ± 0.36 | +3.32% | +3.01, +4.21, +3.22, +3.80, -5.58 |
+| GoldenEye | 120–720 | Immediates | 145.90 ± 1.96 | 149.04 ± 1.46 | +2.15% | -1.50, +2.26, +0.67, +4.55, -4.25 |
+| GoldenEye | 120–720 | Moves | 146.60 ± 2.67 | 149.63 ± 3.15 | +2.06% | +2.88, +0.05, +8.37, +2.06, -0.74 |
+| GoldenEye | 120–720 | Combined | 148.77 ± 2.44 | 152.75 ± 0.24 | +2.68% | +6.85, +5.23, +1.02, +5.57, +2.51 |
+| GoldenEye | 1320–1920 | Immediates | 109.50 ± 1.29 | 114.72 ± 1.43 | +4.77% | +3.33, +5.21, -0.18, +8.15, +2.24 |
+| GoldenEye | 1320–1920 | Moves | 110.55 ± 0.90 | 112.90 ± 0.31 | +2.13% | +3.00, +1.85, +4.50, +1.30, +1.02 |
+| GoldenEye | 1320–1920 | Combined | 107.99 ± 1.75 | 115.24 ± 2.46 | +6.71% | -2.04, +4.43, +5.01, +11.36, +12.38 |
 
-All 120 invocations completed. Total fresh-process wall time including warmups: 26.6 minutes. Every timed sample executed 600 retraces; cycles and the harness GPR/PC fingerprint agreed across all variants and repeats within each ROM/window.
+All 120 invocations completed, taking 24.1 minutes of fresh-process wall time including warmups. Every timed sample executed 600 retraces. Cycles and the harness GPR/PC fingerprint agree across all variants/repeats and with the earlier series within each ROM/window.
 
-[Raw paired samples](issue-162-pairs.jsonl) include per-run elapsed time, VI/s, cycles, fingerprint, runtime and the SHA-256 of the generator actually used. The reproduction runner emits the same format.
+[Raw rerun samples](issue-162-pairs.jsonl) record the generator SHA-256, baseline revision, runtime, process and measured elapsed time, cycles, VI/s and fingerprint. Baseline revision, runtime and all four generator hashes match the original series exactly.
 
+## Comparison with the original series
+
+The user confirmed another test series overlapped the original measurements. The [superseded report](issue-162-contended.md) and [original raw samples](issue-162-contended-pairs.jsonl) are preserved. They are not pooled with the rerun. Combined-patch comparisons:
+
+| ROM | Window (VI) | Original median change | Rerun median change |
+| --- | --- | ---: | ---: |
+| Mario | 120–720 | -2.24% | +4.65% |
+| Mario | 1320–1920 | +3.21% | +3.32% |
+| GoldenEye | 120–720 | +2.31% | +2.68% |
+| GoldenEye | 1320–1920 | +7.07% | +6.71% |
 
 ## Interpretation
 
-Immediate-only code generation shows no clear benefit in Mario: +1.68% early
-with mixed pairs and -0.11% later. Moves are also small in Mario (+0.19% and
-+0.79%). GoldenEye's move-only medians are more positive (+4.21% early, +1.95%
-later), although its pairs remain variable. The +3.92% later immediate-only
-median includes paired outliers of +35.17% and +24.86%; these are retained, not
-filtered out.
+The rerun supports a positive combined result in all four measured windows:
++4.65% / +3.32% for Mario and +2.68% / +6.71% for GoldenEye. Eighteen of the twenty
+combined pairs are positive. The largest change from the original interpretation
+is Mario's early window: its previously negative median is now positive, with
+all five pairs positive. The other three combined median changes are close to
+the original estimates.
 
-The strongest consistent signal is the combined patch in the later windows:
-+3.21% for Mario and +7.07% for GoldenEye, with all five pairs positive in each.
-The combined early-window results are mixed (-2.24% Mario, +2.31% GoldenEye).
-Independent-family changes must not be added together: the groups have separate
-paired baselines and there is visible drift even in the unchanged baseline.
-These results support further controlled measurements of this small prototype.
-Quiet-machine, browser-engine and verified-gameplay repetition are still needed
-before making a broad performance claim; the follow-up instruction families
-should remain independent experiments.
+Both independent families now have positive medians in every window. Mario's
+immediate-only and move-only pairs are all positive. GoldenEye's independent
+families still include some negative pairs, especially in its early window.
+The original later-immediate outliers of +24.86% and +35.17% did not recur.
+
+Residual variation remains: the combined later Mario group includes a -5.58%
+pair, and combined later GoldenEye ranges from -2.04% to +12.38%. These are retained
+in the table and raw data. Five pairs and periodic process checks do not establish
+an absence of all system-load effects. These results provide stronger support for
+this prototype in the measured Bun headless workloads; browser and verified
+rendered-gameplay repetition are still needed before making a broad performance
+claim. Independent-family medians should not be added together, and the follow-up
+instruction families remain separate experiments.

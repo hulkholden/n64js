@@ -27,6 +27,9 @@ def main():
     parser.add_argument('--baseline', default='c4aec6e62072d9d9a367c277bee1cc53503caa84')
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
+    dependencies = root / 'node_modules'
+    if not dependencies.is_dir():
+        raise FileNotFoundError('Run bun install in the checkout before benchmarking')
     baseline = subprocess.check_output(['git', 'rev-parse', args.baseline], cwd=root, text=True).strip()
     archive = subprocess.check_output(['git', 'archive', baseline], cwd=root)
     generator = Path('src/cpu/recompiler.js')
@@ -52,6 +55,10 @@ def main():
             (destination / generator).write_text(code)
         if (temporary / 'combined' / generator).read_text() != prototype:
             raise ValueError('Prototype has generator changes outside the two measured families')
+        # git archive excludes installed packages. All variants must resolve the
+        # same dependencies without relying on a node_modules ancestor of /tmp.
+        for mode in ['baseline', *variants]:
+            (temporary / mode / 'node_modules').symlink_to(dependencies, target_is_directory=True)
         hashes = {mode: hashlib.sha256((temporary / mode / generator).read_bytes()).hexdigest()
                   for mode in ['baseline', *variants]}
 
