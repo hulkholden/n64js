@@ -680,15 +680,19 @@ function generateAND(ctx) {
 }
 
 function generateOR(ctx) {
+  const d = ctx.instr_rd();
+  const s = ctx.instr_rs();
+  const t = ctx.instr_rt();
   let impl;
-  if (ctx.instr_rt() === 0) {
-    if (ctx.instr_rs() === 0) {
-      impl = `c.execCLEAR(${ctx.instr_rd()});`;
-    } else {
-      impl = `c.execMOV(${ctx.instr_rd()}, ${ctx.instr_rs()});`;
-    }
+  if (d === 0) {
+    impl = '';
+  } else if (s === 0 || t === 0) {
+    const source = s === 0 ? t : s;
+    if (source === d) impl = '';
+    else if (source === 0) impl = `c.setRegS64LoHi(${d}, 0, 0);`;
+    else impl = `c.setRegS64LoHi(${d}, c.getRegS32Lo(${source}), c.gprS32[${source * 2 + 1}]);`;
   } else {
-    impl = `c.execOR(${ctx.instr_rd()}, ${ctx.instr_rt()}, ${ctx.instr_rs()});`;
+    impl = `c.execOR(${d}, ${t}, ${s});`;
   }
   return generateTrivialOpBoilerplate(impl, ctx);
 }
@@ -1128,17 +1132,25 @@ function generateSLTIU(ctx) {
 }
 
 function generateANDI(ctx) {
-  const impl = `c.execANDI(${ctx.instr_rt()}, ${ctx.instr_rs()}, ${ctx.instr_imm()});`;
+  const impl = ctx.instr_rt() === 0 ? '' :
+    `c.setRegU32Extend(${ctx.instr_rt()}, c.getRegU32Lo(${ctx.instr_rs()}) & ${ctx.instr_imm()});`;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
 function generateORI(ctx) {
-  const impl = `c.execORI(${ctx.instr_rt()}, ${ctx.instr_rs()}, ${ctx.instr_imm()});`;
-  return generateTrivialOpBoilerplate(impl, ctx);
+  return generateLogicalImmediate(ctx, '|');
 }
 
 function generateXORI(ctx) {
-  const impl = `c.execXORI(${ctx.instr_rt()}, ${ctx.instr_rs()}, ${ctx.instr_imm()});`;
+  return generateLogicalImmediate(ctx, '^');
+}
+
+function generateLogicalImmediate(ctx, op) {
+  const s = ctx.instr_rs();
+  // Arguments are evaluated before either destination word is written, including
+  // when rt aliases rs. Logical immediates leave the source high word intact.
+  const impl = ctx.instr_rt() === 0 ? '' :
+    `c.setRegS64LoHi(${ctx.instr_rt()}, c.getRegS32Lo(${s}) ${op} ${ctx.instr_imm()}, c.gprS32[${s * 2 + 1}]);`;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 

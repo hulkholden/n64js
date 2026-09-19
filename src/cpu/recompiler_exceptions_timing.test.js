@@ -32,6 +32,7 @@ async function compareExecutions(instructions, prepare = () => {}, train = () =>
     cpu.setControlU32(regs.controlStatus, 0x20000000);
     cpu.cop1ControlChanged();
     hardware.cpu1.reset();
+    hardware.rsp.reset();
     cpu.pc = pc;
     hardware.ram.u8.fill(0);
     words.forEach((word, i) => hardware.ram.set32(0x1000 + i * 4, word));
@@ -56,6 +57,13 @@ async function compareExecutions(instructions, prepare = () => {}, train = () =>
       memory: [...hardware.ram.u8.slice(0x3000, 0x3020)],
       countCycles: cpu.controlCountValue,
       compareCycles: cpu.getCyclesUntilEvent('Compare'),
+      rsp: {
+        pc: hardware.rsp.pc,
+        delayPC: hardware.rsp.delayPC,
+        halted: hardware.rsp.halted,
+        gpr: [...hardware.rsp.gprU32],
+        memory: [...hardware.rsp.dmem.u8],
+      },
     };
   }
 
@@ -80,7 +88,7 @@ async function compareExecutions(instructions, prepare = () => {}, train = () =>
     cpu.run(runCycles);
     expect(fragment.executionCount).toBe(1);
     expect(snapshot()).toEqual(interpreted);
-    return { ...interpreted, profile: getPerformanceProfile(), interpretedCop1Checks, compiledCop1Checks: cop1Checks };
+    return { ...interpreted, code: fragment.func.toString(), profile: getPerformanceProfile(), interpretedCop1Checks, compiledCop1Checks: cop1Checks };
   } finally {
     setPerformanceProfiling(false);
   }
@@ -89,6 +97,77 @@ async function compareExecutions(instructions, prepare = () => {}, train = () =>
 for (const profiled of [false, true]) {
   describe(`compiled exceptions and timing${profiled ? ' with profiling' : ''}`, () => {
     const compare = (words, prepare, train) => compareExecutions(words, prepare, train, profiled);
+
+    for (const [name, opcode, operation] of [
+      ['ANDI', 0x30000000, (s, i) => s & i],
+      ['ORI', 0x34000000, (s, i) => s | i],
+      ['XORI', 0x38000000, (s, i) => s ^ i],
+    ]) {
+      for (const value of [0n, 0xffffffffffffffffn, 0x800000007fffffffn, 0x7fffffff80000000n, 0xffffffff00000000n]) {
+        for (const imm of [0, 0xffff]) {
+          for (const [source, destination] of [[1, 2], [1, 1], [0, 2], [1, 0], [0, 0]]) {
+            test(`${name} ${value.toString(16)} imm=${imm} r${source}->r${destination}`, async () => {
+              const setup = c => c.setRegU64(1, value);
+              const word = opcode | (source << 21) | (destination << 16) | imm;
+              // Exercise the operation in a taken branch delay slot as well.
+              const result = await compare([0x10000001, word], setup, setup);
+              const expected = operation(source === 0 ? 0n : value, BigInt(imm));
+              expect(result.gpr[destination]).toBe(destination === 0 ? 0n : expected);
+              expect(result.code).not.toContain(`exec${name}`);
+              if (profiled) expect(result.profile.compiledOps).toBe(runCycles);
+            });
+          }
+        }
+      }
+    }
+
+    for (const [s, t, d] of [[0, 0, 2], [1, 0, 2], [0, 1, 2], [1, 0, 1], [0, 1, 1], [1, 0, 0], [0, 1, 0], [0, 0, 0]]) {
+      for (const value of [0n, 0xffffffffffffffffn, 0x800000007fffffffn, 0x7fffffff80000000n]) {
+        test(`OR move/clear ${s},${t}->${d} ${value.toString(16)}`, async () => {
+          const setup = c => {
+            c.setRegU64(1, value);
+            c.setRegU64(2, 0x123456789abcdef0n);
+          };
+          const result = await compare([0x10000001, (s << 21) | (t << 16) | (d << 11) | 0x25], setup, setup);
+          expect(result.gpr[d]).toBe(d === 0 || (s === 0 && t === 0) ? 0n : value);
+          expect(result.code).not.toMatch(/exec(MOV|CLEAR|OR)\(/);
+          if (profiled) expect(result.profile.compiledOps).toBe(runCycles);
+        });
+      }
+    }
+
+    test('word logical operations preserve active RSP and event ordering', async () => {
+      const setup = (c, h) => {
+        c.setRegU64(1, 0xffffffff80000000n);
+        h.rsp.imem.u8.fill(0);
+        h.rsp.imem.set32(0, 0x24210001); // ADDIU r1,r1,1
+        h.rsp.imem.set32(4, 0x08000000); // J 0
+        h.rsp.imem.set32(8, 0xac010000); // SW r1,0(r0), delay slot
+        h.rsp.unhalt();
+        c.addEvent('Observe word operations', runCycles, () => {
+          h.ram.set32(0x3000, c.getRegU32Lo(3));
+          h.ram.set32(0x3004, h.rsp.gprU32[1]);
+        });
+      };
+      // Include elided self-copy and register-zero writes while the RSP runs.
+      const result = await compare([0x3422ffff, 0x38428000, 0x00401825, 0x00601825, 0x3420ffff, 0x3064ffff, 0x00001025], setup, setup);
+      expect(result.rsp.gpr[1]).toBeGreaterThan(0);
+      expect(result.memory.slice(4, 8)).not.toEqual([0, 0, 0, 0]);
+      expect(result.countCycles).toBe(runCycles);
+    });
+
+    test('word logical operations before a delay-slot fault preserve completed state', async () => {
+      const setup = c => {
+        c.setRegU64(1, 0xffffffff80000000n);
+        c.setRegS32Extend(4, 0x80003001);
+      };
+      const result = await compare([0x3422ffff, 0x38428000, 0x00401825, 0x3065ffff, 0x00003025, 0x10000001, 0x8c870000], setup);
+      expect(result.gpr[3]).toBe(0xffffffff80007fffn);
+      expect(result.gpr[5]).toBe(0x7fffn);
+      expect(result.gpr[6]).toBe(0n);
+      expect(result.cause).toBe(0x80000010);
+      expect(result.epc).toBe(pc + 20);
+    });
 
     for (const [name, word, address, cause] of [
       ['LW alignment', 0x8c820000, 0x80003001, 0x10],

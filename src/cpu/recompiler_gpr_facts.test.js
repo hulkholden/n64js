@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { createHeadlessEmulator } from '../headless/headless_env.js';
 import * as regs from './cpu0reg.js';
+import * as decode from './decode.js';
 import { Fragment, getFragmentMap, lookupFragment } from './fragments.js';
 import { FragmentContext, generateCodeForOp } from './recompiler.js';
 import { getPerformanceProfile, setPerformanceProfiling } from '../debug/performance_profile.js';
@@ -96,48 +97,49 @@ function generated(words, ctx = new FragmentContext(), fragment = new Fragment(p
 
 describe('GPR fact generated code', () => {
   test('Mario entry compares both full-width inputs and forwards the stored result', () => {
-    const code = generated([special(0x2a, 15, 4, 1), iop(0x15, 1, 0, -2), iop(0x23, 2, 15)]);
+    const code = generated([special(decode.SPECIAL_SLT, 15, 4, 1), iop(decode.OP_BNEL, 1, 0, -2), iop(decode.OP_LW, 2, 15)]);
     expect(code).toContain('c.getRegS64(15) < c.getRegS64(4)');
     expect(code).toContain('c.setRegU32Extend(1, compare_1 ? 1 : 0)');
     expect(code).toContain('if (compare_1)');
     expect(code).not.toContain('c.getRegU64(1)');
-    const afterLoad = generated([iop(0x23, 2, 15), special(0x2a, 15, 4, 1)]);
+    const afterLoad = generated([iop(decode.OP_LW, 2, 15), special(decode.SPECIAL_SLT, 15, 4, 1)]);
     expect(afterLoad).toContain('c.getRegS64(15) < c.getRegS64(4)');
   });
 
   test('Zelda word arithmetic proves both SLTU inputs', () => {
-    const code = generated([iop(0x23, 4, 15, 8), iop(0x09, 2, 2, 1), special(0x21, 15, 5, 24),
-      special(0x2b, 2, 24, 1), iop(0x15, 1, 0, -5), iop(0x28, 2, 0)]);
+    const code = generated([iop(decode.OP_LW, 4, 15, 8), iop(decode.OP_ADDIU, 2, 2, 1), special(decode.SPECIAL_ADDU, 15, 5, 24),
+      special(decode.SPECIAL_SLTU, 2, 24, 1), iop(decode.OP_BNEL, 1, 0, -5), iop(decode.OP_SB, 2, 0)]);
     expect(code).toContain('c.getRegU32Lo(2) < c.getRegU32Lo(24)');
     expect(code).toContain('if (compare_4)');
   });
 
   test('Diddy ANDI allows a Number equality even after a gap', () => {
-    const code = generated([iop(0x21, 20, 3), special(0x24, 3, 4, 3), iop(0x0c, 3, 3, 0xffff), 0, iop(4, 3, 0, 2)]);
+    const code = generated([iop(decode.OP_LH, 20, 3), special(decode.SPECIAL_AND, 3, 4, 3), iop(decode.OP_ANDI, 3, 3, 0xffff), 0, iop(decode.OP_BEQ, 3, 0, 2)]);
     expect(code).toContain('c.getRegU32Lo(3) === 0');
   });
 
   test('overwrites and unknown effects kill proofs and forwarding', () => {
-    for (const overwrite of [iop(0x37, 20, 1), special(0x2d, 4, 5, 1), iop(0x19, 4, 1, 1),
-      iop(0x1a, 20, 1), iop(0x1b, 20, 1), special(0x10, 0, 0, 1), 0x44210000, 0x0000000f]) {
-      const code = generated([special(0x2a, 4, 5, 1), overwrite, iop(5, 1, 0, 2)]);
+    for (const overwrite of [iop(decode.OP_LD, 20, 1), special(decode.SPECIAL_DADDU, 4, 5, 1), iop(decode.OP_DADDIU, 4, 1, 1),
+      iop(decode.OP_LDL, 20, 1), iop(decode.OP_LDR, 20, 1), special(decode.SPECIAL_MFHI, 0, 0, 1),
+      0x44210000, 0x0000000f]) {
+      const code = generated([special(decode.SPECIAL_SLT, 4, 5, 1), overwrite, iop(decode.OP_BNE, 1, 0, 2)]);
       expect(code).toContain('c.getRegU64(1) !== 0n');
     }
   });
 
   test('a nonadjacent comparison uses its width but not the old local', () => {
-    const code = generated([special(0x2a, 4, 5, 1), 0, iop(5, 1, 0, 2)]);
+    const code = generated([special(decode.SPECIAL_SLT, 4, 5, 1), 0, iop(decode.OP_BNE, 1, 0, 2)]);
     expect(code).toContain('c.getRegS32Lo(1) !== 0');
   });
 
   test('facts reset on fragment changes, explicit starts and invalidation/rebuilds', () => {
     const ctx = new FragmentContext();
     const fragment = new Fragment(pc);
-    generated([iop(9, 0, 1, 1)], ctx, fragment);
+    generated([iop(decode.OP_ADDIU, 0, 1, 1)], ctx, fragment);
     fragment.invalidate();
-    expect(generated([iop(5, 1, 0, 2)], ctx, fragment)).toContain('c.getRegU64(1) !== 0n');
-    generated([iop(9, 0, 1, 1)], ctx, fragment);
-    expect(generated([iop(5, 1, 0, 2)], ctx)).toContain('c.getRegU64(1) !== 0n');
+    expect(generated([iop(decode.OP_BNE, 1, 0, 2)], ctx, fragment)).toContain('c.getRegU64(1) !== 0n');
+    generated([iop(decode.OP_ADDIU, 0, 1, 1)], ctx, fragment);
+    expect(generated([iop(decode.OP_BNE, 1, 0, 2)], ctx)).toContain('c.getRegU64(1) !== 0n');
     ctx.newFragment();
     expect(ctx.gprFacts.get(1).kind).toBe('unknown64');
     expect(ctx.gprFacts.get(0).value).toBe(0n);
@@ -149,17 +151,17 @@ describe('mixed-width compiled/interpreted comparisons', () => {
     0x100000000n, 0x100000001n, -0x100000000n, 0x7fffffffffffffffn, -0x8000000000000000n];
   for (const [name, prefix] of [
     ['unknown', []],
-    ['signed words', [iop(9, 4, 4), iop(9, 5, 5)]],
-    ['unsigned words', [iop(0x27, 20, 4), iop(0x27, 20, 5, 8)]],
-    ['signed/unsigned', [iop(9, 4, 4), iop(0x27, 20, 5, 8)]],
-    ['unsigned/signed', [iop(0x27, 20, 4), iop(9, 5, 5)]],
+    ['signed words', [iop(decode.OP_ADDIU, 4, 4), iop(decode.OP_ADDIU, 5, 5)]],
+    ['unsigned words', [iop(decode.OP_LWU, 20, 4), iop(decode.OP_LWU, 20, 5, 8)]],
+    ['signed/unsigned', [iop(decode.OP_ADDIU, 4, 4), iop(decode.OP_LWU, 20, 5, 8)]],
+    ['unsigned/signed', [iop(decode.OP_LWU, 20, 4), iop(decode.OP_ADDIU, 5, 5)]],
   ]) {
     test(`${name}: signed and unsigned ordering, equality, aliases and high words`, async () => {
       // BEQ skips the aliased write to r4, making equality (including differing
       // upper words) observable independently of the comparison-result GPRs.
-      const f = await fixture([...prefix, special(0x2a, 4, 5, 1), iop(5, 1, 0, 1),
-        iop(0x2b, 20, 1), special(0x2b, 4, 5, 2), iop(4, 4, 5, 2), iop(0x2b, 20, 2, 4),
-        special(0x2a, 4, 5, 4), special(0x2b, 5, 5, 5), special(0x2a, 4, 5, 0)]);
+      const f = await fixture([...prefix, special(decode.SPECIAL_SLT, 4, 5, 1), iop(decode.OP_BNE, 1, 0, 1),
+        iop(decode.OP_SW, 20, 1), special(decode.SPECIAL_SLTU, 4, 5, 2), iop(decode.OP_BEQ, 4, 5, 2), iop(decode.OP_SW, 20, 2, 4),
+        special(decode.SPECIAL_SLT, 4, 5, 4), special(decode.SPECIAL_SLTU, 5, 5, 5), special(decode.SPECIAL_SLT, 4, 5, 0)]);
       const fragment = f.train();
       for (const s of values) for (const t of values) {
         f.compare(fragment, (c, h) => {
@@ -174,9 +176,9 @@ describe('mixed-width compiled/interpreted comparisons', () => {
   for (const unsigned of [false, true]) {
     for (const immediate of [-32768, -1, 0, 1, 32767]) {
       test(`SLTI${unsigned ? 'U' : ''} immediate ${immediate}`, async () => {
-        const op = unsigned ? 0x0b : 0x0a;
-        const f = await fixture([iop(op, 4, 1, immediate), iop(9, 4, 4), iop(op, 4, 2, immediate),
-          iop(0x27, 20, 4), iop(op, 4, 4, immediate), iop(5, 4, 0, 1), iop(0x2b, 20, 4, 4)]);
+        const op = unsigned ? decode.OP_SLTIU : decode.OP_SLTI;
+        const f = await fixture([iop(op, 4, 1, immediate), iop(decode.OP_ADDIU, 4, 4), iop(op, 4, 2, immediate),
+          iop(decode.OP_LWU, 20, 4), iop(op, 4, 4, immediate), iop(decode.OP_BNE, 4, 0, 1), iop(decode.OP_SW, 20, 4, 4)]);
         const fragment = f.train();
         for (const value of values) f.compare(fragment, (c, h) => {
           c.setRegU64(4, value);
@@ -187,11 +189,11 @@ describe('mixed-width compiled/interpreted comparisons', () => {
   }
 
   test('overflow, constants, mixed-width overwrites and full-source SRA/SRAV', async () => {
-    for (const shift of [special(3, 0, 4, 4, 4), special(7, 6, 4, 4)]) {
-      const words = [iop(0x0f, 0, 1, 0x8000), iop(9, 1, 1, -1), iop(9, 5, 5, 1),
-        special(0x2a, 1, 5, 2), iop(0x37, 20, 1), special(0x2a, 1, 5, 3),
-        shift, special(0x2a, 4, 5, 7), iop(0x0c, 1, 1, 0xffff), iop(4, 1, 0, 1),
-        iop(0x2b, 20, 7, 16)];
+    for (const shift of [special(decode.SPECIAL_SRA, 0, 4, 4, 4), special(decode.SPECIAL_SRAV, 6, 4, 4)]) {
+      const words = [iop(decode.OP_LUI, 0, 1, 0x8000), iop(decode.OP_ADDIU, 1, 1, -1), iop(decode.OP_ADDIU, 5, 5, 1),
+        special(decode.SPECIAL_SLT, 1, 5, 2), iop(decode.OP_LD, 20, 1), special(decode.SPECIAL_SLT, 1, 5, 3),
+        shift, special(decode.SPECIAL_SLT, 4, 5, 7), iop(decode.OP_ANDI, 1, 1, 0xffff), iop(decode.OP_BEQ, 1, 0, 1),
+        iop(decode.OP_SW, 20, 7, 16)];
       const f = await fixture(words);
       const fragment = f.train();
       for (const value of values) f.compare(fragment, (c, h) => {
@@ -202,12 +204,12 @@ describe('mixed-width compiled/interpreted comparisons', () => {
   });
 
   test('load and bitwise transfer rules handle sign bits and overwritten constants', async () => {
-    for (const load of [0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x30]) {
-      for (const bitwise of [0x24, 0x25, 0x26]) {
-        const f = await fixture([iop(0x0f, 0, 1, 0x8000), iop(load, 20, 1), iop(9, 5, 5),
-          special(bitwise, 1, 5, 2), special(0x2a, 2, 5, 3), special(0x2b, 2, 5, 4),
-          iop(0x0c, 2, 2, 0xffff), iop(0x0d, 2, 2, 0x8000), iop(0x0e, 2, 2, 0xffff),
-          iop(0x0b, 2, 6, -1), iop(5, 2, 0, 1), iop(0x2b, 20, 6, 16)]);
+    for (const load of [decode.OP_LB, decode.OP_LH, decode.OP_LWL, decode.OP_LW, decode.OP_LBU, decode.OP_LHU, decode.OP_LWR, decode.OP_LWU, decode.OP_LL]) {
+      for (const bitwise of [decode.SPECIAL_AND, decode.SPECIAL_OR, decode.SPECIAL_XOR]) {
+        const f = await fixture([iop(decode.OP_LUI, 0, 1, 0x8000), iop(load, 20, 1), iop(decode.OP_ADDIU, 5, 5),
+          special(bitwise, 1, 5, 2), special(decode.SPECIAL_SLT, 2, 5, 3), special(decode.SPECIAL_SLTU, 2, 5, 4),
+          iop(decode.OP_ANDI, 2, 2, 0xffff), iop(decode.OP_ORI, 2, 2, 0x8000), iop(decode.OP_XORI, 2, 2, 0xffff),
+          iop(decode.OP_SLTIU, 2, 6, -1), iop(decode.OP_BNE, 2, 0, 1), iop(decode.OP_SW, 20, 6, 16)]);
         const fragment = f.train();
         for (const value of values) f.compare(fragment, (c, h) => {
           c.setRegU64(5, value);
@@ -217,15 +219,33 @@ describe('mixed-width compiled/interpreted comparisons', () => {
     }
   });
 
-  for (const branch of [4, 5, 0x14, 0x15]) {
+  test('word immediates and move/clear specializations preserve comparison facts', async () => {
+    for (const load of [decode.OP_LW, decode.OP_LWU, decode.OP_LD]) { // Signed word, unsigned word, full width.
+      for (const move of [special(decode.SPECIAL_OR, 4, 0, 6), special(decode.SPECIAL_OR, 0, 4, 6),
+        special(decode.SPECIAL_OR, 4, 0, 4), special(decode.SPECIAL_OR, 0, 0, 6), special(decode.SPECIAL_OR, 4, 0, 0)]) {
+        const f = await fixture([iop(load, 20, 4), move,
+          iop(decode.OP_ORI, 6, 6, 0xffff), iop(decode.OP_XORI, 6, 6, 0x8000),
+          special(decode.SPECIAL_SLT, 4, 6, 8), special(decode.SPECIAL_SLTU, 4, 6, 9),
+          iop(decode.OP_ANDI, 4, 4, 0xffff), special(decode.SPECIAL_SLT, 4, 6, 10), special(decode.SPECIAL_SLTU, 4, 6, 11),
+          iop(decode.OP_BNE, 11, 0, 1), iop(decode.OP_SW, 20, 6, 16)]);
+        const fragment = f.train();
+        for (const value of values) f.compare(fragment, (c, h) => {
+          c.setRegU64(6, value ^ 0xffff000080000000n);
+          h.ram.set64(0x3000, value);
+        });
+      }
+    }
+  });
+
+  for (const branch of [decode.OP_BEQ, decode.OP_BNE, decode.OP_BEQL, decode.OP_BNEL]) {
     for (const reversed of [false, true]) {
       test(`branch ${branch.toString(16)}, zero ${reversed ? 'first' : 'second'}: off-trace exits, annulment and active RSP`, async () => {
-        const f = await fixture([special(0x2a, 4, 5, 1), iop(branch, reversed ? 0 : 1, reversed ? 1 : 0, 2),
-          iop(0x2b, 20, 1), iop(9, 0, 8, 17), iop(9, 0, 9, 23)]);
+        const f = await fixture([special(decode.SPECIAL_SLT, 4, 5, 1), iop(branch, reversed ? 0 : 1, reversed ? 1 : 0, 2),
+          iop(decode.OP_SW, 20, 1), iop(decode.OP_ADDIU, 0, 8, 17), iop(decode.OP_ADDIU, 0, 9, 23)]);
         const fragment = f.train(c => { c.setRegS32Extend(4, 1); });
         for (const value of [-1n, 1n]) f.compare(fragment, (c, h) => {
           c.setRegU64(4, value);
-          for (let i = 0; i < 32; i++) h.rsp.imemDV.setUint32(i * 4, iop(9, 1, 1, 1), false);
+          for (let i = 0; i < 32; i++) h.rsp.imemDV.setUint32(i * 4, iop(decode.OP_ADDIU, 1, 1, 1), false);
           h.rsp.halted = false;
         });
       });
@@ -234,7 +254,7 @@ describe('mixed-width compiled/interpreted comparisons', () => {
 
   for (const profiled of [false, true]) {
     test(`RSP interrupt between comparison and branch materializes the exact prefix, profiling=${profiled}`, async () => {
-      const f = await fixture([special(0x2a, 4, 5, 1), iop(5, 1, 0, 2), iop(0x2b, 20, 1)]);
+      const f = await fixture([special(decode.SPECIAL_SLT, 4, 5, 1), iop(decode.OP_BNE, 1, 0, 2), iop(decode.OP_SW, 20, 1)]);
       const fragment = f.train();
       const result = f.compare(fragment, (c, h) => {
         c.setRegS32Extend(4, -1);
@@ -242,7 +262,7 @@ describe('mixed-width compiled/interpreted comparisons', () => {
         c.statusRegisterChanged();
         h.mi_reg.set32(MI_INTR_MASK_REG, MI_INTR_SP);
         h.sp_reg.set32(SP_STATUS_REG, SP_STATUS_INTR_BREAK);
-        h.rsp.imemDV.setUint32(0, iop(9, 1, 1, 1), false);
+        h.rsp.imemDV.setUint32(0, iop(decode.OP_ADDIU, 1, 1, 1), false);
         h.rsp.imemDV.setUint32(4, 0x0d, false); // BREAK before CPU branch.
         h.rsp.halted = false;
       }, profiled);
@@ -254,7 +274,7 @@ describe('mixed-width compiled/interpreted comparisons', () => {
     });
 
     test(`delay-slot exception after a forwarded branch, profiling=${profiled}`, async () => {
-      const f = await fixture([special(0x2a, 4, 5, 1), iop(5, 1, 0, 2), iop(0x23, 20, 2)]);
+      const f = await fixture([special(decode.SPECIAL_SLT, 4, 5, 1), iop(decode.OP_BNE, 1, 0, 2), iop(decode.OP_LW, 20, 2)]);
       const fragment = f.train(c => c.setRegS32Extend(4, -1));
       const result = f.compare(fragment, c => {
         c.setRegS32Extend(4, -1); c.setRegS32Extend(20, 0x80003001);
@@ -267,7 +287,7 @@ describe('mixed-width compiled/interpreted comparisons', () => {
   }
 
   test('an event deadline between comparison and branch falls back with the same visible result', async () => {
-    const f = await fixture([special(0x2a, 4, 5, 1), iop(5, 1, 0, 2), iop(0x2b, 20, 1)]);
+    const f = await fixture([special(decode.SPECIAL_SLT, 4, 5, 1), iop(decode.OP_BNE, 1, 0, 2), iop(decode.OP_SW, 20, 1)]);
     const fragment = f.train();
     const result = f.compare(fragment, c => {
       c.setRegS32Extend(4, -1);
