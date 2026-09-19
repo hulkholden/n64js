@@ -49,7 +49,9 @@ export async function loadROMFile(romPath) {
 export async function createHeadlessEmulator(loadedROM, {
   enableCompatibilityHacks = true,
   // Execute graphics display lists with NullRenderer when using HLE mode.
-  // This updates HLE state without producing pixels; the default skips lists.
+  // This updates HLE state and signals DP interrupts on FullSync without
+  // producing pixels. The default skips lists and approximates one DP interrupt
+  // per task, which can give incorrect guest scheduler behavior.
   executeGraphics = false,
   onHalt = () => {},
   onWarning = () => {},

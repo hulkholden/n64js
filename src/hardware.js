@@ -30,7 +30,7 @@ export class Hardware {
   constructor(rominfo, {
     headless = false,
     enableCompatibilityHacks = true,
-    graphics = { processTask() {}, reset() {} },
+    graphics = null,
     onVerticalBlank = null,
     onGraphicsTask = null,
     onAudioTask = null,
@@ -43,8 +43,13 @@ export class Hardware {
     this.enableCompatibilityHacks = enableCompatibilityHacks;
     // The environment supplies a synchronous graphics processor with
     // processTask(task) and reset(). processTask may return a continuation for
-    // a CPU producer wait. The default skips HLE display lists.
-    this.graphics = graphics;
+    // a CPU producer wait, and signals DP interrupts on executed FullSyncs.
+    // The default skips lists and approximates one DP interrupt per task;
+    // use executeGraphics in headless runs to validate guest scheduling.
+    this.graphics = graphics ?? {
+      processTask: () => this.miRegDevice.interruptDP(),
+      reset() {},
+    };
     this.verticalBlankCount = 0;
     // Called synchronously after each VI interrupt with the count since reset.
     // Resets preserve the callback. It must not re-enter emulation.

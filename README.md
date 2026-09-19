@@ -84,6 +84,12 @@ Update fields on the existing objects rather than replacing array entries. Each
 fresh emulator has four independent, neutral input states; only port 0 is
 connected by default. Changing input state does not connect another port.
 
+Pass `{ executeGraphics: true }` to `createHeadlessEmulator` when investigating
+graphics tasks or guest scheduling. This executes HLE display lists without
+pixels and raises DP interrupts on FullSync commands. The default skips lists
+and approximates one DP interrupt per task; games that split a frame across
+tasks, such as Griffey Slugfest and MLB, can stall under that approximation.
+
 ## Publishing
 
 Push a new `v*` tag (for example, `v1.2.3`) to publish that commit to GitHub Pages.

@@ -435,6 +435,8 @@ export class GBIMicrocode {
   executeRDPFullSync(cmd0, cmd1, dis) {
     if (dis) {
       dis.text('gsDPFullSync();');
+    } else {
+      this.state.onFullSync?.();
     }
   }
 
