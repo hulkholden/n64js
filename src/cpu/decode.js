@@ -38,10 +38,18 @@ export const OP_SDL = 0x2c;
 export const OP_SDR = 0x2d;
 export const OP_SWR = 0x2e;
 export const OP_LL = 0x30;
+export const OP_LWC1 = 0x31;
+export const OP_LWC2 = 0x32;
 export const OP_LLD = 0x34;
+export const OP_LDC1 = 0x35;
+export const OP_LDC2 = 0x36;
 export const OP_LD = 0x37;
 export const OP_SC = 0x38;
+export const OP_SWC1 = 0x39;
+export const OP_SWC2 = 0x3a;
 export const OP_SCD = 0x3c;
+export const OP_SDC1 = 0x3d;
+export const OP_SDC2 = 0x3e;
 export const OP_SD = 0x3f;
 
 // SPECIAL function codes (bits 5..0), distinct from primary opcodes.
