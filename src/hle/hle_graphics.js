@@ -84,7 +84,7 @@ export function debugDisplayList() {
 
 function hleGraphics(task) {
   debugController.onNewTask(task)
-  return processDList(task, null, -1);
+  return processDList(task, null, -1, () => n64js.hardware().miRegDevice.interruptDP());
 }
 
 export function presentBackBuffer() {
@@ -110,7 +110,7 @@ export function presentBackBuffer() {
   renderer.copyPixelsToFrontBuffer(pixels, vi.screenWidth, vi.screenHeight, vi.bitDepth);
 }
 
-function processDList(task, disassembler, bailAfter) {
+function processDList(task, disassembler, bailAfter, onFullSync = null) {
   // Update a counter to tell the video code that we've rendered something.
   numDisplayListsRendered++;
   if (!gl) {
@@ -120,7 +120,7 @@ function processDList(task, disassembler, bailAfter) {
   const hardware = n64js.hardware();
   const ramDV = hardware.cachedMemDevice.mem.dataView
   renderer.onTextureUse = hardware.onTextureUse;
-  state.reset(ramDV, task.dataPtr);
+  state.reset(ramDV, task.dataPtr, onFullSync);
   const microcode = initMicrocode(task, ramDV, hardware.onMicrocodeLoad);
 
   initDimensionsFromVI(hardware.viRegDevice);

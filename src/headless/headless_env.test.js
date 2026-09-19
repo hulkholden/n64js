@@ -229,6 +229,30 @@ const unsupportedMicrocodes = [
 ];
 
 describe('headless graphics execution', () => {
+  test('completes SP-only lists without reporting an extra DP completion', async () => {
+    const emulator = await createEmulator({ executeGraphics: true });
+    const { hardware } = emulator;
+    prepareGraphicsTask(emulator);
+    // Griffey splits a frame over tasks: the first finishes without FullSync,
+    // and the next requests DP completion. A DP interrupt on the first task
+    // makes its scheduler consume the next task's pointer prematurely.
+    let dp = 0;
+    hardware.miRegDevice.interruptDP = () => { dp++; };
+    for (const [fullSync, expected] of [[false, 0], [true, 1], [false, 1]]) {
+      setGraphicsCommands(emulator, [
+        [0xe7000000, 0], // PipeSync is not a DP interrupt.
+        ...(fullSync ? [[0xe9000000, 0]] : []),
+        [0xdf000000, 0],
+        [0xe9000000, 0], // Unreachable commands must not signal completion.
+      ]);
+      startRSPTask(emulator);
+      const complete = SP_STATUS_TASKDONE | SP_STATUS_BROKE | SP_STATUS_HALT;
+      expect(hardware.sp_reg.getU32(SP_STATUS_REG) & complete).toBe(complete);
+      expect(dp).toBe(expected);
+    }
+    expect(dp).toBe(1);
+  });
+
   test.each(unsupportedMicrocodes)('rejects $family tasks and in-list loads before parsing their commands', async ({ family, version, code, detection }) => {
     const previousHaltOnWarning = graphicsOptions.haltOnWarning;
     try {
@@ -369,6 +393,7 @@ describe('headless graphics execution', () => {
       [0xaf000000 | (gbi2DataSize - 1), 0x80001000], // Switch back to GBI2.
       [0x05000204, 0],
       [0xfa000000, 0x12345678],
+      [0xe9000000, 0], // FullSync requests the DP interrupt.
       [0xdf000000, 0],
     ]);
     startRSPTask(emulator);
@@ -614,6 +639,31 @@ describe('audio task callback', () => {
 });
 
 describe('HLE display-list producer waits', () => {
+  test('signals FullSync before a producer wait without repeating it on task completion', async () => {
+    const emulator = await createEmulator({ executeGraphics: true });
+    const { cpu0, hardware } = emulator;
+    cpu0.pc = 0x80007000;
+    cpu0.setControlU32(controlStatus, 0);
+    cpu0.cop1ControlChanged();
+    prepareGraphicsTask(emulator);
+    setGraphicsCommands(emulator, [
+      [0xe9000000, 0],
+      [0xde010000, 0x3008],
+      [0xdf000000, 0],
+    ]);
+    let dp = 0;
+    hardware.miRegDevice.interruptDP = () => { dp++; };
+    startRSPTask(emulator);
+    expect(dp).toBe(1);
+    expect(hardware.sp_reg.getU32(SP_STATUS_REG) & SP_STATUS_TASKDONE).toBe(0);
+    runCycles(emulator, 2000);
+    expect(dp).toBe(1);
+    hardware.ram.set32(0x3008, 0);
+    runCycles(emulator, 2000);
+    expect(dp).toBe(1);
+    expect(hardware.sp_reg.getU32(SP_STATUS_REG) & SP_STATUS_TASKDONE).toBe(SP_STATUS_TASKDONE);
+  });
+
   async function waitingTask() {
     const tasks = [], loads = [];
     const emulator = await createEmulator({
@@ -630,6 +680,7 @@ describe('HLE display-list producer waits', () => {
       [0xfa000000, 0x12345678],
       [0xde010000, 0x3008],
       [0xfa000000, 0xabcdef01],
+      [0xe9000000, 0],
       [0xdf000000, 0],
     ]);
     hardware.spRegDevice.spUpdateStatus(SP_SET_INTR_BREAK);

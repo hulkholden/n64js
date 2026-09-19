@@ -23,6 +23,7 @@ export class RSPState {
     // Current display-list operation index. Batched handlers advance this to
     // the last operation in the batch; postOp advances it unless stopping.
     this.currentOp = 0;
+    this.onFullSync = null;
 
     this.segments = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     this.tiles = new Array(8);
@@ -113,7 +114,7 @@ export class RSPState {
     this.screenContext2d = null; // canvas context
   }
 
-  reset(ramDV, pc) {
+  reset(ramDV, pc, onFullSync = null) {
     this.ramDV = ramDV;
 
     this.pc = pc;
@@ -122,6 +123,9 @@ export class RSPState {
     this.cmd0 = 0;
     this.cmd1 = 0;
     this.currentOp = 0;
+    // Only live task execution supplies this callback; debugger replays must
+    // not generate new guest interrupts.
+    this.onFullSync = onFullSync;
 
     for (let i = 0; i < this.segments.length; ++i) {
       this.segments[i] = 0;

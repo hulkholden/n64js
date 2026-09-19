@@ -13,6 +13,32 @@ function writeCommands(ramDV, address, commands) {
 }
 
 describe('display-list execution', () => {
+  test('signals nested FullSyncs during execution, but not disassembly or replay', () => {
+    const ramDV = new DataView(new ArrayBuffer(0x100));
+    writeCommands(ramDV, 8, [
+      [0xde000000, 0x40],
+      [0xdf000000, 0],
+    ]);
+    writeCommands(ramDV, 0x40, [[0xe9000000, 0], [0xdf000000, 0]]);
+    const state = new RSPState();
+    let interrupts = 0;
+    const onFullSync = () => { interrupts++; };
+    state.reset(ramDV, 8, onFullSync);
+    executeDisplayList(state, new GBI2(state, ramDV));
+    expect(interrupts).toBe(1);
+
+    state.reset(ramDV, 8, onFullSync);
+    executeDisplayList(state, new GBI2(state, ramDV), {
+      disassembler: { begin() {}, text() {}, end() {} },
+    });
+    expect(interrupts).toBe(1);
+
+    // Debugger rendering replays reset the state without a guest callback.
+    state.reset(ramDV, 8);
+    executeDisplayList(state, new GBI2(state, ramDV), { bailAfter: 2 });
+    expect(interrupts).toBe(1);
+  });
+
   test('calls and returns from a list relocated by a negative segment base', () => {
     const ramDV = new DataView(new ArrayBuffer(8 * 1024 * 1024));
     writeCommands(ramDV, 8, [

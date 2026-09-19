@@ -166,11 +166,13 @@ export function hleProcessRSPTask() {
             logger.log('Skipping unsupported Factor 5 Indiana Jones graphics microcode');
             warnedF5Indi = true;
           }
+          hardware.miRegDevice.interruptDP();
         } else {
           continuation = hardware.graphics.processTask(task);
         }
         const complete = () => {
-          hardware.miRegDevice.interruptDP();
+          // SP completion is independent of DP: only an executed FullSync
+          // requests a DP interrupt, and some games split a frame over tasks.
           if (ev) ev.stop();
         };
         if (continuation) {
