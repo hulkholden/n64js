@@ -1,0 +1,86 @@
+name: N64 system tests
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  ROM_REVISION: 9a8b9f7d94ee2f6f57d7feed70c98c22cdc30e6c
+
+jobs:
+  systemtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          path: pr
+          persist-credentials: false
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: base
+          persist-credentials: false
+      - uses: actions/checkout@v6
+        with:
+          repository: thelemmy/nemu64-test
+          ref: ${{ env.ROM_REVISION }}
+          path: rom-source
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - name: Install emulator dependencies
+        run: |
+          (cd pr && bun ci)
+          (cd base && bun ci)
+      - name: Cache Rust dependencies and ROM build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rom-source/target
+          key: systemtest-${{ runner.os }}-${{ runner.arch }}-${{ env.ROM_REVISION }}-${{ hashFiles('pr/tools/systemtest/build.js') }}
+      - name: Cache ROM packager
+        id: packager
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/nust64
+          key: nust64-${{ runner.os }}-${{ runner.arch }}-0.4.1
+      - name: Install ROM packager
+        if: steps.packager.outputs.cache-hit != 'true'
+        run: cargo +stable install nust64 --version 0.4.1 --locked
+      - name: Install pinned ROM toolchain
+        working-directory: rom-source
+        run: rustup show
+      - name: Build isolated base-test ROMs
+        run: bun pr/tools/systemtest/build.js rom-source roms --revision "$ROM_REVISION"
+      - name: Run base and PR in isolated processes
+        run: |
+          mkdir -p results
+          for revision in base pr; do
+            for category in main tlb tlb64; do
+              # Expected test failures and known storms are classified by the
+              # comparison step. A killed worker leaves a missing result and fails.
+              code=0
+              timeout --kill-after=5s 120s bun pr/src/systemtest/run.js \
+                "$revision" "roms/$category.z64" "results/$revision-$category.json" \
+                > "results/$revision-$category.log" 2>&1 || code=$?
+              echo "$revision/$category worker exit: $code"
+            done
+          done
+      - name: Compare results
+        if: always()
+        run: bun pr/src/systemtest/compare.js results "$ROM_REVISION"
+      - name: Upload results and ROMs
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: n64-systemtest
+          path: |
+            results/
+            roms/
+          if-no-files-found: warn
