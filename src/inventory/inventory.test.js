@@ -29,9 +29,9 @@ async function withDirectory(fn) {
   }
 }
 
-// A synthetic bootstrap starts real HLE tasks, then spins with optional VI
+// A synthetic bootstrap starts real RSP tasks, then spins with optional VI
 // interrupts. No copyrighted ROM or emulator mocks are needed by the CLI tests.
-function makeROM({ vi = false, graphics = 'end', rewriteCount = false, waitForInput = false } = {}) {
+function makeROM({ vi = false, graphics = 'end', audio = false, rewriteCount = false, waitForInput = false } = {}) {
   const bytes = new Uint8Array(0x1000);
   const view = new DataView(bytes.buffer);
   view.setUint32(0, 0x80371240);
@@ -91,6 +91,16 @@ function makeROM({ vi = false, graphics = 'end', rewriteCount = false, waitForIn
     [0x18, 0x80002000], [0x1c, versionSize],
     [0x30, graphics === 'invalid' ? 0x1000000 : 0x3000],
   ]) view.setUint32(0xfc0 + offset, value);
+  if (audio) {
+    view.setUint32(0xfc0, 2);
+    view.setUint32(0xfc8, 0x80004000);
+    view.setUint32(0xfcc, 0x1000);
+    view.setUint32(0xfd0, 0x80004000);
+    view.setUint32(0xfd4, 0x1000);
+    view.setUint32(0xfdc, 0x40);
+    code.push(0x3c08a400); // SP memory: a minimal direct-loaded audio program.
+    store(0x1000, 0x0000000d); // BREAK ends the task when the RSP executes it.
+  }
   if (vi) {
     code.push(0x3c08a440); // t0 = VI registers.
     store(0x0c, 0); // Select an interrupt line independently of boot defaults.
@@ -114,6 +124,13 @@ function makeROM({ vi = false, graphics = 'end', rewriteCount = false, waitForIn
   if (graphics !== 'none') {
     code.push(0x3c08a404); // t0 = SP registers.
     store(0x10, 1); // Clear HALT to dispatch the task.
+    if (audio) {
+      // LLE tasks complete asynchronously. Wait for HALT, then rewind the RSP PC.
+      code.push(0x8d0a0010, 0x314a0001, 0x1140fffd, 0);
+      code.push(0x3c08a408);
+      store(0, 0);
+      code.push(0x3c08a404);
+    }
     store(0x10, 1); // Start the same task again to exercise aggregation.
   }
   if (rewriteCount) {
@@ -423,6 +440,23 @@ describe('inventory batch command', () => {
 });
 
 describe('inventory command', () => {
+  test('collects and aggregates unknown audio microcode through the real worker and report query', async () => {
+    await withDirectory(async directory => {
+      await Bun.write(join(directory, 'audio.z64'), makeROM({ vi: true, audio: true }));
+      const result = await invoke(directory, ['audio.z64', '--frames', '1', '--output', 'report.json']);
+      expect(result.code).toBe(0);
+      const report = JSON.parse(await readFile(join(directory, 'report.json'), 'utf8'));
+      expect(report.collectors['audio.taskMicrocodes']).toEqual({
+        version: 1, scope: 'task-start', tasks: 2,
+        microcodes: [{ family: 'Unknown', detection: 'unknown', tasks: 2 }],
+      });
+      expect(report.collectors['graphics.taskMicrocodes'].tasks).toBe(0);
+      const query = await invoke(directory, ['report.json', '--audio-microcode', 'unknown'], queryCLI);
+      expect(query.code).toBe(0);
+      expect(JSON.parse(query.stdout).summary.matched).toBe(1);
+    });
+  });
+
   test('replays saved settings from boot across ROM byte orders and retains original provenance', async () => {
     await withDirectory(async directory => {
       const rom = makeROM({ vi: true, waitForInput: true });
@@ -674,6 +708,7 @@ describe('inventory command', () => {
       const empty = await invoke(directory, ['test.z64', '--frames', '1']);
       expect(empty.code).toBe(0);
       expect(JSON.parse(empty.stdout).result.failure).toBeUndefined();
+      expect(JSON.parse(empty.stdout).collectors['audio.taskMicrocodes']).toEqual({ version: 1, scope: 'task-start', tasks: 0, microcodes: [] });
       expect(JSON.parse(empty.stdout).collectors['graphics.taskMicrocodes']).toMatchObject({ version: 1, tasks: 0, microcodes: [] });
       expect(JSON.parse(empty.stdout).collectors['graphics.microcodeLoads']).toMatchObject({ version: 1, loads: 0, microcodes: [] });
       expect(JSON.parse(empty.stdout).collectors['graphics.textureFormats']).toEqual({ version: 1, scope: 'hle-draw', formats: [] });
