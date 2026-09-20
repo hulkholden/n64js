@@ -1,4 +1,4 @@
-/*global $, n64js*/
+/*global n64js*/
 
 import { toString16, toString32 } from "../format.js";
 import { Vector2 } from "../graphics/Vector2.js";
@@ -44,7 +44,7 @@ export class Renderer extends RendererBase {
     this.fillRectVA = this.initFillRectVA(this.fillShaderProgram);
     this.debugClearVA = this.initClearVA(this.fillShaderProgram);
 
-    this.$textureOutput = $('#texture-content');
+    this.textureOutput = document.getElementById('texture-content');
   }
 
   get frameBuffer() { return this.renderTargets.current.framebuffer; }
@@ -76,7 +76,7 @@ export class Renderer extends RendererBase {
   reset() {
     this.renderTargets.reset();
     this.textureCache.clear();
-    this.$textureOutput.html('');
+    this.textureOutput?.replaceChildren();
   }
 
   newFrame() {
@@ -496,32 +496,31 @@ export class Renderer extends RendererBase {
     }
 
     const texture = new Texture(gl, tile.width, tile.height);
-    if (!texture.$canvas[0].getContext) {
+    if (!texture.canvas.getContext) {
       return null;
     }
 
-    this.$textureOutput.append(
-      `${cacheID}: ${gbi.ImageFormat.nameOf(tile.format)}, ${gbi.ImageSize.nameOf(tile.size)},${tile.width}x${tile.height}, <br>`);
+    this.textureOutput?.append(
+      `${cacheID}: ${gbi.ImageFormat.nameOf(tile.format)}, ${gbi.ImageSize.nameOf(tile.size)},${tile.width}x${tile.height}, `, document.createElement('br'));
 
-    const ctx = texture.$canvas[0].getContext('2d');
+    const ctx = texture.canvas.getContext('2d');
     const imgData = ctx.createImageData(texture.width, texture.height);
 
     const handled = this.state.tmem.convertTexels(tile, tlutFormat, imgData);
     if (handled) {
       ctx.putImageData(imgData, 0, 0);
 
-      this.$textureOutput.append(texture.$canvas);
-      this.$textureOutput.append('<br>');
+      this.textureOutput?.append(texture.canvas, document.createElement('br'));
     } else {
       const msg = `${gbi.ImageFormat.nameOf(tile.format)}/${gbi.ImageSize.nameOf(tile.size)} is unhandled`;
-      this.$textureOutput.append(msg);
+      this.textureOutput?.append(msg);
       // FIXME: fill with placeholder texture
       this.hleHalt(msg);
     }
 
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, texture.texture);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texture.$canvas[0]);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texture.canvas);
 
     gl.generateMipmap(gl.TEXTURE_2D);
     gl.bindTexture(gl.TEXTURE_2D, null);

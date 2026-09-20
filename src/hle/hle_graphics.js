@@ -1,4 +1,3 @@
-/*jshint jquery:true browser:true */
 /*global n64js*/
 
 import { DebugController } from './debug_controller.js';
@@ -24,10 +23,9 @@ export const graphics = {
   reset: resetRenderer,
 };
 
-export function initialiseRenderer($canvas) {
+export function initialiseRenderer(canvas) {
   debugController.initUI();
 
-  const canvas = $canvas[0];
   initWebGL(canvas); // Initialize the GL context
 
   // Only continue if WebGL is available and working

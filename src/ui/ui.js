@@ -1,4 +1,4 @@
-/*global $, n64js*/
+/*global n64js*/
 
 import { ControllerConfig } from "./controller_config.js";
 
@@ -12,20 +12,16 @@ export class UI {
 
     const dbg = n64js.debugger();
 
-    // const body = document.querySelector('body');
-    // body.addEventListener('keypress', (event) => {
-    //   switch (event.key) {
-    //     case 'o': $('#output-tab').tab('show'); break;
-    //     case 'd': $('#cpu-tab').tab('show'); break;
-    //     case 'm': $('#memory-tab').tab('show'); break;
-    //     case 'l': n64js.ui().triggerLoad();     break;
-    //     case 'g': n64js.toggleRun();            break;
-    //     case 's': n64js.step();                 break;
-    //   }
-    // });
+    // Make sure that the tabs refresh when clicked.
+    document.querySelectorAll('.tabbable a').forEach(tab => {
+      tab.addEventListener('shown.bs.tab', () => { dbg.redraw(); });
+    });
 
-    // Make sure that the tabs refresh when clicked
-    $('.tabbable a').on('shown.bs.tab', () => { dbg.redraw(); });
+    document.getElementById('info-toggle').addEventListener('click', event => {
+      event.preventDefault();
+      const info = document.getElementById('info');
+      info.hidden = !info.hidden;
+    });
 
     dbg.redraw();
   }
@@ -69,11 +65,11 @@ export class UI {
     typeSpan.textContent = alertType + "!";
     messageSpan.textContent = message;
 
-    $('#alerts').append(node);
+    document.getElementById('alerts').append(node);
   }
 
   setRunning(running) {
     const html = running ? '<i class="bi-pause"></i> Pause' : '<i class="bi-play"></i> Run';
-    $('#runbutton').html(html);
+    document.getElementById('runbutton').innerHTML = html;
   }
 }
