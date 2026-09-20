@@ -1,5 +1,5 @@
 /*jshint jquery:true, browser:true, devel:true */
-/*global $, n64js, Stats, md5*/
+/*global $, n64js, Stats, md5, __BUILD_VERSION__*/
 
 import { simulateBoot } from './boot.js';
 import { Breakpoints } from './debug/breakpoints.js';
@@ -358,6 +358,7 @@ function breakAllExecution() {
 }
 
 n64js.init = () => {
+  document.getElementById('build-version').textContent = __BUILD_VERSION__;
   n64js.reset();
   dbg = new Debugger();
   initialiseRenderer($('#display'));

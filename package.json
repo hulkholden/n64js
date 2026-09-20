@@ -8,8 +8,8 @@
   "scripts": {
     "lint": "bun --bun eslint src tools eslint.config.js --max-warnings 0",
     "lint:fix": "bun run lint --fix",
-    "build": "bun build ./src/n64.js --outfile=build/n64.min.js --minify",
-    "build-debug": "bun build ./src/n64.js --outfile=build/n64.min.js",
+    "build": "bun run tools/build.js",
+    "build-debug": "bun run tools/build.js --debug",
     "benchmark": "bun run ./src/headless/benchmark.js",
     "headless": "bun run ./src/headless/headless.js",
     "inventory": "bun run ./src/inventory/inventory.js",

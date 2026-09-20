@@ -23,7 +23,7 @@ export default [
     languageOptions: { sourceType: 'commonjs', globals: globals.node },
   },
   {
-    files: ['tools/systemtest/**/*.js'],
+    files: ['tools/build.js', 'tools/systemtest/**/*.js'],
     languageOptions: {
       sourceType: 'module',
       globals: { ...globals.nodeBuiltin, ...globals.bunBuiltin },
