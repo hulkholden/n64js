@@ -6,7 +6,7 @@ export const MicrocodeId = Object.freeze({
   GBI2_SDEX: 4,    // Neon Evangelion, Kirby
   GBI0_WR: 5,      // Wave Racer USA
   GBI0_DKR: 6,     // Diddy Kong Racing, Gemini, and Mickey
-  GBI1_LL: 7,      // Last Legion, Toukon, Toukon 2
+  GBI1_LL: 7,      // Retired identity, retained for saved inventory reports
   GBI0_SE: 8,      // Shadows of the Empire (SOTE)
   GBI0_GE: 9,      // Golden Eye
   GBI2_CONKER: 10, // Conker BFD
@@ -15,6 +15,8 @@ export const MicrocodeId = Object.freeze({
   ZSORTP: 13,      // Mia Hamm / World League Soccer (recognized, but HLE is not implemented)
   TURBO3D: 14,     // Dark Rift (object lists, not GBI commands)
   ZSORT_BOSS: 15,  // Stunt Racer / World Driver (recognized, but HLE is not implemented)
+  T3DUX: 16,       // Last Legion UX / Toukon Road 2
+  T3DUX_BRAVE: 17, // Toukon Road: Brave Spirits (different palette command emission)
 });
 
 const microcodeProfiles = new Map([
@@ -32,6 +34,8 @@ const microcodeProfiles = new Map([
   [MicrocodeId.GBI0_PD, { family: 'GBI0', variant: 'PD' }],
   [MicrocodeId.F5_INDI, { family: 'F5', variant: 'INDI' }],
   [MicrocodeId.ZSORTP, { family: 'ZSortp', variant: null }],
+  [MicrocodeId.T3DUX, { family: 'T3DUX', variant: '26da8a4c' }],
+  [MicrocodeId.T3DUX_BRAVE, { family: 'T3DUX', variant: 'dd560323' }],
   [MicrocodeId.TURBO3D, { family: 'Turbo3D', variant: null }],
   [MicrocodeId.ZSORT_BOSS, { family: 'ZSortBOSS', variant: null }],
 ]);
@@ -43,10 +47,10 @@ const ucodeOverrides = new Map([
   [0x713311dc, MicrocodeId.GBI0_DKR],    // "Diddy Kong Racing (v1.1)"
   [0x23f92542, MicrocodeId.GBI0_GE],     // "RSP SW Version: 2.0G, 09-30-96", "GoldenEye 007"
   [0x169dcc9d, MicrocodeId.GBI0_DKR],    // "Jet Force Gemini"
-  [0x26da8a4c, MicrocodeId.GBI1_LL],     // "Last Legion UX"
+  [0x26da8a4c, MicrocodeId.T3DUX],      // "Last Legion UX", "Toukon Road 2"
   [0xcac47dc4, MicrocodeId.GBI0_PD],     // "Perfect Dark (v1.1)"
   [0x6cbb521d, MicrocodeId.GBI0_SE],     // "RSP SW Version: 2.0D, 04-01-96", "Star Wars - Shadows of the Empire (v1.0)"
-  [0xdd560323, MicrocodeId.GBI1_LL],     // "Toukon Road - Brave Spirits"
+  [0xdd560323, MicrocodeId.T3DUX_BRAVE], // "Toukon Road - Brave Spirits"
   [0x64cc729d, MicrocodeId.GBI0_WR],     // "RSP SW Version: 2.0D, 04-01-96", "Wave Race 64"
   [0xd73a12c4, MicrocodeId.GBI0],       // Fish demo
   [0x313f038b, MicrocodeId.GBI0],       // Pilotwings
