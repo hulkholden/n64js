@@ -22,6 +22,8 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun ci
       - run: bun run build
+        env:
+          BUILD_VERSION: ${{ github.ref_name }}
       - name: Stage site
         run: |
           mkdir _site

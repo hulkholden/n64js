@@ -27,7 +27,12 @@ bun run build
 ```
 
 The generated `build/` directory is ignored by Git. Build locally before running
-the site; CI checks that pull requests and pushes to `master` pass linting and build
+the site. The footer shows `development` by default; to preview a release version,
+run `BUILD_VERSION=v1.0.1 bun run build`. `bun run build-debug` produces an
+unminified bundle with the same version handling. The Pages workflow sets
+`BUILD_VERSION` to the tag that triggered deployment.
+
+CI checks that pull requests and pushes to `master` pass linting and build
 successfully.
 
 Run ESLint (using Bun) or apply its automatic fixes:
