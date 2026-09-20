@@ -104,6 +104,8 @@ export class SIRegDevice extends Device {
   }
 
   beginDMA() {
+    // Reject overlapping requests with DMA_ERROR, preserving the active
+    // transfer and its scheduled completion without copying any new data.
     if (this.mem.getBits32(SI_STATUS_REG, SI_STATUS_DMA_BUSY)) {
       this.mem.setBits32(SI_STATUS_REG, SI_STATUS_DMA_ERROR);
       return false;
