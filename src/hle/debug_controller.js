@@ -1,4 +1,4 @@
-/*global $, n64js*/
+/*global n64js*/
 
 import { padString, toHex, toString32 } from '../format.js';
 import { makeColorTextRGBA16, makeColorTextRGBA, makeColorTextABGR } from './disassemble.js';
@@ -8,7 +8,7 @@ import * as shaders from './shaders.js';
 // TODO: make fields.
 let dlistScrub;
 let dlistState;
-let $dlistOutput;
+let dlistOutput;
 
 // Which displaylist in the frame to stop on.
 let dlFocusIndex = 0;
@@ -134,14 +134,18 @@ export class DebugController {
     this.bailAfter = t;
     this.setScrubText(this.bailAfter, this.numOps);
 
-    const $instr = $dlistOutput.find(`#I${this.bailAfter}`);
-
-    $dlistOutput.scrollTop($dlistOutput.scrollTop() + $instr.position().top -
-      $dlistOutput.height() / 2 + $instr.height() / 2);
-
+    const instruction = dlistOutput.querySelector(`#I${this.bailAfter}`);
     const cls = 'hle-cur-instr';
-    $dlistOutput.find('.hle-instr').removeClass(cls);
-    $instr.addClass(cls);
+    dlistOutput.querySelectorAll(`.${cls}`).forEach(element => element.classList.remove(cls));
+    if (!instruction) {
+      return;
+    }
+    instruction.classList.add(cls);
+
+    const bounds = instruction.getBoundingClientRect();
+    const outputBounds = dlistOutput.getBoundingClientRect();
+    dlistOutput.scrollTop += bounds.top - outputBounds.top - dlistOutput.clientTop +
+      bounds.height / 2 - dlistOutput.clientHeight / 2;
   }
 
   initUI() {
@@ -172,8 +176,9 @@ export class DebugController {
 
     dlistState = document.querySelector('#dlist-content .hle-state');
 
-    $dlistOutput = $('<div class="hle-disasm"></div>');
-    $('#adjacent-debug').empty().append($dlistOutput);
+    dlistOutput = document.createElement('div');
+    dlistOutput.className = 'hle-disasm';
+    document.getElementById('adjacent-debug').replaceChildren(dlistOutput);
   }
 
   showUI() {
@@ -186,12 +191,15 @@ export class DebugController {
   }
 
   setDisplayListOutput(output) {
-    $dlistOutput.html(output);
-    output.find('.dl-tip').parent().click(function () {
-      $(this).find('.dl-tip').toggle();
+    dlistOutput.replaceChildren(output);
+    output.querySelectorAll('.hle-instr').forEach(instruction => {
+      const tips = instruction.querySelectorAll('.dl-tip');
+      if (tips.length) {
+        instruction.addEventListener('click', () => {
+          tips.forEach(tip => { tip.hidden = !tip.hidden; });
+        });
+      }
     });
-    // output.find('.dl-branch').click(function () {
-    // });
   }
 
   buildStateTab() {
@@ -378,8 +386,8 @@ export class DebugController {
 class Disassembler {
   constructor(dc) {
     this.debugController = dc;
-    this.$currentDis = $('<pre></pre>');
-    this.$span = undefined;
+    this.currentDis = document.createElement('pre');
+    this.span = undefined;
     this.numOps = 0;
   }
 
@@ -387,28 +395,33 @@ class Disassembler {
     const indent = (new Array(depth + 1)).join('  ');
     const pcStr = ' '; //  ` [${toHex(pc, 32)}] `
 
-    this.$span = $(`<span class="hle-instr" id="I${this.numOps}" />`);
-    this.$span.append(`${padString(this.numOps, 5)}${pcStr}${toHex(cmd0, 32)}${toHex(cmd1, 32)} ${indent}`);
-    this.$currentDis.append(this.$span);
+    this.span = document.createElement('span');
+    this.span.className = 'hle-instr';
+    this.span.id = `I${this.numOps}`;
+    this.span.append(`${padString(this.numOps, 5)}${pcStr}${toHex(cmd0, 32)}${toHex(cmd1, 32)} ${indent}`);
+    this.currentDis.append(this.span);
   }
 
   text(t) {
-    this.$span.append(t);
+    // Microcode disassemblers supply markup for links and colour swatches.
+    this.span.insertAdjacentHTML('beforeend', t);
   }
 
   tip(t) {
-    const $d = $(`<div class="dl-tip">${t}</div>`);
-    $d.hide();
-    this.$span.append($d);
+    const tip = document.createElement('div');
+    tip.className = 'dl-tip';
+    tip.innerHTML = t;
+    tip.hidden = true;
+    this.span.append(tip);
   }
 
   end() {
-    this.$span.append('<br>');
+    this.span.append(document.createElement('br'));
     this.numOps++;
   }
 
-  finalise = function () {
-    this.debugController.setDisplayListOutput(this.$currentDis);
+  finalise() {
+    this.debugController.setDisplayListOutput(this.currentDis);
   }
 
   rgba8888(col) { return makeColorTextRGBA(col); }
