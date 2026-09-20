@@ -19,6 +19,7 @@ import { categoryCodeDescriptionFromU8, countryNorthAmerica, OS_TV_NTSC, tvTypeF
 import { UI } from './ui/ui.js';
 import { initSync, syncActive, syncTick } from './sync.js';
 import { dbgGUI } from './debug/dbg_ui.js';
+import { textureRectDebug } from './hle/texture_rectangle_debug.js';
 
 window.n64js = window.n64js || {};
 
@@ -123,6 +124,7 @@ function loadRom(arrayBuffer) {
 }
 
 n64js.hardware = () => hardware;
+n64js.textureRectDebug = textureRectDebug;
 n64js.joybus = () => joybus
 n64js.ui = () => ui;
 n64js.debugger = () => dbg;

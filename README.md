@@ -65,6 +65,37 @@ unchanged, explicitly reported storm blockers are tolerated; new failures,
 lost coverage, and unexpected incomplete runs fail the check. Logs and ROMs are
 available as Actions artifacts. See [system-test configuration and local use](tools/systemtest/README.md).
 
+### Evaluating texture rectangle edge clamping
+
+The experimental fix for Mario Kart 64 menu texture seams is off by default.
+Open **Debug → Options → Graphics → Texture Rectangles** to toggle **Clamp Edges
+(Experimental)** and **Collect Sampling Stats** independently. Both switches
+are defined in `src/options.js` and take effect on subsequent draws without a
+reload. Turning clamping off restores the original texture wrapping behavior.
+
+The same controls and JSON-compatible statistics are available in the browser
+console for evaluation scripts:
+
+```js
+n64js.textureRectDebug.options.clamp = false; // Baseline; use true for the fix.
+n64js.textureRectDebug.options.instrument = true;
+n64js.textureRectDebug.reset();
+// Run the scene, then pause and collect:
+const stats = n64js.textureRectDebug.snapshot();
+```
+
+Statistics are separated into `baseline` and `clamp` modes. They count rectangle
+texture bindings, candidate overrides, and applied overrides, including S/T axis
+counts. Two-cycle rectangles may contribute two bindings. Each mode retains at
+most 32 candidate samples with tile settings, texture dimensions, UVs, the UV
+transform, filter/cycle modes, texture slot, and display-list PC after command
+decoding. Samples are snapshots; counters continue after the sample limit.
+The UI also provides reset and dump-to-console buttons. Emulator reset clears
+the statistics; disabling collection preserves them. Leave collection off for
+performance measurements. These counters establish exercised sampling behavior,
+not visible pixel differences; compare screenshots at matching emulated frames
+and resolutions to evaluate visual changes.
+
 ### Headless controller input
 
 Bun scripts can set controller input through the live `inputs` array returned by

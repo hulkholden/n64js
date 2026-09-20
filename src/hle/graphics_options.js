@@ -1,4 +1,6 @@
 import { dbgGUI } from '../debug/dbg_ui.js';
+import { textureRectOptions } from '../options.js';
+import { textureRectDebug } from './texture_rectangle_debug.js';
 
 export const graphicsOptions = {
   // Scale factor to apply to the canvas.
@@ -25,3 +27,8 @@ folder.add(graphicsOptions, 'dumpMicrocode').name('Dump Microcode');
 folder.add(graphicsOptions, 'dumpMicrocodeSubstring').name('Dump Microcode Substring');
 folder.add(graphicsOptions, 'emulationMode', { 'HLE (Recommended)': 'HLE', 'LLE (Experimental, Slow)': 'LLE' }).name('Emulation Mode');
 folder.add(graphicsOptions, 'dumpRDP').name('Dump RDP');
+const textureRectFolder = folder.addFolder('Texture Rectangles');
+textureRectFolder.add(textureRectOptions, 'clamp').name('Clamp Edges (Experimental)');
+textureRectFolder.add(textureRectOptions, 'instrument').name('Collect Sampling Stats');
+textureRectFolder.add(textureRectDebug, 'reset').name('Reset Sampling Stats');
+textureRectFolder.add({ dump() { console.log(textureRectDebug.snapshot()); } }, 'dump').name('Dump Sampling Stats');

@@ -2,11 +2,13 @@
 
 import { toString16, toString32 } from "../format.js";
 import { Vector2 } from "../graphics/Vector2.js";
+import { textureRectOptions } from '../options.js';
 import * as gbi from './gbi.js';
 import { RendererBase } from './renderer_base.js';
 import { RenderTargets } from './render_targets.js';
 import * as shaders from './shaders.js';
 import { Texture } from './textures.js';
+import { recordTextureRectBinding, textureRectDebug } from './texture_rectangle_debug.js';
 import { VertexArray } from "./vertex_array.js";
 
 const kBlendModeUnknown = 0;
@@ -77,6 +79,7 @@ export class Renderer extends RendererBase {
     this.renderTargets.reset();
     this.textureCache.clear();
     this.textureOutput?.replaceChildren();
+    textureRectDebug.reset();
   }
 
   newFrame() {
@@ -292,7 +295,7 @@ export class Renderer extends RendererBase {
     // TODO: check scissor
 
     this.setProgramState(new Float32Array(vertices), new Uint32Array(colours), new Float32Array(uvs),
-      true /* textureEnabled */, false /*texGenEnabled*/, tileIdx);
+      true /* textureEnabled */, false /*texGenEnabled*/, tileIdx, vertices.length / 4, uvs);
 
     gl.disable(gl.CULL_FACE);
 
@@ -376,7 +379,7 @@ export class Renderer extends RendererBase {
     gl.depthMask(zUpdRenderMode);
   }
 
-  setProgramState(positions, colours, coords, textureEnabled, texGenEnabled, tileIdx, numVertices = positions.length / 4) {
+  setProgramState(positions, colours, coords, textureEnabled, texGenEnabled, tileIdx, numVertices = positions.length / 4, rectUVs = null) {
     const gl = this.gl;
 
     this.setGLBlendMode();
@@ -419,8 +422,8 @@ export class Renderer extends RendererBase {
     shader.vertexArray.setColorData(colours, gl.DYNAMIC_DRAW, numVertices);
     shader.vertexArray.setUVData(coords, gl.DYNAMIC_DRAW, numVertices * 2);
 
-    this.bindTexture(0, gl.TEXTURE0, tile0, texture0, texGenEnabled, shader.uSamplerUniform0, shader.uTexScaleUniform0, shader.uTexOffsetUniform0);
-    this.bindTexture(1, gl.TEXTURE1, tile1, texture1, texGenEnabled, shader.uSamplerUniform1, shader.uTexScaleUniform1, shader.uTexOffsetUniform1);
+    this.bindTexture(0, gl.TEXTURE0, tile0, texture0, texGenEnabled, shader.uSamplerUniform0, shader.uTexScaleUniform0, shader.uTexOffsetUniform0, rectUVs);
+    this.bindTexture(1, gl.TEXTURE1, tile1, texture1, texGenEnabled, shader.uSamplerUniform1, shader.uTexScaleUniform1, shader.uTexOffsetUniform1, rectUVs);
 
     gl.uniform1f(shader.uAlphaThresholdUniform, alphaThreshold);
 
@@ -528,7 +531,7 @@ export class Renderer extends RendererBase {
   }
 
 
-  bindTexture(slot, glTextureId, tile, texture, texGenEnabled, sampleUniform, texScaleUniform, texOffsetUniform) {
+  bindTexture(slot, glTextureId, tile, texture, texGenEnabled, sampleUniform, texScaleUniform, texOffsetUniform, rectUVs = null) {
     const gl = this.gl;
 
     gl.activeTexture(glTextureId);
@@ -576,8 +579,29 @@ export class Renderer extends RendererBase {
     }
 
     // When not masking, Clamp S,T is ignored and clamping is implicitly enabled
-    const clampS = tile.cmS === gbi.G_TX_CLAMP || (tile.maskS === 0);
-    const clampT = tile.cmT === gbi.G_TX_CLAMP || (tile.maskT === 0);
+    let clampS = tile.cmS === gbi.G_TX_CLAMP || (tile.maskS === 0);
+    let clampT = tile.cmT === gbi.G_TX_CLAMP || (tile.maskT === 0);
+
+    // Upscaled rectangles sample closer to tile edges than native N64 pixels.
+    // If an axis stays within one tile, clamp its filter footprint to avoid
+    // blending opposite edges (e.g. Mario Kart's menu image strips). Keep the
+    // requested wrapping for repeated rectangles and for triangle geometry.
+    if (rectUVs && !texGenEnabled && (textureRectOptions.clamp || textureRectOptions.instrument)) {
+      const candidateS = !clampS && rectAxisWithinTexture(rectUVs, 0, uvOffsetU, uvScaleU);
+      const candidateT = !clampT && rectAxisWithinTexture(rectUVs, 1, uvOffsetV, uvScaleV);
+      if (textureRectOptions.instrument) {
+        recordTextureRectBinding(textureRectOptions.clamp, candidateS, candidateT, {
+          slot, pc: this.state.pc, tile: { ...tile },
+          textureSize: [texture.width, texture.height], uvs: Array.from(rectUVs),
+          uvOffset: [uvOffsetU, uvOffsetV], uvScale: [uvScaleU, uvScaleV],
+          filter: this.state.getTextureFilterType(), cycle: this.state.getCycleType(),
+        });
+      }
+      if (textureRectOptions.clamp) {
+        clampS ||= candidateS;
+        clampT ||= candidateT;
+      }
+    }
     const mirrorS = tile.cmS === gbi.G_TX_MIRROR;
     const mirrorT = tile.cmT === gbi.G_TX_MIRROR;
 
@@ -684,4 +708,15 @@ function shiftFactor(shift) {
     return 1 / (1 << shift);
   }
   return 1 << (16 - shift);
+}
+
+function rectAxisWithinTexture(uvs, axis, offset, scale) {
+  for (let i = axis; i < uvs.length; i += 2) {
+    // Match the coordinate transform used by the fragment shader.
+    const uv = (uvs[i] - offset) * scale;
+    if (!(uv >= 0 && uv <= 1)) {
+      return false;
+    }
+  }
+  return true;
 }
