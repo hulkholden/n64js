@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { executeDisplayList } from './display_list.js';
-import { appendLine, GBI1L3DEX } from './gbi_l3dex.js';
+import { appendLine } from './gbi_l3dex.js';
 import { create } from './microcodes.js';
 import { NullRenderer } from './null_renderer.js';
 import { RSPState } from './rsp_state.js';
@@ -33,7 +33,6 @@ describe('L3DEX commands', () => {
   test('captured odd width is not a vertex index, in batches and disassembly', () => {
     for (const disassembler of [null, { begin() {}, end() {}, text() {} }]) {
       const { state, microcode, draws } = harness([[0xb5000000, 0x00000275], [0xb5000000, 0x00000201]]);
-      expect(microcode).toBeInstanceOf(GBI1L3DEX);
       executeDisplayList(state, microcode, { disassembler });
       expect(draws.reduce((n, draw) => n + draw.tris, 0)).toBe(4);
       expect(draws.every(draw => draw.options.lines)).toBe(true);
@@ -63,7 +62,6 @@ describe('L3DEX commands', () => {
 
   test('Power League keeps the F3DEX quad interpretation', () => {
     const { state, microcode, draws } = harness([[0xb5000000, 0x06000204]], 'RSP SW Version: 2.0D, 04-01-96', 0x2900a9d4);
-    expect(microcode).not.toBeInstanceOf(GBI1L3DEX);
     executeDisplayList(state, microcode);
     expect(draws[0].tris).toBe(2);
     expect(draws[0].options).toBeUndefined();

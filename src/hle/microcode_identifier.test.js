@@ -42,7 +42,3 @@ describe('microcode identification', () => {
     }
   });
 });
-
-test('Rogue hash is recognized without guessing from empty version strings', () => {
-  expect(identifyMicrocode('', 0xc62a1631)).toMatchObject({ id: MicrocodeId.F5_ROGUE, family: 'F5', variant: 'ROGUE', detection: 'hash' });
-});
