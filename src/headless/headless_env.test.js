@@ -225,7 +225,11 @@ function setGraphicsCommands(emulator, commands) {
 // the hash unchanged and exercise the 4 KiB size used by in-list microcode loads.
 const bossCode = new Uint8Array(0x1000);
 bossCode.set([9, 4, 7, 7, 4, 4, 9, 0], bossCode.length - 8);
+// Synthetic bytes with hash 0xc62a1631, likewise not game microcode.
+const rogueCode = new Uint8Array(0x1000);
+rogueCode.set([8, 1, 12, 9, 2, 0, 12, 5], rogueCode.length - 8);
 const unsupportedMicrocodes = [
+  { family: 'F5', version: '', code: rogueCode, detection: 'hash' },
   { family: 'ZSortp', version: 'RSP Gfx ucode ZSortp 0.33 Yoshitaka Yasumoto Nintendo.', code: [1, 2, 3], detection: 'string' },
   { family: 'ZSortBOSS', version: '', code: bossCode, detection: 'hash' },
 ];

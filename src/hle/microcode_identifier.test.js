@@ -12,6 +12,7 @@ describe('microcode identification', () => {
 
   test('uses version fragments to identify families when the hash is unknown', () => {
     for (const [version, id, family, variant] of [
+      ['RSP Gfx ucode L3DEX 1.23', MicrocodeId.GBI1_L3DEX, 'GBI1', 'L3DEX'],
       ['RSP Gfx ucode F3DEX 1.0', MicrocodeId.GBI1, 'GBI1', null],
       ['RSP Gfx ucode F3DEX fifo 2.0', MicrocodeId.GBI2, 'GBI2', null],
       ['RSP Gfx ucode S2DEX 1.0', MicrocodeId.GBI1_SDEX, 'GBI1', 'S2DEX'],
@@ -40,4 +41,8 @@ describe('microcode identification', () => {
       });
     }
   });
+});
+
+test('Rogue hash is recognized without guessing from empty version strings', () => {
+  expect(identifyMicrocode('', 0xc62a1631)).toMatchObject({ id: MicrocodeId.F5_ROGUE, family: 'F5', variant: 'ROGUE', detection: 'hash' });
 });

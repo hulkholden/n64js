@@ -163,14 +163,14 @@ export class Renderer extends RendererBase {
    * @param {TriangleBuffer} tb 
    * @returns 
    */
-  flushTris(tb) {
+  flushTris(tb, { lines = false } = {}) {
     const gl = this.gl;
     if (tb.empty()) {
       return;
     }
 
-    const textureEnabled = this.state.geometryMode.texture;
-    const texGenEnabled = this.state.geometryMode.lighting && this.state.geometryMode.textureGen;
+    const textureEnabled = !lines && this.state.geometryMode.texture;
+    const texGenEnabled = !lines && this.state.geometryMode.lighting && this.state.geometryMode.textureGen;
     this.setProgramState(tb.positions,
       tb.colours,
       tb.coords,
@@ -183,7 +183,7 @@ export class Renderer extends RendererBase {
 
     // texture filter
 
-    if (this.state.geometryMode.cullFront || this.state.geometryMode.cullBack) {
+    if (!lines && (this.state.geometryMode.cullFront || this.state.geometryMode.cullBack)) {
       gl.enable(gl.CULL_FACE);
       const mode = (this.state.geometryMode.cullFront) ? gl.FRONT : gl.BACK;
       gl.cullFace(mode);
