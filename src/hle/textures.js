@@ -1,30 +1,29 @@
-/*global $*/
-
 export class Texture {
   constructor(gl, width, height) {
     this.width = width;
     this.height = height;
 
     // Create a canvas element to poke data into.
-    this.$canvas = $(`<canvas width="${width}" height="${height}" />`,
-                     { 'width': width, 'height': height });
+    this.canvas = document.createElement('canvas');
+    this.canvas.width = width;
+    this.canvas.height = height;
     this.texture = gl.createTexture();
   }
 
   /**
    * Creates a canvas with a scaled copy of the texture.
    * @param {number} scale
-   * @return {!jQuery}
+   * @return {!HTMLCanvasElement}
    */
   createScaledCanvas(scale) {
     const w = this.width * scale;
     const h = this.height * scale;
-    const $canvas = $('<canvas width="' + w +
-                    '" height="' + h +
-                    '" style="background-color: black" />',
-                    { 'width': w, 'height': h });
-    const srcCtx = this.$canvas[0].getContext('2d');
-    const dstCtx = $canvas[0].getContext('2d');
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    canvas.style.backgroundColor = 'black';
+    const srcCtx = this.canvas.getContext('2d');
+    const dstCtx = canvas.getContext('2d');
 
     const srcImgData = srcCtx.getImageData(0, 0, this.width, this.height);
     const dstImgData = dstCtx.createImageData(w, h);
@@ -49,6 +48,6 @@ export class Texture {
     }
 
     dstCtx.putImageData(dstImgData, 0, 0);
-    return $canvas;
+    return canvas;
   }
 }

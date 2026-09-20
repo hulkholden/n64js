@@ -127,7 +127,7 @@ function loadRom(arrayBuffer) {
 
   logger.log(`rominfo is ${json.serialize(rominfo)}`);
 
-  $('#title').text(`n64js - ${rominfo.name}`);
+  document.getElementById('title').textContent = `n64js - ${rominfo.name}`;
 }
 
 n64js.hardware = () => hardware;
@@ -281,7 +281,7 @@ function resetFrameTime() {
 
 function setFrameTime(t) {
   const titleText = rominfo.name ? `n64js - ${rominfo.name} - ${t}mspf` : `n64js - ${t}mspf`;
-  $('#title').text(titleText);
+  document.getElementById('title').textContent = titleText;
 }
 
 n64js.onPresent = () => {
@@ -360,7 +360,7 @@ function breakAllExecution() {
 n64js.init = () => {
   n64js.reset();
   dbg = new Debugger();
-  initialiseRenderer($('#display'));
+  initialiseRenderer(document.getElementById('display'));
   ui.domLoaded();
 };
 
