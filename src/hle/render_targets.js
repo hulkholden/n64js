@@ -87,6 +87,10 @@ export class RenderTargets {
     // Scissor is only a limit, not the allocation height. Vigilante 8 copies a
     // 320x40 strip with a 640x480 scissor still active; reading back 480 rows
     // would overwrite the unrelated textures immediately after that strip.
+    // Unknown projected bounds must not permanently poison the target height
+    // with NaN, making both VI lookup and texture readback miss this image.
+    // Conservatively cover the scissor, still capped by the native height.
+    if (!Number.isFinite(maxY)) maxY = scissor.y1;
     target.height = Math.max(target.height, Math.min(Math.ceil(maxY), Math.ceil(scissor.y1), target.nativeHeight));
     target.dirty = true;
   }

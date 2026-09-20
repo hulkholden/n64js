@@ -285,12 +285,17 @@ export class GBIMicrocode {
 
     vertex.clipFlags = this.calculateClipFlags(pos);
 
+    // Apply the viewport and inverse VI transform in homogeneous coordinates.
+    // Dividing by w and multiplying back produces NaNs at the eye plane
+    // (w = 0), and can overflow for small w before WebGL clips the triangle.
     const w = pos.w;
-    pos.scaleInPlace(1 / w);
-    // TODO: these could be combined into a single transform.
-    vpTransform.transformInPlace(pos);  // Translate into screen coords using the viewport.
-    viTransform.invTransformInPlace(pos);  // Translate back to OpenGL normalized device coords.
-    pos.scaleInPlace(w);
+    const scale = vpTransform.scale;
+    const trans = vpTransform.trans;
+    const viScale = viTransform.scale;
+    const viTrans = viTransform.trans;
+    pos.x = (pos.x * scale.x + w * (trans.x - viTrans.x)) / viScale.x;
+    pos.y = (pos.y * scale.y + w * (trans.y - viTrans.y)) / viScale.y;
+    pos.z = (pos.z * scale.z + w * (trans.z - viTrans.z)) / viScale.z;
   }
 
   calculateClipFlags(projected) {
