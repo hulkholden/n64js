@@ -75,9 +75,12 @@ renderer’s interpolated texture coordinates.
 The experiment samples level zero of the existing decoded textures. With N64 LOD
 enabled and only one mip level, both cycles use the base tile (except in detail
 mode). It does not yet implement general N64 LOD selection, full fixed-point
-coordinate overflow, or separate YUV chroma filtering. Addresses outside the
-decoded image replicate its edge; sampling all addressable TMEM will require
-extending the decoder. The original sampler remains available for comparisons.
+coordinate overflow, or separate YUV chroma filtering. Wrapping axes decode
+their full mask period (including mirroring), independently of the tile bounds, so
+scrolling backgrounds retain all their texels. Unmasked addresses outside the
+decoded image still replicate its edge; sampling all addressable TMEM will
+require extending the decoder. The original sampler remains available for
+comparisons.
 
 To run GPU sampler regression checks, build the browser test bundle and open
 http://localhost:8000/tools/texture_sampler_webgl.html on the same local server:

@@ -1,3 +1,5 @@
+import { G_TX_CLAMP } from './gbi.js';
+
 // The experimental sampler operates on decoded RGBA textures, not raw TMEM.
 // Integer N64 coordinates name texel centres; there is no WebGL half-texel bias.
 // See https://github.com/Themaister/parallel-rdp/blob/master/parallel-rdp/shaders/texture.h
@@ -50,8 +52,8 @@ highp int maskTextureCoord(highp int coord, highp int mask, highp int mode) {
 highp vec4 fetchTextureTexel(sampler2D tex, highp ivec2 coord, TextureTile tile) {
   coord = ivec2(maskTextureCoord(coord.x, tile.mask.x, tile.mode.x),
                 maskTextureCoord(coord.y, tile.mask.y, tile.mode.y));
-  // The decoder currently exposes only tile.width/height. Until it exposes
-  // all addressable TMEM, replicate the edge for addresses outside that image.
+  // Wrapping axes expose their full mask period. Unmasked addresses outside the
+  // decoded image still replicate its edge until we expose all of TMEM.
   coord = clamp(coord, ivec2(0), textureSize(tex, 0) - 1);
   return floor(texelFetch(tex, coord, 0) * 255.0 + 0.5);
 }
@@ -86,3 +88,15 @@ vec4 sampleN64Texture(sampler2D tex, highp vec2 uv, highp vec2 scale,
   return floor(color + 0.5) / 255.0;
 }
 `;
+
+// Tile bounds control clamping, not the extent of a wrapping texture in TMEM.
+// In particular, scrolling the origin must not truncate the decoded image.
+export function textureDecodeTile(tile, copy = false) {
+  const extent = (size, mask, mode) => mask && (copy || !(mode & G_TX_CLAMP)) ? 1 << Math.min(mask, 10) : size;
+  const width = extent(tile.width, tile.maskS, tile.cmS);
+  const height = extent(tile.height, tile.maskT, tile.cmT);
+  if (width === tile.width && height === tile.height) return tile;
+  // Use a separate view: the original bounds are still needed by the shader,
+  // and a hash cached for the smaller image cannot cover newly exposed rows.
+  return { ...tile, width, height, hash: 0 };
+}

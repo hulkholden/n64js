@@ -8,6 +8,7 @@ import { RendererBase } from './renderer_base.js';
 import { RenderTargets } from './render_targets.js';
 import * as shaders from './shaders.js';
 import { Texture } from './textures.js';
+import { textureDecodeTile } from './texture_sampler.js';
 import { VertexArray } from "./vertex_array.js";
 
 const kBlendModeUnknown = 0;
@@ -490,10 +491,13 @@ export class Renderer extends RendererBase {
    * @return {?Texture}
    */
   lookupTexture(tileIdx) {
-    const tile = this.state.tiles[tileIdx];
+    let tile = this.state.tiles[tileIdx];
     // Skip empty tiles - this is primarily for the debug ui.
     if (tile.line === 0) {
       return null;
+    }
+    if (graphicsOptions.emulatedTextureSampler) {
+      tile = textureDecodeTile(tile, this.state.getCycleType() === gbi.CycleType.G_CYC_COPY);
     }
 
     // FIXME: we can cache this if tile/tmem state hasn't changed since the last draw call.
@@ -572,9 +576,10 @@ export class Renderer extends RendererBase {
 
     if (shader.emulatedTextureSampler) {
       gl.bindTexture(gl.TEXTURE_2D, texture.texture);
-      // Generated coordinates are normalized by the current HLE vertex path.
-      gl.uniform2f(texScaleUniform, shiftFactor(tile.shiftS) * (texGenEnabled ? texture.width : 1),
-        shiftFactor(tile.shiftT) * (texGenEnabled ? texture.height : 1));
+      // Generated coordinates use the HLE tile extent, independently of any
+      // extra texels decoded to cover the full wrap region.
+      gl.uniform2f(texScaleUniform, shiftFactor(tile.shiftS) * (texGenEnabled ? tile.width : 1),
+        shiftFactor(tile.shiftT) * (texGenEnabled ? tile.height : 1));
       gl.uniform2f(texOffsetUniform, texGenEnabled ? 0 : tile.left, texGenEnabled ? 0 : tile.top);
       const uniforms = shader.tileUniforms[slot];
       gl.uniform4f(uniforms.bounds, tile.right - tile.left, tile.bottom - tile.top,

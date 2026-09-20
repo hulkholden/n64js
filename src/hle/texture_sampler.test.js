@@ -4,6 +4,8 @@ import { graphicsOptions } from './graphics_options.js';
 import { Renderer } from './renderer.js';
 import { RSPState } from './rsp_state.js';
 import { Tile } from './tile.js';
+import { TMEM } from './tmem.js';
+import { textureDecodeTile } from './texture_sampler.js';
 
 afterEach(() => { graphicsOptions.emulatedTextureSampler = false; });
 
@@ -87,3 +89,48 @@ test('legacy sampling retains normalized coordinates and hardware filtering', ()
 test('experimental sampler defaults to disabled', () => {
   expect(graphicsOptions.emulatedTextureSampler).toBe(false);
 });
+
+test('scrolling a wrapped tile retains its complete texture and original clamp bounds', () => {
+  const tile = new Tile();
+  tile.set(2, 0, 4, 0, 0, 0, 6, 0, 1, 6, 0);
+  tile.setSize(128, 192, 256, 256);
+  tile.hash = 123;
+  const decoded = textureDecodeTile(tile);
+  expect([decoded.width, decoded.height]).toEqual([64, 64]);
+  expect([tile.width, tile.height, tile.left, tile.top, tile.hash]).toEqual([33, 17, 32, 48, 123]);
+  expect(decoded.hash).toBe(0);
+});
+
+test('clamped axes keep their extent while copy mode exposes the full mask period', () => {
+  const tile = new Tile();
+  tile.set(2, 0, 4, 0, 0, 3, 6, 0, 2, 6, 0);
+  tile.setSize(128, 192, 256, 256);
+  expect(textureDecodeTile(tile)).toBe(tile);
+  const copy = textureDecodeTile(tile, true);
+  expect([copy.width, copy.height]).toEqual([64, 64]);
+  tile.cmT = 1;
+  const mixed = textureDecodeTile(tile);
+  expect([mixed.width, mixed.height]).toEqual([33, 64]);
+});
+
+for (const [name, maskS, maskT, address, pixel] of [
+  ['rows outside the clamp bounds', 3, 2, 28, 24],
+  ['columns beyond the final row stride', 5, 1, 32, 60],
+]) {
+  test(`decoded texture hashing includes ${name}`, () => {
+    const tmem = new TMEM();
+    const tile = new Tile();
+    tile.set(gbi.ImageFormat.G_IM_FMT_I, gbi.ImageSize.G_IM_SIZ_8b, 1, 0, 0, 0, maskS, 0, 0, maskT, 0);
+    tile.setSize(0, 0, 12, 4);
+    tmem.tmemData[0] = 17;
+    tmem.calculateCRC(tile); // Cache a hash of the original, smaller image.
+    const decoded = textureDecodeTile(tile);
+    const before = tmem.calculateCRC(decoded);
+    tmem.tmemData[address] = 255;
+    const updated = textureDecodeTile(tile);
+    expect(tmem.calculateCRC(updated)).not.toBe(before);
+    const dst = { width: updated.width, data: new Uint8ClampedArray(updated.width * updated.height * 4) };
+    expect(tmem.convertTexels(updated, 0, dst)).toBe(true);
+    expect(Array.from(dst.data.slice(pixel * 4, pixel * 4 + 4))).toEqual([255, 255, 255, 255]);
+  });
+}

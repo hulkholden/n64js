@@ -46,6 +46,7 @@ try {
     shift = [0, 0], origin = [0, 0], last = [tex.width - 1, tex.height - 1],
     manual = true, texgen = false, second = false, enabled = true, tileIndex = 0,
     lod = gbi.TextureLOD.G_TL_TILE, level = 0, detail = gbi.TextureDetail.G_TD_CLAMP,
+    decode = false, format = gbi.ImageFormat.G_IM_FMT_RGBA, size = gbi.ImageSize.G_IM_SIZ_16b, line = 1,
   } = {}) {
     graphicsOptions.emulatedTextureSampler = manual;
     state.rdpOtherModeH = cycle | filter | lod | detail;
@@ -57,12 +58,13 @@ try {
     state.combine.lo = ((15 << 28) | (7 << 15) | (7 << 12) | (7 << 9) |
       (15 << 24) | (1 << 21) | (4 << 18) | (7 << 6) | (7 << 3) | 7) >>> 0;
     const tile = state.tiles[tileIndex];
-    tile.set(0, 2, 1, 0, 0, mode[0], mask[0], shift[0], mode[1], mask[1], shift[1]);
+    tile.set(format, size, line, 0, 0, mode[0], mask[0], shift[0], mode[1], mask[1], shift[1]);
     tile.setSize(origin[0] * 4, origin[1] * 4, last[0] * 4, last[1] * 4);
     const nextTile = state.tiles[(tileIndex + 1) & 7];
     nextTile.set(0, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0);
     nextTile.setSize(0, 0, (tex1?.width - 1 || 0) * 4, (tex1?.height - 1 || 0) * 4);
-    renderer.lookupTexture = i => i === tileIndex ? tex : tex1;
+    if (decode) delete renderer.lookupTexture;
+    else renderer.lookupTexture = i => i === tileIndex ? tex : tex1;
     renderer.setProgramState(positions, colors, new Float32Array([...uv, ...uv, ...uv]), enabled, texgen, tileIndex);
     // Existing VertexArray setup enables inactive attributes in copy/fill
     // shaders; discard those setup errors so drawing errors remain visible.
@@ -182,6 +184,45 @@ try {
   gl.canvas.width = gl.canvas.height = 1;
   gl.viewport(0, 0, 1, 1);
   check('triangle after rectangle retains interpolated UVs', [128, 191, 191, 255], { uv: [0.75, 0.75], filter: gbi.TextureFilter.G_TF_BILERP });
+
+  // Decode real CI4 TMEM for the scrolling-background case. A stubbed host
+  // texture cannot catch the decoder truncating a 64-texel wrap region.
+  const tmem = state.tmem.tmemData;
+  for (let y = 0; y < 64; y++) {
+    for (let x = 0; x < 64; x += 2) {
+      const index = ((x >>> 4) + (y >>> 4)) & 3;
+      tmem[(y * 32 + x / 2) ^ ((y & 1) ? 4 : 0)] = index * 17;
+    }
+  }
+  for (const [i, color] of [0xf801, 0x07c1, 0x003f, 0xffff].entries()) {
+    for (let bank = 0; bank < 4; bank++) {
+      tmem[0x800 + i * 8 + bank * 2] = color >>> 8;
+      tmem[0x800 + i * 8 + bank * 2 + 1] = color & 255;
+    }
+  }
+  state.invalidateTileHashes();
+  const scrolling = { decode: true, format: gbi.ImageFormat.G_IM_FMT_CI, size: gbi.ImageSize.G_IM_SIZ_4b,
+    line: 4, tex: { width: 64, height: 64 }, mask: [6, 6], last: [64, 64] };
+  // check() normally disables the TLUT; RGBA16 is also the decoder's default.
+  check('scrolling S decodes the full wrap period', white, { ...scrolling, origin: [32, 0], uv: [16, 0] });
+  check('scrolling T decodes the full wrap period', white, { ...scrolling, origin: [0, 32], uv: [0, 16] });
+  check('scrolling both axes preserves all texels', blue, { ...scrolling, origin: [32, 32], uv: [16, 16] });
+  check('wrap boundary filters decoded texels on both sides', [255, 128, 128, 255], {
+    ...scrolling, origin: [32, 0], uv: [31.5, 0], filter: gbi.TextureFilter.G_TF_BILERP,
+  });
+  check('mirroring uses texels beyond the clamp bounds', blue, { ...scrolling, origin: [48, 0], uv: [128, 0], mode: [1, 0] });
+  check('expanded decoding preserves generated coordinate scale', green, {
+    ...scrolling, origin: [32, 0], uv: [0.5, 0], texgen: true,
+  });
+  check('explicit clamping still uses the tile bounds', blue, { ...scrolling, origin: [32, 0], uv: [80, 0], mode: [2, 0] });
+  check('copy mode decodes the wrap period even with clamp enabled', white, {
+    ...scrolling, origin: [32, 0], uv: [16, 0], mode: [2, 0], cycle: gbi.CycleType.G_CYC_COPY,
+  });
+  graphicsOptions.emulatedTextureSampler = false;
+  const legacyTexture = renderer.lookupTexture(0);
+  if (legacyTexture.width !== 33 || legacyTexture.height !== 64) throw new Error('Experimental decoding changed the legacy texture extent');
+  graphicsOptions.emulatedTextureSampler = true;
+  if (renderer.lookupTexture(0).width !== 64) throw new Error('Legacy texture cache truncated the experimental wrap region');
   output.textContent = `${passed} passed\n${lines.join('\n')}`;
   document.title = `${passed} passed`;
 } catch (error) {
