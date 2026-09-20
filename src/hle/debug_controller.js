@@ -1,4 +1,5 @@
-/*global $, n64js, bootstrap*/
+/*global $, n64js*/
+
 import { padString, toHex, toString32 } from '../format.js';
 import { makeColorTextRGBA16, makeColorTextRGBA, makeColorTextABGR } from './disassemble.js';
 import * as gbi from './gbi.js';
@@ -179,7 +180,7 @@ export class DebugController {
 
   showUI() {
     n64js.debugger().show();
-    bootstrap.Tab.getOrCreateInstance(document.getElementById('dlist-tab')).show();
+    n64js.ui().showTab('dlist-tab');
   }
 
   hideUI() {
