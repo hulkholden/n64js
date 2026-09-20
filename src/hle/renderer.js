@@ -287,13 +287,13 @@ export class Renderer extends RendererBase {
     this.fillRectVA.unbind();
   }
 
-  lleRect(tileIdx, vertices, uvs, colours) {
+  lleRect(tileIdx, vertices, uvs, colours, textureRect = null) {
     const gl = this.gl;
 
     // TODO: check scissor
 
     this.setProgramState(new Float32Array(vertices), new Uint32Array(colours), new Float32Array(uvs),
-      true /* textureEnabled */, false /*texGenEnabled*/, tileIdx);
+      true /* textureEnabled */, false /*texGenEnabled*/, tileIdx, vertices.length / 4, textureRect);
 
     gl.disable(gl.CULL_FACE);
 
@@ -311,6 +311,7 @@ export class Renderer extends RendererBase {
   }
 
   texRect(tileIdx, x0, y0, x1, y1, s0, t0, s1, t1, flip) {
+    if (x1 === x0 || y1 === y0) return;
     const vertices = this.calculateRectVertices(x0, y0, x1, y1);
     let uvs;
     if (flip) {
@@ -329,7 +330,9 @@ export class Renderer extends RendererBase {
       ];
     }
     const colours = [0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff];
-    this.lleRect(tileIdx, vertices, uvs, colours);
+    const dsdx = (s1 - s0) / (flip ? y1 - y0 : x1 - x0);
+    const dtdy = (t1 - t0) / (flip ? x1 - x0 : y1 - y0);
+    this.lleRect(tileIdx, vertices, uvs, colours, { x0, y0, s0, t0, dsdx, dtdy, flip });
   }
 
   texRectRot(tileIdx, x0, y0, x1, y1, x2, y2, x3, y3, s0, t0, s1, t1) {
@@ -377,7 +380,7 @@ export class Renderer extends RendererBase {
     gl.depthMask(zUpdRenderMode);
   }
 
-  setProgramState(positions, colours, coords, textureEnabled, texGenEnabled, tileIdx, numVertices = positions.length / 4) {
+  setProgramState(positions, colours, coords, textureEnabled, texGenEnabled, tileIdx, numVertices = positions.length / 4, textureRect = null) {
     const gl = this.gl;
 
     this.setGLBlendMode();
@@ -423,8 +426,21 @@ export class Renderer extends RendererBase {
     this.bindTexture(0, gl.TEXTURE0, tile0, texture0, texGenEnabled, shader.uSamplerUniform0, shader.uTexScaleUniform0, shader.uTexOffsetUniform0, shader);
     this.bindTexture(1, gl.TEXTURE1, tile1, texture1, texGenEnabled, shader.uSamplerUniform1, shader.uTexScaleUniform1, shader.uTexOffsetUniform1, shader);
     if (shader.emulatedTextureSampler) {
-      const filter = this.state.getCycleType() === gbi.CycleType.G_CYC_COPY ? gbi.TextureFilter.G_TF_POINT : this.state.getTextureFilterType();
+      const copy = this.state.getCycleType() === gbi.CycleType.G_CYC_COPY;
+      const filter = copy ? gbi.TextureFilter.G_TF_POINT : this.state.getTextureFilterType();
       gl.uniform1i(shader.uTextureFilterUniform, filter >>> gbi.G_MDSFT_TEXTFILT);
+      gl.uniform1i(shader.uTextureRectEnabledUniform, textureRect ? 1 : 0);
+      if (textureRect) {
+        const { x0, y0, s0, t0, dsdx, dtdy, flip } = textureRect;
+        const { viWidth, viHeight } = this.nativeTransform;
+        gl.uniform4f(shader.uTextureRectScreenUniform,
+          viWidth / this.renderTargets.width, -viHeight / this.renderTargets.height, 0, viHeight);
+        // Rectangle interpolation starts on the first native scanline; the
+        // copy pipe additionally ignores the fractional X origin.
+        gl.uniform4f(shader.uTextureRectOriginUniform, copy ? Math.floor(x0) : x0, Math.floor(y0), s0, t0);
+        gl.uniform4f(shader.uTextureRectDerivativesUniform,
+          flip ? 0 : dsdx, flip ? dtdy : 0, flip ? dsdx : 0, flip ? 0 : dtdy);
+      }
     }
 
     gl.uniform1f(shader.uAlphaThresholdUniform, alphaThreshold);

@@ -276,6 +276,10 @@ class N64Shader {
     this.uTexOffsetUniform1      = gl.getUniformLocation(program, "uTexOffset1");
 
     this.uTextureFilterUniform   = gl.getUniformLocation(program, "uTextureFilter");
+    this.uTextureRectEnabledUniform = gl.getUniformLocation(program, "uTextureRectEnabled");
+    this.uTextureRectScreenUniform = gl.getUniformLocation(program, "uTextureRectScreen");
+    this.uTextureRectOriginUniform = gl.getUniformLocation(program, "uTextureRectOrigin");
+    this.uTextureRectDerivativesUniform = gl.getUniformLocation(program, "uTextureRectDerivatives");
     this.tileUniforms = [0, 1].map(slot => ({
       bounds: gl.getUniformLocation(program, `uTile${slot}.bounds`),
       mask: gl.getUniformLocation(program, `uTile${slot}.mask`),

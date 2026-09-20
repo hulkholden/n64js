@@ -2,6 +2,8 @@
 // Integer N64 coordinates name texel centres; there is no WebGL half-texel bias.
 // See https://github.com/Themaister/parallel-rdp/blob/master/parallel-rdp/shaders/texture.h
 // for the RDP's shift/clamp/mask order and 5-bit, three-point filter behaviour.
+// Rectangle start coordinates and native pixel increments are described in
+// https://ultra64.ca/files/documentation/online-manuals/man/pro-man/pro14/14-01.html
 export const textureSamplerSource = `
 #define N64_TEXTURE_SAMPLER
 
@@ -15,6 +17,22 @@ struct TextureTile {
 uniform TextureTile uTile0;
 uniform TextureTile uTile1;
 uniform int uTextureFilter;
+uniform bool uTextureRectEnabled;
+uniform highp vec4 uTextureRectScreen;
+uniform highp vec4 uTextureRectOrigin;
+uniform highp vec4 uTextureRectDerivatives;
+
+highp vec2 textureCoordinates() {
+  if (!uTextureRectEnabled) return vUV;
+  // RDP rectangles evaluate S/T at native integer screen coordinates, starting
+  // at the command's S/T, not at WebGL pixel centres. Keep that sample grid
+  // when upscaling: extra fractional samples can wrap into an unrelated row
+  // at the end of a texture strip (e.g. Mario Kart's menu images).
+  highp vec2 pixel = floor(gl_FragCoord.xy * uTextureRectScreen.xy + uTextureRectScreen.zw);
+  highp vec2 delta = pixel - uTextureRectOrigin.xy;
+  return uTextureRectOrigin.zw + delta.x * uTextureRectDerivatives.xy +
+                                 delta.y * uTextureRectDerivatives.zw;
+}
 
 highp float clampTextureCoord(highp float coord, highp float high,
                              highp float last, int mode) {

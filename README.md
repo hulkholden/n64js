@@ -65,6 +65,13 @@ at the midpoint; copy mode uses point sampling. Both texture slots are supported
 Press **Space** to toggle the sampler without opening the menu; an indicator in
 the main toolbar shows when it is active.
 
+Axis-aligned texture rectangles use native N64 pixel positions when computing
+S/T, even when the framebuffer is upscaled. This avoids introducing fractional
+samples across wrapped texture-strip boundaries (such as Mario Kart's menu
+images), without overriding the tile's clamp or wrap settings. Rectangle images
+retain their native pixel grid; triangles and rotated sprites still use the
+renderer’s interpolated texture coordinates.
+
 The experiment samples level zero of the existing decoded textures. It does not
 yet implement N64 LOD selection, full fixed-point coordinate overflow, or separate
 YUV chroma filtering. Addresses outside the decoded image replicate its edge;

@@ -4,6 +4,7 @@
 import * as gbi from '../src/hle/gbi.js';
 import { graphicsOptions } from '../src/hle/graphics_options.js';
 import { Renderer } from '../src/hle/renderer.js';
+import { RenderTargets } from '../src/hle/render_targets.js';
 import { RSPState } from '../src/hle/rsp_state.js';
 
 const output = document.getElementById('results');
@@ -108,6 +109,64 @@ try {
   const legacyShader = renderer.getCurrentN64Shader();
   check('toggle restores N64 filtering', [128, 191, 191, 255], { uv: [0.75, 0.75], filter: gbi.TextureFilter.G_TF_BILERP });
   if (renderer.getCurrentN64Shader() !== manualShader || manualShader === legacyShader) throw new Error('Sampler shader cache variants collided');
+
+  // Exercise rectangle interpolation through real geometry, not constant UVs.
+  // A four-row, wrapped strip is the same boundary case as Mario Kart's menus.
+  function checkRectangle(name, {
+    width = 8, height = 8, flip = false, modeT = 0, startT = 0, endT = 4,
+    nativeWidth = 4, nativeHeight = 4, originX = 0, originY = 0, tileTop = 0,
+    expected = (x, y) => [red, green, blue, white][flip ? x : y],
+  } = {}) {
+    gl.canvas.width = width;
+    gl.canvas.height = height;
+    renderer.renderTargets.reset();
+    renderer.renderTargets = new RenderTargets(gl, width, height);
+    renderer.nativeTransform.initDimensions(nativeWidth, nativeHeight);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, width, height);
+    state.rdpOtherModeH = gbi.TextureFilter.G_TF_BILERP;
+    const tile = state.tiles[0];
+    tile.set(0, 2, 1, 0, 0, 0, 0, 0, modeT, 2, 0);
+    tile.setSize(0, tileTop * 4, 0, (tileTop + 4) * 4); // Five-row bounds, four-row mask.
+    renderer.lookupTexture = i => i === 0 ? column : null;
+    renderer.texRect(0, originX, originY, originX + 4, originY + 4, 0, startT, 0, endT, flip);
+    const pixels = new Uint8Array(width * height * 4);
+    gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+    if (gl.getError() !== gl.NO_ERROR) throw new Error(`${name}: WebGL error`);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const nativeX = Math.floor((x + 0.5) * nativeWidth / width) - originX;
+        const nativeY = Math.floor((y + 0.5) * nativeHeight / height) - originY;
+        const inside = nativeX >= 0 && nativeX < 4 && nativeY >= 0 && nativeY < 4;
+        const want = inside ? expected(nativeX, nativeY) : [0, 0, 0, 0];
+        const offset = ((height - 1 - y) * width + x) * 4;
+        const actual = pixels.subarray(offset, offset + 4);
+        if (actual.some((value, i) => Math.abs(value - want[i]) > 1)) {
+          throw new Error(`${name} at ${x},${y}: expected ${want}, got ${Array.from(actual)}`);
+        }
+      }
+    }
+    lines.push(`PASS ${name}`);
+    passed++;
+  }
+  checkRectangle('native rectangle starts at command S/T', { width: 4, height: 4 });
+  checkRectangle('upscaled wrapped strip has no seams');
+  checkRectangle('screen and tile origins do not shift rectangle samples', {
+    width: 12, height: 12, nativeWidth: 6, nativeHeight: 6, originX: 1, originY: 1,
+    tileTop: 4, startT: 4, endT: 8,
+  });
+  checkRectangle('noninteger framebuffer scaling preserves native samples', { width: 7, height: 9 });
+  checkRectangle('flipped rectangle swaps native coordinate increments', { flip: true });
+  checkRectangle('rectangles retain intentional fractional filtering', {
+    startT: 0.25, endT: 2.25,
+    expected: (x, y) => [[191, 64, 0, 255], [64, 191, 0, 255], [0, 191, 64, 255], [0, 64, 191, 255]][y],
+  });
+  checkRectangle('repeated rectangles still wrap', { endT: 8, expected: (x, y) => y % 2 ? blue : red });
+  checkRectangle('repeated rectangles still mirror', { endT: 8, modeT: 1, expected: (x, y) => [red, blue, white, green][y] });
+  // Returning to a triangle must clear the rectangle uniforms on a cached shader.
+  gl.canvas.width = gl.canvas.height = 1;
+  gl.viewport(0, 0, 1, 1);
+  check('triangle after rectangle retains interpolated UVs', [128, 191, 191, 255], { uv: [0.75, 0.75], filter: gbi.TextureFilter.G_TF_BILERP });
   output.textContent = `${passed} passed\n${lines.join('\n')}`;
   document.title = `${passed} passed`;
 } catch (error) {
