@@ -1,4 +1,4 @@
-/*global n64js, Stats, md5, __BUILD_VERSION__*/
+/*global n64js, Stats, __BUILD_VERSION__*/
 
 import { simulateBoot } from './boot.js';
 import { Breakpoints } from './debug/breakpoints.js';
@@ -31,10 +31,8 @@ const framePacer = new FramePacer();
 const resetCallbacks = [];
 
 const testOptions = {
-  runTest: runTest,
   recordTimeline: recordTimeline,
 };
-dbgGUI.add(testOptions, 'runTest').name('Run n64-systemtest');
 dbgGUI.add(testOptions, 'recordTimeline').name('Record Timeline');
 
 const rominfo = {
@@ -67,15 +65,8 @@ function setRunning(value) {
   ui.setRunning(value);
 }
 
-function computeHash(arrayBuffer) {
-  const hash = md5(arrayBuffer);
-  logger.log(`hash is ${hash}`);
-}
-
 function loadRom(arrayBuffer) {
   fixRomByteOrder(arrayBuffer);
-
-  computeHash(arrayBuffer);
 
   const rom = hardware.createROM(arrayBuffer);
 
@@ -144,25 +135,6 @@ n64js.loadRomAndStartRunning = (arrayBuffer) => {
   setRunning(false);
   n64js.toggleRun();
 };
-
-function runTest() {
-  const byteArray = [];
-  const req = new XMLHttpRequest();
-  req.open('GET', 'roms/n64-systemtest-all.z64', true);
-  req.responseType = "arraybuffer";
-  req.onload = () => {
-    const arrayBuffer = req.response; // Note: not req.responseText
-    if (arrayBuffer) {
-      n64js.loadRomAndStartRunning(arrayBuffer);
-    }
-  };
-  req.send(null);
-
-  if (req.status != 200) return;
-  for (let i = 0; i < req.responseText.length; ++i) {
-    byteArray.push(req.responseText.charCodeAt(i) & 0xff)
-  }
-}
 
 function recordTimeline() {
   hardware.timeline.startRecording();

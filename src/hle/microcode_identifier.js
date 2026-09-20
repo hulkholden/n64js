@@ -17,11 +17,17 @@ export const MicrocodeId = Object.freeze({
   ZSORT_BOSS: 15,  // Stunt Racer / World Driver (recognized, but HLE is not implemented)
   T3DUX: 16,       // Last Legion UX / Toukon Road 2
   T3DUX_BRAVE: 17, // Toukon Road: Brave Spirits (different palette command emission)
+  GBI1_L3DEX: 18, // Line and wireframe rendering
+  F5_ROGUE: 19,  // Rogue Squadron (recognized, but HLE is not implemented)
+  GBI1_TEXA: 20,   // Tamagotchi World: F3DTEX/A texture commands
 });
 
 const microcodeProfiles = new Map([
+  [MicrocodeId.GBI1_L3DEX, { family: 'GBI1', variant: 'L3DEX' }],
+  [MicrocodeId.F5_ROGUE, { family: 'F5', variant: 'ROGUE' }],
   [MicrocodeId.GBI0, { family: 'GBI0', variant: null }],
   [MicrocodeId.GBI1, { family: 'GBI1', variant: null }],
+  [MicrocodeId.GBI1_TEXA, { family: 'GBI1', variant: 'F3DTEX/A' }],
   [MicrocodeId.GBI2, { family: 'GBI2', variant: null }],
   [MicrocodeId.GBI1_SDEX, { family: 'GBI1', variant: 'S2DEX' }],
   [MicrocodeId.GBI2_SDEX, { family: 'GBI2', variant: 'S2DEX' }],
@@ -41,6 +47,8 @@ const microcodeProfiles = new Map([
 ]);
 
 const ucodeOverrides = new Map([
+  [0x2900a9d4, MicrocodeId.GBI1],       // Power League 64: F3DEX commands, old SW version string
+  [0xc62a1631, MicrocodeId.F5_ROGUE],   // Rogue Squadron (Europe revisions and Japan)
   [0x60256efc, MicrocodeId.GBI2_CONKER], // "RSP Gfx ucode F3DEXBG.NoN fifo 2.08  Yoshitaka Yasumoto 1999 Nintendo.", "Conker's Bad Fur Day"
   [0x6d8bec3e, MicrocodeId.TURBO3D],     // "Dark Rift"
   [0x0c10181a, MicrocodeId.GBI0_DKR],    // "Diddy Kong Racing (v1.0)"
@@ -61,7 +69,7 @@ const ucodeOverrides = new Map([
 /**
  * Identifies the microcode without constructing a handler or producing side effects.
  * F5_INDI is recognized but has no HLE handler; its graphics tasks are skipped.
- * ZSORTP and ZSORT_BOSS are recognized but rejected by HLE execution.
+ * ZSORTP, ZSORT_BOSS and F5_ROGUE are recognized but rejected by HLE execution.
  * Family and variant describe the microcode; detection='fallback' means
  * GBI0 was assumed, not positively identified. A null variant selects the base
  * family handler. Hash overrides take precedence over version-string inference.
@@ -84,6 +92,12 @@ export function identifyMicrocode(version, hash) {
 function inferUcodeFromString(str) {
   if (str.includes('ZSortp')) {
     return MicrocodeId.ZSORTP;
+  }
+  if (str.includes('L3DEX') && !str.includes('fifo') && !str.includes('xbus')) {
+    return MicrocodeId.GBI1_L3DEX;
+  }
+  if (str.includes('F3DTEX/A')) {
+    return MicrocodeId.GBI1_TEXA;
   }
   const prefixes = ['F3', 'L3', 'S2DEX'];
   let index = -1;

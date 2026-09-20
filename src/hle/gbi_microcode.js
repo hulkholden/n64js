@@ -124,7 +124,8 @@ export class GBIMicrocode {
       this.warn('Unusual matrix length', `${length}`);
     }
 
-    const elements = new Float32Array(16);
+    // All signed 16.16 values are exactly representable in float64.
+    const elements = new Float64Array(16);
     for (let i = 0; i < 4; ++i) {
       elements[4 * 0 + i] = (dv.getInt16(i * 8 + 0) << 16 | dv.getUint16(i * 8 + 0 + 32)) * recip;
       elements[4 * 1 + i] = (dv.getInt16(i * 8 + 2) << 16 | dv.getUint16(i * 8 + 2 + 32)) * recip;
@@ -518,6 +519,10 @@ export class GBIMicrocode {
     const maskS = (cmd1 >>> 4) & 0xf;
     const shiftS = (cmd1 >>> 0) & 0xf;
 
+    this.setTile({ tileIdx, format, size, line, tmem, palette, cmS, maskS, shiftS, cmT, maskT, shiftT }, dis);
+  }
+
+  setTile({ tileIdx, format, size, line, tmem, palette, cmS, maskS, shiftS, cmT, maskT, shiftT }, dis) {
     const tile = this.state.tiles[tileIdx];
     tile.set(format, size, line, tmem, palette, cmS, maskS, shiftS, cmT, maskT, shiftT);
 
@@ -539,6 +544,11 @@ export class GBIMicrocode {
     const lrs = (cmd1 >>> 12) & 0xfff;
     const lrt = (cmd1 >>> 0) & 0xfff;
 
+    this.setTileSize(tileIdx, uls, ult, lrs, lrt, dis);
+  }
+
+  // Bounds retain the RDP's unsigned 10.2 fixed-point units.
+  setTileSize(tileIdx, uls, ult, lrs, lrt, dis) {
     const tile = this.state.tiles[tileIdx];
     tile.setSize(uls, ult, lrs, lrt);
 
@@ -617,6 +627,11 @@ export class GBIMicrocode {
     const width = ((cmd0 >>> 0) & 0xfff) + 1;
     const address = this.state.rdpSegmentAddress(cmd1);
 
+    this.setTextureImage(format, size, width, address, dis);
+  }
+
+  // address is already resolved from the command's segmented address.
+  setTextureImage(format, size, width, address, dis) {
     if (dis) {
       dis.text(`gsDPSetTextureImage(${gbi.ImageFormat.nameOf(format)}, ${gbi.ImageSize.nameOf(size)}, ${width}, ${toString32(address)});`);
     }
@@ -669,6 +684,11 @@ export class GBIMicrocode {
     const lrs = (cmd1 >>> 12) & 0xfff;
     const dxt = (cmd1 >>> 0) & 0xfff;
 
+    this.loadBlock(tileIdx, uls, ult, lrs, dxt, dis);
+  }
+
+  // Preserve LoadBlock's encoded coordinate/count and dxt units.
+  loadBlock(tileIdx, uls, ult, lrs, dxt, dis) {
     if (dis) {
       const tt = gbi.getTileText(tileIdx);
       dis.text(`gsDPLoadBlock(${tt}, ${uls}, ${ult}, ${lrs}, ${dxt});`);
@@ -768,13 +788,18 @@ export class GBIMicrocode {
     this.renderer.fillRect(x0, y0, x1, y1, color);
   }
 
-  executeTexRect(cmd0, cmd1, dis) {
-    // The following 2 commands (RDPHalf1, RDPHalf2) contain additional parameters.
-    // We ignore errors but in theory this could run past the end of the displaylist.
+  readTexRectParams() {
+    // Older microcodes use different encodings for the parameter words.
     this.state.nextCommand();
     const cmd2 = this.state.cmd1;
     this.state.nextCommand();
-    const cmd3 = this.state.cmd1;
+    return [cmd2, this.state.cmd1];
+  }
+
+  executeTexRect(cmd0, cmd1, dis) {
+    const params = this.readTexRectParams(dis);
+    if (!params) return;
+    const [cmd2, cmd3] = params;
 
     this.rdpTexRect(cmd0, cmd1, cmd2, cmd3, dis);
   }
@@ -824,12 +849,9 @@ export class GBIMicrocode {
   }
 
   executeTexRectFlip(cmd0, cmd1, dis) {
-    // The following 2 commands (RDPHalf1, RDPHalf2) contain additional parameters.
-    // We ignore errors but in theory this could run past the end of the displaylist.
-    this.state.nextCommand();
-    const cmd2 = this.state.cmd1;
-    this.state.nextCommand();
-    const cmd3 = this.state.cmd1;
+    const params = this.readTexRectParams(dis);
+    if (!params) return;
+    const [cmd2, cmd3] = params;
 
     this.rdpTexRectFlip(cmd0, cmd1, cmd2, cmd3, dis);
   }

@@ -1,12 +1,18 @@
 export class Matrix4x4 {
   /**
-   * @param {Float32Array=} opt_elems
+   * @param {(Float64Array|Float32Array|Array<number>)=} opt_elems
    */
   constructor(opt_elems) {
-    this.elems = opt_elems || new Float32Array(16);
+    // CPU matrices must retain every bit of decoded signed 16.16 values.
+    // Promote supplied float32 storage too, so later writes cannot narrow.
+    this.elems = opt_elems instanceof Float64Array
+      ? opt_elems
+      : new Float64Array(opt_elems || 16);
   }
 
   /**
+   * Uses Number arithmetic without implicit float32 rounding. Microcode-specific
+   * fixed-point truncation/overflow belongs at the emulation call site, not here.
    * @param {!Matrix4x4} other The matrix to multiply with.
    * @return {!Matrix4x4}
    */
@@ -14,7 +20,7 @@ export class Matrix4x4 {
     let a = this.elems;
     let b = other.elems;
 
-    let out = new Float32Array(16);
+    let out = new Float64Array(16);
     for (let r = 0; r < 4; ++r) {
       for (let c = 0; c < 4; ++c) {
         // Accumulate in Number precision, rounding to float32 only once.
@@ -70,7 +76,7 @@ export class Matrix4x4 {
    * @return {!Matrix4x4}
    */
   static identity() {
-    let elems = new Float32Array(16);
+    let elems = new Float64Array(16);
     elems[0] = 1;
     elems[5] = 1;
     elems[10] = 1;
@@ -83,7 +89,7 @@ export class Matrix4x4 {
    * @return {!Matrix4x4}
    */
   copy() {
-    let elems = new Float32Array(16);
+    let elems = new Float64Array(16);
     for (let i = 0; i < 16; i++) {
       elems[i] = this.elems[i];
     }
@@ -105,7 +111,7 @@ export class Matrix4x4 {
     let ty = - (top + bottom) / (top - bottom);
     let tz = - (zfar + znear) / (zfar - znear);
 
-    let elems = new Float32Array(16);
+    let elems = new Float64Array(16);
 
     elems[0] = 2 / (right - left);
     elems[1] = 0;

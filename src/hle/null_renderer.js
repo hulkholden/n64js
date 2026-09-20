@@ -17,8 +17,8 @@ export class NullRenderer extends RendererBase {
   texRectRot(tileIdx) { this.observeTextureUse(tileIdx); }
   lleRect(tileIdx) { this.observeTextureUse(tileIdx); }
 
-  flushTris(buffer) {
-    if (!buffer.empty() && this.state.geometryMode.texture) {
+  flushTris(buffer, { lines = false } = {}) {
+    if (!lines && !buffer.empty() && this.state.geometryMode.texture) {
       this.observeTextureUse(this.state.texture.tile);
     }
     buffer.reset();
