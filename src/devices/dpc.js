@@ -1,9 +1,6 @@
-/*global n64js*/
-
 import { Device } from './device.js';
 import { toHex, toString32 } from '../format.js';
 import * as logger from '../logger.js';
-import * as mi from './mi.js';
 import { RDPBuffer } from '../lle/rdp.js';
 import { disassembleRange } from '../hle/disassemble_rdp.js';
 import { graphicsOptions } from '../hle/graphics_options.js';
@@ -146,13 +143,10 @@ export class DPCDevice extends Device {
     if (value & DPC_CLR_FLUSH) { dpcStatus &= ~DPC_STATUS_FLUSH; }
     if (value & DPC_SET_FLUSH) { dpcStatus |= DPC_STATUS_FLUSH; }
 
-    // These should be ignored ! - Salvy
-    /*
     if (value & DPC_CLR_TMEM_CTR)          { this.mem.set32(DPC_TMEM_REG, 0); }
     if (value & DPC_CLR_PIPE_CTR)          { this.mem.set32(DPC_PIPEBUSY_REG, 0); }
     if (value & DPC_CLR_CMD_CTR)           { this.mem.set32(DPC_BUFBUSY_REG, 0); }
     if (value & DPC_CLR_CLOCK_CTR)         { this.mem.set32(DPC_CLOCK_REG, 0); }
-    */
 
     this.mem.set32(DPC_STATUS_REG, dpcStatus);
   }
@@ -180,9 +174,17 @@ export class DPCDevice extends Device {
     this.currentReg = rdpBuf.curAddr;
   }
 
+  syncFullHLE() {
+    // HLE runs DP work synchronously without emulating RDP clocks. Credit one
+    // nominal clock per executed FullSync so completed work has a nonzero
+    // duration (ECW/WWF divide by this counter in their profiling code).
+    // This is a compatibility approximation, not a pipeline timing model.
+    this.mem.set32(DPC_CLOCK_REG, (this.mem.getU32(DPC_CLOCK_REG) + 1) & 0x00ffffff);
+    this.syncFull();
+  }
+
   syncFull() {
     this.setStatusBits(DPC_STATUS_PIPE_BUSY | DPC_STATUS_START_GCLK, false);
-    this.hardware.mi_reg.setBits32(mi.MI_INTR_REG, mi.MI_INTR_DP);
-    n64js.cpu0.updateCause3();
+    this.hardware.miRegDevice.interruptDP();
   }
 }

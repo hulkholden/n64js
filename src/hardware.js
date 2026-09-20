@@ -44,10 +44,10 @@ export class Hardware {
     // The environment supplies a synchronous graphics processor with
     // processTask(task) and reset(). processTask may return a continuation for
     // a CPU producer wait, and signals DP interrupts on executed FullSyncs.
-    // The default skips lists and approximates one DP interrupt per task;
+    // The default skips lists and approximates one DP interrupt/clock per task;
     // use executeGraphics in headless runs to validate guest scheduling.
     this.graphics = graphics ?? {
-      processTask: () => this.miRegDevice.interruptDP(),
+      processTask: () => this.dpcDevice.syncFullHLE(),
       reset() {},
     };
     this.verticalBlankCount = 0;
