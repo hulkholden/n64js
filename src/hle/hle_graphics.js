@@ -84,7 +84,7 @@ export function debugDisplayList() {
 
 function hleGraphics(task) {
   debugController.onNewTask(task)
-  return processDList(task, null, -1, () => n64js.hardware().miRegDevice.interruptDP());
+  return processDList(task, null, -1, () => n64js.hardware().dpcDevice.syncFullHLE());
 }
 
 export function presentBackBuffer() {

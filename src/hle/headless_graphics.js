@@ -19,7 +19,7 @@ export class HeadlessGraphics {
   processTask(task) {
     const ramDV = this.hardware.cachedMemDevice.mem.dataView;
     this.renderer.onTextureUse = this.hardware.onTextureUse;
-    this.state.reset(ramDV, task.dataPtr, () => this.hardware.miRegDevice.interruptDP());
+    this.state.reset(ramDV, task.dataPtr, () => this.hardware.dpcDevice.syncFullHLE());
 
     const dims = this.hardware.viRegDevice.computeDimensions();
     if (dims) {

@@ -11,7 +11,7 @@
   },
   "src/devices/dpc.js": {
     "no-unused-vars": {
-      "count": 8
+      "count": 4
     }
   },
   "src/devices/dps.js": {

@@ -11,6 +11,8 @@ import { MicrocodeId } from '../hle/microcode_identifier.js';
 import { TaskOffsets } from '../hle/rsp_task.js';
 import { OS_TV_NTSC } from '../system_constants.js';
 
+const { getFragmentMap } = await import('../cpu/fragments.js');
+
 function createEmulator(options) {
   // Boot initialization only needs a buffer containing the bootstrap region.
   // Controller tests issue SI DMA requests directly, without running ROM code.
@@ -249,8 +251,55 @@ describe('headless graphics execution', () => {
       const complete = SP_STATUS_TASKDONE | SP_STATUS_BROKE | SP_STATUS_HALT;
       expect(hardware.sp_reg.getU32(SP_STATUS_REG) & complete).toBe(complete);
       expect(dp).toBe(expected);
+      expect(hardware.dpcDevice.readU32(0xa4100010)).toBe(expected);
     }
     expect(dp).toBe(1);
+  });
+
+  test('keeps the ECW/WWF counter conversion and division finite in interpreted and compiled loops', async () => {
+    const emulator = await createEmulator({ executeGraphics: true });
+    const { cpu0, hardware } = emulator;
+    prepareGraphicsTask(emulator);
+    setGraphicsCommands(emulator, [[0xe9000000, 0], [0xdf000000, 0]]);
+    startRSPTask(emulator);
+
+    // These games divide profiling measurements by the DP clock counter after
+    // their first completed list. A permanently zero clock raises Invalid.
+    const program = [
+      0x3c08a410, // LUI t0, 0xa410
+      0x8d030010, // LW v1, DPC_CLOCK(t0)
+      0x44831000, // MTC1 v1, f2
+      0x468010a1, // CVT.D.W f2, f2
+      0x04620001, // BLTZL v1, +1
+      0x46341080, // ADD.D f2, f2, f20 (annulled for a nonnegative counter)
+      0x46220003, // DIV.D f0, f0, f2
+      0x08001c00, // J 0x80007000
+      0x00000000,
+    ];
+    program.forEach((word, i) => hardware.ram.set32(0x7000 + i * 4, word));
+    cpu0.pc = 0x80007000;
+    cpu0.setControlU32(controlStatus, 0x20000000); // CU1, interrupts disabled.
+    cpu0.clearControlBits32(controlCause, 0x7c);
+    cpu0.cop1ControlChanged();
+    hardware.cpu1.control[31] = 0x01000800; // Invalid operation enabled.
+    hardware.cpu1.regF64[hardware.cpu1.fsRegIdx64(0)] = 0;
+    hardware.cpu1.regF64[hardware.cpu1.fsRegIdx64(20)] = 4294967296;
+    for (const cycles of [8, 16000]) {
+      runCycles(emulator, cycles);
+      expect(cpu0.pc).toBe(0x80007000);
+      expect(hardware.cpu1.loadF64(0)).toBe(0);
+      expect(hardware.cpu1.loadF64(hardware.cpu1.fsRegIdx64(2))).toBe(1);
+      expect(hardware.cpu1.control[31]).toBe(0x01000800);
+      expect(cpu0.getControlU32(controlCause) & 0x7c).toBe(0);
+    }
+    expect(getFragmentMap().get(0x80007000)?.executionCount).toBeGreaterThan(0);
+
+    // A zero counter must still take the enabled Invalid exception.
+    hardware.dpcDevice.write32(0xa410000c, 0x200);
+    cpu0.run(6);
+    expect(cpu0.pc).toBe(0x80000180);
+    expect(cpu0.getControlU32(controlCause) & 0x7c).toBe(15 << 2);
+    expect(hardware.cpu1.control[31]).toBe(0x01010800);
   });
 
   test.each(unsupportedMicrocodes)('rejects $family tasks and in-list loads before parsing their commands', async ({ family, version, code, detection }) => {
@@ -488,6 +537,7 @@ describe('headless graphics execution', () => {
         expect(() => startRSPTask(emulator, taskType)).not.toThrow();
         expect(loaded).toEqual([]);
         expect(textures).toEqual([]);
+        expect(emulator.hardware.dpcDevice.readU32(0xa4100010)).toBe(mode === 'HLE' && taskType === 1 ? 1 : 0);
         if (taskType === 1) {
           expect(emulator.hardware.rsp.halted).toBe(mode === 'HLE');
           expect(emulator.hardware.mi_reg.getU32(MI_INTR_REG) & MI_INTR_DP).toBe(mode === 'HLE' ? MI_INTR_DP : 0);
