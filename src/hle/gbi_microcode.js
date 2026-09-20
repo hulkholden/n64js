@@ -124,7 +124,8 @@ export class GBIMicrocode {
       this.warn('Unusual matrix length', `${length}`);
     }
 
-    const elements = new Float32Array(16);
+    // All signed 16.16 values are exactly representable in float64.
+    const elements = new Float64Array(16);
     for (let i = 0; i < 4; ++i) {
       elements[4 * 0 + i] = (dv.getInt16(i * 8 + 0) << 16 | dv.getUint16(i * 8 + 0 + 32)) * recip;
       elements[4 * 1 + i] = (dv.getInt16(i * 8 + 2) << 16 | dv.getUint16(i * 8 + 2 + 32)) * recip;
