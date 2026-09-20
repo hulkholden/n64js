@@ -47,6 +47,17 @@ export function applyCompatibilityHacks(pending, ram, address, instruction) {
         logger.log(`Applied compatibility delay for ${hack.name} at ${toString32(address)}: ${hack.cycles} CPU cycles`);
         break;
       case 'patch':
+        // Some workarounds change a pair of instructions that must agree.
+        // Check every companion before writing any of them, so a modified
+        // guest cannot receive half of a patch. The caller flushes compiled
+        // fragments when the triggering instruction changes.
+        if (hack.additionalPatches?.some(patch => ram.getU32(patch.address - 0x80000000) !== patch.expected)) {
+          logger.warn(`Skipped compatibility patch for ${hack.name} at ${toString32(address)}: companion instruction mismatch`);
+          continue;
+        }
+        for (const patch of hack.additionalPatches ?? []) {
+          ram.set32(patch.address - 0x80000000, patch.replacement);
+        }
         ram.set32(address - 0x80000000, hack.replacement);
         patchedInstruction = hack.replacement;
         logger.log(`Applied compatibility patch for ${hack.name} at ${toString32(address)}`);
