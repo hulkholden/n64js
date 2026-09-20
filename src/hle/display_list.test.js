@@ -13,6 +13,97 @@ function writeCommands(ramDV, address, commands) {
 }
 
 describe('display-list execution', () => {
+  for (const push of [true, false]) {
+    test(`bounds a two-list ${push ? 'recursive call' : 'branch'} cycle without completing it`, () => {
+      const ramDV = new DataView(new ArrayBuffer(0x100));
+      const command = push ? 0x06000000 : 0x06010000;
+      writeCommands(ramDV, 8, [[command, 0x40], [0xe9000000, 0], [0xb8000000, 0]]);
+      writeCommands(ramDV, 0x40, [[command, 8], [0xb8000000, 0]]);
+      const state = new RSPState();
+      let syncs = 0;
+      state.reset(ramDV, 8, () => { syncs++; });
+      // bailAfter also makes this regression terminate on the old runner.
+      expect(() => executeDisplayList(state, new GBI1(state, ramDV), {
+        commandLimit: 16, bailAfter: 20,
+      })).toThrow(`HLE display-list command limit (16) exceeded at 0x00000008; stack depth ${push ? 16 : 0}`);
+      expect(state.currentOp).toBe(16);
+      expect(syncs).toBe(0);
+    });
+  }
+
+  test('bounds disassembly and allows lists ending exactly at the command limit', () => {
+    const ramDV = new DataView(new ArrayBuffer(0x100));
+    writeCommands(ramDV, 8, [[0xb4000000, 1], [0xb4000000, 2], [0xb8000000, 0]]);
+    const state = new RSPState();
+    for (const disassembler of [null, { begin() {}, text() {}, end() {} }]) {
+      state.reset(ramDV, 8);
+      expect(() => executeDisplayList(state, new GBI1(state, ramDV), {
+        commandLimit: 2, disassembler,
+      })).toThrow('command limit (2) exceeded at 0x00000018');
+      state.reset(ramDV, 8);
+      executeDisplayList(state, new GBI1(state, ramDV), { commandLimit: 3, disassembler });
+      expect(state.pc).toBe(0);
+      expect(state.currentOp).toBe(3);
+    }
+  });
+
+  test('debugger bailAfter still stops before reaching the command limit', () => {
+    const ramDV = new DataView(new ArrayBuffer(0x100));
+    writeCommands(ramDV, 8, [[0x06000000, 8]]);
+    const state = new RSPState();
+    state.reset(ramDV, 8);
+    expect(executeDisplayList(state, new GBI1(state, ramDV), {
+      commandLimit: 16, bailAfter: 4,
+    })).toBeNull();
+    expect(state.currentOp).toBe(4);
+    expect(state.dlistStack).toHaveLength(5);
+  });
+
+  test('counts batched triangles before dispatching more commands', () => {
+    const ramDV = new DataView(new ArrayBuffer(0x100));
+    writeCommands(ramDV, 8, [
+      [0xbf000000, 0x00000204], [0xbf000000, 0x00000204], [0xbf000000, 0x00000204],
+      [0xe9000000, 0], [0xb8000000, 0],
+    ]);
+    const state = new RSPState();
+    let syncs = 0;
+    state.reset(ramDV, 8, () => { syncs++; });
+    const microcode = new GBI1(state, ramDV);
+    microcode.renderer = { flushTris() {} };
+    expect(() => executeDisplayList(state, microcode, { commandLimit: 2 })).toThrow('command limit (2) exceeded');
+    expect(state.currentOp).toBe(3); // Finish the batch, but do not dispatch FullSync.
+    expect(syncs).toBe(0);
+  });
+
+  test('producer waits receive a fresh command budget on each resume', () => {
+    const ramDV = new DataView(new ArrayBuffer(0x100));
+    writeCommands(ramDV, 8, [[0x06000000, 0x40], [0xb8000000, 0]]);
+    writeCommands(ramDV, 0x40, [[0x06010000, 0x40], [0xb8000000, 0]]);
+    const state = new RSPState();
+    state.reset(ramDV, 8);
+    const resume = executeDisplayList(state, new GBI1(state, ramDV), { commandLimit: 3 });
+    for (let i = 0; i < 10; i++) expect(resume()).toBe(resume);
+    ramDV.setUint32(0x40, 0); // Producer publishes the child list.
+    expect(resume()).toBeNull();
+    expect(state.dlistStack).toEqual([]);
+    expect(state.pc).toBe(0);
+  });
+
+  test('microcode reloads cannot reset the command budget', () => {
+    const ramDV = new DataView(new ArrayBuffer(0x100));
+    writeCommands(ramDV, 8, [
+      [0xb4000000, 0x2000], [0xaf00000f, 0x1000], [0x06010000, 8],
+    ]);
+    const state = new RSPState();
+    state.reset(ramDV, 8);
+    let loads = 0;
+    expect(() => executeDisplayList(state, new GBI1(state, ramDV), {
+      commandLimit: 6, bailAfter: 8,
+      loadMicrocode: () => { loads++; return new GBI1(state, ramDV); },
+    })).toThrow('command limit (6) exceeded at 0x00000008');
+    expect(loads).toBe(2);
+  });
+
   test('signals nested FullSyncs during execution, but not disassembly or replay', () => {
     const ramDV = new DataView(new ArrayBuffer(0x100));
     writeCommands(ramDV, 8, [

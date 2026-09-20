@@ -95,6 +95,12 @@ pixels and raises DP interrupts on FullSync commands. The default skips lists
 and approximates one DP interrupt per task; games that split a frame across
 tasks, such as Griffey Slugfest and MLB, can stall under that approximation.
 
+The shared GBI display-list runner bounds synchronous work to one million
+commands, checked between batches. Exceeding that host safeguard raises
+`DisplayListLimitError`; inventory reports retain it as a halt with exception
+evidence, rather than claiming task completion. CPU producer waits receive a
+fresh budget on resume. Object-list microcodes use separate execution paths.
+
 ## Publishing
 
 Push a new `v*` tag (for example, `v1.2.3`) to publish that commit to GitHub Pages.

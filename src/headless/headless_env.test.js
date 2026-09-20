@@ -251,6 +251,34 @@ const unsupportedMicrocodes = [
 ];
 
 describe('headless graphics execution', () => {
+  test('reports runaway display lists as fatal errors without fabricating SP or DP completion', async () => {
+    const halted = [];
+    const emulator = await createEmulator({
+      executeGraphics: true,
+      onHalt: (message, details) => halted.push({ message, details }),
+    });
+    const { cpu0, hardware } = emulator;
+    prepareGraphicsTask(emulator);
+    // Two branches evade the intentional single-command producer-wait check.
+    setGraphicsCommands(emulator, [[0xde010000, 0x3008], [0xde010000, 0x3000]]);
+    hardware.sp_mem.set32(0xfc0 + TaskOffsets.type, 1);
+    hardware.spRegDevice.write32(0xa4040000 + SP_STATUS_REG, SP_SET_INTR_BREAK);
+    cpu0.pc = 0x80007000;
+    cpu0.setControlU32(controlStatus, 0);
+    cpu0.cop1ControlChanged();
+    hardware.ram.set32(0x7000, 0x3c08a404); // LUI t0, 0xa404
+    hardware.ram.set32(0x7004, 0x24090000 | SP_CLR_HALT);
+    hardware.ram.set32(0x7008, 0xad090000 | SP_STATUS_REG);
+
+    expect(() => runCycles(emulator, 10)).toThrow('HLE display-list command limit');
+    expect(halted).toHaveLength(1);
+    expect(halted[0].details.error.name).toBe('DisplayListLimitError');
+    expect(halted[0].details.error.message).toContain('1000000');
+    expect(hardware.sp_reg.getU32(SP_STATUS_REG) & (SP_STATUS_TASKDONE | SP_STATUS_BROKE)).toBe(0);
+    expect(hardware.mi_reg.getU32(MI_INTR_REG) & (MI_INTR_DP | MI_INTR_SP)).toBe(0);
+    expect(hardware.spRegDevice.hleTask).toBeNull();
+  });
+
   test('completes SP-only lists without reporting an extra DP completion', async () => {
     const emulator = await createEmulator({ executeGraphics: true });
     const { hardware } = emulator;
