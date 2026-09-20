@@ -1,11 +1,11 @@
-/*global $, n64js*/
+/*global $, n64js, bootstrap*/
 import { padString, toHex, toString32 } from '../format.js';
 import { makeColorTextRGBA16, makeColorTextRGBA, makeColorTextABGR } from './disassemble.js';
 import * as gbi from './gbi.js';
 import * as shaders from './shaders.js';
 
 // TODO: make fields.
-let $dlistScrub;
+let dlistScrub;
 let $dlistState;
 let $dlistOutput;
 
@@ -120,15 +120,14 @@ export class DebugController {
   }
 
   setScrubText(x, max) {
-    $dlistScrub.find('.scrub-text').html(`uCode op ${x}/${max}.`);
+    dlistScrub.querySelector('.scrub-text').textContent = `uCode op ${x}/${max}.`;
   }
 
   setScrubRange(max) {
-    $dlistScrub.find('input').attr({
-      min: 0,
-      max: max,
-      value: max
-    });
+    const input = dlistScrub.querySelector('input');
+    input.min = 0;
+    input.max = max;
+    input.value = max;
     this.setScrubText(max, max);
   }
 
@@ -147,30 +146,28 @@ export class DebugController {
   }
 
   initUI() {
-    const $dlistControls = $dlistContent.find('#controls');
+    const controls = document.querySelector('#dlist-content #controls');
 
     this.bailAfter = -1;
     this.numOps = 0;
 
-    const that = this;
-
-    $dlistControls.find('#rwd').click(() => {
-      if (that.running && that.bailAfter > 0) {
-        that.setScrubTime(that.bailAfter - 1);
+    controls.querySelector('#rwd').addEventListener('click', () => {
+      if (this.running && this.bailAfter > 0) {
+        this.setScrubTime(this.bailAfter - 1);
       }
     });
-    $dlistControls.find('#fwd').click(() => {
-      if (that.running && that.bailAfter < that.numOps) {
-        that.setScrubTime(that.bailAfter + 1);
+    controls.querySelector('#fwd').addEventListener('click', () => {
+      if (this.running && this.bailAfter < this.numOps) {
+        this.setScrubTime(this.bailAfter + 1);
       }
     });
-    $dlistControls.find('#stop').click(() => {
+    controls.querySelector('#stop').addEventListener('click', () => {
       this.toggle();
     });
 
-    $dlistScrub = $dlistControls.find('.scrub');
-    $dlistScrub.find('input').change(function () {
-      that.setScrubTime($(this).val() | 0);
+    dlistScrub = controls.querySelector('.scrub');
+    dlistScrub.querySelector('input').addEventListener('change', event => {
+      this.setScrubTime(event.currentTarget.value | 0);
     });
     this.setScrubRange(0);
 
@@ -182,7 +179,7 @@ export class DebugController {
 
   showUI() {
     n64js.debugger().show();
-    $('#dlist-tab').tab('show');
+    bootstrap.Tab.getOrCreateInstance(document.getElementById('dlist-tab')).show();
   }
 
   hideUI() {

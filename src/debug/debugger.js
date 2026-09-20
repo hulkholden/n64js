@@ -1,5 +1,5 @@
 /*jshint jquery:true */
-/*global $, n64js*/
+/*global $, n64js, bootstrap*/
 
 import * as cpu0reg from '../cpu/cpu0reg.js';
 import { disassembleRange, cop0gprNames, cop1RegisterNames } from '../cpu/disassemble.js';
@@ -87,32 +87,37 @@ export class Debugger {
       logger.clear();
     });
 
-    const that = this;
-
-    $('#cpu-speed').change(function () {
-      that.debugCycles = 10 ** ($(this).val() | 0);
-      logger.log(`Speed is now ${that.debugCycles}`);
+    document.getElementById('cpu-speed').addEventListener('change', event => {
+      this.debugCycles = 10 ** (event.currentTarget.value | 0);
+      logger.log(`Speed is now ${this.debugCycles}`);
     });
 
-    $('#cpu').find('#address').change(function () {
-      that.disasmAddress = parseInt($(this).val(), 16);
-      that.updateCPU();
+    document.querySelector('#cpu #address').addEventListener('change', event => {
+      this.cpu0State.disasmAddress = parseInt(event.currentTarget.value, 16);
+      this.updateCPU();
+    });
+    document.querySelector('#cpu #labels').addEventListener('change', event => {
+      const option = event.currentTarget.selectedOptions[0];
+      this.cpu0State.disasmAddress = Number(option?.dataset.address) >>> 0;
+      this.updateCPU();
     });
     this.refreshLabelSelect();
 
-    this.$memoryContent.find('input').change(function () {
-      that.lastMemoryAccessAddress = parseInt($(this).val(), 16);
-      that.updateMemoryView();
+    document.querySelectorAll('#memory-content input').forEach(input => {
+      input.addEventListener('change', event => {
+        this.lastMemoryAccessAddress = parseInt(event.currentTarget.value, 16);
+        this.updateMemoryView();
+      });
     });
     this.updateMemoryView();
 
-    $('body').keydown(function (event) {
+    document.body.addEventListener('keydown', event => {
       let consumed = false;
       switch (event.key) {
-        case 'ArrowDown': consumed = true; that.disassemblerDown(); break;
-        case 'ArrowUp': consumed = true; that.disassemblerUp(); break;
-        case 'PageDown': consumed = true; that.disassemblerPageDown(); break;
-        case 'PageUp': consumed = true; that.disassemblerPageUp(); break;
+        case 'ArrowDown': consumed = true; this.disassemblerDown(); break;
+        case 'ArrowUp': consumed = true; this.disassemblerUp(); break;
+        case 'PageDown': consumed = true; this.disassemblerPageDown(); break;
+        case 'PageUp': consumed = true; this.disassemblerPageUp(); break;
         case 'F8': consumed = true; n64js.toggleRun(); break;
         case 'F9': consumed = true; toggleDebugDisplayList(); break;
         case 'F10': consumed = true; n64js.step(); break;
@@ -157,7 +162,7 @@ export class Debugger {
   showTimeline() {
     this.updateTimeline();
     this.show();
-    $('#timeline-tab').tab('show');
+    bootstrap.Tab.getOrCreateInstance(document.getElementById('timeline-tab')).show();
   }
 
   updateMemoryView() {
@@ -167,7 +172,7 @@ export class Debugger {
   }
 
   refreshLabelSelect() {
-    const $select = $('#cpu').find('#labels');
+    const select = document.querySelector('#cpu #labels');
     const arr = Array.from(this.labelMap.keys());
 
     arr.sort((a, b) => {
@@ -176,20 +181,16 @@ export class Debugger {
       return aVal.localeCompare(bVal);
     });
 
-    $select.html('');
+    select.replaceChildren();
 
     for (let address of arr) {
       const label = this.labelMap.get(address);
-      const $option = $(`<option value="${label}">${label}</option>`);
-      $option.data('address', address);
-      $select.append($option);
+      const option = document.createElement('option');
+      option.value = label;
+      option.textContent = label;
+      option.dataset.address = address;
+      select.append(option);
     }
-
-    $select.change(() => {
-      let contents = $select.find('option:selected').data('address');
-      this.cpu0State.disasmAddress = /** @type {number} */(contents) >>> 0;
-      this.updateCPU();
-    });
   }
 
   onReset() {
