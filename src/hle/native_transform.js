@@ -9,6 +9,12 @@ export class NativeTransform {
   }
 
   initDimensions(viWidth, viHeight) {
+    // Games can keep drawing (including framebuffer clears) while VI scanout
+    // is blanked. Retain the last usable transform instead of routing those
+    // draws to a fallback target or dividing by a zero VI scale.
+    if (!Number.isFinite(viWidth) || !Number.isFinite(viHeight) || viWidth <= 0 || viHeight <= 0) {
+      return;
+    }
     this.viWidth = viWidth;
     this.viHeight = viHeight;
     // Convert n64 framebuffer coordinates into normalised device coordinates (-1 to +1).

@@ -97,6 +97,36 @@ describe('rendered color images', () => {
     expect(ram.getUint32(0x33ae80)).toBe(0x12345678);
   });
 
+  test('non-finite draw bounds cannot poison VI selection or framebuffer readback', () => {
+    for (const maxY of [NaN, Infinity, -Infinity]) {
+      const gl = fakeGL();
+      const targets = new RenderTargets(gl, 4, 4);
+      targets.bindColorImage(colorImage(64, 4), 4, 4);
+      const displayed = targets.current;
+      displayed.framebuffer.pixels = new Uint8Array(4 * 4 * 4).fill(255);
+      targets.markDirty({ y1: 3 }, 1);
+      targets.markDirty({ y1: 3 }, maxY);
+      // A later valid draw must leave the target usable, including after a
+      // switch to another framebuffer as in Mario's triple-buffer rotation.
+      targets.markDirty({ y1: 3 }, 2);
+      expect(displayed.height).toBe(3);
+      targets.bindColorImage(colorImage(0, 4), 4, 4);
+      targets.markDirty({ y1: 4 });
+      expect(targets.textureForVI(72)).toBe(displayed.texture);
+      const ram = new DataView(new ArrayBuffer(128));
+      ram.setUint32(88, 0x12345678);
+      targets.syncToRAM(72, ram);
+      expect(gl.reads).toEqual([displayed.framebuffer]);
+      expect(ram.getUint16(64)).toBe(0xffff);
+      expect(ram.getUint16(86)).toBe(0xffff);
+      expect(ram.getUint32(88)).toBe(0x12345678);
+      expect(displayed.dirty).toBe(false);
+      targets.bindColorImage(colorImage(64, 4), 4, 4);
+      targets.markDirty({ y1: 480 }, maxY);
+      expect(displayed.height).toBe(4);
+    }
+  });
+
   test('recreates images when their dimensions change, bounds the cache, and resets it', () => {
     const gl = fakeGL();
     const targets = new RenderTargets(gl, 2, 2);
