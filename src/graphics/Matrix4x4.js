@@ -23,10 +23,11 @@ export class Matrix4x4 {
     let out = new Float64Array(16);
     for (let r = 0; r < 4; ++r) {
       for (let c = 0; c < 4; ++c) {
-        out[r * 4 + c] += a[r * 4 + 0] * b[0 * 4 + c];
-        out[r * 4 + c] += a[r * 4 + 1] * b[1 * 4 + c];
-        out[r * 4 + c] += a[r * 4 + 2] * b[2 * 4 + c];
-        out[r * 4 + c] += a[r * 4 + 3] * b[3 * 4 + c];
+        // Accumulate the entire dot product before writing to matrix storage.
+        out[r * 4 + c] = (a[r * 4 + 0] * b[0 * 4 + c])
+          + (a[r * 4 + 1] * b[1 * 4 + c])
+          + (a[r * 4 + 2] * b[2 * 4 + c])
+          + (a[r * 4 + 3] * b[3 * 4 + c]);
       }
     }
 
