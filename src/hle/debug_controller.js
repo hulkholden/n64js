@@ -7,10 +7,8 @@ import * as shaders from './shaders.js';
 
 // TODO: make fields.
 let dlistScrub;
-let $dlistState;
+let dlistState;
 let $dlistOutput;
-
-const $dlistContent = typeof $ === 'function' ? $('#dlist-content') : null;
 
 // Which displaylist in the frame to stop on.
 let dlFocusIndex = 0;
@@ -113,11 +111,11 @@ export class DebugController {
   }
 
   updateStateUI() {
-    $dlistState.find('#dl-geometrymode-content').html(this.buildStateTab());
-    $dlistState.find('#dl-vertices-content').html(this.buildVerticesTab());
-    $dlistState.find('#dl-tiles-content').html(this.buildTilesTab());
-    $dlistState.find('#dl-combiner-content').html(this.buildCombinerTab());
-    $dlistState.find('#dl-rdp-content').html(this.buildRDPTab());
+    dlistState.querySelector('#dl-geometrymode-content').replaceChildren(this.buildStateTab());
+    dlistState.querySelector('#dl-vertices-content').replaceChildren(this.buildVerticesTab());
+    dlistState.querySelector('#dl-tiles-content').replaceChildren(this.buildTilesTab());
+    dlistState.querySelector('#dl-combiner-content').replaceChildren(this.buildCombinerTab());
+    dlistState.querySelector('#dl-rdp-content').replaceChildren(this.buildRDPTab());
   }
 
   setScrubText(x, max) {
@@ -172,7 +170,7 @@ export class DebugController {
     });
     this.setScrubRange(0);
 
-    $dlistState = $dlistContent.find('.hle-state');
+    dlistState = document.querySelector('#dlist-content .hle-state');
 
     $dlistOutput = $('<div class="hle-disasm"></div>');
     $('#adjacent-debug').empty().append($dlistOutput);
@@ -197,19 +195,14 @@ export class DebugController {
   }
 
   buildStateTab() {
-    const $table = $('<table class="table table-condensed dl-debug-table" style="width: auto;"></table>');
-    const $tr = $('<tr />');
-
-    for (let i in this.state.geometryMode) {
-      if (Object.hasOwn(this.state.geometryMode, i)) {
-        const $td = $(`<td>${i}</td>`);
-        $td.addClass(this.state.geometryMode[i] ? 'dl-debug-geommode-enabled' : 'dl-debug-geommode-disabled');
-        $tr.append($td);
-      }
+    const table = createDebugTable();
+    const row = table.tBodies[0].insertRow();
+    for (const [name, enabled] of Object.entries(this.state.geometryMode)) {
+      const cell = row.insertCell();
+      cell.textContent = name;
+      cell.className = enabled ? 'dl-debug-geommode-enabled' : 'dl-debug-geommode-disabled';
     }
-
-    $table.append($tr);
-    return $table;
+    return table;
   }
 
   buildRDPTab() {
@@ -232,42 +225,42 @@ export class DebugController {
       ['textureDetail', gbi.TextureDetail.nameOf(h & gbi.G_TD_MASK)],
       ['cycleType', gbi.CycleType.nameOf(h & gbi.G_CYC_MASK)],
       ['pipelineMode', gbi.PipelineMode.nameOf(h & gbi.G_PM_MASK)],
-      ['', '&nbsp'],
+      ['', '\u00a0'],
       ['TI.format', gbi.ImageFormat.nameOf(ti.format)],
       ['TI.size', gbi.ImageSize.nameOf(ti.size)],
       ['TI.width', ti.width],
       ['TI.address', toString32(ti.address)],
     ]);
 
-    const $table = $('<table class="table table-condensed dl-debug-table" style="width: auto;"></table>');
-    for (let [name, value] of vals) {
-      let $tr = $(`<tr><td>${name}</td><td>${value}</td></tr>`);
-      $table.append($tr);
+    const table = createDebugTable();
+    for (const [name, value] of vals) {
+      appendDebugRow(table, [name, value]);
     }
-    return $table;
+    return table;
   }
 
   buildColorsTable() {
     const colors = ['fillColor', 'envColor', 'primColor', 'blendColor', 'fogColor'];
-
-    const $table = $('<table class="table table-condensed dl-debug-table" style="width: auto;"></table>');
-    for (let color of colors) {
-      let row = $(`<tr><td>${color}</td><td>${makeColorTextRGBA(this.state[color])}</td></tr>`);
-      $table.append(row);
+    const table = createDebugTable();
+    for (const color of colors) {
+      const row = appendDebugRow(table, [color, '']);
+      // The colour formatter supplies the swatch markup.
+      row.cells[1].innerHTML = makeColorTextRGBA(this.state[color]);
     }
-    return $table;
+    return table;
   }
 
   buildCombinerTab() {
-    const $p = $('<pre class="combine"></pre>');
-    $p.append(gbi.CycleType.nameOf(this.state.getCycleType()) + '\n');
-    $p.append(this.buildColorsTable());
-    $p.append(shaders.getCombinerText(this.state.combine.hi, this.state.combine.lo));
+    const pre = document.createElement('pre');
+    pre.className = 'combine';
+    pre.append(gbi.CycleType.nameOf(this.state.getCycleType()) + '\n');
+    pre.append(this.buildColorsTable());
+    pre.append(shaders.getCombinerText(this.state.combine.hi, this.state.combine.lo));
     const shader = this.renderer.getCurrentN64Shader();
     if (shader) {
-      $p.append(shader.shaderSource);
+      pre.append(shader.shaderSource);
     }
-    return $p;
+    return pre;
   }
 
   buildTexture(tileIdx) {
@@ -279,23 +272,21 @@ export class DebugController {
   }
 
   buildTilesTab() {
-    const $d = $('<div />');
-    $d.append(this.buildTilesTable());
+    const container = document.createElement('div');
+    container.append(this.buildTilesTable());
 
-    const headings = [];
-    const $textures = $('<tr />');
+    const headings = Array.from({ length: 8 }, (_, i) => gbi.getTileText(i));
+    const table = createDebugTable(headings);
+    const row = table.tBodies[0].insertRow();
     for (let i = 0; i < 8; ++i) {
-      let $t = this.buildTexture(i);
-      headings.push(gbi.getTileText(i));
-      let $td = $('<td />')
-      $td.append($t ? $t : '');
-      $textures.append($td);
+      const texture = this.buildTexture(i);
+      const cell = row.insertCell();
+      if (texture) {
+        cell.append(texture);
+      }
     }
-    const $table = $('<table class="table table-condensed dl-debug-table" style="width: auto"></table>');
-    $table.append($(`<tr><th>${headings.join('</th><th>')}</th></tr>`));
-    $table.append($textures);
-    $d.append($table)
-    return $d;
+    container.append(table);
+    return container;
   }
 
   buildTilesTable() {
@@ -308,9 +299,7 @@ export class DebugController {
       'width', 'height', 'unmasked w', 'unmasked h',
     ];
 
-    const $table = $('<table class="table table-condensed dl-debug-table" style="width: auto"></table>');
-    const $headingTR = $(`<tr><th>${tileFields.join('</th><th>')}</th></tr>`);
-    $table.append($headingTR);
+    const table = createDebugTable(tileFields);
 
     for (let tileIdx = 0; tileIdx < this.state.tiles.length; ++tileIdx) {
       const tile = this.state.tiles[tileIdx];
@@ -342,19 +331,16 @@ export class DebugController {
       vals.push(tile.unmaskedWidth);
       vals.push(tile.unmaskedHeight);
 
-      const tr = $(`<tr><td>${vals.join('</td><td>')}</td></tr>`);
-      $table.append(tr);
+      appendDebugRow(table, vals);
     }
 
-    return $table;
+    return table;
   }
 
   buildVerticesTab() {
     const vtxFields = ['vtx #', 'x', 'y', 'z', 'px', 'py', 'pz', 'pw', 'color', 'u', 'v', 'clip'];
 
-    const $table = $('<table class="table table-condensed dl-debug-table" style="width: auto"></table>');
-    const headingTR = $(`<tr><th>${vtxFields.join('</th><th>')}</th></tr>`);
-    $table.append(headingTR);
+    const table = createDebugTable(vtxFields);
 
     for (let i = 0; i < this.state.projectedVertices.length; ++i) {
       const vtx = this.state.projectedVertices[i];
@@ -375,16 +361,17 @@ export class DebugController {
       vals.push(vtx.pos.y.toFixed(3));
       vals.push(vtx.pos.z.toFixed(3));
       vals.push(vtx.pos.w.toFixed(3));
-      vals.push(makeColorTextABGR(vtx.color));
+      vals.push(''); // Colour swatch is inserted as markup below.
       vals.push(vtx.u.toFixed(3));
       vals.push(vtx.v.toFixed(3));
-      vals.push(makeClipFlagsText(vtx.clipFlags));
+      vals.push(''); // Clip flags are inserted as markup below.
 
-      const tr = $(`<tr><td>${vals.join('</td><td>')}</td></tr>`);
-      $table.append(tr);
+      const row = appendDebugRow(table, vals);
+      row.cells[8].innerHTML = makeColorTextABGR(vtx.color);
+      row.cells[11].innerHTML = makeClipFlagsText(vtx.clipFlags);
     }
 
-    return $table;
+    return table;
   }
 }
 
@@ -447,4 +434,28 @@ function makeFlagText(dim, flags, pos, neg) {
   else if (n) { cls = 'clip-neg'; t = '<'; }
   else { cls = 'clip-none'; t = '0'; }
   return `<span class="${cls}">${dim}${t}</span>`
+}
+
+function createDebugTable(headings = []) {
+  const table = document.createElement('table');
+  table.className = 'table table-condensed dl-debug-table';
+  table.style.width = 'auto';
+  if (headings.length) {
+    const row = table.createTHead().insertRow();
+    for (const title of headings) {
+      const heading = document.createElement('th');
+      heading.textContent = title;
+      row.append(heading);
+    }
+  }
+  table.createTBody();
+  return table;
+}
+
+function appendDebugRow(table, values) {
+  const row = table.tBodies[0].insertRow();
+  for (const value of values) {
+    row.insertCell().textContent = value;
+  }
+  return row;
 }
