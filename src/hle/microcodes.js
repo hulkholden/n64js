@@ -2,6 +2,7 @@ import * as logger from '../logger.js';
 import { toString32 } from '../format.js';
 import { GBI0, GBI0GE, GBI0PD, GBI0SE, GBI0WR } from './gbi0.js';
 import { GBI0DKR } from './gbi0_dkr.js';
+import { GBI1TEXA } from './gbi1_texa.js';
 import { GBI1, GBI1LL } from './gbi1.js';
 import { GBI1L3DEX } from './gbi_l3dex.js';
 import { GBI2, GBI2Conker } from './gbi2.js';
@@ -67,6 +68,8 @@ function createMicrocode(ucode, state, ramDV) {
       return new GBI1L3DEX(state, ramDV);
     case MicrocodeId.GBI1:
       return new GBI1(state, ramDV);
+    case MicrocodeId.GBI1_TEXA:
+      return new GBI1TEXA(state, ramDV);
     case MicrocodeId.GBI1_LL:
       return new GBI1LL(state, ramDV);
     case MicrocodeId.T3DUX:

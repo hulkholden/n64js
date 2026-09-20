@@ -519,6 +519,10 @@ export class GBIMicrocode {
     const maskS = (cmd1 >>> 4) & 0xf;
     const shiftS = (cmd1 >>> 0) & 0xf;
 
+    this.setTile({ tileIdx, format, size, line, tmem, palette, cmS, maskS, shiftS, cmT, maskT, shiftT }, dis);
+  }
+
+  setTile({ tileIdx, format, size, line, tmem, palette, cmS, maskS, shiftS, cmT, maskT, shiftT }, dis) {
     const tile = this.state.tiles[tileIdx];
     tile.set(format, size, line, tmem, palette, cmS, maskS, shiftS, cmT, maskT, shiftT);
 
@@ -540,6 +544,11 @@ export class GBIMicrocode {
     const lrs = (cmd1 >>> 12) & 0xfff;
     const lrt = (cmd1 >>> 0) & 0xfff;
 
+    this.setTileSize(tileIdx, uls, ult, lrs, lrt, dis);
+  }
+
+  // Bounds retain the RDP's unsigned 10.2 fixed-point units.
+  setTileSize(tileIdx, uls, ult, lrs, lrt, dis) {
     const tile = this.state.tiles[tileIdx];
     tile.setSize(uls, ult, lrs, lrt);
 
@@ -618,6 +627,11 @@ export class GBIMicrocode {
     const width = ((cmd0 >>> 0) & 0xfff) + 1;
     const address = this.state.rdpSegmentAddress(cmd1);
 
+    this.setTextureImage(format, size, width, address, dis);
+  }
+
+  // address is already resolved from the command's segmented address.
+  setTextureImage(format, size, width, address, dis) {
     if (dis) {
       dis.text(`gsDPSetTextureImage(${gbi.ImageFormat.nameOf(format)}, ${gbi.ImageSize.nameOf(size)}, ${width}, ${toString32(address)});`);
     }
@@ -670,6 +684,11 @@ export class GBIMicrocode {
     const lrs = (cmd1 >>> 12) & 0xfff;
     const dxt = (cmd1 >>> 0) & 0xfff;
 
+    this.loadBlock(tileIdx, uls, ult, lrs, dxt, dis);
+  }
+
+  // Preserve LoadBlock's encoded coordinate/count and dxt units.
+  loadBlock(tileIdx, uls, ult, lrs, dxt, dis) {
     if (dis) {
       const tt = gbi.getTileText(tileIdx);
       dis.text(`gsDPLoadBlock(${tt}, ${uls}, ${ult}, ${lrs}, ${dxt});`);

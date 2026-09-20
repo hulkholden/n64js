@@ -67,7 +67,7 @@ export class T3DUX extends ObjectMicrocode {
     this.rejected = new Uint8Array(this.vertices.length);
     this.attributeValid = new Uint8Array(DMEM_BYTES / ATTRIBUTE_BYTES);
 
-    this.setTile = null;
+    this.cachedSetTile = null;
   }
 
   executeDisplayList({ disassembler: dis, bailAfter }) {
@@ -109,7 +109,7 @@ export class T3DUX extends ObjectMicrocode {
 
   executeSetTile(cmd0, cmd1, dis) {
     super.executeSetTile(cmd0, cmd1, dis);
-    this.setTile = [cmd0, cmd1 & ~RDP_TILE_PALETTE_MASK];
+    this.cachedSetTile = [cmd0, cmd1 & ~RDP_TILE_PALETTE_MASK];
   }
 
   loadObject(pointer, vertices, triangles, attributes, attributeBase, dis) {
@@ -244,10 +244,10 @@ export class T3DUX extends ObjectMicrocode {
         (state.geometryMode.cullBack && area < 0);
 
       if ((palette & PALETTE_UPDATE_FLAG) || (rejected && palette)) {
-        if (this.setTile) {
+        if (this.cachedSetTile) {
           this.renderer.flushTris(tb);
           tb.reset();
-          super.executeSetTile(this.setTile[0], this.setTile[1] | (palette << RDP_TILE_PALETTE_SHIFT), dis);
+          super.executeSetTile(this.cachedSetTile[0], this.cachedSetTile[1] | (palette << RDP_TILE_PALETTE_SHIFT), dis);
         } else if (state.geometryMode.texture) {
           throw new Error('T3DUX textured palette change without SetTile');
         }
