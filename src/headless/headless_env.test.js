@@ -22,7 +22,7 @@ function createEmulator(options) {
   }, options);
 }
 
-function readController(emulator, port = 0) {
+function readController(emulator, port = 0, onRead = null) {
   const { hardware } = emulator;
   const dramAddress = 0x1000;
   const siBase = 0xa4800000;
@@ -37,13 +37,28 @@ function readController(emulator, port = 0) {
   const si = hardware.siRegDevice;
   si.write32(siBase + SI_DRAM_ADDR_REG, dramAddress);
   si.write32(siBase + SI_PIF_ADDR_WR64B_REG, pifAddress);
-  si.write32(siBase + SI_STATUS_REG, 0);
-  si.write32(siBase + SI_PIF_ADDR_RD64B_REG, pifAddress);
-  si.write32(siBase + SI_STATUS_REG, 0);
-  return {
-    status: frame[port + 1],
-    data: Array.from(frame.subarray(port + 3, port + 7)),
-  };
+  return afterDMA(() => {
+    si.write32(siBase + SI_STATUS_REG, 0);
+    si.write32(siBase + SI_PIF_ADDR_RD64B_REG, pifAddress);
+    return afterDMA(() => {
+      si.write32(siBase + SI_STATUS_REG, 0);
+      const result = {
+        status: frame[port + 1],
+        data: Array.from(frame.subarray(port + 3, port + 7)),
+      };
+      if (onRead) onRead(result);
+      return result;
+    });
+  });
+
+  function afterDMA(next) {
+    // Poll after completion; callbacks used inside a running CPU must not
+    // advance its event queue recursively.
+    if (onRead) return emulator.cpu0.addEvent('Test SI completion', 0x901, next);
+    emulator.cpu0.incrementCount(0x900);
+    emulator.cpu0.eventQueue.incrementCount(0x900);
+    return next();
+  }
 }
 
 describe('headless controller input', () => {
@@ -94,7 +109,7 @@ describe('headless controller input', () => {
   });
 });
 
-function prepareVIEmulation(emulator) {
+function prepareVIEmulation(emulator, interval = 8) {
   const { cpu0, hardware } = emulator;
   // Execute NOPs from cleared RAM, with guest interrupts disabled. Use a short
   // synthetic VI interval while exercising the real CPU and VI event handling.
@@ -104,7 +119,7 @@ function prepareVIEmulation(emulator) {
   hardware.vi_reg.set32(0, 0x40); // Interlaced, so the field toggles each VI.
   hardware.mi_reg.set32(MI_INTR_MASK_REG, MI_INTR_VI);
   cpu0.updateCause3();
-  hardware.viRegDevice.countPerVbl = 8;
+  hardware.viRegDevice.countPerVbl = interval;
   hardware.viRegDevice.addInterruptEvent();
 }
 
@@ -147,17 +162,18 @@ describe('VI boundary callback', () => {
             emulator.inputs[0].buttons = count % 2 ? 0x1000 : 0;
             // Poll through SI DMA one emulated cycle after each VI boundary.
             emulator.cpu0.addEvent('Test controller poll', 1, () => {
-              samples.push(readController(emulator).data);
+              readController(emulator, 0, result => samples.push(result.data));
             });
           },
         });
-        prepareVIEmulation(emulator);
+        // Leave time for both SI transfers between VI boundaries.
+        prepareVIEmulation(emulator, 0x2000);
         if (frames) {
-          runFrames(emulator, 3, 24, chunkCycles);
+          runFrames(emulator, 3, 0x6000, chunkCycles);
         } else {
-          runCycles(emulator, 24, chunkCycles);
+          runCycles(emulator, 0x6000, chunkCycles);
         }
-        runCycles(emulator, 1); // Deliver the final scheduled poll.
+        runCycles(emulator, 0x1203); // Finish the final scheduled poll's DMAs.
         expect(samples).toEqual([[0x10, 0, 0, 0], [0, 0, 0, 0], [0x10, 0, 0, 0]]);
         expect(emulator.hardware.verticalBlankCount).toBe(3);
       }

@@ -16,9 +16,20 @@ export const SI_STATUS_RD_BUSY = 0x0002;
 export const SI_STATUS_DMA_ERROR = 0x0008;
 export const SI_STATUS_INTERRUPT = 0x1000;
 
+const kSIDMAEvent = 'SI DMA';
+// Nominal Count cycles for a 64-byte transfer (also Mupen64Plus's default).
+// https://github.com/mupen64plus/mupen64plus-core/blob/master/src/main/rom.c
+// This approximates SI/PIF timing; instantaneous completion lets NBA Pro 98
+// reuse a queued display-list buffer before the graphics task consumes it.
+const dmaCycles = 0x900;
+
 export class SIRegDevice extends Device {
   constructor(hardware, rangeStart, rangeEnd) {
     super("SIReg", hardware, hardware.si_reg, rangeStart, rangeEnd);
+  }
+
+  reset() {
+    this.hardware.cpu0.removeEvent(kSIDMAEvent);
   }
 
   readU32(address) {
@@ -75,26 +86,37 @@ export class SIRegDevice extends Device {
   }
 
   copyFromRDRAM() {
+    if (!this.beginDMA()) return;
     const dramAddr = this.mem.getU32(SI_DRAM_ADDR_REG) & 0x1fffffff;
     
     if (!this.quiet) { logger.log(`SI: copying from ${toString32(dramAddr)} to PIF RAM`); }
     
     n64js.joybus().dmaWrite(this.hardware.ram, dramAddr);
-
-    this.mem.setBits32(SI_STATUS_REG, SI_STATUS_INTERRUPT);
-    this.hardware.mi_reg.setBits32(mi.MI_INTR_REG, mi.MI_INTR_SI);
-    n64js.cpu0.updateCause3();
   }
 
   copyToRDRAM() {
+    if (!this.beginDMA()) return;
     const dramAddr = this.mem.getU32(SI_DRAM_ADDR_REG) & 0x1fffffff;
     
     if (!this.quiet) { logger.log(`SI: copying from PIF RAM to ${toString32(dramAddr)}`); }
     
     n64js.joybus().dmaRead(this.hardware.ram, dramAddr);
-  
-    this.mem.setBits32(SI_STATUS_REG, SI_STATUS_INTERRUPT);
-    this.hardware.mi_reg.setBits32(mi.MI_INTR_REG, mi.MI_INTR_SI);
-    n64js.cpu0.updateCause3();
+  }
+
+  beginDMA() {
+    if (this.mem.getBits32(SI_STATUS_REG, SI_STATUS_DMA_BUSY)) {
+      this.mem.setBits32(SI_STATUS_REG, SI_STATUS_DMA_ERROR);
+      return false;
+    }
+    // Keep the existing synchronous data copy, but expose an in-flight DMA
+    // until completion. A status-register acknowledgement must not cancel it.
+    this.mem.setBits32(SI_STATUS_REG, SI_STATUS_DMA_BUSY);
+    this.hardware.cpu0.addEvent(kSIDMAEvent, dmaCycles, () => {
+      this.mem.clearBits32(SI_STATUS_REG, SI_STATUS_DMA_BUSY);
+      this.mem.setBits32(SI_STATUS_REG, SI_STATUS_INTERRUPT);
+      this.hardware.mi_reg.setBits32(mi.MI_INTR_REG, mi.MI_INTR_SI);
+      n64js.cpu0.updateCause3();
+    });
+    return true;
   }
 }
