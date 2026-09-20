@@ -212,6 +212,37 @@ describe('combined compatibility hacks', () => {
     expect(cpu.pc).toBe(target + 4);
   });
 
+  test('a delay on another patch-set member still fires when that instruction executes', async () => {
+    compatibilityHacks[id] = {
+      name: 'Mixed test ROM',
+      enabled: true,
+      instructionDelays: [{ address: address + 4, expected: delaySlot, cycles: 64 }],
+      instructionPatches: [
+        { address, expected: original, replacement: original + 1 },
+        { address: address + 4, expected: delaySlot, replacement: patchedDelaySlot },
+      ],
+    };
+    const { cpu0: cpu, hardware } = await fixture(id);
+    cpu.run(1);
+    expect(cpu.controlCountValue).toBe(1);
+    expect(cpu.pc).toBe(address + 4);
+    expect(cpu.delayPC).toBe(target + 4);
+    expect(cpu.compatibilityHacks.has(address + 4)).toBe(true);
+    expect(hardware.ram.getU32(address - 0x80000000 + 4)).toBe(patchedDelaySlot);
+    expect(cpu.getRegU32Lo(8)).toBe(0);
+
+    cpu.run(65);
+    expect(cpu.controlCountValue).toBe(66);
+    expect(cpu.pc).toBe(target + 4);
+    expect(cpu.getRegU32Lo(8)).toBe(2);
+    expect(cpu.compatibilityHacks).toBeNull();
+    // The adjusted pending fingerprint is private to this CPU/reset.
+    expect(compatibilityHacks[id].instructionDelays[0].expected).toBe(delaySlot);
+    cpu.pc = address;
+    cpu.run(2);
+    expect(cpu.controlCountValue).toBe(68);
+  });
+
   test('consumes mismatched entries without clearing other pending hacks or retrying them', async () => {
     compatibilityHacks[id] = {
       name: 'Mixed test ROM',

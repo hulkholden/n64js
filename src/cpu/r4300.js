@@ -851,13 +851,13 @@ export class CPU0 {
             const result = applyCompatibilityHacks(this.compatibilityHacks, this.hardware.ram, pc, instruction);
             if (result) {
               cycles += result.cycles;
-              if (result.instruction !== instruction) {
-                // A different virtual alias could already have compiled this RAM.
-                // Flush once at patch time, including the trace being assembled.
+              if (result.codeChanged) {
+                // Any member (or virtual alias) may already have compiled code,
+                // even if the trigger word is unchanged. Flush the active trace too.
                 resetFragments();
                 fragment = null;
-                instruction = result.instruction;
               }
+              instruction = result.instruction;
             }
             if (this.compatibilityHacks.size === 0) this.compatibilityHacks = null;
           }

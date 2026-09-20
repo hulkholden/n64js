@@ -109,6 +109,66 @@ describe('ROM compatibility instruction patches', () => {
     }
   });
 
+  test('only the first entry triggers the set, applying every member together', async () => {
+    const member = address + 0x100;
+    compatibilityHacks[id].instructionPatches.push(
+      { address: member, expected: 0x25290001, replacement: 0x25290002 }, // ADDIU t1, t1, 1 -> 2
+    );
+    const { cpu0: cpu, hardware } = await fixture(id);
+    putBranch(hardware, address);
+    hardware.ram.set32(member - 0x80000000, 0x25290001);
+    cpu.setRegU64(9, 0n);
+    cpu.pc = member;
+    cpu.run(1);
+    expect(cpu.getRegU64(9)).toBe(1n);
+    expect(hardware.ram.getU32(address - 0x80000000)).toBe(original);
+    expect(hardware.ram.getU32(member - 0x80000000)).toBe(0x25290001);
+    expect(cpu.compatibilityHacks.has(address)).toBe(true);
+    expect(cpu.compatibilityHacks.has(member)).toBe(false);
+
+    cpu.pc = address;
+    cpu.run(2);
+    expect(cpu.pc).toBe(address + 0xc8);
+    expect(hardware.ram.getU32(address - 0x80000000)).toBe(replacement);
+    expect(hardware.ram.getU32(member - 0x80000000)).toBe(0x25290002);
+    expect(cpu.compatibilityHacks).toBeNull();
+    cpu.pc = member;
+    cpu.run(1);
+    expect(cpu.getRegU64(9)).toBe(3n);
+  });
+
+  test('a mismatched member leaves the entire set unchanged and warns once', async () => {
+    const companion = address + 0x100;
+    compatibilityHacks[id].instructionPatches.push(
+      { address: companion, expected: 0x24090001, replacement: 0x24090002 },
+      { address: companion + 4, expected: 0x240a0001, replacement: 0x240a0002 },
+    );
+    const { cpu0: cpu, hardware } = await fixture(id);
+    putBranch(hardware, address);
+    hardware.ram.set32(companion - 0x80000000, 0x24090001);
+    hardware.ram.set32(companion - 0x80000000 + 4, 0x240a0003);
+    const warning = spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      cpu.pc = address;
+      cpu.run(2);
+      expect(cpu.pc).toBe(address + 8);
+      expect(hardware.ram.getU32(address - 0x80000000)).toBe(original);
+      expect(hardware.ram.getU32(companion - 0x80000000)).toBe(0x24090001);
+      expect(hardware.ram.getU32(companion - 0x80000000 + 4)).toBe(0x240a0003);
+      expect(cpu.compatibilityHacks).toBeNull();
+      expect(warning).toHaveBeenCalledTimes(1);
+
+      hardware.ram.set32(companion - 0x80000000 + 4, 0x240a0001);
+      cpu.pc = address;
+      cpu.run(2);
+      expect(hardware.ram.getU32(address - 0x80000000)).toBe(original);
+      expect(hardware.ram.getU32(companion - 0x80000000)).toBe(0x24090001);
+      expect(warning).toHaveBeenCalledTimes(1);
+    } finally {
+      warning.mockRestore();
+    }
+  });
+
   test('reset rearms patches and changing the loaded ROM discards the old selection', async () => {
     const { cpu0: cpu, hardware } = await fixture(id);
     for (let boot = 0; boot < 2; boot++) {
@@ -187,5 +247,33 @@ describe('ROM compatibility instruction patches', () => {
     cpu.pc = alias;
     cpu.run(20); // Four five-instruction loops through the replacement branch.
     expect(cpu.getRegU64(9)).toBe(4n);
+  });
+
+  test('a patch set invalidates compiled members even when the trigger word is unchanged', async () => {
+    const companion = 0x80002000;
+    for (const triggerReplacement of [original, replacement]) {
+      compatibilityHacks[id].instructionPatches = [
+        { address, expected: original, replacement: triggerReplacement },
+        { address: companion, expected: 0x25290001, replacement: 0x25290002 }, // ADDIU t1, t1, 1 -> 2
+      ];
+      const { cpu0: cpu, hardware } = await fixture(id);
+      putBranch(hardware, address);
+      hardware.ram.set32(companion - 0x80000000, 0x25290001);
+      hardware.ram.set32(companion - 0x80000000 + 4, 0x03e00008); // JR ra
+      cpu.setRegU64(9, 0n);
+      cpu.setRegU64(31, BigInt(companion));
+      cpu.pc = companion;
+      cpu.run(3000);
+      expect(cpu.getRegU64(9)).toBe(1000n);
+      expect([...getFragmentMap().values()].some(fragment => fragment.executionCount > 0)).toBe(true);
+
+      cpu.pc = address;
+      cpu.run(2);
+      expect(hardware.ram.getU32(address - 0x80000000)).toBe(triggerReplacement);
+      expect(hardware.ram.getU32(companion - 0x80000000)).toBe(0x25290002);
+      cpu.pc = companion;
+      cpu.run(3);
+      expect(cpu.getRegU64(9)).toBe(1002n);
+    }
   });
 });
