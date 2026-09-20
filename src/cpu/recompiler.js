@@ -2,12 +2,13 @@
 
 import * as cpu0reg from './cpu0reg.js';
 import { GPRFacts, constant64, isSigned32, isUnsigned32, isKnown32 } from './gpr_facts.js';
+import { RAMStoreGroup } from './ram_store_group.js';
 import { convertModeCeil, convertModeFloor, convertModeRound, convertModeTrunc } from './cpu1.js';
 import { disassembleInstruction } from './disassemble.js';
 import { toString32 } from '../format.js';
 import { assert } from '../assert.js';
-import { kAccurateCountUpdating, kSpeedHackEnabled } from '../options.js';
-import { simpleOp, regImmOp, specialOp, copOp, isWait, copFmtFuncOp, fd, fs, ft, offset, sa, rd, rt, rs, tlbop, imm, imms, base, branchAddress, jumpAddress } from './decode.js';
+import { kAccurateCountUpdating, kSpeedHackEnabled, recompilerOptions } from '../options.js';
+import { OP_SW, simpleOp, regImmOp, specialOp, copOp, isWait, copFmtFuncOp, fd, fs, ft, offset, sa, rd, rt, rs, tlbop, imm, imms, base, branchAddress, jumpAddress } from './decode.js';
 
 const kDebugDynarec = false;
 const kValidateDynarecPCs = false;
@@ -52,6 +53,7 @@ export class FragmentContext {
     this.gprFacts = new GPRFacts();
     this.forwardedComparison = null;
     this.pendingComparison = null;
+    this.ramStoreGroup = null;
   }
 
   genAssert(test, msg) {
@@ -65,6 +67,7 @@ export class FragmentContext {
     this.delayedPCUpdate = 0;
     this.gprFacts.reset();
     this.forwardedComparison = null;
+    this.ramStoreGroup = null;
   }
 
   set(fragment, pc, instruction, postPC, nextPC) {
@@ -107,6 +110,15 @@ export class FragmentContext {
 export function generateCodeForOp(ctx) {
   ctx.needsDelayCheck = ctx.fragment.needsDelayCheck;
   ctx.isTrivial = false;
+
+  // Never specialize debug/sync code or a dynamic delay-slot/trace boundary.
+  // SW cannot change its base, even when the value register aliases the base.
+  const groupStore = recompilerOptions.guardedRAMStores && !kDebugDynarec && !kValidateDynarecPCs && !n64js.getSyncFlow() &&
+    simpleOp(ctx.instruction) === OP_SW && !ctx.needsDelayCheck && ctx.postPC === ctx.pc + 4;
+  if (ctx.ramStoreGroup && (!groupStore ||
+      !ctx.ramStoreGroup.canAppend(ctx.instr_base(), ctx.instr_imms(), ctx.pc))) {
+    finishCodeGeneration(ctx);
+  }
 
   let preflight = '';
   if (kValidateDynarecPCs) {
@@ -155,6 +167,7 @@ export function generateCodeForOp(ctx) {
 
   const dasm = disassembleInstruction(ctx.pc, ctx.instruction, false);
   const lines = redentLines(fn_code, '  ');
+  const start = ctx.fragment.bodyCode.length;
 
   ctx.fragment.bodyCode += `// ${dasm.disassembly}
 {
@@ -162,6 +175,21 @@ ${lines}
 }
 
 `;
+
+  if (groupStore) {
+    ctx.ramStoreGroup ??= new RAMStoreGroup(ctx.instr_base());
+    ctx.ramStoreGroup.add({
+      start, end: ctx.fragment.bodyCode.length, pc: ctx.pc,
+      offset: ctx.instr_imms(), rt: ctx.instr_rt(), helper: generateSWHelper(ctx),
+    });
+  }
+}
+
+export function finishCodeGeneration(ctx) {
+  if (ctx.ramStoreGroup) {
+    ctx.ramStoreGroup.finish(ctx.fragment);
+    ctx.ramStoreGroup = null;
+  }
 }
 
 // Indents all lines to the provided indent, removing any empty lines.
@@ -1277,8 +1305,11 @@ function generateSH(ctx) {
 }
 
 function generateSW(ctx) {
-  const impl = `c.execSW(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-  return generateMemoryAccessBoilerplate(impl, ctx, integerMemoryEffects);
+  return generateMemoryAccessBoilerplate(generateSWHelper(ctx), ctx, integerMemoryEffects);
+}
+
+function generateSWHelper(ctx) {
+  return `c.execSW(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
 }
 
 function generateSD(ctx) {

@@ -17,6 +17,7 @@ describe('benchmark argument parsing', () => {
       '--samples', '3',
       '--json',
       '--profile',
+      '--guarded-ram-stores',
     ])).toMatchObject({
       roms: ['one.z64', 'two.v64'],
       mode: 'cpu',
@@ -25,6 +26,7 @@ describe('benchmark argument parsing', () => {
       samples: 3,
       json: true,
       profile: true,
+      guardedRAMStores: true,
     });
   });
 
@@ -37,6 +39,7 @@ describe('benchmark argument parsing', () => {
       mode: 'game',
       warmupFrames: 120,
       frames: 600,
+      guardedRAMStores: false,
     });
   });
 

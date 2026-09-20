@@ -13,7 +13,7 @@ import * as logger from '../logger.js';
 import * as memaccess from '../memory/memaccess.js';
 import { kAccurateCountUpdating, kSpeedHackEnabled } from '../options.js';
 import { performanceProfile } from '../debug/performance_profile.js';
-import { FragmentContext, generateCodeForOp } from './recompiler.js';
+import { FragmentContext, generateCodeForOp, finishCodeGeneration } from './recompiler.js';
 import { rsp } from '../rsp/rsp.js';
 import { syncFlow } from '../sync.js';
 
@@ -2672,6 +2672,7 @@ function addOpToFragment(fragment, entry_pc, instruction, c) {
 }
 
 function compileFragment(fragment) {
+  finishCodeGeneration(fragmentContext);
   if (performanceProfile.enabled) {
     performanceProfile.counters.fragmentCompilations++;
   }
