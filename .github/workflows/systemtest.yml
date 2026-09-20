@@ -74,7 +74,10 @@ jobs:
           done
       - name: Compare results
         if: always()
-        run: bun pr/src/systemtest/compare.js results "$ROM_REVISION"
+        run: |
+          bun pr/src/systemtest/compare.js results "$ROM_REVISION"
+          echo "Intentionally failing the systemtest job to verify CI enforcement."
+          exit 1
       - name: Upload results
         if: always()
         uses: actions/upload-artifact@v6
