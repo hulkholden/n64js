@@ -12,20 +12,27 @@ export function getCompatibilityHacks(romId) {
   const config = compatibilityHacks[romId];
   if (!config?.enabled) return null;
 
-  // Each CPU/reset owns one pending map. Group entries by address so a delay
-  // and patch at the same site are both checked against the original word.
+  // Each CPU/reset owns one pending map. Delays stay per instruction; the first
+  // patch address triggers validation and application of the entire patch set.
+  // Add delays first so a delay at the trigger sees the original instruction.
   const pending = new Map();
-  for (const [type, entries] of [['delay', config.instructionDelays], ['patch', config.instructionPatches]]) {
-    for (const entry of entries ?? []) {
-      let hacks = pending.get(entry.address);
-      if (!hacks) {
-        hacks = [];
-        pending.set(entry.address, hacks);
-      }
-      hacks.push({ ...entry, type, name: config.name });
-    }
+  for (const entry of config.instructionDelays ?? []) {
+    add({ ...entry, type: 'delay' });
+  }
+  const patches = config.instructionPatches;
+  if (patches?.length) {
+    add({ ...patches[0], patches, type: 'patch' });
   }
   return pending.size ? pending : null;
+
+  function add(entry) {
+    let hacks = pending.get(entry.address);
+    if (!hacks) {
+      hacks = [];
+      pending.set(entry.address, hacks);
+    }
+    hacks.push({ ...entry, name: config.name });
+  }
 }
 
 export function applyCompatibilityHacks(pending, ram, address, instruction) {
@@ -38,6 +45,7 @@ export function applyCompatibilityHacks(pending, ram, address, instruction) {
 
   pending.delete(address);
   let patchedInstruction = instruction;
+  let codeChanged = false;
   let cycles = 0;
   for (const hack of hacks) {
     if (instruction !== hack.expected) {
@@ -51,22 +59,27 @@ export function applyCompatibilityHacks(pending, ram, address, instruction) {
         logger.log(`Applied compatibility delay for ${hack.name} at ${toString32(address)}: ${hack.cycles} CPU cycles`);
         break;
       case 'patch':
-        // Some workarounds change a pair of instructions that must agree.
-        // Check every companion before writing any of them, so a modified
-        // guest cannot receive half of a patch. The caller flushes compiled
-        // fragments when the triggering instruction changes.
-        if (hack.additionalPatches?.some(patch => ram.getU32(kseg0ToRamOffset(patch.address)) !== patch.expected)) {
-          logger.warn(`Skipped compatibility patch for ${hack.name} at ${toString32(address)}: companion instruction mismatch`);
+        // Validate the whole set before writing anything. All sites must be
+        // loaded when the trigger executes; a mismatch consumes the set once.
+        if (hack.patches.some(patch => ram.getU32(kseg0ToRamOffset(patch.address)) !== patch.expected)) {
+          logger.warn(`Skipped compatibility patch set for ${hack.name} at ${toString32(address)}: instruction mismatch`);
           continue;
         }
-        for (const patch of hack.additionalPatches ?? []) {
+        for (const patch of hack.patches) {
           ram.set32(kseg0ToRamOffset(patch.address), patch.replacement);
+          codeChanged ||= patch.replacement !== patch.expected;
+          // A delay at another member still belongs to that instruction's
+          // first execution. Keep its fingerprint aligned with our own patch.
+          for (const delay of pending.get(patch.address) ?? []) {
+            if (delay.type === 'delay' && delay.expected === patch.expected) {
+              delay.expected = patch.replacement;
+            }
+          }
         }
-        ram.set32(kseg0ToRamOffset(address), hack.replacement);
         patchedInstruction = hack.replacement;
-        logger.log(`Applied compatibility patch for ${hack.name} at ${toString32(address)}`);
+        logger.log(`Applied compatibility patch set for ${hack.name} at ${toString32(address)}`);
         break;
     }
   }
-  return { instruction: patchedInstruction, cycles };
+  return { instruction: patchedInstruction, cycles, codeChanged };
 }

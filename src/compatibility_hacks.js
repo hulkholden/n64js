@@ -1,15 +1,17 @@
 // Compatibility workarounds keyed by the existing ROM-header CRC ID (rominfo.id),
 // not filename or game title. Set enabled to false to investigate without a hack.
 //
-// Instruction patches apply once per reset, on first execution at the specified
-// KSEG0 RAM address. Use a site reached after IPL3's checksum, and always specify
-// the expected original word. These are guest-code workarounds, not timing fixes.
-// additionalPatches may contain companion address/expected/replacement entries;
-// every expected word must match before any instruction in the group is changed.
+// Instruction patches form one atomic set per ROM. On first execution at the
+// first entry's KSEG0 RAM address, every expected word must match before any
+// replacement is written. All sites must be loaded by then; choose a trigger
+// reached after IPL3's checksum. A mismatch skips the whole set until reset.
+// These are guest-code workarounds, not timing fixes.
 //
 // Instruction delays charge extra CPU/event cycles once per reset, after the
 // matching instruction executes. They leave guest code intact. Use a nonthrowing
 // instruction reached after IPL3; the expected word also guards against bad sites.
+// If a patch set changes a delayed instruction, its pending fingerprint follows
+// the replacement; the delay is still charged only when that site executes.
 // These approximate missing timing costs, not a cache or pipeline timing model.
 export const compatibilityHacks = {
   '9bbfc5f3e2330f16': {
@@ -21,14 +23,12 @@ export const compatibilityHacks = {
     // generation, so the second build reuses pointers into overwritten commands.
     // Give each build a new cache generation, leaving the VI counter alone.
     // This is a guest workaround for missing RSP timing, not an ERET correction.
-    instructionPatches: [{
-      address: 0x8008ea14, expected: 0x8c638c3c, replacement: 0x8c638c40, // Load the previous cache generation.
-      additionalPatches: [
-        // AT is already 0x800d0000 from the LUI at 0x8008ea58. Replace the
-        // redundant LUI before storing the generation with ADDIU v1,v1,1.
-        { address: 0x8008ea6c, expected: 0x3c01800d, replacement: 0x24630001 },
-      ],
-    }],
+    instructionPatches: [
+      { address: 0x8008ea14, expected: 0x8c638c3c, replacement: 0x8c638c40 }, // Load the previous cache generation.
+      // AT is already 0x800d0000 from the LUI at 0x8008ea58. Replace the
+      // redundant LUI before storing the generation with ADDIU v1,v1,1.
+      { address: 0x8008ea6c, expected: 0x3c01800d, replacement: 0x24630001 },
+    ],
   },
   '8c6d9311434b2c6f': {
     name: 'Donkey Kong 64 (Europe)',
