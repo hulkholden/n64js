@@ -1,4 +1,3 @@
-/*jshint jquery:true, devel:true */
 /*global n64js*/
 
 import { assert } from '../assert.js';
