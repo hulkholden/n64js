@@ -769,13 +769,18 @@ export class GBIMicrocode {
     this.renderer.fillRect(x0, y0, x1, y1, color);
   }
 
-  executeTexRect(cmd0, cmd1, dis) {
-    // The following 2 commands (RDPHalf1, RDPHalf2) contain additional parameters.
-    // We ignore errors but in theory this could run past the end of the displaylist.
+  readTexRectParams() {
+    // Older microcodes use different encodings for the parameter words.
     this.state.nextCommand();
     const cmd2 = this.state.cmd1;
     this.state.nextCommand();
-    const cmd3 = this.state.cmd1;
+    return [cmd2, this.state.cmd1];
+  }
+
+  executeTexRect(cmd0, cmd1, dis) {
+    const params = this.readTexRectParams(dis);
+    if (!params) return;
+    const [cmd2, cmd3] = params;
 
     this.rdpTexRect(cmd0, cmd1, cmd2, cmd3, dis);
   }
@@ -825,12 +830,9 @@ export class GBIMicrocode {
   }
 
   executeTexRectFlip(cmd0, cmd1, dis) {
-    // The following 2 commands (RDPHalf1, RDPHalf2) contain additional parameters.
-    // We ignore errors but in theory this could run past the end of the displaylist.
-    this.state.nextCommand();
-    const cmd2 = this.state.cmd1;
-    this.state.nextCommand();
-    const cmd3 = this.state.cmd1;
+    const params = this.readTexRectParams(dis);
+    if (!params) return;
+    const [cmd2, cmd3] = params;
 
     this.rdpTexRectFlip(cmd0, cmd1, cmd2, cmd3, dis);
   }
