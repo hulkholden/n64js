@@ -1,4 +1,4 @@
-/*global n64js, Stats, md5, __BUILD_VERSION__*/
+/*global n64js, Stats, __BUILD_VERSION__*/
 
 import { simulateBoot } from './boot.js';
 import { Breakpoints } from './debug/breakpoints.js';
@@ -67,15 +67,8 @@ function setRunning(value) {
   ui.setRunning(value);
 }
 
-function computeHash(arrayBuffer) {
-  const hash = md5(arrayBuffer);
-  logger.log(`hash is ${hash}`);
-}
-
 function loadRom(arrayBuffer) {
   fixRomByteOrder(arrayBuffer);
-
-  computeHash(arrayBuffer);
 
   const rom = hardware.createROM(arrayBuffer);
 
