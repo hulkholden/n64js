@@ -4,6 +4,10 @@ import { compatibilityHacks } from './compatibility_hacks.js';
 import { toString32 } from './format.js';
 import * as logger from './logger.js';
 
+function kseg0ToRamOffset(address) {
+  return address - 0x80000000;
+}
+
 export function getCompatibilityHacks(romId) {
   const config = compatibilityHacks[romId];
   if (!config?.enabled) return null;
@@ -51,14 +55,14 @@ export function applyCompatibilityHacks(pending, ram, address, instruction) {
         // Check every companion before writing any of them, so a modified
         // guest cannot receive half of a patch. The caller flushes compiled
         // fragments when the triggering instruction changes.
-        if (hack.additionalPatches?.some(patch => ram.getU32(patch.address - 0x80000000) !== patch.expected)) {
+        if (hack.additionalPatches?.some(patch => ram.getU32(kseg0ToRamOffset(patch.address)) !== patch.expected)) {
           logger.warn(`Skipped compatibility patch for ${hack.name} at ${toString32(address)}: companion instruction mismatch`);
           continue;
         }
         for (const patch of hack.additionalPatches ?? []) {
-          ram.set32(patch.address - 0x80000000, patch.replacement);
+          ram.set32(kseg0ToRamOffset(patch.address), patch.replacement);
         }
-        ram.set32(address - 0x80000000, hack.replacement);
+        ram.set32(kseg0ToRamOffset(address), hack.replacement);
         patchedInstruction = hack.replacement;
         logger.log(`Applied compatibility patch for ${hack.name} at ${toString32(address)}`);
         break;
