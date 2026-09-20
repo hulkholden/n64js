@@ -233,3 +233,12 @@ After separating the guard and rebasing onto master
 seed 1 completes the original 1800-VI / 60-second-budget inventory run:
 2845111600 cycles and 1358 graphics tasks. The newer base contains SI DMA timing
 changes, so task counts need not match the original investigation base.
+
+The independent guard-only branch on that same newer master also completes
+seed 1 with exactly the same result and collector objects (1800 VIs,
+2845111600 cycles, 1358 graphics tasks), without the compatibility workaround.
+The guard does not alter successful guest execution or emulated timing. Thus
+newer master changes already avoid this particular seeded failure path; the
+original failing revision and causal controls above remain the evidence for
+the workaround. The compatibility PR is a draft because its necessity on
+current master needs further evaluation.
