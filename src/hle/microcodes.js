@@ -67,9 +67,9 @@ function createMicrocode(ucode, state, ramDV) {
     case MicrocodeId.GBI1_LL:
       return new GBI1LL(state, ramDV);
     case MicrocodeId.T3DUX:
-      return new T3DUX(state, ramDV, false);
-    case MicrocodeId.T3DUX_BRAVE:
       return new T3DUX(state, ramDV, true);
+    case MicrocodeId.T3DUX_BRAVE:
+      return new T3DUX(state, ramDV, false);
     case MicrocodeId.TURBO3D:
       return new Turbo3D(state, ramDV);
     case MicrocodeId.GBI1_SDEX:

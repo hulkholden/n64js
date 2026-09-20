@@ -11,9 +11,9 @@ import { ProjectedVertex } from './projected_vertex.js';
 // color offsets and palette emission were checked against both RSP binaries.
 // The two hashes share the loader, but emit palette changes differently.
 export class T3DUX extends ObjectMicrocode {
-  constructor(state, ramDV, braveSpirits) {
+  constructor(state, ramDV, allowPaletteTileSelect) {
     super(state, ramDV);
-    this.braveSpirits = braveSpirits;
+    this.allowPaletteTileSelect = allowPaletteTileSelect;
     this.transform = Matrix4x4.identity();
     // Vertex DMEM is 0x140..0x73f. Keep this separate from the GBI caches.
     this.vertices = Array.from({ length: 192 }, () => new ProjectedVertex());
@@ -154,7 +154,7 @@ export class T3DUX extends ObjectMicrocode {
       const palette = dv.getUint8(address + 7);
       // 26da8a4c emits PipeSync+SetTile when bit 7 is set; dd560323
       // advances its output by palette >> 4 bytes (0 or 8), without PipeSync.
-      if (this.braveSpirits && (palette & 0x70)) {
+      if (!this.allowPaletteTileSelect && (palette & 0x70)) {
         throw new Error('Unsupported T3DUX Brave Spirits palette command length');
       }
       const indices = [dv.getUint8(address), dv.getUint8(address + 1), dv.getUint8(address + 2)];
