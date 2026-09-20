@@ -1,5 +1,6 @@
 /*global n64js*/
 
+import { Tab } from 'bootstrap';
 import { ControllerConfig } from "./controller_config.js";
 
 export class UI {
@@ -24,6 +25,10 @@ export class UI {
     });
 
     dbg.redraw();
+  }
+
+  showTab(id) {
+    Tab.getOrCreateInstance(document.getElementById(id)).show();
   }
 
   toggleControllerConfig() {

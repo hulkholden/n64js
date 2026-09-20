@@ -1,5 +1,5 @@
 /*jshint jquery:true */
-/*global $, n64js, bootstrap*/
+/*global $, n64js*/
 
 import * as cpu0reg from '../cpu/cpu0reg.js';
 import { disassembleRange, cop0gprNames, cop1RegisterNames } from '../cpu/disassemble.js';
@@ -25,8 +25,8 @@ export class Debugger {
     /** @type {?jQuery} */
     this.$cpuContent = $('#cpu-content');
 
-    /** @type {?Array<?jQuery>} */
-    this.cpuTabs = [$('#cpu0-content'), $('#cpu1-content')];
+    /** @type {!Array<!HTMLElement>} */
+    this.cpuTabs = ['cpu0-content', 'cpu1-content'].map(id => document.getElementById(id));
 
     /** @type {?jQuery} */
     this.$cpu0Disassembly = $('#cpu-disasm');
@@ -34,8 +34,8 @@ export class Debugger {
     /** @type {?jQuery} */
     this.$rspContent = $('#rsp-content');
 
-    /** @type {?Array<?jQuery>} */
-    this.rspTabs = [$('#rsp-scalar-content'), $('#rsp-vector-content'), $('#rsp-task-content')];
+    /** @type {!Array<!HTMLElement>} */
+    this.rspTabs = ['rsp-scalar-content', 'rsp-vector-content', 'rsp-task-content'].map(id => document.getElementById(id));
 
     /** @type {?jQuery} */
     this.$rspDisassembly = $('#rsp-disasm');
@@ -162,7 +162,7 @@ export class Debugger {
   showTimeline() {
     this.updateTimeline();
     this.show();
-    bootstrap.Tab.getOrCreateInstance(document.getElementById('timeline-tab')).show();
+    n64js.ui().showTab('timeline-tab');
   }
 
   updateMemoryView() {
@@ -423,8 +423,8 @@ export class Debugger {
 
     this.cpu0State.updateStatusTable();
 
-    this.cpuTabs[0].empty().append(this.cpu0State.makeCop0RegistersTable(registerColours));
-    this.cpuTabs[1].empty().append(this.cpu0State.makeCop1RegistersTable(registerColours));
+    this.cpuTabs[0].replaceChildren(this.cpu0State.makeCop0RegistersTable(registerColours));
+    this.cpuTabs[1].replaceChildren(this.cpu0State.makeCop1RegistersTable(registerColours));
   }
 
   updateRSP() {
@@ -506,9 +506,9 @@ export class Debugger {
 
     this.rspState.updateStatusTable();
 
-    this.rspTabs[0].empty().append(this.rspState.makeScalarRegistersTable(registerColours));
-    this.rspTabs[1].empty().append(this.rspState.makeVectorRegistersTable(registerColours));
-    this.rspTabs[2].empty().append(this.rspState.makeTaskTable());
+    this.rspTabs[0].replaceChildren(this.rspState.makeScalarRegistersTable(registerColours));
+    this.rspTabs[1].replaceChildren(this.rspState.makeVectorRegistersTable(registerColours));
+    this.rspTabs[2].replaceChildren(this.rspState.makeTaskTable());
   }
 
   /**
@@ -820,8 +820,7 @@ class R4300DebugState extends CPUDebugState {
   }
 
   /**
-   * Makes a table showing the status register contents.
-   * @return {!jQuery}
+   * Updates the status register contents and event queue.
    */
   updateStatusTable() {
     setTextContent('#cpu0-status-opsexecuted', cpu0.opsExecuted);
@@ -837,15 +836,17 @@ class R4300DebugState extends CPUDebugState {
     this.updateStatusRegisterRow();
     this.updateMipsInterruptsRow();
 
-    let $body = $('#cpu0-status-events').find('tbody');
-    $body.empty();
-    $body.append(`<tr><td>&nbsp;</td></tr>`);
-    $body.append(`<tr><td>Events</td></tr>`);
+    const body = document.querySelector('#cpu0-status-events tbody');
+    body.replaceChildren();
+    appendCell(body.insertRow(), '\u00a0');
+    appendCell(body.insertRow(), 'Events');
 
     const eq = cpu0.eventQueue;
     let cycles = eq.cyclesToFirstEvent;
     for (let event = eq.firstEvent; event; event = event.next) {
-      $body.append(`<tr><td>${event.getName()}</td><td class="fixed">${cycles}</td></tr>`);
+      const row = body.insertRow();
+      appendCell(row, event.getName());
+      appendCell(row, cycles, 'fixed');
       cycles += event.cyclesToNextEvent;
     }
   }
@@ -901,73 +902,55 @@ class R4300DebugState extends CPUDebugState {
   /**
    * Makes a table of co-processor 0 registers.
    * @param {!Map<string, string>} registerColours Register colour map.
-   * @return {!jQuery}
+   * @return {!HTMLTableElement}
    */
   makeCop0RegistersTable(registerColours) {
-    let $table = $('<table class="register-table"><tbody></tbody></table>');
-    let $body = $table.find('tbody');
-
+    const table = createRegisterTable();
+    const body = table.tBodies[0];
     const kRegistersPerRow = 2;
 
     for (let i = 0; i < 32; i += kRegistersPerRow) {
-      let $tr = $('<tr />');
+      const row = body.insertRow();
       for (let r = 0; r < kRegistersPerRow; ++r) {
-        let name = cop0gprNames[i + r];
-        let $td = $(`<td>${name}</td><td class="fixed">${toString64(cpu0.getRegU64(i + r))}</td>`);
-
-        if (registerColours.has(name)) {
-          $td.attr('bgcolor', registerColours.get(name));
-        }
-        $tr.append($td);
+        const name = cop0gprNames[i + r];
+        const colour = registerColours.get(name);
+        appendCell(row, name, '', colour);
+        appendCell(row, toString64(cpu0.getRegU64(i + r)), 'fixed', colour);
       }
-      $body.append($tr);
     }
-
-    return $table;
+    return table;
   }
 
   /**
    * Makes a table of co-processor 1 registers.
    * @param {!Map<string, string>} registerColours Register colour map.
-   * @return {!jQuery}
+   * @return {!HTMLTableElement}
    */
   makeCop1RegistersTable(registerColours) {
-    let $table = $('<table class="register-table"><tbody></tbody></table>');
-    let $body = $table.find('tbody');
+    const table = createRegisterTable();
+    const body = table.tBodies[0];
 
     for (let i = 0; i < 32; ++i) {
-      let name = cop1RegisterNames[i];
-
-      let $td;
-      if ((i & 1) === 0) {
-        $td = $(`<td>${name}</td>
-                 <td class="fixed fp-w">${toString32(cpu1.regU32[i])}</td>
-                 <td class="fixed fp-s">${cpu1.regF32[i]}</td>
-                 <td class="fixed fp-d">${cpu1.regF64[i / 2]}</td>`);
-      } else {
-        $td = $(`<td>${name}</td>
-                 <td class="fixed fp-w">${toString32(cpu1.regU32[i])}</td>
-                 <td class="fixed fp-s">${cpu1.regF32[i]}</td>
-                 <td></td>`);
-      }
-
-      let $tr = $('<tr />');
-      $tr.append($td);
+      const name = cop1RegisterNames[i];
+      const row = body.insertRow();
+      appendCell(row, name);
+      const word = appendCell(row, toString32(cpu1.regU32[i]), 'fixed fp-w');
+      const single = appendCell(row, cpu1.regF32[i], 'fixed fp-s');
+      const double = (i & 1) === 0
+        ? appendCell(row, cpu1.regF64[i / 2], 'fixed fp-d')
+        : appendCell(row, '');
 
       if (registerColours.has(name)) {
-        $tr.attr('bgcolor', registerColours.get(name));
+        row.style.backgroundColor = registerColours.get(name);
       } else if (registerColours.has(name + '-w')) {
-        $tr.find('.fp-w').attr('bgcolor', registerColours.get(name + '-w'));
+        word.style.backgroundColor = registerColours.get(name + '-w');
       } else if (registerColours.has(name + '-s')) {
-        $tr.find('.fp-s').attr('bgcolor', registerColours.get(name + '-s'));
-      } else if (registerColours.has(name + '-d')) {
-        $tr.find('.fp-d').attr('bgcolor', registerColours.get(name + '-d'));
+        single.style.backgroundColor = registerColours.get(name + '-s');
+      } else if (registerColours.has(name + '-d') && (i & 1) === 0) {
+        double.style.backgroundColor = registerColours.get(name + '-d');
       }
-
-      $body.append($tr);
     }
-
-    return $table;
+    return table;
   }
 }
 
@@ -990,74 +973,63 @@ class RSPDebugState extends CPUDebugState {
   /**
    * Makes a table of the scalar registers.
    * @param {!Map<string, string>} registerColours Register colour map.
-   * @return {!jQuery}
+   * @return {!HTMLTableElement}
    */
   makeScalarRegistersTable(registerColours) {
-    let $table = $('<table class="register-table"><tbody></tbody></table>');
-    let $body = $table.find('tbody');
-
+    const table = createRegisterTable();
+    const body = table.tBodies[0];
     const kRegistersPerRow = 2;
 
     for (let i = 0; i < 32; i += kRegistersPerRow) {
-      let $tr = $('<tr />');
+      const row = body.insertRow();
       for (let r = 0; r < kRegistersPerRow; ++r) {
-        let name = disassemble_rsp.gprNames[i + r];
-        let $td = $(`<td>${name}</td><td class="fixed">${toString32(rsp.getRegU32(i + r))}</td>`);
-
-        if (registerColours.has(name)) {
-          $td.attr('bgcolor', registerColours.get(name));
-        }
-        $tr.append($td);
+        const name = disassemble_rsp.gprNames[i + r];
+        const colour = registerColours.get(name);
+        appendCell(row, name, '', colour);
+        appendCell(row, toString32(rsp.getRegU32(i + r)), 'fixed', colour);
       }
-      $body.append($tr);
     }
-
-    return $table;
+    return table;
   }
 
   /**
    * Makes a table of the vector registers.
    * @param {!Map<string, string>} registerColours Register colour map.
-   * @return {!jQuery}
+   * @return {!HTMLTableElement}
    */
   makeVectorRegistersTable(registerColours) {
-    let $table = $('<table class="register-table"><tbody></tbody></table>');
-    let $body = $table.find('tbody');
+    const table = createRegisterTable();
+    const body = table.tBodies[0];
 
     for (let r = 0; r < 32; r++) {
-      let $tr = $('<tr />');
+      const row = body.insertRow();
       const name = `V${r}`;
-      $tr.append($(`<td>${name}</td>`));
+      appendCell(row, name);
       for (let el = 0; el < 8; ++el) {
-        let $td = $(`<td class="fixed">${toHex(rsp.getVecU16(r, el), 16)}</td>`);
         // FIXME: make this work with vector registers.
-        if (registerColours.has(name)) {
-          $td.attr('bgcolor', registerColours.get(name));
-        }
-        $tr.append($td);
+        appendCell(row, toHex(rsp.getVecU16(r, el), 16), 'fixed', registerColours.get(name));
       }
-      $body.append($tr);
     }
-    return $table;
+    return table;
   }
 
   /**
    * Makes a table of the RSP task state.
-   * @return {!jQuery}
+   * @return {!HTMLTableElement}
    */
   makeTaskTable() {
     const kTaskOffset = 0x0fc0;
     const kTaskLength = 0x40;
     const taskMem = n64js.hardware().sp_mem.subRegion(kTaskOffset, kTaskLength);
-
-    let $table = $('<table class="register-table"><tbody></tbody></table>');
-    let $body = $table.find('tbody');
+    const table = createRegisterTable();
+    const body = table.tBodies[0];
 
     for (let i = 0; i < kTaskLength; i += 4) {
-      const $tr = $(`<tr><td>${TaskOffsets.nameOf(i)}</td><td class="fixed">${toHex(taskMem.getU32(i), 32)}</td></tr>`);
-      $body.append($tr);
+      const row = body.insertRow();
+      appendCell(row, TaskOffsets.nameOf(i));
+      appendCell(row, toHex(taskMem.getU32(i), 32), 'fixed');
     }
-    return $table;
+    return table;
   }
 }
 
@@ -1072,3 +1044,19 @@ function setTextContent(id, text) {
   }
 }
 
+function createRegisterTable() {
+  const table = document.createElement('table');
+  table.className = 'register-table';
+  table.createTBody();
+  return table;
+}
+
+function appendCell(row, text, className = '', colour) {
+  const cell = row.insertCell();
+  cell.textContent = text;
+  cell.className = className;
+  if (colour !== undefined) {
+    cell.style.backgroundColor = colour;
+  }
+  return cell;
+}
