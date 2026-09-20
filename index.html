@@ -665,6 +665,8 @@
       uniform int uTextureConvert;
       uniform bvec2 uTextureYUV;
 
+      {{textureSampler}}
+
       vec4 convertYUV(vec4 texel) {
         highp vec2 chroma = texel.rg * 255.0 - 128.0;
         highp vec3 rgb = vec3(texel.b * 255.0) + floor(vec3(
@@ -676,17 +678,20 @@
       }
 
       void main(void) {
-        highp vec2 uv0 = (vUV - uTexOffset0) * uTexScale0;
-        highp vec2 uv1 = (vUV - uTexOffset1) * uTexScale1;
-
         vec4 shade = vColor;
         vec4 prim  = uPrimColor;
         vec4 env   = uEnvColor;
         vec4 one   = vec4(1,1,1,1);
         vec4 zero  = vec4(0,0,0,0);
-        // TODO: consider doing the shift/mask/clamp here.
+        #ifdef N64_TEXTURE_SAMPLER
+        vec4 tex0 = sampleN64Texture(uSampler0, vUV, uTexScale0, uTexOffset0, uTile0);
+        vec4 tex1 = sampleN64Texture(uSampler1, vUV, uTexScale1, uTexOffset1, uTile1);
+        #else
+        highp vec2 uv0 = (vUV - uTexOffset0) * uTexScale0;
+        highp vec2 uv1 = (vUV - uTexOffset1) * uTexScale1;
         vec4 tex0  = texture(uSampler0, uv0);
         vec4 tex1  = texture(uSampler1, uv1);
+        #endif
         if (uTextureYUV.y) {
           tex1 = uTextureConvert == 0 ? convertYUV(tex1) : vec4(tex1.rg - 128.0 / 255.0, tex1.b, tex1.b);
         }

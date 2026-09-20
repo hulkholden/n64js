@@ -57,6 +57,25 @@ python3 -m http.server
 
 Navigate to http://localhost:8000/.
 
+The debug Options menu has a **Graphics → N64 Texture Sampler (Experimental)**
+toggle (off by default). It switches live between WebGL sampling and a
+`texelFetch` shader with tile shifts, clamp/mask/mirror addressing, point sampling,
+and N64 three-point filtering with 5-bit weights. Average mode uses four texels
+at the midpoint; copy mode uses point sampling. Both texture slots are supported.
+
+The experiment samples level zero of the existing decoded textures. It does not
+yet implement N64 LOD selection, full fixed-point coordinate overflow, or separate
+YUV chroma filtering. Addresses outside the decoded image replicate its edge;
+sampling all addressable TMEM will require extending the decoder. The original
+sampler remains available for comparisons.
+
+To run GPU sampler regression checks, build the browser test bundle and open
+http://localhost:8000/tools/texture_sampler_webgl.html on the same local server:
+
+```
+bun build tools/texture_sampler_webgl.js --outfile=build/texture_sampler_webgl.js
+```
+
 ### PR system-test coverage
 
 PRs build a pinned n64-systemtest ROM from source and compare isolated main,

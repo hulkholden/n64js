@@ -29,4 +29,8 @@ export default [
       globals: { ...globals.nodeBuiltin, ...globals.bunBuiltin },
     },
   },
+  {
+    files: ['tools/texture_sampler_webgl.js'],
+    languageOptions: { sourceType: 'module', globals: globals.browser },
+  },
 ];

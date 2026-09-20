@@ -2,6 +2,7 @@ import * as gbi from './gbi.js';
 import * as logger from '../logger.js';
 import { assert } from '../assert.js';
 import { VertexArray } from './vertex_array.js';
+import { textureSamplerSource } from './texture_sampler.js';
 
 /**
  * Whether to log shaders as they're compiled.
@@ -257,9 +258,10 @@ class N64Shader {
    * @param {!WebGLProgram} program The program to use.
    * @param {string} source The fragment shader source (for debugging).
    */
-  constructor(gl, program, shaderSource) {
+  constructor(gl, program, shaderSource, emulatedTextureSampler) {
     this.program = program;
     this.shaderSource = shaderSource;
+    this.emulatedTextureSampler = emulatedTextureSampler;
 
     this.vertexArray = new VertexArray(gl);
     this.vertexArray.initPosAttr(program, "aPosition");
@@ -272,6 +274,14 @@ class N64Shader {
     this.uTexScaleUniform1       = gl.getUniformLocation(program, "uTexScale1");
     this.uTexOffsetUniform0      = gl.getUniformLocation(program, "uTexOffset0");
     this.uTexOffsetUniform1      = gl.getUniformLocation(program, "uTexOffset1");
+
+    this.uTextureFilterUniform   = gl.getUniformLocation(program, "uTextureFilter");
+    this.tileUniforms = [0, 1].map(slot => ({
+      bounds: gl.getUniformLocation(program, `uTile${slot}.bounds`),
+      mask: gl.getUniformLocation(program, `uTile${slot}.mask`),
+      mode: gl.getUniformLocation(program, `uTile${slot}.mode`),
+      enabled: gl.getUniformLocation(program, `uTile${slot}.enabled`),
+    }));
 
     this.uPrimColorUniform       = gl.getUniformLocation(program, "uPrimColor");
     this.uEnvColorUniform        = gl.getUniformLocation(program, "uEnvColor");
@@ -290,13 +300,17 @@ class N64Shader {
  * @param {number} mux1
  * @param {number} cycleType A CycleType value.
  * @param {boolean} enableAlphaThreshold Whether to enable alpha thresholding.
+ * @param {boolean} emulatedTextureSampler Whether to use texelFetch and RDP filtering.
  * @return {!N64Shader}
  */
-export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, enableAlphaThreshold) {
+export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, enableAlphaThreshold, emulatedTextureSampler = false) {
   // Check if this shader already exists. Copy/Fill are fixed-function so ignore mux for these.
   let stateText = (cycleType < gbi.CycleType.G_CYC_COPY) ? (`${mux0.toString(16) + mux1.toString(16)}_${cycleType}`) : cycleType.toString();
   if (enableAlphaThreshold) {
     stateText += `_alphaThreshold`;
+  }
+  if (emulatedTextureSampler) {
+    stateText += '_n64TextureSampler';
   }
 
   let shader = shaderCache.get(stateText);
@@ -359,7 +373,8 @@ export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, enableAlphaThres
     body += 'if(col.a <= uAlphaThreshold) discard;\n';
   }
 
-  let shaderSource = fragmentSource.replace('{{body}}', body);
+  let shaderSource = fragmentSource.replace('{{body}}', body)
+    .replace('{{textureSampler}}', emulatedTextureSampler ? textureSamplerSource : '');
 
   if (kLogShaders) {
     let decoded = '\n';
@@ -387,7 +402,7 @@ export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, enableAlphaThres
     assert(false, 'Unable to initialize the shader program.');
   }
 
-  shader = new N64Shader(gl, glProgram, shaderSource);
+  shader = new N64Shader(gl, glProgram, shaderSource, emulatedTextureSampler);
   shaderCache.set(stateText, shader);
   return shader;
 }

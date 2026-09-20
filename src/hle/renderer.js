@@ -3,6 +3,7 @@
 import { toString16, toString32 } from "../format.js";
 import { Vector2 } from "../graphics/Vector2.js";
 import * as gbi from './gbi.js';
+import { graphicsOptions } from './graphics_options.js';
 import { RendererBase } from './renderer_base.js';
 import { RenderTargets } from './render_targets.js';
 import * as shaders from './shaders.js';
@@ -419,8 +420,12 @@ export class Renderer extends RendererBase {
     shader.vertexArray.setColorData(colours, gl.DYNAMIC_DRAW, numVertices);
     shader.vertexArray.setUVData(coords, gl.DYNAMIC_DRAW, numVertices * 2);
 
-    this.bindTexture(0, gl.TEXTURE0, tile0, texture0, texGenEnabled, shader.uSamplerUniform0, shader.uTexScaleUniform0, shader.uTexOffsetUniform0);
-    this.bindTexture(1, gl.TEXTURE1, tile1, texture1, texGenEnabled, shader.uSamplerUniform1, shader.uTexScaleUniform1, shader.uTexOffsetUniform1);
+    this.bindTexture(0, gl.TEXTURE0, tile0, texture0, texGenEnabled, shader.uSamplerUniform0, shader.uTexScaleUniform0, shader.uTexOffsetUniform0, shader);
+    this.bindTexture(1, gl.TEXTURE1, tile1, texture1, texGenEnabled, shader.uSamplerUniform1, shader.uTexScaleUniform1, shader.uTexOffsetUniform1, shader);
+    if (shader.emulatedTextureSampler) {
+      const filter = this.state.getCycleType() === gbi.CycleType.G_CYC_COPY ? gbi.TextureFilter.G_TF_POINT : this.state.getTextureFilterType();
+      gl.uniform1i(shader.uTextureFilterUniform, filter >>> gbi.G_MDSFT_TEXTFILT);
+    }
 
     gl.uniform1f(shader.uAlphaThresholdUniform, alphaThreshold);
 
@@ -453,7 +458,7 @@ export class Renderer extends RendererBase {
     const enableAlphaThreshold = (this.state.getAlphaCompareType() & gbi.AlphaCompare.G_AC_THRESHOLD) != 0;
     const enableAlphaCvgKill = this.state.getAntiAliasEnabled() && this.state.getCoverageTimesAlpha();
 
-    return shaders.getOrCreateN64Shader(this.gl, mux0, mux1, cycleType, enableAlphaThreshold || enableAlphaCvgKill);
+    return shaders.getOrCreateN64Shader(this.gl, mux0, mux1, cycleType, enableAlphaThreshold || enableAlphaCvgKill, graphicsOptions.emulatedTextureSampler);
   }
 
   /**
@@ -528,13 +533,39 @@ export class Renderer extends RendererBase {
   }
 
 
-  bindTexture(slot, glTextureId, tile, texture, texGenEnabled, sampleUniform, texScaleUniform, texOffsetUniform) {
+  bindTexture(slot, glTextureId, tile, texture, texGenEnabled, sampleUniform, texScaleUniform, texOffsetUniform, shader) {
     const gl = this.gl;
 
     gl.activeTexture(glTextureId);
+    if (shader.emulatedTextureSampler) {
+      gl.uniform1i(sampleUniform, slot);
+      gl.uniform1i(shader.tileUniforms[slot].enabled, texture ? 1 : 0);
+    }
 
     if (!texture) {
       gl.bindTexture(gl.TEXTURE_2D, null);
+      return;
+    }
+
+    if (shader.emulatedTextureSampler) {
+      gl.bindTexture(gl.TEXTURE_2D, texture.texture);
+      // Generated coordinates are normalized by the current HLE vertex path.
+      gl.uniform2f(texScaleUniform, shiftFactor(tile.shiftS) * (texGenEnabled ? texture.width : 1),
+        shiftFactor(tile.shiftT) * (texGenEnabled ? texture.height : 1));
+      gl.uniform2f(texOffsetUniform, texGenEnabled ? 0 : tile.left, texGenEnabled ? 0 : tile.top);
+      const uniforms = shader.tileUniforms[slot];
+      gl.uniform4f(uniforms.bounds, tile.right - tile.left, tile.bottom - tile.top,
+        ((tile.lrs >>> 2) - (tile.uls >>> 2)) & 0x3ff, ((tile.lrt >>> 2) - (tile.ult >>> 2)) & 0x3ff);
+      gl.uniform2i(uniforms.mask, tile.maskS, tile.maskT);
+      // Mask zero implicitly clamps, even when the clamp bit is clear.
+      // The copy pipeline applies shifts and masks but bypasses tile clamping.
+      const copy = this.state.getCycleType() === gbi.CycleType.G_CYC_COPY;
+      gl.uniform2i(uniforms.mode,
+        copy ? tile.cmS & gbi.G_TX_MIRROR : tile.cmS | (tile.maskS === 0 ? gbi.G_TX_CLAMP : 0),
+        copy ? tile.cmT & gbi.G_TX_MIRROR : tile.cmT | (tile.maskT === 0 ? gbi.G_TX_CLAMP : 0));
+      // texelFetch ignores filtering/wrapping, but the texture must be complete.
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
       return;
     }
 
@@ -562,8 +593,8 @@ export class Renderer extends RendererBase {
     uvScaleV *= shiftFactor(tile.shiftT);
 
     gl.bindTexture(gl.TEXTURE_2D, texture.texture);
-    gl.uniform1i(sampleUniform, slot);
 
+    gl.uniform1i(sampleUniform, slot);
     gl.uniform2f(texScaleUniform, uvScaleU, uvScaleV);
     gl.uniform2f(texOffsetUniform, uvOffsetU, uvOffsetV);
 
