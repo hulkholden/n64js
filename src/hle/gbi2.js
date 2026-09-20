@@ -3,45 +3,73 @@ import * as disassemble from './disassemble.js';
 import * as gbi from './gbi.js';
 import { GBIMicrocode } from "./gbi_microcode.js";
 
+const G_NOOP = 0x00;
+const G_VTX = 0x01;
+const G_MODIFYVTX = 0x02;
+const G_CULLDL = 0x03;
+const G_BRANCH_Z = 0x04;
+const G_TRI1 = 0x05;
+const G_TRI2 = 0x06;
+const G_QUAD = 0x07;
+const G_LINE3D = 0x08;
+const G_BG_1CYC = 0x09;
+const G_BG_COPY = 0x0a;
+const G_OBJ_RENDERMODE = 0x0b;
+const G_DMA_IO = 0xd6;
+const G_TEXTURE = 0xd7;
+const G_POPMTX = 0xd8;
+const G_GEOMETRYMODE = 0xd9;
+const G_MTX = 0xda;
+const G_MOVEWORD = 0xdb;
+const G_MOVEMEM = 0xdc;
+const G_LOAD_UCODE = 0xdd;
+const G_DL = 0xde;
+const G_ENDDL = 0xdf;
+const G_SPNOOP = 0xe0;
+const G_RDPHALF_1 = 0xe1;
+const G_SETOTHERMODE_L = 0xe2;
+const G_SETOTHERMODE_H = 0xe3;
+const G_RDPHALF_2 = 0xf1;
+
 export class GBI2 extends GBIMicrocode {
   constructor(state, ramDV) {
     super(state, ramDV);
     this.vertexStride = 2;
 
     this.gbi2Commands = new Map([
-      [0x00, this.executeNoop.bind(this)],
-      [0x01, this.executeVertex.bind(this)],
-      [0x02, this.executeModifyVtx.bind(this)],
-      [0x03, this.executeCullDL.bind(this)],
-      [0x04, this.executeBranchZ.bind(this)],
-      [0x05, this.executeTri1.bind(this)],
-      [0x06, this.executeTri2.bind(this)],
-      [0x07, this.executeQuad.bind(this)],
-      [0x08, this.executeLine3D.bind(this)],
-      [0x09, this.executeBgRect1Cyc.bind(this)],
-      [0x0a, this.executeBgRectCopy.bind(this)],
-      [0x0b, this.executeObjRenderMode.bind(this)],
+      [G_NOOP, this.executeNoop.bind(this)],
+      [G_VTX, this.executeVertex.bind(this)],
+      [G_MODIFYVTX, this.executeModifyVtx.bind(this)],
+      [G_CULLDL, this.executeCullDL.bind(this)],
+      [G_BRANCH_Z, this.executeBranchZ.bind(this)],
+      [G_TRI1, this.executeTri1.bind(this)],
+      [G_TRI2, this.executeTri2.bind(this)],
+      [G_QUAD, this.executeQuad.bind(this)],
+      [G_LINE3D, this.executeLine3D.bind(this)],
+      [G_BG_1CYC, this.executeBgRect1Cyc.bind(this)],
+      [G_BG_COPY, this.executeBgRectCopy.bind(this)],
+      [G_OBJ_RENDERMODE, this.executeObjRenderMode.bind(this)],
 
       // // [0xd3, executeGBI2_Special1.bind(this)],
       // // [0xd4, executeGBI2_Special2.bind(this)],
       // // [0xd5, executeGBI2_Special3.bind(this)],
-      [0xd6, this.executeDmaIo.bind(this)],
-      [0xd7, this.executeTexture.bind(this)],
-      [0xd8, this.executePopMatrix.bind(this)],
-      [0xd9, this.executeGeometryMode.bind(this)],
-      [0xda, this.executeMatrix.bind(this)],
-      [0xdb, this.executeMoveWord.bind(this)],
-      [0xdc, this.executeMoveMem.bind(this)],
-      [0xdd, this.executeLoadUcode.bind(this)],
-      [0xde, this.executeDL.bind(this)],
-      [0xdf, this.executeEndDL.bind(this)],
+      [G_DMA_IO, this.executeDmaIo.bind(this)],
+      [G_TEXTURE, this.executeTexture.bind(this)],
+      [G_POPMTX, this.executePopMatrix.bind(this)],
+      [G_GEOMETRYMODE, this.executeGeometryMode.bind(this)],
+      [G_MTX, this.executeMatrix.bind(this)],
+      [G_MOVEWORD, this.executeMoveWord.bind(this)],
+      [G_MOVEMEM, this.executeMoveMem.bind(this)],
+      [G_LOAD_UCODE, this.executeLoadUcode.bind(this)],
+      [G_DL, this.executeDL.bind(this)],
+      [G_ENDDL, this.executeEndDL.bind(this)],
 
-      [0xe0, this.executeSpNoop.bind(this)],
-      [0xe1, this.executeRDPHalf1.bind(this)],
-      [0xe2, this.executeSetOtherModeL.bind(this)],
-      [0xe3, this.executeSetOtherModeH.bind(this)],
+      [G_SPNOOP, this.executeSpNoop.bind(this)],
+      [G_RDPHALF_1, this.executeRDPHalf1.bind(this)],
+      [G_SETOTHERMODE_L, this.executeSetOtherModeL.bind(this)],
+      [G_SETOTHERMODE_H, this.executeSetOtherModeH.bind(this)],
 
-      [0xf1, this.executeRDPHalf2.bind(this)],
+      [G_RDPHALF_2, this.executeRDPHalf2.bind(this)],
     ]);
   }
 
@@ -128,6 +156,23 @@ export class GBI2 extends GBIMicrocode {
     } else {
       stack[stack.length - 1] = matrix;
     }
+  }
+
+  readTexRectParams(dis) {
+    const state = this.state;
+    const pc = state.pc;
+    // Triple Play 2000 can end a list between RDPHalf1 and RDPHalf2.
+    // Do not consume EndDL (or a branch) as rectangle data and run off the list.
+    const end = state.pcEnd || this.ramDV.byteLength;
+    if (!pc || pc + 16 > end || pc + 16 > this.ramDV.byteLength ||
+        (this.ramDV.getUint32(pc) >>> 24) !== G_RDPHALF_1 ||
+        (this.ramDV.getUint32(pc + 8) >>> 24) !== G_RDPHALF_2) {
+      const message = 'Incomplete GBI2 texture rectangle: expected RDPHalf1 and RDPHalf2';
+      this.warn(message);
+      if (dis) dis.text(message);
+      return null;
+    }
+    return super.readTexRectParams();
   }
 
   executeVertex(cmd0, cmd1, dis) {
