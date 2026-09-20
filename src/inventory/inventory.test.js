@@ -55,7 +55,7 @@ function makeROM({ vi = false, graphics = 'end', audio = false, rewriteCount = f
   const versionSize = writeVersion(0x2000, 'RSP Gfx ucode F3DEX fifo 2.0');
   let commands = [[0xdf000000, 0]];
   if (graphics === 'loop') {
-    // A multi-command cycle still exercises the supervisor's wall-clock guard.
+    // A multi-command cycle exercises the synchronous HLE command guard.
     commands = [[0xde010000, 0x3008], [0xde010000, 0x3000]];
   }
   if (graphics === 'wait') commands = [[0xde010000, 0x3000]];
@@ -335,9 +335,9 @@ describe('inventory batch command', () => {
   test('saves interruption, resumes unfinished ROMs and seeds, and repairs missing reports', async () => {
     await withDirectory(async directory => {
       await Bun.write(join(directory, 'roms/a-good.z64'), makeROM({ vi: true }));
-      await Bun.write(join(directory, 'roms/b-loop.z64'), makeROM({ graphics: 'loop' }));
+      await Bun.write(join(directory, 'roms/b-loop.z64'), makeROM({ graphics: 'wait' }));
       await Bun.write(join(directory, 'roms/c-textures.z64'), makeROM({ vi: true, graphics: 'textures' }));
-      const child = Bun.spawn([process.execPath, batchCLI, 'roms', '--output-dir', 'inventory', '--frames', '1', '--timeout-ms', '2000', '--seed', '1', '--seed', '2'], {
+      const child = Bun.spawn([process.execPath, batchCLI, 'roms', '--output-dir', 'inventory', '--frames', '1', '--max-cycles', '5000000000000', '--timeout-ms', '2000', '--seed', '1', '--seed', '2'], {
         cwd: directory, stdout: 'pipe', stderr: 'pipe',
       });
       const stdout = new Response(child.stdout).text();
@@ -699,10 +699,24 @@ describe('inventory command', () => {
     });
   });
 
-  test('terminates a stuck display list and writes the last checkpoint', async () => {
+  test('reports a runaway display list with terminal exception evidence', async () => {
     await withDirectory(async directory => {
       await Bun.write(join(directory, 'test.z64'), makeROM({ graphics: 'loop' }));
       const result = await invoke(directory, ['test.z64', '--timeout-ms', '2000']);
+      expect(result.code).toBe(2);
+      const report = JSON.parse(result.stdout);
+      expect(report.result).toMatchObject({ status: 'halted', checkpointOnly: false });
+      expect(report.result.failure.exception.name).toBe('DisplayListLimitError');
+      expect(report.result.failure.exception.message).toContain('0x00003000; stack depth 0');
+      expect(report.result.failure.exception.stack).toContain('display_list.js');
+      expect(report.collectors['graphics.taskMicrocodes'].tasks).toBe(1);
+    });
+  });
+
+  test('terminates an unpatched producer wait and writes the last checkpoint', async () => {
+    await withDirectory(async directory => {
+      await Bun.write(join(directory, 'test.z64'), makeROM({ graphics: 'wait' }));
+      const result = await invoke(directory, ['test.z64', '--max-cycles', '5000000000000', '--timeout-ms', '2000']);
       expect(result.code).toBe(124);
       const report = JSON.parse(result.stdout);
       expect(report.rom.name).toBe('INVENTORY TEST');
