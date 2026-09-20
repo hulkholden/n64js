@@ -43,8 +43,8 @@ export class Debugger {
     /** @type {?jQuery} */
     this.$dynarecContent = $('#dynarec-content');
 
-    /** @type {?jQuery} */
-    this.$memoryContent = $('#memory-content');
+    /** @type {!HTMLElement} */
+    this.memoryContent = document.getElementById('memory-content');
 
     /** @type {?jQuery} */
     this.$timelineContent = $('#timeline-content');
@@ -167,8 +167,8 @@ export class Debugger {
 
   updateMemoryView() {
     const addr = this.lastMemoryAccessAddress || 0x80000000;
-    const $pre = this.$memoryContent.find('pre');
-    $pre.empty().append(this.makeMemoryAccessRow(addr, 1024));
+    const pre = this.memoryContent.querySelector('pre');
+    pre.replaceChildren(this.makeMemoryAccessRow(addr, 1024));
   }
 
   refreshLabelSelect() {
@@ -209,36 +209,35 @@ export class Debugger {
   }
 
   /**
-   * Constructs HTML for a row of memory values.
+   * Constructs an element containing rows of memory values.
    * @param {number} focusAddress The address to focus on.
    * @param {number} contextBytes The number of bytes of context.
    * @param {number=} bytesPerRow The number of bytes per row. Should be a power of two.
    * @param {Map<number,string>=} highlights Colours to highlight addresses with.
-   * @return {!jQuery}
+   * @return {!HTMLSpanElement}
    */
   makeMemoryAccessRow(focusAddress, contextBytes, bytesPerRow = 64, highlights = null) {
     let s = roundDown(focusAddress, bytesPerRow) - roundDown(contextBytes / 2, bytesPerRow);
     let e = s + contextBytes;
 
-    let t = '';
+    const rows = document.createElement('span');
     for (let a = s; a < e; a += bytesPerRow) {
-      let r = toHex(a, 32) + ':';
+      rows.append(toHex(a, 32) + ':');
 
       for (let o = 0; o < bytesPerRow; o += 4) {
-        let curAddress = a + o >>> 0;
-        let mem = n64js.hardware().memMap.readMemoryInternal32(curAddress);
-        let style = '';
+        const curAddress = a + o >>> 0;
+        const mem = n64js.hardware().memMap.readMemoryInternal32(curAddress);
+        const word = document.createElement('span');
+        word.id = `mem-${toHex(curAddress, 32)}`;
+        word.textContent = toHex(mem, 32);
         if (highlights && highlights.has(curAddress)) {
-          style = ` style="background-color: ${highlights.get(curAddress)}"`;
+          word.style.backgroundColor = highlights.get(curAddress);
         }
-        r += ` <span id="mem-${toHex(curAddress, 32)}"${style}>${toHex(mem, 32)}</span>`;
+        rows.append(' ', word);
       }
-
-      r += '\n';
-      t += r;
+      rows.append('\n');
     }
-
-    return $(`<span>${t}</span>`);
+    return rows;
   }
 
   // access is {reg,offset,mode}
@@ -416,7 +415,7 @@ export class Debugger {
       $disText.find('.dis-reg-' + reg).css('background-color', colour);
     }
 
-    this.$cpu0Disassembly.find('.dis-recent-memory').html(this.makeRecentMemoryAccesses(isSingleStep, currentInstruction, cpu0.calcDebuggerAddress.bind(cpu0)));
+    document.querySelector('#cpu-disasm .dis-recent-memory').replaceChildren(this.makeRecentMemoryAccesses(isSingleStep, currentInstruction, cpu0.calcDebuggerAddress.bind(cpu0)));
 
     this.$cpu0Disassembly.find('.dis-gutter').empty().append($disGutter);
     this.$cpu0Disassembly.find('.dis-view').empty().append($disText);
@@ -499,7 +498,7 @@ export class Debugger {
       $disText.find('.dis-reg-' + reg).css('background-color', colour);
     }
 
-    this.$rspDisassembly.find('.dis-recent-memory').html(this.makeRecentMemoryAccesses(isSingleStep, curInstruction, rsp.calcDebuggerAddress.bind(rsp)));
+    document.querySelector('#rsp-disasm .dis-recent-memory').replaceChildren(this.makeRecentMemoryAccesses(isSingleStep, curInstruction, rsp.calcDebuggerAddress.bind(rsp)));
 
     this.$rspDisassembly.find('.dis-gutter').empty().append($disGutter);
     this.$rspDisassembly.find('.dis-view').empty().append($disText);
@@ -583,17 +582,17 @@ export class Debugger {
       this.lastStore = null;
     }
 
-    let $recent = $('<pre />');
+    const recent = document.createElement('pre');
     if (this.recentMemoryAccesses.length > 0) {
       const fadingColours = ['#bbb', '#999', '#666', '#333'];
       for (let i = 0; i < this.recentMemoryAccesses.length; ++i) {
         let element = this.recentMemoryAccesses[i].element;
-        element.css('color', fadingColours[i]);
-        $recent.append(element);
+        element.style.color = fadingColours[i];
+        recent.append(element);
       }
     }
 
-    return $recent;
+    return recent;
   }
 
   updateDynarec() {
@@ -777,7 +776,7 @@ export class Debugger {
       this.updateRSP();
     }
 
-    if (this.$memoryContent.hasClass('active')) {
+    if (this.memoryContent.classList.contains('active')) {
       this.updateMemoryView();
     }
 
