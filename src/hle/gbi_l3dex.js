@@ -61,8 +61,13 @@ export class GBI1L3DEX extends GBI1 {
 }
 
 function interpolateVertex(a, b, t) {
-  const pos = {};
-  for (const key of ['x', 'y', 'z', 'w']) pos[key] = a.pos[key] + (b.pos[key] - a.pos[key]) * t;
+  const pos = {
+    x: a.pos.x + (b.pos.x - a.pos.x) * t,
+    y: a.pos.y + (b.pos.y - a.pos.y) * t,
+    z: a.pos.z + (b.pos.z - a.pos.z) * t,
+    w: a.pos.w + (b.pos.w - a.pos.w) * t,
+  };
+
   let color = 0;
   for (let shift = 0; shift < 32; shift += 8) {
     const c0 = (a.color >>> shift) & 255;
