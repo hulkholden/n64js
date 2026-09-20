@@ -19,6 +19,7 @@ export const MicrocodeId = Object.freeze({
   T3DUX_BRAVE: 17, // Toukon Road: Brave Spirits (different palette command emission)
   GBI1_L3DEX: 18, // Line and wireframe rendering
   F5_ROGUE: 19,  // Rogue Squadron (recognized, but HLE is not implemented)
+  GBI1_TEXA: 20,   // Tamagotchi World: F3DTEX/A texture commands
 });
 
 const microcodeProfiles = new Map([
@@ -26,6 +27,7 @@ const microcodeProfiles = new Map([
   [MicrocodeId.F5_ROGUE, { family: 'F5', variant: 'ROGUE' }],
   [MicrocodeId.GBI0, { family: 'GBI0', variant: null }],
   [MicrocodeId.GBI1, { family: 'GBI1', variant: null }],
+  [MicrocodeId.GBI1_TEXA, { family: 'GBI1', variant: 'F3DTEX/A' }],
   [MicrocodeId.GBI2, { family: 'GBI2', variant: null }],
   [MicrocodeId.GBI1_SDEX, { family: 'GBI1', variant: 'S2DEX' }],
   [MicrocodeId.GBI2_SDEX, { family: 'GBI2', variant: 'S2DEX' }],
@@ -93,6 +95,9 @@ function inferUcodeFromString(str) {
   }
   if (str.includes('L3DEX') && !str.includes('fifo') && !str.includes('xbus')) {
     return MicrocodeId.GBI1_L3DEX;
+  }
+  if (str.includes('F3DTEX/A')) {
+    return MicrocodeId.GBI1_TEXA;
   }
   const prefixes = ['F3', 'L3', 'S2DEX'];
   let index = -1;
