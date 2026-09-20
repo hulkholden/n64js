@@ -40,14 +40,14 @@ export class Debugger {
     /** @type {?jQuery} */
     this.$rspDisassembly = $('#rsp-disasm');
 
-    /** @type {?jQuery} */
-    this.$dynarecContent = $('#dynarec-content');
+    /** @type {!HTMLElement} */
+    this.dynarecContent = document.getElementById('dynarec-content');
 
     /** @type {!HTMLElement} */
     this.memoryContent = document.getElementById('memory-content');
 
-    /** @type {?jQuery} */
-    this.$timelineContent = $('#timeline-content');
+    /** @type {!HTMLElement} */
+    this.timelineContent = document.getElementById('timeline-content');
 
     /** @type {R4300DebugState} */
     this.cpu0State = new R4300DebugState();
@@ -612,72 +612,73 @@ export class Debugger {
       return b.opsCompiled * b.executionCount - a.opsCompiled * a.executionCount;
     });
 
-    let $t = $('<div class="container-fluid" />');
+    const container = document.createElement('div');
+    container.className = 'container-fluid';
 
-    // Histogram showing execution counts
-    let t = '';
-    t += '<div class="row">';
-    t += '<table class="table table-condensed table-nonfluid"><tr><th>Execution Count</th><th>Frequency</th></tr>';
+    // Histogram showing execution counts.
+    const histogramRow = document.createElement('div');
+    histogramRow.className = 'row';
+    const histogramTable = createHeadedTable(['Execution Count', 'Frequency']);
+    histogramTable.classList.add('table-nonfluid');
+    const histogramBody = histogramTable.createTBody();
     for (let i = 0; i <= maxBucket; i++) {
-      let count = histogram.get(i) || 0;
-      let range = `< ${10 ** (i + 1)}`;
-      t += `<tr><td>${range}</td><td>${count}</td></tr>`;
+      const row = histogramBody.insertRow();
+      appendCell(row, `< ${10 ** (i + 1)}`);
+      appendCell(row, histogram.get(i) || 0);
     }
-    t += '</table>';
-    t += '</div>';
-    $t.append(t);
+    histogramRow.append(histogramTable);
+    container.append(histogramRow);
 
-    // Table of hot fragments, and the corresponding js
-    t = '';
-    t += '<div class="row">';
-    t += '  <div class="col-lg-6" id="fragments" />';
-    t += '  <div class="col-lg-6" id="fragment-code" />';
-    t += '</div>';
-    let $fragmentDiv = $(t);
+    // Table of hot fragments, and the corresponding JS.
+    const fragmentRow = document.createElement('div');
+    fragmentRow.className = 'row';
+    const fragments = document.createElement('div');
+    fragments.className = 'col-lg-6';
+    fragments.id = 'fragments';
+    const code = document.createElement('div');
+    code.className = 'col-lg-6';
+    code.id = 'fragment-code';
+    fragments.append(this.createHotFragmentsTable(fragmentsList, code));
+    fragmentRow.append(fragments, code);
+    container.append(fragmentRow);
 
-    this.createHotFragmentsTable($fragmentDiv, fragmentsList);
-
-    $t.append($fragmentDiv);
-
-    this.$dynarecContent.empty().append($t);
+    this.dynarecContent.replaceChildren(container);
   }
 
-  createHotFragmentsTable($fragmentDiv, fragmentsList) {
-    let $code = $fragmentDiv.find('#fragment-code');
-    let $table = $('<table class="table table-condensed" />');
-    let columns = ['Address', 'Execution Count', 'Length', 'ExecCount * Length'];
+  createHotFragmentsTable(fragmentsList, code) {
+    const table = createHeadedTable(['Address', 'Execution Count', 'Length', 'ExecCount * Length']);
+    const body = table.createTBody();
+    const showFragment = fragment => {
+      const pre = document.createElement('pre');
+      pre.textContent = fragment.func.toString();
+      code.replaceChildren(pre);
+    };
 
-    $table.append(`<tr><th>${columns.join('</th><th>')}</th></tr>`);
-    for (let i = 0; i < fragmentsList.length && i < 20; ++i) {
-      let fragment = fragmentsList[i];
-      let vals = [
+    for (const fragment of fragmentsList.slice(0, 20)) {
+      const row = body.insertRow();
+      const vals = [
         toString32(fragment.entryPC),
         fragment.executionCount,
         fragment.opsCompiled,
         fragment.executionCount * fragment.opsCompiled
       ];
-      let $tr = $(`<tr><td>${vals.join('</td><td>')}</td></tr>`);
-      this.initFragmentRow($tr, fragment, $code);
-      $table.append($tr);
+      for (const value of vals) {
+        appendCell(row, value);
+      }
+      row.addEventListener('click', () => showFragment(fragment));
     }
-    $fragmentDiv.find('#fragments').append($table);
 
     if (fragmentsList.length > 0) {
-      $code.append(`<pre>${fragmentsList[0].func.toString()}</pre>`);
+      showFragment(fragmentsList[0]);
     }
-  }
-
-  initFragmentRow($tr, fragment, $code) {
-    $tr.click(() => {
-      $code.html(`<pre>${fragment.func.toString()}</pre>`);
-    });
+    return table;
   }
 
   updateTimeline() {
     const timeline = n64js.hardware().timeline;
 
-    const $tl = this.$timelineContent.find('.timeline-panel');
-    $tl.empty();
+    const panel = this.timelineContent.querySelector('.timeline-panel');
+    panel.replaceChildren();
 
     let minTime = Number.MAX_VALUE;
     let maxTime = 0;
@@ -712,11 +713,17 @@ export class Debugger {
         const height = rowHeight;
         const name = e.name;
 
-        let t = '';
-        t += `<div class="timeline-block" style="left: ${left.toFixed(0)}px; top: ${top.toFixed(0)}px; width: ${width.toFixed(0)}px; height: ${height.toFixed(0)}px">`;
-        t += `<div class="timeline-name">${name}</div>`;
-        t += '</div>';
-        $tl.append(t);
+        const block = document.createElement('div');
+        block.className = 'timeline-block';
+        block.style.left = `${left.toFixed(0)}px`;
+        block.style.top = `${top.toFixed(0)}px`;
+        block.style.width = `${width.toFixed(0)}px`;
+        block.style.height = `${height.toFixed(0)}px`;
+        const label = document.createElement('div');
+        label.className = 'timeline-name';
+        label.textContent = name;
+        block.append(label);
+        panel.append(block);
 
         if (e.depth > maxDepth) {
           maxDepth = e.depth;
@@ -780,7 +787,7 @@ export class Debugger {
       this.updateMemoryView();
     }
 
-    if (this.$dynarecContent.hasClass('active')) {
+    if (this.dynarecContent.classList.contains('active')) {
       this.updateDynarec();
     }
 
@@ -1058,4 +1065,16 @@ function appendCell(row, text, className = '', colour) {
     cell.style.backgroundColor = colour;
   }
   return cell;
+}
+
+function createHeadedTable(columns) {
+  const table = document.createElement('table');
+  table.className = 'table table-condensed';
+  const row = table.createTHead().insertRow();
+  for (const name of columns) {
+    const heading = document.createElement('th');
+    heading.textContent = name;
+    row.append(heading);
+  }
+  return table;
 }
