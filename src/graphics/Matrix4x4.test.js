@@ -4,7 +4,7 @@ import { Vector3 } from './Vector3.js';
 import { Vector4 } from './Vector4.js';
 
 function matrix(values) {
-  return new Matrix4x4(new Float32Array(values));
+  return new Matrix4x4(new Float64Array(values));
 }
 
 describe('Matrix4x4.multiply', () => {
@@ -29,7 +29,7 @@ describe('Matrix4x4.multiply', () => {
     ]);
   });
 
-  test('matches once-rounded signed dot products without modifying either input', () => {
+  test('preserves Number precision in signed dot products without modifying either input', () => {
     const a = matrix(Array.from({ length: 16 }, (_, i) => (i - 7) / 3));
     const b = matrix(Array.from({ length: 16 }, (_, i) => (9 - i) / 7));
     const beforeA = a.elems.slice();
@@ -39,10 +39,10 @@ describe('Matrix4x4.multiply', () => {
       for (let c = 0; c < 4; ++c) {
         let sum = 0;
         for (let k = 0; k < 4; ++k) sum += a.elems[4 * r + k] * b.elems[4 * k + c];
-        expect(result.elems[4 * r + c]).toBe(Math.fround(sum));
+        expect(result.elems[4 * r + c]).toBe(sum);
       }
     }
-    expect(result.elems).toBeInstanceOf(Float32Array);
+    expect(result.elems).toBeInstanceOf(Float64Array);
     expect(a.elems).toEqual(beforeA);
     expect(b.elems).toEqual(beforeB);
     expect(a.multiply(Matrix4x4.identity()).elems).toEqual(beforeA);

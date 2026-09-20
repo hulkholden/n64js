@@ -4,7 +4,7 @@ import { Matrix4x4 } from './Matrix4x4.js';
 // Run with: bun src/graphics/Matrix4x4.bench.js
 // Vary signed, fractional inputs and consume every result outside the timing.
 const matrices = Array.from({ length: 64 }, (_, n) => new Matrix4x4(
-  Float32Array.from({ length: 16 }, (_, i) => ((n * 37 + i * 19) % 257 - 128) / 64),
+  Float64Array.from({ length: 16 }, (_, i) => ((n * 37 + i * 19) % 257 - 128) / 64),
 ));
 const results = new Array(matrices.length);
 
