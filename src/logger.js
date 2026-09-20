@@ -1,6 +1,6 @@
 
 /**
- * @type {jQuery} The element to write output to.
+ * @type {?HTMLElement} The element to write output to.
  */
 let outputElement;
 
@@ -11,7 +11,7 @@ let getPrefixFn;
 
 /**
  * Initialise the logger.
- * @param {!jQuery} output The element to append output to.
+ * @param {?HTMLElement} output The element to append output to.
  * @param {!function(): string} prefix The function to call to generate the
  *     prefix for log lines.
  */
@@ -25,12 +25,12 @@ export function initialise(output, prefix) {
  */
 export function clear() {
   if (outputElement) {
-    outputElement.html('');
+    outputElement.replaceChildren();
   }
 }
 
 /**
- * Logs a string.
+ * Logs a string, preserving embedded HTML formatting.
  * @param {string} str
  */
 export function log(str) {
@@ -39,13 +39,13 @@ export function log(str) {
   }
   console.log(str);
   if (outputElement) {
-    outputElement.append(`${str}<br>`);
-    outputElement.scrollTop(outputElement[0].scrollHeight);
+    outputElement.insertAdjacentHTML('beforeend', `${str}<br>`);
+    outputElement.scrollTop = outputElement.scrollHeight;
   }
 }
 
 /**
- * Logs a string as a warning.
+ * Logs a string as a warning, preserving embedded HTML formatting.
  * @param {string} str
  */
 export function warn(str) {
@@ -54,14 +54,14 @@ export function warn(str) {
   }
   console.warn(str);
   if (outputElement) {
-    outputElement.append(`<font color="yellow">${str}</font><br>`);
-    outputElement.scrollTop(outputElement[0].scrollHeight);
+    outputElement.insertAdjacentHTML('beforeend', `<span style="color: yellow">${str}</span><br>`);
+    outputElement.scrollTop = outputElement.scrollHeight;
   }
 }
 
 /**
  * Appends an HTML element to the log.
- * @param {jQuery} html
+ * @param {!Node} html
  */
 export function logHTML(html) {
   if (outputElement) {
