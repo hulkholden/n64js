@@ -635,7 +635,8 @@
       in vec2 aUV;
 
       out         vec4 vColor;
-      out mediump vec2 vUV;
+      // Preserve N64 sub-texel precision before fragment-stage tile offsets.
+      out highp vec2 vUV;
 
       void main(void) {
         gl_Position = aPosition;
@@ -646,16 +647,16 @@
   <script id="n64-shader-fs" type="x-shader/x-fragment">#version 300 es
       precision mediump float;
       in         vec4 vColor;
-      in mediump vec2 vUV;
+      in highp vec2 vUV;
       out vec4 outCol;
 
       uniform sampler2D uSampler0;
       uniform sampler2D uSampler1;
 
-      uniform vec2 uTexOffset0;
-      uniform vec2 uTexOffset1;
-      uniform vec2 uTexScale0;
-      uniform vec2 uTexScale1;
+      uniform highp vec2 uTexOffset0;
+      uniform highp vec2 uTexOffset1;
+      uniform highp vec2 uTexScale0;
+      uniform highp vec2 uTexScale1;
 
       uniform vec4  uPrimColor;
       uniform vec4  uEnvColor;
@@ -676,8 +677,8 @@
       }
 
       void main(void) {
-        vec2 uv0 = (vUV - uTexOffset0) * uTexScale0;
-        vec2 uv1 = (vUV - uTexOffset1) * uTexScale1;
+        highp vec2 uv0 = (vUV - uTexOffset0) * uTexScale0;
+        highp vec2 uv1 = (vUV - uTexOffset1) * uTexScale1;
 
         vec4 shade = vColor;
         vec4 prim  = uPrimColor;
