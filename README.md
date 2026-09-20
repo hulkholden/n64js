@@ -62,6 +62,8 @@ toggle (off by default). It switches live between WebGL sampling and a
 `texelFetch` shader with tile shifts, clamp/mask/mirror addressing, point sampling,
 and N64 three-point filtering with 5-bit weights. Average mode uses four texels
 at the midpoint; copy mode uses point sampling. Both texture slots are supported.
+Press **Space** to toggle the sampler without opening the menu; an indicator in
+the main toolbar shows when it is active.
 
 The experiment samples level zero of the existing decoded textures. It does not
 yet implement N64 LOD selection, full fixed-point coordinate overflow, or separate
