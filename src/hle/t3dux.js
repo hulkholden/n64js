@@ -5,6 +5,50 @@ import * as gbi from './gbi.js';
 import { ObjectMicrocode } from './object_microcode.js';
 import { ProjectedVertex } from './projected_vertex.js';
 
+const RENDER_STATE_TILE_MASK = 0x07;
+const RENDER_STATE_LEVEL_MASK = 0x38;
+const RENDER_STATE_LEVEL_SHIFT = 3;
+const RENDER_STATE_SUPPORTED_MASK = RENDER_STATE_TILE_MASK | RENDER_STATE_LEVEL_MASK;
+
+const GEOM_MODE_GBI1_SHIFT = 8;
+const GEOM_MODE_SHADE_SMOOTH = gbi.GeometryModeGBI1.G_SHADING_SMOOTH >>> GEOM_MODE_GBI1_SHIFT;
+const GEOM_MODE_CULL_BACK = gbi.GeometryModeGBI1.G_CULL_BACK >>> GEOM_MODE_GBI1_SHIFT;
+const GEOM_MODE_SUPPORTED_MASK = GEOM_MODE_SHADE_SMOOTH | GEOM_MODE_CULL_BACK;
+
+const TEX_MODE_ZBUFFER = 0x01;
+const TEX_MODE_TEXTURE = 0x02;
+const TEX_MODE_SUPPORTED_MASK = TEX_MODE_ZBUFFER | TEX_MODE_TEXTURE;
+
+const MATRIX_FLAG_KEEP_MATRIX = 0x01;
+const MATRIX_FLAG_NO_TRANSFORM = 0x02;
+const MATRIX_FLAG_TRANSFORM_ONLY = 0x04;
+const MATRIX_FLAGS_SUPPORTED_MASK = MATRIX_FLAG_KEEP_MATRIX | MATRIX_FLAG_NO_TRANSFORM;
+
+const PALETTE_TILE_SELECT_MASK = 0x70;
+const PALETTE_UPDATE_FLAG = 0x80;
+const RDP_TILE_PALETTE_SHIFT = 20;
+const RDP_TILE_PALETTE_MASK = 0x0f << RDP_TILE_PALETTE_SHIFT;
+
+const OBJECT_RECORD_BYTES = 24;
+const OBJECT_STATE_BYTES = 24;
+const MATRIX_BYTES = 64;
+const VERTEX_BYTES = 8;
+const TRIANGLE_BYTES = 8;
+const ATTRIBUTE_BYTES = 4;
+const ATTRIBUTE_INDEX_MASK = 0xff;
+
+const DMEM_BYTES = 0x1000;
+const VERTEX_DMEM_START = 0x140;
+const TRIANGLE_DMEM_START = 0x740;
+const VERTEX_CACHE_SIZE = (TRIANGLE_DMEM_START - VERTEX_DMEM_START) / VERTEX_BYTES;
+// Vertex offsets/counts and triangle counts pass through signed-byte loads.
+const SIGNED_DMA_LIMIT = 0x80;
+
+const SCREEN_XY_SCALE = 4;
+const SCREEN_Z_SCALE = 65536;
+const SCREEN_Z_MASK = 0x7fffffff;
+const TEXCOORD_SCALE = 32;
+
 // T3DUX records are six words: global, object, vertices, triangles, attributes,
 // and the attribute DMEM base. Vertices and triangles are each eight bytes.
 // Layout reference: GLideN64 src/uCodes/T3DUX.cpp; cache offsets, signed smooth
@@ -18,10 +62,10 @@ export class T3DUX extends ObjectMicrocode {
     this.transform = Matrix4x4.identity();
 
     // Vertex DMEM is 0x140..0x73f. Keep this separate from the GBI caches.
-    this.vertices = Array.from({ length: 192 }, () => new ProjectedVertex());
-    this.attributes = new DataView(new ArrayBuffer(0x1000));
+    this.vertices = Array.from({ length: VERTEX_CACHE_SIZE }, () => new ProjectedVertex());
+    this.attributes = new DataView(new ArrayBuffer(DMEM_BYTES));
     this.rejected = new Uint8Array(this.vertices.length);
-    this.attributeValid = new Uint8Array(0x400);
+    this.attributeValid = new Uint8Array(DMEM_BYTES / ATTRIBUTE_BYTES);
 
     this.setTile = null;
   }
@@ -48,7 +92,7 @@ export class T3DUX extends ObjectMicrocode {
         const attributes = dv.getUint32(pc + 16);
         const attributeBase = dv.getUint32(pc + 20);
 
-        state.pc += 24;
+        state.pc += OBJECT_RECORD_BYTES;
         if (global) this.loadGlobalState(global, dis);
         this.loadObject(object, vertices, triangles, attributes, attributeBase, dis);
       }
@@ -65,7 +109,7 @@ export class T3DUX extends ObjectMicrocode {
 
   executeSetTile(cmd0, cmd1, dis) {
     super.executeSetTile(cmd0, cmd1, dis);
-    this.setTile = [cmd0, cmd1 & 0xff0fffff];
+    this.setTile = [cmd0, cmd1 & ~RDP_TILE_PALETTE_MASK];
   }
 
   loadObject(pointer, vertices, triangles, attributes, attributeBase, dis) {
@@ -83,29 +127,32 @@ export class T3DUX extends ObjectMicrocode {
     const attrCount = dv.getUint8(address + 10);
     const attrStart = dv.getUint8(address + 11);
 
-    if (renderState & ~0x3f) throw new Error('Unsupported T3DUX render state');
-    if ((geomMode & ~0x22) || (texMode & ~3)) throw new Error('Unsupported T3DUX geometry mode');
-    if (flags & 4) throw new Error('T3DUX transform-only RAM writeback is not supported');
-    if (flags & ~3) throw new Error(`Unsupported T3DUX matrix flags ${flags}`);
+    if (renderState & ~RENDER_STATE_SUPPORTED_MASK) throw new Error('Unsupported T3DUX render state');
+    if ((geomMode & ~GEOM_MODE_SUPPORTED_MASK) || (texMode & ~TEX_MODE_SUPPORTED_MASK)) {
+      throw new Error('Unsupported T3DUX geometry mode');
+    }
+    if (flags & MATRIX_FLAG_TRANSFORM_ONLY) throw new Error('T3DUX transform-only RAM writeback is not supported');
+    if (flags & ~MATRIX_FLAGS_SUPPORTED_MASK) throw new Error(`Unsupported T3DUX matrix flags ${flags}`);
 
-    if (!(flags & 1)) this.transform = this.loadMatrix(address + 24, 64);
-    if (triCount >= 128) throw new Error('Unsupported T3DUX triangle DMEM range');
+    if (!(flags & MATRIX_FLAG_KEEP_MATRIX)) this.transform = this.loadMatrix(address + OBJECT_STATE_BYTES, MATRIX_BYTES);
+    if (triCount >= SIGNED_DMA_LIMIT) throw new Error('Unsupported T3DUX triangle DMEM range');
     if (vertices) this.loadVertices(state.rdpSegmentAddress(vertices), v0, count, flags);
 
     if (attributes) {
-      const start = attributeBase + attrStart * 4;
-      if ((start & 3) || start < 0x140 || start + attrCount * 4 > 0x740) {
+      const start = attributeBase + attrStart * ATTRIBUTE_BYTES;
+      if ((start & (ATTRIBUTE_BYTES - 1)) || start < VERTEX_DMEM_START ||
+        start + attrCount * ATTRIBUTE_BYTES > TRIANGLE_DMEM_START) {
         throw new Error('Unsupported T3DUX attribute DMEM range');
       }
 
       const source = state.rdpSegmentAddress(attributes);
       for (let i = 0; i < attrCount; i++) {
-        this.attributes.setUint32(start + i * 4, dv.getUint32(source + i * 4));
-        this.attributeValid[start / 4 + i] = 1;
+        this.attributes.setUint32(start + i * ATTRIBUTE_BYTES, dv.getUint32(source + i * ATTRIBUTE_BYTES));
+        this.attributeValid[start / ATTRIBUTE_BYTES + i] = 1;
 
         // Attribute DMA shares the vertex area. Do not reuse a projected
         // vertex after its packed representation has been overwritten.
-        this.vertices[Math.floor((start + i * 4 - 0x140) / 8)].set = false;
+        this.vertices[Math.floor((start + i * ATTRIBUTE_BYTES - VERTEX_DMEM_START) / VERTEX_BYTES)].set = false;
       }
     }
 
@@ -113,36 +160,39 @@ export class T3DUX extends ObjectMicrocode {
     this.processRDP(dv.getUint32(address + 12), dis);
 
     // geomMode contains the upper GBI1 geometry byte. texMode contains the
-    // RDP triangle texture/z bits (2/1); lighting and texgen are not performed.
-    state.geometryModeBits = (geomMode << 8) | gbi.GeometryModeGBI1.G_SHADE;
+    // RDP triangle texture/z bits; lighting and texgen are not performed.
+    state.geometryModeBits = (geomMode << GEOM_MODE_GBI1_SHIFT) | gbi.GeometryModeGBI1.G_SHADE;
     state.updateGeometryModeFromBits(gbi.GeometryModeGBI1);
-    state.geometryMode.texture = (texMode & 2) !== 0;
-    state.geometryMode.zbuffer = (texMode & 1) !== 0;
-    state.setTexture(1, 1, (renderState >>> 3) & 7, renderState & 7);
+    state.geometryMode.texture = (texMode & TEX_MODE_TEXTURE) !== 0;
+    state.geometryMode.zbuffer = (texMode & TEX_MODE_ZBUFFER) !== 0;
+    state.setTexture(1, 1, (renderState & RENDER_STATE_LEVEL_MASK) >>> RENDER_STATE_LEVEL_SHIFT,
+      renderState & RENDER_STATE_TILE_MASK);
 
     if (triangles) this.drawTriangles(state.rdpSegmentAddress(triangles), triCount, attributeBase, dis);
   }
 
   loadVertices(address, v0, count, flags) {
-    if (v0 >= 128 || count >= 128 || v0 + count > this.vertices.length) throw new Error('Unsupported T3DUX vertex DMEM range');
+    if (v0 >= SIGNED_DMA_LIMIT || count >= SIGNED_DMA_LIMIT || v0 + count > this.vertices.length) {
+      throw new Error('Unsupported T3DUX vertex DMEM range');
+    }
 
     const dv = this.ramDV;
     const xyz = new Vector3();
     const vi = this.renderer.nativeTransform.viTransform;
 
-    for (let i = 0; i < count; i++, address += 8) {
+    for (let i = 0; i < count; i++, address += VERTEX_BYTES) {
       const vertex = this.vertices[v0 + i];
       vertex.set = true;
 
-      const dmemWord = (0x140 + (v0 + i) * 8) / 4;
+      const dmemWord = (VERTEX_DMEM_START + (v0 + i) * VERTEX_BYTES) / ATTRIBUTE_BYTES;
       this.attributeValid[dmemWord] = 0;
       this.attributeValid[dmemWord + 1] = 0;
       this.rejected[v0 + i] = 0;
 
-      if (flags & 2) {
+      if (flags & MATRIX_FLAG_NO_TRANSFORM) {
         // Packed output: x/y are 10.2; z is 15.16 with a rejection bit.
-        vertex.pos.set(dv.getInt16(address) / 4, dv.getInt16(address + 2) / 4,
-          (dv.getUint32(address + 4) & 0x7fffffff) / 65536, 1);
+        vertex.pos.set(dv.getInt16(address) / SCREEN_XY_SCALE, dv.getInt16(address + 2) / SCREEN_XY_SCALE,
+          (dv.getUint32(address + 4) & SCREEN_Z_MASK) / SCREEN_Z_SCALE, 1);
         vi.invTransformInPlace(vertex.pos);
         vertex.clipFlags = 0;
         this.rejected[v0 + i] = dv.getInt32(address + 4) < 0 ? 1 : 0;
@@ -159,8 +209,9 @@ export class T3DUX extends ObjectMicrocode {
   }
 
   attributeAddress(base, index) {
-    const address = base + index * 4;
-    if (address < 0 || address + 4 > this.attributes.byteLength || (address & 3) || !this.attributeValid[address / 4]) {
+    const address = base + index * ATTRIBUTE_BYTES;
+    if (address < 0 || address + ATTRIBUTE_BYTES > this.attributes.byteLength ||
+      (address & (ATTRIBUTE_BYTES - 1)) || !this.attributeValid[address / ATTRIBUTE_BYTES]) {
       throw new Error('T3DUX triangle references an unloaded attribute');
     }
 
@@ -174,11 +225,11 @@ export class T3DUX extends ObjectMicrocode {
     const tb = this.triangleBuffer;
     tb.reset();
 
-    for (let i = 0; i < count; i++, address += 8) {
+    for (let i = 0; i < count; i++, address += TRIANGLE_BYTES) {
       const palette = dv.getUint8(address + 7);
       // 26da8a4c emits PipeSync+SetTile when bit 7 is set; dd560323
       // advances its output by palette >> 4 bytes (0 or 8), without PipeSync.
-      if (!this.allowPaletteTileSelect && (palette & 0x70)) {
+      if (!this.allowPaletteTileSelect && (palette & PALETTE_TILE_SELECT_MASK)) {
         throw new Error('Unsupported T3DUX Brave Spirits palette command length');
       }
 
@@ -192,11 +243,11 @@ export class T3DUX extends ObjectMicrocode {
       const rejected = indices.some(index => this.rejected[index]) || area === 0 ||
         (state.geometryMode.cullBack && area < 0);
 
-      if ((palette & 0x80) || (rejected && palette)) {
+      if ((palette & PALETTE_UPDATE_FLAG) || (rejected && palette)) {
         if (this.setTile) {
           this.renderer.flushTris(tb);
           tb.reset();
-          super.executeSetTile(this.setTile[0], this.setTile[1] | (palette << 20), dis);
+          super.executeSetTile(this.setTile[0], this.setTile[1] | (palette << RDP_TILE_PALETTE_SHIFT), dis);
         } else if (state.geometryMode.texture) {
           throw new Error('T3DUX textured palette change without SetTile');
         }
@@ -209,12 +260,12 @@ export class T3DUX extends ObjectMicrocode {
       const colorIndex = dv.getInt8(address + 3);
       const uv = [];
       for (let j = 0; j < 3; j++) {
-        const index = state.geometryMode.shadeSmooth ? indices[j] + colorIndex : colorIndex & 255;
+        const index = state.geometryMode.shadeSmooth ? indices[j] + colorIndex : colorIndex & ATTRIBUTE_INDEX_MASK;
         vertices[j].color = attrs.getUint32(this.attributeAddress(attributeBase, index), true);
 
         if (state.geometryMode.texture) {
           const texAddress = this.attributeAddress(attributeBase, dv.getUint8(address + 4 + j));
-          uv.push(attrs.getInt16(texAddress) / 32, attrs.getInt16(texAddress + 2) / 32);
+          uv.push(attrs.getInt16(texAddress) / TEXCOORD_SCALE, attrs.getInt16(texAddress + 2) / TEXCOORD_SCALE);
         } else {
           uv.push(0, 0);
         }
