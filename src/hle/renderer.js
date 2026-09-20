@@ -391,13 +391,20 @@ export class Renderer extends RendererBase {
     if (textureEnabled) {
       this.observeTextureUse(tileIdx);
       const tileIdx0 = (tileIdx + 0) & 7;
-      const tileIdx1 = (tileIdx + 1) & 7;
+      // With LOD enabled and max level zero, both cycles use the base tile
+      // (except in detail mode). Chopper Attack relies on this and leaves the
+      // next tile unconfigured. General, per-pixel LOD selection is still TODO.
+      // See compute_lod_2cycle in
+      // https://github.com/Themaister/parallel-rdp/blob/master/parallel-rdp/shaders/texture.h
+      const singleLevelLOD = (this.state.rdpOtherModeH & gbi.G_TL_MASK) !== 0 &&
+        this.state.texture.level === 0 && (this.state.rdpOtherModeH & gbi.TextureDetail.G_TD_DETAIL) === 0;
+      const tileIdx1 = (tileIdx + (singleLevelLOD ? 0 : 1)) & 7;
 
       tile0 = this.state.tiles[tileIdx0];
       tile1 = this.state.tiles[tileIdx1];
 
       texture0 = this.lookupTexture(tileIdx0);
-      texture1 = this.getTextureTileCount() === 2 ? this.lookupTexture(tileIdx1) : null;
+      texture1 = this.getTextureTileCount() === 2 ? (tileIdx1 === tileIdx0 ? texture0 : this.lookupTexture(tileIdx1)) : null;
     }
 
     const enableAlphaThreshold = (this.state.getAlphaCompareType() & gbi.AlphaCompare.G_AC_THRESHOLD) != 0;

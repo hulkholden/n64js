@@ -45,9 +45,11 @@ try {
     cycle = gbi.CycleType.G_CYC_1CYCLE, mode = [0, 0], mask = [0, 0],
     shift = [0, 0], origin = [0, 0], last = [tex.width - 1, tex.height - 1],
     manual = true, texgen = false, second = false, enabled = true, tileIndex = 0,
+    lod = gbi.TextureLOD.G_TL_TILE, level = 0, detail = gbi.TextureDetail.G_TD_CLAMP,
   } = {}) {
     graphicsOptions.emulatedTextureSampler = manual;
-    state.rdpOtherModeH = cycle | filter;
+    state.rdpOtherModeH = cycle | filter | lod | detail;
+    state.texture.level = level;
     // (texel - zero) * shade + zero, in each combiner cycle. Keep both
     // vertex attributes active, including when testing the second sampler.
     const input = second ? 2 : 1;
@@ -103,6 +105,19 @@ try {
   check('copy mode ignores filtering', red, { uv: [0.75, 0.75], cycle: gbi.CycleType.G_CYC_COPY, filter: gbi.TextureFilter.G_TF_AVERAGE });
   check('second tile wraps index seven to zero', blue, { tex1: column, uv: [0, 2], cycle: gbi.CycleType.G_CYC_2CYCLE, tileIndex: 7 });
   check('missing second texture is black', [0, 0, 0, 255], { cycle: gbi.CycleType.G_CYC_2CYCLE });
+  // Chopper Attack uses two cycles with LOD enabled but a single mip level.
+  // The second cycle must read the base tile, even if the next tile is absent.
+  const singleLevelLOD = { cycle: gbi.CycleType.G_CYC_2CYCLE, lod: gbi.TextureLOD.G_TL_LOD };
+  check('single-level LOD shares the base tile across cycles', red, singleLevelLOD);
+  check('single-level LOD uses base tile coordinates and addressing', green, {
+    ...singleLevelLOD, tileIndex: 7, tex: row, tex1: column, uv: [5, 0],
+    origin: [1, 0], last: [4, 0], shift: [1, 0], mask: [2, 0],
+  });
+  check('single-level LOD preserves generated coordinates', white, { ...singleLevelLOD, texgen: true, uv: [0.75, 0.75] });
+  check('single-level sharpen also shares the base tile', red, { ...singleLevelLOD, detail: gbi.TextureDetail.G_TD_SHARPEN });
+  check('detail mode retains a separate second tile', blue, { ...singleLevelLOD, detail: gbi.TextureDetail.G_TD_DETAIL, tex1: column, uv: [0, 2] });
+  check('multiple LOD levels retain a separate second tile', blue, { ...singleLevelLOD, level: 1, tex1: column, uv: [0, 2] });
+  check('single-level LOD also binds the base tile in WebGL mode', red, { ...singleLevelLOD, manual: false });
   check('untextured draw clears previous sampler state', [0, 0, 0, 255], { enabled: false });
   const manualShader = renderer.getCurrentN64Shader();
   check('toggle back to WebGL filtering', [159, 64, 64, 255], { uv: [0.75, 0.75], filter: gbi.TextureFilter.G_TF_BILERP, manual: false });

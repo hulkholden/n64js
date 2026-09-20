@@ -72,11 +72,12 @@ images), without overriding the tile's clamp or wrap settings. Rectangle images
 retain their native pixel grid; triangles and rotated sprites still use the
 renderer’s interpolated texture coordinates.
 
-The experiment samples level zero of the existing decoded textures. It does not
-yet implement N64 LOD selection, full fixed-point coordinate overflow, or separate
-YUV chroma filtering. Addresses outside the decoded image replicate its edge;
-sampling all addressable TMEM will require extending the decoder. The original
-sampler remains available for comparisons.
+The experiment samples level zero of the existing decoded textures. With N64 LOD
+enabled and only one mip level, both cycles use the base tile (except in detail
+mode). It does not yet implement general N64 LOD selection, full fixed-point
+coordinate overflow, or separate YUV chroma filtering. Addresses outside the
+decoded image replicate its edge; sampling all addressable TMEM will require
+extending the decoder. The original sampler remains available for comparisons.
 
 To run GPU sampler regression checks, build the browser test bundle and open
 http://localhost:8000/tools/texture_sampler_webgl.html on the same local server:
