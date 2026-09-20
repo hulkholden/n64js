@@ -1,5 +1,4 @@
-/*jshint jquery:true */
-/*global $, n64js*/
+/*global n64js*/
 
 import * as cpu0reg from '../cpu/cpu0reg.js';
 import { disassembleRange, cop0gprNames, cop1RegisterNames } from '../cpu/disassemble.js';
@@ -22,23 +21,23 @@ export class Debugger {
     /** @type {boolean} Whether the debugger is active. */
     this.active = false;
 
-    /** @type {?jQuery} */
-    this.$cpuContent = $('#cpu-content');
+    /** @type {!HTMLElement} */
+    this.cpuContent = document.getElementById('cpu-content');
 
     /** @type {!Array<!HTMLElement>} */
     this.cpuTabs = ['cpu0-content', 'cpu1-content'].map(id => document.getElementById(id));
 
-    /** @type {?jQuery} */
-    this.$cpu0Disassembly = $('#cpu-disasm');
+    /** @type {!HTMLElement} */
+    this.cpu0Disassembly = document.getElementById('cpu-disasm');
 
-    /** @type {?jQuery} */
-    this.$rspContent = $('#rsp-content');
+    /** @type {!HTMLElement} */
+    this.rspContent = document.getElementById('rsp-content');
 
     /** @type {!Array<!HTMLElement>} */
     this.rspTabs = ['rsp-scalar-content', 'rsp-vector-content', 'rsp-task-content'].map(id => document.getElementById(id));
 
-    /** @type {?jQuery} */
-    this.$rspDisassembly = $('#rsp-disasm');
+    /** @type {!HTMLElement} */
+    this.rspDisassembly = document.getElementById('rsp-disasm');
 
     /** @type {!HTMLElement} */
     this.dynarecContent = document.getElementById('dynarec-content');
@@ -274,61 +273,111 @@ export class Debugger {
     return '#' + toHex(r, 8) + toHex(g, 8) + toHex(b, 8);
   }
 
-  setLabelText($elem, address) {
-    if (this.labelMap.has(address)) {
-      $elem.append(` (${this.labelMap.get(address)})`);
-    }
-  }
-
-  setLabelColor($elem, address) {
-    $elem.css('color', this.makeLabelColor(address));
-  }
-
   makeLabelText(address) {
-    let t = this.labelMap.get(address) || '';
-    while (t.length < 20) {
-      t += ' ';
-    }
-    return t;
+    return (this.labelMap.get(address) || '').padEnd(20, ' ');
   }
 
-  onLabelClicked(e) {
-    let $label = $(e.delegateTarget);
-    let address = /** @type {number} */($label.data('address')) >>> 0;
-    let existing = this.labelMap.get(address) || '';
-    let $input = $(`<input class="input-mini" value="${existing}" />`);
-
-    $input.keypress((event) => {
-      if (event.which == 13) {
-        const newVal = $input.val();
-        if (newVal) {
-          this.labelMap.set(address, newVal.toString());
+  editLabel(label, address, refresh) {
+    // Clicks inside the editor bubble to the label too.
+    if (label.querySelector('input')) {
+      return;
+    }
+    const input = document.createElement('input');
+    input.className = 'input-mini';
+    input.value = this.labelMap.get(address) || '';
+    input.addEventListener('keydown', event => {
+      event.stopPropagation();
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        if (input.value) {
+          this.labelMap.set(address, input.value);
         } else {
           this.labelMap.delete(address);
         }
         this.storeLabelMap();
         this.refreshLabelSelect();
-        this.updateCPU();
+        refresh();
       }
     });
-    $input.blur(() => {
-      $label.html(this.makeLabelText(address));
+    input.addEventListener('blur', () => {
+      label.textContent = this.makeLabelText(address);
     });
-    $label.empty().append($input);
-    $input.focus();
+    label.replaceChildren(input);
+    input.focus();
   }
 
-  onFragmentClicked(e) {
-    let $elem = $(e.delegateTarget);
-    let frag = $elem.data('fragment');
-    logger.log(`<pre>${frag.func.toString()}</pre>`);
+  buildDisassembly(disassembly, pc, state, refresh, fragments = null) {
+    const gutter = document.createElement('pre');
+    const text = document.createElement('pre');
+    let currentInstruction;
+
+    for (const entry of disassembly) {
+      const address = entry.instruction.address;
+      const isTarget = entry.isJumpTarget || this.labelMap.has(address);
+      const line = document.createElement('span');
+      line.className = 'dis-line';
+      const addressSpan = document.createElement('span');
+      addressSpan.className = isTarget ? 'dis-address-target' : 'dis-address';
+      addressSpan.textContent = toHex(address, 32) + ':';
+      const label = document.createElement('span');
+      label.className = 'dis-label';
+      label.textContent = this.makeLabelText(address);
+      label.style.color = this.makeLabelColor(address);
+      label.addEventListener('click', () => this.editLabel(label, address, refresh));
+      line.append(addressSpan, `  ${toHex(entry.instruction.opcode, 32)}  `, label);
+      // Disassemblers generate markup for register highlighting and jump links.
+      line.insertAdjacentHTML('beforeend', entry.disassembly);
+
+      const fragment = fragments?.get(address);
+      if (fragment) {
+        const link = document.createElement('span');
+        link.className = 'dis-fragment-link';
+        link.textContent = ` frag - ops=${fragment.opsCompiled} hit=${fragment.executionCount}`;
+        link.addEventListener('click', () => {
+          logger.log(`<pre>${fragment.func.toString()}</pre>`);
+        });
+        line.append(link);
+      }
+      if (address === pc) {
+        currentInstruction = entry.instruction;
+        line.classList.add('dis-line-cur');
+      }
+      if (isTarget) {
+        line.classList.add('dis-line-target');
+        addressSpan.style.color = this.makeLabelColor(address);
+      }
+      text.append(line, document.createElement('br'));
+
+      // FIXME: Add breakpoint support for RSP; retain the existing CPU breakpoint control.
+      const breakpoint = document.createElement('span');
+      breakpoint.textContent = n64js.breakpoints().isBreakpoint(address) ? '\u2022' : '\u00a0';
+      breakpoint.addEventListener('click', () => {
+        n64js.breakpoints().toggle(address);
+        this.updateCPU();
+      });
+      gutter.append(breakpoint, document.createElement('br'));
+    }
+
+    text.querySelectorAll('.dis-address-jump').forEach(link => {
+      const address = parseInt(link.textContent, 16);
+      if (this.labelMap.has(address)) {
+        link.append(` (${this.labelMap.get(address)})`);
+      }
+      link.style.color = this.makeLabelColor(address);
+      link.addEventListener('click', () => {
+        state.disasmAddress = address;
+        refresh();
+      });
+    });
+    return { gutter, text, currentInstruction };
   }
 
-  onClickBreakpoint(e) {
-    let $elem = $(e.delegateTarget);
-    let address = /** @type {number} */($elem.data('address')) >>> 0;
-    n64js.breakpoints().toggle(address);
-    this.updateCPU();
+  highlightRegisters(text, registerColours) {
+    for (const [reg, colour] of registerColours) {
+      text.querySelectorAll('.dis-reg-' + reg).forEach(element => {
+        element.style.backgroundColor = colour;
+      });
+    }
   }
 
   updateCPU() {
@@ -339,86 +388,16 @@ export class Debugger {
     let isSingleStep = this.lastOpExecuted === (opsExecuted - 1);
     this.lastOpExecuted = opsExecuted;
 
-    let fragmentMap = getFragmentMap();
-    let disassembly = this.cpu0State.disassembleRange();
-
-    let $disGutter = $('<pre/>');
-    let $disText = $('<pre/>');
-    let currentInstruction;
-
-    for (let i = 0; i < disassembly.length; ++i) {
-      let a = disassembly[i];
-      let address = a.instruction.address;
-      let isTarget = a.isJumpTarget || this.labelMap.has(address);
-      let addressStr = (isTarget ? '<span class="dis-address-target">' : '<span class="dis-address">') + toHex(address, 32) + ':</span>';
-      let label = `<span class="dis-label">${this.makeLabelText(address)}</span>`;
-      let t = `${addressStr}  ${toHex(a.instruction.opcode, 32)}  ${label}${a.disassembly}`;
-
-      let fragment = fragmentMap.get(address);
-      if (fragment) {
-        const span = `<span class="dis-fragment-link"> frag - ops=${fragment.opsCompiled} hit=${fragment.executionCount}</span>`;
-        t += span;
-      }
-
-      let $line = $(`<span class="dis-line">${t}</span>`);
-      $line.find('.dis-label')
-        .data('address', address)
-        .css('color', this.makeLabelColor(address))
-        .click(this.onLabelClicked.bind(this));
-
-      if (fragment) {
-        $line.find('.dis-fragment-link')
-          .data('fragment', fragment)
-          .click(this.onFragmentClicked.bind(this));
-      }
-
-      // Keep track of the current instruction (for register formatting) and highlight.
-      if (address === cpu0.pc) {
-        currentInstruction = a.instruction;
-        $line.addClass('dis-line-cur');
-      }
-      if (isTarget) {
-        $line.addClass('dis-line-target');
-
-        this.setLabelColor($line.find('.dis-address-target'), address);
-      }
-
-      $disText.append($line);
-      $disText.append('<br>');
-
-      let bpText = '&nbsp;';
-      if (n64js.breakpoints().isBreakpoint(address)) {
-        bpText = '&bull;';
-      }
-      let $bp = $(`<span>${bpText}</span>`).data('address', address).click(this.onClickBreakpoint.bind(this));
-
-      $disGutter.append($bp);
-      $disGutter.append('<br>');
-    }
-
-    // Links for branches, jumps etc should jump to the target address.
-    $disText.find('.dis-address-jump').each(function () {
-      let address = parseInt($(this).text(), 16);
-
-      this.setLabelText($(this), address);
-      this.setLabelColor($(this), address);
-
-      $(this).click(function () {
-        this.cpu0state.disasmAddress = address;
-        this.redraw();
-      });
-    }.bind(this));
-
-    // TODO: apply a class rather than a colour.
-    let registerColours = this.makeRegisterColours(currentInstruction);
-    for (let [reg, colour] of registerColours) {
-      $disText.find('.dis-reg-' + reg).css('background-color', colour);
-    }
+    const { gutter, text, currentInstruction } = this.buildDisassembly(
+      this.cpu0State.disassembleRange(), cpu0.pc, this.cpu0State,
+      () => this.updateCPU(), getFragmentMap());
+    const registerColours = this.makeRegisterColours(currentInstruction);
+    this.highlightRegisters(text, registerColours);
 
     document.querySelector('#cpu-disasm .dis-recent-memory').replaceChildren(this.makeRecentMemoryAccesses(isSingleStep, currentInstruction, cpu0.calcDebuggerAddress.bind(cpu0)));
 
-    this.$cpu0Disassembly.find('.dis-gutter').empty().append($disGutter);
-    this.$cpu0Disassembly.find('.dis-view').empty().append($disText);
+    this.cpu0Disassembly.querySelector('.dis-gutter').replaceChildren(gutter);
+    this.cpu0Disassembly.querySelector('.dis-view').replaceChildren(text);
 
     this.cpu0State.updateStatusTable();
 
@@ -435,73 +414,19 @@ export class Debugger {
     // this.lastOpExecuted = opsExecuted;
     const isSingleStep = true;
 
-    // let fragmentMap = getFragmentMap();
-    let disassembly = this.rspState.disassembleRange();
-
-    let $disGutter = $('<pre/>');
-    let $disText = $('<pre/>');
-
-    for (let i = 0; i < disassembly.length; ++i) {
-      let a = disassembly[i];
-      let address = a.instruction.address;
-      // TODO: figure out if we want a separate labelMap for RSP.
-      let isTarget = a.isJumpTarget || this.labelMap.has(address);
-      let addressStr = (isTarget ? '<span class="dis-address-target">' : '<span class="dis-address">') + toHex(address, 32) + ':</span>';
-      let label = `<span class="dis-label">${this.makeLabelText(address)}</span>`;
-      let t = `${addressStr}  ${toHex(a.instruction.opcode, 32)}  ${label}${a.disassembly}`;
-
-      let $line = $(`<span class="dis-line">${t}</span>`);
-      $line.find('.dis-label')
-        .data('address', address)
-        .css('color', this.makeLabelColor(address))
-        .click(this.onLabelClicked.bind(this)); // FIXME: needs to be RSP labels.
-
-      if (address === rsp.pc) {
-        $line.addClass('dis-line-cur');
-      }
-      if (isTarget) {
-        $line.addClass('dis-line-target');
-        this.setLabelColor($line.find('.dis-address-target'), address);
-      }
-
-      $disText.append($line);
-      $disText.append('<br>');
-
-      // FIXME: Add breakpoint support for RSP.
-      let bpText = '&nbsp;';
-      if (n64js.breakpoints().isBreakpoint(address)) {
-        bpText = '&bull;';
-      }
-      let $bp = $(`<span>${bpText}</span>`).data('address', address).click(this.onClickBreakpoint.bind(this));
-
-      $disGutter.append($bp);
-      $disGutter.append('<br>');
-    }
-
-    // Links for branches, jumps etc should jump to the target address.
-    $disText.find('.dis-address-jump').each(function () {
-      let address = parseInt($(this).text(), 16);
-
-      this.setLabelText($(this), address);
-      this.setLabelColor($(this), address);
-
-      $(this).click(function () {
-        this.rspstate.disasmAddress = address;
-        this.redraw();
-      });
-    }.bind(this));
+    // CPU and RSP continue to share the label map.
+    const { gutter, text } = this.buildDisassembly(
+      this.rspState.disassembleRange(), rsp.pc, this.rspState, () => this.updateRSP());
 
     const curInstrDis = disassemble_rsp.disassembleInstruction(rsp.pc, rsp.imem.getU32(rsp.pc));
     const curInstruction = curInstrDis.instruction;
     let registerColours = this.makeRegisterColours(curInstruction);
-    for (let [reg, colour] of registerColours) {
-      $disText.find('.dis-reg-' + reg).css('background-color', colour);
-    }
+    this.highlightRegisters(text, registerColours);
 
     document.querySelector('#rsp-disasm .dis-recent-memory').replaceChildren(this.makeRecentMemoryAccesses(isSingleStep, curInstruction, rsp.calcDebuggerAddress.bind(rsp)));
 
-    this.$rspDisassembly.find('.dis-gutter').empty().append($disGutter);
-    this.$rspDisassembly.find('.dis-view').empty().append($disText);
+    this.rspDisassembly.querySelector('.dis-gutter').replaceChildren(gutter);
+    this.rspDisassembly.querySelector('.dis-view').replaceChildren(text);
 
     this.rspState.updateStatusTable();
 
@@ -553,7 +478,7 @@ export class Debugger {
         this.lastStore = null;
       }
 
-      const access = currentInstruction.memory;
+      const access = currentInstruction?.memory;
       if (access) {
         const accessAddr = resolveAccessAddr(currentInstruction.opcode);
         let element = this.makeRecentMemoryAccessRow(accessAddr, access.mode);
@@ -761,10 +686,10 @@ export class Debugger {
   }
 
   activeDisassemblyWindow() {
-    if (this.$cpuContent.hasClass('active')) {
+    if (this.cpuContent.classList.contains('active')) {
       return this.cpu0State;
     }
-    if (this.$rspContent.hasClass('active')) {
+    if (this.rspContent.classList.contains('active')) {
       return this.rspState;
     }
     return null;
@@ -775,11 +700,11 @@ export class Debugger {
       return;
     }
 
-    if (this.$cpuContent.hasClass('active')) {
+    if (this.cpuContent.classList.contains('active')) {
       this.updateCPU();
     }
 
-    if (this.$rspContent.hasClass('active')) {
+    if (this.rspContent.classList.contains('active')) {
       this.updateRSP();
     }
 
