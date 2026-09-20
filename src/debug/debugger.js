@@ -77,13 +77,13 @@ export class Debugger {
     /** @type {number} How many cycles to execute before updating the debugger. */
     this.debugCycles = 10 ** 0;
 
-    logger.initialise($('.output'), () => {
+    logger.initialise(document.querySelector('.output'), () => {
       return toString32(cpu0.pc);
     });
 
     n64js.addResetCallback(this.onReset.bind(this));
 
-    $('#output').find('#clear').click(function () {
+    document.querySelector('#output #clear').addEventListener('click', () => {
       logger.clear();
     });
 

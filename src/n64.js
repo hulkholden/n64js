@@ -1,5 +1,4 @@
-/*jshint jquery:true, browser:true, devel:true */
-/*global $, n64js, Stats, md5, __BUILD_VERSION__*/
+/*global n64js, Stats, md5, __BUILD_VERSION__*/
 
 import { simulateBoot } from './boot.js';
 import { Breakpoints } from './debug/breakpoints.js';
@@ -100,13 +99,15 @@ function loadRom(arrayBuffer) {
   };
   console.log(hdr);
 
-  const $table = $('<table class="register-table"><tbody></tbody></table>');
-  const $tb = $table.find('tbody');
-  for (let i in hdr) {
-    const value = typeof hdr[i] === 'string' ? hdr[i] : toString32(hdr[i]);
-    $tb.append(`<tr><td>${i}</td><td>${value}</td></tr>`);
+  const table = document.createElement('table');
+  table.className = 'register-table';
+  const tbody = table.createTBody();
+  for (const [name, value] of Object.entries(hdr)) {
+    const row = tbody.insertRow();
+    row.insertCell().textContent = name;
+    row.insertCell().textContent = typeof value === 'string' ? value : toString32(value);
   }
-  logger.logHTML($table);
+  logger.logHTML(table);
 
   // Set up rominfo
   rominfo.cic = generateCICType(rom.u8);
