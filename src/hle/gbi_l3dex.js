@@ -75,26 +75,74 @@ function interpolateVertex(a, b, t) {
 // Expand in framebuffer pixels, then return to homogeneous coordinates. This
 // keeps width independent of perspective and avoids WebGL's line-width limits.
 export function appendLine(tb, a, b, width, viWidth, viHeight, flatColor = null) {
-  if (width <= 0 || !tb.hasCapacity(2)) return;
-  // Clip depth before dividing by w; the rasterizer clips the expanded sides.
-  for (const distance of [p => p.w - 1e-6, p => p.z + p.w, p => p.w - p.z]) {
-    const da = distance(a.pos), db = distance(b.pos);
-    if (da < 0 && db < 0) return;
-    if (da < 0) a = interpolateVertex(a, b, da / (da - db));
-    else if (db < 0) b = interpolateVertex(a, b, da / (da - db));
+  if (width <= 0 || !tb.hasCapacity(2)) {
+    return;
   }
+
+  // Clip the center line before the perspective divide. Keep w positive to
+  // avoid dividing by zero or projecting endpoints behind the camera, then
+  // clip against the near and far depth planes. The rasterizer will clip the
+  // sides of the expanded strip against the framebuffer boundaries.
+  const clipPlanes = [
+    p => p.w - 1e-6,
+    p => p.z + p.w,
+    p => p.w - p.z,
+  ];
+
+  for (const distance of clipPlanes) {
+    const da = distance(a.pos);
+    const db = distance(b.pos);
+
+    // Both endpoints outside the same plane means the whole line is outside.
+    if (da < 0 && db < 0) {
+      return;
+    }
+
+    // For a crossing, replace only the outside endpoint with the intersection.
+    // Interpolation preserves the endpoint color as well as its position.
+    if (da < 0) {
+      a = interpolateVertex(a, b, da / (da - db));
+    } else if (db < 0) {
+      b = interpolateVertex(a, b, da / (da - db));
+    }
+  }
+
+  // Measure the projected direction in framebuffer pixels so the strip has
+  // the same width regardless of perspective or framebuffer aspect ratio.
   const dx = (b.pos.x / b.pos.w - a.pos.x / a.pos.w) * viWidth / 2;
   const dy = (b.pos.y / b.pos.w - a.pos.y / a.pos.w) * viHeight / 2;
   const length = Math.hypot(dx, dy);
-  if (!Number.isFinite(length) || length === 0) return;
+
+  if (!Number.isFinite(length) || length === 0) {
+    return;
+  }
+
+  // A perpendicular unit vector gives the offset to either side of the line.
+  // Each side is half the width away; converting pixels to device coordinates
+  // contributes a factor of two, cancelling that half.
   const ox = -dy / length * width / viWidth;
   const oy = dx / length * width / viHeight;
+
+  // Multiply by each endpoint's w to return the offset to homogeneous space.
+  // Preserve depth and build new vertices so the cached endpoints stay intact.
   const offset = (v, sign) => ({
-    pos: { x: v.pos.x + sign * ox * v.pos.w, y: v.pos.y + sign * oy * v.pos.w, z: v.pos.z, w: v.pos.w },
-    color: flatColor ?? v.color, u: 0, v: 0,
+    pos: {
+      x: v.pos.x + sign * ox * v.pos.w,
+      y: v.pos.y + sign * oy * v.pos.w,
+      z: v.pos.z,
+      w: v.pos.w,
+    },
+    color: flatColor ?? v.color,
+    u: 0,
+    v: 0,
   });
-  const a0 = offset(a, 1), a1 = offset(a, -1);
-  const b0 = offset(b, 1), b1 = offset(b, -1);
+
+  const a0 = offset(a, 1);
+  const a1 = offset(a, -1);
+  const b0 = offset(b, 1);
+  const b1 = offset(b, -1);
+
+  // Join the two endpoint pairs into a strip with a shared diagonal.
   tb.pushTri(a0, a1, b0);
   tb.pushTri(b0, a1, b1);
 }
