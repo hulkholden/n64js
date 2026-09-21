@@ -1,8 +1,10 @@
 #version 300 es
+#define NEAR_CLIPPING __NEAR_CLIPPING__
+
 precision mediump float;
 in         vec4 vColor;
 in highp vec2 vUV;
-#ifdef NO_NEAR_CLIPPING
+#if !NEAR_CLIPPING
 in highp float vClipZ;
 #endif
 out vec4 outCol;
@@ -129,7 +131,7 @@ const float prim_lod_frac = 0.0; // FIXME
 vec4 combineColor(vec4 shade, vec4 tex0, vec4 tex1);
 
 void main(void) {
-#ifdef NO_NEAR_CLIPPING
+#if !NEAR_CLIPPING
   // Undo the varying's perspective denominator to interpolate Z/W linearly
   // in screen space. Clamp per fragment, not per vertex: triangles crossing
   // the near plane must retain their depth slope on the visible side.

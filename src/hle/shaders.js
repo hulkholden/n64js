@@ -268,8 +268,7 @@ export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, enableAlphaThres
     return shader;
   }
 
-  // The GLSL version directive must remain the first line.
-  const configureClipping = source => noNearClipping ? source.replace('\n', '\n#define NO_NEAR_CLIPPING\n') : source;
+  const configureClipping = source => source.replace('__NEAR_CLIPPING__', noNearClipping ? '0' : '1');
   let vertexShader = vertexShaders.get(noNearClipping);
   if (!vertexShader) {
     vertexShader = createShader(gl, configureClipping(vertexSource), gl.VERTEX_SHADER);
