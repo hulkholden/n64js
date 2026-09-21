@@ -6,6 +6,7 @@ import { Renderer } from '../src/hle/renderer.js';
 import { RenderTargets } from '../src/hle/render_targets.js';
 import { RSPState } from '../src/hle/rsp_state.js';
 import { TriangleBuffer } from '../src/hle/triangle_buffer.js';
+import { GBIMicrocode } from '../src/hle/gbi_microcode.js';
 
 const output = document.getElementById('results');
 try {
@@ -14,6 +15,7 @@ try {
   const state = new RSPState();
   state.reset(new DataView(new ArrayBuffer(4096)), 0);
   const renderer = new Renderer(gl, state, 1, 1);
+  const microcode = new GBIMicrocode(state, state.ramDV);
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   gl.viewport(0, 0, 1, 1);
   gl.disable(gl.DITHER);
@@ -45,6 +47,7 @@ try {
     lod = gbi.TextureLOD.G_TL_TILE, level = 0, detail = gbi.TextureDetail.G_TD_CLAMP,
     decode = false, format = gbi.ImageFormat.G_IM_FMT_RGBA, size = gbi.ImageSize.G_IM_SIZ_16b, line = 1,
     rspTriangle = false, perspective = gbi.TexturePerspective.G_TP_PERSP,
+    combine = null, primLodFrac = 0,
   } = {}) {
     state.rdpOtherModeH = cycle | filter | lod | detail | perspective;
     state.texture.level = level;
@@ -54,6 +57,10 @@ try {
     state.combine.hi = (input << 20) | (4 << 15) | (input << 12) | (4 << 9) | (1 << 5) | 4;
     state.combine.lo = ((15 << 28) | (7 << 15) | (7 << 12) | (7 << 9) |
       (15 << 24) | (1 << 21) | (4 << 18) | (7 << 6) | (7 << 3) | 7) >>> 0;
+    if (combine) {
+      [state.combine.hi, state.combine.lo] = combine;
+    }
+    microcode.executeSetPrimColor(0xfa000000 | primLodFrac, 0xffffffff);
     const tile = state.tiles[tileIndex];
     tile.set(format, size, line, 0, 0, mode[0], mask[0], shift[0], mode[1], mask[1], shift[1]);
     tile.setSize(origin[0] * 4, origin[1] * 4, last[0] * 4, last[1] * 4);
@@ -76,6 +83,8 @@ try {
       renderer.flushTris(buffer);
     } else {
       renderer.setProgramState(positions, colors, coords, enabled, texgen, tileIndex);
+      // Inspect the combiner result directly, including its alpha channel.
+      gl.disable(gl.BLEND);
       // Existing VertexArray setup enables inactive attributes in copy/fill
       // shaders; discard those setup errors so drawing errors remain visible.
       while (gl.getError() !== gl.NO_ERROR) { /* drain setup errors */ }
@@ -132,6 +141,39 @@ try {
   check('multiple LOD levels retain a separate second tile', blue, { ...singleLevelLOD, level: 1, tex1: column, uv: [0, 2] });
   check('untextured draw clears previous sampler state', [0, 0, 0, 255], { enabled: false });
   check('texture sampling resumes after an untextured draw', [128, 191, 191, 255], { uv: [0.75, 0.75], filter: gbi.TextureFilter.G_TF_BILERP });
+
+  // Ocarina of Time's NTSC name-entry grid blends Latin and Japanese glyphs
+  // using (TEXEL1 - TEXEL0) * PRIM_LOD_FRAC + TEXEL0 in the first alpha cycle.
+  const glyphBlend = {
+    cycle: gbi.CycleType.G_CYC_2CYCLE,
+    combine: [0x00ffadff, 0xfffd9238],
+    tex: texture(1, 1, [[255, 255, 255, 64]]),
+    tex1: texture(1, 1, [[255, 255, 255, 192]]),
+  };
+  for (const [fraction, alpha] of [[0, 64], [64, 96], [128, 128], [255, 192], [0, 64]]) {
+    check(`glyph alpha blend at primitive LOD fraction ${fraction}`, [255, 255, 255, alpha], {
+      ...glyphBlend, primLodFrac: fraction,
+    });
+  }
+
+  // The multiplier uses a different mux table from the alpha A/B/D inputs.
+  check('alpha multiplier zero selects LOD fraction, not combined alpha', [255, 255, 255, 64], {
+    ...glyphBlend, combine: [0x00ffa1ff, 0xfffd9238],
+  });
+  check('alpha add input six remains constant one', white, {
+    ...glyphBlend, combine: [0x00ffffff, 0xfffdfc38], primLodFrac: 64,
+  });
+  check('second alpha cycle blends with swapped texel inputs', [255, 255, 255, 160], {
+    ...glyphBlend, combine: [0x00ffffff, 0xff59fc09], primLodFrac: 64,
+  });
+  check('one-cycle alpha uses primitive LOD fraction', [255, 255, 255, 16], {
+    ...glyphBlend, cycle: gbi.CycleType.G_CYC_1CYCLE,
+    combine: [0x00ff9dff, 0xfffdfe38], primLodFrac: 64,
+  });
+  check('RGB multiplier uses the same primitive LOD fraction', [191, 0, 64, 255], {
+    ...glyphBlend, combine: [0x00277fff, 0x1ffcfc38], primLodFrac: 64,
+    tex: texture(1, 1, [red]), tex1: texture(1, 1, [blue]),
+  });
 
   // Wetrix supplies twice the texel coordinates for its G_TP_NONE triangles.
   // Use unrelated texture dimensions to catch a size-specific workaround.

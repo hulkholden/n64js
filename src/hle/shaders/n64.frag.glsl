@@ -13,6 +13,7 @@ uniform highp vec2 uTexScale0;
 uniform highp vec2 uTexScale1;
 
 uniform vec4  uPrimColor;
+uniform float uPrimLodFrac;
 uniform vec4  uEnvColor;
 uniform float uAlphaThreshold;
 uniform highp vec4 uConvert;
@@ -120,7 +121,6 @@ vec4 convertYUV(vec4 texel) {
 const vec4 one = vec4(1,1,1,1);
 const vec4 zero = vec4(0,0,0,0);
 const float lod_frac = 0.0;      // FIXME
-const float prim_lod_frac = 0.0; // FIXME
 
 // shaders.js appends the definition specialized for the current render mode.
 vec4 combineColor(vec4 shade, vec4 tex0, vec4 tex1);
