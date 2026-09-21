@@ -1,7 +1,12 @@
 #version 300 es
+#define NEAR_CLIPPING __NEAR_CLIPPING__
+
 precision mediump float;
 in         vec4 vColor;
 in highp vec2 vUV;
+#if !NEAR_CLIPPING
+in highp float vClipZ;
+#endif
 out vec4 outCol;
 
 uniform sampler2D uSampler0;
@@ -126,6 +131,14 @@ const float lod_frac = 0.0;      // FIXME
 vec4 combineColor(vec4 shade, vec4 tex0, vec4 tex1);
 
 void main(void) {
+#if !NEAR_CLIPPING
+  // Undo the varying's perspective denominator to interpolate Z/W linearly
+  // in screen space. Clamp per fragment, not per vertex: triangles crossing
+  // the near plane must retain their depth slope on the visible side.
+  highp float z = vClipZ * gl_FragCoord.w;
+  if (z > 1.0) discard; // NoN still clips the far plane.
+  gl_FragDepth = clamp(z * 0.5 + 0.5, 0.0, 1.0);
+#endif
   highp vec2 uv = textureCoordinates();
   vec4 tex0 = sampleN64Texture(uSampler0, uv, uTexScale0, uTexOffset0, uTile0);
   vec4 tex1 = sampleN64Texture(uSampler1, uv, uTexScale1, uTexOffset1, uTile1);
