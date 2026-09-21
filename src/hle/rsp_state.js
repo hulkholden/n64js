@@ -86,6 +86,7 @@ export class RSPState {
     this.fillColor = 0;
     this.envColor = 0;
     this.primColor = 0;
+    this.primLodFrac = 0;
     this.blendColor = 0;
     this.fogColor = 0;
 

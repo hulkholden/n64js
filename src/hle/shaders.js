@@ -26,7 +26,7 @@ let genericVertexShader = null;
 const rgbParams32 = [
   'combined.rgb', 'tex0.rgb', 'tex1.rgb', 'uPrimColor.rgb', 'shade.rgb', 'uEnvColor.rgb', 'one.rgb',
   'combined.a',   'tex0.a',   'tex1.a',   'uPrimColor.a',   'shade.a',   'uEnvColor.a',
-  'lod_frac', 'prim_lod_frac','uConvertK45.y',
+  'lod_frac', 'uPrimLodFrac','uConvertK45.y',
   '?           ', '?           ',
   '?           ', '?           ',
   '?           ', '?           ',
@@ -42,7 +42,7 @@ const rgbParams32 = [
 const rgbParams32C2 = [
   'combined.rgb', 'tex1.rgb', 'tex0.rgb', 'uPrimColor.rgb', 'shade.rgb', 'uEnvColor.rgb', 'one.rgb',
   'combined.a',   'tex1.a',   'tex0.a',   'uPrimColor.a',   'shade.a',   'uEnvColor.a',
-  'lod_frac', 'prim_lod_frac', 'uConvertK45.y',
+  'lod_frac', 'uPrimLodFrac', 'uConvertK45.y',
   '?           ', '?           ',
   '?           ', '?           ',
   '?           ', '?           ',
@@ -56,13 +56,13 @@ const rgbParams32C2 = [
 const rgbParams16 = [
   'combined.rgb', 'tex0.rgb', 'tex1.rgb', 'uPrimColor.rgb', 'shade.rgb', 'uEnvColor.rgb', 'one.rgb',
   'combined.a',   'tex0.a',   'tex1.a',   'uPrimColor.a',   'shade.a',   'uEnvColor.a',
-  'lod_frac', 'prim_lod_frac', 'zero.rgb'
+  'lod_frac', 'uPrimLodFrac', 'zero.rgb'
 ];
 
 const rgbParams16C2 = [
   'combined.rgb', 'tex1.rgb', 'tex0.rgb', 'uPrimColor.rgb', 'shade.rgb', 'uEnvColor.rgb', 'one.rgb',
    'combined.a',  'tex1.a',   'tex0.a',   'uPrimColor.a',   'shade.a',   'uEnvColor.a',
-   'lod_frac', 'prim_lod_frac', 'zero.rgb'
+   'lod_frac', 'uPrimLodFrac', 'zero.rgb'
 ];
 
 // Subtract input 7 is K4; the add/subtract-A input at that index is noise.
@@ -88,6 +88,17 @@ const alphaParams8 = [
 const alphaParams8C2 = [
   'combined.a', 'tex1.a', 'tex0.a', 'uPrimColor.a', 'shade.a', 'uEnvColor.a',
   'one.a', 'zero.a'
+];
+
+// Alpha C selects LOD fractions where A/B/D select combined alpha and one.
+const alphaMulParams8 = [
+  'lod_frac', 'tex0.a', 'tex1.a', 'uPrimColor.a', 'shade.a', 'uEnvColor.a',
+  'uPrimLodFrac', 'zero.a'
+];
+
+const alphaMulParams8C2 = [
+  'lod_frac', 'tex1.a', 'tex0.a', 'uPrimColor.a', 'shade.a', 'uEnvColor.a',
+  'uPrimLodFrac', 'zero.a'
 ];
 
 const kMulInputRGB = [
@@ -142,14 +153,14 @@ const kSubInputA = [
   'Combined    ', 'Texel0      ',
   'Texel1      ', 'Primitive   ',
   'Shade       ', 'Env         ',
-  'PrimLODFrac ', '0           '
+  '1           ', '0           '
 ];
 
 const kMulInputA = [
-  'Combined    ', 'Texel0      ',
+  'LOD_Frac    ', 'Texel0      ',
   'Texel1      ', 'Primitive   ',
   'Shade       ', 'Env         ',
-  '1           ', '0           '
+  'PrimLODFrac ', '0           '
 ];
 
 const kAddInputA = [
@@ -234,6 +245,7 @@ class N64Shader {
     }));
 
     this.uPrimColorUniform       = gl.getUniformLocation(program, "uPrimColor");
+    this.uPrimLodFracUniform     = gl.getUniformLocation(program, "uPrimLodFrac");
     this.uEnvColorUniform        = gl.getUniformLocation(program, "uEnvColor");
     this.uConvertUniform         = gl.getUniformLocation(program, "uConvert");
     this.uConvertK45Uniform      = gl.getUniformLocation(program, "uConvertK45");
@@ -297,14 +309,14 @@ export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, enableAlphaThres
   } else if (cycleType === gbi.CycleType.G_CYC_1CYCLE) {
     body= '';
     body += '  col.rgb = (' + rgbParams16 [aRGB0] + ' - ' + rgbParamsSubB [bRGB0] + ') * ' + rgbParams32 [cRGB0] + ' + ' + rgbParams8  [dRGB0] + ';\n';
-    body += '  col.a = ('   + alphaParams8[  aA0] + ' - ' + alphaParams8[  bA0] + ') * ' + alphaParams8[  cA0] + ' + ' + alphaParams8[  dA0] + ';\n';
+    body += '  col.a = ('   + alphaParams8[  aA0] + ' - ' + alphaParams8[  bA0] + ') * ' + alphaMulParams8[  cA0] + ' + ' + alphaParams8[  dA0] + ';\n';
   } else {
     body= '';
     body += '  col.rgb = (' + rgbParams16 [aRGB0] + ' - ' + rgbParamsSubB [bRGB0] + ') * ' + rgbParams32 [cRGB0] + ' + ' + rgbParams8  [dRGB0] + ';\n';
-    body += '  col.a = ('   + alphaParams8[  aA0] + ' - ' + alphaParams8[  bA0] + ') * ' + alphaParams8[  cA0] + ' + ' + alphaParams8[  dA0] + ';\n';
+    body += '  col.a = ('   + alphaParams8[  aA0] + ' - ' + alphaParams8[  bA0] + ') * ' + alphaMulParams8[  cA0] + ' + ' + alphaParams8[  dA0] + ';\n';
     body += '  combined = vec4(col.rgb, col.a);\n';
     body += '  col.rgb = (' + rgbParams16C2 [aRGB1] + ' - ' + rgbParamsSubBC2 [bRGB1] + ') * ' + rgbParams32C2 [cRGB1] + ' + ' + rgbParams8C2  [dRGB1] + ';\n';
-    body += '  col.a = ('   + alphaParams8C2[  aA1] + ' - ' + alphaParams8C2[  bA1] + ') * ' + alphaParams8C2[  cA1] + ' + ' + alphaParams8C2[  dA1] + ';\n';
+    body += '  col.a = ('   + alphaParams8C2[  aA1] + ' - ' + alphaParams8C2[  bA1] + ') * ' + alphaMulParams8C2[  cA1] + ' + ' + alphaParams8C2[  dA1] + ';\n';
   }
 
   if (enableAlphaThreshold) {

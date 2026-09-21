@@ -481,6 +481,7 @@ export class Renderer extends RendererBase {
       ((this.state.primColor >>> 16) & 0xff) / 255.0,
       ((this.state.primColor >>> 8) & 0xff) / 255.0,
       ((this.state.primColor >>> 0) & 0xff) / 255.0);
+    gl.uniform1f(shader.uPrimLodFracUniform, this.state.primLodFrac / 255.0);
     gl.uniform4f(shader.uEnvColorUniform,
       ((this.state.envColor >>> 24) & 0xff) / 255.0,
       ((this.state.envColor >>> 16) & 0xff) / 255.0,

@@ -587,8 +587,9 @@ export class GBIMicrocode {
       const l = (cmd0 >>> 0) & 0xff;
       dis.text(`gsDPSetPrimColor(${m}, ${l}, ${dis.rgba8888(cmd1)});`);
     }
-    // minlevel, primlevel ignored!
+    // Minimum LOD level is not yet used by texture LOD selection.
     this.state.primColor = cmd1;
+    this.state.primLodFrac = cmd0 & 0xff;
   }
 
   executeSetPrimDepth(cmd0, cmd1, dis) {
