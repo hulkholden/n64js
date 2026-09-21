@@ -116,12 +116,16 @@ vec4 convertYUV(vec4 texel) {
   return vec4(rgb / 255.0, texel.b);
 }
 
+// Inputs shared by the generated color combiner.
+const vec4 one = vec4(1,1,1,1);
+const vec4 zero = vec4(0,0,0,0);
+const float lod_frac = 0.0;      // FIXME
+const float prim_lod_frac = 0.0; // FIXME
+
+// shaders.js appends the definition specialized for the current render mode.
+vec4 combineColor(vec4 shade, vec4 tex0, vec4 tex1);
+
 void main(void) {
-  vec4 shade = vColor;
-  vec4 prim  = uPrimColor;
-  vec4 env   = uEnvColor;
-  vec4 one   = vec4(1,1,1,1);
-  vec4 zero  = vec4(0,0,0,0);
   highp vec2 uv = textureCoordinates();
   vec4 tex0 = sampleN64Texture(uSampler0, uv, uTexScale0, uTexOffset0, uTile0);
   vec4 tex1 = sampleN64Texture(uSampler1, uv, uTexScale1, uTexOffset1, uTile1);
@@ -133,11 +137,5 @@ void main(void) {
     if (uTextureConvert == 5) tex1 = convertYUV(tex0);
     tex0 = uTextureConvert == 0 ? convertYUV(tex0) : vec4(tex0.rg - 128.0 / 255.0, tex0.b, tex0.b);
   }
-  vec4 col;
-  vec4 combined = vec4(0,0,0,1);
-  float lod_frac      = 0.0;    // FIXME
-  float prim_lod_frac = 0.0;    // FIXME
-  float k5            = uConvertK45.y;
-  {{body}}
-  outCol = col;
+  outCol = combineColor(vColor, tex0, tex1);
 }

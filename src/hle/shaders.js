@@ -24,9 +24,9 @@ let shaderCache = new Map();
 let genericVertexShader = null;
 
 const rgbParams32 = [
-  'combined.rgb', 'tex0.rgb', 'tex1.rgb', 'prim.rgb', 'shade.rgb', 'env.rgb', 'one.rgb',   
-  'combined.a',   'tex0.a',   'tex1.a',   'prim.a',   'shade.a',   'env.a',
-  'lod_frac', 'prim_lod_frac','k5',
+  'combined.rgb', 'tex0.rgb', 'tex1.rgb', 'uPrimColor.rgb', 'shade.rgb', 'uEnvColor.rgb', 'one.rgb',
+  'combined.a',   'tex0.a',   'tex1.a',   'uPrimColor.a',   'shade.a',   'uEnvColor.a',
+  'lod_frac', 'prim_lod_frac','uConvertK45.y',
   '?           ', '?           ',
   '?           ', '?           ',
   '?           ', '?           ',
@@ -40,9 +40,9 @@ const rgbParams32 = [
 // Tex0 and Tex1 are swapped in the second cycle.
 // TODO: is there an easier way to do this without duplicating the table?
 const rgbParams32C2 = [
-  'combined.rgb', 'tex1.rgb', 'tex0.rgb', 'prim.rgb', 'shade.rgb', 'env.rgb', 'one.rgb',    
-  'combined.a',   'tex1.a',   'tex0.a',   'prim.a',   'shade.a',   'env.a',
-  'lod_frac', 'prim_lod_frac', 'k5',
+  'combined.rgb', 'tex1.rgb', 'tex0.rgb', 'uPrimColor.rgb', 'shade.rgb', 'uEnvColor.rgb', 'one.rgb',
+  'combined.a',   'tex1.a',   'tex0.a',   'uPrimColor.a',   'shade.a',   'uEnvColor.a',
+  'lod_frac', 'prim_lod_frac', 'uConvertK45.y',
   '?           ', '?           ',
   '?           ', '?           ',
   '?           ', '?           ',
@@ -54,14 +54,14 @@ const rgbParams32C2 = [
 ];
 
 const rgbParams16 = [
-  'combined.rgb', 'tex0.rgb', 'tex1.rgb', 'prim.rgb', 'shade.rgb', 'env.rgb', 'one.rgb',   
-  'combined.a',   'tex0.a',   'tex1.a',   'prim.a',   'shade.a',   'env.a',
+  'combined.rgb', 'tex0.rgb', 'tex1.rgb', 'uPrimColor.rgb', 'shade.rgb', 'uEnvColor.rgb', 'one.rgb',
+  'combined.a',   'tex0.a',   'tex1.a',   'uPrimColor.a',   'shade.a',   'uEnvColor.a',
   'lod_frac', 'prim_lod_frac', 'zero.rgb'
 ];
 
 const rgbParams16C2 = [
-  'combined.rgb', 'tex1.rgb', 'tex0.rgb', 'prim.rgb', 'shade.rgb', 'env.rgb', 'one.rgb', 
-   'combined.a',  'tex1.a',   'tex0.a',   'prim.a',   'shade.a',   'env.a',
+  'combined.rgb', 'tex1.rgb', 'tex0.rgb', 'uPrimColor.rgb', 'shade.rgb', 'uEnvColor.rgb', 'one.rgb',
+   'combined.a',  'tex1.a',   'tex0.a',   'uPrimColor.a',   'shade.a',   'uEnvColor.a',
    'lod_frac', 'prim_lod_frac', 'zero.rgb'
 ];
 
@@ -71,22 +71,22 @@ const rgbParamsSubBC2 = [...rgbParams16C2];
 rgbParamsSubB[7] = rgbParamsSubBC2[7] = 'vec3(uConvertK45.x)';
 
 const rgbParams8 = [
-  'combined.rgb', 'tex0.rgb', 'tex1.rgb', 'prim.rgb', 'shade.rgb', 'env.rgb',
+  'combined.rgb', 'tex0.rgb', 'tex1.rgb', 'uPrimColor.rgb', 'shade.rgb', 'uEnvColor.rgb',
   'one.rgb', 'zero.rgb'
 ];
 
 const rgbParams8C2 = [
-  'combined.rgb', 'tex1.rgb', 'tex0.rgb', 'prim.rgb', 'shade.rgb', 'env.rgb',
+  'combined.rgb', 'tex1.rgb', 'tex0.rgb', 'uPrimColor.rgb', 'shade.rgb', 'uEnvColor.rgb',
   'one.rgb', 'zero.rgb'
 ];
 
 const alphaParams8 = [
-  'combined.a', 'tex0.a', 'tex1.a', 'prim.a', 'shade.a', 'env.a',
+  'combined.a', 'tex0.a', 'tex1.a', 'uPrimColor.a', 'shade.a', 'uEnvColor.a',
   'one.a', 'zero.a'
 ];
 
 const alphaParams8C2 = [
-  'combined.a', 'tex1.a', 'tex0.a', 'prim.a', 'shade.a', 'env.a',
+  'combined.a', 'tex1.a', 'tex0.a', 'uPrimColor.a', 'shade.a', 'uEnvColor.a',
   'one.a', 'zero.a'
 ];
 
@@ -291,28 +291,35 @@ export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, enableAlphaThres
   // Generate the instructions for this mode.
   let body;
   if (cycleType === gbi.CycleType.G_CYC_FILL) {
-    body = 'col = shade;\n';
+    body = '  col = shade;\n';
   } else if (cycleType === gbi.CycleType.G_CYC_COPY) {
-    body = 'col = tex0;\n';
+    body = '  col = tex0;\n';
   } else if (cycleType === gbi.CycleType.G_CYC_1CYCLE) {
     body= '';
-    body += 'col.rgb = (' + rgbParams16 [aRGB0] + ' - ' + rgbParamsSubB [bRGB0] + ') * ' + rgbParams32 [cRGB0] + ' + ' + rgbParams8  [dRGB0] + ';\n';
-    body += 'col.a = ('   + alphaParams8[  aA0] + ' - ' + alphaParams8[  bA0] + ') * ' + alphaParams8[  cA0] + ' + ' + alphaParams8[  dA0] + ';\n';
+    body += '  col.rgb = (' + rgbParams16 [aRGB0] + ' - ' + rgbParamsSubB [bRGB0] + ') * ' + rgbParams32 [cRGB0] + ' + ' + rgbParams8  [dRGB0] + ';\n';
+    body += '  col.a = ('   + alphaParams8[  aA0] + ' - ' + alphaParams8[  bA0] + ') * ' + alphaParams8[  cA0] + ' + ' + alphaParams8[  dA0] + ';\n';
   } else {
     body= '';
-    body += 'col.rgb = (' + rgbParams16 [aRGB0] + ' - ' + rgbParamsSubB [bRGB0] + ') * ' + rgbParams32 [cRGB0] + ' + ' + rgbParams8  [dRGB0] + ';\n';
-    body += 'col.a = ('   + alphaParams8[  aA0] + ' - ' + alphaParams8[  bA0] + ') * ' + alphaParams8[  cA0] + ' + ' + alphaParams8[  dA0] + ';\n';
-    body += 'combined = vec4(col.rgb, col.a);\n';
-    body += 'col.rgb = (' + rgbParams16C2 [aRGB1] + ' - ' + rgbParamsSubBC2 [bRGB1] + ') * ' + rgbParams32C2 [cRGB1] + ' + ' + rgbParams8C2  [dRGB1] + ';\n';
-    body += 'col.a = ('   + alphaParams8C2[  aA1] + ' - ' + alphaParams8C2[  bA1] + ') * ' + alphaParams8C2[  cA1] + ' + ' + alphaParams8C2[  dA1] + ';\n';
+    body += '  col.rgb = (' + rgbParams16 [aRGB0] + ' - ' + rgbParamsSubB [bRGB0] + ') * ' + rgbParams32 [cRGB0] + ' + ' + rgbParams8  [dRGB0] + ';\n';
+    body += '  col.a = ('   + alphaParams8[  aA0] + ' - ' + alphaParams8[  bA0] + ') * ' + alphaParams8[  cA0] + ' + ' + alphaParams8[  dA0] + ';\n';
+    body += '  combined = vec4(col.rgb, col.a);\n';
+    body += '  col.rgb = (' + rgbParams16C2 [aRGB1] + ' - ' + rgbParamsSubBC2 [bRGB1] + ') * ' + rgbParams32C2 [cRGB1] + ' + ' + rgbParams8C2  [dRGB1] + ';\n';
+    body += '  col.a = ('   + alphaParams8C2[  aA1] + ' - ' + alphaParams8C2[  bA1] + ') * ' + alphaParams8C2[  cA1] + ' + ' + alphaParams8C2[  dA1] + ';\n';
   }
 
   if (enableAlphaThreshold) {
     // TODO: should this be <?
-    body += 'if(col.a <= uAlphaThreshold) discard;\n';
+    body += '  if(col.a <= uAlphaThreshold) discard;\n';
   }
 
-  let shaderSource = fragmentSource.replace('{{body}}', body);
+  const combinerSource = `
+vec4 combineColor(vec4 shade, vec4 tex0, vec4 tex1) {
+  vec4 col;
+  vec4 combined = vec4(0,0,0,1);
+${body}  return col;
+}
+`;
+  const shaderSource = fragmentSource + combinerSource;
 
   if (kLogShaders) {
     let decoded = '\n';
