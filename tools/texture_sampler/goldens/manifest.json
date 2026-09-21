@@ -1,0 +1,332 @@
+{
+  "capturedAt": "2026-09-21T08:21:37.895Z",
+  "sourceRevision": "e3f4173d12bd8b64e236a1d866d6655e7094316b",
+  "workingTreeDirty": true,
+  "bundleSHA256": "bb0572a537d3009ea1a494eafc81a87fc3f0328a60e29f36c0209aa36ebcded5",
+  "shaderDocumentSHA256": "fe3909d0e0b398cb968b138986d66aba25844114f6b093314dba9b22ebecbdb6",
+  "playwright": "1.58.2",
+  "browserVersion": "145.0.7632.6",
+  "platform": "darwin",
+  "architecture": "arm64",
+  "launchArgs": [
+    "--use-gl=angle",
+    "--use-angle=swiftshader",
+    "--enable-unsafe-swiftshader"
+  ],
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/145.0.7632.6 Safari/537.36",
+  "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+  "vendor": "Google Inc. (Google)",
+  "webgl": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+  "options": {
+    "alpha": false,
+    "antialias": false,
+    "depth": true,
+    "desynchronized": false,
+    "failIfMajorPerformanceCaveat": false,
+    "powerPreference": "default",
+    "premultipliedAlpha": true,
+    "preserveDrawingBuffer": true,
+    "stencil": false,
+    "xrCompatible": false
+  },
+  "nativeDimensions": [
+    128,
+    96
+  ],
+  "tolerance": 1,
+  "presentation": {
+    "deviceScaleFactor": 1,
+    "comparison": "raw framebuffer readback, independent of CSS scaling"
+  },
+  "pixelChecks": "58 passed",
+  "cases": [
+    {
+      "key": "clamp-1x-f0",
+      "id": "clamp",
+      "scale": 1,
+      "frame": 0,
+      "width": 128,
+      "height": 96
+    },
+    {
+      "key": "clamp-2x-f0",
+      "id": "clamp",
+      "scale": 2,
+      "frame": 0,
+      "width": 256,
+      "height": 192
+    },
+    {
+      "key": "repeat-s-1x-f0",
+      "id": "repeat-s",
+      "scale": 1,
+      "frame": 0,
+      "width": 128,
+      "height": 96
+    },
+    {
+      "key": "repeat-s-2x-f0",
+      "id": "repeat-s",
+      "scale": 2,
+      "frame": 0,
+      "width": 256,
+      "height": 192
+    },
+    {
+      "key": "repeat-t-1x-f0",
+      "id": "repeat-t",
+      "scale": 1,
+      "frame": 0,
+      "width": 128,
+      "height": 96
+    },
+    {
+      "key": "repeat-t-2x-f0",
+      "id": "repeat-t",
+      "scale": 2,
+      "frame": 0,
+      "width": 256,
+      "height": 192
+    },
+    {
+      "key": "mirror-s-1x-f0",
+      "id": "mirror-s",
+      "scale": 1,
+      "frame": 0,
+      "width": 128,
+      "height": 96
+    },
+    {
+      "key": "mirror-s-2x-f0",
+      "id": "mirror-s",
+      "scale": 2,
+      "frame": 0,
+      "width": 256,
+      "height": 192
+    },
+    {
+      "key": "mirror-t-1x-f0",
+      "id": "mirror-t",
+      "scale": 1,
+      "frame": 0,
+      "width": 128,
+      "height": 96
+    },
+    {
+      "key": "mirror-t-2x-f0",
+      "id": "mirror-t",
+      "scale": 2,
+      "frame": 0,
+      "width": 256,
+      "height": 192
+    },
+    {
+      "key": "mirror-both-1x-f0",
+      "id": "mirror-both",
+      "scale": 1,
+      "frame": 0,
+      "width": 128,
+      "height": 96
+    },
+    {
+      "key": "mirror-both-2x-f0",
+      "id": "mirror-both",
+      "scale": 2,
+      "frame": 0,
+      "width": 256,
+      "height": 192
+    },
+    {
+      "key": "filtering-1x-f0",
+      "id": "filtering",
+      "scale": 1,
+      "frame": 0,
+      "width": 128,
+      "height": 96
+    },
+    {
+      "key": "filtering-2x-f0",
+      "id": "filtering",
+      "scale": 2,
+      "frame": 0,
+      "width": 256,
+      "height": 192
+    },
+    {
+      "key": "adjacent-strips-1x-f0",
+      "id": "adjacent-strips",
+      "scale": 1,
+      "frame": 0,
+      "width": 128,
+      "height": 96
+    },
+    {
+      "key": "adjacent-strips-2x-f0",
+      "id": "adjacent-strips",
+      "scale": 2,
+      "frame": 0,
+      "width": 256,
+      "height": 192
+    },
+    {
+      "key": "scroll-1x-f0",
+      "id": "scroll",
+      "scale": 1,
+      "frame": 0,
+      "width": 128,
+      "height": 96
+    },
+    {
+      "key": "scroll-1x-f1",
+      "id": "scroll",
+      "scale": 1,
+      "frame": 1,
+      "width": 128,
+      "height": 96
+    },
+    {
+      "key": "scroll-1x-f2",
+      "id": "scroll",
+      "scale": 1,
+      "frame": 2,
+      "width": 128,
+      "height": 96
+    },
+    {
+      "key": "scroll-1x-f3",
+      "id": "scroll",
+      "scale": 1,
+      "frame": 3,
+      "width": 128,
+      "height": 96
+    },
+    {
+      "key": "scroll-2x-f0",
+      "id": "scroll",
+      "scale": 2,
+      "frame": 0,
+      "width": 256,
+      "height": 192
+    },
+    {
+      "key": "scroll-2x-f1",
+      "id": "scroll",
+      "scale": 2,
+      "frame": 1,
+      "width": 256,
+      "height": 192
+    },
+    {
+      "key": "scroll-2x-f2",
+      "id": "scroll",
+      "scale": 2,
+      "frame": 2,
+      "width": 256,
+      "height": 192
+    },
+    {
+      "key": "scroll-2x-f3",
+      "id": "scroll",
+      "scale": 2,
+      "frame": 3,
+      "width": 256,
+      "height": 192
+    },
+    {
+      "key": "origin-shift-1x-f0",
+      "id": "origin-shift",
+      "scale": 1,
+      "frame": 0,
+      "width": 128,
+      "height": 96
+    },
+    {
+      "key": "origin-shift-2x-f0",
+      "id": "origin-shift",
+      "scale": 2,
+      "frame": 0,
+      "width": 256,
+      "height": 192
+    },
+    {
+      "key": "flipped-1x-f0",
+      "id": "flipped",
+      "scale": 1,
+      "frame": 0,
+      "width": 128,
+      "height": 96
+    },
+    {
+      "key": "flipped-2x-f0",
+      "id": "flipped",
+      "scale": 2,
+      "frame": 0,
+      "width": 256,
+      "height": 192
+    },
+    {
+      "key": "rotated-1x-f0",
+      "id": "rotated",
+      "scale": 1,
+      "frame": 0,
+      "width": 128,
+      "height": 96
+    },
+    {
+      "key": "rotated-2x-f0",
+      "id": "rotated",
+      "scale": 2,
+      "frame": 0,
+      "width": 256,
+      "height": 192
+    },
+    {
+      "key": "rectangle-triangles-1x-f0",
+      "id": "rectangle-triangles",
+      "scale": 1,
+      "frame": 0,
+      "width": 128,
+      "height": 96
+    },
+    {
+      "key": "rectangle-triangles-2x-f0",
+      "id": "rectangle-triangles",
+      "scale": 2,
+      "frame": 0,
+      "width": 256,
+      "height": 192
+    },
+    {
+      "key": "two-slots-1x-f0",
+      "id": "two-slots",
+      "scale": 1,
+      "frame": 0,
+      "width": 128,
+      "height": 96
+    },
+    {
+      "key": "two-slots-2x-f0",
+      "id": "two-slots",
+      "scale": 2,
+      "frame": 0,
+      "width": 256,
+      "height": 192
+    },
+    {
+      "key": "triangle-perspective-1x-f0",
+      "id": "triangle-perspective",
+      "scale": 1,
+      "frame": 0,
+      "width": 128,
+      "height": 96
+    },
+    {
+      "key": "triangle-perspective-2x-f0",
+      "id": "triangle-perspective",
+      "scale": 2,
+      "frame": 0,
+      "width": 256,
+      "height": 192
+    }
+  ]
+}

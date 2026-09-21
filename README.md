@@ -87,6 +87,18 @@ http://localhost:8000/tools/texture_sampler_webgl.html on the same local server:
 bun build tools/texture_sampler_webgl.js --outfile=build/texture_sampler_webgl.js
 ```
 
+For side-by-side live, golden and difference images of synthetic textured
+primitives, run `bun run build:visual` and open
+http://localhost:8000/tools/texture_sampler_visual.html. The gallery covers clamp,
+repeat, mirror, filtering, scrolling, strips, transformed rectangles and triangles
+at native and 2× internal resolutions, without ROM files.
+
+`bun run test:visual` runs both the pixel checks and all visual comparisons in
+pinned Chromium with SwiftShader. Install the browser once with
+`bunx playwright install chromium`. See the [visual test guide](tools/texture_sampler/README.md)
+for capturing and reviewing new goldens, failure artifacts and the regression
+self-test.
+
 ### PR system-test coverage
 
 PRs build a pinned n64-systemtest ROM from source and compare isolated main,

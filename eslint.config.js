@@ -23,14 +23,14 @@ export default [
     languageOptions: { sourceType: 'commonjs', globals: globals.node },
   },
   {
-    files: ['tools/build.js', 'tools/systemtest/**/*.js'],
+    files: ['tools/build.js', 'tools/systemtest/**/*.js', 'tools/texture_sampler/run.js'],
     languageOptions: {
       sourceType: 'module',
       globals: { ...globals.nodeBuiltin, ...globals.bunBuiltin },
     },
   },
   {
-    files: ['tools/texture_sampler_webgl.js'],
+    files: ['tools/texture_sampler_webgl.js', 'tools/texture_sampler/scenes.js', 'tools/texture_sampler/visual.js'],
     languageOptions: { sourceType: 'module', globals: globals.browser },
   },
 ];

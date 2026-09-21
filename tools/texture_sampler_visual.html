@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Texture sampler · visual comparisons</title>
+  <link rel="stylesheet" href="texture_sampler/visual.css">
+</head>
+<body>
+  <main>
+    <header>
+      <a href="texture_sampler_webgl.html">← GPU pixel checks</a>
+      <h1>Texture sampler</h1>
+      <p>Synthetic textures through the production renderer. Compare the current output with a saved golden; bright pixels in the difference image indicate a change.</p>
+      <p>Goldens record a previous run, not a hardware reference. Changes need visual review before replacing them.</p>
+      <div class="controls">
+        <label>Internal resolution
+          <select id="scale"><option value="1">Native · 128 × 96</option><option value="2" selected>2× · 256 × 192</option></select>
+        </label>
+        <label>Scroll frame
+          <select id="frame"><option value="0">0 · 15.75 texels</option><option value="1">1 · 16.00 texels</option><option value="2">2 · 16.25 texels</option><option value="3">3 · 16.50 texels</option></select>
+        </label>
+        <button id="render" type="button">Render again</button>
+      </div>
+      <p id="status" role="status">Loading renderer… If this persists, run <code>bun run build:visual</code> and refresh.</p>
+      <details><summary>Capture and comparison details</summary><pre id="environment"></pre></details>
+    </header>
+    <div id="scenes"></div>
+  </main>
+  <canvas id="display" hidden></canvas>
+  <script type="module" src="../build/texture_sampler_visual.js"></script>
+</body>
+</html>
