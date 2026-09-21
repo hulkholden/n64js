@@ -50,7 +50,7 @@ bun run test:visual
 ```
 
 The command builds both browser bundles, starts a temporary loopback server,
-runs the 64 explicit pixel checks and compares all 36 visual captures. It exits
+runs the explicit pixel checks and compares all visual captures. It exits
 unsuccessfully on a changed pixel, missing/wrong-size golden, WebGL error or
 browser exception. Results go to `build/texture-sampler-results/results.json`;
 failures also save `*-actual.png`, `*-golden.png` and `*-difference.png` when
