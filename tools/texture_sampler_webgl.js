@@ -48,8 +48,11 @@ try {
     decode = false, format = gbi.ImageFormat.G_IM_FMT_RGBA, size = gbi.ImageSize.G_IM_SIZ_16b, line = 1,
     rspTriangle = false, perspective = gbi.TexturePerspective.G_TP_PERSP,
     combine = null, primLodFrac = 0,
+    otherModeL = 0, blendColor = 0, clearColor = null,
   } = {}) {
     state.rdpOtherModeH = cycle | filter | lod | detail | perspective;
+    state.rdpOtherModeL = otherModeL;
+    state.blendColor = blendColor;
     state.texture.level = level;
     // (texel - zero) * shade + zero, in each combiner cycle. Keep both
     // vertex attributes active, including when testing the second sampler.
@@ -70,6 +73,10 @@ try {
     if (decode) delete renderer.lookupTexture;
     else renderer.lookupTexture = i => i === tileIndex ? tex : tex1;
     const coords = new Float32Array([...uv, ...uv, ...uv]);
+    if (clearColor) {
+      gl.clearColor(...clearColor.map(value => value / 255));
+      gl.clear(gl.COLOR_BUFFER_BIT);
+    }
     if (rspTriangle) {
       const buffer = new TriangleBuffer(1);
       buffer.numTris = 1;
@@ -86,8 +93,10 @@ try {
       // Inspect the combiner result directly, including its alpha channel.
       gl.disable(gl.BLEND);
       // Existing VertexArray setup enables inactive attributes in copy/fill
-      // shaders; discard those setup errors so drawing errors remain visible.
-      while (gl.getError() !== gl.NO_ERROR) { /* drain setup errors */ }
+      // and custom combiners; discard setup errors for those shader variants.
+      if (cycle === gbi.CycleType.G_CYC_COPY || cycle === gbi.CycleType.G_CYC_FILL || combine) {
+        while (gl.getError() !== gl.NO_ERROR) { /* drain setup errors */ }
+      }
       gl.drawArrays(gl.TRIANGLES, 0, 3);
     }
     const actual = new Uint8Array(4);
@@ -98,6 +107,7 @@ try {
     }
     lines.push(`PASS ${name}`);
     passed++;
+    return renderer.getCurrentN64Shader();
   }
 
   check('integer coordinates select texel centres', red);
@@ -188,6 +198,53 @@ try {
   });
   check('generated triangle coordinates use the same scale', red, { ...noPerspective, uv: [0.75, 0.75], texgen: true });
   check('perspective triangles retain their coordinate scale', blue, { rspTriangle: true, tex: row, uv: [2, 0] });
+
+  // Threshold alpha compare accepts equality (comb_alpha >= threshold).
+  // See alpha_compare in angrylion-rdp-plus/src/core/n64video/rdp/blender.c.
+  // Clear to a distinct colour before each draw so discarded fragments cannot
+  // accidentally pass by retaining the previous draw's pixel.
+  const background = [24, 48, 72, 255];
+  const alphaValues = [0, 1, 127, 128, 129, 254, 255];
+  const alphaPixels = alphaValues.map(alpha => [255, 0, 0, alpha]);
+  const alphaTexture = texture(alphaValues.length, 1, alphaPixels);
+  const coverageKill = gbi.RenderMode.AA_EN | gbi.RenderMode.CVG_X_ALPHA;
+  for (const cycle of [gbi.CycleType.G_CYC_1CYCLE, gbi.CycleType.G_CYC_2CYCLE]) {
+    function checkAlpha(name, alpha, threshold, writes, otherModeL = gbi.AlphaCompare.G_AC_THRESHOLD) {
+      const index = alphaValues.indexOf(alpha);
+      return check(`${gbi.CycleType.nameOf(cycle)}: ${name}`, writes ? alphaPixels[index] : background, {
+        cycle, tex: alphaTexture, tex1: alphaTexture, uv: [index, 0],
+        otherModeL, blendColor: (0x12345600 | threshold) >>> 0, clearColor: background,
+      });
+    }
+    const thresholdShader = checkAlpha('alpha above threshold writes', 129, 128, true);
+    checkAlpha('alpha below threshold is discarded', 127, 128, false);
+    checkAlpha('alpha equal to threshold writes', 128, 128, true);
+    const raisedShader = checkAlpha('raising threshold discards the same alpha', 129, 130, false);
+    const loweredShader = checkAlpha('lowering threshold restores the same alpha', 129, 128, true);
+    if (raisedShader !== thresholdShader || loweredShader !== thresholdShader) {
+      throw new Error('Changing blend alpha must reuse the cached shader');
+    }
+    checkAlpha('disabling comparison writes below threshold', 127, 130, true, gbi.AlphaCompare.G_AC_NONE);
+    checkAlpha('disabled comparison writes zero alpha', 0, 130, true, gbi.AlphaCompare.G_AC_NONE);
+    const resumedShader = checkAlpha('reenabling comparison uploads the latest threshold', 129, 130, false);
+    if (resumedShader !== thresholdShader) throw new Error('Reenabling comparison must reuse the cached shader');
+    checkAlpha('zero threshold accepts zero alpha', 0, 0, true);
+    checkAlpha('maximum threshold discards lower alpha', 254, 255, false);
+    checkAlpha('maximum threshold accepts equal alpha', 255, 255, true);
+
+    // Coverage's existing zero-alpha approximation must still reject zero,
+    // including when a cached threshold shader previously accepted it.
+    checkAlpha('coverage approximation rejects zero alpha', 0, 255, false, coverageKill);
+    checkAlpha('coverage approximation accepts positive alpha', 1, 255, true, coverageKill);
+    checkAlpha('coverage still rejects zero with threshold enabled', 0, 0, false,
+      coverageKill | gbi.AlphaCompare.G_AC_THRESHOLD);
+    checkAlpha('threshold equality survives with coverage enabled', 128, 128, true,
+      coverageKill | gbi.AlphaCompare.G_AC_THRESHOLD);
+    checkAlpha('disabling coverage restores zero-alpha writes', 0, 255, true, gbi.AlphaCompare.G_AC_NONE);
+  }
+  state.rdpOtherModeL = 0;
+  state.blendColor = 0;
+  gl.clearColor(0, 0, 0, 0);
 
   // Exercise rectangle interpolation through real geometry, not constant UVs.
   // A four-row, wrapped strip is the same boundary case as Mario Kart's menus.

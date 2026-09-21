@@ -251,7 +251,7 @@ class N64Shader {
     this.uConvertK45Uniform      = gl.getUniformLocation(program, "uConvertK45");
     this.uTextureConvertUniform  = gl.getUniformLocation(program, "uTextureConvert");
     this.uTextureYUVUniform      = gl.getUniformLocation(program, "uTextureYUV");
-    this.uAlphaThresholdUniform  = gl.getUniformLocation(program, "uAlphaThresholdUniform");
+    this.uAlphaThresholdUniform  = gl.getUniformLocation(program, "uAlphaThreshold");
   }
 }
 
@@ -261,15 +261,20 @@ class N64Shader {
  * @param {number} mux0
  * @param {number} mux1
  * @param {number} cycleType A CycleType value.
- * @param {boolean} enableAlphaThreshold Whether to enable alpha thresholding.
+ * @param {number} alphaCompare An AlphaCompare value.
+ * @param {boolean} enableAlphaCvgKill Whether to approximate zero coverage by discarding zero alpha.
  * @param {boolean} noNearClipping Whether to clamp depth instead of clipping the near plane.
  * @return {!N64Shader}
  */
-export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, enableAlphaThreshold, noNearClipping = false) {
+export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, alphaCompare, enableAlphaCvgKill, noNearClipping = false) {
   // Check if this shader already exists. Copy/Fill are fixed-function so ignore mux for these.
   let stateText = (cycleType < gbi.CycleType.G_CYC_COPY) ? (`${mux0.toString(16) + mux1.toString(16)}_${cycleType}`) : cycleType.toString();
+  const enableAlphaThreshold = (alphaCompare & gbi.AlphaCompare.G_AC_THRESHOLD) !== 0;
   if (enableAlphaThreshold) {
-    stateText += `_alphaThreshold`;
+    stateText += `_alphaCompare${alphaCompare}`;
+  }
+  if (enableAlphaCvgKill) {
+    stateText += `_alphaCvgKill`;
   }
   if (noNearClipping) {
     stateText += `_noNearClipping`;
@@ -327,8 +332,16 @@ export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, enableAlphaThres
   }
 
   if (enableAlphaThreshold) {
-    // TODO: should this be <?
-    body += '  if(col.a <= uAlphaThreshold) discard;\n';
+    // The RDP accepts alpha equal to the blend threshold. See alpha_compare:
+    // https://github.com/ata4/angrylion-rdp-plus/blob/master/src/core/n64video/rdp/blender.c
+    // Dither is still unimplemented; retain its existing threshold fallback.
+    const comparison = alphaCompare === gbi.AlphaCompare.G_AC_THRESHOLD ? '<' : '<=';
+    body += `  if(col.a ${comparison} uAlphaThreshold) discard;\n`;
+  }
+  if (enableAlphaCvgKill) {
+    // Preserve the renderer's coverage approximation, which must reject zero
+    // even though threshold alpha comparison accepts equality.
+    body += '  if(col.a <= 0.0) discard;\n';
   }
 
   const combinerSource = `

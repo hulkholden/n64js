@@ -494,10 +494,10 @@ export class Renderer extends RendererBase {
     const mux1 = this.state.combine.lo;
     const cycleType = this.state.getCycleType();
 
-    const enableAlphaThreshold = (this.state.getAlphaCompareType() & gbi.AlphaCompare.G_AC_THRESHOLD) != 0;
+    const alphaCompare = this.state.getAlphaCompareType();
     const enableAlphaCvgKill = this.state.getAntiAliasEnabled() && this.state.getCoverageTimesAlpha();
 
-    return shaders.getOrCreateN64Shader(this.gl, mux0, mux1, cycleType, enableAlphaThreshold || enableAlphaCvgKill, noNearClipping);
+    return shaders.getOrCreateN64Shader(this.gl, mux0, mux1, cycleType, alphaCompare, enableAlphaCvgKill, noNearClipping);
   }
 
   /**

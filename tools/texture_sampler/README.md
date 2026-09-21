@@ -50,9 +50,11 @@ bun run test:visual
 ```
 
 The command builds both browser bundles, starts a temporary loopback server,
-runs the explicit pixel checks and compares all visual captures. It exits
-unsuccessfully on a changed pixel, missing/wrong-size golden, WebGL error or
-browser exception. Results go to `build/texture-sampler-results/results.json`;
+runs the explicit pixel checks and compares all visual captures. The pixel
+checks include alpha thresholds in one- and two-cycle mode, equality boundaries,
+threshold updates on cached shaders, disabling comparison and zero-alpha coverage
+rejection. It exits unsuccessfully on a changed pixel, missing/wrong-size golden,
+WebGL error or browser exception. Results go to `build/texture-sampler-results/results.json`;
 failures also save `*-actual.png`, `*-golden.png` and `*-difference.png` when
 available. `--output path` selects another results directory.
 In CI, download the `texture-sampler-visuals` artifact for these files, including
