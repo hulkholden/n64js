@@ -2,7 +2,6 @@
 
 import { Tab } from 'bootstrap';
 import { ControllerConfig } from "./controller_config.js";
-import { graphicsOptions, textureSamplerController } from '../hle/graphics_options.js';
 
 export class UI {
   constructor() {
@@ -11,23 +10,6 @@ export class UI {
 
   domLoaded() {
     this.controllerConfig = new ControllerConfig();
-
-    const samplerStatus = document.getElementById('texture-sampler-status');
-    const updateSamplerStatus = () => {
-      samplerStatus.hidden = !graphicsOptions.emulatedTextureSampler;
-    };
-    textureSamplerController.onChange(updateSamplerStatus);
-    updateSamplerStatus();
-
-    document.body.addEventListener('keydown', event => {
-      if (event.key !== ' ' || event.defaultPrevented ||
-          event.repeat || event.isComposing || event.ctrlKey || event.metaKey || event.altKey ||
-          event.target.closest('input, textarea, select') || event.target.isContentEditable) {
-        return;
-      }
-      event.preventDefault();
-      textureSamplerController.setValue(!graphicsOptions.emulatedTextureSampler);
-    });
 
     const dbg = n64js.debugger();
 

@@ -1,14 +1,12 @@
 import { G_TX_CLAMP } from './gbi.js';
 
-// The experimental sampler operates on decoded RGBA textures, not raw TMEM.
+// The sampler operates on decoded RGBA textures, not raw TMEM.
 // Integer N64 coordinates name texel centres; there is no WebGL half-texel bias.
 // See https://github.com/Themaister/parallel-rdp/blob/master/parallel-rdp/shaders/texture.h
 // for the RDP's shift/clamp/mask order and 5-bit, three-point filter behaviour.
 // Rectangle start coordinates and native pixel increments are described in
 // https://ultra64.ca/files/documentation/online-manuals/man/pro-man/pro14/14-01.html
 export const textureSamplerSource = `
-#define N64_TEXTURE_SAMPLER
-
 struct TextureTile {
   // xy: tile high boundary relative to its origin; zw: integer clamp texel.
   highp vec4 bounds;

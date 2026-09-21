@@ -258,29 +258,24 @@ class N64Shader {
    * @param {!WebGLProgram} program The program to use.
    * @param {string} source The fragment shader source (for debugging).
    */
-  constructor(gl, program, shaderSource, emulatedTextureSampler) {
+  constructor(gl, program, shaderSource) {
     this.program = program;
     this.shaderSource = shaderSource;
-    this.emulatedTextureSampler = emulatedTextureSampler;
 
     this.vertexArray = new VertexArray(gl);
     this.vertexArray.initPosAttr(program, "aPosition");
     this.vertexArray.initUVsAttr(program, "aUV");
     this.vertexArray.initColorAttr(program, "aColor");
 
-    this.uSamplerUniform0        = gl.getUniformLocation(program, "uSampler0");
-    this.uSamplerUniform1        = gl.getUniformLocation(program, "uSampler1");
-    this.uTexScaleUniform0       = gl.getUniformLocation(program, "uTexScale0");
-    this.uTexScaleUniform1       = gl.getUniformLocation(program, "uTexScale1");
-    this.uTexOffsetUniform0      = gl.getUniformLocation(program, "uTexOffset0");
-    this.uTexOffsetUniform1      = gl.getUniformLocation(program, "uTexOffset1");
-
     this.uTextureFilterUniform   = gl.getUniformLocation(program, "uTextureFilter");
     this.uTextureRectEnabledUniform = gl.getUniformLocation(program, "uTextureRectEnabled");
     this.uTextureRectScreenUniform = gl.getUniformLocation(program, "uTextureRectScreen");
     this.uTextureRectOriginUniform = gl.getUniformLocation(program, "uTextureRectOrigin");
     this.uTextureRectDerivativesUniform = gl.getUniformLocation(program, "uTextureRectDerivatives");
-    this.tileUniforms = [0, 1].map(slot => ({
+    this.textureUniforms = [0, 1].map(slot => ({
+      sampler: gl.getUniformLocation(program, `uSampler${slot}`),
+      scale: gl.getUniformLocation(program, `uTexScale${slot}`),
+      offset: gl.getUniformLocation(program, `uTexOffset${slot}`),
       bounds: gl.getUniformLocation(program, `uTile${slot}.bounds`),
       mask: gl.getUniformLocation(program, `uTile${slot}.mask`),
       mode: gl.getUniformLocation(program, `uTile${slot}.mode`),
@@ -304,17 +299,13 @@ class N64Shader {
  * @param {number} mux1
  * @param {number} cycleType A CycleType value.
  * @param {boolean} enableAlphaThreshold Whether to enable alpha thresholding.
- * @param {boolean} emulatedTextureSampler Whether to use texelFetch and RDP filtering.
  * @return {!N64Shader}
  */
-export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, enableAlphaThreshold, emulatedTextureSampler = false) {
+export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, enableAlphaThreshold) {
   // Check if this shader already exists. Copy/Fill are fixed-function so ignore mux for these.
   let stateText = (cycleType < gbi.CycleType.G_CYC_COPY) ? (`${mux0.toString(16) + mux1.toString(16)}_${cycleType}`) : cycleType.toString();
   if (enableAlphaThreshold) {
     stateText += `_alphaThreshold`;
-  }
-  if (emulatedTextureSampler) {
-    stateText += '_n64TextureSampler';
   }
 
   let shader = shaderCache.get(stateText);
@@ -378,7 +369,7 @@ export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, enableAlphaThres
   }
 
   let shaderSource = fragmentSource.replace('{{body}}', body)
-    .replace('{{textureSampler}}', emulatedTextureSampler ? textureSamplerSource : '');
+    .replace('{{textureSampler}}', textureSamplerSource);
 
   if (kLogShaders) {
     let decoded = '\n';
@@ -406,7 +397,7 @@ export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, enableAlphaThres
     assert(false, 'Unable to initialize the shader program.');
   }
 
-  shader = new N64Shader(gl, glProgram, shaderSource, emulatedTextureSampler);
+  shader = new N64Shader(gl, glProgram, shaderSource);
   shaderCache.set(stateText, shader);
   return shader;
 }

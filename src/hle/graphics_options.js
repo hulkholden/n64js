@@ -15,9 +15,6 @@ export const graphicsOptions = {
   // Whether to use high or low level emulation.
   emulationMode: 'HLE',
 
-  // Experimental RDP addressing and filtering in the fragment shader.
-  emulatedTextureSampler: false,
-
   // Whether to dump RDP commands.
   dumpRDP: false,
 };
@@ -27,5 +24,4 @@ folder.add(graphicsOptions, 'haltOnWarning').name('Halt on Warning');
 folder.add(graphicsOptions, 'dumpMicrocode').name('Dump Microcode');
 folder.add(graphicsOptions, 'dumpMicrocodeSubstring').name('Dump Microcode Substring');
 folder.add(graphicsOptions, 'emulationMode', { 'HLE (Recommended)': 'HLE', 'LLE (Experimental, Slow)': 'LLE' }).name('Emulation Mode');
-export const textureSamplerController = folder.add(graphicsOptions, 'emulatedTextureSampler').name('N64 Texture Sampler (Experimental)');
 folder.add(graphicsOptions, 'dumpRDP').name('Dump RDP');

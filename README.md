@@ -57,13 +57,10 @@ python3 -m http.server
 
 Navigate to http://localhost:8000/.
 
-The debug Options menu has a **Graphics → N64 Texture Sampler (Experimental)**
-toggle (off by default). It switches live between WebGL sampling and a
-`texelFetch` shader with tile shifts, clamp/mask/mirror addressing, point sampling,
-and N64 three-point filtering with 5-bit weights. Average mode uses four texels
-at the midpoint; copy mode uses point sampling. Both texture slots are supported.
-Press **Space** to toggle the sampler without opening the menu; an indicator in
-the main toolbar shows when it is active.
+The renderer uses a `texelFetch` shader with tile shifts, clamp/mask/mirror
+addressing, point sampling, and N64 three-point filtering with 5-bit weights.
+Average mode uses four texels at the midpoint; copy mode uses point sampling.
+Both texture slots are supported.
 
 Axis-aligned texture rectangles use native N64 pixel positions when computing
 S/T, even when the framebuffer is upscaled. This avoids introducing fractional
@@ -72,15 +69,14 @@ images), without overriding the tile's clamp or wrap settings. Rectangle images
 retain their native pixel grid; triangles and rotated sprites still use the
 renderer’s interpolated texture coordinates.
 
-The experiment samples level zero of the existing decoded textures. With N64 LOD
-enabled and only one mip level, both cycles use the base tile (except in detail
+The sampler reads level zero of the decoded textures. With N64 LOD enabled
+and only one mip level, both cycles use the base tile (except in detail
 mode). It does not yet implement general N64 LOD selection, full fixed-point
 coordinate overflow, or separate YUV chroma filtering. Wrapping axes decode
 their full mask period (including mirroring), independently of the tile bounds, so
 scrolling backgrounds retain all their texels. Unmasked addresses outside the
 decoded image still replicate its edge; sampling all addressable TMEM will
-require extending the decoder. The original sampler remains available for
-comparisons.
+require extending the decoder.
 
 To run GPU sampler regression checks, build the browser test bundle and open
 http://localhost:8000/tools/texture_sampler_webgl.html on the same local server:

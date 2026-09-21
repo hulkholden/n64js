@@ -80,10 +80,6 @@
             </div>
           </div>
 
-          <span id="texture-sampler-status" class="badge text-bg-warning align-self-center ms-2" role="status" hidden>
-            N64 texture sampler active (experimental) · Space to toggle
-          </span>
-
           <input style="visibility:hidden; display:inline-block;" id="fileInput" name="fileInput" type="file"
                  onchange="n64js.ui().loadFile()" />
         </div>
@@ -687,16 +683,9 @@
         vec4 env   = uEnvColor;
         vec4 one   = vec4(1,1,1,1);
         vec4 zero  = vec4(0,0,0,0);
-        #ifdef N64_TEXTURE_SAMPLER
         highp vec2 uv = textureCoordinates();
         vec4 tex0 = sampleN64Texture(uSampler0, uv, uTexScale0, uTexOffset0, uTile0);
         vec4 tex1 = sampleN64Texture(uSampler1, uv, uTexScale1, uTexOffset1, uTile1);
-        #else
-        highp vec2 uv0 = (vUV - uTexOffset0) * uTexScale0;
-        highp vec2 uv1 = (vUV - uTexOffset1) * uTexScale1;
-        vec4 tex0  = texture(uSampler0, uv0);
-        vec4 tex1  = texture(uSampler1, uv1);
-        #endif
         if (uTextureYUV.y) {
           tex1 = uTextureConvert == 0 ? convertYUV(tex1) : vec4(tex1.rg - 128.0 / 255.0, tex1.b, tex1.b);
         }

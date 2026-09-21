@@ -2,7 +2,6 @@
 // Serve the repository root, then open /tools/texture_sampler_webgl.html.
 // These tests exercise the real renderer, generated shaders and GPU readback.
 import * as gbi from '../src/hle/gbi.js';
-import { graphicsOptions } from '../src/hle/graphics_options.js';
 import { Renderer } from '../src/hle/renderer.js';
 import { RenderTargets } from '../src/hle/render_targets.js';
 import { RSPState } from '../src/hle/rsp_state.js';
@@ -28,7 +27,8 @@ try {
     const tex = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, tex);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(pixels.flat()));
-    gl.generateMipmap(gl.TEXTURE_2D);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
     return { width, height, texture: tex };
   }
   const red = [255, 0, 0, 255], green = [0, 255, 0, 255];
@@ -44,11 +44,10 @@ try {
     uv = [0, 0], tex = quad, tex1 = null, filter = gbi.TextureFilter.G_TF_POINT,
     cycle = gbi.CycleType.G_CYC_1CYCLE, mode = [0, 0], mask = [0, 0],
     shift = [0, 0], origin = [0, 0], last = [tex.width - 1, tex.height - 1],
-    manual = true, texgen = false, second = false, enabled = true, tileIndex = 0,
+    texgen = false, second = false, enabled = true, tileIndex = 0,
     lod = gbi.TextureLOD.G_TL_TILE, level = 0, detail = gbi.TextureDetail.G_TD_CLAMP,
     decode = false, format = gbi.ImageFormat.G_IM_FMT_RGBA, size = gbi.ImageSize.G_IM_SIZ_16b, line = 1,
   } = {}) {
-    graphicsOptions.emulatedTextureSampler = manual;
     state.rdpOtherModeH = cycle | filter | lod | detail;
     state.texture.level = level;
     // (texel - zero) * shade + zero, in each combiner cycle. Keep both
@@ -119,13 +118,8 @@ try {
   check('single-level sharpen also shares the base tile', red, { ...singleLevelLOD, detail: gbi.TextureDetail.G_TD_SHARPEN });
   check('detail mode retains a separate second tile', blue, { ...singleLevelLOD, detail: gbi.TextureDetail.G_TD_DETAIL, tex1: column, uv: [0, 2] });
   check('multiple LOD levels retain a separate second tile', blue, { ...singleLevelLOD, level: 1, tex1: column, uv: [0, 2] });
-  check('single-level LOD also binds the base tile in WebGL mode', red, { ...singleLevelLOD, manual: false });
   check('untextured draw clears previous sampler state', [0, 0, 0, 255], { enabled: false });
-  const manualShader = renderer.getCurrentN64Shader();
-  check('toggle back to WebGL filtering', [159, 64, 64, 255], { uv: [0.75, 0.75], filter: gbi.TextureFilter.G_TF_BILERP, manual: false });
-  const legacyShader = renderer.getCurrentN64Shader();
-  check('toggle restores N64 filtering', [128, 191, 191, 255], { uv: [0.75, 0.75], filter: gbi.TextureFilter.G_TF_BILERP });
-  if (renderer.getCurrentN64Shader() !== manualShader || manualShader === legacyShader) throw new Error('Sampler shader cache variants collided');
+  check('texture sampling resumes after an untextured draw', [128, 191, 191, 255], { uv: [0.75, 0.75], filter: gbi.TextureFilter.G_TF_BILERP });
 
   // Exercise rectangle interpolation through real geometry, not constant UVs.
   // A four-row, wrapped strip is the same boundary case as Mario Kart's menus.
@@ -218,11 +212,12 @@ try {
   check('copy mode decodes the wrap period even with clamp enabled', white, {
     ...scrolling, origin: [32, 0], uv: [16, 0], mode: [2, 0], cycle: gbi.CycleType.G_CYC_COPY,
   });
-  graphicsOptions.emulatedTextureSampler = false;
-  const legacyTexture = renderer.lookupTexture(0);
-  if (legacyTexture.width !== 33 || legacyTexture.height !== 64) throw new Error('Experimental decoding changed the legacy texture extent');
-  graphicsOptions.emulatedTextureSampler = true;
-  if (renderer.lookupTexture(0).width !== 64) throw new Error('Legacy texture cache truncated the experimental wrap region');
+  const copyTexture = renderer.lookupTexture(0);
+  state.rdpOtherModeH = gbi.CycleType.G_CYC_1CYCLE;
+  const clampedTexture = renderer.lookupTexture(0);
+  if (clampedTexture.width !== 33 || clampedTexture.height !== 64) throw new Error('Copy texture cache ignored the clamped extent');
+  state.rdpOtherModeH = gbi.CycleType.G_CYC_COPY;
+  if (renderer.lookupTexture(0) !== copyTexture) throw new Error('Clamped texture cache replaced the copy wrap region');
   output.textContent = `${passed} passed\n${lines.join('\n')}`;
   document.title = `${passed} passed`;
 } catch (error) {

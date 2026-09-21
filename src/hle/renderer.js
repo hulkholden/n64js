@@ -3,7 +3,6 @@
 import { toString16, toString32 } from "../format.js";
 import { Vector2 } from "../graphics/Vector2.js";
 import * as gbi from './gbi.js';
-import { graphicsOptions } from './graphics_options.js';
 import { RendererBase } from './renderer_base.js';
 import { RenderTargets } from './render_targets.js';
 import * as shaders from './shaders.js';
@@ -431,24 +430,22 @@ export class Renderer extends RendererBase {
     shader.vertexArray.setColorData(colours, gl.DYNAMIC_DRAW, numVertices);
     shader.vertexArray.setUVData(coords, gl.DYNAMIC_DRAW, numVertices * 2);
 
-    this.bindTexture(0, gl.TEXTURE0, tile0, texture0, texGenEnabled, shader.uSamplerUniform0, shader.uTexScaleUniform0, shader.uTexOffsetUniform0, shader);
-    this.bindTexture(1, gl.TEXTURE1, tile1, texture1, texGenEnabled, shader.uSamplerUniform1, shader.uTexScaleUniform1, shader.uTexOffsetUniform1, shader);
-    if (shader.emulatedTextureSampler) {
-      const copy = this.state.getCycleType() === gbi.CycleType.G_CYC_COPY;
-      const filter = copy ? gbi.TextureFilter.G_TF_POINT : this.state.getTextureFilterType();
-      gl.uniform1i(shader.uTextureFilterUniform, filter >>> gbi.G_MDSFT_TEXTFILT);
-      gl.uniform1i(shader.uTextureRectEnabledUniform, textureRect ? 1 : 0);
-      if (textureRect) {
-        const { x0, y0, s0, t0, dsdx, dtdy, flip } = textureRect;
-        const { viWidth, viHeight } = this.nativeTransform;
-        gl.uniform4f(shader.uTextureRectScreenUniform,
-          viWidth / this.renderTargets.width, -viHeight / this.renderTargets.height, 0, viHeight);
-        // Rectangle interpolation starts on the first native scanline; the
-        // copy pipe additionally ignores the fractional X origin.
-        gl.uniform4f(shader.uTextureRectOriginUniform, copy ? Math.floor(x0) : x0, Math.floor(y0), s0, t0);
-        gl.uniform4f(shader.uTextureRectDerivativesUniform,
-          flip ? 0 : dsdx, flip ? dtdy : 0, flip ? dsdx : 0, flip ? 0 : dtdy);
-      }
+    this.bindTexture(0, tile0, texture0, texGenEnabled, shader.textureUniforms[0]);
+    this.bindTexture(1, tile1, texture1, texGenEnabled, shader.textureUniforms[1]);
+    const copy = this.state.getCycleType() === gbi.CycleType.G_CYC_COPY;
+    const filter = copy ? gbi.TextureFilter.G_TF_POINT : this.state.getTextureFilterType();
+    gl.uniform1i(shader.uTextureFilterUniform, filter >>> gbi.G_MDSFT_TEXTFILT);
+    gl.uniform1i(shader.uTextureRectEnabledUniform, textureRect ? 1 : 0);
+    if (textureRect) {
+      const { x0, y0, s0, t0, dsdx, dtdy, flip } = textureRect;
+      const { viWidth, viHeight } = this.nativeTransform;
+      gl.uniform4f(shader.uTextureRectScreenUniform,
+        viWidth / this.renderTargets.width, -viHeight / this.renderTargets.height, 0, viHeight);
+      // Rectangle interpolation starts on the first native scanline; the
+      // copy pipe additionally ignores the fractional X origin.
+      gl.uniform4f(shader.uTextureRectOriginUniform, copy ? Math.floor(x0) : x0, Math.floor(y0), s0, t0);
+      gl.uniform4f(shader.uTextureRectDerivativesUniform,
+        flip ? 0 : dsdx, flip ? dtdy : 0, flip ? dsdx : 0, flip ? 0 : dtdy);
     }
 
     gl.uniform1f(shader.uAlphaThresholdUniform, alphaThreshold);
@@ -482,7 +479,7 @@ export class Renderer extends RendererBase {
     const enableAlphaThreshold = (this.state.getAlphaCompareType() & gbi.AlphaCompare.G_AC_THRESHOLD) != 0;
     const enableAlphaCvgKill = this.state.getAntiAliasEnabled() && this.state.getCoverageTimesAlpha();
 
-    return shaders.getOrCreateN64Shader(this.gl, mux0, mux1, cycleType, enableAlphaThreshold || enableAlphaCvgKill, graphicsOptions.emulatedTextureSampler);
+    return shaders.getOrCreateN64Shader(this.gl, mux0, mux1, cycleType, enableAlphaThreshold || enableAlphaCvgKill);
   }
 
   /**
@@ -496,9 +493,7 @@ export class Renderer extends RendererBase {
     if (tile.line === 0) {
       return null;
     }
-    if (graphicsOptions.emulatedTextureSampler) {
-      tile = textureDecodeTile(tile, this.state.getCycleType() === gbi.CycleType.G_CYC_COPY);
-    }
+    tile = textureDecodeTile(tile, this.state.getCycleType() === gbi.CycleType.G_CYC_COPY);
 
     // FIXME: we can cache this if tile/tmem state hasn't changed since the last draw call.
     const hash = this.state.tmem.calculateCRC(tile);
@@ -554,97 +549,37 @@ export class Renderer extends RendererBase {
     gl.bindTexture(gl.TEXTURE_2D, texture.texture);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texture.canvas);
 
-    gl.generateMipmap(gl.TEXTURE_2D);
+    // texelFetch only reads level zero; no host mipmaps are needed.
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
     gl.bindTexture(gl.TEXTURE_2D, null);
     return texture;
   }
 
 
-  bindTexture(slot, glTextureId, tile, texture, texGenEnabled, sampleUniform, texScaleUniform, texOffsetUniform, shader) {
+  bindTexture(slot, tile, texture, texGenEnabled, uniforms) {
     const gl = this.gl;
 
-    gl.activeTexture(glTextureId);
-    if (shader.emulatedTextureSampler) {
-      gl.uniform1i(sampleUniform, slot);
-      gl.uniform1i(shader.tileUniforms[slot].enabled, texture ? 1 : 0);
-    }
+    gl.activeTexture(gl.TEXTURE0 + slot);
+    gl.uniform1i(uniforms.sampler, slot);
+    gl.uniform1i(uniforms.enabled, texture ? 1 : 0);
+    gl.bindTexture(gl.TEXTURE_2D, texture ? texture.texture : null);
+    if (!texture) return;
 
-    if (!texture) {
-      gl.bindTexture(gl.TEXTURE_2D, null);
-      return;
-    }
-
-    if (shader.emulatedTextureSampler) {
-      gl.bindTexture(gl.TEXTURE_2D, texture.texture);
-      // Generated coordinates use the HLE tile extent, independently of any
-      // extra texels decoded to cover the full wrap region.
-      gl.uniform2f(texScaleUniform, shiftFactor(tile.shiftS) * (texGenEnabled ? tile.width : 1),
-        shiftFactor(tile.shiftT) * (texGenEnabled ? tile.height : 1));
-      gl.uniform2f(texOffsetUniform, texGenEnabled ? 0 : tile.left, texGenEnabled ? 0 : tile.top);
-      const uniforms = shader.tileUniforms[slot];
-      gl.uniform4f(uniforms.bounds, tile.right - tile.left, tile.bottom - tile.top,
-        ((tile.lrs >>> 2) - (tile.uls >>> 2)) & 0x3ff, ((tile.lrt >>> 2) - (tile.ult >>> 2)) & 0x3ff);
-      gl.uniform2i(uniforms.mask, tile.maskS, tile.maskT);
-      // Mask zero implicitly clamps, even when the clamp bit is clear.
-      // The copy pipeline applies shifts and masks but bypasses tile clamping.
-      const copy = this.state.getCycleType() === gbi.CycleType.G_CYC_COPY;
-      gl.uniform2i(uniforms.mode,
-        copy ? tile.cmS & gbi.G_TX_MIRROR : tile.cmS | (tile.maskS === 0 ? gbi.G_TX_CLAMP : 0),
-        copy ? tile.cmT & gbi.G_TX_MIRROR : tile.cmT | (tile.maskT === 0 ? gbi.G_TX_CLAMP : 0));
-      // texelFetch ignores filtering/wrapping, but the texture must be complete.
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-      return;
-    }
-
-    let uvOffsetU = tile.left;
-    let uvOffsetV = tile.top;
-    let uvScaleU = 1.0 / texture.width;
-    let uvScaleV = 1.0 / texture.height;
-
-    // Horrible hack for wetrix. For some reason uvs come out 2x what they should be.
-    if (texture.width === 56 && texture.height === 29) {
-      uvScaleU *= 0.5;
-      uvScaleV *= 0.5;
-    }
-
-    // When texture coordinates are generated, they're already correctly
-    // scaled. Maybe they should be generated in this coord space?
-    if (texGenEnabled) {
-      uvScaleU = 1;
-      uvScaleV = 1;
-      uvOffsetU = 0;
-      uvOffsetV = 0;
-    }
-
-    uvScaleU *= shiftFactor(tile.shiftS);
-    uvScaleV *= shiftFactor(tile.shiftT);
-
-    gl.bindTexture(gl.TEXTURE_2D, texture.texture);
-
-    gl.uniform1i(sampleUniform, slot);
-    gl.uniform2f(texScaleUniform, uvScaleU, uvScaleV);
-    gl.uniform2f(texOffsetUniform, uvOffsetU, uvOffsetV);
-
-    if (this.state.getTextureFilterType() == gbi.TextureFilter.G_TF_POINT) {
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST_MIPMAP_NEAREST);
-    } else {
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
-    }
-
-    // When not masking, Clamp S,T is ignored and clamping is implicitly enabled
-    const clampS = tile.cmS === gbi.G_TX_CLAMP || (tile.maskS === 0);
-    const clampT = tile.cmT === gbi.G_TX_CLAMP || (tile.maskT === 0);
-    const mirrorS = tile.cmS === gbi.G_TX_MIRROR;
-    const mirrorT = tile.cmT === gbi.G_TX_MIRROR;
-
-    const modeS = clampS ? gl.CLAMP_TO_EDGE : (mirrorS ? gl.MIRRORED_REPEAT : gl.REPEAT);
-    const modeT = clampT ? gl.CLAMP_TO_EDGE : (mirrorT ? gl.MIRRORED_REPEAT : gl.REPEAT);
-
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, modeS);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, modeT);
+    // Generated coordinates use the HLE tile extent, independently of any
+    // extra texels decoded to cover the full wrap region.
+    gl.uniform2f(uniforms.scale, shiftFactor(tile.shiftS) * (texGenEnabled ? tile.width : 1),
+      shiftFactor(tile.shiftT) * (texGenEnabled ? tile.height : 1));
+    gl.uniform2f(uniforms.offset, texGenEnabled ? 0 : tile.left, texGenEnabled ? 0 : tile.top);
+    gl.uniform4f(uniforms.bounds, tile.right - tile.left, tile.bottom - tile.top,
+      ((tile.lrs >>> 2) - (tile.uls >>> 2)) & 0x3ff, ((tile.lrt >>> 2) - (tile.ult >>> 2)) & 0x3ff);
+    gl.uniform2i(uniforms.mask, tile.maskS, tile.maskT);
+    // Mask zero implicitly clamps, even when the clamp bit is clear.
+    // The copy pipeline applies shifts and masks but bypasses tile clamping.
+    const copy = this.state.getCycleType() === gbi.CycleType.G_CYC_COPY;
+    gl.uniform2i(uniforms.mode,
+      copy ? tile.cmS & gbi.G_TX_MIRROR : tile.cmS | (tile.maskS === 0 ? gbi.G_TX_CLAMP : 0),
+      copy ? tile.cmT & gbi.G_TX_MIRROR : tile.cmT | (tile.maskT === 0 ? gbi.G_TX_CLAMP : 0));
   }
 
   setGLBlendMode() {
