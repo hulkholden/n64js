@@ -5,6 +5,7 @@ import * as gbi from '../src/hle/gbi.js';
 import { Renderer } from '../src/hle/renderer.js';
 import { RenderTargets } from '../src/hle/render_targets.js';
 import { RSPState } from '../src/hle/rsp_state.js';
+import { TriangleBuffer } from '../src/hle/triangle_buffer.js';
 
 const output = document.getElementById('results');
 try {
@@ -47,8 +48,9 @@ try {
     texgen = false, second = false, enabled = true, tileIndex = 0,
     lod = gbi.TextureLOD.G_TL_TILE, level = 0, detail = gbi.TextureDetail.G_TD_CLAMP,
     decode = false, format = gbi.ImageFormat.G_IM_FMT_RGBA, size = gbi.ImageSize.G_IM_SIZ_16b, line = 1,
+    rspTriangle = false, perspective = gbi.TexturePerspective.G_TP_PERSP,
   } = {}) {
-    state.rdpOtherModeH = cycle | filter | lod | detail;
+    state.rdpOtherModeH = cycle | filter | lod | detail | perspective;
     state.texture.level = level;
     // (texel - zero) * shade + zero, in each combiner cycle. Keep both
     // vertex attributes active, including when testing the second sampler.
@@ -64,11 +66,25 @@ try {
     nextTile.setSize(0, 0, (tex1?.width - 1 || 0) * 4, (tex1?.height - 1 || 0) * 4);
     if (decode) delete renderer.lookupTexture;
     else renderer.lookupTexture = i => i === tileIndex ? tex : tex1;
-    renderer.setProgramState(positions, colors, new Float32Array([...uv, ...uv, ...uv]), enabled, texgen, tileIndex);
-    // Existing VertexArray setup enables inactive attributes in copy/fill
-    // shaders; discard those setup errors so drawing errors remain visible.
-    while (gl.getError() !== gl.NO_ERROR) { /* drain setup errors */ }
-    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    const coords = new Float32Array([...uv, ...uv, ...uv]);
+    if (rspTriangle) {
+      const buffer = new TriangleBuffer(1);
+      buffer.numTris = 1;
+      buffer.positions.set(positions);
+      buffer.colours.set(colors);
+      buffer.coords.set(coords);
+      state.texture.tile = tileIndex;
+      state.geometryMode.texture = enabled;
+      state.geometryMode.lighting = texgen;
+      state.geometryMode.textureGen = texgen;
+      renderer.flushTris(buffer);
+    } else {
+      renderer.setProgramState(positions, colors, coords, enabled, texgen, tileIndex);
+      // Existing VertexArray setup enables inactive attributes in copy/fill
+      // shaders; discard those setup errors so drawing errors remain visible.
+      while (gl.getError() !== gl.NO_ERROR) { /* drain setup errors */ }
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+    }
     const actual = new Uint8Array(4);
     gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, actual);
     const error = gl.getError();
@@ -120,6 +136,20 @@ try {
   check('multiple LOD levels retain a separate second tile', blue, { ...singleLevelLOD, level: 1, tex1: column, uv: [0, 2] });
   check('untextured draw clears previous sampler state', [0, 0, 0, 255], { enabled: false });
   check('texture sampling resumes after an untextured draw', [128, 191, 191, 255], { uv: [0.75, 0.75], filter: gbi.TextureFilter.G_TF_BILERP });
+
+  // Wetrix supplies twice the texel coordinates for its G_TP_NONE triangles.
+  // Use unrelated texture dimensions to catch a size-specific workaround.
+  const noPerspective = { rspTriangle: true, perspective: gbi.TexturePerspective.G_TP_NONE };
+  check('non-perspective triangles halve S', green, { ...noPerspective, tex: row, uv: [2, 0] });
+  check('non-perspective triangles halve T', green, { ...noPerspective, tex: column, uv: [0, 2] });
+  check('triangle scale precedes tile shift and origin', green, {
+    ...noPerspective, tex: row, uv: [8, 0], shift: [1, 0], origin: [1, 0], last: [4, 0],
+  });
+  check('both combiner cycles use the triangle scale', green, {
+    ...noPerspective, tex1: column, uv: [0, 2], cycle: gbi.CycleType.G_CYC_2CYCLE,
+  });
+  check('generated triangle coordinates use the same scale', red, { ...noPerspective, uv: [0.75, 0.75], texgen: true });
+  check('perspective triangles retain their coordinate scale', blue, { rspTriangle: true, tex: row, uv: [2, 0] });
 
   // Exercise rectangle interpolation through real geometry, not constant UVs.
   // A four-row, wrapped strip is the same boundary case as Mario Kart's menus.

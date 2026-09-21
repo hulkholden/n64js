@@ -68,6 +68,8 @@ samples across wrapped texture-strip boundaries (such as Mario Kart's menu
 images), without overriding the tile's clamp or wrap settings. Rectangle images
 retain their native pixel grid; triangles and rotated sprites still use the
 renderer’s interpolated texture coordinates.
+RSP triangles also apply the half-scale S/T convention when `G_TP_NONE` is set,
+restoring Wetrix's menu icons without a texture-size-specific workaround.
 
 The sampler reads level zero of the decoded textures. With N64 LOD enabled
 and only one mip level, both cycles use the base tile (except in detail

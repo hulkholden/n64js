@@ -172,6 +172,19 @@ export class Renderer extends RendererBase {
 
     const textureEnabled = !lines && this.state.geometryMode.texture;
     const texGenEnabled = !lines && this.state.geometryMode.lighting && this.state.geometryMode.textureGen;
+
+    // RSP triangle S/T has half the scale when the RDP perspective divide is
+    // disabled (e.g. Wetrix's menu icons). Apply this at draw time, since the
+    // mode can change after loading vertices. Only change the flushed buffer;
+    // cached vertices and the RDP/S2DEX rectangle paths keep their coordinates.
+    // See VertexShaderTexturedTriangle in GLideN64's
+    // src/Graphics/OpenGLContext/GLSL/glsl_CombinerProgramBuilderAccurate.cpp.
+    if (textureEnabled && (this.state.rdpOtherModeH & gbi.G_TP_MASK) === 0) {
+      for (let i = 0; i < tb.numTris * 6; i++) {
+        tb.coords[i] *= 0.5;
+      }
+    }
+
     this.setProgramState(tb.positions,
       tb.colours,
       tb.coords,

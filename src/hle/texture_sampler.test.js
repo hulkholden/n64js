@@ -1,10 +1,12 @@
 import { expect, test } from 'bun:test';
 import * as gbi from './gbi.js';
+import { ProjectedVertex } from './projected_vertex.js';
 import { Renderer } from './renderer.js';
 import { RSPState } from './rsp_state.js';
 import { Tile } from './tile.js';
 import { TMEM } from './tmem.js';
 import { textureDecodeTile } from './texture_sampler.js';
+import { TriangleBuffer } from './triangle_buffer.js';
 
 function fixture() {
   const values = new Map();
@@ -66,6 +68,33 @@ test('an absent second tile cannot reuse the previous draw or sampler zero', () 
   expect(values.get('enabled1')).toEqual([0]);
   expect(values.get('sampler1')).toEqual([1]);
   expect(values.get('texture')).toEqual(['texture2D', null]);
+});
+
+test('triangle perspective mode is applied at draw time without rescaling cached vertices', () => {
+  const state = new RSPState();
+  state.geometryMode.texture = 1;
+  const gl = { disable() {}, depthMask() {}, drawArrays() {}, bindVertexArray() {} };
+  let drawnCoords;
+  const renderer = Object.assign(Object.create(Renderer.prototype), {
+    gl, state, initDepth() {}, markFramebufferDirty() {},
+    setProgramState(positions, colors, coords, enabled, texgen, tile, count) {
+      drawnCoords = Array.from(coords.slice(0, count * 2));
+    },
+  });
+  const vertex = new ProjectedVertex();
+  // Wetrix's icon vertices span twice the 56x29 texture dimensions.
+  vertex.u = 112;
+  vertex.v = 58;
+  const buffer = new TriangleBuffer(2);
+  for (const perspective of [true, false, false, true]) {
+    buffer.pushTri(vertex, vertex, vertex);
+    state.rdpOtherModeH = perspective ? gbi.TexturePerspective.G_TP_PERSP : gbi.TexturePerspective.G_TP_NONE;
+    renderer.flushTris(buffer);
+    const uv = perspective ? [112, 58] : [56, 29];
+    expect(drawnCoords).toEqual([...uv, ...uv, ...uv]);
+    expect([vertex.u, vertex.v]).toEqual([112, 58]);
+    expect(buffer.empty()).toBe(true);
+  }
 });
 
 test('scrolling a wrapped tile retains its complete texture and original clamp bounds', () => {
