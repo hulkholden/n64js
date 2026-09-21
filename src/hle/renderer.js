@@ -569,20 +569,27 @@ export class Renderer extends RendererBase {
 
     // Generated coordinates use the HLE tile extent, independently of any
     // extra texels decoded to cover the full wrap region.
-    gl.uniform2f(uniforms.scale, shiftFactor(tile.shiftS) * (texGenEnabled ? tile.width : 1),
-      shiftFactor(tile.shiftT) * (texGenEnabled ? tile.height : 1));
-    gl.uniform2f(uniforms.offset, texGenEnabled ? 0 : tile.left, texGenEnabled ? 0 : tile.top);
+    const scaleS = shiftFactor(tile.shiftS) * (texGenEnabled ? tile.width : 1);
+    const scaleT = shiftFactor(tile.shiftT) * (texGenEnabled ? tile.height : 1);
+    const offsetS = texGenEnabled ? 0 : tile.left;
+    const offsetT = texGenEnabled ? 0 : tile.top;
+    gl.uniform2f(uniforms.scale, scaleS, scaleT);
+    gl.uniform2f(uniforms.offset, offsetS, offsetT);
 
-    gl.uniform4f(uniforms.bounds, tile.right - tile.left, tile.bottom - tile.top,
-      ((tile.lrs >>> 2) - (tile.uls >>> 2)) & 0x3ff, ((tile.lrt >>> 2) - (tile.ult >>> 2)) & 0x3ff);
+    // Clamp boundaries retain fractional tile coordinates; clamp texels are integers.
+    const clampBoundaryS = tile.right - tile.left;
+    const clampBoundaryT = tile.bottom - tile.top;
+    const clampTexelS = ((tile.lrs >>> 2) - (tile.uls >>> 2)) & 0x3ff;
+    const clampTexelT = ((tile.lrt >>> 2) - (tile.ult >>> 2)) & 0x3ff;
+    gl.uniform4f(uniforms.bounds, clampBoundaryS, clampBoundaryT, clampTexelS, clampTexelT);
     gl.uniform2i(uniforms.mask, tile.maskS, tile.maskT);
 
     // Mask zero implicitly clamps, even when the clamp bit is clear.
     // The copy pipeline applies shifts and masks but bypasses tile clamping.
     const copy = this.state.getCycleType() === gbi.CycleType.G_CYC_COPY;
-    gl.uniform2i(uniforms.mode,
-      copy ? tile.cmS & gbi.G_TX_MIRROR : tile.cmS | (tile.maskS === 0 ? gbi.G_TX_CLAMP : 0),
-      copy ? tile.cmT & gbi.G_TX_MIRROR : tile.cmT | (tile.maskT === 0 ? gbi.G_TX_CLAMP : 0));
+    const modeS = copy ? tile.cmS & gbi.G_TX_MIRROR : tile.cmS | (tile.maskS === 0 ? gbi.G_TX_CLAMP : 0);
+    const modeT = copy ? tile.cmT & gbi.G_TX_MIRROR : tile.cmT | (tile.maskT === 0 ? gbi.G_TX_CLAMP : 0);
+    gl.uniform2i(uniforms.mode, modeS, modeT);
   }
 
   setGLBlendMode() {
