@@ -2,7 +2,7 @@ import * as gbi from './gbi.js';
 import * as logger from '../logger.js';
 import { assert } from '../assert.js';
 import { VertexArray } from './vertex_array.js';
-import { textureSamplerSource } from './texture_sampler.js';
+import textureSamplerSource from './texture_sampler.glsl' with { type: 'text' };
 
 /**
  * Whether to log shaders as they're compiled.
