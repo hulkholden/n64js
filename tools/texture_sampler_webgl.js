@@ -244,6 +244,80 @@ try {
   if (clampedTexture.width !== 33 || clampedTexture.height !== 64) throw new Error('Copy texture cache ignored the clamped extent');
   state.rdpOtherModeH = gbi.CycleType.G_CYC_COPY;
   if (renderer.lookupTexture(0) !== copyTexture) throw new Error('Clamped texture cache replaced the copy wrap region');
+
+  // Wetrix uses NoN microcode with its field and background before the near
+  // plane. Verify pixels and depth with the production shaders, including a
+  // triangle crossing both Z planes and having unequal homogeneous W values.
+  gl.canvas.width = 4;
+  gl.canvas.height = 1;
+  renderer.renderTargets = new RenderTargets(gl, 4, 1);
+  renderer.newFrame();
+  state.reset(new DataView(new ArrayBuffer(4096)), 0);
+  state.rdpOtherModeH = gbi.CycleType.G_CYC_1CYCLE;
+  state.rdpOtherModeL = 0;
+  // Output shade in both cycles, without textures.
+  state.combine.hi = 0x00ffffff;
+  state.combine.lo = 0xfffe793c;
+  const depthBuffer = new TriangleBuffer(1);
+  function drawDepth(z, color, w = [1, 2, 4]) {
+    depthBuffer.numTris = 1;
+    const xy = [[-1, -1], [3, -1], [-1, 3]];
+    for (let i = 0; i < 3; i++) {
+      depthBuffer.positions.set([xy[i][0] * w[i], xy[i][1] * w[i], z[i] * w[i], w[i]], i * 4);
+    }
+    depthBuffer.colours.fill(color);
+    renderer.flushTris(depthBuffer);
+  }
+  function clearDepthScene() {
+    gl.clearColor(0, 0, 1, 1);
+    gl.clearDepth(1);
+    gl.depthMask(true);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  }
+  function checkDepth(name, expected) {
+    const actual = new Uint8Array(16);
+    gl.readPixels(0, 0, 4, 1, gl.RGBA, gl.UNSIGNED_BYTE, actual);
+    const error = gl.getError();
+    if (error !== gl.NO_ERROR || actual.some((value, i) => Math.abs(value - expected.flat()[i]) > 1)) {
+      throw new Error(`${name}: expected ${expected.flat()}, got ${Array.from(actual)} (GL error ${error})`);
+    }
+    lines.push(`PASS ${name}`);
+    passed++;
+  }
+  // Ignore inactive UV attribute setup errors as the sampler checks do above.
+  while (gl.getError() !== gl.NO_ERROR) { /* drain setup errors */ }
+  clearDepthScene();
+  state.noNearClipping = true;
+  drawDepth([-4, -4, -4], 0xff0000ff);
+  checkDepth('NoN renders the field before the near plane', [red, red, red, red]);
+
+  clearDepthScene();
+  state.noNearClipping = false;
+  drawDepth([-4, -4, -4], 0xff0000ff);
+  checkDepth('ordinary microcode still clips the near plane', [blue, blue, blue, blue]);
+
+  clearDepthScene();
+  state.noNearClipping = true;
+  state.geometryMode.zbuffer = 1;
+  state.rdpOtherModeL = gbi.RenderMode.Z_CMP | gbi.RenderMode.Z_UPD;
+  drawDepth([-2, 6, -2], 0xff0000ff);
+  checkDepth('NoN preserves far clipping with unequal W', [red, red, red, blue]);
+  // Original Z/W at these four pixels is -1.5, -0.5, 0.5, 1.5. The first
+  // two pixels must occlude an ordinary triangle at depth 0.5.
+  state.noNearClipping = false;
+  drawDepth([0, 0, 0], 0xff00ff00);
+  checkDepth('NoN clamps per-fragment depth without changing its slope', [red, red, green, green]);
+
+  clearDepthScene();
+  state.noNearClipping = true;
+  drawDepth([0, 0, 0], 0xff0000ff, [-1, -2, -4]);
+  checkDepth('NoN still clips geometry behind the eye', [blue, blue, blue, blue]);
+
+  // RDP rectangles bypass the RSP's NoN behavior even while it is selected.
+  state.rdpOtherModeL = gbi.DepthSource.G_ZS_PRIM;
+  state.primDepth = -4;
+  renderer.texRect(0, 0, 0, 320, 240, 0, 0, 0, 0);
+  checkDepth('RDP rectangles retain ordinary clipping after NoN triangles', [blue, blue, blue, blue]);
   output.textContent = `${passed} passed\n${lines.join('\n')}`;
   document.title = `${passed} passed`;
 } catch (error) {

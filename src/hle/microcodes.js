@@ -46,6 +46,10 @@ export function create(task, state, ramDV, onMicrocodeLoad = null) {
   assertHLESupported(info);
   const microcode = createMicrocode(info.id, state, ramDV);
   microcode.version = version;
+  // NoN microcodes draw geometry between the eye and the near plane. Update
+  // on every load, including switches back to ordinary microcode within a task.
+  // See https://github.com/gonetz/GLideN64/blob/master/src/GBI.cpp (NoN).
+  state.noNearClipping = version.includes('.NoN');
   onMicrocodeLoad?.(info);
   return microcode;
 }

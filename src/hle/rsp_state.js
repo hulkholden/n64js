@@ -45,6 +45,7 @@ export class RSPState {
     };
     this.rdpOtherModeL = 0;
     this.rdpOtherModeH = 0;
+    this.noNearClipping = false;
 
     this.rdpHalf0Cmd0 = 0;
     this.rdpHalf0Cmd1 = 0;
@@ -133,6 +134,7 @@ export class RSPState {
 
     this.rdpOtherModeL = 0x00500001;
     this.rdpOtherModeH = 0x00000000;
+    this.noNearClipping = false;
 
     this.projection = [Matrix4x4.identity()];
     this.modelview = [Matrix4x4.identity()];

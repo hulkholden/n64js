@@ -195,7 +195,7 @@ export class Renderer extends RendererBase {
       textureEnabled,
       texGenEnabled,
       this.state.texture.tile,
-      tb.numTris * 3);
+      tb.numTris * 3, null, this.state.noNearClipping);
 
     this.initDepth();
 
@@ -397,7 +397,7 @@ export class Renderer extends RendererBase {
     gl.depthMask(zUpdRenderMode);
   }
 
-  setProgramState(positions, colours, coords, textureEnabled, texGenEnabled, tileIdx, numVertices = positions.length / 4, textureRect = null) {
+  setProgramState(positions, colours, coords, textureEnabled, texGenEnabled, tileIdx, numVertices = positions.length / 4, textureRect = null, noNearClipping = false) {
     const gl = this.gl;
 
     this.setGLBlendMode();
@@ -438,7 +438,7 @@ export class Renderer extends RendererBase {
       alphaThreshold = 0;
     }
 
-    const shader = this.getCurrentN64Shader();
+    const shader = this.getCurrentN64Shader(noNearClipping);
     gl.useProgram(shader.program);
 
     // TODO: just return the shader and do the binding at the call site?
@@ -488,7 +488,7 @@ export class Renderer extends RendererBase {
       ((this.state.envColor >>> 0) & 0xff) / 255.0);
   }
 
-  getCurrentN64Shader() {
+  getCurrentN64Shader(noNearClipping = false) {
     const mux0 = this.state.combine.hi;
     const mux1 = this.state.combine.lo;
     const cycleType = this.state.getCycleType();
@@ -496,7 +496,7 @@ export class Renderer extends RendererBase {
     const enableAlphaThreshold = (this.state.getAlphaCompareType() & gbi.AlphaCompare.G_AC_THRESHOLD) != 0;
     const enableAlphaCvgKill = this.state.getAntiAliasEnabled() && this.state.getCoverageTimesAlpha();
 
-    return shaders.getOrCreateN64Shader(this.gl, mux0, mux1, cycleType, enableAlphaThreshold || enableAlphaCvgKill);
+    return shaders.getOrCreateN64Shader(this.gl, mux0, mux1, cycleType, enableAlphaThreshold || enableAlphaCvgKill, noNearClipping);
   }
 
   /**

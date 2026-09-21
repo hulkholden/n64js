@@ -18,10 +18,10 @@ const kLogShaders = false;
 let shaderCache = new Map();
 
 /**
- * The generic vertex shader to use. All N64 shaders use the same vertex shader.
- * @type {?WebGLShader}
+ * Vertex shaders for ordinary and NoN clipping, shared by all combiners.
+ * @type {!Map<boolean, !WebGLShader>}
  */
-let genericVertexShader = null;
+const vertexShaders = new Map();
 
 const rgbParams32 = [
   'combined.rgb', 'tex0.rgb', 'tex1.rgb', 'uPrimColor.rgb', 'shade.rgb', 'uEnvColor.rgb', 'one.rgb',
@@ -250,13 +250,17 @@ class N64Shader {
  * @param {number} mux1
  * @param {number} cycleType A CycleType value.
  * @param {boolean} enableAlphaThreshold Whether to enable alpha thresholding.
+ * @param {boolean} noNearClipping Whether to clamp depth instead of clipping the near plane.
  * @return {!N64Shader}
  */
-export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, enableAlphaThreshold) {
+export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, enableAlphaThreshold, noNearClipping = false) {
   // Check if this shader already exists. Copy/Fill are fixed-function so ignore mux for these.
   let stateText = (cycleType < gbi.CycleType.G_CYC_COPY) ? (`${mux0.toString(16) + mux1.toString(16)}_${cycleType}`) : cycleType.toString();
   if (enableAlphaThreshold) {
     stateText += `_alphaThreshold`;
+  }
+  if (noNearClipping) {
+    stateText += `_noNearClipping`;
   }
 
   let shader = shaderCache.get(stateText);
@@ -264,8 +268,12 @@ export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, enableAlphaThres
     return shader;
   }
 
-  if (!genericVertexShader) {
-    genericVertexShader = createShader(gl, vertexSource, gl.VERTEX_SHADER);
+  // The GLSL version directive must remain the first line.
+  const configureClipping = source => noNearClipping ? source.replace('\n', '\n#define NO_NEAR_CLIPPING\n') : source;
+  let vertexShader = vertexShaders.get(noNearClipping);
+  if (!vertexShader) {
+    vertexShader = createShader(gl, configureClipping(vertexSource), gl.VERTEX_SHADER);
+    vertexShaders.set(noNearClipping, vertexShader);
   }
 
   let aRGB0 = (mux0 >>> 20) & 0x0F;
@@ -319,7 +327,7 @@ vec4 combineColor(vec4 shade, vec4 tex0, vec4 tex1) {
 ${body}  return col;
 }
 `;
-  const shaderSource = fragmentSource + combinerSource;
+  const shaderSource = configureClipping(fragmentSource) + combinerSource;
 
   if (kLogShaders) {
     let decoded = '\n';
@@ -338,7 +346,7 @@ ${body}  return col;
   }
 
   let glProgram = gl.createProgram();
-  gl.attachShader(glProgram, genericVertexShader);
+  gl.attachShader(glProgram, vertexShader);
   gl.attachShader(glProgram, fragmentShader);
   gl.linkProgram(glProgram);
 
