@@ -2,7 +2,8 @@ import * as gbi from './gbi.js';
 import * as logger from '../logger.js';
 import { assert } from '../assert.js';
 import { VertexArray } from './vertex_array.js';
-import textureSamplerSource from './texture_sampler.glsl' with { type: 'text' };
+import vertexSource from './shaders/n64.vert.glsl' with { type: 'text' };
+import fragmentSource from './shaders/n64.frag.glsl' with { type: 'text' };
 
 /**
  * Whether to log shaders as they're compiled.
@@ -15,13 +16,6 @@ const kLogShaders = false;
  * @type {!Map<string, !N64Shader>}
  */
 let shaderCache = new Map();
-
-/**
- * The source of the fragment shader to use. We patch in the instructions that
- * we need to emulate the N64 render mode we're emulating.
- * @type {?string}
- */
-let fragmentSource = null;
 
 /**
  * The generic vertex shader to use. All N64 shaders use the same vertex shader.
@@ -166,15 +160,15 @@ const kAddInputA = [
 ];
 
 /**
- * Creates a shader program using the named script elements.
+ * Creates a shader program from vertex and fragment shader sources.
  * @param {!WebGLRenderingContext} gl The rendering context to use.
- * @param {string} vs_name The name of the vertex shader element.
- * @param {string} fs_name The name of the fragment shader element.
+ * @param {string} vertexSource The vertex shader source.
+ * @param {string} fragmentSource The fragment shader source.
  * @return {!WebGLProgram}
  */
-export function createShaderProgram(gl, vs_name, fs_name) {
-  let vertexShader   = getShader(gl, vs_name);
-  let fragmentShader = getShader(gl, fs_name);
+export function createShaderProgram(gl, vertexSource, fragmentSource) {
+  let vertexShader   = createShader(gl, vertexSource, gl.VERTEX_SHADER);
+  let fragmentShader = createShader(gl, fragmentSource, gl.FRAGMENT_SHADER);
 
   let program = gl.createProgram();
   gl.attachShader(program, vertexShader);
@@ -186,49 +180,6 @@ export function createShaderProgram(gl, vs_name, fs_name) {
     assert(false, "Unable to initialize the shader program.");
   }
   return program;
-}
-
-/**
- * Compiles and returns the shader contained in the named script element.
- * @param {string} id The name of the script element containing the shader.
- * @return {?WebGLShader}
- */
-function getShader(gl, id) {
-  let script = document.getElementById(id);
-  if (!script) {
-    return null;
-  }
-  let source = getScriptNodeSource(script);
-
-  let type;
-  if (script.type === 'x-shader/x-fragment') {
-    type = gl.FRAGMENT_SHADER;
-  } else if (script.type === 'x-shader/x-vertex') {
-    type = gl.VERTEX_SHADER;
-  } else {
-     return null;
-  }
-
-  return createShader(gl, source, type);
-}
-
-/**
- * Returns the source of a shader script element.
- * @param {!Element} shaderScript The shader script element.
- * @return {string}
- */
-function getScriptNodeSource(shaderScript) {
-  let source = '';
-
-  let currentChild = shaderScript.firstChild;
-  while(currentChild) {
-    if (currentChild.nodeType == Node.TEXT_NODE) {
-      source += currentChild.textContent;
-    }
-    currentChild = currentChild.nextSibling;
-  }
-
-  return source;
 }
 
 /**
@@ -314,14 +265,7 @@ export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, enableAlphaThres
   }
 
   if (!genericVertexShader) {
-    genericVertexShader = getShader(gl, 'n64-shader-vs');
-  }
-
-  if (!fragmentSource) {
-    let fragmentScript = document.getElementById('n64-shader-fs');
-    if (fragmentScript) {
-      fragmentSource = getScriptNodeSource(fragmentScript);
-    }
+    genericVertexShader = createShader(gl, vertexSource, gl.VERTEX_SHADER);
   }
 
   let aRGB0 = (mux0 >>> 20) & 0x0F;
@@ -368,8 +312,7 @@ export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, enableAlphaThres
     body += 'if(col.a <= uAlphaThreshold) discard;\n';
   }
 
-  let shaderSource = fragmentSource.replace('{{body}}', body)
-    .replace('{{textureSampler}}', textureSamplerSource);
+  let shaderSource = fragmentSource.replace('{{body}}', body);
 
   if (kLogShaders) {
     let decoded = '\n';

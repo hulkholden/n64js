@@ -192,9 +192,8 @@ async function createManifest(browser, launchArgs, environment, pixelChecks) {
     capturedAt: new Date().toISOString(),
     sourceRevision,
     workingTreeDirty: Boolean(workingTreeStatus),
-    // These also identify uncommitted scene/renderer changes at capture time.
+    // Includes the GLSL sources and uncommitted scene/renderer changes.
     bundleSHA256: await hashFile(visualBundle),
-    shaderDocumentSHA256: await hashFile('index.html'),
     playwright: JSON.parse(playwrightPackage).version,
     browserVersion: browser.version(),
     platform: process.platform,

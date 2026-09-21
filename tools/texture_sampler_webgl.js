@@ -9,10 +9,6 @@ import { TriangleBuffer } from '../src/hle/triangle_buffer.js';
 
 const output = document.getElementById('results');
 try {
-  const html = new DOMParser().parseFromString(await (await fetch('../index.html')).text(), 'text/html');
-  for (const script of html.querySelectorAll('script[type^="x-shader/"]')) {
-    document.body.append(document.importNode(script, true));
-  }
   const gl = document.getElementById('display').getContext('webgl2', { antialias: false });
   if (!gl) throw new Error('WebGL2 unavailable');
   const state = new RSPState();

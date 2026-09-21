@@ -54,12 +54,6 @@ function compare(actual, golden) {
 }
 
 try {
-  const response = await fetch('../index.html');
-  if (!response.ok) throw new Error(`Cannot load production shaders: ${response.status}`);
-  const html = new DOMParser().parseFromString(await response.text(), 'text/html');
-  for (const script of html.querySelectorAll('script[type^="x-shader/"]')) {
-    document.body.append(document.importNode(script, true));
-  }
   const harness = createHarness(document.getElementById('display'));
 
   async function render({ id, scale, frame = 0, capture = false }) {
