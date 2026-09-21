@@ -32,23 +32,6 @@ run `BUILD_VERSION=v1.0.1 bun run build`. `bun run build-debug` produces an
 unminified bundle with the same version handling. The Pages workflow sets
 `BUILD_VERSION` to the tag that triggered deployment.
 
-CI checks that pull requests and pushes to `master` pass linting and build
-successfully.
-
-Run ESLint (using Bun) or apply its automatic fixes:
-
-```
-bun run lint
-bun run lint:fix
-```
-
-Linting covers `src/`, including tests and benchmarks, `tools/`, and the ESLint
-config. It uses ESLint's recommended rules and fails on warnings as well as errors.
-Existing `no-unused-vars` findings are recorded in `eslint-suppressions.json` as
-a baseline of counts per file; increases fail CI. Other recommended rules remain
-fully enforced. When cleaning up existing unused variables, run
-`bun run lint --prune-suppressions` and commit the reduced baseline with the fix.
-
 Run a local webserver in the root directory:
 
 ```
@@ -56,56 +39,6 @@ python3 -m http.server
 ```
 
 Navigate to http://localhost:8000/.
-
-The renderer uses a `texelFetch` shader with tile shifts, clamp/mask/mirror
-addressing, point sampling, and N64 three-point filtering with 5-bit weights.
-Average mode uses four texels at the midpoint; copy mode uses point sampling.
-Both texture slots are supported.
-
-Axis-aligned texture rectangles use native N64 pixel positions when computing
-S/T, even when the framebuffer is upscaled. This avoids introducing fractional
-samples across wrapped texture-strip boundaries (such as Mario Kart's menu
-images), without overriding the tile's clamp or wrap settings. Rectangle images
-retain their native pixel grid; triangles and rotated sprites still use the
-renderer’s interpolated texture coordinates.
-RSP triangles also apply the half-scale S/T convention when `G_TP_NONE` is set,
-restoring Wetrix's menu icons without a texture-size-specific workaround.
-
-The sampler reads level zero of the decoded textures. With N64 LOD enabled
-and only one mip level, both cycles use the base tile (except in detail
-mode). It does not yet implement general N64 LOD selection, full fixed-point
-coordinate overflow, or separate YUV chroma filtering. Wrapping axes decode
-their full mask period (including mirroring), independently of the tile bounds, so
-scrolling backgrounds retain all their texels. Unmasked addresses outside the
-decoded image still replicate its edge; sampling all addressable TMEM will
-require extending the decoder.
-
-To run GPU sampler regression checks, build the browser test bundle and open
-http://localhost:8000/tools/texture_sampler_webgl.html on the same local server:
-
-```
-bun build tools/texture_sampler_webgl.js --outfile=build/texture_sampler_webgl.js
-```
-
-For side-by-side live, golden and difference images of synthetic textured
-primitives, run `bun run build:visual` and open
-http://localhost:8000/tools/texture_sampler_visual.html. The gallery covers clamp,
-repeat, mirror, filtering, scrolling, strips, transformed rectangles and triangles
-at native and 2× internal resolutions, without ROM files.
-
-`bun run test:visual` runs both the pixel checks and all visual comparisons in
-pinned Chromium with SwiftShader. Install the browser once with
-`bunx playwright install chromium`. See the [visual test guide](tools/texture_sampler/README.md)
-for capturing and reviewing new goldens, failure artifacts and the regression
-self-test.
-
-### PR system-test coverage
-
-PRs build a pinned n64-systemtest ROM from source and compare isolated main,
-TLB, and 64-bit-addressing groups against the PR base. Existing failures and
-unchanged, explicitly reported storm blockers are tolerated; new failures,
-lost coverage, and unexpected incomplete runs fail the check. Logs and ROMs are
-available as Actions artifacts. See [system-test configuration and local use](tools/systemtest/README.md).
 
 ### Headless controller input
 
@@ -142,6 +75,49 @@ commands, checked between batches. Exceeding that host safeguard raises
 `DisplayListLimitError`; inventory reports retain it as a halt with exception
 evidence, rather than claiming task completion. CPU producer waits receive a
 fresh budget on resume. Object-list microcodes use separate execution paths.
+
+## Continuous integration
+
+Pull requests run three GitHub Actions workflows. Open the failing check on the
+PR for its logs and download the run's artifacts when investigating a failure.
+
+### Lint, tests and build
+
+The [CI workflow](.github/workflows/build.yml) runs ESLint, Bun tests and the
+production build on pull requests and pushes to `master`. Run the same checks
+locally from the repository root:
+
+```sh
+bun run lint
+bun test
+bun run build
+```
+
+Use `bun run lint:fix` to apply automatic lint fixes. Linting covers `src/`,
+including tests and benchmarks, `tools/`, and the ESLint config. Warnings fail
+the check as well as errors. Existing `no-unused-vars` findings are recorded in
+`eslint-suppressions.json` as a baseline of counts per file; increases fail CI.
+Other recommended rules remain fully enforced. When cleaning up existing unused
+variables, run `bun run lint --prune-suppressions` and commit the reduced baseline.
+
+### N64 system tests
+
+The [system-test workflow](.github/workflows/systemtest.yml) builds pinned test
+ROMs from source and compares the PR against its base. It checks the main, TLB
+and 64-bit-addressing groups for new failures and lost coverage. The
+`n64-systemtest` artifact contains logs and JSON results for both revisions.
+See the [system-test guide](tools/systemtest/README.md) for comparison policy,
+configuration and debugging.
+
+### Texture sampler visuals
+
+The [texture-sampler workflow](.github/workflows/texture-sampler.yml) runs GPU
+pixel checks and compares synthetic rendered scenes with golden images in
+pinned Chromium with SwiftShader. It also verifies that a deliberately introduced
+sampling regression is detected. The `texture-sampler-visuals` artifact contains
+results and actual, golden and difference images for failed comparisons.
+See the [texture-sampler test guide](tools/texture_sampler/README.md) for running
+the checks locally, using the browser gallery and reviewing golden updates.
 
 ## Publishing
 

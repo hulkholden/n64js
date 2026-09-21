@@ -6,6 +6,9 @@ texture caching, tile state, combiners, shader generation, `texRect`, `texRectRo
 and `flushTris`. Only RAM and the primitives are synthetic. No ROM is needed,
 and there is no separate reference sampler in the test.
 
+The [Texture sampler visuals workflow](../../.github/workflows/texture-sampler.yml)
+runs both suites with `bun run test:visual --self-test` on every pull request.
+
 ## Open the gallery
 
 From the repository root:
@@ -28,6 +31,15 @@ comparison uses raw framebuffer readback: native size is 128 × 96 and 2× is
 The details panel records these separately, along with browser, GPU, WebGL
 options, tolerance and baseline capture provenance.
 
+To run just the explicit GPU pixel checks in the browser, build their bundle:
+
+```sh
+bun build tools/texture_sampler_webgl.js --outfile=build/texture_sampler_webgl.js
+```
+
+Then open [the pixel-check page](http://localhost:8000/tools/texture_sampler_webgl.html)
+on the same local server. The checks run automatically and report their results.
+
 ## Automated comparison
 
 Node.js 24 and Bun are used by the runner. Install its pinned browser once:
@@ -43,6 +55,8 @@ unsuccessfully on a changed pixel, missing/wrong-size golden, WebGL error or
 browser exception. Results go to `build/texture-sampler-results/results.json`;
 failures also save `*-actual.png`, `*-golden.png` and `*-difference.png` when
 available. `--output path` selects another results directory.
+In CI, download the `texture-sampler-visuals` artifact for these files, including
+the deliberate regression's images under `self-test/`.
 
 Playwright 1.58.2 pins Chromium and its SwiftShader software backend. CI uses
 Ubuntu 24.04 and uploads the results even on failure. A channel difference of
