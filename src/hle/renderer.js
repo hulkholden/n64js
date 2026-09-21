@@ -9,6 +9,10 @@ import * as shaders from './shaders.js';
 import { Texture } from './textures.js';
 import { textureDecodeTile } from './texture_sampler.js';
 import { VertexArray } from "./vertex_array.js";
+import blitVertexSource from './shaders/blit.vert.glsl' with { type: 'text' };
+import blitFragmentSource from './shaders/blit.frag.glsl' with { type: 'text' };
+import fillVertexSource from './shaders/fill.vert.glsl' with { type: 'text' };
+import fillFragmentSource from './shaders/fill.frag.glsl' with { type: 'text' };
 
 const kBlendModeUnknown = 0;
 const kBlendModeOpaque = 1;
@@ -36,11 +40,11 @@ export class Renderer extends RendererBase {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     // We call texImage2D to initialise frameBufferTexture2D with the correct dimensions when it's used.
 
-    this.blitShaderProgram = shaders.createShaderProgram(gl, "blit-shader-vs", "blit-shader-fs");
+    this.blitShaderProgram = shaders.createShaderProgram(gl, blitVertexSource, blitFragmentSource);
     this.blitSamplerUniform = gl.getUniformLocation(this.blitShaderProgram, "uSampler");
     this.blitVA = this.initBlitVA(this.blitShaderProgram);
 
-    this.fillShaderProgram = shaders.createShaderProgram(gl, "fill-shader-vs", "fill-shader-fs");
+    this.fillShaderProgram = shaders.createShaderProgram(gl, fillVertexSource, fillFragmentSource);
     this.fillFillColorUniform = gl.getUniformLocation(this.fillShaderProgram, "uFillColor");
     this.fillRectVA = this.initFillRectVA(this.fillShaderProgram);
     this.debugClearVA = this.initClearVA(this.fillShaderProgram);

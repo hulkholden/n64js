@@ -2,7 +2,8 @@ import * as gbi from './gbi.js';
 import * as logger from '../logger.js';
 import { assert } from '../assert.js';
 import { VertexArray } from './vertex_array.js';
-import textureSamplerSource from './texture_sampler.glsl' with { type: 'text' };
+import vertexSource from './shaders/n64.vert.glsl' with { type: 'text' };
+import fragmentSource from './shaders/n64.frag.glsl' with { type: 'text' };
 
 /**
  * Whether to log shaders as they're compiled.
@@ -17,22 +18,15 @@ const kLogShaders = false;
 let shaderCache = new Map();
 
 /**
- * The source of the fragment shader to use. We patch in the instructions that
- * we need to emulate the N64 render mode we're emulating.
- * @type {?string}
- */
-let fragmentSource = null;
-
-/**
  * The generic vertex shader to use. All N64 shaders use the same vertex shader.
  * @type {?WebGLShader}
  */
 let genericVertexShader = null;
 
 const rgbParams32 = [
-  'combined.rgb', 'tex0.rgb', 'tex1.rgb', 'prim.rgb', 'shade.rgb', 'env.rgb', 'one.rgb',   
-  'combined.a',   'tex0.a',   'tex1.a',   'prim.a',   'shade.a',   'env.a',
-  'lod_frac', 'prim_lod_frac','k5',
+  'combined.rgb', 'tex0.rgb', 'tex1.rgb', 'uPrimColor.rgb', 'shade.rgb', 'uEnvColor.rgb', 'one.rgb',
+  'combined.a',   'tex0.a',   'tex1.a',   'uPrimColor.a',   'shade.a',   'uEnvColor.a',
+  'lod_frac', 'prim_lod_frac','uConvertK45.y',
   '?           ', '?           ',
   '?           ', '?           ',
   '?           ', '?           ',
@@ -46,9 +40,9 @@ const rgbParams32 = [
 // Tex0 and Tex1 are swapped in the second cycle.
 // TODO: is there an easier way to do this without duplicating the table?
 const rgbParams32C2 = [
-  'combined.rgb', 'tex1.rgb', 'tex0.rgb', 'prim.rgb', 'shade.rgb', 'env.rgb', 'one.rgb',    
-  'combined.a',   'tex1.a',   'tex0.a',   'prim.a',   'shade.a',   'env.a',
-  'lod_frac', 'prim_lod_frac', 'k5',
+  'combined.rgb', 'tex1.rgb', 'tex0.rgb', 'uPrimColor.rgb', 'shade.rgb', 'uEnvColor.rgb', 'one.rgb',
+  'combined.a',   'tex1.a',   'tex0.a',   'uPrimColor.a',   'shade.a',   'uEnvColor.a',
+  'lod_frac', 'prim_lod_frac', 'uConvertK45.y',
   '?           ', '?           ',
   '?           ', '?           ',
   '?           ', '?           ',
@@ -60,14 +54,14 @@ const rgbParams32C2 = [
 ];
 
 const rgbParams16 = [
-  'combined.rgb', 'tex0.rgb', 'tex1.rgb', 'prim.rgb', 'shade.rgb', 'env.rgb', 'one.rgb',   
-  'combined.a',   'tex0.a',   'tex1.a',   'prim.a',   'shade.a',   'env.a',
+  'combined.rgb', 'tex0.rgb', 'tex1.rgb', 'uPrimColor.rgb', 'shade.rgb', 'uEnvColor.rgb', 'one.rgb',
+  'combined.a',   'tex0.a',   'tex1.a',   'uPrimColor.a',   'shade.a',   'uEnvColor.a',
   'lod_frac', 'prim_lod_frac', 'zero.rgb'
 ];
 
 const rgbParams16C2 = [
-  'combined.rgb', 'tex1.rgb', 'tex0.rgb', 'prim.rgb', 'shade.rgb', 'env.rgb', 'one.rgb', 
-   'combined.a',  'tex1.a',   'tex0.a',   'prim.a',   'shade.a',   'env.a',
+  'combined.rgb', 'tex1.rgb', 'tex0.rgb', 'uPrimColor.rgb', 'shade.rgb', 'uEnvColor.rgb', 'one.rgb',
+   'combined.a',  'tex1.a',   'tex0.a',   'uPrimColor.a',   'shade.a',   'uEnvColor.a',
    'lod_frac', 'prim_lod_frac', 'zero.rgb'
 ];
 
@@ -77,22 +71,22 @@ const rgbParamsSubBC2 = [...rgbParams16C2];
 rgbParamsSubB[7] = rgbParamsSubBC2[7] = 'vec3(uConvertK45.x)';
 
 const rgbParams8 = [
-  'combined.rgb', 'tex0.rgb', 'tex1.rgb', 'prim.rgb', 'shade.rgb', 'env.rgb',
+  'combined.rgb', 'tex0.rgb', 'tex1.rgb', 'uPrimColor.rgb', 'shade.rgb', 'uEnvColor.rgb',
   'one.rgb', 'zero.rgb'
 ];
 
 const rgbParams8C2 = [
-  'combined.rgb', 'tex1.rgb', 'tex0.rgb', 'prim.rgb', 'shade.rgb', 'env.rgb',
+  'combined.rgb', 'tex1.rgb', 'tex0.rgb', 'uPrimColor.rgb', 'shade.rgb', 'uEnvColor.rgb',
   'one.rgb', 'zero.rgb'
 ];
 
 const alphaParams8 = [
-  'combined.a', 'tex0.a', 'tex1.a', 'prim.a', 'shade.a', 'env.a',
+  'combined.a', 'tex0.a', 'tex1.a', 'uPrimColor.a', 'shade.a', 'uEnvColor.a',
   'one.a', 'zero.a'
 ];
 
 const alphaParams8C2 = [
-  'combined.a', 'tex1.a', 'tex0.a', 'prim.a', 'shade.a', 'env.a',
+  'combined.a', 'tex1.a', 'tex0.a', 'uPrimColor.a', 'shade.a', 'uEnvColor.a',
   'one.a', 'zero.a'
 ];
 
@@ -166,15 +160,15 @@ const kAddInputA = [
 ];
 
 /**
- * Creates a shader program using the named script elements.
+ * Creates a shader program from vertex and fragment shader sources.
  * @param {!WebGLRenderingContext} gl The rendering context to use.
- * @param {string} vs_name The name of the vertex shader element.
- * @param {string} fs_name The name of the fragment shader element.
+ * @param {string} vertexSource The vertex shader source.
+ * @param {string} fragmentSource The fragment shader source.
  * @return {!WebGLProgram}
  */
-export function createShaderProgram(gl, vs_name, fs_name) {
-  let vertexShader   = getShader(gl, vs_name);
-  let fragmentShader = getShader(gl, fs_name);
+export function createShaderProgram(gl, vertexSource, fragmentSource) {
+  let vertexShader   = createShader(gl, vertexSource, gl.VERTEX_SHADER);
+  let fragmentShader = createShader(gl, fragmentSource, gl.FRAGMENT_SHADER);
 
   let program = gl.createProgram();
   gl.attachShader(program, vertexShader);
@@ -186,49 +180,6 @@ export function createShaderProgram(gl, vs_name, fs_name) {
     assert(false, "Unable to initialize the shader program.");
   }
   return program;
-}
-
-/**
- * Compiles and returns the shader contained in the named script element.
- * @param {string} id The name of the script element containing the shader.
- * @return {?WebGLShader}
- */
-function getShader(gl, id) {
-  let script = document.getElementById(id);
-  if (!script) {
-    return null;
-  }
-  let source = getScriptNodeSource(script);
-
-  let type;
-  if (script.type === 'x-shader/x-fragment') {
-    type = gl.FRAGMENT_SHADER;
-  } else if (script.type === 'x-shader/x-vertex') {
-    type = gl.VERTEX_SHADER;
-  } else {
-     return null;
-  }
-
-  return createShader(gl, source, type);
-}
-
-/**
- * Returns the source of a shader script element.
- * @param {!Element} shaderScript The shader script element.
- * @return {string}
- */
-function getScriptNodeSource(shaderScript) {
-  let source = '';
-
-  let currentChild = shaderScript.firstChild;
-  while(currentChild) {
-    if (currentChild.nodeType == Node.TEXT_NODE) {
-      source += currentChild.textContent;
-    }
-    currentChild = currentChild.nextSibling;
-  }
-
-  return source;
 }
 
 /**
@@ -314,14 +265,7 @@ export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, enableAlphaThres
   }
 
   if (!genericVertexShader) {
-    genericVertexShader = getShader(gl, 'n64-shader-vs');
-  }
-
-  if (!fragmentSource) {
-    let fragmentScript = document.getElementById('n64-shader-fs');
-    if (fragmentScript) {
-      fragmentSource = getScriptNodeSource(fragmentScript);
-    }
+    genericVertexShader = createShader(gl, vertexSource, gl.VERTEX_SHADER);
   }
 
   let aRGB0 = (mux0 >>> 20) & 0x0F;
@@ -347,29 +291,35 @@ export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, enableAlphaThres
   // Generate the instructions for this mode.
   let body;
   if (cycleType === gbi.CycleType.G_CYC_FILL) {
-    body = 'col = shade;\n';
+    body = '  col = shade;\n';
   } else if (cycleType === gbi.CycleType.G_CYC_COPY) {
-    body = 'col = tex0;\n';
+    body = '  col = tex0;\n';
   } else if (cycleType === gbi.CycleType.G_CYC_1CYCLE) {
     body= '';
-    body += 'col.rgb = (' + rgbParams16 [aRGB0] + ' - ' + rgbParamsSubB [bRGB0] + ') * ' + rgbParams32 [cRGB0] + ' + ' + rgbParams8  [dRGB0] + ';\n';
-    body += 'col.a = ('   + alphaParams8[  aA0] + ' - ' + alphaParams8[  bA0] + ') * ' + alphaParams8[  cA0] + ' + ' + alphaParams8[  dA0] + ';\n';
+    body += '  col.rgb = (' + rgbParams16 [aRGB0] + ' - ' + rgbParamsSubB [bRGB0] + ') * ' + rgbParams32 [cRGB0] + ' + ' + rgbParams8  [dRGB0] + ';\n';
+    body += '  col.a = ('   + alphaParams8[  aA0] + ' - ' + alphaParams8[  bA0] + ') * ' + alphaParams8[  cA0] + ' + ' + alphaParams8[  dA0] + ';\n';
   } else {
     body= '';
-    body += 'col.rgb = (' + rgbParams16 [aRGB0] + ' - ' + rgbParamsSubB [bRGB0] + ') * ' + rgbParams32 [cRGB0] + ' + ' + rgbParams8  [dRGB0] + ';\n';
-    body += 'col.a = ('   + alphaParams8[  aA0] + ' - ' + alphaParams8[  bA0] + ') * ' + alphaParams8[  cA0] + ' + ' + alphaParams8[  dA0] + ';\n';
-    body += 'combined = vec4(col.rgb, col.a);\n';
-    body += 'col.rgb = (' + rgbParams16C2 [aRGB1] + ' - ' + rgbParamsSubBC2 [bRGB1] + ') * ' + rgbParams32C2 [cRGB1] + ' + ' + rgbParams8C2  [dRGB1] + ';\n';
-    body += 'col.a = ('   + alphaParams8C2[  aA1] + ' - ' + alphaParams8C2[  bA1] + ') * ' + alphaParams8C2[  cA1] + ' + ' + alphaParams8C2[  dA1] + ';\n';
+    body += '  col.rgb = (' + rgbParams16 [aRGB0] + ' - ' + rgbParamsSubB [bRGB0] + ') * ' + rgbParams32 [cRGB0] + ' + ' + rgbParams8  [dRGB0] + ';\n';
+    body += '  col.a = ('   + alphaParams8[  aA0] + ' - ' + alphaParams8[  bA0] + ') * ' + alphaParams8[  cA0] + ' + ' + alphaParams8[  dA0] + ';\n';
+    body += '  combined = vec4(col.rgb, col.a);\n';
+    body += '  col.rgb = (' + rgbParams16C2 [aRGB1] + ' - ' + rgbParamsSubBC2 [bRGB1] + ') * ' + rgbParams32C2 [cRGB1] + ' + ' + rgbParams8C2  [dRGB1] + ';\n';
+    body += '  col.a = ('   + alphaParams8C2[  aA1] + ' - ' + alphaParams8C2[  bA1] + ') * ' + alphaParams8C2[  cA1] + ' + ' + alphaParams8C2[  dA1] + ';\n';
   }
 
   if (enableAlphaThreshold) {
     // TODO: should this be <?
-    body += 'if(col.a <= uAlphaThreshold) discard;\n';
+    body += '  if(col.a <= uAlphaThreshold) discard;\n';
   }
 
-  let shaderSource = fragmentSource.replace('{{body}}', body)
-    .replace('{{textureSampler}}', textureSamplerSource);
+  const combinerSource = `
+vec4 combineColor(vec4 shade, vec4 tex0, vec4 tex1) {
+  vec4 col;
+  vec4 combined = vec4(0,0,0,1);
+${body}  return col;
+}
+`;
+  const shaderSource = fragmentSource + combinerSource;
 
   if (kLogShaders) {
     let decoded = '\n';

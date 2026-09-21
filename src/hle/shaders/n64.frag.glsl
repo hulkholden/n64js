@@ -1,4 +1,25 @@
-// Included after the varying declarations in the generated fragment shader.
+#version 300 es
+precision mediump float;
+in         vec4 vColor;
+in highp vec2 vUV;
+out vec4 outCol;
+
+uniform sampler2D uSampler0;
+uniform sampler2D uSampler1;
+
+uniform highp vec2 uTexOffset0;
+uniform highp vec2 uTexOffset1;
+uniform highp vec2 uTexScale0;
+uniform highp vec2 uTexScale1;
+
+uniform vec4  uPrimColor;
+uniform vec4  uEnvColor;
+uniform float uAlphaThreshold;
+uniform highp vec4 uConvert;
+uniform vec2 uConvertK45;
+uniform int uTextureConvert;
+uniform bvec2 uTextureYUV;
+
 // The sampler operates on decoded RGBA textures, not raw TMEM.
 // Integer N64 coordinates name texel centres; there is no WebGL half-texel bias.
 // See https://github.com/Themaister/parallel-rdp/blob/master/parallel-rdp/shaders/texture.h
@@ -83,4 +104,38 @@ vec4 sampleN64Texture(sampler2D tex, highp vec2 uv, highp vec2 scale,
                    (c10 - c11) * (32.0 - weight.y)) / 32.0;
   }
   return floor(color + 0.5) / 255.0;
+}
+
+vec4 convertYUV(vec4 texel) {
+  highp vec2 chroma = texel.rg * 255.0 - 128.0;
+  highp vec3 rgb = vec3(texel.b * 255.0) + floor(vec3(
+    uConvert.x * chroma.y,
+    uConvert.y * chroma.x + uConvert.z * chroma.y,
+    uConvert.w * chroma.x) + 0.5);
+  // Keep the signed intermediate range until the color combiner runs.
+  return vec4(rgb / 255.0, texel.b);
+}
+
+// Inputs shared by the generated color combiner.
+const vec4 one = vec4(1,1,1,1);
+const vec4 zero = vec4(0,0,0,0);
+const float lod_frac = 0.0;      // FIXME
+const float prim_lod_frac = 0.0; // FIXME
+
+// shaders.js appends the definition specialized for the current render mode.
+vec4 combineColor(vec4 shade, vec4 tex0, vec4 tex1);
+
+void main(void) {
+  highp vec2 uv = textureCoordinates();
+  vec4 tex0 = sampleN64Texture(uSampler0, uv, uTexScale0, uTexOffset0, uTile0);
+  vec4 tex1 = sampleN64Texture(uSampler1, uv, uTexScale1, uTexOffset1, uTile1);
+  if (uTextureYUV.y) {
+    tex1 = uTextureConvert == 0 ? convertYUV(tex1) : vec4(tex1.rg - 128.0 / 255.0, tex1.b, tex1.b);
+  }
+  if (uTextureYUV.x) {
+    // FILTCONV uses the first cycle's filtered YUV sample in cycle two.
+    if (uTextureConvert == 5) tex1 = convertYUV(tex0);
+    tex0 = uTextureConvert == 0 ? convertYUV(tex0) : vec4(tex0.rg - 128.0 / 255.0, tex0.b, tex0.b);
+  }
+  outCol = combineColor(vColor, tex0, tex1);
 }
