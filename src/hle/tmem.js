@@ -182,7 +182,6 @@ export class TMEM {
       return tile.hash;
     }
 
-    //const width = tile.width;
     const height = tile.height;
 
     const src = this.tmemData32;
@@ -190,14 +189,19 @@ export class TMEM {
     let bytesPerLine = tile.line << 3;
 
     // HLE stores packed RGBA32 and YUV16 rather than separate TMEM banks.
-    if ((tile.format == gbi.ImageFormat.G_IM_FMT_RGBA && tile.size == gbi.ImageSize.G_IM_SIZ_32b) ||
-      tile.format == gbi.ImageFormat.G_IM_FMT_YUV) {
+    const rgba32 = tile.format == gbi.ImageFormat.G_IM_FMT_RGBA && tile.size == gbi.ImageSize.G_IM_SIZ_32b;
+    if (rgba32 || tile.format == gbi.ImageFormat.G_IM_FMT_YUV) {
       bytesPerLine *= 2;
     }
 
-    // TODO: not sure what happens when width != tile.line. Maybe we should hash rows separately?
-
-    const len = height * bytesPerLine;
+    // A wrap mask can expose texels beyond the line stride, including on the
+    // final row. Include those bytes and the containing swizzle block so a
+    // change there invalidates the decoded texture too.
+    const rowBytes = Math.ceil((tile.width ?? 0) * (4 << tile.size) / 8);
+    const swizzleBlock = rgba32 ? 16 : 8;
+    const rowEnd = tmemOffset + (height - 1) * bytesPerLine + rowBytes;
+    const decodedEnd = Math.ceil(rowEnd / swizzleBlock) * swizzleBlock;
+    const len = height > 0 ? Math.max(height * bytesPerLine, decodedEnd - tmemOffset) : 0;
 
     // Include the RGBA/4 and RGBA/8 aliases used by Extreme-G.
     const hasPalette = (tile.format === gbi.ImageFormat.G_IM_FMT_CI ||

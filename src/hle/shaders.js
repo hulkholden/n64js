@@ -2,6 +2,7 @@ import * as gbi from './gbi.js';
 import * as logger from '../logger.js';
 import { assert } from '../assert.js';
 import { VertexArray } from './vertex_array.js';
+import textureSamplerSource from './texture_sampler.glsl' with { type: 'text' };
 
 /**
  * Whether to log shaders as they're compiled.
@@ -266,12 +267,20 @@ class N64Shader {
     this.vertexArray.initUVsAttr(program, "aUV");
     this.vertexArray.initColorAttr(program, "aColor");
 
-    this.uSamplerUniform0        = gl.getUniformLocation(program, "uSampler0");
-    this.uSamplerUniform1        = gl.getUniformLocation(program, "uSampler1");
-    this.uTexScaleUniform0       = gl.getUniformLocation(program, "uTexScale0");
-    this.uTexScaleUniform1       = gl.getUniformLocation(program, "uTexScale1");
-    this.uTexOffsetUniform0      = gl.getUniformLocation(program, "uTexOffset0");
-    this.uTexOffsetUniform1      = gl.getUniformLocation(program, "uTexOffset1");
+    this.uTextureFilterUniform   = gl.getUniformLocation(program, "uTextureFilter");
+    this.uTextureRectEnabledUniform = gl.getUniformLocation(program, "uTextureRectEnabled");
+    this.uTextureRectScreenUniform = gl.getUniformLocation(program, "uTextureRectScreen");
+    this.uTextureRectOriginUniform = gl.getUniformLocation(program, "uTextureRectOrigin");
+    this.uTextureRectDerivativesUniform = gl.getUniformLocation(program, "uTextureRectDerivatives");
+    this.textureUniforms = [0, 1].map(slot => ({
+      sampler: gl.getUniformLocation(program, `uSampler${slot}`),
+      scale: gl.getUniformLocation(program, `uTexScale${slot}`),
+      offset: gl.getUniformLocation(program, `uTexOffset${slot}`),
+      bounds: gl.getUniformLocation(program, `uTile${slot}.bounds`),
+      mask: gl.getUniformLocation(program, `uTile${slot}.mask`),
+      mode: gl.getUniformLocation(program, `uTile${slot}.mode`),
+      enabled: gl.getUniformLocation(program, `uTile${slot}.enabled`),
+    }));
 
     this.uPrimColorUniform       = gl.getUniformLocation(program, "uPrimColor");
     this.uEnvColorUniform        = gl.getUniformLocation(program, "uEnvColor");
@@ -359,7 +368,8 @@ export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, enableAlphaThres
     body += 'if(col.a <= uAlphaThreshold) discard;\n';
   }
 
-  let shaderSource = fragmentSource.replace('{{body}}', body);
+  let shaderSource = fragmentSource.replace('{{body}}', body)
+    .replace('{{textureSampler}}', textureSamplerSource);
 
   if (kLogShaders) {
     let decoded = '\n';

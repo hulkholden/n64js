@@ -1,0 +1,33 @@
+name: Texture sampler visuals
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  visual:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: bun ci
+      # playwright is pinned in package.json and bun.lock; it selects the
+      # Chromium and SwiftShader revisions used by the comparison runner.
+      - run: bunx playwright install --with-deps chromium
+      - run: bun run test:visual --self-test
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: texture-sampler-visuals
+          path: build/texture-sampler-results/
+          if-no-files-found: warn

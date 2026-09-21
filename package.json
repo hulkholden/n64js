@@ -6,6 +6,8 @@
   "main": "n64.min.js",
   "type": "module",
   "scripts": {
+    "test:visual": "node tools/texture_sampler/run.js",
+    "build:visual": "bun build tools/texture_sampler/visual.js --outfile=build/texture_sampler_visual.js",
     "lint": "bun --bun eslint src tools eslint.config.js --max-warnings 0",
     "lint:fix": "bun run lint --fix",
     "build": "bun run tools/build.js",
@@ -40,6 +42,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "eslint": "^10.10.0",
-    "globals": "^17.12.0"
+    "globals": "^17.12.0",
+    "playwright": "1.58.2"
   }
 }
