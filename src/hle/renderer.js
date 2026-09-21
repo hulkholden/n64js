@@ -564,6 +564,7 @@ export class Renderer extends RendererBase {
     gl.uniform1i(uniforms.sampler, slot);
     gl.uniform1i(uniforms.enabled, texture ? 1 : 0);
     gl.bindTexture(gl.TEXTURE_2D, texture ? texture.texture : null);
+
     if (!texture) return;
 
     // Generated coordinates use the HLE tile extent, independently of any
@@ -571,9 +572,11 @@ export class Renderer extends RendererBase {
     gl.uniform2f(uniforms.scale, shiftFactor(tile.shiftS) * (texGenEnabled ? tile.width : 1),
       shiftFactor(tile.shiftT) * (texGenEnabled ? tile.height : 1));
     gl.uniform2f(uniforms.offset, texGenEnabled ? 0 : tile.left, texGenEnabled ? 0 : tile.top);
+
     gl.uniform4f(uniforms.bounds, tile.right - tile.left, tile.bottom - tile.top,
       ((tile.lrs >>> 2) - (tile.uls >>> 2)) & 0x3ff, ((tile.lrt >>> 2) - (tile.ult >>> 2)) & 0x3ff);
     gl.uniform2i(uniforms.mask, tile.maskS, tile.maskT);
+
     // Mask zero implicitly clamps, even when the clamp bit is clear.
     // The copy pipeline applies shifts and masks but bypasses tile clamping.
     const copy = this.state.getCycleType() === gbi.CycleType.G_CYC_COPY;
