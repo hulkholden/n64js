@@ -53,7 +53,7 @@ export class FragmentContext {
     this.gprFacts = new GPRFacts();
     this.forwardedComparison = null;
     this.pendingComparison = null;
-    this.ramStoreGroup = null;
+    this.ramStoreGroup = new RAMStoreGroup();
   }
 
   genAssert(test, msg) {
@@ -67,7 +67,7 @@ export class FragmentContext {
     this.delayedPCUpdate = 0;
     this.gprFacts.reset();
     this.forwardedComparison = null;
-    this.ramStoreGroup = null;
+    this.ramStoreGroup.reset();
   }
 
   set(fragment, pc, instruction, postPC, nextPC) {
@@ -110,12 +110,13 @@ export class FragmentContext {
 export function generateCodeForOp(ctx) {
   ctx.needsDelayCheck = ctx.fragment.needsDelayCheck;
   ctx.isTrivial = false;
+  const sync = n64js.getSyncFlow();
 
   // Never specialize debug/sync code or a dynamic delay-slot/trace boundary.
   // SW cannot change its base, even when the value register aliases the base.
-  const groupStore = recompilerOptions.guardedRAMStores && !kDebugDynarec && !kValidateDynarecPCs && !n64js.getSyncFlow() &&
+  const groupStore = recompilerOptions.guardedRAMStores && !kDebugDynarec && !kValidateDynarecPCs && !sync &&
     simpleOp(ctx.instruction) === OP_SW && !ctx.needsDelayCheck && ctx.postPC === ctx.pc + 4;
-  if (ctx.ramStoreGroup && (!groupStore ||
+  if (ctx.ramStoreGroup.count && (!groupStore ||
       !ctx.ramStoreGroup.canAppend(ctx.instr_base(), ctx.instr_imms(), ctx.pc))) {
     finishCodeGeneration(ctx);
   }
@@ -160,7 +161,6 @@ export function generateCodeForOp(ctx) {
 
   ctx.fragment.bailedOut |= ctx.bailOut;
 
-  const sync = n64js.getSyncFlow();
   if (sync) {
     fn_code = `if (!n64js.checkSyncState(sync, ${toString32(ctx.pc)})) { return ${ctx.fragment.opsCompiled}; }\n${fn_code}`;
   }
@@ -177,19 +177,13 @@ ${lines}
 `;
 
   if (groupStore) {
-    ctx.ramStoreGroup ??= new RAMStoreGroup(ctx.instr_base());
-    ctx.ramStoreGroup.add({
-      start, end: ctx.fragment.bodyCode.length, pc: ctx.pc,
-      offset: ctx.instr_imms(), rt: ctx.instr_rt(), helper: generateSWHelper(ctx),
-    });
+    ctx.ramStoreGroup.add(ctx.instr_base(), start, ctx.fragment.bodyCode.length,
+      ctx.pc, ctx.instr_imms(), ctx.instr_rt());
   }
 }
 
 export function finishCodeGeneration(ctx) {
-  if (ctx.ramStoreGroup) {
-    ctx.ramStoreGroup.finish(ctx.fragment);
-    ctx.ramStoreGroup = null;
-  }
+  ctx.ramStoreGroup.finish(ctx.fragment);
 }
 
 // Indents all lines to the provided indent, removing any empty lines.

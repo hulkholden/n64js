@@ -115,7 +115,33 @@ test('groups are bounded and discarded on fragment invalidation', async () => {
   expect(code).toContain('Guarded RAM SW group (16 stores)');
   expect(code).toContain('Guarded RAM SW group (2 stores)');
   const { ctx, fragment } = await generate([0, sw(0), sw(4)], { finish: false });
-  expect(ctx.ramStoreGroup).not.toBeNull();
+  expect(ctx.ramStoreGroup.count).toBe(2);
   fragment.invalidate();
   expect((await generate([0, sw(0)], { ctx, fragment })).code).not.toContain('Guarded RAM SW group');
+});
+
+test('scratch buffers survive flushes and new fragments without retaining old stores', async () => {
+  const ctx = new FragmentContext();
+  const group = ctx.ramStoreGroup;
+  const buffers = [group.ends, group.offsets, group.registers];
+  // Fill all slots, then switch bases and use a shorter group with new bounds.
+  await generate([0, ...Array.from({ length: 16 }, (_, i) => sw(-64 + i * 4))], { ctx });
+  expect(group.count).toBe(0);
+  const { code } = await generate([0, sw(12, 5, 3), sw(8, 5, 4)], { ctx });
+  expect(code).toContain('Guarded RAM SW group (2 stores)');
+  expect(code).toContain('(c.getRegS32Lo(5) + 8 + 0x80000000)');
+  expect(code).toContain('ramStoreBase + 8 <=');
+  expect(code).not.toContain('c.execSW(2, 4,');
+  expect(ctx.ramStoreGroup).toBe(group);
+  for (const [i, buffer] of [group.ends, group.offsets, group.registers].entries()) {
+    expect(buffer).toBe(buffers[i]);
+  }
+  expect(group.count).toBe(0);
+  // Repeated finalization and an abandoned singleton must not rewrite old code.
+  finishCodeGeneration(ctx);
+  expect(ctx.fragment.bodyCode).toBe(code);
+  await generate([0, sw(-32768)], { ctx, finish: false });
+  expect(group.count).toBe(1);
+  expect((await generate([0, sw(0)], { ctx })).code).not.toContain('Guarded RAM SW group');
+  expect(group.count).toBe(0);
 });
