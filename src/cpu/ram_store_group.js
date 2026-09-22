@@ -56,7 +56,6 @@ export class RAMStoreGroup {
     const end = this.ends[this.count - 1];
     const minOffset = this.minOffset;
     const span = this.maxOffset - minOffset + 4;
-    const fallback = fragment.bodyCode.slice(start, end);
     let fast = '';
     let cursor = start;
     for (let i = 0; i < this.count; ++i) {
@@ -65,7 +64,7 @@ export class RAMStoreGroup {
       const offset = this.offsets[i];
       const rt = this.registers[i];
       fast += fragment.bodyCode.slice(cursor, this.ends[i]).replace(`c.execSW(${rt}, ${this.base}, ${offset});`,
-        `ramStoreDV.setUint32(ramStoreBase + ${offset - minOffset}, c.getRegS32Lo(${rt}), false);`);
+        `if (ramStoreHit) { ramStoreDV.setUint32(ramStoreBase + ${offset - minOffset}, c.getRegS32Lo(${rt}), false); } else { c.execSW(${rt}, ${this.base}, ${offset}); }`);
       cursor = this.ends[i];
     }
     // Normalize once at the minimum signed offset. The unwrapped span must fit
@@ -77,11 +76,8 @@ export class RAMStoreGroup {
 {
   const ramStoreBase = (c.getRegS32Lo(${this.base}) + ${minOffset} + 0x80000000) >>> 0;
   const ramStoreDV = c.ramDV;
-  if ((ramStoreBase & 3) === 0 && ramStoreBase + ${span} <= Math.min(ramStoreDV.byteLength, 0x800000)) {
+  const ramStoreHit = (ramStoreBase & 3) === 0 && ramStoreBase + ${span} <= Math.min(ramStoreDV.byteLength, 0x800000);
 ${fast}
-  } else {
-${fallback}
-  }
 }
 `;
     fragment.bodyCode = fragment.bodyCode.slice(0, start) + code + fragment.bodyCode.slice(end);
