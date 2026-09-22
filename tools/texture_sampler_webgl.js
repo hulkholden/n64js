@@ -417,6 +417,106 @@ try {
   state.primDepth = -4;
   renderer.texRect(0, 0, 0, 320, 240, 0, 0, 0, 0);
   checkDepth('RDP rectangles retain ordinary clipping after NoN triangles', [blue, blue, blue, blue]);
+
+  // Wave Race changes the scissor around its rotating course preview. Check
+  // real pixels through SetScissor and every drawing path, at both resolutions.
+  for (const scale of [1, 2]) {
+    const width = 8 * scale, height = 6 * scale;
+    gl.canvas.width = width;
+    gl.canvas.height = height;
+    const clipState = new RSPState();
+    clipState.reset(new DataView(new ArrayBuffer(4096)), 0);
+    const clipRenderer = new Renderer(gl, clipState, width, height);
+    clipRenderer.nativeTransform.initDimensions(8, 6);
+    const clipMicrocode = new GBIMicrocode(clipState, clipState.ramDV);
+    clipRenderer.newFrame();
+    clipState.rdpOtherModeH = gbi.TexturePerspective.G_TP_PERSP;
+    clipState.combine.hi = (1 << 20) | (4 << 15) | (1 << 12) | (4 << 9) | (1 << 5) | 4;
+    clipState.combine.lo = ((15 << 28) | (7 << 15) | (7 << 12) | (7 << 9) |
+      (15 << 24) | (1 << 21) | (4 << 18) | (7 << 6) | (7 << 3) | 7) >>> 0;
+    clipState.tiles[0].set(0, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0);
+    clipRenderer.lookupTexture = () => textureWhite;
+    const textureWhite = texture(1, 1, [white]);
+    const buffer = new TriangleBuffer(1);
+    function scissor(x0 = 2, y0 = 1, x1 = 5, y1 = 4) {
+      clipMicrocode.executeSetScissor(0xed000000 | (x0 * 4 << 12) | y0 * 4, (x1 * 4 << 12) | y1 * 4);
+    }
+    function fullScissor() { scissor(0, 0, 8, 6); }
+    function triangle() {
+      buffer.numTris = 1;
+      buffer.positions.set(positions);
+      buffer.colours.fill(0xffffffff);
+      clipState.geometryMode.texture = 1;
+      clipRenderer.flushTris(buffer);
+    }
+    function backgroundScene() {
+      clipRenderer.newFrame();
+      fullScissor();
+      clipState.rdpOtherModeL = 0;
+      clipRenderer.clearColor({ r: 0, g: 0, b: 1, a: 1 });
+      scissor();
+    }
+    function checkClip(name, inside = (x, y) => x >= 2 && x < 5 && y >= 1 && y < 4, foreground = white) {
+      const pixels = new Uint8Array(width * height * 4);
+      gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+      if (gl.getError() !== gl.NO_ERROR) throw new Error(`${name}: WebGL error`);
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const want = inside(x / scale, y / scale) ? foreground : blue;
+          const offset = ((height - 1 - y) * width + x) * 4;
+          const actual = pixels.subarray(offset, offset + 4);
+          if (actual.some((value, i) => value !== want[i])) {
+            throw new Error(`${name} (${scale}x) at ${x},${y}: expected ${want}, got ${Array.from(actual)}`);
+          }
+        }
+      }
+      lines.push(`PASS ${name} (${scale}x)`);
+      passed++;
+    }
+    for (const [name, draw] of [
+      ['triangle scissor', triangle],
+      ['filled rectangle scissor', () => clipRenderer.fillRect(0, 0, 8, 6, { r: 1, g: 1, b: 1, a: 1 })],
+      ['texture rectangle scissor', () => clipRenderer.texRect(0, 0, 0, 8, 6, 0, 0, 0, 0)],
+      // A large diamond covers the box while extending beyond all four edges.
+      ['rotated rectangle scissor', () => clipRenderer.texRectRot(0, -8, 3, 4, -9, 4, 15, 16, 3, 0, 0, 0, 0)],
+      ['color clear scissor', () => clipRenderer.clearColor({ r: 1, g: 1, b: 1, a: 1 })],
+    ]) {
+      backgroundScene();
+      draw();
+      checkClip(name);
+    }
+    backgroundScene();
+    fullScissor();
+    clipRenderer.clearDepth(0);
+    scissor();
+    clipRenderer.clearDepth(1);
+    fullScissor();
+    clipState.geometryMode.zbuffer = 1;
+    clipState.rdpOtherModeL = gbi.RenderMode.Z_CMP | gbi.RenderMode.Z_UPD;
+    triangle();
+    checkClip('depth clear scissor');
+
+    backgroundScene();
+    scissor(5, 4, 2, 1);
+    triangle();
+    checkClip('inverted scissor draws nothing', () => false);
+    scissor(2, 1, 2, 4);
+    triangle();
+    checkClip('empty scissor draws nothing', () => false);
+    fullScissor();
+    triangle();
+    checkClip('expanded scissor takes effect on the next draw', () => true);
+
+    backgroundScene();
+    triangle();
+    clipRenderer.copyBackBufferToFrontBuffer(0);
+    checkClip('presentation copies pixels outside the last scissor');
+    clipRenderer.newFrame();
+    clipRenderer.fillRect(0, 0, 8, 6, { r: 1, g: 0, b: 0, a: 1 });
+    checkClip('drawing restores scissor after presentation', undefined, red);
+    clipRenderer.debugClear();
+    checkClip('debug clear ignores the game scissor', () => true, [255, 0, 255, 255]);
+  }
   output.textContent = `${passed} passed\n${lines.join('\n')}`;
   document.title = `${passed} passed`;
 } catch (error) {
