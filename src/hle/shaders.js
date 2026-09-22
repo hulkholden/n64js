@@ -247,6 +247,7 @@ class N64Shader {
     this.uPrimColorUniform       = gl.getUniformLocation(program, "uPrimColor");
     this.uPrimLodFracUniform     = gl.getUniformLocation(program, "uPrimLodFrac");
     this.uEnvColorUniform        = gl.getUniformLocation(program, "uEnvColor");
+    this.uFogColorUniform        = gl.getUniformLocation(program, "uFogColor");
     this.uConvertUniform         = gl.getUniformLocation(program, "uConvert");
     this.uConvertK45Uniform      = gl.getUniformLocation(program, "uConvertK45");
     this.uTextureConvertUniform  = gl.getUniformLocation(program, "uTextureConvert");
@@ -264,9 +265,10 @@ class N64Shader {
  * @param {number} alphaCompare An AlphaCompare value.
  * @param {boolean} enableAlphaCvgKill Whether to approximate zero coverage by discarding zero alpha.
  * @param {boolean} noNearClipping Whether to clamp depth instead of clipping the near plane.
+ * @param {number} blender The upper 16 bits of other mode L.
  * @return {!N64Shader}
  */
-export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, alphaCompare, enableAlphaCvgKill, noNearClipping = false) {
+export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, alphaCompare, enableAlphaCvgKill, noNearClipping = false, blender = 0) {
   // Check if this shader already exists. Copy/Fill are fixed-function so ignore mux for these.
   let stateText = (cycleType < gbi.CycleType.G_CYC_COPY) ? (`${mux0.toString(16) + mux1.toString(16)}_${cycleType}`) : cycleType.toString();
   const enableAlphaThreshold = (alphaCompare & gbi.AlphaCompare.G_AC_THRESHOLD) !== 0;
@@ -278,6 +280,12 @@ export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, alphaCompare, en
   }
   if (noNearClipping) {
     stateText += `_noNearClipping`;
+  }
+  // G_RM_FOG_SHADE_A: FOG * SHADE_ALPHA + IN * (1 - SHADE_ALPHA).
+  // This is an RDP draw-time choice, independent of the current RSP G_FOG bit.
+  const fogShadeAlpha = cycleType === gbi.CycleType.G_CYC_2CYCLE && ((blender >>> 2) & 0x3333) === 0x3200;
+  if (fogShadeAlpha) {
+    stateText += '_fogShadeAlpha';
   }
 
   let shader = shaderCache.get(stateText);
@@ -342,6 +350,12 @@ export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, alphaCompare, en
     // Preserve the renderer's coverage approximation, which must reject zero
     // even though threshold alpha comparison accepts equality.
     body += '  if(col.a <= 0.0) discard;\n';
+  }
+
+  if (fogShadeAlpha) {
+    // The blender sees the clamped combiner RGB. Preserve combiner alpha for
+    // the final framebuffer blend and alpha test; fog comes from shade alpha.
+    body += '  col.rgb = mix(clamp(col.rgb, 0.0, 1.0), uFogColor.rgb, shade.a);\n';
   }
 
   const combinerSource = `

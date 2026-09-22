@@ -508,6 +508,11 @@ export class Renderer extends RendererBase {
       ((this.state.envColor >>> 16) & 0xff) / 255.0,
       ((this.state.envColor >>> 8) & 0xff) / 255.0,
       ((this.state.envColor >>> 0) & 0xff) / 255.0);
+    gl.uniform4f(shader.uFogColorUniform,
+      ((this.state.fogColor >>> 24) & 0xff) / 255.0,
+      ((this.state.fogColor >>> 16) & 0xff) / 255.0,
+      ((this.state.fogColor >>> 8) & 0xff) / 255.0,
+      (this.state.fogColor & 0xff) / 255.0);
   }
 
   getCurrentN64Shader(noNearClipping = false) {
@@ -518,7 +523,8 @@ export class Renderer extends RendererBase {
     const alphaCompare = this.state.getAlphaCompareType();
     const enableAlphaCvgKill = this.state.getAntiAliasEnabled() && this.state.getCoverageTimesAlpha();
 
-    return shaders.getOrCreateN64Shader(this.gl, mux0, mux1, cycleType, alphaCompare, enableAlphaCvgKill, noNearClipping);
+    return shaders.getOrCreateN64Shader(this.gl, mux0, mux1, cycleType, alphaCompare, enableAlphaCvgKill,
+      noNearClipping, this.state.rdpOtherModeL >>> 16);
   }
 
   /**
@@ -667,7 +673,8 @@ export class Renderer extends RendererBase {
         break;
 
       case 0x0110: // G_BL_CLR_IN, G_BL_A_FOG, G_BL_CLR_MEM, G_BL_1MA, alphaCvgSel:false cvgXAlpha:false
-        // FIXME: this needs to blend the input colour with the fog alpha, but we don't compute this yet.
+        // TODO: constant fog-colour-alpha framebuffer blending, separate from
+        // the first-cycle shade-alpha distance fog handled by the shader.
         mode = kBlendModeOpaque;
         break;
 

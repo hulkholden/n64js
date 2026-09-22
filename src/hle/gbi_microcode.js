@@ -242,6 +242,7 @@ export class GBIMicrocode {
 
     const viTransform = this.renderer.nativeTransform.viTransform;
     const vpTransform = this.state.viewport.transform;
+    const fog = this.state.geometryMode.fog ? this.state.fogParameters : null;
 
     const vtxStride = 16;
 
@@ -260,9 +261,6 @@ export class GBIMicrocode {
       // Load as little-endian (ABGR) for convenience.
       vertex.color = dv.getUint32(vtxBase + 12, true);
 
-      // Project.
-      this.projectInPlace(vertex, xyz, wvp, vpTransform, viTransform);
-
       if (light) {
         this.unpackNormal(normal, vertex.color);
         mvmtx.transformNormal(normal, transformedNormal);
@@ -277,12 +275,20 @@ export class GBIMicrocode {
           }
         }
       }
+
+      // Fog replaces shade alpha after lighting, while vertices are loaded.
+      // Later fog/geometry state changes must not rewrite the vertex cache.
+      this.projectInPlace(vertex, xyz, wvp, vpTransform, viTransform, fog);
     }
   }
 
-  projectInPlace(vertex, xyz, wvp, vpTransform, viTransform) {
+  projectInPlace(vertex, xyz, wvp, vpTransform, viTransform, fog = null) {
     const pos = vertex.pos;
     wvp.transformPoint(xyz, pos);
+
+    if (fog) {
+      vertex.color = (vertex.color & 0x00ffffff) | (fog.calculateAlpha(pos.z, pos.w) << 24);
+    }
 
     vertex.clipFlags = this.calculateClipFlags(pos);
 

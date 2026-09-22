@@ -35,9 +35,13 @@ export class VertexArray {
     this.bind();
     const attrLoc = gl.getAttribLocation(program, attrName);
     const buffer = gl.createBuffer();
-    gl.enableVertexAttribArray(attrLoc);
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-    gl.vertexAttribPointer(attrLoc, 4, gl.UNSIGNED_BYTE, true, 0, 0);
+    // A combiner/blender variant may not consume shade or texture attributes.
+    // Keep the upload buffer, but don't configure an inactive (-1) location.
+    if (attrLoc >= 0) {
+      gl.enableVertexAttribArray(attrLoc);
+      gl.vertexAttribPointer(attrLoc, 4, gl.UNSIGNED_BYTE, true, 0, 0);
+    }
     this.unbind();
 
     this.colBuffer = buffer;
@@ -48,9 +52,11 @@ export class VertexArray {
     this.bind();
     const attrLoc = gl.getAttribLocation(program, attrName);
     const buffer = gl.createBuffer();
-    gl.enableVertexAttribArray(attrLoc);
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-    gl.vertexAttribPointer(attrLoc, 2, gl.FLOAT, false, 0, 0);
+    if (attrLoc >= 0) {
+      gl.enableVertexAttribArray(attrLoc);
+      gl.vertexAttribPointer(attrLoc, 2, gl.FLOAT, false, 0, 0);
+    }
     this.unbind();
 
     this.uvBuffer = buffer;

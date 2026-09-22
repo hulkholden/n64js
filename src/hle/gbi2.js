@@ -460,10 +460,10 @@ export class GBI2 extends GBIMicrocode {
       case gbi.MoveWord.G_MW_FOG:
         {
           const multiplier = cmd1 >> 16;
-          const offset = cmd1 & 0xffff;
+          const offset = (cmd1 << 16) >> 16;
           if (dis) {
             // This is provided as min/max but we show the derived multiplier and offset.
-            text = `gSPFogPosition(${multiplier}, ${offset});`;
+            text = `gsSPFogFactor(${multiplier}, ${offset});`;
           }
           this.state.fogParameters.set(multiplier, offset);
         }

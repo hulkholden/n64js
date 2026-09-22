@@ -112,6 +112,22 @@ actual/golden/difference images under `build/texture-sampler-results/self-test/`
 The command fails if the deliberate regression goes undetected. CI runs this
 check too; no production source or golden is modified.
 
+## Vertex fog pixel checks
+
+`tools/fog_webgl.js` runs in the same pixel-check page and CI job. It loads
+synthetic vertices through the standard GBI path, draws with the production
+renderer, and compares framebuffer bytes with hand-calculated expectations.
+It covers zero/partial/full fog, per-vertex clamping, screen-linear shade alpha
+with unequal and large clip W, ordinary/NoN clipping variants, cached vertices,
+fog-colour uniform updates, blender-dependent shader selection, combiner shade
+alpha, and fogged translucent textures with alpha testing. The RSP signed-factor
+decoding, lighting interaction and vertex-cache rules also have Bun tests in
+`src/hle/fog.test.js`.
+
+This targets two-cycle `G_RM_FOG_SHADE_A`; constant fog-colour-alpha framebuffer
+blends and full RDP coverage remain separate work. Existing texture gallery
+goldens are unchanged by the fog tests.
+
 ## Add a scene
 
 Add an entry in `scenes.js` with a stable `id`, a short visual expectation and a

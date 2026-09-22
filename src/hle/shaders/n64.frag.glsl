@@ -3,6 +3,7 @@
 
 precision mediump float;
 in         vec4 vColor;
+in highp float vShadeAlpha;
 in highp vec2 vUV;
 #if !NEAR_CLIPPING
 in highp float vClipZ;
@@ -20,6 +21,7 @@ uniform highp vec2 uTexScale1;
 uniform vec4  uPrimColor;
 uniform float uPrimLodFrac;
 uniform vec4  uEnvColor;
+uniform vec4  uFogColor;
 uniform float uAlphaThreshold;
 uniform highp vec4 uConvert;
 uniform vec2 uConvertK45;
@@ -150,5 +152,6 @@ void main(void) {
     if (uTextureConvert == 5) tex1 = convertYUV(tex0);
     tex0 = uTextureConvert == 0 ? convertYUV(tex0) : vec4(tex0.rg - 128.0 / 255.0, tex0.b, tex0.b);
   }
-  outCol = combineColor(vColor, tex0, tex1);
+  vec4 shade = vec4(vColor.rgb, clamp(vShadeAlpha * gl_FragCoord.w, 0.0, 1.0));
+  outCol = combineColor(shade, tex0, tex1);
 }
