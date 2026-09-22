@@ -33,10 +33,11 @@ globalThis.__compileFragment = (...args) => {
     compileMs += compileDuration;
     const record = { pc:match[1], ops:Number(match[2]), bytes:Buffer.byteLength(source), phase, source };
     records.push(record);
-    source = source.replace(/^  if \((.*ramStoreDV\.byteLength.*)\) \{/gm, (_, condition) => {
+    source = source.replace(/^  (?:if \((.*ramStoreDV\.byteLength.*)\) \{|const ramStoreHit = (.*ramStoreDV\.byteLength.*);)$/gm, (_, condition, assignment) => {
       const id = guards.length;
       guards.push({ id, pc:record.pc, calls:0, hits:0 });
-      return `  if (globalThis.__guard(${id}, ${condition})) {`;
+      return assignment ? `  const ramStoreHit = globalThis.__guard(${id}, ${assignment});` :
+        `  if (globalThis.__guard(${id}, ${condition})) {`;
     });
     const fn = source === args.at(-1) ? original : Reflect.construct(target, [...args.slice(0,-1),source], newTarget);
     globalThis.__instrumentationMs += performance.now() - recordStart - compileDuration;

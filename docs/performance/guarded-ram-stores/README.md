@@ -1,5 +1,9 @@
 # Guarded RAM store groups (issue #166)
 
+This report records the original `f2076e2` prototype. The subsequent
+[allocation and execution overhead investigation](overhead.md) covers buffer
+reuse and the revised layout that shares generated bookkeeping.
+
 This prototype adds an opt-in path for consecutive integer `SW` instructions.
 It remains disabled by default: clean paired headless measurements regress the
 primary Turok target and most other windows. F-Zero early improves consistently,
