@@ -30,7 +30,7 @@ export default [
     },
   },
   {
-    files: ['tools/texture_sampler_webgl.js', 'tools/texture_sampler/scenes.js', 'tools/texture_sampler/visual.js'],
+    files: ['tools/texture_sampler_webgl.js', 'tools/fog_webgl.js', 'tools/texture_sampler/scenes.js', 'tools/texture_sampler/visual.js'],
     languageOptions: { sourceType: 'module', globals: globals.browser },
   },
 ];

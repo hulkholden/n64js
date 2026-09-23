@@ -7,6 +7,7 @@ import { RenderTargets } from '../src/hle/render_targets.js';
 import { RSPState } from '../src/hle/rsp_state.js';
 import { TriangleBuffer } from '../src/hle/triangle_buffer.js';
 import { GBIMicrocode } from '../src/hle/gbi_microcode.js';
+import { runFogTests } from './fog_webgl.js';
 
 const output = document.getElementById('results');
 try {
@@ -517,6 +518,9 @@ try {
     clipRenderer.debugClear();
     checkClip('debug clear ignores the game scissor', () => true, [255, 0, 255, 255]);
   }
+  const fogResults = runFogTests(gl);
+  lines.push(...fogResults);
+  passed += fogResults.length;
   output.textContent = `${passed} passed\n${lines.join('\n')}`;
   document.title = `${passed} passed`;
 } catch (error) {

@@ -363,6 +363,16 @@ class FogParameters {
     this.multiplier = multiplier;
     this.offset = offset;
   }
+
+  calculateAlpha(z, w) {
+    // Standard GBI fog uses projected Z/W, before the viewport transform.
+    // Clamp at the near plane, including the eye plane where division is
+    // undefined. See the fog formula in Nintendo's gbi.h and GLideN64's
+    // VertexShaderTexturedTriangle for the near-plane treatment.
+    const depth = w > 0 ? Math.max(-1, z / w) : -1;
+    const alpha = this.multiplier === 0 ? this.offset : depth * this.multiplier + this.offset;
+    return Math.max(0, Math.min(255, Math.floor(alpha)));
+  }
 }
 
 class TextureImage {
