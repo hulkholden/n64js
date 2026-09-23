@@ -65,6 +65,10 @@ export class RenderTargets {
     }
   }
 
+  // Frozen VI snapshots initially share the live targets' textures. Before a
+  // target is drawn into or deleted, copy its pixels once and redirect only
+  // the snapshot to that copy. VI can keep displaying the pre-freeze image
+  // while HLE renders ahead; unfreezing releases the copy and exposes live pixels.
   preserveForVI(target) {
     const snapshot = this.frozenTargets?.get(target);
     if (!snapshot || snapshot.texture !== target.texture) return;
