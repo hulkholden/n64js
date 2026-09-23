@@ -5,10 +5,21 @@ import { ImageFormat, ImageSize } from './gbi.js';
 function fakeGL() {
   const gl = {
     FRAMEBUFFER: 'framebuffer', READ_FRAMEBUFFER: 'read', DRAW_FRAMEBUFFER: 'draw',
-    reads: [], deleted: [],
+    READ_FRAMEBUFFER_BINDING: 'readBinding', DRAW_FRAMEBUFFER_BINDING: 'drawBinding',
+    SCISSOR_TEST: 'scissor',
+    reads: [], deleted: [], blits: [], scissor: false,
     createTexture: () => ({}), createFramebuffer: () => ({}), createRenderbuffer: () => ({}),
     bindTexture() {}, texParameteri() {}, texImage2D() {},
-    bindRenderbuffer() {}, renderbufferStorage() {}, framebufferTexture2D() {}, framebufferRenderbuffer() {},
+    bindRenderbuffer() {}, renderbufferStorage() {}, framebufferRenderbuffer() {},
+    framebufferTexture2D(_target, _attachment, _type, texture) { texture.framebuffer = gl.draw; },
+    getParameter(name) { return name === 'readBinding' ? gl.read : gl.draw; },
+    isEnabled() { return gl.scissor; },
+    enable() { gl.scissor = true; },
+    disable() { gl.scissor = false; },
+    blitFramebuffer() {
+      gl.blits.push({ read: gl.read, draw: gl.draw, scissor: gl.scissor });
+      gl.draw.pixels = gl.read.pixels?.slice();
+    },
     deleteTexture: t => gl.deleted.push(t), deleteFramebuffer: f => gl.deleted.push(f),
     bindFramebuffer(which, buffer) {
       if (which === 'framebuffer' || which === 'read') gl.read = buffer;
@@ -27,6 +38,80 @@ const colorImage = (address, width = 2, size = ImageSize.G_IM_SIZ_16b) => ({
 });
 
 describe('rendered color images', () => {
+  test('VI sees frames in order while HLE prepares a frozen double buffer', () => {
+    const gl = fakeGL();
+    const targets = new RenderTargets(gl, 2, 2);
+    const drawFrame = (address, frame) => {
+      targets.bindColorImage(colorImage(address), 2, 2);
+      targets.current.framebuffer.pixels = new Uint8Array(16).fill(frame);
+      targets.markDirty({ y1: 2 });
+    };
+    const present = address => targets.textureForVI(address).framebuffer.pixels[0];
+    drawFrame(0, 1);
+    drawFrame(16, 2);
+    targets.setDPFrozen(true);
+    expect(gl.blits).toHaveLength(0);
+    drawFrame(0, 3);
+    // Banjo draws the next frame into the still-displayed buffer while frozen.
+    // VI must retain frame 1 until switching to frame 2, not show 3 then 2.
+    expect([present(2), present(18)]).toEqual([1, 2]);
+    targets.setDPFrozen(true); // Repeated freezes do not publish pending work.
+    targets.bindCurrent();
+    expect(gl.blits).toHaveLength(1);
+    expect(present(2)).toBe(1);
+    targets.setDPFrozen(false);
+    expect(present(2)).toBe(3);
+    targets.setDPFrozen(true);
+    drawFrame(16, 4);
+    expect([present(18), present(2)]).toEqual([2, 3]);
+    targets.setDPFrozen(false);
+    expect(present(18)).toBe(4);
+    expect(gl.deleted).toHaveLength(4); // Both temporary framebuffer/texture pairs.
+  });
+
+  test('preserves an already-bound image before drawing and restores GL state after copying', () => {
+    const gl = fakeGL();
+    const targets = new RenderTargets(gl, 2, 2);
+    targets.bindColorImage(colorImage(0), 2, 2);
+    const target = targets.current;
+    target.framebuffer.pixels = new Uint8Array(16).fill(1);
+    targets.markDirty({ y1: 2 });
+    targets.setDPFrozen(true);
+    gl.scissor = true;
+    const priorRead = {};
+    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, priorRead);
+    targets.preserveForVI(target);
+    expect(gl.read).toBe(priorRead);
+    expect(gl.draw).toBe(target.framebuffer);
+    expect(gl.scissor).toBe(true);
+    expect(gl.blits[0].scissor).toBe(false);
+    targets.bindCurrent(); // A task need not issue SetColorImage again.
+    target.framebuffer.pixels.fill(2);
+    expect(targets.textureForVI(0).framebuffer.pixels[0]).toBe(1);
+    expect(gl.blits).toHaveLength(1);
+    targets.reset();
+    expect(targets.frozenTargets).toBeNull();
+    expect(targets.frozenCopies.size).toBe(0);
+    expect(gl.deleted).toContain(gl.blits[0].draw);
+  });
+
+  test('keeps frozen image ranges and pixels when HLE replaces or evicts a target', () => {
+    const gl = fakeGL();
+    const targets = new RenderTargets(gl, 2, 2);
+    targets.bindColorImage(colorImage(0), 2, 2);
+    targets.current.framebuffer.pixels = new Uint8Array(16).fill(7);
+    targets.markDirty({ y1: 2 });
+    targets.setDPFrozen(true);
+    targets.bindColorImage(colorImage(0, 1), 2, 2);
+    targets.markDirty({ y1: 1 });
+    for (let i = 1; i <= 9; i++) targets.bindColorImage(colorImage(i * 16), 2, 2);
+    const frozen = targets.textureForVI(6);
+    expect(frozen.framebuffer.pixels[0]).toBe(7);
+    expect(gl.deleted).not.toContain(frozen);
+    targets.setDPFrozen(false);
+    expect(gl.deleted).toContain(frozen);
+  });
+
   test('preserves separate targets, writes a sampled image once, and restores the drawing target', () => {
     const gl = fakeGL();
     const targets = new RenderTargets(gl, 2, 2);

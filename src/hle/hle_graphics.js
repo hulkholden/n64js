@@ -21,6 +21,7 @@ const debugController = new DebugController(state, processDList);
 export const graphics = {
   processTask: hleGraphics,
   reset: resetRenderer,
+  setDPFrozen: frozen => renderer?.renderTargets.setDPFrozen(frozen),
 };
 
 export function initialiseRenderer(canvas) {

@@ -9,6 +9,8 @@ export class RenderTargets {
     this.width = width;
     this.height = height;
     this.targets = new Map();
+    this.frozenTargets = null;
+    this.frozenCopies = new Set();
     this.depth = gl.createRenderbuffer();
     gl.bindRenderbuffer(gl.RENDERBUFFER, this.depth);
     gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, width, height);
@@ -38,14 +40,55 @@ export class RenderTargets {
   }
 
   deleteTarget(target) {
+    this.preserveForVI(target);
     this.gl.deleteFramebuffer(target.framebuffer);
     this.gl.deleteTexture(target.texture);
   }
 
   reset() {
+    this.setDPFrozen(false);
     for (const target of this.targets.values()) this.deleteTarget(target);
     this.targets.clear();
     this.current = this.fallback;
+  }
+
+  setDPFrozen(frozen) {
+    if (frozen) {
+      if (this.frozenTargets) return;
+      // HLE still consumes SP work while DP is frozen. Preserve the images VI
+      // could scan out, copying their pixels only if later HLE work writes them.
+      this.frozenTargets = new Map([...this.targets.values(), this.fallback].map(target => [target, { ...target }]));
+    } else {
+      this.frozenTargets = null;
+      for (const copy of this.frozenCopies) this.deleteTarget(copy);
+      this.frozenCopies.clear();
+    }
+  }
+
+  preserveForVI(target) {
+    const snapshot = this.frozenTargets?.get(target);
+    if (!snapshot || snapshot.texture !== target.texture) return;
+    const gl = this.gl;
+    const read = gl.getParameter(gl.READ_FRAMEBUFFER_BINDING);
+    const draw = gl.getParameter(gl.DRAW_FRAMEBUFFER_BINDING);
+    const scissor = gl.isEnabled(gl.SCISSOR_TEST);
+    const copy = this.createTarget();
+    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, target.framebuffer);
+    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, copy.framebuffer);
+    // A previous primitive's scissor must not crop the preserved image.
+    gl.disable(gl.SCISSOR_TEST);
+    gl.blitFramebuffer(0, 0, this.width, this.height, 0, 0, this.width, this.height, gl.COLOR_BUFFER_BIT, gl.NEAREST);
+    if (scissor) gl.enable(gl.SCISSOR_TEST);
+    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, read);
+    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, draw);
+    snapshot.texture = copy.texture;
+    snapshot.framebuffer = copy.framebuffer;
+    this.frozenCopies.add(copy);
+  }
+
+  bindCurrent() {
+    this.preserveForVI(this.current);
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.current.framebuffer);
   }
 
   bindColorImage(image, nativeWidth, nativeHeight) {
@@ -78,7 +121,7 @@ export class RenderTargets {
       }
       this.current = target;
     }
-    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.current.framebuffer);
+    this.bindCurrent();
   }
 
   markDirty(scissor, maxY = scissor.y1) {
@@ -101,10 +144,10 @@ export class RenderTargets {
     return address >= target.image.address && address < target.image.address + target.image.width * target.height * bytesPerPixel;
   }
 
-  findTarget(address) {
+  findTarget(address, candidates = this.targets.values()) {
     // RDRAM is reused when the video mode changes. Prefer the most recently
     // selected image when an old, larger framebuffer overlaps a newer one.
-    const targets = Array.from(this.targets.values());
+    const targets = Array.from(candidates);
     for (let i = targets.length - 1; i >= 0; i--) {
       if (this.contains(targets[i], address)) return targets[i];
     }
@@ -112,6 +155,10 @@ export class RenderTargets {
   }
 
   textureForVI(address) {
+    if (this.frozenTargets) {
+      return (this.findTarget(address, this.frozenTargets.values()) ??
+        this.frozenTargets.get(this.current) ?? this.frozenTargets.get(this.fallback)).texture;
+    }
     return (this.findTarget(address) ?? this.current).texture;
   }
 
