@@ -304,6 +304,20 @@ describe('headless graphics execution', () => {
     expect(dp).toBe(1);
   });
 
+  test('completes SP work while DP is frozen and delivers FullSync after unfreeze', async () => {
+    const emulator = await createEmulator({ executeGraphics: true });
+    const { hardware } = emulator;
+    prepareGraphicsTask(emulator);
+    setGraphicsCommands(emulator, [[0xe9000000, 0], [0xdf000000, 0]]);
+    hardware.dpcDevice.write32(0xa410000c, 0x8); // SET_FREEZE
+    startRSPTask(emulator);
+    const complete = SP_STATUS_TASKDONE | SP_STATUS_BROKE | SP_STATUS_HALT;
+    expect(hardware.sp_reg.getU32(SP_STATUS_REG) & complete).toBe(complete);
+    expect(hardware.mi_reg.getU32(MI_INTR_REG) & MI_INTR_DP).toBe(0);
+    hardware.dpcDevice.write32(0xa410000c, 0x4); // CLR_FREEZE
+    expect(hardware.mi_reg.getU32(MI_INTR_REG) & MI_INTR_DP).toBe(MI_INTR_DP);
+  });
+
   test('keeps the ECW/WWF counter conversion and division finite in interpreted and compiled loops', async () => {
     const emulator = await createEmulator({ executeGraphics: true });
     const { cpu0, hardware } = emulator;

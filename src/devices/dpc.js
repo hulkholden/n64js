@@ -44,6 +44,11 @@ const statusWritableBits = 0x7ff;
 export class DPCDevice extends Device {
   constructor(hardware, rangeStart, rangeEnd) {
     super("DPC", hardware, hardware.dpc_mem, rangeStart, rangeEnd);
+    this.pendingHLEFullSyncs = 0;
+  }
+
+  reset() {
+    this.pendingHLEFullSyncs = 0;
   }
 
   // Raw register values.
@@ -149,6 +154,7 @@ export class DPCDevice extends Device {
     if (value & DPC_CLR_CLOCK_CTR)         { this.mem.set32(DPC_CLOCK_REG, 0); }
 
     this.mem.set32(DPC_STATUS_REG, dpcStatus);
+    this.completeHLEFullSyncs();
   }
 
   processBuffer() {
@@ -175,11 +181,22 @@ export class DPCDevice extends Device {
   }
 
   syncFullHLE() {
+    // HLE can consume an SP display list while the DP is frozen, but must not
+    // signal DP completion until it is unfrozen. Banjo-Kazooie uses this to
+    // queue its next frame before updating the guest scheduler's DP state.
+    this.pendingHLEFullSyncs++;
+    this.completeHLEFullSyncs();
+  }
+
+  completeHLEFullSyncs() {
+    if (!this.pendingHLEFullSyncs || (this.statusReg & DPC_STATUS_FREEZE)) return;
+
     // HLE runs DP work synchronously without emulating RDP clocks. Credit one
     // nominal clock per executed FullSync so completed work has a nonzero
     // duration (ECW/WWF divide by this counter in their profiling code).
     // This is a compatibility approximation, not a pipeline timing model.
-    this.mem.set32(DPC_CLOCK_REG, (this.mem.getU32(DPC_CLOCK_REG) + 1) & 0x00ffffff);
+    this.mem.set32(DPC_CLOCK_REG, (this.mem.getU32(DPC_CLOCK_REG) + this.pendingHLEFullSyncs) & 0x00ffffff);
+    this.pendingHLEFullSyncs = 0;
     this.syncFull();
   }
 
