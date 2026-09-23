@@ -1,6 +1,6 @@
 /*global n64js*/
 
-import { Tab } from 'bootstrap';
+import { initTabs, showTab } from './tabs.js';
 import { ControllerConfig } from "./controller_config.js";
 
 export class UI {
@@ -14,9 +14,7 @@ export class UI {
     const dbg = n64js.debugger();
 
     // Make sure that the tabs refresh when clicked.
-    document.querySelectorAll('.tabbable a').forEach(tab => {
-      tab.addEventListener('shown.bs.tab', () => { dbg.redraw(); });
-    });
+    initTabs(() => dbg.redraw());
 
     document.getElementById('info-toggle').addEventListener('click', event => {
       event.preventDefault();
@@ -28,7 +26,7 @@ export class UI {
   }
 
   showTab(id) {
-    Tab.getOrCreateInstance(document.getElementById(id)).show();
+    showTab(document.getElementById(id));
   }
 
   toggleControllerConfig() {
@@ -70,6 +68,9 @@ export class UI {
     typeSpan.textContent = alertType + "!";
     messageSpan.textContent = message;
 
+    node.querySelector('[data-alert-close]').addEventListener('click', event => {
+      event.currentTarget.closest('.alert').remove();
+    });
     document.getElementById('alerts').append(node);
   }
 

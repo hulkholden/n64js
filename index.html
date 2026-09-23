@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="light">
+<html lang="en" data-theme="light">
 
 <head>
   <!-- Google tag (gtag.js) -->
@@ -16,8 +16,7 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"
-        integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+  <link rel="stylesheet" href="ui.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
   <link rel="stylesheet" href="n64js.css">
 
@@ -28,7 +27,7 @@
   <div class="container-fluid">
     <div class="row">
       <div class="col col-sm-12">
-        <h1 id="title">n64js</a></h1>
+        <h1 id="title">n64js</h1>
         <p>An n64 emulator. <a href="#" id="info-toggle">Info</a></p>
       </div>
     </div>
@@ -58,21 +57,20 @@
           </div>
           <div class="btn-group">
             <div class="dropdown">
-              <button class="btn dropdown-toggle" id="bd-theme" type="button" data-bs-toggle="dropdown"
-                      data-bs-display="static">
+              <button class="btn dropdown-toggle" id="bd-theme" type="button" aria-expanded="false" aria-controls="theme-menu">
                 <span class="theme-icon-active"><i class="bi bi-brightness-high"></i></span>
                 <span id="bd-theme-text">Theme</span>
               </button>
 
-              <ul class="dropdown-menu">
+              <ul class="dropdown-menu" id="theme-menu" hidden>
                 <li>
-                  <button class="dropdown-item" type="button" data-bs-theme-value="light"><i
+                  <button class="dropdown-item" type="button" data-theme-value="light"><i
                        class="bi bi-brightness-high"></i>
                     Light</button>
-                  <button class="dropdown-item" type="button" data-bs-theme-value="dark"><i
+                  <button class="dropdown-item" type="button" data-theme-value="dark"><i
                        class="bi bi-moon-stars"></i>
                     Dark</button>
-                  <button class="dropdown-item" type="button" data-bs-theme-value="auto"><i
+                  <button class="dropdown-item" type="button" data-theme-value="auto"><i
                        class="bi bi-circle-half"></i>
                     Auto</button>
                 </li>
@@ -174,35 +172,35 @@
           <div class="tabbable">
             <ul class="nav nav-underline">
               <li class="nav-item">
-                <button class="nav-link active" id="output-tab" data-bs-toggle="tab" data-bs-target="#output-content"
+                <button class="nav-link active" id="output-tab" data-tab-target="#output-content"
                         type="button" role="tab">Output</button>
               </li>
               <li class="nav-item">
-                <button class="nav-link" id="cpu-tab" data-bs-toggle="tab" data-bs-target="#cpu-content" type="button"
+                <button class="nav-link" id="cpu-tab" data-tab-target="#cpu-content" type="button"
                         role="tab">CPU</button>
               </li>
               <li class="nav-item">
-                <button class="nav-link" id="rsp-tab" data-bs-toggle="tab" data-bs-target="#rsp-content" type="button"
+                <button class="nav-link" id="rsp-tab" data-tab-target="#rsp-content" type="button"
                         role="tab">RSP</button>
               </li>
               <li class="nav-item">
-                <button class="nav-link" id="memory-tab" data-bs-toggle="tab" data-bs-target="#memory-content"
+                <button class="nav-link" id="memory-tab" data-tab-target="#memory-content"
                         type="button" role="tab">Memory</button>
               </li>
               <li class="nav-item">
-                <button class="nav-link" id="dynarec-tab" data-bs-toggle="tab" data-bs-target="#dynarec-content"
+                <button class="nav-link" id="dynarec-tab" data-tab-target="#dynarec-content"
                         type="button" role="tab">Dynarec</button>
               </li>
               <li class="nav-item">
-                <button class="nav-link" id="dlist-tab" data-bs-toggle="tab" data-bs-target="#dlist-content"
+                <button class="nav-link" id="dlist-tab" data-tab-target="#dlist-content"
                         type="button" role="tab">DisplayList</button>
               </li>
               <li class="nav-item">
-                <button class="nav-link" id="texture-tab" data-bs-toggle="tab" data-bs-target="#texture-content"
+                <button class="nav-link" id="texture-tab" data-tab-target="#texture-content"
                         type="button" role="tab">Textures</button>
               </li>
               <li class="nav-item">
-                <button class="nav-link" id="timeline-tab" data-bs-toggle="tab" data-bs-target="#timeline-content"
+                <button class="nav-link" id="timeline-tab" data-tab-target="#timeline-content"
                         type="button" role="tab">Timeline</button>
               </li>
             </ul>
@@ -282,11 +280,11 @@
                     <div class="tabbable tabs-left">
                       <ul class="nav nav-underline">
                         <li class="nav-item">
-                          <button class="nav-link active" id="cpu0-tab" data-bs-toggle="tab"
-                                  data-bs-target="#cpu0-content" type="button" role="tab">cpu0</button>
+                          <button class="nav-link active" id="cpu0-tab"
+                                  data-tab-target="#cpu0-content" type="button" role="tab">cpu0</button>
                         </li>
                         <li class="nav-item">
-                          <button class="nav-link" id="cpu1-tab" data-bs-toggle="tab" data-bs-target="#cpu1-content"
+                          <button class="nav-link" id="cpu1-tab" data-tab-target="#cpu1-content"
                                   type="button" role="tab">cpu1</button>
                         </li>
                       </ul>
@@ -355,15 +353,15 @@
                     <div class="tabbable tabs-left">
                       <ul class="nav nav-underline">
                         <li class="nav-item">
-                          <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#rsp-scalar-content"
+                          <button class="nav-link active" data-tab-target="#rsp-scalar-content"
                                   type="button" role="tab">Scalar</button>
                         </li>
                         <li class="nav-item">
-                          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#rsp-vector-content"
+                          <button class="nav-link" data-tab-target="#rsp-vector-content"
                                   type="button" role="tab">Vector</button>
                         </li>
                         <li class="nav-item">
-                          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#rsp-task-content" type="button"
+                          <button class="nav-link" data-tab-target="#rsp-task-content" type="button"
                                   role="tab">Task</button>
                         </li>
                       </ul>
@@ -420,24 +418,24 @@
                     <div class="tabbable">
                       <ul class="nav nav-underline">
                         <li class="nav-item">
-                          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#dl-geometrymode-content"
+                          <button class="nav-link" data-tab-target="#dl-geometrymode-content"
                                   type="button" role="tab">Geometry
                             Mode</button>
                         </li>
                         <li class="nav-item">
-                          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#dl-vertices-content"
+                          <button class="nav-link" data-tab-target="#dl-vertices-content"
                                   type="button" role="tab">Vertices</button>
                         </li>
                         <li class="nav-item">
-                          <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#dl-tiles-content"
+                          <button class="nav-link active" data-tab-target="#dl-tiles-content"
                                   type="button" role="tab">Tiles</button>
                         </li>
                         <li class="nav-item">
-                          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#dl-combiner-content"
+                          <button class="nav-link" data-tab-target="#dl-combiner-content"
                                   type="button" role="tab">Combiner</button>
                         </li>
                         <li class="nav-item">
-                          <button class="nav-link" data-bs-toggle="tab" data-bs-target="#dl-rdp-content" type="button"
+                          <button class="nav-link" data-tab-target="#dl-rdp-content" type="button"
                                   role="tab">RDP</button>
                         </li>
                       </ul>
@@ -489,12 +487,12 @@
     </div>
   </div>
 
-  <div class="modal" tabindex="-1" id="controller">
+  <dialog class="modal" id="controller" aria-labelledby="controller-title">
     <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title">Controls</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          <h5 class="modal-title" id="controller-title">Controls</h5>
+          <button type="button" class="btn-close" data-dialog-close aria-label="Close"></button>
         </div>
         <div class="modal-body">
           <table class="table table-sm">
@@ -566,12 +564,12 @@
           </table>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-secondary" data-dialog-close>Close</button>
           <button type="button" class="btn btn-primary">Save changes</button>
         </div>
       </div>
     </div>
-  </div>
+  </dialog>
 
   <!-- Bake local version of the imports. -->
   <script type="importmap">
@@ -581,7 +579,7 @@
       }
     }
   </script>
-  <script src="js/bootstrap-color-mode-toggler.js"></script>
+  <script src="js/theme.js"></script>
   <script type="module" src="build/n64.min.js"></script>
 
   <script defer>
@@ -594,7 +592,7 @@
 
 <template id="alert">
   <div class="alert">
-    <button class="close" data-dismiss="alert">×</button>
+    <button type="button" class="close" data-alert-close aria-label="Dismiss alert">×</button>
     <strong class="alert-type"></strong> <span class="alert-message"></span>
   </div>
 </template>

@@ -3,11 +3,11 @@ import globals from 'globals';
 
 export default [
   {
-    files: ['src/**/*.js', 'tools/**/*.js', 'eslint.config.js'],
+    files: ['src/**/*.js', 'js/**/*.js', 'tools/**/*.js', 'eslint.config.js'],
     ...js.configs.recommended,
   },
   {
-    files: ['src/**/*.js'],
+    files: ['src/**/*.js', 'js/**/*.js'],
     languageOptions: { globals: globals.browser },
   },
   {
@@ -23,7 +23,7 @@ export default [
     languageOptions: { sourceType: 'commonjs', globals: globals.node },
   },
   {
-    files: ['tools/build.js', 'tools/systemtest/**/*.js', 'tools/texture_sampler/run.js'],
+    files: ['tools/build.js', 'tools/ui_check.js', 'tools/systemtest/**/*.js', 'tools/texture_sampler/run.js'],
     languageOptions: {
       sourceType: 'module',
       globals: { ...globals.nodeBuiltin, ...globals.bunBuiltin },
