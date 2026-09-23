@@ -1,4 +1,6 @@
-/*global n64js, Stats, __BUILD_VERSION__*/
+/*global n64js, __BUILD_VERSION__*/
+
+import Stats from 'stats.js';
 
 import { simulateBoot } from './boot.js';
 import { Breakpoints } from './debug/breakpoints.js';
