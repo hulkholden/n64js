@@ -487,8 +487,6 @@ export class GBIMicrocode {
     this.state.scissor.x1 = x1;
     this.state.scissor.y1 = y1;
     this.state.scissor.mode = mode;
-
-    // FIXME: actually set this
   }
 
   executeSetRDPOtherMode(cmd0, cmd1, dis) {
@@ -783,8 +781,6 @@ export class GBIMicrocode {
       x1 += 1;
       y1 += 1;
     }
-
-    // TODO: Apply scissor.
 
     this.renderer.fillRect(x0, y0, x1, y1, color);
   }

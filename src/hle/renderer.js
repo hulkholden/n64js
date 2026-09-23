@@ -137,6 +137,7 @@ export class Renderer extends RendererBase {
     gl.disable(gl.CULL_FACE);
     gl.disable(gl.BLEND);
     gl.disable(gl.DEPTH_TEST);
+    gl.disable(gl.SCISSOR_TEST);
     gl.depthMask(false);
 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
@@ -244,6 +245,7 @@ export class Renderer extends RendererBase {
     gl.disable(gl.BLEND);
     gl.disable(gl.CULL_FACE);
     gl.disable(gl.DEPTH_TEST);
+    gl.disable(gl.SCISSOR_TEST);
     gl.depthMask(false);
 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
@@ -260,6 +262,7 @@ export class Renderer extends RendererBase {
 
   clearDepth(depth) {
     const gl = this.gl;
+    this.applyScissor();
     gl.clearDepth(depth);
     gl.depthMask(true);
     gl.clear(gl.DEPTH_BUFFER_BIT);
@@ -267,6 +270,7 @@ export class Renderer extends RendererBase {
 
   clearColor(color) {
     const gl = this.gl;
+    this.applyScissor();
     gl.clearColor(color.r, color.g, color.b, color.a);
     this.renderTargets.markDirty(this.state.scissor);
     gl.clear(gl.COLOR_BUFFER_BIT);
@@ -275,6 +279,7 @@ export class Renderer extends RendererBase {
   fillRect(x0, y0, x1, y1, color) {
     const gl = this.gl;
 
+    this.applyScissor();
     this.setGLBlendMode();
 
     const display0 = this.nativeTransform.convertN64ToDisplay(new Vector2(x0, y0));
@@ -306,8 +311,6 @@ export class Renderer extends RendererBase {
 
   lleRect(tileIdx, vertices, uvs, colours, textureRect = null) {
     const gl = this.gl;
-
-    // TODO: check scissor
 
     this.setProgramState(new Float32Array(vertices), new Uint32Array(colours), new Float32Array(uvs),
       true /* textureEnabled */, false /*texGenEnabled*/, tileIdx, vertices.length / 4, textureRect);
@@ -376,6 +379,23 @@ export class Renderer extends RendererBase {
     this.lleRect(tileIdx, vertices, uvs, colours);
   }
 
+  applyScissor() {
+    const gl = this.gl;
+    const { width, height } = this.frameBuffer;
+    const { viWidth, viHeight } = this.nativeTransform;
+    const { x0, y0, x1, y1 } = this.state.scissor;
+    // Use the same VI-space scaling as the vertices, then flip the top-down
+    // N64 bounds to WebGL's bottom-left origin. Quantize edges independently
+    // so adjacent boxes stay adjacent at noninteger rendering scales.
+    const left = Math.round(x0 * width / viWidth);
+    const right = Math.round(x1 * width / viWidth);
+    const top = Math.round(y0 * height / viHeight);
+    const bottom = Math.round(y1 * height / viHeight);
+    gl.enable(gl.SCISSOR_TEST);
+    gl.scissor(left, height - bottom, Math.max(0, right - left), Math.max(0, bottom - top));
+    // TODO: emulate odd/even scanline selection for interlaced scissor modes.
+  }
+
   initDepth() {
     const gl = this.gl;
 
@@ -400,6 +420,7 @@ export class Renderer extends RendererBase {
   setProgramState(positions, colours, coords, textureEnabled, texGenEnabled, tileIdx, numVertices = positions.length / 4, textureRect = null, noNearClipping = false) {
     const gl = this.gl;
 
+    this.applyScissor();
     this.setGLBlendMode();
 
     // TODO: I think it would make more sense to check if the texture is referenced in the combiner.
