@@ -15,6 +15,43 @@ async function fixture() {
 }
 
 describe('DPC HLE clock approximation', () => {
+  test('holds frozen HLE completions until unfreeze and signals them only once', async () => {
+    const { hardware } = await fixture();
+    const dp = hardware.dpcDevice;
+    let interrupts = 0;
+    hardware.miRegDevice.interruptDP = () => { interrupts++; };
+    dp.statusReg = 0x28; // PIPE_BUSY | START_GCLK
+    dp.write32(base + status, 0x8); // SET_FREEZE
+    dp.syncFullHLE();
+    dp.syncFullHLE();
+    dp.write32(base + status, 0x200); // Clearing a counter must not release work.
+    expect(interrupts).toBe(0);
+    expect(dp.statusReg).toBe(0x2a);
+    expect(dp.readU32(base + clock)).toBe(0);
+
+    // The RSP and CPU register paths share the same pending completions.
+    hardware.rsp.moveToControl(11, 0x4); // CLR_FREEZE
+    expect(interrupts).toBe(1);
+    expect(dp.statusReg).toBe(0);
+    expect(dp.readU32(base + clock)).toBe(2);
+    dp.write32(base + status, 0x4);
+    expect(interrupts).toBe(1);
+  });
+
+  test('reset discards frozen HLE completions', async () => {
+    const { hardware } = await fixture();
+    const dp = hardware.dpcDevice;
+    dp.write32(base + status, 0x8);
+    dp.syncFullHLE();
+    hardware.reset();
+    dp.write32(base + status, 0x4);
+    expect(hardware.mi_reg.getU32(MI_INTR_REG) & MI_INTR_DP).toBe(0);
+    expect(dp.readU32(base + clock)).toBe(0);
+    dp.syncFullHLE();
+    expect(hardware.mi_reg.getU32(MI_INTR_REG) & MI_INTR_DP).toBe(MI_INTR_DP);
+    expect(dp.readU32(base + clock)).toBe(1);
+  });
+
   test('credits completed work before the DP interrupt and exposes it to CPU and RSP reads', async () => {
     const { hardware } = await fixture();
     const dp = hardware.dpcDevice;
