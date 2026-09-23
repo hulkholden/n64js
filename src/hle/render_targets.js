@@ -68,19 +68,24 @@ export class RenderTargets {
   preserveForVI(target) {
     const snapshot = this.frozenTargets?.get(target);
     if (!snapshot || snapshot.texture !== target.texture) return;
+
     const gl = this.gl;
     const read = gl.getParameter(gl.READ_FRAMEBUFFER_BINDING);
     const draw = gl.getParameter(gl.DRAW_FRAMEBUFFER_BINDING);
     const scissor = gl.isEnabled(gl.SCISSOR_TEST);
+
     const copy = this.createTarget();
     gl.bindFramebuffer(gl.READ_FRAMEBUFFER, target.framebuffer);
     gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, copy.framebuffer);
+
     // A previous primitive's scissor must not crop the preserved image.
     gl.disable(gl.SCISSOR_TEST);
     gl.blitFramebuffer(0, 0, this.width, this.height, 0, 0, this.width, this.height, gl.COLOR_BUFFER_BIT, gl.NEAREST);
+
     if (scissor) gl.enable(gl.SCISSOR_TEST);
     gl.bindFramebuffer(gl.READ_FRAMEBUFFER, read);
     gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, draw);
+
     snapshot.texture = copy.texture;
     snapshot.framebuffer = copy.framebuffer;
     this.frozenCopies.add(copy);
