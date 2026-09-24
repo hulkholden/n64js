@@ -27,7 +27,7 @@ jobs:
       - name: Stage site
         run: |
           mkdir _site
-          cp index.html n64js.css _site/
+          cp index.html n64js.css ui.css _site/
           cp -R build js roms _site/
       - uses: actions/upload-pages-artifact@v4
         with:

@@ -3,11 +3,11 @@ import globals from 'globals';
 
 export default [
   {
-    files: ['src/**/*.js', 'tools/**/*.js', 'eslint.config.js'],
+    files: ['src/**/*.js', 'js/**/*.js', 'tools/**/*.js', 'eslint.config.js'],
     ...js.configs.recommended,
   },
   {
-    files: ['src/**/*.js'],
+    files: ['src/**/*.js', 'js/**/*.js'],
     languageOptions: { globals: globals.browser },
   },
   {

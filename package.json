@@ -8,7 +8,7 @@
   "scripts": {
     "test:visual": "node tools/texture_sampler/run.js",
     "build:visual": "bun build tools/texture_sampler/visual.js --outfile=build/texture_sampler_visual.js",
-    "lint": "bun --bun eslint src tools eslint.config.js --max-warnings 0",
+    "lint": "bun --bun eslint src js tools eslint.config.js --max-warnings 0",
     "lint:fix": "bun run lint --fix",
     "build": "bun run tools/build.js",
     "build-debug": "bun run tools/build.js --debug",
@@ -34,8 +34,6 @@
   },
   "homepage": "https://github.com/hulkholden/n64js",
   "dependencies": {
-    "@popperjs/core": "^2.11.8",
-    "bootstrap": "^5.3.8",
     "lil-gui": "^0.18.2",
     "mitata": "^0.1.14",
     "stats.js": "^0.17.0"

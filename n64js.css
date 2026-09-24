@@ -68,13 +68,13 @@ pre {
   color: red;
   border: 0;
   border-radius: 0;
-  background-color: var(--bs-secondary-bg);
+  background-color: var(--secondary-bg);
 }
 
 .dis-view pre {
   border: 0;
   border-radius: 0;
-  background-color: var(--bs-body-bg);
+  background-color: var(--body-bg);
 }
 
 pre .dis-address-jump {
@@ -94,7 +94,7 @@ pre .dis-address {
 }
 
 pre .dis-line-target {
-  background-color: var(--bs-tertiary-bg);
+  background-color: var(--tertiary-bg);
 }
 
 pre .dis-line-cur {
@@ -106,8 +106,8 @@ pre .dis-line-cur {
 
   height: 360px;
 
-  color: var(--bs-body-color);
-  background-color: var(--bs-secondary-bg);
+  color: var(--body-color);
+  background-color: var(--secondary-bg);
 }
 
 div #disasm {
@@ -166,8 +166,8 @@ table .impl100 {
 
   height: 480px;
 
-  color: var(--bs-body-color);
-  background-color: var(--bs-body-bg);
+  color: var(--body-color);
+  background-color: var(--body-bg);
 }
 
 .hle-cur-instr {
