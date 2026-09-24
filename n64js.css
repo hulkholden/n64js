@@ -2,6 +2,10 @@ canvas {
   cursor: none;
 }
 
+#title {
+  margin-top: 16px;
+}
+
 pre {
   font-family: var(--code-font);
   font-variant-numeric: tabular-nums;
