@@ -377,6 +377,7 @@ export class Debugger {
   highlightRegisters(text, registerColours) {
     for (const [reg, colour] of registerColours) {
       text.querySelectorAll('.dis-reg-' + reg).forEach(element => {
+        element.classList.add('dis-reg-highlight');
         element.style.backgroundColor = colour;
       });
     }

@@ -371,15 +371,20 @@ table .impl100 {
 
 /* Small operand labels need stronger fills than the matching register cells. */
 .debugger .dis-view {
-  --register-1: #bad6ff;
-  --register-2: #b9e6d5;
-  --register-3: #ddc6f4;
+  --register-1: #85cef0;
+  --register-2: #8ddab4;
+  --register-3: #c8a5ef;
 }
 
 [data-theme="dark"] .debugger .dis-view {
-  --register-1: #365b8f;
-  --register-2: #286b54;
-  --register-3: #654588;
+  --register-1: #64cde8;
+  --register-2: #71d6ab;
+  --register-3: #c3a0f5;
+}
+
+/* Bright fills need dark text, including when the surrounding code is dark. */
+.debugger .dis-reg-highlight {
+  color: #102139;
 }
 
 /* Both columns must share line metrics so breakpoint hit targets stay aligned. */
