@@ -1,8 +1,16 @@
-import { describe, expect, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { createHeadlessEmulator } from '../headless/headless_env.js';
 import * as regs from './cpu0reg.js';
 import * as decode from './decode.js';
 import { getPerformanceProfile, setPerformanceProfiling } from '../debug/performance_profile.js';
+import { recompilerOptions } from '../options.js';
+
+let previousGuardedRAMStores;
+beforeEach(() => {
+  previousGuardedRAMStores = recompilerOptions.guardedRAMStores;
+  recompilerOptions.guardedRAMStores = true;
+});
+afterEach(() => { recompilerOptions.guardedRAMStores = previousGuardedRAMStores; });
 
 const { getFragmentMap, lookupFragment } = await import('./fragments.js');
 const pc = 0x80001000;
@@ -81,6 +89,8 @@ async function compareExecutions(instructions, prepare = () => {}, train = () =>
       fpr: Array.from({ length: 32 }, (_, i) => hardware.cpu1.loadU32(hardware.cpu1.fdRegIdx32(i))),
       rawFpr: [...hardware.cpu1.regU32],
       memory: [...hardware.ram.u8.slice(0x3000, 0x3020)],
+      ramEnd: [...hardware.ram.u8.slice(-16)],
+      codeMemory: [...hardware.ram.u8.slice(0x1000, 0x1030)],
       countCycles: cpu.controlCountValue,
       compareCycles: cpu.getCyclesUntilEvent('Compare'),
       rsp: {
@@ -295,6 +305,174 @@ for (const profiled of [false, true]) {
         (c, h) => { setup(c, h); c.setRegS32Extend(5, 0x80003000); });
       expect(result.rspHalted).toBe(false);
       expect(result.rspGPR[1]).toBe(9);
+    });
+
+    test('guarded stores preserve overlap, base/value aliasing and big-endian bytes', async () => {
+      const setup = c => {
+        c.setRegS32Extend(4, 0x80003008);
+        c.setRegU64(2, 0xdeadbeef12345678n);
+      };
+      const result = await compare([0,
+        iop(decode.OP_SW, 4, 2, -8), iop(decode.OP_SW, 4, 4, -8), iop(decode.OP_SW, 4, 0, -4),
+        iop(decode.OP_LW, 4, 4, -8), // Load overwrites the base before the next group.
+        iop(decode.OP_SW, 4, 2, 0), iop(decode.OP_SW, 4, 2, 4),
+      ], setup, setup);
+      expect(result.code.match(/Guarded RAM SW group/g)).toHaveLength(2);
+      expect(result.memory.slice(0, 16)).toEqual([
+        0x80, 0, 0x30, 8, 0, 0, 0, 0, 0x12, 0x34, 0x56, 0x78, 0x12, 0x34, 0x56, 0x78,
+      ]);
+    });
+
+    test('groups recompute their base after arithmetic and a base/destination-aliasing load', async () => {
+      const setup = c => {
+        c.setRegS32Extend(2, 0x12345678);
+        c.setRegS32Extend(3, 0x80003010);
+      };
+      const result = await compare([0,
+        iop(decode.OP_SW, 4, 2), iop(decode.OP_SW, 4, 2, 4),
+        iop(decode.OP_ADDIU, 4, 4, 8),
+        iop(decode.OP_SW, 4, 3), iop(decode.OP_SW, 4, 3, 4),
+        iop(decode.OP_LW, 4, 4),
+        iop(decode.OP_SW, 4, 2), iop(decode.OP_SW, 4, 2, 4),
+      ], setup, setup);
+      expect(result.code.match(/Guarded RAM SW group/g)).toHaveLength(3);
+      expect(result.memory.slice(0, 24)).toEqual([
+        0x12, 0x34, 0x56, 0x78, 0x12, 0x34, 0x56, 0x78,
+        0x80, 0, 0x30, 0x10, 0x80, 0, 0x30, 0x10,
+        0x12, 0x34, 0x56, 0x78, 0x12, 0x34, 0x56, 0x78,
+      ]);
+    });
+
+    for (const [name, address, cause] of [
+      ['alignment', 0x80003001, 0x14], ['TLB miss', 0x00400000, 0x0c],
+      ['wraparound to TLB', 0xfffffffc, 0x0c],
+    ]) {
+      test(`guarded store fallback preserves ${name} exceptions and timing`, async () => {
+        const result = await compare([0, iop(decode.OP_SW, 4, 2), iop(decode.OP_SW, 4, 3, 4)],
+          c => c.setRegS32Extend(4, address));
+        expect(result.code).toContain('Guarded RAM SW group');
+        expect(result.epc).toBe(pc + 4);
+        expect(result.badVAddr).toBe(address);
+        expect(result.cause).toBe(cause);
+      });
+    }
+
+    test('failed group guard preserves an earlier store before a later TLB fault', async () => {
+      const setup = c => {
+        c.setRegS32Extend(4, 0x00403ffc);
+        c.setRegS32Extend(2, 0x12345678);
+        c.setControlU32(regs.controlIndex, 0);
+        c.setControlU32(regs.controlPageMask, 0);
+        c.setControlU32(regs.controlEntryHi, 0x00402000);
+        c.setControlU32(regs.controlEntryLo0, 0xc7); // Map both halves; next pair remains unmapped.
+        c.setControlU32(regs.controlEntryLo1, 0xc7);
+        c.tlbWriteIndex();
+      };
+      const result = await compare([0, iop(decode.OP_SW, 4, 2, -0xffc),
+        iop(decode.OP_SW, 4, 2, 4)], setup);
+      expect(result.code).toContain('Guarded RAM SW group');
+      expect(result.memory.slice(0, 4)).toEqual([0x12, 0x34, 0x56, 0x78]);
+      expect(result.epc).toBe(pc + 8);
+      expect(result.badVAddr).toBe(0x00404000);
+      expect(result.cause).toBe(0x0c);
+    });
+
+    test('group crossing RAM end uses helpers without duplicate or out-of-bounds fast writes', async () => {
+      const setup = c => {
+        c.setRegS32Extend(4, 0x807ffffc);
+        c.setRegS32Extend(2, 0x12345678);
+      };
+      const result = await compare([0, iop(decode.OP_SW, 4, 2), iop(decode.OP_SW, 4, 3, 4)], setup);
+      expect(result.ramEnd.slice(-4)).toEqual([0x12, 0x34, 0x56, 0x78]);
+      expect(result.code).toContain('Guarded RAM SW group');
+    });
+
+    test('guarded fallback services MMIO interrupt before the second store or RSP step', async () => {
+      const setup = (c, h) => {
+        c.setControlU32(regs.controlStatus, 0x20000401);
+        c.statusRegisterChanged();
+        c.setRegS32Extend(4, 0xa430000c);
+        c.setRegS32Extend(2, 2); // Enable pending SP interrupt.
+        c.setRegS32Extend(3, 1); // Second store would disable it.
+        h.mi_reg.set32(8, 1);
+        for (let i = 0; i < runCycles; i++) h.sp_mem.set32(0x1000 + i * 4, iop(decode.OP_ADDIU, 1, 1, 1));
+        h.rsp.unhalt();
+      };
+      const result = await compare([0, iop(decode.OP_SW, 4, 2), iop(decode.OP_SW, 4, 3)], setup);
+      expect(result.code).toContain('Guarded RAM SW group');
+      expect(result.epc).toBe(pc + 8);
+      expect(result.interruptRSPPCs).toEqual([8]);
+    });
+
+    test('guarded fallback can start then stop RSP between stores', async () => {
+      const setup = (c, h) => {
+        c.setRegS32Extend(4, 0xa4040010);
+        c.setRegS32Extend(2, 1); // Clear HALT.
+        c.setRegS32Extend(3, 2); // Set HALT.
+        h.sp_mem.set32(0x1000, iop(decode.OP_ADDIU, 1, 1, 1));
+      };
+      const result = await compare([0, iop(decode.OP_SW, 4, 2), iop(decode.OP_SW, 4, 3)], setup);
+      expect(result.code).toContain('Guarded RAM SW group');
+      expect(result.rspGPR[1]).toBe(1);
+      expect(result.rspHalted).toBe(true);
+    });
+
+    test('RAM group retains active RSP steps and a mid-group RSP interrupt exit', async () => {
+      const setup = (c, h) => {
+        c.setControlU32(regs.controlStatus, 0x20000401);
+        c.statusRegisterChanged();
+        c.setRegS32Extend(2, 0x12345678);
+        h.mi_reg.set32(0xc, 1); // SP interrupt mask.
+        h.sp_reg.set32(0x10, 0x40); // Interrupt on BREAK (without raising it yet).
+        h.sp_mem.set32(0x1008, 0x0000000d); // BREAK before the second store.
+        h.rsp.unhalt();
+      };
+      const result = await compare([0, iop(decode.OP_SW, 4, 2), iop(decode.OP_SW, 4, 2, 4)], setup);
+      expect(result.code).toContain('Guarded RAM SW group');
+      expect(result.memory.slice(0, 8)).toEqual([0x12, 0x34, 0x56, 0x78, 0, 0, 0, 0]);
+      expect(result.epc).toBe(pc + 8);
+      expect(result.interruptRSPPCs).toEqual([12]);
+    });
+
+    test('a breakpoint after a RAM group charges only completed instructions', async () => {
+      const result = await compare([0, iop(decode.OP_SW, 4, 2), iop(decode.OP_SW, 4, 2, 4), breakpointInstruction],
+        c => {
+          c.setRegS32Extend(2, 0x12345678);
+          n64js.breakpoints = () => ({ isBreakpoint: () => true });
+        }, () => { n64js.breakpoints = () => ({ isBreakpoint: () => false }); });
+      expect(result.code).toContain('Guarded RAM SW group');
+      expect(result.memory.slice(0, 8)).toEqual([0x12, 0x34, 0x56, 0x78, 0x12, 0x34, 0x56, 0x78]);
+      expect(result.pc).toBe(pc + 12);
+      expect(result.countCycles).toBe(3);
+      if (profiled) expect(result.profile.compiledOps).toBe(3);
+    });
+
+    test('events due inside a store group keep the interpreter event boundary', async () => {
+      const observations = [];
+      const setup = c => {
+        c.setRegS32Extend(2, 0x12345678);
+        c.addEvent('observe stores', 2, () => observations.push([c.pc, c.hardware.ram.getU32(0x3004)]));
+      };
+      // This event rejects the compiled fragment before entry, so test that path
+      // separately from compareExecutions, which requires a compiled invocation.
+      const e = await createHeadlessEmulator({ romBuffer: new ArrayBuffer(0x1000), rominfo: { cic: '6102', tvType: 1, save: 'Eeprom4k' } });
+      const c = e.cpu0;
+      const words = [0, iop(decode.OP_SW, 4, 2), iop(decode.OP_SW, 4, 2, 4), ...Array(9).fill(0)];
+      const reset = () => {
+        c.reset(); c.pc = pc;
+        c.setRegS32Extend(4, 0x80003000);
+        e.hardware.ram.u8.fill(0);
+        words.forEach((word, i) => e.hardware.ram.set32(0x1000 + i * 4, word));
+      };
+      reset();
+      for (let i = 0; i < 499; i++) lookupFragment(pc);
+      c.run(runCycles);
+      const fragment = getFragmentMap().get(pc);
+      expect(fragment.func.toString()).toContain('Guarded RAM SW group');
+      reset(); setup(c); c.run(runCycles);
+      reset(); setup(c); getFragmentMap().set(pc, fragment); c.run(runCycles);
+      expect(fragment.executionCount).toBe(0);
+      expect(observations).toEqual([[pc + 8, 0], [pc + 8, 0]]);
     });
 
     test('four COP1 memory operations share one usability check', async () => {

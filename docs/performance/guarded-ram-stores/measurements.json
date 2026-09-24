@@ -1,0 +1,1788 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-09-20",
+  "baselineCommit": "5395330d03c4d326a8ced994b034cc727a1b4403",
+  "runtime": {
+    "bun": "1.3.14",
+    "platform": "darwin",
+    "arch": "arm64",
+    "os": "macOS 26.5.2 (25F84)",
+    "cpu": "Apple M4"
+  },
+  "prototypeEnabled": true,
+  "prototypeSourceSHA256": {
+    "src/cpu/r4300.js": "621a89ba69da0e9916530c46ff228484ca7c37b0dbdbbe11e1a53d412b4b7352",
+    "src/cpu/recompiler.js": "3f17ca401aeb61bf440554e34934ac51bf696d6778529ba4b9851adcff498976",
+    "src/cpu/ram_store_group.js": "0e608a89481fe7ced45ee76e899b2c9a195a62fc8196bc2b01058092a5a54132",
+    "src/options.js": "cc4e94a703dbc8c13e84fd3fc28249282169ad29f03f6246e58d224e215ed597",
+    "src/headless/benchmark.js": "305aac5f86ba23e1d6811b43a74b9ff77b4c70a1a7d0d22f8618407937e65b6e"
+  },
+  "timingWallSeconds": 1293,
+  "results": [
+    {
+      "title": "turok",
+      "warmup": 120,
+      "frames": 600,
+      "medianVIperSecond": {
+        "baseline": 165.45804733651323,
+        "prototype": 155.3323307710079
+      },
+      "madVIperSecond": {
+        "baseline": 2.911635787452525,
+        "prototype": 2.9976781818944005
+      },
+      "aggregateChangePercent": -6.119809056437964,
+      "medianPairedChangePercent": -6.119809056437964,
+      "pairs": [
+        {
+          "pair": 1,
+          "order": [
+            "baseline",
+            "prototype"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 3.672308917,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 255243232.85028255,
+            "framesPerSecond": 163.38494760679197,
+            "state": "11bcc618a0c33c71"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 3.982741167,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 235348459.94173542,
+            "framesPerSecond": 150.65001084465402,
+            "state": "11bcc618a0c33c71"
+          },
+          "changePercent": -7.794436971505048
+        },
+        {
+          "pair": 2,
+          "order": [
+            "prototype",
+            "baseline"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 3.563586917,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 263030486.36992177,
+            "framesPerSecond": 168.36968312396576,
+            "state": "11bcc618a0c33c71"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 3.674021291,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 255124270.04604423,
+            "framesPerSecond": 163.30879776602796,
+            "state": "11bcc618a0c33c71"
+          },
+          "changePercent": -3.00581747499733
+        },
+        {
+          "pair": 3,
+          "order": [
+            "baseline",
+            "prototype"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 3.557548834,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 263476917.32065204,
+            "framesPerSecond": 168.6554501418827,
+            "state": "11bcc618a0c33c71"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 3.883300084,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 241375113.87852868,
+            "framesPerSecond": 154.50776067297096,
+            "state": "11bcc618a0c33c71"
+          },
+          "changePercent": -8.388516028986848
+        },
+        {
+          "pair": 4,
+          "order": [
+            "prototype",
+            "baseline"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 3.626296875,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 258481870.7100477,
+            "framesPerSecond": 165.45804733651323,
+            "state": "11bcc618a0c33c71"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 3.862685875,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 242663273.77708393,
+            "framesPerSecond": 155.3323307710079,
+            "state": "11bcc618a0c33c71"
+          },
+          "changePercent": -6.119809056437964
+        },
+        {
+          "pair": 5,
+          "order": [
+            "baseline",
+            "prototype"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 3.72100525,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 251902896.40144956,
+            "framesPerSecond": 161.246749114369,
+            "state": "11bcc618a0c33c71"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 3.78955325,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 247346306.58640304,
+            "framesPerSecond": 158.3300089529023,
+            "state": "11bcc618a0c33c71"
+          },
+          "changePercent": -1.8088675756172568
+        }
+      ]
+    },
+    {
+      "title": "turok",
+      "warmup": 1320,
+      "frames": 600,
+      "medianVIperSecond": {
+        "baseline": 185.66943473810457,
+        "prototype": 182.34362386778696
+      },
+      "madVIperSecond": {
+        "baseline": 3.377595180604743,
+        "prototype": 1.0936886794386282
+      },
+      "aggregateChangePercent": -1.7912538350799756,
+      "medianPairedChangePercent": -3.436457289099548,
+      "pairs": [
+        {
+          "pair": 1,
+          "order": [
+            "baseline",
+            "prototype"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 3.409493084,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 274918287.5303935,
+            "framesPerSecond": 175.97923949917006,
+            "state": "11bcc618a0c33c71"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 3.604558291,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 260040738.51166913,
+            "framesPerSecond": 166.4559015450251,
+            "state": "11bcc618a0c33c71"
+          },
+          "changePercent": -5.411625815208653
+        },
+        {
+          "pair": 2,
+          "order": [
+            "prototype",
+            "baseline"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 3.231549667,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 290056504.3365617,
+            "framesPerSecond": 185.66943473810457,
+            "state": "11bcc618a0c33c71"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 3.3919575,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 276339547.29680425,
+            "framesPerSecond": 176.88900878032817,
+            "state": "11bcc618a0c33c71"
+          },
+          "changePercent": -4.729063763328412
+        },
+        {
+          "pair": 3,
+          "order": [
+            "baseline",
+            "prototype"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 3.276349125,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 286090390.3212696,
+            "framesPerSecond": 183.13066682110687,
+            "state": "11bcc618a0c33c71"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 3.290490708,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 284860856.07873416,
+            "framesPerSecond": 182.34362386778696,
+            "state": "11bcc618a0c33c71"
+          },
+          "changePercent": -0.42977124857451754
+        },
+        {
+          "pair": 4,
+          "order": [
+            "prototype",
+            "baseline"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 3.173813417,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 295333051.07960606,
+            "framesPerSecond": 189.0470299187093,
+            "state": "11bcc618a0c33c71"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 3.271867084,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 286482297.702042,
+            "framesPerSecond": 183.38153249993084,
+            "state": "11bcc618a0c33c71"
+          },
+          "changePercent": -2.9968719536163313
+        },
+        {
+          "pair": 5,
+          "order": [
+            "baseline",
+            "prototype"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 3.158470042,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 296767734.8639548,
+            "framesPerSecond": 189.96539211119736,
+            "state": "11bcc618a0c33c71"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 3.270872167,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 286569438.40752673,
+            "framesPerSecond": 183.4373125472256,
+            "state": "11bcc618a0c33c71"
+          },
+          "changePercent": -3.436457289099548
+        }
+      ]
+    },
+    {
+      "title": "mario",
+      "warmup": 120,
+      "frames": 600,
+      "medianVIperSecond": {
+        "baseline": 115.58635338187423,
+        "prototype": 114.99551679723999
+      },
+      "madVIperSecond": {
+        "baseline": 2.9141823146099455,
+        "prototype": 1.686478036283134
+      },
+      "aggregateChangePercent": -0.5111646551234639,
+      "medianPairedChangePercent": -2.1520094933193734,
+      "pairs": [
+        {
+          "pair": 1,
+          "order": [
+            "baseline",
+            "prototype"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 5.06326825,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 185123906.8757615,
+            "framesPerSecond": 118.50053569648418,
+            "state": "2079b8caef579d41"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 5.174626708,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 181140022.8253914,
+            "framesPerSecond": 115.95039291866152,
+            "state": "2079b8caef579d41"
+          },
+          "changePercent": -2.1520094933193734
+        },
+        {
+          "pair": 2,
+          "order": [
+            "prototype",
+            "baseline"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 4.992469791,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 187749158.07998323,
+            "framesPerSecond": 120.18099760596027,
+            "state": "2079b8caef579d41"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 5.142181541,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 182282945.9688265,
+            "framesPerSecond": 116.68199483352312,
+            "state": "2079b8caef579d41"
+          },
+          "changePercent": -2.9114442733362833
+        },
+        {
+          "pair": 3,
+          "order": [
+            "baseline",
+            "prototype"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 5.221010917,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 179530748.91070947,
+            "framesPerSecond": 114.92027301577849,
+            "state": "2079b8caef579d41"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 5.217594709,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 179648296.25098425,
+            "framesPerSecond": 114.99551679723999,
+            "state": "2079b8caef579d41"
+          },
+          "changePercent": 0.06547476740781377
+        },
+        {
+          "pair": 4,
+          "order": [
+            "prototype",
+            "baseline"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 5.433818666,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 172499683.48502117,
+            "framesPerSecond": 110.41958461997746,
+            "state": "2079b8caef579d41"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 5.51977625,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 169813405.02706066,
+            "framesPerSecond": 108.70005826776041,
+            "state": "2079b8caef579d41"
+          },
+          "changePercent": -1.5572657315593097
+        },
+        {
+          "pair": 5,
+          "order": [
+            "baseline",
+            "prototype"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 5.190924209,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 180571312.98023155,
+            "framesPerSecond": 115.58635338187423,
+            "state": "2079b8caef579d41"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 5.3172515,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 176281298.71231404,
+            "framesPerSecond": 112.8402521490661,
+            "state": "2079b8caef579d41"
+          },
+          "changePercent": -2.3758005616247413
+        }
+      ]
+    },
+    {
+      "title": "mario",
+      "warmup": 1320,
+      "frames": 600,
+      "medianVIperSecond": {
+        "baseline": 82.97993724713608,
+        "prototype": 81.5987955782768
+      },
+      "madVIperSecond": {
+        "baseline": 0.7666807959147519,
+        "prototype": 0.8917030124569578
+      },
+      "aggregateChangePercent": -1.6644284325569747,
+      "medianPairedChangePercent": -1.6571817040166303,
+      "pairs": [
+        {
+          "pair": 1,
+          "order": [
+            "baseline",
+            "prototype"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 7.830301458,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 119705736.11088167,
+            "framesPerSecond": 76.62540238307132,
+            "state": "2079b8caef579d41"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 7.902778125,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 118607910.4302324,
+            "framesPerSecond": 75.92266801745747,
+            "state": "2079b8caef579d41"
+          },
+          "changePercent": -0.9171036546088085
+        },
+        {
+          "pair": 2,
+          "order": [
+            "prototype",
+            "baseline"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 7.402983834,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 126615432.509129,
+            "framesPerSecond": 81.04840067924428,
+            "state": "2079b8caef579d41"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 7.729072292,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 121273545.46420641,
+            "framesPerSecond": 77.6289802103458,
+            "state": "2079b8caef579d41"
+          },
+          "changePercent": -4.218985742150694
+        },
+        {
+          "pair": 3,
+          "order": [
+            "baseline",
+            "prototype"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 7.164468417,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 130830641.63921486,
+            "framesPerSecond": 83.74661804305083,
+            "state": "2079b8caef579d41"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 7.285197375,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 128662540.18272223,
+            "framesPerSecond": 82.3587844111087,
+            "state": "2079b8caef579d41"
+          },
+          "changePercent": -1.6571817040166303
+        },
+        {
+          "pair": 4,
+          "order": [
+            "prototype",
+            "baseline"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 7.208131291,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 130038141.9481556,
+            "framesPerSecond": 83.23932733427787,
+            "state": "2079b8caef579d41"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 7.273564959,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 128868306.7084161,
+            "framesPerSecond": 82.49049859073376,
+            "state": "2079b8caef579d41"
+          },
+          "changePercent": -0.8996093163234131
+        },
+        {
+          "pair": 5,
+          "order": [
+            "baseline",
+            "prototype"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 7.230663458,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 129632917.56622092,
+            "framesPerSecond": 82.97993724713608,
+            "state": "2079b8caef579d41"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 7.353049708,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 127475270.4282956,
+            "framesPerSecond": 81.5987955782768,
+            "state": "2079b8caef579d41"
+          },
+          "changePercent": -1.6644284325569747
+        }
+      ]
+    },
+    {
+      "title": "zelda",
+      "warmup": 120,
+      "frames": 600,
+      "medianVIperSecond": {
+        "baseline": 112.07817714371521,
+        "prototype": 111.0962708506775
+      },
+      "madVIperSecond": {
+        "baseline": 3.939540153958589,
+        "prototype": 2.3242563364809854
+      },
+      "aggregateChangePercent": -0.8760905272206854,
+      "medianPairedChangePercent": -2.206708207969399,
+      "pairs": [
+        {
+          "pair": 1,
+          "order": [
+            "baseline",
+            "prototype"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 5.353406125,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 175090769.89745477,
+            "framesPerSecond": 112.07817714371521,
+            "state": "559649d31aa2522d"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 5.316295958,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 176312983.21333975,
+            "framesPerSecond": 112.8605338642059,
+            "state": "559649d31aa2522d"
+          },
+          "changePercent": 0.6980455432349597
+        },
+        {
+          "pair": 2,
+          "order": [
+            "prototype",
+            "baseline"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 5.173311792,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 181186063.72217667,
+            "framesPerSecond": 115.97986437388887,
+            "state": "559649d31aa2522d"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 5.290047709,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 177187815.98232272,
+            "framesPerSecond": 113.42052718715848,
+            "state": "559649d31aa2522d"
+          },
+          "changePercent": -2.206708207969399
+        },
+        {
+          "pair": 3,
+          "order": [
+            "baseline",
+            "prototype"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 5.156912709,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 181762238.93884024,
+            "framesPerSecond": 116.34868260478054,
+            "state": "559649d31aa2522d"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 5.400721333,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 173556816.2483454,
+            "framesPerSecond": 111.0962708506775,
+            "state": "559649d31aa2522d"
+          },
+          "changePercent": -4.514371487939151
+        },
+        {
+          "pair": 4,
+          "order": [
+            "prototype",
+            "baseline"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 5.548433166,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 168936341.47813758,
+            "framesPerSecond": 108.13863698975662,
+            "state": "559649d31aa2522d"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 5.583524625,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 167874606.624485,
+            "framesPerSecond": 107.45900489334727,
+            "state": "559649d31aa2522d"
+          },
+          "changePercent": -0.6284822107326282
+        },
+        {
+          "pair": 5,
+          "order": [
+            "baseline",
+            "prototype"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 5.582008667,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 167920197.892448,
+            "framesPerSecond": 107.48818853455212,
+            "state": "559649d31aa2522d"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 5.830347583,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 160767773.5600279,
+            "framesPerSecond": 102.9098165175378,
+            "state": "559649d31aa2522d"
+          },
+          "changePercent": -4.259418713287366
+        }
+      ]
+    },
+    {
+      "title": "zelda",
+      "warmup": 1320,
+      "frames": 600,
+      "medianVIperSecond": {
+        "baseline": 88.52741287790927,
+        "prototype": 85.29163923800678
+      },
+      "madVIperSecond": {
+        "baseline": 2.988422009871883,
+        "prototype": 1.2425441965252162
+      },
+      "aggregateChangePercent": -3.6551092308153676,
+      "medianPairedChangePercent": -5.0613384944315225,
+      "pairs": [
+        {
+          "pair": 1,
+          "order": [
+            "baseline",
+            "prototype"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 6.777561667,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 138299294.9461274,
+            "framesPerSecond": 88.52741287790927,
+            "state": "559649d31aa2522d"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 7.138884791,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 131299499.4934917,
+            "framesPerSecond": 84.04674085179532,
+            "state": "559649d31aa2522d"
+          },
+          "changePercent": -5.0613384944315225
+        },
+        {
+          "pair": 2,
+          "order": [
+            "prototype",
+            "baseline"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 6.457412,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 145155985.09124088,
+            "framesPerSecond": 92.91648109180582,
+            "state": "559649d31aa2522d"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 7.020233917,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 133518627.88078661,
+            "framesPerSecond": 85.46723757267645,
+            "state": "559649d31aa2522d"
+          },
+          "changePercent": -8.017139081891367
+        },
+        {
+          "pair": 3,
+          "order": [
+            "baseline",
+            "prototype"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 7.014345083,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 133630722.31386538,
+            "framesPerSecond": 85.53899086803739,
+            "state": "559649d31aa2522d"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 6.552214542,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 143055755.2704751,
+            "framesPerSecond": 91.57209309218618,
+            "state": "559649d31aa2522d"
+          },
+          "changePercent": 7.053043486865751
+        },
+        {
+          "pair": 4,
+          "order": [
+            "prototype",
+            "baseline"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 6.509750167,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 143988935.9735547,
+            "framesPerSecond": 92.16943578596785,
+            "state": "559649d31aa2522d"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 7.138684833,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 131303177.25570334,
+            "framesPerSecond": 84.04909504148156,
+            "state": "559649d31aa2522d"
+          },
+          "changePercent": -8.810231586252748
+        },
+        {
+          "pair": 5,
+          "order": [
+            "baseline",
+            "prototype"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 6.932767125,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 135203156.70490664,
+            "framesPerSecond": 86.54552924998184,
+            "state": "559649d31aa2522d"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 7.034687167,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 133244304.65039895,
+            "framesPerSecond": 85.29163923800678,
+            "state": "559649d31aa2522d"
+          },
+          "changePercent": -1.4488212422310909
+        }
+      ]
+    },
+    {
+      "title": "diddy",
+      "warmup": 120,
+      "frames": 600,
+      "medianVIperSecond": {
+        "baseline": 175.95314367783857,
+        "prototype": 169.34916726069463
+      },
+      "madVIperSecond": {
+        "baseline": 0.109268598954543,
+        "prototype": 2.6255467238591734
+      },
+      "aggregateChangePercent": -3.7532585545817176,
+      "medianPairedChangePercent": -3.153931470942717,
+      "pairs": [
+        {
+          "pair": 1,
+          "order": [
+            "baseline",
+            "prototype"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 3.40999875,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 274877520.11639297,
+            "framesPerSecond": 175.95314367783857,
+            "state": "9db0e4d81f7698f8"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 3.461715958,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 270770915.74594176,
+            "framesPerSecond": 173.32444581809332,
+            "state": "9db0e4d81f7698f8"
+          },
+          "changePercent": -1.4939760693098214
+        },
+        {
+          "pair": 2,
+          "order": [
+            "prototype",
+            "baseline"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 3.519009333,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 266362464.91591784,
+            "framesPerSecond": 170.50253159985013,
+            "state": "9db0e4d81f7698f8"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 3.570284833,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 262537036.63536248,
+            "framesPerSecond": 168.0538186909414,
+            "state": "9db0e4d81f7698f8"
+          },
+          "changePercent": -1.4361739300479015
+        },
+        {
+          "pair": 3,
+          "order": [
+            "baseline",
+            "prototype"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 3.408364167,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 275009345.85432756,
+            "framesPerSecond": 176.03752727165673,
+            "state": "9db0e4d81f7698f8"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 3.690223458,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 254004130.28321278,
+            "framesPerSecond": 162.5917798282014,
+            "state": "9db0e4d81f7698f8"
+          },
+          "changePercent": -7.638000630800834
+        },
+        {
+          "pair": 4,
+          "order": [
+            "prototype",
+            "baseline"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 3.412117708,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 274706818.5257342,
+            "framesPerSecond": 175.84387507888403,
+            "state": "9db0e4d81f7698f8"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 3.542975792,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 264560656.07800236,
+            "framesPerSecond": 169.34916726069463,
+            "state": "9db0e4d81f7698f8"
+          },
+          "changePercent": -3.693451259121683
+        },
+        {
+          "pair": 5,
+          "order": [
+            "baseline",
+            "prototype"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 3.378847958,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 277411713.0013815,
+            "framesPerSecond": 177.57531781783712,
+            "state": "9db0e4d81f7698f8"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 3.488885,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 268662337.6809497,
+            "framesPerSecond": 171.9747139845538,
+            "state": "9db0e4d81f7698f8"
+          },
+          "changePercent": -3.153931470942717
+        }
+      ]
+    },
+    {
+      "title": "diddy",
+      "warmup": 1320,
+      "frames": 600,
+      "medianVIperSecond": {
+        "baseline": 111.95706683537293,
+        "prototype": 111.06489406752668
+      },
+      "madVIperSecond": {
+        "baseline": 1.8261446595012245,
+        "prototype": 1.6517126083304134
+      },
+      "aggregateChangePercent": -0.7968883010825434,
+      "medianPairedChangePercent": -2.038860603698467,
+      "pairs": [
+        {
+          "pair": 1,
+          "order": [
+            "baseline",
+            "prototype"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 5.768563125,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 162489684.11869463,
+            "framesPerSecond": 104.01203679295786,
+            "state": "9db0e4d81f7698f8"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 5.888623959,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 159176745.96412447,
+            "framesPerSecond": 101.89137635168188,
+            "state": "9db0e4d81f7698f8"
+          },
+          "changePercent": -2.038860603698467
+        },
+        {
+          "pair": 2,
+          "order": [
+            "prototype",
+            "baseline"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 5.359197208,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 174901568.9515563,
+            "framesPerSecond": 111.95706683537293,
+            "state": "9db0e4d81f7698f8"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 5.397909541,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 173647222.66656452,
+            "framesPerSecond": 111.15414132872739,
+            "state": "9db0e4d81f7698f8"
+          },
+          "changePercent": -0.7171726889077856
+        },
+        {
+          "pair": 3,
+          "order": [
+            "baseline",
+            "prototype"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 5.44504675,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 172143976.54161555,
+            "framesPerSecond": 110.19189137356808,
+            "state": "9db0e4d81f7698f8"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 5.483799959,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 170927460.3391856,
+            "framesPerSecond": 109.41318145919627,
+            "state": "9db0e4d81f7698f8"
+          },
+          "changePercent": -0.7066853147405072
+        },
+        {
+          "pair": 4,
+          "order": [
+            "prototype",
+            "baseline"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 4.832701916,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 193956096.67062277,
+            "framesPerSecond": 124.15415029293106,
+            "state": "9db0e4d81f7698f8"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 5.100389958,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 183776536.24891713,
+            "framesPerSecond": 117.63806394036509,
+            "state": "9db0e4d81f7698f8"
+          },
+          "changePercent": -5.248383833477844
+        },
+        {
+          "pair": 5,
+          "order": [
+            "baseline",
+            "prototype"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 5.273185667,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 177754408.6615223,
+            "framesPerSecond": 113.78321149487415,
+            "state": "9db0e4d81f7698f8"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 5.402247083,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 173507798.81017154,
+            "framesPerSecond": 111.06489406752668,
+            "state": "9db0e4d81f7698f8"
+          },
+          "changePercent": -2.3890320827074984
+        }
+      ]
+    },
+    {
+      "title": "goldeneye",
+      "warmup": 120,
+      "frames": 600,
+      "medianVIperSecond": {
+        "baseline": 152.26555763323657,
+        "prototype": 154.97840689343766
+      },
+      "madVIperSecond": {
+        "baseline": 4.83236038279199,
+        "prototype": 2.1308148483576588
+      },
+      "aggregateChangePercent": 1.7816565363623305,
+      "medianPairedChangePercent": -3.2802425406696645,
+      "pairs": [
+        {
+          "pair": 1,
+          "order": [
+            "baseline",
+            "prototype"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 3.96366175,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 236481329.41717342,
+            "framesPerSecond": 151.37517725875574,
+            "state": "ba17fed69c60ec89"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 3.81899925,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 245439168.38946748,
+            "framesPerSecond": 157.10922174179532,
+            "state": "ba17fed69c60ec89"
+          },
+          "changePercent": 3.7879687983704224
+        },
+        {
+          "pair": 2,
+          "order": [
+            "prototype",
+            "baseline"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 3.810534375,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 245984396.87347,
+            "framesPerSecond": 157.4582305139289,
+            "state": "ba17fed69c60ec89"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 4.047943042,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 231557605.9926191,
+            "framesPerSecond": 148.22342947383794,
+            "state": "ba17fed69c60ec89"
+          },
+          "changePercent": -5.864921134925394
+        },
+        {
+          "pair": 3,
+          "order": [
+            "baseline",
+            "prototype"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 4.06963975,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 230323089.4085895,
+            "framesPerSecond": 147.43319725044458,
+            "state": "ba17fed69c60ec89"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 3.871507083,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 242110366.81706622,
+            "framesPerSecond": 154.97840689343766,
+            "state": "ba17fed69c60ec89"
+          },
+          "changePercent": 5.117714180867994
+        },
+        {
+          "pair": 4,
+          "order": [
+            "prototype",
+            "baseline"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 3.711103,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 252575043.0532378,
+            "framesPerSecond": 161.67700007248519,
+            "state": "ba17fed69c60ec89"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 3.83696475,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 244289969.04389074,
+            "framesPerSecond": 156.373602337629,
+            "state": "ba17fed69c60ec89"
+          },
+          "changePercent": -3.2802425406696645
+        },
+        {
+          "pair": 5,
+          "order": [
+            "baseline",
+            "prototype"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 3.940484042,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 237872299.44579485,
+            "framesPerSecond": 152.26555763323657,
+            "state": "ba17fed69c60ec89"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 4.074629458,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 230041040.45821187,
+            "framesPerSecond": 147.25265356877512,
+            "state": "ba17fed69c60ec89"
+          },
+          "changePercent": -3.292211411681212
+        }
+      ]
+    },
+    {
+      "title": "goldeneye",
+      "warmup": 1320,
+      "frames": 600,
+      "medianVIperSecond": {
+        "baseline": 106.53130325802243,
+        "prototype": 104.50947347050295
+      },
+      "madVIperSecond": {
+        "baseline": 0.8446307598612606,
+        "prototype": 1.6312032511190893
+      },
+      "aggregateChangePercent": -1.897873888412438,
+      "medianPairedChangePercent": -1.588361819321149,
+      "pairs": [
+        {
+          "pair": 1,
+          "order": [
+            "baseline",
+            "prototype"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 5.694045666,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 164616171.8717765,
+            "framesPerSecond": 105.37323288126927,
+            "state": "ba17fed69c60ec89"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 5.652875208,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 165815087.9880524,
+            "framesPerSecond": 106.14067672162204,
+            "state": "ba17fed69c60ec89"
+          },
+          "changePercent": 0.728310045509839
+        },
+        {
+          "pair": 2,
+          "order": [
+            "prototype",
+            "baseline"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 5.649916792,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 165901912.2772242,
+            "framesPerSecond": 106.19625422618083,
+            "state": "ba17fed69c60ec89"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 5.741106333,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 163266789.64508912,
+            "framesPerSecond": 104.50947347050295,
+            "state": "ba17fed69c60ec89"
+          },
+          "changePercent": -1.588361819321149
+        },
+        {
+          "pair": 3,
+          "order": [
+            "baseline",
+            "prototype"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 5.632147375,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 166425332.57574782,
+            "framesPerSecond": 106.53130325802243,
+            "state": "ba17fed69c60ec89"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 5.971798375,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 156959753.35068142,
+            "framesPerSecond": 100.47224677105747,
+            "state": "ba17fed69c60ec89"
+          },
+          "changePercent": -5.687583181339406
+        },
+        {
+          "pair": 4,
+          "order": [
+            "prototype",
+            "baseline"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 5.512334542,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 170042654.8603334,
+            "framesPerSecond": 108.84680445797225,
+            "state": "ba17fed69c60ec89"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 5.744750917,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 163163209.95332024,
+            "framesPerSecond": 104.44317058629402,
+            "state": "ba17fed69c60ec89"
+          },
+          "changePercent": -4.045717183528863
+        },
+        {
+          "pair": 5,
+          "order": [
+            "baseline",
+            "prototype"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 5.587844292,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 167744831.64141828,
+            "framesPerSecond": 107.3759340178837,
+            "state": "ba17fed69c60ec89"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 5.611215375,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 167046163.32785124,
+            "framesPerSecond": 106.92870615396758,
+            "state": "ba17fed69c60ec89"
+          },
+          "changePercent": -0.41650661110116394
+        }
+      ]
+    },
+    {
+      "title": "fzero",
+      "warmup": 120,
+      "frames": 600,
+      "medianVIperSecond": {
+        "baseline": 160.45276205260558,
+        "prototype": 165.96255898499513
+      },
+      "madVIperSecond": {
+        "baseline": 1.1842539816169904,
+        "prototype": 0.5706652567158699
+      },
+      "aggregateChangePercent": 3.4339059433474484,
+      "medianPairedChangePercent": 3.123803215853349,
+      "pairs": [
+        {
+          "pair": 1,
+          "order": [
+            "baseline",
+            "prototype"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 3.713304042,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 252425330.4868484,
+            "framesPerSecond": 161.5811668566837,
+            "state": "438377c746bc8629"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 3.602884666,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 260161533.57488573,
+            "framesPerSecond": 166.533224241711,
+            "state": "438377c746bc8629"
+          },
+          "changePercent": 3.064749117339649
+        },
+        {
+          "pair": 2,
+          "order": [
+            "prototype",
+            "baseline"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 3.739418333,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 250662513.93382147,
+            "framesPerSecond": 160.45276205260558,
+            "state": "438377c746bc8629"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 3.626144708,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 258492717.60502505,
+            "framesPerSecond": 165.4649905935304,
+            "state": "438377c746bc8629"
+          },
+          "changePercent": 3.123803215853349
+        },
+        {
+          "pair": 3,
+          "order": [
+            "baseline",
+            "prototype"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 3.767223083,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 248812448.67865977,
+            "framesPerSecond": 159.2685080709886,
+            "state": "438377c746bc8629"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 3.595559875,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 260691528.60373378,
+            "framesPerSecond": 166.87248185513806,
+            "state": "438377c746bc8629"
+          },
+          "changePercent": 4.774310927029135
+        },
+        {
+          "pair": 4,
+          "order": [
+            "prototype",
+            "baseline"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 3.677569542,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 254878116.99958873,
+            "framesPerSecond": 163.15123158043602,
+            "state": "438377c746bc8629"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 3.61527325,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 259270028.89753908,
+            "framesPerSecond": 165.96255898499513,
+            "state": "438377c746bc8629"
+          },
+          "changePercent": 1.723142005932754
+        },
+        {
+          "pair": 5,
+          "order": [
+            "baseline",
+            "prototype"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 3.944705958,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 237617710.92191505,
+            "framesPerSecond": 152.10259177447162,
+            "state": "438377c746bc8629"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 3.824401834,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 245092446.00472075,
+            "framesPerSecond": 156.8872796435334,
+            "state": "438377c746bc8629"
+          },
+          "changePercent": 3.1456977907097228
+        }
+      ]
+    },
+    {
+      "title": "fzero",
+      "warmup": 1320,
+      "frames": 600,
+      "medianVIperSecond": {
+        "baseline": 136.07081867261826,
+        "prototype": 142.72475147961663
+      },
+      "madVIperSecond": {
+        "baseline": 6.6010863082995,
+        "prototype": 3.779721722801696
+      },
+      "aggregateChangePercent": 4.89005127764206,
+      "medianPairedChangePercent": 2.11229057944593,
+      "pairs": [
+        {
+          "pair": 1,
+          "order": [
+            "baseline",
+            "prototype"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 4.460745542,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 210129000.00113928,
+            "framesPerSecond": 134.50666359484535,
+            "state": "438377c746bc8629"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 4.482686833,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 209100487.03373253,
+            "framesPerSecond": 133.84829731646792,
+            "state": "438377c746bc8629"
+          },
+          "changePercent": -0.4894674068792071
+        },
+        {
+          "pair": 2,
+          "order": [
+            "prototype",
+            "baseline"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 4.634287791,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 202260205.29418606,
+            "framesPerSecond": 129.46973236431876,
+            "state": "438377c746bc8629"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 4.203895917,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 222967461.25648668,
+            "framesPerSecond": 142.72475147961663,
+            "state": "438377c746bc8629"
+          },
+          "changePercent": 10.23792887591608
+        },
+        {
+          "pair": 3,
+          "order": [
+            "baseline",
+            "prototype"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 4.0670715,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 230468532.45633867,
+            "framesPerSecond": 147.526297484566,
+            "state": "438377c746bc8629"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 4.117803208,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 227629139.28935868,
+            "framesPerSecond": 145.70876015500934,
+            "state": "438377c746bc8629"
+          },
+          "changePercent": -1.232009045537652
+        },
+        {
+          "pair": 4,
+          "order": [
+            "prototype",
+            "baseline"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 4.409468583,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 212572554.3467377,
+            "framesPerSecond": 136.07081867261826,
+            "state": "438377c746bc8629"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 4.3182545,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 217062704.38669142,
+            "framesPerSecond": 138.94502975681493,
+            "state": "438377c746bc8629"
+          },
+          "changePercent": 2.11229057944593
+        },
+        {
+          "pair": 5,
+          "order": [
+            "baseline",
+            "prototype"
+          ],
+          "baseline": {
+            "index": 1,
+            "seconds": 4.126850375,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 227130114.93662402,
+            "framesPerSecond": 145.38932732689636,
+            "state": "438377c746bc8629"
+          },
+          "prototype": {
+            "index": 1,
+            "seconds": 3.91505075,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 239417586.0938712,
+            "framesPerSecond": 153.2547183456051,
+            "state": "438377c746bc8629"
+          },
+          "changePercent": 5.409881979179976
+        }
+      ]
+    }
+  ],
+  "prototypeCommit": "f2076e245819a9f595a8a93416590da9dae7c8ef"
+}

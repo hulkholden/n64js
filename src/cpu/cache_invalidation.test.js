@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'bun:test';
 import { createHeadlessEmulator } from '../headless/headless_env.js';
 import { getFragmentMap, Fragment } from './fragments.js';
-import { FragmentContext, generateCodeForOp } from './recompiler.js';
+import { FragmentContext, generateCodeForOp, finishCodeGeneration } from './recompiler.js';
+import { recompilerOptions } from '../options.js';
 
 async function fixture() {
   const e = await createHeadlessEmulator({
@@ -41,6 +42,37 @@ function cache(e, compiled, op, address) {
     c.run(1);
   }
 }
+
+test('guarded RAM stores retain compiled code until the guest invalidates the I-cache', async () => {
+  const previous = recompilerOptions.guardedRAMStores;
+  recompilerOptions.guardedRAMStores = true;
+  try {
+    const e = await fixture();
+    const targetPC = 0x8011a860;
+    const target = train(e, targetPC);
+    const c = e.cpu0;
+    c.setRegS32Extend(4, targetPC);
+    c.setRegS32Extend(2, 0x03e00008); // JR ra
+    c.setRegS32Extend(3, 0x25080002); // ADDIU t0,t0,2
+    const fragment = new Fragment(0x80001000);
+    const context = new FragmentContext();
+    for (const word of [0, 0xac820000, 0xac830004]) { // NOP; SW v0,0(a0); SW v1,4(a0)
+      const pc = fragment.entryPC + fragment.opsCompiled++ * 4;
+      context.set(fragment, pc, word, pc + 4, pc + 4);
+      generateCodeForOp(context);
+    }
+    finishCodeGeneration(context);
+    expect(fragment.bodyCode).toContain('Guarded RAM SW group');
+    c.pc = fragment.entryPC;
+    new Function('c', fragment.bodyCode)(c);
+    expect(e.hardware.ram.getU32((targetPC & 0x7fffff) + 4)).toBe(0x25080002);
+    expect(target.func).toBeFunction();
+    cache(e, true, 0x10, targetPC);
+    expect(target.func).toBeUndefined();
+  } finally {
+    recompilerOptions.guardedRAMStores = previous;
+  }
+});
 
 for (const compiled of [false, true]) {
   describe(`${compiled ? 'compiled' : 'interpreted'} CACHE invalidation`, () => {

@@ -1,0 +1,2064 @@
+{
+  "date": "2026-09-22",
+  "bun": "1.3.14",
+  "harnessSHA256": "4fe3dbc629f88aa32a036c9d6658e7891e19895c15c6ac3ef761f81108f793ef",
+  "sourceTreeSHA256": {
+    "off": "984262bdb948c1dc7e67b579fcc10d5983b412d5e1573d3d0c50042fb38d381d",
+    "original": "984262bdb948c1dc7e67b579fcc10d5983b412d5e1573d3d0c50042fb38d381d",
+    "pooled": "d05857e50b8d007ef7c31c331bf70555c3969b42ef389e84dd0926fc5835e675",
+    "compact": "8cf55059232ee938fdfca99ce91561240ba42b60adc2ce15f5169388723e047e"
+  },
+  "samples": [
+    {
+      "title": "turok",
+      "block": 1,
+      "variant": "off",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "Turok - The Dinosaur Hunter (v1.0)",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 4.068974042,
+          "fps": 147.45731818556538,
+          "cycles": 937332000,
+          "state": "1336f0c4884475dee7ebb3617c349724c0bf59b2e894ed08b4984dce7a0eb8a4"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 3.12854075,
+          "fps": 191.7827025267291,
+          "cycles": 937332000,
+          "state": "5df76176882818fb9484abad93036bcff6f3351d7886d79be6429a1f9740f57f"
+        }
+      ]
+    },
+    {
+      "title": "turok",
+      "block": 1,
+      "variant": "original",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "Turok - The Dinosaur Hunter (v1.0)",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 3.578218333,
+          "fps": 167.68121566717153,
+          "cycles": 937332000,
+          "state": "1336f0c4884475dee7ebb3617c349724c0bf59b2e894ed08b4984dce7a0eb8a4"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 3.143410958,
+          "fps": 190.87545599883984,
+          "cycles": 937332000,
+          "state": "5df76176882818fb9484abad93036bcff6f3351d7886d79be6429a1f9740f57f"
+        }
+      ]
+    },
+    {
+      "title": "turok",
+      "block": 1,
+      "variant": "pooled",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "Turok - The Dinosaur Hunter (v1.0)",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 3.594742042,
+          "fps": 166.91044669958546,
+          "cycles": 937332000,
+          "state": "1336f0c4884475dee7ebb3617c349724c0bf59b2e894ed08b4984dce7a0eb8a4"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 3.165955375,
+          "fps": 189.5162530520507,
+          "cycles": 937332000,
+          "state": "5df76176882818fb9484abad93036bcff6f3351d7886d79be6429a1f9740f57f"
+        }
+      ]
+    },
+    {
+      "title": "turok",
+      "block": 1,
+      "variant": "compact",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "Turok - The Dinosaur Hunter (v1.0)",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 3.527875167,
+          "fps": 170.07404502643504,
+          "cycles": 937332000,
+          "state": "1336f0c4884475dee7ebb3617c349724c0bf59b2e894ed08b4984dce7a0eb8a4"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 3.09683375,
+          "fps": 193.74627391606023,
+          "cycles": 937332000,
+          "state": "5df76176882818fb9484abad93036bcff6f3351d7886d79be6429a1f9740f57f"
+        }
+      ]
+    },
+    {
+      "title": "turok",
+      "block": 2,
+      "variant": "compact",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "Turok - The Dinosaur Hunter (v1.0)",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 3.577338334,
+          "fps": 167.72246401673453,
+          "cycles": 937332000,
+          "state": "1336f0c4884475dee7ebb3617c349724c0bf59b2e894ed08b4984dce7a0eb8a4"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 3.089424,
+          "fps": 194.21095971287852,
+          "cycles": 937332000,
+          "state": "5df76176882818fb9484abad93036bcff6f3351d7886d79be6429a1f9740f57f"
+        }
+      ]
+    },
+    {
+      "title": "turok",
+      "block": 2,
+      "variant": "pooled",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "Turok - The Dinosaur Hunter (v1.0)",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 3.681270958,
+          "fps": 162.98718753535448,
+          "cycles": 937332000,
+          "state": "1336f0c4884475dee7ebb3617c349724c0bf59b2e894ed08b4984dce7a0eb8a4"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 3.166170458,
+          "fps": 189.50337891125633,
+          "cycles": 937332000,
+          "state": "5df76176882818fb9484abad93036bcff6f3351d7886d79be6429a1f9740f57f"
+        }
+      ]
+    },
+    {
+      "title": "turok",
+      "block": 2,
+      "variant": "original",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "Turok - The Dinosaur Hunter (v1.0)",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 3.585410375,
+          "fps": 167.34486076785564,
+          "cycles": 937332000,
+          "state": "1336f0c4884475dee7ebb3617c349724c0bf59b2e894ed08b4984dce7a0eb8a4"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 3.16323,
+          "fps": 189.679536423213,
+          "cycles": 937332000,
+          "state": "5df76176882818fb9484abad93036bcff6f3351d7886d79be6429a1f9740f57f"
+        }
+      ]
+    },
+    {
+      "title": "turok",
+      "block": 2,
+      "variant": "off",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "Turok - The Dinosaur Hunter (v1.0)",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 3.467770334,
+          "fps": 173.02183887936795,
+          "cycles": 937332000,
+          "state": "1336f0c4884475dee7ebb3617c349724c0bf59b2e894ed08b4984dce7a0eb8a4"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 3.086634333,
+          "fps": 194.38648549497617,
+          "cycles": 937332000,
+          "state": "5df76176882818fb9484abad93036bcff6f3351d7886d79be6429a1f9740f57f"
+        }
+      ]
+    },
+    {
+      "title": "turok",
+      "block": 3,
+      "variant": "off",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "Turok - The Dinosaur Hunter (v1.0)",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 3.469669792,
+          "fps": 172.92711870836152,
+          "cycles": 937332000,
+          "state": "1336f0c4884475dee7ebb3617c349724c0bf59b2e894ed08b4984dce7a0eb8a4"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 3.079520875,
+          "fps": 194.83550342875984,
+          "cycles": 937332000,
+          "state": "5df76176882818fb9484abad93036bcff6f3351d7886d79be6429a1f9740f57f"
+        }
+      ]
+    },
+    {
+      "title": "turok",
+      "block": 3,
+      "variant": "original",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "Turok - The Dinosaur Hunter (v1.0)",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 3.707760333,
+          "fps": 161.82275716686675,
+          "cycles": 937332000,
+          "state": "1336f0c4884475dee7ebb3617c349724c0bf59b2e894ed08b4984dce7a0eb8a4"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 3.16916625,
+          "fps": 189.3242426142838,
+          "cycles": 937332000,
+          "state": "5df76176882818fb9484abad93036bcff6f3351d7886d79be6429a1f9740f57f"
+        }
+      ]
+    },
+    {
+      "title": "turok",
+      "block": 3,
+      "variant": "pooled",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "Turok - The Dinosaur Hunter (v1.0)",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 3.615518291,
+          "fps": 165.95131090708676,
+          "cycles": 937332000,
+          "state": "1336f0c4884475dee7ebb3617c349724c0bf59b2e894ed08b4984dce7a0eb8a4"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 3.248852834,
+          "fps": 184.6805720840478,
+          "cycles": 937332000,
+          "state": "5df76176882818fb9484abad93036bcff6f3351d7886d79be6429a1f9740f57f"
+        }
+      ]
+    },
+    {
+      "title": "turok",
+      "block": 3,
+      "variant": "compact",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "Turok - The Dinosaur Hunter (v1.0)",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 3.550898208,
+          "fps": 168.971331999388,
+          "cycles": 937332000,
+          "state": "1336f0c4884475dee7ebb3617c349724c0bf59b2e894ed08b4984dce7a0eb8a4"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 3.104173667,
+          "fps": 193.28815471199601,
+          "cycles": 937332000,
+          "state": "5df76176882818fb9484abad93036bcff6f3351d7886d79be6429a1f9740f57f"
+        }
+      ]
+    },
+    {
+      "title": "turok",
+      "block": 4,
+      "variant": "compact",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "Turok - The Dinosaur Hunter (v1.0)",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 3.522829958,
+          "fps": 170.31761599433975,
+          "cycles": 937332000,
+          "state": "1336f0c4884475dee7ebb3617c349724c0bf59b2e894ed08b4984dce7a0eb8a4"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 3.08794075,
+          "fps": 194.30424628451826,
+          "cycles": 937332000,
+          "state": "5df76176882818fb9484abad93036bcff6f3351d7886d79be6429a1f9740f57f"
+        }
+      ]
+    },
+    {
+      "title": "turok",
+      "block": 4,
+      "variant": "pooled",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "Turok - The Dinosaur Hunter (v1.0)",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 3.608439291,
+          "fps": 166.2768725239446,
+          "cycles": 937332000,
+          "state": "1336f0c4884475dee7ebb3617c349724c0bf59b2e894ed08b4984dce7a0eb8a4"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 3.16820575,
+          "fps": 189.38163974988052,
+          "cycles": 937332000,
+          "state": "5df76176882818fb9484abad93036bcff6f3351d7886d79be6429a1f9740f57f"
+        }
+      ]
+    },
+    {
+      "title": "turok",
+      "block": 4,
+      "variant": "original",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "Turok - The Dinosaur Hunter (v1.0)",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 3.610051958,
+          "fps": 166.20259402925745,
+          "cycles": 937332000,
+          "state": "1336f0c4884475dee7ebb3617c349724c0bf59b2e894ed08b4984dce7a0eb8a4"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 3.166655625,
+          "fps": 189.47434487764988,
+          "cycles": 937332000,
+          "state": "5df76176882818fb9484abad93036bcff6f3351d7886d79be6429a1f9740f57f"
+        }
+      ]
+    },
+    {
+      "title": "turok",
+      "block": 4,
+      "variant": "off",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "Turok - The Dinosaur Hunter (v1.0)",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 3.478593208,
+          "fps": 172.48351966540147,
+          "cycles": 937332000,
+          "state": "1336f0c4884475dee7ebb3617c349724c0bf59b2e894ed08b4984dce7a0eb8a4"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 3.215847125,
+          "fps": 186.5760332123997,
+          "cycles": 937332000,
+          "state": "5df76176882818fb9484abad93036bcff6f3351d7886d79be6429a1f9740f57f"
+        }
+      ]
+    },
+    {
+      "title": "turok",
+      "block": 5,
+      "variant": "off",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "Turok - The Dinosaur Hunter (v1.0)",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 3.543914459,
+          "fps": 169.30431220659437,
+          "cycles": 937332000,
+          "state": "1336f0c4884475dee7ebb3617c349724c0bf59b2e894ed08b4984dce7a0eb8a4"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 3.080020667,
+          "fps": 194.80388765845902,
+          "cycles": 937332000,
+          "state": "5df76176882818fb9484abad93036bcff6f3351d7886d79be6429a1f9740f57f"
+        }
+      ]
+    },
+    {
+      "title": "turok",
+      "block": 5,
+      "variant": "original",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "Turok - The Dinosaur Hunter (v1.0)",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 3.586598458,
+          "fps": 167.28942674407406,
+          "cycles": 937332000,
+          "state": "1336f0c4884475dee7ebb3617c349724c0bf59b2e894ed08b4984dce7a0eb8a4"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 3.269057958,
+          "fps": 183.53911362497783,
+          "cycles": 937332000,
+          "state": "5df76176882818fb9484abad93036bcff6f3351d7886d79be6429a1f9740f57f"
+        }
+      ]
+    },
+    {
+      "title": "turok",
+      "block": 5,
+      "variant": "pooled",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "Turok - The Dinosaur Hunter (v1.0)",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 3.615104084,
+          "fps": 165.97032507460165,
+          "cycles": 937332000,
+          "state": "1336f0c4884475dee7ebb3617c349724c0bf59b2e894ed08b4984dce7a0eb8a4"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 3.174821333,
+          "fps": 188.9870128323218,
+          "cycles": 937332000,
+          "state": "5df76176882818fb9484abad93036bcff6f3351d7886d79be6429a1f9740f57f"
+        }
+      ]
+    },
+    {
+      "title": "turok",
+      "block": 5,
+      "variant": "compact",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "Turok - The Dinosaur Hunter (v1.0)",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 3.607964584,
+          "fps": 166.298749899259,
+          "cycles": 937332000,
+          "state": "1336f0c4884475dee7ebb3617c349724c0bf59b2e894ed08b4984dce7a0eb8a4"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 3.139358459,
+          "fps": 191.12185111576008,
+          "cycles": 937332000,
+          "state": "5df76176882818fb9484abad93036bcff6f3351d7886d79be6429a1f9740f57f"
+        }
+      ]
+    },
+    {
+      "title": "zelda",
+      "block": 1,
+      "variant": "off",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "The Legend of Zelda - Ocarina of Time (v1.1)",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 5.361732833,
+          "fps": 111.90412105339603,
+          "cycles": 937332000,
+          "state": "986f31327a0c2af112f7ff1f726428da01d1aacc1afebb771cdda6b366495b61"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 6.547477417,
+          "fps": 91.6383458524268,
+          "cycles": 937332000,
+          "state": "4209ad18d0391a56b03ec62dd0e6c5139811881f69388c06e4ad3933453d45c0"
+        }
+      ]
+    },
+    {
+      "title": "zelda",
+      "block": 1,
+      "variant": "original",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "The Legend of Zelda - Ocarina of Time (v1.1)",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 5.550519375,
+          "fps": 108.0979921811371,
+          "cycles": 937332000,
+          "state": "986f31327a0c2af112f7ff1f726428da01d1aacc1afebb771cdda6b366495b61"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 6.738609333,
+          "fps": 89.03914299671717,
+          "cycles": 937332000,
+          "state": "4209ad18d0391a56b03ec62dd0e6c5139811881f69388c06e4ad3933453d45c0"
+        }
+      ]
+    },
+    {
+      "title": "zelda",
+      "block": 1,
+      "variant": "pooled",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "The Legend of Zelda - Ocarina of Time (v1.1)",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 5.636481208,
+          "fps": 106.44939242384146,
+          "cycles": 937332000,
+          "state": "986f31327a0c2af112f7ff1f726428da01d1aacc1afebb771cdda6b366495b61"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 6.836955833,
+          "fps": 87.75835542244901,
+          "cycles": 937332000,
+          "state": "4209ad18d0391a56b03ec62dd0e6c5139811881f69388c06e4ad3933453d45c0"
+        }
+      ]
+    },
+    {
+      "title": "zelda",
+      "block": 1,
+      "variant": "compact",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "The Legend of Zelda - Ocarina of Time (v1.1)",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 5.452069958,
+          "fps": 110.04994518083915,
+          "cycles": 937332000,
+          "state": "986f31327a0c2af112f7ff1f726428da01d1aacc1afebb771cdda6b366495b61"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 6.679740625,
+          "fps": 89.82384701501789,
+          "cycles": 937332000,
+          "state": "4209ad18d0391a56b03ec62dd0e6c5139811881f69388c06e4ad3933453d45c0"
+        }
+      ]
+    },
+    {
+      "title": "zelda",
+      "block": 2,
+      "variant": "compact",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "The Legend of Zelda - Ocarina of Time (v1.1)",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 5.449622333,
+          "fps": 110.09937264215921,
+          "cycles": 937332000,
+          "state": "986f31327a0c2af112f7ff1f726428da01d1aacc1afebb771cdda6b366495b61"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 6.682884875,
+          "fps": 89.78158553120369,
+          "cycles": 937332000,
+          "state": "4209ad18d0391a56b03ec62dd0e6c5139811881f69388c06e4ad3933453d45c0"
+        }
+      ]
+    },
+    {
+      "title": "zelda",
+      "block": 2,
+      "variant": "pooled",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "The Legend of Zelda - Ocarina of Time (v1.1)",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 5.579283625,
+          "fps": 107.54068807534408,
+          "cycles": 937332000,
+          "state": "986f31327a0c2af112f7ff1f726428da01d1aacc1afebb771cdda6b366495b61"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 6.860766042,
+          "fps": 87.45379106749024,
+          "cycles": 937332000,
+          "state": "4209ad18d0391a56b03ec62dd0e6c5139811881f69388c06e4ad3933453d45c0"
+        }
+      ]
+    },
+    {
+      "title": "zelda",
+      "block": 2,
+      "variant": "original",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "The Legend of Zelda - Ocarina of Time (v1.1)",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 5.506510833,
+          "fps": 108.96192129583339,
+          "cycles": 937332000,
+          "state": "986f31327a0c2af112f7ff1f726428da01d1aacc1afebb771cdda6b366495b61"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 6.683451208,
+          "fps": 89.77397774398474,
+          "cycles": 937332000,
+          "state": "4209ad18d0391a56b03ec62dd0e6c5139811881f69388c06e4ad3933453d45c0"
+        }
+      ]
+    },
+    {
+      "title": "zelda",
+      "block": 2,
+      "variant": "off",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "The Legend of Zelda - Ocarina of Time (v1.1)",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 5.398892667,
+          "fps": 111.13390041395316,
+          "cycles": 937332000,
+          "state": "986f31327a0c2af112f7ff1f726428da01d1aacc1afebb771cdda6b366495b61"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 6.593573,
+          "fps": 90.99770336962979,
+          "cycles": 937332000,
+          "state": "4209ad18d0391a56b03ec62dd0e6c5139811881f69388c06e4ad3933453d45c0"
+        }
+      ]
+    },
+    {
+      "title": "zelda",
+      "block": 3,
+      "variant": "off",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "The Legend of Zelda - Ocarina of Time (v1.1)",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 5.360816417,
+          "fps": 111.9232507379482,
+          "cycles": 937332000,
+          "state": "986f31327a0c2af112f7ff1f726428da01d1aacc1afebb771cdda6b366495b61"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 6.539997917,
+          "fps": 91.74314848638812,
+          "cycles": 937332000,
+          "state": "4209ad18d0391a56b03ec62dd0e6c5139811881f69388c06e4ad3933453d45c0"
+        }
+      ]
+    },
+    {
+      "title": "zelda",
+      "block": 3,
+      "variant": "original",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "The Legend of Zelda - Ocarina of Time (v1.1)",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 5.634727208,
+          "fps": 106.4825284084986,
+          "cycles": 937332000,
+          "state": "986f31327a0c2af112f7ff1f726428da01d1aacc1afebb771cdda6b366495b61"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 6.752347791,
+          "fps": 88.85798222652599,
+          "cycles": 937332000,
+          "state": "4209ad18d0391a56b03ec62dd0e6c5139811881f69388c06e4ad3933453d45c0"
+        }
+      ]
+    },
+    {
+      "title": "zelda",
+      "block": 3,
+      "variant": "pooled",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "The Legend of Zelda - Ocarina of Time (v1.1)",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 5.654941958,
+          "fps": 106.10188476845194,
+          "cycles": 937332000,
+          "state": "986f31327a0c2af112f7ff1f726428da01d1aacc1afebb771cdda6b366495b61"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 6.829578542,
+          "fps": 87.85315174430862,
+          "cycles": 937332000,
+          "state": "4209ad18d0391a56b03ec62dd0e6c5139811881f69388c06e4ad3933453d45c0"
+        }
+      ]
+    },
+    {
+      "title": "zelda",
+      "block": 3,
+      "variant": "compact",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "The Legend of Zelda - Ocarina of Time (v1.1)",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 5.478329417,
+          "fps": 109.52243911038254,
+          "cycles": 937332000,
+          "state": "986f31327a0c2af112f7ff1f726428da01d1aacc1afebb771cdda6b366495b61"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 6.745955208,
+          "fps": 88.94218557639732,
+          "cycles": 937332000,
+          "state": "4209ad18d0391a56b03ec62dd0e6c5139811881f69388c06e4ad3933453d45c0"
+        }
+      ]
+    },
+    {
+      "title": "zelda",
+      "block": 4,
+      "variant": "compact",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "The Legend of Zelda - Ocarina of Time (v1.1)",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 5.503484625,
+          "fps": 109.02183632429063,
+          "cycles": 937332000,
+          "state": "986f31327a0c2af112f7ff1f726428da01d1aacc1afebb771cdda6b366495b61"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 6.676196416,
+          "fps": 89.8715320241411,
+          "cycles": 937332000,
+          "state": "4209ad18d0391a56b03ec62dd0e6c5139811881f69388c06e4ad3933453d45c0"
+        }
+      ]
+    },
+    {
+      "title": "zelda",
+      "block": 4,
+      "variant": "pooled",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "The Legend of Zelda - Ocarina of Time (v1.1)",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 5.541584416,
+          "fps": 108.27228369338621,
+          "cycles": 937332000,
+          "state": "986f31327a0c2af112f7ff1f726428da01d1aacc1afebb771cdda6b366495b61"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 6.785641542,
+          "fps": 88.42200052659369,
+          "cycles": 937332000,
+          "state": "4209ad18d0391a56b03ec62dd0e6c5139811881f69388c06e4ad3933453d45c0"
+        }
+      ]
+    },
+    {
+      "title": "zelda",
+      "block": 4,
+      "variant": "original",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "The Legend of Zelda - Ocarina of Time (v1.1)",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 5.535476459,
+          "fps": 108.39175352728205,
+          "cycles": 937332000,
+          "state": "986f31327a0c2af112f7ff1f726428da01d1aacc1afebb771cdda6b366495b61"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 6.72205975,
+          "fps": 89.25835566992691,
+          "cycles": 937332000,
+          "state": "4209ad18d0391a56b03ec62dd0e6c5139811881f69388c06e4ad3933453d45c0"
+        }
+      ]
+    },
+    {
+      "title": "zelda",
+      "block": 4,
+      "variant": "off",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "The Legend of Zelda - Ocarina of Time (v1.1)",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 5.521678792,
+          "fps": 108.66260472617509,
+          "cycles": 937332000,
+          "state": "986f31327a0c2af112f7ff1f726428da01d1aacc1afebb771cdda6b366495b61"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 6.69448725,
+          "fps": 89.62598293095562,
+          "cycles": 937332000,
+          "state": "4209ad18d0391a56b03ec62dd0e6c5139811881f69388c06e4ad3933453d45c0"
+        }
+      ]
+    },
+    {
+      "title": "zelda",
+      "block": 5,
+      "variant": "off",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "The Legend of Zelda - Ocarina of Time (v1.1)",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 5.340075125,
+          "fps": 112.35796987032087,
+          "cycles": 937332000,
+          "state": "986f31327a0c2af112f7ff1f726428da01d1aacc1afebb771cdda6b366495b61"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 6.621980084,
+          "fps": 90.60733985741176,
+          "cycles": 937332000,
+          "state": "4209ad18d0391a56b03ec62dd0e6c5139811881f69388c06e4ad3933453d45c0"
+        }
+      ]
+    },
+    {
+      "title": "zelda",
+      "block": 5,
+      "variant": "original",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "The Legend of Zelda - Ocarina of Time (v1.1)",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 5.523953209,
+          "fps": 108.61786429009558,
+          "cycles": 937332000,
+          "state": "986f31327a0c2af112f7ff1f726428da01d1aacc1afebb771cdda6b366495b61"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 6.738318916,
+          "fps": 89.04298052371969,
+          "cycles": 937332000,
+          "state": "4209ad18d0391a56b03ec62dd0e6c5139811881f69388c06e4ad3933453d45c0"
+        }
+      ]
+    },
+    {
+      "title": "zelda",
+      "block": 5,
+      "variant": "pooled",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "The Legend of Zelda - Ocarina of Time (v1.1)",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 5.602094583,
+          "fps": 107.10279719673915,
+          "cycles": 937332000,
+          "state": "986f31327a0c2af112f7ff1f726428da01d1aacc1afebb771cdda6b366495b61"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 6.779441334,
+          "fps": 88.50286777922283,
+          "cycles": 937332000,
+          "state": "4209ad18d0391a56b03ec62dd0e6c5139811881f69388c06e4ad3933453d45c0"
+        }
+      ]
+    },
+    {
+      "title": "zelda",
+      "block": 5,
+      "variant": "compact",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "The Legend of Zelda - Ocarina of Time (v1.1)",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 5.465747292,
+          "fps": 109.7745592589318,
+          "cycles": 937332000,
+          "state": "986f31327a0c2af112f7ff1f726428da01d1aacc1afebb771cdda6b366495b61"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 6.668392916,
+          "fps": 89.97670166680982,
+          "cycles": 937332000,
+          "state": "4209ad18d0391a56b03ec62dd0e6c5139811881f69388c06e4ad3933453d45c0"
+        }
+      ]
+    },
+    {
+      "title": "fzero",
+      "block": 1,
+      "variant": "off",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "F-Zero X",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 3.726289584,
+          "fps": 161.01808151902347,
+          "cycles": 937332000,
+          "state": "827b8d9b099385f3d121147a139d8dc1abe897b98a6d165cb0e85613d630bcb9"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 4.044131834,
+          "fps": 148.36311589935175,
+          "cycles": 937332000,
+          "state": "d4960fba6d36cd338fd434669015882250a110a3ccfee07093c177845e84199a"
+        }
+      ]
+    },
+    {
+      "title": "fzero",
+      "block": 1,
+      "variant": "original",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "F-Zero X",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 3.653995666,
+          "fps": 164.2038072411879,
+          "cycles": 937332000,
+          "state": "827b8d9b099385f3d121147a139d8dc1abe897b98a6d165cb0e85613d630bcb9"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 4.221322125,
+          "fps": 142.13556374828892,
+          "cycles": 937332000,
+          "state": "d4960fba6d36cd338fd434669015882250a110a3ccfee07093c177845e84199a"
+        }
+      ]
+    },
+    {
+      "title": "fzero",
+      "block": 1,
+      "variant": "pooled",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "F-Zero X",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 3.652478708,
+          "fps": 164.2720048403907,
+          "cycles": 937332000,
+          "state": "827b8d9b099385f3d121147a139d8dc1abe897b98a6d165cb0e85613d630bcb9"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 4.205388125,
+          "fps": 142.67410811219713,
+          "cycles": 937332000,
+          "state": "d4960fba6d36cd338fd434669015882250a110a3ccfee07093c177845e84199a"
+        }
+      ]
+    },
+    {
+      "title": "fzero",
+      "block": 1,
+      "variant": "compact",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "F-Zero X",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 3.649599667,
+          "fps": 164.40159325562544,
+          "cycles": 937332000,
+          "state": "827b8d9b099385f3d121147a139d8dc1abe897b98a6d165cb0e85613d630bcb9"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 4.156563458,
+          "fps": 144.3500155988717,
+          "cycles": 937332000,
+          "state": "d4960fba6d36cd338fd434669015882250a110a3ccfee07093c177845e84199a"
+        }
+      ]
+    },
+    {
+      "title": "fzero",
+      "block": 2,
+      "variant": "compact",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "F-Zero X",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 3.701942208,
+          "fps": 162.07708448375647,
+          "cycles": 937332000,
+          "state": "827b8d9b099385f3d121147a139d8dc1abe897b98a6d165cb0e85613d630bcb9"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 4.024177542,
+          "fps": 149.09878943904707,
+          "cycles": 937332000,
+          "state": "d4960fba6d36cd338fd434669015882250a110a3ccfee07093c177845e84199a"
+        }
+      ]
+    },
+    {
+      "title": "fzero",
+      "block": 2,
+      "variant": "pooled",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "F-Zero X",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 3.740856459,
+          "fps": 160.39107797266058,
+          "cycles": 937332000,
+          "state": "827b8d9b099385f3d121147a139d8dc1abe897b98a6d165cb0e85613d630bcb9"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 4.096292667,
+          "fps": 146.4739091602607,
+          "cycles": 937332000,
+          "state": "d4960fba6d36cd338fd434669015882250a110a3ccfee07093c177845e84199a"
+        }
+      ]
+    },
+    {
+      "title": "fzero",
+      "block": 2,
+      "variant": "original",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "F-Zero X",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 3.756377791,
+          "fps": 159.72834293652653,
+          "cycles": 937332000,
+          "state": "827b8d9b099385f3d121147a139d8dc1abe897b98a6d165cb0e85613d630bcb9"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 4.123827125,
+          "fps": 145.49591479298493,
+          "cycles": 937332000,
+          "state": "d4960fba6d36cd338fd434669015882250a110a3ccfee07093c177845e84199a"
+        }
+      ]
+    },
+    {
+      "title": "fzero",
+      "block": 2,
+      "variant": "off",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "F-Zero X",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 3.808747917,
+          "fps": 157.53208484130823,
+          "cycles": 937332000,
+          "state": "827b8d9b099385f3d121147a139d8dc1abe897b98a6d165cb0e85613d630bcb9"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 3.993692333,
+          "fps": 150.23691110158435,
+          "cycles": 937332000,
+          "state": "d4960fba6d36cd338fd434669015882250a110a3ccfee07093c177845e84199a"
+        }
+      ]
+    },
+    {
+      "title": "fzero",
+      "block": 3,
+      "variant": "off",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "F-Zero X",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 3.714461125,
+          "fps": 161.53083308955078,
+          "cycles": 937332000,
+          "state": "827b8d9b099385f3d121147a139d8dc1abe897b98a6d165cb0e85613d630bcb9"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 3.967116292,
+          "fps": 151.24336062694883,
+          "cycles": 937332000,
+          "state": "d4960fba6d36cd338fd434669015882250a110a3ccfee07093c177845e84199a"
+        }
+      ]
+    },
+    {
+      "title": "fzero",
+      "block": 3,
+      "variant": "original",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "F-Zero X",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 3.638369417,
+          "fps": 164.90903787739265,
+          "cycles": 937332000,
+          "state": "827b8d9b099385f3d121147a139d8dc1abe897b98a6d165cb0e85613d630bcb9"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 4.125022208,
+          "fps": 145.4537623667504,
+          "cycles": 937332000,
+          "state": "d4960fba6d36cd338fd434669015882250a110a3ccfee07093c177845e84199a"
+        }
+      ]
+    },
+    {
+      "title": "fzero",
+      "block": 3,
+      "variant": "pooled",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "F-Zero X",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 3.734205041,
+          "fps": 160.67676879342523,
+          "cycles": 937332000,
+          "state": "827b8d9b099385f3d121147a139d8dc1abe897b98a6d165cb0e85613d630bcb9"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 4.106782,
+          "fps": 146.09979297659336,
+          "cycles": 937332000,
+          "state": "d4960fba6d36cd338fd434669015882250a110a3ccfee07093c177845e84199a"
+        }
+      ]
+    },
+    {
+      "title": "fzero",
+      "block": 3,
+      "variant": "compact",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "F-Zero X",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 3.75931925,
+          "fps": 159.603364359119,
+          "cycles": 937332000,
+          "state": "827b8d9b099385f3d121147a139d8dc1abe897b98a6d165cb0e85613d630bcb9"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 4.0632365,
+          "fps": 147.6655370663263,
+          "cycles": 937332000,
+          "state": "d4960fba6d36cd338fd434669015882250a110a3ccfee07093c177845e84199a"
+        }
+      ]
+    },
+    {
+      "title": "fzero",
+      "block": 4,
+      "variant": "compact",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "F-Zero X",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 3.616587792,
+          "fps": 165.9022356175669,
+          "cycles": 937332000,
+          "state": "827b8d9b099385f3d121147a139d8dc1abe897b98a6d165cb0e85613d630bcb9"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 4.015161042,
+          "fps": 149.43360769936461,
+          "cycles": 937332000,
+          "state": "d4960fba6d36cd338fd434669015882250a110a3ccfee07093c177845e84199a"
+        }
+      ]
+    },
+    {
+      "title": "fzero",
+      "block": 4,
+      "variant": "pooled",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "F-Zero X",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 3.65947175,
+          "fps": 163.95809039924958,
+          "cycles": 937332000,
+          "state": "827b8d9b099385f3d121147a139d8dc1abe897b98a6d165cb0e85613d630bcb9"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 4.1189835,
+          "fps": 145.66700740607484,
+          "cycles": 937332000,
+          "state": "d4960fba6d36cd338fd434669015882250a110a3ccfee07093c177845e84199a"
+        }
+      ]
+    },
+    {
+      "title": "fzero",
+      "block": 4,
+      "variant": "original",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "F-Zero X",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 3.673735875,
+          "fps": 163.32148538032826,
+          "cycles": 937332000,
+          "state": "827b8d9b099385f3d121147a139d8dc1abe897b98a6d165cb0e85613d630bcb9"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 4.097358416,
+          "fps": 146.43581036431354,
+          "cycles": 937332000,
+          "state": "d4960fba6d36cd338fd434669015882250a110a3ccfee07093c177845e84199a"
+        }
+      ]
+    },
+    {
+      "title": "fzero",
+      "block": 4,
+      "variant": "off",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "F-Zero X",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 3.74849575,
+          "fps": 160.06420708893694,
+          "cycles": 937332000,
+          "state": "827b8d9b099385f3d121147a139d8dc1abe897b98a6d165cb0e85613d630bcb9"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 4.004288209,
+          "fps": 149.8393643722861,
+          "cycles": 937332000,
+          "state": "d4960fba6d36cd338fd434669015882250a110a3ccfee07093c177845e84199a"
+        }
+      ]
+    },
+    {
+      "title": "fzero",
+      "block": 5,
+      "variant": "off",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "F-Zero X",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 3.737528875,
+          "fps": 160.53387681185473,
+          "cycles": 937332000,
+          "state": "827b8d9b099385f3d121147a139d8dc1abe897b98a6d165cb0e85613d630bcb9"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 3.975956541,
+          "fps": 150.90708206008028,
+          "cycles": 937332000,
+          "state": "d4960fba6d36cd338fd434669015882250a110a3ccfee07093c177845e84199a"
+        }
+      ]
+    },
+    {
+      "title": "fzero",
+      "block": 5,
+      "variant": "original",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "F-Zero X",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 3.647746334,
+          "fps": 164.4851217880766,
+          "cycles": 937332000,
+          "state": "827b8d9b099385f3d121147a139d8dc1abe897b98a6d165cb0e85613d630bcb9"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 4.099316208,
+          "fps": 146.36587410092272,
+          "cycles": 937332000,
+          "state": "d4960fba6d36cd338fd434669015882250a110a3ccfee07093c177845e84199a"
+        }
+      ]
+    },
+    {
+      "title": "fzero",
+      "block": 5,
+      "variant": "pooled",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "F-Zero X",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 3.638781958,
+          "fps": 164.8903415828138,
+          "cycles": 937332000,
+          "state": "827b8d9b099385f3d121147a139d8dc1abe897b98a6d165cb0e85613d630bcb9"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 4.116105792,
+          "fps": 145.7688481103063,
+          "cycles": 937332000,
+          "state": "d4960fba6d36cd338fd434669015882250a110a3ccfee07093c177845e84199a"
+        }
+      ]
+    },
+    {
+      "title": "fzero",
+      "block": 5,
+      "variant": "compact",
+      "seed": 166,
+      "bun": "1.3.14",
+      "name": "F-Zero X",
+      "windows": [
+        {
+          "name": "early",
+          "endVI": 720,
+          "seconds": 3.650972917,
+          "fps": 164.33975645401918,
+          "cycles": 937332000,
+          "state": "827b8d9b099385f3d121147a139d8dc1abe897b98a6d165cb0e85613d630bcb9"
+        },
+        {
+          "name": "later",
+          "endVI": 1920,
+          "seconds": 4.047439417,
+          "fps": 148.2418729925612,
+          "cycles": 937332000,
+          "state": "d4960fba6d36cd338fd434669015882250a110a3ccfee07093c177845e84199a"
+        }
+      ]
+    }
+  ],
+  "discardedBlocks": [
+    {
+      "title": "zelda",
+      "block": 3,
+      "conflicts": [
+        {
+          "pid": 56716,
+          "cpu": 26.0,
+          "command": "/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/153.0.8010.50/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)"
+        }
+      ]
+    },
+    {
+      "title": "zelda",
+      "block": 3,
+      "conflicts": [
+        {
+          "pid": 56779,
+          "cpu": 60.9,
+          "command": "/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/153.0.8010.50/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)"
+        }
+      ]
+    },
+    {
+      "title": "fzero",
+      "block": 5,
+      "conflicts": [
+        {
+          "pid": 56716,
+          "cpu": 31.3,
+          "command": "/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/153.0.8010.50/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 1,
+  "originalCommit": "f2076e245819a9f595a8a93416590da9dae7c8ef",
+  "pooledCommit": "779e2cdcdf06be3ba828ccdc42b0cd54713f88fc",
+  "runtime": {
+    "bun": "1.3.14",
+    "os": "macOS 26.5.2 (25F84)",
+    "arch": "arm64",
+    "cpu": "Apple M4"
+  },
+  "summary": [
+    {
+      "title": "turok",
+      "window": "early",
+      "comparisons": {
+        "original/off": {
+          "pairedChangesPercent": [
+            13.71508564678743,
+            -3.281076046978293,
+            -6.421411299995161,
+            -3.6414642096406102,
+            -1.1900969539757722
+          ],
+          "pairedMedianPercent": -3.281076046978293
+        },
+        "pooled/original": {
+          "pairedChangesPercent": [
+            -0.45966327505398974,
+            -2.6040078031115743,
+            2.551281298441088,
+            0.044691537530439085,
+            -0.7885146689458278
+          ],
+          "pairedMedianPercent": -0.45966327505398974
+        },
+        "compact/pooled": {
+          "pairedChangesPercent": [
+            1.8953866515878381,
+            2.9053059648341373,
+            1.819823583070157,
+            2.4301295839042503,
+            0.19788165415097758
+          ],
+          "pairedMedianPercent": 1.8953866515878381
+        },
+        "compact/original": {
+          "pairedChangesPercent": [
+            1.4270109801762354,
+            0.22564376769402816,
+            4.417533700250753,
+            2.4759071837097135,
+            -0.5921933406649926
+          ],
+          "pairedMedianPercent": 1.4270109801762354
+        },
+        "compact/off": {
+          "pairedChangesPercent": [
+            15.337812405083874,
+            -3.0628358228975805,
+            -2.2875456079534118,
+            -1.2557162998895977,
+            -1.775242619731865
+          ],
+          "pairedMedianPercent": -1.775242619731865
+        }
+      },
+      "rates": {
+        "off": {
+          "median": 172.48351966540147,
+          "mad": 0.5383192139664743
+        },
+        "original": {
+          "median": 167.28942674407406,
+          "mad": 0.39178892309746516
+        },
+        "pooled": {
+          "median": 165.97032507460165,
+          "mad": 0.30654744934295763
+        },
+        "compact": {
+          "median": 168.971331999388,
+          "mad": 1.2488679826534792
+        }
+      }
+    },
+    {
+      "title": "turok",
+      "window": "later",
+      "comparisons": {
+        "original/off": {
+          "pairedChangesPercent": [
+            -0.47305962213293196,
+            -2.4214384347644557,
+            -2.828673787624736,
+            1.553421206008121,
+            -5.782622805367832
+          ],
+          "pairedMedianPercent": -2.4214384347644557
+        },
+        "pooled/original": {
+          "pairedChangesPercent": [
+            -0.7120889061804747,
+            -0.09287112109110929,
+            -2.4527606534239244,
+            -0.04892753571953401,
+            2.968249709691606
+          ],
+          "pairedMedianPercent": -0.09287112109110929
+        },
+        "compact/pooled": {
+          "pairedChangesPercent": [
+            2.2320095484621882,
+            2.4841672104573442,
+            4.660794869116458,
+            2.5993050546711416,
+            1.1296216874608245
+          ],
+          "pairedMedianPercent": 2.4841672104573442
+        },
+        "compact/original": {
+          "pairedChangesPercent": [
+            1.5040267499022208,
+            2.3889890154281224,
+            2.0937160730060356,
+            2.5491057430425235,
+            4.1314013896111
+          ],
+          "pairedMedianPercent": 2.3889890154281224
+        },
+        "compact/off": {
+          "pairedChangesPercent": [
+            1.0238521845094217,
+            -0.0902973175582189,
+            -0.7941821123631065,
+            4.14212529822664,
+            -1.8901247746936578
+          ],
+          "pairedMedianPercent": -0.0902973175582189
+        }
+      },
+      "rates": {
+        "off": {
+          "median": 194.38648549497617,
+          "mad": 0.44901793378366506
+        },
+        "original": {
+          "median": 189.47434487764988,
+          "mad": 0.20519154556311037
+        },
+        "pooled": {
+          "median": 189.38163974988052,
+          "mad": 0.1346133021701803
+        },
+        "compact": {
+          "median": 193.74627391606023,
+          "mad": 0.46468579681828714
+        }
+      }
+    },
+    {
+      "title": "zelda",
+      "window": "early",
+      "comparisons": {
+        "original/off": {
+          "pairedChangesPercent": [
+            -3.401241023503321,
+            -1.9543803556156591,
+            -4.861118930675312,
+            -0.24925888678590802,
+            -3.328740795639129
+          ],
+          "pairedMedianPercent": -3.328740795639129
+        },
+        "pooled/original": {
+          "pairedChangesPercent": [
+            -1.525097482414961,
+            -1.304339354140649,
+            -0.357470512520508,
+            -0.11022040884850481,
+            -1.3948599553661012
+          ],
+          "pairedMedianPercent": -1.304339354140649
+        },
+        "compact/pooled": {
+          "pairedChangesPercent": [
+            3.3824079922050165,
+            2.3792711508619835,
+            3.2238393779670638,
+            0.6922848630652956,
+            2.4945772959457324
+          ],
+          "pairedMedianPercent": 2.4945772959457324
+        },
+        "compact/original": {
+          "pairedChangesPercent": [
+            1.8057254906559184,
+            1.043898026758927,
+            2.854844590299299,
+            0.5813014150103157,
+            1.0649214808228225
+          ],
+          "pairedMedianPercent": 1.0649214808228225
+        },
+        "compact/off": {
+          "pairedChangesPercent": [
+            -1.6569326090074443,
+            -0.9308840668243668,
+            -2.1450517311964123,
+            0.3305935827884854,
+            -2.299267790589965
+          ],
+          "pairedMedianPercent": -1.6569326090074443
+        }
+      },
+      "rates": {
+        "off": {
+          "median": 111.90412105339603,
+          "mad": 0.4538488169248467
+        },
+        "original": {
+          "median": 108.39175352728205,
+          "mad": 0.2937613461449473
+        },
+        "pooled": {
+          "median": 107.10279719673915,
+          "mad": 0.6534047728976873
+        },
+        "compact": {
+          "median": 109.7745592589318,
+          "mad": 0.27538592190734335
+        }
+      }
+    },
+    {
+      "title": "zelda",
+      "window": "later",
+      "comparisons": {
+        "original/off": {
+          "pairedChangesPercent": [
+            -2.8363703333267765,
+            -1.3447873741102123,
+            -3.1448302216161683,
+            -0.41017933528484374,
+            -1.7265260586547315
+          ],
+          "pairedMedianPercent": -1.7265260586547315
+        },
+        "pooled/original": {
+          "pairedChangesPercent": [
+            -1.4384545169256469,
+            -2.584475740967118,
+            -1.1308274811549945,
+            -0.9370048742842862,
+            -0.6065753205026558
+          ],
+          "pairedMedianPercent": -1.1308274811549945
+        },
+        "compact/pooled": {
+          "pairedChangesPercent": [
+            2.3536124653043666,
+            2.661742201566808,
+            1.2396070151908356,
+            1.6393335243658713,
+            1.6652950628261998
+          ],
+          "pairedMedianPercent": 1.6652950628261998
+        },
+        "compact/original": {
+          "pairedChangesPercent": [
+            0.8813023035606271,
+            0.00847437911311033,
+            0.09476171724973614,
+            0.6869680150524804,
+            1.0486184734588955
+          ],
+          "pairedMedianPercent": 0.6869680150524804
+        },
+        "compact/off": {
+          "pairedChangesPercent": [
+            -1.9800650268512632,
+            -1.3364269573774457,
+            -3.0530485994890166,
+            0.2739708789298856,
+            -0.6960122563959725
+          ],
+          "pairedMedianPercent": -1.3364269573774457
+        }
+      },
+      "rates": {
+        "off": {
+          "median": 90.99770336962979,
+          "mad": 0.6406424827970056
+        },
+        "original": {
+          "median": 89.04298052371969,
+          "mad": 0.18499829719370098
+        },
+        "pooled": {
+          "median": 87.85315174430862,
+          "mad": 0.3993606768183753
+        },
+        "compact": {
+          "median": 89.82384701501789,
+          "mad": 0.04768500912321372
+        }
+      }
+    },
+    {
+      "title": "fzero",
+      "window": "early",
+      "comparisons": {
+        "original/off": {
+          "pairedChangesPercent": [
+            1.9784894293303656,
+            1.3941655742261805,
+            2.091368392787918,
+            2.034982305307942,
+            2.461315365138006
+          ],
+          "pairedMedianPercent": 2.034982305307942
+        },
+        "pooled/original": {
+          "pairedChangesPercent": [
+            0.041532288653112204,
+            0.4149138618419146,
+            -2.5664263999369497,
+            0.3897864493694003,
+            0.2463565034527937
+          ],
+          "pairedMedianPercent": 0.2463565034527937
+        },
+        "compact/pooled": {
+          "pairedChangesPercent": [
+            0.07888648790805863,
+            1.0511847244915051,
+            -0.6680520416030067,
+            1.1857574173883112,
+            -0.33390987216682655
+          ],
+          "pairedMedianPercent": 0.07888648790805863
+        },
+        "compact/original": {
+          "pairedChangesPercent": [
+            0.12045153992503721,
+            1.4704600974689175,
+            -3.217333377578935,
+            1.5801657884930709,
+            -0.08837597739977943
+          ],
+          "pairedMedianPercent": 0.12045153992503721
+        },
+        "compact/off": {
+          "pairedChangesPercent": [
+            2.1013240902402863,
+            2.885126320156739,
+            -1.193251278140317,
+            3.6473041879913515,
+            2.370764176227391
+          ],
+          "pairedMedianPercent": 2.370764176227391
+        }
+      },
+      "rates": {
+        "off": {
+          "median": 160.53387681185473,
+          "mad": 0.4842047071687432
+        },
+        "original": {
+          "median": 164.2038072411879,
+          "mad": 0.7052306362047602
+        },
+        "pooled": {
+          "median": 163.95809039924958,
+          "mad": 0.9322511835642047
+        },
+        "compact": {
+          "median": 164.33975645401918,
+          "mad": 1.5624791635477209
+        }
+      }
+    },
+    {
+      "title": "fzero",
+      "window": "later",
+      "comparisons": {
+        "original/off": {
+          "pairedChangesPercent": [
+            -4.197506983668065,
+            -3.1556801014058,
+            -3.828001597028008,
+            -2.2714685304698667,
+            -3.0092742482089596
+          ],
+          "pairedMedianPercent": -3.1556801014058
+        },
+        "pooled/original": {
+          "pairedChangesPercent": [
+            0.3788948731099584,
+            0.6721799499781689,
+            0.4441484354416714,
+            -0.5250102118641631,
+            -0.4078997199885359
+          ],
+          "pairedMedianPercent": 0.3788948731099584
+        },
+        "compact/pooled": {
+          "pairedChangesPercent": [
+            1.174640240509972,
+            1.7920463062909286,
+            1.071694940720258,
+            2.585760743192611,
+            1.6965386736015997
+          ],
+          "pairedMedianPercent": 1.6965386736015997
+        },
+        "compact/original": {
+          "pairedChangesPercent": [
+            1.5579857652687101,
+            2.4762720322343057,
+            1.5206032924738544,
+            2.047175023372305,
+            1.2817187771139382
+          ],
+          "pairedMedianPercent": 1.5579857652687101
+        },
+        "compact/off": {
+          "pairedChangesPercent": [
+            -2.704917779701066,
+            -0.7575512929493988,
+            -2.3656070228745163,
+            -0.27079444351709725,
+            -1.7661259041891642
+          ],
+          "pairedMedianPercent": -1.7661259041891642
+        }
+      },
+      "rates": {
+        "off": {
+          "median": 150.23691110158435,
+          "mad": 0.6701709584959303
+        },
+        "original": {
+          "median": 145.49591479298493,
+          "mad": 0.8699593079377905
+        },
+        "pooled": {
+          "median": 145.7688481103063,
+          "mad": 0.3309448662870693
+        },
+        "compact": {
+          "median": 148.2418729925612,
+          "mad": 0.8569164464858545
+        }
+      }
+    }
+  ],
+  "compactCommit": "0d570cacd679a8e336db5f300917095c31b6b32b"
+}

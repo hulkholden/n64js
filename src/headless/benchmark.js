@@ -2,6 +2,7 @@
 
 import { createHeadlessEmulator, loadROMFile, runCycles, runFrames } from './headless_env.js';
 import { getPerformanceProfile, performanceProfileDelta, setPerformanceProfiling } from '../debug/performance_profile.js';
+import { recompilerOptions } from '../options.js';
 
 const defaults = {
   mode: 'game',
@@ -14,6 +15,7 @@ const defaults = {
   chunkCycles: 10_000_000,
   json: false,
   profile: false,
+  guardedRAMStores: false,
 };
 
 function usage() {
@@ -30,6 +32,7 @@ Options:
   --chunk-cycles <n>   Maximum cycles passed to cpu.run at once (default: ${defaults.chunkCycles})
   --json               Emit machine-readable JSON
   --profile            Include emulation profiling counters for each timed sample
+  --guarded-ram-stores  Enable the experimental guarded SW-group compiler path
   --help                Show this help
 
 ROM paths are runtime inputs and are never stored by the benchmark harness.`;
@@ -84,6 +87,9 @@ export function parseArgs(args) {
         break;
       case '--profile':
         options.profile = true;
+        break;
+      case '--guarded-ram-stores':
+        options.guardedRAMStores = true;
         break;
       case '--help':
         options.help = true;
@@ -207,6 +213,7 @@ async function main() {
   const originalLog = console.log;
   const originalWarn = console.warn;
   const results = [];
+  recompilerOptions.guardedRAMStores = options.guardedRAMStores;
   for (const rom of options.roms) {
     console.error(`Benchmarking ${rom}`);
     console.log = () => {};
@@ -221,6 +228,7 @@ async function main() {
 
   const report = {
     schemaVersion: 1,
+    guardedRAMStores: options.guardedRAMStores,
     runtime: { bun: Bun.version, platform: process.platform, arch: process.arch },
     results,
   };
