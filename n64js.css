@@ -342,6 +342,19 @@ table .impl100 {
   font-weight: 500;
 }
 
+/* Status flags span both register pairs; draw separators across complete rows. */
+.debugger .control-register-table td {
+  border-bottom: 0;
+}
+
+.debugger .control-register-table tr {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.debugger .control-register-table .status-flags {
+  text-align: left;
+}
+
 .debugger input:not([type="range"]),
 .debugger select {
   max-width: 100%;

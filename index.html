@@ -213,11 +213,12 @@
               <div class="tab-pane" id="cpu-content">
                 <div id="cpu" class="processor-display">
                   <div class="processor-details">
-                    <table class="register-table">
+                    <table class="register-table control-register-table">
                       <tbody>
                         <tr>
                           <td>Ops</td>
                           <td class="fixed" id="cpu0-status-opsexecuted"></td>
+                          <td colspan="2"></td>
                         </tr>
                         <tr>
                           <td>PC</td>
@@ -228,6 +229,7 @@
                         <tr>
                           <td>EPC</td>
                           <td class="fixed" id="cpu0-status-epc"></td>
+                          <td colspan="2"></td>
                         </tr>
                         <tr>
                           <td>MultHi</td>
@@ -249,12 +251,8 @@
                         </tr>
 
                         <tr>
-                          <td>&nbsp;</td>
-                        </tr>
-
-                        <tr>
                           <td>SR</td>
-                          <td class="fixed">
+                          <td class="fixed status-flags" colspan="3">
                             <span id="cpu0-status-sr"></span>&nbsp;
                             <span id="cpu0-status-sr-ie">IE</span>&nbsp;
                             <span id="cpu0-status-sr-exl">EXL</span>&nbsp;
@@ -263,7 +261,7 @@
                         </tr>
                         <tr>
                           <td>MI Intr</td>
-                          <td class="fixed">
+                          <td class="fixed status-flags" colspan="3">
                             <span id="cpu0-status-mi-sp">SP</span>&nbsp;
                             <span id="cpu0-status-mi-si">SI</span>&nbsp;
                             <span id="cpu0-status-mi-ai">AI</span>&nbsp;
