@@ -1616,8 +1616,18 @@ export class CPU0 {
   }
 
   execLD(rt, base, imms) {
-    const value = memaccess.loadU64fast(this.addrS32(base, imms));
-    this.setRegU64(rt, value);
+    const addr = this.addrS32(base, imms);
+    if ((addr & 7) === 0 && addr < memaccess.kKseg0RamEndS32) {
+      // Copy aligned KSEG0 RAM directly into the two register words. Going
+      // through BigInt is expensive in context-save/restore loops.
+      const phys = (addr + 0x80000000) | 0;
+      const hi = this.ramDV.getInt32(phys, false);
+      const lo = this.ramDV.getInt32(phys + 4, false);
+      this.setRegS64LoHi(rt, lo, hi);
+    } else {
+      // Keep translation, alignment exceptions and device accesses atomic.
+      this.setRegU64(rt, memaccess.loadU64fast(addr));
+    }
   }
 
   execLWL(rt, base, imms) {
@@ -1674,8 +1684,17 @@ export class CPU0 {
 
   // Caller must have established that COP1 is usable.
   execLDC1Unchecked(rt, base, imms) {
-    const value = memaccess.loadU64fast(this.addrS32(base, imms));
-    cpu1.store64(cpu1.copRegIdx64(rt), value);
+    const addr = this.addrS32(base, imms);
+    const regIdx = cpu1.copRegIdx64(rt);
+    if ((addr & 7) === 0 && addr < memaccess.kKseg0RamEndS32) {
+      const phys = (addr + 0x80000000) | 0;
+      const hi = this.ramDV.getInt32(phys, false);
+      const lo = this.ramDV.getInt32(phys + 4, false);
+      cpu1.store32(regIdx * 2, lo);
+      cpu1.store32(regIdx * 2 + 1, hi);
+    } else {
+      cpu1.store64(regIdx, memaccess.loadU64fast(addr));
+    }
   }
 
   execLDC2(rt, base, imms) {
@@ -1693,7 +1712,14 @@ export class CPU0 {
     memaccess.store32fast(this.addrS32(base, imms), this.getRegS32Lo(rt));
   }
   execSD(rt, base, imms) {
-    memaccess.store64fast(this.addrS32(base, imms), this.getRegU64(rt));
+    const addr = this.addrS32(base, imms);
+    if ((addr & 7) === 0 && addr < memaccess.kKseg0RamEndS32) {
+      const phys = (addr + 0x80000000) | 0;
+      this.ramDV.setInt32(phys, this.gprS32[rt * 2 + 1], false);
+      this.ramDV.setInt32(phys + 4, this.gprS32[rt * 2], false);
+    } else {
+      memaccess.store64fast(addr, this.getRegU64(rt));
+    }
   }
 
   execSWL(rt, base, imms) {
@@ -1750,7 +1776,15 @@ export class CPU0 {
 
   // Caller must have established that COP1 is usable.
   execSDC1Unchecked(rt, base, imms) {
-    memaccess.store64fast(this.addrS32(base, imms), cpu1.loadU64(cpu1.copRegIdx64(rt)));
+    const addr = this.addrS32(base, imms);
+    const regIdx = cpu1.copRegIdx64(rt);
+    if ((addr & 7) === 0 && addr < memaccess.kKseg0RamEndS32) {
+      const phys = (addr + 0x80000000) | 0;
+      this.ramDV.setInt32(phys, cpu1.loadS32(regIdx * 2 + 1), false);
+      this.ramDV.setInt32(phys + 4, cpu1.loadS32(regIdx * 2), false);
+    } else {
+      memaccess.store64fast(addr, cpu1.loadU64(regIdx));
+    }
   }
 
   execSDC2(rt, base, imms) {
