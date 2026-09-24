@@ -18,8 +18,13 @@
 
   // Resolve Auto to a concrete color scheme without changing the saved preference.
   const applyTheme = () => {
-    document.documentElement.dataset.theme = preference === 'auto'
-      ? (systemTheme.matches ? 'dark' : 'light') : preference;
+    let theme = preference;
+
+    if (theme === 'auto') {
+      theme = systemTheme.matches ? 'dark' : 'light';
+    }
+
+    document.documentElement.dataset.theme = theme;
   };
 
   // Apply colors immediately; the menu can wait until the DOM is ready.
@@ -55,21 +60,24 @@
 
     trigger.addEventListener('click', () => setOpen(menu.hidden));
 
-    buttons.forEach(button => button.addEventListener('click', () => {
-      preference = button.dataset.themeValue;
+    buttons.forEach(button => {
+      button.addEventListener('click', () => {
+        preference = button.dataset.themeValue;
 
-      try {
-        localStorage.setItem('theme', preference);
-      } catch {
-        // A failed save should not prevent changing the theme for this visit.
-      }
+        try {
+          localStorage.setItem('theme', preference);
+        } catch {
+          // A failed save should not prevent changing the theme for this visit.
+        }
 
-      applyTheme();
-      updateSelection();
+        applyTheme();
+        updateSelection();
 
-      setOpen(false);
-      trigger.focus();
-    }));
+        // Return focus before the user continues tabbing through the toolbar.
+        setOpen(false);
+        trigger.focus();
+      });
+    });
 
     const dropdown = trigger.closest('.dropdown');
 
@@ -90,10 +98,27 @@
         // An index of -1 means focus is on the trigger. ArrowDown enters at the
         // first option and ArrowUp at the last; subsequent arrow presses wrap.
         const index = buttons.indexOf(document.activeElement);
-        const next = event.key === 'Home' ? 0
-          : event.key === 'End' ? buttons.length - 1
-          : event.key === 'ArrowDown' ? (index + 1) % buttons.length
-          : (index < 0 ? buttons.length - 1 : (index + buttons.length - 1) % buttons.length);
+        let next;
+
+        switch (event.key) {
+          case 'Home':
+            next = 0;
+            break;
+
+          case 'End':
+            next = buttons.length - 1;
+            break;
+
+          case 'ArrowDown':
+            next = (index + 1) % buttons.length;
+            break;
+
+          case 'ArrowUp':
+            next = index < 0
+              ? buttons.length - 1
+              : (index + buttons.length - 1) % buttons.length;
+            break;
+        }
 
         buttons[next].focus();
       }
