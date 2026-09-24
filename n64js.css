@@ -3,7 +3,9 @@ canvas {
 }
 
 pre {
-  font-family: Menlo, Monaco, 'Courier New', monospace;
+  font-family: var(--code-font);
+  font-variant-numeric: tabular-nums;
+  font-variant-ligatures: none;
   font-size: 12px;
 }
 
@@ -12,7 +14,9 @@ pre {
 }
 
 .fixed {
-  font-family: Menlo, Monaco, 'Courier New', monospace;
+  font-family: var(--code-font);
+  font-variant-numeric: tabular-nums;
+  font-variant-ligatures: none;
   font-size: 12px;
 }
 
@@ -59,13 +63,14 @@ pre {
 }
 
 .dis-view {
-  width: 1000px;
+  min-width: 0;
+  flex: 1;
 }
 
 .dis-gutter pre {
-  font-size: 18px;
+  font-size: 12px;
 
-  color: red;
+  color: var(--danger-color);
   border: 0;
   border-radius: 0;
   background-color: var(--secondary-bg);
@@ -90,7 +95,7 @@ pre .dis-label {
 }
 
 pre .dis-address {
-  color: #999;
+  color: var(--secondary-color);
 }
 
 pre .dis-line-target {
@@ -98,7 +103,7 @@ pre .dis-line-target {
 }
 
 pre .dis-line-cur {
-  background-color: #0d6efd;
+  background-color: var(--accent-bg);
 }
 
 .output {
@@ -171,7 +176,7 @@ table .impl100 {
 }
 
 .hle-cur-instr {
-  background-color: #198754;
+  background-color: var(--register-2);
 }
 
 .combine {
@@ -204,11 +209,11 @@ table .impl100 {
 }
 
 .dl-debug-geommode-enabled {
-  background-color: #198754;
+  background-color: var(--register-2);
 }
 
 .dl-debug-geommode-disabled {
-  background-color: #dc3545;
+  background-color: var(--danger-bg);
 }
 
 .clip-pos {
@@ -226,7 +231,7 @@ table .impl100 {
 }
 
 .cpu0-status-bit-set {
-  background-color: #dc3545;
+  background-color: var(--danger-bg);
 }
 
 .cpu0-status-bit-enabled {
@@ -258,4 +263,163 @@ table .impl100 {
   font-size: 12px;
   color: rgb(0, 0, 0, 0.8);
   white-space: nowrap;
+}
+
+/* Keep the dense debugger data inside bounded panels, without squeezing columns. */
+.debugger {
+  margin: 16px 0;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--control-radius);
+  font-size: 13px;
+}
+
+.debugger .nav {
+  border-bottom: 1px solid var(--border-color);
+  gap: 20px;
+}
+
+.debugger .tab-content > .tab-pane {
+  padding-top: 12px;
+}
+
+.processor-display {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.processor-details {
+  max-width: 100%;
+  min-width: 0;
+  overflow: auto;
+  padding: 12px;
+  background: var(--panel-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--control-radius);
+}
+
+.processor-details:last-child {
+  flex: 1 1 540px;
+}
+
+.debugger .register-table {
+  width: 100%;
+}
+
+.debugger .register-table td,
+.debugger .register-table th {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* lil-gui exposes these tokens for matching the emulator's options panel. */
+.lil-gui {
+  --background-color: var(--panel-bg);
+  --text-color: var(--body-color);
+  --title-background-color: var(--secondary-bg);
+  --title-text-color: var(--body-color);
+  --widget-color: var(--body-bg);
+  --hover-color: var(--accent-bg);
+  --focus-color: var(--accent-bg);
+  --number-color: var(--link-color);
+  --string-color: var(--link-color);
+  --font-family: Inter, system-ui, sans-serif;
+  --font-family-mono: var(--code-font);
+  --widget-border-radius: var(--control-radius);
+  border: 1px solid var(--border-color);
+  border-radius: var(--control-radius);
+}
+
+.debugger .register-table td:not(.fixed),
+.debugger .register-table th {
+  color: var(--secondary-color);
+  font-weight: 500;
+}
+
+.debugger input:not([type="range"]),
+.debugger select {
+  max-width: 100%;
+  min-height: 32px;
+  padding: 4px 8px;
+  color: var(--body-color);
+  background: var(--panel-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--control-radius);
+  font-family: var(--code-font);
+  font-size: 12px;
+}
+
+.debugger .control-group {
+  margin-bottom: 12px;
+}
+
+.debugger .controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.debugger .dis {
+  display: flex;
+}
+
+/* Both columns must share line metrics so breakpoint hit targets stay aligned. */
+.debugger .dis pre {
+  margin: 0;
+  font-size: 12px;
+  line-height: 24px;
+  background: var(--panel-bg);
+}
+
+.debugger .dis-gutter {
+  flex: 0 0 24px;
+  text-align: center;
+  border-right: 1px solid var(--border-color);
+  margin-right: 8px;
+}
+
+.debugger .dis-gutter span {
+  display: inline-block;
+  width: 100%;
+  cursor: pointer;
+}
+
+.debugger .dis-line-cur {
+  box-shadow: inset 2px 0 var(--link-color);
+}
+
+.debugger .dis-address-jump,
+.debugger .dis-fragment-link {
+  color: var(--link-color);
+  cursor: pointer;
+}
+
+.debugger .output,
+.debugger #memory-content pre,
+.debugger .hle-disasm {
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--control-radius);
+  background: var(--panel-bg);
+}
+
+.debugger #memory-content input {
+  margin-bottom: 12px;
+}
+
+.debugger #timeline-content {
+  overflow-x: auto;
+}
+
+.toolbar .btn-toolbar {
+  gap: 6px;
+}
+
+.toolbar {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
 }

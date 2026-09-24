@@ -241,9 +241,9 @@ export class Debugger {
 
   // access is {reg,offset,mode}
   makeRecentMemoryAccessRow(address, mode) {
-    let col = (mode === 'store') ? '#faa' : '#ffa';
+    let col = (mode === 'store') ? 'var(--danger-bg)' : 'var(--register-1)';
     if (mode === 'update') {
-      col = '#afa';
+      col = 'var(--register-2)';
     }
 
     let highlights = new Map();
@@ -270,7 +270,9 @@ export class Debugger {
       default: r *= 2; g *= 2; b *= 2; break;
     }
 
-    return '#' + toHex(r, 8) + toHex(g, 8) + toHex(b, 8);
+    // Retain per-address colors while keeping labels legible in either theme.
+    const color = '#' + toHex(r, 8) + toHex(g, 8) + toHex(b, 8);
+    return `color-mix(in srgb, var(--body-color) 70%, ${color})`;
   }
 
   makeLabelText(address) {
@@ -442,9 +444,9 @@ export class Debugger {
    */
   makeRegisterColours(instruction) {
     const availColours = [
-      '#fd7e14', // yellow
-      '#198754', // green
-      '#0d6efd'  // blue
+      'var(--register-1)',
+      'var(--register-2)',
+      'var(--register-3)'
     ];
 
     let registerColours = new Map();
@@ -509,7 +511,13 @@ export class Debugger {
 
     const recent = document.createElement('pre');
     if (this.recentMemoryAccesses.length > 0) {
-      const fadingColours = ['#bbb', '#999', '#666', '#333'];
+      // Fade toward the theme's secondary text, keeping old accesses readable.
+      const fadingColours = [
+        'var(--body-color)',
+        'color-mix(in srgb, var(--body-color) 65%, var(--secondary-color))',
+        'color-mix(in srgb, var(--body-color) 30%, var(--secondary-color))',
+        'var(--secondary-color)',
+      ];
       for (let i = 0; i < this.recentMemoryAccesses.length; ++i) {
         let element = this.recentMemoryAccesses[i].element;
         element.style.color = fadingColours[i];
