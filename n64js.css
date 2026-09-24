@@ -409,6 +409,10 @@ table .impl100 {
   margin-bottom: 12px;
 }
 
+.debugger #clear {
+  margin-bottom: 12px;
+}
+
 .debugger #timeline-content {
   overflow-x: auto;
 }
