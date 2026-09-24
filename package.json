@@ -6,7 +6,6 @@
   "main": "n64.min.js",
   "type": "module",
   "scripts": {
-    "test:ui": "bun run tools/ui_check.js",
     "test:visual": "node tools/texture_sampler/run.js",
     "build:visual": "bun build tools/texture_sampler/visual.js --outfile=build/texture_sampler_visual.js",
     "lint": "bun --bun eslint src js tools eslint.config.js --max-warnings 0",

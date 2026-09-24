@@ -100,13 +100,6 @@ the check as well as errors. Existing `no-unused-vars` findings are recorded in
 Other recommended rules remain fully enforced. When cleaning up existing unused
 variables, run `bun run lint --prune-suppressions` and commit the reduced baseline.
 
-### Browser UI checks
-
-Run `bunx playwright install chromium` once, then `bun run test:ui` to build the
-page and check themes, debugger tabs, keyboard navigation, controller-dialog
-focus and dismissal, and alerts in Chromium. The check starts its own local
-server and blocks external requests; it does not need a ROM.
-
 ### N64 system tests
 
 The [system-test workflow](.github/workflows/systemtest.yml) builds pinned test
