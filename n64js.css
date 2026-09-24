@@ -369,6 +369,19 @@ table .impl100 {
   display: flex;
 }
 
+/* Small operand labels need stronger fills than the matching register cells. */
+.debugger .dis-view {
+  --register-1: #bad6ff;
+  --register-2: #b9e6d5;
+  --register-3: #ddc6f4;
+}
+
+[data-theme="dark"] .debugger .dis-view {
+  --register-1: #365b8f;
+  --register-2: #286b54;
+  --register-3: #654588;
+}
+
 /* Both columns must share line metrics so breakpoint hit targets stay aligned. */
 .debugger .dis pre {
   margin: 0;
