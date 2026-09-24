@@ -16,6 +16,9 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
   <link rel="stylesheet" href="ui.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
   <link rel="stylesheet" href="n64js.css">
@@ -78,7 +81,7 @@
             </div>
           </div>
 
-          <input style="visibility:hidden; display:inline-block;" id="fileInput" name="fileInput" type="file"
+          <input hidden id="fileInput" name="fileInput" type="file"
                  onchange="n64js.ui().loadFile()" />
         </div>
       </div>
@@ -152,7 +155,7 @@
       </div>
     </div>
 
-    <div class="debug hidden">
+    <div class="debug debugger hidden">
       <div class="row">
         <div class="col col-sm-4">
           <form>
@@ -160,7 +163,7 @@
               <button type="button" class="btn" onclick="n64js.step()"><i class="bi bi-skip-end"></i> Step</button>
             </div>
             <div class="input-group">
-              <label class="form-label" for="speed">Speed</label>
+              <label class="form-label" for="cpu-speed">Speed</label>
               <input class="form-range" type="range" min="0" max="8" value="0" id="cpu-speed" />
             </div>
           </form>
@@ -210,11 +213,12 @@
               <div class="tab-pane" id="cpu-content">
                 <div id="cpu" class="processor-display">
                   <div class="processor-details">
-                    <table class="register-table">
+                    <table class="register-table control-register-table">
                       <tbody>
                         <tr>
                           <td>Ops</td>
                           <td class="fixed" id="cpu0-status-opsexecuted"></td>
+                          <td colspan="2"></td>
                         </tr>
                         <tr>
                           <td>PC</td>
@@ -225,6 +229,7 @@
                         <tr>
                           <td>EPC</td>
                           <td class="fixed" id="cpu0-status-epc"></td>
+                          <td colspan="2"></td>
                         </tr>
                         <tr>
                           <td>MultHi</td>
@@ -246,12 +251,8 @@
                         </tr>
 
                         <tr>
-                          <td>&nbsp;</td>
-                        </tr>
-
-                        <tr>
                           <td>SR</td>
-                          <td class="fixed">
+                          <td class="fixed status-flags" colspan="3">
                             <span id="cpu0-status-sr"></span>&nbsp;
                             <span id="cpu0-status-sr-ie">IE</span>&nbsp;
                             <span id="cpu0-status-sr-exl">EXL</span>&nbsp;
@@ -260,7 +261,7 @@
                         </tr>
                         <tr>
                           <td>MI Intr</td>
-                          <td class="fixed">
+                          <td class="fixed status-flags" colspan="3">
                             <span id="cpu0-status-mi-sp">SP</span>&nbsp;
                             <span id="cpu0-status-mi-si">SI</span>&nbsp;
                             <span id="cpu0-status-mi-ai">AI</span>&nbsp;
@@ -538,7 +539,6 @@
               <tr>
                 <td>DPad Left</td>
                 <td><input type="text" id="controller-dleft" class="control-input" size=1 maxlength=1 value="F"></td>
-                <td>F</td>
               </tr>
               <tr>
                 <td>DPad Right</td>
@@ -564,8 +564,8 @@
           </table>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-dialog-close>Close</button>
-          <button type="button" class="btn btn-primary">Save changes</button>
+          <button type="button" class="btn" data-dialog-close>Close</button>
+          <button type="button" class="btn">Save changes</button>
         </div>
       </div>
     </div>
