@@ -44,6 +44,8 @@ export class Hardware {
     // The environment supplies a synchronous graphics processor with
     // processTask(task) and reset(). processTask may return a continuation for
     // a CPU producer wait, and signals DP interrupts on executed FullSyncs.
+    // Optional setDPFrozen(frozen) preserves VI-visible images while HLE
+    // consumes SP work ahead of a frozen DP.
     // The default skips lists and approximates one DP interrupt/clock per task;
     // use executeGraphics in headless runs to validate guest scheduling.
     this.graphics = graphics ?? {

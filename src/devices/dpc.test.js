@@ -15,6 +15,23 @@ async function fixture() {
 }
 
 describe('DPC HLE clock approximation', () => {
+  test('publishes frozen graphics before raising the deferred DP interrupt', async () => {
+    const { hardware } = await fixture();
+    const events = [];
+    hardware.graphics.setDPFrozen = frozen => events.push(frozen ? 'freeze' : 'publish');
+    hardware.miRegDevice.interruptDP = () => events.push('interrupt');
+    const dp = hardware.dpcDevice;
+    dp.write32(base + status, 0x8);
+    dp.syncFullHLE();
+    dp.write32(base + status, 0x8);
+    dp.write32(base + status, 0x200);
+    expect(events).toEqual(['freeze']);
+    dp.write32(base + status, 0x4);
+    expect(events).toEqual(['freeze', 'publish', 'interrupt']);
+    dp.write32(base + status, 0x4);
+    expect(events).toHaveLength(3);
+  });
+
   test('holds frozen HLE completions until unfreeze and signals them only once', async () => {
     const { hardware } = await fixture();
     const dp = hardware.dpcDevice;

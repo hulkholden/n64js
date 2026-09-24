@@ -518,6 +518,55 @@ try {
     clipRenderer.debugClear();
     checkClip('debug clear ignores the game scissor', () => true, [255, 0, 255, 255]);
   }
+  // Banjo-Kazooie queues rendering into the displayed buffer while DP is
+  // frozen. Check actual scanout pixels, including the copy outside scissor.
+  {
+    gl.canvas.width = 2;
+    gl.canvas.height = 2;
+    const frozenState = new RSPState();
+    const frozenRenderer = new Renderer(gl, frozenState, 2, 2);
+    frozenRenderer.nativeTransform.initDimensions(2, 2);
+    const targets = frozenRenderer.renderTargets;
+    function clearImage(address, color) {
+      frozenRenderer.setColorImage({ address, width: 2, size: gbi.ImageSize.G_IM_SIZ_16b, format: gbi.ImageFormat.G_IM_FMT_RGBA });
+      frozenRenderer.newFrame();
+      gl.disable(gl.SCISSOR_TEST);
+      gl.colorMask(true, true, true, true);
+      gl.clearColor(...color.map(value => value / 255));
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      targets.markDirty({ y1: 2 });
+    }
+    function checkFrozen(name, address, expected) {
+      frozenRenderer.copyBackBufferToFrontBuffer(address);
+      const actual = new Uint8Array(16);
+      gl.readPixels(0, 0, 2, 2, gl.RGBA, gl.UNSIGNED_BYTE, actual);
+      const error = gl.getError();
+      if (error !== gl.NO_ERROR || actual.some((value, i) => value !== expected[i % 4])) {
+        throw new Error(`${name}: expected ${expected}, got ${Array.from(actual)} (GL error ${error})`);
+      }
+      lines.push(`PASS ${name}`);
+      passed++;
+    }
+    while (gl.getError() !== gl.NO_ERROR) { /* drain earlier shader setup errors */ }
+    clearImage(0, red);
+    clearImage(16, green);
+    targets.setDPFrozen(true);
+    gl.enable(gl.SCISSOR_TEST);
+    gl.scissor(0, 0, 1, 1);
+    clearImage(0, blue);
+    checkFrozen('frozen VI retains the old frame outside the last scissor', 2, red);
+    checkFrozen('frozen VI can switch to the other completed buffer', 18, green);
+    targets.setDPFrozen(false);
+    checkFrozen('unfreeze publishes the queued frame', 2, blue);
+    targets.setDPFrozen(true);
+    frozenRenderer.newFrame(); // Preserve an inherited color image as well.
+    gl.clearColor(1, 1, 1, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    checkFrozen('new task without SetColorImage preserves frozen pixels', 2, blue);
+    targets.setDPFrozen(false);
+    checkFrozen('second unfreeze publishes the inherited target', 2, white);
+    targets.reset();
+  }
   const fogResults = runFogTests(gl);
   lines.push(...fogResults);
   passed += fogResults.length;

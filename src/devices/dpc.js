@@ -140,6 +140,7 @@ export class DPCDevice extends Device {
 
   updateStatus(value) {
     let dpcStatus = this.mem.getU32(DPC_STATUS_REG);
+    const wasFrozen = (dpcStatus & DPC_STATUS_FREEZE) !== 0;
 
     if (value & DPC_CLR_XBUS_DMEM_DMA) { dpcStatus &= ~DPC_STATUS_XBUS_DMEM_DMA; }
     if (value & DPC_SET_XBUS_DMEM_DMA) { dpcStatus |= DPC_STATUS_XBUS_DMEM_DMA; }
@@ -154,6 +155,8 @@ export class DPCDevice extends Device {
     if (value & DPC_CLR_CLOCK_CTR)         { this.mem.set32(DPC_CLOCK_REG, 0); }
 
     this.mem.set32(DPC_STATUS_REG, dpcStatus);
+    const frozen = (dpcStatus & DPC_STATUS_FREEZE) !== 0;
+    if (frozen !== wasFrozen) this.hardware.graphics.setDPFrozen?.(frozen);
     this.completeHLEFullSyncs();
   }
 

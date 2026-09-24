@@ -88,7 +88,7 @@ export class Renderer extends RendererBase {
     const gl = this.gl;
     // Render everything to the back buffer. This prevents horrible flickering
     // if due to webgl clearing our context between updates.
-    gl.bindFramebuffer(gl.FRAMEBUFFER, this.frameBuffer);
+    this.renderTargets.bindCurrent();
     // Set the viewport to match the framebuffer dimensions.
     gl.viewport(0, 0, this.frameBuffer.width, this.frameBuffer.height);
   }
