@@ -459,6 +459,4 @@ table .impl100 {
 .toolbar {
   padding-top: 8px;
   padding-bottom: 8px;
-  border-top: 1px solid var(--border-color);
-  border-bottom: 1px solid var(--border-color);
 }
