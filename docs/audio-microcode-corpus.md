@@ -130,5 +130,7 @@ additional gameplay coverage are still needed before training a lean classifier.
 
 Use the [offline catalogue and comparison tools](audio-microcode-catalogue.md)
 to audit raw differences before accepting a program identity. The
-[September 26 audit](audio-microcode-audit-20260926.md) records the full group
-inventory and an instruction-overlay capture gap found during that review.
+[task-start audit](audio-microcode-audit-20260926.md) records the full group
+inventory and the overlay capture gap that motivated version 2. The subsequent
+[instruction DMA audit](audio-instruction-audit-20260926.md) records the new
+corpus, observed overlays and remaining execution-coverage gaps.
