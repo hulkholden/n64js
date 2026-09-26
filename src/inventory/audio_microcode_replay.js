@@ -2,7 +2,8 @@ import { readdir, stat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { AudioMicrocodeCollector } from './audio_microcode_collector.js';
-import { readAudioCapture, readCaptureReport } from './audio_microcode_capture.js';
+import { readAudioCaptureEvents, readCaptureReport } from './audio_microcode_capture.js';
+import { AudioInstructionObservations } from './audio_instruction_observations.js';
 
 export async function captureDirectories(input) {
   const directory = resolve(input);
@@ -16,7 +17,11 @@ export async function captureDirectories(input) {
 export async function replayAudioCapture(directory) {
   const { report, reportSha256 } = await readCaptureReport(directory);
   const collector = new AudioMicrocodeCollector();
-  for await (const task of readAudioCapture(directory, report.audioCapture)) collector.observe(task.image);
+  const instructions = report.audioCapture.version === 2 ? new AudioInstructionObservations() : null;
+  for await (const event of readAudioCaptureEvents(directory, report.audioCapture)) {
+    instructions?.observe(event);
+    if (event.type === 'task') collector.observe(event.image);
+  }
   const audioMicrocodes = collector.snapshot();
   const recorded = report.collectors['audio.taskMicrocodes'];
   return {
@@ -26,5 +31,7 @@ export async function replayAudioCapture(directory) {
     // Missing live observations (e.g. ROM load failed) are not an empty collector.
     matchesRecorded: recorded === undefined ? null : isDeepStrictEqual(audioMicrocodes, recorded),
     audioMicrocodes,
+    // Null means old capture/no observation capability, not zero code loads.
+    instructionLoads: instructions?.snapshot() ?? null,
   };
 }

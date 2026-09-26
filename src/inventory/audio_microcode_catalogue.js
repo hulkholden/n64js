@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { AudioMicrocodeCollector } from './audio_microcode_collector.js';
-import { readAudioCapture, readCaptureReport } from './audio_microcode_capture.js';
+import { readAudioCaptureEvents, readCaptureReport } from './audio_microcode_capture.js';
+import { AudioInstructionObservations } from './audio_instruction_observations.js';
 import { disassembleInstruction } from '../rsp/disassemble_rsp.js';
 
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -65,8 +66,11 @@ export async function catalogueAudioCaptures(directories) {
   for (const directory of sorted(new Set(directories))) {
     const { report, reportSha256 } = await readCaptureReport(directory);
     const run = runs.length;
+    const instructions = report.audioCapture.version === 2 ? new AudioInstructionObservations() : null;
     const seen = new Map(), runGroups = new Map();
-    for await (const task of readAudioCapture(directory, report.audioCapture)) {
+    for await (const task of readAudioCaptureEvents(directory, report.audioCapture)) {
+      instructions?.observe(task);
+      if (task.type !== 'task') continue;
       let observation = seen.get(task.imageId);
       if (!observation) {
         const { image } = task;
@@ -111,6 +115,7 @@ export async function catalogueAudioCaptures(directories) {
       directory, reportSha256,
       source: { rom: report.rom, emulator: report.emulator, sourceSha256: report.sourceSha256, settings: report.settings, result: report.result },
       capture: report.audioCapture,
+      instructionLoads: instructions?.snapshot() ?? null,
       groups: [...runGroups.values()].map(group => ({
         fingerprint: group.fingerprint, reference: group.reference, tasks: group.tasks, images: group.images,
         exactVariants: group.variants.size, bytes: summarize(group.bytes),
@@ -125,6 +130,9 @@ export async function catalogueAudioCaptures(directories) {
       tasks: runs.reduce((sum, run) => sum + run.capture.tasks, 0),
       images: runs.reduce((sum, run) => sum + run.capture.images, 0),
       provisionalGroups: groups.size, exactVariants: variants.size,
+      instructionCaptureRuns: runs.filter(run => run.instructionLoads !== null).length,
+      instructionLoads: runs.reduce((sum, run) => sum + (run.instructionLoads?.loads ?? 0), 0),
+      instructionImages: new Set(runs.flatMap(run => run.instructionLoads?.images.map(image => image.imageId) ?? [])).size,
     },
     runs,
     groups: [...groups.values()].map(group => {
@@ -150,9 +158,35 @@ export async function readCaptureTask(directory, ordinal = 1) {
   if (!Number.isSafeInteger(ordinal) || ordinal < 1) throw new Error('Task ordinal must be a positive integer');
   const { report, reportSha256 } = await readCaptureReport(directory);
   let selected;
-  for await (const task of readAudioCapture(directory, report.audioCapture)) if (task.task === ordinal) selected = task;
+  const instructionLoads = report.audioCapture.version === 2 ? [] : null;
+  for await (const event of readAudioCaptureEvents(directory, report.audioCapture)) {
+    if (event.task !== ordinal) continue;
+    if (event.type === 'task') selected = event;
+    else instructionLoads.push(event);
+  }
   if (!selected) throw new Error(`Task ${ordinal} not found in ${directory}`);
-  return { directory, reportSha256, rom: report.rom, ...selected };
+  return { directory, reportSha256, rom: report.rom, instructionLoads, ...selected };
+}
+
+/** Compare an observed IMEM state (0 = task start, 1+ = this task's DMA
+ * occurrences in order). This view is evidence collected after execution and
+ * must not be fed into a classifier expected to run before the task executes.
+ */
+export function compareInstructionLoads(left, right, leftIndex = 0, rightIndex = 0) {
+  const select = (task, index) => {
+    if (!Number.isSafeInteger(index) || index < 0) throw new Error('Load ordinal must be a nonnegative integer');
+    if (index === 0) return { bytes: task.image.raw.imem, reference: { task: task.task, load: 0, imageId: hash(task.image.raw.imem) } };
+    if (task.instructionLoads === null) throw new Error('Instruction loads were not recorded in this capture');
+    const load = task.instructionLoads[index - 1];
+    if (!load) throw new Error(`Instruction load ${index} not found for task ${task.task}`);
+    const { image, ...reference } = load;
+    return { bytes: image, reference };
+  };
+  const a = select(left, leftIndex), b = select(right, rightIndex);
+  // Reuse the same offset, hex and disassembly conventions as raw IMEM diffs.
+  const wrap = bytes => ({ ...left.image, raw: { ...left.image.raw, imem: bytes } });
+  return { scope: 'post-execution-evidence', left: a.reference, right: b.reference,
+    imem: compareAudioImages(wrap(a.bytes), wrap(b.bytes)).find(field => field.field === 'raw.imem') };
 }
 
 function instructionAt(bytes, offset, address) {
@@ -206,6 +240,7 @@ export function catalogueMarkdown(catalogue) {
     '# Audio microcode evidence catalogue', '',
     `${s.runs} runs (${s.empty} empty, ${s.partial} partial), ${s.tasks} tasks, ${s.images} captured images.`,
     `${s.provisionalGroups} provisional fingerprints; ${s.exactVariants} exact interpreted code/data variants.`, '',
+    `${s.instructionCaptureRuns} runs recorded instruction DMA: ${s.instructionLoads} loads, ${s.instructionImages} distinct resulting IMEM images. Older captures have unknown load coverage.`, '',
     'Exact variants retain every interpreted byte. They may differ only in copied tails or scratch data; they are not a count of distinct programs.',
     'Varying ranges describe observations, not masks to apply. Stable bytes are not proven constants. No identity in this report certifies HLE compatibility.', '',
     '| Fingerprint | Family | Runs | Exact variants | Code images | Data images | Varying code bytes |',

@@ -5,7 +5,8 @@ import { join } from 'node:path';
 import { gzipSync, gunzipSync } from 'node:zlib';
 import { MemoryRegion } from '../memory/memory_region.js';
 import { snapshotAudioMicrocode } from '../hle/audio_microcode.js';
-import { AudioMicrocodeCapture, captureFile, readAudioCapture } from './audio_microcode_capture.js';
+import { AudioMicrocodeCapture, captureFile, readAudioCapture, readAudioCaptureEvents } from './audio_microcode_capture.js';
+import { catalogueAudioCaptures, readCaptureTask, compareInstructionLoads } from './audio_microcode_catalogue.js';
 import { AudioMicrocodeCollector } from './audio_microcode_collector.js';
 import { replayAudioCapture } from './audio_microcode_replay.js';
 
@@ -18,11 +19,11 @@ function taskImage() {
   return { ram, imem, task, snapshot: () => snapshotAudioMicrocode(ram, task, imem) };
 }
 
-async function withCapture(fn) {
+async function withCapture(fn, options) {
   const directory = await mkdtemp(join(tmpdir(), 'n64js-audio-capture-'));
   try {
     await writeFile(join(directory, captureFile), '');
-    const capture = new AudioMicrocodeCapture(directory);
+    const capture = new AudioMicrocodeCapture(directory, options);
     const collector = new AudioMicrocodeCollector();
     const observe = image => {
       capture.observe(image, { frame: collector.tasks, cycles: collector.tasks * 10 });
@@ -154,5 +155,101 @@ describe('raw audio microcode corpus', () => {
       expect(() => capture.flush()).toThrow();
       expect(capture.snapshot()).toMatchObject({ bytes: 0, tasks: 0, images: 0 });
     });
+  });
+});
+
+const instructionLoad = (task = 1, value = 0) => ({
+  task, rspPC: 0x20, source: 0x2000, destination: 0x1ff8, length: 16, count: 2, skip: 8,
+  imem: new Uint8Array(4096).fill(value),
+});
+const when = { frame: 1, cycles: 100 };
+
+describe('instruction DMA evidence', () => {
+  test('retains repeated loads, order and queued ownership across tasks/checkpoints', async () => {
+    await withCapture(async ({ directory, capture, observe, saveReport }) => {
+      observe(taskImage().snapshot());
+      capture.observeInstructionLoad(instructionLoad(), when);
+      capture.observeInstructionLoad(instructionLoad(), when);
+      await saveReport();
+      observe(taskImage().snapshot());
+      const delayed = instructionLoad(1, 7);
+      capture.observeInstructionLoad(delayed, when); // Queued by task 1, copied after task 2 starts.
+      delayed.imem.fill(99); // The writer must already own its encoded bytes.
+      capture.observeInstructionLoad(instructionLoad(2), when);
+      await saveReport();
+      expect(capture.snapshot()).toMatchObject({ version: 2, tasks: 2, loads: 4, instructionImages: 2 });
+      const events = [];
+      for await (const event of readAudioCaptureEvents(directory, capture.snapshot())) events.push(event);
+      expect(events.map(e => [e.type, e.task])).toEqual([
+        ['task', 1], ['instruction-load', 1], ['instruction-load', 1], ['task', 2], ['instruction-load', 1], ['instruction-load', 2],
+      ]);
+      expect(events[4].image[0]).toBe(7);
+      expect(events[1].imageId).toBe(events[2].imageId);
+      const replay = await replayAudioCapture(directory);
+      expect(replay.matchesRecorded).toBe(true);
+      expect(replay.instructionLoads).toMatchObject({ loads: 4, tasksWithLoads: 2 });
+      expect(replay.instructionLoads.sequences.map(s => s.loads.length).sort()).toEqual([1, 3]);
+      const selected = await readCaptureTask(directory, 1);
+      const comparison = compareInstructionLoads(selected, selected, 1, 3);
+      expect(comparison.imem.ranges).toEqual([[0, 4096]]);
+      expect(comparison.imem.words[0].right.address).toBe(0x1000);
+      expect((await catalogueAudioCaptures([directory])).summary).toMatchObject({ instructionCaptureRuns: 1, instructionLoads: 4, instructionImages: 2 });
+    }, { instructionLoads: true });
+  });
+
+  test('distinguishes old captures from observed zero loads', async () => {
+    for (const instructionLoads of [false, true]) await withCapture(async ({ directory, observe, saveReport }) => {
+      observe(taskImage().snapshot()); await saveReport();
+      const replay = await replayAudioCapture(directory);
+      expect(replay.instructionLoads?.loads ?? null).toBe(instructionLoads ? 0 : null);
+      const task = await readCaptureTask(directory);
+      expect(() => compareInstructionLoads(task, task, 1, 0)).toThrow(instructionLoads ? 'not found' : 'not recorded');
+    }, { instructionLoads });
+  });
+
+  test('validates instruction images, DMA geometry, references, counts and event order', async () => {
+    await withCapture(async ({ directory, capture, observe, saveReport }) => {
+      observe(taskImage().snapshot());
+      capture.observeInstructionLoad(instructionLoad(), when);
+      await saveReport();
+      const path = join(directory, captureFile);
+      const original = await readFile(path);
+      const records = gunzipSync(original).toString().trim().split('\n').map(JSON.parse);
+      for (const mutate of [
+        rows => { rows[2].imem = 'AAAA'; },
+        rows => { rows[3].task = 2; },
+        rows => { rows[3].load = 2; },
+        rows => { rows[3].image = 'missing'; },
+        rows => { rows[3].destination = 0x0000; },
+        rows => { rows[3].length = 7; },
+        rows => { rows[3].count = 257; },
+        rows => { rows[3].source = 3; },
+        rows => { rows[3].skip = 4096; },
+        rows => { rows[3].rspPC = 3; },
+      ]) {
+        const changed = structuredClone(records); mutate(changed);
+        const bytes = gzipSync(changed.map(row => JSON.stringify(row)).join('\n') + '\n');
+        await writeFile(path, bytes);
+        await expect(collect(directory, { ...capture.snapshot(), bytes: bytes.length })).rejects.toThrow();
+      }
+      await writeFile(path, original);
+      await expect(collect(directory, { ...capture.snapshot(), loads: 2 })).rejects.toThrow('Instruction capture counts');
+      // The task-only API also rejects corrupt instruction data after task 1.
+      await expect(collect(directory, { ...capture.snapshot(), instructionImages: 2 })).rejects.toThrow('Instruction capture counts');
+    }, { instructionLoads: true });
+  });
+
+  test('publishes only flushed instruction observations and rejects orphan loads', async () => {
+    await withCapture(async ({ directory, capture, observe, saveReport }) => {
+      expect(() => capture.observeInstructionLoad(instructionLoad(), when)).toThrow('Invalid instruction DMA');
+      observe(taskImage().snapshot());
+      capture.observeInstructionLoad(instructionLoad(), when);
+      await saveReport();
+      capture.observeInstructionLoad(instructionLoad(1, 9), when);
+      await appendFile(join(directory, captureFile), 'unpublished tail');
+      const replay = await replayAudioCapture(directory);
+      expect(replay.instructionLoads.loads).toBe(1);
+      expect(replay.instructionLoads.images).toHaveLength(1);
+    }, { instructionLoads: true });
   });
 });
