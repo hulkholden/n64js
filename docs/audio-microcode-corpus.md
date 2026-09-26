@@ -87,3 +87,8 @@ The current labels are hypotheses derived from program structure. Agreement
 with the live detector verifies capture/replay fidelity, not classification
 accuracy or HLE compatibility. Independent review of distinct programs and
 additional gameplay coverage are still needed before training a lean classifier.
+
+Use the [offline catalogue and comparison tools](audio-microcode-catalogue.md)
+to audit raw differences before accepting a program identity. The
+[September 26 audit](audio-microcode-audit-20260926.md) records the full group
+inventory and an instruction-overlay capture gap found during that review.
