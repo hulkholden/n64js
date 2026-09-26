@@ -184,11 +184,19 @@ export class SPRegDevice extends Device {
 
     this.dmaQueue = [];
     this.hleTask = null;
+    this.audioTaskOrdinal = 0;
+    this.activeAudioTask = null;
   }
 
   reset() {
     this.hleTask = null;
+    this.activeAudioTask = null;
+    for (const dma of this.dmaQueue) dma.audioTask = null;
     this.hardware.cpu0.removeEvent(kHLETaskEvent);
+  }
+
+  observeTaskStart(isAudio) {
+    this.activeAudioTask = isAudio ? ++this.audioTaskOrdinal : null;
   }
 
   scheduleHLETask() {
@@ -265,6 +273,7 @@ export class SPRegDevice extends Device {
   }
 
   setStatusBits(bits) {
+    if (bits & SP_STATUS_HALT) this.activeAudioTask = null;
     const status = this.mem.setBits32(SP_STATUS_REG, bits);
     if (status & SP_STATUS_INTR_BREAK) {
       this.hardware.miRegDevice.interruptSP();
@@ -356,6 +365,7 @@ export class SPRegDevice extends Device {
         rsp.unhalt();
       }
     } else if (stopRsp) {
+      this.activeAudioTask = null;
       this.hardware.cpu0.removeEvent(kHLETaskEvent);
       rsp.halt(0);
     }
@@ -369,6 +379,12 @@ export class SPRegDevice extends Device {
     
     const isRead = dmaDir == kDMADirRead;
     const dma = new DMA(isRead, this.pendingSPMemAddr, this.pendingDRAMAddr, lenReg);
+    // A queued transfer may execute after the RSP halts or another task starts.
+    // Retain its issuer instead of attributing it to the task active at copy time.
+    if (this.hardware.onAudioInstructionLoad && isRead && (dma.spMemAddr & memAddrBankBit)) {
+      dma.audioTask = this.activeAudioTask;
+      dma.rspPC = this.hardware.rsp.pc;
+    }
     this.dmaQueue.push(dma);
     this.setDMAStatus();
 
@@ -380,7 +396,7 @@ export class SPRegDevice extends Device {
 
   startDMA(dma) {
     if (dma.isRead) {
-      this.spCopyFromRDRAM(dma.spMemAddr, dma.rdRamAddr, dma.len);
+      this.spCopyFromRDRAM(dma.spMemAddr, dma.rdRamAddr, dma.len, dma);
     } else {
       this.spCopyToRDRAM(dma.spMemAddr, dma.rdRamAddr, dma.len);
     }
@@ -403,7 +419,7 @@ export class SPRegDevice extends Device {
     this.mem.set32masked(SP_STATUS_REG, fullBit | busyBit, SP_STATUS_DMA_FULL | SP_STATUS_DMA_BUSY);
   }
 
-  spCopyFromRDRAM(spMemAddrReg, rdRamAddrReg, lenReg) {
+  spCopyFromRDRAM(spMemAddrReg, rdRamAddrReg, lenReg, observation = null) {
     const spMemAddr = spMemAddrReg & 0x1fff;
     const rdRamAddr = rdRamAddrReg & 0x00ff_ffff;
 
@@ -440,6 +456,15 @@ export class SPRegDevice extends Device {
 
     const cycles = this.estimateDMACyclesFromLength(count, len)
     this.addSPDMAEvent(cycles);
+    if (bankBit && observation?.audioTask != null && this.hardware.onAudioInstructionLoad) {
+      // Observe the actual copy, including multi-row/skip and IMEM wrapping.
+      // No copying/hashing occurs on the normal browser path without an observer.
+      this.hardware.onAudioInstructionLoad({
+        task: observation.audioTask, rspPC: observation.rspPC,
+        source: rdRamAddr, destination: spMemAddr, length: len, count, skip,
+        imem: this.hardware.sp_mem.u8.slice(0x1000, 0x2000),
+      });
+    }
   }
 
   spCopyToRDRAM(spMemAddrReg, rdRamAddrReg, lenReg) {

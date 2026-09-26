@@ -34,6 +34,7 @@ export class Hardware {
     onVerticalBlank = null,
     onGraphicsTask = null,
     onAudioTask = null,
+    onAudioInstructionLoad = null,
     onMicrocodeLoad = null,
     onTextureUse = null,
   } = {}) {
@@ -67,6 +68,12 @@ export class Hardware {
     // ignored; observers cannot handle the task or re-enter emulation. Resets
     // preserve the callback. Without an observer, no images are copied.
     this.onAudioTask = onAudioTask;
+    // Inventory-only observer of DMA reads into IMEM issued during audio tasks.
+    // Receives an owned post-copy IMEM snapshot and the queued transfer's task
+    // ordinal/PC and DMA geometry. Initial boot code is in onAudioTask instead.
+    // Ordinals count audio starts over this Hardware instance's lifetime (also
+    // across resets). Callbacks must not re-enter emulation; returns are ignored.
+    this.onAudioInstructionLoad = onAudioInstructionLoad;
     // Called synchronously after each HLE graphics microcode handler is constructed,
     // including initial loads, in-list loads, and browser debugger replays.
     // Receives a fresh identifyMicrocode() snapshot. Skipped/LLE tasks do not

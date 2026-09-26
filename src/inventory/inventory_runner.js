@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
 import { inputPolicy, parseInputScript } from './inventory_input.js';
 import { captureFailure } from './inventory_failure.js';
-import { captureFile } from './audio_microcode_capture.js';
+import { captureFile, emptyAudioCapture } from './audio_microcode_capture.js';
 import { sourceHash } from './inventory_source.js';
 
 export const inventoryOptions = {
@@ -87,7 +87,7 @@ export async function runInventory(romPath, settings, { signal, replayOf, audioC
     mkdirSync(captureDirectory, { recursive: true });
     writeFileSync(join(captureDirectory, captureFile), '', { flag: 'wx' });
     report.sourceSha256 = await sourceHash();
-    report.audioCapture = { version: 1, scope: 'task-start', directory: captureDirectory, file: captureFile, bytes: 0, tasks: 0, images: 0 };
+    report.audioCapture = emptyAudioCapture(captureDirectory, true);
   }
   // Publish after every checkpoint, including zero-task runs. The captured byte
   // prefix and the live collector advance together; timeouts preserve both.

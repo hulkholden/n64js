@@ -36,6 +36,8 @@ try {
       runs: runs.length,
       tasks: runs.reduce((total, run) => total + run.audioMicrocodes.tasks, 0),
       images: runs.reduce((total, run) => total + run.capture.images, 0),
+      instructionCaptureRuns: runs.filter(run => run.instructionLoads !== null).length,
+      instructionLoads: runs.reduce((total, run) => total + (run.instructionLoads?.loads ?? 0), 0),
       matched: runs.filter(run => run.matchesRecorded === true).length,
       mismatched: runs.filter(run => run.matchesRecorded === false).length,
       missingLiveCollector: runs.filter(run => run.matchesRecorded === null).length,
