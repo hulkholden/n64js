@@ -117,7 +117,9 @@ non-dispatch indirect jump targets, self-modification and later code overlays ar
 not fully represented. Unknown loaders instead use
 `fingerprintScope: "unresolved-code-image"`, which can include unrelated bytes.
 The report retains the fingerprint scope, loading evidence, first observed image
-sizes, individual hashes and task counts. It does not export ROM binaries.
+sizes, individual hashes and task counts. Optional [raw corpus capture](audio-microcode-corpus.md)
+preserves task snapshots separately for offline analysis, independently of this
+fingerprint's omissions. Captured game bytes remain local artifacts.
 
 The distinction is experimentally important: whole-image hashing initially
 split Tetrisphere's first 585 audio tasks into 585 apparent revisions. Excluding
