@@ -32,7 +32,7 @@ async function withDirectory(fn) {
 
 // A synthetic bootstrap starts real RSP tasks, then spins with optional VI
 // interrupts. No copyrighted ROM or emulator mocks are needed by the CLI tests.
-function makeROM({ vi = false, graphics = 'end', audio = false, rewriteCount = false, waitForInput = false } = {}) {
+function makeROM({ vi = false, graphics = 'end', audio = false, instructionDMA = false, rewriteCount = false, waitForInput = false } = {}) {
   const bytes = new Uint8Array(0x1000);
   const view = new DataView(bytes.buffer);
   view.setUint32(0, 0x80371240);
@@ -105,7 +105,8 @@ function makeROM({ vi = false, graphics = 'end', audio = false, rewriteCount = f
     view.setUint32(0xfd4, 0x1000);
     view.setUint32(0xfdc, 0x40);
     code.push(0x3c08a400); // SP memory: a minimal direct-loaded audio program.
-    store(0x1000, 0x0000000d); // BREAK ends the task when the RSP executes it.
+    const program = instructionDMA ? [0x24081080, 0x40880000, 0x24083000, 0x40880800, 0x24080007, 0x40881000, 13] : [13];
+    program.forEach((word, index) => store(0x1000 + index * 4, word)); // Optional IMEM DMA, then BREAK.
   }
   if (vi) {
     code.push(0x3c08a440); // t0 = VI registers.
@@ -455,6 +456,27 @@ describe('inventory batch command', () => {
 });
 
 describe('inventory command', () => {
+  test('captures real worker instruction DMA and compares loaded IMEM without the ROM', async () => {
+    await withDirectory(async directory => {
+      await Bun.write(join(directory, 'audio.z64'), makeROM({ vi: true, audio: true, instructionDMA: true }));
+      const result = await invoke(directory, ['audio.z64', '--frames', '1', '--audio-corpus', 'corpus']);
+      expect(result.code).toBe(0);
+      const report = JSON.parse(result.stdout);
+      expect(report.audioCapture).toMatchObject({ version: 2, tasks: 2, loads: 2, instructionImages: 1 });
+      await rm(join(directory, 'audio.z64'));
+      const replay = await invoke(directory, ['corpus', '--check'], audioReplayCLI);
+      expect(replay.code).toBe(0);
+      expect(JSON.parse(replay.stdout).runs[0].instructionLoads).toMatchObject({ loads: 2, tasksWithLoads: 2 });
+      const comparisonCLI = fileURLToPath(new URL('./audio_microcode_catalogue_cli.js', import.meta.url));
+      const comparison = await invoke(directory, ['--compare', report.audioCapture.directory, report.audioCapture.directory, '--right-load', '1'], comparisonCLI);
+      expect(comparison.code).toBe(0);
+      const data = JSON.parse(comparison.stdout);
+      expect(data.right.instructionLoads).toHaveLength(1);
+      expect(data.instructionComparison.imem.ranges).toEqual([[128, 129]]);
+      expect(data.instructionComparison.right).toMatchObject({ task: 1, load: 1, destination: 0x1080, length: 8 });
+    });
+  });
+
   test('collects and aggregates unknown audio microcode through the real worker and report query', async () => {
     await withDirectory(async directory => {
       await Bun.write(join(directory, 'audio.z64'), makeROM({ vi: true, audio: true }));
@@ -470,7 +492,7 @@ describe('inventory command', () => {
       const query = await invoke(directory, ['report.json', '--audio-microcode', 'unknown'], queryCLI);
       expect(query.code).toBe(0);
       expect(JSON.parse(query.stdout).summary.matched).toBe(1);
-      expect(report.audioCapture).toMatchObject({ version: 1, tasks: 2 });
+      expect(report.audioCapture).toMatchObject({ version: 2, tasks: 2, loads: 0, instructionImages: 0 });
       expect(report.sourceSha256).toMatch(/^[a-f0-9]{64}$/);
       await rm(join(directory, 'audio.z64')); // Offline replay must need no ROM.
       const replay = await invoke(directory, ['corpus', '--check'], audioReplayCLI);

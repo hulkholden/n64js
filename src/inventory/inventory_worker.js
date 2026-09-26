@@ -21,7 +21,7 @@ let loads = 0;
 const loadedMicrocodes = new Map();
 const textureFormats = new Map();
 const audioMicrocodes = new AudioMicrocodeCollector();
-const audioCapture = captureDirectory ? new AudioMicrocodeCapture(captureDirectory) : null;
+const audioCapture = captureDirectory ? new AudioMicrocodeCapture(captureDirectory, { instructionLoads: true }) : null;
 
 function cyclesExecuted() {
   if (!collecting) return 0;
@@ -90,6 +90,9 @@ try {
       audioCapture?.observe(image, { frame: emulator.hardware.verticalBlankCount, cycles: cyclesExecuted() });
       audioMicrocodes.observe(image);
     },
+    onAudioInstructionLoad: audioCapture ? load => {
+      audioCapture.observeInstructionLoad(load, { frame: emulator.hardware.verticalBlankCount, cycles: cyclesExecuted() });
+    } : null,
     onGraphicsTask: info => {
       tasks++;
       const key = JSON.stringify(info);

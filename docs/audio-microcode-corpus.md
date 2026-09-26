@@ -25,7 +25,7 @@ seed, input policy, execution budgets, outcome and live collector. Capture files
 are resolved relative to their containing directory when replaying, so an
 archive can be moved without access to its original ROM or output paths.
 
-Version 1 captures, for every observed audio task:
+Both capture versions retain, for every observed audio task:
 
 - The complete 64-byte task header, including the original pointers and sizes.
 - All 4 KiB of IMEM at task start, including the loaded bootstrap.
@@ -38,9 +38,49 @@ Version 1 captures, for every observed audio task:
 - A one-based audio task ordinal, VI count and elapsed emulated cycles.
 
 Snapshots own their bytes before emulation continues. No command list or sample
-pointers are followed. The capture has task-start scope: it does not observe
-later DMA overlays or self-modification. Boot code outside IMEM and code/data
+pointers are followed. Version 1 has task-start scope and does not observe
+later DMA overlays. Boot code outside IMEM and code/data
 pointers outside RDRAM cannot be reconstructed from these windows alone.
+
+## Instruction DMA (version 2)
+
+New inventory captures also record DMA reads into IMEM issued during audio
+tasks. The optional observer copies all 4 KiB of IMEM **after the actual memory
+copy**, before RSP execution continues. This includes overlays and restores,
+independent of loader recognition. DMEM reads, SP-to-RDRAM writes and transfers
+issued while halted or running non-audio tasks are excluded. The initial
+bootstrap/direct-loaded code is already in the task-start snapshot.
+
+Each occurrence records the audio task ordinal, a run-wide load ordinal,
+source and destination addresses, decoded DMA row length/count/skip, RSP PC at
+enqueue, and frame/cycles at copy time. The queued transfer retains its task
+association if it executes after that task halts or a new task starts. PC is
+diagnostic state at enqueue, not proof that an RSP instruction issued the DMA
+(the CPU can write SP registers too). Memory copies occur synchronously when
+the transfer starts in this emulator; the later completion event is not the
+snapshot boundary.
+
+`instruction-image` records hold resulting IMEM bytes, deduplicated within each
+run by SHA-256 of the bytes. `instruction-load` records reference those images;
+every occurrence is retained, including repeated identical loads. Multi-row
+transfers and wrapping use the actual copied IMEM. The snapshot is the final
+state of that atomic copy, not a separate source payload for each row. Metadata
+publishes `loads` and `instructionImages` alongside the existing counters. All
+records share the same checkpoint prefix and integrity checks.
+
+The reader accepts versions 1 and 2. `readAudioCaptureEvents` yields task starts
+and instruction loads in recorded order. The original `readAudioCapture` API
+still yields only starts, while validating the entire stream. Old captures have
+unknown instruction-load coverage, represented by `instructionLoads: null` in
+analyses; a version-2 run with zero loads has a recorded zero.
+
+These are **post-execution observations used to review identities**, not inputs
+available to the eventual task-start classifier. That classifier must use
+pre-execution information. Ordered sequences are observed prefixes, not proof
+of task completion or all possible paths: VI budgets/timeouts may stop mid-task.
+Direct CPU writes to IMEM after task start are outside this DMA observer's scope.
+Normal runs without `--audio-corpus` do not enable the observer or copy IMEM on
+DMA. Emulation, audio dispatch and the provisional detector remain unchanged.
 
 ## Storage and interrupted runs
 
@@ -55,7 +95,7 @@ Records are buffered until an inventory checkpoint and appended as complete
 gzip members. Compression reduces repeated content across snapshots without
 discarding differences. The worker flushes before sending the checkpoint; the
 parent atomically publishes the report with the corresponding compressed byte
-count, task/image counts and live collector. A timeout or interrupted write may
+count, task/image/load counts and live collector. A timeout or interrupted write may
 leave extra bytes after this prefix. Offline replay reads only the published
 prefix. Missing bytes, gzip corruption, changed image hashes, invalid references
 and mismatched counts are errors, not an empty corpus.
@@ -90,5 +130,7 @@ additional gameplay coverage are still needed before training a lean classifier.
 
 Use the [offline catalogue and comparison tools](audio-microcode-catalogue.md)
 to audit raw differences before accepting a program identity. The
-[September 26 audit](audio-microcode-audit-20260926.md) records the full group
-inventory and an instruction-overlay capture gap found during that review.
+[task-start audit](audio-microcode-audit-20260926.md) records the full group
+inventory and the overlay capture gap that motivated version 2. The subsequent
+[instruction DMA audit](audio-instruction-audit-20260926.md) records the new
+corpus, observed overlays and remaining execution-coverage gaps.

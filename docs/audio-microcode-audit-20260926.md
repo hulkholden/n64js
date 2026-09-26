@@ -1,5 +1,10 @@
 # Audio microcode evidence audit — 2026-09-26
 
+The subsequent [instruction DMA audit](audio-instruction-audit-20260926.md)
+follows up the capture gaps identified here with observed code loads and
+restores. This document retains the findings and limits of the original
+task-start-only corpus.
+
 This audit uses the 858-ROM, seed-1, 600-VI startup corpus captured at
 `d7942d979c057c94bf892cea1c105f73c637d7e7`, source SHA-256
 `d1b91209e832a19238d5a48590ab491ba395d9a8fb610efa60154663ecf35ee1`.

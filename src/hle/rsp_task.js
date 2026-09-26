@@ -144,6 +144,7 @@ export function hleProcessRSPTask() {
   const ramU8 = hardware.cachedMemDevice.u8;
   const taskMem = hardware.sp_mem.subRegion(kTaskOffset, kTaskLength);
   const task = new RSPTask(ramU8, taskMem);
+  hardware.spRegDevice.observeTaskStart(task.type === M_AUDTASK);
 
   let handled = false;
 

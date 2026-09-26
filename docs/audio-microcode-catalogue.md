@@ -8,6 +8,8 @@ bun run audio-microcode-catalogue /path/to/corpus \
   --output build/catalogue.json --markdown build/catalogue.md
 bun run audio-microcode-catalogue --compare /path/to/left/run /path/to/right/run \
   --left-task 1 --right-task 1 --output build/comparison.json
+bun run audio-microcode-catalogue --compare /path/to/left/run /path/to/right/run \
+  --left-task 1 --right-task 1 --left-load 2 --right-load 2 --output build/overlays.json
 ```
 
 The same run may appear on both sides to investigate changes during execution.
@@ -15,6 +17,23 @@ Ordinals are one-based. Both commands verify the entire published capture
 prefix, including records after a selected task, and create output files
 exclusively. They never rewrite capture reports. Keep outputs local: comparisons
 contain captured game bytes and disassembly.
+
+Version-2 captures also expose `runs[].instructionLoads`: distinct resulting
+IMEM hashes and ordered per-task load sequences, including the initial IMEM
+hash. Repeated identical sequences are grouped with task counts and a
+representative task; repeated loads within a sequence are never removed. The
+hash covers the initial state and ordered image/destination/row geometry, not
+source addresses or timestamps (those remain in the capture). Sequences are
+observed execution evidence, not semantic identities or classifier features.
+Version-1 load coverage is `null`, not zero.
+
+Task comparisons list that task's instruction-load metadata. `--left-load` and
+`--right-load` additionally compare the corresponding IMEM states: zero means
+task start, one means the first DMA **in the selected task**, and so on. Returned
+load records also retain their run-wide `load` ordinal for provenance. A missing
+selector defaults to zero; selecting a load absent from the published prefix
+or from an old capture is an error. Queued loads are associated with their
+issuing task even if another task starts before they copy.
 
 ## Identity and evidence
 
@@ -56,5 +75,7 @@ variants do not necessarily mean different programs: loaders can copy unrelated
 RAM after the executable, and data windows can contain mutable state. Neither
 stable-byte masks nor family names should silently define an HLE identity.
 
-See the [September 26 audit](audio-microcode-audit-20260926.md) for the corpus
-results, reviewed distinctions, and an overlay capture gap found by this pass.
+See the [task-start audit](audio-microcode-audit-20260926.md) for the corpus
+results and reviewed distinctions, and the subsequent
+[instruction DMA audit](audio-instruction-audit-20260926.md) for observed
+overlays and remaining execution-coverage gaps.

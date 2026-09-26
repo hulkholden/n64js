@@ -3,7 +3,7 @@ import { createHeadlessEmulator, runCycles, runFrames } from './headless_env.js'
 import { controlCause, controlStatus } from '../cpu/cpu0reg.js';
 import { MI_INTR_DP, MI_INTR_MASK_REG, MI_INTR_REG, MI_INTR_SP, MI_INTR_VI } from '../devices/mi.js';
 import { SI_DRAM_ADDR_REG, SI_PIF_ADDR_RD64B_REG, SI_PIF_ADDR_WR64B_REG, SI_STATUS_REG } from '../devices/si.js';
-import { SP_CLR_BROKE, SP_CLR_HALT, SP_CLR_SIG2, SP_SET_HALT, SP_SET_INTR_BREAK, SP_STATUS_HALT, SP_STATUS_BROKE, SP_STATUS_REG, SP_STATUS_TASKDONE } from '../devices/sp.js';
+import { SP_CLR_BROKE, SP_CLR_HALT, SP_CLR_SIG2, SP_SET_HALT, SP_SET_INTR_BREAK, SP_STATUS_HALT, SP_STATUS_BROKE, SP_STATUS_REG, SP_STATUS_TASKDONE, SP_MEM_ADDR_REG, SP_DRAM_ADDR_REG, SP_RD_LEN_REG, SP_WR_LEN_REG } from '../devices/sp.js';
 import { audioOptions } from '../hle/audio_options.js';
 import { graphicsOptions } from '../hle/graphics_options.js';
 import { ImageFormat, ImageSize } from '../hle/gbi.js';
@@ -747,6 +747,95 @@ describe('audio task callback', () => {
     } finally {
       audioOptions.emulationMode = previous;
     }
+  });
+});
+
+describe('audio instruction DMA observer', () => {
+  const transfer = (hardware, destination, source, lengthRegister = 7, write = false) => {
+    hardware.spRegDevice.writeReg32(SP_MEM_ADDR_REG, destination);
+    hardware.spRegDevice.writeReg32(SP_DRAM_ADDR_REG, source);
+    hardware.spRegDevice.writeReg32(write ? SP_WR_LEN_REG : SP_RD_LEN_REG, lengthRegister);
+  };
+  const finishDMA = hardware => {
+    hardware.cpu0.removeEvent('SP DMA');
+    hardware.spRegDevice.dmaComplete();
+  };
+
+  test('observes an actual RSP-issued instruction DMA without changing execution', async () => {
+    const results = [];
+    for (const enabled of [false, true]) {
+      const loads = [];
+      const emulator = await createEmulator({ onAudioInstructionLoad: enabled ? load => { loads.push(load); return true; } : null });
+      const { hardware } = emulator;
+      prepareGraphicsTask(emulator);
+      // Synthetic RSP instructions: set DMA destination/source/length, then BREAK.
+      [0x24081080, 0x40880000, 0x24083000, 0x40880800, 0x24080007, 0x40881000, 13].forEach((word, i) => hardware.sp_mem.set32(0x1000 + i * 4, word));
+      hardware.ram.u8.fill(42, 0x3000, 0x3008);
+      startRSPTask(emulator, 2);
+      hardware.rsp.pc = 0;
+      for (let i = 0; i < 7; i++) hardware.rsp.step();
+      expect(hardware.rsp.halted).toBe(true);
+      if (enabled) {
+        expect(loads).toHaveLength(1);
+        expect(loads[0]).toMatchObject({ task: 1, rspPC: 20, destination: 0x1080, source: 0x3000, length: 8, count: 1, skip: 0 });
+        expect([...loads[0].imem.subarray(0x80, 0x88)]).toEqual(Array(8).fill(42));
+        loads[0].imem.fill(0); // Observer mutation cannot affect execution.
+      }
+      results.push({ imem: hardware.sp_mem.u8.slice(0x1000), status: hardware.sp_reg.getU32(SP_STATUS_REG), pc: hardware.rsp.pc });
+    }
+    expect(results[0]).toEqual(results[1]);
+  });
+
+  test('captures queued ownership, IMEM wrapping, multi-row skips and immutable snapshots', async () => {
+    const loads = [];
+    const emulator = await createEmulator({ onAudioInstructionLoad: load => loads.push(load) });
+    const { hardware } = emulator;
+    prepareGraphicsTask(emulator);
+    startRSPTask(emulator, 2);
+    hardware.ram.u8.set(Array.from({ length: 64 }, (_, i) => i + 1), 0x3000);
+    transfer(hardware, 0, 0x3000); // DMEM DMA occupies the queue, but is not recorded.
+    transfer(hardware, 0x1ff8, 0x3000, (8 << 20) | (1 << 12) | 15);
+    expect(loads).toHaveLength(0);
+    hardware.rsp.halt(0);
+    startRSPTask(emulator, 3); // New non-audio task must not steal the queued transfer.
+    finishDMA(hardware);
+    expect(loads).toHaveLength(1);
+    expect(loads[0]).toMatchObject({ task: 1, destination: 0x1ff8, length: 16, count: 2, skip: 8 });
+    expect([...loads[0].imem.slice(0xff8)]).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    expect([...loads[0].imem.slice(0, 24)]).toEqual([...Array.from({ length: 8 }, (_, i) => i + 9), ...Array.from({ length: 16 }, (_, i) => i + 25)]);
+    finishDMA(hardware);
+    const saved = loads[0].imem.slice();
+    transfer(hardware, 0x1ff8, 0x3030); // Non-audio copy changes memory, not saved evidence.
+    finishDMA(hardware);
+    expect(loads).toHaveLength(1);
+    expect(loads[0].imem).toEqual(saved);
+  });
+
+  test('excludes pre-start, halted, disabled and writeback transfers; resets clear pending association', async () => {
+    const loads = [];
+    const emulator = await createEmulator({ onAudioInstructionLoad: load => loads.push(load) });
+    const { hardware } = emulator;
+    prepareGraphicsTask(emulator);
+    transfer(hardware, 0x1000, 0x3000); finishDMA(hardware);
+    startRSPTask(emulator, 2);
+    transfer(hardware, 0x1000, 0x3000, 7, true); finishDMA(hardware);
+    hardware.rsp.halt(0);
+    transfer(hardware, 0x1000, 0x3000); finishDMA(hardware);
+    const previous = audioOptions.emulationMode;
+    try {
+      audioOptions.emulationMode = 'Disabled';
+      startRSPTask(emulator, 2);
+      transfer(hardware, 0x1000, 0x3000); finishDMA(hardware);
+    } finally { audioOptions.emulationMode = previous; }
+    startRSPTask(emulator, 2);
+    transfer(hardware, 0, 0x3000);
+    transfer(hardware, 0x1000, 0x3000);
+    hardware.spRegDevice.reset();
+    finishDMA(hardware); finishDMA(hardware);
+    expect(loads).toHaveLength(0);
+    startRSPTask(emulator, 2);
+    transfer(hardware, 0x1000, 0x3000); finishDMA(hardware);
+    expect(loads[0].task).toBe(4);
   });
 });
 

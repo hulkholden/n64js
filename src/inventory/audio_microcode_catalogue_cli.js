@@ -2,13 +2,14 @@
 import { writeFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
 import { captureDirectories } from './audio_microcode_replay.js';
-import { catalogueAudioCaptures, catalogueMarkdown, compareAudioImages, readCaptureTask } from './audio_microcode_catalogue.js';
+import { catalogueAudioCaptures, catalogueMarkdown, compareAudioImages, compareInstructionLoads, readCaptureTask } from './audio_microcode_catalogue.js';
 import { emulatorVersion } from './inventory_runner.js';
 import { sourceHash } from './inventory_source.js';
 
 const usage = `Usage:
   bun run audio-microcode-catalogue <corpus-or-run>... [--output new.json] [--markdown new.md]
   bun run audio-microcode-catalogue --compare <left-run> <right-run> [--left-task N] [--right-task N] [--output new.json]
+    [--left-load N] [--right-load N]  Compare IMEM after the Nth DMA in each task (0 = task start)
 
 Build an evidence catalogue or compare two task snapshots without running ROMs.
 Task ordinals are one-based (default 1). Byte ranges are [start, end).
@@ -25,6 +26,7 @@ try {
     options: {
       output: { type: 'string' }, markdown: { type: 'string' }, compare: { type: 'boolean' },
       'left-task': { type: 'string' }, 'right-task': { type: 'string' }, help: { type: 'boolean' },
+      'left-load': { type: 'string' }, 'right-load': { type: 'string' },
     },
   });
   if (values.help) console.log(usage);
@@ -35,10 +37,16 @@ try {
       if (positionals.length !== 2 || values.markdown) throw new Error('Comparison requires two run directories and does not accept --markdown');
       const left = await readCaptureTask(positionals[0], Number(values['left-task'] ?? 1));
       const right = await readCaptureTask(positionals[1], Number(values['right-task'] ?? 1));
-      const metadata = ({ image, ...rest }) => ({ ...rest, loader: image.loader, loadAddress: image.loadAddress, declared: image.declared, issues: image.issues });
+      const metadata = ({ image, instructionLoads, ...rest }) => ({
+        ...rest, loader: image.loader, loadAddress: image.loadAddress, declared: image.declared, issues: image.issues,
+        instructionLoads: instructionLoads?.map(({ image, ...load }) => ({ ...load, bytes: image.length })) ?? null,
+      });
       analysis = { schemaVersion: 1, scope: 'task-start-byte-comparison', left: metadata(left), right: metadata(right), fields: compareAudioImages(left.image, right.image) };
+      if (values['left-load'] !== undefined || values['right-load'] !== undefined) {
+        analysis.instructionComparison = compareInstructionLoads(left, right, Number(values['left-load'] ?? 0), Number(values['right-load'] ?? 0));
+      }
     } else {
-      if (!positionals.length || values['left-task'] !== undefined || values['right-task'] !== undefined) throw new Error('Expected corpus/run directories; task selectors require --compare');
+      if (!positionals.length || ['left-task', 'right-task', 'left-load', 'right-load'].some(key => values[key] !== undefined)) throw new Error('Expected corpus/run directories; task/load selectors require --compare');
       const directories = (await Promise.all(positionals.map(captureDirectories))).flat();
       analysis = await catalogueAudioCaptures(directories);
     }
