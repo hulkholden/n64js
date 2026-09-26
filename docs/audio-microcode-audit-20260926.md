@@ -93,6 +93,9 @@ is `0x09bf` for Perfect Dark and `0x0847` for Banjo-Tooie. This controls a DMA:
 The length values request `0x9c0` and `0x848` bytes respectively under the SP
 DMA length rule in `src/devices/sp.js`. The raw code window contains only
 `0x80` bytes beyond offset `0xf80`, so most of each overlay is **not captured**.
+In the representative runs below, the residual IMEM snapshot before task 2
+contains the restored main code at `0x1238`, rather than the overlay source
+prefix. Previous-task IMEM therefore does not fill this gap in those snapshots.
 The static traversal can decode the pre-DMA bytes at the destination; it cannot
 establish the loaded program's behavior. Keep these as separate candidates and
 mark both incomplete until their overlays have been captured and compared.
