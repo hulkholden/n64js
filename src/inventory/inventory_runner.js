@@ -1,9 +1,14 @@
 import { fork, spawnSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
+import { mkdirSync, renameSync, writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
 import { inputPolicy, parseInputScript } from './inventory_input.js';
 import { captureFailure } from './inventory_failure.js';
+import { captureFile } from './audio_microcode_capture.js';
+import { sourceHash } from './inventory_source.js';
 
 export const inventoryOptions = {
   seed: { type: 'string' },
@@ -63,7 +68,7 @@ export function emulatorVersion() {
   };
 }
 
-export async function runInventory(romPath, settings, { signal, replayOf } = {}) {
+export async function runInventory(romPath, settings, { signal, replayOf, audioCorpus } = {}) {
   const report = {
     schemaVersion: 1,
     rom: null,
@@ -75,8 +80,27 @@ export async function runInventory(romPath, settings, { signal, replayOf } = {})
     // events were observed during this run, not that the ROM never uses graphics.
     collectors: {},
   };
-  return new Promise(resolveReport => {
-    const child = fork(fileURLToPath(new URL('./inventory_worker.js', import.meta.url)), [JSON.stringify({ romPath, settings, expectedRomSha256: replayOf?.romSha256 })], {
+  let captureDirectory;
+  if (audioCorpus !== undefined) {
+    if (typeof audioCorpus !== 'string' || !audioCorpus) throw new Error('Audio corpus directory must not be empty');
+    captureDirectory = resolve(audioCorpus, 'runs', randomUUID());
+    mkdirSync(captureDirectory, { recursive: true });
+    writeFileSync(join(captureDirectory, captureFile), '', { flag: 'wx' });
+    report.sourceSha256 = await sourceHash();
+    report.audioCapture = { version: 1, scope: 'task-start', directory: captureDirectory, file: captureFile, bytes: 0, tasks: 0, images: 0 };
+  }
+  // Publish after every checkpoint, including zero-task runs. The captured byte
+  // prefix and the live collector advance together; timeouts preserve both.
+  const saveCaptureReport = running => {
+    if (!captureDirectory) return;
+    const path = join(captureDirectory, 'report.json');
+    const saved = running ? { ...report, result: { ...report.result, status: 'running' } } : report;
+    writeFileSync(`${path}.tmp`, JSON.stringify(saved, null, 2) + '\n');
+    renameSync(`${path}.tmp`, path);
+  };
+  saveCaptureReport(true);
+  return new Promise((resolveReport, rejectReport) => {
+    const child = fork(fileURLToPath(new URL('./inventory_worker.js', import.meta.url)), [JSON.stringify({ romPath, settings, expectedRomSha256: replayOf?.romSha256, captureDirectory })], {
       execArgv: [],
       stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
     });
@@ -97,16 +121,28 @@ export async function runInventory(romPath, settings, { signal, replayOf } = {})
       child.kill('SIGKILL');
     }, settings.timeoutMs);
     child.on('message', update => {
+      if (update.type === 'capture-error') {
+        child.kill('SIGKILL');
+        rejectReport(new Error(`Audio capture storage failed: ${update.message}`));
+        return;
+      }
       report.rom = update.rom;
       report.collectors = update.collectors;
       report.result.frames = update.frames;
       report.result.cycles = update.cycles;
+      if (update.audioCapture) report.audioCapture = update.audioCapture;
       if (update.type === 'result') {
         finished = true;
         report.result.status = update.status;
         report.result.message = update.message;
         if (update.failure) report.result.failure = update.failure;
         report.result.checkpointOnly = false;
+      }
+      try {
+        saveCaptureReport(!finished);
+      } catch (error) {
+        child.kill('SIGKILL');
+        rejectReport(error);
       }
     });
     child.on('error', error => {
@@ -123,7 +159,12 @@ export async function runInventory(romPath, settings, { signal, replayOf } = {})
           report.result.failure ??= { version: 1, kind: 'worker-exit', code, signal: exitSignal };
         }
       }
-      resolveReport(report);
+      try {
+        saveCaptureReport(false);
+        resolveReport(report);
+      } catch (error) {
+        rejectReport(error);
+      }
     });
   });
 }

@@ -8,7 +8,7 @@ import { audioOptions } from './audio_options.js';
 import { graphicsOptions } from './graphics_options.js';
 import { identifyMicrocode, MicrocodeId } from './microcode_identifier.js';
 import { assertHLESupported } from './microcodes.js';
-import { identifyAudioMicrocode } from './audio_microcode.js';
+import { snapshotAudioMicrocode } from './audio_microcode.js';
 
 // Task offset in dmem.
 const kTaskOffset = 0x0fc0;
@@ -190,7 +190,9 @@ export function hleProcessRSPTask() {
       break;
     }
     case M_AUDTASK:
-      hardware.onAudioTask?.(identifyAudioMicrocode());
+      if (hardware.onAudioTask) {
+        hardware.onAudioTask(snapshotAudioMicrocode(ramU8, taskMem, hardware.sp_mem.u8.subarray(0x1000, 0x2000)));
+      }
       // There's no HLE support yet, but if emulation is disabled pretend we
       // handled the task (we'll play silence).
       if (audioOptions.emulationMode == 'Disabled') {

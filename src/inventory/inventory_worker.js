@@ -4,10 +4,12 @@ import { createInputDriver, createRandom } from './inventory_input.js';
 import { ImageFormat } from '../hle/gbi.js';
 import { captureFailure } from './inventory_failure.js';
 import { sendInventoryUpdate } from './inventory_ipc.js';
+import { AudioMicrocodeCollector } from './audio_microcode_collector.js';
+import { AudioMicrocodeCapture } from './audio_microcode_capture.js';
 
 // This process may block inside emulation. The CLI owns the wall-clock timeout
 // and retains the last checkpoint received before terminating this process.
-const { romPath, settings, expectedRomSha256 } = JSON.parse(process.argv[2]);
+const { romPath, settings, expectedRomSha256, captureDirectory } = JSON.parse(process.argv[2]);
 let rom = null;
 let emulator = null;
 let collecting = false;
@@ -18,8 +20,8 @@ const taskMicrocodes = new Map();
 let loads = 0;
 const loadedMicrocodes = new Map();
 const textureFormats = new Map();
-let audioTasks = 0;
-const audioMicrocodes = new Map();
+const audioMicrocodes = new AudioMicrocodeCollector();
+const audioCapture = captureDirectory ? new AudioMicrocodeCapture(captureDirectory) : null;
 
 function cyclesExecuted() {
   if (!collecting) return 0;
@@ -35,13 +37,9 @@ function snapshot() {
     rom,
     frames: emulator?.hardware.verticalBlankCount ?? 0,
     cycles: cyclesExecuted(),
+    ...(audioCapture ? { audioCapture: audioCapture.snapshot() } : {}),
     collectors: collecting ? {
-      'audio.taskMicrocodes': {
-        version: 1,
-        scope: 'task-start',
-        tasks: audioTasks,
-        microcodes: [...audioMicrocodes.values()],
-      },
+      'audio.taskMicrocodes': audioMicrocodes.snapshot(),
       'graphics.taskMicrocodes': {
         version: 1,
         scope: 'task-start',
@@ -64,6 +62,7 @@ function snapshot() {
 }
 
 function checkpoint() {
+  audioCapture?.flush();
   return sendInventoryUpdate({ type: 'checkpoint', ...snapshot() });
 }
 
@@ -87,15 +86,9 @@ try {
   emulator = await createHeadlessEmulator(loadedROM, {
     executeGraphics: true,
     onVerticalBlank: frame => updateInput(frame, emulator.inputs[0]),
-    onAudioTask: info => {
-      audioTasks++;
-      const key = JSON.stringify(info);
-      const record = audioMicrocodes.get(key);
-      if (record) {
-        record.tasks++;
-      } else {
-        audioMicrocodes.set(key, { ...info, tasks: 1 });
-      }
+    onAudioTask: image => {
+      audioCapture?.observe(image, { frame: emulator.hardware.verticalBlankCount, cycles: cyclesExecuted() });
+      audioMicrocodes.observe(image);
     },
     onGraphicsTask: info => {
       tasks++;
@@ -156,6 +149,14 @@ try {
 }
 
 try {
+  try {
+    audioCapture?.flush();
+  } catch (error) {
+    // Storage failures must stop a batch rather than look like a bad ROM and
+    // cause every remaining run to write to the same broken/full destination.
+    await sendInventoryUpdate({ type: 'capture-error', message: String(error?.message ?? error) });
+    throw error;
+  }
   await sendInventoryUpdate({ type: 'result', ...snapshot(), status, message, ...(failure ? { failure } : {}) });
 } catch (error) {
   // The parent still has the last delivered checkpoint. Keep transport failures

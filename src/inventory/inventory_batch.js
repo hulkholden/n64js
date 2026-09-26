@@ -2,12 +2,12 @@
 
 import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, open, readFile, readdir, rename, stat, unlink } from 'node:fs/promises';
-import { dirname, extname, isAbsolute, join, relative, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { dirname, extname, isAbsolute, join, resolve } from 'node:path';
 import { isDeepStrictEqual, parseArgs } from 'node:util';
 import { fixRomByteOrder } from '../endian.js';
 import { emulatorVersion, inventoryOptions, inventorySettings, loadInputScript, restoreInventorySettings, runInventory } from './inventory_runner.js';
 import { inputScriptHelp } from './inventory_input.js';
+import { sourceHash } from './inventory_source.js';
 
 // Conventional shell exit statuses: 128 + signal number (SIGINT = 2, SIGTERM = 15).
 const EXIT_CODE_SIGINT = 130;
@@ -23,6 +23,7 @@ const usage = `Usage: bun run inventory-batch <rom-or-directory>... --output-dir
   --max-cycles <n>     CPU cycle limit per ROM (default: 5000000000)
   --timeout-ms <ms>    Wall-clock limit per emulator run (default: 60000)
   --input-script <path> JSON menu sequence applied to every ROM and seed
+  --audio-corpus <path> Save raw audio task images; preserved on resume
   --help              Show this help
 
 Directories are searched recursively for .z64, .v64 and .n64 files. Directory
@@ -92,17 +93,6 @@ async function discover(inputs) {
   return [...files].sort();
 }
 
-async function sourceHash() {
-  const root = fileURLToPath(new URL('../../', import.meta.url));
-  const files = (await directoryFiles(join(root, 'src'))).filter(path => path.endsWith('.js') && !path.endsWith('.test.js'));
-  files.push(join(root, 'package.json'), join(root, 'bun.lock'));
-  const hash = createHash('sha256');
-  for (const path of files.sort()) {
-    hash.update(relative(root, path) + '\0').update(await readFile(path)).update('\0');
-  }
-  return hash.digest('hex');
-}
-
 function sameEmulator(left, right) {
   // The source hash covers dirty emulator edits. Unrelated worktree changes
   // (including generated reports) may change the dirty flag without changing code.
@@ -141,6 +131,9 @@ function validateManifest(manifest) {
     throw new Error('Invalid scan manifest');
   }
   restoreInventorySettings(manifest.settings);
+  if (manifest.audioCorpus !== undefined && (typeof manifest.audioCorpus !== 'string' || !isAbsolute(manifest.audioCorpus))) {
+    throw new Error('Invalid audio corpus directory in scan manifest');
+  }
   for (const [index, entry] of manifest.entries.entries()) {
     if (typeof entry.path !== 'string' || !isAbsolute(entry.path) ||
         (entry.sha256 !== null && !/^[a-f0-9]{64}$/.test(entry.sha256)) ||
@@ -174,7 +167,7 @@ async function collectEntry(scanDirectory, manifest, index, signal) {
   if (terminal.has(report?.result.status)) return report;
 
   console.error(`[${index + 1}/${manifest.entries.length}] Running ${entry.path}`);
-  report = await runInventory(entry.path, manifest.settings, { signal });
+  report = await runInventory(entry.path, manifest.settings, { signal, audioCorpus: manifest.audioCorpus });
   await checkSource(manifest);
   if (report.rom?.sha256 && report.rom.sha256 !== entry.sha256) {
     throw new Error(`ROM changed while being inventoried: ${entry.path}`);
@@ -238,7 +231,7 @@ async function scanAll(scanDirectories) {
   }
 }
 
-async function createScans(outputDirectory, paths, settingsList) {
+async function createScans(outputDirectory, paths, settingsList, audioCorpus) {
   const emulator = emulatorVersion();
   const sourceSha256 = await sourceHash();
   const directories = [];
@@ -248,6 +241,7 @@ async function createScans(outputDirectory, paths, settingsList) {
     const manifest = {
       schemaVersion: 1, id, createdAt: new Date().toISOString(),
       emulator, sourceSha256, settings,
+      ...(audioCorpus ? { audioCorpus: resolve(audioCorpus) } : {}),
       status: 'pending',
       entries: paths.map(path => ({ path, sha256: null, report: null, status: 'pending' })),
     };
@@ -265,6 +259,7 @@ try {
     options: {
       ...inventoryOptions, seed: { type: 'string', multiple: true },
       'output-dir': { type: 'string' }, resume: { type: 'string', multiple: true }, help: { type: 'boolean' },
+      'audio-corpus': { type: 'string' },
     },
   });
   if (values.help) {
@@ -276,11 +271,15 @@ try {
     process.exitCode = await scanAll([...new Set(values.resume.map(path => resolve(path)))]);
   } else {
     if (!values['output-dir'] || !positionals.length) throw new Error('Expected ROM paths/directories and --output-dir');
+    if (values['audio-corpus'] === '') throw new Error('Audio corpus directory must not be empty');
+    if (values['audio-corpus'] !== undefined && resolve(values['audio-corpus']) === resolve(values['output-dir'])) {
+      throw new Error('--audio-corpus and --output-dir must use different directories');
+    }
     const script = await loadInputScript(values['input-script']);
     const settings = (values.seed ?? ['1']).map(seed => inventorySettings({ ...values, seed }, script));
     const uniqueSettings = [...new Map(settings.map(value => [value.seed, value])).values()];
     const paths = await discover(positionals);
-    const directories = await createScans(values['output-dir'], paths, uniqueSettings);
+    const directories = await createScans(values['output-dir'], paths, uniqueSettings, values['audio-corpus']);
     process.exitCode = await scanAll(directories);
   }
 } catch (error) {
