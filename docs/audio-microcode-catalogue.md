@@ -75,5 +75,7 @@ variants do not necessarily mean different programs: loaders can copy unrelated
 RAM after the executable, and data windows can contain mutable state. Neither
 stable-byte masks nor family names should silently define an HLE identity.
 
-See the [September 26 audit](audio-microcode-audit-20260926.md) for the corpus
-results, reviewed distinctions, and an overlay capture gap found by this pass.
+See the [task-start audit](audio-microcode-audit-20260926.md) for the corpus
+results and reviewed distinctions, and the subsequent
+[instruction DMA audit](audio-instruction-audit-20260926.md) for observed
+overlays and remaining execution-coverage gaps.
