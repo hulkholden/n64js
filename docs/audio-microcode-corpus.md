@@ -11,6 +11,7 @@ bun run audio-microcode-replay build/audio-corpus --check --output build/audio-a
 The batch command records the absolute corpus destination in each scan manifest;
 `--resume` preserves it. Completed reports are reused. Retrying an interrupted
 ROM creates a separate capture run; the earlier partial evidence is retained.
+Use different directories for the inventory root and the corpus root.
 The corpus is local data containing game code. Keep it under ignored `build/`
 or outside the repository; do not commit captured bytes.
 

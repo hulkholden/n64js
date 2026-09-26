@@ -272,6 +272,9 @@ try {
   } else {
     if (!values['output-dir'] || !positionals.length) throw new Error('Expected ROM paths/directories and --output-dir');
     if (values['audio-corpus'] === '') throw new Error('Audio corpus directory must not be empty');
+    if (values['audio-corpus'] !== undefined && resolve(values['audio-corpus']) === resolve(values['output-dir'])) {
+      throw new Error('--audio-corpus and --output-dir must use different directories');
+    }
     const script = await loadInputScript(values['input-script']);
     const settings = (values.seed ?? ['1']).map(seed => inventorySettings({ ...values, seed }, script));
     const uniqueSettings = [...new Map(settings.map(value => [value.seed, value])).values()];

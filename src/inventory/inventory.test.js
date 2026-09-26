@@ -443,6 +443,15 @@ describe('inventory batch command', () => {
       expect(await readdir(directory)).toEqual([]);
     });
   });
+
+  test('rejects mixing inventory manifests and raw captures in the same root', async () => {
+    await withDirectory(async directory => {
+      const result = await invoke(directory, ['missing.z64', '--output-dir', 'inventory', '--audio-corpus', './inventory/.'], batchCLI);
+      expect(result.code).toBe(2);
+      expect(result.stderr).toContain('must use different directories');
+      expect(await readdir(directory)).toEqual([]);
+    });
+  });
 });
 
 describe('inventory command', () => {
