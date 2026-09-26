@@ -16,6 +16,7 @@ const usage = `Usage: bun run inventory <rom-path> [options]
   --input-script <path> JSON menu sequence before seeded random input
   --replay <path>       Replay saved settings with the current emulator code
   --output <path>       JSON report destination (default: stdout; '-' also works)
+  --audio-corpus <path> Save raw audio task images for offline analysis
   --help               Show this help
 
 Exit codes: 0 completed; 2 invalid arguments or emulation error; 3 cycle limit;
@@ -55,6 +56,7 @@ try {
     options: {
       ...inventoryOptions,
       replay: { type: 'string' },
+      'audio-corpus': { type: 'string' },
       output: { type: 'string', default: '-' },
       help: { type: 'boolean' },
     },
@@ -72,7 +74,7 @@ try {
     const inputs = [[romPath, 'ROM']];
     if (replay) inputs.push([values.replay, 'replay report']);
     await checkOutput(values.output, inputs);
-    const report = await runInventory(romPath, settings, { replayOf: replay?.replayOf });
+    const report = await runInventory(romPath, settings, { replayOf: replay?.replayOf, audioCorpus: values['audio-corpus'] });
     const json = JSON.stringify(report, null, 2) + '\n';
     if (values.output === '-') {
       process.stdout.write(json);

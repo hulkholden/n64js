@@ -62,9 +62,15 @@ export function snapshotAudioMicrocode(ram, taskMem, imem) {
     codeSize = 0x1000;
     loader = 'direct';
   }
+  // Preserve the evidence separately from the loader's interpretation. These
+  // bounded windows include scratch/tail bytes on purpose: an offline analysis
+  // must be able to revisit sizes, constants and currently unsupported loaders.
+  // A window can be short at the end of RDRAM; the task header retains its pointer.
+  const window = address => address > 0 && address < ram.length ? ram.slice(address, Math.min(address + 0x1000, ram.length)) : new Uint8Array();
   return {
     code: loader === 'direct' ? imem.slice() : copy(codeAddress, codeSize, 'code'), data: copy(dataAddress, declared.data, 'data'),
     loadAddress, loader, declared, issues,
+    raw: { task: taskMem.u8.slice(), imem: imem.slice(), code: window(codeAddress), data: window(dataAddress) },
   };
 }
 
