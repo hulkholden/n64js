@@ -484,14 +484,17 @@ describe('inventory command', () => {
       expect(result.code).toBe(0);
       const report = JSON.parse(await readFile(join(directory, 'report.json'), 'utf8'));
       expect(report.collectors['audio.taskMicrocodes']).toMatchObject({
-        version: 1, scope: 'task-start', tasks: 2,
-        microcodes: [{ family: 'Unknown', detection: 'unknown', reason: 'no-command-dispatcher', loader: 'direct', tasks: 2 }],
+        version: 2, scope: 'task-start', tasks: 2,
+        microcodes: [{ family: 'Unknown', detection: 'unknown', reason: 'no-command-dispatcher', loader: 'direct', tasks: 2,
+          classifications: [{ status: 'unknown', identity: null, family: 'Unknown', reason: 'unreviewed-bootstrap', tasks: 2 }] }],
       });
       expect(report.collectors['audio.taskMicrocodes'].microcodes[0].fingerprint).toMatch(/^[a-f0-9]{64}$/);
       expect(report.collectors['graphics.taskMicrocodes'].tasks).toBe(0);
       const query = await invoke(directory, ['report.json', '--audio-microcode', 'unknown'], queryCLI);
       expect(query.code).toBe(0);
       expect(JSON.parse(query.stdout).summary.matched).toBe(1);
+      const identityQuery = await invoke(directory, ['report.json', '--audio-identity', 'unknown'], queryCLI);
+      expect(identityQuery.code).toBe(0);
       expect(report.audioCapture).toMatchObject({ version: 2, tasks: 2, loads: 0, instructionImages: 0 });
       expect(report.sourceSha256).toMatch(/^[a-f0-9]{64}$/);
       await rm(join(directory, 'audio.z64')); // Offline replay must need no ROM.
@@ -510,6 +513,10 @@ describe('inventory command', () => {
       const mismatch = await invoke(directory, ['corpus', '--check'], audioReplayCLI);
       expect(mismatch.code).toBe(1);
       expect(JSON.parse(mismatch.stdout).summary.mismatched).toBe(1);
+      const changedIdentity = structuredClone(report);
+      changedIdentity.collectors['audio.taskMicrocodes'].microcodes[0].classifications[0].reason = 'wrong';
+      await Bun.write(join(report.audioCapture.directory, 'report.json'), JSON.stringify(changedIdentity));
+      expect((await invoke(directory, ['corpus', '--check'], audioReplayCLI)).code).toBe(1);
     });
   });
 
@@ -821,7 +828,7 @@ describe('inventory command', () => {
       const empty = await invoke(directory, ['test.z64', '--frames', '1']);
       expect(empty.code).toBe(0);
       expect(JSON.parse(empty.stdout).result.failure).toBeUndefined();
-      expect(JSON.parse(empty.stdout).collectors['audio.taskMicrocodes']).toEqual({ version: 1, scope: 'task-start', tasks: 0, microcodes: [] });
+      expect(JSON.parse(empty.stdout).collectors['audio.taskMicrocodes']).toEqual({ version: 2, scope: 'task-start', tasks: 0, microcodes: [] });
       expect(JSON.parse(empty.stdout).collectors['graphics.taskMicrocodes']).toMatchObject({ version: 1, tasks: 0, microcodes: [] });
       expect(JSON.parse(empty.stdout).collectors['graphics.microcodeLoads']).toMatchObject({ version: 1, loads: 0, microcodes: [] });
       expect(JSON.parse(empty.stdout).collectors['graphics.textureFormats']).toEqual({ version: 1, scope: 'hle-draw', formats: [] });

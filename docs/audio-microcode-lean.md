@@ -2,8 +2,9 @@
 
 This implements the two identities in the [offline reference](audio-microcode-reference.md)
 as a synchronous browser module. It accepts the same raw task-start windows and
-returns the same known, unknown and ambiguous results. It is not yet called by
-the emulator, and does not select HLE handlers.
+returns the same known, unknown and ambiguous results. The emulator now calls it
+for observed audio tasks, as described in the [inventory integration](audio-classifier-integration.md).
+It does not select HLE handlers.
 
 ```js
 import { createAudioMicrocodeClassifier } from './src/hle/audio_microcode_classifier.js';
@@ -140,8 +141,8 @@ Source, runtime, full reports and reproduction instructions are archived at
 
 ## Integration boundary
 
-The next change can install one classifier instance per emulator and expose the
-result through inventory reporting. It should preserve the raw task-start input
-contract and retain LLE for unknown programs. Recognition is still a reviewed
+The integration installs one lazy classifier instance per emulator/reset and
+exposes the result through inventory reporting. It preserves the raw task-start
+input contract and retains LLE for all programs. Recognition is still a reviewed
 program identity, not certification of HLE equivalence for arbitrary command
 streams or entry states. Expanding the manifest requires further review.

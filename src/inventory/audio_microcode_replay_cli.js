@@ -14,8 +14,9 @@ const usage = `Usage: bun run audio-microcode-replay <corpus-or-run-directory>..
 Reads saved task images without executing ROMs. Capture bytes and original
 reports remain unchanged. Replays exactly the checkpoint prefix recorded in
 each report, including timeout/error reports; a running capture is partial.
-Records current analysis provenance separately from the original run. Structural
-classifications are provisional observations, not verified HLE compatibility.
+Records current analysis provenance separately from the original run. Version-1
+collectors compare structural observations; version-2 collectors also recompute
+reviewed identities from raw task bytes. Neither establishes HLE compatibility.
 Exit codes: 0 replayed; 1 comparison mismatch; 2 arguments or corrupt/missing data.
 `;
 

@@ -22,7 +22,8 @@ const usage = `Usage: bun run inventory <rom-path> [options]
 Exit codes: 0 completed; 2 invalid arguments or emulation error; 3 cycle limit;
 124 timeout. Timeouts contain only the last received checkpoint. Microcode
 collectors report graphics/audio task starts and graphics HLE loads, including
-in-list switches. Audio observations identify structural families, not HLE support.
+in-list switches. Audio observations include structural families and reviewed
+task-start identities; neither establishes HLE support.
 Texture formats describe tiles selected by HLE draws, not visible pixels.
 Terminal exceptions/halts include versioned result.failure details. Exceptions
 retain their original type, message and stack; halt context records CPU/RSP

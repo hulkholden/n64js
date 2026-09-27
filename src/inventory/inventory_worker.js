@@ -20,7 +20,7 @@ const taskMicrocodes = new Map();
 let loads = 0;
 const loadedMicrocodes = new Map();
 const textureFormats = new Map();
-const audioMicrocodes = new AudioMicrocodeCollector();
+const audioMicrocodes = new AudioMicrocodeCollector({ classifications: true });
 const audioCapture = captureDirectory ? new AudioMicrocodeCapture(captureDirectory, { instructionLoads: true }) : null;
 
 function cyclesExecuted() {
@@ -86,9 +86,9 @@ try {
   emulator = await createHeadlessEmulator(loadedROM, {
     executeGraphics: true,
     onVerticalBlank: frame => updateInput(frame, emulator.inputs[0]),
-    onAudioTask: image => {
+    onAudioTask: (image, classification) => {
       audioCapture?.observe(image, { frame: emulator.hardware.verticalBlankCount, cycles: cyclesExecuted() });
-      audioMicrocodes.observe(image);
+      audioMicrocodes.observe(image, classification);
     },
     onAudioInstructionLoad: audioCapture ? load => {
       audioCapture.observeInstructionLoad(load, { frame: emulator.hardware.verticalBlankCount, cycles: cyclesExecuted() });
