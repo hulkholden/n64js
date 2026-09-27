@@ -9,6 +9,7 @@ import { graphicsOptions } from '../hle/graphics_options.js';
 import { ImageFormat, ImageSize } from '../hle/gbi.js';
 import { MicrocodeId } from '../hle/microcode_identifier.js';
 import { TaskOffsets } from '../hle/rsp_task.js';
+import { classifyAudioReference } from '../inventory/audio_reference.js';
 import { OS_TV_NTSC } from '../system_constants.js';
 
 const { getFragmentMap } = await import('../cpu/fragments.js');
@@ -725,28 +726,56 @@ describe('audio task callback', () => {
       for (const mode of ['LLE', 'Disabled']) {
         audioOptions.emulationMode = mode;
         const seen = [];
-        const emulator = await createEmulator({ onAudioTask: image => { seen.push(image); return true; } });
+        const classifications = [];
+        const emulator = await createEmulator({ onAudioTask: (image, classification) => {
+          expect(classification).toEqual(classifyAudioReference(image.raw));
+          seen.push(image); classifications.push(classification);
+          return true;
+        } });
         prepareGraphicsTask(emulator);
         startRSPTask(emulator, 1);
         expect(seen).toEqual([]);
+        expect(emulator.hardware.audioMicrocodeClassifier).toBeNull();
         emulator.hardware.rsp.halt(0);
         startRSPTask(emulator, 2);
         expect(seen).toHaveLength(1);
+        expect(classifications[0].status).toBe('unknown');
+        const classifier = emulator.hardware.audioMicrocodeClassifier;
         expect(emulator.hardware.rsp.halted).toBe(mode === 'Disabled');
         const firstCode = seen[0].code.slice();
         emulator.hardware.ram.u8.fill(123, 0x1000, 0x1040);
         expect(seen[0].code).toEqual(firstCode);
         startRSPTask(emulator, 2);
         expect(seen).toHaveLength(2);
+        expect(emulator.hardware.audioMicrocodeClassifier).toBe(classifier);
         expect(seen[1].code).not.toBe(seen[0].code);
         emulator.hardware.reset();
+        expect(emulator.hardware.audioMicrocodeClassifier).toBeNull();
         prepareGraphicsTask(emulator);
         startRSPTask(emulator, 2);
         expect(seen).toHaveLength(3);
+        expect(emulator.hardware.audioMicrocodeClassifier).not.toBe(classifier);
       }
     } finally {
       audioOptions.emulationMode = previous;
     }
+  });
+
+  test('keeps classifiers isolated between emulators and skips unobserved tasks', async () => {
+    const a = await createEmulator({ onAudioTask() {} });
+    const b = await createEmulator({ onAudioTask() {} });
+    expect(a.hardware.audioMicrocodeClassifier).toBeNull();
+    expect(b.hardware.audioMicrocodeClassifier).toBeNull();
+    // The global headless environment points at the most recently created hardware.
+    prepareGraphicsTask(b); startRSPTask(b, 2);
+    expect(a.hardware.audioMicrocodeClassifier).toBeNull();
+    expect(typeof b.hardware.audioMicrocodeClassifier).toBe('function');
+    const unobserved = await createEmulator();
+    unobserved.hardware.classifyAudioMicrocode = () => { throw new Error('Unexpected classification'); };
+    prepareGraphicsTask(unobserved);
+    expect(() => startRSPTask(unobserved, 2)).not.toThrow();
+    expect(unobserved.hardware.audioMicrocodeClassifier).toBeNull();
+    expect(unobserved.hardware.rsp.halted).toBe(false);
   });
 });
 

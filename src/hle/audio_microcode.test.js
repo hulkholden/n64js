@@ -2,6 +2,8 @@ import { describe, expect, test } from 'bun:test';
 import { identifyAudioMicrocode, snapshotAudioMicrocode } from './audio_microcode.js';
 import { MemoryRegion } from '../memory/memory_region.js';
 import { AudioMicrocodeCollector } from '../inventory/audio_microcode_collector.js';
+import { createHash } from 'node:crypto';
+import { createAudioMicrocodeClassifier } from './audio_microcode_classifier.js';
 
 // Synthetic RSP programs: no game binaries or known emulator signature words.
 const I = (op, rs, rt, imm) => (op << 26) | (rs << 21) | (rt << 16) | (imm & 0xffff);
@@ -202,6 +204,42 @@ describe('audio task images and inventory versions', () => {
     put(image.code, offset + 8, [I(13, 0, 20, 2)]);
     collector.observe(image);
     expect(collector.snapshot().microcodes).toHaveLength(2);
+  });
+
+  test('counts known, unknown and ambiguous results under one structural fingerprint', () => {
+    const image = program(), source = taskImage();
+    source.task.set32(0, 2);
+    const raw = { task: source.task.u8, imem: source.imem, code: new Uint8Array(4096), data: new Uint8Array(4096) };
+    raw.code.set(image.code); raw.data.set(image.data);
+    const hash = bytes => createHash('sha256').update(bytes).digest('hex');
+    const manifest = { version: 1, bootstraps: [{ id: 'synthetic-loader', bytes: 0xd0, sha256: hash(raw.imem.subarray(0, 0xd0)) }],
+      programs: [{ id: 'synthetic-abi1', family: 'ABI1', codeBytes: 0xe20, codeSha256: hash(raw.code.subarray(0, 0xe20)),
+        dataBytes: 0x200, dataSha256: hash(raw.data.subarray(0, 0x200)) }] };
+    const classify = createAudioMicrocodeClassifier(manifest);
+    const collector = new AudioMicrocodeCollector({ classifications: true });
+    const known = classify(raw);
+    expect(known.status).toBe('known');
+    collector.observe(image, known); collector.observe(image, known);
+    raw.data[0x180] ^= 1; image.data[0x180] ^= 1; // Outside structural dispatch data, inside reviewed constants.
+    const unknown = classify(raw);
+    expect(unknown.reason).toBe('unreviewed-constants');
+    collector.observe(image, unknown);
+    raw.data[0x180] ^= 1; image.data[0x180] ^= 1;
+    manifest.programs.push({ ...manifest.programs[0], id: 'overlapping-identity' });
+    const ambiguous = createAudioMicrocodeClassifier(manifest)(raw);
+    collector.observe(image, ambiguous);
+    const snapshot = collector.snapshot();
+    expect(snapshot).toMatchObject({ version: 2, tasks: 4 });
+    expect(snapshot.microcodes).toHaveLength(1);
+    expect(snapshot.microcodes[0].classifications).toEqual([
+      { ...known, tasks: 2 }, { ...unknown, tasks: 1 }, { ...ambiguous, tasks: 1 },
+    ]);
+    ambiguous.candidates.length = 0;
+    snapshot.microcodes[0].classifications[0].tasks = 99;
+    expect(collector.snapshot().microcodes[0].classifications[0].tasks).toBe(2);
+    expect(collector.snapshot().microcodes[0].classifications[2].candidates).toHaveLength(2);
+    expect(() => collector.observe(image)).toThrow('Missing audio task classification');
+    expect(collector.snapshot().tasks).toBe(4);
   });
 
   test('unknown and invalid images are observations, distinct from an empty collector', () => {

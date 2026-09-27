@@ -20,6 +20,7 @@ import { MemoryRegion } from './memory/memory_region.js';
 import { CPU0, CPU2 } from './cpu/r4300.js';
 import { RSP } from './rsp/rsp.js';
 import { Timeline } from './debug/timeline.js';
+import { createAudioMicrocodeClassifier } from './hle/audio_microcode_classifier.js';
 
 const kBootstrapOffset = 0x40;
 const kGameOffset = 0x1000;
@@ -64,10 +65,12 @@ export class Hardware {
     // not re-enter emulation. Its return value is ignored.
     this.onGraphicsTask = onGraphicsTask;
     // Audio task-start observer, before LLE/Disabled dispatch. Receives copied,
-    // bounded code/data images and loading-layout evidence. Return values are
+    // bounded code/data images and loading-layout evidence, followed by the
+    // reviewed task-start classification as a second argument. Return values are
     // ignored; observers cannot handle the task or re-enter emulation. Resets
-    // preserve the callback. Without an observer, no images are copied.
+    // preserve the callback. Without an observer, no images are copied or classified.
     this.onAudioTask = onAudioTask;
+    this.audioMicrocodeClassifier = null;
     // Inventory-only observer of DMA reads into IMEM issued during audio tasks.
     // Receives an owned post-copy IMEM snapshot and the queued transfer's task
     // ordinal/PC and DMA geometry. Initial boot code is in onAudioTask instead.
@@ -191,6 +194,7 @@ export class Hardware {
 
   reset() {
     this.verticalBlankCount = 0;
+    this.audioMicrocodeClassifier = null;
     this.graphics.reset();
     this.cpu0.reset();
     this.cpu1.reset();
@@ -220,6 +224,13 @@ export class Hardware {
 
   getOpsExecuted() {
     return this.cpu0.getOpsExecuted();
+  }
+
+  classifyAudioMicrocode(raw) {
+    // Allocate lazily for observation, then retain the byte-verified cache
+    // across tasks. Each hardware instance/reset owns its own classifier.
+    this.audioMicrocodeClassifier ??= createAudioMicrocodeClassifier();
+    return this.audioMicrocodeClassifier(raw);
   }
 
   createROM(arrayBuffer) {

@@ -123,10 +123,14 @@ iterator in `src/inventory/audio_microcode_capture.js`. Each yielded task has
 the existing structural detector. `readCaptureReport` reads and validates the
 capture metadata. The replay module demonstrates aggregation into reports.
 
-The current labels are hypotheses derived from program structure. Agreement
-with the live detector verifies capture/replay fidelity, not classification
-accuracy or HLE compatibility. Independent review of distinct programs and
-additional gameplay coverage are still needed before training a lean classifier.
+Structural family labels are hypotheses derived from program structure.
+Version-2 audio collectors also contain counted results from the reviewed
+task-start classifier, separately from those labels. Replay recomputes both
+from captured bytes; version-1 collectors retain their original structural-only
+comparison. Collector and capture versions are independent. See the
+[inventory integration](audio-classifier-integration.md) for the report schema.
+Agreement with a live collector verifies capture/replay fidelity, not HLE
+compatibility or coverage beyond the captured execution.
 
 Use the [offline catalogue and comparison tools](audio-microcode-catalogue.md)
 to audit raw differences before accepting a program identity. The

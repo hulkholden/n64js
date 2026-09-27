@@ -192,7 +192,9 @@ export function hleProcessRSPTask() {
     }
     case M_AUDTASK:
       if (hardware.onAudioTask) {
-        hardware.onAudioTask(snapshotAudioMicrocode(ramU8, taskMem, hardware.sp_mem.u8.subarray(0x1000, 0x2000)));
+        const image = snapshotAudioMicrocode(ramU8, taskMem, hardware.sp_mem.u8.subarray(0x1000, 0x2000));
+        const classification = hardware.classifyAudioMicrocode(image.raw);
+        hardware.onAudioTask(image, classification);
       }
       // There's no HLE support yet, but if emulation is disabled pretend we
       // handled the task (we'll play silence).

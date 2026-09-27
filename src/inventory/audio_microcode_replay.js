@@ -4,6 +4,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { AudioMicrocodeCollector } from './audio_microcode_collector.js';
 import { readAudioCaptureEvents, readCaptureReport } from './audio_microcode_capture.js';
 import { AudioInstructionObservations } from './audio_instruction_observations.js';
+import { createAudioMicrocodeClassifier } from '../hle/audio_microcode_classifier.js';
 
 export async function captureDirectories(input) {
   const directory = resolve(input);
@@ -16,14 +17,18 @@ export async function captureDirectories(input) {
 
 export async function replayAudioCapture(directory) {
   const { report, reportSha256 } = await readCaptureReport(directory);
-  const collector = new AudioMicrocodeCollector();
+  const recorded = report.collectors['audio.taskMicrocodes'];
+  // Version 1 predates reviewed identities. Preserve its structural comparison;
+  // never invent historical classifications or feed saved labels into replay.
+  const classifications = recorded?.version === 2;
+  const collector = new AudioMicrocodeCollector({ classifications });
+  const classify = classifications ? createAudioMicrocodeClassifier() : null;
   const instructions = report.audioCapture.version === 2 ? new AudioInstructionObservations() : null;
   for await (const event of readAudioCaptureEvents(directory, report.audioCapture)) {
     instructions?.observe(event);
-    if (event.type === 'task') collector.observe(event.image);
+    if (event.type === 'task') collector.observe(event.image, classify?.(event.image.raw));
   }
   const audioMicrocodes = collector.snapshot();
-  const recorded = report.collectors['audio.taskMicrocodes'];
   return {
     directory, reportSha256,
     source: { rom: report.rom, emulator: report.emulator, sourceSha256: report.sourceSha256, settings: report.settings, result: report.result },

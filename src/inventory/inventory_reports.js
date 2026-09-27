@@ -3,7 +3,7 @@ import { isAbsolute, join } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 
 export const collectorSpecs = {
-  audioMicrocode: [{ name: 'audio.taskMicrocodes', scope: 'task-start', records: 'microcodes', count: 'tasks' }],
+  audioMicrocode: [{ name: 'audio.taskMicrocodes', scope: 'task-start', records: 'microcodes', count: 'tasks', versions: [1, 2] }],
   microcode: [
     { name: 'graphics.taskMicrocodes', scope: 'task-start', records: 'microcodes', count: 'tasks' },
     { name: 'graphics.microcodeLoads', scope: 'hle-load', records: 'microcodes', count: 'loads' },
@@ -15,15 +15,30 @@ export function inspectCollector(report, spec, predicate) {
   const data = report.collectors[spec.name];
   const result = { collector: spec.name, version: data?.version ?? null, scope: data?.scope ?? null, state: 'unknown' };
   if (!data) return { ...result, reason: 'missing-collector' };
-  if (data.version !== 1) return { ...result, reason: 'unsupported-version' };
+  if (!(spec.versions ?? [1]).includes(data.version)) return { ...result, reason: 'unsupported-version' };
   if (data.scope !== spec.scope) return { ...result, reason: 'unsupported-scope' };
   const records = data[spec.records];
   const validRecord = spec.count
     ? record => typeof record?.family === 'string' && Number.isSafeInteger(record[spec.count]) && record[spec.count] > 0
     : record => Number.isInteger(record?.format) && Number.isInteger(record?.size);
   if (!Array.isArray(records) || !records.every(validRecord)) return { ...result, reason: 'invalid-records' };
+  if (spec.name === 'audio.taskMicrocodes' && data.version === 2 && (!Number.isSafeInteger(data.tasks) || data.tasks < 0 ||
+    records.reduce((n, record) => n + record.tasks, 0) !== data.tasks || !records.every(record =>
+    Array.isArray(record.classifications) && record.classifications.length > 0 && record.classifications.every(validAudioClassification) &&
+    record.classifications.reduce((n, c) => n + c.tasks, 0) === record.tasks))) {
+    return { ...result, reason: 'invalid-classifications' };
+  }
   const matches = records.filter(predicate);
   return { ...result, state: matches.length ? 'observed' : 'not-observed', matches };
+}
+
+function validAudioClassification(record) {
+  if (!Number.isSafeInteger(record?.tasks) || record.tasks < 1 || typeof record.family !== 'string') return false;
+  if (record.status === 'known') return typeof record.identity === 'string' && record.identity.length > 0 && typeof record.bootstrap === 'string';
+  if (record.identity !== null || typeof record.reason !== 'string') return false;
+  if (record.status === 'unknown') return true;
+  return record.status === 'ambiguous' && Array.isArray(record.candidates) && record.candidates.length > 1 &&
+    record.candidates.every(c => typeof c === 'string');
 }
 
 async function readJSON(path) {
