@@ -1,10 +1,14 @@
 # Offline audio reference identities
 
-The reference classifier establishes two reviewed ABI1 identities before
-attempting to minimize a fingerprint. It hashes complete reviewed ranges of
-task-start bytes. It does not use the structural detector's fingerprints,
-game names, ROM hashes or instruction-DMA observations to classify a task.
-There is no runtime dispatch or audio HLE change.
+The initial reference classifier established two reviewed ABI1 identities before
+attempting to minimize a fingerprint. It hashed complete reviewed ranges of
+task-start bytes, without structural fingerprints, game names, ROM hashes or
+instruction-DMA observations as classifier inputs. That initial change did not
+alter runtime dispatch or audio HLE.
+
+The current manifest is extended by the [20-identity review](audio-microcode-coverage.md),
+including NAudio, NEAD/direct entry and descriptor programs. Historical counts
+and the original twelve examples below describe the initial review.
 
 ```sh
 bun run audio-microcode-reference /path/to/corpus --output build/reference.json

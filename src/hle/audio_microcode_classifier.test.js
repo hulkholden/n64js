@@ -40,6 +40,69 @@ describe('bounded browser SHA-256', () => {
 });
 
 describe('browser audio classifier', () => {
+  test('entry hashes only select candidates; complete code still separates shared entries', () => {
+    const { raw, second, manifest } = fixture();
+    for (const p of manifest.programs) p.entrySha256 = hash(raw.code.subarray(0, 0x80));
+    manifest.programs[0].family = 'NAUDIO'; manifest.programs[1].family = 'NEAD';
+    const reference = createAudioReferenceClassifier(manifest);
+    for (const options of variants) {
+      const classify = createAudioMicrocodeClassifier(manifest, options);
+      expect(classify(raw)).toMatchObject({ identity: 'program-0', family: 'NAUDIO' });
+      expect(classify(second)).toMatchObject({ identity: 'program-1', family: 'NEAD' });
+      raw.code[0x1ff] ^= 1; // Same entry hash, neither full program.
+      expect(classify(raw)).toEqual(reference(raw));
+      expect(classify(raw).status).toBe('unknown');
+      raw.code[0x1ff] ^= 1;
+      expect(classify(raw)).toEqual(reference(raw));
+    }
+    // The reference deliberately ignores lookup metadata, exposing a bad
+    // selector when the full-corpus comparison exercises this identity.
+    manifest.programs[0].entrySha256 = '0'.repeat(64);
+    expect(createAudioReferenceClassifier(manifest)(raw).status).toBe('known');
+    expect(createAudioMicrocodeClassifier(manifest)(raw).status).toBe('unknown');
+  });
+
+  test('direct programs use actual IMEM, encoded data lengths and isolated loading layouts', () => {
+    const { raw, manifest } = fixture(), task = new DataView(raw.task.buffer);
+    task.setUint32(0x08, 0x1000); task.setUint32(0x0c, 0x1000); task.setUint32(0x1c, 0x2df);
+    manifest.programs.push({ id: 'direct-nead', family: 'NEAD', loader: 'direct',
+      entrySha256: hash(raw.imem.subarray(0, 0x80)), codeBytes: 4096, codeSha256: hash(raw.imem),
+      dataBytes: 0x2e0, dataSha256: hash(raw.data.subarray(0, 0x2e0)) });
+    // Same full code/constants in the wrong loading layout must not make the
+    // direct match ambiguous or match an rspboot task by accident.
+    manifest.programs.push({ ...manifest.programs.at(-1), id: 'rspboot-copy', loader: 'rspboot',
+      codeBytes: 0xf80, codeSha256: hash(raw.imem.subarray(0, 0xf80)) });
+    const expected = { status: 'known', identity: 'direct-nead', family: 'NEAD', bootstrap: 'direct-imem' };
+    for (const classify of [createAudioReferenceClassifier(manifest), ...variants.map(v => createAudioMicrocodeClassifier(manifest, v))]) {
+      expect(classify(raw)).toEqual(expected);
+      const changed = clone(raw), header = new DataView(changed.task.buffer);
+      changed.code = new Uint8Array(); // RDRAM's code copy is not used by direct entry.
+      changed.data = changed.data.slice(0, 0x2e0);
+      expect(classify(changed)).toEqual(expected);
+      changed.imem[4095] ^= 1;
+      expect(classify(changed).reason).toBe('unreviewed-code');
+      changed.imem[4095] ^= 1;
+      changed.data[0x2df] ^= 1; // The byte beyond declared size is actually DMA'd.
+      expect(classify(changed).reason).toBe('unreviewed-constants');
+      changed.data[0x2df] ^= 1;
+      header.setUint32(0x1c, 0x2e0); // Encoded length loads 0x2e8, not 0x2e0.
+      expect(classify(changed).reason).toBe('unsupported-task-layout');
+      header.setUint32(0x1c, 0x2d7);
+      expect(classify(changed).reason).toBe('unreviewed-constants');
+      header.setUint32(0x1c, 0xfc0);
+      expect(classify(changed).reason).toBe('unsupported-task-layout');
+      header.setUint32(0x1c, 0x2df);
+      expect(classify(changed)).toEqual(expected);
+      header.setUint32(0x08, 0x2000);
+      expect(classify(changed).status).toBe('unknown');
+    }
+    for (const update of [{ loader: 'unreviewed' }, { family: 'guessed' }, { entrySha256: 'bad' }, { codeBytes: 0x1004 }]) {
+      const bad = structuredClone(manifest); Object.assign(bad.programs.at(-2), update);
+      expect(() => createAudioReferenceClassifier(bad)).toThrow();
+      expect(() => createAudioMicrocodeClassifier(bad)).toThrow();
+    }
+  });
+
   test('all strategies agree through cache hits, misses and mutations of the same buffer', () => {
     const { raw, second, manifest } = fixture();
     const reference = createAudioReferenceClassifier(manifest);

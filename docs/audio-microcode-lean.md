@@ -1,6 +1,6 @@
 # Browser audio classifier
 
-This implements the two identities in the [offline reference](audio-microcode-reference.md)
+This implements the reviewed identities in the [offline reference](audio-microcode-reference.md)
 as a synchronous browser module. It accepts the same raw task-start windows and
 returns the same known, unknown and ambiguous results. The emulator now calls it
 for observed audio tasks, as described in the [inventory integration](audio-classifier-integration.md).
@@ -31,8 +31,10 @@ the previous input. The caller's buffer identity, guest addresses and previous
 result are insufficient. Both known and unknown range matches can be reused.
 Task headers and source-window bounds are revalidated on every call.
 
-The current manifest retains 8,300 copied bytes in five entries, plus bounded
-hash scratch space. Cache size does not grow with task count. Unreviewed bytes
+The initial manifest retained 8,300 copied bytes in five entries, plus bounded
+hash scratch space. The [expanded manifest](audio-microcode-coverage.md) adds a
+candidate selector and inspects only eligible ranges. Cache size remains bounded
+by manifest range lengths, not task count. Unreviewed bytes
 are not installed as new signatures: a cache miss still uses the manifest's
 original SHA-256 rules. Results and cached snapshots cannot be mutated through
 the objects returned to callers.
@@ -68,7 +70,7 @@ results; it does not replace the full-stream audit.
 The command compares both strategies with the native reference on **every
 task occurrence**, including repeated images and unknown programs. It validates
 complete published streams, including instruction records that are never
-classifier inputs. All twelve reviewed examples must be present and correct.
+classifier inputs. All reviewed examples must be present and correct (currently 29).
 Mismatches fail the run and retain representative task/image references.
 
 `audit.json` records source/manifest/report hashes and comparison counts.
@@ -93,6 +95,9 @@ identities and excluded-tail changes. Synthetic unit tests exercise invalid
 headers, short windows, ambiguous manifests and mutation of cached input buffers.
 
 ## Corpus results
+
+These measurements describe the initial two-identity manifest. See the
+[coverage expansion](audio-microcode-coverage.md) for subsequent results.
 
 The final comparison used clean revision
 `ca52ce2c09009821c1795c9e73bab266e8f92e16`, source SHA-256

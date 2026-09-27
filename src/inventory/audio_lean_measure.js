@@ -10,21 +10,26 @@ export const leanStrategies = [
 export const leanFactories = () => leanStrategies.map(s => ({ name: s.name, create: () => createAudioMicrocodeClassifier(undefined, s.options) }));
 export const sameResult = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
-/** Check loaded samples and the two original positive examples. Mutation tests
+/** Check loaded samples and every reviewed program/loading-layout example. Mutation tests
  * warm the cache, change a byte in place, then restore it before the next case.
  */
 export function verifyLeanSamples(samples) {
   const results = [];
   for (const strategy of leanStrategies) {
     const classify = createAudioMicrocodeClassifier(undefined, strategy.options);
+    const mutated = new Set();
     let mutations = 0, tails = 0;
     for (const sample of samples) {
       if (!sameResult(classify(sample.raw), sample.expected)) throw new Error(`Sample mismatch: ${strategy.name} ${sample.imageId}`);
-      if (!['Mario USA', 'Tetrisphere USA'].includes(sample.example)) continue;
+      if (!sample.example || sample.expected.status !== 'known') continue;
+      const key = `${sample.expected.identity}:${sample.expected.bootstrap}`;
+      if (mutated.has(key)) continue;
+      mutated.add(key);
       const raw = Object.fromEntries(Object.entries(sample.raw).map(([k, v]) => [k, v.slice()]));
       const program = audioMicrocodeManifest.programs.find(p => p.id === sample.expected.identity);
       const boot = audioMicrocodeManifest.bootstraps.find(b => b.id === sample.expected.bootstrap);
-      const ranges = [['imem', boot.bytes], ['code', program.codeBytes], ['data', program.dataBytes]];
+      const ranges = program.loader === 'direct' ? [['imem', program.codeBytes], ['data', program.dataBytes]] :
+        [['imem', boot.bytes], ['code', program.codeBytes], ['data', program.dataBytes]];
       for (const [field, size] of ranges) {
         for (let p = 0; p < size; p++) {
           raw[field][p] ^= 0x80;
@@ -35,6 +40,7 @@ export function verifyLeanSamples(samples) {
         }
       }
       for (const [field, size] of ranges) raw[field].fill(0xa5, size);
+      if (program.loader === 'direct') raw.code.fill(0xa5);
       if (!sameResult(classify(raw), sample.expected)) throw new Error('Excluded tail affected identity');
       tails++;
     }
