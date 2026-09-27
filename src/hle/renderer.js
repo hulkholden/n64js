@@ -640,9 +640,9 @@ export class Renderer extends RendererBase {
   setGLBlendMode() {
     const gl = this.gl;
 
-    // fragment coverage (0) or alpha (1)?
+    // Optionally multiply coverage by combiner alpha.
     const cvgXAlpha = this.state.getCoverageTimesAlpha();
-    // use fragment coverage * fragment alpha
+    // Select coverage (possibly multiplied by alpha) instead of combiner alpha.
     const alphaCvgSel = this.state.getAlphaCoverageSelect();
 
     const cycleType = this.state.getCycleType();
@@ -669,6 +669,11 @@ export class Renderer extends RendererBase {
         // If alphaCvgSel is 0, or if we're multiplying by fragment alpha, then we have alpha to blend with.
         if (!alphaCvgSel || cvgXAlpha) {
           mode = kBlendModeAlphaTrans;
+        } else {
+          // Coverage-only opaque surfaces (e.g. Tetrisphere's 0x0011).
+          // HLE does not track RDP subpixel coverage, so assume full coverage
+          // and overwrite the destination, regardless of combiner alpha.
+          mode = kBlendModeOpaque;
         }
         break;
 
