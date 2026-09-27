@@ -1,7 +1,8 @@
 // Reviewed task-start identities, not SDK versions or HLE dispatch rules.
 // Ranges and loading layouts are reviewed in docs/audio-microcode-coverage.md.
 // entrySha256 is only a lookup aid; acceptance checks the full code and data.
-// No program bytes, ROM names or structural fingerprints are matching inputs.
+// Only hashes are stored here. ROM names and structural fingerprints are never
+// classifier inputs.
 
 export const audioMicrocodeManifest = {
   "version": 1,
