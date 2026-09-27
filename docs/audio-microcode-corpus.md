@@ -134,3 +134,7 @@ to audit raw differences before accepting a program identity. The
 inventory and the overlay capture gap that motivated version 2. The subsequent
 [instruction DMA audit](audio-instruction-audit-20260926.md) records the new
 corpus, observed overlays and remaining execution-coverage gaps.
+
+The [offline reference classifier](audio-microcode-reference.md) uses explicitly
+reviewed task-start code/constants to distinguish an initial subset of ABI1
+programs. Its identities are independent of the provisional structural labels.
