@@ -169,3 +169,6 @@ images. Matching the corpus is one criterion; rejecting the protected-byte
 mutations and preserving unknown cases are others. A tiny signature that selects
 the right captured example but accepts a changed mixer or coefficient table is
 not a replacement for the reference's identity check.
+
+The [browser classifier](audio-microcode-lean.md) keeps these full-range checks
+and measures caching against this independent reference.
