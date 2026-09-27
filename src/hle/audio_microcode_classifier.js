@@ -1,39 +1,131 @@
 import { audioMicrocodeManifest } from './audio_microcode_manifest.js';
 import { createMicrocodeHash } from './audio_microcode_hash.js';
 
-const unknown = reason => ({ status: 'unknown', identity: null, family: 'Unknown', reason });
-const ambiguous = (reason, entries) => ({ ...unknown(reason), status: 'ambiguous', candidates: entries.map(e => e.id).sort() });
+const rspMemoryBytes = 0x1000;
 const codeLoadBytes = 0xf80;
 const taskOffset = 0xfc0;
 const entryBytes = 0x80;
+
+function unknown(reason) {
+  return {
+    status: 'unknown',
+    identity: null,
+    family: 'Unknown',
+    reason,
+  };
+}
+
+function ambiguous(reason, entries) {
+  return {
+    ...unknown(reason),
+    status: 'ambiguous',
+    candidates: entries.map(entry => entry.id).sort(),
+  };
+}
+
+function isSha256Digest(value) {
+  return typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
+}
+
+function isRangeLength(value, limit) {
+  return Number.isInteger(value) && value > 0 && value <= limit && value % 4 === 0;
+}
+
+function hasUniqueIds(entries) {
+  const allIdsPresent = entries.every(entry => typeof entry?.id === 'string' && entry.id.length);
+  if (!allIdsPresent) {
+    return false;
+  }
+
+  const ids = entries.map(entry => entry.id);
+  return new Set(ids).size === entries.length;
+}
+
+function isValidManifest(manifest) {
+  if (manifest?.version !== 1 ||
+      !Array.isArray(manifest.bootstraps) || manifest.bootstraps.length === 0 ||
+      !Array.isArray(manifest.programs) || manifest.programs.length === 0) {
+    return false;
+  }
+
+  if (!hasUniqueIds(manifest.bootstraps) || !hasUniqueIds(manifest.programs)) {
+    return false;
+  }
+
+  const validBootstraps = manifest.bootstraps.every(bootstrap =>
+    isRangeLength(bootstrap.bytes, rspMemoryBytes) && isSha256Digest(bootstrap.sha256));
+
+  if (!validBootstraps) {
+    return false;
+  }
+
+  return manifest.programs.every(program => {
+    const codeLimit = program.loader === 'direct' ? rspMemoryBytes : codeLoadBytes;
+
+    return ['ABI1', 'NAUDIO', 'NEAD', 'Unknown'].includes(program.family) &&
+      [undefined, 'rspboot', 'direct'].includes(program.loader) &&
+      isRangeLength(program.codeBytes, codeLimit) &&
+      isRangeLength(program.dataBytes, taskOffset) &&
+      isSha256Digest(program.codeSha256) &&
+      isSha256Digest(program.dataSha256) &&
+      (program.entrySha256 === undefined ||
+        (program.codeBytes >= entryBytes && isSha256Digest(program.entrySha256)));
+  });
+}
 
 // A cache hit requires equality of EVERY byte of the protected range. Neither
 // object identity, guest addresses nor a short signature establish a hit.
 // DataView permits unaligned subviews and avoids host-endianness assumptions.
 function equalRange(view, previous) {
   for (let p = 0; p < previous.byteLength; p += 4) {
-    if (view.getUint32(p) !== previous.getUint32(p)) return false;
+    if (view.getUint32(p) !== previous.getUint32(p)) {
+      return false;
+    }
   }
+
   return true;
 }
 
+// Entries with the same protected length can share a digest and cache slot.
+// Each returned matcher can restrict its work to the remaining candidates.
 function compileRanges(entries, sizeKey, digestKey, hash, cache) {
-  const ranges = [...new Set(entries.map(e => e[sizeKey]))].map(size => ({
-    size, entries: entries.filter(e => e[sizeKey] === size), previous: null, matches: [],
+  const sizes = [...new Set(entries.map(entry => entry[sizeKey]))];
+  const ranges = sizes.map(size => ({
+    size,
+    entries: entries.filter(entry => entry[sizeKey] === size),
+    previous: null,
+    matches: [],
   }));
+
   return (bytes, candidates = entries) => {
-    const matches = [], view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const matches = [];
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+
     for (const range of ranges) {
-      if (bytes.length < range.size || !range.entries.some(e => candidates.includes(e))) continue;
+      if (bytes.length < range.size) {
+        continue;
+      }
+
+      const hasCandidates = range.entries.some(entry => candidates.includes(entry));
+      if (!hasCandidates) {
+        continue;
+      }
+
       if (!range.previous || !equalRange(view, range.previous)) {
-        const prefix = bytes.subarray(0, range.size), digest = hash(prefix);
-        range.matches = range.entries.filter(e => e[digestKey] === digest);
+        const prefix = bytes.subarray(0, range.size);
+        const digest = hash(prefix);
+        range.matches = range.entries.filter(entry => entry[digestKey] === digest);
+
         // Copy even unknown inputs, so repeated unreviewed code is cheap too.
         // One entry per range keeps memory bounded; caller mutation is harmless.
-        if (cache) range.previous = new DataView(new Uint8Array(prefix).buffer);
+        if (cache) {
+          range.previous = new DataView(new Uint8Array(prefix).buffer);
+        }
       }
-      matches.push(...range.matches.filter(e => candidates.includes(e)));
+
+      matches.push(...range.matches.filter(entry => candidates.includes(entry)));
     }
+
     return matches;
   };
 }
@@ -55,60 +147,100 @@ function compileRanges(entries, sizeKey, digestKey, hash, cache) {
  * for ambiguity. Classification does not execute the task or select an HLE handler.
  */
 export function createAudioMicrocodeClassifier(manifest = audioMicrocodeManifest, { cache = true } = {}) {
-  const digest = x => typeof x === 'string' && /^[a-f0-9]{64}$/.test(x);
-  const length = (x, limit) => Number.isInteger(x) && x > 0 && x <= limit && x % 4 === 0;
-  const ids = entries => entries.every(e => typeof e?.id === 'string' && e.id.length) && new Set(entries.map(e => e.id)).size === entries.length;
-  if (manifest?.version !== 1 || !Array.isArray(manifest.bootstraps) || !manifest.bootstraps.length ||
-      !Array.isArray(manifest.programs) || !manifest.programs.length || !ids(manifest.bootstraps) || !ids(manifest.programs) ||
-      !manifest.bootstraps.every(b => length(b.bytes, 4096) && digest(b.sha256)) ||
-      !manifest.programs.every(p => ['ABI1', 'NAUDIO', 'NEAD', 'Unknown'].includes(p.family) &&
-        [undefined, 'rspboot', 'direct'].includes(p.loader) && length(p.codeBytes, p.loader === 'direct' ? 4096 : codeLoadBytes) &&
-        length(p.dataBytes, taskOffset) && digest(p.codeSha256) && digest(p.dataSha256) &&
-        (p.entrySha256 === undefined || (p.codeBytes >= entryBytes && digest(p.entrySha256))))) {
+  if (!isValidManifest(manifest)) {
     throw new Error('Invalid audio reference manifest');
   }
-  const boots = manifest.bootstraps.map(b => ({ ...b })), programs = manifest.programs.map(p => ({ ...p, entryBytes }));
+
+  const bootstraps = manifest.bootstraps.map(bootstrap => ({ ...bootstrap }));
+  const programs = manifest.programs.map(program => ({ ...program, entryBytes }));
   const hash = createMicrocodeHash();
-  const bootMatches = compileRanges(boots, 'bytes', 'sha256', hash, cache);
+
+  const matchBootstraps = compileRanges(bootstraps, 'bytes', 'sha256', hash, cache);
+
   // This small digest only narrows candidates. Every accepted candidate must
   // still match its entire reviewed code and constants; shared entries are OK.
-  const entryMatches = compileRanges(programs.filter(p => p.entrySha256 !== undefined), 'entryBytes', 'entrySha256', hash, cache);
-  const codeMatches = compileRanges(programs, 'codeBytes', 'codeSha256', hash, cache);
-  const dataMatches = compileRanges(programs, 'dataBytes', 'dataSha256', hash, cache);
+  const programsWithEntryHashes = programs.filter(program => program.entrySha256 !== undefined);
+  const matchEntries = compileRanges(programsWithEntryHashes, 'entryBytes', 'entrySha256', hash, cache);
+  const matchCode = compileRanges(programs, 'codeBytes', 'codeSha256', hash, cache);
+  const matchConstants = compileRanges(programs, 'dataBytes', 'dataSha256', hash, cache);
+
   return raw => {
-    if (!raw || !['task', 'imem', 'code', 'data'].every(k => raw[k] instanceof Uint8Array) ||
-        raw.task.length !== 64 || raw.imem.length !== 4096 || raw.code.length > 4096 || raw.data.length > 4096) return unknown('invalid-snapshot');
+    if (!raw ||
+        !['task', 'imem', 'code', 'data'].every(key => raw[key] instanceof Uint8Array) ||
+        raw.task.length !== 64 || raw.imem.length !== rspMemoryBytes ||
+        raw.code.length > rspMemoryBytes || raw.data.length > rspMemoryBytes) {
+      return unknown('invalid-snapshot');
+    }
+
     const task = new DataView(raw.task.buffer, raw.task.byteOffset, raw.task.byteLength);
-    if (task.getUint32(0) !== 2) return unknown('not-audio-task');
-    const codeAddress = task.getUint32(0x10) & 0x1fffffff, dataAddress = task.getUint32(0x18) & 0x1fffffff;
-    const direct = (task.getUint32(0x08) & 0x1fffffff) === codeAddress && task.getUint32(0x0c) === 4096;
+    if (task.getUint32(0) !== 2) {
+      return unknown('not-audio-task');
+    }
+
+    const bootAddress = task.getUint32(0x08) & 0x1fffffff;
+    const bootSize = task.getUint32(0x0c);
+    const codeAddress = task.getUint32(0x10) & 0x1fffffff;
+    const dataAddress = task.getUint32(0x18) & 0x1fffffff;
     const dataSize = task.getUint32(0x1c);
+    const direct = bootAddress === codeAddress && bootSize === rspMemoryBytes;
+
     // The reviewed direct-entry programs write ucode_data_size to RD_LEN
     // unchanged. rspboot subtracts one first. At multiples of eight these
     // conventions load different amounts, including the final constants byte.
-    const loadedDataBytes = direct ? Math.floor(dataSize / 8) * 8 + 8 : Math.ceil(dataSize / 8) * 8;
+    const loadedDataBytes = direct
+      ? Math.floor(dataSize / 8) * 8 + 8
+      : Math.ceil(dataSize / 8) * 8;
+
     // Revalidate the layout even on cache hits: data DMA precedes reading the
     // code pointer, so it must not overwrite OSTask at DMEM 0xfc0.
-    if (!codeAddress || !dataAddress || (codeAddress & 7) || (dataAddress & 7) || !loadedDataBytes ||
-        loadedDataBytes > taskOffset || (!direct && raw.code.length < codeLoadBytes) || raw.data.length < loadedDataBytes) return unknown('unsupported-task-layout');
+    if (!codeAddress || !dataAddress || (codeAddress & 7) || (dataAddress & 7) ||
+        !loadedDataBytes || loadedDataBytes > taskOffset ||
+        (!direct && raw.code.length < codeLoadBytes) || raw.data.length < loadedDataBytes) {
+      return unknown('unsupported-task-layout');
+    }
+
     let bootstrap = 'direct-imem';
     if (!direct) {
-      const loaders = bootMatches(raw.imem);
-      if (!loaders.length) return unknown('unreviewed-bootstrap');
-      if (loaders.length > 1) return ambiguous('ambiguous-bootstrap', loaders);
+      const loaders = matchBootstraps(raw.imem);
+      if (loaders.length === 0) {
+        return unknown('unreviewed-bootstrap');
+      }
+      if (loaders.length > 1) {
+        return ambiguous('ambiguous-bootstrap', loaders);
+      }
+
       bootstrap = loaders[0].id;
     }
+
     // Direct tasks already have their program in IMEM. The RDRAM code window
     // is not what they execute, and cannot substitute for the actual image.
-    const bytes = direct ? raw.imem : raw.code;
-    const layout = programs.filter(p => (p.loader === 'direct') === direct);
-    const entries = entryMatches(bytes, layout);
-    const code = codeMatches(bytes, layout.filter(p => p.entrySha256 === undefined || entries.includes(p)));
-    if (!code.length) return unknown('unreviewed-code');
-    const data = dataMatches(raw.data, code);
-    const matches = code.filter(p => loadedDataBytes >= p.dataBytes && data.includes(p));
-    if (!matches.length) return unknown('unreviewed-constants');
-    if (matches.length > 1) return ambiguous('ambiguous-identity', matches);
-    return { status: 'known', identity: matches[0].id, family: matches[0].family, bootstrap };
+    const programBytes = direct ? raw.imem : raw.code;
+    const layoutCandidates = programs.filter(program => (program.loader === 'direct') === direct);
+    const matchingEntries = matchEntries(programBytes, layoutCandidates);
+    const codeCandidates = layoutCandidates.filter(program =>
+      program.entrySha256 === undefined || matchingEntries.includes(program));
+
+    const matchingCode = matchCode(programBytes, codeCandidates);
+    if (matchingCode.length === 0) {
+      return unknown('unreviewed-code');
+    }
+
+    const matchingConstants = matchConstants(raw.data, matchingCode);
+    const matches = matchingCode.filter(program =>
+      loadedDataBytes >= program.dataBytes && matchingConstants.includes(program));
+
+    if (matches.length === 0) {
+      return unknown('unreviewed-constants');
+    }
+    if (matches.length > 1) {
+      return ambiguous('ambiguous-identity', matches);
+    }
+
+    return {
+      status: 'known',
+      identity: matches[0].id,
+      family: matches[0].family,
+      bootstrap,
+    };
   };
 }
