@@ -20,7 +20,8 @@
     "inventory-summary": "bun run ./src/inventory/inventory_summary.js",
     "audio-microcode-replay": "bun run ./src/inventory/audio_microcode_replay_cli.js",
     "audio-microcode-catalogue": "bun run ./src/inventory/audio_microcode_catalogue_cli.js",
-    "audio-microcode-reference": "bun run ./src/inventory/audio_reference_cli.js"
+    "audio-microcode-reference": "bun run ./src/inventory/audio_reference_cli.js",
+    "audio-microcode-lean": "bun run ./src/inventory/audio_lean_cli.js"
   },
   "repository": {
     "type": "git",
