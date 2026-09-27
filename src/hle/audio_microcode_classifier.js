@@ -86,8 +86,31 @@ function equalRange(view, previous) {
   return true;
 }
 
-// Entries with the same protected length can share a digest and cache slot.
-// Each returned matcher can restrict its work to the remaining candidates.
+/** Prepare a reusable matcher for one kind of protected range: bootstrap,
+ * entry prefix, program code or constants. sizeKey and digestKey select the
+ * manifest fields to compare, such as codeBytes and codeSha256. Every range
+ * starts at byte zero. Entries with the same length share one hash calculation
+ * over the input prefix, even when their expected digests differ.
+ *
+ * This setup runs once when the classifier is created. The returned function
+ * accepts a byte window and an optional subset of candidate entries, then
+ * returns every candidate whose protected prefix matches. It skips ranges
+ * longer than the window and lengths that have no remaining candidates. The
+ * caller combines these matches with the loading-layout and other range checks
+ * to establish an identity; a match here is not sufficient on its own.
+ *
+ * With caching enabled, each length retains a private copy of the last checked
+ * prefix and the entries that matched its digest. Reusing that result requires
+ * comparing every protected byte, so callers can safely reuse or mutate their
+ * input buffers. Empty match lists are cached too, making repeated unknown
+ * inputs cheap. Storage is bounded by the distinct manifest lengths, not the
+ * number of tasks. Disabling caching hashes each eligible prefix on every call.
+ *
+ * Cached match lists cover ALL entries of that length, while returned results
+ * are filtered to the current candidates. This lets successive calls use
+ * different candidate subsets without losing matches excluded by an earlier
+ * call. Candidate entries must be the same objects supplied during setup.
+ */
 function compileRanges(entries, sizeKey, digestKey, hash, cache) {
   const sizes = [...new Set(entries.map(entry => entry[sizeKey]))];
   const ranges = sizes.map(size => ({
