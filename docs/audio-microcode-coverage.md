@@ -136,3 +136,60 @@ corpus contains 414,701 recognized tasks and 5,533 unknown tasks, with zero
 ambiguities or structural-family disagreements: 782 of 802 audio-observed ROM
 images are covered; 56 runs observed no audio. These are startup prefixes, not
 whole-game coverage or evidence of audio HLE support.
+
+## Validation results
+
+The completed run uses clean revision
+`5c6afd744b6d8c2c9cdd61b27259a50306f96052`, source SHA-256
+`45371e62c1b2b32295854961643a46c60c6412aff904420be6fa8ae4d296204f`,
+and manifest SHA-256
+`d674df1fdafc209125c364affa4546c21ade1d1abf2a2a388ba933e2e2620cbf`.
+Subsequent changes only record results and correct a source comment; the manifest
+objects and executable code are unchanged. Bun 1.3.14 and Chromium 145.0.7632.6
+ran on Apple M4, macOS arm64.
+
+The full version-2 audit preserves all 292,037 previously recognized tasks and
+adds 122,664. Coverage grows from 531 to 782 ROM images; the remaining 20
+audio-observed images remain unknown. Matching uses canonical ROM SHA-256,
+capture/report hashes and identical execution settings.
+
+Cached and uncached classification both agree with the independent native
+reference on **all 863,315 task occurrences** across 1,736 saved runs and
+386,731 captured images, including both full corpora and every pilot/extended
+capture. There are 831,151 recognized occurrences, 32,164 unknowns, no ambiguous
+matches and no disagreements. All 29 positive/negative examples match.
+
+Both Bun and Chromium reproduce all 6,492 sampled results. Each strategy rejects
+95,580 protected-byte mutations, recognizes each restored input and passes 21
+excluded-tail checks. Chromium's SHA-256 agrees with Web Crypto at all 4,097
+supported lengths. A separate instruction-stream check compares every recognized
+rspboot task's protected code with the subsequent DMA into actual IMEM:
+395,855 loads and 1,397,300,352 bytes agree. The other 18,846 recognized tasks
+start directly in IMEM and have no later instruction load. No recognized task
+is missing its expected main-code load.
+
+Eighteen fresh 600-VI ROM runs exercise one representative of every new identity,
+using each saved run's settings. All 8,377 tasks and 5,088 instruction loads match
+the saved ordered capture sequences, including frame/cycle timing and DMA
+metadata. Emulated outcomes and graphics inventories are unchanged. Live
+identity totals agree with offline classification, and the existing structural
+inventory agrees with replay. Identity queries, summaries and legacy
+missing-evidence checks pass for every fresh report.
+
+Median Chromium classification cost, microseconds per call:
+
+| Workload | Uncached | Full-byte cache |
+| --- | ---: | ---: |
+| 64-call ROM blocks | 77.43 | 3.33 |
+| Shuffled images | 79.82 | 8.92 |
+| Repeated Mario USA | 97.33 | 3.91 |
+| Repeated Tetrisphere USA | 97.34 | 4.00 |
+
+These are controlled classifier measurements, excluding snapshot creation,
+not whole-emulator performance. Seven timing rounds and their ranges are saved.
+All 1,496 repository tests, lint and build pass.
+
+Source, pinned runtime, review disassemblies, raw captures, full comparison
+reports and reproduction scripts are archived locally at
+`/Volumes/Data/n64js-inventory/diagnostics/2026-09-27-audio-microcode-coverage`.
+Only hashes, descriptive identities and review notes are committed.

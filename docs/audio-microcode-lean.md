@@ -89,9 +89,10 @@ The Bun native reference is a host-side comparison, not a browser alternative.
 
 Tests compare the browser hash with native SHA-256 for all 4,097 supported input
 lengths, including padding boundaries and unaligned views. Chromium repeats this
-against Web Crypto. Both engines also check every protected-byte mutation of
-the real Mario and US Tetrisphere examples (9,004 changes per strategy), restored
-identities and excluded-tail changes. Synthetic unit tests exercise invalid
+against Web Crypto. Both engines also change every protected byte of each reviewed
+program/bootstrap example, then check restored identities and excluded tails.
+The expanded manifest exercises 95,580 mutations per strategy, including actual
+IMEM for direct programs and the rounded final constants byte. Synthetic unit tests exercise invalid
 headers, short windows, ambiguous manifests and mutation of cached input buffers.
 
 ## Corpus results
