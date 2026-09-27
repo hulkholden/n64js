@@ -212,6 +212,23 @@ target. Dry/wet gains each use a rounded fractional multiply. Accumulation scale
 the old destination by 32767/32768 and adds the input product in the same
 accumulator before final saturation (`0x1d50–0x1de0`).
 
+## Profiling audio HLE
+
+`SPRegDevice.spUpdateStatus` synchronously dispatches both audio and graphics HLE.
+Its inclusive profile time therefore includes complete tasks; a hotspot there
+does not by itself mean status-register updates or RSP fallback are expensive.
+Separate task types and check whether the RSP was unhalted after audio dispatch.
+
+The resampler and envelope mixer avoid temporary arrays inside their sample
+loops, and buffer checks format error messages only on failure. The resampler
+still stages eight outputs before storing a vector, preserving overlapping
+input/output behavior and per-tap saturation. Envelope buffers are checked as
+disjoint, so individual lanes can be read directly without snapshots.
+
+Compare task time or CPU work as well as displayed FPS: browser frame pacing
+limits the emulator to the VI refresh rate, so reduced work can provide more
+headroom without increasing an already full-speed frame rate.
+
 ## Deliberate bounds and remaining work
 
 The current implementation accepts ordinary fresh USA tasks, bounded lists,
