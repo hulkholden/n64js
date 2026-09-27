@@ -117,6 +117,39 @@ individually: all 9,004 altered examples are rejected. Replacing their excluded
 tails leaves the identity unchanged. The local verification output retains
 capture report hashes and image IDs; game bytes are not committed.
 
+Both full saved corpora passed `--check`, including all twelve examples, with
+zero ambiguous tasks or structural-family disagreements:
+
+| Capture format | Runs | Tasks | Recognized | Unknown |
+| --- | ---: | ---: | ---: | ---: |
+| Version 1 | 858 | 420,223 | 292,026 | 128,197 |
+| Version 2 | 858 | 420,234 | 292,037 | 128,197 |
+
+In version 2, the standard identity covers 291,452 tasks across 530 ROMs;
+US Tetrisphere adds 585 tasks from one ROM. The remaining 271 ROMs have
+unreviewed code or bootstraps, and 56 runs contain no captured audio tasks.
+Per-ROM classifications and task counts agree between capture versions except
+for eleven additional standard-identity tasks from All-Star Baseball 2001,
+whose newer run reached the full capture budget.
+
+Twenty additional pilot, longer-duration and Start-input captures produced
+1,760 recognized and 21,098 unknown tasks, again with no ambiguities or family
+disagreements. Their six present review examples all matched; the other six
+examples are absent from this subset, so it was audited without `--check`.
+The Rare overlay candidates remain unknown.
+
+Reports and reproduction evidence are archived at
+`/Volumes/Data/n64js-inventory/diagnostics/2026-09-27-audio-reference-classifier`.
+The analyzer ran from clean revision
+`29f27f008c1bb4892d7b4c5c52dfa6360f15e4a8` with Bun 1.3.14, source SHA-256
+`88529f2dab96389914c524563a94c9f68740386dce0ef66358df1a819514b057`
+and manifest SHA-256
+`95aa41602aa7cd37b6a4fa2ffb30a2da0f5583c3793425a7ff8ef92c158a8bff`.
+Each full audit took approximately 28 seconds, including capture I/O and the
+structural diagnostic; this is not a classifier-only benchmark. All 1,484
+repository tests, lint and the build passed. These checks replay saved captures
+without executing ROMs again.
+
 ## Limits and the next classifier
 
 These are reviewed identities for normal ABI1 command use, not a proof that
