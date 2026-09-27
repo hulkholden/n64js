@@ -36,13 +36,15 @@ are not installed as new signatures: a cache miss still uses the manifest's
 original SHA-256 rules. Results and cached snapshots cannot be mutated through
 the objects returned to callers.
 
-The measured alternatives are:
+The retained alternatives are:
 
 - `uncached`: calculate every required digest on every call.
 - `cached`: compare the full protected range before reusing its digest match.
-- `cached-probe`: first compare one word in the middle of a cached range, then
-  perform the same complete comparison. This probe can reject a cache entry
-  sooner but can never authorize recognition on its own.
+
+An initial experiment also checked a middle word before comparing a cached
+range. It showed no consistent improvement in Chromium, so this probe is not
+part of the retained implementation. Its results and matching source revision
+are preserved in the local evidence archive.
 
 ## Reproduce validation and measurement
 
@@ -55,7 +57,7 @@ multiple inputs are accepted. The output directory must be new. The browser
 option uses the repository's pinned Playwright Chromium installation. No ROMs
 are executed and no capture files are modified.
 
-The command compares all three strategies with the native reference on **every
+The command compares both strategies with the native reference on **every
 task occurrence**, including repeated images and unknown programs. It validates
 complete published streams, including instruction records that are never
 classifier inputs. All twelve reviewed examples must be present and correct.

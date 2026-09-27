@@ -6,7 +6,6 @@ import { audioMicrocodeManifest } from '../hle/audio_microcode_manifest.js';
 export const leanStrategies = [
   { name: 'uncached', options: { cache: false } },
   { name: 'cached', options: {} },
-  { name: 'cached-probe', options: { probe: true } },
 ];
 export const leanFactories = () => leanStrategies.map(s => ({ name: s.name, create: () => createAudioMicrocodeClassifier(undefined, s.options) }));
 export const sameResult = (a, b) => JSON.stringify(a) === JSON.stringify(b);

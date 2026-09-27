@@ -9,18 +9,14 @@ const taskOffset = 0xfc0;
 // A cache hit requires equality of EVERY byte of the protected range. Neither
 // object identity, guest addresses nor a short signature establish a hit.
 // DataView permits unaligned subviews and avoids host-endianness assumptions.
-function equalRange(view, previous, probe) {
-  if (probe) {
-    const middle = (previous.byteLength >>> 3) << 2;
-    if (view.getUint32(middle) !== previous.getUint32(middle)) return false;
-  }
+function equalRange(view, previous) {
   for (let p = 0; p < previous.byteLength; p += 4) {
     if (view.getUint32(p) !== previous.getUint32(p)) return false;
   }
   return true;
 }
 
-function compileRanges(entries, sizeKey, digestKey, hash, cache, probe) {
+function compileRanges(entries, sizeKey, digestKey, hash, cache) {
   const ranges = [...new Set(entries.map(e => e[sizeKey]))].map(size => ({
     size, entries: entries.filter(e => e[sizeKey] === size), previous: null, matches: [],
   }));
@@ -28,7 +24,7 @@ function compileRanges(entries, sizeKey, digestKey, hash, cache, probe) {
     const matches = [], view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     for (const range of ranges) {
       if (bytes.length < range.size) continue;
-      if (!range.previous || !equalRange(view, range.previous, probe)) {
+      if (!range.previous || !equalRange(view, range.previous)) {
         const prefix = bytes.subarray(0, range.size), digest = hash(prefix);
         range.matches = range.entries.filter(e => e[digestKey] === digest);
         // Copy even unknown inputs, so repeated unreviewed code is cheap too.
@@ -43,10 +39,10 @@ function compileRanges(entries, sizeKey, digestKey, hash, cache, probe) {
 
 /** Browser-compatible task-start classifier. The manifest contains only the
  * reference's reviewed ranges and SHA-256 digests, never game instruction bytes.
- * cache/probe switches support offline measurement; neither relaxes validation.
+ * Disabling the cache supports offline measurement without relaxing validation.
  * Create one instance per emulator, retaining it across tasks, when integrated.
  */
-export function createAudioMicrocodeClassifier(manifest = audioMicrocodeManifest, { cache = true, probe = false } = {}) {
+export function createAudioMicrocodeClassifier(manifest = audioMicrocodeManifest, { cache = true } = {}) {
   const digest = x => typeof x === 'string' && /^[a-f0-9]{64}$/.test(x);
   const length = (x, limit) => Number.isInteger(x) && x > 0 && x <= limit && x % 4 === 0;
   const ids = entries => entries.every(e => typeof e?.id === 'string' && e.id.length) && new Set(entries.map(e => e.id)).size === entries.length;
@@ -59,9 +55,9 @@ export function createAudioMicrocodeClassifier(manifest = audioMicrocodeManifest
   }
   const boots = manifest.bootstraps.map(b => ({ ...b })), programs = manifest.programs.map(p => ({ ...p }));
   const hash = createMicrocodeHash();
-  const bootMatches = compileRanges(boots, 'bytes', 'sha256', hash, cache, probe);
-  const codeMatches = compileRanges(programs, 'codeBytes', 'codeSha256', hash, cache, probe);
-  const dataMatches = compileRanges(programs, 'dataBytes', 'dataSha256', hash, cache, probe);
+  const bootMatches = compileRanges(boots, 'bytes', 'sha256', hash, cache);
+  const codeMatches = compileRanges(programs, 'codeBytes', 'codeSha256', hash, cache);
+  const dataMatches = compileRanges(programs, 'dataBytes', 'dataSha256', hash, cache);
   return raw => {
     if (!raw || !['task', 'imem', 'code', 'data'].every(k => raw[k] instanceof Uint8Array) ||
         raw.task.length !== 64 || raw.imem.length !== 4096 || raw.code.length > 4096 || raw.data.length > 4096) return unknown('invalid-snapshot');

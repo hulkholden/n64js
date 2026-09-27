@@ -6,7 +6,7 @@ import { createAudioReferenceClassifier } from '../inventory/audio_reference.js'
 
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 const clone = raw => Object.fromEntries(Object.entries(raw).map(([key, bytes]) => [key, bytes.slice()]));
-const variants = [{ cache: false }, {}, { probe: true }];
+const variants = [{ cache: false }, {}];
 
 // Synthetic programs with two overlapping code lengths and one constants table.
 function fixture() {
