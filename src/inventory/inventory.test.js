@@ -486,7 +486,7 @@ describe('inventory command', () => {
       expect(report.collectors['audio.taskMicrocodes']).toMatchObject({
         version: 2, scope: 'task-start', tasks: 2,
         microcodes: [{ family: 'Unknown', detection: 'unknown', reason: 'no-command-dispatcher', loader: 'direct', tasks: 2,
-          classifications: [{ status: 'unknown', identity: null, family: 'Unknown', reason: 'unreviewed-bootstrap', tasks: 2 }] }],
+          classifications: [{ status: 'unknown', identity: null, family: 'Unknown', reason: 'unreviewed-code', tasks: 2 }] }],
       });
       expect(report.collectors['audio.taskMicrocodes'].microcodes[0].fingerprint).toMatch(/^[a-f0-9]{64}$/);
       expect(report.collectors['graphics.taskMicrocodes'].tasks).toBe(0);

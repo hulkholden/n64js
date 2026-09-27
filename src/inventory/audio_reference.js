@@ -8,9 +8,9 @@ const codeLoadBytes = 0xf80;
 const taskOffset = 0xfc0;
 
 /** Compile an explicitly reviewed manifest. The factory also permits synthetic
- * manifests in tests, without committing captured game bytes. Every bootstrap
- * listed here must implement the same layout: task data -> DMEM 0, then 0xf80
- * code bytes -> IMEM 0x1080. New loading layouts need a separate review.
+ * manifests in tests, without committing captured game bytes. rspboot copies
+ * task data to DMEM 0, then 0xf80 code bytes to IMEM 0x1080. Reviewed direct
+ * programs start in IMEM and load their own data with an encoded DMA length.
  */
 export function createAudioReferenceClassifier(manifest) {
   const digest = value => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
@@ -20,8 +20,11 @@ export function createAudioReferenceClassifier(manifest) {
       !Array.isArray(manifest.programs) || !manifest.programs.length ||
       !uniqueIDs(manifest.bootstraps) || !uniqueIDs(manifest.programs) ||
       !manifest.bootstraps.every(b => length(b.bytes, 4096) && digest(b.sha256)) ||
-      !manifest.programs.every(p => p.family === 'ABI1' && length(p.codeBytes, codeLoadBytes) &&
-        length(p.dataBytes, taskOffset) && digest(p.codeSha256) && digest(p.dataSha256))) {
+      !manifest.programs.every(p => ['ABI1', 'NAUDIO', 'NEAD', 'Unknown'].includes(p.family) &&
+        (p.loader === undefined || p.loader === 'rspboot' || p.loader === 'direct') &&
+        length(p.codeBytes, p.loader === 'direct' ? 0x1000 : codeLoadBytes) &&
+        length(p.dataBytes, taskOffset) && digest(p.codeSha256) && digest(p.dataSha256) &&
+        (p.entrySha256 === undefined || (p.codeBytes >= 0x80 && digest(p.entrySha256))))) {
     throw new Error('Invalid audio reference manifest');
   }
   const bootstraps = manifest.bootstraps.map(b => ({ ...b }));
@@ -39,25 +42,35 @@ export function createAudioReferenceClassifier(manifest) {
     const codeAddress = task.getUint32(0x10) & 0x1fffffff;
     const dataAddress = task.getUint32(0x18) & 0x1fffffff;
     const dataSize = task.getUint32(0x1c);
+    const direct = task.getUint32(0x0c) === 0x1000 && (task.getUint32(0x08) & 0x1fffffff) === codeAddress;
     // These bootstraps ignore ucode_size. They round the data DMA up to eight
     // bytes. Reject truncation, alignment changes and a data DMA that overwrites
     // the OSTask header before the subsequent code-pointer load.
-    const loadedDataBytes = Math.ceil(dataSize / 8) * 8;
+    // Direct entry does not subtract one from the size before writing RD_LEN.
+    const loadedDataBytes = Math.ceil((dataSize + (direct ? 1 : 0)) / 8) * 8;
     if (!codeAddress || !dataAddress || (codeAddress & 7) || (dataAddress & 7) ||
-        raw.code.length < codeLoadBytes || !dataSize || loadedDataBytes > taskOffset || raw.data.length < loadedDataBytes) {
+        (!direct && raw.code.length < codeLoadBytes) || !loadedDataBytes || loadedDataBytes > taskOffset || raw.data.length < loadedDataBytes) {
       return unknown('unsupported-task-layout');
     }
-    const bootHashes = new Map();
-    const boots = bootstraps.filter(b => {
-      if (!bootHashes.has(b.bytes)) bootHashes.set(b.bytes, hash(raw.imem.subarray(0, b.bytes)));
-      return bootHashes.get(b.bytes) === b.sha256;
-    });
-    if (!boots.length) return unknown('unreviewed-bootstrap');
-    if (boots.length > 1) return ambiguous('ambiguous-bootstrap', boots.map(b => b.id));
+    let bootstrap = 'direct-imem';
+    if (!direct) {
+      const bootHashes = new Map();
+      const boots = bootstraps.filter(b => {
+        if (!bootHashes.has(b.bytes)) bootHashes.set(b.bytes, hash(raw.imem.subarray(0, b.bytes)));
+        return bootHashes.get(b.bytes) === b.sha256;
+      });
+      if (!boots.length) return unknown('unreviewed-bootstrap');
+      if (boots.length > 1) return ambiguous('ambiguous-bootstrap', boots.map(b => b.id));
+      bootstrap = boots[0].id;
+    }
 
     const codeHashes = new Map(), dataHashes = new Map();
+    const codeBytes = direct ? raw.imem : raw.code;
+    // Deliberately ignore the browser's entry-hash shortcut. Full native hashes
+    // independently verify both the shortcut and its manifest metadata.
     const codeMatches = programs.filter(p => {
-      if (!codeHashes.has(p.codeBytes)) codeHashes.set(p.codeBytes, hash(raw.code.subarray(0, p.codeBytes)));
+      if ((p.loader === 'direct') !== direct) return false;
+      if (!codeHashes.has(p.codeBytes)) codeHashes.set(p.codeBytes, hash(codeBytes.subarray(0, p.codeBytes)));
       return codeHashes.get(p.codeBytes) === p.codeSha256;
     });
     if (!codeMatches.length) return unknown('unreviewed-code');
@@ -68,7 +81,7 @@ export function createAudioReferenceClassifier(manifest) {
     });
     if (!matches.length) return unknown('unreviewed-constants');
     if (matches.length > 1) return ambiguous('ambiguous-identity', matches.map(p => p.id));
-    return { status: 'known', identity: matches[0].id, family: matches[0].family, bootstrap: boots[0].id };
+    return { status: 'known', identity: matches[0].id, family: matches[0].family, bootstrap };
   };
 }
 

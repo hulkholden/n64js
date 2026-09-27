@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { AudioMicrocodeCapture } from './audio_microcode_capture.js';
 import { benchmarkLeanSamples } from './audio_lean_measure.js';
+import { audioReferenceExamples } from './audio_reference_examples.js';
 
 test('benchmark consumes results and excludes construction from timing', () => {
   let constructions = 0, calls = 0;
@@ -39,7 +40,7 @@ test('audit CLI checks full streams, reports missing cases and protects existing
     const output = join(root, 'result');
     expect((await invoke(output)).code).toBe(1);
     const saved = await readFile(join(output, 'audit.json'), 'utf8'), audit = JSON.parse(saved);
-    expect(audit.summary).toMatchObject({ runs: 1, tasks: 2, images: 1, unknown: 2, mismatches: 0, missingExamples: 12 });
+    expect(audit.summary).toMatchObject({ runs: 1, tasks: 2, images: 1, unknown: 2, mismatches: 0, missingExamples: audioReferenceExamples.length });
     expect(audit.analyzer.sourceSha256).toMatch(/^[a-f0-9]{64}$/);
     expect((await invoke(output)).code).toBe(2);
     expect(await readFile(join(output, 'audit.json'), 'utf8')).toBe(saved);
