@@ -50,12 +50,19 @@ are preserved in the local evidence archive.
 
 ```sh
 bun run audio-microcode-lean /path/to/corpus --output build/new-lean-audit --browser
+# Repeat the browser phase without rereading captures or repeating the Bun benchmark.
+bun run audio-microcode-lean --browser-samples build/new-lean-audit/samples.json \
+  --output build/new-browser-measurement
 ```
 
 Inputs may be version-1 or version-2 corpora or individual capture directories;
 multiple inputs are accepted. The output directory must be new. The browser
 option uses the repository's pinned Playwright Chromium installation. No ROMs
 are executed and no capture files are modified.
+
+The browser loads large sample sets through a loopback HTTP endpoint, outside
+the automation protocol. `--browser-samples` reuses the saved inputs and expected
+results; it does not replace the full-stream audit.
 
 The command compares both strategies with the native reference on **every
 task occurrence**, including repeated images and unknown programs. It validates
@@ -83,6 +90,53 @@ against Web Crypto. Both engines also check every protected-byte mutation of
 the real Mario and US Tetrisphere examples (9,004 changes per strategy), restored
 identities and excluded-tail changes. Synthetic unit tests exercise invalid
 headers, short windows, ambiguous manifests and mutation of cached input buffers.
+
+## Corpus results
+
+The final comparison used clean revision
+`ca52ce2c09009821c1795c9e73bab266e8f92e16`, source SHA-256
+`9a84b880f4d22f5ca8e290a1559933ccb76b32e1dfc08046e56c7245b516fdb5`,
+with Bun 1.3.14 on an Apple M4 (macOS arm64). The reviewed manifest hash remains
+`95aa41602aa7cd37b6a4fa2ffb30a2da0f5583c3793425a7ff8ef92c158a8bff`.
+
+| Saved captures | Runs | Tasks | Recognized | Unknown | Disagreements |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Version 2 full corpus | 858 | 420,234 | 292,037 | 128,197 | 0 |
+| Version 1 full corpus | 858 | 420,223 | 292,026 | 128,197 | 0 |
+| Pilot and extended captures | 20 | 22,858 | 1,760 | 21,098 | 0 |
+
+Both strategies agree with the reference across all 863,315 task occurrences
+and 386,731 captured images. All twelve reviewed cases match, with no ambiguities.
+This preserves the reference's limited coverage; it does not turn unreviewed
+programs into recognized ones. All 1,491 repository tests, lint and build pass.
+
+Chromium 145.0.7632.6 reproduced all 6,492 sampled results and both strategies
+passed 9,004 protected-byte mutations, restored identities and two excluded-tail
+checks each. Its SHA-256 output matched Web Crypto for all 4,097 input lengths.
+
+Median classification cost in Chromium, in microseconds per call:
+
+| Workload | Uncached | Full-byte cache |
+| --- | ---: | ---: |
+| 64-call ROM blocks | 60.83 | 4.03 |
+| Shuffled images | 64.20 | 32.38 |
+| Repeated Mario USA | 67.31 | 2.71 |
+| Repeated Tetrisphere USA | 67.53 | 2.71 |
+
+For repeated US Tetrisphere, cached measurements ranged from 2.697 to 2.713 µs.
+The corresponding Bun median was 1.994 µs. Shuffling demonstrates the cost of
+cache misses: caching does not make cold hashes free. These are classification
+costs, not emulator speedups, and exclude creating the task snapshot.
+
+The browser phase used harness revision
+`33a2e04fbb0b17c778408065ada5fadb178d7f6a`, source SHA-256
+`b84a8e6facf2ee2b29ac06d86ced47ad2ea34d01ce6d68d1fb5dfe939c65f835`.
+Only sample transport changed after the corpus/Bun run. The classifier and
+measurement sources, browser bundle and saved sample hash are identical across
+those revisions. Reports retain both pins and all seven timing rounds.
+
+Source, runtime, full reports and reproduction instructions are archived at
+`/Volumes/Data/n64js-inventory/diagnostics/2026-09-27-audio-lean-classifier`.
 
 ## Integration boundary
 
