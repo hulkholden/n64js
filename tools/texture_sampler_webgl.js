@@ -209,6 +209,31 @@ try {
   const alphaPixels = alphaValues.map(alpha => [255, 0, 0, alpha]);
   const alphaTexture = texture(alphaValues.length, 1, alphaPixels);
   const coverageKill = gbi.RenderMode.AA_EN | gbi.RenderMode.CVG_X_ALPHA;
+
+  // Coverage-only opaque surfaces (including Tetrisphere's 0x0011) must
+  // ignore combiner alpha for blending. HLE assumes full pixel coverage.
+  renderer.logUnhandledBlendMode = mode => { throw new Error(`Unhandled blend mode: 0x${mode.toString(16)}`); };
+  for (const cycle of [gbi.CycleType.G_CYC_1CYCLE, gbi.CycleType.G_CYC_2CYCLE]) {
+    for (const mode of [0x0010, 0x0011]) {
+      const blender = (cycle === gbi.CycleType.G_CYC_1CYCLE ? mode << 2 : mode) << gbi.G_MDSFT_BLENDER;
+      const checkBlend = (name, flags, alpha, expected) => check(`${gbi.CycleType.nameOf(cycle)} 0x${mode.toString(16)}: ${name}`, expected, {
+        cycle, rspTriangle: true, tex: alphaTexture, tex1: alphaTexture,
+        uv: [alphaValues.indexOf(alpha), 0], clearColor: background,
+        otherModeL: blender | gbi.RenderMode.AA_EN | flags,
+      });
+      // Check transitions from alpha blending to coverage-only rendering and
+      // back, so stale WebGL blend state cannot hide incorrect mode selection.
+      const translucent = [140, 24, 36, 191]; // SRC_ALPHA=128/255 over background.
+      checkBlend('combiner alpha blends', 0, 128, translucent);
+      checkBlend('coverage ignores zero alpha', gbi.RenderMode.ALPHA_CVG_SEL, 0, [255, 0, 0, 0]);
+      checkBlend('coverage ignores partial alpha', gbi.RenderMode.ALPHA_CVG_SEL, 128, [255, 0, 0, 128]);
+      checkBlend('coverage times alpha blends', gbi.RenderMode.ALPHA_CVG_SEL | gbi.RenderMode.CVG_X_ALPHA, 128, translucent);
+      checkBlend('zero coverage times alpha is discarded', gbi.RenderMode.ALPHA_CVG_SEL | gbi.RenderMode.CVG_X_ALPHA, 0, background);
+      checkBlend('coverage multiplication without selection retains alpha blending', gbi.RenderMode.CVG_X_ALPHA, 128, translucent);
+    }
+  }
+  delete renderer.logUnhandledBlendMode;
+
   for (const cycle of [gbi.CycleType.G_CYC_1CYCLE, gbi.CycleType.G_CYC_2CYCLE]) {
     function checkAlpha(name, alpha, threshold, writes, otherModeL = gbi.AlphaCompare.G_AC_THRESHOLD) {
       const index = alphaValues.indexOf(alpha);
