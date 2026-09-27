@@ -1,0 +1,138 @@
+# Offline audio reference identities
+
+The reference classifier establishes two reviewed ABI1 identities before
+attempting to minimize a fingerprint. It hashes complete reviewed ranges of
+task-start bytes. It does not use the structural detector's fingerprints,
+game names, ROM hashes or instruction-DMA observations to classify a task.
+There is no runtime dispatch or audio HLE change.
+
+```sh
+bun run audio-microcode-reference /path/to/corpus --output build/reference.json
+bun run audio-microcode-reference /path/to/full/corpus --check \
+  --output build/reference-checked.json
+```
+
+The command reads version-1 and version-2 captures, validates each entire
+published prefix, and creates outputs exclusively. Reports contain analyzer and
+manifest hashes, source provenance, coverage, ambiguous results, representative
+task/image references and a cross-tab with the structural detector. Family
+agreement is a diagnostic, not independent proof of a program identity.
+
+`--check` requires all twelve reviewed examples to be present and match their
+expected identities, with no ambiguities or family disagreements. It therefore
+fails for a subset missing examples. Unknown tasks are expected and do not
+themselves fail the check. The examples are matched by canonical ROM/image hashes
+only **after** classification; these hashes never enter the classifier.
+
+## Reviewed ranges
+
+Offsets below are relative to the raw code or data window. End offsets are
+exclusive. The manifest stores SHA-256 digests, not captured instruction bytes.
+Identity names describe these observations; they are not SDK release names.
+
+| Identity | Code range | Data range | Reviewed distinction |
+| --- | --- | --- | --- |
+| `abi1-standard-mixer` | `[0, 0xe20)` | `[0, 0x2c0)` | Shared by Mario USA and European Tetrisphere, among others |
+| `abi1-tetrisphere-us-mixer` | `[0, 0xdf0)` | `[0, 0x2c0)` | US Tetrisphere's distinct mixer loop |
+
+The [original audit](audio-microcode-audit-20260926.md) establishes the mixer
+distinction. Both programs load at IMEM `0x1080`. The standard program's last
+reviewed instruction is the delay slot at `0x1e98`, followed by one padding
+word. US Tetrisphere ends at its delay slot at `0x1e6c`; the adjacent bytes form
+a different table rather than more of this program. The reference includes
+every byte before those boundaries, including gaps and padding, rather than
+just the words reached by the existing structural traversal.
+
+Within these ranges, the indirect branches are the dispatcher at `0x110c`,
+the command-fetch return at `0x117c` (its destination is saved from the link
+register), and DMA subroutine returns at `0x11a8`/`0x11d4`. The valid ABI1
+dispatcher entries reside at data `[0x10, 0x30)` and point into the reviewed
+program. The complete `[0, 0x2c0)` data prefix includes this table, vector
+constants and the resampling coefficient table starting at `0xc0`. The
+resampler sets that table base at `0x191c`; the reference retains the complete
+table, not merely the handler addresses. This is also the complete initialized
+data image in the corpus's tasks declaring a `0x2c0`-byte data DMA.
+
+The two programs have the **same data-prefix hash**. A dispatch-table-only
+signature would conflate them. Their full reviewed code hashes differ. Other
+ABI1 programs, including GoldenEye and Diddy Kong Racing, deliberately remain
+unknown in this initial manifest; the family label alone is insufficient.
+
+## Establishing the loading layout
+
+The reference rechecks the actual bootstrap in task-start IMEM. It does not
+trust the saved `loader`, `loadAddress`, interpreted code/data or declared code
+size. Two exact bootstrap programs have been reviewed:
+
+| Bootstrap | IMEM range | Final jump and delay slot |
+| --- | --- | --- |
+| `rspboot-204` | `[0x1000, 0x10cc)` | `0x10c4` / `0x10c8` |
+| `rspboot-208` | `[0x1000, 0x10d0)` | `0x10c8` / `0x10cc` |
+
+The 204-byte program occurs in both 208-byte and 256-byte CPU loads. Its bytes
+after `0x10cc` are padding or adjacent data; treating the declared load size as
+the executable size would manufacture a third loader identity. Every loader
+instruction, including its complete initial data-loading path and status
+checks, is protected by the hash.
+
+Both programs load task data to DMEM zero, then copy exactly `0xf80` code bytes
+to IMEM `0x1080`, wait and jump to that address. The data transfer rounds up to
+eight bytes. The classifier requires aligned non-null code/data pointers,
+complete captured source windows, enough loaded data for the constants, and a
+data transfer ending no later than DMEM `0xfc0`. A longer transfer could overwrite
+the task header before the bootstrap reads its code pointer. The declared code
+size is intentionally ignored because these instructions never read it.
+
+Only the reviewed program/data prefixes determine identity. Source addresses,
+command-list pointers and lengths, previous IMEM after the bootstrap and copied
+tails do not. The [instruction audit](audio-instruction-audit-20260926.md)
+demonstrates why copying a region does not make all its bytes immutable code.
+The new classification API accepts only `image.raw`, so future post-execution
+evidence cannot accidentally become an input.
+
+## Evidence and validation
+
+Review uses the frozen corpus at
+`/Volumes/Data/n64js-inventory/diagnostics/2026-09-26-audio-instruction-corpus`,
+captured with `fc8d0d810d18c6244fe63b173e417b900bd6f620`. Task 1 of the following
+runs anchors the positive identities and bootstrap review:
+
+| Example | Canonical ROM SHA-256 prefix | Capture run |
+| --- | --- | --- |
+| Mario USA | `17ce077343c6` | `a4f48e53-58f8-45ab-8c7d-796b40e44130` |
+| Tetrisphere Europe | `1bb4ed1ef078` | `35faeff9-c657-4633-a001-1cc3b8804269` |
+| Tetrisphere USA | `f7cbc93ac273` | `1634d96c-8e10-42f9-b3d3-47c2b2235610` |
+| 204-byte bootstrap, padded to 208 | `f6a18d9691ae` | `00b75e1d-fc9e-4a0e-ae3d-0b92908aa6f7` |
+| 208-byte bootstrap | `230372b76ca9` | `032104d7-d125-43c3-8926-5df35a3e82d0` |
+| 204-byte bootstrap in a 256-byte load | `95bea6307555` | `11ebe0e5-8bff-4ebb-8170-512e5e45a744` |
+
+`audio_reference_examples.js` also freezes deliberately unknown examples for
+GoldenEye, Diddy Kong Racing, Jet Force Gemini, Indiana Jones, Perfect Dark and
+Banjo-Tooie. These expectations identify review scope; an unknown result is not
+a claim that a ROM lacks audio or that its ABI family is unknown.
+
+Repository tests use synthetic programs and manifests. Local mutation checks
+also change each byte of the real Mario and US Tetrisphere protected ranges
+individually: all 9,004 altered examples are rejected. Replacing their excluded
+tails leaves the identity unchanged. The local verification output retains
+capture report hashes and image IDs; game bytes are not committed.
+
+## Limits and the next classifier
+
+These are reviewed identities for normal ABI1 command use, not a proof that
+arbitrary malformed commands cannot redirect execution or overwrite memory.
+Command streams, samples and per-task state are inputs, not part of program
+identity. Recognition does not certify every input, entry state or an HLE
+implementation's equivalence. Unknown/ambiguous results must remain distinct
+from recognized identities, with LLE retained when runtime support is added.
+
+The unresolved Rare overlays stay unknown. Positive identities are not inferred
+from the absence of later IMEM loads during a startup run. Expanding coverage
+requires another explicit code/constants/loader review and new independent
+examples, not importing more provisional fingerprints as labels.
+
+A lean classifier can now be measured against this reference over saved raw
+images. Matching the corpus is one criterion; rejecting the protected-byte
+mutations and preserving unknown cases are others. A tiny signature that selects
+the right captured example but accepts a changed mixer or coefficient table is
+not a replacement for the reference's identity check.
