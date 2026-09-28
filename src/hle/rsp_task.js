@@ -6,15 +6,9 @@ import { audioOptions } from './audio_options.js';
 import { graphicsOptions } from './graphics_options.js';
 import { dispatchAudioTask } from './hle_audio.js';
 import { dispatchGraphicsTask } from './hle_graphics.js';
-import { TASK_ADDRESS_MASK, TaskOffsets } from './rsp_task_constants.js';
+import { TASK_OFFSET, TASK_SIZE, TASK_ADDRESS_MASK, TaskOffsets } from './rsp_task_constants.js';
 
 export { TaskOffsets };
-
-// Task offset in dmem.
-const kTaskOffset = 0x0fc0;
-
-// Task length in dmem.
-const kTaskLength = 0x40;
 
 const M_GFXTASK = 1;
 const M_AUDTASK = 2;
@@ -119,12 +113,12 @@ class RSPTask {
 // HLE task. A continuation returns itself while waiting and null on completion.
 export function hleProcessRSPTask() {
   const hardware = n64js.hardware();
-  const taskType = hardware.sp_mem.getU32(kTaskOffset);
+  const taskType = hardware.sp_mem.getU32(TASK_OFFSET);
 
   switch (taskType) {
     case M_GFXTASK: {
       const ramU8 = hardware.cachedMemDevice.u8;
-      const taskMem = hardware.sp_mem.subRegion(kTaskOffset, kTaskLength);
+      const taskMem = hardware.sp_mem.subRegion(TASK_OFFSET, TASK_SIZE);
       const task = new RSPTask(ramU8, taskMem);
       return dispatchGraphicsTask(hardware, graphicsOptions.emulationMode, task);
     }

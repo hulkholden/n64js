@@ -5,7 +5,9 @@ import {
 import { TetrisphereAudio } from './audio_tetrisphere.js';
 import { GoldenEyeAudio } from './audio_goldeneye.js';
 import { DiddyBlastAudio } from './audio_diddy_blast.js';
-import { TASK_ADDRESS_MASK, TaskOffsets } from './rsp_task_constants.js';
+import {
+  SP_DMEM_SIZE, SP_IMEM_OFFSET, TASK_OFFSET, TASK_SIZE, TASK_ADDRESS_MASK, TaskOffsets,
+} from './rsp_task_constants.js';
 import { SP_SEMAPHORE_REG } from '../devices/sp_reg.js';
 import * as logger from '../logger.js';
 import { toHex } from '../format.js';
@@ -38,10 +40,10 @@ function getAudioState(hardware, readMemory = true) {
   const sp = hardware.sp_mem.u8, ram = hardware.ram.u8;
   if (state.sp !== sp) {
     state.sp = sp;
-    state.dmem = sp.subarray(0, 0x1000);
-    state.raw.task = sp.subarray(0xfc0, 0x1000);
-    state.task = new DataView(sp.buffer, sp.byteOffset + 0xfc0, 0x40);
-    state.raw.imem = sp.subarray(0x1000);
+    state.dmem = sp.subarray(0, SP_DMEM_SIZE);
+    state.raw.task = sp.subarray(TASK_OFFSET, TASK_OFFSET + TASK_SIZE);
+    state.task = new DataView(sp.buffer, sp.byteOffset + TASK_OFFSET, TASK_SIZE);
+    state.raw.imem = sp.subarray(SP_IMEM_OFFSET);
   }
 
   // Code and constants can move independently between tasks.
@@ -64,7 +66,7 @@ function getAudioState(hardware, readMemory = true) {
 // Offline capture callers retain owned copies. Runtime dispatch uses the live
 // views above synchronously, before any HLE stores can alter task memory.
 export function captureAudioTask(hardware) {
-  const task = hardware.sp_mem.u8.slice(0xfc0, 0x1000);
+  const task = hardware.sp_mem.u8.slice(TASK_OFFSET, TASK_OFFSET + TASK_SIZE);
   const view = new DataView(task.buffer);
 
   // Loaders may transfer more bytes than the task's declared microcode sizes.
@@ -76,7 +78,7 @@ export function captureAudioTask(hardware) {
 
   return {
     task,
-    imem: hardware.sp_mem.u8.slice(0x1000),
+    imem: hardware.sp_mem.u8.slice(SP_IMEM_OFFSET),
     code: window(TaskOffsets.ucodePtr),
     data: window(TaskOffsets.ucodeDataPtr),
   };
