@@ -5,6 +5,7 @@ import {
 import { TetrisphereAudio } from './audio_tetrisphere.js';
 import { GoldenEyeAudio } from './audio_goldeneye.js';
 import { DiddyBlastAudio } from './audio_diddy_blast.js';
+import { TASK_ADDRESS_MASK, TaskOffsets } from './rsp_task_constants.js';
 import { SP_SEMAPHORE_REG } from '../devices/sp_reg.js';
 import * as logger from '../logger.js';
 import { toHex } from '../format.js';
@@ -44,8 +45,8 @@ function getAudioState(hardware, readMemory = true) {
   }
 
   // Code and constants can move independently between tasks.
-  const codeAddress = state.task.getUint32(0x10) & 0x1fffffff;
-  const dataAddress = state.task.getUint32(0x18) & 0x1fffffff;
+  const codeAddress = state.task.getUint32(TaskOffsets.ucodePtr) & TASK_ADDRESS_MASK;
+  const dataAddress = state.task.getUint32(TaskOffsets.ucodeDataPtr) & TASK_ADDRESS_MASK;
   if (state.ram !== ram || state.codeAddress !== codeAddress) {
     state.raw.code = ram.subarray(codeAddress, codeAddress + 4096);
     state.codeAddress = codeAddress;
@@ -69,11 +70,16 @@ export function captureAudioTask(hardware) {
   // Loaders may transfer more bytes than the task's declared microcode sizes.
   const ram = hardware.ram.u8;
   const window = offset => {
-    const address = view.getUint32(offset) & 0x1fffffff;
+    const address = view.getUint32(offset) & TASK_ADDRESS_MASK;
     return ram.slice(address, address + 4096);
   };
 
-  return { task, imem: hardware.sp_mem.u8.slice(0x1000), code: window(0x10), data: window(0x18) };
+  return {
+    task,
+    imem: hardware.sp_mem.u8.slice(0x1000),
+    code: window(TaskOffsets.ucodePtr),
+    data: window(TaskOffsets.ucodeDataPtr),
+  };
 }
 
 export function classifyAudioTask(hardware, raw) {
@@ -91,7 +97,7 @@ function logAudioTask(state, identity, requestedMode, handled) {
   let key = identity.identity;
   if (key === null) {
     // Diagnostic hash only; HLE selection always uses the reviewed identity.
-    let hash = 0, size = state.task.getUint32(0x14);
+    let hash = 0, size = state.task.getUint32(TaskOffsets.ucodeSize);
     if (!size || size > 4096) size = 4096;
 
     for (let i = 0; i < size; i++) hash = (hash * 17 + state.raw.code[i]) >>> 0;
@@ -165,7 +171,7 @@ function executeAudioTask(hardware, state, identity) {
   const task = state.task;
   // Only fresh rspboot tasks have been derived. Yield/resume and manually
   // selected RSP entry points must execute their actual instructions.
-  const flags = task.getUint32(4);
+  const flags = task.getUint32(TaskOffsets.flags);
   if (hardware.rsp.pc !== 0 || (flags & ~OS_TASK_DP_WAIT)) return false;
 
   if (flags & OS_TASK_DP_WAIT) {
@@ -176,8 +182,8 @@ function executeAudioTask(hardware, state, identity) {
   }
 
   // Validate the command list before modifying any emulated memory.
-  const pointer = task.getUint32(0x30) & 0x1fffffff;
-  const size = task.getUint32(0x34);
+  const pointer = task.getUint32(TaskOffsets.dataPtr) & TASK_ADDRESS_MASK;
+  const size = task.getUint32(TaskOffsets.dataSize);
   if (!size || size % 8 || size > 0x10000 || pointer % 8 || pointer + size > hardware.ram.u8.length) return false;
 
   // Retain each variant's handler and scratch buffers between tasks.
@@ -191,7 +197,7 @@ function executeAudioTask(hardware, state, identity) {
 
   try {
     // Reproduce the task loader's DMEM initialization.
-    audio.dma(0, task.getUint32(0x18) & 0x1fffffff, task.getUint32(0x1c));
+    audio.dma(0, task.getUint32(TaskOffsets.ucodeDataPtr) & TASK_ADDRESS_MASK, task.getUint32(TaskOffsets.ucodeDataSize));
 
     // 0x10c0–0x10d0 repeatedly stores at the SAME address, clearing segment 0.
     audio.view.setUint32(DMEM_SEGMENT_TABLE, 0);

@@ -1,37 +1,20 @@
 /*global n64js*/
 
 import { disassembleRemappedRange, dumpDMEM } from "../rsp/disassemble_rsp.js";
-import { makeEnum } from "../enum.js";
 import { toHex } from "../format.js";
 import { audioOptions } from './audio_options.js';
 import { graphicsOptions } from './graphics_options.js';
 import { dispatchAudioTask } from './hle_audio.js';
 import { dispatchGraphicsTask } from './hle_graphics.js';
+import { TASK_ADDRESS_MASK, TaskOffsets } from './rsp_task_constants.js';
+
+export { TaskOffsets };
 
 // Task offset in dmem.
 const kTaskOffset = 0x0fc0;
 
 // Task length in dmem.
 const kTaskLength = 0x40;
-
-export const TaskOffsets = makeEnum({
-  type: 0x00,
-  flags: 0x04,
-  ucodeBootPtr: 0x08,
-  ucodeBootSize: 0x0c,
-  ucodePtr: 0x10,
-  ucodeSize: 0x14,
-  ucodeDataPtr: 0x18,
-  ucodeDataSize: 0x1c,
-  dramStackPtr: 0x20,
-  dramStackSize: 0x24,
-  outputBuffPtr: 0x28,
-  outputBuffSize: 0x2c,
-  dataPtr: 0x30,
-  dataSize: 0x34,
-  yieldDataPtr: 0x38,
-  yieldDataSize: 0x3c,
-})
 
 const M_GFXTASK = 1;
 const M_AUDTASK = 2;
@@ -47,10 +30,10 @@ class RSPTask {
   constructor(ram_u8, taskMem) {
     this.ram_u8 = ram_u8;
 
-    this.codeAddr = taskMem.getU32(TaskOffsets.ucodePtr) & 0x1fffffff;
+    this.codeAddr = taskMem.getU32(TaskOffsets.ucodePtr) & TASK_ADDRESS_MASK;
     this.codeSize = this.clampCodeSize(taskMem.getU32(TaskOffsets.ucodeSize));
 
-    this.codeDataAddr = taskMem.getU32(TaskOffsets.ucodeDataPtr) & 0x1fffffff;
+    this.codeDataAddr = taskMem.getU32(TaskOffsets.ucodeDataPtr) & TASK_ADDRESS_MASK;
     this.codeDataSize = taskMem.getU32(TaskOffsets.ucodeDataSize);
 
     this.dataPtr = taskMem.getU32(TaskOffsets.dataPtr);
@@ -74,9 +57,9 @@ class RSPTask {
   }
 
   loadUcode(codeAddr, codeSize, codeDataAddr, codeDataSize) {
-    this.codeAddr = codeAddr & 0x1fffffff;
+    this.codeAddr = codeAddr & TASK_ADDRESS_MASK;
     this.codeSize = this.clampCodeSize(codeSize);
-    this.codeDataAddr = codeDataAddr & 0x1fffffff;
+    this.codeDataAddr = codeDataAddr & TASK_ADDRESS_MASK;
     this.codeDataSize = codeDataSize;
   }
 
