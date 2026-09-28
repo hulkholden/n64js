@@ -11,6 +11,7 @@ import { CycleType, ImageFormat, ImageSize } from '../hle/gbi.js';
 const cli = fileURLToPath(new URL('./inventory.js', import.meta.url));
 const batchCLI = fileURLToPath(new URL('./inventory_batch.js', import.meta.url));
 const queryCLI = fileURLToPath(new URL('./inventory_query.js', import.meta.url));
+const audioReplayCLI = fileURLToPath(new URL('./audio_microcode_replay_cli.js', import.meta.url));
 
 async function invoke(directory, args, command = cli) {
   const child = Bun.spawn([process.execPath, command, ...args], { cwd: directory, stdout: 'pipe', stderr: 'pipe' });
@@ -31,7 +32,7 @@ async function withDirectory(fn) {
 
 // A synthetic bootstrap starts real RSP tasks, then spins with optional VI
 // interrupts. No copyrighted ROM or emulator mocks are needed by the CLI tests.
-function makeROM({ vi = false, graphics = 'end', audio = false, rewriteCount = false, waitForInput = false } = {}) {
+function makeROM({ vi = false, graphics = 'end', audio = false, instructionDMA = false, rewriteCount = false, waitForInput = false } = {}) {
   const bytes = new Uint8Array(0x1000);
   const view = new DataView(bytes.buffer);
   view.setUint32(0, 0x80371240);
@@ -104,7 +105,8 @@ function makeROM({ vi = false, graphics = 'end', audio = false, rewriteCount = f
     view.setUint32(0xfd4, 0x1000);
     view.setUint32(0xfdc, 0x40);
     code.push(0x3c08a400); // SP memory: a minimal direct-loaded audio program.
-    store(0x1000, 0x0000000d); // BREAK ends the task when the RSP executes it.
+    const program = instructionDMA ? [0x24081080, 0x40880000, 0x24083000, 0x40880800, 0x24080007, 0x40881000, 13] : [13];
+    program.forEach((word, index) => store(0x1000 + index * 4, word)); // Optional IMEM DMA, then BREAK.
   }
   if (vi) {
     code.push(0x3c08a440); // t0 = VI registers.
@@ -442,23 +444,111 @@ describe('inventory batch command', () => {
       expect(await readdir(directory)).toEqual([]);
     });
   });
+
+  test('rejects mixing inventory manifests and raw captures in the same root', async () => {
+    await withDirectory(async directory => {
+      const result = await invoke(directory, ['missing.z64', '--output-dir', 'inventory', '--audio-corpus', './inventory/.'], batchCLI);
+      expect(result.code).toBe(2);
+      expect(result.stderr).toContain('must use different directories');
+      expect(await readdir(directory)).toEqual([]);
+    });
+  });
 });
 
 describe('inventory command', () => {
+  test('captures real worker instruction DMA and compares loaded IMEM without the ROM', async () => {
+    await withDirectory(async directory => {
+      await Bun.write(join(directory, 'audio.z64'), makeROM({ vi: true, audio: true, instructionDMA: true }));
+      const result = await invoke(directory, ['audio.z64', '--frames', '1', '--audio-corpus', 'corpus']);
+      expect(result.code).toBe(0);
+      const report = JSON.parse(result.stdout);
+      expect(report.audioCapture).toMatchObject({ version: 2, tasks: 2, loads: 2, instructionImages: 1 });
+      await rm(join(directory, 'audio.z64'));
+      const replay = await invoke(directory, ['corpus', '--check'], audioReplayCLI);
+      expect(replay.code).toBe(0);
+      expect(JSON.parse(replay.stdout).runs[0].instructionLoads).toMatchObject({ loads: 2, tasksWithLoads: 2 });
+      const comparisonCLI = fileURLToPath(new URL('./audio_microcode_catalogue_cli.js', import.meta.url));
+      const comparison = await invoke(directory, ['--compare', report.audioCapture.directory, report.audioCapture.directory, '--right-load', '1'], comparisonCLI);
+      expect(comparison.code).toBe(0);
+      const data = JSON.parse(comparison.stdout);
+      expect(data.right.instructionLoads).toHaveLength(1);
+      expect(data.instructionComparison.imem.ranges).toEqual([[128, 129]]);
+      expect(data.instructionComparison.right).toMatchObject({ task: 1, load: 1, destination: 0x1080, length: 8 });
+    });
+  });
+
   test('collects and aggregates unknown audio microcode through the real worker and report query', async () => {
     await withDirectory(async directory => {
       await Bun.write(join(directory, 'audio.z64'), makeROM({ vi: true, audio: true }));
-      const result = await invoke(directory, ['audio.z64', '--frames', '1', '--output', 'report.json']);
+      const result = await invoke(directory, ['audio.z64', '--frames', '1', '--output', 'report.json', '--audio-corpus', 'corpus']);
       expect(result.code).toBe(0);
       const report = JSON.parse(await readFile(join(directory, 'report.json'), 'utf8'));
-      expect(report.collectors['audio.taskMicrocodes']).toEqual({
-        version: 1, scope: 'task-start', tasks: 2,
-        microcodes: [{ family: 'Unknown', detection: 'unknown', tasks: 2 }],
+      expect(report.collectors['audio.taskMicrocodes']).toMatchObject({
+        version: 2, scope: 'task-start', tasks: 2,
+        microcodes: [{ family: 'Unknown', detection: 'unknown', reason: 'no-command-dispatcher', loader: 'direct', tasks: 2,
+          classifications: [{ status: 'unknown', identity: null, family: 'Unknown', reason: 'unreviewed-code', tasks: 2 }] }],
       });
+      expect(report.collectors['audio.taskMicrocodes'].microcodes[0].fingerprint).toMatch(/^[a-f0-9]{64}$/);
       expect(report.collectors['graphics.taskMicrocodes'].tasks).toBe(0);
       const query = await invoke(directory, ['report.json', '--audio-microcode', 'unknown'], queryCLI);
       expect(query.code).toBe(0);
       expect(JSON.parse(query.stdout).summary.matched).toBe(1);
+      const identityQuery = await invoke(directory, ['report.json', '--audio-identity', 'unknown'], queryCLI);
+      expect(identityQuery.code).toBe(0);
+      expect(report.audioCapture).toMatchObject({ version: 2, tasks: 2, loads: 0, instructionImages: 0 });
+      expect(report.sourceSha256).toMatch(/^[a-f0-9]{64}$/);
+      await rm(join(directory, 'audio.z64')); // Offline replay must need no ROM.
+      const replay = await invoke(directory, ['corpus', '--check'], audioReplayCLI);
+      expect(replay.code).toBe(0);
+      const analysis = JSON.parse(replay.stdout);
+      expect(analysis.summary).toMatchObject({ runs: 1, tasks: 2, matched: 1, mismatched: 0 });
+      expect(analysis.runs[0].audioMicrocodes).toEqual(report.collectors['audio.taskMicrocodes']);
+      expect(analysis.runs[0].source.settings).toEqual(report.settings);
+      const overwrite = await invoke(directory, ['corpus', '--output', join(report.audioCapture.directory, 'report.json')], audioReplayCLI);
+      expect(overwrite.code).toBe(2);
+      expect(await Bun.file(join(report.audioCapture.directory, 'report.json')).json()).toEqual(report);
+      const changedReport = structuredClone(report);
+      changedReport.collectors['audio.taskMicrocodes'].microcodes[0].family = 'Changed';
+      await Bun.write(join(report.audioCapture.directory, 'report.json'), JSON.stringify(changedReport));
+      const mismatch = await invoke(directory, ['corpus', '--check'], audioReplayCLI);
+      expect(mismatch.code).toBe(1);
+      expect(JSON.parse(mismatch.stdout).summary.mismatched).toBe(1);
+      const changedIdentity = structuredClone(report);
+      changedIdentity.collectors['audio.taskMicrocodes'].microcodes[0].classifications[0].reason = 'wrong';
+      await Bun.write(join(report.audioCapture.directory, 'report.json'), JSON.stringify(changedIdentity));
+      expect((await invoke(directory, ['corpus', '--check'], audioReplayCLI)).code).toBe(1);
+    });
+  });
+
+  test('batch capture preserves seeds and resumes without recapturing terminal reports', async () => {
+    await withDirectory(async directory => {
+      await Bun.write(join(directory, 'audio.z64'), makeROM({ vi: true, audio: true }));
+      const result = await invoke(directory, ['audio.z64', '--frames', '1', '--seed', '1', '--seed', '2', '--output-dir', 'inventory', '--audio-corpus', 'corpus'], batchCLI);
+      expect(result.code).toBe(0);
+      const scans = result.stdout.trim().split('\n');
+      for (const scan of scans) expect((await Bun.file(join(scan, 'manifest.json')).json()).audioCorpus).toBe(join(directory, 'corpus'));
+      const captured = await readdir(join(directory, 'corpus/runs'));
+      const resume = await invoke(directory, scans.flatMap(scan => ['--resume', scan]), batchCLI);
+      expect(resume.code).toBe(0);
+      expect(await readdir(join(directory, 'corpus/runs'))).toEqual(captured);
+      const replay = await invoke(directory, ['corpus', '--check'], audioReplayCLI);
+      expect(replay.code).toBe(0);
+      expect(JSON.parse(replay.stdout).summary).toMatchObject({ runs: 2, tasks: 4, matched: 2 });
+    });
+  });
+
+  test('timeout capture replays the last checkpoint with its partial-run provenance', async () => {
+    await withDirectory(async directory => {
+      await Bun.write(join(directory, 'audio.z64'), makeROM({ audio: true, rewriteCount: true }));
+      const result = await invoke(directory, ['audio.z64', '--frames', '1', '--max-cycles', '5000000000000', '--timeout-ms', '1000', '--audio-corpus', 'corpus']);
+      expect(result.code).toBe(124);
+      const report = JSON.parse(result.stdout);
+      expect(report.audioCapture.tasks).toBe(2);
+      const replay = await invoke(directory, ['corpus', '--check'], audioReplayCLI);
+      expect(replay.code).toBe(0);
+      const analysis = JSON.parse(replay.stdout);
+      expect(analysis.summary).toMatchObject({ tasks: 2, matched: 1, partial: 1 });
+      expect(analysis.runs[0].source.result).toMatchObject({ status: 'timeout', checkpointOnly: true });
     });
   });
 
@@ -738,7 +828,7 @@ describe('inventory command', () => {
       const empty = await invoke(directory, ['test.z64', '--frames', '1']);
       expect(empty.code).toBe(0);
       expect(JSON.parse(empty.stdout).result.failure).toBeUndefined();
-      expect(JSON.parse(empty.stdout).collectors['audio.taskMicrocodes']).toEqual({ version: 1, scope: 'task-start', tasks: 0, microcodes: [] });
+      expect(JSON.parse(empty.stdout).collectors['audio.taskMicrocodes']).toEqual({ version: 2, scope: 'task-start', tasks: 0, microcodes: [] });
       expect(JSON.parse(empty.stdout).collectors['graphics.taskMicrocodes']).toMatchObject({ version: 1, tasks: 0, microcodes: [] });
       expect(JSON.parse(empty.stdout).collectors['graphics.microcodeLoads']).toMatchObject({ version: 1, loads: 0, microcodes: [] });
       expect(JSON.parse(empty.stdout).collectors['graphics.textureFormats']).toEqual({ version: 1, scope: 'hle-draw', formats: [] });

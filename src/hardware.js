@@ -20,6 +20,7 @@ import { MemoryRegion } from './memory/memory_region.js';
 import { CPU0, CPU2 } from './cpu/r4300.js';
 import { RSP } from './rsp/rsp.js';
 import { Timeline } from './debug/timeline.js';
+import { createAudioMicrocodeClassifier } from './hle/audio_microcode_classifier.js';
 
 const kBootstrapOffset = 0x40;
 const kGameOffset = 0x1000;
@@ -34,6 +35,7 @@ export class Hardware {
     onVerticalBlank = null,
     onGraphicsTask = null,
     onAudioTask = null,
+    onAudioInstructionLoad = null,
     onMicrocodeLoad = null,
     onTextureUse = null,
   } = {}) {
@@ -62,10 +64,19 @@ export class Hardware {
     // starts are reported separately. Resets preserve the callback, which must
     // not re-enter emulation. Its return value is ignored.
     this.onGraphicsTask = onGraphicsTask;
-    // Called synchronously before LLE/Disabled audio dispatch with a fresh
-    // identifyAudioMicrocode() snapshot. Resets preserve the callback, which
-    // must not re-enter emulation. Its return value is ignored.
+    // Audio task-start observer, before LLE/Disabled dispatch. Receives copied,
+    // bounded code/data images and loading-layout evidence, followed by the
+    // reviewed task-start classification as a second argument. Return values are
+    // ignored; observers cannot handle the task or re-enter emulation. Resets
+    // preserve the callback. Without an observer, no images are copied or classified.
     this.onAudioTask = onAudioTask;
+    this.audioMicrocodeClassifier = null;
+    // Inventory-only observer of DMA reads into IMEM issued during audio tasks.
+    // Receives an owned post-copy IMEM snapshot and the queued transfer's task
+    // ordinal/PC and DMA geometry. Initial boot code is in onAudioTask instead.
+    // Ordinals count audio starts over this Hardware instance's lifetime (also
+    // across resets). Callbacks must not re-enter emulation; returns are ignored.
+    this.onAudioInstructionLoad = onAudioInstructionLoad;
     // Called synchronously after each HLE graphics microcode handler is constructed,
     // including initial loads, in-list loads, and browser debugger replays.
     // Receives a fresh identifyMicrocode() snapshot. Skipped/LLE tasks do not
@@ -183,6 +194,7 @@ export class Hardware {
 
   reset() {
     this.verticalBlankCount = 0;
+    this.audioMicrocodeClassifier = null;
     this.graphics.reset();
     this.cpu0.reset();
     this.cpu1.reset();
@@ -212,6 +224,13 @@ export class Hardware {
 
   getOpsExecuted() {
     return this.cpu0.getOpsExecuted();
+  }
+
+  classifyAudioMicrocode(raw) {
+    // Allocate lazily for observation, then retain the byte-verified cache
+    // across tasks. Each hardware instance/reset owns its own classifier.
+    this.audioMicrocodeClassifier ??= createAudioMicrocodeClassifier();
+    return this.audioMicrocodeClassifier(raw);
   }
 
   createROM(arrayBuffer) {

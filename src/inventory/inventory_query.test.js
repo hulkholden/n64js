@@ -50,19 +50,50 @@ async function withDirectory(fn) {
 }
 
 describe('inventory query', () => {
+  test('queries reviewed identities and preserves legacy absence and invalid classification counts', async () => {
+    await withDirectory(async root => {
+      const reports = Array.from({ length: 7 }, (_, i) => makeReport(String(i + 1)));
+      const known = { status: 'known', identity: 'abi1-standard-mixer', family: 'ABI1', bootstrap: 'rspboot-204', tasks: 2 };
+      const unknown = { status: 'unknown', identity: null, family: 'Unknown', reason: 'unreviewed-constants', tasks: 1 };
+      const ambiguous = { status: 'ambiguous', identity: null, family: 'Unknown', reason: 'ambiguous-identity', candidates: ['a', 'b'], tasks: 1 };
+      const group = { family: 'ABI1', detection: 'structure', fingerprint: 'f'.repeat(64), tasks: 4, classifications: [known, unknown, ambiguous] };
+      reports[0].collectors['audio.taskMicrocodes'] = { version: 2, scope: 'task-start', tasks: 4, microcodes: [group] };
+      reports[1].collectors['audio.taskMicrocodes'] = { version: 2, scope: 'task-start', tasks: 0, microcodes: [] };
+      reports[2].collectors['audio.taskMicrocodes'] = { version: 1, scope: 'task-start', tasks: 1, microcodes: [{ family: 'ABI1', tasks: 1 }] };
+      // Missing collector, missing results, invalid per-group counts, invalid total.
+      for (const i of [4, 5, 6]) reports[i].collectors['audio.taskMicrocodes'] = structuredClone(reports[0].collectors['audio.taskMicrocodes']);
+      delete reports[4].collectors['audio.taskMicrocodes'].microcodes[0].classifications;
+      reports[5].collectors['audio.taskMicrocodes'].microcodes[0].classifications[0].tasks = 3;
+      reports[6].collectors['audio.taskMicrocodes'].tasks = 1;
+      await writeScan(root, 'identities', reports);
+      for (const value of ['ABI1-STANDARD-MIXER', 'unknown', 'ambiguous']) {
+        const result = await invoke([root, '--audio-identity', value]);
+        expect(result.output.summary).toEqual({ matched: 1, notObserved: 1, unknown: 5, errors: 0 });
+        expect(result.output.matches[0].checks.audioIdentity.collectors[0].matches[0].classifications).toEqual(group.classifications);
+      }
+      const family = await invoke([root, '--audio-microcode', 'abi1']);
+      expect(family.output.matches.map(r => r.rom.name)).toEqual(['ROM 1', 'ROM 3']);
+      expect((await invoke([root, '--audio-identity', 'abi1-tetrisphere-us-mixer'])).output.summary.matched).toBe(0);
+      expect((await invoke([root, '--audio-identity', ' '])).code).toBe(2);
+      const summary = await invoke([root], summaryCLI);
+      expect(summary.output.runs[0].collectors['audio.taskMicrocodes'].records[0].classifications).toEqual(group.classifications);
+      expect(summary.output.runs[4].collectors['audio.taskMicrocodes'].state).toBe('unknown');
+    });
+  });
+
   test('queries audio independently, retaining legacy absence, empty runs and unidentified observations', async () => {
     await withDirectory(async root => {
-      const reports = Array.from({ length: 4 }, (_, i) => makeReport(String(i + 1), { family: i === 2 ? 'GBI1' : 'GBI2' }));
-      reports[0].collectors['audio.taskMicrocodes'] = { version: 1, scope: 'task-start', tasks: 2, microcodes: [{ family: 'Unknown', detection: 'unknown', tasks: 2 }] };
+      const reports = Array.from({ length: 4 }, (_, i) => makeReport(String(i + 1)));
+      reports[0].collectors['audio.taskMicrocodes'] = { version: 1, scope: 'task-start', tasks: 2, microcodes: [{ family: 'ABI1', detection: 'structure', tasks: 2, fingerprint: 'f'.repeat(64) }] };
       reports[1].collectors['audio.taskMicrocodes'] = { version: 1, scope: 'task-start', tasks: 0, microcodes: [] };
       reports[2].collectors['audio.taskMicrocodes'] = { version: 1, scope: 'task-start', tasks: 1, microcodes: [{ family: 'Unknown', detection: 'unknown', tasks: 1 }] };
       await writeScan(root, 'audio', reports);
-      const result = await invoke([root, '--audio-microcode', 'unknown', '--microcode', 'gbi2']);
+      const result = await invoke([root, '--audio-microcode', 'abi1', '--microcode', 'gbi2']);
       expect(result.code).toBe(0);
       expect(result.output.summary).toEqual({ matched: 1, notObserved: 2, unknown: 1, errors: 0 });
-      expect(result.output.matches[0].checks.audioMicrocode.collectors[0].matches).toEqual([{ family: 'Unknown', detection: 'unknown', tasks: 2 }]);
+      expect(result.output.matches[0].checks.audioMicrocode.collectors[0].matches[0].fingerprint).toBe('f'.repeat(64));
       const unknown = await invoke([root, '--audio-microcode', 'Unknown']);
-      expect(unknown.output.matches.map(x => x.rom.name)).toEqual(['ROM 1', 'ROM 3']);
+      expect(unknown.output.matches.map(x => x.rom.name)).toEqual(['ROM 3']);
       expect(unknown.output.unknown.map(x => x.rom.name)).toEqual(['ROM 4']);
       const summary = await invoke([root], summaryCLI);
       expect(summary.output.summary.collectors['audio.taskMicrocodes']).toEqual({ observed: 2, notObserved: 1, unknown: 1 });
