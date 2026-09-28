@@ -50,7 +50,6 @@ class RSPTask {
    */
   constructor(ram_u8, taskMem) {
     this.ram_u8 = ram_u8;
-    this.type = taskMem.getU32(TaskOffsets.type);
 
     this.codeAddr = taskMem.getU32(TaskOffsets.ucodePtr) & 0x1fffffff;
     this.codeSize = this.clampCodeSize(taskMem.getU32(TaskOffsets.ucodeSize));
@@ -141,19 +140,13 @@ class RSPTask {
 // HLE task. A continuation returns itself while waiting and null on completion.
 export function hleProcessRSPTask() {
   const hardware = n64js.hardware();
-  // Audio owns reusable task views and state; avoid constructing graphics task
-  // wrappers and formatting duplicate log messages for every audio list.
-  if (hardware.sp_mem.getU32(kTaskOffset) === M_AUDTASK) {
-    return dispatchAudioTask(hardware, audioOptions.emulationMode);
-  }
-  const ramU8 = hardware.cachedMemDevice.u8;
-  const taskMem = hardware.sp_mem.subRegion(kTaskOffset, kTaskLength);
-  const task = new RSPTask(ramU8, taskMem);
+  const taskType = hardware.sp_mem.getU32(kTaskOffset);
 
-  let handled = false;
-
-  switch (task.type) {
+  switch (taskType) {
     case M_GFXTASK: {
+      const ramU8 = hardware.cachedMemDevice.u8;
+      const taskMem = hardware.sp_mem.subRegion(kTaskOffset, kTaskLength);
+      const task = new RSPTask(ramU8, taskMem);
       const microcode = identifyMicrocode(task.detectVersionString(), task.computeMicrocodeHash());
       hardware.onGraphicsTask?.({ ...microcode });
       if (graphicsOptions.emulationMode == 'HLE') {
@@ -190,10 +183,12 @@ export function hleProcessRSPTask() {
           return resume;
         }
         complete();
-        handled = true;
+        return true;
       }
       break;
     }
+    case M_AUDTASK:
+      return dispatchAudioTask(hardware, audioOptions.emulationMode);
     case M_VIDTASK:
       // Run on the RSP.
       break;
@@ -202,5 +197,5 @@ export function hleProcessRSPTask() {
       break;
   }
 
-  return handled;
+  return false;
 }
