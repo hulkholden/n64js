@@ -1,6 +1,6 @@
 /*global n64js*/
 
-import { toString16, toString32 } from "../format.js";
+import { toString16 } from "../format.js";
 import { Vector2 } from "../graphics/Vector2.js";
 import * as gbi from './gbi.js';
 import { RendererBase } from './renderer_base.js';
@@ -51,6 +51,7 @@ export class Renderer extends RendererBase {
     this.debugClearVA = this.initClearVA(this.fillShaderProgram);
 
     this.textureOutput = document.getElementById('texture-content');
+    document.getElementById('texture-tab')?.addEventListener('tabshown', () => this.showTextureCache());
   }
 
   get frameBuffer() { return this.renderTargets.current.framebuffer; }
@@ -534,24 +535,30 @@ export class Renderer extends RendererBase {
    * @return {?Texture}
    */
   lookupTexture(tileIdx) {
-    let tile = this.state.tiles[tileIdx];
+    const sourceTile = this.state.tiles[tileIdx];
+    let tile = sourceTile;
     // Skip empty tiles - this is primarily for the debug ui.
     if (tile.line === 0) {
       return null;
     }
     tile = textureDecodeTile(tile, this.state.getCycleType() === gbi.CycleType.G_CYC_COPY);
 
-    // FIXME: we can cache this if tile/tmem state hasn't changed since the last draw call.
-    const hash = this.state.tmem.calculateCRC(tile);
+    // Keep the hash on the original tile so expanded wrap regions can reuse it.
+    const hash = this.state.tmem.calculateCRC(tile, sourceTile);
+    const tlutFormat = this.state.getTextureLUTType();
+    const hasPalette = (tile.format === gbi.ImageFormat.G_IM_FMT_CI || tile.format === gbi.ImageFormat.G_IM_FMT_RGBA) &&
+      tile.size <= gbi.ImageSize.G_IM_SIZ_8b;
+    const paletteFormat = hasPalette && tlutFormat === gbi.TextureLUT.G_TT_IA16 ? tlutFormat : 0;
+    // RGBA32 odd rows swap 8-byte halves; their layout depends on base parity.
+    const swizzlePhase = tile.size === gbi.ImageSize.G_IM_SIZ_32b ? tile.tmem & 1 : 0;
 
     // Check if the texture is already cached.
     // The cacheID should include all the state that can affect how the texture is constructed.
-    const cacheID = `${toString32(hash)}_${tile.format}_${tile.size}_${tile.width}_${tile.height}_${tile.palette}`;
-    if (this.textureCache.has(cacheID)) {
-      return this.textureCache.get(cacheID);
-    }
-    const texture = this.decodeTexture(tile, this.state.getTextureLUTType(), cacheID);
-    this.textureCache.set(cacheID, texture);
+    const cacheID = `${hash}_${tile.format}_${tile.size}_${tile.line}_${tile.width}_${tile.height}_${tile.palette}_${paletteFormat}_${swizzlePhase}`;
+    const cached = this.textureCache.get(cacheID);
+    if (cached) return cached;
+    const texture = this.decodeTexture(tile, tlutFormat);
+    if (texture) this.textureCache.set(cacheID, texture);
     return texture;
   }
 
@@ -561,7 +568,7 @@ export class Renderer extends RendererBase {
    * @param {number} tlutFormat
    * @return {?Texture}
    */
-  decodeTexture(tile, tlutFormat, cacheID) {
+  decodeTexture(tile, tlutFormat) {
     const gl = this.gl;
 
     if (tile.width == 0 || tile.height == 0) {
@@ -569,37 +576,38 @@ export class Renderer extends RendererBase {
     }
 
     const texture = new Texture(gl, tile.width, tile.height);
-    if (!texture.canvas.getContext) {
+    const imgData = { width: texture.width, data: texture.pixels };
+    if (!this.state.tmem.convertTexels(tile, tlutFormat, imgData)) {
+      gl.deleteTexture(texture.texture);
+      this.hleHalt(`${gbi.ImageFormat.nameOf(tile.format)}/${gbi.ImageSize.nameOf(tile.size)} is unhandled`);
       return null;
-    }
-
-    this.textureOutput?.append(
-      `${cacheID}: ${gbi.ImageFormat.nameOf(tile.format)}, ${gbi.ImageSize.nameOf(tile.size)},${tile.width}x${tile.height}, `, document.createElement('br'));
-
-    const ctx = texture.canvas.getContext('2d');
-    const imgData = ctx.createImageData(texture.width, texture.height);
-
-    const handled = this.state.tmem.convertTexels(tile, tlutFormat, imgData);
-    if (handled) {
-      ctx.putImageData(imgData, 0, 0);
-
-      this.textureOutput?.append(texture.canvas, document.createElement('br'));
-    } else {
-      const msg = `${gbi.ImageFormat.nameOf(tile.format)}/${gbi.ImageSize.nameOf(tile.size)} is unhandled`;
-      this.textureOutput?.append(msg);
-      // FIXME: fill with placeholder texture
-      this.hleHalt(msg);
     }
 
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, texture.texture);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texture.canvas);
+    // Upload RGBA bytes directly, avoiding canvas allocation, copies and alpha
+    // premultiplication (which loses RGB values for transparent texels).
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, texture.width, texture.height, 0,
+      gl.RGBA, gl.UNSIGNED_BYTE, texture.pixels);
 
     // texelFetch only reads level zero; no host mipmaps are needed.
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
     gl.bindTexture(gl.TEXTURE_2D, null);
     return texture;
+  }
+
+
+  showTextureCache() {
+    if (!this.textureOutput) return;
+    this.textureOutput.replaceChildren();
+    // A bounded snapshot: ordinary emulation never creates debug canvases.
+    for (const [key, texture] of this.textureCache) {
+      const entry = document.createElement('div');
+      entry.append(`${key}: ${texture.width}x${texture.height}`, document.createElement('br'),
+        texture.createScaledCanvas(1));
+      this.textureOutput.append(entry);
+    }
   }
 
 
