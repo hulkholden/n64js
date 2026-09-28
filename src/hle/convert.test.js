@@ -58,3 +58,135 @@ describe('TMEM texel wrapping', () => {
     expect(Array.from(dst.data)).toEqual([0xab, 0xab, 0xab, 0xcd]);
   });
 });
+
+// Verify every packed-table entry against bit replication, including nonzero
+// aligned destination offsets and row padding.
+for (const [name, format] of [['RGBA16', gbi.ImageFormat.G_IM_FMT_RGBA], ['IA16', gbi.ImageFormat.G_IM_FMT_IA]]) {
+  test(`${name} packed conversion preserves every colour and alpha bit`, () => {
+    const src = new Uint8Array(4096);
+    const tile = { format, size: gbi.ImageSize.G_IM_SIZ_16b,
+      width: 512, height: 4, line: 128, tmem: 0 };
+    const stride = (tile.width + 1) * 4;
+    for (const offset of [0, 4]) {
+      for (let base = 0; base < 65536; base += 2048) {
+        const data = new Uint8Array(new ArrayBuffer(stride * tile.height + offset), offset).fill(0x55);
+        const expected = data.slice();
+        for (let y = 0; y < tile.height; y++) {
+          for (let x = 0; x < tile.width; x++) {
+            const value = base + y * tile.width + x;
+            const index = ((y * tile.width + x) * 2) ^ ((y & 1) << 2);
+            src[index] = value >>> 8;
+            src[index + 1] = value & 255;
+            const r = (value >>> 11) & 31, g = (value >>> 6) & 31, b = (value >>> 1) & 31;
+            expected.set(format === gbi.ImageFormat.G_IM_FMT_IA
+              ? [value >>> 8, value >>> 8, value >>> 8, value & 255]
+              : [(r << 3) | (r >>> 2), (g << 3) | (g >>> 2), (b << 3) | (b >>> 2), (value & 1) * 255],
+            y * stride + x * 4);
+          }
+        }
+        expect(convertTexels({ width: tile.width + 1, data }, src, tile, 0)).toBe(true);
+        expect(data).toEqual(expected);
+      }
+    }
+  });
+}
+
+test('RGBA16 repeating TMEM rows match scalar conversion and preserve destination padding', () => {
+  const src = Uint8Array.from({ length: 4096 }, (_, i) => (i * 37 + (i >>> 8) * 13) & 255);
+  for (const line of [0, 1, 16, 64, 256, 511]) {
+    for (const padding of [0, 3]) {
+      const tile = { format: gbi.ImageFormat.G_IM_FMT_RGBA, size: gbi.ImageSize.G_IM_SIZ_16b,
+        width: 505, height: 233, line, tmem: 509 };
+      const width = tile.width + padding;
+      const data = Uint8Array.from({ length: width * tile.height * 4 }, (_, i) => i & 255);
+      // Compare the repeated rows with an independent scalar decoder.
+      const reference = data.slice();
+      convertTexels({ width, data }, src, tile, 0);
+      referenceTexels({ width, data: reference }, src, tile, 0);
+      expect(data).toEqual(reference);
+    }
+  }
+});
+
+// Deliberately expand one pixel at a time, without packed writes, lookup tables,
+// or row-period copies, to check the optimized converters independently.
+function referenceTexels(dstData, src, tile, tlutFormat) {
+  const palette = (tile.format === gbi.ImageFormat.G_IM_FMT_CI || tile.format === gbi.ImageFormat.G_IM_FMT_RGBA) && tile.size < 2;
+  const rgba32 = tile.format === gbi.ImageFormat.G_IM_FMT_RGBA && tile.size === 3;
+  const yuv = tile.format === gbi.ImageFormat.G_IM_FMT_YUV;
+  const stride = tile.line * (rgba32 || yuv ? 16 : 8);
+  const mask = palette ? 0x7ff : 0xfff;
+  const expand5 = v => (v << 3) | (v >>> 2);
+  const rgba16 = v => [expand5(v >>> 11), expand5((v >>> 6) & 31), expand5((v >>> 1) & 31), (v & 1) * 255];
+  const ia16 = v => [v >>> 8, v >>> 8, v >>> 8, v & 255];
+  for (let y = 0; y < tile.height; y++) {
+    const row = tile.tmem * 8 + y * stride;
+    const swizzle = (y & 1) * (rgba32 ? 8 : 4);
+    for (let x = 0; x < tile.width; x++) {
+      const address = ((row + Math.floor(x * (4 << tile.size) / 8)) ^ swizzle) & mask;
+      const value = tile.size === 0 ? (src[address] >>> ((x & 1) ? 0 : 4)) & 15
+        : tile.size === 2 ? src[address] * 256 + src[(address + 1) & mask] : src[address];
+      let pixel;
+      if (palette) {
+        const index = tile.size === 0 ? tile.palette * 16 + value : value;
+        const entry = src[0x800 + index * 8] * 256 + src[0x801 + index * 8];
+        pixel = tlutFormat === gbi.TextureLUT.G_TT_IA16 ? ia16(entry) : rgba16(entry);
+      } else if (rgba32) {
+        pixel = Array.from(src.subarray(address, address + 4));
+      } else if (yuv) {
+        const pair = ((row + (x & ~1) * 2) ^ swizzle) & 0xfff;
+        pixel = [src[pair], src[(pair + 2) & 0xfff], src[(pair + (x & 1) * 2 + 1) & 0xfff], 255];
+      } else if (tile.format === gbi.ImageFormat.G_IM_FMT_RGBA) {
+        pixel = rgba16(value);
+      } else if (tile.format === gbi.ImageFormat.G_IM_FMT_I) {
+        pixel = Array(4).fill(tile.size === 0 ? value * 17 : value);
+      } else if (tile.size === 2) {
+        pixel = ia16(value);
+      } else {
+        const i = tile.size === 1 ? (value >>> 4) * 17 : ((value >>> 1) << 5) | ((value >>> 1) << 2) | (value >>> 2);
+        const a = tile.size === 1 ? (value & 15) * 17 : (value & 1) * 255;
+        pixel = [i, i, i, a];
+      }
+      dstData.data.set(pixel, (y * dstData.width + x) * 4);
+    }
+  }
+}
+
+for (const [name, format, size, boundary] of formats) {
+  test(`${name} packed output matches scalar pixels with wrapping, odd widths, padding and aligned byte views`, () => {
+    for (const [width, height, line] of [[13, 5, 1], [5, 65, 256], [64, 64, 8]]) {
+      for (const tlut of [gbi.TextureLUT.G_TT_RGBA16, gbi.TextureLUT.G_TT_IA16]) {
+        for (const [offset, palette] of [[0, 0], [4, 7], [8, 15]]) {
+          const src = new Uint8Array(new ArrayBuffer(4096 + offset), offset, 4096);
+          src.set(Uint8Array.from({ length: 4096 }, (_, i) => (i * 37 + (i >>> 8) * 13) & 255));
+          const tile = { format, size, line, tmem: (boundary - 8) / 8,
+            width, height, palette };
+          const stride = width + 3;
+          const length = stride * height * 4;
+          const storage = new Uint8Array(length + offset + 8).fill(0x77);
+          const data = new Uint8ClampedArray(storage.buffer, offset, length);
+          data.set(Uint8Array.from({ length }, (_, i) => (i * 13) & 255));
+          const expected = new Uint8Array(data);
+          referenceTexels({ width: stride, data: expected }, src, tile, tlut);
+          expect(convertTexels({ width: stride, data }, src, tile, tlut)).toBe(true);
+          expect(Array.from(data)).toEqual(Array.from(expected));
+          expect(Array.from(storage.slice(0, offset))).toEqual(Array(offset).fill(0x77));
+          expect(Array.from(storage.slice(-8))).toEqual(Array(8).fill(0x77));
+        }
+      }
+    }
+  });
+}
+
+test('IA8, IA4, I8 and I4 tables expand every possible source value', () => {
+  for (const [format, size] of [[3, 1], [3, 0], [4, 1], [4, 0]]) {
+    const src = new Uint8Array(4096);
+    for (let i = 0; i < 256; i++) src[i] = i;
+    const tile = { format, size, width: size === 0 ? 512 : 256, height: 1, line: 32, tmem: 0 };
+    const actual = { width: tile.width, data: new Uint8Array(tile.width * 4) };
+    const expected = { width: tile.width, data: actual.data.slice() };
+    referenceTexels(expected, src, tile, 0);
+    convertTexels(actual, src, tile, 0);
+    expect(actual.data).toEqual(expected.data);
+  }
+});
