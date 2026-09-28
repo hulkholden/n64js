@@ -3,12 +3,10 @@
 import { disassembleRemappedRange, dumpDMEM } from "../rsp/disassemble_rsp.js";
 import { makeEnum } from "../enum.js";
 import { toHex } from "../format.js";
-import * as logger from '../logger.js';
 import { audioOptions } from './audio_options.js';
 import { graphicsOptions } from './graphics_options.js';
-import { identifyMicrocode, MicrocodeId } from './microcode_identifier.js';
-import { assertHLESupported } from './microcodes.js';
 import { dispatchAudioTask } from './hle_audio.js';
+import { dispatchGraphicsTask } from './hle_graphics.js';
 
 // Task offset in dmem.
 const kTaskOffset = 0x0fc0;
@@ -39,8 +37,6 @@ const M_GFXTASK = 1;
 const M_AUDTASK = 2;
 const M_VIDTASK = 3;
 const M_JPGTASK = 4;
-
-let warnedF5Indi = false;
 
 class RSPTask {
   /**
@@ -147,45 +143,7 @@ export function hleProcessRSPTask() {
       const ramU8 = hardware.cachedMemDevice.u8;
       const taskMem = hardware.sp_mem.subRegion(kTaskOffset, kTaskLength);
       const task = new RSPTask(ramU8, taskMem);
-      const microcode = identifyMicrocode(task.detectVersionString(), task.computeMicrocodeHash());
-      hardware.onGraphicsTask?.({ ...microcode });
-      if (graphicsOptions.emulationMode == 'HLE') {
-        // Reject unsupported protocols even when headless graphics are skipped.
-        // In particular, BOSS ZSort needs CPU/RSP signal exchanges before a
-        // task can complete; fabricating DP/SP completion leaves the CPU stuck.
-        assertHLESupported(microcode);
-        const ev = hardware.timeline.startEvent(`HLE Task ${task.detectVersionString()}`);
-        let continuation = null;
-        // TODO: implement Factor 5's Indiana Jones microcode. Its linked display
-        // lists loop indefinitely in the GBI0 fallback. Skip parsing them while
-        // preserving normal task completion and interrupts for the guest.
-        if (microcode.id === MicrocodeId.F5_INDI) {
-          if (!warnedF5Indi) {
-            logger.log('Skipping unsupported Factor 5 Indiana Jones graphics microcode');
-            warnedF5Indi = true;
-          }
-          hardware.miRegDevice.interruptDP();
-        } else {
-          continuation = hardware.graphics.processTask(task);
-        }
-        const complete = () => {
-          // SP completion is independent of DP: only an executed FullSync
-          // requests a DP interrupt, and some games split a frame over tasks.
-          if (ev) ev.stop();
-        };
-        if (continuation) {
-          const resume = () => {
-            continuation = continuation();
-            if (continuation) return resume;
-            complete();
-            return null;
-          };
-          return resume;
-        }
-        complete();
-        return true;
-      }
-      break;
+      return dispatchGraphicsTask(hardware, graphicsOptions.emulationMode, task);
     }
     case M_AUDTASK:
       return dispatchAudioTask(hardware, audioOptions.emulationMode);
