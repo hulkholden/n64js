@@ -1,6 +1,10 @@
 /*global n64js*/
 
 import { Device } from './device.js';
+import {
+  SP_MEM_ADDR_REG, SP_DRAM_ADDR_REG, SP_RD_LEN_REG, SP_WR_LEN_REG,
+  SP_STATUS_REG, SP_DMA_FULL_REG, SP_DMA_BUSY_REG, SP_SEMAPHORE_REG,
+} from './sp_reg.js';
 import * as mi from './mi.js';
 import * as logger from '../logger.js';
 import { toString16, toString32 } from '../format.js';
@@ -10,14 +14,10 @@ import { rsp } from '../rsp/rsp.js';
 
 const emulateRSP = true;
 
-export const SP_MEM_ADDR_REG = 0x00;
-export const SP_DRAM_ADDR_REG = 0x04;
-export const SP_RD_LEN_REG = 0x08;
-export const SP_WR_LEN_REG = 0x0C;
-export const SP_STATUS_REG = 0x10;
-export const SP_DMA_FULL_REG = 0x14;
-export const SP_DMA_BUSY_REG = 0x18;
-export const SP_SEMAPHORE_REG = 0x1C;
+export {
+  SP_MEM_ADDR_REG, SP_DRAM_ADDR_REG, SP_RD_LEN_REG, SP_WR_LEN_REG,
+  SP_STATUS_REG, SP_DMA_FULL_REG, SP_DMA_BUSY_REG, SP_SEMAPHORE_REG,
+};
 
 const memAddrWritableBits = 0xffff_fff8;
 const dramAddrWritableBits = 0xffff_fff8;

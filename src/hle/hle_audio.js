@@ -5,6 +5,7 @@ import {
 import { TetrisphereAudio } from './audio_tetrisphere.js';
 import { GoldenEyeAudio } from './audio_goldeneye.js';
 import { DiddyBlastAudio } from './audio_diddy_blast.js';
+import { SP_SEMAPHORE_REG } from '../devices/sp_reg.js';
 import * as logger from '../logger.js';
 import { toHex } from '../format.js';
 
@@ -218,6 +219,6 @@ function executeAudioTask(hardware, state, identity) {
   // Publish DMEM only after every command succeeds.
   hardware.sp_mem.u8.set(audio.dmem);
   audio.commit();
-  hardware.spRegDevice.writeReg32(0x1c, 0); // Task completion releases semaphore.
+  hardware.spRegDevice.writeReg32(SP_SEMAPHORE_REG, 0); // Task completion releases semaphore.
   return true;
 }
