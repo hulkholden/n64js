@@ -1,5 +1,6 @@
-// Audio microcode detection is not implemented yet. Keep the task-start
-// observation path in place while reporting every audio microcode as unknown.
-export function identifyAudioMicrocode() {
-  return { family: 'Unknown', detection: 'unknown' };
+import { audioMicrocodeInfo, classifyAudioTask } from './hle_audio.js';
+
+// Preserve the observer's compact legacy shape for unknown tasks.
+export function identifyAudioMicrocode(hardware) {
+  return audioMicrocodeInfo(classifyAudioTask(hardware));
 }

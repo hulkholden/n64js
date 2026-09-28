@@ -8,4 +8,4 @@ export const audioOptions = {
 };
 
 const folder = dbgGUI.addFolder('Audio');
-folder.add(audioOptions, 'emulationMode', { LLE: 'LLE', Disabled: 'Disabled' }).name('Emulation Mode');
+folder.add(audioOptions, 'emulationMode', { LLE: 'LLE', HLE: 'HLE', Disabled: 'Disabled' }).name('Emulation Mode');

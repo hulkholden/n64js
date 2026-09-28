@@ -6,21 +6,21 @@ const codeLoadBytes = 0xf80;
 const taskOffset = 0xfc0;
 const entryBytes = 0x80;
 
-function unknown(reason) {
-  return {
-    status: 'unknown',
-    identity: null,
-    family: 'Unknown',
-    reason,
-  };
+function unknown(reason, result) {
+  result.status = 'unknown';
+  result.identity = null;
+  result.family = 'Unknown';
+  result.reason = reason;
+  if ('bootstrap' in result) delete result.bootstrap;
+  if ('candidates' in result) delete result.candidates;
+  return result;
 }
 
-function ambiguous(reason, entries) {
-  return {
-    ...unknown(reason),
-    status: 'ambiguous',
-    candidates: entries.map(entry => entry.id).sort(),
-  };
+function ambiguous(reason, matches, result) {
+  unknown(reason, result);
+  result.status = 'ambiguous';
+  result.candidates = matches.entries.slice(0, matches.count).map(entry => entry.id).sort();
+  return result;
 }
 
 function isSha256Digest(value) {
@@ -86,11 +86,19 @@ function equalRange(view, previous) {
   return true;
 }
 
+// Fixed-capacity result lists retain their backing storage between tasks.
+// Only entries below count are live; callers must consume them synchronously.
+function contains(matches, entry) {
+  for (let i = 0; i < matches.count; i++) if (matches.entries[i] === entry) return true;
+  return false;
+}
+
 /** Prepare a reusable matcher for one kind of protected range: bootstrap,
  * entry prefix, program code or constants. sizeKey and digestKey select the
  * manifest fields to compare, such as codeBytes and codeSha256. Every range
- * starts at byte zero. Entries with the same length share one hash calculation
- * over the input prefix, even when their expected digests differ.
+ * starts at byte zero. Results are a reusable { entries, count } list. Entries
+ * with the same length share one hash calculation over the input prefix, even
+ * when their expected digests differ.
  *
  * This setup runs once when the classifier is created. The returned function
  * accepts a byte window and an optional subset of candidate entries, then
@@ -117,19 +125,30 @@ function compileRanges(entries, sizeKey, digestKey, hash, cache) {
     size,
     entries: entries.filter(entry => entry[sizeKey] === size),
     previous: null,
-    matches: [],
+    matches: { entries: new Array(entries.length), count: 0 },
   }));
+  const matches = { entries: new Array(entries.length), count: 0 };
+  let previousBytes, view;
 
-  return (bytes, candidates = entries) => {
-    const matches = [];
-    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  return (bytes, candidates) => {
+    matches.count = 0;
+    if (previousBytes !== bytes) {
+      view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+      previousBytes = bytes;
+    }
 
-    for (const range of ranges) {
+    for (let r = 0; r < ranges.length; r++) {
+      const range = ranges[r];
       if (bytes.length < range.size) {
         continue;
       }
 
-      const hasCandidates = range.entries.some(entry => candidates.includes(entry));
+      let hasCandidates = !candidates;
+      if (candidates) {
+        for (let i = 0; i < range.entries.length; i++) {
+          if (contains(candidates, range.entries[i])) { hasCandidates = true; break; }
+        }
+      }
       if (!hasCandidates) {
         continue;
       }
@@ -137,16 +156,23 @@ function compileRanges(entries, sizeKey, digestKey, hash, cache) {
       if (!range.previous || !equalRange(view, range.previous)) {
         const prefix = bytes.subarray(0, range.size);
         const digest = hash(prefix);
-        range.matches = range.entries.filter(entry => entry[digestKey] === digest);
+        range.matches.count = 0;
+        for (const entry of range.entries) {
+          if (entry[digestKey] === digest) range.matches.entries[range.matches.count++] = entry;
+        }
 
         // Copy even unknown inputs, so repeated unreviewed code is cheap too.
         // One entry per range keeps memory bounded; caller mutation is harmless.
         if (cache) {
-          range.previous = new DataView(new Uint8Array(prefix).buffer);
+          if (!range.previous) range.previous = new DataView(new ArrayBuffer(range.size));
+          for (let p = 0; p < range.size; p += 4) range.previous.setUint32(p, view.getUint32(p));
         }
       }
 
-      matches.push(...range.matches.filter(entry => candidates.includes(entry)));
+      for (let i = 0; i < range.matches.count; i++) {
+        const entry = range.matches.entries[i];
+        if (!candidates || contains(candidates, entry)) matches.entries[matches.count++] = entry;
+      }
     }
 
     return matches;
@@ -168,6 +194,8 @@ function compileRanges(entries, sizeKey, digestKey, hash, cache) {
  * Results have status known/unknown/ambiguous, identity and family. Known results
  * also name the bootstrap; other results explain the reason, with candidates
  * for ambiguity. Classification does not execute the task or select an HLE handler.
+ * Pass a private second result object to reuse it; omission returns a fresh
+ * caller-owned result. Neither form exposes the classifier's internal caches.
  */
 export function createAudioMicrocodeClassifier(manifest = audioMicrocodeManifest, { cache = true } = {}) {
   if (!isValidManifest(manifest)) {
@@ -186,18 +214,28 @@ export function createAudioMicrocodeClassifier(manifest = audioMicrocodeManifest
   const matchEntries = compileRanges(programsWithEntryHashes, 'entryBytes', 'entrySha256', hash, cache);
   const matchCode = compileRanges(programs, 'codeBytes', 'codeSha256', hash, cache);
   const matchConstants = compileRanges(programs, 'dataBytes', 'dataSha256', hash, cache);
+  const rspbootPrograms = programs.filter(program => program.loader !== 'direct');
+  const directPrograms = programs.filter(program => program.loader === 'direct');
+  const rspbootCandidates = { entries: rspbootPrograms, count: rspbootPrograms.length };
+  const directCandidates = { entries: directPrograms, count: directPrograms.length };
+  const codeCandidates = { entries: new Array(programs.length), count: 0 };
+  let previousTask, task;
 
-  return raw => {
+  return (raw, result = {}) => {
     if (!raw ||
-        !['task', 'imem', 'code', 'data'].every(key => raw[key] instanceof Uint8Array) ||
+        !(raw.task instanceof Uint8Array) || !(raw.imem instanceof Uint8Array) ||
+        !(raw.code instanceof Uint8Array) || !(raw.data instanceof Uint8Array) ||
         raw.task.length !== 64 || raw.imem.length !== rspMemoryBytes ||
         raw.code.length > rspMemoryBytes || raw.data.length > rspMemoryBytes) {
-      return unknown('invalid-snapshot');
+      return unknown('invalid-snapshot', result);
     }
 
-    const task = new DataView(raw.task.buffer, raw.task.byteOffset, raw.task.byteLength);
+    if (previousTask !== raw.task) {
+      task = new DataView(raw.task.buffer, raw.task.byteOffset, raw.task.byteLength);
+      previousTask = raw.task;
+    }
     if (task.getUint32(0) !== 2) {
-      return unknown('not-audio-task');
+      return unknown('not-audio-task', result);
     }
 
     const bootAddress = task.getUint32(0x08) & 0x1fffffff;
@@ -219,51 +257,61 @@ export function createAudioMicrocodeClassifier(manifest = audioMicrocodeManifest
     if (!codeAddress || !dataAddress || (codeAddress & 7) || (dataAddress & 7) ||
         !loadedDataBytes || loadedDataBytes > taskOffset ||
         (!direct && raw.code.length < codeLoadBytes) || raw.data.length < loadedDataBytes) {
-      return unknown('unsupported-task-layout');
+      return unknown('unsupported-task-layout', result);
     }
 
     let bootstrap = 'direct-imem';
     if (!direct) {
       const loaders = matchBootstraps(raw.imem);
-      if (loaders.length === 0) {
-        return unknown('unreviewed-bootstrap');
+      if (loaders.count === 0) {
+        return unknown('unreviewed-bootstrap', result);
       }
-      if (loaders.length > 1) {
-        return ambiguous('ambiguous-bootstrap', loaders);
+      if (loaders.count > 1) {
+        return ambiguous('ambiguous-bootstrap', loaders, result);
       }
 
-      bootstrap = loaders[0].id;
+      bootstrap = loaders.entries[0].id;
     }
 
     // Direct tasks already have their program in IMEM. The RDRAM code window
     // is not what they execute, and cannot substitute for the actual image.
     const programBytes = direct ? raw.imem : raw.code;
-    const layoutCandidates = programs.filter(program => (program.loader === 'direct') === direct);
+    const layoutCandidates = direct ? directCandidates : rspbootCandidates;
     const matchingEntries = matchEntries(programBytes, layoutCandidates);
-    const codeCandidates = layoutCandidates.filter(program =>
-      program.entrySha256 === undefined || matchingEntries.includes(program));
+    codeCandidates.count = 0;
+    for (let i = 0; i < layoutCandidates.count; i++) {
+      const program = layoutCandidates.entries[i];
+      if (program.entrySha256 === undefined || contains(matchingEntries, program)) {
+        codeCandidates.entries[codeCandidates.count++] = program;
+      }
+    }
 
     const matchingCode = matchCode(programBytes, codeCandidates);
-    if (matchingCode.length === 0) {
-      return unknown('unreviewed-code');
+    if (matchingCode.count === 0) {
+      return unknown('unreviewed-code', result);
     }
 
-    const matchingConstants = matchConstants(raw.data, matchingCode);
-    const matches = matchingCode.filter(program =>
-      loadedDataBytes >= program.dataBytes && matchingConstants.includes(program));
-
-    if (matches.length === 0) {
-      return unknown('unreviewed-constants');
+    const matches = matchConstants(raw.data, matchingCode);
+    let count = 0;
+    for (let i = 0; i < matches.count; i++) {
+      const program = matches.entries[i];
+      if (loadedDataBytes >= program.dataBytes) matches.entries[count++] = program;
     }
-    if (matches.length > 1) {
-      return ambiguous('ambiguous-identity', matches);
+    matches.count = count;
+
+    if (matches.count === 0) {
+      return unknown('unreviewed-constants', result);
+    }
+    if (matches.count > 1) {
+      return ambiguous('ambiguous-identity', matches, result);
     }
 
-    return {
-      status: 'known',
-      identity: matches[0].id,
-      family: matches[0].family,
-      bootstrap,
-    };
+    result.status = 'known';
+    result.identity = matches.entries[0].id;
+    result.family = matches.entries[0].family;
+    result.bootstrap = bootstrap;
+    if ('reason' in result) delete result.reason;
+    if ('candidates' in result) delete result.candidates;
+    return result;
   };
 }

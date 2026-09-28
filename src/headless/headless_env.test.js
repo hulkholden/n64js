@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, spyOn, test } from 'bun:test';
 import { createHeadlessEmulator, runCycles, runFrames } from './headless_env.js';
 import { controlCause, controlStatus } from '../cpu/cpu0reg.js';
 import { MI_INTR_DP, MI_INTR_MASK_REG, MI_INTR_REG, MI_INTR_SP, MI_INTR_VI } from '../devices/mi.js';
@@ -719,10 +719,10 @@ describe('graphics task callback', () => {
 });
 
 describe('audio task callback', () => {
-  test('reports unknown audio starts in LLE and Disabled modes without handling the task', async () => {
+  test('reports unknown audio starts, including HLE fallback, without handling the task', async () => {
     const previous = audioOptions.emulationMode;
     try {
-      for (const mode of ['LLE', 'Disabled']) {
+      for (const mode of ['LLE', 'HLE', 'Disabled']) {
         audioOptions.emulationMode = mode;
         const seen = [];
         const emulator = await createEmulator({ onAudioTask: info => { seen.push(info); return true; } });
@@ -746,6 +746,67 @@ describe('audio task callback', () => {
       }
     } finally {
       audioOptions.emulationMode = previous;
+    }
+  });
+});
+
+describe('audio dispatch logging', () => {
+  test('logs unknown HLE fallback once and executes the original task on the RSP', async () => {
+    const previous = audioOptions.emulationMode;
+    const log = spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      audioOptions.emulationMode = 'HLE';
+      const emulator = await createEmulator();
+      const { hardware } = emulator;
+      prepareGraphicsTask(emulator);
+      hardware.sp_mem.set32(0x1000, 0x24020007); // addiu v0, zero, 7
+      hardware.sp_mem.set32(0x1004, 0x0000000d); // break
+      hardware.rsp.pc = 0;
+      startRSPTask(emulator, 2);
+      expect(hardware.rsp.halted).toBe(false);
+      expect(hardware.sp_reg.getU32(SP_STATUS_REG) & SP_STATUS_TASKDONE).toBe(0);
+      hardware.rsp.step();
+      hardware.rsp.step();
+      expect(hardware.rsp.getRegU32(2)).toBe(7);
+      expect(hardware.rsp.halted).toBe(true);
+      hardware.rsp.pc = 0;
+      startRSPTask(emulator, 2);
+      const messages = log.mock.calls.map(([message]) => message).filter(message => message.startsWith('RSP audio microcode'));
+      expect(messages).toHaveLength(1);
+      expect(messages[0]).toMatch(/^RSP audio microcode Unknown \(code hash [0-9a-f]{8}\): LLE \(HLE fallback\)$/);
+    } finally {
+      audioOptions.emulationMode = previous;
+      log.mockRestore();
+    }
+  });
+
+  test('reports each execution path and unknown code independently, scoped to the emulator', async () => {
+    const previous = audioOptions.emulationMode;
+    const log = spyOn(console, 'log').mockImplementation(() => {});
+    const messages = () => log.mock.calls.map(([message]) => message).filter(message => message.startsWith('RSP audio microcode'));
+    try {
+      const emulator = await createEmulator();
+      prepareGraphicsTask(emulator);
+      for (const mode of ['LLE', 'HLE', 'Disabled']) {
+        audioOptions.emulationMode = mode;
+        startRSPTask(emulator, 2);
+        startRSPTask(emulator, 2);
+      }
+      expect(messages().map(message => message.split(': ')[1])).toEqual(['LLE', 'LLE (HLE fallback)', 'Disabled']);
+
+      emulator.hardware.ram.u8[0x1000] ^= 1;
+      startRSPTask(emulator, 2);
+      expect(messages()).toHaveLength(4);
+      expect(messages()[3]).not.toBe(messages()[2]);
+
+      const second = await createEmulator();
+      prepareGraphicsTask(second);
+      startRSPTask(second, 2);
+      expect(messages()).toHaveLength(5);
+      expect(messages()[4]).toBe(messages()[2]);
+    } finally {
+      audioOptions.emulationMode = previous;
+      log.mockRestore();
     }
   });
 });

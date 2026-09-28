@@ -8,7 +8,7 @@ import { audioOptions } from './audio_options.js';
 import { graphicsOptions } from './graphics_options.js';
 import { identifyMicrocode, MicrocodeId } from './microcode_identifier.js';
 import { assertHLESupported } from './microcodes.js';
-import { identifyAudioMicrocode } from './audio_microcode.js';
+import { dispatchAudioTask } from './hle_audio.js';
 
 // Task offset in dmem.
 const kTaskOffset = 0x0fc0;
@@ -141,6 +141,11 @@ class RSPTask {
 // HLE task. A continuation returns itself while waiting and null on completion.
 export function hleProcessRSPTask() {
   const hardware = n64js.hardware();
+  // Audio owns reusable task views and state; avoid constructing graphics task
+  // wrappers and formatting duplicate log messages for every audio list.
+  if (hardware.sp_mem.getU32(kTaskOffset) === M_AUDTASK) {
+    return dispatchAudioTask(hardware, audioOptions.emulationMode);
+  }
   const ramU8 = hardware.cachedMemDevice.u8;
   const taskMem = hardware.sp_mem.subRegion(kTaskOffset, kTaskLength);
   const task = new RSPTask(ramU8, taskMem);
@@ -189,14 +194,6 @@ export function hleProcessRSPTask() {
       }
       break;
     }
-    case M_AUDTASK:
-      hardware.onAudioTask?.(identifyAudioMicrocode());
-      // There's no HLE support yet, but if emulation is disabled pretend we
-      // handled the task (we'll play silence).
-      if (audioOptions.emulationMode == 'Disabled') {
-        handled = true;
-      }
-      break;
     case M_VIDTASK:
       // Run on the RSP.
       break;

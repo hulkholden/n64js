@@ -62,7 +62,7 @@ export class Hardware {
     // starts are reported separately. Resets preserve the callback, which must
     // not re-enter emulation. Its return value is ignored.
     this.onGraphicsTask = onGraphicsTask;
-    // Called synchronously before LLE/Disabled audio dispatch with a fresh
+    // Called synchronously before HLE/LLE/Disabled audio dispatch with a fresh
     // identifyAudioMicrocode() snapshot. Resets preserve the callback, which
     // must not re-enter emulation. Its return value is ignored.
     this.onAudioTask = onAudioTask;
