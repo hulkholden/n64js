@@ -24,6 +24,24 @@ function fixture() {
 }
 
 describe('texture lookup and decoding', () => {
+  for (const [name, first, second] of [
+    ['compensating word values', [1, 0], [0, 17]],
+    ['high bits in adjacent words', [0, 0], [0x80000000, 0x80000000]],
+  ]) {
+    test(`does not reuse a stale texture when ${name} change`, () => {
+      const { renderer, state, tile, uploads } = fixture();
+      tile.setSize(0, 0, 12, 0);
+      state.tmem.tmemData32.set(first);
+      const before = renderer.lookupTexture(0);
+      state.tmem.tmemData32.set(second);
+      state.invalidateTileHashes();
+      const after = renderer.lookupTexture(0);
+      expect(after).not.toBe(before);
+      expect(after.pixels).not.toEqual(before.pixels);
+      expect(uploads).toHaveLength(2);
+    });
+  }
+
   test('reuses identical content after a TMEM reload and uploads bytes directly', () => {
     const { renderer, state, uploads } = fixture();
     state.tmem.tmemData.set([0xf8, 0x00]); // Transparent red must retain its RGB.
