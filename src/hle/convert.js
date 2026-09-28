@@ -1,3 +1,4 @@
+import { assert } from '../assert.js';
 import * as gbi from './gbi.js';
 
 const kTMEMAddressMask = 0xfff;
@@ -128,8 +129,6 @@ export function convertRGBA16Pixel(value) {
  * @param {!Tile} tile
  */
 function convertRGBA32(dstData, src, tile) {
-  // TMEM is normally aligned. Keep caller-supplied byte views valid too.
-  if (src.byteOffset & 3) src = new Uint8Array(src);
   const words = new Uint32Array(src.buffer, src.byteOffset, src.byteLength >>> 2);
   const dst = packedOutput(dstData);
   const width = tile.width;
@@ -276,19 +275,15 @@ function convertCI4(dstData, src, tile, pixels) {
 
 /**
  * Converts N64 texels to the native RGBA format.
+ * Source and destination views must start on 4-byte boundaries for packed access.
  * @param {!ImageData} dstData
  * @param {!Uint8Array} tmem
  * @param {!Tile} tile
  */
 export function convertTexels(dstData, tmem, tile, tlutFormat) {
-  // ImageData and renderer buffers are aligned. For arbitrary byte views,
-  // preserve untouched bytes (including row padding) through an aligned copy.
-  if (dstData.data.byteOffset & 3) {
-    const data = new Uint8Array(dstData.data);
-    const handled = convertTexels({ width: dstData.width, data }, tmem, tile, tlutFormat);
-    if (handled) dstData.data.set(data);
-    return handled;
-  }
+  assert((dstData.data.byteOffset & 3) === 0, 'Texture output must be 4-byte aligned');
+  assert((tmem.byteOffset & 3) === 0, 'TMEM must be 4-byte aligned');
+
   // NB: assume RGBA16 for G_TT_NONE.
   const palettePixels = tlutFormat === gbi.TextureLUT.G_TT_IA16 ? ia16Pixels : rgba16Pixels;
 
