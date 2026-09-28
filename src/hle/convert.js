@@ -63,8 +63,37 @@ const kFiveToEight = [
   0xff, // 11111 -> 11111111
 ];
 
-// A temporary buffer used to cache converted palette entries.
-let tempPal = new Uint32Array(256);
+// Write table entries through bytes so the resulting Uint32 values have the
+// host byte order needed for one packed store into RGBA output.
+function pixelTable(count, convert) {
+  const table = new Uint32Array(count);
+  const bytes = new Uint8Array(table.buffer);
+  for (let value = 0; value < count; value++) {
+    const rgba = convert(value);
+    bytes[value * 4 + 0] = rgba >>> 24;
+    bytes[value * 4 + 1] = rgba >>> 16;
+    bytes[value * 4 + 2] = rgba >>> 8;
+    bytes[value * 4 + 3] = rgba;
+  }
+  return table;
+}
+
+const rgba16Pixels = pixelTable(65536, convertRGBA16Pixel);
+const ia16Pixels = pixelTable(65536, convertIA16Pixel);
+const ia8Pixels = pixelTable(256, value =>
+  convertIA16Pixel((kFourToEight[value >>> 4] << 8) | kFourToEight[value & 15]));
+const ia4Pixels = pixelTable(16, value =>
+  convertIA16Pixel((kThreeToEight[value >>> 1] << 8) | kOneToEight[value & 1]));
+const i8Pixels = pixelTable(256, value => value * 0x01010101);
+const i4Pixels = pixelTable(16, value => kFourToEight[value] * 0x01010101);
+
+// Converted CI palettes use the same native-endian packed representation.
+const tempPal = new Uint32Array(256);
+
+function packedOutput(dstData) {
+  const data = dstData.data;
+  return new Uint32Array(data.buffer, data.byteOffset, data.byteLength >>> 2);
+}
 
 /**
  * Converts an IA16 pixel to the native RGBA format.
@@ -99,86 +128,79 @@ export function convertRGBA16Pixel(value) {
  * @param {!Tile} tile
  */
 function convertRGBA32(dstData, src, tile) {
-  const dst = dstData.data;
-  const dstRowStride = dstData.width * 4;
-  let dstRowOffset = 0;
-
-  // For RGBA/32 line is multiplied by 16, not 8.
-  const srcRowStride = tile.line << 4;
-  let srcRowOffset = tile.tmem << 3;
-
-  let rowSwizzle = 0;
-  for (let y = 0; y < tile.height; ++y) {
-    let srcOffset = srcRowOffset;
-    let dstOffset = dstRowOffset;
-
-    for (let x = 0; x < tile.width; ++x) {
-      const index = (srcOffset ^ rowSwizzle) & kTMEMAddressMask;
-
-      dst[dstOffset + 0] = src[index + 0];
-      dst[dstOffset + 1] = src[index + 1];
-      dst[dstOffset + 2] = src[index + 2];
-      dst[dstOffset + 3] = src[index + 3];
-
-      srcOffset += 4;
-      dstOffset += 4;
+  // TMEM is normally aligned. Keep caller-supplied byte views valid too.
+  if (src.byteOffset & 3) src = new Uint8Array(src);
+  const words = new Uint32Array(src.buffer, src.byteOffset, src.byteLength >>> 2);
+  const dst = packedOutput(dstData);
+  const width = tile.width;
+  const height = tile.height;
+  // For RGBA32 the stride is in 16-byte units, with 8-byte odd-row swaps.
+  const stride = tile.line << 2;
+  let row = tile.tmem << 1;
+  let out = 0;
+  for (let y = 0; y < height; y++) {
+    const swizzle = (y & 1) << 1;
+    for (let x = 0; x < width; x++) {
+      dst[out + x] = words[((row + x) ^ swizzle) & (kTMEMAddressMask >>> 2)];
     }
-    srcRowOffset += srcRowStride;
-    dstRowOffset += dstRowStride;
-
-    // For RGBA/32 swapping happens on 8 byte boundary, not 4.
-    rowSwizzle ^= 0x8;
+    row += stride;
+    out += dstData.width;
   }
 }
 
 /**
- * Converts N64 RGBA16 texels to the native RGBA format.
+ * Converts N64 16-bit texels using a native-endian packed colour table.
  * @param {!ImageData} dstData
  * @param {!Uint8Array} src
  * @param {!Tile} tile
+ * @param {!Uint32Array} pixels Native-endian RGBA expansion table.
  */
-function convertRGBA16(dstData, src, tile) {
-  let dst = dstData.data;
-  let dstRowStride = dstData.width * 4; // Might not be the same as width, due to power of 2
-  let dstRowOffset = 0;
-
-  let srcRowStride = tile.line << 3;
-  let srcRowOffset = tile.tmem << 3;
-
-  let rowSwizzle = 0;
-  for (let y = 0; y < tile.height; ++y) {
-    let srcOffset = srcRowOffset;
-    let dstOffset = dstRowOffset;
-
-    for (let x = 0; x < tile.width; ++x) {
-      let index = (srcOffset ^ rowSwizzle) & kTMEMAddressMask;
-      let srcPixel = (src[index] << 8) | src[index + 1];
-
-      dst[dstOffset + 0] = kFiveToEight[(srcPixel >>> 11) & 0x1f];
-      dst[dstOffset + 1] = kFiveToEight[(srcPixel >>> 6) & 0x1f];
-      dst[dstOffset + 2] = kFiveToEight[(srcPixel >>> 1) & 0x1f];
-      dst[dstOffset + 3] = (srcPixel & 0x01) ? 255 : 0;
-
-      srcOffset += 2;
-      dstOffset += 4;
+function convert16b(dstData, src, tile, pixels) {
+  const dst = packedOutput(dstData);
+  const width = tile.width;
+  const height = tile.height;
+  const stride = tile.line << 3;
+  // TMEM wraps after 4 KiB. Once both the row address and odd-row swizzle
+  // repeat, the remaining rows are identical. Tetrisphere's intro uses tall
+  // tiles with a small stride, so decode one period and copy the rest.
+  const rowPeriod = stride ? Math.max(2, 4096 / (stride & -stride)) : 2;
+  const decodedRows = Math.min(height, rowPeriod);
+  let row = tile.tmem << 3;
+  let out = 0;
+  for (let y = 0; y < decodedRows; y++) {
+    const swizzle = (y & 1) << 2;
+    for (let x = 0; x < width; x++) {
+      const index = ((row + x * 2) ^ swizzle) & kTMEMAddressMask;
+      dst[out + x] = pixels[(src[index] << 8) | src[index + 1]];
     }
-    srcRowOffset += srcRowStride;
-    dstRowOffset += dstRowStride;
-
-    rowSwizzle ^= 0x4; // Alternate lines are word-swapped
+    row += stride;
+    out += dstData.width;
+  }
+  if (dstData.width === width) {
+    for (let rows = decodedRows; rows < height; rows *= 2) {
+      dst.copyWithin(rows * width, 0, Math.min(rows, height - rows) * width);
+    }
+  } else {
+    // Preserve padding when the destination rows are wider than the tile.
+    for (let y = decodedRows; y < height; y++) {
+      const source = (y % decodedRows) * dstData.width;
+      dst.copyWithin(y * dstData.width, source, source + width);
+    }
   }
 }
 
 // Keep YUV samples as U,V,Y,255 in the host texture. The shader applies SetConvert
 // after sampling, so changing coefficients does not require decoding it again.
 // HLE TMEM keeps the packed UYVY layout instead of splitting Y and UV banks.
-// Alpha must be opaque here: canvas premultiplication would destroy chroma at
-// low luminance. The shader restores the YUV alpha (Y) after sampling.
+// The shader restores the YUV alpha (Y) after sampling; opaque storage also
+// preserves chroma in debug canvas previews.
 function convertYUV16(dstData, src, tile) {
-  for (let y = 0; y < tile.height; y++) {
+  const width = tile.width;
+  const height = tile.height;
+  for (let y = 0; y < height; y++) {
     const row = (tile.tmem << 3) + y * (tile.line << 4);
     const swizzle = (y & 1) ? 4 : 0;
-    for (let x = 0; x < tile.width; x++) {
+    for (let x = 0; x < width; x++) {
       const pair = ((row + (x & ~1) * 2) ^ swizzle) & kTMEMAddressMask;
       const luma = src[(pair + (x & 1) * 2 + 1) & kTMEMAddressMask];
       const dst = (y * dstData.width + x) * 4;
@@ -190,376 +212,66 @@ function convertYUV16(dstData, src, tile) {
   }
 }
 
-/**
- * Converts N64 IA16 texels to the native RGBA format.
- * @param {!ImageData} dstData
- * @param {!Uint8Array} src
- * @param {!Tile} tile
- */
-function convertIA16(dstData, src, tile) {
-  let dst = dstData.data;
-  let dstRowStride = dstData.width * 4; // Might not be the same as width, due to power of 2
-  let dstRowOffset = 0;
-
-  let srcRowStride = tile.line << 3;
-  let srcRowOffset = tile.tmem << 3;
-
-  let rowSwizzle = 0;
-  for (let y = 0; y < tile.height; ++y) {
-    let srcOffset = srcRowOffset;
-    let dstOffset = dstRowOffset;
-
-    for (let x = 0; x < tile.width; ++x) {
-      let index = (srcOffset ^ rowSwizzle) & kTMEMAddressMask;
-      let i = src[index];
-      let a = src[index + 1];
-
-      dst[dstOffset + 0] = i;
-      dst[dstOffset + 1] = i;
-      dst[dstOffset + 2] = i;
-      dst[dstOffset + 3] = a;
-
-      srcOffset += 2;
-      dstOffset += 4;
+// Intensity, intensity/alpha and CI formats share their addressing and only
+// differ in the table used to expand each texel. CI indices wrap at 2 KiB.
+function convert8b(dstData, src, tile, pixels, addressMask = kTMEMAddressMask) {
+  const dst = packedOutput(dstData);
+  const width = tile.width;
+  const height = tile.height;
+  const stride = tile.line << 3;
+  let row = tile.tmem << 3;
+  let out = 0;
+  for (let y = 0; y < height; y++) {
+    const swizzle = (y & 1) << 2;
+    for (let x = 0; x < width; x++) {
+      dst[out + x] = pixels[src[((row + x) ^ swizzle) & addressMask]];
     }
-    srcRowOffset += srcRowStride;
-    dstRowOffset += dstRowStride;
-
-    rowSwizzle ^= 0x4; // Alternate lines are word-swapped
+    row += stride;
+    out += dstData.width;
   }
 }
 
-/**
- * Converts N64 IA8 texels to the native RGBA format.
- * @param {!ImageData} dstData
- * @param {!Uint8Array} src
- * @param {!Tile} tile
- */
-function convertIA8(dstData, src, tile) {
-  let dst = dstData.data;
-  let dstRowStride = dstData.width * 4; // Might not be the same as width, due to power of 2
-  let dstRowOffset = 0;
-
-  let srcRowStride = tile.line << 3;
-  let srcRowOffset = tile.tmem << 3;
-
-  let rowSwizzle = 0;
-  for (let y = 0; y < tile.height; ++y) {
-    let srcOffset = srcRowOffset;
-    let dstOffset = dstRowOffset;
-
-    for (let x = 0; x < tile.width; ++x) {
-      let index = (srcOffset ^ rowSwizzle) & kTMEMAddressMask;
-      let srcPixel = src[index];
-
-      let i = kFourToEight[(srcPixel >>> 4) & 0xf];
-      let a = kFourToEight[srcPixel & 0xf];
-
-      dst[dstOffset + 0] = i;
-      dst[dstOffset + 1] = i;
-      dst[dstOffset + 2] = i;
-      dst[dstOffset + 3] = a;
-
-      srcOffset += 1;
-      dstOffset += 4;
+function convert4b(dstData, src, tile, pixels, addressMask = kTMEMAddressMask) {
+  const dst = packedOutput(dstData);
+  const width = tile.width;
+  const height = tile.height;
+  const stride = tile.line << 3;
+  let row = tile.tmem << 3;
+  let out = 0;
+  for (let y = 0; y < height; y++) {
+    const swizzle = (y & 1) << 2;
+    let x = 0;
+    for (; x + 1 < width; x += 2) {
+      const value = src[((row + (x >>> 1)) ^ swizzle) & addressMask];
+      dst[out + x] = pixels[value >>> 4];
+      dst[out + x + 1] = pixels[value & 15];
     }
-    srcRowOffset += srcRowStride;
-    dstRowOffset += dstRowStride;
-
-    rowSwizzle ^= 0x4; // Alternate lines are word-swapped
+    // An odd final texel consumes only the high nibble, preserving row padding.
+    if (x < width) {
+      const value = src[((row + (x >>> 1)) ^ swizzle) & addressMask];
+      dst[out + x] = pixels[value >>> 4];
+    }
+    row += stride;
+    out += dstData.width;
   }
 }
 
-/**
- * Converts N64 IA4 texels to the native RGBA format.
- * @param {!ImageData} dstData
- * @param {!Uint8Array} src
- * @param {!Tile} tile
- */
-function convertIA4(dstData, src, tile) {
-  let dst = dstData.data;
-  let dstRowStride = dstData.width * 4; // Might not be the same as width, due to power of 2
-  let dstRowOffset = 0;
-
-  let srcRowStride = tile.line << 3;
-  let srcRowOffset = tile.tmem << 3;
-
-  let rowSwizzle = 0;
-
-  for (let y = 0; y < tile.height; ++y) {
-    let srcOffset = srcRowOffset;
-    let dstOffset = dstRowOffset;
-
-    // Process 2 pixels at a time
-    for (let x = 0; x + 1 < tile.width; x += 2) {
-      let index = (srcOffset ^ rowSwizzle) & kTMEMAddressMask;
-      let srcPixel = src[index];
-
-      let i0 = kThreeToEight[(srcPixel & 0xe0) >>> 5];
-      let a0 = kOneToEight[(srcPixel & 0x10) >>> 4];
-
-      let i1 = kThreeToEight[(srcPixel & 0x0e) >>> 1];
-      let a1 = kOneToEight[(srcPixel & 0x01) >>> 0];
-
-      dst[dstOffset + 0] = i0;
-      dst[dstOffset + 1] = i0;
-      dst[dstOffset + 2] = i0;
-      dst[dstOffset + 3] = a0;
-
-      dst[dstOffset + 4] = i1;
-      dst[dstOffset + 5] = i1;
-      dst[dstOffset + 6] = i1;
-      dst[dstOffset + 7] = a1;
-
-      srcOffset += 1;
-      dstOffset += 8;
-    }
-
-    // For odd widths, read 1 source byte (high nibble only) and write 4 RGBA bytes.
-    // Row strides below advance to the next row; these pixel offsets are finished.
-    if (tile.width & 1) {
-      let index = (srcOffset ^ rowSwizzle) & kTMEMAddressMask;
-      let srcPixel = src[index];
-
-      let i0 = kThreeToEight[(srcPixel & 0xe0) >>> 5];
-      let a0 = kOneToEight[(srcPixel & 0x10) >>> 4];
-
-      dst[dstOffset + 0] = i0;
-      dst[dstOffset + 1] = i0;
-      dst[dstOffset + 2] = i0;
-      dst[dstOffset + 3] = a0;
-    }
-
-    srcRowOffset += srcRowStride;
-    dstRowOffset += dstRowStride;
-
-    rowSwizzle ^= 0x4; // Alternate lines are word-swapped
+function convertPalette(src, palette, count, pixels) {
+  // TLUT entries are replicated across four banks. Match the existing decoder
+  // by sampling bank zero, starting at the selected 16-entry palette for CI4.
+  let offset = 0x800 + palette * 16 * 8;
+  for (let i = 0; i < count; i++, offset += 8) {
+    tempPal[i] = pixels[(src[offset] << 8) | src[offset + 1]];
   }
+  return tempPal;
 }
 
-/**
- * Converts N64 I8 texels to the native RGBA format.
- * @param {!ImageData} dstData
- * @param {!Uint8Array} src
- * @param {!Tile} tile
- */
-function convertI8(dstData, src, tile) {
-  let dst = dstData.data;
-  let dstRowStride = dstData.width * 4; // Might not be the same as width, due to power of 2
-  let dstRowOffset = 0;
-
-  let srcRowStride = tile.line << 3;
-  let srcRowOffset = tile.tmem << 3;
-
-  let rowSwizzle = 0;
-  for (let y = 0; y < tile.height; ++y) {
-    let srcOffset = srcRowOffset;
-    let dstOffset = dstRowOffset;
-
-    for (let x = 0; x < tile.width; ++x) {
-      let i = src[(srcOffset ^ rowSwizzle) & kTMEMAddressMask];
-
-      dst[dstOffset + 0] = i;
-      dst[dstOffset + 1] = i;
-      dst[dstOffset + 2] = i;
-      dst[dstOffset + 3] = i;
-
-      srcOffset += 1;
-      dstOffset += 4;
-    }
-    srcRowOffset += srcRowStride;
-    dstRowOffset += dstRowStride;
-
-    rowSwizzle ^= 0x4; // Alternate lines are word-swapped
-  }
+function convertCI8(dstData, src, tile, pixels) {
+  convert8b(dstData, src, tile, convertPalette(src, 0, 256, pixels), kCIAddressMask);
 }
 
-/**
- * Converts N64 I4 texels to the native RGBA format.
- * @param {!ImageData} dstData
- * @param {!Uint8Array} src
- * @param {!Tile} tile
- */
-function convertI4(dstData, src, tile) {
-  let dst = dstData.data;
-  let dstRowStride = dstData.width * 4; // Might not be the same as width, due to power of 2
-  let dstRowOffset = 0;
-
-  let srcRowStride = tile.line << 3;
-  let srcRowOffset = tile.tmem << 3;
-
-  let rowSwizzle = 0;
-
-  for (let y = 0; y < tile.height; ++y) {
-    let srcOffset = srcRowOffset;
-    let dstOffset = dstRowOffset;
-
-    // Process 2 pixels at a time
-    for (let x = 0; x + 1 < tile.width; x += 2) {
-      let srcPixel = src[(srcOffset ^ rowSwizzle) & kTMEMAddressMask];
-      let i0 = kFourToEight[(srcPixel & 0xf0) >>> 4];
-      let i1 = kFourToEight[(srcPixel & 0x0f) >>> 0];
-
-      dst[dstOffset + 0] = i0;
-      dst[dstOffset + 1] = i0;
-      dst[dstOffset + 2] = i0;
-      dst[dstOffset + 3] = i0;
-
-      dst[dstOffset + 4] = i1;
-      dst[dstOffset + 5] = i1;
-      dst[dstOffset + 6] = i1;
-      dst[dstOffset + 7] = i1;
-
-      srcOffset += 1;
-      dstOffset += 8;
-    }
-
-    // For odd widths, read 1 source byte (high nibble only) and write 4 RGBA bytes.
-    // Row strides below advance to the next row; these pixel offsets are finished.
-    if (tile.width & 1) {
-      let srcPixel = src[(srcOffset ^ rowSwizzle) & kTMEMAddressMask];
-      let i0 = kFourToEight[(srcPixel & 0xf0) >>> 4];
-
-      dst[dstOffset + 0] = i0;
-      dst[dstOffset + 1] = i0;
-      dst[dstOffset + 2] = i0;
-      dst[dstOffset + 3] = i0;
-    }
-
-    srcRowOffset += srcRowStride;
-    dstRowOffset += dstRowStride;
-
-    rowSwizzle ^= 0x4; // Alternate lines are word-swapped
-  }
-}
-
-/**
- * Converts N64 CI8 texels to the native RGBA format.
- * @param {!ImageData} dstData
- * @param {!Uint8Array} src
- * @param {!Tile} tile
- * @param {function(number): number} palConv Palette conversion function.
- */
-function convertCI8(dstData, src, tile, palConv) {
-  const dst = dstData.data;
-  const dstRowStride = dstData.width * 4; // Might not be the same as width, due to power of 2
-  let dstRowOffset = 0;
-
-  const srcRowStride = tile.line << 3;
-  let srcRowOffset = tile.tmem << 3;
-
-  // Each 8 byte word contains 4 copies of the LUT entry, which duplicates
-  // it across 4 memory banks (presumably for performance). In theory different
-  // values could be loaded into different banks so for accuracy we should
-  // sample from the correct bank. For now assume we just sample from bank 0.
-  // TODO: figure out which bank to sample from.
-  const lutBankIndex = 0;
-
-  // Convert the LUT once and cache the results in tempPal.
-  for (let i = 0; i < 256; ++i) {
-    const luValue = i;
-    const lutEntry = (luValue * 4) + lutBankIndex;
-    const tmemOffset = 0x800 + (lutEntry * 2);
-    const srcPixel = (src[tmemOffset + 0] << 8) | src[tmemOffset + 1];
-    tempPal[i] = palConv(srcPixel);
-  }
-
-  let rowSwizzle = 0;
-  for (let y = 0; y < tile.height; ++y) {
-    let srcOffset = srcRowOffset;
-    let dstOffset = dstRowOffset;
-
-    for (let x = 0; x < tile.width; ++x) {
-      const srcPixel = tempPal[src[(srcOffset ^ rowSwizzle) & kCIAddressMask]];
-
-      dst[dstOffset + 0] = (srcPixel >> 24) & 0xff;
-      dst[dstOffset + 1] = (srcPixel >> 16) & 0xff;
-      dst[dstOffset + 2] = (srcPixel >> 8) & 0xff;
-      dst[dstOffset + 3] = srcPixel & 0xff;
-
-      srcOffset += 1;
-      dstOffset += 4;
-    }
-    srcRowOffset += srcRowStride;
-    dstRowOffset += dstRowStride;
-
-    rowSwizzle ^= 0x4; // Alternate lines are word-swapped
-  }
-}
-
-/**
- * Converts N64 CI4 texels to the native RGBA format.
- * @param {!ImageData} dstData
- * @param {!Uint8Array} src
- * @param {!Tile} tile
- * @param {number} palette Palette index.
- * @param {function(number): number} palConv Palette conversion function.
- */
-function convertCI4(dstData, src, tile, palette, palConv) {
-  const dst = dstData.data;
-  const dstRowStride = dstData.width * 4; // Might not be the same as width, due to power of 2
-  let dstRowOffset = 0;
-
-  const srcRowStride = tile.line << 3;
-  let srcRowOffset = tile.tmem << 3;
-
-  // Each 8 byte word contains 4 copies of the LUT entry, which duplicates
-  // it across 4 memory banks (presumably for performance). In theory different
-  // values could be loaded into different banks so for accuracy we should
-  // sample from the correct bank. For now assume we just sample from bank 0.
-  // TODO: figure out which bank to sample from.
-  const lutBankIndex = 0;
-
-  for (let i = 0; i < 16; ++i) {
-    const luValue = (palette * 16) | i;
-    const lutEntry = (luValue * 4) + lutBankIndex;
-    const tmemOffset = 0x800 + (lutEntry * 2);
-    const srcPixel = (src[tmemOffset + 0] << 8) | src[tmemOffset + 1];
-    tempPal[i] = palConv(srcPixel);
-  }
-
-  let rowSwizzle = 0;
-  for (let y = 0; y < tile.height; ++y) {
-    let srcOffset = srcRowOffset;
-    let dstOffset = dstRowOffset;
-
-    // Process 2 pixels at a time
-    for (let x = 0; x + 1 < tile.width; x += 2) {
-      let srcPixel = src[(srcOffset ^ rowSwizzle) & kCIAddressMask];
-      let c0 = tempPal[(srcPixel & 0xf0) >>> 4];
-      let c1 = tempPal[(srcPixel & 0x0f) >>> 0];
-
-      dst[dstOffset + 0] = (c0 >> 24) & 0xff;
-      dst[dstOffset + 1] = (c0 >> 16) & 0xff;
-      dst[dstOffset + 2] = (c0 >> 8) & 0xff;
-      dst[dstOffset + 3] = c0 & 0xff;
-
-      dst[dstOffset + 4] = (c1 >> 24) & 0xff;
-      dst[dstOffset + 5] = (c1 >> 16) & 0xff;
-      dst[dstOffset + 6] = (c1 >> 8) & 0xff;
-      dst[dstOffset + 7] = c1 & 0xff;
-
-      srcOffset += 1;
-      dstOffset += 8;
-    }
-
-    // For odd widths, read 1 source byte (high nibble only) and write 4 RGBA bytes.
-    // Row strides below advance to the next row; these pixel offsets are finished.
-    if (tile.width & 1) {
-      let srcPixel = src[(srcOffset ^ rowSwizzle) & kCIAddressMask];
-      let c0 = tempPal[(srcPixel & 0xf0) >>> 4];
-
-      dst[dstOffset + 0] = (c0 >> 24) & 0xff;
-      dst[dstOffset + 1] = (c0 >> 16) & 0xff;
-      dst[dstOffset + 2] = (c0 >> 8) & 0xff;
-      dst[dstOffset + 3] = c0 & 0xff;
-    }
-
-    srcRowOffset += srcRowStride;
-    dstRowOffset += dstRowStride;
-
-    rowSwizzle ^= 0x4; // Alternate lines are word-swapped
-  }
+function convertCI4(dstData, src, tile, pixels) {
+  convert4b(dstData, src, tile, convertPalette(src, tile.palette, 16, pixels), kCIAddressMask);
 }
 
 /**
@@ -569,8 +281,16 @@ function convertCI4(dstData, src, tile, palette, palConv) {
  * @param {!Tile} tile
  */
 export function convertTexels(dstData, tmem, tile, tlutFormat) {
-  // NB: assume RGBA16 for G_TT_NONE
-  const convFn = (tlutFormat === gbi.TextureLUT.G_TT_IA16) ? convertIA16Pixel : convertRGBA16Pixel;
+  // ImageData and renderer buffers are aligned. For arbitrary byte views,
+  // preserve untouched bytes (including row padding) through an aligned copy.
+  if (dstData.data.byteOffset & 3) {
+    const data = new Uint8Array(dstData.data);
+    const handled = convertTexels({ width: dstData.width, data }, tmem, tile, tlutFormat);
+    if (handled) dstData.data.set(data);
+    return handled;
+  }
+  // NB: assume RGBA16 for G_TT_NONE.
+  const palettePixels = tlutFormat === gbi.TextureLUT.G_TT_IA16 ? ia16Pixels : rgba16Pixels;
 
   switch (tile.format) {
     case gbi.ImageFormat.G_IM_FMT_YUV:
@@ -585,16 +305,16 @@ export function convertTexels(dstData, tmem, tile, tlutFormat) {
           convertRGBA32(dstData, tmem, tile);
           return true;
         case gbi.ImageSize.G_IM_SIZ_16b:
-          convertRGBA16(dstData, tmem, tile);
+          convert16b(dstData, tmem, tile, rgba16Pixels);
           return true;
 
         // Hack - Extreme-G specifies RGBA/8 RGBA/4 textures, but they're
         // really CI
         case gbi.ImageSize.G_IM_SIZ_8b:
-          convertCI8(dstData, tmem, tile, convFn);
+          convertCI8(dstData, tmem, tile, palettePixels);
           return true;
         case gbi.ImageSize.G_IM_SIZ_4b:
-          convertCI4(dstData, tmem, tile, tile.palette, convFn);
+          convertCI4(dstData, tmem, tile, palettePixels);
           return true;
       }
       break;
@@ -602,13 +322,13 @@ export function convertTexels(dstData, tmem, tile, tlutFormat) {
     case gbi.ImageFormat.G_IM_FMT_IA:
       switch (tile.size) {
         case gbi.ImageSize.G_IM_SIZ_16b:
-          convertIA16(dstData, tmem, tile);
+          convert16b(dstData, tmem, tile, ia16Pixels);
           return true;
         case gbi.ImageSize.G_IM_SIZ_8b:
-          convertIA8(dstData, tmem, tile);
+          convert8b(dstData, tmem, tile, ia8Pixels);
           return true;
         case gbi.ImageSize.G_IM_SIZ_4b:
-          convertIA4(dstData, tmem, tile);
+          convert4b(dstData, tmem, tile, ia4Pixels);
           return true;
       }
       break;
@@ -616,10 +336,10 @@ export function convertTexels(dstData, tmem, tile, tlutFormat) {
     case gbi.ImageFormat.G_IM_FMT_I:
       switch (tile.size) {
         case gbi.ImageSize.G_IM_SIZ_8b:
-          convertI8(dstData, tmem, tile);
+          convert8b(dstData, tmem, tile, i8Pixels);
           return true;
         case gbi.ImageSize.G_IM_SIZ_4b:
-          convertI4(dstData, tmem, tile);
+          convert4b(dstData, tmem, tile, i4Pixels);
           return true;
       }
       break;
@@ -627,10 +347,10 @@ export function convertTexels(dstData, tmem, tile, tlutFormat) {
     case gbi.ImageFormat.G_IM_FMT_CI:
       switch (tile.size) {
         case gbi.ImageSize.G_IM_SIZ_8b:
-          convertCI8(dstData, tmem, tile, convFn);
+          convertCI8(dstData, tmem, tile, palettePixels);
           return true;
         case gbi.ImageSize.G_IM_SIZ_4b:
-          convertCI4(dstData, tmem, tile, tile.palette, convFn);
+          convertCI4(dstData, tmem, tile, palettePixels);
           return true;
       }
       break;
