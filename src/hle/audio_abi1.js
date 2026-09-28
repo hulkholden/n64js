@@ -47,6 +47,7 @@ const PARAM_ENVELOPE_LEFT = DMEM_PARAMS + 0x10;
 const PARAM_ENVELOPE_RIGHT = DMEM_PARAMS + 0x16;
 const PARAM_DRY_VOLUME = DMEM_PARAMS + 0x1c;
 const PARAM_WET_VOLUME = DMEM_PARAMS + 0x1e;
+
 // SETLOOP aliases the left envelope configuration; it has no separate slot.
 const PARAM_LOOP_ADDRESS = PARAM_ENVELOPE_LEFT;
 
@@ -54,10 +55,12 @@ const PARAM_LOOP_ADDRESS = PARAM_ENVELOPE_LEFT;
 const POLE_COEFFICIENTS_A = DMEM_ADPCM_BOOK;
 const POLE_COEFFICIENTS_B = DMEM_ADPCM_BOOK + 0x10;
 const POLE_HISTORY = DMEM_SCRATCH + 0x04;
+
 // Each DSP handler reuses scratch for its own saved state layout.
 const RESAMPLE_PHASE = DMEM_SCRATCH + 0x08;
 const RESAMPLE_INPUT_ADJUST = DMEM_SCRATCH + 0x0a;
 const RESAMPLE_TAIL = DMEM_SCRATCH + 0x10;
+
 const ENVELOPE_SAVED_CONFIG = DMEM_SCRATCH + 0x40;
 // Four volume vectors (integer/fractional for each channel) plus configuration.
 const ENVELOPE_STATE_SIZE = 5 * 16;
@@ -76,8 +79,10 @@ function initializeEnvelopeChannel(channel, initial) {
   const product = initial * fixed16FromParts(channel.rateHi, channel.rateLo);
   const productHi = clampFixed16Hi(product);
   const productLo = clampFixed16Lo(product);
+
   const difference = fixed16FromParts(clamp16(productHi - initial), productLo);
   const initialFixed = fixed16FromParts(initial, 0);
+
   for (let lane = 0; lane < 8; lane++) {
     const weight = lane === 7 ? ENVELOPE_WEIGHT_MAX : (lane + 1) * ENVELOPE_WEIGHT_STEP;
     const value = initialFixed + fixed16ToInt(difference * weight);
@@ -98,18 +103,23 @@ export class ABI1Audio {
   constructor(ram, dmem) {
     this.dmem = new Uint8Array(4096);
     this.view = new DataView(this.dmem.buffer);
+
     this.samples = new Int16Array(16);
     this.result = new Int16Array(8);
     this.residual = new Int16Array(16);
+
     this.poleA = new Int16Array(8);
     this.poleB = new Int16Array(8);
     this.poleScaled = new Int16Array(8);
+
     this.envelopeOutputs = new Uint16Array(4);
     this.envelopeChannels = [createEnvelopeChannel(), createEnvelopeChannel()];
+
     // Grow only when a larger task is first encountered; retain the capacity.
     this.undoWords = new Uint32Array(4096);
     this.writeAddresses = new Uint32Array(128);
     this.writeSizes = new Uint16Array(128);
+
     this.reset(ram, dmem);
   }
 
@@ -118,6 +128,7 @@ export class ABI1Audio {
       this.ram = ram;
       this.ramView = new DataView(ram.buffer, ram.byteOffset, ram.byteLength);
     }
+
     this.dmem.set(dmem);
     this.commit();
   }
@@ -131,6 +142,7 @@ export class ABI1Audio {
   u16(p) { return this.view.getUint16(p); }
   s16(p) { return this.view.getInt16(p); }
   put16(p, v) { this.view.setUint16(p, v); }
+
   get input() { return this.u16(PARAM_INPUT); }
   get output() { return this.u16(PARAM_OUTPUT); }
   get count() { return this.u16(PARAM_COUNT); }
@@ -165,10 +177,12 @@ export class ABI1Audio {
     const size = round8(count);
     this.require(count > 0 && dmem >= 0 && dmem + size <= 4096 && address + size <= this.ram.length,
       'Unreviewed audio DMA');
+
     if (write) {
       this.reserveUndo(size >>> 2);
       this.writeAddresses[this.writeCount] = address;
       this.writeSizes[this.writeCount++] = size;
+
       for (let i = 0; i < size; i += 4) {
         this.undoWords[this.undoCount++] = this.ramView.getUint32(address + i);
         this.ramView.setUint32(address + i, this.view.getUint32(dmem + i));
@@ -184,6 +198,7 @@ export class ABI1Audio {
       grown.set(this.undoWords);
       this.undoWords = grown;
     }
+
     if (this.writeCount === this.writeAddresses.length) {
       const addresses = new Uint32Array(this.writeCount * 2);
       const sizes = new Uint16Array(this.writeCount * 2);
@@ -200,6 +215,7 @@ export class ABI1Audio {
       this.undoCount -= size >>> 2;
       for (let p = 0; p < size; p += 4) this.ramView.setUint32(address + p, this.undoWords[this.undoCount + (p >>> 2)]);
     }
+
     this.commit();
   }
 
@@ -207,29 +223,38 @@ export class ABI1Audio {
     const opcode = w0 >>> 24;
     const flags = (w0 >>> 16) & 255;
     const low = w0 & 0xffff;
+
     switch (opcode) {
       case OPCODE_SPNOOP: return;
+
       case OPCODE_ADPCM: return this.adpcm(flags, this.address(w1));
+
       case OPCODE_CLEARBUFF: {
         const p = DMEM_SAMPLE_BUFFER + low, count = round16(w1 & 0xffff);
         this.buffer(p, count);
         this.dmem.fill(0, p, p + count);
         return;
       }
+
       case OPCODE_ENVMIXER: return this.envelope(flags, this.address(w1));
+
       case OPCODE_LOADBUFF:
       case OPCODE_SAVEBUFF: {
         if (!this.count) return;
+
         const p = opcode === OPCODE_LOADBUFF ? this.input : this.output;
         this.buffer(p & ~7, round8(this.count));
         this.dma(p, this.address(w1), this.count, opcode === OPCODE_SAVEBUFF);
         return;
       }
+
       case OPCODE_RESAMPLE: return this.resample(flags, low, this.address(w1));
+
       case OPCODE_SEGMENT:
         this.require((w1 >>> 24) < 16, 'Audio segment outside table');
         this.view.setUint32(DMEM_SEGMENT_TABLE + (w1 >>> 24) * 4, w1 & 0xffffff);
         return;
+
       case OPCODE_SETBUFF:
         if (flags & 8) {
           this.put16(PARAM_OUTPUT_RIGHT, low + DMEM_SAMPLE_BUFFER);
@@ -241,6 +266,7 @@ export class ABI1Audio {
           this.put16(PARAM_COUNT, w1);
         }
         return;
+
       case OPCODE_SETVOL:
         if (flags & 8) {
           this.put16(PARAM_DRY_VOLUME, low);
@@ -253,25 +279,31 @@ export class ABI1Audio {
           this.view.setUint32(p + 2, w1);
         }
         return;
+
       case OPCODE_DMEMMOVE: {
         const from = DMEM_SAMPLE_BUFFER + low, to = DMEM_SAMPLE_BUFFER + (w1 >>> 16), count = round16(w1 & 0xffff);
         this.buffer(from, count);
         this.buffer(to, count);
+
         // 0x1424: load both halves before storing, then move forward 16 bytes.
         for (let i = 0; i < count; i += 16) this.dmem.copyWithin(to + i, from + i, from + i + 16);
         return;
       }
+
       case OPCODE_LOADADPCM:
         this.require(low > 0 && low <= ADPCM_BOOK_SIZE, 'Unreviewed predictor book size');
         this.dma(DMEM_ADPCM_BOOK, this.address(w1), low);
         return;
+
       case OPCODE_MIXER: return this.mix(low, w1 >>> 16, w1 & 0xffff);
+
       case OPCODE_INTERLEAVE: {
         const left = DMEM_SAMPLE_BUFFER + (w1 >>> 16), right = DMEM_SAMPLE_BUFFER + (w1 & 0xffff);
         const count = round16(this.count), out = this.output;
         this.buffer(left, count, 16);
         this.buffer(right, count, 16);
         this.buffer(out, count * 2, 2);
+
         const samples = this.samples;
         for (let i = 0; i < count; i += 16) {
           // Stage both vectors before writing, including overlapping outputs.
@@ -279,6 +311,7 @@ export class ABI1Audio {
             samples[j] = this.s16(left + i + j * 2);
             samples[j + 8] = this.s16(right + i + j * 2);
           }
+
           for (let j = 0; j < 8; j++) {
             this.put16(out + i * 2 + j * 4, samples[j]);
             this.put16(out + i * 2 + j * 4 + 2, samples[j + 8]);
@@ -286,21 +319,26 @@ export class ABI1Audio {
         }
         return;
       }
+
       case OPCODE_POLEF: return this.poleFilter(flags, low, this.address(w1));
+
       case OPCODE_SETLOOP:
         this.view.setUint32(PARAM_LOOP_ADDRESS, this.address(w1));
         return;
+
       default: throw new UnsupportedAudioCommand(`Unsupported audio opcode ${opcode}`);
     }
   }
 
   mix(gain, inputOffset, outputOffset) {
     if (!this.count) return;
+
     const count = round32(this.count);
     const input = DMEM_SAMPLE_BUFFER + inputOffset, output = DMEM_SAMPLE_BUFFER + outputOffset;
     this.buffer(input, count, 16);
     this.buffer(output, count, 16);
     if (input !== output) this.disjoint(input, count, output, count);
+
     gain = signed16(gain);
     for (let p = 0; p < count; p += 32) {
       // Input/output are identical or disjoint, so lane reads are independent.
@@ -316,16 +354,19 @@ export class ABI1Audio {
 
   poleFilter(flags, gain, address) {
     if (!this.count) return;
+
     const count = round16(this.count), input = this.input, output = this.output;
     this.buffer(input, count, 2);
     this.buffer(output, count, 2);
     if (input !== output) this.disjoint(input, count, output, count);
     this.disjoint(POLE_COEFFICIENTS_A, 32, output, count);
+
     // 0x176c clears only four bytes, even on INIT. The last two history
     // samples at POLE_HISTORY are retained. Reproduce the actual program.
     this.dmem.fill(0, DMEM_SCRATCH, POLE_HISTORY);
     if (!(flags & 1)) this.dma(DMEM_SCRATCH, address, 8);
     let prev0 = this.s16(POLE_HISTORY), prev1 = this.s16(POLE_HISTORY + 2);
+
     const a = this.poleA, b = this.poleB, scaled = this.poleScaled;
     for (let i = 0; i < 8; i++) {
       a[i] = this.s16(POLE_COEFFICIENTS_A + i * 2);
@@ -333,18 +374,22 @@ export class ABI1Audio {
       scaled[i] = fixed16ToInt(b[i] * unsigned16(gain * 4));
       this.put16(POLE_COEFFICIENTS_B + i * 2, scaled[i]);
     }
+
     const samples = this.samples, result = this.result;
     for (let p = 0; p < count; p += 16) {
       for (let i = 0; i < 8; i++) samples[i] = this.s16(input + p + i * 2);
+
       for (let i = 0; i < 8; i++) {
         let sum = a[i] * prev0 + b[i] * prev1 + samples[i] * signed16(gain);
         for (let j = 0; j < i; j++) sum += scaled[i - j - 1] * samples[j];
         // VMADH wraps a signed 32-bit sum; VSAR/VMUDN/VMADH shift by 14.
         result[i] = clampShifted32To16(sum, 14);
       }
+
       for (let i = 0; i < 8; i++) this.put16(output + p + i * 2, result[i]);
       prev0 = result[6]; prev1 = result[7];
     }
+
     this.dma(output + count - 8, address, 8, true);
   }
 
@@ -354,28 +399,34 @@ export class ABI1Audio {
     this.buffer(output, count + 32, 16);
     this.disjoint(input, count / 32 * 9, output, count + 32);
     this.disjoint(DMEM_ADPCM_BOOK, ADPCM_BOOK_SIZE, output, count + 32);
+
     this.dmem.fill(0, output, output + 32);
     if (!(flags & 1)) this.dma(output, flags & 2 ? this.view.getUint32(PARAM_LOOP_ADDRESS) : address, 32);
     let prev0 = this.s16(output + 28), prev1 = this.s16(output + 30);
+
     const residual = this.residual, result = this.result;
     for (let block = 0; block < count / 32; block++) {
       const p = input + block * 9, header = this.dmem[p], book = DMEM_ADPCM_BOOK + (header & 15) * 32;
       this.require(book + 32 <= DMEM_SAMPLE_BUFFER, 'Unreviewed ADPCM predictor');
+
       const shift = Math.min(header >>> 4, 12);
       for (let i = 0; i < 16; i++) {
         const byte = this.dmem[p + 1 + (i >>> 1)];
         residual[i] = (((i & 1 ? byte : byte >>> 4) & 15) << 28 >> 28) * 2 ** shift;
       }
+
       for (let half = 0; half < 16; half += 8) {
         for (let i = 0; i < 8; i++) {
           let sum = this.s16(book + i * 2) * prev0 + this.s16(book + 16 + i * 2) * prev1 + residual[half + i] * 2048;
           for (let j = 0; j < i; j++) sum += this.s16(book + 16 + (i - j - 1) * 2) * residual[half + j];
           result[i] = clampShifted32To16(sum, 11);
         }
+
         for (let i = 0; i < 8; i++) this.put16(output + 32 + block * 32 + (half + i) * 2, result[i]);
         prev0 = result[6]; prev1 = result[7];
       }
     }
+
     this.dma(output + count, address, 32, true);
   }
 
@@ -384,18 +435,22 @@ export class ABI1Audio {
     const tableBase = this.resampleTable;
     this.require(count > 0, 'Zero-length resampler');
     this.buffer(output, count, 16);
+
     if (flags & 1) this.dmem.fill(0, DMEM_SCRATCH, RESAMPLE_INPUT_ADJUST);
     else this.dma(DMEM_SCRATCH, address, 32);
+
     let source = input;
     if (flags & 2) {
       this.buffer(source - 16, 16);
       this.dmem.copyWithin(source - 16, RESAMPLE_TAIL, DMEM_SCRATCH + 32);
       source -= this.s16(RESAMPLE_INPUT_ADJUST);
     }
+
     source -= 8;
     let phase = this.u16(RESAMPLE_PHASE);
     this.buffer(source, 8, 2);
     this.dmem.copyWithin(source, DMEM_SCRATCH, RESAMPLE_PHASE);
+
     const result = this.result;
     for (let p = 0; p < count; p += 16) {
       // Each vector iteration loads all eight windows before storing output.
@@ -407,20 +462,25 @@ export class ABI1Audio {
         const t2 = mulFraction(this.s16(source + 4), this.s16(table + 4));
         const t3 = mulFraction(this.s16(source + 6), this.s16(table + 6));
         result[i] = clamp16(clamp16(t0 + t1) + clamp16(t2 + t3));
+
         phase += pitch * 2;
         source += (phase >>> 16) * 2;
         phase = unsigned16(phase);
       }
+
       for (let i = 0; i < 8; i++) this.put16(output + p + i * 2, result[i]);
     }
+
     this.buffer(source, 8, 2);
     this.dmem.copyWithin(DMEM_SCRATCH, source, source + 8);
     this.put16(RESAMPLE_PHASE, phase);
+
     const remainder = (source + 8 - input) & 15;
     const tail = source + 8 - remainder;
     this.buffer(tail, 16);
     this.put16(RESAMPLE_INPUT_ADJUST, remainder ? 16 - remainder : 0);
     this.dmem.copyWithin(RESAMPLE_TAIL, tail, tail + 16);
+
     this.dma(DMEM_SCRATCH, address, 32, true);
   }
 
@@ -432,6 +492,7 @@ export class ABI1Audio {
     if (auxiliary) {
       outputs[2] = this.u16(PARAM_WET_OUTPUT_LEFT); outputs[3] = this.u16(PARAM_WET_OUTPUT_RIGHT);
     }
+
     this.require(count >= (flags & 1 ? 32 : 16), 'Unreviewed short envelope');
     this.buffer(input, count, 16);
     for (let i = 0; i < outputCount; i++) this.buffer(outputs[i], count, 16);
@@ -439,14 +500,17 @@ export class ABI1Audio {
       this.disjoint(input, count, outputs[i], count);
       for (let j = i + 1; j < outputCount; j++) this.disjoint(outputs[i], count, outputs[j], count);
     }
+
     if (!(flags & 1)) this.dma(DMEM_SCRATCH, address, ENVELOPE_STATE_SIZE);
     const config = flags & 1 ? PARAM_ENVELOPE_LEFT : ENVELOPE_SAVED_CONFIG;
     const dry = this.s16(config + 12), wet = this.s16(config + 14);
+
     const channels = this.envelopeChannels;
     for (let channel = 0; channel < 2; channel++) {
       const p = config + channel * 6;
       const c = channels[channel], hi = c.hi, lo = c.lo;
       c.target = this.s16(p); c.rateHi = this.s16(p + 2); c.rateLo = this.u16(p + 4);
+
       if (flags & 1) {
         this.initializeEnvelope(c, this.s16(PARAM_VOLUME_LEFT + channel * 2));
       } else {
@@ -456,6 +520,7 @@ export class ABI1Audio {
         }
       }
     }
+
     for (let p = 0; p < count; p += 16) {
       for (let channel = 0; channel < 2; channel++) {
         const c = channels[channel];
@@ -466,6 +531,7 @@ export class ABI1Audio {
             ? signed16(Math.min(unsigned16(c.hi[lane]), unsigned16(c.target)))
             : Math.max(c.hi[lane], c.target);
         }
+
         // Without AUX, 0x1be0–0x1be8 redirects wet writes to a fixed scratch
         // vector outside the saved envelope state. It has no DSP-visible use;
         // the dry channels and all five saved state vectors still run normally.
@@ -482,6 +548,7 @@ export class ABI1Audio {
         }
       }
     }
+
     for (let channel = 0; channel < 2; channel++) {
       const c = channels[channel];
       for (let i = 0; i < 8; i++) {
@@ -489,6 +556,7 @@ export class ABI1Audio {
         this.put16(DMEM_SCRATCH + channel * 32 + 16 + i * 2, c.lo[i]);
       }
     }
+
     this.dmem.copyWithin(ENVELOPE_SAVED_CONFIG, config, config + 16);
     this.dma(DMEM_SCRATCH, address, ENVELOPE_STATE_SIZE, true);
   }
