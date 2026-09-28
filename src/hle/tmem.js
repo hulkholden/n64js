@@ -221,6 +221,8 @@ export class TMEM {
       }
     }
 
+    // Reserve zero for invalidation without losing any of the 32-bit digests.
+    hash += 1;
     hashOwner.hash = hash;
     hashOwner.hashWidth = tile.width;
     hashOwner.hashHeight = tile.height;
@@ -228,16 +230,47 @@ export class TMEM {
   }
 }
 
-function hashTmem(tmem32, offset, len, hash, addressMask = 0xfff) {
+// XXH32 over word-aligned spans, retaining TMEM wrapping and the one-period cap.
+// Native-endian words are sufficient for this in-process cache identity.
+// Algorithm: https://github.com/Cyan4973/xxHash/blob/dev/doc/xxhash_spec.md
+function hashTmem(tmem32, offset, len, seed, addressMask = 0xfff) {
+  const length = Math.min(len, addressMask + 1);
   let i = offset >> 2;
-  // A wrapped span longer than TMEM repeats the same bytes. Hash one period.
-  const e = (offset + Math.min(len, addressMask + 1)) >> 2;
+  const end = (offset + length) >> 2;
   const wordMask = addressMask >> 2;
-  while (i < e) {
-    hash = ((hash * 17) + tmem32[i & wordMask]) >>> 0;
-    ++i;
+  let hash;
+  if (length >= 16) {
+    let a = (seed + 0x9e3779b1 + 0x85ebca77) | 0;
+    let b = (seed + 0x85ebca77) | 0;
+    let c = seed | 0;
+    let d = (seed - 0x9e3779b1) | 0;
+    for (; i + 4 <= end; i += 4) {
+      a = xxh32Round(a, tmem32[i & wordMask]);
+      b = xxh32Round(b, tmem32[(i + 1) & wordMask]);
+      c = xxh32Round(c, tmem32[(i + 2) & wordMask]);
+      d = xxh32Round(d, tmem32[(i + 3) & wordMask]);
+    }
+    hash = (rotateLeft32(a, 1) + rotateLeft32(b, 7) + rotateLeft32(c, 12) + rotateLeft32(d, 18)) | 0;
+  } else {
+    hash = (seed + 0x165667b1) | 0;
   }
-  return hash;
+  hash = (hash + length) | 0;
+  for (; i < end; i++) {
+    hash = (hash + Math.imul(tmem32[i & wordMask], 0xc2b2ae3d)) | 0;
+    hash = Math.imul(rotateLeft32(hash, 17), 0x27d4eb2f);
+  }
+  hash = Math.imul(hash ^ (hash >>> 15), 0x85ebca77);
+  hash = Math.imul(hash ^ (hash >>> 13), 0xc2b2ae3d);
+  return (hash ^ (hash >>> 16)) >>> 0;
+}
+
+function xxh32Round(hash, word) {
+  hash = (hash + Math.imul(word, 0x85ebca77)) | 0;
+  return Math.imul(rotateLeft32(hash, 13), 0x9e3779b1);
+}
+
+function rotateLeft32(value, bits) {
+  return (value << bits) | (value >>> (32 - bits));
 }
 
 // tmem/ram should be Int32Array
