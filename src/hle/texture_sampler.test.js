@@ -136,8 +136,8 @@ for (const [name, maskS, maskT, address, pixel] of [
     tmem.tmemData[address] = 255;
     const updated = textureDecodeTile(tile);
     expect(tmem.calculateCRC(updated)).not.toBe(before);
-    const dst = { width: updated.width, data: new Uint8ClampedArray(updated.width * updated.height * 4) };
-    expect(tmem.convertTexels(updated, 0, dst)).toBe(true);
-    expect(Array.from(dst.data.slice(pixel * 4, pixel * 4 + 4))).toEqual([255, 255, 255, 255]);
+    const dst = new Uint8ClampedArray(updated.width * updated.height * 4);
+    expect(tmem.convertTexels(dst, updated.width, updated, 0)).toBe(true);
+    expect(Array.from(dst.slice(pixel * 4, pixel * 4 + 4))).toEqual([255, 255, 255, 255]);
   });
 }

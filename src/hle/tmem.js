@@ -173,8 +173,8 @@ export class TMEM {
     copyLineTLUT(this.tmemData, tmemOffset, ram, ramAddress, texels);
   }
 
-  convertTexels(tile, tlutFormat, imgData) {
-    return convertTexels(imgData, this.tmemData, tile, tlutFormat);
+  convertTexels(dstData, dstWidth, tile, tlutFormat) {
+    return convertTexels(dstData, dstWidth, this.tmemData, tile, tlutFormat);
   }
 
   calculateCRC(tile, hashOwner = tile) {

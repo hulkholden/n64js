@@ -91,8 +91,7 @@ const i4Pixels = pixelTable(16, value => kFourToEight[value] * 0x01010101);
 // Converted CI palettes use the same native-endian packed representation.
 const tempPal = new Uint32Array(256);
 
-function packedOutput(dstData) {
-  const data = dstData.data;
+function packedOutput(data) {
   return new Uint32Array(data.buffer, data.byteOffset, data.byteLength >>> 2);
 }
 
@@ -124,11 +123,12 @@ export function convertRGBA16Pixel(value) {
 
 /**
  * Converts N64 RGBA32 texels to the native RGBA format.
- * @param {!ImageData} dstData
+ * @param {!(Uint8Array|Uint8ClampedArray)} dstData RGBA output bytes.
+ * @param {number} dstWidth Destination row width in pixels, including padding.
  * @param {!Uint8Array} src
  * @param {!Tile} tile
  */
-function convertRGBA32(dstData, src, tile) {
+function convertRGBA32(dstData, dstWidth, src, tile) {
   const words = new Uint32Array(src.buffer, src.byteOffset, src.byteLength >>> 2);
   const dst = packedOutput(dstData);
   const width = tile.width;
@@ -143,18 +143,19 @@ function convertRGBA32(dstData, src, tile) {
       dst[out + x] = words[((row + x) ^ swizzle) & (kTMEMAddressMask >>> 2)];
     }
     row += stride;
-    out += dstData.width;
+    out += dstWidth;
   }
 }
 
 /**
  * Converts N64 16-bit texels using a native-endian packed colour table.
- * @param {!ImageData} dstData
+ * @param {!(Uint8Array|Uint8ClampedArray)} dstData RGBA output bytes.
+ * @param {number} dstWidth Destination row width in pixels, including padding.
  * @param {!Uint8Array} src
  * @param {!Tile} tile
  * @param {!Uint32Array} pixels Native-endian RGBA expansion table.
  */
-function convert16b(dstData, src, tile, pixels) {
+function convert16b(dstData, dstWidth, src, tile, pixels) {
   const dst = packedOutput(dstData);
   const width = tile.width;
   const height = tile.height;
@@ -173,17 +174,17 @@ function convert16b(dstData, src, tile, pixels) {
       dst[out + x] = pixels[(src[index] << 8) | src[index + 1]];
     }
     row += stride;
-    out += dstData.width;
+    out += dstWidth;
   }
-  if (dstData.width === width) {
+  if (dstWidth === width) {
     for (let rows = decodedRows; rows < height; rows *= 2) {
       dst.copyWithin(rows * width, 0, Math.min(rows, height - rows) * width);
     }
   } else {
     // Preserve padding when the destination rows are wider than the tile.
     for (let y = decodedRows; y < height; y++) {
-      const source = (y % decodedRows) * dstData.width;
-      dst.copyWithin(y * dstData.width, source, source + width);
+      const source = (y % decodedRows) * dstWidth;
+      dst.copyWithin(y * dstWidth, source, source + width);
     }
   }
 }
@@ -193,7 +194,7 @@ function convert16b(dstData, src, tile, pixels) {
 // HLE TMEM keeps the packed UYVY layout instead of splitting Y and UV banks.
 // The shader restores the YUV alpha (Y) after sampling; opaque storage also
 // preserves chroma in debug canvas previews.
-function convertYUV16(dstData, src, tile) {
+function convertYUV16(dstData, dstWidth, src, tile) {
   const width = tile.width;
   const height = tile.height;
   for (let y = 0; y < height; y++) {
@@ -202,18 +203,18 @@ function convertYUV16(dstData, src, tile) {
     for (let x = 0; x < width; x++) {
       const pair = ((row + (x & ~1) * 2) ^ swizzle) & kTMEMAddressMask;
       const luma = src[(pair + (x & 1) * 2 + 1) & kTMEMAddressMask];
-      const dst = (y * dstData.width + x) * 4;
-      dstData.data[dst + 0] = src[pair];
-      dstData.data[dst + 1] = src[(pair + 2) & kTMEMAddressMask];
-      dstData.data[dst + 2] = luma;
-      dstData.data[dst + 3] = 255;
+      const dst = (y * dstWidth + x) * 4;
+      dstData[dst + 0] = src[pair];
+      dstData[dst + 1] = src[(pair + 2) & kTMEMAddressMask];
+      dstData[dst + 2] = luma;
+      dstData[dst + 3] = 255;
     }
   }
 }
 
 // Intensity, intensity/alpha and CI formats share their addressing and only
 // differ in the table used to expand each texel. CI indices wrap at 2 KiB.
-function convert8b(dstData, src, tile, pixels, addressMask = kTMEMAddressMask) {
+function convert8b(dstData, dstWidth, src, tile, pixels, addressMask = kTMEMAddressMask) {
   const dst = packedOutput(dstData);
   const width = tile.width;
   const height = tile.height;
@@ -226,11 +227,11 @@ function convert8b(dstData, src, tile, pixels, addressMask = kTMEMAddressMask) {
       dst[out + x] = pixels[src[((row + x) ^ swizzle) & addressMask]];
     }
     row += stride;
-    out += dstData.width;
+    out += dstWidth;
   }
 }
 
-function convert4b(dstData, src, tile, pixels, addressMask = kTMEMAddressMask) {
+function convert4b(dstData, dstWidth, src, tile, pixels, addressMask = kTMEMAddressMask) {
   const dst = packedOutput(dstData);
   const width = tile.width;
   const height = tile.height;
@@ -251,7 +252,7 @@ function convert4b(dstData, src, tile, pixels, addressMask = kTMEMAddressMask) {
       dst[out + x] = pixels[value >>> 4];
     }
     row += stride;
-    out += dstData.width;
+    out += dstWidth;
   }
 }
 
@@ -265,23 +266,26 @@ function convertPalette(src, palette, count, pixels) {
   return tempPal;
 }
 
-function convertCI8(dstData, src, tile, pixels) {
-  convert8b(dstData, src, tile, convertPalette(src, 0, 256, pixels), kCIAddressMask);
+function convertCI8(dstData, dstWidth, src, tile, pixels) {
+  convert8b(dstData, dstWidth, src, tile, convertPalette(src, 0, 256, pixels), kCIAddressMask);
 }
 
-function convertCI4(dstData, src, tile, pixels) {
-  convert4b(dstData, src, tile, convertPalette(src, tile.palette, 16, pixels), kCIAddressMask);
+function convertCI4(dstData, dstWidth, src, tile, pixels) {
+  convert4b(dstData, dstWidth, src, tile, convertPalette(src, tile.palette, 16, pixels), kCIAddressMask);
 }
 
 /**
  * Converts N64 texels to the native RGBA format.
  * Source and destination views must start on 4-byte boundaries for packed access.
- * @param {!ImageData} dstData
+ * @param {!(Uint8Array|Uint8ClampedArray)} dstData RGBA output bytes.
+ * @param {number} dstWidth Destination row width in pixels, including padding.
  * @param {!Uint8Array} tmem
  * @param {!Tile} tile
+ * @param {number} tlutFormat
+ * @return {boolean} Whether the texture format was handled.
  */
-export function convertTexels(dstData, tmem, tile, tlutFormat) {
-  assert((dstData.data.byteOffset & 3) === 0, 'Texture output must be 4-byte aligned');
+export function convertTexels(dstData, dstWidth, tmem, tile, tlutFormat) {
+  assert((dstData.byteOffset & 3) === 0, 'Texture output must be 4-byte aligned');
   assert((tmem.byteOffset & 3) === 0, 'TMEM must be 4-byte aligned');
 
   // NB: assume RGBA16 for G_TT_NONE.
@@ -290,26 +294,26 @@ export function convertTexels(dstData, tmem, tile, tlutFormat) {
   switch (tile.format) {
     case gbi.ImageFormat.G_IM_FMT_YUV:
       if (tile.size === gbi.ImageSize.G_IM_SIZ_16b) {
-        convertYUV16(dstData, tmem, tile);
+        convertYUV16(dstData, dstWidth, tmem, tile);
         return true;
       }
       break;
     case gbi.ImageFormat.G_IM_FMT_RGBA:
       switch (tile.size) {
         case gbi.ImageSize.G_IM_SIZ_32b:
-          convertRGBA32(dstData, tmem, tile);
+          convertRGBA32(dstData, dstWidth, tmem, tile);
           return true;
         case gbi.ImageSize.G_IM_SIZ_16b:
-          convert16b(dstData, tmem, tile, rgba16Pixels);
+          convert16b(dstData, dstWidth, tmem, tile, rgba16Pixels);
           return true;
 
         // Hack - Extreme-G specifies RGBA/8 RGBA/4 textures, but they're
         // really CI
         case gbi.ImageSize.G_IM_SIZ_8b:
-          convertCI8(dstData, tmem, tile, palettePixels);
+          convertCI8(dstData, dstWidth, tmem, tile, palettePixels);
           return true;
         case gbi.ImageSize.G_IM_SIZ_4b:
-          convertCI4(dstData, tmem, tile, palettePixels);
+          convertCI4(dstData, dstWidth, tmem, tile, palettePixels);
           return true;
       }
       break;
@@ -317,13 +321,13 @@ export function convertTexels(dstData, tmem, tile, tlutFormat) {
     case gbi.ImageFormat.G_IM_FMT_IA:
       switch (tile.size) {
         case gbi.ImageSize.G_IM_SIZ_16b:
-          convert16b(dstData, tmem, tile, ia16Pixels);
+          convert16b(dstData, dstWidth, tmem, tile, ia16Pixels);
           return true;
         case gbi.ImageSize.G_IM_SIZ_8b:
-          convert8b(dstData, tmem, tile, ia8Pixels);
+          convert8b(dstData, dstWidth, tmem, tile, ia8Pixels);
           return true;
         case gbi.ImageSize.G_IM_SIZ_4b:
-          convert4b(dstData, tmem, tile, ia4Pixels);
+          convert4b(dstData, dstWidth, tmem, tile, ia4Pixels);
           return true;
       }
       break;
@@ -331,10 +335,10 @@ export function convertTexels(dstData, tmem, tile, tlutFormat) {
     case gbi.ImageFormat.G_IM_FMT_I:
       switch (tile.size) {
         case gbi.ImageSize.G_IM_SIZ_8b:
-          convert8b(dstData, tmem, tile, i8Pixels);
+          convert8b(dstData, dstWidth, tmem, tile, i8Pixels);
           return true;
         case gbi.ImageSize.G_IM_SIZ_4b:
-          convert4b(dstData, tmem, tile, i4Pixels);
+          convert4b(dstData, dstWidth, tmem, tile, i4Pixels);
           return true;
       }
       break;
@@ -342,10 +346,10 @@ export function convertTexels(dstData, tmem, tile, tlutFormat) {
     case gbi.ImageFormat.G_IM_FMT_CI:
       switch (tile.size) {
         case gbi.ImageSize.G_IM_SIZ_8b:
-          convertCI8(dstData, tmem, tile, palettePixels);
+          convertCI8(dstData, dstWidth, tmem, tile, palettePixels);
           return true;
         case gbi.ImageSize.G_IM_SIZ_4b:
-          convertCI4(dstData, tmem, tile, palettePixels);
+          convertCI4(dstData, dstWidth, tmem, tile, palettePixels);
           return true;
       }
       break;

@@ -576,8 +576,7 @@ export class Renderer extends RendererBase {
     }
 
     const texture = new Texture(gl, tile.width, tile.height);
-    const imgData = { width: texture.width, data: texture.pixels };
-    if (!this.state.tmem.convertTexels(tile, tlutFormat, imgData)) {
+    if (!this.state.tmem.convertTexels(texture.pixels, texture.width, tile, tlutFormat)) {
       gl.deleteTexture(texture.texture);
       this.hleHalt(`${gbi.ImageFormat.nameOf(tile.format)}/${gbi.ImageSize.nameOf(tile.size)} is unhandled`);
       return null;

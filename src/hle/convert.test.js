@@ -17,12 +17,6 @@ const formats = [
   ['RGBA4 (CI4 alias)', gbi.ImageFormat.G_IM_FMT_RGBA, gbi.ImageSize.G_IM_SIZ_4b, 2048],
 ];
 
-function imageData(tile) {
-  // Include padding so a trailing 4-bit texel must not overwrite the next pixel.
-  const width = tile.width + 3;
-  return { width, data: new Uint8ClampedArray(width * tile.height * 4).fill(0x55) };
-}
-
 describe('TMEM texel wrapping', () => {
   for (const [name, format, size, boundary] of formats) {
     test(`${name} wraps within rows and across swizzled rows`, () => {
@@ -38,11 +32,13 @@ describe('TMEM texel wrapping', () => {
         width: [43, 21, 11, 6][size],
         height: 3,
       };
-      const actual = imageData(tile);
-      const expected = imageData(tile);
-      expect(convertTexels(actual, src, tile, gbi.TextureLUT.G_TT_RGBA16)).toBe(true);
-      expect(convertTexels(expected, reference, { ...tile, tmem: 0 }, gbi.TextureLUT.G_TT_RGBA16)).toBe(true);
-      expect(actual.data).toEqual(expected.data);
+      // Include padding so a trailing 4-bit texel must not overwrite the next pixel.
+      const dstWidth = tile.width + 3;
+      const actual = new Uint8ClampedArray(dstWidth * tile.height * 4).fill(0x55);
+      const expected = actual.slice();
+      expect(convertTexels(actual, dstWidth, src, tile, gbi.TextureLUT.G_TT_RGBA16)).toBe(true);
+      expect(convertTexels(expected, dstWidth, reference, { ...tile, tmem: 0 }, gbi.TextureLUT.G_TT_RGBA16)).toBe(true);
+      expect(actual).toEqual(expected);
     });
   }
 
@@ -53,9 +49,9 @@ describe('TMEM texel wrapping', () => {
     src[0x800 + 0x7f * 8 + 1] = 0xcd;
     const tile = { format: gbi.ImageFormat.G_IM_FMT_CI, size: gbi.ImageSize.G_IM_SIZ_8b,
       tmem: 256, line: 1, width: 1, height: 1, palette: 0 };
-    const dst = { width: 1, data: new Uint8ClampedArray(4) };
-    expect(convertTexels(dst, src, tile, gbi.TextureLUT.G_TT_IA16)).toBe(true);
-    expect(Array.from(dst.data)).toEqual([0xab, 0xab, 0xab, 0xcd]);
+    const dst = new Uint8ClampedArray(4);
+    expect(convertTexels(dst, 1, src, tile, gbi.TextureLUT.G_TT_IA16)).toBe(true);
+    expect(Array.from(dst)).toEqual([0xab, 0xab, 0xab, 0xcd]);
   });
 });
 
@@ -84,7 +80,7 @@ for (const [name, format] of [['RGBA16', gbi.ImageFormat.G_IM_FMT_RGBA], ['IA16'
             y * stride + x * 4);
           }
         }
-        expect(convertTexels({ width: tile.width + 1, data }, src, tile, 0)).toBe(true);
+        expect(convertTexels(data, tile.width + 1, src, tile, 0)).toBe(true);
         expect(data).toEqual(expected);
       }
     }
@@ -101,8 +97,8 @@ test('RGBA16 repeating TMEM rows match scalar conversion and preserve destinatio
       const data = Uint8Array.from({ length: width * tile.height * 4 }, (_, i) => i & 255);
       // Compare the repeated rows with an independent scalar decoder.
       const reference = data.slice();
-      convertTexels({ width, data }, src, tile, 0);
-      referenceTexels({ width, data: reference }, src, tile, 0);
+      convertTexels(data, width, src, tile, 0);
+      referenceTexels(reference, width, src, tile, 0);
       expect(data).toEqual(reference);
     }
   }
@@ -110,7 +106,7 @@ test('RGBA16 repeating TMEM rows match scalar conversion and preserve destinatio
 
 // Deliberately expand one pixel at a time, without packed writes, lookup tables,
 // or row-period copies, to check the optimized converters independently.
-function referenceTexels(dstData, src, tile, tlutFormat) {
+function referenceTexels(dstData, dstWidth, src, tile, tlutFormat) {
   const palette = (tile.format === gbi.ImageFormat.G_IM_FMT_CI || tile.format === gbi.ImageFormat.G_IM_FMT_RGBA) && tile.size < 2;
   const rgba32 = tile.format === gbi.ImageFormat.G_IM_FMT_RGBA && tile.size === 3;
   const yuv = tile.format === gbi.ImageFormat.G_IM_FMT_YUV;
@@ -147,7 +143,7 @@ function referenceTexels(dstData, src, tile, tlutFormat) {
         const a = tile.size === 1 ? (value & 15) * 17 : (value & 1) * 255;
         pixel = [i, i, i, a];
       }
-      dstData.data.set(pixel, (y * dstData.width + x) * 4);
+      dstData.set(pixel, (y * dstWidth + x) * 4);
     }
   }
 }
@@ -167,8 +163,8 @@ for (const [name, format, size, boundary] of formats) {
           const data = new Uint8ClampedArray(storage.buffer, offset, length);
           data.set(Uint8Array.from({ length }, (_, i) => (i * 13) & 255));
           const expected = new Uint8Array(data);
-          referenceTexels({ width: stride, data: expected }, src, tile, tlut);
-          expect(convertTexels({ width: stride, data }, src, tile, tlut)).toBe(true);
+          referenceTexels(expected, stride, src, tile, tlut);
+          expect(convertTexels(data, stride, src, tile, tlut)).toBe(true);
           expect(Array.from(data)).toEqual(Array.from(expected));
           expect(Array.from(storage.slice(0, offset))).toEqual(Array(offset).fill(0x77));
           expect(Array.from(storage.slice(-8))).toEqual(Array(8).fill(0x77));
@@ -183,10 +179,10 @@ test('IA8, IA4, I8 and I4 tables expand every possible source value', () => {
     const src = new Uint8Array(4096);
     for (let i = 0; i < 256; i++) src[i] = i;
     const tile = { format, size, width: size === 0 ? 512 : 256, height: 1, line: 32, tmem: 0 };
-    const actual = { width: tile.width, data: new Uint8Array(tile.width * 4) };
-    const expected = { width: tile.width, data: actual.data.slice() };
-    referenceTexels(expected, src, tile, 0);
-    convertTexels(actual, src, tile, 0);
-    expect(actual.data).toEqual(expected.data);
+    const actual = new Uint8Array(tile.width * 4);
+    const expected = actual.slice();
+    referenceTexels(expected, tile.width, src, tile, 0);
+    convertTexels(actual, tile.width, src, tile, 0);
+    expect(actual).toEqual(expected);
   }
 });
