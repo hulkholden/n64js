@@ -11,7 +11,7 @@ import { audioOptions } from '../hle/audio_options.js';
 import { graphicsOptions } from '../hle/graphics_options.js';
 import { ImageFormat, ImageSize } from '../hle/gbi.js';
 import { MicrocodeId } from '../hle/microcode_identifier.js';
-import { TaskOffsets } from '../hle/rsp_task.js';
+import { TaskOffsets } from '../hle/rsp_task_constants.js';
 import { OS_TV_NTSC } from '../system_constants.js';
 
 const { getFragmentMap } = await import('../cpu/fragments.js');

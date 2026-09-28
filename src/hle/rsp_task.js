@@ -8,8 +8,6 @@ import { dispatchAudioTask } from './hle_audio.js';
 import { dispatchGraphicsTask } from './hle_graphics.js';
 import { TASK_OFFSET, TASK_SIZE, TASK_ADDRESS_MASK, TaskOffsets } from './rsp_task_constants.js';
 
-export { TaskOffsets };
-
 const M_GFXTASK = 1;
 const M_AUDTASK = 2;
 const M_VIDTASK = 3;
