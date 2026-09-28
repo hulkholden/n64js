@@ -14,11 +14,6 @@ import { rsp } from '../rsp/rsp.js';
 
 const emulateRSP = true;
 
-export {
-  SP_MEM_ADDR_REG, SP_DRAM_ADDR_REG, SP_RD_LEN_REG, SP_WR_LEN_REG,
-  SP_STATUS_REG, SP_DMA_FULL_REG, SP_DMA_BUSY_REG, SP_SEMAPHORE_REG,
-};
-
 const memAddrWritableBits = 0xffff_fff8;
 const dramAddrWritableBits = 0xffff_fff8;
 const readLenWritableBits = 0xff8f_fff8;
