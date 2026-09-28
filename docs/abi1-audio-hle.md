@@ -17,6 +17,60 @@ write rollback and shared DSP handlers. It also supplies the standard `mix()`.
 known ABI1 identities still fall back. This keeps future variant changes local
 to the handlers whose instructions actually differ.
 
+## Reusable storage and profiling
+
+Each hardware instance retains its ABI1 executors, working DMEM, DSP vectors,
+envelope channels, task views and classifier result lists. Commands overwrite
+the scratch lanes they use. RDRAM DMA uses word copies and a reusable undo
+journal; overlapping writes are restored in reverse order on fallback. Journal
+capacity grows when first needed and survives both successful and rejected
+tasks. DMEM is refreshed from the current task on every execution.
+
+The runtime uses synchronous views of task, code and constant memory instead of
+copying snapshots. Classification still checks every protected byte on every
+task and revalidates the task layout. The default path classifies once; enabled
+observers get an owned result object, and HLE rechecks memory after the callback.
+Offline `captureAudioTask()` and default classifier results remain owned copies
+and objects. Repeated debug messages are suppressed before formatting strings.
+
+After buffers and caches are warm, normal commands and dispatch reuse their
+storage. First use, memory/address changes, new hashes, journal growth, new log entries,
+unsupported-command exceptions and optional observer/capture output can still
+allocate. Buffers belong to the emulator instance rather than a global singleton.
+
+The capture benchmark isolates `hleProcessAudioTask()` time, excluding ROM
+execution, disk I/O and restoring the input RAM image. It reports medians and
+90th percentiles; optional Node heap sampling includes collected objects:
+
+```sh
+node tools/audio_hle/benchmark.js /tmp/tetrisphere-audio/29 /tmp/tetrisphere-audio/1000 \
+  /tmp/sm64-audio-extended/143 /tmp/sm64-audio-extended/1700 \
+  --profile=/tmp/audio.heapprofile
+```
+
+Use `--module=/path/to/baseline/src/hle/hle_audio.js` to benchmark another checkout
+with the same inputs, and `--warmup=150 --iterations=400` to set the run lengths.
+On 2026-09-28, Node v24.13.1, the default warmup and sample counts gave these
+median task times versus `70d1ee1` (which already includes the initial sample-loop
+optimizations):
+
+| Capture | Before (µs) | Reusable storage (µs) |
+| --- | ---: | ---: |
+| Tetrisphere 29 | 167.4 | 60.6 |
+| Tetrisphere 1000 | 742.7 | 580.9 |
+| Mario 143 | 208.3 | 38.7 |
+| Mario 1700 | 811.7 | 267.7 |
+
+Across a separate 800-task heap sample, allocations attributed to the audio HLE
+modules fell from approximately 215 KB per task to zero sampled bytes after
+warmup. Sampling is an estimate, not a proof that every engine or task allocates
+nothing. These measurements describe captured HLE work, not total emulator FPS.
+
+Reuse validation passed 1,474 unit tests, lint/build, 10,000 DSP comparisons,
+62 captures through a shared runtime and 16 fallback/recovery cases. Live runs
+of 1,800 frames per game checked all 1,785 Tetrisphere and 1,788 Mario tasks with
+zero fallbacks. Both PCM hashes match the previously recorded values exactly.
+
 ## Evidence for sharing the handlers
 
 Super Mario 64 (USA) was run locally and its task-start program, constants and

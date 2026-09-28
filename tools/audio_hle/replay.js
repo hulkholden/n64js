@@ -7,19 +7,24 @@ export async function readCapture(prefix) {
   return { ram: await read('ram'), dmem: await read('dmem'), imem: await read('imem') };
 }
 
-export function validateCapture(raw) {
+function createHLEHardware() {
+  return {
+    ram: { u8: new Uint8Array(0) }, sp_mem: { u8: new Uint8Array(8192) }, rsp: { pc: 0 },
+    spRegDevice: { writeReg32() {} },
+  };
+}
+
+export function validateCapture(raw, hardware = createHLEHardware()) {
   const ram = raw.ram.slice();
   const oracle = createReplay({ ...raw, ram });
   const { rsp } = oracle;
   // Exercise the actual task dispatcher separately, including bootstrap data
   // loading and 320-byte command batches, rather than only individual handlers.
-  const integratedRam = raw.ram.slice();
-  const sp = new Uint8Array(8192);
+  if (hardware.ram.u8.length !== raw.ram.length) hardware.ram.u8 = new Uint8Array(raw.ram.length);
+  const integratedRam = hardware.ram.u8;
+  integratedRam.set(raw.ram);
+  const sp = hardware.sp_mem.u8;
   sp.set(raw.dmem); sp.set(raw.imem, 4096);
-  const hardware = {
-    ram: { u8: integratedRam }, sp_mem: { u8: sp }, rsp: { pc: 0 },
-    spRegDevice: { writeReg32() {} },
-  };
   const identity = classifyAudioTask(hardware);
   if (!hleProcessAudioTask(hardware)) throw new Error('Capture fell back to LLE');
   const Audio = getAudioHLEClass(identity.identity);
@@ -45,7 +50,7 @@ export function validateCapture(raw) {
         for (let p = address; p < address + size; p++) if (ram[p] !== hle.ram[p]) fail('RDRAM', p, ram[p], hle.ram[p]);
       }
       oracle.writes.length = 0;
-      hle.writes.length = 0;
+      hle.commit();
       commands++;
       command = null;
     }
@@ -62,5 +67,8 @@ export function validateCapture(raw) {
 
 if (import.meta.main) {
   if (!Bun.argv[2]) throw new Error('Usage: bun tools/audio_hle/replay.js <capture-prefix> [...]');
-  for (const prefix of Bun.argv.slice(2)) console.log(JSON.stringify({ prefix, ...validateCapture(await readCapture(prefix)) }));
+  // Keep one runtime across tasks and identity changes to catch stale scratch,
+  // journal, memory-view and classifier state in addition to DSP differences.
+  const hardware = createHLEHardware();
+  for (const prefix of Bun.argv.slice(2)) console.log(JSON.stringify({ prefix, ...validateCapture(await readCapture(prefix), hardware) }));
 }
