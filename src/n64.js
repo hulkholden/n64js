@@ -20,7 +20,7 @@ import { initRSP } from './rsp/rsp.js';
 import { categoryCodeDescriptionFromU8, countryNorthAmerica, OS_TV_NTSC, tvTypeFromCountry } from './system_constants.js';
 import { UI } from './ui/ui.js';
 import { initSync, syncActive, syncTick } from './sync.js';
-import { dbgGUI } from './debug/dbg_ui.js';
+import { dbgGUI, initPersistence } from './debug/dbg_ui.js';
 
 window.n64js = window.n64js || {};
 
@@ -36,6 +36,7 @@ const testOptions = {
   recordTimeline: recordTimeline,
 };
 dbgGUI.add(testOptions, 'recordTimeline').name('Record Timeline');
+initPersistence();
 
 const rominfo = {
   id: '',
