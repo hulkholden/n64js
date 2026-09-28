@@ -63,7 +63,7 @@ export function classifyAudioTask(hardware, raw) {
   return state.classify(raw === undefined ? state.raw : raw);
 }
 
-export function audioMicrocodeInfo(identity) {
+function audioMicrocodeInfo(identity) {
   return identity.status === 'known'
     ? { family: identity.family, detection: 'hash', identity: identity.identity }
     : { family: 'Unknown', detection: 'unknown' };
