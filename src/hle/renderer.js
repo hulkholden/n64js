@@ -7,6 +7,7 @@ import { RendererBase } from './renderer_base.js';
 import { RenderTargets } from './render_targets.js';
 import * as shaders from './shaders.js';
 import { Texture } from './textures.js';
+import { TextureCache } from './texture_cache.js';
 import { textureDecodeTile } from './texture_sampler.js';
 import { VertexArray } from "./vertex_array.js";
 import blitVertexSource from './shaders/blit.vert.glsl' with { type: 'text' };
@@ -28,7 +29,7 @@ export class Renderer extends RendererBase {
     super(state);
     this.gl = gl;
 
-    this.textureCache = new Map();
+    this.textureCache = new TextureCache(gl);
 
     this.renderTargets = new RenderTargets(gl, width, height);
 

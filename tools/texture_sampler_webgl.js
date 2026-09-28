@@ -592,6 +592,29 @@ try {
     checkFrozen('second unfreeze publishes the inherited target', 2, white);
     targets.reset();
   }
+  // Exercise deletion against real GPU objects, including reset after eviction.
+  {
+    const cacheState = new RSPState();
+    cacheState.reset(new DataView(new ArrayBuffer(8)), 0);
+    const cacheRenderer = new Renderer(gl, cacheState, 1, 1);
+    cacheRenderer.textureCache.maxEntries = 2;
+    cacheState.tiles[0].set(gbi.ImageFormat.G_IM_FMT_RGBA, gbi.ImageSize.G_IM_SIZ_16b,
+      1, 0, 0, 0, 0, 0, 0, 0, 0);
+    cacheState.tiles[0].setSize(0, 0, 0, 0);
+    const textures = [];
+    for (const value of [0xf801, 0x07c1, 0x003f]) {
+      cacheState.tmem.tmemData.set([value >>> 8, value & 255]);
+      cacheState.invalidateTileHashes();
+      textures.push(cacheRenderer.lookupTexture(0).texture);
+    }
+    if (gl.isTexture(textures[0]) || !gl.isTexture(textures[1]) || !gl.isTexture(textures[2])) {
+      throw new Error('Cache eviction did not release the oldest GPU texture');
+    }
+    cacheRenderer.reset();
+    if (textures.some(texture => gl.isTexture(texture))) throw new Error('Cache reset retained GPU textures');
+    lines.push('PASS texture cache eviction and reset delete GPU objects');
+    passed++;
+  }
   const fogResults = runFogTests(gl);
   lines.push(...fogResults);
   passed += fogResults.length;
