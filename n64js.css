@@ -6,6 +6,26 @@ canvas {
   margin-top: 16px;
 }
 
+#performance {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 1000;
+  transform: scale(2);
+  transform-origin: top right;
+}
+
+#performance canvas {
+  cursor: pointer;
+  image-rendering: pixelated;
+}
+
+/* Leave room for the enlarged stats panel when the debugger is open. */
+#performance:not(:empty) ~ .lil-gui.autoPlace {
+  top: 120px;
+  max-height: calc(100% - 120px);
+}
+
 pre {
   font-family: var(--code-font);
   font-variant-numeric: tabular-nums;
