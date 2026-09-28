@@ -1,4 +1,4 @@
-import { dbgGUI } from '../debug/dbg_ui.js';
+import { addOptionsFolder } from '../debug/dbg_ui.js';
 
 // Whether to skip audio task emulator or run it on the RSP.
 // Set this to false to enable audio in most games.
@@ -7,5 +7,6 @@ export const audioOptions = {
   emulationMode: 'LLE',
 };
 
-const folder = dbgGUI.addFolder('Audio');
-folder.add(audioOptions, 'emulationMode', { LLE: 'LLE', HLE: 'HLE', Disabled: 'Disabled' }).name('Emulation Mode');
+addOptionsFolder('Audio', folder => {
+  folder.add(audioOptions, 'emulationMode', { LLE: 'LLE', HLE: 'HLE', Disabled: 'Disabled' }).name('Emulation Mode');
+});

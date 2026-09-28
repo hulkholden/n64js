@@ -1,12 +1,13 @@
-import { dbgGUI } from "../debug/dbg_ui.js";
+import { addOptionsFolder } from "../debug/dbg_ui.js";
 import { performanceProfile } from '../debug/performance_profile.js';
 
 const debugOptions = {
   enableDynarec: true,
 };
 
-const perfFolder = dbgGUI.addFolder('Performance');
-perfFolder.add(debugOptions, 'enableDynarec').name('Dynamic Recompilation');
+addOptionsFolder('Performance', folder => {
+  folder.add(debugOptions, 'enableDynarec').name('Dynamic Recompilation');
+});
 
 const kHotFragmentThreshold = 500;
 
