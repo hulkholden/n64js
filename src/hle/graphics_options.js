@@ -1,4 +1,4 @@
-import { dbgGUI } from '../debug/dbg_ui.js';
+import { addOptionsFolder } from '../debug/dbg_ui.js';
 
 export const graphicsOptions = {
   // Scale factor to apply to the canvas.
@@ -18,10 +18,11 @@ export const graphicsOptions = {
   // Whether to dump RDP commands.
   dumpRDP: false,
 };
-const folder = dbgGUI.addFolder('Graphics');
-folder.add(graphicsOptions, 'canvasScale').name('Canvas Scale').min(1).max(4).step(0.25);
-folder.add(graphicsOptions, 'haltOnWarning').name('Halt on Warning');
-folder.add(graphicsOptions, 'dumpMicrocode').name('Dump Microcode');
-folder.add(graphicsOptions, 'dumpMicrocodeSubstring').name('Dump Microcode Substring');
-folder.add(graphicsOptions, 'emulationMode', { 'HLE (Recommended)': 'HLE', 'LLE (Experimental, Slow)': 'LLE' }).name('Emulation Mode');
-folder.add(graphicsOptions, 'dumpRDP').name('Dump RDP');
+addOptionsFolder('Graphics', folder => {
+  folder.add(graphicsOptions, 'canvasScale').name('Canvas Scale').min(1).max(4).step(0.25);
+  folder.add(graphicsOptions, 'haltOnWarning').name('Halt on Warning');
+  folder.add(graphicsOptions, 'dumpMicrocode').name('Dump Microcode');
+  folder.add(graphicsOptions, 'dumpMicrocodeSubstring').name('Dump Microcode Substring');
+  folder.add(graphicsOptions, 'emulationMode', { 'HLE (Recommended)': 'HLE', 'LLE (Experimental, Slow)': 'LLE' }).name('Emulation Mode');
+  folder.add(graphicsOptions, 'dumpRDP').name('Dump RDP');
+});

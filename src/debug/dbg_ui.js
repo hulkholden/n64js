@@ -17,21 +17,23 @@ dbgGUI.title('Options');
 
 dbgGUI.hide();
 
-// Call once all options have been added so folder and controller names match.
-export function initPersistence() {
+// Bind all controls before restoring this folder, regardless of when it is added.
+export function addOptionsFolder(name, bindOptions) {
+  const folder = dbgGUI.addFolder(name);
+  bindOptions(folder);
   if (typeof document === 'undefined') return;
 
-  const storageKey = 'n64js-debug-options';
+  const storageKey = `n64js-debug-options:${name}`;
   try {
     const saved = localStorage.getItem(storageKey);
-    if (saved) dbgGUI.load(JSON.parse(saved));
+    if (saved) folder.load(JSON.parse(saved));
   } catch {
     // Ignore unavailable storage or unreadable saved data.
   }
 
-  dbgGUI.onChange(() => {
+  folder.onChange(() => {
     try {
-      localStorage.setItem(storageKey, JSON.stringify(dbgGUI.save()));
+      localStorage.setItem(storageKey, JSON.stringify(folder.save()));
     } catch {
       // Options still work when storage is blocked or full.
     }
