@@ -103,7 +103,7 @@ button:disabled { cursor: default; opacity: .65; }
   color: var(--body-color);
   background: var(--panel-bg);
   border: 1px solid var(--border-color);
-  border-radius: var(--control-radius);
+  border-radius: calc(var(--control-radius) + 2px);
   text-align: center;
   vertical-align: middle;
   text-decoration: none;
