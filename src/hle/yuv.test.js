@@ -26,9 +26,9 @@ describe('YUV textures', () => {
       tmem: 2, line: 1, width: 3, height: 2 };
     src.set([128, 0, 128, 235, 10, 40, 240, 80], 16);
     src.set([20, 50, 230, 90, 30, 60, 220, 100], 32);
-    const dst = { width: 4, data: new Uint8Array(32).fill(77) };
-    expect(convertTexels(dst, src, tile, 0)).toBe(true);
-    expect(Array.from(dst.data)).toEqual([
+    const dst = new Uint8Array(32).fill(77);
+    expect(convertTexels(dst, 4, src, tile, 0)).toBe(true);
+    expect(Array.from(dst)).toEqual([
       128, 128, 0, 255, 128, 128, 235, 255, 10, 240, 40, 255, 77, 77, 77, 77,
       30, 220, 60, 255, 30, 220, 100, 255, 20, 230, 50, 255, 77, 77, 77, 77,
     ]);

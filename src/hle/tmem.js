@@ -173,13 +173,13 @@ export class TMEM {
     copyLineTLUT(this.tmemData, tmemOffset, ram, ramAddress, texels);
   }
 
-  convertTexels(tile, tlutFormat, imgData) {
-    return convertTexels(imgData, this.tmemData, tile, tlutFormat);
+  convertTexels(dstData, dstWidth, tile, tlutFormat) {
+    return convertTexels(dstData, dstWidth, this.tmemData, tile, tlutFormat);
   }
 
-  calculateCRC(tile) {
-    if (tile.hash) {
-      return tile.hash;
+  calculateCRC(tile, hashOwner = tile) {
+    if (hashOwner.hash && hashOwner.hashWidth === tile.width && hashOwner.hashHeight === tile.height) {
+      return hashOwner.hash;
     }
 
     const height = tile.height;
@@ -221,14 +221,17 @@ export class TMEM {
       }
     }
 
-    tile.hash = hash;
+    hashOwner.hash = hash;
+    hashOwner.hashWidth = tile.width;
+    hashOwner.hashHeight = tile.height;
     return hash;
   }
 }
 
 function hashTmem(tmem32, offset, len, hash, addressMask = 0xfff) {
   let i = offset >> 2;
-  const e = (offset + len) >> 2;
+  // A wrapped span longer than TMEM repeats the same bytes. Hash one period.
+  const e = (offset + Math.min(len, addressMask + 1)) >> 2;
   const wordMask = addressMask >> 2;
   while (i < e) {
     hash = ((hash * 17) + tmem32[i & wordMask]) >>> 0;

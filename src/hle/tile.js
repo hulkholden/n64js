@@ -19,6 +19,8 @@ export class Tile {
     // Last computed hash for this Tile. 0 if invalid/not calculated.
     // Invalidated on any load, settile, settilesize.
     this.hash = 0;
+    this.hashWidth = 0;
+    this.hashHeight = 0;
   }
 
   get left() { return this.uls / 4; }

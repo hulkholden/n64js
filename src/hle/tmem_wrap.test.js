@@ -35,3 +35,21 @@ describe('TMEM hash wrapping', () => {
     });
   }
 });
+
+test('large wrapped tiles hash each TMEM word at most once and still detect changes throughout TMEM', () => {
+  const tmem = new TMEM();
+  const tile = { format: gbi.ImageFormat.G_IM_FMT_RGBA, size: gbi.ImageSize.G_IM_SIZ_16b,
+    width: 505, height: 233, line: 16, tmem: 509, palette: 0, hash: 0 };
+  let reads = 0;
+  tmem.tmemData32 = new Proxy(tmem.tmemData32, {
+    get(target, property) { reads++; return target[property]; },
+  });
+  const before = tmem.calculateCRC(tile);
+  expect(reads).toBe(1024);
+  for (const address of [0, 1024, 2048, 4095]) {
+    tmem.tmemData[address] = 1;
+    tile.hash = 0;
+    expect(tmem.calculateCRC(tile)).not.toBe(before);
+    tmem.tmemData[address] = 0;
+  }
+});

@@ -23,11 +23,11 @@ for (const [name, format, size, width, height, line] of [
   const tile = new Tile();
   tile.set(format, size, line, 0, 0, 0, 0, 0, 0, 0, 0);
   tile.setSize(0, 0, (width - 1) * 4, (height - 1) * 4);
-  const dst = { width, data: new Uint8Array(width * height * 4) };
-  outputs.push(dst.data);
-  bench(name, () => convertTexels(dst, tmem, tile, gbi.TextureLUT.G_TT_RGBA16));
+  const dst = new Uint8Array(width * height * 4);
+  outputs.push(dst);
+  bench(name, () => convertTexels(dst, width, tmem, tile, gbi.TextureLUT.G_TT_RGBA16));
   if (format === gbi.ImageFormat.G_IM_FMT_CI) {
-    bench(`${name} (IA palette)`, () => convertTexels(dst, tmem, tile, gbi.TextureLUT.G_TT_IA16));
+    bench(`${name} (IA palette)`, () => convertTexels(dst, width, tmem, tile, gbi.TextureLUT.G_TT_IA16));
   }
 }
 await run({});

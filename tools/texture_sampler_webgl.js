@@ -370,6 +370,19 @@ try {
   state.rdpOtherModeH = gbi.CycleType.G_CYC_COPY;
   if (renderer.lookupTexture(0) !== copyTexture) throw new Error('Clamped texture cache replaced the copy wrap region');
 
+  // Decoding through a canvas used to erase transparent RGB and quantize
+  // low-alpha colours before upload. Verify the actual GPU texture samples.
+  tmem.fill(0);
+  tmem.set([0xf8, 0x00]);
+  state.invalidateTileHashes();
+  check('direct upload preserves transparent RGBA16 colour', [255, 0, 0, 0], {
+    decode: true, tex: { width: 1, height: 1 },
+  });
+  tmem.set([0x73, 0x07]);
+  state.invalidateTileHashes();
+  check('direct upload preserves low-alpha IA16 precision', [115, 115, 115, 7], {
+    decode: true, format: gbi.ImageFormat.G_IM_FMT_IA, tex: { width: 1, height: 1 },
+  });
   // Wetrix uses NoN microcode with its field and background before the near
   // plane. Verify pixels and depth with the production shaders, including a
   // triangle crossing both Z planes and having unequal homogeneous W values.

@@ -3,10 +3,7 @@ export class Texture {
     this.width = width;
     this.height = height;
 
-    // Create a canvas element to poke data into.
-    this.canvas = document.createElement('canvas');
-    this.canvas.width = width;
-    this.canvas.height = height;
+    this.pixels = new Uint8Array(width * height * 4);
     this.texture = gl.createTexture();
   }
 
@@ -22,15 +19,13 @@ export class Texture {
     canvas.width = w;
     canvas.height = h;
     canvas.style.backgroundColor = 'black';
-    const srcCtx = this.canvas.getContext('2d');
     const dstCtx = canvas.getContext('2d');
 
-    const srcImgData = srcCtx.getImageData(0, 0, this.width, this.height);
     const dstImgData = dstCtx.createImageData(w, h);
 
-    const src = srcImgData.data;
+    const src = this.pixels;
     const dst = dstImgData.data;
-    const srcRowStride = srcImgData.width * 4;
+    const srcRowStride = this.width * 4;
     const dstRowStride = dstImgData.width * 4;
 
     for (let y = 0; y < h; ++y) {

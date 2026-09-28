@@ -12,9 +12,9 @@ function writePaletteEntry(tmem, palette, index, value) {
 }
 
 function pixel(tmem, tile) {
-  const dst = { width: 1, data: new Uint8ClampedArray(4) };
-  expect(tmem.convertTexels(tile, gbi.TextureLUT.G_TT_RGBA16, dst)).toBe(true);
-  return Array.from(dst.data);
+  const dst = new Uint8ClampedArray(4);
+  expect(tmem.convertTexels(dst, 1, tile, gbi.TextureLUT.G_TT_RGBA16)).toBe(true);
+  return Array.from(dst);
 }
 
 describe('CI4 palette hashing', () => {
