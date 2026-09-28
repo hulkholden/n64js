@@ -23,16 +23,17 @@ imem.set(code.subarray(0, 0xf80), 0x80);
 for (let trial = 0; trial < 1000; trial++) {
   for (const op of [1, 3, 5, 12, 14]) {
     const dmem = randomBytes(4096), ram = randomBytes(0x4000);
-    dmem.set(constants.subarray(0, 0x2c0));
+    dmem.set(constants.subarray(0, identity.identity === 'abi1-diddy-blast-mixer' ? 0x2d0 : 0x2c0));
     dmem.fill(0, 0x320, 0x360);
     const view = new DataView(dmem.buffer), ramView = new DataView(ram.buffer);
     const set = (p, value) => view.setUint16(p, value);
-    const count = [32, 48, 64, 80, 128][trial % 5];
+    const count = op === 12 ? [0, 1, 31, 32, 33, 63, 64, 65, 95, 96, 97, 127, 128, 129][trial % 14]
+      : [32, 48, 64, 80, 128][trial % 5];
     set(0x360, 0x600); set(0x362, 0x900); set(0x364, count);
     set(0x36a, 0xa00); set(0x36c, 0xb00); set(0x36e, 0xc00);
     const flags = op === 3 ? (trial % 2) | ((trial & 2) << 2) : trial % 4;
     let w0 = (op << 24) | (flags << 16) | (random() & 0xffff);
-    const w1 = op === 12 ? 0x00400340 : 0x1000;
+    const w1 = op === 12 ? (trial % 3 === 0 ? 0x00400040 : 0x00400340) : 0x1000;
     if (op === 1) {
       view.setUint32(0x370, 0x1100); // Loop history separate from output state.
       w0 = (op << 24) | (flags << 16);
@@ -56,6 +57,24 @@ for (let trial = 0; trial < 1000; trial++) {
         ramView.setUint16(offset, random() & 0x7fff);
         ramView.setUint16(offset + 2, trial % 3 === 0 ? 0 : 1);
         ramView.setUint16(offset + 4, random() & 0xffff);
+      }
+      if (identity.identity === 'abi1-goldeneye-mixer' || identity.identity === 'abi1-diddy-blast-mixer') {
+        // Additive envelopes also need negative increments, fractional carry,
+        // signed saturation and the high-word-zero target-selection branch.
+        // Keep the first half of the trials' positive-volume coverage above.
+        if (trial >= 500) {
+          const highWords = [-32768, -32767, -8, -1, 0, 1, 8, 32767];
+          const lowWords = [0, 1, 32767, 32768, 65534, 65535];
+          for (let channel = 0; channel < 2; channel++) {
+            const high = highWords[((trial >>> 1) + channel * 3) % highWords.length];
+            const low = lowWords[((trial >>> 2) + channel) % lowWords.length];
+            const config = 0x370 + channel * 6, saved = 0x1040 + channel * 6;
+            set(0x366 + channel * 2, random());
+            set(config, random()); set(config + 2, high); set(config + 4, low);
+            ramView.setUint16(saved, random()); ramView.setUint16(saved + 2, high); ramView.setUint16(saved + 4, low);
+          }
+          for (let i = 0; i < 32; i++) ramView.setUint16(0x1000 + i * 2, random());
+        }
       }
     }
     const { rsp } = createReplay({ ram, dmem, imem });

@@ -5,17 +5,30 @@ the classifier's exact reviewed identity, never by ROM name or ABI1 family alone
 Select **Audio → Emulation Mode → HLE**; LLE remains the default and the fallback
 for unsupported identities or command shapes.
 
-| Reviewed identity | Class | Mixer behavior |
+| Reviewed identity | Class | Variant behavior |
 | --- | --- | --- |
 | `abi1-standard-mixer` | `ABI1Audio` | Rounded, saturated multiply-and-accumulate |
 | `abi1-tetrisphere-us-mixer` | `TetrisphereAudio extends ABI1Audio` | No sample writes |
+| `abi1-goldeneye-mixer` | `GoldenEyeAudio extends ABI1Audio` | Standard MIXER; additive volume envelopes |
+| `abi1-diddy-blast-mixer` | `DiddyBlastAudio extends GoldenEyeAudio` | Additive envelopes; relocated resampler table |
 
 `src/hle/audio_abi1.js` owns the command constants, dispatch, DMEM/RDRAM helpers,
 write rollback and shared DSP handlers. It also supplies the standard `mix()`.
-`src/hle/audio_tetrisphere.js` overrides only `mix()`. The selector in
-`src/hle/hle_audio.js` explicitly maps the two identities to these classes; other
-known ABI1 identities still fall back. This keeps future variant changes local
-to the handlers whose instructions actually differ.
+`src/hle/audio_tetrisphere.js` overrides only `mix()`.
+`src/hle/audio_goldeneye.js` overrides `initializeEnvelope()` and
+`advanceEnvelope()`; envelope buffer handling, target selection, mixing and saved
+state remain shared. See the [GoldenEye derivation](goldeneye-audio-hle.md).
+`src/hle/audio_diddy_blast.js` inherits those additive envelope hooks and overrides
+the resampler table address; see the [Diddy/Blast derivation](diddy-blast-audio-hle.md).
+The selector in `src/hle/hle_audio.js` explicitly maps these identities to their
+classes. These are all four ABI1 identities in the current classifier manifest.
+Unknown programs and the separate NAUDIO/NEAD families still fall back. This
+keeps variant changes local to the behavior established by captured instructions.
+
+The reviewed `rspboot-208` path accepts `OS_TASK_DP_WAIT` when DPC DMA is already
+idle. A busy or unavailable DPC status, other task flags, or an unreviewed
+bootstrap/flag combination retains LLE execution of the original wait. Diddy
+Kong Racing exercises this flag on every captured task.
 
 ## Reusable storage and profiling
 

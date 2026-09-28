@@ -10,6 +10,7 @@ export async function readCapture(prefix) {
 function createHLEHardware() {
   return {
     ram: { u8: new Uint8Array(0) }, sp_mem: { u8: new Uint8Array(8192) }, rsp: { pc: 0 },
+    dpcDevice: { statusReg: 0 },
     spRegDevice: { writeReg32() {} },
   };
 }

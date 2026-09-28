@@ -1,25 +1,37 @@
 #!/usr/bin/env bun
 import { readCapture } from './replay.js';
-import { hleProcessAudioTask } from '../../src/hle/hle_audio.js';
+import { classifyAudioTask, hleProcessAudioTask } from '../../src/hle/hle_audio.js';
 
 const prefix = Bun.argv[2];
 if (!prefix) throw new Error('Usage: bun tools/audio_hle/fallbacks.js <capture-prefix>');
 const raw = await readCapture(prefix);
 const sp = new Uint8Array(8192);
 let semaphoreWrites = 0;
-const hardware = { ram: { u8: raw.ram.slice() }, sp_mem: { u8: sp }, rsp: { pc: 0 }, spRegDevice: { writeReg32() { semaphoreWrites++; } } };
+const hardware = { ram: { u8: raw.ram.slice() }, sp_mem: { u8: sp }, rsp: { pc: 0 },
+  dpcDevice: { statusReg: 0 }, spRegDevice: { writeReg32() { semaphoreWrites++; } } };
 function restoreTask() {
   hardware.ram.u8.set(raw.ram);
   sp.set(raw.dmem); sp.set(raw.imem, 4096);
   hardware.rsp.pc = 0;
+  hardware.dpcDevice.statusReg = 0;
   semaphoreWrites = 0;
 }
 restoreTask();
+const identity = classifyAudioTask(hardware);
 if (!hleProcessAudioTask(hardware)) throw new Error('Expected a supported capture');
 const expected = hardware.ram.u8.slice();
 const cases = [
   ['yield', h => new DataView(h.sp_mem.u8.buffer).setUint32(0xfc4, 1)],
   ['entry', h => { h.rsp.pc = 4; }],
+  ['unknown task flag', h => new DataView(h.sp_mem.u8.buffer).setUint32(0xfc4, 4)],
+  ['DP wait while busy', h => {
+    new DataView(h.sp_mem.u8.buffer).setUint32(0xfc4, 2);
+    h.dpcDevice.statusReg = 0x100;
+  }],
+  ['DP wait without status', h => {
+    new DataView(h.sp_mem.u8.buffer).setUint32(0xfc4, 2);
+    h.dpcDevice.statusReg = undefined;
+  }],
   ['code mutation', (h, t) => { h.ram.u8[(t.getUint32(0x10) & 0x1fffffff) + 0x200] ^= 1; }],
   ['constants mutation', (h, t) => { h.ram.u8[(t.getUint32(0x18) & 0x1fffffff) + 0x2bf] ^= 1; }],
   ['empty list', (h, t) => t.setUint32(0x34, 0)],
@@ -44,3 +56,17 @@ for (const [name, mutate] of cases) {
   }
 }
 console.log(`${cases.length} atomic fallback and task reuse cases passed`);
+restoreTask();
+new DataView(sp.buffer).setUint32(0xfc4, 2);
+const beforeRam = hardware.ram.u8.slice(), beforeSP = sp.slice();
+const handled = hleProcessAudioTask(hardware);
+if (identity.bootstrap === 'rspboot-208') {
+  if (!handled || semaphoreWrites !== 1 || Buffer.compare(expected, hardware.ram.u8)) {
+    throw new Error('Idle DP wait changed task output');
+  }
+  console.log('Idle rspboot-208 DP wait passed');
+} else if (handled || semaphoreWrites || Buffer.compare(beforeRam, hardware.ram.u8) || Buffer.compare(beforeSP, sp)) {
+  throw new Error('Unreviewed bootstrap DP wait did not fall back atomically');
+} else {
+  console.log('Unreviewed bootstrap DP wait fell back atomically');
+}
