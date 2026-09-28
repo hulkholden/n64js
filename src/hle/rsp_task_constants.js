@@ -1,8 +1,5 @@
 import { makeEnum } from '../enum.js';
-
-// The combined SP memory view stores DMEM first, followed by IMEM.
-export const SP_DMEM_SIZE = 0x1000;
-export const SP_IMEM_OFFSET = SP_DMEM_SIZE;
+import { SP_DMEM_SIZE } from '../devices/sp_constants.js';
 
 // libultra places its 64-byte OSTask descriptor at the end of DMEM.
 export const TASK_SIZE = 0x40;

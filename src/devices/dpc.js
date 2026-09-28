@@ -1,42 +1,16 @@
 import { Device } from './device.js';
+import {
+  DPC_START_REG, DPC_END_REG, DPC_CURRENT_REG, DPC_STATUS_REG, DPC_CLOCK_REG, DPC_BUFBUSY_REG,
+  DPC_PIPEBUSY_REG, DPC_TMEM_REG, DPC_CLR_XBUS_DMEM_DMA, DPC_SET_XBUS_DMEM_DMA, DPC_CLR_FREEZE,
+  DPC_SET_FREEZE, DPC_CLR_FLUSH, DPC_SET_FLUSH, DPC_CLR_TMEM_CTR, DPC_CLR_PIPE_CTR, DPC_CLR_CMD_CTR,
+  DPC_CLR_CLOCK_CTR, DPC_STATUS_XBUS_DMEM_DMA, DPC_STATUS_FREEZE, DPC_STATUS_FLUSH,
+  DPC_STATUS_START_GCLK, DPC_STATUS_PIPE_BUSY, DPC_STATUS_CBUF_READY, DPC_STATUS_START_VALID,
+} from './dpc_constants.js';
 import { toHex, toString32 } from '../format.js';
 import * as logger from '../logger.js';
 import { RDPBuffer } from '../lle/rdp.js';
 import { disassembleRange } from '../hle/disassemble_rdp.js';
 import { graphicsOptions } from '../hle/graphics_options.js';
-
-// DP Command
-const DPC_START_REG = 0x00;
-const DPC_END_REG = 0x04;
-const DPC_CURRENT_REG = 0x08;
-const DPC_STATUS_REG = 0x0C;
-const DPC_CLOCK_REG = 0x10;
-const DPC_BUFBUSY_REG = 0x14;
-const DPC_PIPEBUSY_REG = 0x18;
-const DPC_TMEM_REG = 0x1C;
-
-const DPC_CLR_XBUS_DMEM_DMA = 0x0001;
-const DPC_SET_XBUS_DMEM_DMA = 0x0002;
-const DPC_CLR_FREEZE = 0x0004;
-const DPC_SET_FREEZE = 0x0008;
-const DPC_CLR_FLUSH = 0x0010;
-const DPC_SET_FLUSH = 0x0020;
-const DPC_CLR_TMEM_CTR = 0x0040;
-const DPC_CLR_PIPE_CTR = 0x0080;
-const DPC_CLR_CMD_CTR = 0x0100;
-const DPC_CLR_CLOCK_CTR = 0x0200;
-
-const DPC_STATUS_XBUS_DMEM_DMA = 0x001;
-const DPC_STATUS_FREEZE = 0x002;
-const DPC_STATUS_FLUSH = 0x004;
-const DPC_STATUS_START_GCLK = 0x008;
-const DPC_STATUS_TMEM_BUSY = 0x010;
-const DPC_STATUS_PIPE_BUSY = 0x020;
-const DPC_STATUS_CMD_BUSY = 0x040;
-const DPC_STATUS_CBUF_READY = 0x080;
-const DPC_STATUS_DMA_BUSY = 0x100;
-const DPC_STATUS_END_VALID = 0x200;
-const DPC_STATUS_START_VALID = 0x400;
 
 const addressWritableBits = 0x00ff_fff8;
 const statusWritableBits = 0x7ff;

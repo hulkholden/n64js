@@ -9,11 +9,6 @@
       "count": 4
     }
   },
-  "src/devices/dpc.js": {
-    "no-unused-vars": {
-      "count": 4
-    }
-  },
   "src/devices/dps.js": {
     "no-unused-vars": {
       "count": 10
@@ -76,7 +71,7 @@
   },
   "src/rsp/rsp.js": {
     "no-unused-vars": {
-      "count": 25
+      "count": 4
     }
   },
   "src/sync.js": {

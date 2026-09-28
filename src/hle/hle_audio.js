@@ -5,15 +5,13 @@ import {
 import { TetrisphereAudio } from './audio_tetrisphere.js';
 import { GoldenEyeAudio } from './audio_goldeneye.js';
 import { DiddyBlastAudio } from './audio_diddy_blast.js';
-import {
-  SP_DMEM_SIZE, SP_IMEM_OFFSET, TASK_OFFSET, TASK_SIZE, TASK_ADDRESS_MASK, TaskOffsets,
-} from './rsp_task_constants.js';
-import { SP_SEMAPHORE_REG } from '../devices/sp_reg.js';
+import { TASK_OFFSET, TASK_SIZE, TASK_ADDRESS_MASK, TaskOffsets } from './rsp_task_constants.js';
+import { SP_DMEM_SIZE, SP_IMEM_OFFSET, SP_SEMAPHORE_REG } from '../devices/sp_constants.js';
+import { DPC_STATUS_DMA_BUSY } from '../devices/dpc_constants.js';
 import * as logger from '../logger.js';
 import { toHex } from '../format.js';
 
 const OS_TASK_DP_WAIT = 0x0002;
-const DPC_STATUS_DMA_BUSY = 0x0100;
 
 // Scratch storage belongs to one hardware instance. Views are rebound when
 // memory or microcode addresses change; classification still rechecks bytes on
