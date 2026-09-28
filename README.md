@@ -119,6 +119,15 @@ results and actual, golden and difference images for failed comparisons.
 See the [texture-sampler test guide](tools/texture_sampler/README.md) for running
 the checks locally, using the browser gallery and reviewing golden updates.
 
+### Audio HLE
+
+Audio HLE support is a work in progress, derived from captured RSP disassembly
+and libultra headers. Supported ABI1 variants include those used by Super Mario
+64, Tetrisphere, GoldenEye 007, Diddy Kong Racing and Blast Corps.
+
+Select **Audio → Emulation Mode → HLE** to use supported microcodes; unreviewed
+identities and command shapes fall back to LLE. LLE remains the default.
+
 ## Publishing
 
 Push a new `v*` tag (for example, `v1.2.3`) to publish that commit to GitHub Pages.

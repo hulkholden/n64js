@@ -183,4 +183,27 @@ describe('browser audio classifier', () => {
     expect(() => createAudioMicrocodeClassifier(manifest)).toThrow('Invalid audio reference manifest');
     for (const bad of [null, {}, { version: 1, bootstraps: [null], programs: [] }]) expect(() => createAudioMicrocodeClassifier(bad)).toThrow();
   });
+
+  test('reuses an explicit result without retaining stale identity or ambiguity fields', () => {
+    const { raw, manifest } = fixture();
+    manifest.bootstraps.push({ id: 'longer', bytes: 0xd0, sha256: hash(raw.imem.subarray(0, 0xd0)) });
+    const classify = createAudioMicrocodeClassifier(manifest), result = {};
+    raw.imem[0xcc] ^= 1;
+    expect(classify(raw, result)).toBe(result);
+    expect(result).toEqual(known());
+    raw.code[0] ^= 1;
+    classify(raw, result);
+    expect(result).toEqual(unknown('unreviewed-code'));
+    raw.code[0] ^= 1;
+    raw.imem[0xcc] ^= 1;
+    classify(raw, result);
+    expect(result).toEqual({ ...unknown('ambiguous-bootstrap'), status: 'ambiguous', candidates: ['boot', 'longer'] });
+    raw.imem[0xcc] ^= 1;
+    classify(raw, result);
+    expect(result).toEqual(known());
+    const owned = classify(raw);
+    expect(owned).not.toBe(result);
+    expect(classify(null, result)).toEqual(unknown('invalid-snapshot'));
+    expect(owned).toEqual(known());
+  });
 });

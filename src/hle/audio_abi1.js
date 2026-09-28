@@ -1,0 +1,577 @@
+// Derived from captured ABI1 RSP programs, not another audio HLE.
+// Variants share handlers only where the reviewed instructions agree.
+import {
+  FIXED16_ONE, UINT16_MAX, clamp16, clampShifted32To16, signed16, unsigned16,
+  fixed16FromParts, fixed16ToInt, clampFixed16Hi, clampFixed16Lo,
+  mulFixed16, mulFraction, mixSample,
+} from './audio_fixed_point.js';
+
+const OPCODE_SPNOOP = 0x00;
+const OPCODE_ADPCM = 0x01;
+const OPCODE_CLEARBUFF = 0x02;
+const OPCODE_ENVMIXER = 0x03;
+const OPCODE_LOADBUFF = 0x04;
+const OPCODE_RESAMPLE = 0x05;
+const OPCODE_SAVEBUFF = 0x06;
+const OPCODE_SEGMENT = 0x07;
+const OPCODE_SETBUFF = 0x08;
+const OPCODE_SETVOL = 0x09;
+const OPCODE_DMEMMOVE = 0x0a;
+const OPCODE_LOADADPCM = 0x0b;
+const OPCODE_MIXER = 0x0c;
+const OPCODE_INTERLEAVE = 0x0d;
+const OPCODE_POLEF = 0x0e;
+const OPCODE_SETLOOP = 0x0f;
+
+// DMEM layout shared by the reviewed ABI1 programs. The task loader uses the
+// same segment table and command buffer as the individual command handlers.
+const DMEM_RESAMPLE_TABLE = 0x0c0;
+export const DMEM_SEGMENT_TABLE = 0x320;
+const DMEM_PARAMS = 0x360;
+export const DMEM_COMMAND_BUFFER = 0x380;
+export const COMMAND_BUFFER_SIZE = 0x140;
+const DMEM_ADPCM_BOOK = 0x4c0;
+const ADPCM_BOOK_SIZE = 0x100;
+const DMEM_SAMPLE_BUFFER = 0x5c0;
+const DMEM_SCRATCH = 0xf90;
+
+const PARAM_INPUT = DMEM_PARAMS;
+const PARAM_OUTPUT = DMEM_PARAMS + 0x02;
+const PARAM_COUNT = DMEM_PARAMS + 0x04;
+const PARAM_VOLUME_LEFT = DMEM_PARAMS + 0x06;
+const PARAM_VOLUME_RIGHT = DMEM_PARAMS + 0x08;
+const PARAM_OUTPUT_RIGHT = DMEM_PARAMS + 0x0a;
+const PARAM_WET_OUTPUT_LEFT = DMEM_PARAMS + 0x0c;
+const PARAM_WET_OUTPUT_RIGHT = DMEM_PARAMS + 0x0e;
+const PARAM_ENVELOPE_LEFT = DMEM_PARAMS + 0x10;
+const PARAM_ENVELOPE_RIGHT = DMEM_PARAMS + 0x16;
+const PARAM_DRY_VOLUME = DMEM_PARAMS + 0x1c;
+const PARAM_WET_VOLUME = DMEM_PARAMS + 0x1e;
+
+// SETLOOP aliases the left envelope configuration; it has no separate slot.
+const PARAM_LOOP_ADDRESS = PARAM_ENVELOPE_LEFT;
+
+// POLEF reuses the first predictor's two coefficient vectors.
+const POLE_COEFFICIENTS_A = DMEM_ADPCM_BOOK;
+const POLE_COEFFICIENTS_B = DMEM_ADPCM_BOOK + 0x10;
+const POLE_HISTORY = DMEM_SCRATCH + 0x04;
+
+// Each DSP handler reuses scratch for its own saved state layout.
+const RESAMPLE_PHASE = DMEM_SCRATCH + 0x08;
+const RESAMPLE_INPUT_ADJUST = DMEM_SCRATCH + 0x0a;
+const RESAMPLE_TAIL = DMEM_SCRATCH + 0x10;
+
+const ENVELOPE_SAVED_CONFIG = DMEM_SCRATCH + 0x40;
+// Four volume vectors (integer/fractional for each channel) plus configuration.
+const ENVELOPE_STATE_SIZE = 5 * 16;
+const ENVELOPE_WEIGHT_STEP = FIXED16_ONE / 8;
+const ENVELOPE_WEIGHT_MAX = UINT16_MAX;
+
+const round8 = n => (n + 7) & ~7;
+const round16 = n => (n + 15) & ~15;
+const round32 = n => (n + 31) & ~31;
+
+function createEnvelopeChannel() {
+  return { target: 0, rateHi: 0, rateLo: 0, hi: new Int16Array(8), lo: new Uint16Array(8) };
+}
+
+function initializeEnvelopeChannel(channel, initial) {
+  const product = initial * fixed16FromParts(channel.rateHi, channel.rateLo);
+  const productHi = clampFixed16Hi(product);
+  const productLo = clampFixed16Lo(product);
+
+  const difference = fixed16FromParts(clamp16(productHi - initial), productLo);
+  const initialFixed = fixed16FromParts(initial, 0);
+
+  for (let lane = 0; lane < 8; lane++) {
+    const weight = lane === 7 ? ENVELOPE_WEIGHT_MAX : (lane + 1) * ENVELOPE_WEIGHT_STEP;
+    const value = initialFixed + fixed16ToInt(difference * weight);
+    channel.hi[lane] = clampFixed16Hi(value);
+    // Interpolation wraps the low word; only the rate product above saturates it.
+    channel.lo[lane] = unsigned16(value);
+  }
+}
+
+export class UnsupportedAudioCommand extends Error {}
+
+/** Private working DMEM; RDRAM writes are journalled for atomic LLE fallback.
+ * The default commands implement abi1-standard-mixer. Derived classes override
+ * the handlers that differ in their reviewed program; dispatch stays shared.
+ * Instances and their scratch arrays can be reused between synchronous tasks.
+ */
+export class ABI1Audio {
+  constructor(ram, dmem) {
+    this.dmem = new Uint8Array(4096);
+    this.view = new DataView(this.dmem.buffer);
+
+    this.samples = new Int16Array(16);
+    this.result = new Int16Array(8);
+    this.residual = new Int16Array(16);
+
+    this.poleA = new Int16Array(8);
+    this.poleB = new Int16Array(8);
+    this.poleScaled = new Int16Array(8);
+
+    this.envelopeOutputs = new Uint16Array(4);
+    this.envelopeChannels = [createEnvelopeChannel(), createEnvelopeChannel()];
+
+    // Grow only when a larger task is first encountered; retain the capacity.
+    this.undoWords = new Uint32Array(4096);
+    this.writeAddresses = new Uint32Array(128);
+    this.writeSizes = new Uint16Array(128);
+
+    this.reset(ram, dmem);
+  }
+
+  reset(ram, dmem) {
+    if (this.ram !== ram) {
+      this.ram = ram;
+      this.ramView = new DataView(ram.buffer, ram.byteOffset, ram.byteLength);
+    }
+
+    this.dmem.set(dmem);
+    this.commit();
+  }
+
+  commit() {
+    // RDRAM was written eagerly; a successful task no longer needs its undo log.
+    this.writeCount = 0;
+    this.undoCount = 0;
+  }
+
+  u16(p) { return this.view.getUint16(p); }
+  s16(p) { return this.view.getInt16(p); }
+  put16(p, v) { this.view.setUint16(p, v); }
+
+  get input() { return this.u16(PARAM_INPUT); }
+  get output() { return this.u16(PARAM_OUTPUT); }
+  get count() { return this.u16(PARAM_COUNT); }
+  get resampleTable() { return DMEM_RESAMPLE_TABLE; }
+
+  require(condition, reason) {
+    if (!condition) throw new UnsupportedAudioCommand(reason);
+  }
+
+  buffer(p, n, alignment = 1) {
+    // This guard also runs for every resampler output sample. Format the
+    // diagnostic only on failure, rather than allocating a string per sample.
+    if (!(p >= DMEM_ADPCM_BOOK && n >= 0 && p + n <= DMEM_SCRATCH && p % alignment === 0)) {
+      throw new UnsupportedAudioCommand(`Unreviewed audio buffer: ${p.toString(16)} + ${n}`);
+    }
+  }
+
+  disjoint(a, aSize, b, bSize) {
+    this.require(a + aSize <= b || b + bSize <= a, 'Overlapping audio buffers are not reviewed');
+  }
+
+  address(w) {
+    const segment = w >>> 24;
+    this.require(segment < 16, 'Audio segment outside table');
+    return ((w & 0xffffff) + this.view.getUint32(DMEM_SEGMENT_TABLE + segment * 4)) & 0xffffff;
+  }
+
+  dma(dmem, address, count, write = false) {
+    // SP address registers discard the bottom three bits; length rounds up.
+    dmem &= ~7;
+    address &= ~7;
+    const size = round8(count);
+    this.require(count > 0 && dmem >= 0 && dmem + size <= 4096 && address + size <= this.ram.length,
+      'Unreviewed audio DMA');
+
+    if (write) {
+      this.reserveUndo(size >>> 2);
+      this.writeAddresses[this.writeCount] = address;
+      this.writeSizes[this.writeCount++] = size;
+
+      for (let i = 0; i < size; i += 4) {
+        this.undoWords[this.undoCount++] = this.ramView.getUint32(address + i);
+        this.ramView.setUint32(address + i, this.view.getUint32(dmem + i));
+      }
+    } else {
+      for (let i = 0; i < size; i += 4) this.view.setUint32(dmem + i, this.ramView.getUint32(address + i));
+    }
+  }
+
+  reserveUndo(words) {
+    if (this.undoCount + words > this.undoWords.length) {
+      const grown = new Uint32Array(Math.max(this.undoWords.length * 2, this.undoCount + words));
+      grown.set(this.undoWords);
+      this.undoWords = grown;
+    }
+
+    if (this.writeCount === this.writeAddresses.length) {
+      const addresses = new Uint32Array(this.writeCount * 2);
+      const sizes = new Uint16Array(this.writeCount * 2);
+      addresses.set(this.writeAddresses);
+      sizes.set(this.writeSizes);
+      this.writeAddresses = addresses;
+      this.writeSizes = sizes;
+    }
+  }
+
+  rollback() {
+    for (let i = this.writeCount - 1; i >= 0; i--) {
+      const address = this.writeAddresses[i], size = this.writeSizes[i];
+      this.undoCount -= size >>> 2;
+      for (let p = 0; p < size; p += 4) this.ramView.setUint32(address + p, this.undoWords[this.undoCount + (p >>> 2)]);
+    }
+
+    this.commit();
+  }
+
+  execute(w0, w1) {
+    const opcode = w0 >>> 24;
+    const flags = (w0 >>> 16) & 255;
+    const low = w0 & 0xffff;
+
+    switch (opcode) {
+      case OPCODE_SPNOOP: return;
+
+      case OPCODE_ADPCM: return this.adpcm(flags, this.address(w1));
+
+      case OPCODE_CLEARBUFF: {
+        const p = DMEM_SAMPLE_BUFFER + low, count = round16(w1 & 0xffff);
+        this.buffer(p, count);
+        this.dmem.fill(0, p, p + count);
+        return;
+      }
+
+      case OPCODE_ENVMIXER: return this.envelope(flags, this.address(w1));
+
+      case OPCODE_LOADBUFF:
+      case OPCODE_SAVEBUFF: {
+        if (!this.count) return;
+
+        const p = opcode === OPCODE_LOADBUFF ? this.input : this.output;
+        this.buffer(p & ~7, round8(this.count));
+        this.dma(p, this.address(w1), this.count, opcode === OPCODE_SAVEBUFF);
+        return;
+      }
+
+      case OPCODE_RESAMPLE: return this.resample(flags, low, this.address(w1));
+
+      case OPCODE_SEGMENT:
+        this.require((w1 >>> 24) < 16, 'Audio segment outside table');
+        this.view.setUint32(DMEM_SEGMENT_TABLE + (w1 >>> 24) * 4, w1 & 0xffffff);
+        return;
+
+      case OPCODE_SETBUFF:
+        if (flags & 8) {
+          this.put16(PARAM_OUTPUT_RIGHT, low + DMEM_SAMPLE_BUFFER);
+          this.put16(PARAM_WET_OUTPUT_LEFT, (w1 >>> 16) + DMEM_SAMPLE_BUFFER);
+          this.put16(PARAM_WET_OUTPUT_RIGHT, (w1 & 0xffff) + DMEM_SAMPLE_BUFFER);
+        } else {
+          this.put16(PARAM_INPUT, low + DMEM_SAMPLE_BUFFER);
+          this.put16(PARAM_OUTPUT, (w1 >>> 16) + DMEM_SAMPLE_BUFFER);
+          this.put16(PARAM_COUNT, w1);
+        }
+        return;
+
+      case OPCODE_SETVOL:
+        if (flags & 8) {
+          this.put16(PARAM_DRY_VOLUME, low);
+          this.put16(PARAM_WET_VOLUME, w1);
+        } else if (flags & 4) {
+          this.put16(flags & 2 ? PARAM_VOLUME_LEFT : PARAM_VOLUME_RIGHT, low);
+        } else {
+          const p = flags & 2 ? PARAM_ENVELOPE_LEFT : PARAM_ENVELOPE_RIGHT;
+          this.put16(p, low);
+          this.view.setUint32(p + 2, w1);
+        }
+        return;
+
+      case OPCODE_DMEMMOVE: {
+        const from = DMEM_SAMPLE_BUFFER + low, to = DMEM_SAMPLE_BUFFER + (w1 >>> 16), count = round16(w1 & 0xffff);
+        this.buffer(from, count);
+        this.buffer(to, count);
+
+        // 0x1424: load both halves before storing, then move forward 16 bytes.
+        for (let i = 0; i < count; i += 16) this.dmem.copyWithin(to + i, from + i, from + i + 16);
+        return;
+      }
+
+      case OPCODE_LOADADPCM:
+        this.require(low > 0 && low <= ADPCM_BOOK_SIZE, 'Unreviewed predictor book size');
+        this.dma(DMEM_ADPCM_BOOK, this.address(w1), low);
+        return;
+
+      case OPCODE_MIXER: return this.mix(low, w1 >>> 16, w1 & 0xffff);
+
+      case OPCODE_INTERLEAVE: {
+        const left = DMEM_SAMPLE_BUFFER + (w1 >>> 16), right = DMEM_SAMPLE_BUFFER + (w1 & 0xffff);
+        const count = round16(this.count), out = this.output;
+        this.buffer(left, count, 16);
+        this.buffer(right, count, 16);
+        this.buffer(out, count * 2, 2);
+
+        const samples = this.samples;
+        for (let i = 0; i < count; i += 16) {
+          // Stage both vectors before writing, including overlapping outputs.
+          for (let j = 0; j < 8; j++) {
+            samples[j] = this.s16(left + i + j * 2);
+            samples[j + 8] = this.s16(right + i + j * 2);
+          }
+
+          for (let j = 0; j < 8; j++) {
+            this.put16(out + i * 2 + j * 4, samples[j]);
+            this.put16(out + i * 2 + j * 4 + 2, samples[j + 8]);
+          }
+        }
+        return;
+      }
+
+      case OPCODE_POLEF: return this.poleFilter(flags, low, this.address(w1));
+
+      case OPCODE_SETLOOP:
+        this.view.setUint32(PARAM_LOOP_ADDRESS, this.address(w1));
+        return;
+
+      default: throw new UnsupportedAudioCommand(`Unsupported audio opcode ${opcode}`);
+    }
+  }
+
+  mix(gain, inputOffset, outputOffset) {
+    if (!this.count) return;
+
+    const count = round32(this.count);
+    const input = DMEM_SAMPLE_BUFFER + inputOffset, output = DMEM_SAMPLE_BUFFER + outputOffset;
+    this.buffer(input, count, 16);
+    this.buffer(output, count, 16);
+    if (input !== output) this.disjoint(input, count, output, count);
+
+    gain = signed16(gain);
+    for (let p = 0; p < count; p += 32) {
+      // Input/output are identical or disjoint, so lane reads are independent.
+      // 0x1e4c–0x1e58 preload two vectors from each buffer. VMULF retains
+      // the rounded destination product in the accumulator; VMACF adds the
+      // source product before the combined result is shifted and saturated.
+      for (let i = 0; i < 16; i++) {
+        const source = this.s16(input + p + i * 2), destination = this.s16(output + p + i * 2);
+        this.put16(output + p + i * 2, mixSample(destination, source, gain));
+      }
+    }
+  }
+
+  poleFilter(flags, gain, address) {
+    if (!this.count) return;
+
+    const count = round16(this.count), input = this.input, output = this.output;
+    this.buffer(input, count, 2);
+    this.buffer(output, count, 2);
+    if (input !== output) this.disjoint(input, count, output, count);
+    this.disjoint(POLE_COEFFICIENTS_A, 32, output, count);
+
+    // 0x176c clears only four bytes, even on INIT. The last two history
+    // samples at POLE_HISTORY are retained. Reproduce the actual program.
+    this.dmem.fill(0, DMEM_SCRATCH, POLE_HISTORY);
+    if (!(flags & 1)) this.dma(DMEM_SCRATCH, address, 8);
+    let prev0 = this.s16(POLE_HISTORY), prev1 = this.s16(POLE_HISTORY + 2);
+
+    const a = this.poleA, b = this.poleB, scaled = this.poleScaled;
+    for (let i = 0; i < 8; i++) {
+      a[i] = this.s16(POLE_COEFFICIENTS_A + i * 2);
+      b[i] = this.s16(POLE_COEFFICIENTS_B + i * 2);
+      scaled[i] = fixed16ToInt(b[i] * unsigned16(gain * 4));
+      this.put16(POLE_COEFFICIENTS_B + i * 2, scaled[i]);
+    }
+
+    const samples = this.samples, result = this.result;
+    for (let p = 0; p < count; p += 16) {
+      for (let i = 0; i < 8; i++) samples[i] = this.s16(input + p + i * 2);
+
+      for (let i = 0; i < 8; i++) {
+        let sum = a[i] * prev0 + b[i] * prev1 + samples[i] * signed16(gain);
+        for (let j = 0; j < i; j++) sum += scaled[i - j - 1] * samples[j];
+        // VMADH wraps a signed 32-bit sum; VSAR/VMUDN/VMADH shift by 14.
+        result[i] = clampShifted32To16(sum, 14);
+      }
+
+      for (let i = 0; i < 8; i++) this.put16(output + p + i * 2, result[i]);
+      prev0 = result[6]; prev1 = result[7];
+    }
+
+    this.dma(output + count - 8, address, 8, true);
+  }
+
+  adpcm(flags, address) {
+    const count = round32(this.count), input = this.input, output = this.output;
+    this.buffer(input, count / 32 * 9);
+    this.buffer(output, count + 32, 16);
+    this.disjoint(input, count / 32 * 9, output, count + 32);
+    this.disjoint(DMEM_ADPCM_BOOK, ADPCM_BOOK_SIZE, output, count + 32);
+
+    this.dmem.fill(0, output, output + 32);
+    if (!(flags & 1)) this.dma(output, flags & 2 ? this.view.getUint32(PARAM_LOOP_ADDRESS) : address, 32);
+    let prev0 = this.s16(output + 28), prev1 = this.s16(output + 30);
+
+    const residual = this.residual, result = this.result;
+    for (let block = 0; block < count / 32; block++) {
+      const p = input + block * 9, header = this.dmem[p], book = DMEM_ADPCM_BOOK + (header & 15) * 32;
+      this.require(book + 32 <= DMEM_SAMPLE_BUFFER, 'Unreviewed ADPCM predictor');
+
+      const shift = Math.min(header >>> 4, 12);
+      for (let i = 0; i < 16; i++) {
+        const byte = this.dmem[p + 1 + (i >>> 1)];
+        residual[i] = (((i & 1 ? byte : byte >>> 4) & 15) << 28 >> 28) * 2 ** shift;
+      }
+
+      for (let half = 0; half < 16; half += 8) {
+        for (let i = 0; i < 8; i++) {
+          let sum = this.s16(book + i * 2) * prev0 + this.s16(book + 16 + i * 2) * prev1 + residual[half + i] * 2048;
+          for (let j = 0; j < i; j++) sum += this.s16(book + 16 + (i - j - 1) * 2) * residual[half + j];
+          result[i] = clampShifted32To16(sum, 11);
+        }
+
+        for (let i = 0; i < 8; i++) this.put16(output + 32 + block * 32 + (half + i) * 2, result[i]);
+        prev0 = result[6]; prev1 = result[7];
+      }
+    }
+
+    this.dma(output + count, address, 32, true);
+  }
+
+  resample(flags, pitch, address) {
+    const count = round16(this.count), input = this.input, output = this.output;
+    const tableBase = this.resampleTable;
+    this.require(count > 0, 'Zero-length resampler');
+    this.buffer(output, count, 16);
+
+    if (flags & 1) this.dmem.fill(0, DMEM_SCRATCH, RESAMPLE_INPUT_ADJUST);
+    else this.dma(DMEM_SCRATCH, address, 32);
+
+    let source = input;
+    if (flags & 2) {
+      this.buffer(source - 16, 16);
+      this.dmem.copyWithin(source - 16, RESAMPLE_TAIL, DMEM_SCRATCH + 32);
+      source -= this.s16(RESAMPLE_INPUT_ADJUST);
+    }
+
+    source -= 8;
+    let phase = this.u16(RESAMPLE_PHASE);
+    this.buffer(source, 8, 2);
+    this.dmem.copyWithin(source, DMEM_SCRATCH, RESAMPLE_PHASE);
+
+    const result = this.result;
+    for (let p = 0; p < count; p += 16) {
+      // Each vector iteration loads all eight windows before storing output.
+      for (let i = 0; i < 8; i++) {
+        this.buffer(source, 8, 2);
+        const table = tableBase + (phase >>> 10) * 8;
+        const t0 = mulFraction(this.s16(source), this.s16(table));
+        const t1 = mulFraction(this.s16(source + 2), this.s16(table + 2));
+        const t2 = mulFraction(this.s16(source + 4), this.s16(table + 4));
+        const t3 = mulFraction(this.s16(source + 6), this.s16(table + 6));
+        result[i] = clamp16(clamp16(t0 + t1) + clamp16(t2 + t3));
+
+        phase += pitch * 2;
+        source += (phase >>> 16) * 2;
+        phase = unsigned16(phase);
+      }
+
+      for (let i = 0; i < 8; i++) this.put16(output + p + i * 2, result[i]);
+    }
+
+    this.buffer(source, 8, 2);
+    this.dmem.copyWithin(DMEM_SCRATCH, source, source + 8);
+    this.put16(RESAMPLE_PHASE, phase);
+
+    const remainder = (source + 8 - input) & 15;
+    const tail = source + 8 - remainder;
+    this.buffer(tail, 16);
+    this.put16(RESAMPLE_INPUT_ADJUST, remainder ? 16 - remainder : 0);
+    this.dmem.copyWithin(RESAMPLE_TAIL, tail, tail + 16);
+
+    this.dma(DMEM_SCRATCH, address, 32, true);
+  }
+
+  envelope(flags, address) {
+    const count = round16(this.count), input = this.input;
+    const auxiliary = (flags & 8) !== 0;
+    const outputs = this.envelopeOutputs, outputCount = auxiliary ? 4 : 2;
+    outputs[0] = this.output; outputs[1] = this.u16(PARAM_OUTPUT_RIGHT);
+    if (auxiliary) {
+      outputs[2] = this.u16(PARAM_WET_OUTPUT_LEFT); outputs[3] = this.u16(PARAM_WET_OUTPUT_RIGHT);
+    }
+
+    this.require(count >= (flags & 1 ? 32 : 16), 'Unreviewed short envelope');
+    this.buffer(input, count, 16);
+    for (let i = 0; i < outputCount; i++) this.buffer(outputs[i], count, 16);
+    for (let i = 0; i < outputCount; i++) {
+      this.disjoint(input, count, outputs[i], count);
+      for (let j = i + 1; j < outputCount; j++) this.disjoint(outputs[i], count, outputs[j], count);
+    }
+
+    if (!(flags & 1)) this.dma(DMEM_SCRATCH, address, ENVELOPE_STATE_SIZE);
+    const config = flags & 1 ? PARAM_ENVELOPE_LEFT : ENVELOPE_SAVED_CONFIG;
+    const dry = this.s16(config + 12), wet = this.s16(config + 14);
+
+    const channels = this.envelopeChannels;
+    for (let channel = 0; channel < 2; channel++) {
+      const p = config + channel * 6;
+      const c = channels[channel], hi = c.hi, lo = c.lo;
+      c.target = this.s16(p); c.rateHi = this.s16(p + 2); c.rateLo = this.u16(p + 4);
+
+      if (flags & 1) {
+        this.initializeEnvelope(c, this.s16(PARAM_VOLUME_LEFT + channel * 2));
+      } else {
+        for (let lane = 0; lane < 8; lane++) {
+          hi[lane] = this.s16(DMEM_SCRATCH + channel * 32 + lane * 2);
+          lo[lane] = this.u16(DMEM_SCRATCH + channel * 32 + 16 + lane * 2);
+        }
+      }
+    }
+
+    for (let p = 0; p < count; p += 16) {
+      for (let channel = 0; channel < 2; channel++) {
+        const c = channels[channel];
+        if (!(flags & 1) || p > 0) this.advanceEnvelope(c);
+        for (let lane = 0; lane < 8; lane++) {
+          // Positive high word: VCL with cleared VCO is unsigned minimum.
+          c.hi[lane] = c.rateHi > 0
+            ? signed16(Math.min(unsigned16(c.hi[lane]), unsigned16(c.target)))
+            : Math.max(c.hi[lane], c.target);
+        }
+
+        // Without AUX, 0x1be0–0x1be8 redirects wet writes to a fixed scratch
+        // vector outside the saved envelope state. It has no DSP-visible use;
+        // the dry channels and all five saved state vectors still run normally.
+        for (let bus = 0; bus < (auxiliary ? 2 : 1); bus++) {
+          const destination = outputs[channel + bus * 2], volume = bus ? wet : dry;
+          for (let i = 0; i < 8; i++) {
+            // All input/output buffers were checked as disjoint above, so
+            // lane reads cannot observe stores to another lane or channel.
+            const previous = this.s16(destination + p + i * 2);
+            const sample = this.s16(input + p + i * 2);
+            const gain = mulFraction(c.hi[i], volume);
+            this.put16(destination + p + i * 2, mixSample(previous, sample, gain));
+          }
+        }
+      }
+    }
+
+    for (let channel = 0; channel < 2; channel++) {
+      const c = channels[channel];
+      for (let i = 0; i < 8; i++) {
+        this.put16(DMEM_SCRATCH + channel * 32 + i * 2, c.hi[i]);
+        this.put16(DMEM_SCRATCH + channel * 32 + 16 + i * 2, c.lo[i]);
+      }
+    }
+
+    this.dmem.copyWithin(ENVELOPE_SAVED_CONFIG, config, config + 16);
+    this.dma(DMEM_SCRATCH, address, ENVELOPE_STATE_SIZE, true);
+  }
+
+  // Variants can change volume progression while retaining the shared buffer,
+  // target, mixing and saved-state behavior above.
+  initializeEnvelope(channel, initial) {
+    initializeEnvelopeChannel(channel, initial);
+  }
+
+  advanceEnvelope(channel) {
+    for (let lane = 0; lane < 8; lane++) {
+      const value = mulFixed16(channel.hi[lane], channel.lo[lane], channel.rateHi, channel.rateLo);
+      channel.hi[lane] = clampFixed16Hi(value);
+      channel.lo[lane] = clampFixed16Lo(value);
+    }
+  }
+}

@@ -1,7 +1,7 @@
 import * as cpu0reg from './cpu/cpu0reg.js';
 import { calculateIPL3BootState } from './boot_checksum.js';
 import { PI_BSD_DOM1_LAT_REG, PI_BSD_DOM1_PWD_REG, PI_BSD_DOM1_PGS_REG, PI_BSD_DOM1_RLS_REG } from './devices/pi.js';
-import { SP_STATUS_REG, SP_STATUS_HALT } from './devices/sp.js';
+import { SP_STATUS_HALT, SP_STATUS_REG } from './devices/sp_constants.js';
 import { OS_TV_NTSC, OS_TV_PAL, OS_TV_MPAL } from './system_constants.js';
 
 // PIF RAM boot words: bit 18 is the CIC version flag, bits 8..15 are the

@@ -6,6 +6,8 @@ import * as microcodes from './microcodes.js';
 import { RSPState } from './rsp_state.js';
 import { Renderer } from './renderer.js';
 import { graphicsOptions } from './graphics_options.js';
+import { identifyMicrocode, MicrocodeId } from './microcode_identifier.js';
+import * as logger from '../logger.js';
 import { toString32 } from '../format.js';
 
 window.n64js = window.n64js || {};
@@ -13,6 +15,7 @@ window.n64js = window.n64js || {};
 let numDisplayListsRendered = 0;
 let gl = null; // WebGL context for the canvas.
 let renderer;
+let warnedF5Indi = false;
 
 const state = new RSPState();
 const debugController = new DebugController(state, processDList);
@@ -23,6 +26,50 @@ export const graphics = {
   reset: resetRenderer,
   setDPFrozen: frozen => renderer?.renderTargets.setDPFrozen(frozen),
 };
+
+// Returns false for LLE, true for completed HLE, or a continuation while waiting.
+export function dispatchGraphicsTask(hardware, mode, task) {
+  const microcode = identifyMicrocode(task.detectVersionString(), task.computeMicrocodeHash());
+  hardware.onGraphicsTask?.({ ...microcode });
+  if (mode !== 'HLE') return false;
+
+  // Reject unsupported protocols even when headless graphics are skipped.
+  // In particular, BOSS ZSort needs CPU/RSP signal exchanges before a
+  // task can complete; fabricating DP/SP completion leaves the CPU stuck.
+  microcodes.assertHLESupported(microcode);
+  const ev = hardware.timeline.startEvent(`HLE Task ${task.detectVersionString()}`);
+  let continuation = null;
+
+  // TODO: implement Factor 5's Indiana Jones microcode. Its linked display
+  // lists loop indefinitely in the GBI0 fallback. Skip parsing them while
+  // preserving normal task completion and interrupts for the guest.
+  if (microcode.id === MicrocodeId.F5_INDI) {
+    if (!warnedF5Indi) {
+      logger.log('Skipping unsupported Factor 5 Indiana Jones graphics microcode');
+      warnedF5Indi = true;
+    }
+    hardware.miRegDevice.interruptDP();
+  } else {
+    continuation = hardware.graphics.processTask(task);
+  }
+
+  const complete = () => {
+    // SP completion is independent of DP: only an executed FullSync
+    // requests a DP interrupt, and some games split a frame over tasks.
+    if (ev) ev.stop();
+  };
+  if (continuation) {
+    const resume = () => {
+      continuation = continuation();
+      if (continuation) return resume;
+      complete();
+      return null;
+    };
+    return resume;
+  }
+  complete();
+  return true;
+}
 
 export function initialiseRenderer(canvas) {
   debugController.initUI();

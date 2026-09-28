@@ -5,7 +5,7 @@ import * as decode from './decode.js';
 import { Fragment, getFragmentMap, lookupFragment } from './fragments.js';
 import { FragmentContext, generateCodeForOp } from './recompiler.js';
 import { getPerformanceProfile, setPerformanceProfiling } from '../debug/performance_profile.js';
-import { SP_STATUS_REG, SP_STATUS_INTR_BREAK } from '../devices/sp.js';
+import { SP_STATUS_INTR_BREAK, SP_STATUS_REG } from '../devices/sp_constants.js';
 import { MI_INTR_MASK_REG, MI_INTR_SP } from '../devices/mi.js';
 
 const pc = 0x80001000;

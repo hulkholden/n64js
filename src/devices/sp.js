@@ -1,6 +1,17 @@
 /*global n64js*/
 
 import { Device } from './device.js';
+import {
+  SP_MEM_ADDR_REG, SP_DRAM_ADDR_REG, SP_RD_LEN_REG, SP_WR_LEN_REG, SP_STATUS_REG, SP_DMA_FULL_REG,
+  SP_DMA_BUSY_REG, SP_SEMAPHORE_REG, SP_CLR_HALT, SP_SET_HALT, SP_CLR_BROKE, SP_CLR_INTR,
+  SP_SET_INTR, SP_CLR_SSTEP, SP_SET_SSTEP, SP_CLR_INTR_BREAK, SP_SET_INTR_BREAK, SP_CLR_SIG0,
+  SP_SET_SIG0, SP_CLR_SIG1, SP_SET_SIG1, SP_CLR_SIG2, SP_SET_SIG2, SP_CLR_SIG3, SP_SET_SIG3,
+  SP_CLR_SIG4, SP_SET_SIG4, SP_CLR_SIG5, SP_SET_SIG5, SP_CLR_SIG6, SP_SET_SIG6, SP_CLR_SIG7,
+  SP_SET_SIG7, SP_STATUS_HALT, SP_STATUS_BROKE, SP_STATUS_DMA_BUSY, SP_STATUS_DMA_FULL,
+  SP_STATUS_SSTEP, SP_STATUS_INTR_BREAK, SP_STATUS_SIG0, SP_STATUS_SIG1, SP_STATUS_SIG2,
+  SP_STATUS_SIG3, SP_STATUS_SIG4, SP_STATUS_SIG5, SP_STATUS_SIG6, SP_STATUS_SIG7,
+  SP_STATUS_TASKDONE, SPIBIST_PC_REG,
+} from './sp_constants.js';
 import * as mi from './mi.js';
 import * as logger from '../logger.js';
 import { toString16, toString32 } from '../format.js';
@@ -9,15 +20,6 @@ import { performanceProfile } from '../debug/performance_profile.js';
 import { rsp } from '../rsp/rsp.js';
 
 const emulateRSP = true;
-
-export const SP_MEM_ADDR_REG = 0x00;
-export const SP_DRAM_ADDR_REG = 0x04;
-export const SP_RD_LEN_REG = 0x08;
-export const SP_WR_LEN_REG = 0x0C;
-export const SP_STATUS_REG = 0x10;
-export const SP_DMA_FULL_REG = 0x14;
-export const SP_DMA_BUSY_REG = 0x18;
-export const SP_SEMAPHORE_REG = 0x1C;
 
 const memAddrWritableBits = 0xffff_fff8;
 const dramAddrWritableBits = 0xffff_fff8;
@@ -32,54 +34,6 @@ const lenRegCountMask = 0x000f_f000;
 const lenRegCountShift = 12;
 const lenRegLenMask = 0x0000_0fff;
 const lenRegLenShift = 0;
-
-export const SP_CLR_HALT = 0x0000001;
-export const SP_SET_HALT = 0x0000002;
-export const SP_CLR_BROKE = 0x0000004;
-export const SP_CLR_INTR = 0x0000008;
-export const SP_SET_INTR = 0x0000010;
-export const SP_CLR_SSTEP = 0x0000020;
-export const SP_SET_SSTEP = 0x0000040;
-export const SP_CLR_INTR_BREAK = 0x0000080;
-export const SP_SET_INTR_BREAK = 0x0000100;
-export const SP_CLR_SIG0 = 0x0000200;
-export const SP_SET_SIG0 = 0x0000400;
-export const SP_CLR_SIG1 = 0x0000800;
-export const SP_SET_SIG1 = 0x0001000;
-export const SP_CLR_SIG2 = 0x0002000;
-export const SP_SET_SIG2 = 0x0004000;
-export const SP_CLR_SIG3 = 0x0008000;
-export const SP_SET_SIG3 = 0x0010000;
-export const SP_CLR_SIG4 = 0x0020000;
-export const SP_SET_SIG4 = 0x0040000;
-export const SP_CLR_SIG5 = 0x0080000;
-export const SP_SET_SIG5 = 0x0100000;
-export const SP_CLR_SIG6 = 0x0200000;
-export const SP_SET_SIG6 = 0x0400000;
-export const SP_CLR_SIG7 = 0x0800000;
-export const SP_SET_SIG7 = 0x1000000;
-
-export const SP_STATUS_HALT = 0x0001;
-export const SP_STATUS_BROKE = 0x0002;
-export const SP_STATUS_DMA_BUSY = 0x0004;
-export const SP_STATUS_DMA_FULL = 0x0008;
-export const SP_STATUS_IO_FULL = 0x0010;
-export const SP_STATUS_SSTEP = 0x0020;
-export const SP_STATUS_INTR_BREAK = 0x0040;
-export const SP_STATUS_SIG0 = 0x0080;
-export const SP_STATUS_SIG1 = 0x0100;
-export const SP_STATUS_SIG2 = 0x0200;
-export const SP_STATUS_SIG3 = 0x0400;
-export const SP_STATUS_SIG4 = 0x0800;
-export const SP_STATUS_SIG5 = 0x1000;
-export const SP_STATUS_SIG6 = 0x2000;
-export const SP_STATUS_SIG7 = 0x4000;
-
-export const SP_STATUS_YIELD = SP_STATUS_SIG0;
-export const SP_STATUS_YIELDED = SP_STATUS_SIG1;
-export const SP_STATUS_TASKDONE = SP_STATUS_SIG2;
-
-export const SPIBIST_PC_REG = 0x00;
 
 const pcWritableBits = 0xffc;
 

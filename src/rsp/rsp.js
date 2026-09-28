@@ -4,6 +4,7 @@ import * as disassemble_rsp from "./disassemble_rsp.js";
 import { toString16, toString32, toHex } from "../format.js";
 import { rcp16, rsq16 } from "./rsp_recip.js";
 import { performanceProfile } from '../debug/performance_profile.js';
+import { SP_STATUS_HALT, SP_STATUS_BROKE } from '../devices/sp_constants.js';
 import {
   simpleOp as op, specialOp as funct, offset, sa, rd, rt, rs, imm, imms, base, jumpAddress,
   vmemBase, vmemVT, vmemEl, vmemOffset, cop2E, cop2DE, cop2VT, cop2VS, cop2VD,
@@ -36,32 +37,6 @@ const controlRegDPCTMEM = 15;
 
 function controlRegToSPReg(r) { return r * 4; }
 function controlRegToDPCReg(r) { return (r - controlRegDPCStart) * 4; }
-
-// TODO: dedupe with sp.js.
-const SP_MEM_ADDR_REG = 0x00;
-const SP_DRAM_ADDR_REG = 0x04;
-const SP_RD_LEN_REG = 0x08;
-const SP_WR_LEN_REG = 0x0C;
-const SP_STATUS_REG = 0x10;
-const SP_DMA_FULL_REG = 0x14;
-const SP_DMA_BUSY_REG = 0x18;
-const SP_SEMAPHORE_REG = 0x1C;
-
-const SP_STATUS_HALT = 0x0001;
-const SP_STATUS_BROKE = 0x0002;
-const SP_STATUS_DMA_BUSY = 0x0004;
-const SP_STATUS_DMA_FULL = 0x0008;
-const SP_STATUS_IO_FULL = 0x0010;
-const SP_STATUS_SSTEP = 0x0020;
-const SP_STATUS_INTR_BREAK = 0x0040;
-const SP_STATUS_SIG0 = 0x0080;    // a.k.a. Yield
-const SP_STATUS_SIG1 = 0x0100;    // a.k.a. Yielded
-const SP_STATUS_SIG2 = 0x0200;    // a.k.a. TaskDone
-const SP_STATUS_SIG3 = 0x0400;
-const SP_STATUS_SIG4 = 0x0800;
-const SP_STATUS_SIG5 = 0x1000;
-const SP_STATUS_SIG6 = 0x2000;
-const SP_STATUS_SIG7 = 0x4000;
 
 export class RSP {
   constructor(hardware) {

@@ -5,7 +5,7 @@ import { disassembleRange, cop0gprNames, cop1RegisterNames } from '../cpu/disass
 import * as disassemble_rsp from "../rsp/disassemble_rsp.js";
 import { getFragmentMap } from '../cpu/fragments.js';
 import { toggleDebugDisplayList } from '../hle/hle_graphics.js';
-import { TaskOffsets } from '../hle/rsp_task.js';
+import { TaskOffsets } from '../hle/rsp_task_constants.js';
 import { toHex, toString8, toString16, toString32, toString64 } from '../format.js';
 import * as logger from '../logger.js';
 import { cpu0, cpu1 } from '../cpu/r4300.js';
