@@ -1,17 +1,7 @@
 /*global n64js*/
 
 import { Device } from './device.js';
-import {
-  SP_MEM_ADDR_REG, SP_DRAM_ADDR_REG, SP_RD_LEN_REG, SP_WR_LEN_REG, SP_STATUS_REG, SP_DMA_FULL_REG,
-  SP_DMA_BUSY_REG, SP_SEMAPHORE_REG, SP_CLR_HALT, SP_SET_HALT, SP_CLR_BROKE, SP_CLR_INTR,
-  SP_SET_INTR, SP_CLR_SSTEP, SP_SET_SSTEP, SP_CLR_INTR_BREAK, SP_SET_INTR_BREAK, SP_CLR_SIG0,
-  SP_SET_SIG0, SP_CLR_SIG1, SP_SET_SIG1, SP_CLR_SIG2, SP_SET_SIG2, SP_CLR_SIG3, SP_SET_SIG3,
-  SP_CLR_SIG4, SP_SET_SIG4, SP_CLR_SIG5, SP_SET_SIG5, SP_CLR_SIG6, SP_SET_SIG6, SP_CLR_SIG7,
-  SP_SET_SIG7, SP_STATUS_HALT, SP_STATUS_BROKE, SP_STATUS_DMA_BUSY, SP_STATUS_DMA_FULL,
-  SP_STATUS_SSTEP, SP_STATUS_INTR_BREAK, SP_STATUS_SIG0, SP_STATUS_SIG1, SP_STATUS_SIG2,
-  SP_STATUS_SIG3, SP_STATUS_SIG4, SP_STATUS_SIG5, SP_STATUS_SIG6, SP_STATUS_SIG7,
-  SP_STATUS_TASKDONE, SPIBIST_PC_REG,
-} from './sp_constants.js';
+import * as sp from './sp_constants.js';
 import * as mi from './mi.js';
 import * as logger from '../logger.js';
 import { toString16, toString32 } from '../format.js';
@@ -101,7 +91,7 @@ export class SPIBISTDevice extends Device {
   write32(address, value) {
     const ea = this.calcWriteEA(address);
     switch (ea) {
-      case SPIBIST_PC_REG:
+      case sp.SPIBIST_PC_REG:
         this.hardware.rsp.pc = value & pcWritableBits;
         break;
 
@@ -120,7 +110,7 @@ export class SPIBISTDevice extends Device {
 
     let value = 0;
     switch (ea) {
-      case SPIBIST_PC_REG:
+      case sp.SPIBIST_PC_REG:
         value = this.hardware.rsp.pc;
         console.log(`value is ${toString32(value)}`)
         break;
@@ -153,7 +143,7 @@ export class SPRegDevice extends Device {
       if (this.hleTask) {
         this.scheduleHLETask();
       } else {
-        this.setStatusBits(SP_STATUS_TASKDONE | SP_STATUS_BROKE | SP_STATUS_HALT);
+        this.setStatusBits(sp.SP_STATUS_TASKDONE | sp.SP_STATUS_BROKE | sp.SP_STATUS_HALT);
       }
     });
   }
@@ -167,30 +157,30 @@ export class SPRegDevice extends Device {
       throw 'Write is out of range';
     }
     switch (ea) {
-      case SP_MEM_ADDR_REG:
+      case sp.SP_MEM_ADDR_REG:
         // Register is latched and written values only become readable when the double-buffered DMA starts.
         this.pendingSPMemAddr = value & memAddrWritableBits;
         break;
-      case SP_DRAM_ADDR_REG:
+      case sp.SP_DRAM_ADDR_REG:
         // Register is latched and written values only become readable when the double-buffered DMA starts.
         this.pendingDRAMAddr = value & dramAddrWritableBits;
         break;
-      case SP_RD_LEN_REG:
+      case sp.SP_RD_LEN_REG:
         this.mem.set32(ea, value & readLenWritableBits);
         this.pushDMA(kDMADirRead, value & readLenWritableBits);
         break;
-      case SP_WR_LEN_REG:
+      case sp.SP_WR_LEN_REG:
         this.mem.set32(ea, value & writeLenWritableBits);
         this.pushDMA(kDMADirWrite, value & writeLenWritableBits);
         break;
-      case SP_STATUS_REG:
+      case sp.SP_STATUS_REG:
         this.spUpdateStatus(value);
         break;
-      case SP_DMA_FULL_REG:
-      case SP_DMA_BUSY_REG:
+      case sp.SP_DMA_FULL_REG:
+      case sp.SP_DMA_BUSY_REG:
         // Unwritable.
         break;
-      case SP_SEMAPHORE_REG:
+      case sp.SP_SEMAPHORE_REG:
         // Writing any value causes next read to be 0.
         this.mem.set32(ea, 0);
         break;
@@ -211,7 +201,7 @@ export class SPRegDevice extends Device {
       throw 'Read is out of range';
     }
     const value = this.mem.getU32(ea);
-    if (ea == SP_SEMAPHORE_REG) {
+    if (ea == sp.SP_SEMAPHORE_REG) {
       // Reading causes next read to be 1.
       this.mem.set32(ea, 1);
     }
@@ -219,40 +209,40 @@ export class SPRegDevice extends Device {
   }
 
   setStatusBits(bits) {
-    const status = this.mem.setBits32(SP_STATUS_REG, bits);
-    if (status & SP_STATUS_INTR_BREAK) {
+    const status = this.mem.setBits32(sp.SP_STATUS_REG, bits);
+    if (status & sp.SP_STATUS_INTR_BREAK) {
       this.hardware.miRegDevice.interruptSP();
     }
   }
 
   spUpdateStatus(flags) {
     if (!this.quiet) {
-      if (flags & SP_CLR_HALT) { logger.log('SP: Clearing Halt'); }
-      if (flags & SP_SET_HALT) { logger.log('SP: Setting Halt'); }
-      if (flags & SP_CLR_BROKE) { logger.log('SP: Clearing Broke'); }
+      if (flags & sp.SP_CLR_HALT) { logger.log('SP: Clearing Halt'); }
+      if (flags & sp.SP_SET_HALT) { logger.log('SP: Setting Halt'); }
+      if (flags & sp.SP_CLR_BROKE) { logger.log('SP: Clearing Broke'); }
       // No SP_SET_BROKE
-      if (flags & SP_CLR_INTR) { logger.log('SP: Clearing Interrupt'); }
-      if (flags & SP_SET_INTR) { logger.log('SP: Setting Interrupt'); }
-      if (flags & SP_CLR_SSTEP) { logger.log('SP: Clearing Single Step'); }
-      if (flags & SP_SET_SSTEP) { logger.log('SP: Setting Single Step'); }
-      if (flags & SP_CLR_INTR_BREAK) { logger.log('SP: Clearing Interrupt on break'); }
-      if (flags & SP_SET_INTR_BREAK) { logger.log('SP: Setting Interrupt on break'); }
-      if (flags & SP_CLR_SIG0) { logger.log('SP: Clearing Sig0 (Yield)'); }
-      if (flags & SP_SET_SIG0) { logger.log('SP: Setting Sig0 (Yield)'); }
-      if (flags & SP_CLR_SIG1) { logger.log('SP: Clearing Sig1 (Yielded)'); }
-      if (flags & SP_SET_SIG1) { logger.log('SP: Setting Sig1 (Yielded)'); }
-      if (flags & SP_CLR_SIG2) { logger.log('SP: Clearing Sig2 (TaskDone)'); }
-      if (flags & SP_SET_SIG2) { logger.log('SP: Setting Sig2 (TaskDone)'); }
-      if (flags & SP_CLR_SIG3) { logger.log('SP: Clearing Sig3'); }
-      if (flags & SP_SET_SIG3) { logger.log('SP: Setting Sig3'); }
-      if (flags & SP_CLR_SIG4) { logger.log('SP: Clearing Sig4'); }
-      if (flags & SP_SET_SIG4) { logger.log('SP: Setting Sig4'); }
-      if (flags & SP_CLR_SIG5) { logger.log('SP: Clearing Sig5'); }
-      if (flags & SP_SET_SIG5) { logger.log('SP: Setting Sig5'); }
-      if (flags & SP_CLR_SIG6) { logger.log('SP: Clearing Sig6'); }
-      if (flags & SP_SET_SIG6) { logger.log('SP: Setting Sig6'); }
-      if (flags & SP_CLR_SIG7) { logger.log('SP: Clearing Sig7'); }
-      if (flags & SP_SET_SIG7) { logger.log('SP: Setting Sig7'); }
+      if (flags & sp.SP_CLR_INTR) { logger.log('SP: Clearing Interrupt'); }
+      if (flags & sp.SP_SET_INTR) { logger.log('SP: Setting Interrupt'); }
+      if (flags & sp.SP_CLR_SSTEP) { logger.log('SP: Clearing Single Step'); }
+      if (flags & sp.SP_SET_SSTEP) { logger.log('SP: Setting Single Step'); }
+      if (flags & sp.SP_CLR_INTR_BREAK) { logger.log('SP: Clearing Interrupt on break'); }
+      if (flags & sp.SP_SET_INTR_BREAK) { logger.log('SP: Setting Interrupt on break'); }
+      if (flags & sp.SP_CLR_SIG0) { logger.log('SP: Clearing Sig0 (Yield)'); }
+      if (flags & sp.SP_SET_SIG0) { logger.log('SP: Setting Sig0 (Yield)'); }
+      if (flags & sp.SP_CLR_SIG1) { logger.log('SP: Clearing Sig1 (Yielded)'); }
+      if (flags & sp.SP_SET_SIG1) { logger.log('SP: Setting Sig1 (Yielded)'); }
+      if (flags & sp.SP_CLR_SIG2) { logger.log('SP: Clearing Sig2 (TaskDone)'); }
+      if (flags & sp.SP_SET_SIG2) { logger.log('SP: Setting Sig2 (TaskDone)'); }
+      if (flags & sp.SP_CLR_SIG3) { logger.log('SP: Clearing Sig3'); }
+      if (flags & sp.SP_SET_SIG3) { logger.log('SP: Setting Sig3'); }
+      if (flags & sp.SP_CLR_SIG4) { logger.log('SP: Clearing Sig4'); }
+      if (flags & sp.SP_SET_SIG4) { logger.log('SP: Setting Sig4'); }
+      if (flags & sp.SP_CLR_SIG5) { logger.log('SP: Clearing Sig5'); }
+      if (flags & sp.SP_SET_SIG5) { logger.log('SP: Setting Sig5'); }
+      if (flags & sp.SP_CLR_SIG6) { logger.log('SP: Clearing Sig6'); }
+      if (flags & sp.SP_SET_SIG6) { logger.log('SP: Setting Sig6'); }
+      if (flags & sp.SP_CLR_SIG7) { logger.log('SP: Clearing Sig7'); }
+      if (flags & sp.SP_SET_SIG7) { logger.log('SP: Setting Sig7'); }
     }
 
     function setOrClear(statusBits, flags, clrMask, setMask, bit) {
@@ -266,31 +256,31 @@ export class SPRegDevice extends Device {
       return statusBits;
     }
 
-    let statusBits = this.mem.getU32(SP_STATUS_REG);
+    let statusBits = this.mem.getU32(sp.SP_STATUS_REG);
 
     let startRsp = false;
     let stopRsp = false;
 
-    if ((flags & SP_SET_HALT) && (flags & SP_CLR_HALT)) { /* no-op */ }
-    else if (flags & SP_SET_HALT) { statusBits |= SP_STATUS_HALT; stopRsp = true; }
-    else if (flags & SP_CLR_HALT) { statusBits &= ~SP_STATUS_HALT; startRsp = true; }
+    if ((flags & sp.SP_SET_HALT) && (flags & sp.SP_CLR_HALT)) { /* no-op */ }
+    else if (flags & sp.SP_SET_HALT) { statusBits |= sp.SP_STATUS_HALT; stopRsp = true; }
+    else if (flags & sp.SP_CLR_HALT) { statusBits &= ~sp.SP_STATUS_HALT; startRsp = true; }
 
-    if ((flags & SP_SET_INTR) && (flags & SP_CLR_INTR)) { /* no-op */ }
-    else if (flags & SP_SET_INTR) { this.hardware.mi_reg.setBits32(mi.MI_INTR_REG, mi.MI_INTR_SP); n64js.cpu0.updateCause3(); }   // Shouldn't ever set this?
-    else if (flags & SP_CLR_INTR) { this.hardware.mi_reg.clearBits32(mi.MI_INTR_REG, mi.MI_INTR_SP); n64js.cpu0.updateCause3(); }
+    if ((flags & sp.SP_SET_INTR) && (flags & sp.SP_CLR_INTR)) { /* no-op */ }
+    else if (flags & sp.SP_SET_INTR) { this.hardware.mi_reg.setBits32(mi.MI_INTR_REG, mi.MI_INTR_SP); n64js.cpu0.updateCause3(); }   // Shouldn't ever set this?
+    else if (flags & sp.SP_CLR_INTR) { this.hardware.mi_reg.clearBits32(mi.MI_INTR_REG, mi.MI_INTR_SP); n64js.cpu0.updateCause3(); }
 
-    statusBits = setOrClear(statusBits, flags, SP_CLR_BROKE, 0, SP_STATUS_BROKE);
-    statusBits = setOrClear(statusBits, flags, SP_CLR_SSTEP, SP_SET_SSTEP, SP_STATUS_SSTEP);
-    statusBits = setOrClear(statusBits, flags, SP_CLR_INTR_BREAK, SP_SET_INTR_BREAK, SP_STATUS_INTR_BREAK);
-    statusBits = setOrClear(statusBits, flags, SP_CLR_SIG0, SP_SET_SIG0, SP_STATUS_SIG0);
-    statusBits = setOrClear(statusBits, flags, SP_CLR_SIG1, SP_SET_SIG1, SP_STATUS_SIG1);
-    statusBits = setOrClear(statusBits, flags, SP_CLR_SIG2, SP_SET_SIG2, SP_STATUS_SIG2);
-    statusBits = setOrClear(statusBits, flags, SP_CLR_SIG3, SP_SET_SIG3, SP_STATUS_SIG3);
-    statusBits = setOrClear(statusBits, flags, SP_CLR_SIG4, SP_SET_SIG4, SP_STATUS_SIG4);
-    statusBits = setOrClear(statusBits, flags, SP_CLR_SIG5, SP_SET_SIG5, SP_STATUS_SIG5);
-    statusBits = setOrClear(statusBits, flags, SP_CLR_SIG6, SP_SET_SIG6, SP_STATUS_SIG6);
-    statusBits = setOrClear(statusBits, flags, SP_CLR_SIG7, SP_SET_SIG7, SP_STATUS_SIG7);
-    this.mem.set32(SP_STATUS_REG, statusBits);
+    statusBits = setOrClear(statusBits, flags, sp.SP_CLR_BROKE, 0, sp.SP_STATUS_BROKE);
+    statusBits = setOrClear(statusBits, flags, sp.SP_CLR_SSTEP, sp.SP_SET_SSTEP, sp.SP_STATUS_SSTEP);
+    statusBits = setOrClear(statusBits, flags, sp.SP_CLR_INTR_BREAK, sp.SP_SET_INTR_BREAK, sp.SP_STATUS_INTR_BREAK);
+    statusBits = setOrClear(statusBits, flags, sp.SP_CLR_SIG0, sp.SP_SET_SIG0, sp.SP_STATUS_SIG0);
+    statusBits = setOrClear(statusBits, flags, sp.SP_CLR_SIG1, sp.SP_SET_SIG1, sp.SP_STATUS_SIG1);
+    statusBits = setOrClear(statusBits, flags, sp.SP_CLR_SIG2, sp.SP_SET_SIG2, sp.SP_STATUS_SIG2);
+    statusBits = setOrClear(statusBits, flags, sp.SP_CLR_SIG3, sp.SP_SET_SIG3, sp.SP_STATUS_SIG3);
+    statusBits = setOrClear(statusBits, flags, sp.SP_CLR_SIG4, sp.SP_SET_SIG4, sp.SP_STATUS_SIG4);
+    statusBits = setOrClear(statusBits, flags, sp.SP_CLR_SIG5, sp.SP_SET_SIG5, sp.SP_STATUS_SIG5);
+    statusBits = setOrClear(statusBits, flags, sp.SP_CLR_SIG6, sp.SP_SET_SIG6, sp.SP_STATUS_SIG6);
+    statusBits = setOrClear(statusBits, flags, sp.SP_CLR_SIG7, sp.SP_SET_SIG7, sp.SP_STATUS_SIG7);
+    this.mem.set32(sp.SP_STATUS_REG, statusBits);
 
     if (startRsp) {
       if (this.hleTask) {
@@ -305,7 +295,7 @@ export class SPRegDevice extends Device {
         this.hleTask = handled;
         this.scheduleHLETask();
       } else if (handled || !emulateRSP) {
-        this.hardware.spRegDevice.setStatusBits(SP_STATUS_TASKDONE | SP_STATUS_BROKE | SP_STATUS_HALT);
+        this.hardware.spRegDevice.setStatusBits(sp.SP_STATUS_TASKDONE | sp.SP_STATUS_BROKE | sp.SP_STATUS_HALT);
       } else {
         rsp.unhalt();
       }
@@ -349,12 +339,12 @@ export class SPRegDevice extends Device {
   }
 
   setDMAStatus() {
-    const fullBit = this.dmaQueue.length >= 2 ? SP_STATUS_DMA_FULL : 0;
-    const busyBit = this.dmaQueue.length >= 1 ? SP_STATUS_DMA_BUSY : 0;
+    const fullBit = this.dmaQueue.length >= 2 ? sp.SP_STATUS_DMA_FULL : 0;
+    const busyBit = this.dmaQueue.length >= 1 ? sp.SP_STATUS_DMA_BUSY : 0;
 
-    this.mem.set32(SP_DMA_FULL_REG, fullBit ? 1 : 0);
-    this.mem.set32(SP_DMA_BUSY_REG, busyBit ? 1 : 0);
-    this.mem.set32masked(SP_STATUS_REG, fullBit | busyBit, SP_STATUS_DMA_FULL | SP_STATUS_DMA_BUSY);
+    this.mem.set32(sp.SP_DMA_FULL_REG, fullBit ? 1 : 0);
+    this.mem.set32(sp.SP_DMA_BUSY_REG, busyBit ? 1 : 0);
+    this.mem.set32masked(sp.SP_STATUS_REG, fullBit | busyBit, sp.SP_STATUS_DMA_FULL | sp.SP_STATUS_DMA_BUSY);
   }
 
   spCopyFromRDRAM(spMemAddrReg, rdRamAddrReg, lenReg) {
@@ -387,10 +377,10 @@ export class SPRegDevice extends Device {
     // Update registers at the end of the transfer.
     // Address regs get set to the next memory address.
     // Len reg has count set to zero and len set to 0xff8 (-8, counting down). Skip is unchanged.
-    this.mem.set32(SP_MEM_ADDR_REG, (bankBit | (memOffset) & 0xfff));
-    this.mem.set32(SP_DRAM_ADDR_REG, ramOffset);
-    this.mem.set32masked(SP_RD_LEN_REG, 0xff8 << lenRegLenShift, lenRegCountMask | lenRegLenMask);
-    this.mem.set32masked(SP_WR_LEN_REG, 0xff8 << lenRegLenShift, lenRegCountMask | lenRegLenMask);
+    this.mem.set32(sp.SP_MEM_ADDR_REG, (bankBit | (memOffset) & 0xfff));
+    this.mem.set32(sp.SP_DRAM_ADDR_REG, ramOffset);
+    this.mem.set32masked(sp.SP_RD_LEN_REG, 0xff8 << lenRegLenShift, lenRegCountMask | lenRegLenMask);
+    this.mem.set32masked(sp.SP_WR_LEN_REG, 0xff8 << lenRegLenShift, lenRegCountMask | lenRegLenMask);
 
     const cycles = this.estimateDMACyclesFromLength(count, len)
     this.addSPDMAEvent(cycles);
@@ -425,10 +415,10 @@ export class SPRegDevice extends Device {
     // Update registers at the end of the transfer (this should really be done as the transfer proceeds).
     // Address regs get set to the next memory address.
     // Len reg has count set to zero and len set to 0xff8 (-8, counting down). Skip is unchanged.
-    this.mem.set32(SP_MEM_ADDR_REG, (bankBit | (memOffset) & 0xfff));
-    this.mem.set32(SP_DRAM_ADDR_REG, ramOffset);
-    this.mem.set32masked(SP_RD_LEN_REG, 0xff8 << lenRegLenShift, lenRegCountMask | lenRegLenMask);
-    this.mem.set32masked(SP_WR_LEN_REG, 0xff8 << lenRegLenShift, lenRegCountMask | lenRegLenMask);
+    this.mem.set32(sp.SP_MEM_ADDR_REG, (bankBit | (memOffset) & 0xfff));
+    this.mem.set32(sp.SP_DRAM_ADDR_REG, ramOffset);
+    this.mem.set32masked(sp.SP_RD_LEN_REG, 0xff8 << lenRegLenShift, lenRegCountMask | lenRegLenMask);
+    this.mem.set32masked(sp.SP_WR_LEN_REG, 0xff8 << lenRegLenShift, lenRegCountMask | lenRegLenMask);
 
     const cycles = this.estimateDMACyclesFromLength(count, len)
     this.addSPDMAEvent(cycles);
