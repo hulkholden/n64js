@@ -3,7 +3,7 @@
 import { AudioBase, UnsupportedAudioCommand } from './audio_base.js';
 import { round8, round16, round32 } from './audio_buffer.js';
 import {
-  FIXED16_ONE, UINT16_MAX, clamp16, clampShifted32To16, signed16, unsigned16,
+  FIXED16_ONE, UINT16_MAX, clamp16, signed16, unsigned16,
   fixed16FromParts, fixed16ToInt, clampFixed16Hi, clampFixed16Lo,
   mulFixed16, mulFraction, mixSample,
 } from './audio_fixed_point.js';
@@ -53,16 +53,6 @@ const PARAM_WET_VOLUME = DMEM_PARAMS + 0x1e;
 // SETLOOP aliases the left envelope configuration; it has no separate slot.
 const PARAM_LOOP_ADDRESS = PARAM_ENVELOPE_LEFT;
 
-// POLEF reuses the first predictor's two coefficient vectors.
-const POLE_COEFFICIENTS_A = DMEM_ADPCM_BOOK;
-const POLE_COEFFICIENTS_B = DMEM_ADPCM_BOOK + 0x10;
-const POLE_HISTORY = DMEM_SCRATCH + 0x04;
-
-// Each DSP handler reuses scratch for its own saved state layout.
-const RESAMPLE_PHASE = DMEM_SCRATCH + 0x08;
-const RESAMPLE_INPUT_ADJUST = DMEM_SCRATCH + 0x0a;
-const RESAMPLE_TAIL = DMEM_SCRATCH + 0x10;
-
 const ENVELOPE_SAVED_CONFIG = DMEM_SCRATCH + 0x40;
 // Four volume vectors (integer/fractional for each channel) plus configuration.
 const ENVELOPE_STATE_SIZE = 5 * 16;
@@ -98,9 +88,6 @@ function initializeEnvelopeChannel(channel, initial) {
 export class ABI1Audio extends AudioBase {
   constructor(ram, dmem) {
     super(ram, dmem);
-    this.poleA = new Int16Array(8);
-    this.poleB = new Int16Array(8);
-    this.poleScaled = new Int16Array(8);
     this.envelopeOutputs = new Uint16Array(4);
     this.envelopeChannels = [createEnvelopeChannel(), createEnvelopeChannel()];
   }
@@ -268,44 +255,7 @@ export class ABI1Audio extends AudioBase {
   }
 
   poleFilter(flags, gain, address) {
-    if (!this.count) return;
-
-    const count = round16(this.count), input = this.input, output = this.output;
-    this.buffer(input, count, 2);
-    this.buffer(output, count, 2);
-    if (input !== output) this.disjoint(input, count, output, count);
-    this.disjoint(POLE_COEFFICIENTS_A, 32, output, count);
-
-    // 0x176c clears only four bytes, even on INIT. The last two history
-    // samples at POLE_HISTORY are retained. Reproduce the actual program.
-    this.dmem.fill(0, DMEM_SCRATCH, POLE_HISTORY);
-    if (!(flags & 1)) this.dma(DMEM_SCRATCH, address, 8);
-    let prev0 = this.s16(POLE_HISTORY), prev1 = this.s16(POLE_HISTORY + 2);
-
-    const a = this.poleA, b = this.poleB, scaled = this.poleScaled;
-    for (let i = 0; i < 8; i++) {
-      a[i] = this.s16(POLE_COEFFICIENTS_A + i * 2);
-      b[i] = this.s16(POLE_COEFFICIENTS_B + i * 2);
-      scaled[i] = fixed16ToInt(b[i] * unsigned16(gain * 4));
-      this.put16(POLE_COEFFICIENTS_B + i * 2, scaled[i]);
-    }
-
-    const samples = this.samples, result = this.result;
-    for (let p = 0; p < count; p += 16) {
-      for (let i = 0; i < 8; i++) samples[i] = this.s16(input + p + i * 2);
-
-      for (let i = 0; i < 8; i++) {
-        let sum = a[i] * prev0 + b[i] * prev1 + samples[i] * signed16(gain);
-        for (let j = 0; j < i; j++) sum += scaled[i - j - 1] * samples[j];
-        // VMADH wraps a signed 32-bit sum; VSAR/VMUDN/VMADH shift by 14.
-        result[i] = clampShifted32To16(sum, 14);
-      }
-
-      for (let i = 0; i < 8; i++) this.put16(output + p + i * 2, result[i]);
-      prev0 = result[6]; prev1 = result[7];
-    }
-
-    this.dma(output + count - 8, address, 8, true);
+    this.filterPole(flags, gain, address, this.input, this.output, round16(this.count), DMEM_ADPCM_BOOK, DMEM_SCRATCH);
   }
 
   adpcm(flags, address) {
@@ -314,57 +264,7 @@ export class ABI1Audio extends AudioBase {
   }
 
   resample(flags, pitch, address) {
-    const count = round16(this.count), input = this.input, output = this.output;
-    const tableBase = this.resampleTable;
-    this.require(count > 0, 'Zero-length resampler');
-    this.buffer(output, count, 16);
-
-    if (flags & 1) this.dmem.fill(0, DMEM_SCRATCH, RESAMPLE_INPUT_ADJUST);
-    else this.dma(DMEM_SCRATCH, address, 32);
-
-    let source = input;
-    if (flags & 2) {
-      this.buffer(source - 16, 16);
-      this.dmem.copyWithin(source - 16, RESAMPLE_TAIL, DMEM_SCRATCH + 32);
-      source -= this.s16(RESAMPLE_INPUT_ADJUST);
-    }
-
-    source -= 8;
-    let phase = this.u16(RESAMPLE_PHASE);
-    this.buffer(source, 8, 2);
-    this.dmem.copyWithin(source, DMEM_SCRATCH, RESAMPLE_PHASE);
-
-    const result = this.result;
-    for (let p = 0; p < count; p += 16) {
-      // Each vector iteration loads all eight windows before storing output.
-      for (let i = 0; i < 8; i++) {
-        this.buffer(source, 8, 2);
-        const table = tableBase + (phase >>> 10) * 8;
-        const t0 = mulFraction(this.s16(source), this.s16(table));
-        const t1 = mulFraction(this.s16(source + 2), this.s16(table + 2));
-        const t2 = mulFraction(this.s16(source + 4), this.s16(table + 4));
-        const t3 = mulFraction(this.s16(source + 6), this.s16(table + 6));
-        result[i] = clamp16(clamp16(t0 + t1) + clamp16(t2 + t3));
-
-        phase += pitch * 2;
-        source += (phase >>> 16) * 2;
-        phase = unsigned16(phase);
-      }
-
-      for (let i = 0; i < 8; i++) this.put16(output + p + i * 2, result[i]);
-    }
-
-    this.buffer(source, 8, 2);
-    this.dmem.copyWithin(DMEM_SCRATCH, source, source + 8);
-    this.put16(RESAMPLE_PHASE, phase);
-
-    const remainder = (source + 8 - input) & 15;
-    const tail = source + 8 - remainder;
-    this.buffer(tail, 16);
-    this.put16(RESAMPLE_INPUT_ADJUST, remainder ? 16 - remainder : 0);
-    this.dmem.copyWithin(RESAMPLE_TAIL, tail, tail + 16);
-
-    this.dma(DMEM_SCRATCH, address, 32, true);
+    this.resamplePolyphase(flags, pitch, address, this.input, this.output, round16(this.count), this.resampleTable, DMEM_SCRATCH);
   }
 
   envelope(flags, address) {

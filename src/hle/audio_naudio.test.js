@@ -60,7 +60,7 @@ describe('NAudio family selection', () => {
     for (const id of ['NAUDIO', 'naudio', null]) expect(getAudioHLEClass(id)).toBeNull();
     for (const program of audioMicrocodeManifest.programs) {
       if (program.family === 'NAUDIO') expect(fixture(getAudioHLEClass(program.id))).toBeInstanceOf(NAudio);
-      if (!['ABI1', 'NAUDIO'].includes(program.family)) expect(getAudioHLEClass(program.id)).toBeNull();
+      if (!['ABI1', 'NAUDIO', 'NEAD'].includes(program.family)) expect(getAudioHLEClass(program.id)).toBeNull();
     }
   });
 });

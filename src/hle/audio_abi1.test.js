@@ -291,7 +291,7 @@ describe('ABI1 mixer variants', () => {
     expect(getAudioHLEClass('abi1-tetrisphere-us-mixer')).toBe(TetrisphereAudio);
     expect(getAudioHLEClass('abi1-goldeneye-mixer')).toBe(GoldenEyeAudio);
     expect(getAudioHLEClass('abi1-diddy-blast-mixer')).toBe(DiddyBlastAudio);
-    for (const identity of ['ABI1', 'nead-mario-kart', null]) {
+    for (const identity of ['ABI1', 'unreviewed-audio-program', null]) {
       expect(getAudioHLEClass(identity)).toBeNull();
     }
   });
