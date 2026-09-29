@@ -19,6 +19,10 @@ export const COMMAND_BUFFER_SIZE = 0x140;
 export const DMEM_ADPCM_BOOK = 0x3f0;
 export const ADPCM_BOOK_SIZE = 0x100;
 
+// The decoder indexes all four predictor bits, even beyond the loaded book.
+// Entries 8..15 read coefficients from the beginning of the sample buffers.
+export const ADPCM_PREDICTOR_LOOKUP_SIZE = 16 * 2 * VECTOR_BYTES;
+
 // Fixed-size mono buffers feed the dry and wet stereo outputs.
 export const DMEM_SAMPLE_BUFFER = 0x4f0;
 export const MONO_BYTES = 0x170;
