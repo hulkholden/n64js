@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import { ABI1Audio, UnsupportedAudioCommand } from './audio_abi1.js';
+import { ABI1Audio } from './audio_abi1.js';
+import { UnsupportedAudioCommand } from './audio_base.js';
 import { GoldenEyeAudio } from './audio_goldeneye.js';
 import { DiddyBlastAudio } from './audio_diddy_blast.js';
 
