@@ -43,7 +43,7 @@ emulator = await createHeadlessEmulator(loaded, {
     }
     if (!capture) return;
     const prefix = join(directory, String(report.tasks));
-    for (const [key, bytes] of Object.entries({ ...raw, ram, dmem: hardware.sp_mem.u8.subarray(0, 4096) })) {
+    for (const [key, bytes] of Object.entries({ ...raw, ram, vectors: new Uint8Array(hardware.rsp.vpr.buffer), dmem: hardware.sp_mem.u8.subarray(0, 4096) })) {
       writeFileSync(`${prefix}-${key}.bin`, bytes);
     }
     const commands = Array.from({ length: size / 8 }, (_, i) => ({ offset: i * 8, opcode: list.getUint32(i * 8) >>> 24,
@@ -51,7 +51,8 @@ emulator = await createHeadlessEmulator(loaded, {
     writeFileSync(`${prefix}-commands.json`, JSON.stringify(commands, null, 2));
     if (!seenPrograms.has(classification.identity)) {
       const mem = new MemoryRegion(raw.code.buffer);
-      const disassembly = disassembleRemappedRange(mem, 0x1080, 0, 0xf80);
+      const direct = classification.bootstrap === 'direct-imem';
+      const disassembly = disassembleRemappedRange(mem, direct ? 0x1000 : 0x1080, 0, direct ? 0x1000 : 0xf80);
       writeFileSync(`${prefix}-disassembly.txt`, disassembly.map(d => `${d.address.toString(16)} ${d.disassembly}`).join('\n'));
       seenPrograms.add(classification.identity);
     }

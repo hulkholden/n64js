@@ -2,7 +2,7 @@
 // Benchmark captured tasks without ROM execution, disk I/O or RAM restoration
 // in the timed interval. Node's optional heap sampling includes collected
 // objects, so short-lived allocation traffic is visible as well as retention.
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -23,10 +23,11 @@ if (!prefixes.length || !Number.isSafeInteger(iterations) || iterations < 1 || !
 const { hleProcessAudioTask } = await import(moduleURL.href);
 const cases = prefixes.map(prefix => {
   const read = key => new Uint8Array(readFileSync(`${prefix}-${key}.bin`));
+  const vectors = new DataView((existsSync(`${prefix}-vectors.bin`) ? read('vectors') : new Uint8Array(512)).buffer);
   const ram = read('ram'), sp = new Uint8Array(8192);
   sp.set(read('dmem')); sp.set(read('imem'), 4096);
   return { prefix, ram, sp, times: new Float64Array(iterations), hardware: {
-    ram: { u8: ram.slice() }, sp_mem: { u8: sp.slice() }, rsp: { pc: 0 }, spRegDevice: { readRegU32: () => 0, writeReg32() {} },
+    ram: { u8: ram.slice() }, sp_mem: { u8: sp.slice() }, rsp: { pc: 0, getVecU16: (r, e) => vectors.getUint16(r * 16 + e * 2), setVecS16() {} }, spRegDevice: { readRegU32: () => 0, writeReg32() {} },
     dpcDevice: { statusReg: 0 },
   } };
 });

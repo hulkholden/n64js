@@ -1,10 +1,12 @@
 #!/usr/bin/env bun
 // Compare the live HLE result with an isolated execution of each original RSP
 // task. This verifies the real SP completion path as well as DSP output.
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { createHeadlessEmulator, loadROMFile } from '../../src/headless/headless_env.js';
 import { audioOptions } from '../../src/hle/audio_options.js';
-import { getAudioHLEClass } from '../../src/hle/hle_audio.js';
+import { captureAudioTask, classifyAudioTask, getAudioHLEClass } from '../../src/hle/hle_audio.js';
+import { SP_STATUS_REG, SP_STATUS_SIG0 } from '../../src/devices/sp_constants.js';
 import { initRSP } from '../../src/rsp/rsp.js';
 import { createReplay } from './rsp_replay.js';
 
@@ -19,7 +21,7 @@ if (!Array.isArray(inputs) || inputs.some(e => !Number.isSafeInteger(e.frame) ||
 }
 inputs.sort((a, b) => a.frame - b.frame);
 const pcmHash = createHash('sha256');
-const results = { tasks: 0, checked: 0, fallbackTasks: 0, oracleInstructions: 0, pcmBytes: 0, nonzeroBytes: 0 };
+const results = { yieldRequests: 0, tasks: 0, checked: 0, fallbackTasks: 0, oracleInstructions: 0, pcmBytes: 0, nonzeroBytes: 0 };
 let emulator, pending = null, nextInput = 0;
 audioOptions.emulationMode = 'HLE';
 emulator = await createHeadlessEmulator(await loadROMFile(romPath), {
@@ -28,17 +30,21 @@ emulator = await createHeadlessEmulator(await loadROMFile(romPath), {
     while (nextInput < inputs.length && inputs[nextInput].frame <= frame) emulator.inputs[0].buttons = inputs[nextInput++].buttons;
   },
   onAudioTask(info) {
-    if (pending) throw new Error('Audio task started before previous task completed');
+    if (pending) throw new Error(`Audio task started before previous task completed: ${JSON.stringify(pending.meta)}`);
     if (!getAudioHLEClass(info.identity)) throw new Error(`Unreviewed identity: ${info.identity}`);
-    results.tasks++;
     const h = emulator.hardware;
-    const oracle = createReplay({ ram: h.ram.u8.slice(), dmem: h.sp_mem.u8.slice(0, 4096), imem: h.sp_mem.u8.slice(4096) });
+    if ((h.spRegDevice.readRegU32(SP_STATUS_REG) & SP_STATUS_SIG0) && classifyAudioTask(h).bootstrap !== 'direct-imem') {
+      results.yieldRequests++;
+      return;
+    }
+    results.tasks++;
+    const oracle = createReplay({ ram: h.ram.u8.slice(), dmem: h.sp_mem.u8.slice(0, 4096), imem: h.sp_mem.u8.slice(4096), vectors: new Uint8Array(h.rsp.vpr.buffer).slice() });
     try {
       let instructions = 0;
       while (!oracle.rsp.halted && instructions++ < 10_000_000) oracle.rsp.step();
       if (!oracle.rsp.halted) throw new Error('RSP instruction budget exhausted');
       results.oracleInstructions += instructions;
-      pending = { ...oracle, liveInstructions: 0 };
+      pending = { ...oracle, liveInstructions: 0, meta: {frame:h.verticalBlankCount, task:results.tasks, spStatus:h.spRegDevice.readRegU32(SP_STATUS_REG), pc:h.rsp.pc, words:Array.from({length:16}, (_,i)=>h.sp_mem.getU32(0xfc0+i*4).toString(16))} };
     } finally {
       // n64js's RSP interpreter has a module-global active instance.
       initRSP(h);
@@ -46,6 +52,19 @@ emulator = await createHeadlessEmulator(await loadROMFile(romPath), {
   },
 });
 const hardware = emulator.hardware;
+const unhalt = hardware.rsp.unhalt.bind(hardware.rsp);
+hardware.rsp.unhalt = () => {
+  if (pending && process.env.N64JS_AUDIO_FAILURE_DIR) {
+    const directory = process.env.N64JS_AUDIO_FAILURE_DIR;
+    mkdirSync(directory, { recursive: true });
+    const raw = captureAudioTask(hardware);
+    for (const [key, value] of Object.entries({ ...raw, ram: hardware.ram.u8, dmem: hardware.sp_mem.u8.subarray(0, 4096), vectors: new Uint8Array(hardware.rsp.vpr.buffer) })) {
+      writeFileSync(`${directory}/failure-${key}.bin`, value);
+    }
+    throw new Error(`Unexpected LLE fallback: ${JSON.stringify(pending.meta)}`);
+  }
+  unhalt();
+};
 const step = hardware.rsp.step.bind(hardware.rsp);
 hardware.rsp.step = () => {
   if (pending) pending.liveInstructions++;

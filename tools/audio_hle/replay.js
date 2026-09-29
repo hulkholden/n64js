@@ -4,7 +4,7 @@ import { classifyAudioTask, getAudioHLEClass, hleProcessAudioTask } from '../../
 
 export async function readCapture(prefix) {
   const read = async key => new Uint8Array(await Bun.file(`${prefix}-${key}.bin`).arrayBuffer());
-  return { ram: await read('ram'), dmem: await read('dmem'), imem: await read('imem') };
+  return { vectors: await Bun.file(`${prefix}-vectors.bin`).exists() ? await read('vectors') : new Uint8Array(512), ram: await read('ram'), dmem: await read('dmem'), imem: await read('imem') };
 }
 
 function createHLEHardware() {
@@ -26,20 +26,38 @@ export function validateCapture(raw, hardware = createHLEHardware()) {
   integratedRam.set(raw.ram);
   const sp = hardware.sp_mem.u8;
   sp.set(raw.dmem); sp.set(raw.imem, 4096);
+  const initialVectors = new DataView((raw.vectors ?? new Uint8Array(512)).slice().buffer);
+  hardware.rsp.getVecU16 = (r, e) => initialVectors.getUint16(r * 16 + e * 2);
+  hardware.rsp.setVecS16 = (r, e, v) => initialVectors.setInt16(r * 16 + e * 2, v);
   const identity = classifyAudioTask(hardware);
   if (!hleProcessAudioTask(hardware)) throw new Error('Capture fell back to LLE');
   const Audio = getAudioHLEClass(identity.identity);
   const naudio = identity.family === 'NAUDIO';
-  const dispatchPC = identity.identity === 'naudio-donkey-kong-64' ? 0xdc
+  const nead = identity.family === 'NEAD';
+  const pcs = {
+    'nead-mario-kart': [0x10c, 0x118],
+    'nead-star-fox': [0xf8, 0x104],
+    'nead-star-fox-revision': [0x10c, 0x118],
+    'nead-wave-race-shindou': [0xf8, 0x104],
+    'nead-mario-shindou': [0xf8, 0x104],
+    'nead-yoshi-story': [0x7c, 0x88],
+    'nead-1080': [0x7c, 0x88],
+    'nead-ocarina': [0x80, 0x8c],
+    'nead-majora-stadium': [0x88, 0x94],
+    'nead-animal-forest': [0x88, 0x94],
+    'nead-f-zero': [0x9c, 0xa8],
+  };
+  const dispatchPC = nead ? pcs[identity.identity][0] : identity.identity === 'naudio-donkey-kong-64' ? 0xdc
     : identity.identity === 'naudio-banjo-kazooie' ? 0xe4 : naudio ? 0xe0 : 0x10c;
-  const returnPC = identity.identity === 'naudio-donkey-kong-64' ? 0xe8
+  const returnPC = nead ? pcs[identity.identity][1] : identity.identity === 'naudio-donkey-kong-64' ? 0xe8
     : identity.identity === 'naudio-banjo-kazooie' ? 0xf0 : naudio ? 0xec : 0x118;
-  const memoryRanges = naudio ? [[0xe, 0x12], [0x3f0, 0xfa0], [0xfe0, 0xff2]]
-    : [[0x320, 0x380], [0x4c0, 0xf90]];
+  const layout = nead ? new Audio(raw.ram, raw.dmem) : null;
+  const memoryRanges = nead ? [[layout.parameters, layout.parameters + (layout.loopParameter === 8 ? 12 : 20)], [layout.book, layout.scratch]]
+    : naudio ? [[0xe, 0x12], [0x3f0, 0xfa0], [0xfe0, 0xff2]] : [[0x320, 0x380], [0x4c0, 0xf90]];
   let hle, command, commands = 0, instructions = 0;
   const opcodes = {};
   while (!rsp.halted && instructions++ < 10_000_000) {
-    if (rsp.pc === (naudio ? dispatchPC : 0xe4) && !hle) hle = new Audio(ram.slice(), rsp.dmem.u8);
+    if (rsp.pc === ((naudio || nead) ? dispatchPC : 0xe4) && !hle) { hle = new Audio(ram.slice(), rsp.dmem.u8); if (nead) hle.initializeTask(rsp); }
     if (naudio && rsp.pc === 0xc0 && hle) hle.beginCommandBatch();
     if (rsp.pc === dispatchPC) {
       command = [rsp.gprU32[26], rsp.gprU32[25]];

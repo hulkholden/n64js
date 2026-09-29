@@ -4,7 +4,7 @@ import '../../src/headless/headless_env.js';
 import { MemoryRegion } from '../../src/memory/memory_region.js';
 import { initRSP, RSP } from '../../src/rsp/rsp.js';
 
-export function createReplay({ ram, dmem, imem }) {
+export function createReplay({ ram, dmem, imem, vectors }) {
   const sp = new MemoryRegion(new ArrayBuffer(8192));
   sp.u8.set(dmem);
   sp.u8.set(imem, 4096);
@@ -35,6 +35,7 @@ export function createReplay({ ram, dmem, imem }) {
     },
   };
   const rsp = hardware.rsp = new RSP(hardware);
+  if (vectors) new Uint8Array(rsp.vpr.buffer).set(vectors);
   initRSP(hardware);
   rsp.halted = false;
   return { rsp, ram, writes };
