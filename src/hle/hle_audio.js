@@ -1,13 +1,15 @@
 import { createAudioMicrocodeClassifier } from './audio_microcode_classifier.js';
-import {
-  ABI1Audio, COMMAND_BUFFER_SIZE, DMEM_COMMAND_BUFFER, DMEM_SEGMENT_TABLE, UnsupportedAudioCommand,
-} from './audio_abi1.js';
+import { ABI1Audio } from './audio_abi1.js';
+import { UnsupportedAudioCommand } from './audio_base.js';
+import { NAudio } from './audio_naudio.js';
+import { BanjoAudio } from './audio_banjo.js';
+import { DonkeyKongAudio } from './audio_donkey_kong.js';
 import { TetrisphereAudio } from './audio_tetrisphere.js';
 import { GoldenEyeAudio } from './audio_goldeneye.js';
 import { DiddyBlastAudio } from './audio_diddy_blast.js';
 import { TASK_OFFSET, TASK_SIZE, TASK_ADDRESS_MASK, TaskOffsets } from './rsp_task_constants.js';
-import { SP_DMEM_SIZE, SP_IMEM_OFFSET, SP_SEMAPHORE_REG } from '../devices/sp_constants.js';
-import { DPC_STATUS_DMA_BUSY } from '../devices/dpc_constants.js';
+import { SP_DMEM_SIZE, SP_IMEM_OFFSET, SP_SEMAPHORE_REG, SP_STATUS_REG, SP_STATUS_SIG0 } from '../devices/sp_constants.js';
+import { DPC_STATUS_DMA_BUSY, DPC_STATUS_XBUS_DMEM_DMA } from '../devices/dpc_constants.js';
 import * as logger from '../logger.js';
 import { toHex } from '../format.js';
 
@@ -149,6 +151,9 @@ export function getAudioHLEClass(identity) {
     case 'abi1-tetrisphere-us-mixer': return TetrisphereAudio;
     case 'abi1-goldeneye-mixer': return GoldenEyeAudio;
     case 'abi1-diddy-blast-mixer': return DiddyBlastAudio;
+    case 'naudio-standard': return NAudio;
+    case 'naudio-banjo-kazooie': return BanjoAudio;
+    case 'naudio-donkey-kong-64': return DonkeyKongAudio;
     default: return null;
   }
 }
@@ -172,13 +177,28 @@ function executeAudioTask(hardware, state, identity) {
   // Only fresh rspboot tasks have been derived. Yield/resume and manually
   // selected RSP entry points must execute their actual instructions.
   const flags = task.getUint32(TaskOffsets.flags);
-  if (hardware.rsp.pc !== 0 || (flags & ~OS_TASK_DP_WAIT)) return false;
+  if (hardware.rsp.pc !== 0) return false;
+  if (identity.family === 'NAUDIO') {
+    // Both reviewed loaders mask only DP_WAIT. Captured Army Men tasks
+    // contain other flag bits; the actual yield request is SP signal zero.
+    const spStatus = hardware.spRegDevice.readRegU32?.(SP_STATUS_REG);
+    if (spStatus === undefined || (spStatus & SP_STATUS_SIG0)) return false;
+  } else if (flags & ~OS_TASK_DP_WAIT) {
+    return false;
+  }
 
   if (flags & OS_TASK_DP_WAIT) {
-    // Diddy's rspboot-208 tests this flag at 0x1068 and DPC DMA busy at
-    // 0x1080–0x1088. Only bypass that wait when it is already satisfied.
+    // rspboot-208 tests this flag at 0x1068; the NAUDIO rspboot-204
+    // capture tests it at 0x1064. Both wait for DPC DMA to become idle.
     const status = hardware.dpcDevice?.statusReg;
-    if (identity.bootstrap !== 'rspboot-208' || status === undefined || (status & DPC_STATUS_DMA_BUSY)) return false;
+    if ((identity.bootstrap !== 'rspboot-208' && identity.family !== 'NAUDIO') || status === undefined || (status & DPC_STATUS_DMA_BUSY)) return false;
+  }
+
+  // These NAUDIO entries wait while DPC XBUS and DMA busy are both set.
+  if (identity.family === 'NAUDIO') {
+    const status = hardware.dpcDevice?.statusReg;
+    if (status === undefined || (status & (DPC_STATUS_XBUS_DMEM_DMA | DPC_STATUS_DMA_BUSY)) ===
+        (DPC_STATUS_XBUS_DMEM_DMA | DPC_STATUS_DMA_BUSY)) return false;
   }
 
   // Validate the command list before modifying any emulated memory.
@@ -199,16 +219,17 @@ function executeAudioTask(hardware, state, identity) {
     // Reproduce the task loader's DMEM initialization.
     audio.dma(0, task.getUint32(TaskOffsets.ucodeDataPtr) & TASK_ADDRESS_MASK, task.getUint32(TaskOffsets.ucodeDataSize));
 
-    // 0x10c0–0x10d0 repeatedly stores at the SAME address, clearing segment 0.
-    audio.view.setUint32(DMEM_SEGMENT_TABLE, 0);
+    audio.initializeTask();
 
     // Load command batches in the same order as the microcode.
-    for (let p = 0; p < size; p += COMMAND_BUFFER_SIZE) {
-      const bytes = Math.min(COMMAND_BUFFER_SIZE, size - p);
-      audio.dma(DMEM_COMMAND_BUFFER, pointer + p, bytes);
+    const commandBuffer = audio.commandBuffer, batchSize = audio.commandBufferSize;
+    for (let p = 0; p < size; p += batchSize) {
+      const bytes = Math.min(batchSize, size - p);
+      audio.dma(commandBuffer, pointer + p, bytes);
+      audio.beginCommandBatch();
 
       for (let i = 0; i < bytes; i += 8) {
-        const command = DMEM_COMMAND_BUFFER + i;
+        const command = commandBuffer + i;
         // Handlers decode packed words with shifts/masks. Signed reads preserve
         // those bits and avoid boxing high-bit words (e.g. negative envelope
         // increments) when passing arguments across the handler call boundary.

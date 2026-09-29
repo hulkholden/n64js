@@ -1,5 +1,7 @@
 // Derived from captured ABI1 RSP programs, not another audio HLE.
 // Variants share handlers only where the reviewed instructions agree.
+import { AudioBase, UnsupportedAudioCommand } from './audio_base.js';
+import { round8, round16, round32 } from './audio_buffer.js';
 import {
   FIXED16_ONE, UINT16_MAX, clamp16, clampShifted32To16, signed16, unsigned16,
   fixed16FromParts, fixed16ToInt, clampFixed16Hi, clampFixed16Lo,
@@ -26,10 +28,10 @@ const OPCODE_SETLOOP = 0x0f;
 // DMEM layout shared by the reviewed ABI1 programs. The task loader uses the
 // same segment table and command buffer as the individual command handlers.
 const DMEM_RESAMPLE_TABLE = 0x0c0;
-export const DMEM_SEGMENT_TABLE = 0x320;
+const DMEM_SEGMENT_TABLE = 0x320;
 const DMEM_PARAMS = 0x360;
-export const DMEM_COMMAND_BUFFER = 0x380;
-export const COMMAND_BUFFER_SIZE = 0x140;
+const DMEM_COMMAND_BUFFER = 0x380;
+const COMMAND_BUFFER_SIZE = 0x140;
 const DMEM_ADPCM_BOOK = 0x4c0;
 const ADPCM_BOOK_SIZE = 0x100;
 const DMEM_SAMPLE_BUFFER = 0x5c0;
@@ -67,10 +69,6 @@ const ENVELOPE_STATE_SIZE = 5 * 16;
 const ENVELOPE_WEIGHT_STEP = FIXED16_ONE / 8;
 const ENVELOPE_WEIGHT_MAX = UINT16_MAX;
 
-const round8 = n => (n + 7) & ~7;
-const round16 = n => (n + 15) & ~15;
-const round32 = n => (n + 31) & ~31;
-
 function createEnvelopeChannel() {
   return { target: 0, rateHi: 0, rateLo: 0, hi: new Int16Array(8), lo: new Uint16Array(8) };
 }
@@ -92,65 +90,35 @@ function initializeEnvelopeChannel(channel, initial) {
   }
 }
 
-export class UnsupportedAudioCommand extends Error {}
-
 /** Private working DMEM; RDRAM writes are journalled for atomic LLE fallback.
  * The default commands implement abi1-standard-mixer. Derived classes override
  * the handlers that differ in their reviewed program; dispatch stays shared.
  * Instances and their scratch arrays can be reused between synchronous tasks.
  */
-export class ABI1Audio {
+export class ABI1Audio extends AudioBase {
   constructor(ram, dmem) {
-    this.dmem = new Uint8Array(4096);
-    this.view = new DataView(this.dmem.buffer);
-
-    this.samples = new Int16Array(16);
-    this.result = new Int16Array(8);
-    this.residual = new Int16Array(16);
-
+    super(ram, dmem);
     this.poleA = new Int16Array(8);
     this.poleB = new Int16Array(8);
     this.poleScaled = new Int16Array(8);
-
     this.envelopeOutputs = new Uint16Array(4);
     this.envelopeChannels = [createEnvelopeChannel(), createEnvelopeChannel()];
-
-    // Grow only when a larger task is first encountered; retain the capacity.
-    this.undoWords = new Uint32Array(4096);
-    this.writeAddresses = new Uint32Array(128);
-    this.writeSizes = new Uint16Array(128);
-
-    this.reset(ram, dmem);
   }
 
-  reset(ram, dmem) {
-    if (this.ram !== ram) {
-      this.ram = ram;
-      this.ramView = new DataView(ram.buffer, ram.byteOffset, ram.byteLength);
-    }
+  get commandBuffer() { return DMEM_COMMAND_BUFFER; }
+  get commandBufferSize() { return COMMAND_BUFFER_SIZE; }
 
-    this.dmem.set(dmem);
-    this.commit();
+  initializeTask() {
+    // 0x10c0–0x10d0 repeatedly stores at the SAME address: segment zero.
+    this.view.setUint32(DMEM_SEGMENT_TABLE, 0);
   }
 
-  commit() {
-    // RDRAM was written eagerly; a successful task no longer needs its undo log.
-    this.writeCount = 0;
-    this.undoCount = 0;
-  }
-
-  u16(p) { return this.view.getUint16(p); }
-  s16(p) { return this.view.getInt16(p); }
-  put16(p, v) { this.view.setUint16(p, v); }
+  beginCommandBatch() {}
 
   get input() { return this.u16(PARAM_INPUT); }
   get output() { return this.u16(PARAM_OUTPUT); }
   get count() { return this.u16(PARAM_COUNT); }
   get resampleTable() { return DMEM_RESAMPLE_TABLE; }
-
-  require(condition, reason) {
-    if (!condition) throw new UnsupportedAudioCommand(reason);
-  }
 
   buffer(p, n, alignment = 1) {
     // This guard also runs for every resampler output sample. Format the
@@ -160,63 +128,10 @@ export class ABI1Audio {
     }
   }
 
-  disjoint(a, aSize, b, bSize) {
-    this.require(a + aSize <= b || b + bSize <= a, 'Overlapping audio buffers are not reviewed');
-  }
-
   address(w) {
     const segment = w >>> 24;
     this.require(segment < 16, 'Audio segment outside table');
     return ((w & 0xffffff) + this.view.getUint32(DMEM_SEGMENT_TABLE + segment * 4)) & 0xffffff;
-  }
-
-  dma(dmem, address, count, write = false) {
-    // SP address registers discard the bottom three bits; length rounds up.
-    dmem &= ~7;
-    address &= ~7;
-    const size = round8(count);
-    this.require(count > 0 && dmem >= 0 && dmem + size <= 4096 && address + size <= this.ram.length,
-      'Unreviewed audio DMA');
-
-    if (write) {
-      this.reserveUndo(size >>> 2);
-      this.writeAddresses[this.writeCount] = address;
-      this.writeSizes[this.writeCount++] = size;
-
-      for (let i = 0; i < size; i += 4) {
-        this.undoWords[this.undoCount++] = this.ramView.getUint32(address + i);
-        this.ramView.setUint32(address + i, this.view.getUint32(dmem + i));
-      }
-    } else {
-      for (let i = 0; i < size; i += 4) this.view.setUint32(dmem + i, this.ramView.getUint32(address + i));
-    }
-  }
-
-  reserveUndo(words) {
-    if (this.undoCount + words > this.undoWords.length) {
-      const grown = new Uint32Array(Math.max(this.undoWords.length * 2, this.undoCount + words));
-      grown.set(this.undoWords);
-      this.undoWords = grown;
-    }
-
-    if (this.writeCount === this.writeAddresses.length) {
-      const addresses = new Uint32Array(this.writeCount * 2);
-      const sizes = new Uint16Array(this.writeCount * 2);
-      addresses.set(this.writeAddresses);
-      sizes.set(this.writeSizes);
-      this.writeAddresses = addresses;
-      this.writeSizes = sizes;
-    }
-  }
-
-  rollback() {
-    for (let i = this.writeCount - 1; i >= 0; i--) {
-      const address = this.writeAddresses[i], size = this.writeSizes[i];
-      this.undoCount -= size >>> 2;
-      for (let p = 0; p < size; p += 4) this.ramView.setUint32(address + p, this.undoWords[this.undoCount + (p >>> 2)]);
-    }
-
-    this.commit();
   }
 
   execute(w0, w1) {
@@ -394,40 +309,8 @@ export class ABI1Audio {
   }
 
   adpcm(flags, address) {
-    const count = round32(this.count), input = this.input, output = this.output;
-    this.buffer(input, count / 32 * 9);
-    this.buffer(output, count + 32, 16);
-    this.disjoint(input, count / 32 * 9, output, count + 32);
-    this.disjoint(DMEM_ADPCM_BOOK, ADPCM_BOOK_SIZE, output, count + 32);
-
-    this.dmem.fill(0, output, output + 32);
-    if (!(flags & 1)) this.dma(output, flags & 2 ? this.view.getUint32(PARAM_LOOP_ADDRESS) : address, 32);
-    let prev0 = this.s16(output + 28), prev1 = this.s16(output + 30);
-
-    const residual = this.residual, result = this.result;
-    for (let block = 0; block < count / 32; block++) {
-      const p = input + block * 9, header = this.dmem[p], book = DMEM_ADPCM_BOOK + (header & 15) * 32;
-      this.require(book + 32 <= DMEM_SAMPLE_BUFFER, 'Unreviewed ADPCM predictor');
-
-      const shift = Math.min(header >>> 4, 12);
-      for (let i = 0; i < 16; i++) {
-        const byte = this.dmem[p + 1 + (i >>> 1)];
-        residual[i] = (((i & 1 ? byte : byte >>> 4) & 15) << 28 >> 28) * 2 ** shift;
-      }
-
-      for (let half = 0; half < 16; half += 8) {
-        for (let i = 0; i < 8; i++) {
-          let sum = this.s16(book + i * 2) * prev0 + this.s16(book + 16 + i * 2) * prev1 + residual[half + i] * 2048;
-          for (let j = 0; j < i; j++) sum += this.s16(book + 16 + (i - j - 1) * 2) * residual[half + j];
-          result[i] = clampShifted32To16(sum, 11);
-        }
-
-        for (let i = 0; i < 8; i++) this.put16(output + 32 + block * 32 + (half + i) * 2, result[i]);
-        prev0 = result[6]; prev1 = result[7];
-      }
-    }
-
-    this.dma(output + count, address, 32, true);
+    this.decodeADPCM(flags, address, this.input, this.output, round32(this.count),
+      DMEM_ADPCM_BOOK, ADPCM_BOOK_SIZE, this.view.getUint32(PARAM_LOOP_ADDRESS));
   }
 
   resample(flags, pitch, address) {

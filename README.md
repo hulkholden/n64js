@@ -123,7 +123,9 @@ the checks locally, using the browser gallery and reviewing golden updates.
 
 Audio HLE support is a work in progress, derived from captured RSP disassembly
 and libultra headers. Supported ABI1 variants include those used by Super Mario
-64, Tetrisphere, GoldenEye 007, Diddy Kong Racing and Blast Corps.
+64, Tetrisphere, GoldenEye 007, Diddy Kong Racing and Blast Corps. Supported
+NAUDIO variants include those used by Army Men: Air Combat, Banjo-Kazooie and
+Donkey Kong 64.
 
 Select **Audio → Emulation Mode → HLE** to use supported microcodes; unreviewed
 identities and command shapes fall back to LLE. LLE remains the default.

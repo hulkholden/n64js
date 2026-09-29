@@ -3,7 +3,8 @@ import { TetrisphereAudio } from './audio_tetrisphere.js';
 import { GoldenEyeAudio } from './audio_goldeneye.js';
 import { DiddyBlastAudio } from './audio_diddy_blast.js';
 import { audioMicrocodeManifest } from './audio_microcode_manifest.js';
-import { ABI1Audio, UnsupportedAudioCommand } from './audio_abi1.js';
+import { ABI1Audio } from './audio_abi1.js';
+import { UnsupportedAudioCommand } from './audio_base.js';
 import { getAudioHLEClass } from './hle_audio.js';
 
 function fixture(Audio = ABI1Audio) {
@@ -290,16 +291,16 @@ describe('ABI1 mixer variants', () => {
     expect(getAudioHLEClass('abi1-tetrisphere-us-mixer')).toBe(TetrisphereAudio);
     expect(getAudioHLEClass('abi1-goldeneye-mixer')).toBe(GoldenEyeAudio);
     expect(getAudioHLEClass('abi1-diddy-blast-mixer')).toBe(DiddyBlastAudio);
-    for (const identity of ['ABI1', 'naudio-standard', null]) {
+    for (const identity of ['ABI1', 'nead-mario-kart', null]) {
       expect(getAudioHLEClass(identity)).toBeNull();
     }
   });
 
-  test('every reviewed ABI1 identity has a handler and other families remain unsupported', () => {
+  test('every reviewed ABI1 identity has an ABI1 handler', () => {
     for (const program of audioMicrocodeManifest.programs) {
       const Audio = getAudioHLEClass(program.id);
       if (program.family === 'ABI1') expect(fixture(Audio)).toBeInstanceOf(ABI1Audio);
-      else expect(Audio).toBeNull();
+
     }
   });
 });
