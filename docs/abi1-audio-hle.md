@@ -22,7 +22,8 @@ state remain shared. See the [GoldenEye derivation](goldeneye-audio-hle.md).
 the resampler table address; see the [Diddy/Blast derivation](diddy-blast-audio-hle.md).
 The selector in `src/hle/hle_audio.js` explicitly maps these identities to their
 classes. These are all four ABI1 identities in the current classifier manifest.
-Unknown programs and the separate NAUDIO/NEAD families still fall back. This
+Unknown programs and the separate NEAD family still fall back. The reviewed
+NAUDIO family now has its own [implementation and derivation](naudio-audio-hle.md). This
 keeps variant changes local to the behavior established by captured instructions.
 
 The reviewed `rspboot-208` path accepts `OS_TASK_DP_WAIT` when DPC DMA is already

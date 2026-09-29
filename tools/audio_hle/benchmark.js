@@ -26,7 +26,7 @@ const cases = prefixes.map(prefix => {
   const ram = read('ram'), sp = new Uint8Array(8192);
   sp.set(read('dmem')); sp.set(read('imem'), 4096);
   return { prefix, ram, sp, times: new Float64Array(iterations), hardware: {
-    ram: { u8: ram.slice() }, sp_mem: { u8: sp.slice() }, rsp: { pc: 0 }, spRegDevice: { writeReg32() {} },
+    ram: { u8: ram.slice() }, sp_mem: { u8: sp.slice() }, rsp: { pc: 0 }, spRegDevice: { readRegU32: () => 0, writeReg32() {} },
     dpcDevice: { statusReg: 0 },
   } };
 });
