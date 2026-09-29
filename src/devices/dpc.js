@@ -1,11 +1,5 @@
 import { Device } from './device.js';
-import {
-  DPC_START_REG, DPC_END_REG, DPC_CURRENT_REG, DPC_STATUS_REG, DPC_CLOCK_REG, DPC_BUFBUSY_REG,
-  DPC_PIPEBUSY_REG, DPC_TMEM_REG, DPC_CLR_XBUS_DMEM_DMA, DPC_SET_XBUS_DMEM_DMA, DPC_CLR_FREEZE,
-  DPC_SET_FREEZE, DPC_CLR_FLUSH, DPC_SET_FLUSH, DPC_CLR_TMEM_CTR, DPC_CLR_PIPE_CTR, DPC_CLR_CMD_CTR,
-  DPC_CLR_CLOCK_CTR, DPC_STATUS_XBUS_DMEM_DMA, DPC_STATUS_FREEZE, DPC_STATUS_FLUSH,
-  DPC_STATUS_START_GCLK, DPC_STATUS_PIPE_BUSY, DPC_STATUS_CBUF_READY, DPC_STATUS_START_VALID,
-} from './dpc_constants.js';
+import * as dpc from './dpc_constants.js';
 import { toHex, toString32 } from '../format.js';
 import * as logger from '../logger.js';
 import { RDPBuffer } from '../lle/rdp.js';
@@ -26,24 +20,24 @@ export class DPCDevice extends Device {
   }
 
   // Raw register values.
-  get startReg() { return this.mem.getU32(DPC_START_REG); }
-  get endReg() { return this.mem.getU32(DPC_END_REG); }
-  get currentReg() { return this.mem.getU32(DPC_CURRENT_REG); }
-  get statusReg() { return this.mem.getU32(DPC_STATUS_REG); }
+  get startReg() { return this.mem.getU32(dpc.DPC_START_REG); }
+  get endReg() { return this.mem.getU32(dpc.DPC_END_REG); }
+  get currentReg() { return this.mem.getU32(dpc.DPC_CURRENT_REG); }
+  get statusReg() { return this.mem.getU32(dpc.DPC_STATUS_REG); }
 
-  set startReg(val) { this.mem.set32(DPC_START_REG, val & addressWritableBits); }
-  set endReg(val) { this.mem.set32(DPC_END_REG, val & addressWritableBits); }
-  set currentReg(val) { this.mem.set32(DPC_CURRENT_REG, val & addressWritableBits); }
-  set statusReg(val) { this.mem.set32(DPC_STATUS_REG, val & statusWritableBits); }
+  set startReg(val) { this.mem.set32(dpc.DPC_START_REG, val & addressWritableBits); }
+  set endReg(val) { this.mem.set32(dpc.DPC_END_REG, val & addressWritableBits); }
+  set currentReg(val) { this.mem.set32(dpc.DPC_CURRENT_REG, val & addressWritableBits); }
+  set statusReg(val) { this.mem.set32(dpc.DPC_STATUS_REG, val & statusWritableBits); }
 
   setStatusBits(bits, enabled) {
-    this.mem.set32masked(DPC_STATUS_REG, enabled ? bits : 0, bits);
+    this.mem.set32masked(dpc.DPC_STATUS_REG, enabled ? bits : 0, bits);
   }
 
   // Values derived from the registers.
-  get xbusDmemDMA() { return (this.statusReg & DPC_STATUS_XBUS_DMEM_DMA) != 0; }
-  get startValid() { return (this.statusReg & DPC_STATUS_START_VALID) != 0; }
-  set startValid(val) { this.setStatusBits(DPC_STATUS_START_VALID, val); }
+  get xbusDmemDMA() { return (this.statusReg & dpc.DPC_STATUS_XBUS_DMEM_DMA) != 0; }
+  get startValid() { return (this.statusReg & dpc.DPC_STATUS_START_VALID) != 0; }
+  set startValid(val) { this.setStatusBits(dpc.DPC_STATUS_START_VALID, val); }
 
   write32(address, value) {
     this.writeReg32(this.calcWriteEA(address), value);
@@ -54,7 +48,7 @@ export class DPCDevice extends Device {
       throw 'Write is out of range';
     }
     switch (ea) {
-      case DPC_START_REG:
+      case dpc.DPC_START_REG:
         if (!this.quiet) { logger.log(`DPC start set to: ${toString32(value)}`); }
 
         if (this.startValid) {
@@ -64,7 +58,7 @@ export class DPCDevice extends Device {
           this.startValid = true;
         }
         break;
-      case DPC_END_REG:
+      case dpc.DPC_END_REG:
         if (!this.quiet) { logger.log(`DPC end set to: ${toString32(value)}`); }
 
         this.currentReg = this.startReg;
@@ -77,20 +71,20 @@ export class DPCDevice extends Device {
         }
 
         this.startValid = false;
-        this.setStatusBits(DPC_STATUS_CBUF_READY | DPC_STATUS_PIPE_BUSY | DPC_STATUS_START_GCLK, true);
+        this.setStatusBits(dpc.DPC_STATUS_CBUF_READY | dpc.DPC_STATUS_PIPE_BUSY | dpc.DPC_STATUS_START_GCLK, true);
         this.processBuffer();
         break;
-      case DPC_STATUS_REG:
+      case dpc.DPC_STATUS_REG:
         //if (!this.quiet) { logger.log(`DPC status set to: ${toString32(value)}` ); }
         this.updateStatus(value);
         break;
 
       // Read only
-      case DPC_CURRENT_REG:
-      case DPC_CLOCK_REG:
-      case DPC_BUFBUSY_REG:
-      case DPC_PIPEBUSY_REG:
-      case DPC_TMEM_REG:
+      case dpc.DPC_CURRENT_REG:
+      case dpc.DPC_CLOCK_REG:
+      case dpc.DPC_BUFBUSY_REG:
+      case dpc.DPC_PIPEBUSY_REG:
+      case dpc.DPC_TMEM_REG:
         logger.log('Wrote to read only DPC reg');
         break;
 
@@ -113,23 +107,23 @@ export class DPCDevice extends Device {
   }
 
   updateStatus(value) {
-    let dpcStatus = this.mem.getU32(DPC_STATUS_REG);
-    const wasFrozen = (dpcStatus & DPC_STATUS_FREEZE) !== 0;
+    let dpcStatus = this.mem.getU32(dpc.DPC_STATUS_REG);
+    const wasFrozen = (dpcStatus & dpc.DPC_STATUS_FREEZE) !== 0;
 
-    if (value & DPC_CLR_XBUS_DMEM_DMA) { dpcStatus &= ~DPC_STATUS_XBUS_DMEM_DMA; }
-    if (value & DPC_SET_XBUS_DMEM_DMA) { dpcStatus |= DPC_STATUS_XBUS_DMEM_DMA; }
-    if (value & DPC_CLR_FREEZE) { dpcStatus &= ~DPC_STATUS_FREEZE; }
-    if (value & DPC_SET_FREEZE) { dpcStatus |= DPC_STATUS_FREEZE; }
-    if (value & DPC_CLR_FLUSH) { dpcStatus &= ~DPC_STATUS_FLUSH; }
-    if (value & DPC_SET_FLUSH) { dpcStatus |= DPC_STATUS_FLUSH; }
+    if (value & dpc.DPC_CLR_XBUS_DMEM_DMA) { dpcStatus &= ~dpc.DPC_STATUS_XBUS_DMEM_DMA; }
+    if (value & dpc.DPC_SET_XBUS_DMEM_DMA) { dpcStatus |= dpc.DPC_STATUS_XBUS_DMEM_DMA; }
+    if (value & dpc.DPC_CLR_FREEZE) { dpcStatus &= ~dpc.DPC_STATUS_FREEZE; }
+    if (value & dpc.DPC_SET_FREEZE) { dpcStatus |= dpc.DPC_STATUS_FREEZE; }
+    if (value & dpc.DPC_CLR_FLUSH) { dpcStatus &= ~dpc.DPC_STATUS_FLUSH; }
+    if (value & dpc.DPC_SET_FLUSH) { dpcStatus |= dpc.DPC_STATUS_FLUSH; }
 
-    if (value & DPC_CLR_TMEM_CTR)          { this.mem.set32(DPC_TMEM_REG, 0); }
-    if (value & DPC_CLR_PIPE_CTR)          { this.mem.set32(DPC_PIPEBUSY_REG, 0); }
-    if (value & DPC_CLR_CMD_CTR)           { this.mem.set32(DPC_BUFBUSY_REG, 0); }
-    if (value & DPC_CLR_CLOCK_CTR)         { this.mem.set32(DPC_CLOCK_REG, 0); }
+    if (value & dpc.DPC_CLR_TMEM_CTR)          { this.mem.set32(dpc.DPC_TMEM_REG, 0); }
+    if (value & dpc.DPC_CLR_PIPE_CTR)          { this.mem.set32(dpc.DPC_PIPEBUSY_REG, 0); }
+    if (value & dpc.DPC_CLR_CMD_CTR)           { this.mem.set32(dpc.DPC_BUFBUSY_REG, 0); }
+    if (value & dpc.DPC_CLR_CLOCK_CTR)         { this.mem.set32(dpc.DPC_CLOCK_REG, 0); }
 
-    this.mem.set32(DPC_STATUS_REG, dpcStatus);
-    const frozen = (dpcStatus & DPC_STATUS_FREEZE) !== 0;
+    this.mem.set32(dpc.DPC_STATUS_REG, dpcStatus);
+    const frozen = (dpcStatus & dpc.DPC_STATUS_FREEZE) !== 0;
     if (frozen !== wasFrozen) this.hardware.graphics.setDPFrozen?.(frozen);
     this.completeHLEFullSyncs();
   }
@@ -166,19 +160,19 @@ export class DPCDevice extends Device {
   }
 
   completeHLEFullSyncs() {
-    if (!this.pendingHLEFullSyncs || (this.statusReg & DPC_STATUS_FREEZE)) return;
+    if (!this.pendingHLEFullSyncs || (this.statusReg & dpc.DPC_STATUS_FREEZE)) return;
 
     // HLE runs DP work synchronously without emulating RDP clocks. Credit one
     // nominal clock per executed FullSync so completed work has a nonzero
     // duration (ECW/WWF divide by this counter in their profiling code).
     // This is a compatibility approximation, not a pipeline timing model.
-    this.mem.set32(DPC_CLOCK_REG, (this.mem.getU32(DPC_CLOCK_REG) + this.pendingHLEFullSyncs) & 0x00ffffff);
+    this.mem.set32(dpc.DPC_CLOCK_REG, (this.mem.getU32(dpc.DPC_CLOCK_REG) + this.pendingHLEFullSyncs) & 0x00ffffff);
     this.pendingHLEFullSyncs = 0;
     this.syncFull();
   }
 
   syncFull() {
-    this.setStatusBits(DPC_STATUS_PIPE_BUSY | DPC_STATUS_START_GCLK, false);
+    this.setStatusBits(dpc.DPC_STATUS_PIPE_BUSY | dpc.DPC_STATUS_START_GCLK, false);
     this.hardware.miRegDevice.interruptDP();
   }
 }
