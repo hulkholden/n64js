@@ -94,6 +94,14 @@ history, a signed 32-bit wrapped accumulator, an 11-bit shift and saturation.
 Output count rounds up to 32 bytes; count zero still imports/clears and saves
 history. INIT and LOOP are tested independently as in the original instructions.
 
+The decoder is not restricted to the eight entries in the usual 0x100-byte book.
+At `0x149c–0x14a8` it masks all four predictor bits, multiplies by 32 and adds
+0x3f0. Entries 8–15 therefore read coefficients from sample memory at 0x4f0–0x5ef.
+The Banjo and DK64 programs perform the same calculation. HLE permits that
+lookup while keeping coefficients below the output region; predictors that
+decoding could overwrite retain atomic LLE fallback. The LOADADPCM size guard
+is unchanged. These reads use live DMEM and require no additional scratch buffer.
+
 Resampling at `0x17ec` stages eight windows before storing each vector. Every tap
 uses rounded, saturated VMULF, then two saturated pair sums and a saturated final
 sum. Phase advances by twice the packed pitch per sample. The saved state is
@@ -151,9 +159,27 @@ entry also waits when XBUS mode and DPC DMA busy are both set. DMA busy alone
 without DP_WAIT or XBUS is allowed, matching the instructions at `0x1080–0x10a8`.
 
 Nonzero entry PC, unsupported instructions, buffer layouts outside the reviewed
-DMEM range, overlapping mixer buffers, invalid predictors and malformed command
+DMEM range, overlapping mixer buffers, unsafe predictor overlap and malformed command
 lists fall back. Private DMEM is published only on success; previous RAM writes
-are undone before LLE reruns the task. NEAD and unreviewed identities remain LLE.
+are undone before LLE reruns the task. Unreviewed identities remain LLE.
+
+### Tony Hawk's Pro Skater 3
+
+The USA ROM reproduced a standard-NAUDIO fallback at VI frame 3051, audio task
+1737. Command 59 (`01150a30 01801170`) selects predictor 13 in its first ADPCM
+frame, outside the original HLE's eight-entry guard. After allowing the actual
+RSP lookup range, all 205 commands in that capture and the complete resulting RAM
+match the interpreter. Captures and disassembly are in `/tmp/thps3-naudio-failure/`
+and `/tmp/thps3-naudio-disassembly.txt`.
+
+A 4800-VI-frame run with Start/A input events completed 2733 audio tasks with
+nonzero PCM, no fallbacks and no oracle output mismatches. The input events are
+retained in `/tmp/thps3-input.json`; this is a bounded live run, not exhaustive
+gameplay coverage. All 41000 synthetic command comparisons across the three
+NAUDIO variants now exercise the full predictor range, including coefficients
+which overlap compressed input. Twelve atomic fallback/reuse cases also pass
+against the Tony Hawk capture. The standalone fix branch passed 1568 unit tests,
+lint and the production build without depending on the NEAD PR.
 
 ## Validation and reproduction
 

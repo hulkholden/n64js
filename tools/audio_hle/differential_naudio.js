@@ -35,7 +35,12 @@ for (let trial = 0; trial < 1000; trial++) {
         view.setUint32(0xe, 0x1100);
         w0 |= 0x1000;
         w1 = (flags << 28) | (count << 16) | (inputOffset << 12) | 0x210;
-        for (let i = 0; i < 12; i++) dmem[0x4f0 + inputOffset + i * 9] &= 0xf7;
+        // All four predictor bits participate in the RSP address calculation,
+        // including entries whose coefficients alias compressed sample bytes.
+        for (let i = 0; i < 12; i++) {
+          const p = 0x4f0 + inputOffset + i * 9;
+          dmem[p] = (dmem[p] & 0xf0) | ((trial + i) % 16);
+        }
         break;
       }
       case 2: w0 |= trial % 16; w1 = trial % 65; break;
