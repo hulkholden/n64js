@@ -43,11 +43,19 @@ export class NEADAudio extends AudioBase {
     this.envelopeReady = 0;
     this.filterCount = 0;
     this.vector31Known = !!rsp?.getVecU16;
-    if (this.vector31Known) for (let i = 0; i < nead.VECTOR_SAMPLES; i++) this.vector31[i] = rsp.getVecU16(nead.RSP_CONSTANT_VECTOR, i);
+    if (this.vector31Known) {
+      for (let i = 0; i < nead.VECTOR_SAMPLES; i++) {
+        this.vector31[i] = rsp.getVecU16(nead.RSP_CONSTANT_VECTOR, i);
+      }
+    }
   }
 
   finishTask(rsp) {
-    if (this.vector31Known && rsp?.setVecS16) for (let i = 0; i < nead.VECTOR_SAMPLES; i++) rsp.setVecS16(nead.RSP_CONSTANT_VECTOR, i, this.vector31[i]);
+    if (this.vector31Known && rsp?.setVecS16) {
+      for (let i = 0; i < nead.VECTOR_SAMPLES; i++) {
+        rsp.setVecS16(nead.RSP_CONSTANT_VECTOR, i, this.vector31[i]);
+      }
+    }
   }
 
   beginCommandBatch() {}
@@ -146,7 +154,9 @@ export class NEADAudio extends AudioBase {
     this.disjoint(input, samples, output, outputSize);
     this.dmem.fill(0, output, samplesStart);
     if (!(flags & nead.FLAG_INIT)) this.dma(output, flags & nead.FLAG_LOOP ? this.loopAddress : address, history);
-    for (let i = 0; i < samples; i++) this.put16(samplesStart + i * nead.SAMPLE_BYTES, this.dmem[input + i] << 8);
+    for (let i = 0; i < samples; i++) {
+      this.put16(samplesStart + i * nead.SAMPLE_BYTES, this.dmem[input + i] << 8);
+    }
     this.dma(output + count, address, history, true);
   }
 
@@ -161,7 +171,9 @@ export class NEADAudio extends AudioBase {
         this.samples[i] = this.s16(source);
         position = (position + pitch * 4) >>> 0;
       }
-      for (let i = 0; i < nead.RESAMPLE_NEAREST_LANES; i++) this.put16(output + p + i * nead.SAMPLE_BYTES, this.samples[i]);
+      for (let i = 0; i < nead.RESAMPLE_NEAREST_LANES; i++) {
+        this.put16(output + p + i * nead.SAMPLE_BYTES, this.samples[i]);
+      }
     }
   }
 
@@ -179,7 +191,9 @@ export class NEADAudio extends AudioBase {
     count = Math.max(nead.ADD_BLOCK_BYTES, round64(count));
     this.buffer(buffer, count, nead.VECTOR_BYTES);
     this.buffer(coefficients, nead.ADD_BLOCK_BYTES, nead.SAMPLE_BYTES);
-    for (let i = 0; i < this.multiplyCoefficients.length; i++) this.multiplyCoefficients[i] = this.s16(coefficients + i * nead.SAMPLE_BYTES);
+    for (let i = 0; i < this.multiplyCoefficients.length; i++) {
+      this.multiplyCoefficients[i] = this.s16(coefficients + i * nead.SAMPLE_BYTES);
+    }
     const coefficientMask = this.multiplyCoefficients.length - 1;
     for (let p = 0; p < count; p += nead.SAMPLE_BYTES) {
       const address = buffer + p;
@@ -190,23 +204,33 @@ export class NEADAudio extends AudioBase {
   duplicate(input, output, copies) {
     this.buffer(input, this.copyBlock.length, nead.VECTOR_BYTES);
     this.buffer(output, copies * this.copyBlock.length, nead.VECTOR_BYTES);
-    for (let i = 0; i < this.copyBlock.length; i++) this.copyBlock[i] = this.dmem[input + i];
-    for (let i = 0; i < copies; i++) this.dmem.set(this.copyBlock, output + i * this.copyBlock.length);
+    for (let i = 0; i < this.copyBlock.length; i++) {
+      this.copyBlock[i] = this.dmem[input + i];
+    }
+    for (let i = 0; i < copies; i++) {
+      this.dmem.set(this.copyBlock, output + i * this.copyBlock.length);
+    }
   }
 
   move(from, to, count, block = nead.VECTOR_BYTES) {
     const alignment = block === nead.VECTOR_BYTES ? 1 : nead.VECTOR_BYTES;
     this.buffer(from, count, alignment);
     this.buffer(to, count, alignment);
-    for (let i = 0; i < count; i += block) this.dmem.copyWithin(to + i, from + i, from + i + block);
+    for (let i = 0; i < count; i += block) {
+      this.dmem.copyWithin(to + i, from + i, from + i + block);
+    }
   }
 
   downsample(input, output, count) {
     this.buffer(input, count * 4, nead.SAMPLE_BYTES);
     this.buffer(output, count * nead.SAMPLE_BYTES, nead.SAMPLE_BYTES);
     for (let p = 0; p < count; p += nead.VECTOR_SAMPLES) {
-      for (let i = 0; i < nead.VECTOR_SAMPLES; i++) this.samples[i] = this.s16(input + (p + i) * 4);
-      for (let i = 0; i < nead.VECTOR_SAMPLES; i++) this.put16(output + (p + i) * nead.SAMPLE_BYTES, this.samples[i]);
+      for (let i = 0; i < nead.VECTOR_SAMPLES; i++) {
+        this.samples[i] = this.s16(input + (p + i) * 4);
+      }
+      for (let i = 0; i < nead.VECTOR_SAMPLES; i++) {
+        this.put16(output + (p + i) * nead.SAMPLE_BYTES, this.samples[i]);
+      }
     }
   }
 
@@ -230,7 +254,9 @@ export class NEADAudio extends AudioBase {
   }
 
   loadVector31(address) {
-    for (let i = 0; i < nead.VECTOR_SAMPLES; i++) this.vector31[i] = this.u16(address + i * nead.SAMPLE_BYTES);
+    for (let i = 0; i < nead.VECTOR_SAMPLES; i++) {
+      this.vector31[i] = this.u16(address + i * nead.SAMPLE_BYTES);
+    }
     this.vector31Known = true;
   }
 
@@ -262,7 +288,9 @@ export class NEADAudio extends AudioBase {
       const address = output + i;
       this.put16(address, clamp16(this.s16(address) + this.s16(input + i) + carry));
     }
-    for (let i = 0; i < nead.VECTOR_SAMPLES; i++) this.vector31[i] *= 2;
+    for (let i = 0; i < nead.VECTOR_SAMPLES; i++) {
+      this.vector31[i] *= 2;
+    }
   }
 
   setupEnvelope1(w0, w1) {
@@ -297,11 +325,15 @@ export class NEADAudio extends AudioBase {
     for (let bus = 0; bus < 4; bus++) {
       this.buffer(out[bus], bytes, nead.VECTOR_BYTES);
       this.disjoint(input, bytes, out[bus], bytes);
-      for (let other = 0; other < bus; other++) this.disjoint(out[bus], bytes, out[other], bytes);
+      for (let other = 0; other < bus; other++) {
+        this.disjoint(out[bus], bytes, out[other], bytes);
+      }
     }
     // The two-vector variants double the scalar increments at ENVMIXER entry.
     const vectors = block / nead.VECTOR_SAMPLES;
-    for (let channel = 0; channel < 3; channel++) rates[channel] *= vectors;
+    for (let channel = 0; channel < 3; channel++) {
+      rates[channel] *= vectors;
+    }
     const leftMask = this.envelopeDryMask(w0, 0), rightMask = this.envelopeDryMask(w0, 1);
     const swap = this.envelopeSwap(w0), wetEnabled = this.envelopeWetEnabled;
     const wetLeftMask = this.envelopeWetMask(w0, 0), wetRightMask = this.envelopeWetMask(w0, 1);
@@ -365,17 +397,27 @@ export class NEADAudio extends AudioBase {
 
     // V31 retains a shifted coefficient vector, subsequently consumed by ADDMIXER.
     this.loadVector31(coefficients - nead.VECTOR_BYTES + nead.SAMPLE_BYTES);
-    for (let i = 0; i < nead.VECTOR_SAMPLES; i++) this.samples[i] = this.s16(state + i * nead.SAMPLE_BYTES);
+    for (let i = 0; i < nead.VECTOR_SAMPLES; i++) {
+      this.samples[i] = this.s16(state + i * nead.SAMPLE_BYTES);
+    }
     for (let p = 0; p < count; p += nead.VECTOR_BYTES) {
-      for (let i = 0; i < nead.VECTOR_SAMPLES; i++) this.samples[nead.VECTOR_SAMPLES + i] = this.s16(input + p + i * nead.SAMPLE_BYTES);
+      for (let i = 0; i < nead.VECTOR_SAMPLES; i++) {
+        this.samples[nead.VECTOR_SAMPLES + i] = this.s16(input + p + i * nead.SAMPLE_BYTES);
+      }
       for (let i = 0; i < nead.VECTOR_SAMPLES; i++) {
         let sum = 0;
-        for (let tap = 0; tap < nead.FIR_COEFFICIENTS; tap++) sum += this.samples[nead.VECTOR_SAMPLES + i - tap] * this.s16(coefficients + tap * nead.SAMPLE_BYTES);
+        for (let tap = 0; tap < nead.FIR_COEFFICIENTS; tap++) {
+          sum += this.samples[nead.VECTOR_SAMPLES + i - tap] * this.s16(coefficients + tap * nead.SAMPLE_BYTES);
+        }
         this.put16(input + p + i * nead.SAMPLE_BYTES, clampFractionSum(sum));
       }
-      for (let i = 0; i < nead.VECTOR_SAMPLES; i++) this.samples[i] = this.samples[nead.VECTOR_SAMPLES + i];
+      for (let i = 0; i < nead.VECTOR_SAMPLES; i++) {
+        this.samples[i] = this.samples[nead.VECTOR_SAMPLES + i];
+      }
     }
-    for (let i = 0; i < nead.VECTOR_SAMPLES; i++) this.put16(state + i * nead.SAMPLE_BYTES, this.samples[i]);
+    for (let i = 0; i < nead.VECTOR_SAMPLES; i++) {
+      this.put16(state + i * nead.SAMPLE_BYTES, this.samples[i]);
+    }
     this.dma(state, address, stateSize, true);
     this.filterCount = 0;
   }
