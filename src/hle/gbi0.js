@@ -262,6 +262,7 @@ export class GBI0PD extends GBI0 {
 
     const viTransform = this.renderer.nativeTransform.viTransform;
     const vpTransform = this.state.viewport.transform;
+    const fog = this.state.geometryMode.fog ? this.state.fogParameters : null;
 
     for (let i = 0; i < n; ++i) {
       const vtxBase = i * vtxStride;
@@ -279,11 +280,8 @@ export class GBI0PD extends GBI0 {
       // Load as little-endian (ABGR) for convenience.
       vertex.color = auxDV.getUint32(cIdx + 0, true);
 
-      // Project.
-      this.projectInPlace(vertex, xyz, wvp, vpTransform, viTransform);
-
       if (light) {
-        const alpha = vertex.color & 0xff;
+        const alpha = vertex.color >>> 24;
         this.unpackNormal(normal, vertex.color);
         mvmtx.transformNormal(normal, transformedNormal);
         transformedNormal.normaliseInPlace();
@@ -295,6 +293,9 @@ export class GBI0PD extends GBI0 {
           vertex.calculateSphericalUV(transformedNormal);
         }
       }
+
+      // Cache fog in shade alpha after lighting, using the clip-space position.
+      this.projectInPlace(vertex, xyz, wvp, vpTransform, viTransform, fog);
     }
   }
 }
