@@ -1,5 +1,5 @@
 import { NEADAudio } from './audio_nead.js';
-import * as C from './audio_nead_constants.js';
+import * as nead from './audio_nead_constants.js';
 
 // Mario Kart predates absolute buffer addresses and two-vector envelope ramps.
 const DMEM_SEGMENT_TABLE = 0x320;
@@ -25,7 +25,7 @@ export class MarioKartAudio extends NEADAudio {
   get resampleTable() { return DMEM_RESAMPLE_TABLE; }
   get expandedResampleHistory() { return false; }
   get bufferBase() { return DMEM_SAMPLE_BUFFER; }
-  get envelopeBlockSamples() { return C.VECTOR_SAMPLES; }
+  get envelopeBlockSamples() { return nead.VECTOR_SAMPLES; }
 
   initializeTask(rsp) {
     super.initializeTask(rsp);
@@ -35,25 +35,25 @@ export class MarioKartAudio extends NEADAudio {
 
   address(w) {
     this.require((w >>> 24) < SEGMENT_COUNT, 'Mario Kart segment aliases parameters');
-    return ((w & C.RAM_ADDRESS_MASK) + this.view.getUint32(DMEM_SEGMENT_TABLE + (w >>> 24) * 4)) & C.RAM_ADDRESS_MASK;
+    return ((w & nead.RAM_ADDRESS_MASK) + this.view.getUint32(DMEM_SEGMENT_TABLE + (w >>> 24) * 4)) & nead.RAM_ADDRESS_MASK;
   }
 
   execute(w0, w1) {
     const opcode = w0 >>> 24;
     if (opcode === OPCODE_SEGMENT) {
       this.require((w1 >>> 24) < SEGMENT_COUNT, 'Mario Kart segment aliases parameters');
-      this.view.setUint32(DMEM_SEGMENT_TABLE + (w1 >>> 24) * 4, w1 & C.RAM_ADDRESS_MASK);
+      this.view.setUint32(DMEM_SEGMENT_TABLE + (w1 >>> 24) * 4, w1 & nead.RAM_ADDRESS_MASK);
       return;
     }
 
-    if (opcode === C.OPCODE_SETBUFF && ((w0 >>> 16) & FLAG_AUXILIARY_BUFFERS)) {
+    if (opcode === nead.OPCODE_SETBUFF && ((w0 >>> 16) & FLAG_AUXILIARY_BUFFERS)) {
       this.put16(this.parameters + PARAM_OUTPUT_RIGHT, w0 + this.bufferBase);
       this.put16(this.parameters + PARAM_WET_LEFT, (w1 >>> 16) + this.bufferBase);
       this.put16(this.parameters + PARAM_WET_RIGHT, w1 + this.bufferBase);
       return;
     }
 
-    if (opcode === C.OPCODE_ADDMIXER || opcode === C.OPCODE_RESAMPLE_NEAREST || opcode >= C.OPCODE_PCM8 && opcode <= C.OPCODE_RESERVED_1F) return;
+    if (opcode === nead.OPCODE_ADDMIXER || opcode === nead.OPCODE_RESAMPLE_NEAREST || opcode >= nead.OPCODE_PCM8 && opcode <= nead.OPCODE_RESERVED_1F) return;
     return super.execute(w0, w1);
   }
 

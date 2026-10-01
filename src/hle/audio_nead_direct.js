@@ -2,7 +2,7 @@ import { SP_DMEM_SIZE } from '../devices/sp_constants.js';
 import { TASK_OFFSET, TaskOffsets } from './rsp_task_constants.js';
 import { ShindouAudio } from './audio_shindou.js';
 import { round2, round32 } from './audio_buffer.js';
-import * as C from './audio_nead_constants.js';
+import * as nead from './audio_nead_constants.js';
 
 // Yoshi/1080 load directly at IMEM zero, use shorter command batches and
 // support two-bit ADPCM. Later Zelda programs move the book and saved state.
@@ -15,8 +15,8 @@ const DMEM_SCRATCH = 0xfc0;
 const FLAG_TWO_BIT_ADPCM = 4;
 const PARAM_DRAM_STACK = 0x0c;
 const COMMAND_BYTES = 8;
-const OPCODE_DUPLICATE = C.OPCODE_RESERVED_09;
-const OPCODE_GAIN = C.OPCODE_POLEF;
+const OPCODE_DUPLICATE = nead.OPCODE_RESERVED_09;
+const OPCODE_GAIN = nead.OPCODE_POLEF;
 
 export class NEADDirectAudio extends ShindouAudio {
   get bufferEnd() { return SP_DMEM_SIZE; }
@@ -29,15 +29,15 @@ export class NEADDirectAudio extends ShindouAudio {
 
   execute(w0, w1) {
     const opcode = w0 >>> 24;
-    if (opcode === C.OPCODE_ADPCM) {
+    if (opcode === nead.OPCODE_ADPCM) {
       this.filterCount = 0;
       this.envelopeReady = 0;
       this.loadVector31(0);
       return this.decodeADPCM((w0 >>> 16) & 255, this.address(w1), this.input, this.output, round32(this.count),
-        this.book, this.bookSize, (w0 >>> 16) & C.FLAG_LOOP ? this.loopAddress : 0, (w0 >>> 16) & FLAG_TWO_BIT_ADPCM ? 2 : 4);
+        this.book, this.bookSize, (w0 >>> 16) & nead.FLAG_LOOP ? this.loopAddress : 0, (w0 >>> 16) & FLAG_TWO_BIT_ADPCM ? 2 : 4);
     }
 
-    if (opcode === C.OPCODE_FILTER) {
+    if (opcode === nead.OPCODE_FILTER) {
       this.envelopeReady = 0;
       return this.firFilter(w0, w1);
     }
@@ -49,7 +49,7 @@ export class NEADDirectAudio extends ShindouAudio {
       return this.duplicate(w0 & 0xffff, w1 >>> 16, Math.max(1, (w0 >>> 16) & 255));
     }
 
-    this.require(opcode !== C.OPCODE_NOOP && opcode !== C.OPCODE_RESERVED_03 && opcode < C.OPCODE_GAIN, 'Unreviewed direct NEAD command');
+    this.require(opcode !== nead.OPCODE_NOOP && opcode !== nead.OPCODE_RESERVED_03 && opcode < nead.OPCODE_GAIN, 'Unreviewed direct NEAD command');
     return super.execute(w0, w1);
   }
 }
@@ -70,14 +70,14 @@ export class OcarinaAudio extends SnowboardingAudio {
   get book() { return ZELDA_ADPCM_BOOK; }
   get scratch() { return ZELDA_SCRATCH; }
   get loopParameter() { return ZELDA_LOOP_PARAMETER; }
-  get filterStateSize() { return C.VECTOR_BYTES * 2; }
+  get filterStateSize() { return nead.VECTOR_BYTES * 2; }
 
   moveExact(from, to, count) {
-    this.buffer(from, round2(count), C.SAMPLE_BYTES);
-    this.buffer(to, round2(count), C.SAMPLE_BYTES);
-    const body = count & ~(C.VECTOR_BYTES - 1);
-    for (let p = 0; p < body; p += C.VECTOR_BYTES) this.dmem.copyWithin(to + p, from + p, from + p + C.VECTOR_BYTES);
-    for (let p = body; p < count; p += C.SAMPLE_BYTES) this.put16(to + p, this.s16(from + p));
+    this.buffer(from, round2(count), nead.SAMPLE_BYTES);
+    this.buffer(to, round2(count), nead.SAMPLE_BYTES);
+    const body = count & ~(nead.VECTOR_BYTES - 1);
+    for (let p = 0; p < body; p += nead.VECTOR_BYTES) this.dmem.copyWithin(to + p, from + p, from + p + nead.VECTOR_BYTES);
+    for (let p = body; p < count; p += nead.SAMPLE_BYTES) this.put16(to + p, this.s16(from + p));
   }
 }
 
@@ -89,13 +89,13 @@ export class MajoraAudio extends OcarinaAudio {
   }
 
   execute(w0, w1) {
-    if (w0 >>> 24 === C.OPCODE_DMEMMOVE) {
+    if (w0 >>> 24 === nead.OPCODE_DMEMMOVE) {
       this.envelopeReady = 0;
       this.filterCount = 0;
-      return this.moveExact(w0 & 0xffff, w1 >>> 16, Math.max(C.SAMPLE_BYTES, w1 & 0xffff));
+      return this.moveExact(w0 & 0xffff, w1 >>> 16, Math.max(nead.SAMPLE_BYTES, w1 & 0xffff));
     }
 
-    if (w0 >>> 24 === C.OPCODE_RESERVED_03) return;
+    if (w0 >>> 24 === nead.OPCODE_RESERVED_03) return;
     return super.execute(w0, w1);
   }
 }
@@ -106,13 +106,13 @@ export class AnimalForestAudio extends MajoraAudio {
   get commandBufferSize() { return COMMAND_BYTES; }
 
   execute(w0, w1) {
-    if (w0 >>> 24 === C.OPCODE_DMEMMOVE) {
+    if (w0 >>> 24 === nead.OPCODE_DMEMMOVE) {
       this.envelopeReady = 0;
       this.filterCount = 0;
       return this.moveExact(w0 & 0xffff, w1 >>> 16, (w1 & 0xffff));
     }
 
-    if (w0 >>> 24 === C.OPCODE_RESERVED_03) return;
+    if (w0 >>> 24 === nead.OPCODE_RESERVED_03) return;
     return super.execute(w0, w1);
   }
 }
@@ -131,13 +131,13 @@ export class FZeroAudio extends NEADDirectAudio {
 
   execute(w0, w1) {
     const opcode = w0 >>> 24;
-    if (opcode === C.OPCODE_ADPCM) {
+    if (opcode === nead.OPCODE_ADPCM) {
       this.loadVector31(0);
       this.envelopeReady = 0;
-      return this.decodeADPCM(w0 >>> 16, this.address(w1), this.input, this.output, round32(this.count), this.book, this.bookSize, (w0 >>> 16) & C.FLAG_LOOP ? this.loopAddress : 0);
+      return this.decodeADPCM(w0 >>> 16, this.address(w1), this.input, this.output, round32(this.count), this.book, this.bookSize, (w0 >>> 16) & nead.FLAG_LOOP ? this.loopAddress : 0);
     }
 
-    if (opcode === C.OPCODE_RESERVED_03 || opcode === C.OPCODE_FILTER || opcode === C.OPCODE_RESAMPLE_NEAREST || opcode === C.OPCODE_RESERVED_09 || opcode === C.OPCODE_POLEF) return;
+    if (opcode === nead.OPCODE_RESERVED_03 || opcode === nead.OPCODE_FILTER || opcode === nead.OPCODE_RESAMPLE_NEAREST || opcode === nead.OPCODE_RESERVED_09 || opcode === nead.OPCODE_POLEF) return;
     return super.execute(w0, w1);
   }
 }
