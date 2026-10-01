@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import {
   clamp16, clampShifted32To16, signed16, unsigned16, fixed16FromParts, fixed16ToInt,
-  clampFixed16Hi, clampFixed16Lo, mulFixed16, mulFraction, mixSample,
+  clampFixed16Hi, clampFixed16Lo, mulFixed16, mulFraction, mixSample, mulUnsignedFraction, clampFractionSum,
 } from './audio_fixed_point.js';
 
 describe('audio fixed-point arithmetic', () => {
@@ -89,4 +89,16 @@ describe('audio fixed-point arithmetic', () => {
     expect(mixSample(32767, 12345, 0)).toBe(32766);
     expect(mixSample(-32768, 12345, 0)).toBe(-32767);
   });
+});
+
+
+test('unsigned Q16 volumes floor negative products and Q15 sums round only once', () => {
+  expect(mulUnsignedFraction(-1, 1)).toBe(-1);
+  expect(mulUnsignedFraction(32767, 65535)).toBe(32766);
+  expect(mulUnsignedFraction(-32768, 65535)).toBe(-32768);
+  expect(clampFractionSum(16384)).toBe(1);
+  expect(clampFractionSum(-16384)).toBe(0);
+  expect(clampFractionSum(-16385)).toBe(-1);
+  expect(clampFractionSum(0x7fffffff)).toBe(32767);
+  expect(clampFractionSum(-0x80000000)).toBe(-32768);
 });

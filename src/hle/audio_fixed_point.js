@@ -70,3 +70,13 @@ export function mixSample(destination, source, gain) {
   const accumulator = destination * INT16_MAX * 2 + ROUND_HALF + source * gain * 2;
   return clampFixed16Hi(accumulator);
 }
+
+// RSP VMUDM: a signed sample times an unsigned Q16 volume, without rounding.
+export function mulUnsignedFraction(sample, volume) {
+  return Math.floor(sample * volume / FRACTION_SCALE);
+}
+
+// Round a Q15 sum only after all products have accumulated (VMULF/VMACF).
+export function clampFractionSum(sum) {
+  return Math.max(INT16_MIN, Math.min(INT16_MAX, Math.floor((sum * 2 + ROUND_HALF) / FRACTION_SCALE)));
+}

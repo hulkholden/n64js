@@ -1,6 +1,11 @@
 import { createAudioMicrocodeClassifier } from './audio_microcode_classifier.js';
 import { ABI1Audio } from './audio_abi1.js';
 import { UnsupportedAudioCommand } from './audio_base.js';
+import { StarFoxRevisionAudio } from './audio_star_fox.js';
+import { ShindouAudio, WaveRaceAudio } from './audio_shindou.js';
+import { NEADDirectAudio, SnowboardingAudio, OcarinaAudio, MajoraAudio, AnimalForestAudio, FZeroAudio } from './audio_nead_direct.js';
+import { NEADAudio } from './audio_nead.js';
+import { MarioKartAudio } from './audio_mario_kart.js';
 import { NAudio } from './audio_naudio.js';
 import { BanjoAudio } from './audio_banjo.js';
 import { DonkeyKongAudio } from './audio_donkey_kong.js';
@@ -151,6 +156,17 @@ export function getAudioHLEClass(identity) {
     case 'abi1-tetrisphere-us-mixer': return TetrisphereAudio;
     case 'abi1-goldeneye-mixer': return GoldenEyeAudio;
     case 'abi1-diddy-blast-mixer': return DiddyBlastAudio;
+    case 'nead-mario-shindou': return ShindouAudio;
+    case 'nead-wave-race-shindou': return WaveRaceAudio;
+    case 'nead-yoshi-story': return NEADDirectAudio;
+    case 'nead-1080': return SnowboardingAudio;
+    case 'nead-ocarina': return OcarinaAudio;
+    case 'nead-majora-stadium': return MajoraAudio;
+    case 'nead-animal-forest': return AnimalForestAudio;
+    case 'nead-f-zero': return FZeroAudio;
+    case 'nead-mario-kart': return MarioKartAudio;
+    case 'nead-star-fox-revision': return StarFoxRevisionAudio;
+    case 'nead-star-fox': return NEADAudio;
     case 'naudio-standard': return NAudio;
     case 'naudio-banjo-kazooie': return BanjoAudio;
     case 'naudio-donkey-kong-64': return DonkeyKongAudio;
@@ -174,28 +190,30 @@ function executeAudioTask(hardware, state, identity) {
   if (!Audio) return false;
 
   const task = state.task;
-  // Only fresh rspboot tasks have been derived. Yield/resume and manually
+  // Only fresh task entry points have been derived. Yield/resume and manually
   // selected RSP entry points must execute their actual instructions.
   const flags = task.getUint32(TaskOffsets.flags);
+  const direct = identity.bootstrap === 'direct-imem';
+  const checksDPStatus = identity.family === 'NAUDIO' || identity.family === 'NEAD';
   if (hardware.rsp.pc !== 0) return false;
-  if (identity.family === 'NAUDIO') {
+  if (checksDPStatus && !direct) {
     // Both reviewed loaders mask only DP_WAIT. Captured Army Men tasks
     // contain other flag bits; the actual yield request is SP signal zero.
     const spStatus = hardware.spRegDevice.readRegU32?.(SP_STATUS_REG);
     if (spStatus === undefined || (spStatus & SP_STATUS_SIG0)) return false;
-  } else if (flags & ~OS_TASK_DP_WAIT) {
+  } else if (identity.family === 'ABI1' && (flags & ~OS_TASK_DP_WAIT)) {
     return false;
   }
 
-  if (flags & OS_TASK_DP_WAIT) {
+  if ((flags & OS_TASK_DP_WAIT) && !direct) {
     // rspboot-208 tests this flag at 0x1068; the NAUDIO rspboot-204
     // capture tests it at 0x1064. Both wait for DPC DMA to become idle.
     const status = hardware.dpcDevice?.statusReg;
-    if ((identity.bootstrap !== 'rspboot-208' && identity.family !== 'NAUDIO') || status === undefined || (status & DPC_STATUS_DMA_BUSY)) return false;
+    if ((identity.bootstrap !== 'rspboot-208' && !checksDPStatus) || status === undefined || (status & DPC_STATUS_DMA_BUSY)) return false;
   }
 
-  // These NAUDIO entries wait while DPC XBUS and DMA busy are both set.
-  if (identity.family === 'NAUDIO') {
+  // NAUDIO and NEAD entries wait while DPC XBUS and DMA busy are both set.
+  if (checksDPStatus) {
     const status = hardware.dpcDevice?.statusReg;
     if (status === undefined || (status & (DPC_STATUS_XBUS_DMEM_DMA | DPC_STATUS_DMA_BUSY)) ===
         (DPC_STATUS_XBUS_DMEM_DMA | DPC_STATUS_DMA_BUSY)) return false;
@@ -216,10 +234,13 @@ function executeAudioTask(hardware, state, identity) {
   }
 
   try {
-    // Reproduce the task loader's DMEM initialization.
-    audio.dma(0, task.getUint32(TaskOffsets.ucodeDataPtr) & TASK_ADDRESS_MASK, task.getUint32(TaskOffsets.ucodeDataSize));
+    // Direct NEAD entries write the declared size to RD_LEN unchanged;
+    // rspboot subtracts one. DMA interprets the register as length minus one.
+    const dataAddress = task.getUint32(TaskOffsets.ucodeDataPtr) & TASK_ADDRESS_MASK;
+    const dataSize = task.getUint32(TaskOffsets.ucodeDataSize) + (direct ? 1 : 0);
+    audio.dma(0, dataAddress, dataSize);
 
-    audio.initializeTask();
+    audio.initializeTask(hardware.rsp);
 
     // Load command batches in the same order as the microcode.
     const commandBuffer = audio.commandBuffer, batchSize = audio.commandBufferSize;
@@ -246,6 +267,7 @@ function executeAudioTask(hardware, state, identity) {
   // Publish DMEM only after every command succeeds.
   hardware.sp_mem.u8.set(audio.dmem);
   audio.commit();
+  audio.finishTask?.(hardware.rsp);
   hardware.spRegDevice.writeReg32(SP_SEMAPHORE_REG, 0); // Task completion releases semaphore.
   return true;
 }
