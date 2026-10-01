@@ -183,6 +183,34 @@ overflow. All 16384 comparisons across the four ABI1 programs pass. The existing
 Eleven fallback/reuse cases pass on the Aidyn capture. The standalone fix passed
 1585 unit tests, lint and build, without requiring the open NEAD or NAUDIO PRs.
 
+## Armorines ADPCM predictors
+
+The Aidyn address fix does not resolve Armorines' fallback. The USA ROM first
+rejects audio task 1229 at VI frame 1236; the European ROM rejects task 1251 at
+frame 1048. USA command 190 (`01000000 0075bf60`) decodes from DMEM 0x5c0 to
+0x700 with count 352. Its second compressed frame has header 0xdd, selecting
+predictor 13, beyond the original HLE's eight-entry limit.
+
+At `0x1538–0x1544`, the standard RSP program masks the full four-bit index,
+multiplies it by 32 and adds the book base 0x4c0. Entries 8–15 read coefficients
+from sample memory at 0x5c0–0x6bf. The other three ABI1 programs agree. This is
+the ABI1 counterpart of Tony Hawk 3's NAUDIO issue. HLE now permits those reads
+while keeping the accessible coefficients below output, preserving fallback for
+unsafe coefficient/output overlap. The LOADADPCM size guard remains unchanged.
+The fix adds no allocations and is independent of both the Aidyn and NAUDIO PRs.
+
+Both failure captures replay successfully: 1079 commands and complete final RAM
+match the original RSP programs. Captures are under `/tmp/armorines-abi1-failure/`
+and `/tmp/armorines-europe-abi1-failure/`; the disassembly is retained in
+`/tmp/armorines-abi1-disassembly.txt`. Runs of 2400 VI frames completed 2390 USA,
+2870 European and 2870 German audio tasks with nonzero PCM, zero fallbacks and
+zero oracle mismatches. These are bounded startup/attract checks.
+
+The 20000 synthetic DSP comparisons across all four ABI1 programs now exercise
+every predictor index, including coefficients that overlap compressed input.
+Eleven atomic fallback/reuse checks pass on the USA capture. The standalone
+branch passes 1577 tests, lint and the production build.
+
 ## Reproduction
 
 Use the local ROM and an output directory outside the repository:

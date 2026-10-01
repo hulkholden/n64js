@@ -37,7 +37,12 @@ for (let trial = 0; trial < 1000; trial++) {
     if (op === 1) {
       view.setUint32(0x370, 0x1100); // Loop history separate from output state.
       w0 = (op << 24) | (flags << 16);
-      for (let i = 0; i < 8; i++) dmem[0x600 + i * 9] &= 0xf7;
+      // Upper predictors read coefficients from sample memory, including
+      // compressed input. Exercise all four bits, as the RSP does.
+      for (let i = 0; i < 8; i++) {
+        const p = 0x600 + i * 9;
+        dmem[p] = (dmem[p] & 0xf0) | ((trial + i) % 16);
+      }
     }
     if (op === 5) {
       // Legal saved alignment for OUT; random fractions exercise all phases.
