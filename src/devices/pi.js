@@ -54,10 +54,13 @@ export class PIRegDevice extends Device {
   constructor(hardware, rangeStart, rangeEnd) {
     super("PIReg", hardware, hardware.pi_reg, rangeStart, rangeEnd);
     this.haveSetMemorySize = false;
+    // Changes on DMA submission and reset, including gaps between transfers.
+    this.dmaGeneration = 0;
   }
 
   reset() {
     this.haveSetMemorySize = false;
+    this.dmaGeneration++;
   }
 
   setMemorySize() {
@@ -358,6 +361,7 @@ export class PIRegDevice extends Device {
   }
 
   addPIInterrupt(cycles) {
+    this.dmaGeneration++;
     const ev = n64js.hardware().timeline.startEvent(`PI DMA`);
     n64js.cpu0.addEvent(kPIInterrupt, cycles, () => {
       this.dmaComplete();

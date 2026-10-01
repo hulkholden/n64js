@@ -29,6 +29,8 @@ function getAudioState(hardware, readMemory = true) {
       executors: new Map(),
       logged: new Map(),
       raw: {},
+      piDMAGeneration: 0,
+      piStreaming: false,
     };
     audioStates.set(hardware, state);
   }
@@ -107,7 +109,8 @@ function logAudioTask(state, identity, requestedMode, handled) {
   }
 
   // Track each execution path separately for a given microcode.
-  const bit = requestedMode === 'Disabled' ? 8 : handled ? 1 : requestedMode === 'HLE' ? 4 : 2;
+  const piFallback = requestedMode === 'HLE' && state.piStreaming;
+  const bit = requestedMode === 'Disabled' ? 8 : handled ? 1 : requestedMode === 'HLE' ? (piFallback ? 16 : 4) : 2;
   const seen = state.logged.get(key) ?? 0;
   if (seen & bit) return;
   state.logged.set(key, seen | bit);
@@ -117,7 +120,8 @@ function logAudioTask(state, identity, requestedMode, handled) {
     ? `${identity.identity} (${identity.family})`
     : `Unknown (code hash ${toHex(key, 32)})`;
   const mode = requestedMode === 'Disabled' ? 'Disabled' : handled ? 'HLE' : 'LLE';
-  const fallback = requestedMode === 'HLE' && !handled ? ' (HLE fallback)' : '';
+  const fallback = requestedMode === 'HLE' && !handled
+    ? (piFallback ? ' (HLE fallback: PI DMA activity)' : ' (HLE fallback)') : '';
   logger.log(`RSP audio microcode ${description}: ${mode}${fallback}`);
 }
 
@@ -169,9 +173,21 @@ export function hleProcessAudioTask(hardware) {
 }
 
 function executeAudioTask(hardware, state, identity) {
+  state.piStreaming = false;
   if (identity.status !== 'known') return false;
   const Audio = getAudioHLEClass(identity.identity);
   if (!Audio) return false;
+
+  // Games can start audio between PI transfers in a sample stream, even with
+  // PI currently idle. If DMA has occurred since the previous audio task, use
+  // LLE so the CPU can submit the remaining transfers before RSP reads them.
+  const pi = hardware.piRegDevice;
+  if (pi) {
+    const dmaSinceLastTask = state.piDMAGeneration !== pi.dmaGeneration;
+    state.piDMAGeneration = pi.dmaGeneration;
+    state.piStreaming = dmaSinceLastTask || pi.busy();
+    if (state.piStreaming) return false;
+  }
 
   const task = state.task;
   // Only fresh rspboot tasks have been derived. Yield/resume and manually
