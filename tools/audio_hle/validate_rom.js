@@ -1,6 +1,8 @@
 #!/usr/bin/env bun
 // Compare the live HLE result with an isolated execution of each original RSP
 // task. This verifies the real SP completion path as well as DSP output.
+// The oracle freezes RAM at task start, so it cannot validate concurrent CPU/PI
+// writes. Use capture_pcm.js for independent, from-reset HLE/LLE comparisons.
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { createHeadlessEmulator, loadROMFile } from '../../src/headless/headless_env.js';

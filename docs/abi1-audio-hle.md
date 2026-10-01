@@ -185,7 +185,8 @@ Eleven fallback/reuse cases pass on the Aidyn capture. The standalone fix passed
 
 ## Armorines ADPCM predictors
 
-The Aidyn address fix does not resolve Armorines' fallback. The USA ROM first
+The initial snapshot investigation found another fallback after the Aidyn
+address fix. The USA ROM first
 rejects audio task 1229 at VI frame 1236; the European ROM rejects task 1251 at
 frame 1048. USA command 190 (`01000000 0075bf60`) decodes from DMEM 0x5c0 to
 0x700 with count 352. Its second compressed frame has header 0xdd, selecting
@@ -204,12 +205,68 @@ match the original RSP programs. Captures are under `/tmp/armorines-abi1-failure
 and `/tmp/armorines-europe-abi1-failure/`; the disassembly is retained in
 `/tmp/armorines-abi1-disassembly.txt`. Runs of 2400 VI frames completed 2390 USA,
 2870 European and 2870 German audio tasks with nonzero PCM, zero fallbacks and
-zero oracle mismatches. These are bounded startup/attract checks.
+zero snapshot-oracle mismatches. These checks froze RAM at task start in both
+paths, so they did not establish equivalence to an independent live LLE run.
+The concurrent-transfer investigation below supersedes that audio-quality claim.
 
 The 20000 synthetic DSP comparisons across all four ABI1 programs now exercise
 every predictor index, including coefficients that overlap compressed input.
 Eleven atomic fallback/reuse checks pass on the USA capture. The standalone
 branch passes 1577 tests, lint and the production build.
+
+## Armorines concurrent sample transfers
+
+The reported USA title/menu corruption is caused by synchronous HLE reading
+compressed samples before the CPU's PI DMA queue has finished uploading them.
+The first divergence in independent 2400-frame boots is audio task 1220, command
+37 (`04000000 0075e420`): HLE reads 64 zero bytes, while the live RSP reaches the
+load after a PI upload and reads a valid compressed frame starting with 0x52.
+The command-list hashes are identical. The upper predictor indices encountered
+later in the earlier investigation were downstream of this stale-input issue;
+supporting the full instruction-defined lookup did not repair the timing race.
+
+Checking only PI busy at task entry is insufficient. At task 1238, PI status is
+zero, but the CPU submits another sample transfer shortly after starting RSP.
+PI now maintains an allocation-free DMA generation, advanced on submission and
+hardware reset. Audio HLE conservatively falls back whenever that generation
+has changed since the previous HLE-mode audio task, or PI remains busy. It can
+resume after an interval without PI activity. The decision precedes any HLE
+writes and is independent of ROM name and microcode family. The first fallback
+of this kind logs `LLE (HLE fallback: PI DMA activity)` separately from an
+unsupported-command fallback.
+
+Independent USA boots now agree byte for byte through 2400 VI frames: 2390 audio
+tasks, 2389 AI buffers and 3516608 PCM bytes, SHA-256
+`09984446b1d628ca2525afc5aea167910a052a24c04965be39300fcbaddb2f78`.
+The standalone runtime PR also produces this digest, with 1212 HLE tasks and
+1178 streaming fallbacks. These results do not depend on the Aidyn or NEAD PRs.
+
+An extended 3600-frame run presses Start at frames 1800 and 2100 for eight frames
+each. Both modes execute the same 3588 command lists and play 3587 AI buffers
+(5280064 bytes). The HLE-selected run uses 1216 HLE tasks and 2372 LLE fallbacks.
+The large corruption is gone, but these streams are not bit-identical: the
+largest signed 16-bit sample difference is 32. Tracing the first difference,
+task 2241, finds an RSP read at DMEM 0x5c0 / RDRAM 0x761a20 on opposite sides of
+a concurrent PI upload. Both tasks execute LLE, with matching task-start audio
+RAM and DMEM; incoming vector-register differences do not change isolated
+replay. Their live reads differ by 126 CPU cycles, so one sees the old compressed
+frame and the other the replacement. Thus this guard addresses observed early
+HLE reads, but does not provide cycle-identical execution or prove general
+safety for transfers whose first submission occurs after task entry.
+
+The new `capture_pcm.js` tool records actual AI output and per-task execution
+paths from reset. Use independent runs as well as command-level DSP replay:
+
+```sh
+bun tools/audio_hle/capture_pcm.js '/Volumes/Data/Roms/Armorines - Project S.W.A.R.M. (USA).z64' HLE 2400 /tmp/armorines-hle
+bun tools/audio_hle/capture_pcm.js '/Volumes/Data/Roms/Armorines - Project S.W.A.R.M. (USA).z64' LLE 2400 /tmp/armorines-lle
+cmp /tmp/armorines-hle.pcm /tmp/armorines-lle.pcm
+```
+
+Regression tests use a synthetic microcode identity and real emulated PI DMA to
+cover active transfers, idle gaps, reset and HLE resumption, including unchanged
+RAM/DMEM on fallback. No ROM bytes are checked in. The standalone PR passes 1581
+tests, lint and the production build.
 
 ## Reproduction
 
