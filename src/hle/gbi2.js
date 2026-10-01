@@ -15,6 +15,7 @@ const G_LINE3D = 0x08;
 const G_BG_1CYC = 0x09;
 const G_BG_COPY = 0x0a;
 const G_OBJ_RENDERMODE = 0x0b;
+const G_SPECIAL_1 = 0xd5;
 const G_DMA_IO = 0xd6;
 const G_TEXTURE = 0xd7;
 const G_POPMTX = 0xd8;
@@ -50,9 +51,7 @@ export class GBI2 extends GBIMicrocode {
       [G_BG_COPY, this.executeBgRectCopy.bind(this)],
       [G_OBJ_RENDERMODE, this.executeObjRenderMode.bind(this)],
 
-      // // [0xd3, executeGBI2_Special1.bind(this)],
-      // // [0xd4, executeGBI2_Special2.bind(this)],
-      // // [0xd5, executeGBI2_Special3.bind(this)],
+      [G_SPECIAL_1, this.executeDLCount.bind(this)],
       [G_DMA_IO, this.executeDmaIo.bind(this)],
       [G_TEXTURE, this.executeTexture.bind(this)],
       [G_POPMTX, this.executePopMatrix.bind(this)],
@@ -102,6 +101,17 @@ export class GBI2 extends GBIMicrocode {
       dis.text('gsSPEndDisplayList();');
     }
     this.state.endDisplayList();
+  }
+
+  executeDLCount(cmd0, cmd1, dis) {
+    // F3DEX2's SPECIAL_1 calls a list of this many commands, without EndDL.
+    // Cruis'n Exotica uses it for render state and texture setup lists.
+    const count = cmd0 & 0xff;
+    const address = this.state.rdpSegmentAddress(cmd1);
+    if (dis) {
+      dis.text(`gsSPDisplayListLen(<span class="dl-branch">${toString32(address)}</span>, ${count});`);
+    }
+    this.state.pushDisplayList(address, count);
   }
 
   executeSetOtherModeL(cmd0, cmd1, dis) {

@@ -88,6 +88,7 @@ export class Renderer extends RendererBase {
 
   newFrame() {
     const gl = this.gl;
+    this.renderTargets.beginFrame(this.state.ramDV);
     // Render everything to the back buffer. This prevents horrible flickering
     // if due to webgl clearing our context between updates.
     this.renderTargets.bindCurrent();
