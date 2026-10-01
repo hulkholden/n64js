@@ -667,6 +667,9 @@ export class Renderer extends RendererBase {
     switch (activeBlendMode) {
       case 0x0000: // G_BL_CLR_IN, G_BL_A_IN, G_BL_CLR_IN, G_BL_1MA
       case 0x0302: // G_BL_CLR_IN, G_BL_0, G_BL_CLR_IN, G_BL_1
+      case 0x3200: // G_BL_CLR_FOG, G_BL_A_SHADE, G_BL_CLR_IN, G_BL_1MA
+        // Shade-alpha fog mixes with the incoming colour in the shader;
+        // neither input is the framebuffer, so no GL blend is needed.
         mode = kBlendModeOpaque;
         break;
       // case 0x0321 = G_BL_CLR_IN, G_BL_0, G_BL_CLR_BL, G_BL_A_MEM - blend*alpha.

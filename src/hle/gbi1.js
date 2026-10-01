@@ -215,13 +215,6 @@ export class GBI1 extends GBIMicrocode {
     this.loadVertices(v0, n, address, dis);
   }
 
-  executeModifyVertex(cmd0, cmd1, dis) {
-    this.warnUnimplemented('ModifyVertex');
-    if (dis) {
-      dis.text('gsSPModifyVertex(???);');
-    }
-  }
-
   executeSprite2DBase(cmd0, cmd1, dis) {
     this.warnUnimplemented('Sprite2DBase');
     if (dis) {
