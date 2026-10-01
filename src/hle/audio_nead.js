@@ -120,8 +120,10 @@ export class NEADAudio extends AudioBase {
       case nead.OPCODE_MULTIPLY: return this.multiply(low, w1 >>> 16, unsigned16(w1) + flags);
       case nead.OPCODE_DUPLICATE: return this.duplicate(low, w1 >>> 16, Math.max(1, flags));
       case nead.OPCODE_DMEMMOVE: return this.move(this.bufferBase + low, this.bufferBase + (w1 >>> 16), round16(unsigned16(w1)));
-      case nead.OPCODE_COPY:
-        return this.move(this.bufferBase + low, this.bufferBase + (w1 >>> 16), Math.max(1, flags) * Math.max(nead.VECTOR_BYTES * 2, round32(unsigned16(w1))), nead.VECTOR_BYTES * 2);
+      case nead.OPCODE_COPY: {
+        const block = nead.VECTOR_BYTES * 2;
+        return this.move(this.bufferBase + low, this.bufferBase + (w1 >>> 16), Math.max(1, flags) * Math.max(block, round32(unsigned16(w1))), block);
+      }
       case nead.OPCODE_DOWNSAMPLE: return this.downsample(this.bufferBase + (w1 >>> 16), this.bufferBase + unsigned16(w1), Math.max(nead.VECTOR_SAMPLES, round8(low)));
       case nead.OPCODE_MIXER: return this.mix(w0, w1);
       case nead.OPCODE_ADDMIXER: return this.addMix(w0, w1);
@@ -138,12 +140,13 @@ export class NEADAudio extends AudioBase {
   decodePCM8(flags, address) {
     const count = round32(this.count), input = this.input, output = this.output;
     const history = nead.ADPCM_HISTORY_BYTES;
-    this.buffer(input, count / 2);
-    this.buffer(output, count + history, nead.VECTOR_BYTES);
-    this.disjoint(input, count / 2, output, count + history);
-    this.dmem.fill(0, output, output + history);
+    const samples = count / nead.SAMPLE_BYTES, outputSize = count + history, samplesStart = output + history;
+    this.buffer(input, samples);
+    this.buffer(output, outputSize, nead.VECTOR_BYTES);
+    this.disjoint(input, samples, output, outputSize);
+    this.dmem.fill(0, output, samplesStart);
     if (!(flags & nead.FLAG_INIT)) this.dma(output, flags & nead.FLAG_LOOP ? this.loopAddress : address, history);
-    for (let i = 0; i < count / 2; i++) this.put16(output + history + i * nead.SAMPLE_BYTES, this.dmem[input + i] << 8);
+    for (let i = 0; i < samples; i++) this.put16(samplesStart + i * nead.SAMPLE_BYTES, this.dmem[input + i] << 8);
     this.dma(output + count, address, history, true);
   }
 
@@ -165,7 +168,11 @@ export class NEADAudio extends AudioBase {
   gain(gain, count, buffer) {
     count = Math.max(nead.VECTOR_BYTES * 2, round32(count));
     this.buffer(buffer, count, nead.VECTOR_BYTES);
-    for (let p = 0; p < count; p += nead.SAMPLE_BYTES) this.put16(buffer + p, clampFixed16Hi(this.s16(buffer + p) * gain * (FIXED16_ONE / (1 << nead.GAIN_FRACTION_BITS))));
+    const fractionScale = FIXED16_ONE / (1 << nead.GAIN_FRACTION_BITS);
+    for (let p = 0; p < count; p += nead.SAMPLE_BYTES) {
+      const address = buffer + p;
+      this.put16(address, clampFixed16Hi(this.s16(address) * gain * fractionScale));
+    }
   }
 
   multiply(count, buffer, coefficients) {
@@ -173,7 +180,11 @@ export class NEADAudio extends AudioBase {
     this.buffer(buffer, count, nead.VECTOR_BYTES);
     this.buffer(coefficients, nead.ADD_BLOCK_BYTES, nead.SAMPLE_BYTES);
     for (let i = 0; i < this.multiplyCoefficients.length; i++) this.multiplyCoefficients[i] = this.s16(coefficients + i * nead.SAMPLE_BYTES);
-    for (let p = 0; p < count; p += nead.SAMPLE_BYTES) this.put16(buffer + p, clamp16(this.s16(buffer + p) * this.multiplyCoefficients[(p / nead.SAMPLE_BYTES) & (this.multiplyCoefficients.length - 1)]));
+    const coefficientMask = this.multiplyCoefficients.length - 1;
+    for (let p = 0; p < count; p += nead.SAMPLE_BYTES) {
+      const address = buffer + p;
+      this.put16(address, clamp16(this.s16(address) * this.multiplyCoefficients[(p / nead.SAMPLE_BYTES) & coefficientMask]));
+    }
   }
 
   duplicate(input, output, copies) {
@@ -184,8 +195,9 @@ export class NEADAudio extends AudioBase {
   }
 
   move(from, to, count, block = nead.VECTOR_BYTES) {
-    this.buffer(from, count, block === nead.VECTOR_BYTES ? 1 : nead.VECTOR_BYTES);
-    this.buffer(to, count, block === nead.VECTOR_BYTES ? 1 : nead.VECTOR_BYTES);
+    const alignment = block === nead.VECTOR_BYTES ? 1 : nead.VECTOR_BYTES;
+    this.buffer(from, count, alignment);
+    this.buffer(to, count, alignment);
     for (let i = 0; i < count; i += block) this.dmem.copyWithin(to + i, from + i, from + i + block);
   }
 
@@ -199,17 +211,20 @@ export class NEADAudio extends AudioBase {
   }
 
   interleave(left, right, output, count, lanes) {
-    this.buffer(left, count, lanes === nead.VECTOR_SAMPLES ? nead.VECTOR_BYTES : nead.SAMPLE_BYTES);
-    this.buffer(right, count, lanes === nead.VECTOR_SAMPLES ? nead.VECTOR_BYTES : nead.SAMPLE_BYTES);
+    const alignment = lanes === nead.VECTOR_SAMPLES ? nead.VECTOR_BYTES : nead.SAMPLE_BYTES;
+    this.buffer(left, count, alignment);
+    this.buffer(right, count, alignment);
     this.buffer(output, count * 2, nead.SAMPLE_BYTES);
     for (let p = 0; p < count; p += lanes * nead.SAMPLE_BYTES) {
       for (let i = 0; i < lanes; i++) {
-        this.samples[i] = this.s16(left + p + i * nead.SAMPLE_BYTES);
-        this.samples[i + lanes] = this.s16(right + p + i * nead.SAMPLE_BYTES);
+        const offset = p + i * nead.SAMPLE_BYTES;
+        this.samples[i] = this.s16(left + offset);
+        this.samples[i + lanes] = this.s16(right + offset);
       }
       for (let i = 0; i < lanes; i++) {
-        this.put16(output + p * 2 + i * 4, this.samples[i]);
-        this.put16(output + p * 2 + i * 4 + nead.SAMPLE_BYTES, this.samples[i + lanes]);
+        const address = output + p * 2 + i * 4;
+        this.put16(address, this.samples[i]);
+        this.put16(address + nead.SAMPLE_BYTES, this.samples[i + lanes]);
       }
     }
   }
@@ -228,7 +243,10 @@ export class NEADAudio extends AudioBase {
     // Earlier output cannot overwrite unread input; forward overlap needs
     // the RSP pipeline’s extra prefetched vectors and remains on LLE.
     if (output > input) this.disjoint(input, count, output, count);
-    for (let i = 0; i < count; i += nead.SAMPLE_BYTES) this.put16(output + i, mixSample(this.s16(output + i), this.s16(input + i), gain));
+    for (let i = 0; i < count; i += nead.SAMPLE_BYTES) {
+      const address = output + i;
+      this.put16(address, mixSample(this.s16(address), this.s16(input + i), gain));
+    }
   }
 
   addMix(w0, w1) {
@@ -241,7 +259,8 @@ export class NEADAudio extends AudioBase {
     this.require(this.vector31Known, 'NEAD add mixer carry register not initialized');
     for (let i = 0; i < count; i += nead.SAMPLE_BYTES) {
       const carry = i < nead.VECTOR_BYTES ? this.vector31[i / nead.SAMPLE_BYTES] >>> 15 : 0;
-      this.put16(output + i, clamp16(this.s16(output + i) + this.s16(input + i) + carry));
+      const address = output + i;
+      this.put16(address, clamp16(this.s16(address) + this.s16(input + i) + carry));
     }
     for (let i = 0; i < nead.VECTOR_SAMPLES; i++) this.vector31[i] *= 2;
   }
@@ -292,12 +311,17 @@ export class NEADAudio extends AudioBase {
         const sample = this.s16(input + offset);
         const left = mulUnsignedFraction(sample, v[lane]) ^ leftMask;
         const right = mulUnsignedFraction(sample, v[2 + lane]) ^ rightMask;
-        this.put16(out[0] + offset, clamp16(this.s16(out[0] + offset) + left));
-        this.put16(out[1] + offset, clamp16(this.s16(out[1] + offset) + right));
-        const wetLeft = mulUnsignedFraction(left, v[4 + lane]) ^ wetLeftMask;
-        const wetRight = mulUnsignedFraction(right, v[4 + lane]) ^ wetRightMask;
-        if (wetEnabled) this.put16(out[2] + offset, clamp16(this.s16(out[2] + offset) + (swap ? wetRight : wetLeft)));
-        if (wetEnabled) this.put16(out[3] + offset, clamp16(this.s16(out[3] + offset) + (swap ? wetLeft : wetRight)));
+        const leftAddress = out[0] + offset, rightAddress = out[1] + offset;
+        this.put16(leftAddress, clamp16(this.s16(leftAddress) + left));
+        this.put16(rightAddress, clamp16(this.s16(rightAddress) + right));
+        const wetVolume = v[4 + lane];
+        const wetLeft = mulUnsignedFraction(left, wetVolume) ^ wetLeftMask;
+        const wetRight = mulUnsignedFraction(right, wetVolume) ^ wetRightMask;
+        if (wetEnabled) {
+          const wetLeftAddress = out[2] + offset, wetRightAddress = out[3] + offset;
+          this.put16(wetLeftAddress, clamp16(this.s16(wetLeftAddress) + (swap ? wetRight : wetLeft)));
+          this.put16(wetRightAddress, clamp16(this.s16(wetRightAddress) + (swap ? wetLeft : wetRight)));
+        }
       }
       for (let channel = 0; channel < 3; channel++) {
         v[channel * 2] += rates[channel];
@@ -311,12 +335,13 @@ export class NEADAudio extends AudioBase {
   firFilter(w0, w1) {
     const flags = (w0 >>> 16) & 255, address = this.address(w1);
     const state = this.scratch, stateSize = this.filterStateSize;
-    const coefficients = state + stateSize + nead.FIR_COEFFICIENT_BYTES;
-    this.dmem.fill(0, state, state + stateSize);
+    const stateEnd = state + stateSize;
+    const coefficients = stateEnd + nead.FIR_COEFFICIENT_BYTES;
+    this.dmem.fill(0, state, stateEnd);
 
     if (flags > 1) {
       this.filterCount = Math.max(nead.VECTOR_BYTES, round16(unsigned16(w0)));
-      this.dmem.fill(0, state + stateSize, coefficients);
+      this.dmem.fill(0, stateEnd, coefficients);
       this.dmem.fill(0, coefficients + nead.VECTOR_BYTES, coefficients + 2 * nead.VECTOR_BYTES);
       this.dma(coefficients, address, nead.FIR_COEFFICIENT_BYTES);
       return;
@@ -326,9 +351,11 @@ export class NEADAudio extends AudioBase {
     if (!flags) this.dma(state, address, stateSize);
     if (stateSize === 2 * nead.VECTOR_BYTES) {
       for (let i = 0; i < nead.VECTOR_SAMPLES; i++) {
-        const value = (this.s16(coefficients + i * nead.SAMPLE_BYTES) + this.s16(state + nead.VECTOR_BYTES + i * nead.SAMPLE_BYTES) + 1) >> 1;
-        this.put16(coefficients + i * nead.SAMPLE_BYTES, value);
-        this.put16(state + nead.VECTOR_BYTES + i * nead.SAMPLE_BYTES, value);
+        const coefficientAddress = coefficients + i * nead.SAMPLE_BYTES;
+        const stateCoefficientAddress = state + nead.VECTOR_BYTES + i * nead.SAMPLE_BYTES;
+        const value = (this.s16(coefficientAddress) + this.s16(stateCoefficientAddress) + 1) >> 1;
+        this.put16(coefficientAddress, value);
+        this.put16(stateCoefficientAddress, value);
       }
     }
 
