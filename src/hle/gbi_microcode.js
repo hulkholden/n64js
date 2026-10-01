@@ -282,6 +282,60 @@ export class GBIMicrocode {
     }
   }
 
+  executeModifyVertex(cmd0, cmd1, dis) {
+    const vtx = (cmd0 >>> 1) & 0x7fff;
+    const offset = (cmd0 >>> 16) & 0xff;
+    const value = cmd1;
+
+    if (dis) {
+      dis.text(`gsSPModifyVertex(${vtx},${gbi.ModifyVtx.nameOf(offset)},${toString32(value)});`);
+    }
+
+    // Cures crash after swinging in Mario Golf
+    if (vtx >= this.state.projectedVertices.length) {
+      this.warn('crazy vertex index', vtx);
+      return;
+    }
+
+    const vertex = this.state.projectedVertices[vtx];
+
+    switch (offset) {
+      case gbi.ModifyVtx.G_MWO_POINT_RGBA:
+        this.warnUnimplemented('modifyVtx RGBA');
+        break;
+
+      case gbi.ModifyVtx.G_MWO_POINT_ST:
+        {
+          // ModifyVertex writes post-transform coordinates: signed s10.5,
+          // already scaled by the caller (unlike a regular vertex load).
+          const u = (value >> 16);
+          const v = ((value & 0xffff) << 16) >> 16;
+          vertex.set = true;
+          vertex.u = u / 32.0;
+          vertex.v = v / 32.0;
+        }
+        break;
+
+      case gbi.ModifyVtx.G_MWO_POINT_XYSCREEN:
+        this.warnUnimplemented('modifyVtx XYSCREEN');
+        break;
+
+      case gbi.ModifyVtx.G_MWO_POINT_ZSCREEN:
+        {
+          // Screen Z is unsigned 16.16, already transformed by the viewport.
+          // Undo only the VI mapping, retaining W for the perspective divide.
+          const screenZ = (value >>> 0) / 65536.0;
+          const viTransform = this.renderer.nativeTransform.viTransform;
+          vertex.pos.z = (screenZ - viTransform.trans.z) * vertex.pos.w / viTransform.scale.z;
+        }
+        break;
+
+      default:
+        this.warnUnimplemented('modifyVtx');
+        break;
+    }
+  }
+
   projectInPlace(vertex, xyz, wvp, vpTransform, viTransform, fog = null) {
     const pos = vertex.pos;
     wvp.transformPoint(xyz, pos);

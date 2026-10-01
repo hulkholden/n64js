@@ -39,7 +39,7 @@ export class GBI2 extends GBIMicrocode {
     this.gbi2Commands = new Map([
       [G_NOOP, this.executeNoop.bind(this)],
       [G_VTX, this.executeVertex.bind(this)],
-      [G_MODIFYVTX, this.executeModifyVtx.bind(this)],
+      [G_MODIFYVTX, this.executeModifyVertex.bind(this)],
       [G_CULLDL, this.executeCullDL.bind(this)],
       [G_BRANCH_Z, this.executeBranchZ.bind(this)],
       [G_TRI1, this.executeTri1.bind(this)],
@@ -313,53 +313,6 @@ export class GBI2 extends GBIMicrocode {
     });
     this.state.currentOp += commandsExecuted - 1;
     this.renderer.flushTris(tb);
-  }
-
-  executeModifyVtx(cmd0, cmd1, dis) {
-    const vtx = (cmd0 >>> 1) & 0x7fff;
-    const offset = (cmd0 >>> 16) & 0xff;
-    const value = cmd1;
-
-    if (dis) {
-      dis.text(`gsSPModifyVertex(${vtx},${gbi.ModifyVtx.nameOf(offset)},${toString32(value)});`);
-    }
-
-    // Cures crash after swinging in Mario Golf
-    if (vtx >= this.state.projectedVertices.length) {
-      this.warn('crazy vertex index', vtx);
-      return;
-    }
-
-    const vertex = this.state.projectedVertices[vtx];
-
-    switch (offset) {
-      case gbi.ModifyVtx.G_MWO_POINT_RGBA:
-        this.warnUnimplemented('modifyVtx RGBA');
-        break;
-
-      case gbi.ModifyVtx.G_MWO_POINT_ST:
-        {
-          // u/v are signed
-          const u = (value >> 16);
-          const v = ((value & 0xffff) << 16) >> 16;
-          vertex.set = true;
-          vertex.u = u * this.state.texture.scaleS / 32.0;
-          vertex.v = v * this.state.texture.scaleT / 32.0;
-        }
-        break;
-
-      case gbi.ModifyVtx.G_MWO_POINT_XYSCREEN:
-        this.warnUnimplemented('modifyVtx XYSCREEN');
-        break;
-
-      case gbi.ModifyVtx.G_MWO_POINT_ZSCREEN:
-        this.warnUnimplemented('modifyVtx ZSCREEN');
-        break;
-
-      default:
-        this.warnUnimplemented('modifyVtx');
-        break;
-    }
   }
 
   executeTexture(cmd0, cmd1, dis) {

@@ -283,9 +283,13 @@ export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, alphaCompare, en
   }
   // G_RM_FOG_SHADE_A: FOG * SHADE_ALPHA + IN * (1 - SHADE_ALPHA).
   // This is an RDP draw-time choice, independent of the current RSP G_FOG bit.
-  const fogShadeAlpha = cycleType === gbi.CycleType.G_CYC_2CYCLE && ((blender >>> 2) & 0x3333) === 0x3200;
-  if (fogShadeAlpha) {
-    stateText += '_fogShadeAlpha';
+  let fogBlendCycles = 0;
+  if (cycleType === gbi.CycleType.G_CYC_1CYCLE || cycleType === gbi.CycleType.G_CYC_2CYCLE) {
+    if (((blender >>> 2) & 0x3333) === 0x3200) fogBlendCycles++;
+    if (cycleType === gbi.CycleType.G_CYC_2CYCLE && (blender & 0x3333) === 0x3200) fogBlendCycles++;
+  }
+  if (fogBlendCycles) {
+    stateText += `_fogShadeAlpha${fogBlendCycles}`;
   }
 
   let shader = shaderCache.get(stateText);
@@ -352,7 +356,7 @@ export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, alphaCompare, en
     body += '  if(col.a <= 0.0) discard;\n';
   }
 
-  if (fogShadeAlpha) {
+  for (let i = 0; i < fogBlendCycles; ++i) {
     // The blender sees the clamped combiner RGB. Preserve combiner alpha for
     // the final framebuffer blend and alpha test; fog comes from shade alpha.
     body += '  col.rgb = mix(clamp(col.rgb, 0.0, 1.0), uFogColor.rgb, shade.a);\n';

@@ -114,12 +114,24 @@ export function runFogTests(gl) {
     throw new Error('Restoring first-cycle fog failed to reuse its shader');
   }
   state.rdpOtherModeH = gbi.CycleType.G_CYC_1CYCLE;
-  // Keep the FOG_SHADE_A bits and inspect shader output with framebuffer
-  // blending disabled; one-cycle fog blending is outside scope.
-  renderer.setGLBlendMode = () => gl.disable(gl.BLEND);
-  check('two-cycle fog shader is not applied in one-cycle mode', solid([0, 0, 255, 255]));
-  delete renderer.setGLBlendMode;
+  state.rdpOtherModeL = 0xc8002000; // FOG_SHADE_A with alpha coverage select.
+  check('one-cycle fog blends shade alpha independently of coverage select', solid([128, 0, 127, 255]));
+  load([0, 0, 0]);
+  check('one-cycle fog leaves incoming colour at zero shade alpha', solid([0, 0, 255, 255]));
+  load([4, 4, 4]);
+  check('one-cycle fog reaches fog colour at full shade alpha', solid([255, 0, 0, 255]));
+  load([2, 4, 8], { varyingW: true });
+  check('one-cycle fog interpolates shade alpha affinely', gradient([56, 72, 88, 104]));
+  load();
+  state.rdpOtherModeL = 0;
+  check('disabling one-cycle fog selects a different shader', solid([0, 0, 255, 255]));
+  state.rdpOtherModeL = 0x32000000;
+  check('one-cycle mode ignores second-cycle fog fields', solid([0, 0, 255, 255]));
   state.rdpOtherModeH = gbi.CycleType.G_CYC_2CYCLE;
+  check('second-cycle fog blends with the incoming colour', solid([128, 0, 127, 255]));
+  state.rdpOtherModeL = 0xfa000000;
+  check('fog in both blender cycles is applied twice', solid([192, 0, 63, 255]));
+  state.rdpOtherModeL = 0xc8000000;
 
   combine(3, 3, 0, 0);
   // Cycle one computes primitive * shade + primitive (blue = 2), then passes it.
