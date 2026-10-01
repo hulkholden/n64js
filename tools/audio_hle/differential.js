@@ -33,7 +33,7 @@ for (let trial = 0; trial < 1000; trial++) {
     set(0x36a, 0xa00); set(0x36c, 0xb00); set(0x36e, 0xc00);
     const flags = op === 3 ? (trial % 2) | ((trial & 2) << 2) : trial % 4;
     let w0 = (op << 24) | (flags << 16) | (random() & 0xffff);
-    const w1 = op === 12 ? (trial % 3 === 0 ? 0x00400040 : 0x00400340) : 0x1000;
+    let w1 = op === 12 ? (trial % 3 === 0 ? 0x00400040 : 0x00400340) : 0x1000;
     if (op === 1) {
       view.setUint32(0x370, 0x1100); // Loop history separate from output state.
       w0 = (op << 24) | (flags << 16);
@@ -76,6 +76,11 @@ for (let trial = 0; trial < 1000; trial++) {
           for (let i = 0; i < 32; i++) ramView.setUint16(0x1000 + i * 2, random());
         }
       }
+    }
+    if (op !== 12) {
+      const segment = [0, 0x80, 0xff][trial % 3];
+      view.setUint32(0x320 + segment * 4, trial & 8 ? 0xff000800 : 0x800);
+      w1 = (segment << 24) | 0x800;
     }
     const { rsp } = createReplay({ ram, dmem, imem });
     rsp.pc = view.getUint16(0x10 + op * 2) & 4095;

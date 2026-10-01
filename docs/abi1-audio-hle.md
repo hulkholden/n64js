@@ -22,8 +22,8 @@ state remain shared. See the [GoldenEye derivation](goldeneye-audio-hle.md).
 the resampler table address; see the [Diddy/Blast derivation](diddy-blast-audio-hle.md).
 The selector in `src/hle/hle_audio.js` explicitly maps these identities to their
 classes. These are all four ABI1 identities in the current classifier manifest.
-Unknown programs and the separate NEAD family still fall back. The reviewed
-NAUDIO family now has its own [implementation and derivation](naudio-audio-hle.md). This
+Unknown programs still fall back. The reviewed NEAD and NAUDIO families have
+their own [NEAD](nead-audio-hle.md) and [NAUDIO](naudio-audio-hle.md) derivations. This
 keeps variant changes local to the behavior established by captured instructions.
 
 The reviewed `rspboot-208` path accepts `OS_TASK_DP_WAIT` when DPC DMA is already
@@ -150,6 +150,38 @@ reviewed command domain. Configured wet buffers therefore remain untouched.
 This agrees with command-boundary and complete RDRAM comparisons, including
 initialization and continuation. As with other instruction-private temporaries,
 HLE does not promise exact scratch or vector-register residue.
+
+## Aidyn Chronicles segment-base lookup
+
+The USA ROM's first audio task at VI frame 3 reproduced the reported fallback.
+Command 61 is `06000000 801aaf30` (SAVEBUFF); HLE rejected the high-byte index
+0x80 because it assumed every read used one of the sixteen conventional segment
+entries. The RSP does not enforce that limit. At `0x1264–0x1270` it shifts the
+entire high byte left by two, reads a word at `0x320 + index * 4`, and adds that
+base to the command's low 24 bits. Aidyn's pointer therefore reads DMEM 0x520,
+within the predictor book. Simply stripping the 0x80 prefix would fail when
+that word is nonzero.
+
+All four reviewed ABI1 programs perform the same address lookup. The HLE now
+reads that live DMEM word, wraps the sum to 32 bits, and masks DMA addresses to
+24 bits. SETLOOP preserves the full sum, matching the SW at `0x1464` in the
+standard program. Out-of-RAM DMA still rejects the task atomically. SEGMENT
+writes beyond the conventional table remain outside the reviewed domain.
+No extra buffers, views or per-command allocations are introduced.
+
+The first capture matches all 377 command results and the complete final RAM.
+It is retained under `/tmp/aidyn-abi1-failure/failure`; disassembly is in
+`/tmp/aidyn-abi1-disassembly.txt`. Separate 1800-VI-frame runs of the USA and
+European ROMs completed 1797 and 1798 audio tasks respectively, with nonzero PCM,
+no fallbacks and no oracle output mismatches. These runs cover startup/attract
+behavior, not exhaustive gameplay.
+
+`differential_abi1_addresses.js` executes LOADBUFF, SAVEBUFF, LOADADPCM and SETLOOP
+using every high-byte index and four base patterns, including sign bits and
+overflow. All 16384 comparisons across the four ABI1 programs pass. The existing
+20000 DSP trials now additionally use extended indices and nonzero/high-bit bases.
+Eleven fallback/reuse cases pass on the Aidyn capture. The standalone fix passed
+1585 unit tests, lint and build, without requiring the open NEAD or NAUDIO PRs.
 
 ## Reproduction
 
