@@ -163,6 +163,7 @@ export class GBI0DKR extends GBI0 {
     let wvp = this.matrixArray[this.matrixIndex];
     const viTransform = this.renderer.nativeTransform.viTransform;
     const vpTransform = this.state.viewport.transform;
+    const fog = this.state.geometryMode.fog ? this.state.fogParameters : null;
     const posTemp = new Vector3();
 
     if (this.billboardMode) {
@@ -193,8 +194,8 @@ export class GBI0DKR extends GBI0 {
       // Load as little-endian (ABGR) for convenience.
       vertex.color = dv.getUint32(offset + 6, true);
 
-      // Project.
-      this.projectInPlace(vertex, posTemp, wvp, vpTransform, viTransform);
+      // Cache fog in shade alpha for DKR's custom vertex format too.
+      this.projectInPlace(vertex, posTemp, wvp, vpTransform, viTransform, fog);
 
       if (dis) {
         const v = [
