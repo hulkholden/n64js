@@ -451,7 +451,39 @@ try {
   drawDepth([0, 0, 0], 0xff0000ff, [-1, -2, -4]);
   checkDepth('NoN still clips geometry behind the eye', [blue, blue, blue, blue]);
 
+  // G.A.S.P character select moves loaded vertices to screen Z = 1.5.
+  // The replacement depth must survive WebGL's perspective divide and Z test.
+  const depthMicrocode = new GBIMicrocode(state, state.ramDV);
+  depthMicrocode.renderer = renderer;
+  function drawModifiedDepth(word) {
+    const vertices = state.projectedVertices.slice(0, 3);
+    const xy = [[-1, -1], [3, -1], [-1, 3]];
+    for (let i = 0; i < 3; ++i) {
+      const w = 1 << i;
+      vertices[i].pos.elems.set([xy[i][0] * w, xy[i][1] * w, 0.5 * w, w]);
+      vertices[i].color = 0xff0000ff;
+      vertices[i].set = true;
+      depthMicrocode.executeModifyVertex(0xb21c0000 | (i << 1), word);
+    }
+    depthBuffer.reset();
+    depthBuffer.pushTri(...vertices);
+    renderer.flushTris(depthBuffer);
+  }
+  clearDepthScene();
+  state.noNearClipping = false;
+  drawDepth([-0.99, -0.99, -0.99], 0xff00ff00);
+  drawModifiedDepth(0x00018000);
+  drawDepth([-0.99, -0.99, -0.99], 0xff00ff00);
+  checkDepth('G.A.S.P screen-depth updates occlude the background with unequal W', [red, red, red, red]);
+
+  clearDepthScene();
+  drawDepth([1 / 2048, 1 / 2048, 1 / 2048], 0xff00ff00);
+  drawModifiedDepth(0x01ff8000);
+  checkDepth('screen-depth updates preserve fractional bits during depth testing', [green, green, green, green]);
+
   // RDP rectangles bypass the RSP's NoN behavior even while it is selected.
+  clearDepthScene();
+  state.noNearClipping = true;
   state.rdpOtherModeL = gbi.DepthSource.G_ZS_PRIM;
   state.primDepth = -4;
   renderer.texRect(0, 0, 0, 320, 240, 0, 0, 0, 0);

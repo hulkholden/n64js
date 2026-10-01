@@ -321,7 +321,13 @@ export class GBIMicrocode {
         break;
 
       case gbi.ModifyVtx.G_MWO_POINT_ZSCREEN:
-        this.warnUnimplemented('modifyVtx ZSCREEN');
+        {
+          // Screen Z is unsigned 16.16, already transformed by the viewport.
+          // Undo only the VI mapping, retaining W for the perspective divide.
+          const screenZ = (value >>> 0) / 65536.0;
+          const viTransform = this.renderer.nativeTransform.viTransform;
+          vertex.pos.z = (screenZ - viTransform.trans.z) * vertex.pos.w / viTransform.scale.z;
+        }
         break;
 
       default:
