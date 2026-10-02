@@ -10,11 +10,13 @@ describe('TMEM hash wrapping', () => {
     ['IA8', gbi.ImageFormat.G_IM_FMT_IA, gbi.ImageSize.G_IM_SIZ_8b, 4096],
     ['CI4', gbi.ImageFormat.G_IM_FMT_CI, gbi.ImageSize.G_IM_SIZ_4b, 2048],
     ['CI8', gbi.ImageFormat.G_IM_FMT_CI, gbi.ImageSize.G_IM_SIZ_8b, 2048],
-    ['RGBA4 (CI4 alias)', gbi.ImageFormat.G_IM_FMT_RGBA, gbi.ImageSize.G_IM_SIZ_4b, 2048],
-    ['RGBA8 (CI8 alias)', gbi.ImageFormat.G_IM_FMT_RGBA, gbi.ImageSize.G_IM_SIZ_8b, 2048],
+    ['RGBA4 without TLUT', gbi.ImageFormat.G_IM_FMT_RGBA, gbi.ImageSize.G_IM_SIZ_4b, 4096],
+    ['RGBA8 without TLUT', gbi.ImageFormat.G_IM_FMT_RGBA, gbi.ImageSize.G_IM_SIZ_8b, 4096],
+    ['RGBA4 with TLUT', gbi.ImageFormat.G_IM_FMT_RGBA, gbi.ImageSize.G_IM_SIZ_4b, 2048, gbi.TextureLUT.G_TT_RGBA16],
+    ['RGBA8 with TLUT', gbi.ImageFormat.G_IM_FMT_RGBA, gbi.ImageSize.G_IM_SIZ_8b, 2048, gbi.TextureLUT.G_TT_RGBA16],
   ];
 
-  for (const [name, format, size, boundary] of formats) {
+  for (const [name, format, size, boundary, tlut = gbi.TextureLUT.G_TT_NONE] of formats) {
     test(`${name} hashes wrapped texels and detects changes to them`, () => {
       const tmem = new TMEM();
       tmem.tmemData.set(Uint8Array.from({ length: 4096 }, (_, i) => (i * 37 + (i >>> 8) * 13) & 0xff));
@@ -25,13 +27,14 @@ describe('TMEM hash wrapping', () => {
       const tile = { format, size, tmem: (boundary - 16) / 8,
         line: 2, height: 2, palette: 0, hash: 0 };
 
-      const before = tmem.calculateCRC(tile);
-      expect(before).toBe(reference.calculateCRC({ ...tile, tmem: 0, hash: 0 }));
+      const before = tmem.calculateCRC(tile, tile, tlut);
+      const referenceTile = { ...tile, tmem: 0, hash: 0 };
+      expect(before).toBe(reference.calculateCRC(referenceTile, referenceTile, tlut));
 
       tmem.tmemData[0] ^= 1;
       // TMEM loads invalidate the per-tile hash before the renderer looks it up.
       tile.hash = 0;
-      expect(tmem.calculateCRC(tile)).not.toBe(before);
+      expect(tmem.calculateCRC(tile, tile, tlut)).not.toBe(before);
     });
   }
 });

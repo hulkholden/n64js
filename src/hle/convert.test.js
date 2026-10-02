@@ -13,8 +13,8 @@ const formats = [
   ['I4', gbi.ImageFormat.G_IM_FMT_I, gbi.ImageSize.G_IM_SIZ_4b, 4096],
   ['CI8', gbi.ImageFormat.G_IM_FMT_CI, gbi.ImageSize.G_IM_SIZ_8b, 2048],
   ['CI4', gbi.ImageFormat.G_IM_FMT_CI, gbi.ImageSize.G_IM_SIZ_4b, 2048],
-  ['RGBA8 (CI8 alias)', gbi.ImageFormat.G_IM_FMT_RGBA, gbi.ImageSize.G_IM_SIZ_8b, 2048],
-  ['RGBA4 (CI4 alias)', gbi.ImageFormat.G_IM_FMT_RGBA, gbi.ImageSize.G_IM_SIZ_4b, 2048],
+  ['RGBA8', gbi.ImageFormat.G_IM_FMT_RGBA, gbi.ImageSize.G_IM_SIZ_8b, 4096],
+  ['RGBA4', gbi.ImageFormat.G_IM_FMT_RGBA, gbi.ImageSize.G_IM_SIZ_4b, 4096],
 ];
 
 describe('TMEM texel wrapping', () => {
@@ -108,8 +108,8 @@ test('RGBA16 repeating TMEM rows match scalar conversion and preserve destinatio
 // or row-period copies, to check the optimized converters independently.
 function referenceTexels(dstData, dstWidth, src, tile, tlutFormat) {
   const palette = tile.size < 2 && (tile.format === gbi.ImageFormat.G_IM_FMT_CI ||
-    tile.format === gbi.ImageFormat.G_IM_FMT_RGBA ||
-    (tlutFormat !== 0 && (tile.format === gbi.ImageFormat.G_IM_FMT_IA || tile.format === gbi.ImageFormat.G_IM_FMT_I)));
+    (tlutFormat !== 0 && (tile.format === gbi.ImageFormat.G_IM_FMT_RGBA ||
+      tile.format === gbi.ImageFormat.G_IM_FMT_IA || tile.format === gbi.ImageFormat.G_IM_FMT_I)));
   const rgba32 = tile.format === gbi.ImageFormat.G_IM_FMT_RGBA && tile.size === 3;
   const yuv = tile.format === gbi.ImageFormat.G_IM_FMT_YUV;
   const stride = tile.line * (rgba32 || yuv ? 16 : 8);
@@ -134,9 +134,9 @@ function referenceTexels(dstData, dstWidth, src, tile, tlutFormat) {
       } else if (yuv) {
         const pair = ((row + (x & ~1) * 2) ^ swizzle) & 0xfff;
         pixel = [src[pair], src[(pair + 2) & 0xfff], src[(pair + (x & 1) * 2 + 1) & 0xfff], 255];
-      } else if (tile.format === gbi.ImageFormat.G_IM_FMT_RGBA) {
+      } else if (tile.format === gbi.ImageFormat.G_IM_FMT_RGBA && tile.size === 2) {
         pixel = rgba16(value);
-      } else if (tile.format === gbi.ImageFormat.G_IM_FMT_I) {
+      } else if (tile.format === gbi.ImageFormat.G_IM_FMT_I || tile.format === gbi.ImageFormat.G_IM_FMT_RGBA) {
         pixel = Array(4).fill(tile.size === 0 ? value * 17 : value);
       } else if (tile.size === 2) {
         pixel = ia16(value);
@@ -176,8 +176,8 @@ for (const [name, format, size, boundary] of formats) {
   });
 }
 
-test('IA8, IA4, I8 and I4 tables expand every possible source value', () => {
-  for (const [format, size] of [[3, 1], [3, 0], [4, 1], [4, 0]]) {
+test('4/8-bit RGBA, IA and I without TLUT expand every possible source value', () => {
+  for (const [format, size] of [[0, 1], [0, 0], [3, 1], [3, 0], [4, 1], [4, 0]]) {
     const src = new Uint8Array(4096);
     for (let i = 0; i < 256; i++) src[i] = i;
     const tile = { format, size, width: size === 0 ? 512 : 256, height: 1, line: 32, tmem: 0 };

@@ -73,6 +73,8 @@ describe('texture lookup and decoding', () => {
   });
 
   for (const [name, format, size, direct] of [
+    ['RGBA4', gbi.ImageFormat.G_IM_FMT_RGBA, gbi.ImageSize.G_IM_SIZ_4b, [238, 238, 238, 238]],
+    ['RGBA8', gbi.ImageFormat.G_IM_FMT_RGBA, gbi.ImageSize.G_IM_SIZ_8b, [14, 14, 14, 14]],
     ['IA4', gbi.ImageFormat.G_IM_FMT_IA, gbi.ImageSize.G_IM_SIZ_4b, [255, 255, 255, 0]],
     ['IA8', gbi.ImageFormat.G_IM_FMT_IA, gbi.ImageSize.G_IM_SIZ_8b, [0, 0, 0, 238]],
     ['I4', gbi.ImageFormat.G_IM_FMT_I, gbi.ImageSize.G_IM_SIZ_4b, [238, 238, 238, 238]],

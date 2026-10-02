@@ -353,6 +353,23 @@ try {
     ...font, tlut: gbi.TextureLUT.G_TT_IA16,
   });
 
+  // Extreme-G enables TLUT for RGBA4/8 track and bike textures. Disabling
+  // TLUT must instead expose their intensity values, including alpha.
+  for (const [name, size, value, intensity] of [
+    ['RGBA4', gbi.ImageSize.G_IM_SIZ_4b, 0xe0, 238],
+    ['RGBA8', gbi.ImageSize.G_IM_SIZ_8b, 0x0e, 14],
+  ]) {
+    tmem[0] = value;
+    for (let bank = 0; bank < 4; bank++) {
+      tmem.set([0xf8, 0x01], 0x800 + 14 * 8 + bank * 2);
+    }
+    state.invalidateTileHashes();
+    const rgba = { decode: true, format: gbi.ImageFormat.G_IM_FMT_RGBA, size, tex: { width: 1, height: 1 } };
+    check(`${name} uses RGBA16 palette when enabled`, red, { ...rgba, tlut: gbi.TextureLUT.G_TT_RGBA16 });
+    check(`${name} uses intensity when TLUT is disabled`, Array(4).fill(intensity), rgba);
+    check(`${name} uses IA16 palette when enabled`, [248, 248, 248, 1], { ...rgba, tlut: gbi.TextureLUT.G_TT_IA16 });
+  }
+
   // Decode real CI4 TMEM for the scrolling-background case. A stubbed host
   // texture cannot catch the decoder truncating a 64-texel wrap region.
   for (let y = 0; y < 64; y++) {

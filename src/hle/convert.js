@@ -274,19 +274,22 @@ function convertCI4(dstData, dstWidth, src, tile, pixels) {
   convert4b(dstData, dstWidth, src, tile, convertPalette(src, tile.palette, 16, pixels), kCIAddressMask);
 }
 
-// The TLUT also applies to 4/8-bit IA and I tiles (Bio FREAKS uses IA4 fonts
-// with an RGBA16 palette). Keep the existing RGBA/CI fallback when TLUT is off.
+// The TLUT also applies to 4/8-bit RGBA, IA and I tiles: Extreme-G uses RGBA
+// and Bio FREAKS uses IA4 with an RGBA16 palette. Keep the existing CI fallback
+// when TLUT is off; RGBA, IA and I must follow the enable state.
 // See sample_texture's TLUT path in:
 // https://github.com/Themaister/parallel-rdp/blob/master/parallel-rdp/shaders/texture.h
 export function getTexturePaletteFormat(tile, tlutFormat) {
   if (tile.size !== gbi.ImageSize.G_IM_SIZ_4b && tile.size !== gbi.ImageSize.G_IM_SIZ_8b) {
     return gbi.TextureLUT.G_TT_NONE;
   }
-  const indexed = tile.format === gbi.ImageFormat.G_IM_FMT_CI || tile.format === gbi.ImageFormat.G_IM_FMT_RGBA;
-  const intensity = tile.format === gbi.ImageFormat.G_IM_FMT_IA || tile.format === gbi.ImageFormat.G_IM_FMT_I;
+  if (tile.format === gbi.ImageFormat.G_IM_FMT_CI) {
+    return tlutFormat === gbi.TextureLUT.G_TT_IA16 ? tlutFormat : gbi.TextureLUT.G_TT_RGBA16;
+  }
+  const supported = tile.format === gbi.ImageFormat.G_IM_FMT_RGBA ||
+    tile.format === gbi.ImageFormat.G_IM_FMT_IA || tile.format === gbi.ImageFormat.G_IM_FMT_I;
   const enabled = tlutFormat === gbi.TextureLUT.G_TT_RGBA16 || tlutFormat === gbi.TextureLUT.G_TT_IA16;
-  if (!indexed && !(intensity && enabled)) return gbi.TextureLUT.G_TT_NONE;
-  return tlutFormat === gbi.TextureLUT.G_TT_IA16 ? tlutFormat : gbi.TextureLUT.G_TT_RGBA16;
+  return supported && enabled ? tlutFormat : gbi.TextureLUT.G_TT_NONE;
 }
 
 /**
@@ -328,6 +331,13 @@ export function convertTexels(dstData, dstWidth, tmem, tile, tlutFormat) {
           return true;
         case gbi.ImageSize.G_IM_SIZ_16b:
           convert16b(dstData, dstWidth, tmem, tile, rgba16Pixels);
+          return true;
+        // With TLUT disabled, RGBA4/8 replicate intensity into all channels.
+        case gbi.ImageSize.G_IM_SIZ_8b:
+          convert8b(dstData, dstWidth, tmem, tile, i8Pixels);
+          return true;
+        case gbi.ImageSize.G_IM_SIZ_4b:
+          convert4b(dstData, dstWidth, tmem, tile, i4Pixels);
           return true;
       }
       break;

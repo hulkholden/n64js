@@ -20,7 +20,7 @@ function pixel(tmem, tile) {
 describe('4-bit palette hashing', () => {
   for (const [name, format] of [
     ['CI4', gbi.ImageFormat.G_IM_FMT_CI],
-    ['RGBA4 (CI4 alias)', gbi.ImageFormat.G_IM_FMT_RGBA],
+    ['RGBA4 with TLUT', gbi.ImageFormat.G_IM_FMT_RGBA],
     ['IA4 with TLUT', gbi.ImageFormat.G_IM_FMT_IA],
     ['I4 with TLUT', gbi.ImageFormat.G_IM_FMT_I],
   ]) {
