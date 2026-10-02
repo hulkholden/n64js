@@ -34,6 +34,9 @@ const DMEM_COMMAND_BUFFER = 0x380;
 const COMMAND_BUFFER_SIZE = 0x140;
 const DMEM_ADPCM_BOOK = 0x4c0;
 const ADPCM_BOOK_SIZE = 0x100;
+// Four-bit indices address sixteen 32-byte predictors. The upper half
+// extends beyond the usual loaded book into sample memory.
+const ADPCM_PREDICTOR_LOOKUP_SIZE = 0x200;
 const DMEM_SAMPLE_BUFFER = 0x5c0;
 const DMEM_SCRATCH = 0xf90;
 
@@ -270,8 +273,10 @@ export class ABI1Audio extends AudioBase {
   }
 
   adpcm(flags, address) {
+    // Keep coefficients below output so decoding cannot overwrite them.
+    const bookSize = Math.min(ADPCM_PREDICTOR_LOOKUP_SIZE, this.output - DMEM_ADPCM_BOOK);
     this.decodeADPCM(flags, address, this.input, this.output, round32(this.count),
-      DMEM_ADPCM_BOOK, ADPCM_BOOK_SIZE, this.view.getUint32(PARAM_LOOP_ADDRESS));
+      DMEM_ADPCM_BOOK, bookSize, this.view.getUint32(PARAM_LOOP_ADDRESS));
   }
 
   resample(flags, pitch, address) {
