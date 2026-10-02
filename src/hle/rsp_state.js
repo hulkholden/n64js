@@ -189,8 +189,8 @@ export class RSPState {
    * @returns {boolean} Whether the display list is finished.
    */
   nextCommand() {
-    // If this displaylist is limited, check whether we've reached the end.
-    if (this.pcEnd && this.pc >= this.pcEnd) {
+    // Returning from a child can also exhaust its counted parent.
+    while (this.pcEnd && this.pc >= this.pcEnd) {
       this.endDisplayList();
     }
     if (this.pc == 0) {
@@ -213,7 +213,7 @@ export class RSPState {
     // Abort if we're at the end of the display list.
     // It's unlikely a batch continues across a display list boundary so don't
     // try and handle this (we'll just pick it up the next time around the main lop).
-    if (this.pc == 0 || (this.pcEnd && this.pc > this.pcEnd)) {
+    if (this.pc == 0 || (this.pcEnd && this.pc >= this.pcEnd)) {
       return false;
     }
 

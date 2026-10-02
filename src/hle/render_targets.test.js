@@ -38,6 +38,65 @@ const colorImage = (address, width = 2, size = ImageSize.G_IM_SIZ_16b) => ({
 });
 
 describe('rendered color images', () => {
+  test('does not overwrite RAM repurposed after drawing an old framebuffer', () => {
+    const gl = fakeGL();
+    const targets = new RenderTargets(gl, 4, 4);
+    const ram = new DataView(new ArrayBuffer(128));
+    targets.beginFrame(ram);
+    targets.bindColorImage(colorImage(64, 4), 4, 4);
+    const menu = targets.current;
+    menu.framebuffer.pixels = new Uint8Array(64).fill(255);
+    targets.markDirty({ y1: 4 });
+
+    // A different framebuffer is used for racing, while the CPU decompresses
+    // course data over the menu's old allocation.
+    targets.beginFrame(ram);
+    targets.bindColorImage(colorImage(0, 2), 4, 4);
+    targets.markDirty({ y1: 2 });
+    ram.setUint32(80, 0x12345678);
+    targets.syncToRAM(80, ram);
+    expect(ram.getUint32(80)).toBe(0x12345678);
+    expect(ram.getUint32(64)).toBe(0);
+    expect(gl.reads).toEqual([]);
+    expect(menu.dirty).toBe(false);
+
+    // Drawing into the allocation again makes its GPU pixels current.
+    targets.bindColorImage(colorImage(64, 4), 4, 4);
+    targets.markDirty({ y1: 4 });
+    targets.syncToRAM(80, ram);
+    expect(ram.getUint32(80)).toBe(0xffffffff);
+    expect(gl.reads).toEqual([menu.framebuffer]);
+  });
+
+  test('captures growing draw bounds, refreshes on a new frame, and ignores RAM outside the image', () => {
+    const gl = fakeGL();
+    const targets = new RenderTargets(gl, 4, 4);
+    const ram = new DataView(new ArrayBuffer(64));
+    targets.beginFrame(ram);
+    targets.bindColorImage(colorImage(0, 4), 4, 4);
+    targets.current.framebuffer.pixels = new Uint8Array(64).fill(255);
+    targets.markDirty({ y1: 4 }, 1);
+    targets.markDirty({ y1: 4 }, 2);
+    ram.setUint32(16, 0xcafe); // Immediately beyond the two rendered rows.
+    targets.syncToRAM(0, ram);
+    expect(gl.reads).toHaveLength(1);
+    expect(ram.getUint32(16)).toBe(0xcafe);
+
+    targets.markDirty({ y1: 4 }, 3);
+    ram.setUint32(16, 0xbeef); // Now inside the rendered region.
+    targets.syncToRAM(0, ram);
+    expect(gl.reads).toHaveLength(1);
+    expect(ram.getUint32(16)).toBe(0xbeef);
+
+    targets.markDirty({ y1: 4 }, 3);
+    ram.setUint32(0, 0x12345678);
+    targets.beginFrame(ram);
+    targets.markDirty({ y1: 4 }, 3);
+    targets.syncToRAM(0, ram);
+    expect(gl.reads).toHaveLength(2);
+    expect(ram.getUint32(0)).toBe(0xffffffff);
+  });
+
   test('VI sees frames in order while HLE prepares a frozen double buffer', () => {
     const gl = fakeGL();
     const targets = new RenderTargets(gl, 2, 2);

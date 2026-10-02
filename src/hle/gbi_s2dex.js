@@ -572,7 +572,6 @@ export class GBI2SDEX extends GBI2 {
       [0xce, this.s2dex.executeTriRSP.bind(this.s2dex)],
       [0xcf, this.s2dex.executeTriRSP.bind(this.s2dex)],
 
-      [0xd5, this.executeDLCount.bind(this)],
       [0xda, this.s2dex.executeObjRectangleR.bind(this.s2dex)],
     ]);
   }
@@ -583,13 +582,6 @@ export class GBI2SDEX extends GBI2 {
       return fn;
     }
     return super.getHandler(command);
-  }
-
-  executeDLCount(cmd0, cmd1, dis) {
-    this.warnUnimplemented('executeDL_Count')
-    if (dis) {
-      dis.text(`executeDL_Count(/* TODO */);`);
-    }
   }
 
   executeMoveMem(cmd0, cmd1, dis) {
