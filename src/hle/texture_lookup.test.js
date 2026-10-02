@@ -160,19 +160,21 @@ describe('texture lookup and decoding', () => {
   });
 });
 
-test('RGBA32 cache identity includes the base alignment used by odd-row swizzling', () => {
+test('RGBA32 cache reuses relocated bank contents regardless of base parity', () => {
   const { renderer, state, tile } = fixture();
   tile.size = gbi.ImageSize.G_IM_SIZ_32b;
   tile.setSize(0, 0, 0, 4);
   const data = state.tmem.tmemData;
-  data.set(Uint8Array.from({ length: 32 }, (_, i) => i));
+  data.set(Uint8Array.from({ length: 16 }, (_, i) => i));
+  data.set(Uint8Array.from({ length: 16 }, (_, i) => 32 + i), 0x800);
   const before = renderer.lookupTexture(0);
   const hash = tile.hash;
-  data.copyWithin(8, 0, 32);
+  data.copyWithin(8, 0, 16);
+  data.copyWithin(0x808, 0x800, 0x810);
   tile.tmem = 1;
   state.invalidateTileHashes();
   const after = renderer.lookupTexture(0);
-  expect(tile.hash).toBe(hash); // Identical raw bytes, different swizzle layout.
-  expect(Array.from(before.pixels)).toEqual([0, 1, 2, 3, 24, 25, 26, 27]);
-  expect(Array.from(after.pixels)).toEqual([0, 1, 2, 3, 8, 9, 10, 11]);
+  expect(tile.hash).toBe(hash);
+  expect(Array.from(before.pixels)).toEqual([0, 1, 32, 33, 12, 13, 44, 45]);
+  expect(after).toBe(before);
 });

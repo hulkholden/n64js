@@ -34,7 +34,8 @@ describe('TMEM LoadBlock source coordinates', () => {
     // F-Zero X uploads its 304x240 background in 304x3 strips. LoadBlock
     // advances ult by 3 each time, with 912 texels and DXT = ceil(2048/76).
     for (const top of [0, 3, 6, 9, 237]) {
-      state.tmem.loadBlock(state.textureImage, tile, 0, top, 911, 27);
+      tile.setSize(0, top, 911, 27);
+      state.tmem.loadBlock(state.textureImage, tile);
       const firstWord = top * 152;
       expect(state.tmem.tmemData32.slice(0, 152)).toEqual(ram.slice(firstWord, firstWord + 152));
       // Odd rows swap the two 32-bit halves of each 64-bit word.
@@ -54,7 +55,8 @@ describe('TMEM LoadBlock source coordinates', () => {
       tile.tmem = 5;
       state.textureImage.set(gbi.ImageFormat.G_IM_FMT_RGBA, tile.size, 16, 64);
 
-      state.tmem.loadBlock(state.textureImage, tile, 4, 3, 11, dxt);
+      tile.setSize(4, 3, 11, dxt);
+      state.tmem.loadBlock(state.textureImage, tile);
 
       // Base 64 + row 3 * 32 bytes + column 4 * 2 bytes = byte 168.
       // The inclusive S range 4..11 transfers 8 texels (16 bytes).
@@ -86,7 +88,8 @@ describe('TMEM LoadBlock source coordinates', () => {
     tile.line = 1;
     state.textureImage.set(gbi.ImageFormat.G_IM_FMT_RGBA, tile.size, 16, 64);
 
-    state.tmem.loadTile(state.textureImage, tile, 4 << 2, 3 << 2, 7 << 2, 3 << 2);
+    tile.setSize(4 << 2, 3 << 2, 7 << 2, 3 << 2);
+    state.tmem.loadTile(state.textureImage, tile);
 
     expect(state.tmem.tmemData32.slice(0, 2)).toEqual(ram.slice(42, 44));
     expect(state.tmem.tmemData32[2]).toBe(0);

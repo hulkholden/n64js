@@ -4,9 +4,9 @@ import { TMEM } from './tmem.js';
 
 describe('TMEM hash wrapping', () => {
   const formats = [
-    ['YUV16', gbi.ImageFormat.G_IM_FMT_YUV, gbi.ImageSize.G_IM_SIZ_16b, 4096],
+    ['YUV16', gbi.ImageFormat.G_IM_FMT_YUV, gbi.ImageSize.G_IM_SIZ_16b, 2048],
     ['RGBA16', gbi.ImageFormat.G_IM_FMT_RGBA, gbi.ImageSize.G_IM_SIZ_16b, 4096],
-    ['RGBA32', gbi.ImageFormat.G_IM_FMT_RGBA, gbi.ImageSize.G_IM_SIZ_32b, 4096],
+    ['RGBA32', gbi.ImageFormat.G_IM_FMT_RGBA, gbi.ImageSize.G_IM_SIZ_32b, 2048],
     ['IA8', gbi.ImageFormat.G_IM_FMT_IA, gbi.ImageSize.G_IM_SIZ_8b, 4096],
     ['CI4', gbi.ImageFormat.G_IM_FMT_CI, gbi.ImageSize.G_IM_SIZ_4b, 2048],
     ['CI8', gbi.ImageFormat.G_IM_FMT_CI, gbi.ImageSize.G_IM_SIZ_8b, 2048],
@@ -24,6 +24,10 @@ describe('TMEM hash wrapping', () => {
       reference.tmemData.set(tmem.tmemData);
       reference.tmemData.set(tmem.tmemData.subarray(boundary - 16, boundary), 0);
       reference.tmemData.set(tmem.tmemData.subarray(0, 48), 16);
+      if (name === 'YUV16' || name === 'RGBA32') {
+        reference.tmemData.set(tmem.tmemData.subarray(4096 - 16, 4096), 2048);
+        reference.tmemData.set(tmem.tmemData.subarray(2048, 2048 + 48), 2048 + 16);
+      }
       const tile = { format, size, tmem: (boundary - 16) / 8,
         line: 2, height: 2, palette: 0, hash: 0 };
 

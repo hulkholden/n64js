@@ -129,21 +129,23 @@ export function convertRGBA16Pixel(value) {
  * @param {!Tile} tile
  */
 function convertRGBA32(dstData, dstWidth, src, tile) {
-  const words = new Uint32Array(src.buffer, src.byteOffset, src.byteLength >>> 2);
-  const dst = packedOutput(dstData);
   const width = tile.width;
   const height = tile.height;
-  // For RGBA32 the stride is in 16-byte units, with 8-byte odd-row swaps.
-  const stride = tile.line << 2;
-  let row = tile.tmem << 1;
+  const stride = tile.line << 3;
+  let row = tile.tmem << 3;
   let out = 0;
   for (let y = 0; y < height; y++) {
-    const swizzle = (y & 1) << 1;
+    const swizzle = (y & 1) << 2;
     for (let x = 0; x < width; x++) {
-      dst[out + x] = words[((row + x) ^ swizzle) & (kTMEMAddressMask >>> 2)];
+      const address = ((row + x * 2) ^ swizzle) & 0x7ff;
+      const dst = out + x * 4;
+      dstData[dst + 0] = src[address];
+      dstData[dst + 1] = src[address + 1];
+      dstData[dst + 2] = src[address | 0x800];
+      dstData[dst + 3] = src[(address | 0x800) + 1];
     }
     row += stride;
-    out += dstWidth;
+    out += dstWidth * 4;
   }
 }
 
@@ -191,21 +193,21 @@ function convert16b(dstData, dstWidth, src, tile, pixels) {
 
 // Keep YUV samples as U,V,Y,255 in the host texture. The shader applies SetConvert
 // after sampling, so changing coefficients does not require decoding it again.
-// HLE TMEM keeps the packed UYVY layout instead of splitting Y and UV banks.
+// TMEM holds UV pairs in its lower half and the corresponding Y bytes above.
 // The shader restores the YUV alpha (Y) after sampling; opaque storage also
 // preserves chroma in debug canvas previews.
 function convertYUV16(dstData, dstWidth, src, tile) {
   const width = tile.width;
   const height = tile.height;
   for (let y = 0; y < height; y++) {
-    const row = (tile.tmem << 3) + y * (tile.line << 4);
+    const row = (tile.tmem << 3) + y * (tile.line << 3);
     const swizzle = (y & 1) ? 4 : 0;
     for (let x = 0; x < width; x++) {
-      const pair = ((row + (x & ~1) * 2) ^ swizzle) & kTMEMAddressMask;
-      const luma = src[(pair + (x & 1) * 2 + 1) & kTMEMAddressMask];
+      const pair = ((row + (x & ~1)) ^ swizzle) & 0x7ff;
+      const luma = src[(((row + x) ^ swizzle) & 0x7ff) | 0x800];
       const dst = (y * dstWidth + x) * 4;
       dstData[dst + 0] = src[pair];
-      dstData[dst + 1] = src[(pair + 2) & kTMEMAddressMask];
+      dstData[dst + 1] = src[pair + 1];
       dstData[dst + 2] = luma;
       dstData[dst + 3] = 255;
     }
