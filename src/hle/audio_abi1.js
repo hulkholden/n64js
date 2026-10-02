@@ -37,6 +37,11 @@ const ADPCM_BOOK_SIZE = 0x100;
 const DMEM_SAMPLE_BUFFER = 0x5c0;
 const DMEM_SCRATCH = 0xf90;
 
+// Commands add a DMEM segment base to their low 24 address bits.
+const SEGMENT_COUNT = 16;
+const SEGMENT_ENTRY_BYTES = 4;
+const RAM_ADDRESS_MASK = 0x00ffffff;
+
 const PARAM_INPUT = DMEM_PARAMS;
 const PARAM_OUTPUT = DMEM_PARAMS + 0x02;
 const PARAM_COUNT = DMEM_PARAMS + 0x04;
@@ -116,9 +121,14 @@ export class ABI1Audio extends AudioBase {
   }
 
   address(w) {
-    const segment = w >>> 24;
-    this.require(segment < 16, 'Audio segment outside table');
-    return ((w & 0xffffff) + this.view.getUint32(DMEM_SEGMENT_TABLE + segment * 4)) & 0xffffff;
+    return this.segmentAddress(w) & RAM_ADDRESS_MASK;
+  }
+
+  segmentAddress(w) {
+    // The RSP indexes with the entire high byte, even beyond the 16 segment
+    // entries. Aidyn's 0x80 pointers read a base from the predictor book.
+    const base = this.view.getInt32(DMEM_SEGMENT_TABLE + (w >>> 24) * SEGMENT_ENTRY_BYTES);
+    return ((w & RAM_ADDRESS_MASK) + base) | 0;
   }
 
   execute(w0, w1) {
@@ -153,8 +163,8 @@ export class ABI1Audio extends AudioBase {
       case OPCODE_RESAMPLE: return this.resample(flags, low, this.address(w1));
 
       case OPCODE_SEGMENT:
-        this.require((w1 >>> 24) < 16, 'Audio segment outside table');
-        this.view.setUint32(DMEM_SEGMENT_TABLE + (w1 >>> 24) * 4, w1 & 0xffffff);
+        this.require((w1 >>> 24) < SEGMENT_COUNT, 'Audio segment outside table');
+        this.view.setUint32(DMEM_SEGMENT_TABLE + (w1 >>> 24) * SEGMENT_ENTRY_BYTES, w1 & RAM_ADDRESS_MASK);
         return;
 
       case OPCODE_SETBUFF:
@@ -225,7 +235,8 @@ export class ABI1Audio extends AudioBase {
       case OPCODE_POLEF: return this.poleFilter(flags, low, this.address(w1));
 
       case OPCODE_SETLOOP:
-        this.view.setUint32(PARAM_LOOP_ADDRESS, this.address(w1));
+        // SETLOOP stores the full sum; only a subsequent DMA masks it.
+        this.view.setInt32(PARAM_LOOP_ADDRESS, this.segmentAddress(w1));
         return;
 
       default: throw new UnsupportedAudioCommand(`Unsupported audio opcode ${opcode}`);
