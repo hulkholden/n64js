@@ -29,10 +29,11 @@ describe('TMEM content hashes', () => {
     }
   });
 
-  test('chains CI index and palette hashes with the correct wrap boundary', () => {
+  test('chains index and enabled palette hashes with the correct wrap boundary', () => {
     const tmem = new TMEM();
     for (let i = 0; i < 1024; i++) tmem.tmemData32[i] = Math.imul(i + 1, 0x85ebca77);
-    for (const format of [gbi.ImageFormat.G_IM_FMT_CI, gbi.ImageFormat.G_IM_FMT_RGBA]) {
+    for (const format of [gbi.ImageFormat.G_IM_FMT_CI, gbi.ImageFormat.G_IM_FMT_RGBA,
+      gbi.ImageFormat.G_IM_FMT_IA, gbi.ImageFormat.G_IM_FMT_I]) {
       for (const size of [gbi.ImageSize.G_IM_SIZ_4b, gbi.ImageSize.G_IM_SIZ_8b]) {
         for (const palette of [0, 7, 15]) {
           for (const length of [8, 24, 2048, 4096]) {
@@ -40,7 +41,7 @@ describe('TMEM content hashes', () => {
             const indices = referenceHash(tmem, 2040, length, 0, 0x7ff);
             const offset = size === gbi.ImageSize.G_IM_SIZ_4b ? 0x800 + palette * 128 : 0x800;
             const bytes = size === gbi.ImageSize.G_IM_SIZ_4b ? 128 : 2048;
-            expect(tmem.calculateCRC(tile)).toBe(referenceHash(tmem, offset, bytes, indices) + 1);
+            expect(tmem.calculateCRC(tile, tile, gbi.TextureLUT.G_TT_RGBA16)).toBe(referenceHash(tmem, offset, bytes, indices) + 1);
           }
         }
       }

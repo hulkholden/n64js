@@ -13,8 +13,8 @@ const formats = [
   ['I4', gbi.ImageFormat.G_IM_FMT_I, gbi.ImageSize.G_IM_SIZ_4b, 4096],
   ['CI8', gbi.ImageFormat.G_IM_FMT_CI, gbi.ImageSize.G_IM_SIZ_8b, 2048],
   ['CI4', gbi.ImageFormat.G_IM_FMT_CI, gbi.ImageSize.G_IM_SIZ_4b, 2048],
-  ['RGBA8 (CI8 alias)', gbi.ImageFormat.G_IM_FMT_RGBA, gbi.ImageSize.G_IM_SIZ_8b, 2048],
-  ['RGBA4 (CI4 alias)', gbi.ImageFormat.G_IM_FMT_RGBA, gbi.ImageSize.G_IM_SIZ_4b, 2048],
+  ['RGBA8', gbi.ImageFormat.G_IM_FMT_RGBA, gbi.ImageSize.G_IM_SIZ_8b, 4096],
+  ['RGBA4', gbi.ImageFormat.G_IM_FMT_RGBA, gbi.ImageSize.G_IM_SIZ_4b, 4096],
 ];
 
 describe('TMEM texel wrapping', () => {
@@ -36,8 +36,8 @@ describe('TMEM texel wrapping', () => {
       const dstWidth = tile.width + 3;
       const actual = new Uint8ClampedArray(dstWidth * tile.height * 4).fill(0x55);
       const expected = actual.slice();
-      expect(convertTexels(actual, dstWidth, src, tile, gbi.TextureLUT.G_TT_RGBA16)).toBe(true);
-      expect(convertTexels(expected, dstWidth, reference, { ...tile, tmem: 0 }, gbi.TextureLUT.G_TT_RGBA16)).toBe(true);
+      expect(convertTexels(actual, dstWidth, src, tile, gbi.TextureLUT.G_TT_NONE)).toBe(true);
+      expect(convertTexels(expected, dstWidth, reference, { ...tile, tmem: 0 }, gbi.TextureLUT.G_TT_NONE)).toBe(true);
       expect(actual).toEqual(expected);
     });
   }
@@ -107,7 +107,9 @@ test('RGBA16 repeating TMEM rows match scalar conversion and preserve destinatio
 // Deliberately expand one pixel at a time, without packed writes, lookup tables,
 // or row-period copies, to check the optimized converters independently.
 function referenceTexels(dstData, dstWidth, src, tile, tlutFormat) {
-  const palette = (tile.format === gbi.ImageFormat.G_IM_FMT_CI || tile.format === gbi.ImageFormat.G_IM_FMT_RGBA) && tile.size < 2;
+  const palette = tile.size < 2 && (tile.format === gbi.ImageFormat.G_IM_FMT_CI ||
+    (tlutFormat !== 0 && (tile.format === gbi.ImageFormat.G_IM_FMT_RGBA ||
+      tile.format === gbi.ImageFormat.G_IM_FMT_IA || tile.format === gbi.ImageFormat.G_IM_FMT_I)));
   const rgba32 = tile.format === gbi.ImageFormat.G_IM_FMT_RGBA && tile.size === 3;
   const yuv = tile.format === gbi.ImageFormat.G_IM_FMT_YUV;
   const stride = tile.line * (rgba32 || yuv ? 16 : 8);
@@ -132,9 +134,9 @@ function referenceTexels(dstData, dstWidth, src, tile, tlutFormat) {
       } else if (yuv) {
         const pair = ((row + (x & ~1) * 2) ^ swizzle) & 0xfff;
         pixel = [src[pair], src[(pair + 2) & 0xfff], src[(pair + (x & 1) * 2 + 1) & 0xfff], 255];
-      } else if (tile.format === gbi.ImageFormat.G_IM_FMT_RGBA) {
+      } else if (tile.format === gbi.ImageFormat.G_IM_FMT_RGBA && tile.size === 2) {
         pixel = rgba16(value);
-      } else if (tile.format === gbi.ImageFormat.G_IM_FMT_I) {
+      } else if (tile.format === gbi.ImageFormat.G_IM_FMT_I || tile.format === gbi.ImageFormat.G_IM_FMT_RGBA) {
         pixel = Array(4).fill(tile.size === 0 ? value * 17 : value);
       } else if (tile.size === 2) {
         pixel = ia16(value);
@@ -151,7 +153,7 @@ function referenceTexels(dstData, dstWidth, src, tile, tlutFormat) {
 for (const [name, format, size, boundary] of formats) {
   test(`${name} packed output matches scalar pixels with wrapping, odd widths, padding and aligned byte views`, () => {
     for (const [width, height, line] of [[13, 5, 1], [5, 65, 256], [64, 64, 8]]) {
-      for (const tlut of [gbi.TextureLUT.G_TT_RGBA16, gbi.TextureLUT.G_TT_IA16]) {
+      for (const tlut of [gbi.TextureLUT.G_TT_NONE, gbi.TextureLUT.G_TT_RGBA16, gbi.TextureLUT.G_TT_IA16]) {
         for (const [offset, palette] of [[0, 0], [4, 7], [8, 15]]) {
           const src = new Uint8Array(new ArrayBuffer(4096 + offset), offset, 4096);
           src.set(Uint8Array.from({ length: 4096 }, (_, i) => (i * 37 + (i >>> 8) * 13) & 255));
@@ -174,8 +176,8 @@ for (const [name, format, size, boundary] of formats) {
   });
 }
 
-test('IA8, IA4, I8 and I4 tables expand every possible source value', () => {
-  for (const [format, size] of [[3, 1], [3, 0], [4, 1], [4, 0]]) {
+test('4/8-bit RGBA, IA and I without TLUT expand every possible source value', () => {
+  for (const [format, size] of [[0, 1], [0, 0], [3, 1], [3, 0], [4, 1], [4, 0]]) {
     const src = new Uint8Array(4096);
     for (let i = 0; i < 256; i++) src[i] = i;
     const tile = { format, size, width: size === 0 ? 512 : 256, height: 1, line: 32, tmem: 0 };

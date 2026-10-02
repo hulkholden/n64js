@@ -17,10 +17,12 @@ function pixel(tmem, tile) {
   return Array.from(dst);
 }
 
-describe('CI4 palette hashing', () => {
+describe('4-bit palette hashing', () => {
   for (const [name, format] of [
     ['CI4', gbi.ImageFormat.G_IM_FMT_CI],
-    ['RGBA4 (CI4 alias)', gbi.ImageFormat.G_IM_FMT_RGBA],
+    ['RGBA4 with TLUT', gbi.ImageFormat.G_IM_FMT_RGBA],
+    ['IA4 with TLUT', gbi.ImageFormat.G_IM_FMT_IA],
+    ['I4 with TLUT', gbi.ImageFormat.G_IM_FMT_I],
   ]) {
     for (let palette = 0; palette < 16; ++palette) {
       test(`${name} palette ${palette} colour changes invalidate the texture cache key`, () => {
@@ -30,14 +32,14 @@ describe('CI4 palette hashing', () => {
             width: 1, height: 1, palette, hash: 0 };
           tmem.tmemData[0] = index << 4;
           writePaletteEntry(tmem, palette, index, 0xf801);
-          const before = tmem.calculateCRC(tile);
+          const before = tmem.calculateCRC(tile, tile, gbi.TextureLUT.G_TT_RGBA16);
           expect(pixel(tmem, tile)).toEqual([255, 0, 0, 255]);
 
           writePaletteEntry(tmem, palette, index, 0x07c1);
           // TMEM loads clear this cached value before the next texture lookup.
           tile.hash = 0;
           expect(pixel(tmem, tile)).toEqual([0, 255, 0, 255]);
-          expect(tmem.calculateCRC(tile)).not.toBe(before);
+          expect(tmem.calculateCRC(tile, tile, gbi.TextureLUT.G_TT_RGBA16)).not.toBe(before);
         }
       });
     }
@@ -47,13 +49,13 @@ describe('CI4 palette hashing', () => {
       const tile = { format, size: gbi.ImageSize.G_IM_SIZ_4b, tmem: 0, line: 1,
         width: 1, height: 1, palette: 1, hash: 0 };
       writePaletteEntry(tmem, 1, 0, 0xf801);
-      const before = tmem.calculateCRC(tile);
+      const before = tmem.calculateCRC(tile, tile, gbi.TextureLUT.G_TT_RGBA16);
 
       writePaletteEntry(tmem, 0, 15, 0x07c1);
       writePaletteEntry(tmem, 2, 0, 0x07c1);
       tile.hash = 0;
       expect(pixel(tmem, tile)).toEqual([255, 0, 0, 255]);
-      expect(tmem.calculateCRC(tile)).toBe(before);
+      expect(tmem.calculateCRC(tile, tile, gbi.TextureLUT.G_TT_RGBA16)).toBe(before);
     });
   }
 });

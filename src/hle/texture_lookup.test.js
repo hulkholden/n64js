@@ -72,6 +72,52 @@ describe('texture lookup and decoding', () => {
     expect(renderer.lookupTexture(0)).toBe(rgba);
   });
 
+  for (const [name, format, size, direct] of [
+    ['RGBA4', gbi.ImageFormat.G_IM_FMT_RGBA, gbi.ImageSize.G_IM_SIZ_4b, [238, 238, 238, 238]],
+    ['RGBA8', gbi.ImageFormat.G_IM_FMT_RGBA, gbi.ImageSize.G_IM_SIZ_8b, [14, 14, 14, 14]],
+    ['IA4', gbi.ImageFormat.G_IM_FMT_IA, gbi.ImageSize.G_IM_SIZ_4b, [255, 255, 255, 0]],
+    ['IA8', gbi.ImageFormat.G_IM_FMT_IA, gbi.ImageSize.G_IM_SIZ_8b, [0, 0, 0, 238]],
+    ['I4', gbi.ImageFormat.G_IM_FMT_I, gbi.ImageSize.G_IM_SIZ_4b, [238, 238, 238, 238]],
+    ['I8', gbi.ImageFormat.G_IM_FMT_I, gbi.ImageSize.G_IM_SIZ_8b, [14, 14, 14, 14]],
+  ]) {
+    test(`${name} uses the enabled TLUT and caches palette changes and mode switches`, () => {
+      const { renderer, state, tile } = fixture();
+      const palette = 7;
+      tile.set(format, size, 1, 0, palette, 0, 0, 0, 0, 0, 0);
+      tile.setSize(0, 0, 0, 0);
+      // Bio FREAKS uses even indices whose IA4 alpha bit would be zero.
+      state.tmem.tmemData[0] = size === gbi.ImageSize.G_IM_SIZ_4b ? 0xe0 : 0x0e;
+      const entry = 0x800 + (size === gbi.ImageSize.G_IM_SIZ_4b ? palette * 16 + 14 : 14) * 8;
+      state.tmem.tmemData.set([0xf8, 0x01], entry);
+      const plain = renderer.lookupTexture(0);
+      expect(Array.from(plain.pixels)).toEqual(direct);
+
+      // SetOtherMode can toggle TLUT without invalidating the tile hash.
+      state.rdpOtherModeH = gbi.TextureLUT.G_TT_RGBA16;
+      const rgba = renderer.lookupTexture(0);
+      expect(Array.from(rgba.pixels)).toEqual([255, 0, 0, 255]);
+      state.rdpOtherModeH = gbi.TextureLUT.G_TT_IA16;
+      const ia = renderer.lookupTexture(0);
+      expect(Array.from(ia.pixels)).toEqual([248, 248, 248, 1]);
+      state.rdpOtherModeH = gbi.TextureLUT.G_TT_NONE;
+      expect(renderer.lookupTexture(0)).toBe(plain);
+
+      // Reload the palette while TLUT is disabled, then re-enable it. The
+      // cached direct-texture hash must not hide the changed palette bytes.
+      state.tmem.tmemData.set([0x07, 0xc1], entry);
+      state.invalidateTileHashes();
+      expect(renderer.lookupTexture(0)).toBe(plain);
+      state.rdpOtherModeH = gbi.TextureLUT.G_TT_RGBA16;
+      const green = renderer.lookupTexture(0);
+      expect(green).not.toBe(rgba);
+      expect(Array.from(green.pixels)).toEqual([0, 255, 0, 255]);
+      state.rdpOtherModeH = gbi.TextureLUT.G_TT_IA16;
+      expect(Array.from(renderer.lookupTexture(0).pixels)).toEqual([7, 7, 7, 193]);
+      state.rdpOtherModeH = gbi.TextureLUT.G_TT_RGBA16;
+      expect(renderer.lookupTexture(0)).toBe(green);
+    });
+  }
+
   test('different row strides cannot alias under the same content hash', () => {
     const { renderer, state, tile } = fixture();
     // A hash describes the memory contents, not their row interpretation.
