@@ -146,7 +146,7 @@ One-time repository setup when migrating from branch-based Pages publishing:
 2. In **Settings > Environments > github-pages**, allow deployment tags matching
    `v*` (the existing `gh-pages` branch rule does not allow tags).
 
-The deployment includes `index.html`, `n64js.css`, `js/`, `roms/`, and the generated
+The deployment includes `index.html`, `n64js.css`, `ui.css`, `js/`, and the generated
 `build/` directory. Each deployment replaces the site at the existing Pages URL.
 
 ## Compatibility
