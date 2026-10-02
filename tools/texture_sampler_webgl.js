@@ -325,6 +325,56 @@ try {
   });
   checkRectangle('repeated rectangles still wrap', { endT: 8, expected: (x, y) => y % 2 ? blue : red });
   checkRectangle('repeated rectangles still mirror', { endT: 8, modeT: 1, expected: (x, y) => [red, blue, white, green][y] });
+
+  // Rush 2049 draws its title in reversed, clamped strips with a wrap mask.
+  // Go through command decoding: calling texRect directly misses the old
+  // negative-derivative offset that wrapped the first row to the other edge.
+  microcode.renderer = renderer;
+  for (const scale of [1, 2]) {
+    for (const copy of [false, true]) {
+      for (const flip of [false, true]) {
+        for (const reverseS of [false, true]) {
+          const name = `reversed ${reverseS ? 'S' : 'T'} strip, copy=${copy}, flip=${flip}, scale=${scale}`;
+          const size = 4 * scale;
+          gl.canvas.width = gl.canvas.height = size;
+          renderer.renderTargets.reset();
+          renderer.renderTargets = new RenderTargets(gl, size, size);
+          renderer.nativeTransform.initDimensions(4, 4);
+          gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+          gl.viewport(0, 0, size, size);
+          state.rdpOtherModeH = copy ? gbi.CycleType.G_CYC_COPY : gbi.TextureFilter.G_TF_BILERP;
+          const tile = state.tiles[0];
+          tile.set(0, 2, 1, 0, 0, 2, reverseS ? 2 : 0, 0, 2, reverseS ? 0 : 2, 0);
+          // Nonzero tile origin, as in Rush's successive image strips.
+          tile.setSize(reverseS ? 16 : 0, reverseS ? 0 : 16,
+            reverseS ? 28 : 0, reverseS ? 0 : 28);
+          renderer.lookupTexture = i => i === 0 ? (reverseS ? row : column) : null;
+          const end = (copy ? 3 : 4) * 4;
+          const cmd0 = (end << 12) | end;
+          const cmd2 = reverseS ? (7 * 32) << 16 : 7 * 32;
+          const cmd3 = reverseS ? (copy ? -4096 : -1024) << 16 : 0xfc00;
+          if (flip) microcode.rdpTexRectFlip(cmd0, 0, cmd2, cmd3);
+          else microcode.rdpTexRect(cmd0, 0, cmd2, cmd3);
+          const pixels = new Uint8Array(size * size * 4);
+          gl.readPixels(0, 0, size, size, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+          if (gl.getError() !== gl.NO_ERROR) throw new Error(`${name}: WebGL error`);
+          for (let y = 0; y < size; y++) {
+            for (let x = 0; x < size; x++) {
+              const step = Math.floor((reverseS !== flip ? x : y) / scale);
+              const expected = [white, blue, green, red][step];
+              const offset = ((size - 1 - y) * size + x) * 4;
+              const actual = pixels.subarray(offset, offset + 4);
+              if (actual.some((value, i) => value !== expected[i])) {
+                throw new Error(`${name} at ${x},${y}: expected ${expected}, got ${Array.from(actual)}`);
+              }
+            }
+          }
+          lines.push(`PASS ${name}`);
+          passed++;
+        }
+      }
+    }
+  }
   // Returning to a triangle must clear the rectangle uniforms on a cached shader.
   gl.canvas.width = gl.canvas.height = 1;
   gl.viewport(0, 0, 1, 1);
