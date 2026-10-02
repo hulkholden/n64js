@@ -52,12 +52,12 @@ export class TMEM {
     // DXT is a 1.11 accumulator increment per source qword. Its integer part
     // affects both the odd-row swap and the destination's tile.line offset.
     const mode = getLoadMode(tile);
-    const sShift = getLoadSShift(tile);
+    const shiftS = getLoadShiftS(tile);
     for (let s = 0, qword = 0; s < texels; s += step, qword++) {
       const t = (qword * dxt) >>> 11;
       const source = ramAddress + qword * 8;
       writeLoadQword(this.tmemData, readRam32(ram, source), readRam32(ram, source + 4),
-        (tile.tmem + tile.line * t) * 4, (s >>> sShift) & 0x7ff, (t & 1) << 1, mode);
+        (tile.tmem + tile.line * t) * 4, (s >>> shiftS) & 0x7ff, (t & 1) << 1, mode);
     }
   }
 
@@ -98,7 +98,7 @@ export class TMEM {
       return;
     }
     const mode = getLoadMode(tile);
-    const sShift = getLoadSShift(tile);
+    const shiftS = getLoadShiftS(tile);
     for (let y = 0; y < h; ++y) {
       const base = (tile.tmem + tile.line * y) * 4;
       const swap = (y & 1) << 1;
@@ -110,7 +110,7 @@ export class TMEM {
         const loadS = ((((uls << 3) + (s << 5)) << 16) >> 16) - (uls << 3);
         const source = ramAddress + y * ramStride + qword * 8;
         writeLoadQword(this.tmemData, readRam32(ram, source), readRam32(ram, source + 4),
-          base, ((loadS >> 5) >>> sShift) & 0x7ff, swap, mode);
+          base, ((loadS >> 5) >>> shiftS) & 0x7ff, swap, mode);
       }
     }
   }
@@ -139,8 +139,8 @@ export class TMEM {
     const step = ti.size === gbi.ImageSize.G_IM_SIZ_16b ? 1 : 16 >>> ti.size;
     const sourceStep = ti.size === gbi.ImageSize.G_IM_SIZ_16b ? 2 : 8;
     const writeQword = loadWriters[getLoadMode(tile)];
-    const sShift = getLoadSShift(tile);
-    const sStep = 64 >>> ti.size;
+    const shiftS = getLoadShiftS(tile);
+    const stepS = 64 >>> ti.size;
     const base = tile.tmem * 4;
     // Every source increment is even, so alignment is fixed for the load.
     if (!(ramAddress & 1)) {
@@ -148,14 +148,14 @@ export class TMEM {
         const source = ramAddress + qword * sourceStep;
         const entry = (ram[source & 0xffffff] << 8) | ram[(source + 1) & 0xffffff];
         const word = (entry << 16) | entry;
-        writeQword(this.tmemData, word, word, base, ((qword * sStep) >>> sShift) & 0x7ff, 0);
+        writeQword(this.tmemData, word, word, base, ((qword * stepS) >>> shiftS) & 0x7ff, 0);
       }
       return;
     }
     for (let x = 0, qword = 0; x < texels; x += step, qword++) {
       const source = ramAddress + qword * sourceStep;
       writeQword(this.tmemData, readRam32(ram, source), readRam32(ram, source + 4),
-        base, ((qword * sStep) >>> sShift) & 0x7ff, 0);
+        base, ((qword * stepS) >>> shiftS) & 0x7ff, 0);
     }
   }
 
@@ -282,7 +282,7 @@ function getLoadMode(tile) {
   return LoadMode.Ordinary;
 }
 
-function getLoadSShift(tile) {
+function getLoadShiftS(tile) {
   if (tile.format === gbi.ImageFormat.G_IM_FMT_YUV || tile.size === gbi.ImageSize.G_IM_SIZ_8b) return 1;
   return tile.size === gbi.ImageSize.G_IM_SIZ_4b ? 2 : 0;
 }
