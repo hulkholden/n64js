@@ -403,13 +403,16 @@ export class S2DEXCommon {
     const command = (tex.type >>> 0) & 0xff;
     switch (command) {
       case LoadBlock:
-        this.state.tmem.loadBlock(ti, tile, 0, 0, loadSize, tex.texLoadRows);
+        tile.setSize(0, 0, loadSize, tex.texLoadRows);
+        this.state.tmem.loadBlock(ti, tile);
         break;
       case LoadTile:
-        this.state.tmem.loadTile(ti, tile, 0, 0, loadSize, tex.texLoadRows);
+        tile.setSize(0, 0, loadSize, tex.texLoadRows);
+        this.state.tmem.loadTile(ti, tile);
         break;
       case LoadTLUT:
-        this.state.tmem.loadTLUT(ti, tile, 0, 0, loadSize, tex.texLoadRows);
+        tile.setSize(0, 0, loadSize, tex.texLoadRows);
+        this.state.tmem.loadTLUT(ti, tile);
         break;
       default:
         this.gbi.warnUnimplemented(`load texture type ${tex.type}`);

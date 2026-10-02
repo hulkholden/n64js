@@ -21,17 +21,14 @@ export class TMEM {
   /**
    * Loads a block to TMEM.
    * @param {TextureImage} ti RDP texture image.
-   * @param {Tile} tile Tile being loaded.
-   * @param {number} uls Upper-left S coordinate to load, in whole texels.
-   * @param {number} ult Upper-left T coordinate to load, in whole texels.
-   * @param {number} lrs Inclusive end of the texel span, in whole texels.
-   * @param {number} dxt Reciprocal of number of words in a line, in 1.11 fixed point.
+   * @param {Tile} tile Load tile with integer S/T bounds and DXT in its lrt register.
    * @param {DebugController?} dc An optional debug controller for displaying tooltips.
    */
-  loadBlock(ti, tile, uls, ult, lrs, dxt, dc) {
+  loadBlock(ti, tile, dc) {
     // LoadBlock uses integer source coordinates, unlike LoadTile's 10.2
     // coordinates. F-Zero X uses nonzero ult to upload successive image strips.
-    tile.setSize(uls, ult, lrs, dxt);
+    // The command stores DXT in the fourth tile bounds register.
+    const { uls, ult, lrs, lrt: dxt } = tile;
     // The load edge walker sign-extends its 12-bit source X and masks Y to
     // ten bits. Ordinary uploads use nonnegative X well below this boundary.
     const ramAddress = ti.calcAddress((uls << 20) >> 20, ult & 0x3ff);
@@ -63,15 +60,11 @@ export class TMEM {
   /**
    * Loads a tile to TMEM.
    * @param {TextureImage} ti RDP texture image. 
-   * @param {Tile} tile Tile being loaded.
-   * @param {number} uls Upper-left S coordinate to load, in 10.2 format.
-   * @param {number} ult Upper-left T coordinate to load, in 10.2 format.
-   * @param {number} lrs Lower-right S coordinate to load, in 10.2 format.
-   * @param {number} lrt Lower-right T coordinate to load, in 10.2 format.
+   * @param {Tile} tile Load tile with bounds in 10.2 format.
    * @param {DebugController?} dc An optional debug controller for displaying tooltips.
    */
-  loadTile(ti, tile, uls, ult, lrs, lrt, dc) {
-    tile.setSize(uls, ult, lrs, lrt);
+  loadTile(ti, tile, dc) {
+    const { uls, ult, lrs, lrt } = tile;
     const s0 = uls >>> 2;
     const t0 = ult >>> 2;
     const t1 = lrt >>> 2;
@@ -116,15 +109,11 @@ export class TMEM {
   /**
    * Loads a TLUT into TMEM.
    * @param {TextureImage} ti RDP texture image. 
-   * @param {Tile} tile Tile being loaded.
-   * @param {number} uls Upper-left S coordinate to load, in 10.2 format. Typically zero.
-   * @param {number} ult Upper-left T coordinate to load, in 10.2 format. Typically zero.
-   * @param {number} lrs Lower-right S coordinate to load, in 10.2 format. This is essentially the palette size.
-   * @param {number} lrt Lower-right T coordinate to load, in 10.2 format.
+   * @param {Tile} tile Load tile with bounds in 10.2 format.
    * @param {DebugController?} dc An optional debug controller for displaying tooltips.
    */
-  loadTLUT(ti, tile, uls, ult, lrs, lrt, dc) {
-    tile.setSize(uls, ult, lrs, lrt);
+  loadTLUT(ti, tile, dc) {
+    const { uls, ult, lrs, lrt } = tile;
     const s0 = uls >>> 2;
     const t0 = ult >>> 2;
 

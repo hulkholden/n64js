@@ -756,7 +756,8 @@ export class GBIMicrocode {
     const ti = this.state.textureImage;
     const tile = this.state.tiles[tileIdx];
     this.renderer?.syncFramebufferToRAM?.(ti.calcAddress((uls << 20) >> 20, ult & 0x3ff) & 0xffffff, this.ramDV);
-    this.state.tmem.loadBlock(ti, tile, uls, ult, lrs, dxt, dis);
+    tile.setSize(uls, ult, lrs, dxt);
+    this.state.tmem.loadBlock(ti, tile, dis);
     this.state.invalidateTileHashes();
   }
 
@@ -775,7 +776,8 @@ export class GBIMicrocode {
     const ti = this.state.textureImage;
     const tile = this.state.tiles[tileIdx];
     this.renderer?.syncFramebufferToRAM?.(ti.calcAddress(uls >>> 2, ult >>> 2), this.ramDV);
-    this.state.tmem.loadTile(ti, tile, uls, ult, lrs, lrt, dis);
+    tile.setSize(uls, ult, lrs, lrt);
+    this.state.tmem.loadTile(ti, tile, dis);
     this.state.invalidateTileHashes();
   }
 
@@ -794,7 +796,8 @@ export class GBIMicrocode {
     const ti = this.state.textureImage;
     const tile = this.state.tiles[tileIdx];
     this.renderer?.syncFramebufferToRAM?.(ti.calcAddress(uls >>> 2, ult >>> 2), this.ramDV);
-    this.state.tmem.loadTLUT(ti, tile, uls, ult, lrs, lrt, dis);
+    tile.setSize(uls, ult, lrs, lrt);
+    this.state.tmem.loadTLUT(ti, tile, dis);
     this.state.invalidateTileHashes();
   }
 

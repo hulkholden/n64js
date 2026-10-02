@@ -186,7 +186,8 @@ export function createHarness(canvas) {
       tile.set(gbi.ImageFormat.G_IM_FMT_RGBA, gbi.ImageSize.G_IM_SIZ_16b, line, tmem, 0,
         mode[0], mask[0], shift[0], mode[1], mask[1], shift[1]);
       state.textureImage.set(gbi.ImageFormat.G_IM_FMT_RGBA, gbi.ImageSize.G_IM_SIZ_16b, width, 0);
-      state.tmem.loadTile(state.textureImage, tile, 0, 0, (width - 1) * 4, (height - 1) * 4, null);
+      tile.setSize(0, 0, (width - 1) * 4, (height - 1) * 4);
+      state.tmem.loadTile(state.textureImage, tile);
       tile.setSize(origin[0] * 4, origin[1] * 4, last[0] * 4, last[1] * 4);
       state.invalidateTileHashes();
     },
