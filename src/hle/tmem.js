@@ -90,8 +90,8 @@ export class TMEM {
       const ram32 = new Int32Array(ram.buffer, ram.byteOffset, ram.byteLength >>> 2);
       for (let y = 0; y < h; y++) {
         for (let s = 0, qword = 0; s < w; s += step, qword++) {
-          const loadS = ((((uls << 3) + (s << 5)) << 16) >> 16) - (uls << 3);
-          const dst = (tile.tmem + tile.line * y) * 8 + ((loadS >> 5) << ti.size >> 1);
+          const loadS = loadTileOffsetS(uls, s);
+          const dst = (tile.tmem + tile.line * y) * 8 + (loadS << ti.size >> 1);
           copyLoadQword(this.tmemData32, ram32, ramAddress + y * ramStride + qword * 8, dst, y & 1);
         }
       }
@@ -105,12 +105,10 @@ export class TMEM {
       // Each iteration writes a complete 64-bit fetch, including the final
       // partial group of texels. Unwritten stride padding retains old TMEM.
       for (let s = 0, qword = 0; s < w; s += step, qword++) {
-        // Texture coordinates wrap as signed 16-bit values before subtracting
-        // the origin. This matters for long spans with a 4/8-bit load tile.
-        const loadS = ((((uls << 3) + (s << 5)) << 16) >> 16) - (uls << 3);
+        const loadS = loadTileOffsetS(uls, s);
         const source = ramAddress + y * ramStride + qword * 8;
         writeLoadQword(this.tmemData, readRam32(ram, source), readRam32(ram, source + 4),
-          base, ((loadS >> 5) >>> shiftS) & 0x7ff, swap, mode);
+          base, (loadS >>> shiftS) & 0x7ff, swap, mode);
       }
     }
   }
@@ -212,6 +210,14 @@ export class TMEM {
     hashOwner.hashHasPalette = hasPalette;
     return hash;
   }
+}
+
+function loadTileOffsetS(uls, s) {
+  // Convert the 10.2 origin and whole-texel offset to 10.5 coordinates, then
+  // wrap as signed 16-bit before subtracting the origin. This matters for
+  // long spans with a 4/8-bit load tile. Return the offset in whole texels.
+  const originS = uls << 3;
+  return ((((originS + (s << 5)) << 16) >> 16) - originS) >> 5;
 }
 
 function loadTileWidth(uls, ult, lrs, lrt) {
