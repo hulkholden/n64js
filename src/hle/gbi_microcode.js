@@ -867,8 +867,8 @@ export class GBIMicrocode {
     const tileIdx = (cmd1 >>> 24) & 0x7;
     const xl = ((cmd1 >>> 12) & 0xfff) / 4.0;
     const yl = ((cmd1 >>> 0) & 0xfff) / 4.0;
-    let s0 = ((cmd2 >>> 16) & 0xffff) / 32.0;
-    let t0 = ((cmd2 >>> 0) & 0xffff) / 32.0;
+    const s0 = ((cmd2 >>> 16) & 0xffff) / 32.0;
+    const t0 = ((cmd2 >>> 0) & 0xffff) / 32.0;
     // NB - signed value
     let dsdx = ((cmd3 | 0) >> 16) / 1024.0;
     const dtdy = ((cmd3 << 16) >> 16) / 1024.0;
@@ -887,11 +887,9 @@ export class GBIMicrocode {
       yh += 1.0;
     }
 
-    // If the texture coords are inverted, start from the end of the texel (?).
-    // Fixes California Speed.
-    if (dsdx < 0) { s0++; }
-    if (dtdy < 0) { t0++; }
-
+    // The renderer samples the command's S/T at the first native pixel, even
+    // for negative derivatives. Adding a texel here wraps reversed strips
+    // (such as Rush 2049's title image) past their starting edge.
     const s1 = s0 + dsdx * (xh - xl);
     const t1 = t0 + dtdy * (yh - yl);
 
@@ -919,8 +917,8 @@ export class GBIMicrocode {
     const tileIdx = (cmd1 >>> 24) & 0x7;
     const xl = ((cmd1 >>> 12) & 0xfff) / 4.0;
     const yl = ((cmd1 >>> 0) & 0xfff) / 4.0;
-    let s0 = ((cmd2 >>> 16) & 0xffff) / 32.0;
-    let t0 = ((cmd2 >>> 0) & 0xffff) / 32.0;
+    const s0 = ((cmd2 >>> 16) & 0xffff) / 32.0;
+    const t0 = ((cmd2 >>> 0) & 0xffff) / 32.0;
     // NB - signed value
     let dsdx = ((cmd3 | 0) >> 16) / 1024.0;
     const dtdy = ((cmd3 << 16) >> 16) / 1024.0;
@@ -938,10 +936,6 @@ export class GBIMicrocode {
       xh += 1.0;
       yh += 1.0;
     }
-
-    // If the texture coords are inverted, start from the end of the texel (?).
-    if (dsdx < 0) { s0++; }
-    if (dtdy < 0) { t0++; }
 
     // NB x/y are flipped
     const s1 = s0 + dsdx * (yh - yl);
