@@ -85,7 +85,7 @@ for (const compiled of [false, true]) {
       e.hardware.ram.set32((pc & 0x7fffff) + 4, 0x25080002); // replacement overlay
 
       // Same VA[13:5], different tag, and a nonzero byte offset.
-      cache(e, compiled, 0, 0x8000287f);
+      cache(e, compiled, 0, 0x8000287c); // word aligned; CACHE faults on misaligned addresses
       expect(old.func).toBeUndefined();
       expect(otherTag.func).toBeUndefined();
       expect(otherIndex.func).toBeFunction();

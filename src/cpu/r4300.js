@@ -1044,10 +1044,16 @@ export class CPU0 {
     this.maskControlBits64(cpu0reg.controlEntryHi, TLBHI_VPN2MASK, address64);
     this.raiseExceptionCopCode(vec, 0, excCode);
   }
+  raiseAdELException64(badvaddr) { this.raiseAddressException64(E_VEC, cpu0reg.causeExcCodeAdEL, badvaddr); }
+  raiseAdESException64(badvaddr) { this.raiseAddressException64(E_VEC, cpu0reg.causeExcCodeAdES, badvaddr); }
 
   raiseAddressException(vec, code, address32) {
+    this.raiseAddressException64(vec, code, BigInt(address32 >> 0));
+  }
+
+  raiseAddressException64(vec, code, badvaddrUnsigned) {
     // TODO: plumb 64 bit addresses everywhere.
-    const address64 = BigInt(address32 >> 0);
+    const address64 = BigInt.asIntN(64, badvaddrUnsigned);
     this.setBadVAddr(address64);
     this.setContext(address64);
     this.setXContext(address64);
@@ -1574,32 +1580,62 @@ export class CPU0 {
   addrS32(base, imms) { return (this.getRegS32Lo(base) + imms) >> 0; }
   addrU32(base, imms) { return (this.getRegS32Lo(base) + imms) >>> 0; }
 
+  // Compute the low 32 bits of the effective address, validating that the full
+  // 64 bit address is the sign extension of bit 31. Non-canonical addresses
+  // raise AdEL for loads and AdES for stores, with BadVAddr holding the full
+  // 64 bit value. Optionally also validate alignment, as required by CACHE.
+  effectiveAddress32(base, imms, store, alignMask) {
+    const lo = this.gprS32[base * 2 + 0];
+    const hi = this.gprS32[base * 2 + 1];
+    const sum = lo + imms;
+    // The 16 bit offset can only borrow into the upper half, never carry.
+    const hiSum = (sum < -0x8000_0000) ? hi - 1 : hi;
+    const loSum = sum >> 0;
+    const nonCanonical = hiSum !== (loSum >> 31);
+    const unaligned = !nonCanonical && alignMask !== 0 && (loSum & alignMask) !== 0;
+    if (nonCanonical || unaligned) {
+      const badvaddr = (BigInt(hiSum >>> 0) << 32n) | BigInt(loSum >>> 0);
+      if (store) {
+        this.raiseAdESException64(badvaddr);
+        throw new EmulatedException('AdES store');
+      }
+      this.raiseAdELException64(badvaddr);
+      throw new EmulatedException('AdEL load');
+    }
+    return loSum;
+  }
+
+  addrLoadS32(base, imms) { return this.effectiveAddress32(base, imms, false, 0); }
+  addrLoadU32(base, imms) { return this.effectiveAddress32(base, imms, false, 0) >>> 0; }
+  addrStoreS32(base, imms) { return this.effectiveAddress32(base, imms, true, 0); }
+  addrStoreU32(base, imms) { return this.effectiveAddress32(base, imms, true, 0) >>> 0; }
+
   calcDebuggerAddress(inst) {
     return this.addrS32(base(inst), imms(inst));
   }
 
   execLB(rt, base, imms) {
-    const value = memaccess.loadS8fast(this.addrS32(base, imms));
+    const value = memaccess.loadS8fast(this.addrLoadS32(base, imms));
     this.setRegS32Extend(rt, value);
   }
 
   execLBU(rt, base, imms) {
-    const value = memaccess.loadU8fast(this.addrS32(base, imms));
+    const value = memaccess.loadU8fast(this.addrLoadS32(base, imms));
     this.setRegU32Extend(rt, value);
   }
 
   execLH(rt, base, imms) {
-    const value = memaccess.loadS16fast(this.addrS32(base, imms));
+    const value = memaccess.loadS16fast(this.addrLoadS32(base, imms));
     this.setRegS32Extend(rt, value);
   }
 
   execLHU(rt, base, imms) {
-    const value = memaccess.loadU16fast(this.addrS32(base, imms));
+    const value = memaccess.loadU16fast(this.addrLoadS32(base, imms));
     this.setRegU32Extend(rt, value);
   }
 
   execLW(rt, base, imms) {
-    const value = memaccess.loadS32fast(this.addrS32(base, imms));
+    const value = memaccess.loadS32fast(this.addrLoadS32(base, imms));
 
     // TODO: check if SF2049 requires LW to R0 to be ignored.
     // This is redundant right now because we also force R0 to zero in runImpl.
@@ -1611,17 +1647,17 @@ export class CPU0 {
   }
 
   execLWU(rt, base, imms) {
-    const value = memaccess.loadU32fast(this.addrS32(base, imms));
+    const value = memaccess.loadU32fast(this.addrLoadS32(base, imms));
     this.setRegU32Extend(rt, value);
   }
 
   execLD(rt, base, imms) {
-    const value = memaccess.loadU64fast(this.addrS32(base, imms));
+    const value = memaccess.loadU64fast(this.addrLoadS32(base, imms));
     this.setRegU64(rt, value);
   }
 
   execLWL(rt, base, imms) {
-    const addr = this.addrU32(base, imms);
+    const addr = this.addrLoadU32(base, imms);
     const mem = memaccess.loadU32fast((addr & ~3) >>> 0);
     const shift = 8 * (addr & 3);
 
@@ -1629,7 +1665,7 @@ export class CPU0 {
   }
 
   execLWR(rt, base, imms) {
-    const addr = this.addrU32(base, imms);
+    const addr = this.addrLoadU32(base, imms);
     const mem = memaccess.loadU32fast((addr & ~3) >>> 0);
     const shift = 8 * (3 - (addr & 3));
 
@@ -1637,7 +1673,7 @@ export class CPU0 {
   }
 
   execLDL(rt, base, imms) {
-    const addr = this.addrU32(base, imms);
+    const addr = this.addrLoadU32(base, imms);
     const shift = BigInt(8 * (addr & 7));
     const mem = memaccess.loadU64fast((addr & ~7) >>> 0);
 
@@ -1645,7 +1681,7 @@ export class CPU0 {
   }
 
   execLDR(rt, base, imms) {
-    const addr = this.addrU32(base, imms);
+    const addr = this.addrLoadU32(base, imms);
     const shift = BigInt(8 * (7 - (addr & 7)));
     const mem = memaccess.loadU64fast((addr & ~7) >>> 0);
 
@@ -1659,7 +1695,7 @@ export class CPU0 {
 
   // Caller must have established that COP1 is usable.
   execLWC1Unchecked(rt, base, imms) {
-    cpu1.store32(cpu1.copRegIdx32(rt), memaccess.loadS32fast(this.addrS32(base, imms)));
+    cpu1.store32(cpu1.copRegIdx32(rt), memaccess.loadS32fast(this.addrLoadS32(base, imms)));
   }
 
   execLWC2(rt, base, imms) {
@@ -1674,7 +1710,7 @@ export class CPU0 {
 
   // Caller must have established that COP1 is usable.
   execLDC1Unchecked(rt, base, imms) {
-    const value = memaccess.loadU64fast(this.addrS32(base, imms));
+    const value = memaccess.loadU64fast(this.addrLoadS32(base, imms));
     cpu1.store64(cpu1.copRegIdx64(rt), value);
   }
 
@@ -1684,20 +1720,20 @@ export class CPU0 {
   }
 
   execSB(rt, base, imms) {
-    memaccess.store8fast(this.addrS32(base, imms), this.getRegS32Lo(rt) /*& 0xff*/);
+    memaccess.store8fast(this.addrStoreS32(base, imms), this.getRegS32Lo(rt) /*& 0xff*/);
   }
   execSH(rt, base, imms) {
-    memaccess.store16fast(this.addrS32(base, imms), this.getRegS32Lo(rt) /*& 0xffff*/);
+    memaccess.store16fast(this.addrStoreS32(base, imms), this.getRegS32Lo(rt) /*& 0xffff*/);
   }
   execSW(rt, base, imms) {
-    memaccess.store32fast(this.addrS32(base, imms), this.getRegS32Lo(rt));
+    memaccess.store32fast(this.addrStoreS32(base, imms), this.getRegS32Lo(rt));
   }
   execSD(rt, base, imms) {
-    memaccess.store64fast(this.addrS32(base, imms), this.getRegU64(rt));
+    memaccess.store64fast(this.addrStoreS32(base, imms), this.getRegU64(rt));
   }
 
   execSWL(rt, base, imms) {
-    const addr = this.addrU32(base, imms);
+    const addr = this.addrStoreU32(base, imms);
     const shift = 8 * (addr & 3);
     const reg = this.getRegU32Lo(rt);
 
@@ -1705,7 +1741,7 @@ export class CPU0 {
   }
 
   execSWR(rt, base, imms) {
-    const addr = this.addrU32(base, imms);
+    const addr = this.addrStoreU32(base, imms);
     const shift = 8 * (3 - (addr & 3));
     const reg = this.getRegU32Lo(rt);
 
@@ -1713,7 +1749,7 @@ export class CPU0 {
   }
 
   execSDL(rt, base, imms) {
-    const addr = this.addrU32(base, imms);
+    const addr = this.addrStoreU32(base, imms);
     const shift = BigInt(8 * (addr & 7));
     const reg = this.getRegU64(rt);
 
@@ -1721,7 +1757,7 @@ export class CPU0 {
   }
 
   execSDR(rt, base, imms) {
-    const addr = this.addrU32(base, imms);
+    const addr = this.addrStoreU32(base, imms);
     const reg = this.getRegU64(rt);
     const shift = BigInt(8 * (7 - (addr & 7)));
 
@@ -1735,7 +1771,7 @@ export class CPU0 {
 
   // Caller must have established that COP1 is usable.
   execSWC1Unchecked(rt, base, imms) {
-    memaccess.store32fast(this.addrS32(base, imms), cpu1.loadU32(cpu1.copRegIdx32(rt)));
+    memaccess.store32fast(this.addrStoreS32(base, imms), cpu1.loadU32(cpu1.copRegIdx32(rt)));
   }
 
   execSWC2(rt, base, imms) {
@@ -1750,7 +1786,7 @@ export class CPU0 {
 
   // Caller must have established that COP1 is usable.
   execSDC1Unchecked(rt, base, imms) {
-    memaccess.store64fast(this.addrS32(base, imms), cpu1.loadU64(cpu1.copRegIdx64(rt)));
+    memaccess.store64fast(this.addrStoreS32(base, imms), cpu1.loadU64(cpu1.copRegIdx64(rt)));
   }
 
   execSDC2(rt, base, imms) {
@@ -1759,14 +1795,14 @@ export class CPU0 {
   }
 
   execLL(rt, base, imms) {
-    const addr = this.addrS32(base, imms);
+    const addr = this.addrLoadS32(base, imms);
     this.setControlU32(cpu0reg.controlLLAddr, makeLLAddr(this.physicalAddressForLoad(addr)));
     this.setRegS32Extend(rt, memaccess.loadS32fast(addr));
     this.llBit = 1;
   }
 
   execLLD(rt, base, imms) {
-    const addr = this.addrS32(base, imms);
+    const addr = this.addrLoadS32(base, imms);
     this.setControlU32(cpu0reg.controlLLAddr, makeLLAddr(this.physicalAddressForLoad(addr)));
     this.setRegU64(rt, memaccess.loadU64fast(addr));
     this.llBit = 1;
@@ -1783,7 +1819,7 @@ export class CPU0 {
   execSC(rt, base, imms) {
     let result = 0;
     if (this.llBit) {
-      memaccess.store32fast(this.addrS32(base, imms), this.getRegS32Lo(rt));
+      memaccess.store32fast(this.addrStoreS32(base, imms), this.getRegS32Lo(rt));
       this.llBit = 0;
       result = 1;
     }
@@ -1793,7 +1829,7 @@ export class CPU0 {
   execSCD(rt, base, imms) {
     let result = 0;
     if (this.llBit) {
-      memaccess.store64fast(this.addrS32(base, imms), this.getRegU64(rt));
+      memaccess.store64fast(this.addrStoreS32(base, imms), this.getRegU64(rt));
       this.llBit = 0;
       result = 1;
     }
@@ -1801,8 +1837,10 @@ export class CPU0 {
   }
 
   execCACHE(rt, base, imms) {
+    // The effective address must be canonical and word aligned; a violation
+    // raises an address error exception regardless of the cache operation.
+    const address = this.effectiveAddress32(base, imms, false, 3) >>> 0;
     if (!this.ignoreCacheOp(rt)) {
-      const address = this.addrU32(base, imms);
       if (rt === 0) {
         fragmentMap.invalidateIndex(address);
       } else {
