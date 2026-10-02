@@ -3,6 +3,23 @@
 // Reference: parallel-rdp/shaders/texture.h, sample_texel_* and sample_texture.
 uniform highp usampler2D uTMEM;
 
+// Match ImageFormat and ImageSize in gbi.js.
+const int G_IM_FMT_RGBA = 0;
+const int G_IM_FMT_YUV = 1;
+const int G_IM_FMT_CI = 2;
+const int G_IM_FMT_IA = 3;
+const int G_IM_FMT_I = 4;
+
+const int G_IM_SIZ_4b = 0;
+const int G_IM_SIZ_8b = 1;
+const int G_IM_SIZ_16b = 2;
+const int G_IM_SIZ_32b = 3;
+
+// TLUT modes are passed without the other-mode bit shift.
+const int TLUT_NONE = 0;
+const int TLUT_RGBA16 = 2;
+const int TLUT_IA16 = 3;
+
 int readTMEM8(int address) {
   address &= 4095;
   return int(texelFetch(uTMEM, ivec2(address & 63, address >> 6), 0).r);
@@ -27,39 +44,39 @@ highp vec4 fetchTMEMTexel(ivec2 coord, TextureTile tile, int paletteBank) {
   int swizzle = (coord.y & 1) << 2;
   int format = tile.memory.z;
   int size = tile.memory.w;
-  if (format == 1 && size == 2) {
+  if (format == G_IM_FMT_YUV && size == G_IM_SIZ_16b) {
     int pair = ((row + (coord.x & ~1)) ^ swizzle) & 2047;
     int luma = (((row + coord.x) ^ swizzle) & 2047) | 2048;
     return vec4(float(readTMEM8(pair)), float(readTMEM8(pair + 1)), float(readTMEM8(luma)), 255.0);
   }
-  if (format == 0 && size == 3) {
+  if (format == G_IM_FMT_RGBA && size == G_IM_SIZ_32b) {
     int address = ((row + coord.x * 2) ^ swizzle) & 2047;
     return vec4(float(readTMEM8(address)), float(readTMEM8(address + 1)),
                 float(readTMEM8(address | 2048)), float(readTMEM8((address | 2048) + 1)));
   }
-  if (size == 2) {
+  if (size == G_IM_SIZ_16b) {
     int value = readTMEM16(((row + coord.x * 2) ^ swizzle) & 4095);
-    if (format == 0) return rgba16(value);
-    if (format == 3) return ia16(value);
+    if (format == G_IM_FMT_RGBA) return rgba16(value);
+    if (format == G_IM_FMT_IA) return ia16(value);
   }
-  if (size <= 1) {
-    int address = (row + (size == 0 ? coord.x >> 1 : coord.x)) ^ swizzle;
-    int value = readTMEM8(address & (tile.palette.y != 0 ? 2047 : 4095));
-    if (size == 0) value = (value >> ((1 - (coord.x & 1)) * 4)) & 15;
-    if (tile.palette.y != 0) {
-      int index = size == 0 ? (tile.palette.x << 4) | value : value;
+  if (size <= G_IM_SIZ_8b) {
+    int address = (row + (size == G_IM_SIZ_4b ? coord.x >> 1 : coord.x)) ^ swizzle;
+    int value = readTMEM8(address & (tile.palette.y != TLUT_NONE ? 2047 : 4095));
+    if (size == G_IM_SIZ_4b) value = (value >> ((1 - (coord.x & 1)) * 4)) & 15;
+    if (tile.palette.y != TLUT_NONE) {
+      int index = size == G_IM_SIZ_4b ? (tile.palette.x << 4) | value : value;
       int entry = readTMEM16(2048 + index * 8 + paletteBank * 2);
-      return tile.palette.y == 3 ? ia16(entry) : rgba16(entry);
+      return tile.palette.y == TLUT_IA16 ? ia16(entry) : rgba16(entry);
     }
-    if (format == 3) {
-      if (size == 0) {
+    if (format == G_IM_FMT_IA) {
+      if (size == G_IM_SIZ_4b) {
         int i = value >> 1;
         i = (i << 5) | (i << 2) | (i >> 1);
         return vec4(vec3(float(i)), float((value & 1) * 255));
       }
       return vec4(vec3(float((value >> 4) * 17)), float((value & 15) * 17));
     }
-    if (format == 0 || format == 4) return vec4(float(size == 0 ? value * 17 : value));
+    if (format == G_IM_FMT_RGBA || format == G_IM_FMT_I) return vec4(float(size == G_IM_SIZ_4b ? value * 17 : value));
   }
   // Unsupported format/size combinations match an unavailable decoded texture.
   return vec4(0.0, 0.0, 0.0, 255.0);
