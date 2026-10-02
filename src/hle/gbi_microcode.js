@@ -888,8 +888,7 @@ export class GBIMicrocode {
     }
 
     // The renderer samples the command's S/T at the first native pixel, even
-    // for negative derivatives. Adding a texel here wraps reversed strips
-    // (such as Rush 2049's title image) past their starting edge.
+    // for negative derivatives.
     const s1 = s0 + dsdx * (xh - xl);
     const t1 = t0 + dtdy * (yh - yl);
 
