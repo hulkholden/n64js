@@ -7,6 +7,8 @@ import { RendererBase } from './renderer_base.js';
 import { RenderTargets } from './render_targets.js';
 import * as shaders from './shaders.js';
 import { Texture } from './textures.js';
+import { TMEMTexture } from './tmem_texture.js';
+import { graphicsOptions } from './graphics_options.js';
 import { TextureCache } from './texture_cache.js';
 import { textureDecodeTile } from './texture_sampler.js';
 import { getTexturePaletteFormat } from './convert.js';
@@ -31,6 +33,7 @@ export class Renderer extends RendererBase {
     this.gl = gl;
 
     this.textureCache = new TextureCache(gl);
+    this.tmemTexture = null;
 
     this.renderTargets = new RenderTargets(gl, width, height);
 
@@ -84,6 +87,7 @@ export class Renderer extends RendererBase {
   reset() {
     this.renderTargets.reset();
     this.textureCache.clear();
+    this.tmemTexture?.reset();
     this.textureOutput?.replaceChildren();
   }
 
@@ -439,6 +443,7 @@ export class Renderer extends RendererBase {
     this.setGLBlendMode();
 
     // TODO: I think it would make more sense to check if the texture is referenced in the combiner.
+    const directTMEM = graphicsOptions.directTmemSampling;
     let tile0, tile1;
     let texture0, texture1;
     if (textureEnabled) {
@@ -454,10 +459,12 @@ export class Renderer extends RendererBase {
       const tileIdx1 = (tileIdx + (singleLevelLOD ? 0 : 1)) & 7;
 
       tile0 = this.state.tiles[tileIdx0];
-      tile1 = this.state.tiles[tileIdx1];
+      tile1 = this.getTextureTileCount() === 2 ? this.state.tiles[tileIdx1] : null;
 
-      texture0 = this.lookupTexture(tileIdx0);
-      texture1 = this.getTextureTileCount() === 2 ? (tileIdx1 === tileIdx0 ? texture0 : this.lookupTexture(tileIdx1)) : null;
+      if (!directTMEM) {
+        texture0 = this.lookupTexture(tileIdx0);
+        texture1 = tile1 ? (tileIdx1 === tileIdx0 ? texture0 : this.lookupTexture(tileIdx1)) : null;
+      }
     }
 
     const enableAlphaThreshold = (this.state.getAlphaCompareType() & gbi.AlphaCompare.G_AC_THRESHOLD) != 0;
@@ -483,8 +490,13 @@ export class Renderer extends RendererBase {
     shader.vertexArray.setColorData(colours, gl.DYNAMIC_DRAW, numVertices);
     shader.vertexArray.setUVData(coords, gl.DYNAMIC_DRAW, numVertices * 2);
 
-    this.bindTexture(0, tile0, texture0, texGenEnabled, shader.textureUniforms[0]);
-    this.bindTexture(1, tile1, texture1, texGenEnabled, shader.textureUniforms[1]);
+    if (directTMEM) {
+      this.tmemTexture ??= new TMEMTexture(gl);
+      this.tmemTexture.bind(this.state.tmem);
+      gl.uniform1i(shader.uTMEMUniform, 2);
+    }
+    const enabled0 = this.bindTexture(0, tile0, texture0, texGenEnabled, shader.textureUniforms[0], directTMEM);
+    const enabled1 = this.bindTexture(1, tile1, texture1, texGenEnabled, shader.textureUniforms[1], directTMEM);
     const copy = this.state.getCycleType() === gbi.CycleType.G_CYC_COPY;
     const filter = copy ? gbi.TextureFilter.G_TF_POINT : this.state.getTextureFilterType();
     gl.uniform1i(shader.uTextureFilterUniform, filter >>> gbi.G_MDSFT_TEXTFILT);
@@ -509,8 +521,8 @@ export class Renderer extends RendererBase {
     gl.uniform2f(shader.uConvertK45Uniform, k[4] / 255, k[5] / 256);
     gl.uniform1i(shader.uTextureConvertUniform, (this.state.rdpOtherModeH & gbi.G_TC_MASK) >>> gbi.G_MDSFT_TEXTCONV);
     gl.uniform2i(shader.uTextureYUVUniform,
-      texture0 && tile0?.format === gbi.ImageFormat.G_IM_FMT_YUV ? 1 : 0,
-      texture1 && tile1?.format === gbi.ImageFormat.G_IM_FMT_YUV ? 1 : 0);
+      enabled0 && tile0?.format === gbi.ImageFormat.G_IM_FMT_YUV ? 1 : 0,
+      enabled1 && tile1?.format === gbi.ImageFormat.G_IM_FMT_YUV ? 1 : 0);
 
     gl.uniform4f(shader.uPrimColorUniform,
       ((this.state.primColor >>> 24) & 0xff) / 255.0,
@@ -539,7 +551,7 @@ export class Renderer extends RendererBase {
     const enableAlphaCvgKill = this.state.getAntiAliasEnabled() && this.state.getCoverageTimesAlpha();
 
     return shaders.getOrCreateN64Shader(this.gl, mux0, mux1, cycleType, alphaCompare, enableAlphaCvgKill,
-      noNearClipping, this.state.rdpOtherModeL >>> 16);
+      noNearClipping, this.state.rdpOtherModeL >>> 16, graphicsOptions.directTmemSampling);
   }
 
   /**
@@ -619,15 +631,21 @@ export class Renderer extends RendererBase {
   }
 
 
-  bindTexture(slot, tile, texture, texGenEnabled, uniforms) {
+  bindTexture(slot, tile, texture, texGenEnabled, uniforms, directTMEM = false) {
     const gl = this.gl;
 
     gl.activeTexture(gl.TEXTURE0 + slot);
     gl.uniform1i(uniforms.sampler, slot);
-    gl.uniform1i(uniforms.enabled, texture ? 1 : 0);
+    const enabled = directTMEM ? !!tile && tile.format >= 0 : !!texture;
+    gl.uniform1i(uniforms.enabled, enabled ? 1 : 0);
     gl.bindTexture(gl.TEXTURE_2D, texture ? texture.texture : null);
 
-    if (!texture) return;
+    if (!enabled) return false;
+    if (directTMEM) {
+      gl.uniform4i(uniforms.memory, tile.tmem << 3, tile.line << 3, tile.format, tile.size);
+      gl.uniform2i(uniforms.palette, tile.palette,
+        getTexturePaletteFormat(tile, this.state.getTextureLUTType()) >>> gbi.G_MDSFT_TEXTLUT);
+    }
 
     // Generated coordinates use the HLE tile extent, independently of any
     // extra texels decoded to cover the full wrap region.
@@ -652,6 +670,7 @@ export class Renderer extends RendererBase {
     const modeS = copy ? tile.cmS & gbi.G_TX_MIRROR : tile.cmS | (tile.maskS === 0 ? gbi.G_TX_CLAMP : 0);
     const modeT = copy ? tile.cmT & gbi.G_TX_MIRROR : tile.cmT | (tile.maskT === 0 ? gbi.G_TX_CLAMP : 0);
     gl.uniform2i(uniforms.mode, modeS, modeT);
+    return true;
   }
 
   setGLBlendMode() {
