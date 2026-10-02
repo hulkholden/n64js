@@ -40,6 +40,17 @@ python3 -m http.server
 
 Navigate to http://localhost:8000/.
 
+### ROM inventory comparisons
+
+The [n64js inventory skill](.agents/skills/n64js-inventory/SKILL.md) provides a
+repeatable workflow for scanning a ROM collection, comparing it with a retained
+baseline, replaying possible regressions, and producing a prioritized issue list.
+Its Python helpers prepare a pinned checkout and runtime, resume interrupted
+scans, and generate reports from canonical ROM hashes and seeds. See
+[execution and recovery](.agents/skills/n64js-inventory/references/execution.md)
+for commands, required baseline artifacts, and platform requirements. Keep ROMs
+and generated inventory archives outside the repository.
+
 ### Headless controller input
 
 Bun scripts can set controller input through the live `inputs` array returned by
