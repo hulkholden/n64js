@@ -25,6 +25,9 @@ export const graphicsOptions = {
 
   // Whether to dump RDP commands.
   dumpRDP: false,
+
+  // Decode physical TMEM in the fragment shader instead of caching RGBA images.
+  directTmemSampling: false,
 };
 addOptionsFolder('Graphics', folder => {
   folder.add(graphicsOptions, 'canvasScale').name('Canvas Scale').min(1).max(4).step(0.25);
@@ -35,4 +38,5 @@ addOptionsFolder('Graphics', folder => {
   folder.add(graphicsOptions, 'dumpMicrocodeSubstring').name('Dump Microcode Substring');
   folder.add(graphicsOptions, 'emulationMode', { 'HLE (Recommended)': 'HLE', 'LLE (Experimental, Slow)': 'LLE' }).name('Emulation Mode');
   folder.add(graphicsOptions, 'dumpRDP').name('Dump RDP');
+  folder.add(graphicsOptions, 'directTmemSampling').name('Direct TMEM Sampling (Experimental)');
 });

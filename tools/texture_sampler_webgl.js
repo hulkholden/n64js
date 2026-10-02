@@ -22,6 +22,7 @@ import {
   RED,
   WHITE,
 } from './webgl_test_helpers.js';
+import { runTMEMSamplingTests } from './tmem_sampling_webgl.js';
 
 const output = document.getElementById('results');
 try {
@@ -840,6 +841,7 @@ try {
     passed++;
   }
   const suiteRunners = [
+    runTMEMSamplingTests,
     runRDPTests,
     runBgCopyTests,
     runBg1cycTests,

@@ -1,3 +1,4 @@
+import { graphicsOptions } from '../../src/hle/graphics_options.js';
 import { createHarness, nativeWidth, nativeHeight, scales, scenes } from './scenes.js';
 
 // Allow only a one-byte channel rounding difference. Every pixel beyond this
@@ -56,6 +57,7 @@ function compare(actual, golden) {
 }
 
 try {
+  graphicsOptions.directTmemSampling = new URLSearchParams(location.search).has('direct-tmem');
   const harness = createHarness(document.getElementById('display'));
 
   async function render({ id, scale, frame = 0, capture = false }) {
@@ -89,7 +91,7 @@ try {
 
   const cases = scenes.flatMap(scene => scales.flatMap(scale =>
     Array.from({ length: scene.frames || 1 }, (_, frame) => ({ id: scene.id, scale, frame }))));
-  window.samplerVisualTests = { cases, environment: { ...harness.environment, tolerance }, render };
+  window.samplerVisualTests = { cases, environment: { ...harness.environment, tolerance, directTmemSampling: graphicsOptions.directTmemSampling }, render };
 
   const container = document.getElementById('scenes');
   const controls = [...document.querySelectorAll('button, select')];
