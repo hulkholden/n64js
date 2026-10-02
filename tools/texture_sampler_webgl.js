@@ -326,6 +326,65 @@ try {
   checkRectangle('repeated rectangles still wrap', { endT: 8, expected: (x, y) => y % 2 ? blue : red });
   checkRectangle('repeated rectangles still mirror', { endT: 8, modeT: 1, expected: (x, y) => [red, blue, white, green][y] });
 
+  // THPS3 draws atlas glyphs at quarter-pixel positions with AA disabled.
+  // Only the upper-left coverage sample counts in this mode: native pixels
+  // before the rectangle origin must not sample the neighbouring glyph.
+  // Keep the fractional X interpolation offset and the integer Y scanline
+  // origin, independently of the snapped coverage bounds.
+  for (const scale of [1, 2]) {
+    for (const cycle of [gbi.CycleType.G_CYC_1CYCLE, gbi.CycleType.G_CYC_2CYCLE]) {
+      for (const flip of [false, true]) {
+        for (const fraction of [0.25, 0.5, 0.75]) {
+          const name = `fractional rectangle coverage, scale=${scale}, cycle=${cycle}, flip=${flip}, fraction=${fraction}`;
+          const size = 6 * scale;
+          gl.canvas.width = gl.canvas.height = size;
+          renderer.renderTargets.reset();
+          renderer.renderTargets = new RenderTargets(gl, size, size);
+          renderer.nativeTransform.initDimensions(6, 6);
+          gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+          gl.viewport(0, 0, size, size);
+          gl.disable(gl.SCISSOR_TEST);
+          gl.clear(gl.COLOR_BUFFER_BIT);
+          state.scissor = { x0: 0, y0: 0, x1: 6, y1: 6 };
+          state.rdpOtherModeH = cycle | gbi.TextureFilter.G_TF_BILERP;
+          state.rdpOtherModeL = 0;
+          for (const tile of state.tiles.slice(0, 2)) {
+            tile.set(0, 2, 1, 0, 0, 2, 2, 0, 2, 2, 0);
+            tile.setSize(0, 0, 12, 0);
+          }
+          renderer.lookupTexture = i => i < 2 ? row : null;
+          // The texels before and after the green/blue glyph are red/white.
+          // A half-texel step also checks that snapping does not stretch UVs.
+          renderer.texRect(0, 1 + fraction, 1 + fraction, 4 + fraction, 4 + fraction,
+            1, 0, 2.5, 0, flip);
+          const pixels = new Uint8Array(size * size * 4);
+          gl.readPixels(0, 0, size, size, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+          if (gl.getError() !== gl.NO_ERROR) throw new Error(`${name}: WebGL error`);
+          // Y starts on floor(y0), while X retains its quarter-pixel offset.
+          const samples = flip ? [[0, 128, 128, 255], blue, [128, 128, 255, 255]] : {
+            0.25: [[0, 159, 96, 255], [0, 32, 223, 255], [96, 96, 255, 255]],
+            0.5: [[0, 191, 64, 255], [0, 64, 191, 255], [64, 64, 255, 255]],
+            0.75: [[0, 223, 32, 255], [0, 96, 159, 255], [32, 32, 255, 255]],
+          }[fraction];
+          for (let y = 0; y < size; y++) {
+            for (let x = 0; x < size; x++) {
+              const nx = Math.floor(x / scale), ny = Math.floor(y / scale);
+              const inside = nx >= 2 && nx < 5 && ny >= 2 && ny < 5;
+              const expected = inside ? samples[(flip ? ny : nx) - 2] : [0, 0, 0, 0];
+              const offset = ((size - 1 - y) * size + x) * 4;
+              const actual = pixels.subarray(offset, offset + 4);
+              if (actual.some((value, i) => Math.abs(value - expected[i]) > 1)) {
+                throw new Error(`${name} at ${x},${y}: expected ${expected}, got ${Array.from(actual)}`);
+              }
+            }
+          }
+          lines.push(`PASS ${name}`);
+          passed++;
+        }
+      }
+    }
+  }
+
   // Rush 2049 draws its title in reversed, clamped strips with a wrap mask.
   // Go through command decoding: calling texRect directly misses the old
   // negative-derivative offset that wrapped the first row to the other edge.

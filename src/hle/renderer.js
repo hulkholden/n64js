@@ -336,7 +336,18 @@ export class Renderer extends RendererBase {
 
   texRect(tileIdx, x0, y0, x1, y1, s0, t0, s1, t1, flip) {
     if (x1 === x0 || y1 === y0) return;
-    const vertices = this.calculateRectVertices(x0, y0, x1, y1);
+    const cycle = this.state.getCycleType();
+    // Without AA, the RDP accepts only the coverage sample at the native
+    // pixel's upper-left corner. WebGL's pixel-centre coverage can otherwise
+    // draw before a fractional rectangle origin and sample a neighbouring
+    // atlas glyph (THPS3). Snap coverage, but keep the original S/T origin
+    // and derivatives below. Copy/fill use a different coverage rule.
+    // See parallel-rdp/shaders/shading.h (coverage & 1) and coverage.h.
+    const pointCoverage = !this.state.getAntiAliasEnabled() &&
+      (cycle === gbi.CycleType.G_CYC_1CYCLE || cycle === gbi.CycleType.G_CYC_2CYCLE);
+    const vertices = pointCoverage
+      ? this.calculateRectVertices(Math.ceil(x0), Math.ceil(y0), Math.ceil(x1), Math.ceil(y1))
+      : this.calculateRectVertices(x0, y0, x1, y1);
     let uvs;
     if (flip) {
       uvs = [
