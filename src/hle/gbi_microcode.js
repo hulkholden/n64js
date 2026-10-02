@@ -755,7 +755,7 @@ export class GBIMicrocode {
 
     const ti = this.state.textureImage;
     const tile = this.state.tiles[tileIdx];
-    this.renderer?.syncFramebufferToRAM?.(ti.calcAddress(uls, ult), this.ramDV);
+    this.renderer?.syncFramebufferToRAM?.(ti.calcAddress((uls << 20) >> 20, ult & 0x3ff) & 0xffffff, this.ramDV);
     this.state.tmem.loadBlock(ti, tile, uls, ult, lrs, dxt, dis);
     this.state.invalidateTileHashes();
   }

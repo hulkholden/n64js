@@ -560,12 +560,10 @@ export class Renderer extends RendererBase {
     const tlutFormat = this.state.getTextureLUTType();
     const hash = this.state.tmem.calculateCRC(tile, sourceTile, tlutFormat);
     const paletteFormat = getTexturePaletteFormat(tile, tlutFormat);
-    // RGBA32 odd rows swap 8-byte halves; their layout depends on base parity.
-    const swizzlePhase = tile.size === gbi.ImageSize.G_IM_SIZ_32b ? tile.tmem & 1 : 0;
 
     // Check if the texture is already cached.
     // The cacheID should include all the state that can affect how the texture is constructed.
-    const cacheID = `${hash}_${tile.format}_${tile.size}_${tile.line}_${tile.width}_${tile.height}_${tile.palette}_${paletteFormat}_${swizzlePhase}`;
+    const cacheID = `${hash}_${tile.format}_${tile.size}_${tile.line}_${tile.width}_${tile.height}_${tile.palette}_${paletteFormat}`;
     const cached = this.textureCache.get(cacheID);
     if (cached) return cached;
     const texture = this.decodeTexture(tile, tlutFormat);

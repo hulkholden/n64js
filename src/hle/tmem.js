@@ -1,17 +1,18 @@
 /*global n64js*/
 
-import { assert } from '../assert.js';
 import { toString16, toString32 } from '../format.js';
 import { convertTexels, getTexturePaletteFormat } from './convert.js';
 import * as gbi from './gbi.js';
-import { calcTileDimension } from './tile.js';
 
 // TODO: provide a HLE object and instantiate these in the constructor/reset.
-function getRamS32Array() { return n64js.hardware().cachedMemDevice.s32; }
 function getRamU8Array() { return n64js.hardware().cachedMemDevice.u8; }
 
 export class TMEM {
   constructor() {
+    // Physical TMEM, in N64 byte order. RGBA32 stores RG in the lower 2 KiB
+    // and BA in the upper 2 KiB; YUV stores UV below and Y above. Each half's
+    // four 16-bit banks are interleaved within 64-bit words. No decoded layout
+    // is retained here: subsequent loads can reinterpret or overwrite it.
     const tmemBuffer = new ArrayBuffer(4096);
     this.tmemData32 = new Int32Array(tmemBuffer);
     this.tmemData = new Uint8Array(tmemBuffer);
@@ -30,62 +31,32 @@ export class TMEM {
   loadBlock(ti, tile, uls, ult, lrs, dxt, dc) {
     // LoadBlock uses integer source coordinates, unlike LoadTile's 10.2
     // coordinates. F-Zero X uses nonzero ult to upload successive image strips.
-    const ramAddress = ti.calcAddress(uls, ult);
+    tile.setSize(uls, ult, lrs, dxt);
+    // The load edge walker sign-extends its 12-bit source X and masks Y to
+    // ten bits. Ordinary uploads use nonnegative X well below this boundary.
+    const ramAddress = ti.calcAddress((uls << 20) >> 20, ult & 0x3ff);
     const texels = (lrs - uls + 1) & 0xfff;
-    const bytes = ti.texelsToBytes(texels);
-    // TODO: rounding seems to be done before converting texels to bytes.
-    const qwords = (bytes + 7) >>> 3;
+    const step = 16 >>> ti.size;
+    if (dc) dc.tip(`texels ${texels}, qwords ${Math.ceil(texels / step)}`);
 
-    const tmemData = this.tmemData32;
-
-    // Offsets in 32 bit words.
-    let ramOffset = ramAddress >>> 2;
-    let tmemOffset = (tile.tmem << 3) >>> 2;
-
-    const ram = getRamS32Array();
-
-    // RGBA/32 swaps on 8 byte boundary, not 4.
-    const wordSwapBit = (tile.size == gbi.ImageSize.G_IM_SIZ_32b) ? 2 : 1;
-
-    if (dc) {
-      dc.tip(`bytes ${bytes}, qwords ${qwords}`);
-    }
-
-    // TODO: from the Programming Manual:
-    //   Note: The RDP commands LoadTile, LoadBlock, and LoadTLUT set the tile parameters SL,TL,SH,TH when they are executed.
-    //   After the load command, it may be necessary to use the SetTileSize command to restore these parameters if you want parameters other than were used in the Load command.
-    //   In the gbi.h texture load macros, the SetTileSize command is always used following a Load command.
-
-    // Slight fast path for dxt == 0
-    if (dxt === 0) {
-      copyLineQwords(tmemData, tmemOffset, ram, ramOffset, qwords);
-    } else {
-      // TODO: Emulate by incrementing a counter by dxt each frame, and emitting a new
-      // line when it overflows 2048.
-      // The LoadBlock command uses the parameter dxt to indicate when it should start the next line.
-      // Dxt is basically the reciprocal of the number of words (64-bits) in a line.
-      // The texture coordinate unit increments a counter by dxt for each word transferred to Tmem.
-      // When this counter rolls over into the next integer value, the line count is incremented. 
-      const qwordsPerLine = Math.ceil(2048 / dxt);
-      let oddRow = 0;
-      for (let i = 0; i < qwords;) {
-        const qwordsToCopy = Math.min(qwords - i, qwordsPerLine);
-
-        if (oddRow) {
-          copyLineQwordsSwap(tmemData, tmemOffset, ram, ramOffset, qwordsToCopy, wordSwapBit);
-        } else {
-          copyLineQwords(tmemData, tmemOffset, ram, ramOffset, qwordsToCopy);
-        }
-
-        i += qwordsToCopy;
-
-        // 2 words per quadword copied
-        tmemOffset += qwordsToCopy * 2;
-        ramOffset += qwordsToCopy * 2;
-
-        // All odd lines are swapped
-        oddRow ^= 1;
+    // A 4-bit source image crashes the RDP loading pipeline. Preserve TMEM;
+    // emulating the resulting pipeline lockup is outside this memory model.
+    if (ti.size === gbi.ImageSize.G_IM_SIZ_4b) return;
+    const ram = getRamU8Array();
+    if (canCopyQwords(ti, tile, ram, ramAddress)) {
+      const ram32 = new Int32Array(ram.buffer, ram.byteOffset, ram.byteLength >>> 2);
+      for (let s = 0, qword = 0; s < texels; s += step, qword++) {
+        const t = (qword * dxt) >>> 11;
+        copyLoadQword(this.tmemData32, ram32, ramAddress + qword * 8,
+          (tile.tmem + tile.line * t + qword) * 8, t & 1);
       }
+      return;
+    }
+    // DXT is a 1.11 accumulator increment per source qword. Its integer part
+    // affects both the odd-row swap and the destination's tile.line offset.
+    for (let s = 0, qword = 0; s < texels; s += step, qword++) {
+      writeLoadQword(this.tmemData, ram, ramAddress + qword * 8, tile,
+        s, (qword * dxt) >>> 11, false);
     }
   }
 
@@ -100,47 +71,45 @@ export class TMEM {
    * @param {DebugController?} dc An optional debug controller for displaying tooltips.
    */
   loadTile(ti, tile, uls, ult, lrs, lrt, dc) {
+    tile.setSize(uls, ult, lrs, lrt);
     const s0 = uls >>> 2;
     const t0 = ult >>> 2;
-    const s1 = lrs >>> 2;
     const t1 = lrt >>> 2;
 
-    const w = (s1 + 1) - s0;
+    const w = loadTileWidth(uls, ult, lrs, lrt);
     const h = (t1 + 1) - t0;
     
     const ramAddress = ti.calcAddress(s0, t0);
-    const rowBytes = ti.texelsToBytes(w);
     const ramStride = ti.stride();
-  
-    const tmemData = this.tmemData;
-    let tmemOffset = tile.tmem << 3;
-    let ramOffset = ramAddress;
-
-    // Packed RGBA32 and YUV16 use twice the tile line stride.
-    // TODO: confirm if these should use ti.size or tile.size. Currently they're different.
-    const doubleStride = ti.size == gbi.ImageSize.G_IM_SIZ_32b || tile.format == gbi.ImageFormat.G_IM_FMT_YUV;
-    const tmemStride = tile.line << (doubleStride ? 4 : 3);
-    const byteSwapBit = (tile.size == gbi.ImageSize.G_IM_SIZ_32b) ? 8 : 4;
 
     if (dc) {
-      dc.tip(`size (${w} x ${h}), rowBytes ${rowBytes}, ramStride ${ramStride}, tmemStride ${tmemStride}, ramOffset ${toString32(ramOffset)}, tmemOffset ${toString16(tmemOffset)}`);
+      dc.tip(`size (${w} x ${h}), ramStride ${ramStride}, tmemStride ${tile.line << 3}, ramOffset ${toString32(ramAddress)}, tmemOffset ${toString16(tile.tmem << 3)}`);
     }
 
-    // TODO: Limit the load to fetchedQWords?
-    // TODO: should be limited to 2048 texels, not 512 qwords.
-    // const bytes = h * rowBytes;
-    // const reqQWords = (bytes + 7) >>> 3;
-    // const fetchedQWords = (reqQWords > 512) ? 512 : reqQWords;
-
+    if (ti.size === gbi.ImageSize.G_IM_SIZ_4b) return;
     const ram = getRamU8Array();
-    for (let y = 0; y < h; ++y) {
-      if (y & 1) {
-        copyLineSwap(tmemData, tmemOffset, ram, ramOffset, rowBytes, tmemStride, byteSwapBit);
-      } else {
-        copyLine(tmemData, tmemOffset, ram, ramOffset, rowBytes, tmemStride);
+    const step = 16 >>> ti.size;
+    if (canCopyQwords(ti, tile, ram, ramAddress) && !(ramStride & 3)) {
+      const ram32 = new Int32Array(ram.buffer, ram.byteOffset, ram.byteLength >>> 2);
+      for (let y = 0; y < h; y++) {
+        for (let s = 0, qword = 0; s < w; s += step, qword++) {
+          const loadS = ((((uls << 3) + (s << 5)) << 16) >> 16) - (uls << 3);
+          const dst = (tile.tmem + tile.line * y) * 8 + ((loadS >> 5) << ti.size >> 1);
+          copyLoadQword(this.tmemData32, ram32, ramAddress + y * ramStride + qword * 8, dst, y & 1);
+        }
       }
-      tmemOffset += tmemStride;
-      ramOffset += ramStride;
+      return;
+    }
+    for (let y = 0; y < h; ++y) {
+      // Each iteration writes a complete 64-bit fetch, including the final
+      // partial group of texels. Unwritten stride padding retains old TMEM.
+      for (let s = 0, qword = 0; s < w; s += step, qword++) {
+        // Texture coordinates wrap as signed 16-bit values before subtracting
+        // the origin. This matters for long spans with a 4/8-bit load tile.
+        const loadS = ((((uls << 3) + (s << 5)) << 16) >> 16) - (uls << 3);
+        writeLoadQword(this.tmemData, ram, ramAddress + y * ramStride + qword * 8,
+          tile, loadS >> 5, y, false);
+      }
     }
   }
 
@@ -151,26 +120,30 @@ export class TMEM {
    * @param {number} uls Upper-left S coordinate to load, in 10.2 format. Typically zero.
    * @param {number} ult Upper-left T coordinate to load, in 10.2 format. Typically zero.
    * @param {number} lrs Lower-right S coordinate to load, in 10.2 format. This is essentially the palette size.
-   * @param {number} lrt Lower-right T coordinate to load, in 10.2 format. Ignored.
+   * @param {number} lrt Lower-right T coordinate to load, in 10.2 format.
    * @param {DebugController?} dc An optional debug controller for displaying tooltips.
    */
   loadTLUT(ti, tile, uls, ult, lrs, lrt, dc) {
+    tile.setSize(uls, ult, lrs, lrt);
     const s0 = uls >>> 2;
     const t0 = ult >>> 2;
 
-    // Tlut fmt is sometimes wrong (in 007) and is set after tlut load, but
-    // before tile load. Format is always 16bpp - RGBA16 or IA16:
-    const ramAddress = ti.calcAddress(s0, t0, gbi.ImageSize.G_IM_SIZ_16b);
-    const texels = calcTileDimension(lrs, uls);
-
-    const ram = getRamU8Array();
-    const tmemOffset = tile.tmem << 3;
+    const ramAddress = ti.calcAddress(s0, t0);
+    const texels = loadTileWidth(uls, ult, lrs, lrt);
 
     if (dc) {
-      dc.tip(`count ${texels}, tmemOffset ${toString16(tmemOffset)}`);
+      dc.tip(`count ${texels}, tmemOffset ${toString16(tile.tmem << 3)}`);
     }
-  
-    copyLineTLUT(this.tmemData, tmemOffset, ram, ramAddress, texels);
+    // TLUT loads cannot span multiple rows. The normal palette upload uses a
+    // 16-bit source and a 4-bit load tile, replicating one entry into four banks.
+    if (ti.size === gbi.ImageSize.G_IM_SIZ_4b || (lrt >>> 2) !== t0) return;
+    const ram = getRamU8Array();
+    const step = ti.size === gbi.ImageSize.G_IM_SIZ_16b ? 1 : 16 >>> ti.size;
+    const sourceStep = ti.size === gbi.ImageSize.G_IM_SIZ_16b ? 2 : 8;
+    for (let x = 0, qword = 0; x < texels; x += step, qword++) {
+      writeLoadQword(this.tmemData, ram, ramAddress + qword * sourceStep,
+        tile, qword * (64 >>> ti.size), 0, true);
+    }
   }
 
   convertTexels(dstData, dstWidth, tile, tlutFormat) {
@@ -188,25 +161,24 @@ export class TMEM {
 
     const src = this.tmemData32;
     const tmemOffset = tile.tmem << 3;
-    let bytesPerLine = tile.line << 3;
-
-    // HLE stores packed RGBA32 and YUV16 rather than separate TMEM banks.
+    const bytesPerLine = tile.line << 3;
     const rgba32 = tile.format == gbi.ImageFormat.G_IM_FMT_RGBA && tile.size == gbi.ImageSize.G_IM_SIZ_32b;
-    if (rgba32 || tile.format == gbi.ImageFormat.G_IM_FMT_YUV) {
-      bytesPerLine *= 2;
-    }
+    const yuv = tile.format == gbi.ImageFormat.G_IM_FMT_YUV;
+    const splitBanks = rgba32 || yuv;
 
     // A wrap mask can expose texels beyond the line stride, including on the
     // final row. Include those bytes and the containing swizzle block so a
     // change there invalidates the decoded texture too.
-    const rowBytes = Math.ceil((tile.width ?? 0) * (4 << tile.size) / 8);
-    const swizzleBlock = rgba32 ? 16 : 8;
+    const bytesPerTexel = rgba32 ? 2 : yuv ? 1 : (4 << tile.size) / 8;
+    const rowBytes = Math.ceil((tile.width ?? 0) * bytesPerTexel);
+    const swizzleBlock = 8;
     const rowEnd = tmemOffset + (height - 1) * bytesPerLine + rowBytes;
     const decodedEnd = Math.ceil(rowEnd / swizzleBlock) * swizzleBlock;
     const len = height > 0 ? Math.max(height * bytesPerLine, decodedEnd - tmemOffset) : 0;
 
     // Match conversion: palette indices wrap within the lower half of TMEM.
-    let hash = hashTmem(src, tmemOffset, len, 0, hasPalette ? 0x7ff : 0xfff);
+    let hash = hashTmem(src, tmemOffset, len, 0, hasPalette || splitBanks ? 0x7ff : 0xfff);
+    if (splitBanks) hash = hashTmem(src, tmemOffset, len, hash, 0x7ff, 0x800);
 
     // For palettised textures, check the palette entries too
     if (hasPalette) {
@@ -229,14 +201,23 @@ export class TMEM {
   }
 }
 
+function loadTileWidth(uls, ult, lrs, lrt) {
+  // Loads share the RDP edge walker. A single row starting at subpixel 3 has
+  // no covered subpixels before the exclusive bottom edge; its rightmost X
+  // stays zero, and the span length still wraps to twelve bits.
+  const emptyRow = (ult & 3) === 3 && (ult >>> 2) === (lrt >>> 2);
+  return ((emptyRow ? 0 : lrs >>> 2) - (uls >>> 2) + 1) & 0xfff;
+}
+
 // XXH32 over word-aligned spans, retaining TMEM wrapping and the one-period cap.
 // Native-endian words are sufficient for this in-process cache identity.
 // Algorithm: https://github.com/Cyan4973/xxHash/blob/dev/doc/xxhash_spec.md
-function hashTmem(tmem32, offset, len, seed, addressMask = 0xfff) {
+function hashTmem(tmem32, offset, len, seed, addressMask = 0xfff, bankOffset = 0) {
   const length = Math.min(len, addressMask + 1);
   let i = offset >> 2;
   const end = (offset + length) >> 2;
   const wordMask = addressMask >> 2;
+  const bank = bankOffset >> 2;
   let hash;
   if (length >= 16) {
     let a = (seed + 0x9e3779b1 + 0x85ebca77) | 0;
@@ -244,10 +225,10 @@ function hashTmem(tmem32, offset, len, seed, addressMask = 0xfff) {
     let c = seed | 0;
     let d = (seed - 0x9e3779b1) | 0;
     for (; i + 4 <= end; i += 4) {
-      a = xxh32Round(a, tmem32[i & wordMask]);
-      b = xxh32Round(b, tmem32[(i + 1) & wordMask]);
-      c = xxh32Round(c, tmem32[(i + 2) & wordMask]);
-      d = xxh32Round(d, tmem32[(i + 3) & wordMask]);
+      a = xxh32Round(a, tmem32[(i & wordMask) | bank]);
+      b = xxh32Round(b, tmem32[((i + 1) & wordMask) | bank]);
+      c = xxh32Round(c, tmem32[((i + 2) & wordMask) | bank]);
+      d = xxh32Round(d, tmem32[((i + 3) & wordMask) | bank]);
     }
     hash = (rotateLeft32(a, 1) + rotateLeft32(b, 7) + rotateLeft32(c, 12) + rotateLeft32(d, 18)) | 0;
   } else {
@@ -255,7 +236,7 @@ function hashTmem(tmem32, offset, len, seed, addressMask = 0xfff) {
   }
   hash = (hash + length) | 0;
   for (; i < end; i++) {
-    hash = (hash + Math.imul(tmem32[i & wordMask], 0xc2b2ae3d)) | 0;
+    hash = (hash + Math.imul(tmem32[(i & wordMask) | bank], 0xc2b2ae3d)) | 0;
     hash = Math.imul(rotateLeft32(hash, 17), 0x27d4eb2f);
   }
   hash = Math.imul(hash ^ (hash >>> 15), 0x85ebca77);
@@ -272,60 +253,76 @@ function rotateLeft32(value, bits) {
   return (value << bits) | (value >>> (32 - bits));
 }
 
-// tmem/ram should be Int32Array
-function copyLineQwords(tmem, tmem_offset, ram, ram_offset, qwords) {
-  for (let i = 0; i < qwords; ++i) {
-    tmem[tmem_offset + 0] = ram[ram_offset + 0];
-    tmem[tmem_offset + 1] = ram[ram_offset + 1];
-    tmem_offset += 2;
-    ram_offset += 2;
+// The loading pipeline fetches 64 bits from RDRAM, then routes four halfwords
+// into TMEM's banks. Source size controls the fetch step; load-tile size and
+// format control destination addresses and routing, even when they disagree.
+// Reference: Angrylion's loading_pipeline/get_tmem_idx and paraLLEl-RDP's
+// parallel-rdp/shaders/tmem_update.comp. Bytes here are big endian, without
+// the reference implementations' host-endian word XORs.
+function writeLoadQword(tmem, ram, address, tile, s, t, tlut) {
+  let word0, word1;
+  if (tlut && !(address & 1)) {
+    const entry = (ram[address & 0xffffff] << 8) | ram[(address + 1) & 0xffffff];
+    word0 = word1 = (entry << 16) | entry;
+  } else {
+    word0 = readRam32(ram, address);
+    word1 = readRam32(ram, address + 4);
+  }
+
+  const yuv = tile.format === gbi.ImageFormat.G_IM_FMT_YUV;
+  const rgba32 = tile.format === gbi.ImageFormat.G_IM_FMT_RGBA && tile.size === gbi.ImageSize.G_IM_SIZ_32b;
+  const halfwordS = (yuv || tile.size === gbi.ImageSize.G_IM_SIZ_8b ? s >>> 1
+    : tile.size === gbi.ImageSize.G_IM_SIZ_4b ? s >>> 2 : s) & 0x7ff;
+  const first = ((tile.tmem + tile.line * t) * 4 + halfwordS) & 0x7fd;
+  const swap = (t & 1) << 1;
+
+  if (yuv || rgba32) {
+    // Two halfwords in each half of TMEM. Odd rows exchange the 32-bit halves
+    // of each 64-bit word, even when DXT changes parity between the two writes.
+    const lane = halfwordS & 2;
+    const dst0 = (((first + ((lane - first) & 3)) ^ swap) & 0x3ff) * 2;
+    const dst1 = (((first + ((lane + 1 - first) & 3)) ^ swap) & 0x3ff) * 2;
+    if (yuv) {
+      writeTmem16(tmem, dst0, ((word0 >>> 16) & 0xff00) | ((word0 >>> 8) & 0xff));
+      writeTmem16(tmem, dst1, ((word1 >>> 16) & 0xff00) | ((word1 >>> 8) & 0xff));
+      writeTmem16(tmem, dst0 | 0x800, ((word0 >>> 8) & 0xff00) | (word0 & 0xff));
+      writeTmem16(tmem, dst1 | 0x800, ((word1 >>> 8) & 0xff00) | (word1 & 0xff));
+    } else {
+      writeTmem16(tmem, dst0, word0 >>> 16);
+      writeTmem16(tmem, dst1, word1 >>> 16);
+      writeTmem16(tmem, dst0 | 0x800, word0);
+      writeTmem16(tmem, dst1 | 0x800, word1);
+    }
+  } else {
+    const upper = first & 0x400;
+    for (let lane = 0; lane < 4; lane++) {
+      const dst = ((((first + ((lane - first) & 3)) ^ swap) & 0x3ff) | upper) * 2;
+      const word = lane < 2 ? word0 : word1;
+      writeTmem16(tmem, dst, word >>> ((1 - (lane & 1)) * 16));
+    }
   }
 }
 
-// tmem/ram should be Int32Array
-function copyLineQwordsSwap(tmem, tmem_offset, ram, ram_offset, qwords, wordSwapBit) {
-  assert((tmem_offset & 1) == 0, "tmem isn't qword aligned");
-
-  for (let i = 0; i < qwords; ++i) {
-    tmem[(tmem_offset + 0) ^ wordSwapBit] = ram[ram_offset + 0];
-    tmem[(tmem_offset + 1) ^ wordSwapBit] = ram[ram_offset + 1];
-    tmem_offset += 2;
-    ram_offset += 2;
-  }
+function readRam32(ram, address) {
+  return (ram[address & 0xffffff] << 24) | (ram[(address + 1) & 0xffffff] << 16) |
+    (ram[(address + 2) & 0xffffff] << 8) | ram[(address + 3) & 0xffffff];
 }
 
-function copyLine(tmem, tmemOffset, ram, ramOffset, texelBytes, rowBytes) {
-  for (let x = 0; x < texelBytes; ++x) {
-    tmem[tmemOffset + x] = ram[ramOffset + x];
-  }
-  for (let x = texelBytes; x < rowBytes; ++x) {
-    tmem[tmemOffset + x] = 0;
-  }
+function writeTmem16(tmem, address, value) {
+  tmem[address] = value >>> 8;
+  tmem[address + 1] = value;
 }
 
-function copyLineSwap(tmem, tmemOffset, ram, ramOffset, texelBytes, rowBytes, byteSwapBit) {
-  for (let x = 0; x < texelBytes; ++x) {
-    tmem[(tmemOffset + x) ^ byteSwapBit] = ram[(ramOffset + x)];
-  }
-  for (let x = texelBytes; x < rowBytes; ++x) {
-    tmem[(tmemOffset + x) ^ byteSwapBit] = 0;
-  }
+// Ordinary aligned 8/16-bit loads can copy host words directly while retaining
+// the same DXT, wrapping and odd-row semantics as the bank-routing path.
+function canCopyQwords(ti, tile, ram, address) {
+  return ti.size === tile.size && ti.size <= gbi.ImageSize.G_IM_SIZ_16b &&
+    tile.format !== gbi.ImageFormat.G_IM_FMT_YUV && !((address | ram.byteOffset) & 3);
 }
 
-function copyLineTLUT(tmem, tmemOffset, ram, ramOffset, texels) {
-  // TLUT entries are "quadricated" across banks.
-  // TODO: optimise this.
-  for (let texel = 0; texel < texels; texel++) {
-    const lo = ram[ramOffset + (texel * 2) + 0];
-    const hi = ram[ramOffset + (texel * 2) + 1];
-
-    tmem[tmemOffset + (texel * 8) + 0] = lo;
-    tmem[tmemOffset + (texel * 8) + 1] = hi;
-    tmem[tmemOffset + (texel * 8) + 2] = lo;
-    tmem[tmemOffset + (texel * 8) + 3] = hi;
-    tmem[tmemOffset + (texel * 8) + 4] = lo;
-    tmem[tmemOffset + (texel * 8) + 5] = hi;
-    tmem[tmemOffset + (texel * 8) + 6] = lo;
-    tmem[tmemOffset + (texel * 8) + 7] = hi;
-  }
+function copyLoadQword(tmem32, ram32, source, destination, odd) {
+  const src = (source & 0xffffff) >>> 2;
+  const dst = ((destination >>> 2) ^ odd) & 0x3ff;
+  tmem32[dst] = ram32[src];
+  tmem32[dst ^ 1] = ram32[(src + 1) & 0x3fffff];
 }

@@ -3,8 +3,8 @@ import { convertTexels } from './convert.js';
 import * as gbi from './gbi.js';
 
 const formats = [
-  ['YUV16', gbi.ImageFormat.G_IM_FMT_YUV, gbi.ImageSize.G_IM_SIZ_16b, 4096],
-  ['RGBA32', gbi.ImageFormat.G_IM_FMT_RGBA, gbi.ImageSize.G_IM_SIZ_32b, 4096],
+  ['YUV16', gbi.ImageFormat.G_IM_FMT_YUV, gbi.ImageSize.G_IM_SIZ_16b, 2048],
+  ['RGBA32', gbi.ImageFormat.G_IM_FMT_RGBA, gbi.ImageSize.G_IM_SIZ_32b, 2048],
   ['RGBA16', gbi.ImageFormat.G_IM_FMT_RGBA, gbi.ImageSize.G_IM_SIZ_16b, 4096],
   ['IA16', gbi.ImageFormat.G_IM_FMT_IA, gbi.ImageSize.G_IM_SIZ_16b, 4096],
   ['IA8', gbi.ImageFormat.G_IM_FMT_IA, gbi.ImageSize.G_IM_SIZ_8b, 4096],
@@ -26,6 +26,10 @@ describe('TMEM texel wrapping', () => {
       // contiguous region. Palette bytes stay in the upper half in both buffers.
       reference.set(src.subarray(boundary - 16, boundary), 0);
       reference.set(src.subarray(0, 128), 16);
+      if (name === 'YUV16' || name === 'RGBA32') {
+        reference.set(src.subarray(4096 - 16, 4096), 2048);
+        reference.set(src.subarray(2048, 2048 + 128), 2048 + 16);
+      }
       const tile = {
         format, size, tmem: (boundary - 16) / 8, line: 2, palette: 7,
         // The first row crosses the boundary; 4-bit formats also have an odd tail.
@@ -112,14 +116,14 @@ function referenceTexels(dstData, dstWidth, src, tile, tlutFormat) {
       tile.format === gbi.ImageFormat.G_IM_FMT_IA || tile.format === gbi.ImageFormat.G_IM_FMT_I)));
   const rgba32 = tile.format === gbi.ImageFormat.G_IM_FMT_RGBA && tile.size === 3;
   const yuv = tile.format === gbi.ImageFormat.G_IM_FMT_YUV;
-  const stride = tile.line * (rgba32 || yuv ? 16 : 8);
+  const stride = tile.line * 8;
   const mask = palette ? 0x7ff : 0xfff;
   const expand5 = v => (v << 3) | (v >>> 2);
   const rgba16 = v => [expand5(v >>> 11), expand5((v >>> 6) & 31), expand5((v >>> 1) & 31), (v & 1) * 255];
   const ia16 = v => [v >>> 8, v >>> 8, v >>> 8, v & 255];
   for (let y = 0; y < tile.height; y++) {
     const row = tile.tmem * 8 + y * stride;
-    const swizzle = (y & 1) * (rgba32 ? 8 : 4);
+    const swizzle = (y & 1) * 4;
     for (let x = 0; x < tile.width; x++) {
       const address = ((row + Math.floor(x * (4 << tile.size) / 8)) ^ swizzle) & mask;
       const value = tile.size === 0 ? (src[address] >>> ((x & 1) ? 0 : 4)) & 15
@@ -130,10 +134,12 @@ function referenceTexels(dstData, dstWidth, src, tile, tlutFormat) {
         const entry = src[0x800 + index * 8] * 256 + src[0x801 + index * 8];
         pixel = tlutFormat === gbi.TextureLUT.G_TT_IA16 ? ia16(entry) : rgba16(entry);
       } else if (rgba32) {
-        pixel = Array.from(src.subarray(address, address + 4));
+        const rg = ((row + x * 2) ^ swizzle) & 2047;
+        pixel = [src[rg], src[rg + 1], src[rg + 2048], src[rg + 2049]];
       } else if (yuv) {
-        const pair = ((row + (x & ~1) * 2) ^ swizzle) & 0xfff;
-        pixel = [src[pair], src[(pair + 2) & 0xfff], src[(pair + (x & 1) * 2 + 1) & 0xfff], 255];
+        const chroma = ((row + x - (x % 2)) ^ swizzle) & 2047;
+        const luma = ((row + x) ^ swizzle) & 2047;
+        pixel = [src[chroma], src[chroma + 1], src[luma + 2048], 255];
       } else if (tile.format === gbi.ImageFormat.G_IM_FMT_RGBA && tile.size === 2) {
         pixel = rgba16(value);
       } else if (tile.format === gbi.ImageFormat.G_IM_FMT_I || tile.format === gbi.ImageFormat.G_IM_FMT_RGBA) {
