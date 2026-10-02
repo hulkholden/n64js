@@ -10,6 +10,11 @@ import { audioMicrocodeManifest } from './audio_microcode_manifest.js';
 const RAM_BYTES = 0x4000;
 const DMEM_BYTES = 0x1000;
 const SAMPLE_BASE = 0x4f0;
+const ADPCM_BOOK = 0x3f0;
+const ADPCM_FRAME_BYTES = 32;
+const ADPCM_ENCODED_BYTES = 9;
+const ADPCM_COEFFICIENT_SCALE = 0x800;
+const VECTOR_BYTES = 16;
 const BLOCK_BYTES = 0x170;
 const DRY_LEFT = 0x9d0;
 const DRY_RIGHT = 0xb40;
@@ -96,6 +101,41 @@ for (const Audio of [NAudio, BanjoAudio, DonkeyKongAudio]) describe(Audio.name, 
     expect(audio.ram.slice(STATE_ADDRESS, STATE_ADDRESS + 32)).toEqual(audio.ram.slice(LOOP_STATE_ADDRESS, LOOP_STATE_ADDRESS + 32));
     audio.execute(command(OP_ADPCM, STATE_ADDRESS), INIT << 28 | INPUT_OFFSET);
     expect(audio.ram.slice(STATE_ADDRESS, STATE_ADDRESS + 32)).toEqual(new Uint8Array(32));
+  });
+
+  test('ADPCM reads upper predictors from sample memory without rejecting lower output buffers', () => {
+    // Predictor 13 occurs in Tony Hawk 3. The RSP indexes all four bits;
+    // entries above 7 alias sample memory beyond the usual loaded book.
+    const LOW_OUTPUT_OFFSET = 0x80;
+    const INITIAL_SAMPLE = 100;
+    for (const [predictor, outputOffset] of [[7, LOW_OUTPUT_OFFSET], [13, BLOCK_BYTES], [15, BLOCK_BYTES]]) {
+      const audio = fixture(Audio);
+      const coefficients = ADPCM_BOOK + predictor * ADPCM_FRAME_BYTES;
+      for (let p = 0; p < VECTOR_BYTES; p += 2) audio.put16(coefficients + VECTOR_BYTES + p, ADPCM_COEFFICIENT_SCALE);
+      audio.ramView.setInt16(STATE_ADDRESS + ADPCM_FRAME_BYTES - 2, INITIAL_SAMPLE);
+      audio.dmem[SAMPLE_BASE] = predictor;
+      audio.dmem.fill(0x11, SAMPLE_BASE + 1, SAMPLE_BASE + ADPCM_ENCODED_BYTES);
+
+      audio.execute(command(OP_ADPCM, STATE_ADDRESS), ADPCM_FRAME_BYTES << 16 | outputOffset);
+
+      // Each residual adds one; the coefficients carry the preceding sum.
+      for (let i = 0; i < ADPCM_FRAME_BYTES / 2; i++) {
+        expect(audio.s16(SAMPLE_BASE + outputOffset + ADPCM_FRAME_BYTES + i * 2)).toBe(INITIAL_SAMPLE + i + 1);
+        expect(audio.ramView.getInt16(STATE_ADDRESS + i * 2)).toBe(INITIAL_SAMPLE + i + 1);
+      }
+    }
+  });
+
+  test('ADPCM still rejects predictors that decoding could overwrite', () => {
+    const audio = fixture(Audio);
+    const OVERLAPPING_PREDICTOR = 13;
+    const OUTPUT_OFFSET = 0x80;
+    audio.dmem[SAMPLE_BASE] = OVERLAPPING_PREDICTOR;
+    const before = audio.ram.slice();
+    expect(() => audio.execute(command(OP_ADPCM, STATE_ADDRESS),
+      INIT << 28 | ADPCM_FRAME_BYTES << 16 | OUTPUT_OFFSET)).toThrow(UnsupportedAudioCommand);
+    audio.rollback();
+    expect(audio.ram).toEqual(before);
   });
 
   test('resampler INIT clears history while preserving the six unwritten state bytes', () => {

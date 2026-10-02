@@ -65,8 +65,12 @@ export class NAudio extends AudioBase {
         const output = naudio.DMEM_SAMPLE_BUFFER + (w1 & naudio.BUFFER_OFFSET_MASK);
         const count = round32((w1 >>> 16) & naudio.BUFFER_OFFSET_MASK);
         const address = w0 & naudio.RAM_ADDRESS_MASK;
+
+        // The RSP uses all 16 predictors, including coefficients in sample
+        // memory. Keep the lookup below output so decoding cannot change it.
+        const bookSize = Math.min(naudio.ADPCM_PREDICTOR_LOOKUP_SIZE, output - naudio.DMEM_ADPCM_BOOK);
         this.decodeADPCM(w1 >>> 28, address, input, output, count,
-          naudio.DMEM_ADPCM_BOOK, naudio.ADPCM_BOOK_SIZE, this.view.getUint32(naudio.DMEM_LOOP_ADDRESS));
+          naudio.DMEM_ADPCM_BOOK, bookSize, this.view.getUint32(naudio.DMEM_LOOP_ADDRESS));
         this.scalarV0 = address;
         return;
       }
