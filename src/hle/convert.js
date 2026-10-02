@@ -274,6 +274,21 @@ function convertCI4(dstData, dstWidth, src, tile, pixels) {
   convert4b(dstData, dstWidth, src, tile, convertPalette(src, tile.palette, 16, pixels), kCIAddressMask);
 }
 
+// The TLUT also applies to 4/8-bit IA and I tiles (Bio FREAKS uses IA4 fonts
+// with an RGBA16 palette). Keep the existing RGBA/CI fallback when TLUT is off.
+// See sample_texture's TLUT path in:
+// https://github.com/Themaister/parallel-rdp/blob/master/parallel-rdp/shaders/texture.h
+export function getTexturePaletteFormat(tile, tlutFormat) {
+  if (tile.size !== gbi.ImageSize.G_IM_SIZ_4b && tile.size !== gbi.ImageSize.G_IM_SIZ_8b) {
+    return gbi.TextureLUT.G_TT_NONE;
+  }
+  const indexed = tile.format === gbi.ImageFormat.G_IM_FMT_CI || tile.format === gbi.ImageFormat.G_IM_FMT_RGBA;
+  const intensity = tile.format === gbi.ImageFormat.G_IM_FMT_IA || tile.format === gbi.ImageFormat.G_IM_FMT_I;
+  const enabled = tlutFormat === gbi.TextureLUT.G_TT_RGBA16 || tlutFormat === gbi.TextureLUT.G_TT_IA16;
+  if (!indexed && !(intensity && enabled)) return gbi.TextureLUT.G_TT_NONE;
+  return tlutFormat === gbi.TextureLUT.G_TT_IA16 ? tlutFormat : gbi.TextureLUT.G_TT_RGBA16;
+}
+
 /**
  * Converts N64 texels to the native RGBA format.
  * Source and destination views must start on 4-byte boundaries for packed access.
@@ -288,8 +303,16 @@ export function convertTexels(dstData, dstWidth, tmem, tile, tlutFormat) {
   assert((dstData.byteOffset & 3) === 0, 'Texture output must be 4-byte aligned');
   assert((tmem.byteOffset & 3) === 0, 'TMEM must be 4-byte aligned');
 
-  // NB: assume RGBA16 for G_TT_NONE.
-  const palettePixels = tlutFormat === gbi.TextureLUT.G_TT_IA16 ? ia16Pixels : rgba16Pixels;
+  const paletteFormat = getTexturePaletteFormat(tile, tlutFormat);
+  if (paletteFormat !== gbi.TextureLUT.G_TT_NONE) {
+    const pixels = paletteFormat === gbi.TextureLUT.G_TT_IA16 ? ia16Pixels : rgba16Pixels;
+    if (tile.size === gbi.ImageSize.G_IM_SIZ_4b) {
+      convertCI4(dstData, dstWidth, tmem, tile, pixels);
+    } else {
+      convertCI8(dstData, dstWidth, tmem, tile, pixels);
+    }
+    return true;
+  }
 
   switch (tile.format) {
     case gbi.ImageFormat.G_IM_FMT_YUV:
@@ -305,15 +328,6 @@ export function convertTexels(dstData, dstWidth, tmem, tile, tlutFormat) {
           return true;
         case gbi.ImageSize.G_IM_SIZ_16b:
           convert16b(dstData, dstWidth, tmem, tile, rgba16Pixels);
-          return true;
-
-        // Hack - Extreme-G specifies RGBA/8 RGBA/4 textures, but they're
-        // really CI
-        case gbi.ImageSize.G_IM_SIZ_8b:
-          convertCI8(dstData, dstWidth, tmem, tile, palettePixels);
-          return true;
-        case gbi.ImageSize.G_IM_SIZ_4b:
-          convertCI4(dstData, dstWidth, tmem, tile, palettePixels);
           return true;
       }
       break;
@@ -339,17 +353,6 @@ export function convertTexels(dstData, dstWidth, tmem, tile, tlutFormat) {
           return true;
         case gbi.ImageSize.G_IM_SIZ_4b:
           convert4b(dstData, dstWidth, tmem, tile, i4Pixels);
-          return true;
-      }
-      break;
-
-    case gbi.ImageFormat.G_IM_FMT_CI:
-      switch (tile.size) {
-        case gbi.ImageSize.G_IM_SIZ_8b:
-          convertCI8(dstData, dstWidth, tmem, tile, palettePixels);
-          return true;
-        case gbi.ImageSize.G_IM_SIZ_4b:
-          convertCI4(dstData, dstWidth, tmem, tile, palettePixels);
           return true;
       }
       break;

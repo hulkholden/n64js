@@ -36,8 +36,8 @@ describe('TMEM texel wrapping', () => {
       const dstWidth = tile.width + 3;
       const actual = new Uint8ClampedArray(dstWidth * tile.height * 4).fill(0x55);
       const expected = actual.slice();
-      expect(convertTexels(actual, dstWidth, src, tile, gbi.TextureLUT.G_TT_RGBA16)).toBe(true);
-      expect(convertTexels(expected, dstWidth, reference, { ...tile, tmem: 0 }, gbi.TextureLUT.G_TT_RGBA16)).toBe(true);
+      expect(convertTexels(actual, dstWidth, src, tile, gbi.TextureLUT.G_TT_NONE)).toBe(true);
+      expect(convertTexels(expected, dstWidth, reference, { ...tile, tmem: 0 }, gbi.TextureLUT.G_TT_NONE)).toBe(true);
       expect(actual).toEqual(expected);
     });
   }
@@ -107,7 +107,9 @@ test('RGBA16 repeating TMEM rows match scalar conversion and preserve destinatio
 // Deliberately expand one pixel at a time, without packed writes, lookup tables,
 // or row-period copies, to check the optimized converters independently.
 function referenceTexels(dstData, dstWidth, src, tile, tlutFormat) {
-  const palette = (tile.format === gbi.ImageFormat.G_IM_FMT_CI || tile.format === gbi.ImageFormat.G_IM_FMT_RGBA) && tile.size < 2;
+  const palette = tile.size < 2 && (tile.format === gbi.ImageFormat.G_IM_FMT_CI ||
+    tile.format === gbi.ImageFormat.G_IM_FMT_RGBA ||
+    (tlutFormat !== 0 && (tile.format === gbi.ImageFormat.G_IM_FMT_IA || tile.format === gbi.ImageFormat.G_IM_FMT_I)));
   const rgba32 = tile.format === gbi.ImageFormat.G_IM_FMT_RGBA && tile.size === 3;
   const yuv = tile.format === gbi.ImageFormat.G_IM_FMT_YUV;
   const stride = tile.line * (rgba32 || yuv ? 16 : 8);
@@ -151,7 +153,7 @@ function referenceTexels(dstData, dstWidth, src, tile, tlutFormat) {
 for (const [name, format, size, boundary] of formats) {
   test(`${name} packed output matches scalar pixels with wrapping, odd widths, padding and aligned byte views`, () => {
     for (const [width, height, line] of [[13, 5, 1], [5, 65, 256], [64, 64, 8]]) {
-      for (const tlut of [gbi.TextureLUT.G_TT_RGBA16, gbi.TextureLUT.G_TT_IA16]) {
+      for (const tlut of [gbi.TextureLUT.G_TT_NONE, gbi.TextureLUT.G_TT_RGBA16, gbi.TextureLUT.G_TT_IA16]) {
         for (const [offset, palette] of [[0, 0], [4, 7], [8, 15]]) {
           const src = new Uint8Array(new ArrayBuffer(4096 + offset), offset, 4096);
           src.set(Uint8Array.from({ length: 4096 }, (_, i) => (i * 37 + (i >>> 8) * 13) & 255));

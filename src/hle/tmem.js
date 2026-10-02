@@ -2,7 +2,7 @@
 
 import { assert } from '../assert.js';
 import { toString16, toString32 } from '../format.js';
-import { convertTexels } from './convert.js';
+import { convertTexels, getTexturePaletteFormat } from './convert.js';
 import * as gbi from './gbi.js';
 import { calcTileDimension } from './tile.js';
 
@@ -177,8 +177,10 @@ export class TMEM {
     return convertTexels(dstData, dstWidth, this.tmemData, tile, tlutFormat);
   }
 
-  calculateCRC(tile, hashOwner = tile) {
-    if (hashOwner.hash && hashOwner.hashWidth === tile.width && hashOwner.hashHeight === tile.height) {
+  calculateCRC(tile, hashOwner = tile, tlutFormat = gbi.TextureLUT.G_TT_NONE) {
+    const hasPalette = getTexturePaletteFormat(tile, tlutFormat) !== gbi.TextureLUT.G_TT_NONE;
+    if (hashOwner.hash && hashOwner.hashWidth === tile.width && hashOwner.hashHeight === tile.height &&
+        hashOwner.hashHasPalette === hasPalette) {
       return hashOwner.hash;
     }
 
@@ -203,11 +205,7 @@ export class TMEM {
     const decodedEnd = Math.ceil(rowEnd / swizzleBlock) * swizzleBlock;
     const len = height > 0 ? Math.max(height * bytesPerLine, decodedEnd - tmemOffset) : 0;
 
-    // Include the RGBA/4 and RGBA/8 aliases used by Extreme-G.
-    const hasPalette = (tile.format === gbi.ImageFormat.G_IM_FMT_CI ||
-      tile.format === gbi.ImageFormat.G_IM_FMT_RGBA) &&
-      (tile.size === gbi.ImageSize.G_IM_SIZ_4b || tile.size === gbi.ImageSize.G_IM_SIZ_8b);
-    // Match conversion: CI indices wrap within the lower half of TMEM.
+    // Match conversion: palette indices wrap within the lower half of TMEM.
     let hash = hashTmem(src, tmemOffset, len, 0, hasPalette ? 0x7ff : 0xfff);
 
     // For palettised textures, check the palette entries too
@@ -226,6 +224,7 @@ export class TMEM {
     hashOwner.hash = hash;
     hashOwner.hashWidth = tile.width;
     hashOwner.hashHeight = tile.height;
+    hashOwner.hashHasPalette = hasPalette;
     return hash;
   }
 }

@@ -9,6 +9,7 @@ import * as shaders from './shaders.js';
 import { Texture } from './textures.js';
 import { TextureCache } from './texture_cache.js';
 import { textureDecodeTile } from './texture_sampler.js';
+import { getTexturePaletteFormat } from './convert.js';
 import { VertexArray } from "./vertex_array.js";
 import blitVertexSource from './shaders/blit.vert.glsl' with { type: 'text' };
 import blitFragmentSource from './shaders/blit.frag.glsl' with { type: 'text' };
@@ -544,11 +545,9 @@ export class Renderer extends RendererBase {
     tile = textureDecodeTile(tile, this.state.getCycleType() === gbi.CycleType.G_CYC_COPY);
 
     // Keep the hash on the original tile so expanded wrap regions can reuse it.
-    const hash = this.state.tmem.calculateCRC(tile, sourceTile);
     const tlutFormat = this.state.getTextureLUTType();
-    const hasPalette = (tile.format === gbi.ImageFormat.G_IM_FMT_CI || tile.format === gbi.ImageFormat.G_IM_FMT_RGBA) &&
-      tile.size <= gbi.ImageSize.G_IM_SIZ_8b;
-    const paletteFormat = hasPalette && tlutFormat === gbi.TextureLUT.G_TT_IA16 ? tlutFormat : 0;
+    const hash = this.state.tmem.calculateCRC(tile, sourceTile, tlutFormat);
+    const paletteFormat = getTexturePaletteFormat(tile, tlutFormat);
     // RGBA32 odd rows swap 8-byte halves; their layout depends on base parity.
     const swizzlePhase = tile.size === gbi.ImageSize.G_IM_SIZ_32b ? tile.tmem & 1 : 0;
 

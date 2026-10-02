@@ -21,6 +21,7 @@ export class Tile {
     this.hash = 0;
     this.hashWidth = 0;
     this.hashHeight = 0;
+    this.hashHasPalette = false;
   }
 
   get left() { return this.uls / 4; }

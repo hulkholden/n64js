@@ -48,10 +48,10 @@ try {
     lod = gbi.TextureLOD.G_TL_TILE, level = 0, detail = gbi.TextureDetail.G_TD_CLAMP,
     decode = false, format = gbi.ImageFormat.G_IM_FMT_RGBA, size = gbi.ImageSize.G_IM_SIZ_16b, line = 1,
     rspTriangle = false, perspective = gbi.TexturePerspective.G_TP_PERSP,
-    combine = null, primLodFrac = 0,
+    combine = null, primLodFrac = 0, tlut = gbi.TextureLUT.G_TT_NONE,
     otherModeL = 0, blendColor = 0, clearColor = null,
   } = {}) {
-    state.rdpOtherModeH = cycle | filter | lod | detail | perspective;
+    state.rdpOtherModeH = cycle | filter | lod | detail | perspective | tlut;
     state.rdpOtherModeL = otherModeL;
     state.blendColor = blendColor;
     state.texture.level = level;
@@ -330,9 +330,31 @@ try {
   gl.viewport(0, 0, 1, 1);
   check('triangle after rectangle retains interpolated UVs', [128, 191, 191, 255], { uv: [0.75, 0.75], filter: gbi.TextureFilter.G_TF_BILERP });
 
+  const tmem = state.tmem.tmemData;
+  // Bio FREAKS declares its indexed font as IA4. Index 14 would disappear if
+  // decoded directly as IA4, but the enabled TLUT supplies opaque white.
+  tmem.fill(0);
+  tmem[0] = 0xe0;
+  for (let bank = 0; bank < 4; bank++) {
+    tmem.set([0xff, 0xff], 0x800 + 14 * 8 + bank * 2);
+  }
+  state.invalidateTileHashes();
+  const font = { decode: true, format: gbi.ImageFormat.G_IM_FMT_IA, size: gbi.ImageSize.G_IM_SIZ_4b,
+    tex: { width: 1, height: 1 } };
+  check('IA4 font uses opaque RGBA16 palette entry for an even index', white, {
+    ...font, tlut: gbi.TextureLUT.G_TT_RGBA16,
+  });
+  check('IA4 without TLUT still uses its own alpha bit', [255, 255, 255, 0], font);
+  for (let bank = 0; bank < 4; bank++) {
+    tmem.set([0x80, 0x40], 0x800 + 14 * 8 + bank * 2);
+  }
+  state.invalidateTileHashes();
+  check('IA4 font uses independent intensity and alpha from IA16 palette', [128, 128, 128, 64], {
+    ...font, tlut: gbi.TextureLUT.G_TT_IA16,
+  });
+
   // Decode real CI4 TMEM for the scrolling-background case. A stubbed host
   // texture cannot catch the decoder truncating a 64-texel wrap region.
-  const tmem = state.tmem.tmemData;
   for (let y = 0; y < 64; y++) {
     for (let x = 0; x < 64; x += 2) {
       const index = ((x >>> 4) + (y >>> 4)) & 3;
