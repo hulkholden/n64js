@@ -51,9 +51,13 @@ export class TMEM {
     }
     // DXT is a 1.11 accumulator increment per source qword. Its integer part
     // affects both the odd-row swap and the destination's tile.line offset.
+    const mode = getLoadMode(tile);
+    const sShift = getLoadSShift(tile);
     for (let s = 0, qword = 0; s < texels; s += step, qword++) {
-      writeLoadQword(this.tmemData, ram, ramAddress + qword * 8, tile,
-        s, (qword * dxt) >>> 11, false);
+      const t = (qword * dxt) >>> 11;
+      const source = ramAddress + qword * 8;
+      writeLoadQword(this.tmemData, readRam32(ram, source), readRam32(ram, source + 4),
+        (tile.tmem + tile.line * t) * 4, (s >>> sShift) & 0x7ff, (t & 1) << 1, mode);
     }
   }
 
@@ -93,15 +97,20 @@ export class TMEM {
       }
       return;
     }
+    const mode = getLoadMode(tile);
+    const sShift = getLoadSShift(tile);
     for (let y = 0; y < h; ++y) {
+      const base = (tile.tmem + tile.line * y) * 4;
+      const swap = (y & 1) << 1;
       // Each iteration writes a complete 64-bit fetch, including the final
       // partial group of texels. Unwritten stride padding retains old TMEM.
       for (let s = 0, qword = 0; s < w; s += step, qword++) {
         // Texture coordinates wrap as signed 16-bit values before subtracting
         // the origin. This matters for long spans with a 4/8-bit load tile.
         const loadS = ((((uls << 3) + (s << 5)) << 16) >> 16) - (uls << 3);
-        writeLoadQword(this.tmemData, ram, ramAddress + y * ramStride + qword * 8,
-          tile, loadS >> 5, y, false);
+        const source = ramAddress + y * ramStride + qword * 8;
+        writeLoadQword(this.tmemData, readRam32(ram, source), readRam32(ram, source + 4),
+          base, ((loadS >> 5) >>> sShift) & 0x7ff, swap, mode);
       }
     }
   }
@@ -129,9 +138,24 @@ export class TMEM {
     const ram = getRamU8Array();
     const step = ti.size === gbi.ImageSize.G_IM_SIZ_16b ? 1 : 16 >>> ti.size;
     const sourceStep = ti.size === gbi.ImageSize.G_IM_SIZ_16b ? 2 : 8;
+    const writeQword = loadWriters[getLoadMode(tile)];
+    const sShift = getLoadSShift(tile);
+    const sStep = 64 >>> ti.size;
+    const base = tile.tmem * 4;
+    // Every source increment is even, so alignment is fixed for the load.
+    if (!(ramAddress & 1)) {
+      for (let x = 0, qword = 0; x < texels; x += step, qword++) {
+        const source = ramAddress + qword * sourceStep;
+        const entry = (ram[source & 0xffffff] << 8) | ram[(source + 1) & 0xffffff];
+        const word = (entry << 16) | entry;
+        writeQword(this.tmemData, word, word, base, ((qword * sStep) >>> sShift) & 0x7ff, 0);
+      }
+      return;
+    }
     for (let x = 0, qword = 0; x < texels; x += step, qword++) {
-      writeLoadQword(this.tmemData, ram, ramAddress + qword * sourceStep,
-        tile, qword * (64 >>> ti.size), 0, true);
+      const source = ramAddress + qword * sourceStep;
+      writeQword(this.tmemData, readRam32(ram, source), readRam32(ram, source + 4),
+        base, ((qword * sStep) >>> sShift) & 0x7ff, 0);
     }
   }
 
@@ -248,47 +272,67 @@ function rotateLeft32(value, bits) {
 // Reference: Angrylion's loading_pipeline/get_tmem_idx and paraLLEl-RDP's
 // parallel-rdp/shaders/tmem_update.comp. Bytes here are big endian, without
 // the reference implementations' host-endian word XORs.
-function writeLoadQword(tmem, ram, address, tile, s, t, tlut) {
-  let word0, word1;
-  if (tlut && !(address & 1)) {
-    const entry = (ram[address & 0xffffff] << 8) | ram[(address + 1) & 0xffffff];
-    word0 = word1 = (entry << 16) | entry;
-  } else {
-    word0 = readRam32(ram, address);
-    word1 = readRam32(ram, address + 4);
+const LoadMode = { Ordinary: 0, Rgba32: 1, Yuv: 2 };
+
+function getLoadMode(tile) {
+  if (tile.format === gbi.ImageFormat.G_IM_FMT_YUV) return LoadMode.Yuv;
+  if (tile.format === gbi.ImageFormat.G_IM_FMT_RGBA && tile.size === gbi.ImageSize.G_IM_SIZ_32b) {
+    return LoadMode.Rgba32;
   }
+  return LoadMode.Ordinary;
+}
 
-  const yuv = tile.format === gbi.ImageFormat.G_IM_FMT_YUV;
-  const rgba32 = tile.format === gbi.ImageFormat.G_IM_FMT_RGBA && tile.size === gbi.ImageSize.G_IM_SIZ_32b;
-  const halfwordS = (yuv || tile.size === gbi.ImageSize.G_IM_SIZ_8b ? s >>> 1
-    : tile.size === gbi.ImageSize.G_IM_SIZ_4b ? s >>> 2 : s) & 0x7ff;
-  const first = ((tile.tmem + tile.line * t) * 4 + halfwordS) & 0x7fd;
-  const swap = (t & 1) << 1;
+function getLoadSShift(tile) {
+  if (tile.format === gbi.ImageFormat.G_IM_FMT_YUV || tile.size === gbi.ImageSize.G_IM_SIZ_8b) return 1;
+  return tile.size === gbi.ImageSize.G_IM_SIZ_4b ? 2 : 0;
+}
 
-  if (yuv || rgba32) {
-    // Two halfwords in each half of TMEM. Odd rows exchange the 32-bit halves
-    // of each 64-bit word, even when DXT changes parity between the two writes.
-    const lane = halfwordS & 2;
-    const dst0 = (((first + ((lane - first) & 3)) ^ swap) & 0x3ff) * 2;
-    const dst1 = (((first + ((lane + 1 - first) & 3)) ^ swap) & 0x3ff) * 2;
-    if (yuv) {
-      writeTmem16(tmem, dst0, ((word0 >>> 16) & 0xff00) | ((word0 >>> 8) & 0xff));
-      writeTmem16(tmem, dst1, ((word1 >>> 16) & 0xff00) | ((word1 >>> 8) & 0xff));
-      writeTmem16(tmem, dst0 | 0x800, ((word0 >>> 8) & 0xff00) | (word0 & 0xff));
-      writeTmem16(tmem, dst1 | 0x800, ((word1 >>> 8) & 0xff00) | (word1 & 0xff));
-    } else {
-      writeTmem16(tmem, dst0, word0 >>> 16);
-      writeTmem16(tmem, dst1, word1 >>> 16);
-      writeTmem16(tmem, dst0 | 0x800, word0);
-      writeTmem16(tmem, dst1 | 0x800, word1);
-    }
+// Keep calls direct for block/tile loads: indirect dispatch was slower in
+// Chromium. Palette loads benefit from selecting a writer once instead.
+// See tmem_load.bench.js for the comparison benchmark.
+function writeLoadQword(tmem, word0, word1, base, halfwordS, swap, mode) {
+  if (mode === LoadMode.Yuv) {
+    writeYuvQword(tmem, word0, word1, base, halfwordS, swap);
+  } else if (mode === LoadMode.Rgba32) {
+    writeRgba32Qword(tmem, word0, word1, base, halfwordS, swap);
   } else {
-    const upper = first & 0x400;
-    for (let lane = 0; lane < 4; lane++) {
-      const dst = ((((first + ((lane - first) & 3)) ^ swap) & 0x3ff) | upper) * 2;
-      const word = lane < 2 ? word0 : word1;
-      writeTmem16(tmem, dst, word >>> ((1 - (lane & 1)) * 16));
-    }
+    writeOrdinaryQword(tmem, word0, word1, base, halfwordS, swap);
+  }
+}
+
+const loadWriters = [writeOrdinaryQword, writeRgba32Qword, writeYuvQword];
+
+function writeYuvQword(tmem, word0, word1, base, halfwordS, swap) {
+  const first = (base + halfwordS) & 0x7fd;
+  const lane = halfwordS & 2;
+  const dst0 = (((first + ((lane - first) & 3)) ^ swap) & 0x3ff) * 2;
+  const dst1 = (((first + ((lane + 1 - first) & 3)) ^ swap) & 0x3ff) * 2;
+  writeTmem16(tmem, dst0, ((word0 >>> 16) & 0xff00) | ((word0 >>> 8) & 0xff));
+  writeTmem16(tmem, dst1, ((word1 >>> 16) & 0xff00) | ((word1 >>> 8) & 0xff));
+  writeTmem16(tmem, dst0 | 0x800, ((word0 >>> 8) & 0xff00) | (word0 & 0xff));
+  writeTmem16(tmem, dst1 | 0x800, ((word1 >>> 8) & 0xff00) | (word1 & 0xff));
+}
+
+function writeRgba32Qword(tmem, word0, word1, base, halfwordS, swap) {
+  // Two halfwords in each half of TMEM. Odd rows exchange the 32-bit halves
+  // of each 64-bit word, even when DXT changes parity between the two writes.
+  const first = (base + halfwordS) & 0x7fd;
+  const lane = halfwordS & 2;
+  const dst0 = (((first + ((lane - first) & 3)) ^ swap) & 0x3ff) * 2;
+  const dst1 = (((first + ((lane + 1 - first) & 3)) ^ swap) & 0x3ff) * 2;
+  writeTmem16(tmem, dst0, word0 >>> 16);
+  writeTmem16(tmem, dst1, word1 >>> 16);
+  writeTmem16(tmem, dst0 | 0x800, word0);
+  writeTmem16(tmem, dst1 | 0x800, word1);
+}
+
+function writeOrdinaryQword(tmem, word0, word1, base, halfwordS, swap) {
+  const first = (base + halfwordS) & 0x7fd;
+  const upper = first & 0x400;
+  for (let lane = 0; lane < 4; lane++) {
+    const dst = ((((first + ((lane - first) & 3)) ^ swap) & 0x3ff) | upper) * 2;
+    const word = lane < 2 ? word0 : word1;
+    writeTmem16(tmem, dst, word >>> ((1 - (lane & 1)) * 16));
   }
 }
 
