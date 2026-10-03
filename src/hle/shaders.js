@@ -281,15 +281,24 @@ export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, alphaCompare, en
   if (noNearClipping) {
     stateText += `_noNearClipping`;
   }
-  // G_RM_FOG_SHADE_A: FOG * SHADE_ALPHA + IN * (1 - SHADE_ALPHA).
+  // Shade-alpha fog can select FOG/IN or IN/FOG (ZSortp's soccer games).
   // This is an RDP draw-time choice, independent of the current RSP G_FOG bit.
-  let fogBlendCycles = 0;
+  // Two bits per cycle: 1 = FOG * A + IN * (1-A), 2 = IN * A + FOG * (1-A).
+  let fogBlendModes = 0;
   if (cycleType === gbi.CycleType.G_CYC_1CYCLE || cycleType === gbi.CycleType.G_CYC_2CYCLE) {
-    if (((blender >>> 2) & 0x3333) === 0x3200) fogBlendCycles++;
-    if (cycleType === gbi.CycleType.G_CYC_2CYCLE && (blender & 0x3333) === 0x3200) fogBlendCycles++;
+    const cycles = cycleType === gbi.CycleType.G_CYC_2CYCLE ? 2 : 1;
+    for (let i = 0; i < cycles; i++) {
+      const mode = (blender >>> (i === 0 ? 2 : 0)) & 0x3333;
+      if (mode === 0x3200) {
+        fogBlendModes |= 1 << (i * 2);
+      }
+      if (mode === 0x0230) {
+        fogBlendModes |= 2 << (i * 2);
+      }
+    }
   }
-  if (fogBlendCycles) {
-    stateText += `_fogShadeAlpha${fogBlendCycles}`;
+  if (fogBlendModes) {
+    stateText += `_fogShadeAlpha${fogBlendModes}`;
   }
 
   let shader = shaderCache.get(stateText);
@@ -356,10 +365,16 @@ export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, alphaCompare, en
     body += '  if(col.a <= 0.0) discard;\n';
   }
 
-  for (let i = 0; i < fogBlendCycles; ++i) {
+  for (let i = 0; i < 2; ++i) {
     // The blender sees the clamped combiner RGB. Preserve combiner alpha for
     // the final framebuffer blend and alpha test; fog comes from shade alpha.
-    body += '  col.rgb = mix(clamp(col.rgb, 0.0, 1.0), uFogColor.rgb, shade.a);\n';
+    const mode = (fogBlendModes >>> (i * 2)) & 3;
+    if (mode === 1) {
+      body += '  col.rgb = mix(clamp(col.rgb, 0.0, 1.0), uFogColor.rgb, shade.a);\n';
+    }
+    if (mode === 2) {
+      body += '  col.rgb = mix(uFogColor.rgb, clamp(col.rgb, 0.0, 1.0), shade.a);\n';
+    }
   }
 
   const combinerSource = `
