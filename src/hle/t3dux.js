@@ -220,10 +220,9 @@ export class T3DUX extends ObjectMicrocode {
         xyz.x = dv.getInt16(address);
         xyz.y = dv.getInt16(address + 2);
         xyz.z = dv.getInt16(address + 4);
+        // Keep homogeneous positions for host clipping, including w <= 0.
+        // Affine interpolation is selected when the triangles are flushed.
         this.projectInPlace(vertex, xyz, this.transform, this.state.viewport.transform, vi);
-
-        // This microcode emits affine texture coordinates, like Turbo3D.
-        vertex.pos.scaleInPlace(1 / vertex.pos.w);
       }
     }
   }
@@ -261,13 +260,17 @@ export class T3DUX extends ObjectMicrocode {
 
       // Rejected packed vertices still allow palette commands to take effect.
       const [a, b, c] = vertices.map(vertex => vertex.pos);
-      const area = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+      // Homogeneous orientation has the same sign as screen-space area for
+      // visible geometry, without dividing at the eye plane. It also retains
+      // the winding of the visible portion when an edge crosses behind it.
+      const area = a.x * (b.y * c.w - b.w * c.y) +
+        a.y * (b.w * c.x - b.x * c.w) + a.w * (b.x * c.y - b.y * c.x);
       const rejected = indices.some(index => this.rejected[index]) || area === 0 ||
         (state.geometryMode.cullBack && area < 0);
 
       if ((palette & PALETTE_UPDATE_FLAG) || (rejected && palette)) {
         if (this.cachedSetTile) {
-          this.renderer.flushTris(tb);
+          this.renderer.flushTris(tb, { affineShade: true, affineUV: true });
           tb.reset();
           super.executeSetTile(this.cachedSetTile[0], this.cachedSetTile[1] | (palette << RDP_TILE_PALETTE_SHIFT), dis);
         } else if (state.geometryMode.texture) {
@@ -297,11 +300,11 @@ export class T3DUX extends ObjectMicrocode {
 
       tb.pushTriWithUV(...vertices, ...uv);
       if (!tb.hasCapacity(1)) {
-        this.renderer.flushTris(tb);
+        this.renderer.flushTris(tb, { affineShade: true, affineUV: true });
         tb.reset();
       }
     }
 
-    this.renderer.flushTris(tb);
+    this.renderer.flushTris(tb, { affineShade: true, affineUV: true });
   }
 }

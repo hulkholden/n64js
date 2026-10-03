@@ -60,7 +60,7 @@ describe('raw RDP graphics', () => {
     expect(state.texture.tile).toBe(3);
     expect(state.geometryMode.zbuffer).toBe(1);
     expect(draw.count).toBe(2);
-    expect(draw.options).toEqual({ screenSpaceShade: true });
+    expect(draw.options).toEqual({ affineShade: true });
     expect(draw.colors[0]).toBe(0xff000000);
     expect(draw.colors[1]).toBe(0xff000080);
     expect(draw.positions[3]).toBe(perspective ? 2 : 1);

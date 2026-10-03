@@ -1,10 +1,13 @@
 #version 300 es
 #define NEAR_CLIPPING __NEAR_CLIPPING__
 
+// x: affine shade, y: affine UVs. Raw RDP can use affine shade with perspective UVs.
+uniform bvec2 uAffine;
+
 precision mediump float;
-uniform bool uScreenSpaceShade;
 in highp vec4 vColor;
 in highp float vShadeAlpha;
+in highp float vAffineW;
 in highp vec2 vUV;
 #if !NEAR_CLIPPING
 in highp float vClipZ;
@@ -52,7 +55,7 @@ uniform highp vec4 uTextureRectOrigin;
 uniform highp vec4 uTextureRectDerivatives;
 
 highp vec2 textureCoordinates() {
-  if (!uTextureRectEnabled) return vUV;
+  if (!uTextureRectEnabled) return vUV * (uAffine.y ? 1.0 / vAffineW : 1.0);
   // RDP rectangles evaluate S/T at native integer screen coordinates, starting
   // at the command's S/T, not at WebGL pixel centres. Keep that sample grid
   // when upscaling: extra fractional samples can wrap into an unrelated row
@@ -153,7 +156,7 @@ void main(void) {
     if (uTextureConvert == 5) tex1 = convertYUV(tex0);
     tex0 = uTextureConvert == 0 ? convertYUV(tex0) : vec4(tex0.rg - 128.0 / 255.0, tex0.b, tex0.b);
   }
-  vec4 shade = vec4(vColor.rgb, clamp(vShadeAlpha * gl_FragCoord.w, 0.0, 1.0));
-  if (uScreenSpaceShade) { shade.rgb *= gl_FragCoord.w; }
+  vec4 shade = vec4(vColor.rgb * (uAffine.x ? 1.0 / vAffineW : 1.0),
+                    clamp(vShadeAlpha * (uAffine.x ? 1.0 / vAffineW : gl_FragCoord.w), 0.0, 1.0));
   outCol = combineColor(shade, tex0, tex1);
 }

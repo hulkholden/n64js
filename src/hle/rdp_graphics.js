@@ -172,6 +172,6 @@ export class RDPGraphics extends GBIMicrocode {
       tb.pushTri(a, b, c);
       tb.pushTri(c, b, d);
     }
-    this.renderer.flushTris(tb, { screenSpaceShade: true });
+    this.renderer.flushTris(tb, { affineShade: true });
   }
 }
