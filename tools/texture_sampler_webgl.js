@@ -10,6 +10,7 @@ import { GBIMicrocode } from '../src/hle/gbi_microcode.js';
 import { runFogTests } from './fog_webgl.js';
 import { runBgCopyTests } from './s2dex_bg_copy_webgl.js';
 import { runLightColorTests } from './light_color_webgl.js';
+import { runModifyVertexTests } from './modify_vertex_webgl.js';
 
 const output = document.getElementById('results');
 try {
@@ -849,6 +850,9 @@ try {
   const lightColorResults = runLightColorTests(gl);
   lines.push(...lightColorResults);
   passed += lightColorResults.length;
+  const modifyVertexResults = runModifyVertexTests(gl);
+  lines.push(...modifyVertexResults);
+  passed += modifyVertexResults.length;
   output.textContent = `${passed} passed\n${lines.join('\n')}`;
   document.title = `${passed} passed`;
 } catch (error) {

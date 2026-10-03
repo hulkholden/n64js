@@ -29,6 +29,86 @@ for (const [Type, opcode, triangle, end] of [
   [GBI2, 0x02, [0x05020e0c, 0], 0xdf000000],
 ]) {
   describe(`${Type.name} ModifyVertex`, () => {
+    test('RGBA writes affect only subsequent triangles, including disassembled lists', () => {
+      for (const disassemble of [false, true]) {
+        const { ram, state, microcode, warnings } = harness(Type);
+        const commands = [
+          triangle,
+          [(opcode << 24) | 0x10000e, 0xff7864ff],
+          triangle,
+          [(opcode << 24) | 0x10000e, 0x12345600],
+          triangle,
+          [end, 0],
+        ];
+        commands.forEach(([cmd0, cmd1], i) => {
+          ram.setUint32(8 + i * 8, cmd0);
+          ram.setUint32(12 + i * 8, cmd1);
+        });
+        const draws = [];
+        const text = [];
+        microcode.renderer.flushTris = buffer => draws.push([...buffer.colours.slice(0, buffer.numTris * 3)]);
+        const disassembler = disassemble ? { begin() {}, end() {}, text: s => text.push(s) } : null;
+        executeDisplayList(state, microcode, { disassembler });
+        expect(draws).toEqual([
+          [0x78563412, 0x78563412, 0x78563412],
+          [0x78563412, 0xff6478ff, 0x78563412],
+          [0x78563412, 0x00563412, 0x78563412],
+        ]);
+        if (disassemble) {
+          expect(text).toContain('gsSPModifyVertex(7,G_MWO_POINT_RGBA,0xff7864ff);');
+        }
+        expect(warnings).toEqual([]);
+      }
+    });
+
+    test('RGBA replaces cached color and alpha without lighting, fog or other vertex changes', () => {
+      const { state, microcode, warnings } = harness(Type);
+      const vertex = state.projectedVertices[0];
+      vertex.pos.z = 0.25;
+      vertex.pos.w = 2;
+      vertex.clipFlags = 0x15;
+      const unchanged = () => [[...vertex.pos.elems], vertex.u, vertex.v, vertex.clipFlags, vertex.set];
+      const before = unchanged();
+      const otherColors = state.projectedVertices.slice(1).map(v => v.color);
+      state.geometryMode.lighting = state.geometryMode.fog = state.geometryMode.textureGen = 1;
+      state.fogParameters.set(0, 255);
+      state.viewport.set(new Vector3(80, -60, 42), new Vector3(120, 90, 17));
+      const modify = microcode.getHandler(opcode);
+      for (const [rgba, abgr] of [
+        [0xff7864ff, 0xff6478ff], // Clay Fighter's first observed command, slot 0.
+        [0x12345678, 0x78563412],
+        [0x89abcdef, 0xefcdab89],
+        [0xff000000, 0x000000ff],
+        [0x000000ff, 0xff000000],
+        [0, 0],
+        [0xffffffff, 0xffffffff],
+      ]) {
+        modify((opcode << 24) | 0x100000, rgba);
+        expect(vertex.color >>> 0).toBe(abgr);
+        expect(unchanged()).toEqual(before);
+        expect(state.projectedVertices.slice(1).map(v => v.color)).toEqual(otherColors);
+      }
+      // A later vertex load must replace the modified cached color normally.
+      state.geometryMode.lighting = state.geometryMode.fog = state.geometryMode.textureGen = 0;
+      microcode.loadVertices(0, 1, 256);
+      expect(vertex.color).toBe(0x78563412);
+      expect(warnings).toEqual([]);
+    });
+
+    test('RGBA writes respect cache bounds and preserve the loaded flag', () => {
+      const { state, microcode, warnings } = harness(Type);
+      const modify = microcode.getHandler(opcode);
+      modify((opcode << 24) | 0x10009e, 0x12345678);
+      expect(state.projectedVertices[79].color).toBe(0x78563412);
+      expect(state.projectedVertices[79].set).toBe(false);
+      for (const index of [80, 32767]) {
+        modify((opcode << 24) | 0x100000 | (index << 1), 0);
+      }
+      expect(warnings).toEqual([['crazy vertex index', 80], ['crazy vertex index', 32767]]);
+      expect(state.projectedVertices).toHaveLength(80);
+      expect(state.projectedVertices[79].color).toBe(0x78563412);
+    });
+
     test('updates subsequent triangles without rescaling or changing the previous draw', () => {
       for (const disassemble of [false, true]) {
         const { ram, state, microcode, warnings } = harness(Type);
