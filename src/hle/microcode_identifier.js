@@ -21,9 +21,11 @@ export const MicrocodeId = Object.freeze({
   F5_ROGUE: 19,  // Rogue Squadron (recognized, but HLE is not implemented)
   GBI1_TEXA: 20,   // Tamagotchi World: F3DTEX/A texture commands
   HVQM2: 21,       // Yakouchuu II video decoder (executed by the RSP interpreter)
+  GBI0_EARLY: 22,  // Saikyou Habu Shougi: early MoveWord encoding
 });
 
 const microcodeProfiles = new Map([
+  [MicrocodeId.GBI0_EARLY, { family: 'GBI0', variant: 'EARLY' }],
   [MicrocodeId.GBI1_L3DEX, { family: 'GBI1', variant: 'L3DEX' }],
   [MicrocodeId.F5_ROGUE, { family: 'F5', variant: 'ROGUE' }],
   [MicrocodeId.GBI0, { family: 'GBI0', variant: null }],
@@ -49,6 +51,7 @@ const microcodeProfiles = new Map([
 ]);
 
 const ucodeOverrides = new Map([
+  [0x1935c6ae, MicrocodeId.GBI0_EARLY], // Saikyou Habu Shougi (no version string)
   [0x2900a9d4, MicrocodeId.GBI1],       // Power League 64: F3DEX commands, old SW version string
   [0xc62a1631, MicrocodeId.F5_ROGUE],   // Rogue Squadron (Europe revisions and Japan)
   [0x60256efc, MicrocodeId.GBI2_CONKER], // "RSP Gfx ucode F3DEXBG.NoN fifo 2.08  Yoshitaka Yasumoto 1999 Nintendo.", "Conker's Bad Fur Day"

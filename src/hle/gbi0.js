@@ -172,6 +172,23 @@ export class GBI0 extends GBI1 {
     this.renderer.flushTris(tb);
   }
 }
+// Launch-era Fast3D in Saikyou Habu Shougi predates G_MW_MATRIX.
+// Its MoveWord reads bytes 2/3 of cmd0 as a table index/byte offset:
+// DMEM[0x308 + index] contains bases 0x12c (lights), 0x70 (clip),
+// 0x160 (segments), 0x330 (fog), and 0x1f0 (light colours).
+export class GBI0Early extends GBI0 {
+  executeMoveWord(cmd0, cmd1, dis) {
+    const index = (cmd0 >>> 8) & 0xff;
+    const offset = cmd0 & 0xff;
+    if (index > 8 || (index & 1)) {
+      this.warnUnimplemented('MoveWord Unknown');
+      return;
+    }
+    // Reuse the ordinary handlers after translating to the later GBI layout.
+    super.executeMoveWord((0xbc000000 | (offset << 8) | (index + 2)) >>> 0, cmd1, dis);
+  }
+}
+
 export class GBI0GE extends GBI0 {
   constructor(state, ramDV) {
     super(state, ramDV);
