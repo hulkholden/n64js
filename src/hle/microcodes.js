@@ -8,7 +8,7 @@ import { GBI1L3DEX } from './gbi_l3dex.js';
 import { GBI2, GBI2Conker } from './gbi2.js';
 import { GBI1SDEX, GBI2SDEX } from './gbi_s2dex.js';
 import { graphicsOptions } from './graphics_options.js';
-import { identifyMicrocode, MicrocodeId } from './microcode_identifier.js';
+import { identifyMicrocode, MicrocodeId, microcodePrefixLength } from './microcode_identifier.js';
 import { Turbo3D } from './turbo3d.js';
 import { T3DUX } from './t3dux.js';
 import { ZSortP } from './zsortp.js';
@@ -24,7 +24,8 @@ export function assertHLESupported(info) {
   // These families have their own command formats and SP signal protocols.
   // Falling back to GBI0 reads unrelated data as commands; skipping execution
   // and signalling task completion cannot satisfy their CPU/RSP handshake.
-  if (info.id === MicrocodeId.ZSORT_BOSS || info.id === MicrocodeId.F5_ROGUE) {
+  // HVQM2 can only fall back to LLE at task start, before any HLE execution.
+  if (info.id === MicrocodeId.ZSORT_BOSS || info.id === MicrocodeId.F5_ROGUE || info.id === MicrocodeId.HVQM2) {
     throw new UnsupportedMicrocodeError(info);
   }
 }
@@ -41,7 +42,7 @@ export function create(task, state, ramDV, onMicrocodeLoad = null) {
   }
 
   const hash = task.computeMicrocodeHash();
-  const info = identifyMicrocode(version, hash);
+  const info = identifyMicrocode(version, hash, task.computeMicrocodeHash(microcodePrefixLength));
   logMicrocode(version, info.id);
   // Check in-list loads as well as the initial task dispatch.
   assertHLESupported(info);

@@ -33,6 +33,21 @@ describe('microcode identification', () => {
     }
   });
 
+  test('identifies HVQM2 SP1 from its stable code prefix despite changing trailing data', () => {
+    for (const hash of [0x4ddff97c, 0x63d93f7d]) {
+      expect(identifyMicrocode('', hash, 0xeb70fcb5)).toEqual({
+        id: MicrocodeId.HVQM2, family: 'HVQM2', variant: 'SP1',
+        version: '', hash, detection: 'hash',
+      });
+      // A matching prefix is required; the mutable full-range hash is not an identity.
+      for (const prefix of [null, 0xeb70fcb4]) {
+        expect(identifyMicrocode('', hash, prefix)).toMatchObject({
+          id: MicrocodeId.GBI0, detection: 'fallback',
+        });
+      }
+    }
+  });
+
   test('identifies BOSS ZSort by hash without confusing it with Nintendo ZSortp', () => {
     const hash = 0xe281945c;
     for (const version of ['', 'RSP ZSortp 0.33', 'RSP Gfx ucode F3DEX fifo 2.0']) {
