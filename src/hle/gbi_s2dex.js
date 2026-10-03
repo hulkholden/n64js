@@ -13,8 +13,10 @@ const kRenderNone = 0;
 const kRenderFullTransform = 1;
 const kRenderPartialTransform = 2;
 const kRenderNoRotation = 3;
+const kBgLoadBlock = 0x0033;
+const kBgLoadTile = 0xfff4;
 
-class ObjScaleBg {
+class ObjBg {
   constructor() {
     this.imageX = 0;
     this.imageW = 0;
@@ -32,10 +34,12 @@ class ObjScaleBg {
     this.imageSiz = 0;
     this.imagePal = 0;
     this.imageFlip = 0;
-
-    this.scaleW = 0;
-    this.scaleH = 0;
-    this.imageYorig = 0;
+    this.tmemW = 0;
+    this.tmemH = 0;
+    this.tmemLoadSH = 0;
+    this.tmemLoadTH = 0;
+    this.tmemSizeW = 0;
+    this.tmemSize = 0;
   }
 
   load(dv, offset) {
@@ -56,10 +60,12 @@ class ObjScaleBg {
     this.imagePal = dv.getUint16(offset + 24, false);
     this.imageFlip = dv.getUint16(offset + 26, false);
 
-    this.scaleW = dv.getUint16(offset + 28, false) / 1024;
-    this.scaleH = dv.getUint16(offset + 30, false) / 1024;
-    this.imageYorig = dv.getInt32(offset + 32, false) / 32;
-    // 4 bytes of padding here.
+    this.tmemW = dv.getUint16(offset + 28, false);
+    this.tmemH = dv.getUint16(offset + 30, false);
+    this.tmemLoadSH = dv.getUint16(offset + 32, false);
+    this.tmemLoadTH = dv.getUint16(offset + 34, false);
+    this.tmemSizeW = dv.getUint16(offset + 36, false);
+    this.tmemSize = dv.getUint16(offset + 38, false);
   }
 
   toString() {
@@ -67,8 +73,20 @@ class ObjScaleBg {
 frameX/Y = (${this.frameX}, ${this.frameY}), frameW/H = (${this.frameW}, ${this.frameH})
 imagePtr = ${toString32(this.imagePtr)}, imageLoad = ${this.imageLoad}
 imageFmt = ${gbi.ImageFormat.nameOf(this.imageFmt)}, imageSiz = ${gbi.ImageSize.nameOf(this.imageSiz)}
-imagePal = ${this.imagePal}, imageFlip = ${this.imageFlip}
-scaleW/H = (${this.scaleW}, ${this.scaleH})`
+imagePal = ${this.imagePal}, imageFlip = ${this.imageFlip}`;
+  }
+}
+
+class ObjScaleBg extends ObjBg {
+  load(dv, offset) {
+    super.load(dv, offset);
+    this.scaleW = dv.getUint16(offset + 28, false) / 1024;
+    this.scaleH = dv.getUint16(offset + 30, false) / 1024;
+    this.imageYorig = dv.getInt32(offset + 32, false) / 32;
+  }
+
+  toString() {
+    return `${super.toString()}\nscaleW/H = (${this.scaleW}, ${this.scaleH})`;
   }
 }
 
@@ -233,6 +251,7 @@ export class S2DEXCommon {
     this.gbi = gbi;
 
     // Helper instances to avoid reallocation when rendering.
+    this.bg = new ObjBg();
     this.scaleBg = new ObjScaleBg();
     this.matrix = new ObjMatrix();
     this.sprite = new ObjSprite();
@@ -251,9 +270,109 @@ export class S2DEXCommon {
   }
 
   executeBgCopy(cmd0, cmd1, dis) {
-    this.gbi.warnUnimplemented('gSPBgRectCopy')
+    const address = this.state.rdpSegmentAddress(cmd1);
+    this.bg.load(this.ramDV, address);
+    this.renderBgCopy();
     if (dis) {
-      dis.text(`gSPBgRectCopy(/* TODO */);`);
+      dis.text(`gSPBgRectCopy(${toString32(address)});`);
+      dis.tip(this.bg.toString());
+    }
+  }
+
+  renderBgCopy() {
+    const bg = this.bg;
+    if (bg.imageSiz > gbi.ImageSize.G_IM_SIZ_32b || bg.imageFmt > gbi.ImageFormat.G_IM_FMT_I ||
+        (bg.imageLoad !== kBgLoadBlock && bg.imageLoad !== kBgLoadTile)) {
+      this.gbi.warn('gSPBgRectCopy: invalid background format, size or load type');
+      return;
+    }
+    const state = this.state;
+    const renderer = this.gbi.renderer;
+    const imageW = Math.floor(bg.imageW), imageH = Math.floor(bg.imageH);
+    const frameX = Math.floor(bg.frameX), frameY = Math.floor(bg.frameY);
+    const frameW = Math.floor(bg.frameW), frameH = Math.floor(bg.frameH);
+    const x0 = Math.max(frameX, Math.ceil(state.scissor.x0));
+    const y0 = Math.max(frameY, Math.ceil(state.scissor.y0));
+    const x1 = Math.min(frameX + frameW, Math.ceil(state.scissor.x1));
+    const y1 = Math.min(frameY + frameH, Math.ceil(state.scissor.y1));
+    if (imageW <= 0 || imageH <= 0 || x0 >= x1 || y0 >= y1) {
+      return;
+    }
+
+    // S2DEX copy backgrounds have integer coordinates and a horizontal flip.
+    // The source is a circular *linear* image: crossing its right edge also
+    // advances Y. See the S2DEX manual, section 4.1.2 (gSPBgRectCopy).
+    const flip = (bg.imageFlip & 1) !== 0;
+    const step = flip ? -1 : 1;
+    const sourceX = Math.floor(bg.imageX) + (flip ? frameW - 1 - (x0 - frameX) : x0 - frameX);
+    const sourceY = Math.floor(bg.imageY) + y0 - frameY;
+    const bytesPerPixel = (4 << bg.imageSiz) / 8;
+    const splitBanks = bg.imageSiz === gbi.ImageSize.G_IM_SIZ_32b || bg.imageFmt === gbi.ImageFormat.G_IM_FMT_YUV;
+    const bankBytes = splitBanks ? bytesPerPixel / 2 : bytesPerPixel;
+    const capacity = splitBanks || bg.imageFmt === gbi.ImageFormat.G_IM_FMT_CI ? 2048 : 4096;
+    const alignment = 8 / bankBytes;
+    const imageAddress = state.rdpSegmentAddress(bg.imagePtr);
+    // Make backgrounds sourced from an earlier render target visible to TMEM.
+    renderer.syncFramebufferToRAM?.(imageAddress, this.ramDV);
+
+    const loadTile = state.tiles[gbi.G_TX_LOADTILE];
+    const renderTile = state.tiles[0];
+    const ti = state.textureImage;
+    // Ordinary formats load as 16-bit words, including CI4/I4: native 4-bit
+    // RDP loads do not transfer data. Split-bank formats need their own routing.
+    const loadSize = splitBanks ? bg.imageSiz : gbi.ImageSize.G_IM_SIZ_16b;
+    const loadFormat = splitBanks ? bg.imageFmt : gbi.ImageFormat.G_IM_FMT_RGBA;
+    const loadPixels = bytesPerPixel / ((4 << loadSize) / 8);
+
+    // LoadBlock transfers whole source rows. Limit the number of rows so
+    // rounding DXT cannot change parity before the end of a row. Unsupported
+    // block widths fall back to the equivalent rectangular transfer.
+    const words = imageW * bytesPerPixel / 8;
+    const dxt = Math.ceil(2048 / words);
+    const carry = words * dxt - 2048;
+    const blockRows = carry > 0 ? Math.floor((dxt - 1) / carry) : Infinity;
+    const block = bg.imageLoad === kBgLoadBlock && imageW <= 512 && imageW % alignment === 0 && blockRows > 0;
+
+    // The descriptor's guS2DInitBg fields describe the microcode's original
+    // strips. Recompute transfer sizes for the clipped HLE rectangles instead.
+    for (let x = x0; x < x1;) {
+      const linearX = sourceX + step * (x - x0);
+      const sx = ((linearX % imageW) + imageW) % imageW;
+      const rowCarry = Math.floor(linearX / imageW);
+      // Keep tile dimensions below the RDP's 10-bit extent, and split at wraps.
+      const width = Math.min(x1 - x, flip ? sx + 1 : imageW - sx, 512);
+      let left = Math.floor((flip ? sx - width + 1 : sx) / alignment) * alignment;
+      let loadWidth = Math.ceil(((flip ? sx + 1 : sx + width) - left) / alignment) * alignment;
+
+      if (block) {
+        left = 0;
+        loadWidth = imageW;
+      }
+      const line = loadWidth * bankBytes / 8;
+      const rows = Math.min(Math.floor(capacity / (line * 8)), block ? blockRows : Infinity, 512);
+      const s = sx - left;
+
+      for (let y = y0; y < y1;) {
+        const sy = (sourceY + rowCarry + y - y0) % imageH;
+        const height = Math.min(y1 - y, imageH - sy, rows);
+        ti.set(loadFormat, loadSize, imageW * loadPixels,
+          imageAddress + (sy * imageW + left) * bytesPerPixel);
+        loadTile.set(loadFormat, loadSize, block ? 0 : line, 0, 0, 0, 0, 0, 0, 0, 0);
+        if (block) {
+          loadTile.setSize(0, 0, loadWidth * loadPixels * height - 1, dxt);
+          state.tmem.loadBlock(ti, loadTile);
+        } else {
+          loadTile.setSize(0, 0, (loadWidth * loadPixels - 1) * 4, (height - 1) * 4);
+          state.tmem.loadTile(ti, loadTile);
+        }
+        state.invalidateTileHashes();
+        renderTile.set(bg.imageFmt, bg.imageSiz, line, 0, bg.imagePal,
+          gbi.G_TX_CLAMP, 0, 0, gbi.G_TX_CLAMP, 0, 0);
+        renderTile.setSize(0, 0, (loadWidth - 1) * 4, (height - 1) * 4);
+        renderer.texRect(0, x, y, x + width, y + height, s, 0, s + step * width, height, false);
+        y += height;
+      }
+      x += width;
     }
   }
 
