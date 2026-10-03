@@ -4,6 +4,35 @@ import { GBIMicrocode } from './gbi_microcode.js';
 import { GBI1 } from './gbi1.js';
 import { ProjectedVertex } from './projected_vertex.js';
 
+const G_SPNOOP = 0x00;
+const G_ZS_ZOBJ = 0x80;
+const G_ZS_RDPCMD = 0x81;
+const G_ZS_MOVEWORD = 0xdb;
+const G_ZS_DL = 0xde;
+const G_ZS_ENDDL = 0xdf;
+const G_ZS_SETOTHERMODE_L = 0xe2;
+const G_ZS_SETOTHERMODE_H = 0xe3;
+const G_TEXRECT = 0xe4;
+const G_TEXRECTFLIP = 0xe5;
+
+const OBJECT_TYPE_NULL = 0;
+const OBJECT_TYPE_SHADED_TRIANGLE = 1;
+const OBJECT_TYPE_TEXTURED_TRIANGLE = 2;
+const OBJECT_TYPE_SHADED_QUAD = 3;
+const OBJECT_TYPE_TEXTURED_QUAD = 4;
+const OBJECT_TYPE_MASK = 0x07;
+
+const SHADED_VERTEX_BYTES = 8;
+const TEXTURED_VERTEX_BYTES = 16;
+const SCREEN_XY_SCALE = 4;
+const TEXCOORD_SCALE = 32;
+const INV_W_NUMERATOR = 0x7fffffff;
+const CLIP_W_SCALE = 31;
+
+// Host execution safeguards, not hardware limits.
+const MAX_RDP_COMMANDS = 100_000;
+const MAX_OBJECTS = 100_000;
+
 // Nintendo ZSortp uses linked, already sorted screen-space objects. It is
 // unrelated to BOSS ZSort. RDP blocks end with ENDDL and contain GBI-style
 // RDPHalf words after texture rectangles.
@@ -16,16 +45,16 @@ export class ZSortP extends GBIMicrocode {
     super(state, ramDV);
     this.vertices = Array.from({ length: 4 }, () => new ProjectedVertex());
     this.commands = new Map([
-      [0x00, this.executeSpNoop.bind(this)],
-      [0x80, this.executeObjects.bind(this)],
-      [0x81, this.executeRDPList.bind(this)],
+      [G_SPNOOP, this.executeSpNoop.bind(this)],
+      [G_ZS_ZOBJ, this.executeObjects.bind(this)],
+      [G_ZS_RDPCMD, this.executeRDPList.bind(this)],
       // These commands retain the original GBI1 field encodings, despite
       // occupying opcode slots also used by GBI2.
-      [0xdb, this.executeMoveWord.bind(this)],
-      [0xde, GBI1.prototype.executeDL.bind(this)],
-      [0xdf, GBI1.prototype.executeEndDL.bind(this)],
-      [0xe2, GBI1.prototype.executeSetOtherModeL.bind(this)],
-      [0xe3, GBI1.prototype.executeSetOtherModeH.bind(this)],
+      [G_ZS_MOVEWORD, this.executeMoveWord.bind(this)],
+      [G_ZS_DL, GBI1.prototype.executeDL.bind(this)],
+      [G_ZS_ENDDL, GBI1.prototype.executeEndDL.bind(this)],
+      [G_ZS_SETOTHERMODE_L, GBI1.prototype.executeSetOtherModeL.bind(this)],
+      [G_ZS_SETOTHERMODE_H, GBI1.prototype.executeSetOtherModeH.bind(this)],
     ]);
   }
 
@@ -55,22 +84,22 @@ export class ZSortP extends GBIMicrocode {
     if (!pointer) return;
     const dv = this.ramDV;
     let pc = this.state.rdpSegmentAddress(pointer);
-    for (let count = 0; count < 100_000; count++) {
+    for (let count = 0; count < MAX_RDP_COMMANDS; count++) {
       const cmd0 = dv.getUint32(pc);
       const cmd1 = dv.getUint32(pc + 4);
       const opcode = cmd0 >>> 24;
       pc += 8;
-      if (opcode === 0xdf) return;
-      if (opcode === 0xe4 || opcode === 0xe5) {
+      if (opcode === G_ZS_ENDDL) return;
+      if (opcode === G_TEXRECT || opcode === G_TEXRECTFLIP) {
         const cmd2 = dv.getUint32(pc + 4);
         const cmd3 = dv.getUint32(pc + 12);
         pc += 16;
-        if (opcode === 0xe4) this.rdpTexRect(cmd0, cmd1, cmd2, cmd3, dis);
+        if (opcode === G_TEXRECT) this.rdpTexRect(cmd0, cmd1, cmd2, cmd3, dis);
         else this.rdpTexRectFlip(cmd0, cmd1, cmd2, cmd3, dis);
       } else {
         // OtherMode and NoOp use their GBI encodings inside these blocks too.
         // Do not dispatch nested object/task commands from an RDP block.
-        const handler = opcode === 0 || opcode === 0xe2 || opcode === 0xe3
+        const handler = opcode === G_SPNOOP || opcode === G_ZS_SETOTHERMODE_L || opcode === G_ZS_SETOTHERMODE_H
           ? this.commands.get(opcode) : this.gbiCommonCommands.get(opcode);
         if (!handler) this.executeUnknown(cmd0, cmd1);
         handler(cmd0, cmd1, dis);
@@ -88,14 +117,15 @@ export class ZSortP extends GBIMicrocode {
     for (const pointer of [cmd0, cmd1]) {
       let header = state.rdpSegmentAddress(pointer);
       while (header) {
-        if (++count > 100_000) throw new Error('ZSortp object list limit exceeded');
-        // Low three pointer bits: null, shaded triangle, textured triangle,
-        // shaded quad, textured quad. Quads are triangle strips.
-        const type = header & 7;
-        const address = header & ~7;
-        if (type > 4) throw new Error(`Invalid ZSortp object type ${type}`);
-        const textured = type === 2 || type === 4;
-        const lists = type === 1 || type === 3 ? 1 : 3;
+        if (++count > MAX_OBJECTS) throw new Error('ZSortp object list limit exceeded');
+        // Low three pointer bits identify the object type. Quads are triangle strips.
+        const type = header & OBJECT_TYPE_MASK;
+        const address = header & ~OBJECT_TYPE_MASK;
+        if (type > OBJECT_TYPE_TEXTURED_QUAD) throw new Error(`Invalid ZSortp object type ${type}`);
+        const textured = type === OBJECT_TYPE_TEXTURED_TRIANGLE || type === OBJECT_TYPE_TEXTURED_QUAD;
+        const shaded = type === OBJECT_TYPE_SHADED_TRIANGLE || type === OBJECT_TYPE_SHADED_QUAD;
+        const quad = type === OBJECT_TYPE_SHADED_QUAD || type === OBJECT_TYPE_TEXTURED_QUAD;
+        const lists = shaded ? 1 : 3;
         for (let i = 0; i < lists; i++) {
           const next = dv.getUint32(address + 4 + i * 4);
           if (next !== rdpLists[i]) {
@@ -103,7 +133,7 @@ export class ZSortP extends GBIMicrocode {
             rdpLists[i] = next;
           }
         }
-        if (type) this.drawObject(address + 4 + lists * 4, type >= 3 ? 4 : 3, textured);
+        if (type !== OBJECT_TYPE_NULL) this.drawObject(address + 4 + lists * 4, quad ? 4 : 3, textured);
         header = state.rdpSegmentAddress(dv.getUint32(address));
       }
     }
@@ -116,20 +146,21 @@ export class ZSortP extends GBIMicrocode {
     state.setTexture(1, 1, 0, 0);
     Object.assign(state.geometryMode, { texture: textured ? 1 : 0, shade: 1, shadeSmooth: 1,
       cullFront: 0, cullBack: 0, lighting: 0, zbuffer: 0, fog: 0 });
-    for (let i = 0; i < count; i++, address += textured ? 16 : 8) {
+    const vertexBytes = textured ? TEXTURED_VERTEX_BYTES : SHADED_VERTEX_BYTES;
+    for (let i = 0; i < count; i++, address += vertexBytes) {
       const vertex = this.vertices[i];
-      const x = dv.getInt16(address) / 4;
-      const y = dv.getInt16(address + 2) / 4;
+      const x = dv.getInt16(address) / SCREEN_XY_SCALE;
+      const y = dv.getInt16(address + 2) / SCREEN_XY_SCALE;
       const invW = textured ? dv.getInt32(address + 12) : 0;
       // ZSort stores 0x7fffffff / (31 * clipW). Restore clip coordinates for
       // perspective interpolation, while retaining the supplied screen X/Y.
       const w = textured && (state.rdpOtherModeH & gbi.G_TP_MASK)
-        ? (invW === 0 ? 0x7fffffff : Math.trunc(0x7fffffff / invW)) / 31 : 1;
+        ? (invW === 0 ? INV_W_NUMERATOR : Math.trunc(INV_W_NUMERATOR / invW)) / CLIP_W_SCALE : 1;
       vertex.pos.set((2 * x / vi.viWidth - 1) * w, (1 - 2 * y / vi.viHeight) * w, 0, w);
       vertex.color = dv.getUint32(address + 4, true);
       // flushTris applies the extra factor of 1/2 when perspective is off.
-      vertex.u = textured ? dv.getInt16(address + 8) / 32 : 0;
-      vertex.v = textured ? dv.getInt16(address + 10) / 32 : 0;
+      vertex.u = textured ? dv.getInt16(address + 8) / TEXCOORD_SCALE : 0;
+      vertex.v = textured ? dv.getInt16(address + 10) / TEXCOORD_SCALE : 0;
     }
     const [a, b, c, d] = this.vertices;
     const tb = this.triangleBuffer;
