@@ -31,61 +31,24 @@ export const RenderMode = {
   TEX_EDGE:            0x0000 /* used to be 0x8000 */
 };
 
+// Keep the caller's display order and omit flags that are disabled in a microcode.
+function getFlagNames(flags, data, names) {
+  return names.filter(name => (data & flags[name]) !== 0);
+}
+
+const coverageModeNames = ['CVG_DST_CLAMP', 'CVG_DST_WRAP', 'CVG_DST_FULL', 'CVG_DST_SAVE'];
+const depthModeNames = ['ZMODE_OPA', 'ZMODE_INTER', 'ZMODE_XLU', 'ZMODE_DEC'];
+
 export function getRenderModeText(data) {
-  let t = '';
-
-  if (data & RenderMode.AA_EN) {
-    t += '|AA_EN';
-  }
-  if (data & RenderMode.Z_CMP) {
-    t += '|Z_CMP';
-  }
-  if (data & RenderMode.Z_UPD) {
-    t += '|Z_UPD';
-  }
-  if (data & RenderMode.IM_RD) {
-    t += '|IM_RD';
-  }
-  if (data & RenderMode.CLR_ON_CVG) {
-    t += '|CLR_ON_CVG';
-  }
-
-  const cvg = data & 0x0300;
-  if (cvg === RenderMode.CVG_DST_CLAMP) {
-    t += '|CVG_DST_CLAMP';
-  } else if (cvg === RenderMode.CVG_DST_WRAP) {
-    t += '|CVG_DST_WRAP';
-  } else if (cvg === RenderMode.CVG_DST_FULL) {
-    t += '|CVG_DST_FULL';
-  } else if (cvg === RenderMode.CVG_DST_SAVE) {
-    t += '|CVG_DST_SAVE';
-  }
-
-  const zmode = data & 0x0c00;
-  if (zmode === RenderMode.ZMODE_OPA) {
-    t += '|ZMODE_OPA';
-  } else if (zmode === RenderMode.ZMODE_INTER) {
-    t += '|ZMODE_INTER';
-  } else if (zmode === RenderMode.ZMODE_XLU) {
-    t += '|ZMODE_XLU';
-  } else if (zmode === RenderMode.ZMODE_DEC) {
-    t += '|ZMODE_DEC';
-  }
-
-  if (data & RenderMode.CVG_X_ALPHA) {
-    t += '|CVG_X_ALPHA';
-  }
-  if (data & RenderMode.ALPHA_CVG_SEL) {
-    t += '|ALPHA_CVG_SEL';
-  }
-  if (data & RenderMode.FORCE_BL) {
-    t += '|FORCE_BL';
-  }
-
+  const modes = [
+    ...getFlagNames(RenderMode, data, ['AA_EN', 'Z_CMP', 'Z_UPD', 'IM_RD', 'CLR_ON_CVG']),
+    // These are two-bit fields, including named modes for zero.
+    coverageModeNames[(data >>> 8) & 3],
+    depthModeNames[(data >>> 10) & 3],
+    ...getFlagNames(RenderMode, data, ['CVG_X_ALPHA', 'ALPHA_CVG_SEL', 'FORCE_BL']),
+  ];
   const blend = data >>> G_MDSFT_BLENDER;
-  const c0 = t.length > 0 ? t.substr(1) : '0';
-  const c1 = 'GBL_c1(' + blendOpText(blend>>>2) + ') | GBL_c2(' + blendOpText(blend) + ') /*' + format.toString16(blend) + '*/';
-  return c0 + ', ' + c1;
+  return `${modes.join('|')}, GBL_c1(${blendOpText(blend >>> 2)}) | GBL_c2(${blendOpText(blend)}) /*${format.toString16(blend)}*/`;
 }
 
 // G_SETOTHERMODE_L sft: shift count
@@ -291,14 +254,13 @@ export const G_TX_LOADTILE   = 7;
 export const G_TX_RENDERTILE = 0;
 
 export function getTileText(tileIdx) {
-  let t = tileIdx;
   if (tileIdx === G_TX_LOADTILE) {
-    t = 'G_TX_LOADTILE';
+    return 'G_TX_LOADTILE';
   }
   if (tileIdx === G_TX_RENDERTILE) {
-    t = 'G_TX_RENDERTILE';
+    return 'G_TX_RENDERTILE';
   }
-  return t;
+  return tileIdx;
 }
 
 export const G_TX_WRAP       = 0x0;
@@ -354,47 +316,13 @@ export const GeometryModeGBI2 = {
 };
 
 export function getGeometryModeFlagsText(flags, data) {
-  let t = '';
-
-  if (data & flags.G_ZBUFFER) {
-    t += '|G_ZBUFFER';
-  }
-  if (data & flags.G_TEXTURE_ENABLE) {
-    t += '|G_TEXTURE_ENABLE';
-  }
-  if (data & flags.G_SHADE) {
-    t += '|G_SHADE';
-  }
-  if (data & flags.G_SHADING_SMOOTH) {
-    t += '|G_SHADING_SMOOTH';
-  }
-
   const cull = data & flags.G_CULL_BOTH;
-  if (cull === flags.G_CULL_FRONT) {
-    t += '|G_CULL_FRONT';
-  } else if (cull === flags.G_CULL_BACK) {
-    t += '|G_CULL_BACK';
-  } else if (cull === flags.G_CULL_BOTH) {
-    t += '|G_CULL_BOTH';
-  }
-
-  if (data & flags.G_FOG) {
-    t += '|G_FOG';
-  }
-  if (data & flags.G_LIGHTING) {
-    t += '|G_LIGHTING';
-  }
-  if (data & flags.G_TEXTURE_GEN) {
-    t += '|G_TEXTURE_GEN';
-  }
-  if (data & flags.G_TEXTURE_GEN_LINEAR) {
-    t += '|G_TEXTURE_GEN_LINEAR';
-  }
-  if (data & flags.G_LOD) {
-    t += '|G_LOD';
-  }
-
-  return t.length > 0 ? t.substr(1) : '0';
+  const cullName = ['G_CULL_FRONT', 'G_CULL_BACK', 'G_CULL_BOTH'].find(name => cull === flags[name]);
+  return [
+    ...getFlagNames(flags, data, ['G_ZBUFFER', 'G_TEXTURE_ENABLE', 'G_SHADE', 'G_SHADING_SMOOTH']),
+    cullName,
+    ...getFlagNames(flags, data, ['G_FOG', 'G_LIGHTING', 'G_TEXTURE_GEN', 'G_TEXTURE_GEN_LINEAR', 'G_LOD']),
+  ].filter(Boolean).join('|') || '0';
 }
 
 export const ImageFormat = makeEnum({
@@ -510,10 +438,10 @@ const blendDestFactors = [
 ];
 
 export function blendOpText(v) {
-  const m1a = (v>>>12)&0x3;
-  const m1b = (v>>> 8)&0x3;
-  const m2a = (v>>> 4)&0x3;
-  const m2b = (v>>> 0)&0x3;
-
-  return blendColourSources[m1a] + ',' + blendSourceFactors[m1b] + ',' + blendColourSources[m2a] + ',' + blendDestFactors[m2b];
+  return [
+    blendColourSources[(v >>> 12) & 3],
+    blendSourceFactors[(v >>> 8) & 3],
+    blendColourSources[(v >>> 4) & 3],
+    blendDestFactors[v & 3],
+  ].join(',');
 }
