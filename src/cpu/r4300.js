@@ -129,7 +129,8 @@ const TLBHI_RMASK = 0xc000000000000000n;
 const TLBHI_RSHIFT = 62n;
 const TLBHI_VPN2MASK = 0x000000ffffffe000n;
 const TLBHI_VPN2SHIFT = 13n;
-const TLBHI_PIDMASK = 0xffn;
+const TLBHI_PIDMASK32 = 0xff;
+const TLBHI_PIDMASK = BigInt(TLBHI_PIDMASK32);
 
 const entryHiWritableBits = 0xc00000ffffffe0ffn;
 
@@ -249,6 +250,10 @@ class TLBEntry {
     this.vpnmask64 = TLBHI_VPN2MASK;
 
     this.vpn2bits = 0n;
+    this.vpnMask32 = 0;
+    this.vpnBits32 = 0;
+    this.matches32Bit = false;
+    this.asid = 0;
     this.physEven = 0;
     this.physOdd = 0;
     this.checkbit = 0;
@@ -281,6 +286,15 @@ class TLBEntry {
     // VPN mask is shrunk depending on the page size (larger page -> smaller VPN).
     this.vpnmask64 = TLBHI_VPN2MASK & BigInt(~this.pagemask);
     this.vpn2bits = hi & this.vpnmask64;
+
+    // Memory handlers pass sign-extended 32-bit addresses. Precompute an
+    // equivalent integer comparison, retaining bits 39:32: a zero-extended
+    // high VPN must not alias a negative 32-bit pointer. Keep the full-width
+    // fields for TLB probe/read and future 64-bit effective addresses.
+    this.vpnMask32 = Number(BigInt.asIntN(32, this.vpnmask64));
+    this.vpnBits32 = Number(BigInt.asIntN(32, this.vpn2bits));
+    this.matches32Bit = (BigInt(this.vpnBits32) & this.vpnmask64) === this.vpn2bits;
+    this.asid = Number(hi & TLBHI_PIDMASK);
 
     this.physEven = (this.pfne << 6) & ~this.offsetMask;
     this.physOdd = (this.pfno << 6) & ~this.offsetMask;
@@ -1233,25 +1247,16 @@ export class CPU0 {
   }
 
   tlbFindEntry(address) {
-    const entryHi = this.getControlU64(cpu0reg.controlEntryHi);
-    const entryHiPID = entryHi & TLBHI_PIDMASK;
+    const entryHiPID = this.getControlU32(cpu0reg.controlEntryHi) & TLBHI_PIDMASK32;
 
-    // Memory handlers pass 32-bit addresses. Sign-extend them to match the
-    // VPN of a sign-extended guest pointer, including bits 39:32 for kseg2/kseg3.
-    // TODO: plumb through full 64-bit effective addresses.
-    const address64 = BigInt(address | 0);
-
+    // Preserve the first matching entry, including invalid/read-only pages;
+    // the translation helpers below perform the access-specific fault checks.
     for (let i = 0; i < 32; ++i) {
-      // TODO: use MRU cache here.
       const tlb = this.tlbEntries[i];
-
-      // VPN should match.
-      // TODO: also R?
-      if ((address64 & tlb.vpnmask64) !== tlb.vpn2bits) {
+      if (!tlb.matches32Bit || (address & tlb.vpnMask32) !== tlb.vpnBits32) {
         continue;
       }
-      if (!tlb.global && ((tlb.hi & TLBHI_PIDMASK) !== entryHiPID)) {
-        // ASID should match, or should be global.
+      if (!tlb.global && tlb.asid !== entryHiPID) {
         continue;
       }
       return tlb;

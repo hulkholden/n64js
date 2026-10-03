@@ -88,8 +88,9 @@ const f32NegInfinityBits = f32SignBit | f32ExponentBits;
 
 const f64SignBit = 0x8000_0000_0000_0000n;
 const f64ExponentBits = 0x7ff0_0000_0000_0000n;
-const f64ManissaBits = 0x000f_ffff_ffff_ffffn;
-const f64QuietBit = (1n << 51n);
+const f64ExponentHighBits = 0x7ff0_0000;
+const f64MantissaHighBits = 0x000f_ffff;
+const f64QuietHighBit = 0x0008_0000;
 
 const f64SignallingNaNBits = 0x7ff7_ffff_ffff_ffffn;
 const f64PosZeroBits = 0n;
@@ -136,22 +137,23 @@ function f32Classify(bits) {
   return floatTypeNormal;
 }
 
-function f64Classify(bits) {
-  const exponent = bits & f64ExponentBits;
-  const mantissa = bits & f64ManissaBits;
+// Classify raw words so NaN payloads and signed zero survive unchanged, without
+// allocating BigInts for every operand and result of double arithmetic.
+function f64Classify(hi, lo) {
+  const exponent = hi & f64ExponentHighBits;
+  const mantissa = (hi & f64MantissaHighBits) | lo;
 
-  // If the exponent bits are set, it's Infinity or a NaN.
-  if (exponent == f64ExponentBits) {
+  if (exponent == f64ExponentHighBits) {
     if (mantissa == 0) {
-      return (bits & f64SignBit) ? floatTypeNegInfinity : floatTypePosInfinity;
+      return (hi >>> 31) ? floatTypeNegInfinity : floatTypePosInfinity;
     }
-    return bits & f64QuietBit ? floatTypeQNaN : floatTypeSNaN;
+    return (hi & f64QuietHighBit) ? floatTypeQNaN : floatTypeSNaN;
   }
   if (exponent == 0) {
     if (mantissa != 0) {
       return floatTypeDenormal;
     }
-    return (bits & f64SignBit) ? floatTypeNegZero : floatTypePosZero;
+    return (hi >>> 31) ? floatTypeNegZero : floatTypePosZero;
   }
   return floatTypeNormal;
 }
@@ -643,8 +645,8 @@ export class CPU1 {
   }
 
   handleFloatCompareDouble(op, s, t) {
-    const fsType = f64Classify(this.loadU64(this.fsRegIdx64(s)));
-    const ftType = f64Classify(this.loadU64(this.ftRegIdx64(t)));
+    const fsType = this.loadF64Type(this.fsRegIdx64(s));
+    const ftType = this.loadF64Type(this.ftRegIdx64(t));
 
     let c = false;
     if (floatTypeNaN(fsType) || floatTypeNaN(ftType)) {
@@ -705,7 +707,7 @@ export class CPU1 {
   CVT_S_D(d, s) {
     this.clearCause();
 
-    const sType = f64Classify(this.loadU64(this.fsRegIdx64(s)));
+    const sType = this.loadF64Type(this.fsRegIdx64(s));
 
     let exceptionBits = 0;
     switch (sType) {
@@ -992,13 +994,13 @@ export class CPU1 {
     if (this.raiseException(exceptionBits)) {
       return;
     }
-    this.store64(this.fdRegIdx64(d), this.tempU64[0]);
+    this.storeTemp64(this.fdRegIdx64(d));
   }
 
   CVT_D_W(d, s) {
     this.clearCause();
     this.tempF64[0] = this.loadS32(this.fsRegIdx32(s));
-    this.store64(this.fdRegIdx64(d), this.tempU64[0]);
+    this.storeTemp64(this.fdRegIdx64(d));
   }
 
   CVT_D_L(d, s) {
@@ -1029,7 +1031,7 @@ export class CPU1 {
     this.clearCause();
 
     const sValue = this.loadF64(this.fsRegIdx64(s));
-    const sType = f64Classify(this.loadU64(this.fsRegIdx64(s)));
+    const sType = this.loadF64Type(this.fsRegIdx64(s));
     const opCase = getUnaryOpCase(cases, sType);
 
     // Keep track of the intermediate result, as it's needed to figure
@@ -1065,7 +1067,7 @@ export class CPU1 {
 
     // Store the result as a float64 so we can see if it loses precision.
     this.tempF64[0] = result;
-    const rType = f64Classify(this.tempU64[0]);
+    const rType = f64Classify(this.tempU32[1], this.tempU32[0]);
 
     let exceptionBits = 0;
 
@@ -1089,7 +1091,7 @@ export class CPU1 {
     // TODO: check for underflow?
 
     if (!this.raiseException(exceptionBits)) {
-      this.store64(this.fdRegIdx64(d), this.tempU64[0]);
+      this.storeTemp64(this.fdRegIdx64(d));
     }
   }
 
@@ -1098,10 +1100,8 @@ export class CPU1 {
 
     const sValue = this.loadF64(this.fsRegIdx64(s));
     const tValue = this.loadF64(this.ftRegIdx64(t));
-    const sBits = this.loadU64(this.fsRegIdx64(s));
-    const tBits = this.loadU64(this.ftRegIdx64(t));
-    const sType = f64Classify(sBits);
-    const tType = f64Classify(tBits);
+    const sType = this.loadF64Type(this.fsRegIdx64(s));
+    const tType = this.loadF64Type(this.ftRegIdx64(t));
     const opCase = getBinaryOpCase(cases, sType, tType);
 
     // Keep track of the intermediate result, as it's needed to figure
@@ -1119,6 +1119,8 @@ export class CPU1 {
         return;
       case opDivZero:
         if (!this.raiseException(exceptionDivByZeroBit)) {
+          const sBits = this.loadU64(this.fsRegIdx64(s));
+          const tBits = this.loadU64(this.ftRegIdx64(t));
           const sameSign = (sBits & f64SignBit) == (tBits & f64SignBit)
           this.store64(this.fdRegIdx64(d), sameSign ? f64PosInfinityBits : f64NegInfinityBits);
         }
@@ -1141,7 +1143,7 @@ export class CPU1 {
 
     // Store the result as a float64 so we can see if it loses precision.
     this.tempF64[0] = result;
-    const rType = f64Classify(this.tempU64[0]);
+    const rType = f64Classify(this.tempU32[1], this.tempU32[0]);
 
     let exceptionBits = 0;
 
@@ -1181,7 +1183,7 @@ export class CPU1 {
 
     if (!this.raiseException(exceptionBits)) {
       // Store the underlying bits to avoid renormalising.
-      this.store64(this.fdRegIdx64(d), this.tempU64[0]);
+      this.storeTemp64(this.fdRegIdx64(d));
     }
   }
 
@@ -1223,7 +1225,7 @@ export class CPU1 {
   ConvertDToL(d, s, mode) {
     this.clearCause();
 
-    const sType = f64Classify(this.loadU64(this.fsRegIdx64(s)));
+    const sType = this.loadF64Type(this.fsRegIdx64(s));
 
     let exceptionBits = 0;
     switch (sType) {
@@ -1295,7 +1297,7 @@ export class CPU1 {
   ConvertDToW(d, s, mode) {
     this.clearCause();
 
-    const sType = f64Classify(this.loadU64(this.fsRegIdx64(s)));
+    const sType = this.loadF64Type(this.fsRegIdx64(s));
 
     let exceptionBits = 0;
     switch (sType) {
@@ -1463,6 +1465,12 @@ export class CPU1 {
     this.regU64[regIdx] = value;
   }
 
+  // Copy the result bits without boxing them as a BigInt or normalising NaNs.
+  storeTemp64(regIdx) {
+    this.regU32[regIdx * 2] = this.tempU32[0];
+    this.regU32[regIdx * 2 + 1] = this.tempU32[1];
+  }
+
   /**
    * @param {number} regIdx The register index.
    * @param {number} value The value to store.
@@ -1519,6 +1527,10 @@ export class CPU1 {
    */
   loadF64(regIdx) {
     return this.regF64[regIdx];
+  }
+
+  loadF64Type(regIdx) {
+    return f64Classify(this.regU32[regIdx * 2 + 1], this.regU32[regIdx * 2]);
   }
 
   /**
