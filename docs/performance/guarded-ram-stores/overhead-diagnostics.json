@@ -1,0 +1,2112 @@
+{
+  "note": "Timings excluded: diagnostic runs overlapped other work. Count/state/source checks only.",
+  "results": [
+    {
+      "title": "turok",
+      "variants": {
+        "original": {
+          "phases": {
+            "warmup": {
+              "candidates": 218,
+              "stores": 317,
+              "groups": 55,
+              "histogram": {
+                "1": 163,
+                "2": 39,
+                "3": 5,
+                "4": 5,
+                "5": 3,
+                "6": 1,
+                "10": 2
+              }
+            },
+            "early": {
+              "candidates": 767,
+              "stores": 1296,
+              "groups": 230,
+              "histogram": {
+                "1": 537,
+                "2": 139,
+                "3": 14,
+                "4": 30,
+                "5": 18,
+                "6": 9,
+                "7": 6,
+                "8": 5,
+                "9": 2,
+                "10": 5,
+                "11": 1,
+                "14": 1
+              }
+            },
+            "advance": {
+              "candidates": 548,
+              "stores": 848,
+              "groups": 151,
+              "histogram": {
+                "1": 397,
+                "2": 107,
+                "3": 13,
+                "4": 8,
+                "5": 7,
+                "6": 3,
+                "7": 3,
+                "8": 4,
+                "9": 1,
+                "10": 4,
+                "11": 1
+              }
+            },
+            "later": {
+              "candidates": 175,
+              "stores": 247,
+              "groups": 41,
+              "histogram": {
+                "1": 134,
+                "2": 28,
+                "3": 6,
+                "4": 1,
+                "5": 2,
+                "6": 3,
+                "7": 1
+              }
+            }
+          },
+          "candidates": 1708,
+          "stores": 2708,
+          "groups": 477,
+          "explicitObjectsAndArrays": 7078,
+          "sourceCount": 1654,
+          "sourceBytes": 10553734,
+          "sourceListSHA256": "9112101638e0196b3b2aed602ba628a7c32b9b060df516b91ea285ed78f1dde6",
+          "windows": [
+            {
+              "name": "early",
+              "guardCalls": 1297889,
+              "guardHits": 1297889,
+              "state": {
+                "pc": 2147484032,
+                "nextPC": 2147484032,
+                "delayPC": null,
+                "branchTarget": null,
+                "count": 1192956684,
+                "ops": 232043180,
+                "randomReads": 0,
+                "events": [
+                  [
+                    "AI DMA",
+                    307116
+                  ],
+                  [
+                    "VI Interrupt",
+                    1562220
+                  ],
+                  [
+                    "Compare",
+                    7396977908
+                  ]
+                ],
+                "llBit": 0,
+                "lastControlRegWrite": "-2147475928",
+                "hi": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+                "lo": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+                "gpr": "cbf55a9085f9dc9f362a7d0d5415a57f4c859e00f37586c20de9f8c36ed3d4f8",
+                "cop0": "3061cc89eaf9ca678b96fac0a5a0205bec85219f0a0c9bd5b16b07391d85be79",
+                "fpr": "86bd673094f839751b4898dad2bbdac85ccf27f14135c9f1ba20be843bce09f3",
+                "fcsr": "d244c8b4e6fc66e0b76c5cae620eee555d6e35fc6067433865a08259be4d14a2",
+                "ram": "194712c132d1cd58654bafbc7f646e475967f8812a22ce2a84f5a070f1eab951",
+                "rspPC": 324,
+                "rspDelayPC": 0,
+                "rspGpr": "57d7fe2a63847f254584ad4d2b55da39b27958bdac325f78976f76f9757ccc75",
+                "rspVpr": "b8d4cef866ef840335c1e8230b32b4160e40becb1e3e54912c081b989ceec5ae",
+                "rspAcc": "0f297db551891df923a6723d41c6476943dac705d84e9a2b895f2423c8209aed",
+                "rspVco": "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+                "rspVcc": "ca2fd00fa001190744c15c317643ab092e7048ce086a243e2be9437c898de1bb",
+                "rspVce": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+                "rspDiv": [
+                  false,
+                  0,
+                  0
+                ],
+                "spMem": "251c267822ef9661c8281482d650d3e0649b04ce8ed6626d4ccb8e1831b89aca",
+                "spReg": "13f796d9a815d7a35b488a19d61856499a37f059ea37282902924c7426f9bb72",
+                "mi": "ae6c6cfafefe002a881a8eca2d6a6353f128e70e291bd042a27073c216b9f84c",
+                "vi": "fb4cb15962ae4f22a058ab034382acccb87974093e7d29b75798cb3988f133e0",
+                "ai": "9d908ecfb6b256def8b49a7c504e6c889c4b0e41fe6ce3e01863dd7b61a20aa0",
+                "pi": "13ba40962ede5dbd31dbd8c924ce8ff22139a8108dcec8956231955969ba646c",
+                "si": "78dfd3d712366df84d5bcd8fbd3b6ce8f0efdb0597ae47ba4c9fcbd0f8f456fb",
+                "fatal": null
+              },
+              "profile": {
+                "interpretedOps": 14932130,
+                "compiledOps": 116406136,
+                "fragmentRuns": 22642855,
+                "fragmentCompilations": 741,
+                "fragmentInvalidations": 0,
+                "speedHackAttempts": 17126360,
+                "speedHackRSPActive": 17125140,
+                "speedHackNonNopDelay": 0,
+                "speedHackActivations": 1220,
+                "speedHackSkippedCycles": 805993748,
+                "rspInstructions": 38289851,
+                "rspTasks": 909
+              }
+            },
+            {
+              "name": "later",
+              "guardCalls": 1308044,
+              "guardHits": 1308044,
+              "state": {
+                "pc": 2147484032,
+                "nextPC": 2147484032,
+                "delayPC": null,
+                "branchTarget": null,
+                "count": 3067620684,
+                "ops": 456341849,
+                "randomReads": 0,
+                "events": [
+                  [
+                    "AI DMA",
+                    319040
+                  ],
+                  [
+                    "VI Interrupt",
+                    1562220
+                  ],
+                  [
+                    "Compare",
+                    5522313908
+                  ]
+                ],
+                "llBit": 0,
+                "lastControlRegWrite": "-2147475928",
+                "hi": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+                "lo": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+                "gpr": "cbf55a9085f9dc9f362a7d0d5415a57f4c859e00f37586c20de9f8c36ed3d4f8",
+                "cop0": "3061cc89eaf9ca678b96fac0a5a0205bec85219f0a0c9bd5b16b07391d85be79",
+                "fpr": "ec300574e3bcf4a371c262eeb96e02642408732fed3eadf2006477e83273dfa4",
+                "fcsr": "d244c8b4e6fc66e0b76c5cae620eee555d6e35fc6067433865a08259be4d14a2",
+                "ram": "258e2fd9818777d614724a9cf8ccb279018f956c04064fb4158db780dc827bc1",
+                "rspPC": 324,
+                "rspDelayPC": 0,
+                "rspGpr": "7e701582408271b01ec3108dffb9981bc593c3cef36042085990fb309c0f3675",
+                "rspVpr": "6b919dafeead5a7e50ed8711be8bb56c7ffb064e2a4d675c75bbf44c8d0acaaf",
+                "rspAcc": "8e0f2afa03421aabae9b423cfcdf9bbeead49d07204c51c0947c6ed8b9e1fe29",
+                "rspVco": "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+                "rspVcc": "ca2fd00fa001190744c15c317643ab092e7048ce086a243e2be9437c898de1bb",
+                "rspVce": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+                "rspDiv": [
+                  false,
+                  0,
+                  0
+                ],
+                "spMem": "6f3768e3f8ef35be02a83ecbbe9e125d247ebc201696f5e80f17640fff84b3f4",
+                "spReg": "b5afcd2472ecc0b19f49a823dfbac2a78b494d8900eb8f09d1f41af6de4d71a9",
+                "mi": "ae6c6cfafefe002a881a8eca2d6a6353f128e70e291bd042a27073c216b9f84c",
+                "vi": "82d2f2dbd2cb5d3aef1b586fda103579d731a31f13dbff16b7ed865455dff8d9",
+                "ai": "9d908ecfb6b256def8b49a7c504e6c889c4b0e41fe6ce3e01863dd7b61a20aa0",
+                "pi": "4d8547b2d5235b4da11f5aeafc16e7878304fe55008ddbfb7615bc236592e387",
+                "si": "78dfd3d712366df84d5bcd8fbd3b6ce8f0efdb0597ae47ba4c9fcbd0f8f456fb",
+                "fatal": null
+              },
+              "profile": {
+                "interpretedOps": 2592691,
+                "compiledOps": 100793373,
+                "fragmentRuns": 21709688,
+                "fragmentCompilations": 143,
+                "fragmentInvalidations": 0,
+                "speedHackAttempts": 17162713,
+                "speedHackRSPActive": 17161585,
+                "speedHackNonNopDelay": 0,
+                "speedHackActivations": 1128,
+                "speedHackSkippedCycles": 833945943,
+                "rspInstructions": 37528701,
+                "rspTasks": 799
+              }
+            }
+          ]
+        },
+        "pooled": {
+          "phases": {
+            "warmup": {
+              "candidates": 218,
+              "stores": 317,
+              "groups": 55,
+              "histogram": {
+                "1": 163,
+                "2": 39,
+                "3": 5,
+                "4": 5,
+                "5": 3,
+                "6": 1,
+                "10": 2
+              }
+            },
+            "early": {
+              "candidates": 767,
+              "stores": 1296,
+              "groups": 230,
+              "histogram": {
+                "1": 537,
+                "2": 139,
+                "3": 14,
+                "4": 30,
+                "5": 18,
+                "6": 9,
+                "7": 6,
+                "8": 5,
+                "9": 2,
+                "10": 5,
+                "11": 1,
+                "14": 1
+              }
+            },
+            "advance": {
+              "candidates": 548,
+              "stores": 848,
+              "groups": 151,
+              "histogram": {
+                "1": 397,
+                "2": 107,
+                "3": 13,
+                "4": 8,
+                "5": 7,
+                "6": 3,
+                "7": 3,
+                "8": 4,
+                "9": 1,
+                "10": 4,
+                "11": 1
+              }
+            },
+            "later": {
+              "candidates": 175,
+              "stores": 247,
+              "groups": 41,
+              "histogram": {
+                "1": 134,
+                "2": 28,
+                "3": 6,
+                "4": 1,
+                "5": 2,
+                "6": 3,
+                "7": 1
+              }
+            }
+          },
+          "candidates": 1708,
+          "stores": 2708,
+          "groups": 477,
+          "explicitObjectsAndArrays": null,
+          "sourceCount": 1654,
+          "sourceBytes": 10553734,
+          "sourceListSHA256": "9112101638e0196b3b2aed602ba628a7c32b9b060df516b91ea285ed78f1dde6",
+          "windows": [
+            {
+              "name": "early",
+              "guardCalls": 1297889,
+              "guardHits": 1297889,
+              "state": {
+                "pc": 2147484032,
+                "nextPC": 2147484032,
+                "delayPC": null,
+                "branchTarget": null,
+                "count": 1192956684,
+                "ops": 232043180,
+                "randomReads": 0,
+                "events": [
+                  [
+                    "AI DMA",
+                    307116
+                  ],
+                  [
+                    "VI Interrupt",
+                    1562220
+                  ],
+                  [
+                    "Compare",
+                    7396977908
+                  ]
+                ],
+                "llBit": 0,
+                "lastControlRegWrite": "-2147475928",
+                "hi": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+                "lo": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+                "gpr": "cbf55a9085f9dc9f362a7d0d5415a57f4c859e00f37586c20de9f8c36ed3d4f8",
+                "cop0": "3061cc89eaf9ca678b96fac0a5a0205bec85219f0a0c9bd5b16b07391d85be79",
+                "fpr": "86bd673094f839751b4898dad2bbdac85ccf27f14135c9f1ba20be843bce09f3",
+                "fcsr": "d244c8b4e6fc66e0b76c5cae620eee555d6e35fc6067433865a08259be4d14a2",
+                "ram": "194712c132d1cd58654bafbc7f646e475967f8812a22ce2a84f5a070f1eab951",
+                "rspPC": 324,
+                "rspDelayPC": 0,
+                "rspGpr": "57d7fe2a63847f254584ad4d2b55da39b27958bdac325f78976f76f9757ccc75",
+                "rspVpr": "b8d4cef866ef840335c1e8230b32b4160e40becb1e3e54912c081b989ceec5ae",
+                "rspAcc": "0f297db551891df923a6723d41c6476943dac705d84e9a2b895f2423c8209aed",
+                "rspVco": "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+                "rspVcc": "ca2fd00fa001190744c15c317643ab092e7048ce086a243e2be9437c898de1bb",
+                "rspVce": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+                "rspDiv": [
+                  false,
+                  0,
+                  0
+                ],
+                "spMem": "251c267822ef9661c8281482d650d3e0649b04ce8ed6626d4ccb8e1831b89aca",
+                "spReg": "13f796d9a815d7a35b488a19d61856499a37f059ea37282902924c7426f9bb72",
+                "mi": "ae6c6cfafefe002a881a8eca2d6a6353f128e70e291bd042a27073c216b9f84c",
+                "vi": "fb4cb15962ae4f22a058ab034382acccb87974093e7d29b75798cb3988f133e0",
+                "ai": "9d908ecfb6b256def8b49a7c504e6c889c4b0e41fe6ce3e01863dd7b61a20aa0",
+                "pi": "13ba40962ede5dbd31dbd8c924ce8ff22139a8108dcec8956231955969ba646c",
+                "si": "78dfd3d712366df84d5bcd8fbd3b6ce8f0efdb0597ae47ba4c9fcbd0f8f456fb",
+                "fatal": null
+              },
+              "profile": {
+                "interpretedOps": 14932130,
+                "compiledOps": 116406136,
+                "fragmentRuns": 22642855,
+                "fragmentCompilations": 741,
+                "fragmentInvalidations": 0,
+                "speedHackAttempts": 17126360,
+                "speedHackRSPActive": 17125140,
+                "speedHackNonNopDelay": 0,
+                "speedHackActivations": 1220,
+                "speedHackSkippedCycles": 805993748,
+                "rspInstructions": 38289851,
+                "rspTasks": 909
+              }
+            },
+            {
+              "name": "later",
+              "guardCalls": 1308044,
+              "guardHits": 1308044,
+              "state": {
+                "pc": 2147484032,
+                "nextPC": 2147484032,
+                "delayPC": null,
+                "branchTarget": null,
+                "count": 3067620684,
+                "ops": 456341849,
+                "randomReads": 0,
+                "events": [
+                  [
+                    "AI DMA",
+                    319040
+                  ],
+                  [
+                    "VI Interrupt",
+                    1562220
+                  ],
+                  [
+                    "Compare",
+                    5522313908
+                  ]
+                ],
+                "llBit": 0,
+                "lastControlRegWrite": "-2147475928",
+                "hi": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+                "lo": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+                "gpr": "cbf55a9085f9dc9f362a7d0d5415a57f4c859e00f37586c20de9f8c36ed3d4f8",
+                "cop0": "3061cc89eaf9ca678b96fac0a5a0205bec85219f0a0c9bd5b16b07391d85be79",
+                "fpr": "ec300574e3bcf4a371c262eeb96e02642408732fed3eadf2006477e83273dfa4",
+                "fcsr": "d244c8b4e6fc66e0b76c5cae620eee555d6e35fc6067433865a08259be4d14a2",
+                "ram": "258e2fd9818777d614724a9cf8ccb279018f956c04064fb4158db780dc827bc1",
+                "rspPC": 324,
+                "rspDelayPC": 0,
+                "rspGpr": "7e701582408271b01ec3108dffb9981bc593c3cef36042085990fb309c0f3675",
+                "rspVpr": "6b919dafeead5a7e50ed8711be8bb56c7ffb064e2a4d675c75bbf44c8d0acaaf",
+                "rspAcc": "8e0f2afa03421aabae9b423cfcdf9bbeead49d07204c51c0947c6ed8b9e1fe29",
+                "rspVco": "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+                "rspVcc": "ca2fd00fa001190744c15c317643ab092e7048ce086a243e2be9437c898de1bb",
+                "rspVce": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+                "rspDiv": [
+                  false,
+                  0,
+                  0
+                ],
+                "spMem": "6f3768e3f8ef35be02a83ecbbe9e125d247ebc201696f5e80f17640fff84b3f4",
+                "spReg": "b5afcd2472ecc0b19f49a823dfbac2a78b494d8900eb8f09d1f41af6de4d71a9",
+                "mi": "ae6c6cfafefe002a881a8eca2d6a6353f128e70e291bd042a27073c216b9f84c",
+                "vi": "82d2f2dbd2cb5d3aef1b586fda103579d731a31f13dbff16b7ed865455dff8d9",
+                "ai": "9d908ecfb6b256def8b49a7c504e6c889c4b0e41fe6ce3e01863dd7b61a20aa0",
+                "pi": "4d8547b2d5235b4da11f5aeafc16e7878304fe55008ddbfb7615bc236592e387",
+                "si": "78dfd3d712366df84d5bcd8fbd3b6ce8f0efdb0597ae47ba4c9fcbd0f8f456fb",
+                "fatal": null
+              },
+              "profile": {
+                "interpretedOps": 2592691,
+                "compiledOps": 100793373,
+                "fragmentRuns": 21709688,
+                "fragmentCompilations": 143,
+                "fragmentInvalidations": 0,
+                "speedHackAttempts": 17162713,
+                "speedHackRSPActive": 17161585,
+                "speedHackNonNopDelay": 0,
+                "speedHackActivations": 1128,
+                "speedHackSkippedCycles": 833945943,
+                "rspInstructions": 37528701,
+                "rspTasks": 799
+              }
+            }
+          ]
+        },
+        "compact": {
+          "phases": {
+            "warmup": {
+              "candidates": 218,
+              "stores": 317,
+              "groups": 55,
+              "histogram": {
+                "1": 163,
+                "2": 39,
+                "3": 5,
+                "4": 5,
+                "5": 3,
+                "6": 1,
+                "10": 2
+              }
+            },
+            "early": {
+              "candidates": 767,
+              "stores": 1296,
+              "groups": 230,
+              "histogram": {
+                "1": 537,
+                "2": 139,
+                "3": 14,
+                "4": 30,
+                "5": 18,
+                "6": 9,
+                "7": 6,
+                "8": 5,
+                "9": 2,
+                "10": 5,
+                "11": 1,
+                "14": 1
+              }
+            },
+            "advance": {
+              "candidates": 548,
+              "stores": 848,
+              "groups": 151,
+              "histogram": {
+                "1": 397,
+                "2": 107,
+                "3": 13,
+                "4": 8,
+                "5": 7,
+                "6": 3,
+                "7": 3,
+                "8": 4,
+                "9": 1,
+                "10": 4,
+                "11": 1
+              }
+            },
+            "later": {
+              "candidates": 175,
+              "stores": 247,
+              "groups": 41,
+              "histogram": {
+                "1": 134,
+                "2": 28,
+                "3": 6,
+                "4": 1,
+                "5": 2,
+                "6": 3,
+                "7": 1
+              }
+            }
+          },
+          "candidates": 1708,
+          "stores": 2708,
+          "groups": 477,
+          "explicitObjectsAndArrays": null,
+          "sourceCount": 1654,
+          "sourceBytes": 10233174,
+          "sourceListSHA256": "18a107f362ab6feb95cba1573a89d977b113d0ab874cc757ab626c26f1943ec5",
+          "windows": [
+            {
+              "name": "early",
+              "guardCalls": 1297889,
+              "guardHits": 1297889,
+              "state": {
+                "pc": 2147484032,
+                "nextPC": 2147484032,
+                "delayPC": null,
+                "branchTarget": null,
+                "count": 1192956684,
+                "ops": 232043180,
+                "randomReads": 0,
+                "events": [
+                  [
+                    "AI DMA",
+                    307116
+                  ],
+                  [
+                    "VI Interrupt",
+                    1562220
+                  ],
+                  [
+                    "Compare",
+                    7396977908
+                  ]
+                ],
+                "llBit": 0,
+                "lastControlRegWrite": "-2147475928",
+                "hi": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+                "lo": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+                "gpr": "cbf55a9085f9dc9f362a7d0d5415a57f4c859e00f37586c20de9f8c36ed3d4f8",
+                "cop0": "3061cc89eaf9ca678b96fac0a5a0205bec85219f0a0c9bd5b16b07391d85be79",
+                "fpr": "86bd673094f839751b4898dad2bbdac85ccf27f14135c9f1ba20be843bce09f3",
+                "fcsr": "d244c8b4e6fc66e0b76c5cae620eee555d6e35fc6067433865a08259be4d14a2",
+                "ram": "194712c132d1cd58654bafbc7f646e475967f8812a22ce2a84f5a070f1eab951",
+                "rspPC": 324,
+                "rspDelayPC": 0,
+                "rspGpr": "57d7fe2a63847f254584ad4d2b55da39b27958bdac325f78976f76f9757ccc75",
+                "rspVpr": "b8d4cef866ef840335c1e8230b32b4160e40becb1e3e54912c081b989ceec5ae",
+                "rspAcc": "0f297db551891df923a6723d41c6476943dac705d84e9a2b895f2423c8209aed",
+                "rspVco": "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+                "rspVcc": "ca2fd00fa001190744c15c317643ab092e7048ce086a243e2be9437c898de1bb",
+                "rspVce": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+                "rspDiv": [
+                  false,
+                  0,
+                  0
+                ],
+                "spMem": "251c267822ef9661c8281482d650d3e0649b04ce8ed6626d4ccb8e1831b89aca",
+                "spReg": "13f796d9a815d7a35b488a19d61856499a37f059ea37282902924c7426f9bb72",
+                "mi": "ae6c6cfafefe002a881a8eca2d6a6353f128e70e291bd042a27073c216b9f84c",
+                "vi": "fb4cb15962ae4f22a058ab034382acccb87974093e7d29b75798cb3988f133e0",
+                "ai": "9d908ecfb6b256def8b49a7c504e6c889c4b0e41fe6ce3e01863dd7b61a20aa0",
+                "pi": "13ba40962ede5dbd31dbd8c924ce8ff22139a8108dcec8956231955969ba646c",
+                "si": "78dfd3d712366df84d5bcd8fbd3b6ce8f0efdb0597ae47ba4c9fcbd0f8f456fb",
+                "fatal": null
+              },
+              "profile": {
+                "interpretedOps": 14932130,
+                "compiledOps": 116406136,
+                "fragmentRuns": 22642855,
+                "fragmentCompilations": 741,
+                "fragmentInvalidations": 0,
+                "speedHackAttempts": 17126360,
+                "speedHackRSPActive": 17125140,
+                "speedHackNonNopDelay": 0,
+                "speedHackActivations": 1220,
+                "speedHackSkippedCycles": 805993748,
+                "rspInstructions": 38289851,
+                "rspTasks": 909
+              }
+            },
+            {
+              "name": "later",
+              "guardCalls": 1308044,
+              "guardHits": 1308044,
+              "state": {
+                "pc": 2147484032,
+                "nextPC": 2147484032,
+                "delayPC": null,
+                "branchTarget": null,
+                "count": 3067620684,
+                "ops": 456341849,
+                "randomReads": 0,
+                "events": [
+                  [
+                    "AI DMA",
+                    319040
+                  ],
+                  [
+                    "VI Interrupt",
+                    1562220
+                  ],
+                  [
+                    "Compare",
+                    5522313908
+                  ]
+                ],
+                "llBit": 0,
+                "lastControlRegWrite": "-2147475928",
+                "hi": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+                "lo": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+                "gpr": "cbf55a9085f9dc9f362a7d0d5415a57f4c859e00f37586c20de9f8c36ed3d4f8",
+                "cop0": "3061cc89eaf9ca678b96fac0a5a0205bec85219f0a0c9bd5b16b07391d85be79",
+                "fpr": "ec300574e3bcf4a371c262eeb96e02642408732fed3eadf2006477e83273dfa4",
+                "fcsr": "d244c8b4e6fc66e0b76c5cae620eee555d6e35fc6067433865a08259be4d14a2",
+                "ram": "258e2fd9818777d614724a9cf8ccb279018f956c04064fb4158db780dc827bc1",
+                "rspPC": 324,
+                "rspDelayPC": 0,
+                "rspGpr": "7e701582408271b01ec3108dffb9981bc593c3cef36042085990fb309c0f3675",
+                "rspVpr": "6b919dafeead5a7e50ed8711be8bb56c7ffb064e2a4d675c75bbf44c8d0acaaf",
+                "rspAcc": "8e0f2afa03421aabae9b423cfcdf9bbeead49d07204c51c0947c6ed8b9e1fe29",
+                "rspVco": "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+                "rspVcc": "ca2fd00fa001190744c15c317643ab092e7048ce086a243e2be9437c898de1bb",
+                "rspVce": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+                "rspDiv": [
+                  false,
+                  0,
+                  0
+                ],
+                "spMem": "6f3768e3f8ef35be02a83ecbbe9e125d247ebc201696f5e80f17640fff84b3f4",
+                "spReg": "b5afcd2472ecc0b19f49a823dfbac2a78b494d8900eb8f09d1f41af6de4d71a9",
+                "mi": "ae6c6cfafefe002a881a8eca2d6a6353f128e70e291bd042a27073c216b9f84c",
+                "vi": "82d2f2dbd2cb5d3aef1b586fda103579d731a31f13dbff16b7ed865455dff8d9",
+                "ai": "9d908ecfb6b256def8b49a7c504e6c889c4b0e41fe6ce3e01863dd7b61a20aa0",
+                "pi": "4d8547b2d5235b4da11f5aeafc16e7878304fe55008ddbfb7615bc236592e387",
+                "si": "78dfd3d712366df84d5bcd8fbd3b6ce8f0efdb0597ae47ba4c9fcbd0f8f456fb",
+                "fatal": null
+              },
+              "profile": {
+                "interpretedOps": 2592691,
+                "compiledOps": 100793373,
+                "fragmentRuns": 21709688,
+                "fragmentCompilations": 143,
+                "fragmentInvalidations": 0,
+                "speedHackAttempts": 17162713,
+                "speedHackRSPActive": 17161585,
+                "speedHackNonNopDelay": 0,
+                "speedHackActivations": 1128,
+                "speedHackSkippedCycles": 833945943,
+                "rspInstructions": 37528701,
+                "rspTasks": 799
+              }
+            }
+          ]
+        }
+      },
+      "rom": {
+        "id": "0df1702fff87415c",
+        "name": "Turok - The Dinosaur Hunter (v1.0)",
+        "cic": "6102",
+        "country": 69,
+        "tvType": 1
+      },
+      "canonicalROMSHA256": "4111045ae8e05da883037906dc9f693d8e6f55ad6b3a0c43a9472c632486e082",
+      "seed": 166,
+      "runtime": {
+        "bun": "1.3.14",
+        "platform": "darwin",
+        "arch": "arm64"
+      }
+    },
+    {
+      "title": "zelda",
+      "variants": {
+        "original": {
+          "phases": {
+            "warmup": {
+              "candidates": 127,
+              "stores": 266,
+              "groups": 44,
+              "histogram": {
+                "1": 83,
+                "2": 15,
+                "3": 7,
+                "4": 5,
+                "5": 5,
+                "6": 5,
+                "7": 3,
+                "8": 2,
+                "10": 2
+              }
+            },
+            "early": {
+              "candidates": 1408,
+              "stores": 2677,
+              "groups": 473,
+              "histogram": {
+                "1": 935,
+                "2": 197,
+                "3": 75,
+                "4": 53,
+                "5": 67,
+                "6": 41,
+                "7": 21,
+                "8": 2,
+                "9": 7,
+                "10": 8,
+                "12": 2
+              }
+            },
+            "advance": {
+              "candidates": 676,
+              "stores": 1120,
+              "groups": 227,
+              "histogram": {
+                "1": 449,
+                "2": 141,
+                "3": 36,
+                "4": 14,
+                "5": 21,
+                "6": 4,
+                "7": 2,
+                "8": 5,
+                "9": 1,
+                "10": 1,
+                "11": 1,
+                "12": 1
+              }
+            },
+            "later": {
+              "candidates": 746,
+              "stores": 1285,
+              "groups": 261,
+              "histogram": {
+                "1": 485,
+                "2": 154,
+                "3": 47,
+                "4": 24,
+                "5": 13,
+                "6": 7,
+                "7": 3,
+                "8": 3,
+                "9": 4,
+                "10": 1,
+                "11": 3,
+                "12": 2
+              }
+            }
+          },
+          "candidates": 2957,
+          "stores": 5348,
+          "groups": 1005,
+          "explicitObjectsAndArrays": 13272,
+          "sourceCount": 3235,
+          "sourceBytes": 18536429,
+          "sourceListSHA256": "137def624411b4ac9761a30c81f09f22497d0662830e221c1b27933d224ad1e5",
+          "windows": [
+            {
+              "name": "early",
+              "guardCalls": 585044,
+              "guardHits": 585044,
+              "state": {
+                "pc": 2147484032,
+                "nextPC": 2147484032,
+                "delayPC": null,
+                "branchTarget": null,
+                "count": 1152914875,
+                "ops": 183461935,
+                "randomReads": 0,
+                "events": [
+                  [
+                    "AI DMA",
+                    498069
+                  ],
+                  [
+                    "VI Interrupt",
+                    1562220
+                  ],
+                  [
+                    "Compare",
+                    280171671
+                  ]
+                ],
+                "llBit": 0,
+                "lastControlRegWrite": "-2147481652",
+                "hi": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+                "lo": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+                "gpr": "90c3cfd5f129a8419060649bb028f021559580848956fa8a1ba9a57607faadde",
+                "cop0": "2ee9b8ee07b50828c4e1bac7f31c143eb27c9c3903a9f7a6e278fab52803fc78",
+                "fpr": "5d34af1ae1bc5a0c6f2d574f4abb8ff72be49aea59bfc3a24ce0906ad2aa5481",
+                "fcsr": "57fcbb6a15321bc72602e1573b4e043e82c62616c3cf31d7a44561b2d70f1fe4",
+                "ram": "7c8de2ed681df105f0719ad5b1c15d1aaa1624d6baf58515907808b468972048",
+                "rspPC": 184,
+                "rspDelayPC": 0,
+                "rspGpr": "38fa5f486099cffca43e41319f88a015289b089711c7cbe7080fe73fc0e954f9",
+                "rspVpr": "328657c3a069fb22445f96663e1514636b9404f33881218b527293747111b2a8",
+                "rspAcc": "051d9a1e133678a783317329007ca735776edeb6d2f23454a8cad6f2acc5da29",
+                "rspVco": "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+                "rspVcc": "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+                "rspVce": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+                "rspDiv": [
+                  false,
+                  0,
+                  0
+                ],
+                "spMem": "720523ca90e5ded09a29d86dc9ed3668d63b9631ef63c495ceff0edde0997307",
+                "spReg": "cc11548f5876cb3026ff295e809fac81a43267d245d311b039e305e1938b0ac2",
+                "mi": "ae6c6cfafefe002a881a8eca2d6a6353f128e70e291bd042a27073c216b9f84c",
+                "vi": "a208a0ba121147c8b443369aeaa25dd2ce282e7e3ca5ade9a57c4b654fe1d3dd",
+                "ai": "9d908ecfb6b256def8b49a7c504e6c889c4b0e41fe6ce3e01863dd7b61a20aa0",
+                "pi": "52e8ef055bc91ae91f81707e3fa26f846e38165eb99151935fbd13893e1780a0",
+                "si": "648b58a3c1b4254fb4fead3f2d8f0de46f23e07a7f4bf2cc0a09f06364ec6b3a",
+                "fatal": null
+              },
+              "profile": {
+                "interpretedOps": 21889415,
+                "compiledOps": 114727789,
+                "fragmentRuns": 15650825,
+                "fragmentCompilations": 2017,
+                "fragmentInvalidations": 3749,
+                "speedHackAttempts": 8272406,
+                "speedHackRSPActive": 8269912,
+                "speedHackNonNopDelay": 0,
+                "speedHackActivations": 2494,
+                "speedHackSkippedCycles": 800714864,
+                "rspInstructions": 58342720,
+                "rspTasks": 747
+              }
+            },
+            {
+              "name": "later",
+              "guardCalls": 1002319,
+              "guardHits": 1002319,
+              "state": {
+                "pc": 2147484032,
+                "nextPC": 2147484032,
+                "delayPC": null,
+                "branchTarget": null,
+                "count": 3027578875,
+                "ops": 495465423,
+                "randomReads": 0,
+                "events": [
+                  [
+                    "AI DMA",
+                    529335
+                  ],
+                  [
+                    "VI Interrupt",
+                    1562220
+                  ],
+                  [
+                    "Compare",
+                    280027977
+                  ]
+                ],
+                "llBit": 0,
+                "lastControlRegWrite": "-2147481652",
+                "hi": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+                "lo": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+                "gpr": "90c3cfd5f129a8419060649bb028f021559580848956fa8a1ba9a57607faadde",
+                "cop0": "a7853d41eea8bb33609fcbe8e3cd51e82c9619565d12c7baf0354e1343fb4037",
+                "fpr": "4cceb4ac71d9c14e947edd2fe709918a91e9ea4d05077af8750d7e19b1503a1d",
+                "fcsr": "57fcbb6a15321bc72602e1573b4e043e82c62616c3cf31d7a44561b2d70f1fe4",
+                "ram": "0f1e26612d53a3866396f2a177880fc9d98bc00d2179aed92191ab9c0745138c",
+                "rspPC": 184,
+                "rspDelayPC": 0,
+                "rspGpr": "5948b0fd8357e38d9210dabbda0885db5711040c812c602ee8d2de09faded2a8",
+                "rspVpr": "a243984da445eccf62e5d316f68c7bccc33552a5ccd25e25478a0f756592654c",
+                "rspAcc": "40dc6383523fff8f7644702bd52f83eb3dc158636a583ced01cc76cba4491af1",
+                "rspVco": "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+                "rspVcc": "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+                "rspVce": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+                "rspDiv": [
+                  false,
+                  0,
+                  0
+                ],
+                "spMem": "e4b3820c428fc8ebbfd7b9f2f7e00323a81bffdf3ec72eb353b58c8c51c50ce2",
+                "spReg": "aadcfa6be22337502800f285721f346efd24d346258cc2d94b638fe82b0e8723",
+                "mi": "ae6c6cfafefe002a881a8eca2d6a6353f128e70e291bd042a27073c216b9f84c",
+                "vi": "a208a0ba121147c8b443369aeaa25dd2ce282e7e3ca5ade9a57c4b654fe1d3dd",
+                "ai": "9d908ecfb6b256def8b49a7c504e6c889c4b0e41fe6ce3e01863dd7b61a20aa0",
+                "pi": "89d3aff41035df23f5e66a40be50cd6f4ec83bd3a38bda9401213751fa1322a1",
+                "si": "648b58a3c1b4254fb4fead3f2d8f0de46f23e07a7f4bf2cc0a09f06364ec6b3a",
+                "fatal": null
+              },
+              "profile": {
+                "interpretedOps": 6033073,
+                "compiledOps": 148626802,
+                "fragmentRuns": 21809914,
+                "fragmentCompilations": 509,
+                "fragmentInvalidations": 0,
+                "speedHackAttempts": 13641529,
+                "speedHackRSPActive": 13640395,
+                "speedHackNonNopDelay": 0,
+                "speedHackActivations": 1134,
+                "speedHackSkippedCycles": 782672185,
+                "rspInstructions": 92074573,
+                "rspTasks": 800
+              }
+            }
+          ]
+        },
+        "pooled": {
+          "phases": {
+            "warmup": {
+              "candidates": 127,
+              "stores": 266,
+              "groups": 44,
+              "histogram": {
+                "1": 83,
+                "2": 15,
+                "3": 7,
+                "4": 5,
+                "5": 5,
+                "6": 5,
+                "7": 3,
+                "8": 2,
+                "10": 2
+              }
+            },
+            "early": {
+              "candidates": 1408,
+              "stores": 2677,
+              "groups": 473,
+              "histogram": {
+                "1": 935,
+                "2": 197,
+                "3": 75,
+                "4": 53,
+                "5": 67,
+                "6": 41,
+                "7": 21,
+                "8": 2,
+                "9": 7,
+                "10": 8,
+                "12": 2
+              }
+            },
+            "advance": {
+              "candidates": 676,
+              "stores": 1120,
+              "groups": 227,
+              "histogram": {
+                "1": 449,
+                "2": 141,
+                "3": 36,
+                "4": 14,
+                "5": 21,
+                "6": 4,
+                "7": 2,
+                "8": 5,
+                "9": 1,
+                "10": 1,
+                "11": 1,
+                "12": 1
+              }
+            },
+            "later": {
+              "candidates": 746,
+              "stores": 1285,
+              "groups": 261,
+              "histogram": {
+                "1": 485,
+                "2": 154,
+                "3": 47,
+                "4": 24,
+                "5": 13,
+                "6": 7,
+                "7": 3,
+                "8": 3,
+                "9": 4,
+                "10": 1,
+                "11": 3,
+                "12": 2
+              }
+            }
+          },
+          "candidates": 2957,
+          "stores": 5348,
+          "groups": 1005,
+          "explicitObjectsAndArrays": null,
+          "sourceCount": 3235,
+          "sourceBytes": 18536429,
+          "sourceListSHA256": "137def624411b4ac9761a30c81f09f22497d0662830e221c1b27933d224ad1e5",
+          "windows": [
+            {
+              "name": "early",
+              "guardCalls": 585044,
+              "guardHits": 585044,
+              "state": {
+                "pc": 2147484032,
+                "nextPC": 2147484032,
+                "delayPC": null,
+                "branchTarget": null,
+                "count": 1152914875,
+                "ops": 183461935,
+                "randomReads": 0,
+                "events": [
+                  [
+                    "AI DMA",
+                    498069
+                  ],
+                  [
+                    "VI Interrupt",
+                    1562220
+                  ],
+                  [
+                    "Compare",
+                    280171671
+                  ]
+                ],
+                "llBit": 0,
+                "lastControlRegWrite": "-2147481652",
+                "hi": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+                "lo": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+                "gpr": "90c3cfd5f129a8419060649bb028f021559580848956fa8a1ba9a57607faadde",
+                "cop0": "2ee9b8ee07b50828c4e1bac7f31c143eb27c9c3903a9f7a6e278fab52803fc78",
+                "fpr": "5d34af1ae1bc5a0c6f2d574f4abb8ff72be49aea59bfc3a24ce0906ad2aa5481",
+                "fcsr": "57fcbb6a15321bc72602e1573b4e043e82c62616c3cf31d7a44561b2d70f1fe4",
+                "ram": "7c8de2ed681df105f0719ad5b1c15d1aaa1624d6baf58515907808b468972048",
+                "rspPC": 184,
+                "rspDelayPC": 0,
+                "rspGpr": "38fa5f486099cffca43e41319f88a015289b089711c7cbe7080fe73fc0e954f9",
+                "rspVpr": "328657c3a069fb22445f96663e1514636b9404f33881218b527293747111b2a8",
+                "rspAcc": "051d9a1e133678a783317329007ca735776edeb6d2f23454a8cad6f2acc5da29",
+                "rspVco": "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+                "rspVcc": "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+                "rspVce": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+                "rspDiv": [
+                  false,
+                  0,
+                  0
+                ],
+                "spMem": "720523ca90e5ded09a29d86dc9ed3668d63b9631ef63c495ceff0edde0997307",
+                "spReg": "cc11548f5876cb3026ff295e809fac81a43267d245d311b039e305e1938b0ac2",
+                "mi": "ae6c6cfafefe002a881a8eca2d6a6353f128e70e291bd042a27073c216b9f84c",
+                "vi": "a208a0ba121147c8b443369aeaa25dd2ce282e7e3ca5ade9a57c4b654fe1d3dd",
+                "ai": "9d908ecfb6b256def8b49a7c504e6c889c4b0e41fe6ce3e01863dd7b61a20aa0",
+                "pi": "52e8ef055bc91ae91f81707e3fa26f846e38165eb99151935fbd13893e1780a0",
+                "si": "648b58a3c1b4254fb4fead3f2d8f0de46f23e07a7f4bf2cc0a09f06364ec6b3a",
+                "fatal": null
+              },
+              "profile": {
+                "interpretedOps": 21889415,
+                "compiledOps": 114727789,
+                "fragmentRuns": 15650825,
+                "fragmentCompilations": 2017,
+                "fragmentInvalidations": 3749,
+                "speedHackAttempts": 8272406,
+                "speedHackRSPActive": 8269912,
+                "speedHackNonNopDelay": 0,
+                "speedHackActivations": 2494,
+                "speedHackSkippedCycles": 800714864,
+                "rspInstructions": 58342720,
+                "rspTasks": 747
+              }
+            },
+            {
+              "name": "later",
+              "guardCalls": 1002319,
+              "guardHits": 1002319,
+              "state": {
+                "pc": 2147484032,
+                "nextPC": 2147484032,
+                "delayPC": null,
+                "branchTarget": null,
+                "count": 3027578875,
+                "ops": 495465423,
+                "randomReads": 0,
+                "events": [
+                  [
+                    "AI DMA",
+                    529335
+                  ],
+                  [
+                    "VI Interrupt",
+                    1562220
+                  ],
+                  [
+                    "Compare",
+                    280027977
+                  ]
+                ],
+                "llBit": 0,
+                "lastControlRegWrite": "-2147481652",
+                "hi": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+                "lo": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+                "gpr": "90c3cfd5f129a8419060649bb028f021559580848956fa8a1ba9a57607faadde",
+                "cop0": "a7853d41eea8bb33609fcbe8e3cd51e82c9619565d12c7baf0354e1343fb4037",
+                "fpr": "4cceb4ac71d9c14e947edd2fe709918a91e9ea4d05077af8750d7e19b1503a1d",
+                "fcsr": "57fcbb6a15321bc72602e1573b4e043e82c62616c3cf31d7a44561b2d70f1fe4",
+                "ram": "0f1e26612d53a3866396f2a177880fc9d98bc00d2179aed92191ab9c0745138c",
+                "rspPC": 184,
+                "rspDelayPC": 0,
+                "rspGpr": "5948b0fd8357e38d9210dabbda0885db5711040c812c602ee8d2de09faded2a8",
+                "rspVpr": "a243984da445eccf62e5d316f68c7bccc33552a5ccd25e25478a0f756592654c",
+                "rspAcc": "40dc6383523fff8f7644702bd52f83eb3dc158636a583ced01cc76cba4491af1",
+                "rspVco": "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+                "rspVcc": "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+                "rspVce": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+                "rspDiv": [
+                  false,
+                  0,
+                  0
+                ],
+                "spMem": "e4b3820c428fc8ebbfd7b9f2f7e00323a81bffdf3ec72eb353b58c8c51c50ce2",
+                "spReg": "aadcfa6be22337502800f285721f346efd24d346258cc2d94b638fe82b0e8723",
+                "mi": "ae6c6cfafefe002a881a8eca2d6a6353f128e70e291bd042a27073c216b9f84c",
+                "vi": "a208a0ba121147c8b443369aeaa25dd2ce282e7e3ca5ade9a57c4b654fe1d3dd",
+                "ai": "9d908ecfb6b256def8b49a7c504e6c889c4b0e41fe6ce3e01863dd7b61a20aa0",
+                "pi": "89d3aff41035df23f5e66a40be50cd6f4ec83bd3a38bda9401213751fa1322a1",
+                "si": "648b58a3c1b4254fb4fead3f2d8f0de46f23e07a7f4bf2cc0a09f06364ec6b3a",
+                "fatal": null
+              },
+              "profile": {
+                "interpretedOps": 6033073,
+                "compiledOps": 148626802,
+                "fragmentRuns": 21809914,
+                "fragmentCompilations": 509,
+                "fragmentInvalidations": 0,
+                "speedHackAttempts": 13641529,
+                "speedHackRSPActive": 13640395,
+                "speedHackNonNopDelay": 0,
+                "speedHackActivations": 1134,
+                "speedHackSkippedCycles": 782672185,
+                "rspInstructions": 92074573,
+                "rspTasks": 800
+              }
+            }
+          ]
+        },
+        "compact": {
+          "phases": {
+            "warmup": {
+              "candidates": 127,
+              "stores": 266,
+              "groups": 44,
+              "histogram": {
+                "1": 83,
+                "2": 15,
+                "3": 7,
+                "4": 5,
+                "5": 5,
+                "6": 5,
+                "7": 3,
+                "8": 2,
+                "10": 2
+              }
+            },
+            "early": {
+              "candidates": 1408,
+              "stores": 2677,
+              "groups": 473,
+              "histogram": {
+                "1": 935,
+                "2": 197,
+                "3": 75,
+                "4": 53,
+                "5": 67,
+                "6": 41,
+                "7": 21,
+                "8": 2,
+                "9": 7,
+                "10": 8,
+                "12": 2
+              }
+            },
+            "advance": {
+              "candidates": 676,
+              "stores": 1120,
+              "groups": 227,
+              "histogram": {
+                "1": 449,
+                "2": 141,
+                "3": 36,
+                "4": 14,
+                "5": 21,
+                "6": 4,
+                "7": 2,
+                "8": 5,
+                "9": 1,
+                "10": 1,
+                "11": 1,
+                "12": 1
+              }
+            },
+            "later": {
+              "candidates": 746,
+              "stores": 1285,
+              "groups": 261,
+              "histogram": {
+                "1": 485,
+                "2": 154,
+                "3": 47,
+                "4": 24,
+                "5": 13,
+                "6": 7,
+                "7": 3,
+                "8": 3,
+                "9": 4,
+                "10": 1,
+                "11": 3,
+                "12": 2
+              }
+            }
+          },
+          "candidates": 2957,
+          "stores": 5348,
+          "groups": 1005,
+          "explicitObjectsAndArrays": null,
+          "sourceCount": 3235,
+          "sourceBytes": 17788437,
+          "sourceListSHA256": "b77a9ca406d8ccf2c20ce86359fcdea351580f7e854fc511fd11fbdc28a8f106",
+          "windows": [
+            {
+              "name": "early",
+              "guardCalls": 585044,
+              "guardHits": 585044,
+              "state": {
+                "pc": 2147484032,
+                "nextPC": 2147484032,
+                "delayPC": null,
+                "branchTarget": null,
+                "count": 1152914875,
+                "ops": 183461935,
+                "randomReads": 0,
+                "events": [
+                  [
+                    "AI DMA",
+                    498069
+                  ],
+                  [
+                    "VI Interrupt",
+                    1562220
+                  ],
+                  [
+                    "Compare",
+                    280171671
+                  ]
+                ],
+                "llBit": 0,
+                "lastControlRegWrite": "-2147481652",
+                "hi": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+                "lo": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+                "gpr": "90c3cfd5f129a8419060649bb028f021559580848956fa8a1ba9a57607faadde",
+                "cop0": "2ee9b8ee07b50828c4e1bac7f31c143eb27c9c3903a9f7a6e278fab52803fc78",
+                "fpr": "5d34af1ae1bc5a0c6f2d574f4abb8ff72be49aea59bfc3a24ce0906ad2aa5481",
+                "fcsr": "57fcbb6a15321bc72602e1573b4e043e82c62616c3cf31d7a44561b2d70f1fe4",
+                "ram": "7c8de2ed681df105f0719ad5b1c15d1aaa1624d6baf58515907808b468972048",
+                "rspPC": 184,
+                "rspDelayPC": 0,
+                "rspGpr": "38fa5f486099cffca43e41319f88a015289b089711c7cbe7080fe73fc0e954f9",
+                "rspVpr": "328657c3a069fb22445f96663e1514636b9404f33881218b527293747111b2a8",
+                "rspAcc": "051d9a1e133678a783317329007ca735776edeb6d2f23454a8cad6f2acc5da29",
+                "rspVco": "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+                "rspVcc": "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+                "rspVce": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+                "rspDiv": [
+                  false,
+                  0,
+                  0
+                ],
+                "spMem": "720523ca90e5ded09a29d86dc9ed3668d63b9631ef63c495ceff0edde0997307",
+                "spReg": "cc11548f5876cb3026ff295e809fac81a43267d245d311b039e305e1938b0ac2",
+                "mi": "ae6c6cfafefe002a881a8eca2d6a6353f128e70e291bd042a27073c216b9f84c",
+                "vi": "a208a0ba121147c8b443369aeaa25dd2ce282e7e3ca5ade9a57c4b654fe1d3dd",
+                "ai": "9d908ecfb6b256def8b49a7c504e6c889c4b0e41fe6ce3e01863dd7b61a20aa0",
+                "pi": "52e8ef055bc91ae91f81707e3fa26f846e38165eb99151935fbd13893e1780a0",
+                "si": "648b58a3c1b4254fb4fead3f2d8f0de46f23e07a7f4bf2cc0a09f06364ec6b3a",
+                "fatal": null
+              },
+              "profile": {
+                "interpretedOps": 21889415,
+                "compiledOps": 114727789,
+                "fragmentRuns": 15650825,
+                "fragmentCompilations": 2017,
+                "fragmentInvalidations": 3749,
+                "speedHackAttempts": 8272406,
+                "speedHackRSPActive": 8269912,
+                "speedHackNonNopDelay": 0,
+                "speedHackActivations": 2494,
+                "speedHackSkippedCycles": 800714864,
+                "rspInstructions": 58342720,
+                "rspTasks": 747
+              }
+            },
+            {
+              "name": "later",
+              "guardCalls": 1002319,
+              "guardHits": 1002319,
+              "state": {
+                "pc": 2147484032,
+                "nextPC": 2147484032,
+                "delayPC": null,
+                "branchTarget": null,
+                "count": 3027578875,
+                "ops": 495465423,
+                "randomReads": 0,
+                "events": [
+                  [
+                    "AI DMA",
+                    529335
+                  ],
+                  [
+                    "VI Interrupt",
+                    1562220
+                  ],
+                  [
+                    "Compare",
+                    280027977
+                  ]
+                ],
+                "llBit": 0,
+                "lastControlRegWrite": "-2147481652",
+                "hi": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+                "lo": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+                "gpr": "90c3cfd5f129a8419060649bb028f021559580848956fa8a1ba9a57607faadde",
+                "cop0": "a7853d41eea8bb33609fcbe8e3cd51e82c9619565d12c7baf0354e1343fb4037",
+                "fpr": "4cceb4ac71d9c14e947edd2fe709918a91e9ea4d05077af8750d7e19b1503a1d",
+                "fcsr": "57fcbb6a15321bc72602e1573b4e043e82c62616c3cf31d7a44561b2d70f1fe4",
+                "ram": "0f1e26612d53a3866396f2a177880fc9d98bc00d2179aed92191ab9c0745138c",
+                "rspPC": 184,
+                "rspDelayPC": 0,
+                "rspGpr": "5948b0fd8357e38d9210dabbda0885db5711040c812c602ee8d2de09faded2a8",
+                "rspVpr": "a243984da445eccf62e5d316f68c7bccc33552a5ccd25e25478a0f756592654c",
+                "rspAcc": "40dc6383523fff8f7644702bd52f83eb3dc158636a583ced01cc76cba4491af1",
+                "rspVco": "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+                "rspVcc": "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+                "rspVce": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+                "rspDiv": [
+                  false,
+                  0,
+                  0
+                ],
+                "spMem": "e4b3820c428fc8ebbfd7b9f2f7e00323a81bffdf3ec72eb353b58c8c51c50ce2",
+                "spReg": "aadcfa6be22337502800f285721f346efd24d346258cc2d94b638fe82b0e8723",
+                "mi": "ae6c6cfafefe002a881a8eca2d6a6353f128e70e291bd042a27073c216b9f84c",
+                "vi": "a208a0ba121147c8b443369aeaa25dd2ce282e7e3ca5ade9a57c4b654fe1d3dd",
+                "ai": "9d908ecfb6b256def8b49a7c504e6c889c4b0e41fe6ce3e01863dd7b61a20aa0",
+                "pi": "89d3aff41035df23f5e66a40be50cd6f4ec83bd3a38bda9401213751fa1322a1",
+                "si": "648b58a3c1b4254fb4fead3f2d8f0de46f23e07a7f4bf2cc0a09f06364ec6b3a",
+                "fatal": null
+              },
+              "profile": {
+                "interpretedOps": 6033073,
+                "compiledOps": 148626802,
+                "fragmentRuns": 21809914,
+                "fragmentCompilations": 509,
+                "fragmentInvalidations": 0,
+                "speedHackAttempts": 13641529,
+                "speedHackRSPActive": 13640395,
+                "speedHackNonNopDelay": 0,
+                "speedHackActivations": 1134,
+                "speedHackSkippedCycles": 782672185,
+                "rspInstructions": 92074573,
+                "rspTasks": 800
+              }
+            }
+          ]
+        }
+      },
+      "rom": {
+        "id": "1fa83dd4191e1e02",
+        "name": "The Legend of Zelda - Ocarina of Time (v1.1)",
+        "cic": "6105",
+        "country": 69,
+        "tvType": 1,
+        "save": "SRAM"
+      },
+      "canonicalROMSHA256": "fb87a0dac188f9292c679da7ac6f772acebe6f68e27293cfc281fc8636008db0",
+      "seed": 166,
+      "runtime": {
+        "bun": "1.3.14",
+        "platform": "darwin",
+        "arch": "arm64"
+      }
+    },
+    {
+      "title": "fzero",
+      "variants": {
+        "original": {
+          "phases": {
+            "warmup": {
+              "candidates": 94,
+              "stores": 186,
+              "groups": 24,
+              "histogram": {
+                "1": 70,
+                "2": 5,
+                "3": 3,
+                "4": 2,
+                "5": 4,
+                "6": 6,
+                "7": 1,
+                "8": 1,
+                "9": 2
+              }
+            },
+            "early": {
+              "candidates": 295,
+              "stores": 608,
+              "groups": 94,
+              "histogram": {
+                "1": 201,
+                "2": 37,
+                "3": 7,
+                "4": 7,
+                "5": 14,
+                "6": 13,
+                "7": 9,
+                "9": 4,
+                "12": 2,
+                "13": 1
+              }
+            },
+            "advance": {
+              "candidates": 990,
+              "stores": 1767,
+              "groups": 285,
+              "histogram": {
+                "1": 705,
+                "2": 152,
+                "3": 19,
+                "4": 18,
+                "5": 39,
+                "6": 23,
+                "7": 15,
+                "8": 1,
+                "9": 8,
+                "10": 5,
+                "12": 4,
+                "13": 1
+              }
+            },
+            "later": {
+              "candidates": 418,
+              "stores": 716,
+              "groups": 145,
+              "histogram": {
+                "1": 273,
+                "2": 108,
+                "3": 11,
+                "4": 7,
+                "5": 4,
+                "6": 2,
+                "7": 3,
+                "8": 2,
+                "9": 2,
+                "10": 1,
+                "11": 1,
+                "12": 1,
+                "15": 2,
+                "16": 1
+              }
+            }
+          },
+          "candidates": 1797,
+          "stores": 3277,
+          "groups": 548,
+          "explicitObjectsAndArrays": 7967,
+          "sourceCount": 2262,
+          "sourceBytes": 14188548,
+          "sourceListSHA256": "0b7eea7c468fdf4ff71b4fe2bd2bc93f0e0e3cbd47acbf4bd993de01a9c44270",
+          "windows": [
+            {
+              "name": "early",
+              "guardCalls": 4897421,
+              "guardHits": 4897421,
+              "state": {
+                "pc": 2147484032,
+                "nextPC": 2147484032,
+                "delayPC": null,
+                "branchTarget": null,
+                "count": 1148958411,
+                "ops": 424821246,
+                "randomReads": 0,
+                "events": [
+                  [
+                    "AI DMA",
+                    480345
+                  ],
+                  [
+                    "VI Interrupt",
+                    1562220
+                  ],
+                  [
+                    "Compare",
+                    7440976181
+                  ]
+                ],
+                "llBit": 0,
+                "lastControlRegWrite": "-2147059208",
+                "hi": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+                "lo": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+                "gpr": "3f441380e399852f785501cbe1960024ec68cfa61ac50a3569df467cb877889f",
+                "cop0": "9cb8d17bbf7cd338d73abbbec2665f5db1a15f78a800bc8ef7a31dd031c20b48",
+                "fpr": "d49ac82be9c34d4c64042e15c21d333c6f95d8c4c4d16a5fdd8b5d8ccf310833",
+                "fcsr": "d244c8b4e6fc66e0b76c5cae620eee555d6e35fc6067433865a08259be4d14a2",
+                "ram": "fe0b5b12625cb1c7f2056b0cef5894c68c234dfcb7bb139a7d6b158860c1e59b",
+                "rspPC": 0,
+                "rspDelayPC": 0,
+                "rspGpr": "88c753bc6348e87225531cd4ae0cdae432709588bf2e559cf23da07ba471438c",
+                "rspVpr": "5833942a3fa2586cd03c298a5f2532855d870f20b5d80cac0affafc76d3ac640",
+                "rspAcc": "c0f18d1599312e6f030ec8f9e3808dae8dd7d09ed77c111b830d034217a39ebe",
+                "rspVco": "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+                "rspVcc": "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+                "rspVce": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+                "rspDiv": [
+                  false,
+                  0,
+                  0
+                ],
+                "spMem": "0ac87ad6f9ee8eca667ba843861dede83d4d7ce2f47150ecf979c1d4dcc7797d",
+                "spReg": "358154060b7ff414be00dc258fe62c46abbc2043f2d23b209c42605b45a3a634",
+                "mi": "ae6c6cfafefe002a881a8eca2d6a6353f128e70e291bd042a27073c216b9f84c",
+                "vi": "e7dd1e359f05a5152f1cf271e0e7d15f46e4c202be01bcf30c4864926d780a77",
+                "ai": "9d908ecfb6b256def8b49a7c504e6c889c4b0e41fe6ce3e01863dd7b61a20aa0",
+                "pi": "f92b615cbfc83f43e9ab8e16b64315279e36400aa7cd22a5f566a8acf6707bfd",
+                "si": "d326980c79ddfcb159891910fe20875486dc2517382d89eb60b7cd2a11701aa1",
+                "fatal": null
+              },
+              "profile": {
+                "interpretedOps": 5133405,
+                "compiledOps": 223358306,
+                "fragmentRuns": 18390971,
+                "fragmentCompilations": 414,
+                "fragmentInvalidations": 599,
+                "speedHackAttempts": 1078,
+                "speedHackRSPActive": 0,
+                "speedHackNonNopDelay": 0,
+                "speedHackActivations": 1078,
+                "speedHackSkippedCycles": 708840579,
+                "rspInstructions": 9874181,
+                "rspTasks": 1083
+              }
+            },
+            {
+              "name": "later",
+              "guardCalls": 381819,
+              "guardHits": 381819,
+              "state": {
+                "pc": 2147484032,
+                "nextPC": 2147484032,
+                "delayPC": null,
+                "branchTarget": null,
+                "count": 3023622411,
+                "ops": 649253477,
+                "randomReads": 0,
+                "events": [
+                  [
+                    "AI DMA",
+                    464745
+                  ],
+                  [
+                    "VI Interrupt",
+                    1562220
+                  ],
+                  [
+                    "Compare",
+                    5566312181
+                  ]
+                ],
+                "llBit": 0,
+                "lastControlRegWrite": "-2147059208",
+                "hi": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+                "lo": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+                "gpr": "3f441380e399852f785501cbe1960024ec68cfa61ac50a3569df467cb877889f",
+                "cop0": "9cb8d17bbf7cd338d73abbbec2665f5db1a15f78a800bc8ef7a31dd031c20b48",
+                "fpr": "f066732f382881d3e74a925b32a8a51daba4e9e3c4be14fb234861f3b9f62d9d",
+                "fcsr": "d244c8b4e6fc66e0b76c5cae620eee555d6e35fc6067433865a08259be4d14a2",
+                "ram": "1599a809945b85c95d8d79082d271f54ce54a8921286a17f4176d91c6bc071c6",
+                "rspPC": 0,
+                "rspDelayPC": 0,
+                "rspGpr": "0a7c9222341188f41cae77a325fea32f810df076b1621d3c3d54551d2ba382d7",
+                "rspVpr": "e06daf0939c3a4b39e0fec7dd9c649921670c9c7c561416bcbe3e13645392345",
+                "rspAcc": "81cd6408ca86389b3d627a3512c60a63b51d200b898c7be065e8f731bc7d2202",
+                "rspVco": "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+                "rspVcc": "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+                "rspVce": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+                "rspDiv": [
+                  false,
+                  0,
+                  0
+                ],
+                "spMem": "96fb046106610b276c70d473aa77149e3788a2fdf462b38862912597b2d20f2e",
+                "spReg": "358154060b7ff414be00dc258fe62c46abbc2043f2d23b209c42605b45a3a634",
+                "mi": "ae6c6cfafefe002a881a8eca2d6a6353f128e70e291bd042a27073c216b9f84c",
+                "vi": "c90f899f108ffe2bd836fe71f9784cde1155b5937e4d1b8dc659e709279a051b",
+                "ai": "9d908ecfb6b256def8b49a7c504e6c889c4b0e41fe6ce3e01863dd7b61a20aa0",
+                "pi": "77f90e795bb6313e7c0a50dfaeee32fdf5cf7bf105c6489a632bb85b71f12768",
+                "si": "d326980c79ddfcb159891910fe20875486dc2517382d89eb60b7cd2a11701aa1",
+                "fatal": null
+              },
+              "profile": {
+                "interpretedOps": 8829503,
+                "compiledOps": 103233790,
+                "fragmentRuns": 6430067,
+                "fragmentCompilations": 354,
+                "fragmentInvalidations": 0,
+                "speedHackAttempts": 1200,
+                "speedHackRSPActive": 0,
+                "speedHackNonNopDelay": 0,
+                "speedHackActivations": 1200,
+                "speedHackSkippedCycles": 825269028,
+                "rspInstructions": 9133220,
+                "rspTasks": 1200
+              }
+            }
+          ]
+        },
+        "pooled": {
+          "phases": {
+            "warmup": {
+              "candidates": 94,
+              "stores": 186,
+              "groups": 24,
+              "histogram": {
+                "1": 70,
+                "2": 5,
+                "3": 3,
+                "4": 2,
+                "5": 4,
+                "6": 6,
+                "7": 1,
+                "8": 1,
+                "9": 2
+              }
+            },
+            "early": {
+              "candidates": 295,
+              "stores": 608,
+              "groups": 94,
+              "histogram": {
+                "1": 201,
+                "2": 37,
+                "3": 7,
+                "4": 7,
+                "5": 14,
+                "6": 13,
+                "7": 9,
+                "9": 4,
+                "12": 2,
+                "13": 1
+              }
+            },
+            "advance": {
+              "candidates": 990,
+              "stores": 1767,
+              "groups": 285,
+              "histogram": {
+                "1": 705,
+                "2": 152,
+                "3": 19,
+                "4": 18,
+                "5": 39,
+                "6": 23,
+                "7": 15,
+                "8": 1,
+                "9": 8,
+                "10": 5,
+                "12": 4,
+                "13": 1
+              }
+            },
+            "later": {
+              "candidates": 418,
+              "stores": 716,
+              "groups": 145,
+              "histogram": {
+                "1": 273,
+                "2": 108,
+                "3": 11,
+                "4": 7,
+                "5": 4,
+                "6": 2,
+                "7": 3,
+                "8": 2,
+                "9": 2,
+                "10": 1,
+                "11": 1,
+                "12": 1,
+                "15": 2,
+                "16": 1
+              }
+            }
+          },
+          "candidates": 1797,
+          "stores": 3277,
+          "groups": 548,
+          "explicitObjectsAndArrays": null,
+          "sourceCount": 2262,
+          "sourceBytes": 14188548,
+          "sourceListSHA256": "0b7eea7c468fdf4ff71b4fe2bd2bc93f0e0e3cbd47acbf4bd993de01a9c44270",
+          "windows": [
+            {
+              "name": "early",
+              "guardCalls": 4897421,
+              "guardHits": 4897421,
+              "state": {
+                "pc": 2147484032,
+                "nextPC": 2147484032,
+                "delayPC": null,
+                "branchTarget": null,
+                "count": 1148958411,
+                "ops": 424821246,
+                "randomReads": 0,
+                "events": [
+                  [
+                    "AI DMA",
+                    480345
+                  ],
+                  [
+                    "VI Interrupt",
+                    1562220
+                  ],
+                  [
+                    "Compare",
+                    7440976181
+                  ]
+                ],
+                "llBit": 0,
+                "lastControlRegWrite": "-2147059208",
+                "hi": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+                "lo": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+                "gpr": "3f441380e399852f785501cbe1960024ec68cfa61ac50a3569df467cb877889f",
+                "cop0": "9cb8d17bbf7cd338d73abbbec2665f5db1a15f78a800bc8ef7a31dd031c20b48",
+                "fpr": "d49ac82be9c34d4c64042e15c21d333c6f95d8c4c4d16a5fdd8b5d8ccf310833",
+                "fcsr": "d244c8b4e6fc66e0b76c5cae620eee555d6e35fc6067433865a08259be4d14a2",
+                "ram": "fe0b5b12625cb1c7f2056b0cef5894c68c234dfcb7bb139a7d6b158860c1e59b",
+                "rspPC": 0,
+                "rspDelayPC": 0,
+                "rspGpr": "88c753bc6348e87225531cd4ae0cdae432709588bf2e559cf23da07ba471438c",
+                "rspVpr": "5833942a3fa2586cd03c298a5f2532855d870f20b5d80cac0affafc76d3ac640",
+                "rspAcc": "c0f18d1599312e6f030ec8f9e3808dae8dd7d09ed77c111b830d034217a39ebe",
+                "rspVco": "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+                "rspVcc": "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+                "rspVce": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+                "rspDiv": [
+                  false,
+                  0,
+                  0
+                ],
+                "spMem": "0ac87ad6f9ee8eca667ba843861dede83d4d7ce2f47150ecf979c1d4dcc7797d",
+                "spReg": "358154060b7ff414be00dc258fe62c46abbc2043f2d23b209c42605b45a3a634",
+                "mi": "ae6c6cfafefe002a881a8eca2d6a6353f128e70e291bd042a27073c216b9f84c",
+                "vi": "e7dd1e359f05a5152f1cf271e0e7d15f46e4c202be01bcf30c4864926d780a77",
+                "ai": "9d908ecfb6b256def8b49a7c504e6c889c4b0e41fe6ce3e01863dd7b61a20aa0",
+                "pi": "f92b615cbfc83f43e9ab8e16b64315279e36400aa7cd22a5f566a8acf6707bfd",
+                "si": "d326980c79ddfcb159891910fe20875486dc2517382d89eb60b7cd2a11701aa1",
+                "fatal": null
+              },
+              "profile": {
+                "interpretedOps": 5133405,
+                "compiledOps": 223358306,
+                "fragmentRuns": 18390971,
+                "fragmentCompilations": 414,
+                "fragmentInvalidations": 599,
+                "speedHackAttempts": 1078,
+                "speedHackRSPActive": 0,
+                "speedHackNonNopDelay": 0,
+                "speedHackActivations": 1078,
+                "speedHackSkippedCycles": 708840579,
+                "rspInstructions": 9874181,
+                "rspTasks": 1083
+              }
+            },
+            {
+              "name": "later",
+              "guardCalls": 381819,
+              "guardHits": 381819,
+              "state": {
+                "pc": 2147484032,
+                "nextPC": 2147484032,
+                "delayPC": null,
+                "branchTarget": null,
+                "count": 3023622411,
+                "ops": 649253477,
+                "randomReads": 0,
+                "events": [
+                  [
+                    "AI DMA",
+                    464745
+                  ],
+                  [
+                    "VI Interrupt",
+                    1562220
+                  ],
+                  [
+                    "Compare",
+                    5566312181
+                  ]
+                ],
+                "llBit": 0,
+                "lastControlRegWrite": "-2147059208",
+                "hi": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+                "lo": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+                "gpr": "3f441380e399852f785501cbe1960024ec68cfa61ac50a3569df467cb877889f",
+                "cop0": "9cb8d17bbf7cd338d73abbbec2665f5db1a15f78a800bc8ef7a31dd031c20b48",
+                "fpr": "f066732f382881d3e74a925b32a8a51daba4e9e3c4be14fb234861f3b9f62d9d",
+                "fcsr": "d244c8b4e6fc66e0b76c5cae620eee555d6e35fc6067433865a08259be4d14a2",
+                "ram": "1599a809945b85c95d8d79082d271f54ce54a8921286a17f4176d91c6bc071c6",
+                "rspPC": 0,
+                "rspDelayPC": 0,
+                "rspGpr": "0a7c9222341188f41cae77a325fea32f810df076b1621d3c3d54551d2ba382d7",
+                "rspVpr": "e06daf0939c3a4b39e0fec7dd9c649921670c9c7c561416bcbe3e13645392345",
+                "rspAcc": "81cd6408ca86389b3d627a3512c60a63b51d200b898c7be065e8f731bc7d2202",
+                "rspVco": "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+                "rspVcc": "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+                "rspVce": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+                "rspDiv": [
+                  false,
+                  0,
+                  0
+                ],
+                "spMem": "96fb046106610b276c70d473aa77149e3788a2fdf462b38862912597b2d20f2e",
+                "spReg": "358154060b7ff414be00dc258fe62c46abbc2043f2d23b209c42605b45a3a634",
+                "mi": "ae6c6cfafefe002a881a8eca2d6a6353f128e70e291bd042a27073c216b9f84c",
+                "vi": "c90f899f108ffe2bd836fe71f9784cde1155b5937e4d1b8dc659e709279a051b",
+                "ai": "9d908ecfb6b256def8b49a7c504e6c889c4b0e41fe6ce3e01863dd7b61a20aa0",
+                "pi": "77f90e795bb6313e7c0a50dfaeee32fdf5cf7bf105c6489a632bb85b71f12768",
+                "si": "d326980c79ddfcb159891910fe20875486dc2517382d89eb60b7cd2a11701aa1",
+                "fatal": null
+              },
+              "profile": {
+                "interpretedOps": 8829503,
+                "compiledOps": 103233790,
+                "fragmentRuns": 6430067,
+                "fragmentCompilations": 354,
+                "fragmentInvalidations": 0,
+                "speedHackAttempts": 1200,
+                "speedHackRSPActive": 0,
+                "speedHackNonNopDelay": 0,
+                "speedHackActivations": 1200,
+                "speedHackSkippedCycles": 825269028,
+                "rspInstructions": 9133220,
+                "rspTasks": 1200
+              }
+            }
+          ]
+        },
+        "compact": {
+          "phases": {
+            "warmup": {
+              "candidates": 94,
+              "stores": 186,
+              "groups": 24,
+              "histogram": {
+                "1": 70,
+                "2": 5,
+                "3": 3,
+                "4": 2,
+                "5": 4,
+                "6": 6,
+                "7": 1,
+                "8": 1,
+                "9": 2
+              }
+            },
+            "early": {
+              "candidates": 295,
+              "stores": 608,
+              "groups": 94,
+              "histogram": {
+                "1": 201,
+                "2": 37,
+                "3": 7,
+                "4": 7,
+                "5": 14,
+                "6": 13,
+                "7": 9,
+                "9": 4,
+                "12": 2,
+                "13": 1
+              }
+            },
+            "advance": {
+              "candidates": 990,
+              "stores": 1767,
+              "groups": 285,
+              "histogram": {
+                "1": 705,
+                "2": 152,
+                "3": 19,
+                "4": 18,
+                "5": 39,
+                "6": 23,
+                "7": 15,
+                "8": 1,
+                "9": 8,
+                "10": 5,
+                "12": 4,
+                "13": 1
+              }
+            },
+            "later": {
+              "candidates": 418,
+              "stores": 716,
+              "groups": 145,
+              "histogram": {
+                "1": 273,
+                "2": 108,
+                "3": 11,
+                "4": 7,
+                "5": 4,
+                "6": 2,
+                "7": 3,
+                "8": 2,
+                "9": 2,
+                "10": 1,
+                "11": 1,
+                "12": 1,
+                "15": 2,
+                "16": 1
+              }
+            }
+          },
+          "candidates": 1797,
+          "stores": 3277,
+          "groups": 548,
+          "explicitObjectsAndArrays": null,
+          "sourceCount": 2262,
+          "sourceBytes": 13734473,
+          "sourceListSHA256": "5dbdcebe890ed9663fe05fa2dfb97ceee879275d94debc42ed00b7730dac3ca4",
+          "windows": [
+            {
+              "name": "early",
+              "guardCalls": 4897421,
+              "guardHits": 4897421,
+              "state": {
+                "pc": 2147484032,
+                "nextPC": 2147484032,
+                "delayPC": null,
+                "branchTarget": null,
+                "count": 1148958411,
+                "ops": 424821246,
+                "randomReads": 0,
+                "events": [
+                  [
+                    "AI DMA",
+                    480345
+                  ],
+                  [
+                    "VI Interrupt",
+                    1562220
+                  ],
+                  [
+                    "Compare",
+                    7440976181
+                  ]
+                ],
+                "llBit": 0,
+                "lastControlRegWrite": "-2147059208",
+                "hi": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+                "lo": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+                "gpr": "3f441380e399852f785501cbe1960024ec68cfa61ac50a3569df467cb877889f",
+                "cop0": "9cb8d17bbf7cd338d73abbbec2665f5db1a15f78a800bc8ef7a31dd031c20b48",
+                "fpr": "d49ac82be9c34d4c64042e15c21d333c6f95d8c4c4d16a5fdd8b5d8ccf310833",
+                "fcsr": "d244c8b4e6fc66e0b76c5cae620eee555d6e35fc6067433865a08259be4d14a2",
+                "ram": "fe0b5b12625cb1c7f2056b0cef5894c68c234dfcb7bb139a7d6b158860c1e59b",
+                "rspPC": 0,
+                "rspDelayPC": 0,
+                "rspGpr": "88c753bc6348e87225531cd4ae0cdae432709588bf2e559cf23da07ba471438c",
+                "rspVpr": "5833942a3fa2586cd03c298a5f2532855d870f20b5d80cac0affafc76d3ac640",
+                "rspAcc": "c0f18d1599312e6f030ec8f9e3808dae8dd7d09ed77c111b830d034217a39ebe",
+                "rspVco": "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+                "rspVcc": "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+                "rspVce": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+                "rspDiv": [
+                  false,
+                  0,
+                  0
+                ],
+                "spMem": "0ac87ad6f9ee8eca667ba843861dede83d4d7ce2f47150ecf979c1d4dcc7797d",
+                "spReg": "358154060b7ff414be00dc258fe62c46abbc2043f2d23b209c42605b45a3a634",
+                "mi": "ae6c6cfafefe002a881a8eca2d6a6353f128e70e291bd042a27073c216b9f84c",
+                "vi": "e7dd1e359f05a5152f1cf271e0e7d15f46e4c202be01bcf30c4864926d780a77",
+                "ai": "9d908ecfb6b256def8b49a7c504e6c889c4b0e41fe6ce3e01863dd7b61a20aa0",
+                "pi": "f92b615cbfc83f43e9ab8e16b64315279e36400aa7cd22a5f566a8acf6707bfd",
+                "si": "d326980c79ddfcb159891910fe20875486dc2517382d89eb60b7cd2a11701aa1",
+                "fatal": null
+              },
+              "profile": {
+                "interpretedOps": 5133405,
+                "compiledOps": 223358306,
+                "fragmentRuns": 18390971,
+                "fragmentCompilations": 414,
+                "fragmentInvalidations": 599,
+                "speedHackAttempts": 1078,
+                "speedHackRSPActive": 0,
+                "speedHackNonNopDelay": 0,
+                "speedHackActivations": 1078,
+                "speedHackSkippedCycles": 708840579,
+                "rspInstructions": 9874181,
+                "rspTasks": 1083
+              }
+            },
+            {
+              "name": "later",
+              "guardCalls": 381819,
+              "guardHits": 381819,
+              "state": {
+                "pc": 2147484032,
+                "nextPC": 2147484032,
+                "delayPC": null,
+                "branchTarget": null,
+                "count": 3023622411,
+                "ops": 649253477,
+                "randomReads": 0,
+                "events": [
+                  [
+                    "AI DMA",
+                    464745
+                  ],
+                  [
+                    "VI Interrupt",
+                    1562220
+                  ],
+                  [
+                    "Compare",
+                    5566312181
+                  ]
+                ],
+                "llBit": 0,
+                "lastControlRegWrite": "-2147059208",
+                "hi": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+                "lo": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc",
+                "gpr": "3f441380e399852f785501cbe1960024ec68cfa61ac50a3569df467cb877889f",
+                "cop0": "9cb8d17bbf7cd338d73abbbec2665f5db1a15f78a800bc8ef7a31dd031c20b48",
+                "fpr": "f066732f382881d3e74a925b32a8a51daba4e9e3c4be14fb234861f3b9f62d9d",
+                "fcsr": "d244c8b4e6fc66e0b76c5cae620eee555d6e35fc6067433865a08259be4d14a2",
+                "ram": "1599a809945b85c95d8d79082d271f54ce54a8921286a17f4176d91c6bc071c6",
+                "rspPC": 0,
+                "rspDelayPC": 0,
+                "rspGpr": "0a7c9222341188f41cae77a325fea32f810df076b1621d3c3d54551d2ba382d7",
+                "rspVpr": "e06daf0939c3a4b39e0fec7dd9c649921670c9c7c561416bcbe3e13645392345",
+                "rspAcc": "81cd6408ca86389b3d627a3512c60a63b51d200b898c7be065e8f731bc7d2202",
+                "rspVco": "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+                "rspVcc": "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7",
+                "rspVce": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+                "rspDiv": [
+                  false,
+                  0,
+                  0
+                ],
+                "spMem": "96fb046106610b276c70d473aa77149e3788a2fdf462b38862912597b2d20f2e",
+                "spReg": "358154060b7ff414be00dc258fe62c46abbc2043f2d23b209c42605b45a3a634",
+                "mi": "ae6c6cfafefe002a881a8eca2d6a6353f128e70e291bd042a27073c216b9f84c",
+                "vi": "c90f899f108ffe2bd836fe71f9784cde1155b5937e4d1b8dc659e709279a051b",
+                "ai": "9d908ecfb6b256def8b49a7c504e6c889c4b0e41fe6ce3e01863dd7b61a20aa0",
+                "pi": "77f90e795bb6313e7c0a50dfaeee32fdf5cf7bf105c6489a632bb85b71f12768",
+                "si": "d326980c79ddfcb159891910fe20875486dc2517382d89eb60b7cd2a11701aa1",
+                "fatal": null
+              },
+              "profile": {
+                "interpretedOps": 8829503,
+                "compiledOps": 103233790,
+                "fragmentRuns": 6430067,
+                "fragmentCompilations": 354,
+                "fragmentInvalidations": 0,
+                "speedHackAttempts": 1200,
+                "speedHackRSPActive": 0,
+                "speedHackNonNopDelay": 0,
+                "speedHackActivations": 1200,
+                "speedHackSkippedCycles": 825269028,
+                "rspInstructions": 9133220,
+                "rspTasks": 1200
+              }
+            }
+          ]
+        }
+      },
+      "rom": {
+        "id": "78d90eb3f9c90330",
+        "name": "F-Zero X",
+        "cic": "6106",
+        "country": 69,
+        "tvType": 1,
+        "save": "SRAM"
+      },
+      "canonicalROMSHA256": "2be0f861c30752bbdfa727753a454108bc973c27ad814744f191b1278c1f482d",
+      "seed": 166,
+      "runtime": {
+        "bun": "1.3.14",
+        "platform": "darwin",
+        "arch": "arm64"
+      }
+    }
+  ],
+  "schemaVersion": 1,
+  "date": "2026-09-22",
+  "originalCommit": "f2076e245819a9f595a8a93416590da9dae7c8ef",
+  "pooledCommit": "779e2cdcdf06be3ba828ccdc42b0cd54713f88fc",
+  "compactCommit": "0d570cacd679a8e336db5f300917095c31b6b32b"
+}
