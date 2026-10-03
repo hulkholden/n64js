@@ -289,8 +289,12 @@ export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, alphaCompare, en
     const cycles = cycleType === gbi.CycleType.G_CYC_2CYCLE ? 2 : 1;
     for (let i = 0; i < cycles; i++) {
       const mode = (blender >>> (i === 0 ? 2 : 0)) & 0x3333;
-      if (mode === 0x3200) fogBlendModes |= 1 << (i * 2);
-      if (mode === 0x0230) fogBlendModes |= 2 << (i * 2);
+      if (mode === 0x3200) {
+        fogBlendModes |= 1 << (i * 2);
+      }
+      if (mode === 0x0230) {
+        fogBlendModes |= 2 << (i * 2);
+      }
     }
   }
   if (fogBlendModes) {
@@ -365,8 +369,12 @@ export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, alphaCompare, en
     // The blender sees the clamped combiner RGB. Preserve combiner alpha for
     // the final framebuffer blend and alpha test; fog comes from shade alpha.
     const mode = (fogBlendModes >>> (i * 2)) & 3;
-    if (mode === 1) body += '  col.rgb = mix(clamp(col.rgb, 0.0, 1.0), uFogColor.rgb, shade.a);\n';
-    if (mode === 2) body += '  col.rgb = mix(uFogColor.rgb, clamp(col.rgb, 0.0, 1.0), shade.a);\n';
+    if (mode === 1) {
+      body += '  col.rgb = mix(clamp(col.rgb, 0.0, 1.0), uFogColor.rgb, shade.a);\n';
+    }
+    if (mode === 2) {
+      body += '  col.rgb = mix(uFogColor.rgb, clamp(col.rgb, 0.0, 1.0), shade.a);\n';
+    }
   }
 
   const combinerSource = `

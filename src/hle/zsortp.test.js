@@ -78,7 +78,9 @@ describe('ZSortp', () => {
       [[0, 0], [1280, 0], [0, 960], [1280, 960]].slice(0, count).forEach(([x, y], i) => {
         const address = base + i * (textured ? 16 : 8);
         words(dv, address, [(x << 16) | y, 0x123456ff]);
-        if (textured) words(dv, address + 8, [0xffe00040, 0x04000000]);
+        if (textured) {
+          words(dv, address + 8, [0xffe00040, 0x04000000]);
+        }
       });
     }
     let rows = 0;
@@ -94,7 +96,9 @@ describe('ZSortp', () => {
     expect(draws.every(draw => draw.primColor === 0x12345678)).toBe(true);
     expect(draws[2].coords).toEqual([-1, 2, -1, 2, -1, 2, -1, 2, -1, 2, -1, 2]);
     expect(syncs()).toBe(disassemble ? 0 : 1); // Shared blocks execute once; debugger replay has no interrupts.
-    if (disassemble) expect(rows).toBe(2);
+    if (disassemble) {
+      expect(rows).toBe(2);
+    }
     // The RDP pointer cache lasts for one ZObject command, not the whole task.
     microcode.executeObjects(0x80000400, 0x80000000);
     expect(syncs()).toBe(disassemble ? 1 : 2);

@@ -86,7 +86,9 @@ export class ZSortP extends GBIMicrocode {
   }
 
   processRDP(pointer, dis) {
-    if (!pointer) return;
+    if (!pointer) {
+      return;
+    }
 
     const dv = this.ramDV;
     let pc = this.state.rdpSegmentAddress(pointer);
@@ -97,21 +99,28 @@ export class ZSortP extends GBIMicrocode {
       const opcode = cmd0 >>> 24;
       pc += 8;
 
-      if (opcode === G_ENDDL) return;
+      if (opcode === G_ENDDL) {
+        return;
+      }
 
       if (opcode === G_TEXRECT || opcode === G_TEXRECTFLIP) {
         const cmd2 = dv.getUint32(pc + 4);
         const cmd3 = dv.getUint32(pc + 12);
         pc += 16;
 
-        if (opcode === G_TEXRECT) this.rdpTexRect(cmd0, cmd1, cmd2, cmd3, dis);
-        else this.rdpTexRectFlip(cmd0, cmd1, cmd2, cmd3, dis);
+        if (opcode === G_TEXRECT) {
+          this.rdpTexRect(cmd0, cmd1, cmd2, cmd3, dis);
+        } else {
+          this.rdpTexRectFlip(cmd0, cmd1, cmd2, cmd3, dis);
+        }
       } else {
         // OtherMode and NoOp use their GBI encodings inside these blocks too.
         // Do not dispatch nested object/task commands from an RDP block.
         const handler = opcode === G_SPNOOP || opcode === G_SETOTHERMODE_L || opcode === G_SETOTHERMODE_H
           ? this.commands.get(opcode) : this.gbiCommonCommands.get(opcode);
-        if (!handler) this.executeUnknown(cmd0, cmd1);
+        if (!handler) {
+          this.executeUnknown(cmd0, cmd1);
+        }
 
         handler(cmd0, cmd1, dis);
       }
@@ -131,12 +140,16 @@ export class ZSortP extends GBIMicrocode {
     for (const pointer of [cmd0, cmd1]) {
       let header = state.rdpSegmentAddress(pointer);
       while (header) {
-        if (++count > MAX_OBJECTS) throw new Error('ZSortp object list limit exceeded');
+        if (++count > MAX_OBJECTS) {
+          throw new Error('ZSortp object list limit exceeded');
+        }
 
         // Low three pointer bits identify the object type. Quads are triangle strips.
         const type = header & OBJECT_TYPE_MASK;
         const address = header & ~OBJECT_TYPE_MASK;
-        if (type > OBJECT_TYPE_TEXTURED_QUAD) throw new Error(`Invalid ZSortp object type ${type}`);
+        if (type > OBJECT_TYPE_TEXTURED_QUAD) {
+          throw new Error(`Invalid ZSortp object type ${type}`);
+        }
 
         const textured = type === OBJECT_TYPE_TEXTURED_TRIANGLE || type === OBJECT_TYPE_TEXTURED_QUAD;
         const shaded = type === OBJECT_TYPE_SHADED_TRIANGLE || type === OBJECT_TYPE_SHADED_QUAD;
@@ -151,7 +164,9 @@ export class ZSortP extends GBIMicrocode {
           }
         }
 
-        if (type !== OBJECT_TYPE_NULL) this.drawObject(address + 4 + lists * 4, quad ? 4 : 3, textured);
+        if (type !== OBJECT_TYPE_NULL) {
+          this.drawObject(address + 4 + lists * 4, quad ? 4 : 3, textured);
+        }
 
         header = state.rdpSegmentAddress(dv.getUint32(address));
       }
@@ -190,7 +205,9 @@ export class ZSortP extends GBIMicrocode {
     const tb = this.triangleBuffer;
     tb.reset();
     tb.pushTri(a, b, c);
-    if (count === 4) tb.pushTri(c, b, d);
+    if (count === 4) {
+      tb.pushTri(c, b, d);
+    }
 
     this.renderer.flushTris(tb);
   }
