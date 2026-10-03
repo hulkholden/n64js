@@ -14,6 +14,7 @@ import { getTexturePaletteFormat } from './convert.js';
 import { VertexArray } from "./vertex_array.js";
 import blitVertexSource from './shaders/blit.vert.glsl' with { type: 'text' };
 import blitFragmentSource from './shaders/blit.frag.glsl' with { type: 'text' };
+import simpleCRTSource from './shaders/crt_simple.glsl' with { type: 'text' };
 import mattiasCRTSource from './shaders/crt_mattias.glsl' with { type: 'text' };
 import fillVertexSource from './shaders/fill.vert.glsl' with { type: 'text' };
 import fillFragmentSource from './shaders/fill.frag.glsl' with { type: 'text' };
@@ -44,7 +45,7 @@ export class Renderer extends RendererBase {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     // We call texImage2D to initialise frameBufferTexture2D with the correct dimensions when it's used.
 
-    this.blitShaderProgram = shaders.createShaderProgram(gl, blitVertexSource, blitFragmentSource + mattiasCRTSource);
+    this.blitShaderProgram = shaders.createShaderProgram(gl, blitVertexSource, blitFragmentSource + simpleCRTSource + mattiasCRTSource);
     this.blitSamplerUniform = gl.getUniformLocation(this.blitShaderProgram, "uSampler0");
     this.blitCRTUniform = gl.getUniformLocation(this.blitShaderProgram, "uCRTMode");
     this.blitTimeUniform = gl.getUniformLocation(this.blitShaderProgram, "uCRTTime");
