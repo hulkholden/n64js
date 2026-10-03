@@ -129,7 +129,8 @@ const TLBHI_RMASK = 0xc000000000000000n;
 const TLBHI_RSHIFT = 62n;
 const TLBHI_VPN2MASK = 0x000000ffffffe000n;
 const TLBHI_VPN2SHIFT = 13n;
-const TLBHI_PIDMASK = 0xffn;
+const TLBHI_PIDMASK32 = 0xff;
+const TLBHI_PIDMASK = BigInt(TLBHI_PIDMASK32);
 
 const entryHiWritableBits = 0xc00000ffffffe0ffn;
 
@@ -1246,7 +1247,7 @@ export class CPU0 {
   }
 
   tlbFindEntry(address) {
-    const entryHiPID = this.getControlU32(cpu0reg.controlEntryHi) & 0xff;
+    const entryHiPID = this.getControlU32(cpu0reg.controlEntryHi) & TLBHI_PIDMASK32;
 
     // Preserve the first matching entry, including invalid/read-only pages;
     // the translation helpers below perform the access-specific fault checks.
