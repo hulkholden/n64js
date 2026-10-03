@@ -4,13 +4,13 @@ import { controlCause, controlStatus } from '../cpu/cpu0reg.js';
 import { MI_INTR_DP, MI_INTR_MASK_REG, MI_INTR_REG, MI_INTR_SP, MI_INTR_VI } from '../devices/mi.js';
 import { SI_DRAM_ADDR_REG, SI_PIF_ADDR_RD64B_REG, SI_PIF_ADDR_WR64B_REG, SI_STATUS_REG } from '../devices/si.js';
 import {
-  SP_CLR_BROKE, SP_CLR_HALT, SP_CLR_SIG2, SP_SET_HALT, SP_SET_INTR_BREAK,
+  SP_CLR_BROKE, SP_CLR_HALT, SP_CLR_SIG2, SP_SET_HALT, SP_SET_INTR_BREAK, SP_SET_SIG2,
   SP_STATUS_HALT, SP_STATUS_BROKE, SP_STATUS_TASKDONE, SP_STATUS_REG,
 } from '../devices/sp_constants.js';
 import { audioOptions } from '../hle/audio_options.js';
 import { graphicsOptions } from '../hle/graphics_options.js';
 import { ImageFormat, ImageSize } from '../hle/gbi.js';
-import { MicrocodeId } from '../hle/microcode_identifier.js';
+import { MicrocodeId, microcodePrefixLength } from '../hle/microcode_identifier.js';
 import { TaskOffsets } from '../hle/rsp_task_constants.js';
 import { OS_TV_NTSC } from '../system_constants.js';
 
@@ -251,12 +251,99 @@ bossCode.set([9, 4, 7, 7, 4, 4, 9, 0], bossCode.length - 8);
 // Synthetic bytes with hash 0xc62a1631, likewise not game microcode.
 const rogueCode = new Uint8Array(0x1000);
 rogueCode.set([8, 1, 12, 9, 2, 0, 12, 5], rogueCode.length - 8);
+// Synthetic prefix with hash 0xeb70fcb5; no game code is included.
+const hvqmCode = new Uint8Array(0x1000);
+hvqmCode.set([9, 10, 11, 0, 1, 11, 12, 15], microcodePrefixLength - 8);
 const unsupportedMicrocodes = [
   { family: 'F5', version: '', code: rogueCode, detection: 'hash' },
   { family: 'ZSortBOSS', version: '', code: bossCode, detection: 'hash' },
 ];
 
 describe('headless graphics execution', () => {
+  test.each([false, true])('executes HVQM2 on the RSP with executeGraphics=%s and returns to HLE for drawing', async executeGraphics => {
+    const seen = [];
+    const loaded = [];
+    const emulator = await createEmulator({
+      executeGraphics, onGraphicsTask: info => seen.push(info), onMicrocodeLoad: info => loaded.push(info),
+    });
+    const { hardware } = emulator;
+    prepareGraphicsTask(emulator, '', hvqmCode);
+    // This would throw if the video parameters were parsed as a display list.
+    hardware.sp_mem.set32(0xfc0 + TaskOffsets.dataPtr, 0x1000000);
+    hardware.spRegDevice.write32(0xa4040000 + SP_STATUS_REG, SP_SET_INTR_BREAK);
+    const instructions = [
+      0x24020007,                  // addiu v0, zero, 7
+      0xac020080,                  // sw v0, 0x80(zero)
+      0x24020000 | SP_SET_SIG2,    // addiu v0, zero, SP_SET_SIG2
+      0x40822000,                  // mtc0 v0, SP_STATUS
+      0x0000000d,                  // break
+    ];
+    instructions.forEach((instruction, index) => hardware.sp_mem.set32(0x1000 + index * 4, instruction));
+
+    // Successive video tasks reuse the code but change data within its reported size.
+    for (const tail of [0, 1]) {
+      hardware.ram.u8[0x1000 + hvqmCode.length - 1] = tail;
+      hardware.sp_mem.set32(0x80, 0);
+      hardware.rsp.pc = 0;
+      startRSPTask(emulator);
+      expect(hardware.rsp.halted).toBe(false);
+      expect(hardware.sp_reg.getU32(SP_STATUS_REG) & (SP_STATUS_TASKDONE | SP_STATUS_BROKE)).toBe(0);
+      expect(hardware.mi_reg.getU32(MI_INTR_REG) & (MI_INTR_SP | MI_INTR_DP)).toBe(0);
+      expect(hardware.sp_mem.getU32(0x80)).toBe(0);
+      expect(loaded).toEqual([]);
+      for (let i = 0; i < instructions.length; i++) {
+        hardware.rsp.step();
+      }
+      expect(hardware.sp_mem.getU32(0x80)).toBe(7);
+      expect(hardware.rsp.halted).toBe(true);
+      const complete = SP_STATUS_TASKDONE | SP_STATUS_BROKE | SP_STATUS_HALT;
+      expect(hardware.sp_reg.getU32(SP_STATUS_REG) & complete).toBe(complete);
+      expect(hardware.mi_reg.getU32(MI_INTR_REG) & (MI_INTR_SP | MI_INTR_DP)).toBe(MI_INTR_SP);
+    }
+    expect(seen).toHaveLength(2);
+    expect(seen.every(info => info.id === MicrocodeId.HVQM2 && info.detection === 'hash')).toBe(true);
+    expect(seen[0].hash).not.toBe(seen[1].hash);
+
+    prepareGraphicsTask(emulator);
+    setGraphicsCommands(emulator, [[0xe9000000, 0], [0xdf000000, 0]]);
+    startRSPTask(emulator);
+    expect(seen[2].id).toBe(MicrocodeId.GBI2);
+    expect(hardware.rsp.halted).toBe(true);
+    expect(hardware.mi_reg.getU32(MI_INTR_REG) & (MI_INTR_SP | MI_INTR_DP)).toBe(MI_INTR_SP | MI_INTR_DP);
+    expect(loaded.map(info => info.id)).toEqual(executeGraphics ? [MicrocodeId.GBI2] : []);
+  });
+
+  test('rejects an in-list HVQM2 load instead of interpreting video data as GBI0', async () => {
+    const loaded = [];
+    const emulator = await createEmulator({ executeGraphics: true, onMicrocodeLoad: info => loaded.push(info) });
+    const { hardware } = emulator;
+    prepareGraphicsTask(emulator);
+    hardware.ram.u8.set(hvqmCode, 0x4000);
+    setGraphicsCommands(emulator, [
+      [0xe1000000, 0x80005000],
+      [0xdd000000, 0x80004000],
+      [0xfa000000, 0x12345678],
+      [0xb8000000, 0],
+    ]);
+    expect(() => startRSPTask(emulator)).toThrow('Unsupported graphics microcode: HVQM2');
+    expect(loaded.map(info => info.id)).toEqual([MicrocodeId.GBI2]);
+    expect(hardware.graphics.state.primColor).toBe(0);
+    expect(hardware.sp_reg.getU32(SP_STATUS_REG) & (SP_STATUS_TASKDONE | SP_STATUS_BROKE)).toBe(0);
+    expect(hardware.mi_reg.getU32(MI_INTR_REG) & (MI_INTR_SP | MI_INTR_DP)).toBe(0);
+  });
+
+  test('does not identify a short task as HVQM2 using an incomplete prefix', async () => {
+    const seen = [];
+    const emulator = await createEmulator({ executeGraphics: true, onGraphicsTask: info => seen.push(info) });
+    // Same rolling hash, but only eight bytes rather than a complete prefix.
+    prepareGraphicsTask(emulator, undefined, hvqmCode.slice(microcodePrefixLength - 8, microcodePrefixLength));
+    setGraphicsCommands(emulator, [[0xe9000000, 0], [0xdf000000, 0]]);
+    startRSPTask(emulator);
+    expect(seen[0]).toMatchObject({ id: MicrocodeId.GBI2, hash: 0xeb70fcb5, detection: 'string' });
+    expect(emulator.hardware.rsp.halted).toBe(true);
+    expect(emulator.hardware.mi_reg.getU32(MI_INTR_REG) & MI_INTR_DP).toBe(MI_INTR_DP);
+  });
+
   test('executes ZSortp startup lists and in-list loads with independent SP and DP completion', async () => {
     const version = 'RSP Gfx ucode ZSortp 0.33 Yoshitaka Yasumoto Nintendo.';
     for (const inList of [false, true]) {

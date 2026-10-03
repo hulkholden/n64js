@@ -6,7 +6,7 @@ import * as microcodes from './microcodes.js';
 import { RSPState } from './rsp_state.js';
 import { Renderer } from './renderer.js';
 import { graphicsOptions } from './graphics_options.js';
-import { identifyMicrocode, MicrocodeId } from './microcode_identifier.js';
+import { identifyMicrocode, MicrocodeId, microcodePrefixLength } from './microcode_identifier.js';
 import * as logger from '../logger.js';
 import { toString32 } from '../format.js';
 
@@ -29,9 +29,12 @@ export const graphics = {
 
 // Returns false for LLE, true for completed HLE, or a continuation while waiting.
 export function dispatchGraphicsTask(hardware, mode, task) {
-  const microcode = identifyMicrocode(task.detectVersionString(), task.computeMicrocodeHash());
+  const microcode = identifyMicrocode(task.detectVersionString(), task.computeMicrocodeHash(), task.computeMicrocodeHash(microcodePrefixLength));
   hardware.onGraphicsTask?.({ ...microcode });
-  if (mode !== 'HLE') {
+  // Yakouchuu II submits its HVQM2 video decoder as a graphics task. Its input
+  // is compressed video, not a display list; let the RSP write the decoded
+  // pixels to RDRAM and signal completion itself.
+  if (mode !== 'HLE' || microcode.id === MicrocodeId.HVQM2) {
     return false;
   }
 

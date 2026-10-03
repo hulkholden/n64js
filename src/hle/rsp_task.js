@@ -97,9 +97,13 @@ class RSPTask {
     return '';
   }
 
-  computeMicrocodeHash() {
+  computeMicrocodeHash(length = this.codeSize) {
+    // A short task cannot supply a complete identification prefix.
+    if (length > this.codeSize) {
+      return null;
+    }
     let c = 0;
-    for (let i = 0; i < this.codeSize; ++i) {
+    for (let i = 0; i < length; ++i) {
       // Best hash ever!
       c = ((c * 17) + this.codeByte(i)) >>> 0;
     }

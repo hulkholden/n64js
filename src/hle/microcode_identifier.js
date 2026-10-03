@@ -20,6 +20,7 @@ export const MicrocodeId = Object.freeze({
   GBI1_L3DEX: 18, // Line and wireframe rendering
   F5_ROGUE: 19,  // Rogue Squadron (recognized, but HLE is not implemented)
   GBI1_TEXA: 20,   // Tamagotchi World: F3DTEX/A texture commands
+  HVQM2: 21,       // Yakouchuu II video decoder (executed by the RSP interpreter)
 });
 
 const microcodeProfiles = new Map([
@@ -44,6 +45,7 @@ const microcodeProfiles = new Map([
   [MicrocodeId.T3DUX_BRAVE, { family: 'T3DUX', variant: 'dd560323' }],
   [MicrocodeId.TURBO3D, { family: 'Turbo3D', variant: null }],
   [MicrocodeId.ZSORT_BOSS, { family: 'ZSortBOSS', variant: null }],
+  [MicrocodeId.HVQM2, { family: 'HVQM2', variant: 'SP1' }],
 ]);
 
 const ucodeOverrides = new Map([
@@ -66,20 +68,29 @@ const ucodeOverrides = new Map([
   [0xe281945c, MicrocodeId.ZSORT_BOSS], // Stunt Racer 64 / World Driver Championship (USA)
 ]);
 
+// Yakouchuu II advertises 4 KiB of HVQM2 code, but that range also contains
+// mutable data. Identify its SP1 decoder using only the first 1488 code bytes.
+// See https://github.com/mupen64plus/mupen64plus-rsp-hle/blob/master/src/hle.c
+// for the HVQM2 identification range (their byte sum is 0x19495).
+export const microcodePrefixLength = 1488;
+const hvqm2SP1PrefixHash = 0xeb70fcb5;
+
 /**
  * Identifies the microcode without constructing a handler or producing side effects.
  * F5_INDI is recognized but has no HLE handler; its graphics tasks are skipped.
- * ZSORTP, ZSORT_BOSS and F5_ROGUE are recognized but rejected by HLE execution.
+ * ZSORT_BOSS and F5_ROGUE are recognized but rejected by HLE execution.
+ * HVQM2 video tasks use the RSP interpreter, even in graphics HLE mode.
  * Family and variant describe the microcode; detection='fallback' means
  * GBI0 was assumed, not positively identified. A null variant selects the base
  * family handler. Hash overrides take precedence over version-string inference.
  * @param {string} version The unmodified microcode version string.
  * @param {number} hash The unsigned hash computed by RSPTask.computeMicrocodeHash.
+ * @param {?number} prefixHash The hash of the first microcodePrefixLength bytes.
  * @returns {{id: number, family: string, variant: ?string, version: string,
  *   hash: number, detection: 'hash'|'string'|'fallback'}}
  */
-export function identifyMicrocode(version, hash) {
-  let id = ucodeOverrides.get(hash);
+export function identifyMicrocode(version, hash, prefixHash = null) {
+  let id = prefixHash === hvqm2SP1PrefixHash ? MicrocodeId.HVQM2 : ucodeOverrides.get(hash);
   let detection = 'hash';
   if (id === undefined) {
     id = inferUcodeFromString(version);
