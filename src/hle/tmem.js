@@ -34,11 +34,15 @@ export class TMEM {
     const ramAddress = ti.calcAddress((uls << 20) >> 20, ult & 0x3ff);
     const texels = (lrs - uls + 1) & 0xfff;
     const step = 16 >>> ti.size;
-    if (dc) dc.tip(`texels ${texels}, qwords ${Math.ceil(texels / step)}`);
+    if (dc) {
+      dc.tip(`texels ${texels}, qwords ${Math.ceil(texels / step)}`);
+    }
 
     // A 4-bit source image crashes the RDP loading pipeline. Preserve TMEM;
     // emulating the resulting pipeline lockup is outside this memory model.
-    if (ti.size === gbi.ImageSize.G_IM_SIZ_4b) return;
+    if (ti.size === gbi.ImageSize.G_IM_SIZ_4b) {
+      return;
+    }
     const ram = getRamU8Array();
     if (canCopyQwords(ti, tile, ram, ramAddress)) {
       const ram32 = new Int32Array(ram.buffer, ram.byteOffset, ram.byteLength >>> 2);
@@ -83,7 +87,9 @@ export class TMEM {
       dc.tip(`size (${w} x ${h}), ramStride ${ramStride}, tmemStride ${tile.line << 3}, ramOffset ${toString32(ramAddress)}, tmemOffset ${toString16(tile.tmem << 3)}`);
     }
 
-    if (ti.size === gbi.ImageSize.G_IM_SIZ_4b) return;
+    if (ti.size === gbi.ImageSize.G_IM_SIZ_4b) {
+      return;
+    }
     const ram = getRamU8Array();
     const step = 16 >>> ti.size;
     if (canCopyQwords(ti, tile, ram, ramAddress) && !(ramStride & 3)) {
@@ -132,7 +138,9 @@ export class TMEM {
     }
     // TLUT loads cannot span multiple rows. The normal palette upload uses a
     // 16-bit source and a 4-bit load tile, replicating one entry into four banks.
-    if (ti.size === gbi.ImageSize.G_IM_SIZ_4b || (lrt >>> 2) !== t0) return;
+    if (ti.size === gbi.ImageSize.G_IM_SIZ_4b || (lrt >>> 2) !== t0) {
+      return;
+    }
     const ram = getRamU8Array();
     const step = ti.size === gbi.ImageSize.G_IM_SIZ_16b ? 1 : 16 >>> ti.size;
     const sourceStep = ti.size === gbi.ImageSize.G_IM_SIZ_16b ? 2 : 8;
@@ -189,7 +197,9 @@ export class TMEM {
 
     // Match conversion: palette indices wrap within the lower half of TMEM.
     let hash = hashTmem(src, tmemOffset, len, 0, hasPalette || splitBanks ? 0x7ff : 0xfff);
-    if (splitBanks) hash = hashTmem(src, tmemOffset, len, hash, 0x7ff, 0x800);
+    if (splitBanks) {
+      hash = hashTmem(src, tmemOffset, len, hash, 0x7ff, 0x800);
+    }
 
     // For palettised textures, check the palette entries too
     if (hasPalette) {
@@ -281,7 +291,9 @@ function rotateLeft32(value, bits) {
 const LoadMode = { Ordinary: 0, Rgba32: 1, Yuv: 2 };
 
 function getLoadMode(tile) {
-  if (tile.format === gbi.ImageFormat.G_IM_FMT_YUV) return LoadMode.Yuv;
+  if (tile.format === gbi.ImageFormat.G_IM_FMT_YUV) {
+    return LoadMode.Yuv;
+  }
   if (tile.format === gbi.ImageFormat.G_IM_FMT_RGBA && tile.size === gbi.ImageSize.G_IM_SIZ_32b) {
     return LoadMode.Rgba32;
   }
@@ -289,7 +301,9 @@ function getLoadMode(tile) {
 }
 
 function getLoadShiftS(tile) {
-  if (tile.format === gbi.ImageFormat.G_IM_FMT_YUV || tile.size === gbi.ImageSize.G_IM_SIZ_8b) return 1;
+  if (tile.format === gbi.ImageFormat.G_IM_FMT_YUV || tile.size === gbi.ImageSize.G_IM_SIZ_8b) {
+    return 1;
+  }
   return tile.size === gbi.ImageSize.G_IM_SIZ_4b ? 2 : 0;
 }
 

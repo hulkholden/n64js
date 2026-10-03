@@ -34,8 +34,11 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  if (previousN64js === undefined) delete globalThis.n64js;
-  else globalThis.n64js = previousN64js;
+  if (previousN64js === undefined) {
+    delete globalThis.n64js;
+  } else {
+    globalThis.n64js = previousN64js;
+  }
 });
 
 function writeControllerFrame(offset = 0) {

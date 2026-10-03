@@ -87,7 +87,9 @@ export async function createHeadlessEmulator(loadedROM, {
   n64js.setLocalStorageItem = () => {};
   n64js.ui = () => ({ displayError() {}, displayWarning: onWarning });
   n64js.check = (condition, message) => {
-    if (!condition) onCheckFailure(message);
+    if (!condition) {
+      onCheckFailure(message);
+    }
   };
   n64js.warn = onWarning;
   n64js.stopForBreakpoint = () => cpu0?.breakExecution();

@@ -69,7 +69,9 @@ export class FragmentContext {
 
   set(fragment, pc, instruction, postPC, nextPC) {
     // Also cover direct code-generation callers and invalidated/rebuilt traces.
-    if (this.fragment !== fragment || fragment.opsCompiled <= 1) this.newFragment();
+    if (this.fragment !== fragment || fragment.opsCompiled <= 1) {
+      this.newFragment();
+    }
     this.fragment = fragment;
     this.pc = pc;
     this.instruction = instruction;
@@ -394,25 +396,30 @@ function generateNOPBoilerplate(comment, ctx) {
 }
 
 function genSrcRegU32Lo(i) {
-  if (i === 0)
+  if (i === 0) {
     return '0';
+  }
   return `c.getRegU32Lo(${i})`;
 }
 
 function genSrcRegS64(i) {
-  if (i === 0)
+  if (i === 0) {
     return '0n';
+  }
   return `c.getRegS64(${i})`;
 }
 
 function genSrcRegU64(i) {
-  if (i === 0)
+  if (i === 0) {
     return '0n';
+  }
   return `c.getRegU64(${i})`;
 }
 
 function genKnownNumber(reg, fact) {
-  if (fact.kind === 'constant64') return `${Number(fact.value)}`;
+  if (fact.kind === 'constant64') {
+    return `${Number(fact.value)}`;
+  }
   return `c.getReg${isSigned32(fact) ? 'S' : 'U'}32Lo(${reg})`;
 }
 
@@ -437,7 +444,9 @@ function genLessThan(ctx, s, t, unsigned, immediate = null) {
 
 function generateComparison(ctx, d, s, t, unsigned, immediate = null) {
   const name = `compare_${ctx.fragment.opsCompiled}`;
-  if (d !== 0) ctx.pendingComparison = { reg: d, name, index: ctx.fragment.opsCompiled };
+  if (d !== 0) {
+    ctx.pendingComparison = { reg: d, name, index: ctx.fragment.opsCompiled };
+  }
   // var spans the per-instruction blocks, but is local to this invocation.
   // Materialize the architectural result before any intervening RSP step/exit.
   const impl = `var ${name} = ${genLessThan(ctx, s, t, unsigned, immediate)};\n` +
@@ -712,9 +721,13 @@ function generateOR(ctx) {
     impl = '';
   } else if (s === 0 || t === 0) {
     const source = s === 0 ? t : s;
-    if (source === d) impl = '';
-    else if (source === 0) impl = `c.setRegS64LoHi(${d}, 0, 0);`;
-    else impl = `c.setRegS64LoHi(${d}, c.getRegS32Lo(${source}), c.gprS32[${source * 2 + 1}]);`;
+    if (source === d) {
+      impl = '';
+    } else if (source === 0) {
+      impl = `c.setRegS64LoHi(${d}, 0, 0);`;
+    } else {
+      impl = `c.setRegS64LoHi(${d}, c.getRegS32Lo(${source}), c.gprS32[${source * 2 + 1}]);`;
+    }
   } else {
     impl = `c.execOR(${d}, ${t}, ${s});`;
   }
@@ -1410,7 +1423,9 @@ function generateCop1Reserved(ctx) {
 
 function generateBCInstrStub(ctx) {
   const i = ctx.instruction;
-  if (((i >>> 18) & 0x7) !== 0) return generateCop1Reserved(ctx);
+  if (((i >>> 18) & 0x7) !== 0) {
+    return generateCop1Reserved(ctx);
+  }
 
   const condition = (i & 0x10000) !== 0;
   const likely = (i & 0x20000) !== 0;
@@ -1642,7 +1657,7 @@ const specialTableGen = validateSpecialOpTable([
   generateTEQ,       generateRESERVED,  generateTNE,     generateRESERVED,
   generateDSLL,      generateRESERVED,  generateDSRL,    generateDSRA,
   generateDSLL32,    generateRESERVED,  generateDSRL32,  generateDSRA32,
- ]);
+]);
 const cop1TableGen = validateCopOpTable([
   generateMFC1,         generateDMFC1,       generateCFC1,         generateDCFC1,
   generateMTC1,         generateDMTC1,       generateCTC1,         generateDCTC1,

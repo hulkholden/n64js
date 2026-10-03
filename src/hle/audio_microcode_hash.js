@@ -22,7 +22,9 @@ export function createMicrocodeHash() {
   const padded = new Uint8Array(4160), words = new Uint32Array(64), state = new Uint32Array(8);
   const data = new DataView(padded.buffer);
   return bytes => {
-    if (!(bytes instanceof Uint8Array) || bytes.length > 4096) throw new Error('Expected at most 4096 bytes');
+    if (!(bytes instanceof Uint8Array) || bytes.length > 4096) {
+      throw new Error('Expected at most 4096 bytes');
+    }
     const end = Math.ceil((bytes.length + 9) / 64) * 64;
     padded.set(bytes);
     padded.fill(0, bytes.length, end);
@@ -30,7 +32,9 @@ export function createMicrocodeHash() {
     data.setUint32(end - 4, bytes.length * 8); // High length word is zero for this bounded input.
     state.set(initialState);
     for (let block = 0; block < end; block += 64) {
-      for (let i = 0; i < 16; i++) words[i] = data.getUint32(block + i * 4);
+      for (let i = 0; i < 16; i++) {
+        words[i] = data.getUint32(block + i * 4);
+      }
       for (let i = 16; i < 64; i++) {
         const x = words[i - 15], y = words[i - 2];
         words[i] = (rotate(x, 7) ^ rotate(x, 18) ^ (x >>> 3)) + words[i - 16] +

@@ -18,13 +18,19 @@ const vectors = [
 
 function input(kind) {
   const memory = new MemoryRegion(new ArrayBuffer(0xfc0));
-  if (kind === 'ones') memory.u8.fill(0xff);
+  if (kind === 'ones') {
+    memory.u8.fill(0xff);
+  }
   if (kind === 'ascending') {
-    for (let i = 0; i < memory.length; ++i) memory.u8[i] = i & 0xff;
+    for (let i = 0; i < memory.length; ++i) {
+      memory.u8[i] = i & 0xff;
+    }
   }
   if (kind === 'rotations') {
     const words = [0, 1, 31, 32, 0x80000000, 0xffffffff];
-    for (let i = 0; i < 1008; ++i) memory.set32(i * 4, words[i % words.length]);
+    for (let i = 0; i < 1008; ++i) {
+      memory.set32(i * 4, words[i % words.length]);
+    }
   }
   return memory;
 }

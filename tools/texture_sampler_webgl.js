@@ -12,7 +12,9 @@ import { runFogTests } from './fog_webgl.js';
 const output = document.getElementById('results');
 try {
   const gl = document.getElementById('display').getContext('webgl2', { antialias: false });
-  if (!gl) throw new Error('WebGL2 unavailable');
+  if (!gl) {
+    throw new Error('WebGL2 unavailable');
+  }
   const state = new RSPState();
   state.reset(new DataView(new ArrayBuffer(4096)), 0);
   const renderer = new Renderer(gl, state, 1, 1);
@@ -71,8 +73,11 @@ try {
     const nextTile = state.tiles[(tileIndex + 1) & 7];
     nextTile.set(0, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0);
     nextTile.setSize(0, 0, (tex1?.width - 1 || 0) * 4, (tex1?.height - 1 || 0) * 4);
-    if (decode) delete renderer.lookupTexture;
-    else renderer.lookupTexture = i => i === tileIndex ? tex : tex1;
+    if (decode) {
+      delete renderer.lookupTexture;
+    } else {
+      renderer.lookupTexture = i => i === tileIndex ? tex : tex1;
+    }
     const coords = new Float32Array([...uv, ...uv, ...uv]);
     if (clearColor) {
       gl.clearColor(...clearColor.map(value => value / 255));
@@ -96,7 +101,9 @@ try {
       // Existing VertexArray setup enables inactive attributes in copy/fill
       // and custom combiners; discard setup errors for those shader variants.
       if (cycle === gbi.CycleType.G_CYC_COPY || cycle === gbi.CycleType.G_CYC_FILL || combine) {
-        while (gl.getError() !== gl.NO_ERROR) { /* drain setup errors */ }
+        while (gl.getError() !== gl.NO_ERROR) {
+          /* drain setup errors */
+        }
       }
       gl.drawArrays(gl.TRIANGLES, 0, 3);
     }
@@ -253,7 +260,9 @@ try {
     checkAlpha('disabling comparison writes below threshold', 127, 130, true, gbi.AlphaCompare.G_AC_NONE);
     checkAlpha('disabled comparison writes zero alpha', 0, 130, true, gbi.AlphaCompare.G_AC_NONE);
     const resumedShader = checkAlpha('reenabling comparison uploads the latest threshold', 129, 130, false);
-    if (resumedShader !== thresholdShader) throw new Error('Reenabling comparison must reuse the cached shader');
+    if (resumedShader !== thresholdShader) {
+      throw new Error('Reenabling comparison must reuse the cached shader');
+    }
     checkAlpha('zero threshold accepts zero alpha', 0, 0, true);
     checkAlpha('maximum threshold discards lower alpha', 254, 255, false);
     checkAlpha('maximum threshold accepts equal alpha', 255, 255, true);
@@ -294,7 +303,9 @@ try {
     renderer.texRect(0, originX, originY, originX + 4, originY + 4, 0, startT, 0, endT, flip);
     const pixels = new Uint8Array(width * height * 4);
     gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-    if (gl.getError() !== gl.NO_ERROR) throw new Error(`${name}: WebGL error`);
+    if (gl.getError() !== gl.NO_ERROR) {
+      throw new Error(`${name}: WebGL error`);
+    }
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const nativeX = Math.floor((x + 0.5) * nativeWidth / width) - originX;
@@ -359,7 +370,9 @@ try {
             1, 0, 2.5, 0, flip);
           const pixels = new Uint8Array(size * size * 4);
           gl.readPixels(0, 0, size, size, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-          if (gl.getError() !== gl.NO_ERROR) throw new Error(`${name}: WebGL error`);
+          if (gl.getError() !== gl.NO_ERROR) {
+            throw new Error(`${name}: WebGL error`);
+          }
           // Y starts on floor(y0), while X retains its quarter-pixel offset.
           const samples = flip ? [[0, 128, 128, 255], blue, [128, 128, 255, 255]] : {
             0.25: [[0, 159, 96, 255], [0, 32, 223, 255], [96, 96, 255, 255]],
@@ -412,11 +425,16 @@ try {
           const cmd0 = (end << 12) | end;
           const cmd2 = reverseS ? (7 * 32) << 16 : 7 * 32;
           const cmd3 = reverseS ? (copy ? -4096 : -1024) << 16 : 0xfc00;
-          if (flip) microcode.rdpTexRectFlip(cmd0, 0, cmd2, cmd3);
-          else microcode.rdpTexRect(cmd0, 0, cmd2, cmd3);
+          if (flip) {
+            microcode.rdpTexRectFlip(cmd0, 0, cmd2, cmd3);
+          } else {
+            microcode.rdpTexRect(cmd0, 0, cmd2, cmd3);
+          }
           const pixels = new Uint8Array(size * size * 4);
           gl.readPixels(0, 0, size, size, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-          if (gl.getError() !== gl.NO_ERROR) throw new Error(`${name}: WebGL error`);
+          if (gl.getError() !== gl.NO_ERROR) {
+            throw new Error(`${name}: WebGL error`);
+          }
           for (let y = 0; y < size; y++) {
             for (let x = 0; x < size; x++) {
               const step = Math.floor((reverseS !== flip ? x : y) / scale);
@@ -514,9 +532,13 @@ try {
   const copyTexture = renderer.lookupTexture(0);
   state.rdpOtherModeH = gbi.CycleType.G_CYC_1CYCLE;
   const clampedTexture = renderer.lookupTexture(0);
-  if (clampedTexture.width !== 33 || clampedTexture.height !== 64) throw new Error('Copy texture cache ignored the clamped extent');
+  if (clampedTexture.width !== 33 || clampedTexture.height !== 64) {
+    throw new Error('Copy texture cache ignored the clamped extent');
+  }
   state.rdpOtherModeH = gbi.CycleType.G_CYC_COPY;
-  if (renderer.lookupTexture(0) !== copyTexture) throw new Error('Clamped texture cache replaced the copy wrap region');
+  if (renderer.lookupTexture(0) !== copyTexture) {
+    throw new Error('Clamped texture cache replaced the copy wrap region');
+  }
 
   // Decoding through a canvas used to erase transparent RGB and quantize
   // low-alpha colours before upload. Verify the actual GPU texture samples.
@@ -571,7 +593,9 @@ try {
     passed++;
   }
   // Ignore inactive UV attribute setup errors as the sampler checks do above.
-  while (gl.getError() !== gl.NO_ERROR) { /* drain setup errors */ }
+  while (gl.getError() !== gl.NO_ERROR) {
+    /* drain setup errors */
+  }
   clearDepthScene();
   state.noNearClipping = true;
   drawDepth([-4, -4, -4], 0xff0000ff);
@@ -678,7 +702,9 @@ try {
     function checkClip(name, inside = (x, y) => x >= 2 && x < 5 && y >= 1 && y < 4, foreground = white) {
       const pixels = new Uint8Array(width * height * 4);
       gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-      if (gl.getError() !== gl.NO_ERROR) throw new Error(`${name}: WebGL error`);
+      if (gl.getError() !== gl.NO_ERROR) {
+        throw new Error(`${name}: WebGL error`);
+      }
       for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
           const want = inside(x / scale, y / scale) ? foreground : blue;
@@ -765,7 +791,9 @@ try {
       lines.push(`PASS ${name}`);
       passed++;
     }
-    while (gl.getError() !== gl.NO_ERROR) { /* drain earlier shader setup errors */ }
+    while (gl.getError() !== gl.NO_ERROR) {
+      /* drain earlier shader setup errors */
+    }
     clearImage(0, red);
     clearImage(16, green);
     targets.setDPFrozen(true);
@@ -804,7 +832,9 @@ try {
       throw new Error('Cache eviction did not release the oldest GPU texture');
     }
     cacheRenderer.reset();
-    if (textures.some(texture => gl.isTexture(texture))) throw new Error('Cache reset retained GPU textures');
+    if (textures.some(texture => gl.isTexture(texture))) {
+      throw new Error('Cache reset retained GPU textures');
+    }
     lines.push('PASS texture cache eviction and reset delete GPU objects');
     passed++;
   }

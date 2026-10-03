@@ -33,12 +33,18 @@ export class Turbo3D extends ObjectMicrocode {
         const vertices = dv.getUint32(pc + 8);
         const triangles = dv.getUint32(pc + 12);
         state.pc += 16;
-        if (global) this.loadGlobalState(global, dis, 1);
+        if (global) {
+          this.loadGlobalState(global, dis, 1);
+        }
         this.loadObject(object, vertices, triangles, dis);
       }
-      if (dis) dis.end();
+      if (dis) {
+        dis.end();
+      }
       // Each object, including its RDP blocks and triangles, is one debug op.
-      if (state.postOp(dis ? -1 : bailAfter)) break;
+      if (state.postOp(dis ? -1 : bailAfter)) {
+        break;
+      }
     }
   }
 
@@ -54,14 +60,20 @@ export class Turbo3D extends ObjectMicrocode {
       // This mode writes transformed vertices to RAM instead of drawing them.
       throw new Error('Turbo3D transform-only objects are not supported');
     }
-    if (!(flags & GT_FLAG_NOMTX)) this.transform = this.loadMatrix(address + 24, 64);
+    if (!(flags & GT_FLAG_NOMTX)) {
+      this.transform = this.loadMatrix(address + 24, 64);
+    }
     state.geometryModeBits = dv.getUint32(address) | gbi.GeometryModeGBI1.G_SHADE;
     state.updateGeometryModeFromBits(gbi.GeometryModeGBI1);
     state.setTexture(1, 1, 0, dv.getUint32(address + 4) & 7);
     this.executeSetRDPOtherMode(dv.getUint32(address + 16), dv.getUint32(address + 20), dis);
-    if (vertices) this.loadObjectVertices(state.rdpSegmentAddress(vertices), v0, count, flags);
+    if (vertices) {
+      this.loadObjectVertices(state.rdpSegmentAddress(vertices), v0, count, flags);
+    }
     this.processRDP(dv.getUint32(address + 12), dis);
-    if (triangles) this.drawObjectTriangles(state.rdpSegmentAddress(triangles), triCount);
+    if (triangles) {
+      this.drawObjectTriangles(state.rdpSegmentAddress(triangles), triCount);
+    }
   }
 
   loadObjectVertices(address, v0, count, flags) {
@@ -109,7 +121,9 @@ export class Turbo3D extends ObjectMicrocode {
       tb.pushTri(a, b, c);
       if (!this.state.geometryMode.shadeSmooth) {
         const flag = dv.getUint8(address + 3);
-        if (flag > 2) throw new Error('Invalid Turbo3D flat-shading vertex');
+        if (flag > 2) {
+          throw new Error('Invalid Turbo3D flat-shading vertex');
+        }
         const color = verts[indices[flag]].color;
         tb.colours.fill(color, (tb.numTris - 1) * 3, tb.numTris * 3);
       }

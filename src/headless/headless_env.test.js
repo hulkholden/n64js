@@ -49,7 +49,9 @@ function readController(emulator, port = 0, onRead = null) {
         status: frame[port + 1],
         data: Array.from(frame.subarray(port + 3, port + 7)),
       };
-      if (onRead) onRead(result);
+      if (onRead) {
+        onRead(result);
+      }
       return result;
     });
   });
@@ -57,7 +59,9 @@ function readController(emulator, port = 0, onRead = null) {
   function afterDMA(next) {
     // Poll after completion; callbacks used inside a running CPU must not
     // advance its event queue recursively.
-    if (onRead) return emulator.cpu0.addEvent('Test SI completion', 0x901, next);
+    if (onRead) {
+      return emulator.cpu0.addEvent('Test SI completion', 0x901, next);
+    }
     emulator.cpu0.incrementCount(0x900);
     emulator.cpu0.eventQueue.incrementCount(0x900);
     return next();
@@ -412,7 +416,9 @@ describe('headless graphics execution', () => {
         expect(halted[0].details.error.message).toContain(version);
         expect(halted[0].details.error.message).toContain('hash');
         expect(halted[0].details.error.message).toContain('HLE is not implemented');
-        if (family === 'ZSortBOSS') expect(halted[0].details.error.message).toContain('0xe281945c');
+        if (family === 'ZSortBOSS') {
+          expect(halted[0].details.error.message).toContain('0xe281945c');
+        }
         expect(seen.map(info => info.family)).toEqual([inList ? 'GBI2' : family]);
         expect(seen[0].detection).toBe(inList ? 'string' : detection);
         expect(loaded.map(info => info.family)).toEqual(inList ? ['GBI2'] : []);

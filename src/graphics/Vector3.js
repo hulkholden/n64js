@@ -44,8 +44,9 @@ export class Vector3 {
    */
   dot(other) {
     let t = 0;
-    for (let i = 0; i < this.elems.length; ++i)
+    for (let i = 0; i < this.elems.length; ++i) {
       t += this.elems[i] * other.elems[i];
+    }
     return t;
   }
 

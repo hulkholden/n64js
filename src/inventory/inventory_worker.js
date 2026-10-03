@@ -22,11 +22,15 @@ let audioTasks = 0;
 const audioMicrocodes = new Map();
 
 function cyclesExecuted() {
-  if (!collecting) return 0;
+  if (!collecting) {
+    return 0;
+  }
   // Use event-queue time so guest COUNT writes and skipped idle loops cannot
   // evade the budget. At the deadline report the budget; an instruction batch
   // can finish a few cycles beyond it before the CPU yields.
-  if (cycleLimitReached) return settings.maxCycles;
+  if (cycleLimitReached) {
+    return settings.maxCycles;
+  }
   return settings.maxCycles - emulator.cpu0.getCyclesUntilEvent(cycleLimitEvent);
 }
 
@@ -163,5 +167,7 @@ try {
   console.error('Failed to deliver terminal inventory report:', error);
   process.exitCode = 1;
 } finally {
-  if (process.connected) process.disconnect();
+  if (process.connected) {
+    process.disconnect();
+  }
 }

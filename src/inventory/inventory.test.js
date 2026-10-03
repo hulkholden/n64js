@@ -58,7 +58,9 @@ function makeROM({ vi = false, graphics = 'end', audio = false, rewriteCount = f
     // A multi-command cycle exercises the synchronous HLE command guard.
     commands = [[0xde010000, 0x3008], [0xde010000, 0x3000]];
   }
-  if (graphics === 'wait') commands = [[0xde010000, 0x3000]];
+  if (graphics === 'wait') {
+    commands = [[0xde010000, 0x3000]];
+  }
   if (graphics === 'switch') {
     const gbi1Size = writeVersion(0x5000, 'RSP Gfx ucode F3DEX 1.23');
     commands = [
@@ -95,7 +97,9 @@ function makeROM({ vi = false, graphics = 'end', audio = false, rewriteCount = f
     [0x00, 1], [0x10, 0x80001000], [0x14, 4],
     [0x18, 0x80002000], [0x1c, versionSize],
     [0x30, graphics === 'invalid' ? 0x1000000 : 0x3000],
-  ]) view.setUint32(0xfc0 + offset, value);
+  ]) {
+    view.setUint32(0xfc0 + offset, value);
+  }
   if (audio) {
     view.setUint32(0xfc0, 2);
     view.setUint32(0xfc8, 0x80004000);
@@ -181,7 +185,9 @@ describe('inventory input', () => {
         { frames: 1, stickY: -129 }, { frames: 1, stickY: null },
       ].map(step => ({ version: 1, steps: [step] })),
       { version: 1, steps: [{ frames: Number.MAX_SAFE_INTEGER }, { frames: 1 }] },
-    ]) expect(() => parseInputScript(invalid)).toThrow();
+    ]) {
+      expect(() => parseInputScript(invalid)).toThrow();
+    }
   });
 
   test('replays holds and releases independently of CPU random consumption', () => {
@@ -190,7 +196,9 @@ describe('inventory input', () => {
       const update = createInputDriver(seed);
       const input = { buttons: 0, stick_x: 0, stick_y: 0 };
       return Array.from({ length: 1200 }, (_, index) => {
-        for (let i = 0; i < cpuReads; i++) random();
+        for (let i = 0; i < cpuReads; i++) {
+          random();
+        }
         update(index + 1, input);
         return { ...input };
       });
@@ -352,7 +360,9 @@ describe('inventory batch command', () => {
           for (const run of runs) {
             const path = join(directory, 'inventory/runs', run);
             const manifest = await Bun.file(join(path, 'manifest.json')).json().catch(() => null);
-            if (manifest?.settings.seed === 2) laterDirectory = path;
+            if (manifest?.settings.seed === 2) {
+              laterDirectory = path;
+            }
             if (manifest?.settings.seed === 1 && manifest.entries[0].status === 'completed' && manifest.entries[1].report) {
               scanDirectory = path;
             }
@@ -598,7 +608,9 @@ describe('inventory command', () => {
       for (const path of ['missing.json', 'malformed.json', 'invalid.json']) {
         for (const command of [cli, batchCLI]) {
           const args = ['missing.z64', '--input-script', path];
-          if (command === batchCLI) args.push('--output-dir', 'inventory');
+          if (command === batchCLI) {
+            args.push('--output-dir', 'inventory');
+          }
           const result = await invoke(directory, args, command);
           expect(result.code).toBe(2);
           expect(result.stdout).toBe('');
@@ -753,7 +765,9 @@ describe('inventory command', () => {
       });
       expect(typeof report.result.failure.exception.message).toBe('string');
       const { cpu, rsp } = report.result.failure.context;
-      for (const pc of [cpu.pc, cpu.nextPC, cpu.delayPC, rsp.pc]) expect(Number.isInteger(pc)).toBe(true);
+      for (const pc of [cpu.pc, cpu.nextPC, cpu.delayPC, rsp.pc]) {
+        expect(Number.isInteger(pc)).toBe(true);
+      }
       expect(typeof rsp.halted).toBe('boolean');
       // An actual invalid display-list read must retain its original stack
       // across CPU halt handling and worker IPC, not a stack from serialization.

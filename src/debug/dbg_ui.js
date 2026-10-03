@@ -21,12 +21,16 @@ dbgGUI.hide();
 export function addOptionsFolder(name, bindOptions) {
   const folder = dbgGUI.addFolder(name);
   bindOptions(folder);
-  if (typeof document === 'undefined') return;
+  if (typeof document === 'undefined') {
+    return;
+  }
 
   const storageKey = `n64js-debug-options:${name}`;
   try {
     const saved = localStorage.getItem(storageKey);
-    if (saved) folder.load(JSON.parse(saved));
+    if (saved) {
+      folder.load(JSON.parse(saved));
+    }
   } catch {
     // Ignore unavailable storage or unreadable saved data.
   }

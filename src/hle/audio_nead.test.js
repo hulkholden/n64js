@@ -51,45 +51,51 @@ function fixture(Audio = NEADAudio) {
   return a;
 }
 
-for (const [identity, Audio] of variants) describe(identity, () => {
-  test('dispatch uses the exact reviewed identity', () => {
-    expect(getAudioHLEClass(identity)).toBe(Audio);
-    expect(getAudioHLEClass(`${identity}-unreviewed`)).toBeNull();
-    expect(getAudioHLEClass('NEAD')).toBeNull();
-  });
+for (const [identity, Audio] of variants) {
+  describe(identity, () => {
+    test('dispatch uses the exact reviewed identity', () => {
+      expect(getAudioHLEClass(identity)).toBe(Audio);
+      expect(getAudioHLEClass(`${identity}-unreviewed`)).toBeNull();
+      expect(getAudioHLEClass('NEAD')).toBeNull();
+    });
 
-  test('packed transfers align addresses; a late failure can undo overlapping stores', () => {
-    const a = fixture(Audio);
-    for (let i = 0; i < 32; i++) a.ram[STATE + i] = i + 1;
-    a.execute(command(OP_LOAD, 32 << 12 | INPUT - a.bufferBase + 3), STATE + 7);
-    expect(a.dmem.slice(INPUT, INPUT + 32)).toEqual(a.ram.slice(STATE, STATE + 32));
-    a.ram.fill(0xfe, LOOP_STATE, LOOP_STATE + 48);
-    a.execute(command(OP_SAVE, 32 << 12 | INPUT - a.bufferBase), LOOP_STATE);
-    a.execute(command(OP_SAVE, 32 << 12 | INPUT - a.bufferBase), LOOP_STATE + 8);
-    expect(() => a.execute(command(0xff), 0)).toThrow(UnsupportedAudioCommand);
-    a.rollback();
-    expect(a.ram.slice(LOOP_STATE, LOOP_STATE + 48)).toEqual(new Uint8Array(48).fill(0xfe));
-  });
+    test('packed transfers align addresses; a late failure can undo overlapping stores', () => {
+      const a = fixture(Audio);
+      for (let i = 0; i < 32; i++) {
+        a.ram[STATE + i] = i + 1;
+      }
+      a.execute(command(OP_LOAD, 32 << 12 | INPUT - a.bufferBase + 3), STATE + 7);
+      expect(a.dmem.slice(INPUT, INPUT + 32)).toEqual(a.ram.slice(STATE, STATE + 32));
+      a.ram.fill(0xfe, LOOP_STATE, LOOP_STATE + 48);
+      a.execute(command(OP_SAVE, 32 << 12 | INPUT - a.bufferBase), LOOP_STATE);
+      a.execute(command(OP_SAVE, 32 << 12 | INPUT - a.bufferBase), LOOP_STATE + 8);
+      expect(() => a.execute(command(0xff), 0)).toThrow(UnsupportedAudioCommand);
+      a.rollback();
+      expect(a.ram.slice(LOOP_STATE, LOOP_STATE + 48)).toEqual(new Uint8Array(48).fill(0xfe));
+    });
 
-  test('clear zero does nothing and loop addresses use each variant parameter layout', () => {
-    const a = fixture(Audio);
-    a.dmem.fill(0x55, INPUT, INPUT + VECTOR_BYTES);
-    a.execute(command(OP_CLEAR, INPUT - a.bufferBase), 0);
-    expect(a.dmem[INPUT]).toBe(0x55);
-    a.execute(command(OP_LOOP), LOOP_STATE);
-    expect(a.loopAddress).toBe(LOOP_STATE);
-  });
+    test('clear zero does nothing and loop addresses use each variant parameter layout', () => {
+      const a = fixture(Audio);
+      a.dmem.fill(0x55, INPUT, INPUT + VECTOR_BYTES);
+      a.execute(command(OP_CLEAR, INPUT - a.bufferBase), 0);
+      expect(a.dmem[INPUT]).toBe(0x55);
+      a.execute(command(OP_LOOP), LOOP_STATE);
+      expect(a.loopAddress).toBe(LOOP_STATE);
+    });
 
-  test('scratch arrays and journal capacity survive task reuse', () => {
-    const a = fixture(Audio);
-    const buffers = [a.samples, a.result, a.residual, a.envelopeVolumes, a.envelopeRates, a.envelopeOutputs, a.copyBlock, a.multiplyCoefficients, a.undoWords];
-    a.execute(command(OP_SAVE, 32 << 12 | INPUT - a.bufferBase), STATE);
-    a.commit();
-    a.reset(a.ram, a.dmem);
-    const reused = [a.samples, a.result, a.residual, a.envelopeVolumes, a.envelopeRates, a.envelopeOutputs, a.copyBlock, a.multiplyCoefficients, a.undoWords];
-    for (let i = 0; i < buffers.length; i++) expect(reused[i]).toBe(buffers[i]);
+    test('scratch arrays and journal capacity survive task reuse', () => {
+      const a = fixture(Audio);
+      const buffers = [a.samples, a.result, a.residual, a.envelopeVolumes, a.envelopeRates, a.envelopeOutputs, a.copyBlock, a.multiplyCoefficients, a.undoWords];
+      a.execute(command(OP_SAVE, 32 << 12 | INPUT - a.bufferBase), STATE);
+      a.commit();
+      a.reset(a.ram, a.dmem);
+      const reused = [a.samples, a.result, a.residual, a.envelopeVolumes, a.envelopeRates, a.envelopeOutputs, a.copyBlock, a.multiplyCoefficients, a.undoWords];
+      for (let i = 0; i < buffers.length; i++) {
+        expect(reused[i]).toBe(buffers[i]);
+      }
+    });
   });
-});
+}
 
 test('the add mixer consumes the entry vector carry only for the first vector', () => {
   const a = fixture();
@@ -148,7 +154,9 @@ test('Majora and Animal Forest have different zero-length move behavior', () => 
 test('packed interleave ignores SETBUFF count and writes four-lane groups', () => {
   const a = fixture(ShindouAudio);
   a.put16(a.parameters + 4, 0);
-  for (let i = 0; i < 8; i++) { a.put16(INPUT + i * 2, i); a.put16(INPUT + 32 + i * 2, -i); }
+  for (let i = 0; i < 8; i++) {
+    a.put16(INPUT + i * 2, i); a.put16(INPUT + 32 + i * 2, -i);
+  }
   a.execute(command(OP_INTERLEAVE, 16 << 12 | OUTPUT), INPUT << 16 | INPUT + 32);
   expect(Array.from({ length: 8 }, (_, i) => a.s16(OUTPUT + i * 4))).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
   expect(a.s16(OUTPUT + 30)).toBe(-7);
@@ -156,7 +164,9 @@ test('packed interleave ignores SETBUFF count and writes four-lane groups', () =
 
 test('mixing into an earlier overlapping buffer preserves source samples', () => {
   const a = fixture();
-  for (let i = 0; i < 32; i++) a.put16(INPUT - 16 + i * 2, 100);
+  for (let i = 0; i < 32; i++) {
+    a.put16(INPUT - 16 + i * 2, 100);
+  }
   a.execute(command(OP_MIX, 32 << 12 | 0x4000), INPUT << 16 | INPUT - 16);
   expect(a.s16(INPUT - 16)).toBe(150);
   expect(a.s16(INPUT)).toBe(150);
@@ -165,7 +175,9 @@ test('mixing into an earlier overlapping buffer preserves source samples', () =>
 test('envelope flags complement samples; F-Zero ignores the complement flags', () => {
   for (const [Audio, expected] of [[NEADAudio, -501], [FZeroAudio, 500]]) {
     const a = fixture(Audio);
-    for (let i = 0; i < 16; i++) a.put16(INPUT + i * 2, 1000);
+    for (let i = 0; i < 16; i++) {
+      a.put16(INPUT + i * 2, 1000);
+    }
     a.execute(command(OP_SETUP1, 0x800000), 0);
     a.execute(command(OP_SETUP2), 0x80008000);
     a.execute(command(OP_ENVELOPE, INPUT << 12 | 16 << 8 | 2), 0x7090b0d0);

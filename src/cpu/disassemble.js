@@ -263,7 +263,9 @@ function disassembleCop0(i) {
 }
 
 function disassembleBCInstr(i) {
-  if (((i.opcode >>> 18) & 0x7) !== 0) return 'COP1 reserved branch condition';
+  if (((i.opcode >>> 18) & 0x7) !== 0) {
+    return 'COP1 reserved branch condition';
+  }
 
   switch (cop1BCOp(i.opcode)) {
     case 0: return `BC1F      !c ? --> ${i.branchAddress}`;

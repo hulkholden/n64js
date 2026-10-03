@@ -92,7 +92,9 @@ export class NAudio extends AudioBase {
       case OPCODE_LOADBUFF:
       case OPCODE_SAVEBUFF: {
         const count = (w0 >>> 12) & naudio.BUFFER_OFFSET_MASK;
-        if (!count) return;
+        if (!count) {
+          return;
+        }
         const p = naudio.DMEM_SAMPLE_BUFFER + (w0 & naudio.BUFFER_OFFSET_MASK);
         this.buffer(p & ~7, round8(count));
         this.dma(p, w1 & naudio.RAM_ADDRESS_MASK, count, opcode === OPCODE_SAVEBUFF);
@@ -116,7 +118,9 @@ export class NAudio extends AudioBase {
         const count = Math.max(naudio.VECTOR_BYTES, round16(unsigned16(w1)));
         this.buffer(from, count);
         this.buffer(to, count);
-        for (let i = 0; i < count; i += naudio.VECTOR_BYTES) this.dmem.copyWithin(to + i, from + i, from + i + naudio.VECTOR_BYTES);
+        for (let i = 0; i < count; i += naudio.VECTOR_BYTES) {
+          this.dmem.copyWithin(to + i, from + i, from + i + naudio.VECTOR_BYTES);
+        }
         this.scalarV0 = from + count;
         return;
       }
@@ -177,7 +181,9 @@ export class NAudio extends AudioBase {
     const output = naudio.DMEM_SAMPLE_BUFFER + outputOffset;
     this.buffer(input, naudio.MONO_BYTES, naudio.VECTOR_BYTES);
     this.buffer(output, naudio.MONO_BYTES, naudio.VECTOR_BYTES);
-    if (input !== output) this.disjoint(input, naudio.MONO_BYTES, output, naudio.MONO_BYTES);
+    if (input !== output) {
+      this.disjoint(input, naudio.MONO_BYTES, output, naudio.MONO_BYTES);
+    }
 
     gain = signed16(gain);
     for (let p = 0; p < naudio.MONO_BYTES; p += 2) {
@@ -197,12 +203,17 @@ export class NAudio extends AudioBase {
     const output = word & 3 ? naudio.DMEM_SECOND_BUFFER : naudio.DMEM_SAMPLE_BUFFER;
     const pitch = (word >>> 14) & UINT16_MAX;
     const initialize = (word >>> 30) !== 0;
-    if (!initialize) this.dma(naudio.DMEM_SCRATCH, address, naudio.RESAMPLE_STATE_SIZE);
+    if (!initialize) {
+      this.dma(naudio.DMEM_SCRATCH, address, naudio.RESAMPLE_STATE_SIZE);
+    }
 
     let source = input - naudio.RESAMPLE_HISTORY_SIZE;
     this.buffer(source, naudio.RESAMPLE_HISTORY_SIZE, 2);
-    if (initialize) this.dmem.fill(0, source, input);
-    else this.dmem.copyWithin(source, naudio.DMEM_SCRATCH, naudio.RESAMPLE_PHASE);
+    if (initialize) {
+      this.dmem.fill(0, source, input);
+    } else {
+      this.dmem.copyWithin(source, naudio.DMEM_SCRATCH, naudio.RESAMPLE_PHASE);
+    }
     let phase = initialize ? 0 : this.u16(naudio.RESAMPLE_PHASE);
 
     for (let p = 0; p < naudio.MONO_BYTES; p += naudio.VECTOR_BYTES) {
@@ -219,7 +230,9 @@ export class NAudio extends AudioBase {
         source += (phase >>> 16) * 2;
         phase = unsigned16(phase);
       }
-      for (let lane = 0; lane < naudio.VECTOR_SAMPLES; lane++) this.put16(output + p + lane * 2, this.result[lane]);
+      for (let lane = 0; lane < naudio.VECTOR_SAMPLES; lane++) {
+        this.put16(output + p + lane * 2, this.result[lane]);
+      }
     }
 
     this.buffer(source, naudio.RESAMPLE_HISTORY_SIZE, 2);
@@ -231,7 +244,9 @@ export class NAudio extends AudioBase {
 
   envelope(flags, initialRight, address) {
     const initialize = (flags & FLAG_INIT) !== 0;
-    if (!initialize) this.dma(naudio.DMEM_SCRATCH, address, naudio.ENVELOPE_STATE_SIZE);
+    if (!initialize) {
+      this.dma(naudio.DMEM_SCRATCH, address, naudio.ENVELOPE_STATE_SIZE);
+    }
     const dry = this.s16(naudio.ENVELOPE_DRY_VOLUME), wet = this.s16(naudio.ENVELOPE_WET_VOLUME);
     const channels = this.envelopeChannels;
 

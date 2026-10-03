@@ -335,7 +335,9 @@ export class Renderer extends RendererBase {
   }
 
   texRect(tileIdx, x0, y0, x1, y1, s0, t0, s1, t1, flip) {
-    if (x1 === x0 || y1 === y0) return;
+    if (x1 === x0 || y1 === y0) {
+      return;
+    }
     const cycle = this.state.getCycleType();
     // Without AA, the RDP accepts only the coverage sample at the native
     // pixel's upper-left corner. WebGL's pixel-centre coverage can otherwise
@@ -565,9 +567,13 @@ export class Renderer extends RendererBase {
     // The cacheID should include all the state that can affect how the texture is constructed.
     const cacheID = `${hash}_${tile.format}_${tile.size}_${tile.line}_${tile.width}_${tile.height}_${tile.palette}_${paletteFormat}`;
     const cached = this.textureCache.get(cacheID);
-    if (cached) return cached;
+    if (cached) {
+      return cached;
+    }
     const texture = this.decodeTexture(tile, tlutFormat);
-    if (texture) this.textureCache.set(cacheID, texture);
+    if (texture) {
+      this.textureCache.set(cacheID, texture);
+    }
     return texture;
   }
 
@@ -607,7 +613,9 @@ export class Renderer extends RendererBase {
 
 
   showTextureCache() {
-    if (!this.textureOutput) return;
+    if (!this.textureOutput) {
+      return;
+    }
     this.textureOutput.replaceChildren();
     // A bounded snapshot: ordinary emulation never creates debug canvases.
     for (const [key, texture] of this.textureCache) {
@@ -627,7 +635,9 @@ export class Renderer extends RendererBase {
     gl.uniform1i(uniforms.enabled, texture ? 1 : 0);
     gl.bindTexture(gl.TEXTURE_2D, texture ? texture.texture : null);
 
-    if (!texture) return;
+    if (!texture) {
+      return;
+    }
 
     // Generated coordinates use the HLE tile extent, independently of any
     // extra texels decoded to cover the full wrap region.
@@ -681,7 +691,7 @@ export class Renderer extends RendererBase {
         // neither input is the framebuffer, so no GL blend is needed.
         mode = kBlendModeOpaque;
         break;
-      // case 0x0321 = G_BL_CLR_IN, G_BL_0, G_BL_CLR_BL, G_BL_A_MEM - blend*alpha.
+        // case 0x0321 = G_BL_CLR_IN, G_BL_0, G_BL_CLR_BL, G_BL_A_MEM - blend*alpha.
 
       case 0x0010: // G_BL_CLR_IN, G_BL_A_IN, G_BL_CLR_MEM, G_BL_1MA
       case 0x0011: // G_BL_CLR_IN, G_BL_A_IN, G_BL_CLR_MEM, G_BL_A_MEM

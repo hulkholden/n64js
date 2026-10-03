@@ -155,7 +155,9 @@ export class ABI1Audio extends AudioBase {
 
       case OPCODE_LOADBUFF:
       case OPCODE_SAVEBUFF: {
-        if (!this.count) return;
+        if (!this.count) {
+          return;
+        }
 
         const p = opcode === OPCODE_LOADBUFF ? this.input : this.output;
         this.buffer(p & ~7, round8(this.count));
@@ -201,7 +203,9 @@ export class ABI1Audio extends AudioBase {
         this.buffer(to, count);
 
         // 0x1424: load both halves before storing, then move forward 16 bytes.
-        for (let i = 0; i < count; i += 16) this.dmem.copyWithin(to + i, from + i, from + i + 16);
+        for (let i = 0; i < count; i += 16) {
+          this.dmem.copyWithin(to + i, from + i, from + i + 16);
+        }
         return;
       }
 
@@ -247,13 +251,17 @@ export class ABI1Audio extends AudioBase {
   }
 
   mix(gain, inputOffset, outputOffset) {
-    if (!this.count) return;
+    if (!this.count) {
+      return;
+    }
 
     const count = round32(this.count);
     const input = DMEM_SAMPLE_BUFFER + inputOffset, output = DMEM_SAMPLE_BUFFER + outputOffset;
     this.buffer(input, count, 16);
     this.buffer(output, count, 16);
-    if (input !== output) this.disjoint(input, count, output, count);
+    if (input !== output) {
+      this.disjoint(input, count, output, count);
+    }
 
     gain = signed16(gain);
     for (let p = 0; p < count; p += 32) {
@@ -294,13 +302,19 @@ export class ABI1Audio extends AudioBase {
 
     this.require(count >= (flags & 1 ? 32 : 16), 'Unreviewed short envelope');
     this.buffer(input, count, 16);
-    for (let i = 0; i < outputCount; i++) this.buffer(outputs[i], count, 16);
+    for (let i = 0; i < outputCount; i++) {
+      this.buffer(outputs[i], count, 16);
+    }
     for (let i = 0; i < outputCount; i++) {
       this.disjoint(input, count, outputs[i], count);
-      for (let j = i + 1; j < outputCount; j++) this.disjoint(outputs[i], count, outputs[j], count);
+      for (let j = i + 1; j < outputCount; j++) {
+        this.disjoint(outputs[i], count, outputs[j], count);
+      }
     }
 
-    if (!(flags & 1)) this.dma(DMEM_SCRATCH, address, ENVELOPE_STATE_SIZE);
+    if (!(flags & 1)) {
+      this.dma(DMEM_SCRATCH, address, ENVELOPE_STATE_SIZE);
+    }
     const config = flags & 1 ? PARAM_ENVELOPE_LEFT : ENVELOPE_SAVED_CONFIG;
     const dry = this.s16(config + 12), wet = this.s16(config + 14);
 
@@ -323,7 +337,9 @@ export class ABI1Audio extends AudioBase {
     for (let p = 0; p < count; p += 16) {
       for (let channel = 0; channel < 2; channel++) {
         const c = channels[channel];
-        if (!(flags & 1) || p > 0) this.advanceEnvelope(c);
+        if (!(flags & 1) || p > 0) {
+          this.advanceEnvelope(c);
+        }
         for (let lane = 0; lane < 8; lane++) {
           // Positive high word: VCL with cleared VCO is unsigned minimum.
           c.hi[lane] = c.rateHi > 0

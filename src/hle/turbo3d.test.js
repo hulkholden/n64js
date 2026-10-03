@@ -53,11 +53,13 @@ describe('Turbo3D object lists', () => {
       const draws = [];
       const rects = [];
       microcode.renderer.flushTris = tb => {
-        if (!tb.empty()) draws.push({
-          positions: Array.from(tb.positions.slice(0, tb.numTris * 12)),
-          colors: Array.from(tb.colours.slice(0, tb.numTris * 3)),
-          tile: state.texture.tile,
-        });
+        if (!tb.empty()) {
+          draws.push({
+            positions: Array.from(tb.positions.slice(0, tb.numTris * 12)),
+            colors: Array.from(tb.colours.slice(0, tb.numTris * 3)),
+            tile: state.texture.tile,
+          });
+        }
         tb.reset();
       };
       microcode.renderer.texRect = (...args) => rects.push(args);
@@ -79,7 +81,9 @@ describe('Turbo3D object lists', () => {
       expect(state.envColor).toBe(0x55667788);
       expect(state.pc).toBe(0);
       expect(state.currentOp).toBe(4);
-      if (disassemble) expect(rows).toBe(4);
+      if (disassemble) {
+        expect(rows).toBe(4);
+      }
     }
   });
 
@@ -93,7 +97,9 @@ describe('Turbo3D object lists', () => {
     ]);
     // Put three transformed vertices at the very end of the 64-entry cache.
     words(dv, 0x200, [0x200, 0, 0x033d0000, 0, 0xef000000, 0]);
-    for (let i = 0; i < 4; i++) dv.setInt16(0x218 + i * 10, 1); // Identity matrix.
+    for (let i = 0; i < 4; i++) {
+      dv.setInt16(0x218 + i * 10, 1);
+    } // Identity matrix.
     dv.setInt16(0x236, 2); // w = 2: the output must still use affine interpolation.
     words(dv, 0x300, [0x200, 0, 0x00000101, 0, 0xef000000, 0]);
     words(dv, 0x340, [0x200, 0, 0x033d0101, 0, 0xef000000, 0]);
@@ -103,7 +109,9 @@ describe('Turbo3D object lists', () => {
     const { state, microcode } = makeMicrocode(dv, 0x100);
     const draws = [];
     microcode.renderer.flushTris = tb => {
-      if (!tb.empty()) draws.push(Array.from(tb.positions.slice(0, tb.numTris * 12)));
+      if (!tb.empty()) {
+        draws.push(Array.from(tb.positions.slice(0, tb.numTris * 12)));
+      }
       tb.reset();
     };
     executeDisplayList(state, microcode, { bailAfter: 0 });

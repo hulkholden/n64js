@@ -56,7 +56,11 @@ async function writeJSON(path, value) {
     await Bun.write(temporary, JSON.stringify(value, null, 2) + '\n');
     await rename(temporary, path);
   } finally {
-    await unlink(temporary).catch(error => { if (error.code !== 'ENOENT') throw error; });
+    await unlink(temporary).catch(error => {
+      if (error.code !== 'ENOENT') {
+        throw error;
+      }
+    });
   }
 }
 
@@ -64,11 +68,19 @@ async function directoryFiles(directory) {
   const files = [];
   for (const entry of await readdir(directory, { withFileTypes: true })) {
     const path = join(directory, entry.name);
-    if (entry.isDirectory()) files.push(...await directoryFiles(path));
-    else if (entry.isFile()) files.push(path);
-    else if (entry.isSymbolicLink()) {
-      const target = await stat(path).catch(error => { if (error.code !== 'ENOENT') throw error; });
-      if (!target || target.isFile()) files.push(path);
+    if (entry.isDirectory()) {
+      files.push(...await directoryFiles(path));
+    } else if (entry.isFile()) {
+      files.push(path);
+    } else if (entry.isSymbolicLink()) {
+      const target = await stat(path).catch(error => {
+        if (error.code !== 'ENOENT') {
+          throw error;
+        }
+      });
+      if (!target || target.isFile()) {
+        files.push(path);
+      }
     }
   }
   return files.sort();
@@ -78,17 +90,25 @@ async function discover(inputs) {
   const files = new Set();
   for (const input of inputs) {
     const path = resolve(input);
-    const info = await stat(path).catch(error => { if (error.code !== 'ENOENT') throw error; });
+    const info = await stat(path).catch(error => {
+      if (error.code !== 'ENOENT') {
+        throw error;
+      }
+    });
     if (info?.isDirectory()) {
       for (const file of await directoryFiles(path)) {
-        if (['.z64', '.v64', '.n64'].includes(extname(file).toLowerCase())) files.add(file);
+        if (['.z64', '.v64', '.n64'].includes(extname(file).toLowerCase())) {
+          files.add(file);
+        }
       }
     } else {
       // Explicit missing/bad files get an error report, like the single-ROM CLI.
       files.add(path);
     }
   }
-  if (!files.size) throw new Error('No ROM files found');
+  if (!files.size) {
+    throw new Error('No ROM files found');
+  }
   return [...files].sort();
 }
 
@@ -122,10 +142,18 @@ async function romHash(path) {
 }
 
 async function savedReport(scanDirectory, manifest, entry) {
-  if (!entry.report) return null;
+  if (!entry.report) {
+    return null;
+  }
   const path = join(scanDirectory, entry.report);
-  const json = await readFile(path, 'utf8').catch(error => { if (error.code !== 'ENOENT') throw error; });
-  if (json === undefined) return null;
+  const json = await readFile(path, 'utf8').catch(error => {
+    if (error.code !== 'ENOENT') {
+      throw error;
+    }
+  });
+  if (json === undefined) {
+    return null;
+  }
   const report = JSON.parse(json);
   if (report.schemaVersion !== 1 || !sameEmulator(report.emulator, manifest.emulator) ||
       !isDeepStrictEqual(report.settings, manifest.settings) ||
@@ -166,12 +194,16 @@ async function prepareEntry(scanDirectory, manifest, index) {
 async function collectEntry(scanDirectory, manifest, index, signal) {
   const entry = manifest.entries[index];
   let report = await savedReport(scanDirectory, manifest, entry);
-  if (terminal.has(report?.result.status)) return report;
+  if (terminal.has(report?.result.status)) {
+    return report;
+  }
 
   await prepareEntry(scanDirectory, manifest, index);
   // Other paths or byte orders of the same ROM reuse its first result.
   report = await savedReport(scanDirectory, manifest, entry);
-  if (terminal.has(report?.result.status)) return report;
+  if (terminal.has(report?.result.status)) {
+    return report;
+  }
 
   console.error(`[${index + 1}/${manifest.entries.length}] Running ${entry.path}`);
   report = await runInventory(entry.path, manifest.settings, { signal });
@@ -186,7 +218,9 @@ async function collectEntry(scanDirectory, manifest, index, signal) {
 async function scan(scanDirectory, signal) {
   const lockPath = join(scanDirectory, '.lock');
   const lock = await open(lockPath, 'wx').catch(error => {
-    if (error.code === 'EEXIST') throw new Error(`Scan is locked: ${lockPath}. See --help for recovery.`);
+    if (error.code === 'EEXIST') {
+      throw new Error(`Scan is locked: ${lockPath}. See --help for recovery.`);
+    }
     throw error;
   });
   try {
@@ -199,7 +233,9 @@ async function scan(scanDirectory, signal) {
     await writeJSON(manifestPath, manifest);
 
     for (const [index, entry] of manifest.entries.entries()) {
-      if (signal.aborted) break;
+      if (signal.aborted) {
+        break;
+      }
       const report = await collectEntry(scanDirectory, manifest, index, signal);
       entry.status = report.result.status;
       await writeJSON(manifestPath, manifest);
@@ -223,13 +259,19 @@ async function scanAll(scanDirectories) {
   process.on('SIGINT', onInterrupt);
   process.on('SIGTERM', onTerminate);
   try {
-    for (const directory of scanDirectories) console.log(directory);
+    for (const directory of scanDirectories) {
+      console.log(directory);
+    }
     let exitCode = 0;
     for (const directory of scanDirectories) {
-      if (controller.signal.aborted) break;
+      if (controller.signal.aborted) {
+        break;
+      }
       console.error(`Scanning ${directory}`);
       const code = await scan(directory, controller.signal);
-      if (code !== 0) exitCode = code;
+      if (code !== 0) {
+        exitCode = code;
+      }
     }
     return controller.signal.aborted ? interruptCode : exitCode;
   } finally {
@@ -275,7 +317,9 @@ try {
     }
     process.exitCode = await scanAll([...new Set(values.resume.map(path => resolve(path)))]);
   } else {
-    if (!values['output-dir'] || !positionals.length) throw new Error('Expected ROM paths/directories and --output-dir');
+    if (!values['output-dir'] || !positionals.length) {
+      throw new Error('Expected ROM paths/directories and --output-dir');
+    }
     const script = await loadInputScript(values['input-script']);
     const settings = (values.seed ?? ['1']).map(seed => inventorySettings({ ...values, seed }, script));
     const uniqueSettings = [...new Map(settings.map(value => [value.seed, value])).values()];

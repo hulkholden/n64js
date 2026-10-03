@@ -22,8 +22,12 @@ function fakeGL() {
     },
     deleteTexture: t => gl.deleted.push(t), deleteFramebuffer: f => gl.deleted.push(f),
     bindFramebuffer(which, buffer) {
-      if (which === 'framebuffer' || which === 'read') gl.read = buffer;
-      if (which === 'framebuffer' || which === 'draw') gl.draw = buffer;
+      if (which === 'framebuffer' || which === 'read') {
+        gl.read = buffer;
+      }
+      if (which === 'framebuffer' || which === 'draw') {
+        gl.draw = buffer;
+      }
     },
     readPixels(x, y, width, height, format, type, pixels) {
       gl.reads.push(gl.read);
@@ -163,7 +167,9 @@ describe('rendered color images', () => {
     targets.setDPFrozen(true);
     targets.bindColorImage(colorImage(0, 1), 2, 2);
     targets.markDirty({ y1: 1 });
-    for (let i = 1; i <= 9; i++) targets.bindColorImage(colorImage(i * 16), 2, 2);
+    for (let i = 1; i <= 9; i++) {
+      targets.bindColorImage(colorImage(i * 16), 2, 2);
+    }
     const frozen = targets.textureForVI(6);
     expect(frozen.framebuffer.pixels[0]).toBe(7);
     expect(gl.deleted).not.toContain(frozen);
@@ -279,7 +285,9 @@ describe('rendered color images', () => {
     targets.bindColorImage(colorImage(0, 1), 2, 2);
     expect(targets.current).not.toBe(old);
     expect(gl.deleted).toContain(old.texture);
-    for (let i = 1; i <= 9; i++) targets.bindColorImage(colorImage(i * 16), 2, 2);
+    for (let i = 1; i <= 9; i++) {
+      targets.bindColorImage(colorImage(i * 16), 2, 2);
+    }
     expect(targets.targets.size).toBe(8);
     expect(targets.targets.has(0)).toBe(false);
     targets.reset();

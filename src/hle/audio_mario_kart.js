@@ -53,7 +53,9 @@ export class MarioKartAudio extends NEADAudio {
       return;
     }
 
-    if (opcode === nead.OPCODE_ADDMIXER || opcode === nead.OPCODE_RESAMPLE_NEAREST || opcode >= nead.OPCODE_PCM8 && opcode <= nead.OPCODE_RESERVED_1F) return;
+    if (opcode === nead.OPCODE_ADDMIXER || opcode === nead.OPCODE_RESAMPLE_NEAREST || opcode >= nead.OPCODE_PCM8 && opcode <= nead.OPCODE_RESERVED_1F) {
+      return;
+    }
     return super.execute(w0, w1);
   }
 

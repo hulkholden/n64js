@@ -113,8 +113,8 @@ export function n64_cic_nus_6105(chl, rsp, len) {
     const mag = ((sgn == 1) ? ~rsp[i] : rsp[i]) & 0x7;
     let mod = (mag % 3 == 1) ? sgn : 1 - sgn;
     if (lut == lut1) {
-      if (rsp[i] == 0x1 || rsp[i] == 0x9) mod = 1;
-      if (rsp[i] == 0xb || rsp[i] == 0xe) mod = 0;
+      if (rsp[i] == 0x1 || rsp[i] == 0x9) { mod = 1; }
+      if (rsp[i] == 0xb || rsp[i] == 0xe) { mod = 0; }
     }
     lut = (mod == 1) ? lut1 : lut0;
   }

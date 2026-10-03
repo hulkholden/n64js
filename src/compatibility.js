@@ -10,7 +10,9 @@ function kseg0ToRamOffset(address) {
 
 export function getCompatibilityHacks(romId) {
   const config = compatibilityHacks[romId];
-  if (!config?.enabled) return null;
+  if (!config?.enabled) {
+    return null;
+  }
 
   // Each CPU/reset owns one pending map. Delays stay per instruction; the first
   // patch address triggers validation and application of the entire patch set.
@@ -37,11 +39,15 @@ export function getCompatibilityHacks(romId) {
 
 export function applyCompatibilityHacks(pending, ram, address, instruction) {
   const hacks = pending.get(address);
-  if (!hacks) return null;
+  if (!hacks) {
+    return null;
+  }
 
   // Let the debugger stop normally. Single-stepping/removing the breakpoint
   // restores the original instruction, so pending hacks can be checked then.
-  if (n64js.breakpoints().isBreakpoint(address)) return null;
+  if (n64js.breakpoints().isBreakpoint(address)) {
+    return null;
+  }
 
   pending.delete(address);
   let patchedInstruction = instruction;

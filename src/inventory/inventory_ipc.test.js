@@ -27,7 +27,9 @@ async function withWorker(source, inspect) {
     inspect({ ...result, messages, stderr });
   } finally {
     clearTimeout(timer);
-    if (child && child.exitCode === null) child.kill('SIGKILL');
+    if (child && child.exitCode === null) {
+      child.kill('SIGKILL');
+    }
     await rm(directory, { recursive: true, force: true });
   }
 }

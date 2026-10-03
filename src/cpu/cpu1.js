@@ -251,7 +251,9 @@ function applyRoundingBits32(bits, rm, trueAbove) {
     case FPCSR_RM_RP: return trueAbove ? f32NextUp(bits) : bits;
     case FPCSR_RM_RM: return trueAbove ? bits : f32NextDown(bits);
     case FPCSR_RM_RZ:
-      if (trueAbove) { return negative ? f32NextUp(bits) : bits; }
+      if (trueAbove) {
+        return negative ? f32NextUp(bits) : bits;
+      }
       return negative ? bits : f32NextDown(bits);
   }
   assert(false, 'unknown rounding mode');
@@ -265,7 +267,9 @@ function applyRoundingBits64(bits, rm, trueAbove) {
     case FPCSR_RM_RP: return trueAbove ? f64NextUp(bits) : bits;
     case FPCSR_RM_RM: return trueAbove ? bits : f64NextDown(bits);
     case FPCSR_RM_RZ:
-      if (trueAbove) { return negative ? f64NextUp(bits) : bits; }
+      if (trueAbove) {
+        return negative ? f64NextUp(bits) : bits;
+      }
       return negative ? bits : f64NextDown(bits);
   }
   assert(false, 'unknown rounding mode');
@@ -608,7 +612,7 @@ export class CPU1 {
     }
 
     this.raiseUnimplemented();
-  }  
+  }
 
   handleFloatCompareSingle(op, s, t) {
     const fsType = f32Classify(this.loadU32(this.fsRegIdx32(s)));
@@ -621,13 +625,19 @@ export class CPU1 {
           return;
         }
       }
-      if (op & 0x1) c = true;
+      if (op & 0x1) {
+        c = true;
+      }
     } else {
       const fs = this.loadF32(this.fsRegIdx32(s));
       const ft = this.loadF32(this.ftRegIdx32(t));
 
-      if (op & 0x4) c |= fs < ft;
-      if (op & 0x2) c |= fs == ft;
+      if (op & 0x4) {
+        c |= fs < ft;
+      }
+      if (op & 0x2) {
+        c |= fs == ft;
+      }
     }
     this.setCondition(c);
   }
@@ -643,13 +653,19 @@ export class CPU1 {
           return;
         }
       }
-      if (op & 0x1) c = true;
+      if (op & 0x1) {
+        c = true;
+      }
     } else {
       const fs = this.loadF64(this.fsRegIdx64(s));
       const ft = this.loadF64(this.ftRegIdx64(t));
 
-      if (op & 0x4) c |= fs < ft;
-      if (op & 0x2) c |= fs == ft;
+      if (op & 0x4) {
+        c |= fs < ft;
+      }
+      if (op & 0x2) {
+        c |= fs == ft;
+      }
     }
     this.setCondition(c);
   }
@@ -796,7 +812,7 @@ export class CPU1 {
 
     // Keep track of the intermediate result, as it's needed to figure
     // out if we saw underflow, overflow etc.
-    let result;  
+    let result;
     switch (opCase) {
       case opUnimplm:
         this.raiseUnimplemented();
@@ -937,7 +953,7 @@ export class CPU1 {
 
       // Set the output based on the rounding mode.
       this.tempU32[0] = getUnderflowValue(f32UnderflowResults, this.control[31] & FPCSR_RM_MASK, result > 0);
-    }  
+    }
 
     if (!this.raiseException(exceptionBits)) {
       // Store the underlying bits to avoid renormalising.
@@ -1161,7 +1177,7 @@ export class CPU1 {
 
       // Set the output based on the rounding mode.
       this.tempU64[0] = getUnderflowValue(f64UnderflowResults, this.control[31] & FPCSR_RM_MASK, result > 0);
-    }  
+    }
 
     if (!this.raiseException(exceptionBits)) {
       // Store the underlying bits to avoid renormalising.
@@ -1370,7 +1386,7 @@ export class CPU1 {
     }
   }
 
-  get flushSubnormals() { 
+  get flushSubnormals() {
     return (this.control[31] & FPCSR_FS) != 0;
   }
 

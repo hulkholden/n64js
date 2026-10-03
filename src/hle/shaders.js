@@ -61,8 +61,8 @@ const rgbParams16 = [
 
 const rgbParams16C2 = [
   'combined.rgb', 'tex1.rgb', 'tex0.rgb', 'uPrimColor.rgb', 'shade.rgb', 'uEnvColor.rgb', 'one.rgb',
-   'combined.a',  'tex1.a',   'tex0.a',   'uPrimColor.a',   'shade.a',   'uEnvColor.a',
-   'lod_frac', 'uPrimLodFrac', 'zero.rgb'
+  'combined.a',  'tex1.a',   'tex0.a',   'uPrimColor.a',   'shade.a',   'uEnvColor.a',
+  'lod_frac', 'uPrimLodFrac', 'zero.rgb'
 ];
 
 // Subtract input 7 is K4; the add/subtract-A input at that index is noise.
@@ -285,8 +285,12 @@ export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, alphaCompare, en
   // This is an RDP draw-time choice, independent of the current RSP G_FOG bit.
   let fogBlendCycles = 0;
   if (cycleType === gbi.CycleType.G_CYC_1CYCLE || cycleType === gbi.CycleType.G_CYC_2CYCLE) {
-    if (((blender >>> 2) & 0x3333) === 0x3200) fogBlendCycles++;
-    if (cycleType === gbi.CycleType.G_CYC_2CYCLE && (blender & 0x3333) === 0x3200) fogBlendCycles++;
+    if (((blender >>> 2) & 0x3333) === 0x3200) {
+      fogBlendCycles++;
+    }
+    if (cycleType === gbi.CycleType.G_CYC_2CYCLE && (blender & 0x3333) === 0x3200) {
+      fogBlendCycles++;
+    }
   }
   if (fogBlendCycles) {
     stateText += `_fogShadeAlpha${fogBlendCycles}`;

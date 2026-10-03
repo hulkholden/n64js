@@ -6,11 +6,15 @@ export class ControllerConfig {
     });
     // The full-screen dialog surrounds the visible panel, just like the old modal.
     this.modal.addEventListener('click', event => {
-      if (event.target === this.modal) this.modal.close();
+      if (event.target === this.modal) {
+        this.modal.close();
+      }
     });
     // Keep Tab cycling within the controls instead of moving to browser chrome.
     this.modal.addEventListener('keydown', event => {
-      if (event.key !== 'Tab') return;
+      if (event.key !== 'Tab') {
+        return;
+      }
       const controls = [...this.modal.querySelectorAll('button, input')]
         .filter(control => !control.disabled && control.tabIndex >= 0 && control.getClientRects().length);
       const first = controls[0];

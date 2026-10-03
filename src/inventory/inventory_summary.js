@@ -28,9 +28,11 @@ const specs = Object.values(collectorSpecs).flat();
 
 function summarizeRun({ collectors, ...row }) {
   row.collectors = Object.fromEntries(specs.map(spec => {
-    if (!collectors) return [spec.name, {
-      state: 'unknown', reason: row.reportVersion === null ? 'missing-report' : 'unsupported-report-version',
-    }];
+    if (!collectors) {
+      return [spec.name, {
+        state: 'unknown', reason: row.reportVersion === null ? 'missing-report' : 'unsupported-report-version',
+      }];
+    }
     const { collector, matches: records, ...observation } = inspectCollector({ collectors }, spec, () => true);
     return [collector, { ...observation, ...(records ? { records } : {}) }];
   }));
@@ -70,7 +72,9 @@ try {
   if (values.help) {
     console.log(usage);
   } else {
-    if (positionals.length !== 1) throw new Error('Expected one inventory root, scan directory, or report path');
+    if (positionals.length !== 1) {
+      throw new Error('Expected one inventory root, scan directory, or report path');
+    }
     const output = await summarize(resolve(positionals[0]));
     console.log(JSON.stringify(output, null, 2));
     process.exitCode = output.errors.length ? 2 : 0;

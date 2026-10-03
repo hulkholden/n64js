@@ -21,7 +21,9 @@ export class ObjectMicrocode extends GBIMicrocode {
   }
 
   processRDP(pointer, dis) {
-    if (!pointer) return;
+    if (!pointer) {
+      return;
+    }
     const dv = this.ramDV;
     let pc = this.state.rdpSegmentAddress(pointer);
     for (;;) {
@@ -29,18 +31,25 @@ export class ObjectMicrocode extends GBIMicrocode {
       const cmd1 = dv.getUint32(pc + 4);
       pc += 8;
       // Object RDP blocks have their own terminator, not a GBI SPNoOp.
-      if (this.isRDPEnd(cmd0, cmd1)) return;
+      if (this.isRDPEnd(cmd0, cmd1)) {
+        return;
+      }
       const opcode = cmd0 >>> 24;
       if (opcode === 0xe4 || opcode === 0xe5) {
         // Raw RDP rectangles have one extra 64-bit word, without RDPHalf opcodes.
         const cmd2 = dv.getUint32(pc);
         const cmd3 = dv.getUint32(pc + 4);
         pc += 8;
-        if (opcode === 0xe4) this.rdpTexRect(cmd0, cmd1, cmd2, cmd3, dis);
-        else this.rdpTexRectFlip(cmd0, cmd1, cmd2, cmd3, dis);
+        if (opcode === 0xe4) {
+          this.rdpTexRect(cmd0, cmd1, cmd2, cmd3, dis);
+        } else {
+          this.rdpTexRectFlip(cmd0, cmd1, cmd2, cmd3, dis);
+        }
       } else {
         const handler = this.getHandler(opcode);
-        if (!handler) throw new Error(`Unsupported ${this.constructor.name} RDP command ${toString32(cmd0)}`);
+        if (!handler) {
+          throw new Error(`Unsupported ${this.constructor.name} RDP command ${toString32(cmd0)}`);
+        }
         handler(cmd0, cmd1, dis);
       }
     }

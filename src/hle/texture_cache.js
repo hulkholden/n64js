@@ -19,7 +19,9 @@ export class TextureCache {
   // Support the renderer's existing has/get lookup as well as a single get.
   has(key) {
     const present = this.entries.has(key);
-    if (!present) this.misses++;
+    if (!present) {
+      this.misses++;
+    }
     return present;
   }
 
@@ -37,8 +39,12 @@ export class TextureCache {
   }
 
   set(key, texture) {
-    if (!texture) return;
-    if (this.entries.has(key)) this.delete(key);
+    if (!texture) {
+      return;
+    }
+    if (this.entries.has(key)) {
+      this.delete(key);
+    }
     this.entries.set(key, texture);
     this.byteLength += texture.width * texture.height * 4;
     // At most 1024x1024 texels can be decoded, so the default budget always
@@ -51,14 +57,18 @@ export class TextureCache {
 
   delete(key) {
     const texture = this.entries.get(key);
-    if (!texture) return;
+    if (!texture) {
+      return;
+    }
     this.gl.deleteTexture(texture.texture);
     this.byteLength -= texture.width * texture.height * 4;
     this.entries.delete(key);
   }
 
   clear() {
-    for (const key of this.entries.keys()) this.delete(key);
+    for (const key of this.entries.keys()) {
+      this.delete(key);
+    }
     this.hits = this.misses = this.evictions = 0;
   }
 }

@@ -18,9 +18,15 @@ function vectorInstruction(funct, element, vs, vt, vd) {
 }
 
 function selectedLane(element, lane) {
-  if (element < 2) return lane;
-  if (element < 4) return (lane & ~1) | (element & 1);
-  if (element < 8) return (lane & ~3) | (element & 3);
+  if (element < 2) {
+    return lane;
+  }
+  if (element < 4) {
+    return (lane & ~1) | (element & 1);
+  }
+  if (element < 8) {
+    return (lane & ~3) | (element & 3);
+  }
   return element & 7;
 }
 
@@ -137,7 +143,9 @@ describe('RSP scalar dispatch', () => {
     ];
     program.forEach((instruction, i) => rsp.imemDV.setUint32(i * 4, instruction));
     rsp.halted = false;
-    for (let i = 0; i < 7; i++) rsp.step();
+    for (let i = 0; i < 7; i++) {
+      rsp.step();
+    }
     expect(rsp.getRegS32(3)).toBe(-32767);
     expect(rsp.getRegS32(4)).toBe(7);
     expect(rsp.getRegU32(5)).toBe(0x8008);

@@ -16,10 +16,18 @@ function checker(x, y) {
 }
 
 function bordered(x, y, width, height) {
-  if (x === 0) return [248, 64, 88];
-  if (x === width - 1) return [56, 224, 144];
-  if (y === 0) return [80, 160, 248];
-  if (y === height - 1) return [232, 96, 224];
+  if (x === 0) {
+    return [248, 64, 88];
+  }
+  if (x === width - 1) {
+    return [56, 224, 144];
+  }
+  if (y === 0) {
+    return [80, 160, 248];
+  }
+  if (y === height - 1) {
+    return [232, 96, 224];
+  }
   return checker(x, y);
 }
 
@@ -145,7 +153,9 @@ export const scenes = [
 
 export function createHarness(canvas) {
   const gl = canvas.getContext('webgl2', { antialias: false, alpha: false, preserveDrawingBuffer: true });
-  if (!gl) throw new Error('WebGL2 unavailable');
+  if (!gl) {
+    throw new Error('WebGL2 unavailable');
+  }
   const ram = new Uint8Array(4096);
   // TMEM.loadTile reads the emulator's RAM accessor. Supply only synthetic RAM;
   // texture upload, decoding, caching, binding and shader generation stay real.
@@ -221,16 +231,22 @@ export function createHarness(canvas) {
       gl.clearColor(16 / 255, 24 / 255, 40 / 255, 1);
       gl.clear(gl.COLOR_BUFFER_BIT);
       state.tmem.tmemData.fill(0);
-      for (const tile of state.tiles) tile.line = 0;
+      for (const tile of state.tiles) {
+        tile.line = 0;
+      }
       h.mode();
       scene.draw(h, frame);
       const error = gl.getError();
-      if (error !== gl.NO_ERROR) throw new Error(`${scene.id}: WebGL error ${error}`);
+      if (error !== gl.NO_ERROR) {
+        throw new Error(`${scene.id}: WebGL error ${error}`);
+      }
 
       // Compare framebuffer pixels, never a screenshot scaled by CSS or DPR.
       const bottomUp = new Uint8Array(width * height * 4);
       gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, bottomUp);
-      if (gl.getError() !== gl.NO_ERROR) throw new Error(`${scene.id}: readPixels failed`);
+      if (gl.getError() !== gl.NO_ERROR) {
+        throw new Error(`${scene.id}: readPixels failed`);
+      }
       const pixels = new Uint8ClampedArray(bottomUp.length);
       for (let y = 0; y < height; y++) {
         const row = (height - 1 - y) * width * 4;

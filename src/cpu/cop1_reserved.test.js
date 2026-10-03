@@ -14,13 +14,17 @@ const pc = 0x80001000;
 // and undefined functions in S/D/W/L formats (231 encodings in total).
 const reservedRS = [3, 7, 9, 10, 11, 12, 13, 14, 15, 18, 19, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31];
 const words = reservedRS.map(rs => 0x44000000 | (rs << 21));
-for (let rt = 4; rt < 32; rt++) words.push(0x45000000 | (rt << 16));
+for (let rt = 4; rt < 32; rt++) {
+  words.push(0x45000000 | (rt << 16));
+}
 for (const fmt of [16, 17, 20, 21]) {
   for (let fn = 0; fn < 64; fn++) {
     const defined = fmt < 20
       ? fn <= 15 || fn >= 48 || fn === 36 || fn === 37 || (fn === 32 && fmt !== 16) || (fn === 33 && fmt !== 17)
       : fn === 32 || fn === 33;
-    if (!defined) words.push(0x44000000 | (fmt << 21) | fn);
+    if (!defined) {
+      words.push(0x44000000 | (fmt << 21) | fn);
+    }
   }
 }
 

@@ -57,7 +57,9 @@ describe('texture cache ownership', () => {
       state.tmem.tmemData[1] = value & 255;
       state.invalidateTileHashes();
       renderer.lookupTexture(0);
-      if (cache.size > 3 || cache.byteLength > 48) throw new Error('Unbounded cache');
+      if (cache.size > 3 || cache.byteLength > 48) {
+        throw new Error('Unbounded cache');
+      }
     }
     expect(cache.size).toBe(3);
     expect(deleted).toHaveLength(9997);

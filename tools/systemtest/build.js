@@ -30,8 +30,12 @@ function parseArgs(argv) {
       help: { type: 'boolean', short: 'h' },
     },
   });
-  if (values.help) return null;
-  if (positionals.length !== 2 || !values.revision) throw new Error(usage);
+  if (values.help) {
+    return null;
+  }
+  if (positionals.length !== 2 || !values.revision) {
+    throw new Error(usage);
+  }
 
   const selectedCategories = values.categories.split(',');
   if (selectedCategories.some(value => !categories.includes(value))) {
@@ -52,7 +56,9 @@ function parseArgs(argv) {
 /** @param {string} source @param {string[]} args @returns {string} */
 function gitOutput(source, args) {
   const result = Bun.spawnSync(['git', ...args], { cwd: source });
-  if (result.exitCode !== 0) throw new Error(result.stderr.toString());
+  if (result.exitCode !== 0) {
+    throw new Error(result.stderr.toString());
+  }
   return result.stdout.toString();
 }
 
@@ -89,7 +95,9 @@ export function rewriteTestlist(testlist) {
   /** @param {string} match @param {string} module @returns {string} */
   function guardRegistration(match, module) {
     changed++;
-    if (module === 'startup') return match;
+    if (module === 'startup') {
+      return match;
+    }
 
     const category = ['tlb', 'tlb64'].includes(module) ? module : 'main';
     counts[category]++;
@@ -103,7 +111,9 @@ export function rewriteTestlist(testlist) {
   // Stress/extra RDP lists stay untouched and are not enabled by base.
   const start = testlist.indexOf('fn default_tests()');
   const end = testlist.indexOf('#[cfg(not(feature = "quick"))]');
-  if (start < 0 || end <= start) throw new Error('Unexpected test registry boundaries');
+  if (start < 0 || end <= start) {
+    throw new Error('Unexpected test registry boundaries');
+  }
   const block = testlist.slice(start, end);
   const registrations = [...block.matchAll(/Box::new\(/g)].length;
   const rewritten = block.replace(/Box::new\(\s*super::([a-z0-9_]+)::/g, guardRegistration);
@@ -135,7 +145,9 @@ async function buildRom(source, output, category, features) {
     '--features', `${features},ci-${category}`,
   ], { cwd: source, stdout: 'inherit', stderr: 'inherit' });
   const exitCode = await child.exited;
-  if (exitCode !== 0) throw new Error(`ROM build for ${category} exited with code ${exitCode}`);
+  if (exitCode !== 0) {
+    throw new Error(`ROM build for ${category} exited with code ${exitCode}`);
+  }
   await Bun.write(resolve(output, `${category}.z64`), Bun.file(resolve(source, romPath)));
 }
 

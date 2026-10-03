@@ -54,7 +54,9 @@ function setEnvelope(audio, dry, wet) {
   audio.execute(command(OP_VOLUME, SET_LEFT_VOLUME << 16 | HALF_VOLUME), dry << 16 | wet);
   audio.execute(command(OP_VOLUME, HALF_VOLUME), 0);
   audio.execute(command(OP_VOLUME, SET_RIGHT_TARGET << 16 | HALF_VOLUME), 0);
-  for (let p = 0; p < BLOCK_BYTES; p += 2) audio.put16(SAMPLE_BASE + p, 1000);
+  for (let p = 0; p < BLOCK_BYTES; p += 2) {
+    audio.put16(SAMPLE_BASE + p, 1000);
+  }
 }
 
 describe('NAudio family selection', () => {
@@ -62,121 +64,139 @@ describe('NAudio family selection', () => {
     expect(getAudioHLEClass('naudio-standard')).toBe(NAudio);
     expect(getAudioHLEClass('naudio-banjo-kazooie')).toBe(BanjoAudio);
     expect(getAudioHLEClass('naudio-donkey-kong-64')).toBe(DonkeyKongAudio);
-    for (const id of ['NAUDIO', 'naudio', null]) expect(getAudioHLEClass(id)).toBeNull();
-    for (const program of audioMicrocodeManifest.programs) {
-      if (program.family === 'NAUDIO') expect(fixture(getAudioHLEClass(program.id))).toBeInstanceOf(NAudio);
-      if (!['ABI1', 'NAUDIO', 'NEAD'].includes(program.family)) expect(getAudioHLEClass(program.id)).toBeNull();
+    for (const id of ['NAUDIO', 'naudio', null]) {
+      expect(getAudioHLEClass(id)).toBeNull();
     }
-  });
-});
-
-for (const Audio of [NAudio, BanjoAudio, DonkeyKongAudio]) describe(Audio.name, () => {
-  test('packed DMA masks RAM addresses and rounds transfer boundaries', () => {
-    const audio = fixture(Audio);
-    for (let i = 0; i < 24; i++) audio.ram[STATE_ADDRESS + i] = i + 1;
-    audio.execute(command(OP_LOAD, 17 << 12 | 3), 0xff000000 | STATE_ADDRESS + 3);
-    expect(audio.dmem.slice(SAMPLE_BASE, SAMPLE_BASE + 24)).toEqual(audio.ram.slice(STATE_ADDRESS, STATE_ADDRESS + 24));
-    audio.execute(command(OP_SAVE, 17 << 12 | 3), LOOP_STATE_ADDRESS + 7);
-    expect(audio.ram.slice(LOOP_STATE_ADDRESS, LOOP_STATE_ADDRESS + 24)).toEqual(audio.ram.slice(STATE_ADDRESS, STATE_ADDRESS + 24));
-    const ram = audio.ram.slice();
-    audio.execute(command(OP_SAVE), -1); // Count zero performs no DMA.
-    expect(audio.ram).toEqual(ram);
-  });
-
-  test('zero clear still writes one vector and overlapping moves proceed by vectors', () => {
-    const audio = fixture(Audio);
-    audio.dmem.fill(255, SAMPLE_BASE, SAMPLE_BASE + 64);
-    audio.execute(command(OP_CLEAR), 0);
-    expect(Array.from(audio.dmem.slice(SAMPLE_BASE, SAMPLE_BASE + 17))).toEqual([...new Array(16).fill(0), 255]);
-    for (let i = 0; i < 16; i++) audio.dmem[SAMPLE_BASE + i] = i;
-    audio.execute(command(OP_MOVE), 16 << 16 | 32);
-    expect(audio.dmem.slice(SAMPLE_BASE + 32, SAMPLE_BASE + 48)).toEqual(audio.dmem.slice(SAMPLE_BASE, SAMPLE_BASE + 16));
-  });
-
-  test('ADPCM zero count still imports loop history and saves it to the destination state', () => {
-    const audio = fixture(Audio);
-    for (let i = 0; i < 32; i++) audio.ram[LOOP_STATE_ADDRESS + i] = i;
-    audio.execute(command(OP_LOOP), LOOP_STATE_ADDRESS);
-    audio.execute(command(OP_ADPCM, STATE_ADDRESS), LOOP << 28 | INPUT_OFFSET);
-    expect(audio.ram.slice(STATE_ADDRESS, STATE_ADDRESS + 32)).toEqual(audio.ram.slice(LOOP_STATE_ADDRESS, LOOP_STATE_ADDRESS + 32));
-    audio.execute(command(OP_ADPCM, STATE_ADDRESS), INIT << 28 | INPUT_OFFSET);
-    expect(audio.ram.slice(STATE_ADDRESS, STATE_ADDRESS + 32)).toEqual(new Uint8Array(32));
-  });
-
-  test('ADPCM reads upper predictors from sample memory without rejecting lower output buffers', () => {
-    // Predictor 13 occurs in Tony Hawk 3. The RSP indexes all four bits;
-    // entries above 7 alias sample memory beyond the usual loaded book.
-    const LOW_OUTPUT_OFFSET = 0x80;
-    const INITIAL_SAMPLE = 100;
-    for (const [predictor, outputOffset] of [[7, LOW_OUTPUT_OFFSET], [13, BLOCK_BYTES], [15, BLOCK_BYTES]]) {
-      const audio = fixture(Audio);
-      const coefficients = ADPCM_BOOK + predictor * ADPCM_FRAME_BYTES;
-      for (let p = 0; p < VECTOR_BYTES; p += 2) audio.put16(coefficients + VECTOR_BYTES + p, ADPCM_COEFFICIENT_SCALE);
-      audio.ramView.setInt16(STATE_ADDRESS + ADPCM_FRAME_BYTES - 2, INITIAL_SAMPLE);
-      audio.dmem[SAMPLE_BASE] = predictor;
-      audio.dmem.fill(0x11, SAMPLE_BASE + 1, SAMPLE_BASE + ADPCM_ENCODED_BYTES);
-
-      audio.execute(command(OP_ADPCM, STATE_ADDRESS), ADPCM_FRAME_BYTES << 16 | outputOffset);
-
-      // Each residual adds one; the coefficients carry the preceding sum.
-      for (let i = 0; i < ADPCM_FRAME_BYTES / 2; i++) {
-        expect(audio.s16(SAMPLE_BASE + outputOffset + ADPCM_FRAME_BYTES + i * 2)).toBe(INITIAL_SAMPLE + i + 1);
-        expect(audio.ramView.getInt16(STATE_ADDRESS + i * 2)).toBe(INITIAL_SAMPLE + i + 1);
+    for (const program of audioMicrocodeManifest.programs) {
+      if (program.family === 'NAUDIO') {
+        expect(fixture(getAudioHLEClass(program.id))).toBeInstanceOf(NAudio);
+      }
+      if (!['ABI1', 'NAUDIO', 'NEAD'].includes(program.family)) {
+        expect(getAudioHLEClass(program.id)).toBeNull();
       }
     }
   });
-
-  test('ADPCM still rejects predictors that decoding could overwrite', () => {
-    const audio = fixture(Audio);
-    const OVERLAPPING_PREDICTOR = 13;
-    const OUTPUT_OFFSET = 0x80;
-    audio.dmem[SAMPLE_BASE] = OVERLAPPING_PREDICTOR;
-    const before = audio.ram.slice();
-    expect(() => audio.execute(command(OP_ADPCM, STATE_ADDRESS),
-      INIT << 28 | ADPCM_FRAME_BYTES << 16 | OUTPUT_OFFSET)).toThrow(UnsupportedAudioCommand);
-    audio.rollback();
-    expect(audio.ram).toEqual(before);
-  });
-
-  test('resampler INIT clears history while preserving the six unwritten state bytes', () => {
-    const audio = fixture(Audio);
-    audio.dmem.fill(123, SCRATCH, SCRATCH + 16);
-    audio.dmem.fill(255, SAMPLE_BASE, SAMPLE_BASE + BLOCK_BYTES);
-    audio.execute(command(OP_RESAMPLE, STATE_ADDRESS), INIT << 30 | INPUT_OFFSET << 2);
-    expect(audio.dmem.slice(SAMPLE_BASE, SAMPLE_BASE + BLOCK_BYTES)).toEqual(new Uint8Array(BLOCK_BYTES));
-    expect(audio.ram.slice(STATE_ADDRESS, STATE_ADDRESS + 10)).toEqual(new Uint8Array(10));
-    expect(Array.from(audio.ram.slice(STATE_ADDRESS + 10, STATE_ADDRESS + 16))).toEqual(new Array(6).fill(123));
-  });
-
-  test('interleave writes all 184 stereo frames into the fixed output', () => {
-    const audio = fixture(Audio);
-    for (let p = 0; p < BLOCK_BYTES; p += 2) {
-      audio.put16(DRY_LEFT + p, p + 1);
-      audio.put16(DRY_RIGHT + p, -p - 1);
-    }
-    audio.execute(command(OP_INTERLEAVE), 0);
-    for (let p = 0; p < BLOCK_BYTES; p += 2) {
-      expect(audio.s16(SAMPLE_BASE + p * 2)).toBe(p + 1);
-      expect(audio.s16(SAMPLE_BASE + p * 2 + 2)).toBe(-p - 1);
-    }
-  });
-
-  test('unsupported commands roll back earlier writes and buffers survive reuse', () => {
-    const audio = fixture(Audio);
-    audio.ram.fill(0xfe); // Exercise sign-bit preservation in the undo journal.
-    const before = audio.ram.slice();
-    const arrays = [audio.dmem, audio.result, audio.residual, audio.undoWords, audio.envelopeChannels[0].hi];
-    audio.dmem.fill(123, SAMPLE_BASE, SAMPLE_BASE + BLOCK_BYTES);
-    audio.execute(command(OP_SAVE, BLOCK_BYTES << 12), STATE_ADDRESS);
-    expect(() => audio.execute(command(0))).toThrow(UnsupportedAudioCommand);
-    audio.rollback();
-    expect(audio.ram).toEqual(before);
-    audio.reset(audio.ram, new Uint8Array(DMEM_BYTES));
-    const reused = [audio.dmem, audio.result, audio.residual, audio.undoWords, audio.envelopeChannels[0].hi];
-    for (let i = 0; i < arrays.length; i++) expect(reused[i]).toBe(arrays[i]);
-    expect(() => audio.execute(command(OP_MIX), 1)).toThrow(UnsupportedAudioCommand);
-  });
 });
+
+for (const Audio of [NAudio, BanjoAudio, DonkeyKongAudio]) {
+  describe(Audio.name, () => {
+    test('packed DMA masks RAM addresses and rounds transfer boundaries', () => {
+      const audio = fixture(Audio);
+      for (let i = 0; i < 24; i++) {
+        audio.ram[STATE_ADDRESS + i] = i + 1;
+      }
+      audio.execute(command(OP_LOAD, 17 << 12 | 3), 0xff000000 | STATE_ADDRESS + 3);
+      expect(audio.dmem.slice(SAMPLE_BASE, SAMPLE_BASE + 24)).toEqual(audio.ram.slice(STATE_ADDRESS, STATE_ADDRESS + 24));
+      audio.execute(command(OP_SAVE, 17 << 12 | 3), LOOP_STATE_ADDRESS + 7);
+      expect(audio.ram.slice(LOOP_STATE_ADDRESS, LOOP_STATE_ADDRESS + 24)).toEqual(audio.ram.slice(STATE_ADDRESS, STATE_ADDRESS + 24));
+      const ram = audio.ram.slice();
+      audio.execute(command(OP_SAVE), -1); // Count zero performs no DMA.
+      expect(audio.ram).toEqual(ram);
+    });
+
+    test('zero clear still writes one vector and overlapping moves proceed by vectors', () => {
+      const audio = fixture(Audio);
+      audio.dmem.fill(255, SAMPLE_BASE, SAMPLE_BASE + 64);
+      audio.execute(command(OP_CLEAR), 0);
+      expect(Array.from(audio.dmem.slice(SAMPLE_BASE, SAMPLE_BASE + 17))).toEqual([...new Array(16).fill(0), 255]);
+      for (let i = 0; i < 16; i++) {
+        audio.dmem[SAMPLE_BASE + i] = i;
+      }
+      audio.execute(command(OP_MOVE), 16 << 16 | 32);
+      expect(audio.dmem.slice(SAMPLE_BASE + 32, SAMPLE_BASE + 48)).toEqual(audio.dmem.slice(SAMPLE_BASE, SAMPLE_BASE + 16));
+    });
+
+    test('ADPCM zero count still imports loop history and saves it to the destination state', () => {
+      const audio = fixture(Audio);
+      for (let i = 0; i < 32; i++) {
+        audio.ram[LOOP_STATE_ADDRESS + i] = i;
+      }
+      audio.execute(command(OP_LOOP), LOOP_STATE_ADDRESS);
+      audio.execute(command(OP_ADPCM, STATE_ADDRESS), LOOP << 28 | INPUT_OFFSET);
+      expect(audio.ram.slice(STATE_ADDRESS, STATE_ADDRESS + 32)).toEqual(audio.ram.slice(LOOP_STATE_ADDRESS, LOOP_STATE_ADDRESS + 32));
+      audio.execute(command(OP_ADPCM, STATE_ADDRESS), INIT << 28 | INPUT_OFFSET);
+      expect(audio.ram.slice(STATE_ADDRESS, STATE_ADDRESS + 32)).toEqual(new Uint8Array(32));
+    });
+
+    test('ADPCM reads upper predictors from sample memory without rejecting lower output buffers', () => {
+    // Predictor 13 occurs in Tony Hawk 3. The RSP indexes all four bits;
+    // entries above 7 alias sample memory beyond the usual loaded book.
+      const LOW_OUTPUT_OFFSET = 0x80;
+      const INITIAL_SAMPLE = 100;
+      for (const [predictor, outputOffset] of [[7, LOW_OUTPUT_OFFSET], [13, BLOCK_BYTES], [15, BLOCK_BYTES]]) {
+        const audio = fixture(Audio);
+        const coefficients = ADPCM_BOOK + predictor * ADPCM_FRAME_BYTES;
+        for (let p = 0; p < VECTOR_BYTES; p += 2) {
+          audio.put16(coefficients + VECTOR_BYTES + p, ADPCM_COEFFICIENT_SCALE);
+        }
+        audio.ramView.setInt16(STATE_ADDRESS + ADPCM_FRAME_BYTES - 2, INITIAL_SAMPLE);
+        audio.dmem[SAMPLE_BASE] = predictor;
+        audio.dmem.fill(0x11, SAMPLE_BASE + 1, SAMPLE_BASE + ADPCM_ENCODED_BYTES);
+
+        audio.execute(command(OP_ADPCM, STATE_ADDRESS), ADPCM_FRAME_BYTES << 16 | outputOffset);
+
+        // Each residual adds one; the coefficients carry the preceding sum.
+        for (let i = 0; i < ADPCM_FRAME_BYTES / 2; i++) {
+          expect(audio.s16(SAMPLE_BASE + outputOffset + ADPCM_FRAME_BYTES + i * 2)).toBe(INITIAL_SAMPLE + i + 1);
+          expect(audio.ramView.getInt16(STATE_ADDRESS + i * 2)).toBe(INITIAL_SAMPLE + i + 1);
+        }
+      }
+    });
+
+    test('ADPCM still rejects predictors that decoding could overwrite', () => {
+      const audio = fixture(Audio);
+      const OVERLAPPING_PREDICTOR = 13;
+      const OUTPUT_OFFSET = 0x80;
+      audio.dmem[SAMPLE_BASE] = OVERLAPPING_PREDICTOR;
+      const before = audio.ram.slice();
+      expect(() => audio.execute(command(OP_ADPCM, STATE_ADDRESS),
+        INIT << 28 | ADPCM_FRAME_BYTES << 16 | OUTPUT_OFFSET)).toThrow(UnsupportedAudioCommand);
+      audio.rollback();
+      expect(audio.ram).toEqual(before);
+    });
+
+    test('resampler INIT clears history while preserving the six unwritten state bytes', () => {
+      const audio = fixture(Audio);
+      audio.dmem.fill(123, SCRATCH, SCRATCH + 16);
+      audio.dmem.fill(255, SAMPLE_BASE, SAMPLE_BASE + BLOCK_BYTES);
+      audio.execute(command(OP_RESAMPLE, STATE_ADDRESS), INIT << 30 | INPUT_OFFSET << 2);
+      expect(audio.dmem.slice(SAMPLE_BASE, SAMPLE_BASE + BLOCK_BYTES)).toEqual(new Uint8Array(BLOCK_BYTES));
+      expect(audio.ram.slice(STATE_ADDRESS, STATE_ADDRESS + 10)).toEqual(new Uint8Array(10));
+      expect(Array.from(audio.ram.slice(STATE_ADDRESS + 10, STATE_ADDRESS + 16))).toEqual(new Array(6).fill(123));
+    });
+
+    test('interleave writes all 184 stereo frames into the fixed output', () => {
+      const audio = fixture(Audio);
+      for (let p = 0; p < BLOCK_BYTES; p += 2) {
+        audio.put16(DRY_LEFT + p, p + 1);
+        audio.put16(DRY_RIGHT + p, -p - 1);
+      }
+      audio.execute(command(OP_INTERLEAVE), 0);
+      for (let p = 0; p < BLOCK_BYTES; p += 2) {
+        expect(audio.s16(SAMPLE_BASE + p * 2)).toBe(p + 1);
+        expect(audio.s16(SAMPLE_BASE + p * 2 + 2)).toBe(-p - 1);
+      }
+    });
+
+    test('unsupported commands roll back earlier writes and buffers survive reuse', () => {
+      const audio = fixture(Audio);
+      audio.ram.fill(0xfe); // Exercise sign-bit preservation in the undo journal.
+      const before = audio.ram.slice();
+      const arrays = [audio.dmem, audio.result, audio.residual, audio.undoWords, audio.envelopeChannels[0].hi];
+      audio.dmem.fill(123, SAMPLE_BASE, SAMPLE_BASE + BLOCK_BYTES);
+      audio.execute(command(OP_SAVE, BLOCK_BYTES << 12), STATE_ADDRESS);
+      expect(() => audio.execute(command(0))).toThrow(UnsupportedAudioCommand);
+      audio.rollback();
+      expect(audio.ram).toEqual(before);
+      audio.reset(audio.ram, new Uint8Array(DMEM_BYTES));
+      const reused = [audio.dmem, audio.result, audio.residual, audio.undoWords, audio.envelopeChannels[0].hi];
+      for (let i = 0; i < arrays.length; i++) {
+        expect(reused[i]).toBe(arrays[i]);
+      }
+      expect(() => audio.execute(command(OP_MIX), 1)).toThrow(UnsupportedAudioCommand);
+    });
+  });
+}
 
 describe('NAudio variant differences', () => {
   test('DK64 uses the low dry/wet gain bits to complement left/right samples', () => {

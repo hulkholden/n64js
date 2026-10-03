@@ -362,14 +362,23 @@ export class GBIMicrocode {
   calculateClipFlags(projected) {
     let flags = 0;
 
-    if (projected.x < -projected.w) flags |= gbi.X_POS;
-    else if (projected.x > projected.w) flags |= gbi.X_NEG;
+    if (projected.x < -projected.w) {
+      flags |= gbi.X_POS;
+    } else if (projected.x > projected.w) {
+      flags |= gbi.X_NEG;
+    }
 
-    if (projected.y < -projected.w) flags |= gbi.Y_POS;
-    else if (projected.y > projected.w) flags |= gbi.Y_NEG;
+    if (projected.y < -projected.w) {
+      flags |= gbi.Y_POS;
+    } else if (projected.y > projected.w) {
+      flags |= gbi.Y_NEG;
+    }
 
-    if (projected.z < -projected.w) flags |= gbi.Z_POS;
-    else if (projected.z > projected.w) flags |= gbi.Z_NEG;
+    if (projected.z < -projected.w) {
+      flags |= gbi.Z_POS;
+    } else if (projected.z > projected.w) {
+      flags |= gbi.Z_NEG;
+    }
 
     return flags;
   }
@@ -858,7 +867,9 @@ export class GBIMicrocode {
 
   executeTexRect(cmd0, cmd1, dis) {
     const params = this.readTexRectParams(dis);
-    if (!params) return;
+    if (!params) {
+      return;
+    }
     const [cmd2, cmd3] = params;
 
     this.rdpTexRect(cmd0, cmd1, cmd2, cmd3, dis);
@@ -907,7 +918,9 @@ export class GBIMicrocode {
 
   executeTexRectFlip(cmd0, cmd1, dis) {
     const params = this.readTexRectParams(dis);
-    if (!params) return;
+    if (!params) {
+      return;
+    }
     const [cmd2, cmd3] = params;
 
     this.rdpTexRectFlip(cmd0, cmd1, cmd2, cmd3, dis);

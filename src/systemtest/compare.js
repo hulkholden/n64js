@@ -62,7 +62,9 @@ export function compare(base, pr) {
 
   for (const [test, count] of Object.entries(pr.failures)) {
     const previous = base.failures[test] ?? 0;
-    if (count <= previous) continue;
+    if (count <= previous) {
+      continue;
+    }
 
     const message = `${test}: ${previous} → ${count} failures`;
     const wasCovered = baselineCoverage.has(pr.failureTests?.[test]);
@@ -97,8 +99,12 @@ function describeRun(run) {
 }
 
 function describeOutcome(comparison, pr) {
-  if (comparison.regressions.length > 0) return 'Regression / incomplete';
-  if (pr.status === RunStatus.STORM) return 'Known blocker (partial coverage)';
+  if (comparison.regressions.length > 0) {
+    return 'Regression / incomplete';
+  }
+  if (pr.status === RunStatus.STORM) {
+    return 'Known blocker (partial coverage)';
+  }
   return 'No regressions';
 }
 

@@ -64,7 +64,9 @@ for (const compiled of [false, true]) {
 
     test('CO function decode ignores operand bits, with only RFE trapping among reserved functions', () => {
       for (let funct = 0; funct < 64; funct++) {
-        if ([1, 2, 6, 8, 24].includes(funct)) continue;
+        if ([1, 2, 6, 8, 24].includes(funct)) {
+          continue;
+        }
         for (const operands of [0, 0x1e00000, 0x1fffc0, 0x1ffffc0]) {
           execute(0x42000000 | operands | funct, compiled);
           expect(cpu.pc).toBe(funct === 16 ? 0x80000180 : pc + 4);

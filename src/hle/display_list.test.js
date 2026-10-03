@@ -82,7 +82,9 @@ describe('display-list execution', () => {
     const state = new RSPState();
     state.reset(ramDV, 8);
     const resume = executeDisplayList(state, new GBI1(state, ramDV), { commandLimit: 3 });
-    for (let i = 0; i < 10; i++) expect(resume()).toBe(resume);
+    for (let i = 0; i < 10; i++) {
+      expect(resume()).toBe(resume);
+    }
     ramDV.setUint32(0x40, 0); // Producer publishes the child list.
     expect(resume()).toBeNull();
     expect(state.dlistStack).toEqual([]);

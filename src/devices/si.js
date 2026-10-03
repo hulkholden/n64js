@@ -86,7 +86,7 @@ export class SIRegDevice extends Device {
   }
 
   copyFromRDRAM() {
-    if (!this.beginDMA()) return;
+    if (!this.beginDMA()) { return; }
     const dramAddr = this.mem.getU32(SI_DRAM_ADDR_REG) & 0x1fffffff;
     
     if (!this.quiet) { logger.log(`SI: copying from ${toString32(dramAddr)} to PIF RAM`); }
@@ -95,7 +95,7 @@ export class SIRegDevice extends Device {
   }
 
   copyToRDRAM() {
-    if (!this.beginDMA()) return;
+    if (!this.beginDMA()) { return; }
     const dramAddr = this.mem.getU32(SI_DRAM_ADDR_REG) & 0x1fffffff;
     
     if (!this.quiet) { logger.log(`SI: copying from PIF RAM to ${toString32(dramAddr)}`); }
