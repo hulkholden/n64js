@@ -86,7 +86,7 @@ class ObjScaleBg extends ObjBg {
   }
 
   toString() {
-    return `${super.toString()}\nscaleW/H = (${this.scaleW}, ${this.scaleH})`;
+    return `${super.toString()}\nscaleW/H = (${this.scaleW}, ${this.scaleH}), imageYorig = ${this.imageYorig}`;
   }
 }
 
@@ -244,6 +244,76 @@ class ObjTexture {
   }
 }
 
+function getBgTextureLayout(bg) {
+  const bytesPerPixel = (4 << bg.imageSiz) / 8;
+  const splitBanks = bg.imageSiz === gbi.ImageSize.G_IM_SIZ_32b || bg.imageFmt === gbi.ImageFormat.G_IM_FMT_YUV;
+  const bankBytes = splitBanks ? bytesPerPixel / 2 : bytesPerPixel;
+  const capacity = splitBanks || bg.imageFmt === gbi.ImageFormat.G_IM_FMT_CI ? 2048 : 4096;
+  const alignment = 8 / bankBytes;
+
+  // Ordinary formats load as 16-bit words, including CI4/I4: native 4-bit
+  // RDP loads do not transfer data. Split-bank formats need their own routing.
+  const loadSize = splitBanks ? bg.imageSiz : gbi.ImageSize.G_IM_SIZ_16b;
+  const loadFormat = splitBanks ? bg.imageFmt : gbi.ImageFormat.G_IM_FMT_RGBA;
+  const loadPixels = bytesPerPixel / ((4 << loadSize) / 8);
+  return { bytesPerPixel, bankBytes, capacity, alignment, loadSize, loadFormat, loadPixels };
+}
+
+function getBg1cycFrame(bg, scissor) {
+  const imageW = Math.floor(bg.imageW);
+  const imageH = Math.floor(bg.imageH);
+  if (!imageW || !imageH || !bg.scaleW || !bg.scaleH) {
+    return null;
+  }
+  const flip = (bg.imageFlip & 1) !== 0;
+  // S2DEX reserves the image's last quarter-pixel before rounding the
+  // maximum frame down to whole pixels. A flipped frame shrinks on the left.
+  const frameW = Math.min(bg.frameW, Math.floor(imageW / bg.scaleW - 0.25));
+  const frameH = Math.min(bg.frameH, Math.floor(imageH / bg.scaleH - 0.25));
+  const frameX = bg.frameX + (flip ? bg.frameW - frameW : 0);
+  const left = Math.max(frameX, scissor.x0);
+  const top = Math.max(bg.frameY, scissor.y0);
+  const right = Math.min(frameX + frameW, scissor.x1);
+  const bottom = Math.min(bg.frameY + frameH, scissor.y1);
+  // Vertical motion/coverage is integral; horizontal coordinates retain
+  // quarter-pixels. Texture coordinates have five fractional bits.
+  const x0 = Math.ceil(left), x1 = Math.ceil(right);
+  const y0 = Math.floor(top), y1 = y0 + Math.floor(bottom - top);
+  if (x0 >= x1 || y0 >= y1) {
+    return null;
+  }
+  const clippedX = flip ? frameX + frameW - right : left - frameX;
+  const imageX = bg.imageX + Math.floor(clippedX * bg.scaleW * 32) / 32;
+  const sourceY = bg.imageY + Math.floor((top - bg.frameY) * bg.scaleH * 32) / 32;
+  const step = flip ? -bg.scaleW : bg.scaleW;
+  const scaledWidth = Math.floor((right - left) * bg.scaleW * 32) / 32;
+  const sourceX = imageX + (flip ? scaledWidth - 1 : 0) + (x0 - left) * step;
+  return { x0, y0, x1, y1, sourceX, sourceY, step };
+}
+
+function getBg1cycStripPlan(bg, frame, layout, filtered) {
+  const { capacity, bankBytes, alignment } = layout;
+  const imageW = Math.floor(bg.imageW);
+  // Plan from the unclipped frame so scissoring cannot change the vertical
+  // sampling phase. One extra word covers a misaligned start; filtering
+  // needs an extra column and row. Very wide images also split horizontally.
+  const maxWidth = Math.floor(Math.min(1023, capacity / bankBytes / (1 + filtered)) / alignment) * alignment;
+  const span = Math.min(Math.floor(bg.frameW * bg.scaleW * 32) / 32 + filtered, imageW);
+  const tileWidth = Math.min(maxWidth, (Math.ceil(span / alignment) + 1) * alignment);
+  const rows = Math.min(512, Math.floor(capacity / (tileWidth * bankBytes))) - filtered;
+
+  // imageYorig anchors the strip boundaries, not just the source address.
+  // The microcode quantizes strip heights to 10 fractional screen bits and
+  // restarts T at each strip. Keep that phase when scrolling or clipping.
+  // References: S2DEX manual 4.1.3 and guS2DEmuBgRect1Cyc:
+  // https://ultra64.ca/files/documentation/online-manuals/man-v5-1/ucode/s2dex/04.htm
+  // https://github.com/decompals/ultralib/blob/main/src/gu/us2dex_emu.c
+  const stripHeight = Math.floor(rows * 1024 / bg.scaleH);
+  const scroll = Math.floor((frame.sourceY - bg.imageYorig) / bg.scaleH);
+  const screenOrigin = frame.y0 - scroll;
+  return { tileWidth, rows, stripHeight, screenOrigin };
+}
+
 export class S2DEXCommon {
   constructor(state, ramDV, gbi) {
     this.state = state;
@@ -262,7 +332,7 @@ export class S2DEXCommon {
     const address = this.state.rdpSegmentAddress(cmd1);
     this.scaleBg.load(this.ramDV, address);
 
-    this.gbi.warnUnimplemented('gSPBgRect1Cyc')
+    this.renderBg1cyc();
     if (dis) {
       dis.text(`gSPBgRect1Cyc(${toString32(address)});`);
       dis.tip(this.scaleBg.toString());
@@ -276,6 +346,75 @@ export class S2DEXCommon {
     if (dis) {
       dis.text(`gSPBgRectCopy(${toString32(address)});`);
       dis.tip(this.bg.toString());
+    }
+  }
+
+  renderBg1cyc() {
+    const bg = this.scaleBg;
+    if (bg.imageSiz > gbi.ImageSize.G_IM_SIZ_32b || bg.imageFmt > gbi.ImageFormat.G_IM_FMT_I) {
+      this.gbi.warn('gSPBgRect1Cyc: invalid background format or size');
+      return;
+    }
+    const state = this.state;
+    const renderer = this.gbi.renderer;
+    const frame = getBg1cycFrame(bg, state.scissor);
+    if (!frame) {
+      return;
+    }
+    const { x0, y0, x1, y1, sourceX, step } = frame;
+    const imageW = Math.floor(bg.imageW);
+    const imageH = Math.floor(bg.imageH);
+    const filtered = state.getTextureFilterType() === gbi.TextureFilter.G_TF_POINT ? 0 : 1;
+    const layout = getBgTextureLayout(bg);
+    const { bytesPerPixel, bankBytes, alignment, loadSize, loadFormat, loadPixels } = layout;
+    // The microcode rounds source strides down to whole RDRAM words. Photopie
+    // uses imageW=257 for a 256-byte CI8 row to retain a 256-pixel frame.
+    const stride = Math.floor(imageW * bytesPerPixel / 8) * 8;
+    if (!stride) {
+      return;
+    }
+
+    const { tileWidth, rows, stripHeight, screenOrigin } = getBg1cycStripPlan(bg, frame, layout, filtered);
+    const imageAddress = state.rdpSegmentAddress(bg.imagePtr);
+    renderer.syncFramebufferToRAM?.(imageAddress, this.ramDV);
+    const loadTile = state.tiles[gbi.G_TX_LOADTILE], renderTile = state.tiles[0];
+    const ti = state.textureImage;
+
+    for (let y = y0; y < y1;) {
+      // Jump over strips too short to cover a screen row during reduction.
+      const strip = Math.floor(((y - screenOrigin + 1) * 1024 - 1) / stripHeight);
+      const stripY = screenOrigin + Math.floor(strip * stripHeight / 1024);
+      const endY = Math.min(y1, screenOrigin + Math.floor((strip + 1) * stripHeight / 1024));
+      const t = Math.floor((y - stripY) * bg.scaleH * 32) / 32;
+      const sourceY = Math.floor(bg.imageYorig) + strip * rows + Math.floor(t);
+      const t0 = t - Math.floor(t);
+      const loadHeight = Math.floor(t0 + (endY - y - 1) * bg.scaleH) + 1 + filtered;
+
+      for (let x = x0; x < x1;) {
+        const width = Math.min(x1 - x, Math.max(1, Math.floor((tileWidth - alignment - filtered) / bg.scaleW)));
+        const s = sourceX + (x - x0) * step;
+        const lastS = s + (width - 1) * step;
+        const sourceLeft = Math.floor(Math.min(s, lastS) / alignment) * alignment;
+        const loadWidth = Math.ceil((Math.floor(Math.max(s, lastS)) + 1 + filtered - sourceLeft) / alignment) * alignment;
+        const line = loadWidth * bankBytes / 8;
+        ti.set(loadFormat, loadSize, stride / ((4 << loadSize) / 8), imageAddress);
+        loadTile.set(loadFormat, loadSize, line, 0, 0, 0, 0, 0, 0, 0, 0);
+        loadTile.setSize(0, 0, (loadWidth * loadPixels - 1) * 4, (loadHeight - 1) * 4);
+        // 1-cycle backgrounds always use rectangular transfers. imageLoad is
+        // only a copy-mode hint. Wrap the *linear* source, including the filter
+        // neighbours, so crossing the right edge advances to the next row.
+        state.tmem.loadBackground(ti, loadTile, sourceLeft * bytesPerPixel,
+          sourceY, stride, imageH, loadWidth * loadPixels, loadHeight);
+        state.invalidateTileHashes();
+        renderTile.set(bg.imageFmt, bg.imageSiz, line, 0, bg.imagePal,
+          gbi.G_TX_CLAMP, 0, 0, gbi.G_TX_CLAMP, 0, 0);
+        renderTile.setSize(0, 0, (loadWidth - 1) * 4, (loadHeight - 1) * 4);
+        const s0 = s - sourceLeft;
+        renderer.texRect(0, x, y, x + width, endY, s0, t0,
+          s0 + width * step, t0 + (endY - y) * bg.scaleH, false);
+        x += width;
+      }
+      y = endY;
     }
   }
 
@@ -306,11 +445,7 @@ export class S2DEXCommon {
     const step = flip ? -1 : 1;
     const sourceX = Math.floor(bg.imageX) + (flip ? frameW - 1 - (x0 - frameX) : x0 - frameX);
     const sourceY = Math.floor(bg.imageY) + y0 - frameY;
-    const bytesPerPixel = (4 << bg.imageSiz) / 8;
-    const splitBanks = bg.imageSiz === gbi.ImageSize.G_IM_SIZ_32b || bg.imageFmt === gbi.ImageFormat.G_IM_FMT_YUV;
-    const bankBytes = splitBanks ? bytesPerPixel / 2 : bytesPerPixel;
-    const capacity = splitBanks || bg.imageFmt === gbi.ImageFormat.G_IM_FMT_CI ? 2048 : 4096;
-    const alignment = 8 / bankBytes;
+    const { bytesPerPixel, bankBytes, capacity, alignment, loadSize, loadFormat, loadPixels } = getBgTextureLayout(bg);
     const imageAddress = state.rdpSegmentAddress(bg.imagePtr);
     // Make backgrounds sourced from an earlier render target visible to TMEM.
     renderer.syncFramebufferToRAM?.(imageAddress, this.ramDV);
@@ -318,11 +453,6 @@ export class S2DEXCommon {
     const loadTile = state.tiles[gbi.G_TX_LOADTILE];
     const renderTile = state.tiles[0];
     const ti = state.textureImage;
-    // Ordinary formats load as 16-bit words, including CI4/I4: native 4-bit
-    // RDP loads do not transfer data. Split-bank formats need their own routing.
-    const loadSize = splitBanks ? bg.imageSiz : gbi.ImageSize.G_IM_SIZ_16b;
-    const loadFormat = splitBanks ? bg.imageFmt : gbi.ImageFormat.G_IM_FMT_RGBA;
-    const loadPixels = bytesPerPixel / ((4 << loadSize) / 8);
 
     // LoadBlock transfers whole source rows. Limit the number of rows so
     // rounding DXT cannot change parity before the end of a row. Unsupported

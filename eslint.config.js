@@ -64,7 +64,7 @@ export default [
     },
   },
   {
-    files: ['tools/texture_sampler_webgl.js', 'tools/fog_webgl.js', 'tools/rdp_webgl.js', 'tools/rdp_packet_fixtures.js', 'tools/light_color_webgl.js', 'tools/modify_vertex_webgl.js', 'tools/s2dex_bg_copy_*.js', 'tools/texture_sampler/scenes.js', 'tools/texture_sampler/visual.js'],
+    files: ['tools/texture_sampler_webgl.js', 'tools/fog_webgl.js', 'tools/rdp_webgl.js', 'tools/rdp_packet_fixtures.js', 'tools/light_color_webgl.js', 'tools/modify_vertex_webgl.js', 'tools/s2dex_bg_*.js', 'tools/texture_sampler/scenes.js', 'tools/texture_sampler/visual.js'],
     languageOptions: { sourceType: 'module', globals: globals.browser },
   },
 ];
