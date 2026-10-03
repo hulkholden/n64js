@@ -7,11 +7,11 @@ import { ProjectedVertex } from './projected_vertex.js';
 const G_SPNOOP = 0x00;
 const G_ZS_ZOBJ = 0x80;
 const G_ZS_RDPCMD = 0x81;
-const G_ZS_MOVEWORD = 0xdb;
-const G_ZS_DL = 0xde;
-const G_ZS_ENDDL = 0xdf;
-const G_ZS_SETOTHERMODE_L = 0xe2;
-const G_ZS_SETOTHERMODE_H = 0xe3;
+const G_MOVEWORD = 0xdb;
+const G_DL = 0xde;
+const G_ENDDL = 0xdf;
+const G_SETOTHERMODE_L = 0xe2;
+const G_SETOTHERMODE_H = 0xe3;
 const G_TEXRECT = 0xe4;
 const G_TEXRECTFLIP = 0xe5;
 
@@ -50,11 +50,11 @@ export class ZSortP extends GBIMicrocode {
       [G_ZS_RDPCMD, this.executeRDPList.bind(this)],
       // These commands retain the original GBI1 field encodings, despite
       // occupying opcode slots also used by GBI2.
-      [G_ZS_MOVEWORD, this.executeMoveWord.bind(this)],
-      [G_ZS_DL, GBI1.prototype.executeDL.bind(this)],
-      [G_ZS_ENDDL, GBI1.prototype.executeEndDL.bind(this)],
-      [G_ZS_SETOTHERMODE_L, GBI1.prototype.executeSetOtherModeL.bind(this)],
-      [G_ZS_SETOTHERMODE_H, GBI1.prototype.executeSetOtherModeH.bind(this)],
+      [G_MOVEWORD, this.executeMoveWord.bind(this)],
+      [G_DL, GBI1.prototype.executeDL.bind(this)],
+      [G_ENDDL, GBI1.prototype.executeEndDL.bind(this)],
+      [G_SETOTHERMODE_L, GBI1.prototype.executeSetOtherModeL.bind(this)],
+      [G_SETOTHERMODE_H, GBI1.prototype.executeSetOtherModeH.bind(this)],
     ]);
   }
 
@@ -89,7 +89,7 @@ export class ZSortP extends GBIMicrocode {
       const cmd1 = dv.getUint32(pc + 4);
       const opcode = cmd0 >>> 24;
       pc += 8;
-      if (opcode === G_ZS_ENDDL) return;
+      if (opcode === G_ENDDL) return;
       if (opcode === G_TEXRECT || opcode === G_TEXRECTFLIP) {
         const cmd2 = dv.getUint32(pc + 4);
         const cmd3 = dv.getUint32(pc + 12);
@@ -99,7 +99,7 @@ export class ZSortP extends GBIMicrocode {
       } else {
         // OtherMode and NoOp use their GBI encodings inside these blocks too.
         // Do not dispatch nested object/task commands from an RDP block.
-        const handler = opcode === G_SPNOOP || opcode === G_ZS_SETOTHERMODE_L || opcode === G_ZS_SETOTHERMODE_H
+        const handler = opcode === G_SPNOOP || opcode === G_SETOTHERMODE_L || opcode === G_SETOTHERMODE_H
           ? this.commands.get(opcode) : this.gbiCommonCommands.get(opcode);
         if (!handler) this.executeUnknown(cmd0, cmd1);
         handler(cmd0, cmd1, dis);
