@@ -135,6 +135,31 @@ export function runFogTests(gl) {
   check('second-cycle fog blends with the incoming colour', solid([128, 0, 127, 255]));
   state.rdpOtherModeL = 0xfa000000;
   check('fog in both blender cycles is applied twice', solid([192, 0, 63, 255]));
+
+  // ZSortp supplies the reverse factor: IN * SHADE_A + FOG * (1-SHADE_A).
+  state.rdpOtherModeH = gbi.CycleType.G_CYC_1CYCLE;
+  state.rdpOtherModeL = 0x08c00000;
+  load([0, 0, 0]);
+  const reverseFogShader = check('reverse fog selects fog colour at zero alpha', solid([255, 0, 0, 255]));
+  load([4, 4, 4]);
+  check('reverse fog selects incoming colour at full alpha', solid([0, 0, 255, 255]));
+  load([2, 4, 8], { varyingW: true });
+  check('reverse fog interpolates affinely with unequal W', gradient([199, 183, 167, 151]));
+  load();
+  state.primColor = 0x0000ff80;
+  check('reverse fog preserves combiner alpha', solid([127, 0, 128, 128]));
+  state.primColor = 0x0000ffff;
+  state.rdpOtherModeL = 0xc8000000;
+  if (check('forward fog has a different cache key from reverse fog', solid([128, 0, 127, 255])) === reverseFogShader) {
+    throw new Error('Fog direction missing from shader cache key');
+  }
+  state.rdpOtherModeH = gbi.CycleType.G_CYC_2CYCLE;
+  state.rdpOtherModeL = 0x02300000;
+  check('reverse fog in the second cycle', solid([127, 0, 128, 255]));
+  state.rdpOtherModeL = 0xca300000;
+  check('forward then reverse fog applies both blend factors', solid([191, 0, 64, 255]));
+  state.rdpOtherModeL = 0x3ac00000;
+  check('reverse then forward fog applies both blend factors', solid([191, 0, 64, 255]));
   state.rdpOtherModeL = 0xc8000000;
 
   combine(3, 3, 0, 0);

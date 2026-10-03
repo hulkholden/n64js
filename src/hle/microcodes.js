@@ -11,6 +11,7 @@ import { graphicsOptions } from './graphics_options.js';
 import { identifyMicrocode, MicrocodeId } from './microcode_identifier.js';
 import { Turbo3D } from './turbo3d.js';
 import { T3DUX } from './t3dux.js';
+import { ZSortP } from './zsortp.js';
 
 class UnsupportedMicrocodeError extends Error {
   constructor(info) {
@@ -23,7 +24,7 @@ export function assertHLESupported(info) {
   // These families have their own command formats and SP signal protocols.
   // Falling back to GBI0 reads unrelated data as commands; skipping execution
   // and signalling task completion cannot satisfy their CPU/RSP handshake.
-  if (info.id === MicrocodeId.ZSORTP || info.id === MicrocodeId.ZSORT_BOSS || info.id === MicrocodeId.F5_ROGUE) {
+  if (info.id === MicrocodeId.ZSORT_BOSS || info.id === MicrocodeId.F5_ROGUE) {
     throw new UnsupportedMicrocodeError(info);
   }
 }
@@ -56,6 +57,8 @@ export function create(task, state, ramDV, onMicrocodeLoad = null) {
 
 function createMicrocode(ucode, state, ramDV) {
   switch (ucode) {
+    case MicrocodeId.ZSORTP:
+      return new ZSortP(state, ramDV);
     case MicrocodeId.GBI0:
       return new GBI0(state, ramDV);
     case MicrocodeId.GBI0_DKR:

@@ -253,11 +253,50 @@ const rogueCode = new Uint8Array(0x1000);
 rogueCode.set([8, 1, 12, 9, 2, 0, 12, 5], rogueCode.length - 8);
 const unsupportedMicrocodes = [
   { family: 'F5', version: '', code: rogueCode, detection: 'hash' },
-  { family: 'ZSortp', version: 'RSP Gfx ucode ZSortp 0.33 Yoshitaka Yasumoto Nintendo.', code: [1, 2, 3], detection: 'string' },
   { family: 'ZSortBOSS', version: '', code: bossCode, detection: 'hash' },
 ];
 
 describe('headless graphics execution', () => {
+  test('executes ZSortp startup lists and in-list loads with independent SP and DP completion', async () => {
+    const version = 'RSP Gfx ucode ZSortp 0.33 Yoshitaka Yasumoto Nintendo.';
+    for (const inList of [false, true]) {
+      const loaded = [];
+      const emulator = await createEmulator({ executeGraphics: true, onMicrocodeLoad: info => loaded.push(info.family) });
+      const { hardware } = emulator;
+      prepareGraphicsTask(emulator, inList ? undefined : version);
+      const data = new TextEncoder().encode(version + '\0');
+      hardware.ram.u8.set(data, 0x5000);
+      setGraphicsCommands(emulator, [
+        ...(inList ? [[0xe1000000, 0x80005000], [0xdd000000 | (data.length - 1), 0x80004000]] : []),
+        [0xdb000806, 0x80008000],
+        [0x81000000, 0x02000000],
+        [0x81000000, 0x02000010],
+        [0xdf000000, 0],
+        [0xfa000000, 0xdeadbeef],
+      ]);
+      hardware.ram.set32(0x8000, 0xfa000000);
+      hardware.ram.set32(0x8004, 0x12345678);
+      hardware.ram.set32(0x8008, 0xdf000000);
+      hardware.ram.set32(0x8010, 0xe9000000);
+      hardware.ram.set32(0x8018, 0xdf000000);
+      hardware.spRegDevice.write32(0xa4040000 + SP_STATUS_REG, SP_SET_INTR_BREAK);
+      startRSPTask(emulator);
+      expect(loaded).toEqual(inList ? ['GBI2', 'ZSortp'] : ['ZSortp']);
+      expect(hardware.graphics.state.primColor).toBe(0x12345678);
+      expect(hardware.graphics.state.pc).toBe(0);
+      const complete = SP_STATUS_TASKDONE | SP_STATUS_BROKE | SP_STATUS_HALT;
+      expect(hardware.sp_reg.getU32(SP_STATUS_REG) & complete).toBe(complete);
+      expect(hardware.mi_reg.getU32(MI_INTR_REG) & (MI_INTR_SP | MI_INTR_DP)).toBe(MI_INTR_SP | MI_INTR_DP);
+      expect(hardware.dpcDevice.readU32(0xa4100010)).toBe(1);
+
+      // The same task without FullSync must only signal SP completion.
+      hardware.ram.set32(0x8010, 0xdf000000);
+      startRSPTask(emulator);
+      expect(hardware.mi_reg.getU32(MI_INTR_REG) & (MI_INTR_SP | MI_INTR_DP)).toBe(MI_INTR_SP);
+      expect(hardware.dpcDevice.readU32(0xa4100010)).toBe(1);
+    }
+  });
+
   test('reports runaway display lists as fatal errors without fabricating SP or DP completion', async () => {
     const halted = [];
     const emulator = await createEmulator({
