@@ -1,8 +1,13 @@
 import { addOptionsFolder } from '../debug/dbg_ui.js';
 
+export const CRTMode = { Off: 0, Simple: 1, Mattias: 2 };
+
 export const graphicsOptions = {
   // Scale factor to apply to the canvas.
   canvasScale: 1,
+
+  // Apply a CRT effect when presenting the finished frame.
+  crtMode: CRTMode.Off,
 
   // Whether to halt on unimplemented commands or just log a warning.
   haltOnWarning: false,
@@ -20,6 +25,7 @@ export const graphicsOptions = {
 };
 addOptionsFolder('Graphics', folder => {
   folder.add(graphicsOptions, 'canvasScale').name('Canvas Scale').min(1).max(4).step(0.25);
+  folder.add(graphicsOptions, 'crtMode', CRTMode).name('CRT');
   folder.add(graphicsOptions, 'haltOnWarning').name('Halt on Warning');
   folder.add(graphicsOptions, 'dumpMicrocode').name('Dump Microcode');
   folder.add(graphicsOptions, 'dumpMicrocodeSubstring').name('Dump Microcode Substring');

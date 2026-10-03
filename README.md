@@ -180,6 +180,17 @@ I suspect this is due to the CPU running faster than it should be and causing th
 
 Graphics are rendered using high-level emulation and there are still a lot of TODOs. Many roms are playable but most have graphical issues of some kind.
 
+## CRT display effects
+
+Choose **Off**, **Simple**, or **Mattias** under **Debug → Graphics → CRT**.
+The default is **Off**. Both styles apply to the finished frame. Mattias adds colour
+separation, spatial ghosting, curvature, and animated scanlines that pause with emulation.
+
+The Mattias style follows [MattiasCRT by Mattias Gustavsson](https://www.shadertoy.com/view/Ms23DR).
+Its implementation is adapted from his [MIT-licensed crtemu_pc.h](https://github.com/mattiasgustavsson/crtview/blob/de7897958ac1f346ca7fa3dbf5a57dab5fcc5bb3/source/crtemu_pc.h).
+The attribution and full MIT notice are retained in [crt_mattias.glsl](src/hle/shaders/crt_mattias.glsl), including in the bundled shader source.
+This adaptation uses the current frame for ghosting and omits the original library's temporal blur buffers and frame overlay.
+
 ## Browser Compatibility
 
 Saving and loading require native `Uint8Array.prototype.toBase64()` and

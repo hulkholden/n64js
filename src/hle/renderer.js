@@ -3,6 +3,7 @@
 import { toString16 } from "../format.js";
 import { Vector2 } from "../graphics/Vector2.js";
 import * as gbi from './gbi.js';
+import { CRTMode, graphicsOptions } from './graphics_options.js';
 import { RendererBase } from './renderer_base.js';
 import { RenderTargets } from './render_targets.js';
 import * as shaders from './shaders.js';
@@ -13,6 +14,8 @@ import { getTexturePaletteFormat } from './convert.js';
 import { VertexArray } from "./vertex_array.js";
 import blitVertexSource from './shaders/blit.vert.glsl' with { type: 'text' };
 import blitFragmentSource from './shaders/blit.frag.glsl' with { type: 'text' };
+import simpleCRTSource from './shaders/crt_simple.glsl' with { type: 'text' };
+import mattiasCRTSource from './shaders/crt_mattias.glsl' with { type: 'text' };
 import fillVertexSource from './shaders/fill.vert.glsl' with { type: 'text' };
 import fillFragmentSource from './shaders/fill.frag.glsl' with { type: 'text' };
 
@@ -42,9 +45,20 @@ export class Renderer extends RendererBase {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     // We call texImage2D to initialise frameBufferTexture2D with the correct dimensions when it's used.
 
-    this.blitShaderProgram = shaders.createShaderProgram(gl, blitVertexSource, blitFragmentSource);
-    this.blitSamplerUniform = gl.getUniformLocation(this.blitShaderProgram, "uSampler");
+    this.blitShaderProgram = shaders.createShaderProgram(gl, blitVertexSource, blitFragmentSource + simpleCRTSource + mattiasCRTSource);
+    this.blitSamplerUniform = gl.getUniformLocation(this.blitShaderProgram, "uSampler0");
+    this.blitCRTUniform = gl.getUniformLocation(this.blitShaderProgram, "uCRTMode");
+    this.blitTimeUniform = gl.getUniformLocation(this.blitShaderProgram, "uCRTTime");
+    this.blitOutputResolutionUniform = gl.getUniformLocation(this.blitShaderProgram, "uOutputResolution");
+    this.blitSourceHeightUniform = gl.getUniformLocation(this.blitShaderProgram, "uSourceHeight");
     this.blitVA = this.initBlitVA(this.blitShaderProgram);
+
+    // Smooth only the CRT presentation, without changing the framebuffer textures.
+    this.crtSampler = gl.createSampler();
+    gl.samplerParameteri(this.crtSampler, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.samplerParameteri(this.crtSampler, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.samplerParameteri(this.crtSampler, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.samplerParameteri(this.crtSampler, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
     this.fillShaderProgram = shaders.createShaderProgram(gl, fillVertexSource, fillFragmentSource);
     this.fillFillColorUniform = gl.getUniformLocation(this.fillShaderProgram, "uFillColor");
@@ -122,7 +136,7 @@ export class Renderer extends RendererBase {
     return va;
   }
 
-  copyTextureToFrontBuffer(texture) {
+  copyTextureToFrontBuffer(texture, timeSeconds = 0) {
     const gl = this.gl;
     // Passing null binds the framebuffer to the canvas.
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -133,10 +147,15 @@ export class Renderer extends RendererBase {
 
     this.blitVA.bind();
 
-    // uSampler
+    // Both HLE and CPU framebuffers use this presentation pass.
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.bindSampler(0, graphicsOptions.crtMode === CRTMode.Off ? null : this.crtSampler);
     gl.uniform1i(this.blitSamplerUniform, 0);
+    gl.uniform1i(this.blitCRTUniform, graphicsOptions.crtMode);
+    gl.uniform1f(this.blitTimeUniform, timeSeconds);
+    gl.uniform2f(this.blitOutputResolutionUniform, canvas.width, canvas.height);
+    gl.uniform1f(this.blitSourceHeightUniform, this.nativeTransform.viHeight);
 
     gl.disable(gl.CULL_FACE);
     gl.disable(gl.BLEND);
@@ -146,13 +165,14 @@ export class Renderer extends RendererBase {
 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     this.blitVA.unbind();
+    gl.bindSampler(0, null);
   }
 
-  copyBackBufferToFrontBuffer(address) {
-    this.copyTextureToFrontBuffer(this.renderTargets.textureForVI(address));
+  copyBackBufferToFrontBuffer(address, timeSeconds = 0) {
+    this.copyTextureToFrontBuffer(this.renderTargets.textureForVI(address), timeSeconds);
   }
 
-  copyPixelsToFrontBuffer(pixels, width, height, bitDepth) {
+  copyPixelsToFrontBuffer(pixels, width, height, bitDepth, timeSeconds = 0) {
     const gl = this.gl;
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.frameBufferTexture2D);
@@ -165,7 +185,7 @@ export class Renderer extends RendererBase {
       // Invalid mode.
     }
 
-    this.copyTextureToFrontBuffer(this.frameBufferTexture2D);
+    this.copyTextureToFrontBuffer(this.frameBufferTexture2D, timeSeconds);
   }
 
   /**
