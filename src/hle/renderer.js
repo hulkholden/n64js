@@ -14,6 +14,7 @@ import { getTexturePaletteFormat } from './convert.js';
 import { VertexArray } from "./vertex_array.js";
 import blitVertexSource from './shaders/blit.vert.glsl' with { type: 'text' };
 import blitFragmentSource from './shaders/blit.frag.glsl' with { type: 'text' };
+import mattiasCRTSource from './shaders/crt_mattias.glsl' with { type: 'text' };
 import fillVertexSource from './shaders/fill.vert.glsl' with { type: 'text' };
 import fillFragmentSource from './shaders/fill.frag.glsl' with { type: 'text' };
 
@@ -43,9 +44,10 @@ export class Renderer extends RendererBase {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     // We call texImage2D to initialise frameBufferTexture2D with the correct dimensions when it's used.
 
-    this.blitShaderProgram = shaders.createShaderProgram(gl, blitVertexSource, blitFragmentSource);
+    this.blitShaderProgram = shaders.createShaderProgram(gl, blitVertexSource, blitFragmentSource + mattiasCRTSource);
     this.blitSamplerUniform = gl.getUniformLocation(this.blitShaderProgram, "uSampler0");
-    this.blitCRTUniform = gl.getUniformLocation(this.blitShaderProgram, "uCRT");
+    this.blitCRTUniform = gl.getUniformLocation(this.blitShaderProgram, "uCRTMode");
+    this.blitTimeUniform = gl.getUniformLocation(this.blitShaderProgram, "uCRTTime");
     this.blitOutputResolutionUniform = gl.getUniformLocation(this.blitShaderProgram, "uOutputResolution");
     this.blitSourceHeightUniform = gl.getUniformLocation(this.blitShaderProgram, "uSourceHeight");
     this.blitVA = this.initBlitVA(this.blitShaderProgram);
@@ -133,7 +135,7 @@ export class Renderer extends RendererBase {
     return va;
   }
 
-  copyTextureToFrontBuffer(texture) {
+  copyTextureToFrontBuffer(texture, timeSeconds = 0) {
     const gl = this.gl;
     // Passing null binds the framebuffer to the canvas.
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -149,7 +151,9 @@ export class Renderer extends RendererBase {
     gl.bindTexture(gl.TEXTURE_2D, texture);
     gl.bindSampler(0, graphicsOptions.crt ? this.crtSampler : null);
     gl.uniform1i(this.blitSamplerUniform, 0);
-    gl.uniform1i(this.blitCRTUniform, graphicsOptions.crt ? 1 : 0);
+    const crtMode = !graphicsOptions.crt ? 0 : graphicsOptions.crtStyle === 'Mattias' ? 2 : 1;
+    gl.uniform1i(this.blitCRTUniform, crtMode);
+    gl.uniform1f(this.blitTimeUniform, timeSeconds);
     gl.uniform2f(this.blitOutputResolutionUniform, canvas.width, canvas.height);
     gl.uniform1f(this.blitSourceHeightUniform, this.nativeTransform.viHeight);
 
@@ -164,11 +168,11 @@ export class Renderer extends RendererBase {
     gl.bindSampler(0, null);
   }
 
-  copyBackBufferToFrontBuffer(address) {
-    this.copyTextureToFrontBuffer(this.renderTargets.textureForVI(address));
+  copyBackBufferToFrontBuffer(address, timeSeconds = 0) {
+    this.copyTextureToFrontBuffer(this.renderTargets.textureForVI(address), timeSeconds);
   }
 
-  copyPixelsToFrontBuffer(pixels, width, height, bitDepth) {
+  copyPixelsToFrontBuffer(pixels, width, height, bitDepth, timeSeconds = 0) {
     const gl = this.gl;
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.frameBufferTexture2D);
@@ -181,7 +185,7 @@ export class Renderer extends RendererBase {
       // Invalid mode.
     }
 
-    this.copyTextureToFrontBuffer(this.frameBufferTexture2D);
+    this.copyTextureToFrontBuffer(this.frameBufferTexture2D, timeSeconds);
   }
 
   /**

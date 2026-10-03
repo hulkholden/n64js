@@ -150,8 +150,11 @@ export function presentBackBuffer() {
 
   hardware.timeline.addEvent(`Present ${toString32(vi.dramAddrReg)}`);
 
+  // CRT animation follows emulated time, so a paused frame remains still.
+  const timeSeconds = hardware.verticalBlankCount / vi.refreshRate;
+
   if (numDisplayListsRendered !== 0) {
-    renderer.copyBackBufferToFrontBuffer(vi.dramAddrReg & 0x00fffffe);
+    renderer.copyBackBufferToFrontBuffer(vi.dramAddrReg & 0x00fffffe, timeSeconds);
     return;
   }
 
@@ -162,7 +165,7 @@ export function presentBackBuffer() {
   if (!pixels) {
     return;
   }
-  renderer.copyPixelsToFrontBuffer(pixels, vi.screenWidth, vi.screenHeight, vi.bitDepth);
+  renderer.copyPixelsToFrontBuffer(pixels, vi.screenWidth, vi.screenHeight, vi.bitDepth, timeSeconds);
 }
 
 function processDList(task, disassembler, bailAfter, onFullSync = null) {
