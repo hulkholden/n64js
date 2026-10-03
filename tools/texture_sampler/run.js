@@ -31,7 +31,7 @@ async function main() {
     page.on('pageerror', error => errors.push(error.message));
 
     const pixelChecks = await runPixelChecks(page, url);
-    const { cases, environment } = await loadVisualTests(page, url, options.hardware);
+    const { cases, environment } = await loadVisualTests(page, url, options.hardware, options.directTMEM);
     const manifest = await createManifest(browser, launchOptions.args, environment, pixelChecks);
     manifest.cases = await runVisualTests(page, cases, options);
 
@@ -64,6 +64,7 @@ function readOptions() {
       capture: { type: 'boolean', default: false },
       'self-test': { type: 'boolean', default: false },
       hardware: { type: 'boolean', default: false },
+      'direct-tmem': { type: 'boolean', default: false },
       output: { type: 'string', default: 'build/texture-sampler-results' },
     },
   });
@@ -82,6 +83,7 @@ function readOptions() {
     capture: values.capture,
     selfTest: values['self-test'],
     hardware: values.hardware,
+    directTMEM: values['direct-tmem'],
     output,
   };
 }
@@ -162,8 +164,8 @@ async function runPixelChecks(page, url) {
   return summary;
 }
 
-async function loadVisualTests(page, url, hardware) {
-  await page.goto(`${url}/tools/texture_sampler_visual.html?headless`);
+async function loadVisualTests(page, url, hardware, directTMEM) {
+  await page.goto(`${url}/tools/texture_sampler_visual.html?headless${directTMEM ? '&direct-tmem' : ''}`);
   await page.waitForFunction(() => window.samplerVisualTests || document.title.startsWith('FAIL'));
 
   const ready = await page.evaluate(() => Boolean(window.samplerVisualTests));

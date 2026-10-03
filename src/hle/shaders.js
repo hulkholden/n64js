@@ -4,6 +4,7 @@ import { assert } from '../assert.js';
 import { VertexArray } from './vertex_array.js';
 import vertexSource from './shaders/n64.vert.glsl' with { type: 'text' };
 import fragmentSource from './shaders/n64.frag.glsl' with { type: 'text' };
+import tmemSource from './shaders/tmem.glsl' with { type: 'text' };
 
 /**
  * Whether to log shaders as they're compiled.
@@ -234,6 +235,7 @@ class N64Shader {
     this.uTextureRectScreenUniform = gl.getUniformLocation(program, "uTextureRectScreen");
     this.uTextureRectOriginUniform = gl.getUniformLocation(program, "uTextureRectOrigin");
     this.uTextureRectDerivativesUniform = gl.getUniformLocation(program, "uTextureRectDerivatives");
+    this.uTMEMUniform = gl.getUniformLocation(program, "uTMEM");
     this.textureUniforms = [0, 1].map(slot => ({
       sampler: gl.getUniformLocation(program, `uSampler${slot}`),
       scale: gl.getUniformLocation(program, `uTexScale${slot}`),
@@ -242,6 +244,8 @@ class N64Shader {
       mask: gl.getUniformLocation(program, `uTile${slot}.mask`),
       mode: gl.getUniformLocation(program, `uTile${slot}.mode`),
       enabled: gl.getUniformLocation(program, `uTile${slot}.enabled`),
+      memory: gl.getUniformLocation(program, `uTile${slot}.memory`),
+      palette: gl.getUniformLocation(program, `uTile${slot}.palette`),
     }));
 
     this.uPrimColorUniform       = gl.getUniformLocation(program, "uPrimColor");
@@ -266,9 +270,10 @@ class N64Shader {
  * @param {boolean} enableAlphaCvgKill Whether to approximate zero coverage by discarding zero alpha.
  * @param {boolean} noNearClipping Whether to clamp depth instead of clipping the near plane.
  * @param {number} blender The upper 16 bits of other mode L.
+ * @param {boolean} directTMEM Whether to decode physical TMEM in the fragment shader.
  * @return {!N64Shader}
  */
-export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, alphaCompare, enableAlphaCvgKill, noNearClipping = false, blender = 0) {
+export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, alphaCompare, enableAlphaCvgKill, noNearClipping = false, blender = 0, directTMEM = false) {
   // Check if this shader already exists. Copy/Fill are fixed-function so ignore mux for these.
   let stateText = (cycleType < gbi.CycleType.G_CYC_COPY) ? (`${mux0.toString(16) + mux1.toString(16)}_${cycleType}`) : cycleType.toString();
   const enableAlphaThreshold = (alphaCompare & gbi.AlphaCompare.G_AC_THRESHOLD) !== 0;
@@ -300,6 +305,8 @@ export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, alphaCompare, en
   if (fogBlendModes) {
     stateText += `_fogShadeAlpha${fogBlendModes}`;
   }
+
+  if (directTMEM) stateText += `_directTMEM`;
 
   let shader = shaderCache.get(stateText);
   if (shader) {
@@ -384,7 +391,9 @@ vec4 combineColor(vec4 shade, vec4 tex0, vec4 tex1) {
 ${body}  return col;
 }
 `;
-  const shaderSource = configureClipping(fragmentSource) + combinerSource;
+  const shaderSource = configureClipping(fragmentSource)
+    .replace('__DIRECT_TMEM__', directTMEM ? '1' : '0')
+    .replace('__TMEM_SAMPLER__', directTMEM ? tmemSource : '') + combinerSource;
 
   if (kLogShaders) {
     let decoded = '\n';

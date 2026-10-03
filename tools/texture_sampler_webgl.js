@@ -8,6 +8,7 @@ import { RSPState } from '../src/hle/rsp_state.js';
 import { TriangleBuffer } from '../src/hle/triangle_buffer.js';
 import { GBIMicrocode } from '../src/hle/gbi_microcode.js';
 import { runFogTests } from './fog_webgl.js';
+import { runTMEMSamplingTests } from './tmem_sampling_webgl.js';
 
 const output = document.getElementById('results');
 try {
@@ -808,6 +809,9 @@ try {
     lines.push('PASS texture cache eviction and reset delete GPU objects');
     passed++;
   }
+  const tmemResults = runTMEMSamplingTests(gl);
+  lines.push(...tmemResults);
+  passed += tmemResults.length;
   const fogResults = runFogTests(gl);
   lines.push(...fogResults);
   passed += fogResults.length;
