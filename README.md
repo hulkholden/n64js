@@ -182,8 +182,8 @@ Graphics are rendered using high-level emulation and there are still a lot of TO
 
 ## CRT display effects
 
-Enable **Debug → Graphics → CRT Effect**, then choose **Simple** or **Mattias**
-under **CRT Style**. Both styles apply to the finished frame. Mattias adds colour
+Choose **Off**, **Simple**, or **Mattias** under **Debug → Graphics → CRT**.
+The default is **Off**. Both styles apply to the finished frame. Mattias adds colour
 separation, spatial ghosting, curvature, and animated scanlines that pause with emulation.
 
 The Mattias style follows [MattiasCRT by Mattias Gustavsson](https://www.shadertoy.com/view/Ms23DR).

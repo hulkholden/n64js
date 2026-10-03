@@ -3,7 +3,7 @@
 import { toString16 } from "../format.js";
 import { Vector2 } from "../graphics/Vector2.js";
 import * as gbi from './gbi.js';
-import { graphicsOptions } from './graphics_options.js';
+import { CRTMode, graphicsOptions } from './graphics_options.js';
 import { RendererBase } from './renderer_base.js';
 import { RenderTargets } from './render_targets.js';
 import * as shaders from './shaders.js';
@@ -150,10 +150,9 @@ export class Renderer extends RendererBase {
     // Both HLE and CPU framebuffers use this presentation pass.
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.bindSampler(0, graphicsOptions.crt ? this.crtSampler : null);
+    gl.bindSampler(0, graphicsOptions.crtMode === CRTMode.Off ? null : this.crtSampler);
     gl.uniform1i(this.blitSamplerUniform, 0);
-    const crtMode = !graphicsOptions.crt ? 0 : graphicsOptions.crtStyle === 'Mattias' ? 2 : 1;
-    gl.uniform1i(this.blitCRTUniform, crtMode);
+    gl.uniform1i(this.blitCRTUniform, graphicsOptions.crtMode);
     gl.uniform1f(this.blitTimeUniform, timeSeconds);
     gl.uniform2f(this.blitOutputResolutionUniform, canvas.width, canvas.height);
     gl.uniform1f(this.blitSourceHeightUniform, this.nativeTransform.viHeight);
