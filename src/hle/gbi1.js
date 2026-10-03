@@ -343,7 +343,7 @@ export class GBI1 extends GBIMicrocode {
         }
         break;
       case gbi.MoveWord.G_MW_LIGHTCOL:
-        this.warnUnimplemented('MoveWord LightCol');
+        this.moveWordLightColor(offset, value, 32);
         break;
       case gbi.MoveWord.G_MW_POINTS:
         this.warnUnimplemented('MoveWord Points');
