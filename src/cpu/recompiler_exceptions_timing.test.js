@@ -214,9 +214,13 @@ for (const profiled of [false, true]) {
     for (const [name, word, address, cause] of [
       ['LW alignment', iop(decode.OP_LW, 4, 2), 0x80003001, 0x10],
       ['SW alignment', iop(decode.OP_SW, 4, 2), 0x80003001, 0x14],
+      ['LD alignment', iop(decode.OP_LD, 4, 2), 0x80003004, 0x10],
+      ['SD alignment', iop(decode.OP_SD, 4, 2), 0x80003004, 0x14],
       ['LL alignment', iop(decode.OP_LL, 4, 2), 0x80003001, 0x10],
       ['LW TLB miss', iop(decode.OP_LW, 4, 2), 0x00400000, 0x08],
       ['SW TLB miss', iop(decode.OP_SW, 4, 2), 0x00400000, 0x0c],
+      ['LD TLB miss', iop(decode.OP_LD, 4, 2), 0x00400000, 0x08],
+      ['SD TLB miss', iop(decode.OP_SD, 4, 2), 0x00400000, 0x0c],
       ['LWC1 TLB miss', iop(decode.OP_LWC1, 4, 2), 0x00400000, 0x08],
     ]) {
       test(`${name} preserves the branch EPC and BD`, async () => {

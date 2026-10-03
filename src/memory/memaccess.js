@@ -4,9 +4,11 @@
 // slow path calling out to a separate function. This means that if Chrome deopts the slow path function
 // it won't affect performance of the fast path.
 //
-// The fastpath helpers compare addresses to -2139095040 to perform a quick check to see if the address is
-// in bounds for ram (0x8000_0000 <= x < 0x8080_0000). The constant is derived from interpreting 0x80800000
-// as a 32-bit signed value.
+// The fastpath helpers take signed 32-bit addresses, so a single upper-bound
+// comparison covers cached RAM: 0x8000_0000 <= address < 0x8080_0000.
+
+// Exclusive end of the 8 MiB KSEG0 RAM window, expressed as a signed address.
+export const kKseg0RamEndS32 = 0x8080_0000 | 0;
 
 let getMemoryHandler;
 let ramDV;
@@ -22,7 +24,7 @@ export function store32masked(addr, value, mask) { getMemoryHandler(addr).write3
 export function store64masked(addr, value, mask) { getMemoryHandler(addr).write64masked(addr, value, mask); }
 
 export function loadU8fast(sAddr) {
-  if (sAddr < -2139095040) {
+  if (sAddr < kKseg0RamEndS32) {
     const phys = (sAddr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
     return ramDV.getUint8(phys, false);
   }
@@ -30,7 +32,7 @@ export function loadU8fast(sAddr) {
 }
 
 export function loadS8fast(sAddr) {
-  if (sAddr < -2139095040) {
+  if (sAddr < kKseg0RamEndS32) {
     const phys = (sAddr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
     return ramDV.getInt8(phys, false);
   }
@@ -38,7 +40,7 @@ export function loadS8fast(sAddr) {
 }
 
 export function loadU16fast(sAddr) {
-  if ((sAddr & 1) == 0 && sAddr < -2139095040) {
+  if ((sAddr & 1) == 0 && sAddr < kKseg0RamEndS32) {
     const phys = (sAddr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
     return ramDV.getUint16(phys, false);
   }
@@ -46,7 +48,7 @@ export function loadU16fast(sAddr) {
 }
 
 export function loadS16fast(sAddr) {
-  if ((sAddr & 1) == 0 && sAddr < -2139095040) {
+  if ((sAddr & 1) == 0 && sAddr < kKseg0RamEndS32) {
     const phys = (sAddr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
     return ramDV.getInt16(phys, false);
   }
@@ -54,7 +56,7 @@ export function loadS16fast(sAddr) {
 }
 
 export function loadU32fast(sAddr) {
-  if ((sAddr & 3) == 0 && sAddr < -2139095040) {
+  if ((sAddr & 3) == 0 && sAddr < kKseg0RamEndS32) {
     const phys = (sAddr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
     return ramDV.getUint32(phys, false);
   }
@@ -62,7 +64,7 @@ export function loadU32fast(sAddr) {
 }
 
 export function loadS32fast(sAddr) {
-  if ((sAddr & 3) == 0 && sAddr < -2139095040) {
+  if ((sAddr & 3) == 0 && sAddr < kKseg0RamEndS32) {
     const phys = (sAddr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
     return ramDV.getInt32(phys, false);
   }
@@ -70,7 +72,7 @@ export function loadS32fast(sAddr) {
 }
 
 export function loadU64fast(sAddr) {
-  if ((sAddr & 7) == 0 && sAddr < -2139095040) {
+  if ((sAddr & 7) == 0 && sAddr < kKseg0RamEndS32) {
     const phys = (sAddr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
     return ramDV.getBigUint64(phys, false);
   }
@@ -78,7 +80,7 @@ export function loadU64fast(sAddr) {
 }
 
 export function store8fast(sAddr, value) {
-  if (sAddr < -2139095040) {
+  if (sAddr < kKseg0RamEndS32) {
     const phys = (sAddr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
     ramDV.setUint8(phys, value, false);
     return;
@@ -87,7 +89,7 @@ export function store8fast(sAddr, value) {
 }
 
 export function store16fast(sAddr, value) {
-  if ((sAddr & 1) == 0 && sAddr < -2139095040) {
+  if ((sAddr & 1) == 0 && sAddr < kKseg0RamEndS32) {
     const phys = (sAddr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
     ramDV.setUint16(phys, value, false);
     return;
@@ -96,7 +98,7 @@ export function store16fast(sAddr, value) {
 }
 
 export function store32fast(sAddr, value) {
-  if ((sAddr & 3) == 0 && sAddr < -2139095040) {
+  if ((sAddr & 3) == 0 && sAddr < kKseg0RamEndS32) {
     const phys = (sAddr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
     ramDV.setUint32(phys, value, false);
     return
@@ -105,7 +107,7 @@ export function store32fast(sAddr, value) {
 }
 
 export function store64fast(sAddr, value) {
-  if ((sAddr & 7) == 0 && sAddr < -2139095040) {
+  if ((sAddr & 7) == 0 && sAddr < kKseg0RamEndS32) {
     const phys = (sAddr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
     ramDV.setBigUint64(phys, value, false);
     return;
