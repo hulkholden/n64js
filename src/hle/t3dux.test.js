@@ -16,7 +16,7 @@ function setup(dv, hash) {
   microcode.renderer = new NullRenderer(state);
   const draws = [];
   microcode.renderer.flushTris = (tb, options) => {
-    expect(options).toEqual({ affineShade: true, affineUV: true });
+    expect(options).toEqual({ affineUV: true });
     if (!tb.empty()) {
       draws.push({
         positions: Array.from(tb.positions.slice(0, tb.numTris * 12)),

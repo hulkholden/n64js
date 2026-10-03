@@ -128,10 +128,10 @@ export class Turbo3D extends ObjectMicrocode {
         tb.colours.fill(color, (tb.numTris - 1) * 3, tb.numTris * 3);
       }
       if (!tb.hasCapacity(1)) {
-        this.renderer.flushTris(tb, { affineShade: true, affineUV: true });
+        this.renderer.flushTris(tb, { affineUV: true });
         tb.reset();
       }
     }
-    this.renderer.flushTris(tb, { affineShade: true, affineUV: true });
+    this.renderer.flushTris(tb, { affineUV: true });
   }
 }
