@@ -73,7 +73,7 @@ export function bgCopyCase({
     }
   }
   return {
-    ram, dv, descriptor, image, scissor, format, size, load,
+    ram, dv, descriptor, image, scissor, format, size, load, sourcePixel,
     init(state) {
       state.reset(dv, 0);
       state.segments[1] = 0x80;

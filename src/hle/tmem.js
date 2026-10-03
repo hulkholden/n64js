@@ -120,6 +120,26 @@ export class TMEM {
   }
 
   /**
+   * S2DEX assembles a tile from a circular, linear background image. This is
+   * equivalent to split LoadTile transfers, including odd-row swaps, but also
+   * joins the final source row to the first for the filter's extra texels.
+   */
+  loadBackground(ti, tile, sourceXBytes, sourceY, stride, imageHeight, width, height) {
+    const ram = getRamU8Array();
+    const imageBytes = stride * imageHeight;
+    const step = 16 >>> ti.size;
+    const mode = getLoadMode(tile), shiftS = getLoadShiftS(tile);
+    for (let y = 0; y < height; y++) {
+      for (let s = 0, qword = 0; s < width; s += step, qword++) {
+        const offset = (sourceY + y) * stride + sourceXBytes + qword * 8;
+        const source = ti.address + ((offset % imageBytes) + imageBytes) % imageBytes;
+        writeLoadQword(this.tmemData, readRam32(ram, source), readRam32(ram, source + 4),
+          (tile.tmem + tile.line * y) * 4, (s >>> shiftS) & 0x7ff, (y & 1) << 1, mode);
+      }
+    }
+  }
+
+  /**
    * Loads a TLUT into TMEM.
    * @param {TextureImage} ti RDP texture image. 
    * @param {Tile} tile Load tile with bounds in 10.2 format.
