@@ -3,6 +3,7 @@
 import { DebugController } from './debug_controller.js';
 import { executeDisplayList } from './display_list.js';
 import * as microcodes from './microcodes.js';
+import { RDPGraphics } from './rdp_graphics.js';
 import { RSPState } from './rsp_state.js';
 import { Renderer } from './renderer.js';
 import { graphicsOptions } from './graphics_options.js';
@@ -15,6 +16,7 @@ window.n64js = window.n64js || {};
 let numDisplayListsRendered = 0;
 let gl = null; // WebGL context for the canvas.
 let renderer;
+let rdpGraphics;
 let warnedF5Indi = false;
 
 const state = new RSPState();
@@ -24,6 +26,8 @@ const debugController = new DebugController(state, processDList);
 export const graphics = {
   processTask: hleGraphics,
   reset: resetRenderer,
+  beginRDP,
+  endRDP: () => gl?.bindFramebuffer(gl.FRAMEBUFFER, null),
   setDPFrozen: frozen => renderer?.renderTargets.setDPFrozen(frozen),
 };
 
@@ -34,13 +38,13 @@ export function dispatchGraphicsTask(hardware, mode, task) {
   // Yakouchuu II submits its HVQM2 video decoder as a graphics task. Its input
   // is compressed video, not a display list; let the RSP write the decoded
   // pixels to RDRAM and signal completion itself.
-  if (mode !== 'HLE' || microcode.id === MicrocodeId.HVQM2) {
+  // BOSS ZSort combines graphics/audio and CPU/RSP signal exchanges. Execute
+  // its actual instructions and render the resulting RDP stream.
+  if (mode !== 'HLE' || microcode.id === MicrocodeId.HVQM2 || microcode.id === MicrocodeId.ZSORT_BOSS) {
     return false;
   }
 
-  // Reject unsupported protocols even when headless graphics are skipped.
-  // In particular, BOSS ZSort needs CPU/RSP signal exchanges before a
-  // task can complete; fabricating DP/SP completion leaves the CPU stuck.
+  // Reject other unsupported protocols even when headless graphics are skipped.
   microcodes.assertHLESupported(microcode);
   const ev = hardware.timeline.startEvent(`HLE Task ${task.detectVersionString()}`);
   let continuation = null;
@@ -98,9 +102,29 @@ export function initialiseRenderer(canvas) {
 }
 
 function resetRenderer() {
+  numDisplayListsRendered = 0;
+  rdpGraphics = null;
+  state.reset(n64js.hardware().ram.dataView, 0);
   if (renderer) {
     renderer.reset();
   }
+}
+
+function beginRDP() {
+  if (!renderer) {
+    return null;
+  }
+  const hardware = n64js.hardware();
+  const ramDV = hardware.ram.dataView;
+  if (!rdpGraphics) {
+    rdpGraphics = new RDPGraphics(state, ramDV, renderer);
+    rdpGraphics.hleHalt = hleHalt;
+  }
+  numDisplayListsRendered++;
+  initDimensionsFromVI(hardware.viRegDevice);
+  renderer.onTextureUse = hardware.onTextureUse;
+  renderer.newFrame();
+  return rdpGraphics;
 }
 
 function initWebGL(canvas) {

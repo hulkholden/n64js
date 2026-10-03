@@ -1,6 +1,7 @@
 import { executeDisplayList } from './display_list.js';
 import * as microcodes from './microcodes.js';
 import { NullRenderer } from './null_renderer.js';
+import { RDPGraphics } from './rdp_graphics.js';
 import { RSPState } from './rsp_state.js';
 
 // Executes HLE graphics tasks without a framebuffer or browser debugger.
@@ -14,6 +15,18 @@ export class HeadlessGraphics {
   reset() {
     this.state = new RSPState();
     this.renderer = new NullRenderer(this.state);
+    this.state.reset(this.hardware.ram.dataView, 0);
+    this.rdp = new RDPGraphics(this.state, this.hardware.ram.dataView, this.renderer);
+    this.rdp.hleHalt = message => { throw new Error(message); };
+  }
+
+  beginRDP() {
+    this.renderer.onTextureUse = this.hardware.onTextureUse;
+    const dims = this.hardware.viRegDevice.computeDimensions();
+    if (dims) {
+      this.renderer.nativeTransform.initDimensions(dims.srcWidth, dims.srcHeight);
+    }
+    return this.rdp;
   }
 
   processTask(task) {

@@ -382,13 +382,27 @@ export class RDP {
   }
 
   run(buf) {
-    while (!buf.empty()) {
-      const cmd = buf.getU32(0);
-      const cmdType = (cmd >> 24) & 63;
-      const cmdLen = CommandLengths[cmdType] * 8;
-      const nextAddr = buf.curAddr + cmdLen;
-      this.commandTable[cmdType](cmdType, buf);
-      buf.curAddr = nextAddr;
+    const processor = this.hardware.graphics.beginRDP?.();
+    try {
+      while (!buf.empty()) {
+        const cmd = buf.getU32(0);
+        const cmdType = (cmd >> 24) & 63;
+        const cmdLen = CommandLengths[cmdType] * 8;
+        // DPC_END may publish only part of a multiword command. Leave CURRENT
+        // at its start until the producer appends the remaining words.
+        if (buf.bytesRemaining() < cmdLen) {
+          break;
+        }
+        const nextAddr = buf.curAddr + cmdLen;
+        if (processor && cmdType !== Commands.SyncFull && cmdType !== Commands.Nop) {
+          processor.execute(cmdType, buf);
+        } else {
+          this.commandTable[cmdType](cmdType, buf);
+        }
+        buf.curAddr = nextAddr;
+      }
+    } finally {
+      this.hardware.graphics.endRDP?.();
     }
   }
 

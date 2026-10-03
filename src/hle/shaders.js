@@ -229,6 +229,7 @@ class N64Shader {
     this.vertexArray.initUVsAttr(program, "aUV");
     this.vertexArray.initColorAttr(program, "aColor");
 
+    this.uScreenSpaceShadeUniform = gl.getUniformLocation(program, "uScreenSpaceShade");
     this.uTextureFilterUniform   = gl.getUniformLocation(program, "uTextureFilter");
     this.uTextureRectEnabledUniform = gl.getUniformLocation(program, "uTextureRectEnabled");
     this.uTextureRectScreenUniform = gl.getUniformLocation(program, "uTextureRectScreen");

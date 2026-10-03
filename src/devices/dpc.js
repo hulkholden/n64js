@@ -61,14 +61,10 @@ export class DPCDevice extends Device {
       case dpc.DPC_END_REG:
         if (!this.quiet) { logger.log(`DPC end set to: ${toString32(value)}`); }
 
-        this.currentReg = this.startReg;
-        this.endReg = value;
         if (this.startValid) {
-          // No transfer in progress? Set end, start running
-          // Transfer in progress? Set end pending
-        } else {
-          // Incremental transfer.
+          this.currentReg = this.startReg;
         }
+        this.endReg = value;
 
         this.startValid = false;
         this.setStatusBits(dpc.DPC_STATUS_CBUF_READY | dpc.DPC_STATUS_PIPE_BUSY | dpc.DPC_STATUS_START_GCLK, true);
@@ -126,9 +122,11 @@ export class DPCDevice extends Device {
     const frozen = (dpcStatus & dpc.DPC_STATUS_FREEZE) !== 0;
     if (frozen !== wasFrozen) { this.hardware.graphics.setDPFrozen?.(frozen); }
     this.completeHLEFullSyncs();
+    if (wasFrozen && !frozen) { this.processBuffer(); }
   }
 
   processBuffer() {
+    if ((this.statusReg & dpc.DPC_STATUS_FREEZE) || this.currentReg === this.endReg) { return; }
     let rdpBuf
     if (this.xbusDmemDMA) {
       const dv = this.hardware.sp_mem.subRegion(0x0000, 0x1000).dataView;

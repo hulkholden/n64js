@@ -24,7 +24,7 @@ export function assertHLESupported(info) {
   // These families have their own command formats and SP signal protocols.
   // Falling back to GBI0 reads unrelated data as commands; skipping execution
   // and signalling task completion cannot satisfy their CPU/RSP handshake.
-  // HVQM2 can only fall back to LLE at task start, before any HLE execution.
+  // HVQM2 and BOSS ZSort can only fall back to LLE at task start, before any HLE execution.
   if (info.id === MicrocodeId.ZSORT_BOSS || info.id === MicrocodeId.F5_ROGUE || info.id === MicrocodeId.HVQM2) {
     throw new UnsupportedMicrocodeError(info);
   }
