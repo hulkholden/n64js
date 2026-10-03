@@ -249,12 +249,11 @@ export class GBI2 extends GBIMicrocode {
   }
 
   executeTri1(cmd0, cmd1, dis) {
-    const verts = this.state.projectedVertices;
     const tb = this.triangleBuffer;
     tb.reset();
 
-    // Process triangles individually when disassembling
-    let limit = dis ? 1 : 0;
+    // Bound commands as well as emitted triangles: degenerates use no capacity.
+    const limit = dis ? 1 : tb.maxTris;
     let commandsExecuted = this.state.executeBatch(limit, (cmd0, cmd1) => {
       const idx0 = (cmd0 >>> 1) & 0x7f;
       const idx1 = (cmd0 >>> 9) & 0x7f;
@@ -265,7 +264,7 @@ export class GBI2 extends GBIMicrocode {
         dis.text(`gsSP1Triangle(${idx0},${idx1},${idx2}, ${flag});`);
       }
 
-      tb.pushTri(verts[idx0], verts[idx1], verts[idx2]);
+      this.pushTriangle(idx0, idx1, idx2);
       return tb.hasCapacity(1);
     });
     this.state.currentOp += commandsExecuted - 1;
@@ -273,12 +272,11 @@ export class GBI2 extends GBIMicrocode {
   }
 
   executeTri2(cmd0, cmd1, dis) {
-    const verts = this.state.projectedVertices;
     const tb = this.triangleBuffer;
     tb.reset();
 
-    // Process triangles individually when disassembling
-    let limit = dis ? 1 : 0;
+    // Process at most one buffer's worth of commands, even if none emit triangles.
+    const limit = dis ? 1 : tb.maxTris / 2;
     let commandsExecuted = this.state.executeBatch(limit, (cmd0, cmd1) => {
       const idx00 = (cmd1 >>> 1) & 0x7f;
       const idx01 = (cmd1 >>> 9) & 0x7f;
@@ -291,8 +289,8 @@ export class GBI2 extends GBIMicrocode {
         dis.text(`gsSP2Triangles(${idx00},${idx01},${idx02}, ${idx10},${idx11},${idx12});`);
       }
 
-      tb.pushTri(verts[idx00], verts[idx01], verts[idx02]);
-      tb.pushTri(verts[idx10], verts[idx11], verts[idx12]);
+      this.pushTriangle(idx00, idx01, idx02);
+      this.pushTriangle(idx10, idx11, idx12);
       return tb.hasCapacity(2);
     });
     this.state.currentOp += commandsExecuted - 1;
@@ -301,12 +299,11 @@ export class GBI2 extends GBIMicrocode {
 
   // TODO: this is effectively the same as executeTri2, just different disassembly.
   executeQuad(cmd0, cmd1, dis) {
-    const verts = this.state.projectedVertices;
     const tb = this.triangleBuffer;
     tb.reset();
 
-    // Process triangles individually when disassembling
-    let limit = dis ? 1 : 0;
+    // Process at most one buffer's worth of commands, even if none emit triangles.
+    const limit = dis ? 1 : tb.maxTris / 2;
     let commandsExecuted = this.state.executeBatch(limit, (cmd0, cmd1) => {
       const idx00 = (cmd1 >>> 1) & 0x7f;
       const idx01 = (cmd1 >>> 9) & 0x7f;
@@ -319,12 +316,23 @@ export class GBI2 extends GBIMicrocode {
         dis.text(`gSP1Quadrangle(${idx00},${idx01},${idx02}, ${idx10},${idx11},${idx12});`);
       }
 
-      tb.pushTri(verts[idx00], verts[idx01], verts[idx02]);
-      tb.pushTri(verts[idx10], verts[idx11], verts[idx12]);
+      this.pushTriangle(idx00, idx01, idx02);
+      this.pushTriangle(idx10, idx11, idx12);
       return tb.hasCapacity(2);
     });
     this.state.currentOp += commandsExecuted - 1;
     this.renderer.flushTris(tb);
+  }
+
+  pushTriangle(idx0, idx1, idx2) {
+    // Repeated indices have zero area. Pro Yakyuu King 2 includes (127,127,127)
+    // triangles in its ROM display lists; the RSP rejects them without drawing.
+    // Reject these before resolving vertices, without masking other bad indices.
+    if (idx0 === idx1 || idx1 === idx2 || idx2 === idx0) {
+      return;
+    }
+    const verts = this.state.projectedVertices;
+    this.triangleBuffer.pushTri(verts[idx0], verts[idx1], verts[idx2]);
   }
 
   executeTexture(cmd0, cmd1, dis) {
