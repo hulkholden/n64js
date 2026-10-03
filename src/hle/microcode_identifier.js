@@ -71,9 +71,9 @@ const ucodeOverrides = new Map([
 // Yakouchuu II advertises 4 KiB of HVQM2 code, but that range also contains
 // mutable data. Identify its SP1 decoder using only the first 1488 code bytes.
 // See https://github.com/mupen64plus/mupen64plus-rsp-hle/blob/master/src/hle.c
-// for the HVQM2 identification range. Our rolling hash for those bytes is
-// 0xeb70fcb5 (their byte sum is 0x19495).
+// for the HVQM2 identification range (their byte sum is 0x19495).
 export const microcodePrefixLength = 1488;
+const hvqm2SP1PrefixHash = 0xeb70fcb5;
 
 /**
  * Identifies the microcode without constructing a handler or producing side effects.
@@ -90,7 +90,7 @@ export const microcodePrefixLength = 1488;
  *   hash: number, detection: 'hash'|'string'|'fallback'}}
  */
 export function identifyMicrocode(version, hash, prefixHash = null) {
-  let id = prefixHash === 0xeb70fcb5 ? MicrocodeId.HVQM2 : ucodeOverrides.get(hash);
+  let id = prefixHash === hvqm2SP1PrefixHash ? MicrocodeId.HVQM2 : ucodeOverrides.get(hash);
   let detection = 'hash';
   if (id === undefined) {
     id = inferUcodeFromString(version);
