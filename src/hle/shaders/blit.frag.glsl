@@ -13,15 +13,20 @@ vec3 simpleCRT(vec2 screenUV);
 vec3 mattiasCRT(vec2 screenUV);
 
 void main(void) {
-  if (uCRTMode == 0) {
-    outCol = vec4(texture(uSampler0, vUV).rgb, 1.0);
-    return;
+  vec3 color;
+  switch (uCRTMode) {
+    case 0:
+      color = texture(uSampler0, vUV).rgb;
+      break;
+    case 1:
+      color = simpleCRT(gl_FragCoord.xy / uOutputResolution);
+      break;
+    case 2:
+      color = mattiasCRT(gl_FragCoord.xy / uOutputResolution);
+      break;
+    default:
+      color = texture(uSampler0, vUV).rgb;
+      break;
   }
-
-  if (uCRTMode == 2) {
-    outCol = vec4(mattiasCRT(gl_FragCoord.xy / uOutputResolution), 1.0);
-    return;
-  }
-
-  outCol = vec4(simpleCRT(gl_FragCoord.xy / uOutputResolution), 1.0);
+  outCol = vec4(color, 1.0);
 }
