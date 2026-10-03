@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>ModifyVertex RGBA browser scene</title>
+<style>
+  body { background: #e8edf4; color: #183047; font: 16px system-ui; margin: 30px; }
+  main { background: white; padding: 28px; width: 830px; border-radius: 12px; }
+  h1 { font-size: 25px; margin: 0 0 8px; }
+  p { margin: 8px 0 18px; color: #4c6073; }
+  .labels { display: flex; margin-left: 30px; }
+  .labels span { width: 200px; text-align: center; font-size: 13px; }
+  section { position: relative; margin-top: 12px; padding-left: 30px; }
+  .row { position: absolute; left: 0; writing-mode: vertical-rl; top: 60px; font-weight: bold; }
+  .row.second { top: 240px; }
+  canvas { width: 800px; height: 360px; }
+</style>
+<main>
+  <h1>ModifyVertex RGBA · GBI1 and GBI2</h1>
+  <p>Same cached vertices. Color and alpha updates affect subsequent triangles.</p>
+  <div class="labels">
+    <span>Original<br>Blue · alpha 255</span>
+    <span>RGBA update<br>Coral · alpha 255</span>
+    <span>Alpha update<br>Coral · alpha 64</span>
+    <span>Alpha update<br>Invisible · alpha 0</span>
+  </div>
+  <section>
+    <span class="row">GBI1</span><span class="row second">GBI2</span>
+    <canvas id="display" width="800" height="360"></canvas>
+  </section>
+</main>
+<pre id="results">Running…</pre>
+<script type="module">
+  import { runModifyVertexTests } from '../build/modify_vertex_webgl.js';
+  globalThis.n64js = { warn: console.warn };
+  try {
+    const gl = document.getElementById('display').getContext('webgl2', { antialias: false });
+    const lines = runModifyVertexTests(gl);
+    document.getElementById('results').textContent = lines.join('\n');
+    document.title = `${lines.length} passed`;
+  } catch (error) {
+    document.getElementById('results').textContent = `FAIL: ${error.stack || error}`;
+    document.title = 'FAIL';
+  }
+</script>
+</html>

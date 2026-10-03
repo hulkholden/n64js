@@ -314,7 +314,9 @@ export class GBIMicrocode {
 
     switch (offset) {
       case gbi.ModifyVtx.G_MWO_POINT_RGBA:
-        this.warnUnimplemented('modifyVtx RGBA');
+        // Post-transform RGBA: store as ABGR, without rerunning lighting or fog.
+        vertex.color = ((value >>> 24) | ((value >>> 8) & 0x0000ff00) |
+          ((value << 8) & 0x00ff0000) | (value << 24)) >>> 0;
         break;
 
       case gbi.ModifyVtx.G_MWO_POINT_ST:

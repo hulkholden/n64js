@@ -47,6 +47,13 @@ that scene with labels, build `bun build tools/light_color_webgl.js
 It compares cached vertices, diffuse and ambient updates, and the duplicate
 colour word in the last light slot using the production vertex loader and renderer.
 
+The pixel checks also cover GBI1/GBI2 `ModifyVertex RGBA` writes through display
+lists, including opaque color, partial alpha blending and zero alpha. Build
+`bun build tools/modify_vertex_webgl.js --outfile=build/modify_vertex_webgl.js`
+and open [the color/alpha scene](http://localhost:8000/tools/modify_vertex_webgl.html)
+to view the same cached vertices before and after the commands. Lighting and fog
+are enabled after the vertex load to check that the supplied RGBA is used directly.
+
 ## Automated comparison
 
 Node.js 24 and Bun are used by the runner. Install its pinned browser once:
