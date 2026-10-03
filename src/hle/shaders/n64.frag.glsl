@@ -2,7 +2,8 @@
 #define NEAR_CLIPPING __NEAR_CLIPPING__
 
 precision mediump float;
-in         vec4 vColor;
+uniform bool uScreenSpaceShade;
+in highp vec4 vColor;
 in highp float vShadeAlpha;
 in highp vec2 vUV;
 #if !NEAR_CLIPPING
@@ -153,5 +154,6 @@ void main(void) {
     tex0 = uTextureConvert == 0 ? convertYUV(tex0) : vec4(tex0.rg - 128.0 / 255.0, tex0.b, tex0.b);
   }
   vec4 shade = vec4(vColor.rgb, clamp(vShadeAlpha * gl_FragCoord.w, 0.0, 1.0));
+  if (uScreenSpaceShade) { shade.rgb *= gl_FragCoord.w; }
   outCol = combineColor(shade, tex0, tex1);
 }

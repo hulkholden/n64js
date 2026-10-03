@@ -7,6 +7,7 @@ import { RenderTargets } from '../src/hle/render_targets.js';
 import { RSPState } from '../src/hle/rsp_state.js';
 import { TriangleBuffer } from '../src/hle/triangle_buffer.js';
 import { GBIMicrocode } from '../src/hle/gbi_microcode.js';
+import { runRDPTests } from './rdp_webgl.js';
 import { runFogTests } from './fog_webgl.js';
 import { runBg1cycTests } from './s2dex_bg_1cyc_webgl.js';
 import { runBgCopyTests } from './s2dex_bg_copy_webgl.js';
@@ -842,6 +843,9 @@ try {
     lines.push('PASS texture cache eviction and reset delete GPU objects');
     passed++;
   }
+  const rdpResults = runRDPTests(gl);
+  lines.push(...rdpResults);
+  passed += rdpResults.length;
   const bgResults = [...runBgCopyTests(gl), ...runBg1cycTests(gl)];
   lines.push(...bgResults);
   passed += bgResults.length;

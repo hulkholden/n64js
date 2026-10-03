@@ -5,7 +5,8 @@ in vec4 aPosition;
 in vec4 aColor;
 in vec2 aUV;
 
-out         vec4 vColor;
+uniform bool uScreenSpaceShade;
+out highp vec4 vColor;
 out highp float vShadeAlpha;
 // Preserve N64 sub-texel precision before fragment-stage tile offsets.
 out highp vec2 vUV;
@@ -22,6 +23,7 @@ void main(void) {
   gl_Position.z = 0.0;
 #endif
   vColor = aColor;
+  if (uScreenSpaceShade) { vColor.rgb *= aPosition.w; }
   // Shade alpha (including RSP fog) is affine in screen space. WebGL lacks
   // noperspective varyings; cancel its perspective denominator in the fragment.
   vShadeAlpha = aColor.a * aPosition.w;
