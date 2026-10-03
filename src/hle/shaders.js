@@ -253,7 +253,7 @@ class N64Shader {
     this.uTextureConvertUniform  = gl.getUniformLocation(program, "uTextureConvert");
     this.uTextureYUVUniform      = gl.getUniformLocation(program, "uTextureYUV");
     this.uAlphaThresholdUniform  = gl.getUniformLocation(program, "uAlphaThreshold");
-    this.uAffineUniform          = gl.getUniformLocation(program, "uAffine");
+    this.uAffineUVUniform          = gl.getUniformLocation(program, "uAffineUV");
   }
 }
 

@@ -72,15 +72,15 @@ export function runAffineProjectionTests(gl) {
       }
     }
 
-    function check(name, expected, ordinary = false) {
+    function check(name, expected, drawOptions = null) {
       renderer.newFrame();
       gl.disable(gl.DITHER);
       gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT);
-      if (ordinary) {
+      if (drawOptions !== null) {
         const tb = new TriangleBuffer(1);
         tb.pushTriWithUV(...vertices, 0, 0, 8, 0, 0, 0);
-        renderer.flushTris(tb);
+        renderer.flushTris(tb, drawOptions);
       } else if (turbo) {
         microcode.drawObjectTriangles(64, 1);
       } else {
@@ -106,7 +106,7 @@ export function runAffineProjectionTests(gl) {
         state.noNearClipping = noNearClipping;
         load(points, matrix);
         check(`affine UV with unequal w, scale ${scale}, NoN ${noNearClipping}`, [red, green, blue, white]);
-        check('ordinary draw restores perspective UV on the cached shader', [red, green, green, blue], true);
+        check('ordinary draw restores perspective UV on the cached shader', [red, green, green, blue], {});
         check('affine draw restores affine UV on the cached shader', [red, green, blue, white]);
       }
     }
@@ -124,9 +124,40 @@ export function runAffineProjectionTests(gl) {
 
     // White texture isolates RGB/alpha interpolation without inactive inputs.
     const colors = [0x00000000, 0x80808080, 0xffffffff];
-    load(points, varyingW, [3.5, 3.5, 3.5], colors);
     // Screen barycentrics are (3/4-t,t,1/4), t=1/16,3/16,5/16,7/16.
-    check('shade RGBA remains affine with unequal w', [71.75, 87.75, 103.75, 119.75].map(v => [v, v, v, v]));
+    const affineGray = [71.75, 87.75, 103.75, 119.75].map(v => [v, v, v, v]);
+    for (const scale of [1, 32768]) {
+      const matrix = new Matrix4x4(varyingW.elems.map(value => value * scale));
+      for (const noNearClipping of [false, true]) {
+        state.noNearClipping = noNearClipping;
+        load(points, matrix, [3.5, 3.5, 3.5], colors);
+        check(`shade RGBA remains affine with unequal w, scale ${scale}, NoN ${noNearClipping}`, affineGray);
+      }
+    }
+    state.noNearClipping = false;
+    load(points, nearCrossing, [3.5, 3.5, 3.5], colors);
+    check('near-plane clipping preserves affine RGBA', [clear, clear, ...affineGray.slice(2)]);
+
+    // Keep both SHADE and TEXEL0 active while changing interpolation modes on
+    // the same cached shader. RDP needs affine shade with perspective UVs.
+    load(points, varyingW, [0, 8, 0], colors);
+    const expectedInterpolation = affineUV => Array.from({ length: 4 }, (_, i) => {
+      const t = (2 * i + 1) / 16;
+      const inverseW = (0.75 - t) + t / 2 + 0.25 / 4;
+      const shade = 128 * t + 255 / 4;
+      const alpha = 128 * t + 255 / 4;
+      const u = affineUV ? 8 * t : (8 * t / 2) / inverseW;
+      const texel = [red, green, blue, white][Math.floor(u)];
+      return [...texel.slice(0, 3).map(channel => channel * shade / 255), alpha];
+    });
+    check('object draw uses affine shade and UVs', expectedInterpolation(true));
+    for (const [name, options] of [
+      ['ordinary draw keeps affine RGBA with perspective UVs', {}],
+      ['affine UV mode preserves affine RGBA', { affineUV: true }],
+      ['perspective UV mode can be restored without changing shade', {}],
+    ]) {
+      check(name, expectedInterpolation(options.affineUV), options);
+    }
 
     const eyeCrossing = new Matrix4x4([1, 0, 0, 0, 0, 1, 0, 0,
       0, 0, 0, -1, 0, 0, 1, 0]);

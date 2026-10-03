@@ -193,7 +193,7 @@ export class Renderer extends RendererBase {
    * @param {TriangleBuffer} tb 
    * @returns 
    */
-  flushTris(tb, { lines = false, affine = false } = {}) {
+  flushTris(tb, { lines = false, affineUV = false } = {}) {
     const gl = this.gl;
     if (tb.empty()) {
       return;
@@ -220,7 +220,7 @@ export class Renderer extends RendererBase {
       textureEnabled,
       texGenEnabled,
       this.state.texture.tile,
-      tb.numTris * 3, null, this.state.noNearClipping, affine);
+      tb.numTris * 3, null, this.state.noNearClipping, { affineUV });
 
     this.initDepth();
 
@@ -454,7 +454,7 @@ export class Renderer extends RendererBase {
     gl.depthMask(zUpdRenderMode);
   }
 
-  setProgramState(positions, colours, coords, textureEnabled, texGenEnabled, tileIdx, numVertices = positions.length / 4, textureRect = null, noNearClipping = false, affine = false) {
+  setProgramState(positions, colours, coords, textureEnabled, texGenEnabled, tileIdx, numVertices = positions.length / 4, textureRect = null, noNearClipping = false, { affineUV = false } = {}) {
     const gl = this.gl;
 
     this.applyScissor();
@@ -498,7 +498,7 @@ export class Renderer extends RendererBase {
 
     const shader = this.getCurrentN64Shader(noNearClipping);
     gl.useProgram(shader.program);
-    gl.uniform1i(shader.uAffineUniform, affine ? 1 : 0);
+    gl.uniform1i(shader.uAffineUVUniform, affineUV ? 1 : 0);
 
     // TODO: just return the shader and do the binding at the call site?
     shader.vertexArray.bind();

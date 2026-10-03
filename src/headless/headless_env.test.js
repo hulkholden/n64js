@@ -4,7 +4,7 @@ import { controlCause, controlStatus } from '../cpu/cpu0reg.js';
 import { MI_INTR_DP, MI_INTR_MASK_REG, MI_INTR_REG, MI_INTR_SP, MI_INTR_VI } from '../devices/mi.js';
 import { SI_DRAM_ADDR_REG, SI_PIF_ADDR_RD64B_REG, SI_PIF_ADDR_WR64B_REG, SI_STATUS_REG } from '../devices/si.js';
 import {
-  SP_CLR_BROKE, SP_CLR_HALT, SP_CLR_SIG2, SP_SET_HALT, SP_SET_INTR_BREAK, SP_SET_SIG2,
+  SP_CLR_BROKE, SP_CLR_HALT, SP_CLR_SIG1, SP_CLR_SIG2, SP_CLR_SIG3, SP_SET_SIG3, SP_STATUS_SIG3, SP_SET_HALT, SP_SET_INTR_BREAK, SP_SET_SIG2,
   SP_STATUS_HALT, SP_STATUS_BROKE, SP_STATUS_TASKDONE, SP_STATUS_REG,
 } from '../devices/sp_constants.js';
 import { audioOptions } from '../hle/audio_options.js';
@@ -256,10 +256,71 @@ const hvqmCode = new Uint8Array(0x1000);
 hvqmCode.set([9, 10, 11, 0, 1, 11, 12, 15], microcodePrefixLength - 8);
 const unsupportedMicrocodes = [
   { family: 'F5', version: '', code: rogueCode, detection: 'hash' },
-  { family: 'ZSortBOSS', version: '', code: bossCode, detection: 'hash' },
 ];
 
 describe('headless graphics execution', () => {
+  test.each([false, true])('runs BOSS signal waits, DMA, RDP output and completion on the RSP (draws=%s)', async executeGraphics => {
+    const seen = [];
+    const loaded = [];
+    const emulator = await createEmulator({ executeGraphics,
+      onGraphicsTask: info => seen.push(info), onMicrocodeLoad: info => loaded.push(info) });
+    const { hardware } = emulator;
+    prepareGraphicsTask(emulator, '', bossCode);
+    // An invalid HLE list address proves no display-list parser was used.
+    hardware.sp_mem.set32(0xfc0 + TaskOffsets.dataPtr, 0x1000000);
+    hardware.spRegDevice.write32(0xa4040000 + SP_STATUS_REG, SP_SET_INTR_BREAK);
+    hardware.ram.set32(0x5000, 0xf7000000); // SetFillColor
+    hardware.ram.set32(0x5004, 0x12345678);
+    hardware.ram.set32(0x5008, 0xe9000000); // FullSync
+    const program = [
+      0x3c080000 | (SP_SET_SIG3 >>> 16),
+      0x35080000 | SP_CLR_SIG1 | SP_CLR_SIG2,
+      0x40882000, // mtc0 t0, SP_STATUS
+      0x40092000, // wait: mfc0 t1, SP_STATUS
+      0x31290000 | SP_STATUS_SIG3,
+      0x1520fffd, // bne t1, zero, wait
+      0,
+      0x24081234, // a sample produced by the task
+      0xac080080, // sw t0, 0x80(zero)
+      0x24080080, 0x40880000, // SP_MEM_ADDR = 0x80
+      0x34088000, 0x40880800, // SP_DRAM_ADDR = 0x8000
+      0x24080007, 0x40881800, // SP_WR_LEN = 7 (8 bytes)
+      0x24085000, 0x40884000, // DPC_START = 0x5000
+      0x24085010, 0x40884800, // DPC_END = 0x5010
+      0x24080000 | SP_SET_SIG2, 0x40882000,
+      0x0000000d, // break
+    ];
+    program.forEach((word, i) => hardware.sp_mem.set32(0x1000 + i * 4, word));
+    startRSPTask(emulator);
+    expect(loaded).toEqual([]);
+    expect(seen[0]).toMatchObject({ id: MicrocodeId.ZSORT_BOSS, detection: 'hash' });
+    for (let i = 0; i < 30; i++) {
+      hardware.rsp.step();
+    }
+    expect(hardware.rsp.halted).toBe(false);
+    expect(hardware.sp_reg.getU32(SP_STATUS_REG) & SP_STATUS_SIG3).toBe(SP_STATUS_SIG3);
+    expect(hardware.mi_reg.getU32(MI_INTR_REG) & (MI_INTR_SP | MI_INTR_DP)).toBe(0);
+    expect(hardware.ram.getU32(0x8000)).toBe(0);
+    hardware.spRegDevice.write32(0xa4040000 + SP_STATUS_REG, SP_CLR_SIG3);
+    for (let i = 0; i < 40 && !hardware.rsp.halted; i++) {
+      hardware.rsp.step();
+    }
+    expect(hardware.ram.getU32(0x8000)).toBe(0x1234);
+    expect(hardware.rsp.halted).toBe(true);
+    const complete = SP_STATUS_TASKDONE | SP_STATUS_BROKE | SP_STATUS_HALT;
+    expect(hardware.sp_reg.getU32(SP_STATUS_REG) & complete).toBe(complete);
+    expect(hardware.mi_reg.getU32(MI_INTR_REG) & (MI_INTR_SP | MI_INTR_DP)).toBe(MI_INTR_SP | MI_INTR_DP);
+    if (executeGraphics) {
+      expect(hardware.graphics.state.fillColor).toBe(0x12345678);
+    }
+    prepareGraphicsTask(emulator);
+    setGraphicsCommands(emulator, [[0xe9000000, 0], [0xdf000000, 0]]);
+    startRSPTask(emulator);
+    expect(hardware.rsp.halted).toBe(true);
+    expect(loaded.map(info => info.id)).toEqual(executeGraphics ? [MicrocodeId.GBI2] : []);
+    expect(hardware.mi_reg.getU32(MI_INTR_REG) & MI_INTR_DP).toBe(MI_INTR_DP);
+  });
+
   test.each([false, true])('executes HVQM2 on the RSP with executeGraphics=%s and returns to HLE for drawing', async executeGraphics => {
     const seen = [];
     const loaded = [];
@@ -497,12 +558,12 @@ describe('headless graphics execution', () => {
     expect(hardware.cpu1.control[31]).toBe(0x01010800);
   });
 
-  test.each(unsupportedMicrocodes)('rejects $family tasks and in-list loads before parsing their commands', async ({ family, version, code, detection }) => {
+  test.each([...unsupportedMicrocodes, { family: 'ZSortBOSS', version: '', code: bossCode, detection: 'hash' }])('rejects $family tasks and in-list loads before parsing their commands', async ({ family, version, code, detection }) => {
     const previousHaltOnWarning = graphicsOptions.haltOnWarning;
     try {
       // Unsupported execution must stop even when ordinary warnings are ignored.
       graphicsOptions.haltOnWarning = false;
-      for (const inList of [false, true]) {
+      for (const inList of (family === 'ZSortBOSS' ? [true] : [false, true])) {
         const seen = [];
         const loaded = [];
         const halted = [];

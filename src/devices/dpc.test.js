@@ -123,3 +123,65 @@ describe('DPC HLE clock approximation', () => {
     expect(dp.statusReg).toBe(0x405);
   });
 });
+
+
+describe('streamed RDP commands', () => {
+  test('consumes appended packets exactly once and honours a new START', async () => {
+    const { hardware } = await fixture();
+    let interrupts = 0;
+    hardware.miRegDevice.interruptDP = () => { interrupts++; };
+    const dp = hardware.dpcDevice;
+    for (const address of [0x100, 0x108, 0x200]) {
+      hardware.ram.set32(address, 0xe9000000);
+    }
+    dp.write32(base, 0x100);
+    dp.write32(base + 4, 0x108);
+    expect([dp.currentReg, interrupts]).toEqual([0x108, 1]);
+    dp.write32(base + 4, 0x110);
+    dp.write32(base + 4, 0x110);
+    expect([dp.currentReg, interrupts]).toEqual([0x110, 2]);
+    dp.write32(base, 0x200);
+    dp.write32(base, 0x100); // An already pending START cannot be overwritten.
+    dp.write32(base + 4, 0x208);
+    expect([dp.currentReg, interrupts]).toEqual([0x208, 3]);
+  });
+
+  test('waits for a whole raw texture rectangle and wraps XBUS fetches within DMEM', async () => {
+    const { hardware } = await fixture();
+    const packets = [];
+    hardware.graphics.beginRDP = () => ({ execute: (type, buf) => {
+      packets.push([type, buf.getU32(4), buf.getU32(8), buf.getU32(12)]);
+    } });
+    const dp = hardware.dpcDevice;
+    dp.write32(base + status, 2); // XBUS
+    hardware.sp_mem.set32(0xff8, 0xe4000000);
+    hardware.sp_mem.set32(0xffc, 0x01000000);
+    hardware.sp_mem.set32(0, 0x00200040);
+    hardware.sp_mem.set32(4, 0x04000800);
+    dp.write32(base, 0xff8);
+    dp.write32(base + 4, 0x1000);
+    expect(dp.currentReg).toBe(0xff8);
+    expect(packets).toEqual([]);
+    dp.write32(base + 4, 0x1008);
+    expect(dp.currentReg).toBe(0x1008);
+    expect(packets).toEqual([[0x24, 0x01000000, 0x00200040, 0x04000800]]);
+  });
+
+  test('keeps raw packets and FullSync pending until the DP is unfrozen', async () => {
+    const { hardware } = await fixture();
+    const events = [];
+    hardware.graphics.beginRDP = () => ({ execute: type => events.push(type) });
+    hardware.miRegDevice.interruptDP = () => events.push('sync');
+    const dp = hardware.dpcDevice;
+    hardware.ram.set32(0x100, 0xf7000000);
+    hardware.ram.set32(0x108, 0xe9000000);
+    dp.write32(base + status, 8);
+    dp.write32(base, 0x100);
+    dp.write32(base + 4, 0x110);
+    expect([dp.currentReg, events]).toEqual([0x100, []]);
+    dp.write32(base + status, 4);
+    expect([dp.currentReg, events]).toEqual([0x110, [0x37, 'sync']]);
+    dp.write32(base + status, 4);
+    expect(events).toEqual([0x37, 'sync']);
+  });
+});

@@ -270,7 +270,7 @@ export class T3DUX extends ObjectMicrocode {
 
       if ((palette & PALETTE_UPDATE_FLAG) || (rejected && palette)) {
         if (this.cachedSetTile) {
-          this.renderer.flushTris(tb, { affine: true });
+          this.renderer.flushTris(tb, { affineUV: true });
           tb.reset();
           super.executeSetTile(this.cachedSetTile[0], this.cachedSetTile[1] | (palette << RDP_TILE_PALETTE_SHIFT), dis);
         } else if (state.geometryMode.texture) {
@@ -300,11 +300,11 @@ export class T3DUX extends ObjectMicrocode {
 
       tb.pushTriWithUV(...vertices, ...uv);
       if (!tb.hasCapacity(1)) {
-        this.renderer.flushTris(tb, { affine: true });
+        this.renderer.flushTris(tb, { affineUV: true });
         tb.reset();
       }
     }
 
-    this.renderer.flushTris(tb, { affine: true });
+    this.renderer.flushTris(tb, { affineUV: true });
   }
 }

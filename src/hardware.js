@@ -44,6 +44,8 @@ export class Hardware {
     // The environment supplies a synchronous graphics processor with
     // processTask(task) and reset(). processTask may return a continuation for
     // a CPU producer wait, and signals DP interrupts on executed FullSyncs.
+    // Optional beginRDP()/endRDP() bracket a raw RDP buffer; beginRDP returns
+    // a processor with execute(commandType, buffer) for complete packets.
     // Optional setDPFrozen(frozen) preserves VI-visible images while HLE
     // consumes SP work ahead of a frozen DP.
     // The default skips lists and approximates one DP interrupt/clock per task;

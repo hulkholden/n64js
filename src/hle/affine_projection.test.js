@@ -58,7 +58,7 @@ for (const [Type, variant] of [[Turbo3D], [T3DUX, false], [T3DUX, true]]) {
         if (Type === Turbo3D || w.some(value => value !== 0)) {
           expect(draws).toHaveLength(1);
           expect(draws[0].positions).toEqual(vertices.flatMap(v => [...v.pos.elems]));
-          expect(draws[0].options).toEqual({ affine: true });
+          expect(draws[0].options).toEqual({ affineUV: true });
         }
       });
     }
@@ -67,7 +67,7 @@ for (const [Type, variant] of [[Turbo3D], [T3DUX, false], [T3DUX, true]]) {
       const { draw, draws } = fixture([1, 2, 4], 65);
       draw();
       expect(draws.map(d => d.positions.length / 12)).toEqual([64, 1]);
-      expect(draws.every(d => d.options.affine)).toBe(true);
+      expect(draws.every(d => d.options.affineUV)).toBe(true);
     });
 
     if (Type === T3DUX) {
