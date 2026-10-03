@@ -40,6 +40,13 @@ bun build tools/texture_sampler_webgl.js --outfile=build/texture_sampler_webgl.j
 Then open [the pixel-check page](http://localhost:8000/tools/texture_sampler_webgl.html)
 on the same local server. The checks run automatically and report their results.
 
+The pixel checks also include GBI1/GBI2 `MoveWord LightCol` lighting. To view
+that scene with labels, build `bun build tools/light_color_webgl.js
+--outfile=build/light_color_webgl.js` and open
+[the lighting scene](http://localhost:8000/tools/light_color_webgl.html).
+It compares cached vertices, diffuse and ambient updates, and the duplicate
+colour word in the last light slot using the production vertex loader and renderer.
+
 ## Automated comparison
 
 Node.js 24 and Bun are used by the runner. Install its pinned browser once:

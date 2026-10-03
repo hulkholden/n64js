@@ -9,6 +9,7 @@ import { TriangleBuffer } from '../src/hle/triangle_buffer.js';
 import { GBIMicrocode } from '../src/hle/gbi_microcode.js';
 import { runFogTests } from './fog_webgl.js';
 import { runBgCopyTests } from './s2dex_bg_copy_webgl.js';
+import { runLightColorTests } from './light_color_webgl.js';
 
 const output = document.getElementById('results');
 try {
@@ -845,6 +846,9 @@ try {
   const fogResults = runFogTests(gl);
   lines.push(...fogResults);
   passed += fogResults.length;
+  const lightColorResults = runLightColorTests(gl);
+  lines.push(...lightColorResults);
+  passed += lightColorResults.length;
   output.textContent = `${passed} passed\n${lines.join('\n')}`;
   document.title = `${passed} passed`;
 } catch (error) {

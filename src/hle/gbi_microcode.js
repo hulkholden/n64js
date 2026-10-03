@@ -1,6 +1,6 @@
 /*global n64js*/
 
-import { toString8, toString32 } from '../format.js';
+import { toString8, toString16, toString32 } from '../format.js';
 import { Matrix4x4 } from '../graphics/Matrix4x4.js';
 import { Vector3 } from '../graphics/Vector3.js';
 import * as logger from '../logger.js';
@@ -197,6 +197,19 @@ export class GBIMicrocode {
       this.ramDV.getInt8(address + 9),
       this.ramDV.getInt8(address + 10)
     ]).normaliseInPlace();
+  }
+
+  moveWordLightColor(offset, value, stride) {
+    const lightIdx = Math.floor(offset / stride);
+    const field = offset % stride;
+    // gSPLightColor writes RGB twice, at offsets 0 and 4. HLE keeps a
+    // single colour for both copies; neither write changes the direction.
+    // Other fields in the slot are not colour words.
+    if (lightIdx >= this.state.lights.length || (field !== 0 && field !== 4)) {
+      this.warn('MoveWord LightCol invalid offset', toString16(offset));
+      return;
+    }
+    this.state.lights[lightIdx].color = makeRGBAFromRGBA32(value);
   }
 
   previewLight(address) {
