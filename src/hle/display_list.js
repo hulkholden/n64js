@@ -48,7 +48,9 @@ export function executeDisplayList(state, microcode, {
       ucodeTable[state.cmd0 >>> 24](state.cmd0, state.cmd1, disassembler);
       disassembler.end();
       state.currentOp++;
-      if (state.pc === pc) break;
+      if (state.pc === pc) {
+        break;
+      }
     }
   } else {
     return run();
@@ -67,7 +69,9 @@ export function executeDisplayList(state, microcode, {
       // Gauntlet Legends builds lists while the RSP consumes them, replacing
       // a self-branch with a no-op once more commands are ready. Keep the live
       // state and command table, but let the CPU run before fetching it again.
-      if (state.pc === pc && state.dlistStack.length === depth) return run;
+      if (state.pc === pc && state.dlistStack.length === depth) {
+        return run;
+      }
     }
     return null;
   }

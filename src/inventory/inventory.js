@@ -37,8 +37,12 @@ wall-clock limits can change the outcome. The original report is never overwritt
 ${inputScriptHelp}`;
 
 async function checkOutput(output, inputs) {
-  if (!output) throw new Error('Output path must not be empty');
-  if (output === '-') return;
+  if (!output) {
+    throw new Error('Output path must not be empty');
+  }
+  if (output === '-') {
+    return;
+  }
   const destination = await stat(output).catch(() => null);
   for (const [path, label] of inputs) {
     const source = await stat(path).catch(() => null);
@@ -62,7 +66,9 @@ try {
   if (values.help) {
     console.log(usage);
   } else {
-    if (positionals.length !== 1) throw new Error('Expected one ROM path');
+    if (positionals.length !== 1) {
+      throw new Error('Expected one ROM path');
+    }
     if (values.replay !== undefined && Object.keys(inventoryOptions).some(key => values[key] !== undefined)) {
       throw new Error('--replay cannot be combined with inventory settings options');
     }
@@ -70,7 +76,9 @@ try {
     const settings = replay?.settings ?? inventorySettings(values, await loadInputScript(values['input-script']));
     const romPath = resolve(positionals[0]);
     const inputs = [[romPath, 'ROM']];
-    if (replay) inputs.push([values.replay, 'replay report']);
+    if (replay) {
+      inputs.push([values.replay, 'replay report']);
+    }
     await checkOutput(values.output, inputs);
     const report = await runInventory(romPath, settings, { replayOf: replay?.replayOf });
     const json = JSON.stringify(report, null, 2) + '\n';

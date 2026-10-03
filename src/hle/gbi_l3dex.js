@@ -46,7 +46,9 @@ export class GBI1L3DEX extends GBI1 {
   }
 
   pushLine(i0, i1, width, flatIndex) {
-    if (i0 === i1) return;
+    if (i0 === i1) {
+      return;
+    }
     const verts = this.state.projectedVertices;
     if (!verts[i0]?.set || !verts[i1]?.set || (!this.state.geometryMode.shadeSmooth && !verts[flatIndex]?.set)) {
       this.warn('L3DEX line references an unloaded vertex');

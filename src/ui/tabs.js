@@ -1,7 +1,9 @@
 // Each tab list owns only its direct tabs; nested debugger tabs keep their state.
 export function showTab(tab) {
   const list = tab.closest('[role="tablist"]');
-  if (tab.classList.contains('active')) return;
+  if (tab.classList.contains('active')) {
+    return;
+  }
   for (const sibling of list.querySelectorAll('[role="tab"]')) {
     const selected = sibling === tab;
     sibling.classList.toggle('active', selected);

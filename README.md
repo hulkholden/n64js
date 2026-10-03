@@ -100,6 +100,13 @@ the check as well as errors. Existing `no-unused-vars` findings are recorded in
 Other recommended rules remain fully enforced. When cleaning up existing unused
 variables, run `bun run lint --prune-suppressions` and commit the reduced baseline.
 
+Conditionals and loops require braces and multiline bodies. `bun run lint:fix`
+adds the braces, line breaks and indentation automatically. Device implementations
+in `src/devices/` may use compact braced blocks such as `if (flag) { update(); }`
+to keep register handling and conditional logging readable; device tests and
+benchmarks follow the normal multiline rule. Short functions may remain on one
+line.
+
 ### N64 system tests
 
 The [system-test workflow](.github/workflows/systemtest.yml) builds pinned test

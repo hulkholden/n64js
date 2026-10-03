@@ -51,7 +51,9 @@ async function main() {
     }
   } finally {
     try {
-      if (browser) await browser.close();
+      if (browser) {
+        await browser.close();
+      }
     } finally {
       await new Promise(resolve => server.close(resolve));
     }
@@ -237,7 +239,9 @@ function reportResults(results, { capture, output }) {
   const failed = results.filter(result => !result.passed).length;
   const passed = results.length - failed;
   console.log(`${passed}/${results.length} visual comparisons passed. Results: ${directory}`);
-  if (failed) process.exitCode = 1;
+  if (failed) {
+    process.exitCode = 1;
+  }
   return failed;
 }
 
@@ -280,7 +284,9 @@ async function runRegressionSelfTest(page, output) {
 function withoutImages(result) {
   // Keep images on disk, not embedded in the machine-readable report.
   const summary = { ...result };
-  for (const field of imageFields) delete summary[field];
+  for (const field of imageFields) {
+    delete summary[field];
+  }
   return summary;
 }
 
@@ -295,7 +301,9 @@ async function saveJSON(path, value) {
 }
 
 async function savePNG(path, dataURL) {
-  if (!dataURL) return;
+  if (!dataURL) {
+    return;
+  }
   const png = Buffer.from(dataURL.split(',')[1], 'base64');
   await writeFile(path, png);
 }

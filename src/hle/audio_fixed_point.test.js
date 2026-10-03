@@ -22,18 +22,20 @@ describe('audio fixed-point arithmetic', () => {
     expect(fixed16FromParts(-32768, 0)).toBe(-0x80000000);
   });
 
-  for (const shift of [11, 14]) test(`signed 32-bit wrap precedes shift by ${shift} and saturation`, () => {
-    const scale = 2 ** shift;
-    expect(clampShifted32To16(scale - 1, shift)).toBe(0);
-    expect(clampShifted32To16(-1, shift)).toBe(-1);
-    expect(clampShifted32To16(-scale - 1, shift)).toBe(-2);
-    expect(clampShifted32To16(32768 * scale, shift)).toBe(32767);
-    expect(clampShifted32To16(-32769 * scale, shift)).toBe(-32768);
-    expect(clampShifted32To16(0x80000000, shift)).toBe(-32768);
-    expect(clampShifted32To16(-0x80000001, shift)).toBe(32767);
-    expect(clampShifted32To16(0x100000000 + 7 * scale, shift)).toBe(7);
-    expect(clampShifted32To16(-0x100000000 - 7 * scale - 1, shift)).toBe(-8);
-  });
+  for (const shift of [11, 14]) {
+    test(`signed 32-bit wrap precedes shift by ${shift} and saturation`, () => {
+      const scale = 2 ** shift;
+      expect(clampShifted32To16(scale - 1, shift)).toBe(0);
+      expect(clampShifted32To16(-1, shift)).toBe(-1);
+      expect(clampShifted32To16(-scale - 1, shift)).toBe(-2);
+      expect(clampShifted32To16(32768 * scale, shift)).toBe(32767);
+      expect(clampShifted32To16(-32769 * scale, shift)).toBe(-32768);
+      expect(clampShifted32To16(0x80000000, shift)).toBe(-32768);
+      expect(clampShifted32To16(-0x80000001, shift)).toBe(32767);
+      expect(clampShifted32To16(0x100000000 + 7 * scale, shift)).toBe(7);
+      expect(clampShifted32To16(-0x100000000 - 7 * scale - 1, shift)).toBe(-8);
+    });
+  }
 
   test('dropping fractional bits floors negatives and retains bits above bit 31', () => {
     expect(fixed16ToInt(-1)).toBe(-1);
@@ -66,9 +68,11 @@ describe('audio fixed-point arithmetic', () => {
     // These include products whose low fractional bits are lost if the joined
     // 32-bit inputs are multiplied as Numbers, plus negative fractional values.
     const values = [-0x80000000n, -0x7fffffffn, -0x18000n, -1n, 0n, 0xffffn, 0x10000n, 0x7fffff01n, 0x7ffffeffn, 0x7fffffffn];
-    for (const a of values) for (const b of values) {
-      const actual = mulFixed16(Number(a >> 16n), Number(a & 0xffffn), Number(b >> 16n), Number(b & 0xffffn));
-      expect(actual).toBe(Number((a * b) >> 16n));
+    for (const a of values) {
+      for (const b of values) {
+        const actual = mulFixed16(Number(a >> 16n), Number(a & 0xffffn), Number(b >> 16n), Number(b & 0xffffn));
+        expect(actual).toBe(Number((a * b) >> 16n));
+      }
     }
   });
 

@@ -36,7 +36,9 @@ try {
         },
       }],
     });
-    if (!result.success) throw new AggregateError(result.logs, 'Benchmark bundle failed');
+    if (!result.success) {
+      throw new AggregateError(result.logs, 'Benchmark bundle failed');
+    }
     const source = await result.outputs[0].text();
     const page = await browser.newPage();
     await page.evaluate(async source => {
@@ -57,7 +59,7 @@ try {
           method === 'block' ? Math.ceil(2048 / (width * (1 << size) / 16)) : (height - 1) * 4);
         const run = method === 'block' ? () => state.tmem.loadBlock(state.textureImage, tile)
           : method === 'tile' ? () => state.tmem.loadTile(state.textureImage, tile)
-          : () => state.tmem.loadTLUT(state.textureImage, tile);
+            : () => state.tmem.loadTLUT(state.textureImage, tile);
         cases.push({ name, run, state });
       };
       for (const method of ['block', 'tile']) {
@@ -75,13 +77,23 @@ try {
       make('TLUT 256 entries', 'tlut', 0, 2, 256, 1, 0, 0, 256);
       make('TLUT odd 256 entries', 'tlut', 0, 2, 256, 1, 1, 0, 256);
       const individual = [...cases];
-      cases.push({ name: 'mixed formats', run: () => { for (const c of individual) c.run(); } });
+      cases.push({ name: 'mixed formats', run: () => {
+        for (const c of individual) {
+          c.run();
+        }
+      } });
       // Warm every format before timing: the real load sites are polymorphic.
-      for (let i = 0; i < 2000; i++) for (const c of individual) c.run();
+      for (let i = 0; i < 2000; i++) {
+        for (const c of individual) {
+          c.run();
+        }
+      }
       globalThis.measure = (index, count) => {
         const run = cases[index].run;
         const start = performance.now();
-        for (let i = 0; i < count; i++) run();
+        for (let i = 0; i < count; i++) {
+          run();
+        }
         return performance.now() - start;
       };
       globalThis.names = cases.map(c => c.name);
@@ -91,7 +103,9 @@ try {
   }
   const names = await pages[0].evaluate(() => globalThis.names);
   const snapshot = async page => JSON.stringify(await page.evaluate(() => globalThis.snapshot()));
-  if (await snapshot(pages[0]) !== await snapshot(pages[1])) throw new Error('TMEM differs after warmup');
+  if (await snapshot(pages[0]) !== await snapshot(pages[1])) {
+    throw new Error('TMEM differs after warmup');
+  }
 
   const counts = [];
   for (let i = 0; i < names.length; i++) {
@@ -109,7 +123,9 @@ try {
       }
     }
   }
-  if (await snapshot(pages[0]) !== await snapshot(pages[1])) throw new Error('TMEM differs after timing');
+  if (await snapshot(pages[0]) !== await snapshot(pages[1])) {
+    throw new Error('TMEM differs after timing');
+  }
   const median = values => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)];
   const results = names.map((name, i) => ({
     name, iterations: counts[i],

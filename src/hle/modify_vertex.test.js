@@ -52,7 +52,9 @@ for (const [Type, opcode, triangle, end] of [
           [6, -6, 7, -7, 1, -1],
           [6, -6, 41 / 32, 77 / 32, 1, -1],
         ]);
-        if (disassemble) expect(text).toContain('gsSPModifyVertex(7,G_MWO_POINT_ST,0x0029004d);');
+        if (disassemble) {
+          expect(text).toContain('gsSPModifyVertex(7,G_MWO_POINT_ST,0x0029004d);');
+        }
         expect(warnings).toEqual([]);
       }
     });
@@ -151,7 +153,9 @@ for (const [Type, opcode, triangle, end] of [
         const disassembler = disassemble ? { begin() {}, end() {}, text: s => text.push(s) } : null;
         executeDisplayList(state, microcode, { disassembler });
         expect(draws).toEqual([[0.25, -0.5, 0.5, 2], [0.25, -0.5, -1019 / 512, 2]]);
-        if (disassemble) expect(text).toContain('gsSPModifyVertex(7,G_MWO_POINT_ZSCREEN,0x00018000);');
+        if (disassemble) {
+          expect(text).toContain('gsSPModifyVertex(7,G_MWO_POINT_ZSCREEN,0x00018000);');
+        }
         expect(warnings).toEqual([]);
       }
     });

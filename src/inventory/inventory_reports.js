@@ -14,14 +14,22 @@ export const collectorSpecs = {
 export function inspectCollector(report, spec, predicate) {
   const data = report.collectors[spec.name];
   const result = { collector: spec.name, version: data?.version ?? null, scope: data?.scope ?? null, state: 'unknown' };
-  if (!data) return { ...result, reason: 'missing-collector' };
-  if (data.version !== 1) return { ...result, reason: 'unsupported-version' };
-  if (data.scope !== spec.scope) return { ...result, reason: 'unsupported-scope' };
+  if (!data) {
+    return { ...result, reason: 'missing-collector' };
+  }
+  if (data.version !== 1) {
+    return { ...result, reason: 'unsupported-version' };
+  }
+  if (data.scope !== spec.scope) {
+    return { ...result, reason: 'unsupported-scope' };
+  }
   const records = data[spec.records];
   const validRecord = spec.count
     ? record => typeof record?.family === 'string' && Number.isSafeInteger(record[spec.count]) && record[spec.count] > 0
     : record => Number.isInteger(record?.format) && Number.isInteger(record?.size);
-  if (!Array.isArray(records) || !records.every(validRecord)) return { ...result, reason: 'invalid-records' };
+  if (!Array.isArray(records) || !records.every(validRecord)) {
+    return { ...result, reason: 'invalid-records' };
+  }
   const matches = records.filter(predicate);
   return { ...result, state: matches.length ? 'observed' : 'not-observed', matches };
 }
@@ -53,16 +61,26 @@ async function scanSources(directory) {
       });
     }
     const paths = sources.get(key).paths;
-    if (!paths.includes(entry.path)) paths.push(entry.path);
+    if (!paths.includes(entry.path)) {
+      paths.push(entry.path);
+    }
   }
   return [...sources.values()];
 }
 
 async function discoverSources(input, errors) {
   const info = await stat(input);
-  if (info.isFile()) return [{ reportPath: input, paths: [], scan: null }];
-  const manifest = await stat(join(input, 'manifest.json')).catch(error => { if (error.code !== 'ENOENT') throw error; });
-  if (manifest) return scanSources(input);
+  if (info.isFile()) {
+    return [{ reportPath: input, paths: [], scan: null }];
+  }
+  const manifest = await stat(join(input, 'manifest.json')).catch(error => {
+    if (error.code !== 'ENOENT') {
+      throw error;
+    }
+  });
+  if (manifest) {
+    return scanSources(input);
+  }
 
   const runs = join(input, 'runs');
   const directories = (await readdir(runs, { withFileTypes: true })).filter(entry => entry.isDirectory()).map(entry => entry.name).sort();
@@ -109,7 +127,11 @@ function resultRow(source, report) {
 async function readSource(source) {
   let report;
   if (source.reportPath) {
-    report = await readJSON(source.reportPath).catch(error => { if (error.code !== 'ENOENT') throw error; });
+    report = await readJSON(source.reportPath).catch(error => {
+      if (error.code !== 'ENOENT') {
+        throw error;
+      }
+    });
   }
   if (report !== undefined && (!isObject(report) || !Number.isSafeInteger(report.schemaVersion) || report.schemaVersion < 1)) {
     throw new Error('Invalid inventory report');

@@ -31,7 +31,9 @@ export const graphics = {
 export function dispatchGraphicsTask(hardware, mode, task) {
   const microcode = identifyMicrocode(task.detectVersionString(), task.computeMicrocodeHash());
   hardware.onGraphicsTask?.({ ...microcode });
-  if (mode !== 'HLE') return false;
+  if (mode !== 'HLE') {
+    return false;
+  }
 
   // Reject unsupported protocols even when headless graphics are skipped.
   // In particular, BOSS ZSort needs CPU/RSP signal exchanges before a
@@ -56,12 +58,16 @@ export function dispatchGraphicsTask(hardware, mode, task) {
   const complete = () => {
     // SP completion is independent of DP: only an executed FullSync
     // requests a DP interrupt, and some games split a frame over tasks.
-    if (ev) ev.stop();
+    if (ev) {
+      ev.stop();
+    }
   };
   if (continuation) {
     const resume = () => {
       continuation = continuation();
-      if (continuation) return resume;
+      if (continuation) {
+        return resume;
+      }
       complete();
       return null;
     };

@@ -320,12 +320,24 @@ function canonicalisePageMask(pageMask) {
 
 function pageMaskCheckbit(pageMask) {
   const bits = pageMaskBits(pageMask);
-  if (bits & 0b1000_0000_0000) return 1 << 24;
-  if (bits & 0b0010_0000_0000) return 1 << 22;
-  if (bits & 0b0000_1000_0000) return 1 << 20;
-  if (bits & 0b0000_0010_0000) return 1 << 18;
-  if (bits & 0b0000_0000_1000) return 1 << 16;
-  if (bits & 0b0000_0000_0010) return 1 << 14;
+  if (bits & 0b1000_0000_0000) {
+    return 1 << 24;
+  }
+  if (bits & 0b0010_0000_0000) {
+    return 1 << 22;
+  }
+  if (bits & 0b0000_1000_0000) {
+    return 1 << 20;
+  }
+  if (bits & 0b0000_0010_0000) {
+    return 1 << 18;
+  }
+  if (bits & 0b0000_0000_1000) {
+    return 1 << 16;
+  }
+  if (bits & 0b0000_0000_0010) {
+    return 1 << 14;
+  }
   return 1 << 12;
 }
 
@@ -835,7 +847,7 @@ export class CPU0 {
           // Take a copy of this, so we can refer to it later.
           const pc = this.pc;
           // Signed copy of the program counter so we can do fast memory lookups.
-          const signedPC = this.pc | 0;   
+          const signedPC = this.pc | 0;
 
           // NB: set nextPC before the call to readMemoryS32. If this throws an exception, we need nextPC to be set up correctly.
           this.nextPC = this.delayPC ?? this.pc + 4;
@@ -859,7 +871,9 @@ export class CPU0 {
               }
               instruction = result.instruction;
             }
-            if (this.compatibilityHacks.size === 0) this.compatibilityHacks = null;
+            if (this.compatibilityHacks.size === 0) {
+              this.compatibilityHacks = null;
+            }
           }
 
           this.branchTarget = null;
@@ -1653,7 +1667,9 @@ export class CPU0 {
   }
 
   execLWC1(rt, base, imms) {
-    if (!this.checkCopXUsable(1)) { return; }
+    if (!this.checkCopXUsable(1)) {
+      return;
+    }
     this.execLWC1Unchecked(rt, base, imms);
   }
 
@@ -1663,12 +1679,16 @@ export class CPU0 {
   }
 
   execLWC2(rt, base, imms) {
-    if (!this.checkCopXUsable(2)) { return; }
+    if (!this.checkCopXUsable(2)) {
+      return;
+    }
     this.unimplemented(this.pc, 'LWC2');
   }
 
   execLDC1(rt, base, imms) {
-    if (!this.checkCopXUsable(1)) { return; }
+    if (!this.checkCopXUsable(1)) {
+      return;
+    }
     this.execLDC1Unchecked(rt, base, imms);
   }
 
@@ -1679,7 +1699,9 @@ export class CPU0 {
   }
 
   execLDC2(rt, base, imms) {
-    if (!this.checkCopXUsable(2)) { return; }
+    if (!this.checkCopXUsable(2)) {
+      return;
+    }
     this.unimplemented(this.pc, 'LDC2');
   }
 
@@ -1729,7 +1751,9 @@ export class CPU0 {
   }
 
   execSWC1(rt, base, imms) {
-    if (!this.checkCopXUsable(1)) { return; }
+    if (!this.checkCopXUsable(1)) {
+      return;
+    }
     this.execSWC1Unchecked(rt, base, imms);
   }
 
@@ -1739,12 +1763,16 @@ export class CPU0 {
   }
 
   execSWC2(rt, base, imms) {
-    if (!this.checkCopXUsable(2)) { return; }
+    if (!this.checkCopXUsable(2)) {
+      return;
+    }
     this.unimplemented(this.pc, 'SWC2');
   }
 
   execSDC1(rt, base, imms) {
-    if (!this.checkCopXUsable(1)) { return; }
+    if (!this.checkCopXUsable(1)) {
+      return;
+    }
     this.execSDC1Unchecked(rt, base, imms);
   }
 
@@ -1754,7 +1782,9 @@ export class CPU0 {
   }
 
   execSDC2(rt, base, imms) {
-    if (!this.checkCopXUsable(2)) { return; }
+    if (!this.checkCopXUsable(2)) {
+      return;
+    }
     this.unimplemented(this.pc, 'SDC2');
   }
 
@@ -1966,42 +1996,58 @@ export class CPU0 {
 
   // Cop2
   execMFC2(rt) {
-    if (!this.checkCopXUsable(2)) { return; }
+    if (!this.checkCopXUsable(2)) {
+      return;
+    }
     this.setRegS32Extend(rt, cpu2.getReg32());
   }
 
   execDMFC2(rt) {
-    if (!this.checkCopXUsable(2)) { return; }
+    if (!this.checkCopXUsable(2)) {
+      return;
+    }
     this.setRegU64(rt, cpu2.getReg64());
   }
 
   execCFC2(rt) {
-    if (!this.checkCopXUsable(2)) { return; }
+    if (!this.checkCopXUsable(2)) {
+      return;
+    }
     this.setRegS32Extend(rt, cpu2.getReg32());
   }
 
   execDCFC2(rt) {
-    if (!this.checkCopXUsable(2)) { return; }
+    if (!this.checkCopXUsable(2)) {
+      return;
+    }
     this.raiseRESERVEDException(2);
   }
 
   execMTC2(rt) {
-    if (!this.checkCopXUsable(2)) { return; }
+    if (!this.checkCopXUsable(2)) {
+      return;
+    }
     cpu2.setReg64(this.getRegU64(rt));
   }
 
   execDMTC2(rt) {
-    if (!this.checkCopXUsable(2)) { return; }
+    if (!this.checkCopXUsable(2)) {
+      return;
+    }
     cpu2.setReg64(this.getRegU64(rt));
   }
 
   execCTC2(rt) {
-    if (!this.checkCopXUsable(2)) { return; }
+    if (!this.checkCopXUsable(2)) {
+      return;
+    }
     cpu2.setReg64(this.getRegU64(rt));
   }
 
   execDCTC2(rt) {
-    if (!this.checkCopXUsable(2)) { return; }
+    if (!this.checkCopXUsable(2)) {
+      return;
+    }
     this.raiseRESERVEDException(2);
   }
 
@@ -2470,8 +2516,9 @@ function mix(a, b, c) {
 }
 
 function checkSyncState(sync, pc) {
-  if (!sync.sync32(pc, 'pc'))
+  if (!sync.sync32(pc, 'pc')) {
     return false;
+  }
 
   // let nextEvent = this.eventQueue.cyclesToFirstEvent;
   // for (let event = eventQueue.firstEvent; event; event = event.next) {
@@ -2491,8 +2538,9 @@ function checkSyncState(sync, pc) {
     }
     a = a >>> 0;
 
-    if (!sync.sync32(a, 'regs'))
+    if (!sync.sync32(a, 'regs')) {
       return false;
+    }
   }
 
   // if(0) {

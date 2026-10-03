@@ -46,7 +46,7 @@ const c2ControlNames = [
 
 const vecSelectNames = [
   'All', 'All1',
-  '0q', '1q', 
+  '0q', '1q',
   '0h', '1h', '2h', '3h',
   '0', '1', '2', '3', '4', '5', '6', '7',
 ];

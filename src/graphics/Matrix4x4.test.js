@@ -38,7 +38,9 @@ describe('Matrix4x4.multiply', () => {
     for (let r = 0; r < 4; ++r) {
       for (let c = 0; c < 4; ++c) {
         let sum = 0;
-        for (let k = 0; k < 4; ++k) sum += a.elems[4 * r + k] * b.elems[4 * k + c];
+        for (let k = 0; k < 4; ++k) {
+          sum += a.elems[4 * r + k] * b.elems[4 * k + c];
+        }
         expect(result.elems[4 * r + c]).toBe(sum);
       }
     }

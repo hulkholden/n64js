@@ -52,7 +52,9 @@ describe('Perfect Dark vertex fog', () => {
     h.state.geometryMode.lighting = 1;
     h.state.geometryMode.textureGen = 1;
     h.state.lights[0].color = { r: 0.5, g: 0.25, b: 1 };
-    for (let i = 0; i < 4; ++i) h.ram.setUint32(260 + i * 4, 0x00007f35);
+    for (let i = 0; i < 4; ++i) {
+      h.ram.setUint32(260 + i * 4, 0x00007f35);
+    }
     h.load();
     const uv = h.vertices().map(v => [v.u, v.v]);
     expect(h.vertices().map(v => v.color & 0xffffff)).toEqual(Array(4).fill(0xff3f7f));

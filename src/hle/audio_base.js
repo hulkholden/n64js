@@ -69,7 +69,9 @@ export class AudioBase {
   put16(p, v) { this.view.setUint16(p, v); }
 
   require(condition, reason) {
-    if (!condition) throw new UnsupportedAudioCommand(reason);
+    if (!condition) {
+      throw new UnsupportedAudioCommand(reason);
+    }
   }
 
   disjoint(a, aSize, b, bSize) {
@@ -96,7 +98,9 @@ export class AudioBase {
         this.ramView.setInt32(address + i, this.view.getInt32(dmem + i));
       }
     } else {
-      for (let i = 0; i < size; i += 4) this.view.setInt32(dmem + i, this.ramView.getInt32(address + i));
+      for (let i = 0; i < size; i += 4) {
+        this.view.setInt32(dmem + i, this.ramView.getInt32(address + i));
+      }
     }
   }
 
@@ -121,7 +125,9 @@ export class AudioBase {
     for (let i = this.writeCount - 1; i >= 0; i--) {
       const address = this.writeAddresses[i], size = this.writeSizes[i];
       this.undoCount -= size >>> 2;
-      for (let p = 0; p < size; p += 4) this.ramView.setInt32(address + p, this.undoWords[this.undoCount + (p >>> 2)]);
+      for (let p = 0; p < size; p += 4) {
+        this.ramView.setInt32(address + p, this.undoWords[this.undoCount + (p >>> 2)]);
+      }
     }
 
     this.commit();
@@ -148,7 +154,9 @@ export class AudioBase {
     this.disjoint(bookBase, bookSize, output, count + ADPCM_OUTPUT_BYTES);
 
     this.dmem.fill(0, output, output + ADPCM_OUTPUT_BYTES);
-    if (!(flags & FLAG_INIT)) this.dma(output, flags & FLAG_LOOP ? loopAddress : address, ADPCM_OUTPUT_BYTES);
+    if (!(flags & FLAG_INIT)) {
+      this.dma(output, flags & FLAG_LOOP ? loopAddress : address, ADPCM_OUTPUT_BYTES);
+    }
     let prev0 = this.s16(output + ADPCM_OUTPUT_BYTES - 2 * SAMPLE_BYTES);
     let prev1 = this.s16(output + ADPCM_OUTPUT_BYTES - SAMPLE_BYTES);
 
@@ -170,12 +178,16 @@ export class AudioBase {
           let sum = this.s16(book + i * SAMPLE_BYTES) * prev0
             + this.s16(book + VECTOR_BYTES + i * SAMPLE_BYTES) * prev1
             + residual[half + i] * ADPCM_SCALE;
-          for (let j = 0; j < i; j++) sum += this.s16(book + VECTOR_BYTES + (i - j - 1) * SAMPLE_BYTES) * residual[half + j];
+          for (let j = 0; j < i; j++) {
+            sum += this.s16(book + VECTOR_BYTES + (i - j - 1) * SAMPLE_BYTES) * residual[half + j];
+          }
           result[i] = clampShifted32To16(sum, ADPCM_FRACTION_BITS);
         }
 
         const destination = output + (block + 1) * ADPCM_OUTPUT_BYTES + half * SAMPLE_BYTES;
-        for (let i = 0; i < VECTOR_SAMPLES; i++) this.put16(destination + i * SAMPLE_BYTES, result[i]);
+        for (let i = 0; i < VECTOR_SAMPLES; i++) {
+          this.put16(destination + i * SAMPLE_BYTES, result[i]);
+        }
         prev0 = result[VECTOR_SAMPLES - 2]; prev1 = result[VECTOR_SAMPLES - 1];
       }
     }
@@ -184,17 +196,23 @@ export class AudioBase {
   }
 
   filterPole(flags, gain, address, input, output, count, book, scratch) {
-    if (!count) return;
+    if (!count) {
+      return;
+    }
 
     this.buffer(input, count, SAMPLE_BYTES);
     this.buffer(output, count, SAMPLE_BYTES);
-    if (input !== output) this.disjoint(input, count, output, count);
+    if (input !== output) {
+      this.disjoint(input, count, output, count);
+    }
     this.disjoint(book, 2 * VECTOR_BYTES, output, count);
 
     // 0x176c clears only four bytes, even on INIT. The last two history
     // samples at (scratch + POLE_HISTORY_OFFSET) are retained. Reproduce the actual program.
     this.dmem.fill(0, scratch, (scratch + POLE_HISTORY_OFFSET));
-    if (!(flags & FLAG_INIT)) this.dma(scratch, address, POLE_STATE_BYTES);
+    if (!(flags & FLAG_INIT)) {
+      this.dma(scratch, address, POLE_STATE_BYTES);
+    }
     let prev0 = this.s16((scratch + POLE_HISTORY_OFFSET)), prev1 = this.s16((scratch + POLE_HISTORY_OFFSET) + SAMPLE_BYTES);
 
     const a = this.poleA, b = this.poleB, scaled = this.poleScaled;
@@ -207,16 +225,22 @@ export class AudioBase {
 
     const samples = this.samples, result = this.result;
     for (let p = 0; p < count; p += VECTOR_BYTES) {
-      for (let i = 0; i < VECTOR_SAMPLES; i++) samples[i] = this.s16(input + p + i * SAMPLE_BYTES);
+      for (let i = 0; i < VECTOR_SAMPLES; i++) {
+        samples[i] = this.s16(input + p + i * SAMPLE_BYTES);
+      }
 
       for (let i = 0; i < VECTOR_SAMPLES; i++) {
         let sum = a[i] * prev0 + b[i] * prev1 + samples[i] * signed16(gain);
-        for (let j = 0; j < i; j++) sum += scaled[i - j - 1] * samples[j];
+        for (let j = 0; j < i; j++) {
+          sum += scaled[i - j - 1] * samples[j];
+        }
         // VMADH wraps a signed 32-bit sum; VSAR/VMUDN/VMADH shift by 14.
         result[i] = clampShifted32To16(sum, POLE_FRACTION_BITS);
       }
 
-      for (let i = 0; i < VECTOR_SAMPLES; i++) this.put16(output + p + i * SAMPLE_BYTES, result[i]);
+      for (let i = 0; i < VECTOR_SAMPLES; i++) {
+        this.put16(output + p + i * SAMPLE_BYTES, result[i]);
+      }
       prev0 = result[VECTOR_SAMPLES - 2]; prev1 = result[VECTOR_SAMPLES - 1];
     }
 
@@ -228,8 +252,11 @@ export class AudioBase {
     this.buffer(output, count, VECTOR_BYTES);
     this.disjoint(output, count, scratch, RESAMPLE_STATE_BYTES);
 
-    if (flags & FLAG_INIT) this.dmem.fill(0, scratch, (scratch + RESAMPLE_INPUT_ADJUST_OFFSET));
-    else this.dma(scratch, address, RESAMPLE_STATE_BYTES);
+    if (flags & FLAG_INIT) {
+      this.dmem.fill(0, scratch, (scratch + RESAMPLE_INPUT_ADJUST_OFFSET));
+    } else {
+      this.dma(scratch, address, RESAMPLE_STATE_BYTES);
+    }
 
     let source = input;
     if (expandedHistory) {
@@ -271,7 +298,9 @@ export class AudioBase {
         phase = unsigned16(phase);
       }
 
-      for (let i = 0; i < VECTOR_SAMPLES; i++) this.put16(output + p + i * SAMPLE_BYTES, result[i]);
+      for (let i = 0; i < VECTOR_SAMPLES; i++) {
+        this.put16(output + p + i * SAMPLE_BYTES, result[i]);
+      }
     }
 
     this.buffer(source, RESAMPLE_HISTORY_BYTES, SAMPLE_BYTES);

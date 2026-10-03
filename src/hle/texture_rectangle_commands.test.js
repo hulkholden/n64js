@@ -100,8 +100,11 @@ describe('texture rectangle starting coordinates', () => {
         const cmd1 = (3 << 24) | (8 << 12) | 12;
         const cmd2 = (360 << 16) | 624;
         const cmd3 = ((copy ? -4096 : -1024) << 16) | 0xfc00;
-        if (flip) microcode.rdpTexRectFlip(cmd0, cmd1, cmd2, cmd3);
-        else microcode.rdpTexRect(cmd0, cmd1, cmd2, cmd3);
+        if (flip) {
+          microcode.rdpTexRectFlip(cmd0, cmd1, cmd2, cmd3);
+        } else {
+          microcode.rdpTexRect(cmd0, cmd1, cmd2, cmd3);
+        }
         expect(draws).toEqual([[3, 2, 3, 6, 11, 11.25, 19.5,
           flip ? 3.25 : 7.25, flip ? 15.5 : 11.5, flip]]);
       });

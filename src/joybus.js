@@ -138,8 +138,12 @@ export class Joybus {
       offset++;
 
       // Joybus interpreset certain tx sizes in a special way.
-      if (txRaw == kJoybusTxFormatEnd) { break; }
-      if (txRaw == kJoybusTxDummyData) { continue; }
+      if (txRaw == kJoybusTxFormatEnd) {
+        break;
+      }
+      if (txRaw == kJoybusTxDummyData) {
+        continue;
+      }
       if (txRaw == kJoybusTxChanSkip) {
         channel++;
         continue;
@@ -151,11 +155,15 @@ export class Joybus {
       }
 
       // Bail out if we can't read the rx value.
-      if (offset >= kPIFRamSize) { break; }
+      if (offset >= kPIFRamSize) {
+        break;
+      }
       const rxRaw = frame[1];
       offset++;
       // Handle malformed channel command (tx seems valid but rx is 0xfe).
-      if (rxRaw == kJoybusTxFormatEnd) { break; }
+      if (rxRaw == kJoybusTxFormatEnd) {
+        break;
+      }
 
       const tx = txRaw & 0x3f;
       offset += tx;
@@ -163,7 +171,9 @@ export class Joybus {
       const rx = rxRaw & 0x3f;
       offset += rx;
 
-      if (offset >= kPIFRamSize) { break; }
+      if (offset >= kPIFRamSize) {
+        break;
+      }
 
       this.channels[channel].joybusConfigure(frame);
       channel++;
@@ -202,8 +212,12 @@ export class Joybus {
       // A reused frame can have no command bytes (for example after a DMA of
       // zeroes). Keep its cached position, but do not decode an empty command.
       const rxLen = tx === 0 ? 0 : chan.joybusCommand(tx, rx, txBuf, rxBuf);
-      if (rxLen < rx) { chan.frame[1] |= kResponseUnder; }
-      if (rxLen > rx) { chan.frame[1] |= kResponseOver; }
+      if (rxLen < rx) {
+        chan.frame[1] |= kResponseUnder;
+      }
+      if (rxLen > rx) {
+        chan.frame[1] |= kResponseOver;
+      }
     }
   }
 }
@@ -353,9 +367,13 @@ class ControllerChannel extends Channel {
       case kAttachmentRumblePak:
         for (let i = 0, address = addr; i < (rx - 1); i++, address++) {
           let val;
-          if (address < 0x8000) val = 0x00;
-          else if (address < 0x9000) val = 0x80;
-          else val = this.rumbleActive ? 0xff : 0x00;
+          if (address < 0x8000) {
+            val = 0x00;
+          } else if (address < 0x9000) {
+            val = 0x80;
+          } else {
+            val = this.rumbleActive ? 0xff : 0x00;
+          }
           rxBuf[i] = val;
         }
         break;

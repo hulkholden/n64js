@@ -33,7 +33,9 @@ async function writeScan(root, id, reports) {
       path: `/roms/${report.rom.name}.z64`, sha256: report.rom.sha256, report: `${report.rom.sha256}.json`, status: report.result.status,
     })),
   };
-  for (const report of reports) await Bun.write(join(directory, `${report.rom.sha256}.json`), JSON.stringify(report));
+  for (const report of reports) {
+    await Bun.write(join(directory, `${report.rom.sha256}.json`), JSON.stringify(report));
+  }
   await Bun.write(join(directory, 'manifest.json'), JSON.stringify(manifest));
   return { directory, manifest };
 }

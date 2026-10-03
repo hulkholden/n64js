@@ -61,8 +61,8 @@ const rgbParams16 = [
 
 const rgbParams16C2 = [
   'combined.rgb', 'tex1.rgb', 'tex0.rgb', 'uPrimColor.rgb', 'shade.rgb', 'uEnvColor.rgb', 'one.rgb',
-   'combined.a',  'tex1.a',   'tex0.a',   'uPrimColor.a',   'shade.a',   'uEnvColor.a',
-   'lod_frac', 'uPrimLodFrac', 'zero.rgb'
+  'combined.a',  'tex1.a',   'tex0.a',   'uPrimColor.a',   'shade.a',   'uEnvColor.a',
+  'lod_frac', 'uPrimLodFrac', 'zero.rgb'
 ];
 
 // Subtract input 7 is K4; the add/subtract-A input at that index is noise.

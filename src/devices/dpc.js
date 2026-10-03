@@ -124,7 +124,7 @@ export class DPCDevice extends Device {
 
     this.mem.set32(dpc.DPC_STATUS_REG, dpcStatus);
     const frozen = (dpcStatus & dpc.DPC_STATUS_FREEZE) !== 0;
-    if (frozen !== wasFrozen) this.hardware.graphics.setDPFrozen?.(frozen);
+    if (frozen !== wasFrozen) { this.hardware.graphics.setDPFrozen?.(frozen); }
     this.completeHLEFullSyncs();
   }
 
@@ -160,7 +160,7 @@ export class DPCDevice extends Device {
   }
 
   completeHLEFullSyncs() {
-    if (!this.pendingHLEFullSyncs || (this.statusReg & dpc.DPC_STATUS_FREEZE)) return;
+    if (!this.pendingHLEFullSyncs || (this.statusReg & dpc.DPC_STATUS_FREEZE)) { return; }
 
     // HLE runs DP work synchronously without emulating RDP clocks. Credit one
     // nominal clock per executed FullSync so completed work has a nonzero

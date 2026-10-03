@@ -36,7 +36,9 @@ describe('TMEM load commands', () => {
     test(`${command} updates bounds and invalidates hashes even when the load exits early`, () => {
       configure(Format.G_IM_FMT_RGBA, Size.G_IM_SIZ_4b, 1, 0, 16);
       tile.setSize(20, 24, 28, 32);
-      for (const tile of state.tiles) tile.hash = 123;
+      for (const tile of state.tiles) {
+        tile.hash = 123;
+      }
       const microcode = new GBIMicrocode(state, new DataView(ram.buffer));
 
       microcode[command](cmd0, cmd1);
@@ -54,7 +56,9 @@ describe('TMEM load commands', () => {
   ]) {
     test(`S2DEX ${name} loads using the object texture bounds`, () => {
       tile.setSize(20, 24, 28, 32);
-      for (const tile of state.tiles) tile.hash = 123;
+      for (const tile of state.tiles) {
+        tile.hash = 123;
+      }
       const s2dex = new S2DEXCommon(state, new DataView(ram.buffer), null);
       Object.assign(s2dex.texture, { type, image: 0, tileTMEM: 0, texLoadSize: 3, texLoadRows: loadRows });
 
@@ -180,7 +184,9 @@ describe('physical TMEM loading', () => {
 
   test('long empty spans wrap signed load coordinates before 8-bit bank addressing', () => {
     configure(Format.G_IM_FMT_I, Size.G_IM_SIZ_8b, 1, 0, 16);
-    for (let i = 0; i < ram.length; i++) ram[i] = (i * 37 + (i >>> 8) * 13) & 255;
+    for (let i = 0; i < ram.length; i++) {
+      ram[i] = (i * 37 + (i >>> 8) * 13) & 255;
+    }
     tile.setSize(8, 3, 60, 3);
     tmem.loadTile(ti, tile);
     // S=2 with rightmost X=0 gives a 4095-texel span. Signed S wraps at

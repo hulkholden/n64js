@@ -49,7 +49,9 @@ export function parseArgs(args) {
     const arg = args[i];
     switch (arg) {
       case '--rom':
-        if (!args[i + 1]) throw new Error('--rom requires a path');
+        if (!args[i + 1]) {
+          throw new Error('--rom requires a path');
+        }
         options.roms.push(args[++i]);
         break;
       case '--mode':

@@ -41,7 +41,9 @@ function getAudioState(hardware, readMemory = true) {
   }
 
   // Offline snapshots need the classifier without rebinding live memory views.
-  if (!readMemory) return state;
+  if (!readMemory) {
+    return state;
+  }
 
   // Reuse SP views until the backing memory changes.
   const sp = hardware.sp_mem.u8, ram = hardware.ram.u8;
@@ -107,9 +109,13 @@ function logAudioTask(state, identity, requestedMode, handled) {
   if (key === null) {
     // Diagnostic hash only; HLE selection always uses the reviewed identity.
     let hash = 0, size = state.task.getUint32(TaskOffsets.ucodeSize);
-    if (!size || size > 4096) size = 4096;
+    if (!size || size > 4096) {
+      size = 4096;
+    }
 
-    for (let i = 0; i < size; i++) hash = (hash * 17 + state.raw.code[i]) >>> 0;
+    for (let i = 0; i < size; i++) {
+      hash = (hash * 17 + state.raw.code[i]) >>> 0;
+    }
     key = hash;
   }
 
@@ -117,7 +123,9 @@ function logAudioTask(state, identity, requestedMode, handled) {
   const piFallback = requestedMode === 'HLE' && state.piStreaming;
   const bit = requestedMode === 'Disabled' ? 8 : handled ? 1 : requestedMode === 'HLE' ? (piFallback ? 16 : 4) : 2;
   const seen = state.logged.get(key) ?? 0;
-  if (seen & bit) return;
+  if (seen & bit) {
+    return;
+  }
   state.logged.set(key, seen | bit);
 
   // Build strings only for the first occurrence of this path.
@@ -190,9 +198,13 @@ export function hleProcessAudioTask(hardware) {
 
 function executeAudioTask(hardware, state, identity) {
   state.piStreaming = false;
-  if (identity.status !== 'known') return false;
+  if (identity.status !== 'known') {
+    return false;
+  }
   const Audio = getAudioHLEClass(identity.identity);
-  if (!Audio) return false;
+  if (!Audio) {
+    return false;
+  }
 
   // Games can start audio between PI transfers in a sample stream, even with
   // PI currently idle. If DMA has occurred since the previous audio task, use
@@ -202,7 +214,9 @@ function executeAudioTask(hardware, state, identity) {
     const dmaSinceLastTask = state.piDMAGeneration !== pi.dmaGeneration;
     state.piDMAGeneration = pi.dmaGeneration;
     state.piStreaming = dmaSinceLastTask || pi.busy();
-    if (state.piStreaming) return false;
+    if (state.piStreaming) {
+      return false;
+    }
   }
 
   const task = state.task;
@@ -211,12 +225,16 @@ function executeAudioTask(hardware, state, identity) {
   const flags = task.getUint32(TaskOffsets.flags);
   const direct = identity.bootstrap === 'direct-imem';
   const checksDPStatus = identity.family === 'NAUDIO' || identity.family === 'NEAD';
-  if (hardware.rsp.pc !== 0) return false;
+  if (hardware.rsp.pc !== 0) {
+    return false;
+  }
   if (checksDPStatus && !direct) {
     // Both reviewed loaders mask only DP_WAIT. Captured Army Men tasks
     // contain other flag bits; the actual yield request is SP signal zero.
     const spStatus = hardware.spRegDevice.readRegU32?.(SP_STATUS_REG);
-    if (spStatus === undefined || (spStatus & SP_STATUS_SIG0)) return false;
+    if (spStatus === undefined || (spStatus & SP_STATUS_SIG0)) {
+      return false;
+    }
   } else if (identity.family === 'ABI1' && (flags & ~OS_TASK_DP_WAIT)) {
     return false;
   }
@@ -225,20 +243,26 @@ function executeAudioTask(hardware, state, identity) {
     // rspboot-208 tests this flag at 0x1068; the NAUDIO rspboot-204
     // capture tests it at 0x1064. Both wait for DPC DMA to become idle.
     const status = hardware.dpcDevice?.statusReg;
-    if ((identity.bootstrap !== 'rspboot-208' && !checksDPStatus) || status === undefined || (status & DPC_STATUS_DMA_BUSY)) return false;
+    if ((identity.bootstrap !== 'rspboot-208' && !checksDPStatus) || status === undefined || (status & DPC_STATUS_DMA_BUSY)) {
+      return false;
+    }
   }
 
   // NAUDIO and NEAD entries wait while DPC XBUS and DMA busy are both set.
   if (checksDPStatus) {
     const status = hardware.dpcDevice?.statusReg;
     if (status === undefined || (status & (DPC_STATUS_XBUS_DMEM_DMA | DPC_STATUS_DMA_BUSY)) ===
-        (DPC_STATUS_XBUS_DMEM_DMA | DPC_STATUS_DMA_BUSY)) return false;
+        (DPC_STATUS_XBUS_DMEM_DMA | DPC_STATUS_DMA_BUSY)) {
+      return false;
+    }
   }
 
   // Validate the command list before modifying any emulated memory.
   const pointer = task.getUint32(TaskOffsets.dataPtr) & TASK_ADDRESS_MASK;
   const size = task.getUint32(TaskOffsets.dataSize);
-  if (!size || size % 8 || size > 0x10000 || pointer % 8 || pointer + size > hardware.ram.u8.length) return false;
+  if (!size || size % 8 || size > 0x10000 || pointer % 8 || pointer + size > hardware.ram.u8.length) {
+    return false;
+  }
 
   // Retain each variant's handler and scratch buffers between tasks.
   let audio = state.executors.get(Audio);
@@ -276,7 +300,9 @@ function executeAudioTask(hardware, state, identity) {
   } catch (error) {
     // Undo partial RDRAM writes so LLE can rerun the original task unchanged.
     audio.rollback();
-    if (error instanceof UnsupportedAudioCommand) return false;
+    if (error instanceof UnsupportedAudioCommand) {
+      return false;
+    }
     throw error;
   }
 

@@ -11,8 +11,12 @@ function unknown(reason, result) {
   result.identity = null;
   result.family = 'Unknown';
   result.reason = reason;
-  if ('bootstrap' in result) delete result.bootstrap;
-  if ('candidates' in result) delete result.candidates;
+  if ('bootstrap' in result) {
+    delete result.bootstrap;
+  }
+  if ('candidates' in result) {
+    delete result.candidates;
+  }
   return result;
 }
 
@@ -89,7 +93,11 @@ function equalRange(view, previous) {
 // Fixed-capacity result lists retain their backing storage between tasks.
 // Only entries below count are live; callers must consume them synchronously.
 function contains(matches, entry) {
-  for (let i = 0; i < matches.count; i++) if (matches.entries[i] === entry) return true;
+  for (let i = 0; i < matches.count; i++) {
+    if (matches.entries[i] === entry) {
+      return true;
+    }
+  }
   return false;
 }
 
@@ -146,7 +154,9 @@ function compileRanges(entries, sizeKey, digestKey, hash, cache) {
       let hasCandidates = !candidates;
       if (candidates) {
         for (let i = 0; i < range.entries.length; i++) {
-          if (contains(candidates, range.entries[i])) { hasCandidates = true; break; }
+          if (contains(candidates, range.entries[i])) {
+            hasCandidates = true; break;
+          }
         }
       }
       if (!hasCandidates) {
@@ -158,20 +168,28 @@ function compileRanges(entries, sizeKey, digestKey, hash, cache) {
         const digest = hash(prefix);
         range.matches.count = 0;
         for (const entry of range.entries) {
-          if (entry[digestKey] === digest) range.matches.entries[range.matches.count++] = entry;
+          if (entry[digestKey] === digest) {
+            range.matches.entries[range.matches.count++] = entry;
+          }
         }
 
         // Copy even unknown inputs, so repeated unreviewed code is cheap too.
         // One entry per range keeps memory bounded; caller mutation is harmless.
         if (cache) {
-          if (!range.previous) range.previous = new DataView(new ArrayBuffer(range.size));
-          for (let p = 0; p < range.size; p += 4) range.previous.setUint32(p, view.getUint32(p));
+          if (!range.previous) {
+            range.previous = new DataView(new ArrayBuffer(range.size));
+          }
+          for (let p = 0; p < range.size; p += 4) {
+            range.previous.setUint32(p, view.getUint32(p));
+          }
         }
       }
 
       for (let i = 0; i < range.matches.count; i++) {
         const entry = range.matches.entries[i];
-        if (!candidates || contains(candidates, entry)) matches.entries[matches.count++] = entry;
+        if (!candidates || contains(candidates, entry)) {
+          matches.entries[matches.count++] = entry;
+        }
       }
     }
 
@@ -295,7 +313,9 @@ export function createAudioMicrocodeClassifier(manifest = audioMicrocodeManifest
     let count = 0;
     for (let i = 0; i < matches.count; i++) {
       const program = matches.entries[i];
-      if (loadedDataBytes >= program.dataBytes) matches.entries[count++] = program;
+      if (loadedDataBytes >= program.dataBytes) {
+        matches.entries[count++] = program;
+      }
     }
     matches.count = count;
 
@@ -310,8 +330,12 @@ export function createAudioMicrocodeClassifier(manifest = audioMicrocodeManifest
     result.identity = matches.entries[0].id;
     result.family = matches.entries[0].family;
     result.bootstrap = bootstrap;
-    if ('reason' in result) delete result.reason;
-    if ('candidates' in result) delete result.candidates;
+    if ('reason' in result) {
+      delete result.reason;
+    }
+    if ('candidates' in result) {
+      delete result.candidates;
+    }
     return result;
   };
 }

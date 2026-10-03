@@ -16,13 +16,15 @@ function setup(dv, hash) {
   microcode.renderer = new NullRenderer(state);
   const draws = [];
   microcode.renderer.flushTris = tb => {
-    if (!tb.empty()) draws.push({
-      positions: Array.from(tb.positions.slice(0, tb.numTris * 12)),
-      colors: Array.from(tb.colours.slice(0, tb.numTris * 3)),
-      uv: Array.from(tb.coords.slice(0, tb.numTris * 6)),
-      palette: state.tiles[state.texture.tile].palette,
-      texture: state.geometryMode.texture,
-    });
+    if (!tb.empty()) {
+      draws.push({
+        positions: Array.from(tb.positions.slice(0, tb.numTris * 12)),
+        colors: Array.from(tb.colours.slice(0, tb.numTris * 3)),
+        uv: Array.from(tb.coords.slice(0, tb.numTris * 6)),
+        palette: state.tiles[state.texture.tile].palette,
+        texture: state.geometryMode.texture,
+      });
+    }
     tb.reset();
   };
   return { state, microcode, draws };
@@ -95,7 +97,9 @@ describe('T3DUX object lists', () => {
         expect(fullSyncs).toBe(debug ? 0 : 1);
         expect(state.pc).toBe(0);
         expect(state.currentOp).toBe(3);
-        if (debug) expect(rows).toBe(3);
+        if (debug) {
+          expect(rows).toBe(3);
+        }
       }
     });
 
@@ -104,7 +108,9 @@ describe('T3DUX object lists', () => {
       words(dv, 0x100, [0, 0x200, 0x400, 0, 0x500, 0x600,
         0, 0x300, 0x400, 0x600, 0, 0x600, 0, 0]);
       words(dv, 0x200, [0, 0x02010350, 0x00000302, 0, 0xef000000, 0]);
-      for (let i = 0; i < 4; i++) dv.setInt16(0x218 + i * 10, 1);
+      for (let i = 0; i < 4; i++) {
+        dv.setInt16(0x218 + i * 10, 1);
+      }
       dv.setInt16(0x236, 2); // w=2 must be divided out for affine texturing.
       words(dv, 0x300, [0, 0x02010350, 0x01010000, 0, 0xef000000, 0]);
       words(dv, 0x400, [0xffff0001, 0, 0x00010001, 0, 0xffffffff, 0]);

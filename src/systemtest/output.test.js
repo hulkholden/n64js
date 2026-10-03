@@ -6,7 +6,9 @@ import { compare } from './compare.js';
 
 function parse(lines) {
   const output = new SystemTestOutput();
-  for (const line of lines) output.consume(line);
+  for (const line of lines) {
+    output.consume(line);
+  }
   return output;
 }
 

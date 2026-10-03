@@ -119,17 +119,23 @@ function loadU8slow(addr) {
 }
 
 function loadU16slow(addr) {
-  if (addr & 1) { cpu0.unalignedLoad(addr); }
+  if (addr & 1) {
+    cpu0.unalignedLoad(addr);
+  }
   return getMemoryHandler(addr).readU16(addr);
 }
 
 function loadU32slow(addr) {
-  if (addr & 3) { cpu0.unalignedLoad(addr); }
+  if (addr & 3) {
+    cpu0.unalignedLoad(addr);
+  }
   return getMemoryHandler(addr).readU32(addr);
 }
 
 function loadU64slow(addr) {
-  if (addr & 7) { cpu0.unalignedLoad(addr); }
+  if (addr & 7) {
+    cpu0.unalignedLoad(addr);
+  }
   return getMemoryHandler(addr).readU64(addr);
 }
 
@@ -139,12 +145,16 @@ function loadS8slow(addr) {
 }
 
 function loadS16slow(addr) {
-  if (addr & 1) { cpu0.unalignedLoad(addr); }
+  if (addr & 1) {
+    cpu0.unalignedLoad(addr);
+  }
   return (getMemoryHandler(addr).readU16(addr) << 16) >> 16;
 }
 
 export function loadS32slow(addr) {
-  if (addr & 3) { cpu0.unalignedLoad(addr); }
+  if (addr & 3) {
+    cpu0.unalignedLoad(addr);
+  }
   return getMemoryHandler(addr).readU32(addr) >> 0;
 }
 
@@ -154,16 +164,22 @@ function store8slow(addr, value) {
 }
 
 function store16slow(addr, value) {
-  if (addr & 1) { cpu0.unalignedStore(addr); }
+  if (addr & 1) {
+    cpu0.unalignedStore(addr);
+  }
   getMemoryHandler(addr).write16(addr, value);
 }
 
 function store32slow(addr, value) {
-  if (addr & 3) { cpu0.unalignedStore(addr); }
+  if (addr & 3) {
+    cpu0.unalignedStore(addr);
+  }
   getMemoryHandler(addr).write32(addr, value);
 }
 
 function store64slow(addr, value) {
-  if (addr & 7) { cpu0.unalignedStore(addr); }
+  if (addr & 7) {
+    cpu0.unalignedStore(addr);
+  }
   getMemoryHandler(addr).write64(addr, value);
 }

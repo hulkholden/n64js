@@ -49,20 +49,26 @@ export class RenderTargets {
 
   reset() {
     this.setDPFrozen(false);
-    for (const target of this.targets.values()) this.deleteTarget(target);
+    for (const target of this.targets.values()) {
+      this.deleteTarget(target);
+    }
     this.targets.clear();
     this.current = this.fallback;
   }
 
   setDPFrozen(frozen) {
     if (frozen) {
-      if (this.frozenTargets) return;
+      if (this.frozenTargets) {
+        return;
+      }
       // HLE still consumes SP work while DP is frozen. Preserve the images VI
       // could scan out, copying their pixels only if later HLE work writes them.
       this.frozenTargets = new Map([...this.targets.values(), this.fallback].map(target => [target, { ...target }]));
     } else {
       this.frozenTargets = null;
-      for (const copy of this.frozenCopies) this.deleteTarget(copy);
+      for (const copy of this.frozenCopies) {
+        this.deleteTarget(copy);
+      }
       this.frozenCopies.clear();
     }
   }
@@ -73,7 +79,9 @@ export class RenderTargets {
   // while HLE renders ahead; unfreezing releases the copy and exposes live pixels.
   preserveForVI(target) {
     const snapshot = this.frozenTargets?.get(target);
-    if (!snapshot || snapshot.texture !== target.texture) return;
+    if (!snapshot || snapshot.texture !== target.texture) {
+      return;
+    }
 
     const gl = this.gl;
     const read = gl.getParameter(gl.READ_FRAMEBUFFER_BINDING);
@@ -88,7 +96,9 @@ export class RenderTargets {
     gl.disable(gl.SCISSOR_TEST);
     gl.blitFramebuffer(0, 0, this.width, this.height, 0, 0, this.width, this.height, gl.COLOR_BUFFER_BIT, gl.NEAREST);
 
-    if (scissor) gl.enable(gl.SCISSOR_TEST);
+    if (scissor) {
+      gl.enable(gl.SCISSOR_TEST);
+    }
     gl.bindFramebuffer(gl.READ_FRAMEBUFFER, read);
     gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, draw);
 
@@ -142,14 +152,18 @@ export class RenderTargets {
 
   markDirty(scissor, maxY = scissor.y1) {
     const target = this.current;
-    if (!target.image) return;
+    if (!target.image) {
+      return;
+    }
     // Scissor is only a limit, not the allocation height. Vigilante 8 copies a
     // 320x40 strip with a 640x480 scissor still active; reading back 480 rows
     // would overwrite the unrelated textures immediately after that strip.
     // Unknown projected bounds must not permanently poison the target height
     // with NaN, making both VI lookup and texture readback miss this image.
     // Conservatively cover the scissor, still capped by the native height.
-    if (!Number.isFinite(maxY)) maxY = scissor.y1;
+    if (!Number.isFinite(maxY)) {
+      maxY = scissor.y1;
+    }
     target.height = Math.max(target.height, Math.min(Math.ceil(maxY), Math.ceil(scissor.y1), target.nativeHeight));
     if (this.ramDV) {
       // RDRAM can be repurposed by CPU stores/decompression without another
@@ -172,7 +186,9 @@ export class RenderTargets {
   }
 
   contains(target, address) {
-    if (!target.image) return false;
+    if (!target.image) {
+      return false;
+    }
     const bytesPerPixel = target.image.size === ImageSize.G_IM_SIZ_32b ? 4 : 2;
     return address >= target.image.address && address < target.image.address + target.image.width * target.height * bytesPerPixel;
   }
@@ -182,7 +198,9 @@ export class RenderTargets {
     // selected image when an old, larger framebuffer overlaps a newer one.
     const targets = Array.from(candidates);
     for (let i = targets.length - 1; i >= 0; i--) {
-      if (this.contains(targets[i], address)) return targets[i];
+      if (this.contains(targets[i], address)) {
+        return targets[i];
+      }
     }
     return null;
   }
@@ -198,7 +216,9 @@ export class RenderTargets {
   syncToRAM(address, ramDV) {
     const gl = this.gl;
     const target = this.findTarget(address);
-    if (!target?.dirty) return;
+    if (!target?.dirty) {
+      return;
+    }
     if (target.ramSnapshot) {
       const ram = new Uint8Array(ramDV.buffer, ramDV.byteOffset + target.image.address, target.ramSnapshot.length);
       if (!target.ramSnapshot.every((value, i) => value === ram[i])) {
@@ -246,7 +266,9 @@ export function writeFramebufferToRAM(ramDV, image, width, height, pixels, readW
       for (let x = 0; x < width; x++) {
         const src = readbackPixelOffset(x, row, readWidth, scaleX);
         const dst = image.address + (y * image.width + x) * 4;
-        if (dst < 0 || dst + 4 > ramDV.byteLength) continue;
+        if (dst < 0 || dst + 4 > ramDV.byteLength) {
+          continue;
+        }
         const r = pixels[src], g = pixels[src + 1], b = pixels[src + 2], a = pixels[src + 3];
         ramDV.setUint32(dst, (r << 24) | (g << 16) | (b << 8) | a);
       }
@@ -257,7 +279,9 @@ export function writeFramebufferToRAM(ramDV, image, width, height, pixels, readW
       for (let x = 0; x < width; x++) {
         const src = readbackPixelOffset(x, row, readWidth, scaleX);
         const dst = image.address + (y * image.width + x) * 2;
-        if (dst < 0 || dst + 2 > ramDV.byteLength) continue;
+        if (dst < 0 || dst + 2 > ramDV.byteLength) {
+          continue;
+        }
         const r = pixels[src], g = pixels[src + 1], b = pixels[src + 2], a = pixels[src + 3];
         ramDV.setUint16(dst, ((r >>> 3) << 11) | ((g >>> 3) << 6) | ((b >>> 3) << 1) | (a >>> 7));
       }

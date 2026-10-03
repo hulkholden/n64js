@@ -279,8 +279,8 @@ export class VIRegDevice extends Device {
 
     // Implement VI guard band (hardware bug?)
     // https://github.com/ares-emu/parallel-rdp/blob/0097af2f4d1f880d403c150f5fc4d55d825cd799/parallel-rdp/video_interface.cpp#L660s
-    if (x0 >= this.hScanMin) x0 += 8;
-    if (x1 < this.hScanMax) x1 -= 7;
+    if (x0 >= this.hScanMin) { x0 += 8; }
+    if (x1 < this.hScanMax) { x1 -= 7; }
 
     const dims = this.dims;
     dims.interlaced = this.interlaced;

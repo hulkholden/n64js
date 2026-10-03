@@ -43,8 +43,12 @@ export class SystemTestOutput {
       return;
     }
 
-    if (/^n64-systemtest .+\(base=/.test(line)) this.summaryStarted = true;
-    if (!this.summaryStarted) return;
+    if (/^n64-systemtest .+\(base=/.test(line)) {
+      this.summaryStarted = true;
+    }
+    if (!this.summaryStarted) {
+      return;
+    }
 
     const category = line.match(/(?:^|s\. )(?:Base|Timing|Cycle|CP0-hazards|Poorly-understood-quirk): Failed (\d+) of (\d+) tests/);
     if (category) {

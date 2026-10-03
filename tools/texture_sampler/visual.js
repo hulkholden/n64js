@@ -15,7 +15,9 @@ function imageCanvas(image) {
 
 async function loadGolden(key, width, height) {
   const response = await fetch(`texture_sampler/goldens/${key}.png`, { cache: 'no-store' });
-  if (!response.ok) throw new Error(`Golden unavailable (${response.status}). Capture and review a baseline first.`);
+  if (!response.ok) {
+    throw new Error(`Golden unavailable (${response.status}). Capture and review a baseline first.`);
+  }
   const bitmap = await createImageBitmap(await response.blob(), { colorSpaceConversion: 'none' });
   try {
     if (bitmap.width !== width || bitmap.height !== height) {
@@ -67,7 +69,9 @@ try {
       key, id, scale, frame, width: actual.width, height: actual.height,
       actual: imageCanvas(actual).toDataURL('image/png'),
     };
-    if (capture) return result;
+    if (capture) {
+      return result;
+    }
     try {
       const golden = await loadGolden(key, actual.width, actual.height);
       const { changedPixels, maxDifference, difference } = compare(actual, golden);
@@ -114,7 +118,9 @@ try {
           image.alt = `${scene.title} — ${label.toLowerCase()}`;
           image.width = result.width;
           image.height = result.height;
-          if (url) image.src = url;
+          if (url) {
+            image.src = url;
+          }
           figure.append(caption, image);
           comparison.append(figure);
         }
@@ -123,7 +129,9 @@ try {
         summary.textContent = result.error || `${result.passed ? 'MATCH' : 'CHANGED'} · ${result.changedPixels} changed pixels · max channel difference ${result.maxDifference} · ${result.key}`;
         section.append(title, description, comparison, summary);
         container.append(section);
-        if (result.passed) passed++;
+        if (result.passed) {
+          passed++;
+        }
       }
       status.textContent = `${passed} / ${scenes.length} match · framebuffer ${nativeWidth * scale} × ${nativeHeight * scale} · images enlarged to fit this page`;
       document.title = `${passed}/${scenes.length} match · Texture sampler`;

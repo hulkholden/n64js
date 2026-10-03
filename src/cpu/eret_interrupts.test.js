@@ -32,7 +32,9 @@ async function executeReturn(compiled, status, pending = true) {
     cpu.setControlU32(regs.controlErrorEPC, resumePC);
     cpu.llBit = 1;
     hardware.mi_reg.set32(MI_INTR_MASK_REG, MI_INTR_PI);
-    if (pending) hardware.miRegDevice.setInterruptBit(MI_INTR_PI);
+    if (pending) {
+      hardware.miRegDevice.setInterruptBit(MI_INTR_PI);
+    }
     cpu.statusRegisterChanged();
     expect(cpu.checkForUnmaskedInterrupts()).toBe(false);
     cpu.addEvent('Unrelated device', 40, () => {});
@@ -43,17 +45,23 @@ async function executeReturn(compiled, status, pending = true) {
     // Train the real compiler with no pending interrupt, then replay the same
     // trace with an interrupt already asserted while EXL/ERL masks delivery.
     prepare(IM_RCP | IE | EXL, false);
-    for (let i = 0; i < 499; i++) lookupFragment(pc);
+    for (let i = 0; i < 499; i++) {
+      lookupFragment(pc);
+    }
     cpu.run(cycles);
     fragment = getFragmentMap().get(pc);
     expect(fragment?.func).toBeFunction();
   }
   prepare(status, pending);
-  if (compiled) getFragmentMap().set(pc, fragment);
+  if (compiled) {
+    getFragmentMap().set(pc, fragment);
+  }
   const count = cpu.controlCountValue;
   cpu.run(cycles);
   expect(emulator.fatalError()).toBeNull();
-  if (compiled) expect(fragment.executionCount).toBe(1);
+  if (compiled) {
+    expect(fragment.executionCount).toBe(1);
+  }
   expect(cpu.controlCountValue - count).toBe(cycles);
   expect(cpu.getCyclesUntilEvent('Unrelated device')).toBe(40 - cycles);
   expect(cpu.llBit).toBe(0);

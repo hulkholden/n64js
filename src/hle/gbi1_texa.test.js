@@ -40,7 +40,9 @@ test('Tamagotchi texture commands load TMEM and set the render tile without draw
       ramDV.setUint32(8 + i * 8, cmd0);
       ramDV.setUint32(12 + i * 8, cmd1);
     });
-    for (let i = 0; i < 512; ++i) ram[0x259b70 + i] = (i + 1) & 0xff;
+    for (let i = 0; i < 512; ++i) {
+      ram[0x259b70 + i] = (i + 1) & 0xff;
+    }
     ram.fill(0xa5, 0x25a000, 0x25a008);
     state.tiles[0].hash = 123;
     const text = [];

@@ -179,7 +179,9 @@ export class GBI2 extends GBIMicrocode {
         (this.ramDV.getUint32(pc + 8) >>> 24) !== G_RDPHALF_2) {
       const message = 'Incomplete GBI2 texture rectangle: expected RDPHalf1 and RDPHalf2';
       this.warn(message);
-      if (dis) dis.text(message);
+      if (dis) {
+        dis.text(message);
+      }
       return null;
     }
     return super.readTexRectParams();
@@ -469,26 +471,36 @@ export class GBI2 extends GBIMicrocode {
 
     switch (type) {
       case gbi.MoveMemGBI2.G_GBI2_MV_VIEWPORT:
-        if (dis) { text = `gsSPViewport(${toString32(address)});`; }
+        if (dis) {
+          text = `gsSPViewport(${toString32(address)});`;
+        }
         this.loadViewport(address);
         break;
       case gbi.MoveMemGBI2.G_GBI2_MV_LIGHT:
         {
           if (offset == gbi.MoveMemGBI2.G_GBI2_MVO_LOOKATX) {
-            if (dis) { text = `gSPLookAtX(${toString32(address)});`; }
+            if (dis) {
+              text = `gSPLookAtX(${toString32(address)});`;
+            }
             // TODO
           } else if (offset == gbi.MoveMemGBI2.G_GBI2_MVO_LOOKATY) {
-            if (dis) { text = `gSPLookAtY(${toString32(address)});`; }
+            if (dis) {
+              text = `gSPLookAtY(${toString32(address)});`;
+            }
             // TODO
           } else if (offset >= gbi.MoveMemGBI2.G_GBI2_MVO_L0 && offset <= gbi.MoveMemGBI2.G_GBI2_MVO_L7) {
             let lightIdx = ((offset - gbi.MoveMemGBI2.G_GBI2_MVO_L0) / 24) >>> 0;
-            if (dis) { text = `gsSPLight(${toString32(address)}, ${lightIdx})`; }
+            if (dis) {
+              text = `gsSPLight(${toString32(address)}, ${lightIdx})`;
+            }
             this.loadLight(lightIdx, address);
             if (length != 16) {
               console.log(`unexpected gsSPLight length ${length}. Is this setting multiple lights?`);
             }
           } else {
-            if (dis) { text += ` // (unknown offset ${toString16(offset)})`; }
+            if (dis) {
+              text += ` // (unknown offset ${toString16(offset)})`;
+            }
           }
         }
         break;

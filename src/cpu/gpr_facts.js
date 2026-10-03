@@ -40,7 +40,9 @@ export class GPRFacts {
   get(reg) { return this.regs[reg]; }
 
   set(reg, fact) {
-    if (reg !== 0) this.regs[reg] = fact;
+    if (reg !== 0) {
+      this.regs[reg] = fact;
+    }
   }
 
   update(instruction) {

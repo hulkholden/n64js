@@ -137,7 +137,7 @@ export class SPRegDevice extends Device {
 
   scheduleHLETask() {
     const cpu = this.hardware.cpu0;
-    if (cpu.hasEvent(kHLETaskEvent)) return;
+    if (cpu.hasEvent(kHLETaskEvent)) { return; }
     cpu.addEvent(kHLETaskEvent, hleWaitCycles, () => {
       this.hleTask = this.hleTask();
       if (this.hleTask) {
@@ -248,7 +248,7 @@ export class SPRegDevice extends Device {
     function setOrClear(statusBits, flags, clrMask, setMask, bit) {
       const set = flags & setMask;
       const clr = flags & clrMask;
-      if (set && !clr) { 
+      if (set && !clr) {
         return statusBits | bit;
       } else if (clr && !set) {
         return statusBits & ~bit;

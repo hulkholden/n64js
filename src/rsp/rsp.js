@@ -145,10 +145,22 @@ export class RSP {
   // General Purpose Registers.
   getRegS32(r) { return this.gprS32[r]; }
   getRegU32(r) { return this.gprU32[r]; }
-  setRegS32(r, v) { if (r != 0) { this.gprS32[r] = v; } }
-  setRegU32(r, v) { if (r != 0) { this.gprU32[r] = v; } }
+  setRegS32(r, v) {
+    if (r != 0) {
+      this.gprS32[r] = v;
+    }
+  }
+  setRegU32(r, v) {
+    if (r != 0) {
+      this.gprU32[r] = v;
+    }
+  }
 
-  setRegS16SignExtend(r, v) { if (r != 0) { this.gprS32[r] = (v << 16) >> 16; } }
+  setRegS16SignExtend(r, v) {
+    if (r != 0) {
+      this.gprS32[r] = (v << 16) >> 16;
+    }
+  }
 
   // For performance we assume the accumulator is stored as a S48 so we can avoid this check when reading.
   getAccS48(el) { return this.vAcc[el]; }
@@ -912,8 +924,12 @@ function saturateUnsigned(x, shift, negLimit, posLimit) {
 
 // TODO: can this be implemented in terms of saturateSigned?
 function clampSigned(x) {
-  if (x < -32768) return -32768;
-  if (x > 32767) return 32767;
+  if (x < -32768) {
+    return -32768;
+  }
+  if (x > 32767) {
+    return 32767;
+  }
   return x;
 }
 
@@ -1106,8 +1122,12 @@ function executeVSUB(i) {
 }
 
 function conditionalNegate(s, x) {
-  if (s < 0) { return -x; }
-  if (s > 0) { return x; }
+  if (s < 0) {
+    return -x;
+  }
+  if (s > 0) {
+    return x;
+  }
   return 0;
 }
 

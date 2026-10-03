@@ -304,8 +304,12 @@ export class S2DEXCommon {
     let tip = '';
     if (dis) {
       dis.text(`${method}(${toString32(address)});`);
-      if (loadTex) { tip += this.texture.toString() + '\n'; }
-      if (renderMode != kRenderNone) { tip += this.sprite.toString() + '\n'; }
+      if (loadTex) {
+        tip += this.texture.toString() + '\n';
+      }
+      if (renderMode != kRenderNone) {
+        tip += this.sprite.toString() + '\n';
+      }
       dis.tip(tip);
     }
   }

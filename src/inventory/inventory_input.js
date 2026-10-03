@@ -64,7 +64,9 @@ export function parseInputScript(script) {
 // Offset the random driver's VI counter so prefix length cannot change its stream.
 export function createInputDriver(seed, script) {
   const randomInput = createRandomInputDriver(seed);
-  if (!script) return randomInput;
+  if (!script) {
+    return randomInput;
+  }
   const steps = script.steps.map(step => ({
     frames: step.frames,
     input: {
@@ -75,9 +77,14 @@ export function createInputDriver(seed, script) {
   let index = 0;
   let elapsed = 0;
   return (frame, input) => {
-    while (index < steps.length && frame > elapsed + steps[index].frames) elapsed += steps[index++].frames;
-    if (index < steps.length) Object.assign(input, steps[index].input);
-    else randomInput(frame - elapsed, input);
+    while (index < steps.length && frame > elapsed + steps[index].frames) {
+      elapsed += steps[index++].frames;
+    }
+    if (index < steps.length) {
+      Object.assign(input, steps[index].input);
+    } else {
+      randomInput(frame - elapsed, input);
+    }
   };
 }
 

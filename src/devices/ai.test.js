@@ -46,8 +46,11 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  if (previousN64js === undefined) delete globalThis.n64js;
-  else globalThis.n64js = previousN64js;
+  if (previousN64js === undefined) {
+    delete globalThis.n64js;
+  } else {
+    globalThis.n64js = previousN64js;
+  }
 });
 
 describe('AI DMA timing', () => {
@@ -139,10 +142,16 @@ describe('browser audio scheduling', () => {
   });
 
   afterEach(() => {
-    if (previousAudioBuffer === undefined) delete globalThis.AudioBuffer;
-    else globalThis.AudioBuffer = previousAudioBuffer;
-    if (previousAudioBufferSourceNode === undefined) delete globalThis.AudioBufferSourceNode;
-    else globalThis.AudioBufferSourceNode = previousAudioBufferSourceNode;
+    if (previousAudioBuffer === undefined) {
+      delete globalThis.AudioBuffer;
+    } else {
+      globalThis.AudioBuffer = previousAudioBuffer;
+    }
+    if (previousAudioBufferSourceNode === undefined) {
+      delete globalThis.AudioBufferSourceNode;
+    } else {
+      globalThis.AudioBufferSourceNode = previousAudioBufferSourceNode;
+    }
   });
 
   test('starts with a playback cushion while preserving emulated DMA timing and samples', () => {
@@ -192,7 +201,9 @@ describe('browser audio scheduling', () => {
       context.currentTime = i * duration + jitter[i % jitter.length];
       ai.write32(lengthReg, length);
       expect(sources[i].startTime - context.currentTime).toBeGreaterThan(0.015);
-      if (i > 0) expect(sources[i].startTime).toBe(sources[i - 1].endTime);
+      if (i > 0) {
+        expect(sources[i].startTime).toBe(sources[i - 1].endTime);
+      }
       events.incrementCount(ai.dmaDurations[0]);
     }
   });

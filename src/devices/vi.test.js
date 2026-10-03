@@ -40,8 +40,11 @@ for (const bitDepth of [16, 32]) {
     const black = bitDepth === 16 ? 1 : [0, 0, 0, 255];
     const colour = bitDepth === 16 ? 0xf801 : [0x12, 0x34, 0x56, 255];
     const writePixel = (ram, address) => {
-      if (bitDepth === 16) ram.set16(address, 0xf800);
-      else ram.set32(address, 0x12345678);
+      if (bitDepth === 16) {
+        ram.set16(address, 0xf800);
+      } else {
+        ram.set32(address, 0x12345678);
+      }
     };
 
     for (const size of [4, 8]) {

@@ -32,9 +32,13 @@ describe('bounded browser SHA-256', () => {
     expect(digest(new Uint8Array())).toBe('e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855');
     expect(digest(new TextEncoder().encode('abc'))).toBe('ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
     const bytes = new Uint8Array(4100);
-    for (let i = 0; i < bytes.length; i++) bytes[i] = (i * 73 + (i >>> 3)) & 255;
+    for (let i = 0; i < bytes.length; i++) {
+      bytes[i] = (i * 73 + (i >>> 3)) & 255;
+    }
     // Descending sizes catch residual scratch bytes from previous hashes.
-    for (let n = 4096; n >= 0; n--) expect(digest(bytes.subarray(3, n + 3))).toBe(hash(bytes.subarray(3, n + 3)));
+    for (let n = 4096; n >= 0; n--) {
+      expect(digest(bytes.subarray(3, n + 3))).toBe(hash(bytes.subarray(3, n + 3)));
+    }
     expect(() => digest(new Uint8Array(4097))).toThrow();
     expect(() => digest([])).toThrow();
   });
@@ -47,7 +51,9 @@ describe('browser audio classifier', () => {
 
   test('entry hashes only select candidates; complete code still separates shared entries', () => {
     const { raw, second, manifest } = fixture();
-    for (const p of manifest.programs) p.entrySha256 = hash(raw.code.subarray(0, 0x80));
+    for (const p of manifest.programs) {
+      p.entrySha256 = hash(raw.code.subarray(0, 0x80));
+    }
     manifest.programs[0].family = 'NAUDIO'; manifest.programs[1].family = 'NEAD';
     for (const options of variants) {
       const classify = createAudioMicrocodeClassifier(manifest, options);
@@ -153,7 +159,9 @@ describe('browser audio classifier', () => {
         const changed = { ...raw, [field]: new Uint8Array(size) };
         expect(classify(changed)).toEqual(unknown(reason));
       }
-      for (const bad of [null, {}, { ...raw, code: [] }]) expect(classify(bad)).toEqual(unknown('invalid-snapshot'));
+      for (const bad of [null, {}, { ...raw, code: [] }]) {
+        expect(classify(bad)).toEqual(unknown('invalid-snapshot'));
+      }
       expect(classify(raw)).toEqual(known());
     }
   });
@@ -181,7 +189,9 @@ describe('browser audio classifier', () => {
     manifest.programs[0].codeSha256 = 'bad'; manifest.bootstraps[0].id = 'wrong';
     expect(classify(raw)).toMatchObject({ identity: 'program-0', bootstrap: 'boot' });
     expect(() => createAudioMicrocodeClassifier(manifest)).toThrow('Invalid audio reference manifest');
-    for (const bad of [null, {}, { version: 1, bootstraps: [null], programs: [] }]) expect(() => createAudioMicrocodeClassifier(bad)).toThrow();
+    for (const bad of [null, {}, { version: 1, bootstraps: [null], programs: [] }]) {
+      expect(() => createAudioMicrocodeClassifier(bad)).toThrow();
+    }
   });
 
   test('reuses an explicit result without retaining stale identity or ambiguity fields', () => {

@@ -34,22 +34,30 @@ Exit codes: 0 matches found; 1 no confirmed matches; 2 argument or data error.`;
 function parseFilters(values) {
   const filters = {};
   if (values['audio-microcode'] !== undefined) {
-    if (!values['audio-microcode'].trim()) throw new Error('Expected an audio microcode family');
+    if (!values['audio-microcode'].trim()) {
+      throw new Error('Expected an audio microcode family');
+    }
     filters.audioMicrocode = values['audio-microcode'].trim().toUpperCase();
   }
   if (values.microcode !== undefined) {
-    if (!values.microcode.trim()) throw new Error('Expected a microcode family');
+    if (!values.microcode.trim()) {
+      throw new Error('Expected a microcode family');
+    }
     filters.microcode = values.microcode.trim().toUpperCase();
   }
   if (values.texture !== undefined) {
     const name = values.texture.trim().toUpperCase();
     const match = /^(RGBA|YUV|CI|IA|I)(4|8|16|32)$/.exec(name);
-    if (!match) throw new Error('Expected a texture format such as CI4 or RGBA16');
+    if (!match) {
+      throw new Error('Expected a texture format such as CI4 or RGBA16');
+    }
     filters.texture = {
       name, format: ImageFormat[`G_IM_FMT_${match[1]}`], size: ImageSize[`G_IM_SIZ_${match[2]}b`],
     };
   }
-  if (!Object.keys(filters).length) throw new Error('Specify --microcode, --audio-microcode or --texture');
+  if (!Object.keys(filters).length) {
+    throw new Error('Specify --microcode, --audio-microcode or --texture');
+  }
   return filters;
 }
 
@@ -86,9 +94,13 @@ async function query(input, filters) {
       }])),
     };
     row.checks = checks;
-    if (state === 'observed') output.matches.push(row);
-    else if (state === 'unknown') output.unknown.push(row);
-    else output.summary.notObserved++;
+    if (state === 'observed') {
+      output.matches.push(row);
+    } else if (state === 'unknown') {
+      output.unknown.push(row);
+    } else {
+      output.summary.notObserved++;
+    }
   }
   output.summary.matched = output.matches.length;
   output.summary.unknown = output.unknown.length;
@@ -104,7 +116,9 @@ try {
   if (values.help) {
     console.log(usage);
   } else {
-    if (positionals.length !== 1) throw new Error('Expected one inventory root, scan directory, or report path');
+    if (positionals.length !== 1) {
+      throw new Error('Expected one inventory root, scan directory, or report path');
+    }
     const output = await query(resolve(positionals[0]), parseFilters(values));
     console.log(JSON.stringify(output, null, 2));
     process.exitCode = output.errors.length ? 2 : output.matches.length ? 0 : 1;

@@ -35,7 +35,9 @@ export function simulateBoot(cpu0, hardware, rominfo) {
   cpu0.setControlU64(cpu0reg.controlErrorEPC, 0xffffffff_ffffffffn);
   cpu0.cop1ControlChanged();
 
-  for (let reg = 1; reg < 32; ++reg) cpu0.setRegU64(reg, 0n);
+  for (let reg = 1; reg < 32; ++reg) {
+    cpu0.setRegU64(reg, 0n);
+  }
   cpu0.setRegS32Extend(cpu0reg.AT, boot.at);
   cpu0.setRegS32Extend(cpu0reg.V0, boot.v0);
   cpu0.setRegS32Extend(cpu0reg.V1, boot.v0);
@@ -84,7 +86,9 @@ export function simulateBoot(cpu0, hardware, rominfo) {
     0x3c0dbfc0, 0x8da807fc, 0x25ad07c0, 0x31080080,
     0x5500fffc, 0x3c0dbfc0, 0x8da80024, 0x3c0bb000,
   ];
-  for (let i = 0; i < ipl2Prefix.length; ++i) imem.set32(i * 4, ipl2Prefix[i]);
+  for (let i = 0; i < ipl2Prefix.length; ++i) {
+    imem.set32(i * 4, ipl2Prefix[i]);
+  }
 
   cpu0.pc = 0xa4000040;
 }

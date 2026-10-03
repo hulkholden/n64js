@@ -93,12 +93,18 @@ export class T3DUX extends ObjectMicrocode {
         const attributeBase = dv.getUint32(pc + 20);
 
         state.pc += OBJECT_RECORD_BYTES;
-        if (global) this.loadGlobalState(global, dis);
+        if (global) {
+          this.loadGlobalState(global, dis);
+        }
         this.loadObject(object, vertices, triangles, attributes, attributeBase, dis);
       }
 
-      if (dis) dis.end();
-      if (state.postOp(dis ? -1 : bailAfter)) break;
+      if (dis) {
+        dis.end();
+      }
+      if (state.postOp(dis ? -1 : bailAfter)) {
+        break;
+      }
     }
   }
 
@@ -127,16 +133,28 @@ export class T3DUX extends ObjectMicrocode {
     const attrCount = dv.getUint8(address + 10);
     const attrStart = dv.getUint8(address + 11);
 
-    if (renderState & ~RENDER_STATE_SUPPORTED_MASK) throw new Error('Unsupported T3DUX render state');
+    if (renderState & ~RENDER_STATE_SUPPORTED_MASK) {
+      throw new Error('Unsupported T3DUX render state');
+    }
     if ((geomMode & ~GEOM_MODE_SUPPORTED_MASK) || (texMode & ~TEX_MODE_SUPPORTED_MASK)) {
       throw new Error('Unsupported T3DUX geometry mode');
     }
-    if (flags & MATRIX_FLAG_TRANSFORM_ONLY) throw new Error('T3DUX transform-only RAM writeback is not supported');
-    if (flags & ~MATRIX_FLAGS_SUPPORTED_MASK) throw new Error(`Unsupported T3DUX matrix flags ${flags}`);
+    if (flags & MATRIX_FLAG_TRANSFORM_ONLY) {
+      throw new Error('T3DUX transform-only RAM writeback is not supported');
+    }
+    if (flags & ~MATRIX_FLAGS_SUPPORTED_MASK) {
+      throw new Error(`Unsupported T3DUX matrix flags ${flags}`);
+    }
 
-    if (!(flags & MATRIX_FLAG_KEEP_MATRIX)) this.transform = this.loadMatrix(address + OBJECT_STATE_BYTES, MATRIX_BYTES);
-    if (triCount >= SIGNED_DMA_LIMIT) throw new Error('Unsupported T3DUX triangle DMEM range');
-    if (vertices) this.loadVertices(state.rdpSegmentAddress(vertices), v0, count, flags);
+    if (!(flags & MATRIX_FLAG_KEEP_MATRIX)) {
+      this.transform = this.loadMatrix(address + OBJECT_STATE_BYTES, MATRIX_BYTES);
+    }
+    if (triCount >= SIGNED_DMA_LIMIT) {
+      throw new Error('Unsupported T3DUX triangle DMEM range');
+    }
+    if (vertices) {
+      this.loadVertices(state.rdpSegmentAddress(vertices), v0, count, flags);
+    }
 
     if (attributes) {
       const start = attributeBase + attrStart * ATTRIBUTE_BYTES;
@@ -168,7 +186,9 @@ export class T3DUX extends ObjectMicrocode {
     state.setTexture(1, 1, (renderState & RENDER_STATE_LEVEL_MASK) >>> RENDER_STATE_LEVEL_SHIFT,
       renderState & RENDER_STATE_TILE_MASK);
 
-    if (triangles) this.drawTriangles(state.rdpSegmentAddress(triangles), triCount, attributeBase, dis);
+    if (triangles) {
+      this.drawTriangles(state.rdpSegmentAddress(triangles), triCount, attributeBase, dis);
+    }
   }
 
   loadVertices(address, v0, count, flags) {
@@ -235,7 +255,9 @@ export class T3DUX extends ObjectMicrocode {
 
       const indices = [dv.getUint8(address), dv.getUint8(address + 1), dv.getUint8(address + 2)];
       const vertices = indices.map(index => this.vertices[index]);
-      if (vertices.some(vertex => !vertex?.set)) throw new Error('T3DUX triangle references an unloaded vertex');
+      if (vertices.some(vertex => !vertex?.set)) {
+        throw new Error('T3DUX triangle references an unloaded vertex');
+      }
 
       // Rejected packed vertices still allow palette commands to take effect.
       const [a, b, c] = vertices.map(vertex => vertex.pos);
@@ -255,7 +277,9 @@ export class T3DUX extends ObjectMicrocode {
         // Untextured objects also carry this flag. Before the first SetTile,
         // the RSP's zero-initialized template emits an RDP no-op, not a tile.
       }
-      if (rejected) continue;
+      if (rejected) {
+        continue;
+      }
 
       const colorIndex = dv.getInt8(address + 3);
       const uv = [];

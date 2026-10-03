@@ -21,7 +21,9 @@ function referenceHash(tmem, offset, length, seed = 0, mask = 0xfff) {
 describe('TMEM content hashes', () => {
   test('matches independent XXH32 for short, striped, tail and wrapped spans', () => {
     const tmem = new TMEM();
-    for (let i = 0; i < 1024; i++) tmem.tmemData32[i] = Math.imul(i + 1, 0x9e3779b1);
+    for (let i = 0; i < 1024; i++) {
+      tmem.tmemData32[i] = Math.imul(i + 1, 0x9e3779b1);
+    }
     for (const offset of [0, 8, 2040, 2048, 4080, 4088]) {
       for (const length of [0, 8, 16, 24, 32, 40, 128, 512, 2048, 4096]) {
         expect(tmem.calculateCRC(rgbaTile(offset, length))).toBe(referenceHash(tmem, offset, length) + 1);
@@ -31,7 +33,9 @@ describe('TMEM content hashes', () => {
 
   test('chains index and enabled palette hashes with the correct wrap boundary', () => {
     const tmem = new TMEM();
-    for (let i = 0; i < 1024; i++) tmem.tmemData32[i] = Math.imul(i + 1, 0x85ebca77);
+    for (let i = 0; i < 1024; i++) {
+      tmem.tmemData32[i] = Math.imul(i + 1, 0x85ebca77);
+    }
     for (const format of [gbi.ImageFormat.G_IM_FMT_CI, gbi.ImageFormat.G_IM_FMT_RGBA,
       gbi.ImageFormat.G_IM_FMT_IA, gbi.ImageFormat.G_IM_FMT_I]) {
       for (const size of [gbi.ImageSize.G_IM_SIZ_4b, gbi.ImageSize.G_IM_SIZ_8b]) {

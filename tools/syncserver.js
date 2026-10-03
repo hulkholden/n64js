@@ -103,8 +103,8 @@ function serveFile(request, response) {
 
   // Only serve filetype we know about
   if(!contentType) {
-      response.writeHead(404);
-      response.end();
+    response.writeHead(404);
+    response.end();
   }
 
   fs.exists(filePath, function(exists) {

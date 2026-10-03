@@ -30,12 +30,16 @@ async function compareExecutions(instructions, prepare = () => {}, train = () =>
   };
   const checkCopXUsable = cpu.checkCopXUsable;
   cpu.checkCopXUsable = function (copIdx) {
-    if (copIdx === 1) cop1Checks++;
+    if (copIdx === 1) {
+      cop1Checks++;
+    }
     return checkCopXUsable.call(this, copIdx);
   };
   n64js.getSyncFlow = () => null;
   const words = [...instructions];
-  while (words.length < runCycles) words.push(0);
+  while (words.length < runCycles) {
+    words.push(0);
+  }
 
   function setup(prepareState) {
     cpu.reset();
@@ -103,7 +107,9 @@ async function compareExecutions(instructions, prepare = () => {}, train = () =>
     // Use the production tracer/compiler, with safe inputs so a memory exception
     // does not prevent the training trace from completing.
     setup(train);
-    for (let i = 0; i < 499; i++) lookupFragment(pc);
+    for (let i = 0; i < 499; i++) {
+      lookupFragment(pc);
+    }
     cpu.run(runCycles);
     const fragment = getFragmentMap().get(pc);
     expect(fragment?.func).toBeFunction();
@@ -140,7 +146,9 @@ for (const profiled of [false, true]) {
               const expected = operation(source === 0 ? 0n : value, BigInt(imm));
               expect(result.gpr[destination]).toBe(destination === 0 ? 0n : expected);
               expect(result.code).not.toContain(`exec${name}`);
-              if (profiled) expect(result.profile.compiledOps).toBe(runCycles);
+              if (profiled) {
+                expect(result.profile.compiledOps).toBe(runCycles);
+              }
             });
           }
         }
@@ -157,7 +165,9 @@ for (const profiled of [false, true]) {
           const result = await compare([iop(decode.OP_BEQ, 0, 0, 1), special(decode.SPECIAL_OR, s, t, d)], setup, setup);
           expect(result.gpr[d]).toBe(d === 0 || (s === 0 && t === 0) ? 0n : value);
           expect(result.code).not.toMatch(/exec(MOV|CLEAR|OR)\(/);
-          if (profiled) expect(result.profile.compiledOps).toBe(runCycles);
+          if (profiled) {
+            expect(result.profile.compiledOps).toBe(runCycles);
+          }
         });
       }
     }
@@ -224,7 +234,9 @@ for (const profiled of [false, true]) {
         expect(result.cause).toBe((0x80000000 | cause) >>> 0);
         expect(result.epc).toBe(pc);
         expect(result.badVAddr).toBe(address);
-        if (profiled) expect(result.profile.compiledOps).toBe(2);
+        if (profiled) {
+          expect(result.profile.compiledOps).toBe(2);
+        }
       });
     }
 
@@ -272,7 +284,9 @@ for (const profiled of [false, true]) {
         c.setRegS32Extend(4, 0xa430000c); // MI interrupt mask.
         c.setRegS32Extend(2, 2); // Enable pending SP interrupt.
         h.mi_reg.set32(8, 1);
-        for (let i = 0; i < runCycles; i++) h.sp_mem.set32(0x1000 + i * 4, iop(decode.OP_ADDIU, 1, 1, 1));
+        for (let i = 0; i < runCycles; i++) {
+          h.sp_mem.set32(0x1000 + i * 4, iop(decode.OP_ADDIU, 1, 1, 1));
+        }
         h.rsp.unhalt();
       };
       const result = await compare([0, 0, iop(decode.OP_SW, 4, 2), iop(decode.OP_ORI, 0, 3, 0x77)], setup,
@@ -288,7 +302,9 @@ for (const profiled of [false, true]) {
       const setup = (c, h) => {
         c.setRegS32Extend(4, 0xa4040010); // SP status.
         c.setRegS32Extend(2, 1); // Clear HALT.
-        for (let i = 0; i < runCycles; i++) h.sp_mem.set32(0x1000 + i * 4, iop(decode.OP_ADDIU, 1, 1, 1));
+        for (let i = 0; i < runCycles; i++) {
+          h.sp_mem.set32(0x1000 + i * 4, iop(decode.OP_ADDIU, 1, 1, 1));
+        }
       };
       const result = await compare([0, 0, iop(decode.OP_SW, 4, 2), iop(decode.OP_LW, 5, 6)],
         (c, h) => { setup(c, h); c.setRegS32Extend(5, 0x80003000); },
@@ -492,7 +508,9 @@ for (const profiled of [false, true]) {
           c.setRegS32Extend(4, value);
           c.setControlU32(regs.controlStatus, 0x20008001);
           c.statusRegisterChanged();
-          if (initialCompare !== null) c.setCompare(initialCompare);
+          if (initialCompare !== null) {
+            c.setCompare(initialCompare);
+          }
         };
         const words = [0, 0, word, 0, ...(initialCompare === null ? [] : [0, 0]), iop(decode.OP_ORI, 0, 3, 0x77)];
         const result = await compare(words, setup, c => c.setRegS32Extend(4, 1000));
@@ -507,11 +525,15 @@ for (const profiled of [false, true]) {
         const words = [...Array(prefix).fill(0), iop(decode.OP_LW, 4, 2)];
         const result = await compare(words, (c, hardware) => {
           c.setRegS32Extend(4, 0x80003001);
-          for (let i = 0; i < runCycles; i++) hardware.ram.set32(0x180 + 4 * i, iop(decode.OP_DADDIU, 3, 3, 1));
+          for (let i = 0; i < runCycles; i++) {
+            hardware.ram.set32(0x180 + 4 * i, iop(decode.OP_DADDIU, 3, 3, 1));
+          }
         });
         expect(result.gpr[3]).toBe(BigInt(runCycles - prefix - 1));
         expect(result.countCycles).toBe(runCycles);
-        if (profiled) expect(result.profile.compiledOps).toBe(prefix + 1);
+        if (profiled) {
+          expect(result.profile.compiledOps).toBe(prefix + 1);
+        }
       });
     }
 
@@ -524,7 +546,9 @@ for (const profiled of [false, true]) {
         iop(decode.OP_LW, 4, 3),
       ], (c, hardware) => {
         c.setRegS32Extend(4, 0x80003001);
-        for (let i = 0; i < runCycles; i++) hardware.ram.set32(0x180 + 4 * i, iop(decode.OP_DADDIU, 8, 8, 1));
+        for (let i = 0; i < runCycles; i++) {
+          hardware.ram.set32(0x180 + 4 * i, iop(decode.OP_DADDIU, 8, 8, 1));
+        }
       });
       expect(result.gpr[2]).toBe(1n);
       expect(result.gpr[8]).toBe(7n);
@@ -537,7 +561,9 @@ for (const profiled of [false, true]) {
         () => { n64js.breakpoints = () => ({ isBreakpoint: () => false }); });
       expect(result.pc).toBe(pc + 8);
       expect(result.countCycles).toBe(2);
-      if (profiled) expect(result.profile.compiledOps).toBe(2);
+      if (profiled) {
+        expect(result.profile.compiledOps).toBe(2);
+      }
     });
 
     for (const [name, branch] of [['BEQ', iop(decode.OP_BEQ, 0, 0, -1)], ['J', jump(0x100c)]]) {

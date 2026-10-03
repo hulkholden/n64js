@@ -57,7 +57,9 @@ async function fixture(words) {
   }
   function train(prepare) {
     setup(prepare);
-    for (let i = 0; i < 499; ++i) lookupFragment(pc);
+    for (let i = 0; i < 499; ++i) {
+      lookupFragment(pc);
+    }
     c.run(cycles);
     const fragment = getFragmentMap().get(pc);
     expect(fragment?.func).toBeFunction();
@@ -74,7 +76,9 @@ async function fixture(words) {
     setPerformanceProfiling(profiled);
     try {
       c.run(cycles);
-      if (expectCompiled) expect(fragment.executionCount).toBeGreaterThan(before);
+      if (expectCompiled) {
+        expect(fragment.executionCount).toBeGreaterThan(before);
+      }
       expect(snapshot()).toEqual(interpreted);
       return { ...interpreted, profile: getPerformanceProfile() };
     } finally {
@@ -163,12 +167,14 @@ describe('mixed-width compiled/interpreted comparisons', () => {
         iop(decode.OP_SW, 20, 1), special(decode.SPECIAL_SLTU, 4, 5, 2), iop(decode.OP_BEQ, 4, 5, 2), iop(decode.OP_SW, 20, 2, 4),
         special(decode.SPECIAL_SLT, 4, 5, 4), special(decode.SPECIAL_SLTU, 5, 5, 5), special(decode.SPECIAL_SLT, 4, 5, 0)]);
       const fragment = f.train();
-      for (const s of values) for (const t of values) {
-        f.compare(fragment, (c, h) => {
-          c.setRegU64(4, s); c.setRegU64(5, t);
-          h.ram.set32(0x3000, Number(BigInt.asUintN(32, s)));
-          h.ram.set32(0x3008, Number(BigInt.asUintN(32, t)));
-        });
+      for (const s of values) {
+        for (const t of values) {
+          f.compare(fragment, (c, h) => {
+            c.setRegU64(4, s); c.setRegU64(5, t);
+            h.ram.set32(0x3000, Number(BigInt.asUintN(32, s)));
+            h.ram.set32(0x3008, Number(BigInt.asUintN(32, t)));
+          });
+        }
       }
     });
   }
@@ -180,10 +186,12 @@ describe('mixed-width compiled/interpreted comparisons', () => {
         const f = await fixture([iop(op, 4, 1, immediate), iop(decode.OP_ADDIU, 4, 4), iop(op, 4, 2, immediate),
           iop(decode.OP_LWU, 20, 4), iop(op, 4, 4, immediate), iop(decode.OP_BNE, 4, 0, 1), iop(decode.OP_SW, 20, 4, 4)]);
         const fragment = f.train();
-        for (const value of values) f.compare(fragment, (c, h) => {
-          c.setRegU64(4, value);
-          h.ram.set32(0x3000, Number(BigInt.asUintN(32, value)));
-        });
+        for (const value of values) {
+          f.compare(fragment, (c, h) => {
+            c.setRegU64(4, value);
+            h.ram.set32(0x3000, Number(BigInt.asUintN(32, value)));
+          });
+        }
       });
     }
   }
@@ -196,10 +204,12 @@ describe('mixed-width compiled/interpreted comparisons', () => {
         iop(decode.OP_SW, 20, 7, 16)];
       const f = await fixture(words);
       const fragment = f.train();
-      for (const value of values) f.compare(fragment, (c, h) => {
-        c.setRegU64(4, value); c.setRegU64(5, value); c.setRegS32Extend(6, 4);
-        h.ram.set64(0x3000, 0x100000000n);
-      });
+      for (const value of values) {
+        f.compare(fragment, (c, h) => {
+          c.setRegU64(4, value); c.setRegU64(5, value); c.setRegS32Extend(6, 4);
+          h.ram.set64(0x3000, 0x100000000n);
+        });
+      }
     }
   });
 
@@ -211,10 +221,12 @@ describe('mixed-width compiled/interpreted comparisons', () => {
           iop(decode.OP_ANDI, 2, 2, 0xffff), iop(decode.OP_ORI, 2, 2, 0x8000), iop(decode.OP_XORI, 2, 2, 0xffff),
           iop(decode.OP_SLTIU, 2, 6, -1), iop(decode.OP_BNE, 2, 0, 1), iop(decode.OP_SW, 20, 6, 16)]);
         const fragment = f.train();
-        for (const value of values) f.compare(fragment, (c, h) => {
-          c.setRegU64(5, value);
-          h.ram.set32(0x3000, Number(BigInt.asUintN(32, value)));
-        });
+        for (const value of values) {
+          f.compare(fragment, (c, h) => {
+            c.setRegU64(5, value);
+            h.ram.set32(0x3000, Number(BigInt.asUintN(32, value)));
+          });
+        }
       }
     }
   });
@@ -229,10 +241,12 @@ describe('mixed-width compiled/interpreted comparisons', () => {
           iop(decode.OP_ANDI, 4, 4, 0xffff), special(decode.SPECIAL_SLT, 4, 6, 10), special(decode.SPECIAL_SLTU, 4, 6, 11),
           iop(decode.OP_BNE, 11, 0, 1), iop(decode.OP_SW, 20, 6, 16)]);
         const fragment = f.train();
-        for (const value of values) f.compare(fragment, (c, h) => {
-          c.setRegU64(6, value ^ 0xffff000080000000n);
-          h.ram.set64(0x3000, value);
-        });
+        for (const value of values) {
+          f.compare(fragment, (c, h) => {
+            c.setRegU64(6, value ^ 0xffff000080000000n);
+            h.ram.set64(0x3000, value);
+          });
+        }
       }
     }
   });
@@ -243,11 +257,15 @@ describe('mixed-width compiled/interpreted comparisons', () => {
         const f = await fixture([special(decode.SPECIAL_SLT, 4, 5, 1), iop(branch, reversed ? 0 : 1, reversed ? 1 : 0, 2),
           iop(decode.OP_SW, 20, 1), iop(decode.OP_ADDIU, 0, 8, 17), iop(decode.OP_ADDIU, 0, 9, 23)]);
         const fragment = f.train(c => { c.setRegS32Extend(4, 1); });
-        for (const value of [-1n, 1n]) f.compare(fragment, (c, h) => {
-          c.setRegU64(4, value);
-          for (let i = 0; i < 32; i++) h.rsp.imemDV.setUint32(i * 4, iop(decode.OP_ADDIU, 1, 1, 1), false);
-          h.rsp.halted = false;
-        });
+        for (const value of [-1n, 1n]) {
+          f.compare(fragment, (c, h) => {
+            c.setRegU64(4, value);
+            for (let i = 0; i < 32; i++) {
+              h.rsp.imemDV.setUint32(i * 4, iop(decode.OP_ADDIU, 1, 1, 1), false);
+            }
+            h.rsp.halted = false;
+          });
+        }
       });
     }
   }
@@ -270,7 +288,9 @@ describe('mixed-width compiled/interpreted comparisons', () => {
       expect(BigInt.asUintN(32, result.control[regs.controlEPC])).toBe(BigInt(pc + 4));
       expect(result.count).toBe(cycles);
       expect(result.memory.slice(0, 4)).toEqual([0, 0, 0, 0]);
-      if (profiled) expect(result.profile.compiledOps).toBe(1);
+      if (profiled) {
+        expect(result.profile.compiledOps).toBe(1);
+      }
     });
 
     test(`delay-slot exception after a forwarded branch, profiling=${profiled}`, async () => {
@@ -282,7 +302,9 @@ describe('mixed-width compiled/interpreted comparisons', () => {
       expect(result.gpr[1]).toBe(1n);
       expect(Number(result.control[regs.controlCause]) >>> 0).toBe(0x80000010);
       expect(BigInt.asUintN(32, result.control[regs.controlEPC])).toBe(BigInt(pc + 4));
-      if (profiled) expect(result.profile.compiledOps).toBe(3);
+      if (profiled) {
+        expect(result.profile.compiledOps).toBe(3);
+      }
     });
   }
 

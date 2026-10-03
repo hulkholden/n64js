@@ -99,7 +99,9 @@ export function runFogTests(gl) {
   check('draw-time fog disable and parameter changes preserve cached alpha', solid([128, 0, 127, 255]));
   state.fogColor = 0x00ff00ff;
   const recolored = check('fog-colour changes update a cached shader', solid([0, 128, 127, 255]));
-  if (recolored !== fogShader) throw new Error('Fog colour or RSP fog state changed the shader cache key');
+  if (recolored !== fogShader) {
+    throw new Error('Fog colour or RSP fog state changed the shader cache key');
+  }
   state.fogColor = 0xff000000;
   load(undefined, { fog: false });
   check('fog-disabled vertex loads retain source shade alpha', solid([41, 0, 214, 255]));
@@ -108,7 +110,9 @@ export function runFogTests(gl) {
 
   state.rdpOtherModeL = 0;
   const plainShader = check('removing first-cycle fog changes the shader variant', solid([0, 0, 255, 255]));
-  if (plainShader === fogShader) throw new Error('First-cycle blender state missing from shader cache key');
+  if (plainShader === fogShader) {
+    throw new Error('First-cycle blender state missing from shader cache key');
+  }
   state.rdpOtherModeL = 0xc8000000;
   if (check('restoring fog reuses the original shader', solid([128, 0, 127, 255])) !== fogShader) {
     throw new Error('Restoring first-cycle fog failed to reuse its shader');

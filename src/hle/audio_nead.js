@@ -72,7 +72,9 @@ export class NEADAudio extends AudioBase {
 
     // Envelope configuration lives in RSP registers. Other DSP commands can
     // overwrite them, so require a fresh setup before consuming those values.
-    if (opcode !== nead.OPCODE_ENVSETUP1 && opcode !== nead.OPCODE_ENVSETUP2 && opcode !== nead.OPCODE_ENVMIXER) this.envelopeReady = 0;
+    if (opcode !== nead.OPCODE_ENVSETUP1 && opcode !== nead.OPCODE_ENVSETUP2 && opcode !== nead.OPCODE_ENVMIXER) {
+      this.envelopeReady = 0;
+    }
 
     switch (opcode) {
       case nead.OPCODE_NOOP:
@@ -110,7 +112,9 @@ export class NEADAudio extends AudioBase {
         return this.resamplePolyphase(flags, low, this.address(w1), this.input, this.output, round16(this.count), this.resampleTable, this.scratch, this.expandedResampleHistory);
       case nead.OPCODE_POLEF:
         this.loadVector31(0);
-        if (this.count) this.vector31[5] = low;
+        if (this.count) {
+          this.vector31[5] = low;
+        }
         return this.filterPole(flags, low, this.address(w1), this.input, this.output, round16(this.count), this.book, this.scratch);
       case nead.OPCODE_LOADADPCM:
         this.require(low > 0 && low <= this.bookSize, 'Unreviewed NEAD predictor book');
@@ -153,7 +157,9 @@ export class NEADAudio extends AudioBase {
     this.buffer(output, outputSize, nead.VECTOR_BYTES);
     this.disjoint(input, samples, output, outputSize);
     this.dmem.fill(0, output, samplesStart);
-    if (!(flags & nead.FLAG_INIT)) this.dma(output, flags & nead.FLAG_LOOP ? this.loopAddress : address, history);
+    if (!(flags & nead.FLAG_INIT)) {
+      this.dma(output, flags & nead.FLAG_LOOP ? this.loopAddress : address, history);
+    }
     for (let i = 0; i < samples; i++) {
       this.put16(samplesStart + i * nead.SAMPLE_BYTES, this.dmem[input + i] << 8);
     }
@@ -268,7 +274,9 @@ export class NEADAudio extends AudioBase {
     this.buffer(output, count, nead.VECTOR_BYTES);
     // Earlier output cannot overwrite unread input; forward overlap needs
     // the RSP pipeline’s extra prefetched vectors and remains on LLE.
-    if (output > input) this.disjoint(input, count, output, count);
+    if (output > input) {
+      this.disjoint(input, count, output, count);
+    }
     for (let i = 0; i < count; i += nead.SAMPLE_BYTES) {
       const address = output + i;
       this.put16(address, mixSample(this.s16(address), this.s16(input + i), gain));
@@ -280,7 +288,9 @@ export class NEADAudio extends AudioBase {
     const input = w1 >>> 16, output = unsigned16(w1);
     this.buffer(input, count, nead.VECTOR_BYTES);
     this.buffer(output, count, nead.VECTOR_BYTES);
-    if (input !== output) this.disjoint(input, count, output, count);
+    if (input !== output) {
+      this.disjoint(input, count, output, count);
+    }
     // VADDC doubles V31, leaving one carry bit per lane for the first VADD.
     this.require(this.vector31Known, 'NEAD add mixer carry register not initialized');
     for (let i = 0; i < count; i += nead.SAMPLE_BYTES) {
@@ -380,7 +390,9 @@ export class NEADAudio extends AudioBase {
     }
 
     this.require(this.filterCount > 0, 'NEAD FIR coefficients not initialized');
-    if (!flags) this.dma(state, address, stateSize);
+    if (!flags) {
+      this.dma(state, address, stateSize);
+    }
     if (stateSize === 2 * nead.VECTOR_BYTES) {
       for (let i = 0; i < nead.VECTOR_SAMPLES; i++) {
         const coefficientAddress = coefficients + i * nead.SAMPLE_BYTES;

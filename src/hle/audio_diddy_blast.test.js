@@ -38,7 +38,9 @@ describe('Diddy/Blast resampler table', () => {
   test('uses the relocated phase-zero coefficients', () => {
     const a = fixture();
     a.put16(DMEM_RESAMPLE_TABLE, HALF_GAIN); // Synthetic filter with a single half-gain first tap.
-    for (let i = 0; i < INPUT_SAMPLE_COUNT; i++) a.put16(DMEM_INPUT + i * SAMPLE_BYTES, 100 + i);
+    for (let i = 0; i < INPUT_SAMPLE_COUNT; i++) {
+      a.put16(DMEM_INPUT + i * SAMPLE_BYTES, 100 + i);
+    }
 
     a.execute((OPCODE_RESAMPLE << 24) | (FLAG_INIT << 16) | RESAMPLE_UNITY_PITCH, RDRAM_RESAMPLE_STATE);
     expect(Array.from({ length: OUTPUT_SAMPLE_COUNT }, (_, i) => a.s16(DMEM_OUTPUT + i * SAMPLE_BYTES)))
@@ -50,7 +52,9 @@ describe('Diddy/Blast resampler table', () => {
     const lastPhase = RESAMPLE_PHASE_COUNT - 1;
     const lastTap = RESAMPLE_TAP_COUNT - 1;
     const coefficientAddress = DMEM_RESAMPLE_TABLE + lastPhase * RESAMPLE_PHASE_BYTES + lastTap * SAMPLE_BYTES;
-    for (let i = 0; i < RESAMPLE_TAP_COUNT; i++) state.setInt16(RDRAM_RESAMPLE_STATE + i * SAMPLE_BYTES, (i + 1) * 100);
+    for (let i = 0; i < RESAMPLE_TAP_COUNT; i++) {
+      state.setInt16(RDRAM_RESAMPLE_STATE + i * SAMPLE_BYTES, (i + 1) * 100);
+    }
     state.setUint16(RDRAM_RESAMPLE_STATE + RESAMPLE_STATE_PHASE_OFFSET, lastPhase << RESAMPLE_PHASE_SHIFT);
     a.put16(coefficientAddress, HALF_GAIN); // Only the fourth history sample contributes.
     const dmem = a.dmem.slice();

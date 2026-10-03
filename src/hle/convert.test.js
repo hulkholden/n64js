@@ -185,7 +185,9 @@ for (const [name, format, size, boundary] of formats) {
 test('4/8-bit RGBA, IA and I without TLUT expand every possible source value', () => {
   for (const [format, size] of [[0, 1], [0, 0], [3, 1], [3, 0], [4, 1], [4, 0]]) {
     const src = new Uint8Array(4096);
-    for (let i = 0; i < 256; i++) src[i] = i;
+    for (let i = 0; i < 256; i++) {
+      src[i] = i;
+    }
     const tile = { format, size, width: size === 0 ? 512 : 256, height: 1, line: 32, tmem: 0 };
     const actual = new Uint8Array(tile.width * 4);
     const expected = actual.slice();

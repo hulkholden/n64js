@@ -7,7 +7,9 @@ export async function loadReplayReport(path) {
   // Hash and parse one read so the provenance identifies the settings we used.
   const bytes = await readFile(path);
   const report = JSON.parse(bytes.toString('utf8'));
-  if (report?.schemaVersion !== 1) throw new Error('Replay requires a version 1 inventory report');
+  if (report?.schemaVersion !== 1) {
+    throw new Error('Replay requires a version 1 inventory report');
+  }
   validateReport(report);
   if (typeof report.rom?.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(report.rom.sha256)) {
     throw new Error('Replay requires a report with a ROM SHA-256');

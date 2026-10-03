@@ -24,9 +24,13 @@ export async function runHeadless(romPath, {
   console.log = (...args) => {
     originalLog(...args);
     for (const line of args.map(String).join(' ').split('\n')) {
-      if (onOutput(line)) stopped = true;
+      if (onOutput(line)) {
+        stopped = true;
+      }
     }
-    if (stopped) emulator?.cpu0.breakExecution();
+    if (stopped) {
+      emulator?.cpu0.breakExecution();
+    }
   };
 
   try {
@@ -52,7 +56,9 @@ export async function runHeadless(romPath, {
 
 async function main() {
   const [romPath, cycleArg] = Bun.argv.slice(2);
-  if (!romPath) throw new Error('Usage: bun run headless <rom-path> [max-cycles]');
+  if (!romPath) {
+    throw new Error('Usage: bun run headless <rom-path> [max-cycles]');
+  }
 
   const result = await runHeadless(romPath, {
     maxCycles: cycleArg === undefined ? undefined : Number(cycleArg),

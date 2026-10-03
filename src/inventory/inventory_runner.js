@@ -33,12 +33,16 @@ export function inventorySettings(values, script) {
 
 // Reject settings this version cannot reproduce, including changed input policies.
 export function restoreInventorySettings(settings) {
-  if (!settings || typeof settings !== 'object' || Array.isArray(settings)) throw new Error('Invalid inventory settings');
+  if (!settings || typeof settings !== 'object' || Array.isArray(settings)) {
+    throw new Error('Invalid inventory settings');
+  }
   const expected = inventorySettings({
     seed: String(settings.seed), frames: String(settings.frames),
     'max-cycles': String(settings.maxCycles), 'timeout-ms': String(settings.timeoutMs),
   }, settings.inputPolicy?.script);
-  if (!isDeepStrictEqual(settings, expected)) throw new Error('Unsupported inventory settings or input policy');
+  if (!isDeepStrictEqual(settings, expected)) {
+    throw new Error('Unsupported inventory settings or input policy');
+  }
   return expected;
 }
 
@@ -91,7 +95,9 @@ export async function runInventory(romPath, settings, { signal, replayOf } = {})
       child.kill('SIGKILL');
     };
     signal?.addEventListener('abort', interrupt, { once: true });
-    if (signal?.aborted) interrupt();
+    if (signal?.aborted) {
+      interrupt();
+    }
     const timer = setTimeout(() => {
       timedOut = true;
       child.kill('SIGKILL');
@@ -105,7 +111,9 @@ export async function runInventory(romPath, settings, { signal, replayOf } = {})
         finished = true;
         report.result.status = update.status;
         report.result.message = update.message;
-        if (update.failure) report.result.failure = update.failure;
+        if (update.failure) {
+          report.result.failure = update.failure;
+        }
         report.result.checkpointOnly = false;
       }
     });
