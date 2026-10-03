@@ -119,8 +119,8 @@ describe('Turbo3D object lists', () => {
     expect(state.pc).toBe(0x110);
     expect(state.projectedVertices[63].set).toBe(true);
     executeDisplayList(state, microcode);
-    const triangle = [-0.5, 0.5, -511 / 512, 1, 0.5, 0.5, -511 / 512, 1,
-      -0.5, -0.5, -511 / 512, 1];
+    const triangle = [-1, 1, -511 / 256, 2, 1, 1, -511 / 256, 2,
+      -1, -1, -511 / 256, 2];
     expect(draws).toEqual([triangle, triangle]);
     expect(state.pc).toBe(0);
   });

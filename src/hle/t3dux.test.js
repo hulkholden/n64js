@@ -15,7 +15,8 @@ function setup(dv, hash) {
   const microcode = create({ detectVersionString: () => '', computeMicrocodeHash: () => hash }, state, dv);
   microcode.renderer = new NullRenderer(state);
   const draws = [];
-  microcode.renderer.flushTris = tb => {
+  microcode.renderer.flushTris = (tb, options) => {
+    expect(options).toEqual({ affine: true });
     if (!tb.empty()) {
       draws.push({
         positions: Array.from(tb.positions.slice(0, tb.numTris * 12)),
@@ -111,7 +112,7 @@ describe('T3DUX object lists', () => {
       for (let i = 0; i < 4; i++) {
         dv.setInt16(0x218 + i * 10, 1);
       }
-      dv.setInt16(0x236, 2); // w=2 must be divided out for affine texturing.
+      dv.setInt16(0x236, 2); // Preserve w=2 for host clipping; the shader handles affine texturing.
       words(dv, 0x300, [0, 0x02010350, 0x01010000, 0, 0xef000000, 0]);
       words(dv, 0x400, [0xffff0001, 0, 0x00010001, 0, 0xffffffff, 0]);
       words(dv, 0x500, [0xff0000ff, 0x00ff00ff, 0x0000ffff]);
@@ -121,8 +122,8 @@ describe('T3DUX object lists', () => {
       expect(state.pc).toBe(0x118);
       expect(draws).toEqual([]);
       executeDisplayList(state, microcode);
-      expect(draws[0].positions).toEqual([-0.5, 0.5, -511 / 512, 1,
-        0.5, 0.5, -511 / 512, 1, -0.5, -0.5, -511 / 512, 1]);
+      expect(draws[0].positions).toEqual([-1, 1, -511 / 256, 2,
+        1, 1, -511 / 256, 2, -1, -1, -511 / 256, 2]);
       expect(draws[0].colors).toEqual([0xff0000ff, 0xff00ff00, 0xffff0000]);
       expect(state.pc).toBe(0);
     });

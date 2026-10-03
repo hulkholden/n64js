@@ -1,12 +1,15 @@
 #version 300 es
 #define NEAR_CLIPPING __NEAR_CLIPPING__
 
+uniform bool uAffine;
+
 in vec4 aPosition;
 in vec4 aColor;
 in vec2 aUV;
 
-out         vec4 vColor;
+out highp vec4 vColor;
 out highp float vShadeAlpha;
+out highp float vAffineW;
 // Preserve N64 sub-texel precision before fragment-stage tile offsets.
 out highp vec2 vUV;
 #if !NEAR_CLIPPING
@@ -21,9 +24,15 @@ void main(void) {
   vClipZ = aPosition.z;
   gl_Position.z = 0.0;
 #endif
-  vColor = aColor;
+  // Turbo3D/T3DUX use affine RGB and UVs. Cancel perspective interpolation
+  // in the fragment shader instead of dividing positions before clipping.
+  highp float affineScale = uAffine ? aPosition.w : 1.0;
+  // Interpolate W alongside the weighted attributes so clipping applies the
+  // same interpolation to their numerator and denominator (even at w = 0).
+  vAffineW = aPosition.w;
+  vColor = aColor * affineScale;
   // Shade alpha (including RSP fog) is affine in screen space. WebGL lacks
   // noperspective varyings; cancel its perspective denominator in the fragment.
   vShadeAlpha = aColor.a * aPosition.w;
-  vUV = aUV;
+  vUV = aUV * affineScale;
 }

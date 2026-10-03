@@ -100,9 +100,9 @@ export class Turbo3D extends ObjectMicrocode {
         xyz.x = dv.getInt16(address);
         xyz.y = dv.getInt16(address + 2);
         xyz.z = dv.getInt16(address + 4);
+        // Keep homogeneous positions for host clipping, including w <= 0.
+        // Affine interpolation is selected when the triangles are flushed.
         this.projectInPlace(vertex, xyz, this.transform, state.viewport.transform, vi);
-        // Turbo3D interpolates texture coordinates without perspective correction.
-        vertex.pos.scaleInPlace(1 / vertex.pos.w);
       }
     }
   }
@@ -128,10 +128,10 @@ export class Turbo3D extends ObjectMicrocode {
         tb.colours.fill(color, (tb.numTris - 1) * 3, tb.numTris * 3);
       }
       if (!tb.hasCapacity(1)) {
-        this.renderer.flushTris(tb);
+        this.renderer.flushTris(tb, { affine: true });
         tb.reset();
       }
     }
-    this.renderer.flushTris(tb);
+    this.renderer.flushTris(tb, { affine: true });
   }
 }
