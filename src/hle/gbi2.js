@@ -80,21 +80,6 @@ export class GBI2 extends GBIMicrocode {
     return super.getHandler(command);
   }
 
-  executeDL(cmd0, cmd1, dis) {
-    const param = (cmd0 >>> 16) & 0xff;
-    const address = this.state.rdpSegmentAddress(cmd1);
-
-    if (dis) {
-      const fn = (param === gbi.G_DL_PUSH) ? 'gsSPDisplayList' : 'gsSPBranchList';
-      dis.text(`${fn}(<span class="dl-branch">${toString32(address)}</span>);`);
-    }
-
-    if (param === gbi.G_DL_PUSH) {
-      this.state.pushDisplayList(address);
-    } else {
-      this.state.branchDisplayList(address);
-    }
-  }
 
   executeEndDL(cmd0, cmd1, dis) {
     if (dis) {

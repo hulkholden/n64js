@@ -55,7 +55,7 @@ export class ZSortP extends GBIMicrocode {
       // These commands retain the original GBI1 field encodings, despite
       // occupying opcode slots also used by GBI2.
       [G_MOVEWORD, this.executeMoveWord.bind(this)],
-      [G_DL, GBI1.prototype.executeDL.bind(this)],
+      [G_DL, this.executeDL.bind(this)],
       [G_ENDDL, GBI1.prototype.executeEndDL.bind(this)],
       [G_SETOTHERMODE_L, GBI1.prototype.executeSetOtherModeL.bind(this)],
       [G_SETOTHERMODE_H, GBI1.prototype.executeSetOtherModeH.bind(this)],
