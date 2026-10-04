@@ -121,6 +121,7 @@ export class GBI2 extends GBIMicrocode {
     const replace = (cmd0 >>> 1) & 0x1;
     const projection = (cmd0 >>> 2) & 0x1;
 
+    this.state.combinedMatrix = null;
     let matrix = this.loadMatrix(address, 64);
 
     if (dis) {
@@ -372,6 +373,7 @@ export class GBI2 extends GBIMicrocode {
     // Keeping that matrix preserves the transform, including for excess pops.
     const stack = this.state.modelview;
     stack.length = Math.max(1, stack.length - count);
+    this.state.combinedMatrix = null;
   }
 
   executeMoveWord(cmd0, cmd1, dis) {
@@ -423,8 +425,16 @@ export class GBI2 extends GBIMicrocode {
       case gbi.MoveWord.G_MW_LIGHTCOL:
         this.moveWordLightColor(offset, value, 24);
         break;
-      case gbi.MoveWord.G_MW_POINTS:
-        this.warnUnimplemented('MoveWord Points');
+      case gbi.G_MW_FORCEMTX:
+        if (offset !== 0) {
+          this.warn('MoveWord ForceMatrix invalid offset', toString16(offset));
+        } else if (value === 0) {
+          this.state.combinedMatrix = null;
+        } else if (!this.state.combinedMatrix) {
+          const projection = this.state.projection.at(-1);
+          this.state.combinedMatrix = projection.multiply(this.state.modelview.at(-1));
+        }
+        text = `gMoveWd(G_MW_FORCEMTX, ${toString16(offset)}, ${toString32(value)});`;
         break;
       case gbi.MoveWord.G_MW_PERSPNORM:
         if (dis) {
@@ -447,7 +457,7 @@ export class GBI2 extends GBIMicrocode {
 
   executeMoveMem(cmd0, cmd1, dis) {
     const address = this.state.rdpSegmentAddress(cmd1);
-    const length = ((cmd0 >>> 16) & 0xff) << 1;
+    const length = (((cmd0 >>> 19) & 0x1f) + 1) << 3;
     const offset = ((cmd0 >>> 8) & 0xff) << 3;
     const type = cmd0 & 0xfe;
 
@@ -495,7 +505,11 @@ export class GBI2 extends GBIMicrocode {
         this.warnUnimplemented('MoveMem G_GBI2_MV_POINT');
         break;
       case gbi.MoveMemGBI2.G_GBI2_MV_MATRIX:
-        this.warnUnimplemented('MoveMem G_GBI2_MV_MATRIX');
+        // gSPForceMatrix loads the combined transform without changing either stack.
+        this.state.combinedMatrix = this.loadMatrix(address, 64);
+        if (dis) {
+          text = `gsSPForceMatrix(${toString32(address)});`;
+        }
         break;
 
       default:

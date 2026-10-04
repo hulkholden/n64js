@@ -57,6 +57,8 @@ export class RSPState {
     // matrix stacks
     this.projection = [];
     this.modelview = [];
+    // A forced combined transform leaves the projection/modelview stacks intact.
+    this.combinedMatrix = null;
 
     /**
      * @type {!Array<!ProjectedVertex>}
@@ -139,6 +141,7 @@ export class RSPState {
 
     this.projection = [Matrix4x4.identity()];
     this.modelview = [Matrix4x4.identity()];
+    this.combinedMatrix = null;
 
     this.geometryModeBits = 0;
     this.geometryMode.zbuffer = 0;

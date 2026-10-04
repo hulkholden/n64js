@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>MoveWord Points and ForceMatrix</title>
+<style>
+body { background: #e8edf4; color: #183047; font: 16px system-ui; margin: 30px; }
+main { background: white; padding: 28px; width: 830px; border-radius: 12px; }
+h1 { font-size: 25px; margin: 0 0 8px; }
+p { color: #4c6073; }
+.labels { display: flex; margin-left: 30px; }
+.labels span { width: 200px; text-align: center; font-size: 13px; }
+section { position: relative; padding-left: 30px; margin-top: 12px; }
+.row { position: absolute; left: 0; writing-mode: vertical-rl; top: 60px; font-weight: bold; }
+.row.second { top: 240px; }
+</style>
+<main>
+<h1>MoveWord 0x0c · family-specific semantics</h1>
+<p>GBI0/GBI1: cached color updates. GBI2: force a combined matrix, then restore the stack transform.</p>
+<div class="labels"><span>Original</span><span>RGBA update</span><span>Alpha 64</span><span>Alpha 0</span></div>
+<section><span class="row">GBI0</span><span class="row second">GBI1</span><canvas id="points" width="800" height="360"></canvas></section>
+<div class="labels"><span>Stack transform</span><span>Forced transform</span><span>Invalidated transform</span></div>
+<section><span class="row">GBI2</span><canvas id="display" width="800" height="360"></canvas></section>
+</main>
+<pre id="results">Running…</pre>
+<script type="module">
+import { runMoveWordPointsTests } from '../build/moveword_points_webgl.js';
+globalThis.n64js = { warn: console.warn };
+try {
+  const gl = id => document.getElementById(id).getContext('webgl2', { antialias: false });
+  const lines = runMoveWordPointsTests(gl('display'), document.getElementById('points'));
+  document.getElementById('results').textContent = lines.join('\n');
+  document.title = `${lines.length} passed`;
+} catch (error) {
+  document.getElementById('results').textContent = `FAIL: ${error.stack || error}`;
+  document.title = 'FAIL';
+}
+</script>
+</html>

@@ -1,4 +1,5 @@
 import { executeDisplayList } from '../src/hle/display_list.js';
+import { GBI0 } from '../src/hle/gbi0.js';
 import { GBI1 } from '../src/hle/gbi1.js';
 import { GBI2 } from '../src/hle/gbi2.js';
 import { Renderer } from '../src/hle/renderer.js';
@@ -7,7 +8,7 @@ import { Vector3 } from '../src/graphics/Vector3.js';
 
 // Draw the same cached vertices before and after real ModifyVertex commands.
 // Expected RGB values are explicit; partial alpha blends over RGB(16, 32, 48).
-export function renderModifyVertexScene(gl) {
+export function renderModifyVertexScene(gl, legacyPoints = false) {
   const ram = new DataView(new ArrayBuffer(512));
   const state = new RSPState();
   state.reset(ram, 0);
@@ -24,10 +25,14 @@ export function renderModifyVertexScene(gl) {
   state.rdpOtherModeL = 0x00400000; // IN * A_IN + MEM * (1 - A_IN).
   const checks = [];
 
-  for (const [row, Type, opcode, triangle, end] of [
+  const families = legacyPoints ? [
+    [0, GBI0, 0xbc, [0xbf000000, 0x00000a14], 0xb8000000],
+    [1, GBI1, 0xbc, [0xbf000000, 0x00000204], 0xb8000000],
+  ] : [
     [0, GBI1, 0xb2, [0xbf000000, 0x00000204], 0xb8000000],
     [1, GBI2, 0x02, [0x05040200, 0], 0xdf000000],
-  ]) {
+  ];
+  for (const [row, Type, opcode, triangle, end] of families) {
     const microcode = new Type(state, ram);
     microcode.renderer = renderer;
     state.geometryMode.lighting = state.geometryMode.fog = 0;
@@ -50,7 +55,9 @@ export function renderModifyVertexScene(gl) {
       const commands = [];
       if (rgba !== null) {
         for (let i = 0; i < 3; i++) {
-          commands.push([(opcode << 24) | 0x100000 | (i << 1), rgba]);
+          commands.push([legacyPoints
+            ? 0xbc00000c | ((i * 40 + 0x10) << 8)
+            : (opcode << 24) | 0x100000 | (i << 1), rgba]);
         }
       }
       commands.push(triangle, [end, 0]);
