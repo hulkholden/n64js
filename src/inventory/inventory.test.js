@@ -78,7 +78,7 @@ function makeROM({ vi = false, graphics = 'end', audio = false, rewriteCount = f
       tile(0, ImageFormat.G_IM_FMT_CI, ImageSize.G_IM_SIZ_4b),
       tile(1, ImageFormat.G_IM_FMT_RGBA, ImageSize.G_IM_SIZ_16b),
       tile(2, ImageFormat.G_IM_FMT_I, ImageSize.G_IM_SIZ_8b), // Never selected.
-      tile(3, ImageFormat.G_IM_FMT_IA, ImageSize.G_IM_SIZ_8b, 0), // Empty tile.
+      tile(3, ImageFormat.G_IM_FMT_IA, ImageSize.G_IM_SIZ_8b, 0), // Valid zero-stride tile.
       [0xef000000 | CycleType.G_CYC_2CYCLE, 0],
       [0xe4020020, 0], [0xe1000000, 0], [0xf1000000, 0x04000400],
       [0xe5020020, 0], [0xe1000000, 0], [0xf1000000, 0x04000400],
@@ -669,7 +669,7 @@ describe('inventory command', () => {
     });
   });
 
-  test('collects distinct formats used by draws, excluding unused and empty tiles', async () => {
+  test('collects formats used by draws, including zero-stride tiles and excluding unused tiles', async () => {
     await withDirectory(async directory => {
       await Bun.write(join(directory, 'textures.z64'), makeROM({ vi: true, graphics: 'textures' }));
       for (let run = 0; run < 2; run++) {
@@ -681,6 +681,7 @@ describe('inventory command', () => {
           formats: [
             { format: ImageFormat.G_IM_FMT_CI, size: ImageSize.G_IM_SIZ_4b, name: 'CI4' },
             { format: ImageFormat.G_IM_FMT_RGBA, size: ImageSize.G_IM_SIZ_16b, name: 'RGBA16' },
+            { format: ImageFormat.G_IM_FMT_IA, size: ImageSize.G_IM_SIZ_8b, name: 'IA8' },
           ],
         });
       }

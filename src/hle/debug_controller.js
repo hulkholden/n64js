@@ -4,6 +4,7 @@ import { padString, toHex, toString32 } from '../format.js';
 import { makeColorTextRGBA16, makeColorTextRGBA, makeColorTextABGR } from './disassemble.js';
 import * as gbi from './gbi.js';
 import * as shaders from './shaders.js';
+import { createTilePreview } from './debug_texture.js';
 
 // TODO: make fields.
 let dlistScrub;
@@ -164,6 +165,12 @@ export class DebugController {
   }
 
   initUI() {
+    document.getElementById('texture-tab')?.addEventListener('tabshown', () => {
+      const output = document.getElementById('texture-content');
+      const label = document.createElement('p');
+      label.textContent = 'Current TMEM tiles';
+      output?.replaceChildren(label, this.buildTilesTab(1));
+    });
     const controls = document.querySelector('#dlist-content #controls');
 
     this.bailAfter = -1;
@@ -286,15 +293,11 @@ export class DebugController {
     return pre;
   }
 
-  buildTexture(tileIdx) {
-    const texture = this.renderer.lookupTexture(tileIdx);
-    if (texture) {
-      const kScale = 8;
-      return texture.createScaledCanvas(kScale);
-    }
+  clearTexturePreviews() {
+    document.getElementById('texture-content')?.replaceChildren();
   }
 
-  buildTilesTab() {
+  buildTilesTab(scale = 8) {
     const container = document.createElement('div');
     container.append(this.buildTilesTable());
 
@@ -302,7 +305,7 @@ export class DebugController {
     const table = createDebugTable(headings);
     const row = table.tBodies[0].insertRow();
     for (let i = 0; i < 8; ++i) {
-      const texture = this.buildTexture(i);
+      const texture = createTilePreview(this.state.tmem, this.state.tiles[i], this.state.getTextureLUTType(), scale);
       const cell = row.insertCell();
       if (texture) {
         cell.append(texture);

@@ -17,11 +17,13 @@ import { runLightColorTests } from './light_color_webgl.js';
 import { runModifyVertexTests } from './modify_vertex_webgl.js';
 import {
   BLUE,
-  createTestTexture,
+  testTexture,
+  loadTestTexture,
   GREEN,
   RED,
   WHITE,
 } from './webgl_test_helpers.js';
+import { runTMEMSamplingTests } from './tmem_sampling_webgl.js';
 
 const output = document.getElementById('results');
 try {
@@ -39,7 +41,7 @@ try {
   const positions = new Float32Array([-1, -1, 0, 1, 3, -1, 0, 1, -1, 3, 0, 1]);
   const colors = new Uint32Array([0xffffffff, 0xffffffff, 0xffffffff]);
 
-  const texture = (width, height, pixels) => createTestTexture(gl, width, height, pixels);
+  const texture = (width, height, pixels) => testTexture(width, height, pixels);
   const quad = texture(2, 2, [RED, GREEN, BLUE, WHITE]);
   const row = texture(4, 1, [RED, GREEN, BLUE, WHITE]);
   const column = texture(1, 4, [RED, GREEN, BLUE, WHITE]);
@@ -53,7 +55,7 @@ try {
     shift = [0, 0], origin = [0, 0], last = [tex.width - 1, tex.height - 1],
     texgen = false, second = false, enabled = true, tileIndex = 0,
     lod = gbi.TextureLOD.G_TL_TILE, level = 0, detail = gbi.TextureDetail.G_TD_CLAMP,
-    decode = false, format = gbi.ImageFormat.G_IM_FMT_RGBA, size = gbi.ImageSize.G_IM_SIZ_16b, line = 1,
+    physical = false, format = gbi.ImageFormat.G_IM_FMT_RGBA, size = gbi.ImageSize.G_IM_SIZ_16b, line = 1,
     rspTriangle = false, perspective = gbi.TexturePerspective.G_TP_PERSP,
     combine = null, primLodFrac = 0, tlut = gbi.TextureLUT.G_TT_NONE,
     otherModeL = 0, blendColor = 0, clearColor = null,
@@ -78,11 +80,10 @@ try {
     const nextTile = state.tiles[(tileIndex + 1) & 7];
     nextTile.set(0, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0);
     nextTile.setSize(0, 0, (tex1?.width - 1 || 0) * 4, (tex1?.height - 1 || 0) * 4);
-    if (decode) {
-      delete renderer.lookupTexture;
-    } else {
-      renderer.lookupTexture = i => i === tileIndex ? tex : tex1;
+    if (!physical) {
+      loadTestTexture(state, tile, tex);
     }
+    loadTestTexture(state, nextTile, tex1, 1024);
     const coords = new Float32Array([...uv, ...uv, ...uv]);
     if (clearColor) {
       gl.clearColor(...clearColor.map(value => value / 255));
@@ -146,7 +147,7 @@ try {
   check('fractional origin and shift order', GREEN, { tex: row, uv: [5, 0], origin: [1.25, 0], last: [4.25, 0], shift: [1, 0] });
   check('left shift', BLUE, { tex: row, uv: [0.125, 0], shift: [12, 0] });
   check('generated texture coordinates', WHITE, { uv: [0.75, 0.75], texgen: true });
-  check('non-power-of-two decoded bounds', BLUE, { tex: npot, uv: [3, 0], mask: [2, 0] });
+  check('non-power-of-two tile bounds clamp explicitly', BLUE, { tex: npot, uv: [3, 0], mask: [2, 0], mode: [2, 0] });
   check('copy mode ignores filtering', RED, { uv: [0.75, 0.75], cycle: gbi.CycleType.G_CYC_COPY, filter: gbi.TextureFilter.G_TF_AVERAGE });
   check('second tile wraps index seven to zero', BLUE, { tex1: column, uv: [0, 2], cycle: gbi.CycleType.G_CYC_2CYCLE, tileIndex: 7 });
   check('missing second texture is black', [0, 0, 0, 255], { cycle: gbi.CycleType.G_CYC_2CYCLE });
@@ -304,7 +305,7 @@ try {
     const tile = state.tiles[0];
     tile.set(0, 2, 1, 0, 0, 0, 0, 0, modeT, 2, 0);
     tile.setSize(0, tileTop * 4, 0, (tileTop + 4) * 4); // Five-row bounds, four-row mask.
-    renderer.lookupTexture = i => i === 0 ? column : null;
+    loadTestTexture(state, tile, column);
     renderer.texRect(0, originX, originY, originX + 4, originY + 4, 0, startT, 0, endT, flip);
     const pixels = new Uint8Array(width * height * 4);
     gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
@@ -368,7 +369,7 @@ try {
             tile.set(0, 2, 1, 0, 0, 2, 2, 0, 2, 2, 0);
             tile.setSize(0, 0, 12, 0);
           }
-          renderer.lookupTexture = i => i < 2 ? row : null;
+          state.tiles.slice(0, 2).forEach(tile => loadTestTexture(state, tile, row));
           // The texels before and after the green/blue glyph are red/white.
           // A half-texel step also checks that snapping does not stretch UVs.
           renderer.texRect(0, 1 + fraction, 1 + fraction, 4 + fraction, 4 + fraction,
@@ -425,7 +426,7 @@ try {
           // Nonzero tile origin, as in Rush's successive image strips.
           tile.setSize(reverseS ? 16 : 0, reverseS ? 0 : 16,
             reverseS ? 28 : 0, reverseS ? 0 : 28);
-          renderer.lookupTexture = i => i === 0 ? (reverseS ? row : column) : null;
+          loadTestTexture(state, tile, reverseS ? row : column);
           const end = (copy ? 3 : 4) * 4;
           const cmd0 = (end << 12) | end;
           const cmd2 = reverseS ? (7 * 32) << 16 : 7 * 32;
@@ -466,8 +467,7 @@ try {
   for (let bank = 0; bank < 4; bank++) {
     tmem.set([0xff, 0xff], 0x800 + 14 * 8 + bank * 2);
   }
-  state.invalidateTileHashes();
-  const font = { decode: true, format: gbi.ImageFormat.G_IM_FMT_IA, size: gbi.ImageSize.G_IM_SIZ_4b,
+  const font = { physical: true, format: gbi.ImageFormat.G_IM_FMT_IA, size: gbi.ImageSize.G_IM_SIZ_4b,
     tex: { width: 1, height: 1 } };
   check('IA4 font uses opaque RGBA16 palette entry for an even index', WHITE, {
     ...font, tlut: gbi.TextureLUT.G_TT_RGBA16,
@@ -476,7 +476,6 @@ try {
   for (let bank = 0; bank < 4; bank++) {
     tmem.set([0x80, 0x40], 0x800 + 14 * 8 + bank * 2);
   }
-  state.invalidateTileHashes();
   check('IA4 font uses independent intensity and alpha from IA16 palette', [128, 128, 128, 64], {
     ...font, tlut: gbi.TextureLUT.G_TT_IA16,
   });
@@ -491,8 +490,7 @@ try {
     for (let bank = 0; bank < 4; bank++) {
       tmem.set([0xf8, 0x01], 0x800 + 14 * 8 + bank * 2);
     }
-    state.invalidateTileHashes();
-    const rgba = { decode: true, format: gbi.ImageFormat.G_IM_FMT_RGBA, size, tex: { width: 1, height: 1 } };
+    const rgba = { physical: true, format: gbi.ImageFormat.G_IM_FMT_RGBA, size, tex: { width: 1, height: 1 } };
     check(`${name} uses RGBA16 palette when enabled`, RED, { ...rgba, tlut: gbi.TextureLUT.G_TT_RGBA16 });
     check(`${name} uses intensity when TLUT is disabled`, Array(4).fill(intensity), rgba);
     check(`${name} uses IA16 palette when enabled`, [248, 248, 248, 1], { ...rgba, tlut: gbi.TextureLUT.G_TT_IA16 });
@@ -512,8 +510,7 @@ try {
       tmem[0x800 + i * 8 + bank * 2 + 1] = color & 255;
     }
   }
-  state.invalidateTileHashes();
-  const scrolling = { decode: true, format: gbi.ImageFormat.G_IM_FMT_CI, size: gbi.ImageSize.G_IM_SIZ_4b,
+  const scrolling = { physical: true, format: gbi.ImageFormat.G_IM_FMT_CI, size: gbi.ImageSize.G_IM_SIZ_4b,
     line: 4, tex: { width: 64, height: 64 }, mask: [6, 6], last: [64, 64] };
   // check() normally disables the TLUT; RGBA16 is also the decoder's default.
   check('scrolling S decodes the full wrap period', WHITE, { ...scrolling, origin: [32, 0], uv: [16, 0] });
@@ -530,29 +527,25 @@ try {
   check('copy mode decodes the wrap period even with clamp enabled', WHITE, {
     ...scrolling, origin: [32, 0], uv: [16, 0], mode: [2, 0], cycle: gbi.CycleType.G_CYC_COPY,
   });
-  const copyTexture = renderer.lookupTexture(0);
-  state.rdpOtherModeH = gbi.CycleType.G_CYC_1CYCLE;
-  const clampedTexture = renderer.lookupTexture(0);
-  if (clampedTexture.width !== 33 || clampedTexture.height !== 64) {
-    throw new Error('Copy texture cache ignored the clamped extent');
-  }
-  state.rdpOtherModeH = gbi.CycleType.G_CYC_COPY;
-  if (renderer.lookupTexture(0) !== copyTexture) {
-    throw new Error('Clamped texture cache replaced the copy wrap region');
+  const copyTexture = renderer.tmemTexture.texture;
+  const uploads = renderer.tmemTexture.misses;
+  check('clamping can reuse the same physical snapshot', BLUE, {
+    ...scrolling, origin: [32, 0], uv: [80, 0], mode: [2, 0],
+  });
+  if (renderer.tmemTexture.texture !== copyTexture || renderer.tmemTexture.misses !== uploads) {
+    throw new Error('Changing tile bounds uploaded another TMEM snapshot');
   }
 
   // Decoding through a canvas used to erase transparent RGB and quantize
   // low-alpha colours before upload. Verify the actual GPU texture samples.
   tmem.fill(0);
   tmem.set([0xf8, 0x00]);
-  state.invalidateTileHashes();
   check('direct upload preserves transparent RGBA16 colour', [255, 0, 0, 0], {
-    decode: true, tex: { width: 1, height: 1 },
+    physical: true, tex: { width: 1, height: 1 },
   });
   tmem.set([0x73, 0x07]);
-  state.invalidateTileHashes();
   check('direct upload preserves low-alpha IA16 precision', [115, 115, 115, 7], {
-    decode: true, format: gbi.ImageFormat.G_IM_FMT_IA, tex: { width: 1, height: 1 },
+    physical: true, format: gbi.ImageFormat.G_IM_FMT_IA, tex: { width: 1, height: 1 },
   });
   // Wetrix uses NoN microcode with its field and background before the near
   // plane. Verify pixels and depth with the production shaders, including a
@@ -679,8 +672,7 @@ try {
     clipState.combine.lo = ((15 << 28) | (7 << 15) | (7 << 12) | (7 << 9) |
       (15 << 24) | (1 << 21) | (4 << 18) | (7 << 6) | (7 << 3) | 7) >>> 0;
     clipState.tiles[0].set(0, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0);
-    clipRenderer.lookupTexture = () => textureWhite;
-    const textureWhite = texture(1, 1, [WHITE]);
+    loadTestTexture(clipState, clipState.tiles[0], texture(1, 1, [WHITE]));
     const buffer = new TriangleBuffer(1);
     function scissor(x0 = 2, y0 = 1, x1 = 5, y1 = 4) {
       clipMicrocode.executeSetScissor(0xed000000 | (x0 * 4 << 12) | y0 * 4, (x1 * 4 << 12) | y1 * 4);
@@ -814,32 +806,8 @@ try {
     checkFrozen('second unfreeze publishes the inherited target', 2, WHITE);
     targets.reset();
   }
-  // Exercise deletion against real GPU objects, including reset after eviction.
-  {
-    const cacheState = new RSPState();
-    cacheState.reset(new DataView(new ArrayBuffer(8)), 0);
-    const cacheRenderer = new Renderer(gl, cacheState, 1, 1);
-    cacheRenderer.textureCache.maxEntries = 2;
-    cacheState.tiles[0].set(gbi.ImageFormat.G_IM_FMT_RGBA, gbi.ImageSize.G_IM_SIZ_16b,
-      1, 0, 0, 0, 0, 0, 0, 0, 0);
-    cacheState.tiles[0].setSize(0, 0, 0, 0);
-    const textures = [];
-    for (const value of [0xf801, 0x07c1, 0x003f]) {
-      cacheState.tmem.tmemData.set([value >>> 8, value & 255]);
-      cacheState.invalidateTileHashes();
-      textures.push(cacheRenderer.lookupTexture(0).texture);
-    }
-    if (gl.isTexture(textures[0]) || !gl.isTexture(textures[1]) || !gl.isTexture(textures[2])) {
-      throw new Error('Cache eviction did not release the oldest GPU texture');
-    }
-    cacheRenderer.reset();
-    if (textures.some(texture => gl.isTexture(texture))) {
-      throw new Error('Cache reset retained GPU textures');
-    }
-    lines.push('PASS texture cache eviction and reset delete GPU objects');
-    passed++;
-  }
   const suiteRunners = [
+    runTMEMSamplingTests,
     runRDPTests,
     runBgCopyTests,
     runBg1cycTests,

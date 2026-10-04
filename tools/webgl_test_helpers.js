@@ -79,6 +79,38 @@ export function createTestTexture(gl, width, height, pixels) {
   return { width, height, texture };
 }
 
+// Synthetic RGBA fixtures use the same physical TMEM layout as game textures.
+export function testTexture(width, height, pixels) {
+  return { width, height, pixels: new Uint8Array(pixels.flat()) };
+}
+
+export function loadTestTexture(state, tile, texture, base = 0) {
+  if (!texture) {
+    tile.format = -1;
+    return;
+  }
+  const { width, height, pixels } = texture;
+  const stride = Math.max(8, Math.ceil(width * 2 / 8) * 8);
+  if (base + stride * height > 2048) {
+    throw new Error('RGBA32 fixture exceeds a TMEM bank');
+  }
+  tile.format = 0;
+  tile.size = 3;
+  tile.line = stride / 8;
+  tile.tmem = base / 8;
+  const data = state.tmem.tmemData;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const address = (base + y * stride + x * 2) ^ ((y & 1) << 2);
+      const source = (y * width + x) * 4;
+      data[address] = pixels[source];
+      data[address + 1] = pixels[source + 1];
+      data[address | 2048] = pixels[source + 2];
+      data[(address | 2048) + 1] = pixels[source + 3];
+    }
+  }
+}
+
 export function assertPixels(gl, {
   x = 0, y = 0, width = 1, height = 1,
   expected, tolerance = 1, label = '',

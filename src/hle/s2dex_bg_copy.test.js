@@ -1,3 +1,4 @@
+import { convertTexels } from './debug_texture.js';
 import { afterEach, describe, expect, test } from 'bun:test';
 import { GBI1SDEX, GBI2SDEX } from './gbi_s2dex.js';
 import { RSPState } from './rsp_state.js';
@@ -28,10 +29,8 @@ function render(options, Microcode = GBI2SDEX, dis = null) {
       draws.push([x0, y0, x1, y1]);
       const tile = state.tiles[index];
       const decoded = new Uint8Array(tile.width * tile.height * 4);
-      expect(state.tmem.convertTexels(decoded, tile.width, tile, state.getTextureLUTType())).toBe(true);
-      expect(state.tiles.every(t => t.hash === 0)).toBe(true);
+      expect(convertTexels(decoded, tile.width, state.tmem.tmemData, tile, state.getTextureLUTType())).toBe(true);
       // Poison hashes after each draw: every later load must invalidate them.
-      state.tiles.forEach(t => { t.hash = 123; });
       for (let y = y0; y < y1; y++) {
         for (let x = x0; x < x1; x++) {
           const s = s0 + (x - x0) * (s1 - s0) / (x1 - x0);

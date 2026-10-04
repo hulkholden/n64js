@@ -6,7 +6,8 @@ import { Turbo3D } from '../src/hle/turbo3d.js';
 import {
   BLUE,
   CLEAR,
-  createTestTexture,
+  testTexture,
+  loadTestTexture,
   createWebGLHarness,
   GREEN,
   RED,
@@ -19,7 +20,7 @@ import {
 // cannot detect accidentally restoring perspective-correct interpolation.
 export function runAffineProjectionTests(gl) {
   const lines = [];
-  const { texture } = createTestTexture(gl, 4, 1, [RED, GREEN, BLUE, WHITE]);
+  const texture = testTexture( 4, 1, [RED, GREEN, BLUE, WHITE]);
 
   for (const [Type, variant] of [[Turbo3D], [T3DUX, false], [T3DUX, true]]) {
     const { ram, state, renderer, microcode, resetFrame } = createWebGLHarness(gl, {
@@ -37,10 +38,10 @@ export function runAffineProjectionTests(gl) {
     // Output TEXEL0 * SHADE, keeping UV and color attributes active.
     state.combine.hi = (1 << 20) | (4 << 15) | (1 << 12) | (4 << 9);
     state.combine.lo = ((15 << 28) | (7 << 15) | (7 << 12) | (7 << 9)) >>> 0;
-    renderer.lookupTexture = () => ({ texture, width: 4, height: 1 });
     const tile = state.tiles[0];
     tile.set(gbi.ImageFormat.G_IM_FMT_RGBA, gbi.ImageSize.G_IM_SIZ_32b, 1, 0, 0, 2, 0, 0, 2, 0, 0);
     tile.setSize(0, 0, 12, 0);
+    loadTestTexture(state, tile, texture);
     ram.setUint32(64, 0x00010200);
     ram.setUint32(68, 0x03040500);
     const turbo = Type === Turbo3D;
@@ -166,6 +167,5 @@ export function runAffineProjectionTests(gl) {
     load([[-1, -1, -2], [3, -1, 0], [-1, 3, 0]], Matrix4x4.identity(), [3.5, 3.5, 3.5]);
     check('near-plane crossing clips only the outside portion', [CLEAR, CLEAR, WHITE, WHITE]);
   }
-  gl.deleteTexture(texture);
   return lines;
 }

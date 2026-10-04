@@ -4,6 +4,7 @@ import { assert } from '../assert.js';
 import { VertexArray } from './vertex_array.js';
 import vertexSource from './shaders/n64.vert.glsl' with { type: 'text' };
 import fragmentSource from './shaders/n64.frag.glsl' with { type: 'text' };
+import tmemSource from './shaders/tmem.glsl' with { type: 'text' };
 
 /**
  * Whether to log shaders as they're compiled.
@@ -234,14 +235,16 @@ class N64Shader {
     this.uTextureRectScreenUniform = gl.getUniformLocation(program, "uTextureRectScreen");
     this.uTextureRectOriginUniform = gl.getUniformLocation(program, "uTextureRectOrigin");
     this.uTextureRectDerivativesUniform = gl.getUniformLocation(program, "uTextureRectDerivatives");
+    this.uTMEMUniform = gl.getUniformLocation(program, "uTMEM");
     this.textureUniforms = [0, 1].map(slot => ({
-      sampler: gl.getUniformLocation(program, `uSampler${slot}`),
       scale: gl.getUniformLocation(program, `uTexScale${slot}`),
       offset: gl.getUniformLocation(program, `uTexOffset${slot}`),
       bounds: gl.getUniformLocation(program, `uTile${slot}.bounds`),
       mask: gl.getUniformLocation(program, `uTile${slot}.mask`),
       mode: gl.getUniformLocation(program, `uTile${slot}.mode`),
       enabled: gl.getUniformLocation(program, `uTile${slot}.enabled`),
+      memory: gl.getUniformLocation(program, `uTile${slot}.memory`),
+      palette: gl.getUniformLocation(program, `uTile${slot}.palette`),
     }));
 
     this.uPrimColorUniform       = gl.getUniformLocation(program, "uPrimColor");
@@ -385,7 +388,8 @@ vec4 combineColor(vec4 shade, vec4 tex0, vec4 tex1) {
 ${body}  return col;
 }
 `;
-  const shaderSource = configureClipping(fragmentSource) + combinerSource;
+  const shaderSource = configureClipping(fragmentSource)
+    .replace('__TMEM_SAMPLER__', tmemSource) + combinerSource;
 
   if (kLogShaders) {
     let decoded = '\n';

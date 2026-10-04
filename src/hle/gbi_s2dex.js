@@ -415,7 +415,6 @@ export class S2DEXCommon {
         // neighbours, so crossing the right edge advances to the next row.
         state.tmem.loadBackground(ti, loadTile, sourceLeft * bytesPerPixel,
           sourceY, stride, imageH, loadWidth * loadPixels, loadHeight);
-        state.invalidateTileHashes();
         renderTile.set(bg.imageFmt, bg.imageSiz, line, 0, bg.imagePal,
           gbi.G_TX_CLAMP, 0, 0, gbi.G_TX_CLAMP, 0, 0);
         renderTile.setSize(0, 0, (loadWidth - 1) * 4, (loadHeight - 1) * 4);
@@ -505,7 +504,6 @@ export class S2DEXCommon {
           loadTile.setSize(0, 0, (loadWidth * loadPixels - 1) * 4, (height - 1) * 4);
           state.tmem.loadTile(ti, loadTile);
         }
-        state.invalidateTileHashes();
         renderTile.set(bg.imageFmt, bg.imageSiz, line, 0, bg.imagePal,
           gbi.G_TX_CLAMP, 0, 0, gbi.G_TX_CLAMP, 0, 0);
         renderTile.setSize(0, 0, (loadWidth - 1) * 4, (height - 1) * 4);
@@ -681,7 +679,6 @@ export class S2DEXCommon {
         this.gbi.warnUnimplemented(`load texture type ${tex.type}`);
         break;
     }
-    this.state.invalidateTileHashes();
   }
 
   renderSprite(rotType) {

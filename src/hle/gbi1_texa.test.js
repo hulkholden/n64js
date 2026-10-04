@@ -44,7 +44,6 @@ test('Tamagotchi texture commands load TMEM and set the render tile without draw
       ram[0x259b70 + i] = (i + 1) & 0xff;
     }
     ram.fill(0xa5, 0x25a000, 0x25a008);
-    state.tiles[0].hash = 123;
     const text = [];
     const disassembler = disassemble ? { begin() {}, end() {}, tip() {}, text: value => text.push(value) } : null;
     executeDisplayList(state, microcode, { disassembler });
@@ -58,7 +57,7 @@ test('Tamagotchi texture commands load TMEM and set the render tile without draw
     expect(state.tmem.tmemData[512]).toBe(0);
     expect(state.tiles[0]).toMatchObject({ format: 2, size: 0, line: 4, tmem: 0, palette: 5,
       cmT: 2, maskT: 9, shiftT: 2, cmS: 1, maskS: 6, shiftS: 3,
-      uls: 0, ult: 0, lrs: 124, lrt: 60, hash: 0 });
+      uls: 0, ult: 0, lrs: 124, lrt: 60 });
     expect(state.rdpHalf1Cmd1).toBe(0x12345678);
     expect(state.currentOp).toBe(commands.length);
     expect(state.projectedVertices.every(vertex => !vertex.set)).toBe(true);

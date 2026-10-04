@@ -199,7 +199,6 @@ export function createHarness(canvas) {
       tile.setSize(0, 0, (width - 1) * 4, (height - 1) * 4);
       state.tmem.loadTile(state.textureImage, tile);
       tile.setSize(origin[0] * 4, origin[1] * 4, last[0] * 4, last[1] * 4);
-      state.invalidateTileHashes();
     },
     rect(bounds, uv, flip = false) {
       renderer.texRect(0, ...bounds, ...uv, flip);

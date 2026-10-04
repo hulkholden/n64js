@@ -1,3 +1,4 @@
+import { convertTexels } from './debug_texture.js';
 import { afterEach, describe, expect, test } from 'bun:test';
 import { GBI1SDEX, GBI2SDEX } from './gbi_s2dex.js';
 import { RSPState } from './rsp_state.js';
@@ -26,10 +27,8 @@ function render(options, Microcode = GBI2SDEX, checkPixels = true) {
       draws.push({ x0, y0, x1, y1, s0, t0, s1, t1, width: tile.width, height: tile.height });
       expect(tile.line * 8 * tile.height).toBeLessThanOrEqual(
         fixture.format === gbi.ImageFormat.G_IM_FMT_CI || fixture.size === gbi.ImageSize.G_IM_SIZ_32b ? 2048 : 4096);
-      expect(state.tiles.every(t => t.hash === 0)).toBe(true);
-      state.tiles.forEach(t => { t.hash = 123; });
       const decoded = new Uint8Array(tile.width * tile.height * 4);
-      expect(state.tmem.convertTexels(decoded, tile.width, tile, state.getTextureLUTType())).toBe(true);
+      expect(convertTexels(decoded, tile.width, state.tmem.tmemData, tile, state.getTextureLUTType())).toBe(true);
       function texel(s, t) {
         expect(s).toBeGreaterThanOrEqual(0);
         expect(t).toBeGreaterThanOrEqual(0);

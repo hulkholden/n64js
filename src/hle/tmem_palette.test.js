@@ -1,3 +1,4 @@
+import { convertTexels } from './debug_texture.js';
 import { describe, expect, test } from 'bun:test';
 import * as gbi from './gbi.js';
 import { TMEM } from './tmem.js';
@@ -13,7 +14,7 @@ function writePaletteEntry(tmem, palette, index, value) {
 
 function pixel(tmem, tile) {
   const dst = new Uint8ClampedArray(4);
-  expect(tmem.convertTexels(dst, 1, tile, gbi.TextureLUT.G_TT_RGBA16)).toBe(true);
+  expect(convertTexels(dst, 1, tmem.tmemData, tile, gbi.TextureLUT.G_TT_RGBA16)).toBe(true);
   return Array.from(dst);
 }
 
@@ -25,37 +26,35 @@ describe('4-bit palette hashing', () => {
     ['I4 with TLUT', gbi.ImageFormat.G_IM_FMT_I],
   ]) {
     for (let palette = 0; palette < 16; ++palette) {
-      test(`${name} palette ${palette} colour changes invalidate the texture cache key`, () => {
+      test(`${name} palette ${palette} colour changes update the snapshot key`, () => {
         for (const index of [0, 15]) {
           const tmem = new TMEM();
           const tile = { format, size: gbi.ImageSize.G_IM_SIZ_4b, tmem: 0, line: 1,
-            width: 1, height: 1, palette, hash: 0 };
+            width: 1, height: 1, palette };
           tmem.tmemData[0] = index << 4;
           writePaletteEntry(tmem, palette, index, 0xf801);
-          const before = tmem.calculateCRC(tile, tile, gbi.TextureLUT.G_TT_RGBA16);
+          const before = tmem.hashContents();
           expect(pixel(tmem, tile)).toEqual([255, 0, 0, 255]);
 
           writePaletteEntry(tmem, palette, index, 0x07c1);
-          // TMEM loads clear this cached value before the next texture lookup.
-          tile.hash = 0;
+          // Snapshot identity observes palette bytes without explicit invalidation.
           expect(pixel(tmem, tile)).toEqual([0, 255, 0, 255]);
-          expect(tmem.calculateCRC(tile, tile, gbi.TextureLUT.G_TT_RGBA16)).not.toBe(before);
+          expect(tmem.hashContents()).not.toBe(before);
         }
       });
     }
 
-    test(`${name} excludes entries belonging to other palettes`, () => {
+    test(`${name} hashes other palettes without changing the selected tile`, () => {
       const tmem = new TMEM();
       const tile = { format, size: gbi.ImageSize.G_IM_SIZ_4b, tmem: 0, line: 1,
-        width: 1, height: 1, palette: 1, hash: 0 };
+        width: 1, height: 1, palette: 1 };
       writePaletteEntry(tmem, 1, 0, 0xf801);
-      const before = tmem.calculateCRC(tile, tile, gbi.TextureLUT.G_TT_RGBA16);
+      const before = tmem.hashContents();
 
       writePaletteEntry(tmem, 0, 15, 0x07c1);
       writePaletteEntry(tmem, 2, 0, 0x07c1);
-      tile.hash = 0;
       expect(pixel(tmem, tile)).toEqual([255, 0, 0, 255]);
-      expect(tmem.calculateCRC(tile, tile, gbi.TextureLUT.G_TT_RGBA16)).toBe(before);
+      expect(tmem.hashContents()).not.toBe(before);
     });
   }
 });

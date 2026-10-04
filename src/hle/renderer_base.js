@@ -22,8 +22,8 @@ export class RendererBase {
     const count = this.getTextureTileCount();
     for (let slot = 0; slot < count; slot++) {
       const tile = this.state.tiles[(tileIdx + slot) & 7];
-      // lookupTexture also skips tiles with no line stride.
-      if (tile.line !== 0) {
+      // A configured tile can read TMEM even with zero line stride.
+      if (tile.format >= 0) {
         this.onTextureUse({ format: tile.format, size: tile.size });
       }
     }

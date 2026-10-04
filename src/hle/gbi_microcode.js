@@ -791,7 +791,6 @@ export class GBIMicrocode {
     this.renderer?.syncFramebufferToRAM?.(ti.calcAddress((uls << 20) >> 20, ult & 0x3ff) & 0xffffff, this.ramDV);
     tile.setSize(uls, ult, lrs, dxt);
     this.state.tmem.loadBlock(ti, tile, dis);
-    this.state.invalidateTileHashes();
   }
 
   executeLoadTile(cmd0, cmd1, dis) {
@@ -811,7 +810,6 @@ export class GBIMicrocode {
     this.renderer?.syncFramebufferToRAM?.(ti.calcAddress(uls >>> 2, ult >>> 2), this.ramDV);
     tile.setSize(uls, ult, lrs, lrt);
     this.state.tmem.loadTile(ti, tile, dis);
-    this.state.invalidateTileHashes();
   }
 
   executeLoadTLut(cmd0, cmd1, dis) {
@@ -831,7 +829,6 @@ export class GBIMicrocode {
     this.renderer?.syncFramebufferToRAM?.(ti.calcAddress(uls >>> 2, ult >>> 2), this.ramDV);
     tile.setSize(uls, ult, lrs, lrt);
     this.state.tmem.loadTLUT(ti, tile, dis);
-    this.state.invalidateTileHashes();
   }
 
   executeFillRect(cmd0, cmd1, dis) {
