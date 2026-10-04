@@ -21,6 +21,7 @@ function fakeGL() {
       gl.draw.pixels = gl.read.pixels?.slice();
     },
     deleteTexture: t => gl.deleted.push(t), deleteFramebuffer: f => gl.deleted.push(f),
+    deleteRenderbuffer: r => gl.deleted.push(r),
     bindFramebuffer(which, buffer) {
       if (which === 'framebuffer' || which === 'read') {
         gl.read = buffer;
@@ -42,6 +43,39 @@ const colorImage = (address, width = 2, size = ImageSize.G_IM_SIZ_16b) => ({
 });
 
 describe('rendered color images', () => {
+  test('resizing retains live images and RAM readback while frozen VI keeps its original resolution', () => {
+    const gl = fakeGL();
+    const targets = new RenderTargets(gl, 2, 2);
+    targets.bindColorImage(colorImage(0), 2, 2);
+    targets.current.framebuffer.pixels = new Uint8Array(64).fill(255);
+    targets.markDirty({ y1: 2 });
+    const oldTexture = targets.current.texture;
+    const oldDepth = targets.depth;
+    targets.setDPFrozen(true);
+    gl.scissor = true;
+    targets.resize(4, 4);
+    expect(gl.scissor).toBe(true);
+    expect(gl.blits.every(blit => !blit.scissor)).toBe(true);
+    expect(gl.deleted).toContain(oldDepth);
+    expect(gl.deleted).toContain(oldTexture);
+    expect(targets.current.framebuffer.width).toBe(4);
+    expect(targets.targetForVI(0).framebuffer.width).toBe(2);
+    expect(targets.targetForVI(0).nativeHeight).toBe(2);
+    expect(gl.draw).toBe(targets.current.framebuffer);
+    const ram = new DataView(new ArrayBuffer(16));
+    targets.syncToRAM(0, ram);
+    expect([0, 2, 4, 6].map(a => ram.getUint16(a))).toEqual([0xffff, 0xffff, 0xffff, 0xffff]);
+    expect(ram.getUint32(8)).toBe(0);
+    const blits = gl.blits.length;
+    targets.resize(4, 4);
+    expect(gl.blits).toHaveLength(blits);
+    targets.setDPFrozen(false);
+    expect(targets.targetForVI(0)).toBe(targets.current);
+    targets.resize(2, 2);
+    expect(targets.current.framebuffer.width).toBe(2);
+    expect(targets.current.height).toBe(2);
+  });
+
   test('does not overwrite RAM repurposed after drawing an old framebuffer', () => {
     const gl = fakeGL();
     const targets = new RenderTargets(gl, 4, 4);

@@ -22,9 +22,9 @@ export class HeadlessGraphics {
 
   beginRDP() {
     this.renderer.onTextureUse = this.hardware.onTextureUse;
-    const dims = this.hardware.viRegDevice.computeDimensions();
-    if (dims) {
-      this.renderer.nativeTransform.initDimensions(dims.srcWidth, dims.srcHeight);
+    const scanout = this.hardware.viRegDevice.computeScanout();
+    if (scanout) {
+      this.renderer.nativeTransform.initDimensions(scanout.renderWidth, scanout.renderHeight);
     }
     return this.rdp;
   }
@@ -34,9 +34,9 @@ export class HeadlessGraphics {
     this.renderer.onTextureUse = this.hardware.onTextureUse;
     this.state.reset(ramDV, task.dataPtr, () => this.hardware.dpcDevice.syncFullHLE());
 
-    const dims = this.hardware.viRegDevice.computeDimensions();
-    if (dims) {
-      this.renderer.nativeTransform.initDimensions(dims.srcWidth, dims.srcHeight);
+    const scanout = this.hardware.viRegDevice.computeScanout();
+    if (scanout) {
+      this.renderer.nativeTransform.initDimensions(scanout.renderWidth, scanout.renderHeight);
     }
     this.renderer.newFrame();
 

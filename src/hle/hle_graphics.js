@@ -95,7 +95,7 @@ export function initialiseRenderer(canvas) {
     return;
   }
 
-  renderer = new Renderer(gl, state, 640, 480);
+  renderer = new Renderer(gl, state, 320, 240);
   renderer.hleHalt = hleHalt;
 
   // FIXME - needed for buildTexture.
@@ -187,11 +187,10 @@ export function presentBackBuffer() {
   // If no display lists executed, interpret framebuffer as bytes
   initDimensionsFromVI(vi);    // resize canvas to match VI res.
 
-  const pixels = vi.renderBackBuffer();
-  if (!pixels) {
-    return;
+  const frame = vi.renderBackBuffer();
+  if (frame) {
+    renderer.copyPixelsToFrontBuffer(frame, timeSeconds);
   }
-  renderer.copyPixelsToFrontBuffer(pixels, vi.screenWidth, vi.screenHeight, vi.bitDepth, timeSeconds);
 }
 
 // Replay into disposable targets and memory so scrubbing cannot clear the live
@@ -259,16 +258,19 @@ function processDList(task, disassembler, bailAfter, onFullSync = null, replayRA
 }
 
 function initDimensionsFromVI(vi) {
-  const dims = vi.computeDimensions();
-  if (!dims) {
+  const scanout = vi.computeScanout();
+  if (!scanout) {
     return;
   }
 
-  renderer.nativeTransform.initDimensions(dims.srcWidth, dims.srcHeight);
+  renderer.nativeTransform.initDimensions(scanout.renderWidth, scanout.renderHeight);
+  if (scanout.renderWidth > 0 && scanout.renderHeight > 0) {
+    renderer.renderTargets.resize(scanout.renderWidth * graphicsOptions.renderScale, scanout.renderHeight * graphicsOptions.renderScale);
+  }
 
   const canvas = document.getElementById('display');
-  canvas.width = dims.screenWidth * graphicsOptions.canvasScale;
-  canvas.height = dims.screenHeight * graphicsOptions.canvasScale;
+  canvas.width = scanout.displayWidth * graphicsOptions.canvasScale;
+  canvas.height = scanout.displayHeight * graphicsOptions.canvasScale;
 }
 
 function initMicrocode(task, ramDV, onMicrocodeLoad) {

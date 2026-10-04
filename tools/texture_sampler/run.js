@@ -151,8 +151,11 @@ function browserOptions(hardware) {
 }
 
 async function runPixelChecks(page, url) {
-  await page.goto(`${url}/tools/texture_sampler_webgl.html`);
-  await page.waitForFunction(() => /passed|FAIL/.test(document.title));
+  // The module runs the GPU suites synchronously, delaying the load event.
+  // Navigation only needs to commit; completion has its own bounded budget
+  // for software rendering on slower CI runners.
+  await page.goto(`${url}/tools/texture_sampler_webgl.html`, { waitUntil: 'commit' });
+  await page.waitForFunction(() => /passed|FAIL/.test(document.title), null, { timeout: 120000 });
 
   const results = await page.locator('#results').innerText();
   if (!/^\d+ passed/.test(results)) {

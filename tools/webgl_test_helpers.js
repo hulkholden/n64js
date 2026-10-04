@@ -102,13 +102,26 @@ export function assertFramebufferGrid(gl, {
   if (error !== gl.NO_ERROR) {
     throw new Error(`${label}: GL error ${error}`);
   }
+  // Compute each source pixel once, reusing it for all upscaled copies. Avoid
+  // per-output-pixel typed-array views and callbacks on full VI-sized images.
+  const expectedRow = new Array(Math.ceil(width / scale));
+  let previousSourceY = -1;
   for (let y = 0; y < height; y++) {
+    const sourceY = Math.floor(y / scale);
+    if (sourceY !== previousSourceY) {
+      for (let x = 0; x < expectedRow.length; x++) {
+        expectedRow[x] = expectedAt(x, sourceY);
+      }
+      previousSourceY = sourceY;
+    }
     for (let x = 0; x < width; x++) {
-      const expected = expectedAt(Math.floor(x / scale), Math.floor(y / scale));
+      const expected = expectedRow[Math.floor(x / scale)];
       const offset = ((height - 1 - y) * width + x) * 4;
-      const actual = pixels.subarray(offset, offset + 4);
-      if (actual.some((v, i) => Math.abs(v - expected[i]) > tolerance)) {
-        throw new Error(`${label} at ${x},${y}: expected ${expected}, got ${Array.from(actual)}`);
+      for (let channel = 0; channel < 4; channel++) {
+        if (Math.abs(pixels[offset + channel] - expected[channel]) > tolerance) {
+          const actual = pixels.subarray(offset, offset + 4);
+          throw new Error(`${label} at ${x},${y}: expected ${expected}, got ${Array.from(actual)}`);
+        }
       }
     }
   }
