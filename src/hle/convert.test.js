@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { convertTexels } from './convert.js';
+import { convertTexels } from './debug_texture.js';
 import * as gbi from './gbi.js';
 
 const formats = [

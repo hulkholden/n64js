@@ -1,3 +1,4 @@
+import { convertTexels } from './debug_texture.js';
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { RSPState } from './rsp_state.js';
 import { ImageFormat as Format, ImageSize as Size } from './gbi.js';
@@ -33,18 +34,14 @@ describe('TMEM load commands', () => {
     ['executeLoadTile', 0xf4008004, 0x07010008, { uls: 8, ult: 4, lrs: 16, lrt: 8 }],
     ['executeLoadTLut', 0xf0008004, 0x07010004, { uls: 8, ult: 4, lrs: 16, lrt: 4 }],
   ]) {
-    test(`${command} updates bounds and invalidates hashes even when the load exits early`, () => {
+    test(`${command} updates bounds even when the load exits early`, () => {
       configure(Format.G_IM_FMT_RGBA, Size.G_IM_SIZ_4b, 1, 0, 16);
       tile.setSize(20, 24, 28, 32);
-      for (const tile of state.tiles) {
-        tile.hash = 123;
-      }
       const microcode = new GBIMicrocode(state, new DataView(ram.buffer));
 
       microcode[command](cmd0, cmd1);
 
       expect(tile).toMatchObject(bounds);
-      expect(state.tiles.map(tile => tile.hash)).toEqual(Array(8).fill(0));
       expect(tmem.tmemData).toEqual(new Uint8Array(4096).fill(0xa5));
     });
   }
@@ -56,9 +53,6 @@ describe('TMEM load commands', () => {
   ]) {
     test(`S2DEX ${name} loads using the object texture bounds`, () => {
       tile.setSize(20, 24, 28, 32);
-      for (const tile of state.tiles) {
-        tile.hash = 123;
-      }
       const s2dex = new S2DEXCommon(state, new DataView(ram.buffer), null);
       Object.assign(s2dex.texture, { type, image: 0, tileTMEM: 0, texLoadSize: 3, texLoadRows: loadRows });
 
@@ -66,7 +60,6 @@ describe('TMEM load commands', () => {
 
       expect(tile).toMatchObject({ uls: 0, ult: 0, lrs: 12, lrt: loadRows });
       expect(bytes(0)).toEqual(expected);
-      expect(state.tiles.map(tile => tile.hash)).toEqual(Array(8).fill(0));
     });
   }
 });
@@ -83,7 +76,7 @@ describe('physical TMEM loading', () => {
     expect(bytes(8)).toEqual(Array(8).fill(0xa5));
 
     const decoded = new Uint8Array(32);
-    expect(tmem.convertTexels(decoded, 4, tile, 0)).toBe(true);
+    expect(convertTexels(decoded, 4, tmem.tmemData, tile, 0)).toBe(true);
     expect(decoded).toEqual(ram.slice(0, 32));
   });
 
@@ -97,7 +90,7 @@ describe('physical TMEM loading', () => {
     expect(bytes(0x800)).toEqual([26, 28, 30, 32, 18, 20, 22, 24]);
 
     const decoded = new Uint8Array(64);
-    tmem.convertTexels(decoded, 8, tile, 0);
+    convertTexels(decoded, 8, tmem.tmemData, tile, 0);
     expect(Array.from(decoded.slice(0, 12))).toEqual([1, 3, 2, 255, 1, 3, 4, 255, 5, 7, 6, 255]);
     expect(Array.from(decoded.slice(32, 44))).toEqual([17, 19, 18, 255, 17, 19, 20, 255, 21, 23, 22, 255]);
   });
@@ -109,16 +102,15 @@ describe('physical TMEM loading', () => {
     const renderTile = state.tiles[0];
     renderTile.set(Format.G_IM_FMT_RGBA, Size.G_IM_SIZ_32b, 1, 0, 0, 0, 0, 0, 0, 0, 0);
     renderTile.setSize(0, 0, 12, 0);
-    const before = tmem.calculateCRC(renderTile);
+    const before = tmem.hashContents();
 
     configure(Format.G_IM_FMT_RGBA, Size.G_IM_SIZ_16b, 1, 0, 4, 32);
     tile.setSize(0, 0, 0, 0);
     tmem.loadTile(ti, tile);
     const decoded = new Uint8Array(16);
-    tmem.convertTexels(decoded, 4, renderTile, 0);
+    convertTexels(decoded, 4, tmem.tmemData, renderTile, 0);
     expect(Array.from(decoded)).toEqual([33, 34, 3, 4, 35, 36, 7, 8, 37, 38, 11, 12, 39, 40, 15, 16]);
-    state.invalidateTileHashes();
-    expect(tmem.calculateCRC(renderTile)).not.toBe(before);
+    expect(tmem.hashContents()).not.toBe(before);
   });
 
   test('LoadTile reads whole qwords at unaligned source addresses and preserves stride padding', () => {
@@ -247,17 +239,16 @@ for (const [name, format, size, width] of [
   test(`${name} cache hash includes both wrapped halves, including texels beyond the line stride`, () => {
     configure(format, size, 1, 255, width);
     tile.setSize(0, 0, (width * 2 - 1) * 4, 4);
-    const before = tmem.calculateCRC(tile);
+    const before = tmem.hashContents();
     const pixels = new Uint8Array(tile.width * tile.height * 4);
-    tmem.convertTexels(pixels, tile.width, tile, 0);
+    convertTexels(pixels, tile.width, tmem.tmemData, tile, 0);
     // All these bytes are sampled, including the expanded second row.
     for (const address of [0x7f8, 0xff8, 0, 0x800, 12, 0x80c]) {
       tmem.tmemData[address] ^= 1;
-      tile.hash = 0;
       const changed = new Uint8Array(pixels.length);
-      tmem.convertTexels(changed, tile.width, tile, 0);
+      convertTexels(changed, tile.width, tmem.tmemData, tile, 0);
       expect(changed).not.toEqual(pixels);
-      expect(tmem.calculateCRC(tile)).not.toBe(before);
+      expect(tmem.hashContents()).not.toBe(before);
       tmem.tmemData[address] ^= 1;
     }
   });

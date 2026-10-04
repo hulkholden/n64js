@@ -1,7 +1,6 @@
 /*global n64js*/
 
 import { toString16, toString32 } from '../format.js';
-import { convertTexels, getTexturePaletteFormat } from './convert.js';
 import * as gbi from './gbi.js';
 
 // TODO: provide a HLE object and instantiate these in the constructor/reset.
@@ -185,66 +184,10 @@ export class TMEM {
     }
   }
 
-  convertTexels(dstData, dstWidth, tile, tlutFormat) {
-    return convertTexels(dstData, dstWidth, this.tmemData, tile, tlutFormat);
-  }
-
   // Snapshot identity covers both banks, including all physical TLUT entries.
-  // It is independent of tile interpretation and decoded-texture invalidation.
+  // Tile interpretation is supplied separately to the shader.
   hashContents() {
-    return hashTmem(this.tmemData32, 0, this.tmemData.byteLength, 0);
-  }
-
-  calculateCRC(tile, hashOwner = tile, tlutFormat = gbi.TextureLUT.G_TT_NONE) {
-    const hasPalette = getTexturePaletteFormat(tile, tlutFormat) !== gbi.TextureLUT.G_TT_NONE;
-    if (hashOwner.hash && hashOwner.hashWidth === tile.width && hashOwner.hashHeight === tile.height &&
-        hashOwner.hashHasPalette === hasPalette) {
-      return hashOwner.hash;
-    }
-
-    const height = tile.height;
-
-    const src = this.tmemData32;
-    const tmemOffset = tile.tmem << 3;
-    const bytesPerLine = tile.line << 3;
-    const rgba32 = tile.format == gbi.ImageFormat.G_IM_FMT_RGBA && tile.size == gbi.ImageSize.G_IM_SIZ_32b;
-    const yuv = tile.format == gbi.ImageFormat.G_IM_FMT_YUV;
-    const splitBanks = rgba32 || yuv;
-
-    // A wrap mask can expose texels beyond the line stride, including on the
-    // final row. Include those bytes and the containing swizzle block so a
-    // change there invalidates the decoded texture too.
-    const bytesPerTexel = rgba32 ? 2 : yuv ? 1 : (4 << tile.size) / 8;
-    const rowBytes = Math.ceil((tile.width ?? 0) * bytesPerTexel);
-    const swizzleBlock = 8;
-    const rowEnd = tmemOffset + (height - 1) * bytesPerLine + rowBytes;
-    const decodedEnd = Math.ceil(rowEnd / swizzleBlock) * swizzleBlock;
-    const len = height > 0 ? Math.max(height * bytesPerLine, decodedEnd - tmemOffset) : 0;
-
-    // Match conversion: palette indices wrap within the lower half of TMEM.
-    let hash = hashTmem(src, tmemOffset, len, 0, hasPalette || splitBanks ? 0x7ff : 0xfff);
-    if (splitBanks) {
-      hash = hashTmem(src, tmemOffset, len, hash, 0x7ff, 0x800);
-    }
-
-    // For palettised textures, check the palette entries too
-    if (hasPalette) {
-
-      // Palettes are "quadricated", so there are 8 bytes per entry.
-      if (tile.size === gbi.ImageSize.G_IM_SIZ_8b) {
-        hash = hashTmem(src, 0x800, 256 * 8, hash);
-      } else if (tile.size === gbi.ImageSize.G_IM_SIZ_4b) {
-        hash = hashTmem(src, 0x800 + (tile.palette * 16 * 8), 16 * 8, hash);
-      }
-    }
-
-    // Reserve zero for invalidation without losing any of the 32-bit digests.
-    hash += 1;
-    hashOwner.hash = hash;
-    hashOwner.hashWidth = tile.width;
-    hashOwner.hashHeight = tile.height;
-    hashOwner.hashHasPalette = hasPalette;
-    return hash;
+    return hashTmem(this.tmemData32);
   }
 }
 
@@ -264,36 +207,21 @@ function loadTileWidth(uls, ult, lrs, lrt) {
   return ((emptyRow ? 0 : lrs >>> 2) - (uls >>> 2) + 1) & 0xfff;
 }
 
-// XXH32 over word-aligned spans, retaining TMEM wrapping and the one-period cap.
-// Native-endian words are sufficient for this in-process cache identity.
+// XXH32 over the complete 4 KiB physical memory. Native-endian words are
+// sufficient for this in-process cache identity.
 // Algorithm: https://github.com/Cyan4973/xxHash/blob/dev/doc/xxhash_spec.md
-function hashTmem(tmem32, offset, len, seed, addressMask = 0xfff, bankOffset = 0) {
-  const length = Math.min(len, addressMask + 1);
-  let i = offset >> 2;
-  const end = (offset + length) >> 2;
-  const wordMask = addressMask >> 2;
-  const bank = bankOffset >> 2;
-  let hash;
-  if (length >= 16) {
-    let a = (seed + 0x9e3779b1 + 0x85ebca77) | 0;
-    let b = (seed + 0x85ebca77) | 0;
-    let c = seed | 0;
-    let d = (seed - 0x9e3779b1) | 0;
-    for (; i + 4 <= end; i += 4) {
-      a = xxh32Round(a, tmem32[(i & wordMask) | bank]);
-      b = xxh32Round(b, tmem32[((i + 1) & wordMask) | bank]);
-      c = xxh32Round(c, tmem32[((i + 2) & wordMask) | bank]);
-      d = xxh32Round(d, tmem32[((i + 3) & wordMask) | bank]);
-    }
-    hash = (rotateLeft32(a, 1) + rotateLeft32(b, 7) + rotateLeft32(c, 12) + rotateLeft32(d, 18)) | 0;
-  } else {
-    hash = (seed + 0x165667b1) | 0;
+function hashTmem(words) {
+  let a = (0x9e3779b1 + 0x85ebca77) | 0;
+  let b = 0x85ebca77 | 0;
+  let c = 0;
+  let d = -0x9e3779b1 | 0;
+  for (let i = 0; i < 1024; i += 4) {
+    a = xxh32Round(a, words[i]);
+    b = xxh32Round(b, words[i + 1]);
+    c = xxh32Round(c, words[i + 2]);
+    d = xxh32Round(d, words[i + 3]);
   }
-  hash = (hash + length) | 0;
-  for (; i < end; i++) {
-    hash = (hash + Math.imul(tmem32[(i & wordMask) | bank], 0xc2b2ae3d)) | 0;
-    hash = Math.imul(rotateLeft32(hash, 17), 0x27d4eb2f);
-  }
+  let hash = (rotateLeft32(a, 1) + rotateLeft32(b, 7) + rotateLeft32(c, 12) + rotateLeft32(d, 18) + 4096) | 0;
   hash = Math.imul(hash ^ (hash >>> 15), 0x85ebca77);
   hash = Math.imul(hash ^ (hash >>> 13), 0xc2b2ae3d);
   return (hash ^ (hash >>> 16)) >>> 0;

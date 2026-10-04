@@ -1,5 +1,5 @@
 import { toString32 } from '../format.js';
-import { convertRGBA16Pixel } from './convert.js';
+import { convertRGBA16Pixel } from './texture_format.js';
 import * as gbi from './gbi.js';
 
 

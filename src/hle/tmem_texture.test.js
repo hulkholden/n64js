@@ -27,18 +27,18 @@ test('TMEM uploads exact integer bytes and skips hashing unchanged snapshots', (
   tmem.tmemData[0] = 0x81;
   gpu.bind(tmem);
   expect(images[0]).toEqual([gl.TEXTURE_2D, 0, gl.R8UI, 64, 64, 0, gl.RED_INTEGER, gl.UNSIGNED_BYTE, tmem.tmemData]);
-  expect(bindings).toEqual([102]);
-  gpu.bind(tmem, 3);
+  expect(bindings).toEqual([100]);
+  gpu.bind(tmem);
   tmem.tmemData.fill(0);
   tmem.tmemData[0] = 0x81; // An identical reload needs no hash or upload.
   gpu.bind(tmem);
-  expect(bindings).toEqual([102, 103, 102]);
+  expect(bindings).toEqual([100, 100, 100]);
   expect(hashes).toBe(1);
   expect(images).toHaveLength(1);
   expect(updates).toHaveLength(0);
 });
 
-test('TMEM cache detects edits in either bank without tile hash invalidation', () => {
+test('TMEM cache detects edits in either bank without explicit invalidation', () => {
   const { gpu, tmem, images, updates } = fixture();
   gpu.bind(tmem);
   for (const address of [0, 2048, 4095]) {

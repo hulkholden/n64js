@@ -96,14 +96,13 @@ export function initialiseRenderer(canvas) {
   }
 
   renderer = new Renderer(gl, state, 320, 240);
-  renderer.hleHalt = hleHalt;
 
-  // FIXME - needed for buildTexture.
   debugController.renderer = renderer;
 }
 
 function resetRenderer() {
   debugController.reset();
+  debugController.clearTexturePreviews();
   numDisplayListsRendered = 0;
   rdpGraphics = null;
   state.reset(n64js.hardware().ram.dataView, 0);

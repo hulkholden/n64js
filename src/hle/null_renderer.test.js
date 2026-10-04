@@ -41,8 +41,11 @@ describe('NullRenderer', () => {
 
     state.tiles[7].line = 0;
     renderer.texRectRot(7);
-    expect(seen.splice(0)).toEqual([rgba16]); // Empty first tile does not suppress the second.
-    state.tiles[0].line = 0;
+    expect(seen.splice(0)).toEqual([ci4, rgba16]); // Zero stride still reads physical TMEM.
+    state.tiles[7].format = -1;
+    renderer.texRectRot(7);
+    expect(seen.splice(0)).toEqual([rgba16]); // An unset tile does not suppress the second.
+    state.tiles[0].format = -1;
     renderer.lleRect(7);
     expect(seen).toEqual([]);
   });

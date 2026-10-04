@@ -3,7 +3,8 @@ import * as gbi from '../src/hle/gbi.js';
 import { GBIMicrocode } from '../src/hle/gbi_microcode.js';
 import {
   assertPixels,
-  createTestTexture,
+  testTexture,
+  loadTestTexture,
   createWebGLHarness,
   drawProjectedTriangle,
   solid,
@@ -173,11 +174,11 @@ export function runFogTests(gl) {
   check('combiner SHADE alpha interpolates linearly without a fog blender', [56, 72, 88, 104].map(a => [0, 0, 255, a]));
 
   // A translucent blue texel supplies alpha independently of shade/fog.
-  const { texture } = createTestTexture(gl, 1, 1, [[0, 0, 255, 128]]);
-  renderer.lookupTexture = () => ({ texture, width: 1, height: 1 });
+  const texture = testTexture( 1, 1, [[0, 0, 255, 128]]);
   for (const tile of state.tiles.slice(0, 2)) {
     tile.set(gbi.ImageFormat.G_IM_FMT_RGBA, gbi.ImageSize.G_IM_SIZ_32b, 1, 0, 0, 2, 0, 0, 2, 0, 0);
     tile.setSize(0, 0, 0, 0);
+    loadTestTexture(state, tile, texture);
   }
   state.geometryMode.texture = 1;
   combine(1, 1, 2, 2); // TEXEL0, accounting for the second-cycle input swap.

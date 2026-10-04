@@ -1,5 +1,5 @@
 import { bench, run } from 'mitata';
-import { convertTexels } from './convert.js';
+import { convertTexels } from './debug_texture.js';
 import * as gbi from './gbi.js';
 import { Tile } from './tile.js';
 

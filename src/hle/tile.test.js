@@ -24,7 +24,6 @@ describe('Tile', () => {
       expect(tile.ult).toBe(0);
       expect(tile.lrs).toBe(0);
       expect(tile.lrt).toBe(0);
-      expect(tile.hash).toBe(0);
     });
   });
   describe('coordinate properties', () => {

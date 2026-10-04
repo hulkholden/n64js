@@ -7,12 +7,8 @@ import { CRTMode, graphicsOptions } from './graphics_options.js';
 import { RendererBase } from './renderer_base.js';
 import { RenderTargets } from './render_targets.js';
 import * as shaders from './shaders.js';
-import { Texture } from './textures.js';
 import { TMEMTexture } from './tmem_texture.js';
-import { graphicsOptions } from './graphics_options.js';
-import { TextureCache } from './texture_cache.js';
-import { textureDecodeTile } from './texture_sampler.js';
-import { getTexturePaletteFormat } from './convert.js';
+import { getTexturePaletteFormat } from './texture_format.js';
 import { VertexArray } from "./vertex_array.js";
 import blitVertexSource from './shaders/blit.vert.glsl' with { type: 'text' };
 import blitFragmentSource from './shaders/blit.frag.glsl' with { type: 'text' };
@@ -35,8 +31,7 @@ export class Renderer extends RendererBase {
     super(state);
     this.gl = gl;
 
-    this.textureCache = new TextureCache(gl);
-    this.tmemTexture = null;
+    this.tmemTexture = new TMEMTexture(gl);
 
     this.renderTargets = new RenderTargets(gl, initialWidth, initialHeight);
 
@@ -71,9 +66,6 @@ export class Renderer extends RendererBase {
     this.fillFillColorUniform = gl.getUniformLocation(this.fillShaderProgram, "uFillColor");
     this.fillRectVA = this.initFillRectVA(this.fillShaderProgram);
     this.debugClearVA = this.initClearVA(this.fillShaderProgram);
-
-    this.textureOutput = document.getElementById('texture-content');
-    document.getElementById('texture-tab')?.addEventListener('tabshown', () => this.showTextureCache());
   }
 
   get frameBuffer() { return this.renderTargets.current.framebuffer; }
@@ -105,9 +97,7 @@ export class Renderer extends RendererBase {
   reset() {
     this.resetCPUFramebuffers();
     this.renderTargets.reset();
-    this.textureCache.clear();
     this.tmemTexture?.reset();
-    this.textureOutput?.replaceChildren();
   }
 
   resetCPUFramebuffers() {
@@ -520,9 +510,7 @@ export class Renderer extends RendererBase {
     this.setGLBlendMode();
 
     // TODO: I think it would make more sense to check if the texture is referenced in the combiner.
-    const directTMEM = graphicsOptions.directTmemSampling;
     let tile0, tile1;
-    let texture0, texture1;
     if (textureEnabled) {
       this.observeTextureUse(tileIdx);
       const tileIdx0 = (tileIdx + 0) & 7;
@@ -537,11 +525,6 @@ export class Renderer extends RendererBase {
 
       tile0 = this.state.tiles[tileIdx0];
       tile1 = this.getTextureTileCount() === 2 ? this.state.tiles[tileIdx1] : null;
-
-      if (!directTMEM) {
-        texture0 = this.lookupTexture(tileIdx0);
-        texture1 = tile1 ? (tileIdx1 === tileIdx0 ? texture0 : this.lookupTexture(tileIdx1)) : null;
-      }
     }
 
     const enableAlphaThreshold = (this.state.getAlphaCompareType() & gbi.AlphaCompare.G_AC_THRESHOLD) != 0;
@@ -568,13 +551,10 @@ export class Renderer extends RendererBase {
     shader.vertexArray.setColorData(colours, gl.DYNAMIC_DRAW, numVertices);
     shader.vertexArray.setUVData(coords, gl.DYNAMIC_DRAW, numVertices * 2);
 
-    if (directTMEM) {
-      this.tmemTexture ??= new TMEMTexture(gl);
-      this.tmemTexture.bind(this.state.tmem);
-      gl.uniform1i(shader.uTMEMUniform, 2);
-    }
-    const enabled0 = this.bindTexture(0, tile0, texture0, texGenEnabled, shader.textureUniforms[0], directTMEM);
-    const enabled1 = this.bindTexture(1, tile1, texture1, texGenEnabled, shader.textureUniforms[1], directTMEM);
+    this.tmemTexture.bind(this.state.tmem);
+    gl.uniform1i(shader.uTMEMUniform, 0);
+    const enabled0 = this.bindTile(tile0, texGenEnabled, shader.textureUniforms[0]);
+    const enabled1 = this.bindTile(tile1, texGenEnabled, shader.textureUniforms[1]);
     const copy = this.state.getCycleType() === gbi.CycleType.G_CYC_COPY;
     const filter = copy ? gbi.TextureFilter.G_TF_POINT : this.state.getTextureFilterType();
     gl.uniform1i(shader.uTextureFilterUniform, filter >>> gbi.G_MDSFT_TEXTFILT);
@@ -629,112 +609,21 @@ export class Renderer extends RendererBase {
     const enableAlphaCvgKill = this.state.getAntiAliasEnabled() && this.state.getCoverageTimesAlpha();
 
     return shaders.getOrCreateN64Shader(this.gl, mux0, mux1, cycleType, alphaCompare, enableAlphaCvgKill,
-      noNearClipping, this.state.rdpOtherModeL >>> 16, graphicsOptions.directTmemSampling);
+      noNearClipping, this.state.rdpOtherModeL >>> 16);
   }
 
-  /**
-   * Looks up the texture defined at the specified tile index.
-   * @param {number} tileIdx
-   * @return {?Texture}
-   */
-  lookupTexture(tileIdx) {
-    const sourceTile = this.state.tiles[tileIdx];
-    let tile = sourceTile;
-    // Skip empty tiles - this is primarily for the debug ui.
-    if (tile.line === 0) {
-      return null;
-    }
-    tile = textureDecodeTile(tile, this.state.getCycleType() === gbi.CycleType.G_CYC_COPY);
-
-    // Keep the hash on the original tile so expanded wrap regions can reuse it.
-    const tlutFormat = this.state.getTextureLUTType();
-    const hash = this.state.tmem.calculateCRC(tile, sourceTile, tlutFormat);
-    const paletteFormat = getTexturePaletteFormat(tile, tlutFormat);
-
-    // Check if the texture is already cached.
-    // The cacheID should include all the state that can affect how the texture is constructed.
-    const cacheID = `${hash}_${tile.format}_${tile.size}_${tile.line}_${tile.width}_${tile.height}_${tile.palette}_${paletteFormat}`;
-    const cached = this.textureCache.get(cacheID);
-    if (cached) {
-      return cached;
-    }
-    const texture = this.decodeTexture(tile, tlutFormat);
-    if (texture) {
-      this.textureCache.set(cacheID, texture);
-    }
-    return texture;
-  }
-
-  /**
-   * Decodes the texture defined by the specified tile.
-   * @param {!Tile} tile
-   * @param {number} tlutFormat
-   * @return {?Texture}
-   */
-  decodeTexture(tile, tlutFormat) {
+  bindTile(tile, texGenEnabled, uniforms) {
     const gl = this.gl;
-
-    if (tile.width == 0 || tile.height == 0) {
-      return null;
-    }
-
-    const texture = new Texture(gl, tile.width, tile.height);
-    if (!this.state.tmem.convertTexels(texture.pixels, texture.width, tile, tlutFormat)) {
-      gl.deleteTexture(texture.texture);
-      this.hleHalt(`${gbi.ImageFormat.nameOf(tile.format)}/${gbi.ImageSize.nameOf(tile.size)} is unhandled`);
-      return null;
-    }
-
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, texture.texture);
-    // Upload RGBA bytes directly, avoiding canvas allocation, copies and alpha
-    // premultiplication (which loses RGB values for transparent texels).
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, texture.width, texture.height, 0,
-      gl.RGBA, gl.UNSIGNED_BYTE, texture.pixels);
-
-    // texelFetch only reads level zero; no host mipmaps are needed.
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-    gl.bindTexture(gl.TEXTURE_2D, null);
-    return texture;
-  }
-
-
-  showTextureCache() {
-    if (!this.textureOutput) {
-      return;
-    }
-    this.textureOutput.replaceChildren();
-    // A bounded snapshot: ordinary emulation never creates debug canvases.
-    for (const [key, texture] of this.textureCache) {
-      const entry = document.createElement('div');
-      entry.append(`${key}: ${texture.width}x${texture.height}`, document.createElement('br'),
-        texture.createScaledCanvas(1));
-      this.textureOutput.append(entry);
-    }
-  }
-
-
-  bindTexture(slot, tile, texture, texGenEnabled, uniforms, directTMEM = false) {
-    const gl = this.gl;
-
-    gl.activeTexture(gl.TEXTURE0 + slot);
-    gl.uniform1i(uniforms.sampler, slot);
-    const enabled = directTMEM ? !!tile && tile.format >= 0 : !!texture;
+    const enabled = !!tile && tile.format >= 0;
     gl.uniform1i(uniforms.enabled, enabled ? 1 : 0);
-    gl.bindTexture(gl.TEXTURE_2D, texture ? texture.texture : null);
-
     if (!enabled) {
       return false;
     }
-    if (directTMEM) {
-      gl.uniform4i(uniforms.memory, tile.tmem << 3, tile.line << 3, tile.format, tile.size);
-      gl.uniform2i(uniforms.palette, tile.palette,
-        getTexturePaletteFormat(tile, this.state.getTextureLUTType()) >>> gbi.G_MDSFT_TEXTLUT);
-    }
+    gl.uniform4i(uniforms.memory, tile.tmem << 3, tile.line << 3, tile.format, tile.size);
+    gl.uniform2i(uniforms.palette, tile.palette,
+      getTexturePaletteFormat(tile, this.state.getTextureLUTType()) >>> gbi.G_MDSFT_TEXTLUT);
 
-    // Generated coordinates use the HLE tile extent, independently of any
-    // extra texels decoded to cover the full wrap region.
+    // Generated coordinates use the HLE tile extent.
     const scaleS = shiftFactor(tile.shiftS) * (texGenEnabled ? tile.width : 1);
     const scaleT = shiftFactor(tile.shiftT) * (texGenEnabled ? tile.height : 1);
     const offsetS = texGenEnabled ? 0 : tile.left;

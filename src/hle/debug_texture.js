@@ -1,5 +1,7 @@
+// CPU decoding is used only for debugger previews and independent test references.
 import { assert } from '../assert.js';
 import * as gbi from './gbi.js';
+import { convertRGBA16Pixel, getTexturePaletteFormat } from './texture_format.js';
 
 const kTMEMAddressMask = 0xfff;
 // CI indices occupy the lower half of TMEM; the upper half contains the TLUT.
@@ -26,42 +28,6 @@ const kFourToEight = [
   0x44, 0x55, 0x66, 0x77,
   0x88, 0x99, 0xaa, 0xbb,
   0xcc, 0xdd, 0xee, 0xff,
-];
-
-const kFiveToEight = [
-  0x00, // 00000 -> 00000000
-  0x08, // 00001 -> 00001000
-  0x10, // 00010 -> 00010000
-  0x18, // 00011 -> 00011000
-  0x21, // 00100 -> 00100001
-  0x29, // 00101 -> 00101001
-  0x31, // 00110 -> 00110001
-  0x39, // 00111 -> 00111001
-  0x42, // 01000 -> 01000010
-  0x4a, // 01001 -> 01001010
-  0x52, // 01010 -> 01010010
-  0x5a, // 01011 -> 01011010
-  0x63, // 01100 -> 01100011
-  0x6b, // 01101 -> 01101011
-  0x73, // 01110 -> 01110011
-  0x7b, // 01111 -> 01111011
-
-  0x84, // 10000 -> 10000100
-  0x8c, // 10001 -> 10001100
-  0x94, // 10010 -> 10010100
-  0x9c, // 10011 -> 10011100
-  0xa5, // 10100 -> 10100101
-  0xad, // 10101 -> 10101101
-  0xb5, // 10110 -> 10110101
-  0xbd, // 10111 -> 10111101
-  0xc6, // 11000 -> 11000110
-  0xce, // 11001 -> 11001110
-  0xd6, // 11010 -> 11010110
-  0xde, // 11011 -> 11011110
-  0xe7, // 11100 -> 11100111
-  0xef, // 11101 -> 11101111
-  0xf7, // 11110 -> 11110111
-  0xff, // 11111 -> 11111111
 ];
 
 // Write table entries through bytes so the resulting Uint32 values have the
@@ -105,20 +71,6 @@ export function convertIA16Pixel(value) {
   const a = (value) & 0xff;
 
   return (i << 24) | (i << 16) | (i << 8) | a;
-}
-
-/**
- * Converts an RGBA16 pixel to the native RGBA format.
- * @param {number} value An IA16 value
- * @return {number}
- */
-export function convertRGBA16Pixel(value) {
-  const r = kFiveToEight[(value >>> 11) & 0x1f];
-  const g = kFiveToEight[(value >>> 6) & 0x1f];
-  const b = kFiveToEight[(value >>> 1) & 0x1f];
-  const a = (value & 0x01) ? 255 : 0;
-
-  return (r << 24) | (g << 16) | (b << 8) | a;
 }
 
 /**
@@ -276,24 +228,6 @@ function convertCI4(dstData, dstWidth, src, tile, pixels) {
   convert4b(dstData, dstWidth, src, tile, convertPalette(src, tile.palette, 16, pixels), kCIAddressMask);
 }
 
-// The TLUT also applies to 4/8-bit RGBA, IA and I tiles: Extreme-G uses RGBA
-// and Bio FREAKS uses IA4 with an RGBA16 palette. Keep the existing CI fallback
-// when TLUT is off; RGBA, IA and I must follow the enable state.
-// See sample_texture's TLUT path in:
-// https://github.com/Themaister/parallel-rdp/blob/master/parallel-rdp/shaders/texture.h
-export function getTexturePaletteFormat(tile, tlutFormat) {
-  if (tile.size !== gbi.ImageSize.G_IM_SIZ_4b && tile.size !== gbi.ImageSize.G_IM_SIZ_8b) {
-    return gbi.TextureLUT.G_TT_NONE;
-  }
-  if (tile.format === gbi.ImageFormat.G_IM_FMT_CI) {
-    return tlutFormat === gbi.TextureLUT.G_TT_IA16 ? tlutFormat : gbi.TextureLUT.G_TT_RGBA16;
-  }
-  const supported = tile.format === gbi.ImageFormat.G_IM_FMT_RGBA ||
-    tile.format === gbi.ImageFormat.G_IM_FMT_IA || tile.format === gbi.ImageFormat.G_IM_FMT_I;
-  const enabled = tlutFormat === gbi.TextureLUT.G_TT_RGBA16 || tlutFormat === gbi.TextureLUT.G_TT_IA16;
-  return supported && enabled ? tlutFormat : gbi.TextureLUT.G_TT_NONE;
-}
-
 /**
  * Converts N64 texels to the native RGBA format.
  * Source and destination views must start on 4-byte boundaries for packed access.
@@ -371,4 +305,37 @@ export function convertTexels(dstData, dstWidth, tmem, tile, tlutFormat) {
   }
 
   return false;
+}
+
+// Previews show the tile's current bounds; rendering reads physical TMEM directly.
+export function decodeTile(tmem, tile, tlutFormat) {
+  if (tile.format < 0 || !tile.width || !tile.height) {
+    return null;
+  }
+  const pixels = new Uint8Array(tile.width * tile.height * 4);
+  if (!convertTexels(pixels, tile.width, tmem.tmemData, tile, tlutFormat)) {
+    return null;
+  }
+  return { width: tile.width, height: tile.height, pixels };
+}
+
+export function createTilePreview(tmem, tile, tlutFormat, scale = 1) {
+  const decoded = decodeTile(tmem, tile, tlutFormat);
+  if (!decoded) {
+    return null;
+  }
+  const canvas = document.createElement('canvas');
+  canvas.width = decoded.width * scale;
+  canvas.height = decoded.height * scale;
+  canvas.style.backgroundColor = 'black';
+  const context = canvas.getContext('2d');
+  const image = context.createImageData(canvas.width, canvas.height);
+  for (let y = 0; y < canvas.height; y++) {
+    for (let x = 0; x < canvas.width; x++) {
+      const source = (Math.floor(y / scale) * decoded.width + Math.floor(x / scale)) * 4;
+      image.data.set(decoded.pixels.subarray(source, source + 4), (y * canvas.width + x) * 4);
+    }
+  }
+  context.putImageData(image, 0, 0);
+  return canvas;
 }

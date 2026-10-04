@@ -70,7 +70,6 @@ describe('TMEM LoadBlock source coordinates', () => {
     const tile = state.tiles[7];
     tile.size = gbi.ImageSize.G_IM_SIZ_16b;
     state.textureImage.set(gbi.ImageFormat.G_IM_FMT_RGBA, tile.size, 16, 64);
-    state.tiles[0].hash = 123;
     const microcode = new GBI2(state, new DataView(ram.buffer));
     const warnings = [];
     microcode.warn = message => warnings.push(message);
@@ -78,7 +77,6 @@ describe('TMEM LoadBlock source coordinates', () => {
     microcode.executeLoadBlock(0xf3004003, 0x0700b000);
 
     expect(state.tmem.tmemData32.slice(0, 4)).toEqual(ram.slice(42, 46));
-    expect(state.tiles[0].hash).toBe(0);
     expect(warnings).toEqual([]);
   });
 

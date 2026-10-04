@@ -17,9 +17,9 @@ export class TMEMTexture {
     this.evictions = 0;
   }
 
-  bind(tmem, slot = 2) {
+  bind(tmem) {
     const gl = this.gl;
-    gl.activeTexture(gl.TEXTURE0 + slot);
+    gl.activeTexture(gl.TEXTURE0);
     if (this.texture && this.matches(tmem.tmemData32)) {
       gl.bindTexture(gl.TEXTURE_2D, this.texture);
       return;

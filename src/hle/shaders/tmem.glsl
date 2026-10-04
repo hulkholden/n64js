@@ -1,5 +1,5 @@
 // Physical TMEM, byte ordered exactly as in the CPU loader. Addressing follows
-// convert.js; TLUT banks are selected per filter tap rather than decoded away.
+// debug_texture.js; TLUT banks are selected per filter tap rather than decoded away.
 // Reference: parallel-rdp/shaders/texture.h, sample_texel_* and sample_texture.
 uniform highp usampler2D uTMEM;
 
@@ -78,6 +78,6 @@ highp vec4 fetchTMEMTexel(ivec2 coord, TextureTile tile, int paletteBank) {
     }
     if (format == G_IM_FMT_RGBA || format == G_IM_FMT_I) return vec4(float(size == G_IM_SIZ_4b ? value * 17 : value));
   }
-  // Unsupported format/size combinations match an unavailable decoded texture.
+  // Unsupported format/size combinations produce opaque black.
   return vec4(0.0, 0.0, 0.0, 255.0);
 }

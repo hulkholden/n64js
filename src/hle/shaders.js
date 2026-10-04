@@ -237,7 +237,6 @@ class N64Shader {
     this.uTextureRectDerivativesUniform = gl.getUniformLocation(program, "uTextureRectDerivatives");
     this.uTMEMUniform = gl.getUniformLocation(program, "uTMEM");
     this.textureUniforms = [0, 1].map(slot => ({
-      sampler: gl.getUniformLocation(program, `uSampler${slot}`),
       scale: gl.getUniformLocation(program, `uTexScale${slot}`),
       offset: gl.getUniformLocation(program, `uTexOffset${slot}`),
       bounds: gl.getUniformLocation(program, `uTile${slot}.bounds`),
@@ -271,10 +270,9 @@ class N64Shader {
  * @param {boolean} enableAlphaCvgKill Whether to approximate zero coverage by discarding zero alpha.
  * @param {boolean} noNearClipping Whether to clamp depth instead of clipping the near plane.
  * @param {number} blender The upper 16 bits of other mode L.
- * @param {boolean} directTMEM Whether to decode physical TMEM in the fragment shader.
  * @return {!N64Shader}
  */
-export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, alphaCompare, enableAlphaCvgKill, noNearClipping = false, blender = 0, directTMEM = false) {
+export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, alphaCompare, enableAlphaCvgKill, noNearClipping = false, blender = 0) {
   // Check if this shader already exists. Copy/Fill are fixed-function so ignore mux for these.
   let stateText = (cycleType < gbi.CycleType.G_CYC_COPY) ? (`${mux0.toString(16) + mux1.toString(16)}_${cycleType}`) : cycleType.toString();
   const enableAlphaThreshold = (alphaCompare & gbi.AlphaCompare.G_AC_THRESHOLD) !== 0;
@@ -306,8 +304,6 @@ export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, alphaCompare, en
   if (fogBlendModes) {
     stateText += `_fogShadeAlpha${fogBlendModes}`;
   }
-
-  if (directTMEM) stateText += `_directTMEM`;
 
   let shader = shaderCache.get(stateText);
   if (shader) {
@@ -393,8 +389,7 @@ ${body}  return col;
 }
 `;
   const shaderSource = configureClipping(fragmentSource)
-    .replace('__DIRECT_TMEM__', directTMEM ? '1' : '0')
-    .replace('__TMEM_SAMPLER__', directTMEM ? tmemSource : '') + combinerSource;
+    .replace('__TMEM_SAMPLER__', tmemSource) + combinerSource;
 
   if (kLogShaders) {
     let decoded = '\n';

@@ -15,13 +15,6 @@ export class Tile {
     this.ult = 0;
     this.lrs = 0;
     this.lrt = 0;
-
-    // Last computed hash for this Tile. 0 if invalid/not calculated.
-    // Invalidated on any load, settile, settilesize.
-    this.hash = 0;
-    this.hashWidth = 0;
-    this.hashHeight = 0;
-    this.hashHasPalette = false;
   }
 
   get left() { return this.uls / 4; }
@@ -49,7 +42,6 @@ export class Tile {
     this.cmT = cmT;
     this.maskT = maskT;
     this.shiftT = shiftT;
-    this.hash = 0;
   }
 
   setSize(uls, ult, lrs, lrt) {
@@ -57,7 +49,6 @@ export class Tile {
     this.ult = ult;
     this.lrs = lrs;
     this.lrt = lrt;
-    this.hash = 0;
   }
 }
 
