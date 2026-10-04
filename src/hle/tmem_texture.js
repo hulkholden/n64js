@@ -59,13 +59,17 @@ export class TMEMTexture {
 
   matches(words) {
     for (let i = 0; i < this.words.length; i++) {
-      if (this.words[i] !== words[i]) return false;
+      if (this.words[i] !== words[i]) {
+        return false;
+      }
     }
     return true;
   }
 
   reset() {
-    for (const texture of this.entries.values()) this.gl.deleteTexture(texture);
+    for (const texture of this.entries.values()) {
+      this.gl.deleteTexture(texture);
+    }
     this.entries.clear();
     this.texture = null;
     this.hits = this.misses = this.evictions = 0;

@@ -25,7 +25,6 @@ export const graphicsOptions = {
 
   // Whether to dump RDP commands.
   dumpRDP: false,
-
 };
 addOptionsFolder('Graphics', folder => {
   folder.add(graphicsOptions, 'canvasScale').name('Canvas Scale').min(1).max(4).step(0.25);

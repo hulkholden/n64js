@@ -34,12 +34,18 @@ export function runTMEMSamplingTests(gl) {
     renderer.setProgramState(positions, colors, new Float32Array([...uv, ...uv, ...uv]), enabled, false, 0);
     gl.disable(gl.BLEND);
     // Copy's fixed combiner optimizes out attributes in the existing VA setup.
-    if (cycle === gbi.CycleType.G_CYC_COPY) while (gl.getError() !== gl.NO_ERROR) { /* drain setup */ }
+    if (cycle === gbi.CycleType.G_CYC_COPY) {
+      while (gl.getError() !== gl.NO_ERROR) {
+        /* drain setup */
+      }
+    }
     gl.drawArrays(gl.TRIANGLES, 0, 3);
     const pixel = new Uint8Array(4);
     gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
     const error = gl.getError();
-    if (error !== gl.NO_ERROR) throw new Error(`TMEM sampler GL error: ${error}`);
+    if (error !== gl.NO_ERROR) {
+      throw new Error(`TMEM sampler GL error: ${error}`);
+    }
     return Array.from(pixel);
   }
   function check(name, actual, expected) {
@@ -52,10 +58,14 @@ export function runTMEMSamplingTests(gl) {
   try {
     for (const [format, size] of [[0, 0], [0, 1], [0, 2], [0, 3], [1, 2], [2, 0], [2, 1], [3, 0], [3, 1], [3, 2], [4, 0], [4, 1]]) {
       for (const tlut of size < 2 ? [0, rgba, ia] : [0]) {
-        for (let i = 0; i < data.length; i++) data[i] = (i * 37 + (i >>> 8) * 13 + 29) & 255;
+        for (let i = 0; i < data.length; i++) {
+          data[i] = (i * 37 + (i >>> 8) * 13 + 29) & 255;
+        }
         // Ordinary palette loads replicate each entry across all four banks.
         for (let entry = 0; entry < 256; entry++) {
-          for (let bank = 0; bank < 4; bank++) write16(2048 + entry * 8 + bank * 2, (entry * 139 + 0xf801) & 65535);
+          for (let bank = 0; bank < 4; bank++) {
+            write16(2048 + entry * 8 + bank * 2, (entry * 139 + 0xf801) & 65535);
+          }
         }
         configure(format, size);
         for (const uv of [[0, 0], [7, 0], [3, 1], [5, 2], [2.25, 0.25], [2.75, 0.75], [2.5, 0.5]]) {

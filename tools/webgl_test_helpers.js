@@ -69,6 +69,16 @@ export function withMockMemory(ram, fn) {
   }
 }
 
+export function createTestTexture(gl, width, height, pixels) {
+  const texture = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE,
+    new Uint8Array(pixels.flat()));
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  return { width, height, texture };
+}
+
 // Synthetic RGBA fixtures use the same physical TMEM layout as game textures.
 export function testTexture(width, height, pixels) {
   return { width, height, pixels: new Uint8Array(pixels.flat()) };
