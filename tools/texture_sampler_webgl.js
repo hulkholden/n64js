@@ -431,11 +431,7 @@ try {
           const cmd0 = (end << 12) | end;
           const cmd2 = reverseS ? (7 * 32) << 16 : 7 * 32;
           const cmd3 = reverseS ? (copy ? -4096 : -1024) << 16 : 0xfc00;
-          if (flip) {
-            microcode.rdpTexRectFlip(cmd0, 0, cmd2, cmd3);
-          } else {
-            microcode.rdpTexRect(cmd0, 0, cmd2, cmd3);
-          }
+          microcode.rdpTexRect(cmd0, 0, cmd2, cmd3, undefined, flip);
           const pixels = new Uint8Array(size * size * 4);
           gl.readPixels(0, 0, size, size, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
           if (gl.getError() !== gl.NO_ERROR) {

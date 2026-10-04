@@ -18,8 +18,7 @@ function harness(commands, disassembler = null) {
   const microcode = new GBI2(state, ramDV);
   const draws = [];
   const warnings = [];
-  microcode.rdpTexRect = (...args) => draws.push(['normal', ...args.slice(0, 4)]);
-  microcode.rdpTexRectFlip = (...args) => draws.push(['flip', ...args.slice(0, 4)]);
+  microcode.rdpTexRect = (cmd0, cmd1, cmd2, cmd3, dis, flip) => draws.push([flip, cmd0, cmd1, cmd2, cmd3]);
   microcode.warn = message => warnings.push(message);
   executeDisplayList(state, microcode, { disassembler });
   return { state, draws, warnings };
@@ -51,7 +50,7 @@ describe('GBI2 texture rectangle parameter commands', () => {
           [cmd0, 0x0067c510], [0xe1000000, 0x00200040],
           [0xf1000000, 0x04000400], [0xdf000000, 0],
         ], disassembler);
-        expect(draws).toEqual([[opcode === 0xe4 ? 'normal' : 'flip', cmd0, 0x0067c510, 0x00200040, 0x04000400]]);
+        expect(draws).toEqual([[opcode === 0xe5, cmd0, 0x0067c510, 0x00200040, 0x04000400]]);
         expect(warnings).toEqual([]);
         expect(state.rdpHalf1Cmd1).toBe(0xbeef);
         expect(state.pc).toBe(0);
@@ -100,11 +99,7 @@ describe('texture rectangle starting coordinates', () => {
         const cmd1 = (3 << 24) | (8 << 12) | 12;
         const cmd2 = (360 << 16) | 624;
         const cmd3 = ((copy ? -4096 : -1024) << 16) | 0xfc00;
-        if (flip) {
-          microcode.rdpTexRectFlip(cmd0, cmd1, cmd2, cmd3);
-        } else {
-          microcode.rdpTexRect(cmd0, cmd1, cmd2, cmd3);
-        }
+        microcode.rdpTexRect(cmd0, cmd1, cmd2, cmd3, undefined, flip);
         expect(draws).toEqual([[3, 2, 3, 6, 11, 11.25, 19.5,
           flip ? 3.25 : 7.25, flip ? 15.5 : 11.5, flip]]);
       });
