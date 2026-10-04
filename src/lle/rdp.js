@@ -1,43 +1,4 @@
-import { makeEnum } from "../enum.js";
-
-export const Commands = makeEnum({
-  Nop: 0,
-  FillTriangle: 0x08,
-  FillZBufferTriangle: 0x09,
-  TextureTriangle: 0x0a,
-  TextureZBufferTriangle: 0x0b,
-  ShadeTriangle: 0x0c,
-  ShadeZBufferTriangle: 0x0d,
-  ShadeTextureTriangle: 0x0e,
-  ShadeTextureZBufferTriangle: 0x0f,
-  TextureRectangle: 0x24,
-  TextureRectangleFlip: 0x25,
-  SyncLoad: 0x26,
-  SyncPipe: 0x27,
-  SyncTile: 0x28,
-  SyncFull: 0x29,
-  SetKeyGB: 0x2a,
-  SetKeyR: 0x2b,
-  SetConvert: 0x2c,
-  SetScissor: 0x2d,
-  SetPrimDepth: 0x2e,
-  SetOtherModes: 0x2f,
-  LoadTLut: 0x30,
-  SetTileSize: 0x32,
-  LoadBlock: 0x33,
-  LoadTile: 0x34,
-  SetTile: 0x35,
-  FillRectangle: 0x36,
-  SetFillColor: 0x37,
-  SetFogColor: 0x38,
-  SetBlendColor: 0x39,
-  SetPrimColor: 0x3a,
-  SetEnvColor: 0x3b,
-  SetCombine: 0x3c,
-  SetTextureImage: 0x3d,
-  SetMaskImage: 0x3e,
-  SetColorImage: 0x3f,
-});
+import { RDPCommands } from './rdp_commands.js';
 
 
 export const CommandLengths = [
@@ -341,42 +302,42 @@ export class RDP {
       tbl.push(this.executeUnknown.bind(this));
     }
 
-    tbl[Commands.Nop] = this.executeNop.bind(this);
-    tbl[Commands.FillTriangle] = this.executeTriangle.bind(this);
-    tbl[Commands.FillZBufferTriangle] = this.executeTriangle.bind(this);
-    tbl[Commands.TextureTriangle] = this.executeTriangle.bind(this);
-    tbl[Commands.TextureZBufferTriangle] = this.executeTriangle.bind(this);
-    tbl[Commands.ShadeTriangle] = this.executeTriangle.bind(this);
-    tbl[Commands.ShadeZBufferTriangle] = this.executeTriangle.bind(this);
-    tbl[Commands.ShadeTextureTriangle] = this.executeTriangle.bind(this);
-    tbl[Commands.ShadeTextureZBufferTriangle] = this.executeTriangle.bind(this);
-    tbl[Commands.TextureRectangle] = this.executeUnhandled.bind(this);
-    tbl[Commands.TextureRectangleFlip] = this.executeUnhandled.bind(this);
-    tbl[Commands.SyncLoad] = this.executeSyncLoad.bind(this);
-    tbl[Commands.SyncPipe] = this.executeSyncPipe.bind(this);
-    tbl[Commands.SyncTile] = this.executeSyncTile.bind(this);
-    tbl[Commands.SyncFull] = this.executeSyncFull.bind(this);
-    tbl[Commands.SetKeyGB] = this.executeSetKeyGB.bind(this);
-    tbl[Commands.SetKeyR] = this.executeSetKeyR.bind(this);
-    tbl[Commands.SetConvert] = this.executeSetConvert.bind(this);
-    tbl[Commands.SetScissor] = this.executeSetScissor.bind(this);
-    tbl[Commands.SetPrimDepth] = this.executeSetPrimDepth.bind(this);
-    tbl[Commands.SetOtherModes] = this.executeSetOtherModes.bind(this);
-    tbl[Commands.LoadTLut] = this.executeLoadTLut.bind(this);
-    tbl[Commands.SetTileSize] = this.executeSetTileSize.bind(this);
-    tbl[Commands.LoadBlock] = this.executeLoadBlock.bind(this);
-    tbl[Commands.LoadTile] = this.executeLoadTile.bind(this);
-    tbl[Commands.SetTile] = this.executeSetTile.bind(this);
-    tbl[Commands.FillRectangle] = this.executeFillRectangle.bind(this);
-    tbl[Commands.SetFillColor] = this.executeSetFillColor.bind(this);
-    tbl[Commands.SetFogColor] = this.executeSetFogColor.bind(this);
-    tbl[Commands.SetBlendColor] = this.executeSetBlendColor.bind(this);
-    tbl[Commands.SetPrimColor] = this.executeSetPrimColor.bind(this);
-    tbl[Commands.SetEnvColor] = this.executeSetEnvColor.bind(this);
-    tbl[Commands.SetCombine] = this.executeSetCombine.bind(this);
-    tbl[Commands.SetTextureImage] = this.executeSetTextureImage.bind(this);
-    tbl[Commands.SetMaskImage] = this.executeSetMaskImage.bind(this);
-    tbl[Commands.SetColorImage] = this.executeSetColorImage.bind(this);
+    tbl[RDPCommands.Nop] = this.executeNop.bind(this);
+    tbl[RDPCommands.FillTriangle] = this.executeTriangle.bind(this);
+    tbl[RDPCommands.FillZBufferTriangle] = this.executeTriangle.bind(this);
+    tbl[RDPCommands.TextureTriangle] = this.executeTriangle.bind(this);
+    tbl[RDPCommands.TextureZBufferTriangle] = this.executeTriangle.bind(this);
+    tbl[RDPCommands.ShadeTriangle] = this.executeTriangle.bind(this);
+    tbl[RDPCommands.ShadeZBufferTriangle] = this.executeTriangle.bind(this);
+    tbl[RDPCommands.ShadeTextureTriangle] = this.executeTriangle.bind(this);
+    tbl[RDPCommands.ShadeTextureZBufferTriangle] = this.executeTriangle.bind(this);
+    tbl[RDPCommands.TextureRectangle] = this.executeUnhandled.bind(this);
+    tbl[RDPCommands.TextureRectangleFlip] = this.executeUnhandled.bind(this);
+    tbl[RDPCommands.SyncLoad] = this.executeSyncLoad.bind(this);
+    tbl[RDPCommands.SyncPipe] = this.executeSyncPipe.bind(this);
+    tbl[RDPCommands.SyncTile] = this.executeSyncTile.bind(this);
+    tbl[RDPCommands.SyncFull] = this.executeSyncFull.bind(this);
+    tbl[RDPCommands.SetKeyGB] = this.executeSetKeyGB.bind(this);
+    tbl[RDPCommands.SetKeyR] = this.executeSetKeyR.bind(this);
+    tbl[RDPCommands.SetConvert] = this.executeSetConvert.bind(this);
+    tbl[RDPCommands.SetScissor] = this.executeSetScissor.bind(this);
+    tbl[RDPCommands.SetPrimDepth] = this.executeSetPrimDepth.bind(this);
+    tbl[RDPCommands.SetOtherModes] = this.executeSetOtherModes.bind(this);
+    tbl[RDPCommands.LoadTLut] = this.executeLoadTLut.bind(this);
+    tbl[RDPCommands.SetTileSize] = this.executeSetTileSize.bind(this);
+    tbl[RDPCommands.LoadBlock] = this.executeLoadBlock.bind(this);
+    tbl[RDPCommands.LoadTile] = this.executeLoadTile.bind(this);
+    tbl[RDPCommands.SetTile] = this.executeSetTile.bind(this);
+    tbl[RDPCommands.FillRectangle] = this.executeFillRectangle.bind(this);
+    tbl[RDPCommands.SetFillColor] = this.executeSetFillColor.bind(this);
+    tbl[RDPCommands.SetFogColor] = this.executeSetFogColor.bind(this);
+    tbl[RDPCommands.SetBlendColor] = this.executeSetBlendColor.bind(this);
+    tbl[RDPCommands.SetPrimColor] = this.executeSetPrimColor.bind(this);
+    tbl[RDPCommands.SetEnvColor] = this.executeSetEnvColor.bind(this);
+    tbl[RDPCommands.SetCombine] = this.executeSetCombine.bind(this);
+    tbl[RDPCommands.SetTextureImage] = this.executeSetTextureImage.bind(this);
+    tbl[RDPCommands.SetMaskImage] = this.executeSetMaskImage.bind(this);
+    tbl[RDPCommands.SetColorImage] = this.executeSetColorImage.bind(this);
 
     return tbl;
   }
@@ -394,7 +355,7 @@ export class RDP {
           break;
         }
         const nextAddr = buf.curAddr + cmdLen;
-        if (processor && cmdType !== Commands.SyncFull && cmdType !== Commands.Nop) {
+        if (processor && cmdType !== RDPCommands.SyncFull && cmdType !== RDPCommands.Nop) {
           processor.execute(cmdType, buf);
         } else {
           this.commandTable[cmdType](cmdType, buf);
@@ -410,11 +371,11 @@ export class RDP {
   }
 
   executeUnknown(cmdType, buf) {
-    console.log(`Unknown RDP command: ${Commands.nameOf(cmdType)}`);
+    console.log(`Unknown RDP command: ${RDPCommands.nameOf(cmdType)}`);
   }
 
   executeUnhandled(cmdType, buf) {
-    console.log(`Unhandled RDP command: ${Commands.nameOf(cmdType)}`);
+    console.log(`Unhandled RDP command: ${RDPCommands.nameOf(cmdType)}`);
   }
 
   executeTriangle(cmdType, buf) {

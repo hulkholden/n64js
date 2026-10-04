@@ -1,3 +1,4 @@
+import { RDPCommands, GBIRDPCommands } from '../lle/rdp_commands.js';
 import { toString16, toString32 } from "../format";
 import * as gbi from './gbi.js';
 import { GBI1 } from "./gbi1";
@@ -8,6 +9,81 @@ import { GBI2 } from "./gbi2";
 //   0xbe: executeSprite2dScaleFlip,
 //   0xbd: executeSprite2dDraw
 // };
+
+// Preserve the existing exports using the shared RDP command definitions.
+export const {
+  FillTriangle,
+  FillZBufferTriangle,
+  TextureTriangle,
+  TextureZBufferTriangle,
+  ShadeTriangle,
+  ShadeZBufferTriangle,
+  ShadeTextureTriangle,
+  ShadeTextureZBufferTriangle,
+  TextureRectangle,
+  TextureRectangleFlip,
+  SyncLoad,
+  SyncPipe,
+  SyncTile,
+  SyncFull,
+  SetKeyGB,
+  SetKeyR,
+  SetConvert,
+  SetScissor,
+  SetPrimDepth,
+  SetOtherModes,
+  LoadTLut: LoadTLUT,
+  SetTileSize,
+  LoadBlock,
+  LoadTile,
+  SetTile,
+  FillRectangle,
+  SetFillColor,
+  SetFogColor,
+  SetBlendColor,
+  SetPrimColor,
+  SetEnvColor,
+  SetCombine,
+  SetTextureImage,
+  SetMaskImage,
+  SetColorImage,
+} = RDPCommands;
+
+const S2DEX2Commands = Object.freeze({
+  G_OBJ_RECTANGLE: 0x01,
+  G_OBJ_SPRITE: 0x02,
+  G_SELECT_DL: 0x04,
+  G_OBJ_LOAD_TXTR: 0x05,
+  G_OBJ_LOAD_TX_SPRITE: 0x06,
+  G_OBJ_LOAD_TX_RECT: 0x07,
+  G_OBJ_LOAD_TX_RECT_R: 0x08,
+  G_BG_1CYC: 0x09,
+  G_BG_COPY: 0x0a,
+  G_OBJ_RENDERMODE: 0x0b,
+  G_OBJ_RECTANGLE_R: 0xda,
+});
+
+const S2DEX1Commands = Object.freeze({
+  G_BG_1CYC: 0x01,
+  G_BG_COPY: 0x02,
+  G_OBJ_RECTANGLE: 0x03,
+  G_OBJ_SPRITE: 0x04,
+  G_OBJ_MOVEMEM: 0x05,
+  G_SELECT_DL: 0xb0,
+  G_OBJ_RENDERMODE: 0xb1,
+  G_OBJ_RECTANGLE_R: 0xb2,
+  G_OBJ_LOAD_TXTR: 0xc1,
+  G_OBJ_LOAD_TX_SPRITE: 0xc2,
+  G_OBJ_LOAD_TX_RECT: 0xc3,
+  G_OBJ_LOAD_TX_RECT_R: 0xc4,
+  // S2DEX intercepts the hardware texture-rectangle opcode as HALF_0.
+  G_RDPHALF_0: GBIRDPCommands.TextureRectangle,
+});
+
+const G_OBJ_MTX = 0;
+const G_OBJ_SUBMTX = 2;
+const G_OBJ_FLAG_FLIPS = 0x01;
+const G_OBJ_FLAG_FLIPT = 0x10;
 
 const kRenderNone = 0;
 const kRenderFullTransform = 1;
@@ -169,43 +245,6 @@ stride = ${this.imageStride}, address = ${toString16(this.imageAdrs)}, format = 
 paletteIdx = ${this.imagePal}, flags = ${this.imageFlags}`
   }
 }
-
-// TODO: move to rdp_constants.js.
-export const FillTriangle = 0x08;
-export const FillZBufferTriangle = 0x09;
-export const TextureTriangle = 0x0a;
-export const TextureZBufferTriangle = 0x0b;
-export const ShadeTriangle = 0x0c;
-export const ShadeZBufferTriangle = 0x0d;
-export const ShadeTextureTriangle = 0x0e;
-export const ShadeTextureZBufferTriangle = 0x0f;
-export const TextureRectangle = 0x24;
-export const TextureRectangleFlip = 0x25;
-export const SyncLoad = 0x26;
-export const SyncPipe = 0x27;
-export const SyncTile = 0x28;
-export const SyncFull = 0x29;
-export const SetKeyGB = 0x2a;
-export const SetKeyR = 0x2b;
-export const SetConvert = 0x2c;
-export const SetScissor = 0x2d;
-export const SetPrimDepth = 0x2e;
-export const SetOtherModes = 0x2f;
-export const LoadTLUT = 0x30;
-export const SetTileSize = 0x32;
-export const LoadBlock = 0x33;
-export const LoadTile = 0x34;
-export const SetTile = 0x35;
-export const FillRectangle = 0x36;
-export const SetFillColor = 0x37;
-export const SetFogColor = 0x38;
-export const SetBlendColor = 0x39;
-export const SetPrimColor = 0x3a;
-export const SetEnvColor = 0x3b;
-export const SetCombine = 0x3c;
-export const SetTextureImage = 0x3d;
-export const SetMaskImage = 0x3e;
-export const SetColorImage = 0x3f;
 
 class ObjTexture {
   constructor() {
@@ -568,13 +607,13 @@ export class S2DEXCommon {
     const index = cmd0 & 0xffff;
 
     switch (index) {
-      case 0:
+      case G_OBJ_MTX:
         if (dis) {
           dis.text(`gSPObjMatrix(${toString32(address)});`);
         }
         this.setObjMatrix(address, dis);
         break;
-      case 2:
+      case G_OBJ_SUBMTX:
         if (dis) {
           dis.text(`gSPObjSubMatrix(${toString32(address)});`);
         }
@@ -690,8 +729,8 @@ export class S2DEXCommon {
     rTile.setSize(0, 0, (spr.imageW - 1) << 2, (spr.imageH - 1) << 2);
 
     // Used by Worms
-    const swapX = spr.imageFlags & 0x01;  // G_OBJ_FLAG_FLIPS
-    const swapY = spr.imageFlags & 0x10;  // G_OBJ_FLAG_FLIPT
+    const swapX = spr.imageFlags & G_OBJ_FLAG_FLIPS;
+    const swapY = spr.imageFlags & G_OBJ_FLAG_FLIPT;
     if (swapX || swapY) {
       this.gbi.warnUnimplemented("swapX/Y");
     }
@@ -736,31 +775,31 @@ export class GBI1SDEX extends GBI1 {
     this.s2dex = new S2DEXCommon(state, ramDV, this);
 
     this.sdexCommands = new Map([
-      [0x01, this.s2dex.executeBg1cyc.bind(this.s2dex)],
-      [0x02, this.s2dex.executeBgCopy.bind(this.s2dex)],
-      [0x03, this.s2dex.executeObjRectangle.bind(this.s2dex)],
-      [0x04, this.s2dex.executeObjSprite.bind(this.s2dex)],
-      [0x05, this.s2dex.executeObjMoveMem.bind(this.s2dex)],
+      [S2DEX1Commands.G_BG_1CYC, this.s2dex.executeBg1cyc.bind(this.s2dex)],
+      [S2DEX1Commands.G_BG_COPY, this.s2dex.executeBgCopy.bind(this.s2dex)],
+      [S2DEX1Commands.G_OBJ_RECTANGLE, this.s2dex.executeObjRectangle.bind(this.s2dex)],
+      [S2DEX1Commands.G_OBJ_SPRITE, this.s2dex.executeObjSprite.bind(this.s2dex)],
+      [S2DEX1Commands.G_OBJ_MOVEMEM, this.s2dex.executeObjMoveMem.bind(this.s2dex)],
 
       // This is set in base - why?
-      //  [0x09, this.executeSprite2DBase],
+      //  [gbi.GBI1Commands.G_SPRITE2D_BASE, this.executeSprite2DBase],
 
-      [0xb0, this.s2dex.executeSelectDL.bind(this.s2dex)],
-      [0xb1, this.s2dex.executeObjRendermode.bind(this.s2dex)],
-      [0xb2, this.s2dex.executeObjRectangleR.bind(this.s2dex)],
-      [0xc1, this.s2dex.executeObjLoadTxtr.bind(this.s2dex)],
-      [0xc2, this.s2dex.executeObjLoadTxSprite.bind(this.s2dex)],
-      [0xc3, this.s2dex.executeObjLoadTxRect.bind(this.s2dex)],
-      [0xc4, this.s2dex.executeObjLoadTxRectR.bind(this.s2dex)],
+      [S2DEX1Commands.G_SELECT_DL, this.s2dex.executeSelectDL.bind(this.s2dex)],
+      [S2DEX1Commands.G_OBJ_RENDERMODE, this.s2dex.executeObjRendermode.bind(this.s2dex)],
+      [S2DEX1Commands.G_OBJ_RECTANGLE_R, this.s2dex.executeObjRectangleR.bind(this.s2dex)],
+      [S2DEX1Commands.G_OBJ_LOAD_TXTR, this.s2dex.executeObjLoadTxtr.bind(this.s2dex)],
+      [S2DEX1Commands.G_OBJ_LOAD_TX_SPRITE, this.s2dex.executeObjLoadTxSprite.bind(this.s2dex)],
+      [S2DEX1Commands.G_OBJ_LOAD_TX_RECT, this.s2dex.executeObjLoadTxRect.bind(this.s2dex)],
+      [S2DEX1Commands.G_OBJ_LOAD_TX_RECT_R, this.s2dex.executeObjLoadTxRectR.bind(this.s2dex)],
 
-      [0xc8, this.s2dex.executeTriRSP.bind(this.s2dex)],
-      [0xc9, this.s2dex.executeTriRSP.bind(this.s2dex)],
-      [0xca, this.s2dex.executeTriRSP.bind(this.s2dex)],
-      [0xcb, this.s2dex.executeTriRSP.bind(this.s2dex)],
-      [0xcc, this.s2dex.executeTriRSP.bind(this.s2dex)],
-      [0xcd, this.s2dex.executeTriRSP.bind(this.s2dex)],
-      [0xce, this.s2dex.executeTriRSP.bind(this.s2dex)],
-      [0xcf, this.s2dex.executeTriRSP.bind(this.s2dex)],
+      [GBIRDPCommands.FillTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
+      [GBIRDPCommands.FillZBufferTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
+      [GBIRDPCommands.TextureTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
+      [GBIRDPCommands.TextureZBufferTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
+      [GBIRDPCommands.ShadeTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
+      [GBIRDPCommands.ShadeZBufferTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
+      [GBIRDPCommands.ShadeTextureTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
+      [GBIRDPCommands.ShadeTextureZBufferTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
 
       // This variant of the microcode implements texrect slightly differently.
       // 0xe4 replaces base executeTexRect but 0xb3 triggers it.
@@ -771,7 +810,7 @@ export class GBI1SDEX extends GBI1 {
       // e404008000000040 gsImmp1(G_RDPHALF_0, 0x00000040);
       // b400000000000000 gsImmp1(G_RDPHALF_1, 0x00000000);
       // b300000004000400 gsImmp1(G_RDPHALF_2, 0x04000400);
-      [0xe4, this.executeRDPHalf0.bind(this.s2dex)],
+      [S2DEX1Commands.G_RDPHALF_0, this.executeRDPHalf0.bind(this.s2dex)],
     ]);
   }
 
@@ -808,27 +847,27 @@ export class GBI2SDEX extends GBI2 {
     this.s2dex = new S2DEXCommon(state, ramDV, this);
 
     this.sdexCommands = new Map([
-      [0x01, this.s2dex.executeObjRectangle.bind(this.s2dex)],
-      [0x02, this.s2dex.executeObjSprite.bind(this.s2dex)],
-      [0x04, this.s2dex.executeSelectDL.bind(this.s2dex)],
-      [0x05, this.s2dex.executeObjLoadTxtr.bind(this.s2dex)],
-      [0x06, this.s2dex.executeObjLoadTxSprite.bind(this.s2dex)],
-      [0x07, this.s2dex.executeObjLoadTxRect.bind(this.s2dex)],
-      [0x08, this.s2dex.executeObjLoadTxRectR.bind(this.s2dex)],
-      [0x09, this.s2dex.executeBg1cyc.bind(this.s2dex)],
-      [0x0a, this.s2dex.executeBgCopy.bind(this.s2dex)],
-      [0x0b, this.s2dex.executeObjRendermode.bind(this.s2dex)],
+      [S2DEX2Commands.G_OBJ_RECTANGLE, this.s2dex.executeObjRectangle.bind(this.s2dex)],
+      [S2DEX2Commands.G_OBJ_SPRITE, this.s2dex.executeObjSprite.bind(this.s2dex)],
+      [S2DEX2Commands.G_SELECT_DL, this.s2dex.executeSelectDL.bind(this.s2dex)],
+      [S2DEX2Commands.G_OBJ_LOAD_TXTR, this.s2dex.executeObjLoadTxtr.bind(this.s2dex)],
+      [S2DEX2Commands.G_OBJ_LOAD_TX_SPRITE, this.s2dex.executeObjLoadTxSprite.bind(this.s2dex)],
+      [S2DEX2Commands.G_OBJ_LOAD_TX_RECT, this.s2dex.executeObjLoadTxRect.bind(this.s2dex)],
+      [S2DEX2Commands.G_OBJ_LOAD_TX_RECT_R, this.s2dex.executeObjLoadTxRectR.bind(this.s2dex)],
+      [S2DEX2Commands.G_BG_1CYC, this.s2dex.executeBg1cyc.bind(this.s2dex)],
+      [S2DEX2Commands.G_BG_COPY, this.s2dex.executeBgCopy.bind(this.s2dex)],
+      [S2DEX2Commands.G_OBJ_RENDERMODE, this.s2dex.executeObjRendermode.bind(this.s2dex)],
 
-      [0xc8, this.s2dex.executeTriRSP.bind(this.s2dex)],
-      [0xc9, this.s2dex.executeTriRSP.bind(this.s2dex)],
-      [0xca, this.s2dex.executeTriRSP.bind(this.s2dex)],
-      [0xcb, this.s2dex.executeTriRSP.bind(this.s2dex)],
-      [0xcc, this.s2dex.executeTriRSP.bind(this.s2dex)],
-      [0xcd, this.s2dex.executeTriRSP.bind(this.s2dex)],
-      [0xce, this.s2dex.executeTriRSP.bind(this.s2dex)],
-      [0xcf, this.s2dex.executeTriRSP.bind(this.s2dex)],
+      [GBIRDPCommands.FillTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
+      [GBIRDPCommands.FillZBufferTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
+      [GBIRDPCommands.TextureTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
+      [GBIRDPCommands.TextureZBufferTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
+      [GBIRDPCommands.ShadeTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
+      [GBIRDPCommands.ShadeZBufferTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
+      [GBIRDPCommands.ShadeTextureTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
+      [GBIRDPCommands.ShadeTextureZBufferTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
 
-      [0xda, this.s2dex.executeObjRectangleR.bind(this.s2dex)],
+      [S2DEX2Commands.G_OBJ_RECTANGLE_R, this.s2dex.executeObjRectangleR.bind(this.s2dex)],
     ]);
   }
 

@@ -1,6 +1,7 @@
 import { GBIMicrocode } from './gbi_microcode.js';
 import { ProjectedVertex } from './projected_vertex.js';
-import { Commands, Triangle } from '../lle/rdp.js';
+import { Triangle } from '../lle/rdp.js';
+import { RDPCommands } from '../lle/rdp_commands.js';
 import * as gbi from './gbi.js';
 
 const GBI_RDP_COMMAND_PREFIX = 0xc0;
@@ -84,19 +85,19 @@ export class RDPGraphics extends GBIMicrocode {
   execute(type, buffer) {
     const cmd0 = buffer.getU32(0);
     const cmd1 = buffer.getU32(4);
-    if (type >= Commands.FillTriangle && type <= Commands.ShadeTextureZBufferTriangle) {
+    if (type >= RDPCommands.FillTriangle && type <= RDPCommands.ShadeTextureZBufferTriangle) {
       this.drawTriangle(buffer);
-    } else if (type === Commands.TextureRectangle || type === Commands.TextureRectangleFlip) {
-      this.rdpTexRect(cmd0, cmd1, buffer.getU32(8), buffer.getU32(12), undefined, type === Commands.TextureRectangleFlip);
-    } else if (type >= Commands.SetTextureImage) {
+    } else if (type === RDPCommands.TextureRectangle || type === RDPCommands.TextureRectangleFlip) {
+      this.rdpTexRect(cmd0, cmd1, buffer.getU32(8), buffer.getU32(12), undefined, type === RDPCommands.TextureRectangleFlip);
+    } else if (type >= RDPCommands.SetTextureImage) {
       const address = cmd1 & IMAGE_ADDRESS_MASK;
-      if (type === Commands.SetMaskImage) {
+      if (type === RDPCommands.SetMaskImage) {
         this.state.depthImage.address = address;
       } else {
         const format = (cmd0 >>> IMAGE_FORMAT_SHIFT) & IMAGE_FORMAT_MASK;
         const size = (cmd0 >>> IMAGE_SIZE_SHIFT) & IMAGE_SIZE_MASK;
         const width = (cmd0 & IMAGE_WIDTH_MASK) + 1;
-        if (type === Commands.SetTextureImage) {
+        if (type === RDPCommands.SetTextureImage) {
           this.setTextureImage(format, size, width, address);
         } else {
           this.state.colorImage = { format, size, width, address };

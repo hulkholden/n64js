@@ -1,4 +1,5 @@
 import { toString32 } from '../format.js';
+import { GBIRDPCommands } from '../lle/rdp_commands.js';
 import { GBIMicrocode } from './gbi_microcode.js';
 
 // Shared global state and raw RDP blocks for the object-list microcodes.
@@ -35,12 +36,12 @@ export class ObjectMicrocode extends GBIMicrocode {
         return;
       }
       const opcode = cmd0 >>> 24;
-      if (opcode === 0xe4 || opcode === 0xe5) {
+      if (opcode === GBIRDPCommands.TextureRectangle || opcode === GBIRDPCommands.TextureRectangleFlip) {
         // Raw RDP rectangles have one extra 64-bit word, without RDPHalf opcodes.
         const cmd2 = dv.getUint32(pc);
         const cmd3 = dv.getUint32(pc + 4);
         pc += 8;
-        this.rdpTexRect(cmd0, cmd1, cmd2, cmd3, dis, opcode === 0xe5);
+        this.rdpTexRect(cmd0, cmd1, cmd2, cmd3, dis, opcode === GBIRDPCommands.TextureRectangleFlip);
       } else {
         const handler = this.getHandler(opcode);
         if (!handler) {

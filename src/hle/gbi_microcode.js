@@ -1,6 +1,7 @@
 /*global n64js*/
 
 import { toString8, toString16, toString32 } from '../format.js';
+import { GBIRDPCommands } from '../lle/rdp_commands.js';
 import { Matrix4x4 } from '../graphics/Matrix4x4.js';
 import { Vector3 } from '../graphics/Vector3.js';
 import * as logger from '../logger.js';
@@ -34,33 +35,33 @@ export class GBIMicrocode {
     this.onLoadUcodeHandler = null;
 
     this.gbiCommonCommands = new Map([
-      [0xe4, this.executeTexRect.bind(this)],
-      [0xe5, this.executeTexRectFlip.bind(this)],
-      [0xe6, this.executeRDPLoadSync.bind(this)],
-      [0xe7, this.executeRDPPipeSync.bind(this)],
-      [0xe8, this.executeRDPTileSync.bind(this)],
-      [0xe9, this.executeRDPFullSync.bind(this)],
-      [0xea, this.executeSetKeyGB.bind(this)],
-      [0xeb, this.executeSetKeyR.bind(this)],
-      [0xec, this.executeSetConvert.bind(this)],
-      [0xed, this.executeSetScissor.bind(this)],
-      [0xee, this.executeSetPrimDepth.bind(this)],
-      [0xef, this.executeSetRDPOtherMode.bind(this)],
-      [0xf0, this.executeLoadTLut.bind(this)],
-      [0xf2, this.executeSetTileSize.bind(this)],
-      [0xf3, this.executeLoadBlock.bind(this)],
-      [0xf4, this.executeLoadTile.bind(this)],
-      [0xf5, this.executeSetTile.bind(this)],
-      [0xf6, this.executeFillRect.bind(this)],
-      [0xf7, this.executeSetFillColor.bind(this)],
-      [0xf8, this.executeSetFogColor.bind(this)],
-      [0xf9, this.executeSetBlendColor.bind(this)],
-      [0xfa, this.executeSetPrimColor.bind(this)],
-      [0xfb, this.executeSetEnvColor.bind(this)],
-      [0xfc, this.executeSetCombine.bind(this)],
-      [0xfd, this.executeSetTImg.bind(this)],
-      [0xfe, this.executeSetZImg.bind(this)],
-      [0xff, this.executeSetCImg.bind(this)],
+      [GBIRDPCommands.TextureRectangle, this.executeTexRect.bind(this)],
+      [GBIRDPCommands.TextureRectangleFlip, this.executeTexRectFlip.bind(this)],
+      [GBIRDPCommands.SyncLoad, this.executeRDPLoadSync.bind(this)],
+      [GBIRDPCommands.SyncPipe, this.executeRDPPipeSync.bind(this)],
+      [GBIRDPCommands.SyncTile, this.executeRDPTileSync.bind(this)],
+      [GBIRDPCommands.SyncFull, this.executeRDPFullSync.bind(this)],
+      [GBIRDPCommands.SetKeyGB, this.executeSetKeyGB.bind(this)],
+      [GBIRDPCommands.SetKeyR, this.executeSetKeyR.bind(this)],
+      [GBIRDPCommands.SetConvert, this.executeSetConvert.bind(this)],
+      [GBIRDPCommands.SetScissor, this.executeSetScissor.bind(this)],
+      [GBIRDPCommands.SetPrimDepth, this.executeSetPrimDepth.bind(this)],
+      [GBIRDPCommands.SetOtherModes, this.executeSetRDPOtherMode.bind(this)],
+      [GBIRDPCommands.LoadTLut, this.executeLoadTLut.bind(this)],
+      [GBIRDPCommands.SetTileSize, this.executeSetTileSize.bind(this)],
+      [GBIRDPCommands.LoadBlock, this.executeLoadBlock.bind(this)],
+      [GBIRDPCommands.LoadTile, this.executeLoadTile.bind(this)],
+      [GBIRDPCommands.SetTile, this.executeSetTile.bind(this)],
+      [GBIRDPCommands.FillRectangle, this.executeFillRect.bind(this)],
+      [GBIRDPCommands.SetFillColor, this.executeSetFillColor.bind(this)],
+      [GBIRDPCommands.SetFogColor, this.executeSetFogColor.bind(this)],
+      [GBIRDPCommands.SetBlendColor, this.executeSetBlendColor.bind(this)],
+      [GBIRDPCommands.SetPrimColor, this.executeSetPrimColor.bind(this)],
+      [GBIRDPCommands.SetEnvColor, this.executeSetEnvColor.bind(this)],
+      [GBIRDPCommands.SetCombine, this.executeSetCombine.bind(this)],
+      [GBIRDPCommands.SetTextureImage, this.executeSetTImg.bind(this)],
+      [GBIRDPCommands.SetMaskImage, this.executeSetZImg.bind(this)],
+      [GBIRDPCommands.SetColorImage, this.executeSetCImg.bind(this)],
     ]);
   }
 

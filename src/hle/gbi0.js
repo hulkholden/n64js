@@ -1,8 +1,15 @@
 import { toString32 } from "../format.js";
 import { Vector3 } from "../graphics/Vector3.js";
 import * as rdp from "../lle/rdp.js";
+import * as gbi from './gbi.js';
 import * as rdpdis from "./disassemble_rdp.js";
 import { GBI1 } from "./gbi1.js";
+
+const G_GBI0_RESERVED = 0xb0;
+const G_TRI4 = 0xb1;
+const G_VTXCOLORBASE = 0x07;
+const EARLY_MOVEWORD_LAST_INDEX = 8;
+const EARLY_MOVEWORD_INDEX_BIAS = 2;
 
 // GBI0 is very similar to GBI1 with a few small differences,
 // so we extend that instead of GBIMicrocode.
@@ -16,9 +23,9 @@ export class GBI0 extends GBI1 {
     this.rdpTriangle = new rdp.Triangle();
 
     this.gbi0Commands = new Map([
-      [0xb0, this.executeUnknown.bind(this)],      // Defined as executeBranchZ for GBI1.
-      [0xb1, this.executeTri4.bind(this)],         // Defined as executeTri2 for GBI1.
-      [0xb2, this.executeRDPHalf_Cont.bind(this)], // Defined as executeModifyVertex for GBI1.
+      [G_GBI0_RESERVED, this.executeUnknown.bind(this)],      // Defined as executeBranchZ for GBI1.
+      [G_TRI4, this.executeTri4.bind(this)],         // Defined as executeTri2 for GBI1.
+      [gbi.GBI1Commands.G_RDPHALF_CONT, this.executeRDPHalf_Cont.bind(this)], // Defined as executeModifyVertex for GBI1.
     ]);
   }
 
@@ -180,12 +187,12 @@ export class GBI0Early extends GBI0 {
   executeMoveWord(cmd0, cmd1, dis) {
     const index = (cmd0 >>> 8) & 0xff;
     const offset = cmd0 & 0xff;
-    if (index > 8 || (index & 1)) {
+    if (index > EARLY_MOVEWORD_LAST_INDEX || (index & 1)) {
       this.warnUnimplemented('MoveWord Unknown');
       return;
     }
     // Reuse the ordinary handlers after translating to the later GBI layout.
-    super.executeMoveWord((0xbc000000 | (offset << 8) | (index + 2)) >>> 0, cmd1, dis);
+    super.executeMoveWord(((gbi.GBI1Commands.G_MOVEWORD << 24) | (offset << 8) | (index + EARLY_MOVEWORD_INDEX_BIAS)) >>> 0, cmd1, dis);
   }
 }
 
@@ -196,9 +203,9 @@ export class GBI0GE extends GBI0 {
 
     this.geCommands = new Map([
 
-      [0xb2, this.executeRDPCommandHalf2.bind(this)],
-      [0xb3, this.executeRDPCommandHalf22Final.bind(this)],
-      [0xb4, this.executeRDPCommandHalf1.bind(this)],
+      [gbi.GBI1Commands.G_RDPHALF_CONT, this.executeRDPCommandHalf2.bind(this)],
+      [gbi.GBI1Commands.G_RDPHALF_2, this.executeRDPCommandHalf22Final.bind(this)],
+      [gbi.GBI1Commands.G_RDPHALF_1, this.executeRDPCommandHalf1.bind(this)],
     ]);
   }
 
@@ -218,12 +225,12 @@ export class GBI0PD extends GBI0 {
     this.auxAddress = 0;
 
     this.pdCommands = new Map([
-      // 0x04 - executeVertex is different from GBI0, but handled by overriding loadVertices.
-      [0x07, this.executeSetVertexColorIndex.bind(this)],
+      // G_VTX differs from GBI0, but is handled by overriding loadVertices.
+      [G_VTXCOLORBASE, this.executeSetVertexColorIndex.bind(this)],
 
-      [0xb2, this.executeRDPCommandHalf2.bind(this)],
-      [0xb3, this.executeRDPCommandHalf22Final.bind(this)],
-      [0xb4, this.executeRDPCommandHalf1.bind(this)],
+      [gbi.GBI1Commands.G_RDPHALF_CONT, this.executeRDPCommandHalf2.bind(this)],
+      [gbi.GBI1Commands.G_RDPHALF_2, this.executeRDPCommandHalf22Final.bind(this)],
+      [gbi.GBI1Commands.G_RDPHALF_1, this.executeRDPCommandHalf1.bind(this)],
     ]);
   }
 

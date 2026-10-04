@@ -5,6 +5,14 @@ import { makeColorTextABGR } from "./disassemble.js";
 import * as gbi from './gbi.js';
 import { GBI0 } from "./gbi0.js";
 
+const G_TRIDMA = 0x05;
+const G_DL_IN_MEM = 0x07;
+const G_DMA_OFFSETS = 0xbf;
+
+const G_MW_BILLBOARD = 0x02;
+const G_MW_MATRIX_INDEX = 0x0a;
+const VERTEX_APPEND_FLAG = 0x00010000;
+
 export class GBI0DKR extends GBI0 {
   constructor(state, ramDV) {
     super(state, ramDV);
@@ -30,9 +38,9 @@ export class GBI0DKR extends GBI0 {
     this.billboardMode = false;
 
     this.dkrCommands = new Map([
-      [0x05, this.executeTriDMA.bind(this)],
-      [0x07, this.executeDisplayListLen.bind(this)],
-      [0xbf, this.executeSetAddresses.bind(this)],
+      [G_TRIDMA, this.executeTriDMA.bind(this)],
+      [G_DL_IN_MEM, this.executeDisplayListLen.bind(this)],
+      [G_DMA_OFFSETS, this.executeSetAddresses.bind(this)],
     ]);
   }
 
@@ -66,12 +74,12 @@ export class GBI0DKR extends GBI0 {
     const type = (cmd0) & 0xff;
 
     // DKR uses a couple of the MoveWord types in a different way.
-    if (type == 0x02) {
+    if (type == G_MW_BILLBOARD) {
       this.billboardMode = (cmd1 & 0x1) != 0;
       if (dis) {
         dis.text(`gSetBillboardMode(${this.billboardMode});`);
       }
-    } else if (type == 0x0a) {
+    } else if (type == G_MW_MATRIX_INDEX) {
       this.matrixIndex = (cmd1 >> 6) & 0x3;
       if (dis) {
         dis.text(`gSetMatrixIndex(${this.matrixIndex});`);
@@ -132,7 +140,7 @@ export class GBI0DKR extends GBI0 {
   executeVertex(cmd0, cmd1, dis) {
     const address = this.vertexAddress + cmd1;
     const numVerts = ((cmd0 >>> 19) & 0x1f) + 1;
-    const flag = (cmd0 & 0x00010000);
+    const flag = (cmd0 & VERTEX_APPEND_FLAG);
     const v0Base = (cmd0 >>> 9) & 0x1f;
 
     // In billboard mode the flag selects between index 0 or index 1. Index 0 is used for the billboard center.
