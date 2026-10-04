@@ -1,6 +1,6 @@
 import * as logger from '../logger.js';
 import { toString32 } from '../format.js';
-import { GBI0, GBI0GE, GBI0PD, GBI0SE, GBI0WR } from './gbi0.js';
+import { GBI0, GBI0Early, GBI0GE, GBI0PD, GBI0SE, GBI0WR } from './gbi0.js';
 import { GBI0DKR } from './gbi0_dkr.js';
 import { GBI1TEXA } from './gbi1_texa.js';
 import { GBI1, GBI1LL } from './gbi1.js';
@@ -62,6 +62,8 @@ function createMicrocode(ucode, state, ramDV) {
       return new ZSortP(state, ramDV);
     case MicrocodeId.GBI0:
       return new GBI0(state, ramDV);
+    case MicrocodeId.GBI0_EARLY:
+      return new GBI0Early(state, ramDV);
     case MicrocodeId.GBI0_DKR:
       return new GBI0DKR(state, ramDV);
     case MicrocodeId.GBI0_SE:
