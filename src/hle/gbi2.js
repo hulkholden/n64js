@@ -81,12 +81,6 @@ export class GBI2 extends GBIMicrocode {
   }
 
 
-  executeEndDL(cmd0, cmd1, dis) {
-    if (dis) {
-      dis.text('gsSPEndDisplayList();');
-    }
-    this.state.endDisplayList();
-  }
 
   executeDLCount(cmd0, cmd1, dis) {
     // F3DEX2's SPECIAL_1 calls a list of this many commands, without EndDL.
