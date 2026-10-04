@@ -251,11 +251,15 @@ bossCode.set([9, 4, 7, 7, 4, 4, 9, 0], bossCode.length - 8);
 // Synthetic bytes with hash 0xc62a1631, likewise not game microcode.
 const rogueCode = new Uint8Array(0x1000);
 rogueCode.set([8, 1, 12, 9, 2, 0, 12, 5], rogueCode.length - 8);
+// Synthetic bytes with hash 0x1f59be1a, not Naboo microcode.
+const nabooCode = new Uint8Array(0x1000);
+nabooCode.set([1, 4, 13, 7, 8, 13, 15, 13], nabooCode.length - 8);
 // Synthetic prefix with hash 0xeb70fcb5; no game code is included.
 const hvqmCode = new Uint8Array(0x1000);
 hvqmCode.set([9, 10, 11, 0, 1, 11, 12, 15], microcodePrefixLength - 8);
 const unsupportedMicrocodes = [
   { family: 'F5', version: '', code: rogueCode, detection: 'hash' },
+  { family: 'F5', variant: 'NABOO', version: '', code: nabooCode, detection: 'hash' },
 ];
 
 describe('headless graphics execution', () => {
@@ -558,7 +562,7 @@ describe('headless graphics execution', () => {
     expect(hardware.cpu1.control[31]).toBe(0x01010800);
   });
 
-  test.each([...unsupportedMicrocodes, { family: 'ZSortBOSS', version: '', code: bossCode, detection: 'hash' }])('rejects $family tasks and in-list loads before parsing their commands', async ({ family, version, code, detection }) => {
+  test.each([...unsupportedMicrocodes, { family: 'ZSortBOSS', version: '', code: bossCode, detection: 'hash' }])('rejects $family tasks and in-list loads before parsing their commands', async ({ family, variant, version, code, detection }) => {
     const previousHaltOnWarning = graphicsOptions.haltOnWarning;
     try {
       // Unsupported execution must stop even when ordinary warnings are ignored.
@@ -603,6 +607,11 @@ describe('headless graphics execution', () => {
         expect(halted[0].details.error.message).toContain(version);
         expect(halted[0].details.error.message).toContain('hash');
         expect(halted[0].details.error.message).toContain('HLE is not implemented');
+        if (variant === 'NABOO') {
+          expect(halted[0].details.error.message).toContain('F5/NABOO');
+          expect(halted[0].details.error.message).toContain('0x1f59be1a');
+          expect(seen[0].variant).toBe(inList ? null : 'NABOO');
+        }
         if (family === 'ZSortBOSS') {
           expect(halted[0].details.error.message).toContain('0xe281945c');
         }

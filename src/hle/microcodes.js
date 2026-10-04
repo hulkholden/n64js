@@ -15,7 +15,8 @@ import { ZSortP } from './zsortp.js';
 
 class UnsupportedMicrocodeError extends Error {
   constructor(info) {
-    super(`Unsupported graphics microcode: ${info.family} (version "${info.version}", hash ${toString32(info.hash)}); HLE is not implemented`);
+    const variant = info.variant ? `/${info.variant}` : '';
+    super(`Unsupported graphics microcode: ${info.family}${variant} (version "${info.version}", hash ${toString32(info.hash)}); HLE is not implemented`);
     this.name = 'UnsupportedMicrocodeError';
   }
 }
@@ -25,7 +26,7 @@ export function assertHLESupported(info) {
   // Falling back to GBI0 reads unrelated data as commands; skipping execution
   // and signalling task completion cannot satisfy their CPU/RSP handshake.
   // HVQM2 and BOSS ZSort can only fall back to LLE at task start, before any HLE execution.
-  if (info.id === MicrocodeId.ZSORT_BOSS || info.id === MicrocodeId.F5_ROGUE || info.id === MicrocodeId.HVQM2) {
+  if (info.id === MicrocodeId.ZSORT_BOSS || info.id === MicrocodeId.F5_ROGUE || info.id === MicrocodeId.F5_NABOO || info.id === MicrocodeId.HVQM2) {
     throw new UnsupportedMicrocodeError(info);
   }
 }
