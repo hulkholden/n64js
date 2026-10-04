@@ -332,7 +332,16 @@ export class GBIMicrocode {
         break;
 
       case gbi.ModifyVtx.G_MWO_POINT_XYSCREEN:
-        this.warnUnimplemented('modifyVtx XYSCREEN');
+        {
+          // Signed s13.2 framebuffer coordinates, with Y increasing downward.
+          // The viewport has already been applied by the caller. Undo only
+          // the VI mapping and retain W for perspective-correct interpolation.
+          const screenX = (value >> 16) / 4.0;
+          const screenY = ((value << 16) >> 16) / 4.0;
+          const viTransform = this.renderer.nativeTransform.viTransform;
+          vertex.pos.x = (screenX - viTransform.trans.x) * vertex.pos.w / viTransform.scale.x;
+          vertex.pos.y = (screenY - viTransform.trans.y) * vertex.pos.w / viTransform.scale.y;
+        }
         break;
 
       case gbi.ModifyVtx.G_MWO_POINT_ZSCREEN:

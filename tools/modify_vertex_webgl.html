@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <meta charset="utf-8">
-<title>ModifyVertex RGBA browser scene</title>
+<title>ModifyVertex browser scene</title>
 <style>
   body { background: #e8edf4; color: #183047; font: 16px system-ui; margin: 30px; }
   main { background: white; padding: 28px; width: 830px; border-radius: 12px; }
@@ -15,13 +15,13 @@
   canvas { width: 800px; height: 360px; }
 </style>
 <main>
-  <h1>ModifyVertex RGBA · GBI1 and GBI2</h1>
-  <p>Same cached vertices. Color and alpha updates affect subsequent triangles.</p>
+  <h1>ModifyVertex XYSCREEN · GBI1 and GBI2</h1>
+  <p>Same cached triangle, unequal perspective W. Screen writes move it right or across the left edge.</p>
   <div class="labels">
-    <span>Original<br>Blue · alpha 255</span>
-    <span>RGBA update<br>Coral · alpha 255</span>
-    <span>Alpha update<br>Coral · alpha 64</span>
-    <span>Alpha update<br>Invisible · alpha 0</span>
+    <span>Original<br>No screen write</span>
+    <span>XYSCREEN update<br>Move right 160.25 px</span>
+    <span>Same update<br>Changed RSP viewport</span>
+    <span>Signed XYSCREEN<br>Move left 80.25 px</span>
   </div>
   <section>
     <span class="row">GBI1</span><span class="row second">GBI2</span>

@@ -180,6 +180,80 @@ for (const [Type, opcode, triangle, end] of [
       expect(state.projectedVertices[79].u).toBe(3);
     });
 
+    test('decodes signed quarter-pixel screen positions and preserves other cached attributes', () => {
+      const { state, microcode, warnings } = harness(Type);
+      const vertex = state.projectedVertices[0];
+      vertex.clipFlags = 0x15;
+      const unchanged = () => [vertex.pos.z, vertex.color, vertex.u, vertex.v, vertex.clipFlags, vertex.set];
+      const before = unchanged();
+      const otherPositions = state.projectedVertices.slice(1).map(v => [...v.pos.elems]);
+      // Screen positions bypass the current viewport, including zero scales.
+      state.viewport.set(new Vector3(0, 0, 42), new Vector3(120, 90, 17));
+      state.geometryMode.fog = state.geometryMode.lighting = 1;
+      state.fogParameters.set(0, 255);
+      const modify = microcode.getHandler(opcode);
+      for (const [width, height] of [[320, 240], [640, 480], [480, 288]]) {
+        microcode.renderer.nativeTransform.initDimensions(width, height);
+        for (const w of [1, 2, 149.6165771484375, 0, -2, 1e-40]) {
+          vertex.pos.w = w;
+          const storedW = vertex.pos.w;
+          for (const [word, x, y] of [
+            [0, 0, 0], // First observed Turok Rage Wars command.
+            [0x028001e0, 160, 120],
+            [0xffff0001, -0.25, 0.25],
+            [0x0001ffff, 0.25, -0.25],
+            [0x80007fff, -8192, 8191.75],
+            [0x7fff8000, 8191.75, -8192],
+          ]) {
+            modify((opcode << 24) | 0x180000, word);
+            expect(vertex.pos.x).toBe(Math.fround((x - width / 2) * storedW / (width / 2)));
+            expect(vertex.pos.y).toBe(Math.fround((y - height / 2) * storedW / (-height / 2)));
+            expect(vertex.pos.w).toBe(storedW);
+            expect(unchanged()).toEqual(before);
+          }
+        }
+      }
+      expect(state.projectedVertices.slice(1).map(v => [...v.pos.elems])).toEqual(otherPositions);
+      expect(warnings).toEqual([]);
+    });
+
+    test('screen-position writes affect subsequent triangles, including disassembled lists', () => {
+      for (const disassemble of [false, true]) {
+        const { ram, state, microcode, warnings } = harness(Type);
+        const vertex = state.projectedVertices[7];
+        vertex.pos.set(0.25, -0.5, 0.5, 2);
+        const commands = [triangle, [(opcode << 24) | 0x18000e, 0x03c000f0], triangle, [end, 0]];
+        commands.forEach(([cmd0, cmd1], i) => {
+          ram.setUint32(8 + i * 8, cmd0);
+          ram.setUint32(12 + i * 8, cmd1);
+        });
+        const draws = [];
+        const text = [];
+        microcode.renderer.flushTris = buffer => draws.push([...buffer.positions.slice(4, 8)]);
+        const disassembler = disassemble ? { begin() {}, end() {}, text: s => text.push(s) } : null;
+        executeDisplayList(state, microcode, { disassembler });
+        expect(draws).toEqual([[0.25, -0.5, 0.5, 2], [1, 1, 0.5, 2]]);
+        if (disassemble) {
+          expect(text).toContain('gsSPModifyVertex(7,G_MWO_POINT_XYSCREEN,0x03c000f0);');
+        }
+        expect(warnings).toEqual([]);
+      }
+    });
+
+    test('screen-position writes respect cache bounds and preserve the loaded flag', () => {
+      const { state, microcode, warnings } = harness(Type);
+      const modify = microcode.getHandler(opcode);
+      state.projectedVertices[79].pos.w = 2;
+      modify((opcode << 24) | 0x18009e, 0);
+      expect([...state.projectedVertices[79].pos.elems]).toEqual([-2, 2, 0, 2]);
+      expect(state.projectedVertices[79].set).toBe(false);
+      for (const index of [80, 32767]) {
+        modify((opcode << 24) | 0x180000 | (index << 1), 0);
+      }
+      expect(warnings).toEqual([['crazy vertex index', 80], ['crazy vertex index', 32767]]);
+      expect(state.projectedVertices).toHaveLength(80);
+    });
+
     test('replaces screen depth without reapplying the viewport or changing other cached attributes', () => {
       const { state, microcode, warnings } = harness(Type);
       const vertex = state.projectedVertices[0];
