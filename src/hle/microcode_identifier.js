@@ -22,12 +22,14 @@ export const MicrocodeId = Object.freeze({
   GBI1_TEXA: 20,   // Tamagotchi World: F3DTEX/A texture commands
   HVQM2: 21,       // Yakouchuu II video decoder (executed by the RSP interpreter)
   GBI0_EARLY: 22,  // Saikyou Habu Shougi: early MoveWord encoding
+  F5_NABOO: 23,    // Battle for Naboo (recognized, but HLE is not implemented)
 });
 
 const microcodeProfiles = new Map([
   [MicrocodeId.GBI0_EARLY, { family: 'GBI0', variant: 'EARLY' }],
   [MicrocodeId.GBI1_L3DEX, { family: 'GBI1', variant: 'L3DEX' }],
   [MicrocodeId.F5_ROGUE, { family: 'F5', variant: 'ROGUE' }],
+  [MicrocodeId.F5_NABOO, { family: 'F5', variant: 'NABOO' }],
   [MicrocodeId.GBI0, { family: 'GBI0', variant: null }],
   [MicrocodeId.GBI1, { family: 'GBI1', variant: null }],
   [MicrocodeId.GBI1_TEXA, { family: 'GBI1', variant: 'F3DTEX/A' }],
@@ -54,6 +56,7 @@ const ucodeOverrides = new Map([
   [0x1935c6ae, MicrocodeId.GBI0_EARLY], // Saikyou Habu Shougi (no version string)
   [0x2900a9d4, MicrocodeId.GBI1],       // Power League 64: F3DEX commands, old SW version string
   [0xc62a1631, MicrocodeId.F5_ROGUE],   // Rogue Squadron (Europe revisions and Japan)
+  [0x1f59be1a, MicrocodeId.F5_NABOO],   // Battle for Naboo (Europe and USA)
   [0x60256efc, MicrocodeId.GBI2_CONKER], // "RSP Gfx ucode F3DEXBG.NoN fifo 2.08  Yoshitaka Yasumoto 1999 Nintendo.", "Conker's Bad Fur Day"
   [0x6d8bec3e, MicrocodeId.TURBO3D],     // "Dark Rift"
   [0x0c10181a, MicrocodeId.GBI0_DKR],    // "Diddy Kong Racing (v1.0)"
@@ -81,7 +84,7 @@ const hvqm2SP1PrefixHash = 0xeb70fcb5;
 /**
  * Identifies the microcode without constructing a handler or producing side effects.
  * F5_INDI is recognized but has no HLE handler; its graphics tasks are skipped.
- * ZSORT_BOSS executes on the RSP; F5_ROGUE is rejected by HLE execution.
+ * ZSORT_BOSS executes on the RSP; F5_ROGUE and F5_NABOO are rejected by HLE execution.
  * HVQM2 video tasks use the RSP interpreter, even in graphics HLE mode.
  * Family and variant describe the microcode; detection='fallback' means
  * GBI0 was assumed, not positively identified. A null variant selects the base

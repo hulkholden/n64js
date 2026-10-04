@@ -2,6 +2,18 @@ import { describe, expect, test } from 'bun:test';
 import { identifyMicrocode, MicrocodeId } from './microcode_identifier.js';
 
 describe('microcode identification', () => {
+  test('identifies Naboo without selecting the Indiana Jones skip path or GBI0 fallback', () => {
+    const hash = 0x1f59be1a;
+    for (const version of ['', 'RSP Gfx ucode F3DEX fifo 2.0']) {
+      expect(identifyMicrocode(version, hash)).toEqual({
+        id: MicrocodeId.F5_NABOO, family: 'F5', variant: 'NABOO', version, hash, detection: 'hash',
+      });
+    }
+    expect(identifyMicrocode('', 0xdd57a04e)).toMatchObject({
+      id: MicrocodeId.F5_INDI, variant: 'INDI',
+    });
+  });
+
   test('a hash match takes precedence even when its handler ID is zero', () => {
     const version = 'RSP Gfx ucode S2DEX fifo 2.0';
     const hash = 0x313f038b; // Pilotwings selects GBI0 despite the conflicting string.
