@@ -1,4 +1,4 @@
-import { RDPCommands, GBIRDPCommands } from '../lle/rdp_commands.js';
+import { Commands, GBIRDPCommands } from '../lle/rdp_constants.js';
 import { toString16, toString32 } from "../format";
 import * as gbi from './gbi.js';
 import * as s2dex1 from './s2dex1_constants.js';
@@ -49,7 +49,7 @@ export const {
   SetTextureImage,
   SetMaskImage,
   SetColorImage,
-} = RDPCommands;
+} = Commands;
 
 const G_OBJ_MTX = 0;
 const G_OBJ_SUBMTX = 2;

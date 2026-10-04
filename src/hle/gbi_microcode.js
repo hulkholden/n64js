@@ -1,7 +1,7 @@
 /*global n64js*/
 
 import { toString8, toString16, toString32 } from '../format.js';
-import { GBIRDPCommands } from '../lle/rdp_commands.js';
+import { GBIRDPCommands } from '../lle/rdp_constants.js';
 import { Matrix4x4 } from '../graphics/Matrix4x4.js';
 import { Vector3 } from '../graphics/Vector3.js';
 import * as logger from '../logger.js';

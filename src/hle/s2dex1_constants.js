@@ -1,4 +1,4 @@
-import { GBIRDPCommands } from '../lle/rdp_commands.js';
+import { GBIRDPCommands } from '../lle/rdp_constants.js';
 
 // S2DEX1 display-list opcodes.
 export const Commands = Object.freeze({

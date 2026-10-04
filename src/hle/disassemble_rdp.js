@@ -1,6 +1,5 @@
 import { toHex } from "../format.js";
 import * as rdp from "../lle/rdp.js";
-import { RDPCommands } from "../lle/rdp_commands.js";
 
 const triangle = new rdp.Triangle();
 
@@ -10,42 +9,42 @@ const commandTable = (() => {
     tbl.push(disassembleUnknown);
   }
 
-  tbl[RDPCommands.Nop] = disassembleNop;
-  tbl[RDPCommands.FillTriangle] = disassembleTriangle;
-  tbl[RDPCommands.FillZBufferTriangle] = disassembleTriangle;
-  tbl[RDPCommands.TextureTriangle] = disassembleTriangle;
-  tbl[RDPCommands.TextureZBufferTriangle] = disassembleTriangle;
-  tbl[RDPCommands.ShadeTriangle] = disassembleTriangle;
-  tbl[RDPCommands.ShadeZBufferTriangle] = disassembleTriangle;
-  tbl[RDPCommands.ShadeTextureTriangle] = disassembleTriangle;
-  tbl[RDPCommands.ShadeTextureZBufferTriangle] = disassembleTriangle;
-  tbl[RDPCommands.TextureRectangle] = disassembleUnhandled;
-  tbl[RDPCommands.TextureRectangleFlip] = disassembleUnhandled;
-  tbl[RDPCommands.SyncLoad] = disassembleUnhandled;
-  tbl[RDPCommands.SyncPipe] = disassembleUnhandled;
-  tbl[RDPCommands.SyncTile] = disassembleUnhandled;
-  tbl[RDPCommands.SyncFull] = disassembleUnhandled;
-  tbl[RDPCommands.SetKeyGB] = disassembleUnhandled;
-  tbl[RDPCommands.SetKeyR] = disassembleUnhandled;
-  tbl[RDPCommands.SetConvert] = disassembleUnhandled;
-  tbl[RDPCommands.SetScissor] = disassembleUnhandled;
-  tbl[RDPCommands.SetPrimDepth] = disassembleUnhandled;
-  tbl[RDPCommands.SetOtherModes] = disassembleUnhandled;
-  tbl[RDPCommands.LoadTLut] = disassembleUnhandled;
-  tbl[RDPCommands.SetTileSize] = disassembleUnhandled;
-  tbl[RDPCommands.LoadBlock] = disassembleUnhandled;
-  tbl[RDPCommands.LoadTile] = disassembleUnhandled;
-  tbl[RDPCommands.SetTile] = disassembleUnhandled;
-  tbl[RDPCommands.FillRectangle] = disassembleUnhandled;
-  tbl[RDPCommands.SetFillColor] = disassembleUnhandled;
-  tbl[RDPCommands.SetFogColor] = disassembleUnhandled;
-  tbl[RDPCommands.SetBlendColor] = disassembleUnhandled;
-  tbl[RDPCommands.SetPrimColor] = disassembleUnhandled;
-  tbl[RDPCommands.SetEnvColor] = disassembleUnhandled;
-  tbl[RDPCommands.SetCombine] = disassembleUnhandled;
-  tbl[RDPCommands.SetTextureImage] = disassembleUnhandled;
-  tbl[RDPCommands.SetMaskImage] = disassembleUnhandled;
-  tbl[RDPCommands.SetColorImage] = disassembleUnhandled;
+  tbl[rdp.Commands.Nop] = disassembleNop;
+  tbl[rdp.Commands.FillTriangle] = disassembleTriangle;
+  tbl[rdp.Commands.FillZBufferTriangle] = disassembleTriangle;
+  tbl[rdp.Commands.TextureTriangle] = disassembleTriangle;
+  tbl[rdp.Commands.TextureZBufferTriangle] = disassembleTriangle;
+  tbl[rdp.Commands.ShadeTriangle] = disassembleTriangle;
+  tbl[rdp.Commands.ShadeZBufferTriangle] = disassembleTriangle;
+  tbl[rdp.Commands.ShadeTextureTriangle] = disassembleTriangle;
+  tbl[rdp.Commands.ShadeTextureZBufferTriangle] = disassembleTriangle;
+  tbl[rdp.Commands.TextureRectangle] = disassembleUnhandled;
+  tbl[rdp.Commands.TextureRectangleFlip] = disassembleUnhandled;
+  tbl[rdp.Commands.SyncLoad] = disassembleUnhandled;
+  tbl[rdp.Commands.SyncPipe] = disassembleUnhandled;
+  tbl[rdp.Commands.SyncTile] = disassembleUnhandled;
+  tbl[rdp.Commands.SyncFull] = disassembleUnhandled;
+  tbl[rdp.Commands.SetKeyGB] = disassembleUnhandled;
+  tbl[rdp.Commands.SetKeyR] = disassembleUnhandled;
+  tbl[rdp.Commands.SetConvert] = disassembleUnhandled;
+  tbl[rdp.Commands.SetScissor] = disassembleUnhandled;
+  tbl[rdp.Commands.SetPrimDepth] = disassembleUnhandled;
+  tbl[rdp.Commands.SetOtherModes] = disassembleUnhandled;
+  tbl[rdp.Commands.LoadTLut] = disassembleUnhandled;
+  tbl[rdp.Commands.SetTileSize] = disassembleUnhandled;
+  tbl[rdp.Commands.LoadBlock] = disassembleUnhandled;
+  tbl[rdp.Commands.LoadTile] = disassembleUnhandled;
+  tbl[rdp.Commands.SetTile] = disassembleUnhandled;
+  tbl[rdp.Commands.FillRectangle] = disassembleUnhandled;
+  tbl[rdp.Commands.SetFillColor] = disassembleUnhandled;
+  tbl[rdp.Commands.SetFogColor] = disassembleUnhandled;
+  tbl[rdp.Commands.SetBlendColor] = disassembleUnhandled;
+  tbl[rdp.Commands.SetPrimColor] = disassembleUnhandled;
+  tbl[rdp.Commands.SetEnvColor] = disassembleUnhandled;
+  tbl[rdp.Commands.SetCombine] = disassembleUnhandled;
+  tbl[rdp.Commands.SetTextureImage] = disassembleUnhandled;
+  tbl[rdp.Commands.SetMaskImage] = disassembleUnhandled;
+  tbl[rdp.Commands.SetColorImage] = disassembleUnhandled;
 
   return tbl;
 })();
@@ -98,7 +97,7 @@ export function disassembleCommand(buf) {
     return null;
   }
 
-  const name = padString(RDPCommands.nameOf(cmdType), 24);
+  const name = padString(rdp.Commands.nameOf(cmdType), 24);
   let disassembly = `${name}${commandBytes(cmdType, buf)}`;
   disassembly += commandTable[cmdType](cmdType, buf);
   return {

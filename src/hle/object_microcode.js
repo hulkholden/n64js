@@ -1,5 +1,5 @@
 import { toString32 } from '../format.js';
-import { GBIRDPCommands } from '../lle/rdp_commands.js';
+import { GBIRDPCommands } from '../lle/rdp_constants.js';
 import { GBIMicrocode } from './gbi_microcode.js';
 
 // Shared global state and raw RDP blocks for the object-list microcodes.

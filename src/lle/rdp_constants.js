@@ -1,6 +1,6 @@
 import { makeEnum } from "../enum.js";
 
-export const RDPCommands = makeEnum({
+export const Commands = makeEnum({
   Nop: 0,
   FillTriangle: 0x08,
   FillZBufferTriangle: 0x09,
@@ -41,6 +41,6 @@ export const RDPCommands = makeEnum({
 
 // Display lists encode RDP commands with the top two opcode bits set.
 export const GBIRDPCommands = Object.freeze(Object.fromEntries(
-  Object.entries(RDPCommands).filter(([, value]) => typeof value === 'number')
+  Object.entries(Commands).filter(([, value]) => typeof value === 'number')
     .map(([name, value]) => [name, value | 0xc0]),
 ));
