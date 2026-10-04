@@ -1,16 +1,23 @@
 import * as gbi from '../src/hle/gbi.js';
 import { RDPBuffer } from '../src/lle/rdp.js';
 import { RDPGraphics } from '../src/hle/rdp_graphics.js';
-import { Renderer } from '../src/hle/renderer.js';
-import { RSPState } from '../src/hle/rsp_state.js';
 import { trianglePacket } from './rdp_packet_fixtures.js';
+import {
+  BLUE,
+  createWebGLHarness,
+  GREEN,
+  RED,
+  WHITE,
+  assertPixels,
+} from './webgl_test_helpers.js';
 
 export function runRDPTests(gl) {
   const lines = [];
-  const ram = new DataView(new ArrayBuffer(4096));
-  const state = new RSPState();
-  state.reset(ram, 0);
-  const renderer = new Renderer(gl, state, 8, 8);
+  const { ram, state, renderer, resetFrame } = createWebGLHarness(gl, {
+    width: 8,
+    height: 8,
+    ramBytes: 4096,
+  });
   renderer.nativeTransform.initDimensions(8, 8);
   const processor = new RDPGraphics(state, ram, renderer);
   const execute = words => {
@@ -24,18 +31,18 @@ export function runRDPTests(gl) {
   state.combine.lo = 0xfffc7038 | (4 << 15) | (4 << 9) | (4 << 6) | 4; // SHADE
 
   for (const perspective of [true, false, true]) {
-    renderer.newFrame();
-    gl.disable(gl.DITHER);
-    gl.clearColor(0, 1, 0, 1);
-    gl.clear(gl.COLOR_BUFFER_BIT);
+    resetFrame([0, 1, 0, 1]);
     state.rdpOtherModeH = perspective ? gbi.G_TP_MASK : 0;
     execute(trianglePacket());
-    const actual = new Uint8Array(7 * 4);
-    gl.readPixels(0, 7, 7, 1, gl.RGBA, gl.UNSIGNED_BYTE, actual);
     const expected = Array.from({ length: 7 }, (_, x) => [8 + 16 * x, 0, 0, 255]).flat();
-    if (actual.some((v, i) => Math.abs(v - expected[i]) > 1) || gl.getError() !== gl.NO_ERROR) {
-      throw new Error(`RDP shade perspective=${perspective}: expected ${expected}, got ${actual}`);
-    }
+    assertPixels(gl, {
+      x: 0,
+      y: 7,
+      width: 7,
+      height: 1,
+      expected,
+      label: `RDP shade perspective=${perspective}`,
+    });
     lines.push(`PASS raw RDP shade stays affine with texture perspective=${perspective}`);
   }
 
@@ -51,19 +58,21 @@ export function runRDPTests(gl) {
   for (const flipped of [false, true]) {
     renderer.newFrame();
     execute([(flipped ? 0xe5000000 : 0xe4000000) | (8 << 12) | 8, 0, 0, 0x04000400]);
-    const actual = new Uint8Array(16);
-    gl.readPixels(0, 6, 2, 2, gl.RGBA, gl.UNSIGNED_BYTE, actual);
-    const red = [255, 0, 0, 255], green = [0, 255, 0, 255];
-    const blue = [0, 0, 255, 255], white = [255, 255, 255, 255];
-    const expected = (flipped ? [green, white, red, blue] : [blue, white, red, green]).flat();
-    if (actual.some((v, i) => v !== expected[i]) || gl.getError() !== gl.NO_ERROR) {
-      throw new Error(`Raw RDP rectangle flip=${flipped}: expected ${expected}, got ${actual}`);
-    }
+    const expected = (flipped ? [GREEN, WHITE, RED, BLUE] : [BLUE, WHITE, RED, GREEN]).flat();
+    assertPixels(gl, {
+      x: 0,
+      y: 6,
+      width: 2,
+      height: 2,
+      expected,
+      tolerance: 0,
+      label: `Raw RDP rectangle flip=${flipped}`,
+    });
     lines.push(`PASS raw RDP texture rectangle flip=${flipped} samples the expected texels`);
   }
   // STW coefficients specify S/W and 1/W, not pre-divided texture UVs.
   const texels = [0xf801, 0x07c1, 0x003f, 0xffff, 0xffc1, 0xf83f, 0x07ff, 1];
-  const colors = [[255, 0, 0, 255], [0, 255, 0, 255], [0, 0, 255, 255], [255, 255, 255, 255],
+  const colors = [RED, GREEN, BLUE, WHITE,
     [255, 255, 0, 255], [255, 0, 255, 255], [0, 255, 255, 255], [0, 0, 0, 255]];
   tile.set(gbi.ImageFormat.G_IM_FMT_RGBA, gbi.ImageSize.G_IM_SIZ_16b, 2, 0, 0, 2, 0, 0, 2, 0, 0);
   tile.setSize(0, 0, 28, 0);
@@ -73,15 +82,18 @@ export function runRDPTests(gl) {
     renderer.newFrame();
     state.rdpOtherModeH = perspective ? gbi.G_TP_MASK : 0;
     execute(trianglePacket());
-    const actual = new Uint8Array(28);
-    gl.readPixels(0, 7, 7, 1, gl.RGBA, gl.UNSIGNED_BYTE, actual);
     const expected = Array.from({ length: 7 }, (_, i) => {
       const x = i + 0.5;
       return colors[Math.floor(perspective ? 8 * x / (16 - x) : x / 4)];
     }).flat();
-    if (actual.some((v, i) => v !== expected[i]) || gl.getError() !== gl.NO_ERROR) {
-      throw new Error(`Raw RDP STW perspective=${perspective}: expected ${expected}, got ${actual}`);
-    }
+    assertPixels(gl, {
+      x: 0,
+      y: 7,
+      width: 7,
+      height: 1,
+      expected,
+      label: `Raw RDP STW perspective=${perspective}`,
+    });
     lines.push(`PASS raw RDP triangle STW interpolation perspective=${perspective}`);
   }
   renderer.reset();

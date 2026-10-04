@@ -1,21 +1,20 @@
 import { GBI1 } from '../src/hle/gbi1.js';
 import { GBI2 } from '../src/hle/gbi2.js';
-import { Renderer } from '../src/hle/renderer.js';
-import { RSPState } from '../src/hle/rsp_state.js';
-import { TriangleBuffer } from '../src/hle/triangle_buffer.js';
+import {
+  createWebGLHarness,
+  drawProjectedTriangle,
+  evaluateChecks,
+} from './webgl_test_helpers.js';
 
 // Render the same command sequence through both families. The first triangle
 // was loaded before the updates; the others use new diffuse/ambient colours.
 export function renderLightColorScene(gl) {
-  const ram = new DataView(new ArrayBuffer(256));
-  const state = new RSPState();
-  state.reset(ram, 0);
-  const renderer = new Renderer(gl, state, 800, 360);
-  renderer.newFrame();
-  gl.disable(gl.DITHER);
-  gl.disable(gl.SCISSOR_TEST);
-  gl.clearColor(0.035, 0.05, 0.08, 1);
-  gl.clear(gl.COLOR_BUFFER_BIT);
+  const { ram, state, renderer, resetFrame } = createWebGLHarness(gl, {
+    width: 800,
+    height: 360,
+    ramBytes: 256,
+  });
+  resetFrame([0.035, 0.05, 0.08, 1]);
   state.geometryMode.lighting = 1;
   state.geometryMode.shade = 1;
   state.geometryMode.shadeSmooth = 1;
@@ -40,9 +39,7 @@ export function renderLightColorScene(gl) {
     const load = () => microcode.loadVertices(0, 3, 0);
     const draw = (column, label, expected) => {
       gl.viewport(column * 200 + 10, (1 - row) * 180 + 10, 180, 160);
-      const buffer = new TriangleBuffer(1);
-      buffer.pushTri(...state.projectedVertices.slice(0, 3));
-      renderer.flushTris(buffer);
+      drawProjectedTriangle(renderer, state.projectedVertices);
       const actual = new Uint8Array(4);
       gl.readPixels(column * 200 + 100, (1 - row) * 180 + 70, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, actual);
       checks.push({ name: `${Type.name} ${label}`, actual: [...actual], expected });
@@ -89,10 +86,5 @@ export function renderLightColorScene(gl) {
 export function runLightColorTests(gl) {
   gl.canvas.width = 800;
   gl.canvas.height = 360;
-  return renderLightColorScene(gl).map(({ name, actual, expected }) => {
-    if (actual.some((value, i) => Math.abs(value - expected[i]) > 1)) {
-      throw new Error(`${name}: expected ${expected}, got ${actual}`);
-    }
-    return `PASS ${name}`;
-  });
+  return evaluateChecks(renderLightColorScene(gl));
 }

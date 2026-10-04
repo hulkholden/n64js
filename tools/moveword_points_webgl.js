@@ -1,26 +1,22 @@
 import { renderModifyVertexScene } from './modify_vertex_webgl.js';
 import { executeDisplayList } from '../src/hle/display_list.js';
 import { GBI2 } from '../src/hle/gbi2.js';
-import { Renderer } from '../src/hle/renderer.js';
-import { RSPState } from '../src/hle/rsp_state.js';
+import { createWebGLHarness, evaluateChecks } from './webgl_test_helpers.js';
 
 // A real display list uses WCW's ForceMatrix pair, then explicitly invalidates it.
 export function renderForceMatrixScene(gl) {
-  const ram = new DataView(new ArrayBuffer(1024));
-  const state = new RSPState();
-  state.reset(ram, 8);
-  const renderer = new Renderer(gl, state, 600, 180);
-  renderer.newFrame();
-  gl.disable(gl.DITHER);
-  gl.disable(gl.SCISSOR_TEST);
-  gl.clearColor(16 / 255, 32 / 255, 48 / 255, 1);
-  gl.clear(gl.COLOR_BUFFER_BIT);
+  const { ram, state, renderer, microcode, resetFrame } = createWebGLHarness(gl, {
+    width: 600,
+    height: 180,
+    ramBytes: 1024,
+    pc: 8,
+    Microcode: GBI2,
+  });
+  resetFrame([16, 32, 48, 255]);
   state.geometryMode.shade = state.geometryMode.shadeSmooth = 1;
   state.combine.hi = 0x00ffffff;
   state.combine.lo = (0xfffc7038 | (4 << 15) | (4 << 9) | (4 << 6) | 4) >>> 0;
   state.rdpOtherModeL = 0x00400000;
-  const microcode = new GBI2(state, ram);
-  microcode.renderer = renderer;
   for (const [i, x, y] of [[0, -1, -1], [1, 1, -1], [2, 0, 1]]) {
     ram.setInt16(256 + i * 16, x);
     ram.setInt16(258 + i * 16, y);
@@ -65,10 +61,5 @@ export function runMoveWordPointsTests(gl, pointsCanvas) {
   gl.canvas.width = 600;
   gl.canvas.height = 180;
   checks.push(...renderForceMatrixScene(gl));
-  return checks.map(({ name, actual, expected }) => {
-    if (actual.some((value, i) => Math.abs(value - expected[i]) > 1)) {
-      throw new Error(`${name}: expected ${expected}, got ${actual}`);
-    }
-    return `PASS ${name}`;
-  });
+  return evaluateChecks(checks);
 }

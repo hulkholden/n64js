@@ -1,20 +1,24 @@
 import { Matrix4x4 } from '../src/graphics/Matrix4x4.js';
 import * as gbi from '../src/hle/gbi.js';
 import { GBIMicrocode } from '../src/hle/gbi_microcode.js';
-import { Renderer } from '../src/hle/renderer.js';
-import { RSPState } from '../src/hle/rsp_state.js';
-import { TriangleBuffer } from '../src/hle/triangle_buffer.js';
+import {
+  assertPixels,
+  createTestTexture,
+  createWebGLHarness,
+  drawProjectedTriangle,
+  solid,
+} from './webgl_test_helpers.js';
 
 // Runs in the existing pixel-check page/GL context, so CI exercises the actual
 // vertex loader, shader variants, interpolation and final framebuffer blend.
 export function runFogTests(gl) {
   const lines = [];
-  const ram = new DataView(new ArrayBuffer(64));
-  const state = new RSPState();
-  state.reset(ram, 0);
-  const renderer = new Renderer(gl, state, 4, 1);
-  const microcode = new GBIMicrocode(state, ram);
-  microcode.renderer = renderer;
+  const { ram, state, renderer, microcode } = createWebGLHarness(gl, {
+    width: 4,
+    height: 1,
+    ramBytes: 64,
+    Microcode: GBIMicrocode,
+  });
   renderer.newFrame();
   gl.disable(gl.DITHER);
   state.rdpOtherModeH = gbi.CycleType.G_CYC_2CYCLE;
@@ -59,19 +63,11 @@ export function runFogTests(gl) {
     renderer.newFrame();
     gl.clearColor(0, 1, 0, 1);
     gl.clear(gl.COLOR_BUFFER_BIT);
-    const buffer = new TriangleBuffer(1);
-    buffer.pushTri(...state.projectedVertices.slice(0, 3));
-    renderer.flushTris(buffer);
-    const actual = new Uint8Array(16);
-    gl.readPixels(0, 0, 4, 1, gl.RGBA, gl.UNSIGNED_BYTE, actual);
-    const error = gl.getError();
-    if (error !== gl.NO_ERROR || actual.some((value, i) => Math.abs(value - expected.flat()[i]) > 1)) {
-      throw new Error(`${name}: expected ${expected.flat()}, got ${Array.from(actual)} (GL error ${error})`);
-    }
+    drawProjectedTriangle(renderer, state.projectedVertices);
+    assertPixels(gl, { width: 4, height: 1, expected, label: name });
     lines.push(`PASS ${name}`);
     return renderer.getCurrentN64Shader(state.noNearClipping);
   }
-  const solid = color => Array(4).fill(color);
   const gradient = factors => factors.map(a => [a, 0, 255 - a, 255]);
 
   load([0, 0, 0]);
@@ -177,11 +173,7 @@ export function runFogTests(gl) {
   check('combiner SHADE alpha interpolates linearly without a fog blender', [56, 72, 88, 104].map(a => [0, 0, 255, a]));
 
   // A translucent blue texel supplies alpha independently of shade/fog.
-  const texture = gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D, texture);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 255, 128]));
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  const { texture } = createTestTexture(gl, 1, 1, [[0, 0, 255, 128]]);
   renderer.lookupTexture = () => ({ texture, width: 1, height: 1 });
   for (const tile of state.tiles.slice(0, 2)) {
     tile.set(gbi.ImageFormat.G_IM_FMT_RGBA, gbi.ImageSize.G_IM_SIZ_32b, 1, 0, 0, 2, 0, 0, 2, 0, 0);
