@@ -83,7 +83,15 @@ export class VIRegDevice extends Device {
     this.vScanMin = pal ? 44 : 34;
     this.vScanMax = this.vScanMin + this.screenHeight;
     this.scanout = new VIScanout(this.screenWidth, this.screenHeight);
+
+    // Progressive CPU video: resized to the native source extent and format,
+    // then fully overwritten with unscaled pixels. The presentation shader
+    // applies VI scaling, subpixel offsets and display borders.
     this.nativeFramebuffer = new Framebuffer();
+
+    // Interlaced CPU video: VI sampling is applied into these display-sized
+    // buffers on the CPU. Each update retains the opposite field's rows;
+    // separate 16/32-bit buffers preserve that history in their upload formats.
     this.displayFramebuffer16 = new Framebuffer(this.screenWidth, this.screenHeight, 16);
     this.displayFramebuffer32 = new Framebuffer(this.screenWidth, this.screenHeight, 32);
   }
