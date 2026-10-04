@@ -1,6 +1,7 @@
 import { toString32 } from '../format.js';
 import { GBIRDPCommands } from '../lle/rdp_commands.js';
 import * as gbi from './gbi.js';
+import * as gbi2 from './gbi2_constants.js';
 import { GBIMicrocode } from './gbi_microcode.js';
 import { GBI1 } from './gbi1.js';
 import { ProjectedVertex } from './projected_vertex.js';
@@ -48,11 +49,11 @@ export class ZSortP extends GBIMicrocode {
 
       // These commands retain the original GBI1 field encodings, despite
       // occupying opcode slots also used by GBI2.
-      [gbi.GBI2Commands.G_MOVEWORD, this.executeMoveWord.bind(this)],
-      [gbi.GBI2Commands.G_DL, this.executeDL.bind(this)],
-      [gbi.GBI2Commands.G_ENDDL, this.executeEndDL.bind(this)],
-      [gbi.GBI2Commands.G_SETOTHERMODE_L, GBI1.prototype.executeSetOtherModeL.bind(this)],
-      [gbi.GBI2Commands.G_SETOTHERMODE_H, GBI1.prototype.executeSetOtherModeH.bind(this)],
+      [gbi2.Commands.G_MOVEWORD, this.executeMoveWord.bind(this)],
+      [gbi2.Commands.G_DL, this.executeDL.bind(this)],
+      [gbi2.Commands.G_ENDDL, this.executeEndDL.bind(this)],
+      [gbi2.Commands.G_SETOTHERMODE_L, GBI1.prototype.executeSetOtherModeL.bind(this)],
+      [gbi2.Commands.G_SETOTHERMODE_H, GBI1.prototype.executeSetOtherModeH.bind(this)],
     ]);
   }
 
@@ -93,7 +94,7 @@ export class ZSortP extends GBIMicrocode {
       const opcode = cmd0 >>> 24;
       pc += 8;
 
-      if (opcode === gbi.GBI2Commands.G_ENDDL) {
+      if (opcode === gbi2.Commands.G_ENDDL) {
         return;
       }
 
@@ -106,7 +107,7 @@ export class ZSortP extends GBIMicrocode {
       } else {
         // OtherMode and NoOp use their GBI encodings inside these blocks too.
         // Do not dispatch nested object/task commands from an RDP block.
-        const handler = opcode === G_SPNOOP || opcode === gbi.GBI2Commands.G_SETOTHERMODE_L || opcode === gbi.GBI2Commands.G_SETOTHERMODE_H
+        const handler = opcode === G_SPNOOP || opcode === gbi2.Commands.G_SETOTHERMODE_L || opcode === gbi2.Commands.G_SETOTHERMODE_H
           ? this.commands.get(opcode) : this.gbiCommonCommands.get(opcode);
         if (!handler) {
           this.executeUnknown(cmd0, cmd1);

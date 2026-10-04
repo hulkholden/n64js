@@ -1,6 +1,7 @@
 import { toHex, toString16, toString32 } from "../format.js";
 import * as disassemble from './disassemble.js';
 import * as gbi from './gbi.js';
+import * as gbi2 from './gbi2_constants.js';
 import { GBIMicrocode } from "./gbi_microcode.js";
 
 export class GBI2 extends GBIMicrocode {
@@ -9,37 +10,37 @@ export class GBI2 extends GBIMicrocode {
     this.vertexStride = 2;
 
     this.gbi2Commands = new Map([
-      [gbi.GBI2Commands.G_NOOP, this.executeNoop.bind(this)],
-      [gbi.GBI2Commands.G_VTX, this.executeVertex.bind(this)],
-      [gbi.GBI2Commands.G_MODIFYVTX, this.executeModifyVertex.bind(this)],
-      [gbi.GBI2Commands.G_CULLDL, this.executeCullDL.bind(this)],
-      [gbi.GBI2Commands.G_BRANCH_Z, this.executeBranchZ.bind(this)],
-      [gbi.GBI2Commands.G_TRI1, this.executeTri1.bind(this)],
-      [gbi.GBI2Commands.G_TRI2, this.executeTri2.bind(this)],
-      [gbi.GBI2Commands.G_QUAD, this.executeQuad.bind(this)],
-      [gbi.GBI2Commands.G_LINE3D, this.executeLine3D.bind(this)],
-      [gbi.GBI2Commands.G_BG_1CYC, this.executeBgRect1Cyc.bind(this)],
-      [gbi.GBI2Commands.G_BG_COPY, this.executeBgRectCopy.bind(this)],
-      [gbi.GBI2Commands.G_OBJ_RENDERMODE, this.executeObjRenderMode.bind(this)],
+      [gbi2.Commands.G_NOOP, this.executeNoop.bind(this)],
+      [gbi2.Commands.G_VTX, this.executeVertex.bind(this)],
+      [gbi2.Commands.G_MODIFYVTX, this.executeModifyVertex.bind(this)],
+      [gbi2.Commands.G_CULLDL, this.executeCullDL.bind(this)],
+      [gbi2.Commands.G_BRANCH_Z, this.executeBranchZ.bind(this)],
+      [gbi2.Commands.G_TRI1, this.executeTri1.bind(this)],
+      [gbi2.Commands.G_TRI2, this.executeTri2.bind(this)],
+      [gbi2.Commands.G_QUAD, this.executeQuad.bind(this)],
+      [gbi2.Commands.G_LINE3D, this.executeLine3D.bind(this)],
+      [gbi2.Commands.G_BG_1CYC, this.executeBgRect1Cyc.bind(this)],
+      [gbi2.Commands.G_BG_COPY, this.executeBgRectCopy.bind(this)],
+      [gbi2.Commands.G_OBJ_RENDERMODE, this.executeObjRenderMode.bind(this)],
 
-      [gbi.GBI2Commands.G_SPECIAL_1, this.executeDLCount.bind(this)],
-      [gbi.GBI2Commands.G_DMA_IO, this.executeDmaIo.bind(this)],
-      [gbi.GBI2Commands.G_TEXTURE, this.executeTexture.bind(this)],
-      [gbi.GBI2Commands.G_POPMTX, this.executePopMatrix.bind(this)],
-      [gbi.GBI2Commands.G_GEOMETRYMODE, this.executeGeometryMode.bind(this)],
-      [gbi.GBI2Commands.G_MTX, this.executeMatrix.bind(this)],
-      [gbi.GBI2Commands.G_MOVEWORD, this.executeMoveWord.bind(this)],
-      [gbi.GBI2Commands.G_MOVEMEM, this.executeMoveMem.bind(this)],
-      [gbi.GBI2Commands.G_LOAD_UCODE, this.executeLoadUcode.bind(this)],
-      [gbi.GBI2Commands.G_DL, this.executeDL.bind(this)],
-      [gbi.GBI2Commands.G_ENDDL, this.executeEndDL.bind(this)],
+      [gbi2.Commands.G_SPECIAL_1, this.executeDLCount.bind(this)],
+      [gbi2.Commands.G_DMA_IO, this.executeDmaIo.bind(this)],
+      [gbi2.Commands.G_TEXTURE, this.executeTexture.bind(this)],
+      [gbi2.Commands.G_POPMTX, this.executePopMatrix.bind(this)],
+      [gbi2.Commands.G_GEOMETRYMODE, this.executeGeometryMode.bind(this)],
+      [gbi2.Commands.G_MTX, this.executeMatrix.bind(this)],
+      [gbi2.Commands.G_MOVEWORD, this.executeMoveWord.bind(this)],
+      [gbi2.Commands.G_MOVEMEM, this.executeMoveMem.bind(this)],
+      [gbi2.Commands.G_LOAD_UCODE, this.executeLoadUcode.bind(this)],
+      [gbi2.Commands.G_DL, this.executeDL.bind(this)],
+      [gbi2.Commands.G_ENDDL, this.executeEndDL.bind(this)],
 
-      [gbi.GBI2Commands.G_SPNOOP, this.executeSpNoop.bind(this)],
-      [gbi.GBI2Commands.G_RDPHALF_1, this.executeRDPHalf1.bind(this)],
-      [gbi.GBI2Commands.G_SETOTHERMODE_L, this.executeSetOtherModeL.bind(this)],
-      [gbi.GBI2Commands.G_SETOTHERMODE_H, this.executeSetOtherModeH.bind(this)],
+      [gbi2.Commands.G_SPNOOP, this.executeSpNoop.bind(this)],
+      [gbi2.Commands.G_RDPHALF_1, this.executeRDPHalf1.bind(this)],
+      [gbi2.Commands.G_SETOTHERMODE_L, this.executeSetOtherModeL.bind(this)],
+      [gbi2.Commands.G_SETOTHERMODE_H, this.executeSetOtherModeH.bind(this)],
 
-      [gbi.GBI2Commands.G_RDPHALF_2, this.executeRDPHalf2.bind(this)],
+      [gbi2.Commands.G_RDPHALF_2, this.executeRDPHalf2.bind(this)],
     ]);
   }
 
@@ -125,8 +126,8 @@ export class GBI2 extends GBIMicrocode {
     // Do not consume EndDL (or a branch) as rectangle data and run off the list.
     const end = state.pcEnd || this.ramDV.byteLength;
     if (!pc || pc + 16 > end || pc + 16 > this.ramDV.byteLength ||
-        (this.ramDV.getUint32(pc) >>> 24) !== gbi.GBI2Commands.G_RDPHALF_1 ||
-        (this.ramDV.getUint32(pc + 8) >>> 24) !== gbi.GBI2Commands.G_RDPHALF_2) {
+        (this.ramDV.getUint32(pc) >>> 24) !== gbi2.Commands.G_RDPHALF_1 ||
+        (this.ramDV.getUint32(pc + 8) >>> 24) !== gbi2.Commands.G_RDPHALF_2) {
       const message = 'Incomplete GBI2 texture rectangle: expected RDPHalf1 and RDPHalf2';
       this.warn(message);
       if (dis) {

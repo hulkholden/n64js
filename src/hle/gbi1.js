@@ -1,6 +1,7 @@
 import { toHex, toString16, toString32 } from "../format.js";
 import * as disassemble from './disassemble.js';
 import * as gbi from './gbi.js';
+import * as gbi1 from './gbi1_constants.js';
 import { GBIMicrocode } from "./gbi_microcode.js";
 
 let executeLine3D_Warned = false;
@@ -11,32 +12,32 @@ export class GBI1 extends GBIMicrocode {
     this.vertexStride = 2;
 
     this.gbi1Commands = new Map([
-      [gbi.GBI1Commands.G_SPNOOP, this.executeSpNoop.bind(this)],
-      [gbi.GBI1Commands.G_MTX, this.executeMatrix.bind(this)],
-      [gbi.GBI1Commands.G_MOVEMEM, this.executeMoveMem.bind(this)],
-      [gbi.GBI1Commands.G_VTX, this.executeVertex.bind(this)],
-      [gbi.GBI1Commands.G_DL, this.executeDL.bind(this)],
+      [gbi1.Commands.G_SPNOOP, this.executeSpNoop.bind(this)],
+      [gbi1.Commands.G_MTX, this.executeMatrix.bind(this)],
+      [gbi1.Commands.G_MOVEMEM, this.executeMoveMem.bind(this)],
+      [gbi1.Commands.G_VTX, this.executeVertex.bind(this)],
+      [gbi1.Commands.G_DL, this.executeDL.bind(this)],
       // DLParser_GBI1_Reserved
-      [gbi.GBI1Commands.G_SPRITE2D_BASE, this.executeSprite2DBase.bind(this)],
+      [gbi1.Commands.G_SPRITE2D_BASE, this.executeSprite2DBase.bind(this)],
 
-      [gbi.GBI1Commands.G_LOAD_UCODE, this.executeLoadUcode.bind(this)],
-      [gbi.GBI1Commands.G_BRANCH_Z, this.executeBranchZ.bind(this)],
-      [gbi.GBI1Commands.G_TRI2, this.executeTri2.bind(this)],
-      [gbi.GBI1Commands.G_MODIFYVTX, this.executeModifyVertex.bind(this)],
-      [gbi.GBI1Commands.G_RDPHALF_2, this.executeRDPHalf2.bind(this)],
-      [gbi.GBI1Commands.G_RDPHALF_1, this.executeRDPHalf1.bind(this)],
-      [gbi.GBI1Commands.G_LINE3D, this.executeLine3D.bind(this)],
-      [gbi.GBI1Commands.G_CLEARGEOMETRYMODE, this.executeClearGeometryMode.bind(this)],
-      [gbi.GBI1Commands.G_SETGEOMETRYMODE, this.executeSetGeometryMode.bind(this)],
-      [gbi.GBI1Commands.G_ENDDL, this.executeEndDL.bind(this)],
-      [gbi.GBI1Commands.G_SETOTHERMODE_L, this.executeSetOtherModeL.bind(this)],
-      [gbi.GBI1Commands.G_SETOTHERMODE_H, this.executeSetOtherModeH.bind(this)],
-      [gbi.GBI1Commands.G_TEXTURE, this.executeTexture.bind(this)],
-      [gbi.GBI1Commands.G_MOVEWORD, this.executeMoveWord.bind(this)],
-      [gbi.GBI1Commands.G_POPMTX, this.executePopMatrix.bind(this)],
-      [gbi.GBI1Commands.G_CULLDL, this.executeCullDL.bind(this)],
-      [gbi.GBI1Commands.G_TRI1, this.executeTri1.bind(this)],
-      [gbi.GBI1Commands.G_NOOP, this.executeNoop.bind(this)],
+      [gbi1.Commands.G_LOAD_UCODE, this.executeLoadUcode.bind(this)],
+      [gbi1.Commands.G_BRANCH_Z, this.executeBranchZ.bind(this)],
+      [gbi1.Commands.G_TRI2, this.executeTri2.bind(this)],
+      [gbi1.Commands.G_MODIFYVTX, this.executeModifyVertex.bind(this)],
+      [gbi1.Commands.G_RDPHALF_2, this.executeRDPHalf2.bind(this)],
+      [gbi1.Commands.G_RDPHALF_1, this.executeRDPHalf1.bind(this)],
+      [gbi1.Commands.G_LINE3D, this.executeLine3D.bind(this)],
+      [gbi1.Commands.G_CLEARGEOMETRYMODE, this.executeClearGeometryMode.bind(this)],
+      [gbi1.Commands.G_SETGEOMETRYMODE, this.executeSetGeometryMode.bind(this)],
+      [gbi1.Commands.G_ENDDL, this.executeEndDL.bind(this)],
+      [gbi1.Commands.G_SETOTHERMODE_L, this.executeSetOtherModeL.bind(this)],
+      [gbi1.Commands.G_SETOTHERMODE_H, this.executeSetOtherModeH.bind(this)],
+      [gbi1.Commands.G_TEXTURE, this.executeTexture.bind(this)],
+      [gbi1.Commands.G_MOVEWORD, this.executeMoveWord.bind(this)],
+      [gbi1.Commands.G_POPMTX, this.executePopMatrix.bind(this)],
+      [gbi1.Commands.G_CULLDL, this.executeCullDL.bind(this)],
+      [gbi1.Commands.G_TRI1, this.executeTri1.bind(this)],
+      [gbi1.Commands.G_NOOP, this.executeNoop.bind(this)],
     ]);
   }
 

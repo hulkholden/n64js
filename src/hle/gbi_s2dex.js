@@ -782,7 +782,7 @@ export class GBI1SDEX extends GBI1 {
       [S2DEX1Commands.G_OBJ_MOVEMEM, this.s2dex.executeObjMoveMem.bind(this.s2dex)],
 
       // This is set in base - why?
-      //  [gbi.GBI1Commands.G_SPRITE2D_BASE, this.executeSprite2DBase],
+      // G_SPRITE2D_BASE is inherited from GBI1.
 
       [S2DEX1Commands.G_SELECT_DL, this.s2dex.executeSelectDL.bind(this.s2dex)],
       [S2DEX1Commands.G_OBJ_RENDERMODE, this.s2dex.executeObjRendermode.bind(this.s2dex)],

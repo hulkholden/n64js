@@ -1,7 +1,7 @@
 import { toString32 } from "../format.js";
 import { Vector3 } from "../graphics/Vector3.js";
 import * as rdp from "../lle/rdp.js";
-import * as gbi from './gbi.js';
+import * as gbi1 from './gbi1_constants.js';
 import * as rdpdis from "./disassemble_rdp.js";
 import { GBI1 } from "./gbi1.js";
 
@@ -25,7 +25,7 @@ export class GBI0 extends GBI1 {
     this.gbi0Commands = new Map([
       [G_GBI0_RESERVED, this.executeUnknown.bind(this)],      // Defined as executeBranchZ for GBI1.
       [G_TRI4, this.executeTri4.bind(this)],         // Defined as executeTri2 for GBI1.
-      [gbi.GBI1Commands.G_RDPHALF_CONT, this.executeRDPHalf_Cont.bind(this)], // Defined as executeModifyVertex for GBI1.
+      [gbi1.Commands.G_RDPHALF_CONT, this.executeRDPHalf_Cont.bind(this)], // Defined as executeModifyVertex for GBI1.
     ]);
   }
 
@@ -192,7 +192,7 @@ export class GBI0Early extends GBI0 {
       return;
     }
     // Reuse the ordinary handlers after translating to the later GBI layout.
-    super.executeMoveWord(((gbi.GBI1Commands.G_MOVEWORD << 24) | (offset << 8) | (index + EARLY_MOVEWORD_INDEX_BIAS)) >>> 0, cmd1, dis);
+    super.executeMoveWord(((gbi1.Commands.G_MOVEWORD << 24) | (offset << 8) | (index + EARLY_MOVEWORD_INDEX_BIAS)) >>> 0, cmd1, dis);
   }
 }
 
@@ -203,9 +203,9 @@ export class GBI0GE extends GBI0 {
 
     this.geCommands = new Map([
 
-      [gbi.GBI1Commands.G_RDPHALF_CONT, this.executeRDPCommandHalf2.bind(this)],
-      [gbi.GBI1Commands.G_RDPHALF_2, this.executeRDPCommandHalf22Final.bind(this)],
-      [gbi.GBI1Commands.G_RDPHALF_1, this.executeRDPCommandHalf1.bind(this)],
+      [gbi1.Commands.G_RDPHALF_CONT, this.executeRDPCommandHalf2.bind(this)],
+      [gbi1.Commands.G_RDPHALF_2, this.executeRDPCommandHalf22Final.bind(this)],
+      [gbi1.Commands.G_RDPHALF_1, this.executeRDPCommandHalf1.bind(this)],
     ]);
   }
 
@@ -228,9 +228,9 @@ export class GBI0PD extends GBI0 {
       // G_VTX differs from GBI0, but is handled by overriding loadVertices.
       [G_VTXCOLORBASE, this.executeSetVertexColorIndex.bind(this)],
 
-      [gbi.GBI1Commands.G_RDPHALF_CONT, this.executeRDPCommandHalf2.bind(this)],
-      [gbi.GBI1Commands.G_RDPHALF_2, this.executeRDPCommandHalf22Final.bind(this)],
-      [gbi.GBI1Commands.G_RDPHALF_1, this.executeRDPCommandHalf1.bind(this)],
+      [gbi1.Commands.G_RDPHALF_CONT, this.executeRDPCommandHalf2.bind(this)],
+      [gbi1.Commands.G_RDPHALF_2, this.executeRDPCommandHalf22Final.bind(this)],
+      [gbi1.Commands.G_RDPHALF_1, this.executeRDPCommandHalf1.bind(this)],
     ]);
   }
 
