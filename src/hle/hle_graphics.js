@@ -185,21 +185,20 @@ export function presentBackBuffer() {
   // If no display lists executed, interpret framebuffer as bytes
   initDimensionsFromVI(vi);    // resize canvas to match VI res.
 
-  // Keep the existing field weave for interlaced CPU video. Progressive video
-  // can be uploaded at native resolution and scaled by the presentation pass.
-  if (!vi.interlaced) {
-    const frame = vi.renderNativeBackBuffer();
-    if (frame) {
-      renderer.copyPixelsToFrontBuffer(frame.pixels, frame.width, frame.height, vi.bitDepth, timeSeconds, frame);
+  // Keep the existing field weave for interlaced CPU video.
+  if (vi.interlaced) {
+    const pixels = vi.renderBackBuffer();
+    if (pixels) {
+      renderer.copyPixelsToFrontBuffer(pixels, vi.screenWidth, vi.screenHeight, vi.bitDepth, timeSeconds);
     }
     return;
   }
 
-  const pixels = vi.renderBackBuffer();
-  if (!pixels) {
-    return;
+  // Progressive video uploads at native resolution and scales during presentation.
+  const frame = vi.renderNativeBackBuffer();
+  if (frame) {
+    renderer.copyPixelsToFrontBuffer(frame.pixels, frame.width, frame.height, vi.bitDepth, timeSeconds, frame);
   }
-  renderer.copyPixelsToFrontBuffer(pixels, vi.screenWidth, vi.screenHeight, vi.bitDepth, timeSeconds);
 }
 
 function processDList(task, disassembler, bailAfter, onFullSync = null) {
