@@ -890,7 +890,7 @@ export class GBIMicrocode {
     this.rdpTexRect(cmd0, cmd1, cmd2, cmd3, dis);
   }
 
-  rdpTexRect(cmd0, cmd1, cmd2, cmd3, dis) {
+  rdpTexRectImpl(cmd0, cmd1, cmd2, cmd3, dis, flip) {
     let xh = ((cmd0 >>> 12) & 0xfff) / 4.0;
     let yh = ((cmd0 >>> 0) & 0xfff) / 4.0;
     const tileIdx = (cmd1 >>> 24) & 0x7;
@@ -916,19 +916,25 @@ export class GBIMicrocode {
       yh += 1.0;
     }
 
+    // When flipped, S/T advance along opposite screen dimensions.
     // The renderer samples the command's S/T at the first native pixel, even
     // for negative derivatives.
-    const s1 = s0 + dsdx * (xh - xl);
-    const t1 = t0 + dtdy * (yh - yl);
+    const s1 = s0 + dsdx * (flip ? (yh - yl) : (xh - xl));
+    const t1 = t0 + dtdy * (flip ? (xh - xl) : (yh - yl));
 
     if (dis) {
       const tt = gbi.getTileText(tileIdx);
-      dis.text(`gsSPTextureRectangle(${xl},${yl},${xh},${yh},${tt},${s0},${t0},${dsdx},${dtdy});`);
-      dis.tip(`cmd2 = ${toString32(cmd2)}, cmd3 = ${toString32(cmd3)}`)
-      dis.tip(`st0 = (${s0}, ${t0}) st1 = (${s1}, ${t1})`)
+      const name = flip ? 'gsSPTextureRectangleFlip' : 'gsSPTextureRectangle';
+      dis.text(`${name}(${xl},${yl},${xh},${yh},${tt},${s0},${t0},${dsdx},${dtdy});`);
+      dis.tip(`cmd2 = ${toString32(cmd2)}, cmd3 = ${toString32(cmd3)}`);
+      dis.tip(`st0 = (${s0}, ${t0}) st1 = (${s1}, ${t1})`);
     }
 
-    this.renderer.texRect(tileIdx, xl, yl, xh, yh, s0, t0, s1, t1, false);
+    this.renderer.texRect(tileIdx, xl, yl, xh, yh, s0, t0, s1, t1, flip);
+  }
+
+  rdpTexRect(cmd0, cmd1, cmd2, cmd3, dis) {
+    this.rdpTexRectImpl(cmd0, cmd1, cmd2, cmd3, dis, false);
   }
 
   executeTexRectFlip(cmd0, cmd1, dis) {
@@ -942,43 +948,7 @@ export class GBIMicrocode {
   }
 
   rdpTexRectFlip(cmd0, cmd1, cmd2, cmd3, dis) {
-    let xh = ((cmd0 >>> 12) & 0xfff) / 4.0;
-    let yh = ((cmd0 >>> 0) & 0xfff) / 4.0;
-    const tileIdx = (cmd1 >>> 24) & 0x7;
-    const xl = ((cmd1 >>> 12) & 0xfff) / 4.0;
-    const yl = ((cmd1 >>> 0) & 0xfff) / 4.0;
-    const s0 = ((cmd2 >>> 16) & 0xffff) / 32.0;
-    const t0 = ((cmd2 >>> 0) & 0xffff) / 32.0;
-    // NB - signed value
-    let dsdx = ((cmd3 | 0) >> 16) / 1024.0;
-    const dtdy = ((cmd3 << 16) >> 16) / 1024.0;
-
-    const cycleType = this.state.getCycleType();
-
-    // In copy mode 4 pixels are copied at once.
-    if (cycleType === gbi.CycleType.G_CYC_COPY) {
-      dsdx *= 0.25;
-    }
-
-    // In Fill/Copy mode the coordinates are inclusive (i.e. add 1.0f to the w/h)
-    if (cycleType === gbi.CycleType.G_CYC_COPY ||
-      cycleType === gbi.CycleType.G_CYC_FILL) {
-      xh += 1.0;
-      yh += 1.0;
-    }
-
-    // NB x/y are flipped
-    const s1 = s0 + dsdx * (yh - yl);
-    const t1 = t0 + dtdy * (xh - xl);
-
-    if (dis) {
-      const tt = gbi.getTileText(tileIdx);
-      dis.text(`gsSPTextureRectangleFlip(${xl},${yl},${xh},${yh},${tt},${s0},${t0},${dsdx},${dtdy});`);
-      dis.tip(`cmd2 = ${toString32(cmd2)}, cmd3 = ${toString32(cmd3)}`)
-      dis.tip(`st0 = (${s0}, ${t0}) st1 = (${s1}, ${t1})`)
-    }
-
-    this.renderer.texRect(tileIdx, xl, yl, xh, yh, s0, t0, s1, t1, true);
+    this.rdpTexRectImpl(cmd0, cmd1, cmd2, cmd3, dis, true);
   }
 
   executeCullDL(cmd0, cmd1, dis) {
