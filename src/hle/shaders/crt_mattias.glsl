@@ -38,7 +38,7 @@ vec2 mattiasCurve(vec2 uv) {
 }
 
 vec3 mattiasSample(vec2 uv) {
-  return pow(sampleSource(uv), vec3(2.2)) * 1.25;
+  return pow(sampleSourceFiltered(uv), vec3(2.2)) * 1.25;
 }
 
 vec3 mattiasFilmic(vec3 color) {

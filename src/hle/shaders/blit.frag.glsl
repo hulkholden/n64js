@@ -12,23 +12,35 @@ uniform vec4 uSourceUV; // scale.xy, offset.xy from screen UV to source UV
 uniform vec4 uSourceBounds; // visible screen rectangle, including VI borders
 uniform bool uSourceVI;
 
-vec3 sampleSource(vec2 uv) {
-  if (any(lessThan(uv, uSourceBounds.xy)) || any(greaterThanEqual(uv, uSourceBounds.zw))) {
+bool outsideSourceBounds(vec2 uv) {
+  return any(lessThan(uv, uSourceBounds.xy)) || any(greaterThanEqual(uv, uSourceBounds.zw));
+}
+
+vec3 sampleSourceNearest(vec2 uv) {
+  if (outsideSourceBounds(uv)) {
     return vec3(0.0);
   }
   vec2 sourceUV = uv * uSourceUV.xy + uSourceUV.zw;
   if (uSourceVI) {
     ivec2 size = textureSize(uSampler0, 0);
-    if (uCRTMode == 0) {
-      // Match VI integer fetches. The epsilon absorbs floating-point error at
-      // exact texel boundaries, below the VI's smallest fractional step.
-      vec2 sourcePixel = vec2(sourceUV.x, 1.0 - sourceUV.y) * vec2(size);
-      ivec2 pixel = ivec2(floor(sourcePixel + 0.0001));
-      pixel.y = size.y - 1 - pixel.y;
-      return texelFetch(uSampler0, clamp(pixel, ivec2(0), size - 1), 0).rgb;
-    }
+    // Match VI integer fetches. The epsilon absorbs floating-point error at
+    // exact texel boundaries, below the VI's smallest fractional step.
+    vec2 sourcePixel = vec2(sourceUV.x, 1.0 - sourceUV.y) * vec2(size);
+    ivec2 pixel = ivec2(floor(sourcePixel + 0.0001));
+    pixel.y = size.y - 1 - pixel.y;
+    return texelFetch(uSampler0, clamp(pixel, ivec2(0), size - 1), 0).rgb;
+  }
+  return texture(uSampler0, sourceUV).rgb;
+}
+
+vec3 sampleSourceFiltered(vec2 uv) {
+  if (outsideSourceBounds(uv)) {
+    return vec3(0.0);
+  }
+  vec2 sourceUV = uv * uSourceUV.xy + uSourceUV.zw;
+  if (uSourceVI) {
     // Smooth CRT reconstruction samples around native pixel centres.
-    sourceUV += vec2(0.5, -0.5) / vec2(size);
+    sourceUV += vec2(0.5, -0.5) / vec2(textureSize(uSampler0, 0));
   }
   return texture(uSampler0, sourceUV).rgb;
 }
@@ -40,7 +52,7 @@ void main(void) {
   vec3 color;
   switch (uCRTMode) {
     case 0:
-      color = sampleSource(vUV);
+      color = sampleSourceNearest(vUV);
       break;
     case 1:
       color = simpleCRT(gl_FragCoord.xy / uOutputResolution);
@@ -49,7 +61,7 @@ void main(void) {
       color = mattiasCRT(gl_FragCoord.xy / uOutputResolution);
       break;
     default:
-      color = sampleSource(vUV);
+      color = sampleSourceNearest(vUV);
       break;
   }
   outCol = vec4(color, 1.0);

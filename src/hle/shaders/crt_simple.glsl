@@ -3,7 +3,7 @@ vec3 simpleCRT(vec2 screenUV) {
   vec2 position = screenUV * 2.0 - 1.0;
   vec2 curved = position * (1.0 + 0.025 * position.yx * position.yx);
   vec2 uv = curved * 0.5 + 0.5;
-  vec3 color = sampleSource(uv);
+  vec3 color = sampleSourceFiltered(uv);
 
   // Fade scanlines when the output cannot resolve them to avoid moire.
   float row = uv.y * uSourceHeight;
