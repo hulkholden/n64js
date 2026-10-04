@@ -343,30 +343,11 @@ export class VIRegDevice extends Device {
       this.nativeBitDepth = bitDepth;
     }
     const pixels = this.nativePixels;
-    const lastRead = ram.byteLength - bytesPerPixel;
     // Select the format once so the pixel loops use fixed strides and masks.
     if (is32Bit) {
-      for (let y = 0; y < height; y++) {
-        let dst = (height - 1 - y) * width * 4;
-        const row = origin + y * dims.srcPitch * 4;
-        for (let x = 0; x < width; x++, dst += 4) {
-          const address = (row + x * 4) & 0x00fffffc;
-          const pixel = address <= lastRead ? ram.getUint32(address, false) : 0;
-          pixels[dst] = pixel >>> 24;
-          pixels[dst + 1] = pixel >>> 16;
-          pixels[dst + 2] = pixel >>> 8;
-          pixels[dst + 3] = 255;
-        }
-      }
+      dims.renderNativeBackBuffer32(ram, origin, pixels, width, height);
     } else {
-      for (let y = 0; y < height; y++) {
-        let dst = (height - 1 - y) * width;
-        const row = origin + y * dims.srcPitch * 2;
-        for (let x = 0; x < width; x++, dst++) {
-          const address = (row + x * 2) & 0x00fffffe;
-          pixels[dst] = (address <= lastRead ? ram.getUint16(address, false) : 0) | 1;
-        }
-      }
+      dims.renderNativeBackBuffer16(ram, origin, pixels, width, height);
     }
     // Texture rows are bottom-up. Align output pixel centres with the existing
     // VI's integer fetch positions, including fractional source offsets.
@@ -440,6 +421,34 @@ class Dimensions {
     // Offset relative to PAL/NTSC bounds.
     this.dx0 = 0;
     this.dy0 = 0;
+  }
+
+  renderNativeBackBuffer32(ramDV, dramAddr, pixels, width, height) {
+    const lastRead = ramDV.byteLength - 4;
+    for (let y = 0; y < height; y++) {
+      let dst = (height - 1 - y) * width * 4;
+      const row = dramAddr + y * this.srcPitch * 4;
+      for (let x = 0; x < width; x++, dst += 4) {
+        const address = (row + x * 4) & 0x00fffffc;
+        const pixel = address <= lastRead ? ramDV.getUint32(address, false) : 0;
+        pixels[dst] = pixel >>> 24;
+        pixels[dst + 1] = pixel >>> 16;
+        pixels[dst + 2] = pixel >>> 8;
+        pixels[dst + 3] = 255;
+      }
+    }
+  }
+
+  renderNativeBackBuffer16(ramDV, dramAddr, pixels, width, height) {
+    const lastRead = ramDV.byteLength - 2;
+    for (let y = 0; y < height; y++) {
+      let dst = (height - 1 - y) * width;
+      const row = dramAddr + y * this.srcPitch * 2;
+      for (let x = 0; x < width; x++, dst++) {
+        const address = (row + x * 2) & 0x00fffffe;
+        pixels[dst] = (address <= lastRead ? ramDV.getUint16(address, false) : 0) | 1;
+      }
+    }
   }
 
   renderBackBuffer32(ramDV, dramAddr) {
