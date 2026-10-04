@@ -29,13 +29,13 @@ const kBlendModeFog = 4;
 const loggedBlendModes = new Map();
 
 export class Renderer extends RendererBase {
-  constructor(gl, state, width, height) {
+  constructor(gl, state, initialWidth, initialHeight) {
     super(state);
     this.gl = gl;
 
     this.textureCache = new TextureCache(gl);
 
-    this.renderTargets = new RenderTargets(gl, width, height);
+    this.renderTargets = new RenderTargets(gl, initialWidth, initialHeight);
 
     this.frameBufferTexture2D = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, this.frameBufferTexture2D);
@@ -179,7 +179,7 @@ export class Renderer extends RendererBase {
     this.copyTextureToFrontBuffer(target.texture, timeSeconds, { sourceHeight: target.nativeHeight });
   }
 
-  copyPixelsToFrontBuffer(pixels, width, height, bitDepth, timeSeconds = 0, presentation = null) {
+  copyPixelsToFrontBuffer({ pixels, width, height, bitDepth, presentation }, timeSeconds = 0) {
     const gl = this.gl;
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.frameBufferTexture2D);

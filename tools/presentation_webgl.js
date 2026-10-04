@@ -40,11 +40,11 @@ export function runPresentationTests(gl) {
         vi.write32(base + 0x30, xScale | (0x180 << 16));
         vi.write32(base + 0x34, yScale | (0x280 << 16));
         const expanded = vi.renderBackBuffer();
-        renderer.copyPixelsToFrontBuffer(expanded, 640, 480, bitDepth);
+        renderer.copyPixelsToFrontBuffer(expanded);
         const expected = new Uint8Array(640 * 480 * 4);
         gl.readPixels(0, 0, 640, 480, gl.RGBA, gl.UNSIGNED_BYTE, expected);
         const frame = vi.renderNativeBackBuffer();
-        renderer.copyPixelsToFrontBuffer(frame.pixels, frame.width, frame.height, bitDepth, 0, frame);
+        renderer.copyPixelsToFrontBuffer(frame);
         const actual = new Uint8Array(expected.length);
         gl.readPixels(0, 0, 640, 480, gl.RGBA, gl.UNSIGNED_BYTE, actual);
         const mismatch = actual.findIndex((v, i) => v !== expected[i]);
@@ -54,7 +54,7 @@ export function runPresentationTests(gl) {
         lines.push(`PASS native ${bitDepth}-bit VI ${xScale}/${yScale} matches expanded scanout`);
         for (const crt of [CRTMode.Simple, CRTMode.Mattias]) {
           graphicsOptions.crtMode = crt;
-          renderer.copyPixelsToFrontBuffer(frame.pixels, frame.width, frame.height, bitDepth, 0, frame);
+          renderer.copyPixelsToFrontBuffer(frame);
           if (gl.getError() !== gl.NO_ERROR) {
             throw new Error(`Native VI CRT mode ${crt} failed`);
           }

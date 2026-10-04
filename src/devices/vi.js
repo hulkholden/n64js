@@ -330,8 +330,8 @@ export class VIRegDevice extends Device {
     buffer.resize(scanout.nativeWidth, scanout.nativeHeight, bitDepth);
     buffer.readN64Pixels(this.hardware.cachedMemDevice.mem.dataView, origin, { pitch: scanout.source.pitch });
     return {
-      pixels: buffer.pixels, width: buffer.width, height: buffer.height,
-      ...scanout.nativePresentation(),
+      pixels: buffer.pixels, width: buffer.width, height: buffer.height, bitDepth,
+      presentation: scanout.nativePresentation(),
     };
   }
 
@@ -343,7 +343,11 @@ export class VIRegDevice extends Device {
       return null;
     }
     const buffer = bitDepth === 32 ? this.displayFramebuffer32 : this.displayFramebuffer16;
-    return buffer.readN64Pixels(this.hardware.cachedMemDevice.mem.dataView, origin,
+    buffer.readN64Pixels(this.hardware.cachedMemDevice.mem.dataView, origin,
       scanout.source, scanout.displayRect, this.interlaced ? this.field : null);
+    return {
+      pixels: buffer.pixels, width: buffer.width, height: buffer.height, bitDepth,
+      presentation: null,
+    };
   }
 }
