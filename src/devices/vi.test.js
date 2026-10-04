@@ -34,6 +34,53 @@ function pixelAt(vi, pixels, bitDepth, x = 0, y = 0) {
   return bitDepth === 16 ? pixels[offset] : Array.from(pixels.subarray(offset * 4, offset * 4 + 4));
 }
 
+test('interlaced storage is allocated only when rendering and released on reset', () => {
+  const { vi } = makeVI(4096);
+  expect(vi.interlacedFramebuffer).toBeNull();
+  expect(vi.renderInterlacedBackBuffer()).toBeNull();
+  expect(vi.interlacedFramebuffer).toBeNull();
+  setSmallFrame(vi, 16, 0x100);
+  expect(vi.renderProgressiveBackBuffer()).not.toBeNull();
+  expect(vi.interlacedFramebuffer).toBeNull();
+  expect(vi.renderInterlacedBackBuffer()).not.toBeNull();
+  expect(vi.interlacedFramebuffer).not.toBeNull();
+  vi.reset();
+  expect(vi.interlacedFramebuffer).toBeNull();
+});
+
+test('interlaced scanout retains field history only within the same pixel format', () => {
+  const { vi, ram } = makeVI(4096);
+  let previousBuffer = null;
+  let previousBitDepth = 0;
+  for (const bitDepth of [16, 16, 32, 32, 16]) {
+    setSmallFrame(vi, bitDepth, 0x100);
+    vi.write32(base, (bitDepth === 16 ? 2 : 3) | 0x40);
+    const colour = bitDepth === 16 ? 0xf801 : [0x12, 0x34, 0x56, 255];
+    for (const sourcePixel of [8, 10]) {
+      if (bitDepth === 16) {
+        ram.set16(0x100 + sourcePixel * 2, 0xf800);
+      } else {
+        ram.set32(0x100 + sourcePixel * 4, 0x12345600);
+      }
+    }
+    vi.field = 0;
+    const frame = vi.renderInterlacedBackBuffer();
+    expect([frame.width, frame.height, frame.bitDepth]).toEqual([640, 480, bitDepth]);
+    expect(frame.pixels).toBeInstanceOf(bitDepth === 32 ? Uint8Array : Uint16Array);
+    expect(frame.pixels.byteLength).toBe(frame.width * frame.height * bitDepth / 8);
+    const retained = bitDepth === previousBitDepth ? colour : (bitDepth === 16 ? 0 : [0, 0, 0, 0]);
+    expect(pixelAt(vi, frame.pixels, bitDepth, 0, 0)).toEqual(retained);
+    expect(pixelAt(vi, frame.pixels, bitDepth, 0, 1)).toEqual(colour);
+    if (bitDepth === previousBitDepth) {
+      expect(vi.interlacedFramebuffer).toBe(previousBuffer);
+    }
+    vi.field = 1;
+    expect(pixelAt(vi, vi.renderInterlacedBackBuffer().pixels, bitDepth, 0, 0)).toEqual(colour);
+    previousBuffer = vi.interlacedFramebuffer;
+    previousBitDepth = bitDepth;
+  }
+});
+
 test('progressive scanout switches pixel formats and reuses buffers within a format', () => {
   const { vi, ram } = makeVI(4096);
   let previousBuffer = null;
@@ -174,8 +221,7 @@ for (const bitDepth of [16, 32]) {
       const { vi } = makeVI();
       setSmallFrame(vi, bitDepth, 0x00fdaa80);
       vi.write32(base, (bitDepth === 16 ? 2 : 3) | 0x40);
-      vi.interlacedFramebuffer16.pixels.fill(0xffff);
-      vi.interlacedFramebuffer32.pixels.fill(0xff);
+      vi.renderInterlacedBackBuffer().pixels.fill(bitDepth === 16 ? 0xffff : 0xff);
       vi.field = 0;
       const pixels = vi.renderInterlacedBackBuffer().pixels;
       expect(pixelAt(vi, pixels, bitDepth, 0, 0)).toEqual(bitDepth === 16 ? 0xffff : [255, 255, 255, 255]);

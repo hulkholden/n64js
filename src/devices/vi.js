@@ -89,11 +89,10 @@ export class VIRegDevice extends Device {
     // overwritten; the shader applies VI scaling, offsets and display borders.
     this.progressiveFramebuffer = null;
 
-    // Interlaced CPU video: VI sampling is applied into these display-sized
-    // buffers on the CPU. Each update retains the opposite field's rows;
-    // separate 16/32-bit buffers preserve that history in their upload formats.
-    this.interlacedFramebuffer16 = new Framebuffer16(this.screenWidth, this.screenHeight);
-    this.interlacedFramebuffer32 = new Framebuffer32(this.screenWidth, this.screenHeight);
+    // Interlaced CPU video: allocated on demand at display resolution for the
+    // current pixel format, with VI sampling applied on the CPU. Each update
+    // retains the opposite field's rows until the pixel format changes.
+    this.interlacedFramebuffer = null;
   }
 
   // Raw register values.
@@ -354,7 +353,11 @@ export class VIRegDevice extends Device {
     if (!scanout || !origin || !bitDepth) {
       return null;
     }
-    const buffer = bitDepth === 32 ? this.interlacedFramebuffer32 : this.interlacedFramebuffer16;
+    const FramebufferType = bitDepth === 32 ? Framebuffer32 : Framebuffer16;
+    if (!(this.interlacedFramebuffer instanceof FramebufferType)) {
+      this.interlacedFramebuffer = new FramebufferType(this.screenWidth, this.screenHeight);
+    }
+    const buffer = this.interlacedFramebuffer;
     buffer.readN64Pixels(this.hardware.cachedMemDevice.mem.dataView, origin,
       scanout.source, scanout.displayRect, this.interlaced ? this.field : null);
     return {
