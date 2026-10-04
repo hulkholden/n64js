@@ -29,16 +29,16 @@ function setSmallFrame(vi, bitDepth, origin) {
 }
 
 function pixelAt(vi, pixels, bitDepth, x = 0, y = 0) {
-  const dims = vi.dims;
-  const offset = (dims.screenHeight - 1 - dims.dy0 - y) * dims.screenWidth + dims.dx0 + x;
+  const scanout = vi.scanout;
+  const offset = (scanout.displayHeight - 1 - scanout.displayRect.y - y) * scanout.displayWidth + scanout.displayRect.x + x;
   return bitDepth === 16 ? pixels[offset] : Array.from(pixels.subarray(offset * 4, offset * 4 + 4));
 }
 
 for (const bitDepth of [16, 32]) {
   test(`${bitDepth}-bit PAL scanout reaches the bottom of the 576-line display`, () => {
     const { vi, ram } = makeVI(4096, OS_TV_PAL);
-    expect([vi.dims.screenWidth, vi.dims.screenHeight]).toEqual([640, 576]);
-    expect([vi.dims.dstWidth, vi.dims.dstHeight]).toEqual([640, 576]);
+    expect([vi.scanout.displayWidth, vi.scanout.displayHeight]).toEqual([640, 576]);
+    expect([vi.scanout.displayRect.width, vi.scanout.displayRect.height]).toEqual([640, 576]);
     setSmallFrame(vi, bitDepth, 0x100);
     vi.write32(base + 0x28, ((vi.vScanMin + 574) << 16) | vi.vScanMax);
     const address = 0x100 + 8 * bitDepth / 8;
@@ -134,7 +134,7 @@ for (const bitDepth of [16, 32]) {
       // First source coordinate is (8*2 + 1, 1), pitch 2 pixels.
       writePixel(ram, 0x1000 + (17 + 2) * bytesPerPixel);
       expect(pixelAt(vi, vi.renderBackBuffer(), bitDepth)).toEqual(colour);
-      expect(vi.dims.srcPitch).toBe(2);
+      expect(vi.scanout.source.pitch).toBe(2);
       vi.write32(base + 0x08, 0xffffffff);
       vi.write32(base + 0x30, 0x0fff0fff);
       vi.write32(base + 0x34, 0x0fff0fff);
@@ -146,8 +146,8 @@ for (const bitDepth of [16, 32]) {
       const { vi } = makeVI();
       setSmallFrame(vi, bitDepth, 0x00fdaa80);
       vi.write32(base, (bitDepth === 16 ? 2 : 3) | 0x40);
-      vi.dims.pixels16bpp.fill(0xffff);
-      vi.dims.pixels32bpp.fill(0xff);
+      vi.displayFramebuffer16.pixels.fill(0xffff);
+      vi.displayFramebuffer32.pixels.fill(0xff);
       vi.field = 0;
       const pixels = vi.renderBackBuffer();
       expect(pixelAt(vi, pixels, bitDepth, 0, 0)).toEqual(bitDepth === 16 ? 0xffff : [255, 255, 255, 255]);
@@ -170,7 +170,7 @@ for (const [region, tvType, vStart, height, yScale] of [['USA', OS_TV_NTSC, 37, 
     vi.write32(base + 0x34, yScale);
     const pixels = vi.renderBackBuffer();
     expect(pixelAt(vi, pixels, 16)).toBe(1);
-    expect(pixelAt(vi, pixels, 16, vi.dims.dstWidth - 1, 400)).toBe(1);
+    expect(pixelAt(vi, pixels, 16, vi.scanout.displayRect.width - 1, 400)).toBe(1);
   });
 }
 
@@ -189,13 +189,13 @@ for (const bitDepth of [16, 32]) {
         vi.write32(base + 4, origin);
         const frame = vi.renderNativeBackBuffer();
         const expanded = vi.renderBackBuffer();
-        const dims = vi.dims;
+        const scanout = vi.scanout;
         expect(frame.width).toBeLessThan(32);
         expect(frame.height).toBeLessThan(8);
-        for (let y = 0; y < dims.dstHeight; y++) {
-          for (let x = 0; x < dims.dstWidth; x++) {
-            const u = (dims.dx0 + x + 0.5) / dims.screenWidth;
-            const v = 1 - (dims.dy0 + y + 0.5) / dims.screenHeight;
+        for (let y = 0; y < scanout.displayRect.height; y++) {
+          for (let x = 0; x < scanout.displayRect.width; x++) {
+            const u = (scanout.displayRect.x + x + 0.5) / scanout.displayWidth;
+            const v = 1 - (scanout.displayRect.y + y + 0.5) / scanout.displayHeight;
             const sx = Math.floor((u * frame.uvTransform[0] + frame.uvTransform[2]) * frame.width + 0.0001);
             const sy = frame.height - 1 - Math.floor((1 - (v * frame.uvTransform[1] + frame.uvTransform[3])) * frame.height + 0.0001);
             const offset = sy * frame.width + sx;
@@ -203,8 +203,8 @@ for (const bitDepth of [16, 32]) {
             expect(actual).toEqual(pixelAt(vi, expanded, bitDepth, x, y));
           }
         }
-        expect(frame.bounds[0]).toBe(dims.dx0 / dims.screenWidth);
-        expect(frame.bounds[3]).toBe(1 - dims.dy0 / dims.screenHeight);
+        expect(frame.bounds[0]).toBe(scanout.displayRect.x / scanout.displayWidth);
+        expect(frame.bounds[3]).toBe(1 - scanout.displayRect.y / scanout.displayHeight);
       }
     }
     vi.write32(base + 0x30, 0);

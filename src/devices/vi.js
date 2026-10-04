@@ -1,6 +1,8 @@
 /*global n64js*/
 
 import { Device } from './device.js';
+import { Framebuffer } from '../graphics/framebuffer.js';
+import { VIScanout } from './vi_scanout.js';
 import * as mi from './mi.js';
 import * as logger from '../logger.js';
 import { toString32 } from '../format.js';
@@ -80,7 +82,10 @@ export class VIRegDevice extends Device {
     this.hScanMax = this.hScanMin + this.screenWidth;
     this.vScanMin = pal ? 44 : 34;
     this.vScanMax = this.vScanMin + this.screenHeight;
-    this.dims = new Dimensions(this.screenWidth, this.screenHeight);
+    this.scanout = new VIScanout(this.screenWidth, this.screenHeight);
+    this.nativeFramebuffer = new Framebuffer();
+    this.displayFramebuffer16 = new Framebuffer(this.screenWidth, this.screenHeight, 16);
+    this.displayFramebuffer32 = new Framebuffer(this.screenWidth, this.screenHeight, 32);
   }
 
   // Raw register values.
@@ -256,7 +261,7 @@ export class VIRegDevice extends Device {
     return this.mem.getU32(ea);
   }
 
-  computeDimensions() {
+  computeScanout() {
     // If there is no mode (16 or 32 bit) set, don't render anything.
     if (this.modeType == 0) {
       logger.log('mode type is 0 - not rendering');
@@ -282,238 +287,63 @@ export class VIRegDevice extends Device {
     if (x0 >= this.hScanMin) { x0 += 8; }
     if (x1 < this.hScanMax) { x1 -= 7; }
 
-    const dims = this.dims;
-    dims.interlaced = this.interlaced;
-    dims.field = this.field;
+    const xSubpixel = (this.xScaleReg >> 16) & 0xfff;
+    const ySubpixel = (this.yScaleReg >> 16) & 0xfff;
+    const xScale = this.xScaleReg & 0xfff;
+    const yScale = this.yScaleReg & 0xfff;
+    const sourceX = x0 - hStart;
+    const sourceY = y0 - vStart;
+    const width = x1 - x0;
+    const height = y1 - y0;
+    const pitch = this.hWidthReg & 0xfff;
 
-    dims.xSubpixel = (this.xScaleReg >> 16) & 0xfff;
-    dims.ySubpixel = (this.yScaleReg >> 16) & 0xfff;
+    const scanout = this.scanout;
+    scanout.displayRect = { x: x0 - this.hScanMin, y: y0 - this.vScanMin, width, height };
+    scanout.source = {
+      pitch,
+      x: (sourceX * xScale + xSubpixel) / 1024,
+      y: (sourceY * yScale + ySubpixel) / 2048,
+      stepX: xScale / 1024,
+      stepY: yScale / 2048,
+    };
 
-    dims.xScale = this.xScaleReg & 0xfff;
-    dims.yScale = this.yScaleReg & 0xfff;
-
-    // Offset relative to source image
-    dims.sx0 = x0 - hStart;
-    dims.sy0 = y0 - vStart;
-
-    // Offset relative to PAL/NTSC bounds.
-    dims.dx0 = x0 - this.hScanMin;
-    dims.dy0 = y0 - this.vScanMin;
-
-    dims.dstWidth = x1 - x0;
-    dims.dstHeight = y1 - y0;
-
-    dims.srcPitch = this.hWidthReg & 0xfff;
-
-    // Matches srcWidth/srcHeight except vFudge?
-    const sEndX = ((dims.sx0 + dims.dstWidth) * dims.xScale) >> 10;
-    const sEndY = ((dims.sy0 + dims.dstHeight) * dims.yScale) >> 11;
-
-    // Double the y resolution in certain (interlaced?) modes.
-    // This corrects height in various games ex : Megaman 64, CyberTiger
-    const vFudge = (dims.srcPitch > 0x300 || dims.srcPitch >= (sEndX * 2)) ? 2 : 1;
-
-    dims.srcWidth = sEndX;
-    dims.srcHeight = sEndY * vFudge;
-
-    // ECW Hardcore Revolution - stretched horizontally.
-    // logger.log(`screen w/h = ${dims.screenWidth}, ${dims.screenHeight}${this.interlaced ? 'i' : 'p'}, pitch ${dims.srcPitch}, srcW/H = ${dims.srcWidth}, ${dims.srcHeight}, , dstW/H = ${dims.dstWidth}, ${dims.dstHeight}`);
-    return dims;
+    // Preserve HLE's existing VI-space extent, including the high-resolution
+    // height correction used by games such as Megaman 64 and CyberTiger.
+    const sEndX = ((sourceX + width) * xScale) >> 10;
+    const sEndY = ((sourceY + height) * yScale) >> 11;
+    const vFudge = (pitch > 0x300 || pitch >= (sEndX * 2)) ? 2 : 1;
+    scanout.renderWidth = sEndX;
+    scanout.renderHeight = sEndY * vFudge;
+    return scanout;
   }
 
   // Progressive scanout uploads source pixels once; the presentation shader
   // applies VI scaling, subpixel offsets and borders at the output resolution.
   renderNativeBackBuffer() {
-    const dims = this.computeDimensions();
+    const scanout = this.computeScanout();
     const origin = this.dramAddrReg & 0x00fffffe;
     const bitDepth = this.bitDepth;
-    if (!dims || !origin || !bitDepth || dims.dstWidth <= 0 || dims.dstHeight <= 0 || !dims.xScale || !dims.yScale) {
+    if (!scanout?.visible || !origin || !bitDepth) {
       return null;
     }
-    const scaleX = dims.xScale / 1024;
-    const scaleY = dims.yScale / 2048;
-    const width = Math.ceil((dims.sx0 + dims.dstWidth) * scaleX + dims.xSubpixel / 1024);
-    const height = Math.ceil((dims.sy0 + dims.dstHeight) * scaleY + dims.ySubpixel / 2048);
-    const ram = this.hardware.cachedMemDevice.mem.dataView;
-    const is32Bit = bitDepth === 32;
-    const bytesPerPixel = bitDepth / 8;
-    const length = width * height * bytesPerPixel;
-    if (this.nativePixels?.byteLength !== length || this.nativeBitDepth !== bitDepth) {
-      this.nativePixels = is32Bit ? new Uint8Array(length) : new Uint16Array(length / 2);
-      this.nativeBitDepth = bitDepth;
-    }
-    const pixels = this.nativePixels;
-    // Select the format once so the pixel loops use fixed strides and masks.
-    if (is32Bit) {
-      dims.renderNativeBackBuffer32(ram, origin, pixels, width, height);
-    } else {
-      dims.renderNativeBackBuffer16(ram, origin, pixels, width, height);
-    }
-    // Texture rows are bottom-up. Align output pixel centres with the existing
-    // VI's integer fetch positions, including fractional source offsets.
-    const xOffset = (dims.sx0 - dims.dx0 - 0.5) * scaleX + dims.xSubpixel / 1024;
-    const yOffset = (dims.sy0 - dims.dy0 - 0.5) * scaleY + dims.ySubpixel / 2048;
+    const buffer = this.nativeFramebuffer;
+    buffer.resize(scanout.nativeWidth, scanout.nativeHeight, bitDepth);
+    buffer.readN64Pixels(this.hardware.cachedMemDevice.mem.dataView, origin, { pitch: scanout.source.pitch });
     return {
-      pixels, width, height,
-      sourceHeight: dims.screenHeight * scaleY,
-      uvTransform: [dims.screenWidth * scaleX / width, dims.screenHeight * scaleY / height,
-        xOffset / width, 1 - (dims.screenHeight * scaleY + yOffset) / height],
-      bounds: [dims.dx0 / dims.screenWidth, 1 - (dims.dy0 + dims.dstHeight) / dims.screenHeight,
-        (dims.dx0 + dims.dstWidth) / dims.screenWidth, 1 - dims.dy0 / dims.screenHeight],
+      pixels: buffer.pixels, width: buffer.width, height: buffer.height,
+      ...scanout.nativePresentation(),
     };
   }
 
   renderBackBuffer() {
-    const dims = this.computeDimensions();
-    if (!dims) {
+    const scanout = this.computeScanout();
+    const origin = this.dramAddrReg & 0x00fffffe;
+    const bitDepth = this.bitDepth;
+    if (!scanout || !origin || !bitDepth) {
       return null;
     }
-
-    const dramAddr = this.dramAddrReg & 0x00fffffe; // 24-bit RDRAM address, aligned to a halfword.
-    if (!dramAddr) {
-      return null;
-    }
-
-    const ramDV = this.hardware.cachedMemDevice.mem.dataView;
-    if (this.is32BitMode) {
-      return dims.renderBackBuffer32(ramDV, dramAddr);
-    }
-    if (this.is16BitMode) {
-      return dims.renderBackBuffer16(ramDV, dramAddr);
-    }
-    return null
+    const buffer = bitDepth === 32 ? this.displayFramebuffer32 : this.displayFramebuffer16;
+    return buffer.readN64Pixels(this.hardware.cachedMemDevice.mem.dataView, origin,
+      scanout.source, scanout.displayRect, this.interlaced ? this.field : null);
   }
-}
-
-class Dimensions {
-  constructor(screenW, screenH) {
-    // Display output resolution.
-    this.screenWidth = screenW;
-    this.screenHeight = screenH;
-
-    // Buffers to use in renderBackBuffer32/16.
-    this.pixels32bpp = new Uint8Array(screenW * screenH * 4);
-    this.pixels16bpp = new Uint16Array(screenW * screenH);
-
-    // Interlaced mode and field number.
-    this.interlaced = false;
-    this.field = 0;
-
-    // Output resolution.
-    this.dstWidth = screenW;
-    this.dstHeight = screenH;
-
-    // Input resolution.
-    this.srcPitch = 320;
-    this.srcWidth = 320;
-    this.srcHeight = 240;
-
-    // 10.2 subpixel offset and scale factor.
-    this.xSubpixel = 0;
-    this.ySubpixel = 0;
-    this.xScale = 0x200;
-    this.yScale = 0x400;
-
-    // Offset relative to source image
-    this.sx0 = 0;
-    this.sy0 = 0;
-
-    // Offset relative to PAL/NTSC bounds.
-    this.dx0 = 0;
-    this.dy0 = 0;
-  }
-
-  renderNativeBackBuffer32(ramDV, dramAddr, pixels, width, height) {
-    const lastRead = ramDV.byteLength - 4;
-    for (let y = 0; y < height; y++) {
-      let dst = (height - 1 - y) * width * 4;
-      const row = dramAddr + y * this.srcPitch * 4;
-      for (let x = 0; x < width; x++, dst += 4) {
-        const address = (row + x * 4) & 0x00fffffc;
-        const pixel = address <= lastRead ? ramDV.getUint32(address, false) : 0;
-        pixels[dst] = pixel >>> 24;
-        pixels[dst + 1] = pixel >>> 16;
-        pixels[dst + 2] = pixel >>> 8;
-        pixels[dst + 3] = 255;
-      }
-    }
-  }
-
-  renderNativeBackBuffer16(ramDV, dramAddr, pixels, width, height) {
-    const lastRead = ramDV.byteLength - 2;
-    for (let y = 0; y < height; y++) {
-      let dst = (height - 1 - y) * width;
-      const row = dramAddr + y * this.srcPitch * 2;
-      for (let x = 0; x < width; x++, dst++) {
-        const address = (row + x * 2) & 0x00fffffe;
-        pixels[dst] = (address <= lastRead ? ramDV.getUint16(address, false) : 0) | 1;
-      }
-    }
-  }
-
-  renderBackBuffer32(ramDV, dramAddr) {
-    const pixels = this.pixels32bpp;
-    const lastRead = ramDV.byteLength - 4;
-
-    // We need to flip Y-axis for the texture's coordinate system so start at the bottom and work upwards.
-    const dstPitch = -this.screenWidth;
-    let dstRow = (this.screenHeight - 1 - this.dy0) * this.screenWidth;
-
-    const alpha = 0xff;
-
-    let sy = (this.sy0 * this.yScale) + this.ySubpixel;
-    for (let y = 0; y < this.dstHeight; y++) {
-      if (!this.interlaced || ((this.dy0 + y) & 1) != this.field) {
-        const srcOff = dramAddr + ((sy >>> 11) * this.srcPitch * 4);
-        let dstOff = dstRow + this.dx0;
-        let sx = (this.sx0 * this.xScale) + this.xSubpixel;
-        for (let x = 0; x < this.dstWidth; x++) {
-          // VI fetches wrap at 24 bits, not at the installed RDRAM size.
-          // Unpopulated RDRAM reads as zero (black); never read past the view.
-          const address = (srcOff + (sx >>> 10) * 4) & 0x00fffffc;
-          const pixel = address <= lastRead ? ramDV.getInt32(address, false) : 0;
-          pixels[dstOff * 4 + 0] = pixel >>> 24;
-          pixels[dstOff * 4 + 1] = pixel >>> 16;
-          pixels[dstOff * 4 + 2] = pixel >>> 8;
-          pixels[dstOff * 4 + 3] = alpha;
-          dstOff++;
-          sx += this.xScale;
-        }
-      }
-      sy += this.yScale;
-      dstRow += dstPitch;
-    }
-    return pixels;
-  }
-
-  renderBackBuffer16(ramDV, dramAddr) {
-    const pixels = this.pixels16bpp;
-    const lastRead = ramDV.byteLength - 2;
-
-    // We need to flip Y-axis for the texture's coordinate system so start at the bottom and work upwards.
-    const dstPitch = -this.screenWidth;
-    let dstRow = (this.screenHeight - 1 - this.dy0) * this.screenWidth;
-
-    const alpha = 0x0001;
-
-    let sy = (this.sy0 * this.yScale) + this.ySubpixel;
-    for (let y = 0; y < this.dstHeight; y++) {
-      if (!this.interlaced || ((this.dy0 + y) & 1) != this.field) {
-        const srcOff = dramAddr + ((sy >>> 11) * this.srcPitch * 2);
-        let dstOff = dstRow + this.dx0;
-        let sx = (this.sx0 * this.xScale) + this.xSubpixel;
-        for (let x = 0; x < this.dstWidth; x++) {
-          // Keep the same 24-bit, unpopulated-RDRAM handling as 32-bit fetches.
-          const address = (srcOff + (sx >>> 10) * 2) & 0x00fffffe;
-          const pixel = address <= lastRead ? ramDV.getInt16(address, false) : 0;
-          pixels[dstOff++] = pixel | alpha;
-          sx += this.xScale;
-        }
-      }
-      sy += this.yScale;
-      dstRow += dstPitch;
-    }
-    return pixels;
-  }
-
 }

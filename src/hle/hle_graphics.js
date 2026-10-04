@@ -243,19 +243,19 @@ function processDList(task, disassembler, bailAfter, onFullSync = null) {
 }
 
 function initDimensionsFromVI(vi) {
-  const dims = vi.computeDimensions();
-  if (!dims) {
+  const scanout = vi.computeScanout();
+  if (!scanout) {
     return;
   }
 
-  renderer.nativeTransform.initDimensions(dims.srcWidth, dims.srcHeight);
-  if (dims.srcWidth > 0 && dims.srcHeight > 0) {
-    renderer.renderTargets.resize(dims.srcWidth * graphicsOptions.renderScale, dims.srcHeight * graphicsOptions.renderScale);
+  renderer.nativeTransform.initDimensions(scanout.renderWidth, scanout.renderHeight);
+  if (scanout.renderWidth > 0 && scanout.renderHeight > 0) {
+    renderer.renderTargets.resize(scanout.renderWidth * graphicsOptions.renderScale, scanout.renderHeight * graphicsOptions.renderScale);
   }
 
   const canvas = document.getElementById('display');
-  canvas.width = dims.screenWidth * graphicsOptions.canvasScale;
-  canvas.height = dims.screenHeight * graphicsOptions.canvasScale;
+  canvas.width = scanout.displayWidth * graphicsOptions.canvasScale;
+  canvas.height = scanout.displayHeight * graphicsOptions.canvasScale;
 }
 
 function initMicrocode(task, ramDV, onMicrocodeLoad) {
