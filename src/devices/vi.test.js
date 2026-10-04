@@ -151,3 +151,41 @@ for (const [region, tvType, vStart, height, yScale] of [['USA', OS_TV_NTSC, 37, 
     expect(pixelAt(vi, pixels, 16, vi.dims.dstWidth - 1, 400)).toBe(1);
   });
 }
+
+for (const bitDepth of [16, 32]) {
+  test(`native ${bitDepth}-bit progressive scanout preserves VI fetches, borders and subpixel offsets`, () => {
+    const { vi, ram } = makeVI(4096);
+    for (let i = 0; i < ram.u8.length; i++) {
+      ram.u8[i] = (i * 37) & 255;
+    }
+    setSmallFrame(vi, bitDepth, 0x100);
+    for (const [xScale, yScale] of [[0x200, 0x400], [0x400, 0x800], [0x301, 0x5ab]]) {
+      vi.write32(base + 0x30, xScale | (0x180 << 16));
+      vi.write32(base + 0x34, yScale | (0x280 << 16));
+      // Test valid RAM, a partially populated source, and 24-bit wrapping.
+      for (const origin of [0x100, 4096 - 8 * bitDepth / 8, 0x1000000 - 8 * bitDepth / 8]) {
+        vi.write32(base + 4, origin);
+        const frame = vi.renderNativeBackBuffer();
+        const expanded = vi.renderBackBuffer();
+        const dims = vi.dims;
+        expect(frame.width).toBeLessThan(32);
+        expect(frame.height).toBeLessThan(8);
+        for (let y = 0; y < dims.dstHeight; y++) {
+          for (let x = 0; x < dims.dstWidth; x++) {
+            const u = (dims.dx0 + x + 0.5) / dims.screenWidth;
+            const v = 1 - (dims.dy0 + y + 0.5) / dims.screenHeight;
+            const sx = Math.floor((u * frame.uvTransform[0] + frame.uvTransform[2]) * frame.width + 0.0001);
+            const sy = frame.height - 1 - Math.floor((1 - (v * frame.uvTransform[1] + frame.uvTransform[3])) * frame.height + 0.0001);
+            const offset = sy * frame.width + sx;
+            const actual = bitDepth === 16 ? frame.pixels[offset] : Array.from(frame.pixels.subarray(offset * 4, offset * 4 + 4));
+            expect(actual).toEqual(pixelAt(vi, expanded, bitDepth, x, y));
+          }
+        }
+        expect(frame.bounds[0]).toBe(dims.dx0 / dims.screenWidth);
+        expect(frame.bounds[3]).toBe(1 - dims.dy0 / dims.screenHeight);
+      }
+    }
+    vi.write32(base + 0x30, 0);
+    expect(vi.renderNativeBackBuffer()).toBeNull();
+  });
+}

@@ -94,7 +94,7 @@ export function initialiseRenderer(canvas) {
     return;
   }
 
-  renderer = new Renderer(gl, state, 640, 480);
+  renderer = new Renderer(gl, state, 320, 240);
   renderer.hleHalt = hleHalt;
 
   // FIXME - needed for buildTexture.
@@ -185,6 +185,16 @@ export function presentBackBuffer() {
   // If no display lists executed, interpret framebuffer as bytes
   initDimensionsFromVI(vi);    // resize canvas to match VI res.
 
+  // Keep the existing field weave for interlaced CPU video. Progressive video
+  // can be uploaded at native resolution and scaled by the presentation pass.
+  if (!vi.interlaced) {
+    const frame = vi.renderNativeBackBuffer();
+    if (frame) {
+      renderer.copyPixelsToFrontBuffer(frame.pixels, frame.width, frame.height, vi.bitDepth, timeSeconds, frame);
+    }
+    return;
+  }
+
   const pixels = vi.renderBackBuffer();
   if (!pixels) {
     return;
@@ -240,6 +250,9 @@ function initDimensionsFromVI(vi) {
   }
 
   renderer.nativeTransform.initDimensions(dims.srcWidth, dims.srcHeight);
+  if (dims.srcWidth > 0 && dims.srcHeight > 0) {
+    renderer.renderTargets.resize(dims.srcWidth * graphicsOptions.renderScale, dims.srcHeight * graphicsOptions.renderScale);
+  }
 
   const canvas = document.getElementById('display');
   canvas.width = dims.screenWidth * graphicsOptions.canvasScale;

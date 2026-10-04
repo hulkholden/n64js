@@ -51,6 +51,9 @@ export class Renderer extends RendererBase {
     this.blitTimeUniform = gl.getUniformLocation(this.blitShaderProgram, "uCRTTime");
     this.blitOutputResolutionUniform = gl.getUniformLocation(this.blitShaderProgram, "uOutputResolution");
     this.blitSourceHeightUniform = gl.getUniformLocation(this.blitShaderProgram, "uSourceHeight");
+    this.blitSourceUVUniform = gl.getUniformLocation(this.blitShaderProgram, "uSourceUV");
+    this.blitSourceBoundsUniform = gl.getUniformLocation(this.blitShaderProgram, "uSourceBounds");
+    this.blitSourceVIUniform = gl.getUniformLocation(this.blitShaderProgram, "uSourceVI");
     this.blitVA = this.initBlitVA(this.blitShaderProgram);
 
     // Smooth only the CRT presentation, without changing the framebuffer textures.
@@ -136,7 +139,7 @@ export class Renderer extends RendererBase {
     return va;
   }
 
-  copyTextureToFrontBuffer(texture, timeSeconds = 0) {
+  copyTextureToFrontBuffer(texture, timeSeconds = 0, presentation = null) {
     const gl = this.gl;
     // Passing null binds the framebuffer to the canvas.
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -155,7 +158,10 @@ export class Renderer extends RendererBase {
     gl.uniform1i(this.blitCRTUniform, graphicsOptions.crtMode);
     gl.uniform1f(this.blitTimeUniform, timeSeconds);
     gl.uniform2f(this.blitOutputResolutionUniform, canvas.width, canvas.height);
-    gl.uniform1f(this.blitSourceHeightUniform, this.nativeTransform.viHeight);
+    gl.uniform1f(this.blitSourceHeightUniform, presentation?.sourceHeight ?? this.nativeTransform.viHeight);
+    gl.uniform4fv(this.blitSourceUVUniform, presentation?.uvTransform ?? [1, 1, 0, 0]);
+    gl.uniform4fv(this.blitSourceBoundsUniform, presentation?.bounds ?? [0, 0, 1, 1]);
+    gl.uniform1i(this.blitSourceVIUniform, presentation?.uvTransform ? 1 : 0);
 
     gl.disable(gl.CULL_FACE);
     gl.disable(gl.BLEND);
@@ -169,13 +175,17 @@ export class Renderer extends RendererBase {
   }
 
   copyBackBufferToFrontBuffer(address, timeSeconds = 0) {
-    this.copyTextureToFrontBuffer(this.renderTargets.textureForVI(address), timeSeconds);
+    const target = this.renderTargets.targetForVI(address);
+    this.copyTextureToFrontBuffer(target.texture, timeSeconds, { sourceHeight: target.nativeHeight });
   }
 
-  copyPixelsToFrontBuffer(pixels, width, height, bitDepth, timeSeconds = 0) {
+  copyPixelsToFrontBuffer(pixels, width, height, bitDepth, timeSeconds = 0, presentation = null) {
     const gl = this.gl;
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.frameBufferTexture2D);
+    // Native 16-bit images may have an odd row width.
+    const unpackAlignment = gl.getParameter(gl.UNPACK_ALIGNMENT);
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
 
     if (bitDepth == 32) {
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
@@ -185,7 +195,8 @@ export class Renderer extends RendererBase {
       // Invalid mode.
     }
 
-    this.copyTextureToFrontBuffer(this.frameBufferTexture2D, timeSeconds);
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, unpackAlignment);
+    this.copyTextureToFrontBuffer(this.frameBufferTexture2D, timeSeconds, presentation);
   }
 
   /**

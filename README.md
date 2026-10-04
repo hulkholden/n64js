@@ -186,6 +186,14 @@ Choose **Off**, **Simple**, or **Mattias** under **Debug → Graphics → CRT**.
 The default is **Off**. Both styles apply to the finished frame. Mattias adds colour
 separation, spatial ghosting, curvature, and animated scanlines that pause with emulation.
 
+**Internal Render Scale** defaults to **1×**, using the VI source resolution
+(often 320×240). Increase it for higher-resolution geometry. **Canvas Scale**
+controls display resolution independently: the final presentation pass upscales
+the frame and applies CRT effects at the canvas resolution. Use 1× internal
+rendering for a native-pixel CRT look; 2× gives 640×480 rendering for a 320×240 game.
+Progressive CPU framebuffers also upload native pixels; interlaced CPU video
+retains the existing field-weaving path.
+
 The Mattias style follows [MattiasCRT by Mattias Gustavsson](https://www.shadertoy.com/view/Ms23DR).
 Its implementation is adapted from his [MIT-licensed crtemu_pc.h](https://github.com/mattiasgustavsson/crtview/blob/de7897958ac1f346ca7fa3dbf5a57dab5fcc5bb3/source/crtemu_pc.h).
 The attribution and full MIT notice are retained in [crt_mattias.glsl](src/hle/shaders/crt_mattias.glsl), including in the bundled shader source.

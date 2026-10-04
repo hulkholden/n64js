@@ -22,7 +22,7 @@ export class RenderTargets {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   }
 
-  createTarget() {
+  createTarget(width = this.width, height = this.height, depth = this.depth) {
     const gl = this.gl;
     const texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -30,15 +30,52 @@ export class RenderTargets {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, this.width, this.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
     const framebuffer = gl.createFramebuffer();
-    framebuffer.width = this.width;
-    framebuffer.height = this.height;
+    framebuffer.width = width;
+    framebuffer.height = height;
     gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
-    gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, this.depth);
+    gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, depth);
     gl.bindTexture(gl.TEXTURE_2D, null);
     return { framebuffer, texture, image: null, height: 0, dirty: false };
+  }
+
+  resize(width, height) {
+    width = Math.max(1, Math.round(width));
+    height = Math.max(1, Math.round(height));
+    if (width === this.width && height === this.height) {
+      return;
+    }
+    const gl = this.gl;
+    const oldDepth = this.depth;
+    const scissor = gl.isEnabled(gl.SCISSOR_TEST);
+    this.depth = gl.createRenderbuffer();
+    gl.bindRenderbuffer(gl.RENDERBUFFER, this.depth);
+    gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, width, height);
+    gl.bindRenderbuffer(gl.RENDERBUFFER, null);
+    this.width = width;
+    this.height = height;
+    gl.disable(gl.SCISSOR_TEST);
+    // Keep partially drawn images and shared depth across scale changes. Frozen
+    // VI snapshots retain their original pixels and dimensions until unfreeze.
+    for (const target of [this.fallback, ...this.targets.values()]) {
+      this.preserveForVI(target);
+      const replacement = this.createTarget();
+      gl.bindFramebuffer(gl.READ_FRAMEBUFFER, target.framebuffer);
+      gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, replacement.framebuffer);
+      gl.blitFramebuffer(0, 0, target.framebuffer.width, target.framebuffer.height,
+        0, 0, width, height, gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT, gl.NEAREST);
+      gl.deleteFramebuffer(target.framebuffer);
+      gl.deleteTexture(target.texture);
+      target.framebuffer = replacement.framebuffer;
+      target.texture = replacement.texture;
+    }
+    gl.deleteRenderbuffer(oldDepth);
+    if (scissor) {
+      gl.enable(gl.SCISSOR_TEST);
+    }
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.current.framebuffer);
   }
 
   deleteTarget(target) {
@@ -88,13 +125,14 @@ export class RenderTargets {
     const draw = gl.getParameter(gl.DRAW_FRAMEBUFFER_BINDING);
     const scissor = gl.isEnabled(gl.SCISSOR_TEST);
 
-    const copy = this.createTarget();
+    const { width, height } = target.framebuffer;
+    const copy = this.createTarget(width, height, null);
     gl.bindFramebuffer(gl.READ_FRAMEBUFFER, target.framebuffer);
     gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, copy.framebuffer);
 
     // A previous primitive's scissor must not crop the preserved image.
     gl.disable(gl.SCISSOR_TEST);
-    gl.blitFramebuffer(0, 0, this.width, this.height, 0, 0, this.width, this.height, gl.COLOR_BUFFER_BIT, gl.NEAREST);
+    gl.blitFramebuffer(0, 0, width, height, 0, 0, width, height, gl.COLOR_BUFFER_BIT, gl.NEAREST);
 
     if (scissor) {
       gl.enable(gl.SCISSOR_TEST);
@@ -206,11 +244,15 @@ export class RenderTargets {
   }
 
   textureForVI(address) {
+    return this.targetForVI(address).texture;
+  }
+
+  targetForVI(address) {
     if (this.frozenTargets) {
       return (this.findTarget(address, this.frozenTargets.values()) ??
-        this.frozenTargets.get(this.current) ?? this.frozenTargets.get(this.fallback)).texture;
+        this.frozenTargets.get(this.current) ?? this.frozenTargets.get(this.fallback));
     }
-    return (this.findTarget(address) ?? this.current).texture;
+    return this.findTarget(address) ?? this.current;
   }
 
   syncToRAM(address, ramDV) {

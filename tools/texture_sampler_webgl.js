@@ -7,6 +7,7 @@ import { RenderTargets } from '../src/hle/render_targets.js';
 import { RSPState } from '../src/hle/rsp_state.js';
 import { TriangleBuffer } from '../src/hle/triangle_buffer.js';
 import { GBIMicrocode } from '../src/hle/gbi_microcode.js';
+import { runPresentationTests } from './presentation_webgl.js';
 import { runRDPTests } from './rdp_webgl.js';
 import { runAffineProjectionTests } from './affine_projection_webgl.js';
 import { runFogTests } from './fog_webgl.js';
@@ -846,6 +847,7 @@ try {
     runFogTests,
     runLightColorTests,
     runModifyVertexTests,
+    runPresentationTests,
   ];
   for (const runSuite of suiteRunners) {
     const results = runSuite(gl);

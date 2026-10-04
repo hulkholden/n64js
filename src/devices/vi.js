@@ -321,6 +321,57 @@ export class VIRegDevice extends Device {
     return dims;
   }
 
+  // Progressive scanout uploads source pixels once; the presentation shader
+  // applies VI scaling, subpixel offsets and borders at the output resolution.
+  renderNativeBackBuffer() {
+    const dims = this.computeDimensions();
+    const origin = this.dramAddrReg & 0x00fffffe;
+    if (!dims || !origin || !this.bitDepth || dims.dstWidth <= 0 || dims.dstHeight <= 0 || !dims.xScale || !dims.yScale) {
+      return null;
+    }
+    const scaleX = dims.xScale / 1024;
+    const scaleY = dims.yScale / 2048;
+    const width = Math.ceil((dims.sx0 + dims.dstWidth) * scaleX + dims.xSubpixel / 1024);
+    const height = Math.ceil((dims.sy0 + dims.dstHeight) * scaleY + dims.ySubpixel / 2048);
+    const ram = this.hardware.cachedMemDevice.mem.dataView;
+    const bytesPerPixel = this.is32BitMode ? 4 : 2;
+    const length = width * height * bytesPerPixel;
+    if (this.nativePixels?.byteLength !== length || this.nativeBitDepth !== this.bitDepth) {
+      this.nativePixels = this.is32BitMode ? new Uint8Array(length) : new Uint16Array(length / 2);
+      this.nativeBitDepth = this.bitDepth;
+    }
+    const pixels = this.nativePixels;
+    const lastRead = ram.byteLength - bytesPerPixel;
+    for (let y = 0; y < height; y++) {
+      let dst = (height - 1 - y) * width;
+      const row = origin + y * dims.srcPitch * bytesPerPixel;
+      for (let x = 0; x < width; x++, dst++) {
+        const address = (row + x * bytesPerPixel) & (this.is32BitMode ? 0x00fffffc : 0x00fffffe);
+        if (this.is32BitMode) {
+          const pixel = address <= lastRead ? ram.getUint32(address, false) : 0;
+          pixels[dst * 4] = pixel >>> 24;
+          pixels[dst * 4 + 1] = pixel >>> 16;
+          pixels[dst * 4 + 2] = pixel >>> 8;
+          pixels[dst * 4 + 3] = 255;
+        } else {
+          pixels[dst] = (address <= lastRead ? ram.getUint16(address, false) : 0) | 1;
+        }
+      }
+    }
+    // Texture rows are bottom-up. Align output pixel centres with the existing
+    // VI's integer fetch positions, including fractional source offsets.
+    const xOffset = (dims.sx0 - dims.dx0 - 0.5) * scaleX + dims.xSubpixel / 1024;
+    const yOffset = (dims.sy0 - dims.dy0 - 0.5) * scaleY + dims.ySubpixel / 2048;
+    return {
+      pixels, width, height,
+      sourceHeight: dims.screenHeight * scaleY,
+      uvTransform: [dims.screenWidth * scaleX / width, dims.screenHeight * scaleY / height,
+        xOffset / width, 1 - (dims.screenHeight * scaleY + yOffset) / height],
+      bounds: [dims.dx0 / dims.screenWidth, 1 - (dims.dy0 + dims.dstHeight) / dims.screenHeight,
+        (dims.dx0 + dims.dstWidth) / dims.screenWidth, 1 - dims.dy0 / dims.screenHeight],
+    };
+  }
+
   renderBackBuffer() {
     const dims = this.computeDimensions();
     if (!dims) {
