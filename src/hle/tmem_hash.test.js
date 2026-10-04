@@ -19,6 +19,18 @@ function referenceHash(tmem, offset, length, seed = 0, mask = 0xfff) {
 }
 
 describe('TMEM content hashes', () => {
+  test('full snapshot hash matches independent XXH32 and observes direct edits in both banks', () => {
+    const tmem = new TMEM();
+    for (let i = 0; i < 1024; i++) tmem.tmemData32[i] = Math.imul(i + 1, 0x9e3779b1);
+    expect(tmem.hashContents()).toBe(referenceHash(tmem, 0, 4096));
+    for (const address of [0, 2047, 2048, 4095]) {
+      const previous = tmem.hashContents();
+      tmem.tmemData[address] ^= 0xff;
+      expect(tmem.hashContents()).toBe(referenceHash(tmem, 0, 4096));
+      expect(tmem.hashContents()).not.toBe(previous);
+    }
+  });
+
   test('matches independent XXH32 for short, striped, tail and wrapped spans', () => {
     const tmem = new TMEM();
     for (let i = 0; i < 1024; i++) {

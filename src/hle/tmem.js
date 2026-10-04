@@ -189,6 +189,12 @@ export class TMEM {
     return convertTexels(dstData, dstWidth, this.tmemData, tile, tlutFormat);
   }
 
+  // Snapshot identity covers both banks, including all physical TLUT entries.
+  // It is independent of tile interpretation and decoded-texture invalidation.
+  hashContents() {
+    return hashTmem(this.tmemData32, 0, this.tmemData.byteLength, 0);
+  }
+
   calculateCRC(tile, hashOwner = tile, tlutFormat = gbi.TextureLUT.G_TT_NONE) {
     const hasPalette = getTexturePaletteFormat(tile, tlutFormat) !== gbi.TextureLUT.G_TT_NONE;
     if (hashOwner.hash && hashOwner.hashWidth === tile.width && hashOwner.hashHeight === tile.height &&

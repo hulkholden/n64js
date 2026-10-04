@@ -110,10 +110,27 @@ export function runTMEMSamplingTests(gl) {
       check(`runtime switch ${direct}`, draw([0, 0], direct), [255, 0, 0, 255]);
       check(`untextured draw after switch ${direct}`, draw([0, 0], direct, { enabled: false }), [0, 0, 0, 255]);
     }
-    const texture = renderer.tmemTexture.texture;
+    // Revisit snapshots and overflow a small cache using actual integer textures.
+    renderer.tmemTexture.reset();
+    renderer.tmemTexture.maxEntries = 2;
+    data.fill(0);
+    write16(0, 0xf801);
+    check('cache uploads the first snapshot', draw([0, 0], true), [255, 0, 0, 255]);
+    const redTexture = renderer.tmemTexture.texture;
+    write16(0, 0x07c1);
+    check('cache uploads a distinct snapshot', draw([0, 0], true), [0, 255, 0, 255]);
+    const greenTexture = renderer.tmemTexture.texture;
+    write16(0, 0xf801);
+    check('cache hit restores the earlier snapshot', draw([0, 0], true), [255, 0, 0, 255]);
+    if (renderer.tmemTexture.texture !== redTexture) throw new Error('Cache hit allocated a texture');
+    write16(0, 0x003f);
+    check('cache eviction uploads into the oldest allocation', draw([0, 0], true), [0, 0, 255, 255]);
+    if (renderer.tmemTexture.texture !== greenTexture) throw new Error('Cache did not recycle the oldest texture');
+    write16(0, 0x07c1);
+    check('evicted snapshot is uploaded again', draw([0, 0], true), [0, 255, 0, 255]);
     renderer.reset();
-    if (gl.isTexture(texture)) throw new Error('Reset retained the TMEM texture');
-    check('sampling resumes after reset', draw([0, 0], true), [255, 0, 0, 255]);
+    if (gl.isTexture(redTexture) || gl.isTexture(greenTexture)) throw new Error('Reset retained cached TMEM textures');
+    check('sampling resumes after reset', draw([0, 0], true), [0, 255, 0, 255]);
     return lines;
   } finally {
     renderer.reset();
