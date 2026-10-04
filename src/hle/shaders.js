@@ -270,9 +270,10 @@ class N64Shader {
  * @param {boolean} enableAlphaCvgKill Whether to approximate zero coverage by discarding zero alpha.
  * @param {boolean} noNearClipping Whether to clamp depth instead of clipping the near plane.
  * @param {number} blender The upper 16 bits of other mode L.
+ * @param {boolean} constantFogColor Select fog RGB for a supported constant framebuffer blend.
  * @return {!N64Shader}
  */
-export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, alphaCompare, enableAlphaCvgKill, noNearClipping = false, blender = 0) {
+export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, alphaCompare, enableAlphaCvgKill, noNearClipping = false, blender = 0, constantFogColor = false) {
   // Check if this shader already exists. Copy/Fill are fixed-function so ignore mux for these.
   let stateText = (cycleType < gbi.CycleType.G_CYC_COPY) ? (`${mux0.toString(16) + mux1.toString(16)}_${cycleType}`) : cycleType.toString();
   const enableAlphaThreshold = (alphaCompare & gbi.AlphaCompare.G_AC_THRESHOLD) !== 0;
@@ -303,6 +304,9 @@ export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, alphaCompare, en
   }
   if (fogBlendModes) {
     stateText += `_fogShadeAlpha${fogBlendModes}`;
+  }
+  if (constantFogColor) {
+    stateText += '_constantFogColor';
   }
 
   let shader = shaderCache.get(stateText);
@@ -379,6 +383,11 @@ export function getOrCreateN64Shader(gl, mux0, mux1, cycleType, alphaCompare, en
     if (mode === 2) {
       body += '  col.rgb = mix(uFogColor.rgb, clamp(col.rgb, 0.0, 1.0), shade.a);\n';
     }
+  }
+
+  if (constantFogColor) {
+    // Alpha testing above and framebuffer alpha still use combiner alpha.
+    body += '  col.rgb = uFogColor.rgb;\n';
   }
 
   const combinerSource = `

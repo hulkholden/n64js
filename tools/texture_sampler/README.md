@@ -144,9 +144,21 @@ lookup table, then pass through the captured car blender mode. The tests also
 check interpolated/cached alpha and that supplied texture coordinates are
 preserved instead of being treated as generated UVs.
 
-This targets two-cycle `G_RM_FOG_SHADE_A`; constant fog-colour-alpha framebuffer
-blends and full RDP coverage remain separate work. Existing texture gallery
-goldens are unchanged by the fog tests.
+The suite also checks constant fog-alpha framebuffer modes `0x0110` and `0x3110`
+in one and two cycles: factor endpoints and quantization boundaries, register
+updates, independent combiner alpha tests and framebuffer alpha, transitions to
+opaque/ordinary alpha blending, and copy/fill bypass. Support requires `FORCE_BL`
+with `AA_EN`, `CLR_ON_CVG`, `CVG_X_ALPHA` and `ALPHA_CVG_SEL` clear; unsupported
+combinations retain the opaque fallback. Full RDP coverage remains separate work.
+
+The forced-blend reference uses `a = fogAlpha >> 3`, then
+`(source * a + destination * (32 - a)) >> 5`, as in
+[angrylion's blender equations](https://github.com/ata4/angrylion-rdp-plus/blob/master/src/core/n64video/rdp/blender.c).
+Consequently alpha 255 retains 1/32 of the destination. WebGL uses the same
+weights, but can round the final byte instead of truncating; the existing
+one-byte pixel tolerance covers this HLE approximation. RGB uses the constant
+factor while framebuffer alpha retains the existing source-alpha blend policy.
+Existing texture gallery goldens are unchanged by the fog tests.
 
 ## Add a scene
 
