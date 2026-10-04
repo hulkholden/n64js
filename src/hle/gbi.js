@@ -128,6 +128,9 @@ export const MoveWord = makeEnum({
   G_MW_PERSPNORM: 0x0e,
 });
 
+// F3DEX2 reuses the GBI1 Points index for the combined-matrix valid flag.
+export const G_MW_FORCEMTX = 0x0c;
+
 export const MoveMemGBI1 = makeEnum({
   G_MV_VIEWPORT: 0x80,
   G_MV_LOOKATY:  0x82,

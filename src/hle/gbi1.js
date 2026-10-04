@@ -138,6 +138,7 @@ export class GBI1 extends GBIMicrocode {
     const length = (cmd0 >>> 0) & 0xffff;
     const address = this.state.rdpSegmentAddress(cmd1);
 
+    this.state.combinedMatrixDirty = true;
     let matrix = this.loadMatrix(address, length);
 
     if (dis) {
@@ -178,6 +179,7 @@ export class GBI1 extends GBIMicrocode {
     // base matrix, which must survive a pop when there are no saved matrices.
     if (!(flags & gbi.G_MTX_PROJECTION) && this.state.modelview.length > 1) {
       this.state.modelview.pop();
+      this.state.combinedMatrixDirty = true;
     }
   }
 
@@ -325,8 +327,9 @@ export class GBI1 extends GBIMicrocode {
         this.moveWordLightColor(offset, value, 32);
         break;
       case gbi.MoveWord.G_MW_POINTS:
-        this.warnUnimplemented('MoveWord Points');
-        break;
+        // Legacy gSPModifyVertex uses a 40-byte transformed vertex record.
+        this.modifyVertex(Math.floor(offset / 40), offset % 40, value, dis);
+        return;
       case gbi.MoveWord.G_MW_PERSPNORM:
         if (dis) {
           text = `gSPPerspNormalize(${value});`;

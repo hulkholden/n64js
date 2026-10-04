@@ -241,9 +241,7 @@ export class GBIMicrocode {
     }
 
     const mvmtx = this.state.modelview[this.state.modelview.length - 1];
-    const pmtx = this.state.projection[this.state.projection.length - 1];
-
-    const wvp = pmtx.multiply(mvmtx);
+    const wvp = this.state.getCombinedMatrix();
 
     // Texture coords are provided in 11.5 fixed point format, so divide by 32 here to normalise
     const scaleS = this.state.texture.scaleS / 32.0;
@@ -298,8 +296,10 @@ export class GBIMicrocode {
   executeModifyVertex(cmd0, cmd1, dis) {
     const vtx = (cmd0 >>> 1) & 0x7fff;
     const offset = (cmd0 >>> 16) & 0xff;
-    const value = cmd1;
+    this.modifyVertex(vtx, offset, cmd1, dis);
+  }
 
+  modifyVertex(vtx, offset, value, dis) {
     if (dis) {
       dis.text(`gsSPModifyVertex(${vtx},${gbi.ModifyVtx.nameOf(offset)},${toString32(value)});`);
     }

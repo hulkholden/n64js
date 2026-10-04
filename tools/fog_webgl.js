@@ -43,6 +43,8 @@ export function runFogTests(gl) {
       0, 0, 0.25, 0,
       0, 0, 0, 1,
     ]);
+    // This fixture writes the stack directly, bypassing matrix-command invalidation.
+    state.combinedMatrixDirty = true;
     const xy = varyingW ? [[-2, -2], [12, -4], [-8, 24]] : [[-1, -1], [3, -1], [-1, 3]];
     for (let i = 0; i < 3; i++) {
       ram.setInt16(i * 16, xy[i][0]);

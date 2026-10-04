@@ -57,6 +57,9 @@ export class RSPState {
     // matrix stacks
     this.projection = [];
     this.modelview = [];
+    // The active combined transform is recomputed from the stacks only when dirty.
+    this.combinedMatrix = Matrix4x4.identity();
+    this.combinedMatrixDirty = true;
 
     /**
      * @type {!Array<!ProjectedVertex>}
@@ -139,6 +142,8 @@ export class RSPState {
 
     this.projection = [Matrix4x4.identity()];
     this.modelview = [Matrix4x4.identity()];
+    this.combinedMatrix = Matrix4x4.identity();
+    this.combinedMatrixDirty = true;
 
     this.geometryModeBits = 0;
     this.geometryMode.zbuffer = 0;
@@ -168,6 +173,16 @@ export class RSPState {
 
     this.viewport.reset();
     this.fogParameters.reset();
+  }
+
+  getCombinedMatrix() {
+    if (this.combinedMatrixDirty) {
+      const projection = this.projection[this.projection.length - 1];
+      const modelview = this.modelview[this.modelview.length - 1];
+      this.combinedMatrix = projection.multiply(modelview);
+      this.combinedMatrixDirty = false;
+    }
+    return this.combinedMatrix;
   }
 
   /**
