@@ -108,11 +108,7 @@ export class ZSortP extends GBIMicrocode {
         const cmd3 = dv.getUint32(pc + 12);
         pc += 16;
 
-        if (opcode === G_TEXRECT) {
-          this.rdpTexRect(cmd0, cmd1, cmd2, cmd3, dis);
-        } else {
-          this.rdpTexRectFlip(cmd0, cmd1, cmd2, cmd3, dis);
-        }
+        this.rdpTexRect(cmd0, cmd1, cmd2, cmd3, dis, opcode === G_TEXRECTFLIP);
       } else {
         // OtherMode and NoOp use their GBI encodings inside these blocks too.
         // Do not dispatch nested object/task commands from an RDP block.

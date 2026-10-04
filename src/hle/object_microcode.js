@@ -40,11 +40,7 @@ export class ObjectMicrocode extends GBIMicrocode {
         const cmd2 = dv.getUint32(pc);
         const cmd3 = dv.getUint32(pc + 4);
         pc += 8;
-        if (opcode === 0xe4) {
-          this.rdpTexRect(cmd0, cmd1, cmd2, cmd3, dis);
-        } else {
-          this.rdpTexRectFlip(cmd0, cmd1, cmd2, cmd3, dis);
-        }
+        this.rdpTexRect(cmd0, cmd1, cmd2, cmd3, dis, opcode === 0xe5);
       } else {
         const handler = this.getHandler(opcode);
         if (!handler) {

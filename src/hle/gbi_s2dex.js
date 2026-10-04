@@ -796,7 +796,7 @@ export class GBI1SDEX extends GBI1 {
     if (dis) {
       dis.text(`gsImmp1(G_RDPHALF_2, ${toString32(cmd1)});`);
     }
-    this.rdpTexRect(this.state.rdpHalf0Cmd0, this.state.rdpHalf0Cmd1, this.state.rdpHalf1Cmd1, cmd1, dis);
+    this.rdpTexRect(this.state.rdpHalf0Cmd0, this.state.rdpHalf0Cmd1, this.state.rdpHalf1Cmd1, cmd1, dis, false);
   }
 }
 

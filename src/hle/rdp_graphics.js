@@ -87,8 +87,7 @@ export class RDPGraphics extends GBIMicrocode {
     if (type >= Commands.FillTriangle && type <= Commands.ShadeTextureZBufferTriangle) {
       this.drawTriangle(buffer);
     } else if (type === Commands.TextureRectangle || type === Commands.TextureRectangleFlip) {
-      const fn = type === Commands.TextureRectangle ? this.rdpTexRect : this.rdpTexRectFlip;
-      fn.call(this, cmd0, cmd1, buffer.getU32(8), buffer.getU32(12));
+      this.rdpTexRect(cmd0, cmd1, buffer.getU32(8), buffer.getU32(12), undefined, type === Commands.TextureRectangleFlip);
     } else if (type >= Commands.SetTextureImage) {
       const address = cmd1 & IMAGE_ADDRESS_MASK;
       if (type === Commands.SetMaskImage) {

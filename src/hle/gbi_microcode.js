@@ -887,10 +887,10 @@ export class GBIMicrocode {
     }
     const [cmd2, cmd3] = params;
 
-    this.rdpTexRect(cmd0, cmd1, cmd2, cmd3, dis);
+    this.rdpTexRect(cmd0, cmd1, cmd2, cmd3, dis, false);
   }
 
-  rdpTexRectImpl(cmd0, cmd1, cmd2, cmd3, dis, flip) {
+  rdpTexRect(cmd0, cmd1, cmd2, cmd3, dis, flip) {
     let xh = ((cmd0 >>> 12) & 0xfff) / 4.0;
     let yh = ((cmd0 >>> 0) & 0xfff) / 4.0;
     const tileIdx = (cmd1 >>> 24) & 0x7;
@@ -933,10 +933,6 @@ export class GBIMicrocode {
     this.renderer.texRect(tileIdx, xl, yl, xh, yh, s0, t0, s1, t1, flip);
   }
 
-  rdpTexRect(cmd0, cmd1, cmd2, cmd3, dis) {
-    this.rdpTexRectImpl(cmd0, cmd1, cmd2, cmd3, dis, false);
-  }
-
   executeTexRectFlip(cmd0, cmd1, dis) {
     const params = this.readTexRectParams(dis);
     if (!params) {
@@ -944,11 +940,7 @@ export class GBIMicrocode {
     }
     const [cmd2, cmd3] = params;
 
-    this.rdpTexRectFlip(cmd0, cmd1, cmd2, cmd3, dis);
-  }
-
-  rdpTexRectFlip(cmd0, cmd1, cmd2, cmd3, dis) {
-    this.rdpTexRectImpl(cmd0, cmd1, cmd2, cmd3, dis, true);
+    this.rdpTexRect(cmd0, cmd1, cmd2, cmd3, dis, true);
   }
 
   executeCullDL(cmd0, cmd1, dis) {
