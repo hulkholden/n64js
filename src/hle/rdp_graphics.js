@@ -1,6 +1,7 @@
 import { GBIMicrocode } from './gbi_microcode.js';
 import { ProjectedVertex } from './projected_vertex.js';
-import { Commands, Triangle } from '../lle/rdp.js';
+import { Triangle } from '../lle/rdp.js';
+import { Commands } from '../lle/rdp_constants.js';
 import * as gbi from './gbi.js';
 
 const GBI_RDP_COMMAND_PREFIX = 0xc0;

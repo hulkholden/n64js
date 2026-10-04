@@ -1,5 +1,6 @@
 import { toString32 } from '../format.js';
 import * as gbi from './gbi.js';
+import * as gbi2 from './gbi2_constants.js';
 import { GBIMicrocode } from './gbi_microcode.js';
 import { GBI1 } from './gbi1.js';
 import { ProjectedVertex } from './projected_vertex.js';
@@ -7,13 +8,6 @@ import { ProjectedVertex } from './projected_vertex.js';
 const G_SPNOOP = 0x00;
 const G_ZS_ZOBJ = 0x80;
 const G_ZS_RDPCMD = 0x81;
-const G_MOVEWORD = 0xdb;
-const G_DL = 0xde;
-const G_ENDDL = 0xdf;
-const G_SETOTHERMODE_L = 0xe2;
-const G_SETOTHERMODE_H = 0xe3;
-const G_TEXRECT = 0xe4;
-const G_TEXRECTFLIP = 0xe5;
 
 const OBJECT_TYPE_NULL = 0;
 const OBJECT_TYPE_SHADED_TRIANGLE = 1;
@@ -54,11 +48,11 @@ export class ZSortP extends GBIMicrocode {
 
       // These commands retain the original GBI1 field encodings, despite
       // occupying opcode slots also used by GBI2.
-      [G_MOVEWORD, this.executeMoveWord.bind(this)],
-      [G_DL, this.executeDL.bind(this)],
-      [G_ENDDL, this.executeEndDL.bind(this)],
-      [G_SETOTHERMODE_L, GBI1.prototype.executeSetOtherModeL.bind(this)],
-      [G_SETOTHERMODE_H, GBI1.prototype.executeSetOtherModeH.bind(this)],
+      [gbi2.Commands.G_MOVEWORD, this.executeMoveWord.bind(this)],
+      [gbi2.Commands.G_DL, this.executeDL.bind(this)],
+      [gbi2.Commands.G_ENDDL, this.executeEndDL.bind(this)],
+      [gbi2.Commands.G_SETOTHERMODE_L, GBI1.prototype.executeSetOtherModeL.bind(this)],
+      [gbi2.Commands.G_SETOTHERMODE_H, GBI1.prototype.executeSetOtherModeH.bind(this)],
     ]);
   }
 
@@ -99,20 +93,20 @@ export class ZSortP extends GBIMicrocode {
       const opcode = cmd0 >>> 24;
       pc += 8;
 
-      if (opcode === G_ENDDL) {
+      if (opcode === gbi2.Commands.G_ENDDL) {
         return;
       }
 
-      if (opcode === G_TEXRECT || opcode === G_TEXRECTFLIP) {
+      if (opcode === gbi2.Commands.TextureRectangle || opcode === gbi2.Commands.TextureRectangleFlip) {
         const cmd2 = dv.getUint32(pc + 4);
         const cmd3 = dv.getUint32(pc + 12);
         pc += 16;
 
-        this.rdpTexRect(cmd0, cmd1, cmd2, cmd3, dis, opcode === G_TEXRECTFLIP);
+        this.rdpTexRect(cmd0, cmd1, cmd2, cmd3, dis, opcode === gbi2.Commands.TextureRectangleFlip);
       } else {
         // OtherMode and NoOp use their GBI encodings inside these blocks too.
         // Do not dispatch nested object/task commands from an RDP block.
-        const handler = opcode === G_SPNOOP || opcode === G_SETOTHERMODE_L || opcode === G_SETOTHERMODE_H
+        const handler = opcode === G_SPNOOP || opcode === gbi2.Commands.G_SETOTHERMODE_L || opcode === gbi2.Commands.G_SETOTHERMODE_H
           ? this.commands.get(opcode) : this.gbiCommonCommands.get(opcode);
         if (!handler) {
           this.executeUnknown(cmd0, cmd1);
