@@ -26,6 +26,7 @@ export function executeDisplayList(state, microcode, {
   if (!Number.isSafeInteger(commandLimit) || commandLimit < 1) {
     throw new RangeError('Display-list command limit must be a positive safe integer');
   }
+  state.bailAfter = bailAfter;
   let ucodeTable = microcode.buildCommandTable();
 
   if (loadMicrocode) {

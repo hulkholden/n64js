@@ -760,7 +760,7 @@ try {
     clipRenderer.fillRect(0, 0, 8, 6, { r: 1, g: 0, b: 0, a: 1 });
     checkClip('drawing restores scissor after presentation', undefined, RED);
     clipRenderer.debugClear();
-    checkClip('debug clear ignores the game scissor', () => true, [255, 0, 255, 255]);
+    checkClip('debug clear fills black outside the game scissor too', () => true, [0, 0, 0, 255]);
   }
   // Banjo-Kazooie queues rendering into the displayed buffer while DP is
   // frozen. Check actual scanout pixels, including the copy outside scissor.
