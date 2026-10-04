@@ -138,7 +138,7 @@ export class GBI1 extends GBIMicrocode {
     const length = (cmd0 >>> 0) & 0xffff;
     const address = this.state.rdpSegmentAddress(cmd1);
 
-    this.state.combinedMatrix = null;
+    this.state.combinedMatrixDirty = true;
     let matrix = this.loadMatrix(address, length);
 
     if (dis) {
@@ -179,7 +179,7 @@ export class GBI1 extends GBIMicrocode {
     // base matrix, which must survive a pop when there are no saved matrices.
     if (!(flags & gbi.G_MTX_PROJECTION) && this.state.modelview.length > 1) {
       this.state.modelview.pop();
-      this.state.combinedMatrix = null;
+      this.state.combinedMatrixDirty = true;
     }
   }
 

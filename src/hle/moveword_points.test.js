@@ -119,6 +119,7 @@ test('matrix load, multiply, pop and task reset invalidate a forced combined mat
       const { ram, state, microcode } = harness(Type);
       writeMatrix(ram, 0x400, [...Matrix4x4.identity().elems]);
       state.combinedMatrix = new Matrix4x4(new Array(16).fill(2));
+      state.combinedMatrixDirty = false;
       state.modelview.push(Matrix4x4.identity());
       if (action === 'reset') {
         state.reset(ram, 8);
@@ -127,7 +128,8 @@ test('matrix load, multiply, pop and task reset invalidate a forced combined mat
       } else {
         microcode.executeMatrix(Type === GBI2 ? (action === 'load' ? 0xda380003 : 0xda380001) : (action === 'load' ? 0x01020040 : 0x01000040), 0x400);
       }
-      expect(state.combinedMatrix).toBeNull();
+      expect(state.combinedMatrixDirty).toBe(true);
+      expect([...state.getCombinedMatrix().elems]).toEqual([...Matrix4x4.identity().elems]);
     }
   }
 });
@@ -147,4 +149,31 @@ test('GBI2 ForceMatrix disassembly reads exactly the encoded 64 bytes', () => {
   const address = ram.byteLength - 64;
   writeMatrix(ram, address, [...Matrix4x4.identity().elems]);
   expect(() => microcode.executeMoveMem(0xdc38000e, address, { text() {}, tip() {} })).not.toThrow();
+});
+
+test('the active combined matrix is reused until stack state is invalidated', () => {
+  const { state, microcode } = harness(GBI2);
+  const active = state.getCombinedMatrix();
+  expect(state.getCombinedMatrix()).toBe(active);
+  microcode.executeMoveWord(0xdb0c0000, 0);
+  expect(state.combinedMatrix).toBe(active);
+  // Nonzero only clears the dirty flag, retaining the existing working matrix.
+  microcode.executeMoveWord(0xdb0c0000, 0x10000);
+  expect(state.getCombinedMatrix()).toBe(active);
+  microcode.executeMoveWord(0xdb0c0000, 0);
+  expect(state.getCombinedMatrix()).not.toBe(active);
+});
+
+test('a matrix DMA writes working state but the valid flag controls recomputation', () => {
+  const { ram, state, microcode } = harness(GBI2);
+  const forced = [...Matrix4x4.identity().elems];
+  forced[3] = 5;
+  writeMatrix(ram, 0x400, forced);
+  microcode.executeMoveMem(0xdc38000e, 0x400);
+  expect(state.combinedMatrix.elems[3]).toBe(5);
+  expect(state.combinedMatrixDirty).toBe(true);
+  expect(state.getCombinedMatrix().elems[3]).toBe(0);
+  microcode.executeMoveMem(0xdc38000e, 0x400);
+  microcode.executeMoveWord(0xdb0c0000, 0x10000);
+  expect(state.getCombinedMatrix().elems[3]).toBe(5);
 });

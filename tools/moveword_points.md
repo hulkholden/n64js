@@ -5,7 +5,7 @@ Build `bun build tools/moveword_points_webgl.js --outfile=build/moveword_points_
 The same MoveWord index (0x0c) has different meanings:
 
 - Fast3D/GBI1: a write into a 40-byte transformed vertex record. RGBA, signed s10.5 ST, signed s13.2 screen XY and unsigned 16.16 screen Z use the shared ModifyVertex handler. The scene shows RGBA/alpha writes affecting subsequent triangles.
-- F3DEX2/GBI2: the combined-matrix valid flag, named `G_MW_FORCEMTX`. A MoveMem matrix load followed by the nonzero flag uses that matrix without changing the projection/modelview stacks. A zero flag, matrix command or pop invalidates the override. The scene draws a triangle with the stack transform, a forced narrow transform, then the restored stack transform.
+- F3DEX2/GBI2: the combined-matrix valid flag, named `G_MW_FORCEMTX`. The active combined matrix is working state with a separate dirty flag. Vertex loads recompute it from the stacks only when dirty. MoveMem writes that matrix; the nonzero flag clears dirty without changing the matrix. A zero flag, matrix command or pop marks it dirty again. The scene draws a triangle with the stack transform, a forced narrow transform, then the restored stack transform.
 
 Encoding references: [GBI macros](https://github.com/glankk/libgfxd/blob/master/gbi.h), [Fast3D Points decoder](https://github.com/gonetz/GLideN64/blob/master/src/uCodes/F3D.cpp), [F3DEX2 ForceMatrix decoder](https://github.com/gonetz/GLideN64/blob/master/src/uCodes/F3DEX2.cpp).
 

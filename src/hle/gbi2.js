@@ -121,7 +121,7 @@ export class GBI2 extends GBIMicrocode {
     const replace = (cmd0 >>> 1) & 0x1;
     const projection = (cmd0 >>> 2) & 0x1;
 
-    this.state.combinedMatrix = null;
+    this.state.combinedMatrixDirty = true;
     let matrix = this.loadMatrix(address, 64);
 
     if (dis) {
@@ -373,7 +373,7 @@ export class GBI2 extends GBIMicrocode {
     // Keeping that matrix preserves the transform, including for excess pops.
     const stack = this.state.modelview;
     stack.length = Math.max(1, stack.length - count);
-    this.state.combinedMatrix = null;
+    this.state.combinedMatrixDirty = true;
   }
 
   executeMoveWord(cmd0, cmd1, dis) {
@@ -428,11 +428,9 @@ export class GBI2 extends GBIMicrocode {
       case gbi.G_MW_FORCEMTX:
         if (offset !== 0) {
           this.warn('MoveWord ForceMatrix invalid offset', toString16(offset));
-        } else if (value === 0) {
-          this.state.combinedMatrix = null;
-        } else if (!this.state.combinedMatrix) {
-          const projection = this.state.projection.at(-1);
-          this.state.combinedMatrix = projection.multiply(this.state.modelview.at(-1));
+        } else {
+          // This command controls recomputation; it never changes the active matrix.
+          this.state.combinedMatrixDirty = value === 0;
         }
         text = `gMoveWd(G_MW_FORCEMTX, ${toString16(offset)}, ${toString32(value)});`;
         break;
