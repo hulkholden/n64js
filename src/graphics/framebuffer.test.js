@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { Framebuffer } from './framebuffer.js';
+import { Framebuffer16, Framebuffer32 } from './framebuffer.js';
 
 function redPixels(count, bitDepth) {
   const ram = new DataView(new ArrayBuffer(count * bitDepth / 8));
@@ -15,12 +15,12 @@ function redPixels(count, bitDepth) {
 
 function redAt(buffer, x, y) {
   const offset = (buffer.height - 1 - y) * buffer.width + x;
-  return buffer.bitDepth === 32 ? buffer.pixels[offset * 4] : buffer.pixels[offset] >>> 11;
+  return buffer instanceof Framebuffer32 ? buffer.pixels[offset * 4] : buffer.pixels[offset] >>> 11;
 }
 
-for (const bitDepth of [16, 32]) {
+for (const [bitDepth, FramebufferType] of [[16, Framebuffer16], [32, Framebuffer32]]) {
   test(`${bitDepth}-bit native copies respect source pitch and produce bottom-up opaque pixels`, () => {
-    const buffer = new Framebuffer(3, 2, bitDepth);
+    const buffer = new FramebufferType(3, 2);
     buffer.readN64Pixels(redPixels(8, bitDepth), 0, { pitch: 4 });
     expect([0, 1, 2].map(x => redAt(buffer, x, 0))).toEqual([1, 2, 3]);
     expect([0, 1, 2].map(x => redAt(buffer, x, 1))).toEqual([5, 6, 7]);
@@ -29,7 +29,7 @@ for (const bitDepth of [16, 32]) {
   });
 
   test(`${bitDepth}-bit sampled copies preserve borders and alternate fields in a larger buffer`, () => {
-    const buffer = new Framebuffer(6, 5, bitDepth);
+    const buffer = new FramebufferType(6, 5);
     const ram = redPixels(32, bitDepth);
     const source = { pitch: 8, x: 1.5, y: 0.5, stepX: 0.5, stepY: 1.5 };
     const rect = { x: 1, y: 1, width: 4, height: 3 };
@@ -37,6 +37,8 @@ for (const bitDepth of [16, 32]) {
     expect([1, 2, 3, 4].map(x => redAt(buffer, x, 1))).toEqual([0, 0, 0, 0]);
     expect([1, 2, 3, 4].map(x => redAt(buffer, x, 2))).toEqual([18, 19, 19, 20]);
     expect([1, 2, 3, 4].map(x => redAt(buffer, x, 3))).toEqual([0, 0, 0, 0]);
+    // Reusing the same dimensions must preserve the previously rendered field.
+    buffer.resize(6, 5);
     buffer.readN64Pixels(ram, 0, source, rect, 0);
     expect([1, 2, 3, 4].map(x => redAt(buffer, x, 1))).toEqual([2, 3, 3, 4]);
     expect([1, 2, 3, 4].map(x => redAt(buffer, x, 2))).toEqual([18, 19, 19, 20]);

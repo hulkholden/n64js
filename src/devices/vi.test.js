@@ -34,6 +34,32 @@ function pixelAt(vi, pixels, bitDepth, x = 0, y = 0) {
   return bitDepth === 16 ? pixels[offset] : Array.from(pixels.subarray(offset * 4, offset * 4 + 4));
 }
 
+test('progressive scanout switches pixel formats and reuses buffers within a format', () => {
+  const { vi, ram } = makeVI(4096);
+  let previousBuffer = null;
+  let previousBitDepth = 0;
+  for (const bitDepth of [16, 16, 32, 32, 16]) {
+    setSmallFrame(vi, bitDepth, 0x100);
+    if (bitDepth === 16) {
+      ram.set16(0x110, 0xf800);
+    } else {
+      ram.set32(0x120, 0x12345600);
+    }
+    const frame = vi.renderProgressiveBackBuffer();
+    expect(frame.bitDepth).toBe(bitDepth);
+    expect(frame.pixels).toBeInstanceOf(bitDepth === 32 ? Uint8Array : Uint16Array);
+    expect(frame.pixels.byteLength).toBe(frame.width * frame.height * bitDepth / 8);
+    const offset = (frame.height - 1) * frame.width + 8;
+    const actual = bitDepth === 16 ? frame.pixels[offset] : Array.from(frame.pixels.subarray(offset * 4, offset * 4 + 4));
+    expect(actual).toEqual(bitDepth === 16 ? 0xf801 : [0x12, 0x34, 0x56, 255]);
+    if (bitDepth === previousBitDepth) {
+      expect(vi.progressiveFramebuffer).toBe(previousBuffer);
+    }
+    previousBuffer = vi.progressiveFramebuffer;
+    previousBitDepth = bitDepth;
+  }
+});
+
 for (const bitDepth of [16, 32]) {
   test(`${bitDepth}-bit PAL scanout reaches the bottom of the 576-line display`, () => {
     const { vi, ram } = makeVI(4096, OS_TV_PAL);

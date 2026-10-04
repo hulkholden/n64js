@@ -1,7 +1,7 @@
 /*global n64js*/
 
 import { Device } from './device.js';
-import { Framebuffer } from '../graphics/framebuffer.js';
+import { Framebuffer16, Framebuffer32 } from '../graphics/framebuffer.js';
 import { VIScanout } from './vi_scanout.js';
 import * as mi from './mi.js';
 import * as logger from '../logger.js';
@@ -84,16 +84,16 @@ export class VIRegDevice extends Device {
     this.vScanMax = this.vScanMin + this.screenHeight;
     this.scanout = new VIScanout(this.screenWidth, this.screenHeight);
 
-    // Progressive CPU video: resized to the native source extent and format,
-    // then fully overwritten with unscaled pixels. The presentation shader
-    // applies VI scaling, subpixel offsets and display borders.
-    this.progressiveFramebuffer = new Framebuffer();
+    // Progressive CPU video: allocated on demand for the current pixel format
+    // and resized to the native source extent. Unscaled pixels are fully
+    // overwritten; the shader applies VI scaling, offsets and display borders.
+    this.progressiveFramebuffer = null;
 
     // Interlaced CPU video: VI sampling is applied into these display-sized
     // buffers on the CPU. Each update retains the opposite field's rows;
     // separate 16/32-bit buffers preserve that history in their upload formats.
-    this.interlacedFramebuffer16 = new Framebuffer(this.screenWidth, this.screenHeight, 16);
-    this.interlacedFramebuffer32 = new Framebuffer(this.screenWidth, this.screenHeight, 32);
+    this.interlacedFramebuffer16 = new Framebuffer16(this.screenWidth, this.screenHeight);
+    this.interlacedFramebuffer32 = new Framebuffer32(this.screenWidth, this.screenHeight);
   }
 
   // Raw register values.
@@ -334,8 +334,12 @@ export class VIRegDevice extends Device {
     if (!scanout?.visible || !origin || !bitDepth) {
       return null;
     }
+    const FramebufferType = bitDepth === 32 ? Framebuffer32 : Framebuffer16;
+    if (!(this.progressiveFramebuffer instanceof FramebufferType)) {
+      this.progressiveFramebuffer = new FramebufferType();
+    }
     const buffer = this.progressiveFramebuffer;
-    buffer.resize(scanout.nativeWidth, scanout.nativeHeight, bitDepth);
+    buffer.resize(scanout.nativeWidth, scanout.nativeHeight);
     buffer.readN64Pixels(this.hardware.cachedMemDevice.mem.dataView, origin, { pitch: scanout.source.pitch });
     return {
       pixels: buffer.pixels, width: buffer.width, height: buffer.height, bitDepth,
