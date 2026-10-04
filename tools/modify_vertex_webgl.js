@@ -2,22 +2,18 @@ import { executeDisplayList } from '../src/hle/display_list.js';
 import { GBI0 } from '../src/hle/gbi0.js';
 import { GBI1 } from '../src/hle/gbi1.js';
 import { GBI2 } from '../src/hle/gbi2.js';
-import { Renderer } from '../src/hle/renderer.js';
-import { RSPState } from '../src/hle/rsp_state.js';
 import { Vector3 } from '../src/graphics/Vector3.js';
+import { createWebGLHarness, evaluateChecks } from './webgl_test_helpers.js';
 
 // Draw the same cached vertices before and after real ModifyVertex commands.
 // Expected RGB values are explicit; partial alpha blends over RGB(16, 32, 48).
 export function renderModifyVertexScene(gl, legacyPoints = false) {
-  const ram = new DataView(new ArrayBuffer(512));
-  const state = new RSPState();
-  state.reset(ram, 0);
-  const renderer = new Renderer(gl, state, 800, 360);
-  renderer.newFrame();
-  gl.disable(gl.DITHER);
-  gl.disable(gl.SCISSOR_TEST);
-  gl.clearColor(16 / 255, 32 / 255, 48 / 255, 1);
-  gl.clear(gl.COLOR_BUFFER_BIT);
+  const { ram, state, renderer, resetFrame } = createWebGLHarness(gl, {
+    width: 800,
+    height: 360,
+    ramBytes: 512,
+  });
+  resetFrame([16, 32, 48, 255]);
   state.geometryMode.shade = state.geometryMode.shadeSmooth = 1;
   state.combine.hi = 0x00ffffff;
   // SHADE in both cycles, including alpha.
@@ -84,27 +80,19 @@ export function renderModifyVertexScene(gl, legacyPoints = false) {
 export function runModifyVertexTests(gl) {
   gl.canvas.width = 800;
   gl.canvas.height = 360;
-  return [...renderModifyVertexScene(gl), ...renderModifyVertexXYScene(gl)].map(({ name, actual, expected }) => {
-    if (actual.some((value, i) => Math.abs(value - expected[i]) > 1)) {
-      throw new Error(`${name}: expected ${expected}, got ${actual}`);
-    }
-    return `PASS ${name}`;
-  });
+  return evaluateChecks([...renderModifyVertexScene(gl), ...renderModifyVertexXYScene(gl)]);
 }
 
 // The same triangle is drawn before and after screen-position writes, with
 // unequal W values to catch lost perspective and a changed RSP viewport to
 // catch accidental transformation of coordinates that are already on screen.
 export function renderModifyVertexXYScene(gl) {
-  const ram = new DataView(new ArrayBuffer(512));
-  const state = new RSPState();
-  state.reset(ram, 0);
-  const renderer = new Renderer(gl, state, 800, 360);
-  renderer.newFrame();
-  gl.disable(gl.DITHER);
-  gl.disable(gl.SCISSOR_TEST);
-  gl.clearColor(16 / 255, 32 / 255, 48 / 255, 1);
-  gl.clear(gl.COLOR_BUFFER_BIT);
+  const { ram, state, renderer, resetFrame } = createWebGLHarness(gl, {
+    width: 800,
+    height: 360,
+    ramBytes: 512,
+  });
+  resetFrame([16, 32, 48, 255]);
   state.geometryMode.shade = state.geometryMode.shadeSmooth = 1;
   state.combine.hi = 0x00ffffff;
   state.combine.lo = (0xfffc7038 | (4 << 15) | (4 << 9) | (4 << 6) | 4) >>> 0;

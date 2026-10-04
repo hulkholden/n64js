@@ -14,6 +14,13 @@ import { runBg1cycTests } from './s2dex_bg_1cyc_webgl.js';
 import { runBgCopyTests } from './s2dex_bg_copy_webgl.js';
 import { runLightColorTests } from './light_color_webgl.js';
 import { runModifyVertexTests } from './modify_vertex_webgl.js';
+import {
+  BLUE,
+  createTestTexture,
+  GREEN,
+  RED,
+  WHITE,
+} from './webgl_test_helpers.js';
 
 const output = document.getElementById('results');
 try {
@@ -31,20 +38,11 @@ try {
   const positions = new Float32Array([-1, -1, 0, 1, 3, -1, 0, 1, -1, 3, 0, 1]);
   const colors = new Uint32Array([0xffffffff, 0xffffffff, 0xffffffff]);
 
-  function texture(width, height, pixels) {
-    const tex = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D, tex);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(pixels.flat()));
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-    return { width, height, texture: tex };
-  }
-  const red = [255, 0, 0, 255], green = [0, 255, 0, 255];
-  const blue = [0, 0, 255, 255], white = [255, 255, 255, 255];
-  const quad = texture(2, 2, [red, green, blue, white]);
-  const row = texture(4, 1, [red, green, blue, white]);
-  const column = texture(1, 4, [red, green, blue, white]);
-  const npot = texture(3, 1, [red, green, blue]);
+  const texture = (width, height, pixels) => createTestTexture(gl, width, height, pixels);
+  const quad = texture(2, 2, [RED, GREEN, BLUE, WHITE]);
+  const row = texture(4, 1, [RED, GREEN, BLUE, WHITE]);
+  const column = texture(1, 4, [RED, GREEN, BLUE, WHITE]);
+  const npot = texture(3, 1, [RED, GREEN, BLUE]);
 
   let passed = 0;
   const lines = [];
@@ -124,45 +122,45 @@ try {
     return renderer.getCurrentN64Shader();
   }
 
-  check('integer coordinates select texel centres', red);
-  check('point sampling truncates fractions', red, { uv: [0.75, 0.75] });
+  check('integer coordinates select texel centres', RED);
+  check('point sampling truncates fractions', RED, { uv: [0.75, 0.75] });
   check('three-point lower triangle', [128, 64, 64, 255], { uv: [0.25, 0.25], filter: gbi.TextureFilter.G_TF_BILERP });
   check('three-point upper triangle', [128, 191, 191, 255], { uv: [0.75, 0.75], filter: gbi.TextureFilter.G_TF_BILERP });
   check('diagonal uses three-point interpolation', [0, 128, 128, 255], { uv: [0.5, 0.5], filter: gbi.TextureFilter.G_TF_BILERP });
   check('average mode midpoint', [128, 128, 128, 255], { uv: [0.5, 0.5], filter: gbi.TextureFilter.G_TF_AVERAGE });
   check('average mode away from midpoint', [128, 64, 64, 255], { uv: [0.25, 0.25], filter: gbi.TextureFilter.G_TF_AVERAGE });
   check('five-bit filter fractions', [239, 8, 8, 255], { uv: [0.06, 0.06], filter: gbi.TextureFilter.G_TF_BILERP });
-  check('implicit clamp with zero mask', red, { uv: [-1, -1] });
-  check('clamped upper edge clears fraction', green, { uv: [1.75, 0], filter: gbi.TextureFilter.G_TF_BILERP });
-  check('negative wrapped coordinate', green, { uv: [-1, 0], mask: [1, 1] });
+  check('implicit clamp with zero mask', RED, { uv: [-1, -1] });
+  check('clamped upper edge clears fraction', GREEN, { uv: [1.75, 0], filter: gbi.TextureFilter.G_TF_BILERP });
+  check('negative wrapped coordinate', GREEN, { uv: [-1, 0], mask: [1, 1] });
   check('wrap seam filters across both edges', [128, 128, 0, 255], { uv: [1.5, 0], mask: [1, 1], filter: gbi.TextureFilter.G_TF_BILERP });
-  check('negative mirror coordinate', red, { uv: [-1, 0], mask: [1, 1], mode: [1, 1] });
-  check('mirror seam repeats edge texel', green, { uv: [1.5, 0], mask: [1, 1], mode: [1, 1], filter: gbi.TextureFilter.G_TF_BILERP });
+  check('negative mirror coordinate', RED, { uv: [-1, 0], mask: [1, 1], mode: [1, 1] });
+  check('mirror seam repeats edge texel', GREEN, { uv: [1.5, 0], mask: [1, 1], mode: [1, 1], filter: gbi.TextureFilter.G_TF_BILERP });
   check('mirror reverses direction', [128, 128, 0, 255], { uv: [2.5, 0], mask: [1, 1], mode: [1, 1], filter: gbi.TextureFilter.G_TF_BILERP });
-  check('T wraps independently of S', blue, { tex: column, uv: [0, -2], mask: [0, 2] });
-  check('T mirrors independently of S', green, { tex: column, uv: [0, -2], mask: [0, 2], mode: [0, 1] });
-  check('clamp and mirror both apply', red, { uv: [6, 0], mask: [1, 0], mode: [3, 0], last: [3, 1] });
-  check('clamp extent differs from mask period', green, { uv: [6, 0], mask: [1, 0], mode: [2, 0], last: [3, 1] });
-  check('mask period differs from texture width', green, { tex: row, uv: [3, 0], mask: [1, 0] });
-  check('fractional origin and shift order', green, { tex: row, uv: [5, 0], origin: [1.25, 0], last: [4.25, 0], shift: [1, 0] });
-  check('left shift', blue, { tex: row, uv: [0.125, 0], shift: [12, 0] });
-  check('generated texture coordinates', white, { uv: [0.75, 0.75], texgen: true });
-  check('non-power-of-two decoded bounds', blue, { tex: npot, uv: [3, 0], mask: [2, 0] });
-  check('copy mode ignores filtering', red, { uv: [0.75, 0.75], cycle: gbi.CycleType.G_CYC_COPY, filter: gbi.TextureFilter.G_TF_AVERAGE });
-  check('second tile wraps index seven to zero', blue, { tex1: column, uv: [0, 2], cycle: gbi.CycleType.G_CYC_2CYCLE, tileIndex: 7 });
+  check('T wraps independently of S', BLUE, { tex: column, uv: [0, -2], mask: [0, 2] });
+  check('T mirrors independently of S', GREEN, { tex: column, uv: [0, -2], mask: [0, 2], mode: [0, 1] });
+  check('clamp and mirror both apply', RED, { uv: [6, 0], mask: [1, 0], mode: [3, 0], last: [3, 1] });
+  check('clamp extent differs from mask period', GREEN, { uv: [6, 0], mask: [1, 0], mode: [2, 0], last: [3, 1] });
+  check('mask period differs from texture width', GREEN, { tex: row, uv: [3, 0], mask: [1, 0] });
+  check('fractional origin and shift order', GREEN, { tex: row, uv: [5, 0], origin: [1.25, 0], last: [4.25, 0], shift: [1, 0] });
+  check('left shift', BLUE, { tex: row, uv: [0.125, 0], shift: [12, 0] });
+  check('generated texture coordinates', WHITE, { uv: [0.75, 0.75], texgen: true });
+  check('non-power-of-two decoded bounds', BLUE, { tex: npot, uv: [3, 0], mask: [2, 0] });
+  check('copy mode ignores filtering', RED, { uv: [0.75, 0.75], cycle: gbi.CycleType.G_CYC_COPY, filter: gbi.TextureFilter.G_TF_AVERAGE });
+  check('second tile wraps index seven to zero', BLUE, { tex1: column, uv: [0, 2], cycle: gbi.CycleType.G_CYC_2CYCLE, tileIndex: 7 });
   check('missing second texture is black', [0, 0, 0, 255], { cycle: gbi.CycleType.G_CYC_2CYCLE });
   // Chopper Attack uses two cycles with LOD enabled but a single mip level.
   // The second cycle must read the base tile, even if the next tile is absent.
   const singleLevelLOD = { cycle: gbi.CycleType.G_CYC_2CYCLE, lod: gbi.TextureLOD.G_TL_LOD };
-  check('single-level LOD shares the base tile across cycles', red, singleLevelLOD);
-  check('single-level LOD uses base tile coordinates and addressing', green, {
+  check('single-level LOD shares the base tile across cycles', RED, singleLevelLOD);
+  check('single-level LOD uses base tile coordinates and addressing', GREEN, {
     ...singleLevelLOD, tileIndex: 7, tex: row, tex1: column, uv: [5, 0],
     origin: [1, 0], last: [4, 0], shift: [1, 0], mask: [2, 0],
   });
-  check('single-level LOD preserves generated coordinates', white, { ...singleLevelLOD, texgen: true, uv: [0.75, 0.75] });
-  check('single-level sharpen also shares the base tile', red, { ...singleLevelLOD, detail: gbi.TextureDetail.G_TD_SHARPEN });
-  check('detail mode retains a separate second tile', blue, { ...singleLevelLOD, detail: gbi.TextureDetail.G_TD_DETAIL, tex1: column, uv: [0, 2] });
-  check('multiple LOD levels retain a separate second tile', blue, { ...singleLevelLOD, level: 1, tex1: column, uv: [0, 2] });
+  check('single-level LOD preserves generated coordinates', WHITE, { ...singleLevelLOD, texgen: true, uv: [0.75, 0.75] });
+  check('single-level sharpen also shares the base tile', RED, { ...singleLevelLOD, detail: gbi.TextureDetail.G_TD_SHARPEN });
+  check('detail mode retains a separate second tile', BLUE, { ...singleLevelLOD, detail: gbi.TextureDetail.G_TD_DETAIL, tex1: column, uv: [0, 2] });
+  check('multiple LOD levels retain a separate second tile', BLUE, { ...singleLevelLOD, level: 1, tex1: column, uv: [0, 2] });
   check('untextured draw clears previous sampler state', [0, 0, 0, 255], { enabled: false });
   check('texture sampling resumes after an untextured draw', [128, 191, 191, 255], { uv: [0.75, 0.75], filter: gbi.TextureFilter.G_TF_BILERP });
 
@@ -184,7 +182,7 @@ try {
   check('alpha multiplier zero selects LOD fraction, not combined alpha', [255, 255, 255, 64], {
     ...glyphBlend, combine: [0x00ffa1ff, 0xfffd9238],
   });
-  check('alpha add input six remains constant one', white, {
+  check('alpha add input six remains constant one', WHITE, {
     ...glyphBlend, combine: [0x00ffffff, 0xfffdfc38], primLodFrac: 64,
   });
   check('second alpha cycle blends with swapped texel inputs', [255, 255, 255, 160], {
@@ -196,22 +194,22 @@ try {
   });
   check('RGB multiplier uses the same primitive LOD fraction', [191, 0, 64, 255], {
     ...glyphBlend, combine: [0x00277fff, 0x1ffcfc38], primLodFrac: 64,
-    tex: texture(1, 1, [red]), tex1: texture(1, 1, [blue]),
+    tex: texture(1, 1, [RED]), tex1: texture(1, 1, [BLUE]),
   });
 
   // Wetrix supplies twice the texel coordinates for its G_TP_NONE triangles.
   // Use unrelated texture dimensions to catch a size-specific workaround.
   const noPerspective = { rspTriangle: true, perspective: gbi.TexturePerspective.G_TP_NONE };
-  check('non-perspective triangles halve S', green, { ...noPerspective, tex: row, uv: [2, 0] });
-  check('non-perspective triangles halve T', green, { ...noPerspective, tex: column, uv: [0, 2] });
-  check('triangle scale precedes tile shift and origin', green, {
+  check('non-perspective triangles halve S', GREEN, { ...noPerspective, tex: row, uv: [2, 0] });
+  check('non-perspective triangles halve T', GREEN, { ...noPerspective, tex: column, uv: [0, 2] });
+  check('triangle scale precedes tile shift and origin', GREEN, {
     ...noPerspective, tex: row, uv: [8, 0], shift: [1, 0], origin: [1, 0], last: [4, 0],
   });
-  check('both combiner cycles use the triangle scale', green, {
+  check('both combiner cycles use the triangle scale', GREEN, {
     ...noPerspective, tex1: column, uv: [0, 2], cycle: gbi.CycleType.G_CYC_2CYCLE,
   });
-  check('generated triangle coordinates use the same scale', red, { ...noPerspective, uv: [0.75, 0.75], texgen: true });
-  check('perspective triangles retain their coordinate scale', blue, { rspTriangle: true, tex: row, uv: [2, 0] });
+  check('generated triangle coordinates use the same scale', RED, { ...noPerspective, uv: [0.75, 0.75], texgen: true });
+  check('perspective triangles retain their coordinate scale', BLUE, { rspTriangle: true, tex: row, uv: [2, 0] });
 
   // Threshold alpha compare accepts equality (comb_alpha >= threshold).
   // See alpha_compare in angrylion-rdp-plus/src/core/n64video/rdp/blender.c.
@@ -292,7 +290,7 @@ try {
   function checkRectangle(name, {
     width = 8, height = 8, flip = false, modeT = 0, startT = 0, endT = 4,
     nativeWidth = 4, nativeHeight = 4, originX = 0, originY = 0, tileTop = 0,
-    expected = (x, y) => [red, green, blue, white][flip ? x : y],
+    expected = (x, y) => [RED, GREEN, BLUE, WHITE][flip ? x : y],
   } = {}) {
     gl.canvas.width = width;
     gl.canvas.height = height;
@@ -340,8 +338,8 @@ try {
     startT: 0.25, endT: 2.25,
     expected: (x, y) => [[191, 64, 0, 255], [64, 191, 0, 255], [0, 191, 64, 255], [0, 64, 191, 255]][y],
   });
-  checkRectangle('repeated rectangles still wrap', { endT: 8, expected: (x, y) => y % 2 ? blue : red });
-  checkRectangle('repeated rectangles still mirror', { endT: 8, modeT: 1, expected: (x, y) => [red, blue, white, green][y] });
+  checkRectangle('repeated rectangles still wrap', { endT: 8, expected: (x, y) => y % 2 ? BLUE : RED });
+  checkRectangle('repeated rectangles still mirror', { endT: 8, modeT: 1, expected: (x, y) => [RED, BLUE, WHITE, GREEN][y] });
 
   // THPS3 draws atlas glyphs at quarter-pixel positions with AA disabled.
   // Only the upper-left coverage sample counts in this mode: native pixels
@@ -380,7 +378,7 @@ try {
             throw new Error(`${name}: WebGL error`);
           }
           // Y starts on floor(y0), while X retains its quarter-pixel offset.
-          const samples = flip ? [[0, 128, 128, 255], blue, [128, 128, 255, 255]] : {
+          const samples = flip ? [[0, 128, 128, 255], BLUE, [128, 128, 255, 255]] : {
             0.25: [[0, 159, 96, 255], [0, 32, 223, 255], [96, 96, 255, 255]],
             0.5: [[0, 191, 64, 255], [0, 64, 191, 255], [64, 64, 255, 255]],
             0.75: [[0, 223, 32, 255], [0, 96, 159, 255], [32, 32, 255, 255]],
@@ -440,7 +438,7 @@ try {
           for (let y = 0; y < size; y++) {
             for (let x = 0; x < size; x++) {
               const step = Math.floor((reverseS !== flip ? x : y) / scale);
-              const expected = [white, blue, green, red][step];
+              const expected = [WHITE, BLUE, GREEN, RED][step];
               const offset = ((size - 1 - y) * size + x) * 4;
               const actual = pixels.subarray(offset, offset + 4);
               if (actual.some((value, i) => value !== expected[i])) {
@@ -470,7 +468,7 @@ try {
   state.invalidateTileHashes();
   const font = { decode: true, format: gbi.ImageFormat.G_IM_FMT_IA, size: gbi.ImageSize.G_IM_SIZ_4b,
     tex: { width: 1, height: 1 } };
-  check('IA4 font uses opaque RGBA16 palette entry for an even index', white, {
+  check('IA4 font uses opaque RGBA16 palette entry for an even index', WHITE, {
     ...font, tlut: gbi.TextureLUT.G_TT_RGBA16,
   });
   check('IA4 without TLUT still uses its own alpha bit', [255, 255, 255, 0], font);
@@ -494,7 +492,7 @@ try {
     }
     state.invalidateTileHashes();
     const rgba = { decode: true, format: gbi.ImageFormat.G_IM_FMT_RGBA, size, tex: { width: 1, height: 1 } };
-    check(`${name} uses RGBA16 palette when enabled`, red, { ...rgba, tlut: gbi.TextureLUT.G_TT_RGBA16 });
+    check(`${name} uses RGBA16 palette when enabled`, RED, { ...rgba, tlut: gbi.TextureLUT.G_TT_RGBA16 });
     check(`${name} uses intensity when TLUT is disabled`, Array(4).fill(intensity), rgba);
     check(`${name} uses IA16 palette when enabled`, [248, 248, 248, 1], { ...rgba, tlut: gbi.TextureLUT.G_TT_IA16 });
   }
@@ -517,18 +515,18 @@ try {
   const scrolling = { decode: true, format: gbi.ImageFormat.G_IM_FMT_CI, size: gbi.ImageSize.G_IM_SIZ_4b,
     line: 4, tex: { width: 64, height: 64 }, mask: [6, 6], last: [64, 64] };
   // check() normally disables the TLUT; RGBA16 is also the decoder's default.
-  check('scrolling S decodes the full wrap period', white, { ...scrolling, origin: [32, 0], uv: [16, 0] });
-  check('scrolling T decodes the full wrap period', white, { ...scrolling, origin: [0, 32], uv: [0, 16] });
-  check('scrolling both axes preserves all texels', blue, { ...scrolling, origin: [32, 32], uv: [16, 16] });
+  check('scrolling S decodes the full wrap period', WHITE, { ...scrolling, origin: [32, 0], uv: [16, 0] });
+  check('scrolling T decodes the full wrap period', WHITE, { ...scrolling, origin: [0, 32], uv: [0, 16] });
+  check('scrolling both axes preserves all texels', BLUE, { ...scrolling, origin: [32, 32], uv: [16, 16] });
   check('wrap boundary filters decoded texels on both sides', [255, 128, 128, 255], {
     ...scrolling, origin: [32, 0], uv: [31.5, 0], filter: gbi.TextureFilter.G_TF_BILERP,
   });
-  check('mirroring uses texels beyond the clamp bounds', blue, { ...scrolling, origin: [48, 0], uv: [128, 0], mode: [1, 0] });
-  check('expanded decoding preserves generated coordinate scale', green, {
+  check('mirroring uses texels beyond the clamp bounds', BLUE, { ...scrolling, origin: [48, 0], uv: [128, 0], mode: [1, 0] });
+  check('expanded decoding preserves generated coordinate scale', GREEN, {
     ...scrolling, origin: [32, 0], uv: [0.5, 0], texgen: true,
   });
-  check('explicit clamping still uses the tile bounds', blue, { ...scrolling, origin: [32, 0], uv: [80, 0], mode: [2, 0] });
-  check('copy mode decodes the wrap period even with clamp enabled', white, {
+  check('explicit clamping still uses the tile bounds', BLUE, { ...scrolling, origin: [32, 0], uv: [80, 0], mode: [2, 0] });
+  check('copy mode decodes the wrap period even with clamp enabled', WHITE, {
     ...scrolling, origin: [32, 0], uv: [16, 0], mode: [2, 0], cycle: gbi.CycleType.G_CYC_COPY,
   });
   const copyTexture = renderer.lookupTexture(0);
@@ -601,29 +599,29 @@ try {
   clearDepthScene();
   state.noNearClipping = true;
   drawDepth([-4, -4, -4], 0xff0000ff);
-  checkDepth('NoN renders the field before the near plane', [red, red, red, red]);
+  checkDepth('NoN renders the field before the near plane', [RED, RED, RED, RED]);
 
   clearDepthScene();
   state.noNearClipping = false;
   drawDepth([-4, -4, -4], 0xff0000ff);
-  checkDepth('ordinary microcode still clips the near plane', [blue, blue, blue, blue]);
+  checkDepth('ordinary microcode still clips the near plane', [BLUE, BLUE, BLUE, BLUE]);
 
   clearDepthScene();
   state.noNearClipping = true;
   state.geometryMode.zbuffer = 1;
   state.rdpOtherModeL = gbi.RenderMode.Z_CMP | gbi.RenderMode.Z_UPD;
   drawDepth([-2, 6, -2], 0xff0000ff);
-  checkDepth('NoN preserves far clipping with unequal W', [red, red, red, blue]);
+  checkDepth('NoN preserves far clipping with unequal W', [RED, RED, RED, BLUE]);
   // Original Z/W at these four pixels is -1.5, -0.5, 0.5, 1.5. The first
   // two pixels must occlude an ordinary triangle at depth 0.5.
   state.noNearClipping = false;
   drawDepth([0, 0, 0], 0xff00ff00);
-  checkDepth('NoN clamps per-fragment depth without changing its slope', [red, red, green, green]);
+  checkDepth('NoN clamps per-fragment depth without changing its slope', [RED, RED, GREEN, GREEN]);
 
   clearDepthScene();
   state.noNearClipping = true;
   drawDepth([0, 0, 0], 0xff0000ff, [-1, -2, -4]);
-  checkDepth('NoN still clips geometry behind the eye', [blue, blue, blue, blue]);
+  checkDepth('NoN still clips geometry behind the eye', [BLUE, BLUE, BLUE, BLUE]);
 
   // G.A.S.P character select moves loaded vertices to screen Z = 1.5.
   // The replacement depth must survive WebGL's perspective divide and Z test.
@@ -648,12 +646,12 @@ try {
   drawDepth([-0.99, -0.99, -0.99], 0xff00ff00);
   drawModifiedDepth(0x00018000);
   drawDepth([-0.99, -0.99, -0.99], 0xff00ff00);
-  checkDepth('G.A.S.P screen-depth updates occlude the background with unequal W', [red, red, red, red]);
+  checkDepth('G.A.S.P screen-depth updates occlude the background with unequal W', [RED, RED, RED, RED]);
 
   clearDepthScene();
   drawDepth([1 / 2048, 1 / 2048, 1 / 2048], 0xff00ff00);
   drawModifiedDepth(0x01ff8000);
-  checkDepth('screen-depth updates preserve fractional bits during depth testing', [green, green, green, green]);
+  checkDepth('screen-depth updates preserve fractional bits during depth testing', [GREEN, GREEN, GREEN, GREEN]);
 
   // RDP rectangles bypass the RSP's NoN behavior even while it is selected.
   clearDepthScene();
@@ -661,7 +659,7 @@ try {
   state.rdpOtherModeL = gbi.DepthSource.G_ZS_PRIM;
   state.primDepth = -4;
   renderer.texRect(0, 0, 0, 320, 240, 0, 0, 0, 0);
-  checkDepth('RDP rectangles retain ordinary clipping after NoN triangles', [blue, blue, blue, blue]);
+  checkDepth('RDP rectangles retain ordinary clipping after NoN triangles', [BLUE, BLUE, BLUE, BLUE]);
 
   // Wave Race changes the scissor around its rotating course preview. Check
   // real pixels through SetScissor and every drawing path, at both resolutions.
@@ -681,7 +679,7 @@ try {
       (15 << 24) | (1 << 21) | (4 << 18) | (7 << 6) | (7 << 3) | 7) >>> 0;
     clipState.tiles[0].set(0, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0);
     clipRenderer.lookupTexture = () => textureWhite;
-    const textureWhite = texture(1, 1, [white]);
+    const textureWhite = texture(1, 1, [WHITE]);
     const buffer = new TriangleBuffer(1);
     function scissor(x0 = 2, y0 = 1, x1 = 5, y1 = 4) {
       clipMicrocode.executeSetScissor(0xed000000 | (x0 * 4 << 12) | y0 * 4, (x1 * 4 << 12) | y1 * 4);
@@ -701,7 +699,7 @@ try {
       clipRenderer.clearColor({ r: 0, g: 0, b: 1, a: 1 });
       scissor();
     }
-    function checkClip(name, inside = (x, y) => x >= 2 && x < 5 && y >= 1 && y < 4, foreground = white) {
+    function checkClip(name, inside = (x, y) => x >= 2 && x < 5 && y >= 1 && y < 4, foreground = WHITE) {
       const pixels = new Uint8Array(width * height * 4);
       gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
       if (gl.getError() !== gl.NO_ERROR) {
@@ -709,7 +707,7 @@ try {
       }
       for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
-          const want = inside(x / scale, y / scale) ? foreground : blue;
+          const want = inside(x / scale, y / scale) ? foreground : BLUE;
           const offset = ((height - 1 - y) * width + x) * 4;
           const actual = pixels.subarray(offset, offset + 4);
           if (actual.some((value, i) => value !== want[i])) {
@@ -760,7 +758,7 @@ try {
     checkClip('presentation copies pixels outside the last scissor');
     clipRenderer.newFrame();
     clipRenderer.fillRect(0, 0, 8, 6, { r: 1, g: 0, b: 0, a: 1 });
-    checkClip('drawing restores scissor after presentation', undefined, red);
+    checkClip('drawing restores scissor after presentation', undefined, RED);
     clipRenderer.debugClear();
     checkClip('debug clear ignores the game scissor', () => true, [255, 0, 255, 255]);
   }
@@ -796,23 +794,23 @@ try {
     while (gl.getError() !== gl.NO_ERROR) {
       /* drain earlier shader setup errors */
     }
-    clearImage(0, red);
-    clearImage(16, green);
+    clearImage(0, RED);
+    clearImage(16, GREEN);
     targets.setDPFrozen(true);
     gl.enable(gl.SCISSOR_TEST);
     gl.scissor(0, 0, 1, 1);
-    clearImage(0, blue);
-    checkFrozen('frozen VI retains the old frame outside the last scissor', 2, red);
-    checkFrozen('frozen VI can switch to the other completed buffer', 18, green);
+    clearImage(0, BLUE);
+    checkFrozen('frozen VI retains the old frame outside the last scissor', 2, RED);
+    checkFrozen('frozen VI can switch to the other completed buffer', 18, GREEN);
     targets.setDPFrozen(false);
-    checkFrozen('unfreeze publishes the queued frame', 2, blue);
+    checkFrozen('unfreeze publishes the queued frame', 2, BLUE);
     targets.setDPFrozen(true);
     frozenRenderer.newFrame(); // Preserve an inherited color image as well.
     gl.clearColor(1, 1, 1, 1);
     gl.clear(gl.COLOR_BUFFER_BIT);
-    checkFrozen('new task without SetColorImage preserves frozen pixels', 2, blue);
+    checkFrozen('new task without SetColorImage preserves frozen pixels', 2, BLUE);
     targets.setDPFrozen(false);
-    checkFrozen('second unfreeze publishes the inherited target', 2, white);
+    checkFrozen('second unfreeze publishes the inherited target', 2, WHITE);
     targets.reset();
   }
   // Exercise deletion against real GPU objects, including reset after eviction.
@@ -840,24 +838,20 @@ try {
     lines.push('PASS texture cache eviction and reset delete GPU objects');
     passed++;
   }
-  const rdpResults = runRDPTests(gl);
-  lines.push(...rdpResults);
-  passed += rdpResults.length;
-  const bgResults = [...runBgCopyTests(gl), ...runBg1cycTests(gl)];
-  lines.push(...bgResults);
-  passed += bgResults.length;
-  const affineResults = runAffineProjectionTests(gl);
-  lines.push(...affineResults);
-  passed += affineResults.length;
-  const fogResults = runFogTests(gl);
-  lines.push(...fogResults);
-  passed += fogResults.length;
-  const lightColorResults = runLightColorTests(gl);
-  lines.push(...lightColorResults);
-  passed += lightColorResults.length;
-  const modifyVertexResults = runModifyVertexTests(gl);
-  lines.push(...modifyVertexResults);
-  passed += modifyVertexResults.length;
+  const suiteRunners = [
+    runRDPTests,
+    runBgCopyTests,
+    runBg1cycTests,
+    runAffineProjectionTests,
+    runFogTests,
+    runLightColorTests,
+    runModifyVertexTests,
+  ];
+  for (const runSuite of suiteRunners) {
+    const results = runSuite(gl);
+    lines.push(...results);
+    passed += results.length;
+  }
   output.textContent = `${passed} passed\n${lines.join('\n')}`;
   document.title = `${passed} passed`;
 } catch (error) {

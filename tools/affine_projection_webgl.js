@@ -1,33 +1,34 @@
 import { Matrix4x4 } from '../src/graphics/Matrix4x4.js';
 import * as gbi from '../src/hle/gbi.js';
-import { Renderer } from '../src/hle/renderer.js';
-import { RSPState } from '../src/hle/rsp_state.js';
 import { T3DUX } from '../src/hle/t3dux.js';
 import { TriangleBuffer } from '../src/hle/triangle_buffer.js';
 import { Turbo3D } from '../src/hle/turbo3d.js';
+import {
+  BLUE,
+  CLEAR,
+  createTestTexture,
+  createWebGLHarness,
+  GREEN,
+  RED,
+  solid,
+  WHITE,
+  assertPixels,
+} from './webgl_test_helpers.js';
 
 // Exercise both loaders and the real shaders: finite buffer checks alone
 // cannot detect accidentally restoring perspective-correct interpolation.
 export function runAffineProjectionTests(gl) {
   const lines = [];
-  const red = [255, 0, 0, 255], green = [0, 255, 0, 255];
-  const blue = [0, 0, 255, 255], white = [255, 255, 255, 255];
-  const clear = [0, 0, 0, 0];
-  const solid = color => Array(4).fill(color);
-  const texture = gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D, texture);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 4, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE,
-    new Uint8Array([red, green, blue, white].flat()));
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  const { texture } = createTestTexture(gl, 4, 1, [RED, GREEN, BLUE, WHITE]);
 
   for (const [Type, variant] of [[Turbo3D], [T3DUX, false], [T3DUX, true]]) {
-    const ram = new DataView(new ArrayBuffer(256));
-    const state = new RSPState();
-    state.reset(ram, 0);
-    const renderer = new Renderer(gl, state, 4, 1);
-    const microcode = new Type(state, ram, variant);
-    microcode.renderer = renderer;
+    const { ram, state, renderer, microcode, resetFrame } = createWebGLHarness(gl, {
+      width: 4,
+      height: 1,
+      ramBytes: 256,
+      Microcode: Type,
+      variant,
+    });
     state.viewport.transform = renderer.nativeTransform.viTransform;
     state.geometryMode.shadeSmooth = true;
     state.geometryMode.cullBack = true;
@@ -73,10 +74,7 @@ export function runAffineProjectionTests(gl) {
     }
 
     function check(name, expected, drawOptions = null) {
-      renderer.newFrame();
-      gl.disable(gl.DITHER);
-      gl.clearColor(0, 0, 0, 0);
-      gl.clear(gl.COLOR_BUFFER_BIT);
+      resetFrame([0, 0, 0, 0]);
       if (drawOptions !== null) {
         const tb = new TriangleBuffer(1);
         tb.pushTriWithUV(...vertices, 0, 0, 8, 0, 0, 0);
@@ -86,13 +84,8 @@ export function runAffineProjectionTests(gl) {
       } else {
         microcode.drawTriangles(64, 1, 0);
       }
-      const actual = new Uint8Array(16);
-      gl.readPixels(0, 0, 4, 1, gl.RGBA, gl.UNSIGNED_BYTE, actual);
-      const error = gl.getError();
       const label = `${Type.name} (${variant ?? 'SDK'}): ${name}`;
-      if (error !== gl.NO_ERROR || actual.some((value, i) => Math.abs(value - expected.flat()[i]) > 1)) {
-        throw new Error(`${label}: expected ${expected.flat()}, got ${Array.from(actual)} (GL error ${error})`);
-      }
+      assertPixels(gl, { width: 4, height: 1, expected, label });
       lines.push(`PASS ${label}`);
     }
 
@@ -105,22 +98,22 @@ export function runAffineProjectionTests(gl) {
       for (const noNearClipping of [false, true]) {
         state.noNearClipping = noNearClipping;
         load(points, matrix);
-        check(`affine UV with unequal w, scale ${scale}, NoN ${noNearClipping}`, [red, green, blue, white]);
-        check('ordinary draw restores perspective UV on the cached shader', [red, green, green, blue], {});
-        check('affine draw restores affine UV on the cached shader', [red, green, blue, white]);
+        check(`affine UV with unequal w, scale ${scale}, NoN ${noNearClipping}`, [RED, GREEN, BLUE, WHITE]);
+        check('ordinary draw restores perspective UV on the cached shader', [RED, GREEN, GREEN, BLUE], {});
+        check('affine draw restores affine UV on the cached shader', [RED, GREEN, BLUE, WHITE]);
       }
     }
     state.noNearClipping = false;
     state.rdpOtherModeH = 0; // Affine mode must preserve the existing S/T half-scale.
     load(points, varyingW, [0, 16, 0]);
-    check('G_TP_NONE preserves triangle coordinate scale', [red, green, blue, white]);
+    check('G_TP_NONE preserves triangle coordinate scale', [RED, GREEN, BLUE, WHITE]);
     state.rdpOtherModeH = gbi.TexturePerspective.G_TP_PERSP;
     state.rdpOtherModeL = 0;
 
     const nearCrossing = new Matrix4x4(varyingW.elems.slice());
     nearCrossing.elems[11] = -1.5;
     load(points, nearCrossing);
-    check('near-plane clipping preserves affine UV with unequal w', [clear, clear, blue, white]);
+    check('near-plane clipping preserves affine UV with unequal w', [CLEAR, CLEAR, BLUE, WHITE]);
 
     // White texture isolates RGB/alpha interpolation without inactive inputs.
     const colors = [0x00000000, 0x80808080, 0xffffffff];
@@ -136,7 +129,7 @@ export function runAffineProjectionTests(gl) {
     }
     state.noNearClipping = false;
     load(points, nearCrossing, [3.5, 3.5, 3.5], colors);
-    check('near-plane clipping preserves affine RGBA', [clear, clear, ...affineGray.slice(2)]);
+    check('near-plane clipping preserves affine RGBA', [CLEAR, CLEAR, ...affineGray.slice(2)]);
 
     // Keep both SHADE and TEXEL0 active while changing interpolation modes on
     // the same cached shader. RDP needs affine shade with perspective UVs.
@@ -147,7 +140,7 @@ export function runAffineProjectionTests(gl) {
       const shade = 128 * t + 255 / 4;
       const alpha = 128 * t + 255 / 4;
       const u = affineUV ? 8 * t : (8 * t / 2) / inverseW;
-      const texel = [red, green, blue, white][Math.floor(u)];
+      const texel = [RED, GREEN, BLUE, WHITE][Math.floor(u)];
       return [...texel.slice(0, 3).map(channel => channel * shade / 255), alpha];
     });
     check('object draw uses affine shade and UVs', expectedInterpolation(true));
@@ -163,15 +156,15 @@ export function runAffineProjectionTests(gl) {
       0, 0, 0, -1, 0, 0, 1, 0]);
     for (const w of [0, -2, 1]) {
       load([[-2, -2, 2], [6, -2, 2], [-2, 10, w]], eyeCrossing, [3.5, 3.5, 3.5]);
-      check(`clips a triangle with third vertex w=${w} and keeps its visible portion`, solid(white));
+      check(`clips a triangle with third vertex w=${w} and keeps its visible portion`, solid(WHITE));
     }
     state.geometryMode.cullBack = false;
     load([[-2, -2, -2], [6, -2, -2], [-2, 10, -2]], eyeCrossing, [3.5, 3.5, 3.5]);
-    check('geometry entirely behind the camera is clipped', solid(clear));
+    check('geometry entirely behind the camera is clipped', solid(CLEAR));
     load([[-2, -2, 0], [6, -2, 0], [-2, 10, 0]], eyeCrossing, [3.5, 3.5, 3.5]);
-    check('geometry on the eye plane is clipped', solid(clear));
+    check('geometry on the eye plane is clipped', solid(CLEAR));
     load([[-1, -1, -2], [3, -1, 0], [-1, 3, 0]], Matrix4x4.identity(), [3.5, 3.5, 3.5]);
-    check('near-plane crossing clips only the outside portion', [clear, clear, white, white]);
+    check('near-plane crossing clips only the outside portion', [CLEAR, CLEAR, WHITE, WHITE]);
   }
   gl.deleteTexture(texture);
   return lines;
