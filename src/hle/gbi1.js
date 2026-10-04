@@ -49,12 +49,6 @@ export class GBI1 extends GBIMicrocode {
   }
 
 
-  executeEndDL(cmd0, cmd1, dis) {
-    if (dis) {
-      dis.text('gsSPEndDisplayList();');
-    }
-    this.state.endDisplayList();
-  }
 
   executeBranchZ(cmd0, cmd1, dis) {
     const address = this.state.rdpSegmentAddress(this.state.rdpHalf1Cmd1);

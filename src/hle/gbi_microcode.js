@@ -1006,6 +1006,13 @@ export class GBIMicrocode {
     }
   }
 
+  executeEndDL(cmd0, cmd1, dis) {
+    if (dis) {
+      dis.text('gsSPEndDisplayList();');
+    }
+    this.state.endDisplayList();
+  }
+
   executeCullDL(cmd0, cmd1, dis) {
     const begin = (cmd0 & 0xffff) >>> 1;
     const end = (cmd1 & 0xffff) >>> 1;
