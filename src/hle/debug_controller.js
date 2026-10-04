@@ -34,6 +34,15 @@ export class DebugController {
     this.dlFocusCounter = 0;
   }
 
+  reset() {
+    this.requested = false;
+    this.running = false;
+    this.lastTask = undefined;
+    this.bailAfter = -1;
+    this.stateTimeShown = -1;
+    this.dlFocusCounter = 0;
+  }
+
   onNewTask(task) {
     // Bodgily track these parameters so that we can call again with the same params.
     this.lastTask = task;
@@ -63,10 +72,15 @@ export class DebugController {
       this.hideUI();
       this.bailAfter = -1;
       this.running = false;
-      n64js.toggleRun();
+      n64js.startEmulation();
+    } else if (this.requested) {
+      this.requested = false;
+      this.hideUI();
     } else {
       this.showUI();
+      this.dlFocusCounter = 0;
       this.requested = true;
+      n64js.startEmulation();
     }
   }
 
@@ -132,6 +146,7 @@ export class DebugController {
 
   setScrubTime(t) {
     this.bailAfter = t;
+    dlistScrub.querySelector('input').value = t;
     this.setScrubText(this.bailAfter, this.numOps);
 
     const instruction = dlistOutput.querySelector(`#I${this.bailAfter}`);

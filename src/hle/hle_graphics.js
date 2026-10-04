@@ -3,6 +3,7 @@
 import { DebugController } from './debug_controller.js';
 import { executeDisplayList } from './display_list.js';
 import * as microcodes from './microcodes.js';
+import { RenderTargets } from './render_targets.js';
 import { RDPGraphics } from './rdp_graphics.js';
 import { RSPState } from './rsp_state.js';
 import { Renderer } from './renderer.js';
@@ -20,7 +21,7 @@ let rdpGraphics;
 let warnedF5Indi = false;
 
 const state = new RSPState();
-const debugController = new DebugController(state, processDList);
+const debugController = new DebugController(state, replayDList);
 
 // Graphics processor backed by the shared browser renderer and debugger.
 export const graphics = {
@@ -102,6 +103,7 @@ export function initialiseRenderer(canvas) {
 }
 
 function resetRenderer() {
+  debugController.reset();
   numDisplayListsRendered = 0;
   rdpGraphics = null;
   state.reset(n64js.hardware().ram.dataView, 0);
@@ -192,7 +194,34 @@ export function presentBackBuffer() {
   renderer.copyPixelsToFrontBuffer(pixels, vi.screenWidth, vi.screenHeight, vi.bitDepth, timeSeconds);
 }
 
-function processDList(task, disassembler, bailAfter, onFullSync = null) {
+// Replay into disposable targets and memory so scrubbing cannot clear the live
+// VI buffer or write framebuffer readback into the paused game's RDRAM.
+function replayDList(task, disassembler, bailAfter) {
+  if (!renderer) {
+    return;
+  }
+  const liveTargets = renderer.renderTargets;
+  const ram = n64js.hardware().cachedMemDevice.mem.dataView;
+  const replayRAM = new DataView(ram.buffer.slice(ram.byteOffset, ram.byteOffset + ram.byteLength));
+  const targets = new RenderTargets(gl, liveTargets.width, liveTargets.height);
+  renderer.renderTargets = targets;
+  try {
+    renderer.debugClear();
+    processDList(task, disassembler, bailAfter, null, replayRAM);
+    if (!disassembler) {
+      // The CPU has not yet switched VI to the image being constructed.
+      renderer.copyTextureToFrontBuffer(targets.current.texture);
+    }
+  } finally {
+    targets.reset();
+    targets.deleteTarget(targets.fallback);
+    gl.deleteRenderbuffer(targets.depth);
+    renderer.renderTargets = liveTargets;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  }
+}
+
+function processDList(task, disassembler, bailAfter, onFullSync = null, replayRAM = null) {
   // Update a counter to tell the video code that we've rendered something.
   numDisplayListsRendered++;
   if (!gl) {
@@ -200,7 +229,7 @@ function processDList(task, disassembler, bailAfter, onFullSync = null) {
   }
 
   const hardware = n64js.hardware();
-  const ramDV = hardware.cachedMemDevice.mem.dataView
+  const ramDV = replayRAM || hardware.cachedMemDevice.mem.dataView
   renderer.onTextureUse = hardware.onTextureUse;
   state.reset(ramDV, task.dataPtr, onFullSync);
   const microcode = initMicrocode(task, ramDV, hardware.onMicrocodeLoad);
@@ -208,10 +237,6 @@ function processDList(task, disassembler, bailAfter, onFullSync = null) {
   initDimensionsFromVI(hardware.viRegDevice);
 
   renderer.newFrame();
-
-  if (debugController.running) {
-    renderer.debugClear();
-  }
 
   let continuation = executeDisplayList(state, microcode, {
     loadMicrocode: (codeAddr, codeSize, codeDataAddr, codeDataSize) => {

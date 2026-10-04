@@ -23,6 +23,7 @@ export class RSPState {
     // Current display-list operation index. Batched handlers advance this to
     // the last operation in the batch; postOp advances it unless stopping.
     this.currentOp = 0;
+    this.bailAfter = -1;
     this.onFullSync = null;
 
     this.segments = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
@@ -128,6 +129,7 @@ export class RSPState {
     this.cmd0 = 0;
     this.cmd1 = 0;
     this.currentOp = 0;
+    this.bailAfter = -1;
     // Only live task execution supplies this callback; debugger replays must
     // not generate new guest interrupts.
     this.onFullSync = onFullSync;
@@ -187,7 +189,7 @@ export class RSPState {
 
   /**
    * Completes a dispatch, optionally stopping at a zero-based operation index.
-   * Batches finish before checking the limit. A negative limit runs to the end.
+   * Batches respect the selected operation limit. A negative limit runs to the end.
    * @param {number} bailAfter The last operation to execute, or -1 for no limit.
    * @returns {boolean} Whether execution should stop.
    */
@@ -250,6 +252,10 @@ export class RSPState {
    */
   executeBatch(limit, fn) {
     const kCommand = this.cmd0 >>> 24;
+    if (this.bailAfter >= 0) {
+      const remaining = Math.max(1, this.bailAfter - this.currentOp + 1);
+      limit = limit > 0 ? Math.min(limit, remaining) : remaining;
+    }
     const unlimited = limit <= 0;
 
     let count = 0;

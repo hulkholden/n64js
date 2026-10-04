@@ -259,21 +259,12 @@ export class Renderer extends RendererBase {
   debugClear() {
     const gl = this.gl;
 
-    gl.useProgram(this.fillShaderProgram);
-    this.debugClearVA.bind();
-
-    // uFillColor
-    gl.uniform4f(this.fillFillColorUniform, 1, 0, 1, 1);
-
-    // Disable blending, culling and depth testing.
-    gl.disable(gl.BLEND);
-    gl.disable(gl.CULL_FACE);
-    gl.disable(gl.DEPTH_TEST);
+    this.renderTargets.bindCurrent();
     gl.disable(gl.SCISSOR_TEST);
-    gl.depthMask(false);
-
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-    this.debugClearVA.unbind();
+    gl.depthMask(true);
+    gl.clearColor(0, 0, 0, 1);
+    gl.clearDepth(1);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   }
 
   initFillRectVA(program) {

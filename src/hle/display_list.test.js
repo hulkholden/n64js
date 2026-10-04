@@ -47,6 +47,18 @@ describe('display-list execution', () => {
     }
   });
 
+  test('debugger stops inside a batch of triangle commands', () => {
+    const ramDV = new DataView(new ArrayBuffer(0x100));
+    writeCommands(ramDV, 8, [[0xbf000000, 0], [0xbf000000, 0], [0xbf000000, 0], [0xb8000000, 0]]);
+    const state = new RSPState();
+    state.reset(ramDV, 8);
+    const microcode = new GBI1(state, ramDV);
+    microcode.renderer = { flushTris() {} };
+    executeDisplayList(state, microcode, { bailAfter: 1 });
+    expect(state.currentOp).toBe(1);
+    expect(state.pc).toBe(24);
+  });
+
   test('debugger bailAfter still stops before reaching the command limit', () => {
     const ramDV = new DataView(new ArrayBuffer(0x100));
     writeCommands(ramDV, 8, [[0x06000000, 8]]);
