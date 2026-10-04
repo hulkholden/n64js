@@ -388,8 +388,8 @@ export class VIRegDevice extends Device {
 class Dimensions {
   constructor(screenW, screenH) {
     // Display output resolution.
-    this.screenWidth = 640;
-    this.screenHeight = 480;
+    this.screenWidth = screenW;
+    this.screenHeight = screenH;
 
     // Buffers to use in renderBackBuffer32/16.
     this.pixels32bpp = new Uint8Array(screenW * screenH * 4);
@@ -400,8 +400,8 @@ class Dimensions {
     this.field = 0;
 
     // Output resolution.
-    this.dstWidth = 640;
-    this.dstHeight = 480;
+    this.dstWidth = screenW;
+    this.dstHeight = screenH;
 
     // Input resolution.
     this.srcPitch = 320;

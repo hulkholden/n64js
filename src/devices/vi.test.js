@@ -35,6 +35,28 @@ function pixelAt(vi, pixels, bitDepth, x = 0, y = 0) {
 }
 
 for (const bitDepth of [16, 32]) {
+  test(`${bitDepth}-bit PAL scanout reaches the bottom of the 576-line display`, () => {
+    const { vi, ram } = makeVI(4096, OS_TV_PAL);
+    expect([vi.dims.screenWidth, vi.dims.screenHeight]).toEqual([640, 576]);
+    expect([vi.dims.dstWidth, vi.dims.dstHeight]).toEqual([640, 576]);
+    setSmallFrame(vi, bitDepth, 0x100);
+    vi.write32(base + 0x28, ((vi.vScanMin + 574) << 16) | vi.vScanMax);
+    const address = 0x100 + 8 * bitDepth / 8;
+    if (bitDepth === 16) {
+      ram.set16(address, 0xf800);
+    } else {
+      ram.set32(address, 0xff000000);
+    }
+    const pixels = vi.renderBackBuffer();
+    // The first active row is display row 574, i.e. row 1 in a bottom-up texture.
+    const offset = 640 + 8;
+    const actual = bitDepth === 16 ? pixels[offset] : Array.from(pixels.subarray(offset * 4, offset * 4 + 4));
+    expect(actual).toEqual(bitDepth === 16 ? 0xf801 : [255, 0, 0, 255]);
+    const bounds = vi.renderNativeBackBuffer().bounds;
+    expect(bounds.slice(0, 3)).toEqual([8 / 640, 0, 11 / 640]);
+    expect(bounds[3]).toBeCloseTo(2 / 576, 12);
+  });
+
   describe(`${bitDepth}-bit VI framebuffer bounds`, () => {
     const bytesPerPixel = bitDepth / 8;
     const black = bitDepth === 16 ? 1 : [0, 0, 0, 255];
