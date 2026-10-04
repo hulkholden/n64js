@@ -84,15 +84,10 @@ export class VIRegDevice extends Device {
     this.vScanMax = this.vScanMin + this.screenHeight;
     this.scanout = new VIScanout(this.screenWidth, this.screenHeight);
 
-    // Progressive CPU video: allocated on demand for the current pixel format
-    // and resized to the native source extent. Unscaled pixels are fully
-    // overwritten; the shader applies VI scaling, offsets and display borders.
-    this.progressiveFramebuffer = null;
-
-    // Interlaced CPU video: allocated on demand at display resolution for the
-    // current pixel format, with VI sampling applied on the CPU. Each update
-    // retains the opposite field's rows until the pixel format changes.
-    this.interlacedFramebuffer = null;
+    // CPU video staging: allocated on demand for the source dimensions and
+    // pixel format, then fully overwritten on every upload. Presentation
+    // applies VI mapping and retains interlaced fields in separate GPU textures.
+    this.framebuffer = null;
   }
 
   // Raw register values.
@@ -324,9 +319,8 @@ export class VIRegDevice extends Device {
     return scanout;
   }
 
-  // Progressive scanout uploads source pixels once; the presentation shader
-  // applies VI scaling, subpixel offsets and borders at the output resolution.
-  renderProgressiveBackBuffer() {
+  // Both modes upload source pixels; presentation handles scaling and weaving.
+  renderBackBuffer() {
     const scanout = this.computeScanout();
     const origin = this.dramAddrReg & 0x00fffffe;
     const bitDepth = this.bitDepth;
@@ -334,35 +328,18 @@ export class VIRegDevice extends Device {
       return null;
     }
     const FramebufferType = bitDepth === 32 ? Framebuffer32 : Framebuffer16;
-    if (!(this.progressiveFramebuffer instanceof FramebufferType)) {
-      this.progressiveFramebuffer = new FramebufferType();
+    if (!(this.framebuffer instanceof FramebufferType)) {
+      this.framebuffer = new FramebufferType();
     }
-    const buffer = this.progressiveFramebuffer;
+    const buffer = this.framebuffer;
     buffer.resize(scanout.nativeWidth, scanout.nativeHeight);
     buffer.readN64Pixels(this.hardware.cachedMemDevice.mem.dataView, origin, { pitch: scanout.source.pitch });
     return {
       pixels: buffer.pixels, width: buffer.width, height: buffer.height, bitDepth,
       presentation: scanout.nativePresentation(),
-    };
-  }
-
-  renderInterlacedBackBuffer() {
-    const scanout = this.computeScanout();
-    const origin = this.dramAddrReg & 0x00fffffe;
-    const bitDepth = this.bitDepth;
-    if (!scanout || !origin || !bitDepth) {
-      return null;
-    }
-    const FramebufferType = bitDepth === 32 ? Framebuffer32 : Framebuffer16;
-    if (!(this.interlacedFramebuffer instanceof FramebufferType)) {
-      this.interlacedFramebuffer = new FramebufferType(this.screenWidth, this.screenHeight);
-    }
-    const buffer = this.interlacedFramebuffer;
-    buffer.readN64Pixels(this.hardware.cachedMemDevice.mem.dataView, origin,
-      scanout.source, scanout.displayRect, this.interlaced ? this.field : null);
-    return {
-      pixels: buffer.pixels, width: buffer.width, height: buffer.height, bitDepth,
-      presentation: null,
+      // verticalBlank has already advanced field: the completed field contains
+      // the opposite parity of top-down VI output rows.
+      field: this.interlaced ? this.field ^ 1 : null,
     };
   }
 }

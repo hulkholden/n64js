@@ -32,6 +32,7 @@ export class VIScanout {
     const xOffset = source.x - (rect.x + 0.5) * source.stepX;
     const yOffset = source.y - (rect.y + 0.5) * source.stepY;
     return {
+      viWidth: displayWidth, viHeight: displayHeight,
       sourceHeight: displayHeight * source.stepY,
       uvTransform: [displayWidth * source.stepX / width, displayHeight * source.stepY / height,
         xOffset / width, 1 - (displayHeight * source.stepY + yOffset) / height],

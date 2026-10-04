@@ -185,8 +185,7 @@ export function presentBackBuffer() {
   // If no display lists executed, interpret framebuffer as bytes
   initDimensionsFromVI(vi);    // resize canvas to match VI res.
 
-  // Interlaced video retains its field weave; progressive video scales during presentation.
-  const frame = vi.interlaced ? vi.renderInterlacedBackBuffer() : vi.renderProgressiveBackBuffer();
+  const frame = vi.renderBackBuffer();
   if (frame) {
     renderer.copyPixelsToFrontBuffer(frame, timeSeconds);
   }

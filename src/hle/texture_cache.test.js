@@ -13,7 +13,7 @@ function fixture(maxBytes, maxEntries) {
   state.reset(new DataView(new ArrayBuffer(8)), 0);
   const cache = new TextureCache(gl, maxBytes, maxEntries);
   const renderer = Object.assign(Object.create(Renderer.prototype), {
-    gl, state, textureCache: cache, renderTargets: { reset() {} },
+    gl, state, textureCache: cache, renderTargets: { reset() {} }, cpuFramebuffers: [null, null],
     // Exercise real lookup/invalidation and cache ownership without requiring
     // a browser canvas. The GPU suite covers production decoding and deletion.
     decodeTexture: tile => ({ width: tile.width, height: tile.height, texture: gl.createTexture() }),

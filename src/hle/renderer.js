@@ -37,22 +37,23 @@ export class Renderer extends RendererBase {
 
     this.renderTargets = new RenderTargets(gl, initialWidth, initialHeight);
 
-    this.frameBufferTexture2D = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D, this.frameBufferTexture2D);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    // We call texImage2D to initialise frameBufferTexture2D with the correct dimensions when it's used.
+    // Allocate textures only when CPU video is presented. Progressive video
+    // uses slot 0; interlaced video retains each field and its own VI mapping.
+    this.cpuFramebuffers = [null, null];
+    this.cpuFramebufferBitDepth = 0;
+    this.cpuFramebufferInterlaced = false;
 
     this.blitShaderProgram = shaders.createShaderProgram(gl, blitVertexSource, blitFragmentSource + simpleCRTSource + mattiasCRTSource);
     this.blitSamplerUniform = gl.getUniformLocation(this.blitShaderProgram, "uSampler0");
+    this.blitFieldSamplerUniform = gl.getUniformLocation(this.blitShaderProgram, "uSampler1");
+    this.blitInterlacedUniform = gl.getUniformLocation(this.blitShaderProgram, "uInterlaced");
+    this.blitVIResolutionUniform = gl.getUniformLocation(this.blitShaderProgram, "uVIResolution");
     this.blitCRTUniform = gl.getUniformLocation(this.blitShaderProgram, "uCRTMode");
     this.blitTimeUniform = gl.getUniformLocation(this.blitShaderProgram, "uCRTTime");
     this.blitOutputResolutionUniform = gl.getUniformLocation(this.blitShaderProgram, "uOutputResolution");
     this.blitSourceHeightUniform = gl.getUniformLocation(this.blitShaderProgram, "uSourceHeight");
-    this.blitSourceUVUniform = gl.getUniformLocation(this.blitShaderProgram, "uSourceUV");
-    this.blitSourceBoundsUniform = gl.getUniformLocation(this.blitShaderProgram, "uSourceBounds");
+    this.blitSourceUVUniform = gl.getUniformLocation(this.blitShaderProgram, "uSourceUV[0]");
+    this.blitSourceBoundsUniform = gl.getUniformLocation(this.blitShaderProgram, "uSourceBounds[0]");
     this.blitSourceVIUniform = gl.getUniformLocation(this.blitShaderProgram, "uSourceVI");
     this.blitVA = this.initBlitVA(this.blitShaderProgram);
 
@@ -99,9 +100,21 @@ export class Renderer extends RendererBase {
   }
 
   reset() {
+    this.resetCPUFramebuffers();
     this.renderTargets.reset();
     this.textureCache.clear();
     this.textureOutput?.replaceChildren();
+  }
+
+  resetCPUFramebuffers() {
+    for (const frame of this.cpuFramebuffers) {
+      if (frame) {
+        this.gl.deleteTexture(frame.texture);
+      }
+    }
+    this.cpuFramebuffers = [null, null];
+    this.cpuFramebufferBitDepth = 0;
+    this.cpuFramebufferInterlaced = false;
   }
 
   newFrame() {
@@ -139,7 +152,7 @@ export class Renderer extends RendererBase {
     return va;
   }
 
-  copyTextureToFrontBuffer(texture, timeSeconds = 0, presentation = null) {
+  copyTextureToFrontBuffer(texture, timeSeconds = 0, presentation = null, fields = null) {
     const gl = this.gl;
     // Passing null binds the framebuffer to the canvas.
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -151,16 +164,31 @@ export class Renderer extends RendererBase {
     this.blitVA.bind();
 
     // Both HLE and CPU framebuffers use this presentation pass.
+    const first = fields ? fields[0]?.presentation : presentation;
+    const second = fields?.[1]?.presentation;
+    const sampler = graphicsOptions.crtMode === CRTMode.Off ? null : this.crtSampler;
     gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.bindSampler(0, graphicsOptions.crtMode === CRTMode.Off ? null : this.crtSampler);
+    gl.bindTexture(gl.TEXTURE_2D, fields?.[0]?.texture ?? texture);
+    gl.bindSampler(0, sampler);
+    gl.activeTexture(gl.TEXTURE1);
+    // Both samplers must be complete, even before the second field arrives.
+    // Empty bounds below make a missing field black.
+    gl.bindTexture(gl.TEXTURE_2D, fields?.[1]?.texture ?? texture);
+    gl.bindSampler(1, sampler);
     gl.uniform1i(this.blitSamplerUniform, 0);
+    gl.uniform1i(this.blitFieldSamplerUniform, 1);
+    gl.uniform1i(this.blitInterlacedUniform, fields ? 1 : 0);
+    gl.uniform2f(this.blitVIResolutionUniform, presentation?.viWidth ?? 1, presentation?.viHeight ?? 1);
     gl.uniform1i(this.blitCRTUniform, graphicsOptions.crtMode);
     gl.uniform1f(this.blitTimeUniform, timeSeconds);
     gl.uniform2f(this.blitOutputResolutionUniform, canvas.width, canvas.height);
     gl.uniform1f(this.blitSourceHeightUniform, presentation?.sourceHeight ?? this.nativeTransform.viHeight);
-    gl.uniform4fv(this.blitSourceUVUniform, presentation?.uvTransform ?? [1, 1, 0, 0]);
-    gl.uniform4fv(this.blitSourceBoundsUniform, presentation?.bounds ?? [0, 0, 1, 1]);
+    gl.uniform4fv(this.blitSourceUVUniform, [
+      ...(first?.uvTransform ?? [1, 1, 0, 0]), ...(second?.uvTransform ?? [1, 1, 0, 0]),
+    ]);
+    gl.uniform4fv(this.blitSourceBoundsUniform, [
+      ...(first?.bounds ?? (fields ? [0, 0, 0, 0] : [0, 0, 1, 1])), ...(second?.bounds ?? [0, 0, 0, 0]),
+    ]);
     gl.uniform1i(this.blitSourceVIUniform, presentation?.uvTransform ? 1 : 0);
 
     gl.disable(gl.CULL_FACE);
@@ -172,17 +200,42 @@ export class Renderer extends RendererBase {
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     this.blitVA.unbind();
     gl.bindSampler(0, null);
+    gl.bindSampler(1, null);
+    gl.activeTexture(gl.TEXTURE0);
   }
 
   copyBackBufferToFrontBuffer(address, timeSeconds = 0) {
+    // CPU field history must not survive a switch to HLE presentation.
+    if (this.cpuFramebufferBitDepth) {
+      this.resetCPUFramebuffers();
+    }
     const target = this.renderTargets.targetForVI(address);
     this.copyTextureToFrontBuffer(target.texture, timeSeconds, { sourceHeight: target.nativeHeight });
   }
 
-  copyPixelsToFrontBuffer({ pixels, width, height, bitDepth, presentation }, timeSeconds = 0) {
+  copyPixelsToFrontBuffer({ pixels, width, height, bitDepth, presentation, field = null }, timeSeconds = 0) {
     const gl = this.gl;
+    const interlaced = field !== null;
+    if (this.cpuFramebufferBitDepth !== bitDepth || this.cpuFramebufferInterlaced !== interlaced) {
+      this.resetCPUFramebuffers();
+      this.cpuFramebufferBitDepth = bitDepth;
+      this.cpuFramebufferInterlaced = interlaced;
+    }
     gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, this.frameBufferTexture2D);
+    const index = field ?? 0;
+    let frame = this.cpuFramebuffers[index];
+    if (!frame) {
+      frame = { texture: gl.createTexture(), presentation: null };
+      this.cpuFramebuffers[index] = frame;
+      gl.bindTexture(gl.TEXTURE_2D, frame.texture);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    } else {
+      gl.bindTexture(gl.TEXTURE_2D, frame.texture);
+    }
+    frame.presentation = presentation;
     // Native 16-bit images may have an odd row width.
     const unpackAlignment = gl.getParameter(gl.UNPACK_ALIGNMENT);
     gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
@@ -196,7 +249,7 @@ export class Renderer extends RendererBase {
     }
 
     gl.pixelStorei(gl.UNPACK_ALIGNMENT, unpackAlignment);
-    this.copyTextureToFrontBuffer(this.frameBufferTexture2D, timeSeconds, presentation);
+    this.copyTextureToFrontBuffer(frame.texture, timeSeconds, presentation, interlaced ? this.cpuFramebuffers : null);
   }
 
   /**

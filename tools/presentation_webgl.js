@@ -1,9 +1,11 @@
 import { VIRegDevice } from '../src/devices/vi.js';
 import { MemoryRegion } from '../src/memory/memory_region.js';
+import { Framebuffer16, Framebuffer32 } from '../src/graphics/framebuffer.js';
 import { OS_TV_NTSC } from '../src/system_constants.js';
 import { CRTMode, graphicsOptions } from '../src/hle/graphics_options.js';
 import { ImageFormat, ImageSize } from '../src/hle/gbi.js';
 import { assertPixels, createWebGLHarness, RED, BLUE } from './webgl_test_helpers.js';
+import { runInterlacedPresentationTests } from './interlaced_presentation_webgl.js';
 
 export function runPresentationTests(gl) {
   const canvas = gl.canvas;
@@ -34,15 +36,16 @@ export function runPresentationTests(gl) {
       vi.write32(base, bitDepth === 16 ? 2 : 3);
       for (const [screenWidth, xScale, yScale] of [[40, 0x200, 0x400], [40, 0x400, 0x800], [40, 0x301, 0x5ab], [640, 0x200, 0x400], [640, 0x301, 0x5ab], [640, 0xfff, 0xfff]]) {
         vi.write32(base + 0x24, (vi.hScanMin << 16) | (vi.hScanMin + screenWidth));
-        // Clear the old expanded buffer so borders from the previous mode do not linger.
-        vi.interlacedFramebuffer?.pixels.fill(0);
         vi.write32(base + 0x30, xScale | (0x180 << 16));
         vi.write32(base + 0x34, yScale | (0x280 << 16));
-        const expanded = vi.renderInterlacedBackBuffer();
-        renderer.copyPixelsToFrontBuffer(expanded);
+        const scanout = vi.computeScanout();
+        const FramebufferType = bitDepth === 32 ? Framebuffer32 : Framebuffer16;
+        const expanded = new FramebufferType(scanout.displayWidth, scanout.displayHeight);
+        expanded.readN64Pixels(ram.dataView, 0x100, scanout.source, scanout.displayRect);
+        renderer.copyPixelsToFrontBuffer({ pixels: expanded.pixels, width: expanded.width, height: expanded.height, bitDepth });
         const expected = new Uint8Array(640 * 480 * 4);
         gl.readPixels(0, 0, 640, 480, gl.RGBA, gl.UNSIGNED_BYTE, expected);
-        const frame = vi.renderProgressiveBackBuffer();
+        const frame = vi.renderBackBuffer();
         renderer.copyPixelsToFrontBuffer(frame);
         const actual = new Uint8Array(expected.length);
         gl.readPixels(0, 0, 640, 480, gl.RGBA, gl.UNSIGNED_BYTE, actual);
@@ -61,6 +64,7 @@ export function runPresentationTests(gl) {
         graphicsOptions.crtMode = CRTMode.Off;
       }
     }
+    lines.push(...runInterlacedPresentationTests(gl, renderer));
     targets.bindColorImage({ address: 0, width: 2, size: ImageSize.G_IM_SIZ_16b, format: ImageFormat.G_IM_FMT_RGBA }, 2, 2);
     gl.clearColor(1, 0, 0, 1);
     gl.depthMask(true);
@@ -80,6 +84,9 @@ export function runPresentationTests(gl) {
     gl.clear(gl.COLOR_BUFFER_BIT);
     renderer.copyBackBufferToFrontBuffer(0);
     assertPixels(gl, { expected: RED, label: 'frozen VI preserves native pixels across resize' });
+    if (renderer.cpuFramebuffers.some(frame => frame !== null)) {
+      throw new Error('HLE presentation retained CPU field history');
+    }
     targets.setDPFrozen(false);
     renderer.copyBackBufferToFrontBuffer(0);
     assertPixels(gl, { expected: BLUE, label: 'unfreeze displays resized image and resets CPU VI mapping' });
@@ -92,6 +99,7 @@ export function runPresentationTests(gl) {
     canvas.width = oldWidth;
     canvas.height = oldHeight;
     targets.reset();
+    renderer.resetCPUFramebuffers();
     targets.deleteTarget(targets.fallback);
     gl.deleteRenderbuffer(targets.depth);
   }
