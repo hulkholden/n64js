@@ -1,6 +1,8 @@
 import { RDPCommands, GBIRDPCommands } from '../lle/rdp_commands.js';
 import { toString16, toString32 } from "../format";
 import * as gbi from './gbi.js';
+import * as s2dex1 from './s2dex1_constants.js';
+import * as s2dex2 from './s2dex2_constants.js';
 import { GBI1 } from "./gbi1";
 import { GBI2 } from "./gbi2";
 
@@ -48,37 +50,6 @@ export const {
   SetMaskImage,
   SetColorImage,
 } = RDPCommands;
-
-const S2DEX2Commands = Object.freeze({
-  G_OBJ_RECTANGLE: 0x01,
-  G_OBJ_SPRITE: 0x02,
-  G_SELECT_DL: 0x04,
-  G_OBJ_LOAD_TXTR: 0x05,
-  G_OBJ_LOAD_TX_SPRITE: 0x06,
-  G_OBJ_LOAD_TX_RECT: 0x07,
-  G_OBJ_LOAD_TX_RECT_R: 0x08,
-  G_BG_1CYC: 0x09,
-  G_BG_COPY: 0x0a,
-  G_OBJ_RENDERMODE: 0x0b,
-  G_OBJ_RECTANGLE_R: 0xda,
-});
-
-const S2DEX1Commands = Object.freeze({
-  G_BG_1CYC: 0x01,
-  G_BG_COPY: 0x02,
-  G_OBJ_RECTANGLE: 0x03,
-  G_OBJ_SPRITE: 0x04,
-  G_OBJ_MOVEMEM: 0x05,
-  G_SELECT_DL: 0xb0,
-  G_OBJ_RENDERMODE: 0xb1,
-  G_OBJ_RECTANGLE_R: 0xb2,
-  G_OBJ_LOAD_TXTR: 0xc1,
-  G_OBJ_LOAD_TX_SPRITE: 0xc2,
-  G_OBJ_LOAD_TX_RECT: 0xc3,
-  G_OBJ_LOAD_TX_RECT_R: 0xc4,
-  // S2DEX intercepts the hardware texture-rectangle opcode as HALF_0.
-  G_RDPHALF_0: GBIRDPCommands.TextureRectangle,
-});
 
 const G_OBJ_MTX = 0;
 const G_OBJ_SUBMTX = 2;
@@ -775,22 +746,22 @@ export class GBI1SDEX extends GBI1 {
     this.s2dex = new S2DEXCommon(state, ramDV, this);
 
     this.sdexCommands = new Map([
-      [S2DEX1Commands.G_BG_1CYC, this.s2dex.executeBg1cyc.bind(this.s2dex)],
-      [S2DEX1Commands.G_BG_COPY, this.s2dex.executeBgCopy.bind(this.s2dex)],
-      [S2DEX1Commands.G_OBJ_RECTANGLE, this.s2dex.executeObjRectangle.bind(this.s2dex)],
-      [S2DEX1Commands.G_OBJ_SPRITE, this.s2dex.executeObjSprite.bind(this.s2dex)],
-      [S2DEX1Commands.G_OBJ_MOVEMEM, this.s2dex.executeObjMoveMem.bind(this.s2dex)],
+      [s2dex1.Commands.G_BG_1CYC, this.s2dex.executeBg1cyc.bind(this.s2dex)],
+      [s2dex1.Commands.G_BG_COPY, this.s2dex.executeBgCopy.bind(this.s2dex)],
+      [s2dex1.Commands.G_OBJ_RECTANGLE, this.s2dex.executeObjRectangle.bind(this.s2dex)],
+      [s2dex1.Commands.G_OBJ_SPRITE, this.s2dex.executeObjSprite.bind(this.s2dex)],
+      [s2dex1.Commands.G_OBJ_MOVEMEM, this.s2dex.executeObjMoveMem.bind(this.s2dex)],
 
       // This is set in base - why?
       // G_SPRITE2D_BASE is inherited from GBI1.
 
-      [S2DEX1Commands.G_SELECT_DL, this.s2dex.executeSelectDL.bind(this.s2dex)],
-      [S2DEX1Commands.G_OBJ_RENDERMODE, this.s2dex.executeObjRendermode.bind(this.s2dex)],
-      [S2DEX1Commands.G_OBJ_RECTANGLE_R, this.s2dex.executeObjRectangleR.bind(this.s2dex)],
-      [S2DEX1Commands.G_OBJ_LOAD_TXTR, this.s2dex.executeObjLoadTxtr.bind(this.s2dex)],
-      [S2DEX1Commands.G_OBJ_LOAD_TX_SPRITE, this.s2dex.executeObjLoadTxSprite.bind(this.s2dex)],
-      [S2DEX1Commands.G_OBJ_LOAD_TX_RECT, this.s2dex.executeObjLoadTxRect.bind(this.s2dex)],
-      [S2DEX1Commands.G_OBJ_LOAD_TX_RECT_R, this.s2dex.executeObjLoadTxRectR.bind(this.s2dex)],
+      [s2dex1.Commands.G_SELECT_DL, this.s2dex.executeSelectDL.bind(this.s2dex)],
+      [s2dex1.Commands.G_OBJ_RENDERMODE, this.s2dex.executeObjRendermode.bind(this.s2dex)],
+      [s2dex1.Commands.G_OBJ_RECTANGLE_R, this.s2dex.executeObjRectangleR.bind(this.s2dex)],
+      [s2dex1.Commands.G_OBJ_LOAD_TXTR, this.s2dex.executeObjLoadTxtr.bind(this.s2dex)],
+      [s2dex1.Commands.G_OBJ_LOAD_TX_SPRITE, this.s2dex.executeObjLoadTxSprite.bind(this.s2dex)],
+      [s2dex1.Commands.G_OBJ_LOAD_TX_RECT, this.s2dex.executeObjLoadTxRect.bind(this.s2dex)],
+      [s2dex1.Commands.G_OBJ_LOAD_TX_RECT_R, this.s2dex.executeObjLoadTxRectR.bind(this.s2dex)],
 
       [GBIRDPCommands.FillTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
       [GBIRDPCommands.FillZBufferTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
@@ -810,7 +781,7 @@ export class GBI1SDEX extends GBI1 {
       // e404008000000040 gsImmp1(G_RDPHALF_0, 0x00000040);
       // b400000000000000 gsImmp1(G_RDPHALF_1, 0x00000000);
       // b300000004000400 gsImmp1(G_RDPHALF_2, 0x04000400);
-      [S2DEX1Commands.G_RDPHALF_0, this.executeRDPHalf0.bind(this.s2dex)],
+      [s2dex1.Commands.G_RDPHALF_0, this.executeRDPHalf0.bind(this.s2dex)],
     ]);
   }
 
@@ -847,16 +818,16 @@ export class GBI2SDEX extends GBI2 {
     this.s2dex = new S2DEXCommon(state, ramDV, this);
 
     this.sdexCommands = new Map([
-      [S2DEX2Commands.G_OBJ_RECTANGLE, this.s2dex.executeObjRectangle.bind(this.s2dex)],
-      [S2DEX2Commands.G_OBJ_SPRITE, this.s2dex.executeObjSprite.bind(this.s2dex)],
-      [S2DEX2Commands.G_SELECT_DL, this.s2dex.executeSelectDL.bind(this.s2dex)],
-      [S2DEX2Commands.G_OBJ_LOAD_TXTR, this.s2dex.executeObjLoadTxtr.bind(this.s2dex)],
-      [S2DEX2Commands.G_OBJ_LOAD_TX_SPRITE, this.s2dex.executeObjLoadTxSprite.bind(this.s2dex)],
-      [S2DEX2Commands.G_OBJ_LOAD_TX_RECT, this.s2dex.executeObjLoadTxRect.bind(this.s2dex)],
-      [S2DEX2Commands.G_OBJ_LOAD_TX_RECT_R, this.s2dex.executeObjLoadTxRectR.bind(this.s2dex)],
-      [S2DEX2Commands.G_BG_1CYC, this.s2dex.executeBg1cyc.bind(this.s2dex)],
-      [S2DEX2Commands.G_BG_COPY, this.s2dex.executeBgCopy.bind(this.s2dex)],
-      [S2DEX2Commands.G_OBJ_RENDERMODE, this.s2dex.executeObjRendermode.bind(this.s2dex)],
+      [s2dex2.Commands.G_OBJ_RECTANGLE, this.s2dex.executeObjRectangle.bind(this.s2dex)],
+      [s2dex2.Commands.G_OBJ_SPRITE, this.s2dex.executeObjSprite.bind(this.s2dex)],
+      [s2dex2.Commands.G_SELECT_DL, this.s2dex.executeSelectDL.bind(this.s2dex)],
+      [s2dex2.Commands.G_OBJ_LOAD_TXTR, this.s2dex.executeObjLoadTxtr.bind(this.s2dex)],
+      [s2dex2.Commands.G_OBJ_LOAD_TX_SPRITE, this.s2dex.executeObjLoadTxSprite.bind(this.s2dex)],
+      [s2dex2.Commands.G_OBJ_LOAD_TX_RECT, this.s2dex.executeObjLoadTxRect.bind(this.s2dex)],
+      [s2dex2.Commands.G_OBJ_LOAD_TX_RECT_R, this.s2dex.executeObjLoadTxRectR.bind(this.s2dex)],
+      [s2dex2.Commands.G_BG_1CYC, this.s2dex.executeBg1cyc.bind(this.s2dex)],
+      [s2dex2.Commands.G_BG_COPY, this.s2dex.executeBgCopy.bind(this.s2dex)],
+      [s2dex2.Commands.G_OBJ_RENDERMODE, this.s2dex.executeObjRendermode.bind(this.s2dex)],
 
       [GBIRDPCommands.FillTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
       [GBIRDPCommands.FillZBufferTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
@@ -867,7 +838,7 @@ export class GBI2SDEX extends GBI2 {
       [GBIRDPCommands.ShadeTextureTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
       [GBIRDPCommands.ShadeTextureZBufferTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
 
-      [S2DEX2Commands.G_OBJ_RECTANGLE_R, this.s2dex.executeObjRectangleR.bind(this.s2dex)],
+      [s2dex2.Commands.G_OBJ_RECTANGLE_R, this.s2dex.executeObjRectangleR.bind(this.s2dex)],
     ]);
   }
 
