@@ -87,13 +87,13 @@ export class VIRegDevice extends Device {
     // Progressive CPU video: resized to the native source extent and format,
     // then fully overwritten with unscaled pixels. The presentation shader
     // applies VI scaling, subpixel offsets and display borders.
-    this.nativeFramebuffer = new Framebuffer();
+    this.progressiveFramebuffer = new Framebuffer();
 
     // Interlaced CPU video: VI sampling is applied into these display-sized
     // buffers on the CPU. Each update retains the opposite field's rows;
     // separate 16/32-bit buffers preserve that history in their upload formats.
-    this.displayFramebuffer16 = new Framebuffer(this.screenWidth, this.screenHeight, 16);
-    this.displayFramebuffer32 = new Framebuffer(this.screenWidth, this.screenHeight, 32);
+    this.interlacedFramebuffer16 = new Framebuffer(this.screenWidth, this.screenHeight, 16);
+    this.interlacedFramebuffer32 = new Framebuffer(this.screenWidth, this.screenHeight, 32);
   }
 
   // Raw register values.
@@ -334,7 +334,7 @@ export class VIRegDevice extends Device {
     if (!scanout?.visible || !origin || !bitDepth) {
       return null;
     }
-    const buffer = this.nativeFramebuffer;
+    const buffer = this.progressiveFramebuffer;
     buffer.resize(scanout.nativeWidth, scanout.nativeHeight, bitDepth);
     buffer.readN64Pixels(this.hardware.cachedMemDevice.mem.dataView, origin, { pitch: scanout.source.pitch });
     return {
@@ -350,7 +350,7 @@ export class VIRegDevice extends Device {
     if (!scanout || !origin || !bitDepth) {
       return null;
     }
-    const buffer = bitDepth === 32 ? this.displayFramebuffer32 : this.displayFramebuffer16;
+    const buffer = bitDepth === 32 ? this.interlacedFramebuffer32 : this.interlacedFramebuffer16;
     buffer.readN64Pixels(this.hardware.cachedMemDevice.mem.dataView, origin,
       scanout.source, scanout.displayRect, this.interlaced ? this.field : null);
     return {

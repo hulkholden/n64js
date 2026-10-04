@@ -148,8 +148,8 @@ for (const bitDepth of [16, 32]) {
       const { vi } = makeVI();
       setSmallFrame(vi, bitDepth, 0x00fdaa80);
       vi.write32(base, (bitDepth === 16 ? 2 : 3) | 0x40);
-      vi.displayFramebuffer16.pixels.fill(0xffff);
-      vi.displayFramebuffer32.pixels.fill(0xff);
+      vi.interlacedFramebuffer16.pixels.fill(0xffff);
+      vi.interlacedFramebuffer32.pixels.fill(0xff);
       vi.field = 0;
       const pixels = vi.renderBackBuffer().pixels;
       expect(pixelAt(vi, pixels, bitDepth, 0, 0)).toEqual(bitDepth === 16 ? 0xffff : [255, 255, 255, 255]);

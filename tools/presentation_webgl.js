@@ -35,8 +35,8 @@ export function runPresentationTests(gl) {
       for (const [screenWidth, xScale, yScale] of [[40, 0x200, 0x400], [40, 0x400, 0x800], [40, 0x301, 0x5ab], [640, 0x200, 0x400], [640, 0x301, 0x5ab], [640, 0xfff, 0xfff]]) {
         vi.write32(base + 0x24, (vi.hScanMin << 16) | (vi.hScanMin + screenWidth));
         // Clear the old expanded buffer so borders from the previous mode do not linger.
-        vi.displayFramebuffer16.pixels.fill(0);
-        vi.displayFramebuffer32.pixels.fill(0);
+        vi.interlacedFramebuffer16.pixels.fill(0);
+        vi.interlacedFramebuffer32.pixels.fill(0);
         vi.write32(base + 0x30, xScale | (0x180 << 16));
         vi.write32(base + 0x34, yScale | (0x280 << 16));
         const expanded = vi.renderBackBuffer();
