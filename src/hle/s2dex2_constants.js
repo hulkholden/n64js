@@ -1,5 +1,8 @@
+import * as gbi from './gbi.js';
+
 // S2DEX2 display-list opcodes.
 export const Commands = Object.freeze({
+  ...gbi.Commands,
   G_OBJ_RECTANGLE: 0x01,
   G_OBJ_SPRITE: 0x02,
   G_SELECT_DL: 0x04,

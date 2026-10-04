@@ -1,5 +1,4 @@
 import { toString32 } from '../format.js';
-import { GBIRDPCommands } from '../lle/rdp_constants.js';
 import * as gbi from './gbi.js';
 import * as gbi2 from './gbi2_constants.js';
 import { GBIMicrocode } from './gbi_microcode.js';
@@ -98,12 +97,12 @@ export class ZSortP extends GBIMicrocode {
         return;
       }
 
-      if (opcode === GBIRDPCommands.TextureRectangle || opcode === GBIRDPCommands.TextureRectangleFlip) {
+      if (opcode === gbi2.Commands.TextureRectangle || opcode === gbi2.Commands.TextureRectangleFlip) {
         const cmd2 = dv.getUint32(pc + 4);
         const cmd3 = dv.getUint32(pc + 12);
         pc += 16;
 
-        this.rdpTexRect(cmd0, cmd1, cmd2, cmd3, dis, opcode === GBIRDPCommands.TextureRectangleFlip);
+        this.rdpTexRect(cmd0, cmd1, cmd2, cmd3, dis, opcode === gbi2.Commands.TextureRectangleFlip);
       } else {
         // OtherMode and NoOp use their GBI encodings inside these blocks too.
         // Do not dispatch nested object/task commands from an RDP block.

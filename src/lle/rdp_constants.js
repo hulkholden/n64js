@@ -38,9 +38,3 @@ export const Commands = makeEnum({
   SetMaskImage: 0x3e,
   SetColorImage: 0x3f,
 });
-
-// Display lists encode RDP commands with the top two opcode bits set.
-export const GBIRDPCommands = Object.freeze(Object.fromEntries(
-  Object.entries(Commands).filter(([, value]) => typeof value === 'number')
-    .map(([name, value]) => [name, value | 0xc0]),
-));

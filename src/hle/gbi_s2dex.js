@@ -1,4 +1,4 @@
-import { Commands, GBIRDPCommands } from '../lle/rdp_constants.js';
+import { Commands } from '../lle/rdp_constants.js';
 import { toString16, toString32 } from "../format";
 import * as gbi from './gbi.js';
 import * as s2dex1 from './s2dex1_constants.js';
@@ -763,14 +763,14 @@ export class GBI1SDEX extends GBI1 {
       [s2dex1.Commands.G_OBJ_LOAD_TX_RECT, this.s2dex.executeObjLoadTxRect.bind(this.s2dex)],
       [s2dex1.Commands.G_OBJ_LOAD_TX_RECT_R, this.s2dex.executeObjLoadTxRectR.bind(this.s2dex)],
 
-      [GBIRDPCommands.FillTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
-      [GBIRDPCommands.FillZBufferTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
-      [GBIRDPCommands.TextureTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
-      [GBIRDPCommands.TextureZBufferTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
-      [GBIRDPCommands.ShadeTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
-      [GBIRDPCommands.ShadeZBufferTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
-      [GBIRDPCommands.ShadeTextureTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
-      [GBIRDPCommands.ShadeTextureZBufferTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
+      [s2dex1.Commands.FillTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
+      [s2dex1.Commands.FillZBufferTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
+      [s2dex1.Commands.TextureTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
+      [s2dex1.Commands.TextureZBufferTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
+      [s2dex1.Commands.ShadeTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
+      [s2dex1.Commands.ShadeZBufferTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
+      [s2dex1.Commands.ShadeTextureTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
+      [s2dex1.Commands.ShadeTextureZBufferTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
 
       // This variant of the microcode implements texrect slightly differently.
       // 0xe4 replaces base executeTexRect but 0xb3 triggers it.
@@ -829,14 +829,14 @@ export class GBI2SDEX extends GBI2 {
       [s2dex2.Commands.G_BG_COPY, this.s2dex.executeBgCopy.bind(this.s2dex)],
       [s2dex2.Commands.G_OBJ_RENDERMODE, this.s2dex.executeObjRendermode.bind(this.s2dex)],
 
-      [GBIRDPCommands.FillTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
-      [GBIRDPCommands.FillZBufferTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
-      [GBIRDPCommands.TextureTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
-      [GBIRDPCommands.TextureZBufferTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
-      [GBIRDPCommands.ShadeTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
-      [GBIRDPCommands.ShadeZBufferTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
-      [GBIRDPCommands.ShadeTextureTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
-      [GBIRDPCommands.ShadeTextureZBufferTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
+      [s2dex2.Commands.FillTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
+      [s2dex2.Commands.FillZBufferTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
+      [s2dex2.Commands.TextureTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
+      [s2dex2.Commands.TextureZBufferTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
+      [s2dex2.Commands.ShadeTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
+      [s2dex2.Commands.ShadeZBufferTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
+      [s2dex2.Commands.ShadeTextureTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
+      [s2dex2.Commands.ShadeTextureZBufferTriangle, this.s2dex.executeTriRSP.bind(this.s2dex)],
 
       [s2dex2.Commands.G_OBJ_RECTANGLE_R, this.s2dex.executeObjRectangleR.bind(this.s2dex)],
     ]);

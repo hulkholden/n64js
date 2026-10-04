@@ -1,7 +1,8 @@
-import { GBIRDPCommands } from '../lle/rdp_constants.js';
+import * as gbi from './gbi.js';
 
 // GBI1 display-list opcodes.
 export const Commands = Object.freeze({
+  ...gbi.Commands,
   G_SPNOOP: 0x00,
   G_MTX: 0x01,
   G_MOVEMEM: 0x03,
@@ -26,5 +27,5 @@ export const Commands = Object.freeze({
   G_POPMTX: 0xbd,
   G_CULLDL: 0xbe,
   G_TRI1: 0xbf,
-  G_NOOP: GBIRDPCommands.Nop,
+  G_NOOP: gbi.Commands.Nop,
 });

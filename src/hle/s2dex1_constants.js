@@ -1,7 +1,8 @@
-import { GBIRDPCommands } from '../lle/rdp_constants.js';
+import * as gbi from './gbi.js';
 
 // S2DEX1 display-list opcodes.
 export const Commands = Object.freeze({
+  ...gbi.Commands,
   G_BG_1CYC: 0x01,
   G_BG_COPY: 0x02,
   G_OBJ_RECTANGLE: 0x03,
@@ -15,5 +16,5 @@ export const Commands = Object.freeze({
   G_OBJ_LOAD_TX_RECT: 0xc3,
   G_OBJ_LOAD_TX_RECT_R: 0xc4,
   // S2DEX intercepts the hardware texture-rectangle opcode as HALF_0.
-  G_RDPHALF_0: GBIRDPCommands.TextureRectangle,
+  G_RDPHALF_0: gbi.Commands.TextureRectangle,
 });

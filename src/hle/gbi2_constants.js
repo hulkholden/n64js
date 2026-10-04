@@ -1,5 +1,8 @@
+import * as gbi from './gbi.js';
+
 // GBI2 display-list opcodes.
 export const Commands = Object.freeze({
+  ...gbi.Commands,
   G_NOOP: 0x00,
   G_VTX: 0x01,
   G_MODIFYVTX: 0x02,

@@ -1,7 +1,6 @@
 /*global n64js*/
 
 import { toString8, toString16, toString32 } from '../format.js';
-import { GBIRDPCommands } from '../lle/rdp_constants.js';
 import { Matrix4x4 } from '../graphics/Matrix4x4.js';
 import { Vector3 } from '../graphics/Vector3.js';
 import * as logger from '../logger.js';
@@ -35,33 +34,33 @@ export class GBIMicrocode {
     this.onLoadUcodeHandler = null;
 
     this.gbiCommonCommands = new Map([
-      [GBIRDPCommands.TextureRectangle, this.executeTexRect.bind(this)],
-      [GBIRDPCommands.TextureRectangleFlip, this.executeTexRectFlip.bind(this)],
-      [GBIRDPCommands.SyncLoad, this.executeRDPLoadSync.bind(this)],
-      [GBIRDPCommands.SyncPipe, this.executeRDPPipeSync.bind(this)],
-      [GBIRDPCommands.SyncTile, this.executeRDPTileSync.bind(this)],
-      [GBIRDPCommands.SyncFull, this.executeRDPFullSync.bind(this)],
-      [GBIRDPCommands.SetKeyGB, this.executeSetKeyGB.bind(this)],
-      [GBIRDPCommands.SetKeyR, this.executeSetKeyR.bind(this)],
-      [GBIRDPCommands.SetConvert, this.executeSetConvert.bind(this)],
-      [GBIRDPCommands.SetScissor, this.executeSetScissor.bind(this)],
-      [GBIRDPCommands.SetPrimDepth, this.executeSetPrimDepth.bind(this)],
-      [GBIRDPCommands.SetOtherModes, this.executeSetRDPOtherMode.bind(this)],
-      [GBIRDPCommands.LoadTLut, this.executeLoadTLut.bind(this)],
-      [GBIRDPCommands.SetTileSize, this.executeSetTileSize.bind(this)],
-      [GBIRDPCommands.LoadBlock, this.executeLoadBlock.bind(this)],
-      [GBIRDPCommands.LoadTile, this.executeLoadTile.bind(this)],
-      [GBIRDPCommands.SetTile, this.executeSetTile.bind(this)],
-      [GBIRDPCommands.FillRectangle, this.executeFillRect.bind(this)],
-      [GBIRDPCommands.SetFillColor, this.executeSetFillColor.bind(this)],
-      [GBIRDPCommands.SetFogColor, this.executeSetFogColor.bind(this)],
-      [GBIRDPCommands.SetBlendColor, this.executeSetBlendColor.bind(this)],
-      [GBIRDPCommands.SetPrimColor, this.executeSetPrimColor.bind(this)],
-      [GBIRDPCommands.SetEnvColor, this.executeSetEnvColor.bind(this)],
-      [GBIRDPCommands.SetCombine, this.executeSetCombine.bind(this)],
-      [GBIRDPCommands.SetTextureImage, this.executeSetTImg.bind(this)],
-      [GBIRDPCommands.SetMaskImage, this.executeSetZImg.bind(this)],
-      [GBIRDPCommands.SetColorImage, this.executeSetCImg.bind(this)],
+      [gbi.Commands.TextureRectangle, this.executeTexRect.bind(this)],
+      [gbi.Commands.TextureRectangleFlip, this.executeTexRectFlip.bind(this)],
+      [gbi.Commands.SyncLoad, this.executeRDPLoadSync.bind(this)],
+      [gbi.Commands.SyncPipe, this.executeRDPPipeSync.bind(this)],
+      [gbi.Commands.SyncTile, this.executeRDPTileSync.bind(this)],
+      [gbi.Commands.SyncFull, this.executeRDPFullSync.bind(this)],
+      [gbi.Commands.SetKeyGB, this.executeSetKeyGB.bind(this)],
+      [gbi.Commands.SetKeyR, this.executeSetKeyR.bind(this)],
+      [gbi.Commands.SetConvert, this.executeSetConvert.bind(this)],
+      [gbi.Commands.SetScissor, this.executeSetScissor.bind(this)],
+      [gbi.Commands.SetPrimDepth, this.executeSetPrimDepth.bind(this)],
+      [gbi.Commands.SetOtherModes, this.executeSetRDPOtherMode.bind(this)],
+      [gbi.Commands.LoadTLut, this.executeLoadTLut.bind(this)],
+      [gbi.Commands.SetTileSize, this.executeSetTileSize.bind(this)],
+      [gbi.Commands.LoadBlock, this.executeLoadBlock.bind(this)],
+      [gbi.Commands.LoadTile, this.executeLoadTile.bind(this)],
+      [gbi.Commands.SetTile, this.executeSetTile.bind(this)],
+      [gbi.Commands.FillRectangle, this.executeFillRect.bind(this)],
+      [gbi.Commands.SetFillColor, this.executeSetFillColor.bind(this)],
+      [gbi.Commands.SetFogColor, this.executeSetFogColor.bind(this)],
+      [gbi.Commands.SetBlendColor, this.executeSetBlendColor.bind(this)],
+      [gbi.Commands.SetPrimColor, this.executeSetPrimColor.bind(this)],
+      [gbi.Commands.SetEnvColor, this.executeSetEnvColor.bind(this)],
+      [gbi.Commands.SetCombine, this.executeSetCombine.bind(this)],
+      [gbi.Commands.SetTextureImage, this.executeSetTImg.bind(this)],
+      [gbi.Commands.SetMaskImage, this.executeSetZImg.bind(this)],
+      [gbi.Commands.SetColorImage, this.executeSetCImg.bind(this)],
     ]);
   }
 

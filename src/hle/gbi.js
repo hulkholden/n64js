@@ -1,5 +1,12 @@
 import { makeEnum } from '../enum.js';
 import * as format from '../format.js';
+import * as rdp from '../lle/rdp_constants.js';
+
+// Display lists encode RDP commands with the top two opcode bits set.
+export const Commands = Object.freeze(Object.fromEntries(
+  Object.entries(rdp.Commands).filter(([, value]) => typeof value === 'number')
+    .map(([name, value]) => [name, value | 0xc0]),
+));
 
 export const RenderMode = {
   AA_EN:               0x0008,
