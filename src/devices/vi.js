@@ -327,7 +327,7 @@ export class VIRegDevice extends Device {
 
   // Progressive scanout uploads source pixels once; the presentation shader
   // applies VI scaling, subpixel offsets and borders at the output resolution.
-  renderNativeBackBuffer() {
+  renderProgressiveBackBuffer() {
     const scanout = this.computeScanout();
     const origin = this.dramAddrReg & 0x00fffffe;
     const bitDepth = this.bitDepth;
@@ -343,7 +343,7 @@ export class VIRegDevice extends Device {
     };
   }
 
-  renderBackBuffer() {
+  renderInterlacedBackBuffer() {
     const scanout = this.computeScanout();
     const origin = this.dramAddrReg & 0x00fffffe;
     const bitDepth = this.bitDepth;

@@ -39,11 +39,11 @@ export function runPresentationTests(gl) {
         vi.interlacedFramebuffer32.pixels.fill(0);
         vi.write32(base + 0x30, xScale | (0x180 << 16));
         vi.write32(base + 0x34, yScale | (0x280 << 16));
-        const expanded = vi.renderBackBuffer();
+        const expanded = vi.renderInterlacedBackBuffer();
         renderer.copyPixelsToFrontBuffer(expanded);
         const expected = new Uint8Array(640 * 480 * 4);
         gl.readPixels(0, 0, 640, 480, gl.RGBA, gl.UNSIGNED_BYTE, expected);
-        const frame = vi.renderNativeBackBuffer();
+        const frame = vi.renderProgressiveBackBuffer();
         renderer.copyPixelsToFrontBuffer(frame);
         const actual = new Uint8Array(expected.length);
         gl.readPixels(0, 0, 640, 480, gl.RGBA, gl.UNSIGNED_BYTE, actual);

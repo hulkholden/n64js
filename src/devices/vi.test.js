@@ -47,14 +47,14 @@ for (const bitDepth of [16, 32]) {
     } else {
       ram.set32(address, 0xff000000);
     }
-    const frame = vi.renderBackBuffer();
+    const frame = vi.renderInterlacedBackBuffer();
     expect([frame.width, frame.height, frame.bitDepth]).toEqual([640, 576, bitDepth]);
     const pixels = frame.pixels;
     // The first active row is display row 574, i.e. row 1 in a bottom-up texture.
     const offset = 640 + 8;
     const actual = bitDepth === 16 ? pixels[offset] : Array.from(pixels.subarray(offset * 4, offset * 4 + 4));
     expect(actual).toEqual(bitDepth === 16 ? 0xf801 : [255, 0, 0, 255]);
-    const bounds = vi.renderNativeBackBuffer().presentation.bounds;
+    const bounds = vi.renderProgressiveBackBuffer().presentation.bounds;
     expect(bounds.slice(0, 3)).toEqual([8 / 640, 0, 11 / 640]);
     expect(bounds[3]).toBeCloseTo(2 / 576, 12);
   });
@@ -80,7 +80,7 @@ for (const bitDepth of [16, 32]) {
         writePixel(ram, end - bytesPerPixel);
         // A missing RAM bank must not alias the first bank.
         writePixel(ram, 0);
-        const pixels = vi.renderBackBuffer().pixels;
+        const pixels = vi.renderInterlacedBackBuffer().pixels;
         expect(pixelAt(vi, pixels, bitDepth, 0)).toEqual(colour);
         expect(pixelAt(vi, pixels, bitDepth, 1)).toEqual(colour);
         expect(pixelAt(vi, pixels, bitDepth, 2)).toEqual(black);
@@ -92,18 +92,18 @@ for (const bitDepth of [16, 32]) {
       const { vi, ram } = makeVI();
       setSmallFrame(vi, bitDepth, 0x1000);
       writePixel(ram, 0x1000 + 8 * bytesPerPixel);
-      expect(pixelAt(vi, vi.renderBackBuffer().pixels, bitDepth)).toEqual(colour);
+      expect(pixelAt(vi, vi.renderInterlacedBackBuffer().pixels, bitDepth)).toEqual(colour);
       vi.write32(base + 4, 0x00fdaa80);
-      expect(pixelAt(vi, vi.renderBackBuffer().pixels, bitDepth)).toEqual(black);
+      expect(pixelAt(vi, vi.renderInterlacedBackBuffer().pixels, bitDepth)).toEqual(black);
       vi.write32(base + 4, 0x1000);
-      expect(pixelAt(vi, vi.renderBackBuffer().pixels, bitDepth)).toEqual(colour);
+      expect(pixelAt(vi, vi.renderInterlacedBackBuffer().pixels, bitDepth)).toEqual(colour);
     });
 
     test('wraps pixel fetches at 16 MiB, including a fetch at address zero', () => {
       const { vi, ram } = makeVI();
       setSmallFrame(vi, bitDepth, 0x1000000 - 10 * bytesPerPixel);
       writePixel(ram, 0);
-      const pixels = vi.renderBackBuffer().pixels;
+      const pixels = vi.renderInterlacedBackBuffer().pixels;
       expect(pixelAt(vi, pixels, bitDepth, 0)).toEqual(black);
       expect(pixelAt(vi, pixels, bitDepth, 1)).toEqual(black);
       expect(pixelAt(vi, pixels, bitDepth, 2)).toEqual(colour);
@@ -113,7 +113,7 @@ for (const bitDepth of [16, 32]) {
       const { vi, ram } = makeVI();
       setSmallFrame(vi, bitDepth, 0xab001000 | (bytesPerPixel - 1));
       writePixel(ram, 0x1000 + 8 * bytesPerPixel);
-      expect(pixelAt(vi, vi.renderBackBuffer().pixels, bitDepth)).toEqual(colour);
+      expect(pixelAt(vi, vi.renderInterlacedBackBuffer().pixels, bitDepth)).toEqual(colour);
     });
 
     test('checks the DataView length, including an incomplete final pixel', () => {
@@ -124,7 +124,7 @@ for (const bitDepth of [16, 32]) {
       new Uint8Array(buffer).fill(0xff);
       vi.hardware.cachedMemDevice.mem.dataView = view;
       setSmallFrame(vi, bitDepth, bytesPerPixel);
-      expect(pixelAt(vi, vi.renderBackBuffer().pixels, bitDepth)).toEqual(black);
+      expect(pixelAt(vi, vi.renderInterlacedBackBuffer().pixels, bitDepth)).toEqual(black);
     });
 
     test('uses the 12-bit pitch with scaled and offset source coordinates', () => {
@@ -135,13 +135,13 @@ for (const bitDepth of [16, 32]) {
       vi.write32(base + 0x34, (0x800 << 16) | 0x800);
       // First source coordinate is (8*2 + 1, 1), pitch 2 pixels.
       writePixel(ram, 0x1000 + (17 + 2) * bytesPerPixel);
-      expect(pixelAt(vi, vi.renderBackBuffer().pixels, bitDepth)).toEqual(colour);
+      expect(pixelAt(vi, vi.renderInterlacedBackBuffer().pixels, bitDepth)).toEqual(colour);
       expect(vi.scanout.source.pitch).toBe(2);
       vi.write32(base + 0x08, 0xffffffff);
       vi.write32(base + 0x30, 0x0fff0fff);
       vi.write32(base + 0x34, 0x0fff0fff);
       vi.write32(base + 0x04, 0x007ffffe);
-      expect(() => vi.renderBackBuffer()).not.toThrow();
+      expect(() => vi.renderInterlacedBackBuffer()).not.toThrow();
     });
 
     test('only updates the active interlaced field for invalid reads', () => {
@@ -151,11 +151,11 @@ for (const bitDepth of [16, 32]) {
       vi.interlacedFramebuffer16.pixels.fill(0xffff);
       vi.interlacedFramebuffer32.pixels.fill(0xff);
       vi.field = 0;
-      const pixels = vi.renderBackBuffer().pixels;
+      const pixels = vi.renderInterlacedBackBuffer().pixels;
       expect(pixelAt(vi, pixels, bitDepth, 0, 0)).toEqual(bitDepth === 16 ? 0xffff : [255, 255, 255, 255]);
       expect(pixelAt(vi, pixels, bitDepth, 0, 1)).toEqual(black);
       vi.field = 1;
-      expect(pixelAt(vi, vi.renderBackBuffer().pixels, bitDepth, 0, 0)).toEqual(black);
+      expect(pixelAt(vi, vi.renderInterlacedBackBuffer().pixels, bitDepth, 0, 0)).toEqual(black);
     });
   });
 }
@@ -170,7 +170,7 @@ for (const [region, tvType, vStart, height, yScale] of [['USA', OS_TV_NTSC, 37, 
     vi.write32(base + 0x28, (vStart << 16) | (vStart + height));
     vi.write32(base + 0x30, 0x200);
     vi.write32(base + 0x34, yScale);
-    const pixels = vi.renderBackBuffer().pixels;
+    const pixels = vi.renderInterlacedBackBuffer().pixels;
     expect(pixelAt(vi, pixels, 16)).toBe(1);
     expect(pixelAt(vi, pixels, 16, vi.scanout.displayRect.width - 1, 400)).toBe(1);
   });
@@ -189,8 +189,8 @@ for (const bitDepth of [16, 32]) {
       // Test valid RAM, a partially populated source, and 24-bit wrapping.
       for (const origin of [0x100, 4096 - 8 * bitDepth / 8, 0x1000000 - 8 * bitDepth / 8]) {
         vi.write32(base + 4, origin);
-        const frame = vi.renderNativeBackBuffer();
-        const expanded = vi.renderBackBuffer().pixels;
+        const frame = vi.renderProgressiveBackBuffer();
+        const expanded = vi.renderInterlacedBackBuffer().pixels;
         const scanout = vi.scanout;
         expect(frame.width).toBeLessThan(32);
         expect(frame.height).toBeLessThan(8);
@@ -210,6 +210,6 @@ for (const bitDepth of [16, 32]) {
       }
     }
     vi.write32(base + 0x30, 0);
-    expect(vi.renderNativeBackBuffer()).toBeNull();
+    expect(vi.renderProgressiveBackBuffer()).toBeNull();
   });
 }
