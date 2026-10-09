@@ -35,3 +35,8 @@ bun run benchmark --rom /path/to/rom.z64 --profile
 Profiling reports interpreted and recompiled CPU operations, fragment compilation and invalidation, speedhack attempts and skipped cycles, and RSP instructions and tasks for each measured sample. Counter collection adds overhead, so use ordinary non-profiled runs for performance comparisons.
 
 Run `bun run benchmark --help` for cycle, sample, and chunk-size options. For meaningful comparisons, use the same ROMs and arguments, close unrelated CPU-intensive applications, keep the machine on AC power, and record the Bun version and machine type reported in the JSON output.
+
+The experimental guarded RAM store path can be enabled with
+`--guarded-ram-stores`. It is disabled by default. See the
+[prototype report](docs/performance/guarded-ram-stores/README.md) for its scope,
+correctness checks, generated-code examples, and paired measurements.
