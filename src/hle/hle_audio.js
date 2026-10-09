@@ -188,7 +188,6 @@ export function getAudioHLEClass(identity) {
 
 /** Return false with memory untouched when the identity or command domain has
  * not been reviewed. The caller then executes the entire original task on RSP.
- * This is opt-in; LLE remains the default audio mode.
  */
 export function hleProcessAudioTask(hardware) {
   const state = getAudioState(hardware);

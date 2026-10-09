@@ -136,8 +136,9 @@ Donkey Kong 64. NEAD variants include Mario Kart 64, Star Fox 64,
 Shindou editions of Mario and Wave Race, Yoshi’s Story, 1080 Snowboarding,
 Ocarina of Time, Majora’s Mask, F-Zero X and Animal Forest.
 
-Select **Audio → Emulation Mode → HLE** to use supported microcodes; unreviewed
-identities and command shapes fall back to LLE. LLE remains the default.
+HLE is the default audio mode for supported microcodes; unreviewed identities
+and command shapes fall back to LLE. Select **Audio → Emulation Mode → LLE**
+to run all audio tasks on the RSP.
 
 ## Publishing
 
