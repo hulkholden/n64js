@@ -90,6 +90,7 @@ export class Hardware {
 
     this.rom = null;   // Will be memory, mapped at 0xb0000000
     this.pif_mem = newMemoryRegion(PIF_RAM_OFFSET + 0x40);   // rom+ram
+    this.memoryActivity = null; // Allocated only by the experimental memory view.
     this.ram = newMemoryRegion(8 * 1024 * 1024);
     this.sp_mem = newMemoryRegion(0x2000);
     this.sp_reg = newMemoryRegion(0x20);
@@ -187,6 +188,7 @@ export class Hardware {
 
   reset() {
     this.verticalBlankCount = 0;
+    this.memoryActivity?.reset();
     this.graphics.reset();
     this.cpu0.reset();
     this.cpu1.reset();
@@ -241,6 +243,7 @@ export class Hardware {
 
   verticalBlank() {
     this.verticalBlankCount++;
+    this.memoryActivity?.advance();
     this.flushSaveData();
 
     this.timeline.newFrame();

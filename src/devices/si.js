@@ -1,5 +1,6 @@
 /*global n64js*/
 
+import { MemorySource } from '../debug/memory_activity.js';
 import { Device } from './device.js';
 import * as mi from './mi.js';
 import * as logger from '../logger.js';
@@ -101,6 +102,7 @@ export class SIRegDevice extends Device {
     if (!this.quiet) { logger.log(`SI: copying from PIF RAM to ${toString32(dramAddr)}`); }
     
     n64js.joybus().dmaRead(this.hardware.ram, dramAddr);
+    this.hardware.memoryActivity?.markRange(dramAddr, 64, MemorySource.SI);
   }
 
   beginDMA() {

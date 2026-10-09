@@ -1,5 +1,6 @@
 /*global n64js*/
 
+import { MemorySource } from '../debug/memory_activity.js';
 import { Device } from './device.js';
 import * as sp from './sp_constants.js';
 import * as mi from './mi.js';
@@ -406,6 +407,7 @@ export class SPRegDevice extends Device {
     for (let c = 0; c < count; c++) {
       for (let i = 0; i < len; ++i) {
         this.hardware.ram.u8[ramOffset] = this.hardware.sp_mem.u8[(bankBit | (memOffset) & 0xfff)];
+        this.hardware.memoryActivity?.markRange(ramOffset, 1, MemorySource.SP);
         ramOffset++;
         memOffset++;
       }

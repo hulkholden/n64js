@@ -1,3 +1,4 @@
+import { MemorySource } from '../debug/memory_activity.js';
 import { toStringN, toString32 } from '../format.js';
 import * as logger from '../logger.js';
 
@@ -172,6 +173,9 @@ export class Device {
       return;
     }
     this.mem.set64masked(ea, value, mask);
+    if (this.mem === this.hardware.ram) {
+      this.hardware.memoryActivity?.markMasked(ea, 8, mask);
+    }
   }
 
   /**
@@ -186,6 +190,9 @@ export class Device {
       return;
     }
     this.mem.set32masked(ea, value, mask);
+    if (this.mem === this.hardware.ram) {
+      this.hardware.memoryActivity?.markMasked(ea, 4, BigInt(mask >>> 0));
+    }
   }
 
   /**
@@ -199,6 +206,9 @@ export class Device {
       return;
     }
     this.mem.set64(ea, value);
+    if (this.mem === this.hardware.ram) {
+      this.hardware.memoryActivity?.markRange(ea, 8, MemorySource.CPU);
+    }
   }
 
   /**
@@ -212,6 +222,9 @@ export class Device {
       return;
     }
     this.mem.set32(ea, value);
+    if (this.mem === this.hardware.ram) {
+      this.hardware.memoryActivity?.markRange(ea, 4, MemorySource.CPU);
+    }
   }
 
   /**
@@ -225,6 +238,9 @@ export class Device {
       return;
     }
     this.mem.set16(ea, value);
+    if (this.mem === this.hardware.ram) {
+      this.hardware.memoryActivity?.markRange(ea, 2, MemorySource.CPU);
+    }
   }
 
   /**
@@ -238,6 +254,9 @@ export class Device {
       return;
     }
     this.mem.set8(ea, value);
+    if (this.mem === this.hardware.ram) {
+      this.hardware.memoryActivity?.markRange(ea, 1, MemorySource.CPU);
+    }
   }
 }
 

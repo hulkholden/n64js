@@ -7,6 +7,7 @@ import { Breakpoints } from './debug/breakpoints.js';
 import { Controllers } from './controllers.js';
 import { Joybus } from './joybus.js';
 import { Debugger } from './debug/debugger.js';
+import { installMemoryActivityView } from './debug/memory_activity_view.js';
 import { fixRomByteOrder } from './endian.js';
 import { toString32 } from './format.js';
 import { FramePacer } from './frame_pacer.js';
@@ -47,6 +48,7 @@ const rominfo = {
 };
 
 const hardware = new Hardware(rominfo, { graphics });
+installMemoryActivityView(hardware, dbgGUI);
 const breakpoints = new Breakpoints(hardware, invalidateCode);
 const controllers = new Controllers();
 const joybus = new Joybus(hardware, controllers.inputs);

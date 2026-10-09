@@ -1,5 +1,6 @@
 /*global n64js*/
 
+import { MemorySource } from '../debug/memory_activity.js';
 import { Device } from './device.js';
 import { toString32 } from '../format.js';
 import * as logger from '../logger.js';
@@ -47,6 +48,7 @@ export class CachedMemDevice extends Device {
   write32(address, value) {
     const off = address - 0x80000000;
     this.dataView.setUint32(off, value, false);
+    this.hardware.memoryActivity?.markRange(off, 4, MemorySource.CPU);
   }
 }
 

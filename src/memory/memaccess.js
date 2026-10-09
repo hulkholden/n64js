@@ -1,3 +1,5 @@
+import { MemorySource } from '../debug/memory_activity.js';
+
 // Memory access routines.
 //
 // These helpers are structured to provide a fast path for accesses to unmapped physical memory, with the
@@ -11,8 +13,10 @@
 let getMemoryHandler;
 let ramDV;
 let cpu0;
+let hardware;
 
-export function reset(hardware, c0) {
+export function reset(hw, c0) {
+  hardware = hw;
   getMemoryHandler = hardware.memMap.getMemoryHandler.bind(hardware.memMap);
   ramDV = hardware.cachedMemDevice.mem.dataView;
   cpu0 = c0;
@@ -81,6 +85,7 @@ export function store8fast(sAddr, value) {
   if (sAddr < -2139095040) {
     const phys = (sAddr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
     ramDV.setUint8(phys, value, false);
+    hardware.memoryActivity?.markRange(phys, 1, MemorySource.CPU);
     return;
   }
   store8slow(sAddr >>> 0, value);
@@ -90,6 +95,7 @@ export function store16fast(sAddr, value) {
   if ((sAddr & 1) == 0 && sAddr < -2139095040) {
     const phys = (sAddr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
     ramDV.setUint16(phys, value, false);
+    hardware.memoryActivity?.markRange(phys, 2, MemorySource.CPU);
     return;
   }
   store16slow(sAddr >>> 0, value);
@@ -99,6 +105,7 @@ export function store32fast(sAddr, value) {
   if ((sAddr & 3) == 0 && sAddr < -2139095040) {
     const phys = (sAddr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
     ramDV.setUint32(phys, value, false);
+    hardware.memoryActivity?.markRange(phys, 4, MemorySource.CPU);
     return
   }
   store32slow(sAddr >>> 0, value);
@@ -108,6 +115,7 @@ export function store64fast(sAddr, value) {
   if ((sAddr & 7) == 0 && sAddr < -2139095040) {
     const phys = (sAddr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
     ramDV.setBigUint64(phys, value, false);
+    hardware.memoryActivity?.markRange(phys, 8, MemorySource.CPU);
     return;
   }
   store64slow(sAddr >>> 0, value);

@@ -287,3 +287,25 @@ Here are some things I'd like to get around to:
 
 n64js is derived from [Daedalus](https://github.com/hulkholden/daedalus), an emulator I started working on around 1999 and continued working on periodically for many years.
 Around 2012 I made a bet with [@mmalex](https://github.com/mmalex) that I could write a port in JavaScript, and n64js was born!
+
+### Experimental RAM activity view
+
+Build with `bun run build-debug`, click **Debug**, then enable
+**Options → Memory activity (experimental)**. Enable it before loading/resetting a ROM to capture boot writes.
+The panel shows the latest CPU or PI/SI/SP DMA writer for each RAM byte in Morton
+order. CPU stores include compiled code, mapped/uncached accesses and masked
+stores. Framebuffer writeback, HLE writes and reads are not captured yet.
+
+Colour fades over emulated VI frames (180 frames is roughly three seconds for
+NTSC). Freeze capture stops both recording and aging; Clear discards the history.
+Use 1:1 pixels and scroll to inspect individual bytes; the fitted overview samples
+bytes. Hover reports the physical address, last source and age. Closing the view
+releases its capture buffers and WebGL resources. Emulator reset clears history.
+
+The view requires WebGL 2 and allocates source and timestamp textures with one
+pixel per byte: 2048×2048 for 4 MiB or 4096×2048 for 8 MiB. The emulator currently
+allocates 8 MiB. CPU-side capture plus GPU textures use about 80 MiB at that size,
+excluding the canvas. This is deliberately an expensive experimental mode.
+`MemoryActivity.markRange(address, length, source)` provides the annotation hook
+for future read, texture and CImg/ZImg modes; currently only write-source and
+write-age colour modes are exposed.

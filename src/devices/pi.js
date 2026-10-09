@@ -1,5 +1,6 @@
 /*global n64js*/
 
+import { MemorySource } from '../debug/memory_activity.js';
 import { Device } from './device.js';
 import * as mi from './mi.js';
 import * as logger from '../logger.js';
@@ -323,6 +324,7 @@ export class PIRegDevice extends Device {
           ? i - misalignment
           : i;
         this.hardware.ram.u8[dramAddr + i] = src.u8[srcOffset + sourceIndex];
+        this.hardware.memoryActivity?.markRange(dramAddr + i, 1, MemorySource.PI);
       }
     }
 
