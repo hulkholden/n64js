@@ -34,6 +34,7 @@ export function initCPU(hardware) {
 }
 
 const kDebugTLB = false;
+const kTLBCacheSize = 256; // Must be a power of two.
 
 const kFragmentLengthLimit = 250;
 
@@ -236,7 +237,8 @@ n64js.s64CheckSubOverflow = s64CheckSubOverflow;
 
 
 class TLBEntry {
-  constructor() {
+  constructor(cpu) {
+    this.cpu = cpu;
     // TLB state (as configured by application).
     this.pagemask = 0;
     this.hi = 0n;
@@ -267,6 +269,9 @@ class TLBEntry {
    * @param {number} entrylo1 
    */
   update(index, pagemask, hi, entrylo0, entrylo1) {
+    // Any entry can become an earlier match for a cached page. Invalidate
+    // every lookup, including cached misses, rather than just this entry.
+    this.cpu.tlbCacheTags.fill(-1);
     if (kDebugTLB) {
       logger.log(`TLB update: index=${index}, pagemask=${toString32(pagemask)}, entryhi=${toString64(hi)}, entrylo0=${toString32(entrylo0)}, entrylo1=${toString32(entrylo1)}`);
       logger.log(`       ${pageMaskName(pagemask)} Pagesize`);
@@ -420,9 +425,14 @@ export class CPU0 {
     this.multLoU64 = new BigUint64Array(multLoMem);
     this.multLoS64 = new BigInt64Array(multLoMem);
 
+    // Cache first-match lookups at the smallest supported page granularity.
+    // Larger pages still use separate slots per 4 KiB, so an overlapping
+    // smaller entry cannot be hidden by a cached large-page match.
+    this.tlbCacheTags = new Int32Array(kTLBCacheSize);
+    this.tlbCacheEntries = new Array(kTLBCacheSize).fill(null);
     this.tlbEntries = [];
     for (let i = 0; i < 32; ++i) {
-      this.tlbEntries.push(new TLBEntry());
+      this.tlbEntries.push(new TLBEntry(this));
     }
 
     // Take references to the memory handler functions so they're easily accessible from dynarec.
@@ -1337,8 +1347,23 @@ export class CPU0 {
   }
 
   tlbFindEntry(address) {
-    const entryHiPID = this.getControlU32(cpu0reg.controlEntryHi) & TLBHI_PIDMASK32;
+    const page = address >>> 12;
+    const slot = page & (kTLBCacheSize - 1);
+    // Include the current ASID even for global matches: a different ASID
+    // could select an earlier non-global entry. Reading EntryHi here covers
+    // MTC0/DMTC0, TLBR and exception-side updates without setter hooks.
+    const asid = this.getControlU32(cpu0reg.controlEntryHi) & TLBHI_PIDMASK32;
+    const tag = (page << 8) | asid;
+    if (this.tlbCacheTags[slot] === tag) {
+      return this.tlbCacheEntries[slot];
+    }
+    const entry = this.tlbFindEntryUncached(address, asid);
+    this.tlbCacheEntries[slot] = entry;
+    this.tlbCacheTags[slot] = tag;
+    return entry;
+  }
 
+  tlbFindEntryUncached(address, asid = this.getControlU32(cpu0reg.controlEntryHi) & TLBHI_PIDMASK32) {
     // Preserve the first matching entry, including invalid/read-only pages;
     // the translation helpers below perform the access-specific fault checks.
     for (let i = 0; i < 32; ++i) {
@@ -1346,7 +1371,7 @@ export class CPU0 {
       if (!tlb.matches32Bit || (address & tlb.vpnMask32) !== tlb.vpnBits32) {
         continue;
       }
-      if (!tlb.global && tlb.asid !== entryHiPID) {
+      if (!tlb.global && tlb.asid !== asid) {
         continue;
       }
       return tlb;
