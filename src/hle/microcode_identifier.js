@@ -23,6 +23,7 @@ export const MicrocodeId = Object.freeze({
   HVQM2: 21,       // Yakouchuu II video decoder (executed by the RSP interpreter)
   GBI0_EARLY: 22,  // Saikyou Habu Shougi: early MoveWord encoding
   F5_NABOO: 23,    // Battle for Naboo (recognized, but HLE is not implemented)
+  GBI2_FLX: 24,    // F-Zero X: normal-indexed alpha lighting
 });
 
 const microcodeProfiles = new Map([
@@ -34,6 +35,7 @@ const microcodeProfiles = new Map([
   [MicrocodeId.GBI1, { family: 'GBI1', variant: null }],
   [MicrocodeId.GBI1_TEXA, { family: 'GBI1', variant: 'F3DTEX/A' }],
   [MicrocodeId.GBI2, { family: 'GBI2', variant: null }],
+  [MicrocodeId.GBI2_FLX, { family: 'GBI2', variant: 'F3DFLX' }],
   [MicrocodeId.GBI1_SDEX, { family: 'GBI1', variant: 'S2DEX' }],
   [MicrocodeId.GBI2_SDEX, { family: 'GBI2', variant: 'S2DEX' }],
   [MicrocodeId.GBI0_WR, { family: 'GBI0', variant: 'WR' }],
@@ -107,6 +109,9 @@ export function identifyMicrocode(version, hash, prefixHash = null) {
 }
 
 function inferUcodeFromString(str) {
+  if (str.includes('F3DFLX')) {
+    return MicrocodeId.GBI2_FLX;
+  }
   if (str.includes('ZSortp')) {
     return MicrocodeId.ZSORTP;
   }

@@ -1,6 +1,7 @@
 import { Matrix4x4 } from '../src/graphics/Matrix4x4.js';
 import * as gbi from '../src/hle/gbi.js';
 import { GBIMicrocode } from '../src/hle/gbi_microcode.js';
+import { GBI2FLX } from '../src/hle/gbi2_flx.js';
 import {
   assertPixels,
   testTexture,
@@ -190,5 +191,64 @@ export function runFogTests(gl) {
   check('fog keeps alpha testing on independent texture alpha', solid([0, 255, 0, 255]));
   state.blendColor = 128;
   check('fogged texture passes alpha-threshold equality', solid([64, 127, 64, 191]));
+  return lines;
+}
+
+// F-Zero X feeds normal-indexed alpha to the same fog blender while G_FOG is
+// disabled. Its G_TEXTURE_GEN bit must leave the supplied texel UVs intact.
+export function runF3DFLXTests(gl) {
+  const { ram, state, renderer, microcode, resetFrame } = createWebGLHarness(gl, {
+    width: 4, height: 1, Microcode: GBI2FLX,
+  });
+  state.rdpOtherModeH = gbi.CycleType.G_CYC_2CYCLE | gbi.TexturePerspective.G_TP_PERSP;
+  state.rdpOtherModeL = 0xc8000230; // Captured F-Zero X car render mode.
+  state.fogColor = 0xff0000ff;
+  state.combine.hi = 0x00ffffff;
+  state.combine.lo = (0xfffc7038 | (1 << 15) | (1 << 9) | (2 << 6) | 2) >>> 0;
+  const { texture } = createTestTexture(gl, 4, 1, [
+    [0, 255, 0, 255], [0, 0, 255, 255], [0, 255, 0, 255], [0, 255, 0, 255],
+  ]);
+  renderer.lookupTexture = () => ({ texture, width: 4, height: 1 });
+  for (const tile of state.tiles.slice(0, 2)) {
+    tile.set(gbi.ImageFormat.G_IM_FMT_RGBA, gbi.ImageSize.G_IM_SIZ_32b, 2, 0, 0, 2, 0, 0, 2, 0, 0);
+    tile.setSize(0, 0, 12, 0);
+  }
+  for (let i = 0; i < 256; i++) {
+    ram.setUint8(0x100 + i, i);
+  }
+  ram.setInt16(0x208, 256);
+  microcode.executeDmaIo(0xd622c0ff, 0x100);
+  microcode.executeMoveMem(0xdc08030a, 0x200);
+  microcode.executeGeometryMode(0xd9000000, 0x00060000);
+  microcode.executeTexture(0xd7000002, 0xffffffff);
+
+  function load(normals) {
+    const xy = [[-1, -1], [3, -1], [-1, 3]];
+    for (let i = 0; i < 3; i++) {
+      ram.setInt16(i * 16, xy[i][0]);
+      ram.setInt16(i * 16 + 2, xy[i][1]);
+      ram.setInt16(i * 16 + 8, 32); // Texel 1, blue; generated/rescaled UVs hit green.
+      ram.setInt8(i * 16 + 12, normals[i]);
+      ram.setUint8(i * 16 + 15, 255);
+    }
+    microcode.loadVertices(0, 3, 0);
+  }
+  const lines = [];
+  function check(name, expected) {
+    resetFrame();
+    drawProjectedTriangle(renderer, state.projectedVertices);
+    assertPixels(gl, { width: 4, height: 1, expected, label: name });
+    lines.push(`PASS ${name}`);
+  }
+  load([-127, -127, -127]);
+  check('F3DFLX zero alpha retains car texture and supplied UVs', solid([0, 0, 255, 255]));
+  load([0, 0, 0]);
+  check('F3DFLX partial reflection blends with fog colour', solid([128, 0, 127, 255]));
+  load([127, 127, 127]);
+  check('F3DFLX full reflection selects fog colour', solid([255, 0, 0, 255]));
+  load([-127, 0, 127]);
+  check('F3DFLX interpolates cached reflection alpha', [71.75, 87.75, 103.75, 119.75].map(a => [a, 0, 255 - a, 255]));
+  microcode.executeGeometryMode(0xd9000000, 0);
+  check('F3DFLX cached alpha survives disabling alpha lighting', [71.75, 87.75, 103.75, 119.75].map(a => [a, 0, 255 - a, 255]));
   return lines;
 }

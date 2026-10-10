@@ -8,6 +8,7 @@ export class GBI2 extends GBIMicrocode {
   constructor(state, ramDV) {
     super(state, ramDV);
     this.vertexStride = 2;
+    this.geometryModeFlags = gbi.GeometryModeGBI2;
 
     this.gbi2Commands = new Map([
       [gbi2.Commands.G_NOOP, this.executeNoop.bind(this)],
@@ -313,7 +314,7 @@ export class GBI2 extends GBIMicrocode {
     } else {
       this.state.geometryModeBits &= ~gbi.GeometryModeGBI2.G_TEXTURE_ENABLE;
     }
-    this.state.updateGeometryModeFromBits(gbi.GeometryModeGBI2);
+    this.state.updateGeometryModeFromBits(this.geometryModeFlags);
   }
 
   executeGeometryMode(cmd0, cmd1, dis) {
@@ -330,7 +331,7 @@ export class GBI2 extends GBIMicrocode {
     this.state.geometryModeBits &= (arg0 | gbi.GeometryModeGBI2.G_TEXTURE_ENABLE);
     this.state.geometryModeBits |= (arg1 & ~gbi.GeometryModeGBI2.G_TEXTURE_ENABLE);
 
-    this.state.updateGeometryModeFromBits(gbi.GeometryModeGBI2);
+    this.state.updateGeometryModeFromBits(this.geometryModeFlags);
   }
 
   executePopMatrix(cmd0, cmd1, dis) {
