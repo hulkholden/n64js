@@ -26,6 +26,7 @@ const kBootstrapOffset = 0x40;
 const kGameOffset = 0x1000;
 
 const systemFrequency = 93_750_000;
+const saveRetryDelayMs = 5_000;
 
 export class Hardware {
   constructor(rominfo, {
@@ -106,9 +107,10 @@ export class Hardware {
     this.si_reg = newMemoryRegion(0x1c);
 
     // Initialised during reset, using correct size for this rom (may be null if eeprom/sram/flash isn't used)
-    // TODO: add a dirty flag and persist to local storage.
     this.saveMem = null;
     this.saveDirty = false;
+    this.saveRetryTime = 0;
+    this.saveStorageFailed = false;
 
     this.mempacks = [
       new Mempack(),
@@ -249,6 +251,8 @@ export class Hardware {
   }
 
   initSaveGame() {
+    this.saveRetryTime = 0;
+    this.saveStorageFailed = false;
     for (let [i, mp] of this.mempacks.entries()) {
       const item = n64js.getLocalStorageItem(`mempack${i}`);
       mp.init(item);
@@ -288,16 +292,27 @@ export class Hardware {
   get saveType() { return this.rominfo.save; }
 
   flushSaveData() {
+    // Storage may remain full for a long time. Keep failed saves dirty, but
+    // avoid repeatedly serializing them and throwing on every vertical blank.
+    if (performance.now() < this.saveRetryTime) {
+      return;
+    }
+
     if (this.saveMem && this.saveDirty) {
-      this.saveU8Array('save', this.saveMem.u8);
-      this.saveDirty = false;
+      this.saveDirty = !this.saveU8Array('save', this.saveMem.u8);
     }
 
     for (let [i, mp] of this.mempacks.entries()) {
       if (mp.dirty) {
-        this.saveU8Array(`mempack${i}`, mp.data);
-        mp.dirty = false;
+        mp.dirty = !this.saveU8Array(`mempack${i}`, mp.data);
       }
+    }
+
+    if (this.saveDirty || this.mempacks.some(mp => mp.dirty)) {
+      this.saveRetryTime = performance.now() + saveRetryDelayMs;
+    } else {
+      this.saveRetryTime = 0;
+      this.saveStorageFailed = false;
     }
   }
 
@@ -308,7 +323,17 @@ export class Hardware {
       id: this.rominfo.id,
       data: u8arr.toBase64(),
     };
-    n64js.setLocalStorageItem(name, d);
+    try {
+      n64js.setLocalStorageItem(name, d);
+      return true;
+    } catch (error) {
+      if (!this.saveStorageFailed) {
+        const reason = error?.name === 'QuotaExceededError' ? 'Browser storage is full.' : 'Browser storage could not be written.';
+        n64js.ui().displayWarning(`${reason} New game saves are only held in memory and may be lost if you reload, reset or switch games. Back up existing saves before freeing storage space. Saving will retry automatically.`);
+      }
+      this.saveStorageFailed = true;
+      return false;
+    }
   }
 
   checkSIStatusConsistent() {
