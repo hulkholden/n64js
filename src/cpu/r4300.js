@@ -93,7 +93,7 @@ const SR_CUMASK       = 0xf0000000;
 const SR_CUSHIFT      = 28;
 
 // Only bit 19 is unwritable.
-const statusWritableBits = 0xfff7_ffffn;
+const statusWritableBits = 0xfff7_ffff;
 
 const CAUSE_BD        = 0x80000000;
 const CAUSE_CEMASK    = 0x30000000;
@@ -393,8 +393,9 @@ export class CPU0 {
     this.fragmentOps = null;
     this.fragmentCycles = 0; // Instructions whose Count/event updates were flushed.
 
-    // Reads from invalid control registers will use the value last written to any control register.
-    this.lastControlRegWrite = 0n;
+    // Invalid-register reads return the last write, before masking. Keep fast
+    // 32-bit writes as signed Numbers; the 64-bit path stores a BigInt.
+    this.lastControlRegWrite = 0;
 
     this.pc = 0;
     // Null means no pending branch; virtual address zero is a valid target.
@@ -649,6 +650,35 @@ export class CPU0 {
   }
 
   /**
+   * Moves a signed 32-bit value to a control register. Keep the frequent
+   * Status, EPC and timer writes in Number arithmetic; other registers use the
+   * full-width path for their masking and sign-extension rules.
+   */
+  moveToControl32(controlReg, newValue) {
+    this.lastControlRegWrite = newValue;
+    switch (controlReg) {
+      case cpu0reg.controlStatus:
+        this.setStatus(newValue);
+        break;
+      case cpu0reg.controlCount:
+        this.setCount(newValue);
+        break;
+      case cpu0reg.controlCompare:
+        this.setCompare(newValue >>> 0);
+        break;
+      case cpu0reg.controlEPC:
+      case cpu0reg.controlTagLo:
+      case cpu0reg.controlTagHi:
+      case cpu0reg.controlErrorEPC:
+        this.setControlS32Extend(controlReg, newValue);
+        break;
+      default:
+        this.moveToControl(controlReg, BigInt(newValue));
+        break;
+    }
+  }
+
+  /**
    * Moves the software-provided value to the control register, obeying masking.
    * @param {number} controlReg The control register to update.
    * @param {bigint} newValue The value to set.
@@ -702,12 +732,10 @@ export class CPU0 {
         break;
 
       case cpu0reg.controlStatus:
-        this.setControlU64(controlReg, newValue & statusWritableBits);
-        this.statusRegisterChanged();
+        this.setStatus(Number(newValue & u32MaxBigInt));
         break;
       case cpu0reg.controlCount:
-        this.controlCountValue = Number(newValue & 0xffff_ffffn) * 2;
-        this.updateCompareEvent();
+        this.setCount(Number(newValue & u32MaxBigInt));
         break;
       case cpu0reg.controlCompare:
         this.setCompare(Number(newValue & 0xffff_ffffn));
@@ -753,6 +781,31 @@ export class CPU0 {
     }
   }
 
+  /** Returns the low 32 bits of a control register as a Number. */
+  moveFromControl32(controlReg) {
+    switch (controlReg) {
+      case cpu0reg.controlCause:
+        this.checkCauseIP3Consistent();
+        return this.getControlS32(controlReg);
+      case cpu0reg.controlRand:
+        return this.getRandom();
+      case cpu0reg.controlInvalid7:
+      case cpu0reg.controlInvalid21:
+      case cpu0reg.controlInvalid22:
+      case cpu0reg.controlInvalid23:
+      case cpu0reg.controlInvalid24:
+      case cpu0reg.controlInvalid25:
+      case cpu0reg.controlInvalid31:
+        return typeof this.lastControlRegWrite === 'bigint'
+          ? Number(BigInt.asIntN(32, this.lastControlRegWrite))
+          : this.lastControlRegWrite;
+      case cpu0reg.controlCount:
+        return Math.floor(this.controlCountValue / 2) | 0;
+      default:
+        return this.getControlS32(controlReg);
+    }
+  }
+
   /**
    * Returns the control register value.
    * @param {number} controlReg The control register to get.
@@ -775,7 +828,7 @@ export class CPU0 {
       case cpu0reg.controlInvalid25:
       case cpu0reg.controlInvalid31:
         // Reads from invalid control registers will use the value last written to any control register.
-        return this.lastControlRegWrite;
+        return BigInt(this.lastControlRegWrite);
       case cpu0reg.controlCount:
         // COUNT increments by 1 for every 2 ops executed.
         return BigInt(this.controlCountValue) >> 1n;
@@ -1126,6 +1179,17 @@ export class CPU0 {
     } else {
       assert(false, "Was expecting an unmasked interrupt - something wrong with kStuffToDoCheckInterrupts?");
     }
+  }
+
+  setStatus(value) {
+    this.setControlU32(cpu0reg.controlStatus, value & statusWritableBits);
+    this.controlRegU32[cpu0reg.controlStatus * 2 + 1] = 0;
+    this.statusRegisterChanged();
+  }
+
+  setCount(value) {
+    this.controlCountValue = (value >>> 0) * 2;
+    this.updateCompareEvent();
   }
 
   setCompare(value) {
@@ -1990,7 +2054,7 @@ export class CPU0 {
 
   // Cop0
   execMFC0(rt, fs) {
-    this.setRegS32Extend(rt, Number(this.moveFromControl(fs) & 0xffff_ffffn));
+    this.setRegS32Extend(rt, this.moveFromControl32(fs));
   }
 
   execDMFC0(rt, fs) {
@@ -1998,7 +2062,7 @@ export class CPU0 {
   }
 
   execMTC0(rt, fs) {
-    this.moveToControl(fs, BigInt(this.getRegS32Lo(rt)));
+    this.moveToControl32(fs, this.getRegS32Lo(rt));
   }
 
   execDMTC0(rt, fs) {
