@@ -27,6 +27,7 @@ describe('microcode identification', () => {
       ['RSP Gfx ucode L3DEX 1.23', MicrocodeId.GBI1_L3DEX, 'GBI1', 'L3DEX'],
       ['RSP Gfx ucode F3DEX 1.0', MicrocodeId.GBI1, 'GBI1', null],
       ['RSP Gfx ucode F3DEX fifo 2.0', MicrocodeId.GBI2, 'GBI2', null],
+      ['RSP Gfx ucode F3DFLX.Rej  fifo 2.03F Yoshitaka Yasumoto 1998 Nintendo.', MicrocodeId.GBI2_FLX, 'GBI2', 'F3DFLX'],
       ['RSP Gfx ucode S2DEX 1.0', MicrocodeId.GBI1_SDEX, 'GBI1', 'S2DEX'],
       ['RSP Gfx ucode S2DEX fifo 2.0', MicrocodeId.GBI2_SDEX, 'GBI2', 'S2DEX'],
       ['RSP ZSortp 0.33', MicrocodeId.ZSORTP, 'ZSortp', null],

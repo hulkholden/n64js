@@ -138,6 +138,12 @@ alpha, and fogged translucent textures with alpha testing. The RSP signed-factor
 decoding, lighting interaction and vertex-cache rules also have Bun tests in
 `src/hle/fog.test.js`.
 
+The same module checks F3DFLX alpha lighting, used for F-Zero X's car
+reflections. Synthetic normals select zero, partial and full alpha from a
+lookup table, then pass through the captured car blender mode. The tests also
+check interpolated/cached alpha and that supplied texture coordinates are
+preserved instead of being treated as generated UVs.
+
 This targets two-cycle `G_RM_FOG_SHADE_A`; constant fog-colour-alpha framebuffer
 blends and full RDP coverage remain separate work. Existing texture gallery
 goldens are unchanged by the fog tests.

@@ -6,6 +6,7 @@ import { GBI1TEXA } from './gbi1_texa.js';
 import { GBI1, GBI1LL } from './gbi1.js';
 import { GBI1L3DEX } from './gbi_l3dex.js';
 import { GBI2, GBI2Conker } from './gbi2.js';
+import { GBI2FLX } from './gbi2_flx.js';
 import { GBI1SDEX, GBI2SDEX } from './gbi_s2dex.js';
 import { graphicsOptions } from './graphics_options.js';
 import { identifyMicrocode, MicrocodeId, microcodePrefixLength } from './microcode_identifier.js';
@@ -49,6 +50,11 @@ export function create(task, state, ramDV, onMicrocodeLoad = null) {
   assertHLESupported(info);
   const microcode = createMicrocode(info.id, state, ramDV);
   microcode.version = version;
+  // Reinterpret retained geometry bits when switching to/from variants such
+  // as F3DFLX, where G_TEXTURE_GEN generates alpha rather than UVs.
+  if (microcode.geometryModeFlags) {
+    state.updateGeometryModeFromBits(microcode.geometryModeFlags);
+  }
   // NoN microcodes draw geometry between the eye and the near plane. Update
   // on every load, including switches back to ordinary microcode within a task.
   // See https://github.com/gonetz/GLideN64/blob/master/src/GBI.cpp (NoN).
@@ -93,6 +99,8 @@ function createMicrocode(ucode, state, ramDV) {
       return new GBI1SDEX(state, ramDV);
     case MicrocodeId.GBI2:
       return new GBI2(state, ramDV);
+    case MicrocodeId.GBI2_FLX:
+      return new GBI2FLX(state, ramDV);
     case MicrocodeId.GBI2_CONKER:
       return new GBI2Conker(state, ramDV);
     case MicrocodeId.GBI2_SDEX:
