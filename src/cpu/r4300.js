@@ -891,6 +891,7 @@ export class CPU0 {
           }
 
           this.branchTarget = null;
+          const fragmentGeneration = fragment?.generation;
           executeOp(instruction);
 
           this.pc = this.nextPC;
@@ -902,7 +903,11 @@ export class CPU0 {
           eventQueue.incrementCount(cycles);
 
           // If we have a fragment, we're assembling code as we go
-          if (fragment) {
+          if (fragment && fragment.generation !== fragmentGeneration) {
+            // CACHE can discard the trace we were assembling. Do not append
+            // this instruction to an empty body still keyed by the old entry PC.
+            fragment = lookupFragment(this.pc);
+          } else if (fragment) {
             fragment = addOpToFragment(fragment, pc, instruction, this);
           } else {
             // If there's no current fragment and we branch backwards, this is possibly a new loop

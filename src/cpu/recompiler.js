@@ -1359,8 +1359,11 @@ function generateSCD(ctx) {
 
 function generateCACHE(ctx) {
   if (!n64js.cpu0.ignoreCacheOp(ctx.instr_rt())) {
+    // Invalidating the stored function cannot stop an invocation in progress.
+    // Publish PC/delay state and return before executing any more cached code.
+    ctx.bailOut = true;
     const impl = `c.execCACHE(${ctx.instr_rt()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
-    return generateTrivialOpBoilerplate(impl, ctx);
+    return generateGenericOpBoilerplate(impl, ctx);
   } else {
     return generateNOPBoilerplate('CACHE (ignored)', ctx);
   }

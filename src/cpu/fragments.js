@@ -26,6 +26,7 @@ let hitCounts = new Map();
 export class Fragment {
   constructor(pc) {
     this.entryPC          = pc;
+    this.generation       = 0;
     this.minPC            = pc;
     this.maxPC            = pc+4;
     this.func             = undefined;
@@ -43,6 +44,7 @@ export class Fragment {
   }
 
   invalidate() {
+    this.generation++;
     if (performanceProfile.enabled) {
       performanceProfile.counters.fragmentInvalidations++;
     }
