@@ -33,7 +33,7 @@ export const graphics = {
   setDPFrozen: frozen => renderer?.renderTargets.setDPFrozen(frozen),
 };
 
-// Returns false for LLE, true for completed HLE, or a continuation while waiting.
+// Returns false for LLE or a continuation for asynchronous HLE completion.
 export function dispatchGraphicsTask(hardware, mode, task) {
   const microcode = identifyMicrocode(task.detectVersionString(), task.computeMicrocodeHash(), task.computeMicrocodeHash(microcodePrefixLength));
   hardware.onGraphicsTask?.({ ...microcode });
@@ -90,8 +90,15 @@ export function dispatchGraphicsTask(hardware, mode, task) {
     };
     return resume;
   }
-  complete();
-  return true;
+  // Even a fully consumed list must finish asynchronously. Instant SP
+  // completion can wake the guest's completion thread before its submitting
+  // thread has returned from queuing the task (Taz Express requeues the same
+  // framebuffer and deadlocks). Use the SP continuation event's nominal
+  // latency; FullSync still signals DP independently when it executes.
+  return () => {
+    complete();
+    return null;
+  };
 }
 
 export function initialiseRenderer(canvas) {

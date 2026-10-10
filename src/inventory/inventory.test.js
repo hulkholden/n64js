@@ -133,9 +133,11 @@ function makeROM({ vi = false, graphics = 'end', audio = false, rewriteCount = f
   if (graphics !== 'none') {
     code.push(0x3c08a404); // t0 = SP registers.
     store(0x10, 1); // Clear HALT to dispatch the task.
+    // Both HLE graphics and LLE audio complete asynchronously. Do not submit
+    // another task until the first one halts.
+    code.push(0x8d0a0010, 0x314a0001, 0x1140fffd, 0);
     if (audio) {
-      // LLE tasks complete asynchronously. Wait for HALT, then rewind the RSP PC.
-      code.push(0x8d0a0010, 0x314a0001, 0x1140fffd, 0);
+      // Rewind the RSP PC for the next direct-loaded audio task.
       code.push(0x3c08a408);
       store(0, 0);
       code.push(0x3c08a404);
