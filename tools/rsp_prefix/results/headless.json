@@ -1,0 +1,2042 @@
+[
+  {
+    "pair": 1,
+    "variant": "baseline",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/Super Mario 64 (USA).v64",
+        "name": "Super Mario 64",
+        "cic": "6102",
+        "mode": "game",
+        "warmupFrames": 120,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 154.71671137813735,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 3.878055542,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 241701540.84915373,
+            "framesPerSecond": 154.71671137813735,
+            "state": "2079b8caef579d41"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 1,
+    "variant": "prototype",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/Super Mario 64 (USA).v64",
+        "name": "Super Mario 64",
+        "cic": "6102",
+        "mode": "game",
+        "warmupFrames": 120,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 151.57800758477404,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 3.958357875,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 236798195.00908569,
+            "framesPerSecond": 151.57800758477404,
+            "state": "2079b8caef579d41"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 2,
+    "variant": "prototype",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/Super Mario 64 (USA).v64",
+        "name": "Super Mario 64",
+        "cic": "6102",
+        "mode": "game",
+        "warmupFrames": 120,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 153.40347503884655,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 3.911254291,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 239649976.77518687,
+            "framesPerSecond": 153.40347503884655,
+            "state": "2079b8caef579d41"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 2,
+    "variant": "baseline",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/Super Mario 64 (USA).v64",
+        "name": "Super Mario 64",
+        "cic": "6102",
+        "mode": "game",
+        "warmupFrames": 120,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 155.68223115989585,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 3.854004375,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 243209895.16261253,
+            "framesPerSecond": 155.68223115989585,
+            "state": "2079b8caef579d41"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 3,
+    "variant": "baseline",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/Super Mario 64 (USA).v64",
+        "name": "Super Mario 64",
+        "cic": "6102",
+        "mode": "game",
+        "warmupFrames": 120,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 151.61994858174847,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 3.957262917,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 236863716.0733791,
+            "framesPerSecond": 151.61994858174847,
+            "state": "2079b8caef579d41"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 3,
+    "variant": "prototype",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/Super Mario 64 (USA).v64",
+        "name": "Super Mario 64",
+        "cic": "6102",
+        "mode": "game",
+        "warmupFrames": 120,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 153.557693435357,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 3.907326208,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 239890899.8385834,
+            "framesPerSecond": 153.557693435357,
+            "state": "2079b8caef579d41"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 4,
+    "variant": "prototype",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/Super Mario 64 (USA).v64",
+        "name": "Super Mario 64",
+        "cic": "6102",
+        "mode": "game",
+        "warmupFrames": 120,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 149.28162881185196,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 4.01924875,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 233210746.1624514,
+            "framesPerSecond": 149.28162881185196,
+            "state": "2079b8caef579d41"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 4,
+    "variant": "baseline",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/Super Mario 64 (USA).v64",
+        "name": "Super Mario 64",
+        "cic": "6102",
+        "mode": "game",
+        "warmupFrames": 120,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 153.7119547569602,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 3.903404917,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 240131889.96041837,
+            "framesPerSecond": 153.7119547569602,
+            "state": "2079b8caef579d41"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 5,
+    "variant": "baseline",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/Super Mario 64 (USA).v64",
+        "name": "Super Mario 64",
+        "cic": "6102",
+        "mode": "game",
+        "warmupFrames": 120,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 152.29738059062132,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 3.939660667,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 237922013.90628043,
+            "framesPerSecond": 152.29738059062132,
+            "state": "2079b8caef579d41"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 5,
+    "variant": "prototype",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/Super Mario 64 (USA).v64",
+        "name": "Super Mario 64",
+        "cic": "6102",
+        "mode": "game",
+        "warmupFrames": 120,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 153.4292295851702,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 3.91059775,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 239690211.04254457,
+            "framesPerSecond": 153.4292295851702,
+            "state": "2079b8caef579d41"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 1,
+    "variant": "baseline",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/Super Mario 64 (USA).v64",
+        "name": "Super Mario 64",
+        "cic": "6102",
+        "mode": "game",
+        "warmupFrames": 1320,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 91.58683871941221,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 6.551159625,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 143078791.18424013,
+            "framesPerSecond": 91.58683871941221,
+            "state": "2079b8caef579d41"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 1,
+    "variant": "prototype",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/Super Mario 64 (USA).v64",
+        "name": "Super Mario 64",
+        "cic": "6102",
+        "mode": "game",
+        "warmupFrames": 1320,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 90.97107472624695,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 6.595503041,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 142116832.35883752,
+            "framesPerSecond": 90.97107472624695,
+            "state": "2079b8caef579d41"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 2,
+    "variant": "prototype",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/Super Mario 64 (USA).v64",
+        "name": "Super Mario 64",
+        "cic": "6102",
+        "mode": "game",
+        "warmupFrames": 1320,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 91.18338248797978,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 6.580146334,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 142448503.79037178,
+            "framesPerSecond": 91.18338248797978,
+            "state": "2079b8caef579d41"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 2,
+    "variant": "baseline",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/Super Mario 64 (USA).v64",
+        "name": "Super Mario 64",
+        "cic": "6102",
+        "mode": "game",
+        "warmupFrames": 1320,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 90.68209428159064,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 6.616521208,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 141665381.32858652,
+            "framesPerSecond": 90.68209428159064,
+            "state": "2079b8caef579d41"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 3,
+    "variant": "baseline",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/Super Mario 64 (USA).v64",
+        "name": "Super Mario 64",
+        "cic": "6102",
+        "mode": "game",
+        "warmupFrames": 1320,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 90.18216514638482,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 6.653200209,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 140884382.03498527,
+            "framesPerSecond": 90.18216514638482,
+            "state": "2079b8caef579d41"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 3,
+    "variant": "prototype",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/Super Mario 64 (USA).v64",
+        "name": "Super Mario 64",
+        "cic": "6102",
+        "mode": "game",
+        "warmupFrames": 1320,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 87.8880013328813,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 6.826870459,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 137300393.44225383,
+            "framesPerSecond": 87.8880013328813,
+            "state": "2079b8caef579d41"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 4,
+    "variant": "prototype",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/Super Mario 64 (USA).v64",
+        "name": "Super Mario 64",
+        "cic": "6102",
+        "mode": "game",
+        "warmupFrames": 1320,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 89.72479889176665,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 6.687114459,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 140169875.3246957,
+            "framesPerSecond": 89.72479889176665,
+            "state": "2079b8caef579d41"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 4,
+    "variant": "baseline",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/Super Mario 64 (USA).v64",
+        "name": "Super Mario 64",
+        "cic": "6102",
+        "mode": "game",
+        "warmupFrames": 1320,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 90.44069489151057,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 6.634181667,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 141288262.37341565,
+            "framesPerSecond": 90.44069489151057,
+            "state": "2079b8caef579d41"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 5,
+    "variant": "baseline",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/Super Mario 64 (USA).v64",
+        "name": "Super Mario 64",
+        "cic": "6102",
+        "mode": "game",
+        "warmupFrames": 1320,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 91.63413384467216,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 6.547778375,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 143152676.57482374,
+            "framesPerSecond": 91.63413384467216,
+            "state": "2079b8caef579d41"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 5,
+    "variant": "prototype",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/Super Mario 64 (USA).v64",
+        "name": "Super Mario 64",
+        "cic": "6102",
+        "mode": "game",
+        "warmupFrames": 1320,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 86.8369400362888,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 6.909501875,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 135658404.46349108,
+            "framesPerSecond": 86.8369400362888,
+            "state": "2079b8caef579d41"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 1,
+    "variant": "baseline",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/Diddy Kong Racing (USA) (En,Fr) (Rev 1).z64",
+        "name": "Diddy Kong Racing (v1.1)",
+        "cic": "6103",
+        "mode": "game",
+        "warmupFrames": 120,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 223.66630574914777,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 2.682567667,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 349415976.1674336,
+            "framesPerSecond": 223.66630574914777,
+            "state": "9db0e4d81f7698f8"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 1,
+    "variant": "prototype",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/Diddy Kong Racing (USA) (En,Fr) (Rev 1).z64",
+        "name": "Diddy Kong Racing (v1.1)",
+        "cic": "6103",
+        "mode": "game",
+        "warmupFrames": 120,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 228.32741180461284,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 2.627805375,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 356697649.26940227,
+            "framesPerSecond": 228.32741180461284,
+            "state": "9db0e4d81f7698f8"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 2,
+    "variant": "prototype",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/Diddy Kong Racing (USA) (En,Fr) (Rev 1).z64",
+        "name": "Diddy Kong Racing (v1.1)",
+        "cic": "6103",
+        "mode": "game",
+        "warmupFrames": 120,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 238.99965499403967,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 2.510463875,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 373370041.0247887,
+            "framesPerSecond": 238.99965499403967,
+            "state": "9db0e4d81f7698f8"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 2,
+    "variant": "baseline",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/Diddy Kong Racing (USA) (En,Fr) (Rev 1).z64",
+        "name": "Diddy Kong Racing (v1.1)",
+        "cic": "6103",
+        "mode": "game",
+        "warmupFrames": 120,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 238.67320372682244,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 2.513897625,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 372860052.3261165,
+            "framesPerSecond": 238.67320372682244,
+            "state": "9db0e4d81f7698f8"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 3,
+    "variant": "baseline",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/Diddy Kong Racing (USA) (En,Fr) (Rev 1).z64",
+        "name": "Diddy Kong Racing (v1.1)",
+        "cic": "6103",
+        "mode": "game",
+        "warmupFrames": 120,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 242.6611025047464,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 2.472584167,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 379090027.55496496,
+            "framesPerSecond": 242.6611025047464,
+            "state": "9db0e4d81f7698f8"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 3,
+    "variant": "prototype",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/Diddy Kong Racing (USA) (En,Fr) (Rev 1).z64",
+        "name": "Diddy Kong Racing (v1.1)",
+        "cic": "6103",
+        "mode": "game",
+        "warmupFrames": 120,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 238.97601958767265,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 2.510712167,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 373333117.32025397,
+            "framesPerSecond": 238.97601958767265,
+            "state": "9db0e4d81f7698f8"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 4,
+    "variant": "prototype",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/Diddy Kong Racing (USA) (En,Fr) (Rev 1).z64",
+        "name": "Diddy Kong Racing (v1.1)",
+        "cic": "6103",
+        "mode": "game",
+        "warmupFrames": 120,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 238.90369883002109,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 2.511472208,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 373220136.38623554,
+            "framesPerSecond": 238.90369883002109,
+            "state": "9db0e4d81f7698f8"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 4,
+    "variant": "baseline",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/Diddy Kong Racing (USA) (En,Fr) (Rev 1).z64",
+        "name": "Diddy Kong Racing (v1.1)",
+        "cic": "6103",
+        "mode": "game",
+        "warmupFrames": 120,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 242.00687433756264,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 2.479268416,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 378067979.2276271,
+            "framesPerSecond": 242.00687433756264,
+            "state": "9db0e4d81f7698f8"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 5,
+    "variant": "baseline",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/Diddy Kong Racing (USA) (En,Fr) (Rev 1).z64",
+        "name": "Diddy Kong Racing (v1.1)",
+        "cic": "6103",
+        "mode": "game",
+        "warmupFrames": 120,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 239.34922935922816,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 2.506797292,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 373916153.0895734,
+            "framesPerSecond": 239.34922935922816,
+            "state": "9db0e4d81f7698f8"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 5,
+    "variant": "prototype",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/Diddy Kong Racing (USA) (En,Fr) (Rev 1).z64",
+        "name": "Diddy Kong Racing (v1.1)",
+        "cic": "6103",
+        "mode": "game",
+        "warmupFrames": 120,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 239.22888950142473,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 2.508058292,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 373728155.75691575,
+            "framesPerSecond": 239.22888950142473,
+            "state": "9db0e4d81f7698f8"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 1,
+    "variant": "baseline",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/Diddy Kong Racing (USA) (En,Fr) (Rev 1).z64",
+        "name": "Diddy Kong Racing (v1.1)",
+        "cic": "6103",
+        "mode": "game",
+        "warmupFrames": 1320,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 141.76063002060613,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 4.232486833,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 221461291.43079132,
+            "framesPerSecond": 141.76063002060613,
+            "state": "9db0e4d81f7698f8"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 1,
+    "variant": "prototype",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/Diddy Kong Racing (USA) (En,Fr) (Rev 1).z64",
+        "name": "Diddy Kong Racing (v1.1)",
+        "cic": "6103",
+        "mode": "game",
+        "warmupFrames": 1320,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 141.16827316251715,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 4.250246791,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 220535899.69994754,
+            "framesPerSecond": 141.16827316251715,
+            "state": "9db0e4d81f7698f8"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 2,
+    "variant": "prototype",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/Diddy Kong Racing (USA) (En,Fr) (Rev 1).z64",
+        "name": "Diddy Kong Racing (v1.1)",
+        "cic": "6103",
+        "mode": "game",
+        "warmupFrames": 1320,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 141.29493528735412,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 4.246436709,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 220733773.80461034,
+            "framesPerSecond": 141.29493528735412,
+            "state": "9db0e4d81f7698f8"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 2,
+    "variant": "baseline",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/Diddy Kong Racing (USA) (En,Fr) (Rev 1).z64",
+        "name": "Diddy Kong Racing (v1.1)",
+        "cic": "6103",
+        "mode": "game",
+        "warmupFrames": 1320,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 141.94113251754243,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 4.2271045,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 221743276.04155514,
+            "framesPerSecond": 141.94113251754243,
+            "state": "9db0e4d81f7698f8"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 3,
+    "variant": "baseline",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/Diddy Kong Racing (USA) (En,Fr) (Rev 1).z64",
+        "name": "Diddy Kong Racing (v1.1)",
+        "cic": "6103",
+        "mode": "game",
+        "warmupFrames": 1320,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 143.05108637702568,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 4.194305791,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 223477268.15991706,
+            "framesPerSecond": 143.05108637702568,
+            "state": "9db0e4d81f7698f8"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 3,
+    "variant": "prototype",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/Diddy Kong Racing (USA) (En,Fr) (Rev 1).z64",
+        "name": "Diddy Kong Racing (v1.1)",
+        "cic": "6103",
+        "mode": "game",
+        "warmupFrames": 1320,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 139.57533083408072,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 4.298753916,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 218047373.33561757,
+            "framesPerSecond": 139.57533083408072,
+            "state": "9db0e4d81f7698f8"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 4,
+    "variant": "prototype",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/Diddy Kong Racing (USA) (En,Fr) (Rev 1).z64",
+        "name": "Diddy Kong Racing (v1.1)",
+        "cic": "6103",
+        "mode": "game",
+        "warmupFrames": 1320,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 139.47000720368166,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 4.302000208,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 217882834.65373558,
+            "framesPerSecond": 139.47000720368166,
+            "state": "9db0e4d81f7698f8"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 4,
+    "variant": "baseline",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/Diddy Kong Racing (USA) (En,Fr) (Rev 1).z64",
+        "name": "Diddy Kong Racing (v1.1)",
+        "cic": "6103",
+        "mode": "game",
+        "warmupFrames": 1320,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 138.7366906606324,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 4.324739167,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 216737232.88385314,
+            "framesPerSecond": 138.7366906606324,
+            "state": "9db0e4d81f7698f8"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 5,
+    "variant": "baseline",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/Diddy Kong Racing (USA) (En,Fr) (Rev 1).z64",
+        "name": "Diddy Kong Racing (v1.1)",
+        "cic": "6103",
+        "mode": "game",
+        "warmupFrames": 1320,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 146.1530714994708,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 4.105284917,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 228323251.35790327,
+            "framesPerSecond": 146.1530714994708,
+            "state": "9db0e4d81f7698f8"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 5,
+    "variant": "prototype",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/Diddy Kong Racing (USA) (En,Fr) (Rev 1).z64",
+        "name": "Diddy Kong Racing (v1.1)",
+        "cic": "6103",
+        "mode": "game",
+        "warmupFrames": 1320,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 143.11234283134175,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 4.1925105,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 223572964.21797872,
+            "framesPerSecond": 143.11234283134175,
+            "state": "9db0e4d81f7698f8"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 1,
+    "variant": "baseline",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/GoldenEye 007 (USA).z64",
+        "name": "GoldenEye 007",
+        "cic": "6102",
+        "mode": "game",
+        "warmupFrames": 120,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 258.64304221119113,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 2.3197995,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 404057333.403167,
+            "framesPerSecond": 258.64304221119113,
+            "state": "ba17fed69c60ec89"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 1,
+    "variant": "prototype",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/GoldenEye 007 (USA).z64",
+        "name": "GoldenEye 007",
+        "cic": "6102",
+        "mode": "game",
+        "warmupFrames": 120,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 255.15065450129606,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 2.351551875,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 398601455.47501475,
+            "framesPerSecond": 255.15065450129606,
+            "state": "ba17fed69c60ec89"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 2,
+    "variant": "prototype",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/GoldenEye 007 (USA).z64",
+        "name": "GoldenEye 007",
+        "cic": "6102",
+        "mode": "game",
+        "warmupFrames": 120,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 259.4302956798985,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 2.312759959,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 405287196.51705104,
+            "framesPerSecond": 259.4302956798985,
+            "state": "ba17fed69c60ec89"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 2,
+    "variant": "baseline",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/GoldenEye 007 (USA).z64",
+        "name": "GoldenEye 007",
+        "cic": "6102",
+        "mode": "game",
+        "warmupFrames": 120,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 259.8981816386158,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 2.308596375,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 406018137.3194784,
+            "framesPerSecond": 259.8981816386158,
+            "state": "ba17fed69c60ec89"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 3,
+    "variant": "baseline",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/GoldenEye 007 (USA).z64",
+        "name": "GoldenEye 007",
+        "cic": "6102",
+        "mode": "game",
+        "warmupFrames": 120,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 267.0165919103652,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 2.247051375,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 417138660.21421075,
+            "framesPerSecond": 267.0165919103652,
+            "state": "ba17fed69c60ec89"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 3,
+    "variant": "prototype",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/GoldenEye 007 (USA).z64",
+        "name": "GoldenEye 007",
+        "cic": "6102",
+        "mode": "game",
+        "warmupFrames": 120,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 235.8726879132594,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 2.543745125,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 368485030.5118521,
+            "framesPerSecond": 235.8726879132594,
+            "state": "ba17fed69c60ec89"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 4,
+    "variant": "prototype",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/GoldenEye 007 (USA).z64",
+        "name": "GoldenEye 007",
+        "cic": "6102",
+        "mode": "game",
+        "warmupFrames": 120,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 245.8078830798679,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 2.440930667,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 384005991.10503125,
+            "framesPerSecond": 245.8078830798679,
+            "state": "ba17fed69c60ec89"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 4,
+    "variant": "baseline",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/GoldenEye 007 (USA).z64",
+        "name": "GoldenEye 007",
+        "cic": "6102",
+        "mode": "game",
+        "warmupFrames": 120,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 256.4928446947769,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 2.339246542,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 400698251.83907443,
+            "framesPerSecond": 256.4928446947769,
+            "state": "ba17fed69c60ec89"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 5,
+    "variant": "baseline",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/GoldenEye 007 (USA).z64",
+        "name": "GoldenEye 007",
+        "cic": "6102",
+        "mode": "game",
+        "warmupFrames": 120,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 262.20216978299925,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 2.288310583,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 409617473.6783971,
+            "framesPerSecond": 262.20216978299925,
+            "state": "ba17fed69c60ec89"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 5,
+    "variant": "prototype",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/GoldenEye 007 (USA).z64",
+        "name": "GoldenEye 007",
+        "cic": "6102",
+        "mode": "game",
+        "warmupFrames": 120,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 261.2638938794344,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 2.296528583,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 408151680.2963301,
+            "framesPerSecond": 261.2638938794344,
+            "state": "ba17fed69c60ec89"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 1,
+    "variant": "baseline",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/GoldenEye 007 (USA).z64",
+        "name": "GoldenEye 007",
+        "cic": "6102",
+        "mode": "game",
+        "warmupFrames": 1320,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 164.22187058974467,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 3.65359375,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 256550690.67271093,
+            "framesPerSecond": 164.22187058974467,
+            "state": "ba17fed69c60ec89"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 1,
+    "variant": "prototype",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/GoldenEye 007 (USA).z64",
+        "name": "GoldenEye 007",
+        "cic": "6102",
+        "mode": "game",
+        "warmupFrames": 1320,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 159.2569389741345,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 3.76749675,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 248794375.20417237,
+            "framesPerSecond": 159.2569389741345,
+            "state": "ba17fed69c60ec89"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 2,
+    "variant": "prototype",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/GoldenEye 007 (USA).z64",
+        "name": "GoldenEye 007",
+        "cic": "6102",
+        "mode": "game",
+        "warmupFrames": 1320,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 159.3482638586106,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 3.765337541,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 248937044.76519865,
+            "framesPerSecond": 159.3482638586106,
+            "state": "ba17fed69c60ec89"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 2,
+    "variant": "baseline",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/GoldenEye 007 (USA).z64",
+        "name": "GoldenEye 007",
+        "cic": "6102",
+        "mode": "game",
+        "warmupFrames": 1320,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 161.5947444037102,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 3.712992042,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 252446541.60236412,
+            "framesPerSecond": 161.5947444037102,
+            "state": "ba17fed69c60ec89"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 3,
+    "variant": "baseline",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/GoldenEye 007 (USA).z64",
+        "name": "GoldenEye 007",
+        "cic": "6102",
+        "mode": "game",
+        "warmupFrames": 1320,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 161.44828801244444,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 3.71636025,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 252217744.49880093,
+            "framesPerSecond": 161.44828801244444,
+            "state": "ba17fed69c60ec89"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 3,
+    "variant": "prototype",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/GoldenEye 007 (USA).z64",
+        "name": "GoldenEye 007",
+        "cic": "6102",
+        "mode": "game",
+        "warmupFrames": 1320,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 159.11580408442313,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 3.7708385,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 248573891.4567675,
+            "framesPerSecond": 159.11580408442313,
+            "state": "ba17fed69c60ec89"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 4,
+    "variant": "prototype",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/GoldenEye 007 (USA).z64",
+        "name": "GoldenEye 007",
+        "cic": "6102",
+        "mode": "game",
+        "warmupFrames": 1320,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 159.28906279648714,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 3.766736959,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 248844559.68192813,
+            "framesPerSecond": 159.28906279648714,
+            "state": "ba17fed69c60ec89"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 4,
+    "variant": "baseline",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/GoldenEye 007 (USA).z64",
+        "name": "GoldenEye 007",
+        "cic": "6102",
+        "mode": "game",
+        "warmupFrames": 1320,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 167.1137016210621,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 3.590369875,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 261068366.94645563,
+            "framesPerSecond": 167.1137016210621,
+            "state": "ba17fed69c60ec89"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 5,
+    "variant": "baseline",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/GoldenEye 007 (USA).z64",
+        "name": "GoldenEye 007",
+        "cic": "6102",
+        "mode": "game",
+        "warmupFrames": 1320,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 161.8809396187473,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 3.706427708,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 252893641.49119943,
+            "framesPerSecond": 161.8809396187473,
+            "state": "ba17fed69c60ec89"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "pair": 5,
+    "variant": "prototype",
+    "schemaVersion": 1,
+    "runtime": {
+      "bun": "1.3.14",
+      "platform": "darwin",
+      "arch": "arm64"
+    },
+    "results": [
+      {
+        "rom": "/Volumes/Data/Roms/GoldenEye 007 (USA).z64",
+        "name": "GoldenEye 007",
+        "cic": "6102",
+        "mode": "game",
+        "warmupFrames": 1320,
+        "measuredFrames": 600,
+        "medianFramesPerSecond": 158.81227652502216,
+        "medianAbsoluteDeviation": 0,
+        "deterministicState": true,
+        "samples": [
+          {
+            "index": 1,
+            "seconds": 3.778045458,
+            "cycles": 937332000,
+            "frames": 600,
+            "cyclesPerSecond": 248099714.63292015,
+            "framesPerSecond": 158.81227652502216,
+            "state": "ba17fed69c60ec89"
+          }
+        ]
+      }
+    ]
+  }
+]

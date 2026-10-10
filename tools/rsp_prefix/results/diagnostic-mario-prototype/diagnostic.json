@@ -1,0 +1,114 @@
+{
+  "rom": "/Volumes/Data/Roms/Super Mario 64 (USA).v64",
+  "rominfo": {
+    "id": "ff2b5a632623028b",
+    "name": "Super Mario 64",
+    "cic": "6102",
+    "country": 69,
+    "tvType": 1,
+    "save": "Eeprom4k"
+  },
+  "runtime": "1.3.14",
+  "warmup": 120,
+  "frames": 600,
+  "startup": {
+    "compileMs": 10.574507999999753,
+    "compilations": 67,
+    "sourceBytes": 332837,
+    "guards": 1212700,
+    "hits": 1212572,
+    "steps": 8915814,
+    "haltedSteps": 8908360,
+    "profile": {
+      "interpretedOps": 1249546,
+      "compiledOps": 28112244,
+      "fragmentRuns": 1338416,
+      "fragmentCompilations": 67,
+      "fragmentInvalidations": 16,
+      "fragmentRevalidations": 5,
+      "fragmentReuses": 4,
+      "speedHackAttempts": 997,
+      "speedHackRSPActive": 0,
+      "speedHackNonNopDelay": 0,
+      "speedHackActivations": 997,
+      "speedHackSkippedCycles": 182312489,
+      "rspInstructions": 7454,
+      "rspTasks": 116
+    }
+  },
+  "measured": {
+    "compileMs": 128.2966149999852,
+    "compilations": 885,
+    "sourceBytes": 6092357,
+    "guards": 5028984,
+    "hits": 4516032,
+    "steps": 197795596,
+    "haltedSteps": 167401370
+  },
+  "profile": {
+    "interpretedOps": 20349933,
+    "compiledOps": 189713202,
+    "fragmentRuns": 15926228,
+    "fragmentCompilations": 885,
+    "fragmentInvalidations": 268,
+    "fragmentRevalidations": 244,
+    "fragmentReuses": 244,
+    "speedHackAttempts": 4339463,
+    "speedHackRSPActive": 4337694,
+    "speedHackNonNopDelay": 0,
+    "speedHackActivations": 1769,
+    "speedHackSkippedCycles": 727268954,
+    "rspInstructions": 30394226,
+    "rspTasks": 862
+  },
+  "hottest": [
+    {
+      "key": "0x80246ddc-100",
+      "pc": "0x80246ddc",
+      "runs": 4336037,
+      "sourceBytes": 567
+    },
+    {
+      "key": "0x80317934-92",
+      "pc": "0x80317934",
+      "runs": 2334135,
+      "sourceBytes": 3722
+    },
+    {
+      "key": "0x8018e038-227",
+      "pc": "0x8018e038",
+      "runs": 690227,
+      "sourceBytes": 4364
+    },
+    {
+      "key": "0x80000054-3",
+      "pc": "0x80000054",
+      "runs": 555436,
+      "sourceBytes": 8057
+    },
+    {
+      "key": "0x80317088-19",
+      "pc": "0x80317088",
+      "runs": 497071,
+      "sourceBytes": 4353
+    },
+    {
+      "key": "0x8018dff0-222",
+      "pc": "0x8018dff0",
+      "runs": 431050,
+      "sourceBytes": 4646
+    },
+    {
+      "key": "0x8017e64c-414",
+      "pc": "0x8017e64c",
+      "runs": 396457,
+      "sourceBytes": 2918
+    },
+    {
+      "key": "0x8018e030-224",
+      "pc": "0x8018e030",
+      "runs": 374634,
+      "sourceBytes": 4738
+    }
+  ]
+}

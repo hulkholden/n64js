@@ -2846,11 +2846,25 @@ function addOpToFragment(fragment, entry_pc, instruction, c) {
   fragment.bodyCode += 'rsp.step();\n';
   fragment.bodyCode += `if (c.stuffToDo) { c.pc = ${entry_pc}; return ${fragment.opsCompiled - 1}; }\n`;
   fragment.bodyCode += `\n`;
+  const instructionBodyStart = fragment.bodyCode.length;
 
   const curPC = entry_pc;
   const postPC = c.pc;
   fragmentContext.set(fragment, curPC, instruction, postPC, c.nextPC);
   generateCodeForOp(fragmentContext);
+
+  // Bound the prototype to one register-only prefix. The first memory access,
+  // unknown helper, or cycle-synchronizing operation ends specialization for
+  // the rest of this trace. Never carry a halted assumption across MMIO.
+  const ctx = fragmentContext;
+  if (ctx.effects.mayStartRSP || ctx.effects.maySetStuffToDo || ctx.bailOut || n64js.getSyncFlow()) {
+    ctx.haltedRSPPrefixClosed = true;
+  }
+  if (!ctx.haltedRSPPrefixClosed) {
+    ctx.haltedRSPPrefix += fragment.bodyCode.slice(instructionBodyStart);
+    ctx.haltedRSPPrefixEnd = fragment.bodyCode.length;
+    ctx.haltedRSPPrefixOps++;
+  }
 
   // Break out of the trace as soon as we branch, or too many ops, or last op generated an interrupt (stuffToDo set)
   // TODO: what is longFragment for? This allows short busy loops to be expanded out but it's not clear if that's desirable.
@@ -2879,6 +2893,16 @@ function compileFragment(fragment) {
   if (fragment.usesCop1) {
     header += `const SR_CU1 = ${toString32(SR_CU1)};\n`;
     header += `const FPCSR_C = ${toString32(FPCSR_C)};\n`;
+  }
+
+  // The dispatch deadline covers this prefix: it contains no operation that
+  // can shorten it or run event handlers. Preserve the original interleaving
+  // verbatim when active (including an RSP BREAK before a CPU instruction).
+  // All PC/delay guards and early-return counts remain in both versions.
+  if (fragmentContext.haltedRSPPrefixOps >= 2) {
+    const prefix = fragment.bodyCode.slice(0, fragmentContext.haltedRSPPrefixEnd);
+    const suffix = fragment.bodyCode.slice(fragmentContext.haltedRSPPrefixEnd);
+    fragment.bodyCode = `if (rsp.halted && !c.stuffToDo) {\n${fragmentContext.haltedRSPPrefix}} else {\n${prefix}}\n${suffix}`;
   }
 
   // Check if the last op has a delayed pc update, and do it now.
