@@ -11,6 +11,8 @@ export const graphicsOptions = {
 
   // Apply a CRT effect when presenting the finished frame.
   crtMode: CRTMode.Off,
+  // Curvature strength: 0 is flat, 1 matches the original CRT curves.
+  crtCurvature: 0.75,
 
   // Whether to halt on unimplemented commands or just log a warning.
   haltOnWarning: false,
@@ -30,6 +32,7 @@ addOptionsFolder('Graphics', folder => {
   folder.add(graphicsOptions, 'canvasScale').name('Canvas Scale').min(1).max(4).step(0.25);
   folder.add(graphicsOptions, 'renderScale').name('Internal Render Scale').min(1).max(4).step(1);
   folder.add(graphicsOptions, 'crtMode', CRTMode).name('CRT');
+  folder.add(graphicsOptions, 'crtCurvature').name('CRT Curvature').min(0).max(2).step(0.05);
   folder.add(graphicsOptions, 'haltOnWarning').name('Halt on Warning');
   folder.add(graphicsOptions, 'dumpMicrocode').name('Dump Microcode');
   folder.add(graphicsOptions, 'dumpMicrocodeSubstring').name('Dump Microcode Substring');

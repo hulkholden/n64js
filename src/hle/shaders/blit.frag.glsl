@@ -8,6 +8,7 @@ uniform sampler2D uSampler1;
 uniform bool uInterlaced;
 uniform vec2 uVIResolution; // field parity follows VI rows, not canvas pixels
 uniform int uCRTMode; // 0: off, 1: simple, 2: Mattias
+uniform float uCRTCurvature;
 uniform float uCRTTime;
 uniform vec2 uOutputResolution;
 uniform float uSourceHeight;

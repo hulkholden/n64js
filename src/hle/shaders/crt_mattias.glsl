@@ -30,11 +30,13 @@ SOFTWARE.
 */
 
 vec2 mattiasCurve(vec2 uv) {
+  vec2 flatUV = uv;
   uv = (uv - 0.5) * 2.0;
   uv *= 1.1;
   uv.x *= 1.0 + pow(abs(uv.y) / 5.0, 2.0);
   uv.y *= 1.0 + pow(abs(uv.x) / 4.0, 2.0);
-  return uv * (0.5 * 0.92) + 0.5;
+  // Blend the complete transform so zero curvature also removes its zoom.
+  return mix(flatUV, uv * (0.5 * 0.92) + 0.5, uCRTCurvature);
 }
 
 vec3 mattiasSample(vec2 uv) {
