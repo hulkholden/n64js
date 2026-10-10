@@ -498,6 +498,12 @@ export class CPU0 {
   getRegS64(r) { return this.gprS64[r]; }
   getRegU64(r) { return this.gprU64[r]; }
 
+  // Compare every bit without materializing BigInts from the register file.
+  regsEqual(s, t) {
+    return this.gprU32[s * 2] === this.gprU32[t * 2] &&
+      this.gprU32[s * 2 + 1] === this.gprU32[t * 2 + 1];
+  }
+
   setRegU64(r, v) {
     // TODO: Avoid the need for this in dynarec code.
     if (r == 0) {
@@ -2041,7 +2047,7 @@ export class CPU0 {
   }
 
   execBEQ(rt, rs, offset) {
-    const cond = this.getRegU64(rs) === this.getRegU64(rt);
+    const cond = this.regsEqual(rs, rt);
     this.conditionalBranch(cond, offset);
 
     if (kSpeedHackEnabled && cond && offset === -1) {
@@ -2049,9 +2055,9 @@ export class CPU0 {
     }
   }
 
-  execBNE(rt, rs, offset) { this.conditionalBranch(this.getRegU64(rs) !== this.getRegU64(rt), offset); }
-  execBEQL(rt, rs, offset) { this.conditionalBranchLikely(this.getRegU64(rs) === this.getRegU64(rt), offset); }
-  execBNEL(rt, rs, offset) { this.conditionalBranchLikely(this.getRegU64(rs) !== this.getRegU64(rt), offset); }
+  execBNE(rt, rs, offset) { this.conditionalBranch(!this.regsEqual(rs, rt), offset); }
+  execBEQL(rt, rs, offset) { this.conditionalBranchLikely(this.regsEqual(rs, rt), offset); }
+  execBNEL(rt, rs, offset) { this.conditionalBranchLikely(!this.regsEqual(rs, rt), offset); }
 
   execBGEZ(rs, offset) { this.conditionalBranch(this.getRegS64(rs) >= 0n, offset); }
   execBGTZ(rs, offset) { this.conditionalBranch(this.getRegS64(rs) > 0n, offset); }
