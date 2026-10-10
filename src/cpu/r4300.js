@@ -1451,13 +1451,18 @@ export class CPU0 {
     throw new BreakpointException();
   }
 
-  // SRA appears to shift the full 64 bit reg, trunc to 32 bits, then sign extend.
   execSLL(rd, rt, sa) { this.setRegS32Extend(rd, this.getRegS32Lo(rt) << sa); }
   execSRL(rd, rt, sa) { this.setRegS32Extend(rd, this.getRegU32Lo(rt) >>> sa); }
-  execSRA(rd, rt, sa) { this.setRegS32Extend(rd, Number(this.getRegS64(rt) >> BigInt(sa) & 0xffff_ffffn)); }
-  execSLLV(rd, rt, rs) { this.setRegS32Extend(rd, this.getRegS32Lo(rt) << (this.getRegS32Lo(rs) & 0x1f)); }
-  execSRLV(rd, rt, rs) { this.setRegS32Extend(rd, this.getRegS32Lo(rt) >>> (this.getRegS32Lo(rs) & 0x1f)); }
-  execSRAV(rd, rt, rs) { this.setRegS32Extend(rd, Number(this.getRegS64(rt) >> BigInt(this.getRegS32Lo(rs) & 0x1f) & 0xffff_ffffn)); }
+  execSRA(rd, rt, sa) {
+    // Shift the full register before truncating to a word. In particular,
+    // non-sign-extended inputs contribute bits from the high word.
+    const lo = this.getRegU32Lo(rt);
+    const result = sa === 0 ? lo : (lo >>> sa) | (this.gprU32[rt * 2 + 1] << (32 - sa));
+    this.setRegS32Extend(rd, result);
+  }
+  execSLLV(rd, rt, rs) { this.execSLL(rd, rt, this.getRegS32Lo(rs) & 0x1f); }
+  execSRLV(rd, rt, rs) { this.execSRL(rd, rt, this.getRegS32Lo(rs) & 0x1f); }
+  execSRAV(rd, rt, rs) { this.execSRA(rd, rt, this.getRegS32Lo(rs) & 0x1f); }
   execDSLLV(rd, rt, rs) { this.setRegU64(rd, this.getRegU64(rt) << BigInt(this.getRegU32Lo(rs) & 0x3f)); }
   execDSRLV(rd, rt, rs) { this.setRegU64(rd, this.getRegU64(rt) >> BigInt(this.getRegU32Lo(rs) & 0x3f)); }
   execDSRAV(rd, rt, rs) { this.setRegU64(rd, this.getRegS64(rt) >> BigInt(this.getRegU32Lo(rs) & 0x3f)); }
