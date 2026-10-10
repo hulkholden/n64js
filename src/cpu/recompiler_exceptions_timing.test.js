@@ -4,7 +4,6 @@ import * as regs from './cpu0reg.js';
 import * as decode from './decode.js';
 import { getPerformanceProfile, setPerformanceProfiling } from '../debug/performance_profile.js';
 
-const { getFragmentMap, lookupFragment } = await import('./fragments.js');
 const pc = 0x80001000;
 const runCycles = 12;
 const iop = (op, s, t, immediate = 0) => ((op << 26) | (s << 21) | (t << 16) | (immediate & 0xffff)) >>> 0;
@@ -108,14 +107,14 @@ async function compareExecutions(instructions, prepare = () => {}, train = () =>
     // does not prevent the training trace from completing.
     setup(train);
     for (let i = 0; i < 499; i++) {
-      lookupFragment(pc);
+      hardware.fragmentCache.lookupFragment(pc);
     }
     cpu.run(runCycles);
-    const fragment = getFragmentMap().get(pc);
+    const fragment = hardware.fragmentCache.fragments.get(pc);
     expect(fragment?.func).toBeFunction();
 
     setup(prepare);
-    getFragmentMap().set(pc, fragment);
+    hardware.fragmentCache.fragments.set(pc, fragment);
     setPerformanceProfiling(profiled);
     cpu.run(runCycles);
     expect(fragment.executionCount).toBe(1);

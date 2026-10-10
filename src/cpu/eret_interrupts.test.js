@@ -3,7 +3,6 @@ import { createHeadlessEmulator } from '../headless/headless_env.js';
 import * as regs from './cpu0reg.js';
 import { MI_INTR_PI, MI_INTR_MASK_REG } from '../devices/mi.js';
 
-const { getFragmentMap, lookupFragment } = await import('./fragments.js');
 const pc = 0x80001000;
 const resumePC = 0x80002000;
 const interruptVector = 0x80000180;
@@ -46,15 +45,15 @@ async function executeReturn(compiled, status, pending = true) {
     // trace with an interrupt already asserted while EXL/ERL masks delivery.
     prepare(IM_RCP | IE | EXL, false);
     for (let i = 0; i < 499; i++) {
-      lookupFragment(pc);
+      hardware.fragmentCache.lookupFragment(pc);
     }
     cpu.run(cycles);
-    fragment = getFragmentMap().get(pc);
+    fragment = hardware.fragmentCache.fragments.get(pc);
     expect(fragment?.func).toBeFunction();
   }
   prepare(status, pending);
   if (compiled) {
-    getFragmentMap().set(pc, fragment);
+    hardware.fragmentCache.fragments.set(pc, fragment);
   }
   const count = cpu.controlCountValue;
   cpu.run(cycles);

@@ -4,6 +4,8 @@ const counterNames = [
   'fragmentRuns',
   'fragmentCompilations',
   'fragmentInvalidations',
+  'fragmentRevalidations',
+  'fragmentReuses',
   'speedHackAttempts',
   'speedHackRSPActive',
   'speedHackNonNopDelay',

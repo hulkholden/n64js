@@ -8,7 +8,6 @@ import { cop0ControlRegisterNames } from './disassemble.js';
 import { EmulatedException } from './emulated_exception.js';
 import { EventQueue } from '../event_queue.js';
 import { toString8, toString32, toString64 } from '../format.js';
-import { lookupFragment, resetFragments } from './fragments.js';
 import * as logger from '../logger.js';
 import * as memaccess from '../memory/memaccess.js';
 import { kAccurateCountUpdating, kSpeedHackEnabled } from '../options.js';
@@ -606,7 +605,7 @@ export class CPU0 {
   clearControlBits64(r, value) { this.controlRegU64[r] &= ~value; }
 
   reset() {
-    resetFragments();
+    this.hardware.fragmentCache.reset();
     this.fragmentOps = null;
     this.fragmentCycles = 0;
     this.compatibilityHacks = this.hardware.enableCompatibilityHacks ? getCompatibilityHacks(this.hardware.rominfo.id) : null;
@@ -894,13 +893,21 @@ export class CPU0 {
     const runFragment = performanceProfile.enabled ? executeFragmentProfiled : executeFragment;
 
     while (this.hasEvent(kEventRunForCycles)) {
-      let fragment = lookupFragment(this.pc);
+      let fragment = this.hardware.fragmentCache.lookupFragment(this.pc);
 
       while (!this.stuffToDo) {
 
         if (fragment && fragment.func) {
           fragment = runFragment(fragment, this, eventQueue);
         } else {
+          // Validate only immediately before execution, including cached
+          // successors. Lookup may happen before an interrupt changes RAM.
+          if (fragment?.cachedFunc) {
+            revalidateFragment(fragment, this);
+            if (fragment.func) {
+              continue;
+            }
+          }
           if (performanceProfile.enabled) {
             performanceProfile.counters.interpretedOps++;
           }
@@ -941,7 +948,7 @@ export class CPU0 {
               if (result.codeChanged) {
                 // Any member (or virtual alias) may already have compiled code,
                 // even if the trigger word is unchanged. Flush the active trace too.
-                resetFragments();
+                this.hardware.fragmentCache.reset();
                 fragment = null;
               }
               instruction = result.instruction;
@@ -967,13 +974,13 @@ export class CPU0 {
           if (fragment && fragment.generation !== fragmentGeneration) {
             // CACHE can discard the trace we were assembling. Do not append
             // this instruction to an empty body still keyed by the old entry PC.
-            fragment = lookupFragment(this.pc);
+            fragment = this.hardware.fragmentCache.lookupFragment(this.pc);
           } else if (fragment) {
             fragment = addOpToFragment(fragment, pc, instruction, this);
           } else {
             // If there's no current fragment and we branch backwards, this is possibly a new loop
             if (this.pc < pc) {
-              fragment = lookupFragment(this.pc);
+              fragment = this.hardware.fragmentCache.lookupFragment(this.pc);
             }
           }
         }
@@ -1357,6 +1364,34 @@ export class CPU0 {
     const phys = odd ? tlb.physOdd : tlb.physEven;
     const offset = address & tlb.offsetMask;
     return phys | offset;
+  }
+
+  // Speculative trace validation must not raise exceptions or read devices.
+  // If a later instruction is unmapped, fall back to interpretation so the
+  // fault occurs at its actual PC, after the preceding instructions execute.
+  readInstructionForValidation(address) {
+    if (address & 3) {
+      return null;
+    }
+    let physical;
+    if (address >= 0x80000000 && address < 0xc0000000) {
+      physical = address & 0x1fffffff;
+    } else {
+      const tlb = this.tlbFindEntry(address);
+      if (!tlb) {
+        return null;
+      }
+      const odd = address & tlb.checkbit;
+      if (((odd ? tlb.pfno : tlb.pfne) & TLBLO_V) === 0) {
+        return null;
+      }
+      physical = ((odd ? tlb.physOdd : tlb.physEven) | (address & tlb.offsetMask)) >>> 0;
+    }
+    const ram = this.hardware.ram.dataView;
+    if (physical > ram.byteLength - 4) {
+      return null;
+    }
+    return ram.getUint32(physical);
   }
 
   translateRead(address) {
@@ -1961,9 +1996,9 @@ export class CPU0 {
     if (!this.ignoreCacheOp(rt)) {
       const address = this.addrU32(base, imms);
       if (rt === 0) {
-        fragmentMap.invalidateIndex(address);
+        this.hardware.fragmentCache.invalidateIndex(address);
       } else {
-        fragmentMap.invalidateEntry(address);
+        this.hardware.fragmentCache.invalidateEntry(address);
       }
     }
   }
@@ -2703,76 +2738,19 @@ n64js.singleStep = function () {
   }
 };
 
-class FragmentMap {
-  constructor() {
-    this.kNumEntries = 16 * 1024;
-
-    this.entries = [];
-    for (let i = 0; i < this.kNumEntries; ++i) {
-      this.entries.push(new Set());
+function revalidateFragment(fragment, cpu0) {
+  if (performanceProfile.enabled) {
+    performanceProfile.counters.fragmentRevalidations++;
+  }
+  // Comparing short traces directly is collision-free and exits on the first
+  // changed word. Include every traced PC, including branch targets/delay slots.
+  for (let i = 0; i < fragment.instructionPCs.length; i++) {
+    if (cpu0.readInstructionForValidation(fragment.instructionPCs[i]) !== fragment.instructionWords[i]) {
+      fragment.invalidate();
+      return;
     }
   }
-
-  addressToCacheLine(address) {
-    return Math.floor(address >>> 5);
-  }
-
-  addressToCacheLineRoundUp(address) {
-    return Math.floor((address + 31) >>> 5);
-  }
-
-  lookupEntry(address) {
-    const cacheLineIdx = this.addressToCacheLine(address);
-    const entryIdx = cacheLineIdx % this.entries.length;
-    return this.entries[entryIdx];
-  }
-
-  addInstructionToFragment(fragment, pc) {
-    fragment.updateMinMax(pc);
-    this.lookupEntry(pc).add(fragment);
-  }
-
-  invalidateIndex(address) {
-    // The VR4300's 16 KiB I-cache has 512 direct-mapped, 32-byte lines.
-    // Index Invalidate uses VA[13:5], without comparing the address tag.
-    // Our fragment buckets cover a larger address space and retain multiple
-    // tags, so discard every fragment using this hardware index. In particular,
-    // a sweep of 0x80000000..0x80003fe0 must invalidate loaded overlays too.
-    const numCacheLines = 512;
-    const index = this.addressToCacheLine(address) % numCacheLines;
-    for (let i = index; i < this.entries.length; i += numCacheLines) {
-      const entry = this.entries[i];
-      for (const fragment of entry) {
-        fragment.invalidate();
-      }
-      entry.clear();
-    }
-  }
-
-  invalidateEntry(address) {
-    const entry = this.lookupEntry(address);
-
-    // TODO: should this really be translating virtual -> physical?
-    // Example 'invalidate 0x800000c0 not removing 0xa40000c4 - min/max 0xa40000c4/0xa40000c8'
-    const cacheLine = this.addressToCacheLine(address);
-
-    // TODO: just invalidate fragment map entries for this address?
-    for (const [fragment, _] of entry.entries()) {
-      if (this.addressToCacheLine(fragment.minPC) <= cacheLine &&
-        this.addressToCacheLineRoundUp(fragment.maxPC) >= cacheLine) {
-        fragment.invalidate();
-        entry.delete(fragment);
-      } else {
-        // logger.log(`invalidate ${toString32(address)} not removing ${toString32(fragment.entryPC)} - min/max ${toString32(fragment.minPC)}/${toString32(fragment.maxPC)}`)
-      }
-    }
-  }
-}
-
-const fragmentMap = new FragmentMap();
-
-export function invalidateCode(address) {
-  fragmentMap.invalidateEntry(address);
+  fragment.reuse();
 }
 
 function executeFragment(fragment, cpu0, eventQueue) {
@@ -2819,7 +2797,7 @@ function addOpToFragment(fragment, entry_pc, instruction, c) {
   // }
 
   fragment.opsCompiled++;
-  fragmentMap.addInstructionToFragment(fragment, entry_pc);
+  fragment.recordInstruction(entry_pc, instruction);
 
   // TODO: can we avoid the stuffToDo check? Throw exception?
   // TODO: we shouldn't need to set pc for every instruction - this is just to ensure delayedPCUpdate is flushed.
@@ -2839,7 +2817,7 @@ function addOpToFragment(fragment, entry_pc, instruction, c) {
   const longFragment = fragment.opsCompiled > 8;
   if ((longFragment && c.pc !== entry_pc + 4) || fragment.opsCompiled >= kFragmentLengthLimit || c.stuffToDo || fragment.bailedOut) {
     compileFragment(fragment);
-    fragment = lookupFragment(c.pc);
+    fragment = c.hardware.fragmentCache.lookupFragment(c.pc);
   } else {
     fragment.bodyCode += `// Keep going: ops ${fragment.opsCompiled}, pc: ${toString32(c.pc)}, entry+4: ${toString32(entry_pc + 4)}, stuff: ${c.stuffToDo}\n`
   }

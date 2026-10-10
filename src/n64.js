@@ -14,7 +14,7 @@ import { Hardware } from './hardware.js';
 import { debugDisplayList, debugDisplayListRequested, debugDisplayListRunning, initialiseRenderer, graphics, toggleDebugDisplayList } from './hle/hle_graphics.js';
 import * as json from './json.js';
 import * as logger from './logger.js';
-import { initCPU, invalidateCode } from './cpu/r4300.js';
+import { initCPU } from './cpu/r4300.js';
 import { romdb, generateRomId, generateCICType, uint8ArrayReadString } from './romdb.js';
 import { initRSP } from './rsp/rsp.js';
 import { categoryCodeDescriptionFromU8, countryNorthAmerica, OS_TV_NTSC, tvTypeFromCountry } from './system_constants.js';
@@ -47,7 +47,7 @@ const rominfo = {
 };
 
 const hardware = new Hardware(rominfo, { graphics });
-const breakpoints = new Breakpoints(hardware, invalidateCode);
+const breakpoints = new Breakpoints(hardware, address => hardware.fragmentCache.invalidateEntry(address));
 const controllers = new Controllers();
 const joybus = new Joybus(hardware, controllers.inputs);
 const ui = new UI();

@@ -4,8 +4,6 @@ import { compatibilityHacks } from './compatibility_hacks.js';
 import { controlCause, controlEPC, controlStatus } from './cpu/cpu0reg.js';
 import { createHeadlessEmulator } from './headless/headless_env.js';
 
-const { getFragmentMap } = await import('./cpu/fragments.js');
-const { invalidateCode } = await import('./cpu/r4300.js');
 const romId = 'c3cdfd6dc801e74d';
 const address = 0x8000c924;
 const original = 0x0c00f530; // JAL osGetTime
@@ -101,7 +99,7 @@ describe('compatibility startup timing', () => {
 
   test('breakpoints defer the delay until the original instruction is single-stepped', async () => {
     const { cpu0: cpu, hardware } = await fixture();
-    const breakpoints = new Breakpoints(hardware, invalidateCode);
+    const breakpoints = new Breakpoints(hardware, address => hardware.fragmentCache.invalidateEntry(address));
     const previous = n64js.breakpoints;
     n64js.breakpoints = () => breakpoints;
     try {
@@ -142,7 +140,7 @@ describe('compatibility startup timing', () => {
     expect(cpu.controlCountValue).toBe(16064);
     expect(cpu.getRegU32Lo(8)).toBe(4000);
     expect(cpu.pc).toBe(address);
-    expect(getFragmentMap().get(address)?.executionCount).toBeGreaterThan(0);
+    expect(hardware.fragmentCache.fragments.get(address)?.executionCount).toBeGreaterThan(0);
   });
 });
 

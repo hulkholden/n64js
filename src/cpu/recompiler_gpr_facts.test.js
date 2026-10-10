@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { createHeadlessEmulator } from '../headless/headless_env.js';
 import * as regs from './cpu0reg.js';
 import * as decode from './decode.js';
-import { Fragment, getFragmentMap, lookupFragment } from './fragments.js';
+import { Fragment } from './fragments.js';
 import { FragmentContext, generateCodeForOp } from './recompiler.js';
 import { getPerformanceProfile, setPerformanceProfiling } from '../debug/performance_profile.js';
 import { SP_STATUS_INTR_BREAK, SP_STATUS_REG } from '../devices/sp_constants.js';
@@ -58,10 +58,10 @@ async function fixture(words) {
   function train(prepare) {
     setup(prepare);
     for (let i = 0; i < 499; ++i) {
-      lookupFragment(pc);
+      h.fragmentCache.lookupFragment(pc);
     }
     c.run(cycles);
-    const fragment = getFragmentMap().get(pc);
+    const fragment = h.fragmentCache.fragments.get(pc);
     expect(fragment?.func).toBeFunction();
     return fragment;
   }
@@ -71,7 +71,7 @@ async function fixture(words) {
     c.run(cycles);
     const interpreted = snapshot();
     setup(prepare);
-    getFragmentMap().set(pc, fragment);
+    h.fragmentCache.fragments.set(pc, fragment);
     const before = fragment.executionCount;
     setPerformanceProfiling(profiled);
     try {
