@@ -191,6 +191,79 @@ export function runFogTests(gl) {
   check('fog keeps alpha testing on independent texture alpha', solid([0, 255, 0, 255]));
   state.blendColor = 128;
   check('fogged texture passes alpha-threshold equality', solid([64, 127, 64, 191]));
+
+  state.geometryMode.texture = 0;
+  combine();
+  load(undefined, { fog: false }); // Cached shade alpha is 41, not the blend factor.
+  state.primColor = 0x0000ff80;
+  const forced = gbi.RenderMode.FORCE_BL | gbi.RenderMode.IM_RD;
+  const setMode = (mode, flags = forced) => {
+    const blender = state.getCycleType() === gbi.CycleType.G_CYC_1CYCLE ? mode << 2 : mode;
+    state.rdpOtherModeL = (blender << 16) | flags;
+  };
+  for (const cycle of [gbi.CycleType.G_CYC_1CYCLE, gbi.CycleType.G_CYC_2CYCLE]) {
+    state.rdpOtherModeH = cycle;
+    for (const mode of [0x0110, 0x3110]) {
+      setMode(mode);
+      let cached;
+      for (const alpha of [0, 7, 8, 127, 128, 135, 248, 255]) {
+        state.fogColor = (0xff000000 | alpha) >>> 0;
+        // Independent integer reference: forced RDP blender truncates A to
+        // five bits, then truncates the weighted sum. GL may round by one.
+        const a = alpha >> 3;
+        const src = mode === 0x0110 ? [0, 0, 255] : [255, 0, 0];
+        const rgb = src.map((v, i) => (v * a + [0, 255, 0][i] * (32 - a)) >> 5);
+        const shader = check(`constant fog ${mode.toString(16)} cycle ${cycle} alpha ${alpha}`, solid([...rgb, 191]));
+        if (cached && cached !== shader) {
+          throw new Error('Constant fog alpha changed the shader cache key');
+        }
+        cached = shader;
+      }
+      state.fogColor = 0xffff0080;
+      check('constant fog colour updates between draws', solid(mode === 0x0110 ? [0, 127, 127, 191] : [127, 255, 0, 191]));
+      state.rdpOtherModeL |= gbi.AlphaCompare.G_AC_THRESHOLD;
+      state.blendColor = 129;
+      state.fogColor = 0xff0000ff;
+      check('constant fog keeps alpha testing on combiner alpha', solid([0, 255, 0, 255]));
+      state.blendColor = 128;
+      state.fogColor = 0xff000000;
+      check('constant fog threshold equality accepts even zero fog alpha', solid([0, 255, 0, 191]));
+      for (const flag of [0, gbi.RenderMode.AA_EN, gbi.RenderMode.CLR_ON_CVG,
+        gbi.RenderMode.CVG_X_ALPHA, gbi.RenderMode.ALPHA_CVG_SEL]) {
+        setMode(mode, flag ? forced | flag : gbi.RenderMode.IM_RD);
+        check(`constant fog unsupported flags ${flag} retain opaque fallback`, solid([0, 0, 255, 128]));
+      }
+      setMode(mode);
+      state.fogColor = 0xff000080;
+      check('constant fog reenabled after fallback', solid(mode === 0x0110 ? [0, 127, 127, 191] : [127, 127, 0, 191]));
+      setMode(0);
+      check('opaque draw after constant fog', solid([0, 0, 255, 128]));
+      setMode(mode);
+      check('constant fog after opaque draw', solid(mode === 0x0110 ? [0, 127, 127, 191] : [127, 127, 0, 191]));
+      setMode(0x0010);
+      check('ordinary alpha blend after constant fog', solid([0, 127, 128, 191]));
+    }
+  }
+  state.rdpOtherModeH = gbi.CycleType.G_CYC_2CYCLE;
+  state.rdpOtherModeL = (((0x3200 << 2) | 0x0110) << 16) | forced;
+  state.fogColor = 0xff000080;
+  check('first-cycle shade fog feeds constant framebuffer blending', solid([20, 127, 107, 191]));
+  for (const alpha of [0, 255]) {
+    state.primColor = (0x0000ff00 | alpha) >>> 0;
+    setMode(0x3110);
+    check('constant blend factor is independent of combiner alpha', solid([127, 127, 0, 255]));
+  }
+  state.primColor = 0x0000ff80;
+  for (const cycle of [gbi.CycleType.G_CYC_COPY, gbi.CycleType.G_CYC_FILL]) {
+    state.rdpOtherModeH = gbi.CycleType.G_CYC_1CYCLE;
+    setMode(0x3110);
+    check('constant fog before copy/fill', solid([127, 127, 0, 191]));
+    state.rdpOtherModeH = cycle;
+    state.geometryMode.texture = 1;
+    check('copy/fill bypass constant fog RGB and framebuffer blending',
+      solid([0, 0, 255, cycle === gbi.CycleType.G_CYC_COPY ? 128 : 41]));
+    state.geometryMode.texture = 0;
+  }
   return lines;
 }
 
@@ -205,13 +278,13 @@ export function runF3DFLXTests(gl) {
   state.fogColor = 0xff0000ff;
   state.combine.hi = 0x00ffffff;
   state.combine.lo = (0xfffc7038 | (1 << 15) | (1 << 9) | (2 << 6) | 2) >>> 0;
-  const { texture } = createTestTexture(gl, 4, 1, [
+  const texture = testTexture(4, 1, [
     [0, 255, 0, 255], [0, 0, 255, 255], [0, 255, 0, 255], [0, 255, 0, 255],
   ]);
-  renderer.lookupTexture = () => ({ texture, width: 4, height: 1 });
   for (const tile of state.tiles.slice(0, 2)) {
     tile.set(gbi.ImageFormat.G_IM_FMT_RGBA, gbi.ImageSize.G_IM_SIZ_32b, 2, 0, 0, 2, 0, 0, 2, 0, 0);
     tile.setSize(0, 0, 12, 0);
+    loadTestTexture(state, tile, texture);
   }
   for (let i = 0; i < 256; i++) {
     ram.setUint8(0x100 + i, i);

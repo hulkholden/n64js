@@ -3,6 +3,7 @@
 import { toString16 } from "../format.js";
 import { Vector2 } from "../graphics/Vector2.js";
 import * as gbi from './gbi.js';
+import * as rdp_blend from './rdp_blend_constants.js';
 import { CRTMode, graphicsOptions } from './graphics_options.js';
 import { RendererBase } from './renderer_base.js';
 import { RenderTargets } from './render_targets.js';
@@ -21,7 +22,7 @@ const kBlendModeUnknown = 0;
 const kBlendModeOpaque = 1;
 const kBlendModeAlphaTrans = 2;
 const kBlendModeFade = 3;
-const kBlendModeFog = 4;
+const kBlendModeConstantFog = 4;
 
 // Map to keep track of which unimplemented blend modes we've already warned about.
 const loggedBlendModes = new Map();
@@ -611,7 +612,7 @@ export class Renderer extends RendererBase {
     const enableAlphaCvgKill = this.state.getAntiAliasEnabled() && this.state.getCoverageTimesAlpha();
 
     return shaders.getOrCreateN64Shader(this.gl, mux0, mux1, cycleType, alphaCompare, enableAlphaCvgKill,
-      noNearClipping, this.state.rdpOtherModeL >>> 16);
+      noNearClipping, this.state.rdpOtherModeL >>> 16, this.usesConstantFogColor());
   }
 
   bindTile(tile, texGenEnabled, uniforms) {
@@ -650,6 +651,28 @@ export class Renderer extends RendererBase {
     return true;
   }
 
+  usesConstantFogColor() {
+    return this.getConstantFogBlendMode() === rdp_blend.kFogColorWithFramebuffer;
+  }
+
+  // Limit constant-register framebuffer blending to forced, non-coverage draws.
+  // Keep this decision shared by shader RGB selection and fixed-function blending.
+  getConstantFogBlendMode() {
+    const cycle = this.state.getCycleType();
+    if (cycle !== gbi.CycleType.G_CYC_1CYCLE && cycle !== gbi.CycleType.G_CYC_2CYCLE) {
+      return 0;
+    }
+    const otherMode = this.state.rdpOtherModeL;
+    const coverageFlags = gbi.RenderMode.AA_EN | gbi.RenderMode.CLR_ON_CVG |
+      gbi.RenderMode.CVG_X_ALPHA | gbi.RenderMode.ALPHA_CVG_SEL;
+    if (!(otherMode & gbi.RenderMode.FORCE_BL) || (otherMode & coverageFlags)) {
+      return 0;
+    }
+    const blender = otherMode >>> gbi.G_MDSFT_BLENDER;
+    const mode = (cycle === gbi.CycleType.G_CYC_2CYCLE ? blender : blender >>> 2) & 0x3333;
+    return mode === rdp_blend.kIncomingColorWithFogAlpha || mode === rdp_blend.kFogColorWithFramebuffer ? mode : 0;
+  }
+
   setGLBlendMode() {
     const gl = this.gl;
 
@@ -670,18 +693,17 @@ export class Renderer extends RendererBase {
 
     let mode = kBlendModeUnknown;
     switch (activeBlendMode) {
-      case 0x0000: // G_BL_CLR_IN, G_BL_A_IN, G_BL_CLR_IN, G_BL_1MA
-      case 0x0302: // G_BL_CLR_IN, G_BL_0, G_BL_CLR_IN, G_BL_1
-      case 0x3200: // G_BL_CLR_FOG, G_BL_A_SHADE, G_BL_CLR_IN, G_BL_1MA
-      case 0x0230: // G_BL_CLR_IN, G_BL_A_SHADE, G_BL_CLR_FOG, G_BL_1MA
+      case rdp_blend.kIncomingColorWithItself:
+      case rdp_blend.kIncomingColorPassThrough:
+      case rdp_blend.kFogColorWithShadeAlpha:
+      case rdp_blend.kIncomingColorWithShadeAlpha:
         // Shade-alpha fog mixes with the incoming colour in the shader;
         // neither input is the framebuffer, so no GL blend is needed.
         mode = kBlendModeOpaque;
         break;
-        // case 0x0321 = G_BL_CLR_IN, G_BL_0, G_BL_CLR_BL, G_BL_A_MEM - blend*alpha.
 
-      case 0x0010: // G_BL_CLR_IN, G_BL_A_IN, G_BL_CLR_MEM, G_BL_1MA
-      case 0x0011: // G_BL_CLR_IN, G_BL_A_IN, G_BL_CLR_MEM, G_BL_A_MEM
+      case rdp_blend.kIncomingColorWithSourceAlpha:
+      case rdp_blend.kIncomingColorWithMemoryAlpha:
         // These modes either do a weighted sum of coverage (or coverage and alpha) or a plain alpha blend
         // If alphaCvgSel is 0, or if we're multiplying by fragment alpha, then we have alpha to blend with.
         if (!alphaCvgSel || cvgXAlpha) {
@@ -694,19 +716,14 @@ export class Renderer extends RendererBase {
         }
         break;
 
-      case 0x0110: // G_BL_CLR_IN, G_BL_A_FOG, G_BL_CLR_MEM, G_BL_1MA, alphaCvgSel:false cvgXAlpha:false
-        // TODO: constant fog-colour-alpha framebuffer blending, separate from
-        // the first-cycle shade-alpha distance fog handled by the shader.
-        mode = kBlendModeOpaque;
+      case rdp_blend.kIncomingColorWithFogAlpha:
+      case rdp_blend.kFogColorWithFramebuffer:
+        mode = this.getConstantFogBlendMode() ? kBlendModeConstantFog : kBlendModeOpaque;
         break;
 
-      case 0x0310: // G_BL_CLR_IN, G_BL_0, G_BL_CLR_MEM, G_BL_1MA, alphaCvgSel:false cvgXAlpha:false
-      case 0x1310: // G_BL_CLR_MEM, G_BL_0, G_BL_CLR_MEM, G_BL_1MA
+      case rdp_blend.kZeroIncomingWithFramebuffer:
+      case rdp_blend.kZeroFramebufferWithFramebuffer:
         mode = kBlendModeFade;
-        break;
-
-      case 0x3110: // G_BL_CLR_FOG, G_BL_A_FOG, G_BL_CLR_MEM, G_BL_1MA
-        mode = kBlendModeFog;
         break;
     }
 
@@ -725,11 +742,16 @@ export class Renderer extends RendererBase {
         gl.blendEquation(gl.FUNC_ADD);
         gl.enable(gl.BLEND);
         break;
-      case kBlendModeFog:
-        // TODO: figure out how to emulate this.
-        // For now just render as opaque.
-        logUnhandled = true;
-        gl.disable(gl.BLEND);
+      case kBlendModeConstantFog:
+        // RDP forced blending uses A >> 3 and ((255-A) >> 3) + 1,
+        // divided by 32. Even A=255 retains 1/32 of the framebuffer.
+        // See angrylion-rdp-plus blender.c, blender_equation_cycle0/1.
+        // GL rounds the final channel instead of truncating (<= 1 byte).
+        gl.blendColor(0, 0, 0, ((this.state.fogColor & 0xff) >>> 3) / 32);
+        // Preserve the existing framebuffer-alpha policy independently of RGB.
+        gl.blendFuncSeparate(gl.CONSTANT_ALPHA, gl.ONE_MINUS_CONSTANT_ALPHA, gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        gl.blendEquation(gl.FUNC_ADD);
+        gl.enable(gl.BLEND);
         break;
       case kBlendModeUnknown:
         logUnhandled = true;
