@@ -49,6 +49,32 @@ const SCREEN_Z_SCALE = 65536;
 const SCREEN_Z_MASK = 0x7fffffff;
 const TEXCOORD_SCALE = 32;
 
+// Select LLE before executing any part of a task that writes transformed DMEM
+// back to RAM. Later objects can consume the writeback, so switching after an
+// HLE object has run would lose the RSP's matrix, vertex and attribute state.
+export function t3duxNeedsWriteback(ramDV, pc) {
+  const segments = new Uint32Array(16);
+  const address = pointer => (segments[(pointer >>> 24) & 15] + (pointer & 0x00ffffff)) & 0x007fffff;
+  while (pc) {
+    const global = ramDV.getUint32(pc);
+    const object = ramDV.getUint32(pc + 4);
+    if (!object) {
+      return false;
+    }
+    if (global) {
+      const base = address(global);
+      for (let i = 0; i < segments.length; i++) {
+        segments[i] = ramDV.getUint32(base + 16 + i * 4);
+      }
+    }
+    if (ramDV.getUint8(address(object) + 9) & MATRIX_FLAG_TRANSFORM_ONLY) {
+      return true;
+    }
+    pc += OBJECT_RECORD_BYTES;
+  }
+  return false;
+}
+
 // T3DUX records are six words: global, object, vertices, triangles, attributes,
 // and the attribute DMEM base. Vertices and triangles are each eight bytes.
 // Layout reference: GLideN64 src/uCodes/T3DUX.cpp; cache offsets, signed smooth

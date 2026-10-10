@@ -4,6 +4,7 @@ import { identifyMicrocode, MicrocodeId } from './microcode_identifier.js';
 import { create } from './microcodes.js';
 import { NullRenderer } from './null_renderer.js';
 import { RSPState } from './rsp_state.js';
+import { t3duxNeedsWriteback } from './t3dux.js';
 
 const hashes = [0x26da8a4c, 0xdd560323];
 function words(dv, address, values) {
@@ -63,6 +64,38 @@ function fixture() {
 }
 
 describe('T3DUX object lists', () => {
+  test('preflights segmented objects without changing RAM or carrying segments across tasks', () => {
+    const dv = fixture();
+    const before = dv.buffer.slice(0);
+    expect(t3duxNeedsWriteback(dv, 0x100)).toBe(false);
+    expect(dv.buffer).toEqual(before);
+    dv.setUint8(0x1389, 5); // A later object, keeping the preceding matrix.
+    expect(t3duxNeedsWriteback(dv, 0x100)).toBe(true);
+    dv.setUint8(0x1389, 3);
+    // The first global installs segment zero as well as segment one.
+    // A subsequent global pointer must use the old bases before replacing them.
+    dv.setUint32(0x118, 0x80000020);
+    dv.setUint32(0x1020 + 16 + 4, 0x1800);
+    dv.setUint32(0x11c, 0x01000100);
+    dv.setUint8(0x1909, 6);
+    expect(t3duxNeedsWriteback(dv, 0x100)).toBe(true);
+    // An empty/new list must not inherit either global state's segments.
+    expect(t3duxNeedsWriteback(fixture(), 0x100)).toBe(false);
+    expect(t3duxNeedsWriteback(dv, 0)).toBe(false);
+  });
+
+  test('preflight stops at the object terminator without following its other pointers', () => {
+    const dv = fixture();
+    dv.setUint32(0x100, 0xffffffff);
+    dv.setUint32(0x104, 0);
+    expect(t3duxNeedsWriteback(dv, 0x100)).toBe(false);
+  });
+
+  test('preflight rejects truncated lists instead of silently selecting HLE', () => {
+    const dv = new DataView(new ArrayBuffer(24));
+    dv.setUint32(4, 16);
+    expect(() => t3duxNeedsWriteback(dv, 20)).toThrow(RangeError);
+  });
   test('keeps both hash variants distinct from GBI1 and Turbo3D', () => {
     expect(identifyMicrocode('', hashes[0])).toMatchObject({ id: MicrocodeId.T3DUX, family: 'T3DUX', variant: '26da8a4c' });
     expect(identifyMicrocode('', hashes[1])).toMatchObject({ id: MicrocodeId.T3DUX_BRAVE, family: 'T3DUX', variant: 'dd560323' });
