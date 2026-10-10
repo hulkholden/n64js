@@ -127,7 +127,7 @@ describe('GPR fact generated code', () => {
       iop(decode.OP_LDL, 20, 1), iop(decode.OP_LDR, 20, 1), special(decode.SPECIAL_MFHI, 0, 0, 1),
       0x44210000, 0x0000000f]) {
       const code = generated([special(decode.SPECIAL_SLT, 4, 5, 1), overwrite, iop(decode.OP_BNE, 1, 0, 2)]);
-      expect(code).toContain('c.getRegU64(1) !== 0n');
+      expect(code).toContain('(c.gprU32[2] !== 0 || c.gprU32[3] !== 0)');
     }
   });
 
@@ -141,9 +141,9 @@ describe('GPR fact generated code', () => {
     const fragment = new Fragment(pc);
     generated([iop(decode.OP_ADDIU, 0, 1, 1)], ctx, fragment);
     fragment.invalidate();
-    expect(generated([iop(decode.OP_BNE, 1, 0, 2)], ctx, fragment)).toContain('c.getRegU64(1) !== 0n');
+    expect(generated([iop(decode.OP_BNE, 1, 0, 2)], ctx, fragment)).toContain('(c.gprU32[2] !== 0 || c.gprU32[3] !== 0)');
     generated([iop(decode.OP_ADDIU, 0, 1, 1)], ctx, fragment);
-    expect(generated([iop(decode.OP_BNE, 1, 0, 2)], ctx)).toContain('c.getRegU64(1) !== 0n');
+    expect(generated([iop(decode.OP_BNE, 1, 0, 2)], ctx)).toContain('(c.gprU32[2] !== 0 || c.gprU32[3] !== 0)');
     ctx.newFragment();
     expect(ctx.gprFacts.get(1).kind).toBe('unknown64');
     expect(ctx.gprFacts.get(0).value).toBe(0n);

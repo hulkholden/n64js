@@ -466,7 +466,10 @@ function genEquality(ctx, s, t, equal) {
   if (isKnown32(sf) && isKnown32(tf)) {
     return `${genKnownNumber(s, sf)} ${op} ${genKnownNumber(t, tf)}`;
   }
-  return `${genSrcRegU64(s)} ${op} ${genSrcRegU64(t)}`;
+  // Use constant word indices in compiled code, avoiding BigInt reads and a
+  // helper call on branches whose register widths are not known statically.
+  const word = (reg, hi) => reg === 0 ? '0' : `c.gprU32[${reg * 2 + hi}]`;
+  return `(${word(s, 0)} ${op} ${word(t, 0)} ${equal ? '&&' : '||'} ${word(s, 1)} ${op} ${word(t, 1)})`;
 }
 
 function generateUnknown(ctx) {
