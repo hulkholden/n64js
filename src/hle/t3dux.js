@@ -2,8 +2,9 @@ import { toString32 } from '../format.js';
 import { Matrix4x4 } from '../graphics/Matrix4x4.js';
 import { Vector3 } from '../graphics/Vector3.js';
 import * as gbi from './gbi.js';
-import { ObjectMicrocode } from './object_microcode.js';
+import { loadObjectSegments, ObjectMicrocode } from './object_microcode.js';
 import { ProjectedVertex } from './projected_vertex.js';
+import { resolveSegmentAddress } from './segments.js';
 
 const RENDER_STATE_TILE_MASK = 0x07;
 const RENDER_STATE_LEVEL_MASK = 0x38;
@@ -54,7 +55,6 @@ const TEXCOORD_SCALE = 32;
 // HLE object has run would lose the RSP's matrix, vertex and attribute state.
 export function t3duxNeedsWriteback(ramDV, pc) {
   const segments = new Uint32Array(16);
-  const address = pointer => (segments[(pointer >>> 24) & 15] + (pointer & 0x00ffffff)) & 0x007fffff;
   while (pc) {
     const global = ramDV.getUint32(pc);
     const object = ramDV.getUint32(pc + 4);
@@ -62,12 +62,9 @@ export function t3duxNeedsWriteback(ramDV, pc) {
       return false;
     }
     if (global) {
-      const base = address(global);
-      for (let i = 0; i < segments.length; i++) {
-        segments[i] = ramDV.getUint32(base + 16 + i * 4);
-      }
+      loadObjectSegments(ramDV, resolveSegmentAddress(segments, global), segments);
     }
-    if (ramDV.getUint8(address(object) + 9) & MATRIX_FLAG_TRANSFORM_ONLY) {
+    if (ramDV.getUint8(resolveSegmentAddress(segments, object) + 9) & MATRIX_FLAG_TRANSFORM_ONLY) {
       return true;
     }
     pc += OBJECT_RECORD_BYTES;

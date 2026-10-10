@@ -2,17 +2,21 @@ import { toString32 } from '../format.js';
 import * as gbi from './gbi.js';
 import { GBIMicrocode } from './gbi_microcode.js';
 
+export function loadObjectSegments(ramDV, address, segments, firstSegment = 0) {
+  // Turbo3D reserves segment zero; T3DUX loads all sixteen bases.
+  segments[0] = 0;
+  for (let i = firstSegment; i < 16; i++) {
+    segments[i] = ramDV.getUint32(address + 16 + i * 4);
+  }
+}
+
 // Shared global state and raw RDP blocks for the object-list microcodes.
 export class ObjectMicrocode extends GBIMicrocode {
   loadGlobalState(pointer, dis, firstSegment = 0) {
     const address = this.state.rdpSegmentAddress(pointer);
     const dv = this.ramDV;
     this.executeSetRDPOtherMode(dv.getUint32(address + 8), dv.getUint32(address + 12), dis);
-    // Turbo3D reserves segment zero; T3DUX loads all sixteen bases.
-    this.state.segments[0] = 0;
-    for (let i = firstSegment; i < 16; i++) {
-      this.state.segments[i] = dv.getUint32(address + 16 + i * 4);
-    }
+    loadObjectSegments(dv, address, this.state.segments, firstSegment);
     this.loadViewport(address + 80);
     this.processRDP(dv.getUint32(address + 96), dis);
   }

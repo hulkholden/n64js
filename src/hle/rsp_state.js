@@ -6,6 +6,7 @@ import { Transform4D } from '../graphics/Transform4D.js';
 import { Vector3 } from "../graphics/Vector3.js";
 import { Vector4 } from '../graphics/Vector4.js';
 import { TMEM } from './tmem.js';
+import { resolveSegmentAddress } from './segments.js';
 
 export class RSPState {
   constructor() {
@@ -294,13 +295,7 @@ export class RSPState {
   }
 
   rdpSegmentAddress(addr) {
-    const segment = (addr >>> 24) & 0xf;
-    // Add before masking so negative segment bases (e.g. Shadows of the Empire
-    // relocations) wrap to the correct physical address.
-    // TODO: this should probably mask against 0x00ff_ffff (same as SP_DRAM_ADDR_REG)
-    // but that can result in out of bounds accesses in some DataViews (e.g. Wetrix)
-    // which tries to load from 0x00f000ff. Really we should try to emulate SP DMA more accurately.
-    return (this.segments[segment] + (addr & 0x00ffffff)) & 0x007fffff;
+    return resolveSegmentAddress(this.segments, addr);
   }
 
   setTexture(s, t, level, tileIdx) {
