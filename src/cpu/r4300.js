@@ -1539,10 +1539,24 @@ export class CPU0 {
     this.setRegU64(rd, result);
   }
 
-  execAND(rd, rt, rs) { this.setRegU64(rd, this.getRegU64(rs) & this.getRegU64(rt)); }
-  execOR(rd, rt, rs) { this.setRegU64(rd, this.getRegU64(rs) | this.getRegU64(rt)); }
-  execXOR(rd, rt, rs) { this.setRegU64(rd, this.getRegU64(rs) ^ this.getRegU64(rt)); }
-  execNOR(rd, rt, rs) { this.setRegU64(rd, ~(this.getRegU64(rs) | this.getRegU64(rt))); }
+  // Bitwise operations act independently on the two words, avoiding BigInt
+  // conversions. Both arguments are evaluated before writing an aliased rd.
+  execAND(rd, rt, rs) {
+    const r = this.gprS32;
+    this.setRegS64LoHi(rd, r[rs * 2] & r[rt * 2], r[rs * 2 + 1] & r[rt * 2 + 1]);
+  }
+  execOR(rd, rt, rs) {
+    const r = this.gprS32;
+    this.setRegS64LoHi(rd, r[rs * 2] | r[rt * 2], r[rs * 2 + 1] | r[rt * 2 + 1]);
+  }
+  execXOR(rd, rt, rs) {
+    const r = this.gprS32;
+    this.setRegS64LoHi(rd, r[rs * 2] ^ r[rt * 2], r[rs * 2 + 1] ^ r[rt * 2 + 1]);
+  }
+  execNOR(rd, rt, rs) {
+    const r = this.gprS32;
+    this.setRegS64LoHi(rd, ~(r[rs * 2] | r[rt * 2]), ~(r[rs * 2 + 1] | r[rt * 2 + 1]));
+  }
 
   // Common OR variants.
   execCLEAR(rd) { this.setRegU64(rd, 0n); }
