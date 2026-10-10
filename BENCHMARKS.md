@@ -35,3 +35,23 @@ bun run benchmark --rom /path/to/rom.z64 --profile
 Profiling reports interpreted and recompiled CPU operations, fragment compilation and invalidation, speedhack attempts and skipped cycles, and RSP instructions and tasks for each measured sample. Counter collection adds overhead, so use ordinary non-profiled runs for performance comparisons.
 
 Run `bun run benchmark --help` for cycle, sample, and chunk-size options. For meaningful comparisons, use the same ROMs and arguments, close unrelated CPU-intensive applications, keep the machine on AC power, and record the Bun version and machine type reported in the JSON output.
+
+## CPU sign-branch microbenchmark
+
+```sh
+bun src/cpu/branch.bench.js > branches.json
+```
+
+This measures all 12 integer sign-branch variants through the actual interpreter
+helpers and generated single-instruction fragments. Each case warms up for
+100,000 iterations, then records five samples of 1,000,000 iterations. Inputs
+alternate boundary values with deterministic full-width values; both register
+words change during the loop. A consumed checksum covers branch targets and
+likely-branch annulment. Register setup, helper calls and checksum accumulation
+are included in the timing; emulator initialization and code generation are not.
+
+To compare revisions, run the same benchmark file in each checkout, alternate
+their order, and check that corresponding checksums match. The module also
+exports `runBranchBenchmarks()` for browser bundles; initialize the document body
+before importing emulator modules. These are isolated branch measurements, not
+game-speed estimates or measurements of instruction dispatch and trace execution.
