@@ -1066,6 +1066,62 @@ export class CPU0 {
     }
   }
 
+  // Only entered for a compiled NOP delay slot followed by an unconditional
+  // branch to itself. Keep stepping RSP once per CPU instruction, but avoid
+  // returning through fragment dispatch for every two-instruction iteration.
+  runActiveRSPIdleLoop(branchPC) {
+    const eventQueue = this.eventQueue;
+    const profiled = performanceProfile.enabled;
+    if (profiled) {
+      performanceProfile.counters.activeRSPIdleBatches++;
+    }
+    let ops = 0;
+    do {
+      rsp.step();
+      if (this.stuffToDo) {
+        break;
+      }
+      // NOP in the branch's delay slot.
+      this.pc = branchPC;
+      this.delayPC = null;
+      ops++;
+      this.fragmentOps = ops;
+      if (profiled) {
+        performanceProfile.counters.activeRSPIdleOps++;
+      }
+
+      rsp.step();
+      if (this.stuffToDo) {
+        break;
+      }
+      // Keep the original trace's synchronization points: after the second
+      // RSP step, before the branch helper, then after completing the branch.
+      // Capture after stepping: a newly scheduled DMA may both become first
+      // and complete during this pair, restoring the old head of the queue.
+      const nextEvent = eventQueue.firstEvent;
+      this.syncFragmentCycles(ops);
+      if (rsp.halted) {
+        this.speedHack();
+      } else if (profiled) {
+        performanceProfile.counters.speedHackAttempts++;
+        performanceProfile.counters.speedHackRSPActive++;
+      }
+      this.pc = branchPC + 4;
+      this.delayPC = branchPC;
+      ops++;
+      if (profiled) {
+        performanceProfile.counters.activeRSPIdleOps++;
+      }
+      this.syncFragmentCycles(ops);
+      // RSP MMIO can insert a deadline. Never reuse the entry countdown, or
+      // continue through an event that may invalidate code or change the PC.
+      if (eventQueue.firstEvent !== nextEvent) {
+        break;
+      }
+    } while (!rsp.halted && !this.stuffToDo && eventQueue.nextEventCountdown() >= 2);
+    return ops;
+  }
+
   updateCause3() {
     const miRegDevice = n64js.hardware().miRegDevice;
     if (miRegDevice.interruptsUnmasked()) {
@@ -2889,6 +2945,22 @@ function compileFragment(fragment) {
 
   // Return the number of ops exected
   fragment.bodyCode += `return ${fragment.opsCompiled};\n`;
+
+  // Match the observed delay-slot-entry idle trace, using the recorded words
+  // so normal I-cache invalidation/revalidation also protects this executor.
+  // Conditional branches, useful delay slots and sync-flow tracing retain the
+  // original generated body. A different incoming delay target also falls back.
+  if (!sync && kSpeedHackEnabled && !kAccurateCountUpdating && fragment.opsCompiled === 2) {
+    const [delayPC, branchPC] = fragment.instructionPCs;
+    const [delay, branch] = fragment.instructionWords;
+    const selfBEQ = (branch >>> 26) === 4 && (branch & 0xffff) === 0xffff &&
+      ((branch >>> 21) & 31) === ((branch >>> 16) & 31);
+    const selfJ = (branch >>> 26) === 2 && jumpAddress(branchPC, branch) === branchPC;
+    if (delay === 0 && delayPC === branchPC + 4 && (selfBEQ || selfJ)) {
+      fragment.bodyCode = `if (!rsp.halted && !c.stuffToDo && c.delayPC === ${branchPC}) {\n` +
+        `  return c.runActiveRSPIdleLoop(${branchPC});\n}\n` + fragment.bodyCode;
+    }
+  }
 
   const code = `
   return function fragment_${toString32(fragment.entryPC)}_${fragment.opsCompiled}() {
