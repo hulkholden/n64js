@@ -116,8 +116,8 @@ PR for its logs and download the run's artifacts when investigating a failure.
 ### Lint, tests and build
 
 The [CI workflow](.github/workflows/build.yml) runs ESLint, Bun tests and the
-production build on pull requests and pushes to `master` or `main` to support
-the default branch rename. Run the same checks locally from the repository root:
+production build on pull requests and pushes to `main`. Run the same checks
+locally from the repository root:
 
 ```sh
 bun run lint
