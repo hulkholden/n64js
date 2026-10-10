@@ -1366,10 +1366,17 @@ export class CPU0 {
   execBREAK() { this.raiseBREAKException(); }
   execSYNC() { /* no-op */ }
 
-  execMFHI(rd) { this.setRegU64(rd, this.getMultHiU64()); }
-  execMFLO(rd) { this.setRegU64(rd, this.getMultLoU64()); }
-  execMTHI(rs) { this.setMultHiU64(this.getRegU64(rs)); }
-  execMTLO(rs) { this.setMultLoU64(this.getRegU64(rs)); }
+  // Copy HI/LO as two words to avoid BigInt conversions during context saves/restores.
+  execMFHI(rd) { this.setRegS64LoHi(rd, this.multHiS32[0], this.multHiS32[1]); }
+  execMFLO(rd) { this.setRegS64LoHi(rd, this.multLoS32[0], this.multLoS32[1]); }
+  execMTHI(rs) {
+    this.multHiS32[0] = this.gprS32[rs * 2];
+    this.multHiS32[1] = this.gprS32[rs * 2 + 1];
+  }
+  execMTLO(rs) {
+    this.multLoS32[0] = this.gprS32[rs * 2];
+    this.multLoS32[1] = this.gprS32[rs * 2 + 1];
+  }
 
   execMULT(rt, rs) {
     // The VR4300 has unusual asymmetric operand widths for MULT: rs uses the
