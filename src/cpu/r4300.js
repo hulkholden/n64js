@@ -559,12 +559,20 @@ export class CPU0 {
   setMultLoS32Extend(v) { this.multLoS64[0] = BigInt.asIntN(32, v); }
   setMultLoS64(v) { this.multLoS64[0] = v; }
   setMultLoU64(v) { this.multLoU64[0] = v; }
+  setMultLoS64LoHi(lo, hi) {
+    this.multLoS32[0] = lo;
+    this.multLoS32[1] = hi;
+  }
 
   getMultHiS64() { return this.multHiS64[0]; }
   getMultHiU64() { return this.multHiU64[0]; }
   setMultHiS32Extend(v) { this.multHiS64[0] = BigInt.asIntN(32, v); }
   setMultHiS64(v) { this.multHiS64[0] = v; }
   setMultHiU64(v) { this.multHiU64[0] = v; }
+  setMultHiS64LoHi(lo, hi) {
+    this.multHiS32[0] = lo;
+    this.multHiS32[1] = hi;
+  }
 
   setControlU32(r, v) { this.controlRegU32[r * 2 + 0] = v; }
   setControlS32(r, v) { this.controlRegS32[r * 2 + 0] = v; }
@@ -1366,10 +1374,11 @@ export class CPU0 {
   execBREAK() { this.raiseBREAKException(); }
   execSYNC() { /* no-op */ }
 
-  execMFHI(rd) { this.setRegU64(rd, this.getMultHiU64()); }
-  execMFLO(rd) { this.setRegU64(rd, this.getMultLoU64()); }
-  execMTHI(rs) { this.setMultHiU64(this.getRegU64(rs)); }
-  execMTLO(rs) { this.setMultLoU64(this.getRegU64(rs)); }
+  // Copy HI/LO as two words to avoid BigInt conversions during context saves/restores.
+  execMFHI(rd) { this.setRegS64LoHi(rd, this.multHiS32[0], this.multHiS32[1]); }
+  execMFLO(rd) { this.setRegS64LoHi(rd, this.multLoS32[0], this.multLoS32[1]); }
+  execMTHI(rs) { this.setMultHiS64LoHi(this.gprS32[rs * 2], this.gprS32[rs * 2 + 1]); }
+  execMTLO(rs) { this.setMultLoS64LoHi(this.gprS32[rs * 2], this.gprS32[rs * 2 + 1]); }
 
   execMULT(rt, rs) {
     // The VR4300 has unusual asymmetric operand widths for MULT: rs uses the
