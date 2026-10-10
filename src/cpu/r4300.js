@@ -34,6 +34,7 @@ export function initCPU(hardware) {
 }
 
 const kDebugTLB = false;
+const kTLBCacheSize = 256; // Must be a power of two.
 
 const kFragmentLengthLimit = 250;
 
@@ -427,8 +428,8 @@ export class CPU0 {
     // Cache first-match lookups at the smallest supported page granularity.
     // Larger pages still use separate slots per 4 KiB, so an overlapping
     // smaller entry cannot be hidden by a cached large-page match.
-    this.tlbCacheTags = new Int32Array(256);
-    this.tlbCacheEntries = new Array(256).fill(null);
+    this.tlbCacheTags = new Int32Array(kTLBCacheSize);
+    this.tlbCacheEntries = new Array(kTLBCacheSize).fill(null);
     this.tlbEntries = [];
     for (let i = 0; i < 32; ++i) {
       this.tlbEntries.push(new TLBEntry(this));
@@ -1341,7 +1342,7 @@ export class CPU0 {
 
   tlbFindEntry(address) {
     const page = address >>> 12;
-    const slot = page & 255;
+    const slot = page & (kTLBCacheSize - 1);
     // Include the current ASID even for global matches: a different ASID
     // could select an earlier non-global entry. Reading EntryHi here covers
     // MTC0/DMTC0, TLBR and exception-side updates without setter hooks.
