@@ -10,6 +10,12 @@ addOptionsFolder('Performance', folder => {
 });
 
 const kHotFragmentThreshold = 500;
+const kInstructionCacheLines = 512;
+let cacheEntries = Array.from({ length: kInstructionCacheLines }, () => new Set());
+
+function cacheEntry(address) {
+  return cacheEntries[(address >>> 5) & (kInstructionCacheLines - 1)];
+}
 
 /**
  * The fragment map.
@@ -30,6 +36,10 @@ export class Fragment {
     this.minPC            = pc;
     this.maxPC            = pc+4;
     this.func             = undefined;
+    this.cachedFunc       = undefined;
+    this.instructionPCs   = [];
+    this.instructionWords = [];
+    this.cacheEntries     = new Set();
     this.opsCompiled      = 0;
     this.executionCount   = 0;
     this.bailedOut        = false;    // Set if a fragment bailed out.
@@ -43,15 +53,31 @@ export class Fragment {
     this.usesCop1        = false;
   }
 
-  invalidate() {
+  invalidate(preserveCompiled = false) {
+    // Remove all memberships together: a full I-cache sweep should visit a
+    // trace only once, even if it spans several lines or repeats instructions.
+    for (const entry of this.cacheEntries) {
+      entry.delete(this);
+    }
+    this.cacheEntries.clear();
     this.generation++;
     if (performanceProfile.enabled) {
       performanceProfile.counters.fragmentInvalidations++;
+    }
+    if (preserveCompiled && this.func) {
+      // Do not inspect RAM here. The guest may invalidate before writing new
+      // code. Keep one candidate, inaccessible to execution until revalidated.
+      this.cachedFunc = this.func;
+      this.func = undefined;
+      return;
     }
     // reset all but entryPC
     this.minPC            = this.entryPC;
     this.maxPC            = this.entryPC+4;
     this.func             = undefined;
+    this.cachedFunc       = undefined;
+    this.instructionPCs   = [];
+    this.instructionWords = [];
     this.opsCompiled      = 0;
     this.executionCount   = 0;
     this.bailedOut        = false;
@@ -67,6 +93,41 @@ export class Fragment {
   updateMinMax(pc) {
     this.minPC = Math.min(this.minPC, pc);
     this.maxPC = Math.max(this.maxPC, pc + 4);
+  }
+
+  recordInstruction(pc, instruction) {
+    this.updateMinMax(pc);
+    this.instructionPCs.push(pc);
+    this.instructionWords.push(instruction >>> 0);
+    this.trackInstruction(pc);
+  }
+
+  trackInstruction(pc) {
+    const entry = cacheEntry(pc);
+    entry.add(this);
+    this.cacheEntries.add(entry);
+  }
+
+  trackInstructions() {
+    for (const pc of this.instructionPCs) {
+      this.trackInstruction(pc);
+    }
+  }
+
+  reuse() {
+    this.func = this.cachedFunc;
+    this.cachedFunc = undefined;
+    this.trackInstructions();
+    if (performanceProfile.enabled) {
+      performanceProfile.counters.fragmentReuses++;
+    }
+  }
+
+  getCode() {
+    if (this.cachedFunc) {
+      return `// Awaiting instruction validation before reuse.\n${this.cachedFunc.toString()}`;
+    }
+    return this.func?.toString() ?? this.bodyCode;
   }
 
   /**
@@ -88,7 +149,7 @@ export class Fragment {
     }
     // Invalidate the fragment if it's not finished being compiled.
     // This is to ensure we only append instructions to fragments being traced.
-    if (nextFragment && nextFragment.opsCompiled > 0 && !nextFragment.func) {
+    if (nextFragment && nextFragment.opsCompiled > 0 && !nextFragment.func && !nextFragment.cachedFunc) {
       // console.log(`invalidating partially compiled fragment ${toString32(nextFragment.entryPC)} on reentry`)
       nextFragment.invalidate();
     }
@@ -99,6 +160,26 @@ export class Fragment {
 export function resetFragments() {
   hitCounts = new Map();
   fragmentMap = new Map();
+  cacheEntries = Array.from({ length: kInstructionCacheLines }, () => new Set());
+}
+
+// Index Invalidate uses VA[13:5], regardless of tag. Keep those 512 buckets
+// directly instead of scanning 32 larger-address-space buckets per CACHE.
+export function invalidateFragmentIndex(address) {
+  for (const fragment of cacheEntry(address)) {
+    fragment.invalidate(true);
+  }
+}
+
+export function invalidateFragmentEntry(address) {
+  const line = address >>> 5;
+  for (const fragment of cacheEntry(address)) {
+    // Traces can branch between nonadjacent lines; min/max alone includes
+    // holes. Match an actual instruction line, not another tag at this index.
+    if (fragment.instructionPCs.some(pc => (pc >>> 5) === line)) {
+      fragment.invalidate(true);
+    }
+  }
 }
 
 /**
@@ -118,7 +199,7 @@ export function lookupFragment(pc) {
   let fragment = fragmentMap.get(pc);
   if (fragment) {
     // If we failed to complete the fragment for any reason, reset it
-    if (fragment.opsCompiled > 0 && !fragment.func) {
+    if (fragment.opsCompiled > 0 && !fragment.func && !fragment.cachedFunc) {
       // console.log(`fragment ${toString32(fragment.entryPC)} partially compiled ${fragment.opsCompiled} ops, invalidating and starting over`);
       fragment.invalidate();
     }

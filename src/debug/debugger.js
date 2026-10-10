@@ -336,7 +336,7 @@ export class Debugger {
         link.className = 'dis-fragment-link';
         link.textContent = ` frag - ops=${fragment.opsCompiled} hit=${fragment.executionCount}`;
         link.addEventListener('click', () => {
-          logger.log(`<pre>${fragment.func.toString()}</pre>`);
+          logger.log(`<pre>${fragment.getCode()}</pre>`);
         });
         line.append(link);
       }
@@ -584,7 +584,7 @@ export class Debugger {
     const body = table.createTBody();
     const showFragment = fragment => {
       const pre = document.createElement('pre');
-      pre.textContent = fragment.func.toString();
+      pre.textContent = fragment.getCode();
       code.replaceChildren(pre);
     };
 

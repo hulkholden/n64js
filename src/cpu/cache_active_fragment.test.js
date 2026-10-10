@@ -72,6 +72,9 @@ for (const profiled of [false, true]) {
               expect(fragment?.func).toBeFunction();
               setup(address);
               getFragmentMap().set(entry, fragment);
+              // CPU reset now clears cache-line subscriptions as well as the
+              // lookup map. Reinstall both for this deliberately saved trace.
+              fragment.trackInstructions();
               setPerformanceProfiling(profiled);
               cpu.run(cycles);
               expect(snapshot()).toEqual(expected);

@@ -244,7 +244,7 @@ async function main() {
       if (sample.profile) {
         const p = sample.profile;
         console.log(`    CPU: ${p.compiledOps} compiled ops, ${p.interpretedOps} interpreted ops, ${p.fragmentRuns} fragment runs`);
-        console.log(`    fragments: ${p.fragmentCompilations} compiled, ${p.fragmentInvalidations} invalidated`);
+        console.log(`    fragments: ${p.fragmentCompilations} compiled, ${p.fragmentInvalidations} invalidated, ${p.fragmentReuses}/${p.fragmentRevalidations} revalidated and reused`);
         console.log(`    speedhack: ${p.speedHackActivations}/${p.speedHackAttempts} activated, ${p.speedHackSkippedCycles} cycles skipped (${p.speedHackRSPActive} RSP-active, ${p.speedHackNonNopDelay} non-NOP delay-slot rejections)`);
         console.log(`    RSP: ${p.rspInstructions} instructions, ${p.rspTasks} tasks`);
       }
