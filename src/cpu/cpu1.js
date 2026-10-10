@@ -465,8 +465,8 @@ export class CPU1 {
     this.tempU64 = new BigUint64Array(this.tempBuf);
     this.tempS64 = new BigInt64Array(this.tempBuf);
 
-    this._fullMode = true;
-    this.fullMode = true;
+    // The first reset must initialize the register mappings.
+    this._fullMode = undefined;
 
     this.reset();
   }
@@ -486,6 +486,9 @@ export class CPU1 {
    * @param {boolean} value
    */
   set fullMode(value) {
+    if (this._fullMode === value) {
+      return;
+    }
     this._fullMode = value;
 
     if (this._fullMode) {
