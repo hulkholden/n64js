@@ -53,9 +53,9 @@ describe('cached TLB lookup', () => {
     map(cpu, 7, base);
     const lookup = cpu.tlbFindEntryUncached;
     let scans = 0;
-    cpu.tlbFindEntryUncached = function (address) {
+    cpu.tlbFindEntryUncached = function (address, asid) {
       scans++;
-      return lookup.call(this, address);
+      return lookup.call(this, address, asid);
     };
     try {
       for (let i = 0; i < 3; i++) {

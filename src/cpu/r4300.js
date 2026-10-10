@@ -1346,19 +1346,18 @@ export class CPU0 {
     // Include the current ASID even for global matches: a different ASID
     // could select an earlier non-global entry. Reading EntryHi here covers
     // MTC0/DMTC0, TLBR and exception-side updates without setter hooks.
-    const tag = (page << 8) | (this.getControlU32(cpu0reg.controlEntryHi) & TLBHI_PIDMASK32);
+    const asid = this.getControlU32(cpu0reg.controlEntryHi) & TLBHI_PIDMASK32;
+    const tag = (page << 8) | asid;
     if (this.tlbCacheTags[slot] === tag) {
       return this.tlbCacheEntries[slot];
     }
-    const entry = this.tlbFindEntryUncached(address);
+    const entry = this.tlbFindEntryUncached(address, asid);
     this.tlbCacheEntries[slot] = entry;
     this.tlbCacheTags[slot] = tag;
     return entry;
   }
 
-  tlbFindEntryUncached(address) {
-    const entryHiPID = this.getControlU32(cpu0reg.controlEntryHi) & TLBHI_PIDMASK32;
-
+  tlbFindEntryUncached(address, asid = this.getControlU32(cpu0reg.controlEntryHi) & TLBHI_PIDMASK32) {
     // Preserve the first matching entry, including invalid/read-only pages;
     // the translation helpers below perform the access-specific fault checks.
     for (let i = 0; i < 32; ++i) {
@@ -1366,7 +1365,7 @@ export class CPU0 {
       if (!tlb.matches32Bit || (address & tlb.vpnMask32) !== tlb.vpnBits32) {
         continue;
       }
-      if (!tlb.global && tlb.asid !== entryHiPID) {
+      if (!tlb.global && tlb.asid !== asid) {
         continue;
       }
       return tlb;
