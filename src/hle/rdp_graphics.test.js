@@ -22,6 +22,17 @@ function setup() {
 }
 
 describe('raw RDP graphics', () => {
+  test('observes draw modes after raw RDP state commands, not when merely configured', () => {
+    const { renderer, command } = setup();
+    const modes = [];
+    renderer.onGraphicsMode = info => modes.push(info);
+    command([0xef100000, 0xc8112078]);
+    command([0xfc123456, 0xffabcdef]);
+    expect(modes).toEqual([]);
+    command(trianglePacket());
+    expect(modes).toEqual([{ otherModeH: 0x100000, otherModeL: 0xc8112078, combineHi: 0x123456, combineLo: 0xffabcdef }]);
+  });
+
   test('uses physical image addresses regardless of the last HLE segment table', () => {
     const { state, command, renderer } = setup();
     state.segments[1] = 0x2000;

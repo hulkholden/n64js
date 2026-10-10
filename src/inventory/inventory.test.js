@@ -675,6 +675,12 @@ describe('inventory command', () => {
       for (let run = 0; run < 2; run++) {
         const result = await invoke(directory, ['textures.z64', '--frames', '1']);
         expect(result.code).toBe(0);
+        expect(JSON.parse(result.stdout).collectors['graphics.drawModes']).toEqual({
+          version: 1, scope: 'headless-draw', modes: [
+            { otherModeH: CycleType.G_CYC_2CYCLE, otherModeL: 0, combineHi: 0, combineLo: 0, draws: 4 },
+            { otherModeH: CycleType.G_CYC_1CYCLE, otherModeL: 0, combineHi: 0, combineLo: 0, draws: 2 },
+          ],
+        });
         expect(JSON.parse(result.stdout).collectors['graphics.textureFormats']).toEqual({
           version: 1,
           scope: 'hle-draw',

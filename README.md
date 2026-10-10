@@ -76,6 +76,38 @@ commands, checked between batches. Exceeding that host safeguard raises
 evidence, rather than claiming task completion. CPU producer waits receive a
 fresh budget on resume. Object-list microcodes use separate execution paths.
 
+### Querying graphics modes in ROM inventories
+
+New inventory runs collect distinct draw-time RDP states in
+`graphics.drawModes`. Query saved reports or an inventory directory:
+
+```sh
+bun run inventory-query /path/to/inventory --blend-mode 0xc811
+bun run inventory-query /path/to/inventory --blend-mode 0xc811 --cycle-type 2cycle
+bun run inventory-query /path/to/inventory --cycle-type copy --texture RGBA16
+bun run inventory-summary /path/to/inventory
+```
+
+`--blend-mode` accepts a decimal or `0x`-prefixed 16-bit value: the complete
+blender mux (`otherModeL >>> 16`), including both cycles. `--cycle-type` accepts
+`1cycle`, `2cycle`, `copy`, or `fill`. Combined blender/cycle filters must match
+the same draw state; microcode and texture filters need only match the same run.
+The summary exposes all collected states so you can discover values to query.
+
+Each state stores unsigned `otherModeH`, `otherModeL`, `combineHi`, and
+`combineLo` words plus a `draws` count. The command opcode byte is removed
+from `otherModeH`. Observations cover headless HLE and raw
+RDP draw submissions, including rectangles, untextured triangles, lines, and
+clears. Counts represent renderer submissions (triangle batches count once),
+not pixels or individual triangles. A recorded blender or combiner setting may
+be inactive in that cycle type; this is evidence of submitted state, not visible
+blending. Configured states never submitted to a draw are excluded.
+
+Older reports without this collector return **unknown** and need a new scan for
+graphics-mode coverage. A supported empty collector means **not observed** in
+that run. Partial runs can still supply matches; absence is not proof that a ROM
+never uses a mode.
+
 ## Continuous integration
 
 Pull requests run three GitHub Actions workflows. Open the failing check on the

@@ -36,6 +36,7 @@ export class Hardware {
     onAudioTask = null,
     onMicrocodeLoad = null,
     onTextureUse = null,
+    onGraphicsMode = null,
   } = {}) {
     // TODO: Not sure this belongs here.
     this.rominfo = rominfo;
@@ -81,6 +82,7 @@ export class Hardware {
     // Resets preserve the callback; it must not re-enter emulation. Its return
     // value is ignored, and skipped/LLE tasks do not report texture use.
     this.onTextureUse = onTextureUse;
+    this.onGraphicsMode = onGraphicsMode;
 
     this.timeline = new Timeline(this.getOpsExecuted.bind(this));
 
