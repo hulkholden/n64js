@@ -61,6 +61,7 @@ export async function createHeadlessEmulator(loadedROM, {
   onAudioTask = null,
   onMicrocodeLoad = null,
   onTextureUse = null,
+  onGraphicsMode = null,
 } = {}) {
   const [
     { simulateBoot },
@@ -74,7 +75,7 @@ export async function createHeadlessEmulator(loadedROM, {
 
   let cpu0 = null;
   let fatalError = null;
-  const hardware = new Hardware(loadedROM.rominfo, { headless: true, enableCompatibilityHacks, onVerticalBlank, onGraphicsTask, onAudioTask, onMicrocodeLoad, onTextureUse });
+  const hardware = new Hardware(loadedROM.rominfo, { headless: true, enableCompatibilityHacks, onVerticalBlank, onGraphicsTask, onAudioTask, onMicrocodeLoad, onTextureUse, onGraphicsMode });
   if (executeGraphics) {
     hardware.graphics = new HeadlessGraphics(hardware);
   }

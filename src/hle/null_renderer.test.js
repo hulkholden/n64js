@@ -132,3 +132,32 @@ describe('NullRenderer', () => {
     }
   });
 });
+
+describe('headless draw mode observations', () => {
+  test('captures unsigned state at every draw entry point, including untextured geometry and clears', () => {
+    const state = new RSPState();
+    const renderer = new NullRenderer(state);
+    const modes = [];
+    renderer.onGraphicsMode = info => modes.push(info);
+    state.rdpOtherModeH = 0x00100000;
+    state.rdpOtherModeL = 0xc8112078 | 0;
+    state.combine.hi = 0x123456;
+    state.combine.lo = 0xffabcdef | 0;
+    expect(modes).toEqual([]);
+    for (const method of ['clearDepth', 'clearColor', 'fillRect', 'texRect', 'texRectRot', 'lleRect']) {
+      renderer[method](0);
+    }
+    let resets = 0;
+    const buffer = empty => ({ empty: () => empty, reset: () => resets++ });
+    renderer.flushTris(buffer(true));
+    renderer.flushTris(buffer(false));
+    renderer.flushTris(buffer(false), { lines: true });
+    expect(resets).toBe(3);
+    expect(modes).toHaveLength(8);
+    expect(modes.every(mode => JSON.stringify(mode) === JSON.stringify({
+      otherModeH: 0x00100000, otherModeL: 0xc8112078, combineHi: 0x123456, combineLo: 0xffabcdef,
+    }))).toBe(true);
+    state.rdpOtherModeL = 0;
+    expect(modes[0].otherModeL).toBe(0xc8112078);
+  });
+});

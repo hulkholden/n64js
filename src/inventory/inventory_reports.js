@@ -2,7 +2,15 @@ import { readFile, readdir, stat } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 
+const isUint32 = value => Number.isInteger(value) && value >= 0 && value <= 0xffffffff;
+
 export const collectorSpecs = {
+  graphicsMode: [{
+    name: 'graphics.drawModes', scope: 'headless-draw', records: 'modes',
+    validate: record => record != null &&
+      ['otherModeH', 'otherModeL', 'combineHi', 'combineLo'].every(key => isUint32(record[key])) &&
+      Number.isSafeInteger(record.draws) && record.draws > 0,
+  }],
   audioMicrocode: [{ name: 'audio.taskMicrocodes', scope: 'task-start', records: 'microcodes', count: 'tasks' }],
   microcode: [
     { name: 'graphics.taskMicrocodes', scope: 'task-start', records: 'microcodes', count: 'tasks' },
@@ -24,9 +32,9 @@ export function inspectCollector(report, spec, predicate) {
     return { ...result, reason: 'unsupported-scope' };
   }
   const records = data[spec.records];
-  const validRecord = spec.count
+  const validRecord = spec.validate ?? (spec.count
     ? record => typeof record?.family === 'string' && Number.isSafeInteger(record[spec.count]) && record[spec.count] > 0
-    : record => Number.isInteger(record?.format) && Number.isInteger(record?.size);
+    : record => Number.isInteger(record?.format) && Number.isInteger(record?.size));
   if (!Array.isArray(records) || !records.every(validRecord)) {
     return { ...result, reason: 'invalid-records' };
   }

@@ -22,6 +22,7 @@ export class HeadlessGraphics {
 
   beginRDP() {
     this.renderer.onTextureUse = this.hardware.onTextureUse;
+    this.renderer.onGraphicsMode = this.hardware.onGraphicsMode;
     const scanout = this.hardware.viRegDevice.computeScanout();
     if (scanout) {
       this.renderer.nativeTransform.initDimensions(scanout.renderWidth, scanout.renderHeight);
@@ -32,6 +33,7 @@ export class HeadlessGraphics {
   processTask(task) {
     const ramDV = this.hardware.cachedMemDevice.mem.dataView;
     this.renderer.onTextureUse = this.hardware.onTextureUse;
+    this.renderer.onGraphicsMode = this.hardware.onGraphicsMode;
     this.state.reset(ramDV, task.dataPtr, () => this.hardware.dpcDevice.syncFullHLE());
 
     const scanout = this.hardware.viRegDevice.computeScanout();

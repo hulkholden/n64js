@@ -9,7 +9,15 @@ const usage = `Usage: bun run inventory-query <inventory-root|scan-directory|rep
   --microcode <family>  Match a handler family, e.g. GBI2 (case insensitive)
   --audio-microcode <family>  Match an audio family (ABI1, NAUDIO, NEAD, Unknown)
   --texture <format>    Match a texture format, e.g. CI4 or RGBA16
+  --blend-mode <value>  Match the 16-bit blender mux, decimal or 0x-prefixed hex
+  --cycle-type <type>   Match 1cycle, 2cycle, copy, or fill
   --help                Show this help
+
+Graphics mode searches use state at headless draws (HLE and raw RDP).
+Blend mode is the complete upper 16 bits of otherModeL, including both cycles;
+it describes configured blender inputs, not whether blending affects pixels.
+Blend and cycle filters must match the same recorded state. Other filters need
+only occur in the same run. Clears count as draws; empty triangle batches do not.
 
 Specify at least one filter. All filters must be observed in the same report;
 observations from different runs are not combined. Graphics microcode searches
@@ -33,6 +41,25 @@ Exit codes: 0 matches found; 1 no confirmed matches; 2 argument or data error.`;
 
 function parseFilters(values) {
   const filters = {};
+  const graphicsMode = {};
+  if (values['blend-mode'] !== undefined) {
+    const value = values['blend-mode'].trim();
+    if (!/^(?:0x[0-9a-f]+|[0-9]+)$/i.test(value) || Number(value) > 0xffff) {
+      throw new Error('Expected a 16-bit blend mode (0–65535 or 0x0000–0xffff)');
+    }
+    graphicsMode.blendMode = Number(value);
+  }
+  if (values['cycle-type'] !== undefined) {
+    const name = values['cycle-type'].trim().toLowerCase();
+    const index = ['1cycle', '2cycle', 'copy', 'fill'].indexOf(name);
+    if (index < 0) {
+      throw new Error('Expected cycle type 1cycle, 2cycle, copy, or fill');
+    }
+    graphicsMode.cycleType = index;
+  }
+  if (Object.keys(graphicsMode).length) {
+    filters.graphicsMode = graphicsMode;
+  }
   if (values['audio-microcode'] !== undefined) {
     if (!values['audio-microcode'].trim()) {
       throw new Error('Expected an audio microcode family');
@@ -56,7 +83,7 @@ function parseFilters(values) {
     };
   }
   if (!Object.keys(filters).length) {
-    throw new Error('Specify --microcode, --audio-microcode or --texture');
+    throw new Error('Specify --microcode, --audio-microcode, --texture, --blend-mode or --cycle-type');
   }
   return filters;
 }
@@ -64,9 +91,12 @@ function parseFilters(values) {
 function assess(report, filters) {
   const checks = {};
   for (const [feature, value] of Object.entries(filters)) {
-    const predicate = feature !== 'texture'
-      ? record => record.family.toUpperCase() === value
-      : record => record.format === value.format && record.size === value.size;
+    const predicate = feature === 'graphicsMode'
+      ? record => (value.blendMode === undefined || (record.otherModeL >>> 16) === value.blendMode) &&
+        (value.cycleType === undefined || ((record.otherModeH >>> 20) & 3) === value.cycleType)
+      : feature !== 'texture'
+        ? record => record.family.toUpperCase() === value
+        : record => record.format === value.format && record.size === value.size;
     const collectors = collectorSpecs[feature].map(spec => inspectCollector(report, spec, predicate));
     const state = collectors.some(item => item.state === 'observed') ? 'observed'
       : collectors.some(item => item.state === 'unknown') ? 'unknown' : 'not-observed';
@@ -111,7 +141,7 @@ async function query(input, filters) {
 try {
   const { values, positionals } = parseArgs({
     args: Bun.argv.slice(2), allowPositionals: true,
-    options: { microcode: { type: 'string' }, 'audio-microcode': { type: 'string' }, texture: { type: 'string' }, help: { type: 'boolean' } },
+    options: { 'blend-mode': { type: 'string' }, 'cycle-type': { type: 'string' }, microcode: { type: 'string' }, 'audio-microcode': { type: 'string' }, texture: { type: 'string' }, help: { type: 'boolean' } },
   });
   if (values.help) {
     console.log(usage);

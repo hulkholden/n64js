@@ -52,6 +52,29 @@ async function withDirectory(fn) {
 }
 
 describe('inventory query', () => {
+  test('queries blender and cycle state together, preserving legacy and invalid data as unknown', async () => {
+    await withDirectory(async root => {
+      const mode = (blend, cycle) => ({ otherModeH: cycle << 20, otherModeL: blend * 65536 + 0x2078, combineHi: 0, combineLo: 0, draws: 2 });
+      const reports = Array.from({ length: 6 }, (_, i) => makeReport(String(i + 1)));
+      const records = [[mode(0xc811, 1)], [mode(0xc811, 0), mode(0, 1)], [], null, [{ ...mode(0xc811, 1), otherModeL: -1 }], [{ ...mode(0xc811, 1), draws: 0 }]];
+      records.forEach((modes, i) => {
+        if (modes) {
+          reports[i].collectors['graphics.drawModes'] = { version: 1, scope: 'headless-draw', modes };
+        }
+      });
+      const { directory } = await writeScan(root, 'modes', reports);
+      const result = await invoke([root, '--blend-mode', '0xC811', '--cycle-type', '2cycle']);
+      expect(result.code).toBe(0);
+      expect(result.output.summary).toEqual({ matched: 1, notObserved: 2, unknown: 3, errors: 0 });
+      expect(result.output.matches[0].checks.graphicsMode.collectors[0].matches).toEqual(records[0]);
+      const decimal = await invoke([root, '--blend-mode', '51217']);
+      expect(decimal.output.matches).toHaveLength(2);
+      const summary = await invoke([directory], summaryCLI);
+      expect(summary.output.summary.collectors['graphics.drawModes']).toEqual({ observed: 2, notObserved: 1, unknown: 3 });
+      expect(summary.output.runs[0].collectors['graphics.drawModes'].records).toEqual(records[0]);
+    });
+  });
+
   test('queries audio independently, retaining legacy absence, empty runs and unidentified observations', async () => {
     await withDirectory(async root => {
       const reports = Array.from({ length: 4 }, (_, i) => makeReport(String(i + 1), { family: i === 2 ? 'GBI1' : 'GBI2' }));
@@ -186,7 +209,7 @@ describe('inventory query', () => {
   });
 
   test('rejects missing or invalid filters', async () => {
-    for (const filters of [[], ['--texture', 'RGBBAD'], ['--microcode', ' '], ['--unknown']]) {
+    for (const filters of [[], ['--texture', 'RGBBAD'], ['--microcode', ' '], ['--unknown'], ['--blend-mode', '-1'], ['--blend-mode', '0x10000'], ['--blend-mode', '1.5'], ['--blend-mode', ''], ['--blend-mode', 'abcd'], ['--cycle-type', '3cycle']]) {
       const result = await invoke(['/unused/inventory', ...filters]);
       expect(result.code).toBe(2);
       expect(result.stdout).toBe('');
@@ -215,6 +238,7 @@ describe('inventory summary', () => {
       expect(result.output.summary).toEqual({
         runs: 4, roms: 3, unidentifiedRuns: 0, statuses: { completed: 3, timeout: 1 }, errors: 0,
         collectors: {
+          'graphics.drawModes': { observed: 0, notObserved: 0, unknown: 4 },
           'audio.taskMicrocodes': { observed: 0, notObserved: 0, unknown: 4 },
           'graphics.taskMicrocodes': { observed: 3, notObserved: 1, unknown: 0 },
           'graphics.microcodeLoads': { observed: 3, notObserved: 1, unknown: 0 },
@@ -270,7 +294,7 @@ describe('inventory summary', () => {
         },
       });
       expect(result.output.runs[0].collectors['graphics.textureFormats'].reason).toBe('missing-collector');
-      expect(Object.values(result.output.runs[1].collectors).map(item => item.reason)).toEqual(['missing-collector', 'unsupported-version', 'unsupported-scope', 'invalid-records']);
+      expect(Object.values(result.output.runs[1].collectors).map(item => item.reason)).toEqual(['missing-collector', 'missing-collector', 'unsupported-version', 'unsupported-scope', 'invalid-records']);
       expect(result.output.runs[2]).toMatchObject({ reportVersion: 2, result: null, rom: { sha256: future.rom.sha256, name: null } });
       expect(result.output.runs[2].collectors['graphics.taskMicrocodes'].reason).toBe('unsupported-report-version');
       expect(result.output.runs.slice(3).every(row => row.collectors['graphics.taskMicrocodes'].reason === 'missing-report')).toBe(true);
@@ -296,7 +320,7 @@ describe('inventory summary', () => {
       expect(result.output.summary).toMatchObject({ runs: 1, roms: 0, unidentifiedRuns: 1, statuses: { error: 1 }, errors: 0 });
       expect(result.output.runs[0].result).toEqual(failed.result);
     });
-    for (const args of [[], ['/one', '/two'], ['--unknown']]) {
+    for (const args of [[], ['/one', '/two'], ['--unknown'], ['--blend-mode', '-1'], ['--blend-mode', '0x10000'], ['--blend-mode', '1.5'], ['--blend-mode', ''], ['--blend-mode', 'abcd'], ['--cycle-type', '3cycle']]) {
       const invalid = await invoke(args, summaryCLI);
       expect(invalid.code).toBe(2);
       expect(invalid.stdout).toBe('');

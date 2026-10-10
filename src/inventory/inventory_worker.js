@@ -18,6 +18,7 @@ const taskMicrocodes = new Map();
 let loads = 0;
 const loadedMicrocodes = new Map();
 const textureFormats = new Map();
+const drawModes = new Map();
 let audioTasks = 0;
 const audioMicrocodes = new Map();
 
@@ -57,6 +58,11 @@ function snapshot() {
         scope: 'hle-load',
         loads,
         microcodes: [...loadedMicrocodes.values()],
+      },
+      'graphics.drawModes': {
+        version: 1,
+        scope: 'headless-draw',
+        modes: [...drawModes.values()],
       },
       'graphics.textureFormats': {
         version: 1,
@@ -119,6 +125,15 @@ try {
         record.loads++;
       } else {
         loadedMicrocodes.set(key, { ...info, loads: 1 });
+      }
+    },
+    onGraphicsMode: info => {
+      const key = JSON.stringify(info);
+      const record = drawModes.get(key);
+      if (record) {
+        record.draws++;
+      } else {
+        drawModes.set(key, { ...info, draws: 1 });
       }
     },
     onTextureUse: info => {
