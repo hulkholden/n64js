@@ -1558,10 +1558,6 @@ export class CPU0 {
     this.setRegS64LoHi(rd, ~(r[rs * 2] | r[rt * 2]), ~(r[rs * 2 + 1] | r[rt * 2 + 1]));
   }
 
-  // Common OR variants.
-  execCLEAR(rd) { this.setRegU64(rd, 0n); }
-  execMOV(rd, rs) { this.setRegU64(rd, this.getRegU64(rs)); }
-
   execSLT(rd, rt, rs) {
     const r = this.getRegS64(rs) < this.getRegS64(rt) ? 1 : 0;
     this.setRegU32Extend(rd, r);
