@@ -1,7 +1,7 @@
 vec3 simpleCRT(vec2 screenUV) {
   // Use output pixels for the mask and native VI rows for the scanlines.
   vec2 position = screenUV * 2.0 - 1.0;
-  vec2 curved = position * (1.0 + 0.025 * position.yx * position.yx);
+  vec2 curved = position * (1.0 + 0.025 * uCRTCurvature * position.yx * position.yx);
   vec2 uv = curved * 0.5 + 0.5;
   vec3 color = sampleSourceFiltered(uv);
 

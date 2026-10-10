@@ -49,6 +49,7 @@ export class Renderer extends RendererBase {
     this.blitInterlacedUniform = gl.getUniformLocation(this.blitShaderProgram, "uInterlaced");
     this.blitVIResolutionUniform = gl.getUniformLocation(this.blitShaderProgram, "uVIResolution");
     this.blitCRTUniform = gl.getUniformLocation(this.blitShaderProgram, "uCRTMode");
+    this.blitCurvatureUniform = gl.getUniformLocation(this.blitShaderProgram, "uCRTCurvature");
     this.blitTimeUniform = gl.getUniformLocation(this.blitShaderProgram, "uCRTTime");
     this.blitOutputResolutionUniform = gl.getUniformLocation(this.blitShaderProgram, "uOutputResolution");
     this.blitSourceHeightUniform = gl.getUniformLocation(this.blitShaderProgram, "uSourceHeight");
@@ -180,6 +181,7 @@ export class Renderer extends RendererBase {
     gl.uniform1i(this.blitInterlacedUniform, fields ? 1 : 0);
     gl.uniform2f(this.blitVIResolutionUniform, presentation?.viWidth ?? 1, presentation?.viHeight ?? 1);
     gl.uniform1i(this.blitCRTUniform, graphicsOptions.crtMode);
+    gl.uniform1f(this.blitCurvatureUniform, graphicsOptions.crtCurvature);
     gl.uniform1f(this.blitTimeUniform, timeSeconds);
     gl.uniform2f(this.blitOutputResolutionUniform, canvas.width, canvas.height);
     gl.uniform1f(this.blitSourceHeightUniform, presentation?.sourceHeight ?? this.nativeTransform.viHeight);
