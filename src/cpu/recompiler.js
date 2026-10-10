@@ -402,6 +402,20 @@ function genSrcRegU32Lo(i) {
   return `c.getRegU32Lo(${i})`;
 }
 
+// A signed 64-bit value's sign is entirely in its high word.
+function genSrcRegS32Hi(i) {
+  return i === 0 ? '0' : `c.gprS32[${i * 2 + 1}]`;
+}
+
+function genIsPositive(ctx, i) {
+  const fact = ctx.gprFacts.get(i);
+  if (isKnown32(fact)) {
+    return `${genKnownNumber(i, fact)} > 0`;
+  }
+  const hi = genSrcRegS32Hi(i);
+  return `${hi} >= 0 && (${hi} | c.gprS32[${i * 2}]) !== 0`;
+}
+
 function genSrcRegS64(i) {
   if (i === 0) {
     return '0n';
@@ -997,7 +1011,7 @@ function generateBLEZ(ctx) {
   const addr = branchAddress(ctx.pc, ctx.instruction);
 
   const impl = dedent(`
-      if ( ${genSrcRegS64(s)} <= 0n) {
+      if (!(${genIsPositive(ctx, s)})) {
         c.delayPC = ${toString32(addr)};
       } else {
         c.delayPC = ${toString32(ctx.pc + 8)};
@@ -1012,7 +1026,7 @@ function generateBLEZL(ctx) {
   const addr = branchAddress(ctx.pc, ctx.instruction);
 
   const impl = dedent(`
-      if ( ${genSrcRegS64(s)} <= 0n) {
+      if (!(${genIsPositive(ctx, s)})) {
         c.delayPC = ${toString32(addr)};
       } else {
         c.nextPC += 4;
@@ -1027,7 +1041,7 @@ function generateBGTZ(ctx) {
   const addr = branchAddress(ctx.pc, ctx.instruction);
 
   const impl = dedent(`
-      if (${genSrcRegS64(s)} > 0) {
+      if (${genIsPositive(ctx, s)}) {
         c.delayPC = ${toString32(addr)};
       } else {
         c.delayPC = ${toString32(ctx.pc + 8)};
@@ -1042,7 +1056,7 @@ function generateBGTZL(ctx) {
   const addr = branchAddress(ctx.pc, ctx.instruction);
 
   const impl = dedent(`
-      if (${genSrcRegS64(s)} > 0) {
+      if (${genIsPositive(ctx, s)}) {
         c.delayPC = ${toString32(addr)};
       } else {
         c.nextPC += 4;
@@ -1057,7 +1071,7 @@ function generateBLTZ(ctx) {
   const addr = branchAddress(ctx.pc, ctx.instruction);
 
   const impl = dedent(`
-      if (${genSrcRegS64(s)} < 0n) {
+      if (${genSrcRegS32Hi(s)} < 0) {
         c.delayPC = ${toString32(addr)};
       } else {
         c.delayPC = ${toString32(ctx.pc + 8)};
@@ -1071,7 +1085,7 @@ function generateBLTZL(ctx) {
   const addr = branchAddress(ctx.pc, ctx.instruction);
 
   const impl = dedent(`
-      if (${genSrcRegS64(s)} < 0n) {
+      if (${genSrcRegS32Hi(s)} < 0) {
         c.delayPC = ${toString32(addr)};
       } else {
         c.nextPC += 4;
@@ -1086,7 +1100,7 @@ function generateBGEZ(ctx) {
   const addr = branchAddress(ctx.pc, ctx.instruction);
 
   const impl = dedent(`
-      if (${genSrcRegS64(s)} >= 0n) {
+      if (${genSrcRegS32Hi(s)} >= 0) {
         c.delayPC = ${toString32(addr)};
       } else {
         c.delayPC = ${toString32(ctx.pc + 8)};
@@ -1100,7 +1114,7 @@ function generateBGEZL(ctx) {
   const addr = branchAddress(ctx.pc, ctx.instruction);
 
   const impl = dedent(`
-      if (${genSrcRegS64(s)} >= 0n) {
+      if (${genSrcRegS32Hi(s)} >= 0) {
         c.delayPC = ${toString32(addr)};
       } else {
         c.nextPC += 4;

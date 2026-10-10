@@ -504,6 +504,7 @@ export class CPU0 {
   }
 
   getRegS32Lo(r) { return this.gprS32[r * 2 + 0]; }
+  getRegS32Hi(r) { return this.gprS32[r * 2 + 1]; }
   getRegU32Lo(r) { return this.gprU32[r * 2 + 0]; }
   getRegS64(r) { return this.gprS64[r]; }
   getRegU64(r) { return this.gprU64[r]; }
@@ -512,6 +513,11 @@ export class CPU0 {
   regsEqual(s, t) {
     return this.gprU32[s * 2] === this.gprU32[t * 2] &&
       this.gprU32[s * 2 + 1] === this.gprU32[t * 2 + 1];
+  }
+
+  regIsPositive(r) {
+    const hi = this.gprS32[r * 2 + 1];
+    return hi >= 0 && (hi | this.gprS32[r * 2]) !== 0;
   }
 
   setRegU64(r, v) {
@@ -2089,36 +2095,36 @@ export class CPU0 {
   execBEQL(rt, rs, offset) { this.conditionalBranchLikely(this.regsEqual(rs, rt), offset); }
   execBNEL(rt, rs, offset) { this.conditionalBranchLikely(!this.regsEqual(rs, rt), offset); }
 
-  execBGEZ(rs, offset) { this.conditionalBranch(this.getRegS64(rs) >= 0n, offset); }
-  execBGTZ(rs, offset) { this.conditionalBranch(this.getRegS64(rs) > 0n, offset); }
-  execBLEZ(rs, offset) { this.conditionalBranch(this.getRegS64(rs) <= 0n, offset); }
-  execBLTZ(rs, offset) { this.conditionalBranch(this.getRegS64(rs) < 0n, offset); }
+  execBGEZ(rs, offset) { this.conditionalBranch(this.getRegS32Hi(rs) >= 0, offset); }
+  execBGTZ(rs, offset) { this.conditionalBranch(this.regIsPositive(rs), offset); }
+  execBLEZ(rs, offset) { this.conditionalBranch(!this.regIsPositive(rs), offset); }
+  execBLTZ(rs, offset) { this.conditionalBranch(this.getRegS32Hi(rs) < 0, offset); }
 
-  execBGEZL(rs, offset) { this.conditionalBranchLikely(this.getRegS64(rs) >= 0n, offset); }
-  execBGTZL(rs, offset) { this.conditionalBranchLikely(this.getRegS64(rs) > 0n, offset); }
-  execBLEZL(rs, offset) { this.conditionalBranchLikely(this.getRegS64(rs) <= 0n, offset); }
-  execBLTZL(rs, offset) { this.conditionalBranchLikely(this.getRegS64(rs) < 0n, offset); }
+  execBGEZL(rs, offset) { this.conditionalBranchLikely(this.getRegS32Hi(rs) >= 0, offset); }
+  execBGTZL(rs, offset) { this.conditionalBranchLikely(this.regIsPositive(rs), offset); }
+  execBLEZL(rs, offset) { this.conditionalBranchLikely(!this.regIsPositive(rs), offset); }
+  execBLTZL(rs, offset) { this.conditionalBranchLikely(this.getRegS32Hi(rs) < 0, offset); }
 
   execBLTZAL(rs, offset) {
-    const cond = this.getRegS64(rs) < 0n;
+    const cond = this.getRegS32Hi(rs) < 0;
     this.setRegS32Extend(cpu0reg.RA, this.nextPC + 4);
     this.conditionalBranch(cond, offset);
   }
 
   execBGEZAL(rs, offset) {
-    const cond = this.getRegS64(rs) >= 0n;
+    const cond = this.getRegS32Hi(rs) >= 0;
     this.setRegS32Extend(cpu0reg.RA, this.nextPC + 4);
     this.conditionalBranch(cond, offset);
   }
 
   execBLTZALL(rs, offset) {
-    const cond = this.getRegS64(rs) < 0n;
+    const cond = this.getRegS32Hi(rs) < 0;
     this.setRegS32Extend(cpu0reg.RA, this.nextPC + 4);
     this.conditionalBranchLikely(cond, offset);
   }
 
   execBGEZALL(rs, offset) {
-    const cond = this.getRegS64(rs) >= 0n;
+    const cond = this.getRegS32Hi(rs) >= 0;
     this.setRegS32Extend(cpu0reg.RA, this.nextPC + 4);
     this.conditionalBranchLikely(cond, offset);
   }
