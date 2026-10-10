@@ -93,6 +93,7 @@ export class SIRegDevice extends Device {
     if (!this.quiet) { logger.log(`SI: copying from ${toString32(dramAddr)} to PIF RAM`); }
     
     n64js.joybus().dmaWrite(this.hardware.ram, dramAddr);
+    this.hardware.memoryReads?.markRead(dramAddr, 64, MemorySource.SI);
   }
 
   copyToRDRAM() {

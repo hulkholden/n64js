@@ -90,6 +90,7 @@ export class Hardware {
 
     this.rom = null;   // Will be memory, mapped at 0xb0000000
     this.pif_mem = newMemoryRegion(PIF_RAM_OFFSET + 0x40);   // rom+ram
+    this.memoryReads = null; // Active only while visualizing reads.
     this.memoryActivity = null; // Allocated only by the experimental memory view.
     this.ram = newMemoryRegion(8 * 1024 * 1024);
     this.sp_mem = newMemoryRegion(0x2000);

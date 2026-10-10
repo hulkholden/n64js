@@ -40,9 +40,13 @@ export class CachedMemDevice extends Device {
   }
 
   // Provide specialised implementations for some hot functions - hard-code some calcuations for performance.
-  readU32(address) {
+  readU32(address, trackRead = true) {
     const off = address - 0x80000000;
-    return this.dataView.getUint32(off, false);
+    const value = this.dataView.getUint32(off, false);
+    if (trackRead) {
+      this.hardware.memoryReads?.markRead(off, 4, MemorySource.CPU);
+    }
+    return value;
   }
 
   write32(address, value) {

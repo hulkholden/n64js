@@ -28,7 +28,9 @@ export function store64masked(addr, value, mask) { getMemoryHandler(addr).write6
 export function loadU8fast(sAddr) {
   if (sAddr < -2139095040) {
     const phys = (sAddr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
-    return ramDV.getUint8(phys, false);
+    const value = ramDV.getUint8(phys, false);
+    hardware.memoryReads?.markRead(phys, 1, MemorySource.CPU);
+    return value;
   }
   return loadU8slow(sAddr >>> 0);
 }
@@ -36,7 +38,9 @@ export function loadU8fast(sAddr) {
 export function loadS8fast(sAddr) {
   if (sAddr < -2139095040) {
     const phys = (sAddr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
-    return ramDV.getInt8(phys, false);
+    const value = ramDV.getInt8(phys, false);
+    hardware.memoryReads?.markRead(phys, 1, MemorySource.CPU);
+    return value;
   }
   return loadS8slow(sAddr >>> 0);
 }
@@ -44,7 +48,9 @@ export function loadS8fast(sAddr) {
 export function loadU16fast(sAddr) {
   if ((sAddr & 1) == 0 && sAddr < -2139095040) {
     const phys = (sAddr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
-    return ramDV.getUint16(phys, false);
+    const value = ramDV.getUint16(phys, false);
+    hardware.memoryReads?.markRead(phys, 2, MemorySource.CPU);
+    return value;
   }
   return loadU16slow(sAddr >>> 0);
 }
@@ -52,23 +58,31 @@ export function loadU16fast(sAddr) {
 export function loadS16fast(sAddr) {
   if ((sAddr & 1) == 0 && sAddr < -2139095040) {
     const phys = (sAddr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
-    return ramDV.getInt16(phys, false);
+    const value = ramDV.getInt16(phys, false);
+    hardware.memoryReads?.markRead(phys, 2, MemorySource.CPU);
+    return value;
   }
   return loadS16slow(sAddr >>> 0);
 }
 
-export function loadU32fast(sAddr) {
+export function loadU32fast(sAddr, trackRead = true) {
   if ((sAddr & 3) == 0 && sAddr < -2139095040) {
     const phys = (sAddr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
-    return ramDV.getUint32(phys, false);
+    const value = ramDV.getUint32(phys, false);
+    if (trackRead) {
+      hardware.memoryReads?.markRead(phys, 4, MemorySource.CPU);
+    }
+    return value;
   }
-  return loadU32slow(sAddr >>> 0);
+  return loadU32slow(sAddr >>> 0, trackRead);
 }
 
 export function loadS32fast(sAddr) {
   if ((sAddr & 3) == 0 && sAddr < -2139095040) {
     const phys = (sAddr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
-    return ramDV.getInt32(phys, false);
+    const value = ramDV.getInt32(phys, false);
+    hardware.memoryReads?.markRead(phys, 4, MemorySource.CPU);
+    return value;
   }
   return loadS32slow(sAddr >>> 0);
 }
@@ -76,7 +90,9 @@ export function loadS32fast(sAddr) {
 export function loadU64fast(sAddr) {
   if ((sAddr & 7) == 0 && sAddr < -2139095040) {
     const phys = (sAddr + 0x80000000) | 0;  // NB: or with zero ensures we return an SMI if possible.
-    return ramDV.getBigUint64(phys, false);
+    const value = ramDV.getBigUint64(phys, false);
+    hardware.memoryReads?.markRead(phys, 8, MemorySource.CPU);
+    return value;
   }
   return loadU64slow(sAddr >>> 0);
 }
@@ -133,11 +149,11 @@ function loadU16slow(addr) {
   return getMemoryHandler(addr).readU16(addr);
 }
 
-function loadU32slow(addr) {
+function loadU32slow(addr, trackRead) {
   if (addr & 3) {
     cpu0.unalignedLoad(addr);
   }
-  return getMemoryHandler(addr).readU32(addr);
+  return getMemoryHandler(addr).readU32(addr, trackRead);
 }
 
 function loadU64slow(addr) {

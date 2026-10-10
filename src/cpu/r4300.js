@@ -867,7 +867,8 @@ export class CPU0 {
           this.nextPC = this.delayPC ?? this.pc + 4;
 
           // The load may raise an EmulatedException either via alignment or TLB exceptions.
-          let instruction = memaccess.loadU32fast(signedPC);
+          // Exclude instruction fetches: compiled execution does not fetch each opcode.
+          let instruction = memaccess.loadU32fast(signedPC, false);
 
           // Consume all startup hacks through one check, before instructions
           // enter compiled fragments. Delays are charged after execution so

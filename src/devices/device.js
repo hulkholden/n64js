@@ -114,12 +114,16 @@ export class Device {
    * @param {number} address
    * @return {bigint}
    */
-  readU64(address) {
+  readU64(address, trackRead = true) {
     const ea = this.calcReadEA(address);
     if (ea + 8 > this.u8.length) {
       return 0;
     }
-    return this.mem.getU64(ea);
+    const value = this.mem.getU64(ea);
+    if (trackRead && this.mem === this.hardware.ram) {
+      this.hardware.memoryReads?.markRead(ea, 8, MemorySource.CPU);
+    }
+    return value;
   }
 
   /**
@@ -127,12 +131,16 @@ export class Device {
    * @param {number} address
    * @return {number}
    */
-  readU32(address) {
+  readU32(address, trackRead = true) {
     const ea = this.calcReadEA(address);
     if (ea + 4 > this.u8.length) {
       return 0;
     }
-    return this.mem.getU32(ea);
+    const value = this.mem.getU32(ea);
+    if (trackRead && this.mem === this.hardware.ram) {
+      this.hardware.memoryReads?.markRead(ea, 4, MemorySource.CPU);
+    }
+    return value;
   }
 
   /**
@@ -140,12 +148,16 @@ export class Device {
    * @param {number} address
    * @return {number}
    */
-  readU16(address) {
+  readU16(address, trackRead = true) {
     const ea = this.calcReadEA(address);
     if (ea + 2 > this.u8.length) {
       return 0;
     }
-    return this.mem.getU16(ea);
+    const value = this.mem.getU16(ea);
+    if (trackRead && this.mem === this.hardware.ram) {
+      this.hardware.memoryReads?.markRead(ea, 2, MemorySource.CPU);
+    }
+    return value;
   }
 
   /**
@@ -153,12 +165,16 @@ export class Device {
    * @param {number} address
    * @return {number}
    */
-  readU8(address) {
+  readU8(address, trackRead = true) {
     const ea = this.calcReadEA(address);
     if (ea + 1 > this.u8.length) {
       return 0;
     }
-    return this.mem.getU8(ea);
+    const value = this.mem.getU8(ea);
+    if (trackRead && this.mem === this.hardware.ram) {
+      this.hardware.memoryReads?.markRead(ea, 1, MemorySource.CPU);
+    }
+    return value;
   }
 
   /**

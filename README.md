@@ -294,12 +294,24 @@ Build with `bun run build-debug`, click **Debug**, then enable
 **Options → Memory activity (experimental)**. Enable it before loading/resetting a ROM to capture boot writes.
 The panel shows the latest CPU or PI/SI/SP DMA writer for each RAM byte in Morton
 order. CPU stores include compiled code, mapped/uncached accesses and masked
-stores. Framebuffer writeback, HLE writes and reads are not captured yet.
+stores. Select **Read source** to track CPU data loads and PI/SI/SP DMA reads
+instead, using the same source colours and aging. Instruction fetches are excluded
+so interpreter and recompiler views agree. Graphics, HLE and framebuffer accesses
+are not captured yet.
+
+Read capture is active only in Read source mode. Uncheck **CPU reads (costly)**
+to keep DMA reads without per-byte CPU tracking. Switching between reads and
+writes, or toggling CPU reads, clears history; the modes reuse the same buffers.
+CPU read overhead depends heavily on the workload: a local compiled load-loop
+stress check took about six times as long with reads enabled, while a short
+system-test run showed little difference. This is an experiment, not a performance
+promise.
 
 Colour fades over emulated VI frames (180 frames is roughly three seconds for
 NTSC). Freeze capture stops both recording and aging; Clear discards the history.
 Use 1:1 pixels and scroll to inspect individual bytes; the fitted overview samples
-bytes. Hover reports the physical address, last source and age. Closing the view
+bytes. The fitted view follows the main canvas width. The enable/disable setting
+persists across reloads. Hover reports the physical address, last source and age. Closing the view
 releases its capture buffers and WebGL resources. Emulator reset clears history.
 
 The view requires WebGL 2 and allocates source and timestamp textures with one
@@ -307,5 +319,5 @@ pixel per byte: 2048×2048 for 4 MiB or 4096×2048 for 8 MiB. The emulator curre
 allocates 8 MiB. CPU-side capture plus GPU textures use about 80 MiB at that size,
 excluding the canvas. This is deliberately an expensive experimental mode.
 `MemoryActivity.markRange(address, length, source)` provides the annotation hook
-for future read, texture and CImg/ZImg modes; currently only write-source and
-write-age colour modes are exposed.
+for writes, and `markRead(address, length, source)` records reads. Future texture
+and CImg/ZImg modes can extend these annotations.

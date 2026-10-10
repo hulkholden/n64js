@@ -31,6 +31,8 @@ export class MemoryActivity {
     this.times = new Uint32Array(size);
     this.dirtyRows = new Set();
     this.paused = false;
+    this.readMode = false;
+    this.cpuReads = true;
     this.reset();
   }
 
@@ -53,7 +55,26 @@ export class MemoryActivity {
     return compactBits(address) + compactBits(address >>> 1) * this.width;
   }
 
+  setReadMode(enabled) {
+    if (this.readMode !== enabled) {
+      this.readMode = enabled;
+      this.reset();
+    }
+  }
+
+  markRead(address, length, source) {
+    if (this.readMode && (source !== MemorySource.CPU || this.cpuReads)) {
+      this.recordRange(address, length, source);
+    }
+  }
+
   markRange(address, length, source) {
+    if (!this.readMode) {
+      this.recordRange(address, length, source);
+    }
+  }
+
+  recordRange(address, length, source) {
     if (this.paused) {
       return;
     }

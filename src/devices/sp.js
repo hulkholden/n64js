@@ -368,6 +368,7 @@ export class SPRegDevice extends Device {
     for (let c = 0; c < count; c++) {
       for (let i = 0; i < len; ++i) {
         this.hardware.sp_mem.u8[(bankBit | (memOffset) & 0xfff)] = this.hardware.ram.u8[ramOffset];
+        this.hardware.memoryReads?.markRead(ramOffset, 1, MemorySource.SP);
         memOffset++;
         ramOffset++;
       }

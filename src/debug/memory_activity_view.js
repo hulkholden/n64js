@@ -3,13 +3,20 @@ import { MemoryActivity, pixelAddress } from './memory_activity.js';
 const sourceNames = ['Untouched', 'CPU', 'PI DMA', 'SI DMA', 'SP DMA'];
 
 export function installMemoryActivityView(hardware, gui) {
+  const storageKey = 'n64js-debug-options:memoryActivity';
   let view = null;
   const options = { memoryActivity: false };
   const control = gui.add(options, 'memoryActivity').name('Memory activity (experimental)').onChange(enabled => {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(enabled));
+    } catch {
+      // Capture still works when browser storage is unavailable.
+    }
     if (!enabled) {
       view?.dispose();
       view = null;
       hardware.memoryActivity = null;
+      hardware.memoryReads = null;
       return;
     }
     try {
@@ -20,29 +27,40 @@ export function installMemoryActivityView(hardware, gui) {
       window.alert(`Unable to open memory activity: ${error.message}`);
     }
   });
+  let savedEnabled = false;
+  try {
+    savedEnabled = localStorage.getItem(storageKey) === 'true';
+  } catch {
+    // Default to disabled when browser storage is unavailable.
+  }
+  if (savedEnabled) {
+    control.setValue(true);
+  }
 }
 
 export class MemoryActivityView {
   constructor(hardware, close) {
+    this.hardware = hardware;
     this.capture = new MemoryActivity(hardware.ram.length);
     this.panel = document.createElement('section');
-    this.panel.style.cssText = 'margin:16px;padding:16px;background:#151923;color:#e4e9f2;border:1px solid #526078;border-radius:8px;';
+    this.panel.style.cssText = 'box-sizing:content-box;margin:16px;padding:16px;background:#151923;color:#e4e9f2;border:1px solid #526078;border-radius:8px;';
     this.panel.innerHTML = `
       <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
         <strong>RAM activity · experimental</strong>
         <button data-action="pause">Freeze capture</button>
         <button data-action="reset">Clear</button>
-        <label>Colour <select data-action="mode"><option value="0">Write source</option><option value="1">Write age</option></select></label>
+        <label>Colour <select data-action="mode"><option value="0">Write source</option><option value="1">Write age</option><option value="2">Read source</option></select></label>
+        <label data-action="cpu-reads-label" hidden><input data-action="cpu-reads" type="checkbox" checked> CPU reads (costly)</label>
         <label>Fade (VI frames) <input data-action="fade" type="number" min="1" max="36000" value="180" style="width:80px"></label>
         <label><input data-action="native" type="checkbox"> 1:1 pixels</label>
         <button data-action="close">Close</button>
       </div>
-      <p style="margin:12px 0">Latest writer per byte · Morton layout ·
+      <p style="margin:12px 0"><span data-action="event-label">Latest writer per byte</span> · Morton layout ·
         <span style="color:#49b8ff">CPU</span> · <span style="color:#ffad42">PI DMA</span> ·
         <span style="color:#d883ff">SI DMA</span> · <span style="color:#4ce5ae">SP DMA</span> · black = untouched</p>
       <div data-action="viewport" style="overflow:auto;max-height:70vh;background:#080a0f"><canvas style="display:block;width:100%;image-rendering:pixelated"></canvas></div>
       <div data-action="status" style="margin-top:10px;font-family:monospace">Hover to inspect a physical RAM address. Aging follows emulated VI frames.</div>
-      <small>CPU and PI/SI/SP writes only. Framebuffer and HLE writes are not tracked. Fit view samples bytes; use 1:1 to inspect every byte.</small>`;
+      <small>CPU data accesses and PI/SI/SP DMA only; no instruction fetches, graphics or HLE reads. Switching between reads and writes clears history. Fit view samples bytes; use 1:1 to inspect every byte.</small>`;
     this.canvas = this.panel.querySelector('canvas');
     this.canvas.width = this.capture.width;
     this.canvas.height = this.capture.height;
@@ -71,6 +89,17 @@ export class MemoryActivityView {
     };
     this.fade = element('fade');
     this.mode = element('mode');
+    this.mode.onchange = () => {
+      const reads = this.mode.value === '2';
+      this.capture.setReadMode(reads);
+      hardware.memoryReads = reads ? this.capture : null;
+      element('event-label').textContent = reads ? 'Latest reader per byte' : 'Latest writer per byte';
+      element('cpu-reads-label').hidden = !reads;
+    };
+    element('cpu-reads').onchange = event => {
+      this.capture.cpuReads = event.target.checked;
+      this.capture.reset();
+    };
     this.status = element('status');
     this.canvas.onmousemove = event => {
       const rect = this.canvas.getBoundingClientRect();
@@ -78,7 +107,14 @@ export class MemoryActivityView {
       const y = Math.min(this.capture.height - 1, Math.floor((event.clientY - rect.top) * this.capture.height / rect.height));
       this.hoverAddress = pixelAddress(x, y);
     };
-    document.querySelector('#display').parentElement.after(this.panel);
+    const display = document.querySelector('#display');
+    const matchDisplayWidth = () => {
+      this.panel.style.width = `${display.getBoundingClientRect().width}px`;
+    };
+    matchDisplayWidth();
+    this.resizeObserver = new ResizeObserver(matchDisplayWidth);
+    this.resizeObserver.observe(display);
+    display.parentElement.after(this.panel);
     this.draw = () => {
       this.render();
       this.animationFrame = requestAnimationFrame(this.draw);
@@ -112,7 +148,7 @@ export class MemoryActivityView {
                    source == 3u ? vec3(.847,.514,1) : vec3(.298,.898,.682);
           // Retain source hues after aging; brightness still separates old writes.
           vec3 old = mix(vec3(dot(c, vec3(.2126,.7152,.0722))), c, .7) * .5;
-          c = mode == 0 ? mix(c, old, age) : mix(vec3(1,.95,.5), vec3(.12,.18,.3), age);
+          c = mode != 1 ? mix(c, old, age) : mix(vec3(1,.95,.5), vec3(.12,.18,.3), age);
           colour = vec4(source == 0u ? vec3(.015,.02,.03) : c, 1);
         }`]]) {
         const shader = gl.createShader(type);
@@ -183,6 +219,8 @@ export class MemoryActivityView {
 
   dispose() {
     cancelAnimationFrame(this.animationFrame);
+    this.resizeObserver?.disconnect();
+    this.hardware.memoryReads = null;
     for (const texture of this.textures) {
       this.gl.deleteTexture(texture);
     }

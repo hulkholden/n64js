@@ -225,6 +225,7 @@ export class PIRegDevice extends Device {
 
     if (dst) {
       dst.copy(dstOffset, this.hardware.ram, dramAddr, transferLen);
+      this.hardware.memoryReads?.markRead(dramAddr, transferLen, MemorySource.PI);
     }
 
     // TODO: Update address registers?
