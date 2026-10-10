@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'bun:test';
 import { createHeadlessEmulator } from '../headless/headless_env.js';
-import { getFragmentMap, lookupFragment } from './fragments.js';
 import { getPerformanceProfile, setPerformanceProfiling } from '../debug/performance_profile.js';
 
 const entry = 0x80001000;
@@ -42,7 +41,7 @@ async function fixture(op, delaySlot) {
   }
   function warm() {
     for (let i = 0; i < 499; i++) {
-      lookupFragment(entry);
+      cpu.hardware.fragmentCache.lookupFragment(entry);
     }
   }
   return { cpu, setup, snapshot, warm };
@@ -68,10 +67,10 @@ for (const profiled of [false, true]) {
               setup(0x80003000, 0x34020001);
               warm();
               cpu.run(cycles);
-              const fragment = getFragmentMap().get(entry);
+              const fragment = cpu.hardware.fragmentCache.fragments.get(entry);
               expect(fragment?.func).toBeFunction();
               setup(address);
-              getFragmentMap().set(entry, fragment);
+              cpu.hardware.fragmentCache.fragments.set(entry, fragment);
               // CPU reset now clears cache-line subscriptions as well as the
               // lookup map. Reinstall both for this deliberately saved trace.
               fragment.trackInstructions();
@@ -101,7 +100,7 @@ for (const profiled of [false, true]) {
             warm();
             cpu.run(cycles);
             expect(snapshot()).toEqual(expected);
-            const fragment = getFragmentMap().get(entry);
+            const fragment = cpu.hardware.fragmentCache.fragments.get(entry);
             expect(fragment?.func).toBeUndefined();
             expect(fragment?.opsCompiled).toBe(0);
             // Re-entering the old address must still execute the SW/JR prefix.

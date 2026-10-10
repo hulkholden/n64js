@@ -3,7 +3,6 @@
 import * as cpu0reg from '../cpu/cpu0reg.js';
 import { disassembleRange, cop0gprNames, cop1RegisterNames } from '../cpu/disassemble.js';
 import * as disassemble_rsp from "../rsp/disassemble_rsp.js";
-import { getFragmentMap } from '../cpu/fragments.js';
 import { toggleDebugDisplayList } from '../hle/hle_graphics.js';
 import { TaskOffsets } from '../hle/rsp_task_constants.js';
 import { toHex, toString8, toString16, toString32, toString64 } from '../format.js';
@@ -393,7 +392,7 @@ export class Debugger {
 
     const { gutter, text, currentInstruction } = this.buildDisassembly(
       this.cpu0State.disassembleRange(), cpu0.pc, this.cpu0State,
-      () => this.updateCPU(), getFragmentMap());
+      () => this.updateCPU(), cpu0.hardware.fragmentCache.fragments);
     const registerColours = this.makeRegisterColours(currentInstruction);
     this.highlightRegisters(text, registerColours);
 
@@ -535,7 +534,7 @@ export class Debugger {
 
     // Build a flattened list of all fragments
     let fragmentsList = [];
-    getFragmentMap().forEach((fragment) => {
+    cpu0.hardware.fragmentCache.fragments.forEach((fragment) => {
       let i = fragment.executionCount > 0 ? Math.floor(Math.log10(fragment.executionCount)) : 0;
       histogram.set(i, (histogram.get(i) || 0) + 1);
       fragmentsList.push(fragment);

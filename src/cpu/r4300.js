@@ -8,7 +8,6 @@ import { cop0ControlRegisterNames } from './disassemble.js';
 import { EmulatedException } from './emulated_exception.js';
 import { EventQueue } from '../event_queue.js';
 import { toString8, toString32, toString64 } from '../format.js';
-import { invalidateFragmentEntry, invalidateFragmentIndex, lookupFragment, resetFragments } from './fragments.js';
 import * as logger from '../logger.js';
 import * as memaccess from '../memory/memaccess.js';
 import { kAccurateCountUpdating, kSpeedHackEnabled } from '../options.js';
@@ -605,7 +604,7 @@ export class CPU0 {
   clearControlBits64(r, value) { this.controlRegU64[r] &= ~value; }
 
   reset() {
-    resetFragments();
+    this.hardware.fragmentCache.reset();
     this.fragmentOps = null;
     this.fragmentCycles = 0;
     this.compatibilityHacks = this.hardware.enableCompatibilityHacks ? getCompatibilityHacks(this.hardware.rominfo.id) : null;
@@ -841,7 +840,7 @@ export class CPU0 {
     const runFragment = performanceProfile.enabled ? executeFragmentProfiled : executeFragment;
 
     while (this.hasEvent(kEventRunForCycles)) {
-      let fragment = lookupFragment(this.pc);
+      let fragment = this.hardware.fragmentCache.lookupFragment(this.pc);
 
       while (!this.stuffToDo) {
 
@@ -896,7 +895,7 @@ export class CPU0 {
               if (result.codeChanged) {
                 // Any member (or virtual alias) may already have compiled code,
                 // even if the trigger word is unchanged. Flush the active trace too.
-                resetFragments();
+                this.hardware.fragmentCache.reset();
                 fragment = null;
               }
               instruction = result.instruction;
@@ -922,13 +921,13 @@ export class CPU0 {
           if (fragment && fragment.generation !== fragmentGeneration) {
             // CACHE can discard the trace we were assembling. Do not append
             // this instruction to an empty body still keyed by the old entry PC.
-            fragment = lookupFragment(this.pc);
+            fragment = this.hardware.fragmentCache.lookupFragment(this.pc);
           } else if (fragment) {
             fragment = addOpToFragment(fragment, pc, instruction, this);
           } else {
             // If there's no current fragment and we branch backwards, this is possibly a new loop
             if (this.pc < pc) {
-              fragment = lookupFragment(this.pc);
+              fragment = this.hardware.fragmentCache.lookupFragment(this.pc);
             }
           }
         }
@@ -1933,9 +1932,9 @@ export class CPU0 {
     if (!this.ignoreCacheOp(rt)) {
       const address = this.addrU32(base, imms);
       if (rt === 0) {
-        invalidateFragmentIndex(address);
+        this.hardware.fragmentCache.invalidateIndex(address);
       } else {
-        invalidateFragmentEntry(address);
+        this.hardware.fragmentCache.invalidateEntry(address);
       }
     }
   }
@@ -2675,10 +2674,6 @@ n64js.singleStep = function () {
   }
 };
 
-export function invalidateCode(address) {
-  invalidateFragmentEntry(address);
-}
-
 function revalidateFragment(fragment, cpu0) {
   if (performanceProfile.enabled) {
     performanceProfile.counters.fragmentRevalidations++;
@@ -2758,7 +2753,7 @@ function addOpToFragment(fragment, entry_pc, instruction, c) {
   const longFragment = fragment.opsCompiled > 8;
   if ((longFragment && c.pc !== entry_pc + 4) || fragment.opsCompiled >= kFragmentLengthLimit || c.stuffToDo || fragment.bailedOut) {
     compileFragment(fragment);
-    fragment = lookupFragment(c.pc);
+    fragment = c.hardware.fragmentCache.lookupFragment(c.pc);
   } else {
     fragment.bodyCode += `// Keep going: ops ${fragment.opsCompiled}, pc: ${toString32(c.pc)}, entry+4: ${toString32(entry_pc + 4)}, stuff: ${c.stuffToDo}\n`
   }

@@ -4,8 +4,6 @@ import { compatibilityHacks } from './compatibility_hacks.js';
 import { controlStatus } from './cpu/cpu0reg.js';
 import { createHeadlessEmulator } from './headless/headless_env.js';
 
-const { getFragmentMap } = await import('./cpu/fragments.js');
-const { invalidateCode } = await import('./cpu/r4300.js');
 
 // Exercise the patch mechanism independently of the production ROM database.
 const id = 'compatibility-test';
@@ -191,7 +189,7 @@ describe('ROM compatibility instruction patches', () => {
   test('a debugger breakpoint still stops and single-step patches the restored instruction', async () => {
     const { cpu0: cpu, hardware } = await fixture(id);
     putBranch(hardware, address);
-    const breakpoints = new Breakpoints(hardware, invalidateCode);
+    const breakpoints = new Breakpoints(hardware, address => hardware.fragmentCache.invalidateEntry(address));
     const previous = n64js.breakpoints;
     n64js.breakpoints = () => breakpoints;
     try {
@@ -223,7 +221,7 @@ describe('ROM compatibility instruction patches', () => {
     expect(cpu.getRegU64(8)).toBe(4000n);
     expect(cpu.controlCountValue - count).toBe(16000);
     expect(cpu.pc).toBe(address);
-    const fragment = getFragmentMap().get(address);
+    const fragment = hardware.fragmentCache.fragments.get(address);
     expect(fragment?.executionCount).toBeGreaterThan(0);
   });
 
@@ -240,7 +238,7 @@ describe('ROM compatibility instruction patches', () => {
     cpu.pc = alias;
     cpu.run(16000);
     expect(cpu.getRegU64(9)).toBe(0n);
-    expect(getFragmentMap().get(alias)?.executionCount).toBeGreaterThan(0);
+    expect(hardware.fragmentCache.fragments.get(alias)?.executionCount).toBeGreaterThan(0);
 
     cpu.pc = address;
     cpu.run(2); // Apply the configured patch via the cached address.
@@ -265,7 +263,7 @@ describe('ROM compatibility instruction patches', () => {
       cpu.pc = companion;
       cpu.run(3000);
       expect(cpu.getRegU64(9)).toBe(1000n);
-      expect([...getFragmentMap().values()].some(fragment => fragment.executionCount > 0)).toBe(true);
+      expect([...hardware.fragmentCache.fragments.values()].some(fragment => fragment.executionCount > 0)).toBe(true);
 
       cpu.pc = address;
       cpu.run(2);

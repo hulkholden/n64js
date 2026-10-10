@@ -14,7 +14,6 @@ import { MicrocodeId, microcodePrefixLength } from '../hle/microcode_identifier.
 import { TaskOffsets } from '../hle/rsp_task_constants.js';
 import { OS_TV_NTSC } from '../system_constants.js';
 
-const { getFragmentMap } = await import('../cpu/fragments.js');
 
 function createEmulator(options) {
   // Boot initialization only needs a buffer containing the bootstrap region.
@@ -623,7 +622,7 @@ describe('headless graphics execution', () => {
       expect(hardware.cpu1.control[31]).toBe(0x01000800);
       expect(cpu0.getControlU32(controlCause) & 0x7c).toBe(0);
     }
-    expect(getFragmentMap().get(0x80007000)?.executionCount).toBeGreaterThan(0);
+    expect(hardware.fragmentCache.fragments.get(0x80007000)?.executionCount).toBeGreaterThan(0);
 
     // A zero counter must still take the enabled Invalid exception.
     hardware.dpcDevice.write32(0xa410000c, 0x200);

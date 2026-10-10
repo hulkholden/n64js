@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { createHeadlessEmulator } from '../headless/headless_env.js';
 import { getPerformanceProfile, setPerformanceProfiling } from '../debug/performance_profile.js';
-import { Fragment, getFragmentMap, invalidateFragmentEntry, invalidateFragmentIndex } from './fragments.js';
+import { Fragment } from './fragments.js';
 import * as regs from './cpu0reg.js';
 
 const entry = 0x80001000;
@@ -24,7 +24,7 @@ function train(e, pc = entry) {
   e.cpu0.pc = pc;
   e.cpu0.setRegS32Extend(31, pc);
   e.cpu0.run(12000);
-  const fragment = getFragmentMap().get(pc);
+  const fragment = e.hardware.fragmentCache.fragments.get(pc);
   expect(fragment?.func).toBeFunction();
   expect(e.fatalError()).toBeNull();
   return fragment;
@@ -48,13 +48,13 @@ function resume(e, pc = entry, cycles = 40) {
 
 for (const profiled of [false, true]) {
   describe(`instruction-cache reuse (profiling ${profiled})`, () => {
-    for (const [name, invalidate] of [['index', invalidateFragmentIndex], ['hit', invalidateFragmentEntry]]) {
+    for (const [name, method] of [['index', 'invalidateIndex'], ['hit', 'invalidateEntry']]) {
       test(`${name}: unchanged instructions reuse the same function, including subsequent invalidations`, async () => {
         const e = await fixture();
         const fragment = loop(e), original = fragment.func;
         setPerformanceProfiling(profiled);
         for (let i = 0; i < 3; i++) {
-          invalidate(entry + 4);
+          e.hardware.fragmentCache[method](entry + 4);
           expect(fragment.func).toBeUndefined();
           expect(fragment.cachedFunc).toBe(original);
           expect(resume(e)).toBe(20);
@@ -69,9 +69,9 @@ for (const profiled of [false, true]) {
       test(`${name}: writes after invalidation and successor lookup cannot execute the old delay slot`, async () => {
         const e = await fixture();
         const fragment = loop(e), original = fragment.func;
-        const caller = new Fragment(0x80002000);
+        const caller = new Fragment(0x80002000, e.hardware.fragmentCache);
         caller.nextFragments[2] = fragment;
-        invalidate(entry);
+        e.hardware.fragmentCache[method](entry);
         // Lookup must not validate: an interrupt or guest code can still write
         // RAM before the fragment is actually dispatched.
         expect(caller.getNextFragment(entry, 2)).toBe(fragment);
@@ -96,12 +96,12 @@ for (const profiled of [false, true]) {
       e.hardware.ram.set32(0x1108, 0);
       const fragment = train(e), original = fragment.func;
       expect(fragment.instructionPCs).toContain(0x80001100);
-      const compiled = [...getFragmentMap().values()].filter(f => f.func).length;
+      const compiled = [...e.hardware.fragmentCache.fragments.values()].filter(f => f.func).length;
       const generation = fragment.generation;
       setPerformanceProfiling(profiled);
       for (let sweep = 0; sweep < 3; sweep++) {
         for (let offset = 0; offset < 0x4000; offset += 32) {
-          invalidateFragmentIndex(0x80000000 + offset);
+          e.hardware.fragmentCache.invalidateIndex(0x80000000 + offset);
         }
       }
       expect(fragment.generation).toBe(generation + 1);
@@ -113,9 +113,9 @@ for (const profiled of [false, true]) {
       expect(fragment.func).toBe(original);
 
       // A hole in the traced PC range is not an instruction-cache dependency.
-      invalidateFragmentEntry(0x80001080);
+      e.hardware.fragmentCache.invalidateEntry(0x80001080);
       expect(fragment.func).toBe(original);
-      invalidateFragmentEntry(0x80001100);
+      e.hardware.fragmentCache.invalidateEntry(0x80001100);
       e.hardware.ram.set32(0x1100, increment + 1);
       expect(resume(e, entry, 100)).toBe(40);
       expect(fragment.func).not.toBe(original);
@@ -124,7 +124,7 @@ for (const profiled of [false, true]) {
     test('changes to data in the same line do not force recompilation', async () => {
       const e = await fixture();
       const fragment = loop(e), original = fragment.func;
-      invalidateFragmentEntry(entry);
+      e.hardware.fragmentCache.invalidateEntry(entry);
       e.hardware.ram.set32(0x1010, 0xdeadbeef);
       setPerformanceProfiling(profiled);
       expect(resume(e)).toBe(20);
@@ -136,12 +136,12 @@ for (const profiled of [false, true]) {
       const pc = 0x00400000;
       cpu.tlbEntries[0].update(0, 0, BigInt(pc), 0x5f, 0x9f);
       const fragment = loop(e, pc, 0x1000), original = fragment.func;
-      invalidateFragmentIndex(pc);
+      e.hardware.fragmentCache.invalidateIndex(pc);
       setPerformanceProfiling(profiled);
       expect(resume(e, pc)).toBe(20);
       expect(fragment.func).toBe(original);
 
-      invalidateFragmentIndex(pc);
+      e.hardware.fragmentCache.invalidateIndex(pc);
       e.hardware.ram.set32(0x3000, jrRA);
       e.hardware.ram.set32(0x3004, increment + 1);
       cpu.tlbEntries[0].update(0, 0, BigInt(pc), 0xdf, 0x11f);
@@ -158,7 +158,7 @@ for (const profiled of [false, true]) {
       e.hardware.ram.set32(0x2000, jrRA);
       e.hardware.ram.set32(0x2004, 0);
       train(e, pc);
-      invalidateFragmentIndex(pc);
+      e.hardware.fragmentCache.invalidateIndex(pc);
       cpu.tlbEntries[0].update(0, 0, 0x00400000n, 0x5f, 0x9d); // Invalid odd page.
       cpu.setControlU32(regs.controlStatus, 0);
       cpu.setRegU32Extend(2, 0);
@@ -176,14 +176,65 @@ for (const profiled of [false, true]) {
 test('reset drops pending code and its cache subscriptions', async () => {
   const e = await fixture();
   const old = loop(e), original = old.func;
-  invalidateFragmentIndex(entry);
+  e.hardware.fragmentCache.invalidateIndex(entry);
   const generation = old.generation;
   e.cpu0.reset();
   const replacement = loop(e);
-  invalidateFragmentIndex(entry);
+  e.hardware.fragmentCache.invalidateIndex(entry);
   expect(old.generation).toBe(generation);
   expect(replacement.cachedFunc).not.toBe(original);
   expect(resume(e)).toBe(20);
+});
+
+test('creating, invalidating and resetting hardware leaves another instance\'s fragments intact', async () => {
+  const first = await fixture();
+  const firstFragment = loop(first), firstFunction = firstFragment.func;
+  const second = await fixture();
+  const secondFragment = loop(second), secondFunction = secondFragment.func;
+  expect(first.hardware.fragmentCache.fragments.get(entry)).toBe(firstFragment);
+  expect(firstFragment.func).toBe(firstFunction);
+  expect(secondFragment).not.toBe(firstFragment);
+
+  // Execute CACHE on the first CPU while the second is the selected emulator.
+  // Invalidation must use the receiver's hardware, not the global CPU binding.
+  first.cpu0.setRegS32Extend(4, entry);
+  first.cpu0.execCACHE(0, 4, 0);
+  expect(firstFragment.func).toBeUndefined();
+  expect(firstFragment.cachedFunc).toBe(firstFunction);
+  expect(secondFragment.func).toBe(secondFunction);
+
+  first.hardware.reset();
+  expect(first.hardware.fragmentCache.fragments.size).toBe(0);
+  expect(second.hardware.fragmentCache.fragments.get(entry)).toBe(secondFragment);
+  expect(secondFragment.func).toBe(secondFunction);
+  // The second cache still owns its subscriptions after the first resets.
+  second.hardware.fragmentCache.invalidateEntry(entry);
+  expect(secondFragment.cachedFunc).toBe(secondFunction);
+});
+
+test('hot-entry counts and successor lookup belong to the fragment\'s hardware', async () => {
+  const first = await fixture();
+  const firstCache = first.hardware.fragmentCache;
+  for (let i = 0; i < 499; i++) {
+    expect(firstCache.lookupFragment(entry)).toBeNull();
+  }
+  const second = await fixture();
+  const secondCache = second.hardware.fragmentCache;
+  expect(secondCache.lookupFragment(entry)).toBeNull();
+  const firstFragment = firstCache.lookupFragment(entry);
+  expect(firstFragment).toBeInstanceOf(Fragment);
+  for (let i = 0; i < 499; i++) {
+    secondCache.lookupFragment(entry);
+  }
+  const secondFragment = secondCache.fragments.get(entry);
+  expect(secondFragment).toBeInstanceOf(Fragment);
+  expect(secondFragment).not.toBe(firstFragment);
+
+  const caller = new Fragment(entry + 0x1000, firstCache);
+  expect(caller.getNextFragment(entry, 2)).toBe(firstFragment);
+  firstCache.reset();
+  expect(firstCache.lookupFragment(entry)).toBeNull();
+  expect(secondCache.lookupFragment(entry)).toBe(secondFragment);
 });
 
 test('validation rejects unmapped, invalid, wrong-ASID, out-of-RAM and device addresses without side effects', async () => {

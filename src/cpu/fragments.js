@@ -11,26 +11,10 @@ addOptionsFolder('Performance', folder => {
 
 const kHotFragmentThreshold = 500;
 const kInstructionCacheLines = 512;
-let cacheEntries = Array.from({ length: kInstructionCacheLines }, () => new Set());
-
-function cacheEntry(address) {
-  return cacheEntries[(address >>> 5) & (kInstructionCacheLines - 1)];
-}
-
-/**
- * The fragment map.
- * @type {!Map<number, !Fragment>}
- */
-let fragmentMap = new Map();
-
-/**
- * Hit counts keyed by PC.
- * @type {!Map<number, number>}
- */
-let hitCounts = new Map();
 
 export class Fragment {
-  constructor(pc) {
+  constructor(pc, fragmentCache) {
+    this.fragmentCache    = fragmentCache;
     this.entryPC          = pc;
     this.generation       = 0;
     this.minPC            = pc;
@@ -39,7 +23,7 @@ export class Fragment {
     this.cachedFunc       = undefined;
     this.instructionPCs   = [];
     this.instructionWords = [];
-    this.cacheEntries     = new Set();
+    this.cacheBuckets     = new Set();
     this.opsCompiled      = 0;
     this.executionCount   = 0;
     this.bailedOut        = false;    // Set if a fragment bailed out.
@@ -56,10 +40,10 @@ export class Fragment {
   invalidate(preserveCompiled = false) {
     // Remove all memberships together: a full I-cache sweep should visit a
     // trace only once, even if it spans several lines or repeats instructions.
-    for (const entry of this.cacheEntries) {
-      entry.delete(this);
+    for (const bucket of this.cacheBuckets) {
+      bucket.delete(this);
     }
-    this.cacheEntries.clear();
+    this.cacheBuckets.clear();
     this.generation++;
     if (performanceProfile.enabled) {
       performanceProfile.counters.fragmentInvalidations++;
@@ -103,9 +87,9 @@ export class Fragment {
   }
 
   trackInstruction(pc) {
-    const entry = cacheEntry(pc);
-    entry.add(this);
-    this.cacheEntries.add(entry);
+    const bucket = this.fragmentCache.cacheLineBucket(pc);
+    bucket.add(this);
+    this.cacheBuckets.add(bucket);
   }
 
   trackInstructions() {
@@ -144,7 +128,7 @@ export class Fragment {
     // }
     if (!nextFragment || nextFragment.entryPC !== pc) {
       // If not jump to self, look up and cache for next time around.
-      nextFragment = (pc === this.entryPC) ? this : lookupFragment(pc);
+      nextFragment = (pc === this.entryPC) ? this : this.fragmentCache.lookupFragment(pc);
       this.nextFragments[opsExecuted] = nextFragment;
     }
     // Invalidate the fragment if it's not finished being compiled.
@@ -157,69 +141,69 @@ export class Fragment {
   }
 }
 
-export function resetFragments() {
-  hitCounts = new Map();
-  fragmentMap = new Map();
-  cacheEntries = Array.from({ length: kInstructionCacheLines }, () => new Set());
-}
-
-// Index Invalidate uses VA[13:5], regardless of tag. Keep those 512 buckets
-// directly instead of scanning 32 larger-address-space buckets per CACHE.
-export function invalidateFragmentIndex(address) {
-  for (const fragment of cacheEntry(address)) {
-    fragment.invalidate(true);
+/** Owns the CPU fragment cache for one Hardware instance. */
+export class FragmentCache {
+  constructor() {
+    this.reset();
   }
-}
 
-export function invalidateFragmentEntry(address) {
-  const line = address >>> 5;
-  for (const fragment of cacheEntry(address)) {
-    // Traces can branch between nonadjacent lines; min/max alone includes
-    // holes. Match an actual instruction line, not another tag at this index.
-    if (fragment.instructionPCs.some(pc => (pc >>> 5) === line)) {
+  reset() {
+    this.hitCounts = new Map();
+    this.fragments = new Map();
+    this.cacheLineBuckets = Array.from({ length: kInstructionCacheLines }, () => new Set());
+  }
+
+  cacheLineBucket(address) {
+    return this.cacheLineBuckets[(address >>> 5) & (kInstructionCacheLines - 1)];
+  }
+
+  // Index Invalidate uses VA[13:5], regardless of tag. Keep those 512 buckets
+  // directly instead of scanning 32 larger-address-space buckets per CACHE.
+  invalidateIndex(address) {
+    for (const fragment of this.cacheLineBucket(address)) {
       fragment.invalidate(true);
     }
   }
-}
 
-/**
- * Returns the fragment map.
- * @return {!Map<number, !Fragment>}
- */
-export function getFragmentMap() {
-  return fragmentMap;
-}
-
-/**
- * Looks up the fragment for the given PC.
- * @param {number} pc
- * @return {?Fragment}
- */
-export function lookupFragment(pc) {
-  let fragment = fragmentMap.get(pc);
-  if (fragment) {
-    // If we failed to complete the fragment for any reason, reset it
-    if (fragment.opsCompiled > 0 && !fragment.func && !fragment.cachedFunc) {
-      // console.log(`fragment ${toString32(fragment.entryPC)} partially compiled ${fragment.opsCompiled} ops, invalidating and starting over`);
-      fragment.invalidate();
+  invalidateEntry(address) {
+    const line = address >>> 5;
+    for (const fragment of this.cacheLineBucket(address)) {
+      // Traces can branch between nonadjacent lines; min/max alone includes
+      // holes. Match an actual instruction line, not another tag at this index.
+      if (fragment.instructionPCs.some(pc => (pc >>> 5) === line)) {
+        fragment.invalidate(true);
+      }
     }
+  }
+
+  /**
+   * Looks up the fragment for the given PC.
+   * @param {number} pc
+   * @return {?Fragment}
+   */
+  lookupFragment(pc) {
+    let fragment = this.fragments.get(pc);
+    if (fragment) {
+      // If we failed to complete the fragment for any reason, reset it.
+      if (fragment.opsCompiled > 0 && !fragment.func && !fragment.cachedFunc) {
+        fragment.invalidate();
+      }
+      return fragment;
+    }
+
+    if (!debugOptions.enableDynarec) {
+      return null;
+    }
+
+    // Check if this pc is hot enough yet.
+    const hits = (this.hitCounts.get(pc) || 0) + 1;
+    this.hitCounts.set(pc, hits);
+    if (hits < kHotFragmentThreshold) {
+      return null;
+    }
+
+    fragment = new Fragment(pc, this);
+    this.fragments.set(pc, fragment);
     return fragment;
   }
-
-  if (!debugOptions.enableDynarec) {
-    return null;
-  }
-
-  // Check if this pc is hot enough yet
-  let hc = hitCounts.get(pc) || 0;
-  hc++;
-  hitCounts.set(pc, hc);
-
-  if (hc < kHotFragmentThreshold) {
-    return null;
-  }
-
-  fragment = new Fragment(pc);
-  fragmentMap.set(pc, fragment);
-  return fragment;
 }

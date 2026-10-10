@@ -1,5 +1,6 @@
 /*global n64js*/
 
+import { FragmentCache } from './cpu/fragments.js';
 import { CPU1 } from './cpu/cpu1.js';
 import { AIRegDevice } from './devices/ai.js';
 import { DPCDevice } from './devices/dpc.js';
@@ -178,6 +179,7 @@ export class Hardware {
     ];
     this.memMap = new MemoryMap(this.devices);
 
+    this.fragmentCache = new FragmentCache();
     this.cpu0 = new CPU0(this);
     this.cpu1 = new CPU1(this);
     this.cpu2 = new CPU2(this);

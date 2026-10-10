@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { createHeadlessEmulator } from '../headless/headless_env.js';
-import { getFragmentMap, Fragment } from './fragments.js';
+import { Fragment } from './fragments.js';
 import { FragmentContext, generateCodeForOp } from './recompiler.js';
 
 async function fixture() {
@@ -19,7 +19,7 @@ function train(e, pc) {
   c.setRegS32Extend(31, pc);
   c.pc = pc;
   c.run(12000);
-  const fragment = getFragmentMap().get(pc);
+  const fragment = e.hardware.fragmentCache.fragments.get(pc);
   expect(fragment?.executionCount).toBeGreaterThan(0);
   return fragment;
 }
@@ -55,7 +55,7 @@ for (const compiled of [false, true]) {
       c.setRegS32Extend(4, 0x12345678);
       c.pc = pc;
       c.run(12000);
-      expect(getFragmentMap().get(pc)?.executionCount).toBeGreaterThan(0);
+      expect(e.hardware.fragmentCache.fragments.get(pc)?.executionCount).toBeGreaterThan(0);
       expect(h.ram.getU32(0x3000)).toBe(0x12345678);
 
       h.ram.set32(0x11a860, 0x305907f0); // ANDI t9,v0,0x7f0
@@ -64,7 +64,7 @@ for (const compiled of [false, true]) {
       h.ram.set32(0x3000, 0xfeedface);
       c.setRegS32Extend(2, 0); // Not taken: annul the likely branch's store.
       cache(e, compiled, 0, 0x80002860);
-      expect(getFragmentMap().get(pc).func).toBeUndefined();
+      expect(e.hardware.fragmentCache.fragments.get(pc).func).toBeUndefined();
       c.pc = pc;
       const count = c.controlCountValue;
       c.run(2);
@@ -80,7 +80,7 @@ for (const compiled of [false, true]) {
       const old = train(e, pc);
       const otherTag = train(e, pc + 0x4000);
       const otherIndex = train(e, pc + 0x20);
-      const caller = new Fragment(0x80002000);
+      const caller = new Fragment(0x80002000, e.hardware.fragmentCache);
       caller.nextFragments[2] = old;
       e.hardware.ram.set32((pc & 0x7fffff) + 4, 0x25080002); // replacement overlay
 
