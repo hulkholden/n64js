@@ -121,7 +121,10 @@ export class Fragment {
    * @return {?Fragment}
    */
   getNextFragment(pc, opsExecuted) {
-    let nextFragment = this.nextFragments[opsExecuted];
+    // An idle executor can complete many loop iterations in one dispatch.
+    // Bound the successor cache by trace length, not by the event countdown.
+    const exitIndex = Math.min(opsExecuted, this.opsCompiled);
+    let nextFragment = this.nextFragments[exitIndex];
     // TODO: why can this change? Is it due to branches taken/not taken? Should improve cache?
     // if (nextFragment && nextFragment.entryPC !== pc) {
     //   throw 'next fragment has broken entryPC?'
@@ -129,7 +132,7 @@ export class Fragment {
     if (!nextFragment || nextFragment.entryPC !== pc) {
       // If not jump to self, look up and cache for next time around.
       nextFragment = (pc === this.entryPC) ? this : this.fragmentCache.lookupFragment(pc);
-      this.nextFragments[opsExecuted] = nextFragment;
+      this.nextFragments[exitIndex] = nextFragment;
     }
     // Invalidate the fragment if it's not finished being compiled.
     // This is to ensure we only append instructions to fragments being traced.
