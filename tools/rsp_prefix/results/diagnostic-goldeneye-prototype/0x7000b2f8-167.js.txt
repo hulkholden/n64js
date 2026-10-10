@@ -1,0 +1,150 @@
+
+  return function fragment_0x7000b2f8_9() {
+  
+  if (rsp.halted && !c.stuffToDo) {
+// BNE       a1 != a3 --> 7000b2d0
+{
+  c.fragmentOps = 0;
+  if (c.delayPC !== null) { c.nextPC = c.delayPC; c.delayPC = null; } else { c.nextPC = 0x7000b2fc; }
+  if ((c.gprU32[10] !== c.gprU32[14] || c.gprU32[11] !== c.gprU32[15])) {
+    c.delayPC = 0x7000b2d0;
+  } else {
+    c.delayPC = 0x7000b300;
+  }
+  c.pc = c.nextPC;
+  if (c.pc !== 0x7000b2fc) { return 1; }
+}
+
+// ADDIU     a0 = a0 + 0x0046
+{
+  c.execADDIU(4, 4, 70);
+  if (c.delayPC !== null) { c.pc = c.delayPC; c.delayPC = null; } else { c.pc = 0x7000b300; }
+  if (c.pc !== 0x7000b2d0) { return 2; }
+}
+
+} else {
+rsp.step();
+if (c.stuffToDo) { c.pc = 1879094008; return 0; }
+
+// BNE       a1 != a3 --> 7000b2d0
+{
+  c.fragmentOps = 0;
+  if (c.delayPC !== null) { c.nextPC = c.delayPC; c.delayPC = null; } else { c.nextPC = 0x7000b2fc; }
+  if ((c.gprU32[10] !== c.gprU32[14] || c.gprU32[11] !== c.gprU32[15])) {
+    c.delayPC = 0x7000b2d0;
+  } else {
+    c.delayPC = 0x7000b300;
+  }
+  c.pc = c.nextPC;
+  if (c.pc !== 0x7000b2fc) { return 1; }
+}
+
+// Keep going: ops 1, pc: 0x7000b2fc, entry+4: 0x7000b2fc, stuff: 0
+rsp.step();
+if (c.stuffToDo) { c.pc = 1879094012; return 1; }
+
+// ADDIU     a0 = a0 + 0x0046
+{
+  c.execADDIU(4, 4, 70);
+  if (c.delayPC !== null) { c.pc = c.delayPC; c.delayPC = null; } else { c.pc = 0x7000b300; }
+  if (c.pc !== 0x7000b2d0) { return 2; }
+}
+
+}
+// Keep going: ops 2, pc: 0x7000b2d0, entry+4: 0x7000b300, stuff: 0
+rsp.step();
+if (c.stuffToDo) { c.pc = 1879093968; return 2; }
+
+// LBU       v0 <- [a0+0x0000]
+{
+  c.fragmentOps = 2;
+  c.nextPC = 0x7000b2d4;
+  c.execLBU(2, 4, 0);
+  c.pc = c.nextPC;
+  c.delayPC = null;
+  if (c.stuffToDo) { return 3; }
+}
+
+// Keep going: ops 3, pc: 0x7000b2d4, entry+4: 0x7000b2d4, stuff: 0
+rsp.step();
+if (c.stuffToDo) { c.pc = 1879093972; return 3; }
+
+// ADDIU     a1 = a1 + 0x0046
+{
+  c.execADDIU(5, 5, 70);
+  // Delaying pc update
+}
+
+// Keep going: ops 4, pc: 0x7000b2d8, entry+4: 0x7000b2d8, stuff: 0
+rsp.step();
+if (c.stuffToDo) { c.pc = 1879093976; return 4; }
+
+// Applying delayed pc
+c.pc = 0x7000b2d8;
+// LBU       v1 <- [a0+0x0001]
+{
+  c.fragmentOps = 4;
+  c.nextPC = 0x7000b2dc;
+  c.execLBU(3, 4, 1);
+  c.pc = c.nextPC;
+  c.delayPC = null;
+  if (c.stuffToDo) { return 5; }
+}
+
+// Keep going: ops 5, pc: 0x7000b2dc, entry+4: 0x7000b2dc, stuff: 0
+rsp.step();
+if (c.stuffToDo) { c.pc = 1879093980; return 5; }
+
+// BEQ       v0 == r0 --> 7000b2f8
+{
+  c.fragmentOps = 5;
+  if (c.getRegU32Lo(2) === 0) {
+    c.delayPC = 0x7000b2f8;
+  } else {
+    c.delayPC = 0x7000b2e4;
+  }
+  c.pc = 0x7000b2e0;
+  // Skipping pc test
+}
+
+// Keep going: ops 6, pc: 0x7000b2e0, entry+4: 0x7000b2e0, stuff: 0
+rsp.step();
+if (c.stuffToDo) { c.pc = 1879093984; return 6; }
+
+// NOP
+{
+  // NOP
+  if (c.delayPC !== null) { c.pc = c.delayPC; c.delayPC = null; } else { c.pc = 0x7000b2e4; }
+  if (c.pc !== 0x7000b2f8) { return 7; }
+}
+
+// Keep going: ops 7, pc: 0x7000b2f8, entry+4: 0x7000b2e4, stuff: 0
+rsp.step();
+if (c.stuffToDo) { c.pc = 1879094008; return 7; }
+
+// BNE       a1 != a3 --> 7000b2d0
+{
+  c.fragmentOps = 7;
+  if ((c.gprU32[10] !== c.gprU32[14] || c.gprU32[11] !== c.gprU32[15])) {
+    c.delayPC = 0x7000b2d0;
+  } else {
+    c.delayPC = 0x7000b300;
+  }
+  c.pc = 0x7000b2fc;
+  // Skipping pc test
+}
+
+// Keep going: ops 8, pc: 0x7000b2fc, entry+4: 0x7000b2fc, stuff: 0
+rsp.step();
+if (c.stuffToDo) { c.pc = 1879094012; return 8; }
+
+// ADDIU     a0 = a0 + 0x0046
+{
+  c.execADDIU(4, 4, 70);
+  if (c.delayPC !== null) { c.pc = c.delayPC; c.delayPC = null; } else { c.pc = 0x7000b300; }
+  if (c.pc !== 0x7000b2d0) { return 9; }
+}
+
+return 9;
+
+}
