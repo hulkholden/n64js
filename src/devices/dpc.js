@@ -129,6 +129,7 @@ export class DPCDevice extends Device {
     if ((this.statusReg & dpc.DPC_STATUS_FREEZE) || this.currentReg === this.endReg) { return; }
     let rdpBuf
     if (this.xbusDmemDMA) {
+      this.hardware.rsp.synchronizeAudioHLE();
       const dv = this.hardware.sp_mem.subRegion(0x0000, 0x1000).dataView;
       rdpBuf = new RDPBuffer(dv, this.currentReg, this.endReg, 0xfff);
     } else {

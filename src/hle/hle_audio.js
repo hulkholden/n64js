@@ -11,9 +11,10 @@ import { BanjoAudio } from './audio_banjo.js';
 import { DonkeyKongAudio } from './audio_donkey_kong.js';
 import { TetrisphereAudio } from './audio_tetrisphere.js';
 import { GoldenEyeAudio } from './audio_goldeneye.js';
+import { GoldenEyeAudioStream } from './audio_goldeneye_stream.js';
 import { DiddyBlastAudio } from './audio_diddy_blast.js';
 import { TASK_OFFSET, TASK_SIZE, TASK_ADDRESS_MASK, TaskOffsets } from './rsp_task_constants.js';
-import { SP_DMEM_SIZE, SP_IMEM_OFFSET, SP_SEMAPHORE_REG, SP_STATUS_REG, SP_STATUS_SIG0 } from '../devices/sp_constants.js';
+import { SP_DMEM_SIZE, SP_IMEM_OFFSET, SP_SEMAPHORE_REG, SP_STATUS_REG, SP_STATUS_SIG0, SP_STATUS_SSTEP } from '../devices/sp_constants.js';
 import { DPC_STATUS_DMA_BUSY, DPC_STATUS_XBUS_DMEM_DMA } from '../devices/dpc_constants.js';
 import * as logger from '../logger.js';
 import { toHex } from '../format.js';
@@ -121,7 +122,7 @@ function logAudioTask(state, identity, requestedMode, handled) {
 
   // Track each execution path separately for a given microcode.
   const piFallback = requestedMode === 'HLE' && state.piStreaming;
-  const bit = requestedMode === 'Disabled' ? 8 : handled ? 1 : requestedMode === 'HLE' ? (piFallback ? 16 : 4) : 2;
+  const bit = state.streamed ? 32 : requestedMode === 'Disabled' ? 8 : handled ? 1 : requestedMode === 'HLE' ? (piFallback ? 16 : 4) : 2;
   const seen = state.logged.get(key) ?? 0;
   if (seen & bit) {
     return;
@@ -132,8 +133,8 @@ function logAudioTask(state, identity, requestedMode, handled) {
   const description = identity.identity
     ? `${identity.identity} (${identity.family})`
     : `Unknown (code hash ${toHex(key, 32)})`;
-  const mode = requestedMode === 'Disabled' ? 'Disabled' : handled ? 'HLE' : 'LLE';
-  const fallback = requestedMode === 'HLE' && !handled
+  const mode = state.streamed ? 'HLE DSP / LLE DMA' : requestedMode === 'Disabled' ? 'Disabled' : handled ? 'HLE' : 'LLE';
+  const fallback = requestedMode === 'HLE' && !handled && !state.streamed
     ? (piFallback ? ' (HLE fallback: PI DMA activity)' : ' (HLE fallback)') : '';
   logger.log(`RSP audio microcode ${description}: ${mode}${fallback}`);
 }
@@ -157,6 +158,13 @@ export function dispatchAudioTask(hardware, mode) {
 
   // Disabled skips execution; a false result hands the task back to LLE.
   const handled = mode === 'Disabled' || (mode === 'HLE' && executeAudioTask(hardware, state, identity));
+  state.streamed = false;
+  if (!handled && mode === 'HLE' && state.piStreaming && identity.identity === 'abi1-goldeneye-mixer'
+      && hardware.rsp.pc === 0 && hardware.rsp.delayPC === 0
+      && !(hardware.spRegDevice.readRegU32(SP_STATUS_REG) & SP_STATUS_SSTEP)) {
+    hardware.rsp.setAudioHLE(new GoldenEyeAudioStream(hardware.rsp, state.raw.code));
+    state.streamed = true;
+  }
   logAudioTask(state, identity, mode, handled);
   return handled;
 }

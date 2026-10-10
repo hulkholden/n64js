@@ -60,6 +60,23 @@ export class SPMemDevice extends Device {
     return (address - this.rangeStart) % 0x2000;
   }
 
+  calcInternalEA(address) {
+    this.hardware.rsp.synchronizeAudioHLE();
+    this.hardware.rsp.setAudioHLE(null);
+    return this.calcEA(address);
+  }
+
+  calcReadEA(address) {
+    this.hardware.rsp.synchronizeAudioHLE();
+    return this.calcEA(address);
+  }
+
+  calcWriteEA(address) {
+    this.hardware.rsp.synchronizeAudioHLE();
+    this.hardware.rsp.setAudioHLE(null);
+    return this.calcEA(address);
+  }
+
   write64(address, value) {
     // SD is broken - only the upper 32 bits are written.
     const ea = this.calcWriteEA(address);
@@ -88,6 +105,23 @@ export class SPMemDevice extends Device {
 export class SPIBISTDevice extends Device {
   constructor(hardware, rangeStart, rangeEnd) {
     super("SPIBIST", hardware, hardware.sp_ibist_mem, rangeStart, rangeEnd);
+  }
+
+  calcReadEA(address) {
+    this.hardware.rsp.synchronizeAudioHLE();
+    return this.calcEA(address);
+  }
+
+  calcInternalEA(address) {
+    this.hardware.rsp.synchronizeAudioHLE();
+    this.hardware.rsp.setAudioHLE(null);
+    return this.calcEA(address);
+  }
+
+  calcWriteEA(address) {
+    this.hardware.rsp.synchronizeAudioHLE();
+    this.hardware.rsp.setAudioHLE(null);
+    return this.calcEA(address);
   }
 
   write32(address, value) {
@@ -130,9 +164,12 @@ export class SPRegDevice extends Device {
 
     this.dmaQueue = [];
     this.hleTask = null;
+    this.imemGeneration = 0;
   }
 
   reset() {
+    this.hardware.rsp?.setAudioHLE(null);
+    this.imemGeneration++;
     this.hleTask = null;
     this.hardware.cpu0.removeEvent(kHLETaskEvent);
   }
@@ -218,6 +255,10 @@ export class SPRegDevice extends Device {
   }
 
   spUpdateStatus(flags) {
+    if (flags & (sp.SP_SET_HALT | sp.SP_SET_SSTEP)) {
+      this.hardware.rsp.synchronizeAudioHLE();
+      this.hardware.rsp.setAudioHLE(null);
+    }
     if (!this.quiet) {
       if (flags & sp.SP_CLR_HALT) { logger.log('SP: Clearing Halt'); }
       if (flags & sp.SP_SET_HALT) { logger.log('SP: Setting Halt'); }
@@ -325,6 +366,10 @@ export class SPRegDevice extends Device {
   }
 
   startDMA(dma) {
+    this.hardware.rsp.synchronizeAudioHLE();
+    if (dma.isRead && (dma.spMemAddr & memAddrBankBit)) {
+      this.imemGeneration++;
+    }
     if (dma.isRead) {
       this.spCopyFromRDRAM(dma.spMemAddr, dma.rdRamAddr, dma.len);
     } else {
