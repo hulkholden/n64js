@@ -30,6 +30,8 @@ const pcWritableBits = 0xffc;
 const kSPDMAEvent = 'SP DMA';
 const kHLETaskEvent = 'HLE graphics wait';
 // Poll in emulated time so CPU producers and inventory cycle limits can run.
+// Also supplies a nominal latency for otherwise synchronous HLE graphics tasks;
+// this is a scheduling approximation, not an RSP instruction timing model.
 const hleWaitCycles = 1000;
 
 // Used with pushDMA to indicate the direction of the DMA.
