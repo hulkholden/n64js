@@ -4,7 +4,7 @@ import { createHeadlessEmulator } from '../headless/headless_env.js';
 import { PI_CART_ADDR_REG, PI_DRAM_ADDR_REG, PI_WR_LEN_REG, PI_STATUS_REG, PI_STATUS_CLR_INTR } from '../devices/pi.js';
 import { SP_IMEM_OFFSET } from '../devices/sp_constants.js';
 import { audioMicrocodeManifest } from './audio_microcode_manifest.js';
-import { classifyAudioTask, hleProcessAudioTask } from './hle_audio.js';
+import { classifyAudioTask, dispatchAudioTask, hleProcessAudioTask } from './hle_audio.js';
 import { TASK_OFFSET, TASK_SIZE, TaskOffsets } from './rsp_task_constants.js';
 
 const PI_BASE = 0xa4600000;
@@ -26,7 +26,7 @@ const OP_LOAD_BUFFER = 0x04000000;
 const OP_SAVE_BUFFER = 0x06000000;
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 
-async function fixture() {
+async function fixture(identity = 'abi1-standard-mixer') {
   const romBuffer = new ArrayBuffer(ROM_BYTES);
   new DataView(romBuffer).setUint32(0, ROM_HEADER);
   new Uint8Array(romBuffer).fill(0x37, ROM_SAMPLE, ROM_SAMPLE + SAMPLE_BYTES);
@@ -51,10 +51,10 @@ async function fixture() {
   const { bootstraps, programs } = audioMicrocodeManifest;
   try {
     audioMicrocodeManifest.bootstraps = [{ id: 'test-bootstrap', bytes: 4, sha256: hash(h.sp_mem.u8.subarray(SP_IMEM_OFFSET, SP_IMEM_OFFSET + 4)) }];
-    audioMicrocodeManifest.programs = [{ id: 'abi1-standard-mixer', family: 'ABI1',
+    audioMicrocodeManifest.programs = [{ id: identity, family: 'ABI1',
       codeBytes: 4, codeSha256: hash(h.ram.u8.subarray(CODE, CODE + 4)),
       dataBytes: CONSTANT_BYTES, dataSha256: hash(h.ram.u8.subarray(CONSTANTS, CONSTANTS + CONSTANT_BYTES)) }];
-    expect(classifyAudioTask(h).identity).toBe('abi1-standard-mixer');
+    expect(classifyAudioTask(h).identity).toBe(identity);
   } finally {
     audioMicrocodeManifest.bootstraps = bootstraps;
     audioMicrocodeManifest.programs = programs;
@@ -91,6 +91,36 @@ function expectUntouchedFallback(h) {
 }
 
 describe('audio HLE during PI sample streaming', () => {
+  test('GoldenEye streams during active DMA and idle gaps, then retains synchronous HLE after a quiet interval', async () => {
+    const emulator = await fixture('abi1-goldeneye-mixer'), h = emulator.hardware;
+    for (const idle of [false, true]) {
+      startDMA(h);
+      if (idle) {
+        finishDMA(emulator);
+      }
+      const ram = h.ram.u8.slice(), sp = h.sp_mem.u8.slice();
+      expect(dispatchAudioTask(h, 'HLE')).toBe(false); // The real RSP still owns task completion.
+      expect(h.rsp.audioHLE).not.toBeNull();
+      expect(h.ram.u8).toEqual(ram);
+      expect(h.sp_mem.u8).toEqual(sp);
+      h.rsp.setAudioHLE(null);
+      if (!idle) {
+        finishDMA(emulator);
+      }
+    }
+    expect(dispatchAudioTask(h, 'HLE')).toBe(true);
+    expect(h.rsp.audioHLE).toBeNull();
+  });
+
+  test('other microcodes and explicit LLE retain the streaming fallback', async () => {
+    for (const identity of ['abi1-standard-mixer', 'abi1-goldeneye-mixer']) {
+      const { hardware: h } = await fixture(identity);
+      startDMA(h);
+      expect(dispatchAudioTask(h, identity === 'abi1-standard-mixer' ? 'HLE' : 'LLE')).toBe(false);
+      expect(h.rsp.audioHLE).toBeNull();
+    }
+  });
+
   test('active DMA falls back without modifying the task or memory', async () => {
     const { hardware: h } = await fixture();
     startDMA(h);

@@ -12,6 +12,8 @@ const counterNames = [
   'speedHackActivations',
   'speedHackSkippedCycles',
   'rspInstructions',
+  'rspAudioHLEBlocks',
+  'rspAudioHLECycles',
   'rspTasks',
 ];
 

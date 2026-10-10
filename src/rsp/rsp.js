@@ -117,6 +117,8 @@ export class RSP {
   }
 
   reset() {
+    this.audioHLE = null;
+    this.setPerformanceProfiling(performanceProfile.enabled);
     this.halted = true;
     this.runEvent = null;
 
@@ -471,10 +473,40 @@ export class RSP {
   }
 
   setPerformanceProfiling(enabled) {
-    if (enabled) {
+    if (this.audioHLE) {
+      this.step = this.stepAudioHLE;
+    } else if (enabled) {
       this.step = this.stepProfiled;
-    } else if (Object.hasOwn(this, 'step')) {
-      delete this.step;
+    } else {
+      // Keep the instance shape stable when streaming tasks enter/leave HLE.
+      // Repeatedly adding/deleting step makes every RSP field access slower.
+      this.step = RSP.prototype.step;
+    }
+  }
+
+  setAudioHLE(executor) {
+    if (this.audioHLE === executor) {
+      return;
+    }
+    this.audioHLE = executor;
+    this.setPerformanceProfiling(performanceProfile.enabled);
+  }
+
+  // Make a deferred local DSP block visible before another bus master or the
+  // debugger observes/changes SP memory or execution state. Resume at the exact
+  // instruction reached so far, never at the beginning of the audio task.
+  synchronizeAudioHLE() {
+    this.audioHLE?.synchronize();
+  }
+
+  stepAudioHLE() {
+    if (this.halted || this.audioHLE.step()) {
+      return;
+    }
+    if (performanceProfile.enabled) {
+      this.stepProfiled();
+    } else {
+      RSP.prototype.step.call(this);
     }
   }
 
@@ -508,6 +540,8 @@ export class RSP {
   }
 
   halt(statusBits) {
+    this.synchronizeAudioHLE();
+    this.setAudioHLE(null);
     this.hardware.spRegDevice.setStatusBits(statusBits | SP_STATUS_HALT);
     this.halted = true;
     if (this.runEvent) {

@@ -408,6 +408,7 @@ export class Debugger {
   }
 
   updateRSP() {
+    rsp.synchronizeAudioHLE();
     this.rspState.setPC(rsp.pc);
 
     // Figure out if we've just stepped by a single instruction. Ergh.
