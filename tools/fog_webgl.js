@@ -278,13 +278,13 @@ export function runF3DFLXTests(gl) {
   state.fogColor = 0xff0000ff;
   state.combine.hi = 0x00ffffff;
   state.combine.lo = (0xfffc7038 | (1 << 15) | (1 << 9) | (2 << 6) | 2) >>> 0;
-  const { texture } = createTestTexture(gl, 4, 1, [
+  const texture = testTexture(4, 1, [
     [0, 255, 0, 255], [0, 0, 255, 255], [0, 255, 0, 255], [0, 255, 0, 255],
   ]);
-  renderer.lookupTexture = () => ({ texture, width: 4, height: 1 });
   for (const tile of state.tiles.slice(0, 2)) {
     tile.set(gbi.ImageFormat.G_IM_FMT_RGBA, gbi.ImageSize.G_IM_SIZ_32b, 2, 0, 0, 2, 0, 0, 2, 0, 0);
     tile.setSize(0, 0, 12, 0);
+    loadTestTexture(state, tile, texture);
   }
   for (let i = 0; i < 256; i++) {
     ram.setUint8(0x100 + i, i);
