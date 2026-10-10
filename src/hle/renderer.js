@@ -3,6 +3,7 @@
 import { toString16 } from "../format.js";
 import { Vector2 } from "../graphics/Vector2.js";
 import * as gbi from './gbi.js';
+import * as rdp_blend from './rdp_blend_constants.js';
 import { CRTMode, graphicsOptions } from './graphics_options.js';
 import { RendererBase } from './renderer_base.js';
 import { RenderTargets } from './render_targets.js';
@@ -22,28 +23,6 @@ const kBlendModeOpaque = 1;
 const kBlendModeAlphaTrans = 2;
 const kBlendModeFade = 3;
 const kBlendModeConstantFog = 4;
-
-// RDP selector encodings, distinct from the GL blend strategies above.
-// G_BL_CLR_IN * G_BL_A_IN + G_BL_CLR_IN * G_BL_1MA.
-const kRDPBlendIncomingColorWithItself = 0x0000;
-// G_BL_CLR_IN * G_BL_0 + G_BL_CLR_IN * G_BL_1.
-const kRDPBlendIncomingColorPassThrough = 0x0302;
-// G_BL_CLR_FOG * G_BL_A_SHADE + G_BL_CLR_IN * G_BL_1MA.
-const kRDPBlendFogColorWithShadeAlpha = 0x3200;
-// G_BL_CLR_IN * G_BL_A_SHADE + G_BL_CLR_FOG * G_BL_1MA.
-const kRDPBlendIncomingColorWithShadeAlpha = 0x0230;
-// G_BL_CLR_IN * G_BL_A_IN + G_BL_CLR_MEM * G_BL_1MA.
-const kRDPBlendIncomingColorWithSourceAlpha = 0x0010;
-// G_BL_CLR_IN * G_BL_A_IN + G_BL_CLR_MEM * G_BL_A_MEM.
-const kRDPBlendIncomingColorWithMemoryAlpha = 0x0011;
-// G_BL_CLR_IN * G_BL_A_FOG + G_BL_CLR_MEM * G_BL_1MA.
-const kRDPBlendIncomingColorWithFogAlpha = 0x0110;
-// G_BL_CLR_FOG * G_BL_A_FOG + G_BL_CLR_MEM * G_BL_1MA.
-const kRDPBlendFogColorWithFramebuffer = 0x3110;
-// G_BL_CLR_IN * G_BL_0 + G_BL_CLR_MEM * G_BL_1MA.
-const kRDPBlendZeroIncomingWithFramebuffer = 0x0310;
-// G_BL_CLR_MEM * G_BL_0 + G_BL_CLR_MEM * G_BL_1MA.
-const kRDPBlendZeroFramebufferWithFramebuffer = 0x1310;
 
 // Map to keep track of which unimplemented blend modes we've already warned about.
 const loggedBlendModes = new Map();
@@ -673,7 +652,7 @@ export class Renderer extends RendererBase {
   }
 
   usesConstantFogColor() {
-    return this.getConstantFogBlendMode() === kRDPBlendFogColorWithFramebuffer;
+    return this.getConstantFogBlendMode() === rdp_blend.kFogColorWithFramebuffer;
   }
 
   // Limit constant-register framebuffer blending to forced, non-coverage draws.
@@ -691,7 +670,7 @@ export class Renderer extends RendererBase {
     }
     const blender = otherMode >>> gbi.G_MDSFT_BLENDER;
     const mode = (cycle === gbi.CycleType.G_CYC_2CYCLE ? blender : blender >>> 2) & 0x3333;
-    return mode === kRDPBlendIncomingColorWithFogAlpha || mode === kRDPBlendFogColorWithFramebuffer ? mode : 0;
+    return mode === rdp_blend.kIncomingColorWithFogAlpha || mode === rdp_blend.kFogColorWithFramebuffer ? mode : 0;
   }
 
   setGLBlendMode() {
@@ -714,17 +693,17 @@ export class Renderer extends RendererBase {
 
     let mode = kBlendModeUnknown;
     switch (activeBlendMode) {
-      case kRDPBlendIncomingColorWithItself:
-      case kRDPBlendIncomingColorPassThrough:
-      case kRDPBlendFogColorWithShadeAlpha:
-      case kRDPBlendIncomingColorWithShadeAlpha:
+      case rdp_blend.kIncomingColorWithItself:
+      case rdp_blend.kIncomingColorPassThrough:
+      case rdp_blend.kFogColorWithShadeAlpha:
+      case rdp_blend.kIncomingColorWithShadeAlpha:
         // Shade-alpha fog mixes with the incoming colour in the shader;
         // neither input is the framebuffer, so no GL blend is needed.
         mode = kBlendModeOpaque;
         break;
 
-      case kRDPBlendIncomingColorWithSourceAlpha:
-      case kRDPBlendIncomingColorWithMemoryAlpha:
+      case rdp_blend.kIncomingColorWithSourceAlpha:
+      case rdp_blend.kIncomingColorWithMemoryAlpha:
         // These modes either do a weighted sum of coverage (or coverage and alpha) or a plain alpha blend
         // If alphaCvgSel is 0, or if we're multiplying by fragment alpha, then we have alpha to blend with.
         if (!alphaCvgSel || cvgXAlpha) {
@@ -737,13 +716,13 @@ export class Renderer extends RendererBase {
         }
         break;
 
-      case kRDPBlendIncomingColorWithFogAlpha:
-      case kRDPBlendFogColorWithFramebuffer:
+      case rdp_blend.kIncomingColorWithFogAlpha:
+      case rdp_blend.kFogColorWithFramebuffer:
         mode = this.getConstantFogBlendMode() ? kBlendModeConstantFog : kBlendModeOpaque;
         break;
 
-      case kRDPBlendZeroIncomingWithFramebuffer:
-      case kRDPBlendZeroFramebufferWithFramebuffer:
+      case rdp_blend.kZeroIncomingWithFramebuffer:
+      case rdp_blend.kZeroFramebufferWithFramebuffer:
         mode = kBlendModeFade;
         break;
     }
