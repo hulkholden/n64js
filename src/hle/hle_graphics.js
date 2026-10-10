@@ -11,6 +11,7 @@ import { graphicsOptions } from './graphics_options.js';
 import { identifyMicrocode, MicrocodeId, microcodePrefixLength } from './microcode_identifier.js';
 import * as logger from '../logger.js';
 import { toString32 } from '../format.js';
+import { t3duxNeedsWriteback } from './t3dux.js';
 
 window.n64js = window.n64js || {};
 
@@ -42,6 +43,14 @@ export function dispatchGraphicsTask(hardware, mode, task) {
   // BOSS ZSort combines graphics/audio and CPU/RSP signal exchanges. Execute
   // its actual instructions and render the resulting RDP stream.
   if (mode !== 'HLE' || microcode.id === MicrocodeId.HVQM2 || microcode.id === MicrocodeId.ZSORT_BOSS) {
+    return false;
+  }
+
+  // T3DUX transform-only objects expose fixed-point results and adjacent DMEM
+  // through DMA. Run the whole task on the RSP to preserve those bytes, prior
+  // object state, and interleaved RDP output (see tools/t3dux_writeback.md).
+  if ((microcode.id === MicrocodeId.T3DUX || microcode.id === MicrocodeId.T3DUX_BRAVE) &&
+    t3duxNeedsWriteback(hardware.cachedMemDevice.mem.dataView, task.dataPtr)) {
     return false;
   }
 

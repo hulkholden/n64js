@@ -263,6 +263,68 @@ const unsupportedMicrocodes = [
 ];
 
 describe('headless graphics execution', () => {
+  for (const hash of [0x26da8a4c, 0xdd560323]) {
+    test.each([false, true])(`runs T3DUX ${hash.toString(16)} writeback tasks on the RSP (draws=%s)`, async executeGraphics => {
+      const loaded = [];
+      const emulator = await createEmulator({ executeGraphics, onMicrocodeLoad: info => loaded.push(info) });
+      const { hardware } = emulator;
+      // Synthetic base-17 digits identify the variant without including ROM code.
+      const code = new Uint8Array(8);
+      let remaining = hash;
+      for (let i = code.length - 1; i >= 0; i--) {
+        code[i] = remaining % 17;
+        remaining = Math.floor(remaining / 17);
+      }
+      prepareGraphicsTask(emulator, '', code);
+      setGraphicsCommands(emulator, [[0, 0x4000], [0, 0], [0, 0], [0, 0x4020], [0, 0x8000], [0, 0], [0, 0]]);
+      hardware.ram.u8[0x4029] = 4;
+      hardware.spRegDevice.write32(0xa4040000 + SP_STATUS_REG, SP_SET_INTR_BREAK);
+      // Stand-in for transformed vertices plus adjacent DMEM: count=3 writes
+      // 48 bytes, not merely the 24 bytes occupied by three packed vertices.
+      const output = Uint8Array.from({ length: 48 }, (_, i) => i * 3 + 1);
+      hardware.sp_mem.u8.set(output, 0x140);
+      hardware.ram.u8.fill(0xa5, 0x7ff8, 0x8038);
+      hardware.ram.set32(0x5000, 0xf7000000); // SetFillColor
+      hardware.ram.set32(0x5004, 0x12345678);
+      hardware.ram.set32(0x5008, 0xe9000000); // FullSync
+      const program = [
+        0x24080140, 0x40880000, // SP_MEM_ADDR = 0x140
+        0x34088000, 0x40880800, // SP_DRAM_ADDR = 0x8000
+        0x2408002f, 0x40881800, // SP_WR_LEN = 47
+        0x24085000, 0x40884000, // DPC_START = 0x5000
+        0x24085010, 0x40884800, // DPC_END = 0x5010
+        0x24080000 | SP_SET_SIG2, 0x40882000,
+        0x0000000d,
+      ];
+      program.forEach((word, i) => hardware.sp_mem.set32(0x1000 + i * 4, word));
+      startRSPTask(emulator);
+      expect(loaded).toEqual([]); // No partial HLE execution of the first object.
+      expect(hardware.rsp.halted).toBe(false);
+      expect(hardware.mi_reg.getU32(MI_INTR_REG) & (MI_INTR_SP | MI_INTR_DP)).toBe(0);
+      expect(hardware.ram.u8.slice(0x8000, 0x8030)).toEqual(new Uint8Array(48).fill(0xa5));
+      for (let i = 0; i < program.length; i++) {
+        hardware.rsp.step();
+      }
+      expect(hardware.ram.u8.slice(0x8000, 0x8030)).toEqual(output);
+      expect(hardware.ram.getU32(0x7ffc)).toBe(0xa5a5a5a5);
+      expect(hardware.ram.getU32(0x8030)).toBe(0xa5a5a5a5);
+      expect(hardware.rsp.halted).toBe(true);
+      const complete = SP_STATUS_TASKDONE | SP_STATUS_BROKE | SP_STATUS_HALT;
+      expect(hardware.sp_reg.getU32(SP_STATUS_REG) & complete).toBe(complete);
+      expect(hardware.mi_reg.getU32(MI_INTR_REG) & (MI_INTR_SP | MI_INTR_DP)).toBe(MI_INTR_SP | MI_INTR_DP);
+      if (executeGraphics) {
+        expect(hardware.graphics.state.fillColor).toBe(0x12345678);
+      }
+
+      // The next ordinary T3DUX task returns to HLE, even with the same hash.
+      hardware.ram.u8[0x4029] = 1;
+      hardware.ram.set32(0x402c, 0x5000);
+      startRSPTask(emulator);
+      expect(hardware.rsp.halted).toBe(true);
+      expect(loaded.map(info => info.hash)).toEqual(executeGraphics ? [hash] : []);
+    });
+  }
+
   test.each([false, true])('runs BOSS signal waits, DMA, RDP output and completion on the RSP (draws=%s)', async executeGraphics => {
     const seen = [];
     const loaded = [];

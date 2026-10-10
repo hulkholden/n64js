@@ -2,8 +2,9 @@ import { toString32 } from '../format.js';
 import { Matrix4x4 } from '../graphics/Matrix4x4.js';
 import { Vector3 } from '../graphics/Vector3.js';
 import * as gbi from './gbi.js';
-import { ObjectMicrocode } from './object_microcode.js';
+import { loadObjectSegments, ObjectMicrocode } from './object_microcode.js';
 import { ProjectedVertex } from './projected_vertex.js';
+import { resolveSegmentAddress } from './segments.js';
 
 const RENDER_STATE_TILE_MASK = 0x07;
 const RENDER_STATE_LEVEL_MASK = 0x38;
@@ -48,6 +49,28 @@ const SCREEN_XY_SCALE = 4;
 const SCREEN_Z_SCALE = 65536;
 const SCREEN_Z_MASK = 0x7fffffff;
 const TEXCOORD_SCALE = 32;
+
+// Select LLE before executing any part of a task that writes transformed DMEM
+// back to RAM. Later objects can consume the writeback, so switching after an
+// HLE object has run would lose the RSP's matrix, vertex and attribute state.
+export function t3duxNeedsWriteback(ramDV, pc) {
+  const segments = new Uint32Array(16);
+  while (pc) {
+    const global = ramDV.getUint32(pc);
+    const object = ramDV.getUint32(pc + 4);
+    if (!object) {
+      return false;
+    }
+    if (global) {
+      loadObjectSegments(ramDV, resolveSegmentAddress(segments, global), segments);
+    }
+    if (ramDV.getUint8(resolveSegmentAddress(segments, object) + 9) & MATRIX_FLAG_TRANSFORM_ONLY) {
+      return true;
+    }
+    pc += OBJECT_RECORD_BYTES;
+  }
+  return false;
+}
 
 // T3DUX records are six words: global, object, vertices, triangles, attributes,
 // and the attribute DMEM base. Vertices and triangles are each eight bytes.
