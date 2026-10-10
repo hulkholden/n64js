@@ -23,6 +23,9 @@ const kBlendModeAlphaTrans = 2;
 const kBlendModeFade = 3;
 const kBlendModeConstantFog = 4;
 
+// G_BL_CLR_FOG * G_BL_A_FOG + G_BL_CLR_MEM * G_BL_1MA.
+const kRDPBlendFogColorWithFramebuffer = 0x3110;
+
 // Map to keep track of which unimplemented blend modes we've already warned about.
 const loggedBlendModes = new Map();
 
@@ -611,7 +614,7 @@ export class Renderer extends RendererBase {
     const enableAlphaCvgKill = this.state.getAntiAliasEnabled() && this.state.getCoverageTimesAlpha();
 
     return shaders.getOrCreateN64Shader(this.gl, mux0, mux1, cycleType, alphaCompare, enableAlphaCvgKill,
-      noNearClipping, this.state.rdpOtherModeL >>> 16, this.getConstantFogBlendMode() === 0x3110);
+      noNearClipping, this.state.rdpOtherModeL >>> 16, this.usesConstantFogColor());
   }
 
   bindTile(tile, texGenEnabled, uniforms) {
@@ -650,6 +653,10 @@ export class Renderer extends RendererBase {
     return true;
   }
 
+  usesConstantFogColor() {
+    return this.getConstantFogBlendMode() === kRDPBlendFogColorWithFramebuffer;
+  }
+
   // Limit constant-register framebuffer blending to forced, non-coverage draws.
   // Keep this decision shared by shader RGB selection and fixed-function blending.
   getConstantFogBlendMode() {
@@ -665,7 +672,7 @@ export class Renderer extends RendererBase {
     }
     const blender = otherMode >>> gbi.G_MDSFT_BLENDER;
     const mode = (cycle === gbi.CycleType.G_CYC_2CYCLE ? blender : blender >>> 2) & 0x3333;
-    return mode === 0x0110 || mode === 0x3110 ? mode : 0;
+    return mode === 0x0110 || mode === kRDPBlendFogColorWithFramebuffer ? mode : 0;
   }
 
   setGLBlendMode() {
@@ -713,7 +720,7 @@ export class Renderer extends RendererBase {
         break;
 
       case 0x0110: // G_BL_CLR_IN, G_BL_A_FOG, G_BL_CLR_MEM, G_BL_1MA, alphaCvgSel:false cvgXAlpha:false
-      case 0x3110: // G_BL_CLR_FOG, G_BL_A_FOG, G_BL_CLR_MEM, G_BL_1MA
+      case kRDPBlendFogColorWithFramebuffer:
         mode = this.getConstantFogBlendMode() ? kBlendModeConstantFog : kBlendModeOpaque;
         break;
 
