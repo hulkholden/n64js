@@ -23,6 +23,8 @@ const kBlendModeAlphaTrans = 2;
 const kBlendModeFade = 3;
 const kBlendModeConstantFog = 4;
 
+// G_BL_CLR_IN * G_BL_A_FOG + G_BL_CLR_MEM * G_BL_1MA.
+const kRDPBlendIncomingColorWithFogAlpha = 0x0110;
 // G_BL_CLR_FOG * G_BL_A_FOG + G_BL_CLR_MEM * G_BL_1MA.
 const kRDPBlendFogColorWithFramebuffer = 0x3110;
 
@@ -672,7 +674,7 @@ export class Renderer extends RendererBase {
     }
     const blender = otherMode >>> gbi.G_MDSFT_BLENDER;
     const mode = (cycle === gbi.CycleType.G_CYC_2CYCLE ? blender : blender >>> 2) & 0x3333;
-    return mode === 0x0110 || mode === kRDPBlendFogColorWithFramebuffer ? mode : 0;
+    return mode === kRDPBlendIncomingColorWithFogAlpha || mode === kRDPBlendFogColorWithFramebuffer ? mode : 0;
   }
 
   setGLBlendMode() {
@@ -719,7 +721,7 @@ export class Renderer extends RendererBase {
         }
         break;
 
-      case 0x0110: // G_BL_CLR_IN, G_BL_A_FOG, G_BL_CLR_MEM, G_BL_1MA, alphaCvgSel:false cvgXAlpha:false
+      case kRDPBlendIncomingColorWithFogAlpha:
       case kRDPBlendFogColorWithFramebuffer:
         mode = this.getConstantFogBlendMode() ? kBlendModeConstantFog : kBlendModeOpaque;
         break;
