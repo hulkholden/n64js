@@ -246,13 +246,15 @@ export class RSP {
 
   setVecFromAccOddified(r) {
     for (let el = 0; el < 8; el++) {
-      this.setVecS16(r, el, saturateSigned(this.vAcc[el] >> 1n, 16n, 0x8000, 0x7fff) & 0xfff0);
+      const value = this.getAccHighMid(el) >> 1;
+      this.setVecS16(r, el, clampSigned(value) & 0xfff0);
     }
   }
 
   setVecFromAccUnsignedMid(r) {
     for (let el = 0; el < 8; el++) {
-      this.setVecS16(r, el, saturateUnsigned(this.vAcc[el], 16n, 0x0000, 0xffff));
+      const hi = this.vAccS32[el * 2 + 1], lo = this.vAccU32[el * 2];
+      this.setVecS16(r, el, hi < 0 ? 0 : (hi !== 0 || lo > 0x7fffffff) ? 0xffff : lo >>> 16);
     }
   }
 
@@ -313,10 +315,10 @@ export class RSP {
   vectorRound(vs, vt, vte, ifGTE) {
     const shift = (vs & 1) ? 16 : 0;
     for (let el = 0, select = this.vecSelectU32[vte]; el < 8; el++, select >>= 4) {
-      const acc = this.getAccS48(el);
-      const incr = this.getVecS16(vt, select & 0x7) << shift;
-      const cond = ifGTE ? (acc >= 0) : (acc < 0);
-      this.setAccS48(el, acc + (cond ? BigInt(incr) : 0n));
+      const negative = this.vAccS32[el * 2 + 1] < 0;
+      if (ifGTE ? !negative : negative) {
+        this.updateAccMid32(el, this.getVecS16(vt, select & 7) << shift, true);
+      }
     }
   }
 
@@ -892,37 +894,6 @@ function executeCTC2(i) {
   }
 }
 
-/**
- * Saturate a signed 48 bit accumulator value, treating the result as signed.
- * @param {BigInt} x 
- * @param {BigInt} shift Right shift to apply to the result.
- * @param {Number} negLimit Value to return on negative underflow
- * @param {Number} posLimit Value to return on positive underflow.
- * @returns {Number}
- */
-function saturateSigned(x, shift, negLimit, posLimit) {
-  if (x >= 0) {
-    return ((x & ~0x7fff_ffffn) != 0) ? posLimit : Number(x >> shift);
-  }
-  return ((~x & ~0x7fff_ffffn) != 0) ? negLimit : Number(x >> shift);
-}
-
-/**
- * Saturate a signed 48 bit accumulator value, treating the result as unsigned.
- * @param {BigInt} x 
- * @param {BigInt} shift Right shift to apply to the result.
- * @param {Number} negLimit Value to return on negative underflow
- * @param {Number} posLimit Value to return on positive underflow.
- * @returns {Number}
- */
-function saturateUnsigned(x, shift, negLimit, posLimit) {
-  if (x >= 0) {
-    return ((x & ~0x7fff_ffffn) != 0) ? posLimit : Number(x >> shift);
-  }
-  return negLimit;
-}
-
-// TODO: can this be implemented in terms of saturateSigned?
 function clampSigned(x) {
   if (x < -32768) {
     return -32768;
@@ -1058,8 +1029,8 @@ function executeVMULQ(i) {
   for (let el = 0, select = rsp.vecSelectU32[cop2E(i)]; el < 8; el++, select >>= 4) {
     const s = rsp.getVecS16(vs, el);
     const t = rsp.getVecS16(vt, select & 0x7);
-    const product = BigInt(s * t) << 16n;
-    rsp.setAccS48(el, product + (product < 0 ? 0x1f0000n : 0n));
+    const product = s * t;
+    rsp.updateAccHigh32(el, product + (product < 0 ? 31 : 0), false);
   }
   rsp.setVecFromAccOddified(cop2VD(i));
 }
@@ -1067,18 +1038,12 @@ function executeVMULQ(i) {
 // Vector Accumulator Oddification.
 function executeVMACQ(i) {
   for (let el = 0; el < 8; el++) {
-    // TODO: add a conditional inc?
-    const acc = rsp.getAccS48(el);
-    let incr = 0n;
-    if ((acc & 0x20_0000n) == 0) {
-      const upper = acc >> 22n;
-      if (upper < 0) {
-        incr = 0x20_0000n;
-      } else if (upper > 0) {
-        incr = -0x20_0000n;
+    if ((rsp.vAccU32[el * 2] & 0x200000) === 0) {
+      const upper = rsp.getAccHighMid(el) >> 6;
+      if (upper !== 0) {
+        rsp.updateAccMid32(el, upper < 0 ? 0x200000 : -0x200000, true);
       }
     }
-    rsp.setAccS48(el, acc + incr);
   }
   rsp.setVecFromAccOddified(cop2VD(i));
 }
