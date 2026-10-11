@@ -1,5 +1,5 @@
-import { audioMicrocodeManifest } from './audio_microcode_manifest.js';
-import { createMicrocodeHash } from './audio_microcode_hash.js';
+import { audioMicrocodeManifest } from './microcode_manifest.js';
+import { createMicrocodeHash } from './microcode_hash.js';
 
 const rspMemoryBytes = 0x1000;
 const codeLoadBytes = 0xf80;

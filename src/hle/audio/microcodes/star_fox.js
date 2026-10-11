@@ -1,4 +1,4 @@
-import { NEADAudio } from './audio_nead.js';
+import { NEADAudio } from './nead.js';
 
 // The Japanese revision adds a loader loop that repeatedly clears the same
 // parameter word. Its command handlers are otherwise instruction-equivalent.

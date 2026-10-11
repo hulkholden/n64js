@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { DiddyBlastAudio } from './audio_diddy_blast.js';
+import { DiddyBlastAudio } from './diddy_blast.js';
 
 const OPCODE_SETBUFF = 0x08;
 const OPCODE_RESAMPLE = 0x05;

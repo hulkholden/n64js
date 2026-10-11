@@ -1,8 +1,8 @@
-import { ABI1Audio } from './audio_abi1.js';
+import { ABI1Audio } from './abi1.js';
 import {
   FIXED16_ONE, UINT16_MAX, clamp16, unsigned16, fixed16FromParts, fixed16ToInt,
   clampFixed16Hi, clampFixed16Lo,
-} from './audio_fixed_point.js';
+} from '../fixed_point.js';
 
 const ENVELOPE_WEIGHT_STEP = FIXED16_ONE / 8;
 const ENVELOPE_WEIGHT_MAX = UINT16_MAX;

@@ -7,7 +7,7 @@ import {
   SP_CLR_BROKE, SP_CLR_HALT, SP_CLR_SIG1, SP_CLR_SIG2, SP_CLR_SIG3, SP_SET_SIG3, SP_STATUS_SIG3, SP_SET_HALT, SP_SET_INTR_BREAK, SP_SET_SIG2,
   SP_STATUS_HALT, SP_STATUS_BROKE, SP_STATUS_TASKDONE, SP_STATUS_REG,
 } from '../devices/sp_constants.js';
-import { audioOptions } from '../hle/audio/audio_options.js';
+import { audioOptions } from '../hle/audio/options.js';
 import { graphicsOptions } from '../hle/graphics/graphics_options.js';
 import { ImageFormat, ImageSize } from '../hle/graphics/gbi.js';
 import { MicrocodeId, microcodePrefixLength } from '../hle/graphics/microcode_identifier.js';

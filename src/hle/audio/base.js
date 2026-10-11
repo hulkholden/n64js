@@ -1,7 +1,7 @@
 // Shared task memory and atomic RDRAM rollback for audio HLE families.
 import { SP_DMEM_SIZE } from '../../devices/sp_constants.js';
-import { clamp16, clampShifted32To16, fixed16ToInt, unsigned16, signed16, mulFraction } from './audio_fixed_point.js';
-import { round8 } from './audio_buffer.js';
+import { clamp16, clampShifted32To16, fixed16ToInt, unsigned16, signed16, mulFraction } from './fixed_point.js';
+import { round8 } from './buffer.js';
 
 const SAMPLE_BYTES = 2;
 const VECTOR_SAMPLES = 8;

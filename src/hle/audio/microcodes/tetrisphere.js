@@ -1,4 +1,4 @@
-import { ABI1Audio } from './audio_abi1.js';
+import { ABI1Audio } from './abi1.js';
 
 // The captured USA program shares all other handlers and constants with the
 // standard ABI1 program. Keep its one functional difference local to this class.

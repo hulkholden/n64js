@@ -1,10 +1,10 @@
 import { describe, expect, test } from 'bun:test';
-import { NAudio } from './audio_naudio.js';
-import { BanjoAudio } from './audio_banjo.js';
-import { DonkeyKongAudio } from './audio_donkey_kong.js';
-import { UnsupportedAudioCommand } from './audio_base.js';
-import { getAudioHLEClass } from './hle_audio.js';
-import { audioMicrocodeManifest } from './audio_microcode_manifest.js';
+import { NAudio } from './naudio.js';
+import { BanjoAudio } from './banjo.js';
+import { DonkeyKongAudio } from './donkey_kong.js';
+import { UnsupportedAudioCommand } from '../base.js';
+import { getAudioHLEClass } from '../hle_audio.js';
+import { audioMicrocodeManifest } from '../microcode_manifest.js';
 
 // Independent encodings and offsets pin the interface inferred from the RSP.
 const RAM_BYTES = 0x4000;

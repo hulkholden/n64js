@@ -1,8 +1,8 @@
-import { SP_DMEM_SIZE } from '../../devices/sp_constants.js';
-import { TASK_OFFSET, TaskOffsets } from '../rsp_task_constants.js';
-import { ShindouAudio } from './audio_shindou.js';
-import { round2, round32 } from './audio_buffer.js';
-import * as nead from './audio_nead_constants.js';
+import { SP_DMEM_SIZE } from '../../../devices/sp_constants.js';
+import { TASK_OFFSET, TaskOffsets } from '../../rsp_task_constants.js';
+import { ShindouAudio } from './shindou.js';
+import { round2, round32 } from '../buffer.js';
+import * as nead from './nead_constants.js';
 
 // Yoshi/1080 load directly at IMEM zero, use shorter command batches and
 // support two-bit ADPCM. Later Zelda programs move the book and saved state.

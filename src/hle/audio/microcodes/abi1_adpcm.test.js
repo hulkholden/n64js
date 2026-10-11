@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'bun:test';
-import { ABI1Audio } from './audio_abi1.js';
-import { TetrisphereAudio } from './audio_tetrisphere.js';
-import { GoldenEyeAudio } from './audio_goldeneye.js';
-import { DiddyBlastAudio } from './audio_diddy_blast.js';
-import { UnsupportedAudioCommand } from './audio_base.js';
+import { ABI1Audio } from './abi1.js';
+import { TetrisphereAudio } from './tetrisphere.js';
+import { GoldenEyeAudio } from './goldeneye.js';
+import { DiddyBlastAudio } from './diddy_blast.js';
+import { UnsupportedAudioCommand } from '../base.js';
 
 // Independent command encodings and offsets inferred from the RSP programs.
 const OP_ADPCM = 0x01000000;

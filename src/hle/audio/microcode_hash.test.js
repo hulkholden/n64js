@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { createHash } from 'node:crypto';
-import { createMicrocodeHash } from './audio_microcode_hash.js';
+import { createMicrocodeHash } from './microcode_hash.js';
 
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 

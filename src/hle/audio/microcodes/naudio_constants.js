@@ -1,5 +1,5 @@
 // DMEM and command layouts derived from the three reviewed NAUDIO programs.
-import { FIXED16_ONE } from './audio_fixed_point.js';
+import { FIXED16_ONE } from '../fixed_point.js';
 
 // Packed commands use 24-bit RDRAM addresses and 12-bit DMEM offsets.
 export const RAM_ADDRESS_MASK = 0x00ffffff;

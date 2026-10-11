@@ -1,11 +1,11 @@
 import { describe, expect, test } from 'bun:test';
-import { TetrisphereAudio } from './audio_tetrisphere.js';
-import { GoldenEyeAudio } from './audio_goldeneye.js';
-import { DiddyBlastAudio } from './audio_diddy_blast.js';
-import { audioMicrocodeManifest } from './audio_microcode_manifest.js';
-import { ABI1Audio } from './audio_abi1.js';
-import { UnsupportedAudioCommand } from './audio_base.js';
-import { getAudioHLEClass } from './hle_audio.js';
+import { TetrisphereAudio } from './tetrisphere.js';
+import { GoldenEyeAudio } from './goldeneye.js';
+import { DiddyBlastAudio } from './diddy_blast.js';
+import { audioMicrocodeManifest } from '../microcode_manifest.js';
+import { ABI1Audio } from './abi1.js';
+import { UnsupportedAudioCommand } from '../base.js';
+import { getAudioHLEClass } from '../hle_audio.js';
 
 function fixture(Audio = ABI1Audio) {
   return new Audio(new Uint8Array(0x4000), new Uint8Array(4096));

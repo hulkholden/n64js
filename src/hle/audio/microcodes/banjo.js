@@ -1,5 +1,5 @@
-import { NAudio } from './audio_naudio.js';
-import { ENVELOPE_CONFIG, ENVELOPE_CONFIG_STRIDE } from './audio_naudio_constants.js';
+import { NAudio } from './naudio.js';
+import { ENVELOPE_CONFIG, ENVELOPE_CONFIG_STRIDE } from './naudio_constants.js';
 
 const ENVELOPE_RIGHT_RATE_HI = ENVELOPE_CONFIG + ENVELOPE_CONFIG_STRIDE + 2;
 const ENVELOPE_RIGHT_RATE_LO = ENVELOPE_RIGHT_RATE_HI + 2;

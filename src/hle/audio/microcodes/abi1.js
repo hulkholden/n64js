@@ -1,12 +1,12 @@
 // Derived from captured ABI1 RSP programs, not another audio HLE.
 // Variants share handlers only where the reviewed instructions agree.
-import { AudioBase, UnsupportedAudioCommand } from './audio_base.js';
-import { round8, round16, round32 } from './audio_buffer.js';
+import { AudioBase, UnsupportedAudioCommand } from '../base.js';
+import { round8, round16, round32 } from '../buffer.js';
 import {
   FIXED16_ONE, UINT16_MAX, clamp16, signed16, unsigned16,
   fixed16FromParts, fixed16ToInt, clampFixed16Hi, clampFixed16Lo,
   mulFixed16, mulFraction, mixSample,
-} from './audio_fixed_point.js';
+} from '../fixed_point.js';
 
 const OPCODE_SPNOOP = 0x00;
 const OPCODE_ADPCM = 0x01;

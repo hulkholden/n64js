@@ -1,5 +1,5 @@
-import { NAudio } from './audio_naudio.js';
-import { DMEM_LOOP_ADDRESS, ENVELOPE_CONFIG } from './audio_naudio_constants.js';
+import { NAudio } from './naudio.js';
+import { DMEM_LOOP_ADDRESS, ENVELOPE_CONFIG } from './naudio_constants.js';
 
 const OPCODE_MIXER_ALIAS_7 = 0x07;
 const OPCODE_MIXER_ALIAS_8 = 0x08;

@@ -1,12 +1,12 @@
 // Derived from the captured naudio-standard RSP program. Banjo and DK64
 // specialise only behavior that differs in their reviewed instructions.
-import { AudioBase, UnsupportedAudioCommand } from './audio_base.js';
-import * as naudio from './audio_naudio_constants.js';
-import { round8, round16, round32 } from './audio_buffer.js';
+import { AudioBase, UnsupportedAudioCommand } from '../base.js';
+import * as naudio from './naudio_constants.js';
+import { round8, round16, round32 } from '../buffer.js';
 import {
   UINT16_MAX, signed16, unsigned16, clamp16,
   fixed16FromParts, fixed16ToInt, clampFixed16Hi, clampFixed16Lo, mulFraction, mixSample,
-} from './audio_fixed_point.js';
+} from '../fixed_point.js';
 
 const OPCODE_ADPCM = 0x01;
 const OPCODE_CLEARBUFF = 0x02;

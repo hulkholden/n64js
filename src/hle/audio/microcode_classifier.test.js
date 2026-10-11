@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { createHash } from 'node:crypto';
-import { createAudioMicrocodeClassifier } from './audio_microcode_classifier.js';
+import { createAudioMicrocodeClassifier } from './microcode_classifier.js';
 
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 const clone = raw => Object.fromEntries(Object.entries(raw).map(([key, bytes]) => [key, bytes.slice()]));

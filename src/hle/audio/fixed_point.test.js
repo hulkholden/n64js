@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import {
   clamp16, clampShifted32To16, signed16, unsigned16, fixed16FromParts, fixed16ToInt,
   clampFixed16Hi, clampFixed16Lo, mulFixed16, mulFraction, mixSample, mulUnsignedFraction, clampFractionSum,
-} from './audio_fixed_point.js';
+} from './fixed_point.js';
 
 describe('audio fixed-point arithmetic', () => {
   test('word conversions wrap while signed saturation clamps', () => {

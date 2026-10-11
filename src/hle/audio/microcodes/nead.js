@@ -1,11 +1,11 @@
 // Derived from the captured NEAD RSP programs. The default layout and command
 // table are Star Fox's; specialities override only reviewed differences.
-import { AudioBase, UnsupportedAudioCommand } from './audio_base.js';
-import { round8, round16, round32, round64 } from './audio_buffer.js';
+import { AudioBase, UnsupportedAudioCommand } from '../base.js';
+import { round8, round16, round32, round64 } from '../buffer.js';
 import {
   FIXED16_ONE, clamp16, mulUnsignedFraction, clampFractionSum, signed16, unsigned16, mixSample, clampFixed16Hi,
-} from './audio_fixed_point.js';
-import * as nead from './audio_nead_constants.js';
+} from '../fixed_point.js';
+import * as nead from './nead_constants.js';
 
 export class NEADAudio extends AudioBase {
   constructor(ram, dmem) {

@@ -1,4 +1,4 @@
-import { GoldenEyeAudio } from './audio_goldeneye.js';
+import { GoldenEyeAudio } from './goldeneye.js';
 
 const DMEM_RESAMPLE_TABLE = 0x0d0;
 

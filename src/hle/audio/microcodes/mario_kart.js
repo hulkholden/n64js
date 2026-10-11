@@ -1,5 +1,5 @@
-import { NEADAudio } from './audio_nead.js';
-import * as nead from './audio_nead_constants.js';
+import { NEADAudio } from './nead.js';
+import * as nead from './nead_constants.js';
 
 // Mario Kart predates absolute buffer addresses and two-vector envelope ramps.
 const DMEM_SEGMENT_TABLE = 0x320;

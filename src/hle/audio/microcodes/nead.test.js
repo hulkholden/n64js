@@ -1,11 +1,11 @@
 import { describe, expect, test } from 'bun:test';
-import { NEADAudio } from './audio_nead.js';
-import { MarioKartAudio } from './audio_mario_kart.js';
-import { StarFoxRevisionAudio } from './audio_star_fox.js';
-import { ShindouAudio, WaveRaceAudio } from './audio_shindou.js';
-import { NEADDirectAudio, SnowboardingAudio, OcarinaAudio, MajoraAudio, AnimalForestAudio, FZeroAudio } from './audio_nead_direct.js';
-import { UnsupportedAudioCommand } from './audio_base.js';
-import { getAudioHLEClass } from './hle_audio.js';
+import { NEADAudio } from './nead.js';
+import { MarioKartAudio } from './mario_kart.js';
+import { StarFoxRevisionAudio } from './star_fox.js';
+import { ShindouAudio, WaveRaceAudio } from './shindou.js';
+import { NEADDirectAudio, SnowboardingAudio, OcarinaAudio, MajoraAudio, AnimalForestAudio, FZeroAudio } from './nead_direct.js';
+import { UnsupportedAudioCommand } from '../base.js';
+import { getAudioHLEClass } from '../hle_audio.js';
 
 // Independent encodings pin the interfaces derived from the captured programs.
 const RAM_BYTES = 0x4000;
