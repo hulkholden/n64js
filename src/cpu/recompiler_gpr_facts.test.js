@@ -102,12 +102,13 @@ function generated(words, ctx = new FragmentContext(), fragment = new Fragment(p
 describe('GPR fact generated code', () => {
   test('Mario entry compares both full-width inputs and forwards the stored result', () => {
     const code = generated([special(decode.SPECIAL_SLT, 15, 4, 1), iop(decode.OP_BNEL, 1, 0, -2), iop(decode.OP_LW, 2, 15)]);
-    expect(code).toContain('c.getRegS64(15) < c.getRegS64(4)');
+    expect(code).toContain('(c.gprS32[31] === c.gprS32[9] ? c.getRegU32Lo(15) < c.getRegU32Lo(4) : c.gprS32[31] < c.gprS32[9])');
+    expect(code).not.toContain('getRegS64');
     expect(code).toContain('c.setRegU32Extend(1, compare_1 ? 1 : 0)');
     expect(code).toContain('if (compare_1)');
     expect(code).not.toContain('c.getRegU64(1)');
     const afterLoad = generated([iop(decode.OP_LW, 2, 15), special(decode.SPECIAL_SLT, 15, 4, 1)]);
-    expect(afterLoad).toContain('c.getRegS64(15) < c.getRegS64(4)');
+    expect(afterLoad).toContain('(c.gprS32[31] === c.gprS32[9] ? c.getRegU32Lo(15) < c.getRegU32Lo(4) : c.gprS32[31] < c.gprS32[9])');
   });
 
   test('Zelda word arithmetic proves both SLTU inputs', () => {

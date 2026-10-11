@@ -1709,13 +1709,13 @@ export class CPU0 {
   }
 
   execSLT(rd, rt, rs) {
-    const r = this.getRegS64(rs) < this.getRegS64(rt) ? 1 : 0;
-    this.setRegU32Extend(rd, r);
+    const sh = this.gprS32[rs * 2 + 1], th = this.gprS32[rt * 2 + 1];
+    this.setRegU32Extend(rd, (sh === th ? this.gprU32[rs * 2] < this.gprU32[rt * 2] : sh < th) ? 1 : 0);
   }
 
   execSLTU(rd, rt, rs) {
-    const r = this.getRegU64(rs) < this.getRegU64(rt) ? 1 : 0;
-    this.setRegU32Extend(rd, r);
+    const sh = this.gprU32[rs * 2 + 1], th = this.gprU32[rt * 2 + 1];
+    this.setRegU32Extend(rd, (sh === th ? this.gprU32[rs * 2] < this.gprU32[rt * 2] : sh < th) ? 1 : 0);
   }
 
   execADDI(rt, rs, imms) {
@@ -1742,11 +1742,13 @@ export class CPU0 {
   execADDIU(rt, rs, imms) { this.setRegS32Extend(rt, this.getRegS32Lo(rs) + imms); }
   execDADDIU(rt, rs, imms) { this.setRegU64(rt, this.getRegS64(rs) + BigInt(imms)); }
 
-  execSLTI(rt, rs, imms) { this.setRegU32Extend(rt, this.getRegS64(rs) < BigInt(imms) ? 1 : 0); }
-  execSLTIU(rt, rs, imms) {
-    // Immediate value is sign-extended to 64 bits and treated as a u64.
-    const immediate = BigInt.asUintN(64, BigInt(imms));
-    this.setRegU32Extend(rt, this.getRegU64(rs) < immediate ? 1 : 0);
+  execSLTI(rt, rs, imm) {
+    const sh = this.gprS32[rs * 2 + 1], th = imm >> 31;
+    this.setRegU32Extend(rt, (sh === th ? this.gprU32[rs * 2] < imm >>> 0 : sh < th) ? 1 : 0);
+  }
+  execSLTIU(rt, rs, imm) {
+    const sh = this.gprU32[rs * 2 + 1], th = imm >> 31 >>> 0;
+    this.setRegU32Extend(rt, (sh === th ? this.gprU32[rs * 2] < imm >>> 0 : sh < th) ? 1 : 0);
   }
 
   execANDI(rt, rs, imm) { this.setRegU32Extend(rt, this.getRegU32Lo(rs) & imm); }
