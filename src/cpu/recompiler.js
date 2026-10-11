@@ -416,20 +416,6 @@ function genIsPositive(ctx, i) {
   return `${hi} >= 0 && (${hi} | c.gprS32[${i * 2}]) !== 0`;
 }
 
-function genSrcRegS64(i) {
-  if (i === 0) {
-    return '0n';
-  }
-  return `c.getRegS64(${i})`;
-}
-
-function genSrcRegU64(i) {
-  if (i === 0) {
-    return '0n';
-  }
-  return `c.getRegU64(${i})`;
-}
-
 function genKnownNumber(reg, fact) {
   if (fact.kind === 'constant64') {
     return `${Number(fact.value)}`;
@@ -447,13 +433,16 @@ function genLessThan(ctx, s, t, unsigned, immediate = null) {
       const rhs = immediate === null ? genSrcRegU32Lo(t) : `${immediate >>> 0}`;
       return `${genSrcRegU32Lo(s)} < ${rhs}`;
     }
-    const rhs = immediate === null ? genSrcRegU64(t) : `${BigInt.asUintN(64, BigInt(immediate))}n`;
-    return `${genSrcRegU64(s)} < ${rhs}`;
-  }
-  if (isKnown32(sf) && isKnown32(tf)) {
+  } else if (isKnown32(sf) && isKnown32(tf)) {
     return `${genKnownNumber(s, sf)} < ${genKnownNumber(t, tf)}`;
   }
-  return `${genSrcRegS64(s)} < ${immediate === null ? genSrcRegS64(t) : `${immediate}n`}`;
+  // Unknown-width inputs still have an exact lexicographic word comparison.
+  // Only the high word is signed; equal high words compare unsigned low words.
+  const high = reg => reg === 0 ? '0' : `c.gpr${unsigned ? 'U' : 'S'}32[${reg * 2 + 1}]`;
+  const sh = high(s);
+  const th = immediate === null ? high(t) : `${unsigned ? (immediate >> 31) >>> 0 : immediate >> 31}`;
+  const tl = immediate === null ? genSrcRegU32Lo(t) : `${immediate >>> 0}`;
+  return `(${sh} === ${th} ? ${genSrcRegU32Lo(s)} < ${tl} : ${sh} < ${th})`;
 }
 
 function generateComparison(ctx, d, s, t, unsigned, immediate = null) {
