@@ -1,6 +1,6 @@
 # MoveWord Points / ForceMatrix reproducer
 
-Build `bun build tools/moveword_points_webgl.js --outfile=build/moveword_points_webgl.js`, serve the repository over HTTP, and open `tools/moveword_points_webgl.html` in a WebGL2 browser. The page checks 14 framebuffer pixels and displays the rendered scenes. Run command tests with `bun test src/hle/graphics/moveword_points.test.js`.
+Build `bun build tools/moveword_points_webgl.js --outfile=build/moveword_points_webgl.js`, serve the repository over HTTP, and open `tools/moveword_points_webgl.html` in a WebGL2 browser. The page checks 14 framebuffer pixels and displays the rendered scenes. Run command tests with `bun test src/hle/graphics/microcodes/gbi1_gbi2_moveword_points.test.js`.
 
 The same MoveWord index (0x0c) has different meanings:
 

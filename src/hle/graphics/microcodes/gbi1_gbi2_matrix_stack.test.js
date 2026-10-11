@@ -1,12 +1,12 @@
 import { describe, expect, test } from 'bun:test';
-import { Transform4D } from '../../graphics/Transform4D.js';
-import { executeDisplayList } from './display_list.js';
-import { GBI0 } from './microcodes/gbi0.js';
-import { GBI1 } from './microcodes/gbi1.js';
-import { GBI2 } from './microcodes/gbi2.js';
-import { GBI2SDEX } from './microcodes/gbi_s2dex.js';
-import { NullRenderer } from './null_renderer.js';
-import { RSPState } from './rsp_state.js';
+import { Transform4D } from '../../../graphics/Transform4D.js';
+import { executeDisplayList } from '../display_list.js';
+import { GBI0 } from './gbi0.js';
+import { GBI1 } from './gbi1.js';
+import { GBI2 } from './gbi2.js';
+import { GBI2SDEX } from './gbi_s2dex.js';
+import { NullRenderer } from '../null_renderer.js';
+import { RSPState } from '../rsp_state.js';
 
 const base = [2, 0, 0, 7, 0, 3, 0, 0, 0, 0, 4, 0, 0, 0, 0, 1];
 const translation = [1, 0, 0, 5, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];

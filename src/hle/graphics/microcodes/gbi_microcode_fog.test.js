@@ -1,11 +1,11 @@
 import { describe, expect, test } from 'bun:test';
-import { Matrix4x4 } from '../../graphics/Matrix4x4.js';
-import { Vector3 } from '../../graphics/Vector3.js';
-import { GBI1 } from './microcodes/gbi1.js';
-import { GBI2 } from './microcodes/gbi2.js';
-import { NullRenderer } from './null_renderer.js';
-import { RSPState } from './rsp_state.js';
-import { TriangleBuffer } from './triangle_buffer.js';
+import { Matrix4x4 } from '../../../graphics/Matrix4x4.js';
+import { Vector3 } from '../../../graphics/Vector3.js';
+import { GBI1 } from './gbi1.js';
+import { GBI2 } from './gbi2.js';
+import { NullRenderer } from '../null_renderer.js';
+import { RSPState } from '../rsp_state.js';
+import { TriangleBuffer } from '../triangle_buffer.js';
 
 function harness(Type = GBI1) {
   const ram = new DataView(new ArrayBuffer(256));
