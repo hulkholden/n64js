@@ -112,7 +112,8 @@ class RSPTask {
 }
 
 // Returns false for LLE, true for completed HLE, or a continuation for a waiting
-// HLE task. A continuation returns itself while waiting and null on completion.
+// HLE task. A continuation returns itself while waiting, null on completion,
+// or false to hand an uncommitted task back to LLE.
 export function hleProcessRSPTask() {
   const hardware = n64js.hardware();
   const taskType = hardware.sp_mem.getU32(TASK_OFFSET);

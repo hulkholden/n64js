@@ -1241,6 +1241,6 @@ describe('HLE display-list producer waits', () => {
     const { emulator } = await waitingTask();
     emulator.hardware.reset();
     expect(emulator.hardware.spRegDevice.hleTask).toBeNull();
-    expect(emulator.cpu0.hasEvent('HLE graphics wait')).toBe(false);
+    expect(emulator.cpu0.hasEvent('HLE task wait')).toBe(false);
   });
 });
