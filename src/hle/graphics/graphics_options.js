@@ -1,3 +1,4 @@
+import { EmulationMode } from '../emulation_mode.js';
 import { addOptionsFolder } from '../../debug/dbg_ui.js';
 
 export const CRTMode = { Off: 0, Simple: 1, Mattias: 2 };
@@ -23,7 +24,7 @@ export const graphicsOptions = {
   dumpMicrocodeSubstring: '',
 
   // Whether to use high or low level emulation.
-  emulationMode: 'HLE',
+  emulationMode: EmulationMode.HLE,
 
   // Whether to dump RDP commands.
   dumpRDP: false,
@@ -36,6 +37,6 @@ addOptionsFolder('Graphics', folder => {
   folder.add(graphicsOptions, 'haltOnWarning').name('Halt on Warning');
   folder.add(graphicsOptions, 'dumpMicrocode').name('Dump Microcode');
   folder.add(graphicsOptions, 'dumpMicrocodeSubstring').name('Dump Microcode Substring');
-  folder.add(graphicsOptions, 'emulationMode', { 'HLE (Recommended)': 'HLE', 'LLE (Experimental, Slow)': 'LLE' }).name('Emulation Mode');
+  folder.add(graphicsOptions, 'emulationMode', { 'HLE (Recommended)': EmulationMode.HLE, 'LLE (Experimental, Slow)': EmulationMode.LLE }).name('Emulation Mode');
   folder.add(graphicsOptions, 'dumpRDP').name('Dump RDP');
 });

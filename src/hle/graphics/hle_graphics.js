@@ -1,5 +1,6 @@
 /*global n64js*/
 
+import { EmulationMode } from '../emulation_mode.js';
 import { DebugController } from './debug_controller.js';
 import { executeDisplayList } from './display_list.js';
 import * as microcodes from './microcodes.js';
@@ -42,7 +43,7 @@ export function dispatchGraphicsTask(hardware, mode, task) {
   // pixels to RDRAM and signal completion itself.
   // BOSS ZSort combines graphics/audio and CPU/RSP signal exchanges. Execute
   // its actual instructions and render the resulting RDP stream.
-  if (mode !== 'HLE' || microcode.id === MicrocodeId.HVQM2 || microcode.id === MicrocodeId.ZSORT_BOSS) {
+  if (mode !== EmulationMode.HLE || microcode.id === MicrocodeId.HVQM2 || microcode.id === MicrocodeId.ZSORT_BOSS) {
     return false;
   }
 

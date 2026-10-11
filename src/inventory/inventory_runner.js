@@ -2,6 +2,7 @@ import { fork, spawnSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual } from 'node:util';
+import { EmulationMode } from '../hle/emulation_mode.js';
 import { inputPolicy, parseInputScript } from './inventory_input.js';
 import { captureFailure } from './inventory_failure.js';
 
@@ -27,7 +28,7 @@ export function inventorySettings(values, script) {
     inputPolicy: script === undefined ? inputPolicy : {
       name: 'scripted-prefix', version: 1, script: parseInputScript(script), after: inputPolicy,
     },
-    graphics: 'HLE',
+    graphics: EmulationMode.HLE,
   };
 }
 
