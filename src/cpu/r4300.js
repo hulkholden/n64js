@@ -497,6 +497,16 @@ export class CPU0 {
     this.eventQueue.incrementCount(cycles);
   }
 
+  syncFragmentForDeviceAccess() {
+    if (this.fragmentOps !== null) {
+      this.syncFragmentCycles(this.fragmentOps);
+      // Finish the memory instruction (including its PC/delay-slot update),
+      // then recheck deadlines in the dispatcher before the next RSP/CPU step.
+      // finishFragment charges only this instruction, not the flushed prefix.
+      this.stuffToDo |= kStuffToDoBreakout;
+    }
+  }
+
   finishFragment(opsExecuted) {
     this.syncFragmentCycles(opsExecuted);
     this.fragmentOps = null;
