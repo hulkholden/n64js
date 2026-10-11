@@ -8,7 +8,8 @@ const vertexCount = 32;
 const lightStride = 48;
 const pointLightingBit = 0x00400000;
 
-// Conker's F3DEX2 dialect. See tools/conker.md for command layouts and sources.
+// Conker's F3DEX2 dialect. Command layout reference:
+// https://github.com/gonetz/GLideN64/blob/a04081ad6a966a9413bea63a55f502e0dc98bb18/src/uCodes/F3DEX2CBFD.cpp
 export class GBI2Conker extends GBI2 {
   constructor(state, ramDV) {
     super(state, ramDV);
