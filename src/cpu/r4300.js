@@ -1579,11 +1579,15 @@ export class CPU0 {
   }
 
   execMULTU(rt, rs) {
-    const result = BigInt(this.getRegU32Lo(rs)) * BigInt(this.getRegU32Lo(rt));
-    // TODO: verify if these results should be sign extended or not.
-    // n64-systemtest doesn't seem to cover MULT.
-    this.setMultLoS32Extend(result & u32MaxBigInt);
-    this.setMultHiS32Extend(result >> 32n);
+    const s = this.getRegU32Lo(rs), t = this.getRegU32Lo(rt);
+    const sl = s & 0xffff, sh = s >>> 16, tl = t & 0xffff, th = t >>> 16;
+    // All partial products/sums fit exactly in a Number (at most 34 bits).
+    const lowProduct = sl * tl;
+    const middle = sh * tl + sl * th + (lowProduct >>> 16);
+    const lo = Math.imul(s, t);
+    const hi = (sh * th + Math.floor(middle / 65536)) | 0;
+    this.setMultLoS64LoHi(lo, lo >> 31);
+    this.setMultHiS64LoHi(hi, hi >> 31);
   }
 
   execDMULTU(rt, rs) {
@@ -1593,20 +1597,11 @@ export class CPU0 {
   }
 
   execDIV(rt, rs) {
-    const dividend = this.getRegS32Lo(rs);
-    const divisor = this.getRegS32Lo(rt);
-
-    let lo, hi;
-    if (divisor) {
-      lo = (dividend / divisor) >> 0;
-      hi = dividend % divisor;
-    } else {
-      lo = dividend < 0 ? 1 : -1;
-      hi = dividend;
-    }
-    // 32 bit result is sign extended to 64 bits.
-    this.setMultLoS32Extend(BigInt(lo));
-    this.setMultHiS32Extend(BigInt(hi));
+    const dividend = this.getRegS32Lo(rs), divisor = this.getRegS32Lo(rt);
+    const lo = divisor ? (dividend / divisor) | 0 : dividend < 0 ? 1 : -1;
+    const hi = divisor ? dividend % divisor : dividend;
+    this.setMultLoS64LoHi(lo, lo >> 31);
+    this.setMultHiS64LoHi(hi, hi >> 31);
   }
 
   execDDIV(rt, rs) {
@@ -1626,20 +1621,11 @@ export class CPU0 {
   }
 
   execDIVU(rt, rs) {
-    const dividend = this.getRegU32Lo(rs);
-    const divisor = this.getRegU32Lo(rt);
-
-    let lo, hi;
-    if (divisor) {
-      lo = (dividend / divisor) >> 0;
-      hi = dividend % divisor;
-    } else {
-      lo = -1;
-      hi = dividend;
-    }
-    // 32 bit result is sign extended to 64 bits.
-    this.setMultLoS32Extend(BigInt(lo));
-    this.setMultHiS32Extend(BigInt(hi));
+    const dividend = this.getRegU32Lo(rs), divisor = this.getRegU32Lo(rt);
+    const lo = divisor ? (dividend / divisor) | 0 : -1;
+    const hi = divisor ? dividend % divisor : dividend;
+    this.setMultLoS64LoHi(lo, lo >> 31);
+    this.setMultHiS64LoHi(hi, hi >> 31);
   }
 
   execDDIVU(rt, rs) {
