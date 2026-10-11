@@ -27,6 +27,15 @@ import { toHex } from '../../format.js';
 
 const OS_TASK_DP_WAIT = 0x0002;
 
+const AudioTaskLogFlag = Object.freeze({
+  HLE: 1 << 0,
+  LLE: 1 << 1,
+  HLEFallback: 1 << 2,
+  Disabled: 1 << 3,
+  PIFallback: 1 << 4,
+  WaitingForPI: 1 << 5,
+});
+
 // Scratch storage belongs to one hardware instance. Views are rebound when
 // memory or microcode addresses change; classification still rechecks bytes on
 // every task, including after reset and guest code/constants mutation.
@@ -129,8 +138,11 @@ function logAudioTask(state, identity, requestedMode, handled) {
   // Track each execution path separately for a given microcode.
   const waiting = typeof handled === 'function';
   const piFallback = requestedMode === EmulationMode.HLE && state.piStreaming;
-  const bit = waiting ? 32 : requestedMode === EmulationMode.Disabled ? 8 : handled ? 1
-    : requestedMode === EmulationMode.HLE ? (piFallback ? 16 : 4) : 2;
+  const bit = waiting ? AudioTaskLogFlag.WaitingForPI
+    : requestedMode === EmulationMode.Disabled ? AudioTaskLogFlag.Disabled
+      : handled ? AudioTaskLogFlag.HLE
+        : requestedMode === EmulationMode.HLE ? (piFallback ? AudioTaskLogFlag.PIFallback : AudioTaskLogFlag.HLEFallback)
+          : AudioTaskLogFlag.LLE;
   const seen = state.logged.get(key) ?? 0;
   if (seen & bit) {
     return;
