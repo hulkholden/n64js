@@ -4,7 +4,9 @@ import { BanjoAudio } from './banjo.js';
 import { DonkeyKongAudio } from './donkey_kong.js';
 import { UnsupportedAudioCommand } from '../base.js';
 import { getAudioHLEClass } from '../hle_audio.js';
-import { audioMicrocodeManifest } from '../microcode_manifest.js';
+import {
+  NAUDIO_STANDARD, NAUDIO_BANJO_KAZOOIE, NAUDIO_DONKEY_KONG_64, audioMicrocodeManifest,
+} from '../microcode_manifest.js';
 
 // Independent encodings and offsets pin the interface inferred from the RSP.
 const RAM_BYTES = 0x4000;
@@ -61,9 +63,9 @@ function setEnvelope(audio, dry, wet) {
 
 describe('NAudio family selection', () => {
   test('only exact reviewed identities select their implementation', () => {
-    expect(getAudioHLEClass('naudio-standard')).toBe(NAudio);
-    expect(getAudioHLEClass('naudio-banjo-kazooie')).toBe(BanjoAudio);
-    expect(getAudioHLEClass('naudio-donkey-kong-64')).toBe(DonkeyKongAudio);
+    expect(getAudioHLEClass(NAUDIO_STANDARD)).toBe(NAudio);
+    expect(getAudioHLEClass(NAUDIO_BANJO_KAZOOIE)).toBe(BanjoAudio);
+    expect(getAudioHLEClass(NAUDIO_DONKEY_KONG_64)).toBe(DonkeyKongAudio);
     for (const id of ['NAUDIO', 'naudio', null]) {
       expect(getAudioHLEClass(id)).toBeNull();
     }

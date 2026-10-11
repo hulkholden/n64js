@@ -2,7 +2,10 @@ import { describe, expect, test } from 'bun:test';
 import { TetrisphereAudio } from './tetrisphere.js';
 import { GoldenEyeAudio } from './goldeneye.js';
 import { DiddyBlastAudio } from './diddy_blast.js';
-import { audioMicrocodeManifest } from '../microcode_manifest.js';
+import {
+  ABI1_STANDARD_MIXER, ABI1_TETRISPHERE_US_MIXER, ABI1_DIDDY_BLAST_MIXER, ABI1_GOLDENEYE_MIXER,
+  audioMicrocodeManifest,
+} from '../microcode_manifest.js';
 import { ABI1Audio } from './abi1.js';
 import { UnsupportedAudioCommand } from '../base.js';
 import { getAudioHLEClass } from '../hle_audio.js';
@@ -309,10 +312,10 @@ describe('ABI1 mixer variants', () => {
   });
 
   test('handler selection requires an explicitly supported identity', () => {
-    expect(getAudioHLEClass('abi1-standard-mixer')).toBe(ABI1Audio);
-    expect(getAudioHLEClass('abi1-tetrisphere-us-mixer')).toBe(TetrisphereAudio);
-    expect(getAudioHLEClass('abi1-goldeneye-mixer')).toBe(GoldenEyeAudio);
-    expect(getAudioHLEClass('abi1-diddy-blast-mixer')).toBe(DiddyBlastAudio);
+    expect(getAudioHLEClass(ABI1_STANDARD_MIXER)).toBe(ABI1Audio);
+    expect(getAudioHLEClass(ABI1_TETRISPHERE_US_MIXER)).toBe(TetrisphereAudio);
+    expect(getAudioHLEClass(ABI1_GOLDENEYE_MIXER)).toBe(GoldenEyeAudio);
+    expect(getAudioHLEClass(ABI1_DIDDY_BLAST_MIXER)).toBe(DiddyBlastAudio);
     for (const identity of ['ABI1', 'unreviewed-audio-program', null]) {
       expect(getAudioHLEClass(identity)).toBeNull();
     }
