@@ -1647,10 +1647,8 @@ export class CPU0 {
   }
 
   execDADDU(rd, rt, rs) {
-    const s = this.getRegS64(rs);
-    const t = this.getRegS64(rt);
-    const result = s + t;
-    this.setRegU64(rd, result);
+    const sl = this.gprU32[rs * 2], tl = this.gprU32[rt * 2], lo = sl + tl >>> 0;
+    this.setRegS64LoHi(rd, lo, this.gprS32[rs * 2 + 1] + this.gprS32[rt * 2 + 1] + (lo < sl ? 1 : 0));
   }
 
   execSUB(rd, rt, rs) {
@@ -1683,10 +1681,8 @@ export class CPU0 {
   }
 
   execDSUBU(rd, rt, rs) {
-    const s = this.getRegS64(rs);
-    const t = this.getRegS64(rt);
-    const result = s - t;
-    this.setRegU64(rd, result);
+    const sl = this.gprU32[rs * 2], tl = this.gprU32[rt * 2];
+    this.setRegS64LoHi(rd, sl - tl, this.gprS32[rs * 2 + 1] - this.gprS32[rt * 2 + 1] - (sl < tl ? 1 : 0));
   }
 
   // Bitwise operations act independently on the two words, avoiding BigInt
@@ -1740,7 +1736,10 @@ export class CPU0 {
   }
 
   execADDIU(rt, rs, imms) { this.setRegS32Extend(rt, this.getRegS32Lo(rs) + imms); }
-  execDADDIU(rt, rs, imms) { this.setRegU64(rt, this.getRegS64(rs) + BigInt(imms)); }
+  execDADDIU(rt, rs, imm) {
+    const sl = this.gprU32[rs * 2], lo = sl + imm >>> 0;
+    this.setRegS64LoHi(rt, lo, this.gprS32[rs * 2 + 1] + (imm >> 31) + (lo < sl ? 1 : 0));
+  }
 
   execSLTI(rt, rs, imms) { this.setRegU32Extend(rt, this.getRegS64(rs) < BigInt(imms) ? 1 : 0); }
   execSLTIU(rt, rs, imms) {
