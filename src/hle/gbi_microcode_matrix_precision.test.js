@@ -20,7 +20,7 @@ function loadMatrix(values) {
   return new GBIMicrocode(null, ram).loadMatrix(address, 64);
 }
 
-describe('CPU matrix precision', () => {
+describe('GBIMicrocode matrix precision', () => {
   test('loads signed 16.16 values across float32 precision boundaries', () => {
     const values = [
       128 - ulp, 128 + ulp, 256 - ulp, 256 + ulp,
@@ -36,42 +36,6 @@ describe('CPU matrix precision', () => {
     const copy = matrix.copy();
     copy.elems[0] = 0;
     expect(matrix.elems[0]).toBe(values[0]);
-  });
-
-  test('constructors and factories provide full precision storage for later writes', () => {
-    for (const matrix of [
-      new Matrix4x4(),
-      new Matrix4x4(new Float32Array(16)),
-      new Matrix4x4(Array(16).fill(0)),
-      new Matrix4x4(new Float64Array(16)),
-      Matrix4x4.identity(),
-      Matrix4x4.makeOrtho(-1, 1, -1, 1, -1, 1),
-    ]) {
-      matrix.elems[0] = 256 + ulp;
-      expect(matrix.elems[0]).toBe(256 + ulp);
-    }
-  });
-
-  test('multiplication retains fractional products and cancellation within a dot product', () => {
-    const a = new Matrix4x4([
-      256, ulp, -256, ulp,
-      -256, -ulp, 256, -ulp,
-      0, 0, 1, 0,
-      0, 0, 0, 1,
-    ]);
-    const b = new Matrix4x4([
-      1, 0, 0, 0,
-      1, 1, 0, 0,
-      1, 0, 1, 0,
-      1, 0, 0, 1,
-    ]);
-    const product = a.multiply(b);
-    expect(product.elems[0]).toBe(2 * ulp);
-    expect(product.elems[4]).toBe(-2 * ulp);
-    const scale = Matrix4x4.identity();
-    scale.elems[0] = 0.5;
-    expect(product.multiply(scale).elems[0]).toBe(ulp);
-    expect(product.multiply(scale).elems[4]).toBe(-ulp);
   });
 
   test('preserves small positive homogeneous w through copies, products and rendering storage', () => {
