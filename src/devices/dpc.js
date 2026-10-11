@@ -3,8 +3,8 @@ import * as dpc from './dpc_constants.js';
 import { toHex, toString32 } from '../format.js';
 import * as logger from '../logger.js';
 import { RDPBuffer } from '../lle/rdp.js';
-import { disassembleRange } from '../hle/disassemble_rdp.js';
-import { graphicsOptions } from '../hle/graphics_options.js';
+import { disassembleRange } from '../hle/graphics/disassemble_rdp.js';
+import { graphicsOptions } from '../hle/graphics/graphics_options.js';
 
 const addressWritableBits = 0x00ff_fff8;
 const statusWritableBits = 0x7ff;

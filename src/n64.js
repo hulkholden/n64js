@@ -11,7 +11,7 @@ import { fixRomByteOrder } from './endian.js';
 import { toString32 } from './format.js';
 import { FramePacer } from './frame_pacer.js';
 import { Hardware } from './hardware.js';
-import { debugDisplayList, debugDisplayListRequested, debugDisplayListRunning, initialiseRenderer, graphics, toggleDebugDisplayList } from './hle/hle_graphics.js';
+import { debugDisplayList, debugDisplayListRequested, debugDisplayListRunning, initialiseRenderer, graphics, toggleDebugDisplayList } from './hle/graphics/hle_graphics.js';
 import * as json from './json.js';
 import * as logger from './logger.js';
 import { initCPU } from './cpu/r4300.js';

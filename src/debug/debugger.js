@@ -3,7 +3,7 @@
 import * as cpu0reg from '../cpu/cpu0reg.js';
 import { disassembleRange, cop0gprNames, cop1RegisterNames } from '../cpu/disassemble.js';
 import * as disassemble_rsp from "../rsp/disassemble_rsp.js";
-import { toggleDebugDisplayList } from '../hle/hle_graphics.js';
+import { toggleDebugDisplayList } from '../hle/graphics/hle_graphics.js';
 import { TaskOffsets } from '../hle/rsp_task_constants.js';
 import { toHex, toString8, toString16, toString32, toString64 } from '../format.js';
 import * as logger from '../logger.js';

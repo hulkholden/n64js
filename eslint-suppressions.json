@@ -44,12 +44,12 @@
       "count": 3
     }
   },
-  "src/hle/disassemble_rdp.js": {
+  "src/hle/graphics/disassemble_rdp.js": {
     "no-unused-vars": {
       "count": 6
     }
   },
-  "src/hle/hle_graphics.js": {
+  "src/hle/graphics/hle_graphics.js": {
     "no-unused-vars": {
       "count": 1
     }

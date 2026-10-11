@@ -2,10 +2,10 @@
 
 import { disassembleRemappedRange, dumpDMEM } from "../rsp/disassemble_rsp.js";
 import { toHex } from "../format.js";
-import { audioOptions } from './audio_options.js';
-import { graphicsOptions } from './graphics_options.js';
-import { dispatchAudioTask } from './hle_audio.js';
-import { dispatchGraphicsTask } from './hle_graphics.js';
+import { audioOptions } from './audio/audio_options.js';
+import { graphicsOptions } from './graphics/graphics_options.js';
+import { dispatchAudioTask } from './audio/hle_audio.js';
+import { dispatchGraphicsTask } from './graphics/hle_graphics.js';
 import { TASK_OFFSET, TASK_SIZE, TASK_ADDRESS_MASK, TaskOffsets } from './rsp_task_constants.js';
 
 const M_GFXTASK = 1;

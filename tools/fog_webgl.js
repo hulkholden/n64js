@@ -1,7 +1,7 @@
 import { Matrix4x4 } from '../src/graphics/Matrix4x4.js';
-import * as gbi from '../src/hle/gbi.js';
-import { GBIMicrocode } from '../src/hle/gbi_microcode.js';
-import { GBI2FLX } from '../src/hle/gbi2_flx.js';
+import * as gbi from '../src/hle/graphics/gbi.js';
+import { GBIMicrocode } from '../src/hle/graphics/gbi_microcode.js';
+import { GBI2FLX } from '../src/hle/graphics/gbi2_flx.js';
 import {
   assertPixels,
   testTexture,
