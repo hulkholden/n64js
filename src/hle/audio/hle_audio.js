@@ -20,7 +20,7 @@ import { TetrisphereAudio } from './microcodes/tetrisphere.js';
 import { GoldenEyeAudio } from './microcodes/goldeneye.js';
 import { DiddyBlastAudio } from './microcodes/diddy_blast.js';
 import { TASK_OFFSET, TASK_SIZE, TASK_ADDRESS_MASK, TaskOffsets } from '../rsp_task_constants.js';
-import { SP_DMEM_SIZE, SP_IMEM_OFFSET, SP_SEMAPHORE_REG, SP_STATUS_REG, SP_STATUS_SIG0 } from '../../devices/sp_constants.js';
+import { SP_DMEM_SIZE, SP_IMEM_OFFSET, SP_SEMAPHORE_REG, SP_STATUS_REG, SP_STATUS_SIG0, SP_STATUS_SSTEP } from '../../devices/sp_constants.js';
 import { DPC_STATUS_DMA_BUSY, DPC_STATUS_XBUS_DMEM_DMA } from '../../devices/dpc_constants.js';
 import * as logger from '../../logger.js';
 import { toHex } from '../../format.js';
@@ -127,8 +127,9 @@ function logAudioTask(state, identity, requestedMode, handled) {
   }
 
   // Track each execution path separately for a given microcode.
+  const waiting = typeof handled === 'function';
   const piFallback = requestedMode === EmulationMode.HLE && state.piStreaming;
-  const bit = requestedMode === EmulationMode.Disabled ? 8 : handled ? 1
+  const bit = waiting ? 32 : requestedMode === EmulationMode.Disabled ? 8 : handled ? 1
     : requestedMode === EmulationMode.HLE ? (piFallback ? 16 : 4) : 2;
   const seen = state.logged.get(key) ?? 0;
   if (seen & bit) {
@@ -140,7 +141,7 @@ function logAudioTask(state, identity, requestedMode, handled) {
   const description = identity.identity
     ? `${identity.identity} (${identity.family})`
     : `Unknown (code hash ${toHex(key, 32)})`;
-  const mode = requestedMode === EmulationMode.Disabled ? EmulationMode.Disabled
+  const mode = waiting ? 'HLE (waiting for PI)' : requestedMode === EmulationMode.Disabled ? EmulationMode.Disabled
     : handled ? EmulationMode.HLE : EmulationMode.LLE;
   const fallback = requestedMode === EmulationMode.HLE && !handled
     ? (piFallback ? ' (HLE fallback: PI DMA activity)' : ' (HLE fallback)') : '';
@@ -165,9 +166,56 @@ export function dispatchAudioTask(hardware, mode) {
   }
 
   // Disabled skips execution; a false result hands the task back to LLE.
-  const handled = mode === EmulationMode.Disabled || (mode === EmulationMode.HLE && executeAudioTask(hardware, state, identity));
+  let handled = mode === EmulationMode.Disabled || (mode === EmulationMode.HLE && executeAudioTask(hardware, state, identity));
+  if (!handled && mode === EmulationMode.HLE && state.piStreaming && identity.identity === ABI1_GOLDENEYE_MIXER
+      && canDeferAudioTask(hardware)) {
+    handled = deferAudioTask(hardware, state, identity);
+  }
   logAudioTask(state, identity, mode, handled);
   return handled;
+}
+
+function canDeferAudioTask(hardware) {
+  return hardware.rsp.pc === 0 && hardware.rsp.delayPC === 0
+    && !(hardware.spRegDevice.readRegU32(SP_STATUS_REG) & SP_STATUS_SSTEP)
+    && hardware.spRegDevice.dmaQueue.length === 0;
+}
+
+function deferAudioTask(hardware, state, identity) {
+  const task = state.raw.task.slice();
+  const expectedIdentity = identity.identity;
+  const pi = hardware.piRegDevice;
+  let idleGeneration = pi.busy() ? null : pi.dmaGeneration;
+  const resume = () => {
+    // Halt/resume may have changed the entry point or task. No work has been
+    // committed, so rejecting here can still start the original RSP program.
+    if (!canDeferAudioTask(hardware) || !task.every((byte, i) => byte === hardware.sp_mem.u8[TASK_OFFSET + i])) {
+      return false;
+    }
+    if (pi.busy()) {
+      idleGeneration = null;
+      return resume;
+    }
+    // An idle PI can be a gap between transfers. Give the CPU a full poll
+    // interval with no new DMA before consuming the task. This is a bounded
+    // scheduling approximation, not proof that no later DMA will be queued.
+    if (idleGeneration !== pi.dmaGeneration) {
+      idleGeneration = pi.dmaGeneration;
+      return resume;
+    }
+
+    state = getAudioState(hardware);
+    identity = state.classify(state.raw, state.result);
+    if (identity.identity !== expectedIdentity) {
+      return false;
+    }
+    // Commands/constants are fetched now. The existing transaction rolls back
+    // all RDRAM writes on an unsupported command and publishes DMEM only once.
+    const handled = executeAudioTask(hardware, state, identity, true);
+    logAudioTask(state, identity, EmulationMode.HLE, handled);
+    return handled ? null : false;
+  };
+  return resume;
 }
 
 // Select by exact reviewed executable identity, never by ROM name or family.
@@ -204,7 +252,7 @@ export function hleProcessAudioTask(hardware) {
   return executeAudioTask(hardware, state, identity);
 }
 
-function executeAudioTask(hardware, state, identity) {
+function executeAudioTask(hardware, state, identity, piSettled = false) {
   state.piStreaming = false;
   if (identity.status !== 'known') {
     return false;
@@ -221,7 +269,7 @@ function executeAudioTask(hardware, state, identity) {
   if (pi) {
     const dmaSinceLastTask = state.piDMAGeneration !== pi.dmaGeneration;
     state.piDMAGeneration = pi.dmaGeneration;
-    state.piStreaming = dmaSinceLastTask || pi.busy();
+    state.piStreaming = (!piSettled && dmaSinceLastTask) || pi.busy();
     if (state.piStreaming) {
       return false;
     }
