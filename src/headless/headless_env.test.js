@@ -8,6 +8,7 @@ import {
   SP_STATUS_HALT, SP_STATUS_BROKE, SP_STATUS_TASKDONE, SP_STATUS_REG,
 } from '../devices/sp_constants.js';
 import { audioOptions } from '../hle/audio/options.js';
+import { EmulationMode } from '../hle/emulation_mode.js';
 import { graphicsOptions } from '../hle/graphics/graphics_options.js';
 import { ImageFormat, ImageSize } from '../hle/graphics/gbi.js';
 import { MicrocodeId, microcodePrefixLength } from '../hle/graphics/microcode_identifier.js';
@@ -715,7 +716,7 @@ describe('headless graphics execution', () => {
   test.each(unsupportedMicrocodes)('leaves $family available to explicit LLE without claiming HLE execution', async ({ family, version, code, detection }) => {
     const previousMode = graphicsOptions.emulationMode;
     try {
-      graphicsOptions.emulationMode = 'LLE';
+      graphicsOptions.emulationMode = EmulationMode.LLE;
       const seen = [];
       const loaded = [];
       const emulator = await createEmulator({
@@ -858,9 +859,9 @@ describe('headless graphics execution', () => {
     const previousMode = graphicsOptions.emulationMode;
     try {
       for (const [options, mode, taskType] of [
-        [{}, 'HLE', 1],
-        [{ executeGraphics: true }, 'LLE', 1],
-        [{ executeGraphics: true }, 'HLE', 2],
+        [{}, EmulationMode.HLE, 1],
+        [{ executeGraphics: true }, EmulationMode.LLE, 1],
+        [{ executeGraphics: true }, EmulationMode.HLE, 2],
       ]) {
         graphicsOptions.emulationMode = mode;
         const loaded = [];
@@ -874,10 +875,10 @@ describe('headless graphics execution', () => {
         expect(() => startAndCompleteRSPTask(emulator, taskType)).not.toThrow();
         expect(loaded).toEqual([]);
         expect(textures).toEqual([]);
-        expect(emulator.hardware.dpcDevice.readU32(0xa4100010)).toBe(mode === 'HLE' && taskType === 1 ? 1 : 0);
+        expect(emulator.hardware.dpcDevice.readU32(0xa4100010)).toBe(mode === EmulationMode.HLE && taskType === 1 ? 1 : 0);
         if (taskType === 1) {
-          expect(emulator.hardware.rsp.halted).toBe(mode === 'HLE');
-          expect(emulator.hardware.mi_reg.getU32(MI_INTR_REG) & MI_INTR_DP).toBe(mode === 'HLE' ? MI_INTR_DP : 0);
+          expect(emulator.hardware.rsp.halted).toBe(mode === EmulationMode.HLE);
+          expect(emulator.hardware.mi_reg.getU32(MI_INTR_REG) & MI_INTR_DP).toBe(mode === EmulationMode.HLE ? MI_INTR_DP : 0);
         }
       }
     } finally {
@@ -923,7 +924,7 @@ describe('graphics task callback', () => {
   test('reports graphics starts before dispatch in both HLE and LLE without a renderer', async () => {
     const previousMode = graphicsOptions.emulationMode;
     try {
-      for (const mode of ['HLE', 'LLE']) {
+      for (const mode of [EmulationMode.HLE, EmulationMode.LLE]) {
         graphicsOptions.emulationMode = mode;
         const seen = [];
         const emulator = await createEmulator({
@@ -941,9 +942,9 @@ describe('graphics task callback', () => {
           id: MicrocodeId.GBI2, family: 'GBI2', variant: null,
           version: 'RSP Gfx ucode F3DEX fifo 2.0', hash: 326, detection: 'string',
         }]);
-        expect(hardware.rsp.halted).toBe(mode === 'HLE');
-        expect(hardware.sp_reg.getU32(SP_STATUS_REG) & SP_STATUS_TASKDONE).toBe(mode === 'HLE' ? SP_STATUS_TASKDONE : 0);
-        expect(hardware.mi_reg.getU32(MI_INTR_REG) & MI_INTR_DP).toBe(mode === 'HLE' ? MI_INTR_DP : 0);
+        expect(hardware.rsp.halted).toBe(mode === EmulationMode.HLE);
+        expect(hardware.sp_reg.getU32(SP_STATUS_REG) & SP_STATUS_TASKDONE).toBe(mode === EmulationMode.HLE ? SP_STATUS_TASKDONE : 0);
+        expect(hardware.mi_reg.getU32(MI_INTR_REG) & MI_INTR_DP).toBe(mode === EmulationMode.HLE ? MI_INTR_DP : 0);
 
         startRSPTask(emulator, 2); // Audio tasks are not graphics observations.
         expect(seen).toHaveLength(1);
@@ -997,7 +998,7 @@ describe('audio task callback', () => {
   test('reports unknown audio starts, including HLE fallback, without handling the task', async () => {
     const previous = audioOptions.emulationMode;
     try {
-      for (const mode of ['LLE', 'HLE', 'Disabled']) {
+      for (const mode of [EmulationMode.LLE, EmulationMode.HLE, EmulationMode.Disabled]) {
         audioOptions.emulationMode = mode;
         const seen = [];
         const emulator = await createEmulator({ onAudioTask: info => { seen.push(info); return true; } });
@@ -1007,7 +1008,7 @@ describe('audio task callback', () => {
         emulator.hardware.rsp.halt(0);
         startRSPTask(emulator, 2);
         expect(seen).toEqual([{ family: 'Unknown', detection: 'unknown' }]);
-        expect(emulator.hardware.rsp.halted).toBe(mode === 'Disabled');
+        expect(emulator.hardware.rsp.halted).toBe(mode === EmulationMode.Disabled);
         seen[0].family = 'changed by observer';
         startRSPTask(emulator, 2);
         expect(seen).toHaveLength(2);
@@ -1030,7 +1031,7 @@ describe('audio dispatch logging', () => {
     const previous = audioOptions.emulationMode;
     const log = spyOn(console, 'log').mockImplementation(() => {});
     try {
-      audioOptions.emulationMode = 'HLE';
+      audioOptions.emulationMode = EmulationMode.HLE;
       const emulator = await createEmulator();
       const { hardware } = emulator;
       prepareGraphicsTask(emulator);
@@ -1062,7 +1063,7 @@ describe('audio dispatch logging', () => {
     try {
       const emulator = await createEmulator();
       prepareGraphicsTask(emulator);
-      for (const mode of ['LLE', 'HLE', 'Disabled']) {
+      for (const mode of [EmulationMode.LLE, EmulationMode.HLE, EmulationMode.Disabled]) {
         audioOptions.emulationMode = mode;
         startRSPTask(emulator, 2);
         startRSPTask(emulator, 2);

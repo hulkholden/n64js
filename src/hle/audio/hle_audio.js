@@ -1,3 +1,4 @@
+import { EmulationMode } from '../emulation_mode.js';
 import { createAudioMicrocodeClassifier } from './microcode_classifier.js';
 import { ABI1Audio } from './microcodes/abi1.js';
 import { UnsupportedAudioCommand } from './base.js';
@@ -120,8 +121,9 @@ function logAudioTask(state, identity, requestedMode, handled) {
   }
 
   // Track each execution path separately for a given microcode.
-  const piFallback = requestedMode === 'HLE' && state.piStreaming;
-  const bit = requestedMode === 'Disabled' ? 8 : handled ? 1 : requestedMode === 'HLE' ? (piFallback ? 16 : 4) : 2;
+  const piFallback = requestedMode === EmulationMode.HLE && state.piStreaming;
+  const bit = requestedMode === EmulationMode.Disabled ? 8 : handled ? 1
+    : requestedMode === EmulationMode.HLE ? (piFallback ? 16 : 4) : 2;
   const seen = state.logged.get(key) ?? 0;
   if (seen & bit) {
     return;
@@ -132,8 +134,9 @@ function logAudioTask(state, identity, requestedMode, handled) {
   const description = identity.identity
     ? `${identity.identity} (${identity.family})`
     : `Unknown (code hash ${toHex(key, 32)})`;
-  const mode = requestedMode === 'Disabled' ? 'Disabled' : handled ? 'HLE' : 'LLE';
-  const fallback = requestedMode === 'HLE' && !handled
+  const mode = requestedMode === EmulationMode.Disabled ? EmulationMode.Disabled
+    : handled ? EmulationMode.HLE : EmulationMode.LLE;
+  const fallback = requestedMode === EmulationMode.HLE && !handled
     ? (piFallback ? ' (HLE fallback: PI DMA activity)' : ' (HLE fallback)') : '';
   logger.log(`RSP audio microcode ${description}: ${mode}${fallback}`);
 }
@@ -149,14 +152,14 @@ export function dispatchAudioTask(hardware, mode) {
 
     // Observers may inspect or modify memory. Never use a stale classification
     // to execute HLE after handing control to external code.
-    if (mode === 'HLE') {
+    if (mode === EmulationMode.HLE) {
       state = getAudioState(hardware);
       identity = state.classify(state.raw, state.result);
     }
   }
 
   // Disabled skips execution; a false result hands the task back to LLE.
-  const handled = mode === 'Disabled' || (mode === 'HLE' && executeAudioTask(hardware, state, identity));
+  const handled = mode === EmulationMode.Disabled || (mode === EmulationMode.HLE && executeAudioTask(hardware, state, identity));
   logAudioTask(state, identity, mode, handled);
   return handled;
 }
