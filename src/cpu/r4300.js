@@ -1749,9 +1749,13 @@ export class CPU0 {
     this.setRegU32Extend(rt, this.getRegU64(rs) < immediate ? 1 : 0);
   }
 
-  execANDI(rt, rs, imm) { this.setRegU64(rt, this.getRegU64(rs) & BigInt(imm)); }
-  execORI(rt, rs, imm) { this.setRegU64(rt, this.getRegU64(rs) | BigInt(imm)); }
-  execXORI(rt, rs, imm) { this.setRegU64(rt, this.getRegU64(rs) ^ BigInt(imm)); }
+  execANDI(rt, rs, imm) { this.setRegU32Extend(rt, this.getRegU32Lo(rs) & imm); }
+  execORI(rt, rs, imm) {
+    this.setRegS64LoHi(rt, this.getRegU32Lo(rs) | imm, this.gprS32[rs * 2 + 1]);
+  }
+  execXORI(rt, rs, imm) {
+    this.setRegS64LoHi(rt, this.getRegU32Lo(rs) ^ imm, this.gprS32[rs * 2 + 1]);
+  }
   execLUI(rt, imm) { this.setRegS32Extend(rt, imm << 16); }
 
   // Helpers for load and store instructions.
