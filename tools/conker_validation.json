@@ -1,0 +1,62 @@
+{
+  "usa": {
+    "revision": "745a40777490956048c98042e2bc390690f10f7a",
+    "dirty": true,
+    "romSHA256": "32e6a8b970ec12ac5f782344945aa0c98a193832eefb687529d03bab6948714b",
+    "bundleSHA256": "603530bdf3a07e966f404ae347402d6992ca1d938e79f64fada4e8926f0f374e",
+    "settings": {
+      "graphics": "HLE",
+      "audio": "HLE",
+      "renderScale": 1,
+      "canvasScale": 1,
+      "crt": "Off",
+      "freshSave": true
+    },
+    "input": "conker_story_input.json",
+    "errors": [],
+    "browser": "145.0.7632.6",
+    "bundleVersion": "745a40777490956048c98042e2bc390690f10f7a",
+    "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
+    "snapshots": [
+      {"vi": 600, "pc": 2147484032, "tasks": 101, "loads": {"GBI2/CONKER": 101}, "halts": [], "glError": 0, "warnings": {}},
+      {"vi": 1800, "pc": 2147484032, "tasks": 678, "loads": {"GBI2/CONKER": 678}, "halts": [], "glError": 0, "warnings": {}},
+      {"vi": 3600, "pc": 2147484032, "tasks": 1543, "loads": {"GBI2/CONKER": 1543}, "halts": [], "glError": 0, "warnings": {}},
+      {"vi": 4800, "pc": 2147484032, "tasks": 2113, "loads": {"GBI2/CONKER": 2113}, "halts": [], "glError": 0, "warnings": {}},
+      {"vi": 6000, "pc": 2147484032, "tasks": 2713, "loads": {"GBI2/CONKER": 2713}, "halts": [], "glError": 0, "warnings": {}},
+      {"vi": 7200, "pc": 2147484032, "tasks": 3313, "loads": {"GBI2/CONKER": 3313}, "halts": [], "glError": 0, "warnings": {}},
+      {"vi": 8400, "pc": 2147484032, "tasks": 3912, "loads": {"GBI2/CONKER": 3912}, "halts": [], "glError": 0, "warnings": {}},
+      {"vi": 9600, "pc": 2147484032, "tasks": 4512, "loads": {"GBI2/CONKER": 4512}, "halts": [], "glError": 0, "warnings": {}},
+      {"vi": 10800, "pc": 2147484032, "tasks": 5112, "loads": {"GBI2/CONKER": 5112}, "halts": [], "glError": 0, "warnings": {}},
+      {"vi": 12000, "pc": 2147484032, "tasks": 5711, "loads": {"GBI2/CONKER": 5711}, "halts": [], "glError": 0, "warnings": {}},
+      {"vi": 13200, "pc": 2147484032, "tasks": 6275, "loads": {"GBI2/CONKER": 6275}, "halts": [], "glError": 0, "warnings": {}},
+      {"vi": 14400, "pc": 2147484032, "tasks": 6875, "loads": {"GBI2/CONKER": 6875}, "halts": [], "glError": 0, "warnings": {}},
+      {"vi": 15600, "pc": 2147484032, "tasks": 7475, "loads": {"GBI2/CONKER": 7475}, "halts": [], "glError": 0, "warnings": {}},
+      {"vi": 16800, "pc": 2147484032, "tasks": 8074, "loads": {"GBI2/CONKER": 8074}, "halts": [], "glError": 0, "warnings": {}},
+      {"vi": 18000, "pc": 2147484032, "tasks": 8670, "loads": {"GBI2/CONKER": 8670}, "halts": [], "glError": 0, "warnings": {}}
+    ]
+  },
+  "europe": {
+    "revision": "745a40777490956048c98042e2bc390690f10f7a",
+    "dirty": true,
+    "romSHA256": "8717054d8edcf1bb9fb4607c7ac8fe4d6fb855fe6506f7e5dcba62e414558178",
+    "bundleSHA256": "603530bdf3a07e966f404ae347402d6992ca1d938e79f64fada4e8926f0f374e",
+    "settings": {
+      "graphics": "HLE",
+      "audio": "HLE",
+      "renderScale": 1,
+      "canvasScale": 1,
+      "crt": "Off",
+      "freshSave": true
+    },
+    "input": [],
+    "errors": [],
+    "browser": "145.0.7632.6",
+    "bundleVersion": "745a40777490956048c98042e2bc390690f10f7a",
+    "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
+    "snapshots": [
+      {"vi": 600, "pc": 2147484032, "tasks": 121, "loads": {"GBI2/CONKER": 121}, "halts": [], "glError": 0, "warnings": {}},
+      {"vi": 1800, "pc": 2147484032, "tasks": 703, "loads": {"GBI2/CONKER": 703}, "halts": [], "glError": 0, "warnings": {}},
+      {"vi": 3600, "pc": 2147484032, "tasks": 1574, "loads": {"GBI2/CONKER": 1574}, "halts": [], "glError": 0, "warnings": {}}
+    ]
+  }
+}

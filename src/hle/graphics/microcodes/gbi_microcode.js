@@ -118,7 +118,7 @@ export class GBIMicrocode {
 
   loadMatrix(address, length) {
     const recip = 1.0 / 65536.0;
-    const dv = new DataView(this.ramDV.buffer, address);
+    const dv = new DataView(this.ramDV.buffer, this.ramDV.byteOffset + address, this.ramDV.byteLength - address);
 
     if (length != 64) {
       this.warn('Unusual matrix length', `${length}`);

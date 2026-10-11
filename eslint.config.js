@@ -57,14 +57,14 @@ export default [
     languageOptions: { sourceType: 'commonjs', globals: globals.node },
   },
   {
-    files: ['tools/build.js', 'tools/systemtest/**/*.js', 'tools/texture_sampler/run.js'],
+    files: ['tools/build.js', 'tools/systemtest/**/*.js', 'tools/texture_sampler/run.js', 'tools/conker_replay.js'],
     languageOptions: {
       sourceType: 'module',
       globals: { ...globals.nodeBuiltin, ...globals.bunBuiltin },
     },
   },
   {
-    files: ['tools/texture_sampler_webgl.js', 'tools/presentation_webgl.js', 'tools/interlaced_presentation_webgl.js', 'tools/fog_webgl.js', 'tools/tmem_sampling_webgl.js', 'tools/rdp_webgl.js', 'tools/affine_projection_webgl.js', 'tools/rdp_packet_fixtures.js', 'tools/light_color_webgl.js', 'tools/modify_vertex_webgl.js', 'tools/moveword_points_webgl.js', 'tools/s2dex_bg_*.js', 'tools/texture_sampler/scenes.js', 'tools/texture_sampler/visual.js', 'tools/webgl_test_helpers.js'],
+    files: ['tools/conker_replay_browser.js', 'tools/texture_sampler_webgl.js', 'tools/presentation_webgl.js', 'tools/interlaced_presentation_webgl.js', 'tools/fog_webgl.js', 'tools/tmem_sampling_webgl.js', 'tools/rdp_webgl.js', 'tools/affine_projection_webgl.js', 'tools/rdp_packet_fixtures.js', 'tools/light_color_webgl.js', 'tools/modify_vertex_webgl.js', 'tools/moveword_points_webgl.js', 'tools/s2dex_bg_*.js', 'tools/texture_sampler/scenes.js', 'tools/texture_sampler/visual.js', 'tools/webgl_test_helpers.js'],
     languageOptions: { sourceType: 'module', globals: globals.browser },
   },
 ];
