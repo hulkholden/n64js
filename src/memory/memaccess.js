@@ -115,14 +115,25 @@ export function store64fast(sAddr, value) {
   store64slow(sAddr >>> 0, value);
 }
 
+// The slow helpers bypass device dispatch for KUSEG, KSSEG and KSEG3 RAM.
+// Their top two bits are anything except 10 (the direct KSEG0/KSEG1 segments).
+// Keep alignment checks before translation and the same 8 MiB physical wrap as
+// MappedMemDevice. translateRead/Write still enforce TLB validity and permissions.
+
 // Unsigned loads.
 function loadU8slow(addr) {
+  if ((addr & 0xc0000000) !== (0x80000000 | 0)) {
+    return ramDV.getUint8(cpu0.translateRead(addr) & 0x007fffff, false);
+  }
   return getMemoryHandler(addr).readU8(addr);
 }
 
 function loadU16slow(addr) {
   if (addr & 1) {
     cpu0.unalignedLoad(addr);
+  }
+  if ((addr & 0xc0000000) !== (0x80000000 | 0)) {
+    return ramDV.getUint16(cpu0.translateRead(addr) & 0x007fffff, false);
   }
   return getMemoryHandler(addr).readU16(addr);
 }
@@ -131,6 +142,9 @@ function loadU32slow(addr) {
   if (addr & 3) {
     cpu0.unalignedLoad(addr);
   }
+  if ((addr & 0xc0000000) !== (0x80000000 | 0)) {
+    return ramDV.getUint32(cpu0.translateRead(addr) & 0x007fffff, false);
+  }
   return getMemoryHandler(addr).readU32(addr);
 }
 
@@ -138,17 +152,26 @@ function loadU64slow(addr) {
   if (addr & 7) {
     cpu0.unalignedLoad(addr);
   }
+  if ((addr & 0xc0000000) !== (0x80000000 | 0)) {
+    return ramDV.getBigUint64(cpu0.translateRead(addr) & 0x007fffff, false);
+  }
   return getMemoryHandler(addr).readU64(addr);
 }
 
 // Signed loads.
 function loadS8slow(addr) {
+  if ((addr & 0xc0000000) !== (0x80000000 | 0)) {
+    return ramDV.getInt8(cpu0.translateRead(addr) & 0x007fffff, false);
+  }
   return (getMemoryHandler(addr).readU8(addr) << 24) >> 24;
 }
 
 function loadS16slow(addr) {
   if (addr & 1) {
     cpu0.unalignedLoad(addr);
+  }
+  if ((addr & 0xc0000000) !== (0x80000000 | 0)) {
+    return ramDV.getInt16(cpu0.translateRead(addr) & 0x007fffff, false);
   }
   return (getMemoryHandler(addr).readU16(addr) << 16) >> 16;
 }
@@ -157,17 +180,28 @@ export function loadS32slow(addr) {
   if (addr & 3) {
     cpu0.unalignedLoad(addr);
   }
+  if ((addr & 0xc0000000) !== (0x80000000 | 0)) {
+    return ramDV.getInt32(cpu0.translateRead(addr) & 0x007fffff, false);
+  }
   return getMemoryHandler(addr).readU32(addr) >> 0;
 }
 
 // Stores.
 function store8slow(addr, value) {
+  if ((addr & 0xc0000000) !== (0x80000000 | 0)) {
+    ramDV.setUint8(cpu0.translateWrite(addr) & 0x007fffff, value, false);
+    return;
+  }
   getMemoryHandler(addr).write8(addr, value);
 }
 
 function store16slow(addr, value) {
   if (addr & 1) {
     cpu0.unalignedStore(addr);
+  }
+  if ((addr & 0xc0000000) !== (0x80000000 | 0)) {
+    ramDV.setUint16(cpu0.translateWrite(addr) & 0x007fffff, value, false);
+    return;
   }
   getMemoryHandler(addr).write16(addr, value);
 }
@@ -176,12 +210,20 @@ function store32slow(addr, value) {
   if (addr & 3) {
     cpu0.unalignedStore(addr);
   }
+  if ((addr & 0xc0000000) !== (0x80000000 | 0)) {
+    ramDV.setUint32(cpu0.translateWrite(addr) & 0x007fffff, value, false);
+    return;
+  }
   getMemoryHandler(addr).write32(addr, value);
 }
 
 function store64slow(addr, value) {
   if (addr & 7) {
     cpu0.unalignedStore(addr);
+  }
+  if ((addr & 0xc0000000) !== (0x80000000 | 0)) {
+    ramDV.setBigUint64(cpu0.translateWrite(addr) & 0x007fffff, value, false);
+    return;
   }
   getMemoryHandler(addr).write64(addr, value);
 }
