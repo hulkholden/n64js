@@ -136,7 +136,7 @@ with unequal and large clip W, ordinary/NoN clipping variants, cached vertices,
 fog-colour uniform updates, blender-dependent shader selection, combiner shade
 alpha, and fogged translucent textures with alpha testing. The RSP signed-factor
 decoding, lighting interaction and vertex-cache rules also have Bun tests in
-`src/hle/fog.test.js`.
+`src/hle/graphics/fog.test.js`.
 
 The same module checks F3DFLX alpha lighting, used for F-Zero X's car
 reflections. Synthetic normals select zero, partial and full alpha from a

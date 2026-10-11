@@ -1,4 +1,4 @@
-import * as gbi from '../src/hle/gbi.js';
+import * as gbi from '../src/hle/graphics/gbi.js';
 import { bgCopyCase, bgCopyFormats } from './s2dex_bg_copy_cases.js';
 
 export function bg1cycCase(options = {}) {

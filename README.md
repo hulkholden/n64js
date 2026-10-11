@@ -229,7 +229,7 @@ retains the existing field-weaving path.
 
 The Mattias style follows [MattiasCRT by Mattias Gustavsson](https://www.shadertoy.com/view/Ms23DR).
 Its implementation is adapted from his [MIT-licensed crtemu_pc.h](https://github.com/mattiasgustavsson/crtview/blob/de7897958ac1f346ca7fa3dbf5a57dab5fcc5bb3/source/crtemu_pc.h).
-The attribution and full MIT notice are retained in [crt_mattias.glsl](src/hle/shaders/crt_mattias.glsl), including in the bundled shader source.
+The attribution and full MIT notice are retained in [crt_mattias.glsl](src/hle/graphics/shaders/crt_mattias.glsl), including in the bundled shader source.
 This adaptation uses the current frame for ghosting and omits the original library's temporal blur buffers and frame overlay.
 
 ## Browser Compatibility

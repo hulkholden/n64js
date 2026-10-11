@@ -1,4 +1,4 @@
-import * as gbi from '../src/hle/gbi.js';
+import * as gbi from '../src/hle/graphics/gbi.js';
 
 const F = gbi.ImageFormat, S = gbi.ImageSize;
 const colors16 = [0xf801, 0x07c1, 0x003f, 0xffff];

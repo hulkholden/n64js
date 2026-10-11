@@ -1,5 +1,5 @@
-import { GBI1 } from '../src/hle/gbi1.js';
-import { GBI2 } from '../src/hle/gbi2.js';
+import { GBI1 } from '../src/hle/graphics/microcodes/gbi1.js';
+import { GBI2 } from '../src/hle/graphics/microcodes/gbi2.js';
 import {
   createWebGLHarness,
   drawProjectedTriangle,

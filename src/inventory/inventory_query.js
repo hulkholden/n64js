@@ -3,7 +3,7 @@
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { collectorSpecs, inspectCollector, readInventory } from './inventory_reports.js';
-import { ImageFormat, ImageSize } from '../hle/gbi.js';
+import { ImageFormat, ImageSize } from '../hle/graphics/gbi.js';
 
 const usage = `Usage: bun run inventory-query <inventory-root|scan-directory|report.json> [filters]
   --microcode <family>  Match a handler family, e.g. GBI2 (case insensitive)

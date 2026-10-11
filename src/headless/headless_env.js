@@ -16,7 +16,7 @@ function loadModules() {
     import('../romdb.js'),
     import('../rsp/rsp.js'),
     import('../system_constants.js'),
-    import('../hle/headless_graphics.js'),
+    import('../hle/graphics/headless_graphics.js'),
   ]);
   return modulesPromise;
 }
