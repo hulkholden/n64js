@@ -62,3 +62,43 @@ describe('Matrix4x4.multiply', () => {
     expect([...point.elems]).toEqual([-5, -7, 16, 1]);
   });
 });
+
+describe('Matrix4x4 precision', () => {
+  const ulp = 1 / 65536;
+
+  test('constructors and factories provide full precision storage for later writes', () => {
+    for (const matrix of [
+      new Matrix4x4(),
+      new Matrix4x4(new Float32Array(16)),
+      new Matrix4x4(Array(16).fill(0)),
+      new Matrix4x4(new Float64Array(16)),
+      Matrix4x4.identity(),
+      Matrix4x4.makeOrtho(-1, 1, -1, 1, -1, 1),
+    ]) {
+      matrix.elems[0] = 256 + ulp;
+      expect(matrix.elems[0]).toBe(256 + ulp);
+    }
+  });
+
+  test('multiplication retains fractional products and cancellation within a dot product', () => {
+    const a = new Matrix4x4([
+      256, ulp, -256, ulp,
+      -256, -ulp, 256, -ulp,
+      0, 0, 1, 0,
+      0, 0, 0, 1,
+    ]);
+    const b = new Matrix4x4([
+      1, 0, 0, 0,
+      1, 1, 0, 0,
+      1, 0, 1, 0,
+      1, 0, 0, 1,
+    ]);
+    const product = a.multiply(b);
+    expect(product.elems[0]).toBe(2 * ulp);
+    expect(product.elems[4]).toBe(-2 * ulp);
+    const scale = Matrix4x4.identity();
+    scale.elems[0] = 0.5;
+    expect(product.multiply(scale).elems[0]).toBe(ulp);
+    expect(product.multiply(scale).elems[4]).toBe(-ulp);
+  });
+});
