@@ -8,6 +8,12 @@ const vertexCount = 32;
 const lightStride = 48;
 const pointLightingBit = 0x00400000;
 
+// Offset bits 4–5 select integer (0x00), fraction (0x10), or translation (0x20).
+// The remaining selector (0x30) is reserved and cannot be written directly.
+const coordModFieldMask = 0x30;
+const coordModFractionField = 0x10;
+const coordModReservedField = 0x30;
+
 // Conker's F3DEX2 dialect. Command layout reference:
 // https://github.com/gonetz/GLideN64/blob/a04081ad6a966a9413bea63a55f502e0dc98bb18/src/uCodes/F3DEX2CBFD.cpp
 export class GBI2Conker extends GBI2 {
@@ -96,14 +102,14 @@ export class GBI2Conker extends GBI2 {
     }
 
     const component = (offset >>> 1) & 3;
-    const field = offset & 0x30;
-    if (component > 2 || field === 0x30 || (offset & ~0x3f)) {
+    const field = offset & coordModFieldMask;
+    if (component > 2 || field === coordModReservedField || (offset & ~0x3f)) {
       this.warn('Conker invalid coordinate modifier', toString16(offset));
       return;
     }
 
     const base = field >>> 2;
-    const values = field === 0x10
+    const values = field === coordModFractionField
       ? [(value >>> 16) / 65536, (value & 0xffff) / 65536]
       : [value >> 16, (value << 16) >> 16];
     for (let i = 0; i < 2; ++i) {
@@ -111,7 +117,7 @@ export class GBI2Conker extends GBI2 {
       this.coordMod[base + index] = values[i];
 
       // Fraction writes commit the integer + fraction scale used by lighting.
-      if (field === 0x10) {
+      if (field === coordModFractionField) {
         this.coordMod[12 + index] = this.coordMod[index] + values[i];
       }
     }
