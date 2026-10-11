@@ -3,9 +3,9 @@ import { Matrix4x4 } from '../../graphics/Matrix4x4.js';
 import { Transform4D } from '../../graphics/Transform4D.js';
 import { Vector4 } from '../../graphics/Vector4.js';
 import { executeDisplayList } from './display_list.js';
-import { GBI0 } from './gbi0.js';
-import { GBI1 } from './gbi1.js';
-import { GBI2 } from './gbi2.js';
+import { GBI0 } from './microcodes/gbi0.js';
+import { GBI1 } from './microcodes/gbi1.js';
+import { GBI2 } from './microcodes/gbi2.js';
 import { NullRenderer } from './null_renderer.js';
 import { RSPState } from './rsp_state.js';
 

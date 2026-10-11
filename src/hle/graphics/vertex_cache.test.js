@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { executeDisplayList } from './display_list.js';
-import { GBI1 } from './gbi1.js';
+import { GBI1 } from './microcodes/gbi1.js';
 import { NullRenderer } from './null_renderer.js';
 import { RSPState } from './rsp_state.js';
 

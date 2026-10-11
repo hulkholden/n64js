@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { executeDisplayList } from './display_list.js';
-import { GBI2 } from './gbi2.js';
+import { GBI2 } from './microcodes/gbi2.js';
 import { CycleType } from './gbi.js';
 import { RSPState } from './rsp_state.js';
 

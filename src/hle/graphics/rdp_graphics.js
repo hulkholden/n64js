@@ -1,4 +1,4 @@
-import { GBIMicrocode } from './gbi_microcode.js';
+import { GBIMicrocode } from './microcodes/gbi_microcode.js';
 import { ProjectedVertex } from './projected_vertex.js';
 import { Triangle } from '../../lle/rdp.js';
 import { Commands } from '../../lle/rdp_constants.js';

@@ -2,8 +2,8 @@ import { describe, expect, test } from 'bun:test';
 import { Matrix4x4 } from '../../graphics/Matrix4x4.js';
 import { NullRenderer } from './null_renderer.js';
 import { RSPState } from './rsp_state.js';
-import { T3DUX } from './t3dux.js';
-import { Turbo3D } from './turbo3d.js';
+import { T3DUX } from './microcodes/t3dux.js';
+import { Turbo3D } from './microcodes/turbo3d.js';
 
 for (const [Type, variant] of [[Turbo3D], [T3DUX, false], [T3DUX, true]]) {
   describe(`${Type.name} affine projection (${variant ?? 'SDK'})`, () => {

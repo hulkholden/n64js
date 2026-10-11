@@ -1,7 +1,7 @@
 import { executeDisplayList } from '../src/hle/graphics/display_list.js';
-import { GBI0 } from '../src/hle/graphics/gbi0.js';
-import { GBI1 } from '../src/hle/graphics/gbi1.js';
-import { GBI2 } from '../src/hle/graphics/gbi2.js';
+import { GBI0 } from '../src/hle/graphics/microcodes/gbi0.js';
+import { GBI1 } from '../src/hle/graphics/microcodes/gbi1.js';
+import { GBI2 } from '../src/hle/graphics/microcodes/gbi2.js';
 import { Vector3 } from '../src/graphics/Vector3.js';
 import { createWebGLHarness, evaluateChecks } from './webgl_test_helpers.js';
 

@@ -11,7 +11,7 @@ import { graphicsOptions } from './graphics_options.js';
 import { identifyMicrocode, MicrocodeId, microcodePrefixLength } from './microcode_identifier.js';
 import * as logger from '../../logger.js';
 import { toString32 } from '../../format.js';
-import { t3duxNeedsWriteback } from './t3dux.js';
+import { t3duxNeedsWriteback } from './microcodes/t3dux.js';
 
 window.n64js = window.n64js || {};
 

@@ -1,4 +1,4 @@
-import { GBI2SDEX } from '../src/hle/graphics/gbi_s2dex.js';
+import { GBI2SDEX } from '../src/hle/graphics/microcodes/gbi_s2dex.js';
 import { bg1cycCase, bg1cycCases } from './s2dex_bg_1cyc_cases.js';
 import { assertFramebufferGrid, createWebGLHarness, withMockMemory } from './webgl_test_helpers.js';
 

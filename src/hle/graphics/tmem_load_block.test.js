@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import * as gbi from './gbi.js';
-import { GBIMicrocode } from './gbi_microcode.js';
+import { GBIMicrocode } from './microcodes/gbi_microcode.js';
 import { ImageFormat, ImageSize } from './gbi.js';
-import { GBI2 } from './gbi2.js';
+import { GBI2 } from './microcodes/gbi2.js';
 import { RSPState } from './rsp_state.js';
 
 describe('TMEM LoadBlock source coordinates', () => {

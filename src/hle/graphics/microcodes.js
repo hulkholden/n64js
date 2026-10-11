@@ -1,18 +1,18 @@
 import * as logger from '../../logger.js';
 import { toString32 } from '../../format.js';
-import { GBI0, GBI0Early, GBI0GE, GBI0PD, GBI0SE, GBI0WR } from './gbi0.js';
-import { GBI0DKR } from './gbi0_dkr.js';
-import { GBI1TEXA } from './gbi1_texa.js';
-import { GBI1, GBI1LL } from './gbi1.js';
-import { GBI1L3DEX } from './gbi_l3dex.js';
-import { GBI2, GBI2Conker } from './gbi2.js';
-import { GBI2FLX } from './gbi2_flx.js';
-import { GBI1SDEX, GBI2SDEX } from './gbi_s2dex.js';
+import { GBI0, GBI0Early, GBI0GE, GBI0PD, GBI0SE, GBI0WR } from './microcodes/gbi0.js';
+import { GBI0DKR } from './microcodes/gbi0_dkr.js';
+import { GBI1TEXA } from './microcodes/gbi1_texa.js';
+import { GBI1, GBI1LL } from './microcodes/gbi1.js';
+import { GBI1L3DEX } from './microcodes/gbi_l3dex.js';
+import { GBI2, GBI2Conker } from './microcodes/gbi2.js';
+import { GBI2FLX } from './microcodes/gbi2_flx.js';
+import { GBI1SDEX, GBI2SDEX } from './microcodes/gbi_s2dex.js';
 import { graphicsOptions } from './graphics_options.js';
 import { identifyMicrocode, MicrocodeId, microcodePrefixLength } from './microcode_identifier.js';
-import { Turbo3D } from './turbo3d.js';
-import { T3DUX } from './t3dux.js';
-import { ZSortP } from './zsortp.js';
+import { Turbo3D } from './microcodes/turbo3d.js';
+import { T3DUX } from './microcodes/t3dux.js';
+import { ZSortP } from './microcodes/zsortp.js';
 
 class UnsupportedMicrocodeError extends Error {
   constructor(info) {

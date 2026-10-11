@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test';
 import { executeDisplayList } from './display_list.js';
-import { GBI0SE } from './gbi0.js';
-import { GBI1 } from './gbi1.js';
-import { GBI2 } from './gbi2.js';
+import { GBI0SE } from './microcodes/gbi0.js';
+import { GBI1 } from './microcodes/gbi1.js';
+import { GBI2 } from './microcodes/gbi2.js';
 import { RSPState } from './rsp_state.js';
 
 function writeCommands(ramDV, address, commands) {

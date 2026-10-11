@@ -2,8 +2,8 @@ import { convertTexels } from './debug_texture.js';
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { RSPState } from './rsp_state.js';
 import { ImageFormat as Format, ImageSize as Size } from './gbi.js';
-import { GBIMicrocode } from './gbi_microcode.js';
-import { S2DEXCommon } from './gbi_s2dex.js';
+import { GBIMicrocode } from './microcodes/gbi_microcode.js';
+import { S2DEXCommon } from './microcodes/gbi_s2dex.js';
 
 let savedN64js, ram, state, tile, tmem, ti;
 beforeEach(() => {

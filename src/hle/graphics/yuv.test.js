@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { convertTexels } from './debug_texture.js';
-import { GBIMicrocode } from './gbi_microcode.js';
+import { GBIMicrocode } from './microcodes/gbi_microcode.js';
 import { RSPState } from './rsp_state.js';
 import { ImageFormat, ImageSize } from './gbi.js';
 
