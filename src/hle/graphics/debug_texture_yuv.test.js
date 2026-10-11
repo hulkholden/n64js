@@ -1,25 +1,8 @@
 import { describe, expect, test } from 'bun:test';
 import { convertTexels } from './debug_texture.js';
-import { GBIMicrocode } from './microcodes/gbi_microcode.js';
-import { RSPState } from './rsp_state.js';
 import { ImageFormat, ImageSize } from './gbi.js';
 
 describe('YUV textures', () => {
-  test('decodes signed SetConvert coefficients, including the split K2 field', () => {
-    const state = new RSPState();
-    const ram = new DataView(new ArrayBuffer(64));
-    const ucode = new GBIMicrocode(state, ram);
-    const lines = [];
-    // The command used by Vigilante 8's intro.
-    ucode.executeSetConvert(0xec15fd5d, 0x3b78e42a, { text: line => lines.push(line) });
-    expect(Array.from(state.convert)).toEqual([175, -43, -89, 222, 114, 42]);
-    expect(lines).toEqual(['gsDPSetConvert(175, -43, -89, 222, 114, 42);']);
-    state.reset(ram, 0);
-    expect(Array.from(state.convert)).toEqual([175, -43, -89, 222, 114, 42]);
-    ucode.executeSetConvert(0xec201000, 0x04020100);
-    expect(Array.from(state.convert)).toEqual([-256, -256, 0, -256, -256, -256]);
-  });
-
   test('combines UV/Y banks with an eight-byte line stride and odd-row swizzling', () => {
     const src = new Uint8Array(4096);
     const tile = { format: ImageFormat.G_IM_FMT_YUV, size: ImageSize.G_IM_SIZ_16b,

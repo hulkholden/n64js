@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test';
-import { executeDisplayList } from './display_list.js';
-import { GBI1 } from './microcodes/gbi1.js';
-import { NullRenderer } from './null_renderer.js';
-import { RSPState } from './rsp_state.js';
+import { executeDisplayList } from '../display_list.js';
+import { GBI1 } from './gbi1.js';
+import { NullRenderer } from '../null_renderer.js';
+import { RSPState } from '../rsp_state.js';
 
 function harness() {
   const ramDV = new DataView(new ArrayBuffer(0x2000));
