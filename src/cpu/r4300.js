@@ -1511,44 +1511,71 @@ export class CPU0 {
     this.execDSRA(rd, rt, this.getRegU32Lo(rs) & 63);
   }
   execDSLL(rd, rt, sa) {
-    const lo = this.gprU32[rt * 2], hi = this.gprU32[rt * 2 + 1];
+    const sourceLo = this.gprU32[rt * 2];
+    const sourceHi = this.gprU32[rt * 2 + 1];
+    let lo;
+    let hi;
     if (sa === 0) {
-      this.setRegS64LoHi(rd, lo, hi);
+      lo = sourceLo;
+      hi = sourceHi;
     } else if (sa < 32) {
-      this.setRegS64LoHi(rd, lo << sa, (hi << sa) | (lo >>> (32 - sa)));
+      lo = sourceLo << sa;
+      hi = (sourceHi << sa) | (sourceLo >>> (32 - sa));
     } else {
-      this.setRegS64LoHi(rd, 0, lo << (sa - 32));
+      lo = 0;
+      hi = sourceLo << (sa - 32);
     }
+    this.setRegS64LoHi(rd, lo, hi);
   }
   execDSRL(rd, rt, sa) {
-    const lo = this.gprU32[rt * 2], hi = this.gprU32[rt * 2 + 1];
+    const sourceLo = this.gprU32[rt * 2];
+    const sourceHi = this.gprU32[rt * 2 + 1];
+    let lo;
+    let hi;
     if (sa === 0) {
-      this.setRegS64LoHi(rd, lo, hi);
+      lo = sourceLo;
+      hi = sourceHi;
     } else if (sa < 32) {
-      this.setRegS64LoHi(rd, (lo >>> sa) | (hi << (32 - sa)), hi >>> sa);
+      lo = (sourceLo >>> sa) | (sourceHi << (32 - sa));
+      hi = sourceHi >>> sa;
     } else {
-      this.setRegS64LoHi(rd, hi >>> (sa - 32), 0);
+      lo = sourceHi >>> (sa - 32);
+      hi = 0;
     }
+    this.setRegS64LoHi(rd, lo, hi);
   }
   execDSRA(rd, rt, sa) {
-    const lo = this.gprU32[rt * 2], hi = this.gprS32[rt * 2 + 1];
+    const sourceLo = this.gprU32[rt * 2];
+    const sourceHi = this.gprS32[rt * 2 + 1];
+    let lo;
+    let hi;
     if (sa === 0) {
-      this.setRegS64LoHi(rd, lo, hi);
+      lo = sourceLo;
+      hi = sourceHi;
     } else if (sa < 32) {
-      this.setRegS64LoHi(rd, (lo >>> sa) | (hi << (32 - sa)), hi >> sa);
+      lo = (sourceLo >>> sa) | (sourceHi << (32 - sa));
+      hi = sourceHi >> sa;
     } else {
-      this.setRegS64LoHi(rd, hi >> (sa - 32), hi >> 31);
+      lo = sourceHi >> (sa - 32);
+      hi = sourceHi >> 31;
     }
+    this.setRegS64LoHi(rd, lo, hi);
   }
   execDSLL32(rd, rt, sa) {
-    this.setRegS64LoHi(rd, 0, this.getRegU32Lo(rt) << sa);
+    const lo = 0;
+    const hi = this.getRegU32Lo(rt) << sa;
+    this.setRegS64LoHi(rd, lo, hi);
   }
   execDSRL32(rd, rt, sa) {
-    this.setRegS64LoHi(rd, this.gprU32[rt * 2 + 1] >>> sa, 0);
+    const lo = this.gprU32[rt * 2 + 1] >>> sa;
+    const hi = 0;
+    this.setRegS64LoHi(rd, lo, hi);
   }
   execDSRA32(rd, rt, sa) {
-    const hi = this.gprS32[rt * 2 + 1];
-    this.setRegS64LoHi(rd, hi >> sa, hi >> 31);
+    const sourceHi = this.gprS32[rt * 2 + 1];
+    const lo = sourceHi >> sa;
+    const hi = sourceHi >> 31;
+    this.setRegS64LoHi(rd, lo, hi);
   }
 
   execRESERVED(copIdx) { this.raiseRESERVEDException(copIdx); }
@@ -1579,8 +1606,12 @@ export class CPU0 {
   }
 
   execMULTU(rt, rs) {
-    const s = this.getRegU32Lo(rs), t = this.getRegU32Lo(rt);
-    const sl = s & 0xffff, sh = s >>> 16, tl = t & 0xffff, th = t >>> 16;
+    const s = this.getRegU32Lo(rs);
+    const t = this.getRegU32Lo(rt);
+    const sl = s & 0xffff;
+    const sh = s >>> 16;
+    const tl = t & 0xffff;
+    const th = t >>> 16;
     // All partial products/sums fit exactly in a Number (at most 34 bits).
     const lowProduct = sl * tl;
     const middle = sh * tl + sl * th + (lowProduct >>> 16);
@@ -1597,7 +1628,8 @@ export class CPU0 {
   }
 
   execDIV(rt, rs) {
-    const dividend = this.getRegS32Lo(rs), divisor = this.getRegS32Lo(rt);
+    const dividend = this.getRegS32Lo(rs);
+    const divisor = this.getRegS32Lo(rt);
     const lo = divisor ? (dividend / divisor) | 0 : dividend < 0 ? 1 : -1;
     const hi = divisor ? dividend % divisor : dividend;
     this.setMultLoS64LoHi(lo, lo >> 31);
@@ -1608,7 +1640,8 @@ export class CPU0 {
     const divisor = this.getRegS64(rt);
     const dividend = this.getRegS64(rs);
 
-    let lo, hi;
+    let lo;
+    let hi;
     if (divisor) {
       lo = dividend / divisor;
       hi = dividend % divisor;
@@ -1621,7 +1654,8 @@ export class CPU0 {
   }
 
   execDIVU(rt, rs) {
-    const dividend = this.getRegU32Lo(rs), divisor = this.getRegU32Lo(rt);
+    const dividend = this.getRegU32Lo(rs);
+    const divisor = this.getRegU32Lo(rt);
     const lo = divisor ? (dividend / divisor) | 0 : -1;
     const hi = divisor ? dividend % divisor : dividend;
     this.setMultLoS64LoHi(lo, lo >> 31);
@@ -1632,7 +1666,8 @@ export class CPU0 {
     const divisor = this.getRegU64(rt);
     const dividend = this.getRegU64(rs);
 
-    let lo, hi;
+    let lo;
+    let hi;
     if (divisor) {
       lo = dividend / divisor;
       hi = dividend % divisor;
@@ -1674,8 +1709,11 @@ export class CPU0 {
   }
 
   execDADDU(rd, rt, rs) {
-    const sl = this.gprU32[rs * 2], tl = this.gprU32[rt * 2], lo = sl + tl >>> 0;
-    this.setRegS64LoHi(rd, lo, this.gprS32[rs * 2 + 1] + this.gprS32[rt * 2 + 1] + (lo < sl ? 1 : 0));
+    const sl = this.gprU32[rs * 2];
+    const tl = this.gprU32[rt * 2];
+    const lo = sl + tl >>> 0;
+    const hi = this.gprS32[rs * 2 + 1] + this.gprS32[rt * 2 + 1] + (lo < sl ? 1 : 0);
+    this.setRegS64LoHi(rd, lo, hi);
   }
 
   execSUB(rd, rt, rs) {
@@ -1708,36 +1746,49 @@ export class CPU0 {
   }
 
   execDSUBU(rd, rt, rs) {
-    const sl = this.gprU32[rs * 2], tl = this.gprU32[rt * 2];
-    this.setRegS64LoHi(rd, sl - tl, this.gprS32[rs * 2 + 1] - this.gprS32[rt * 2 + 1] - (sl < tl ? 1 : 0));
+    const sl = this.gprU32[rs * 2];
+    const tl = this.gprU32[rt * 2];
+    const lo = sl - tl;
+    const hi = this.gprS32[rs * 2 + 1] - this.gprS32[rt * 2 + 1] - (sl < tl ? 1 : 0);
+    this.setRegS64LoHi(rd, lo, hi);
   }
 
   // Bitwise operations act independently on the two words, avoiding BigInt
-  // conversions. Both arguments are evaluated before writing an aliased rd.
+  // conversions. Both words are computed before writing an aliased rd.
   execAND(rd, rt, rs) {
     const r = this.gprS32;
-    this.setRegS64LoHi(rd, r[rs * 2] & r[rt * 2], r[rs * 2 + 1] & r[rt * 2 + 1]);
+    const lo = r[rs * 2] & r[rt * 2];
+    const hi = r[rs * 2 + 1] & r[rt * 2 + 1];
+    this.setRegS64LoHi(rd, lo, hi);
   }
   execOR(rd, rt, rs) {
     const r = this.gprS32;
-    this.setRegS64LoHi(rd, r[rs * 2] | r[rt * 2], r[rs * 2 + 1] | r[rt * 2 + 1]);
+    const lo = r[rs * 2] | r[rt * 2];
+    const hi = r[rs * 2 + 1] | r[rt * 2 + 1];
+    this.setRegS64LoHi(rd, lo, hi);
   }
   execXOR(rd, rt, rs) {
     const r = this.gprS32;
-    this.setRegS64LoHi(rd, r[rs * 2] ^ r[rt * 2], r[rs * 2 + 1] ^ r[rt * 2 + 1]);
+    const lo = r[rs * 2] ^ r[rt * 2];
+    const hi = r[rs * 2 + 1] ^ r[rt * 2 + 1];
+    this.setRegS64LoHi(rd, lo, hi);
   }
   execNOR(rd, rt, rs) {
     const r = this.gprS32;
-    this.setRegS64LoHi(rd, ~(r[rs * 2] | r[rt * 2]), ~(r[rs * 2 + 1] | r[rt * 2 + 1]));
+    const lo = ~(r[rs * 2] | r[rt * 2]);
+    const hi = ~(r[rs * 2 + 1] | r[rt * 2 + 1]);
+    this.setRegS64LoHi(rd, lo, hi);
   }
 
   execSLT(rd, rt, rs) {
-    const sh = this.gprS32[rs * 2 + 1], th = this.gprS32[rt * 2 + 1];
+    const sh = this.gprS32[rs * 2 + 1];
+    const th = this.gprS32[rt * 2 + 1];
     this.setRegU32Extend(rd, (sh === th ? this.gprU32[rs * 2] < this.gprU32[rt * 2] : sh < th) ? 1 : 0);
   }
 
   execSLTU(rd, rt, rs) {
-    const sh = this.gprU32[rs * 2 + 1], th = this.gprU32[rt * 2 + 1];
+    const sh = this.gprU32[rs * 2 + 1];
+    const th = this.gprU32[rt * 2 + 1];
     this.setRegU32Extend(rd, (sh === th ? this.gprU32[rs * 2] < this.gprU32[rt * 2] : sh < th) ? 1 : 0);
   }
 
@@ -1764,25 +1815,33 @@ export class CPU0 {
 
   execADDIU(rt, rs, imms) { this.setRegS32Extend(rt, this.getRegS32Lo(rs) + imms); }
   execDADDIU(rt, rs, imm) {
-    const sl = this.gprU32[rs * 2], lo = sl + imm >>> 0;
-    this.setRegS64LoHi(rt, lo, this.gprS32[rs * 2 + 1] + (imm >> 31) + (lo < sl ? 1 : 0));
+    const sl = this.gprU32[rs * 2];
+    const lo = sl + imm >>> 0;
+    const hi = this.gprS32[rs * 2 + 1] + (imm >> 31) + (lo < sl ? 1 : 0);
+    this.setRegS64LoHi(rt, lo, hi);
   }
 
   execSLTI(rt, rs, imm) {
-    const sh = this.gprS32[rs * 2 + 1], th = imm >> 31;
+    const sh = this.gprS32[rs * 2 + 1];
+    const th = imm >> 31;
     this.setRegU32Extend(rt, (sh === th ? this.gprU32[rs * 2] < imm >>> 0 : sh < th) ? 1 : 0);
   }
   execSLTIU(rt, rs, imm) {
-    const sh = this.gprU32[rs * 2 + 1], th = imm >> 31 >>> 0;
+    const sh = this.gprU32[rs * 2 + 1];
+    const th = imm >> 31 >>> 0;
     this.setRegU32Extend(rt, (sh === th ? this.gprU32[rs * 2] < imm >>> 0 : sh < th) ? 1 : 0);
   }
 
   execANDI(rt, rs, imm) { this.setRegU32Extend(rt, this.getRegU32Lo(rs) & imm); }
   execORI(rt, rs, imm) {
-    this.setRegS64LoHi(rt, this.getRegU32Lo(rs) | imm, this.gprS32[rs * 2 + 1]);
+    const lo = this.getRegU32Lo(rs) | imm;
+    const hi = this.gprS32[rs * 2 + 1];
+    this.setRegS64LoHi(rt, lo, hi);
   }
   execXORI(rt, rs, imm) {
-    this.setRegS64LoHi(rt, this.getRegU32Lo(rs) ^ imm, this.gprS32[rs * 2 + 1]);
+    const lo = this.getRegU32Lo(rs) ^ imm;
+    const hi = this.gprS32[rs * 2 + 1];
+    this.setRegS64LoHi(rt, lo, hi);
   }
   execLUI(rt, imm) { this.setRegS32Extend(rt, imm << 16); }
 

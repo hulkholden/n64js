@@ -253,7 +253,8 @@ export class RSP {
 
   setVecFromAccUnsignedMid(r) {
     for (let el = 0; el < 8; el++) {
-      const hi = this.vAccS32[el * 2 + 1], lo = this.vAccU32[el * 2];
+      const hi = this.vAccS32[el * 2 + 1];
+      const lo = this.vAccU32[el * 2];
       this.setVecS16(r, el, hi < 0 ? 0 : (hi !== 0 || lo > 0x7fffffff) ? 0xffff : lo >>> 16);
     }
   }
@@ -271,7 +272,8 @@ export class RSP {
   }
 
   vectorMulFractions(vs, vt, vte, accumulate, roundVal) {
-    for (let el = 0, select = this.vecSelectU32[vte]; el < 8; el++, select >>= 4) {
+    let select = this.vecSelectU32[vte];
+    for (let el = 0; el < 8; el++, select >>= 4) {
       const s = this.getVecS16(vs, el);
       const t = this.getVecS16(vt, select & 0x7);
       const r = ((s * t) * 2) + roundVal;
@@ -280,7 +282,8 @@ export class RSP {
   }
 
   vectorMulPartialLow(vs, vt, vte, accumulate) {
-    for (let el = 0, select = this.vecSelectU32[vte]; el < 8; el++, select >>= 4) {
+    let select = this.vecSelectU32[vte];
+    for (let el = 0; el < 8; el++, select >>= 4) {
       const s = this.getVecU16(vs, el);
       const t = this.getVecU16(vt, select & 0x7);
       const r = (s * t) >>> 16;
@@ -289,7 +292,8 @@ export class RSP {
   }
 
   vectorMulPartialMidM(vs, vt, vte, accumulate) {
-    for (let el = 0, select = this.vecSelectU32[vte]; el < 8; el++, select >>= 4) {
+    let select = this.vecSelectU32[vte];
+    for (let el = 0; el < 8; el++, select >>= 4) {
       const s = this.getVecS16(vs, el);
       const t = this.getVecU16(vt, select & 0x7);
       this.updateAccMid32(el, s * t, accumulate)
@@ -297,7 +301,8 @@ export class RSP {
   }
 
   vectorMulPartialMidN(vs, vt, vte, accumulate) {
-    for (let el = 0, select = this.vecSelectU32[vte]; el < 8; el++, select >>= 4) {
+    let select = this.vecSelectU32[vte];
+    for (let el = 0; el < 8; el++, select >>= 4) {
       const s = this.getVecU16(vs, el);
       const t = this.getVecS16(vt, select & 0x7);
       this.updateAccMid32(el, s * t, accumulate)
@@ -305,7 +310,8 @@ export class RSP {
   }
 
   vectorMulPartialHigh(vs, vt, vte, accumulate) {
-    for (let el = 0, select = this.vecSelectU32[vte]; el < 8; el++, select >>= 4) {
+    let select = this.vecSelectU32[vte];
+    for (let el = 0; el < 8; el++, select >>= 4) {
       const s = this.getVecS16(vs, el);
       const t = this.getVecS16(vt, select & 0x7);
       this.updateAccHigh32(el, s * t, accumulate)
@@ -314,7 +320,8 @@ export class RSP {
 
   vectorRound(vs, vt, vte, ifGTE) {
     const shift = (vs & 1) ? 16 : 0;
-    for (let el = 0, select = this.vecSelectU32[vte]; el < 8; el++, select >>= 4) {
+    let select = this.vecSelectU32[vte];
+    for (let el = 0; el < 8; el++, select >>= 4) {
       const negative = this.vAccS32[el * 2 + 1] < 0;
       if (ifGTE ? !negative : negative) {
         this.updateAccMid32(el, this.getVecS16(vt, select & 7) << shift, true);
@@ -908,7 +915,8 @@ function vectorZero(i) {
   const s = cop2VS(i);
   const t = cop2VT(i);
 
-  for (let el = 0, select = rsp.vecSelectU32[cop2E(i)]; el < 8; el++, select >>= 4) {
+  let select = rsp.vecSelectU32[cop2E(i)];
+  for (let el = 0; el < 8; el++, select >>= 4) {
     const a = rsp.getVecS16(s, el);
     const b = rsp.getVecS16(t, select & 0x7);
     rsp.setAccLow(el, a + b);
@@ -1026,7 +1034,8 @@ function executeVMULQ(i) {
   const vs = cop2VS(i);
   const vt = cop2VT(i);
 
-  for (let el = 0, select = rsp.vecSelectU32[cop2E(i)]; el < 8; el++, select >>= 4) {
+  let select = rsp.vecSelectU32[cop2E(i)];
+  for (let el = 0; el < 8; el++, select >>= 4) {
     const s = rsp.getVecS16(vs, el);
     const t = rsp.getVecS16(vt, select & 0x7);
     const product = s * t;
@@ -1055,7 +1064,8 @@ function executeVADD(i) {
 
   const vco = rsp.VCO;
   const dv = rsp.vecTemp;
-  for (let el = 0, select = rsp.vecSelectU32[cop2E(i)]; el < 8; el++, select >>= 4) {
+  let select = rsp.vecSelectU32[cop2E(i)];
+  for (let el = 0; el < 8; el++, select >>= 4) {
     const s = rsp.getVecS16(vs, el);
     const t = rsp.getVecS16(vt, select & 0x7);
     const c = (vco >> el) & 0x1;
@@ -1074,7 +1084,8 @@ function executeVSUB(i) {
 
   const vco = rsp.VCO;
   const dv = rsp.vecTemp;
-  for (let el = 0, select = rsp.vecSelectU32[cop2E(i)]; el < 8; el++, select >>= 4) {
+  let select = rsp.vecSelectU32[cop2E(i)];
+  for (let el = 0; el < 8; el++, select >>= 4) {
     const s = rsp.getVecS16(vs, el);
     const t = rsp.getVecS16(vt, select & 0x7);
     const c = (vco >> el) & 0x1;
@@ -1102,7 +1113,8 @@ function executeVABS(i) {
   const vt = cop2VT(i);
 
   const dv = rsp.vecTemp;
-  for (let el = 0, select = rsp.vecSelectU32[cop2E(i)]; el < 8; el++, select >>= 4) {
+  let select = rsp.vecSelectU32[cop2E(i)];
+  for (let el = 0; el < 8; el++, select >>= 4) {
     const s = rsp.getVecS16(vs, el);
     const t = rsp.getVecU16(vt, select & 0x7);
 
@@ -1120,7 +1132,8 @@ function executeVADDC(i) {
   const vt = cop2VT(i);
 
   let newVCO = 0;
-  for (let el = 0, select = rsp.vecSelectU32[cop2E(i)]; el < 8; el++, select >>= 4) {
+  let select = rsp.vecSelectU32[cop2E(i)];
+  for (let el = 0; el < 8; el++, select >>= 4) {
     const s = rsp.getVecU16(vs, el);
     const t = rsp.getVecU16(vt, select & 0x7);
     const result = s + t;
@@ -1138,7 +1151,8 @@ function executeVSUBC(i) {
   const vt = cop2VT(i);
 
   let newVCO = 0;
-  for (let el = 0, select = rsp.vecSelectU32[cop2E(i)]; el < 8; el++, select >>= 4) {
+  let select = rsp.vecSelectU32[cop2E(i)];
+  for (let el = 0; el < 8; el++, select >>= 4) {
     const s = rsp.getVecU16(vs, el);
     const t = rsp.getVecU16(vt, select & 0x7);
     const result = s - t;
@@ -1194,7 +1208,8 @@ function executeVLT(i) {
   const vco = rsp.VCO;
   let vccLo = 0;
   let vccHi = 0;
-  for (let el = 0, select = rsp.vecSelectU32[cop2E(i)]; el < 8; el++, select >>= 4) {
+  let select = rsp.vecSelectU32[cop2E(i)];
+  for (let el = 0; el < 8; el++, select >>= 4) {
     const s = rsp.getVecS16(vs, el);
     const t = rsp.getVecS16(vt, select & 0x7);
 
@@ -1222,7 +1237,8 @@ function executeVEQ(i) {
   const vco = rsp.VCO;
   let vccLo = 0;
   let vccHi = 0;
-  for (let el = 0, select = rsp.vecSelectU32[cop2E(i)]; el < 8; el++, select >>= 4) {
+  let select = rsp.vecSelectU32[cop2E(i)];
+  for (let el = 0; el < 8; el++, select >>= 4) {
     const s = rsp.getVecS16(vs, el);
     const t = rsp.getVecS16(vt, select & 0x7);
 
@@ -1248,7 +1264,8 @@ function executeVNE(i) {
   const vco = rsp.VCO;
   let vccLo = 0;
   let vccHi = 0;
-  for (let el = 0, select = rsp.vecSelectU32[cop2E(i)]; el < 8; el++, select >>= 4) {
+  let select = rsp.vecSelectU32[cop2E(i)];
+  for (let el = 0; el < 8; el++, select >>= 4) {
     const s = rsp.getVecS16(vs, el);
     const t = rsp.getVecS16(vt, select & 0x7);
 
@@ -1275,7 +1292,8 @@ function executeVGE(i) {
   const vco = rsp.VCO;
   let vccLo = 0;
   let vccHi = 0;
-  for (let el = 0, select = rsp.vecSelectU32[cop2E(i)]; el < 8; el++, select >>= 4) {
+  let select = rsp.vecSelectU32[cop2E(i)];
+  for (let el = 0; el < 8; el++, select >>= 4) {
     const s = rsp.getVecS16(vs, el);
     const t = rsp.getVecS16(vt, select & 0x7);
 
@@ -1309,7 +1327,8 @@ function executeVCL(i) {
   let vccOutHi = 0;
   let vccOutLo = 0;
 
-  for (let el = 0, select = rsp.vecSelectU32[cop2E(i)]; el < 8; el++, select >>= 4) {
+  let select = rsp.vecSelectU32[cop2E(i)];
+  for (let el = 0; el < 8; el++, select >>= 4) {
     const s = rsp.getVecU16(vs, el);
     const t = rsp.getVecU16(vt, select & 0x7);
 
@@ -1357,11 +1376,16 @@ function executeVCH(i) {
   let vcoHi = 0;
   let vcoLo = 0;
   let vce = 0;
-  for (let el = 0, select = rsp.vecSelectU32[cop2E(i)]; el < 8; el++, select >>= 4) {
+  let select = rsp.vecSelectU32[cop2E(i)];
+  for (let el = 0; el < 8; el++, select >>= 4) {
     const s = rsp.getVecS16(vs, el);
     const t = rsp.getVecS16(vt, select & 0x7);
 
-    let le, ge, ce, ne, result;
+    let le;
+    let ge;
+    let ce;
+    let ne;
+    let result;
     const sign = (s ^ t) < 0;
     if (sign) {
       const sum = ((s + t) << 16) >> 16;
@@ -1400,11 +1424,14 @@ function executeVCR(i) {
 
   let vccHi = 0;
   let vccLo = 0;
-  for (let el = 0, select = rsp.vecSelectU32[cop2E(i)]; el < 8; el++, select >>= 4) {
+  let select = rsp.vecSelectU32[cop2E(i)];
+  for (let el = 0; el < 8; el++, select >>= 4) {
     const s = rsp.getVecS16(vs, el);
     const t = rsp.getVecS16(vt, select & 0x7);
 
-    let le, ge, result;
+    let le;
+    let ge;
+    let result;
     if ((s ^ t) < 0) {
       ge = t < 0;
       le = (s + t + 1) <= 0;
@@ -1431,7 +1458,8 @@ function executeVMRG(i) {
   const vt = cop2VT(i);
 
   let vcc = rsp.VCC;
-  for (let el = 0, select = rsp.vecSelectU32[cop2E(i)]; el < 8; el++, vcc >>= 1, select >>= 4) {
+  let select = rsp.vecSelectU32[cop2E(i)];
+  for (let el = 0; el < 8; el++, vcc >>= 1, select >>= 4) {
     const s = rsp.getVecU16(vs, el);
     const t = rsp.getVecU16(vt, select & 0x7);
     const result = (vcc & 1) ? s : t;
@@ -1452,7 +1480,8 @@ function executeVNXOR(i) { vectorLogical(i, (s, t) => ~(s ^ t)); }
 function vectorLogical(i, fn) {
   const vs = cop2VS(i);
   const vt = cop2VT(i);
-  for (let el = 0, select = rsp.vecSelectU32[cop2E(i)]; el < 8; el++, select >>= 4) {
+  let select = rsp.vecSelectU32[cop2E(i)];
+  for (let el = 0; el < 8; el++, select >>= 4) {
     const s = rsp.getVecU16(vs, el);
     const t = rsp.getVecU16(vt, select & 0x7);
     rsp.setAccLow(el, fn(s, t));
@@ -1468,7 +1497,8 @@ function executeVMOV(i) {
 
   // The low accumulator bits are set to VT, using the broadcast pattern.
   const vselect = rsp.vecSelectU32[cop2E(i)];
-  for (let el = 0, select = vselect; el < 8; el++, select >>= 4) {
+  let select = vselect;
+  for (let el = 0; el < 8; el++, select >>= 4) {
     const accVal = rsp.getVecS16(vt, select & 0x7);
     rsp.setAccLow(el, accVal);
   }
@@ -1479,7 +1509,8 @@ function executeVMOV(i) {
 }
 
 function vectorSetAccFromReg(vt, vte) {
-  for (let el = 0, select = rsp.vecSelectU32[vte]; el < 8; el++, select >>= 4) {
+  let select = rsp.vecSelectU32[vte];
+  for (let el = 0; el < 8; el++, select >>= 4) {
     const result = rsp.getVecS16(vt, select & 0x7);
     rsp.setAccLow(el, result);
   }
@@ -1647,7 +1678,8 @@ function executeLFV(i) {
   dv.setInt16(14, rsp.loadU8(base + ((misalignment + 4 - el) & 0xF)) << 7, false);
 
   const len = Math.min(8, 16 - el);
-  for (let i = el, n = el + len; i < n; i++) {
+  const n = el + len;
+  for (let i = el; i < n; i++) {
     rsp.setVecS8(vt, i, dv.getInt8(i, false));
   }
 }
