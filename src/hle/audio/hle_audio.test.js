@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { createHeadlessEmulator } from '../../headless/headless_env.js';
 import { PI_CART_ADDR_REG, PI_DRAM_ADDR_REG, PI_WR_LEN_REG, PI_STATUS_REG, PI_STATUS_CLR_INTR } from '../../devices/pi.js';
 import { SP_IMEM_OFFSET } from '../../devices/sp_constants.js';
-import { audioMicrocodeManifest } from './microcode_manifest.js';
+import { ABI1_STANDARD_MIXER, audioMicrocodeManifest } from './microcode_manifest.js';
 import { classifyAudioTask, hleProcessAudioTask } from './hle_audio.js';
 import { TASK_OFFSET, TASK_SIZE, TaskOffsets } from '../rsp_task_constants.js';
 
@@ -51,10 +51,10 @@ async function fixture() {
   const { bootstraps, programs } = audioMicrocodeManifest;
   try {
     audioMicrocodeManifest.bootstraps = [{ id: 'test-bootstrap', bytes: 4, sha256: hash(h.sp_mem.u8.subarray(SP_IMEM_OFFSET, SP_IMEM_OFFSET + 4)) }];
-    audioMicrocodeManifest.programs = [{ id: 'abi1-standard-mixer', family: 'ABI1',
+    audioMicrocodeManifest.programs = [{ id: ABI1_STANDARD_MIXER, family: 'ABI1',
       codeBytes: 4, codeSha256: hash(h.ram.u8.subarray(CODE, CODE + 4)),
       dataBytes: CONSTANT_BYTES, dataSha256: hash(h.ram.u8.subarray(CONSTANTS, CONSTANTS + CONSTANT_BYTES)) }];
-    expect(classifyAudioTask(h).identity).toBe('abi1-standard-mixer');
+    expect(classifyAudioTask(h).identity).toBe(ABI1_STANDARD_MIXER);
   } finally {
     audioMicrocodeManifest.bootstraps = bootstraps;
     audioMicrocodeManifest.programs = programs;

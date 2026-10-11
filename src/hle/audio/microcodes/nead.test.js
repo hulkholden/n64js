@@ -6,6 +6,11 @@ import { ShindouAudio, WaveRaceAudio } from './shindou.js';
 import { NEADDirectAudio, SnowboardingAudio, OcarinaAudio, MajoraAudio, AnimalForestAudio, FZeroAudio } from './nead_direct.js';
 import { UnsupportedAudioCommand } from '../base.js';
 import { getAudioHLEClass } from '../hle_audio.js';
+import {
+  NEAD_MARIO_KART, NEAD_WAVE_RACE_SHINDOU, NEAD_STAR_FOX, NEAD_STAR_FOX_REVISION,
+  NEAD_MARIO_SHINDOU, NEAD_YOSHI_STORY, NEAD_OCARINA, NEAD_MAJORA_STADIUM, NEAD_1080, NEAD_F_ZERO,
+  NEAD_ANIMAL_FOREST,
+} from '../microcode_manifest.js';
 
 // Independent encodings pin the interfaces derived from the captured programs.
 const RAM_BYTES = 0x4000;
@@ -37,11 +42,11 @@ const OP_PCM8 = 23;
 const command = (op, bits = 0) => op << 24 | bits;
 
 const variants = [
-  ['nead-mario-kart', MarioKartAudio], ['nead-star-fox', NEADAudio],
-  ['nead-star-fox-revision', StarFoxRevisionAudio], ['nead-mario-shindou', ShindouAudio],
-  ['nead-wave-race-shindou', WaveRaceAudio], ['nead-yoshi-story', NEADDirectAudio],
-  ['nead-1080', SnowboardingAudio], ['nead-ocarina', OcarinaAudio],
-  ['nead-majora-stadium', MajoraAudio], ['nead-animal-forest', AnimalForestAudio], ['nead-f-zero', FZeroAudio],
+  [NEAD_MARIO_KART, MarioKartAudio], [NEAD_STAR_FOX, NEADAudio],
+  [NEAD_STAR_FOX_REVISION, StarFoxRevisionAudio], [NEAD_MARIO_SHINDOU, ShindouAudio],
+  [NEAD_WAVE_RACE_SHINDOU, WaveRaceAudio], [NEAD_YOSHI_STORY, NEADDirectAudio],
+  [NEAD_1080, SnowboardingAudio], [NEAD_OCARINA, OcarinaAudio],
+  [NEAD_MAJORA_STADIUM, MajoraAudio], [NEAD_ANIMAL_FOREST, AnimalForestAudio], [NEAD_F_ZERO, FZeroAudio],
 ];
 
 function fixture(Audio = NEADAudio) {

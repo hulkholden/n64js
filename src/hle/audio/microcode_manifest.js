@@ -4,6 +4,27 @@
 // Only hashes are stored here. ROM names and structural fingerprints are never
 // classifier inputs.
 
+export const ABI1_STANDARD_MIXER = 'abi1-standard-mixer';
+export const ABI1_TETRISPHERE_US_MIXER = 'abi1-tetrisphere-us-mixer';
+export const ABI1_DIDDY_BLAST_MIXER = 'abi1-diddy-blast-mixer';
+export const ABI1_GOLDENEYE_MIXER = 'abi1-goldeneye-mixer';
+
+export const NAUDIO_STANDARD = 'naudio-standard';
+export const NAUDIO_BANJO_KAZOOIE = 'naudio-banjo-kazooie';
+export const NAUDIO_DONKEY_KONG_64 = 'naudio-donkey-kong-64';
+
+export const NEAD_MARIO_KART = 'nead-mario-kart';
+export const NEAD_WAVE_RACE_SHINDOU = 'nead-wave-race-shindou';
+export const NEAD_STAR_FOX = 'nead-star-fox';
+export const NEAD_STAR_FOX_REVISION = 'nead-star-fox-revision';
+export const NEAD_MARIO_SHINDOU = 'nead-mario-shindou';
+export const NEAD_YOSHI_STORY = 'nead-yoshi-story';
+export const NEAD_OCARINA = 'nead-ocarina';
+export const NEAD_MAJORA_STADIUM = 'nead-majora-stadium';
+export const NEAD_1080 = 'nead-1080';
+export const NEAD_F_ZERO = 'nead-f-zero';
+export const NEAD_ANIMAL_FOREST = 'nead-animal-forest';
+
 export const audioMicrocodeManifest = {
   "version": 1,
   "scope": "reviewed-task-start",
@@ -21,7 +42,7 @@ export const audioMicrocodeManifest = {
   ],
   "programs": [
     {
-      "id": "abi1-standard-mixer",
+      "id": ABI1_STANDARD_MIXER,
       "family": "ABI1",
       "entrySha256": "25217c5a5472ceaa96928d95051905ca69ffea81f129524518ce14c468530b2c",
       "codeBytes": 3616,
@@ -30,7 +51,7 @@ export const audioMicrocodeManifest = {
       "dataSha256": "79bb2a3e8555019bc4b229f0c218f1e329ca5711bfa55c7c7f992facf2e12c83"
     },
     {
-      "id": "abi1-tetrisphere-us-mixer",
+      "id": ABI1_TETRISPHERE_US_MIXER,
       "family": "ABI1",
       "entrySha256": "25217c5a5472ceaa96928d95051905ca69ffea81f129524518ce14c468530b2c",
       "codeBytes": 3568,
@@ -39,7 +60,7 @@ export const audioMicrocodeManifest = {
       "dataSha256": "79bb2a3e8555019bc4b229f0c218f1e329ca5711bfa55c7c7f992facf2e12c83"
     },
     {
-      "id": "abi1-diddy-blast-mixer",
+      "id": ABI1_DIDDY_BLAST_MIXER,
       "family": "ABI1",
       "entrySha256": "c38ac11909fc9e7554dfd0af0e36bb8193a10ef3859ba744737f9664c0024a80",
       "codeBytes": 3776,
@@ -48,7 +69,7 @@ export const audioMicrocodeManifest = {
       "dataSha256": "523f39e3bdcb05c64d633ef77e6f5e123fad261cf2ce22e8ede25f21ec172cfa"
     },
     {
-      "id": "abi1-goldeneye-mixer",
+      "id": ABI1_GOLDENEYE_MIXER,
       "family": "ABI1",
       "entrySha256": "25217c5a5472ceaa96928d95051905ca69ffea81f129524518ce14c468530b2c",
       "codeBytes": 3520,
@@ -57,7 +78,7 @@ export const audioMicrocodeManifest = {
       "dataSha256": "e6afb20043c940e2e85a9ecb1fb064b183e9389eb8e3b1b260726d2477b28c7a"
     },
     {
-      "id": "naudio-standard",
+      "id": NAUDIO_STANDARD,
       "family": "NAUDIO",
       "entrySha256": "92914a059169e3e7d5517b4458e159653685a44bfc5e9ecce3e648b436305fc4",
       "codeBytes": 3168,
@@ -66,7 +87,7 @@ export const audioMicrocodeManifest = {
       "dataSha256": "514cfa7012475c8cd8c6acf1a91b8dd85861c517fdf9c7fa90e90cb3b2736f48"
     },
     {
-      "id": "naudio-banjo-kazooie",
+      "id": NAUDIO_BANJO_KAZOOIE,
       "family": "NAUDIO",
       "entrySha256": "c0b750a325be267792f3791e463d55c7d7f9efec1cac1e0561a90b01f9d40191",
       "codeBytes": 3168,
@@ -75,7 +96,7 @@ export const audioMicrocodeManifest = {
       "dataSha256": "2cedcb30f29ab3c12b278a258af10045e37d3ed7c2e20e2ae36db9eabc0f8582"
     },
     {
-      "id": "naudio-donkey-kong-64",
+      "id": NAUDIO_DONKEY_KONG_64,
       "family": "NAUDIO",
       "entrySha256": "7521f740f4d3ae8bdc0f0e180b32b2f59025f8ddc0f3bd5c2fef6a6a749a0db3",
       "codeBytes": 3120,
@@ -84,7 +105,7 @@ export const audioMicrocodeManifest = {
       "dataSha256": "a1999f3e421846b2df2d601fcc46903890534283cf815c021d590782c04db5a5"
     },
     {
-      "id": "nead-mario-kart",
+      "id": NEAD_MARIO_KART,
       "family": "NEAD",
       "entrySha256": "3c4a93378d8ce8f2b79590c8d201625b27e76578f06be7bdd35b331b71d68061",
       "codeBytes": 3184,
@@ -93,7 +114,7 @@ export const audioMicrocodeManifest = {
       "dataSha256": "f2d3cb80a427b0cb08ea92b9d3d5b0848c186b1cb60d1a34c1e07db50a0ea3c7"
     },
     {
-      "id": "nead-wave-race-shindou",
+      "id": NEAD_WAVE_RACE_SHINDOU,
       "family": "NEAD",
       "entrySha256": "0d863303f1c84bd5f5af612130936238c30989dcb20f4c30ab09e8364e96c020",
       "codeBytes": 3936,
@@ -102,7 +123,7 @@ export const audioMicrocodeManifest = {
       "dataSha256": "d285d6cf31975929114a1f7917bbb3dfa62d650437d0eff06789be65d0366843"
     },
     {
-      "id": "nead-star-fox",
+      "id": NEAD_STAR_FOX,
       "family": "NEAD",
       "entrySha256": "0d863303f1c84bd5f5af612130936238c30989dcb20f4c30ab09e8364e96c020",
       "codeBytes": 3840,
@@ -111,7 +132,7 @@ export const audioMicrocodeManifest = {
       "dataSha256": "41420aa507cbad484435f7c3a4f0ebe05c410d9fc93ef07237a3a23bc7c3689f"
     },
     {
-      "id": "nead-star-fox-revision",
+      "id": NEAD_STAR_FOX_REVISION,
       "family": "NEAD",
       "entrySha256": "3111d480f1bbd61a19e0366717c5a040b1574e3a11d43f70e679066f3ed101bc",
       "codeBytes": 3856,
@@ -120,7 +141,7 @@ export const audioMicrocodeManifest = {
       "dataSha256": "4eb2919a3a0fb9e1d2c0d27ce3dc44676a7a3630de99e35d3a4b1a8c1f8b32f6"
     },
     {
-      "id": "nead-mario-shindou",
+      "id": NEAD_MARIO_SHINDOU,
       "family": "NEAD",
       "entrySha256": "0d863303f1c84bd5f5af612130936238c30989dcb20f4c30ab09e8364e96c020",
       "codeBytes": 3856,
@@ -129,7 +150,7 @@ export const audioMicrocodeManifest = {
       "dataSha256": "fe71e15e5688314458f3aa760b44f1fffa4b9d0b04f3e1b1514618283c70eeb2"
     },
     {
-      "id": "nead-yoshi-story",
+      "id": NEAD_YOSHI_STORY,
       "family": "NEAD",
       "loader": "direct",
       "entrySha256": "d6ce491945b10a3996631b69f422eafa1b612da79876782b3c4611e72d35132f",
@@ -139,7 +160,7 @@ export const audioMicrocodeManifest = {
       "dataSha256": "36654bb434ef31a88d3bd51de4c4b96bdba584f5f87cacec21a5772d9a09f257"
     },
     {
-      "id": "nead-ocarina",
+      "id": NEAD_OCARINA,
       "family": "NEAD",
       "loader": "direct",
       "entrySha256": "61a0a49245a82b99a372514326a19f6a55151210670a6f03eedc0d14a6052d9e",
@@ -149,7 +170,7 @@ export const audioMicrocodeManifest = {
       "dataSha256": "7a2773900752702bd70e073813f6e57601a9c1c741b07057799bd882eaa10e27"
     },
     {
-      "id": "nead-majora-stadium",
+      "id": NEAD_MAJORA_STADIUM,
       "family": "NEAD",
       "loader": "direct",
       "entrySha256": "c784b21927a2da431b99ded5d96a4d942589cd4bbc685deee1e1b602fb7747c5",
@@ -159,7 +180,7 @@ export const audioMicrocodeManifest = {
       "dataSha256": "f81b8169de88a5fdfee93ba9d59cb6885647199cbd5a4c22c98d9fc39a5657a9"
     },
     {
-      "id": "nead-1080",
+      "id": NEAD_1080,
       "family": "NEAD",
       "loader": "direct",
       "entrySha256": "d199aecddfef839e63b61bac7522c0e2ff51206cd674e0a553d47b79c03b0e50",
@@ -169,7 +190,7 @@ export const audioMicrocodeManifest = {
       "dataSha256": "97c81caebde9593db430832b46a729cda80ead6965bd4713e66ae86b24680693"
     },
     {
-      "id": "nead-f-zero",
+      "id": NEAD_F_ZERO,
       "family": "NEAD",
       "loader": "direct",
       "entrySha256": "587055f243f4eba8eaef3f1e13e02a8d10a0c2dc3fa0b007e70946e3f6618f94",
@@ -179,7 +200,7 @@ export const audioMicrocodeManifest = {
       "dataSha256": "b57e74a66204cec3ac2495b1a876e3d277c85b622488eb901eb0a4a9384b743e"
     },
     {
-      "id": "nead-animal-forest",
+      "id": NEAD_ANIMAL_FOREST,
       "family": "NEAD",
       "loader": "direct",
       "entrySha256": "35c5ff1b9ad1807409168f682358157b2b6fa26c7ad1c2b369208183036da7ac",

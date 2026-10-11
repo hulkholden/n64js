@@ -1,5 +1,11 @@
 import { EmulationMode } from '../emulation_mode.js';
 import { createAudioMicrocodeClassifier } from './microcode_classifier.js';
+import {
+  ABI1_STANDARD_MIXER, ABI1_TETRISPHERE_US_MIXER, ABI1_DIDDY_BLAST_MIXER, ABI1_GOLDENEYE_MIXER,
+  NAUDIO_STANDARD, NAUDIO_BANJO_KAZOOIE, NAUDIO_DONKEY_KONG_64, NEAD_MARIO_KART,
+  NEAD_WAVE_RACE_SHINDOU, NEAD_STAR_FOX, NEAD_STAR_FOX_REVISION, NEAD_MARIO_SHINDOU,
+  NEAD_YOSHI_STORY, NEAD_OCARINA, NEAD_MAJORA_STADIUM, NEAD_1080, NEAD_F_ZERO, NEAD_ANIMAL_FOREST,
+} from './microcode_manifest.js';
 import { ABI1Audio } from './microcodes/abi1.js';
 import { UnsupportedAudioCommand } from './base.js';
 import { StarFoxRevisionAudio } from './microcodes/star_fox.js';
@@ -167,24 +173,24 @@ export function dispatchAudioTask(hardware, mode) {
 // Select by exact reviewed executable identity, never by ROM name or family.
 export function getAudioHLEClass(identity) {
   switch (identity) {
-    case 'abi1-standard-mixer': return ABI1Audio;
-    case 'abi1-tetrisphere-us-mixer': return TetrisphereAudio;
-    case 'abi1-goldeneye-mixer': return GoldenEyeAudio;
-    case 'abi1-diddy-blast-mixer': return DiddyBlastAudio;
-    case 'nead-mario-shindou': return ShindouAudio;
-    case 'nead-wave-race-shindou': return WaveRaceAudio;
-    case 'nead-yoshi-story': return NEADDirectAudio;
-    case 'nead-1080': return SnowboardingAudio;
-    case 'nead-ocarina': return OcarinaAudio;
-    case 'nead-majora-stadium': return MajoraAudio;
-    case 'nead-animal-forest': return AnimalForestAudio;
-    case 'nead-f-zero': return FZeroAudio;
-    case 'nead-mario-kart': return MarioKartAudio;
-    case 'nead-star-fox-revision': return StarFoxRevisionAudio;
-    case 'nead-star-fox': return NEADAudio;
-    case 'naudio-standard': return NAudio;
-    case 'naudio-banjo-kazooie': return BanjoAudio;
-    case 'naudio-donkey-kong-64': return DonkeyKongAudio;
+    case ABI1_STANDARD_MIXER: return ABI1Audio;
+    case ABI1_TETRISPHERE_US_MIXER: return TetrisphereAudio;
+    case ABI1_GOLDENEYE_MIXER: return GoldenEyeAudio;
+    case ABI1_DIDDY_BLAST_MIXER: return DiddyBlastAudio;
+    case NEAD_MARIO_SHINDOU: return ShindouAudio;
+    case NEAD_WAVE_RACE_SHINDOU: return WaveRaceAudio;
+    case NEAD_YOSHI_STORY: return NEADDirectAudio;
+    case NEAD_1080: return SnowboardingAudio;
+    case NEAD_OCARINA: return OcarinaAudio;
+    case NEAD_MAJORA_STADIUM: return MajoraAudio;
+    case NEAD_ANIMAL_FOREST: return AnimalForestAudio;
+    case NEAD_F_ZERO: return FZeroAudio;
+    case NEAD_MARIO_KART: return MarioKartAudio;
+    case NEAD_STAR_FOX_REVISION: return StarFoxRevisionAudio;
+    case NEAD_STAR_FOX: return NEADAudio;
+    case NAUDIO_STANDARD: return NAudio;
+    case NAUDIO_BANJO_KAZOOIE: return BanjoAudio;
+    case NAUDIO_DONKEY_KONG_64: return DonkeyKongAudio;
     default: return null;
   }
 }
