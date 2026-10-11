@@ -1500,15 +1500,56 @@ export class CPU0 {
   execSLLV(rd, rt, rs) { this.execSLL(rd, rt, this.getRegS32Lo(rs) & 0x1f); }
   execSRLV(rd, rt, rs) { this.execSRL(rd, rt, this.getRegS32Lo(rs) & 0x1f); }
   execSRAV(rd, rt, rs) { this.execSRA(rd, rt, this.getRegS32Lo(rs) & 0x1f); }
-  execDSLLV(rd, rt, rs) { this.setRegU64(rd, this.getRegU64(rt) << BigInt(this.getRegU32Lo(rs) & 0x3f)); }
-  execDSRLV(rd, rt, rs) { this.setRegU64(rd, this.getRegU64(rt) >> BigInt(this.getRegU32Lo(rs) & 0x3f)); }
-  execDSRAV(rd, rt, rs) { this.setRegU64(rd, this.getRegS64(rt) >> BigInt(this.getRegU32Lo(rs) & 0x3f)); }
-  execDSLL(rd, rt, sa) { this.setRegU64(rd, this.getRegU64(rt) << BigInt(sa)); }
-  execDSRL(rd, rt, sa) { this.setRegU64(rd, this.getRegU64(rt) >> BigInt(sa)); }
-  execDSRA(rd, rt, sa) { this.setRegU64(rd, this.getRegS64(rt) >> BigInt(sa)); }
-  execDSLL32(rd, rt, sa) { this.setRegU64(rd, this.getRegU64(rt) << BigInt(sa + 32)); }
-  execDSRL32(rd, rt, sa) { this.setRegU64(rd, this.getRegU64(rt) >> BigInt(sa + 32)); }
-  execDSRA32(rd, rt, sa) { this.setRegU64(rd, this.getRegS64(rt) >> BigInt(sa + 32)); }
+  // Read the shift before any aliased write. Shared helpers accept 0..63.
+  execDSLLV(rd, rt, rs) {
+    this.execDSLL(rd, rt, this.getRegU32Lo(rs) & 63);
+  }
+  execDSRLV(rd, rt, rs) {
+    this.execDSRL(rd, rt, this.getRegU32Lo(rs) & 63);
+  }
+  execDSRAV(rd, rt, rs) {
+    this.execDSRA(rd, rt, this.getRegU32Lo(rs) & 63);
+  }
+  execDSLL(rd, rt, sa) {
+    const lo = this.gprU32[rt * 2], hi = this.gprU32[rt * 2 + 1];
+    if (sa === 0) {
+      this.setRegS64LoHi(rd, lo, hi);
+    } else if (sa < 32) {
+      this.setRegS64LoHi(rd, lo << sa, (hi << sa) | (lo >>> (32 - sa)));
+    } else {
+      this.setRegS64LoHi(rd, 0, lo << (sa - 32));
+    }
+  }
+  execDSRL(rd, rt, sa) {
+    const lo = this.gprU32[rt * 2], hi = this.gprU32[rt * 2 + 1];
+    if (sa === 0) {
+      this.setRegS64LoHi(rd, lo, hi);
+    } else if (sa < 32) {
+      this.setRegS64LoHi(rd, (lo >>> sa) | (hi << (32 - sa)), hi >>> sa);
+    } else {
+      this.setRegS64LoHi(rd, hi >>> (sa - 32), 0);
+    }
+  }
+  execDSRA(rd, rt, sa) {
+    const lo = this.gprU32[rt * 2], hi = this.gprS32[rt * 2 + 1];
+    if (sa === 0) {
+      this.setRegS64LoHi(rd, lo, hi);
+    } else if (sa < 32) {
+      this.setRegS64LoHi(rd, (lo >>> sa) | (hi << (32 - sa)), hi >> sa);
+    } else {
+      this.setRegS64LoHi(rd, hi >> (sa - 32), hi >> 31);
+    }
+  }
+  execDSLL32(rd, rt, sa) {
+    this.setRegS64LoHi(rd, 0, this.getRegU32Lo(rt) << sa);
+  }
+  execDSRL32(rd, rt, sa) {
+    this.setRegS64LoHi(rd, this.gprU32[rt * 2 + 1] >>> sa, 0);
+  }
+  execDSRA32(rd, rt, sa) {
+    const hi = this.gprS32[rt * 2 + 1];
+    this.setRegS64LoHi(rd, hi >> sa, hi >> 31);
+  }
 
   execRESERVED(copIdx) { this.raiseRESERVEDException(copIdx); }
   execSYSCALL() { this.raiseSYSCALLException(); }
