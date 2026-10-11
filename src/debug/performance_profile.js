@@ -2,6 +2,8 @@ const counterNames = [
   'interpretedOps',
   'compiledOps',
   'fragmentRuns',
+  'activeRSPIdleBatches',
+  'activeRSPIdleOps',
   'fragmentCompilations',
   'fragmentInvalidations',
   'fragmentRevalidations',

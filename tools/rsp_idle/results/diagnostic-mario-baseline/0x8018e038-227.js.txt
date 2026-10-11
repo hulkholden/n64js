@@ -1,0 +1,200 @@
+
+  return function fragment_0x8018e038_15() {
+  
+  rsp.step();
+if (c.stuffToDo) { c.pc = 2149113912; return 0; }
+
+// LB        t0 <- [a0+0x0000]
+{
+  c.fragmentOps = 0;
+  c.nextPC = c.delayPC ?? 0x8018e03c;
+  c.execLB(8, 4, 0);
+  c.pc = c.nextPC;
+  c.delayPC = null;
+  if (c.stuffToDo) { return 1; }
+  if (c.pc !== 0x8018e03c) { return 1; }
+}
+
+// Keep going: ops 1, pc: 0x8018e03c, entry+4: 0x8018e03c, stuff: 0
+rsp.step();
+if (c.stuffToDo) { c.pc = 2149113916; return 1; }
+
+// NOP
+{
+  // NOP
+  // Delaying pc update
+}
+
+// Keep going: ops 2, pc: 0x8018e040, entry+4: 0x8018e040, stuff: 0
+rsp.step();
+if (c.stuffToDo) { c.pc = 2149113920; return 2; }
+
+// Applying delayed pc
+c.pc = 0x8018e040;
+// BEQ       t0 == r0 --> 8018e058
+{
+  c.fragmentOps = 2;
+  if (c.getRegS32Lo(8) === 0) {
+    c.delayPC = 0x8018e058;
+  } else {
+    c.delayPC = 0x8018e048;
+  }
+  c.pc = 0x8018e044;
+  // Skipping pc test
+}
+
+// Keep going: ops 3, pc: 0x8018e044, entry+4: 0x8018e044, stuff: 0
+rsp.step();
+if (c.stuffToDo) { c.pc = 2149113924; return 3; }
+
+// NOP
+{
+  // NOP
+  if (c.delayPC !== null) { c.pc = c.delayPC; c.delayPC = null; } else { c.pc = 0x8018e048; }
+  if (c.pc !== 0x8018e048) { return 4; }
+}
+
+// Keep going: ops 4, pc: 0x8018e048, entry+4: 0x8018e048, stuff: 0
+rsp.step();
+if (c.stuffToDo) { c.pc = 2149113928; return 4; }
+
+// LB        t1 <- [a1+0x0000]
+{
+  c.fragmentOps = 4;
+  c.nextPC = 0x8018e04c;
+  c.execLB(9, 5, 0);
+  c.pc = c.nextPC;
+  c.delayPC = null;
+  if (c.stuffToDo) { return 5; }
+}
+
+// Keep going: ops 5, pc: 0x8018e04c, entry+4: 0x8018e04c, stuff: 0
+rsp.step();
+if (c.stuffToDo) { c.pc = 2149113932; return 5; }
+
+// NOP
+{
+  // NOP
+  // Delaying pc update
+}
+
+// Keep going: ops 6, pc: 0x8018e050, entry+4: 0x8018e050, stuff: 0
+rsp.step();
+if (c.stuffToDo) { c.pc = 2149113936; return 6; }
+
+// Applying delayed pc
+c.pc = 0x8018e050;
+// BNE       t1 != r0 --> 8018e014
+{
+  c.fragmentOps = 6;
+  if (c.getRegS32Lo(9) !== 0) {
+    c.delayPC = 0x8018e014;
+  } else {
+    c.delayPC = 0x8018e058;
+  }
+  c.pc = 0x8018e054;
+  // Skipping pc test
+}
+
+// Keep going: ops 7, pc: 0x8018e054, entry+4: 0x8018e054, stuff: 0
+rsp.step();
+if (c.stuffToDo) { c.pc = 2149113940; return 7; }
+
+// NOP
+{
+  // NOP
+  if (c.delayPC !== null) { c.pc = c.delayPC; c.delayPC = null; } else { c.pc = 0x8018e058; }
+  if (c.pc !== 0x8018e014) { return 8; }
+}
+
+// Keep going: ops 8, pc: 0x8018e014, entry+4: 0x8018e058, stuff: 0
+rsp.step();
+if (c.stuffToDo) { c.pc = 2149113876; return 8; }
+
+// LB        t8 <- [a1+0x0000]
+{
+  c.fragmentOps = 8;
+  c.nextPC = 0x8018e018;
+  c.execLB(24, 5, 0);
+  c.pc = c.nextPC;
+  c.delayPC = null;
+  if (c.stuffToDo) { return 9; }
+}
+
+// Keep going: ops 9, pc: 0x8018e018, entry+4: 0x8018e018, stuff: 0
+rsp.step();
+if (c.stuffToDo) { c.pc = 2149113880; return 9; }
+
+// LB        t9 <- [a0+0x0000]
+{
+  c.fragmentOps = 9;
+  c.nextPC = 0x8018e01c;
+  c.execLB(25, 4, 0);
+  c.pc = c.nextPC;
+  c.delayPC = null;
+  if (c.stuffToDo) { return 10; }
+}
+
+// Keep going: ops 10, pc: 0x8018e01c, entry+4: 0x8018e01c, stuff: 0
+rsp.step();
+if (c.stuffToDo) { c.pc = 2149113884; return 10; }
+
+// ADDIU     a0 = a0 + 0x0001
+{
+  c.execADDIU(4, 4, 1);
+  // Delaying pc update
+}
+
+// Keep going: ops 11, pc: 0x8018e020, entry+4: 0x8018e020, stuff: 0
+rsp.step();
+if (c.stuffToDo) { c.pc = 2149113888; return 11; }
+
+// XOR       a2 = t8 ^ t9
+{
+  c.execXOR(6, 25, 24);
+  // Delaying pc update
+}
+
+// Keep going: ops 12, pc: 0x8018e024, entry+4: 0x8018e024, stuff: 0
+rsp.step();
+if (c.stuffToDo) { c.pc = 2149113892; return 12; }
+
+// SLTU      a2 = r0 < a2
+{
+  var compare_13 = 0 < c.getRegU32Lo(6);
+  c.setRegU32Extend(6, compare_13 ? 1 : 0);
+  // Delaying pc update
+}
+
+// Keep going: ops 13, pc: 0x8018e028, entry+4: 0x8018e028, stuff: 0
+rsp.step();
+if (c.stuffToDo) { c.pc = 2149113896; return 13; }
+
+// Applying delayed pc
+c.pc = 0x8018e028;
+// BEQ       a2 == r0 --> 8018e038
+{
+  c.fragmentOps = 13;
+  if (!compare_13) {
+    c.delayPC = 0x8018e038;
+  } else {
+    c.delayPC = 0x8018e030;
+  }
+  c.pc = 0x8018e02c;
+  // Skipping pc test
+}
+
+// Keep going: ops 14, pc: 0x8018e02c, entry+4: 0x8018e02c, stuff: 0
+rsp.step();
+if (c.stuffToDo) { c.pc = 2149113900; return 14; }
+
+// ADDIU     a1 = a1 + 0x0001
+{
+  c.execADDIU(5, 5, 1);
+  if (c.delayPC !== null) { c.pc = c.delayPC; c.delayPC = null; } else { c.pc = 0x8018e030; }
+  if (c.pc !== 0x8018e038) { return 15; }
+}
+
+return 15;
+
+}

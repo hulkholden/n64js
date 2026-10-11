@@ -1,0 +1,20 @@
+{
+  "date": "2026-10-10",
+  "baseline": "19c9550516e3b86c24b40ceef17d847e4470c58a",
+  "cpu": "Apple M4",
+  "macOS": "26.5.2",
+  "bun": "1.3.14",
+  "playwright": "1.58.2",
+  "chromium": "145.0.7632.6",
+  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
+  "prototypeSourceSHA256": {
+    "src/cpu/r4300.js": "7b8ad3a784327f2516469893fb09dfee0204fbbc75e158db31b9735b2b799eda",
+    "src/cpu/fragments.js": "7b31ec42b8efe4ca45a9879647f4be60b159e41296296fa729c7c405205fd651",
+    "src/debug/performance_profile.js": "af28f5a767d394e9876aeb1b19d5f8d2bdd638e48ee65c1d34eaff438d551d37"
+  },
+  "romFileSHA256": {
+    "Super Mario 64 (USA).v64": "f3b0fc9f565f995368b6fa5aefc8ec1e5194c488948b41f3534dece4abcec2b4",
+    "Diddy Kong Racing (USA) (En,Fr) (Rev 1).z64": "7de1a8fb2a9558cfc3d9ad4497df698c1e89cf7095ac1531557df2af40ba8bcf",
+    "GoldenEye 007 (USA).z64": "2cdcec8a9f0cb6e36337f3ee39d8ad105dc8afa6ba1c02d466e8f5b771f9a162"
+  }
+}
