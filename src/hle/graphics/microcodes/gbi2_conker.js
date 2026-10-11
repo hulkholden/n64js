@@ -259,7 +259,9 @@ export class GBI2Conker extends GBI2 {
         dis.text(`gsSPConker4Triangles(${indices.join(', ')});`);
       }
       for (let i = 0; i < indices.length; i += 3) {
-        this.pushTriangle(indices[i], indices[i + 1], indices[i + 2]);
+        // Match inherited GBI2 triangles: both their winding and the shared
+        // front/back cull flags are reversed relative to the wire format.
+        this.pushTriangle(indices[i + 2], indices[i + 1], indices[i]);
       }
       return tb.hasCapacity(4);
     });

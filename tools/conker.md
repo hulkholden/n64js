@@ -49,6 +49,17 @@ respect counted display lists, debugger limits, opcode changes and buffer capaci
 The common matrix reader now also respects the supplied RAM DataView's byte offset
 and extent, exercised by the Conker fixtures.
 
+TRI4 submits each decoded triple in reverse order to match the existing GBI2
+renderer convention. Shared TRI1/TRI2/QUAD reverse the wire indices, and
+`GeometryModeGBI2` swaps the front/back cull bits relative to
+[`F3DEX2.h`](https://github.com/gonetz/GLideN64/blob/a04081ad6a966a9413bea63a55f502e0dc98bb18/src/uCodes/F3DEX2.h).
+Preserving only the wire order in TRI4 therefore culled the opposite faces, leaving
+holes in Conker, the N64 logo and the floor. Disassembly retains wire order.
+`tools/conker_webgl.js` checks all four packed triangle slots against the inherited
+commands using literal packets, both orientations, front/back/no culling, and
+batched/debug execution. Run it with `bun run test:visual` (SwiftShader) or
+`bun run test:visual --hardware` (the normal GPU backend).
+
 ## Reproduce browser validation
 
 Install dependencies with `bun install --frozen-lockfile`. If Chromium is not yet
@@ -88,7 +99,7 @@ directory and build there, or retain its generated bundle before switching revis
 Fresh baseline: `745a40777490956048c98042e2bc390690f10f7a`, revalidated here rather
 than inheriting the earlier inventory snapshot. Updated renderer: that revision
 plus this PR's implementation; the observed bundle SHA-256 was
-`603530bdf3a07e966f404ae347402d6992ca1d938e79f64fada4e8926f0f374e`.
+`533ab9620c0bb1d1704d7d1693b4138c0893ddae18b89e3bf3eef77f6a5e3b2e`.
 Bun 1.3.14; Chromium 145.0.7632.6; macOS arm64;
 ANGLE Metal / Apple M4. Screenshots use the same 1000×850 browser viewport and
 native canvas CSS sizing (640×480 capture).
@@ -104,13 +115,15 @@ native canvas CSS sizing (640×480 capture).
 - USA updated, same neutral sequence: 678 tasks at VI 1,800; 1,543 at VI 3,600.
   No HLE warnings, halts or WebGL errors. Conker and the N64-logo geometry render
   at VI 1,800; the later character close-up renders beyond the previous halt.
+  Matched captures against `d527861` also verify that the TRI4 winding correction
+  restores Conker's front faces, the logo surfaces and the floor.
 - Europe updated, neutral: 703 tasks at VI 1,800; 1,574 at VI 3,600. No HLE warnings,
   halts or WebGL errors. The introduction advances to the rendered game-selection menu.
 - The longer USA transcript reaches VI 18,000 / 8,670 graphics tasks with no HLE
   warnings, halts or WebGL errors, rendering the pub and throne-room cinematics
   along the way. This records cinematic progress, not a complete gameplay test.
 
-Remaining visible limitations include black rectangular texture/blending artifacts
-in the opening credits and some texture seams. These observations do not establish
-that every historical Conker symptom is fixed, nor are they a hardware-image comparison.
-The command fixtures cover layout/transform behavior independently of these scenes.
+Some texture seams remain visible. Credit compositing and lighting have not been
+checked against hardware captures. These observations do not establish that every
+historical Conker symptom is fixed. The command fixtures and GPU culling checks
+cover command and rendering behavior independently of these scenes.

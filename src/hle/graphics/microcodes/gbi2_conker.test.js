@@ -81,7 +81,7 @@ describe('Conker command decoding', () => {
       for (let first = 0; first < 32; ++first) {
         const indices = [first, (first + 1) % 32, (first + 17) % 32, 31, 0, 16, 23, 14, 5, 7, 18, 29];
         commands.push(packTri4(indices));
-        expected.push(...indices);
+        expected.push(indices[2], indices[1], indices[0], 16, 0, 31, 5, 14, 23, 29, 18, 7);
       }
       commands.push([0xe1000000, 0x12345678], [0xdf000000, 0]);
       h.run(commands, { disassembler: debug ? h.disassembler : null });
@@ -92,6 +92,7 @@ describe('Conker command decoding', () => {
       expect(h.warnings).toEqual([]);
       if (debug) {
         expect(h.text.filter(t => t.startsWith('gsSPConker4Triangles'))).toHaveLength(32);
+        expect(h.text).toContain('gsSPConker4Triangles(0, 1, 17, 31, 0, 16, 23, 14, 5, 7, 18, 29);');
       }
     });
   }
@@ -127,7 +128,7 @@ describe('Conker command decoding', () => {
     const triangle = packTri4(indices);
     h.write(0x800, [...Array(19).fill(triangle), [0xe1000000, 0xdead]]);
     h.run([[0xd5000012, 0x800], [0xe1000000, 0xbeef], [0xdf000000, 0]]);
-    expect(h.triangles).toEqual(Array(18).fill(indices).flat());
+    expect(h.triangles).toEqual(Array(18).fill([4, 17, 31, 11, 10, 9, 7, 2, 5, 14, 13, 12]).flat());
     expect(h.state.currentOp).toBe(21);
     expect(h.state.rdpHalf1Cmd1).toBe(0xbeef);
     expect(h.state.dlistStack).toEqual([]);
