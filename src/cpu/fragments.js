@@ -11,6 +11,10 @@ addOptionsFolder('Performance', folder => {
 
 const kHotFragmentThreshold = 500;
 const kInstructionCacheLines = 512;
+const kSuccessorHashBits = 6;
+const kSuccessorCacheSize = 1 << kSuccessorHashBits;
+const kSuccessorHashShift = 32 - kSuccessorHashBits;
+const kSuccessorHashMultiplier = 0x9e3779b1;
 
 export class Fragment {
   constructor(pc, fragmentCache) {
@@ -28,6 +32,7 @@ export class Fragment {
     this.executionCount   = 0;
     this.bailedOut        = false;    // Set if a fragment bailed out.
     this.nextFragments    = [];       // One slot per op
+    this.successors       = Array(kSuccessorCacheSize).fill(null); // PC hash, used on a primary miss
 
     // State used when compiling
     this.bodyCode         = '';
@@ -66,6 +71,7 @@ export class Fragment {
     this.executionCount   = 0;
     this.bailedOut        = false;
     this.nextFragments    = [];
+    this.successors       = Array(kSuccessorCacheSize).fill(null);
 
     this.bodyCode         = '';
     this.needsDelayCheck  = true;
@@ -121,21 +127,33 @@ export class Fragment {
    * @return {?Fragment}
    */
   getNextFragment(pc, opsExecuted) {
+    // Different branch outcomes can execute the same number of instructions.
     let nextFragment = this.nextFragments[opsExecuted];
-    // TODO: why can this change? Is it due to branches taken/not taken? Should improve cache?
-    // if (nextFragment && nextFragment.entryPC !== pc) {
-    //   throw 'next fragment has broken entryPC?'
-    // }
     if (!nextFragment || nextFragment.entryPC !== pc) {
-      // If not jump to self, look up and cache for next time around.
-      nextFragment = (pc === this.entryPC) ? this : this.fragmentCache.lookupFragment(pc);
-      this.nextFragments[opsExecuted] = nextFragment;
+      nextFragment = this.lookupNextFragment(pc, opsExecuted);
     }
-    // Invalidate the fragment if it's not finished being compiled.
-    // This is to ensure we only append instructions to fragments being traced.
+    // Reset unfinished traces on reentry. The dispatcher validates pending
+    // compiled code immediately before execution.
     if (nextFragment && nextFragment.opsCompiled > 0 && !nextFragment.func && !nextFragment.cachedFunc) {
-      // console.log(`invalidating partially compiled fragment ${toString32(nextFragment.entryPC)} on reentry`)
       nextFragment.invalidate();
+    }
+    return nextFragment;
+  }
+
+  lookupNextFragment(pc, opsExecuted) {
+    // Hash only when the last target for this instruction count does not match.
+    const slot = Math.imul(pc >>> 2, kSuccessorHashMultiplier) >>> kSuccessorHashShift;
+    let nextFragment = this.successors[slot];
+    if (!nextFragment || nextFragment.entryPC !== pc) {
+      nextFragment = pc === this.entryPC ? this : this.fragmentCache.lookupFragment(pc);
+      if (nextFragment) {
+        this.successors[slot] = nextFragment;
+      }
+    }
+    // Keep cold targets reaching the global lookup so their hit counts advance.
+    // They must not evict an existing hot target from either cache.
+    if (nextFragment) {
+      this.nextFragments[opsExecuted] = nextFragment;
     }
     return nextFragment;
   }
