@@ -267,6 +267,13 @@ const integerMemoryEffects = Object.freeze({
   mayStartRSP: true,
 });
 
+// execLWC1/LDC1/SWC1/SDC1Unchecked only move raw bits using the current FR
+// mapping and the same memory paths as integer loads/stores. Alignment/TLB
+// exceptions throw; normal returns cannot change nextPC or introduce a delay.
+// MMIO can still request an interrupt or start the RSP. This audit does not
+// cover COP1 arithmetic/compare helpers, whose FPU exceptions return normally.
+const uncheckedCop1MemoryEffects = integerMemoryEffects;
+
 // Unknown helpers (including COP2 usability exceptions) may redirect and return.
 const conservativeMemoryEffects = Object.freeze({
   ...integerMemoryEffects,
@@ -1261,9 +1268,14 @@ function generateLDR(ctx) {
 // and only skip their usability check once COP1 is known to be enabled.
 function generateCop1MemoryAccess(op, ctx) {
   ctx.fragment.usesCop1 = true;
-  const suffix = ctx.fragment.cop1statusKnown ? 'Unchecked' : '';
+  const unchecked = ctx.fragment.cop1statusKnown;
+  const suffix = unchecked ? 'Unchecked' : '';
   const impl = `c.exec${op}${suffix}(${ctx.instr_ft()}, ${ctx.instr_base()}, ${ctx.instr_imms()});`;
   ctx.fragment.cop1statusKnown = true;
+  if (unchecked) {
+    return generateMemoryAccessBoilerplate(impl, ctx, uncheckedCop1MemoryEffects);
+  }
+  // A usability exception can redirect execution and return normally.
   return generateGenericOpBoilerplate(impl, ctx);
 }
 

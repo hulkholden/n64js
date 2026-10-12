@@ -333,6 +333,49 @@ for (const profiled of [false, true]) {
       expect(result.compiledCop1Checks).toBe(0);
     });
 
+    test('unchecked SWC1 services an MMIO interrupt before another active RSP step', async () => {
+      const setup = (c, h) => {
+        c.setControlU32(regs.controlStatus, 0x20000401);
+        c.statusRegisterChanged();
+        c.setRegS32Extend(4, 0xa430000c); // MI interrupt mask.
+        h.cpu1.store32(h.cpu1.copRegIdx32(2), 2); // Enable pending SP interrupt.
+        h.mi_reg.set32(8, 1);
+        for (let i = 0; i < runCycles; i++) {
+          h.sp_mem.set32(0x1000 + i * 4, iop(decode.OP_ADDIU, 1, 1, 1));
+        }
+        h.rsp.unhalt();
+      };
+      const result = await compare([
+        copMove(decode.OP_COP1, decode.COP_MF, 2, 0), 0,
+        iop(decode.OP_SWC1, 4, 2), iop(decode.OP_ORI, 0, 3, 0x77),
+      ], setup, (c, h) => { setup(c, h); h.mi_reg.set32(8, 0); });
+      expect(result.epc).toBe(pc + 12);
+      expect(result.gpr[3]).toBe(0n);
+      expect(result.interruptRSPPCs).toEqual([12]);
+      expect(result.code).not.toContain('if (c.pc !== 0x8000100c)');
+      expect(result.code).toContain('if (c.stuffToDo) { return 3; }');
+      if (profiled) {
+        expect(result.profile.compiledOps).toBe(3);
+      }
+    });
+
+    test('unchecked SWC1 starts the RSP before the following COP1 load', async () => {
+      const setup = (c, h) => {
+        c.setRegS32Extend(4, 0xa4040010); // SP status.
+        c.setRegS32Extend(5, 0xa4000000); // RSP DMEM.
+        h.cpu1.store32(h.cpu1.copRegIdx32(2), 1); // Clear HALT.
+        h.rsp.gprU32[1] = 0x12345678;
+        h.sp_mem.set32(0x1000, iop(decode.OP_SW, 0, 1));
+      };
+      const result = await compare([
+        copMove(decode.OP_COP1, decode.COP_MF, 2, 0), 0,
+        iop(decode.OP_SWC1, 4, 2), iop(decode.OP_LWC1, 5, 4),
+      ], setup, setup);
+      expect(result.rspHalted).toBe(false);
+      expect(result.fpr[4]).toBe(0x12345678);
+      expect(result.rspPC).toBe(36);
+    });
+
     test('a Status write forces a new COP1 memory usability check', async () => {
       const setup = c => c.setRegS32Extend(5, 0x20000000);
       const result = await compare([
@@ -348,6 +391,70 @@ for (const profiled of [false, true]) {
       ['LWC1', decode.OP_LWC1, false, false], ['LDC1', decode.OP_LDC1, false, true],
       ['SWC1', decode.OP_SWC1, true, false], ['SDC1', decode.OP_SDC1, true, true],
     ]) {
+      for (const taken of [false, true]) {
+        test(`unchecked ${name} delay target differs from training, taken=${taken}`, async () => {
+          const setup = (c, h, branchTaken) => {
+            c.setRegS32Extend(5, branchTaken ? 0 : 1);
+            h.cpu1.store64(h.cpu1.copRegIdx64(2), 0x123456789abcdef0n);
+            h.ram.set32(0x3000, 0x7fa12345);
+            h.ram.set32(0x3004, 0x89abcdef);
+          };
+          const result = await compare([
+            copMove(decode.OP_COP1, decode.COP_MF, 2, 0),
+            iop(decode.OP_BEQ, 5, 0, 2), iop(opcode, 4, 2),
+            iop(decode.OP_ADDIU, 3, 3, 1), iop(decode.OP_ADDIU, 3, 3, 2),
+          ], (c, h) => setup(c, h, taken), (c, h) => setup(c, h, !taken));
+          expect(result.gpr[3]).toBe(taken ? 2n : 3n);
+          expect(result.code).toContain(`if (c.pc !== 0x800010${taken ? '0c' : '10'})`);
+          if (profiled) {
+            expect(result.profile.compiledOps).toBe(3);
+          }
+        });
+      }
+
+      test(`unchecked ${name} clears the delay slot before a subsequent fault`, async () => {
+        const result = await compare([
+          copMove(decode.OP_COP1, decode.COP_MF, 2, 0),
+          iop(decode.OP_BEQ, 0, 0, 1), iop(opcode, 4, 2),
+          0, 0, iop(decode.OP_LW, 5, 3),
+        ], c => c.setRegS32Extend(5, 0x80003001), c => c.setRegS32Extend(5, 0x80003004));
+        expect(result.cause).toBe(0x10);
+        expect(result.epc).toBe(pc + 20);
+        expect(result.countCycles).toBe(runCycles);
+        if (profiled) {
+          expect(result.profile.compiledOps).toBe(6);
+        }
+      });
+
+      for (const address of [0x80003000, 0xa0003000, 0x00400000]) {
+        for (const fullMode of [false, true]) {
+          test(`sequential unchecked ${name} FR=${Number(fullMode)} at ${address.toString(16)}`, async () => {
+            const setup = (c, h) => {
+              c.setControlU32(regs.controlStatus, 0x20000000 | (fullMode ? 0x04000000 : 0));
+              c.statusRegisterChanged();
+              c.setRegS32Extend(4, address);
+              c.tlbEntries[0].update(0, 0, 0x00400000n, 0xc7, 0x107);
+              h.ram.set32(0x3000, 0x7fa12345);
+              h.ram.set32(0x3004, 0x89abcdef);
+              h.cpu1.regU32.forEach((_, i, regs) => { regs[i] = 0xfff12300 + i; });
+            };
+            const result = await compare([
+              copMove(decode.OP_COP1, decode.COP_MF, 2, 0), 0,
+              iop(opcode, 4, 3), iop(opcode, 4, 3, 8), 0,
+            ], setup, setup);
+            expect(result.cause).toBe(0);
+            expect(result.code).not.toContain('if (c.pc !== 0x8000100c)');
+            expect(result.code).not.toContain('if (c.pc !== 0x80001010)');
+            const afterAccess = result.code.slice(result.code.indexOf(`c.exec${name}Unchecked`));
+            expect(afterAccess).not.toContain('if (c.delayPC !== null)');
+            expect(result.code).toContain('c.exec' + name + 'Unchecked');
+            if (profiled) {
+              expect(result.profile.compiledOps).toBe(runCycles);
+            }
+          });
+        }
+      }
+
       for (const fullMode of [false, true]) {
         for (const ft of [0, 3, 4, 31]) {
           test(`${name} FR=${Number(fullMode)} f${ft} preserves raw bits`, async () => {
@@ -382,6 +489,10 @@ for (const profiled of [false, true]) {
               expect(result.cause).toBe((cause | (delay ? 0x80000000 : 0)) >>> 0);
               expect(result.epc).toBe(pc + (delay ? 4 : 8));
               expect(result.badVAddr).toBe(address);
+              expect(result.countCycles).toBe(runCycles);
+              if (profiled) {
+                expect(result.profile.compiledOps).toBe(3);
+              }
             });
           }
         }

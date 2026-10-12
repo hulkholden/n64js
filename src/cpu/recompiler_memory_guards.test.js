@@ -15,15 +15,36 @@ const integerOps = [
   ['LL', decode.OP_LL], ['LLD', decode.OP_LLD], ['SC', decode.OP_SC], ['SCD', decode.OP_SCD],
 ];
 
-function generate(opcode, needsDelayCheck, postPC = pc + 4) {
+function generate(opcode, needsDelayCheck, postPC = pc + 4, cop1statusKnown = false) {
   n64js.getSyncFlow = () => null;
   const fragment = new Fragment(pc);
   fragment.opsCompiled = 1;
   fragment.needsDelayCheck = needsDelayCheck;
+  fragment.cop1statusKnown = cop1statusKnown;
   const ctx = new FragmentContext();
   ctx.set(fragment, pc, (opcode << 26) | (4 << 21) | (2 << 16), postPC, postPC);
   generateCodeForOp(ctx);
   return fragment.bodyCode;
+}
+
+for (const [name, opcode] of [
+  ['LWC1', decode.OP_LWC1], ['LDC1', decode.OP_LDC1],
+  ['SWC1', decode.OP_SWC1], ['SDC1', decode.OP_SDC1],
+]) {
+  test(`unchecked ${name} omits only the proven sequential guard`, async () => {
+    await createHeadlessEmulator({ romBuffer: new ArrayBuffer(0x1000), rominfo: { cic: '6102', tvType: 1, save: 'Eeprom4k' } });
+    const source = generate(opcode, false, pc + 4, true);
+    expect(source).toContain(`c.exec${name}Unchecked(2, 4, 0);`);
+    expect(source).not.toContain('c.branchTarget');
+    expect(source).not.toContain('if (c.pc !==');
+    expect(source).toContain('c.fragmentOps = 0;');
+    expect(source).toContain('c.nextPC = 0x80001004;');
+    expect(source).toContain('c.pc = c.nextPC;');
+    expect(source).toContain('c.delayPC = null;');
+    expect(source).toContain('if (c.stuffToDo)');
+    expect(generate(opcode, true, pc + 4, true)).toContain('if (c.pc !== 0x80001004)');
+    expect(generate(opcode, false, pc + 8, true)).toContain('if (c.pc !== 0x80001008)');
+  });
 }
 
 for (const [name, opcode] of integerOps) {
