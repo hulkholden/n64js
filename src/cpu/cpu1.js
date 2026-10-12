@@ -117,6 +117,11 @@ const floatTypeSNaN = 6;
 const floatTypeDenormal = 7;
 const numFloatTypes = 8;
 
+function f32IsNormal(bits) {
+  const exponent = bits & f32ExponentBits;
+  return exponent !== 0 && exponent !== f32ExponentBits;
+}
+
 function f32Classify(bits) {
   const exponent = bits & f32ExponentBits;
   const mantissa = bits & f32ManissaBits;
@@ -702,9 +707,7 @@ export class CPU1 {
     }
     const si = this.fsRegIdx32(s);
     const ti = this.ftRegIdx32(t);
-    const se = this.loadU32(si) & f32ExponentBits;
-    const te = this.loadU32(ti) & f32ExponentBits;
-    if (se == 0 || se == f32ExponentBits || te == 0 || te == f32ExponentBits) {
+    if (!f32IsNormal(this.loadU32(si)) || !f32IsNormal(this.loadU32(ti))) {
       this.f32BinaryOp(d, s, t, mulOpCases);
       return;
     }
@@ -713,8 +716,7 @@ export class CPU1 {
     // Round once to f32, retaining the exact product for the inexact check.
     const result = this.loadF32(si) * this.loadF32(ti);
     this.tempF32[0] = result;
-    const re = this.tempU32[0] & f32ExponentBits;
-    if (re == 0 || re == f32ExponentBits) {
+    if (!f32IsNormal(this.tempU32[0])) {
       this.f32BinaryOp(d, s, t, mulOpCases);
       return;
     }
