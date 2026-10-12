@@ -1,0 +1,114 @@
+{
+  "rom": "/Volumes/Data/Roms/Diddy Kong Racing (USA) (En,Fr) (Rev 1).z64",
+  "rominfo": {
+    "id": "0d4302e49dfcfcd2",
+    "name": "Diddy Kong Racing (v1.1)",
+    "cic": "6103",
+    "country": 69,
+    "tvType": 1,
+    "save": "Eeprom4k"
+  },
+  "runtime": "1.3.14",
+  "warmup": 120,
+  "frames": 600,
+  "startup": {
+    "compileMs": 31.055325000001737,
+    "compilations": 238,
+    "sourceBytes": 1173004,
+    "guards": 0,
+    "hits": 0,
+    "steps": 48244090,
+    "haltedSteps": 47426333,
+    "profile": {
+      "interpretedOps": 5085645,
+      "compiledOps": 43158439,
+      "fragmentRuns": 3188442,
+      "fragmentCompilations": 238,
+      "fragmentInvalidations": 7,
+      "fragmentRevalidations": 0,
+      "fragmentReuses": 0,
+      "speedHackAttempts": 174189,
+      "speedHackRSPActive": 172227,
+      "speedHackNonNopDelay": 0,
+      "speedHackActivations": 1962,
+      "speedHackSkippedCycles": 163495717,
+      "rspInstructions": 817757,
+      "rspTasks": 105
+    }
+  },
+  "measured": {
+    "compileMs": 82.74995800002569,
+    "compilations": 575,
+    "sourceBytes": 3437306,
+    "guards": 0,
+    "hits": 0,
+    "steps": 85660730,
+    "haltedSteps": 64482057
+  },
+  "profile": {
+    "interpretedOps": 14392600,
+    "compiledOps": 71268080,
+    "fragmentRuns": 5147274,
+    "fragmentCompilations": 575,
+    "fragmentInvalidations": 0,
+    "fragmentRevalidations": 0,
+    "fragmentReuses": 0,
+    "speedHackAttempts": 606983,
+    "speedHackRSPActive": 605652,
+    "speedHackNonNopDelay": 0,
+    "speedHackActivations": 1331,
+    "speedHackSkippedCycles": 851671420,
+    "rspInstructions": 21178673,
+    "rspTasks": 595
+  },
+  "hottest": [
+    {
+      "key": "0x8000005c-3",
+      "pc": "0x8000005c",
+      "runs": 1078685,
+      "sourceBytes": 3709
+    },
+    {
+      "key": "0x8006605c-21",
+      "pc": "0x8006605c",
+      "runs": 776670,
+      "sourceBytes": 567
+    },
+    {
+      "key": "0x800c7698-36",
+      "pc": "0x800c7698",
+      "runs": 201027,
+      "sourceBytes": 3265
+    },
+    {
+      "key": "0x800c75fc-33",
+      "pc": "0x800c75fc",
+      "runs": 194858,
+      "sourceBytes": 4005
+    },
+    {
+      "key": "0x8000014c-5",
+      "pc": "0x8000014c",
+      "runs": 184992,
+      "sourceBytes": 6790
+    },
+    {
+      "key": "0x80000118-6",
+      "pc": "0x80000118",
+      "runs": 180372,
+      "sourceBytes": 2616
+    },
+    {
+      "key": "0x800cddd8-60",
+      "pc": "0x800cddd8",
+      "runs": 143092,
+      "sourceBytes": 7329
+    },
+    {
+      "key": "0x800c6d44-30",
+      "pc": "0x800c6d44",
+      "runs": 134852,
+      "sourceBytes": 2650
+    }
+  ]
+}

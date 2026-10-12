@@ -65,6 +65,10 @@ export class FragmentContext {
     this.delayedPCUpdate = 0;
     this.gprFacts.reset();
     this.forwardedComparison = null;
+    this.haltedRSPPrefix = '';
+    this.haltedRSPPrefixEnd = 0;
+    this.haltedRSPPrefixOps = 0;
+    this.haltedRSPPrefixClosed = false;
   }
 
   set(fragment, pc, instruction, postPC, nextPC) {
@@ -78,6 +82,7 @@ export class FragmentContext {
     this.postPC = postPC;
     this.nextPC = nextPC;
     this.bailOut = false;
+    this.effects = conservativeMemoryEffects;
 
     this.needsDelayCheck = true;
     this.isTrivial = false;
@@ -267,6 +272,15 @@ const integerMemoryEffects = Object.freeze({
   mayStartRSP: true,
 });
 
+// These handlers perform only register/PC work. In particular, they cannot
+// restart the RSP, request interrupt service, or deliver an event.
+const registerEffects = Object.freeze({
+  mayThrow: false,
+  mayChangeNextPC: true,
+  maySetStuffToDo: false,
+  mayStartRSP: false,
+});
+
 // Unknown helpers (including COP2 usability exceptions) may redirect and return.
 const conservativeMemoryEffects = Object.freeze({
   ...integerMemoryEffects,
@@ -275,6 +289,7 @@ const conservativeMemoryEffects = Object.freeze({
 
 // Memory access does not adjust branchTarget.
 function generateMemoryAccessBoilerplate(fn, ctx, effects = conservativeMemoryEffects) {
+  ctx.effects = effects;
   // Capture entry knowledge before clearing needsDelayCheck below. A pending
   // delay target is dynamic even when the training trace happened to fall through.
   const needsPCGuard = ctx.needsDelayCheck || effects.mayChangeNextPC || ctx.postPC !== ctx.pc + 4;
@@ -309,6 +324,7 @@ function generateMemoryAccessBoilerplate(fn, ctx, effects = conservativeMemoryEf
 // Branch ops explicitly manipulate nextPC rather than branchTarget. They also guarantee that stuffToDo is not set.
 // might_adjust_next_pc is typically used by branch likely instructions.
 function generateBranchOpBoilerplate(fn, ctx, might_adjust_next_pc) {
+  ctx.effects = registerEffects;
   let code = '';
 
   // We only need to check for off-trace branches
@@ -347,6 +363,7 @@ function generateBranchOpBoilerplate(fn, ctx, might_adjust_next_pc) {
 // Don't manipulate nextPC (e.g. ERET, cop1 unusable, likely instructions)
 
 function generateTrivialOpBoilerplate(fn, ctx) {
+  ctx.effects = registerEffects;
   let code = '';
 
   // NB: trivial functions don't rely on pc being set up, so we perform the op before updating the pc.

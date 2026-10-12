@@ -1,0 +1,30 @@
+
+  return function fragment_0x70000720_2() {
+  
+  rsp.step();
+if (c.stuffToDo) { c.pc = 1879050016; return 0; }
+
+// NOP
+{
+  // NOP
+  if (c.delayPC !== null) { c.pc = c.delayPC; c.delayPC = null; } else { c.pc = 0x70000724; }
+  if (c.pc !== 0x7000071c) { return 1; }
+}
+
+// Keep going: ops 1, pc: 0x7000071c, entry+4: 0x70000724, stuff: 0
+rsp.step();
+if (c.stuffToDo) { c.pc = 1879050012; return 1; }
+
+// B         --> 7000071c
+{
+  c.fragmentOps = 1;
+  c.syncFragmentCycles(1);
+  c.speedHack();
+  c.delayPC = 0x7000071c;
+  c.pc = 0x70000720;
+  return 2;
+}
+
+return 2;
+
+}

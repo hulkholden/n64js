@@ -1,0 +1,114 @@
+{
+  "rom": "/Volumes/Data/Roms/GoldenEye 007 (USA).z64",
+  "rominfo": {
+    "id": "d150bcdca31afd09",
+    "name": "GoldenEye 007",
+    "cic": "6102",
+    "country": 69,
+    "tvType": 1,
+    "save": "Eeprom4k"
+  },
+  "runtime": "1.3.14",
+  "warmup": 120,
+  "frames": 600,
+  "startup": {
+    "compileMs": 29.42113900000512,
+    "compilations": 229,
+    "sourceBytes": 1104747,
+    "guards": 0,
+    "hits": 0,
+    "steps": 50160963,
+    "haltedSteps": 49568748,
+    "profile": {
+      "interpretedOps": 3815596,
+      "compiledOps": 46345358,
+      "fragmentRuns": 2804034,
+      "fragmentCompilations": 229,
+      "fragmentInvalidations": 505,
+      "fragmentRevalidations": 341,
+      "fragmentReuses": 341,
+      "speedHackAttempts": 124789,
+      "speedHackRSPActive": 124077,
+      "speedHackNonNopDelay": 0,
+      "speedHackActivations": 712,
+      "speedHackSkippedCycles": 166847396,
+      "rspInstructions": 592215,
+      "rspTasks": 49
+    }
+  },
+  "measured": {
+    "compileMs": 57.45446200001346,
+    "compilations": 478,
+    "sourceBytes": 2492504,
+    "guards": 0,
+    "hits": 0,
+    "steps": 78701215,
+    "haltedSteps": 41978676
+  },
+  "profile": {
+    "interpretedOps": 8090509,
+    "compiledOps": 70610524,
+    "fragmentRuns": 17488213,
+    "fragmentCompilations": 478,
+    "fragmentInvalidations": 231,
+    "fragmentRevalidations": 251,
+    "fragmentReuses": 251,
+    "speedHackAttempts": 14199237,
+    "speedHackRSPActive": 14197808,
+    "speedHackNonNopDelay": 0,
+    "speedHackActivations": 1429,
+    "speedHackSkippedCycles": 858630967,
+    "rspInstructions": 36722539,
+    "rspTasks": 807
+  },
+  "hottest": [
+    {
+      "key": "0x70000720-96",
+      "pc": "0x70000720",
+      "runs": 14317260,
+      "sourceBytes": 567
+    },
+    {
+      "key": "0x80000054-3",
+      "pc": "0x80000054",
+      "runs": 555436,
+      "sourceBytes": 6557
+    },
+    {
+      "key": "0x7000b2f8-167",
+      "pc": "0x7000b2f8",
+      "runs": 478549,
+      "sourceBytes": 3021
+    },
+    {
+      "key": "0x7000b2d0-166",
+      "pc": "0x7000b2d0",
+      "runs": 466625,
+      "sourceBytes": 3755
+    },
+    {
+      "key": "0x8000017c-5",
+      "pc": "0x8000017c",
+      "runs": 175454,
+      "sourceBytes": 3209
+    },
+    {
+      "key": "0x80000148-7",
+      "pc": "0x80000148",
+      "runs": 172514,
+      "sourceBytes": 2616
+    },
+    {
+      "key": "0x7f0c9640-99",
+      "pc": "0x7f0c9640",
+      "runs": 165059,
+      "sourceBytes": 2850
+    },
+    {
+      "key": "0x7000d330-46",
+      "pc": "0x7000d330",
+      "runs": 153455,
+      "sourceBytes": 3665
+    }
+  ]
+}

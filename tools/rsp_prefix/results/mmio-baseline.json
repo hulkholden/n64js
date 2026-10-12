@@ -1,0 +1,30 @@
+[
+  {
+    "mode": "interpreter",
+    "profiled": false,
+    "busy": 0,
+    "count": 12,
+    "dmaCycles": -1
+  },
+  {
+    "mode": "compiled",
+    "profiled": false,
+    "busy": 1,
+    "count": 12,
+    "dmaCycles": -1
+  },
+  {
+    "mode": "interpreter",
+    "profiled": true,
+    "busy": 0,
+    "count": 12,
+    "dmaCycles": -1
+  },
+  {
+    "mode": "compiled",
+    "profiled": true,
+    "busy": 1,
+    "count": 12,
+    "dmaCycles": -1
+  }
+]
