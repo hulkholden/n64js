@@ -14,6 +14,20 @@
 // the replacement; the delay is still charged only when that site executes.
 // These approximate missing timing costs, not a cache or pipeline timing model.
 export const compatibilityHacks = {
+  '59825e661dbd98d0': {
+    name: 'Pocket Monsters Stadium (Japan)',
+    enabled: true,
+    issue: 'https://github.com/hulkholden/n64js/issues/380',
+    // Startup blocks on a 256-byte PI DMA before the idle thread is ready.
+    // Our CPU exhausts the runnable threads before the DMA finishes,
+    // dispatches the thread-list sentinel, and loops in the exception handler.
+    // After the first osEPiRawStartDma submission, allow its 4,668-cycle DMA
+    // to finish. This compensates for missing CPU timing costs once per boot;
+    // subsequent DMA calls and the global PI timing model remain unchanged.
+    instructionDelays: [
+      { address: 0x800576cc, expected: 0x00001025, cycles: 5_000 }, // OR v0, zero, zero
+    ],
+  },
   '9bbfc5f3e2330f16': {
     name: 'Rayman 2 - The Great Escape (USA)',
     enabled: true,

@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { createHeadlessEmulator } from './headless/headless_env.js';
 import { PI_CART_ADDR_REG, PI_DRAM_ADDR_REG, PI_RD_LEN_REG, PI_WR_LEN_REG } from './devices/pi.js';
 import { OS_TV_NTSC } from './system_constants.js';
+import { romdb } from './romdb.js';
 
 function createEmulator(save = 'SRAM') {
   return createHeadlessEmulator({
@@ -11,6 +12,26 @@ function createEmulator(save = 'SRAM') {
 }
 
 describe('SRAM word accesses', () => {
+  test('Pocket Monsters Stadium preserves a save DMA larger than the FlashRAM buffer', async () => {
+    const { hardware, cpu0 } = await createEmulator(romdb['59825e661dbd98d0'].save);
+    expect(hardware.saveMem.length).toBe(32 * 1024);
+    const data = Uint8Array.from({ length: 592 }, (_, i) => (i * 37 + 0x51) & 0xff);
+    hardware.ram.u8.set(data, 0x1000);
+    hardware.pi_reg.set32(PI_DRAM_ADDR_REG, 0x1000);
+    hardware.pi_reg.set32(PI_CART_ADDR_REG, 0x08001000);
+    hardware.pi_reg.set32(PI_RD_LEN_REG, data.length - 1);
+    hardware.piRegDevice.copyFromRDRAM();
+    cpu0.eventQueue.incrementCount(0x1000);
+    expect(hardware.saveDirty).toBe(true);
+    expect(hardware.saveMem.u8.slice(0x1000, 0x1000 + data.length)).toEqual(data);
+
+    hardware.pi_reg.set32(PI_DRAM_ADDR_REG, 0x2000);
+    hardware.pi_reg.set32(PI_CART_ADDR_REG, 0x08001000);
+    hardware.pi_reg.set32(PI_WR_LEN_REG, data.length - 1);
+    hardware.piRegDevice.copyToRDRAM();
+    expect(hardware.ram.u8.slice(0x2000, 0x2000 + data.length)).toEqual(data);
+  });
+
   test('reads the first and last words without modifying save state', async () => {
     const { hardware } = await createEmulator();
     hardware.saveMem.set32(0, 0x89abcdef);

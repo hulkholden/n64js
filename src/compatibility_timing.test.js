@@ -2,6 +2,8 @@ import { afterEach, describe, expect, spyOn, test } from 'bun:test';
 import { Breakpoints } from './debug/breakpoints.js';
 import { compatibilityHacks } from './compatibility_hacks.js';
 import { controlCause, controlEPC, controlStatus } from './cpu/cpu0reg.js';
+import { MI_INTR_PI } from './devices/mi.js';
+import { PI_CART_ADDR_REG, PI_DRAM_ADDR_REG, PI_WR_LEN_REG, PI_STATUS_REG, PI_STATUS_CLR_INTR } from './devices/pi.js';
 import { createHeadlessEmulator } from './headless/headless_env.js';
 
 const romId = 'c3cdfd6dc801e74d';
@@ -141,6 +143,64 @@ describe('compatibility startup timing', () => {
     expect(cpu.getRegU32Lo(8)).toBe(4000);
     expect(cpu.pc).toBe(address);
     expect(hardware.fragmentCache.fragments.get(address)?.executionCount).toBeGreaterThan(0);
+  });
+});
+
+describe('Pocket Monsters Stadium startup DMA', () => {
+  const id = '59825e661dbd98d0';
+  const returnAddress = 0x800576cc;
+  const clearV0 = 0x00001025; // OR v0, zero, zero, after osEPiRawStartDma's submission.
+
+  async function startupFixture(enableCompatibilityHacks) {
+    const romBuffer = new ArrayBuffer(0x1000);
+    new DataView(romBuffer).setUint32(0, 0x80371240);
+    const emulator = await createHeadlessEmulator({
+      romBuffer,
+      rominfo: { id, cic: '6103', tvType: 1, save: 'SRAM' },
+    }, { enableCompatibilityHacks });
+    emulator.cpu0.setStatus(0); // The PI manager has interrupts masked here.
+    emulator.hardware.ram.set32(returnAddress - 0x80000000, clearV0);
+    return emulator;
+  }
+
+  function submitDMA({ cpu0, hardware }) {
+    const pi = hardware.piRegDevice;
+    pi.write32(0xa4600000 + PI_STATUS_REG, PI_STATUS_CLR_INTR);
+    pi.write32(0xa4600000 + PI_DRAM_ADDR_REG, 0x87b88);
+    pi.write32(0xa4600000 + PI_CART_ADDR_REG, 0x10000b70);
+    pi.write32(0xa4600000 + PI_WR_LEN_REG, 255);
+    cpu0.pc = returnAddress;
+    cpu0.setRegS32Extend(2, -1);
+  }
+
+  test('finishes the first DMA before returning, and leaves later submissions asynchronous', async () => {
+    const emulator = await startupFixture(true);
+    const { cpu0, hardware } = emulator;
+    submitDMA(emulator);
+    expect(cpu0.getCyclesUntilEvent('PI Interrupt')).toBe(4668);
+    cpu0.run(1);
+    expect(cpu0.pc).toBe(returnAddress + 4);
+    expect(cpu0.getRegU32Lo(2)).toBe(0);
+    expect(hardware.piRegDevice.busy()).toBe(false);
+    expect(hardware.miRegDevice.intrReg() & MI_INTR_PI).toBe(MI_INTR_PI);
+    expect(hardware.ram.getU32(returnAddress - 0x80000000)).toBe(clearV0);
+
+    submitDMA(emulator);
+    const count = cpu0.controlCountValue;
+    cpu0.run(1);
+    expect(cpu0.controlCountValue - count).toBe(1);
+    expect(hardware.piRegDevice.busy()).toBe(true);
+    expect(cpu0.getCyclesUntilEvent('PI Interrupt')).toBe(4667);
+    expect(hardware.miRegDevice.intrReg() & MI_INTR_PI).toBe(0);
+  });
+
+  test('reproduces the pending startup DMA with compatibility hacks disabled', async () => {
+    const emulator = await startupFixture(false);
+    submitDMA(emulator);
+    emulator.cpu0.run(2072); // Startup reaches its empty run queue this soon.
+    expect(emulator.hardware.piRegDevice.busy()).toBe(true);
+    expect(emulator.cpu0.getCyclesUntilEvent('PI Interrupt')).toBe(2596);
+    expect(emulator.hardware.miRegDevice.intrReg() & MI_INTR_PI).toBe(0);
   });
 });
 
