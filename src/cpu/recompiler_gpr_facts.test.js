@@ -100,6 +100,28 @@ function generated(words, ctx = new FragmentContext(), fragment = new Fragment(p
 }
 
 describe('GPR fact generated code', () => {
+  test('constant immediate chains emit literals and retain each register write', () => {
+    const code = generated([iop(decode.OP_LUI, 0, 1, 0x8000), iop(decode.OP_ORI, 1, 1, 0xffff),
+      iop(decode.OP_XORI, 1, 2, 0xffff), iop(decode.OP_ADDIU, 2, 2, -1), iop(decode.OP_ANDI, 2, 3, 0xffff)]);
+    expect(code).toContain('c.execLUI(1, 32768)');
+    expect(code).toContain('c.setRegS64LoHi(1, -2147418113, -1)');
+    expect(code).toContain('c.setRegS64LoHi(2, -2147483648, -1)');
+    expect(code).toContain('c.setRegS32Extend(2, 2147483647)');
+    expect(code).toContain('var masked_5 = 65535');
+    expect(code).not.toContain('getReg');
+  });
+
+  test('masked results forward only to adjacent zero tests, including aliases', () => {
+    const mask = iop(decode.OP_ANDI, 4, 4, 0x8000);
+    const branch = iop(decode.OP_BNE, 4, 0, 2);
+    const code = generated([mask, branch]);
+    expect(code).toContain('c.setRegU32Extend(4, masked_1)');
+    expect(code).toContain('if (masked_1)');
+    expect(generated([mask, 0, branch])).not.toContain('if (masked_1)');
+    expect(generated([mask, iop(decode.OP_BEQ, 4, 5, 2)])).not.toContain('if (!masked_1)');
+    expect(generated([iop(decode.OP_ANDI, 4, 0, 0xffff), iop(decode.OP_BNE, 0, 4, 2)])).not.toContain('masked_');
+  });
+
   test('Mario entry compares both full-width inputs and forwards the stored result', () => {
     const code = generated([special(decode.SPECIAL_SLT, 15, 4, 1), iop(decode.OP_BNEL, 1, 0, -2), iop(decode.OP_LW, 2, 15)]);
     expect(code).toContain('(c.gprS32[31] === c.gprS32[9] ? c.getRegU32Lo(15) < c.getRegU32Lo(4) : c.gprS32[31] < c.gprS32[9])');
@@ -148,6 +170,128 @@ describe('GPR fact generated code', () => {
     ctx.newFragment();
     expect(ctx.gprFacts.get(1).kind).toBe('unknown64');
     expect(ctx.gprFacts.get(0).value).toBe(0n);
+  });
+});
+
+describe('compiled immediate sequences', () => {
+  test('constant ADDIU wraps at both signed limits and discards carry', async () => {
+    for (const [high, low, immediate, expected] of [
+      [0x7fff, 0xffff, 1, -0x80000000n],
+      [0x8000, 0, -1, 0x7fffffffn],
+      [0xffff, 0xffff, 1, 0n],
+      [0, 0, -1, -1n],
+    ]) {
+      const f = await fixture([iop(decode.OP_LUI, 0, 1, high), iop(decode.OP_ORI, 1, 1, low), iop(decode.OP_ADDIU, 1, 1, immediate)]);
+      const fragment = f.train();
+      const result = f.compare(fragment);
+      expect(result.gpr[1]).toBe(BigInt.asUintN(64, expected));
+    }
+  });
+
+  test('constant chains preserve signs, wrapping, aliases and comparisons', async () => {
+    for (const high of [0, 1, 0x7fff, 0x8000, 0xffff]) {
+      for (const immediate of [0, 1, 0x7fff, 0x8000, 0xffff]) {
+        for (const destination of [1, 2]) {
+          const f = await fixture([iop(decode.OP_LUI, 0, 1, high), 0,
+            iop(decode.OP_ORI, 1, destination, immediate), iop(decode.OP_XORI, destination, destination, 0xffff),
+            iop(decode.OP_ADDIU, destination, destination, immediate), iop(decode.OP_ANDI, destination, 3, 0xffff),
+            special(decode.SPECIAL_SLT, destination, 4, 5), special(decode.SPECIAL_SLTU, destination, 4, 6),
+            iop(decode.OP_ORI, 0, 7, 0xffff), iop(decode.OP_XORI, 7, 0, 0x8000), iop(decode.OP_ADDIU, 0, 0, -1)]);
+          const fragment = f.train();
+          for (const profiled of [false, true]) {
+            f.compare(fragment, c => c.setRegU64(4, 0x100000000n), profiled);
+          }
+        }
+      }
+    }
+  });
+
+  test('overwritten constants and generic barriers use runtime values', async () => {
+    for (const barrier of [iop(decode.OP_LD, 20, 1), special(decode.SPECIAL_DADDU, 4, 5, 1),
+      iop(decode.OP_ADDI, 4, 1, 1)]) {
+      const f = await fixture([iop(decode.OP_LUI, 0, 1, 0x8000), iop(decode.OP_ORI, 1, 1, 0xffff), barrier,
+        iop(decode.OP_ORI, 1, 2, 0x8000), iop(decode.OP_XORI, 2, 3, 0xffff), iop(decode.OP_ADDIU, 3, 4, -1)]);
+      const fragment = f.train();
+      for (const value of [0n, -1n, 0x7fffffffn, 0x100000000n, 0x1234567887654321n]) {
+        f.compare(fragment, (c, h) => {
+          c.setRegU64(4, value); c.setRegU64(5, 1n); h.ram.set64(0x3000, value);
+        });
+      }
+    }
+  });
+
+  for (const branch of [decode.OP_BEQ, decode.OP_BNE, decode.OP_BEQL, decode.OP_BNEL]) {
+    for (const reversed of [false, true]) {
+      test(`ANDI with branch ${branch}, reversed=${reversed}: both outcomes, aliases and active RSP`, async () => {
+        for (const destination of [1, 4]) {
+          const f = await fixture([iop(decode.OP_ANDI, 4, destination, 0x8000),
+            iop(branch, reversed ? 0 : destination, reversed ? destination : 0, 2),
+            iop(decode.OP_SW, 20, destination), iop(decode.OP_ADDIU, 0, 8, 17), iop(decode.OP_ADDIU, 0, 9, 23)]);
+          const fragment = f.train(c => c.setRegU64(4, 0x8000n));
+          for (const value of [0n, 1n, 0x8000n, -1n, 0x100000000n, 0x1234567887658000n]) {
+            for (const profiled of [false, true]) {
+              f.compare(fragment, (c, h) => {
+                c.setRegU64(4, value);
+                for (let i = 0; i < cycles; i++) {
+                  h.rsp.imemDV.setUint32(i * 4, iop(decode.OP_ADDIU, 1, 1, 1), false);
+                }
+                h.rsp.halted = false;
+              }, profiled);
+            }
+          }
+        }
+      });
+    }
+  }
+
+  for (const profiled of [false, true]) {
+    for (const [name, words, completed, expected] of [
+      ['mask', [iop(decode.OP_ANDI, 4, 1, 0x8000), iop(decode.OP_BNE, 1, 0, 2)], 1, 0x8000n],
+      ['LUI', [iop(decode.OP_LUI, 0, 1, 0x8000), iop(decode.OP_ORI, 1, 1, 0xffff)], 1, -0x80000000n],
+      ['ORI', [iop(decode.OP_LUI, 0, 1, 0x8000), iop(decode.OP_ORI, 1, 1, 0xffff), iop(decode.OP_ADDIU, 1, 1, 1)], 2, -0x7fff0001n],
+    ]) {
+      test(`RSP interrupt observes completed ${name}, profiling=${profiled}`, async () => {
+        const f = await fixture(words);
+        const fragment = f.train();
+        const result = f.compare(fragment, (c, h) => {
+          c.setRegU64(4, -1n);
+          c.setControlU32(regs.controlStatus, 0x20000401);
+          c.statusRegisterChanged();
+          h.mi_reg.set32(MI_INTR_MASK_REG, MI_INTR_SP);
+          h.sp_reg.set32(SP_STATUS_REG, SP_STATUS_INTR_BREAK);
+          h.rsp.imemDV.setUint32(completed * 4, 0x0d, false);
+          h.rsp.halted = false;
+        }, profiled);
+        expect(result.gpr[1]).toBe(BigInt.asUintN(64, expected));
+        expect(BigInt.asUintN(32, result.control[regs.controlEPC])).toBe(BigInt(pc + completed * 4));
+        if (profiled) {
+          expect(result.profile.compiledOps).toBe(completed);
+        }
+      });
+    }
+
+    test(`masked branch preserves delay-slot exception, profiling=${profiled}`, async () => {
+      const f = await fixture([iop(decode.OP_ANDI, 4, 1, 0x8000), iop(decode.OP_BNE, 1, 0, 2), iop(decode.OP_LW, 20, 2)]);
+      const fragment = f.train(c => c.setRegU64(4, 0x8000n));
+      const result = f.compare(fragment, c => {
+        c.setRegU64(4, 0x8000n); c.setRegS32Extend(20, 0x80003001);
+      }, profiled);
+      expect(result.gpr[1]).toBe(0x8000n);
+      expect(Number(result.control[regs.controlCause]) >>> 0).toBe(0x80000010);
+      expect(BigInt.asUintN(32, result.control[regs.controlEPC])).toBe(BigInt(pc + 4));
+    });
+  }
+
+  test('an event between mask and branch falls back with the intermediate result', async () => {
+    const f = await fixture([iop(decode.OP_ANDI, 4, 1, 0x8000), iop(decode.OP_BNE, 1, 0, 2)]);
+    const fragment = f.train();
+    const result = f.compare(fragment, c => {
+      c.setRegU64(4, -1n);
+      c.addEvent('Stop after mask', 1, () => c.breakExecution());
+    }, false, false);
+    expect(result.gpr[1]).toBe(0x8000n);
+    expect(result.pc).toBe(pc + 4);
+    expect(result.count).toBe(1);
   });
 });
 

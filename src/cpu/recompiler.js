@@ -50,8 +50,8 @@ export class FragmentContext {
     this.delayedPCUpdate = 0; // Trivial ops can try to delay setting the pc so that back-to-back trivial ops can emit them entirely.
     this.dump = false; // Display this op when finished.
     this.gprFacts = new GPRFacts();
-    this.forwardedComparison = null;
-    this.pendingComparison = null;
+    this.forwardedZeroTest = null;
+    this.pendingZeroTest = null;
   }
 
   genAssert(test, msg) {
@@ -64,7 +64,7 @@ export class FragmentContext {
   newFragment() {
     this.delayedPCUpdate = 0;
     this.gprFacts.reset();
-    this.forwardedComparison = null;
+    this.forwardedZeroTest = null;
   }
 
   set(fragment, pc, instruction, postPC, nextPC) {
@@ -81,7 +81,7 @@ export class FragmentContext {
 
     this.needsDelayCheck = true;
     this.isTrivial = false;
-    this.pendingComparison = null;
+    this.pendingZeroTest = null;
 
     this.dump = false;
 
@@ -121,7 +121,7 @@ export function generateCodeForOp(ctx) {
 
   let fn_code = preflight + generateOp(ctx);
   ctx.gprFacts.update(ctx.instruction);
-  ctx.forwardedComparison = ctx.pendingComparison;
+  ctx.forwardedZeroTest = ctx.pendingZeroTest;
 
   if (ctx.dump) {
     console.log(fn_code);
@@ -455,7 +455,7 @@ function genLessThan(ctx, s, t, unsigned, immediate = null) {
 function generateComparison(ctx, d, s, t, unsigned, immediate = null) {
   const name = `compare_${ctx.fragment.opsCompiled}`;
   if (d !== 0) {
-    ctx.pendingComparison = { reg: d, name, index: ctx.fragment.opsCompiled };
+    ctx.pendingZeroTest = { reg: d, name, index: ctx.fragment.opsCompiled };
   }
   // var spans the per-instruction blocks, but is local to this invocation.
   // Materialize the architectural result before any intervening RSP step/exit.
@@ -465,7 +465,7 @@ function generateComparison(ctx, d, s, t, unsigned, immediate = null) {
 }
 
 function genEquality(ctx, s, t, equal) {
-  const forwarded = ctx.forwardedComparison;
+  const forwarded = ctx.forwardedZeroTest;
   if (forwarded && forwarded.index + 1 === ctx.fragment.opsCompiled &&
       ((s === forwarded.reg && t === 0) || (t === forwarded.reg && s === 0))) {
     return `${equal ? '!' : ''}${forwarded.name}`;
@@ -776,7 +776,11 @@ function generateDADDI(ctx) {
 }
 
 function generateADDIU(ctx) {
-  const impl = `c.execADDIU(${ctx.instr_rt()}, ${ctx.instr_rs()}, ${ctx.instr_imms()});`;
+  const t = ctx.instr_rt();
+  const fact = ctx.gprFacts.get(ctx.instr_rs());
+  const impl = t === 0 ? '' : fact.kind === 'constant64' ?
+    `c.setRegS32Extend(${t}, ${Number(BigInt.asIntN(32, fact.value + BigInt(ctx.instr_imms())))});` :
+    `c.execADDIU(${t}, ${ctx.instr_rs()}, ${ctx.instr_imms()});`;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
@@ -1182,8 +1186,17 @@ function generateSLTIU(ctx) {
 }
 
 function generateANDI(ctx) {
-  const impl = ctx.instr_rt() === 0 ? '' :
-    `c.setRegU32Extend(${ctx.instr_rt()}, c.getRegU32Lo(${ctx.instr_rs()}) & ${ctx.instr_imm()});`;
+  const t = ctx.instr_rt();
+  if (t === 0) {
+    return generateTrivialOpBoilerplate('', ctx);
+  }
+  const fact = ctx.gprFacts.get(ctx.instr_rs());
+  const value = fact.kind === 'constant64' ? `${Number(fact.value & BigInt(ctx.instr_imm()))}` :
+    `c.getRegU32Lo(${ctx.instr_rs()}) & ${ctx.instr_imm()}`;
+  const name = `masked_${ctx.fragment.opsCompiled}`;
+  ctx.pendingZeroTest = { reg: t, name, index: ctx.fragment.opsCompiled };
+  // Keep the architectural write: an RSP interrupt can precede the branch.
+  const impl = `var ${name} = ${value};\nc.setRegU32Extend(${t}, ${name});`;
   return generateTrivialOpBoilerplate(impl, ctx);
 }
 
@@ -1197,6 +1210,14 @@ function generateXORI(ctx) {
 
 function generateLogicalImmediate(ctx, op) {
   const s = ctx.instr_rs();
+  const fact = ctx.gprFacts.get(s);
+  if (fact.kind === 'constant64') {
+    const lo = Number(BigInt.asIntN(32, fact.value));
+    const hi = Number(BigInt.asIntN(32, fact.value >> 32n));
+    const value = op === '|' ? lo | ctx.instr_imm() : lo ^ ctx.instr_imm();
+    const impl = ctx.instr_rt() === 0 ? '' : `c.setRegS64LoHi(${ctx.instr_rt()}, ${value}, ${hi});`;
+    return generateTrivialOpBoilerplate(impl, ctx);
+  }
   // Arguments are evaluated before either destination word is written, including
   // when rt aliases rs. Logical immediates leave the source high word intact.
   const impl = ctx.instr_rt() === 0 ? '' :

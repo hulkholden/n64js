@@ -94,6 +94,10 @@ export class GPRFacts {
       case decode.OP_ANDI: // Always clears bits 16..63.
         return writeRT(s.kind === 'constant64' ? constant64(s.value & BigInt(decode.imm(instruction))) : zeroExtended32);
       case decode.OP_ORI: case decode.OP_XORI: // Leave bits 16..63 unchanged.
+        if (s.kind === 'constant64') {
+          const immediate = BigInt(decode.imm(instruction));
+          return writeRT(constant64(decode.simpleOp(instruction) === decode.OP_ORI ? s.value | immediate : s.value ^ immediate));
+        }
         return writeRT(isSigned32(s) ? signExtended32 : isUnsigned32(s) ? zeroExtended32 : unknown64);
       case decode.OP_LUI:
         return writeRT(constant64(BigInt(decode.imm(instruction) << 16)));
